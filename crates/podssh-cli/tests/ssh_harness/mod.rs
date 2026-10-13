@@ -36,8 +36,6 @@
 // Each test binary uses a part of it.
 #![allow(dead_code)]
 
-use std::collections::HashMap;
-use std::path::PathBuf;
 use std::sync::atomic::Ordering;
 use std::sync::Arc;
 use std::time::Duration;
@@ -47,6 +45,7 @@ use russh::{Channel, ChannelId, Sig};
 
 mod console;
 mod ends;
+mod far;
 mod forward;
 mod interrupt;
 pub mod podssh;
@@ -57,6 +56,7 @@ pub mod watch;
 mod x11;
 
 // Each test binary uses a part of it.
+use far::Far;
 #[allow(unused_imports)]
 pub use serve::{start, start_counting, start_podssh, start_with};
 use sudo::{elevation, Elevated};
@@ -66,56 +66,6 @@ use x11::x11_probe;
 pub const GREETING: &str = "hello over the iroh road\n";
 /// The size of each block that `source` sends.
 const BLOCK: usize = 32 * 1024;
-
-/// One connection's handler: the bytes that `sink` has read on each of its
-/// channels, and the channels of `echo` and of `hold`.
-#[derive(Default)]
-struct Far {
-    sinks: HashMap<ChannelId, u64>,
-    echoes: Vec<ChannelId>,
-    holds: Vec<ChannelId>,
-    quits: Vec<ChannelId>,
-    /// The channels of `spew` and `spew-mute`: their writers stop at the
-    /// client's end of input, and `spew` then gives the status 7.
-    spews: HashMap<ChannelId, (Arc<std::sync::atomic::AtomicBool>, bool)>,
-    /// The user `kick`: the server ends the connection after the login.
-    kick: bool,
-    /// The channels of `cat > /dev/null`: read to the end, say nothing.
-    drains: Vec<ChannelId>,
-    /// The user `bare-...`: a host with no `cat` and no `head`; and
-    /// `bare-early-...`, whose server ends their channels before its reply.
-    bare: bool,
-    early: bool,
-    /// The user `late-...`, and the channels of `cat` that have not echoed yet.
-    late: bool,
-    late_echoes: Vec<ChannelId>,
-    /// The users `su-...` and `sudo-nopass-...`, and the commands of sudo
-    /// and su that wait for their password.
-    su: bool,
-    nopass: bool,
-    elevated: HashMap<ChannelId, Elevated>,
-    /// The cookie of the client's `x11-req`, in hexadecimal.
-    x11_cookie: Option<String>,
-    /// The user `pty-...`: a pty is granted; its size, and the channels of
-    /// `watch` (T-132).
-    pty: bool,
-    pty_size: (u32, u32),
-    watches: Vec<ChannelId>,
-    /// Where `sftp-server` runs, and the stdin of each that runs (T-140).
-    sftp_root: Option<PathBuf>,
-    /// The user `evil-...`: each listing of its `sftp-server` names
-    /// `../escape` too (T-143).
-    evil: bool,
-    /// A server of `watch::start_watched` (T-297): what it counts, and the
-    /// bytes of SFTP input left before this connection's cut (`cut-N-...`).
-    watch: Option<Arc<watch::Watch>>,
-    cut: Option<u64>,
-    sftps: HashMap<ChannelId, tokio::process::ChildStdin>,
-    /// A server of `start_podssh`: what its podssh gets (T-167).
-    podssh: Option<Arc<podssh::Podssh>>,
-    /// The commands of `wait-signal` (T-293).
-    waits: HashMap<ChannelId, interrupt::Wait>,
-}
 
 impl server::Handler for Far {
     type Error = russh::Error;

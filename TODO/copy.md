@@ -2165,16 +2165,16 @@ program writes on, such as a log, need not end at all.
 ## Premise
 
 Read at `a22e3ec`: the copy up over SFTP reads the source until a read
-gives no byte (`crates/podssh-cli/src/cp/bysftp.rs:157-183`), and each read
+gives no byte (`crates/podssh-cli/src/cp/bysftp.rs:160-186`), and each read
 waits for the server's answer to the write before it. The check's writer
 adds a byte to the source in a loop, so a read gives no byte only when the
 writer adds none for a whole round trip: when the runner does not schedule
 it. The check after the read gives 66 to a source whose size moved
-(`crates/podssh-cli/src/cp/bysftp.rs:260-263`), but only once the read
+(`crates/podssh-cli/src/cp/bysftp.rs:263-266`), but only once the read
 ends. The copy up by exec reads the same way
 (`crates/podssh-cli/src/cp/byexec/files.rs:119-144`); the copies down read
 the far file until it ends, over SFTP
-(`crates/podssh-cli/src/cp/bysftp.rs:405-444`) and with `cat`
+(`crates/podssh-cli/src/cp/bysftp.rs:408-447`) and with `cat`
 (`crates/podssh-cli/src/cp/byexec.rs:332-369`); and so do the far digests
 that read the file again (`crates/podssh-cli/src/cp/digest.rs:78-109`,
 `crates/podssh-cli/src/cp/byexec.rs:303-330`).
@@ -2210,7 +2210,7 @@ bound fails the native test.
 
 2026-10-10. Each road of the copy reads what the source held at the start,
 and stops with 66, "the file changed while it was read", at the first byte
-past it: up over SFTP (`crates/podssh-cli/src/cp/bysftp.rs:157-183`) and by
+past it: up over SFTP (`crates/podssh-cli/src/cp/bysftp.rs:160-186`) and by
 exec (`crates/podssh-cli/src/cp/byexec/files.rs:119-144`); down by exec
 past the size that `wc -c` gave; down over SFTP after a second look at the
 far size, so that a file of `/proc` goes on as before. The far digest by
@@ -2505,6 +2505,18 @@ files into one temporary name; a digest check fails.
   5); and against OpenSSH's `sftp-server` on Linux
   (`PODSSH_TEST_SFTP_SERVER=/usr/lib/ssh/sftp-server`), `cp_parallel` 8,
   `copy_pipeline` 6, `node_copy` 3 and `cp_tree` 3 passed.
+- Two repairs after the merge (2026-10-13). The test server's
+  `crates/podssh-cli/tests/ssh_harness/mod.rs` had 507 lines with this
+  entry's hooks, and the commit of the entry went out so: the state of a
+  connection, `Far`, is in `crates/podssh-cli/tests/ssh_harness/far.rs`
+  now. And a run of the whole suite failed
+  `small_files_go_on_after_a_break_over_the_next_connection` once: a
+  temporary file of the first connection stayed in the far directory, as
+  the side file named it only once the server had made it, and the cut
+  came between the two. The side file names it first now
+  (`crates/podssh-cli/src/cp/bysftp.rs`), so the next attempt goes on in
+  it or removes it; the test passed 20 runs in a row, and
+  `cargo test -p podssh-cli` 788.
 - Waits for T-251: the rate of many small files through the relay by
   T-157's method. The Prove names no interop harness.
 # T-298: `sftp`'s `-r`: `get -r` and `put -r` of a directory

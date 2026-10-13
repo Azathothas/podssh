@@ -118,9 +118,12 @@ pub async fn up(
             let temp = format!("{dir}{}", transfer::temp_name(leaf));
             let attrs = FileAttributes { permissions: Some(0o600), ..FileAttributes::default() };
             let flags = OpenFlags::CREATE | OpenFlags::EXCLUDE | OpenFlags::WRITE;
+            // The side file names the temporary file before the server makes
+            // it: a connection lost between the two leaves no file that no
+            // record names, and the next attempt goes on in it or removes it.
+            progress.begin(&target, &temp);
             let file =
                 sftp.open_file(&temp, flags, attrs).await.map_err(|e| transfer::from_sftp(e, Side::Destination))?;
-            progress.begin(&target, &temp);
             log.verbose(&format!("{source}: writing {temp}"));
             (temp, file)
         }
