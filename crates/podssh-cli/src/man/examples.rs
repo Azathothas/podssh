@@ -29,6 +29,10 @@ fn examples() -> Vec<(&'static str, String)> {
         ("log in to a host, through the relay", "podssh ssh user@example.org".into()),
         ("run one command; podssh exits with its exit status", "podssh ssh user@example.org 'uname -a'".into()),
         (
+            "keys for a menu after the login, then the session; with no match in 30 s, exit 255",
+            r"podssh ssh -tt --expect 'Choice: ' --send '2\r' user@example.org".into(),
+        ),
+        (
             "the same command on three hosts, two at once: each line starts with its host; the exit is the worst",
             "podssh each --parallel 2 web1.example.org,web2.example.org,user@db.example.org -- uptime".into(),
         ),

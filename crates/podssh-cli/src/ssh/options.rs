@@ -51,6 +51,9 @@ pub struct Settings {
     pub compression: Option<bool>,
     pub log_level: Option<LogLevel>,
     pub remote_command: Option<String>,
+    /// `LocalCommand` as given, and `PermitLocalCommand` (T-191).
+    pub local_command: Option<String>,
+    pub permit_local_command: Option<bool>,
     pub proxy_jump: Option<String>,
     /// 4 or 6 from `AddressFamily`; `Some(0)` for `any`.
     pub address_family: Option<u8>,
@@ -183,6 +186,10 @@ impl Settings {
             "compression" => set(&mut self.compression, yes_no(value).ok_or_else(|| bad("expected yes or no"))?),
             "loglevel" => set(&mut self.log_level, LogLevel::parse(value).ok_or_else(|| bad("not a log level"))?),
             "remotecommand" => set(&mut self.remote_command, value.to_string()),
+            "localcommand" => set(&mut self.local_command, value.to_string()),
+            "permitlocalcommand" => {
+                set(&mut self.permit_local_command, yes_no(value).ok_or_else(|| bad("expected yes or no"))?)
+            }
             "proxyjump" => set(&mut self.proxy_jump, value.to_string()),
             "addressfamily" => set(
                 &mut self.address_family,
@@ -342,6 +349,8 @@ impl Settings {
             compression: self.compression.or(file.compression),
             log_level: self.log_level.or(file.log_level),
             remote_command: self.remote_command.or(file.remote_command),
+            local_command: self.local_command.or(file.local_command),
+            permit_local_command: self.permit_local_command.or(file.permit_local_command),
             proxy_jump: self.proxy_jump.or(file.proxy_jump),
             address_family: self.address_family.or(file.address_family),
             stdin_null: self.stdin_null.or(file.stdin_null),
@@ -448,52 +457,5 @@ fn distance(a: &str, b: &str) -> usize {
 }
 
 #[cfg(test)]
-mod tests {
-    use super::*;
-
-    #[test]
-    fn three_spellings_and_first_value_wins() {
-        let mut s = Settings::default();
-        s.apply("StrictHostKeyChecking=accept-new").unwrap();
-        s.apply("StrictHostKeyChecking yes").unwrap();
-        assert_eq!(s.strict, Some(StrictHostKeyChecking::AcceptNew));
-        s.apply("Port = 2222").unwrap();
-        assert_eq!(s.port, Some(2222));
-        s.apply("identityfile=a").unwrap();
-        s.apply("IdentityFile b").unwrap();
-        assert_eq!(s.identity_files, vec!["a", "b"]);
-    }
-
-    #[test]
-    fn a_typo_is_an_error_that_names_the_real_option() {
-        let err = Settings::default().apply("StrictHostKeyChekcing=no").unwrap_err();
-        assert!(err.contains("unknown option"), "{err}");
-        assert!(err.contains("StrictHostKeyChecking"), "{err}");
-        assert!(Settings::default().apply("NoSuchThing=1").unwrap_err().contains("unknown option"));
-    }
-
-    #[test]
-    fn bad_values_and_refused_keywords_are_errors() {
-        assert!(Settings::default().apply("StrictHostKeyChecking=maybe").is_err());
-        assert!(Settings::default().apply("ConnectTimeout=30x").is_err());
-        assert!(Settings::default().apply("LocalForward=8080").unwrap_err().contains("LocalForward"));
-        Settings::default().apply("LocalForward=8080 db:5432").unwrap();
-        assert!(Settings::default().apply("ProxyCommand=nc %h %p").unwrap_err().contains("podssh proxy"));
-        Settings::default().apply("ProxyCommand=none").unwrap();
-    }
-
-    #[test]
-    fn ignored_keywords_are_accepted_and_remembered() {
-        let mut s = Settings::default();
-        s.apply("UpdateHostKeys=yes").unwrap();
-        s.apply("HashKnownHosts=yes").unwrap();
-        assert_eq!(s.ignored, vec!["UpdateHostKeys", "HashKnownHosts"]);
-    }
-
-    #[test]
-    fn set_env_takes_several_pairs() {
-        let mut s = Settings::default();
-        s.apply("SetEnv=A=1 B=two").unwrap();
-        assert_eq!(s.set_env, vec![("A".into(), "1".into()), ("B".into(), "two".into())]);
-    }
-}
+#[path = "options_tests.rs"]
+mod tests;

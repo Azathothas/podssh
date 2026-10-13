@@ -15,12 +15,16 @@ pub mod config;
 pub mod control;
 pub mod dump;
 mod elevate;
+// `--expect` and `--send` (T-191).
+pub mod expect;
 pub mod forward;
 mod hop;
 pub mod iroh;
 mod jump;
 pub mod keywords;
 mod local_bind;
+// `LocalCommand` and `PermitLocalCommand` (T-191).
+pub mod local_command;
 pub mod local_spec;
 mod login;
 pub mod node;
@@ -137,6 +141,10 @@ fn run(args: &SshArgs, tty: Tty, err: &mut dyn Write) -> i32 {
             let _ = writeln!(out, "{line}");
         }
         return 0;
+    }
+    // LocalCommand's shell, before anything connects (T-191).
+    if let Err(refusal) = local_command::shell(&mut resolved.options) {
+        return refusal.report("ssh", err);
     }
     // The destination of the session log; an -O request is no session.
     if resolved.control.command.is_none() {

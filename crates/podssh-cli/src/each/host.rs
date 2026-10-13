@@ -61,6 +61,10 @@ pub(crate) fn plan(label: &str, args: &SshArgs, env: &Env) -> Result<Plan, Refus
         resolved.notes.push(note.to_string());
     }
     resolved.options.remote_forwards.clear();
+    // A LocalCommand's output would come with no host's label (T-191).
+    if resolved.options.local_command.take().is_some() {
+        resolved.notes.push("podssh each runs no LocalCommand: the one of ssh_config is not used".to_string());
+    }
     let log = Arc::new(Log::new(resolved.options.log_level).with_prefix(format!("{label}: ")));
     Ok(Plan { label: label.to_string(), resolved, log, batch_mode })
 }

@@ -58,6 +58,8 @@ pub(super) struct Far {
     pub(super) podssh: Option<Arc<super::podssh::Podssh>>,
     /// The user `containers-...`: a host with docker and kubectl (T-190).
     pub(super) containers: Option<String>,
+    /// The channels of `prompt`, each with the keys of its line (T-191).
+    pub(super) prompts: HashMap<ChannelId, Vec<u8>>,
     /// The commands of `wait-signal` (T-293).
     pub(super) waits: HashMap<ChannelId, super::interrupt::Wait>,
 }

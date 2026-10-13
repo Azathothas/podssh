@@ -293,6 +293,7 @@ gatewayports no
 identitiesonly no
 kbdinteractiveauthentication yes
 passwordauthentication yes
+permitlocalcommand no
 pubkeyauthentication true
 requesttty auto
 sessiontype default

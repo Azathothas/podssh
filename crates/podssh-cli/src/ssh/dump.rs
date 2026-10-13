@@ -44,6 +44,10 @@ pub struct Shown {
     pub clear_all_forwardings: bool,
     /// `-P` or `Tag` (T-045).
     pub tag: Option<String>,
+    /// `LocalCommand` as given, which OpenSSH expands only as it runs it,
+    /// and `PermitLocalCommand` (T-191).
+    pub local_command: Option<String>,
+    pub permit_local_command: bool,
 }
 
 /// The lines of `ssh -G`.
@@ -65,6 +69,7 @@ pub fn lines(resolved: &Resolved) -> Vec<String> {
         format!("identitiesonly {}", yes(o.identities_only)),
         format!("kbdinteractiveauthentication {}", yes(s.kbd_interactive)),
         format!("passwordauthentication {}", yes(s.password)),
+        format!("permitlocalcommand {}", yes(s.permit_local_command)),
         format!("pubkeyauthentication {}", s.pubkey),
         format!("requesttty {}", request_tty(o.request_tty)),
         format!("sessiontype {}", session_type(&o.request)),
@@ -83,6 +88,9 @@ pub fn lines(resolved: &Resolved) -> Vec<String> {
     }
     if let Some(agent) = &s.identity_agent {
         out.push(format!("identityagent {agent}"));
+    }
+    if let Some(command) = &s.local_command {
+        out.push(format!("localcommand {command}"));
     }
     if let Some(command) = &s.remote_command {
         out.push(format!("remotecommand {command}"));

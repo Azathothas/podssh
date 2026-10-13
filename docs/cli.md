@@ -287,6 +287,38 @@ scripts. The facts about OpenSSH on this page were measured with OpenSSH
   character cut between two reads is written whole. `-N`, `-W` and
   `--persist` cannot go with it (64), and such a run makes a connection of
   its own, with no `ControlPath`.
+- **`--expect TEXT --send KEYS` are rules of a session with a pty**
+  (T-191), for a host that wants keys after the login: a menu, a banner to
+  confirm, a second shell. Each rule waits for TEXT, a literal text as the
+  terminal shows it, in the output that came after the match of the rule
+  before it (64 KiB at most), then sends KEYS, where `\r`, `\n`, `\t`, `\\`
+  and `\xNN` are read; the pairs come in order, each `--expect` with its
+  `--send` after it (64 else). Until the last rule sent its keys, podssh
+  holds its own input, so that no key typed here comes between them. Each
+  rule waits `--expect-timeout` (30 s; a time as `--timeout` takes it);
+  when it sees no match, the session ends with 255, and the message names
+  the rule and its text. A session with no pty (no `-t` with no terminal
+  here, or a server that grants none) runs nothing and ends with 255; `-T`,
+  `-N`, `-W`, `-s`, `--sudo`, `--su` and `--persist` cannot go with the
+  rules (64), and such a run makes a connection of its own, with no
+  `ControlPath`. Each process of this host can read the command line, so
+  KEYS are no place for a password, which comes through `SSH_ASKPASS`.
+  Tasks before and after a connection are the shell's: `cmd && podssh ssh
+  host; cmd`. podssh adds no `--before` or `--after`.
+- **`LocalCommand` runs here after the login** (T-191), only with
+  `PermitLocalCommand yes`, as OpenSSH runs it: after the login and before
+  the session, with `SHELL -c COMMAND`, else `/bin/sh -c COMMAND` when it is
+  there, else 78 before anything connects. Its `%` tokens are those of
+  `RemoteCommand`, and `%T` is `NONE`, as podssh opens no tunnel; `-G`
+  prints it as given, as OpenSSH expands it only as it runs it. podssh
+  waits for its end; its exit status is said with `-v` and changes nothing,
+  as in OpenSSH. Its input is none, as the session reads stdin next; with
+  `-W`, its stdout goes to stderr, as stdout carries the stream. It runs
+  once in a run: a try after a drop of the relay (T-025) does not run it
+  again, and `--persist` runs it after its first login alone. Only `podssh
+  ssh` runs it: `each`, `containers`, `cp` and the other commands that log
+  in run none, as OpenSSH's `scp` and `sftp` pass `PermitLocalCommand=no`
+  to their `ssh`; a client of a control master runs none, as OpenSSH's.
 - **`~#` lists the forwards of the session** (T-041), in a session with a
   pty, as OpenSSH's `~#` lists its connections: for each `-L`, `-D`, `-R`
   and `-W`, as it was written, the connections it carried, those open and

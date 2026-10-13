@@ -67,20 +67,34 @@ impl Tokens {
     /// made the home directory, as OpenSSH reads a file name. `setting` names
     /// the option in a refusal, as `-i ` or `-o IdentityFile=`.
     pub fn expand(&self, setting: &str, path: &str) -> Result<PathBuf, String> {
-        Ok(tilde(&self.replace(setting, path, &[], true)?, self.home.as_deref()))
+        Ok(tilde(&self.replace(setting, path, &[], &[], true)?, self.home.as_deref()))
     }
 
     /// `value` with each token replaced, and no `~`: `RemoteCommand`, or
     /// `User`, which takes neither `%r`, the user itself, nor `%C`, made of
     /// it (`USER_REFUSES`). A token in `refused` is refused by name.
     pub fn text(&self, setting: &str, value: &str, refused: &[char]) -> Result<String, String> {
-        self.replace(setting, value, refused, false)
+        self.replace(setting, value, refused, &[], false)
     }
 
-    /// The tokens, and with `variables` each `${NAME}` too, in one pass as
-    /// OpenSSH makes it: a variable's value takes no token. A variable that
-    /// is not set is refused, as OpenSSH refuses it.
-    fn replace(&self, setting: &str, value: &str, refused: &[char], variables: bool) -> Result<String, String> {
+    /// `LocalCommand` (T-191): the tokens of `RemoteCommand`, and `%T`, the
+    /// tunnel device, which is `NONE`, as podssh opens no tunnel.
+    pub fn local_command(&self, value: &str) -> Result<String, String> {
+        self.replace("LocalCommand ", value, &[], &[('T', "NONE")], false)
+    }
+
+    /// The tokens, the `extra` tokens of one keyword, and with `variables`
+    /// each `${NAME}` too, in one pass as OpenSSH makes it: a variable's
+    /// value takes no token. A variable that is not set is refused, as
+    /// OpenSSH refuses it.
+    fn replace(
+        &self,
+        setting: &str,
+        value: &str,
+        refused: &[char],
+        extra: &[(char, &str)],
+        variables: bool,
+    ) -> Result<String, String> {
         let refuse = |why: String| format!("{setting}{value}: {why}");
         let missing = |token: &str, what: &str| refuse(format!("{token} needs {what}"));
         let mut out = String::new();
@@ -100,6 +114,10 @@ impl Tokens {
             let Some(token) = chars.next() else {
                 return Err(refuse("a % at the end; write %% for a %".into()));
             };
+            if let Some((_, text)) = extra.iter().find(|(t, _)| *t == token) {
+                out.push_str(text);
+                continue;
+            }
             if refused.contains(&token) {
                 return Err(refuse(format!("%{token} is not a token of this keyword, as in OpenSSH")));
             }

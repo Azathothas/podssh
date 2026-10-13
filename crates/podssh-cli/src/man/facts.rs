@@ -194,6 +194,11 @@ pub const VARIABLES: &[(&[&str], &str)] = &[
     (&["COMPUTERNAME"], "On Windows, the host name in the default comment of podssh keygen."),
     (&["ProgramData"], "On Windows, the directory of the system known_hosts file."),
     (&["PAGER"], "The pager of podssh man on a terminal. Empty, or cat, writes the manual with no pager."),
+    (
+        &["SHELL"],
+        "The shell of LocalCommand with PermitLocalCommand=yes: SHELL -c COMMAND; empty or not set, /bin/sh \
+      when it is there, else podssh ssh exits 78.",
+    ),
     (&["LESS"], "Options for less. podssh man sets FRX when it starts less and LESS is not set."),
     (
         &["VISUAL", "EDITOR"],

@@ -61,15 +61,15 @@ repository and CI).
 
 ## Counts
 
-**304 entries: 32 open, 0 partial, 25 blocked, 247 done.**
+**304 entries: 31 open, 0 partial, 25 blocked, 248 done.**
 
 | Priority | open | partial | blocked | done | total |
 | --- | --- | --- | --- | --- | --- |
 | P0 | 0 | 0 | 0 | 1 | 1 |
 | P1 | 2 | 0 | 0 | 22 | 24 |
 | P2 | 4 | 0 | 18 | 136 | 158 |
-| P3 | 26 | 0 | 7 | 88 | 121 |
-| **All** | 32 | 0 | 25 | 247 | 304 |
+| P3 | 25 | 0 | 7 | 89 | 121 |
+| **All** | 31 | 0 | 25 | 248 | 304 |
 
 ## Entries
 
@@ -264,7 +264,7 @@ repository and CI).
 | [T-188](multi.md) | P3 | S | backlog | feature | done | A host picker when `podssh ssh` gets no destination |
 | [T-189](multi.md) | P3 | M | backlog | feature | done | The health of the far host over the session |
 | [T-190](multi.md) | P3 | M | backlog | feature | done | Containers and pods as destinations |
-| [T-191](multi.md) | P3 | M | backlog | feature | open | Expect rules, and tasks before and after a connection |
+| [T-191](multi.md) | P3 | M | backlog | feature | done | Expect rules, and tasks before and after a connection |
 | [T-192](multi.md) | P3 | S | backlog | feature | open | Copy, then run: `podssh run` |
 | [T-193](multi.md) | P3 | M | backlog | feature | open | Jobs on the far host: start, list, stop |
 | [T-195](multi.md) | P3 | S | backlog | feature | done | Hand an error report to a program that the user names, for triage by an AI or a script |

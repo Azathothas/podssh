@@ -64,7 +64,10 @@ rc=$?
 # shellcheck source=scripts/interop-health.sh
 . "$HERE/interop-health.sh"
 
-# podssh containers (T-190) runs after the hosts of each, from here:
+# podssh containers (T-190), and LocalCommand and the expect rules of
+# podssh ssh (T-191), run after the hosts of each, from here:
 # scripts/interop.sh is at its 500 lines.
 # shellcheck source=scripts/interop-containers.sh
 . "$HERE/interop-containers.sh"
+# shellcheck source=scripts/interop-expect.sh
+. "$HERE/interop-expect.sh"

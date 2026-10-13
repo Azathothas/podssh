@@ -92,6 +92,13 @@ pub async fn attach(
             log.info("the server did not grant a pseudo-terminal; continuing without one");
         }
     }
+    // `--expect` (T-191): its rules read what a pty shows, before the request
+    // goes out, so that a session with none runs nothing.
+    if opts.expect.is_some() && !pty {
+        return Err("--expect needs a session with a pseudo-terminal, and this one has none; -tt asks for one \
+                    when this side has no terminal"
+            .into());
+    }
 
     // Before the shell or the command, as OpenSSH asks (T-036, T-037).
     if opts.forward_agent != Agent::Off {
@@ -171,6 +178,8 @@ pub async fn attach(
     // no terminal, nothing is ever received.
     let zmodem = crate::zmodem::Zmodem::for_session(raw.is_some() && terminal::stdout_is_terminal());
     let detaching = crate::keep::Detaching::new(detach);
+    // The first rule's time starts with the session.
+    let expect = opts.expect.as_ref().map(crate::expect::Expect::new);
     let through = io::Through {
         elevated,
         zmodem,
@@ -178,6 +187,7 @@ pub async fn attach(
         detaching,
         sink: opts.output.clone(),
         command_line: opts.command_line.clone(),
+        expect,
     };
     // With no remote pty, Ctrl-C sends `signal INT` to a command or a shell
     // (T-293); a subsystem gets none, as sshd refuses it for one.

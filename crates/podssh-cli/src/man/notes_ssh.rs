@@ -112,6 +112,20 @@ pub const SSH: &[&str] = &[
     "--record FILE keeps what the session showed, with its timing, as asciicast v2, for podssh play: never \
      what was typed, and never the command line. The file is closed to others and never written over (exit \
      255); the output can hold a secret that a program printed.",
+    "--expect TEXT --send KEYS, given once or more, in this order, are rules of a session with a pty (-t on \
+     a terminal, -tt with none): each rule waits for TEXT in the output, as it is written, then sends KEYS, \
+     where \\r, \\n, \\t, \\\\ and \\xNN are read. The next rule reads only what came after the match, and \
+     the last 64 KiB at most. Until the last rule sent its keys, podssh holds its own input. A rule waits \
+     the time of --expect-timeout (30 s); when it sees no match, the session ends with 255 and the message \
+     names the rule. Each process of this host can read the command line: a password comes through \
+     SSH_ASKPASS, never in KEYS. -T, -N, -W, -s, --sudo, --su and --persist cannot go with the rules (64), \
+     and a session with no pty runs nothing (255).",
+    "LocalCommand runs a command here after the login and before the session, only with \
+     PermitLocalCommand=yes, as OpenSSH runs it: SHELL -c COMMAND, else /bin/sh -c COMMAND, else exit 78 \
+     before anything connects. It takes the % tokens, and %T, which is NONE. podssh waits for its end, and \
+     its exit status changes nothing; its input is none, and with -W its output goes to stderr. It runs \
+     once, after the first login of --persist; podssh each, podssh containers, podssh cp and the other \
+     commands run none, as OpenSSH's scp runs none.",
     "--persist runs the shell in tmux on the server, as tmux new-session -A -s NAME with a pty (NAME is \
      podssh, or the one of --persist-name). podssh looks for tmux after the login and refuses without \
      it (exit 255): a new shell after a lost link would look like the old one. When the link is lost \

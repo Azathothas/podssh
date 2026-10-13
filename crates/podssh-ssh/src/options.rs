@@ -300,6 +300,11 @@ pub struct Options {
     /// The login that worked, for each later connection of the run (`cp`,
     /// T-137): no second question for a passphrase or a password.
     pub remembered: Option<crate::remember::Remembered>,
+    /// `LocalCommand` with `PermitLocalCommand yes` (T-191): it runs here
+    /// after the login and before the request.
+    pub local_command: Option<crate::local_command::LocalCommand>,
+    /// `--expect` and `--send` (T-191): the rules of a session with a pty.
+    pub expect: Option<crate::expect::Rules>,
 }
 
 /// How a forward of `-R` that the server refused is asked again after a
@@ -398,6 +403,8 @@ impl Options {
             host_key_pin: None,
             host_key_fingerprints: Vec::new(),
             remembered: None,
+            local_command: None,
+            expect: None,
         }
     }
 }

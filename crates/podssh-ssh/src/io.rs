@@ -13,6 +13,7 @@ use tokio::io::AsyncWriteExt;
 
 use crate::elevate::Elevated;
 use crate::escape::{Command, Escapes};
+use crate::expect::Expect;
 use crate::handler::Client;
 use crate::log::Log;
 use crate::record::Recorder;
@@ -89,7 +90,7 @@ struct Out {
 /// What a session's output passes through on its way out: the filter of an
 /// elevated command (T-032), ZMODEM (T-148), then the recording (T-033).
 /// A detach that waits for the far end's answer reads the session's
-/// messages too (T-158).
+/// messages too (T-158), and the expect rules read the output (T-191).
 #[derive(Default)]
 pub struct Through {
     pub elevated: Option<Elevated>,
@@ -100,6 +101,7 @@ pub struct Through {
     pub sink: Option<Sink>,
     /// What `~C` asks of the caller, when the session offers it (T-291).
     pub command_line: Option<crate::escape_command::Commands>,
+    pub expect: Option<Expect>,
 }
 
 impl Through {
@@ -108,6 +110,10 @@ impl Through {
             Some(e) => e.feed(data, stderr),
             None => data.to_vec(),
         };
+        // The expect rules wait for what the terminal shows.
+        if let Some(x) = self.expect.as_mut() {
+            x.feed(&data);
+        }
         // A transfer takes its bytes off stdout, and adds podssh's words.
         let data = match self.zmodem.as_mut().filter(|_| !stderr) {
             Some(z) => z.output(&data, std::time::Instant::now()),
@@ -146,8 +152,9 @@ pub async fn pump(
     let mut out = Out { consoles, sink, ..Out::default() };
     // False once this session's input has ended, or its channel takes no more.
     let mut reading = input.open();
-    // An elevated command's input waits for it to start (T-032).
-    let mut held = through.elevated.is_some();
+    // An elevated command's input waits for it to start (T-032); the
+    // session's own input waits for the last expect rule (T-191).
+    let mut held = through.elevated.is_some() || through.expect.is_some();
     for msg in early {
         if let Some(end) = handle_msg(msg, &mut status, &mut out, &mut through, log).await {
             return end;
@@ -164,6 +171,7 @@ pub async fn pump(
     // The forwards of `~C` -L and -D, served while the session lasts (T-291).
     let mut added = crate::escape_run::Added::default();
     loop {
+        expected(&mut through, &writer, &mut held, !reading).await;
         if let Err(end) = zmodem_out(&writer, &mut reader, &mut status, &mut out, &mut through, log).await {
             return end;
         }
@@ -219,7 +227,11 @@ pub async fn pump(
                 }
                 None => {
                     reading = false;
-                    let _ = writer.eof().await;
+                    if through.expect.is_some() {
+                        let _ = writer.data(&[EOF_KEY][..]).await;
+                    } else {
+                        let _ = writer.eof().await;
+                    }
                 }
             },
             msg = reader.wait() => match msg {
@@ -247,6 +259,10 @@ pub async fn pump(
                     ));
                 }
                 return end_with(status);
+            }
+            missed = expecting(through.expect.as_ref()) => {
+                log.error(&missed);
+                return End::NoStatus;
             }
             expired = elevating(&mut through.elevated, &writer, log) => if expired {
                 log.error(&format!(
@@ -417,6 +433,37 @@ async fn write_out(sink: Option<&Sink>, data: &[u8], to_stderr: bool) -> std::io
 async fn elevating(elevated: &mut Option<Elevated>, writer: &ChannelWriteHalf<Msg>, log: &Log) -> bool {
     match elevated {
         Some(e) => e.next(writer, log).await,
+        None => std::future::pending().await,
+    }
+}
+
+/// The end of input of a session with expect rules (T-191): the terminal's
+/// end of file, Ctrl-D, in the pty's own stream after the keys before it. A
+/// channel's EOF there let Dropbear close the pty and hang up the shell
+/// before it had read the last rule's keys (exit 129 for `exit 4`).
+const EOF_KEY: u8 = 0x04;
+
+/// The keys of each expect rule that matched; then, once the last rule sent
+/// its keys, the session's own input, and its end when it has ended (T-191).
+async fn expected(through: &mut Through, writer: &ChannelWriteHalf<Msg>, held: &mut bool, ended: bool) {
+    let Some(x) = through.expect.as_mut() else { return };
+    let keys = x.take();
+    if !keys.is_empty() {
+        let _ = writer.data(&keys[..]).await;
+    }
+    if x.done() && *held {
+        *held = false;
+        if ended {
+            let _ = writer.data(&[EOF_KEY][..]).await;
+        }
+    }
+}
+
+/// Until the expect rule that waits runs out of time: the words of its
+/// miss; for ever with none (T-191).
+async fn expecting(expect: Option<&Expect>) -> String {
+    match expect {
+        Some(x) => x.missed().await,
         None => std::future::pending().await,
     }
 }

@@ -111,6 +111,10 @@ pub struct SshArgs {
     pub snippet: Option<String>,
     /// `--yes`: run the snippet with no question.
     pub yes: bool,
+    /// Each `--expect` (true) and `--send` (false), in the order given
+    /// (T-191).
+    pub expect: Vec<(bool, String)>,
+    pub expect_timeout: Option<String>,
 }
 
 /// The long-only rows that are spellings of `-o NAME=VALUE`.
@@ -139,6 +143,7 @@ pub const ONCE: &[(&str, &str)] = &[
     ("record", "give one file"),
     ("control-command", "give one command, as OpenSSH asks"),
     ("snippet", "give one snippet"),
+    ("expect-timeout", "give one time"),
 ];
 
 /// The refusal for a flag of [`ONCE`] given more than once, if there is one.
@@ -196,6 +201,18 @@ impl SshArgs {
             (Some(yes), Some(no)) => Some(yes > no),
             (yes, no) => yes.map(|_| true).or(no.map(|_| false)),
         };
+        // --expect and --send by their places on the command line (T-191).
+        let mut expect: Vec<(usize, bool, String)> = Vec::new();
+        for (id, is_expect) in [("expect", true), ("send", false)] {
+            // clap asks for an id that the verb declares.
+            if !has(id) {
+                continue;
+            }
+            if let Some(at) = m.indices_of(id) {
+                expect.extend(at.zip(many(id)).map(|(i, v)| (i, is_expect, v)));
+            }
+        }
+        expect.sort_by_key(|(i, ..)| *i);
         SshArgs {
             destination: one("destination"),
             command: many("remote-command"),
@@ -258,6 +275,8 @@ impl SshArgs {
             x11_trusted: flag("forward-x11-trusted"),
             snippet: one("snippet"),
             yes: flag("yes"),
+            expect: expect.into_iter().map(|(_, is_expect, v)| (is_expect, v)).collect(),
+            expect_timeout: one("expect-timeout"),
         }
     }
 }

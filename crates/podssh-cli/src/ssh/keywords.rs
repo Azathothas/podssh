@@ -54,10 +54,13 @@ pub const HONOURED: &[Keyword] = &[
     kw("IdentityFile", "FILE", "the same as -i; repeatable", "~/.ssh/id_ed25519"),
     kw("IgnoreUnknown", "PATTERN,...", "unknown keywords to accept with no effect, when they come after it", "UseKeychain"),
     kw("KbdInteractiveAuthentication", "yes|no", "allow keyboard-interactive authentication", "yes"),
+    kw("LocalCommand", "COMMAND", "with PermitLocalCommand yes: run COMMAND here after the login, as SHELL -c COMMAND; it \
+        takes the % tokens, and %T", "touch /tmp/lc-%h"),
     kw("LocalForward", "[BIND:]PORT HOST:HOSTPORT", "the same as -L, with a space between the two sides; repeatable", "8080 db:5432"),
     kw("LogLevel", "QUIET|FATAL|ERROR|INFO|VERBOSE|DEBUG|DEBUG2|DEBUG3", "how much podssh says on stderr (default INFO)", "VERBOSE"),
     kw("NumberOfPasswordPrompts", "N", "password attempts (default 3)", "2"),
     kw("PasswordAuthentication", "yes|no", "allow password authentication", "no"),
+    kw("PermitLocalCommand", "yes|no", "yes: run LocalCommand (default no)", "yes"),
     kw("Port", "PORT", "the same as -p", "2222"),
     kw("PreferredAuthentications", "LIST", "publickey, keyboard-interactive and password, in the order to try them", "publickey,password"),
     kw("ProxyJump", "HOSTS|none", "the same as -J", "none"),
@@ -90,8 +93,8 @@ pub const IGNORED: &[&str] = &[
     "GSSAPIKeyExchange", "GSSAPIKexAlgorithms", "GSSAPIRenewalForcesRekey", "GSSAPIServerIdentity", "GSSAPITrustDns",
     "HashKnownHosts",
     "HostbasedAcceptedAlgorithms", "HostbasedAuthentication", "HostKeyAlgorithms", "IPQoS", "KexAlgorithms",
-    "LocalCommand", "LogVerbose", "MACs", "NoHostAuthenticationForLocalhost", "ObscureKeystrokeTiming",
-    "PermitLocalCommand", "PubkeyAcceptedAlgorithms", "PubkeyAcceptedKeyTypes", "RekeyLimit",
+    "LogVerbose", "MACs", "NoHostAuthenticationForLocalhost", "ObscureKeystrokeTiming",
+    "PubkeyAcceptedAlgorithms", "PubkeyAcceptedKeyTypes", "RekeyLimit",
     "RequiredRSASize", "SecurityKeyProvider", "StreamLocalBindMask", "StreamLocalBindUnlink",
     "SyslogFacility", "TCPKeepAlive", "Tunnel", "TunnelDevice", "UpdateHostKeys", "VerifyHostKeyDNS",
     "VersionAddendum", "VisualHostKey", "WarnWeakCrypto",
@@ -201,5 +204,7 @@ mod tests {
         assert_eq!(d("ControlPersist"), "no");
         assert_eq!(r.control, crate::ssh::control::Plan::default());
         assert_eq!(o.forward_agent, podssh_ssh::Agent::Off);
+        assert_eq!(d("PermitLocalCommand"), "no");
+        assert!(o.local_command.is_none());
     }
 }

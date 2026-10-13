@@ -84,6 +84,10 @@ where
         }
     };
     let handle = handles.last().expect("the destination");
+    // LocalCommand runs after the first login alone (T-191).
+    if first {
+        crate::local_command::run(opts, log).await;
+    }
     // -L and -D serve on each new connection (T-038).
     let work = attach(handle, opts, relay, name, first, input, log);
     let attempt = crate::local::alongside(handle, &opts.local_forwards, log, work).await;
@@ -109,7 +113,10 @@ where
     };
     let handle = handles.last().expect("the destination");
     let host = display(&opts.destination);
-    if !first {
+    if first {
+        // LocalCommand runs after the first login alone (T-191).
+        crate::local_command::run(opts, log).await;
+    } else {
         log.info(&format!("connected to {host} again; its forwards serve again"));
     }
     crate::local::alongside(handle, &opts.local_forwards, log, crate::local::closed(handle)).await;

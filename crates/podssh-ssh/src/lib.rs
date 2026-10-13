@@ -40,6 +40,8 @@ pub mod escape;
 pub mod escape_command;
 mod escape_run;
 pub mod exec;
+// `--expect` and `--send` of a session with a pty (T-191).
+pub mod expect;
 pub mod forward;
 pub mod handler;
 pub mod hostcert;
@@ -51,6 +53,8 @@ pub mod keygen;
 pub mod keys;
 pub mod known_hosts;
 pub mod local;
+// `LocalCommand` after the login (T-191).
+pub mod local_command;
 pub mod log;
 pub mod mux;
 pub mod options;

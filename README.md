@@ -85,6 +85,7 @@ podssh ssh -N -L 5432:db.internal:5432 user@bastion  # a local port to the datab
 podssh ssh -N -D 1080 user@bastion           # a SOCKS proxy on 127.0.0.1:1080
 podssh ssh -M -N -S /tmp/cm-%C user@host &   # Unix: later runs with -S /tmp/cm-%C share this connection
 podssh ssh -tt user@example.org < script.txt # a remote pty; local stdin is a pipe
+podssh ssh -tt --expect 'Choice: ' --send '2\r' user@menu  # keys for a prompt after the login, then the session
 podssh containers user@example.org           # the containers of docker, podman and kubectl, each with the command that enters it
 ```
 

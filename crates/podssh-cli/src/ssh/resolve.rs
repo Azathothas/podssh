@@ -411,7 +411,10 @@ pub fn resolve_or_refuse(args: &SshArgs, env: &Env) -> Result<Resolved, Refusal>
     options.stdin_null = args.stdin_null || settings.stdin_null.unwrap_or(false);
     // Ctrl-C with no remote pty sends `signal INT` first (T-293).
     options.interrupt_signal = !args.no_signal;
-    let forwards = super::local_spec::forwards(args, &settings, matches!(options.request, Request::StdioForward(_)))?;
+    let stream = matches!(options.request, Request::StdioForward(_));
+    let permit = settings.permit_local_command;
+    options.local_command = super::local_command::plan(settings.local_command.as_deref(), permit, &tokens, stream)?;
+    let forwards = super::local_spec::forwards(args, &settings, stream)?;
     options.remote_forwards = forwards.remote;
     options.exit_on_forward_failure = settings.exit_on_forward_failure.unwrap_or(false);
     let shown = super::dump::Shown {
@@ -429,6 +432,8 @@ pub fn resolve_or_refuse(args: &SshArgs, env: &Env) -> Result<Resolved, Refusal>
         forward_agent: agents.shown_forward,
         clear_all_forwardings: forwards.cleared,
         tag: args.tag.clone().or_else(|| settings.tag.clone()),
+        local_command: settings.local_command.clone(),
+        permit_local_command: permit.unwrap_or(false),
     };
     let mut resolved = Resolved {
         options,
@@ -451,6 +456,7 @@ pub fn resolve_or_refuse(args: &SshArgs, env: &Env) -> Result<Resolved, Refusal>
     super::elevate::check(args, &mut resolved)?;
     super::recording::check(args, &mut resolved)?;
     super::attach::check(args, &mut resolved)?;
+    super::expect::check(args, &mut resolved)?;
     // X11 goes on a session alone, as OpenSSH asks for it; a run with it
     // makes a connection of its own, as a master's session would not ask.
     if !matches!(resolved.options.request, Request::StdioForward(_) | Request::Nothing) {

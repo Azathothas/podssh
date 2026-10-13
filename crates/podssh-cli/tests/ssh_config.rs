@@ -25,7 +25,7 @@ const EVERY: &[&str] = &[
     "-o", "PreferredAuthentications=password,publickey", "-o", "IdentityAgent=none", "-o", "Compression=yes",
     "-o", "BatchMode=yes", "-o", "IdentitiesOnly=yes", "-o", "NumberOfPasswordPrompts=2",
     "-o", "ConnectionAttempts=3", "-o", "ServerAliveCountMax=5", "-o", "StdinNull=yes", "-o", "RequestTTY=force",
-    "-o", "PubkeyAuthentication=no",
+    "-o", "PubkeyAuthentication=no", "-o", "PermitLocalCommand=yes", "-o", "LocalCommand=touch /tmp/lc-%h",
     "-R", "8080:localhost:80", "-R", "0.0.0.0:0:[::1]:443", "-R", ":8081:web:80", "-o", "RemoteForward 9090 db:5432",
     "-o", "ExitOnForwardFailure=yes", "EXAMPLE.org",
 ];
@@ -43,6 +43,7 @@ gatewayports yes
 identitiesonly yes
 kbdinteractiveauthentication yes
 passwordauthentication yes
+permitlocalcommand yes
 pubkeyauthentication false
 requesttty force
 sessiontype default
@@ -55,6 +56,7 @@ serveraliveinterval 30
 controlpath /tmp/podssh-ctl
 hostkeyalias al
 identityagent none
+localcommand touch /tmp/lc-%h
 remotecommand uptime
 loglevel VERBOSE
 preferredauthentications password,publickey
@@ -98,6 +100,7 @@ gatewayports no
 identitiesonly no
 kbdinteractiveauthentication yes
 passwordauthentication yes
+permitlocalcommand no
 pubkeyauthentication true
 requesttty auto
 sessiontype default

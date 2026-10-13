@@ -200,6 +200,9 @@ pub const SSH_FLAGS: &[FlagRow] = &[
         "the tmux session of --persist: letters, digits, _ and -, 32 at most (default podssh)", None),
     attach::ATTACH,
     attach::TAKE,
+    expect::EXPECT,
+    expect::SEND,
+    expect::EXPECT_TIMEOUT,
     row(None, "upgrade", None, FlagKind::Supported,
         "log in, then move the session to a temporary node that the server's podssh starts, which resumes after a lost link; with no podssh there, the session stays", None),
     signal::NO_SIGNAL,
@@ -283,6 +286,7 @@ mod containers;
 mod copy;
 mod each;
 mod edit;
+mod expect;
 mod health;
 mod keygen;
 mod mcp;

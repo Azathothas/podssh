@@ -198,6 +198,8 @@ pub(crate) async fn run_handles(
     log: &Arc<Log>,
 ) -> Result<i32, String> {
     let host = display(&opts.destination);
+    // After the login and before the request, as OpenSSH runs it (T-191).
+    crate::local_command::run(opts, log).await;
     let result = match &opts.request {
         Request::StdioForward(target) => {
             retry::reached(Phase::Requested);

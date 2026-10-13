@@ -36,7 +36,8 @@
 //! request into PATH, and end by it or run on (T-293, `interrupt.rs`).
 //! For a user named `containers-...`, the list of `podssh containers` and
 //! the exec of a container answer as on a host with docker and kubectl, and
-//! a pty is granted (T-190, `containers.rs`).
+//! a pty is granted (T-190, `containers.rs`). For a user `pty-...`, `prompt`
+//! is a shell's prompt, for the expect rules (T-191, `prompt.rs`).
 
 // Each test binary uses a part of it.
 #![allow(dead_code)]
@@ -56,6 +57,7 @@ mod forward;
 mod health;
 mod interrupt;
 pub mod podssh;
+mod prompt;
 mod serve;
 pub mod sftp;
 mod sudo;
@@ -270,6 +272,10 @@ impl server::Handler for Far {
             self.waits.insert(channel, wait);
             return Ok(());
         }
+        if command == "prompt" && self.pty {
+            self.prompts.insert(channel, Vec::new());
+            return prompt::start(channel, session);
+        }
         if command == "watch" && self.pty {
             self.watches.push(channel);
             return console::watch(channel, self.pty_size, session);
@@ -287,25 +293,8 @@ impl server::Handler for Far {
             });
             return Ok(());
         }
-        if let Some(rest) = command.strip_prefix("append ") {
-            // `append PATH STATUS DELAY`: a line in the file at once, then
-            // the status after DELAY seconds (T-025). A command that ran twice
-            // leaves two lines.
-            let mut parts = rest.rsplitn(3, ' ');
-            let delay: u64 = parts.next().and_then(|d| d.parse().ok()).unwrap_or(0);
-            let status: u32 = parts.next().and_then(|s| s.parse().ok()).unwrap_or(0);
-            let path = parts.next().unwrap_or_default().to_string();
-            if let Ok(mut file) = std::fs::OpenOptions::new().create(true).append(true).open(&path) {
-                let _ = std::io::Write::write_all(&mut file, b"ran\n");
-            }
-            let handle = session.handle();
-            tokio::spawn(async move {
-                tokio::time::sleep(Duration::from_secs(delay)).await;
-                let _ = handle.exit_status_request(channel, status).await;
-                let _ = handle.eof(channel).await;
-                let _ = handle.close(channel).await;
-            });
-            return Ok(());
+        if let Some(ran) = ends::append(&command, channel, session) {
+            return ran;
         }
         if command == "cat" {
             self.echoes.push(channel);
@@ -397,6 +386,12 @@ impl server::Handler for Far {
                 }
                 sudo::Read::Started => self.echoes.push(channel),
                 sudo::Read::Refused => {}
+            }
+            return Ok(());
+        }
+        if let Some(line) = self.prompts.get_mut(&channel) {
+            if prompt::input(line, data, channel, session)? {
+                self.prompts.remove(&channel);
             }
             return Ok(());
         }

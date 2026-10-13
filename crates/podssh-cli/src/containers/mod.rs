@@ -124,6 +124,10 @@ fn resolved(args: &ContainersArgs, plan: &Plan, env: &Env) -> Result<Resolved, R
         resolved.notes.push(note.to_string());
     }
     resolved.options.remote_forwards.clear();
+    // Only podssh ssh runs a LocalCommand (T-191).
+    if resolved.options.local_command.take().is_some() {
+        resolved.notes.push("podssh containers runs no LocalCommand: the one of ssh_config is not used".to_string());
+    }
     Ok(resolved)
 }
 
