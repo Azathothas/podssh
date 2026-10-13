@@ -54,7 +54,7 @@ entry keeps its proof in the entry; this page keeps no history (git does).
   | T-291 | `a3f4d829458070a37` | `c7dd479..8eb10ff` | drafted (the WIP `fb8c9bb` finished); `io/input.rs` meets main's file of T-183 |
   | T-280, T-281 | `a9e4d07db05c47c4f` | `91097a6`, `510cd29` | drafted; T-280 carries a patch of iroh-relay 1.3.0 in `vendor/` with `[patch.crates-io]`, as iroh lets no caller dial; T-281 is the fork's patch 0022; the lock must be made again |
   | T-289 | `a266ef3fe863b08d2` | `3224a88..9772dea` | drafted (the WIP `0c8ed9d` finished); `scripts/interop-baseline.txt` conflicts: keep both floors |
-  | T-229 | `a266ef3fe863b08d2` | after `9772dea` | being drafted, on T-289 |
+  | T-229 | `a266ef3fe863b08d2` | `9772dea..954d5ab` | drafted, on T-289; CTAP2 over hidraw on Linux, WebAuthn on Windows, a key in software for the tests; `sk_signature` uses ssh-key's published vectors (its Correction); the run with a real key waits for the operator; library code prints with `eprintln!` in `sshsig.rs` and `sk/agent.rs`, to review |
   | T-296, T-298 | `aa043fb59ecd7bdb2` | `57485b7`, `bc8a9ce` | drafted |
   | T-297 | `aa043fb59ecd7bdb2` | `bc8a9ce..429dd0b` | drafted, on T-298; it also copies the files of a tree of `cp -r` at once (its Decision) |
   | T-187, T-188 | `a56cc4d17c82784aa` | `a38421b..e206acd`, `e206acd..78fc010` | drafted (the WIP `0473ad2` finished); its harness of snippets is sourced by `scripts/interop-each.sh`; a declined snippet and no pick exit 64 |
