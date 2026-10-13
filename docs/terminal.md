@@ -398,6 +398,44 @@ file each way. The gate's check (`scripts/interop-pty.py`, `pty.zmodem.*`)
 runs `sz` and `rz` of lrzsz in a real pty; Alpine has no lrzsz package
 now, and the check says `env` without one (T-148's Correction).
 
+## A notice while the far end is silent
+
+With the resumable layer (`ssh node://`, its race with `--iroh-ticket`,
+`iroh:`, and the session after `--upgrade`), podssh tells a silent far end
+from a slow program before the layer finds the link dead (30 s) and resumes
+the session (T-302).
+
+- **The silence.** The layer keeps the time of the far end's last byte, and
+  of the oldest question of this side that waits: `DATA` that the far end
+  acknowledges within 200 ms, a `PING` that it answers, a resume after a
+  loss. Any byte from the far end answers each question. A question that
+  waits 5 s makes the far end silent (UNVERIFIED: the value waits for its
+  measurement); so a prompt that echoes nothing is no silence, and an idle
+  session neither, as its `PING` of each 10 s is answered.
+- **Where it shows.** With a pty on a terminal, in the window's title:
+  `podssh: no word from HOST for N s, ~. ends the session`, counting up each
+  second. podssh first saves the title on the terminal's stack
+  (XTWINOPS `CSI 22 ; 2 t`), and takes it back (`CSI 23 ; 2 t`) before the
+  far end's next bytes, so that a title that a program sets then is kept;
+  the screen is never written. It writes its sequences only where the
+  session's output left the terminal's parser at its ground state, never
+  inside a sequence or a character that a pause cut. While the title shows
+  the notice, the layer's lines of a loss and a resume are left out: they
+  would be written into the screen. With no pty, where stderr is a
+  terminal, a line on stderr, and a line when the far end answers again.
+  Never in a pipe, never with `-q`, never for `podssh each`.
+- **Only where the terminal keeps a stack of titles.** A terminal with
+  none would keep the notice as its title. podssh cannot ask: the answer
+  would come on stdin, among the keys. It knows xterm (`XTERM_VERSION`) and
+  VTE (`VTE_VERSION`), but inside tmux or screen; `PODSSH_TITLE_STACK=yes`
+  or `no` says it for another terminal. Elsewhere there is no notice, and
+  the layer's lines stay as before. Which terminals keep the stack (xterm,
+  VTE, Windows Terminal, the Windows console) is not measured yet:
+  `python3 scripts/title-stack.py`, run in each, says it.
+- **Not on the forward road.** There, nothing below SSH answers a key; the
+  relay's Pong answers podssh's Ping each 10 s. T-307 is that road's
+  notice.
+
 ## Tests
 
 Linux test hosts grant ptys, so a test must force the paths with no pty:
@@ -427,6 +465,10 @@ cursor and the attributes of cells:
 - `cargo test -p podssh-ssh --test terminal_oracle`: each line of a message
   and of the help of `~?` starts at the first column in raw mode
   (`log::message_text`).
+- `cargo test -p podssh-ssh --test silent_notice`: the notice of a silent
+  far end over the screen of a full-screen program leaves its rows, its
+  cursor and its title, with a model of the stack of titles beside the
+  oracle (T-302).
 
 The model must agree with tmux before it judges podssh: each sequence of a
 fixed corpus (`crates/podssh-terminal/tests/screen/corpus.txt`) goes

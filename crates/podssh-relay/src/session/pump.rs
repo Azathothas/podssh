@@ -35,6 +35,7 @@ use tokio::sync::{mpsc, Notify};
 use tokio::time::Instant;
 
 use super::decode::Decoder;
+use super::hearing::Hearing;
 use super::link::{Link, LinkError};
 use super::record::MAX_DATA;
 use outbox::{Finish, Outbox, Written};
@@ -128,11 +129,31 @@ pub struct Carry {
     /// Whether this side's application ended its bytes: from then on, each
     /// link of the session sends `CLOSE` after the last of them.
     app_ended: bool,
+    /// What this side heard from the far end, across links (T-302).
+    hearing: Arc<Hearing>,
 }
 
 impl Carry {
     pub fn new(link: Link) -> Carry {
-        Carry { state: Arc::new(Mutex::new(link)), undelivered: Vec::new(), again: Vec::new(), app_ended: false }
+        Carry {
+            state: Arc::new(Mutex::new(link)),
+            undelivered: Vec::new(),
+            again: Vec::new(),
+            app_ended: false,
+            hearing: Arc::default(),
+        }
+    }
+
+    /// The session's hearing is `hearing`, which a notice in the terminal
+    /// reads (T-302).
+    pub fn with_hearing(mut self, hearing: Arc<Hearing>) -> Carry {
+        self.hearing = hearing;
+        self
+    }
+
+    /// What this side heard from the far end.
+    pub fn hearing(&self) -> &Hearing {
+        &self.hearing
     }
 
     /// Whether this side's application ended its bytes, on this link or an
@@ -209,7 +230,8 @@ where
 {
     let (mut app_r, mut app_w) = tokio::io::split(app);
     let (link_r, mut link_w) = tokio::io::split(link);
-    let Carry { state, undelivered, again, app_ended: app_ended_before } = carry;
+    let Carry { state, undelivered, again, app_ended: app_ended_before, hearing } = carry;
+    let hearing: &Hearing = hearing;
     let again = std::mem::take(again);
     let heartbeat = lock(state).heartbeat();
     let outbox = Outbox::new();
@@ -220,8 +242,9 @@ where
 
     let end = {
         let up = up(&mut app_r, again, data_tx, state, &room);
-        let down = down::run(&mut app_w, link_r, decoder, &outbox, state, &room, undelivered, &heard, watch);
-        let writer = outbox::write(&mut link_w, &mut data_rx, &outbox, state, watch);
+        let down =
+            down::run(&mut app_w, link_r, decoder, &outbox, state, &room, undelivered, &heard, hearing, watch);
+        let writer = outbox::write(&mut link_w, &mut data_rx, &outbox, state, watch, hearing);
         let beat = async {
             if heartbeat {
                 beat(&outbox, &heard).await

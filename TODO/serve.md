@@ -110,7 +110,7 @@ and stderr apart, and an environment that a cage can give.
   lines 601-667). russh also gives each data message to the kept `Channel`,
   and waits when 100 wait unread (`Eugeny/russh:russh/src/server/encrypted.rs`,
   lines 1350-1356): an unread channel stops the whole connection.
-- Read: the client side to match is `crates/podssh-ssh/src/io.rs:316-376`;
+- Read: the client side to match is `crates/podssh-ssh/src/io.rs:335-395`;
   `crates/podssh-ssh/src/signals.rs:26-64` maps names to numbers only;
   `tokio` with `process` is a dependency (`crates/podssh-ssh/Cargo.toml:22`).
 
@@ -281,7 +281,7 @@ it there.
 4. The child: `setsid`, `ioctl(TIOCSCTTY)`, the slave on descriptors 0 to 2,
    then exec, in `pre_exec`. The parent closes its copy of the slave, or the
    master never sees the end. `TERM` from the request (empty:
-   `xterm-256color`, as `crates/podssh-ssh/src/terminal/mod.rs:105-110`);
+   `xterm-256color`, as `crates/podssh-ssh/src/terminal/mod.rs:109-114`);
    `SSH_TTY` names the slave.
 5. I/O: the master is read without blocking through tokio's `AsyncFd`; output
    goes through the channel's writer (T-118). `EIO` after the child is gone
@@ -1295,7 +1295,7 @@ no reason (`docs/target-environment.md:63-64`).
    (`crates/podssh-cli/src/doctor/host.rs:10-25`) from the same function.
 6. T-108 runs the result. Never call `getpwuid`. Same commit: `--shell` in
    `crates/podssh-cli/src/flags.rs`, `SHELL` in
-   `crates/podssh-cli/src/man/facts.rs:45-213`, `docs/cli.md`.
+   `crates/podssh-cli/src/man/facts.rs:45-224`, `docs/cli.md`.
 
 ## Decision
 

@@ -9,6 +9,7 @@
 
 use std::fmt;
 use std::pin::Pin;
+use std::sync::Arc;
 use std::task::{Context, Poll};
 use std::time::Duration;
 
@@ -16,6 +17,7 @@ use tokio::io::{AsyncRead, AsyncReadExt, AsyncWrite, AsyncWriteExt, ReadBuf};
 
 use super::decode::{DecodeError, Decoder};
 use super::handshake::{Ask, ClientHandshake, Established, HandshakeError, Step};
+use super::hearing::Hearing;
 use super::pump::{self, Carry, Ended};
 use super::record::{kind, Record, Role};
 use super::secret::{Entropy, SessionId};
@@ -93,6 +95,8 @@ pub struct Client<L> {
     /// The layer's state, for a far end with it.
     layer: Option<(Decoder, Box<Established>)>,
     settings: Settings,
+    /// What the session hears from the far end, for a notice (T-302).
+    hearing: Arc<Hearing>,
 }
 
 /// A client taken apart, for the session across links.
@@ -102,6 +106,7 @@ pub(crate) struct Parts<L> {
     pub(crate) early: Vec<u8>,
     pub(crate) layer: Option<(Decoder, Box<Established>)>,
     pub(crate) settings: Settings,
+    pub(crate) hearing: Arc<Hearing>,
 }
 
 /// Wait for the far end's first byte. A `GREETING` starts the handshake for
@@ -210,7 +215,7 @@ where
         let Greeted { mut link, first } = self;
         if !first.first().is_some_and(|b| *b == kind::GREETING) {
             let found = Found::Plain { first: first.first().copied() };
-            return Ok(Client { link, found, early: first, layer: None, settings });
+            return Ok(Client { link, found, early: first, layer: None, settings, hearing: Arc::default() });
         }
         let (handshake, open) =
             ClientHandshake::start(ask, settings.features, entropy).map_err(ClientError::Handshake)?;
@@ -228,7 +233,8 @@ where
             features: established.features.clone(),
             resumed: established.resumed,
         };
-        Ok(Client { link, found, early: Vec::new(), layer: Some((decoder, established)), settings })
+        let layer = Some((decoder, established));
+        Ok(Client { link, found, early: Vec::new(), layer, settings, hearing: Arc::default() })
     }
 }
 
@@ -292,12 +298,20 @@ where
     }
 
     pub(crate) fn into_parts(self) -> Parts<L> {
-        Parts { link: self.link, found: self.found, early: self.early, layer: self.layer, settings: self.settings }
+        let Client { link, found, early, layer, settings, hearing } = self;
+        Parts { link, found, early, layer, settings, hearing }
     }
 
     pub(crate) fn from_parts(parts: Parts<L>) -> Client<L> {
-        let Parts { link, found, early, layer, settings } = parts;
-        Client { link, found, early, layer, settings }
+        let Parts { link, found, early, layer, settings, hearing } = parts;
+        Client { link, found, early, layer, settings, hearing }
+    }
+
+    /// The session's hearing is `hearing`: what it hears from the far end,
+    /// across links, for a notice in the terminal (T-302).
+    pub fn with_hearing(mut self, hearing: Arc<Hearing>) -> Client<L> {
+        self.hearing = hearing;
+        self
     }
 
     /// The session's id and secret, which a resume needs (T-153). Never for
@@ -311,10 +325,10 @@ where
     where
         A: AsyncRead + AsyncWrite + Unpin + Send,
     {
-        let Client { mut link, early, layer, settings, .. } = self;
+        let Client { mut link, early, layer, settings, hearing, .. } = self;
         match layer {
             Some((decoder, established)) => {
-                let mut carry = Carry::new(settings.link(&established));
+                let mut carry = Carry::new(settings.link(&established)).with_hearing(hearing);
                 let ended = pump::run(&mut app, link, decoder, &mut carry, &pump::Watch::default()).await;
                 // The application learns that no more bytes come.
                 let _ = app.shutdown().await;

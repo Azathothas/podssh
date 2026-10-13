@@ -491,7 +491,7 @@ risk is a changed option (a host, a relay, a trust store), not a command.
    `[OPTIONS] [--] [user@]host [COMMAND...]` for `ssh` and
    `[OPTIONS] [--] HOST PORT` for `proxy`; `--help` and the synopsis of the
    manual (`crates/podssh-cli/src/man/model.rs:186-190`) read it.
-2. A note for `ssh` and `proxy` (`crates/podssh-cli/src/man/notes_ssh.rs:4-201` and `crates/podssh-cli/src/man/notes.rs:48-145`)
+2. A note for `ssh` and `proxy` (`crates/podssh-cli/src/man/notes_ssh.rs:4-209` and `crates/podssh-cli/src/man/notes.rs:48-145`)
    and an example (`crates/podssh-cli/src/man/examples.rs:8-163`). Pitfall: the
    notes test reads a bare `--` as a flag that does not exist
    (`crates/podssh-cli/src/man/notes.rs:347-355`); teach `flag_exists`
@@ -600,7 +600,7 @@ variable matters when `cp`, `mv` and `relay` exist. `ssh` and `proxy` have no
 3. A malformed value names its source: `--timeout` (exit 64), or
    `PODSSH_TIMEOUT` (exit 78, see Decision). The variable never bounds `ssh`
    or `proxy`.
-4. Same commit: a row in `VARIABLES` (`crates/podssh-cli/src/man/facts.rs:45-213`),
+4. Same commit: a row in `VARIABLES` (`crates/podssh-cli/src/man/facts.rs:45-224`),
    which `each_variable_in_the_source_is_documented` requires
    (`crates/podssh-cli/src/man/facts/tests.rs:57-70`); "default: env
    PODSSH_TIMEOUT" in the help of each `--timeout` row, as `--relay-host` says
@@ -990,7 +990,7 @@ Read then: each value flag but `-i` and `-o` was `ArgAction::Set`.
    (`crates/podssh-cli/src/ssh/args.rs:114-151`, called at
    `crates/podssh-cli/src/tree.rs:462-466`).
 4. `docs/cli.md:305-310` and a note of the manual
-   (`crates/podssh-cli/src/man/notes_ssh.rs:176-178`) state the rule.
+   (`crates/podssh-cli/src/man/notes_ssh.rs:184-186`) state the rule.
 
 ## Prove
 

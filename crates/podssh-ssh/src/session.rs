@@ -166,7 +166,9 @@ pub async fn attach(
     // no terminal, nothing is ever received.
     let zmodem = crate::zmodem::Zmodem::for_session(raw.is_some() && terminal::stdout_is_terminal());
     let detaching = crate::keep::Detaching::new(detach);
-    let through = io::Through { elevated, zmodem, record, detaching, sink: opts.output.clone() };
+    // A notice while the far end is silent, where the road tells it (T-302).
+    let notice = crate::notice::Notice::for_session(opts, host, raw.is_some(), pty);
+    let through = io::Through { elevated, zmodem, record, detaching, sink: opts.output.clone(), notice };
     let end = io::pump(handle, channel, early, escapes, pty, input, through, log).await;
     drop(raw);
     if let io::End::Detached(name) = &end {

@@ -363,7 +363,7 @@ Read:
    in the gate's container (installed with apk, as `scripts/interop-man.sh:22`
    installs groff) and through `vt100`. The two must give the same screens
    before the model judges podssh.
-6. docs/terminal.md, section "Tests" (`docs/terminal.md:401`), names the
+6. docs/terminal.md, section "Tests" (`docs/terminal.md:439`), names the
    oracle.
 
 ## Decision
@@ -758,7 +758,7 @@ Read:
 - `scripts/interop-faults.sh:42-50` starts one stand-in for each fault; its
   checks are at lines 73-182 at `8d668b7` (`docs/STATUS.md:421-439`, 14 of 14 since T-236).
 - The time limits that latency meets today: the SSH handshake, 60 s
-  (`crates/podssh-ssh/src/options.rs:376`, enforced at
+  (`crates/podssh-ssh/src/options.rs:379`, enforced at
   `crates/podssh-ssh/src/run.rs:367-373`); a reply, 30 s
   (`crates/podssh-ssh/src/session.rs:22`); a write, 60 s, and liveness, three
   times 10 s (`crates/podssh-ws/src/client.rs:31-35`).
@@ -887,7 +887,7 @@ Read, each claim of GitHub #34 at the lines as they are now:
   `openssh-keygen` and others, but no client package. No harness ran the stock `ssh`; only
   `scripts/sandbox-check.sh:204-217` does, in a sandbox. Nobody knows whether
   the gate's image has `/usr/bin/ssh`.
-- `crates/podssh-ssh/src/io.rs:336-343`, with `crates/podssh-ssh/src/io.rs:56-58`,
+- `crates/podssh-ssh/src/io.rs:355-362`, with `crates/podssh-ssh/src/io.rs:56-58`,
   maps an exit status that does not fit
   (the -1 of `railway.new`) to 255, and an exit signal to 128 plus its number
   (`docs/STATUS.md:73`, `docs/STATUS.md:77`).
@@ -931,7 +931,7 @@ sh scripts/dev.sh check     # interop: for each case, the code of OpenSSH, of po
 
 The interop section shows, for each case, the reference code, podssh's code
 and the literal, and the signal row as a named difference. Planted defect 1:
-map an exit signal to 255 at `crates/podssh-ssh/src/io.rs:343`; the literal
+map an exit signal to 255 at `crates/podssh-ssh/src/io.rs:362`; the literal
 check of 143 must fail, and the table must report its signal row as broken.
 Planted defect 2: let the reference run `true` in place of `exit 3`; the
 derived check must fail.

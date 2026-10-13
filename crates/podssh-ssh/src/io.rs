@@ -94,6 +94,8 @@ pub struct Through {
     pub detaching: crate::keep::Detaching,
     /// Where the output goes in place of stdout and stderr (T-183).
     pub sink: Option<Sink>,
+    /// The notice while the far end is silent (T-302).
+    pub notice: Option<crate::notice::Notice>,
 }
 
 impl Through {
@@ -107,7 +109,15 @@ impl Through {
             Some(z) => z.output(&data, std::time::Instant::now()),
             None => data,
         };
-        self.recorded(data, log)
+        let data = self.recorded(data, log);
+        // A notice of silence goes before the far end's next bytes (T-302).
+        match self.notice.as_mut().map(|notice| notice.before_output(&data, stderr)) {
+            Some(mut first) if !first.is_empty() => {
+                first.extend_from_slice(&data);
+                first
+            }
+            _ => data,
+        }
     }
 
     /// What the terminal shows, into the recording.
@@ -254,6 +264,15 @@ pub async fn pump(
                 }
             }
             () = std::future::ready(()), if streaming => {}
+            // The notice of a silent far end: its title, or its line (T-302).
+            action = crate::notice::next(through.notice.as_mut()) => match action {
+                crate::notice::Action::Write(bytes) => {
+                    let mut stdout = tokio::io::stdout();
+                    let _ = stdout.write_all(&bytes).await;
+                    let _ = stdout.flush().await;
+                }
+                crate::notice::Action::Say(line) => log.info(&line),
+            },
             _ = stop.next() => return End::Terminated,
         }
     }

@@ -47,6 +47,7 @@ pub mod known_hosts;
 pub mod local;
 pub mod log;
 pub mod mux;
+pub mod notice;
 pub mod options;
 pub mod outcome;
 pub mod persist;

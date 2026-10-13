@@ -10,6 +10,7 @@ use tokio::sync::Notify;
 use tokio::time::Instant;
 
 use super::super::decode::Decoder;
+use super::super::hearing::Hearing;
 use super::super::link::{Event, Link};
 use super::super::record::Record;
 use super::outbox::Outbox;
@@ -29,7 +30,8 @@ async fn deliver<W: AsyncWrite + Unpin>(app: &mut W, undelivered: &mut Vec<u8>) 
 }
 
 /// Read the link until it ends, and give the application each new byte.
-/// `heard` is when the far end's last bytes came.
+/// `heard` is when the far end's last bytes came on this link; `hearing`,
+/// the same across the session's links, for a notice of silence (T-302).
 #[allow(clippy::too_many_arguments)]
 pub(super) async fn run<W, R>(
     app: &mut W,
@@ -40,6 +42,7 @@ pub(super) async fn run<W, R>(
     room: &Notify,
     undelivered: &mut Vec<u8>,
     heard: &Mutex<Instant>,
+    hearing: &Hearing,
     watch: &Watch,
 ) -> End
 where
@@ -106,6 +109,7 @@ where
             Ok(0) => return End::Lost(None),
             Ok(n) => {
                 *lock(heard) = Instant::now();
+                hearing.heard();
                 watch.count(n as u64);
                 decoder.push(&buf[..n]);
             }

@@ -128,6 +128,17 @@ pub const VARIABLES: &[(&[&str], &str)] = &[
       podssh ssh).",
     ),
     (
+        &["PODSSH_TITLE_STACK"],
+        "yes or no: whether the terminal keeps a stack of window titles (XTWINOPS 22 and 23), where the \
+      notice of a silent node shows (see podssh ssh). With neither, podssh knows xterm and VTE by \
+      XTERM_VERSION and VTE_VERSION, and no other terminal.",
+    ),
+    (
+        &["XTERM_VERSION", "VTE_VERSION"],
+        "Set by xterm and by VTE: podssh ssh shows the notice of a silent node in the window's title of \
+      such a terminal, saved first on its stack of titles, but inside tmux or screen.",
+    ),
+    (
         &["PODSSH_SESSION_BUDGET"],
         "Lowers the bytes that podssh cp and mv carry in one relay session before they open a new one, \
       for a relay with smaller limits: a whole number of bytes, 1048576 at least. It never raises the \

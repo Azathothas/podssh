@@ -18,6 +18,14 @@ pub const SSH: &[&str] = &[
      resume. --resume-deadline TIME waits at most TIME, never longer than the node keeps the session. \
      When the node forgot the session, as after a sleep of this host longer than its deadline, the \
      line says so, with how long this side was away by the wall clock.",
+    "A notice while the node is silent: with the resumable layer, when a key or a check of the link has \
+     waited 5 s for the node's answer, podssh ssh says how long the node has said nothing, counting up, \
+     and how to end the session (~.). With a pty, it shows in the window's title, which it saves first \
+     on the terminal's stack of titles and takes back before the node's next bytes; the screen is not \
+     written, and the lines of a loss and a resume are left out meanwhile. That is done only on a \
+     terminal known to keep such a stack: xterm (XTERM_VERSION) and VTE (VTE_VERSION), not inside tmux \
+     or screen, or another with PODSSH_TITLE_STACK=yes; elsewhere the lines stay as they are. With no \
+     pty, it is a line on stderr, and another when the node answers again. Never in a pipe, nor with -q.",
     "iroh:TICKET, or user@iroh:TICKET, reaches a node of the iroh road (see podssh node), in a build with \
      the feature iroh. The ticket is the address that the node prints, not a credential: the node lets in \
      only the client keys of its allowlist. This client's key is made on first use, in the cache \

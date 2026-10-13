@@ -430,7 +430,7 @@ shows that an AF_UNIX or loopback bind works (`docs/design.md:721-723`).
 2. podssh listens only for a `-listen:` address that the user gives.
    `PODSSH_LISTEN=no` turns listening off: each such address then exits 78
    before any bind. Add the variable to `VARIABLES`
-   (`crates/podssh-cli/src/man/facts.rs:45-213`); the settings file of T-048
+   (`crates/podssh-cli/src/man/facts.rs:45-224`); the settings file of T-048
    can set the same.
 3. The attempt is the probe: socket, bind, listen. EACCES or EPERM exits 77
    with the errno and an address that needs no listener; another error exits
@@ -584,7 +584,7 @@ running on the server (`docs/design.md:417-421`).
   an error at `crates/podssh-ssh/src/session.rs:42`. An exit status, a
   close with no status, and `~.` are other ends
   (`crates/podssh-ssh/src/session.rs:39-41`). Raw mode is entered once for
-  each session (`crates/podssh-ssh/src/session.rs:140-171`).
+  each session (`crates/podssh-ssh/src/session.rs:140-173`).
 - Read: the relay ends a session at 64 MiB (1009) or 12 h (1001)
   (`docs/relay.md:219-225`). Sandbox A measured the cap at 67,107,943 bytes,
   and one close `1011` in 180 short sessions (`docs/STATUS.md:241-242`).
@@ -612,7 +612,7 @@ running on the server (`docs/design.md:417-421`).
    cached token. A prompt with no terminal ends the loop
    (`docs/cli.md:1665-1667`). After the attach, send the window size again.
 7. In the same commit: `docs/cli.md`, the notes of ssh
-   (`crates/podssh-cli/src/man/notes_ssh.rs:4-201`), `docs/design.md:417-421`,
+   (`crates/podssh-cli/src/man/notes_ssh.rs:4-209`), `docs/design.md:417-421`,
    `docs/STATUS.md`, and tmux in the interop image
    (`scripts/interop.sh:24-25`). T-025 shares the classes of close codes;
    T-153 replaces this loop when both ends run podssh.
