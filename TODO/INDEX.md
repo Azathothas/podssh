@@ -61,15 +61,15 @@ repository and CI).
 
 ## Counts
 
-**303 entries: 43 open, 0 partial, 25 blocked, 235 done.**
+**304 entries: 44 open, 0 partial, 25 blocked, 235 done.**
 
 | Priority | open | partial | blocked | done | total |
 | --- | --- | --- | --- | --- | --- |
 | P0 | 0 | 0 | 0 | 1 | 1 |
 | P1 | 2 | 0 | 0 | 22 | 24 |
 | P2 | 4 | 0 | 18 | 136 | 158 |
-| P3 | 37 | 0 | 7 | 76 | 120 |
-| **All** | 43 | 0 | 25 | 235 | 303 |
+| P3 | 38 | 0 | 7 | 76 | 121 |
+| **All** | 44 | 0 | 25 | 235 | 304 |
 
 ## Entries
 
@@ -378,3 +378,4 @@ repository and CI).
 | [T-304](resume.md) | P3 | L | backlog | feature | open | Keys and screen frames as QUIC datagrams on the iroh road |
 | [T-305](resume.md) | P3 | M | backlog | feature | open | Roam at once: a new link beside a silent one |
 | [T-306](resume.md) | P3 | S | backlog | feature | open | A resume deadline that the user sets, for a host that sleeps |
+| [T-308](repo.md) | P3 | S | none | defect | open | Dependabot's updates of the images fail: GitHub refuses each pull request it makes |

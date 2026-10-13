@@ -3238,3 +3238,51 @@ cargo test -p podssh-todo --test interop
 2026-10-11. `crates/podssh-todo/tests/common/mod.rs:153-156`: the name of each tree has a count of
 the calls in the process. 60 runs of the test binary, six at once: 60 passed, where 5 of 30 failed
 before; 20 runs of `cargo test -p podssh-todo` in a row: 20 passed.
+
+# T-308: Dependabot's updates of the images fail: GitHub refuses each pull request it makes
+
+**Source:** the run of 2026-10-13 at `922f1aa`: the job "docker in /.github/images/box, ..." of
+the workflow "Dependabot Updates" failed, as it did on 2026-10-09 (twice).
+**Category:** defect
+**Milestone:** none
+**Priority:** P3
+**Effort:** S
+**Status:** open
+
+## Problem
+
+The digests of the images (`.github/images/*/Dockerfile`) are to move with their tags through
+Dependabot (T-205). Each run of its docker ecosystem fails, so no image gets an update: the box's
+Alpine 3.20 stays, where 3.24 exists.
+
+## Premise
+
+- Read in the log of the run (job 1624369194): each manifest request gets 401 and then, with
+  the token of `auth.docker.io`, 200; that is Docker Hub's usual challenge, not the failure.
+  Dependabot found `library/alpine` 3.24 for 3.20, and its `create_pull_request` got 400, "The
+  request contains invalid or unauthorized changes"; the job then said
+  `dependency_file_not_supported` and failed.
+- Read: the ecosystem's directories are `/.github/images/build`, `box`, `box-proxy` and
+  `trufflehog` (`.github/dependabot.yml:32-38`). The jobs of cargo and of GitHub Actions passed
+  in the same run.
+- Inferred, not verified: GitHub refuses a change that Dependabot's docker job makes under
+  `.github/`, as it refuses a change of `.github/workflows` to a job with no right to write them.
+
+## Approach
+
+1. Find the cause: the documentation of Dependabot and its issues for that message; a test with
+   one image in a directory outside `.github/` (a branch, its own Dependabot run).
+2. Repair it: move the images to a place where the job may change them, with each reader of
+   their paths (`scripts/pull-image.sh`, `scripts/dev.sh`, `scripts/check-repo.py`, the
+   workflows, the documents), or the change that the cause names.
+3. Record a run of the job that passes, and the pull request it makes.
+
+## Prove
+
+```sh
+gh run list --workflow "Dependabot Updates" --limit 5
+python scripts/check-repo.py   # each image is pinned, in one place
+```
+
+The docker job passes and opens a pull request that moves the box's Alpine. Planted: the old
+directory again; the job fails as before.

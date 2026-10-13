@@ -54,7 +54,7 @@ entry keeps its proof in the entry; this page keeps no history (git does).
   | T-296, T-298 | `aa043fb59ecd7bdb2` | `57485b7`, `bc8a9ce` | drafted |
   | T-297 | `aa043fb59ecd7bdb2` | `bc8a9ce..429dd0b` | drafted, on T-298; it also copies the files of a tree of `cp -r` at once (its Decision) |
   | T-187, T-188 | `a56cc4d17c82784aa` | `a38421b..e206acd`, `e206acd..78fc010` | drafted (the WIP `0473ad2` finished); its harness of snippets is sourced by `scripts/interop-each.sh`; a declined snippet and no pick exit 64 |
-  | T-306, T-302, T-305 | `afbe1f388cda562f1` | `bda737c`, `949623b`, `17b4e31` (one each, on `905f92c`) | drafted; T-302 adds a new entry (the notice on the forward road), with the counts by hand; new variables `PODSSH_SPARE_LINKS` and `PODSSH_TITLE_STACK`; spare links off in the library, on in the commands |
+  | T-306, T-302, T-305 | `afbe1f388cda562f1` | `bda737c`, `949623b`, `17b4e31` (one each, on `905f92c`) | drafted; T-302 adds a new entry, the notice on the forward road, as T-307 (kept free for it); new variables `PODSSH_SPARE_LINKS` and `PODSSH_TITLE_STACK`; spare links off in the library, on in the commands |
   | T-193, T-197, T-192 | `a3f5849c868ae85c1` | `24b9f6e..d95181c`, `d95181c..0e6f48c`, `0e6f48c..a36b0ef` | drafted; `podssh job` (tmux on the far host, probed) and `podssh run`; the far tests need tmux and `sftp-server`, else they say "did not run" and pass; T-192 must call T-195's `not_a_failure` when both are in; T-193's step 3 waits for `podssh serve` |
   | T-195, T-189 | `a75061d0db98a3897` | `e4bcd06..e0b09c2`, `e0b09c2..9d3a6e4` | drafted, on `e4bcd06`; T-195 is `PODSSH_ERROR_PROGRAM`, and a command that passes a remote status on (T-192's `run`) must call `not_a_failure`; T-189 is `podssh health`, its two fixtures of `/proc` written by hand (capture real ones in the build image); `tests/ssh_harness/mod.rs` reaches 500 lines |
   | T-190, T-191 | `aca311167dd1d2e52` | `61e55d1..3e3b637`, `3e3b637..0d275a9` | drafted; T-190 is `podssh containers` (docker, podman and kubectl probed on the far host; the fixtures of their lists written from their documents, not captured); T-191 is `LocalCommand` with `PermitLocalCommand`, and `--expect`, `--send`, `--expect-timeout`; its new lines of `-G` are to check against OpenSSH's `ssh -G` |
@@ -100,7 +100,7 @@ and `CARGO_BUILD_JOBS=4`:
 
 ## Counts
 
-`TODO/INDEX.md` holds 303 entries: 43 open, 0 partial, 25 blocked, 235 done.
+`TODO/INDEX.md` holds 304 entries: 44 open, 0 partial, 25 blocked, 235 done.
 
 Open includes parked work. `cargo todo check` verifies this line.
 
