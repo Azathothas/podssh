@@ -61,15 +61,15 @@ repository and CI).
 
 ## Counts
 
-**303 entries: 46 open, 0 partial, 25 blocked, 232 done.**
+**303 entries: 45 open, 0 partial, 25 blocked, 233 done.**
 
 | Priority | open | partial | blocked | done | total |
 | --- | --- | --- | --- | --- | --- |
 | P0 | 0 | 0 | 0 | 1 | 1 |
 | P1 | 2 | 0 | 0 | 22 | 24 |
 | P2 | 4 | 0 | 18 | 136 | 158 |
-| P3 | 40 | 0 | 7 | 73 | 120 |
-| **All** | 46 | 0 | 25 | 232 | 303 |
+| P3 | 39 | 0 | 7 | 74 | 120 |
+| **All** | 45 | 0 | 25 | 233 | 303 |
 
 ## Entries
 
@@ -313,7 +313,7 @@ repository and CI).
 | [T-239](forwarding.md) | P2 | S | M3 | defect | done | `-W` with a path, or with no port, is read as a TCP host on port 22 |
 | [T-240](ts.md) | P2 | S | M8 | defect | done | `podssh ts --jsonl` writes no JSON |
 | [T-241](ts.md) | P2 | S | M8 | defect | done | The tailnet auth key is not cleared from memory |
-| [T-242](ws.md) | P3 | S | backlog | defect | open | The frame decoder accepts a length that is not in the minimal form |
+| [T-242](ws.md) | P3 | S | backlog | defect | done | The frame decoder accepts a length that is not in the minimal form |
 | [T-243](relay.md) | P2 | S | backlog | feature | done | The user can choose the cache directory, and no directory is fixed in the code |
 | [T-244](repo.md) | P3 | M | none | chore | done | Code comments break `AGENTS.md` rule 6, and some name files and facts that are wrong |
 | [T-245](repo.md) | P2 | S | none | chore | blocked | The box refuses each bind, but sandbox A allows an AF_UNIX bind |

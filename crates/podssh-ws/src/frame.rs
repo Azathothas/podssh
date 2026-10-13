@@ -152,6 +152,14 @@ pub fn decode(input: &[u8], role: Role) -> Result<Option<(Frame, usize)>, WsErro
             }
             let v = u16::from_be_bytes([input[cursor], input[cursor + 1]]) as usize;
             cursor += 2;
+            // RFC 6455 section 5.2: a length is written in the fewest bytes,
+            // so this form holds 126 and more. A peer that writes a shorter
+            // length here breaks the protocol, and its frame is refused.
+            if v < LENGTH_16_MARKER as usize {
+                return Err(WsError::Frame(format!(
+                    "frame length {v} in the 16-bit form; RFC 6455 5.2 requires the minimal form"
+                )));
+            }
             v
         }
         n if n == LENGTH_64_MARKER as usize => {
@@ -162,6 +170,12 @@ pub fn decode(input: &[u8], role: Role) -> Result<Option<(Frame, usize)>, WsErro
             buf.copy_from_slice(&input[cursor..cursor + 8]);
             let v = u64::from_be_bytes(buf);
             cursor += 8;
+            // The fewest bytes again: the 64-bit form holds 65536 and more.
+            if v <= u16::MAX as u64 {
+                return Err(WsError::Frame(format!(
+                    "frame length {v} in the 64-bit form; RFC 6455 5.2 requires the minimal form"
+                )));
+            }
             // A 64-bit length is checked before it is cast. Truncating it to
             // a `usize` and then allocating is how a peer turns four bytes of
             // its own output into an allocation of gigabytes.

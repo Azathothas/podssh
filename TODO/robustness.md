@@ -593,8 +593,8 @@ fail.
 
 2026-10-11, read against the Premise; each holds at the cited lines:
 
-- The frame's bound refuses a 64-bit length (`crates/podssh-ws/src/frame.rs:171-173`). The check
-  after it (`crates/podssh-ws/src/frame.rs:179-183`) cannot fire: a shorter length is at most 65535.
+- The frame's bound refuses a 64-bit length (`crates/podssh-ws/src/frame.rs:185-187`). The check
+  after it (`crates/podssh-ws/src/frame.rs:193-197`) cannot fire: a shorter length is at most 65535.
 - The upgrade that podssh sends is `client::upgrade`, whose bound was a literal; it is
   `UPGRADE_HEAD` now (`crates/podssh-ws/src/client.rs:38`). `MAX_HANDSHAKE_RESPONSE`
   (`crates/podssh-ws/src/handshake.rs:124`) bounds `handshake::handshake`, which no command calls.

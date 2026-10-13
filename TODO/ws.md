@@ -805,7 +805,7 @@ Planted defect: send the address (type 1); the stand-in refuses it, and the test
 **Milestone:** backlog
 **Priority:** P3
 **Effort:** S
-**Status:** open
+**Status:** done
 
 ## Problem
 
@@ -816,7 +816,7 @@ peer that sends one breaks the protocol, and podssh reads the frame as valid.
 ## Premise
 
 Read on `3ee70dc`, the defect holds. `frame::decode` reads the 16-bit length with no lower
-bound (`crates/podssh-ws/src/frame.rs:149-156`). It reads the 64-bit length and checks only the
+bound (`crates/podssh-ws/src/frame.rs:149-164`). It reads the 64-bit length and checks only the
 size of the platform and the forward cap of 262144 bytes (lines 166-186 at `22c3b88`); that cap also refuses
 a value with its top bit set, which section 5.2 forbids too. `frame::encode` writes the minimal
 form (`:80-88`). The tests check the encoder at the boundaries 125, 126, 65535 and 65536
@@ -828,7 +828,7 @@ minimal. The only caller in the code is `next_event`, for the frames of the rela
 ## Approach
 
 1. In `frame::decode`, refuse a 16-bit length below 126 and a 64-bit length below 65536 with a
-   `WsError::Frame` that names the rule (`crates/podssh-ws/src/frame.rs:149-175`), before the
+   `WsError::Frame` that names the rule (`crates/podssh-ws/src/frame.rs:149-189`), before the
    payload is copied.
 2. A client that receives such a frame fails the WebSocket connection (RFC 6455 section 7.1.7):
    it sends a Close with 1002, a protocol error (section 7.4.1), and then closes the TCP
@@ -853,6 +853,35 @@ with a length of 125, and the marker 127 with a length of 65535. Accepted: the m
 126, and the marker 127 with 65536. A session test: such a frame ends the read with an error,
 and the client sends a Close with 1002. Planted defect: remove the check; the two refusal tests
 fail, and the two controls pass.
+
+## Done
+
+2026-10-13.
+
+- `frame::decode` (`crates/podssh-ws/src/frame.rs`) refuses, as soon as the length field is read
+  and before the masking key and the payload, a 16-bit length below 126 and a 64-bit length below
+  65536, with a `WsError::Frame` that names RFC 6455 5.2 and the minimal form. The check is in
+  `decode`, so it holds for `Role::Client` and `Role::Server` alike. A 64-bit length with its top
+  bit set stays refused by the forward cap, as before.
+- The session needed no change: since T-063 it fails the connection with a Close 1002 after each
+  error of the decoder (`RelaySession::read_frame`, through `fail`).
+- `crates/podssh-ws/tests/frame_lengths.rs` (new), on bytes written from the RFC, each in both
+  directions (a server's frame unmasked, a client's masked with the key of section 5.7):
+  `a_16_bit_length_below_126_is_refused` (125, 1 and 0) and
+  `a_64_bit_length_below_65536_is_refused` (65535, 126, 125 and 0), each from the whole frame and
+  from its header alone, so that nothing waits for a payload that it will refuse; the controls
+  `the_16_bit_form_from_126_is_accepted` (126 and 65535) and
+  `the_64_bit_form_from_65536_is_accepted` (65536 and the forward cap); and
+  `a_length_not_in_the_minimal_form_fails_the_connection_with_1002`: through a session, a frame
+  in the minimal form is read first, then the same payload with the marker 126, or 127, ends the
+  read with `SessionError::Protocol` and a Close 1002 goes out.
+- `docs/STATUS.md` (Components, `podssh-ws`).
+- Prove, Windows 11: `cargo test -p podssh-ws --test frame_lengths`, 5 passed;
+  `CC=/nonexistent CXX=/nonexistent cargo test -p podssh-ws`, 212 passed, 0 failed (the property
+  tests of T-202 among them). Planted, both checks turned off: the two refusal tests and the
+  session test failed, and the two controls passed; restored, 5 passed.
+- Nothing waits for T-251. The frames of the real relay were not read for the minimal form; a
+  live test that met a frame that is not minimal would now end with a Close 1002.
 
 # T-265: A silent first address holds the whole of a direct dial
 
