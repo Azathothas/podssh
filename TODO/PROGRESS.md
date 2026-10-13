@@ -61,11 +61,14 @@ entry keeps its proof in the entry; this page keeps no history (git does).
   | T-306, T-302, T-305 | `afbe1f388cda562f1` | `bda737c`, `949623b`, `17b4e31` (one each, on `905f92c`) | drafted; T-302 adds a new entry (the notice on the forward road), with the counts by hand; new variables `PODSSH_SPARE_LINKS` and `PODSSH_TITLE_STACK`; spare links off in the library, on in the commands |
   | T-193, T-197, T-192 | `a3f5849c868ae85c1` | `24b9f6e..d95181c`, `d95181c..0e6f48c`, `0e6f48c..a36b0ef` | drafted; `podssh job` (tmux on the far host, probed) and `podssh run`; the far tests need tmux and `sftp-server`, else they say "did not run" and pass; T-192 must call T-195's `not_a_failure` when both are in; T-193's step 3 waits for `podssh serve` |
   | T-195, T-189 | `a75061d0db98a3897` | `e4bcd06..e0b09c2`, `e0b09c2..9d3a6e4` | drafted, on `e4bcd06`; T-195 is `PODSSH_ERROR_PROGRAM`, and a command that passes a remote status on (T-192's `run`) must call `not_a_failure`; T-189 is `podssh health`, its two fixtures of `/proc` written by hand (capture real ones in the build image); `tests/ssh_harness/mod.rs` reaches 500 lines |
-  | T-190, T-191 | `aca311167dd1d2e52` | on `61e55d1` | being drafted |
+  | T-190, T-191 | `aca311167dd1d2e52` | `61e55d1..3e3b637`, `3e3b637..0d275a9` | drafted; T-190 is `podssh containers` (docker, podman and kubectl probed on the far host; the fixtures of their lists written from their documents, not captured); T-191 is `LocalCommand` with `PermitLocalCommand`, and `--expect`, `--send`, `--expect-timeout`; its new lines of `-G` are to check against OpenSSH's `ssh -G` |
 
-  A row "being drafted" is an agent of a session that may have stopped:
-  its branch's last commit says WIP or DRAFT. The next merge is T-225, then the others
-  in the order of this table.
+  Each draft of the table is whole; none is being drafted. Several add a
+  harness that `scripts/interop-each.sh` sources, as `scripts/interop.sh`
+  is at 500 lines. `crates/podssh-cli/tests/ssh_harness/mod.rs`, `crates/podssh-cli/src/tree.rs`
+  and `crates/podssh-cli/src/flags.rs` are near 500 lines, so a merge splits
+  them where needed. The next merge is T-225, then the others in the order
+  of the index.
 
   Not drafted yet: T-185 and T-186. CI: the gate passed at
   `24b9f6e` (run 38331509229), and its step `release` at `cad2885` (478
