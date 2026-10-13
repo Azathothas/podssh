@@ -8,7 +8,7 @@ use std::time::Duration;
 
 use russh::keys::{Algorithm, PrivateKey};
 use russh::server::{self, Auth, Msg as ServerMsg, Session as ServerSession};
-use russh::{Channel, ChannelMsg, ChannelOpenFailure};
+use russh::{Channel, ChannelId, ChannelMsg, ChannelOpenFailure};
 use tokio::sync::oneshot;
 
 use crate::log::Log;
@@ -20,11 +20,15 @@ const CHOSEN: u32 = 4242;
 
 /// Lets anyone in, gives its session handle to the test, and takes each
 /// forward after refusing the first `refuse` requests: the requests it saw
-/// are kept.
+/// are kept. With `open_first`, it opens a channel for a taken port before
+/// it answers, as a connection that comes at once can make a server do;
+/// `opened` keeps each channel that the client accepted.
 struct Forwarder {
     handle: Option<oneshot::Sender<server::Handle>>,
     refuse: usize,
     asked: Arc<Mutex<Vec<(String, u32)>>>,
+    open_first: bool,
+    opened: Arc<Mutex<Vec<ChannelId>>>,
 }
 
 impl server::Handler for Forwarder {
@@ -45,14 +49,30 @@ impl server::Handler for Forwarder {
         &mut self,
         address: &str,
         port: &mut u32,
-        _session: &mut ServerSession,
+        session: &mut ServerSession,
     ) -> Result<bool, Self::Error> {
         let mut asked = self.asked.lock().unwrap();
         asked.push((address.to_string(), *port));
         if *port == 0 {
             *port = CHOSEN;
         }
-        Ok(asked.len() > self.refuse)
+        let take = asked.len() > self.refuse;
+        if take && self.open_first {
+            // Written now, so it goes out before the answer to the request.
+            session.channel_open_forwarded_tcpip(address, *port, "192.0.2.1", 40000)?;
+        }
+        Ok(take)
+    }
+
+    async fn channel_open_confirmation(
+        &mut self,
+        id: ChannelId,
+        _max_packet_size: u32,
+        _window_size: u32,
+        _session: &mut ServerSession,
+    ) -> Result<(), Self::Error> {
+        self.opened.lock().unwrap().push(id);
+        Ok(())
     }
 }
 
@@ -60,6 +80,7 @@ struct Run {
     client: Result<russh::client::Handle<crate::handler::Client>, HopError>,
     server: Option<server::Handle>,
     asked: Arc<Mutex<Vec<(String, u32)>>>,
+    opened: Arc<Mutex<Vec<ChannelId>>>,
     logged: String,
 }
 
@@ -71,6 +92,18 @@ async fn log_in(forwards: Vec<RemoteForward>, take: bool, exit_on_failure: bool)
 /// Log in with `forwards`, the server refusing the first `refuse` requests,
 /// and a refused one asked again as `again` says.
 async fn log_in_again(forwards: Vec<RemoteForward>, refuse: usize, exit_on_failure: bool, again: Option<Again>) -> Run {
+    log_in_with(forwards, refuse, exit_on_failure, again, false).await
+}
+
+/// `log_in_again`, the server opening a channel for each forward that it
+/// takes before it answers, when `open_first` says so.
+async fn log_in_with(
+    forwards: Vec<RemoteForward>,
+    refuse: usize,
+    exit_on_failure: bool,
+    again: Option<Again>,
+    open_first: bool,
+) -> Run {
     let (client_end, server_end) = tokio::io::duplex(1 << 16);
     let mut config = server::Config::default();
     config.keys.push(PrivateKey::random(&mut rand::rng(), Algorithm::Ed25519).expect("a host key"));
@@ -78,7 +111,8 @@ async fn log_in_again(forwards: Vec<RemoteForward>, refuse: usize, exit_on_failu
     config.auth_rejection_time_initial = Some(Duration::ZERO);
     let (tx, rx) = oneshot::channel();
     let asked = Arc::new(Mutex::new(Vec::new()));
-    let forwarder = Forwarder { handle: Some(tx), refuse, asked: asked.clone() };
+    let opened = Arc::new(Mutex::new(Vec::new()));
+    let forwarder = Forwarder { handle: Some(tx), refuse, asked: asked.clone(), open_first, opened: opened.clone() };
     let config = Arc::new(config);
     tokio::spawn(async move {
         if let Ok(session) = server::run_stream(config, server_end, forwarder).await {
@@ -106,7 +140,7 @@ async fn log_in_again(forwards: Vec<RemoteForward>, refuse: usize, exit_on_failu
     };
     let logged = std::fs::read_to_string(&log_file).unwrap_or_default();
     let _ = std::fs::remove_dir_all(&dir);
-    Run { client, server, asked, logged }
+    Run { client, server, asked, opened, logged }
 }
 
 fn forward(port: u16, host: &str, host_port: u16) -> RemoteForward {
@@ -251,6 +285,24 @@ async fn a_forward_refused_for_the_whole_time_warns_or_ends_the_run() {
             Err(e) => panic!("another error: {e}"),
             Ok(_) => panic!("ExitOnForwardFailure did not end the run"),
         }
+    };
+    tokio::time::timeout(Duration::from_secs(60), test).await.expect("the test ends within 60 s");
+}
+
+/// A server may open a channel for a forward as soon as it takes it, before
+/// podssh reads its answer: a port named in advance is podssh's from the
+/// request on, as in OpenSSH's client, so the channel is accepted (T-042,
+/// a test of `--persist` that failed once at random so).
+#[tokio::test]
+async fn a_channel_that_comes_before_the_answer_is_accepted() {
+    let test = async {
+        let run = log_in_with(vec![forward(2292, "127.0.0.1", 9)], 0, false, None, true).await;
+        assert!(run.client.is_ok(), "{}", run.logged);
+        let started = std::time::Instant::now();
+        while run.opened.lock().unwrap().is_empty() && started.elapsed() < Duration::from_secs(10) {
+            tokio::time::sleep(Duration::from_millis(20)).await;
+        }
+        assert_eq!(run.opened.lock().unwrap().len(), 1, "the channel was refused: {}", run.logged);
     };
     tokio::time::timeout(Duration::from_secs(60), test).await.expect("the test ends within 60 s");
 }

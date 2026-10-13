@@ -995,8 +995,8 @@ count each chunk twice, and the unit test fails.
 `crates/podssh-ssh/src/tally.rs:1-193`; `-L` and `-D` count at
 `crates/podssh-ssh/src/local.rs:156-162`, `crates/podssh-ssh/src/local.rs:254` and
 `crates/podssh-ssh/src/local.rs:278`, `-R` at
-`crates/podssh-ssh/src/remote.rs:109`, `crates/podssh-ssh/src/remote.rs:166`
-and `crates/podssh-ssh/src/remote.rs:178`, `-W` at
+`crates/podssh-ssh/src/remote.rs:118`, `crates/podssh-ssh/src/remote.rs:175`
+and `crates/podssh-ssh/src/remote.rs:187`, `-W` at
 `crates/podssh-ssh/src/forward.rs:42` and
 `crates/podssh-ssh/src/forward.rs:53`; `~#` at
 `crates/podssh-ssh/src/escape.rs:98` and `crates/podssh-ssh/src/io.rs:211`,
@@ -1141,7 +1141,7 @@ link: the mode at `crates/podssh-cli/src/ssh/persist.rs:38-45` and
 `crates/podssh-ssh/src/persist.rs:94-133`, which asks for the forwards,
 serves `-L` and `-D`, and tells a loss from an end
 (`crates/podssh-ssh/src/persist.rs:57-62`); a refused `-R` asked again in
-`crates/podssh-ssh/src/remote.rs:46-116`, as `Options::forwards_again` says
+`crates/podssh-ssh/src/remote.rs:46-125`, as `Options::forwards_again` says
 (`crates/podssh-ssh/src/options.rs:305-314`), which the loop sets after the
 first loss (`crates/podssh-cli/src/ssh/persist.rs:163-172`); the rule of
 `STEADY` at `crates/podssh-cli/src/ssh/persist.rs:142-148`.
@@ -1460,7 +1460,7 @@ counts, and cannot change them.
 Read: the escapes are `~.`, `~R`, `~#`, `~?` and `~~`
 (`crates/podssh-ssh/src/escape.rs:13-25`). The listeners of `-L` and `-D` are
 served from the start of the session (`crates/podssh-ssh/src/local.rs:152-181`),
-and `-R` is asked for after the login (`crates/podssh-ssh/src/remote.rs:46-111`).
+and `-R` is asked for after the login (`crates/podssh-ssh/src/remote.rs:46-120`).
 ssh(1), ESCAPE CHARACTERS: `~C` opens a command line that takes `-L`, `-R`,
 `-D`, `-KL`, `-KR` and `-KD` (read in the manual, not measured here).
 
@@ -1516,7 +1516,7 @@ ssh(1), ESCAPE CHARACTERS: `~C` opens a command line that takes `-L`, `-R`,
   OpenSSH. `~#` says closed when no listener of the forward is left.
   `-KR` finds the forward by the port that the server listens on (the one
   it chose for a port of 0) and, when one is given, the address sent
-  (`crates/podssh-ssh/src/remote.rs:122`).
+  (`crates/podssh-ssh/src/remote.rs:131`).
 - The forwards that `~C` adds belong to the connection, and those that it
   stops stay stopped: a new connection of `--persist` asks only for the
   forwards of the command line that `~C` did not stop

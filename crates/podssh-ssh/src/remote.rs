@@ -95,16 +95,25 @@ pub async fn request(handle: &Handle<Client>, table: &Table, opts: &Options, log
 /// Ask the server for one forward: whether it took it, which is then in
 /// `table`.
 pub(crate) async fn ask(handle: &Handle<Client>, table: &Table, forward: &RemoteForward, log: &Log) -> bool {
-    let Ok(chosen) = handle.tcpip_forward(forward.sent_address(), u32::from(forward.port)).await else {
+    // A port named in advance is in the table before the request, as
+    // OpenSSH's client records it: the server may open a channel for it as
+    // soon as it answers, before this task reads the answer.
+    let named = u32::from(forward.port);
+    if forward.port != 0 {
+        table.lock().unwrap_or_else(|e| e.into_inner()).push(Bound { port: named, forward: forward.clone() });
+    }
+    let Ok(chosen) = handle.tcpip_forward(forward.sent_address(), named).await else {
+        if forward.port != 0 {
+            table.lock().unwrap_or_else(|e| e.into_inner()).retain(|b| !(b.port == named && b.forward == *forward));
+        }
         return false;
     };
     // The server names a port only when it chose one; it may choose another
     // on each connection of a run.
-    let port = if forward.port == 0 { chosen } else { u32::from(forward.port) };
     if forward.port == 0 {
-        log.info(&format!("Allocated port {port} for remote forward to {}:{}", forward.host, forward.host_port));
+        log.info(&format!("Allocated port {chosen} for remote forward to {}:{}", forward.host, forward.host_port));
+        table.lock().unwrap_or_else(|e| e.into_inner()).push(Bound { port: chosen, forward: forward.clone() });
     }
-    table.lock().unwrap_or_else(|e| e.into_inner()).push(Bound { port, forward: forward.clone() });
     // In the list of ~# from now on (T-041), open again if ~C had stopped it.
     crate::tally::opened(&name(forward));
     true
