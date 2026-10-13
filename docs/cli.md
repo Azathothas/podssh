@@ -666,6 +666,19 @@ SFTP, through the relay or with `--direct`, with the connection flags of
   tasks share 1.5 MiB in flight, below the 2 MiB queued that close a
   session, and a task takes a chunk only while the session may carry it
   whole. The copy by exec goes in one stream, and `-v` says so.
+- **Several files with `--parallel K`** (T-297): the sources of the command
+  line, and the files of a tree with `-r`, go K at once, each over an SFTP
+  session of its own in the one connection; the connection's own session
+  is one of the K. A server that opens fewer sessions gets fewer files at
+  once, and `-v` says so. Each file goes as one copy goes: its temporary
+  name, its side file, its digest and its rename. A file of more than one
+  chunk waits, and goes after the others, alone, in chunks. A broken
+  connection ends the files in flight where they are; the next connection
+  goes on with each from its side file, at most 5 times in a row with no
+  new byte, as for one file. Through the relay the files share 1.5 MiB in
+  flight, as the chunks do. The report keeps the order of the sources, and
+  the exit code is that of the first failure in that order. `mv` removes
+  each source after the copies. The copy by exec goes one file at a time.
 - **`--delta`** (T-142): over an older version of the same file on the
   other side, only the blocks of 1 MiB that changed go. The SHA-256 of each
   far block comes from one command over exec (`dd` into `sha256sum`,

@@ -25,7 +25,7 @@ pub const CP_FLAGS: &[FlagRow] = &[
     row(Some('i'), "identity-file", Some("FILE"), FlagKind::Supported,
         "identity file, repeatable; also -oIdentityFile=", None),
     row(None, "parallel", Some("K"), FlagKind::Supported,
-        "copy a file of more than 8 MiB as chunks, K at once, each over a channel of its own in the one connection (1 to 16; default 1)", None),
+        "copy several files K at once, and a file of more than 8 MiB as chunks, K at once, each over a channel of its own in the one connection (1 to 16; default 1)", None),
     row(None, "delta", None, FlagKind::Supported,
         "over an older version of the file, send only the blocks of 1 MiB that changed; a full copy when the server cannot, or when the digests then differ", None),
     row(Some('r'), "recursive", None, FlagKind::Supported,

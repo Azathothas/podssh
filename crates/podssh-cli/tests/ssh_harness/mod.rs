@@ -53,6 +53,7 @@ pub mod podssh;
 mod serve;
 pub mod sftp;
 mod sudo;
+pub mod watch;
 mod x11;
 
 // Each test binary uses a part of it.
@@ -105,6 +106,10 @@ struct Far {
     /// The user `evil-...`: each listing of its `sftp-server` names
     /// `../escape` too (T-143).
     evil: bool,
+    /// A server of `watch::start_watched` (T-297): what it counts, and the
+    /// bytes of SFTP input left before this connection's cut (`cut-N-...`).
+    watch: Option<Arc<watch::Watch>>,
+    cut: Option<u64>,
     sftps: HashMap<ChannelId, tokio::process::ChildStdin>,
     /// A server of `start_podssh`: what its podssh gets (T-167).
     podssh: Option<Arc<podssh::Podssh>>,
@@ -124,6 +129,9 @@ impl server::Handler for Far {
         self.nopass = user.starts_with("sudo-nopass-");
         self.pty = user.starts_with("pty-");
         self.evil = user.starts_with("evil-");
+        if watch::refused(self.watch.as_deref(), user, &mut self.cut) {
+            return Ok(Auth::reject());
+        }
         // A user named key-...: a key is needed, as from an agent (T-034).
         if user.starts_with("key-") {
             return Ok(Auth::Reject {
@@ -188,6 +196,7 @@ impl server::Handler for Far {
     ) -> Result<(), Self::Error> {
         if let Some(stdin) = sftp::start(name, self.sftp_root.as_deref(), self.evil, channel, session)? {
             self.sftps.insert(channel, stdin);
+            watch::saw(self.watch.as_deref(), self.sftps.len());
         }
         Ok(())
     }
@@ -410,6 +419,10 @@ impl server::Handler for Far {
 
     async fn data(&mut self, channel: ChannelId, data: &[u8], session: &mut Session) -> Result<(), Self::Error> {
         if let Some(stdin) = self.sftps.get_mut(&channel) {
+            // A cut (T-297): the connection ends with no word.
+            if watch::spend(&mut self.cut, data.len()) {
+                return Err(russh::Error::Disconnect);
+            }
             sftp::input(stdin, data).await;
             return Ok(());
         }

@@ -26,6 +26,7 @@ pub mod delta;
 pub(crate) mod digest;
 pub mod gauge;
 pub mod in_place;
+mod lanes;
 pub(crate) mod link;
 pub mod meta;
 mod mirror;
@@ -330,11 +331,21 @@ pub fn run_cp(args: &CpArgs, deadline: Option<Duration>, jsonl: bool, out: &mut 
         }
     });
     let Some(outcome) = outcome else {
-        let kept = match resume::current() {
-            Some((temp, side)) => {
+        // Several files at once leave a partial copy each (T-297).
+        let kept = match resume::each_current().as_slice() {
+            [] => String::new(),
+            [(temp, side)] => {
                 format!("; the partial copy stays at {temp}, and the same command goes on from it (its record: {side})")
             }
-            None => String::new(),
+            many => {
+                let (temps, sides): (Vec<&str>, Vec<&str>) =
+                    many.iter().map(|(temp, side)| (temp.as_str(), side.as_str())).unzip();
+                format!(
+                    "; the partial copies stay at {}, and the same command goes on from each (their records: {})",
+                    temps.join(", "),
+                    sides.join(", ")
+                )
+            }
         };
         let _ = writeln!(err, "podssh {verb}: interrupted{kept}");
         runtime.shutdown_background();

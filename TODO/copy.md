@@ -958,7 +958,7 @@ Where podssh must replace them, OpenSSH's own `scp` and `sftp` cannot run
 
 Recommendation: `scp` and `sftp` get no `--timeout` row, as in OpenSSH, so
 the gate of `crates/podssh-cli/src/dispatch.rs:232-250` skips them; T-133's
-limits keep each wait finite. Usage errors stay 64 (`docs/cli.md:1740-1743`)
+limits keep each wait finite. Usage errors stay 64 (`docs/cli.md:1753-1756`)
 where OpenSSH gives 1; a script that tests for "not zero" works with both.
 `--timeout` required with no terminal, as for `cp`, lost: each script that
 runs `scp` in a pipe would exit 64 under `podssh scp`.
@@ -2359,7 +2359,7 @@ each").
 **Milestone:** backlog
 **Priority:** P3
 **Effort:** M
-**Status:** open
+**Status:** done
 
 ## Problem
 
@@ -2385,6 +2385,64 @@ sum of their latencies.
    goes on with each from its side file, as one file does now.
 3. The report keeps the order of the sources, and the first failure's code.
 
+## Decision
+
+2026-10-13, the calls made in the work:
+
+- **The sessions.** The files go over the connection's own SFTP session
+  and K - 1 more, so that K sessions at most share the connection, as the
+  Prove counts them. A session that the server does not open is not a
+  failure: fewer files go at once, and `-v` says so. OpenSSH opens 10
+  sessions on one connection by default (`MaxSessions`), and the far
+  digest of each file opens an exec channel too; a digest command that
+  cannot start falls back to a second read, as before. K + 1 sessions lost:
+  more than K at once. A copy that fails when a session is refused lost: a
+  server with fewer sessions than K would fail each copy.
+- **A file of more than one chunk** waits, and goes after the others,
+  alone, in chunks with the K tasks of T-141, through `session::attempts`.
+  Each file's size comes from the look at its source that each attempt
+  makes first, so no request is added. Chunks inside a lane lost: up to
+  2K - 1 sessions at once, and more than the relay's room in flight. A look
+  at each far size before the run, to sort the files, lost: a round trip
+  for each file, the cost that this entry removes. One stream in its lane
+  lost: slower than T-141's chunks for a large file.
+- **The files of a tree** (`cp -r`) go K at once too, though the Approach
+  names the sources: the Problem is a tree of small files, the case that
+  gains the most. They wait during the walk, which still makes each
+  directory and link in its order, and go before each directory's mode is
+  set and before `--delete` and `mv -r` look at what was copied. Another
+  name of a file that waits sends the files that wait first, so that it
+  becomes a hard link to the copy (T-146). `sftp`'s `get -r` and `put -r`
+  (T-298) still copy one file at a time over the batch's one session.
+- **A break** ends the attempt of each file in flight; no file starts
+  after it on that connection. The next connection goes on with each file
+  from its record (in memory in the run, and from its side file in the
+  next run), at most 5 connections in a row with no new byte in any file
+  and no file done, with the relay opener's backoff between them; a
+  refused login or another host key ends each file that waits, as for one
+  file. A count for each file lost: the files share each connection, so a
+  connection that fails, fails each of them.
+- **Through the relay** the files share 1.5 MiB in flight, as T-141's
+  chunks do (`chunks::share`), and each request checks the session's
+  budget (T-137). The K files can pass the budget by K requests at most,
+  each of 255 KiB at most: within the 4 MiB between podssh's budget and the
+  relay's cap. A session that is spent ends the attempt of each file in
+  flight, and a new one goes on at once.
+- **The report** takes each answer in the order of the sources: the first
+  failure in that order sets the code, not the first in time. `mv` removes
+  each source after the copies, in that order, over the connection's own
+  session.
+- **An interruption** names each partial copy and its side file: the
+  record of the copies in progress is a list now
+  (`crates/podssh-cli/src/cp/resume.rs`, `each_current`).
+- **By exec** each file goes in one stream, in turn, as T-141's chunks do:
+  writing at an offset needs `dd`, which T-135's probe does not ask for.
+- **The test's server** counts the SFTP sessions of each connection, and
+  keeps the most (`crates/podssh-cli/tests/ssh_harness/watch.rs`). The
+  break is a cut of the first connection of a user `cut-N-...` after N
+  bytes of SFTP input; a refusal of each later login of that user ends a
+  run at the cut, for the test of the next run.
+
 ## Prove
 
 ```sh
@@ -2396,6 +2454,59 @@ equal to its source, with at most 8 SFTP sessions at once (the server
 counts them); the report lists them in their order. Planted defect: two
 files into one temporary name; a digest check fails.
 
+## Done
+
+2026-10-13.
+
+- `crates/podssh-cli/src/cp/lanes.rs`: the files K at once, each over an
+  SFTP session of its own, each attempt as `session::attempts` makes one
+  (the look at the source, the record, the copy, once more from the first
+  byte after digests that differ), the files that wait for the next
+  connection, and the files of more than one chunk after them.
+- `crates/podssh-cli/src/cp/session.rs`: the sources that are files wait,
+  then go K at once (each tree after the files named before it); each
+  answer goes into the outcome in the order of the sources (`settle`, also
+  for one file at a time). `crates/podssh-cli/src/cp/tree_conn.rs` and
+  `crates/podssh-cli/src/cp/tree_copy.rs`: the files of a tree.
+  `crates/podssh-cli/src/cp/resume.rs`: the look at a far source over a
+  given session, and the list of the copies in progress;
+  `crates/podssh-cli/src/cp/mod.rs`: the words of an interruption.
+- The row of `--parallel` (`crates/podssh-cli/src/flags/copy.rs`), a note of
+  `cp` in the manual, `docs/cli.md` and `docs/STATUS.md`.
+- Tests, `cargo test -p podssh-cli --test cp_parallel -- small`: 6
+  passed on Windows 11. Six tests: 50 files up and back down, 8 at once, at most 8
+  SFTP sessions at once and 2 or more, one connection, the report in the
+  order of the sources, nothing left; a file of two chunks among 6 goes
+  after them in chunks, the report in order; a connection cut after
+  1,500,000 bytes, 2 files or more go on where they were over the next
+  connection; a run that ends at the cut (the next login refused), then
+  the same command goes on from each side file whose temporary file is
+  there; the first failure in the order of the sources sets the code (73
+  at the rename of the first file onto a directory, though the sixth is
+  missing, 66, and fails first), each other file copied; a tree of 36
+  files up and down, 8 at once. The unit tests of `lanes.rs` (a file moved
+  when its record holds more than before; a source of more than one chunk
+  waits): 2 passed. The other tests of `cp_parallel`, `cp_tree`,
+  `cp_progress`, `copy_pipeline` and `node_copy`, which go through the
+  changed `session.rs`, `tree_copy.rs` and `resume.rs`: passed;
+  `cargo test -p podssh-cli`, 788 passed, 0 failed. Clippy refused two
+  dereferences that Rust does itself and two `drain(..).collect()` of a
+  whole vector, which `std::mem::take` does now.
+- Planted defect, two files into one temporary name: in
+  `crates/podssh-cli/src/cp/bysftp.rs`, the temporary name of a copy up
+  becomes one for its directory (`format!("{dir}.podssh-plant.part")`),
+  opened without `EXCLUDE`; the files at once then write one file, and a
+  digest check fails (70), or a rename finds no file (73). With `EXCLUDE`
+  kept, the second open fails (73): the tests catch both. Planted, the
+  one name opened without `EXCLUDE`: the six tests failed; restored, they
+  passed.
+- In the build image, 2026-10-13: the steps `lint` and `release`, green
+  (clippy 1.99 clean; interop 526 passed, `cp` 80 of 80, `mv` 18, `sftp`
+  5); and against OpenSSH's `sftp-server` on Linux
+  (`PODSSH_TEST_SFTP_SERVER=/usr/lib/ssh/sftp-server`), `cp_parallel` 8,
+  `copy_pipeline` 6, `node_copy` 3 and `cp_tree` 3 passed.
+- Waits for T-251: the rate of many small files through the relay by
+  T-157's method. The Prove names no interop harness.
 # T-298: `sftp`'s `-r`: `get -r` and `put -r` of a directory
 
 **Source:** T-143: `podssh cp -r` copies trees; `sftp -r` and the `-r` of

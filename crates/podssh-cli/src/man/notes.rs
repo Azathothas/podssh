@@ -68,6 +68,11 @@ const CP: &[&str] = &[
     "Several sources go into a directory. A copy from server to server goes through a temporary file on \
      this host, one connection at a time. -r copies a directory and what it holds, each link as a link \
      (scp -r follows links).",
+    "With --parallel K several files go K at once, each over an SFTP session of its own in the one \
+     connection, and so do the files of a tree with -r; a file of more than 8 MiB goes after them, alone, \
+     as chunks, K at once. Each file keeps its own side file, so after a broken connection each goes on \
+     where it was. The report keeps the order of the sources, and the exit code is that of the first \
+     failure in that order. The copy by exec goes one file at a time.",
     "A copy keeps the source's permission bits. -p keeps the access and the modification times too, \
      and with -r each directory's, set after its files; --owner keeps the owner and the group by number \
      where the side that writes may give a file away (root), and says where it could not. A block of 64 \

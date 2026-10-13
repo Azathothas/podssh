@@ -1,6 +1,7 @@
 //! One session's files. A copy whose connection breaks goes on over a new
 //! one, at its offset (T-136); `mv` removes each source once its copy is
-//! verified (T-138).
+//! verified (T-138). With `--parallel K`, several files go K at once
+//! ([`lanes`], T-297).
 
 use std::sync::Arc;
 
@@ -14,7 +15,7 @@ use super::plan::{Direction, Plan};
 use super::resume::{self, Before, Progress, TRIES};
 use super::transfer::{self, Cause, Done, Failed};
 use super::tree_conn::Conn;
-use super::{bysftp, mirror, tree_copy, Outcome};
+use super::{bysftp, lanes, mirror, tree_copy, Outcome};
 use crate::exitmap::Fault;
 use crate::ssh::resolve::Resolved;
 
@@ -48,10 +49,18 @@ pub(super) async fn session(
     }
     let mut link = Some(first);
     let many = plan.sources.len() > 1;
+    // --parallel K and several files: they wait, then go K at once over the
+    // connection (T-297).
+    let pooled = lanes::fit(plan.sources.len(), plan.shape, link.as_ref());
+    let mut waiting = Vec::new();
     for source in &plan.sources {
-        // -r: a directory goes with what it holds (T-143).
+        // -r: a directory goes with what it holds (T-143), after the files
+        // named before it.
         if let Some(tree) = &plan.tree {
             if tree_copy::is_dir(tree_copy::sftp_of(&link), source, tree).await {
+                if !pool(&mut waiting, &mut link, resolved, log, plan.shape, after, &mut outcome).await {
+                    break;
+                }
                 let moving = after == After::Remove;
                 let (dest, mut conn) = (&plan.destination, Conn::Again { link: &mut link, resolved });
                 tree_copy::copy(&mut conn, source, dest, many, tree, log, plan.shape, moving, &mut outcome).await;
@@ -61,47 +70,97 @@ pub(super) async fn session(
                 continue;
             }
         }
-        let name = named.clone().unwrap_or_else(|| shown(source));
-        let (mut done, before) =
-            match attempts(&mut link, resolved, source, &plan.destination, many, log, plan.shape).await {
-                Ok(pair) => pair,
-                Err(failed) => {
-                    outcome.failed.get_or_insert((name, failed));
-                    // No connection is left for the next file.
-                    if link.is_none() {
-                        break;
-                    }
-                    continue;
-                }
-            };
-        if let Some(n) = &named {
-            done.source = n.clone();
+        if pooled {
+            waiting.push((source.clone(), plan.destination.clone()));
+            continue;
         }
-        let mut kept = None;
-        match (after, link.as_ref()) {
-            (After::Remove, Some(current)) => {
-                let removed = moving::finish(current, source, &before, &done).await;
-                done.removed = Some(removed.is_ok());
-                kept = removed.err();
-            }
-            (After::Remove, None) => {
-                done.removed = Some(false);
-                kept = Some(moving::not_removed(&name, "no connection was left"));
-            }
-            (After::Record, _) => outcome.recorded.push(before),
-            (After::Keep, _) => {}
-        }
-        outcome.done.push(done);
-        if let Some(failed) = kept {
-            outcome.failed.get_or_insert((name, failed));
+        let answer = attempts(&mut link, resolved, source, &plan.destination, many, log, plan.shape).await;
+        settle(&mut outcome, link.as_ref(), source, named.as_deref(), after, answer).await;
+        // No connection is left for the next file.
+        if link.is_none() {
+            break;
         }
     }
+    pool(&mut waiting, &mut link, resolved, log, plan.shape, after, &mut outcome).await;
     // --delete: once each copy of the run succeeded (T-144).
     mirror::finish_deletes(&link, &mut outcome, log).await;
     if let Some(link) = link {
         link.close().await;
     }
     Some(outcome)
+}
+
+/// What became of one file: done, with its source as it was before the
+/// copy; or failed.
+pub(super) type Answer = Result<(Done, Before), Failed>;
+
+/// The files of the command line that wait to go K at once (T-297), then
+/// each answer into the outcome, in their order. Several files are never a
+/// copy across, whose report names its source otherwise. False when no
+/// connection is left.
+async fn pool(
+    waiting: &mut Vec<(Operand, Operand)>,
+    link: &mut Option<Link>,
+    resolved: &Resolved,
+    log: &Arc<Log>,
+    shape: Shape,
+    after: After,
+    outcome: &mut Outcome,
+) -> bool {
+    if waiting.is_empty() {
+        return link.is_some();
+    }
+    let files: Vec<(Operand, Operand)> = std::mem::take(waiting);
+    let answers = lanes::files(link, resolved, &files, true, log, shape).await;
+    for ((source, _), answer) in files.iter().zip(answers) {
+        // None: no connection was left to try it.
+        if let Some(answer) = answer {
+            settle(outcome, link.as_ref(), source, None, after, answer).await;
+        }
+    }
+    link.is_some()
+}
+
+/// One file's answer into the outcome: its failure, or the file done, with
+/// its source then removed (`mv`) or kept as it was (the first leg of a
+/// move between servers). `named` replaces the source's name in the report.
+async fn settle(
+    outcome: &mut Outcome,
+    link: Option<&Link>,
+    source: &Operand,
+    named: Option<&str>,
+    after: After,
+    answer: Answer,
+) {
+    let name = named.map_or_else(|| shown(source), str::to_string);
+    let (mut done, before) = match answer {
+        Ok(pair) => pair,
+        Err(failed) => {
+            outcome.failed.get_or_insert((name, failed));
+            return;
+        }
+    };
+    if let Some(n) = named {
+        done.source = n.to_string();
+    }
+    let mut kept = None;
+    match (after, link) {
+        (After::Remove, Some(current)) => {
+            let removed = moving::finish(current, source, &before, &done).await;
+            done.removed = Some(removed.is_ok());
+            kept = removed.err();
+        }
+        (After::Remove, None) => {
+            done.removed = Some(false);
+            kept = Some(moving::not_removed(&name, "no connection was left"));
+        }
+        (After::Record, _) => outcome.recorded.push(before),
+        (After::Keep, _) => {}
+    }
+    outcome.done.push(done);
+    if let Some(failed) = kept {
+        outcome.failed.get_or_insert((name, failed));
+    }
 }
 
 /// The copy of one file over `link`, and over a new connection after each

@@ -6,17 +6,16 @@
 //! and `--owner` keep, set after its files. Up, two names of one local file
 //! arrive as one file with two names (T-146). An item that cannot be copied
 //! is reported and the walk goes on; the exit is then not zero, as for
-//! `scp`. `--dry-run` says each action and changes nothing.
+//! `scp`. `--dry-run` says each action and changes nothing. With `--parallel
+//! K` the files wait, then go K at once, before each directory's mode is set
+//! (T-297).
 
 use std::path::{Path, PathBuf};
 use std::sync::Arc;
 
-use std::collections::HashMap;
-
 use podssh_ssh::sftp::{FileAttributes, Sftp};
 use podssh_ssh::Log;
 
-use super::digest::Sum;
 use super::link::{Link, Road};
 use super::meta;
 use super::mirror::{refused_root, Pending};
@@ -25,7 +24,7 @@ use super::pipe::Shape;
 use super::session::shown;
 use super::transfer::{self, Done, Failed, Side};
 use super::tree::{self, Item, Tree};
-use super::tree_conn::Conn;
+use super::tree_conn::{flush, Conn, Linked, Waiting};
 use super::Outcome;
 use crate::exitmap::Fault;
 
@@ -132,7 +131,9 @@ async fn up(
     let mut clean = true;
     // The far name, the size and the digest of each file copied that has
     // other names here, by its device and inode (T-146).
-    let mut linked: HashMap<(u64, u64), (String, u64, Option<Sum>)> = HashMap::new();
+    let mut linked = Linked::new();
+    // --parallel K: the files wait, then go K at once (T-297).
+    let (batching, mut batch) = (conn.batches(shape), Waiting::new());
     for item in &items {
         match item {
             Item::Dir { rel, stamp } => {
@@ -157,6 +158,12 @@ async fn up(
                 let from = local_join(Path::new(src), rel).display().to_string();
                 let target = remote_join(&root, rel);
                 let id = meta::inode(Path::new(&from));
+                // Another name of a file that waits: the files that wait go
+                // first, so that this name links to its copy.
+                let waits = id.is_some() && batch.iter().any(|(_, _, other)| *other == id);
+                if waits && !flush(conn, &mut batch, &mut linked, log, shape, outcome, &mut clean).await {
+                    return;
+                }
                 if let Some((first, bytes, sum)) = id.and_then(|id| linked.get(&id)).cloned() {
                     if tree.dry_run {
                         outcome.planned.push(("hardlink", target, first));
@@ -196,6 +203,10 @@ async fn up(
                     continue;
                 }
                 let to = Operand::Remote(Remote { path: target, ..dst.clone() });
+                if batching {
+                    batch.push((Operand::Local(from), to, id));
+                    continue;
+                }
                 match conn.file(&Operand::Local(from.clone()), &to, log, shape).await {
                     Ok(done) => {
                         if let Some(id) = id {
@@ -234,6 +245,9 @@ async fn up(
                 failed(outcome, log, from.clone(), Failed::new(Fault::NoInput, format!("{from}: not copied: {why}")));
             }
         }
+    }
+    if !flush(conn, &mut batch, &mut linked, log, shape, outcome, &mut clean).await {
+        return;
     }
     // Each directory's mode, and what -p and --owner keep, after its files,
     // the deepest first; one that the server refuses is said.
@@ -298,6 +312,8 @@ async fn down(
     let items = tree::walk_far(sftp, &src.path, tree, cfg!(windows)).await;
     let mut dirs = Vec::new();
     let mut clean = true;
+    // --parallel K: the files wait, then go K at once (T-297).
+    let (batching, mut batch) = (conn.batches(shape), Waiting::new());
     for item in &items {
         match item {
             Item::Dir { rel, stamp } => {
@@ -322,6 +338,10 @@ async fn down(
                     continue;
                 }
                 let source = Operand::Remote(Remote { path: from.clone(), ..src.clone() });
+                if batching {
+                    batch.push((source, Operand::Local(target), None));
+                    continue;
+                }
                 match conn.file(&source, &Operand::Local(target), log, shape).await {
                     Ok(done) => outcome.done.push(done),
                     Err(f) => {
@@ -357,6 +377,9 @@ async fn down(
                 failed(outcome, log, from.clone(), Failed::new(fault, format!("{from}: not copied: {why}")));
             }
         }
+    }
+    if !flush(conn, &mut batch, &mut Linked::new(), log, shape, outcome, &mut clean).await {
+        return;
     }
     for (dir, stamp) in dirs.iter().rev() {
         if let Err(f) = meta::set_local(dir, stamp, shape.keep, log) {

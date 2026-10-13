@@ -20,6 +20,7 @@ use std::io::{Read, Seek, SeekFrom};
 use std::path::{Path, PathBuf};
 use std::time::{SystemTime, UNIX_EPOCH};
 
+use podssh_ssh::sftp::Sftp;
 use sha2::{Digest, Sha256};
 
 use super::link::{Link, Road};
@@ -90,12 +91,16 @@ fn file_id(meta: &std::fs::Metadata) -> Option<(u64, u64)> {
 /// What a far source is now, by the link's road.
 pub async fn far(link: &Link, path: &str) -> Result<Before, Failed> {
     match &link.road {
-        Road::Sftp(sftp) => {
-            let attrs = sftp.stat(path).await.map_err(|e| transfer::from_sftp(e, Side::Source))?;
-            Ok(Before::Sftp { size: attrs.size, mtime: attrs.mtime })
-        }
+        Road::Sftp(sftp) => far_over(sftp, path).await,
         Road::Exec(far) => far.listing(link.handle(), path).await.map(Before::Exec),
     }
+}
+
+/// What a far source is now, over `sftp`: the link's own session, or one
+/// of the sessions of several files at once (T-297).
+pub async fn far_over(sftp: &Sftp, path: &str) -> Result<Before, Failed> {
+    let attrs = sftp.stat(path).await.map_err(|e| transfer::from_sftp(e, Side::Source))?;
+    Ok(Before::Sftp { size: attrs.size, mtime: attrs.mtime })
 }
 
 /// What `source` is now, on its side.
@@ -245,7 +250,8 @@ impl Progress {
     /// The copy is done, or cannot continue: the side file goes.
     pub fn clear(&mut self) {
         podssh_relay::cache::remove_named_from(&self.dirs, &self.side);
-        CURRENT.lock().unwrap().take();
+        // This copy's own: other files may still be in flight (T-297).
+        CURRENT.lock().unwrap().retain(|(side, ..)| side != &self.side);
         self.target = None;
         self.temp = None;
         self.offset = 0;
@@ -271,20 +277,28 @@ impl Progress {
         {
             self.saved = self.offset;
             if let Some(temp) = &self.temp {
-                *CURRENT.lock().unwrap() = Some((temp.clone(), path.display().to_string()));
+                let mut current = CURRENT.lock().unwrap();
+                current.retain(|(side, ..)| side != &self.side);
+                current.push((self.side.clone(), temp.clone(), path.display().to_string()));
             }
         }
     }
 }
 
-/// The copy in progress of the run: its temporary file and its side file,
-/// for the words of an interruption (T-145).
-static CURRENT: std::sync::Mutex<Option<(String, String)>> = std::sync::Mutex::new(None);
+/// The copies in progress of the run, by the name of each side file: its
+/// temporary file and its side file, for the words of an interruption
+/// (T-145); several while files go at once (T-297).
+static CURRENT: std::sync::Mutex<Vec<(String, String, String)>> = std::sync::Mutex::new(Vec::new());
 
-/// The temporary file and the side file of the copy in progress, if one has
-/// written its side file.
+/// The temporary file and the side file of the copy in progress that wrote
+/// its side file last, if one did.
 pub fn current() -> Option<(String, String)> {
-    CURRENT.lock().unwrap().clone()
+    CURRENT.lock().unwrap().last().map(|(_, temp, side)| (temp.clone(), side.clone()))
+}
+
+/// The temporary file and the side file of each copy in progress.
+pub fn each_current() -> Vec<(String, String)> {
+    CURRENT.lock().unwrap().iter().map(|(_, temp, side)| (temp.clone(), side.clone())).collect()
 }
 
 /// The local temporary file of a copy down, open, and the bytes in it: the
