@@ -429,7 +429,7 @@ it (`SECURITY.md`, "Design rules").
 swap of the cookie in `crates/podssh-ssh/src/x11.rs:1-339`; the session asks
 (`crates/podssh-ssh/src/session.rs:100-102`) and the handler joins an `x11`
 channel when the destination's run asked
-(`crates/podssh-ssh/src/handler.rs:249-262`). The plan and the probe of the
+(`crates/podssh-ssh/src/handler.rs:263-276`). The plan and the probe of the
 command line in `crates/podssh-cli/src/ssh/x11.rs:1-153`, the flags at
 `crates/podssh-cli/src/flags.rs:267-270`, and the keywords, honoured now, at
 `crates/podssh-cli/src/ssh/keywords.rs:44-46` and
@@ -458,7 +458,7 @@ command line in `crates/podssh-cli/src/ssh/x11.rs:1-153`, the flags at
   this Xvfb takes an untrusted cookie of `xauth` at all
   (`scripts/interop-x11.sh:37-51`): env when it does not, a failure when it
   does and podssh's `-X` fails.
-- `docs/cli.md:413-436`, a note of the manual and the variable `XAUTHORITY`
+- `docs/cli.md:418-441`, a note of the manual and the variable `XAUTHORITY`
   say what the flags do, and the risk of `-Y`.
 - `cargo test -p podssh-ssh`: 155 passed; `cargo test -p podssh-cli`:
   577 passed, 0 failed, 31 ignored; clippy; rustfmt.
@@ -1286,7 +1286,7 @@ hold over podssh's forward.
 **Milestone:** backlog
 **Priority:** P3
 **Effort:** M
-**Status:** open
+**Status:** done
 
 ## Problem
 
@@ -1327,6 +1327,46 @@ podssh's forward (T-036) sends no bind: a server that the user reached with
    as OpenSSH goes on.
 3. `SECURITY.md` and `docs/cli.md` drop the gap.
 
+## Decision
+
+2026-10-12, in the work.
+
+- A patch of russh, carried in `vendor/russh` with
+  `vendor/patches/russh/0001-session-binding.patch`, in the place of the
+  release through `[patch.crates-io]` (the root `Cargo.toml` and
+  `fuzz/Cargo.toml`), and excluded from the workspace. The version stays
+  0.64.1. Lost: asking upstream first (warp-tech/russh, once
+  Eugeny/russh): an issue or a pull request is a public act, which is the
+  operator's, and its release has no date; the patch goes once a release
+  gives a client both (`vendor/README.md` says how). Lost too: the
+  exchange hash computed outside russh, from the plain text of the first
+  exchange and the shared secret that `kex_done` gives: it would repeat the
+  hash of each exchange of russh, and a new one would drop the bind with
+  no sign.
+- What the patch keeps: `client::SessionBinding`, the host key and the
+  signature as the server sent them (a certificate whole, as OpenSSH sends
+  its `initial_hostkey`) and the session identifier, from the first
+  exchange of a client only; `client::Session::session_binding` gives it,
+  and podssh's handler reads it in `kex_done`, which russh calls before the
+  host key's check. Lost: a new argument of `kex_done`, which changes
+  russh's API; a request through `Handle`, a message to the session's task
+  for a value that never changes.
+- The bind goes once the agent is connected, before the channel is
+  accepted, so before any byte of the server, as OpenSSH binds before it
+  makes the channel. Its answer is read whole, within 30 s (`BIND_LIMIT`):
+  an OpenSSH agent that asks its user to confirm a use of a key for another
+  client answers nothing meanwhile.
+- Any answer but SSH_AGENT_SUCCESS is a refusal: the channel goes on
+  unbound, with a line of `-v`, as OpenSSH goes on (Pageant and
+  `podssh agent` answer SSH_AGENT_FAILURE). No answer within the limit, a
+  hang-up or a broken frame refuses the channel (connect failed), said once
+  and then with `-v`. Lost: going on unbound over a second connection,
+  which would give a busy OpenSSH agent an unbound connection, and so each
+  limited key to the server; OpenSSH's wait with no limit, which holds the
+  server's channel for ever.
+- A connection with no binding (the `none` exchange, which russh signs
+  nothing in) serves unbound, with a line of `-v`.
+
 ## Prove
 
 ```sh
@@ -1339,6 +1379,64 @@ signature against the host key. In the gate, `scripts/interop.sh` adds a
 key to OpenSSH's `ssh-agent` with `ssh-add -h` for another host, and
 `podssh ssh -A ... 'ssh-add -l'` lists no usable key for this one (OpenSSH
 refuses its use). Planted defect: send no bind, and the unit test fails.
+
+## Done
+
+2026-10-13. `-A` binds the agent to the server's host key before each
+agent channel (`session-bind@openssh.com`, `is_forwarding` true):
+
+- `vendor/russh` is russh 0.64.1 as published, with one patch
+  (`vendor/patches/russh/0001-session-binding.patch`, which `patch -p1`
+  applies to the published crate to give this tree byte for byte): the
+  client's key exchange keeps `SessionBinding` at its first exchange, and
+  `Session::session_binding` gives it. `Cargo.lock` and `fuzz/Cargo.lock`
+  name russh with no source and no checksum, as a path package;
+  `vendor/README.md`, the map of `AGENTS.md` and `.github/dependabot.yml`
+  say so.
+- `crates/podssh-ssh/src/handler.rs`: `kex_done` gives the binding to the
+  agent's `Forward`. `crates/podssh-ssh/src/agent_bind.rs` frames the bind
+  as OpenSSH's `ssh_agent_bind_hostkey` does and reads the agent's answer
+  whole; `crates/podssh-ssh/src/agent_forward.rs` sends it before it
+  accepts the channel, and refuses the channel when no answer comes.
+- `SECURITY.md` (Known gaps), `docs/cli.md` ("Forwarding") and the
+  manual's note of `-A` say that the agent is bound, and that an agent that
+  refuses the bind serves unbound.
+- Tests: `agent_channel_binds_the_agent_to_the_host_key_first` (the
+  stand-in agent reads the bind before the server's request: the server's
+  Ed25519 host key, as sent, verifies its signature of the session
+  identifier, and `is_forwarding` is 1),
+  `agent_channel_goes_on_when_the_agent_refuses_the_bind` (an agent that
+  answers SSH_AGENT_FAILURE still serves the server's request, and its
+  refusal never reaches the server), and in `agent_bind.rs`
+  `agent_channel_bind_is_framed_as_openssh_frames_it` and
+  `agent_channel_bind_reads_the_whole_answer`; the stand-in agent of the
+  five tests of T-036 answers a bind first. `cargo test -p podssh-ssh --
+  agent_channel`: 9 passed on Windows 11 and 9 in the build image.
+  Planted, no bind kept from the key exchange (the Prove's plant): the
+  test of the bind and the test of a refused bind failed; restored, 9
+  passed. The functions that send the bind are `bind_agent` and
+  `set_binding`: a function named `bind` read as a socket's bind to the
+  listener check of `scripts/check-repo.py`.
+- `patch -p1` of `vendor/patches/russh/0001-session-binding.patch` on
+  russh 0.64.1 from the registry gave `vendor/russh` file for file
+  (`diff -r`). `cargo deny` passed, with russh as a path package.
+- The workspace's tests (`cargo test --workspace --no-fail-fast`, Windows
+  11): 1942 passed, and 3 failed on the merge itself: the manual's check of
+  names read `ssh-add -h` in the note of `-A` as a flag of podssh, its scan
+  of variables read the string `"SSH_AGENTC_EXTENSION"` of a test as a
+  variable, and the record's counts; the note says "ssh-add" alone now,
+  the test's message is a sentence, and the counts are made again.
+- In the build image, the steps `lint` and `release` (2026-10-13): green;
+  interop 507 passed, 0 failed, 1 env; `agent` 26 of 26, with
+  `agent.openssh.add_h`, `agent.openssh.bound` and `agent.openssh.bound_key`
+  (OpenSSH 10.3p1's `ssh-agent`: through `podssh ssh -A`, the server of
+  port 2201 saw id_rsa and not id_ecdsa, which `ssh-add -h
+  elsewhere.invalid` keeps for that host).
+- Waits for T-251: the gate's plant (no bind: id_ecdsa is listed on the
+  server), and whether CI's TruffleHog reads each test key of russh's own
+  source (`vendor/russh/src/keys/`) as a note.
+- Not done here: podssh's own login through the agent sends no bind
+  (`is_forwarding` false), which OpenSSH's client also sends.
 
 # T-291: The escape `~C`: add and stop the forwards of a running session
 

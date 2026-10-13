@@ -71,3 +71,48 @@ in memory that is cleared; and a logout.
 
 Not done here: the home-region override, and connecting again after a drop
 (T-104).
+
+## russh
+
+- **Upstream**: <https://github.com/warp-tech/russh> (once Eugeny/russh),
+  the release 0.64.1 of crates.io, whose `.cargo_vcs_info.json` names the
+  commit `e5d80a07dc554480b6ea3b2e14adfc190407b627`.
+- **Vendored**: 2026-10-12 (T-279), from the copy that cargo unpacked of
+  that release. The import is the published crate byte for byte, but
+  `.cargo-ok`, a mark of cargo's own; the shipped tree is the import plus
+  the one patch `patches/russh/0001-session-binding.patch`.
+- **License**: Apache-2.0, as its `Cargo.toml` says.
+- **How it is used**: the root `Cargo.toml` puts it in the place of the
+  release with `[patch.crates-io]`, and excludes it from the workspace, so
+  its tests, examples and benches are not podssh's; `fuzz/Cargo.toml` does
+  the same. The version stays 0.64.1.
+
+### Why patched
+
+`-A` binds the forwarded agent to the server, as OpenSSH's client does
+with `session-bind@openssh.com`: the server's host key, the session
+identifier (the exchange hash of the first key exchange) and the server's
+signature of it. russh checks the signature and drops it, and keeps the
+session identifier where no client can read it. The patch keeps the three,
+as the server sent them, from the first key exchange of a client
+(`client::SessionBinding`), and `client::Session::session_binding` gives
+them to the handler from its `kex_done` on. A server and a re-key keep
+none.
+
+Drop the patch, and this tree, when a release of russh gives a client the
+two; ask upstream for it first (T-279 says how it was decided).
+
+### How to re-vendor
+
+```sh
+# The release, unpacked by cargo (any project that depends on it), or
+# downloaded from crates.io and checked against Cargo.lock's checksum.
+cp -r ~/.cargo/registry/src/index.crates.io-*/russh-0.64.1 vendor/russh
+rm -f vendor/russh/.cargo-ok
+patch -p1 -d vendor/russh < vendor/patches/russh/0001-session-binding.patch || exit 1
+```
+
+The patch is a unified diff of the published crate (`a/`) against the
+shipped tree (`b/`). A newer release needs the patch moved onto it, and
+the lock files' `russh` entries (`Cargo.lock`, `fuzz/Cargo.lock`) have no
+source and no checksum, as a path package has none.

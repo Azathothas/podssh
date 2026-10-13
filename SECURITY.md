@@ -192,8 +192,9 @@ security:
 - The end-to-end channel is podssh's own framing over the `snow` crate. No
   third party has audited it (T-088).
 - With `-A` (T-036), the server, and root on it, can use each key of the
-  agent while the session lasts, as with OpenSSH. podssh does not bind the
-  forwarded agent to the server's host key (`session-bind@openssh.com`),
-  so an OpenSSH agent takes the server's requests as local ones, and the
-  limits of `ssh-add -h` do not hold over the forward (T-279). Agent
-  forwarding is off unless asked for.
+  agent while the session lasts, as with OpenSSH. podssh binds the
+  forwarded agent to the server's host key (`session-bind@openssh.com`,
+  T-279), as OpenSSH does, so an OpenSSH agent keeps from the server each
+  key that `ssh-add -h` limits to other hosts. An agent that knows no such
+  limit (Pageant, `podssh agent`) refuses the bind and serves each key.
+  Agent forwarding is off unless asked for.

@@ -398,11 +398,16 @@ scripts. The facts about OpenSSH on this page were measured with OpenSSH
   to a local socket or pipe; nothing listens. An agent that does not answer
   within 10 s refuses that channel, and podssh says so once.
 - **The risk:** while the session lasts, the server, and root on it, can
-  use each key of the agent, though it cannot read one. podssh does not
-  bind the agent to the server's host key (OpenSSH's
-  `session-bind@openssh.com`: russh keeps no copy of the server's signature
-  of the key exchange, T-279), so the limits that `ssh-add -h` sets do not
-  hold over podssh's forward. Forward only to a server that you trust, or
+  use each key of the agent, though it cannot read one. Before the server's
+  first byte on each agent channel, podssh binds the agent to the server's
+  host key, as OpenSSH does (`session-bind@openssh.com`, T-279: the host
+  key, the session identifier and the server's signature of it, from the
+  first key exchange, which podssh's patch of russh keeps,
+  `vendor/README.md`), so an OpenSSH agent hides and refuses each key that
+  `ssh-add -h` limits to other hosts. An agent that refuses the bind (one
+  that knows no extension: Pageant, `podssh agent`) serves the channel
+  unbound, as with OpenSSH, and `-v` says so; one that does not answer it
+  within 30 s refuses the channel. Forward only to a server that you trust, or
   use `-J`, which needs no agent on the server. `podssh scp`, `podssh sftp`
   and `podssh cp` run nothing on the server that would use an agent:
   their `-A` is accepted and forwards none.

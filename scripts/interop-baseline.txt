@@ -24,7 +24,7 @@ harness result interop 10 scripts/interop-result.sh
 harness mcp interop 4 scripts/interop-mcp.sh
 harness each interop 7 scripts/interop-each.sh
 harness keygen interop 79 scripts/interop-keygen.sh
-harness agent interop 23 scripts/interop-agent.sh
+harness agent interop 26 scripts/interop-agent.sh
 harness local interop 6 scripts/interop-local.sh
 harness control interop 13 scripts/interop-control.sh
 harness faults interop 35 scripts/interop-faults.sh
@@ -266,6 +266,9 @@ agent.openssh.last_wins pass
 agent.openssh.forward_path pass
 agent.openssh.forward_path_key pass
 agent.openssh.jump pass
+agent.openssh.add_h pass
+agent.openssh.bound pass
+agent.openssh.bound_key pass
 
 # scripts/interop-local.sh
 local.l.port pass

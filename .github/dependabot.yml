@@ -5,7 +5,8 @@
 version: 2
 updates:
   # The workspace's Cargo.lock; the fork in vendor/tailscale-rs follows its
-  # own patches and has no entry.
+  # own patches and has no entry. russh is vendor/russh with a patch (T-279):
+  # an update of it moves the patch onto the new release (vendor/README.md).
   - package-ecosystem: cargo
     directory: /
     schedule:

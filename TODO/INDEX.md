@@ -61,15 +61,15 @@ repository and CI).
 
 ## Counts
 
-**303 entries: 45 open, 0 partial, 25 blocked, 233 done.**
+**303 entries: 44 open, 0 partial, 25 blocked, 234 done.**
 
 | Priority | open | partial | blocked | done | total |
 | --- | --- | --- | --- | --- | --- |
 | P0 | 0 | 0 | 0 | 1 | 1 |
 | P1 | 2 | 0 | 0 | 22 | 24 |
 | P2 | 4 | 0 | 18 | 136 | 158 |
-| P3 | 39 | 0 | 7 | 74 | 120 |
-| **All** | 45 | 0 | 25 | 233 | 303 |
+| P3 | 38 | 0 | 7 | 75 | 120 |
+| **All** | 44 | 0 | 25 | 234 | 303 |
 
 ## Entries
 
@@ -350,7 +350,7 @@ repository and CI).
 | [T-276](repo.md) | P3 | S | none | chore | done | The fork's own clippy warns, and no podssh build shows it |
 | [T-277](repo.md) | P3 | S | none | chore | done | The record's check sees no citation that a commit left unmoved |
 | [T-278](repo.md) | P2 | S | none | chore | done | CI's `ubuntu-latest` moves to Ubuntu 26 from 2026-10-19: name the runners' systems through `v1.0.0` |
-| [T-279](forwarding.md) | P3 | M | backlog | defect | open | `-A` binds the forwarded agent to the server's host key, as OpenSSH does |
+| [T-279](forwarding.md) | P3 | M | backlog | defect | done | `-A` binds the forwarded agent to the server's host key, as OpenSSH does |
 | [T-280](roads.md) | P3 | M | backlog | feature | open | The iroh road through a SOCKS5 proxy |
 | [T-281](ts.md) | P3 | M | backlog | feature | open | `podssh ts` through a SOCKS5 proxy |
 | [T-282](pipe.md) | P1 | S | none | defect | done | On Windows a session that `--persist` attaches again waits for a key |

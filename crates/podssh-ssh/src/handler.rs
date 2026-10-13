@@ -139,6 +139,20 @@ impl Handler for Client {
         }
     }
 
+    /// The first key exchange's binding is there from now on (russh with
+    /// podssh's patch, `vendor/russh`): `-A` binds the agent with it (T-279).
+    async fn kex_done(
+        &mut self,
+        _shared_secret: Option<&[u8]>,
+        _names: &russh::Names,
+        session: &mut Session,
+    ) -> Result<(), Self::Error> {
+        if let Some(binding) = session.session_binding() {
+            self.agent.set_binding(binding);
+        }
+        Ok(())
+    }
+
     async fn auth_banner(&mut self, banner: &str, _session: &mut Session) -> Result<(), Self::Error> {
         self.log.banner(&podssh_ws::text::multi_line(banner));
         Ok(())

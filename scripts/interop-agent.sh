@@ -3,7 +3,9 @@
 # ssh-add lists the key that podssh agent took, and podssh ssh logs in with
 # it, with no -i, and forwards it with -A; after a kill, the socket and its
 # directory are gone. Then OpenSSH's ssh-agent, forwarded: ssh-add -l on the
-# server lists its key with -A, through -J too, and finds no agent without.
+# server lists its key with -A, through -J too, and finds no agent without;
+# bound to the server's host key (T-279), it hides a key that ssh-add -h
+# keeps for another host.
 
 echo
 echo "== podssh agent (T-034)"
@@ -136,4 +138,20 @@ grep -q "$want" "$FA/out" && ok agent.openssh.forward_path_key "ForwardAgent=PAT
     bad agent.openssh.forward_path_key "ForwardAgent=PATH: ssh-add -l did not list $want" "$FA/out"
 fa "SSH_AUTH_SOCK=$FA/agent.sock" -A -J "$T:2201" "$T" 'ssh-add -l'
 expect_rc agent.openssh.jump "with -A and -J, the destination reaches the agent" 0 $? "$FA/err"
+
+# T-279: id_ecdsa, which ssh-add -h keeps for another host (any key stands
+# for that host's key). podssh binds the forwarded agent to the host key of
+# 2201 (session-bind@openssh.com), so OpenSSH's agent hides id_ecdsa from
+# that server; id_rsa, with no limit, it still lists. With no bind, the agent
+# takes the connection as local use, and lists both.
+printf 'elsewhere.invalid %s\n' "$(cut -d' ' -f1,2 "$W/id_ed25519.pub")" >"$FA/elsewhere_hosts"
+timeout 20 env SSH_AUTH_SOCK="$FA/agent.sock" ssh-add -H "$FA/elsewhere_hosts" -h elsewhere.invalid "$W/id_ecdsa" \
+    </dev/null >"$FA/add_h" 2>&1
+expect_rc agent.openssh.add_h "ssh-add -h elsewhere.invalid takes id_ecdsa for that host only" 0 $? "$FA/add_h"
+limited=$(ssh-keygen -l -f "$W/id_ecdsa.pub" | awk '{print $2}')
+fa "SSH_AUTH_SOCK=$FA/agent.sock" -A "$T" 'ssh-add -l'
+expect_rc agent.openssh.bound "with -A and a limited key, ssh-add -l on the server still lists" 0 $? "$FA/err"
+grep -q "$want" "$FA/out" && ! grep -q "$limited" "$FA/out" &&
+    ok agent.openssh.bound_key "bound to 2201's host key: the server sees id_rsa, and not id_ecdsa ($limited)" ||
+    bad agent.openssh.bound_key "the server listed id_ecdsa ($limited), which ssh-add -h keeps, or not id_rsa" "$FA/out"
 kill "$FA_PID" 2>/dev/null

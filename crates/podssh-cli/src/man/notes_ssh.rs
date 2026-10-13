@@ -148,9 +148,10 @@ pub const SSH: &[&str] = &[
      over the keyword ForwardAgent. podssh asks for it on the session, never on a jump host, and joins each \
      agent channel that the server opens to the agent that podssh logs in with (IdentityAgent, else \
      SSH_AUTH_SOCK); ForwardAgent with a path or $NAME names another agent. While the session lasts, the \
-     server, and root on it, can use each key of the agent, though it cannot read one. podssh does not bind \
-     the agent to the server's host key, as OpenSSH does, so the hosts that an agent limits a key to do \
-     not hold over it. An agent channel that a server opens with no -A is refused, with a warning.",
+     server, and root on it, can use each key of the agent, though it cannot read one. podssh binds the \
+     agent to the server's host key first, as OpenSSH does (session-bind@openssh.com), so an OpenSSH agent \
+     keeps from the server each key that ssh-add limits to other hosts; an agent that refuses the bind \
+     serves unbound. An agent channel that a server opens with no -A is refused, with a warning.",
     "-X and -Y forward X11 to the display of DISPLAY; -x turns it off, and the last of the three wins. The \
      server is given a spoofed cookie, and podssh puts the real one in each X11 channel's first packet. -Y \
      uses the cookie of XAUTHORITY or ~/.Xauthority, and gives the server's X clients full access; -X an \

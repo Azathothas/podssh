@@ -35,7 +35,10 @@ default-members = [
 # Exclusion does not block the path dependency — `podssh-ts` still reaches
 # the fork's `tailscale` package by path. `fuzz/` is cargo-fuzz's workspace
 # (T-198), built with nightly Rust and libFuzzer, never by the gate.
-exclude = ["vendor/tailscale-rs", "fuzz"]
+# `vendor/russh` is the release of russh with podssh's patch (T-279), which
+# the `[patch]` below puts in its place; excluded, it is no member, so its
+# tests and examples are not podssh's.
+exclude = ["vendor/tailscale-rs", "vendor/russh", "fuzz"]
 
 # Versions below were resolved on 2026-10-01, not recalled. Before loosening a
 # range, re-run the no-C build of the library crates (see scripts/gate.sh).
@@ -191,3 +194,12 @@ lto = true
 codegen-units = 1
 panic = "abort"
 strip = true
+
+# russh 0.64.1 as published, with one patch of podssh's
+# (`vendor/patches/russh/`, `vendor/README.md`): the session identifier and
+# the server's signature of the first key exchange, which `-A` sends to the
+# agent in `session-bind@openssh.com` (T-279). The version stays 0.64.1, so
+# the requirements of the crates do not change; drop this when a release of
+# russh gives a client both.
+[patch.crates-io]
+russh = { path = "vendor/russh" }

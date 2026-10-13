@@ -26,6 +26,7 @@
 //! - a run in two halves, for `podssh ssh --upgrade`: the login, then the
 //!   request on its connection ([`upgrade`]).
 
+mod agent_bind;
 mod agent_forward;
 mod answer;
 pub mod auth;
