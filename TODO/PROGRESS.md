@@ -60,7 +60,7 @@ entry keeps its proof in the entry; this page keeps no history (git does).
   | T-187, T-188 | `a56cc4d17c82784aa` | `a38421b..e206acd`, `e206acd..78fc010` | drafted (the WIP `0473ad2` finished); its harness of snippets is sourced by `scripts/interop-each.sh`; a declined snippet and no pick exit 64 |
   | T-306, T-302, T-305 | `afbe1f388cda562f1` | `bda737c`, `949623b`, `17b4e31` (one each, on `905f92c`) | drafted; T-302 adds a new entry (the notice on the forward road), with the counts by hand; new variables `PODSSH_SPARE_LINKS` and `PODSSH_TITLE_STACK`; spare links off in the library, on in the commands |
   | T-192, T-193, T-197 | `a3f5849c868ae85c1` | on `24b9f6e` | being drafted |
-  | T-195, T-189 | `a75061d0db98a3897` | on `24b9f6e` | being drafted |
+  | T-195, T-189 | `a75061d0db98a3897` | `e4bcd06..e0b09c2`, `e0b09c2..9d3a6e4` | drafted, on `e4bcd06`; T-195 is `PODSSH_ERROR_PROGRAM`, and a command that passes a remote status on (T-192's `run`) must call `not_a_failure`; T-189 is `podssh health`, its two fixtures of `/proc` written by hand (capture real ones in the build image); `tests/ssh_harness/mod.rs` reaches 500 lines |
   | T-190, T-191 | `aca311167dd1d2e52` | on `61e55d1` | being drafted |
 
   A row "being drafted" is an agent of a session that may have stopped:
