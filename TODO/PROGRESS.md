@@ -39,6 +39,32 @@ entry keeps its proof in the entry; this page keeps no history (git does).
   3 minutes, on the resumable layer and on the iroh road; the gate's step
   `m6` runs the checks at each push. T-263 is the last entry of M6.
 
+- **Drafts (2026-10-13).** Since 2026-10-12 agents draft entries in local
+  worktrees (`.claude/worktrees/`, excluded from git) on local branches
+  `worktree-agent-*`, never pushed; they do not build. The main session
+  merges a draft, builds it, runs its tests and plants, fills each
+  UNVERIFIED and closes the entry (T-179 to T-184 and T-200 so). Waiting to
+  be merged, in the order of the index:
+
+  | Entry | Branch (`worktree-agent-` and) | Commit | State |
+  | --- | --- | --- | --- |
+  | T-202 | `ad5a44ad95fee7ee7` | `d4c39ec` | drafted; adds `proptest` (the Approach names it); apply `d4c39ec` alone, T-200 is merged |
+  | T-221, T-293 | `aa03c15043f6fe8dc` | `88b2197`, `072cd86` | drafted; T-221 adds `anstyle-parse` (in the lock already) and two captured fixtures; T-293 meets `io.rs`, split since T-183, and asks whether Ctrl-C exits 130 on Windows and whether `--no-signal` is the flag's name |
+  | T-225 | `a224e69d322ba513a` | `acda386` | drafted; `scripts/interop.sh` is at 499 lines in it; OpenSSH's codes in its table are read in OpenSSH's source, not run |
+  | T-232, T-235, T-242 | `a1c2c734bcf87dace` | `b53a24f`, `ffeb741`, `b641ecb` | drafted |
+  | T-279 | `a3f4d829458070a37` | `c7dd479` | drafted |
+  | T-291 | `a3f4d829458070a37` | `fb8c9bb` | partial (WIP): the escape `~C`; the agent stopped at a session limit while it wrote `remote.rs`; to be finished by a draft first |
+  | T-280, T-281 | `a9e4d07db05c47c4f` | `91097a6`, `510cd29` | drafted; T-280 carries a patch of iroh-relay 1.3.0 in `vendor/` with `[patch.crates-io]`, as iroh lets no caller dial; T-281 is the fork's patch 0022; the lock must be made again |
+  | T-289 | `a266ef3fe863b08d2` | `0c8ed9d` | nearly whole (WIP): the agent stopped while it appended the tests of certificates; the record unchecked |
+  | T-296, T-298 | `aa043fb59ecd7bdb2` | `57485b7`, `bc8a9ce` | drafted |
+  | T-187 | `a56cc4d17c82784aa` | `0473ad2` | begun (WIP): `snippets.rs` only; T-188 not begun |
+
+  Not drafted yet: T-185, T-186, T-188 to T-193, T-195, T-197, T-229,
+  T-297, T-302, T-305 and T-306. CI: the gate's step `release` passed at
+  `cad2885` (478 checks, the desktop's, `usbip` and `each` among them); the
+  step `lint` failed from `a38421b` on clippy 1.99's
+  `needless_borrows_for_generic_args` in `hosts.rs`, repaired in `9dfa2d0`.
+
 ## Baseline
 
 Measured on 2026-10-09 after T-060, on Windows 11 with native cargo 1.98.0
@@ -84,7 +110,8 @@ the surface for agents: done.
 **Now:** the `backlog` entries, in the order of `TODO/INDEX.md` ("The
 order, and the argument for it"): M3 to M8 are done, but for the entries on
 hold and those of the relay's operator. The P2 entries are done, but for
-those of M9 and the parked ones; now the P3 entries.
+those of M9 and the parked ones; now the P3 entries: first the drafts of
+"State" above, merged one at a time, then the entries not drafted yet.
 
 **Then** M9: T-218, T-210 and T-211, then T-251 (the check, and its run
 before the tag), and last T-250 (the one release). Between entries: the

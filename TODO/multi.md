@@ -148,8 +148,11 @@ hyphen in words, as the check of the notes reads `_` as a variable. The
 code has no Unix-only branch. The gate's checks
 (`scripts/interop-each.sh`, sourced by `scripts/interop.sh`: OpenSSH and
 Dropbear at once with `exit 3`, the orders 0, 3 and 3, 0, a closed port, the
-bytes of `--output-dir`, an unknown host key, `--fail-fast`) and the planted
-defect, the first host's status, wait for CI and T-251. Each host's session
+bytes of `--output-dir`, an unknown host key, `--fail-fast`) passed in CI
+(cad2885, the step `release`: `each.lines`, `each.order.0_3`,
+`each.order.3_0`, `each.closed`, `each.output_dir`, `each.host_key` and
+`each.fail_fast`); the planted defect in the gate, the first host's status,
+waits for T-251. Each host's session
 takes the process's records (`podssh_ssh::outcome`, `retry`, and the
 handler's last error): a lost session's words may name another host's
 error, and `podssh each` writes no `--result-file` and no line of the

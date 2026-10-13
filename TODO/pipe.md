@@ -851,10 +851,6 @@ The calls made where the Approach left a choice:
   `TODO/cli.md`, `TODO/pipe.md` and `TODO/reverse.md` were moved by hand,
   4 lines, as `cargo todo remap` would move them.
 
-What waits:
-- The rates and the minutes that 64 MiB lasts go into `docs/STATUS.md`
-  from the first run of the gate that passes `desktop.vnc.rate`.
-
 The gate's first run (CI, 3224a88, the step `release`): 6 of the 7 checks
 of `scripts/interop-desktop.sh` passed, and `docs/STATUS.md` has their
 lines. `desktop.vnc.rate` failed: in each of its two runs the meter counted
@@ -862,7 +858,10 @@ lines. `desktop.vnc.rate` failed: in each of its two runs the meter counted
 ServerInit) and 14 up, and the connection ended within 0.2 s. In the build
 image, with no podssh, TigerVNC's viewer 1.16.2 quit the same way, after
 "Unable to find fonts"; with `font-dejavu` it stayed until its timeout.
-`font-dejavu` joins the image's `apk add`.
+`font-dejavu` joins the image's `apk add`. With it, the run of cad2885
+(CI, the step `release`, 478 passed and none failed) passed each of the 7:
+`desktop.vnc.rate` gave an idle desktop 0 bytes a minute and a busy one
+23,060,488, so 64 MiB lasts 2.9 minutes busy; `docs/STATUS.md` has them.
 
 What ran:
 - Native here: `cargo test -p podssh-cli --lib man::examples` with the new
@@ -1176,8 +1175,6 @@ The calls made where the Approach left a choice:
   0.5 to 0.7 MB/s.
 
 What waits:
-- `usbip.list_remote` in the gate's step `release`: UNVERIFIED; it waits
-  for CI and T-251.
 - Step 3, the attach, a read from the device, `usbip port` and the
   detach on two Linux hosts with the modules: it waits for the operator's
   machines (or the tailnet hosts of `docs/STATUS.md`, if they have the
@@ -1193,6 +1190,9 @@ What ran:
   path and the interface (08/06/50), and exited 0; the stand-in read the
   request `0111800500000000`. The image has no `usb.ids`, so usbip says
   that it could not open it, and names no vendor.
+- In CI (cad2885, the gate's step `release`): `usbip.list_remote` passed,
+  "usbip list -r through pipe tcp-listen:127.0.0.1:3240 and ssh: lists
+  the device 1-1".
   Planted, "64 MiB" deleted from the row in a copy of `README.md`: the
   `grep` found nothing and exited 1.
 
