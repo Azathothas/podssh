@@ -61,15 +61,15 @@ repository and CI).
 
 ## Counts
 
-**303 entries: 44 open, 0 partial, 25 blocked, 234 done.**
+**303 entries: 43 open, 0 partial, 25 blocked, 235 done.**
 
 | Priority | open | partial | blocked | done | total |
 | --- | --- | --- | --- | --- | --- |
 | P0 | 0 | 0 | 0 | 1 | 1 |
 | P1 | 2 | 0 | 0 | 22 | 24 |
 | P2 | 4 | 0 | 18 | 136 | 158 |
-| P3 | 38 | 0 | 7 | 75 | 120 |
-| **All** | 44 | 0 | 25 | 234 | 303 |
+| P3 | 37 | 0 | 7 | 76 | 120 |
+| **All** | 43 | 0 | 25 | 235 | 303 |
 
 ## Entries
 
@@ -362,7 +362,7 @@ repository and CI).
 | [T-288](cli.md) | P1 | S | none | defect | done | On Windows, `podssh keygen` writes a private key with the access list of its directory |
 | [T-289](cli.md) | P3 | M | backlog | feature | open | `podssh keygen -Y` with certificates: a signature made with a certificate, and `cert-authority` lines |
 | [T-290](config.md) | P2 | M | none | defect | done | A `-J` hop takes the `ssh_config` block of its own name, as OpenSSH's jump host does |
-| [T-291](forwarding.md) | P3 | M | backlog | feature | open | The escape `~C`: add and stop the forwards of a running session |
+| [T-291](forwarding.md) | P3 | M | backlog | feature | done | The escape `~C`: add and stop the forwards of a running session |
 | [T-292](config.md) | P3 | M | backlog | feature | blocked | `podssh config import` from PuTTY, MobaXterm, Remmina, FinalShell, mRemoteNG and Termius |
 | [T-293](terminal.md) | P3 | M | backlog | feature | done | Ctrl-C with no remote pty sends `signal INT` to the command |
 | [T-294](terminal.md) | P1 | S | none | defect | done | Output that is not UTF-8 stops the session's output in a Windows console |

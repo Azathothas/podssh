@@ -292,7 +292,42 @@ scripts. The facts about OpenSSH on this page were measured with OpenSSH
   and `-W`, as it was written, the connections it carried, those open and
   those that failed, and the bytes toward the server and from it, counted as
   they pass. With `-v` the end of a run prints the same lines. A forward
-  asked for again on a new connection (`--persist`) keeps its counts.
+  asked for again on a new connection (`--persist`) keeps its counts. A
+  forward that `~C` stopped stays in the list, with `; closed` at the end
+  of its line.
+- **`~C` adds and stops forwards in a running session** (T-291), in a
+  session with a pty, as OpenSSH's `~C` does. It opens OpenSSH's command
+  line, `ssh> `, and reads one line from the session's own keys; no key of
+  the line reaches the server, and the keys after its Enter go to the
+  session. The commands are OpenSSH's, with the `-` optional and a space
+  after the letter optional:
+  - `-L SPEC`, `-D SPEC` and `-R SPEC` add a forward, with a spec as the
+    command line reads it. The listeners of `-L` and `-D` are made as those
+    of the command line are: the same probe, the same addresses, `-g`,
+    `PODSSH_LISTEN`; one that cannot be made says why, and the session goes
+    on. `-R` asks the server, and podssh waits 20 s at most for its answer:
+    `Forwarding port.` once the server took the forward, or OpenSSH's
+    warning when it refused. OpenSSH says `Forwarding port.` before the
+    answer.
+  - `-KL [BIND:]PORT`, `-KD [BIND:]PORT` and `-KR [BIND:]PORT` stop a
+    forward; `-KL` and `-KD` also take a socket path. A port with no address
+    names each listener of that port; `localhost` names those on loopback.
+    A closed listener takes no new connection, and the connections that it
+    took go on, as in OpenSSH. `-KR` sends `cancel-tcpip-forward` for the
+    port that the server listens on (the one it chose, for a port of 0),
+    and a channel for that port is refused from then on.
+  - `help`, `-h` or `?` lists the commands; an empty line, Ctrl-C and
+    Ctrl-D do nothing. Another line is refused with OpenSSH's words
+    (`Invalid command.`, `Bad forwarding close specification.`); a line
+    that starts with `!` runs no local command (OpenSSH's
+    `PermitLocalCommand`).
+
+  The forwards that `~C` adds last as long as the connection, and those
+  that it stops stay stopped: a new connection of `--persist` asks only for
+  the forwards of the command line that `~C` did not stop, and keeps a
+  listener that `~C` closed closed. A session through a control master has
+  no `~C`, as a client of OpenSSH's master has none: the key goes to the
+  server as typed.
 - **`-G` prints the settings in effect** (T-046), as OpenSSH's `ssh -G`
   does: a line of `keyword value` for each keyword of OpenSSH that podssh
   applies, with the defaults, in OpenSSH's order and spelling (`true` and

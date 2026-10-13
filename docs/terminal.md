@@ -44,21 +44,28 @@ the manual read; a test holds the manual's note to it.
 - **A client with a pty** (the local terminal raw): the escape character,
   `~` unless `-e` names another (`-e none`: none), at the start of a line,
   and the key after it: `~.` ends the session and sends nothing after it,
-  `~R` asks for a re-key, `~#` lists the forwards with what each carried,
-  `~d` leaves the shell to a far end that keeps shells ("Detach and attach
-  again" below) and goes as typed elsewhere, `~Z` sends a file by ZMODEM,
-  `~?` lists the escapes, and `~~` sends one `~`; another key goes with the
-  `~` before it. A resize sends the new size. Each other byte passes
-  unchanged, as the remote side reads it: Ctrl-C, Ctrl-Z, Ctrl-D, Ctrl-S,
-  Ctrl-Q, Escape, the sequences of the keys, of the mouse and of a
-  bracketed paste; only a question or a transfer of ZMODEM takes the keys
-  ("ZMODEM in a session" below).
+  `~R` asks for a re-key, `~C` opens OpenSSH's command line (`ssh> `),
+  which adds and stops forwards (T-291, [cli.md](cli.md)), `~#` lists the
+  forwards with what each carried, `~d` leaves the shell to a far end that
+  keeps shells ("Detach and attach again" below) and goes as typed
+  elsewhere, `~Z` sends a file by ZMODEM, `~?` lists the escapes, and `~~`
+  sends one `~`; another key goes with the `~` before it. A resize sends
+  the new size. Each other byte passes unchanged, as the remote side reads
+  it: Ctrl-C, Ctrl-Z, Ctrl-D, Ctrl-S, Ctrl-Q, Escape, the sequences of the
+  keys, of the mouse and of a bracketed paste; only the line of `~C`, and a
+  question or a transfer of ZMODEM, take the keys ("ZMODEM in a session"
+  below). The line of `~C` is read from the session's own keys, with echo,
+  Backspace and Ctrl-U; Enter ends it, Ctrl-C and Ctrl-D give it up, and
+  the keys after its Enter go to the session. No key of the line reaches
+  the server.
 - **A client with no pty:** podssh reads no byte; stdin is the command's
   data, escapes are off, and Ctrl-C is the local terminal's signal to
   podssh, which sends `signal INT` to the command first ("Ctrl-C with no
   remote pty" below).
 - **A session through a control master** (T-039): the master reads its
-  escapes, with the escape character that the client sent.
+  escapes, with the escape character that the client sent. It offers no
+  `~C`, as OpenSSH's master offers none to a client: `~C` goes to the
+  server as typed.
 - **The line discipline of `podssh serve`**, when serve exists (T-107 to
   T-113): the keys and sequences that it acts on and those that it refuses
   are in "When podssh supplies the line discipline" below; each other byte

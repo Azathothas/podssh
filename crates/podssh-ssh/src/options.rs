@@ -267,6 +267,9 @@ pub struct Options {
     pub request_tty: RequestTty,
     /// `EscapeChar`; `None` is `none`.
     pub escape_char: Option<u8>,
+    /// What `~C` asks of the caller, which parses the specs and binds the
+    /// listeners (T-291); with none, `~C` is no escape.
+    pub command_line: Option<crate::escape_command::Commands>,
     /// Kept shells (T-158): whether the far end keeps them, which the road
     /// learns, and what `--attach` asks of them.
     pub keep: crate::keep::Keep,
@@ -383,6 +386,7 @@ impl Options {
             record: None,
             request_tty: RequestTty::Auto,
             escape_char: Some(b'~'),
+            command_line: None,
             keep: crate::keep::Keep::default(),
             set_env: Vec::new(),
             send_env: Vec::new(),

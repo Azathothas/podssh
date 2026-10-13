@@ -817,7 +817,7 @@ Read: a read waits 90 s at most (`crates/podssh-ws/src/client.rs:23-25`, set at
 frame each 25 s. The ping watcher acts only after a first Pong
 (`crates/podssh-ws/src/session.rs:194-231`); Pongs and the idle cut on reverse
 sockets are not measured (T-061). russh sends a keepalive each 60 s and ends
-the session after 3 with no answer (`crates/podssh-ssh/src/options.rs:339-379`).
+the session after 3 with no answer (`crates/podssh-ssh/src/options.rs:342-382`).
 Measured on `3ee70dc`, offline (`PODSSH_OFFLINE=1`, a `.invalid` host):
 `-o ServerAliveInterval=0` prints the warning of
 `crates/podssh-cli/src/ssh/resolve.rs:366-380` (the `warnings` of keepalives), and `podssh ssh` exits 255.
@@ -838,7 +838,7 @@ Measured on `3ee70dc`, offline (`PODSSH_OFFLINE=1`, a `.invalid` host):
 5. In the same commit: "Liveness" and "Idle limit" in the manual
    (`crates/podssh-cli/src/man/facts.rs:336-351`,
    `crates/podssh-cli/src/man/facts.rs:378-387`), the note at
-   `crates/podssh-cli/src/man/notes_ssh.rs:184`, `docs/relay.md`, `README.md`.
+   `crates/podssh-cli/src/man/notes_ssh.rs:196`, `docs/relay.md`, `README.md`.
 
 ## Decision
 
@@ -1318,8 +1318,8 @@ so the keys and the sequence numbers of the SSH connection live in the client
 process. A new process cannot continue that byte stream, so an attach is a
 new SSH login to a far end that kept the shell (T-159). Read: podssh knows
 the escapes `~.`, `~R`, `~?` and `~~`, and another character after `~` goes
-to the server with the `~` (`crates/podssh-ssh/src/escape.rs:1-8`,
-`crates/podssh-ssh/src/escape.rs:65-104`). The flag table has 469 lines, near
+to the server with the `~` (`crates/podssh-ssh/src/escape.rs:1-9`,
+`crates/podssh-ssh/src/escape.rs:90-138`). The flag table has 469 lines, near
 the limit of 500 (the table of `ssh`: `crates/podssh-cli/src/flags.rs:112-273`).
 
 ## Approach
@@ -1337,7 +1337,7 @@ the limit of 500 (the table of `ssh`: `crates/podssh-cli/src/flags.rs:112-273`).
    verified here). Refuse an attach from inside the same shell.
 5. Put the new rows of the flag table in a new file, so that `flags.rs` stays
    under 500 lines. Add `~d` to the help of `~?`
-   (`crates/podssh-ssh/src/escape.rs:103-111`) and to the manual.
+   (`crates/podssh-ssh/src/escape.rs:137-145`) and to the manual.
 6. Against a standard sshd, use `--persist` with tmux (T-178).
 
 ## Decision
@@ -1383,7 +1383,7 @@ the shell on a detach fails it.
   `env` requests of podssh's own names and a subsystem, which the handler
   sees (`crates/podssh-ssh/src/keep.rs`).
 - An escape needs a pty and a terminal on stdin
-  (`crates/podssh-ssh/src/session.rs:155`), so a test cannot type `~d`
+  (`crates/podssh-ssh/src/session.rs:156`), so a test cannot type `~d`
   through a pipe: the attach test types it in a pseudo console on Windows
   (`crates/podssh-cli/tests/conpty_harness/mod.rs`) and in a pty on Linux
   (`crates/podssh-cli/tests/pty_harness/mod.rs`, new).

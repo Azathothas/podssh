@@ -2,7 +2,7 @@
 //! podssh asked it to listen on, and opens a `forwarded-tcpip` channel;
 //! podssh connects to the forward's target, through the proxy as `--direct`
 //! does, and joins the two. A channel for a port that podssh did not ask for
-//! is refused, in the handler.
+//! is refused, in the handler. `~C` asks for one more, or stops one (T-291).
 
 use std::sync::{Arc, Mutex};
 use std::time::{Duration, Instant};
@@ -49,7 +49,8 @@ pub fn destination() -> Option<Table> {
 /// again first, as `opts.forwards_again` says (T-042).
 pub async fn request(handle: &Handle<Client>, table: &Table, opts: &Options, log: &Log) -> Result<(), HopError> {
     let mut refused: Vec<&RemoteForward> = Vec::new();
-    for forward in &opts.remote_forwards {
+    // One that `~C -KR` stopped stays stopped on a new connection (T-291).
+    for forward in opts.remote_forwards.iter().filter(|f| !crate::tally::is_closed(&name(f))) {
         if !ask(handle, table, forward, log).await {
             if opts.exit_on_forward_failure && opts.forwards_again.is_none() {
                 return Err(HopError::Forward(failed("Error", forward)));
@@ -93,7 +94,7 @@ pub async fn request(handle: &Handle<Client>, table: &Table, opts: &Options, log
 
 /// Ask the server for one forward: whether it took it, which is then in
 /// `table`.
-async fn ask(handle: &Handle<Client>, table: &Table, forward: &RemoteForward, log: &Log) -> bool {
+pub(crate) async fn ask(handle: &Handle<Client>, table: &Table, forward: &RemoteForward, log: &Log) -> bool {
     let Ok(chosen) = handle.tcpip_forward(forward.sent_address(), u32::from(forward.port)).await else {
         return false;
     };
@@ -104,14 +105,44 @@ async fn ask(handle: &Handle<Client>, table: &Table, forward: &RemoteForward, lo
         log.info(&format!("Allocated port {port} for remote forward to {}:{}", forward.host, forward.host_port));
     }
     table.lock().unwrap_or_else(|e| e.into_inner()).push(Bound { port, forward: forward.clone() });
-    // In the list of ~# from now on (T-041).
-    crate::tally::of(&name(forward));
+    // In the list of ~# from now on (T-041), open again if ~C had stopped it.
+    crate::tally::opened(&name(forward));
     true
 }
 
 /// OpenSSH's line for a forward that the server refused.
-fn failed(level: &str, forward: &RemoteForward) -> String {
+pub(crate) fn failed(level: &str, forward: &RemoteForward) -> String {
     format!("{level}: remote port forwarding failed for listen port {}", forward.port)
+}
+
+/// Stop the forward that the server listens for at `[bind:]port` (`~C -KR`,
+/// T-291), as OpenSSH finds it: by the port that the server listens on, and
+/// by the address sent, when one is given. Its name once the server let it
+/// go; `None` when no forward listens there.
+pub(crate) async fn cancel(
+    handle: &Handle<Client>,
+    table: &Table,
+    bind: Option<&str>,
+    port: u32,
+) -> Result<Option<String>, String> {
+    let given = RemoteForward { bind: bind.map(str::to_string), port: 0, host: String::new(), host_port: 0 };
+    let found = {
+        let bound = table.lock().unwrap_or_else(|e| e.into_inner());
+        bound
+            .iter()
+            .find(|b| b.port == port && (bind.is_none() || b.forward.sent_address() == given.sent_address()))
+            .map(|b| b.forward.clone())
+    };
+    let Some(forward) = found else { return Ok(None) };
+    handle
+        .cancel_tcpip_forward(forward.sent_address(), port)
+        .await
+        .map_err(|e| format!("the server kept the forward: {}", crate::run::describe(&e)))?;
+    // A channel that the server opens for it from now on is refused.
+    table.lock().unwrap_or_else(|e| e.into_inner()).retain(|b| !(b.port == port && b.forward == forward));
+    let name = name(&forward);
+    crate::tally::closed(&name);
+    Ok(Some(name))
 }
 
 /// The forward that a channel for `address:port` belongs to, if podssh asked

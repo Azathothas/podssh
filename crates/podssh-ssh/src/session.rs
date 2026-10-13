@@ -152,8 +152,11 @@ pub async fn attach(
     };
     // `~d` keeps a shell on a far end that keeps shells (T-158).
     let detach = opts.keep.detach_name(pty && stdin_tty && opts.request == Request::Shell);
+    // `~C` where the caller can add forwards (T-291).
     let escapes = match (pty && stdin_tty, opts.escape_char) {
-        (true, Some(c)) => Some(Escapes::new(c).with_detach(detach.is_some())),
+        (true, Some(c)) => {
+            Some(Escapes::new(c).with_detach(detach.is_some()).with_command_line(opts.command_line.is_some()))
+        }
         _ => None,
     };
     // `--record` (T-033): the output from here on, with the size of now.
@@ -168,7 +171,14 @@ pub async fn attach(
     // no terminal, nothing is ever received.
     let zmodem = crate::zmodem::Zmodem::for_session(raw.is_some() && terminal::stdout_is_terminal());
     let detaching = crate::keep::Detaching::new(detach);
-    let through = io::Through { elevated, zmodem, record, detaching, sink: opts.output.clone() };
+    let through = io::Through {
+        elevated,
+        zmodem,
+        record,
+        detaching,
+        sink: opts.output.clone(),
+        command_line: opts.command_line.clone(),
+    };
     // With no remote pty, Ctrl-C sends `signal INT` to a command or a shell
     // (T-293); a subsystem gets none, as sshd refuses it for one.
     let runs = matches!(opts.request, Request::Shell | Request::Exec(_));

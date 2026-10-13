@@ -1,7 +1,8 @@
 //! Copying between the local stdin/stdout/stderr and a session channel, with
 //! window-size changes, the escape character and ZMODEM, until the channel
 //! closes. The input outlives a session: `--persist` attaches a new one
-//! after a lost link, and it reads on where the last one stopped.
+//! after a lost link, and it reads on where the last one stopped. The
+//! forwards that `~C` adds serve beside the session (T-291).
 
 use std::sync::Arc;
 use std::time::Duration;
@@ -97,6 +98,8 @@ pub struct Through {
     pub detaching: crate::keep::Detaching,
     /// Where the output goes in place of stdout and stderr (T-183).
     pub sink: Option<Sink>,
+    /// What `~C` asks of the caller, when the session offers it (T-291).
+    pub command_line: Option<crate::escape_command::Commands>,
 }
 
 impl Through {
@@ -158,6 +161,8 @@ pub async fn pump(
     }
     let mut resize = Resize::new(pty);
     let mut stop = Termination::new(pty && terminal::raw_active(), interrupt);
+    // The forwards of `~C` -L and -D, served while the session lasts (T-291).
+    let mut added = crate::escape_run::Added::default();
     loop {
         if let Err(end) = zmodem_out(&writer, &mut reader, &mut status, &mut out, &mut through, log).await {
             return end;
@@ -188,6 +193,12 @@ pub async fn pump(
                     for command in commands {
                         match command {
                             Command::Disconnect => return End::Escaped(command),
+                            // The keys after `~C` in their read start its line.
+                            Command::CommandLine => {
+                                let first = escapes.as_mut().map(Escapes::take_rest).unwrap_or_default();
+                                let caller = through.command_line.clone();
+                                crate::escape_run::command_line(handle, input, first, caller, &mut added, log).await;
+                            }
                             Command::Rekey => {
                                 log.info("rekeying");
                                 let _ = handle.rekey_soon().await;
@@ -258,6 +269,7 @@ pub async fn pump(
                 }
             }
             () = std::future::ready(()), if streaming => {}
+            () = added.next() => {}
             stopped = stop.next() => if let Some(end) = stop.act(stopped, &writer, log).await {
                 return end;
             },

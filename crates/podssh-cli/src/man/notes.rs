@@ -322,10 +322,12 @@ mod tests {
             }
             n
         };
-        // A note may also name a flag of ssh (OpenSSH's), and -tt is -t twice.
+        // A note may also name a flag of ssh (OpenSSH's), and -tt is -t twice;
+        // -KL, -KR and -KD are commands of the escape ~C (T-291), no flags.
         flag == "-tt"
             || flag == "--help"
             || flag == "--"
+            || ["-KL", "-KR", "-KD"].contains(&flag)
             || rows(verb).iter().chain(rows("ssh")).any(|r| names(r).iter().any(|n| n == flag))
     }
 

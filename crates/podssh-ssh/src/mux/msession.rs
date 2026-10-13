@@ -167,8 +167,10 @@ async fn pump(
                             }
                             // A re-key is the whole connection's: the master's.
                             // A shared session learns no offer of kept shells,
-                            // so its escapes never detach (T-158).
-                            Command::Rekey | Command::Detach => {}
+                            // so its escapes never detach (T-158); and it has
+                            // no ~C, as a client of OpenSSH's master has none
+                            // (T-291).
+                            Command::Rekey | Command::Detach | Command::CommandLine => {}
                             // ZMODEM is watched in a session of podssh's own
                             // terminal, not in one that a master carries.
                             Command::Zmodem => {

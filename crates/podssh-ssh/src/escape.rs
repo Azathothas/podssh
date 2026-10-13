@@ -5,12 +5,15 @@
 //! `~?` (help) and `~~` (a literal `~`); any other character after `~` is
 //! sent as typed, with the `~`. `~d` (detach, T-158) is an escape only when
 //! the far end keeps shells, which the road learns; elsewhere it is sent as
-//! typed.
+//! typed. `~C` (a command line, T-291) is one only where the caller can add
+//! forwards: not in a session that a control master carries, as in OpenSSH.
 
 /// Something the user asked for with an escape.
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub enum Command {
     Disconnect,
+    /// `~C`: a command line that adds or stops a forward (T-291).
+    CommandLine,
     Rekey,
     /// `~#`: the forwards of the session, with what each carried.
     List,
@@ -27,6 +30,7 @@ pub enum Command {
 /// no other list of escapes.
 pub const ESCAPES: &[(u8, Command, &str)] = &[
     (b'.', Command::Disconnect, "terminate connection"),
+    (b'C', Command::CommandLine, "open a command line"),
     (b'R', Command::Rekey, "request rekey"),
     (b'#', Command::List, "list forwarded connections"),
     // Not OpenSSH's: podssh's own, for a far end that keeps shells (T-158).
@@ -43,11 +47,28 @@ pub struct Escapes {
     pending: bool,
     /// Whether `~d` detaches: only when the far end keeps shells.
     detach: bool,
+    /// Whether `~C` opens a command line: only where forwards can be added.
+    command_line: bool,
+    /// The bytes after `~C` in its read: the start of the command line.
+    rest: Vec<u8>,
 }
 
 impl Escapes {
     pub fn new(escape: u8) -> Self {
-        Escapes { escape, at_line_start: true, pending: false, detach: false }
+        Escapes { escape, at_line_start: true, pending: false, detach: false, command_line: false, rest: Vec::new() }
+    }
+
+    /// With `~C` as an escape, when `offered` (T-291). Without it, `~C` goes
+    /// to the server as two bytes, as from a client of OpenSSH's master.
+    pub fn with_command_line(mut self, offered: bool) -> Self {
+        self.command_line = offered;
+        self
+    }
+
+    /// The bytes that came after `~C` in its read, which the command line
+    /// reads first; none after any other escape.
+    pub fn take_rest(&mut self) -> Vec<u8> {
+        std::mem::take(&mut self.rest)
     }
 
     /// With `~d` as an escape, when `offered`: the far end keeps shells
@@ -59,15 +80,21 @@ impl Escapes {
 
     /// Whether `command` is an escape of this session.
     fn offers(&self, command: Command) -> bool {
-        command != Command::Detach || self.detach
+        match command {
+            Command::Detach => self.detach,
+            Command::CommandLine => self.command_line,
+            _ => true,
+        }
     }
 
     /// Filter one read: returns the bytes to send and the commands found, in
     /// order. A `~.` or a `~d` ends the input there; nothing after it is sent.
+    /// A `~C` ends it too: the bytes after it are the command line's
+    /// ([`Escapes::take_rest`]).
     pub fn feed(&mut self, input: &[u8]) -> (Vec<u8>, Vec<Command>) {
         let mut out = Vec::with_capacity(input.len());
         let mut commands = Vec::new();
-        for &b in input {
+        for (at, &b) in input.iter().enumerate() {
             if self.pending {
                 self.pending = false;
                 let escape = ESCAPES.iter().find(|(key, command, _)| *key == b && self.offers(*command));
@@ -75,6 +102,13 @@ impl Escapes {
                     commands.push(command);
                     // Nothing after ~. or ~d is sent: the session ends there.
                     if matches!(command, Command::Disconnect | Command::Detach) {
+                        return (out, commands);
+                    }
+                    // The command line starts here, and the session's next
+                    // byte after it starts a line again.
+                    if command == Command::CommandLine {
+                        self.rest = input[at + 1..].to_vec();
+                        self.at_line_start = true;
                         return (out, commands);
                     }
                     continue;
@@ -173,12 +207,34 @@ mod tests {
                     message\n ~~   - send the escape character by typing it twice\n(Note that escapes are only \
                     recognized immediately after newline.)\n";
         assert_eq!(help, want);
-        // `~d` too, where the far end keeps shells.
-        let mut e = Escapes::new(b'~').with_detach(true);
+        // `~d` and `~C` too, where they are offered.
+        let mut e = Escapes::new(b'~').with_detach(true).with_command_line(true);
         for (key, command, _) in ESCAPES {
             assert_eq!(e.feed(&[b'~', *key]).1, vec![*command], "~{}", *key as char);
-            e = Escapes::new(b'~').with_detach(true);
+            e = Escapes::new(b'~').with_detach(true).with_command_line(true);
         }
+    }
+
+    /// `~C` opens the command line only where it is offered (T-291), and
+    /// keeps the rest of its read for the line; elsewhere it is two bytes.
+    #[test]
+    fn escape_command_tilde_c_keeps_the_rest_of_its_read() {
+        let mut e = Escapes::new(b'~');
+        assert_eq!(e.feed(b"~C-L 8080:db:5432\r"), (b"~C-L 8080:db:5432\r".to_vec(), Vec::new()));
+        assert!(!e.help().contains("~C"));
+        let mut e = Escapes::new(b'~').with_command_line(true);
+        let (out, cmds) = e.feed(b"ls\r~C-R 0:web:80\rpwd\r");
+        assert_eq!(out, b"ls\r");
+        assert_eq!(cmds, vec![Command::CommandLine]);
+        assert_eq!(e.take_rest(), b"-R 0:web:80\rpwd\r");
+        assert!(e.take_rest().is_empty(), "the rest is taken once");
+        // Split across reads, and at the start of a line again after it.
+        let mut e = Escapes::new(b'~').with_command_line(true);
+        assert_eq!(e.feed(b"~"), (Vec::new(), Vec::new()));
+        assert_eq!(e.feed(b"C"), (Vec::new(), vec![Command::CommandLine]));
+        assert!(e.take_rest().is_empty());
+        assert_eq!(e.feed(b"~."), (Vec::new(), vec![Command::Disconnect]));
+        assert!(e.help().contains(" ~C   - open a command line\n"));
     }
 
     /// `~d` detaches only when the far end keeps shells (T-158), and ends

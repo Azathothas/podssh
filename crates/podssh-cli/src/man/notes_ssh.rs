@@ -54,10 +54,11 @@ pub const SSH: &[&str] = &[
      interactive programs work from a host with no pty.",
     "What podssh reads from the terminal: in a session with a pty, the escape character (~, or that of \
      -e; -e none turns it off) at the start of a line, and the key after it: ~. ends the session, ~R asks \
-     for a re-key, ~# lists the forwards of the session with the connections and bytes of each (with -v, \
-     the end of a run prints the same lines), ~d leaves the shell to a far end that keeps shells (see \
-     --attach) and goes as typed elsewhere, ~Z sends a file by ZMODEM (below), ~? lists the escapes, and \
-     ~~ sends one ~; another key goes with the ~ before it. Each other byte passes unchanged, as the remote \
+     for a re-key, ~C opens a command line that adds and stops forwards (below), ~# lists the forwards of \
+     the session with the connections and bytes of each (with -v, the end of a run prints the same \
+     lines), ~d leaves the shell to a far end that keeps shells (see --attach) and goes as typed \
+     elsewhere, ~Z sends a file by ZMODEM (below), ~? lists the escapes, and ~~ sends one ~; another key \
+     goes with the ~ before it. Each other byte passes unchanged, as the remote \
      side reads it: Ctrl-C, Ctrl-Z, Ctrl-D, Escape, the sequences of the keys, the mouse and a paste; only \
      a question of ZMODEM, and a transfer, take the keys. A resize of the terminal sends the new size. With \
      no pty, podssh reads no byte: stdin is the command's data, and Ctrl-C is the local terminal's signal \
@@ -134,6 +135,17 @@ pub const SSH: &[&str] = &[
      change, and the new one is printed. The logins after the first ask nothing, unless \
      SSH_ASKPASS_REQUIRE is force and SSH_ASKPASS names a program to ask. With no forward, or \
      --persist-name, -N with --persist is refused (exit 64).",
+    "~C, in a session with a pty, opens the command line of OpenSSH, ssh>, on the terminal. -L, -D or -R \
+     with a spec of the command line adds that forward to the running session: the listeners of -L and \
+     -D are made as those of the command line are (the probe, -g, PODSSH_LISTEN), and -R asks the server \
+     and waits 20 s at most for its answer. -KL, -KD or -KR with [BIND:]PORT, or a socket path for -KL \
+     and -KD, stops one: a closed listener takes no new connection, and the connections that it took go \
+     on; the server lets the port of -R go, and a channel for that port is refused from then on. help or \
+     ? lists the commands; an empty line, Ctrl-C and Ctrl-D do nothing, and a line that starts with ! \
+     runs no command (OpenSSH's PermitLocalCommand). After a forward that ~C stopped, ~# says closed. The \
+     forwards that ~C adds last as long as the connection, and those that it stops stay stopped: a new \
+     connection of --persist asks only for the forwards of the command line that ~C did not stop. A \
+     session through a control master has no ~C, as with OpenSSH: the key goes to the server as typed.",
     "--attach NAME DEST joins the shell that the far end keeps as NAME, and --attach DEST with no other \
      word lists the shells kept there, one on each line, then exits 0. A far end that keeps shells says \
      so in the resumable layer of node://NAME; a podssh node in front of an SSH server keeps none, and \

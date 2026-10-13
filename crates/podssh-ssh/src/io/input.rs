@@ -1,5 +1,7 @@
 //! The local input of a run (`io::Input`): stdin, read on a task of its own
 //! from the first session on, and what comes between two sessions, queued.
+//! The command line of `~C` gives back the keys that came after its line
+//! (T-291).
 
 use tokio::io::AsyncReadExt;
 use tokio::sync::mpsc;
@@ -34,8 +36,9 @@ impl Input {
 
     /// The next bytes: the queue first, then what is read; `None` at the
     /// end. The task that reads starts at the first call, after the login,
-    /// so that it takes nothing that a prompt reads.
-    async fn next(&mut self) -> Option<Vec<u8>> {
+    /// so that it takes nothing that a prompt reads. The line of `~C` reads
+    /// here too (T-291).
+    pub(crate) async fn next(&mut self) -> Option<Vec<u8>> {
         if !self.queued.is_empty() {
             return Some(std::mem::take(&mut self.queued));
         }
@@ -47,6 +50,13 @@ impl Input {
             self.ended = true;
         }
         read
+    }
+
+    /// Give `bytes` back, to be read next, before the queue: the keys that
+    /// came after a line of `~C` in their read belong to the session (T-291).
+    pub(crate) fn unread(&mut self, mut bytes: Vec<u8>) {
+        bytes.append(&mut self.queued);
+        self.queued = bytes;
     }
 
     /// Between two sessions: keep what is read for the next one, [`QUEUE`]
@@ -102,4 +112,25 @@ pub(super) async fn next(input: &mut Input, reading: bool) -> Option<Vec<u8>> {
         return std::future::pending().await;
     }
     input.next().await
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    /// The keys given back are read first, then the queue (T-291); nothing
+    /// is read from stdin while either holds bytes.
+    #[tokio::test]
+    async fn escape_command_keys_given_back_are_read_first() {
+        let mut input = Input::new(false);
+        input.queued = b"queued".to_vec();
+        input.unread(b"ls\r".to_vec());
+        assert!(input.open());
+        assert_eq!(input.next().await, Some(b"ls\rqueued".to_vec()));
+        assert!(input.rx.is_none(), "stdin was read");
+        // Nothing given back leaves the queue as it was.
+        input.queued = b"later".to_vec();
+        input.unread(Vec::new());
+        assert_eq!(input.next().await, Some(b"later".to_vec()));
+    }
 }

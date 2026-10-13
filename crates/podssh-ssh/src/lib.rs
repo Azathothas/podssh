@@ -35,6 +35,8 @@ pub mod convert;
 pub mod credential_store;
 pub mod elevate;
 pub mod escape;
+pub mod escape_command;
+mod escape_run;
 pub mod exec;
 pub mod forward;
 pub mod handler;

@@ -2,11 +2,12 @@
 """podssh in a real local pty, against the interop OpenSSH server on port 2201.
 
 Checks raw mode, the window size and a resize, Ctrl-C, full-screen programs
-(vi, less, top), the ~. and ~# escapes, the exit status, and that the local
-terminal is restored afterwards; then ZMODEM with sz and rz of lrzsz (T-148),
-or `env` lines when the host has no lrzsz. Prints one `ok` or `FAIL` line per
-check; exits 1 if any check failed. Called by scripts/interop.sh with:
-PODSSH KNOWN_HOSTS KEY.
+(vi, less, top), the ~. and ~# escapes, ~C with -R and -KR, -L and -KL
+(T-291), the exit status, and that the local terminal is restored
+afterwards; then ZMODEM with sz and rz of lrzsz (T-148), or `env` lines
+when the host has no lrzsz.
+Prints one `ok` or `FAIL` line per check; exits 1 if any check failed.
+Called by scripts/interop.sh with: PODSSH KNOWN_HOSTS KEY.
 """
 
 import fcntl
@@ -16,6 +17,7 @@ import pty
 import select
 import shutil
 import signal
+import socket
 import struct
 import subprocess
 import sys
@@ -176,6 +178,71 @@ ready = marker(t, "FWD", 4, 4)
 t.send(b"\r~#")
 listed = t.expect(b"-R 127.0.0.1:2290:127.0.0.1:2201: 0 connections (0 open, 0 failed)")
 check("pty.forwards", "~# lists the forwards of the session", ready and listed, t.buf)
+t.send(b"\rexit\r")
+t.finish()
+
+
+def banner(port):
+    """What 127.0.0.1:PORT says first, or None when it refuses."""
+    try:
+        with socket.create_connection(("127.0.0.1", port), timeout=5) as s:
+            s.settimeout(5)
+            return s.recv(64)
+    except OSError:
+        return None
+
+
+# ~C adds a -R to the running session, and -KR stops it (T-291): port 2290,
+# the one that PermitListen allows on 2201, reads the banner of 2201's sshd
+# through the forward, then refuses once the server let the forward go.
+time.sleep(1)  # the session of ~# above may still hold 2290 for a moment
+t = Terminal(24, 80)
+ready = marker(t, "CMDLINE", 5, 6)
+since = len(t.buf)
+t.send(b"\r~C")
+asked = t.expect(b"ssh> ", since=since)
+t.send(b"-R 127.0.0.1:2290:127.0.0.1:2201\r")
+forwarding = t.expect(b"Forwarding port.", since=since)
+up = banner(2290)
+since = len(t.buf)
+t.send(b"\r~C")
+t.expect(b"ssh> ", since=since)
+t.send(b"-KR 127.0.0.1:2290\r")
+cancelled = t.expect(b"Canceled forwarding", since=since)
+time.sleep(0.5)
+down = banner(2290)
+check("pty.command_line", "~C -R makes port 2290 answer, and -KR makes it refuse",
+      ready and asked and forwarding and bool(up) and up.startswith(b"SSH-") and cancelled and down is None,
+      t.buf + f"\nup={up!r} down={down!r}".encode())
+
+
+def free_port():
+    """A port of 127.0.0.1 that nothing listens on now."""
+    with socket.socket() as s:
+        s.bind(("127.0.0.1", 0))
+        return s.getsockname()[1]
+
+
+# ~C -L listens here in the same session, and -KL closes the listener
+# (T-291): a free local port reads the banner of 2201's sshd through the
+# session, then refuses.
+lport = free_port()
+since = len(t.buf)
+t.send(b"\r~C")
+asked = t.expect(b"ssh> ", since=since)
+t.send(f"-L 127.0.0.1:{lport}:127.0.0.1:2201\r".encode())
+forwarding = t.expect(b"Forwarding port.", since=since)
+up = banner(lport)
+since = len(t.buf)
+t.send(b"\r~C")
+t.expect(b"ssh> ", since=since)
+t.send(f"-KL {lport}\r".encode())
+cancelled = t.expect(b"Canceled forwarding", since=since)
+time.sleep(0.5)
+down = banner(lport)
+check("pty.command_line.local", "~C -L makes a local port answer, and -KL makes it refuse",
+      asked and forwarding and bool(up) and up.startswith(b"SSH-") and cancelled and down is None,
+      t.buf + f"\nport={lport} up={up!r} down={down!r}".encode())
 t.send(b"\rexit\r")
 t.finish()
 

@@ -44,8 +44,16 @@ impl Question {
     /// Keys: what to show, and the answer once there is one. Keys after the
     /// answer in the same read are dropped.
     pub fn keys(&mut self, keys: &[u8]) -> (Vec<u8>, Option<Answer>) {
+        let (echo, answer) = self.keys_and_rest(keys);
+        (echo, answer.map(|(answer, _)| answer))
+    }
+
+    /// As [`Question::keys`], with how many of the keys the answer took: the
+    /// keys after it belong to the session, for `~C` (T-291). A CR and the
+    /// LF after it are one Enter.
+    pub fn keys_and_rest(&mut self, keys: &[u8]) -> (Vec<u8>, Option<(Answer, usize)>) {
         let mut echo = Vec::new();
-        for &key in keys {
+        for (at, &key) in keys.iter().enumerate() {
             match self.sequence {
                 Sequence::Escape => {
                     self.sequence = if key == b'[' || key == b'O' { Sequence::Csi } else { Sequence::None };
@@ -63,11 +71,12 @@ impl Question {
                 b'\r' | b'\n' => {
                     echo.extend_from_slice(b"\r\n");
                     let line = String::from_utf8_lossy(&self.line).trim().to_string();
-                    return (echo, Some(Answer::Line(line)));
+                    let took = if key == b'\r' && keys.get(at + 1) == Some(&b'\n') { at + 2 } else { at + 1 };
+                    return (echo, Some((Answer::Line(line), took)));
                 }
                 0x03 | 0x04 => {
                     echo.extend_from_slice(b"\r\n");
-                    return (echo, Some(Answer::Refused));
+                    return (echo, Some((Answer::Refused, at + 1)));
                 }
                 0x7f | 0x08 => {
                     // A whole UTF-8 character goes, and one cell of the screen.

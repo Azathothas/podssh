@@ -3,10 +3,11 @@
 //! escape `~#` and, with `-v`, the end of the run. The bytes are counted as
 //! they are read, on atomics: no lock on the data path. A process runs one
 //! chain of connections, so the table is the process's; a forward asked for
-//! again on a new connection (`--persist`) keeps its counts.
+//! again on a new connection (`--persist`) keeps its counts. A forward that
+//! `~C` stopped stays in the list, said closed (T-291).
 
 use std::pin::Pin;
-use std::sync::atomic::{AtomicU64, Ordering::Relaxed};
+use std::sync::atomic::{AtomicBool, AtomicU64, Ordering::Relaxed};
 use std::sync::{Arc, Mutex};
 use std::task::{Context, Poll};
 
@@ -21,6 +22,8 @@ pub struct Counts {
     /// The bytes toward the server, and from it.
     up: AtomicU64,
     down: AtomicU64,
+    /// `~C -KL`, `-KD` or `-KR` stopped it (T-291).
+    closed: AtomicBool,
 }
 
 impl Counts {
@@ -50,8 +53,9 @@ impl Counts {
         let open = opened.saturating_sub(self.ended.load(Relaxed));
         let failed = self.failed.load(Relaxed);
         let s = |n: u64| if n == 1 { "" } else { "s" };
+        let closed = if self.closed.load(Relaxed) { "; closed" } else { "" };
         format!(
-            "{opened} connection{} ({open} open, {failed} failed), {} bytes up, {} bytes down",
+            "{opened} connection{} ({open} open, {failed} failed), {} bytes up, {} bytes down{closed}",
             s(opened),
             self.up.load(Relaxed),
             self.down.load(Relaxed)
@@ -80,6 +84,26 @@ pub fn of(name: &str) -> Arc<Counts> {
     let counts = Arc::new(Counts::default());
     table.push((name.to_string(), counts.clone()));
     counts
+}
+
+/// The counts of `name`, as [`of`], for a forward that serves or that the
+/// server took from now on: open, even if `~C` had closed it (T-291).
+pub fn opened(name: &str) -> Arc<Counts> {
+    let counts = of(name);
+    counts.closed.store(false, Relaxed);
+    counts
+}
+
+/// `~C` stopped the forward named `name` (T-291): `~#` says so.
+pub fn closed(name: &str) {
+    of(name).closed.store(true, Relaxed);
+}
+
+/// Whether `~C` stopped the forward named `name`, and nothing opened it
+/// again since (T-291): a new connection of `--persist` does not ask for it.
+pub fn is_closed(name: &str) -> bool {
+    let table = TABLE.lock().unwrap_or_else(|e| e.into_inner());
+    table.iter().any(|(n, counts)| n == name && counts.closed.load(Relaxed))
 }
 
 /// A line for each forward, in the order of their first use.

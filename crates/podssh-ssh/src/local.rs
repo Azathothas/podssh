@@ -3,14 +3,16 @@
 //! `direct-streamlocal@openssh.com` to a socket on the server, or, for
 //! `-D`, where its SOCKS request says. The caller binds the listeners
 //! before anything connects, as the probe of the operator's ruling of
-//! 2026-10-08 asks; this crate binds nothing.
+//! 2026-10-08 asks; this crate binds nothing. `~C -KL` and `-KD` close the
+//! listeners of a forward that serves (T-291).
 
 use std::fmt;
 use std::future::Future;
 use std::io;
 use std::net::SocketAddr;
 use std::pin::Pin;
-use std::sync::Arc;
+use std::sync::atomic::{AtomicU64, Ordering};
+use std::sync::{Arc, Mutex};
 use std::time::Duration;
 
 use futures_util::stream::{FuturesUnordered, StreamExt};
@@ -44,6 +46,31 @@ pub struct Accepted {
 pub trait Listen: Send + Sync {
     /// The next connection.
     fn accept(&self) -> Pin<Box<dyn Future<Output = io::Result<Accepted>> + Send + '_>>;
+
+    /// Where it listens, for `~C -KL` and `-KD` (T-291); none when it cannot
+    /// say.
+    fn place(&self) -> Option<Listening> {
+        None
+    }
+
+    /// Close it: its accept ends, and so does its socket once the accept
+    /// lets go of it; the connections that it took go on. False when it
+    /// cannot be closed.
+    fn close(&self) -> bool {
+        false
+    }
+
+    /// Whether it was closed: an accept that fails then is no failure.
+    fn closed(&self) -> bool {
+        false
+    }
+}
+
+/// Where a listener listens.
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub enum Listening {
+    Tcp(SocketAddr),
+    Path(String),
 }
 
 /// Where the connections of a forward go.
@@ -123,10 +150,17 @@ fn next<'a>(forward: &'a LocalForward, listener: &'a Arc<dyn Listen>) -> Next<'a
 /// Each listener's connections, until no listener is left: a listener whose
 /// accept fails is closed with a line. Channels open at the same time.
 pub async fn serve(handle: &Handle<Client>, forwards: &[LocalForward], log: &Arc<Log>) {
-    // In the list of ~# from now on (T-041).
+    // In the list of ~# from now on (T-041), and open again if ~C had
+    // closed a forward of that name; one whose listeners ~C closed stays
+    // closed on the next connection of `--persist` (T-291).
     for forward in forwards {
-        crate::tally::of(&forward.shown);
+        if forward.listeners.iter().any(|l| !l.closed()) {
+            crate::tally::opened(&forward.shown);
+        } else {
+            crate::tally::of(&forward.shown);
+        }
     }
+    let _serving = Serving::new(forwards);
     let mut accepting: FuturesUnordered<Next> =
         forwards.iter().flat_map(|f| f.listeners.iter().map(move |l| next(f, l))).collect();
     let mut opening = FuturesUnordered::new();
@@ -137,12 +171,62 @@ pub async fn serve(handle: &Handle<Client>, forwards: &[LocalForward], log: &Arc
                     accepting.push(next(forward, listener));
                     opening.push(carry(handle, forward, conn, log));
                 }
+                Err(_) if listener.closed() => log.verbose(&format!("{}: a listener is closed", forward.shown)),
                 Err(e) => log.info(&format!("{}: a listener failed and is closed: {e}", forward.shown)),
             },
             Some(()) = opening.next() => {}
             else => break,
         }
     }
+}
+
+/// The forwards that serve now, which `~C -KL` and `-KD` may close (T-291):
+/// a process runs one chain of connections, as the table of the forwards'
+/// counts says. An entry for each [`serve`], gone with it.
+type Entry = (u64, String, bool, Vec<Arc<dyn Listen>>);
+static SERVING: Mutex<Vec<Entry>> = Mutex::new(Vec::new());
+static NEXT: AtomicU64 = AtomicU64::new(0);
+
+struct Serving(Vec<u64>);
+
+impl Serving {
+    fn new(forwards: &[LocalForward]) -> Serving {
+        let mut serving = SERVING.lock().unwrap_or_else(|e| e.into_inner());
+        let ids = forwards
+            .iter()
+            .map(|f| {
+                let id = NEXT.fetch_add(1, Ordering::Relaxed);
+                serving.push((id, f.shown.clone(), f.target == Target::Socks, f.listeners.clone()));
+                id
+            })
+            .collect();
+        Serving(ids)
+    }
+}
+
+impl Drop for Serving {
+    fn drop(&mut self) {
+        SERVING.lock().unwrap_or_else(|e| e.into_inner()).retain(|(id, ..)| !self.0.contains(id));
+    }
+}
+
+/// Close each listener that `at` names, of the forwards of `-D` when
+/// `dynamic`, else of `-L` (T-291). For each forward whose listeners it
+/// closed, once each: its name, and whether none of its listeners is left
+/// (`-KL 127.0.0.1:8080` leaves the one of ::1).
+pub fn close(dynamic: bool, at: impl Fn(&Listening) -> bool) -> Vec<(String, bool)> {
+    let serving = SERVING.lock().unwrap_or_else(|e| e.into_inner());
+    let mut closed: Vec<(String, bool)> = Vec::new();
+    for (_, name, _, listeners) in serving.iter().filter(|(_, _, socks, _)| *socks == dynamic) {
+        let mut any = false;
+        for listener in listeners.iter().filter(|l| !l.closed() && l.place().is_some_and(|p| at(&p))) {
+            any |= listener.close();
+        }
+        if any && !closed.iter().any(|(n, _)| n == name) {
+            closed.push((name.clone(), listeners.iter().all(|l| l.closed())));
+        }
+    }
+    closed
 }
 
 /// One connection: its channel opened, then its bytes copied both ways in a

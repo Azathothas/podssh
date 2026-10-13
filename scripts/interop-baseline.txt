@@ -43,7 +43,7 @@ harness edit interop 8 scripts/interop-edit.sh
 harness pipe interop 9 scripts/interop-pipe.sh
 harness desktop interop 7 scripts/interop-desktop.sh
 harness usbip interop 1 scripts/interop-usbip.sh
-harness pty interop 13 scripts/interop-pty.py
+harness pty interop 15 scripts/interop-pty.py
 harness man man 7 scripts/interop-man.sh
 harness conpty conpty 14 scripts/interop-conpty.py
 
@@ -548,6 +548,8 @@ pty.second pass
 pty.escape_disconnect pass
 pty.restore.escape pass
 pty.forwards pass
+pty.command_line pass
+pty.command_line.local pass
 pty.zmodem.receive env-allowed sz and rz of lrzsz, which Alpine does not package now (T-148)
 pty.zmodem.temp env-allowed sz and rz of lrzsz, which Alpine does not package now (T-148)
 pty.zmodem.refuse env-allowed sz and rz of lrzsz, which Alpine does not package now (T-148)
