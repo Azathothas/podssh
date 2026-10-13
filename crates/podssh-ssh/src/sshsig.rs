@@ -9,16 +9,25 @@
 //! key signs through aws-lc-rs with SHA-512 (`rsa-sha2-512`, as OpenSSH
 //! signs), never through the `rsa` crate (T-257); each other key through
 //! ssh-key. A signature made with a certificate, and the `cert-authority`
-//! lines that would allow it, are not read yet (T-289).
+//! lines that allow it, are read and written in `sshsig_cert` (T-289).
 
 use std::io::Read;
 
 use chrono::{Local, NaiveDate, NaiveDateTime, TimeZone, Utc};
-use russh::keys::ssh_key::{Algorithm, HashAlg, LineEnding, Signature, SshSig};
+use russh::keys::agent::AgentIdentity;
+use russh::keys::ssh_key::{Algorithm, Certificate, HashAlg, LineEnding, Signature, SshSig};
 use russh::keys::{PrivateKey, PublicKey};
 use sha2::Digest;
 
 use crate::options::Agent;
+
+/// A signature that was read: the signature, whose key is the certificate's
+/// key when a certificate made it, and that certificate (T-289).
+#[derive(Debug, Clone)]
+pub struct Signed {
+    pub signature: SshSig,
+    pub certificate: Option<Certificate>,
+}
 
 /// The digest of what `reader` gives, with `hash`, read in pieces.
 pub fn digest(reader: &mut dyn Read, hash: HashAlg) -> std::io::Result<Vec<u8>> {
@@ -75,44 +84,46 @@ pub async fn sign_with_agent(
         return Err("no agent runs: SSH_AUTH_SOCK names none".into());
     };
     let held = agent.request_identities().await.map_err(|e| format!("the agent: {e}"))?;
-    if !held.iter().any(|id| id.public_key().key_data() == public.key_data()) {
-        return Err("the agent does not hold the key".into());
-    }
     let data = SshSig::signed_data_for_prehash(namespace, hash, prehash).map_err(|e| e.to_string())?;
     let rsa = public.algorithm().is_rsa().then_some(HashAlg::Sha512);
-    let signature =
-        agent.sign_request_signature(public, rsa, &data).await.map_err(|e| format!("the agent did not sign: {e}"))?;
+    let plain = held.iter().any(|id| match id {
+        AgentIdentity::PublicKey { key, .. } => key.key_data() == public.key_data(),
+        AgentIdentity::Certificate { .. } => false,
+    });
+    let signature = if plain {
+        agent.sign_request_signature(public, rsa, &data).await.map_err(|e| format!("the agent did not sign: {e}"))?
+    } else {
+        // An agent that holds the key only in a certificate is asked by the
+        // certificate, as OpenSSH's ssh-agent finds the key by it (T-289).
+        let Some(id) = held.iter().find(|id| id.public_key().key_data() == public.key_data()) else {
+            return Err("the agent does not hold the key".into());
+        };
+        let answer =
+            agent.sign_request(id, rsa, data.clone()).await.map_err(|e| format!("the agent did not sign: {e}"))?;
+        // russh gives back the data, then the signature as a string.
+        let blob = answer.get(data.len() + 4..).ok_or("the agent's answer is short")?;
+        Signature::try_from(blob).map_err(|e| format!("the agent's signature: {e}"))?
+    };
     SshSig::new(public.key_data().clone(), namespace, hash, signature).map_err(|e| e.to_string())
 }
 
-/// The armoured text of a signature, as `ssh-keygen` writes it.
-pub fn armour(signature: &SshSig) -> Result<String, String> {
-    signature.to_pem(LineEnding::LF).map_err(|e| e.to_string())
+/// The armoured text of a signature, as `ssh-keygen` writes it; with a
+/// certificate, the certificate is the key in it (T-289).
+pub fn armour(signature: &SshSig, certificate: Option<&Certificate>) -> Result<String, String> {
+    match certificate {
+        Some(certificate) => crate::sshsig_cert::armour(signature, certificate),
+        None => signature.to_pem(LineEnding::LF).map_err(|e| e.to_string()),
+    }
 }
 
-/// A signature file, read: its signature, or why it is none. A signature
-/// made with a certificate is named (T-289).
-pub fn read_signature(text: &[u8]) -> Result<SshSig, String> {
-    SshSig::from_pem(text).map_err(|e| {
-        if certificate_inside(text) {
-            "the signature was made with a certificate, which podssh does not read yet".to_string()
-        } else {
-            format!("Couldn't parse signature: {e}")
-        }
-    })
-}
-
-/// Whether the key inside an armoured signature is a certificate: its name
-/// ends in `-cert-v01@openssh.com`.
-fn certificate_inside(text: &[u8]) -> bool {
-    use base64::Engine;
-    let text = String::from_utf8_lossy(text);
-    let body: String = text.lines().filter(|l| !l.starts_with("-----")).map(str::trim).collect();
-    let Ok(blob) = base64::engine::general_purpose::STANDARD.decode(body) else { return false };
-    // "SSHSIG", the version, then the key's blob, whose first string is its name.
-    let Some(rest) = blob.get(6 + 4 + 4..) else { return false };
-    let Some(len) = rest.get(..4).map(|b| u32::from_be_bytes([b[0], b[1], b[2], b[3]]) as usize) else { return false };
-    rest.get(4..4 + len).is_some_and(|name| name.ends_with(b"-cert-v01@openssh.com"))
+/// A signature file, read: its signature, or why it is none. ssh-key reads
+/// a plain key in it; a certificate is read in `sshsig_cert` (T-289).
+pub fn read_signature(text: &[u8]) -> Result<Signed, String> {
+    if crate::sshsig_cert::certificate_inside(text) {
+        return crate::sshsig_cert::read(text).map_err(|why| format!("Couldn't parse signature: {why}"));
+    }
+    let signature = SshSig::from_pem(text).map_err(|e| format!("Couldn't parse signature: {e}"))?;
+    Ok(Signed { signature, certificate: None })
 }
 
 /// Why a signature does not hold, as `ssh-keygen` says it on stderr.
@@ -135,8 +146,8 @@ pub struct Signer {
     pub namespaces: Option<String>,
     pub valid_after: Option<i64>,
     pub valid_before: Option<i64>,
-    /// `cert-authority`: the key signs certificates, which podssh does not
-    /// read yet (T-289), so the line allows no signature here.
+    /// `cert-authority`: the key is a CA, and the line allows a signature
+    /// made with a certificate that it signed (T-289).
     pub cert_authority: bool,
     pub key: PublicKey,
 }
@@ -329,9 +340,14 @@ pub fn refuses(signer: &Signer, namespace: &str, now: i64) -> Option<String> {
     None
 }
 
-/// Whether the line names the key of `signature`: a plain key, the same.
-pub fn names_key(signer: &Signer, signature: &SshSig) -> bool {
-    !signer.cert_authority && signer.key.key_data() == signature.public_key()
+/// Whether the line names the key of `signed`: a plain line names the same
+/// plain key, and a `cert-authority` line the CA of a certificate (T-289). A
+/// plain line never names a certificate, as OpenSSH compares their types.
+pub fn names_key(signer: &Signer, signed: &Signed) -> bool {
+    match &signed.certificate {
+        None => !signer.cert_authority && signer.key.key_data() == signed.signature.public_key(),
+        Some(certificate) => signer.cert_authority && signer.key.key_data() == certificate.signature_key(),
+    }
 }
 
 #[cfg(test)]

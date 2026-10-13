@@ -61,15 +61,15 @@ repository and CI).
 
 ## Counts
 
-**304 entries: 42 open, 0 partial, 25 blocked, 237 done.**
+**304 entries: 41 open, 0 partial, 25 blocked, 238 done.**
 
 | Priority | open | partial | blocked | done | total |
 | --- | --- | --- | --- | --- | --- |
 | P0 | 0 | 0 | 0 | 1 | 1 |
 | P1 | 2 | 0 | 0 | 22 | 24 |
 | P2 | 4 | 0 | 18 | 136 | 158 |
-| P3 | 36 | 0 | 7 | 78 | 121 |
-| **All** | 42 | 0 | 25 | 237 | 304 |
+| P3 | 35 | 0 | 7 | 79 | 121 |
+| **All** | 41 | 0 | 25 | 238 | 304 |
 
 ## Entries
 
@@ -360,7 +360,7 @@ repository and CI).
 | [T-286](repo.md) | P1 | S | none | defect | done | Two tests of the record's interop share one scratch tree, and one removes it under the other |
 | [T-287](ssh.md) | P2 | S | none | defect | done | An encrypted key of PKCS#8 or of PuTTY is never asked for, and an encrypted ECDSA key in PEM is refused with its passphrase |
 | [T-288](cli.md) | P1 | S | none | defect | done | On Windows, `podssh keygen` writes a private key with the access list of its directory |
-| [T-289](cli.md) | P3 | M | backlog | feature | open | `podssh keygen -Y` with certificates: a signature made with a certificate, and `cert-authority` lines |
+| [T-289](cli.md) | P3 | M | backlog | feature | done | `podssh keygen -Y` with certificates: a signature made with a certificate, and `cert-authority` lines |
 | [T-290](config.md) | P2 | M | none | defect | done | A `-J` hop takes the `ssh_config` block of its own name, as OpenSSH's jump host does |
 | [T-291](forwarding.md) | P3 | M | backlog | feature | done | The escape `~C`: add and stop the forwards of a running session |
 | [T-292](config.md) | P3 | M | backlog | feature | blocked | `podssh config import` from PuTTY, MobaXterm, Remmina, FinalShell, mRemoteNG and Termius |

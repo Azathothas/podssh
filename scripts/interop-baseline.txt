@@ -23,7 +23,7 @@ harness match interop 18 scripts/interop-match.sh
 harness result interop 10 scripts/interop-result.sh
 harness mcp interop 4 scripts/interop-mcp.sh
 harness each interop 7 scripts/interop-each.sh
-harness keygen interop 79 scripts/interop-keygen.sh
+harness keygen interop 87 scripts/interop-keygen.sh
 harness agent interop 26 scripts/interop-agent.sh
 harness local interop 6 scripts/interop-local.sh
 harness control interop 13 scripts/interop-control.sh
@@ -226,6 +226,14 @@ keygen.cert.login.user_ca_rsa pass
 keygen.cert.expired_refused pass
 keygen.cert.principal_refused pass
 keygen.cert.host_openssh_reads pass
+keygen.sigcert.make pass
+keygen.sigcert.openssh_verifies pass
+keygen.sigcert.verifies_openssh pass
+keygen.sigcert.same_lines pass
+keygen.sigcert.both_refuse_principal pass
+keygen.sigcert.both_refuse_other_ca pass
+keygen.sigcert.both_refuse_plain_line pass
+keygen.sigcert.key_beside_signs_plain pass
 keygen.convert.openssh_imports.ecdsa pass
 keygen.convert.imports_openssh.ecdsa pass
 keygen.convert.y_of_pem.ecdsa pass

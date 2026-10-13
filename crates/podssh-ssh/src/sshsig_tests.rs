@@ -20,7 +20,9 @@ fn prehash(data: &[u8], hash: HashAlg) -> Vec<u8> {
 #[test]
 fn the_signatures_of_openssh_verify() {
     for (public, armoured, namespace) in [(ED25519_PUB, ED25519_SIG, "git"), (RSA_PUB, RSA_SIG, "file")] {
-        let signature = read_signature(armoured.as_bytes()).unwrap();
+        let read = read_signature(armoured.as_bytes()).unwrap();
+        assert!(read.certificate.is_none());
+        let signature = read.signature;
         let key = PublicKey::from_openssh(public.trim()).unwrap();
         assert_eq!(signature.public_key(), key.key_data());
         let hash = signature.hash_alg();
@@ -34,7 +36,7 @@ fn the_signatures_of_openssh_verify() {
             "Signature verification failed: incorrect signature"
         );
     }
-    assert_eq!(read_signature(RSA_SIG.as_bytes()).unwrap().hash_alg(), HashAlg::Sha256);
+    assert_eq!(read_signature(RSA_SIG.as_bytes()).unwrap().signature.hash_alg(), HashAlg::Sha256);
 }
 
 /// podssh signs with each kind of key, with each hash, and its signature
@@ -49,9 +51,9 @@ fn each_kind_of_key_signs() {
     for key in &keys {
         for hash in [HashAlg::Sha512, HashAlg::Sha256] {
             let signature = sign(key, "file", hash, &prehash(DATA, hash)).unwrap();
-            let text = armour(&signature).unwrap();
+            let text = armour(&signature, None).unwrap();
             assert!(text.starts_with("-----BEGIN SSH SIGNATURE-----\n"), "{text}");
-            let read = read_signature(text.as_bytes()).unwrap();
+            let read = read_signature(text.as_bytes()).unwrap().signature;
             check(&read, "file", &prehash(DATA, hash)).unwrap();
             assert!(check(&read, "git", &prehash(DATA, hash)).is_err());
             if key.algorithm().is_rsa() {

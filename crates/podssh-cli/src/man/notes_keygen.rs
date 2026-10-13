@@ -21,6 +21,11 @@ pub const KEYGEN: &[&str] = &[
      against SIGNERS, an allowed-signers file, and says Good or Could not verify signature. (exit 1). -Y \
      check-novalidate, find-principals and match-principals are those of ssh-keygen. A signature never \
      replaces a file.",
+    "podssh keygen -Y sign -f KEY-cert.pub signs with that certificate and the private key KEY (or the \
+     agent's), as ssh-keygen does; -f KEY signs with the plain key even with KEY-cert.pub beside it. A \
+     cert-authority line of SIGNERS allows such a signature when its key is the certificate's CA, and the \
+     certificate is a user certificate, valid at the time, that lists the principal of -I; a plain line of \
+     the key does not allow it.",
     "podssh keygen -s CA -I ID [-n NAMES] [-V INTERVAL] [-z SERIAL] [-O OPTION] [-h] FILE.pub certifies each \
      key into FILE-cert.pub, as ssh-keygen -s does (-U: the CA is in the agent), and podssh keygen -L -f \
      FILE prints a certificate. -V here is a validity, such as +52w or 20260101:20270101; the version is \

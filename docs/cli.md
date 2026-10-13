@@ -1044,9 +1044,24 @@ GitHub #23): the time of each step, the round trip, and the throughput.
   the key of `-f` (with `-U`, the agent alone), else the private key in
   `-f`. An RSA key signs with SHA-512 through aws-lc-rs. `verify` reads an
   allowed-signers file with its `namespaces=`, `valid-after=` and
-  `valid-before=`, and a failure exits 1 where OpenSSH exits 255. A
-  signature made with a certificate, and `cert-authority` lines, are not
-  read yet (T-289); `-r`, a revocation list, is refused.
+  `valid-before=`, and a failure exits 1 where OpenSSH exits 255; `-r`, a
+  revocation list, is refused.
+- `-Y sign -f KEY-cert.pub` signs with a certificate, as OpenSSH's does:
+  the private key is KEY (the path without `-cert.pub`, or `.pub`), or the
+  agent's, and the signature carries the certificate (T-289). `-f KEY`
+  signs with the plain key even when `KEY-cert.pub` is beside it, as
+  OpenSSH reads `KEY.pub` there. A `cert-authority` line of the allowed
+  signers allows such a signature when its key is the certificate's CA and
+  the certificate is a user certificate, valid at the time (or
+  `-O verify-time=`), that lists the principal of `-I` (with no wildcard);
+  a refusal says OpenSSH's `FILE:N: certificate not authorized: REASON`.
+  A plain line of the key does not allow it, and a `cert-authority` line
+  allows no plain signature, as OpenSSH compares the types.
+  `find-principals` prints the principals of the certificate that the
+  line's patterns match, `check-novalidate` and `verify` name the key
+  `ED25519-CERT` (or the type's), and `-O print-pubkey` prints the
+  certificate. As in OpenSSH, the critical options of the certificate are
+  not read: they restrict a login, not a signature.
 - `-s CA -I ID` certifies each FILE, a public key, into `FILE-cert.pub`
   (PROTOCOL.certkeys), and `-L` prints a certificate, with the lines and the
   messages of `ssh-keygen` (T-021): `-n` the principals, `-V` the validity

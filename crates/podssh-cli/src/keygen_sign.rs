@@ -9,15 +9,20 @@
 //! private key's) and signs through the agent when it holds the key, as
 //! OpenSSH does; else with the private key in FILE, whose passphrase is
 //! asked. `-U` asks for the agent alone. A signature never replaces a file.
+//!
+//! A certificate signs when `-f` names it, `-f KEY-cert.pub`, with the
+//! private key KEY, as OpenSSH's; and a `cert-authority` line allows the
+//! signatures of the certificates of its CA (T-289).
 
 use std::io::{Read, Write};
 use std::path::Path;
 
 use podssh_ssh::known_hosts::{fingerprint, key_type};
 use podssh_ssh::options::Agent;
-use podssh_ssh::russh::keys::ssh_key::{HashAlg, SshSig};
+use podssh_ssh::russh::keys::ssh_key::{Certificate, HashAlg, SshSig};
 use podssh_ssh::russh::keys::{PrivateKey, PublicKey};
-use podssh_ssh::sshsig::{self, Line};
+use podssh_ssh::sshsig::{self, Line, Signed};
+use podssh_ssh::sshsig_cert;
 
 use crate::exit_codes::EXIT_USAGE;
 use crate::keygen::{KeygenArgs, EXIT_FAILED};
@@ -106,8 +111,8 @@ enum Signing {
 fn sign(args: &KeygenArgs, options: &Options, out: &mut dyn Write, err: &mut dyn Write) -> i32 {
     let key_path = Path::new(args.file.as_deref().unwrap_or_default());
     let namespace = args.namespace.as_deref().unwrap_or_default();
-    let signing = match signer(key_path, args.agent_key) {
-        Ok(signing) => signing,
+    let (signing, certificate) = match signer(key_path, args.agent_key) {
+        Ok(found) => found,
         Err(why) => {
             let _ = writeln!(err, "podssh keygen: {why}");
             return EXIT_FAILED;
@@ -119,7 +124,7 @@ fn sign(args: &KeygenArgs, options: &Options, out: &mut dyn Write, err: &mut dyn
             Signing::Key(key) => sshsig::sign(key, namespace, options.hash, &prehash)?,
             Signing::Agent(public) => with_agent(public, namespace, options.hash, &prehash)?,
         };
-        sshsig::armour(&signature)
+        sshsig::armour(&signature, certificate.as_ref())
     };
     let files: Vec<&String> = args.files.iter().filter(|f| f.as_str() != "-").collect();
     if files.is_empty() {
@@ -172,14 +177,18 @@ fn sign(args: &KeygenArgs, options: &Options, out: &mut dyn Write, err: &mut dyn
 }
 
 /// The key that signs for `-f KEY`: the agent when it holds the public key
-/// of KEY (and only the agent with `-U`), else the private key in KEY.
-fn signer(path: &Path, agent_only: bool) -> Result<Signing, String> {
+/// of KEY (and only the agent with `-U`), else the private key in KEY. A
+/// certificate in `-f` is the key of the signature (T-289).
+fn signer(path: &Path, agent_only: bool) -> Result<(Signing, Option<Certificate>), String> {
     let shown = path.display();
     let text = std::fs::read_to_string(path).map_err(|e| format!("{shown}: {e}"))?;
+    if let Some(certificate) = certificate_line(&text) {
+        return certified(path, &certificate, agent_only).map(|signing| (signing, Some(certificate)));
+    }
     let public = public_key(path, &text);
     if let Some(public) = &public {
         if agent_has(public) {
-            return Ok(Signing::Agent(public.clone()));
+            return Ok((Signing::Agent(public.clone()), None));
         }
     }
     if agent_only {
@@ -191,7 +200,39 @@ fn signer(path: &Path, agent_only: bool) -> Result<Signing, String> {
     if public.is_some() && public_line(&text).is_some() {
         return Err(format!("{shown} is a public key, and no agent holds its private key"));
     }
-    open_private(path, &text).map(|key| Signing::Key(Box::new(key)))
+    open_private(path, &text).map(|key| (Signing::Key(Box::new(key)), None))
+}
+
+/// The certificate in `-f`, when its first line is one.
+fn certificate_line(text: &str) -> Option<Certificate> {
+    let line = text.lines().map(str::trim).find(|l| !l.is_empty() && !l.starts_with('#'))?;
+    Certificate::from_openssh(line).ok()
+}
+
+/// The key that signs for `-f KEY-cert.pub`, as OpenSSH's `load_sign_key`
+/// finds it: the agent when it holds the certificate's key, else the
+/// private key at the path without `-cert.pub` (or `.pub`), which must be
+/// the certificate's key.
+fn certified(path: &Path, certificate: &Certificate, agent_only: bool) -> Result<Signing, String> {
+    let public = PublicKey::new(certificate.public_key().clone(), "");
+    if agent_has(&public) {
+        return Ok(Signing::Agent(public));
+    }
+    if agent_only {
+        return Err("the agent does not hold the key of -f (-U signs with the agent alone)".into());
+    }
+    let shown = path.to_string_lossy();
+    let private = ["-cert.pub", ".pub"].iter().find_map(|suffix| shown.strip_suffix(suffix)).unwrap_or(&shown);
+    let private = Path::new(private);
+    if !private.exists() {
+        return Err(format!("No private key found for public key \"{shown}\""));
+    }
+    let text = std::fs::read_to_string(private).map_err(|e| format!("{}: {e}", private.display()))?;
+    let key = open_private(private, &text)?;
+    if key.public_key().key_data() != certificate.public_key() {
+        return Err(format!("Public key {shown} doesn't match private {}", private.display()));
+    }
+    Ok(Signing::Key(Box::new(key)))
 }
 
 /// The public key of `-f`: the file's when it is one, else `FILE.pub`, else
@@ -249,11 +290,11 @@ pub(crate) fn block_on<F: std::future::Future>(future: F) -> F::Output {
 }
 
 /// The signature of `-s FILE`, or what `ssh-keygen` says when there is none.
-fn signature_file(args: &KeygenArgs, out: &mut dyn Write, err: &mut dyn Write) -> Option<SshSig> {
+fn signature_file(args: &KeygenArgs, out: &mut dyn Write, err: &mut dyn Write) -> Option<Signed> {
     let path = args.signature_file.as_deref().unwrap_or_default();
     let read = std::fs::read(path).map_err(|e| format!("Couldn't read signature file: {path}: {e}"));
     match read.and_then(|text| sshsig::read_signature(&text)) {
-        Ok(signature) => Some(signature),
+        Ok(signed) => Some(signed),
         Err(why) => {
             let _ = writeln!(err, "{why}");
             let _ = writeln!(out, "Could not verify signature.");
@@ -264,14 +305,14 @@ fn signature_file(args: &KeygenArgs, out: &mut dyn Write, err: &mut dyn Write) -
 
 /// The signature of `-s` over standard input, checked: `None`, said, when
 /// it does not hold.
-fn checked(args: &KeygenArgs, out: &mut dyn Write, err: &mut dyn Write) -> Option<SshSig> {
-    let signature = signature_file(args, out, err)?;
+fn checked(args: &KeygenArgs, out: &mut dyn Write, err: &mut dyn Write) -> Option<Signed> {
+    let signed = signature_file(args, out, err)?;
     let namespace = args.namespace.as_deref().unwrap_or_default();
-    let held = sshsig::digest(&mut std::io::stdin().lock(), signature.hash_alg())
+    let held = sshsig::digest(&mut std::io::stdin().lock(), signed.signature.hash_alg())
         .map_err(|e| format!("Couldn't read the data: {e}"))
-        .and_then(|prehash| sshsig::check(&signature, namespace, &prehash));
+        .and_then(|prehash| sshsig::check(&signed.signature, namespace, &prehash));
     match held {
-        Ok(()) => Some(signature),
+        Ok(()) => Some(signed),
         Err(why) => {
             let _ = writeln!(err, "{why}");
             let _ = writeln!(out, "Could not verify signature.");
@@ -292,10 +333,21 @@ fn allowed(args: &KeygenArgs, err: &mut dyn Write) -> Option<(String, Vec<Line>)
     }
 }
 
+/// The type and the fingerprint of the key that made `signed`, as
+/// `ssh-keygen` prints them: `ED25519-CERT` for a certificate, with the
+/// fingerprint of its key (T-289).
+fn signed_by(signed: &Signed) -> (String, String) {
+    let key = PublicKey::new(signed.signature.public_key().clone(), "");
+    let kind = if signed.certificate.is_some() { format!("{}-CERT", key_type(&key)) } else { key_type(&key) };
+    (kind, fingerprint(&key))
+}
+
 /// `-Y verify`: the signature holds, and a line of the allowed signers
-/// names the principal with the key, in the namespace and the time.
+/// names the principal with the key, in the namespace and the time; a
+/// `cert-authority` line names the CA of a certificate that lists the
+/// principal (T-289).
 fn verify(args: &KeygenArgs, options: &Options, now: i64, out: &mut dyn Write, err: &mut dyn Write) -> i32 {
-    let Some(signature) = checked(args, out, err) else { return EXIT_FAILED };
+    let Some(signed) = checked(args, out, err) else { return EXIT_FAILED };
     let Some((path, lines)) = allowed(args, err) else {
         let _ = writeln!(out, "Could not verify signature.");
         return EXIT_FAILED;
@@ -308,7 +360,16 @@ fn verify(args: &KeygenArgs, options: &Options, now: i64, out: &mut dyn Write, e
                 let _ = writeln!(err, "{path}:{line}: {why}");
             }
             Line::Signer(signer) if sshsig::pattern_list(&signer.principals, principal) => {
-                if !sshsig::names_key(signer, &signature) {
+                if !sshsig::names_key(signer, &signed) {
+                    continue;
+                }
+                // As OpenSSH checks a line: the certificate first, then the
+                // line's namespaces and times.
+                let ca = signer.key.key_data();
+                let refused =
+                    signed.certificate.as_ref().and_then(|c| sshsig_cert::not_authorized(c, ca, Some(principal), now));
+                if let Some(why) = refused {
+                    let _ = writeln!(err, "{path}:{}: certificate not authorized: {why}", signer.line);
                     continue;
                 }
                 if let Some(why) = sshsig::refuses(signer, namespace, now) {
@@ -316,15 +377,14 @@ fn verify(args: &KeygenArgs, options: &Options, now: i64, out: &mut dyn Write, e
                     continue;
                 }
                 if !args.quiet {
-                    let key = PublicKey::new(signature.public_key().clone(), "");
-                    let _ = writeln!(
-                        out,
-                        "Good \"{namespace}\" signature for {principal} with {} key {}",
-                        key_type(&key),
-                        fingerprint(&key)
-                    );
+                    let (kind, fp) = signed_by(&signed);
+                    let _ = writeln!(out, "Good \"{namespace}\" signature for {principal} with {kind} key {fp}");
                     if options.print_pubkey {
-                        let _ = writeln!(out, "{}", key.to_openssh().unwrap_or_default());
+                        let text = match &signed.certificate {
+                            Some(certificate) => certificate.to_openssh(),
+                            None => PublicKey::new(signed.signature.public_key().clone(), "").to_openssh(),
+                        };
+                        let _ = writeln!(out, "{}", text.unwrap_or_default());
                     }
                 }
                 return 0;
@@ -338,34 +398,47 @@ fn verify(args: &KeygenArgs, options: &Options, now: i64, out: &mut dyn Write, e
 
 /// `-Y check-novalidate`: the signature holds, whoever made it.
 fn check_novalidate(args: &KeygenArgs, out: &mut dyn Write, err: &mut dyn Write) -> i32 {
-    let Some(signature) = checked(args, out, err) else { return EXIT_FAILED };
+    let Some(signed) = checked(args, out, err) else { return EXIT_FAILED };
     if !args.quiet {
-        let key = PublicKey::new(signature.public_key().clone(), "");
+        let (kind, fp) = signed_by(&signed);
         let namespace = args.namespace.as_deref().unwrap_or_default();
-        let _ = writeln!(out, "Good \"{namespace}\" signature with {} key {}", key_type(&key), fingerprint(&key));
+        let _ = writeln!(out, "Good \"{namespace}\" signature with {kind} key {fp}");
     }
     0
 }
 
 /// `-Y find-principals`: each principal of each line that allows the key of
-/// the signature, in its namespace (or `-n`'s) and the time.
+/// the signature, in its namespace (or `-n`'s) and the time; of a
+/// `cert-authority` line, the principals of the certificate that its
+/// patterns allow (T-289).
 fn find_principals(args: &KeygenArgs, now: i64, out: &mut dyn Write, err: &mut dyn Write) -> i32 {
-    let Some(signature) = signature_file(args, &mut std::io::sink(), err) else { return EXIT_FAILED };
+    let Some(signed) = signature_file(args, &mut std::io::sink(), err) else { return EXIT_FAILED };
     let Some((path, lines)) = allowed(args, err) else { return EXIT_FAILED };
-    let namespace = args.namespace.as_deref().unwrap_or(signature.namespace());
+    let namespace = args.namespace.as_deref().unwrap_or(signed.signature.namespace());
     let mut found = false;
     for line in &lines {
         match line {
             Line::Bad { line, why, .. } => {
                 let _ = writeln!(err, "{path}:{line}: {why}");
             }
-            Line::Signer(signer) if sshsig::names_key(signer, &signature) => {
+            Line::Signer(signer) if sshsig::names_key(signer, &signed) => {
+                let mut principals: Vec<String> =
+                    signer.principals.split(',').filter(|p| !p.is_empty()).map(String::from).collect();
+                if let Some(certificate) = &signed.certificate {
+                    match sshsig_cert::principals(certificate, signer.key.key_data(), &signer.principals, now) {
+                        Ok(listed) => principals = listed,
+                        Err(why) => {
+                            let _ = writeln!(err, "{path}:{}: {why}", signer.line);
+                            continue;
+                        }
+                    }
+                }
                 // A line that refuses the namespace or the time is passed
                 // over in silence, as OpenSSH passes it.
                 if sshsig::refuses(signer, namespace, now).is_some() {
                     continue;
                 }
-                for principal in signer.principals.split(',').filter(|p| !p.is_empty()) {
+                for principal in principals {
                     let _ = writeln!(out, "{principal}");
                 }
                 found = true;

@@ -237,6 +237,45 @@ fn keygen_signs_with_the_agents_key() {
     drop(running);
 }
 
+/// `podssh keygen -Y sign -U -f KEY-cert.pub` signs with the key that the
+/// agent holds, and the signature carries the certificate (T-289):
+/// `check-novalidate` names an `ED25519-CERT` key.
+#[test]
+fn keygen_signs_with_a_certificate_of_the_agents_key() {
+    let home = scratch("sign-cert");
+    let ca = home.join("ca");
+    let key = home.join("id_cert");
+    for path in [&ca, &key] {
+        let made = Command::new(env!("CARGO_BIN_EXE_podssh"))
+            .args(["keygen", "-q", "-t", "ed25519", "-N", "", "-f"])
+            .arg(path)
+            .status()
+            .unwrap();
+        assert!(made.success());
+    }
+    let public = format!("{}.pub", key.display());
+    let ca_key = ca.to_str().unwrap();
+    let certified = ran(podssh(&home, None, &["keygen", "-q", "-s", ca_key, "-I", "agent-cert", "-n", "a", &public]));
+    assert_eq!(certified.status.code(), Some(0), "{}", String::from_utf8_lossy(&certified.stderr));
+    let (running, sock) = agent(&home, &[]);
+    let added = ran(podssh(&home, Some(&sock), &["agent", "add", key.to_str().unwrap()]));
+    assert_eq!(added.status.code(), Some(0), "{}", String::from_utf8_lossy(&added.stderr));
+    let data = home.join("data");
+    std::fs::write(&data, b"signed by the agent, with a certificate\n").unwrap();
+    let cert = format!("{}-cert.pub", key.display());
+    let mut sign = podssh(&home, Some(&sock), &["keygen", "-q", "-Y", "sign", "-U", "-f", &cert, "-n", "git"]);
+    sign.arg(&data);
+    let signed = ran(sign);
+    assert_eq!(signed.status.code(), Some(0), "{}", String::from_utf8_lossy(&signed.stderr));
+    let mut check = podssh(&home, None, &["keygen", "-Y", "check-novalidate", "-n", "git", "-s"]);
+    check.arg(format!("{}.sig", data.display())).stdin(std::fs::File::open(&data).unwrap());
+    let checked = check.output().unwrap();
+    assert_eq!(checked.status.code(), Some(0), "{}", String::from_utf8_lossy(&checked.stderr));
+    let said = String::from_utf8_lossy(&checked.stdout);
+    assert!(said.starts_with("Good \"git\" signature with ED25519-CERT key SHA256:"), "{said}");
+    drop(running);
+}
+
 /// `podssh keygen -s CA.pub -U` certifies a key with the CA that the agent
 /// holds (T-021): `-L` names that CA.
 #[test]

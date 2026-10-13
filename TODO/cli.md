@@ -187,7 +187,7 @@ measured: the debug binary has no `ts`).
 1. In the `Parsed::Command` arm, refuse a verb of `VERB_OWNER`
    (`crates/podssh-cli/src/flags.rs`, line 453 at `7aa955a`) before the gate. Keep one usage
    error first: a `--timeout` value that was given and does not parse is 64
-   (`docs/cli.md:1627-1628`).
+   (`docs/cli.md:1642-1643`).
 2. Give `require_timeout` the verb's name. The message names that verb, gives
    one true reason, and shows an example for that verb only. Replace
    `({attachment:?})` with words: "stdin or stdout is not a terminal", or
@@ -197,7 +197,7 @@ measured: the debug binary has no `ts`).
    (`crates/podssh-cli/src/dispatch.rs`, lines 424-477 at `7aa955a`,
    `crates/podssh-cli/tests/non_interactive.rs` lines 252-284 at `37ace00`). `ts` is the only verb
    that runs the gate today (`crates/podssh-cli/tests/ts_behave.rs:220-226`).
-5. Same commit: `docs/STATUS.md`. `docs/cli.md:1660` needs no change.
+5. Same commit: `docs/STATUS.md`. `docs/cli.md:1675` needs no change.
 
 ## Decision
 
@@ -604,7 +604,7 @@ variable matters when `cp`, `mv` and `relay` exist. `ssh` and `proxy` have no
    which `each_variable_in_the_source_is_documented` requires
    (`crates/podssh-cli/src/man/facts/tests.rs:57-70`); "default: env
    PODSSH_TIMEOUT" in the help of each `--timeout` row, as `--relay-host` says
-   it (`crates/podssh-cli/src/flags.rs:171-172`); `docs/cli.md:1736-1738`;
+   it (`crates/podssh-cli/src/flags.rs:171-172`); `docs/cli.md:1751-1753`;
    `docs/STATUS.md`.
 5. Do this after T-008, so that a verb that does nothing still exits 70 first.
 
@@ -1073,8 +1073,8 @@ on argv (`crates/podssh-cli/src/keygen.rs:129-136`).
    original, then rename it over the original. Never write a different key
    over the file. For `-c`, write `FILE.pub` again.
 5. Same commit: the PEM message at `crates/podssh-ssh/src/keygen.rs` (lines 184-187 at `8290fe1`)
-   names `podssh keygen -p`; `docs/cli.md:1000-1076`, the notes of `keygen`
-   (`crates/podssh-cli/src/man/notes_keygen.rs:4-37`), `docs/STATUS.md`.
+   names `podssh keygen -p`; `docs/cli.md:1000-1091`, the notes of `keygen`
+   (`crates/podssh-cli/src/man/notes_keygen.rs:4-42`), `docs/STATUS.md`.
 
 ## Decision
 
@@ -1192,7 +1192,7 @@ The default files are the ones of `podssh ssh`
    it, and say so.
 4. `-H`: a random salt of 20 bytes and the HMAC-SHA1 of `hashed_matches`, so
    podssh and OpenSSH both find the result.
-5. Same commit: `docs/cli.md:1000-1076`, the notes of `keygen`, `docs/STATUS.md`.
+5. Same commit: `docs/cli.md:1000-1091`, the notes of `keygen`, `docs/STATUS.md`.
 
 Pitfall: a rewrite can lose a key that `podssh ssh` appends at the same moment
 (T-029). Read the file again just before the rename, and refuse if it changed.
@@ -1314,7 +1314,7 @@ that crate as `russh::keys::ssh_key` (`crates/podssh-ssh/src/keygen.rs:11-13`).
    matcher of `known_hosts` (`crates/podssh-ssh/src/known_hosts.rs:311-333`).
    Print the lines and the exit codes of OpenSSH.
 4. Refuse `-r` (a key revocation list) by name until podssh reads one.
-5. Same commit: `docs/cli.md:1000-1076`, the notes of `keygen`, `docs/STATUS.md`.
+5. Same commit: `docs/cli.md:1000-1091`, the notes of `keygen`, `docs/STATUS.md`.
 
 Pitfalls: read the signed file as bytes, never as text. A namespace that does
 not match is a failure, never a warning.
@@ -1362,10 +1362,10 @@ OpenSSH's verify with `-n git` then fails.
 
 ## Done
 
-2026-10-11. Signatures and allowed signers in `crates/podssh-ssh/src/sshsig.rs:1-335`; an RSA key
+2026-10-11. Signatures and allowed signers in `crates/podssh-ssh/src/sshsig.rs:1-351`; an RSA key
 signs through `RsaSigner::sign_sha512` (`crates/podssh-ssh/src/rsa_key.rs:62-69`), and the keys of
 the agent come from `agent_keys` (`crates/podssh-ssh/src/keys.rs:326-332`). The command is
-`crates/podssh-cli/src/keygen_sign.rs:1-405`, its flags at `crates/podssh-cli/src/flags/keygen.rs:40-51` and `:68-69`.
+`crates/podssh-cli/src/keygen_sign.rs:1-478`, its flags at `crates/podssh-cli/src/flags/keygen.rs:40-51` and `:68-69`.
 - `cargo test -p podssh-ssh --lib -- sshsig`: 6 passed: the signatures of OpenSSH's (Ed25519 in
   `git`; RSA in `file` with SHA-256) verify, and refuse another namespace and changed data with
   OpenSSH's words; each kind of key signs with each hash, an RSA key with `rsa-sha2-512`; the lines
@@ -1437,7 +1437,7 @@ as plain keys (`docs/STATUS.md`, section "Components"). T-027 covers that side.
    `force-command=`, `source-address=`, and the `no-` and `permit-` options;
    refuse the others by name.
 5. `-L`: print the certificate as `ssh-keygen -L` does.
-6. Same commit: `docs/cli.md:1000-1076`, the notes of `keygen`, `docs/STATUS.md`.
+6. Same commit: `docs/cli.md:1000-1091`, the notes of `keygen`, `docs/STATUS.md`.
 
 ## Decision
 
@@ -1565,7 +1565,7 @@ keys/format/mod.rs, read in the local cargo registry).
    public key in that format, and write the OpenSSH line to stdout.
 4. `-m` with a new key and with `-p` (T-018): write the private key in that
    format; use `encode_pkcs8_pem_encrypted` when there is a passphrase.
-5. Same commit: `docs/cli.md:1000-1076`, the notes of `keygen`, `docs/STATUS.md`.
+5. Same commit: `docs/cli.md:1000-1091`, the notes of `keygen`, `docs/STATUS.md`.
 
 Pitfalls: no new C dependency. A format that a key type does not have (PEM
 for Ed25519) is refused by name.
@@ -1646,7 +1646,7 @@ PEM key written by `encrypt_pem` (`crates/podssh-ssh/src/key_file.rs:211-235`); 
   `cert`, each `keygen_*` test file, `flag_table` and the manual passed.
 - `flags.rs`, `keygen.rs` and `man/notes.rs` of the CLI had gone over 500 lines: the flags and
   the notes of `keygen` moved to `crates/podssh-cli/src/flags/keygen.rs:1-70` and
-  `crates/podssh-cli/src/man/notes_keygen.rs:1-37`, as those of the other commands are, and the
+  `crates/podssh-cli/src/man/notes_keygen.rs:1-42`, as those of the other commands are, and the
   key loader to `keygen_convert.rs`; the manual did not change.
 
 # T-230: The help and the manual say that `-R` is refused because podssh never binds
@@ -1762,7 +1762,7 @@ file); measured here on `3ee70dc`.
 A `PODSSH_RELAY` or `PODSSH_RELAY_ADDR` that cannot be used makes
 `podssh proxy`, `podssh ssh` and `podssh doctor` exit 64, the code of a usage
 error. The command line is correct; a setting of the environment is not.
-`docs/cli.md:1627-1628` and `docs/decisions.md` ("Exit codes") give 78
+`docs/cli.md:1642-1643` and `docs/decisions.md` ("Exit codes") give 78
 (`EX_CONFIG`) for a configuration error. A script that reads 64 looks for the
 fault in its arguments.
 
@@ -1877,7 +1877,7 @@ flag (`crates/podssh-cli/tests/non_interactive.rs`, line 185 at `8c05b5e`).
 The real gate is `can_ask` (`crates/podssh-ssh/src/prompt.rs:82`), called at
 `crates/podssh-ssh/src/auth.rs:189`, `crates/podssh-ssh/src/auth.rs:306`,
 `crates/podssh-ssh/src/keys.rs:263` and `crates/podssh-cli/src/keygen.rs:365`.
-Its refusals name the real remedies (`docs/cli.md:1698-1700`). Commands use
+Its refusals name the real remedies (`docs/cli.md:1713-1715`). Commands use
 these parts of the module, which stay: `Attachment`, `resolve`, `resolve_tty`,
 `parse_timeout`, `require_timeout` (`crates/podssh-cli/src/dispatch.rs:232-250`,
 `crates/podssh-cli/src/ts.rs:54-63`) and `refuse_jsonl_in_proxy`
@@ -2286,7 +2286,7 @@ that it never keeps a list that lets others change it, also after `-c`.
 **Milestone:** backlog
 **Priority:** P3
 **Effort:** M
-**Status:** open
+**Status:** done
 
 ## Problem
 
@@ -2301,8 +2301,8 @@ here). `podssh keygen -Y` (T-020) refuses a signature made with a certificate, b
 Read in ssh-key 0.7.0-rc.11 (the local cargo registry): `SshSig` keeps the key of a signature as a
 `KeyData` (its `src/sshsig.rs`, line 269), which holds no certificate, so its parser refuses a
 signature whose key is one. Read: podssh names such a signature (`read_signature`,
-`crates/podssh-ssh/src/sshsig.rs:93-103`) and passes over a `cert-authority` line (`names_key`,
-`crates/podssh-ssh/src/sshsig.rs:332-335`).
+`crates/podssh-ssh/src/sshsig.rs`, lines 93-103 at `3224a88`) and passes over a `cert-authority`
+line (`names_key`, lines 332-335 at `3224a88`).
 
 ## Approach
 
@@ -2311,8 +2311,48 @@ signature whose key is one. Read: podssh names such a signature (`read_signature
 2. A `cert-authority` line allows it when its key is the certificate's CA, the certificate is a
    user certificate valid at the time, and one of its principals is `-I` (`verify`); as the checks
    of a host certificate (T-027, `crates/podssh-ssh/src/hostcert.rs`).
-3. `-Y sign` with `-f KEY` signs with `KEY-cert.pub` when it is there, as OpenSSH does.
+3. `-Y sign` with `-f KEY-cert.pub` signs with the certificate, as OpenSSH does; `-f KEY` signs
+   with the plain key, also when `KEY-cert.pub` is there (the Correction).
 4. `find-principals` prints the principals of the certificate that a `cert-authority` line allows.
+
+## Decision
+
+Taken, with these calls made in the work (2026-10-12). OpenSSH's sources were not on this host:
+the calls follow ssh-keygen(1) and OpenSSH's `ssh-keygen.c`, `sshsig.c` and `sshkey.c` as the writer
+knew them, and each message below is a string of the `ssh-keygen` of Git for Windows and of the
+`ssh-keygen` of OpenSSH for Windows here (read with grep in the binaries, not run). The checks
+`keygen.sigcert.*` of `scripts/interop-keygen.sh` measure them against OpenSSH at T-251.
+
+- Signing: `-f KEY-cert.pub` signs with that certificate, as OpenSSH's `load_sign_key` does: the
+  private key is the path without `-cert.pub` (or `.pub`), and must hold the certificate's key
+  (`Public key F doesn't match private K`; none there: `No private key found for public key "F"`).
+  `-f KEY` signs with the plain key, also with `KEY-cert.pub` beside it (the Correction). The agent
+  signs when it holds the certificate's key; an agent that holds it only in a certificate is asked
+  by the certificate, as OpenSSH's ssh-agent finds a key by it.
+- The blob of PROTOCOL.sshsig with a certificate as its key is read and written in podssh-ssh's
+  `sshsig_cert`, with ssh-key's types for its parts (`Certificate`, `Signature`, `HashAlg`). The
+  signature is then ssh-key's `SshSig` with the certificate's key, so each check of T-020 runs on
+  it unchanged; its reserved field is read and passed over, as OpenSSH passes it. A certificate
+  whose CA signature fails is refused as the signature is read (`Couldn't parse signature: ...`), as
+  OpenSSH's parser checks it.
+- A `cert-authority` line: the checks of OpenSSH's `sshkey_cert_check_authority` for a signature
+  (a user certificate, `valid-after <= now < valid-before`, a list of principals, and `-I` in it
+  as written, with no wildcard), in its order and its words, said on stderr as
+  `FILE:N: certificate not authorized: REASON`; then the line's namespaces and times, as for a
+  key. ssh-key's `validate_at` with the CA of the line checks it again, a redundant check. The
+  critical options are not read, as OpenSSH's signatures do not read them: they restrict a login.
+  The alternative, to refuse an unknown critical option as T-027 refuses one of a host
+  certificate, lost: OpenSSH accepts such a signature, and a git that verifies with each tool
+  would get two answers.
+- A plain line names only a plain signature, and a `cert-authority` line only a certificate's, as
+  OpenSSH's `sshkey_equal` compares the types. The alternative, a plain line of the key that also
+  allows the signature of its certificate, lost for the same reason.
+- `find-principals`: of a `cert-authority` line, the principals of the certificate that its patterns
+  match, pattern by pattern (OpenSSH's `cert_filter_principals`); with none,
+  `FILE:N: no valid principals found` on stderr, and the line is passed over.
+- What is printed: the type with `-CERT` (`ED25519-CERT`) and the fingerprint of the certificate's
+  key, as OpenSSH's `sshkey_type` and `sshkey_fingerprint` give them; `-O print-pubkey` prints the
+  certificate's line.
 
 ## Prove
 
@@ -2325,3 +2365,71 @@ Tests with certificates made with ssh-key's builder, as the tests of T-027 make 
 `scripts/interop-keygen.sh`: a key certified with OpenSSH's `ssh-keygen -s`, its signature
 verified by each tool against a `cert-authority` line. Plant: accept a certificate of another CA;
 the test of the CA fails.
+
+## Correction
+
+2026-10-12. The Problem ("when the key of `-f` has one") and Approach step 3, as it was first
+written, say that `-Y sign -f KEY` signs with `KEY-cert.pub` when it is there, "as OpenSSH does".
+OpenSSH's `sig_sign` reads the public key of `-f` with `sshkey_load_public`,
+which tries FILE, then `FILE.pub`, then the private key, and never `FILE-cert.pub`; it signs with a
+certificate when `-f` names it, and `load_sign_key` then finds the private key by dropping
+`-cert.pub` (its message `%s looks like a public key, using private key path %s instead` is a
+string of the `ssh-keygen` binary here). Read as the writer knew the source; not run here. The work
+follows OpenSSH: `-f KEY-cert.pub` signs with the certificate, and `-f KEY` with the plain key.
+Taking `KEY-cert.pub` for `-f KEY` would make a signature that a plain line of the key no longer
+allows, where OpenSSH's own signature of `-f KEY` passes. The check
+`keygen.sigcert.key_beside_signs_plain` measures OpenSSH's choice at T-251.
+
+## Done
+
+2026-10-13. Signatures made with a certificate, and the `cert-authority` lines that allow them, in
+`crates/podssh-ssh/src/sshsig_cert.rs:1-197`: the blob read (`:74`) and written (`:109`), the
+checks of a line (`not_authorized`, `:145`) and the principals of `find-principals` (`:178`).
+`read_signature` gives a `Signed`, the signature and its certificate
+(`crates/podssh-ssh/src/sshsig.rs:24-30`, `:121-127`); `names_key` names a CA's certificate
+(`:346-351`); an agent that holds a key only in a certificate signs by it (`:93-106`). The
+command: `-f KEY-cert.pub` in `crates/podssh-cli/src/keygen_sign.rs:182-236`, the lines of `verify`
+and `check-novalidate` (`:339-397`) and `find-principals` (`:414-454`). The manual's note
+(`crates/podssh-cli/src/man/notes_keygen.rs:24-28`), the help of `-f`
+(`crates/podssh-cli/src/flags/keygen.rs:16-17`), `docs/cli.md` (section of `keygen`) and
+`docs/STATUS.md` say it.
+
+- `cargo test -p podssh-ssh --lib -- sshsig`: 11 passed on Windows 11 and in the build image. The new tests, in
+  `crates/podssh-ssh/src/sshsig_cert_tests.rs` with certificates of ssh-key's builder (through
+  `cert::certify`): `a_signature_made_with_a_certificate_is_written_and_read` (an Ed25519, an ECDSA
+  and an RSA key: the armour, the certificate read back, the check, changed data refused),
+  `a_certificate_that_its_ca_did_not_sign_is_refused`,
+  `a_cert_authority_line_names_the_certificate_ca_alone`,
+  `a_certificate_refuses_with_openssh_words` and `find_principals_filters_those_of_the_certificate`.
+  The tests of T-020 in `sshsig_tests.rs` take the `Signed`.
+- `cargo test -p podssh-cli --test keygen_sign`: 8 passed on Windows 11 and in the build image. The new tests, with keys and
+  certificates of `podssh keygen` and `podssh keygen -s`:
+  `a_certificate_signs_and_its_cert_authority_line_allows_it` (OpenSSH's lines of `verify`,
+  `check-novalidate`, `find-principals` and `-O print-pubkey`, and another principal refused),
+  `a_certificate_of_another_ca_or_a_plain_line_allows_nothing` (the test of the CA),
+  `a_key_beside_its_certificate_signs_without_it` and
+  `certificate_signatures_refused_in_openssh_words` (expired, not yet valid, a host certificate, no
+  principal, no private key, another private key).
+- `cargo test -p podssh-cli --test agent_cli -- cert`: 2 passed (the whole binary 6 in the build image). The new test
+  `keygen_signs_with_a_certificate_of_the_agents_key`: `-Y sign -U -f KEY-cert.pub` signs with the
+  key of `podssh agent`, and `check-novalidate` names an `ED25519-CERT` key. The branch of an agent
+  that holds the key only in a certificate has no test: `podssh agent` holds no certificate, and
+  OpenSSH's `ssh-add` adds the plain key with its certificate.
+- The whole of `--test keygen_sign` and `--test agent_cli`, the tests of the manual
+  (`cargo test -p podssh-cli --lib -- man`, 42 passed), clippy 1.99 in the build image, rustfmt
+  and `cargo todo check`: clean. `python scripts/check-repo.py`: ok.
+- The Prove's plant, a certificate of another CA accepted (`names_key` with no comparison of the
+  CA: `Some(_) => signer.cert_authority`):
+  `a_cert_authority_line_names_the_certificate_ca_alone` and
+  `a_certificate_of_another_ca_or_a_plain_line_allows_nothing` failed; restored, they passed; the
+  second fails because the
+  line of the other CA then says `certificate not authorized` on stderr, where nothing is due.
+- `scripts/interop-keygen.sh` has eight new checks, `keygen.sigcert.*` (the floor of keygen is 87):
+  a key certified with OpenSSH's `ssh-keygen -s` signs with `-f KEY-cert.pub` in each tool, each
+  verifies the other's signature by a `cert-authority` line, both print the same lines for
+  `find-principals` and `check-novalidate`, both refuse another principal, a line of another CA and
+  a plain line of the key, and `-f KEY` beside the certificate signs plain in each. In the build
+  image (the steps `lint` and `release`, green; interop 517 passed, 0 failed), against OpenSSH
+  10.3p1's `ssh-keygen`: the 8 passed, `keygen` 87 of 87. So OpenSSH refuses a signature of a
+  certificate by a plain line of its key, and filters the certificate's principals by the line,
+  as the Decision read from memory of its source.

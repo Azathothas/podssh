@@ -68,6 +68,7 @@ pub mod sftp;
 pub mod signals;
 mod socks;
 pub mod sshsig;
+pub mod sshsig_cert;
 pub mod tally;
 pub mod terminal;
 pub mod upgrade;

@@ -14,7 +14,7 @@ pub const KEYGEN_FLAGS: &[FlagRow] = &[
     row(Some('b'), "bits", Some("BITS"), FlagKind::Supported,
         "key size: ecdsa 256 (the default), 384 or 521; rsa 2048, 3072 (the default), 4096 or 8192", None),
     row(Some('f'), "file", Some("FILE"), FlagKind::Supported,
-        "the private key's file; the public key goes to FILE.pub (default ~/.ssh/id_TYPE); with -Y sign the key that signs, with -Y verify, find-principals and match-principals the allowed-signers file", None),
+        "the private key's file; the public key goes to FILE.pub (default ~/.ssh/id_TYPE); with -Y sign the key that signs, or its certificate KEY-cert.pub; with -Y verify, find-principals and match-principals the allowed-signers file", None),
     row(Some('N'), "new-passphrase", Some("PHRASE"), FlagKind::Supported,
         "-N '' for a key with no passphrase; without -N, podssh asks (terminal or SSH_ASKPASS)", None),
     row(Some('P'), "old-passphrase", Some("PHRASE"), FlagKind::Supported,

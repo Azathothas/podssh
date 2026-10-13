@@ -243,6 +243,86 @@ ssh-keygen -L -f "$KG/hostkey_cert-cert.pub" 2>&1 | grep -q 'host certificate' \
     || bad keygen.cert.host_openssh_reads "ssh-keygen -L did not read the host certificate" "$KG/hostkey_cert-cert.pub"
 kill "$(cat "$W/sshd-2212.pid")" 2>/dev/null
 
+# Signatures made with a certificate (T-289): a key certified by OpenSSH's
+# ssh-keygen -s signs with -f KEY-cert.pub in each tool; each tool verifies
+# the other's signature against a cert-authority line, and prints the same
+# lines for find-principals and check-novalidate; both refuse it for a
+# principal that the certificate does not list, by a line of another CA and
+# by a plain line of the key. With -f KEY and the certificate beside it, each
+# tool signs with the plain key.
+SC="$KG/sigcert"
+ssh-keygen -q -t ed25519 -N '' -C sigcert-ca -f "$SC.ca"
+ssh-keygen -q -t ed25519 -N '' -C sigcert-other-ca -f "$SC.other_ca"
+ssh-keygen -q -t ed25519 -N '' -C sigcert-user -f "$SC.user"
+ssh-keygen -q -s "$SC.ca" -I sigcert -n signer@example.com,second@example.org "$SC.user.pub" >/dev/null 2>&1
+printf '*@example.com,second@example.org cert-authority %s\n' "$(cut -d' ' -f1,2 "$SC.ca.pub")" >"$SC.allowed"
+printf 'signer@example.com cert-authority %s\n' "$(cut -d' ' -f1,2 "$SC.other_ca.pub")" >"$SC.allowed_other"
+printf 'signer@example.com %s\n' "$(cut -d' ' -f1,2 "$SC.user.pub")" >"$SC.allowed_plain"
+rm -f "$KG/data.sig"
+"$BIN" keygen -q -Y sign -f "$SC.user-cert.pub" -n git "$KG/data" >"$KG/out" 2>"$KG/err"
+expect_rc keygen.sigcert.make "keygen -Y sign with -f KEY-cert.pub" 0 $? "$KG/err"
+mv "$KG/data.sig" "$SC.ours.sig"
+ssh-keygen -q -Y sign -f "$SC.user-cert.pub" -n git "$KG/data" >/dev/null 2>&1
+mv "$KG/data.sig" "$SC.theirs.sig"
+held=0
+ssh-keygen -Y verify -f "$SC.allowed" -I signer@example.com -n git -s "$SC.ours.sig" <"$KG/data" >"$KG/out" 2>&1
+rc=$?
+[ "$rc" = 0 ] && held=$((held + 1))
+expect_rc keygen.sigcert.openssh_verifies \
+    "ssh-keygen -Y verify accepts the certificate signature of keygen, by a cert-authority line" 0 "$rc" "$KG/out"
+"$BIN" keygen -Y verify -f "$SC.allowed" -I signer@example.com -n git -s "$SC.theirs.sig" <"$KG/data" >"$KG/out" 2>&1
+rc=$?
+[ "$rc" = 0 ] && held=$((held + 1))
+expect_rc keygen.sigcert.verifies_openssh \
+    "keygen -Y verify accepts the certificate signature of ssh-keygen, by a cert-authority line" 0 "$rc" "$KG/out"
+same=0
+for s in ours theirs; do
+    ssh-keygen -Y find-principals -f "$SC.allowed" -s "$SC.$s.sig" >"$SC.theirs_lines" 2>/dev/null
+    "$BIN" keygen -Y find-principals -f "$SC.allowed" -s "$SC.$s.sig" >"$SC.our_lines" 2>/dev/null
+    [ -s "$SC.our_lines" ] && cmp -s "$SC.our_lines" "$SC.theirs_lines" && same=$((same + 1))
+    ssh-keygen -Y check-novalidate -n git -s "$SC.$s.sig" <"$KG/data" >"$SC.theirs_lines" 2>/dev/null
+    "$BIN" keygen -Y check-novalidate -n git -s "$SC.$s.sig" <"$KG/data" >"$SC.our_lines" 2>/dev/null
+    grep -q 'ED25519-CERT key' "$SC.our_lines" && cmp -s "$SC.our_lines" "$SC.theirs_lines" && same=$((same + 1))
+done
+[ "$same" = 4 ] \
+    && ok keygen.sigcert.same_lines "find-principals and check-novalidate print the same lines in each tool" \
+    || bad keygen.sigcert.same_lines "$same of 4 outputs of find-principals and check-novalidate were the same" \
+        "$SC.our_lines"
+# Each refusal counts only once both signatures held for their principal.
+sigcert_refusals() { # ALLOWED PRINCIPAL: the refusals of the four verifications
+    n=0
+    for s in ours theirs; do
+        ssh-keygen -Y verify -f "$1" -I "$2" -n git -s "$SC.$s.sig" <"$KG/data" >/dev/null 2>&1 || n=$((n + 1))
+        "$BIN" keygen -Y verify -f "$1" -I "$2" -n git -s "$SC.$s.sig" <"$KG/data" >/dev/null 2>&1 || n=$((n + 1))
+    done
+    echo "$n"
+}
+refused=$(sigcert_refusals "$SC.allowed" third@example.com)
+[ "$held" = 2 ] && [ "$refused" = 4 ] \
+    && ok keygen.sigcert.both_refuse_principal "each tool refuses each signature for a principal it does not list" \
+    || bad keygen.sigcert.both_refuse_principal "held: $held of 2; $refused of 4 refusals of another principal"
+refused=$(sigcert_refusals "$SC.allowed_other" signer@example.com)
+[ "$held" = 2 ] && [ "$refused" = 4 ] \
+    && ok keygen.sigcert.both_refuse_other_ca "each tool refuses each signature by a line of another CA" \
+    || bad keygen.sigcert.both_refuse_other_ca "held: $held of 2; $refused of 4 refusals by another CA"
+refused=$(sigcert_refusals "$SC.allowed_plain" signer@example.com)
+[ "$held" = 2 ] && [ "$refused" = 4 ] \
+    && ok keygen.sigcert.both_refuse_plain_line "each tool refuses each signature by a plain line of its key" \
+    || bad keygen.sigcert.both_refuse_plain_line "held: $held of 2; $refused of 4 refusals by the plain line"
+rm -f "$KG/data.sig"
+"$BIN" keygen -q -Y sign -f "$SC.user" -n git "$KG/data" >/dev/null 2>&1
+mv "$KG/data.sig" "$SC.ours_plain.sig"
+ssh-keygen -q -Y sign -f "$SC.user" -n git "$KG/data" >/dev/null 2>&1
+mv "$KG/data.sig" "$SC.theirs_plain.sig"
+plain=0
+for s in ours_plain theirs_plain; do
+    ssh-keygen -Y check-novalidate -n git -s "$SC.$s.sig" <"$KG/data" >"$SC.theirs_lines" 2>/dev/null
+    grep -q ' with ED25519 key ' "$SC.theirs_lines" && plain=$((plain + 1))
+done
+[ "$plain" = 2 ] \
+    && ok keygen.sigcert.key_beside_signs_plain "with -f KEY and KEY-cert.pub beside it, each tool signs with KEY" \
+    || bad keygen.sigcert.key_beside_signs_plain "$plain of 2 signatures of -f KEY were made with the plain key"
+
 # Formats of other systems (T-022): OpenSSH's ssh-keygen -i reads what
 # keygen -e writes, and keygen -i what ssh-keygen -e writes (PKCS8 for ECDSA
 # and RSA, RFC 4716 for Ed25519); keygen -y reads the key that ssh-keygen
