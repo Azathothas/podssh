@@ -26,6 +26,7 @@ use tokio::io::{AsyncRead, AsyncReadExt, AsyncWrite, AsyncWriteExt};
 use tokio::time::Instant;
 
 use super::client::{self, Client, ClientError, Outcome};
+use super::deadline::{away, client_wait, forgotten};
 use super::decode::Decoder;
 use super::handshake::{Ask, ClientHandshake, Established, HandshakeError};
 use super::link::Link;
@@ -283,13 +284,18 @@ where
     N: FnMut(Note),
 {
     let lost = Instant::now();
-    let deadline = lost + settings.resume_deadline;
+    // The wall clock too: it counts a sleep of the host, which the monotonic
+    // clock may not (T-306).
+    let lost_wall = (settings.wall_clock)();
+    // As long as the far end keeps the session, or less when the user asked.
+    let wait = client_wait(&settings, established.peer_deadline);
+    let deadline = lost + wait;
     let gave_up = |reason: String| Resumed::Over(End::GaveUp(reason));
     let mut attempt = 0u32;
     loop {
         attempt += 1;
         let why = match tokio::time::timeout_at(deadline, connect(ended)).await {
-            Err(_) => return gave_up(format!("no new link within {} s", settings.resume_deadline.as_secs())),
+            Err(_) => return gave_up(format!("no new link within {} s", wait.as_secs())),
             Ok(Next::Stop(reason)) => return gave_up(reason),
             Ok(Next::Retry(why)) => why,
             Ok(Next::Link(new)) => {
@@ -306,18 +312,26 @@ where
                     // This side's application had ended, and the far end forgot
                     // the session: it had the `CLOSE`, and its answer was lost.
                     Ok(Err(Failed::Forgotten(_))) if carry.app_ended() => return Resumed::Over(End::LocalEnd),
-                    Ok(Err(failed @ (Failed::Final(_) | Failed::Forgotten(_)))) => return gave_up(failed.reason()),
+                    // The far end's deadline passed while this side was away,
+                    // longer than its own clock counted, as on a host that
+                    // slept: the words say so, and how long by the wall clock.
+                    Ok(Err(Failed::Forgotten(why))) => {
+                        let kept = established.peer_deadline.unwrap_or(settings.resume_deadline);
+                        let gone = away(lost_wall, (settings.wall_clock)(), lost.elapsed());
+                        return gave_up(forgotten(&why, kept, &gone));
+                    }
+                    Ok(Err(failed @ Failed::Final(_))) => return gave_up(failed.reason()),
                     Ok(Err(Failed::Again(why))) => why,
                     Err(_) => format!("the handshake took more than {} s", limit.as_secs()),
                 }
             }
         };
-        let wait = crate::open::backoff(attempt);
-        if Instant::now() + wait >= deadline {
-            return gave_up(format!("no new link within {} s: {why}", settings.resume_deadline.as_secs()));
+        let pause = crate::open::backoff(attempt);
+        if Instant::now() + pause >= deadline {
+            return gave_up(format!("no new link within {} s: {why}", wait.as_secs()));
         }
-        note(Note::Retry { why, wait });
-        tokio::time::sleep(wait).await;
+        note(Note::Retry { why, wait: pause });
+        tokio::time::sleep(pause).await;
     }
 }
 

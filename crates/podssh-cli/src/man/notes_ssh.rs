@@ -13,8 +13,11 @@ pub const SSH: &[&str] = &[
      it yet. \
      podssh sends nothing until the node's first bytes (30 s at most), to learn whether the node offers \
      the resumable layer; -v says whether it does. With the layer, a lost link to the relay is replaced \
-     by a new one for 10 minutes, and the SSH session goes on where it was; one line on stderr tells of \
-     each loss and each resume.",
+     by a new one for as long as the node keeps the session (10 minutes, or its --resume-deadline; -v \
+     says it), and the SSH session goes on where it was; one line on stderr tells of each loss and each \
+     resume. --resume-deadline TIME waits at most TIME, never longer than the node keeps the session. \
+     When the node forgot the session, as after a sleep of this host longer than its deadline, the \
+     line says so, with how long this side was away by the wall clock.",
     "iroh:TICKET, or user@iroh:TICKET, reaches a node of the iroh road (see podssh node), in a build with \
      the feature iroh. The ticket is the address that the node prints, not a credential: the node lets in \
      only the client keys of its allowlist. This client's key is made on first use, in the cache \

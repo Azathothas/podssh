@@ -460,14 +460,14 @@ functions of bytes only.
 | Function of Mosh | In Mosh | In podssh |
 | --- | --- | --- |
 | Roaming | The server sends to the address of the newest authentic datagram (paper §2.2; `src/network/network.cc:482-487`, `src/network/network.cc:522-529`); the client takes a new source port after 10 s with no round trip (`src/network/network.h:146`, `src/network/network.cc:396-397`) | A resume over a new link, through any road (T-153), measured with a new address (T-156). A silent old link is found dead after 30 s (`crates/podssh-relay/src/session/pump.rs:59`); a new link beside it, sooner: T-305 |
-| Outages and sleep | The server keeps the session until its client comes back; `MOSH_SERVER_NETWORK_TMOUT` sets a limit, none by default (`src/frontend/mosh-server.cc:394-406`) | 10 minutes (`crates/podssh-relay/src/session/resume.rs:40`, T-153); a shell that `podssh serve` keeps longer (T-159); a deadline that the user sets: T-306 |
+| Outages and sleep | The server keeps the session until its client comes back; `MOSH_SERVER_NETWORK_TMOUT` sets a limit, none by default (`src/frontend/mosh-server.cc:394-406`) | 10 minutes (`crates/podssh-relay/src/session/resume.rs:41`, T-153), or the node's `--resume-deadline`, 72 h at most, which it names to its client (T-306); a shell that `podssh serve` keeps longer (T-159) |
 | A heartbeat | An empty acknowledgement each 3 s, which also keeps a NAT's mapping (paper §2.3; `src/network/transportsender.h:51`) | Each 10 s on the layer (T-154; `crates/podssh-relay/src/session/pump.rs:56`); SSH's keepalives on the forward road |
 | Local echo | Each key is predicted; the predictions of an epoch show once one of them is confirmed; by default they show when the round trip passes 30 ms, or a prediction waited 250 ms, and are underlined past 80 ms (paper §3.2; `src/frontend/terminaloverlay.h:215-225`) | T-160, on request, above 120 ms |
 | The echo's acknowledgement | The server marks the last key that the program has had for 50 ms, so the client knows when its echo is due (paper §3.2) | T-160, item 3: the far end reports the offset of the input that reached the pty |
 | The latest screen, not each byte | Frames of the difference of screens, at most one each half round trip (20 to 250 ms), after 8 ms of collection, so Ctrl-C stops a flood within a round trip (paper §2.3; `src/network/transportsender.h:49-50`, `src/network/transportsender-impl.h:55-71`) | T-303, on request, to `podssh serve` |
 | No head-of-line blocking | Each datagram is an idempotent difference from a numbered state, so a lost one costs only itself (paper §2.2) | The iroh road carries a stream (T-162); datagrams: T-304 |
 | Congestion | A smoothed round trip and a timeout of 50 ms to 1 s, as TCP computes them; ECN slows the sender (`src/network/network.h:139-140`, `src/network/network.cc:461-500`) | TCP or QUIC under the layer; a rate limit for copies (T-145) |
-| A notice of silence | A line at the top after 6.5 s with no word from the server, or 10 s with no acknowledged state, drawn over its own model of the screen (`src/frontend/terminaloverlay.h:159-161`, `src/frontend/terminaloverlay.cc:204-218`) | A line on stderr at a loss and at a resume (`crates/podssh-cli/src/layered.rs:250`, `crates/podssh-cli/src/layered.rs:261`); a notice that does not touch the screen: T-302 |
+| A notice of silence | A line at the top after 6.5 s with no word from the server, or 10 s with no acknowledged state, drawn over its own model of the screen (`src/frontend/terminaloverlay.h:159-161`, `src/frontend/terminaloverlay.cc:204-218`) | A line on stderr at a loss and at a resume (`crates/podssh-cli/src/layered.rs:308`, `crates/podssh-cli/src/layered.rs:319`); a notice that does not touch the screen: T-302 |
 | A new client | Only the client process that holds the key comes back (paper §2.1; GitHub mobile-shell/mosh#394); mosh.org suggests screen or tmux | T-158 and T-159 attach from a new process; T-161 gives the screen |
 | Encryption | AES-128 in OCB mode, with a key that SSH carries (paper §2.2) | SSH, and the Noise channel above the layer (T-088) |
 | The start | SSH runs `mosh-server`, which prints a port and a key, then forks (`src/frontend/mosh-server.cc:450-462`); it listens on a UDP port of 60001 to 60999 (`src/network/network.h:142-143`) | No listener (`AGENTS.md`, section 5, rule 2): a node or a roost reaches out (T-083, T-166); a start from a standard sshd: T-167 |
@@ -538,7 +538,8 @@ nonce, a public key and a proof have 32 bytes, and a session id 16. Features
 are a count byte (16 at most), then each name as a length byte and 1 to 32
 bytes of `a-z`, `0-9`, `.`, `-` and `_`; a side ignores a name that it does
 not know (`replay.v1`, `heartbeat.v1` and `move.v1` come with T-152 to
-T-155). A reason is UTF-8, 1024 bytes at most. The codes of `REFUSE`: 1 an
+T-155; a far end's `deadline.SECONDS` with T-306). A reason is UTF-8, 1024
+bytes at most. The codes of `REFUSE`: 1 an
 unknown session, 2 a wrong proof, 3 an offset no longer kept, 4 the
 version, 5 the role, 6 busy, 7 a record out of its place, 0 another reason.
 
@@ -597,13 +598,24 @@ version, 5 the role, 6 busy, 7 a record out of its place, 0 another reason.
   `CLOSE`, a `REFUSE`, and a relay close that a new link would only get
   again (a stopped or expired pair, a fault of podssh's own bytes:
   `podssh_relay::reverse::closes::resumes`). It tries a new link with the
-  backoff of the forward opener, until 10 minutes after the loss; the far end
-  keeps the session and its target as long, then forgets it, and a late
-  resume gets `REFUSE` (1, an unknown session). A resume can come while the
+  backoff of the forward opener, until the far end's deadline after the
+  loss; the far end keeps the session and its target as long, then forgets
+  it, and a late resume gets `REFUSE` (1, an unknown session). A resume can come while the
   far end still runs the old link: the old link stops, and the new one goes
   on from the client's offset. Bytes received but not yet written to the
   application stay with the session, so a link that ends in a write loses
   none.
+- **The deadline** (T-306). A far end keeps a lost session 10 minutes, or
+  the time of `podssh node --resume-deadline` (1 minute to 72 h, the
+  longest life of a pair), and names it in its `GREETING` as one more
+  feature name, `deadline.SECONDS`. A side that does not know the name
+  ignores it, and with no name both sides keep 10 minutes. The client waits
+  as long, or less with its own `--resume-deadline`; never longer. The node's
+  bound on replay buffers holds: a session kept longer holds its buffers
+  longer. The client counts the wait on a monotonic clock, which need not
+  count a sleep of its host; a client that wakes after the far end forgot
+  the session gets `REFUSE` (1), and says that the far end forgot it, with
+  how long it was away by the wall clock.
 - **One writer for each link** (T-262). The side that reads a link never
   waits to write to it: an `ACK`, a `PONG` or a `PING` waits for the link's
   one writer, which sends it before its next `DATA`. When each end's reader

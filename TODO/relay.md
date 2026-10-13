@@ -522,7 +522,7 @@ relay sends no keepalives on reverse sockets, and a quiet socket becomes dormant
    reason of the close, or "open at 240 s".
 3. At 240 s, send one byte each way: a hibernated socket can stay open and not deliver.
 4. Stop the pair at the end (`POST /v1/stop/NAME`). Tokens go only in headers; never print one,
-   and above all not the `stop_token` (`docs/reverse.md:203-212`).
+   and above all not the `stop_token` (`docs/reverse.md:206-215`).
 5. Answer the question in `docs/relay.md` lines 189-195 at `cd75137`, record the result in `docs/STATUS.md` with
    the date and the command, and correct `docs/reverse.md` lines 24-29 at `cd75137` if the result differs.
 
@@ -538,7 +538,7 @@ relay sends no keepalives on reverse sockets, and a quiet socket becomes dormant
    limit of the relay, which would change what is measured.
 3. The test talks to the relay with `podssh_ws::connect` and the codecs of
    `podssh_relay::reverse`, not with the runners: the node runner pings every 10 s
-   (`docs/reverse.md:33-41`), which would hide run (a).
+   (`docs/reverse.md:34-42`), which would hide run (a).
 4. The time of a close counts from the session's `ready`, about 0.2 s before the first byte each
    way, which is the last payload of runs (a) and (b).
 5. The control asserts; runs (a) and (b) print what they measured, as either answer is a result.
@@ -720,8 +720,8 @@ listener" (lines 86-88 at `22c3b88`), and the ruling on Q10 allows more than one
    (line 186 at `22c3b88`) stays a note of the run. `Failure` keeps each error; `Opened.relay` and the log
    name the host that was kept. tokio's `select!` and `JoinSet` need no new crate and no C.
 7. Add the flag to `SSH_FLAGS`, `PROXY_FLAGS` and `DOCTOR_FLAGS`
-   (`crates/podssh-cli/src/flags.rs:112-272`, 323-343) and to `ONCE`
-   (`crates/podssh-cli/src/ssh/args.rs:115-133`); the variable to VARIABLES and the modes to THE
+   (`crates/podssh-cli/src/flags.rs:112-273`, 323-343) and to `ONCE`
+   (`crates/podssh-cli/src/ssh/args.rs:118-137`); the variable to VARIABLES and the modes to THE
    RELAY (`crates/podssh-cli/src/man/facts.rs:45-213`, 170-183); both to `docs/relay.md:30-73`.
 8. T-059 orders the hosts across runs; this entry shortens the wait in one run. GitHub #25 asks
    for a circuit breaker: retry policy, not overlap.

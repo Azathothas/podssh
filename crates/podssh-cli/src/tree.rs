@@ -312,6 +312,7 @@ pub fn parse_verb(verb: &'static Verb, rest: &[std::ffi::OsString]) -> Parsed {
             iroh_relay: get("iroh-relay"),
             sshd: matches.get_flag("sshd"),
             temporary: get("temporary"),
+            resume_deadline: get("resume-deadline"),
             refused,
         }));
     }
@@ -337,6 +338,7 @@ pub fn parse_verb(verb: &'static Verb, rest: &[std::ffi::OsString]) -> Parsed {
             client_key: get("client-key"),
             node_key: get("node-key"),
             no_e2e: matches.get_flag("no-e2e"),
+            resume_deadline: get("resume-deadline"),
             refused,
         }));
     }

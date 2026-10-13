@@ -24,8 +24,9 @@ come from dropssh, a sibling project that implemented both sides.
 6. On `409` (a second socket for the same name) at the first registration,
    exit: another node has the name. Do not retry. After a loss, the relay
    can still hold the old socket for a time: connect again with the jittered
-   backoff until the resume deadline after the loss (10 minutes, the time
-   that the resumable layer keeps a session), then exit (T-261).
+   backoff until the resume deadline after the loss (10 minutes, or the
+   time of `--resume-deadline`: the time that the resumable layer keeps a
+   session, T-306), then exit (T-261).
 7. Do not depend on `hello`. Its value of `maxSessions` is in no published
    document. Measured 2026-10-09: the relay sends the node
    `{"type":"hello","version":1,"maxFrameBytes":65536,"maxSessions":64}`
@@ -110,7 +111,9 @@ node offers the resumable layer ([design.md](design.md), section 5).
 Since T-153, each session of `podssh node` runs the resumable layer: the
 node answers `ready` at once, greets, and dials TARGET only after the
 operator's handshake; it keeps a session and its connection to TARGET for
-10 minutes after a lost link, and at most 64 MiB of replay buffers.
+10 minutes after a lost link, or for the time of `--resume-deadline` (1
+minute to 72 h, T-306), which it names to the operator, and at most 64 MiB
+of replay buffers.
 `podssh ssh node://` and `podssh operator` run the client: after a lost
 leg, they open a new one and resume the session where it was, unless the
 relay's close says not to come back (a stopped or expired pair, a fault of

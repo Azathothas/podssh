@@ -246,7 +246,7 @@ fails it, and so does one that drops its oldest bytes when it is full.
 
 The bound of the Decision counts 16 sessions on a node, but the node takes
 the relay's limit from its `hello`: 64 sessions, measured 2026-10-09
-(`docs/reverse.md:29-32`). With each session's 4 MiB kept, a node can hold
+(`docs/reverse.md:30-33`). With each session's 4 MiB kept, a node can hold
 256 MiB; T-153, which makes the node a far end that keeps sessions, bounds
 the whole node (its step 6). Step 7's `-v` line belongs to the resume loop
 of T-153: no resume runs before it, and `Link::resume` gives the count of
@@ -779,8 +779,8 @@ no `GREETING`, and that the default node greets.
 as they are, with no resumable layer: the node's handler is then the TCP
 handler alone, which dials TARGET at `open`
 (`crates/podssh-cli/src/node.rs`, lines 152-163 at `8e31960`). The node's first line names its
-mode (`crates/podssh-cli/src/node.rs:335`). `--plain` with `--iroh` is
-refused with 64 (`crates/podssh-cli/src/node.rs:88-91`): the iroh road
+mode (`crates/podssh-cli/src/node.rs:321`). `--plain` with `--iroh` is
+refused with 64 (`crates/podssh-cli/src/node.rs:97-100`): the iroh road
 always runs the layer. The flag's row, the manual's note of `node`,
 `docs/reverse.md` and `docs/cli.md`.
 - Native: `cargo test -p podssh-cli -- plain`, 3 passed. The argument test:
@@ -807,7 +807,7 @@ always runs the layer. The flag's row, the manual's note of `node`,
 
 The relay cuts a connection after 180 s with no payload, and its empty
 keepalive frames do not count (`docs/relay.md:107-108`, `docs/relay.md:160`). A
-reverse socket gets no keepalive at all (`docs/reverse.md:33-41`). SSH's own
+reverse socket gets no keepalive at all (`docs/reverse.md:34-42`). SSH's own
 keepalives must not end a session that the layer would resume.
 
 ## Premise
@@ -838,7 +838,7 @@ Measured on `3ee70dc`, offline (`PODSSH_OFFLINE=1`, a `.invalid` host):
 5. In the same commit: "Liveness" and "Idle limit" in the manual
    (`crates/podssh-cli/src/man/facts.rs:336-351`,
    `crates/podssh-cli/src/man/facts.rs:378-387`), the note at
-   `crates/podssh-cli/src/man/notes_ssh.rs:176`, `docs/relay.md`, `README.md`.
+   `crates/podssh-cli/src/man/notes_ssh.rs:179`, `docs/relay.md`, `README.md`.
 
 ## Decision
 
@@ -1164,7 +1164,7 @@ road, and the same faults end a session of the forward road with 255
 # T-157: Throughput on each road and relay, by a committed method
 
 **Source:** ROADMAP M6 (throughput on each road and relay, in and out of a
-sandbox, before a default depends on it); `docs/design.md:855-875`; the two
+sandbox, before a default depends on it); `docs/design.md:867-887`; the two
 sandbox reports of 2026-10-08; GitHub #18 (warren's method) and GitHub #23
 (sshping: throughput up and down).
 **Category:** measurement
@@ -1188,7 +1188,7 @@ proxy (4 runs). Read in the report, not verified here: the script's target
 (thinkbroadband) gave `1011 write failed` and 0 bytes, and the relay's
 `/trace` showed that the relay could not reach it.
 Read: no iroh figure exists for a relay through a CONNECT proxy
-(`docs/design.md:855-875`). A session carries 64 MiB at most, both directions
+(`docs/design.md:867-887`). A session carries 64 MiB at most, both directions
 together (`docs/relay.md:162`).
 
 ## Approach
@@ -1320,7 +1320,7 @@ new SSH login to a far end that kept the shell (T-159). Read: podssh knows
 the escapes `~.`, `~R`, `~?` and `~~`, and another character after `~` goes
 to the server with the `~` (`crates/podssh-ssh/src/escape.rs:1-8`,
 `crates/podssh-ssh/src/escape.rs:65-104`). The flag table has 469 lines, near
-the limit of 500 (the table of `ssh`: `crates/podssh-cli/src/flags.rs:112-272`).
+the limit of 500 (the table of `ssh`: `crates/podssh-cli/src/flags.rs:112-273`).
 
 ## Approach
 
@@ -1793,8 +1793,8 @@ a full-screen program is written into its screen.
 
 ## Premise
 
-- Read: the layer's lines, written always: a loss (`crates/podssh-cli/src/layered.rs:250`) and a
-  resume (`crates/podssh-cli/src/layered.rs:261`). The heartbeat each 10 s, and a link dead after
+- Read: the layer's lines, written always: a loss (`crates/podssh-cli/src/layered.rs:308`) and a
+  resume (`crates/podssh-cli/src/layered.rs:319`). The heartbeat each 10 s, and a link dead after
   30 s with nothing from the far end (`crates/podssh-relay/src/session/pump.rs:56`,
   `crates/podssh-relay/src/session/pump.rs:59`). The forward road's checks
   (`docs/design.md:377`).
@@ -1966,10 +1966,10 @@ then resumes over a new one. For those 30 s, an interactive session shows nothin
 ## Premise
 
 - Read: a link with nothing from the far end for 30 s is dead
-  (`crates/podssh-relay/src/session/pump.rs:59`; `docs/design.md:587-595`).
+  (`crates/podssh-relay/src/session/pump.rs:59`; `docs/design.md:588-596`).
 - Read: a resume can come while the far end still runs the old link; the old link stops, and the
-  new one goes on (`docs/design.md:602-604`). The far end lets the newest resume take a session
-  (`docs/design.md:629-631`).
+  new one goes on (`docs/design.md:603-605`). The far end lets the newest resume take a session
+  (`docs/design.md:641-643`).
 - Measured (T-156): a session on the layer and on the iroh road survives a new address of its
   client (`crates/podssh-cli/tests/m6_exit.rs:272`); the time that the resume took is not in the
   record.
@@ -2005,7 +2005,7 @@ back, with no limit by default (`MOSH_SERVER_NETWORK_TMOUT`).
 **Milestone:** backlog
 **Priority:** P3
 **Effort:** S
-**Status:** open
+**Status:** done
 
 ## Problem
 
@@ -2014,14 +2014,14 @@ session 10 minutes after its link was lost. A session of Mosh waits.
 
 ## Premise
 
-- Read: the deadline is 10 minutes at both ends (`crates/podssh-relay/src/session/resume.rs:40`;
-  `docs/design.md:596-606`). T-153's Decision kept a deadline, as a node in a cage would keep
+- Read: the deadline is 10 minutes at both ends (`crates/podssh-relay/src/session/resume.rs:41`;
+  `docs/design.md:597-607`). T-153's Decision kept a deadline, as a node in a cage would keep
   connections for clients that never come back.
 - Read: a node keeps 64 MiB of replay buffers at most, a whole buffer for each session that it
-  keeps (`docs/design.md:643-645`); a pair expires after 72 h at most
-  (`docs/design.md:631-633`).
+  keeps (`docs/design.md:655-657`); a pair expires after 72 h at most
+  (`docs/design.md:643-645`).
 - Read: the client measures the deadline with `Instant`
-  (`crates/podssh-relay/src/session/resume.rs:285`). Not verified: whether `Instant` counts the
+  (`crates/podssh-relay/src/session/resume.rs:286`). Not verified: whether `Instant` counts the
   time that the host slept, on Linux, macOS and Windows. If it does not, a client that wakes
   counts too little, and tries to resume a session that the far end forgot; it then gets
   `REFUSE` with the code 1.
@@ -2039,6 +2039,50 @@ session 10 minutes after its link was lost. A session of Mosh waits.
 4. After a `REFUSE` with the code 1, the client says that the far end forgot the session, and how
    long the client was away by the wall clock.
 
+## Decision
+
+Taken (2026-10-13), the way the far end tells its limit: one more feature
+name in its `GREETING`, `deadline.SECONDS`, which only a far end gives. A
+side ignores each name that it does not know, so an older client keeps 10
+minutes, and an older far end names none, so a new client keeps 10 minutes
+too. The alternatives lost: a new record after `ACCEPT`, which an older
+client refuses at its type byte
+(`crates/podssh-relay/src/session/decode.rs:85`), and which so needs a
+feature to gate it as well; a field after the body of `ACCEPT`, which an
+older decoder refuses as bytes after the end of a body
+(`crates/podssh-relay/src/session/decode.rs:234-240`). A name for each value
+is not a feature that both sides name, so `deadline::of` reads the far
+end's own names, not the common ones.
+
+Taken: the spelling `--resume-deadline TIME`, on `podssh node` for the far
+end, and on `podssh ssh` and `podssh operator` for the client's own, which
+only shortens the far end's. TIME is a whole number, then `s`, `m`, `h` or
+`d` (none is seconds), from 1 minute (a silent link is found dead after
+30 s) to 72 h, the longest life of a pair, at whose expiry the relay ends
+each of its sessions; the iroh road, with no pair, has the same bound, for
+the node's memory. `--keep-for` and `--linger` lost: they do not say what
+is kept, nor that the client's flag is the same time. An `-o` keyword lost:
+OpenSSH has none, and a node has no `-o`. A variable alone lost: the entry
+asks for a flag. `--plain` and `--temporary` refuse it (64): a plain node
+keeps no session, and the temporary node keeps the defaults of `ssh
+--upgrade`.
+
+Taken: the two deadlines are set for the process (`layered::settings`), as
+the pins of `--relay-addr` and the rate of `cp --limit` are, since one
+process runs one command. Passing them through each function that carries a
+session lost: five signatures on two roads, each touched for one value.
+
+Taken: the client counts its wait on the monotonic clock, as before, and
+the wall clock only says how long it was away. Rust's `Instant` does not say
+whether a sleep counts (`rust-lang/rust:library/std/src/time.rs`, lines
+56-57 at the toolchain 1.98); it reads `CLOCK_MONOTONIC` on Linux and
+`CLOCK_UPTIME_RAW` on macOS, which do not count a sleep, and
+`QueryPerformanceCounter` on Windows (lines 114-119 there). The alternative,
+to give up by the wall clock, lost: a wall clock set forward by NTP would
+end a session that the far end still keeps; a resume after a sleep costs
+one link, and its refusal now says why. Each far end names its deadline, 10
+minutes too, so `-v` says it.
+
 ## Prove
 
 ```sh
@@ -2048,3 +2092,51 @@ cargo test -p podssh-relay --test session_deadline
 
 On a paused clock: with a limit of 3 h, a session resumes after 2 h, and is refused after 4 h with
 the line of item 4. A planted far end that ignores its limit fails the first check.
+
+The planted defects: `Keeper::idle` that keeps a lost session
+`RESUME_DEADLINE` in place of its own deadline fails the first check (the
+far end forgets the session at 10 minutes, and the resume after 2 h gets
+`REFUSE`); `deadline::of` that reads no name fails it too (the client waits
+10 minutes); a client that gives the far end's refusal alone, with no words
+of item 4, fails the second.
+
+## Correction
+
+Item 3 of the Approach says that a session past the node's bound is refused
+with `REFUSE` (6). Read: the far end accepts the handshake, then ends the
+session with a `CLOSE` that gives the reason ("this node keeps as many
+resumable sessions as its budget allows",
+`crates/podssh-relay/src/session/far.rs:175-180`); code 6 is not sent. The
+bound and its words stay as they are.
+
+## Done
+
+2026-10-13, a draft: each result below that needs a build or a run is
+UNVERIFIED.
+
+- `crates/podssh-relay/src/session/deadline.rs`: the name
+  `deadline.SECONDS`, its reading (72 h at most; a name that is not a number
+  is ignored), the far end's names, the client's wait, and the words of item
+  4. `Settings` has `client_deadline` and `wall_clock`; `Established` has
+  `peer_deadline`; the far end's `GREETING` names its deadline; the client
+  waits `client_wait`, and after `REFUSE` (1) says that the far end forgot
+  the session, how long the far end keeps one, and how long this side was
+  away by the wall clock. `Keeper::expire_at`, for a far end whose clock ran
+  on.
+- `podssh node --resume-deadline TIME`, and the client's own on `ssh` and
+  `operator` (`crates/podssh-cli/src/node_flags.rs`, with the key flags
+  moved there from `node.rs`, which had 500 lines; `layered.rs`). The
+  node's first line says the time; `-v` of a client says the far end's.
+- The manual (`notes_pair.rs`, `notes_ssh.rs`, the flag rows),
+  `docs/cli.md`, `docs/design.md` (section 5), `docs/reverse.md`,
+  `docs/STATUS.md`.
+- Prove: `cargo test -p podssh-relay --test session_deadline` (4 tests, 3
+  on a paused clock): UNVERIFIED. `cargo test -p podssh-cli --test node --
+  resume_deadline` and `cargo test -p podssh-cli --lib -- layered`:
+  UNVERIFIED. The tests that the change touches (`cargo test -p
+  podssh-relay --test session_resume --test session_move --test
+  session_handshake --test session_heartbeat`, and `cargo test -p
+  podssh-cli --test node_plain --test roost`, which read the node's first
+  line): UNVERIFIED. The planted defects above: UNVERIFIED.
+- Waits for T-251: the run in the build image, clippy at CI's Rust, and a
+  node with `8h` on the live relay through a client whose host sleeps.

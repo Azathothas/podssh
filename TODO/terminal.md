@@ -723,7 +723,7 @@ fails. The binary (`$BIN`) prints the note in its manual.
 2026-10-12. The table at `crates/podssh-ssh/src/escape.rs:24-36`, read by
 the input at `crates/podssh-ssh/src/escape.rs:67` and by `~?` at
 `crates/podssh-ssh/src/escape.rs:106-116`; the note at
-`crates/podssh-cli/src/man/notes_ssh.rs:55-64`, and the section "What
+`crates/podssh-cli/src/man/notes_ssh.rs:58-67`, and the section "What
 podssh reads from the terminal" of `docs/terminal.md`. The tests:
 `the_terminal_note_names_each_escape` (`crates/podssh-cli/src/man/notes.rs`)
 finds the escapes `~.`, `~R`, `~#`, `~?` and `~~` in the note, and no other;

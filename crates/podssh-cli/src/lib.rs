@@ -57,6 +57,9 @@ pub mod man;
 // `podssh mcp`: the commands as tools for an agent (T-055).
 pub mod mcp;
 pub mod node;
+// The flags of `podssh node` that each road reads: the keys, the resume
+// deadline (T-306).
+pub mod node_flags;
 // `podssh node NAME udp:HOST:PORT`: a UDP target, one flow for each session.
 pub mod node_udp;
 // `podssh node --iroh`: the iroh road, with the feature `iroh` only.

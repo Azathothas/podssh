@@ -1,11 +1,17 @@
 //! The flag rows of `node`: those of a pair, as `operator` has them, the
-//! plain mode (T-263), a roost in front of a standard sshd (T-166), the
-//! node's key and allowlist on each road and the end-to-end channel (T-087,
-//! T-088), and those of the iroh road (T-163), which a build has with the
-//! feature `iroh` only; in another build, `--iroh` is refused with exit 70.
-//! The key's flags of T-163 keep their names beside the new ones.
+//! plain mode (T-263), the resume deadline (T-306), a roost in front of a
+//! standard sshd (T-166), the node's key and allowlist on each road and the
+//! end-to-end channel (T-087, T-088), and those of the iroh road (T-163),
+//! which a build has with the feature `iroh` only; in another build,
+//! `--iroh` is refused with exit 70. The key's flags of T-163 keep their
+//! names beside the new ones. And the client's resume deadline, which
+//! `ssh` and `operator` name in their tables.
 
 use super::{row, FlagKind, FlagRow};
+
+/// A client's own resume deadline (T-306), of `ssh` and `operator`.
+pub const OWN_DEADLINE: FlagRow = row(None, "resume-deadline", Some("TIME"), FlagKind::Supported,
+    "node://NAME and iroh:TICKET: wait at most TIME for a new link after a loss, though the node keeps the session longer: 90s, 30m, 8h or 3d, from 1 minute to 72 h (default: as long as the node keeps it)", None);
 
 /// `node` (T-083, T-163): the flags of a pair, and those of the iroh road,
 /// which a build has with the feature `iroh` only.
@@ -18,6 +24,8 @@ pub const NODE_FLAGS: &[FlagRow] = &[
         "use the pair in FILE, a private file, not the one stored under NAME (operator: its operator's part will do)", None),
     row(None, "plain", None, FlagKind::Supported,
         "carry each session's bytes as they are, with no resumable layer, for an operator that does not speak it; a lost link ends the session", None),
+    row(None, "resume-deadline", Some("TIME"), FlagKind::Supported,
+        "keep a session whose link is lost for TIME, on each road, and tell its operator so: 90s, 30m, 8h or 3d, from 1 minute to 72 h (default 10m)", None),
     row(None, "sshd", None, FlagKind::Supported,
         "a roost: each TARGET (default 127.0.0.1:22) is a standard sshd, which must send its SSH version line first, at the start and on each session's connection", None),
     row(None, "temporary", Some("KEY"), FlagKind::Supported,

@@ -250,7 +250,13 @@ where
     /// deadline: its target is shut, and no client can resume it. The count
     /// forgotten.
     pub async fn expire(&self) -> usize {
-        let now = Instant::now();
+        self.expire_at(Instant::now()).await
+    }
+
+    /// [`Keeper::expire`] as at `now`. A test gives a later `now`: a far end
+    /// whose clock ran on while its client's stood still, as on a client's
+    /// host that slept (T-306).
+    pub async fn expire_at(&self, now: Instant) -> usize {
         let expired: Vec<(SessionId, A)> = {
             let mut slots = lock(&self.slots);
             let ids: Vec<SessionId> = slots

@@ -14,6 +14,7 @@ use std::time::Duration;
 
 use tokio::io::{AsyncRead, AsyncReadExt, AsyncWrite, AsyncWriteExt};
 
+use super::deadline;
 use super::decode::{DecodeError, Decoder};
 use super::handshake::{Established, FarHandshake, HandshakeError, Step};
 use super::keep::Keeper;
@@ -77,7 +78,10 @@ pub async fn accept<L>(
 where
     L: AsyncRead + AsyncWrite + Unpin,
 {
-    let (handshake, greeting) = FarHandshake::start(role, settings.features, entropy).map_err(FarError::Handshake)?;
+    // The `GREETING` names how long this far end keeps a lost session (T-306).
+    let offered = deadline::offered(&settings);
+    let named: Vec<&str> = offered.iter().map(String::as_str).collect();
+    let (handshake, greeting) = FarHandshake::start(role, &named, entropy).map_err(FarError::Handshake)?;
     send(&mut link, &greeting).await?;
     let mut decoder = Decoder::new();
     let shaken = tokio::time::timeout(HANDSHAKE_LIMIT, shake(&mut link, &mut decoder, handshake, sessions, entropy));

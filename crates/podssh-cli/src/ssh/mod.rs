@@ -92,6 +92,10 @@ fn run(args: &SshArgs, err: &mut dyn Write) -> i32 {
     if let Err(refusal) = crate::pins::apply(args.relay_addr.as_deref()) {
         return refusal.report("ssh", err);
     }
+    // This client's own deadline only shortens the far end's (T-306).
+    if let Err(refusal) = crate::layered::own_deadline(args.resume_deadline.as_deref()) {
+        return refusal.report("ssh", err);
+    }
     let resolved = match resolve::resolve_or_refuse(args, &Env::from_process()) {
         Ok(r) => r,
         Err(refusal) => return refusal.report("ssh", err),

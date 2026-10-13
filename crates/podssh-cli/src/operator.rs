@@ -33,6 +33,8 @@ pub struct OperatorArgs {
     pub node_key: Option<String>,
     /// No end-to-end channel (T-088).
     pub no_e2e: bool,
+    /// This client's own resume deadline, unparsed (T-306).
+    pub resume_deadline: Option<String>,
     pub refused: Vec<(String, &'static str, &'static str)>,
 }
 
@@ -132,6 +134,8 @@ fn prepare(args: &OperatorArgs) -> Result<(String, podssh_relay::pair::OperatorP
             "--client-key is this operator's key in the end-to-end channel, which --no-e2e turns off",
         ));
     }
+    // This client's own deadline only shortens the node's (T-306).
+    crate::layered::own_deadline(args.resume_deadline.as_deref())?;
     crate::pins::apply(args.relay_addr.as_deref())?;
     let part = pairs::operator_part(&label, args.pair_file.as_deref())?;
     pairs::online()?;
