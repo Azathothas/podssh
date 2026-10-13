@@ -595,7 +595,7 @@ variable matters when `cp`, `mv` and `relay` exist. `ssh` and `proxy` have no
    that is not empty, else nothing. It returns the text and its source.
 2. Call it at both gate sites: `crates/podssh-cli/src/dispatch.rs:232-250` and
    `crates/podssh-cli/src/ts.rs:54-63`. Parse with `parse_timeout`
-   (`crates/podssh-cli/src/non_interactive.rs:173-219`): a whole duration,
+   (`crates/podssh-cli/src/non_interactive.rs:123-169`): a whole duration,
    never zero.
 3. A malformed value names its source: `--timeout` (exit 64), or
    `PODSSH_TIMEOUT` (exit 78, see Decision). The variable never bounds `ssh`
@@ -1854,7 +1854,7 @@ writer of this file); read here on `3ee70dc`.
 **Milestone:** backlog
 **Priority:** P3
 **Effort:** S
-**Status:** open
+**Status:** done
 
 ## Problem
 
@@ -1869,11 +1869,10 @@ the false flag name.
 
 Read: no source outside the module and the tests uses `gate_prompt`,
 `PromptSite` or `force_interactive` (a search of `crates/` for each name). The
-texts: `--accept-new` at `crates/podssh-cli/src/non_interactive.rs:281-282`,
-`--relay URL` at `crates/podssh-cli/src/non_interactive.rs:289`, E01 at
-`crates/podssh-cli/src/non_interactive.rs:293-294`; the claim at
-`crates/podssh-cli/src/non_interactive.rs:9-13`. A test asserts the false
-flag (`crates/podssh-cli/tests/non_interactive.rs:185`).
+texts, in `crates/podssh-cli/src/non_interactive.rs`: `--accept-new` at lines 281-282 at `8c05b5e`,
+`--relay URL` at line 289 at `8c05b5e`, E01 at lines 293-294 at `8c05b5e`; the claim at
+lines 9-13 at `8c05b5e`. A test asserts the false
+flag (`crates/podssh-cli/tests/non_interactive.rs`, line 185 at `8c05b5e`).
 
 The real gate is `can_ask` (`crates/podssh-ssh/src/prompt.rs:82`), called at
 `crates/podssh-ssh/src/auth.rs:189`, `crates/podssh-ssh/src/auth.rs:306`,
@@ -1887,16 +1886,14 @@ these parts of the module, which stay: `Attachment`, `resolve`, `resolve_tty`,
 ## Approach
 
 1. Remove `force_interactive` and the variant `Attachment::ForcedInteractive`
-   (`crates/podssh-cli/src/non_interactive.rs:78-96`), `PromptSite`
-   (`crates/podssh-cli/src/non_interactive.rs:112-134`) and `gate_prompt`
-   (`crates/podssh-cli/src/non_interactive.rs:255-308`).
-2. Remove their tests (`crates/podssh-cli/tests/non_interactive.rs:40-48`,
-   `crates/podssh-cli/tests/non_interactive.rs:118-165` and
-   `crates/podssh-cli/tests/non_interactive.rs:179-186`), and take
+   (`crates/podssh-cli/src/non_interactive.rs`, lines 78-96 at `8c05b5e`), `PromptSite`
+   (lines 112-134 at `8c05b5e`) and `gate_prompt` (lines 255-308 at `8c05b5e`).
+2. Remove their tests (`crates/podssh-cli/tests/non_interactive.rs`, lines 40-48,
+   118-165 and 179-186 at `8c05b5e`), and take
    `ForcedInteractive` out of `missing_timeout_outside_a_terminal_is_usage_64`
-   (`crates/podssh-cli/tests/non_interactive.rs:89-98`).
-3. Write the module comment again (`crates/podssh-cli/src/non_interactive.rs:1-28`):
-   what the module holds and why, with no `⛔` and no planning ids
+   (lines 89-98 at `8c05b5e`).
+3. Write the module comment again (`crates/podssh-cli/src/non_interactive.rs`, lines 1-28 at
+   `8c05b5e`): what the module holds and why, with no `⛔` and no planning ids
    (`AGENTS.md`, section 5, rule 6).
 
 ## Decision
@@ -1916,6 +1913,43 @@ grep -rn "gate_prompt\|PromptSite\|force_interactive\|accept-new (E13)" crates; 
 The tests pass without the removed code. The search finds none of its names
 (grep exits 1 when nothing matches). Plant: restore `gate_prompt`; the search
 finds it, and the second line fails.
+
+## Correction
+
+2026-10-12: the false flags were gone before this entry was done. T-244 (`e3ea638`, 2026-10-09)
+wrote the refusals of `gate_prompt` again: `--accept-new` became
+`-o StrictHostKeyChecking=accept-new`, `--relay URL` became `--relay-host HOST` or
+`PODSSH_RELAY`, and E01, E13 and E33 became words; the test then asserted the real option, and
+the search of the Prove for "accept-new (E13)" found nothing before this change. The rest held
+at `8c05b5e`: no command called `gate_prompt`, `PromptSite` or `force_interactive`; the module
+comment still said that `gate_prompt` was the only path to a prompt; and the doc of
+`Attachment` named `--non-interactive` and `--interactive`, which podssh does not have. The
+Approach stands, and it also takes those two names out of the doc of `Attachment`.
+
+## Done
+
+2026-10-13.
+
+- `crates/podssh-cli/src/non_interactive.rs`: `force_interactive`,
+  `Attachment::ForcedInteractive`, `PromptSite` and `gate_prompt` are gone, with the arm of
+  `require_timeout` that named `--interactive`. The module comment says what the module holds
+  (the attachment, the time limit and its variable, the two refusals of `--jsonl`), that it asks
+  nothing and gates no prompt, as podssh-ssh's `prompt::can_ask` is the gate, and which exit
+  code each refusal gives. The doc of `Attachment` says that `Forced` is `--jsonl`; those of
+  `Refusal` and `is_non_interactive` no longer speak of prompts. What the commands use stays:
+  `Attachment`, `resolve`, `resolve_tty`, `timeout_text`, `require_timeout_or_env`,
+  `parse_timeout`, `parse_duration`, `require_timeout` and the two refusals.
+- `crates/podssh-cli/tests/non_interactive.rs`: the tests of the removed code are gone
+  (`forced_interactive_is_refused_unless_both_fds_are_ttys`,
+  `every_prompt_site_refuses_outside_a_terminal_and_names_its_remedy`,
+  `a_changed_host_key_refuses_even_on_a_terminal`, `other_sites_allow_a_terminal` and
+  `a_refusal_names_the_site_and_the_remedy`); `missing_timeout_outside_a_terminal_is_usage_64`
+  checks `Pipe` and `Forced`; the comment of the file no longer names `gate_prompt`. No other
+  source, test or document named the removed code.
+- Prove, Windows 11: `cargo test -p podssh-cli`: 762 passed, 0 failed, 34 ignored. The search
+  of the Prove: no line, exit 1. Planted, the module as it was restored: the search finds 16
+  lines; restored, none. Clippy and rustfmt: clean.
+- Nothing waits for T-251: the entry has no run in the build image.
 
 # T-233: The help of a command that is not implemented does not say so
 

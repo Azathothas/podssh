@@ -1,4 +1,5 @@
-//! Non-interactive operation — one value computed once at startup.
+//! Non-interactive operation: how podssh is attached, computed once at
+//! startup, and the time limit that a run with nobody at a terminal needs.
 //!
 //! **The detection is the default; no flag is needed to avoid hanging.**
 //! Requiring *both* fds to be terminals is the
@@ -6,26 +7,23 @@
 //! exactly where a prompt lands in a script's output. A script that must pass
 //! a flag to avoid hanging is a script that will hang.
 //!
-//! **One function gates every prompt; nothing else may ask.**
-//! [`gate_prompt`] is the only path from "wants a secret" to "asks the user",
-//! and outside [`Attachment::Terminal`] it returns [`Refusal`] instead. The
-//! nine [`PromptSite`] rows are the audit table of prompts, as code — an enumerated
-//! list, not a review — so a tenth prompt cannot be added without a row here.
+//! **This module asks nothing, and gates no prompt.** The prompts are in
+//! podssh-ssh, which asks for host keys, passwords and passphrases, and
+//! `podssh_ssh::prompt::can_ask` decides there whether anyone can answer; its
+//! refusals name the real remedies (`docs/cli.md`, "Prompts and time limits").
+//! A second gate here could disagree with it.
 //!
 //! **`--timeout` is parsed whole-string or not at all.** The sibling parses
 //! its twin flag with `atoi`, so `--timeout 30x` is 0, and 0 means unbounded —
 //! a script that hangs believing it is bounded. [`parse_timeout`] rejects
 //! `30x`, rejects `0`, and rejects overflow, naming `--timeout` every time.
 //!
-//! **Provisional fault mapping, owned elsewhere.** `--timeout` problems are
-//! [`Fault::Usage`] (the gate's own check: a missing `--timeout` is a USAGE
-//! error). Every prompt-gate refusal is [`Fault::SessionFault`] **until the
-//! owning entry names its value** — host keys, the token and the state files (token and
-//! relay), IRC (channel and nick), SSH authentication (the passphrase). A refused prompt
-//! is not a usage error (the command line was fine), and 70 reads "the session
-//! did not deliver what was asked for", which is the least-wrong bucket while
-//! the owners decide. The stderr text always names the site and the remedy, so
-//! no script has to branch on the number alone.
+//! **The exit codes.** A missing or malformed `--timeout`, and `--jsonl` where
+//! its JSON would land in a byte stream, are [`Fault::Usage`] (64): the fault
+//! is in the command line. A malformed `PODSSH_TIMEOUT` is [`Fault::Config`]
+//! (78): the command line is right, and a setting is not. The stderr text
+//! always names the flag or the variable, so no script has to branch on the
+//! number alone.
 
 use std::time::Duration;
 
@@ -33,26 +31,22 @@ use crate::exitmap::Fault;
 
 /// How podssh is attached, computed once at startup and passed down.
 ///
-/// **Four variants because the dangerous override exists.** `Forced` is
-/// `--non-interactive` or `--jsonl`; `ForcedInteractive` is `--interactive`,
-/// which is refused unless both fds are TTYs — a flag promising interaction
-/// podssh cannot deliver is a flag that hangs. Neither flag is in the tree
-/// yet (the flag-table gate needs a spec row first), so `Forced` today comes
-/// from `--jsonl` and `ForcedInteractive` from [`force_interactive`].
+/// **`Forced` is `--jsonl`.** Its answer is on stdout, and an answer with a
+/// prompt mixed in cannot be parsed, so it is non-interactive on a terminal
+/// too. No flag forces the other way: a flag that promised interaction where
+/// nobody can answer would be a flag that hangs.
 #[derive(Clone, Copy, PartialEq, Eq, Debug)]
 pub enum Attachment {
-    /// `isatty(stdin) && isatty(stdout)`, and no forcing flag.
+    /// `isatty(stdin) && isatty(stdout)`, and no `--jsonl`.
     Terminal,
     /// Either fd is not a TTY — the implicit case, and sufficient.
     Pipe,
-    /// `--non-interactive`, or `--jsonl`.
+    /// `--jsonl`, on a terminal or not.
     Forced,
-    /// `--interactive`: refused unless both fds are TTYs.
-    ForcedInteractive,
 }
 
 impl Attachment {
-    /// Whether `--timeout` is required and prompts are refused.
+    /// Whether `--timeout` is required: nobody may be there to stop a run.
     pub fn is_non_interactive(self) -> bool {
         !matches!(self, Attachment::Terminal)
     }
@@ -75,26 +69,6 @@ pub fn resolve_tty(tty: crate::pager::Tty, jsonl: bool) -> Attachment {
     resolve(tty.stdin, tty.stdout, jsonl)
 }
 
-/// The `--interactive` override: allowed only where interaction is possible.
-pub fn force_interactive(stdin_tty: bool, stdout_tty: bool) -> Result<Attachment, Refusal> {
-    if stdin_tty && stdout_tty {
-        Ok(Attachment::ForcedInteractive)
-    } else {
-        let missing = match (stdin_tty, stdout_tty) {
-            (false, _) => "stdin",
-            (_, false) => "stdout",
-            _ => unreachable!("both TTYs return above"),
-        };
-        Err(Refusal {
-            fault: Fault::Usage,
-            message: format!(
-                "podssh: --interactive needs a terminal on both ends, but {missing} is not a TTY.\n\
-                 A flag promising interaction podssh cannot deliver is a flag that hangs."
-            ),
-        })
-    }
-}
-
 /// A refusal: the fault for the exit code and the diagnostic for stderr.
 ///
 /// **The message names what was wanted and what to type instead.** A bare
@@ -102,35 +76,11 @@ pub fn force_interactive(stdin_tty: bool, stdout_tty: bool) -> Result<Attachment
 /// but nobody knows why.
 #[derive(Clone, PartialEq, Eq, Debug)]
 pub struct Refusal {
-    /// The exit-code fault. `--timeout` problems are `Usage`; every prompt
-    /// gate is provisionally `SessionFault` (see the module header).
+    /// The exit-code fault: `Usage` for `--timeout` and `--jsonl`, `Config`
+    /// for `PODSSH_TIMEOUT` (see the module header).
     pub fault: Fault,
     /// One diagnostic block for stderr. Never carries a secret.
     pub message: String,
-}
-
-/// One row of the audit table: every place podssh could ever prompt.
-#[derive(Clone, PartialEq, Eq, Debug)]
-pub enum PromptSite {
-    /// An unknown host key. Remedy: fingerprint + `-o StrictHostKeyChecking=accept-new`.
-    UnknownHostKey { fingerprint: String },
-    /// A changed host key. Refused **always** — never even on a TTY.
-    ChangedHostKey { fingerprint: String },
-    /// No relay token and none mintable here. Remedy names the knob.
-    TokenAbsent,
-    /// No relay configured. Remedy names `--relay-host`; never prompts.
-    NoRelay,
-    /// A key passphrase. **Unowned**: the SSH client has not named the auth surface,
-    /// so the remedy says so instead of inventing a flag.
-    Passphrase,
-    /// `known_hosts` unreadable. Remedy names the path tried.
-    KnownHostsUnreadable { path: String },
-    /// A channel join needing `KEY`. Remedy names channel and key.
-    ChannelKey { channel: String },
-    /// A nick already in use. Remedy names the nick; no re-ask loop.
-    NickInUse { nick: String },
-    /// `--sendfile` unreadable. Remedy names path and errno text.
-    SendfileUnreadable { path: String, errno: String },
 }
 
 /// The variable that gives `--timeout` its default (GitHub #12).
@@ -232,7 +182,6 @@ pub fn require_timeout(verb: &str, attachment: Attachment, raw: Option<&str>) ->
         (_, None) => {
             let why = match attachment {
                 Attachment::Forced => "--jsonl was given",
-                Attachment::ForcedInteractive => "--interactive was given",
                 _ => "stdin or stdout is not a terminal",
             };
             let example = match verb {
@@ -248,61 +197,6 @@ pub fn require_timeout(verb: &str, attachment: Attachment, raw: Option<&str>) ->
                      Example: {example}"
                 ),
             })
-        }
-    }
-}
-
-/// The single gate: may this prompt be asked?
-///
-/// `ChangedHostKey` refuses on every attachment — a prompt offers the operator
-/// an accident. Every other site refuses outside `Terminal` and allows inside
-/// it. There is no other path from "wants a secret" to "asks the user".
-pub fn gate_prompt(attachment: Attachment, site: &PromptSite) -> Result<(), Refusal> {
-    fn refused(site: &PromptSite, remedy: String) -> Refusal {
-        Refusal {
-            // Provisional: the owning entry names the final value (see the
-            // module header). Not `Usage` — the command line was fine.
-            fault: Fault::SessionFault,
-            message: format!("podssh: refusing to ask ({site:?}).\n{remedy}"),
-        }
-    }
-    match site {
-        PromptSite::ChangedHostKey { fingerprint } => Err(refused(
-            site,
-            format!(
-                "The host key changed (now {fingerprint}): remove the old key; \
-                 podssh never auto-replaces one, on a TTY or anywhere else."
-            ),
-        )),
-        _ if !attachment.is_non_interactive() => Ok(()),
-        PromptSite::UnknownHostKey { fingerprint } => Err(refused(
-            site,
-            format!(
-                "Unknown host key {fingerprint}: re-run on a terminal or pass \
-                 -o StrictHostKeyChecking=accept-new."
-            ),
-        )),
-        PromptSite::TokenAbsent => {
-            Err(refused(site, "No relay token: mint one in memory or set the token knob.".into()))
-        }
-        PromptSite::NoRelay => {
-            Err(refused(site, "No relay configured: pass --relay-host HOST, or set PODSSH_RELAY.".into()))
-        }
-        PromptSite::Passphrase => Err(refused(
-            site,
-            "A passphrase is needed and there is no TTY: the SSH client has not named the \
-             auth surface yet, so no flag can carry it (the passphrase row stays open)."
-                .into(),
-        )),
-        PromptSite::KnownHostsUnreadable { path } => Err(refused(site, format!("known_hosts unreadable at {path}."))),
-        PromptSite::ChannelKey { channel } => {
-            Err(refused(site, format!("Joining {channel} needs its KEY: pass it, podssh never asks.")))
-        }
-        PromptSite::NickInUse { nick } => {
-            Err(refused(site, format!("Nick {nick} is in use: pick another with --nick.")))
-        }
-        PromptSite::SendfileUnreadable { path, errno } => {
-            Err(refused(site, format!("--sendfile unreadable: {path}: {errno}.")))
         }
     }
 }

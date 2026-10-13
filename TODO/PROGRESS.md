@@ -43,12 +43,12 @@ entry keeps its proof in the entry; this page keeps no history (git does).
   worktrees (`.claude/worktrees/`, excluded from git) on local branches
   `worktree-agent-*`, never pushed; they do not build. The main session
   merges a draft, builds it, runs its tests and plants, fills each
-  UNVERIFIED and closes the entry (T-179 to T-184, T-200, T-202, T-221, T-225 and T-293 so). Waiting to
+  UNVERIFIED and closes the entry (T-179 to T-184, T-200, T-202, T-221, T-225, T-232 and T-293 so). Waiting to
   be merged, in the order of the index:
 
   | Entry | Branch (`worktree-agent-` and) | Commit | State |
   | --- | --- | --- | --- |
-  | T-232, T-235, T-242 | `a1c2c734bcf87dace` | `b53a24f`, `ffeb741`, `b641ecb` | drafted |
+  | T-235, T-242 | `a1c2c734bcf87dace` | `ffeb741`, `b641ecb` | drafted |
   | T-279 | `a3f4d829458070a37` | `c7dd479` | drafted; its `bind(` in `agent_bind.rs`, `agent_forward.rs` and `handler.rs` fails the listener check of `scripts/check-repo.py` |
   | T-291 | `a3f4d829458070a37` | `c7dd479..8eb10ff` | drafted (the WIP `fb8c9bb` finished); `io/input.rs` meets main's file of T-183 |
   | T-280, T-281 | `a9e4d07db05c47c4f` | `91097a6`, `510cd29` | drafted; T-280 carries a patch of iroh-relay 1.3.0 in `vendor/` with `[patch.crates-io]`, as iroh lets no caller dial; T-281 is the fork's patch 0022; the lock must be made again |
@@ -66,7 +66,7 @@ entry keeps its proof in the entry; this page keeps no history (git does).
   harness that `scripts/interop-each.sh` sources, as `scripts/interop.sh`
   is at 500 lines. `crates/podssh-cli/tests/ssh_harness/mod.rs`, `crates/podssh-cli/src/tree.rs`
   and `crates/podssh-cli/src/flags.rs` are near 500 lines, so a merge splits
-  them where needed. The next merge is T-232, then the others in the order
+  them where needed. The next merge is T-235, then the others in the order
   of the index.
 
   Not drafted yet: T-185 and T-186. CI: the gate passed at
@@ -101,7 +101,7 @@ and `CARGO_BUILD_JOBS=4`:
 
 ## Counts
 
-`TODO/INDEX.md` holds 303 entries: 48 open, 0 partial, 25 blocked, 230 done.
+`TODO/INDEX.md` holds 303 entries: 47 open, 0 partial, 25 blocked, 231 done.
 
 Open includes parked work. `cargo todo check` verifies this line.
 

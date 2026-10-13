@@ -61,15 +61,15 @@ repository and CI).
 
 ## Counts
 
-**303 entries: 48 open, 0 partial, 25 blocked, 230 done.**
+**303 entries: 47 open, 0 partial, 25 blocked, 231 done.**
 
 | Priority | open | partial | blocked | done | total |
 | --- | --- | --- | --- | --- | --- |
 | P0 | 0 | 0 | 0 | 1 | 1 |
 | P1 | 2 | 0 | 0 | 22 | 24 |
 | P2 | 4 | 0 | 18 | 136 | 158 |
-| P3 | 42 | 0 | 7 | 71 | 120 |
-| **All** | 48 | 0 | 25 | 230 | 303 |
+| P3 | 41 | 0 | 7 | 72 | 120 |
+| **All** | 47 | 0 | 25 | 231 | 303 |
 
 ## Entries
 
@@ -303,7 +303,7 @@ repository and CI).
 | [T-229](ssh.md) | P3 | L | backlog | feature | open | Hardware keys (FIDO2 `sk-` keys) in `podssh keygen`, the client and `podssh agent` |
 | [T-230](cli.md) | P2 | S | M3 | defect | done | The help and the manual say that `-R` is refused because podssh never binds |
 | [T-231](cli.md) | P2 | S | M3 | defect | done | A bad `PODSSH_RELAY` or `PODSSH_RELAY_ADDR` exits 64, not 78 |
-| [T-232](cli.md) | P3 | S | backlog | chore | open | `gate_prompt` and `PromptSite` are used only by tests, and name flags that do not exist |
+| [T-232](cli.md) | P3 | S | backlog | chore | done | `gate_prompt` and `PromptSite` are used only by tests, and name flags that do not exist |
 | [T-233](cli.md) | P2 | S | M3 | defect | done | The help of a command that is not implemented does not say so |
 | [T-234](cli.md) | P2 | S | M3 | defect | done | `podssh man relay` shows the command and not the topic THE RELAY, and the list of sections names `relay` twice |
 | [T-235](cli.md) | P3 | S | backlog | defect | open | The help puts `--help` at a different indent from the other options |

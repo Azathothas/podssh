@@ -58,7 +58,7 @@ Recommendation: `--json` writes one JSON document when a one-shot report is comp
 `ts`: `crates/podssh-cli/src/flags.rs`, lines 272-273 at `7aa955a`, `crates/podssh-cli/src/flags/copy.rs:45-46`,
 `crates/podssh-cli/src/flags.rs:330-331`). `--jsonl` also makes the run
 non-interactive and starts the `--timeout` rule
-(`crates/podssh-cli/src/non_interactive.rs:62-70`, 187-203), which a bounded report does not
+(`crates/podssh-cli/src/non_interactive.rs:56-64`, 187-203), which a bounded report does not
 need. `--jsonl` everywhere lost for that reason. `--format json` lost because podssh's other
 output choices (`--roff`, `--no-pager`) are plain switches.
 
@@ -221,7 +221,7 @@ opens no connection: the relay list (`crates/podssh-relay/src/relay.rs:83-101`,
 `crates/podssh-relay/src/pool.rs:51-64`); the token cache
 (`crates/podssh-relay/src/cache.rs:72-91`, which returns the token itself in `Cached`, lines
 29-33); a host key (`crates/podssh-ssh/src/known_hosts.rs:90-96`, 90-98); the attachment
-(`crates/podssh-cli/src/non_interactive.rs:74-76`); the proxy, shown with no credentials
+(`crates/podssh-cli/src/non_interactive.rs:68-70`); the proxy, shown with no credentials
 (its `Display`, `crates/podssh-ws/src/proxy.rs:70-75` since T-070).
 
 ## Approach

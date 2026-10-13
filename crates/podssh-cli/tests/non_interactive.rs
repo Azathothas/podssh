@@ -1,18 +1,15 @@
-//! **The audit table of prompts as tests, against the public API.**
+//! **Non-interactive operation as tests, against the public API.**
 //!
 //! These exercise `podssh_cli::non_interactive` the way a caller does —
-//! [`resolve`], [`parse_timeout`], [`require_timeout`], [`gate_prompt`] —
-//! rather than the module's internals, so a refactor that keeps the contract
-//! keeps the suite. The plants are named where they live: plant 4 (`30x`),
-//! plants 1 and 3 (implicit detection, unconditional TOFU).
+//! [`resolve`], [`parse_timeout`], [`require_timeout`] — rather than the
+//! module's internals, so a refactor that keeps the contract keeps the suite.
+//! The plant is named where it lives: plant 4 (`30x`). The prompts, and their
+//! refusals with no terminal, are podssh-ssh's (`prompt::can_ask`).
 
 use std::time::Duration;
 
 use podssh_cli::exitmap::Fault;
-use podssh_cli::non_interactive::{
-    force_interactive, gate_prompt, parse_timeout, refuse_jsonl_in_proxy, require_timeout, resolve, Attachment,
-    PromptSite,
-};
+use podssh_cli::non_interactive::{parse_timeout, refuse_jsonl_in_proxy, require_timeout, resolve, Attachment};
 
 /// **Both fds, not stdin alone.** `podssh chat '#c' < /dev/null >
 /// log.txt` must not become an interactive client holding a device nobody
@@ -32,19 +29,6 @@ fn terminal_needs_both_fds() {
 fn jsonl_forces_non_interactive_even_on_a_terminal() {
     assert_eq!(resolve(true, true, true), Attachment::Forced);
     assert_eq!(resolve(false, false, true), Attachment::Forced);
-}
-
-/// **The override in the dangerous direction is refused.** A flag
-/// promising interaction podssh cannot deliver is a flag that hangs, so
-/// the refusal names the fd that is not a TTY.
-#[test]
-fn forced_interactive_is_refused_unless_both_fds_are_ttys() {
-    assert_eq!(force_interactive(true, true), Ok(Attachment::ForcedInteractive));
-    for (stdin, stdout) in [(true, false), (false, true), (false, false)] {
-        let refusal = force_interactive(stdin, stdout).unwrap_err();
-        assert_eq!(refusal.fault, Fault::Usage);
-        assert!(refusal.message.contains("--interactive"), "must name the flag: {}", refusal.message);
-    }
 }
 
 /// The whole-string forms, and what each means.
@@ -88,7 +72,7 @@ fn parse_timeout_rejects_zero_and_overflow() {
 /// The gate's own check: exit 64 naming `--timeout`.
 #[test]
 fn missing_timeout_outside_a_terminal_is_usage_64() {
-    for attachment in [Attachment::Pipe, Attachment::Forced, Attachment::ForcedInteractive] {
+    for attachment in [Attachment::Pipe, Attachment::Forced] {
         let refusal = require_timeout("ts", attachment, None).unwrap_err();
         assert_eq!(refusal.fault, Fault::Usage, "{attachment:?}");
         assert_eq!(refusal.fault.code(), 64, "{attachment:?}");
@@ -111,59 +95,6 @@ fn a_provided_timeout_is_always_parsed() {
     assert_eq!(refusal.fault, Fault::Usage);
 }
 
-/// **Plants 1 and 3: the implicit detection is the whole entry.** If
-/// `resolve` hardcoded `Terminal`, or the TOFU path prompted
-/// unconditionally, a piped run would hang waiting on nobody. Every site
-/// refuses outside a terminal, and every refusal names its remedy.
-#[test]
-fn every_prompt_site_refuses_outside_a_terminal_and_names_its_remedy() {
-    let sites: Vec<(PromptSite, &str)> = vec![
-        (PromptSite::UnknownHostKey { fingerprint: "SHA256:abc".into() }, "StrictHostKeyChecking=accept-new"),
-        (PromptSite::ChangedHostKey { fingerprint: "SHA256:abc".into() }, "SHA256:abc"),
-        (PromptSite::TokenAbsent, "token"),
-        (PromptSite::NoRelay, "--relay-host"),
-        (PromptSite::Passphrase, "passphrase"),
-        (PromptSite::KnownHostsUnreadable { path: "/nonexistent".into() }, "/nonexistent"),
-        (PromptSite::ChannelKey { channel: "#chan".into() }, "#chan"),
-        (PromptSite::NickInUse { nick: "podssh".into() }, "podssh"),
-        (PromptSite::SendfileUnreadable { path: "./messages.txt".into(), errno: "ENOENT".into() }, "./messages.txt"),
-    ];
-    for attachment in [Attachment::Pipe, Attachment::Forced] {
-        for (site, remedy) in &sites {
-            let refusal = gate_prompt(attachment, site).unwrap_err();
-            assert!(
-                refusal.message.contains(remedy),
-                "{attachment:?} {site:?} must name {remedy}: {}",
-                refusal.message
-            );
-            assert_ne!(refusal.fault.code(), 0, "{site:?} must never exit 0");
-        }
-    }
-}
-
-/// **Row 2 refuses always — never even on a TTY** (`docs/cli.md`, "Prompts and time limits").
-/// podssh never auto-replaces a key; a prompt offers the operator an accident.
-#[test]
-fn a_changed_host_key_refuses_even_on_a_terminal() {
-    let site = PromptSite::ChangedHostKey { fingerprint: "SHA256:abc".into() };
-    let refusal = gate_prompt(Attachment::Terminal, &site).unwrap_err();
-    assert!(refusal.message.contains("SHA256:abc"), "{}", refusal.message);
-}
-
-/// The other sites allow a terminal: a human is present to answer.
-#[test]
-fn other_sites_allow_a_terminal() {
-    for site in [
-        PromptSite::UnknownHostKey { fingerprint: "SHA256:abc".into() },
-        PromptSite::TokenAbsent,
-        PromptSite::NoRelay,
-        PromptSite::Passphrase,
-        PromptSite::NickInUse { nick: "podssh".into() },
-    ] {
-        assert!(gate_prompt(Attachment::Terminal, &site).is_ok(), "{site:?}");
-    }
-}
-
 /// **`--jsonl` in ProxyCommand is refused, never redirected.** Stdout is
 /// the SSH stream; a JSON line lands mid-version-string.
 #[test]
@@ -172,17 +103,6 @@ fn jsonl_is_refused_in_proxy_mode() {
     assert_eq!(refusal.fault, Fault::Usage);
     assert_eq!(refusal.fault.code(), 64);
     assert!(refusal.message.contains("--jsonl"), "{}", refusal.message);
-}
-
-/// A refusal is one diagnostic block naming the site and the remedy —
-/// never a bare "refused", never a secret.
-#[test]
-fn a_refusal_names_the_site_and_the_remedy() {
-    let refusal =
-        gate_prompt(Attachment::Pipe, &PromptSite::UnknownHostKey { fingerprint: "SHA256:abc".into() }).unwrap_err();
-    assert!(refusal.message.contains("podssh"), "{}", refusal.message);
-    assert!(refusal.message.contains("SHA256:abc"), "{}", refusal.message);
-    assert!(refusal.message.contains("StrictHostKeyChecking=accept-new"), "{}", refusal.message);
 }
 
 // ─────────── the binary half: pipes, exit codes, both streams ───────────
