@@ -63,7 +63,7 @@ the verb, the address grammar, the copy loop, and the local addresses `-`,
    ENOSYS), two pipes; Windows uses pipes. stderr is shared. When the other
    side ends, the child gets the end of input, and podssh waits for it as a
    shell waits. Add the `process` feature of tokio to podssh-cli
-   (`Cargo.toml:75-77` lacks it; `crates/podssh-ssh/Cargo.toml:22` has it).
+   (`Cargo.toml:76-78` lacks it; `crates/podssh-ssh/Cargo.toml:22` has it).
 6. The exit status: the child's, and 128 + N for a signal; with two children,
    B's. A program that is not found gives 127, one that cannot run 126, as a
    shell gives. With no child, a clean end gives 0.
@@ -175,7 +175,7 @@ local program to a target, and `podssh proxy` stays a second pump.
 
 1. One adapter per kind, in crates/podssh-cli/src/pipe/remote.rs: it opens
    its road and gives a duplex stream and, at the end, a close reason. The
-   pump does not know the road (`docs/architecture.md:113-115`).
+   pump does not know the road (`docs/architecture.md:115-117`).
 2. `relay:HOST:PORT`: parse as `crates/podssh-cli/src/proxy.rs:203-213` does;
    open with `crates/podssh-relay/src/open.rs:188-247`. Keep the rules of
    proxy: no Close at the end of input, the ping watcher
@@ -412,7 +412,7 @@ shows that an AF_UNIX or loopback bind works (`docs/design.md:709-711`).
   allows the bind. The default is loopback and AF_UNIX; the user can
   configure the address and can turn listening off.
 - Read: five documents still say that podssh never listens:
-  `AGENTS.md:226-231`, `docs/architecture.md:116-129`,
+  `AGENTS.md:226-231`, `docs/architecture.md:118-131`,
   `docs/target-environment.md:74-78`, `SECURITY.md:94-114`, `README.md:38-45`.
 - Read: sandbox A refuses an AF_INET bind and allows an AF_UNIX bind
   (`docs/STATUS.md:238`). The box refuses each `bind`, AF_UNIX too
@@ -430,7 +430,7 @@ shows that an AF_UNIX or loopback bind works (`docs/design.md:709-711`).
 2. podssh listens only for a `-listen:` address that the user gives.
    `PODSSH_LISTEN=no` turns listening off: each such address then exits 78
    before any bind. Add the variable to `VARIABLES`
-   (`crates/podssh-cli/src/man/facts.rs:45-213`); the settings file of T-048
+   (`crates/podssh-cli/src/man/facts.rs:45-214`); the settings file of T-048
    can set the same.
 3. The attempt is the probe: socket, bind, listen. EACCES or EPERM exits 77
    with the errno and an address that needs no listener; another error exits
@@ -500,7 +500,7 @@ Plant: bind with no umask; the check of the mode must fail.
 ## Correction
 
 2026-10-10: three of the five documents already say what the ruling
-allows: `AGENTS.md:226-231`, `docs/architecture.md:116-129` and
+allows: `AGENTS.md:226-231`, `docs/architecture.md:118-131` and
 `docs/target-environment.md:74-78` name a listener that the user asks for,
 after a probe. `SECURITY.md` and `README.md` still said that nothing
 listens, and change here. Step 4's umask 077 makes a socket's file mode

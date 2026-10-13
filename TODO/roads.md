@@ -6,7 +6,7 @@ itself; Multipath TCP; and resumption in the relay (M8).
 
 # T-162: The iroh road behind the cargo feature `iroh`
 
-**Source:** ROADMAP M6 (the iroh road); `docs/design.md:717-893`;
+**Source:** ROADMAP M6 (the iroh road); `docs/design.md:717-898`;
 `docs/decisions.md` (2026-10-08: iroh is a road that the user must select);
 GitHub #18 (Nemo-010, 2026-10-08: the iroh-ssh, zuko, GPU-Share and quic-ssh
 reports).
@@ -30,7 +30,7 @@ to 245 crates. In the target sandbox it runs only with no UDP transport (or a
 UDP bind after a probe), podssh's proxy in `proxy_url(...)`, the `Minimal`
 preset with no pkarr or DNS, peers dialled by ticket, and a home relay whose
 `/ping` passes the proxy. The operator accepted netlink sockets and extra
-connections for this road (`docs/design.md:882-885`). The sandbox refuses UDP
+connections for this road (`docs/design.md:887-890`). The sandbox refuses UDP
 (`docs/target-environment.md:23`). Measured on `3ee70dc`: `--iroh` is an
 unknown flag (exit 64), and `Cargo.lock` has no iroh crate.
 
@@ -141,7 +141,7 @@ that uses iroh's own proxy selection fails with `ALL_PROXY` set.
 # T-163: iroh tickets and node keys
 
 **Source:** ROADMAP M6 (dialled by ticket); `docs/design.md:744` and
-`docs/design.md:850-851`; GitHub #18 (Nemo-010, 2026-10-08: zuko's ticket
+`docs/design.md:855-856`; GitHub #18 (Nemo-010, 2026-10-08: zuko's ticket
 handoff; iroh-ssh's persistent and ephemeral keys).
 **Category:** feature
 **Milestone:** M6
@@ -158,7 +158,7 @@ no form for a ticket, no place for the keys, and no rule for who may connect.
 
 Read: with the `Minimal` preset nothing is discovered, so a ticket gives the
 key and the relay URL (`docs/design.md:744`). The key is the identity, and
-access is by an allowlist of keys or a relay token (`docs/design.md:850-851`).
+access is by an allowlist of keys or a relay token (`docs/design.md:855-856`).
 Read in the reports, not verified here: iroh-ssh warns when a server's key is
 ephemeral (`rustonbsd/iroh-ssh:src/ssh.rs`); zuko hands over a ticket out of
 band (`adonm/zuko:docs/protocol.md`). Read: `podssh ts` keeps its node key in
@@ -186,7 +186,7 @@ the file that `--ts-state` names (`crates/podssh-cli/src/flags.rs:320-321`,
    `podssh ssh iroh:TICKET` dials it (the address of `docs/design.md:678`).
 6. Add the key files to FILES in the manual
    (`crates/podssh-cli/src/man/data.rs:128-255`), and each new variable to
-   `VARIABLES` (`crates/podssh-cli/src/man/facts.rs:45-213`).
+   `VARIABLES` (`crates/podssh-cli/src/man/facts.rs:45-214`).
 
 ## Decision
 
@@ -348,7 +348,7 @@ limit of iroh to each connection.
 Read: for a podssh node, the iroh road is first and the reverse road with the
 resumable layer is second, raced (`docs/design.md:48-53`). The first real
 sandbox can block what iroh needs, so the fallback is necessary
-(`docs/design.md:887-893`). The user must select iroh (`docs/decisions.md`,
+(`docs/design.md:892-898`). The user must select iroh (`docs/decisions.md`,
 2026-10-08). Each road has one attempt for each host, with a time limit
 (`docs/design.md:56-63`). The relay opener tries one host at a time
 (`crates/podssh-relay/src/open.rs:188-247`), and no code races two roads.
@@ -488,9 +488,9 @@ forward road has one default relay name in library code
 (`crates/podssh-relay/src/relay.rs:12-13`) and a seed pool
 (`crates/podssh-relay/src/pool.rs:20-29`); the same shape fits the iroh
 relays. n0's free relays are for development, with a rate limit that is not
-published (`docs/design.md:867-869`). At least three projects run the iroh
+published (`docs/design.md:872-874`). At least three projects run the iroh
 relay protocol on Workers and Durable Objects (read, not verified:
-`docs/design.md:873-875`). The URLs of n0's relays for iroh 1.x must be read
+`docs/design.md:878-880`). The URLs of n0's relays for iroh 1.x must be read
 in iroh's source at the pinned version.
 
 ## Approach
@@ -510,9 +510,9 @@ in iroh's source at the pinned version.
    not in the list.
 6. `doctor`, with the feature, reports the `/ping` of each relay and the home
    relay.
-7. Add the variable to `VARIABLES` (`crates/podssh-cli/src/man/facts.rs:45-213`),
+7. Add the variable to `VARIABLES` (`crates/podssh-cli/src/man/facts.rs:45-214`),
    the flag to the flag table, and the default to the relay section of the
-   manual (`crates/podssh-cli/src/man/facts.rs:250-412`). The tests compare
+   manual (`crates/podssh-cli/src/man/facts.rs:251-413`). The tests compare
    `VARIABLES` with the source in both directions
    (`crates/podssh-cli/src/man/facts.rs:43-44`), so a variable that only the
    feature reads is in the manual only with the feature.
@@ -623,7 +623,7 @@ other build.
 # T-166: A roost: a podssh next to a standard sshd
 
 **Source:** `docs/design.md:52` (a standard sshd behind a podssh `roost`) and
-`docs/design.md:410-413`; the `roost` of pigeons (`docs/design.md:877-880`);
+`docs/design.md:410-413`; the `roost` of pigeons (`docs/design.md:882-885`);
 GitHub #18 (Nemo-010, 2026-10-08: iroh-ssh reaches sshd by node id, and
 refuses early when no sshd answers).
 **Category:** feature
@@ -1857,7 +1857,7 @@ The `grep` shows the recorded result.
 # T-173: Resumption in the relay for a standard sshd
 
 **Source:** ROADMAP M8 (not now; look at it again after M6);
-`docs/design.md:414-431` (layer 3) and `docs/design.md:902-905` (question 1 of
+`docs/design.md:414-431` (layer 3) and `docs/design.md:907-910` (question 1 of
 section 8).
 **Category:** feature
 **Milestone:** M8
@@ -1880,7 +1880,7 @@ a resume token in the `101` response, and offset framing as a protocol
 version that the client selects. It is a project of the relay's operator, and
 it costs Durable Object time for the whole session (`docs/design.md:427-431`).
 The recommendation is "not now; look at it again after M6"
-(`docs/design.md:902-905`). The relay is in another repository.
+(`docs/design.md:907-910`). The relay is in another repository.
 
 ## Approach
 
@@ -1928,7 +1928,7 @@ since then; the iroh road refuses one by name.
 **Milestone:** backlog
 **Priority:** P3
 **Effort:** M
-**Status:** open
+**Status:** done
 
 ## Problem
 
@@ -1939,8 +1939,9 @@ proxy only, so podssh refuses the setting for the iroh road before anything bind
 ## Premise
 
 - Read: podssh refuses a SOCKS5 proxy for the iroh road by name
-  (`crates/podssh-iroh/src/endpoint.rs:134-140`); the test `a_socks5_proxy_is_refused_by_name`
-  asserts it (`crates/podssh-iroh/tests/relays.rs:144`).
+  (`crates/podssh-iroh/src/endpoint.rs`, lines 134-140 at `3224a88`); the test
+  `a_socks5_proxy_is_refused_by_name` asserts it (`crates/podssh-iroh/tests/relays.rs`, line 144
+  at `3224a88`).
 - Read: iroh-relay 1.3.0's client opens its relay connection through a proxy in
   `dial_url_proxy`: TCP to the proxy, TLS to it for each scheme but `http`, then an HTTP `CONNECT`
   (`n0-computer/iroh:iroh-relay/src/client/tls.rs`). A `socks5h://` URL would be taken as a proxy
@@ -1954,8 +1955,38 @@ proxy only, so podssh refuses the setting for the iroh road before anything bind
 2. Else carry a patch of `iroh-relay` that adds SOCKS5 to `dial_url_proxy`, as
    `vendor/tailscale-rs` is carried with its patches in `vendor/patches/`, or ask upstream
    (n0-computer/iroh) for it. Write the choice in `## Decision`.
-3. Remove the refusal; the manual's VARIABLES (`crates/podssh-cli/src/man/facts.rs:46-54`) and
+3. Remove the refusal; the manual's VARIABLES (`crates/podssh-cli/src/man/facts.rs:46-55`) and
    `docs/architecture.md` say that the iroh road takes SOCKS5 too.
+
+## Decision
+
+2026-10-12: step 2, a patch of iroh-relay that podssh carries, as no hook exists (see
+Correction). The crate as crates.io publishes it is in `vendor/iroh-relay`, byte for byte, with
+`vendor/patches/iroh-relay/0001-socks5-proxy.patch` applied, and the root's `[patch.crates-io]`
+makes iroh 1.3.0 build it; the tree is excluded from the workspace, as `vendor/tailscale-rs` is.
+What lost:
+- Asking upstream alone: the entry would wait on another project, and a host whose only way out
+  is SOCKS5 would have no iroh road meanwhile. The patch can still be offered to n0-computer/iroh.
+- A bridge on the loopback from iroh's `CONNECT` to the SOCKS5 proxy: `AGENTS.md` (section 5,
+  rule 2) forbids loopback helpers.
+- iroh's unstable custom transports: they carry QUIC datagrams on a transport of the caller's,
+  not the relay's TCP stream; a relay client of podssh's own over one would be a second relay
+  protocol, outside iroh's semantic versioning.
+- A patch of iroh too, for its HTTPS probe of the relays: reqwest's feature `socks` gives the probe
+  SOCKS5 with no code, from the same patched manifest.
+- The dial of `podssh_ws::socks5` inside iroh-relay: a published crate with a path to podssh's
+  crates would tie both. The patch's module sends the bytes that `crates/podssh-ws/src/socks5.rs`
+  sends: the name with the address type 3 for `socks5://` too (T-070's decision), RFC 1929, the
+  reply read to its end, and on reply 8 one more connection with an address from the dial's
+  resolver, which is podssh's own (`crates/podssh-iroh/src/resolve.rs`).
+
+2026-10-12: podssh gives iroh `socks5h://` at the proxy's address, which podssh resolved, as it
+gives an HTTP proxy at its address, so iroh resolves no name. The check of a proxy's credentials
+against iroh's base64url (`sendable`) is for an HTTP proxy only: the SOCKS5 dial and reqwest each
+decode the URL's user and password and send them as RFC 1929 says. podssh-iroh keeps its range
+of iroh: an update that asks for another iroh-relay leaves the patch unused, cargo says so, and
+the SOCKS5 test fails; a pin of iroh lost, as the advisories of its earlier releases come by
+updates.
 
 ## Prove
 
@@ -1968,3 +1999,62 @@ A stand-in SOCKS5 proxy on the loopback, as in `crates/podssh-ws/tests/socks5.rs
 way to iroh's relay server on the loopback, which it reaches by name: the endpoint goes online
 through it, and the stand-in saw the relay's name with the address type 3. Planted defect: the
 refusal restored, and the test fails.
+
+## Correction
+
+2026-10-12, read in iroh 1.3.0 and iroh-relay 1.3.0 (cargo's copies of the published crates):
+step 1 has no hook to use. The endpoint's builder takes a proxy URL only; iroh's relay actor
+gives it to iroh-relay's `ClientBuilder` (`n0-computer/iroh:iroh/src/socket/transports/relay/actor.rs`),
+which has no dialer of the caller's; and the custom transports (`unstable-custom-transports`)
+carry datagrams, not the relay's stream. And the Premise misses a second connection through the
+proxy: iroh's HTTPS probe of the relays, which picks the home relay when there is no UDP path,
+goes through reqwest with `reqwest::Proxy::all` of the same URL
+(`n0-computer/iroh:iroh/src/net_report/reportgen.rs`). reqwest 0.13.5 takes a `socks5h://` proxy
+only with its feature `socks`, which no crate of podssh's graph turned on; without it the probe
+fails, and the endpoint gets no home relay. The patch turns the feature on: in reqwest 0.13 it is
+hyper-util's SOCKS client, which reqwest already builds, so no crate is added.
+
+## Done
+
+2026-10-13. The iroh road goes through a SOCKS5 proxy, by the relay's name.
+- `vendor/iroh-relay`: iroh-relay 1.3.0 as published (43 files, all but cargo's `.cargo-ok`), and
+  its patch `vendor/patches/iroh-relay/0001-socks5-proxy.patch`: `src/client/socks5.rs` (new; the
+  exchange of RFC 1928 and RFC 1929, within 10 s), `src/client/tls.rs` (`dial_url_proxy` gives a
+  SOCKS5 proxy the exchange in place of `CONNECT` and TLS; `dial_socks5` tries once more with an
+  address on reply 8; a proxy URL with no port means 1080; the debug line of the dial names the
+  proxy's host and port, not its URL, which may hold a password), `src/client.rs` (the module) and
+  `Cargo.toml` (reqwest's `socks`). The root `Cargo.toml`: `exclude` and `[patch.crates-io]`.
+  `vendor/README.md`: the section iroh-relay, how to run the patch's unit tests and how to carry
+  it to another version. Measured with no build: the patch applies with `git apply` to a copy of
+  the published crate (exit 0), and the result equals `vendor/iroh-relay` (`diff -r`, exit 0).
+- `crates/podssh-iroh/src/endpoint.rs`: the refusal is gone; a SOCKS5 proxy is `socks5h://` at its
+  resolved address; `sendable` for an HTTP proxy only. `crates/podssh-iroh/src/relays.rs`: the way
+  of `/ping`, which `podssh doctor` prints, says `SOCKS5 CONNECT` through a SOCKS5 proxy.
+- Tests: `crates/podssh-iroh/tests/proxy_env.rs`, `a_socks5_proxy_in_all_proxy_reaches_the_relay_by_name`
+  (`ALL_PROXY=socks5h://USER:PASSWORD@...` alone; the stand-in of
+  `crates/podssh-iroh/tests/common/socks5.rs` is the only way to the relay, takes only its user
+  and password, and opens a tunnel only to the relay's name with the address type 3; the endpoint
+  goes online, and each CONNECT that it got was by name); the two tests of that binary take turns
+  on the environment. `crates/podssh-iroh/tests/relays.rs`,
+  `a_socks5_proxy_is_taken_with_a_password_that_connect_would_send_wrong`, in place of
+  `a_socks5_proxy_is_refused_by_name`. The patch's unit tests in `src/client/socks5.rs` (4: the
+  name's bytes and a reply read to its end, RFC 1929's bytes, reply 8 told apart and a refusal
+  named, credentials out of RFC 1929's lengths), with the crate's own manifest.
+- The manual's VARIABLES, `docs/architecture.md`, `docs/design.md` (section 7) and
+  `docs/STATUS.md` say it.
+- Windows 11, 2026-10-13: `cargo test -p podssh-iroh --features test-relay --test proxy_env
+  --test relays`, 2 and 7 passed; `cargo test --manifest-path vendor/iroh-relay/Cargo.toml
+  --target-dir .work/iroh-relay-target --lib client::socks5`, 4 passed; `cargo test -p
+  podssh-iroh -p podssh-cli --features podssh-cli/iroh-test`, 791 passed and 1 failed at random,
+  a test of `--persist` that a race of podssh's forward table made fail, repaired in its own
+  commit; clippy with `iroh-test` and rustfmt clean. `patch -p1` on the crate of the registry
+  gave `vendor/iroh-relay` file for file. The first build rewrote the entry of iroh-relay in
+  `Cargo.lock` to the path. Planted, the refusal of SOCKS5 put back in `proxy_url`: both
+  `a_socks5_proxy_in_all_proxy_reaches_the_relay_by_name` and
+  `a_socks5_proxy_is_taken_with_a_password_that_connect_would_send_wrong` failed; restored, they
+  passed.
+- In the build image (`sh scripts/dev.sh run -- 'sh /work/scripts/gate.sh lint iroh msrv_iroh'`,
+  2026-10-13): green; clippy 1.99 with the feature `iroh` clean, the iroh road's tests passed on
+  Linux, and podssh-iroh with the patched iroh-relay checks on Rust 1.91.
+- Waiting for T-251: a real SOCKS5 server on the iroh road, as OpenSSH's `ssh -D` carries the
+  relay road in `scripts/interop-socks.sh`.

@@ -1,9 +1,12 @@
 //! The stand-ins of the tests of the iroh road: a relay server on the
 //! loopback, under a name that only the stand-in proxy resolves, so that a
-//! connection that does not go through the proxy finds no relay at all.
+//! connection that does not go through the proxy finds no relay at all. The
+//! proxy speaks HTTP CONNECT here, and SOCKS5 in [`socks5`].
 
 // Each test binary uses a part of it.
 #![allow(dead_code)]
+
+pub mod socks5;
 
 use std::net::SocketAddr;
 use std::sync::atomic::{AtomicUsize, Ordering};

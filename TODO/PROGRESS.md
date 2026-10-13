@@ -43,12 +43,12 @@ entry keeps its proof in the entry; this page keeps no history (git does).
   worktrees (`.claude/worktrees/`, excluded from git) on local branches
   `worktree-agent-*`, never pushed; they do not build. The main session
   merges a draft, builds it, runs its tests and plants, fills each
-  UNVERIFIED and closes the entry (T-179 to T-184, T-200, T-202, T-221, T-225, T-232, T-235, T-242, T-279, T-291 and T-293 so). Waiting to
+  UNVERIFIED and closes the entry (T-179 to T-184, T-200, T-202, T-221, T-225, T-232, T-235, T-242, T-279, T-280, T-291 and T-293 so). Waiting to
   be merged, in the order of the index:
 
   | Entry | Branch (`worktree-agent-` and) | Commit | State |
   | --- | --- | --- | --- |
-  | T-280, T-281 | `a9e4d07db05c47c4f` | `91097a6`, `510cd29` | drafted; T-280 carries a patch of iroh-relay 1.3.0 in `vendor/` with `[patch.crates-io]`, as iroh lets no caller dial; T-281 is the fork's patch 0022; the lock must be made again |
+  | T-281 | `a9e4d07db05c47c4f` | `510cd29` | drafted; the fork's patch 0022 (SOCKS5 in its one dialer) |
   | T-289 | `a266ef3fe863b08d2` | `3224a88..9772dea` | drafted (the WIP `0c8ed9d` finished); `scripts/interop-baseline.txt` conflicts: keep both floors |
   | T-229 | `a266ef3fe863b08d2` | `9772dea..954d5ab` | drafted, on T-289; CTAP2 over hidraw on Linux, WebAuthn on Windows, a key in software for the tests; `sk_signature` uses ssh-key's published vectors (its Correction); the run with a real key waits for the operator; library code prints with `eprintln!` in `sshsig.rs` and `sk/agent.rs`, to review |
   | T-296, T-298 | `aa043fb59ecd7bdb2` | `57485b7`, `bc8a9ce` | drafted |
@@ -65,7 +65,7 @@ entry keeps its proof in the entry; this page keeps no history (git does).
   harness that `scripts/interop-each.sh` sources, as `scripts/interop.sh`
   is at 500 lines. `crates/podssh-cli/tests/ssh_harness/mod.rs`, `crates/podssh-cli/src/tree.rs`
   and `crates/podssh-cli/src/flags.rs` are near 500 lines, so a merge splits
-  them where needed. The next merge is T-280, then the others in the order
+  them where needed. The next merge is T-281, then the others in the order
   of the index.
 
   Each entry of the work order is drafted. CI: the gate passed at
@@ -100,7 +100,7 @@ and `CARGO_BUILD_JOBS=4`:
 
 ## Counts
 
-`TODO/INDEX.md` holds 304 entries: 44 open, 0 partial, 25 blocked, 235 done.
+`TODO/INDEX.md` holds 304 entries: 43 open, 0 partial, 25 blocked, 236 done.
 
 Open includes parked work. `cargo todo check` verifies this line.
 

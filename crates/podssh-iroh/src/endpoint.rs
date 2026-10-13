@@ -6,7 +6,9 @@
 //! - the relays given; the table of [`crate::relays`] by default, whose
 //!   first relay that answers `/ping` the caller gives alone (T-165);
 //! - podssh's proxy for the relay's dial: iroh's own selection reads
-//!   `HTTP_PROXY` first and knows no `ALL_PROXY` or `NO_PROXY`;
+//!   `HTTP_PROXY` first and knows no `ALL_PROXY` or `NO_PROXY`. An HTTP
+//!   CONNECT proxy, or a SOCKS5 one, through the patch of iroh-relay that
+//!   podssh carries (T-280, `vendor/patches/iroh-relay/`);
 //! - podssh's name resolution ([`crate::resolve`]) and podssh's trust store
 //!   for the relay's certificate;
 //! - no UDP unless this host lets a UDP socket bind, as a probe found
@@ -120,6 +122,10 @@ fn relay_mode(relays: &[RelayUrl]) -> RelayMode {
 /// takes; `None` for a direct dial. iroh takes one proxy for each relay, so
 /// `NO_PROXY` is read for the first. The proxy's address is resolved here,
 /// by podssh's chain, so iroh resolves no name at all.
+///
+/// A SOCKS5 proxy is `socks5h://` at that address (T-280): the relay dial of
+/// the patched iroh-relay and the HTTPS probe of the relays (reqwest's
+/// SOCKS5) each send the relay's name, so this host needs no DNS for it.
 async fn proxy_url(choice: &ProxyChoice, mode: &RelayMode) -> Result<Option<url::Url>, BindError> {
     let urls: Vec<RelayUrl> = mode.relay_map().urls();
     let host = urls.first().and_then(|relay| relay.host_str().map(str::to_string)).unwrap_or_default();
@@ -131,24 +137,22 @@ async fn proxy_url(choice: &ProxyChoice, mode: &RelayMode) -> Result<Option<url:
             None => return Ok(None),
         },
     };
-    // iroh dials its relay through an HTTP CONNECT proxy only (T-070).
-    if proxy.kind != podssh_ws::ProxyKind::Http {
-        return Err(BindError::Proxy(format!(
-            "{proxy} is a SOCKS5 proxy, and the iroh road reaches its relay through an HTTP CONNECT proxy only \
-             (http://)"
-        )));
-    }
     let deadline = tokio::time::Instant::now() + std::time::Duration::from_secs(15);
     let addrs = podssh_ws::resolve::resolve(&proxy.host, proxy.port, deadline)
         .await
         .map_err(|why| BindError::Proxy(format!("could not resolve the proxy {}: {why}", proxy.host)))?;
     let addr = addrs.first().ok_or_else(|| BindError::Proxy(format!("the proxy {} has no address", proxy.host)))?;
     let url = url::Url::parse(&proxy.url_at(*addr)).map_err(|e| BindError::Proxy(e.to_string()))?;
-    sendable(&url)?;
+    // The patched SOCKS5 dial and reqwest decode the user and the password
+    // themselves, and send them as RFC 1929 says: only `CONNECT` has iroh's
+    // flaw.
+    if proxy.kind == podssh_ws::ProxyKind::Http {
+        sendable(&url)?;
+    }
     Ok(Some(url))
 }
 
-/// Whether iroh can give the proxy the user name and password of `url`.
+/// Whether iroh can give an HTTP proxy the user name and password of `url`.
 /// iroh puts the URL's text in `Proxy-Authorization` as it is, escapes and
 /// all, and in base64url, where RFC 7617 asks for base64: the proxy would
 /// refuse a name or password that needed an escape, or whose base64 holds

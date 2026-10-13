@@ -37,8 +37,9 @@ default-members = [
 # (T-198), built with nightly Rust and libFuzzer, never by the gate.
 # `vendor/russh` is the release of russh with podssh's patch (T-279), which
 # the `[patch]` below puts in its place; excluded, it is no member, so its
-# tests and examples are not podssh's.
-exclude = ["vendor/tailscale-rs", "vendor/russh", "fuzz"]
+# tests and examples are not podssh's. `vendor/iroh-relay` is the same for
+# iroh's relay client (T-280).
+exclude = ["vendor/tailscale-rs", "vendor/russh", "vendor/iroh-relay", "fuzz"]
 
 # Versions below were resolved on 2026-10-01, not recalled. Before loosening a
 # range, re-run the no-C build of the library crates (see scripts/gate.sh).
@@ -201,5 +202,15 @@ strip = true
 # agent in `session-bind@openssh.com` (T-279). The version stays 0.64.1, so
 # the requirements of the crates do not change; drop this when a release of
 # russh gives a client both.
+# iroh's relay client with podssh's patch (T-280,
+# `vendor/patches/iroh-relay/`): its relay dial speaks SOCKS5 too, where
+# iroh-relay 1.3.0 speaks HTTP CONNECT only, and iroh's HTTPS probe of the
+# relays gets reqwest's SOCKS5. `vendor/iroh-relay` is the crate as
+# crates.io publishes it, and `exclude` above keeps it out of the workspace,
+# with its tests and their dependencies. Only the feature `iroh` of
+# podssh-cli builds it. An iroh that asks for another iroh-relay leaves this
+# patch unused, and cargo says so: carry the patch to that version first
+# (`vendor/README.md`).
 [patch.crates-io]
 russh = { path = "vendor/russh" }
+iroh-relay = { path = "vendor/iroh-relay" }

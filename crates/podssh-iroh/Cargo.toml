@@ -16,7 +16,9 @@ publish.workspace = true
 # 1.1 or later: three advisories of 2026-10-05 affect each release up to
 # 1.0.3. No default features: no ring (aws-lc-rs, as russh), no port mapping
 # (UPnP and NAT-PMP need UDP and a router), no metrics, no macOS fast path.
-iroh = { version = ">=1.1, <2", default-features = false, features = ["tls-aws-lc-rs"] }
+# Its iroh-relay is the copy in vendor/ with podssh's patch, which dials the
+# relay through a SOCKS5 proxy too (T-280; the root's [patch.crates-io]).
+iroh ={ version = ">=1.1, <2", default-features = false, features = ["tls-aws-lc-rs"] }
 podssh-relay = { path = "../podssh-relay" }
 podssh-ws = { path = "../podssh-ws" }
 tokio = { workspace = true }

@@ -770,6 +770,11 @@ MEASURED in the crate's tests):
   would refuse them with none.
 - The relay's name goes to the proxy in `CONNECT`; the proxy's own name is
   resolved by the resolver that podssh gives iroh.
+- iroh-relay's relay dial speaks HTTP `CONNECT` only, and has no hook for a
+  dial of the caller's. podssh carries a patch of iroh-relay 1.3.0
+  (`vendor/iroh-relay`, T-280): a SOCKS5 proxy gets the relay's name with
+  the address type 3, the user and password of RFC 1929, and one more try
+  with an address on reply 8; reqwest's SOCKS5 carries the HTTPS probe.
 
 MEASURED offline: 20 MiB each way through a stand-in CONNECT proxy and a
 relay on the loopback, under a name that only the proxy resolves, with equal

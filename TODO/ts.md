@@ -381,7 +381,7 @@ the pin (`vendor/tailscale-rs/ts_runtime/src/multiderp/uniderp.rs:333-340`), and
 WebSocket mode with no pin (`vendor/tailscale-rs/ts_derp/src/client.rs:141-147`).
 
 Read, at `0b6f4b8`: `podssh ts` takes the proxy from `--ts-proxy` only (`crates/podssh-cli/src/ts.rs`
-lines 176-207), against the manual (`crates/podssh-cli/src/man/facts.rs:45-54`), the rule at
+lines 176-207), against the manual (`crates/podssh-cli/src/man/facts.rs:45-55`), the rule at
 `docs/target-environment.md:68-71` and `SECURITY.md:63-67`. A URL with no port means 80 in podssh
 (`crates/podssh-ws/src/proxy.rs:114`) but 8080 in the fork (`vendor/tailscale-rs/ts_http_util/src/proxy.rs`, lines
 39-41 at `0b6f4b8`).
@@ -946,7 +946,7 @@ its control runner, for each registration (`vendor/tailscale-rs/ts_runtime/src/l
 `vendor/tailscale-rs/ts_runtime/src/control_runner.rs`, line 54 at `160773e`, `vendor/tailscale-rs/ts_runtime/src/control_runner.rs`, line 108 at `160773e`).
 
 Read: the relay token is a `Zeroizing<String>` (`crates/podssh-relay/src/token.rs:29`), and
-`zeroize` is a workspace dependency (`Cargo.toml:180`), but podssh-ts does not use it
+`zeroize` is a workspace dependency (`Cargo.toml:181`), but podssh-ts does not use it
 (`crates/podssh-ts/Cargo.toml`, lines 10-14 at `160773e`). The fork already depends on it
 (`vendor/tailscale-rs/Cargo.toml:106`). The comment at `crates/podssh-ts/src/secret.rs`, lines 3-5 at `160773e` names a
 model file that no longer exists.
@@ -1057,7 +1057,7 @@ is a SOCKS5 proxy, it refuses the setting, where `podssh ssh` and `podssh proxy`
    with the address type 3, RFC 1929, the reply read to its end). Or the fork takes a dialer from
    podssh, which calls `podssh_ws::dial::dial`. Write the choice in `## Decision`.
 2. Remove the refusal in `choose_proxy`; the manual's VARIABLES
-   (`crates/podssh-cli/src/man/facts.rs:46-54`) and `docs/tailscale.md` say that `podssh ts`
+   (`crates/podssh-cli/src/man/facts.rs:46-55`) and `docs/tailscale.md` say that `podssh ts`
    takes SOCKS5 too.
 
 ## Prove

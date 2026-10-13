@@ -50,7 +50,8 @@ pub const VARIABLES: &[(&[&str], &str)] = &[
       (port 1080), with the user and password of RFC 1929. The first one that is set is used, in this \
       order. podssh sends host names to the proxy, for SOCKS5 too, so it needs no DNS; a SOCKS5 proxy \
       that takes no names gets one more try with an address. It never shows the proxy's credentials. \
-      SOCKS4 is refused. The iroh road and podssh ts take an HTTP CONNECT proxy only.",
+      SOCKS4 is refused. The iroh road takes either kind, and sends its relay's name to both; podssh \
+      ts takes an HTTP CONNECT proxy only.",
     ),
     (
         &["http_proxy", "HTTP_PROXY"],

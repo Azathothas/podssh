@@ -137,17 +137,24 @@ async fn with_no_relay_that_answers_iroh_gets_them_all() {
     assert!(missed[1].contains("localhost"), "{missed:?}");
 }
 
-/// A SOCKS5 proxy, which the other roads take since T-070, is refused by
-/// name before anything binds: iroh dials its relay through an HTTP CONNECT
-/// proxy only. The proxy's password is never quoted.
-#[tokio::test]
-async fn a_socks5_proxy_is_refused_by_name() {
-    let proxy = podssh_ws::Proxy::parse("socks5h://u:s3cret@proxy.example:1080").expect("a proxy URL");
-    let relays = vec![A.parse().expect("a relay URL")];
-    let options = Options { relays, proxy: ProxyChoice::Via(proxy), udp: Udp::Off, ..Options::default() };
+/// A SOCKS5 proxy, which the other roads take since T-070, is taken for the
+/// iroh relay too (T-280), with a password that iroh's `CONNECT` would send
+/// wrong: the patched SOCKS5 dial sends it as RFC 1929 says. The same
+/// password through an HTTP proxy is refused, with no word of it. Nothing
+/// is dialled: the endpoint is made, and closed.
+#[tokio::test(flavor = "multi_thread", worker_threads = 2)]
+async fn a_socks5_proxy_is_taken_with_a_password_that_connect_would_send_wrong() {
+    let relays: Vec<RelayUrl> = vec![A.parse().expect("a relay URL")];
+    // `a:~~~` is `YTp+fn4=` in base64: iroh's `CONNECT` sends `YTp-fn4=`.
+    let socks5 = podssh_ws::Proxy::parse("socks5h://a:~~~@127.0.0.1:1").expect("a proxy URL");
+    let options =
+        Options { relays: relays.clone(), proxy: ProxyChoice::Via(socks5), udp: Udp::Off, ..Options::default() };
+    let endpoint = podssh_iroh::bind(&options).await.expect("an endpoint through a SOCKS5 proxy");
+    endpoint.close().await;
+    let http = podssh_ws::Proxy::parse("http://a:~~~@127.0.0.1:1").expect("a proxy URL");
+    let options = Options { relays, proxy: ProxyChoice::Via(http), udp: Udp::Off, ..Options::default() };
     let Err(podssh_iroh::BindError::Proxy(why)) = podssh_iroh::bind(&options).await else {
-        panic!("a SOCKS5 proxy was taken for the iroh relay")
+        panic!("iroh's CONNECT was given a password that it sends wrong")
     };
-    assert!(why.contains("SOCKS5") && why.contains("HTTP CONNECT"), "{why}");
-    assert!(!why.contains("s3cret"), "the password is quoted: {why}");
+    assert!(!why.contains("~~~"), "the password is quoted: {why}");
 }

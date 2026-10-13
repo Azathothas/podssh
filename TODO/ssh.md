@@ -537,7 +537,7 @@ Read:
   `crates/podssh-ssh/src/hostkey.rs:227-234` (no terminal). `accept-new`
   records the plain key (`crates/podssh-ssh/src/hostkey.rs:198`). GitHub #29
   cites line 91 at `22c3b88`, which builds the question about other key types.
-- `ssh-key` 0.7.0-rc.11 is in the tree (`Cargo.lock:5482`).
+- `ssh-key` 0.7.0-rc.11 is in the tree (`Cargo.lock:5480`).
   `Certificate::validate_at` checks the signature, the SHA-256 fingerprint of
   the CA and the validity window. The caller must check the certificate type,
   the principals and the critical options (the crate's documentation).

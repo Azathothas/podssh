@@ -430,7 +430,7 @@ requires TLS 1.3 (`scripts/fake-relay.py`, lines 426-427 at `0d3d13a`).
    (`crates/podssh-relay/src/health.rs:98-101`, which `doctor` and `relay status` share); the live relay must still give TLS
    1.3.
 6. Change the comment of `suites.rs`, `docs/architecture.md` (line 46 at `0d3d13a`), the Trust item of the manual
-   (`crates/podssh-cli/src/man/facts.rs:361-377`) and `docs/STATUS.md` in the same commit.
+   (`crates/podssh-cli/src/man/facts.rs:362-378`) and `docs/STATUS.md` in the same commit.
 
 ## Decision
 
@@ -724,7 +724,7 @@ once (`crates/podssh-relay/src/open.rs:70`) and gives exit 78 in `podssh proxy`
 6. `doctor` names the SOCKS5 proxy, and its proxy checks
    (`crates/podssh-cli/src/doctor/net.rs:166-190`) work for both forms. The two tests above
    plant `ftp://` and `socks4://` instead; `socks4` and `socks4a` are refused by name.
-7. Change the proxy variables in VARIABLES (`crates/podssh-cli/src/man/facts.rs:46-54`),
+7. Change the proxy variables in VARIABLES (`crates/podssh-cli/src/man/facts.rs:46-55`),
    `docs/architecture.md` and `docs/cli.md` in the same commit.
 
 ## Decision

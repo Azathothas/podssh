@@ -116,3 +116,49 @@ The patch is a unified diff of the published crate (`a/`) against the
 shipped tree (`b/`). A newer release needs the patch moved onto it, and
 the lock files' `russh` entries (`Cargo.lock`, `fuzz/Cargo.lock`) have no
 source and no checksum, as a path package has none.
+
+## iroh-relay
+
+- **Upstream**: the crate `iroh-relay` 1.3.0 as crates.io publishes it
+  (<https://crates.io/crates/iroh-relay>), from n0-computer/iroh at
+  `0072d7d84b233f9e7185eb676f049beaf557ac03` (its `.cargo_vcs_info.json`).
+- **Vendored**: 2026-10-12 (T-280), from cargo's copy of the published
+  crate. The import is that crate byte for byte, but cargo's own marker
+  `.cargo-ok`; the shipped tree is the import plus the patch of
+  `patches/iroh-relay/`, and nothing else.
+- **License**: MIT OR Apache-2.0, with the BSD-3-Clause notice of the code
+  that it took from Tailscale (`LICENSE-BSD3`, retained).
+- **How podssh uses it**: `[patch.crates-io]` in the root `Cargo.toml`, so
+  that iroh 1.3.0, which asks for iroh-relay 1.3.0, builds this copy; the
+  tree is excluded from the workspace, so its tests and their dependencies
+  are not podssh's. Only the feature `iroh` of podssh-cli compiles it.
+
+### The patch
+
+| Patch | Files | Why |
+| --- | --- | --- |
+| `patches/iroh-relay/0001-socks5-proxy.patch` | `Cargo.toml`, `src/client.rs`, `src/client/socks5.rs` (new), `src/client/tls.rs` | podssh T-280: the relay dial (`dial_url_proxy`) spoke HTTP `CONNECT` only, and took a `socks5h://` URL for a proxy that speaks TLS. A `socks5://` or `socks5h://` proxy now gets the exchange of RFC 1928 on its TCP connection, with no TLS of its own: the relay's name with the address type 3 (an address only when the relay's URL holds one), the user and password of RFC 1929 from the URL, percent-decoded, the reply read to exactly its end, and on reply 8 one more connection with an address from the client's resolver; the exchange has 10 s. A proxy URL with no port means 1080. The proxy's URL, which may hold a password, is no longer in the debug log of the dial. reqwest's feature `socks` is on, so that iroh's HTTPS probe of the relays, which picks the home relay, goes through the same proxy; in reqwest 0.13 it is hyper-util's SOCKS client, which reqwest already builds, so no crate is added. Proven by the unit tests of `src/client/socks5.rs` (the bytes of the name and of RFC 1929, a reply read to its end, reply 8 told apart) and, in podssh, by `crates/podssh-iroh/tests/proxy_env.rs`. |
+
+No podssh build runs the crate's own tests. Run its unit tests of the patch
+with its manifest, in a target directory of their own (it fetches the
+crate's dev-dependencies, and uses the crate's own `Cargo.lock`):
+`cargo test --manifest-path vendor/iroh-relay/Cargo.toml --target-dir
+.work/iroh-relay-target --lib client::socks5`.
+
+### How to carry it to another version
+
+```sh
+# 1. The published crate, from cargo's copy (after a build that fetched it).
+rm -rf vendor/iroh-relay
+cp -r ~/.cargo/registry/src/index.crates.io-*/iroh-relay-NEW/. vendor/iroh-relay/
+rm -f vendor/iroh-relay/.cargo-ok
+
+# 2. The patch (each must exit 0), then the version in the root's
+#    [patch.crates-io] follows iroh's.
+git apply --directory=vendor/iroh-relay vendor/patches/iroh-relay/*.patch
+```
+
+An iroh that asks for another iroh-relay leaves the patch unused: cargo says
+so ("patch ... was not used in the crate graph"), and the SOCKS5 test of
+`crates/podssh-iroh/tests/proxy_env.rs` fails, as the published dial takes
+a `socks5h://` proxy for one that speaks TLS.

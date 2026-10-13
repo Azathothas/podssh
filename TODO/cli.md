@@ -600,7 +600,7 @@ variable matters when `cp`, `mv` and `relay` exist. `ssh` and `proxy` have no
 3. A malformed value names its source: `--timeout` (exit 64), or
    `PODSSH_TIMEOUT` (exit 78, see Decision). The variable never bounds `ssh`
    or `proxy`.
-4. Same commit: a row in `VARIABLES` (`crates/podssh-cli/src/man/facts.rs:45-213`),
+4. Same commit: a row in `VARIABLES` (`crates/podssh-cli/src/man/facts.rs:45-214`),
    which `each_variable_in_the_source_is_documented` requires
    (`crates/podssh-cli/src/man/facts/tests.rs:57-70`); "default: env
    PODSSH_TIMEOUT" in the help of each `--timeout` row, as `--relay-host` says

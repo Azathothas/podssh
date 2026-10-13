@@ -96,7 +96,8 @@ pub fn from_environment(flag: Option<&str>) -> Result<(Vec<RelayUrl>, Source), S
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub struct Pong {
     pub elapsed: Duration,
-    /// How the connection went: `directly`, or the proxy's `CONNECT`.
+    /// How the connection went: `directly`, or the proxy's `CONNECT` or
+    /// `SOCKS5 CONNECT`.
     pub way: String,
 }
 
@@ -106,11 +107,13 @@ pub async fn ping(relay: &RelayUrl, trust: &Trust, proxy: &ProxyChoice, limit: D
     let host = relay.host_str().ok_or_else(|| format!("{relay}: no host"))?;
     let port = relay.port_or_known_default().unwrap_or(443);
     let started = Instant::now();
+    // `CONNECT`, or `SOCKS5 CONNECT` through a SOCKS5 proxy (T-280).
+    let through = |p: &dial::Proxy| format!("{} {} through {p}", p.kind.request(), dial::authority(host, port));
     let way = match proxy {
         ProxyChoice::Direct => "directly".to_string(),
-        ProxyChoice::Via(p) => format!("CONNECT {} through {p}", dial::authority(host, port)),
+        ProxyChoice::Via(p) => through(p),
         ProxyChoice::FromEnvironment => match dial::proxy_from_env(host) {
-            Ok(Some(p)) => format!("CONNECT {} through {p}", dial::authority(host, port)),
+            Ok(Some(p)) => through(&p),
             _ => "directly".to_string(),
         },
     };

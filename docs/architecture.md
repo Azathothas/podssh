@@ -47,8 +47,10 @@ the user gives. For each host, `podssh-ws` connects:
    takes no names (reply 8). A SOCKS5 refusal is read as the HTTP case of
    the same meaning, 403 for its rules, 407 for its authentication and 502
    for the rest, so the failover and the exit codes are the same. SOCKS4,
-   which has no authentication, is refused. The iroh road and the tailnet
-   take an HTTP proxy only, as their dials speak `CONNECT` alone.
+   which has no authentication, is refused. The iroh road takes a SOCKS5
+   proxy too, by the relay's name, through the patch of iroh-relay that
+   podssh carries in `vendor/` (T-280); the tailnet takes an HTTP proxy
+   only, as its dial speaks `CONNECT` alone.
 2. Else directly. The address comes from, in order: an IP literal, a pinned
    address (`--relay-addr`), the system resolver, DNS over HTTPS by IP
    literal.
