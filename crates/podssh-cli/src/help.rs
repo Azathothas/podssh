@@ -29,7 +29,8 @@ const WIDTH: usize = 100;
 ///
 /// Deriving it means adding a flag with a long name cannot break `--help`,
 /// which is the same "one list, two renderers" argument the tree rests on: a
-/// constant is a second thing to keep in step with the table.
+/// constant is a second thing to keep in step with the table. A verb's block
+/// measures its rows and `--help` together (`block_rows`).
 pub fn flag_column(rows: &[crate::flags::FlagRow]) -> usize {
     // Measured on the text `flag_line` prints, prefix included: measuring
     // `usage_form` left out the `-c,` / three-space prefix, so verbs whose
@@ -78,6 +79,30 @@ pub fn flag_line(row: &crate::flags::FlagRow, column: usize) -> String {
     } else {
         format!("{left:<column$}{}", help_text(row))
     }
+}
+
+/// The rows of a verb's `OPTIONS:` block: its own, then `--help`, which each
+/// verb takes. One list, so that one column holds them all.
+fn block_rows(flags: &[crate::flags::FlagRow]) -> Vec<crate::flags::FlagRow> {
+    flags.iter().copied().chain(std::iter::once(crate::flags::HELP_FLAG)).collect()
+}
+
+/// The lines of an `OPTIONS:` block, `--help` last.
+///
+/// **`--help` is a row like the others.** It had a line of its own,
+/// `format!("{:<12}{}", "    --help", ...)`: four spaces in, where each other
+/// long option starts eight in, and its text in a column of its own, so the
+/// block read as two tables, and a reader that parsed it by column could miss
+/// `--help`. It stays the last line, with no blank line before it: the parity
+/// gate reads a block up to its first blank line.
+fn options_lines(flags: &[crate::flags::FlagRow]) -> String {
+    let rows = block_rows(flags);
+    let column = flag_column(&rows);
+    let mut s = String::new();
+    for row in &rows {
+        s.push_str(&format!("    {}\n", flag_line(row, column)));
+    }
+    s
 }
 
 /// **The suffix that says what a flag is *not* doing.** A flag that parses
@@ -195,7 +220,7 @@ pub fn verb_help(verb: &'static Verb) -> String {
     if let Some(sentence) = availability_sentence(verb) {
         s.push_str(&wrap(sentence));
         s.push_str("\n\nOPTIONS:\n");
-        s.push_str(&format!("{:<12}{}\n", "    --help", crate::flags::HELP_FLAG.help));
+        s.push_str(&options_lines(&[]));
         return s;
     }
 
@@ -206,13 +231,7 @@ pub fn verb_help(verb: &'static Verb) -> String {
     // The output for `ssh` and `cp` is unchanged; the flagless verbs gain
     // the two-line block they always should have had.
     s.push_str("OPTIONS:\n");
-    if !verb.flags.is_empty() {
-        let column = flag_column(verb.flags);
-        for row in verb.flags {
-            s.push_str(&format!("    {}\n", flag_line(row, column)));
-        }
-    }
-    s.push_str(&format!("{:<12}{}\n", "    --help", crate::flags::HELP_FLAG.help));
+    s.push_str(&options_lines(verb.flags));
     s.push('\n');
     s.push_str(&verb_notes(verb));
     s
@@ -374,12 +393,14 @@ mod tests {
     /// is 28 characters, the column was a hardcoded 26, and `format!("{:<26$}")`
     /// pads without truncating — so the description ran straight into the
     /// metavariable and read *"HOST:PORTforward stdio to a host:port"*. The
-    /// column is derived from the rows now, and this asserts the result.
+    /// column is derived from the rows now, and this asserts the result, for
+    /// `--help` too, in the column that the block gives it.
     #[test]
     fn no_flag_runs_into_its_description() {
         for v in VERBS {
-            let column = flag_column(v.flags);
-            for row in v.flags {
+            let rows = block_rows(v.flags);
+            let column = flag_column(&rows);
+            for row in &rows {
                 let line = flag_line(row, column);
                 // **The defect was the metavariable running into the
                 // description with no gap**: `-W, --stdio-forward HOST:PORT`

@@ -4,7 +4,7 @@
 //! are in `man_extract/`), in both directions, and each failure names the
 //! flag.
 
-use podssh_cli::flags::{Availability, VERBS};
+use podssh_cli::flags::{Availability, FlagRow, VERBS};
 use podssh_cli::{help, man};
 
 mod man_extract;
@@ -146,5 +146,53 @@ fn a_command_that_does_not_work_says_so_in_both() {
         let options: Vec<&str> = block.lines().filter(|l| !l.trim().is_empty()).collect();
         assert_eq!(options.len(), 1, "{}: options other than --help:\n{own}", v.name);
         assert!(options[0].trim_start().starts_with(UNIVERSAL), "{}: {options:?}", v.name);
+    }
+}
+
+/// `--help` starts in the columns of the other options. It had a line of its
+/// own, four spaces in, where each other long option starts eight in, and its
+/// text at character 12, where the others share the column of the verb's
+/// widest row: the block read as two tables. Read in the text of each verb's
+/// `--help`: each long name, `--help` among them, starts eight characters in
+/// (four for the block, four for `-c, ` or its place); each description beside
+/// its flag starts in the column of the text of `--help`; and `--help` is the
+/// last line of the block.
+#[test]
+fn help_starts_in_the_columns_of_the_other_options() {
+    for v in VERBS {
+        let block = options_block(&help::verb_help(v));
+        let lines: Vec<&str> = block.lines().collect();
+        let last = lines.last().copied().unwrap_or_default();
+        assert!(last.trim_start().starts_with("--help "), "{}: --help is not the last line:\n{block}", v.name);
+        // A command that does not work here shows no option but --help.
+        let shown: &[FlagRow] = if podssh_cli::flags::availability(v) == Availability::Works { v.flags } else { &[] };
+        let mut text_columns = Vec::new();
+        for row in shown.iter().chain(std::iter::once(&podssh_cli::flags::HELP_FLAG)) {
+            let start = match row.short {
+                Some(c) => format!("-{c}, --{}", row.long),
+                None => format!("--{}", row.long),
+            };
+            let line = lines
+                .iter()
+                .find(|l| l.trim_start() == start || l.trim_start().starts_with(&format!("{start} ")))
+                .unwrap_or_else(|| panic!("{}: no line starts with {start:?}:\n{block}", v.name));
+            assert_eq!(line.find("--"), Some(8), "{}: {start} does not start eight characters in: {line:?}", v.name);
+            // A row too wide for the column has its text on the next line.
+            if let Some(flag) = line.strip_suffix(help::help_text(row).as_str()) {
+                text_columns.push((row.long, flag.chars().count()));
+            }
+        }
+        let help_column = text_columns
+            .iter()
+            .find(|(long, _)| *long == podssh_cli::flags::HELP_FLAG.long)
+            .map(|(_, column)| *column)
+            .unwrap_or_else(|| panic!("{}: the text of --help is not beside it:\n{block}", v.name));
+        for (long, column) in &text_columns {
+            assert_eq!(
+                *column, help_column,
+                "{}: the text of --{long} starts at {column}, that of --help at {help_column}",
+                v.name
+            );
+        }
     }
 }
