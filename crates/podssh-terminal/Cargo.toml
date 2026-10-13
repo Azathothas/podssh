@@ -14,3 +14,5 @@ unicode-width = { workspace = true }
 # The terminal oracle (T-200): a model terminal reads what the discipline
 # writes, and the tests compare its screens (tests/screen/).
 vt100 = { workspace = true }
+# Property tests of the line discipline (T-202, tests/properties.rs).
+proptest = { workspace = true }

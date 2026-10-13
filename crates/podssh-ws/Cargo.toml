@@ -60,6 +60,9 @@ ed25519-dalek = { workspace = true }
 # sanitizer leaves, and the cells it takes (tests/terminal_oracle.rs).
 vt100 = { workspace = true }
 unicode-width = { workspace = true }
+# Property tests of frames, fragments and the sanitizer (T-202,
+# tests/properties.rs).
+proptest = { workspace = true }
 
 # cargo-fuzz builds with `--cfg fuzzing` (`fuzz/`), under which the SOCKS5
 # exchange, private here, is reachable by the fuzzer.

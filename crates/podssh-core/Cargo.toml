@@ -10,3 +10,7 @@ publish.workspace = true
 [dependencies]
 sha2 = { workspace = true }
 hex = { workspace = true }
+
+[dev-dependencies]
+# Property tests of the IRC line framing (T-202, tests/properties.rs).
+proptest = { workspace = true }

@@ -413,6 +413,29 @@ wrong: the tests built their input with the same assumptions as the code.
    starts podssh sets `PODSSH_SSH_CONFIG=none`, so that the `ssh_config` of
    the machine cannot change it (T-043).
 
+## Property tests
+
+`tests/properties.rs` of podssh-ws, podssh-relay, podssh-ssh, podssh-core
+and podssh-terminal state what must hold for each input of a state
+machine, and proptest checks it on inputs that it makes (T-202): frames
+and fragments of WebSocket, the sanitizer, relay lists and paths,
+`known_hosts` patterns, the escape filter, the IRC line framing and the
+line discipline. Each runs in the gate, on stable Rust, with no C.
+
+```sh
+cargo test -p podssh-ws --test properties
+PROPTEST_CASES=4096 cargo test -p podssh-ssh --test properties   # more inputs, by hand
+```
+
+1. Each property takes 256 inputs, unless `PROPTEST_CASES` says otherwise.
+   The property of a message past 16 MiB takes 4, as each input moves more
+   than 16 MiB.
+2. A property that fails prints the smallest input that fails, and writes
+   it to `tests/properties.proptest-regressions` beside its test. Commit
+   that file with the repair: proptest tries its inputs first at each run.
+3. A property names what holds for each input. A case that a person chose
+   stays a test of its own.
+
 ## Fuzzing
 
 `fuzz/` holds a fuzz target for each parser of the bytes of a peer or of a

@@ -61,15 +61,15 @@ repository and CI).
 
 ## Counts
 
-**303 entries: 52 open, 0 partial, 25 blocked, 226 done.**
+**303 entries: 51 open, 0 partial, 25 blocked, 227 done.**
 
 | Priority | open | partial | blocked | done | total |
 | --- | --- | --- | --- | --- | --- |
 | P0 | 0 | 0 | 0 | 1 | 1 |
 | P1 | 2 | 0 | 0 | 22 | 24 |
 | P2 | 4 | 0 | 18 | 136 | 158 |
-| P3 | 46 | 0 | 7 | 67 | 120 |
-| **All** | 52 | 0 | 25 | 226 | 303 |
+| P3 | 45 | 0 | 7 | 68 | 120 |
+| **All** | 51 | 0 | 25 | 227 | 303 |
 
 ## Entries
 
@@ -273,7 +273,7 @@ repository and CI).
 | [T-199](robustness.md) | P2 | M | backlog | chore | done | A scored interop harness |
 | [T-200](robustness.md) | P3 | M | backlog | chore | done | A terminal oracle |
 | [T-201](robustness.md) | P2 | M | backlog | chore | done | Resource limits, stated and tested |
-| [T-202](robustness.md) | P3 | S | backlog | chore | open | Property tests for the state machines |
+| [T-202](robustness.md) | P3 | S | backlog | chore | done | Property tests for the state machines |
 | [T-203](robustness.md) | P2 | M | M6 | chore | done | The fault-injection harness: latency, jitter, bandwidth, a new address |
 | [T-204](repo.md) | P2 | M | none | chore | done | Adopt the todo model, with a Rust checker in the gate |
 | [T-205](repo.md) | P2 | S | none | chore | done | Dependabot for cargo, GitHub Actions and the build image (GitHub #27) |

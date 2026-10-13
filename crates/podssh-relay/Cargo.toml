@@ -62,3 +62,5 @@ windows-sys = { version = "0.61", features = [
 # `test-util` gives the tests a paused clock: the heartbeat's 200 s of idle
 # time pass at once (T-154).
 tokio = { workspace = true, features = ["macros", "rt", "test-util"] }
+# Property tests of relay lists and paths (T-202, tests/properties.rs).
+proptest = { workspace = true }

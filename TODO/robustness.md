@@ -662,7 +662,7 @@ read in the report, not verified here.
 **Milestone:** backlog
 **Priority:** P3
 **Effort:** S
-**Status:** open
+**Status:** done
 
 ## Problem
 
@@ -715,6 +715,40 @@ the gate must show it.
 4. 256 cases for each property by default, so the time of the gate stays
    bounded.
 
+## Decision
+
+Decided in the work (2026-10-12):
+- proptest 1.11 with no default features and `std`: no fork of each case
+  and no timeouts, which bring `rusty-fork`, `tempfile` and `wait-timeout`;
+  `std` keeps the regression files and the strategies of regular
+  expressions. Its minimum Rust is 1.85, the workspace's. A generator of
+  the repository's own, as the xorshift of the terminal oracle (T-200),
+  lost: the entry asks for the smallest input that fails, which is
+  proptest's shrinking.
+- Each failing input goes to `tests/properties.proptest-regressions`, beside
+  its test (`FileFailurePersistence::WithSource`). proptest's default looks
+  for a `lib.rs` above the test, finds none for a test of `tests/`, and
+  says so on each run.
+- Item 3 is done here: T-096 and T-125 to T-129 are done.
+  `crates/podssh-core/tests/properties.rs` cuts the IRC framing anywhere;
+  `crates/podssh-terminal/tests/properties.rs` cuts the keys anywhere and
+  checks the line, the cursor and the history. What the screen shows is the
+  terminal oracle's (T-200).
+- The property of a message past 16 MiB takes 4 inputs: each moves more
+  than 16 MiB through the session. Its bound is
+  `crates/podssh-ws/tests/limits.rs` too, at 16 MiB and one byte more.
+- A long payload of a frame comes from a seed (a fixed xorshift), and its
+  length leans to where the length field changes (125, 126, 65535, 65536)
+  and to the forward cap: a payload of 262144 bytes made byte by byte by
+  proptest costs a megabyte of state.
+- The IRC framing's losses are not compared between cuts: how much of a
+  lost line a loss names depends on the cut (T-198). Its lines are, and a
+  stream with no line past the limit loses none.
+- With IUTF8, the cursor between characters is a property of whole keys: a
+  lone byte of a character, which a terminal of UTF-8 never sends alone,
+  can make a line of UTF-8 from bytes typed apart, with the cursor between
+  them.
+
 ## Prove
 
 ```sh
@@ -727,6 +761,59 @@ sh scripts/dev.sh check     # proptest builds under CC=/nonexistent and CXX=/non
 Each command exits 0. Planted defect: in `encode`, mask with
 `masking_key[(i + 1) % 4]` (`crates/podssh-ws/src/frame.rs:100`); the round
 trip of frames must fail and print the smallest frame that fails.
+
+## Done
+
+2026-10-13, in the commit that closes this entry.
+- `proptest` 1.11 in `[workspace.dependencies]` (`Cargo.toml`), a
+  dev-dependency of podssh-ws, podssh-relay, podssh-ssh, podssh-core and
+  podssh-terminal.
+- `crates/podssh-ws/tests/properties.rs`:
+  `a_frame_reads_back_whole_and_no_prefix_is_a_frame`,
+  `a_control_frame_that_rfc_6455_forbids_is_refused`,
+  `a_message_cut_into_any_fragments_arrives_whole` (fragments, Pings
+  between them, writes of any size, through `RelaySession` over an
+  in-memory stream),
+  `a_message_past_16_mib_in_any_fragments_ends_the_session_with_1009`,
+  `one_line_leaves_one_line_and_a_second_pass_changes_nothing` and
+  `multi_line_leaves_lines_and_a_second_pass_changes_nothing`.
+- `crates/podssh-relay/tests/properties.rs`:
+  `a_list_keeps_its_order_and_drops_its_duplicates` (each spelling: a
+  scheme, a port, a `/`, capitals, spaces),
+  `any_text_parses_only_to_hosts_that_pass_the_check`,
+  `a_forward_path_is_three_segments_and_nothing_more` and
+  `each_host_name_and_ipv6_address_is_a_target`.
+- `crates/podssh-ssh/tests/properties.rs`:
+  `a_negated_pattern_that_matches_rejects_the_name`,
+  `a_hashed_pattern_matches_its_name_in_any_case`,
+  `the_case_of_the_letters_changes_no_match`,
+  `the_input_cut_anywhere_gives_the_same_bytes_and_commands` and
+  `input_with_no_escape_character_passes_as_it_came`.
+- `crates/podssh-core/tests/properties.rs`:
+  `a_stream_cut_anywhere_gives_the_same_lines`,
+  `a_stream_of_lines_within_the_limit_loses_none` and
+  `any_bytes_cut_anywhere_stay_under_the_limit`.
+- `crates/podssh-terminal/tests/properties.rs`:
+  `keys_cut_anywhere_give_the_same_events`,
+  `after_any_bytes_the_line_and_the_history_hold` and
+  `with_iutf8_the_cursor_stays_between_characters`.
+- `docs/development.md` ("Property tests") and `docs/STATUS.md`.
+- Native, Windows 11, 2026-10-13: the five commands
+  `cargo test -p CRATE --test properties` passed, 6 (podssh-ws), 4
+  (podssh-relay), 5 (podssh-ssh), 3 (podssh-core) and 3
+  (podssh-terminal). No property failed on the code, so no regression file
+  is committed. Planted, the mask of `encode` with
+  `masking_key[(i + 1) % 4]`: 3 of the 6 properties of podssh-ws failed,
+  the round trip of frames first, each with its smallest input
+  (`minimal failing input: f = Frame {`); restored, 6 passed.
+- In the build image (`sh scripts/dev.sh run -- 'sh /work/scripts/gate.sh
+  lint libs msrv'`, 2026-10-13): the tests of the library crates with
+  `CC=/nonexistent` and `CXX=/nonexistent` passed, so proptest brings no
+  C, and the library crates checked on Rust 1.85. Clippy 1.99 refused two
+  lines of `crates/podssh-ssh/tests/properties.rs` that clippy 1.98 here
+  passed (`manual_ignore_case_cmp` and `byte_char_slices`); they use
+  `eq_ignore_ascii_case` and a byte string now, and the step `lint` passed
+  after it. `cargo deny` passed with proptest's crates.
 
 # T-203: The fault-injection harness: latency, jitter, bandwidth, a new address
 

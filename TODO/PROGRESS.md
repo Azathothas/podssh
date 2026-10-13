@@ -43,27 +43,30 @@ entry keeps its proof in the entry; this page keeps no history (git does).
   worktrees (`.claude/worktrees/`, excluded from git) on local branches
   `worktree-agent-*`, never pushed; they do not build. The main session
   merges a draft, builds it, runs its tests and plants, fills each
-  UNVERIFIED and closes the entry (T-179 to T-184 and T-200 so). Waiting to
+  UNVERIFIED and closes the entry (T-179 to T-184, T-200 and T-202 so). Waiting to
   be merged, in the order of the index:
 
   | Entry | Branch (`worktree-agent-` and) | Commit | State |
   | --- | --- | --- | --- |
-  | T-202 | `ad5a44ad95fee7ee7` | `d4c39ec` | drafted; adds `proptest` (the Approach names it); apply `d4c39ec` alone, T-200 is merged |
-  | T-221, T-293 | `aa03c15043f6fe8dc` | `88b2197`, `072cd86` | drafted; T-221 adds `anstyle-parse` (in the lock already) and two captured fixtures; T-293 meets `io.rs`, split since T-183, and asks whether Ctrl-C exits 130 on Windows and whether `--no-signal` is the flag's name |
+  | T-221, T-293 | `aa03c15043f6fe8dc` | `88b2197`, `072cd86` | drafted; T-221 adds `anstyle-parse` (in the lock already) and two captured fixtures, and its Correction says T-200 is open, which it no longer is; T-293 meets `io.rs`, split since T-183, and asks whether Ctrl-C exits 130 on Windows and whether `--no-signal` is the flag's name |
   | T-225 | `a224e69d322ba513a` | `acda386` | drafted; `scripts/interop.sh` is at 499 lines in it; OpenSSH's codes in its table are read in OpenSSH's source, not run |
   | T-232, T-235, T-242 | `a1c2c734bcf87dace` | `b53a24f`, `ffeb741`, `b641ecb` | drafted |
-  | T-279 | `a3f4d829458070a37` | `c7dd479` | drafted |
-  | T-291 | `a3f4d829458070a37` | `fb8c9bb` | partial (WIP): the escape `~C`; the agent stopped at a session limit while it wrote `remote.rs`; to be finished by a draft first |
+  | T-279 | `a3f4d829458070a37` | `c7dd479` | drafted; its `bind(` in `agent_bind.rs`, `agent_forward.rs` and `handler.rs` fails the listener check of `scripts/check-repo.py` |
+  | T-291 | `a3f4d829458070a37` | `c7dd479..8eb10ff` | drafted (the WIP `fb8c9bb` finished); `io/input.rs` meets main's file of T-183 |
   | T-280, T-281 | `a9e4d07db05c47c4f` | `91097a6`, `510cd29` | drafted; T-280 carries a patch of iroh-relay 1.3.0 in `vendor/` with `[patch.crates-io]`, as iroh lets no caller dial; T-281 is the fork's patch 0022; the lock must be made again |
-  | T-289 | `a266ef3fe863b08d2` | `0c8ed9d` | nearly whole (WIP): the agent stopped while it appended the tests of certificates; the record unchecked |
+  | T-289 | `a266ef3fe863b08d2` | `3224a88..9772dea` | drafted (the WIP `0c8ed9d` finished); `scripts/interop-baseline.txt` conflicts: keep both floors |
+  | T-229 | `a266ef3fe863b08d2` | after `9772dea` | being drafted, on T-289 |
   | T-296, T-298 | `aa043fb59ecd7bdb2` | `57485b7`, `bc8a9ce` | drafted |
-  | T-187 | `a56cc4d17c82784aa` | `0473ad2` | begun (WIP): `snippets.rs` only; T-188 not begun |
+  | T-297 | `aa043fb59ecd7bdb2` | `bc8a9ce..429dd0b` | drafted, on T-298; it also copies the files of a tree of `cp -r` at once (its Decision) |
+  | T-187, T-188 | `a56cc4d17c82784aa` | `a38421b..e206acd`, `e206acd..78fc010` | drafted (the WIP `0473ad2` finished); its harness of snippets is sourced by `scripts/interop-each.sh`; a declined snippet and no pick exit 64 |
+  | T-302, T-305, T-306 | a new worktree | | being drafted |
+  | T-192, T-193, T-197 | a new worktree | | being drafted |
+  | T-195, T-189 | a new worktree | | being drafted |
+  | T-190, T-191 | a new worktree | | being drafted |
 
-  Not drafted yet: T-185, T-186, T-188 to T-193, T-195, T-197, T-229,
-  T-297, T-302, T-305 and T-306. CI: the gate's step `release` passed at
-  `cad2885` (478 checks, the desktop's, `usbip` and `each` among them); the
-  step `lint` failed from `a38421b` on clippy 1.99's
-  `needless_borrows_for_generic_args` in `hosts.rs`, repaired in `9dfa2d0`.
+  Not drafted yet: T-185 and T-186. CI: the gate passed at
+  `24b9f6e` (run 38331509229), and its step `release` at `cad2885` (478
+  checks, the desktop's, `usbip` and `each` among them).
 
 ## Baseline
 
@@ -93,7 +96,7 @@ and `CARGO_BUILD_JOBS=4`:
 
 ## Counts
 
-`TODO/INDEX.md` holds 303 entries: 52 open, 0 partial, 25 blocked, 226 done.
+`TODO/INDEX.md` holds 303 entries: 51 open, 0 partial, 25 blocked, 227 done.
 
 Open includes parked work. `cargo todo check` verifies this line.
 
