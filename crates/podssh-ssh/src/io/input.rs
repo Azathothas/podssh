@@ -1,5 +1,9 @@
 //! The local input of a run (`io::Input`): stdin, read on a task of its own
 //! from the first session on, and what comes between two sessions, queued.
+//! A program that holds the session gives its own input in place of stdin
+//! (`Feed`, T-186).
+
+use std::sync::{Arc, Mutex};
 
 use tokio::io::AsyncReadExt;
 use tokio::sync::mpsc;
@@ -13,6 +17,9 @@ use super::QUEUE;
 pub struct Input {
     /// `-n`: nothing is read, and the far side sees the end of input at once.
     null: bool,
+    /// The input that a program gives in place of stdin, taken at the first
+    /// read: a run that tries again before it reads finds it still there.
+    feed: Option<Feed>,
     rx: Option<mpsc::Receiver<Vec<u8>>>,
     /// The input has ended: a later session sees its end after the queue.
     ended: bool,
@@ -25,6 +32,13 @@ impl Input {
     /// The input of a run; none with `null` (`-n`).
     pub fn new(null: bool) -> Self {
         Input { null, ..Input::default() }
+    }
+
+    /// The same input, read from `feed` in place of stdin when there is one
+    /// (`podssh session`, T-186).
+    pub fn fed(mut self, feed: Option<Feed>) -> Self {
+        self.feed = feed;
+        self
     }
 
     /// Whether a session has input to read.
@@ -42,7 +56,9 @@ impl Input {
         if self.ended {
             return None;
         }
-        let read = self.rx.get_or_insert_with(spawn_stdin).recv().await;
+        let feed = &self.feed;
+        let rx = self.rx.get_or_insert_with(|| feed.as_ref().and_then(Feed::take).unwrap_or_else(spawn_stdin));
+        let read = rx.recv().await;
         if read.is_none() {
             self.ended = true;
         }
@@ -70,6 +86,30 @@ impl Input {
     /// The bytes that did not fit the queue since the last call.
     pub fn take_dropped(&mut self) -> usize {
         std::mem::take(&mut self.dropped)
+    }
+}
+
+/// The input that a program gives a run in place of stdin (T-186): each
+/// chunk that its sender sends, and the end of input when the sender goes.
+/// One session reads it, the first that reads; a clone shares it, so that
+/// it rides in `Options`.
+#[derive(Clone)]
+pub struct Feed(Arc<Mutex<Option<mpsc::Receiver<Vec<u8>>>>>);
+
+impl Feed {
+    pub fn new(rx: mpsc::Receiver<Vec<u8>>) -> Self {
+        Feed(Arc::new(Mutex::new(Some(rx))))
+    }
+
+    /// The receiver, for the session that reads first; `None` after it.
+    fn take(&self) -> Option<mpsc::Receiver<Vec<u8>>> {
+        self.0.lock().unwrap_or_else(|e| e.into_inner()).take()
+    }
+}
+
+impl std::fmt::Debug for Feed {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        f.write_str("Feed(..)")
     }
 }
 

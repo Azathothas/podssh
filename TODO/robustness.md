@@ -845,7 +845,7 @@ Read:
 - `scripts/interop-faults.sh:42-50` starts one stand-in for each fault; its
   checks are at lines 73-182 at `8d668b7` (`docs/STATUS.md:422-440`, 14 of 14 since T-236).
 - The time limits that latency meets today: the SSH handshake, 60 s
-  (`crates/podssh-ssh/src/options.rs:380`, enforced at
+  (`crates/podssh-ssh/src/options.rs:383`, enforced at
   `crates/podssh-ssh/src/run.rs:367-373`); a reply, 30 s
   (`crates/podssh-ssh/src/session.rs:22`); a write, 60 s, and liveness, three
   times 10 s (`crates/podssh-ws/src/client.rs:31-35`).

@@ -13,6 +13,7 @@ use super::notes_pair::{NODE, OPERATOR};
 use super::notes_ping::PING;
 use super::notes_play::PLAY;
 use super::notes_relay::RELAY;
+use super::notes_session::SESSION;
 use super::notes_ssh::SSH;
 
 /// The notes of the verb `name`, one paragraph each.
@@ -37,6 +38,7 @@ pub fn for_verb(name: &str) -> &'static [&'static str] {
         "play" => PLAY,
         "config" => CONFIG,
         "mcp" => MCP,
+        "session" => SESSION,
         "keygen" => KEYGEN,
         "man" => MAN,
         "ts" => TS,

@@ -3930,6 +3930,7 @@ dependencies = [
  "podssh-probe",
  "podssh-relay",
  "podssh-ssh",
+ "podssh-terminal",
  "podssh-ts",
  "podssh-ws",
  "rand 0.10.3",
@@ -3938,6 +3939,7 @@ dependencies = [
  "sha1 0.10.7",
  "sha2 0.10.9",
  "tokio",
+ "vt100",
  "windows-sys 0.61.2",
  "zeroize",
 ]

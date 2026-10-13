@@ -260,6 +260,7 @@ pub fn usage_tail(verb: &Verb) -> &'static str {
         "proxy" => "[OPTIONS] [--] HOST PORT",
         "play" => "[OPTIONS] FILE",
         "config" => "import FORMAT FILE",
+        "session" => "SUBCOMMAND [OPTIONS] [NAME] [HOST [COMMAND...] | TEXT]",
         _ => "[OPTIONS]",
     }
 }

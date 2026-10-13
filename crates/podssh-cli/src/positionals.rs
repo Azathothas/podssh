@@ -81,6 +81,29 @@ pub fn add(cmd: Command, name: &str) -> Command {
                     .num_args(0..)
                     .help("the key files of add, add-passphrase and remove; [USER@]HOST[:PORT] for add-password"),
             ),
+        // `session SUBCOMMAND NAME`, then the host and its command (start,
+        // serve) or the text (send); the ids of the last two are ssh's, so
+        // that `SshArgs` reads them for start.
+        "session" => cmd
+            .arg(
+                Arg::new("subcommand")
+                    .value_name("SUBCOMMAND")
+                    .help("start, send, wait, capture, stop or list; serve is what start runs in the background"),
+            )
+            .arg(Arg::new("name").value_name("NAME").help("the session's name: letters, digits, _ and -, 32 at most"))
+            .arg(
+                Arg::new("destination")
+                    .value_name("HOST")
+                    .help("start and serve: the host, as podssh ssh takes it; send: the text to type, with \\r, \\n, \\t, \\e, \\xNN and \\\\; with none, send reads it from stdin"),
+            )
+            .arg(
+                Arg::new("remote-command")
+                    .value_name("COMMAND")
+                    .num_args(1..)
+                    .trailing_var_arg(true)
+                    .allow_hyphen_values(true)
+                    .help("start and serve: the command to run on the host with a pty, in place of the login shell; send: more words of the text, joined with spaces"),
+            ),
         "relay" => cmd
             .arg(
                 Arg::new("subcommand")

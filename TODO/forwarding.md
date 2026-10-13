@@ -1142,7 +1142,7 @@ link: the mode at `crates/podssh-cli/src/ssh/persist.rs:38-45` and
 serves `-L` and `-D`, and tells a loss from an end
 (`crates/podssh-ssh/src/persist.rs:57-62`); a refused `-R` asked again in
 `crates/podssh-ssh/src/remote.rs:46-115`, as `Options::forwards_again` says
-(`crates/podssh-ssh/src/options.rs:302-311`), which the loop sets after the
+(`crates/podssh-ssh/src/options.rs:305-314`), which the loop sets after the
 first loss (`crates/podssh-cli/src/ssh/persist.rs:163-172`); the rule of
 `STEADY` at `crates/podssh-cli/src/ssh/persist.rs:142-148`.
 - `cargo test -p podssh-cli --test persist`: 5 passed. The new test runs

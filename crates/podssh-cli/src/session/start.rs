@@ -1,0 +1,224 @@
+//! `podssh session start` (T-186): `serve` in the background, as a child of
+//! this binary that leaves this process's session (setsid; on Windows a
+//! process with no console), and its stdout and stderr once it is ready
+//! (`--detach`). Before the child starts, `start` makes the refusals of
+//! `serve` itself (64, 78), and refuses a name that runs already (69). Then
+//! it passes on what the child says on stderr until its line of ready, and
+//! exits 0 with the socket's path on stdout; or with the child's own code,
+//! when the child ended first: 77 for a bind that the host refuses, 255 for
+//! a connection or a login that failed. When the child is not ready within
+//! `--timeout`, it is stopped, and `start` exits 75.
+
+use std::io::Write;
+use std::process::Stdio;
+use std::time::Duration;
+
+use tokio::io::{AsyncBufReadExt, BufReader, Lines};
+use tokio::process::ChildStderr;
+
+use super::{place, wire, SessionArgs};
+use crate::exitmap::sysexits::{EX_SOFTWARE, EX_TEMPFAIL, EX_UNAVAILABLE};
+
+/// Run `podssh session start`; the exit code.
+pub fn run(args: &SessionArgs, out: &mut dyn Write, err: &mut dyn Write) -> i32 {
+    if let Err(refusal) = super::daemon::plan(args) {
+        return refusal.report("session", err);
+    }
+    let timeout = match args.timeout.as_deref().map(|t| super::duration("--timeout", t)).transpose() {
+        Ok(timeout) => timeout.unwrap_or(super::DEFAULT_TIMEOUT),
+        Err(why) => return crate::relay_settings::Refusal::usage(why).report("session", err),
+    };
+    let Some(runtime) = super::runtime(err) else { return super::NO_RUNTIME };
+    let code = runtime.block_on(start(args, timeout, out, err));
+    // The child runs on; a read of its pipes may still wait.
+    runtime.shutdown_background();
+    code
+}
+
+async fn start(args: &SessionArgs, timeout: Duration, out: &mut dyn Write, err: &mut dyn Write) -> i32 {
+    let name = args.name();
+    if let Some(path) = place::find(name, args.socket.as_deref()) {
+        if let Ok(fields) = super::client::ask(&path, &wire::request(name, &wire::Op::Info), ASK_WAIT).await {
+            let state = fields.get("state").and_then(|s| s.as_str()).unwrap_or("running");
+            let _ = writeln!(err, "podssh session: {name} is there already ({state}), at {path}: stop it first");
+            return EX_UNAVAILABLE;
+        }
+    }
+    let binary = match std::env::current_exe() {
+        Ok(binary) => binary,
+        Err(e) => {
+            let _ = writeln!(err, "podssh session: the path of this program: {e}");
+            return EX_SOFTWARE;
+        }
+    };
+    let mut cmd = tokio::process::Command::new(binary);
+    // The words after start's own: the subcommand came first (`check`).
+    cmd.args(["session", "serve", "--detach"]).args(args.argv.iter().skip(1));
+    cmd.stdin(Stdio::null()).stdout(Stdio::piped()).stderr(Stdio::piped());
+    detach_child(&mut cmd);
+    keep_own_handles();
+    let mut child = match cmd.spawn() {
+        Ok(child) => child,
+        Err(e) => {
+            let _ = writeln!(err, "podssh session: the session's podssh did not start: {e}");
+            return EX_SOFTWARE;
+        }
+    };
+    let (Some(stdout), Some(stderr)) = (child.stdout.take(), child.stderr.take()) else {
+        let _ = child.start_kill();
+        return EX_SOFTWARE;
+    };
+    let mut lines = BufReader::new(stdout).lines();
+    let mut said = BufReader::new(stderr).lines();
+    let mut said_open = true;
+    let deadline = tokio::time::Instant::now() + timeout;
+    loop {
+        tokio::select! {
+            line = lines.next_line() => match line {
+                Ok(Some(line)) => {
+                    let Some(socket) = wire::ready_socket(&line) else { continue };
+                    // What the child said before it was ready, then where it is.
+                    pass_on(&mut said, err, Duration::from_millis(300)).await;
+                    let _ = writeln!(out, "{socket}");
+                    return 0;
+                }
+                // The child ended before it was ready: what it said, and its code.
+                Ok(None) | Err(_) => {
+                    pass_on(&mut said, err, Duration::from_secs(5)).await;
+                    return match tokio::time::timeout(Duration::from_secs(5), child.wait()).await {
+                        Ok(Ok(status)) => status.code().unwrap_or(podssh_ssh::EXIT_FAILURE),
+                        _ => podssh_ssh::EXIT_FAILURE,
+                    };
+                }
+            },
+            line = said.next_line(), if said_open => match line {
+                Ok(Some(line)) => {
+                    let _ = writeln!(err, "{line}");
+                }
+                _ => said_open = false,
+            },
+            () = tokio::time::sleep_until(deadline) => {
+                let _ = child.start_kill();
+                let _ = writeln!(
+                    err,
+                    "podssh session: the session was not ready within {} s, and is stopped",
+                    timeout.as_secs_f32()
+                );
+                return EX_TEMPFAIL;
+            }
+        }
+    }
+}
+
+/// How long `start` waits for a session that may be there already.
+const ASK_WAIT: Duration = Duration::from_secs(5);
+
+/// Copy the child's lines to `err`, until its stderr ends or `limit`.
+async fn pass_on(said: &mut Lines<BufReader<ChildStderr>>, err: &mut dyn Write, limit: Duration) {
+    let copy = async {
+        while let Ok(Some(line)) = said.next_line().await {
+            let _ = writeln!(err, "{line}");
+        }
+    };
+    let _ = tokio::time::timeout(limit, copy).await;
+}
+
+/// The child leaves this process's session: a new session has no
+/// controlling terminal, so the terminal's hangup and its signals do not
+/// reach the daemon, and no prompt opens `/dev/tty`.
+#[cfg(unix)]
+fn detach_child(cmd: &mut tokio::process::Command) {
+    // SAFETY: setsid is async-signal-safe and touches no memory, as
+    // pre_exec asks.
+    unsafe {
+        cmd.pre_exec(|| {
+            libc::setsid();
+            Ok(())
+        });
+    }
+}
+
+/// A process with no console, in a group of its own: the console's Ctrl-C
+/// and its close do not reach the daemon, and no prompt opens `CONIN$`.
+#[cfg(windows)]
+fn detach_child(cmd: &mut tokio::process::Command) {
+    use windows_sys::Win32::System::Threading::{CREATE_NEW_PROCESS_GROUP, DETACHED_PROCESS};
+    cmd.creation_flags(DETACHED_PROCESS | CREATE_NEW_PROCESS_GROUP);
+}
+
+#[cfg(not(any(unix, windows)))]
+fn detach_child(_: &mut tokio::process::Command) {}
+
+/// This process's own standard handles stay out of the child: a program
+/// that reads them to their end, as an agent reads a command's, would wait
+/// for the daemon too. Windows hands each handle that may be inherited to
+/// a child; on Unix the child's 0, 1 and 2 are its own, and each other
+/// descriptor of podssh closes on exec.
+#[cfg(windows)]
+fn keep_own_handles() {
+    use std::os::windows::io::AsRawHandle;
+    use windows_sys::Win32::Foundation::{SetHandleInformation, HANDLE_FLAG_INHERIT};
+    let (stdin, stdout, stderr) = (std::io::stdin(), std::io::stdout(), std::io::stderr());
+    for handle in [stdin.as_raw_handle(), stdout.as_raw_handle(), stderr.as_raw_handle()] {
+        // SAFETY: a standard handle of this process, or none; the call
+        // changes only whether a child inherits it.
+        unsafe { SetHandleInformation(handle, HANDLE_FLAG_INHERIT, 0) };
+    }
+}
+
+#[cfg(not(windows))]
+fn keep_own_handles() {}
+
+/// After its line of ready, a daemon that `start` runs writes nothing more
+/// on stdout and stderr: `start` has gone, and a program that reads them to
+/// their end would wait for the daemon. Both go to the null device.
+#[cfg(unix)]
+pub(super) fn leave() {
+    use std::os::fd::AsRawFd;
+    let Ok(null) = std::fs::OpenOptions::new().read(true).write(true).open("/dev/null") else { return };
+    for fd in [libc::STDOUT_FILENO, libc::STDERR_FILENO] {
+        // SAFETY: dup2 of an open file onto a standard descriptor of this
+        // process; a failure leaves that descriptor as it was.
+        unsafe { libc::dup2(null.as_raw_fd(), fd) };
+    }
+}
+
+#[cfg(windows)]
+pub(super) fn leave() {
+    use std::os::windows::io::IntoRawHandle;
+    use windows_sys::Win32::System::Console::{SetStdHandle, STD_ERROR_HANDLE, STD_OUTPUT_HANDLE};
+    for which in [STD_OUTPUT_HANDLE, STD_ERROR_HANDLE] {
+        let Ok(null) = std::fs::OpenOptions::new().write(true).open("NUL") else { continue };
+        // SAFETY: the handle of NUL, open for the process's life as its
+        // standard handle; the standard library writes through the handle of
+        // the moment. The pipe's handle stays open, and nothing writes to it.
+        unsafe { SetStdHandle(which, null.into_raw_handle()) };
+    }
+}
+
+#[cfg(not(any(unix, windows)))]
+pub(super) fn leave() {}
+
+/// The daemon reads no stdin: its input comes from `send`. Stdin goes to
+/// the null device first, so that a `serve` started on a terminal does not
+/// take that terminal for its session's: no raw mode, no escape, no ZMODEM.
+#[cfg(unix)]
+pub(super) fn no_stdin() {
+    use std::os::fd::AsRawFd;
+    let Ok(null) = std::fs::File::open("/dev/null") else { return };
+    // SAFETY: dup2 of an open file onto this process's stdin; a failure
+    // leaves stdin as it was.
+    unsafe { libc::dup2(null.as_raw_fd(), libc::STDIN_FILENO) };
+}
+
+#[cfg(windows)]
+pub(super) fn no_stdin() {
+    use std::os::windows::io::IntoRawHandle;
+    use windows_sys::Win32::System::Console::{SetStdHandle, STD_INPUT_HANDLE};
+    let Ok(null) = std::fs::File::open("NUL") else { return };
+    // SAFETY: the handle of NUL, open for the process's life as its stdin.
+    unsafe { SetStdHandle(STD_INPUT_HANDLE, null.into_raw_handle()) };
+}
+
+#[cfg(not(any(unix, windows)))]
+pub(super) fn no_stdin() {}

@@ -289,6 +289,7 @@ mod pipe;
 mod play;
 mod relay;
 mod scp;
+mod session;
 mod signal;
 pub use agent::AGENT_FLAGS;
 pub use chat::CHAT_FLAGS;
@@ -305,6 +306,7 @@ pub use pipe::PIPE_FLAGS;
 pub use play::PLAY_FLAGS;
 pub use relay::{DOCTOR_FLAGS, PROXY_FLAGS, RELAY_FLAGS, STATUS_FLAGS};
 pub use scp::{SCP_FLAGS, SFTP_FLAGS};
+pub use session::SESSION_FLAGS;
 
 /// **`ts` and its `tailscale` alias (Tailscale, the cargo feature `ts`).** The
 /// spelling: `ts`-prefixed flags; `-W` is the byte-pipe target with ssh's own
@@ -407,6 +409,8 @@ pub const VERBS: &[Verb] = &[
         about: "ssh_config blocks from the host list of another tool: import" },
     Verb { name: "mcp", aliases: &["mcp"], flags: MCP_FLAGS,
         about: "the commands as tools for an agent: a Model Context Protocol server on stdin and stdout" },
+    Verb { name: "session", aliases: &["session"], flags: SESSION_FLAGS,
+        about: "a session that outlives each call, for an agent: start it, send keys, wait until the output stops, read the screen" },
 ];
 
 /// **The verbs by purpose, in the order that `--help` and the manual print
@@ -422,7 +426,7 @@ pub const GROUPS: &[(&str, &[&str])] = &[
     ("Messages", &["chat"]),
     ("Recordings", &["play"]),
     ("Settings", &["config"]),
-    ("Tools for an agent", &["mcp"]),
+    ("Tools for an agent", &["mcp", "session"]),
     ("The relay", &["relay"]),
     ("This manual", &["man"]),
 ];

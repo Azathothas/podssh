@@ -25,7 +25,7 @@ use crate::zmodem::Zmodem;
 
 mod input;
 
-pub use input::Input;
+pub use input::{Feed, Input};
 
 /// How a session ended.
 #[derive(Debug)]

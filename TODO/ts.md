@@ -399,7 +399,7 @@ Not measured: whether the proxy of a sandbox allows `tcp.ts.relay.ajam.dev:443` 
    print its credentials. The fork has one proxy for each process
    (`vendor/tailscale-rs/ts_http_util/src/proxy.rs:169-184`), so apply `NO_PROXY` for each host in
    the new function.
-4. Update `crates/podssh-cli/src/flags.rs:316-317`, `docs/tailscale.md:78-79` and
+4. Update `crates/podssh-cli/src/flags.rs:318-319`, `docs/tailscale.md:78-79` and
    `docs/STATUS.md:496` in the same commit.
 
 Added by T-102 (2026-10-10): the checks of each mode before the start already take `--ts-proxy`,
@@ -549,7 +549,7 @@ checks allowed (`crates/podssh-ws/src/client.rs:31-32`, `docs/relay.md:119-121`)
 4. Ping every 10 s; three silent intervals mean a dead link, after the relay answered one ping.
 5. Restart `ControlRunner` with the same backoff and no count limit. podssh-cli prints one stderr
    line for each drop and each new connection. Add the patch and its row, and update
-   `docs/tailscale.md`, `docs/STATUS.md:496` and `crates/podssh-cli/src/man/notes.rs:277-302`.
+   `docs/tailscale.md`, `docs/STATUS.md:496` and `crates/podssh-cli/src/man/notes.rs:279-304`.
 
 ## Decision
 
@@ -801,7 +801,7 @@ Not measured: whether the proxy of a sandbox allows `tcp.ts.relay.ajam.dev:443` 
 5. Repair the ignored test: the key and state paths come from variables that only the test reads,
    and the state stays. Name M8 in its reason.
 6. Record each result with its date in `docs/STATUS.md:67`, `docs/tailscale.md:8-24` and
-   `crates/podssh-cli/src/man/notes.rs:277-302`.
+   `crates/podssh-cli/src/man/notes.rs:279-304`.
 
 ## Prove
 

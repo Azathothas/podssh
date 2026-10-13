@@ -122,6 +122,8 @@ pub fn run_with(p: &Parsed, s: &mut Streams<'_>, tty: Tty) -> i32 {
         Parsed::Mcp(args) if refusals("mcp", &args.refused, s.err) => EXIT_USAGE,
         // The protocol is on the process's own stdin and stdout.
         Parsed::Mcp(args) => crate::mcp::run(args, s.err),
+        Parsed::Session(args) if refusals("session", &args.refused, s.err) => EXIT_USAGE,
+        Parsed::Session(args) => crate::session::run(args, s.out, s.err),
         Parsed::Agent(args) if refusals("agent", &args.refused, s.err) => EXIT_USAGE,
         Parsed::Agent(args) => crate::agent::run(args, s.out, s.err),
         Parsed::Status { relay_host, relay_addr, destination, refused } => {
