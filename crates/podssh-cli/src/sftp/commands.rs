@@ -15,16 +15,19 @@ pub struct Line {
 /// The commands of `podssh sftp`.
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub enum Command {
-    /// `preserve`: `-p` or `-P`, the times too (T-146).
+    /// `preserve`: `-p` or `-P`, the times too (T-146); `recursive`: `-r`
+    /// or `-R`, a directory with what it holds (T-298).
     Get {
         remote: String,
         local: Option<String>,
         preserve: bool,
+        recursive: bool,
     },
     Put {
         local: String,
         remote: Option<String>,
         preserve: bool,
+        recursive: bool,
     },
     Rename {
         from: String,
@@ -65,8 +68,8 @@ const NOT_YET: &[&str] =
 
 /// The commands that `help` lists, with their forms.
 pub const HELP: &[(&str, &str)] = &[
-    ("get [-afp] remote [local]", "copy a file here, verified by its digest; -p keeps its times"),
-    ("put [-afp] local [remote]", "copy a file there, verified by its digest; -p keeps its times"),
+    ("get [-afpR] remote [local]", "copy a file here, verified by its digest; -p keeps its times, -R a directory"),
+    ("put [-afpR] local [remote]", "copy a file there, verified by its digest; -p keeps its times, -R a directory"),
     ("reget, reput", "the same: a copy that broke goes on by itself"),
     ("rename old new", "rename a file on the server"),
     ("rm path", "remove a file; * and ? match in the last name"),
@@ -169,16 +172,13 @@ fn command(name: &str, args: &[String]) -> Result<Command, String> {
     let opt = |list: &[String], i: usize| list.get(i).cloned();
     Ok(match name {
         "get" | "reget" | "put" | "reput" => {
-            let (seen, rest) = switches(name, args, "afpPR")?;
-            if seen.contains('R') {
-                return Err(format!("{name} -R: copying a directory is not implemented yet"));
-            }
-            arity(1..=2, rest, &format!("{name} [-afp] path [path]"))?;
-            let preserve = seen.contains(['p', 'P']);
+            let (seen, rest) = switches(name, args, "afpPrR")?;
+            arity(1..=2, rest, &format!("{name} [-afpR] path [path]"))?;
+            let (preserve, recursive) = (seen.contains(['p', 'P']), seen.contains(['r', 'R']));
             if name.ends_with("get") {
-                Command::Get { remote: rest[0].clone(), local: opt(rest, 1), preserve }
+                Command::Get { remote: rest[0].clone(), local: opt(rest, 1), preserve, recursive }
             } else {
-                Command::Put { local: rest[0].clone(), remote: opt(rest, 1), preserve }
+                Command::Put { local: rest[0].clone(), remote: opt(rest, 1), preserve, recursive }
             }
         }
         "rename" => {
@@ -283,9 +283,12 @@ mod tests {
         assert!(!line("-@pwd").echo);
         assert_eq!(
             line(r#"put 'a b' "c \"d\"""#).command,
-            Command::Put { local: "a b".into(), remote: Some(r#"c "d""#.into()), preserve: false }
+            Command::Put { local: "a b".into(), remote: Some(r#"c "d""#.into()), preserve: false, recursive: false }
         );
-        assert_eq!(line(r"get a\ b").command, Command::Get { remote: "a b".into(), local: None, preserve: false });
+        assert_eq!(
+            line(r"get a\ b").command,
+            Command::Get { remote: "a b".into(), local: None, preserve: false, recursive: false }
+        );
         assert_eq!(parse_line("   "), Ok(None));
         assert_eq!(parse_line("# a comment"), Ok(None));
         assert!(parse_line("put 'a").is_err());
@@ -298,14 +301,25 @@ mod tests {
         assert_eq!(line("chmod 640 f").command, Command::Chmod { mode: 0o640, path: "f".into() });
         assert_eq!(
             line("reget a b").command,
-            Command::Get { remote: "a".into(), local: Some("b".into()), preserve: false }
+            Command::Get { remote: "a".into(), local: Some("b".into()), preserve: false, recursive: false }
         );
         // -p and -P keep the times (T-146).
-        assert_eq!(line("get -p a").command, Command::Get { remote: "a".into(), local: None, preserve: true });
-        assert_eq!(line("put -fP a").command, Command::Put { local: "a".into(), remote: None, preserve: true });
+        let get = |remote: &str, p, r| Command::Get { remote: remote.into(), local: None, preserve: p, recursive: r };
+        assert_eq!(line("get -p a").command, get("a", true, false));
+        assert_eq!(
+            line("put -fP a").command,
+            Command::Put { local: "a".into(), remote: None, preserve: true, recursive: false }
+        );
+        // -r and -R copy a directory (T-298).
+        assert_eq!(line("get -r d").command, get("d", false, true));
+        assert_eq!(line("reget -pR d").command, get("d", true, true));
+        assert_eq!(
+            line("put -R d far").command,
+            Command::Put { local: "d".into(), remote: Some("far".into()), preserve: false, recursive: true }
+        );
         assert_eq!(line("exit").command, Command::Bye);
         for (bad, says) in [
-            ("put -R d", "copying a directory"),
+            ("get -x d", "not an option of get"),
             ("rename a", "the form is"),
             ("chmod 999 f", "octal"),
             ("ls -z", "not an option"),

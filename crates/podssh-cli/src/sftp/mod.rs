@@ -45,6 +45,8 @@ pub struct SftpArgs {
     pub limit: Option<String>,
     /// `-p`: each get and put keeps the times (T-146).
     pub preserve: bool,
+    /// `-r`: each get and put of a directory copies it (T-298).
+    pub recursive: bool,
 }
 
 impl SftpArgs {
@@ -66,6 +68,7 @@ impl SftpArgs {
             requests: one("requests"),
             limit: one("limit"),
             preserve: m.try_get_one::<bool>("preserve").ok().flatten().copied().unwrap_or(false),
+            recursive: m.try_get_one::<bool>("recursive").ok().flatten().copied().unwrap_or(false),
             sftp_options: if m.try_contains_id("sftp-option").unwrap_or(false) {
                 m.get_many::<String>("sftp-option").map(|v| v.cloned().collect()).unwrap_or_default()
             } else {
@@ -179,19 +182,21 @@ pub fn run_sftp(args: &SftpArgs, tty: crate::pager::Tty, out: &mut dyn Write, er
         }
     };
     let subsystem = args.subsystem.as_deref().unwrap_or("sftp");
-    let code = runtime.block_on(session(&resolved, &server, subsystem, shape, script, tty.stdin, &log, out));
+    let ran = session(&resolved, &server, subsystem, shape, args.recursive, script, tty.stdin, &log, out);
+    let code = runtime.block_on(ran);
     runtime.shutdown_background();
     code
 }
 
 /// The SFTP session: the destination's path first, then the batch or the
-/// prompt.
+/// prompt; `recursive` is `sftp -r`.
 #[allow(clippy::too_many_arguments)]
 async fn session(
     resolved: &crate::ssh::resolve::Resolved,
     server: &Remote,
     subsystem: &str,
     shape: crate::cp::pipe::Shape,
+    recursive: bool,
     script: Option<Vec<String>>,
     interactive: bool,
     log: &Arc<Log>,
@@ -205,7 +210,7 @@ async fn session(
         }
     };
     let code: Result<i32, crate::cp::transfer::Failed> = async {
-        let mut state = State::new(&link, log, shape).await?;
+        let mut state = State::new(&link, log, shape, recursive).await?;
         // A path that names a file is fetched at once; a directory is where
         // the commands start.
         if !server.path.is_empty() {
@@ -213,7 +218,8 @@ async fn session(
             if state.is_dir(&path).await? {
                 state.run(&commands::Command::Cd(Some(path)), out).await?;
             } else {
-                state.run(&commands::Command::Get { remote: path, local: None, preserve: false }, out).await?;
+                let get = commands::Command::Get { remote: path, local: None, preserve: false, recursive: false };
+                state.run(&get, out).await?;
                 return Ok(0);
             }
         }

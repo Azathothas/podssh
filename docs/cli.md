@@ -867,6 +867,19 @@ renamed.
   `lpwd`, `chmod`, `df [-hi]` (`statvfs@openssh.com`), `help`, `version`,
   and `bye`. The local commands (`lls`, `lmkdir`, `!command`) and `ln`,
   `chown`, `chgrp` are refused by name.
+- **`get -r` and `put -r`** (or `-R`; each `get` and `put` after `sftp
+  -r`) copy a directory with T-143's walk, its checks of names and its copy
+  of each file (`crates/podssh-cli/src/cp/tree_conn.rs`): each link as a
+  link, a device, a FIFO or a socket skipped with a note, each directory's
+  mode (and with `-p` its times) after its files, and a name of a far
+  listing that is not one component refused. Into a directory that exists
+  the tree goes under it, with its own name; else it takes the name given.
+  The batch prints its line once, as for one file; an item that fails is
+  said, the rest goes on, and the command fails at its end with the first
+  failure's code. Each file goes over the batch's session, as a `get` or a
+  `put` does: a broken session ends the command, and no side file is kept.
+  Several sources that a pattern names (`get -r dir*`) each go under the
+  local directory, with their own names.
 
 ## `podssh edit`
 

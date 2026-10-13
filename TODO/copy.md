@@ -958,7 +958,7 @@ Where podssh must replace them, OpenSSH's own `scp` and `sftp` cannot run
 
 Recommendation: `scp` and `sftp` get no `--timeout` row, as in OpenSSH, so
 the gate of `crates/podssh-cli/src/dispatch.rs:232-250` skips them; T-133's
-limits keep each wait finite. Usage errors stay 64 (`docs/cli.md:1727-1730`)
+limits keep each wait finite. Usage errors stay 64 (`docs/cli.md:1740-1743`)
 where OpenSSH gives 1; a script that tests for "not zero" works with both.
 `--timeout` required with no terminal, as for `cp`, lost: each script that
 runs `scp` in a pipe would exit 64 under `podssh scp`.
@@ -2404,7 +2404,7 @@ files into one temporary name; a digest check fails.
 **Milestone:** backlog
 **Priority:** P3
 **Effort:** S
-**Status:** open
+**Status:** done
 
 ## Problem
 
@@ -2434,3 +2434,54 @@ CARGO_BUILD_JOBS=4 cargo test -p podssh-cli --test copy_pipeline -- tree
 A batch `put -r dir` and `get -r dir back` against the test's server
 copies the tree both ways, equal to the source. Planted defect: `-r`
 ignored; the test fails on the directory.
+
+## Done
+
+2026-10-13. `get -r` and `put -r` (also `-R`, and each `get` and `put`
+after `sftp -r`, whose row is supported now in
+`crates/podssh-cli/src/flags/scp.rs`) copy a directory with T-143's own
+code: `tree_copy::copy` walks it, checks each name of a far listing, makes
+each directory and link, copies each file, and sets each directory's mode
+(and with `-p` its times) after its files. The connection of a tree's copy
+is a `Conn` (`crates/podssh-cli/src/cp/tree_conn.rs`): `cp -r`'s connects
+again after a break (`session::attempts`), as before; `sftp`'s is the
+batch's one session, each file copied by `session::copy`, as its `get` and
+`put` copy one. `crates/podssh-cli/src/sftp/commands.rs` reads the switch,
+`crates/podssh-cli/src/sftp/run.rs` sends a directory to
+`tree_conn::over_session`, and `crates/podssh-cli/src/cp/tree_copy.rs`
+takes the `Conn` in place of the connection and its settings.
+
+The calls made where the Approach left a choice:
+
+- Each file of `sftp`'s tree goes over the batch's session, with no side
+  file and no new connection after a break: a broken session ends the
+  command, as it ends a `get`. A new connection would open the subsystem
+  `sftp`, not the one that `-s NAME` named.
+- A link is copied as a link, as `cp -r` copies one (T-143's Decision: a
+  link to `/` that a walk follows copies the whole host); the source named
+  on the line is followed when it is a link to a directory, as `get` and
+  `put` follow it. OpenSSH's `sftp` was not read here for its rule.
+- The batch prints its line once for the tree (`Fetching SRC to DST`,
+  `Uploading SRC to DST`), as for one file; `-v` says each file. Each item
+  that fails is said by the walk at once, and the rest goes on; the
+  command's own error then names the tree once, with the first failure's
+  code, so that no failure is said twice.
+- Into a directory that exists the tree goes under it, with its own name;
+  else it takes the name given, as `cp -r` places a tree. Several sources
+  of one pattern each go under the local directory.
+
+The manual (the notes of `sftp`), the `help` of `sftp`'s commands,
+`docs/cli.md` and `docs/STATUS.md`. Tests: `cargo test -p podssh-cli
+--test copy_pipeline -- tree`, `sftp_puts_and_gets_a_tree_with_r` (one
+batch `put -r dir far` and
+`get -R far back`, each tree equal to the source with its empty directory
+and names with a space; `sftp -r` and `put dir into` under a directory
+that exists; without either, `put dir` ends the batch with 66): 1 passed
+on Windows 11.
+The unit test of the lines (`get -r`, `reget -pR`, `put -R`, and `-x`
+refused) and `--test scp_args` (`sftp -r` goes on to connect, and is no
+more among the refused letters): passed. Planted, `-r` ignored: the
+test failed, as the first batch exited 66; restored, it passed. `cargo test -p podssh-cli`: 780 passed, 0 failed. Clippy
+refused three dereferences that Rust does itself in `crates/podssh-cli/src/cp/tree_conn.rs`;
+they are gone. Nothing of the Prove
+waits for T-251.

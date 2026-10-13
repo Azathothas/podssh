@@ -119,7 +119,9 @@ const SFTP: &[&str] = &[
     "The commands: get and put (with reget and reput, which are the same), rename, rm (with * and ? in \
      the last name), mkdir [-p], rmdir, ls [-la], cd, lcd, pwd, lpwd, chmod, df [-hi], help, version, and \
      bye, exit or quit. get and put copy as podssh cp does; get -p and put -p, or each of them after \
-     sftp -p, keep the times. The exit code is that of the first command \
+     sftp -p, keep the times. get -r and put -r (or -R), or each of them after sftp -r, copy a directory \
+     and what it holds as podssh cp -r does, each link as a link; an item that fails is said, the rest \
+     goes on, and the command fails at its end. The exit code is that of the first command \
      that ends the batch, as for podssh cp; a usage error is 64 where OpenSSH gives 1.",
 ];
 

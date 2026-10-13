@@ -39,6 +39,7 @@ pub(crate) mod resume;
 pub(crate) mod session;
 pub(crate) mod transfer;
 pub mod tree;
+pub(crate) mod tree_conn;
 mod tree_copy;
 
 use std::io::Write;

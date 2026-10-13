@@ -13,6 +13,7 @@ use super::pipe::Shape;
 use super::plan::{Direction, Plan};
 use super::resume::{self, Before, Progress, TRIES};
 use super::transfer::{self, Cause, Done, Failed};
+use super::tree_conn::Conn;
 use super::{bysftp, mirror, tree_copy, Outcome};
 use crate::exitmap::Fault;
 use crate::ssh::resolve::Resolved;
@@ -50,11 +51,10 @@ pub(super) async fn session(
     for source in &plan.sources {
         // -r: a directory goes with what it holds (T-143).
         if let Some(tree) = &plan.tree {
-            if tree_copy::is_dir(&link, source, tree).await {
+            if tree_copy::is_dir(tree_copy::sftp_of(&link), source, tree).await {
                 let moving = after == After::Remove;
-                let dest = &plan.destination;
-                tree_copy::copy(&mut link, resolved, source, dest, many, tree, log, plan.shape, moving, &mut outcome)
-                    .await;
+                let (dest, mut conn) = (&plan.destination, Conn::Again { link: &mut link, resolved });
+                tree_copy::copy(&mut conn, source, dest, many, tree, log, plan.shape, moving, &mut outcome).await;
                 if link.is_none() {
                     break;
                 }
@@ -262,8 +262,9 @@ async fn drop_temp(link: &Link, source: &Operand, dest: &Operand, temp: &str) {
     }
 }
 
-/// Copy one file over `link`, by its road.
-async fn copy(
+/// Copy one file over `link`, by its road; `sftp`'s `get -r` and `put -r`
+/// copy each file of a tree with it (T-298).
+pub(super) async fn copy(
     link: &Link,
     source: &Operand,
     dest: &Operand,

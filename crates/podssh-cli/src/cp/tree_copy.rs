@@ -1,11 +1,12 @@
 //! The copy of a directory over one connection (T-143): the walk of
 //! `tree.rs`, then each directory made, each file copied as one copy goes
-//! (`session::attempts`, with its continuation after a break), each link
-//! made, and each directory's mode, and what `-p` and `--owner` keep, set
-//! after its files. Up, two names of one local file arrive as one file with
-//! two names (T-146). An item that cannot be copied is reported and the walk
-//! goes on; the exit is then not zero, as for `scp`. `--dry-run` says each
-//! action and changes nothing.
+//! (`cp -r`: `session::attempts`, with its continuation after a break;
+//! `sftp`'s `get -r` and `put -r`: over the batch's session, T-298; see
+//! `tree_conn.rs`), each link made, and each directory's mode, and what `-p`
+//! and `--owner` keep, set after its files. Up, two names of one local file
+//! arrive as one file with two names (T-146). An item that cannot be copied
+//! is reported and the walk goes on; the exit is then not zero, as for
+//! `scp`. `--dry-run` says each action and changes nothing.
 
 use std::path::{Path, PathBuf};
 use std::sync::Arc;
@@ -21,12 +22,12 @@ use super::meta;
 use super::mirror::{refused_root, Pending};
 use super::operand::{Operand, Remote};
 use super::pipe::Shape;
-use super::session::{attempts, shown};
+use super::session::shown;
 use super::transfer::{self, Done, Failed, Side};
 use super::tree::{self, Item, Tree};
+use super::tree_conn::Conn;
 use super::Outcome;
 use crate::exitmap::Fault;
-use crate::ssh::resolve::Resolved;
 
 /// One action of a dry run, as `report` prints it: what, from, and to.
 pub type Planned = (&'static str, String, String);
@@ -51,11 +52,11 @@ pub(super) fn sftp_of(link: &Option<Link>) -> Option<&Sftp> {
     }
 }
 
-/// Whether `source` is a directory: here, or on the server.
-pub async fn is_dir(link: &Option<Link>, source: &Operand, tree: &Tree) -> bool {
+/// Whether `source` is a directory: here, or on the server over `sftp`.
+pub async fn is_dir(sftp: Option<&Sftp>, source: &Operand, tree: &Tree) -> bool {
     match source {
         Operand::Local(path) => std::fs::metadata(path).is_ok_and(|m| m.is_dir()),
-        Operand::Remote(remote) => match sftp_of(link) {
+        Operand::Remote(remote) => match sftp {
             Some(sftp) if tree.follow => sftp.stat(&remote.path).await.is_ok_and(|a| a.is_dir()),
             Some(sftp) => sftp.lstat(&remote.path).await.is_ok_and(|a| a.is_dir()),
             None => false,
@@ -70,11 +71,10 @@ pub(super) fn failed(outcome: &mut Outcome, log: &Log, name: String, failed: Fai
     outcome.failed.get_or_insert((name, failed));
 }
 
-/// Copy the directory `source` to `dest` over `link`: up or down.
+/// Copy the directory `source` to `dest` over `conn`: up or down.
 #[allow(clippy::too_many_arguments)]
 pub async fn copy(
-    link: &mut Option<Link>,
-    resolved: &Resolved,
+    conn: &mut Conn<'_>,
     source: &Operand,
     dest: &Operand,
     many: bool,
@@ -85,16 +85,16 @@ pub async fn copy(
     outcome: &mut Outcome,
 ) {
     let name = shown(source);
-    if sftp_of(link).is_none() {
+    if conn.sftp().is_none() {
         let why = format!("{name}: a directory goes over SFTP, and this server has none");
         return failed(outcome, log, name, Failed::new(Fault::Capability, why));
     }
     match (source, dest) {
         (Operand::Local(src), Operand::Remote(dst)) => {
-            up(link, resolved, src, dst, many, tree, log, shape, moving, outcome).await
+            up(conn, src, dst, many, tree, log, shape, moving, outcome).await
         }
         (Operand::Remote(src), Operand::Local(dst)) => {
-            down(link, resolved, src, dst, many, tree, log, shape, moving, outcome).await
+            down(conn, src, dst, many, tree, log, shape, moving, outcome).await
         }
         _ => {
             let why = format!("{name}: a directory goes up or down, not from one server to another");
@@ -105,8 +105,7 @@ pub async fn copy(
 
 #[allow(clippy::too_many_arguments)]
 async fn up(
-    link: &mut Option<Link>,
-    resolved: &Resolved,
+    conn: &mut Conn<'_>,
     src: &str,
     dst: &Remote,
     many: bool,
@@ -117,7 +116,7 @@ async fn up(
     outcome: &mut Outcome,
 ) {
     let leaf = Path::new(src).file_name().and_then(|n| n.to_str()).unwrap_or("").to_string();
-    let Some(sftp) = sftp_of(link) else { return };
+    let Some(sftp) = conn.sftp() else { return };
     let into =
         many || dst.path.is_empty() || dst.path.ends_with('/') || sftp.stat(&dst.path).await.is_ok_and(|a| a.is_dir());
     let root = if into { remote_join(&dst.path, &leaf) } else { dst.path.clone() };
@@ -142,7 +141,7 @@ async fn up(
                     outcome.planned.push(("mkdir", local_join(Path::new(src), rel).display().to_string(), target));
                     continue;
                 }
-                let Some(sftp) = sftp_of(link) else { return };
+                let Some(sftp) = conn.sftp() else { return };
                 let made = match sftp.lstat(&target).await {
                     Ok(attrs) if attrs.is_dir() => Ok(()),
                     _ => sftp.mkdir(&target, FileAttributes::default()).await,
@@ -163,7 +162,7 @@ async fn up(
                         outcome.planned.push(("hardlink", target, first));
                         continue;
                     }
-                    let Some(sftp) = sftp_of(link) else { return };
+                    let Some(sftp) = conn.sftp() else { return };
                     match meta::hard_link(sftp, &first, &target, log).await {
                         Ok(true) => {
                             let verified_by = format!("a hard link to {first}");
@@ -197,8 +196,8 @@ async fn up(
                     continue;
                 }
                 let to = Operand::Remote(Remote { path: target, ..dst.clone() });
-                match attempts(link, resolved, &Operand::Local(from.clone()), &to, false, log, shape).await {
-                    Ok((done, _)) => {
+                match conn.file(&Operand::Local(from.clone()), &to, log, shape).await {
+                    Ok(done) => {
                         if let Some(id) = id {
                             linked.entry(id).or_insert((done.destination.clone(), done.bytes, done.sum));
                         }
@@ -207,7 +206,7 @@ async fn up(
                     Err(f) => {
                         clean = false;
                         failed(outcome, log, from, f);
-                        if link.is_none() {
+                        if conn.gone() {
                             return;
                         }
                     }
@@ -219,7 +218,7 @@ async fn up(
                     outcome.planned.push(("link", target, names.clone()));
                     continue;
                 }
-                let Some(sftp) = sftp_of(link) else { return };
+                let Some(sftp) = conn.sftp() else { return };
                 if let Err(e) = far_link(sftp, &target, names).await {
                     clean = false;
                     failed(outcome, log, target, transfer::from_sftp(e, Side::Destination));
@@ -238,7 +237,7 @@ async fn up(
     }
     // Each directory's mode, and what -p and --owner keep, after its files,
     // the deepest first; one that the server refuses is said.
-    if let Some(sftp) = sftp_of(link) {
+    if let Some(sftp) = conn.sftp() {
         for (dir, stamp) in dirs.iter().rev() {
             if let Err(f) = meta::set_far(sftp, dir, stamp, shape.keep, log).await {
                 log.info(&f.message);
@@ -248,7 +247,7 @@ async fn up(
     // --delete: what the target has and the source lacks; it goes at the end
     // of the run, once each copy of it succeeded (T-144).
     if tree.delete {
-        if let Some(sftp) = sftp_of(link) {
+        if let Some(sftp) = conn.sftp() {
             let target = tree::walk_far(sftp, &root, &Tree { follow: false, ..tree.clone() }, false).await;
             for item in tree::to_delete(&items, &target) {
                 let path = remote_join(&root, tree::rel_of(&item));
@@ -268,8 +267,7 @@ async fn up(
 
 #[allow(clippy::too_many_arguments)]
 async fn down(
-    link: &mut Option<Link>,
-    resolved: &Resolved,
+    conn: &mut Conn<'_>,
     src: &Remote,
     dst: &str,
     many: bool,
@@ -296,7 +294,7 @@ async fn down(
             return failed(outcome, log, shown_root, Failed::new(Fault::Usage, why));
         }
     }
-    let Some(sftp) = sftp_of(link) else { return };
+    let Some(sftp) = conn.sftp() else { return };
     let items = tree::walk_far(sftp, &src.path, tree, cfg!(windows)).await;
     let mut dirs = Vec::new();
     let mut clean = true;
@@ -324,12 +322,12 @@ async fn down(
                     continue;
                 }
                 let source = Operand::Remote(Remote { path: from.clone(), ..src.clone() });
-                match attempts(link, resolved, &source, &Operand::Local(target), false, log, shape).await {
-                    Ok((done, _)) => outcome.done.push(done),
+                match conn.file(&source, &Operand::Local(target), log, shape).await {
+                    Ok(done) => outcome.done.push(done),
                     Err(f) => {
                         clean = false;
                         failed(outcome, log, from, f);
-                        if link.is_none() {
+                        if conn.gone() {
                             return;
                         }
                     }
@@ -380,7 +378,7 @@ async fn down(
         }
     }
     if moving && clean && !tree.dry_run {
-        if let Some(sftp) = sftp_of(link) {
+        if let Some(sftp) = conn.sftp() {
             remove_far(sftp, &src.path, &items, log).await;
         }
     }

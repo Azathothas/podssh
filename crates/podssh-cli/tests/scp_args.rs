@@ -81,7 +81,7 @@ fn scp_refuses_as_cp_does_in_its_own_name() {
 
 #[test]
 fn each_sftp_letter_that_podssh_does_not_carry_is_refused_by_name() {
-    for flag in [&["-r"][..], &["-S", "ssh"], &["-D", "/x"], &["-c", "aes128-ctr"]] {
+    for flag in [&["-S", "ssh"][..], &["-D", "/x"], &["-c", "aes128-ctr"]] {
         let mut args = vec!["sftp"];
         args.extend_from_slice(flag);
         args.push("host");
@@ -114,8 +114,10 @@ fn sftp_asks_for_its_destination_and_for_commands_with_no_terminal() {
         &["host:dir/file"],
         &["sftp://u@host:2222/x"],
         &["-s", "sftp", "-b", shown.as_str(), "host"],
-        // Each get and put keeps the times (T-146).
+        // Each get and put keeps the times (T-146), and copies a directory
+        // (T-298).
         &["-p", "-b", shown.as_str(), "host"],
+        &["-r", "-b", shown.as_str(), "host"],
         // SFTP's requests in flight and their size (T-140).
         &["-B", "32768", "-R", "16", "-X", "buffer=4", "-b", shown.as_str(), "host"],
     ] {
