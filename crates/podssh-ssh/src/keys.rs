@@ -1,7 +1,8 @@
 //! Public keys to offer, one per attempt: an agent's keys first, then key
 //! files, each key at most once (a key both in the agent and on disk is
 //! offered once). With `IdentitiesOnly`, agent keys are offered only when they
-//! match a configured key file.
+//! match a configured key file. A key file of a security key signs in its
+//! device, after a probe of the way to it (T-229).
 
 use std::collections::VecDeque;
 use std::path::{Path, PathBuf};
@@ -22,6 +23,8 @@ use crate::options::{Agent, Options};
 use crate::prompt::{self, PromptError};
 use crate::remember::Remembered;
 use crate::rsa_key::{self, RsaSigner, SignError};
+use crate::sk::signer::{Announced, SkSigner};
+use crate::sk::SkKey;
 
 type DynAgent = AgentClient<Box<dyn AgentStream + Send + Unpin + 'static>>;
 
@@ -43,6 +46,9 @@ pub(crate) struct PublicKeys {
     offered: Vec<PublicKey>,
     rsa_hash: Option<Option<HashAlg>>,
     skipped_encrypted: Vec<PathBuf>,
+    /// The key files of security keys that no device could sign with, and
+    /// why.
+    skipped_sk: Vec<String>,
     /// The limit on each answer of the server (`ConnectTimeout`), and the
     /// host's name for its message.
     limit: Duration,
@@ -66,6 +72,7 @@ impl PublicKeys {
             offered: Vec::new(),
             rsa_hash: None,
             skipped_encrypted: Vec::new(),
+            skipped_sk: Vec::new(),
             limit: opts.connect_timeout,
             host: host.to_string(),
         }
@@ -81,6 +88,12 @@ impl PublicKeys {
             let public = key.public_key().clone();
             if self.offered.iter().any(|k| k.key_data() == public.key_data()) {
                 continue;
+            }
+            if let Some(security) = SkKey::of(key.key_data()) {
+                match self.try_security_key(handle, user, &path, security, public).await? {
+                    Some(step) => return Ok(step),
+                    None => continue,
+                }
             }
             let hash = self.hash_for(handle, &public).await;
             let result = match rsa_key::russh_key(key, hash) {
@@ -143,7 +156,45 @@ impl PublicKeys {
                 files.join(", ")
             ));
         }
+        if !self.skipped_sk.is_empty() {
+            notes.push(format!("skipped the key(s) of a security key: {}", self.skipped_sk.join("; ")));
+        }
         notes
+    }
+
+    /// A key file of a security key: the probe first, and with no device the
+    /// key is skipped, with the reason, before the server sees it. Else the
+    /// device signs once the server took the key; its time, the touch
+    /// included, does not count against the server's limit, and a failure
+    /// lets the next key go on.
+    async fn try_security_key(
+        &mut self,
+        handle: &mut Handle<Client>,
+        user: &str,
+        path: &Path,
+        key: SkKey,
+        public: PublicKey,
+    ) -> Result<Option<Step>, String> {
+        if let Err(why) = crate::sk::probe(None) {
+            self.log.verbose(&format!("skipped the key file {}: {why}", path.display()));
+            self.skipped_sk.push(format!("{}: {why}", path.display()));
+            return Ok(None);
+        }
+        let shown = format!("{} {}", crate::known_hosts::key_type(&public), crate::known_hosts::fingerprint(&public));
+        self.log.debug(&format!("offering {shown} of the security key {}", path.display()));
+        let mut signer = SkSigner { key, log: self.log.clone(), shown, may_ask: self.can_prompt };
+        let time = Arc::new(Mutex::new(AgentTime::default()));
+        let mut timed = Timed { inner: &mut signer, time: time.clone(), failed: None };
+        let call = handle.authenticate_publickey_with(user, public.clone(), None, &mut timed);
+        let answer = within_signing(self.limit, &self.host, "the publickey request", &time, call).await?;
+        if let Some(why) = timed.failed.take() {
+            self.log.info(&format!("the security key of {} did not sign: {why}", path.display()));
+        }
+        self.offered.push(public);
+        match answer {
+            Ok(result) => Ok(Some(Step::from(result))),
+            Err(e) => Err(format!("public key authentication failed: {e}")),
+        }
     }
 
     async fn try_agent(&mut self, handle: &mut Handle<Client>, user: &str) -> Result<Option<Step>, String> {
@@ -187,8 +238,15 @@ impl PublicKeys {
             let hash = self.hash_for(handle, &key).await;
             let AgentState::Ready(agent, _) = &mut self.agent else { return Ok(None) };
             self.log.debug(&format!("offering agent key {}", crate::known_hosts::fingerprint(&key)));
+            // The agent signs a key of a security key in its device: the
+            // person touches it when the signature is due (T-229).
+            let touch = crate::sk::is_sk(&key).then(|| {
+                let shown = crate::known_hosts::fingerprint(&key);
+                format!("Confirm user presence for key {} {shown}", crate::known_hosts::key_type(&key))
+            });
+            let mut announced = Announced { inner: agent, log: &self.log, line: touch };
             let time = Arc::new(Mutex::new(AgentTime::default()));
-            let mut timed = Timed { inner: agent, time: time.clone(), failed: None };
+            let mut timed = Timed { inner: &mut announced, time: time.clone(), failed: None };
             let call = handle.authenticate_publickey_with(user, key.clone(), hash, &mut timed);
             let answer = within_signing(self.limit, &self.host, "the publickey request", &time, call).await?;
             // The agent failed, and the server refused the signature that

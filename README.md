@@ -66,6 +66,7 @@ podssh --TLS 1.3 + WebSocket, port 443--> relay --TCP--> sshd (or another TCP se
    ```sh
    podssh keygen -t ed25519 -N '' -f ~/.ssh/id_ed25519   # -N '' for no passphrase
    podssh keygen -l -f ~/.ssh/id_ed25519.pub             # its fingerprint
+   podssh keygen -t ed25519-sk -f ~/.ssh/id_ed25519_sk   # in a FIDO2 security key (Linux, Windows)
    ```
 
 ## Usage

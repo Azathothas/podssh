@@ -43,12 +43,11 @@ entry keeps its proof in the entry; this page keeps no history (git does).
   worktrees (`.claude/worktrees/`, excluded from git) on local branches
   `worktree-agent-*`, never pushed; they do not build. The main session
   merges a draft, builds it, runs its tests and plants, fills each
-  UNVERIFIED and closes the entry (T-179 to T-184, T-200, T-202, T-221, T-225, T-232, T-235, T-242, T-279, T-280, T-281, T-289, T-291 and T-293 so). Waiting to
+  UNVERIFIED and closes the entry (T-179 to T-184, T-200, T-202, T-221, T-225, T-232, T-235, T-242, T-279, T-280, T-229, T-281, T-289, T-291 and T-293 so). Waiting to
   be merged, in the order of the index:
 
   | Entry | Branch (`worktree-agent-` and) | Commit | State |
   | --- | --- | --- | --- |
-  | T-229 | `a266ef3fe863b08d2` | `9772dea..954d5ab` | drafted, on T-289; CTAP2 over hidraw on Linux, WebAuthn on Windows, a key in software for the tests; `sk_signature` uses ssh-key's published vectors (its Correction); the run with a real key waits for the operator; library code prints with `eprintln!` in `sshsig.rs` and `sk/agent.rs`, to review |
   | T-296, T-298 | `aa043fb59ecd7bdb2` | `57485b7`, `bc8a9ce` | drafted |
   | T-297 | `aa043fb59ecd7bdb2` | `bc8a9ce..429dd0b` | drafted, on T-298; it also copies the files of a tree of `cp -r` at once (its Decision) |
   | T-187, T-188 | `a56cc4d17c82784aa` | `a38421b..e206acd`, `e206acd..78fc010` | drafted (the WIP `0473ad2` finished); its harness of snippets is sourced by `scripts/interop-each.sh`; a declined snippet and no pick exit 64 |
@@ -63,7 +62,7 @@ entry keeps its proof in the entry; this page keeps no history (git does).
   harness that `scripts/interop-each.sh` sources, as `scripts/interop.sh`
   is at 500 lines. `crates/podssh-cli/tests/ssh_harness/mod.rs`, `crates/podssh-cli/src/tree.rs`
   and `crates/podssh-cli/src/flags.rs` are near 500 lines, so a merge splits
-  them where needed. The next merge is T-229, then the others in the order
+  them where needed. The next merge is T-296, then the others in the order
   of the index.
 
   Each entry of the work order is drafted. CI: the gate passed at
@@ -98,7 +97,7 @@ and `CARGO_BUILD_JOBS=4`:
 
 ## Counts
 
-`TODO/INDEX.md` holds 304 entries: 41 open, 0 partial, 25 blocked, 238 done.
+`TODO/INDEX.md` holds 304 entries: 40 open, 0 partial, 25 blocked, 239 done.
 
 Open includes parked work. `cargo todo check` verifies this line.
 

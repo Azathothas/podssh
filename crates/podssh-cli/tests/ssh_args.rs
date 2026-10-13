@@ -167,7 +167,8 @@ fn defaults_follow_openssh_and_keepalives_are_on() {
     assert_eq!(o.keepalive_interval.map(|d| d.as_secs()), Some(60));
     assert_eq!(o.log_level, LogLevel::Info);
     let home = PathBuf::from("/home/u/.ssh");
-    assert_eq!(o.identity_files, vec![home.join("id_rsa"), home.join("id_ecdsa"), home.join("id_ed25519")]);
+    let defaults = ["id_rsa", "id_ecdsa", "id_ecdsa_sk", "id_ed25519", "id_ed25519_sk"];
+    assert_eq!(o.identity_files, defaults.map(|name| home.join(name)));
     assert_eq!(o.user_known_hosts[0], home.join("known_hosts"));
     assert!(matches!(r.transport, Transport::Relay { family: None, .. }));
 }

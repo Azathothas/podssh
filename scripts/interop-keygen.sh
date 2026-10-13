@@ -378,3 +378,50 @@ expect_rc keygen.refuse.overwrite "keygen refuses to overwrite a key" 1 $? "$KG/
 expect_rc keygen.refuse.argv_passphrase "keygen refuses a passphrase on the command line" 64 $? "$KG/err"
 [ ! -e "$KG/id_argv" ] && ok keygen.refuse.argv_nothing_written "keygen: nothing was written for the refused -N" \
     || bad keygen.refuse.argv_nothing_written "keygen wrote a key despite refusing -N"
+
+# Keys of security keys (T-229). The build image has no FIDO device, so
+# keygen -t ed25519-sk refuses with the probe's reason and writes nothing.
+# A key file of one, made here as ssh-keygen writes one (the public key of
+# ssh-key's test vector id_sk_ed25519_2.pub, and a handle of 64 bytes), is
+# read by both tools; keygen -c rewrites it, and OpenSSH reads podssh's
+# file; a login with it skips the key and says why.
+"$BIN" keygen -t ed25519-sk -N '' -q -f "$KG/id_sk" </dev/null >"$KG/out" 2>"$KG/err"
+expect_rc keygen.sk.no_device "keygen -t ed25519-sk with no device refuses" 1 $? "$KG/err"
+grep -q 'no security key: ' "$KG/err" && [ ! -e "$KG/id_sk" ] && [ ! -e "$KG/id_sk.pub" ] \
+    && ok keygen.sk.nothing_written "keygen -t ed25519-sk: the probe's reason, and no file" \
+    || bad keygen.sk.nothing_written "keygen -t ed25519-sk wrote a file, or gave no reason" "$KG/err"
+SK_PUB=AAAAGnNrLXNzaC1lZDI1NTE5QG9wZW5zc2guY29tAAAAINSoElFleH+nN83FoLqqepJjN+y7Gs5lrn7qXjBqQZyuAAAABHNzaDo=
+python3 - "$KG/sk_file" "$SK_PUB" <<'EOF'
+import base64, struct, sys
+def s(b): return struct.pack('>I', len(b)) + b
+blob = base64.b64decode(sys.argv[2])
+name = b'sk-ssh-ed25519@openssh.com'
+key = blob[8 + len(name):8 + len(name) + 32]
+private = struct.pack('>II', 0x01020304, 0x01020304) + s(name) + s(key) + s(b'ssh:') + b'\x01'
+private += s(b'\x07' * 64) + s(b'') + s(b'kg-sk')
+private += bytes(range(1, 1 + (-len(private)) % 8))
+body = b'openssh-key-v1\x00' + s(b'none') + s(b'none') + s(b'') + struct.pack('>I', 1) + s(blob) + s(private)
+text = base64.b64encode(body).decode()
+with open(sys.argv[1], 'w') as out:
+    out.write('-----BEGIN OPENSSH PRIVATE KEY-----\n')
+    for at in range(0, len(text), 70):
+        out.write(text[at:at + 70] + '\n')
+    out.write('-----END OPENSSH PRIVATE KEY-----\n')
+EOF
+chmod 600 "$KG/sk_file"
+want="sk-ssh-ed25519@openssh.com $SK_PUB"
+theirs=$(ssh-keygen -y -f "$KG/sk_file" 2>"$KG/err" | cut -d' ' -f1,2)
+ours=$("$BIN" keygen -y -f "$KG/sk_file" 2>>"$KG/err" | cut -d' ' -f1,2)
+[ "$theirs" = "$want" ] && [ "$ours" = "$want" ] \
+    && ok keygen.sk.both_read "a key file of a security key: ssh-keygen -y and keygen -y print its key" \
+    || bad keygen.sk.both_read "ssh-keygen -y gave '$theirs', keygen -y '$ours'" "$KG/err"
+"$BIN" keygen -c -C kg-sk-renamed -P '' -q -f "$KG/sk_file" </dev/null >"$KG/out" 2>"$KG/err"
+theirs=$(ssh-keygen -y -f "$KG/sk_file" 2>>"$KG/err")
+[ "$(echo "$theirs" | cut -d' ' -f1,2)" = "$want" ] && [ "${theirs##* }" = kg-sk-renamed ] \
+    && ok keygen.sk.openssh_reads_ours "keygen -c rewrites a key of a security key, and ssh-keygen -y reads it" \
+    || bad keygen.sk.openssh_reads_ours "ssh-keygen -y of the file of keygen -c gave '$theirs'" "$KG/err"
+p 2201 -i "$KG/sk_file" -v -o BatchMode=yes "$T" true </dev/null >"$KG/out" 2>"$KG/err"
+rc=$?
+[ "$rc" = 255 ] && grep -q 'no security key: ' "$KG/err" \
+    && ok keygen.sk.login_no_device "a login with a key of a security key and no device: 255, and the probe's reason" \
+    || bad keygen.sk.login_no_device "a login with a key of a security key: exit $rc" "$KG/err"

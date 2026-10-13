@@ -104,12 +104,14 @@ struct Entry {
     until: Option<Instant>,
 }
 
-/// The credentials of an agent, in its memory.
+/// The credentials of an agent, in its memory, and its keys of security
+/// keys (T-229), which russh's server cannot sign with.
 #[derive(Default)]
 pub struct Store {
     entries: Mutex<HashMap<(Kind, String), Entry>>,
     /// The agent is locked: nothing is told until it is unlocked.
     locked: AtomicBool,
+    pub security_keys: crate::sk::agent::Held,
 }
 
 impl Store {
@@ -148,6 +150,10 @@ impl Store {
                 _ => {}
             }
         }
+    }
+
+    fn is_locked(&self) -> bool {
+        self.locked.load(Ordering::SeqCst)
     }
 
     fn entries(&self) -> std::sync::MutexGuard<'_, HashMap<(Kind, String), Entry>> {
@@ -204,7 +210,7 @@ impl Store {
 /// gets FAILURE here: russh's server would sign with it through the `rsa`
 /// crate, which is not constant-time (T-257). So does a request to add a key
 /// for a confirmation of each use, which russh's server would use unasked
-/// (T-284).
+/// (T-284). A key of a security key is kept, listed and used here (T-229).
 pub async fn serve_client<C, A>(mut client: C, mut agent: A, store: &Store) -> io::Result<()>
 where
     C: AsyncRead + AsyncWrite + Unpin,
@@ -212,7 +218,11 @@ where
 {
     loop {
         let Some(request) = read_frame(&mut client).await? else { return Ok(()) };
-        let answer = match store.answer(&request) {
+        let held = match store.answer(&request) {
+            Some(answer) => Some(answer),
+            None => store.security_keys.answer(&request, store.is_locked()).await,
+        };
+        let answer = match held {
             Some(answer) => answer,
             None if crate::rsa_key::adds_rsa_key(&request) || adds_confirmed_key(&request) => {
                 Zeroizing::new(vec![FAILURE])
@@ -223,7 +233,7 @@ where
                     .await?
                     .ok_or_else(|| io::Error::new(io::ErrorKind::UnexpectedEof, "the agent's server went"))?;
                 store.observe(&request, &answer);
-                answer
+                store.security_keys.after(&request, answer, store.is_locked())
             }
         };
         write_frame(&mut client, &answer).await?;

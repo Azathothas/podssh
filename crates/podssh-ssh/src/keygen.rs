@@ -20,6 +20,8 @@ pub enum KeyKind {
     Ecdsa(EcdsaCurve),
     /// The modulus size in bits.
     Rsa(usize),
+    /// A key of a security key (T-229), which the device makes: never here.
+    Sk(crate::sk::Alg),
 }
 
 impl KeyKind {
@@ -41,18 +43,31 @@ impl KeyKind {
             ("rsa", None) => Ok(KeyKind::Rsa(3072)),
             ("rsa", Some(b @ (2048 | 3072 | 4096 | 8192))) => Ok(KeyKind::Rsa(b as usize)),
             ("rsa", Some(b)) => Err(format!("an rsa key has 2048, 3072, 4096 or 8192 bits here, not {b}")),
+            ("ed25519-sk", None | Some(256)) => Ok(KeyKind::Sk(crate::sk::Alg::Ed25519)),
+            ("ecdsa-sk", None | Some(256)) => Ok(KeyKind::Sk(crate::sk::Alg::EcdsaP256)),
+            (sk @ ("ed25519-sk" | "ecdsa-sk"), Some(b)) => Err(format!("an {sk} key has 256 bits, not {b}")),
             ("dsa", _) => Err("DSA keys are not made: OpenSSH 10 removed DSA".into()),
-            (other, _) => Err(format!("unknown key type {other:?}: ed25519 (the default), ecdsa or rsa")),
+            (other, _) => {
+                Err(format!("unknown key type {other:?}: ed25519 (the default), ecdsa, rsa, ed25519-sk or ecdsa-sk"))
+            }
         }
     }
 
-    /// The name `ssh-keygen` uses, as in the default file `id_<name>`.
+    /// The name that `ssh-keygen -t` takes.
     pub fn name(self) -> &'static str {
         match self {
             KeyKind::Ed25519 => "ed25519",
             KeyKind::Ecdsa(_) => "ecdsa",
             KeyKind::Rsa(_) => "rsa",
+            KeyKind::Sk(crate::sk::Alg::Ed25519) => "ed25519-sk",
+            KeyKind::Sk(crate::sk::Alg::EcdsaP256) => "ecdsa-sk",
         }
+    }
+
+    /// The default file of the type, as OpenSSH names it: `id_ed25519`,
+    /// `id_ecdsa_sk`.
+    pub fn default_file(self) -> String {
+        format!("id_{}", self.name().replace('-', "_"))
     }
 }
 
@@ -66,6 +81,7 @@ pub fn generate(kind: KeyKind, comment: &str) -> Result<PrivateKey, String> {
         KeyKind::Ecdsa(curve) => PrivateKey::random(&mut rng, Algorithm::Ecdsa { curve }).map_err(failed)?,
         // aws-lc-rs makes it, never the `rsa` crate (T-257).
         KeyKind::Rsa(bits) => PrivateKey::from(crate::rsa_key::generate(bits)?),
+        KeyKind::Sk(_) => return Err("a key of a security key is made in its device, not here".into()),
     };
     key.set_comment(comment);
     Ok(key)
@@ -271,6 +287,10 @@ mod tests {
         assert_eq!(KeyKind::parse(Some("ECDSA"), Some("384")).unwrap(), KeyKind::Ecdsa(EcdsaCurve::NistP384));
         assert_eq!(KeyKind::parse(Some("rsa"), None).unwrap(), KeyKind::Rsa(3072));
         assert_eq!(KeyKind::parse(Some("rsa"), Some("4096")).unwrap(), KeyKind::Rsa(4096));
+        assert_eq!(KeyKind::parse(Some("ed25519-sk"), None).unwrap(), KeyKind::Sk(crate::sk::Alg::Ed25519));
+        assert_eq!(KeyKind::parse(Some("ECDSA-SK"), Some("256")).unwrap(), KeyKind::Sk(crate::sk::Alg::EcdsaP256));
+        assert_eq!(KeyKind::parse(Some("ecdsa-sk"), None).unwrap().default_file(), "id_ecdsa_sk");
+        assert!(generate(KeyKind::Sk(crate::sk::Alg::Ed25519), "").is_err(), "made in a device only");
         for (t, b) in [
             ("ed25519", "255"),
             ("ecdsa", "300"),
@@ -278,6 +298,7 @@ mod tests {
             ("rsa", "2500"),
             ("rsa", "16384"),
             ("dsa", "1024"),
+            ("ecdsa-sk", "384"),
             ("x", "1"),
             ("rsa", "z"),
         ] {

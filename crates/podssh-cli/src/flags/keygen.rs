@@ -1,6 +1,7 @@
 //! The flag rows of `keygen`: the flags of `ssh-keygen` that scripts use,
 //! to make a key, change it (T-018), edit `known_hosts` (T-019), sign
-//! (T-020), certify (T-021) and convert (T-022).
+//! (T-020), certify (T-021) and convert (T-022); and a key of a security
+//! key (T-229).
 
 use super::{row, FlagKind, FlagRow};
 
@@ -10,7 +11,7 @@ use super::{row, FlagKind, FlagRow};
 #[rustfmt::skip]
 pub const KEYGEN_FLAGS: &[FlagRow] = &[
     row(Some('t'), "type", Some("TYPE"), FlagKind::Supported,
-        "key type: ed25519 (the default), ecdsa or rsa; with -s, the signature of an RSA CA: rsa-sha2-512 (the default) or rsa-sha2-256", None),
+        "key type: ed25519 (the default), ecdsa or rsa, or ed25519-sk or ecdsa-sk, a key of a security key (FIDO2); with -s, the signature of an RSA CA: rsa-sha2-512 (the default) or rsa-sha2-256", None),
     row(Some('b'), "bits", Some("BITS"), FlagKind::Supported,
         "key size: ecdsa 256 (the default), 384 or 521; rsa 2048, 3072 (the default), 4096 or 8192", None),
     row(Some('f'), "file", Some("FILE"), FlagKind::Supported,
@@ -46,7 +47,7 @@ pub const KEYGEN_FLAGS: &[FlagRow] = &[
     row(Some('I'), "identity", Some("ID"), FlagKind::Supported,
         "with -s: the key id of the certificate; with -Y verify and match-principals: the principal to look for in the allowed signers", None),
     row(Some('O'), "option", Some("OPTION"), FlagKind::Supported,
-        "with -Y: hashalg=sha256 or sha512 (sign), verify-time=TIME and print-pubkey (verify); with -s: clear, permit-*, no-*, force-command=CMD, source-address=LIST, verify-required, extension:NAME[=VALUE], critical:NAME[=VALUE]", None),
+        "with -Y: hashalg=sha256 or sha512 (sign), verify-time=TIME and print-pubkey (verify); with -s: clear, permit-*, no-*, force-command=CMD, source-address=LIST, verify-required, extension:NAME[=VALUE], critical:NAME[=VALUE]; with -t ed25519-sk or ecdsa-sk: resident, application=ssh:NAME, user=NAME, no-touch-required, verify-required, device=PATH", None),
     row(Some('U'), "agent-key", None, FlagKind::Supported,
         "the key is in the agent (SSH_AUTH_SOCK), which signs: the key of -f with -Y sign, the CA's with -s; the file may hold the public key", None),
     row(Some('V'), "validity", Some("INTERVAL"), FlagKind::Supported,

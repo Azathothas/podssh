@@ -334,8 +334,9 @@ scripts. The facts about OpenSSH on this page were measured with OpenSSH
   `false` where OpenSSH writes them), then exit 0 with nothing opened: no
   relay, no token. A script can compare the two line by line. The defaults
   that differ do on purpose: `serveraliveinterval 60` (the relay's idle
-  cut) and `connecttimeout 60`, and podssh tries no `_sk` identity file, as
-  it has no security keys. podssh's own settings (relay hosts, `--ca-file`)
+  cut) and `connecttimeout 60`. podssh tries the `_sk` identity files too,
+  as OpenSSH does: a key of a security key signs in its device (T-229).
+  podssh's own settings (relay hosts, `--ca-file`)
   print no line, as OpenSSH knows no such keyword; `podssh status` shows
   them.
 - **A repeated value follows OpenSSH** (measured with `ssh -G`): the first
@@ -1083,12 +1084,67 @@ GitHub #23): the time of each step, the round trip, and the throughput.
   imports public keys only: podssh never prints a private key. `-y` and
   `-l` read a key in each format that `podssh ssh -i` reads, and ask for its
   passphrase.
+- `-t ed25519-sk` and `-t ecdsa-sk` make a key in a security key (FIDO2),
+  as OpenSSH's `ssh-keygen` does (T-229). The device keeps the key; the
+  file holds the device's handle of it, the application and the flags, in
+  the format of OpenSSH (PROTOCOL.u2f), and needs the device for each
+  signature. `-O resident`, `-O verify-required` (the device's PIN at each
+  use), `-O no-touch-required`, `-O application=ssh:NAME` and
+  `-O user=NAME` are those of `ssh-keygen`; `-O device=PATH` names a
+  device on Linux. `-O challenge=` and `-O write-attestation=` are
+  refused: podssh keeps no attestation of the device. The probe comes
+  first: with no device that podssh may reach, `keygen` names the reason
+  and exits 1, before it asks a passphrase or writes a file. See
+  "Security keys" below.
 - DSA is refused, because OpenSSH 10 removed it.
 - An RSA key is made by aws-lc-rs, whose RSA is constant-time, never by the
   `rsa` crate, whose private-key operations are not (RUSTSEC-2023-0071, the
   Marvin attack): 2048, 3072 (the default), 4096 or 8192 bits, the sizes
   that aws-lc-rs makes (T-257).
 - The comment comes from the environment, never from the user database.
+
+### Security keys
+
+A key of a security key (`sk-ssh-ed25519@openssh.com`,
+`sk-ecdsa-sha2-nistp256@openssh.com`) signs in its FIDO2 device: the key
+never leaves it, and each signature needs a touch (T-229). podssh makes
+such a key (`podssh keygen`), signs a login with its file (`podssh ssh -i`,
+and the default files `id_ecdsa_sk` and `id_ed25519_sk`), and holds one in
+`podssh agent`. Each use probes the way to the device first, and never
+assumes one:
+
+- On Linux, podssh speaks CTAP2 over the kernel's raw HID devices,
+  `/dev/hidraw*`, in its own code: the framing of CTAPHID, CBOR, and the
+  PIN protocol one. The probe keeps the devices whose report descriptor is
+  a FIDO device's, read in sysfs, else from the device, and that this user
+  may open; most systems give that access through a udev rule
+  (`TAG+="uaccess"`). A device that speaks U2F only (CTAP1) is refused.
+  With several devices, `keygen` asks for one (`-O device=PATH` or
+  `PODSSH_SK_DEVICE`), and a signature goes to the device that holds the
+  key, which each device tells at once with no touch.
+- On Windows, podssh asks the WebAuthn API of the system (`webauthn.dll`,
+  of Windows 10 1903 and later), loaded at run time; Windows shows its own
+  dialog for the touch and the PIN, and needs no right of an
+  administrator. A session with no window for that dialog is refused.
+- On each other system (macOS among them) podssh has no way to the device
+  and says so; a key that an agent holds (OpenSSH's `ssh-agent`, with its
+  own helper) still signs through the agent.
+- A device has 30 s for an operation, the touch included; then podssh
+  cancels it and says that nobody touched the key. The touch is no
+  question: `BatchMode` does not stop it, and forbids only the question of
+  the PIN of a key made with `verify-required`. The time of the device
+  does not count against `ConnectTimeout`. The server is asked first
+  whether it takes the key, so a key that it does not take asks for no
+  touch.
+- With no device, a login skips the key before the server sees it: `-v`
+  says why, and so does the message of a login that fails. A device that
+  does not sign (no touch, a wrong PIN) lets the next key go on.
+- `PODSSH_SK_DEVICE` names the device on Linux (a path of
+  `/dev/hidraw*`); `none` turns security keys off on each system.
+- The signature that podssh sends is OpenSSH's (PROTOCOL.u2f): the
+  device's signature, then the flags and the counter that the device
+  signed. The tests check it against signatures that OpenSSH made, the
+  vectors of ssh-key 0.7.0-rc.11.
 
 ## `podssh node`, `podssh operator` and `podssh relay`
 
@@ -1402,6 +1458,17 @@ OpenSSH program that runs; one binary, as the operator ruled (Q5).
   agent server would sign with it through the `rsa` crate, which is not
   constant-time, so `podssh agent add` of an RSA key fails with the reason
   (exit 70); OpenSSH's `ssh-agent` keeps one.
+- A key of a security key (T-229) is kept by the front of the agent, as
+  russh's agent server cannot sign with one: `podssh agent add` and
+  OpenSSH's `ssh-add` give it (with the constraint
+  `sk-provider@openssh.com`, which names OpenSSH's helper; podssh reaches
+  the device its own way, whatever it names), `list` and `ssh-add -l` show
+  it with its comment, and a signature with it goes to the device. The
+  agent says the touch on its own stderr, and `podssh ssh` says it too. A
+  key made with `verify-required` gets its PIN only through `SSH_ASKPASS`
+  with `SSH_ASKPASS_REQUIRE=force`: the agent runs in the background, where
+  a read of the terminal would stop it. With no device, the agent answers
+  FAILURE and says why on its stderr.
 - A store of credentials (T-228): `podssh agent add-password
   [USER@]HOST[:PORT]` keeps a server's password, under the user, host and
   port that `podssh ssh` logs in with (its ssh_config read), and
@@ -1760,7 +1827,8 @@ with its exit code unchanged. At 1 MiB the file becomes `sessions.1.jsonl`
   answer of the server while podssh logs in: a server that stalls after the
   key exchange ends the run with 255 and names the request that it did not
   answer. A prompt runs before its request, and the time that the agent
-  spends signing (`ssh-add -c`) does not count.
+  spends signing (`ssh-add -c`) does not count, nor does the time of a
+  security key, whose touch has 30 s (T-229).
 
 ## `ssh_config` (milestone M8)
 

@@ -30,7 +30,7 @@ Read:
   never offers a key (`crates/podssh-ssh/src/auth.rs:111-113`).
 - The denial adds the notes of the keys with no condition
   (`crates/podssh-ssh/src/auth.rs` line 115 at `475aea9`). `PublicKeys::notes` writes "no key
-  was offered" when nothing was offered (`crates/podssh-ssh/src/keys.rs:125-138`).
+  was offered" when nothing was offered (`crates/podssh-ssh/src/keys.rs:138-151`).
 - The reporter's output (GitHub #7): the line
   `Permission denied (publickey,keyboard-interactive).`, the note about
   keyboard-interactive, then the wrong note.
@@ -52,9 +52,9 @@ Read:
 3. When the server does not accept `publickey`, say nothing about keys:
    `-i FILE` cannot help.
 4. Give the note about skipped encrypted keys
-   (`crates/podssh-ssh/src/keys.rs:139-145`) the same condition as step 1.
+   (`crates/podssh-ssh/src/keys.rs:152-158`) the same condition as step 1.
 5. Keep `PublicKeys::new` for each login (`crates/podssh-ssh/src/auth.rs:106`),
-   so that only the notes change. No document changes: `docs/cli.md:1698-1753`
+   so that only the notes change. No document changes: `docs/cli.md:1765-1820`
    already says that a refusal names the remedy.
 
 ## Prove
@@ -181,7 +181,7 @@ Read:
    `scripts/interop-faults.sh:228` looks for `1009 session byte cap`.
 6. Correct the comment on the window (`crates/podssh-ssh/src/run.rs` lines
    25-29 at `80f20bf`). The window of 512 KiB stays: it is below both limits.
-7. Update `docs/relay.md` (lines 155-158 at `80f20bf`) and `docs/STATUS.md:441`. T-025 uses the
+7. Update `docs/relay.md` (lines 155-158 at `80f20bf`) and `docs/STATUS.md:442`. T-025 uses the
    classification for its retry rule. T-227 is a different path
    (`--direct`).
 
@@ -295,13 +295,13 @@ Read:
    terminal and no `SSH_ASKPASS`, a retry that needs a prompt stops. Keep a
    typed password in memory (zeroized) for the retry; do not ask twice.
 6. Say each retry on stderr, with the hop and the reason. Document the rule
-   in `docs/cli.md:1638-1696`, and add a row to `docs/STATUS.md`.
+   in `docs/cli.md:1705-1763`, and add a row to `docs/STATUS.md`.
 
 ## Decision
 
 Recommendation: retry inside podssh, and only before the session request.
 Only podssh knows whether the request was sent, and `podssh ssh` keeps the
-exit code 255 of OpenSSH (`docs/cli.md:1648-1651`). The alternative, a distinct
+exit code 255 of OpenSSH (`docs/cli.md:1715-1718`). The alternative, a distinct
 exit code for the caller to retry on, lost: it breaks scripts that expect
 OpenSSH's codes, and a caller that retries each 255 runs a command twice.
 
@@ -420,7 +420,7 @@ Read:
    measured code.
 4. Make the mapping from `io::End` to an exit code a pure function in
    `crates/podssh-ssh/src/session.rs`, with a test for each variant.
-5. Write the measured rule in `docs/cli.md:1638-1696`, and the measurement in
+5. Write the measured rule in `docs/cli.md:1705-1763`, and the measurement in
    `docs/STATUS.md`.
 
 ## Prove
@@ -704,7 +704,7 @@ Not measured here: each case needs a server.
    (`HOME` is not set, `UserKnownHostsFile none`, or the write error); the
    next run cannot detect a changed key.
 4. Check the file type before the open: a FIFO blocks an open for reading.
-5. Update `docs/cli.md:1698-1753` (one line) and the manual's note on host keys
+5. Update `docs/cli.md:1765-1820` (one line) and the manual's note on host keys
    (`crates/podssh-cli/src/man/notes.rs`, lines 60-66 at `33c9a31`).
 
 ## Decision
@@ -1022,7 +1022,7 @@ and no other.
    `known_hosts` cannot be read (`unverifiable` in
    `crates/podssh-ssh/src/hostkey.rs`, T-028), next to
    `-o UserKnownHostsFile=FILE`.
-6. The flag's row gives the help and the manual. Update `docs/cli.md:48-351`,
+6. The flag's row gives the help and the manual. Update `docs/cli.md:48-352`,
    and add an example to `crates/podssh-cli/src/man/examples.rs`.
 
 ## Decision
@@ -1240,7 +1240,7 @@ and no player.
    hold a secret.
 4. Playback: a new verb `podssh play FILE`, with `--speed` and
    `--idle-limit`. Not `replay`: it is one edit from `relay`, and the
-   suggestion step would mix them (`docs/cli.md:596-605`). Add it to `VERBS`
+   suggestion step would mix them (`docs/cli.md:597-606`). Add it to `VERBS`
    (`crates/podssh-cli/src/flags.rs:363-410`), to
    `crates/podssh-cli/src/positionals.rs`, to dispatch, and to `DISPATCHED`
    (`crates/podssh-cli/tests/flag_table.rs:110-113`).
@@ -1308,7 +1308,7 @@ session starts with the size of its start
   place of the one of `scripts/interop.sh`. The next commit names that helper
   `ping_via` (`scripts/interop-ping.sh:10-16`), so that each later harness
   gets `podssh ssh`.
-- `docs/cli.md:278-289` and `docs/cli.md:1477-1489`, the manual's notes and an
+- `docs/cli.md:278-289` and `docs/cli.md:1544-1556`, the manual's notes and an
   example, say what the flag and the verb do, and their risks.
 - `cargo test -p podssh-ssh`: 151 passed; `cargo test -p podssh-cli`:
   574 passed, 0 failed, 31 ignored; clippy; rustfmt.
@@ -1338,9 +1338,9 @@ runs: with no user database entry, OpenSSH's programs stop at once
 - Read: podssh uses an agent that `SSH_AUTH_SOCK` names, today. On Unix it
   connects to that socket, or to `IdentityAgent PATH`; on Windows it tries
   the named pipe of `SSH_AUTH_SOCK`, then the pipe of the OpenSSH agent, then
-  Pageant (`crates/podssh-ssh/src/keys.rs:334-371`, `connect_agent`). It offers the agent's
-  keys first (`crates/podssh-ssh/src/keys.rs:149-207`), and skips the agent's
-  certificates (`crates/podssh-ssh/src/keys.rs:157-160`).
+  Pageant (`crates/podssh-ssh/src/keys.rs:392-429`, `connect_agent`). It offers the agent's
+  keys first (`crates/podssh-ssh/src/keys.rs:200-265`), and skips the agent's
+  certificates (`crates/podssh-ssh/src/keys.rs:208-211`).
 - Read: russh 0.64.1, which the binary links, has an agent server
   (`russh::keys::agent::server::serve`): identities, signatures, add and
   remove, lock, and the lifetime and confirm constraints. It has no handler
@@ -1716,9 +1716,9 @@ gives the extension messages and the exit codes; the manual's EXIT STATUS has 65
   source; the tests of the password and of keyboard-interactive failed.
 - The doctor's tests failed in their first run on this host, where no agent runs: russh's stream
   to Pageant opens when no Pageant runs, and closes at the first request, so the line said FAIL.
-  podssh now asks for Pageant's window first (`crates/podssh-ssh/src/keys.rs:356-360`), which also
+  podssh now asks for Pageant's window first (`crates/podssh-ssh/src/keys.rs:414-418`), which also
   spares `podssh ssh` that stream, and reads an agent that closes the connection at the store's
-  question as one with no store (`crates/podssh-ssh/src/credential_store.rs:344-351`). The
+  question as one with no store (`crates/podssh-ssh/src/credential_store.rs:354-361`). The
   doctor's tests: 10 passed, on Windows and in the build image.
 - `cargo test -p podssh-ssh -p podssh-cli`: 630 passed, 0 failed, 31 ignored, on Windows; clippy
   with all features.
@@ -1740,7 +1740,7 @@ read in the report). Read and measured here on `3ee70dc`.
 **Milestone:** backlog
 **Priority:** P3
 **Effort:** L
-**Status:** open
+**Status:** done
 
 ## Problem
 
@@ -1755,14 +1755,14 @@ with the key file of one, and has no agent to hold one.
   `unknown key type "ed25519-sk": ed25519 (the default), ecdsa or rsa`,
   exit 64, and writes nothing.
 - Read: the default key files leave out the types of security keys
-  (`crates/podssh-ssh/src/options.rs:405-409`). `known_hosts::key_type` names
-  them (`crates/podssh-ssh/src/known_hosts.rs:420-421`), and `ssh-key`
+  (`crates/podssh-ssh/src/options.rs`, lines 392-399 at `c7c5aa6`). `known_hosts::key_type` names
+  them (`crates/podssh-ssh/src/known_hosts.rs:416-417`), and `ssh-key`
   0.7.0-rc.11 has their algorithms.
 - Read: podssh offers each key that an agent lists
-  (`crates/podssh-ssh/src/keys.rs:149-207`), so an `sk-` key in OpenSSH's
+  (`crates/podssh-ssh/src/keys.rs:200-265`), so an `sk-` key in OpenSSH's
   `ssh-agent`, with its device present, can work today. Not measured.
 - Read: `-I` (PKCS#11) is refused by name
-  (`crates/podssh-cli/src/flags.rs:252-253`).
+  (`crates/podssh-cli/src/flags.rs:251-252`).
 - A device needs USB access (`/dev/hidraw*` on Linux) or the WebAuthn API of
   Windows. A sandbox has neither, so each use needs a probe.
 
@@ -1784,6 +1784,101 @@ with the key file of one, and has no agent to hold one.
 5. Probe each step; with no device, refuse with the reason before anything
    is written. Never assume a device.
 
+## Decision
+
+The calls of the draft of 2026-10-13:
+
+- **The run with a device waits for the operator; the entry closes on its
+  native Prove.** Step 1 measures with a real key on the operator's
+  machine, and no session has a key. The Prove names the run with a real
+  key as a measurement of the operator, apart from its unit test and the
+  gate's checks, which need no device; T-181 closed in the same way, its
+  serial device waiting for hardware. Where no device is, podssh refuses
+  with the reason, so a defect of the device layer cannot pass as a
+  success. The alternative, `blocked` with a `## Blocker` on the operator
+  until the run, lost: the code and each test that needs no device would
+  wait with it. Step 2 starts with the change: the agent's road of step 1
+  needs no change of the login (the agent signs), and podssh now says the
+  touch for it.
+- **Linux: CTAP2 over `/dev/hidraw*` in podssh's own Rust**
+  (`crates/podssh-ssh/src/sk/`): the framing of CTAPHID, the part of CBOR
+  that CTAP2 uses, and the PIN protocol one, with aws-lc-rs, which the
+  binary links already, for its ECDH, AES-256-CBC and HMAC. The probe
+  lists the `hidraw` devices, keeps those whose report descriptor has
+  FIDO's usage page 0xF1D0 (in sysfs, else by `HIDIOCGRDESC`), and opens
+  each; most systems give that access through a udev rule. Lost: libfido2
+  (C, with libcbor, libcrypto and libudev to link into a static binary),
+  and the crates `ctap-hid-fido2` and `authenticator` (new trees of
+  dependencies, with hidapi or udev). A device of U2F only (CTAP1) is
+  refused by name: Ed25519 needs CTAP2, and the devices sold since 2018
+  speak it. With several devices, `keygen` asks the user to name one, and a
+  signature goes to the device that answers a silent request (no touch)
+  for the key, as OpenSSH's `sk_select_by_cred` does; a touch to choose a
+  device (OpenSSH's `sk_select_by_touch`) lost, as it asks each device for
+  a touch.
+- **Windows: the WebAuthn API of the system, loaded at run time.**
+  windows-sys gives the types of `webauthn.h`, and podssh loads
+  `webauthn.dll` with `LoadLibraryExW` (System32 only) and
+  `GetProcAddress`. windows-sys's own functions of the library link it at
+  load time, so podssh would not start on a Windows without it (Windows 10
+  before 1903, Windows Server 2016); the load is the probe. The raw HID of
+  a FIDO device lost: since Windows 10 1903 only an administrator opens
+  it. The client data that Windows hashes is podssh's data itself, as
+  libfido2 gives it to Windows for OpenSSH, so the device signs SHA-256 of
+  the data, as PROTOCOL.u2f wants. Windows' own dialog asks for the touch
+  and the PIN; its owner is the window in front, else the console's, and a
+  session with neither is refused. Windows tests the user's presence each
+  time, so a key made with `no-touch-required` asks for a touch there.
+- **macOS and each other system: no way to a device, said by the probe.**
+  macOS gives a FIDO device through IOKit only, an API of frameworks with
+  a run loop of its own, and no macOS host is here to test it. A key that
+  an agent holds (OpenSSH's `ssh-agent` with its helper) still signs
+  through the agent, and podssh says the touch. IOKit through FFI, with no
+  test, lost for now.
+- **30 s for each operation of a device, the touch included**
+  (`TOUCH_LIMIT`): podssh's own timer and CTAPHID's CANCEL on Linux,
+  `dwTimeoutMilliseconds` on Windows. The time does not count against
+  `ConnectTimeout`, as an agent's does not (`answer::within_signing`). The
+  server is asked first whether it takes the key (russh's query), so a key
+  that it refuses asks for no touch. Lost: no limit, as libfido2 waits,
+  which can hold a script for ever; and `ConnectTimeout`, which a person
+  needs for the touch.
+- **`BatchMode` does not stop the touch.** The touch is no question: its
+  line goes to stderr, and the wait has its 30 s, also under `BatchMode`;
+  when nobody touches the key, podssh says so and goes on to the next key.
+  `BatchMode` forbids only the PIN of a key made with `verify-required`.
+  OpenSSH does the same. Lost: skip each security key under `BatchMode`,
+  which loses a key that a script with a person at it, or a key with
+  `no-touch-required`, can use.
+- **The probe of a login comes before the key goes to the server.** With
+  no device, the key file is skipped, `-v` says why, and so does the
+  message of a login that fails. Lost: the probe after the server took the
+  key, which needs a signature that cannot verify to go on.
+- **`keygen` asks for the passphrase before the touch**, after the probe:
+  a run with nobody to ask stops before the device makes a key, which
+  stays in the device when it is resident. OpenSSH asks after the touch. A
+  refusal exits 1, as `ssh-keygen` and podssh's other failures of `keygen`
+  do.
+- **`podssh agent` keeps a security key in its front**, beside the store of
+  T-228, as russh's agent server cannot sign with one: it takes `ssh-add`'s
+  request with the constraint `sk-provider@openssh.com` (whatever it
+  names), lists the keys after russh's, signs in the device, and asks for a
+  PIN only through `SSH_ASKPASS` with `SSH_ASKPASS_REQUIRE=force`, as the
+  agent runs in the background, where a read of the terminal stops it. A
+  PIN on the agent's terminal lost.
+- **`PODSSH_SK_DEVICE`**: a path of `/dev/hidraw*` (Linux), or `none`,
+  which turns security keys off. The client and the agent take no
+  `-O device=`, and a test on a host with a device needs a way to have
+  none. `-O device=` alone lost.
+- **The default identity files take `id_ecdsa_sk` and `id_ed25519_sk`**, in
+  OpenSSH's order, so `-G` prints OpenSSH's lines.
+- **The tests of the format use bytes that OpenSSH wrote**, published as
+  the test vectors of ssh-key 0.7.0-rc.11 (see the Correction). A device in
+  software (aws-lc-rs) speaks CTAPHID and CTAP2 in the tests of the flows,
+  and ssh-key, which podssh does not use to sign, verifies each signature.
+- **`-O challenge=` and `-O write-attestation=` are refused**: podssh keeps
+  no attestation of a device.
+
 ## Prove
 
 ```sh
@@ -1798,6 +1893,100 @@ once from OpenSSH and a real key. In the gate, with no device,
 the reason, and no file is written. The run with a real key is a measurement
 of the operator, recorded in `docs/STATUS.md`. Planted defect: skip the
 probe, and the refusal check fails with an error of the device layer.
+
+## Correction
+
+- The Prove's unit test was to check the format "against bytes captured
+  once from OpenSSH and a real key". No session has a key, and none
+  captured bytes. `sk_signature` checks podssh's signature against bytes
+  that OpenSSH wrote, the test vectors of ssh-key 0.7.0-rc.11: an SSH
+  signature of `ssh-keygen -Y sign` with the key `id_sk_ed25519_2.pub`
+  (counter 9), and an agent's signature with `id_sk_ecdsa_p256_2.pub`
+  (counter 236), each of "testing". Their source does not name the device
+  that made them, so "a real key" is not shown; the operator's run with a
+  device captures one.
+- Step 3's check, that OpenSSH's `ssh-keygen` reads a key file of
+  `podssh keygen -t ed25519-sk`, needs a device, which the build image has
+  not. `scripts/interop-keygen.sh` reads instead a file that podssh's
+  writer made (`keygen -c` of a file built as `ssh-keygen` writes one); a
+  file of `podssh keygen` with a device waits for the operator's run.
+- Step 2 names "`windows-sys` (no C to compile)": windows-sys's functions
+  of webauthn.dll link the library at load time, so podssh loads it at run
+  time, with windows-sys's types (the Decision).
+
+## Done
+
+2026-10-13.
+
+- `crates/podssh-ssh/src/sk/` (new): the probe and the way to a device
+  (`linux.rs`: `/dev/hidraw*`, the report descriptor, `flock`;
+  `windows.rs`: webauthn.dll at run time; `other.rs`: the refusal),
+  CTAPHID (`hid.rs`), CBOR (`cbor.rs`), the commands of CTAP2 (`ctap.rs`),
+  the PIN protocol one (`pin.rs`), the flows over a channel (`flow.rs`),
+  the formats of PROTOCOL.u2f and of a device's answers (`format.rs`), the
+  keys of `podssh agent` (`agent.rs`) and the signers of a login
+  (`signer.rs`). Each refusal of the probe starts "no security key: ".
+- `podssh keygen -t ed25519-sk` and `-t ecdsa-sk`
+  (`crates/podssh-cli/src/keygen_sk.rs`), with `-O resident`,
+  `verify-required`, `no-touch-required`, `application=`, `user=` and
+  `device=`; `KeyKind::Sk` in `crates/podssh-ssh/src/keygen.rs`.
+- The login: a key file of a security key signs in its device after the
+  probe, with the line of the touch and 30 s
+  (`crates/podssh-ssh/src/keys.rs`); an agent's key says the touch; the
+  signature that stands in for a device that did not sign carries the
+  flags and the counter (`crates/podssh-ssh/src/answer.rs`); `-Y sign` with
+  a key file of one (`crates/podssh-ssh/src/sshsig.rs`); the default `_sk`
+  identity files.
+- `podssh agent`: the front keeps, lists, signs with and removes security
+  keys (`crates/podssh-ssh/src/credential_store.rs`); `podssh agent add`
+  sends one as `ssh-add` does, with `sk-provider@openssh.com`.
+- The manual: `PODSSH_SK_DEVICE`, the notes of `keygen`, `ssh` and
+  `agent`, the rows of `-t` and `-O`; `docs/cli.md` ("Security keys") and
+  README.
+- Tests: `cargo test -p podssh-ssh --lib -- sk::` (CBOR, CTAPHID, CTAP2,
+  the PIN protocol, the flows against a device in software, the formats,
+  the agent's keys, the probe of Linux), with the three `sk_signature`
+  tests: 25 passed on Windows 11, 35 on Linux in the build image (the
+  probe of Linux among them). `cargo test -p podssh-cli --test keygen_sk
+  --test agent_sk --test ssh_config --test ssh_args`: passed;
+  podssh-ssh and podssh-cli together, 1031 passed, 0 failed.
+- The merge found three defects of the draft. Clippy refused seven lines
+  (keys passed by reference to `agreement::agree`, a `drop` of a value with
+  no `Drop`, a loop on a condition that the loop does not change). The
+  manual's scan of the variables reads each file up to its first item of
+  the tests, and `sk/mod.rs` declared its device in software first, so
+  `PODSSH_SK_DEVICE` read as unread: that module is last now. And the fake
+  device of `flow_tests.rs` checked the PIN's hash and its proof with
+  `pin::pin_hash` and `pin::auth`, the code under test, so the plant of the
+  PIN's whole hash passed: the fake makes both by CTAP2 now, and
+  `the_cipher_is_aes_256_cbc_with_an_iv_of_zeros` checks the cipher of the
+  PIN protocol against NIST SP 800-38A's vector.
+- Planted, each restored: the counter little-endian in
+  `format::signature_blob` failed the two tests of OpenSSH's bytes and
+  two more; the PIN's whole hash in `pin::pin_hash` failed
+  `a_pin_goes_through_the_pin_protocol`; the whole HMAC in `pin::auth`
+  failed it and `a_pin_is_checked_and_proved`; no CANCEL in
+  `hid::Channel::cbor` failed `no_answer_cancels_and_says_why` and
+  `nobody_touches_the_device`.
+- In the build image (the steps `lint` and `release`, 2026-10-13): green,
+  clippy 1.99 clean; interop 526 passed, 0 failed; `keygen` 92 of 92 with
+  the 5 checks `keygen.sk.*` (with no device, the probe's reason and no
+  file; OpenSSH's `ssh-keygen -y` of podssh's rewrite of a key file; a
+  login that says the reason), and `agent` 30 of 30 with the 4 checks
+  `agent.sk.*` (OpenSSH's `ssh-add` gives `podssh agent` a key of a
+  security key, `ssh-add -l` lists it, a login through it with no device
+  gives 255, `ssh-add -d` takes it back). The Prove's plant, the probe of
+  Linux skipped so that the device layer meets `/dev/hidraw0` unchecked,
+  in the image: `keygen.sk.nothing_written` and `keygen.sk.login_no_device`
+  failed, each with the device layer's error in place of the probe's
+  reason; `keygen.sk.no_device`, which reads the exit code alone, passed.
+- Waits for the operator: the run with a real key on Linux and on Windows
+  (step 1): `podssh keygen -t ed25519-sk` and `-t ecdsa-sk` (also with
+  `-O resident` and `-O verify-required`), OpenSSH's `ssh-keygen -y` of the
+  file, a login with `podssh ssh -i` to sshd, `podssh agent add` and a
+  login through it, and a capture of a signature for `sk_signature`;
+  recorded in `docs/STATUS.md`. Until then the code that speaks to a
+  device is tested against a device in software only.
 
 # T-236: Authentication has no time limit, but the comment of `connect_timeout` says that it has
 
@@ -1835,7 +2024,7 @@ Read, at `9fefff2`:
   the session after 180 s with no payload (`docs/relay.md:160`). The relay's
   own keepalive frames keep the ping watcher content meanwhile.
 - A prompt has its own limit when nobody watches the terminal (60 s, T-005;
-  `docs/cli.md:1721-1724`). A person who types slowly must not meet a limit
+  `docs/cli.md:1788-1791`). A person who types slowly must not meet a limit
   of the server.
 
 Not measured: it needs a server that stalls.
@@ -1859,7 +2048,7 @@ Not measured: it needs a server that stalls.
 5. Make the comment and the manual (`crates/podssh-cli/src/ssh/keywords.rs:36-37`,
    `crates/podssh-cli/src/flags.rs:169-170`) say the same: the handshake, and
    each answer during the authentication.
-   `docs/cli.md:1751-1753` asks for a limit on the whole operation.
+   `docs/cli.md:1818-1820` asks for a limit on the whole operation.
 
 ## Decision
 
@@ -2066,7 +2255,7 @@ files, the `known_hosts` files, `IdentityAgent` and `-E` (lines 118-130,
    it.
 5. Do not expand `-E`, as OpenSSH does not.
 6. T-043 uses the same function for `ssh_config`. Name the tokens in the
-   manual's notes and in `docs/cli.md:48-351`.
+   manual's notes and in `docs/cli.md:48-352`.
 
 ## Prove
 
@@ -2138,7 +2327,7 @@ makes its keys with the same crate.
 Read: `rsa` 0.10.0-rc.18 comes into `podssh-ssh` through russh 0.64.1 and
 ssh-key 0.7.0-rc.11 (`cargo tree -i rsa@0.10.0-rc.18`); `podssh keygen` makes
 an RSA key with `RsaKeypair::random` (`crates/podssh-ssh/src/keygen.rs`, line 67 at `ff75425`),
-and its default is Ed25519 (`crates/podssh-ssh/src/keygen.rs:33`). `rsa`
+and its default is Ed25519 (`crates/podssh-ssh/src/keygen.rs:35`). `rsa`
 0.9.10 comes into `podssh-ws`, which only verifies signatures with public keys
 (`crates/podssh-ws/src/crypto/rsa_sig.rs:10-12`): the attack needs the private
 key. The binary already links aws-lc-rs, whose RSA is constant-time, for the
@@ -2308,7 +2497,7 @@ constraint of a key (lines 296-297), and when a request to sign names such a key
 that is always ready with `true`; it never calls the agent's `confirm` (lines 348-356).
 
 Read: podssh's `confirm` refuses (`crates/podssh-cli/src/agent/serve.rs:155-158`), and is never
-called. `docs/cli.md:1397-1398` says that the key "is never used".
+called. `docs/cli.md:1453-1454` says that the key "is never used".
 
 ## Approach
 
@@ -2334,7 +2523,7 @@ constraint on; the test fails.
 
 2026-10-11. The front of `podssh agent` reads a request to add a key with constraints as russh's
 server reads it, and answers FAILURE to one with the confirm constraint
-(`crates/podssh-ssh/src/credential_store.rs:237-253`); `docs/cli.md` says that such a key is
+(`crates/podssh-ssh/src/credential_store.rs:247-263`); `docs/cli.md` says that such a key is
 refused as it is added.
 - `cargo test -p podssh-ssh --lib -- credential_store`: 8 passed, on Windows. Requests to add an
   Ed25519 key with the confirm constraint, alone and after a lifetime, got FAILURE, and russh's
@@ -2367,7 +2556,7 @@ its caller for a signature, it takes the caller's messages until one is a signat
 other (lines 287-299).
 
 Read: podssh offers the next key after a signature that failed
-(`crates/podssh-ssh/src/keys.rs:204`).
+(`crates/podssh-ssh/src/keys.rs:262`).
 
 ## Approach
 
@@ -2390,9 +2579,9 @@ the agent's error, as now; the test fails.
 
 2026-10-11. When the agent fails to sign, the signer keeps the reason and gives russh a signature
 that each server decodes and none verifies, of the key's own kind: Ed25519 64 bytes of zero, RSA
-zeros of the modulus's length, ECDSA r and s of 1 (`crates/podssh-ssh/src/answer.rs:48-99`); an
+zeros of the modulus's length, ECDSA r and s of 1 (`crates/podssh-ssh/src/answer.rs:48-106`); an
 empty one, the first try, made russh's server close the session, as it cannot decode it. The login
-says why at `-v` and goes on with the next key (`crates/podssh-ssh/src/keys.rs:196`).
+says why at `-v` and goes on with the next key (`crates/podssh-ssh/src/keys.rs:254`).
 - `cargo test -p podssh-ssh --lib -- agent_sign`: 1 passed, on Windows: for an Ed25519, an ECDSA
   and an RSA key whose agent refuses to sign, russh's server in the process refused the signature
   that stood in, and a key file logged in at once on the same connection. Planted: the agent's
@@ -2413,7 +2602,7 @@ says why at `-v` and goes on with the next key (`crates/podssh-ssh/src/keys.rs:1
 ## Problem
 
 `podssh ssh -i FILE` asks for the passphrase of a key only when russh says that it is encrypted
-(`crates/podssh-ssh/src/keys.rs:234-235`). russh says so for a key of OpenSSH and for an RSA key
+(`crates/podssh-ssh/src/keys.rs:292-293`). russh says so for a key of OpenSSH and for an RSA key
 in PEM, but not for three others. An encrypted key of PKCS#8 (`BEGIN ENCRYPTED PRIVATE KEY`) is
 read as a plain one, and fails on its DER. An encrypted key of PuTTY fails with ssh-key's "private
 key is encrypted". A key in PEM encrypted with another cipher than AES-128-CBC is read as a plain
@@ -2463,7 +2652,7 @@ Plant: answer as russh does, with no look at the text; the tests of the question
 ## Done
 
 2026-10-11. `podssh_ssh::key_file` (`crates/podssh-ssh/src/key_file.rs:25-42`) reads each key
-file: `podssh ssh -i` (`crates/podssh-ssh/src/keys.rs:231-276`), `podssh agent add` and
+file: `podssh ssh -i` (`crates/podssh-ssh/src/keys.rs:289-334`), `podssh agent add` and
 `add-passphrase`, and `podssh keygen -p` and `-c`. It finds an encrypted key by its text (a PEM key
 with `Proc-Type: 4,ENCRYPTED`, `BEGIN ENCRYPTED PRIVATE KEY`, a PuTTY key whose `Encryption` is
 not `none`) and answers "encrypted" with no passphrase. It decrypts a PEM key of AES-128-CBC,

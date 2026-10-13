@@ -23,8 +23,8 @@ harness match interop 18 scripts/interop-match.sh
 harness result interop 10 scripts/interop-result.sh
 harness mcp interop 4 scripts/interop-mcp.sh
 harness each interop 7 scripts/interop-each.sh
-harness keygen interop 87 scripts/interop-keygen.sh
-harness agent interop 26 scripts/interop-agent.sh
+harness keygen interop 92 scripts/interop-keygen.sh
+harness agent interop 30 scripts/interop-agent.sh
 harness local interop 6 scripts/interop-local.sh
 harness control interop 13 scripts/interop-control.sh
 harness faults interop 35 scripts/interop-faults.sh
@@ -249,6 +249,11 @@ keygen.refuse.overwrite pass
 keygen.refuse.overwrite_unchanged pass
 keygen.refuse.argv_passphrase pass
 keygen.refuse.argv_nothing_written pass
+keygen.sk.no_device pass
+keygen.sk.nothing_written pass
+keygen.sk.both_read pass
+keygen.sk.openssh_reads_ours pass
+keygen.sk.login_no_device pass
 
 # scripts/interop-agent.sh
 agent.serve pass
@@ -265,6 +270,10 @@ agent.store.password pass
 agent.store.add_passphrase pass
 agent.store.passphrase pass
 agent.confirm_refused pass
+agent.sk.ssh_add pass
+agent.sk.listed pass
+agent.sk.no_device pass
+agent.sk.removed pass
 agent.kill_cleanup pass
 agent.openssh.add pass
 agent.openssh.forward pass

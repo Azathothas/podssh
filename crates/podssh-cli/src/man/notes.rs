@@ -252,6 +252,10 @@ const AGENT: &[&str] = &[
      SSH_AUTH_SOCK, podssh's or OpenSSH's, as ssh-add does; a passphrase or a password is asked on the terminal or \
      through SSH_ASKPASS. Keys live in the agent's memory only. A key that asks for a confirmation of each use is \
      never used. list writes the size, the fingerprint and the type of each key, and exits 1 when there is none.",
+    "The agent holds a key of a security key (ED25519-SK, ECDSA-SK) that add gives it, as ssh-add gives \
+     one, and signs with it in the device: it asks for the touch on its own stderr, and asks a PIN only \
+     through SSH_ASKPASS with SSH_ASKPASS_REQUIRE set to force, as it runs in the background. With no device, \
+     it refuses the signature and says why.",
     "add-password [USER@]HOST[:PORT] and add-passphrase FILE (with -t SECONDS for a lifetime) give podssh's agent a \
      server's password or a key file's passphrase, from stdin when stdin is no terminal, else from the terminal or \
      SSH_ASKPASS, never from the command line; a passphrase must open its file. The agent keeps each in its memory \

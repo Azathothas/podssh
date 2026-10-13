@@ -121,14 +121,10 @@ controlpersist no
 escapechar ~";
 
 /// The lines that differ on purpose, podssh's first: keepalives keep the
-/// relay's idle cut away (`docs/relay.md`), the handshake has a limit, and
-/// podssh has no security keys, so it tries no `_sk` identity file.
-const ON_PURPOSE: &[(&str, &str)] = &[
-    ("serveraliveinterval 60", "serveraliveinterval 0"),
-    ("connecttimeout 60", "connecttimeout none"),
-    ("", "identityfile ~/.ssh/id_ecdsa_sk"),
-    ("", "identityfile ~/.ssh/id_ed25519_sk"),
-];
+/// relay's idle cut away (`docs/relay.md`), and the handshake has a limit.
+/// podssh tries the `_sk` identity files too, as OpenSSH does (T-229).
+const ON_PURPOSE: &[(&str, &str)] =
+    &[("serveraliveinterval 60", "serveraliveinterval 0"), ("connecttimeout 60", "connecttimeout none")];
 
 fn ssh(words: &[&str]) -> SshArgs {
     let argv: Vec<std::ffi::OsString> =

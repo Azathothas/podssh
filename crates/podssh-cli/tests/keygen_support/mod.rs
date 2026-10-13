@@ -32,8 +32,14 @@ pub fn scratch() -> PathBuf {
 /// Run `podssh ARGS` with no way to ask anything: no askpass program and no
 /// controlling terminal, so a test can never wait for a passphrase.
 pub fn podssh(args: &[&str]) -> Run {
+    podssh_with(args, &[])
+}
+
+/// [`podssh`] with the variables `vars` set too.
+pub fn podssh_with(args: &[&str], vars: &[(&str, &str)]) -> Run {
     let mut cmd = Command::new(env!("CARGO_BIN_EXE_podssh"));
     cmd.args(args)
+        .envs(vars.iter().copied())
         .env("PODSSH_OFFLINE", "1")
         .env_remove("SSH_ASKPASS")
         .env_remove("SSH_ASKPASS_REQUIRE")

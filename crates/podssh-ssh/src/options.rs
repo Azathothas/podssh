@@ -403,9 +403,12 @@ impl Options {
 }
 
 /// OpenSSH's default key files under `home`, in its order, for the key types
-/// podssh can use (security-key types need hardware and are left out).
+/// podssh can use; a key of a security key signs in its device (T-229).
 pub fn default_identity_files(home: &Path) -> Vec<PathBuf> {
-    ["id_rsa", "id_ecdsa", "id_ed25519"].iter().map(|name| home.join(".ssh").join(name)).collect()
+    ["id_rsa", "id_ecdsa", "id_ecdsa_sk", "id_ed25519", "id_ed25519_sk"]
+        .iter()
+        .map(|name| home.join(".ssh").join(name))
+        .collect()
 }
 
 /// OpenSSH's default `UserKnownHostsFile` under `home`.

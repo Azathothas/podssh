@@ -78,23 +78,30 @@ where
 /// `to_sign`, then a signature of the key's algorithm that each server
 /// decodes and none verifies: a server that cannot decode a signature may
 /// close the session (russh's does). Ed25519: 64 bytes of zero; RSA: zeros
-/// of the modulus's length; ECDSA: r and s of 1.
+/// of the modulus's length; ECDSA: r and s of 1. A security key's carries
+/// the flags and the counter after it (T-229).
 fn unverifiable(mut to_sign: Vec<u8>, key: &AgentIdentity, hash: Option<HashAlg>) -> Vec<u8> {
     let public = key.public_key();
+    let ecdsa = vec![0, 0, 0, 1, 1, 0, 0, 0, 1, 1];
     let (name, signature) = match public.algorithm() {
         Algorithm::Rsa { .. } => {
             let size = public.key_data().rsa().and_then(|k| k.n().as_positive_bytes()).map_or(256, <[u8]>::len);
             (Algorithm::Rsa { hash }.to_string(), vec![0u8; size])
         }
-        algorithm @ Algorithm::Ecdsa { .. } => (algorithm.to_string(), vec![0, 0, 0, 1, 1, 0, 0, 0, 1, 1]),
+        algorithm @ (Algorithm::Ecdsa { .. } | Algorithm::SkEcdsaSha2NistP256) => (algorithm.to_string(), ecdsa),
         other => (other.to_string(), vec![0u8; 64]),
     };
-    let blob = 4 + name.len() + 4 + signature.len();
+    let trailer = crate::sk::is_sk(&public);
+    let blob = 4 + name.len() + 4 + signature.len() + 5 * usize::from(trailer);
     to_sign.extend_from_slice(&(blob as u32).to_be_bytes());
     to_sign.extend_from_slice(&(name.len() as u32).to_be_bytes());
     to_sign.extend_from_slice(name.as_bytes());
     to_sign.extend_from_slice(&(signature.len() as u32).to_be_bytes());
     to_sign.extend_from_slice(&signature);
+    if trailer {
+        to_sign.push(0x01);
+        to_sign.extend_from_slice(&0u32.to_be_bytes());
+    }
     to_sign
 }
 

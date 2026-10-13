@@ -25,6 +25,8 @@
 //!   nothing else ([`zmodem`]).
 //! - a run in two halves, for `podssh ssh --upgrade`: the login, then the
 //!   request on its connection ([`upgrade`]).
+//! - security keys (FIDO2 `sk-` keys): made, and signing in the device,
+//!   after a probe of the way to it ([`sk`]).
 
 mod agent_bind;
 mod agent_forward;
@@ -66,6 +68,7 @@ pub mod run;
 pub mod session;
 pub mod sftp;
 pub mod signals;
+pub mod sk;
 mod socks;
 pub mod sshsig;
 pub mod sshsig_cert;

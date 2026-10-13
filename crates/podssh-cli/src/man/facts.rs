@@ -207,6 +207,12 @@ pub const VARIABLES: &[(&[&str], &str)] = &[
       connection, as a configuration error (78; podssh ssh exits 255).",
     ),
     (
+        &["PODSSH_SK_DEVICE"],
+        "The security key (FIDO2) that podssh keygen, podssh ssh and podssh agent use: a path of /dev/hidraw* \
+      on Linux. none: podssh uses no security key, and each use says so. Unset: on Linux each FIDO device \
+      of /dev/hidraw* that this user may open, on Windows the one that the person chooses in Windows' dialog.",
+    ),
+    (
         &["PODSSH_OFFLINE"],
         "Forbid each network connection. Test suites set it. podssh doctor then shows the network \
       checks as one ???? line.",

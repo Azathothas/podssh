@@ -51,6 +51,7 @@ pub mod keygen_change;
 pub mod keygen_convert;
 pub mod keygen_hosts;
 pub mod keygen_sign;
+pub mod keygen_sk;
 pub mod layered;
 // The manual (`man/`) and the pager that shows it on a terminal.
 pub mod man;

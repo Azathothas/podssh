@@ -46,13 +46,22 @@ pub async fn add(args: &AgentArgs, _out: &mut dyn Write, err: &mut dyn Write) ->
         Err(code) => return code,
     };
     let lifetime: Option<u32> = args.lifetime.as_deref().and_then(|s| s.parse().ok());
-    let constraints: Vec<Constraint> =
-        lifetime.map(|seconds| vec![Constraint::KeyLifetime { seconds }]).unwrap_or_default();
     for file in &args.args {
         let key = match load(Path::new(file), err).await {
             Ok(key) => key,
             Err(code) => return code,
         };
+        let mut constraints: Vec<Constraint> =
+            lifetime.map(|seconds| vec![Constraint::KeyLifetime { seconds }]).unwrap_or_default();
+        // A key of a security key goes as ssh-add sends one, with the helper
+        // that signs with it: OpenSSH's own, which podssh agent stands in
+        // for (T-229).
+        if podssh_ssh::sk::is_sk(key.public_key()) {
+            constraints.push(Constraint::Extensions {
+                name: podssh_ssh::sk::agent::SK_PROVIDER.as_bytes().to_vec(),
+                details: b"internal".to_vec(),
+            });
+        }
         if let Err(e) = agent.add_identity(&key, &constraints).await {
             // podssh agent keeps no RSA key (T-257); another agent may.
             let why = if key.algorithm().is_rsa() {
@@ -235,7 +244,7 @@ async fn ask(text: String) -> Result<Zeroizing<String>, PromptError> {
 fn bits(key: &PublicKey) -> usize {
     use podssh_ssh::russh::keys::ssh_key::public::KeyData;
     match key.key_data() {
-        KeyData::Ed25519(_) => 256,
+        KeyData::Ed25519(_) | KeyData::SkEd25519(_) | KeyData::SkEcdsaSha2NistP256(_) => 256,
         KeyData::Ecdsa(ecdsa) => match ecdsa.curve().as_str() {
             "nistp384" => 384,
             "nistp521" => 521,

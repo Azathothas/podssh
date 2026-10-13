@@ -1,5 +1,6 @@
 # podssh agent (T-034) and -A (T-036). Sourced by scripts/interop.sh once
-# its servers run; uses ok, bad, expect_rc, $W, $BIN, $KH and $T. OpenSSH's
+# its servers run, after interop-keygen.sh (whose $KG/sk_file it takes);
+# uses ok, bad, expect_rc, $W, $H, $BIN, $KH and $T. OpenSSH's
 # ssh-add lists the key that podssh agent took, and podssh ssh logs in with
 # it, with no -i, and forwards it with -A; after a kill, the socket and its
 # directory are gone. Then OpenSSH's ssh-agent, forwarded: ssh-add -l on the
@@ -94,6 +95,27 @@ if [ -n "$sock" ] && [ -S "$sock" ]; then
     [ "$rc" != 0 ] && ! grep -q "$confirmed" "$AG/list2" \
         && ok agent.confirm_refused "OpenSSH's ssh-add -c: podssh agent refuses the key, and holds none" \
         || bad agent.confirm_refused "ssh-add -c: exit $rc" "$AG/list2"
+
+    # T-229: the key of a security key of interop-keygen.sh, as OpenSSH's
+    # ssh-add gives it (with sk-provider@openssh.com): podssh agent keeps it
+    # and ssh-add -l lists it; with no device the agent does not sign, so
+    # sshd refuses the signature that stands in, and the login ends with 255.
+    timeout 20 env SSH_AUTH_SOCK="$sock" ssh-add "$KG/sk_file" </dev/null >"$AG/out" 2>"$AG/err9"
+    expect_rc agent.sk.ssh_add "OpenSSH's ssh-add gives podssh agent a key of a security key" 0 $? "$AG/err9"
+    timeout 20 env SSH_AUTH_SOCK="$sock" ssh-add -l >"$AG/list3" 2>&1
+    grep -q '(ED25519-SK)' "$AG/list3" && ok agent.sk.listed "ssh-add -l lists the key of a security key" ||
+        bad agent.sk.listed "ssh-add -l did not list the key of a security key" "$AG/list3"
+    cat "$KG/sk_file.pub" >>"$H/.ssh/authorized_keys"
+    # The agent still keeps podtest's password: publickey only.
+    timeout 60 env -u SSH_ASKPASS SSH_AUTH_SOCK="$sock" HOME="$W" "$BIN" ssh -v --direct -p 2201 \
+        -o UserKnownHostsFile="$KH" -o BatchMode=yes -o PreferredAuthentications=publickey "$T" true \
+        </dev/null >"$AG/out" 2>"$AG/err10"
+    rc=$?
+    [ "$rc" = 255 ] && grep -q "the agent could not sign" "$AG/err10" \
+        && ok agent.sk.no_device "the agent's key of a security key and no device: no signature, and 255" \
+        || bad agent.sk.no_device "a login through the agent's key of a security key: exit $rc" "$AG/err10"
+    timeout 20 env SSH_AUTH_SOCK="$sock" ssh-add -d "$KG/sk_file" </dev/null >"$AG/out" 2>"$AG/err11"
+    expect_rc agent.sk.removed "ssh-add -d takes the key of a security key back" 0 $? "$AG/err11"
 else
     bad agent.serve "podssh agent did not say SSH_AUTH_SOCK" "$AG/err"
 fi

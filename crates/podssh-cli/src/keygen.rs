@@ -177,10 +177,12 @@ pub fn run_keygen(args: &KeygenArgs, out: &mut dyn Write, err: &mut dyn Write) -
         let _ = writeln!(err, "podssh keygen: {flag} goes with -s (a certificate)");
         return EXIT_USAGE;
     }
+    // -O also gives the options of a new key of a security key (T-229).
+    let security_key = matches!(KeyKind::parse(args.key_type.as_deref(), None), Ok(KeyKind::Sk(_)));
     let lone = [
         (args.namespace.is_some(), "-n"),
         (args.identity.is_some(), "-I"),
-        (!args.options.is_empty(), "-O"),
+        (!args.options.is_empty() && !security_key, "-O"),
         (args.agent_key, "-U"),
         (!args.files.is_empty(), "a FILE argument"),
     ];
@@ -291,7 +293,7 @@ fn generate(args: &KeygenArgs, out: &mut dyn Write, err: &mut dyn Write) -> i32 
     let path = match &args.file {
         Some(file) => PathBuf::from(file),
         None => match crate::ssh::resolve::Env::from_process().home {
-            Some(home) => home.join(".ssh").join(format!("id_{}", kind.name())),
+            Some(home) => home.join(".ssh").join(kind.default_file()),
             None => {
                 let _ =
                     writeln!(err, "podssh keygen: HOME is not set, so there is no ~/.ssh: give a file with -f FILE");
@@ -307,6 +309,9 @@ fn generate(args: &KeygenArgs, out: &mut dyn Write, err: &mut dyn Write) -> i32 
             path.display()
         );
         return EXIT_FAILED;
+    }
+    if let KeyKind::Sk(alg) = kind {
+        return crate::keygen_sk::make(args, alg, &path, &comment, out, err);
     }
     let passphrase = match args.passphrase {
         NewPassphrase::Absent => match ask_new_passphrase("Enter passphrase (empty for no passphrase): ") {
@@ -337,10 +342,7 @@ fn generate(args: &KeygenArgs, out: &mut dyn Write, err: &mut dyn Write) -> i32 
     match keygen::write_texts(&path, &text, &line, KEY_FILES) {
         Ok(public) => {
             if !args.quiet {
-                let _ = writeln!(out, "Your identification has been saved in {}", path.display());
-                let _ = writeln!(out, "Your public key has been saved in {}", public.display());
-                let _ = writeln!(out, "The key fingerprint is:");
-                let _ = writeln!(out, "{} {comment}", podssh_ssh::known_hosts::fingerprint(key.public_key()));
+                tell_saved(out, &path, &public, key.public_key(), &comment);
             }
             0
         }
@@ -349,6 +351,21 @@ fn generate(args: &KeygenArgs, out: &mut dyn Write, err: &mut dyn Write) -> i32 
             EXIT_FAILED
         }
     }
+}
+
+/// The lines of `ssh-keygen` for a new key pair, written to `path` and
+/// `public`.
+pub(crate) fn tell_saved(
+    out: &mut dyn Write,
+    path: &Path,
+    public: &Path,
+    key: &podssh_ssh::russh::keys::PublicKey,
+    comment: &str,
+) {
+    let _ = writeln!(out, "Your identification has been saved in {}", path.display());
+    let _ = writeln!(out, "Your public key has been saved in {}", public.display());
+    let _ = writeln!(out, "The key fingerprint is:");
+    let _ = writeln!(out, "{} {comment}", podssh_ssh::known_hosts::fingerprint(key));
 }
 
 /// The files of a key pair (T-288): the private key closed to others, its

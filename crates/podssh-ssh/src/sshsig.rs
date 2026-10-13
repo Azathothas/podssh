@@ -68,6 +68,19 @@ pub fn sign(key: &PrivateKey, namespace: &str, hash: HashAlg, prehash: &[u8]) ->
             Signature::new(Algorithm::Rsa { hash: Some(HashAlg::Sha512) }, bytes).map_err(|e| e.to_string())?;
         return SshSig::new(key.public_key().key_data().clone(), namespace, hash, signature).map_err(|e| e.to_string());
     }
+    // A key of a security key signs in its device, which asks for a touch
+    // (T-229).
+    if let Some(security) = crate::sk::SkKey::of(key.key_data()) {
+        let data = SshSig::signed_data_for_prehash(namespace, hash, prehash).map_err(|e| e.to_string())?;
+        let shown = crate::known_hosts::fingerprint(key.public_key());
+        if security.touch() {
+            eprintln!("Confirm user presence for key {} {shown}", crate::known_hosts::key_type(key.public_key()));
+        }
+        let say = |line: &str| eprintln!("{line}");
+        let blob = crate::sk::sign_blob(&security, &data, &say, true)?;
+        let signature = Signature::try_from(&blob[..]).map_err(|e| format!("the device's signature: {e}"))?;
+        return SshSig::new(key.public_key().key_data().clone(), namespace, hash, signature).map_err(|e| e.to_string());
+    }
     key.sign_prehash(namespace, hash, prehash).map_err(|e| format!("could not sign: {e}"))
 }
 

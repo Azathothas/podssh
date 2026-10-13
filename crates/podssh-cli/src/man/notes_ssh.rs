@@ -50,6 +50,11 @@ pub const SSH: &[&str] = &[
      OpenSSH's command line holds for the destination only.",
     "Authentication tries the agent and the identity files, then keyboard-interactive and password. \
      Prompts go to the terminal or to SSH_ASKPASS. With -o BatchMode=yes, each prompt is an error.",
+    "A key file of a security key (ED25519-SK, ECDSA-SK) signs in its device: podssh first looks for a \
+     device that it may reach, and with none it skips the key and says why with -v, and in the message of \
+     a login that fails. When the server takes the key, podssh asks for a touch of the device on stderr, and \
+     waits 30 s for it, also with BatchMode; BatchMode forbids only the question of the device's PIN, which \
+     a key made with verify-required needs.",
     "-t asks for a pty when there is a local terminal. -tt asks for one also when there is none, so \
      interactive programs work from a host with no pty.",
     "What podssh reads from the terminal: in a session with a pty, the escape character (~, or that of \

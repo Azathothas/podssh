@@ -34,6 +34,14 @@ pub const KEYGEN: &[&str] = &[
      PEM; -i -m FORMAT -f FILE prints such a key as a line of OpenSSH. -m PEM or PKCS8 with a new key or -p \
      writes the private key in that format. An Ed25519 key has a form of RFC4716 only. -y and -l read a key \
      in each format that podssh ssh -i reads.",
+    "podssh keygen -t ed25519-sk or -t ecdsa-sk makes a key in a security key (FIDO2), as ssh-keygen does: \
+     the device keeps the key, and the file holds the device's handle of it, in the format of OpenSSH. Each \
+     signature needs a touch of the device, within 30 s. -O resident keeps the key in the device, -O \
+     verify-required asks the device's PIN at each use, -O no-touch-required signs with no touch, and -O \
+     application=ssh:NAME and -O user=NAME name the key. On Linux podssh reaches the device through \
+     /dev/hidraw (-O device=PATH names one); on Windows, Windows shows its own dialog. With no device that \
+     podssh may reach, it says why, asks nothing and writes nothing (exit 1). PODSSH_SK_DEVICE set to none \
+     turns security keys off.",
     "podssh asks for the passphrase two times, on the terminal or through SSH_ASKPASS. -N '' makes a key \
      with no passphrase. A passphrase given with -N is refused, because each process on the host can \
      read a command line. With no terminal and no SSH_ASKPASS, podssh stops at once and names -N ''.",
