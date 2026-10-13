@@ -266,7 +266,7 @@ repository and CI).
 | [T-190](multi.md) | P3 | M | backlog | feature | open | Containers and pods as destinations |
 | [T-191](multi.md) | P3 | M | backlog | feature | open | Expect rules, and tasks before and after a connection |
 | [T-192](multi.md) | P3 | S | backlog | feature | open | Copy, then run: `podssh run` |
-| [T-193](multi.md) | P3 | M | backlog | feature | open | Jobs on the far host: start, list, stop |
+| [T-193](multi.md) | P3 | M | backlog | feature | done | Jobs on the far host: start, list, stop |
 | [T-195](multi.md) | P3 | S | backlog | feature | open | Hand an error report to a program that the user names, for triage by an AI or a script |
 | [T-197](multi.md) | P3 | M | backlog | feature | open | A queue of detached remote jobs: submit, list, wait and fetch the output, with no GPU logic |
 | [T-198](robustness.md) | P2 | M | backlog | chore | done | Fuzz each parser |

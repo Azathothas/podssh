@@ -402,6 +402,12 @@ pub fn parse_verb(verb: &'static Verb, rest: &[std::ffi::OsString]) -> Parsed {
         return Parsed::Each(Box::new(crate::each::EachArgs::from_matches(&matches, refused)));
     }
 
+    // The command of `job start` must follow `--` (T-193).
+    if verb.name == "job" {
+        let dashed = rest.iter().any(|a| a == "--");
+        return Parsed::Job(Box::new(crate::job::JobArgs::from_matches(&matches, dashed, refused)));
+    }
+
     if verb.name == "agent" {
         let get = |id: &str| matches.get_one::<String>(id).cloned();
         return Parsed::Agent(Box::new(crate::agent::AgentArgs {

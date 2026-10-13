@@ -279,6 +279,7 @@ mod config;
 mod copy;
 mod each;
 mod edit;
+mod job;
 mod keygen;
 mod mcp;
 mod node;
@@ -294,6 +295,7 @@ pub use config::CONFIG_FLAGS;
 pub use copy::CP_FLAGS;
 pub use each::EACH_FLAGS;
 pub use edit::EDIT_FLAGS;
+pub use job::JOB_FLAGS;
 pub use keygen::KEYGEN_FLAGS;
 pub use mcp::MCP_FLAGS;
 pub use node::NODE_FLAGS;
@@ -363,6 +365,8 @@ pub const VERBS: &[Verb] = &[
         about: "the OpenSSH-compatible client, over the relay" },
     Verb { name: "each", aliases: &["each"], flags: EACH_FLAGS,
         about: "one command on many hosts at once: each line with its host, and the worst status as the exit" },
+    Verb { name: "job", aliases: &["job"], flags: JOB_FLAGS,
+        about: "jobs on a host that outlive the connection, each in the host's tmux: start, list, log, stop" },
     Verb { name: "proxy", aliases: &["proxy"], flags: PROXY_FLAGS,
         about: "ProxyCommand form: a byte pipe, not an SSH client" },
     Verb { name: "pipe", aliases: &["pipe"], flags: PIPE_FLAGS,
@@ -413,6 +417,7 @@ pub const VERBS: &[Verb] = &[
 /// of the commands that work would.
 pub const GROUPS: &[(&str, &[&str])] = &[
     ("Connect", &["ssh", "each", "proxy", "pipe", "ts"]),
+    ("Work on a host", &["job"]),
     ("Copy files", &["cp", "mv", "scp", "sftp", "edit"]),
     ("Keys", &["keygen", "agent"]),
     ("Check this host and the path", &["doctor", "status", "ping"]),

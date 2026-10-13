@@ -64,15 +64,15 @@ succeeded. `podssh ssh` takes one destination, as OpenSSH does.
    could not connect or log in; 0 only when each host gave 0. `--fail-fast`
    starts no new host after a failure, and the running ones finish. A
    summary on stderr gives each host and its status.
-7. In the same commit: `crates/podssh-cli/src/flags.rs:361-408`,
-   `crates/podssh-cli/src/positionals.rs:7-167`, a `Parsed` variant,
+7. In the same commit: `crates/podssh-cli/src/flags.rs:363-412`,
+   `crates/podssh-cli/src/positionals.rs:7-183`, a `Parsed` variant,
    `crates/podssh-cli/tests/flag_table.rs:110-113`, the notes, an example,
    `docs/cli.md`, `docs/STATUS.md`. T-013 can then group the commands.
 
 ## Decision
 
 Recommendation: a new verb, because `podssh ssh` keeps the command line and
-the exit codes of OpenSSH for one host (`docs/cli.md:1587-1590`), and a list
+the exit codes of OpenSSH for one host (`docs/cli.md:1629-1632`), and a list
 of hosts changes both. The alternative, `podssh ssh --hosts LIST`, lost: one
 flag would change what the exit status means.
 
@@ -184,7 +184,7 @@ is not a shell. A set of hosts has no name.
   (`crates/podssh-cli/src/ssh/hop.rs:30-78`,
   `crates/podssh-ws/src/names.rs:10-24`).
 - Read: the `Host` lines of ssh_config are patterns, not lists
-  (`docs/cli.md:1701-1794`); they cannot define a group.
+  (`docs/cli.md:1745-1838`); they cannot define a group.
 
 ## Approach
 
@@ -483,7 +483,7 @@ short numbered list helps a person; a script must still get the usage error.
 - Measured: `podssh ssh </dev/null` exits 64 with "missing destination"
   (`crates/podssh-cli/src/ssh/resolve.rs:156`).
 - Read: `run_ssh` gets no terminal state
-  (`crates/podssh-cli/src/dispatch.rs:256-258`), and the entry point of the
+  (`crates/podssh-cli/src/dispatch.rs:259-261`), and the entry point of the
   tests has none on purpose (`crates/podssh-cli/src/dispatch.rs:31-39`,
   `crates/podssh-cli/src/pager.rs:21-45`).
 - Read: the names can come only from the `Host` lines of ssh_config (T-043,
@@ -754,7 +754,7 @@ of the command.
    quoted for a POSIX shell (T-187). When the copy used most of the 64 MiB
    (`docs/relay.md:162`), run the exec on a new session (T-137).
 4. The exit status: the command's, with the rules of `podssh ssh`
-   (`docs/cli.md:1587-1590`). A failed copy exits 255 and runs nothing.
+   (`docs/cli.md:1629-1632`). A failed copy exits 255 and runs nothing.
 5. In the same commit: the rows, the notes, an example, `docs/cli.md`,
    `docs/STATUS.md`. This entry depends on T-134 and T-143.
 
@@ -784,7 +784,7 @@ report, not verified here.
 **Milestone:** backlog
 **Priority:** P3
 **Effort:** M
-**Status:** open
+**Status:** done
 
 ## Problem
 
@@ -823,6 +823,46 @@ background `sh` with a PID file, lost: a `stop` by PID can kill another
 process after the system gives the PID again, and the output has no safe
 place on a host that podssh does not know.
 
+2026-10-13 (the draft): the calls of the work.
+
+- **The output and the status go to files, not to tmux's pane.** Each job
+  is a directory `~/.podssh/jobs/MILLIS-ID` of mode 0700, with `cmd`,
+  `state`, `out` and `status`. tmux runs the command and holds it, and
+  `stop` ends the session of that exact name, as the recommendation says.
+  The `capture-pane` of the Approach lost: it keeps only the pane's history
+  (2000 lines by default), cuts each long line at the pane's width, and
+  loses the output and the status when the session ends. `remain-on-exit`
+  lost too: it is set after the session starts, and a short command can
+  end first. A file in a directory of the user's alone is the safe place
+  that the queue of T-197 uses too.
+- **`list` reads the directories, and tmux for the state.** A job is
+  `running` while its session is there, `done` with its status, and `lost`
+  with neither (a restart of the host or of tmux's server). A list of
+  tmux's sessions alone, as in the Approach, lost: it shows no job that
+  ended.
+- **`stop` removes the job with its output.** It ends the session when it
+  runs, with `tmux kill-session -t =podssh-job-ID` (`=` asks for the exact
+  name; a bare name also matches a longer one), then removes the
+  directory. A `stop` that keeps a record lost: a fifth verb would then
+  remove it.
+- **The far side is one script, sent with each call.** `far.sh` goes on
+  the stdin of `sh -c 'INSTALL' sh MARKER ACTION ARG...` and is kept as
+  `~/.podssh/jobs/jobs.sh`, which tmux runs for each job; the answer comes
+  after a marker, as the copy by exec of `cp` reads it. A script that an
+  earlier call left lost: a host would then run another version than the
+  binary, and nothing would show it.
+- **The command runs in sh, in the home directory, with no input**, as a
+  command of `podssh ssh` runs in the login shell there. The login shell
+  lost: it is tmux's shell too, and may not be POSIX, and the job's status
+  is read in sh.
+- **`--` before the command is required** (64 without it). Without it, a
+  word such as the `-l` of `ls -l` would be read as podssh's `-l`, with no
+  error.
+- **Step 3, a `podssh serve` at the far end, waits for T-107**, which the
+  operator holds (Q32). No host runs one, so the refusal with no tmux
+  names tmux alone: "HOST has no tmux on PATH; podssh job runs each job in
+  the host's tmux, and starts none without it".
+
 ## Prove
 
 ```sh
@@ -835,6 +875,39 @@ Two jobs `sleep 300` start; `list` shows two IDs; a `stop` of one leaves the
 other in `list`; `log` shows the output of a job that prints. With tmux off
 `PATH`, `start` exits 255 and names tmux. Plant: stop by the prefix
 `podssh-job-`; the check that the second job remains must fail.
+
+## Done
+
+2026-10-13, a draft (DRAFT T-193), not built: each result below that needs
+a build or a run is UNVERIFIED, and the merger fills it in.
+
+- `podssh job start|list|log|stop` (`crates/podssh-cli/src/job/`): the
+  rows (`crates/podssh-cli/src/flags/job.rs`), the arguments, the synopsis
+  and the group "Work on a host" of `--help` and the manual, the notes
+  (`crates/podssh-cli/src/man/notes_job.rs`), an example, and `podssh job`
+  in the row 255 of EXIT STATUS. The far script is
+  `crates/podssh-cli/src/job/far.sh`; `docs/cli.md` (section
+  "`podssh job`"), README.md and AGENTS.md name the command.
+- `cargo test -p podssh-cli --lib job::` (the command line, the answers of
+  the far script, the list): UNVERIFIED.
+  `cargo test -p podssh-cli --test job` (the refusals, 64, and a host out
+  of reach, 255, offline; the help and the manual): UNVERIFIED.
+  `cargo test -p podssh-cli --test job_far`
+  (Unix: the far script in sh through the test's server, which
+  `ssh_harness::start_shell` gives; two jobs, a stop of one, the log and
+  the status of a job that ended, with tmux from `PODSSH_TEST_TMUX` or
+  PATH; with no tmux on PATH, 255 and no job made): UNVERIFIED, in the
+  build image with tmux. The tests of the flag table and of the manual
+  with the new verb (`--test flag_table`, `--test man_flag_parity`,
+  `--test man_page`, `--test man_json`, `--lib man::`): UNVERIFIED.
+- `scripts/interop-job.sh`, sourced by `scripts/interop-each.sh` so that
+  `scripts/interop.sh` stays at 500 lines: 7 checks against OpenSSH and
+  Dropbear, in `scripts/interop-baseline.txt`. UNVERIFIED: waits for T-251.
+- The planted defect: `stop` ends each tmux session whose name starts
+  with `podssh-job-`. The checks `job.openssh.stop` and
+  `job.dropbear.stop`, and the test
+  `two_jobs_run_and_a_stop_of_one_leaves_the_other`, must fail.
+  UNVERIFIED: waits for T-251.
 
 # T-195: Hand an error report to a program that the user names, for triage by an AI or a script
 
@@ -863,14 +936,14 @@ a ticket, or a tool that asks an AI.
 - Read: credentials never go to output, logs, URLs or argv
   (`docs/architecture.md:141-143`). The token type never shows itself
   (`crates/podssh-relay/src/token.rs:27-56`), and doctor never shows proxy
-  credentials or tokens (`docs/cli.md:873-875`).
+  credentials or tokens (`docs/cli.md:915-917`).
 - Read: podssh's messages leave through two writers: `Streams.err` in the
   command line (`crates/podssh-cli/src/dispatch.rs:26-29`), and `Log`, which
   writes to the stderr of the process itself
   (`crates/podssh-ssh/src/log.rs:79-94`). The exit code leaves through
-  `crates/podssh-cli/src/dispatch.rs:302-317`.
+  `crates/podssh-cli/src/dispatch.rs:305-320`.
 - Read: for `podssh ssh`, an exit that is not 0 can be the remote command's
-  status (`docs/cli.md:1587-1590`), which is not a failure of podssh.
+  status (`docs/cli.md:1629-1632`), which is not a failure of podssh.
 
 ## Approach
 
@@ -969,7 +1042,7 @@ queue, no wait for a result, and no way to get the output back.
    gives one object.
 4. `job wait HOST ID [--timeout D]` reads `state` every 5 s until it is
    `done`, and exits with the job's status. When the limit passes first, it
-   exits 75; add the code to `crates/podssh-cli/src/man/data.rs:19-119`.
+   exits 75; add the code to `crates/podssh-cli/src/man/data.rs:19-120`.
 5. `job fetch HOST ID [DIR]` copies `out`, and the files that `--files GLOB`
    names, with the engine of T-134; DIR is `./podssh-job-ID` by default.
 6. With a list of hosts (T-184), `submit` picks the host with the fewest
@@ -1002,5 +1075,5 @@ one running and two queued must fail.
 ## Correction
 
 2026-10-09 (T-134): 75 (`EX_TEMPFAIL`) is in the table of exit codes
-already (`crates/podssh-cli/src/man/data.rs:19-119`), for a `--timeout` of
+already (`crates/podssh-cli/src/man/data.rs:19-120`), for a `--timeout` of
 `cp` that passed; this entry adds its sentence for `job wait`.

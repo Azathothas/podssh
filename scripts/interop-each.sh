@@ -57,3 +57,8 @@ rc=$?
 [ "$rc" = 255 ] && [ ! -e /tmp/podssh-each-ran ] && grep -q "not started (--fail-fast)" "$EW/err" \
     && ok each.fail_fast "--fail-fast with one at once: after the closed port, no host started" \
     || bad each.fail_fast "exit $rc" "$EW/err"
+
+# The jobs on a far host (T-193), with the same servers and helpers;
+# sourced here so that scripts/interop.sh stays within 500 lines.
+# shellcheck source=scripts/interop-job.sh
+. "$HERE/interop-job.sh"

@@ -117,6 +117,9 @@ pub fn run_with(p: &Parsed, s: &mut Streams<'_>, tty: Tty) -> i32 {
         Parsed::Each(args) if refusals("each", &args.refused, s.err) => EXIT_USAGE,
         // The hosts' output goes to the process's own streams, line by line.
         Parsed::Each(args) => crate::each::run_each(args, s.err),
+        Parsed::Job(args) if refusals("job", &args.refused, s.err) => EXIT_USAGE,
+        // An ID, a list or a job's output on stdout; podssh's words on stderr.
+        Parsed::Job(args) => crate::job::run_job(args, s.out, s.err),
         Parsed::Config(args) if refusals("config", &args.refused, s.err) => EXIT_USAGE,
         Parsed::Config(args) => crate::config_import::run(args, s.out, s.err),
         Parsed::Mcp(args) if refusals("mcp", &args.refused, s.err) => EXIT_USAGE,

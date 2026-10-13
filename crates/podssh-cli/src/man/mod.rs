@@ -23,6 +23,7 @@ mod notes_chat;
 mod notes_config;
 mod notes_each;
 mod notes_edit;
+mod notes_job;
 mod notes_keygen;
 mod notes_mcp;
 mod notes_pair;

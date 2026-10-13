@@ -43,6 +43,22 @@ pub fn add(cmd: Command, name: &str) -> Command {
                     .allow_hyphen_values(true)
                     .help("the command to run on each host, its words joined with spaces as OpenSSH joins them"),
             ),
+        // What to do and the host, then an ID or the command. The command
+        // comes after `--`, which `job` checks: a word of it that looks like
+        // a flag is then never one of podssh's.
+        "job" => cmd
+            .arg(Arg::new("subcommand").value_name("SUBCOMMAND").help("start, list, log or stop"))
+            .arg(
+                Arg::new("host")
+                    .value_name("HOST")
+                    .help("the host, [user@]host[:port], as podssh ssh takes it, with its Host blocks of ssh_config"),
+            )
+            .arg(
+                Arg::new("words")
+                    .value_name("ID|COMMAND")
+                    .num_args(0..)
+                    .help("log and stop: the job's ID; start: the command after --, its words joined with spaces as OpenSSH joins them, for sh on the host"),
+            ),
         // Any count parses for `cp`, `mv` and `scp`: each says itself what a
         // short list lacks, in words clap's count error does not have.
         "cp" | "mv" | "scp" => cmd.arg(Arg::new("paths").value_name("PATH").num_args(1..).help("SRC... DST")),

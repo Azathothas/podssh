@@ -45,6 +45,8 @@ pub mod flags;
 pub mod help;
 // The hosts of a word: braces and groups (T-184).
 pub mod hosts;
+// `podssh job`: jobs on a far host, each in its tmux (T-193).
+pub mod job;
 pub mod keygen;
 pub mod keygen_cert;
 pub mod keygen_change;

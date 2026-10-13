@@ -29,7 +29,8 @@
 //! user named `pty-...` gets a pty, for `watch` (T-132, `console.rs`). The
 //! subsystem `sftp` is OpenSSH's `sftp-server` in the directory of the host
 //! key, when this machine has one (T-140, `sftp.rs`). On a server of
-//! `start_podssh`, `podssh ...` runs the binary under test (T-167, `podssh.rs`).
+//! `start_podssh`, `podssh ...` runs the binary under test (T-167, `podssh.rs`);
+//! on one of `start_shell`, each command runs in `sh` (T-193, `shell.rs`).
 
 // Each test binary uses a part of it.
 #![allow(dead_code)]
@@ -49,12 +50,15 @@ mod forward;
 pub mod podssh;
 mod serve;
 pub mod sftp;
+mod shell;
 mod sudo;
 mod x11;
 
 // Each test binary uses a part of it.
 #[allow(unused_imports)]
-pub use serve::{start, start_counting, start_podssh, start_with};
+pub use serve::{start, start_counting, start_podssh, start_shell, start_with};
+#[allow(unused_imports)]
+pub use shell::Shell;
 use sudo::{elevation, Elevated};
 use x11::x11_probe;
 
@@ -105,6 +109,8 @@ struct Far {
     sftps: HashMap<ChannelId, tokio::process::ChildStdin>,
     /// A server of `start_podssh`: what its podssh gets (T-167).
     podssh: Option<Arc<podssh::Podssh>>,
+    /// A server of `start_shell`: each command runs in sh (T-193).
+    shell: Option<Shell>,
 }
 
 impl server::Handler for Far {
@@ -265,6 +271,13 @@ impl server::Handler for Far {
             return Ok(());
         }
         session.channel_success(channel)?;
+        if let Some(shell) = &self.shell {
+            // Its stdin takes the channel's data, as a subsystem's does.
+            if let Some(stdin) = shell::run(shell, &command, channel, session)? {
+                self.sftps.insert(channel, stdin);
+            }
+            return Ok(());
+        }
         if let Some(ran) = podssh::run(self.podssh.as_ref(), &command, channel, session) {
             return ran;
         }

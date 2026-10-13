@@ -33,6 +33,10 @@ fn examples() -> Vec<(&'static str, String)> {
             "podssh each 'web{01..12}.example.org,@db' -- 'df -h /'".into(),
         ),
         (
+            "a long build that goes on after the connection, in the host's tmux: its ID, then each job of the host",
+            "podssh job start user@build.example.org -- make all && podssh job list user@build.example.org".into(),
+        ),
+        (
             "a Unix socket on the server, on stdin and stdout",
             "podssh ssh -W /run/postgresql/.s.PGSQL.5432 user@db.example.org".into(),
         ),
@@ -292,6 +296,7 @@ mod tests {
                     Parsed::Play(_) => "play",
                     Parsed::Edit(_) => "edit",
                     Parsed::Each(_) => "each",
+                    Parsed::Job(_) => "job",
                     Parsed::Config(_) => "config",
                     Parsed::Mcp(_) => "mcp",
                     Parsed::Man { .. } => "man",

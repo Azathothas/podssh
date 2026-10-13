@@ -105,7 +105,8 @@ pub fn exit_codes() -> Vec<(Code, String)> {
              session ended with no exit status (also when stdout closed and none came within 5 s), or the \
              server ended a run of -N. OpenSSH uses the same code. podssh ping: the destination could \
              not be reached or logged in to, or a measure broke. podssh each: a host could not be reached \
-             or logged in to, or its session ended with no exit status.",
+             or logged in to, or its session ended with no exit status. podssh job: the host could not be \
+             reached or logged in to, has no tmux, has no such job, or gave no answer.",
         ),
         (
             Code::Remote,
