@@ -14,6 +14,11 @@ pub const EACH_FLAGS: &[FlagRow] = &[
         "start no new host after one failed; the hosts that run end as they end", None),
     row(None, "output-dir", Some("DIR"), FlagKind::Supported,
         "each host's output, unchanged, in DIR/HOST.out and DIR/HOST.err, and its status in DIR/HOST.status", None),
+    // The broadcast (T-185): no command, a shell on each host.
+    row(None, "interactive", None, FlagKind::Supported,
+        "a shell with no pty on each host, and each line typed goes to the selected hosts; Ctrl-\\ (Ctrl-Break on Windows) stops it at once", None),
+    row(None, "confirm", None, FlagKind::Supported,
+        "with --interactive: a line for more than one host waits for a second Enter", None),
     row(Some('p'), "port", Some("PORT"), FlagKind::Supported,
         "port to connect to, for each host that names none", None),
     row(Some('l'), "login-name", Some("USER"), FlagKind::Supported,

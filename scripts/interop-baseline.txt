@@ -23,6 +23,7 @@ harness match interop 18 scripts/interop-match.sh
 harness result interop 10 scripts/interop-result.sh
 harness mcp interop 4 scripts/interop-mcp.sh
 harness each interop 7 scripts/interop-each.sh
+harness broadcast interop 3 scripts/interop-broadcast.sh
 harness keygen interop 79 scripts/interop-keygen.sh
 harness agent interop 23 scripts/interop-agent.sh
 harness local interop 6 scripts/interop-local.sh
@@ -634,3 +635,7 @@ each.closed pass
 each.output_dir pass
 each.host_key pass
 each.fail_fast pass
+# scripts/interop-broadcast.sh
+broadcast.both pass
+broadcast.only pass
+broadcast.stop pass

@@ -23,8 +23,10 @@ use crate::terminal::text::Consoles;
 use crate::terminal::watch::Resize;
 use crate::zmodem::Zmodem;
 
+mod feed;
 mod input;
 
+pub use feed::Feed;
 pub use input::Input;
 
 /// How a session ended.
@@ -157,7 +159,7 @@ pub async fn pump(
         let _ = writer.eof().await;
     }
     let mut resize = Resize::new(pty);
-    let mut stop = Termination::new(pty && terminal::raw_active(), interrupt);
+    let mut stop = Termination::new(pty && terminal::raw_active(), interrupt).fed(input.feed());
     loop {
         if let Err(end) = zmodem_out(&writer, &mut reader, &mut status, &mut out, &mut through, log).await {
             return end;

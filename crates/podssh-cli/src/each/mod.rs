@@ -16,6 +16,8 @@
 //! exits. A usage error is 64 and a bad setting 78, before anything
 //! connects; a file of `--output-dir` that cannot be made is 73.
 
+// `--interactive`: each line typed to the shells of many hosts (T-185).
+pub mod broadcast;
 pub mod fan;
 mod host;
 pub mod out;
@@ -49,6 +51,9 @@ pub struct EachArgs {
     pub parallel: Option<String>,
     pub fail_fast: bool,
     pub output_dir: Option<String>,
+    /// `--interactive` and `--confirm` (T-185).
+    pub interactive: bool,
+    pub confirm: bool,
     /// `(flag as written, what to use instead, why)`, as each verb carries
     /// them, so that a `Refused` row added later refuses.
     pub refused: Vec<(String, &'static str, &'static str)>,
@@ -64,12 +69,15 @@ impl EachArgs {
                 None
             }
         };
+        let flag = |id: &str| m.try_get_one::<bool>(id).ok().flatten().copied().unwrap_or(false);
         EachArgs {
             hosts: one("hosts"),
             ssh: SshArgs::from_matches(m),
             parallel: one("parallel"),
-            fail_fast: m.try_get_one::<bool>("fail-fast").ok().flatten().copied().unwrap_or(false),
+            fail_fast: flag("fail-fast"),
             output_dir: one("output-dir"),
+            interactive: flag("interactive"),
+            confirm: flag("confirm"),
             refused,
         }
     }

@@ -29,4 +29,19 @@ pub const EACH: &[&str] = &[
     "At the end a summary on stderr gives each host and its status; -q leaves it out. The exit status is \
      the largest of the hosts': 0 only when each host gave 0, and 255 when one could not connect or log \
      in. With --fail-fast no host starts after one failed, and the hosts that run end as they end.",
+    "podssh each --interactive HOSTS (T-185) opens a shell with no pty on each host, 64 hosts at most, and \
+     each line typed goes to the hosts of the selection, at first each host; the output of each comes as \
+     HOST: LINE. The terminal keeps its normal mode, so that its own line discipline edits the line. A line \
+     that starts with : is for podssh: :all, :none, :only HOST... (braces and @GROUP as in HOSTS, and USER@ \
+     may be left out), :list, :intr (signal INT to each selected host, which a server may ignore) and \
+     :help; a line that starts with :: goes to the hosts with one : less. With --confirm, a line for more \
+     than one host waits for a second Enter, and another line drops it. A COMMAND, --parallel, --fail-fast \
+     and --output-dir are refused (64).",
+    "The emergency stop is Ctrl-\\ (SIGQUIT) on Unix and Ctrl-Break on Windows: at once, also while a line \
+     is half typed, no host is selected, and each byte that waits for a host is dropped; podssh says \
+     broadcast stopped; :all starts it again. It is armed before anything connects, and where it cannot \
+     be, podssh exits 78. Each host has a queue of 64 KiB, what its shell has not read yet: a line that \
+     does not fit does not go to that host, which leaves the selection, and podssh names it. Ctrl-C goes \
+     to no host. At the end of the input (Ctrl-D, or Ctrl-Z on Windows), each shell reads what waits for \
+     it, then its end; Ctrl-C then cuts the hosts whose shell still runs, each with 130.",
 ];

@@ -999,7 +999,7 @@ count each chunk twice, and the unit test fails.
 and `crates/podssh-ssh/src/remote.rs:147`, `-W` at
 `crates/podssh-ssh/src/forward.rs:42` and
 `crates/podssh-ssh/src/forward.rs:53`; `~#` at
-`crates/podssh-ssh/src/escape.rs:71` and `crates/podssh-ssh/src/io.rs:200`,
+`crates/podssh-ssh/src/escape.rs:71` and `crates/podssh-ssh/src/io.rs:202`,
 and the lines of `-v` at `crates/podssh-ssh/src/run.rs:258`.
 - `cargo test -p podssh-ssh -- forward_counts`: 3 passed: 262144 bytes up and
   1000 down through a forward's copy, counted once, with one connection; one
@@ -1142,7 +1142,7 @@ link: the mode at `crates/podssh-cli/src/ssh/persist.rs:38-45` and
 serves `-L` and `-D`, and tells a loss from an end
 (`crates/podssh-ssh/src/persist.rs:57-62`); a refused `-R` asked again in
 `crates/podssh-ssh/src/remote.rs:46-115`, as `Options::forwards_again` says
-(`crates/podssh-ssh/src/options.rs:302-311`), which the loop sets after the
+(`crates/podssh-ssh/src/options.rs:306-315`), which the loop sets after the
 first loss (`crates/podssh-cli/src/ssh/persist.rs:163-172`); the rule of
 `STEADY` at `crates/podssh-cli/src/ssh/persist.rs:142-148`.
 - `cargo test -p podssh-cli --test persist`: 5 passed. The new test runs

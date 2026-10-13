@@ -64,7 +64,7 @@ ever (tty7's issue 1126, read in GitHub #20; GitHub #15 was this class).
    extension list for T-134.
 6. Each `SSH_FX_*` status gives a sentence with the path; the server's text
    goes through `podssh_ws::text::one_line`
-   (`crates/podssh-ssh/src/io.rs:354`).
+   (`crates/podssh-ssh/src/io.rs:356`).
 7. No EOF before the last reply. Fail at once on a reply id that no request
    has, and on a `READ` reply longer than its request.
 
@@ -957,8 +957,8 @@ Where podssh must replace them, OpenSSH's own `scp` and `sftp` cannot run
 ## Decision
 
 Recommendation: `scp` and `sftp` get no `--timeout` row, as in OpenSSH, so
-the gate of `crates/podssh-cli/src/dispatch.rs:232-250` skips them; T-133's
-limits keep each wait finite. Usage errors stay 64 (`docs/cli.md:1587-1590`)
+the gate of `crates/podssh-cli/src/dispatch.rs:234-252` skips them; T-133's
+limits keep each wait finite. Usage errors stay 64 (`docs/cli.md:1641-1644`)
 where OpenSSH gives 1; a script that tests for "not zero" works with both.
 `--timeout` required with no terminal, as for `cp`, lost: each script that
 runs `scp` in a pipe would exit 64 under `podssh scp`.
@@ -1548,7 +1548,7 @@ uplink of a shared host.
   (`crates/podssh-cli/src/dispatch.rs:3-7`). `cp` has a `--jsonl` row
   (`crates/podssh-cli/src/flags/copy.rs:45-46`).
 - Read: `podssh ssh` handles SIGTERM and SIGHUP only with a raw terminal
-  (`crates/podssh-ssh/src/terminal/termination.rs:22-67`); no copy code exists yet.
+  (`crates/podssh-ssh/src/terminal/termination.rs:26-93`); no copy code exists yet.
 - Measured (T-139): the `scp` and `sftp` of OpenSSH 10.3p1 take
   `-l limit`. OpenSSH's manual gives the unit as Kbit/s (not read here).
 
@@ -1830,8 +1830,8 @@ which needs support in the terminal client.
 ## Premise
 
 - Read: `podssh ssh` writes the remote output to stdout as it comes
-  (`crates/podssh-ssh/src/io.rs:322-337`) and passes the local keys through
-  the escape filter (`crates/podssh-ssh/src/io.rs:168-213`). Nothing looks
+  (`crates/podssh-ssh/src/io.rs:324-339`) and passes the local keys through
+  the escape filter (`crates/podssh-ssh/src/io.rs:170-215`). Nothing looks
   for a ZMODEM header.
 - Not verified here: ZMODEM escapes its control bytes, so it crosses a pty;
   whether a ZMODEM crate in pure Rust exists and is maintained.

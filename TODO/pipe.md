@@ -42,7 +42,7 @@ the verb, the address grammar, the copy loop, and the local addresses `-`,
    `Parsed::Pipe` variant (`crates/podssh-cli/src/parsed.rs:8-155`), a
    dispatch arm, and `pipe` in `DISPATCHED`
    (`crates/podssh-cli/tests/flag_table.rs:110-113`). No `--timeout` row: the
-   gate at `crates/podssh-cli/src/dispatch.rs:232-250` would require it.
+   gate at `crates/podssh-cli/src/dispatch.rs:234-252` would require it.
 2. The grammar, in a new crates/podssh-cli/src/pipe/address.rs: `KIND:REST`.
    An unknown kind exits 64 and lists the kinds. `-` is `stdio`; `stdio` on
    both sides exits 64. Invariant: both addresses are valid before anything
@@ -69,8 +69,8 @@ the verb, the address grammar, the copy loop, and the local addresses `-`,
    shell gives. With no child, a clean end gives 0.
 7. In the same commit: `docs/cli.md`, the notes
    (`crates/podssh-cli/src/man/notes.rs:19-46`), two examples
-   (`crates/podssh-cli/src/man/examples.rs:8-163`; its test at
-   `crates/podssh-cli/src/man/examples.rs:286-303` learns the new variant),
+   (`crates/podssh-cli/src/man/examples.rs:8-167`; its test at
+   `crates/podssh-cli/src/man/examples.rs:290-307` learns the new variant),
    `docs/design.md:669-678`, `docs/STATUS.md`. Each file stays under 500
    lines (`AGENTS.md:240-241`).
 
@@ -198,7 +198,7 @@ local program to a target, and `podssh proxy` stays a second pump.
 5. `node:NAME` after T-084, and `iroh:TICKET` after T-163: one adapter and
    one test each. If T-163 makes a ticket a credential, read it from a file
    (`iroh:@FILE`), never from argv.
-6. Exit codes: sysexits, as `podssh proxy` (`docs/cli.md:1597`): 69; 77 for a
+6. Exit codes: sysexits, as `podssh proxy` (`docs/cli.md:1651`): 69; 77 for a
    refusal (the relay, the proxy, a host key, the authentication); 78. Give
    `crates/podssh-ssh/src/run.rs:331-405` a typed error, so that 77 is not
    guessed from a message.
@@ -580,7 +580,7 @@ running on the server (`docs/design.md:417-421`).
 ## Premise
 
 - Measured: `podssh ssh --persist host` exits 64 (`unknown flag '--persist'`).
-- Read: a lost link is `End::Lost` (`crates/podssh-ssh/src/io.rs:37-38`),
+- Read: a lost link is `End::Lost` (`crates/podssh-ssh/src/io.rs:39-40`),
   an error at `crates/podssh-ssh/src/session.rs:42`. An exit status, a
   close with no status, and `~.` are other ends
   (`crates/podssh-ssh/src/session.rs:39-41`). Raw mode is entered once for
@@ -610,7 +610,7 @@ running on the server (`docs/design.md:417-421`).
    Keys typed meanwhile wait in a queue of 64 KiB, and go after the attach.
 6. Each attempt checks the host key with the same policy, and uses the
    cached token. A prompt with no terminal ends the loop
-   (`docs/cli.md:1658-1660`). After the attach, send the window size again.
+   (`docs/cli.md:1712-1714`). After the attach, send the window size again.
 7. In the same commit: `docs/cli.md`, the notes of ssh
    (`crates/podssh-cli/src/man/notes_ssh.rs:4-207`), `docs/design.md:417-421`,
    `docs/STATUS.md`, and tmux in the interop image
@@ -754,8 +754,8 @@ no listener, or that the relay ends a desktop stream after 64 MiB.
    `telnet 127.0.0.1 PORT`.
 4. Write a table "Other TCP protocols" after `README.md:125-130`: the
    protocol, what works now, what needs a listener, the 64 MiB limit. Add
-   form a to `crates/podssh-cli/src/man/examples.rs:8-163`; its ProxyCommand
-   parses (`crates/podssh-cli/src/man/examples.rs:263-270`). Link the table
+   form a to `crates/podssh-cli/src/man/examples.rs:8-167`; its ProxyCommand
+   parses (`crates/podssh-cli/src/man/examples.rs:267-274`). Link the table
    from `docs/design.md:712-715`.
 5. No code. Record the measurements in `docs/STATUS.md`.
 
@@ -841,7 +841,7 @@ The calls made where the Approach left a choice:
 - The example puts `-N -L` before the ProxyCommand: the start of the
   manual keeps three first steps, and its filter takes each command that
   starts with "ssh -o ProxyCommand='podssh proxy"
-  (`crates/podssh-cli/src/man/examples.rs:166`). It has no
+  (`crates/podssh-cli/src/man/examples.rs:170`). It has no
   `ServerAliveInterval`, so that its line stays within rustfmt's 120
   columns; the note of proxy asks for it
   (`crates/podssh-cli/src/man/notes.rs:137`).
@@ -1221,7 +1221,7 @@ random hides a real failure.
 ## Premise
 
 Read: the input outlives a session, and its task reads stdin from the first
-session on (`crates/podssh-ssh/src/io/input.rs:45`); each session asks whether
+session on (`crates/podssh-ssh/src/io/input.rs:60`); each session asks whether
 stdin is a terminal before its pty request
 (`crates/podssh-ssh/src/session.rs:69`). std's answer on Windows, for a
 handle that is no console, asks a pipe's name (`GetFileInformationByHandleEx`
@@ -1256,7 +1256,7 @@ runs of the test binary, six at once, all pass.
 
 2026-10-11. `crates/podssh-ssh/src/terminal/mod.rs:58-61`:
 `stdin_is_terminal` asks once and keeps the answer;
-`crates/podssh-ssh/src/io/input.rs:80`: the input's task asks before it reads.
+`crates/podssh-ssh/src/io/input.rs:96`: the input's task asks before it reads.
 `crates/podssh-cli/tests/persist.rs:223`: after the loss, the test waits for
 the second "[podssh] attached" before it types. Without the repair the test
 failed (exit 101, after 31.4 s); with it, `cargo test -p podssh-cli --test

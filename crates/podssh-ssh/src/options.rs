@@ -282,6 +282,10 @@ pub struct Options {
     /// Where the session's output goes in place of stdout and stderr
     /// (`podssh each`, T-183); `None` writes to the process's own.
     pub output: Option<crate::io::Sink>,
+    /// The session's input from the caller in place of stdin, and its
+    /// `signal INT` requests (`podssh each --interactive`, T-185); `None`
+    /// reads stdin, or nothing with `stdin_null`.
+    pub feed: Option<crate::io::Feed>,
     /// Ctrl-C in a session of a command or a shell with no remote pty sends
     /// `signal INT` to it (T-293). Off here, as OpenSSH's client has it;
     /// `podssh ssh` turns it on, and `--no-signal` off again.
@@ -390,6 +394,7 @@ impl Options {
             log_level: LogLevel::Info,
             stdin_null: false,
             output: None,
+            feed: None,
             interrupt_signal: false,
             host_key_pin: None,
             host_key_fingerprints: Vec::new(),

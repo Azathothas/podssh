@@ -41,7 +41,7 @@ pub fn add(cmd: Command, name: &str) -> Command {
                     .num_args(1..)
                     .trailing_var_arg(true)
                     .allow_hyphen_values(true)
-                    .help("the command to run on each host, its words joined with spaces as OpenSSH joins them"),
+                    .help("the command to run on each host, its words joined with spaces as OpenSSH joins them; none with --interactive"),
             ),
         // Any count parses for `cp`, `mv` and `scp`: each says itself what a
         // short list lacks, in words clap's count error does not have.

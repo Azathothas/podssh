@@ -1,10 +1,11 @@
 //! The local input of a run (`io::Input`): stdin, read on a task of its own
-//! from the first session on, and what comes between two sessions, queued.
+//! from the first session on, and what comes between two sessions, queued;
+//! or the caller's feed in place of stdin (T-185).
 
 use tokio::io::AsyncReadExt;
 use tokio::sync::mpsc;
 
-use super::QUEUE;
+use super::{Feed, QUEUE};
 
 /// The local input of a run. It is read on its own task from the first
 /// session on, so that a session after a lost link reads on where the last
@@ -14,6 +15,8 @@ pub struct Input {
     /// `-n`: nothing is read, and the far side sees the end of input at once.
     null: bool,
     rx: Option<mpsc::Receiver<Vec<u8>>>,
+    /// The caller's input in place of stdin (`podssh each --interactive`).
+    feed: Option<Feed>,
     /// The input has ended: a later session sees its end after the queue.
     ended: bool,
     queued: Vec<u8>,
@@ -25,6 +28,16 @@ impl Input {
     /// The input of a run; none with `null` (`-n`).
     pub fn new(null: bool) -> Self {
         Input { null, ..Input::default() }
+    }
+
+    /// The input that `feed` gives, in place of stdin (T-185).
+    pub fn fed(feed: Feed) -> Self {
+        Input { feed: Some(feed), ..Input::default() }
+    }
+
+    /// The feed of this input, when the caller gives one.
+    pub(crate) fn feed(&self) -> Option<Feed> {
+        self.feed.clone()
     }
 
     /// Whether a session has input to read.
@@ -42,7 +55,10 @@ impl Input {
         if self.ended {
             return None;
         }
-        let read = self.rx.get_or_insert_with(spawn_stdin).recv().await;
+        let read = match &self.feed {
+            Some(feed) => feed.next().await,
+            None => self.rx.get_or_insert_with(spawn_stdin).recv().await,
+        };
         if read.is_none() {
             self.ended = true;
         }
