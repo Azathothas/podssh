@@ -63,6 +63,11 @@ entry keeps its proof in the entry; this page keeps no history (git does).
   | T-195, T-189 | a new worktree | | being drafted |
   | T-190, T-191 | a new worktree | | being drafted |
 
+  A row "being drafted" in "a new worktree" is an agent of a session
+  that may have stopped: `git worktree list` shows its branch, and its
+  last commit says WIP or DRAFT. The next merge is T-225, then the others
+  in the order of this table.
+
   Not drafted yet: T-185 and T-186. CI: the gate passed at
   `24b9f6e` (run 38331509229), and its step `release` at `cad2885` (478
   checks, the desktop's, `usbip` and `each` among them).
