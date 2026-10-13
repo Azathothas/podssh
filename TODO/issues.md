@@ -111,7 +111,7 @@ corrects a claim that the code does not support.
 | --- | --- | --- | --- |
 | #29 | Host certificates are dropped, not verified | closed (`a1d32e0`, 2026-10-11) | T-027 |
 | #30 | The relay hosts are tried one at a time | closed (`4cfbd5f`, 2026-10-11) | T-220 |
-| #31 | Where the replayed output may begin | open | T-221; the invariant of T-152 (no byte that is not acknowledged is dropped) |
+| #31 | Where the replayed output may begin | closed | T-221 (`61e55d1`); the invariant of T-152 (no byte that is not acknowledged is dropped, `d70f88f`) |
 | #32 | `podssh serve` finds a shell with no passwd entry | open | T-222 |
 | #33 | `check-repo.py` passes with nothing to check; no scan for a listener | closed | T-223 (the commit "Each repository check has a floor, and fails on an empty tree"), T-224 (the commit "The repository check finds a listener outside its allowance"); the floors of `cargo todo check` are in T-204 (done). Closed on 2026-10-09 with a comment that names them |
 | #34 | The expected exit codes, from stock OpenSSH | open | T-225 |

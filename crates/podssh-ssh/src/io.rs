@@ -17,6 +17,7 @@ use crate::log::Log;
 use crate::record::Recorder;
 use crate::signals;
 use crate::terminal;
+use crate::terminal::interrupt::Interrupt;
 use crate::terminal::termination::Termination;
 use crate::terminal::text::Consoles;
 use crate::terminal::watch::Resize;
@@ -41,6 +42,8 @@ pub enum End {
     Terminated,
     /// `~d`: the far end keeps the shell under this name (T-158).
     Detached(String),
+    /// Ctrl-C with no remote pty, and the command did not end by it (T-293).
+    Interrupted,
 }
 
 /// What a user types while `--persist` connects again waits for the next
@@ -129,6 +132,7 @@ pub async fn pump(
     pty: bool,
     input: &mut Input,
     mut through: Through,
+    interrupt: Option<Interrupt>,
     log: &Arc<Log>,
 ) -> End {
     let (mut reader, writer) = channel.split();
@@ -153,7 +157,7 @@ pub async fn pump(
         let _ = writer.eof().await;
     }
     let mut resize = Resize::new(pty);
-    let mut stop = Termination::new(pty && terminal::raw_active());
+    let mut stop = Termination::new(pty && terminal::raw_active(), interrupt);
     loop {
         if let Err(end) = zmodem_out(&writer, &mut reader, &mut status, &mut out, &mut through, log).await {
             return end;
@@ -254,7 +258,9 @@ pub async fn pump(
                 }
             }
             () = std::future::ready(()), if streaming => {}
-            _ = stop.next() => return End::Terminated,
+            stopped = stop.next() => if let Some(end) = stop.act(stopped, &writer, log).await {
+                return end;
+            },
         }
     }
 }

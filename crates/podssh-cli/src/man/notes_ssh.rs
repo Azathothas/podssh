@@ -60,8 +60,15 @@ pub const SSH: &[&str] = &[
      ~~ sends one ~; another key goes with the ~ before it. Each other byte passes unchanged, as the remote \
      side reads it: Ctrl-C, Ctrl-Z, Ctrl-D, Escape, the sequences of the keys, the mouse and a paste; only \
      a question of ZMODEM, and a transfer, take the keys. A resize of the terminal sends the new size. With \
-     no pty, podssh reads no byte: stdin is the command's data, and Ctrl-C is the local terminal's, which \
-     stops podssh. A session through a control master has its escapes at the master.",
+     no pty, podssh reads no byte: stdin is the command's data, and Ctrl-C is the local terminal's signal \
+     to podssh (below). A session through a control master has its escapes at the master.",
+    "Ctrl-C in a session with no pty that runs a command or a shell (not -N, -W or -s): the first sends \
+     signal INT to the command, as OpenSSH's sshd ends the command and its process group by it, and podssh \
+     waits 2 s for the command's end, whose signal or status is the exit code (130 for INT). A second \
+     Ctrl-C, or the end of the wait with no end, ends podssh with 130; -v says each step. A server may \
+     ignore the request: Dropbear signals only the process that it started. --no-signal keeps OpenSSH's \
+     way: no request, and Ctrl-C ends podssh at once. A SIGINT that was ignored when podssh started stays \
+     ignored. With a pty, Ctrl-C is a byte for the remote pty, as before.",
     "ZMODEM, for a server that gives a shell and nothing else: in a session with a pty and a local \
      terminal, podssh watches the output for the start of sz or rz of lrzsz. When sz sends, podssh asks \
      where the files go (Enter takes the directory of the last answer, at first the current one; Ctrl-C \
@@ -187,12 +194,14 @@ pub const SSH: &[&str] = &[
     "--result-file FILE writes one JSON object to FILE at the end of each run, also of one that failed \
      before it connected: schema, exit (the code that podssh exits with), status (the remote exit status, \
      or null), signal (its name and core_dumped, or null), end (status, signal, no-status, lost, escaped, \
-     terminated, detached, failed, or shared through a control master, which tells the exit code alone; null with no \
+     terminated, detached, interrupted (Ctrl-C with no pty, and no end of the command), failed, or shared \
+     through a control master, which tells the exit code alone; null with no \
      session, as with -W), failure (connect, host-key, auth, forward, relay, session, usage, config or \
      not-built, or null), bytes (stdin, stdout and stderr, as they passed; null through a control master, \
      which carries them), duration_ms, and relay (its host, close_code and reason, or null with no relay). \
      stdout and stderr stay as they are; the command's output never goes into the file. A new file is made \
      for its owner alone; - is refused (exit 64). No file is written after a flag that podssh does not know, \
      which ends it before it reads the others, nor when a signal kills podssh: only a session on a terminal \
-     ends at SIGTERM or SIGHUP, as terminated.",
+     ends at SIGTERM or SIGHUP, as terminated, and one with no pty at Ctrl-C, by the command's end or as \
+     interrupted.",
 ];

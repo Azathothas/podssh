@@ -409,6 +409,8 @@ pub fn resolve_or_refuse(args: &SshArgs, env: &Env) -> Result<Resolved, Refusal>
     options.compression = args.compression || settings.compression.unwrap_or(false);
     options.log_level = log_level;
     options.stdin_null = args.stdin_null || settings.stdin_null.unwrap_or(false);
+    // Ctrl-C with no remote pty sends `signal INT` first (T-293).
+    options.interrupt_signal = !args.no_signal;
     let forwards = super::local_spec::forwards(args, &settings, matches!(options.request, Request::StdioForward(_)))?;
     options.remote_forwards = forwards.remote;
     options.exit_on_forward_failure = settings.exit_on_forward_failure.unwrap_or(false);

@@ -49,14 +49,14 @@ failed (lines 156-168). The sections are "this host", "egress" and "relay" (line
 5. The JSON carries the same detail strings as the text, which hide proxy credentials and
    tokens today (`crates/podssh-cli/tests/doctor.rs:131-156`).
 6. Change the `doctor` notes (`crates/podssh-cli/src/man/notes.rs:209-229`) and
-   `docs/cli.md:857-875` in the same commit.
+   `docs/cli.md:863-881` in the same commit.
 
 ## Decision
 
 Recommendation: `--json` writes one JSON document when a one-shot report is complete (`doctor`,
 `man`, `status`, `relay`, `ping`); `--jsonl` stays for the events of a long run (`chat`, `cp`,
 `ts`: `crates/podssh-cli/src/flags.rs`, lines 272-273 at `7aa955a`, `crates/podssh-cli/src/flags/copy.rs:45-46`,
-`crates/podssh-cli/src/flags.rs:328-329`). `--jsonl` also makes the run
+`crates/podssh-cli/src/flags.rs:330-331`). `--jsonl` also makes the run
 non-interactive and starts the `--timeout` rule
 (`crates/podssh-cli/src/non_interactive.rs:62-70`, 187-203), which a bounded report does not
 need. `--jsonl` everywhere lost for that reason. `--format json` lost because podssh's other
@@ -122,7 +122,7 @@ Measured: `podssh man --json` exits 64 ("unknown flag '--json'"). `podssh --help
 and prints the text help, so it drops `--json` silently (T-010).
 
 Read: the data is in tables already. Commands and flags: `VERBS`
-(`crates/podssh-cli/src/flags.rs:361-408`), each row with its kind and `instead` (lines 19-47 at `22c3b88`),
+(`crates/podssh-cli/src/flags.rs:363-410`), each row with its kind and `instead` (lines 19-47 at `22c3b88`),
 and the availability (lines 443-451 at `22c3b88`). Arguments: the parser
 (`crates/podssh-cli/src/man/model.rs:204-208`). Keywords:
 `crates/podssh-cli/src/ssh/keywords.rs:25-110`, with the stated defaults (lines 99-104 at `22c3b88`).
@@ -145,7 +145,7 @@ manual do not keep the kind and the `instead` of a flag.
    `--roff` is a usage error (64). No pager for JSON
    (`crates/podssh-cli/src/man/mod.rs` lines 73-78 at `332ee58`).
 5. The JSON is the same on each host: no path from `HOME` (`docs/cli.md:41-42`).
-6. Add the row to `MAN_FLAGS` (`crates/podssh-cli/src/flags.rs:335-342`), the field to
+6. Add the row to `MAN_FLAGS` (`crates/podssh-cli/src/flags.rs:337-344`), the field to
    `man::Request` (`crates/podssh-cli/src/man/mod.rs:38-45`), and the parse
    (`crates/podssh-cli/src/tree.rs:262-270`). JSON for `--help` stays with T-010.
 
@@ -335,7 +335,7 @@ and `crates/podssh-ssh/src/keys.rs:86-118` offers a key to the server.
 5. The line joins the JSON of T-049. The script can call `doctor --full` and keep its OpenSSH
    step.
 6. Change `DOCTOR_FLAGS` (`crates/podssh-cli/src/flags/relay.rs:45-58`), the `doctor` notes
-   (`crates/podssh-cli/src/man/notes.rs:209-229`) and `docs/cli.md:857-875` in the same commit.
+   (`crates/podssh-cli/src/man/notes.rs:209-229`) and `docs/cli.md:863-881` in the same commit.
 
 ## Decision
 
@@ -430,7 +430,7 @@ against 64 MiB for each session (`docs/relay.md:162`). The stand-in relay answer
 4. `--size SIZE`: 8 MiB in each direction by default. Refuse more than 30 MiB (exit 64), so both
    directions stay under the relay's 64 MiB.
 5. A time limit on each step and on the whole run. `--json` as T-049 decides.
-6. Add the verb to the tables (`crates/podssh-cli/src/flags.rs:361-408`), to the help and the
+6. Add the verb to the tables (`crates/podssh-cli/src/flags.rs:363-410`), to the help and the
    manual, and to `DISPATCHED` (`crates/podssh-cli/tests/flag_table.rs:110-113`).
 
 ## Decision
@@ -526,10 +526,10 @@ byte counts and no name of the relay host.
 
 Measured: `podssh ssh --json example.org true` exits 64 (unknown flag).
 
-Read: a session ends as `io::End` (`crates/podssh-ssh/src/io.rs:29-44`). The exit status and the
-signal are read in `handle_msg` (`:336-354`). The output goes straight to the process's
-stdout and stderr in `write_out` (`:378-395`), so nothing counts bytes. `session::run` maps
-the end to the exit code (`crates/podssh-ssh/src/session.rs:39-45`). The relay host is known
+Read: a session ends as `io::End` (`crates/podssh-ssh/src/io.rs:30-47`). The exit status and the
+signal are read in `handle_msg` (`:342-360`). The output goes straight to the process's
+stdout and stderr in `write_out` (`:384-401`), so nothing counts bytes. `session::run` maps
+the end to the exit code (`crates/podssh-ssh/src/session.rs:39-47`). The relay host is known
 at `crates/podssh-cli/src/ssh/transport.rs:79`, and the relay's close reason is in `RelayStatus`
 (`crates/podssh-ssh/src/relay_stream.rs:63-105`).
 
@@ -542,11 +542,11 @@ at `crates/podssh-cli/src/ssh/transport.rs:79`, and the relay's close reason is 
    ("connect", "host-key", "auth", "relay"); `bytes` (stdin, stdout, stderr); `duration_ms`;
    `relay` (host, close code and reason), or null with `--direct`.
 2. Count the bytes in one place: make the output sink of `io::pump` a parameter
-   (`crates/podssh-ssh/src/io.rs:124-133`, and `write_out` at `crates/podssh-ssh/src/io.rs:378-395`). T-055 needs the same change.
+   (`crates/podssh-ssh/src/io.rs:127-137`, and `write_out` at `crates/podssh-ssh/src/io.rs:384-401`). T-055 needs the same change.
 3. stdout and stderr stay byte for byte as now; the command's output never goes into the JSON.
 4. Write the file on each path, also after a failure before the session: at the end of
    `run_ssh` (`crates/podssh-cli/src/ssh/mod.rs:138-142`). Mode 0600. Refuse `-`: stdout is data.
-5. Add the row to `SSH_FLAGS` (`crates/podssh-cli/src/flags.rs:112-272`; the set of short flags
+5. Add the row to `SSH_FLAGS` (`crates/podssh-cli/src/flags.rs:112-273`; the set of short flags
    does not change), and change the `ssh` notes and `docs/cli.md` in the same commit.
 
 ## Decision
@@ -604,16 +604,16 @@ stderr into stdout; the byte test fails.
 
 ## Done
 
-2026-10-12. The record of a run in `crates/podssh-ssh/src/outcome.rs:1-156`:
+2026-10-12. The record of a run in `crates/podssh-ssh/src/outcome.rs:1-157`:
 the bytes at `crates/podssh-ssh/src/outcome.rs:68-76`, the end at
-`crates/podssh-ssh/src/outcome.rs:86-101`, a run through a control master
-at `crates/podssh-ssh/src/outcome.rs:103-114`, and the cause of a failure
-at `crates/podssh-ssh/src/outcome.rs:116-135`. The bytes are counted where
-they pass: stdin at `crates/podssh-ssh/src/io.rs:176`, stdout and stderr at
-`crates/podssh-ssh/src/io.rs:393`, `-W` at
+`crates/podssh-ssh/src/outcome.rs:86-102`, a run through a control master
+at `crates/podssh-ssh/src/outcome.rs:104-115`, and the cause of a failure
+at `crates/podssh-ssh/src/outcome.rs:117-136`. The bytes are counted where
+they pass: stdin at `crates/podssh-ssh/src/io.rs:180`, stdout and stderr at
+`crates/podssh-ssh/src/io.rs:399`, `-W` at
 `crates/podssh-ssh/src/forward.rs:66` and
 `crates/podssh-ssh/src/forward.rs:83`. The status and the signal at
-`crates/podssh-ssh/src/io.rs:337` and `crates/podssh-ssh/src/io.rs:342`,
+`crates/podssh-ssh/src/io.rs:343` and `crates/podssh-ssh/src/io.rs:348`,
 the end at `crates/podssh-ssh/src/session.rs:38`; the class of a hop's
 failure at `crates/podssh-ssh/src/run.rs:136-146` and
 `crates/podssh-ssh/src/run.rs:186`, a new connection at
@@ -629,7 +629,7 @@ failure at `crates/podssh-ssh/src/run.rs:136-146` and
 `crates/podssh-cli/src/ssh/transport.rs:80` and its close at
 `crates/podssh-cli/src/ssh/mod.rs:216`. The flag in `SSH_FLAGS`
 (`crates/podssh-cli/src/flags.rs:197`), its note at
-`crates/podssh-cli/src/man/notes_ssh.rs:187-197`, and `docs/cli.md`.
+`crates/podssh-cli/src/man/notes_ssh.rs:194-206`, and `docs/cli.md`.
 
 The test `crates/podssh-cli/tests/ssh_result.rs`, against the test server,
 whose `exit N` and `kill NAME` are in
@@ -674,9 +674,9 @@ stdin and stdout gives typed tools, with no shell quoting.
 
 Measured: `podssh mcp` exits 64 (unknown subcommand).
 
-Read: a prompt goes to the controlling terminal or to `SSH_ASKPASS` (`docs/cli.md:1639-1664`),
+Read: a prompt goes to the controlling terminal or to `SSH_ASKPASS` (`docs/cli.md:1645-1670`),
 and the terminal of an agent can be the user's own. The session output goes straight to the
-process's stdout (`crates/podssh-ssh/src/io.rs:378-395`), which an MCP server over stdio uses for
+process's stdout (`crates/podssh-ssh/src/io.rs:384-401`), which an MCP server over stdio uses for
 its protocol. podssh never listens (`docs/architecture.md:116-129`), and stdio needs no listener.
 
 ## Approach

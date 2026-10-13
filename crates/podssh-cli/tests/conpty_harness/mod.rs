@@ -14,7 +14,9 @@ use std::sync::{Arc, Mutex};
 use std::time::{Duration, Instant};
 
 use windows_sys::Win32::Foundation::{CloseHandle, HANDLE, WAIT_OBJECT_0};
-use windows_sys::Win32::System::Console::{ClosePseudoConsole, CreatePseudoConsole, ResizePseudoConsole, COORD, HPCON};
+use windows_sys::Win32::System::Console::{
+    ClosePseudoConsole, CreatePseudoConsole, ResizePseudoConsole, SetConsoleCtrlHandler, COORD, HPCON,
+};
 use windows_sys::Win32::System::Pipes::CreatePipe;
 use windows_sys::Win32::System::Threading::{
     CreateProcessW, DeleteProcThreadAttributeList, GetExitCodeProcess, InitializeProcThreadAttributeList,
@@ -108,6 +110,12 @@ impl Console {
         let mut process: PROCESS_INFORMATION = unsafe { std::mem::zeroed() };
         let mut line: Vec<u16> = command_line.encode_utf16().chain(std::iter::once(0)).collect();
         let block = environment(changes);
+        // A child inherits whether Ctrl-C is ignored, and a test runner that
+        // a service or a shell with no console started can have it ignored;
+        // podssh then keeps it ignored, as OpenSSH keeps an ignored SIGINT.
+        // A user's terminal delivers it, so the console's program must get it.
+        // SAFETY: no handler, only the flag that the child inherits.
+        unsafe { SetConsoleCtrlHandler(None, 0) };
         // SAFETY: a writable command line ending in 0, the extended start-up
         // information with its list, and an out struct.
         let ok = unsafe {

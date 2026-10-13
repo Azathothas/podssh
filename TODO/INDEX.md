@@ -61,15 +61,15 @@ repository and CI).
 
 ## Counts
 
-**303 entries: 50 open, 0 partial, 25 blocked, 228 done.**
+**303 entries: 49 open, 0 partial, 25 blocked, 229 done.**
 
 | Priority | open | partial | blocked | done | total |
 | --- | --- | --- | --- | --- | --- |
 | P0 | 0 | 0 | 0 | 1 | 1 |
 | P1 | 2 | 0 | 0 | 22 | 24 |
 | P2 | 4 | 0 | 18 | 136 | 158 |
-| P3 | 44 | 0 | 7 | 69 | 120 |
-| **All** | 50 | 0 | 25 | 228 | 303 |
+| P3 | 43 | 0 | 7 | 70 | 120 |
+| **All** | 49 | 0 | 25 | 229 | 303 |
 
 ## Entries
 
@@ -364,7 +364,7 @@ repository and CI).
 | [T-290](config.md) | P2 | M | none | defect | done | A `-J` hop takes the `ssh_config` block of its own name, as OpenSSH's jump host does |
 | [T-291](forwarding.md) | P3 | M | backlog | feature | open | The escape `~C`: add and stop the forwards of a running session |
 | [T-292](config.md) | P3 | M | backlog | feature | blocked | `podssh config import` from PuTTY, MobaXterm, Remmina, FinalShell, mRemoteNG and Termius |
-| [T-293](terminal.md) | P3 | M | backlog | feature | open | Ctrl-C with no remote pty sends `signal INT` to the command |
+| [T-293](terminal.md) | P3 | M | backlog | feature | done | Ctrl-C with no remote pty sends `signal INT` to the command |
 | [T-294](terminal.md) | P1 | S | none | defect | done | Output that is not UTF-8 stops the session's output in a Windows console |
 | [T-295](terminal.md) | P2 | S | none | defect | done | Ctrl-Break leaves the Windows console raw |
 | [T-296](copy.md) | P3 | M | backlog | feature | open | `cp`, `scp` and `sftp` to a node |

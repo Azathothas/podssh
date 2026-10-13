@@ -74,6 +74,9 @@ pub struct SshArgs {
     /// `--upgrade`: the session moves to a temporary node on the server
     /// (T-167).
     pub upgrade: bool,
+    /// `--no-signal`: Ctrl-C with no remote pty sends no `signal INT`, and
+    /// ends podssh at once (T-293).
+    pub no_signal: bool,
     /// `--sudo` and `--su`: the remote command runs as root (T-032).
     pub sudo: bool,
     /// `--record FILE`: the session's output in an asciicast v2 file (T-033).
@@ -230,6 +233,7 @@ impl SshArgs {
             attach_list: false,
             take: flag("take"),
             upgrade: flag("upgrade"),
+            no_signal: flag("no-signal"),
             sudo: flag("sudo"),
             record: one("record"),
             tag: one("tag").filter(|t| !t.is_empty()),

@@ -54,8 +54,9 @@ the manual read; a test holds the manual's note to it.
   bracketed paste; only a question or a transfer of ZMODEM takes the keys
   ("ZMODEM in a session" below).
 - **A client with no pty:** podssh reads no byte; stdin is the command's
-  data, escapes are off, and Ctrl-C is the local terminal's, which ends
-  podssh ("Ctrl-C with no remote pty" below).
+  data, escapes are off, and Ctrl-C is the local terminal's signal to
+  podssh, which sends `signal INT` to the command first ("Ctrl-C with no
+  remote pty" below).
 - **A session through a control master** (T-039): the master reads its
   escapes, with the escape character that the client sent.
 - **The line discipline of `podssh serve`**, when serve exists (T-107 to
@@ -273,12 +274,35 @@ started; in `sleep 30; true`, a shell waits for its child.
 Decision: the client sends `signal INT` on Ctrl-C when the session has no
 remote pty and runs a command or a shell (T-293). OpenSSH then stops the
 command and each process of its group, and Dropbear a command that is the
-process that it started. A server may ignore the request, so podssh waits
-a short time for the end, and a second Ctrl-C ends podssh at once, as one
-Ctrl-C does now; the command's status or signal is podssh's exit code, as
-for each command. A flag keeps OpenSSH's behaviour, whose client sends no
-request. With a remote pty nothing changes: Ctrl-C is a byte, and the
-remote pty's line discipline signals the foreground group.
+process that it started. With a remote pty nothing changes: Ctrl-C is a
+byte, and the remote pty's line discipline signals the foreground group.
+
+What podssh does since T-293 (`crates/podssh-ssh/src/terminal/interrupt.rs`):
+
+- In a session with no remote pty that runs a command or a shell (not
+  `-N`, `-W` or `-s`: OpenSSH's sshd refuses the request for a subsystem),
+  podssh takes SIGINT, or `CTRL_C_EVENT` in a Windows console, while the
+  channel is open. Before the session, as at a prompt, Ctrl-C ends podssh
+  as before.
+- The first Ctrl-C sends `signal INT` and waits 2 s for the channel's end;
+  the command's signal or status is then the exit code, as for each
+  command: 130 when `INT` ended it.
+- A second Ctrl-C, or the end of the wait with no end of the command, ends
+  podssh with 130, the code that a shell gives a process that SIGINT ended,
+  on Windows too; `--result-file` says `interrupted`. `-v` says each step.
+- `--no-signal` keeps OpenSSH's behaviour, whose client sends no request:
+  no handler, and Ctrl-C ends podssh at once (on Windows by the console's
+  own handler, with `0xC000013A`).
+- A SIGINT that was ignored when podssh started (a script's `&` leaves it
+  so) stays ignored, as in OpenSSH's client. A Windows process that
+  ignores Ctrl-C gets no event.
+- A session through a control master is the master's: its client ends at
+  SIGINT with 255, as before (T-039).
+
+`crates/podssh-cli/tests/ssh_interrupt.rs` runs podssh against the test's
+server on the loopback, whose command writes each `signal` request that it
+gets and ends by it, or runs on: SIGINT on Unix, and Ctrl-C typed into a
+pseudo console on Windows.
 
 ## Detach and attach again
 

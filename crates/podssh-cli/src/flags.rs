@@ -202,6 +202,7 @@ pub const SSH_FLAGS: &[FlagRow] = &[
     attach::TAKE,
     row(None, "upgrade", None, FlagKind::Supported,
         "log in, then move the session to a temporary node that the server's podssh starts, which resumes after a lost link; with no podssh there, the session stays", None),
+    signal::NO_SIGNAL,
     row(None, "sudo", None, FlagKind::Supported,
         "run the command as root with sudo -S, with no pty; the password is asked here (terminal or SSH_ASKPASS)", None),
     row(None, "record", Some("FILE"), FlagKind::Supported,
@@ -288,6 +289,7 @@ mod pipe;
 mod play;
 mod relay;
 mod scp;
+mod signal;
 pub use agent::AGENT_FLAGS;
 pub use chat::CHAT_FLAGS;
 pub use config::CONFIG_FLAGS;

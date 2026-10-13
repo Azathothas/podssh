@@ -1,6 +1,7 @@
 //! The local terminal: whether stdin and stdout are terminals, the window
 //! size, raw mode for an interactive session, the terminal modes sent with a
-//! pty request, and prompts on the controlling terminal.
+//! pty request, prompts on the controlling terminal, and Ctrl-C in a session
+//! with no remote pty.
 //!
 //! Nothing here assumes a terminal exists. Every function answers "none" or
 //! an error when there is no terminal, and callers fall back from there.
@@ -19,6 +20,7 @@ use unix as platform;
 mod windows;
 #[cfg(windows)]
 use windows as platform;
+pub mod interrupt;
 pub(crate) mod termination;
 pub(crate) mod text;
 pub(crate) mod watch;

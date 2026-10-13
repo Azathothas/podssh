@@ -42,6 +42,8 @@ pub fn code(end: io::End, host: &str) -> Result<i32, String> {
         io::End::Lost => Err(format!("the connection to {host} was lost before the session ended")),
         // The far end keeps the shell, as the user asked (T-158).
         io::End::Detached(_) => Ok(0),
+        // Ctrl-C ended podssh before the command ended (T-293).
+        io::End::Interrupted => Ok(terminal::interrupt::INTERRUPTED),
     }
 }
 
@@ -167,7 +169,11 @@ pub async fn attach(
     let zmodem = crate::zmodem::Zmodem::for_session(raw.is_some() && terminal::stdout_is_terminal());
     let detaching = crate::keep::Detaching::new(detach);
     let through = io::Through { elevated, zmodem, record, detaching, sink: opts.output.clone() };
-    let end = io::pump(handle, channel, early, escapes, pty, input, through, log).await;
+    // With no remote pty, Ctrl-C sends `signal INT` to a command or a shell
+    // (T-293); a subsystem gets none, as sshd refuses it for one.
+    let runs = matches!(opts.request, Request::Shell | Request::Exec(_));
+    let interrupt = terminal::interrupt::Interrupt::for_session(!pty && runs && opts.interrupt_signal);
+    let end = io::pump(handle, channel, early, escapes, pty, input, through, interrupt, log).await;
     drop(raw);
     if let io::End::Detached(name) = &end {
         log.info(&crate::keep::kept_line(name, host));
@@ -246,6 +252,13 @@ mod tests {
         assert_eq!(code(io::End::Escaped(crate::escape::Command::Disconnect), "h"), Ok(NO_STATUS));
         assert!(code(io::End::Lost, "h").unwrap_err().contains("was lost before the session ended"));
         assert_eq!(NO_STATUS, 255);
+    }
+
+    /// Ctrl-C that ended podssh before the command ended gives 130, as a
+    /// shell reports a process that SIGINT ended (T-293).
+    #[test]
+    fn exit_code_of_end_after_ctrl_c_is_130() {
+        assert_eq!(code(io::End::Interrupted, "h"), Ok(130));
     }
 
     /// A status above 255 is no success: OpenSSH's 256 would read as 0.

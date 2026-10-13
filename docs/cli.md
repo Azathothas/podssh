@@ -229,13 +229,19 @@ scripts. The facts about OpenSSH on this page were measured with OpenSSH
   is a usage error (64); `ControlPath` has no effect with it. The move takes
   the pair's road alone: the iroh road to the node, raced with it as T-164
   races them, is not built yet (T-167's Decision).
+- **Ctrl-C with no remote pty sends `signal INT` to the command** (T-293),
+  in a session that runs a command or a shell: podssh waits 2 s for the
+  command's end, whose signal or status is the exit code, and a second
+  Ctrl-C, or the end of the wait, ends podssh with 130. **`--no-signal`**
+  keeps OpenSSH's behaviour: no request, and Ctrl-C ends podssh at once
+  ([terminal.md](terminal.md), "Ctrl-C with no remote pty").
 - **`--result-file FILE` writes the result of the run as JSON** (T-054), at
   its end, also when it failed before it connected, so that a script tells
   the remote command's status from a failure of podssh with no parsing of
   stderr: `schema`, `exit` (the code that podssh exits with), `status` (the
   remote exit status, or null), `signal` (`name` and `core_dumped`, or
   null), `end` (`status`, `signal`, `no-status`, `lost`, `escaped`,
-  `terminated`, `detached`, `failed`, or `shared`; null with no session, as with `-W`),
+  `terminated`, `detached`, `interrupted`, `failed`, or `shared`; null with no session, as with `-W`),
   `failure` (`connect`, `host-key`, `auth`, `forward`, `relay`, `session`,
   `usage`, `config` or `not-built`, or null: `connect` also when podssh got
   no session for another cause), `bytes` (`stdin`, `stdout`

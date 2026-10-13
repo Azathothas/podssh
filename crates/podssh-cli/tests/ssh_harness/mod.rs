@@ -30,6 +30,8 @@
 //! subsystem `sftp` is OpenSSH's `sftp-server` in the directory of the host
 //! key, when this machine has one (T-140, `sftp.rs`). On a server of
 //! `start_podssh`, `podssh ...` runs the binary under test (T-167, `podssh.rs`).
+//! `wait-signal PATH acts` and `wait-signal PATH deaf` write each `signal`
+//! request into PATH, and end by it or run on (T-293, `interrupt.rs`).
 
 // Each test binary uses a part of it.
 #![allow(dead_code)]
@@ -41,11 +43,12 @@ use std::sync::Arc;
 use std::time::Duration;
 
 use russh::server::{self, Auth, Msg, Session};
-use russh::{Channel, ChannelId};
+use russh::{Channel, ChannelId, Sig};
 
 mod console;
 mod ends;
 mod forward;
+mod interrupt;
 pub mod podssh;
 mod serve;
 pub mod sftp;
@@ -105,6 +108,8 @@ struct Far {
     sftps: HashMap<ChannelId, tokio::process::ChildStdin>,
     /// A server of `start_podssh`: what its podssh gets (T-167).
     podssh: Option<Arc<podssh::Podssh>>,
+    /// The commands of `wait-signal` (T-293).
+    waits: HashMap<ChannelId, interrupt::Wait>,
 }
 
 impl server::Handler for Far {
@@ -288,6 +293,10 @@ impl server::Handler for Far {
         if let Some(sent) = console::bytes(&command, channel, session) {
             return sent;
         }
+        if let Some(wait) = interrupt::wait(&command, channel, session)? {
+            self.waits.insert(channel, wait);
+            return Ok(());
+        }
         if command == "watch" && self.pty {
             self.watches.push(channel);
             return console::watch(channel, self.pty_size, session);
@@ -393,6 +402,10 @@ impl server::Handler for Far {
             }
         }
         Ok(())
+    }
+
+    async fn signal(&mut self, channel: ChannelId, signal: Sig, session: &mut Session) -> Result<(), Self::Error> {
+        interrupt::received(self.waits.get(&channel), channel, signal, session)
     }
 
     async fn data(&mut self, channel: ChannelId, data: &[u8], session: &mut Session) -> Result<(), Self::Error> {
