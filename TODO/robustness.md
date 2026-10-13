@@ -363,7 +363,7 @@ Read:
    in the gate's container (installed with apk, as `scripts/interop-man.sh:22`
    installs groff) and through `vt100`. The two must give the same screens
    before the model judges podssh.
-6. docs/terminal.md, section "Tests" (`docs/terminal.md:401`), names the
+6. docs/terminal.md, section "Tests" (`docs/terminal.md:442`), names the
    oracle.
 
 ## Decision

@@ -46,6 +46,10 @@ LICENSE text eol=lf
 # Windows working tree (still CRLF) passed. Store these byte-for-byte.
 crates/podssh-core/tests/fixtures/*.txt -text
 
+# What programs wrote for a terminal (T-221): bytes, cut at each offset by
+# the tests, so a CR that a checkout added would move each offset.
+crates/podssh-terminal/tests/fixtures/*.bin -text
+
 # A binary is a binary, and `text=auto` guesses from content.
 *.png binary
 *.jpg binary

@@ -43,12 +43,12 @@ entry keeps its proof in the entry; this page keeps no history (git does).
   worktrees (`.claude/worktrees/`, excluded from git) on local branches
   `worktree-agent-*`, never pushed; they do not build. The main session
   merges a draft, builds it, runs its tests and plants, fills each
-  UNVERIFIED and closes the entry (T-179 to T-184, T-200 and T-202 so). Waiting to
+  UNVERIFIED and closes the entry (T-179 to T-184, T-200, T-202 and T-221 so). Waiting to
   be merged, in the order of the index:
 
   | Entry | Branch (`worktree-agent-` and) | Commit | State |
   | --- | --- | --- | --- |
-  | T-221, T-293 | `aa03c15043f6fe8dc` | `88b2197`, `072cd86` | drafted; T-221 adds `anstyle-parse` (in the lock already) and two captured fixtures, and its Correction says T-200 is open, which it no longer is; T-293 meets `io.rs`, split since T-183, and asks whether Ctrl-C exits 130 on Windows and whether `--no-signal` is the flag's name |
+  | T-293 | `aa03c15043f6fe8dc` | `072cd86` | drafted; it meets `io.rs`, split since T-183, and asks whether Ctrl-C exits 130 on Windows and whether `--no-signal` is the flag's name |
   | T-225 | `a224e69d322ba513a` | `acda386` | drafted; `scripts/interop.sh` is at 499 lines in it; OpenSSH's codes in its table are read in OpenSSH's source, not run |
   | T-232, T-235, T-242 | `a1c2c734bcf87dace` | `b53a24f`, `ffeb741`, `b641ecb` | drafted |
   | T-279 | `a3f4d829458070a37` | `c7dd479` | drafted; its `bind(` in `agent_bind.rs`, `agent_forward.rs` and `handler.rs` fails the listener check of `scripts/check-repo.py` |
@@ -96,7 +96,7 @@ and `CARGO_BUILD_JOBS=4`:
 
 ## Counts
 
-`TODO/INDEX.md` holds 303 entries: 51 open, 0 partial, 25 blocked, 227 done.
+`TODO/INDEX.md` holds 303 entries: 50 open, 0 partial, 25 blocked, 228 done.
 
 Open includes parked work. `cargo todo check` verifies this line.
 

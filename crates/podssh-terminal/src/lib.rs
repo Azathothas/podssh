@@ -62,6 +62,8 @@
 //! - [`bytes`] — rendering bytes legibly, so a failing assertion names them
 //! - [`echo`] — the line under edit: the byte rules, transcribed
 //! - [`escape`] — the escape-sequence parser: what counts as one key
+//! - [`grammar`] — where a stream of output may start, and the ring of a
+//!   kept shell's output that drops bytes only up to such a place
 //! - [`window`] — window size, deferred while a frame is mid-draw
 //! - [`passthrough`] — the second discipline, for a program that owns the screen
 //! - [`refusal`] — the refusal catalogue that the cooked discipline answers from
@@ -72,6 +74,7 @@
 pub mod bytes;
 pub mod echo;
 pub mod escape;
+pub mod grammar;
 pub mod passthrough;
 pub mod refusal;
 pub mod session;

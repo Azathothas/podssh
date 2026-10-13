@@ -4039,6 +4039,7 @@ dependencies = [
 name = "podssh-terminal"
 version = "0.1.0"
 dependencies = [
+ "anstyle-parse",
  "proptest",
  "unicode-width 0.2.2",
  "vt100",

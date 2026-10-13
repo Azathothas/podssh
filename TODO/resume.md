@@ -1548,7 +1548,10 @@ layer keeps a stream to its target until the resume deadline, not a shell
 (`crates/podssh-relay/src/session/keep.rs`), so a kept shell has no other
 place to live. The parts that need no server (the lease, the limits, the stop
 and the state file) wait too, as the TOTP code of T-115 waits: their shape
-follows the server's pty and channels, which T-107 to T-110 decide.
+follows the server's pty and channels, which T-107 to T-110 decide. The
+ring of step 1 exists: T-221's `Ring`
+(`crates/podssh-terminal/src/grammar/ring.rs`), which drops its oldest
+bytes only up to a boundary of the terminal's grammar.
 
 # T-160: Local echo and prediction for high latency
 
@@ -1700,7 +1703,8 @@ the kept pty; the modes sent again; a snapshot kept by the far end), and no
 far end keeps a shell yet: T-159 waits for `podssh serve`, which the
 operator holds (Q32). T-158 made the client's side (`~d`, `--attach`,
 61796d8), against a stand-in far end that keeps a shell but no screen. The
-boundary of the replay is T-221's, which can be done before this entry.
+boundary of the replay is T-221's, done: its ring gives its bytes from a
+boundary.
 
 # T-221: Replayed output after dropped bytes starts at a boundary of the terminal grammar (GitHub #31)
 
@@ -1711,7 +1715,7 @@ with the coordinator's reading of 2026-10-08, checked here against
 **Milestone:** backlog
 **Priority:** P3
 **Effort:** M
-**Status:** open
+**Status:** done
 
 ## Problem
 
@@ -1773,6 +1777,97 @@ real terminal model (T-200) then shows no part of a sequence as text. A
 planted tracker that ignores UTF-8 continuation fails it, and so does one
 that ignores OSC strings. A case with a sequence cut by 10 s of silence
 starts at the next newline.
+
+## Correction
+
+2026-10-12, read before the work:
+
+- Step 3 puts the tracker beside the ring of a kept shell, and no far end
+  keeps a shell: T-159 waits for `podssh serve`, which the operator holds
+  (Q32). So the ring is made here, in `podssh-terminal`, with no shell
+  around it (`crates/podssh-terminal/src/grammar/ring.rs`). T-159's step 1
+  already puts a ring that drops its oldest bytes at a boundary into each
+  kept shell; it takes this one.
+- The Prove names the terminal model of T-200 (`vt100`) as the oracle. The
+  oracle here is the parser under such a model: anstyle-parse 1.0.0, vte's
+  state machine, which `Cargo.lock` has already (through clap's
+  `anstream`), a dev-dependency of `podssh-terminal`, pure Rust, with no
+  build script. A start is clean when the parser's actions from it are
+  those of the whole capture, byte by byte; a model's screen shows only
+  the cells that a sequence changed, so a part of a sequence shown as text
+  can hide under a later repaint.
+- Step 5's captures: this host is Windows, with no pty and no `top`, and
+  `less` copies its file unchanged to a stream that is not a terminal. vim
+  and bash of Git for Windows write their terminal's bytes to a file too,
+  and were captured so; less and top need a pty of Linux
+  (`scripts/capture-terminal.py`).
+
+## Done
+
+2026-10-13.
+
+- `crates/podssh-terminal/src/grammar.rs`: `Tracker`, sans-IO. `feed`
+  takes a chunk with the time it came and gives each `Boundary`: its
+  offset, and whether it is the first after a broken sequence. The states
+  of step 2 and UTF-8; `BROKEN_AFTER`, 10 s, after which the next start is
+  the byte after a newline or the `ESC` of a repaint.
+  `crates/podssh-terminal/src/grammar/ring.rs`: `Ring`, at most its
+  capacity, which drops its oldest bytes up to a boundary and gives the
+  bytes from it (`start`, `kept`).
+- The calls made where the Approach left a choice. Where terminals differ,
+  the tracker finds no boundary, since one too few costs the ring bytes
+  and a wrong one shows garbage: after the byte that cuts a UTF-8
+  character short (vte drops that byte), and at 0x9C, which vte takes as
+  ST in a DCS and a UTF-8 terminal does not. The head of a DCS is part of
+  its string. The repaints are step 4's two, and `ESC [ ? 1047 h`,
+  `ESC [ ? 47 h` and the reset `ESC c`, which start a screen as surely. The
+  ring keeps a boundary for each 1/256 of its capacity, the first after a
+  broken sequence, and the newest, not one for each byte of text: a cut
+  drops at most about 1/256 of the ring more than it must. With no
+  boundary left it keeps its last bytes and gives none until one comes, so
+  it never holds more than its capacity.
+- The captures, with a `-text` line in `.gitattributes`:
+  `crates/podssh-terminal/tests/fixtures/vi.bin`, vim 9.2 of MSYS2
+  drawing 60 lines of UTF-8 text in 24 rows and 80 columns (10038 bytes:
+  the alternate screen, titles by OSC 2, colours, a search, line numbers,
+  a split, its exit); `crates/podssh-terminal/tests/fixtures/prompt.bin`,
+  bash run interactive with a prompt that sets the title by OSC 0, then
+  `ls --color=always` and UTF-8 text (560 bytes).
+  `scripts/capture-terminal.py` captured busybox's less (8230 bytes), top
+  (1361) and vi (5355) in a pty of Linux in the build image:
+  `crates/podssh-terminal/tests/fixtures/less.bin`, `top.bin` and
+  `vi-pty.bin`. The test reads each capture there is.
+- `docs/terminal.md`, "Where kept output may start"; `docs/STATUS.md`, the
+  row of `podssh-terminal`.
+- Prove: `cargo test -p podssh-terminal --test grammar_boundary`: 5
+  passed on Windows 11, and 5 in the build image with no C compiler, over
+  the five captures (2026-10-13). Its tests: `each_boundary_in_each_capture_is_clean`;
+  `a_ring_cut_at_each_offset_gives_its_bytes_from_a_clean_boundary` (each
+  offset of `prompt.bin` and each third of `vi.bin`: the first byte kept is
+  a boundary, a terminal that starts there does over 256 bytes what the
+  terminal of the whole capture does, and a ring keeps nothing only where
+  no boundary follows the cut);
+  `the_oracle_finds_a_cut_inside_a_sequence_or_a_character` (the control: a
+  cut inside a title, a CSI and a character of each capture fails the
+  oracle; these are the cuts that the two planted trackers make);
+  `a_capture_cut_by_10_s_of_silence_starts_at_the_next_newline`
+  (`prompt.bin`, silent for 10 s inside its second title: the ring keeps
+  from the text after the next newline; silent for 5 s: from the byte
+  after the title's BEL); and
+  `a_capture_cut_by_10_s_of_silence_starts_at_the_next_repaint`
+  (`vi.bin`: from its `ESC [ 2 J`). `cargo test -p podssh-terminal --lib
+  grammar`: 20 passed (each state, CAN and SUB, chunks cut anywhere, the
+  rule of a broken sequence; the ring's capacity, a ring with no boundary
+  left, a character cut by the capacity, a repaint after a broken
+  sequence). Clippy 1.98 here and 1.99 in the build image: no warning,
+  after a list of byte literals became a byte string.
+- Planted, each restored: a tracker that takes a UTF-8 continuation byte
+  as a boundary failed `each_boundary_in_each_capture_is_clean` and
+  `a_ring_cut_at_each_offset_gives_its_bytes_from_a_clean_boundary`; one
+  that ends an OSC at its `]` failed those two and
+  `a_capture_cut_by_10_s_of_silence_starts_at_the_next_newline`.
+- Waits: a ring in a kept shell is T-159's step 1, which waits for
+  `podssh serve` (Q32), and T-161 replays it.
 
 # T-302: A notice in the terminal while the far end is silent
 

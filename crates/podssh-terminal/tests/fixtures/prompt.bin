@@ -1,0 +1,14 @@
+bash: cannot set terminal process group (180472): Inappropriate ioctl for device
+bash: no job control in this shell
+]0;demo@box: demo[01;32mdemo@box[00m:[01;34mdemo[00m$ ls --color=always -1
+café.txt
+notes
+[0m[01;32mrun.sh[0m
+[01;34msrc[0m
+[01;34m日本語[0m
+]0;demo@box: demo[01;32mdemo@box[00m:[01;34mdemo[00m$ cat café.txt
+Grüße aus der Kälte € 日本語 🙂
+]0;demo@box: demo[01;32mdemo@box[00m:[01;34mdemo[00m$ printf 'done: \342\234\223\n'
+done: ✓
+]0;demo@box: demo[01;32mdemo@box[00m:[01;34mdemo[00m$ exit
+exit

@@ -1,0 +1,19 @@
+[H[JMem: 1105604K used, 31552656K free, 3708K shrd, 33344K buff, 434364K cached
+CPU:   0% usr   0% sys   0% nic 100% idle   0% io   0% irq   0% sirq
+Load average: 0.27 1.54 1.62 2/304 7
+[7m  PID  PPID USER     STAT   VSZ %VSZ CPU %CPU COMMAND[m
+    5     1 root     S    14156   0%   7   0% python3 scripts/capture-terminal.p
+    1     0 root     S     1652   0%   7   0% /bin/sh /job.sh
+    7     5 root     R     1648   0%  10   0% top -d 1[H[JMem: 1095724K used, 31562536K free, 3708K shrd, 33344K buff, 434364K cached
+CPU:   0% usr   0% sys   0% nic  99% idle   0% io   0% irq   0% sirq
+Load average: 0.27 1.54 1.62 1/304 7
+[7m  PID  PPID USER     STAT   VSZ %VSZ CPU %CPU COMMAND[m
+    5     1 root     S    14156   0%   7   0% python3 scripts/capture-terminal.p
+    1     0 root     S     1652   0%   7   0% /bin/sh /job.sh
+    7     5 root     R     1648   0%  10   0% top -d 1[H[JMem: 1087760K used, 31570500K free, 3708K shrd, 33352K buff, 434364K cached
+CPU:   0% usr   0% sys   0% nic  99% idle   0% io   0% irq   0% sirq
+Load average: 0.27 1.54 1.62 1/304 7
+[7m  PID  PPID USER     STAT   VSZ %VSZ CPU %CPU COMMAND[m
+    5     1 root     S    14156   0%   7   0% python3 scripts/capture-terminal.p
+    1     0 root     S     1652   0%   7   0% /bin/sh /job.sh
+    7     5 root     R     1648   0%  10   0% top -d 1

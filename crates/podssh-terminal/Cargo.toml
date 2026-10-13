@@ -16,3 +16,7 @@ unicode-width = { workspace = true }
 vt100 = { workspace = true }
 # Property tests of the line discipline (T-202, tests/properties.rs).
 proptest = { workspace = true }
+# A terminal's parser that podssh did not write, for the tests of where a
+# stream of output may start (T-221): vte's state machine. The lock has it
+# already, through clap; pure Rust, with no build script.
+anstyle-parse = "1.0.0"

@@ -339,6 +339,47 @@ or a pty on Linux, it sets a variable in a shell, types `~d`, lists the
 kept shells, attaches by name from a new process, and reads the variable
 back.
 
+## Where kept output may start
+
+A far end that keeps a shell keeps a ring of its recent output (T-159),
+and a client that attaches gets what the ring holds (T-161). A full ring
+drops its oldest bytes, and its first byte could then be inside an escape
+sequence or a UTF-8 character: the terminal would show the end of the
+sequence as text, a full-screen program would draw wrongly, or a part of a
+title would show on the command line (GitHub #31). A resume of the
+resumable layer never meets this: it sends again each byte that the other
+side did not acknowledge (T-152).
+
+`crates/podssh-terminal/src/grammar.rs` (T-221) reads the output as a
+terminal does, and finds each boundary: a place where a terminal that
+starts to read shows no part of a sequence. Its ring
+(`podssh_terminal::grammar::Ring`) drops bytes only up to a boundary.
+
+- Text is at a boundary at each byte but a UTF-8 continuation byte.
+- `ESC` starts a sequence wherever it comes. `ESC` and a byte 0x30 to
+  0x7E is one, with intermediate bytes 0x20 to 0x2F between them or not. A
+  CSI ends at its final byte, 0x40 to 0x7E; a control byte inside it does
+  not end it. An OSC ends with ST (`ESC \`) or BEL; a DCS, SOS, PM and APC
+  with ST alone. CAN and SUB end each sequence.
+- Where terminals differ, there is no boundary: the byte that cuts a UTF-8
+  character short starts none (vte drops it), and 0x9C, the 8-bit ST, ends
+  no string (vte ends a DCS with it; a UTF-8 terminal does not).
+- A sequence or a character that waits 10 s for its next byte is broken.
+  The next boundary is then the byte after the next newline, or the `ESC`
+  of the next full repaint: `ESC [ 2 J`, `ESC [ ? 1049 h`, `?1047h`,
+  `?47h`, or the reset `ESC c`. The caller gives the time of each chunk.
+- The ring keeps a boundary for each 1/256 of its size, the first after a
+  broken sequence, and the newest, so a cut drops at most about 1/256 of
+  the ring more than it must.
+
+`crates/podssh-terminal/tests/grammar_boundary.rs` cuts the output that
+real programs wrote (vim, and an interactive bash whose prompt sets the
+title; `scripts/capture-terminal.py` adds less and top from a pty of
+Linux) at each offset, and checks the first byte kept against anstyle-parse,
+vte's parser: a terminal that starts there does what the terminal that read
+the whole stream does. No far end keeps a shell yet, so no ring is used:
+`podssh serve` will hold one for each kept shell (T-159).
+
 ## ZMODEM in a session
 
 Some servers give a shell and nothing else: no SFTP, and exec refused. A
