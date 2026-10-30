@@ -69,6 +69,31 @@ fn plain_is_a_flag_of_the_node_of_a_pair_only() {
     assert_eq!(rc, 78, "{err}");
 }
 
+/// `--resume-deadline TIME` (T-306): a whole number and a unit, from a
+/// minute to 72 h, for the node's layer and for a client's own deadline;
+/// refused before anything is read or connects.
+#[test]
+fn a_resume_deadline_is_read_and_refused_before_any_connection() {
+    let home = scratch("deadline");
+    let node = |more: &[&'static str]| [&["node", "lab", "127.0.0.1:22", "--resume-deadline"][..], more].concat();
+    for (args, says) in [
+        (node(&["8x"]), "a whole number, then s, m, h or d"),
+        (node(&["4d"]), "from 1 minute to 72 h"),
+        (node(&["8h", "--plain"]), "which --plain turns off"),
+        (vec!["node", "--temporary", "x", "--resume-deadline", "8h"], "does not go with --temporary"),
+        (vec!["operator", "lab", "--resume-deadline", "30"], "from 1 minute to 72 h"),
+        (vec!["ssh", "--resume-deadline", "x", "node://lab"], "a whole number, then s, m, h or d"),
+    ] {
+        let (rc, out, err) = podssh(&home, &args, &[]);
+        assert_eq!(rc, 64, "{args:?}: {err}");
+        assert!(err.contains(says), "{args:?}: {err}");
+        assert!(out.is_empty(), "{args:?}: stdout {out:?}");
+    }
+    // A good time gets the node past the flag: no stored pair, 78.
+    let (rc, _, err) = podssh(&home, &node(&["8h"]), &[]);
+    assert_eq!(rc, 78, "{err}");
+}
+
 #[test]
 fn with_no_stored_pair_each_command_names_the_remedy() {
     let home = scratch("none");

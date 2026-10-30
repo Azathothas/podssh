@@ -68,8 +68,13 @@ scripts. The facts about OpenSSH on this page were measured with OpenSSH
   node's first bytes, 30 s at most: a node that offers the resumable layer
   greets with its first record, and `-v` says whether it did (T-151,
   `docs/design.md` section 5). With the layer, a lost link to the relay is
-  replaced by a new one for 10 minutes and the SSH session goes on where it
-  was, with one line on stderr for each loss and each resume (T-153).
+  replaced by a new one for as long as the node keeps the session (10
+  minutes, or the node's `--resume-deadline`), and the SSH session goes on
+  where it was, with one line on stderr for each loss and each resume
+  (T-153). `--resume-deadline TIME` waits at most TIME, never longer than
+  the node keeps the session; when the node forgot the session, as after a
+  sleep of this host longer than its deadline, the line says so, with how
+  long this side was away by the wall clock (T-306).
   `-J a,b` makes a chain of hops; `-J a -J b` is an error. Each hop checks
   its own host key, filed under its own name: `host`, or `[host]:port` off
   port 22 (T-030). `HostKeyAlias` names the destination's key alone, as it
@@ -1720,6 +1725,14 @@ commands. The rules behind them:
   link ends the session, as before T-153. The node's first line names its
   mode. The iroh road always runs the layer, so `--plain` with `--iroh` is
   refused (64).
+- **`node --resume-deadline TIME`** keeps a session whose link is lost for
+  TIME in place of 10 minutes (T-306), on each road: `90s`, `30m`, `8h` or
+  `3d`, from 1 minute to 72 h, the longest life of a pair; a bad TIME, or
+  one with `--plain` or `--temporary`, is refused (64). The node names the
+  time to each operator in the layer's `GREETING`, and its first line says
+  it. An operator waits as long; with `--resume-deadline` of its own
+  (`ssh`, `operator`), at most that. A session kept longer holds its replay
+  buffers longer; the node's bound of 64 MiB holds.
 - **`node NAME udp:HOST:PORT` offers a UDP service** (T-168), on a host that
   allows UDP: the relay carries TCP only, so the datagrams leave from the
   node. Each session is one flow, a UDP socket from the node's host to

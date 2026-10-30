@@ -47,6 +47,8 @@ pub struct NodeArgs {
     /// `--env-file FILE`: the variables of the node, read before anything
     /// else; what `--install` writes for the service.
     pub env_file: Option<String>,
+    /// How long a lost session is kept, unparsed (T-306).
+    pub resume_deadline: Option<String>,
     pub refused: Vec<(String, &'static str, &'static str)>,
 }
 
@@ -75,6 +77,7 @@ impl NodeArgs {
             install: matches.get_flag("install"),
             uninstall: matches.get_flag("uninstall"),
             env_file: get("env-file"),
+            resume_deadline: get("resume-deadline"),
             refused,
         }
     }

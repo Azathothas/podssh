@@ -69,6 +69,9 @@ pub mod node;
 pub mod node_args;
 // `podssh node --install`: the node as a service of this user (T-121).
 pub mod node_install;
+// The flags of `podssh node` that each road reads: the keys, the resume
+// deadline (T-306).
+pub mod node_flags;
 // `podssh node NAME udp:HOST:PORT`: a UDP target, one flow for each session.
 pub mod node_udp;
 // `podssh node --iroh`: the iroh road, with the feature `iroh` only.

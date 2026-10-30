@@ -30,6 +30,9 @@ use crate::exitmap::Fault;
 use crate::pairs;
 use crate::relay_settings::Refusal;
 
+// Read by the iroh road's node too (`node_iroh`).
+pub(crate) use crate::node_flags::key_flags;
+
 /// Bound on each dial of TARGET, under the node's 10 s to open a session.
 const DIAL_LIMIT: Duration = Duration::from_secs(8);
 /// A roost's TARGET when the command line names none: the sshd of this host.
@@ -40,6 +43,10 @@ pub use crate::node_args::NodeArgs;
 
 /// Run the verb; returns the process exit code.
 pub fn run_node(args: &NodeArgs, err: &mut dyn Write) -> i32 {
+    // How long the node keeps a lost session, on each road (T-306).
+    if let Err(refusal) = crate::node_flags::deadline(args) {
+        return refusal.report("node", err);
+    }
     if let Some(key) = &args.temporary {
         return crate::node_temp::run(args, key, err);
     }
@@ -96,29 +103,6 @@ struct Ready {
     sshd: bool,
     /// The one TARGET is UDP (T-168).
     udp: bool,
-}
-
-/// The node's key and allowlist, by their names of T-087 or of T-163.
-pub(crate) struct KeyFlags {
-    pub key: Option<String>,
-    pub ephemeral: bool,
-    pub allow: Option<PathBuf>,
-}
-
-/// The flags of the node's key and allowlist; each by one of its two names.
-pub(crate) fn key_flags(args: &NodeArgs) -> Result<KeyFlags, Refusal> {
-    let both = |a: &str, b: &str| Refusal::usage(format!("{a} and {b} are one flag by two names: give one"));
-    if args.key.is_some() && args.iroh_key.is_some() {
-        return Err(both("--key", "--iroh-key"));
-    }
-    if args.allow.is_some() && args.iroh_allow.is_some() {
-        return Err(both("--allow", "--iroh-allow"));
-    }
-    Ok(KeyFlags {
-        key: args.key.clone().or_else(|| args.iroh_key.clone()),
-        ephemeral: args.ephemeral_key || args.iroh_ephemeral,
-        allow: args.allow.as_ref().or(args.iroh_allow.as_ref()).map(PathBuf::from),
-    })
 }
 
 fn prepare(args: &NodeArgs) -> Result<Ready, Refusal> {
@@ -295,7 +279,7 @@ async fn serve(ready: Ready, err: &mut dyn Write) -> i32 {
         }
     };
     let routes = routes_of(&targets, allow.clone(), roost);
-    let mode = if plain { "in plain mode, with no resumable layer" } else { "with the resumable layer" };
+    let mode = if plain { "in plain mode, with no resumable layer".into() } else { crate::node_flags::layer_mode() };
     let _ = writeln!(
         err,
         "podssh node: {label}: serving {target} through {} {mode} until Ctrl-C; the pair expires {}",

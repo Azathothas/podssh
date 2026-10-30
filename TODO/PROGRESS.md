@@ -68,8 +68,9 @@ entry keeps its proof in the entry; this page keeps no history (git does).
   harness that `scripts/interop-each.sh` sources, as `scripts/interop.sh`
   is at 500 lines. `crates/podssh-cli/tests/ssh_harness/mod.rs`, `crates/podssh-cli/src/tree.rs`
   and `crates/podssh-cli/src/flags.rs` are near 500 lines, so a merge splits
-  them where needed. T-186, T-193, T-197 and T-192 are merged (2026-10-30);
-  the next merges are T-306, T-302 and T-305, in the order of their commits. The operator pushed each branch to GitHub as
+  them where needed. T-186, T-193, T-197, T-192 and T-306 are merged
+  (2026-10-30); the next merges are T-302 and T-305, in the order of their
+  commits. The operator pushed each branch to GitHub as
   `draft/worktree-agent-*` on 2026-10-30, so a session anywhere merges them;
   a fourth, `draft/worktree-agent-a273199755d943f3c`, holds T-185, which
   `main` has since `d1c5bd1`, and needs no merge.
@@ -114,7 +115,7 @@ and `CARGO_BUILD_JOBS=4`:
 
 ## Counts
 
-`TODO/INDEX.md` holds 325 entries: 22 open, 2 partial, 28 blocked, 273 done.
+`TODO/INDEX.md` holds 325 entries: 21 open, 2 partial, 28 blocked, 274 done.
 
 Open includes parked work. `cargo todo check` verifies this line.
 

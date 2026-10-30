@@ -62,15 +62,15 @@ repository and CI).
 
 ## Counts
 
-**325 entries: 22 open, 2 partial, 28 blocked, 273 done.**
+**325 entries: 21 open, 2 partial, 28 blocked, 274 done.**
 
 | Priority | open | partial | blocked | done | total |
 | --- | --- | --- | --- | --- | --- |
 | P0 | 0 | 0 | 0 | 1 | 1 |
 | P1 | 2 | 0 | 0 | 24 | 26 |
 | P2 | 1 | 2 | 19 | 144 | 166 |
-| P3 | 19 | 0 | 9 | 104 | 132 |
-| **All** | 22 | 2 | 28 | 273 | 325 |
+| P3 | 18 | 0 | 9 | 105 | 132 |
+| **All** | 21 | 2 | 28 | 274 | 325 |
 
 ## Entries
 
@@ -378,7 +378,7 @@ repository and CI).
 | [T-303](resume.md) | P3 | L | backlog | feature | open | The latest screen on request: frames that let Ctrl-C show within a round trip |
 | [T-304](resume.md) | P3 | L | backlog | feature | open | Keys and screen frames as QUIC datagrams on the iroh road |
 | [T-305](resume.md) | P3 | M | backlog | feature | open | Roam at once: a new link beside a silent one |
-| [T-306](resume.md) | P3 | S | backlog | feature | open | A resume deadline that the user sets, for a host that sleeps |
+| [T-306](resume.md) | P3 | S | backlog | feature | done | A resume deadline that the user sets, for a host that sleeps |
 | [T-308](repo.md) | P3 | S | none | defect | done | Dependabot's updates of the images fail: GitHub refuses each pull request it makes |
 | [T-309](release.md) | P1 | M | none | release | done | Publish the rolling betas `v1.0.0-beta.N` |
 | [T-310](repo.md) | P2 | M | none | chore | done | The gate on a Linux host with no wsl-toolkit, and a cloud session made ready |

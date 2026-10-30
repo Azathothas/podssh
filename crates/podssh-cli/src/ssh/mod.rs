@@ -114,6 +114,10 @@ fn run(args: &SshArgs, tty: Tty, err: &mut dyn Write) -> i32 {
     if let Err(refusal) = crate::pins::apply(args.relay_addr.as_deref()) {
         return refusal.report("ssh", err);
     }
+    // This client's own deadline only shortens the far end's (T-306).
+    if let Err(refusal) = crate::layered::own_deadline(args.resume_deadline.as_deref()) {
+        return refusal.report("ssh", err);
+    }
     // A snippet (T-187): its command as written goes through the resolve,
     // and its values go in once the connection is known.
     let chosen = match crate::snippets::choose(args, &env.settings.snippets) {

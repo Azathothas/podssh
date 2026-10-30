@@ -77,6 +77,9 @@ pub struct SshArgs {
     /// `--no-signal`: Ctrl-C with no remote pty sends no `signal INT`, and
     /// ends podssh at once (T-293).
     pub no_signal: bool,
+    /// `--resume-deadline TIME`: this client's own resume deadline, which
+    /// only shortens the far end's (T-306), unparsed.
+    pub resume_deadline: Option<String>,
     /// `--sudo` and `--su`: the remote command runs as root (T-032).
     pub sudo: bool,
     /// `--record FILE`: the session's output in an asciicast v2 file (T-033).
@@ -140,6 +143,7 @@ pub const ONCE: &[(&str, &str)] = &[
     ("iroh-ticket", "give one ticket"),
     ("persist-name", "give one name"),
     ("attach", "give one name"),
+    ("resume-deadline", "give one time"),
     ("record", "give one file"),
     ("control-command", "give one command, as OpenSSH asks"),
     ("snippet", "give one snippet"),
@@ -257,6 +261,7 @@ impl SshArgs {
             take: flag("take"),
             upgrade: flag("upgrade"),
             no_signal: flag("no-signal"),
+            resume_deadline: one("resume-deadline"),
             sudo: flag("sudo"),
             record: one("record"),
             tag: one("tag").filter(|t| !t.is_empty()),

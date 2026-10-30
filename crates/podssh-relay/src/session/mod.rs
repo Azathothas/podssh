@@ -21,6 +21,7 @@
 //! - [`client`] and [`far`]: the two ends over tokio streams, [`pump`]: one
 //!   link of a session, [`resume`]: the client's session across links, and
 //!   [`keep`]: the sessions that a far end keeps across links;
+//! - [`deadline`]: how long each end waits for a new link (T-306);
 //! - [`sessions`]: the secrets and offsets that a far end keeps, by id.
 //!
 //! The records, the offsets, the secrets, the handshakes, the link and the
@@ -28,6 +29,7 @@
 //! with no socket and no clock.
 
 pub mod client;
+pub mod deadline;
 pub mod decode;
 pub mod far;
 pub mod handshake;
@@ -72,8 +74,18 @@ pub struct Settings {
     pub features: &'static [&'static str],
     /// The capacity of the replay buffer in each direction (T-152).
     pub replay_capacity: usize,
-    /// How long after a loss the session waits for a new link (T-153).
+    /// How long after a loss the session waits for a new link (T-153): a
+    /// far end keeps a lost session this long, and names it in its
+    /// `GREETING`; a client waits this long when the far end names none
+    /// (T-306, [`deadline`]).
     pub resume_deadline: std::time::Duration,
+    /// A client's own deadline, which its user set (T-306): it only
+    /// shortens what the far end keeps. `None` waits as long as the far end
+    /// keeps the session.
+    pub client_deadline: Option<std::time::Duration>,
+    /// The wall clock, which a client reads to say how long it was away
+    /// when the far end forgot its session (T-306); a test gives its own.
+    pub wall_clock: fn() -> std::time::SystemTime,
     /// The bytes of one link, both ways, after which the client moves the
     /// session to a new link (T-155).
     pub move_bytes: u64,
@@ -87,6 +99,8 @@ impl Default for Settings {
             features: FEATURES,
             replay_capacity: replay::DEFAULT_CAPACITY,
             resume_deadline: resume::RESUME_DEADLINE,
+            client_deadline: None,
+            wall_clock: std::time::SystemTime::now,
             move_bytes: resume::MOVE_BYTES,
             move_age: resume::MOVE_AGE,
         }

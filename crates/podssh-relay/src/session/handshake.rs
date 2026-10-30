@@ -20,7 +20,9 @@
 //! the relay's logs taking a session over.
 
 use std::fmt;
+use std::time::Duration;
 
+use super::deadline;
 use super::record::{Acceptance, Hello, Opening, Record, RefuseCode, Role, VERSION};
 use super::secret::{
     derive, prove, verify, Claim, Entropy, Exchange, KeyPair, NoRandom, Nonce, Prover, Secret, SessionId, ID_LEN,
@@ -93,6 +95,9 @@ pub struct Established {
     pub peer_role: Role,
     /// The features that both sides named.
     pub features: Vec<String>,
+    /// How long the peer keeps a session whose link is lost, when it named
+    /// that in its first record: a far end does (T-306).
+    pub peer_deadline: Option<Duration>,
     /// Whether the link resumed a session.
     pub resumed: bool,
 }
@@ -219,6 +224,7 @@ fn accepted(
 ) -> Result<Step, HandshakeError> {
     let version = VERSION.min(far.version);
     let features = common(&ours.features, &far.features);
+    let peer_deadline = deadline::of(&far.features);
     match (acceptance, key, resume) {
         (Acceptance::New { id, public }, Some(key), None) => {
             let shared = key.shared(&public).ok_or(HandshakeError::WeakKey)?;
@@ -238,6 +244,7 @@ fn accepted(
                 version,
                 peer_role: far.role,
                 features,
+                peer_deadline,
                 resumed: false,
             };
             Ok(Step::Established(None, Box::new(session)))
@@ -256,6 +263,7 @@ fn accepted(
                 version,
                 peer_role: far.role,
                 features,
+                peer_deadline,
                 resumed: true,
             };
             Ok(Step::Established(None, Box::new(session)))
@@ -351,6 +359,7 @@ impl FarHandshake {
                     version: VERSION.min(client.version),
                     peer_role: client.role,
                     features: common(&self.ours.features, &client.features),
+                    peer_deadline: deadline::of(&client.features),
                     resumed: true,
                 };
                 Ok(Step::Established(Some(accept), Box::new(session)))
@@ -405,6 +414,7 @@ impl FarHandshake {
             version: VERSION.min(client.version),
             peer_role: client.role,
             features: common(&self.ours.features, &client.features),
+            peer_deadline: deadline::of(&client.features),
             resumed: false,
         };
         let accept = Record::Accept(Acceptance::New { id, public: key.public });

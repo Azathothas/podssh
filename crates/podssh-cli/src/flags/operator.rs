@@ -18,4 +18,5 @@ pub const PAIR_FLAGS: &[FlagRow] = &[
         "the node's key, or its fingerprint SHA256:..., in place of the pins of known-nodes", None),
     row(None, "no-e2e", None, FlagKind::Supported,
         "carry the bytes with no end-to-end channel, to a node that runs none either; the relay then sees them", None),
+    super::node::OWN_DEADLINE,
 ];

@@ -11,7 +11,10 @@ pub(super) const NODE: &[&str] = &[
      loss: an operator reaches it from that line on.",
     "Each session runs the resumable layer: an operator that loses its link to the relay resumes the \
      session on a new link, and the node keeps the session and its connection to TARGET for 10 minutes \
-     after a loss. TARGET is dialled only once the operator's handshake is done. The node keeps at most \
+     after a loss, or for the TIME of --resume-deadline, from 1 minute to 72 h, on each road: a laptop \
+     that sleeps for a night needs 8h or more. The node names that time to each operator, which waits \
+     as long, and its first line says it. A session kept longer keeps its replay buffers longer, and \
+     the bound below holds. TARGET is dialled only once the operator's handshake is done. The node keeps at most \
      64 MiB of replay buffers (16 sessions with the default of PODSSH_REPLAY_BUFFER); a new session past \
      that ends at once with the reason. podssh ssh node:// and podssh operator speak the layer. For an \
      operator that does not, --plain carries each session's bytes as they are, TARGET dialled at the \
@@ -65,8 +68,8 @@ pub(super) const NODE: &[&str] = &[
     "The node runs until Ctrl-C or SIGTERM (exit 0), or until the relay ends the pair: stopped, \
      expired, refused, or served by another node; each has its code in EXIT STATUS. A broken \
      connection to the relay is made again, after a growing wait. After a loss the relay can still \
-     hold the old connection, and answer 409: the node then connects again for 10 minutes, the time \
-     that it keeps a session, with a line for each 409. A 409 at the start means that another node \
+     hold the old connection, and answer 409: the node then connects again for the time that it keeps \
+     a session (10 minutes, or --resume-deadline), with a line for each 409. A 409 at the start means that another node \
      serves the pair. stdout stays empty; notes go to stderr.",
     "With --pair-file, the pair comes from FILE, in the form of the store, and the store is not used. \
      FILE must be a regular file of the user that nobody else can read.",
@@ -113,9 +116,12 @@ pub(super) const OPERATOR: &[&str] = &[
      when stdin ends or the node's TARGET closes; it exits 0 only when the node took the session. An \
      error is one line on stderr; the codes are in EXIT STATUS.",
     "With a node that offers the resumable layer, a lost link to the relay is replaced by a new one, \
-     for 10 minutes, and the session goes on where it was; one line on stderr tells of each loss and \
-     each resume. A close that a new link would only get again (a stopped or expired pair) ends the \
-     session.",
+     for as long as the node keeps the session (10 minutes, or its --resume-deadline), and the session \
+     goes on where it was; one line on stderr tells of each loss and each resume. --resume-deadline \
+     TIME waits at most TIME, never longer than the node keeps the session. A close that a new link \
+     would only get again (a stopped or expired pair) ends the session. When the node forgot the \
+     session, as after a sleep of this host longer than its deadline, the line says so, with how long \
+     this side was away by the wall clock.",
     "With --pair-file, the pair comes from FILE, or its operator's part alone, as podssh relay pair \
      writes it for the operator, and the store is not used.",
     "The session runs the end-to-end channel (see podssh node). This operator's key is a private file \

@@ -12,11 +12,13 @@ use podssh_relay::reverse::closes::resumes;
 use podssh_relay::reverse::{operator, OperatorConfig, Outcome as LegOutcome, RelayClose};
 use podssh_relay::session::client::{self, Found, Outcome};
 use podssh_relay::session::resume::{self, Next, Note};
-use podssh_relay::session::{replay, Ask, End, Ended, OsEntropy, Settings, KEEP, SHELL_FEATURES};
+use podssh_relay::session::{deadline, replay, Ask, End, Ended, OsEntropy, Settings, KEEP, SHELL_FEATURES};
 use podssh_ssh::keep::Offer;
 use podssh_ws::client::ConnectError;
 use tokio::io::{AsyncRead, AsyncWrite, DuplexStream};
 use tokio::task::JoinHandle;
+
+use crate::relay_settings::Refusal;
 
 /// Each direction of the pipe between the layer and a leg.
 const PIPE: usize = 256 * 1024;
@@ -48,10 +50,62 @@ pub struct Carried {
     pub channel: Option<(crate::exitmap::Fault, String)>,
 }
 
-/// The layer's settings, with the replay buffer of `PODSSH_REPLAY_BUFFER`.
+/// The deadlines of `--resume-deadline` (T-306): a node's, how long it keeps
+/// a lost session; and a client's own, of `ssh` and `operator`, which only
+/// shortens the far end's. A process runs one command, so one of each.
+static FAR_DEADLINE: Mutex<Option<Duration>> = Mutex::new(None);
+static OWN_DEADLINE: Mutex<Option<Duration>> = Mutex::new(None);
+/// The shortest `--resume-deadline`: a silent link is found dead after
+/// 30 s, and a resume needs the time after that.
+pub const SHORTEST_DEADLINE: Duration = Duration::from_secs(60);
+
+/// The layer's settings, with the replay buffer of `PODSSH_REPLAY_BUFFER`
+/// and the deadlines of `--resume-deadline`.
 pub fn settings() -> Settings {
     let capacity = replay::capacity(std::env::var(replay::CAPACITY_ENV).ok().as_deref());
-    Settings { replay_capacity: capacity, ..Settings::default() }
+    let defaults = Settings::default();
+    let far = *lock(&FAR_DEADLINE);
+    let own = *lock(&OWN_DEADLINE);
+    Settings {
+        replay_capacity: capacity,
+        resume_deadline: far.unwrap_or(defaults.resume_deadline),
+        client_deadline: own,
+        ..defaults
+    }
+}
+
+/// A time of `--resume-deadline`: a whole number, then s, m, h or d (none
+/// is seconds), from 1 minute to 72 h, the longest life of a pair.
+pub fn parse_deadline(text: &str) -> Result<Duration, String> {
+    let bad = || format!("--resume-deadline {text:?}: a whole number, then s, m, h or d, as 90s, 30m or 8h");
+    let digits = text.bytes().take_while(u8::is_ascii_digit).count();
+    let (number, unit) = text.split_at(digits);
+    let scale: u64 = match unit {
+        "" | "s" => 1,
+        "m" => 60,
+        "h" => 3600,
+        "d" => 86_400,
+        _ => return Err(bad()),
+    };
+    let seconds = number.parse::<u64>().ok().and_then(|n| n.checked_mul(scale)).ok_or_else(bad)?;
+    let time = Duration::from_secs(seconds);
+    if time < SHORTEST_DEADLINE || time > deadline::LONGEST {
+        return Err(format!("--resume-deadline {text:?}: from 1 minute to 72 h, the longest life of a pair"));
+    }
+    Ok(time)
+}
+
+/// A node's `--resume-deadline`, for each road that it serves.
+pub fn set_far_deadline(time: Duration) {
+    *lock(&FAR_DEADLINE) = Some(time);
+}
+
+/// A client's own `--resume-deadline`, when the command line gives one.
+pub fn own_deadline(text: Option<&str>) -> Result<(), Refusal> {
+    if let Some(text) = text {
+        *lock(&OWN_DEADLINE) = Some(parse_deadline(text).map_err(Refusal::usage)?);
+    }
+    Ok(())
 }
 
 /// The layer's settings of `podssh ssh`: those of [`settings`], with
@@ -114,6 +168,10 @@ where
     say(Line::Verbose(client.found().to_string()));
     if let Found::Layer { features, .. } = client.found() {
         say(Line::Verbose(format!("the layer's features: {}", features.join(", "))));
+    }
+    // How long the far end keeps the session after a loss (T-306).
+    if let Some(kept) = client.established().and_then(|e| e.peer_deadline) {
+        say(Line::Verbose(format!("the far end keeps the session {} after a loss", deadline::span(kept))));
     }
     if let Some(offer) = offer {
         learn(client.found(), offer);
@@ -332,5 +390,25 @@ mod tests {
         assert_eq!(expiry_wait(100, 100), None);
         assert_eq!(expiry_wait(100, 200), None);
         assert_eq!(expiry_wait(i64::MIN, i64::MAX), None);
+    }
+
+    /// `--resume-deadline` (T-306): a whole number and a unit, from 1 minute
+    /// to the 72 h of a pair's life.
+    #[test]
+    fn a_resume_deadline_is_a_time_from_a_minute_to_72_h() {
+        let secs = Duration::from_secs;
+        assert_eq!(parse_deadline("90"), Ok(secs(90)));
+        assert_eq!(parse_deadline("90s"), Ok(secs(90)));
+        assert_eq!(parse_deadline("30m"), Ok(secs(1800)));
+        assert_eq!(parse_deadline("8h"), Ok(secs(8 * 3600)));
+        assert_eq!(parse_deadline("3d"), Ok(secs(72 * 3600)));
+        for bad in ["", "h", "8 h", "+8h", "8x", "1.5h", "-1m", "99999999999999999999d"] {
+            let why = parse_deadline(bad).unwrap_err();
+            assert!(why.contains("a whole number, then s, m, h or d"), "{bad:?}: {why}");
+        }
+        for out in ["59", "0", "4d", "73h"] {
+            let why = parse_deadline(out).unwrap_err();
+            assert!(why.contains("from 1 minute to 72 h"), "{out:?}: {why}");
+        }
     }
 }
