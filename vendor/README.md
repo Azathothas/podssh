@@ -120,17 +120,18 @@ source and no checksum, as a path package has none.
 
 ## iroh-relay
 
-- **Upstream**: the crate `iroh-relay` 1.3.0 as crates.io publishes it
+- **Upstream**: the crate `iroh-relay` 1.4.1 as crates.io publishes it
   (<https://crates.io/crates/iroh-relay>), from n0-computer/iroh at
-  `0072d7d84b233f9e7185eb676f049beaf557ac03` (its `.cargo_vcs_info.json`).
-- **Vendored**: 2026-10-12 (T-280), from cargo's copy of the published
-  crate. The import is that crate byte for byte, but cargo's own marker
+  `d6c6963b9602d1b8dd2ba53b6519e7eb19cc7940` (its `.cargo_vcs_info.json`).
+- **Vendored**: 2026-10-12 (T-280) at 1.3.0, and carried to 1.4.1 on
+  2026-10-30 with Dependabot's update of iroh, from cargo's copy of the
+  published crate; the patch applied with no change. The import is that crate byte for byte, but cargo's own marker
   `.cargo-ok`; the shipped tree is the import plus the patch of
   `patches/iroh-relay/`, and nothing else.
 - **License**: MIT OR Apache-2.0, with the BSD-3-Clause notice of the code
   that it took from Tailscale (`LICENSE-BSD3`, retained).
 - **How podssh uses it**: `[patch.crates-io]` in the root `Cargo.toml`, so
-  that iroh 1.3.0, which asks for iroh-relay 1.3.0, builds this copy; the
+  that iroh 1.4.1, which asks for iroh-relay 1.4.1, builds this copy; the
   tree is excluded from the workspace, so its tests and their dependencies
   are not podssh's. Only the feature `iroh` of podssh-cli compiles it.
 

@@ -11,8 +11,8 @@ use iroh::RelayUrl;
 use podssh_ws::{dial, http, ProxyChoice, Trust};
 
 /// The relays when nothing is set, in order: n0's public relays, read in
-/// iroh 1.3.0 (`defaults::prod`: North America east and west, Europe, Asia
-/// and Pacific). The operator's own relay goes first when it exists
+/// iroh 1.3.0 and the same in 1.4.1 (`defaults::prod`: North America east
+/// and west, Europe, Asia and Pacific). The operator's own relay goes first when it exists
 /// (`docs/decisions.md`, 2026-10-08).
 pub const DEFAULT: &[&str] = &[
     "https://use1-1.relay.n0.iroh.link.",

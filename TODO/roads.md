@@ -2470,3 +2470,82 @@ section 7, keeps the traditional CONNECT to a proxy, and lets the version of
 HTTP inside the tunnel decide. podssh tunnels by a traditional CONNECT, so
 through a proxy that does not end TLS the relay alone must offer the
 setting; a proxy that ends TLS must implement RFC 8441 itself.
+
+# T-329: Carry the patch of iroh-relay to iroh 1.4.1 (Azathothas/podssh#53)
+
+**Source:** Azathothas/podssh#53 (Dependabot, 2026-10-30): the group of 11
+updates fails the gate's step iroh (run 41075421658); the operator's ruling
+of 2026-10-30 (`docs/decisions.md`): a session repairs what an update
+breaks, and commits the update with the repair.
+**Category:** defect
+**Milestone:** none
+**Priority:** P2
+**Effort:** S
+**Status:** done
+
+## Problem
+
+The group moves iroh from 1.3.0 to 1.4.1, which asks for iroh-relay 1.4.1.
+podssh's patched copy (`vendor/iroh-relay`, T-280) was 1.3.0, so cargo built
+the published iroh-relay and left the patch unused: the relay dial took a
+`socks5h://` proxy for one that speaks TLS, and the iroh road through a
+SOCKS5 proxy never came online.
+
+## Premise
+
+- Read: the lock file of the pull request has the published iroh-relay
+  1.4.1 and `[[patch.unused]]` iroh-relay 1.3.0.
+- Read: `vendor/README.md` ("How to carry it to another version") names
+  this failure and its repair.
+- Measured: the gate's step iroh of the pull request failed at
+  `a_socks5_proxy_in_all_proxy_reaches_the_relay_by_name` (run 41075421658),
+  where `main` passed it.
+
+## Approach
+
+1. The 11 updates on `main`, each with `cargo update -p NAME --precise
+   VERSION`, as the pull request names them.
+2. The patch carried to iroh-relay 1.4.1, as `vendor/README.md` says: the
+   published crate from cargo's copy, then `git apply` of the patch.
+3. The notes of the present state follow: the root `Cargo.toml`,
+   `vendor/README.md`, `docs/design.md`, and the comments of `podssh-iroh`
+   and of `release.yml` (aws-lc-sys 0.46).
+
+## Prove
+
+```sh
+export CARGO_BUILD_JOBS=4
+cargo test -p podssh-iroh --test proxy_env
+cargo test --manifest-path vendor/iroh-relay/Cargo.toml --target-dir .work/iroh-relay-target --lib client::socks5
+cargo test --no-fail-fast
+```
+
+Each passes, and the lock file holds no unused patch. Planted: the
+published iroh-relay 1.4.1 with no patch; the SOCKS5 test fails.
+
+## Done
+
+2026-10-30. The 11 updates of the pull request are on `main`: serde_json 1.0.154, libc 0.2.191,
+zeroize 1.9.1, iroh 1.4.1, aws-lc-rs 1.18.2 (with aws-lc-sys 0.46.0), pageant 0.2.5, hyper 1.12.0,
+smallvec 1.16.4, tokio-util 0.7.20, yoke 0.8.4 and zerocopy 0.8.63, each by `cargo update -p
+NAME --precise VERSION`. `vendor/iroh-relay` is iroh-relay 1.4.1 as published (from n0-computer/iroh
+at `d6c6963`, its `.cargo_vcs_info.json`), and the patch of `vendor/patches/iroh-relay/` applied to
+it with no change; the lock file builds that copy and holds no unused patch. Each updated crate's
+minimum Rust is within the gate's: zeroize and tokio-util declare 1.85, as the library crates do,
+pageant 1.89 and iroh 1.91, as before. aws-lc-sys 0.46 asks for NASM on Windows x86-64 as 0.45 did
+(`builder/main.rs`, `use_prebuilt_nasm`).
+
+- `cargo test -p podssh-iroh --test proxy_env`: both passed, the SOCKS5 one by name in 8.7 s.
+  Planted, the published iroh-relay 1.4.1 with no patch: the SOCKS5 test failed at its wait for
+  the relay (line 90 of the test), as the pull request's run did.
+- The patch's own unit tests in the vendored crate (`--lib client::socks5`): 4 passed.
+- `cargo test --no-fail-fast`, the default members: 2118 passed, 0 failed, 55 ignored, in 235
+  test binaries.
+- The tests of the feature `iroh` (`-p podssh-iroh -p podssh-cli --features podssh-cli/iroh-test`):
+  968 passed, 0 failed, 41 ignored, in 116 test binaries.
+
+The present-state notes follow the versions: the root `Cargo.toml`, `vendor/README.md`, three
+lines of `docs/design.md`, the comments of `podssh-iroh` (its relay table is the same in 1.4.1) and
+the NASM comment of `release.yml`. Dependabot closes its pull request once `main` holds the
+updates.
+

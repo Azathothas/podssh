@@ -62,15 +62,15 @@ repository and CI).
 
 ## Counts
 
-**324 entries: 26 open, 3 partial, 28 blocked, 267 done.**
+**325 entries: 26 open, 3 partial, 28 blocked, 268 done.**
 
 | Priority | open | partial | blocked | done | total |
 | --- | --- | --- | --- | --- | --- |
 | P0 | 0 | 0 | 0 | 1 | 1 |
 | P1 | 2 | 0 | 0 | 24 | 26 |
-| P2 | 1 | 3 | 19 | 142 | 165 |
+| P2 | 1 | 3 | 19 | 143 | 166 |
 | P3 | 23 | 0 | 9 | 100 | 132 |
-| **All** | 26 | 3 | 28 | 267 | 324 |
+| **All** | 26 | 3 | 28 | 268 | 325 |
 
 ## Entries
 
@@ -400,3 +400,4 @@ repository and CI).
 | [T-326](ws.md) | P3 | M | backlog | feature | blocked | A cleartext road on port 443, probed after the TLS road fails |
 | [T-327](config.md) | P3 | M | backlog | feature | open | `podssh config import` from mRemoteNG |
 | [T-328](config.md) | P3 | M | backlog | feature | blocked | `podssh config import` from FinalShell and Termius |
+| [T-329](roads.md) | P2 | S | none | defect | done | Carry the patch of iroh-relay to iroh 1.4.1 (Azathothas/podssh#53) |

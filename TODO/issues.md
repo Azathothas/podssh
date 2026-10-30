@@ -133,8 +133,8 @@ corrects a claim that the code does not support.
 | --- | --- | --- | --- |
 | #51 | An HTTP/2 road over extended CONNECT (RFC 8441) | open | T-321 (it waits for the relay's operator: the relay's edge chose `h2` and did not offer extended CONNECT, measured on 2026-10-30; the comment on RFC 9113's CONNECT is in its Blocker) |
 | #54 | `doctor` measures what the proxy does to a stream | closed | T-324 (the three failures of the upgrade, and samples with their loss; the commit "doctor samples each probe of TCP, and names three failures of the upgrade"); T-325 (buffering, a cap on bodies, an idle limit) waits for the relay's operator |
-| #55 | The split road's wire protocol | open | T-319 (its Approach holds the protocol; it waits for the relay's operator and Q44) |
-| #56 | A cleartext road on port 443, probed | open | T-326 (it waits for the relay's operator and Q45) |
+| #55 | The split road's wire protocol | open | T-319 (its Approach holds the protocol; the operator allowed its second connection, Q44, and it waits for the relay's operator) |
+| #56 | A cleartext road on port 443, probed | open | T-326 (the operator allowed it with a token for one session, Q45, and it waits for the relay's operator) |
 
 ## The reports on other projects (in #18 to #25, and in #29 to #36)
 

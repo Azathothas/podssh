@@ -899,7 +899,7 @@ iroh can run only with this configuration (READ; not MEASURED yet):
 | A home relay | The HTTPS `/ping` probe must pass through the proxy. Without it, the endpoint can connect out but nothing can connect to it. |
 
 **Built (T-162, 2026-10-09):** the crate `podssh-iroh`, in the binary with
-the feature `iroh` only. iroh 1.3.0 with no default features and
+the feature `iroh` only. iroh 1.4.1 with no default features and
 `tls-aws-lc-rs`: no ring, no port mapping, no metrics. The endpoint has the
 `Minimal` preset and no address lookup; the relays given, n0's four public
 relays by default; podssh's proxy for the relay (iroh's `proxy_url`), at an
@@ -925,7 +925,7 @@ MEASURED in the crate's tests):
 - The relay's name goes to the proxy in `CONNECT`; the proxy's own name is
   resolved by the resolver that podssh gives iroh.
 - iroh-relay's relay dial speaks HTTP `CONNECT` only, and has no hook for a
-  dial of the caller's. podssh carries a patch of iroh-relay 1.3.0
+  dial of the caller's. podssh carries a patch of iroh-relay 1.4.1
   (`vendor/iroh-relay`, T-280): a SOCKS5 proxy gets the relay's name with
   the address type 3, the user and password of RFC 1929, and one more try
   with an address on reply 8; reqwest's SOCKS5 carries the HTTPS probe.
@@ -972,7 +972,7 @@ admits each key fails that check. The command line end to end came with
 T-165.
 
 **Built (T-165, 2026-10-10):** the relays as a setting, the first that
-answers first. The table is n0's four public relays, read in iroh 1.3.0;
+answers first. The table is n0's four public relays, read in iroh 1.3.0 and 1.4.1;
 `--iroh-relay` (on `node` and `ssh`) and `PODSSH_IROH_RELAY` replace it, the
 flag first. A relay is `https://HOST[:PORT]` and nothing more. iroh itself
 picks the relay with the least latency, in no order, and can change it

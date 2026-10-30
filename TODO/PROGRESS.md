@@ -71,9 +71,10 @@ entry keeps its proof in the entry; this page keeps no history (git does).
   is at 500 lines. `crates/podssh-cli/tests/ssh_harness/mod.rs`, `crates/podssh-cli/src/tree.rs`
   and `crates/podssh-cli/src/flags.rs` are near 500 lines, so a merge splits
   them where needed. The next merge is T-186, then the others in the order
-  of the index. These branches are on the operator's machine only: a session
-  elsewhere (a cloud container) merges them once they are on GitHub as
-  `draft/*` (the operator has the commands, 2026-10-30).
+  of the index. The operator pushed each branch to GitHub as
+  `draft/worktree-agent-*` on 2026-10-30, so a session anywhere merges them;
+  a fourth, `draft/worktree-agent-a273199755d943f3c`, holds T-185, which
+  `main` has since `d1c5bd1`, and needs no merge.
 
   Each entry of the work order is drafted. CI: the gate passed at
   `24b9f6e` (run 38331509229), and its step `release` at `cad2885` (478
@@ -115,7 +116,7 @@ and `CARGO_BUILD_JOBS=4`:
 
 ## Counts
 
-`TODO/INDEX.md` holds 324 entries: 26 open, 3 partial, 28 blocked, 267 done.
+`TODO/INDEX.md` holds 325 entries: 26 open, 3 partial, 28 blocked, 268 done.
 
 Open includes parked work. `cargo todo check` verifies this line.
 

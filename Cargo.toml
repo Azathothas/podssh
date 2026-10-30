@@ -206,7 +206,7 @@ strip = true
 # russh gives a client both.
 # iroh's relay client with podssh's patch (T-280,
 # `vendor/patches/iroh-relay/`): its relay dial speaks SOCKS5 too, where
-# iroh-relay 1.3.0 speaks HTTP CONNECT only, and iroh's HTTPS probe of the
+# iroh-relay 1.4.1 speaks HTTP CONNECT only, and iroh's HTTPS probe of the
 # relays gets reqwest's SOCKS5. `vendor/iroh-relay` is the crate as
 # crates.io publishes it, and `exclude` above keeps it out of the workspace,
 # with its tests and their dependencies. Only the feature `iroh` of

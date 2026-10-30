@@ -269,7 +269,7 @@ jobs:
       - uses: actions/checkout@v7
       # aws-lc's build needs NASM on Windows x86-64: with no NASM it stops,
       # unless AWS_LC_SYS_PREBUILT_NASM=1 asks for its prebuilt objects
-      # (aws-lc-sys 0.45, builder/main.rs). The release assembles them itself.
+      # (aws-lc-sys 0.46, builder/main.rs). The release assembles them itself.
       - if: matrix.target == 'x86_64-pc-windows-msvc'
         uses: ilammy/setup-nasm@v1
       - name: build
