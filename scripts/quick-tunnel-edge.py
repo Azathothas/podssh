@@ -15,6 +15,9 @@ a subcommand, and prints one line for each thing that it tried:
                           CONNECT to each target through the proxy, then TLS
   run LOG [OUT]           a cloudflared log, each tunnel's name redacted, and
                           into OUT the same lines, for the upload
+  relay PODSSH ROOTS HOST:PORT...
+                          TLS to each target through `podssh proxy`, the relay's
+                          forward road, and what the edge sends first
 
 No tunnel's secret is printed, kept or written: the reply's values are
 replaced by their kinds, and a log line that holds "secret" or "credential"
@@ -22,7 +25,9 @@ is left out.
 """
 
 import json
+import os
 import re
+import select
 import socket
 import ssl
 import subprocess
@@ -100,19 +105,29 @@ def s_client(addr, port, name, groups, alpn, roots_pem):
             f"notAfter={after.group(1).strip() if after else '?'} ({took} ms)")
 
 
+def said_first(head):
+    """The edge's first nine bytes: HTTP/2's client preface when the edge is
+    the client of the connection that the connector dialed, else a frame."""
+    if len(head) < 9:
+        return "none (the edge closed)"
+    if PREFACE.startswith(head):
+        return f"HTTP/2's client preface ({head!r}): the edge is the client"
+    length, kind = int.from_bytes(head[:3], "big"), head[3]
+    return f"{FRAMES.get(kind, kind)}, {length} bytes"
+
+
 def first_frame(addr, port, name, roots_pem):
-    """The first frame that the edge sends after an HTTP/2 client's preface."""
+    """What the edge sends first, after this side's HTTP/2 preface."""
     ctx = ssl.create_default_context(cafile=roots_pem)
     ctx.set_alpn_protocols(["h2"])
     try:
         with socket.create_connection((addr, port), timeout=10) as raw:
             with ctx.wrap_socket(raw, server_hostname=name) as tls:
                 tls.sendall(PREFACE)
-                head = tls.recv(9)
-                if len(head) < 9:
-                    return "first frame: none (the edge closed)"
-                length, kind = int.from_bytes(head[:3], "big"), head[3]
-                return f"first frame: {FRAMES.get(kind, kind)}, {length} bytes"
+                head = b""
+                while len(head) < 9 and (chunk := tls.recv(9 - len(head))):
+                    head += chunk
+                return f"first frame: {said_first(head)}"
     except (OSError, ssl.SSLError) as e:
         return f"first frame: {type(e).__name__}: {e}"
 
@@ -198,6 +213,64 @@ def through(proxy, roots_pem, targets):
             print(f"through {proxy} to {target}: {type(e).__name__}: {e}")
 
 
+def over_pipe(podssh, target, roots_pem):
+    """TLS with the edge's name over `podssh proxy HOST PORT`, the relay's
+    forward road, through the process's pipes; then what the edge sends
+    first, after this side's HTTP/2 preface."""
+    host, port = target.rsplit(":", 1)
+    ctx = ssl.create_default_context(cafile=roots_pem)
+    ctx.set_alpn_protocols(["h2"])
+    incoming, outgoing = ssl.MemoryBIO(), ssl.MemoryBIO()
+    tls = ctx.wrap_bio(incoming, outgoing, server_hostname="h2.cftunnel.com")
+    started = time.monotonic()
+    proc = subprocess.Popen([podssh, "proxy", host, port], stdin=subprocess.PIPE, stdout=subprocess.PIPE,
+                            stderr=subprocess.PIPE)
+
+    def pump():
+        """Send what TLS wrote; read what came back, or say why none did."""
+        if data := outgoing.read():
+            proc.stdin.write(data)
+            proc.stdin.flush()
+        left = started + 30 - time.monotonic()
+        if left <= 0 or not select.select([proc.stdout], [], [], left)[0]:
+            raise TimeoutError("no answer in 30 s")
+        chunk = os.read(proc.stdout.fileno(), 65536)
+        if not chunk:
+            raise EOFError("the stream ended")
+        incoming.write(chunk)
+
+    try:
+        while True:
+            try:
+                tls.do_handshake()
+                break
+            except ssl.SSLWantReadError:
+                pump()
+        shook = f"TLS {tls.version()}, ALPN {tls.selected_alpn_protocol()}, verified, " \
+                f"{int((time.monotonic() - started) * 1000)} ms"
+        tls.write(PREFACE)
+        head = b""
+        while len(head) < 9:
+            try:
+                head += tls.read(9 - len(head))
+            except ssl.SSLWantReadError:
+                pump()
+        return f"{shook}; first frame: {said_first(head)}"
+    except (OSError, EOFError, ssl.SSLError) as e:
+        return f"{type(e).__name__}: {e}"
+    finally:
+        proc.kill()
+        _, err = proc.communicate(timeout=10)
+        # podssh's own words, when it ended with some: the relay's verdict.
+        if err.strip():
+            print(f"  podssh proxy said: {err.decode('utf-8', 'replace').strip()[:300]}")
+
+
+def relay(podssh, roots_pem, targets):
+    for target in targets:
+        print(f"through the relay to {target}: {over_pipe(podssh, target, roots_pem)}")
+
+
 def redact(line):
     """A line of cloudflared's: no colour, and no tunnel's name, which serves
     the page while the tunnel runs."""
@@ -242,6 +315,8 @@ def main(argv):
         through(args[0], args[1], args[2:])
     elif cmd == "run" and len(args) in (1, 2):
         run(*args)
+    elif cmd == "relay" and len(args) >= 3:
+        relay(args[0], args[1], args[2:])
     else:
         sys.exit(__doc__)
 

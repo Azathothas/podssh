@@ -15,6 +15,12 @@ on:
       confirm:
         description: "Q43: the operator's leave for a run against Cloudflare's quick tunnels"
         required: true
+      part:
+        description: "edge: the edge and the tunnels; relay: the relay's roads to the edge, no tunnel; all: both"
+        required: false
+        default: all
+        type: choice
+        options: [all, edge, relay]
 
 permissions:
   contents: read
@@ -25,7 +31,7 @@ concurrency:
 
 jobs:
   edge:
-    if: inputs.confirm == 'Q43'
+    if: inputs.confirm == 'Q43' && inputs.part != 'relay'
     runs-on: ubuntu-24.04
     timeout-minutes: 15
     env:
@@ -193,3 +199,39 @@ jobs:
           pkill -f "$RUNNER_TEMP/cloudflared" || true
           pkill -f scripts/box/proxy.py || true
           pkill -f "http.server 8765" || true
+
+  # Step 4 of T-299: whether the relay dials the edge, on the road that it
+  # picks, and TLS to the edge through it. No tunnel is made. podssh mints
+  # the relay's token itself, with no account, and never prints it.
+  relay:
+    if: inputs.confirm == 'Q43' && inputs.part != 'edge'
+    runs-on: ubuntu-24.04
+    timeout-minutes: 30
+    env:
+      CARGO_BUILD_JOBS: 4
+      CLOUDFLARED: "2026.10.6"
+    steps:
+      - uses: actions/checkout@v7
+        with:
+          persist-credentials: false
+      - name: podssh
+        run: timeout 1200 cargo build --locked -p podssh-cli
+      - name: the roots of cloudflared
+        run: |
+          timeout 60 curl -sSfL -o "$RUNNER_TEMP/cloudflare_ca.go" \
+            "https://raw.githubusercontent.com/cloudflare/cloudflared/$CLOUDFLARED/tlsconfig/cloudflare_ca.go"
+          python3 scripts/quick-tunnel-edge.py roots "$RUNNER_TEMP/cloudflare_ca.go" "$RUNNER_TEMP/roots.pem"
+      - name: the relay's view of the edge
+        continue-on-error: true
+        run: |
+          for target in "198.41.192.7 7844" "198.41.200.13 7844" "region1.v2.argotunnel.com 7844" \
+            "198.41.192.7 443"; do
+            echo "relay trace $target:"
+            # shellcheck disable=SC2086
+            timeout 60 target/debug/podssh relay trace $target --json || echo "exit $?"
+          done
+      - name: TLS to the edge through the relay
+        continue-on-error: true
+        run: |
+          timeout 120 python3 scripts/quick-tunnel-edge.py relay target/debug/podssh "$RUNNER_TEMP/roots.pem" \
+            198.41.192.7:7844 region1.v2.argotunnel.com:7844 198.41.200.13:7844
