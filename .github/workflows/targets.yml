@@ -4,8 +4,11 @@ name: release targets
 # run on its own platform, before the release workflow takes it. Started by
 # hand; it publishes nothing, and its artifacts last 3 days. A target moves
 # into release.yml once its job here passes: no target ships that no run
-# executed. The input `targets` runs some of the jobs: all, or a list of
-# macos, windows-arm, armv7 and riscv64.
+# executed: each binary runs the short form of the release check
+# (scripts/release-short.sh), the relay's banner included. The input
+# `targets` runs some of the jobs: all, or a list of macos, windows-arm,
+# armv7 and riscv64. A build for a host triple names it as --target, so that
+# +crt-static reaches the binary and not the proc-macros of the host.
 
 on:
   workflow_dispatch:
@@ -62,7 +65,7 @@ jobs:
             exit 1
           fi
       - name: the binary runs
-        run: sh scripts/release-check.sh target/${{ matrix.target }}/release/podssh
+        run: sh scripts/release-short.sh target/${{ matrix.target }}/release/podssh --net
       - name: package
         run: |
           mkdir -p dist
@@ -124,7 +127,7 @@ jobs:
           }
       - name: the binary runs
         shell: bash
-        run: sh scripts/release-check.sh dist/podssh-aarch64-pc-windows-msvc.exe
+        run: sh scripts/release-short.sh dist/podssh-aarch64-pc-windows-msvc.exe --net
       - uses: actions/upload-artifact@v7
         with:
           name: podssh-aarch64-pc-windows-msvc
@@ -168,12 +171,14 @@ jobs:
           start=$(date +%s)
           docker run --rm --platform linux/arm/v7 -v "$PWD:/work" -w /work \
             -e CARGO_BUILD_JOBS=4 -e RUSTFLAGS=-Ctarget-feature=+crt-static \
-            "$ARMV7_IMAGE" sh -c 'apk add --no-cache build-base rust cargo >/dev/null && rustc -vV && cargo build --locked --release -p podssh-cli'
+            "$ARMV7_IMAGE" sh -c 'apk add --no-cache build-base rust cargo >/dev/null && rustc -vV &&
+              t=$(rustc -vV | sed -n "s/^host: //p") && cargo build --locked --release --target "$t" -p podssh-cli &&
+              mkdir -p dist && cp "target/$t/release/podssh" dist/podssh-armv7-unknown-linux-musleabihf'
           echo "the build took $(( $(date +%s) - start )) s"
       - name: the binary is static
         run: |
           set -eu
-          B=target/release/podssh
+          B=dist/podssh-armv7-unknown-linux-musleabihf
           file "$B"
           if readelf -d "$B" | grep -q NEEDED; then echo "dynamic dependencies:"; readelf -d "$B"; exit 1; fi
           if readelf -l "$B" | grep -q INTERP; then echo "asks for a program interpreter"; exit 1; fi
@@ -181,11 +186,7 @@ jobs:
       - name: the binary runs
         run: |
           docker run --rm --platform linux/arm/v7 -v "$PWD:/work" -w /work "$ARMV7_IMAGE" \
-            sh scripts/release-check.sh target/release/podssh
-      - name: package
-        run: |
-          mkdir -p dist
-          cp target/release/podssh dist/podssh-armv7-unknown-linux-musleabihf
+            sh scripts/release-short.sh dist/podssh-armv7-unknown-linux-musleabihf --net
       - uses: actions/upload-artifact@v7
         with:
           name: podssh-armv7-unknown-linux-musleabihf
@@ -218,12 +219,14 @@ jobs:
           start=$(date +%s)
           docker run --rm --platform linux/riscv64 -v "$PWD:/work" -w /work \
             -e CARGO_BUILD_JOBS=4 -e RUSTFLAGS=-Ctarget-feature=+crt-static \
-            "$BUILD_IMAGE" sh -c 'rustc -vV && cargo build --locked --release -p podssh-cli'
+            "$BUILD_IMAGE" sh -c 'rustc -vV &&
+              cargo build --locked --release --target riscv64gc-unknown-linux-musl -p podssh-cli &&
+              mkdir -p dist && cp target/riscv64gc-unknown-linux-musl/release/podssh dist/podssh-riscv64gc-unknown-linux-musl'
           echo "the build took $(( $(date +%s) - start )) s"
       - name: the binary is static
         run: |
           set -eu
-          B=target/release/podssh
+          B=dist/podssh-riscv64gc-unknown-linux-musl
           file "$B"
           if readelf -d "$B" | grep -q NEEDED; then echo "dynamic dependencies:"; readelf -d "$B"; exit 1; fi
           if readelf -l "$B" | grep -q INTERP; then echo "asks for a program interpreter"; exit 1; fi
@@ -231,11 +234,7 @@ jobs:
       - name: the binary runs
         run: |
           docker run --rm --platform linux/riscv64 -v "$PWD:/work" -w /work "$BUILD_IMAGE" \
-            sh scripts/release-check.sh target/release/podssh
-      - name: package
-        run: |
-          mkdir -p dist
-          cp target/release/podssh dist/podssh-riscv64gc-unknown-linux-musl
+            sh scripts/release-short.sh dist/podssh-riscv64gc-unknown-linux-musl --net
       - uses: actions/upload-artifact@v7
         with:
           name: podssh-riscv64gc-unknown-linux-musl

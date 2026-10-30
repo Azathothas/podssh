@@ -1780,18 +1780,36 @@ Intel macOS after August 2027 (cross build with Rosetta, or drop the target).
 
 ## Done
 
-2026-10-30, partial: the trial is in, and has not run yet. The workflow release targets
-(`.github/workflows/targets.yml`, by hand only, publishing nothing) builds each new target on its
-own platform, checks its links (`otool -L` on macOS, `dumpbin` on Windows, `readelf` on Linux),
-and runs it with `scripts/release-check.sh`: `--version` against `Cargo.toml`, the whole manual,
-`keygen` with no passphrase, then `keygen -y`, which must give the same key. macOS runs the default
-tests first. armv7 builds with Alpine's own rust in a `linux/arm/v7` container of
-`images/armv7/Dockerfile` (alpine 3.24, pinned to the digest of its index, which has `arm/v7`), on
-an arm64 runner, natively where a probe finds 32-bit ARM, else under QEMU. riscv64 builds in the
-gate's own image under QEMU. The check script, run here on a debug build: three ok; with three
-planted binaries (another version, another key from `keygen -y`, a manual of one line), each run
-failed, and left no scratch directory. Next: dispatch it, repair what fails, then move each target
-that passes into `release.yml`.
+2026-10-30, partial. The workflow release targets (`.github/workflows/targets.yml`, by hand only,
+publishing nothing) builds each new target on its own platform, checks its links (`otool -L` on
+macOS, `dumpbin` on Windows, `readelf` on Linux), and runs it with `scripts/release-short.sh`, the
+short form of T-251's check: `--version` against `Cargo.toml`, the whole manual, `keygen` with no
+passphrase, then `keygen -y`, which must give the same key, and with `--net` GitHub's SSH banner
+through the live relay (`podssh proxy github.com 22`). macOS runs the default tests first. armv7
+builds with Alpine's own rust in a `linux/arm/v7` container of `images/armv7/Dockerfile` (alpine
+3.24, pinned to the digest of its index, which has `arm/v7`), on an arm64 runner, natively where a
+probe finds 32-bit ARM, else under QEMU. riscv64 builds in the gate's own image under QEMU.
+
+- The script, here on a debug build: four ok, with and without `timeout(1)` (macOS has none, and a
+  killer in the background stands in); with four planted binaries (another version, another key
+  from `keygen -y`, a manual of one line, a proxy that gives no banner), each run failed and left
+  no scratch directory.
+- `aarch64-pc-windows-msvc`, run 41074530703: built in 286 s with no NASM; the native ARM64
+  `dumpbin` (Visual Studio 18, MSVC 14.44.35207) reads `AA64 machine (ARM64)`, and the binary
+  needs only the system's DLLs (bcrypt, bcryptprimitives, crypt32, kernel32, ntdll, secur32,
+  advapi32, user32, oleaut32, ws2_32 and one `api-ms-win-core-synch`), no C runtime; the short
+  form passed. The build warned of six items of `node_install/text.rs` unused on Windows,
+  repaired under T-121.
+- armv7 and riscv64, runs 41074530703 and 41075369345: the pull of the image held the runner's
+  own platform, and `docker run --platform` stopped with "cannot overwrite digest";
+  `scripts/pull-image.sh` now pulls the platform that `PULL_PLATFORM` names. Then each build
+  stopped at "cannot produce proc-macro for `clap_derive`": `+crt-static` with no `--target`
+  reaches the proc-macros of a musl host. Each build now names its host triple as `--target`
+  (Alpine's is `armv7-alpine-linux-musleabihf`). The arm64 runner ran the `linux/arm/v7` container
+  natively: the probe passed, and no QEMU was set up.
+
+Next: the runs of the repaired jobs and of macOS, then each target that passes into
+`release.yml`.
 
 # T-219: The no-C gate also stops C++
 
