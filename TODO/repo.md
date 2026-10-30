@@ -832,7 +832,10 @@ bundle as `provenance.sigstore.json`; the README tells how to check it (`gh atte
   (COMMIT)` and passed; the job `tag` was skipped, and `publish` passed with no proof, as a run
   on a branch makes none.
 
-Next: the Prove at the tag of `v1.0.0-beta.2`, whose notes say how to check.
+Next: the Prove at the tag of `v1.0.0-beta.2`, whose notes say how to check. This host's `gh`
+has no valid token and no cosign, so `.github/workflows/release-proofs.yml` runs the Prove on
+a fresh runner: the published files, each binary's provenance through the API and with the
+bundle, a changed copy refused, and `--version` naming the tag's commit (`docs/development.md`).
 
 
 # T-211: Signed checksums for each release
@@ -971,7 +974,9 @@ gives the check (`cosign verify-blob` with the identity and the issuer), after `
   cosign 2.6.5 checked the bundle of cosign 3, with no flag and with `--new-bundle-format`: the
   notes say both.
 
-Next: the Prove at the tag of `v1.0.0-beta.2`.
+Next: the Prove at the tag of `v1.0.0-beta.2`, through `.github/workflows/release-proofs.yml`
+(cosign 3.1.4 and 2.6.5 on the published `SHA256SUMS`, with this entry's regular expression
+too, and a changed copy and a branch's identity refused).
 
 
 # T-212: Parallel CI, with the gate as the one source

@@ -739,3 +739,19 @@ and the check runs again on the published files. A tag never moves: a defect
 found after a tag goes into the next beta, or into `v1.0.1`. From T-210 and
 T-211 on (`v1.0.0-beta.2`), each release also has provenance and Sigstore
 signatures; the README tells how to check them.
+
+Once a tag's release is published, its proofs are checked as a user checks
+them, on a fresh runner with the job's token and cosign (this host may have
+neither):
+
+```sh
+gh workflow run release-proofs.yml --ref main -f tag=vX.Y.Z
+```
+
+The run downloads the published files, checks `SHA256SUMS` against each
+binary, the provenance of each binary (`gh attestation verify`, through the
+API and with `provenance.sigstore.json`: the release workflow at the tag,
+and the tag's commit) and the signature of `SHA256SUMS` (cosign 3.1.4 and
+2.6.5: the release workflow at the tag), requires that a changed copy fails
+each check, and runs `scripts/release-short.sh` with `--net` on the
+published x86_64 binary, whose `--version` must name the tag's commit.
