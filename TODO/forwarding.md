@@ -458,7 +458,7 @@ command line in `crates/podssh-cli/src/ssh/x11.rs:1-153`, the flags at
   this Xvfb takes an untrusted cookie of `xauth` at all
   (`scripts/interop-x11.sh:37-51`): env when it does not, a failure when it
   does and podssh's `-X` fails.
-- `docs/cli.md:491-514`, a note of the manual and the variable `XAUTHORITY`
+- `docs/cli.md:497-520`, a note of the manual and the variable `XAUTHORITY`
   say what the flags do, and the risk of `-Y`.
 - `cargo test -p podssh-ssh`: 155 passed; `cargo test -p podssh-cli`:
   577 passed, 0 failed, 31 ignored; clippy; rustfmt.
@@ -494,7 +494,7 @@ AF_UNIX.
 - Read: `AGENTS.md:240-245` (no bind, no listen),
   `docs/target-environment.md:84-88` (rule 3), `SECURITY.md:98-119` ("Nothing
   listens") and `README.md:40-48` state the rule from before the ruling.
-  `docs/design.md:875-877` already allows a local listener for `pipe` after
+  `docs/design.md:894-896` already allows a local listener for `pipe` after
   a probe.
 - Read: the Podman box refuses each `bind` (`scripts/box/seccomp.json:5-10`),
   so it tests the refusal.
@@ -861,7 +861,7 @@ Read:
 3. A server that refuses the channel (OpenSSH with
    `AllowStreamLocalForwarding no`) gives its reason, and 255, as for TCP.
 4. Change the help of the `-W` row (`crates/podssh-cli/src/flags.rs:139-140`)
-   and `docs/cli.md:101-110` (T-239 refuses a path there until this entry), and
+   and `docs/cli.md:107-116` (T-239 refuses a path there until this entry), and
    add an example to the manual. A local socket
    is the work of T-176 (`pipe`).
 
@@ -916,7 +916,7 @@ path at `crates/podssh-cli/src/ssh/hop.rs:86-89`, and the row of `-W` says so
   OpenSSH's sshd: `stdio.socket` (a Python echo server on a Unix socket of the
   box answers `ping`) and `stdio.socket_refused`. The gate runs them at this
   push.
-- `docs/cli.md:101-110`, a note and an example of the manual.
+- `docs/cli.md:107-116`, a note and an example of the manual.
 - `cargo test -p podssh-ssh`: 155 passed; `cargo test -p podssh-cli`:
   578 passed, 0 failed, 31 ignored; clippy; rustfmt.
 
@@ -1014,7 +1014,7 @@ and the lines of `-v` at `crates/podssh-ssh/src/run.rs:260`.
   -W` through OpenSSH's sshd to a TCP echo server, 262144 bytes each way) and
   `pty.forwards` (`scripts/interop-pty.py`, `~#` in a session with `-R
   0:127.0.0.1:2201`).
-- `docs/cli.md:327-334` and the manual's note of `-t` say what `~#` and `-v`
+- `docs/cli.md:333-340` and the manual's note of `-t` say what `~#` and `-v`
   print.
 - `cargo test -p podssh-ssh`: 158 passed; `cargo test -p podssh-cli`:
   578 passed, 0 failed, 31 ignored; clippy; rustfmt.
@@ -1236,7 +1236,7 @@ Read: `request` parses the value with `parse_hop`
    refuses `-W 5432`, whose meaning in OpenSSH is not known here.
 3. Keep `HOST:PORT` and `[v6]:PORT`. A `-J` hop keeps its own parse, where a
    host alone means port 22, as in OpenSSH.
-4. Add the rule to `docs/cli.md:101-110`. The help of the `-W` row
+4. Add the rule to `docs/cli.md:107-116`. The help of the `-W` row
    (`crates/podssh-cli/src/flags.rs:139-140`) already says `HOST:PORT`.
 
 ## Prove
@@ -1587,7 +1587,7 @@ a session with a pty:
   of `podssh ssh`, which `crates/podssh-cli/src/ssh/mod.rs:246` gives to
   each session.
 - The manual: the note of the terminal names `~C`, and a note of its own
-  (`crates/podssh-cli/src/man/notes_ssh.rs:178`); `docs/cli.md` ("`~C`
+  (`crates/podssh-cli/src/man/notes_ssh.rs:184`); `docs/cli.md` ("`~C`
   adds and stops forwards") and `docs/terminal.md` ("What podssh reads
   from the terminal").
 - Tests, `cargo test -p podssh-ssh -- escape_command` (8): the commands of

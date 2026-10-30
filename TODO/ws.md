@@ -430,7 +430,7 @@ requires TLS 1.3 (`scripts/fake-relay.py`, lines 426-427 at `0d3d13a`).
    (`crates/podssh-relay/src/health.rs:98-101`, which `doctor` and `relay status` share); the live relay must still give TLS
    1.3.
 6. Change the comment of `suites.rs`, `docs/architecture.md` (line 46 at `0d3d13a`), the Trust item of the manual
-   (`crates/podssh-cli/src/man/facts.rs:401-417`) and `docs/STATUS.md` in the same commit.
+   (`crates/podssh-cli/src/man/facts.rs:408-424`) and `docs/STATUS.md` in the same commit.
 
 ## Decision
 

@@ -56,25 +56,15 @@ entry keeps its proof in the entry; this page keeps no history (git does).
   worktrees (`.claude/worktrees/`, excluded from git) on local branches
   `worktree-agent-*`, never pushed; they do not build. The main session
   merges a draft, builds it, runs its tests and plants, fills each
-  UNVERIFIED and closes the entry (T-179 to T-184, T-200, T-202, T-221, T-225, T-232, T-235, T-242, T-279, T-280, T-229, T-281, T-289, T-291, T-293, T-187 to T-191, T-195, T-296, T-297 and T-298 so, and T-185, merged in
-  `d1c5bd1` and measured on 2026-10-30). Waiting to be merged, in the order
-  of the index:
+  UNVERIFIED and closes the entry (T-179 to T-184, T-200, T-202, T-221, T-225, T-232, T-235, T-242, T-279, T-280, T-229, T-281, T-289, T-291, T-293, T-187 to T-191, T-195, T-296, T-297 and T-298 so, T-185, merged in
+  `d1c5bd1` and measured on 2026-10-30, and T-186, T-193, T-197, T-192,
+  T-306, T-302 and T-305, merged on 2026-10-30). No draft waits to be
+  merged. The operator pushed each branch to GitHub as
+  `draft/worktree-agent-*` on 2026-10-30; each draft of the four is in
+  `main` now, so those branches and the worktrees on the operator's machine
+  can go.
 
-  | Entry | Branch (`worktree-agent-` and) | Commit | State |
-  | --- | --- | --- | --- |
-  | T-306, T-302, T-305 | `afbe1f388cda562f1` | `bda737c`, `949623b`, `17b4e31` (one each, on `905f92c`) | drafted; T-302 adds a new entry, the notice on the forward road, with the id after T-306, kept free for it; new variables `PODSSH_SPARE_LINKS` and `PODSSH_TITLE_STACK`; spare links off in the library, on in the commands |
-
-  Each draft of the table is whole; none is being drafted. Several add a
-  harness that `scripts/interop-each.sh` sources, as `scripts/interop.sh`
-  is at 500 lines. `crates/podssh-cli/tests/ssh_harness/mod.rs`, `crates/podssh-cli/src/tree.rs`
-  and `crates/podssh-cli/src/flags.rs` are near 500 lines, so a merge splits
-  them where needed. T-186, T-193, T-197, T-192, T-306 and T-302 are
-  merged (2026-10-30); the next merge is T-305, the last. The operator pushed each branch to GitHub as
-  `draft/worktree-agent-*` on 2026-10-30, so a session anywhere merges them;
-  a fourth, `draft/worktree-agent-a273199755d943f3c`, holds T-185, which
-  `main` has since `d1c5bd1`, and needs no merge.
-
-  Each entry of the work order is drafted. CI: the gate passed at
+  CI: the gate passed at
   `24b9f6e` (run 38331509229), and its step `release` at `cad2885` (478
   checks, the desktop's, `usbip` and `each` among them).
 
@@ -114,7 +104,7 @@ and `CARGO_BUILD_JOBS=4`:
 
 ## Counts
 
-`TODO/INDEX.md` holds 326 entries: 21 open, 2 partial, 28 blocked, 275 done.
+`TODO/INDEX.md` holds 326 entries: 20 open, 2 partial, 28 blocked, 276 done.
 
 Open includes parked work. `cargo todo check` verifies this line.
 
@@ -137,8 +127,8 @@ of a proxy that takes the CONNECT and carries no SSH.
 **Now:** the `backlog` entries, in the order of `TODO/INDEX.md` ("The
 order, and the argument for it"): M3 to M8 are done, but for the entries on
 hold and those of the relay's operator. The P2 entries are done, but for
-those of M9 and the parked ones; now the P3 entries: first the drafts of
-"State" above, merged one at a time, then the entries not drafted yet.
+those of M9 and the parked ones; now the P3 entries that no draft holds:
+the drafts of "State" above are merged.
 
 **Then** M9: T-210 and T-211, each proven at the tag of
 `v1.0.0-beta.2`, then T-251 (the check, and its run before

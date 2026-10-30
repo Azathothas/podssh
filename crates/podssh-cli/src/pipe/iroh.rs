@@ -32,7 +32,6 @@ mod built {
 
     use podssh_iroh::Failure;
     use podssh_relay::session::resume::Note;
-    use podssh_relay::session::Settings;
     use podssh_ssh::{Log, LogLevel};
     use podssh_ws::Trust;
     use tokio::task::JoinHandle;
@@ -75,7 +74,7 @@ mod built {
                     eprintln!("podssh pipe: {shown}: {text}");
                 }
             };
-            let settings = Settings { features: podssh_iroh::FEATURES, ..crate::layered::settings() };
+            let settings = crate::layered::iroh_settings(podssh_iroh::FEATURES);
             let pin_shown = shown.clone();
             let pin_say = move |line: String| eprintln!("podssh pipe: {pin_shown}: {line}");
             let (layer_app, session) = crate::channel::around(theirs, channel, pin_say);

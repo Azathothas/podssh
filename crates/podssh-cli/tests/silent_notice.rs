@@ -28,15 +28,14 @@ mod pty_harness;
 #[path = "../../podssh-terminal/tests/screen/mod.rs"]
 mod screen;
 mod ssh_harness;
+mod stand_harness;
 mod throughput_harness;
 
-use std::path::Path;
-use std::process::{Command, Stdio};
 use std::time::{Duration, Instant};
 
 use podssh_ssh::notice::title;
 use screen::Screen;
-use throughput_harness::{found, lines_of, scripts, wait_for, without_proxy, Cell, Session};
+use stand_harness::Stand;
 
 const ROWS: u16 = 24;
 const COLS: u16 = 120;
@@ -45,25 +44,6 @@ const PAUSE: Duration = Duration::from_secs(20);
 const LIMIT: Duration = Duration::from_secs(60);
 /// The start of the notice's title.
 const NOTICE: &str = "\x1b]2;podssh: no word from node://lab for ";
-
-/// A stand-in proxy, its names mapped, with `fault` from `start`: its URL.
-fn proxy(session: &Session, name: &str, map: &str, fault: &[&str], start: &Path) -> String {
-    let python = ["python3", "python"].into_iter().find(|p| found(p, &["--version"])).expect("Python");
-    let port_file = session.home.join(format!("proxy-{name}.port"));
-    let mut cmd = Command::new(python);
-    cmd.arg(scripts().join("fake-proxy.py")).arg("--port-file").arg(&port_file);
-    cmd.arg("--log").arg(session.home.join(format!("proxy-{name}.log"))).arg("--start-file").arg(start);
-    cmd.arg("--map").arg(map).args(fault).stdin(Stdio::null()).stdout(Stdio::null()).stderr(Stdio::null());
-    session.keep(cmd.spawn().expect("the stand-in proxy"));
-    let deadline = Instant::now() + LIMIT;
-    loop {
-        if let Some(port) = std::fs::read_to_string(&port_file).ok().and_then(|t| t.trim().parse::<u16>().ok()) {
-            return format!("http://127.0.0.1:{port}");
-        }
-        assert!(Instant::now() < deadline, "the stand-in proxy did not start");
-        std::thread::sleep(Duration::from_millis(100));
-    }
-}
 
 /// Wait until the bytes of `term` hold `needle`: the time from `from`.
 fn seen(term: &pty_harness::Pty, needle: &[u8], from: Instant) -> Duration {
@@ -109,46 +89,12 @@ fn title_after(bytes: &[u8]) -> String {
 #[test]
 #[ignore = "T-302: the notice through the stand-in relay with a pause of 20 s (Python, openssl, half a minute)"]
 fn the_notice_shows_in_the_title_while_the_node_is_silent_and_leaves_the_screen() {
-    let session = Session::start("notice");
-    let cell = match Cell::fake_relay_mode(&session, "normal", "the stand-in relay") {
-        Ok(cell) => cell,
-        Err((_, why)) => {
-            eprintln!("did not run: {why}");
-            return;
-        }
-    };
-    let arg = |flag: &str| cell.args.iter().position(|a| a == flag).map(|i| cell.args[i + 1].clone()).unwrap();
-    let (relay, ca) = (arg("--relay-host"), arg("--ca-file"));
-    let port = relay.rsplit_once(':').unwrap().1.to_string();
-    let start = session.home.join("start");
-    let map = format!("relay-a.test=127.0.0.1:{port}");
-    let node_proxy = proxy(&session, "node", &map, &[], &start);
     let pause = format!("0:{}", PAUSE.as_secs());
-    let client_proxy = proxy(&session, "client", &map, &["--pause", &pause], &start);
-    // Each run goes through a stand-in proxy whose map names relay-a.test,
-    // and pins no address: a pin to the loopback would go around the proxy
-    // and its pause (T-318). The machine's proxy variables go first.
-    let through = |proxy: &str, args: &[String]| {
-        let mut cmd = without_proxy(session.command(args));
-        cmd.env("HTTPS_PROXY", proxy).env("SSL_CERT_FILE", &ca);
-        cmd
-    };
-
-    // The pair and its node, in front of the tests' SSH server.
-    let args = vec!["relay".to_string(), "pair".into(), "lab".into(), "--relay-host".into(), relay.clone()];
-    let out = through(&node_proxy, &args).stdin(Stdio::null()).output().unwrap();
-    assert!(out.status.success(), "podssh relay pair: {}", String::from_utf8_lossy(&out.stderr));
-    let args = vec!["node".to_string(), "lab".into(), format!("127.0.0.1:{}", session.port)];
-    let mut node = through(&node_proxy, &args).stdin(Stdio::null()).stderr(Stdio::piped()).spawn().unwrap();
-    let lines = lines_of(&mut node);
-    session.keep(node);
-    wait_for(&lines, "online").expect("the node is online");
+    let Some(stand) = Stand::new("notice", &["--pause", &pause], &[]) else { return };
+    stand.node();
 
     // The client in a pty, taken for xterm, which keeps a stack of titles.
-    let mut args = vec!["ssh".to_string(), "-t".into()];
-    args.extend(session.common());
-    args.extend(["node://pty-tester@lab".to_string(), "watch".into()]);
-    let mut cmd = through(&client_proxy, &args);
+    let mut cmd = stand.command(&stand.ssh(&["-t"], "pty-tester", "watch"));
     cmd.env("XTERM_VERSION", "XTerm(390)").env("TERM", "xterm-256color");
     for name in ["TMUX", "STY", "PODSSH_TITLE_STACK", "VTE_VERSION"] {
         cmd.env_remove(name);
@@ -159,8 +105,9 @@ fn the_notice_shows_in_the_title_while_the_node_is_silent_and_leaves_the_screen(
     std::thread::sleep(Duration::from_secs(2));
     let before = term.bytes();
 
-    // The pause, and a key that waits in it.
-    std::fs::write(&start, b"now").unwrap();
+    // The pause, and a key that waits in it: sent once the proxies' clocks
+    // run, so that it cannot pass before the pause.
+    stand.start_faults();
     let paused = Instant::now();
     term.send(b"a");
     let came = seen(&term, NOTICE.as_bytes(), paused);

@@ -7,7 +7,7 @@ HTTP and of HTTP/2 to the relay.
 
 # T-162: The iroh road behind the cargo feature `iroh`
 
-**Source:** ROADMAP M6 (the iroh road); `docs/design.md:883-1064`;
+**Source:** ROADMAP M6 (the iroh road); `docs/design.md:902-1083`;
 `docs/decisions.md` (2026-10-08: iroh is a road that the user must select);
 GitHub #18 (Nemo-010, 2026-10-08: the iroh-ssh, zuko, GPU-Share and quic-ssh
 reports).
@@ -25,13 +25,13 @@ and it keeps a connection across address changes. podssh has no iroh code.
 
 ## Premise
 
-Read, not measured (`docs/design.md:890-911`): iroh 1.1 or later (advisories
+Read, not measured (`docs/design.md:909-930`): iroh 1.1 or later (advisories
 up to 1.0.3), MIT or Apache-2.0, MSRV 1.91, the aws-lc-rs backend, about 190
 to 245 crates. In the target sandbox it runs only with no UDP transport (or a
 UDP bind after a probe), podssh's proxy in `proxy_url(...)`, the `Minimal`
 preset with no pkarr or DNS, peers dialled by ticket, and a home relay whose
 `/ping` passes the proxy. The operator accepted netlink sockets and extra
-connections for this road (`docs/design.md:1053-1056`). The sandbox refuses UDP
+connections for this road (`docs/design.md:1072-1075`). The sandbox refuses UDP
 (`docs/target-environment.md:23`). Measured on `3ee70dc`: `--iroh` is an
 unknown flag (exit 64), and `Cargo.lock` has no iroh crate.
 
@@ -46,7 +46,7 @@ unknown flag (exit 64), and `Cargo.lock` has no iroh crate.
    relays of T-165. `proxy_url(...)` gets what `proxy_from_env` selects
    (`crates/podssh-ws/src/dial.rs:96-121`), so `ALL_PROXY` and `NO_PROXY` act
    as on the other roads; iroh's own selection ignores both
-   (`docs/design.md:909`).
+   (`docs/design.md:928`).
 3. UDP: `clear_ip_transports()` by default. Add the UDP transport only after a
    probe that binds a UDP socket to port 0 and closes it, as `bind_inet`
    probes TCP (`crates/podssh-cli/src/doctor/unix.rs:137-166`).
@@ -141,8 +141,8 @@ that uses iroh's own proxy selection fails with `ALL_PROXY` set.
 
 # T-163: iroh tickets and node keys
 
-**Source:** ROADMAP M6 (dialled by ticket); `docs/design.md:910` and
-`docs/design.md:1021-1022`; GitHub #18 (Nemo-010, 2026-10-08: zuko's ticket
+**Source:** ROADMAP M6 (dialled by ticket); `docs/design.md:929` and
+`docs/design.md:1040-1041`; GitHub #18 (Nemo-010, 2026-10-08: zuko's ticket
 handoff; iroh-ssh's persistent and ephemeral keys).
 **Category:** feature
 **Milestone:** M6
@@ -158,8 +158,8 @@ no form for a ticket, no place for the keys, and no rule for who may connect.
 ## Premise
 
 Read: with the `Minimal` preset nothing is discovered, so a ticket gives the
-key and the relay URL (`docs/design.md:910`). The key is the identity, and
-access is by an allowlist of keys or a relay token (`docs/design.md:1021-1022`).
+key and the relay URL (`docs/design.md:929`). The key is the identity, and
+access is by an allowlist of keys or a relay token (`docs/design.md:1040-1041`).
 Read in the reports, not verified here: iroh-ssh warns when a server's key is
 ephemeral (`rustonbsd/iroh-ssh:src/ssh.rs`); zuko hands over a ticket out of
 band (`adonm/zuko:docs/protocol.md`). Read: `podssh ts` keeps its node key in
@@ -184,17 +184,17 @@ the file that `--ts-state` names (`crates/podssh-cli/src/flags.rs:340-341`,
    its allowlist file (one key on each line), and logs a refused key by its
    fingerprint. T-087 extends this.
 5. The node prints its ticket and its fingerprint on stderr when it starts.
-   `podssh ssh iroh:TICKET` dials it (the address of `docs/design.md:844`).
+   `podssh ssh iroh:TICKET` dials it (the address of `docs/design.md:863`).
 6. Add the key files to FILES in the manual
    (`crates/podssh-cli/src/man/data.rs:146-283`), and each new variable to
-   `VARIABLES` (`crates/podssh-cli/src/man/facts.rs:45-253`).
+   `VARIABLES` (`crates/podssh-cli/src/man/facts.rs:45-260`).
 
 ## Decision
 
 Recommendation: a ticket is an address, and the node's allowlist of client
 keys gives access. A ticket can then go on a command line or into
 `ssh_config` with no risk. The alternative, a bearer ticket (tailcat's address
-is one: `docs/design.md:820-821`), lost: each process on the host can read a
+is one: `docs/design.md:839-840`), lost: each process on the host can read a
 command line, and the rules forbid credentials there.
 
 2026-10-10, the shape of the command line and the files:
@@ -349,7 +349,7 @@ limit of iroh to each connection.
 Read: for a podssh node, the iroh road is first and the reverse road with the
 resumable layer is second, raced (`docs/design.md:48-53`). The first real
 sandbox can block what iroh needs, so the fallback is necessary
-(`docs/design.md:1058-1064`). The user must select iroh (`docs/decisions.md`,
+(`docs/design.md:1077-1083`). The user must select iroh (`docs/decisions.md`,
 2026-10-08). Each road has one attempt for each host, with a time limit
 (`docs/design.md:56-63`). The relay opener tries one host at a time
 (`crates/podssh-relay/src/open.rs:188-247`), and no code races two roads.
@@ -373,7 +373,7 @@ sandbox can block what iroh needs, so the fallback is necessary
 6. With `-v`, print the road that won and its time.
 7. Each resume of T-153 runs the same race.
 8. Docs: the rule of the race in `docs/design.md` section 2, and the notes of
-   `ssh` in the manual (`crates/podssh-cli/src/man/notes_ssh.rs:4-267`).
+   `ssh` in the manual (`crates/podssh-cli/src/man/notes_ssh.rs:4-273`).
 
 ## Decision
 
@@ -489,9 +489,9 @@ forward road has one default relay name in library code
 (`crates/podssh-relay/src/relay.rs:12-13`) and a seed pool
 (`crates/podssh-relay/src/pool.rs:20-29`); the same shape fits the iroh
 relays. n0's free relays are for development, with a rate limit that is not
-published (`docs/design.md:1038-1040`). At least three projects run the iroh
+published (`docs/design.md:1057-1059`). At least three projects run the iroh
 relay protocol on Workers and Durable Objects (read, not verified:
-`docs/design.md:1044-1046`). The URLs of n0's relays for iroh 1.x must be read
+`docs/design.md:1063-1065`). The URLs of n0's relays for iroh 1.x must be read
 in iroh's source at the pinned version.
 
 ## Approach
@@ -511,9 +511,9 @@ in iroh's source at the pinned version.
    not in the list.
 6. `doctor`, with the feature, reports the `/ping` of each relay and the home
    relay.
-7. Add the variable to `VARIABLES` (`crates/podssh-cli/src/man/facts.rs:45-253`),
+7. Add the variable to `VARIABLES` (`crates/podssh-cli/src/man/facts.rs:45-260`),
    the flag to the flag table, and the default to the relay section of the
-   manual (`crates/podssh-cli/src/man/facts.rs:290-452`). The tests compare
+   manual (`crates/podssh-cli/src/man/facts.rs:297-459`). The tests compare
    `VARIABLES` with the source in both directions
    (`crates/podssh-cli/src/man/facts.rs:43-44`), so a variable that only the
    feature reads is in the manual only with the feature.
@@ -624,7 +624,7 @@ other build.
 # T-166: A roost: a podssh next to a standard sshd
 
 **Source:** `docs/design.md:52` (a standard sshd behind a podssh `roost`) and
-`docs/design.md:564-567`; the `roost` of pigeons (`docs/design.md:1048-1051`);
+`docs/design.md:564-567`; the `roost` of pigeons (`docs/design.md:1067-1070`);
 GitHub #18 (Nemo-010, 2026-10-08: iroh-ssh reaches sshd by node id, and
 refuses early when no sshd answers).
 **Category:** feature
@@ -2109,7 +2109,7 @@ The `grep` shows the recorded result.
 # T-173: Resumption in the relay for a standard sshd
 
 **Source:** ROADMAP M8 (not now; look at it again after M6);
-`docs/design.md:568-585` (layer 3) and `docs/design.md:1073-1076` (question 1 of
+`docs/design.md:568-585` (layer 3) and `docs/design.md:1092-1095` (question 1 of
 section 8).
 **Category:** feature
 **Milestone:** M8
@@ -2132,7 +2132,7 @@ a resume token in the `101` response, and offset framing as a protocol
 version that the client selects. It is a project of the relay's operator, and
 it costs Durable Object time for the whole session (`docs/design.md:581-585`).
 The recommendation is "not now; look at it again after M6"
-(`docs/design.md:1073-1076`). The relay is in another repository.
+(`docs/design.md:1092-1095`). The relay is in another repository.
 
 ## Approach
 

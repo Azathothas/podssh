@@ -613,15 +613,15 @@ functions of bytes only.
 
 | Function of Mosh | In Mosh | In podssh |
 | --- | --- | --- |
-| Roaming | The server sends to the address of the newest authentic datagram (paper §2.2; `src/network/network.cc:482-487`, `src/network/network.cc:522-529`); the client takes a new source port after 10 s with no round trip (`src/network/network.h:146`, `src/network/network.cc:396-397`) | A resume over a new link, through any road (T-153), measured with a new address (T-156). A silent old link is found dead after 30 s (`crates/podssh-relay/src/session/pump.rs:60`); a new link beside it, sooner: T-305 |
-| Outages and sleep | The server keeps the session until its client comes back; `MOSH_SERVER_NETWORK_TMOUT` sets a limit, none by default (`src/frontend/mosh-server.cc:394-406`) | 10 minutes (`crates/podssh-relay/src/session/resume.rs:41`, T-153), or the node's `--resume-deadline`, 72 h at most, which it names to its client (T-306); a shell that `podssh serve` keeps longer (T-159) |
+| Roaming | The server sends to the address of the newest authentic datagram (paper §2.2; `src/network/network.cc:482-487`, `src/network/network.cc:522-529`); the client takes a new source port after 10 s with no round trip (`src/network/network.h:146`, `src/network/network.cc:396-397`) | A resume over a new link, through any road (T-153), measured with a new address (T-156). A silent old link is found dead after 30 s (`crates/podssh-relay/src/session/pump.rs:60`); a spare link beside it opens once a question waited 3 s with no answer, or after 20 s of quiet, and takes the session when its far end greets first (T-305) |
+| Outages and sleep | The server keeps the session until its client comes back; `MOSH_SERVER_NETWORK_TMOUT` sets a limit, none by default (`src/frontend/mosh-server.cc:394-406`) | 10 minutes (`crates/podssh-relay/src/session/resume.rs:44`, T-153), or the node's `--resume-deadline`, 72 h at most, which it names to its client (T-306); a shell that `podssh serve` keeps longer (T-159) |
 | A heartbeat | An empty acknowledgement each 3 s, which also keeps a NAT's mapping (paper §2.3; `src/network/transportsender.h:51`) | Each 10 s on the layer (T-154; `crates/podssh-relay/src/session/pump.rs:57`); SSH's keepalives on the forward road |
 | Local echo | Each key is predicted; the predictions of an epoch show once one of them is confirmed; by default they show when the round trip passes 30 ms, or a prediction waited 250 ms, and are underlined past 80 ms (paper §3.2; `src/frontend/terminaloverlay.h:215-225`) | T-160, on request, above 120 ms |
 | The echo's acknowledgement | The server marks the last key that the program has had for 50 ms, so the client knows when its echo is due (paper §3.2) | T-160, item 3: the far end reports the offset of the input that reached the pty |
 | The latest screen, not each byte | Frames of the difference of screens, at most one each half round trip (20 to 250 ms), after 8 ms of collection, so Ctrl-C stops a flood within a round trip (paper §2.3; `src/network/transportsender.h:49-50`, `src/network/transportsender-impl.h:55-71`) | T-303, on request, to `podssh serve` |
 | No head-of-line blocking | Each datagram is an idempotent difference from a numbered state, so a lost one costs only itself (paper §2.2) | The iroh road carries a stream (T-162); datagrams: T-304 |
 | Congestion | A smoothed round trip and a timeout of 50 ms to 1 s, as TCP computes them; ECN slows the sender (`src/network/network.h:139-140`, `src/network/network.cc:461-500`) | TCP or QUIC under the layer; a rate limit for copies (T-145) |
-| A notice of silence | A line at the top after 6.5 s with no word from the server, or 10 s with no acknowledged state, drawn over its own model of the screen (`src/frontend/terminaloverlay.h:159-161`, `src/frontend/terminaloverlay.cc:204-218`) | A line on stderr at a loss and at a resume (`crates/podssh-cli/src/layered.rs:392`, `crates/podssh-cli/src/layered.rs:403`); with the layer, a notice once a question waited 5 s with no answer, counting up: in the window's title, saved on the terminal's stack of titles and taken back, so the screen is not touched, where the terminal is known to keep that stack; a line with no pty (T-302, `docs/terminal.md`) |
+| A notice of silence | A line at the top after 6.5 s with no word from the server, or 10 s with no acknowledged state, drawn over its own model of the screen (`src/frontend/terminaloverlay.h:159-161`, `src/frontend/terminaloverlay.cc:204-218`) | A line on stderr at a loss and at a resume (`crates/podssh-cli/src/layered.rs:407`, `crates/podssh-cli/src/layered.rs:418`); with the layer, a notice once a question waited 5 s with no answer, counting up: in the window's title, saved on the terminal's stack of titles and taken back, so the screen is not touched, where the terminal is known to keep that stack; a line with no pty (T-302, `docs/terminal.md`) |
 | A new client | Only the client process that holds the key comes back (paper §2.1; GitHub mobile-shell/mosh#394); mosh.org suggests screen or tmux | T-158 and T-159 attach from a new process; T-161 gives the screen |
 | Encryption | AES-128 in OCB mode, with a key that SSH carries (paper §2.2) | SSH, and the Noise channel above the layer (T-088) |
 | The start | SSH runs `mosh-server`, which prints a port and a key, then forks (`src/frontend/mosh-server.cc:450-462`); it listens on a UDP port of 60001 to 60999 (`src/network/network.h:142-143`) | No listener (`AGENTS.md`, section 5, rule 2): a node or a roost reaches out (T-083, T-166); a start from a standard sshd: T-167 |
@@ -797,6 +797,25 @@ version, 5 the role, 6 busy, 7 a record out of its place, 0 another reason.
   that still waits is a link that the client left. The client warns an hour
   before its pair expires (72 h at most); at the expiry the relay ends each
   session of the pair with `1001`, which no resume carries on.
+- **A spare link** (T-305), in podssh's commands, unless
+  `PODSSH_SPARE_LINKS=no`. When a question of the client (`DATA` that the
+  far end acknowledges, a `PING`) has waited 3 s with nothing from the far
+  end, or, with the heartbeat, nothing came for 20 s, the client opens a
+  new link beside the silent one, as for a move, one each 10 s at most,
+  and reads its `GREETING` alone. When the old link's bytes come first
+  (each read wakes the watch at once, while the new link connects too),
+  the new link closes before its handshake, and its far end dials nothing;
+  when both came, the old link goes on. When the new link greets first,
+  the old one stops, with no `RETIRE`, as it carries nothing, and the new
+  link's resume takes the session (when that handshake fails, the next
+  link is tried at once, as after a loss, which is said once): a new
+  address of the client costs seconds, not the 30 s after which a silent
+  link is dead. Measured through the stand-in proxy's `--move` on the
+  pair's road, 5 runs each: a resume 3.0 to 3.2 s after the move with a
+  spare link, 35.0 to 35.1 s with none. The iroh road opens no spare link:
+  its QUIC carried the session across the move with no resume of the layer
+  in 5 runs of 5, and a spare there, a stream of the same connection, only
+  added a resume, in 3 runs of 5.
 - **Kept shells** (T-158), when both sides name `keep.v1`: `podssh ssh`
   names it, and a far end that keeps a shell after its client leaves, as
   `podssh serve` will (T-159); a node never names it, as its SSH server is

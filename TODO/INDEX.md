@@ -62,15 +62,15 @@ repository and CI).
 
 ## Counts
 
-**326 entries: 21 open, 2 partial, 28 blocked, 275 done.**
+**326 entries: 20 open, 2 partial, 28 blocked, 276 done.**
 
 | Priority | open | partial | blocked | done | total |
 | --- | --- | --- | --- | --- | --- |
 | P0 | 0 | 0 | 0 | 1 | 1 |
 | P1 | 2 | 0 | 0 | 24 | 26 |
 | P2 | 1 | 2 | 19 | 144 | 166 |
-| P3 | 18 | 0 | 9 | 106 | 133 |
-| **All** | 21 | 2 | 28 | 275 | 326 |
+| P3 | 17 | 0 | 9 | 107 | 133 |
+| **All** | 20 | 2 | 28 | 276 | 326 |
 
 ## Entries
 
@@ -377,7 +377,7 @@ repository and CI).
 | [T-302](resume.md) | P3 | M | backlog | feature | done | A notice in the terminal while the far end is silent |
 | [T-303](resume.md) | P3 | L | backlog | feature | open | The latest screen on request: frames that let Ctrl-C show within a round trip |
 | [T-304](resume.md) | P3 | L | backlog | feature | open | Keys and screen frames as QUIC datagrams on the iroh road |
-| [T-305](resume.md) | P3 | M | backlog | feature | open | Roam at once: a new link beside a silent one |
+| [T-305](resume.md) | P3 | M | backlog | feature | done | Roam at once: a new link beside a silent one |
 | [T-306](resume.md) | P3 | S | backlog | feature | done | A resume deadline that the user sets, for a host that sleeps |
 | [T-307](resume.md) | P3 | M | backlog | feature | open | A notice of silence on the forward road |
 | [T-308](repo.md) | P3 | S | none | defect | done | Dependabot's updates of the images fail: GitHub refuses each pull request it makes |

@@ -18,6 +18,12 @@ pub const SSH: &[&str] = &[
      resume. --resume-deadline TIME waits at most TIME, never longer than the node keeps the session. \
      When the node forgot the session, as after a sleep of this host longer than its deadline, the \
      line says so, with how long this side was away by the wall clock.",
+    "A spare link: with the resumable layer, when the node has not answered a key or a check of the link \
+     for 3 s, or has said nothing for 20 s, podssh opens a new link beside the silent one, one each 10 s \
+     at most. When the old link speaks first, the new one closes before its handshake; else the new one \
+     resumes the session. So a new address of this host costs seconds, not the 30 s after which a silent \
+     link is dead. -v says each spare link, and which link went on; PODSSH_SPARE_LINKS set to no turns \
+     them off. The iroh road opens none: QUIC carries its session across a new address by itself.",
     "A notice while the node is silent: with the resumable layer, when a key or a check of the link has \
      waited 5 s for the node's answer, podssh ssh says how long the node has said nothing, counting up, \
      and how to end the session (~.). With a pty, it shows in the window's title, which it saves first \

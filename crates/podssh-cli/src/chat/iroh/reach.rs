@@ -8,7 +8,6 @@ use std::time::Duration;
 
 use podssh_iroh::Failure;
 use podssh_relay::session::resume::Note;
-use podssh_relay::session::Settings;
 use podssh_ssh::{Log, LogLevel};
 use podssh_ws::Trust;
 use serde_json::json;
@@ -79,7 +78,7 @@ pub(in crate::chat) async fn run<W: AsyncWrite + Unpin>(
         Ok(prepared) => prepared,
         Err(why) => return run::refused(EX_UNAVAILABLE, why, lines, out).await,
     };
-    let settings = Settings { features: podssh_iroh::FEATURES, ..crate::layered::settings() };
+    let settings = crate::layered::iroh_settings(podssh_iroh::FEATURES);
     // Whether "tries again" was said since the last peer.
     let mut said = false;
     let code = loop {

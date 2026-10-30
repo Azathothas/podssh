@@ -9,16 +9,18 @@
 //! that echoes nothing (a password's prompt) is no silence, and neither is an
 //! idle session: each side's `PING` each 10 s is answered.
 
+use std::sync::atomic::{AtomicU64, Ordering};
 use std::sync::Mutex;
 use std::time::Duration;
 
+use tokio::sync::Notify;
 // tokio's clock, which a test can pause.
 use tokio::time::Instant;
 
 /// How long a question waits for its answer before the far end counts as
-/// silent: a few round trips and the 200 ms of an `ACK`. UNVERIFIED: the
-/// value waits for the measurement of T-302 with the stand-in proxy's
-/// `--pause`.
+/// silent: a few round trips and the 200 ms of an `ACK`. Through the
+/// stand-in proxy's `--pause` of 20 s, the notice came 5 to 6 s after the
+/// key that waited (T-302).
 pub const WAIT: Duration = Duration::from_secs(5);
 
 /// The last word of the far end, and the oldest question that waits.
@@ -26,11 +28,21 @@ pub const WAIT: Duration = Duration::from_secs(5);
 pub struct Hearing {
     heard: Mutex<Instant>,
     asked: Mutex<Option<Instant>>,
+    /// How many times bytes came: a mark that two reads at the same instant
+    /// of the clock still tell apart.
+    words: AtomicU64,
+    /// Woken by each read, for a wait for the far end's next bytes.
+    spoke: Notify,
 }
 
 impl Default for Hearing {
     fn default() -> Self {
-        Hearing { heard: Mutex::new(Instant::now()), asked: Mutex::new(None) }
+        Hearing {
+            heard: Mutex::new(Instant::now()),
+            asked: Mutex::new(None),
+            words: AtomicU64::new(0),
+            spoke: Notify::new(),
+        }
     }
 }
 
@@ -44,6 +56,8 @@ impl Hearing {
     pub fn heard(&self) {
         *lock(&self.heard) = Instant::now();
         *lock(&self.asked) = None;
+        self.words.fetch_add(1, Ordering::SeqCst);
+        self.spoke.notify_waiters();
     }
 
     /// This side asked something that the far end answers at once; the
@@ -63,6 +77,38 @@ impl Hearing {
             return None;
         }
         Some(now.saturating_duration_since(*lock(&self.heard)))
+    }
+
+    /// How long the far end has said nothing at `now`, asked or not.
+    pub fn quiet(&self, now: Instant) -> Duration {
+        now.saturating_duration_since(self.heard_at())
+    }
+
+    /// When the far end's last bytes came.
+    pub fn heard_at(&self) -> Instant {
+        *lock(&self.heard)
+    }
+
+    /// The mark of the far end's bytes so far, for [`Hearing::spoke_after`].
+    pub fn words(&self) -> u64 {
+        self.words.load(Ordering::SeqCst)
+    }
+
+    /// Until bytes came from the far end after the mark `words`, at once
+    /// when they came already. The read itself wakes it, so that the old
+    /// link's first bytes close a spare link before the spare can greet
+    /// (T-305); a look each few hundred ms would let the spare win.
+    pub async fn spoke_after(&self, words: u64) {
+        loop {
+            // Registered before the look: bytes between the two still wake it.
+            let spoke = self.spoke.notified();
+            tokio::pin!(spoke);
+            spoke.as_mut().enable();
+            if self.words() != words {
+                return;
+            }
+            spoke.await;
+        }
     }
 }
 
@@ -85,5 +131,22 @@ mod tests {
         assert_eq!(hearing.silent(Instant::now(), wait), Some(Duration::from_secs(8)), "silent since the start");
         hearing.heard();
         assert_eq!(hearing.silent(Instant::now(), wait), None, "the far end answered");
+    }
+
+    #[tokio::test(start_paused = true)]
+    async fn a_wait_for_the_next_bytes_ends_when_they_come_at_the_same_instant() {
+        let hearing = std::sync::Arc::new(Hearing::default());
+        let mark = hearing.words();
+        let waiting = tokio::spawn({
+            let hearing = hearing.clone();
+            async move { hearing.spoke_after(mark).await }
+        });
+        tokio::task::yield_now().await;
+        assert!(!waiting.is_finished(), "nothing came yet");
+        // The paused clock stands still: the bytes come at the mark's instant.
+        hearing.heard();
+        tokio::time::timeout(Duration::from_millis(1), waiting).await.expect("the bytes woke the wait").unwrap();
+        // Bytes that came before the wait end it at once.
+        tokio::time::timeout(Duration::from_millis(1), hearing.spoke_after(mark)).await.expect("at once");
     }
 }

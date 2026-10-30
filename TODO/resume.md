@@ -346,7 +346,7 @@ the node then exits (docs/reverse.md, line 19 at `fb228e9`).
    `/v1/connect/<name>`. If none does, "each relay host" means each address of
    the control host (pins, resolver, DNS over HTTPS). Write it in
    `docs/relay.md`, with `docs/reverse.md` and the manual's relay section
-   (`crates/podssh-cli/src/man/facts.rs:290-452`).
+   (`crates/podssh-cli/src/man/facts.rs:297-459`).
 6. A node keeps the replay buffer of each session (T-152): with the relay's
    limit of 64 sessions and 4 MiB each, 256 MiB. Bound the node's whole
    replay memory (a session past the bound gets `REFUSE` busy, code 6), and
@@ -836,9 +836,9 @@ Measured on `3ee70dc`, offline (`PODSSH_OFFLINE=1`, a `.invalid` host):
 4. On the resumable road, do not print the warning of
    `crates/podssh-cli/src/ssh/resolve.rs:366-380` (the `warnings` of keepalives).
 5. In the same commit: "Liveness" and "Idle limit" in the manual
-   (`crates/podssh-cli/src/man/facts.rs:376-391`,
-   `crates/podssh-cli/src/man/facts.rs:418-427`), the note at
-   `crates/podssh-cli/src/man/notes_ssh.rs:243`, `docs/relay.md`, `README.md`.
+   (`crates/podssh-cli/src/man/facts.rs:383-398`,
+   `crates/podssh-cli/src/man/facts.rs:425-434`), the note at
+   `crates/podssh-cli/src/man/notes_ssh.rs:249`, `docs/relay.md`, `README.md`.
 
 ## Decision
 
@@ -957,7 +957,7 @@ node's side (`crates/podssh-probe/tests/spec/relay-spec-2026-10-03-r2.txt:133-13
 6. When the client knows the expiry of the pair (from the node's ticket,
    T-163), it warns 1 h before; at the expiry the session ends with the reason.
 7. `-v` prints one line for each move. Docs: `docs/relay.md` ("Limits that
-   users see") and the manual (`crates/podssh-cli/src/man/facts.rs:290-452`).
+   users see") and the manual (`crates/podssh-cli/src/man/facts.rs:297-459`).
 
 ## Decision
 
@@ -1164,7 +1164,7 @@ road, and the same faults end a session of the forward road with 255
 # T-157: Throughput on each road and relay, by a committed method
 
 **Source:** ROADMAP M6 (throughput on each road and relay, in and out of a
-sandbox, before a default depends on it); `docs/design.md:1026-1046`; the two
+sandbox, before a default depends on it); `docs/design.md:1045-1065`; the two
 sandbox reports of 2026-10-08; GitHub #18 (warren's method) and GitHub #23
 (sshping: throughput up and down).
 **Category:** measurement
@@ -1188,7 +1188,7 @@ proxy (4 runs). Read in the report, not verified here: the script's target
 (thinkbroadband) gave `1011 write failed` and 0 bytes, and the relay's
 `/trace` showed that the relay could not reach it.
 Read: no iroh figure exists for a relay through a CONNECT proxy
-(`docs/design.md:1026-1046`). A session carries 64 MiB at most, both directions
+(`docs/design.md:1045-1065`). A session carries 64 MiB at most, both directions
 together (`docs/relay.md:167`).
 
 ## Approach
@@ -1888,8 +1888,8 @@ a full-screen program is written into its screen.
 
 ## Premise
 
-- Read: the layer's lines, written always: a loss (`crates/podssh-cli/src/layered.rs:349`) and a
-  resume (`crates/podssh-cli/src/layered.rs:360`). The heartbeat each 10 s, and a link dead after
+- Read: the layer's lines, written always: a loss (`crates/podssh-cli/src/layered.rs:364`) and a
+  resume (`crates/podssh-cli/src/layered.rs:375`). The heartbeat each 10 s, and a link dead after
   30 s with nothing from the far end (`crates/podssh-relay/src/session/pump.rs:57`,
   `crates/podssh-relay/src/session/pump.rs:60`). The forward road's checks
   (`docs/design.md:531`).
@@ -1998,8 +1998,8 @@ that gives `Line` to a terminal in raw mode; in the model, the control
 ## Correction
 
 The first item of the Premise cites the layer's lines at lines of `next_leg`, which opens a new
-leg. The lines are in `line_of`: a loss (`crates/podssh-cli/src/layered.rs:392`) and a resume
-(`crates/podssh-cli/src/layered.rs:403`). What the item says of them holds.
+leg. The lines are in `line_of`: a loss (`crates/podssh-cli/src/layered.rs:407`) and a resume
+(`crates/podssh-cli/src/layered.rs:418`). What the item says of them holds.
 
 ## Done
 
@@ -2178,7 +2178,7 @@ and its client takes a new source port after 10 s with no round trip.
 **Milestone:** backlog
 **Priority:** P3
 **Effort:** M
-**Status:** open
+**Status:** done
 
 ## Problem
 
@@ -2209,6 +2209,71 @@ then resumes over a new one. For those 30 s, an interactive session shows nothin
    resume takes the session, as now. One spare link at a time, and one each 10 s at most.
 3. `-v` says each spare link, and which link went on.
 
+## Decision
+
+Taken (2026-10-13), what makes a link silent: the client's hearing of
+T-302 (`crates/podssh-relay/src/session/hearing.rs`), across the session's
+links. A question of the client, `DATA` that the far end acknowledges
+within 200 ms or a `PING`, that waited 3 s with nothing from the far end;
+or, where both ends run the heartbeat, nothing at all for 20 s, two of its
+intervals. A link with no heartbeat that is idle stays as it is: its quiet
+says nothing. The values (3 s, 20 s, one spare each 10 s) are the entry's;
+the measurement of item 1 (`crates/podssh-cli/tests/roam_at_once.rs`, the
+tests that measure) found a resume 3.0 to 3.2 s after a new address with
+them, and they stand.
+
+Taken: a spare link is a link beside the old one, as a move's is
+(`crates/podssh-relay/src/session/beside.rs`): the caller gets
+`End::Moving`, so it opens a new link with no wait for the old one's end;
+the client reads the new link's `GREETING` and sends nothing. When the old
+link's bytes come first, the new link closes, and its far end, which waits
+for `OPEN`, dials no target. When the new link greets first, the old link
+stops with no `RETIRE`, as it carries nothing, and the new link's resume
+takes the offsets, as after a loss; the far end lets the newest resume win
+(T-270). One watch beside each link serves the move and the spare, so one
+new link at a time; a move that fails is not tried again on that link, but
+the spare goes on, where the move's watch ended before.
+
+Taken: a spare that takes the session says one line for the loss and one
+for the resume, as a resume after a loss does ("the link said nothing for
+N s, and a spare link answered; resuming the session"), so a user, and the
+check of M6's exit, still see one of each for each loss. `-v` says each
+spare link, and each that closes, with why. The alternative, a line of its
+own for a spare that takes the session, lost: a loss would then say two
+things by the road it took.
+
+Taken: spare links are off in the library's default `Settings`, and on in
+podssh's commands; `PODSSH_SPARE_LINKS=no` turns them off, for a link that
+the user pays by the byte, for the measurement before the change, and for
+the Prove's planted client. On in the library lost: the tests of the layer
+count the links that they give, and a host under load can hold an `ACK`
+3 s in a transfer of 32 MiB, which would open a spare and take a link of
+theirs.
+
+Taken, a limit: the caller of `podssh ssh node://` keeps the operator's leg
+of the newest link, and a spare that closes leaves its own leg there, as a
+move that fails does. At the next loss, the old leg's close is then not
+read; a stopped or expired pair is found by the refusal of the next leg
+(401 to 410), and the session still ends with its reason.
+
+Taken at the merge (2026-10-30): the old link's reads wake the watch of a
+spare at once (`Hearing::spoke_after`, a count of the reads and a `Notify`),
+during the spare's connect too, and when both came the old link goes on.
+The draft's look each 250 ms at the instant of the far end's last bytes
+lost: a spare that greeted between two looks took a link that had spoken,
+and on a paused clock two reads at one instant looked like none.
+
+Taken at the merge, after item 1's measurement: no spare link on the iroh
+road (`iroh_settings` of `crates/podssh-cli/src/layered.rs`, for `ssh`,
+`pipe` and `chat` over iroh). With no spare link, its QUIC carried the
+session across the move with no resume of the layer in 5 runs of 5; with
+spare links, 3 runs of 5 resumed the layer, 15.8 to 20.2 s after the move,
+as a spare there is a stream of the same connection and comes no sooner
+than the old one. Spare links on each road lost: a resume that buys nothing
+costs its handshake and the bytes sent again. The race of the two roads
+(T-164) keeps them, as its spare races both roads again and the pair's road
+can answer where the iroh road is silent; that is not measured.
+
 ## Prove
 
 ```sh
@@ -2219,6 +2284,90 @@ cargo test -p podssh-cli --test roam_at_once -- --ignored
 After a `--move`, the session resumes within 10 s, where item 1 measured the time before the
 change; and a link that stalls for 5 s and recovers keeps the session with no resume. A planted
 client with no spare link takes 30 s, and fails.
+
+The planted client is the test run with `PODSSH_SPARE_LINKS=no` in its environment. The same
+checks in the library, on a paused clock, with the control of no spare link:
+`cargo test -p podssh-relay --test session_spare`. Item 1's measurement:
+`cargo test -p podssh-cli --test roam_at_once -- --ignored --test-threads 1 --nocapture measure`;
+with `--features iroh-test`, the iroh road's check that a new address opens no spare link.
+
+## Done
+
+2026-10-13, a draft; merged on 2026-10-30, when the main session built it
+and ran each check below.
+
+- `crates/podssh-relay/src/session/beside.rs`: the watch beside a link,
+  for a move and a spare; `resume.rs` runs it, says its steps as they come
+  (`Note::Spare`, `Note::SpareClosed`), stops the old link of a spare with
+  no `RETIRE`, and resumes on the spare. `Settings::spare_links`; the
+  hearing's `quiet` and `heard_at`, and the mark of its reads with the wait
+  for the next ones (`words`, `spoke_after`).
+- `crates/podssh-cli/src/layered.rs`: spare links on, but with
+  `PODSSH_SPARE_LINKS=no`, and off on the iroh road (`iroh_settings`, the
+  Decision); the lines of `-v`. The manual (the note of
+  `ssh`, ENVIRONMENT), `docs/design.md` (section 5, with the measurement),
+  `docs/cli.md`, `docs/STATUS.md`.
+- `crates/podssh-cli/tests/stand_harness/`: the stand-ins of `m6_exit.rs`
+  as a harness, with the time of each line after the fault, which
+  `tests/silent_notice.rs` of T-302 uses too.
+- The merge repaired four things. The draft's spare looked each 250 ms
+  whether the old link had spoken, by the instant of the far end's last
+  bytes: `session_spare`'s test of a link that speaks again failed, as the
+  session ended between two looks, and a spare that greeted between two
+  looks would take a link that had spoken. Each read now wakes the wait, by
+  a count of the reads that two reads at one instant of a paused clock
+  still tell apart, while the spare connects too, and when both came the
+  old link goes on (the Decision). The harness pinned relay-a.test to the
+  loopback, a pin that since T-318 goes around the proxy and its fault: it
+  pins nothing now, and clears the machine's proxy variables, as
+  `m6_exit.rs` does. And T-302's run on the harness typed its key at once
+  after the start file, which the stand-in proxy reads each 50 ms: once in
+  its first two runs the key passed before the pause, and the notice timed
+  a later heartbeat (it came at 16 s); `Stand::start_faults` now waits for
+  each proxy's word that the clock of its faults runs. And a spare that
+  greeted, then failed in its handshake after the old link had stopped,
+  said the loss twice, and "the link goes on" of a link that had stopped:
+  the next link is now tried at once, with no second loss (`after_stop` of
+  `resume.rs`), which a fourth test of `session_spare` holds.
+- Prove: `cargo test -p podssh-relay --test session_spare`, 4 passed on a
+  paused clock, with the control of no spare link. `cargo test -p
+  podssh-cli --test roam_at_once -- --ignored --test-threads 1`, 3 passed:
+  the session resumed 3.1 s after the move, and the stall of 5 s kept it
+  with no resume. The planted client, `PODSSH_SPARE_LINKS=no` in the run's
+  environment: the first check failed, the session resumed 35.1 s after the
+  move.
+- Item 1, the time from the move to "the session resumed", 5 runs each: on
+  the pair's road, with no spare link 35.1, 35.0, 35.1, 35.1 and 35.0 s,
+  with one 3.2, 3.2, 3.2, 3.2 and 3.0 s. On the iroh road, with no spare
+  link, no resume of the layer in 5 runs of 5, as QUIC carried the session
+  across the move; with spare links, 20.2 s, 15.8 s, none, 20.2 s and
+  none. So the iroh road opens no spare link (the Decision), and its test
+  checks that: `cargo test -p podssh-cli --features iroh-test --test
+  roam_at_once -- --ignored on_the_iroh_road`, 3 runs, passed, with no
+  resume of the layer; planted, an iroh road with spare links failed it at
+  its first run.
+- The tests that the change touches: `podssh-relay`'s whole suite, 186
+  passed, 0 failed, 2 ignored (`session_move`, `session_resume`,
+  `session_end` and `session_newest` among them, and the lib's two of the
+  hearing). `podssh-cli`'s whole suite, 990 passed, 0 failed, 39 ignored,
+  once the note of `ssh` said "set to no": it wrote
+  `PODSSH_SPARE_LINKS=no`, which the check of the notes reads as a keyword
+  of `-o`, as at T-302. `cargo test -p podssh-cli --test m6_exit --
+  --ignored --test-threads 1`: 7 passed, a new address in 19 s, a stall of
+  3 minutes in 198 s and a stopped relay host in 21 s, each with exit 0,
+  and the three controls of the forward road with 255. T-302's run on the
+  harness, `--test silent_notice -- --ignored`, 3 of 3 passed: the notice
+  came 5.9 s after the pause began, and the key's answer at 20.0 s. clippy
+  `-D warnings` on `podssh-relay` and `podssh-cli`, and rustfmt, clean.
+- Planted: a hearing whose reads wake no wait (`heard` with no
+  `notify_waiters`) failed the lib's
+  `a_wait_for_the_next_bytes_ends_when_they_come_at_the_same_instant`, and
+  passed without it; the draft's look each 250 ms failed
+  `a_link_that_speaks_again_first_keeps_the_session_and_the_spare_closes`;
+  the draft's steps after a spare's failed handshake failed
+  `a_spare_that_greets_and_fails_its_handshake_gives_way_and_the_loss_is_said_once`
+  with two losses, and it passed without them.
+- Waits for T-251: the run in the build image, and clippy at CI's Rust.
 
 # T-306: A resume deadline that the user sets, for a host that sleeps
 
@@ -2237,14 +2386,14 @@ session 10 minutes after its link was lost. A session of Mosh waits.
 
 ## Premise
 
-- Read: the deadline is 10 minutes at both ends (`crates/podssh-relay/src/session/resume.rs:41`;
+- Read: the deadline is 10 minutes at both ends (`crates/podssh-relay/src/session/resume.rs:44`;
   `docs/design.md:751-761`). T-153's Decision kept a deadline, as a node in a cage would keep
   connections for clients that never come back.
 - Read: a node keeps 64 MiB of replay buffers at most, a whole buffer for each session that it
-  keeps (`docs/design.md:809-811`); a pair expires after 72 h at most
+  keeps (`docs/design.md:828-830`); a pair expires after 72 h at most
   (`docs/design.md:797-799`).
 - Read: the client measures the deadline with `Instant`
-  (`crates/podssh-relay/src/session/resume.rs:289`). Not verified: whether `Instant` counts the
+  (`crates/podssh-relay/src/session/resume.rs:316`). Not verified: whether `Instant` counts the
   time that the host slept, on Linux, macOS and Windows. If it does not, a client that wakes
   counts too little, and tries to resume a session that the far end forgot; it then gets
   `REFUSE` with the code 1.

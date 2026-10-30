@@ -11,7 +11,7 @@ use podssh_iroh::keys::{self, Place};
 use podssh_iroh::{ticket, Dialer, Failure, Options, Udp};
 use podssh_relay::session::hearing::WAIT;
 use podssh_relay::session::resume::Note;
-use podssh_relay::session::{Hearing, OsEntropy, Settings};
+use podssh_relay::session::{Hearing, OsEntropy};
 use podssh_ssh::{Log, EXIT_FAILURE};
 use podssh_ws::{ProxyChoice, Trust};
 
@@ -135,7 +135,7 @@ pub(super) async fn connect(
             say(crate::layered::line_of(note));
         }
     };
-    let settings = Settings { features: podssh_iroh::FEATURES, ..crate::layered::settings() };
+    let settings = crate::layered::iroh_settings(podssh_iroh::FEATURES);
     // The far end's silence, for a notice (T-302).
     let hearing = Arc::new(Hearing::default());
     let read = hearing.clone();
