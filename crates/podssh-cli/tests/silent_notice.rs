@@ -47,6 +47,7 @@ const LIMIT: Duration = Duration::from_secs(60);
 const NOTICE: &str = "\x1b]2;podssh: no word from node://lab for ";
 /// The forward road names the host with its port, as it is not 22.
 const NOTICE_FORWARD: &str = "\x1b]2;podssh: no word from 127.0.0.1:";
+const NOTICE_DIRECT: &str = "\x1b]2;podssh: no word from target.test for ";
 
 /// Wait until the bytes of `term` hold `needle`: the time from `from`.
 fn seen(term: &pty_harness::Pty, needle: &[u8], from: Instant) -> Duration {
@@ -176,7 +177,35 @@ fn through_a_pause(stand: &Stand, args: &[String], notice: &str) {
 #[ignore = "T-307: no notice on the forward road for keys that nothing echoes (Python, openssl, a quarter of a minute)"]
 fn the_forward_road_shows_no_notice_for_keys_that_nothing_echoes() {
     let Some(stand) = Stand::new("quiet-forward", &[], &[]) else { return };
-    let mut cmd = stand.command(&stand.forward(&["-t"], "pty-tester", "sink"));
+    let args = stand.forward(&["-t"], "pty-tester", "sink");
+    quiet_keys(&stand, &args, NOTICE_FORWARD);
+}
+
+/// The notice with `--direct` (T-332): SSH's own keepalive, which asks for
+/// a reply, waits in the proxy's pause with the key.
+#[test]
+#[ignore = "T-332: the notice with --direct, through a proxy that holds each byte for 20 s (Python, openssl, half a minute)"]
+fn the_notice_shows_with_direct_while_the_server_is_silent_and_leaves_the_screen() {
+    let pause = format!("0:{}", PAUSE.as_secs());
+    let Some(stand) = Stand::new("notice-direct", &["--pause", &pause], &[]) else { return };
+    let args = stand.direct(&["-t"], "pty-tester", "watch");
+    through_a_pause(&stand, &args, NOTICE_DIRECT);
+}
+
+/// With `--direct`, keys that nothing echoes are no silence (T-332): the
+/// server's reply to the keepalive that goes with them answers each.
+#[test]
+#[ignore = "T-332: no notice with --direct for keys that nothing echoes (Python, openssl, a quarter of a minute)"]
+fn direct_shows_no_notice_for_keys_that_nothing_echoes() {
+    let Some(stand) = Stand::new("quiet-direct", &[], &[]) else { return };
+    let args = stand.direct(&["-t"], "pty-tester", "sink");
+    quiet_keys(&stand, &args, NOTICE_DIRECT);
+}
+
+/// `podssh ARGS` in a pty to `sink`, a key each second for 12 s: no notice
+/// that starts with `notice` comes.
+fn quiet_keys(stand: &Stand, args: &[String], notice: &str) {
+    let mut cmd = stand.command(args);
     cmd.env("XTERM_VERSION", "XTerm(390)").env("TERM", "xterm-256color");
     for name in ["TMUX", "STY", "PODSSH_TITLE_STACK", "VTE_VERSION"] {
         cmd.env_remove(name);
@@ -190,12 +219,7 @@ fn the_forward_road_shows_no_notice_for_keys_that_nothing_echoes() {
         std::thread::sleep(Duration::from_secs(1));
     }
     let after = term.bytes();
-    assert_eq!(
-        at(&after[before..], NOTICE_FORWARD.as_bytes()),
-        None,
-        "a notice while the relay answers: {:?}",
-        term.text()
-    );
+    assert_eq!(at(&after[before..], notice.as_bytes()), None, "a notice while the far end answers: {:?}", term.text());
     // The escape ends the session.
     term.send(b"\r~.");
     assert!(term.wait(LIMIT).is_some(), "the session ended: {:?}", term.text());

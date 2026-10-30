@@ -838,7 +838,7 @@ Measured on `3ee70dc`, offline (`PODSSH_OFFLINE=1`, a `.invalid` host):
 5. In the same commit: "Liveness" and "Idle limit" in the manual
    (`crates/podssh-cli/src/man/facts.rs:383-398`,
    `crates/podssh-cli/src/man/facts.rs:425-434`), the note at
-   `crates/podssh-cli/src/man/notes_ssh.rs:260`, `docs/relay.md`, `README.md`.
+   `crates/podssh-cli/src/man/notes_ssh.rs:263`, `docs/relay.md`, `README.md`.
 
 ## Decision
 
@@ -2648,7 +2648,7 @@ through the relay only.
 **Milestone:** backlog
 **Priority:** P3
 **Effort:** M
-**Status:** open
+**Status:** done
 
 ## Problem
 
@@ -2676,7 +2676,29 @@ kernel's TCP gives up. The notice of T-302 and T-307 does not show there.
    any byte of a channel, answers it. The silence counts from the server's
    last packet.
 2. Attach it on the direct road, where no road below SSH tells the silence;
-   through a `-J` hop, on the first hop's connection.
+   through a `-J` hop, on the target's own session (the Decision).
+
+## Decision
+
+2026-10-30.
+
+- **The question goes on the target's own session, through a `-J` hop.**
+  The notice names the target, and the keys go to it: a hop that answers
+  while the target is silent is still silence for the keys. The question
+  on the first hop's connection lost: it would miss a silent target behind
+  a live hop, and the target's keepalive goes through the hop anyway.
+- **The question is in the session's own loop, not a task.** The pump
+  holds `send_ping`'s future beside the channel's messages, so the question
+  ends with the session; a task would need a handle of its own, and could
+  outlive the session that it asks for.
+- **A slot of the session's own, beside the road's** (`Silence::attach_own`).
+  A road that tells the silence (the relay, the layer) keeps its word, and
+  the session then asks nothing, as the road's question already goes with
+  each key. One slot for both lost: the session's question would replace
+  the road's word, which also hears the road's own frames.
+- **Any reply answers.** A server that knows no `keepalive@openssh.com`
+  answers with a failure, which russh resolves as it does a success; the
+  server is there. Keys that nothing echoes are then no silence.
 
 ## Prove
 
@@ -2689,3 +2711,42 @@ With `--direct` through the stand-in proxy's `--pause 0:20`, the notice
 comes, counts up and goes before the key's answer; with `sink`, keys that
 nothing echoes give no notice. Planted, a key with no `send_ping`: the test
 of `sink` fails.
+
+## Done
+
+2026-10-30.
+
+- `crates/podssh-ssh/src/notice/asked.rs`: the server's last word and the
+  question that waits (`Asked`): a key asks while none waits, a reply or a
+  channel's message answers, and once a question waited 5 s (`WAIT`, the
+  layer's and the relay's), the silence counts from the last word.
+- `crates/podssh-ssh/src/notice/mod.rs`: the session's own slot
+  (`attach_own`) beside the road's (`told_by_road`); the road's word comes
+  first.
+- `crates/podssh-ssh/src/io.rs` and `io/msg.rs` (the channel's messages,
+  moved out to keep the file under 500 lines): with a key, while no
+  question waits, `Handle::send_ping`; its reply, or any channel message,
+  answers it. `crates/podssh-ssh/src/session.rs` attaches the question
+  where no road told the silence.
+- `cargo test -p podssh-ssh`: 298 passed, the new test of `Asked` among
+  them (its wait, a second key while one waits, the silence from the last
+  word, an answer and the next question).
+- `cargo test -p podssh-cli --test silent_notice -- --ignored`: 6 passed.
+  With `--direct` through a proxy that holds each byte both ways for 20 s
+  (`fake-proxy.py --pause 0:20`, the harness's `direct()` to `target.test`),
+  the notice came 6.0 s after the pause began ("no word from target.test
+  for 8 s", then 9 s) and went before the key's answer at 20.1 s; with
+  `sink`, a key each second for 12 s gave no notice. Planted, a key with
+  no `send_ping`: the test of `sink` failed with a notice; a session that
+  attaches no question of its own: the pause's test failed with none; each
+  passed again without its plant.
+- Against software that podssh did not write, on this host: OpenSSH 9.6p1
+  and Dropbear 2022.83, each on 127.0.0.1 with a throwaway user and key,
+  `podssh ssh --direct -t` in a pty. Keys to `stty -echo; cat >/dev/null`,
+  one each second for 12 s: no notice from either. Through the stand-in
+  proxy's pause of 20 s: the notice came 6.0 s into the pause and went
+  before the echo, at 20.1 s (OpenSSH) and 20.0 s (Dropbear). The user,
+  the keys and the servers were removed after.
+- clippy `-D warnings` on podssh-ssh and podssh-cli, all targets: clean.
+- `docs/terminal.md` ("A notice while the far end is silent"), the
+  manual's note of the notice (`podssh man ssh`), `docs/STATUS.md`.

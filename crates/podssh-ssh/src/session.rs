@@ -180,7 +180,14 @@ pub async fn attach(
     let detaching = crate::keep::Detaching::new(detach);
     // The first rule's time starts with the session.
     let expect = opts.expect.as_ref().map(crate::expect::Expect::new);
-    // A notice while the far end is silent, where the road tells it (T-302).
+    // A road that tells no silence (`--direct`): SSH's own question (T-332).
+    let asked = (!opts.silence.told_by_road()).then(|| {
+        let asked = Arc::new(crate::notice::Asked::default());
+        let read = asked.clone();
+        opts.silence.attach_own(move || read.silent(tokio::time::Instant::now(), crate::notice::asked::WAIT));
+        asked
+    });
+    // A notice while the far end is silent, where anything tells it (T-302).
     let notice = crate::notice::Notice::for_session(opts, host, raw.is_some(), pty);
     let through = io::Through {
         elevated,
@@ -191,6 +198,7 @@ pub async fn attach(
         command_line: opts.command_line.clone(),
         expect,
         notice,
+        asked,
     };
     // With no remote pty, Ctrl-C sends `signal INT` to a command or a shell
     // (T-293); a subsystem gets none, as sshd refuses it for one.

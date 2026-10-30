@@ -21,6 +21,7 @@
 //! back before the far end's next bytes, so that a title that a program sets
 //! then is kept.
 
+pub mod asked;
 mod boundary;
 #[cfg(test)]
 mod tests;
@@ -34,6 +35,7 @@ use std::time::Duration;
 // tokio's clock, which a test can pause.
 use tokio::time::Instant;
 
+pub use asked::Asked;
 pub use boundary::Boundary;
 
 /// How often the notice reads the far end's silence, and counts up.
@@ -52,6 +54,9 @@ struct Shared {
     /// How long the far end has said nothing, when a question of this side
     /// waits past its limit; `None` while the far end answers.
     source: Mutex<Option<Source>>,
+    /// SSH's own word, for a road that tells none (T-332): each session's,
+    /// in place of the last one's, and the road's comes first.
+    own: Mutex<Option<Source>>,
     /// Whether a session shows the notice in the window's title: the road
     /// then leaves out its own lines of a loss and a resume, which would be
     /// written into the screen.
@@ -74,15 +79,27 @@ impl Silence {
         *lock(&self.0.source) = Some(Arc::new(source));
     }
 
+    /// SSH's own word, which a session gives where its road gives none
+    /// (T-332), in place of the last session's.
+    pub fn attach_own(&self, source: impl Fn() -> Option<Duration> + Send + Sync + 'static) {
+        *lock(&self.0.own) = Some(Arc::new(source));
+    }
+
     /// Whether a road said that it tells the far end's silence.
-    pub fn attached(&self) -> bool {
+    pub fn told_by_road(&self) -> bool {
         lock(&self.0.source).is_some()
     }
 
+    /// Whether anything tells the far end's silence: a road, or the session.
+    pub fn attached(&self) -> bool {
+        self.told_by_road() || lock(&self.0.own).is_some()
+    }
+
     /// How long the far end has been silent, when a question waits past its
-    /// limit; `None` while it answers, or with no road's word.
+    /// limit; `None` while it answers, or with no word: the road's first.
     pub fn silent(&self) -> Option<Duration> {
-        let source = lock(&self.0.source).clone();
+        let road = lock(&self.0.source).clone();
+        let source = road.or_else(|| lock(&self.0.own).clone());
         source.and_then(|source| source())
     }
 

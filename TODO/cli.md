@@ -491,7 +491,7 @@ Read, at `61e55d1`: no option made podssh start a program: `ProxyCommand` is ref
    `[OPTIONS] [--] [user@]host [COMMAND...]` for `ssh` and
    `[OPTIONS] [--] HOST PORT` for `proxy`; `--help` and the synopsis of the
    manual (`crates/podssh-cli/src/man/model.rs:186-190`) read it.
-2. A note for `ssh` and `proxy` (`crates/podssh-cli/src/man/notes_ssh.rs:4-284` and `crates/podssh-cli/src/man/notes.rs:58-169`)
+2. A note for `ssh` and `proxy` (`crates/podssh-cli/src/man/notes_ssh.rs:4-287` and `crates/podssh-cli/src/man/notes.rs:58-169`)
    and an example (`crates/podssh-cli/src/man/examples.rs:8-215`). Pitfall: the
    notes test reads a bare `--` as a flag that does not exist
    (`crates/podssh-cli/src/man/notes.rs:390-398`); teach `flag_exists`
@@ -990,7 +990,7 @@ Read then: each value flag but `-i` and `-o` was `ArgAction::Set`.
    (`crates/podssh-cli/src/ssh/args.rs:126-165`, called at
    `crates/podssh-cli/src/tree.rs:463-467`).
 4. `docs/cli.md:402-407` and a note of the manual
-   (`crates/podssh-cli/src/man/notes_ssh.rs:257-259`) state the rule.
+   (`crates/podssh-cli/src/man/notes_ssh.rs:260-262`) state the rule.
 
 ## Prove
 

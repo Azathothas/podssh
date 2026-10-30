@@ -62,15 +62,15 @@ repository and CI).
 
 ## Counts
 
-**329 entries: 18 open, 4 partial, 28 blocked, 279 done.**
+**329 entries: 17 open, 4 partial, 28 blocked, 280 done.**
 
 | Priority | open | partial | blocked | done | total |
 | --- | --- | --- | --- | --- | --- |
 | P0 | 0 | 0 | 0 | 1 | 1 |
 | P1 | 2 | 0 | 0 | 24 | 26 |
 | P2 | 1 | 2 | 19 | 144 | 166 |
-| P3 | 15 | 2 | 9 | 110 | 136 |
-| **All** | 18 | 4 | 28 | 279 | 329 |
+| P3 | 14 | 2 | 9 | 111 | 136 |
+| **All** | 17 | 4 | 28 | 280 | 329 |
 
 ## Entries
 
@@ -404,4 +404,4 @@ repository and CI).
 | [T-329](roads.md) | P2 | S | none | defect | done | Carry the patch of iroh-relay to iroh 1.4.1 (Azathothas/podssh#53) |
 | [T-330](repo.md) | P3 | M | none | chore | done | Dependabot's major updates: sha1 0.11, vt100 0.16, x25519-dalek 3, aes-gcm 0.11 |
 | [T-331](roads.md) | P3 | S | backlog | defect | partial | The layer's `CLOSE` before the exit of `job`, `pipe`, `health`, `containers` and `--upgrade` on `cf://` |
-| [T-332](resume.md) | P3 | M | backlog | feature | open | A notice of silence with `--direct` |
+| [T-332](resume.md) | P3 | M | backlog | feature | done | A notice of silence with `--direct` |

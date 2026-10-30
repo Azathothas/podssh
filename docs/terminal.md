@@ -533,9 +533,25 @@ ends (T-307).
   key's answer at 20.0 s; a pause of 90 s ended the session 40.0 s after it
   began (the relay stream's pings: nothing for 30 s), or 12.0 s after with
   `ServerAliveInterval=4` and `ServerAliveCountMax=2`.
-- **Not with `--direct`.** There SSH's own keepalive is the one question
-  of the road, and russh asks it and counts its answers inside the
-  encrypted stream; T-332 is that road's notice.
+- **With `--direct`** (T-332), and on each road that tells no silence of
+  its own (a service of cloudflared on `cf://`), the bytes are SSH's, end
+  to end, so the question is SSH's own: with a key from the terminal,
+  while no question waits, the session sends `keepalive@openssh.com` with
+  a reply asked for (russh's `Handle::send_ping`), and the reply, or any
+  message of the session's channel, answers it. A server that knows no
+  such request answers with a failure, which is a reply too (RFC 4254,
+  section 4). The wait is 5 s, the places the same; the silence counts
+  from the server's last word. Through `-J`, the question is the target's
+  own, through the hop, as the notice names the target: a hop that answers
+  while the target is silent is still silence. A road that tells the
+  silence (the relay, the layer) keeps its own word, and SSH then asks
+  none. Measured through a proxy that holds each byte
+  (`cargo test -p podssh-cli --test silent_notice -- --ignored`): with a
+  pause of 20 s, the notice came 6.0 s after it began and went before the
+  key's answer at 20.1 s; keys that nothing echoes gave none. Against this
+  host's OpenSSH 9.6p1 and Dropbear 2022.83 in a pty, the same: 12 keys
+  that nothing echoed gave no notice, and under a pause of 20 s the notice
+  came at 6.0 s and went before the echo at 20.1 s and 20.0 s.
 
 ## Tests
 

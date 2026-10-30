@@ -17,7 +17,6 @@ use crate::expect::Expect;
 use crate::handler::Client;
 use crate::log::Log;
 use crate::record::Recorder;
-use crate::signals;
 use crate::terminal;
 use crate::terminal::interrupt::Interrupt;
 use crate::terminal::termination::Termination;
@@ -27,9 +26,11 @@ use crate::zmodem::Zmodem;
 
 mod feed;
 mod input;
+mod msg;
 
 pub use feed::Feed;
 pub use input::Input;
+use msg::{handle_msg, write_out};
 
 /// How a session ended.
 #[derive(Debug)]
@@ -106,6 +107,8 @@ pub struct Through {
     pub expect: Option<Expect>,
     /// The notice while the far end is silent (T-302).
     pub notice: Option<crate::notice::Notice>,
+    /// SSH's own question, where the road asks none (T-332).
+    pub asked: Option<Arc<crate::notice::Asked>>,
 }
 
 impl Through {
@@ -182,6 +185,8 @@ pub async fn pump(
     let mut stop = Termination::new(pty && terminal::raw_active(), interrupt).fed(input.feed());
     // The forwards of `~C` -L and -D, served while the session lasts (T-291).
     let mut added = crate::escape_run::Added::default();
+    // The keepalive that asks for a reply, while one waits (T-332).
+    let mut ping: Option<Ping<'_>> = None;
     loop {
         expected(&mut through, &writer, &mut held, !reading).await;
         if let Err(end) = zmodem_out(&writer, &mut reader, &mut status, &mut out, &mut through, log).await {
@@ -208,6 +213,10 @@ pub async fn pump(
                             // The channel is closing; keep reading for its status.
                             Ok(false) => reading = false,
                             Err(end) => return end,
+                        }
+                        // A question that the server answers at once (T-332).
+                        if ping.is_none() && through.asked.as_ref().is_some_and(|a| a.ask()) {
+                            ping = Some(Box::pin(handle.send_ping()));
                         }
                     }
                     for command in commands {
@@ -298,6 +307,12 @@ pub async fn pump(
             }
             () = std::future::ready(()), if streaming => {}
             () = added.next() => {}
+            () = answered(&mut ping), if ping.is_some() => {
+                ping = None;
+                if let Some(asked) = &through.asked {
+                    asked.heard();
+                }
+            }
             // The notice of a silent far end: its title, or its line (T-302).
             action = crate::notice::next(through.notice.as_mut()) => match action {
                 crate::notice::Action::Write(bytes) => {
@@ -368,87 +383,6 @@ async fn zmodem_out(
     Ok(())
 }
 
-async fn handle_msg(
-    msg: ChannelMsg,
-    status: &mut Option<i32>,
-    out: &mut Out,
-    through: &mut Through,
-    log: &Log,
-) -> Option<End> {
-    match msg {
-        ChannelMsg::Data { data } => {
-            let data = out.consoles.text(false, through.out(&data, false, log));
-            // Whoever reads our stdout has gone (EPIPE): the data goes
-            // nowhere, and the exit status is awaited (T-026).
-            if out.gone.is_none() && write_out(out.sink.as_ref(), &data, false).await.is_err() {
-                out.gone = Some(tokio::time::Instant::now());
-            }
-        }
-        ChannelMsg::ExtendedData { data, .. } => {
-            let data = out.consoles.text(true, through.out(&data, true, log));
-            let _ = write_out(out.sink.as_ref(), &data, true).await;
-        }
-        ChannelMsg::ExitStatus { exit_status } => {
-            crate::outcome::status(exit_status);
-            *status = Some(status_code(exit_status));
-        }
-        ChannelMsg::ExitSignal { signal_name, core_dumped, error_message, .. } => {
-            let name = signals::name(&signal_name);
-            crate::outcome::signal(&name, core_dumped);
-            *status = Some(signals::number(&signal_name).map_or(255, |n| 128 + n));
-            let mut note = format!("the remote command was killed by signal {name}");
-            if core_dumped {
-                note.push_str(" (core dumped)");
-            }
-            let detail = podssh_ws::text::one_line(&error_message);
-            if !detail.is_empty() {
-                note.push_str(": ");
-                note.push_str(&detail);
-            }
-            log.info(&note);
-        }
-        ChannelMsg::Close => {
-            // A command that never started: what su said, its refusal.
-            if let Some(e) = through.elevated.as_mut().filter(|e| !e.started()) {
-                let _ = write_out(out.sink.as_ref(), &out.consoles.text(true, e.finish()), true).await;
-            }
-            // A sequence that the end cut, for a console (T-294).
-            for stderr in [false, true] {
-                let tail = out.consoles.finish(stderr);
-                if !tail.is_empty() {
-                    let _ = write_out(out.sink.as_ref(), &tail, stderr).await;
-                }
-            }
-            return Some(end_with(*status));
-        }
-        // The answer to `~d`, when one is awaited (T-158).
-        reply @ (ChannelMsg::Success | ChannelMsg::Failure) => return through.detaching.answer(&reply, log),
-        // Eof: the server sends nothing more, but the exit status and the
-        // close are still to come.
-        _ => {}
-    }
-    None
-}
-
-async fn write_out(sink: Option<&Sink>, data: &[u8], to_stderr: bool) -> std::io::Result<()> {
-    if let Some(sink) = sink {
-        sink.send((data.to_vec(), to_stderr))
-            .await
-            .map_err(|_| std::io::Error::from(std::io::ErrorKind::BrokenPipe))?;
-    } else if to_stderr {
-        let mut err = tokio::io::stderr();
-        err.write_all(data).await?;
-        err.flush().await?;
-    } else {
-        let mut out = tokio::io::stdout();
-        out.write_all(data).await?;
-        out.flush().await?;
-    }
-    // What `--result-file` counts (T-054).
-    crate::outcome::output(data.len(), to_stderr);
-    Ok(())
-}
-
 /// An elevated command's question and time (T-032): true when its time is
 /// up; for ever with none.
 async fn elevating(elevated: &mut Option<Elevated>, writer: &ChannelWriteHalf<Msg>, log: &Log) -> bool {
@@ -485,6 +419,20 @@ async fn expected(through: &mut Through, writer: &ChannelWriteHalf<Msg>, held: &
 async fn expecting(expect: Option<&Expect>) -> String {
     match expect {
         Some(x) => x.missed().await,
+        None => std::future::pending().await,
+    }
+}
+
+/// A keepalive that asks for a reply, as russh sends it (T-332).
+type Ping<'a> = std::pin::Pin<Box<dyn std::future::Future<Output = Result<(), russh::Error>> + Send + 'a>>;
+
+/// Until the server replies to the keepalive; for ever with none. A reply
+/// of failure, from a server that knows no such request, is a reply too.
+async fn answered(ping: &mut Option<Ping<'_>>) {
+    match ping {
+        Some(ping) => {
+            let _ = ping.as_mut().await;
+        }
         None => std::future::pending().await,
     }
 }

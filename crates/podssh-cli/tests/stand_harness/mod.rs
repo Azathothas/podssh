@@ -23,6 +23,9 @@ pub const LIMIT: Duration = Duration::from_secs(600);
 /// The label of the pair.
 pub const LABEL: &str = "lab";
 
+/// The name of the tests' SSH server that the client's proxy maps.
+pub const TARGET: &str = "target.test";
+
 /// The stand-ins of one check: the relay, and a proxy for each end.
 pub struct Stand {
     pub session: Session,
@@ -55,7 +58,9 @@ impl Stand {
         let start = session.home.join("start");
         let map = [format!("relay-a.test=127.0.0.1:{port}")];
         let node_proxy = proxy(&session, "node", &map, node_fault, &start);
-        let proxy = proxy(&session, "client", &map, fault, &start);
+        // And the tests' server by a name, for --direct (T-332).
+        let client_map = [map[0].clone(), format!("{TARGET}=127.0.0.1:{}", session.port)];
+        let proxy = proxy(&session, "client", &client_map, fault, &start);
         Some(Stand { session, relay, ca, proxy, node_proxy, start })
     }
 
@@ -114,6 +119,18 @@ impl Stand {
         args.extend(extra.iter().map(|w| w.to_string()));
         args.extend(self.session.common());
         args.extend([format!("node://{user}@{LABEL}"), command.to_string()]);
+        args
+    }
+
+    /// The words of `podssh ssh --direct` to the tests' SSH server as
+    /// `user`, by the name that the client's proxy maps (T-332), `extra`
+    /// first, then `command`.
+    #[allow(dead_code)]
+    pub fn direct(&self, extra: &[&str], user: &str, command: &str) -> Vec<String> {
+        let mut args = vec!["ssh".to_string(), "--direct".to_string()];
+        args.extend(extra.iter().map(|w| w.to_string()));
+        args.extend(self.session.common());
+        args.extend([format!("{user}@{TARGET}"), command.to_string()]);
         args
     }
 

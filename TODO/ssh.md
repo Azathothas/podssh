@@ -181,7 +181,7 @@ Read:
    `scripts/interop-faults.sh:232` looks for `1009 session byte cap`.
 6. Correct the comment on the window (`crates/podssh-ssh/src/run.rs` lines
    25-29 at `80f20bf`). The window of 512 KiB stays: it is below both limits.
-7. Update `docs/relay.md` (lines 155-158 at `80f20bf`) and `docs/STATUS.md:511`. T-025 uses the
+7. Update `docs/relay.md` (lines 155-158 at `80f20bf`) and `docs/STATUS.md:512`. T-025 uses the
    classification for its retry rule. T-227 is a different path
    (`--direct`).
 
@@ -388,7 +388,7 @@ Read:
   (`crates/podssh-ssh/src/io.rs`, line 226 at `8cf2587`,
   `crates/podssh-ssh/src/session.rs:19-20`,
   `crates/podssh-ssh/src/session.rs:41`). A channel that ends with no Close
-  is `Lost`: an error, and 255 (`crates/podssh-ssh/src/io.rs:264`,
+  is `Lost`: an error, and 255 (`crates/podssh-ssh/src/io.rs:273`,
   `crates/podssh-ssh/src/session.rs:42`).
 - A closed stdout (EPIPE) gives the status so far, or 0 when none came
   (`crates/podssh-ssh/src/io.rs`, lines 200-204 at `8cf2587`).
@@ -964,7 +964,7 @@ filed as it is, with no port, as OpenSSH files it (the Correction).
   a run in the build image stalled on the download of the crates, and the
   checks' plant waits for T-251.
 - `docs/cli.md:84-93` and the manual's note of host keys
-  (`crates/podssh-cli/src/man/notes_ssh.rs:67-78`) say how each hop is checked,
+  (`crates/podssh-cli/src/man/notes_ssh.rs:70-81`) say how each hop is checked,
   and which settings hold for each hop.
 - `cargo test -p podssh-ssh`: 141 passed; `cargo test -p podssh-cli`:
   563 passed, 0 failed, 31 ignored; clippy; rustfmt.
@@ -1124,8 +1124,8 @@ acceptable.
    the password only for a prompt that ends the output with no newline after
    it, before M2, and once.
 5. Put the filter in a new module, crates/podssh-ssh/src/elevate.rs. Hook it
-   into `handle_msg` (`crates/podssh-ssh/src/io.rs:371-431`) and the stdin
-   branch (`crates/podssh-ssh/src/io.rs:185-248`), and keep `io.rs` under 500
+   into `handle_msg` (`crates/podssh-ssh/src/io/msg.rs:11-75`) and the stdin
+   branch (`crates/podssh-ssh/src/io.rs:190-257`), and keep `io.rs` under 500
    lines.
 6. Pitfalls: with a NOPASSWD rule, M1 never comes, so no password is sent;
    `-k` makes `sudo` ask also with cached credentials; the remote login shell
@@ -1173,9 +1173,9 @@ M1, and the NOPASSWD check fails.
 2026-10-11. The markers, the command and the filter in
 `crates/podssh-ssh/src/elevate.rs:1-290`. The session wraps the command
 (`crates/podssh-ssh/src/session.rs:123-136`, the question at
-`crates/podssh-ssh/src/session.rs:210-219`), and the pump filters the output,
-asks, and holds its input until the start (`crates/podssh-ssh/src/io.rs:155-169`,
-`crates/podssh-ssh/src/io.rs:452-459`). The flags at
+`crates/podssh-ssh/src/session.rs:218-227`), and the pump filters the output,
+asks, and holds its input until the start (`crates/podssh-ssh/src/io.rs:158-172`,
+`crates/podssh-ssh/src/io.rs:386-393`). The flags at
 `crates/podssh-cli/src/flags.rs:212-217`, and their check in
 `crates/podssh-cli/src/ssh/elevate.rs:1-43`.
 - `cargo test -p podssh-ssh -- elevate`: 5 passed: the quoting of the
@@ -1218,8 +1218,8 @@ and no player.
 ## Premise
 
 - Read: each output of a session passes `handle_msg`
-  (`crates/podssh-ssh/src/io.rs:371-390`), and each window change passes the
-  resize branch (`crates/podssh-ssh/src/io.rs:286-291`). The size at the start
+  (`crates/podssh-ssh/src/io/msg.rs:11-34`), and each window change passes the
+  resize branch (`crates/podssh-ssh/src/io.rs:295-300`). The size at the start
   is `terminal::size` (`crates/podssh-ssh/src/terminal/mod.rs:78`).
   `podssh-ssh` has no JSON dependency
   (`crates/podssh-ssh/Cargo.toml:17-33`).
@@ -1282,7 +1282,7 @@ byte boundary, and the UTF-8 test fails.
 2026-10-11. The recorder in `crates/podssh-ssh/src/record.rs:1-153`, which a
 session starts with the size of its start
 (`crates/podssh-ssh/src/session.rs:169-176`) and its output passes through
-(`crates/podssh-ssh/src/io.rs:92-145`). The flag at
+(`crates/podssh-ssh/src/io.rs:93-148`). The flag at
 `crates/podssh-cli/src/flags.rs:214-215`, its check and its file in
 `crates/podssh-cli/src/ssh/recording.rs:1-42`; the verb in
 `crates/podssh-cli/src/play.rs:1-86`, its flags in
@@ -2436,7 +2436,7 @@ user sees a session that hangs.
 Measured: a hung run of the control held no TCP connection (the relay
 host's reset had come through), and `-vv` printed nothing after the login.
 Read at `b62d657`: the session's loop awaited each send of stdin's bytes on
-the channel inside its `select!` (now `crates/podssh-ssh/src/io.rs:204-212`),
+the channel inside its `select!` (now `crates/podssh-ssh/src/io.rs:209-221`),
 and a send waits for the channel's window; while it waited, the loop read
 none of the channel's messages, which carry the end. And in the relay
 stream, the task that sends stopped reading the pipe when a send failed,
@@ -2470,7 +2470,7 @@ hang. Plant: the relay stream's receiving task with no stop fails its test.
 ## Done
 
 2026-10-10. The session's loop reads the channel's messages while a send
-waits for the window (`crates/podssh-ssh/src/io.rs:204-212`), and in the
+waits for the window (`crates/podssh-ssh/src/io.rs:209-221`), and in the
 relay stream each task's end with the link stops the other
 (`crates/podssh-ssh/src/relay_stream.rs:182-276`).
 - T-156's control of a stopped relay host (the forward road, 20 MiB up and

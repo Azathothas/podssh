@@ -999,7 +999,7 @@ count each chunk twice, and the unit test fails.
 and `crates/podssh-ssh/src/remote.rs:187`, `-W` at
 `crates/podssh-ssh/src/forward.rs:42` and
 `crates/podssh-ssh/src/forward.rs:53`; `~#` at
-`crates/podssh-ssh/src/escape.rs:98` and `crates/podssh-ssh/src/io.rs:231`,
+`crates/podssh-ssh/src/escape.rs:98` and `crates/podssh-ssh/src/io.rs:240`,
 and the lines of `-v` at `crates/podssh-ssh/src/run.rs:260`.
 - `cargo test -p podssh-ssh -- forward_counts`: 3 passed: 262144 bytes up and
   1000 down through a forward's copy, counted once, with one connection; one
@@ -1587,7 +1587,7 @@ a session with a pty:
   of `podssh ssh`, which `crates/podssh-cli/src/ssh/mod.rs:246` gives to
   each session.
 - The manual: the note of the terminal names `~C`, and a note of its own
-  (`crates/podssh-cli/src/man/notes_ssh.rs:195`); `docs/cli.md` ("`~C`
+  (`crates/podssh-cli/src/man/notes_ssh.rs:198`); `docs/cli.md` ("`~C`
   adds and stops forwards") and `docs/terminal.md` ("What podssh reads
   from the terminal").
 - Tests, `cargo test -p podssh-ssh -- escape_command` (8): the commands of

@@ -28,7 +28,7 @@ succeeded. `podssh ssh` takes one destination, as OpenSSH does.
 - Measured: `podssh each a,b -- true` exits 64 (`unknown subcommand 'each'`),
   and `podssh ssh 'web1,web2' true` exits 64 (`',' is not allowed`).
 - Read: remote output goes straight to the stdout and stderr of the process
-  (`crates/podssh-ssh/src/io.rs:433-450`), and podssh's own messages go to
+  (`crates/podssh-ssh/src/io/msg.rs:77-94`), and podssh's own messages go to
   stderr with one `podssh: ` prefix (`crates/podssh-ssh/src/log.rs:83-103`).
   Two hosts cannot be told apart.
 - Read: a host-key prompt waits for the user
@@ -49,7 +49,7 @@ succeeded. `podssh ssh` takes one destination, as OpenSSH does.
 2. One runtime, one task for each host, each on the existing path: the relay
    open and `podssh_ssh::run` (`crates/podssh-cli/src/ssh/mod.rs:202-278`,
    `crates/podssh-ssh/src/run.rs:35-80`). Invariant: no second SSH client.
-3. Sinks: give `crates/podssh-ssh/src/io.rs:148-450` a sink for stdout and
+3. Sinks: give `crates/podssh-ssh/src/io.rs:151-446` (and `crates/podssh-ssh/src/io/msg.rs:11-94`) a sink for stdout and
    stderr in place of the streams of the process, and give `Log` a prefix
    (`crates/podssh-ssh/src/log.rs:12-18`). Each line gets `HOST: `. With
    `--output-dir`, the bytes go unchanged to `HOST.out` and `HOST.err`, and
@@ -291,7 +291,7 @@ a broadcast needs a stop that works at once.
 
 - Read: a session reads stdin on its own task and sends each chunk to one
   channel (`crates/podssh-ssh/src/io/input.rs:102-122`,
-  `crates/podssh-ssh/src/io.rs:193-248`).
+  `crates/podssh-ssh/src/io.rs:198-257`).
 - Read: escapes work only at the start of a line, and only with a pty
   (`crates/podssh-ssh/src/escape.rs:1-8`).
 - Read: each session can live in one process, so a broadcast needs no
@@ -1030,7 +1030,7 @@ that can be missing. `podssh doctor` checks only this host.
 
 - Read: an exec request runs one command through the shell of the server
   (`crates/podssh-ssh/src/session.rs:123-136`), and its output goes to stdout
-  (`crates/podssh-ssh/src/io.rs:421-438`); podssh cannot read it.
+  (`crates/podssh-ssh/src/io/msg.rs:65-82`); podssh cannot read it.
 - Read: on Linux, `/proc/loadavg`, `/proc/meminfo`, `/proc/uptime` and
   `/proc/net/dev` hold the facts, and a POSIX shell reads them with `read`,
   with no other tool.
@@ -1349,8 +1349,8 @@ expect rule.
 - Measured, at `61e55d1`: `podssh ssh -o LocalCommand=true -o PermitLocalCommand=yes -v user@host.invalid true`
   prints `-o LocalCommand has no effect in podssh`, and the same for
   `PermitLocalCommand` (`crates/podssh-cli/src/ssh/keywords.rs` lines 93-94 at `61e55d1`).
-- Read: remote output arrives at `crates/podssh-ssh/src/io.rs:371-386`, and
-  input leaves at `crates/podssh-ssh/src/io.rs:193-239`. An expect rule goes
+- Read: remote output arrives at `crates/podssh-ssh/src/io/msg.rs:11-30`, and
+  input leaves at `crates/podssh-ssh/src/io.rs:198-248`. An expect rule goes
   between them.
 - Read from memory, to verify against OpenSSH 10.3p1: OpenSSH runs
   `LocalCommand` after the connection, with the user's shell, only with

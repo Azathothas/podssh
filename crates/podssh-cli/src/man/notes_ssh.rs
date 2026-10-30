@@ -35,7 +35,10 @@ pub const SSH: &[&str] = &[
      On the forward road through the relay, the same notice tells the relay's silence: with SSH's bytes \
      up, while no question waits, podssh sends a WebSocket Ping, which the relay's Pong or the target's \
      bytes answer, so a key that nothing echoes is no silence; a link that stays silent ends the session \
-     about 30 s after its last frame. With --direct there is none yet.",
+     about 30 s after its last frame. With --direct, and on a road that tells no silence of its own, \
+     the question is SSH's: with a key, podssh sends a keepalive that asks for a reply \
+     (keepalive@openssh.com), and the reply, even a failure, or any byte of the session answers it; \
+     through -J, the target's own, through the hop.",
     "iroh:TICKET, or user@iroh:TICKET, reaches a node of the iroh road (see podssh node), in a build with \
      the feature iroh. The ticket is the address that the node prints, not a credential: the node lets in \
      only the client keys of its allowlist. This client's key is made on first use, in the cache \
