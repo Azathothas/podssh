@@ -177,6 +177,35 @@ async fn credentials_go_in_a_basic_proxy_authorization_header() {
     assert!(head.contains("\r\nProxy-Authorization: Basic dXNlcjpwYXNz\r\n"), "{head}");
 }
 
+/// A `407` names each scheme that the proxy takes, and what podssh can give
+/// of it (T-320).
+#[tokio::test]
+async fn a_407_names_what_the_proxy_asks_for() {
+    let refused = |reply: &'static str, url_credentials: bool| async move {
+        let (proxy, _seen) = stand_in_proxy(reply).await;
+        let proxy =
+            if url_credentials { HttpProxy::parse(&format!("http://user:pass@{proxy}")).unwrap() } else { proxy };
+        dial("example.com", 22, &ProxyChoice::Via(proxy), Duration::from_secs(5)).await.unwrap_err().to_string()
+    };
+    let ntlm = "HTTP/1.1 407 Proxy Authentication Required\r\nProxy-Authenticate: NTLM\r\n\
+                proxy-authenticate: Negotiate\r\nContent-Length: 0\r\n\r\n";
+    let err = refused(ntlm, true).await;
+    assert!(
+        err.contains("407 Proxy Authentication Required; it asks for NTLM and Negotiate, and podssh sends Basic only"),
+        "{err}"
+    );
+    // Two challenges in one header, a parameter with a comma in its quotes.
+    let basic = "HTTP/1.1 407 Proxy Authentication Required\r\n\
+                 Proxy-Authenticate: Basic realm=\"corp, east wing\", Digest realm=\"x\", qop=\"auth\"\r\n\r\n";
+    let err = refused(basic, false).await;
+    assert!(err.contains("it asks for Basic and Digest, and podssh sent none: put them in the proxy URL"), "{err}");
+    let err = refused(basic, true).await;
+    assert!(err.contains("and refused the user and password of the proxy URL (Basic)"), "{err}");
+    // No header: the reason as the proxy gave it.
+    let err = refused("HTTP/1.1 407 Proxy Authentication Required\r\n\r\n", false).await;
+    assert!(err.ends_with("407 Proxy Authentication Required"), "{err}");
+}
+
 #[tokio::test]
 async fn a_refusal_carries_the_status_and_the_proxys_reason() {
     let (proxy, _seen) = stand_in_proxy("HTTP/1.1 403 not on the egress allowlist\r\n\r\n").await;

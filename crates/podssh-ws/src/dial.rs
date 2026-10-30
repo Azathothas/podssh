@@ -375,6 +375,12 @@ async fn connect_via(
     if (200..300).contains(&status) {
         Ok(stream)
     } else {
+        // A 407 says why with the schemes that the proxy takes (T-320).
+        let reason = if status == 407 {
+            crate::proxy_auth::explain(&reason, &head, proxy.credentials().is_some())
+        } else {
+            reason
+        };
         Err(DialError::ProxyRefused { proxy: proxy_name, target, status, reason })
     }
 }

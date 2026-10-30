@@ -67,8 +67,8 @@ GitHub #2, not verified here: the relay's `/trace` dials `[V6]:8079`.
 4. `podssh proxy` (`crates/podssh-cli/src/proxy.rs:203-213`): `HOST PORT` takes
    a bare literal (the `%h %p` form) or `[V6]`. One word takes `[V6]:PORT` and
    refuses `V6:PORT`: `2001:db8::1:22` is itself an address. Reuse the rule of
-   `split_host_port` (`crates/podssh-ws/src/dial.rs:441-460`).
-5. Messages use `podssh_ws::dial::authority` (`crates/podssh-ws/src/dial.rs:421-428`),
+   `split_host_port` (`crates/podssh-ws/src/dial.rs:447-466`).
+5. Messages use `podssh_ws::dial::authority` (`crates/podssh-ws/src/dial.rs:427-434`),
    not `host:port` (`crates/podssh-cli/src/ssh/transport.rs:106`,
    `crates/podssh-cli/src/proxy.rs:131`, where it is used since this entry). `known_hosts` keeps the literal as
    typed: `host_name` writes `[V6]:PORT` as OpenSSH does

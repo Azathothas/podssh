@@ -712,7 +712,7 @@ once (`crates/podssh-relay/src/open.rs:70`) and gives exit 78 in `podssh proxy`
    user and password of RFC 1929, each of 1 to 255 bytes; CONNECT with the address type 3, the
    host name, so the client needs no DNS (`crates/podssh-ws/src/dial.rs:6-9`). Read exactly the
    length of the reply: the bytes after it belong to TLS, as `read_head_exact` keeps them
-   (`:382-405`). Bound each step.
+   (`:388-411`). Bound each step.
 3. When the proxy answers 0x08 (address type not supported), resolve the name in podssh's own
    order (pinned, system, DNS over HTTPS), and try once with the address.
 4. Map each answer to the HTTP case that `another_host_may_help`
@@ -1269,7 +1269,7 @@ and enterprise proxies ask for each of them.
 **Milestone:** backlog
 **Priority:** P3
 **Effort:** S
-**Status:** open
+**Status:** done
 
 ## Problem
 
@@ -1297,6 +1297,25 @@ cargo test -p podssh-ws --test dial
 Against a stand-in proxy that answers `407` with `Proxy-Authenticate: NTLM`
 and `Negotiate`, the message names both and says that podssh sends Basic
 only. Planted: the header not read; the test fails.
+
+## Done
+
+2026-10-30. On a `407`, the reason names each scheme of the
+`Proxy-Authenticate` headers, once each and in order, two challenges in one
+header and a comma inside a quoted parameter included, and says what podssh
+can give: with a proxy that takes no Basic, that podssh sends Basic only;
+with Basic and no user in the URL, how to give one; with Basic and the
+URL's user and password sent, that the proxy refused them
+(`crates/podssh-ws/src/proxy_auth.rs`, from `connect_via` in
+`crates/podssh-ws/src/dial.rs`). `doctor`'s CONNECT lines print the same
+error.
+
+- Linux, 2026-10-30: `cargo test -p podssh-ws --test dial`, 16 passed (NTLM
+  and Negotiate in two headers; Basic with a quoted realm and Digest in one,
+  with and without the URL's credentials; a 407 with no header); `cargo test
+  -p podssh-ws`, 214 passed; clippy and rustfmt clean.
+- Planted: the header not read; the test failed; restored, it passed.
+- Not measured: a real NTLM proxy.
 
 # T-324: `doctor` tells the three failures of the upgrade apart, and samples each probe
 

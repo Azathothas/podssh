@@ -25,6 +25,7 @@ pub mod names;
 #[cfg(feature = "plain-ws")]
 pub mod plain;
 pub mod proxy;
+mod proxy_auth;
 pub mod resolve;
 pub mod session;
 mod socks5;
