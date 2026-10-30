@@ -669,10 +669,13 @@ uploads it.
 - Windows binaries for x86_64 and ARM64 with a static C runtime, with a
   check (`dumpbin /headers /dependents`) of the machine, and that each
   needs no C runtime DLL;
+- each binary names the commit of its build in `--version` (the workflow
+  gives `PODSSH_BUILD_COMMIT` to the compiler; T-210);
 - each binary then runs on its own platform the short form of the release
   check, `scripts/release-short.sh BINARY --net`: `--version` against
-  `Cargo.toml`, the whole manual, `keygen` and `keygen -y`, and GitHub's SSH
-  banner through the live relay. No target ships that no run executed.
+  `Cargo.toml` and the commit, the whole manual, `keygen` and `keygen -y`,
+  and GitHub's SSH banner through the live relay. No target ships that no
+  run executed.
 
 To build and check the binaries without a release, run the workflow by hand:
 
@@ -690,13 +693,29 @@ To publish a release:
 2. Push the tag `vX.Y.Z` or `vX.Y.Z-pre`. A tag with a suffix (`-beta.1`)
    becomes a prerelease. Where git may not push a tag (a Claude Code cloud
    session answers HTTP 403), run the workflow by hand with the input
-   `publish` set to the tag: the same jobs, then the release, and the tag
-   made at the commit that the run built, once (the run fails when the tag
-   exists).
-3. The workflow adds `SHA256SUMS` and publishes the release. Its body is
-   the notes file, then the list of the commits since the previous tag:
-   each commit, grouped by its subject (`cliff.toml`, read by a pinned
-   git-cliff). No `CHANGELOG.md` is kept in the tree: git holds the history.
+   `publish` set to the tag:
+
+   ```sh
+   gh workflow run release.yml --ref main -f publish=vX.Y.Z
+   ```
+
+   That run builds nothing: its job `tag` makes the tag at the commit that
+   the run was started on, once (it fails when the tag exists), and starts
+   the workflow by hand on the tag, as a tag that the job's token pushes
+   starts no workflow. The run on the tag builds, attests, signs and
+   publishes.
+3. On the tag, the workflow adds `SHA256SUMS`, attests the provenance of
+   each binary (`actions/attest`, one attestation of SLSA for all of them,
+   T-210), signs `SHA256SUMS` with Sigstore's keyless signing (`cosign
+   sign-blob`, T-211), checks the signature with the identity of the
+   workflow at the tag, and checks that a changed copy and a branch's
+   identity fail. It publishes the binaries, `SHA256SUMS`,
+   `SHA256SUMS.sigstore.json` and `provenance.sigstore.json` (the bundle of
+   the attestation). The body is the notes file, then the list of the
+   commits since the previous tag: each commit, grouped by its subject
+   (`cliff.toml`, read by a pinned git-cliff). No `CHANGELOG.md` is kept in
+   the tree: git holds the history. A run by hand on a branch makes no
+   proof: its identity would name the branch.
 
 The list can be read at any time, as an artifact named `changes`; the run
 also checks that no commit is dropped:
@@ -715,4 +734,5 @@ from end to end with no human (T-251) runs before the tag, on the gate's
 artifact of the last push and a local build; then `v1.0.0` is tagged once,
 and the check runs again on the published files. A tag never moves: a defect
 found after a tag goes into the next beta, or into `v1.0.1`. From T-210 and
-T-211 on, each release also has provenance and Sigstore signatures.
+T-211 on (`v1.0.0-beta.2`), each release also has provenance and Sigstore
+signatures; the README tells how to check them.

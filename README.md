@@ -73,7 +73,27 @@ podssh --TLS 1.3 + WebSocket, port 443--> relay --TCP--> sshd (or another TCP se
    `podssh-aarch64-pc-windows-msvc.exe` (Windows on ARM). The Mac binaries
    are not signed with a Developer ID: fetch them with `curl`, as above,
    which marks no quarantine; after a browser's download, run
-   `xattr -d com.apple.quarantine FILE` first.
+   `xattr -d com.apple.quarantine FILE` first. The Windows binaries are not
+   signed either, and SmartScreen may warn about them.
+
+   From `v1.0.0-beta.2` on, the release workflow also proves where each
+   binary comes from. `podssh --version` names the commit of the tag. The
+   provenance of each binary names the workflow and the commit (with the
+   GitHub CLI):
+
+   ```sh
+   gh attestation verify "$B" --repo Azathothas/podssh \
+     --signer-workflow Azathothas/podssh/.github/workflows/release.yml --source-ref "refs/tags/$T"
+   ```
+
+   And `SHA256SUMS` is signed by the workflow at the tag (with cosign 3.x):
+
+   ```sh
+   curl -fsSLO "https://github.com/Azathothas/podssh/releases/download/$T/SHA256SUMS.sigstore.json"
+   cosign verify-blob --bundle SHA256SUMS.sigstore.json \
+     --certificate-identity "https://github.com/Azathothas/podssh/.github/workflows/release.yml@refs/tags/$T" \
+     --certificate-oidc-issuer https://token.actions.githubusercontent.com SHA256SUMS
+   ```
 2. Run `podssh doctor`. It tells what the host allows and whether the full
    path works: one `ok`, `FAIL` or `????` line for each check (`????` is a
    check that could not run). It exits 1 if a check failed.

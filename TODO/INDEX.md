@@ -62,15 +62,15 @@ repository and CI).
 
 ## Counts
 
-**324 entries: 27 open, 2 partial, 28 blocked, 267 done.**
+**324 entries: 26 open, 3 partial, 28 blocked, 267 done.**
 
 | Priority | open | partial | blocked | done | total |
 | --- | --- | --- | --- | --- | --- |
 | P0 | 0 | 0 | 0 | 1 | 1 |
 | P1 | 2 | 0 | 0 | 24 | 26 |
-| P2 | 2 | 2 | 19 | 142 | 165 |
+| P2 | 1 | 3 | 19 | 142 | 165 |
 | P3 | 23 | 0 | 9 | 100 | 132 |
-| **All** | 27 | 2 | 28 | 267 | 324 |
+| **All** | 26 | 3 | 28 | 267 | 324 |
 
 ## Entries
 
@@ -283,7 +283,7 @@ repository and CI).
 | [T-208](repo.md) | P2 | S | none | chore | done | A changelog from the commits, and release notes from it (GitHub #27) |
 | [T-209](repo.md) | P2 | S | none | chore | done | Secret scanning with TruffleHog in CI (GitHub #27) |
 | [T-210](repo.md) | P2 | S | M9 | release | partial | Build provenance for each release binary |
-| [T-211](repo.md) | P2 | S | M9 | release | open | Signed checksums for each release |
+| [T-211](repo.md) | P2 | S | M9 | release | partial | Signed checksums for each release |
 | [T-212](repo.md) | P2 | M | none | chore | done | Parallel CI, with the gate as the one source |
 | [T-213](repo.md) | P2 | M | none | chore | blocked | CI runs the box like the target sandbox |
 | [T-214](repo.md) | P2 | M | none | chore | done | CI on Windows |

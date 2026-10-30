@@ -5,7 +5,9 @@
 # key again from the private key. With --net, it also reads GitHub's SSH
 # banner through the live relay (podssh proxy github.com 22), a test target
 # of AGENTS.md. No target ships that no run executed. The key is a
-# throwaway, made in a directory of this run and removed with it.
+# throwaway, made in a directory of this run and removed with it. Where
+# PODSSH_BUILD_COMMIT names the commit of the build (the release's builds,
+# T-210), the binary must name it in --version; else it may name a commit.
 #
 #   sh scripts/release-short.sh target/release/podssh [--net]
 #
@@ -30,7 +32,15 @@ fail() {
 want=$(tr -d '\r' < Cargo.toml | sed -n '/^\[workspace.package\]/,/^\[/s/^version = "\(.*\)"$/\1/p')
 [ -n "$want" ] || fail "no version in Cargo.toml"
 got=$("$bin" --version | tr -d '\r') || fail "--version failed"
-[ "$got" = "podssh $want" ] || fail "the binary prints \"$got\", not \"podssh $want\""
+commit=${PODSSH_BUILD_COMMIT:-}
+if [ -n "$commit" ]; then
+    [ "$got" = "podssh $want ($commit)" ] || fail "the binary prints \"$got\", not \"podssh $want ($commit)\""
+else
+    case "$got" in
+        "podssh $want" | "podssh $want ("*")") ;;
+        *) fail "the binary prints \"$got\", not \"podssh $want\"" ;;
+    esac
+fi
 echo "ok   --version: $got"
 
 dir=$(mktemp -d "${TMPDIR:-/tmp}/podssh-release-short.XXXXXX") || fail "no scratch directory"

@@ -99,8 +99,8 @@ Read:
 - The workflows use four actions, each by a major tag:
   `actions/checkout@v5` (`.github/workflows/build.yml` line 30 at `7c70aa7`),
   `actions/upload-artifact@v7` (`.github/workflows/build.yml:89`),
-  `actions/download-artifact@v8` (`.github/workflows/release.yml:286`) and
-  `ilammy/setup-nasm@v1` (`.github/workflows/release.yml:107`).
+  `actions/download-artifact@v8` (`.github/workflows/release.yml:334`) and
+  `ilammy/setup-nasm@v1` (`.github/workflows/release.yml:149`).
 - The build image is a variable in two workflows and in a shell script
   (`.github/workflows/build.yml` line 15 at `19ca632`, `.github/workflows/release.yml` line 23 at `19ca632` and
   `scripts/dev.sh` line 60 at `e1ba5ba`). Dependabot's docker ecosystem reads the `FROM` lines
@@ -211,7 +211,7 @@ Read:
   `.github/workflows/release.yml` line 23 and `scripts/dev.sh` line 60, both at `e1ba5ba`. No check makes
   them equal.
 - The release builds aarch64 on an arm64 runner
-  (`.github/workflows/release.yml:48-49`). So the pin must be the digest of
+  (`.github/workflows/release.yml:91-92`). So the pin must be the digest of
   the multi-platform index, not the digest of one platform's image.
 - The box uses two more moving tags, `alpine:3.20` and `python:3.12-alpine`
   (`scripts/test_in_box.sh` lines 39-40 at `e1ba5ba`).
@@ -430,7 +430,7 @@ previous release, so a change that the notes forget is invisible to a user.
 Read:
 
 - The job `publish` reads the notes from `docs/releases/`, and fails without
-  them (`.github/workflows/release.yml:344-348`).
+  them (`.github/workflows/release.yml:427-431`).
   No notes file exists yet; T-250 writes the first. The notes drafted for a
   beta that the operator dropped are in git:
   `git show b1b111b:docs/releases/v0.1.0-beta.1.md`.
@@ -670,9 +670,9 @@ Measured: `target/debug/podssh.exe --version` prints `podssh 0.1.0`, exit 0.
 Read:
 
 - The jobs `linux` and `windows` build the binaries, and `publish` adds
-  `SHA256SUMS` and publishes them (`.github/workflows/release.yml:39-391`).
-  The workflow has `contents: read` (`:36-37`); `publish` adds
-  `contents: write` (`:279-280`).
+  `SHA256SUMS` and publishes them (`.github/workflows/release.yml:47-470`).
+  The workflow has `contents: read` (`:39-40`); `publish` adds
+  `contents: write` (`:325-326`).
 - The KTM tester could not tell from an artifact which commit made it, and
   moved the checkout one commit ahead (the KTM report, section 1a; read in
   the report).
@@ -703,12 +703,30 @@ for all the binaries (`subject-path: dist/podssh-*`), not in each of `linux` and
 says. It satisfies the Prove, makes one attestation that names every subject, and keeps
 `id-token: write` out of the jobs that run the project's build scripts. The job `publish` builds no
 crate: `cargo-about` and `git-cliff` come as release binaries
-(`.github/workflows/release.yml:295` says "tool: cargo-about@0.9.2"). Lost: attesting in each build
+(`.github/workflows/release.yml:343` says "tool: cargo-about@0.9.2"). Lost: attesting in each build
 job, with its own `id-token: write` where the build scripts of every dependency run, and one
 attestation for each binary. The attest step runs on a tag only (`if: startsWith(github.ref,
 'refs/tags/v')`), as item 1 says, so that a run by hand makes none; and it comes before `gh release
 create`, so that a failure stops before anything is published. The action is `actions/attest`, not
 `actions/attest-build-provenance` (see the Correction).
+
+2026-10-30, the calls of the session that wrote it:
+
+- The tag's own run makes the proofs. A session whose git may not push a tag releases by a run by
+  hand with the input `publish`; that run now only makes the tag (the job `tag`) and starts the
+  workflow by hand on the tag (`gh workflow run release.yml --ref TAG`), as a tag that the job's
+  token pushes starts no workflow, and a dispatch does (GitHub's documentation of `GITHUB_TOKEN`).
+  The run on the tag builds, attests and publishes, so that each proof names the workflow at the
+  tag. Lost: the proofs in the run on `main`, whose identity names `refs/heads/main`, which T-211's
+  item 3 forbids; and a personal token that pushes the tag, a long-term credential in the
+  repository's secrets.
+- The attestation's bundle is published beside the files, as `provenance.sigstore.json`, for a
+  check with `--bundle` (the Correction left it to this entry).
+- `actions/attest` and `sigstore/cosign-installer` are pinned by commit, as item 1 asks; the
+  other actions keep their major tags, as the workflow does.
+- The steps run first in a trial workflow by hand on a throwaway file (`sigstore-trial.yml`), as
+  T-218 tried each target: a first failure at a tag would leave a tag with no release, and a tag
+  never moves.
 
 ## Prove
 
@@ -735,7 +753,7 @@ github.com when the workflow is written). The Approach names `actions/attest-bui
   `actions/attest` v4.2.2 (commit `1e69f48acb82d1966a394da916b4c1698aa569d6`), pinned by that commit,
   as item 1 asks. (The wrapper is at commit `4d101475d8b20a2381f78447822ac1eab6504dd8`.)
 - Permissions for a binary (GitHub documentation): `id-token: write`, `contents: read` and
-  `attestations: write`. `publish` has `contents: write` today (`.github/workflows/release.yml:280`
+  `attestations: write`. `publish` has `contents: write` today (`.github/workflows/release.yml:326`
   says "contents: write"), which includes the read. The README of `actions/attest` also lists
   `artifact-metadata: write`, "necessary to create the artifact storage record"; that record needs
   `push-to-registry: true`, which is for images, so a file subject does not need it (Inferred): add
@@ -753,7 +771,7 @@ github.com when the workflow is written). The Approach names `actions/attest-bui
   --custom-trusted-root trusted_root.jsonl` (the root from `gh attestation trusted-root`). With
   `--bundle` the repository name is checked against the certificate only, so a renamed repository is
   not caught. The job can copy `bundle-path` into `dist/` for the user (this entry decides).
-- `actions/download-artifact@v8`, already in the job (`.github/workflows/release.yml:286`), fails by
+- `actions/download-artifact@v8`, already in the job (`.github/workflows/release.yml:334`), fails by
   default when the digest of a file differs from what the build job uploaded ("Hash mismatches will
   now error by default", v8.0.0): that is a gain for the chain of custody here, with no change.
 - Optional, and the operator's call: immutable releases (a setting of the repository) lock the tag
@@ -795,9 +813,19 @@ names its commit.
   names read as variables, and both tests of the drift reader failed (`PODSSH_BUILD_COMMIT`
   "read but not in ENVIRONMENT").
 
-Next: the workflow sets `PODSSH_BUILD_COMMIT` in each build job, and the short check requires
-it in `--version`; then the attestation of item 1 in the job `publish`, and items 2 and 4 in the
-README and the notes. The Prove runs at the tag of `v1.0.0-beta.2`.
+The workflow's part (2026-10-30): `release.yml` gives `PODSSH_BUILD_COMMIT: ${{ github.sha }}`
+to each build (a container with `-e`), the linux job requires `podssh VERSION (COMMIT)`, and
+`scripts/release-short.sh` requires the commit where the variable names it, and else takes a
+version with or without one. Here, on a build with the commit and one without: the five cases
+(no commit and none named; the same commit named; a commit and none named; planted, no commit
+where one is named, and another commit named) gave ok, ok, ok, fail, fail. The job `publish`
+attests `dist/podssh-*` on a tag (`actions/attest` v4.2.2, pinned by commit) and publishes the
+bundle as `provenance.sigstore.json`; the README tells how to check it (`gh attestation verify
+--signer-workflow ... --source-ref refs/tags/TAG`) and that the Windows binaries are not signed
+(item 4). actionlint clean.
+
+Next: the trial's run (`sigstore-trial.yml`), the dry run of `release.yml` with the commit, then
+the Prove at the tag of `v1.0.0-beta.2`, whose notes say how to check.
 
 
 # T-211: Signed checksums for each release
@@ -808,7 +836,7 @@ released binaries (checksums).
 **Milestone:** M9
 **Priority:** P2
 **Effort:** S
-**Status:** open
+**Status:** partial
 
 ## Problem
 
@@ -820,9 +848,9 @@ the release workflow of podssh.
 
 Read:
 
-- `.github/workflows/release.yml:302-307` writes `SHA256SUMS` with
-  `sha256sum`, and `.github/workflows/release.yml:370-382` publishes it with
-  the binaries. No signature is published.
+- `.github/workflows/release.yml:350-355` writes `SHA256SUMS` with
+  `sha256sum`, and the job published it with the binaries (lines 370-382 at
+  `cdf9308`). No signature was published.
 - The notes drafted for the dropped beta told the user that `SHA256SUMS`
   holds the sums (`git show b1b111b:docs/releases/v0.1.0-beta.1.md`, line 81 at `b1b111b`). `README.md:56-57` gives no step to check a download.
 - AGENTS.md, section 4: a private key is a credential. The repository has no
@@ -850,6 +878,11 @@ no key can leak or need rotation, and the signature names the workflow and
 the tag. minisign lost: its private key would be a long-term credential in
 the secrets of the repository, although its check works offline with one
 small tool. GPG lost for the same reason, and for its weight.
+
+2026-10-30: the signature is made in the run on the tag, as T-210's Decision of that day says, so
+that its identity is `https://github.com/Azathothas/podssh/.github/workflows/release.yml@refs/tags/TAG`
+and a run by hand on `main` signs nothing. The README gives the exact identity of a tag, not the
+regexp: a user checks one release.
 
 ## Prove
 
@@ -884,7 +917,7 @@ Approach, and disproves no Premise.
   deprecated, hidden flag in v3.1.4: do not pass it with v3 (it is needed only with v2.6.x). `--yes`
   skips the prompts, and CI needs it. The keyless signing takes the job's own OIDC token, so the job
   needs `id-token: write`; give `publish` that and `attestations: write` for T-210, beside
-  `contents: write` (`.github/workflows/release.yml:280` says "contents: write"). The convention for
+  `contents: write` (`.github/workflows/release.yml:326` says "contents: write"). The convention for
   the bundle's name is `*.sigstore.json` (https://docs.sigstore.dev/cosign/signing/signing_with_blobs/).
 - The identity. The certificate's subject alternative name is `https://github.com/{job_workflow_ref}`
   (https://github.com/sigstore/fulcio/blob/main/docs/oidc.md), so for a tag
@@ -912,6 +945,21 @@ Approach, and disproves no Premise.
   the notes until a test says more; the first run of this entry tests it with cosign 2.6.5 if it can.
 - Open: whether `actions/attest` needs `artifact-metadata: write` for file subjects (T-210's
   Correction reads that it does not); and whether to switch on immutable releases, the operator's call.
+
+## Done
+
+2026-10-30, partial. The job `publish` of `release.yml`, on a tag only: after the sums, cosign
+v3.1.4 (installed by `sigstore/cosign-installer` v4.1.2, pinned by commit) signs `SHA256SUMS`
+with Sigstore's keyless signing and the job's token (`cosign sign-blob --yes --bundle
+SHA256SUMS.sigstore.json`), then checks it with the identity of the workflow at the tag, and
+fails unless a copy with one hex digit changed and the identity of `refs/heads/main` are both
+refused; all before `gh release create`, which publishes the bundle with the files. The README
+gives the check (`cosign verify-blob` with the identity and the issuer), after `sha256sum -c`;
+`docs/development.md` tells the release's steps. actionlint clean.
+
+Next: the trial's run (`sigstore-trial.yml`, which also reads whether cosign 2.6.5 checks the
+bundle of cosign 3), then the Prove at the tag of `v1.0.0-beta.2`.
+
 
 # T-212: Parallel CI, with the gate as the one source
 
@@ -1145,7 +1193,7 @@ so the job of this entry must have both; nobody measured a runner for them.
 # T-214: CI on Windows
 
 **Source:** the triage of GitHub #27 (2026-10-08). Windows is a released
-platform (`.github/workflows/release.yml:202-271`).
+platform (`.github/workflows/release.yml:246-316`).
 **Category:** chore
 **Milestone:** none
 **Priority:** P2
@@ -1165,7 +1213,7 @@ machine.
 Read:
 
 - `.github/workflows/build.yml` lines 17-19 at `e892b0f`: one job, on `ubuntu-latest`.
-- `.github/workflows/release.yml:202-271`: the Windows job installs NASM
+- `.github/workflows/release.yml:246-316`: the Windows job installs NASM
   (line 76), builds, and checks for C runtime DLLs (lines 86-101); it runs no
   test.
 - `docs/STATUS.md` line 230 at `9966ed4`: the default tests pass on Windows,
@@ -1447,8 +1495,8 @@ Read:
   AND Apache-2.0 AND MIT AND BSD-3-Clause AND ..."; webpki-roots 1.0.9
   CDLA-Permissive-2.0; russh 0.64.1 Apache-2.0.
 - BSD-3-Clause and Apache-2.0 ask that a binary copy carries the notices. The
-  release publishes the binaries and `SHA256SUMS` only
-  (`.github/workflows/release.yml:302-382`).
+  release publishes the binaries and `SHA256SUMS` only (lines 108-136 at
+  `22c3b88`).
 - The fork already has a configuration for cargo-deny
   (`vendor/tailscale-rs/deny.toml:1-35`): an allow list of licenses, one
   ignored advisory with its reason, crates.io only.
@@ -1673,12 +1721,12 @@ with a C toolchain for aws-lc.
 
 Read:
 
-- `.github/workflows/release.yml:45-49`: x86_64 and aarch64 musl, each on a
-  native runner in `rust:1-alpine`. `.github/workflows/release.yml:202-271`:
+- `.github/workflows/release.yml:88-92`: x86_64 and aarch64 musl, each on a
+  native runner in `rust:1-alpine`. `.github/workflows/release.yml:246-316`:
   Windows x86_64 with a static C runtime.
 - The check of each platform: `readelf` for `NEEDED` and `INTERP`
-  (`.github/workflows/release.yml:71-78`), `dumpbin /dependents` on Windows
-  (`:238-263`).
+  (`.github/workflows/release.yml:114-121`), `dumpbin /dependents` on Windows
+  (`:283-308`).
 - The binary needs a C compiler for aws-lc (`docs/development.md:12-15`); the
   library crates need none.
 - Some code reads facts of Linux. The terminal check reads `tty_nr` from
@@ -1712,7 +1760,7 @@ Recommendation: build each new Linux target in the image family of the gate
 under QEMU, where that image exists for the platform, so that there is one
 toolchain. `cross` and `cargo-zigbuild` lost: each brings a second C
 toolchain that the gate never judged. Measure the build time first: QEMU is
-slow, and the job limit is 60 min (`.github/workflows/release.yml:51`).
+slow, and the job limit is 60 min (`.github/workflows/release.yml:94`).
 
 2026-10-30, the calls of this entry's session:
 
@@ -1815,7 +1863,7 @@ leaves armv7 out of the Decision; the plan below takes Alpine's own toolchain fo
   needs `-Wno-string-compare` with GCC 11; Alpine's GCC is newer (not needed: Inferred). Plan B:
   `ghcr.io/cross-rs/riscv64gc-unknown-linux-musl:main` (musl GCC and qemu inside).
 - The job's own limit. `timeout-minutes: 60` is the repository's choice
-  (`.github/workflows/release.yml:51` says "timeout-minutes: 60"); GitHub's limit for a hosted job is 6
+  (`.github/workflows/release.yml:94` says "timeout-minutes: 60"); GitHub's limit for a hosted job is 6
   hours. Set the QEMU jobs up to 360 for the first measurement, and lower it to the measured time.
 - Public repositories: the standard hosted runners are free and unlimited; the Linux and Windows arm64
   runners (4 vCPU) are generally available for them (changelog of 2025-08-07).
@@ -3074,7 +3122,7 @@ Read: each image is pinned to a digest in its Dockerfile
 the reference to `docker run`, which pulls from Docker Hub (now
 `.github/workflows/secrets.yml:70`, `.github/workflows/secrets.yml:84`,
 `.github/workflows/build.yml:75-79`, `.github/workflows/build.yml:108-111`
-and `.github/workflows/release.yml:67-70`). Measured on 2026-10-09, each
+and `.github/workflows/release.yml:110-113`). Measured on 2026-10-09, each
 manifest asked for by its digest: Google's mirror of Docker Hub
 (`mirror.gcr.io`) serves both images, the GitHub registry serves the
 scanner, and Amazon's gallery of the official images
