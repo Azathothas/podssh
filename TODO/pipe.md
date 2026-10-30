@@ -72,7 +72,7 @@ the verb, the address grammar, the copy loop, and the local addresses `-`,
    (`crates/podssh-cli/src/man/examples.rs:8-195`; its test at
    `crates/podssh-cli/src/man/examples.rs:318-337` learns the new variant),
    `docs/design.md:823-832`, `docs/STATUS.md`. Each file stays under 500
-   lines (`AGENTS.md:254-255`).
+   lines (`AGENTS.md:256-257`).
 
 ## Decision
 
@@ -352,7 +352,7 @@ never answers, and the test fails at its limit of 10 s.
 ## Correction
 
 2026-10-10: the Prove's "On Windows, the address exits 64" was written
-before the operator's ruling of 2026-10-08 (Q24, `docs/decisions.md:24`),
+before the operator's ruling of 2026-10-08 (Q24, `docs/decisions.md:27`),
 which step 4 of the Approach follows: on Windows, `unix-connect:` reaches
 an AF_UNIX socket or a named pipe (`\\.\pipe\NAME`), each tried when the
 pipe starts. So the Prove on Windows is the one of Unix, through an AF_UNIX

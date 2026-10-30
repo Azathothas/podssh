@@ -239,10 +239,12 @@ These rules come from [docs/decisions.md](docs/decisions.md).
    Probe it at runtime. Do not use a capability that was not probed.
 2. Make one outbound connection, through `HTTPS_PROXY` when it is set. Do
    not bind, listen, or use loopback helpers. (`podssh doctor` binds a
-   socket to test the host, and closes it without listening.) Two
-   exceptions, by the decisions of 2026-10-08: a listener that the user asks
-   for, when a probe at run time allows the bind; and a race between relay
-   hosts, which can open a second connection for a short time.
+   socket to test the host, and closes it without listening.) Three
+   exceptions: by the decisions of 2026-10-08, a listener that the user asks
+   for, when a probe at run time allows the bind, and a race between relay
+   hosts, which can open a second connection for a short time; by the
+   decision of 2026-10-30 (Q44), the split HTTP road, which carries a
+   session on two connections where a probe found the upgrade refused.
 3. Do not use `LD_PRELOAD` or shims in other processes. Start another
    program only when the user names it (`SSH_ASKPASS`, `PAGER`) or a probe
    found it (`less` for `podssh man` on a terminal). A tty in user space for

@@ -57,20 +57,20 @@ repository and CI).
 6. An entry that waits for a measurement in a real sandbox is done in one
    session with the other entries of that kind.
 7. The entries that wait for the relay's operator are skipped: T-086,
-   T-106, T-169, T-173, T-180, T-226, T-253, T-255, T-321, T-325 and
-   T-326.
+   T-106, T-169, T-173, T-180, T-226, T-253, T-255, T-319, T-321, T-325
+   and T-326.
 
 ## Counts
 
-**323 entries: 26 open, 1 partial, 29 blocked, 267 done.**
+**324 entries: 28 open, 1 partial, 28 blocked, 267 done.**
 
 | Priority | open | partial | blocked | done | total |
 | --- | --- | --- | --- | --- | --- |
 | P0 | 0 | 0 | 0 | 1 | 1 |
 | P1 | 2 | 0 | 0 | 24 | 26 |
 | P2 | 3 | 1 | 19 | 142 | 165 |
-| P3 | 21 | 0 | 10 | 100 | 131 |
-| **All** | 26 | 1 | 29 | 267 | 323 |
+| P3 | 23 | 0 | 9 | 100 | 132 |
+| **All** | 28 | 1 | 28 | 267 | 324 |
 
 ## Entries
 
@@ -372,7 +372,7 @@ repository and CI).
 | [T-297](copy.md) | P3 | M | backlog | feature | done | `cp --parallel K` copies several small files at once |
 | [T-298](copy.md) | P3 | S | backlog | feature | done | `sftp`'s `-r`: `get -r` and `put -r` of a directory |
 | [T-299](roads.md) | P3 | S | backlog | measurement | done | The quick tunnel's edge, measured: its ports through a proxy and the relay, and a captured registration |
-| [T-300](roads.md) | P3 | L | backlog | feature | blocked | `podssh node` publishes a quick tunnel over HTTP/2, with no `cloudflared` |
+| [T-300](roads.md) | P3 | L | backlog | feature | open | `podssh node` publishes a quick tunnel over HTTP/2, with no `cloudflared` |
 | [T-301](roads.md) | P3 | M | backlog | feature | open | The quick tunnel over QUIC, where a probe finds UDP |
 | [T-302](resume.md) | P3 | M | backlog | feature | open | A notice in the terminal while the far end is silent |
 | [T-303](resume.md) | P3 | L | backlog | feature | open | The latest screen on request: frames that let Ctrl-C show within a round trip |
@@ -398,4 +398,5 @@ repository and CI).
 | [T-324](ws.md) | P3 | M | backlog | feature | done | `doctor` tells the three failures of the upgrade apart, and samples each probe |
 | [T-325](ws.md) | P3 | M | backlog | feature | blocked | `doctor` measures what the path does to a stream: buffering, a cap on bodies, an idle limit |
 | [T-326](ws.md) | P3 | M | backlog | feature | blocked | A cleartext road on port 443, probed after the TLS road fails |
-| [T-327](config.md) | P3 | M | backlog | feature | blocked | `podssh config import` from mRemoteNG, FinalShell and Termius |
+| [T-327](config.md) | P3 | M | backlog | feature | open | `podssh config import` from mRemoteNG |
+| [T-328](config.md) | P3 | M | backlog | feature | blocked | `podssh config import` from FinalShell and Termius |

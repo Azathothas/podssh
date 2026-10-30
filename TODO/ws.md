@@ -1556,6 +1556,12 @@ no probe for it.
    ruled on the token in cleartext (Q45); `doctor` names which road on 443
    answered, and tells a refusal by policy (403) from a reset.
 
+## Decision
+
+2026-10-30, the operator (Q45, `docs/decisions.md`): the road is allowed,
+tried only after the TLS road failed, with a relay token minted for that
+one session and never cached; `doctor` names the road that answered.
+
 ## Prove
 
 ```sh
@@ -1570,5 +1576,4 @@ test fails.
 ## Blocker
 
 The relay's operator: an endpoint that takes the upgrade in cleartext on
-port 443 (Cloudflare's edge serves TLS there). The operator: whether the
-relay's token may cross a hop in cleartext (Q45, `TODO/PROGRESS.md`).
+port 443 (Cloudflare's edge serves TLS there).

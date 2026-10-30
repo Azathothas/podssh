@@ -683,7 +683,7 @@ whole file in memory, for any total that the offer gives (`crates/podssh-core/sr
 2. `ack(target)`: name the chunk just accepted, by count, and send it to the transfer's target.
 3. In `accept`, check the index before the bytes go into the file.
 4. Limit the receiver's memory: a size limit from the caller, or a sink that the caller owns. A
-   file is taken only when the user accepts it (`docs/decisions.md:45`).
+   file is taken only when the user accepts it (`docs/decisions.md:48`).
 5. Update `docs/irc.md`, lines 31-37 at `ab7292d` and `docs/STATUS.md`, line 308 at `ab7292d` in the same commit.
 
 ## Decision
@@ -833,7 +833,7 @@ trailing; the three lines are in the fixture of the grammar.
 **Source:** `docs/ROADMAP.md:244-246`; the operator's ruling of 2026-10-08 on
 chat (`docs/decisions.md`): the roads first, after M6, and IRC as a second
 transport (T-252); the decision of 2026-10-01 that two users on constrained
-hosts chat and share files (`docs/decisions.md:48`).
+hosts chat and share files (`docs/decisions.md:51`).
 **Category:** feature
 **Milestone:** M8
 **Priority:** P2
@@ -852,7 +852,7 @@ the IRC server read, and most public networks refused the relay
 Measured on `3ee70dc`: `podssh chat --timeout 5s </dev/null`, and the same
 with `podssh irc`, exit 70 with "'chat' is not implemented yet; nothing was
 done." Read: podssh executes nothing that it receives and takes no file on
-its own (`docs/decisions.md:45`). The roads exist after M6: the reverse road
+its own (`docs/decisions.md:48`). The roads exist after M6: the reverse road
 (T-078, T-083, T-084), the iroh road (T-162), and end-to-end encryption
 between two podssh ends (T-088). No flag of `chat` names a peer or a server
 today (`crates/podssh-cli/src/flags.rs`, lines 265-277 at `7aa955a`,

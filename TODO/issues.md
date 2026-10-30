@@ -88,8 +88,8 @@ and commits, all in `v1.0.0-beta.1`.
 T-185, T-187. A control surface for agents: T-186; over stdio: T-055.
 Host groups and per-host settings: T-184, T-043. Session recording: T-033.
 Fan-out with an exit rule: T-183. Import and export: T-047, T-292 (PuTTY,
-MobaXterm, Remmina) and T-327 (mRemoteNG, FinalShell, Termius; it waits for
-the operator).
+MobaXterm, Remmina), T-327 (mRemoteNG) and T-328 (FinalShell, Termius; it
+waits for the operator's exports).
 
 **#25, robustness and releases.** A circuit breaker: T-059; the retry policy:
 T-025. Rate limits and quotas: T-169 (in a relay; it waits for the relay's operator), T-114 (in `serve`),

@@ -1693,7 +1693,7 @@ quick tunnel itself (`docs/decisions.md`).
 **Milestone:** backlog
 **Priority:** P3
 **Effort:** L
-**Status:** blocked
+**Status:** open
 
 ## Problem
 
@@ -1746,6 +1746,11 @@ a name: it runs no `cloudflared`.
 Recommendation: a module of `podssh-relay` (no C), with the TLS of `podssh-ws`, and HTTP/2 only;
 QUIC is T-301. The alternative, a crate of its own for Cloudflare, lost while the module is small.
 
+2026-10-30, the operator (Q47, `docs/decisions.md`): build it, as recommended: HTTP/2 only, a
+module of `podssh-relay`, the three roots that `cloudflared` adds beside podssh's own, the
+relay's road to the edge where TCP 7844 is not reached, and its live tests in GitHub Actions only,
+as T-299's. The operator reads Cloudflare's terms as allowing a client other than `cloudflared`.
+
 ## Prove
 
 ```sh
@@ -1759,11 +1764,6 @@ opens a WebSocket stream whose layer reaches a TCP target, with equal digests bo
 the answer's headers in `Cf-Cloudflared-Response-Headers`. A planted node that sends its headers
 unserialized fails it. With the leave of Q43, a live run: a node outside the box, and a client in
 the box through its proxy.
-
-## Blocker
-
-The operator: the call on T-299's result (Q47 in `TODO/PROGRESS.md`), whether podssh builds its
-own connector of a quick tunnel, and with which roads.
 
 ## Start condition
 
@@ -2355,6 +2355,13 @@ container's proxy.
    the probe, not compiled in.
 3. `doctor` names the road that works.
 
+## Decision
+
+2026-10-30, the operator (Q44, `docs/decisions.md`): the split form may open
+its second connection, on this road only, after a probe found the upgrade
+refused; the serial form is its fallback. `AGENTS.md` (section 5, rule 2)
+names it as the third exception.
+
 ## Prove
 
 ```sh
@@ -2368,9 +2375,7 @@ on the serial form. Planted: the sequence number ignored; the digests differ.
 ## Blocker
 
 The relay's operator: the relay has no HTTP endpoints for a session
-(`docs/relay.md`). The operator: the split form opens two connections at once
-for each session, and `AGENTS.md` (section 5, rule 2) allows one outside a
-race of relay hosts (Q44, `TODO/PROGRESS.md`).
+(`docs/relay.md`).
 
 # T-321: An HTTP/2 road: the WebSocket over extended CONNECT (RFC 8441)
 

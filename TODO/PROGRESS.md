@@ -115,7 +115,7 @@ and `CARGO_BUILD_JOBS=4`:
 
 ## Counts
 
-`TODO/INDEX.md` holds 323 entries: 26 open, 1 partial, 29 blocked, 267 done.
+`TODO/INDEX.md` holds 324 entries: 28 open, 1 partial, 28 blocked, 267 done.
 
 Open includes parked work. `cargo todo check` verifies this line.
 
@@ -147,14 +147,14 @@ before the tag), and last T-250 (the one release). Between entries: the
 
 **Skip** the entries that wait for the relay's operator (status
 `blocked`): T-086, T-106, T-169, T-173, T-180, T-226, T-253, T-255,
-T-321, T-325 and T-326; and the entries that the operator holds (status
+T-319, T-321, T-325 and T-326; and the entries that the operator holds (status
 `blocked`, Q32):
 T-085, T-107 to T-113, T-117, T-118, T-213, T-222, T-245 and T-248; and the work
 parked behind them (T-114, T-115, T-116, T-119, T-120, T-122, T-123,
 T-124, T-150, T-159, T-160, T-161, T-303 and T-304, "Parked open work"),
-which waits as they wait; and the entries that wait for an answer of the
-operator: T-062 (Q42), T-319 (Q44), T-326 (Q45), T-327 (Q46) and T-300 (Q47, the operator's call
-on the measured edge of the quick tunnels). T-301 waits for T-300.
+which waits as they wait; and the entries that wait for the operator:
+T-062 (Q42, a target) and T-328 (an export of FinalShell and of Termius).
+T-301 waits for T-300.
 
 ## Parked open work
 
@@ -212,46 +212,13 @@ The operator settled Q41 and Q43 on 2026-10-30, kept Q42 and the holds of
 Q32, and allowed betas (`docs/decisions.md`): T-292 uses export files that
 their programs wrote and that are published; T-299 runs in GitHub Actions.
 
-Q44 (2026-10-30, blocks T-319): a proxy that ends TLS and refuses
-`Upgrade` leaves podssh with no road. The tools that work there split the
-stream: one streamed GET down and a POST for each chunk up, two connections
-at once for each session, where `AGENTS.md` (section 5, rule 2) allows a
-second one only in a race of relay hosts; the serial form (one POST after
-another) needs one, but is slow. The relay's operator must add the session
-endpoints in any case. Recommendation: allow the split form's second
-connection, for this road only, after a probe finds the upgrade refused; and
-keep the serial form as its fallback.
-
-Q45 (2026-10-30, blocks T-326): a WebSocket upgrade in cleartext on port 443
-could pass a proxy that intercepts TLS by the SNI, but each hop then reads
-the relay's token in its header (the SSH inside stays encrypted). In this
-cloud container the agent proxy reset such a request. Recommendation: allow
-the road only with a token minted for one session and never cached, tried
-after the TLS road failed, and named by `doctor`; else keep the token off
-cleartext.
-
-Q46 (2026-10-30, blocks T-327): the only real exports of mRemoteNG that were
-found are its own test files, written by the program and under the GPL-2.0;
-this repository is 0BSD, and holds no GPL file today. FinalShell and Termius
-have no export at all. Recommendation: allow GPL test data under
-`crates/podssh-cli/tests/fixtures/`, each file with its license and source
-in a notice beside it, as it is not linked into the binary; or supply an
-export of mRemoteNG, FinalShell or Termius from a real install.
-
-Q47 (2026-10-30, blocks T-300): T-299 measured the edge of Cloudflare's
-quick tunnels from GitHub's runners (`docs/design.md`, "The edge,
-measured"). A quick tunnel registers over HTTP/2, and the edge takes TCP on
-port 7844 only, with podssh's TLS as it is (X25519 or P-256, no ML-KEM) and
-one of the three roots that cloudflared adds. The API answered a request
-through a CONNECT proxy, with podssh's own User-Agent. The relay's VPC road
-carried TLS to the edge's 7844, so a node in a cage could publish a quick
-tunnel through the relay, where the cage's proxy refuses 7844. The terms
-name no other client, and the research reads the clause of section 7 as
-about what one obtains; that reading is the operator's call. Recommendation:
-build T-300 (HTTP/2 only, a module of `podssh-relay`, the three roots beside
-podssh's), with the relay's road as the fallback where 7844 is not reached,
-and its live tests in GitHub Actions as T-299's; or keep the tunnel as
-research (Q33).
+The operator settled Q44 to Q47 on 2026-10-30 (`docs/decisions.md`): the
+split HTTP road may open its second connection (T-319, which waits for the
+relay's endpoints); the cleartext road on port 443 runs last, with a token
+for one session (T-326, which waits for the relay's endpoint); mRemoteNG's
+GPL test files may live beside their notice (T-327; FinalShell and Termius
+moved to T-328, which waits for exports); and podssh builds its quick
+tunnel (T-300).
 
 ## Operator actions
 
@@ -259,12 +226,13 @@ None blocks a session. At any time: requiring the status `all` of the
 workflow `build` for `main`, if the operator wants a required check (T-212);
 `main` requires none today.
 
-Dependabot's pull requests wait for the operator. Azathothas/podssh#53 (the
-group of 11 updates) fails the gate's step iroh (run 41075421658): the iroh
-road through a SOCKS5 proxy in `ALL_PROXY` never comes online
+Dependabot's updates reach `main` through a session (the operator,
+2026-10-30, `docs/decisions.md`). Azathothas/podssh#53 (the group of 11
+updates) fails the gate's step iroh (run 41075421658): the iroh road
+through a SOCKS5 proxy in `ALL_PROXY` never comes online
 (`crates/podssh-iroh/tests/proxy_env.rs`,
 `a_socks5_proxy_in_all_proxy_reaches_the_relay_by_name`), where `main`
-passes it; it needs a look before a merge.
+passes it; a session finds why, repairs it, and commits the updates.
 
 After the release:
 

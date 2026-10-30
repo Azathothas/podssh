@@ -680,7 +680,7 @@ go through one function since T-231 (`crates/podssh-cli/src/relay_settings.rs:65
 (`crates/podssh-cli/src/pins.rs:15-31`). The token cache uses the user's
 cache directory first, after the directory of `PODSSH_CACHE_DIR` (T-243;
 `crates/podssh-relay/src/cache/dirs.rs:59-87`). The decision named the
-configuration directory first; the operator corrected it on 2026-10-08 (`docs/decisions.md:49`, T-243).
+configuration directory first; the operator corrected it on 2026-10-08 (`docs/decisions.md:52`, T-243).
 
 ## Approach
 
@@ -1290,15 +1290,16 @@ and Ansible's YAML, stay refused by name (64), and wait in T-327.
   Linux: `config_import` 9 passed, and `/tmp` held no `podssh-config-import-*`
   after the run (before the repair, each run left four); clippy clean.
 
-# T-327: `podssh config import` from mRemoteNG, FinalShell and Termius
+# T-327: `podssh config import` from mRemoteNG
 
 **Source:** T-292, 2026-10-30: these three formats have no real export
-under a license that this repository can hold.
+under a license that this repository can hold. FinalShell and Termius
+moved to T-328 on 2026-10-30, as they wait for an export.
 **Category:** feature
 **Milestone:** backlog
 **Priority:** P3
 **Effort:** M
-**Status:** blocked
+**Status:** open
 
 ## Problem
 
@@ -1323,7 +1324,53 @@ again: `podssh config import` refuses the three by name (64).
    `FullFileEncryption` refused by name; on mRemoteNG's own test files, once
    the operator rules on GPL test data (Q46), or on a file that the operator
    supplies.
-2. FinalShell and Termius: on a file of a real install, from the operator.
+2. FinalShell and Termius: T-328.
+
+## Decision
+
+2026-10-30, the operator (Q46, `docs/decisions.md`): mRemoteNG's own test
+files, under the GPL-2.0, may live under `crates/podssh-cli/tests/fixtures/`,
+each with its license and source in a notice beside it; none is linked into
+a binary.
+
+## Prove
+
+```sh
+cargo test -p podssh-cli --test config_import
+```
+
+The blocks of mRemoteNG's fixtures, and no password on stdout or stderr.
+Planted: a password copied into a comment; the test fails.
+
+# T-328: `podssh config import` from FinalShell and Termius
+
+**Source:** T-327, 2026-10-30: FinalShell and Termius have no export that
+their programs wrote and that is published.
+**Category:** feature
+**Milestone:** backlog
+**Priority:** P3
+**Effort:** M
+**Status:** blocked
+
+## Problem
+
+A user who keeps hosts in FinalShell or Termius types each host again:
+`podssh config import` refuses the two by name (64).
+
+## Premise
+
+- Read (T-292's Correction): FinalShell and Termius have no export, only
+  importers' synthetic fixtures and tools that decrypt their databases.
+- Read: by Q41 (`docs/decisions.md`), a format is tested on a file that its
+  program wrote and that is published under a license that the repository
+  can hold; else it waits, named.
+
+## Approach
+
+1. With a file of a real install of each program: read its hosts, users,
+   ports, keys and jumps as T-292's formats do; each password counted and
+   never decrypted.
+2. Until then, the refusal by name stays, and says what podssh needs.
 
 ## Prove
 
@@ -1336,6 +1383,5 @@ stderr. Planted: a password copied into a comment; the test fails.
 
 ## Blocker
 
-The operator: whether test files under the GPL may live in this
-repository, with their notice (Q46, `TODO/PROGRESS.md`); or a real export
-of each program, which the operator may supply.
+The operator: a real export of FinalShell and of Termius, written by each
+program, under a license that this repository can hold (Q41).
