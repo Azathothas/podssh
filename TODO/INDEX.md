@@ -62,15 +62,15 @@ repository and CI).
 
 ## Counts
 
-**326 entries: 20 open, 2 partial, 28 blocked, 276 done.**
+**327 entries: 21 open, 2 partial, 28 blocked, 276 done.**
 
 | Priority | open | partial | blocked | done | total |
 | --- | --- | --- | --- | --- | --- |
 | P0 | 0 | 0 | 0 | 1 | 1 |
 | P1 | 2 | 0 | 0 | 24 | 26 |
 | P2 | 1 | 2 | 19 | 144 | 166 |
-| P3 | 17 | 0 | 9 | 107 | 133 |
-| **All** | 20 | 2 | 28 | 276 | 326 |
+| P3 | 18 | 0 | 9 | 107 | 134 |
+| **All** | 21 | 2 | 28 | 276 | 327 |
 
 ## Entries
 
@@ -402,3 +402,4 @@ repository and CI).
 | [T-327](config.md) | P3 | M | backlog | feature | open | `podssh config import` from mRemoteNG |
 | [T-328](config.md) | P3 | M | backlog | feature | blocked | `podssh config import` from FinalShell and Termius |
 | [T-329](roads.md) | P2 | S | none | defect | done | Carry the patch of iroh-relay to iroh 1.4.1 (Azathothas/podssh#53) |
+| [T-330](repo.md) | P3 | M | none | chore | open | Dependabot's major updates: sha1 0.11, vt100 0.16, x25519-dalek 3, aes-gcm 0.11 |

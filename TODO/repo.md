@@ -3906,3 +3906,66 @@ that p256 and p384 0.13 bring to podssh-ws.
 - Planted: `ROOTS_VERSION` back to 1.0.9; `the_recorded_roots_are_the_ones_built`
   failed. The old lock: CI's `deny` failed on it each day from 2026-10-15.
 - For CI: the gate in the build image on these versions.
+
+# T-330: Dependabot's major updates: sha1 0.11, vt100 0.16, x25519-dalek 3, aes-gcm 0.11
+
+**Source:** Azathothas/podssh#44 (sha1 0.10.7 to 0.11.0), #45 (vt100 0.15.2
+to 0.16.2), #46 (x25519-dalek 2.0.1 to 3.0.0) and #47 (aes-gcm 0.10.3 to
+0.11.1), Dependabot, 2026-10-13; the operator's ruling of 2026-10-30
+(`docs/decisions.md`): a session repairs what an update breaks, and commits
+the update with the repair.
+**Category:** chore
+**Milestone:** none
+**Priority:** P3
+**Effort:** M
+**Status:** open
+
+## Problem
+
+Four updates of a major version wait since 2026-10-13. Each may change an
+API (Inferred from the majors; the work reads each). Three of them carry
+podssh's own cryptography: the hashed
+names of `known_hosts` and the cache's tokens (sha1, `podssh-ssh` and
+`podssh-cli`), the key exchange of the end to end layer and of the
+identities (x25519-dalek, `podssh-ws` and `podssh-relay`), and its AEAD
+(aes-gcm, `podssh-ws`).
+
+## Premise
+
+- Read: `crates/podssh-ssh/Cargo.toml:26` and `crates/podssh-cli/Cargo.toml:58`
+  ask for `sha1` 0.10.7, and the root `Cargo.toml:140` for `hmac` 0.12;
+  `Cargo.lock` holds `sha1` 0.10.7 and 0.11.0, `hmac` 0.12.1 and 0.13.0,
+  and `digest` 0.10.7 and 0.11.3, as russh 0.64.1 (`vendor/russh/Cargo.toml`)
+  builds on the newer line, so the binary holds both lines today. podssh's `sha1`
+  moves with its `hmac`, where the two meet (the hashed names of
+  `known_hosts`): Inferred.
+- Read: the root `Cargo.toml:142` asks for `aes-gcm` 0.10 and
+  `Cargo.toml:146` for `x25519-dalek` 2;
+  `crates/podssh-ws/src/crypto/aead.rs` and `crates/podssh-ws/src/crypto/kx.rs`
+  hold the calls, with `crates/podssh-relay/src/identity/mod.rs` and
+  `crates/podssh-relay/src/session/secret.rs`, and
+  `crates/podssh-ws/tests/crypto_vectors.rs` their vectors.
+- Read: `vt100` 0.15 (`Cargo.toml:114`) is the model of the terminal
+  oracle (T-200) and of `podssh session` (T-186).
+
+## Approach
+
+1. One update at a time, each in its own commit, with its tests and its
+   vectors: aes-gcm and x25519-dalek first (the vectors of
+   `crypto_vectors.rs` must still hold byte for byte), then vt100 (the
+   oracle's calibration against tmux), then sha1 with `hmac` 0.13, the
+   line that russh builds on, which takes one line of `digest` out of the
+   binary.
+2. The minimum Rust of each crate against the gate's (1.85 for the library
+   crates).
+
+## Prove
+
+```sh
+export CARGO_BUILD_JOBS=4
+cargo test -p podssh-ws --test crypto_vectors
+cargo test --no-fail-fast
+```
+
+Each vector holds; each test passes. Planted: one byte of a key of the
+vectors changed; its test fails.
