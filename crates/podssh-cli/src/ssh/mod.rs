@@ -181,7 +181,7 @@ fn run(args: &SshArgs, tty: Tty, err: &mut dyn Write) -> i32 {
     };
     // On the heap: the future of each road is large, and Windows gives the
     // main thread 1 MiB of stack.
-    let code = runtime.block_on(Box::pin(connect_and_run(resolved, log)));
+    let code = runtime.block_on(transport::settled(Box::pin(connect_and_run(resolved, log))));
     // A read on stdin may still be blocked in a helper thread; do not wait for
     // it, or podssh would hang after the session has ended.
     runtime.shutdown_background();

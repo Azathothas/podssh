@@ -2668,7 +2668,7 @@ that exits before the task ends leaves its session at the node.
 **Milestone:** backlog
 **Priority:** P3
 **Effort:** S
-**Status:** open
+**Status:** partial
 
 ## Problem
 
@@ -2686,11 +2686,11 @@ the task (`transport::settle`); five commands do not.
 - Read: `crates/podssh-cli/src/ssh/transport.rs` gives each road's stream
   in `Reached`, with the layer's task in `Reached::layer`, and `settle`
   waits for it up to `CARRIAGE_WAIT`.
-- Read: `crates/podssh-cli/src/job/far.rs:60-76`,
-  `crates/podssh-cli/src/pipe/ssh.rs:68-90`,
-  `crates/podssh-cli/src/health/mod.rs:125-131`,
-  `crates/podssh-cli/src/containers/mod.rs:186-196` and
-  `crates/podssh-cli/src/ssh/upgrade.rs:91-103` take `reached.stream` and
+- Read: `crates/podssh-cli/src/job/far.rs:60-78`,
+  `crates/podssh-cli/src/pipe/ssh.rs:68-91`,
+  `crates/podssh-cli/src/health/mod.rs:127-134`,
+  `crates/podssh-cli/src/containers/mod.rs:186-197` and
+  `crates/podssh-cli/src/ssh/upgrade.rs:91-104` take `reached.stream` and
   drop `reached.layer`.
 
 ## Approach
@@ -2713,3 +2713,43 @@ Planted, a command that drops the task: its test fails. Live, in
 `.github/workflows/quick-tunnel-live.yml`: `podssh job` and `podssh pipe`
 to the name, and the node's log says that each session closed, not that it
 was lost.
+
+## Correction
+
+2026-10-30. The Approach's item 1 threads the task through each command's
+own state, and item 2 tests each command with a stand-in of `Reached`. Each
+of the five runs on a runtime of one thread, and a task spawned there runs
+only while the command's future runs, so a wait anywhere but inside that
+future cannot send the `CLOSE`; and four of them hand their connection to
+callers that close it in many places (`job`'s three, `podssh run`'s, and
+the queue's). The work is: `transport::keep` takes the layer's task where
+each command takes its road, into one list of the process, and
+`transport::settled` runs each command's whole run, then waits for each
+kept task, within the 5 s of `CARRIAGE_WAIT` in all, on each path out,
+failures among them: a key that the node refuses fails the login, and its
+line comes from the task. The test is the one of `settled`, which every
+command shares; the live run shows each command's end. The node says
+nothing of a session's end, so the live check reads what the node holds:
+no TCP connection of the node to TARGET is left once a command exits.
+
+## Done
+
+2026-10-30, partial: the code and its test; the live check waits.
+
+- `crates/podssh-cli/src/ssh/transport.rs`: `keep` and `settled`; `keep`
+  in `job/far.rs` (`podssh job` and `podssh run`), `pipe/ssh.rs`,
+  `health/mod.rs`, `containers/mod.rs` and `ssh/upgrade.rs`; `settled`
+  around the runs of `job`, `run`, `pipe`, `health`, `containers` and
+  `ssh`, inside each runtime. `cargo test -p podssh-cli --lib
+  ssh::transport`: 2 passed; the test of `settled`, on paused time: the
+  wait lasts until the kept task's end (2 s), at most 5 s for a task that
+  never ends, and nothing with nothing kept. Planted, `settled` with no
+  wait: it failed ("until the task's end", 0 ns); it passed again without
+  the plant.
+- The live check, in `.github/workflows/quick-tunnel-live.yml`: after
+  each `podssh ssh` and after `podssh health` (refused with its new key,
+  which is said before the exit, then let in), no TCP connection of the
+  node to TARGET is left within 8 s. UNVERIFIED: with T-300's live run,
+  once `v1.0.0-beta.2` is out.
+- `cargo test -p podssh-cli`: 996 passed, 0 failed, 39 ignored, in 117
+  binaries.

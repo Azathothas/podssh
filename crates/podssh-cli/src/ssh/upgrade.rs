@@ -100,6 +100,7 @@ pub(super) async fn run(resolved: &Resolved, upgrade: &Upgrade, log: Arc<Log>) -
         }
     };
     let relay = reached.relay;
+    super::transport::keep(reached.layer);
     let handles = match podssh_ssh::upgrade::login(reached.stream, &opts, relay.as_ref(), &log).await {
         Ok(handles) => handles,
         Err(lines) => {

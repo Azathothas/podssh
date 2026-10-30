@@ -62,15 +62,15 @@ repository and CI).
 
 ## Counts
 
-**328 entries: 21 open, 3 partial, 28 blocked, 276 done.**
+**328 entries: 20 open, 4 partial, 28 blocked, 276 done.**
 
 | Priority | open | partial | blocked | done | total |
 | --- | --- | --- | --- | --- | --- |
 | P0 | 0 | 0 | 0 | 1 | 1 |
 | P1 | 2 | 0 | 0 | 24 | 26 |
 | P2 | 1 | 2 | 19 | 144 | 166 |
-| P3 | 18 | 1 | 9 | 107 | 135 |
-| **All** | 21 | 3 | 28 | 276 | 328 |
+| P3 | 17 | 2 | 9 | 107 | 135 |
+| **All** | 20 | 4 | 28 | 276 | 328 |
 
 ## Entries
 
@@ -403,4 +403,4 @@ repository and CI).
 | [T-328](config.md) | P3 | M | backlog | feature | blocked | `podssh config import` from FinalShell and Termius |
 | [T-329](roads.md) | P2 | S | none | defect | done | Carry the patch of iroh-relay to iroh 1.4.1 (Azathothas/podssh#53) |
 | [T-330](repo.md) | P3 | M | none | chore | open | Dependabot's major updates: sha1 0.11, vt100 0.16, x25519-dalek 3, aes-gcm 0.11 |
-| [T-331](roads.md) | P3 | S | backlog | defect | open | The layer's `CLOSE` before the exit of `job`, `pipe`, `health`, `containers` and `--upgrade` on `cf://` |
+| [T-331](roads.md) | P3 | S | backlog | defect | partial | The layer's `CLOSE` before the exit of `job`, `pipe`, `health`, `containers` and `--upgrade` on `cf://` |

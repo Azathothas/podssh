@@ -201,7 +201,7 @@ pub fn run_run(args: &RunArgs, err: &mut dyn Write) -> i32 {
     };
     // On the heap: the copy's future is large, and Windows gives the main
     // thread 1 MiB of stack.
-    let code = runtime.block_on(Box::pin(copy_then_run(&plan, &resolved, &log)));
+    let code = runtime.block_on(crate::ssh::transport::settled(Box::pin(copy_then_run(&plan, &resolved, &log))));
     runtime.shutdown_background();
     code
 }

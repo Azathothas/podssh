@@ -67,6 +67,8 @@ pub(crate) async fn connect(resolved: &Resolved, log: &Arc<Log>) -> Option<Vec<C
             return None;
         }
     };
+    // The layer's task, if the road runs one, waits for the run's end.
+    crate::ssh::transport::keep(reached.layer);
     match podssh_ssh::run::connect_hops(reached.stream, &resolved.options, log).await {
         Ok(handles) => Some(handles),
         Err(e) => {

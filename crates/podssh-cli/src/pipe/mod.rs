@@ -80,7 +80,7 @@ pub fn run_pipe(args: &PipeArgs, err: &mut dyn Write) -> i32 {
         let serve = serve::Serve { listening, other, listener_is_a, keep: args.keep_listening, quiet };
         runtime.block_on(serve::run(serve, &settings, err))
     } else {
-        runtime.block_on(run(a, b, &settings, err))
+        runtime.block_on(crate::ssh::transport::settled(run(a, b, &settings, err)))
     };
     // A read of stdin may still wait in its thread; the pipe has ended.
     runtime.shutdown_background();

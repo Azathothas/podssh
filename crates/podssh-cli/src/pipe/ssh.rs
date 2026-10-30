@@ -71,6 +71,7 @@ pub async fn open(
         }
         not.code
     })?;
+    crate::ssh::transport::keep(reached.layer);
     let handles = podssh_ssh::run::connect_hops(reached.stream, &resolved.options, &log).await.map_err(|e| {
         say(&e.to_string());
         hop_code(&e)

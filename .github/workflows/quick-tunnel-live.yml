@@ -23,6 +23,10 @@ on:
 permissions:
   contents: read
 
+# The client's keys and pins in a directory of this run, removed at its end.
+env:
+  PODSSH_CACHE_DIR: ${{ github.workspace }}/../podssh-cache
+
 concurrency:
   group: quick-tunnel-live
   cancel-in-progress: false
@@ -50,6 +54,7 @@ jobs:
         run: |
           command -v /usr/sbin/sshd >/dev/null || { sudo apt-get update -q && sudo apt-get install -y -q openssh-server; }
           sudo mkdir -p /run/sshd
+          mkdir -p "$PODSSH_CACHE_DIR"
           ssh-keygen -q -t ed25519 -N '' -C quick-live -f "$RUNNER_TEMP/user_ed25519"
           sudo ssh-keygen -q -t ed25519 -N '' -C quick-live-host -f "$RUNNER_TEMP/host_ed25519"
           cp "$RUNNER_TEMP/user_ed25519.pub" "$RUNNER_TEMP/authorized_keys"
@@ -90,9 +95,21 @@ jobs:
       - name: podssh ssh cf://NAME, refused by the allowlist, then let in
         run: |
           who="$(whoami)"
-          ssh_opts=(-o BatchMode=yes -o StrictHostKeyChecking=accept-new
-            -o "UserKnownHostsFile=$RUNNER_TEMP/known_hosts" -i "$RUNNER_TEMP/user_ed25519"
-            --client-key "$RUNNER_TEMP/client.key")
+          # The keys and the known hosts of each command, ssh's and health's.
+          printf 'Host *\n  IdentityFile %s\n  UserKnownHostsFile %s\n  StrictHostKeyChecking accept-new\n  BatchMode yes\n' \
+            "$RUNNER_TEMP/user_ed25519" "$RUNNER_TEMP/known_hosts" >"$RUNNER_TEMP/ssh_config"
+          export PODSSH_SSH_CONFIG="$RUNNER_TEMP/ssh_config"
+          ssh_opts=(--client-key "$RUNNER_TEMP/client.key")
+          # No session left at the node's TARGET once a command exits: the
+          # layer's CLOSE went out (T-331), within its 5 s and a margin.
+          left_at_target() {
+            for _ in $(seq 1 16); do
+              [ "$(ss -Htn state established '( dport = :4022 )' | wc -l)" = 0 ] && return 0
+              sleep 0.5
+            done
+            ss -Htn state established '( dport = :4022 )'
+            return 1
+          }
           set +e
           timeout 120 target/debug/podssh ssh "${ssh_opts[@]}" "cf://$who@$QUICK_HOST" true 2>"$RUNNER_TEMP/first.log"
           rc=$?
@@ -120,8 +137,28 @@ jobs:
             grep -q "greets with the resumable layer" "$RUNNER_TEMP/$road.log" || { echo "FAIL ($road) no layer"; exit 1; }
             [ "$got" = "$want" ] || { echo "FAIL ($road) the far end's digest of 8 MiB is not this end's"; exit 1; }
             echo "ok    podssh ssh cf://NAME ($road): the layer, the channel with --node-key, 8 MiB with equal digests"
+            left_at_target || { echo "FAIL ($road) a session is left at the node's TARGET after ssh"; exit 1; }
           done
           unset HTTPS_PROXY
+          # A command that hands its connection on (T-331), with the client
+          # key of the cache: refused, then in the list, then let in.
+          set +e
+          timeout 120 target/debug/podssh health "cf://$who@$QUICK_HOST" >"$RUNNER_TEMP/health.out" 2>"$RUNNER_TEMP/health.log"
+          rc=$?
+          set -e
+          sed 's/^/health: /' "$RUNNER_TEMP/health.log"
+          if [ "$rc" != 0 ]; then
+            key=$(sed -n 's/.*a new key for this client, in [^:]*: \([^;]*\);.*/\1/p' "$RUNNER_TEMP/health.log" | head -n 1)
+            grep -q "the node refused this client's key" "$RUNNER_TEMP/health.log" && [ -n "$key" ] \
+              || { echo "FAIL podssh health ($rc) said no refusal of its new key"; exit 1; }
+            echo "$key quick-live-cache" >>"$RUNNER_TEMP/allow"
+            echo "ok    podssh health: its new key refused, and said before the exit"
+            timeout 120 target/debug/podssh health "cf://$who@$QUICK_HOST" >"$RUNNER_TEMP/health.out" 2>"$RUNNER_TEMP/health.log" \
+              || { sed 's/^/health: /' "$RUNNER_TEMP/health.log"; echo "FAIL podssh health once let in"; exit 1; }
+          fi
+          sed 's/^/health: /' "$RUNNER_TEMP/health.out" | head -n 20
+          left_at_target || { echo "FAIL a session is left at the node's TARGET after health"; exit 1; }
+          echo "ok    podssh health cf://NAME: the facts read, and no session left at the node's TARGET"
           set +e
           other=$(timeout 120 target/debug/podssh ssh "${ssh_opts[@]}" --node-key "SHA256:47DEQpj8HBSa+/TImW+5JCeuQeRkm5NMpJWZG3hSuFU" \
             "cf://$who@$QUICK_HOST" true 2>&1)
@@ -142,4 +179,5 @@ jobs:
           pkill -f scripts/box/proxy.py || true
           sudo kill "$(cat "$RUNNER_TEMP/sshd.pid" 2>/dev/null)" 2>/dev/null || true
           rm -f "$RUNNER_TEMP"/user_ed25519* "$RUNNER_TEMP"/client.key* "$RUNNER_TEMP/blob"
+          rm -rf "$PODSSH_CACHE_DIR"
           sudo rm -f "$RUNNER_TEMP"/host_ed25519*

@@ -116,7 +116,7 @@ pub fn run_job(args: &JobArgs, out: &mut dyn Write, err: &mut dyn Write) -> i32 
     };
     // On the heap: the future of a connection is large, and Windows gives
     // the main thread 1 MiB of stack.
-    let code = runtime.block_on(Box::pin(perform(&action, &labels, &plans, &log, out)));
+    let code = runtime.block_on(crate::ssh::transport::settled(Box::pin(perform(&action, &labels, &plans, &log, out))));
     runtime.shutdown_background();
     code
 }

@@ -51,6 +51,30 @@ pub async fn settle(layer: Option<Carriage>) {
     }
 }
 
+/// The layer's tasks of the roads whose connection a command hands on
+/// (T-331): each waits here until the command's end, in [`settled`].
+static KEPT: std::sync::Mutex<Vec<Carriage>> = std::sync::Mutex::new(Vec::new());
+
+/// Keep the layer's task of a road, if it runs one, for [`settled`].
+pub fn keep(layer: Option<Carriage>) {
+    if let Some(layer) = layer {
+        KEPT.lock().unwrap_or_else(std::sync::PoisonError::into_inner).push(layer);
+    }
+}
+
+/// Run `work`, a command's whole run, then wait for each task of the layer
+/// that it kept, within [`CARRIAGE_WAIT`] in all: inside the runtime, as
+/// a task spawned there runs only while the runtime does.
+pub async fn settled<T>(work: impl std::future::Future<Output = T>) -> T {
+    let out = work.await;
+    let kept = std::mem::take(&mut *KEPT.lock().unwrap_or_else(std::sync::PoisonError::into_inner));
+    let deadline = tokio::time::Instant::now() + CARRIAGE_WAIT;
+    for layer in kept {
+        let _ = tokio::time::timeout_at(deadline, layer).await;
+    }
+    out
+}
+
 /// The proxy that carries a `--direct` connection, and whether any byte came
 /// back through it. A `200` to CONNECT proves that the proxy took the
 /// request, not that the tunnel carries bytes as they are: a proxy that
@@ -260,7 +284,38 @@ async fn direct(
 
 #[cfg(test)]
 mod tests {
-    use super::multipath_asked;
+    use std::time::Duration;
+
+    use super::{keep, multipath_asked, settled, CARRIAGE_WAIT};
+
+    /// A command that hands its connection on waits, at its end, for the
+    /// layer's task that it kept: its `CLOSE` and its last line (T-331);
+    /// a task that never ends holds it no longer than the wait.
+    #[tokio::test(start_paused = true)]
+    async fn a_command_waits_for_the_layer_s_task_that_it_kept_and_no_longer_than_the_wait() {
+        let (ended, done) = tokio::sync::oneshot::channel();
+        let started = tokio::time::Instant::now();
+        let out = settled(async {
+            keep(Some(done));
+            keep(None);
+            tokio::spawn(async move {
+                tokio::time::sleep(Duration::from_secs(2)).await;
+                let _ = ended.send(());
+            });
+            7
+        })
+        .await;
+        assert_eq!(out, 7);
+        assert_eq!(started.elapsed(), Duration::from_secs(2), "until the task's end");
+        let (never, done) = tokio::sync::oneshot::channel::<()>();
+        let started = tokio::time::Instant::now();
+        settled(async { keep(Some(done)) }).await;
+        assert_eq!(started.elapsed(), CARRIAGE_WAIT, "a task that never ends");
+        drop(never);
+        let started = tokio::time::Instant::now();
+        settled(async {}).await;
+        assert_eq!(started.elapsed(), Duration::ZERO, "nothing kept, no wait");
+    }
 
     #[test]
     fn podssh_mptcp_asks_with_yes_and_refuses_another_word() {

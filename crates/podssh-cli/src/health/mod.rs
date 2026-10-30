@@ -97,7 +97,9 @@ pub fn run(args: &HealthArgs, out: &mut dyn Write, err: &mut dyn Write) -> i32 {
     };
     // On the heap: the future of a road is large, and Windows gives the
     // main thread 1 MiB of stack.
-    let asked = runtime.block_on(async { tokio::time::timeout(RUN_LIMIT, Box::pin(ask(&resolved, &log))).await });
+    let asked = runtime.block_on(crate::ssh::transport::settled(async {
+        tokio::time::timeout(RUN_LIMIT, Box::pin(ask(&resolved, &log))).await
+    }));
     // A read of a helper thread may still wait; the run is over.
     runtime.shutdown_background();
     let late = format!("the run passed its limit of {} s", RUN_LIMIT.as_secs());
@@ -128,6 +130,7 @@ async fn ask(resolved: &Resolved, log: &Arc<Log>) -> Result<Facts, Failure> {
         let code = if not.code == EXIT_USAGE { EXIT_USAGE } else { podssh_ssh::EXIT_FAILURE };
         Failure { code, why }
     })?;
+    crate::ssh::transport::keep(reached.layer);
     let handles = podssh_ssh::run::connect_hops(reached.stream, &resolved.options, log)
         .await
         .map_err(|e| Failure::new(e.to_string()))?;

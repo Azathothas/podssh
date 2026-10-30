@@ -160,7 +160,7 @@ pub fn run_containers(args: &ContainersArgs, out: &mut dyn Write, err: &mut dyn 
     };
     // On the heap: the future of a session is large, and Windows gives the
     // main thread 1 MiB of stack.
-    let ended = runtime.block_on(Box::pin(run(&resolved, &plan, &log)));
+    let ended = runtime.block_on(transport::settled(Box::pin(run(&resolved, &plan, &log))));
     // A read on stdin may still wait in a helper thread; the run is over.
     runtime.shutdown_background();
     match ended {
@@ -193,6 +193,7 @@ async fn run(resolved: &Resolved, plan: &Plan, log: &Arc<Log>) -> Ended {
         }
     };
     let relay = reached.relay;
+    transport::keep(reached.layer);
     let handles = match podssh_ssh::upgrade::login(reached.stream, &resolved.options, relay.as_ref(), log).await {
         Ok(handles) => handles,
         Err(lines) => {
