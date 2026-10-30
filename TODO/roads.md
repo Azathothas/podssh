@@ -1498,6 +1498,150 @@ grep -n 'The edge, measured' docs/design.md
 The section gives, for each port and each road, whether the edge took the connection and the
 tunnel, with the date and the command; a road that was not tried says why. T-300 starts from it.
 
+## Correction
+
+2026-10-30, a second reading of the source and of the documents (the research of that day; nothing
+was run against Cloudflare). Read: cloudflared at commit `77a79bf` (master on 2026-10-30; the
+latest release is 2026.10.6), where the section of `docs/design.md` read `bf4f502` (release
+2026.10.0). Each fact is Read in a source unless it says Inferred. `docs/design.md` is not edited
+here; the measurement of this entry rewrites its section "The edge, measured", and these eight
+points go in with it.
+
+1. `docs/design.md:110-111` says "release 2026.10.0": the pin is two releases old. Re-pin at the
+   commit of the day of the measurement, and read the files again.
+2. `docs/design.md:217-218` says "The default features include": true at 2026.10.0. Since commit
+   `77a79bf` (TUN-10904, 2026-10-29) the edge "universally supports the legacy default features",
+   and registration advertises `support_datagram_v3_2` only when datagram v3 is chosen;
+   `serialized_headers`, `quick_reconnects`, `allow_remote_config`, `support_quic_eof` and
+   `management_logs` are deprecated and filtered (`cloudflare/cloudflared:features/features.go`).
+   So the default list of today's cloudflared is empty, and the serialized form of the answers
+   is not a feature any more. The Premise and item 4 of the Approach of T-300 name the features at
+   `bf4f502`: see its Correction.
+3. `docs/design.md:241-243` says "Which root signs": a third party reports that the certificate
+   `*.cftunnel.com` chains to one of three roots that cloudflared adds to the system's pool,
+   "CloudFlare Origin SSL ECC Certificate Authority", "CloudFlare Origin SSL Certificate
+   Authority" and "origin-pull.cloudflare.net" (`cloudflare/cloudflared:tlsconfig/cloudflare_ca.go`;
+   the spike of `lordmacu/cloudflare-quick-tunnel-rs:docs/spike-verdict.md`, 2026-05-14, says that
+   without them the handshake fails with `UnknownIssuer`). A report, not a measurement of ours:
+   step 3 of the plan below records the issuers.
+4. `docs/design.md:202-203` says "is not verified; cloudflared allows it": it is still not
+   verified. Cloudflare's troubleshooting page says cloudflared falls back to HTTP/2 over TCP and
+   asks for 7844 on TCP; a Node script (`devsnek`, a gist) and the ignored live tests of libcfd
+   aim at quick tunnels over HTTP/2. No result of any was seen.
+5. `docs/design.md:252-253` says "libcfd (crates.io, 0.2.0 of 2026-09-23)": libcfd (GitHub
+   `apersomany/libcfd`) is 0.3.0 now, with QUIC (quinn or quiche) and HTTP/2, hand-written RPC
+   ("it does not use `capnp-rpc`"), and still no license that GitHub detects. A second connector,
+   `lordmacu/cloudflare-quick-tunnel-rs` (QUIC only, quinn 0.11 and rustls, generated capnp code
+   committed, Apache-2.0 on GitHub and MIT or Apache-2.0 in its README), vendors cloudflared's
+   schemas and the three roots. podssh copies from neither without reading its license again.
+6. `docs/design.md:152-153` says "by means that Cloudflare did not make available on purpose":
+   the clause of the Website and Online Services Terms (effective 2025-08-01) is "any means not
+   intentionally made available through the Websites or Online Services", and the sentence
+   before it is about "materials or information"; it is about what one obtains, not about the
+   client. The Self-Serve Subscription Agreement has no such clause (it has 2.2.1 (c), (e), (g)
+   and (j)), and binds users of an account (Inferred: an account-less quick tunnel falls under
+   the Online Services Terms, which cloudflared's own notice names). Whether a connector of
+   podssh's own is a forbidden means stays the operator's call; the research found no clause that
+   names another client.
+7. Add to the section: cloudflared offers X25519MLKEM768, P256Kyber768Draft00 and P-256 only (no
+   X25519; `cloudflare/cloudflared:crypto/curves.go`), and podssh's TLS offers X25519 and
+   secp256r1 with no ML-KEM (`crates/podssh-ws/src/crypto/kx.rs`); a classical handshake is
+   therefore a question for step 3 of the plan below. The startup prechecks
+   (`cloudflare/cloudflared:prechecks/probes.go`: per region DNS, QUIC, TCP and TLS, 5 s each, and
+   TCP to api.cloudflare.com:443, logged as "CONNECTIVITY PRE-CHECKS"; off with
+   `--no-prechecks`) use the name `probe.cftunnel.com`. The edge's request kinds include
+   `update-configuration`. A hidden flag `--cacert` replaces the roots of the edge connection.
+8. The paragraph "No proxy", `docs/design.md:180-184`, holds. Add: the maintainers say the same
+   in cloudflare/cloudflared#350 and #1025 ("the official transport to use should be QUIC, which
+   wouldn't work for the SOCKS proxy"); QUIC is UDP, so it cannot use an HTTP CONNECT proxy
+   (Inferred); HTTP/2 could, if the proxy allows CONNECT to 7844. Third-party patches exist (a
+   SOCKS5 pull request, closed unmerged in 2023; `AlliotTech/cloudflared_proxy`, SOCKS5 with
+   HTTP/2 forced, which notes proxies that choke on ML-KEM client hellos; a snap patch for an HTTP
+   proxy); none is a result for quick tunnels. Port 443 of the edge is not a documented fallback
+   ("optional", for updates and token checks; the code has no fallback to it), so a cage that
+   allows 443 only has no documented road.
+
+Facts of the request that the Approach can use. Read: cloudflared's HTTP client for
+`POST /tunnel` is a `http.Transport` with no `Proxy` field, so it ignores `HTTPS_PROXY`
+(Inferred from Go's zero value; step 7 of the plan shows it with a logging proxy). A quick tunnel
+sets `--protocol` to `quic` when none is given, and a named protocol has no fallback, so on a
+network with no UDP on 7844 `cloudflared tunnel --url` alone never connects (Inferred from those
+two facts; the precheck table of step 8 shows it). Third parties report that the API can answer 429 or
+"error code 1015" under load; no document gives a creation limit.
+
+The plan of the measurement, in GitHub Actions (Q43; the leave of the operator is in the
+Decision). It replaces item 1, and items 2 to 5 where it says so; the byte capture of item 5
+stays a job for the operator's machine, because the capture holds the tunnel's secret in the
+registration message. A hosted runner has open egress: it answers what the edge accepts, not what
+a cage allows, and the box's proxy (`scripts/box/proxy.py`) stands for the cage's policy. A
+runner's shared address may meet 429. Step 4 of the Approach, the relay's roads, needs a podssh
+build and the relay: leave it to a local session or to a later step with the gate's artifact. The
+job is the workflow quick-tunnel-edge.yml (a file that does not exist yet), with
+`workflow_dispatch` only, an input `confirm` that must equal `Q43`, `permissions: contents: read`,
+`concurrency`, `runs-on: ubuntu-24.04`, `timeout-minutes: 15`, no secret, and a `timeout` on each
+command. The logs of a public repository are public: print no secret.
+
+1. Check out the repository (for the box's proxy). Print `uname -r`, `openssl version` and the
+   date.
+2. Fetch cloudflared at a pinned release (2026.10.6 on the day of the research), and check its
+   sha256 against the digest on the release page (Read there on that day; read it again when the
+   workflow is written). Print its version.
+3. Roots: take the three certificates from `tlsconfig/cloudflare_ca.go` at that tag. Discovery:
+   the SRV record `_v2-origintunneld._tcp.argotunnel.com` over DNS over HTTPS
+   (`cloudflare-dns.com/dns-query`, `accept: application/dns-json`), and the A records of
+   `region1.v2.argotunnel.com` and `region2.v2.argotunnel.com`.
+4. The raw matrix: for one address of each region (documented: 198.41.192.7 and 198.41.200.13,
+   then the first of the SRV answer), `timeout 10 openssl s_client` with the roots and
+   `-verify_return_error`, on ports 7844, 443, 8443 and 80; the names `h2.cftunnel.com` and, on
+   7844, `probe.cftunnel.com`, `region1.v2.argotunnel.com` and none; the groups default, X25519
+   and P-256; the ALPN none and `h2`. Record for each cell: connected, the handshake result, the
+   verify code, the issuers of the chain, `notAfter`, and the first frame after an HTTP/2 client
+   preface. Also Cloudflare's own test, `curl -v https://region1.v2.argotunnel.com:7844`.
+5. QUIC: the precheck table of step 8 is the main answer. A second view is optional: a short
+   `aioquic` client with the ALPN `argotunnel` and the name `quic.cftunnel.com`, 10 s, that prints
+   whether the handshake completed and the issuer (it reads a private attribute: Inferred).
+6. The proxy: start the box's proxy, and (a) post the request through it with a distinctive
+   `User-Agent`, print the reply's field names and types with the secret removed, never write the
+   secret to disk, make one tunnel that is never connected, and stop at a 429 or 1015; (b) open
+   TLS to the edge's 7844 through the proxy with no `--allow`, which must get 403; (c) restart it
+   with `--allow region1.v2.argotunnel.com:7844=198.41.192.7:7844` and repeat; (d) CONNECT to 443
+   and 8443 of the same name. Keep the proxy's log.
+7. One tunnel at a time, in front of a fixed page served on the loopback. Run A: cloudflared with
+   `HTTPS_PROXY` set to the box's proxy, `--protocol http2`, `--edge-ip-version 4`, a log file, 100
+   s at most; wait up to 60 s for the registration; read the name from the log; fetch it with a
+   DNS-over-HTTPS resolver, up to six times 10 s apart; compare the body; record the time to the
+   first success; optionally a WebSocket echo through the name; stop with an interrupt and look
+   for the unregister message; count the log lines of the proxy that cloudflared caused (the
+   expectation is none, which shows that the proxy is ignored). Run B: the same with no
+   `--protocol`, and keep the table "CONNECTIVITY PRE-CHECKS", the `protocol=` and `location=`
+   fields of the registration line and any "Switching to fallback".
+8. Grep the logs for the words `secret` and `Credentials` before the upload; upload only the
+   cloudflared logs and the proxy's log, with a retention of 3 days. A cleanup step with
+   `if: always()` stops the processes. A quick tunnel ends with its process.
+
+At most three tunnels, each under two minutes. What to write in `docs/design.md` and
+`docs/STATUS.md`: the date, the run's URL, the runner image, the cloudflared version and digest;
+for each address and port the result of the cell; the issuers and `notAfter`; which groups and
+names the edge took; the API's status, field names and types, latency and hostname shape; the time
+until the name answers; the negotiated protocol and location; the precheck table; whether the
+WebSocket passed; the rows of the proxy; the rate of 429. Not in this job: the relay's roads and
+the capnp fixtures.
+
+Open points, which the measurement answers (none is a fact yet):
+
+- Does the edge listen on 443, 8443 or 80 for `h2.cftunnel.com`? This decides the cage's case.
+- Does the edge accept a classical TLS handshake, with X25519 and no ML-KEM?
+- Does a quick tunnel register over HTTP/2 with a minimal registration, and is
+  `updateLocalConfiguration` needed before the route is live? (The Node gist sends neither
+  features nor ingress; it states no result.)
+- Does `api.trycloudflare.com` accept a User-Agent that is not cloudflared's, and a request
+  through CONNECT? What are its limits for the shared addresses of CI?
+- Which options of `ConnectionOptions` does the edge check (client id, version, platform)?
+- The idle and keepalive rules of the connection (cloudflared's HTTP/2 server settings were not
+  read in full).
+- The terms: whether carrying SSH, with a connector of podssh's own, is acceptable use of an
+  account-less tunnel. The operator's call; the research found no ruling.
+
 # T-300: `podssh node` publishes a quick tunnel over HTTP/2, with no `cloudflared`
 
 **Source:** T-170 (`docs/design.md:106-255`); the operator's ruling of 2026-10-08: podssh makes a
@@ -1577,6 +1721,39 @@ the box through its proxy.
 
 T-299 is done: the edge's ports are measured, with the operator's leave (Q43).
 
+## Correction
+
+2026-10-30, the research of that day (Read in sources, nothing run against Cloudflare; the points
+that are Inferred say so). The Premise names `serialized_headers` as a feature, and item 4 of the
+Approach registers "with the default features of cloudflared at `bf4f502`". At cloudflared's
+commit `77a79bf` (TUN-10904, 2026-10-29) the edge supports the legacy default features for every
+connector, and registration advertises a feature only for datagram v3
+(`cloudflare/cloudflared:features/features.go`; the second point of the Correction of T-299). So:
+
+1. Item 4: register with an empty list of features, as today's cloudflared does by default (Read);
+   a Node script (`devsnek`, a gist) registers with no features and no version, sending only the
+   account tag, the secret, the tunnel id, the index 0 and `client.clientId`. Whether the edge
+   accepts that for a quick tunnel is a question that the measurement of T-299 and the first
+   live run of this entry answer; it is not a fact. The answers of HTTP/2 carry the serialized
+   header always.
+2. Item 4, the code: the generated Cap'n Proto code can be committed, and the crate `capnp-rpc`
+   may be unneeded. Read in third parties, not verified by us: libcfd writes the RPC by hand
+   ("it does not use `capnp-rpc`"), and `lordmacu/cloudflare-quick-tunnel-rs` ships pre-generated
+   code with no `capnp` tool at build time; both claim live tests against the edge. The Premise's
+   "Read" about the C++ tool for the code generator still holds.
+3. Item 3, TLS: cloudflared offers X25519MLKEM768, P256Kyber768Draft00 and P-256, and not X25519
+   (`cloudflare/cloudflared:crypto/curves.go`); podssh's TLS offers X25519 and secp256r1, with no
+   ML-KEM (`crates/podssh-ws/src/crypto/kx.rs`). Test a classical handshake first: T-299 asks
+   the edge. Add the three Origin roots that cloudflared adds (a third party reports that the
+   edge's certificate chains to one of them), if T-299 confirms the issuers. Through an HTTP
+   CONNECT proxy, a client hello with ML-KEM can be refused by a proxy (a third party reports it);
+   podssh sends none.
+4. Whether the edge needs `updateLocalConfiguration` before it routes a request: unknown, the
+   Node script omits it and states no result.
+5. The terms are a gate that the operator holds: no clause that the research read names another
+   client; section 7 of the Website and Online Services Terms is open to two readings. The
+   Decision of T-299 says that the operator decides this entry after T-299's result.
+
 # T-301: The quick tunnel over QUIC, where a probe finds UDP
 
 **Source:** T-170 (`docs/design.md:106-255`): cloudflared makes a quick tunnel over QUIC unless the
@@ -1630,6 +1807,19 @@ fail), the connector uses HTTP/2, and says so.
 ## Start condition
 
 T-300 is done.
+
+## Correction
+
+2026-10-30, the research of that day: this adds to the Approach; it disproves no Premise. Read in
+sources, not run by us. Item 1 asks for cloudflared's first packet size (1232 and 1252 bytes). A
+third party's live spike (`lordmacu/cloudflare-quick-tunnel-rs:docs/spike-verdict.md`, 2026-05-14)
+reports that stock quinn 0.11 with rustls completes the handshake with the ALPN `argotunnel`, the
+name `quic.cftunnel.com` and cloudflared's three Origin roots, and that the two sizes are not
+required. Treat that as a hypothesis until a run of this entry shows it. cloudflared pins the
+protocol of a quick tunnel to `quic` (a named protocol has no fallback), so a network with no UDP
+on 7844 never connects with `cloudflared tunnel --url` alone (Inferred); the precheck table of
+cloudflared's startup, which T-299 records from a hosted runner, is the first row of this entry's
+evidence for UDP. This entry waits for it.
 
 # T-171: The functions of Mosh that M6 and T-160 do not give, made in podssh itself
 

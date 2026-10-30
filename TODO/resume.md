@@ -1926,6 +1926,56 @@ and goes when bytes come back. With the terminal oracle (T-200), the screen afte
 the screen before it, and so does the title. A planted notice written at the cursor fails the
 check of the screen.
 
+## Correction
+
+2026-10-30, the research of that day (Read in the sources named; no terminal was run). The Approach
+says that which terminals keep a stack of titles, "xterm, VTE, Windows Terminal, the Windows console",
+is not verified. It is now, in part, and the list is wrong for two of the four. Read: the sequences
+are `CSI 22 ; 0 t` (save the title on a stack) and `CSI 23 ; 0 t` (restore it)
+(https://invisible-island.net/xterm/ctlseqs/ctlseqs.txt); xterm's default `disallowedWindowOps`
+includes `GetWinTitle`, so the title cannot be read back
+(https://invisible-island.net/xterm/manpage/xterm.txt).
+
+| Terminal | 22 and 23 | Depth | Where it was read |
+| --- | --- | --- | --- |
+| xterm | yes | `CSI # S` reports | ctlseqs |
+| VTE (GNOME Terminal) | yes, since 2018 | 8 | `GNOME/vte:src/vteseq.cc` |
+| tmux | yes, on the pane's title; the outer title only through `set-titles-string` | 10 | `tmux/tmux:input.c` (`screen_push_title`), `tmux.1` |
+| kitty | yes, but a push is skipped when the child never set a title | 10 | `kovidgoyal/kitty:kitty/vt-parser.c` |
+| Alacritty | yes | 4096 | `alacritty/alacritty:alacritty_terminal/src/term/mod.rs` (`push_title`) |
+| iTerm2 | yes | not read | `gnachman/iTerm2` (`XTERMCC_PUSH_TITLE` in `VT100Terminal.m`) |
+| foot | yes (the window title) | 128 | `dnkl/foot:csi.c` (Codeberg) |
+| Windows Terminal and conhost | **ignored**: the enum of the adapter has the operations 1, 2, 7, 8, 14, 16 and 18 only, and `default: break` | none | `microsoft/terminal:src/terminal/adapter/adaptDispatch.cpp` (conhost shares it) |
+| Konsole | **ignored** (`/* IGNORED: Save icon and window title on stack */`) | none | `Vt102Emulation.cpp` of KDE's Konsole |
+| GNU screen | **no**: `CSI t` handles 7, 8, 11, 18 and 21 only | none | `ansi.c` of GNU screen (savannah) |
+| WezTerm | parsed, and an empty arm (`Window::PushWindowTitle ... => {}`) | none | `wezterm/wezterm:terminalstate/mod.rs` |
+| Ghostty | parsed, and a no-op (`.title_push, .title_pop => {}`) | none | `termio/stream_handler.zig` of Ghostty |
+
+Where the terminal ignores the pair, "set the notice, then pop" leaves the notice as the title, and
+the title cannot be read back. So:
+
+1. Item 2(a) is allow-listed, not tried everywhere: use the title only where the terminal is known
+   to keep the stack. A probe: XTVERSION (`CSI > 0 q`) is answered by xterm, kitty, foot, VTE
+   (`VTE(n)`), tmux, WezTerm and Ghostty (Read in each source); Konsole, Windows Terminal, screen
+   and Alacritty were not seen to answer, and the replies of iTerm2 and Konsole are not read.
+   Allow xterm, VTE and foot by XTVERSION, and iTerm2, Alacritty and kitty by `TERM_PROGRAM`,
+   `VTE_VERSION` or `KITTY_WINDOW_ID` (the variables are Inferred; check them when this entry is
+   done). Never for the ignoring terminals. Otherwise item 2(b), or 2(c).
+2. Inside tmux the pair touches the pane's title, and the outer title only when `set-titles-string`
+   holds `#T`: treat tmux as unreliable for 2(a).
+3. Never send `CSI Ps t` with `Ps` of 24 or more: xterm resizes the window.
+4. An unknown `CSI t` is dropped by each terminal that was read, with no drawing (Konsole, kitty,
+   foot and tmux log it). Only xterm acts on the large values.
+5. The Windows console has its own title call (the Win32 API); this entry has not verified it, and
+   it measures it.
+6. Prior art: vim sends the pair (`t_ST`, `t_RT`, `runtime/doc/term.txt`); neovim pushes
+   unconditionally and accepts the terminals that ignore it (neovim pull request 9408). The matrix
+   at terminfo.dev only tests that the sequence does not crash, so it lists Ghostty as "yes": it
+   is not used here.
+
+Open: whether a table of terminals is worth its upkeep, given the quirks of kitty and tmux; the
+alternative is the top-row notice (2(b)) alone, once T-160's model exists.
+
 # T-303: The latest screen on request: frames that let Ctrl-C show within a round trip
 
 **Source:** T-171 (`docs/design.md:460-474`): Mosh sends the difference of screens at most each
@@ -2143,3 +2193,56 @@ cargo test -p podssh-relay --test session_deadline
 
 On a paused clock: with a limit of 3 h, a session resumes after 2 h, and is refused after 4 h with
 the line of item 4. A planted far end that ignores its limit fails the first check.
+
+## Correction
+
+2026-10-30, the research of that day (Read in the sources named; nothing was run). The Premise says
+that it is not verified whether `Instant` counts the time that the host slept. It is read now, for
+the standard library at its master branch (`library/std/src/sys/time/unix.rs` and `windows.rs` of
+`rust-lang/rust`), and for the system documents:
+
+| System | What `Instant` reads | Counts the suspend? |
+| --- | --- | --- |
+| Linux and other Unix | `CLOCK_MONOTONIC` | No: the manual of `clock_gettime` says that it "does not count time that the system is suspended"; `CLOCK_BOOTTIME` (since Linux 2.6.39) "also includes any time that the system is suspended" |
+| macOS and iOS | `CLOCK_UPTIME_RAW` | No (std's own comment: "does not increment while the system is asleep"); Apple's `CLOCK_MONOTONIC` "will continue to increment while the system is asleep", and so does `mach_continuous_time` |
+| Windows | `QueryPerformanceCounter` | Yes, by Microsoft's document ("including the time when the machine was in a sleep state"); not measured by the research. `QueryUnbiasedInterruptTime` leaves sleep out; `GetTickCount64` includes it (Inferred) |
+
+The documentation of `std::time::Instant` says so too: "it is also not specified whether system
+suspends count as elapsed time or not. The behavior varies across platforms and Rust versions".
+std will not change soon: the pull requests that moved Linux to `CLOCK_BOOTTIME` (rust-lang/rust 87907
+and 88714) and Android and Fuchsia (132331) were closed unmerged, and the issues 79462, 87906 and
+71860 are open; the libs team said in 2021 that the change was "not portable ... doesn't work on all
+versions of the Linux kernel". An accepted proposal for `Instant<C>` with a continuous and a
+suspending clock (rust-lang/libs-team 733) is not in std. So on a laptop that sleeps, the client on
+Linux or macOS counts too little of the time it was away, which is the failure that this entry's
+Problem names, and `crates/podssh-relay/src/session/resume.rs:285` says "let lost = Instant::now();".
+On Windows it may not happen (unmeasured).
+
+Changes to the Approach:
+
+1. A clock that counts the suspend, with `Instant` as the fallback, in the client: `CLOCK_BOOTTIME`
+   by `clock_gettime` on Linux, Android and the BSDs that have it, falling back to `Instant` on an
+   error; on Apple, `CLOCK_MONOTONIC` (which counts sleep, unlike std's choice) or
+   `mach_continuous_time`; on Windows, `QueryPerformanceCounter` as std does. Read: `libc` for Unix
+   and `windows-sys` are already dependencies of the crate (`crates/podssh-relay/Cargo.toml:46` says
+   "libc = { workspace = true }"), and a call of the system library adds no C source to the crate
+   (the rule of `AGENTS.md`, section 5, rule 4, is about C code; the entry confirms it with the
+   gate's check). ssh-obi does the same: its `ReconnectDeadline` keeps a clock that counts the
+   suspend and an `Instant`, and uses the first when it answers: `CLOCK_BOOTTIME` on Linux, Android,
+   FreeBSD and OpenBSD, `mach_continuous_time` on Apple, `GetTickCount64` on Windows, else none
+   (`menhera-org/ssh-obi:src/client.rs`, Read; its license is Apache-2.0 or MPL-2.0, so read it,
+   copy none of it).
+2. Beside it, a detector that needs no probe (Inferred, to be tested): record `(Instant, SystemTime)`
+   when the link is lost; at the wake, the wall-clock difference minus the monotonic difference is the
+   time that the host slept, on Linux and macOS. It also gives the "away N hours" of item 4. Use
+   `SystemTime` for that text and the detector only, never for the deadline, because it jumps with NTP
+   and with the user's clock.
+3. tokio's timers sit on std's `Instant` (Inferred): compute the deadline at the wake from the clock
+   of item 1, and do not wait for a timer that slept through the interval.
+4. Item 4 of the Approach uses the same difference.
+5. Prove: besides the paused clock, a fake clock that stops across a "suspend" tests the fallback to
+   `Instant`.
+
+Not measured, and the entry measures them: whether `CLOCK_BOOTTIME` advances across a paused virtual
+machine or a snapshotted sandbox (podssh's target boxes), and whether the Windows counter includes
+sleep under virtualisation.

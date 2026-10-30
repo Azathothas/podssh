@@ -695,6 +695,20 @@ Read:
    signed (SmartScreen warns about it).
 5. Do this before T-250, so that the one release is attested.
 
+## Decision
+
+2026-10-30, a call of the research (the operator may change it): attest in the job `publish`, once,
+for all the binaries (`subject-path: dist/podssh-*`), not in each of `linux` and `windows` as item 1
+says. It satisfies the Prove, makes one attestation that names every subject, and keeps
+`id-token: write` out of the jobs that run the project's build scripts. The job `publish` builds no
+crate: `cargo-about` and `git-cliff` come as release binaries
+(`.github/workflows/release.yml:153` says "tool: cargo-about@0.9.2"). Lost: attesting in each build
+job, with its own `id-token: write` where the build scripts of every dependency run, and one
+attestation for each binary. The attest step runs on a tag only (`if: startsWith(github.ref,
+'refs/tags/v')`), as item 1 says, so that a run by hand makes none; and it comes before `gh release
+create`, so that a failure stops before anything is published. The action is `actions/attest`, not
+`actions/attest-build-provenance` (see the Correction).
+
 ## Prove
 
 ```sh
@@ -707,6 +721,57 @@ gh attestation verify podssh-x86_64-pc-windows-msvc.exe --repo Azathothas/podssh
 Each command exits 0, and each verification names the release workflow and
 the commit of the tag. Planted defect: change one byte of a copy of a binary;
 `gh attestation verify` must fail.
+
+## Correction
+
+2026-10-30, the research of that day (Read in the sources named; nothing was run, and the public
+page for each action was read through a mirror of GitHub's API, so check each commit below against
+github.com when the workflow is written). The Approach names `actions/attest-build-provenance`.
+
+- `actions/attest-build-provenance` is a wrapper now: its README (v4.2.2) says "As of version 4,
+  `actions/attest-build-provenance` is simply a wrapper on top of `actions/attest`", and that new
+  implementations should use `actions/attest`. GitHub's own page shows `actions/attest@v4`. Use
+  `actions/attest` v4.2.2 (commit `1e69f48acb82d1966a394da916b4c1698aa569d6`), pinned by that commit,
+  as item 1 asks. (The wrapper is at commit `4d101475d8b20a2381f78447822ac1eab6504dd8`.)
+- Permissions for a binary (GitHub documentation): `id-token: write`, `contents: read` and
+  `attestations: write`. `publish` has `contents: write` today (`.github/workflows/release.yml:138`
+  says "contents: write"), which includes the read. The README of `actions/attest` also lists
+  `artifact-metadata: write`, "necessary to create the artifact storage record"; that record needs
+  `push-to-registry: true`, which is for images, so a file subject does not need it (Inferred): add
+  it only if the first run warns.
+- Several files: `subject-path` "May contain a glob pattern or list of paths (total subject count
+  cannot exceed 1024)", and one attestation then names all the subjects; `subject-checksums` takes a
+  checksums file; the output `bundle-path` is the Sigstore bundle as JSON. In a public repository
+  the attestation is free for every plan, and it is signed with the public-good Sigstore.
+- To check (https://cli.github.com/manual/gh_attestation_verify): `--repo` or `--owner` is needed;
+  the default predicate is `https://slsa.dev/provenance/v1`; stricter, `--signer-workflow
+  Azathothas/podssh/.github/workflows/release.yml`, `--source-ref refs/tags/vX`, `--source-digest SHA`
+  and `--deny-self-hosted-runners`. Item 2 and the Prove should name the first two, so that a
+  verification "names the release workflow and the commit of the tag". Offline: `gh attestation
+  download FILE -R OWNER/REPO` writes `sha256-<digest>.jsonl`; then `--bundle FILE.jsonl
+  --custom-trusted-root trusted_root.jsonl` (the root from `gh attestation trusted-root`). With
+  `--bundle` the repository name is checked against the certificate only, so a renamed repository is
+  not caught. The job can copy `bundle-path` into `dist/` for the user (this entry decides).
+- `actions/download-artifact@v8`, already in the job (`.github/workflows/release.yml:144`), fails by
+  default when the digest of a file differs from what the build job uploaded ("Hash mismatches will
+  now error by default", v8.0.0): that is a gain for the chain of custody here, with no change.
+- Optional, and the operator's call: immutable releases (a setting of the repository) lock the tag
+  and the assets and add a release attestation that `gh release verify TAG` checks. With rolling
+  betas, a tag becomes permanent at its first release.
+- Commits that the research found for the actions of this workflow, for the day it pins them
+  (Read at the release API of each repository): `actions/checkout` v7.0.1
+  `3d3c42e5aac5ba805825da76410c181273ba90b1`, `actions/upload-artifact` v7.0.2
+  `cf430e030ddbb5b0abf93d22962f4752f3646cd9`, `actions/download-artifact` v8.0.2
+  `9000827ccba6bdab643e8b6fd33ac0654aef8333`, `taiki-e/install-action` v2.88.0
+  `86f7a0ffb25f40114606501a311ebcfaf882ea32` (it knows `git-cliff@2.9.1` and `cargo-about@0.9.2`),
+  `ilammy/setup-nasm` v1.5.2 `72793074d3c8cdda771dba85f6deafe00623038b`. The workflow pins these by
+  major tag today; whether to pin them by commit is a choice of this entry's session. All of them but
+  `setup-nasm` run on Node 24 (Node 20 left the runners on 2026-09-23); `setup-nasm` declares Node 20
+  and its issues 45 and 46 ask for Node 24, and the Windows job of `build.yml` still passed with it
+  on 2026-10-13 (run 38435776219, read through the runs API).
+- The snippet of the step, as the research drafted it (not run): `uses:
+  actions/attest@1e69f48acb82d1966a394da916b4c1698aa569d6` with `id: attest`, `with: subject-path:
+  dist/podssh-*`, after the step "checksums" and before `gh release create`.
 
 # T-211: Signed checksums for each release
 
@@ -778,6 +843,48 @@ Each command exits 0. Planted defect: change one hex digit in a copy of
 download" no longer holds: the README's first step now checks a download of
 a beta against `SHA256SUMS` (T-309). The signatures of this entry are still
 missing; that step gains their check when they exist.
+
+2026-10-30, the research of that day (Read in the sources named; nothing was run). It adds to the
+Approach, and disproves no Premise.
+
+- The tool. cosign v3.1.4 is the latest (2026-10-20); v2.6.5 is still released.
+  `sigstore/cosign-installer` v4.1.2 (commit `6f9f17788090df1f26f669e9d70d6ae9567deba6`, 2026-05-07)
+  defaults to cosign v3.0.6, verifies what it installs, and accepts any `cosign-release`; pin one
+  (v3.1.4 is the draft's). The commit was read through a mirror of GitHub's API: check it at github.com
+  when the workflow is written.
+- The flags (cosign's documents at v3.1.4, v3.0.6 and v2.6.5). `sign-blob --bundle FILE` is required in
+  v3 ("moved from optional to required"); `--new-bundle-format` is on by default in v3.0.x and a
+  deprecated, hidden flag in v3.1.4: do not pass it with v3 (it is needed only with v2.6.x). `--yes`
+  skips the prompts, and CI needs it. The keyless signing takes the job's own OIDC token, so the job
+  needs `id-token: write`; give `publish` that and `attestations: write` for T-210, beside
+  `contents: write` (`.github/workflows/release.yml:138` says "contents: write"). The convention for
+  the bundle's name is `*.sigstore.json` (https://docs.sigstore.dev/cosign/signing/signing_with_blobs/).
+- The identity. The certificate's subject alternative name is `https://github.com/{job_workflow_ref}`
+  (https://github.com/sigstore/fulcio/blob/main/docs/oidc.md), so for a tag
+  `https://github.com/Azathothas/podssh/.github/workflows/release.yml@refs/tags/v1.0.0-beta.1`; the
+  issuer is `https://token.actions.githubusercontent.com`. `verify-blob` needs `--bundle`, one of
+  `--certificate-identity` or `--certificate-identity-regexp` (Go's RE2), and one of
+  `--certificate-oidc-issuer` or its regexp; `--trusted-root` is for a check offline. A beta tag has a
+  suffix, so a regexp for users must allow it, for example
+  `@refs/tags/v[0-9]+\.[0-9]+\.[0-9]+(-[0-9A-Za-z.-]+)?$`; the Prove's regexp ends at `refs/tags/v`
+  and needs no change.
+- The order in `publish`: checksums, attest (T-210), sign and verify, then `gh release create`, so
+  that a failure stops before anything is published. In the step, verify at once with the exact
+  identity (item 2), and plant two failures that must both fail: a changed copy of `SHA256SUMS`
+  (`sed 's/^./0/'`), and the identity of a branch (`@refs/heads/main`), which item 3 asks for. The
+  step runs on a tag only, or a run by hand would sign a ref that is no tag. Copy the bundle of T-210
+  into `dist/` for the user, so that the files and the proofs name one commit and one tag.
+- What the user types (README and the notes, tags only): `gh attestation verify
+  podssh-x86_64-unknown-linux-musl --repo Azathothas/podssh --signer-workflow
+  Azathothas/podssh/.github/workflows/release.yml --source-ref refs/tags/v1.0.0-beta.1`, then
+  `sha256sum -c --ignore-missing SHA256SUMS`, then `cosign verify-blob --bundle
+  SHA256SUMS.sigstore.json` with the identity regexp and the issuer above.
+- Cosign v3 writes the new protobuf bundle and uses Rekor v2 and the signing configuration by default
+  (https://blog.sigstore.dev/cosign-3-0-available/, Read). Which verifier versions can check it was
+  not tested: a user with cosign 2.x may need `--new-bundle-format` or an upgrade. Say "cosign 3.x" in
+  the notes until a test says more; the first run of this entry tests it with cosign 2.6.5 if it can.
+- Open: whether `actions/attest` needs `artifact-metadata: write` for file subjects (T-210's
+  Correction reads that it does not); and whether to switch on immutable releases, the operator's call.
 
 # T-212: Parallel CI, with the gate as the one source
 
@@ -1590,6 +1697,85 @@ gh run download RUN_ID -R Azathothas/podssh -n podssh-armv7-unknown-linux-muslea
 The run passes for each target, and each artifact ran under its check.
 Planted defect: build one target without `+crt-static`; its static check must
 fail.
+
+## Correction
+
+2026-10-30, the research of that day (Read in the sources named, through a mirror of GitHub's API for
+repository pages; nothing was built; Inferred is marked). It changes the Decision's reach and gives
+a plan for each target. The workflow keeps the names `podssh-<target>` for its artifacts (a build
+job of artifact v4 or later may not repeat a name), so `subject-path: dist/podssh-*` of T-210 and the
+sums of the job `publish` take each new file with no change; the job `publish` then lists each
+new job in `needs`.
+
+**What aws-lc needs.** `Cargo.lock` has aws-lc-sys 0.45.0 and aws-lc-rs 1.18.1 (1.19.0 was released
+on 2026-10-28). A build without FIPS needs a C compiler and nothing else: the requirements pages
+(https://aws.github.io/aws-lc-rs/requirements/index.html) say "CMake: Never required", and Go and
+bindgen are not needed ("universal pre-generated bindings"; since 1.15.0, 2025-11-12, which removed
+the bindgen need for armv7 and riscv64: issues 890 and 874 of `aws/aws-lc-rs`). On main, not on 0.45.0
+itself (so it holds there only by Inference), the builder compiles assembly for arm, aarch64, x86,
+x86_64 and ppc64le, and for another architecture such as riscv64 it warns "No target-specific source
+found" and compiles the portable C. Windows on ARM64 needs a C compiler, clang-cl, and no NASM.
+macOS needs the Xcode command line tools only.
+
+**The Decision's reach.** `.github/images/build/Dockerfile:4` says "linux/amd64 and linux/arm64",
+and the comment is stale for riscv64: the pinned digest is an index, and the index read through
+`mirror.gcr.io` lists linux/amd64, linux/arm64, linux/ppc64le and linux/riscv64. So the same image
+runs `--platform linux/riscv64` under QEMU. There is no `linux/arm/v7` variant of `rust:1-alpine`
+(the official image has amd64, arm64v8, ppc64le and riscv64 for Alpine), so "where that image exists"
+leaves armv7 out of the Decision; the plan below takes Alpine's own toolchain for it.
+
+**One commit for each target** (the plans are drafts; none ships without a run):
+
+- `aarch64-apple-darwin`: `runs-on: macos-15`, a native `cargo build --locked --release --target
+  aarch64-apple-darwin -p podssh-cli`; no cmake, Go or NASM. Check that `otool -L` lists paths under
+  `/usr/lib/` and `/System/Library/` only, then run `--version`, `man --no-pager`, `keygen` and
+  `keygen -y`.
+- `x86_64-apple-darwin`: `runs-on: macos-15-intel`, native, and the runner runs the binary. Read:
+  `macos-15-intel` is "the last available x86_64 image from Actions" and lasts until August 2027
+  (`actions/runner-images`, issue 13046), so a release after that needs a cross build from arm64 (the
+  Rosetta need of a run is untested). Do not use `macos-14`, which retires on 2026-11-02 (issue
+  13518 there); `macos-13` retired on 2025-12-04. The labels `macos-26` and `macos-26-intel` exist.
+- `aarch64-pc-windows-msvc`: `runs-on: windows-11-arm`, no NASM step, `RUSTFLAGS:
+  -Ctarget-feature=+crt-static`, `cargo build --locked --release -p podssh-cli`. The image has LLVM
+  22.1.8, Visual Studio 2022 with `VC.Llvm.Clang`, Rust 1.99.0, CMake and Ninja; aws-lc needs clang-cl,
+  found in PATH or in Visual Studio; if it is not found, set `CC: clang-cl`. The `dumpbin` step of
+  the Windows job looks only under `Hostx64\x64`
+  (`.github/workflows/release.yml:115` says "Hostx64\x64\dumpbin.exe"): for ARM search
+  `bin\Hostarm64\arm64\dumpbin.exe` first, then any `bin\Host*\*\dumpbin.exe` (the layout of the
+  ARM image is Inferred). aws-lc-rs's own CI builds this target on an x64 runner and runs cargo-xwin
+  on `windows-11-arm`. Add a Windows ARM row to `build.yml` later.
+- `armv7-unknown-linux-musleabihf`: Rust tier 2 with no host tools, so there is no rustup toolchain
+  to run on 32-bit ARM; aws-lc-rs tests `arm-unknown-linux-musleabihf` and
+  `armv7-unknown-linux-gnueabihf` with `cross`, not this target. Plan A: `runs-on:
+  ubuntu-24.04-arm`; probe `docker run --rm --platform linux/arm/v7 alpine:3.24 uname -m`, and where
+  it fails use `docker/setup-qemu-action` (v4.2.0 `96fe6ef7f33517b61c61be40b68a1882f3264fb8`; v4.4.0
+  exists). The arm runners' CPU, Neoverse N2, "supports AArch32 at EL0" (Arm's TRM 102099) and
+  projects run armv7 containers on it, but another project says that is not guaranteed: probe at run
+  time. Inside the container: `apk add --no-cache build-base rust cargo` (Alpine 3.24 `main/armv7` has
+  rust and cargo 1.96.1) and a host build with `RUSTFLAGS=-Ctarget-feature=+crt-static`; the output is
+  `target/release/podssh`, and Alpine's triple is `armv7-alpine-linux-musleabihf`, so name the
+  artifact by hand. Check with the same `readelf` step as x86_64, and run the binary in an armv7
+  container. Plan B, which the Decision rejected, for native speed: `ghcr.io/cross-rs/armv7-unknown-
+  linux-musleabihf:main`, or `cargo-zigbuild` (its CI covers x86_64, aarch64 and Apple, not armv7).
+  The release profile is `opt-level = "z"`, `lto = true`, `codegen-units = 1`
+  (`Cargo.toml:195` says "opt-level"; the profile is at the lines around it): the link on a 32-bit
+  rustc may run out of address space, and under QEMU it is slow. Measure first.
+- `riscv64gc-unknown-linux-musl`: Rust tier 2 with host tools. Plan A: `runs-on: ubuntu-24.04`,
+  `docker/setup-qemu-action` with `platforms: riscv64`, `docker run --platform linux/riscv64
+  "$BUILD_IMAGE"` with the image that the job already reads from the Dockerfile, a host build with no
+  `--target`. There is no hosted riscv64 runner. aws-lc-rs's own CI covers riscv64 with glibc, and
+  needs `-Wno-string-compare` with GCC 11; Alpine's GCC is newer (not needed: Inferred). Plan B:
+  `ghcr.io/cross-rs/riscv64gc-unknown-linux-musl:main` (musl GCC and qemu inside).
+- The job's own limit. `timeout-minutes: 60` is the repository's choice
+  (`.github/workflows/release.yml:35` says "timeout-minutes: 60"); GitHub's limit for a hosted job is 6
+  hours. Set the QEMU jobs up to 360 for the first measurement, and lower it to the measured time.
+- Public repositories: the standard hosted runners are free and unlimited; the Linux and Windows arm64
+  runners (4 vCPU) are generally available for them (changelog of 2025-08-07).
+
+Not measured, and the first runs answer them: whether the arm runner runs `linux/arm/v7` containers
+natively today; whether aws-lc-sys 0.45.0 (not main) builds on armv7 musl and riscv64 musl with no
+cmake and no bindgen; the time of the riscv64 build under QEMU and the memory of the armv7 link;
+Intel macOS after August 2027 (cross build with Rosetta, or drop the target).
 
 # T-219: The no-C gate also stops C++
 

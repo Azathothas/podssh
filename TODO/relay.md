@@ -1185,3 +1185,74 @@ directories and files are made private (`crates/podssh-relay/src/cache/closed_wi
 - `cargo test -p podssh-relay --all-features`: 243 passed, 0 failed, 16 ignored;
   `cargo test -p podssh-cli`: 537 passed, 0 failed, 31 ignored; clippy with all features, and of
   `podssh-relay` for Linux too. CI's job `windows` on `windows-2025` runs the tests at this push.
+
+# T-323: A frame that `podssh ssh` sends to the relay stays under 64 KiB with room to spare
+
+**Source:** the research of 2026-10-30 on Workers: workerd issue 7074 (open since 2026-08-20; Read
+at `cloudflare/workerd`).
+**Category:** chore
+**Milestone:** backlog
+**Priority:** P3
+**Effort:** S
+**Status:** open
+
+## Problem
+
+The relay is a Cloudflare Worker that writes what a client sends to a TCP socket of `connect()`.
+workerd issue 7074 reports that one `write()` of more than 65,536 bytes on such a socket resolves,
+and that the next read then fails with `Error: Network connection lost.` ("Exactly 65,536 bytes
+succeeds; 65,537 fails, every time"; production runtime only; chunking to 32 KiB or less is the
+workaround). A relay that writes each frame as one `write()` would break on a frame above 65,536
+bytes, and its frame cap is 262144. podssh's own forward frames are at the edge of that limit.
+Whether the relay writes a frame as one `write()`, and whether its runtime has the bug, are not
+known: the relay's source is not available to the repository.
+
+## Premise
+
+- Read: the stream that carries `podssh ssh` over the relay reads its pipe in chunks and sends each
+  as one frame; `crates/podssh-ssh/src/relay_stream.rs:33` says "const CHUNK: usize = 64 * 1024;".
+  That is exactly the largest write that the issue says passes. SSH packets are far smaller
+  (russh's default packet size is 32 KiB, Inferred), but one read of the pipe can hold several.
+- Read: the other forward senders already use 32 KiB: the relay leg of `podssh pipe`
+  (`crates/podssh-cli/src/pipe/relay.rs:34` says "const CHUNK: usize = 32 * 1024;") and the blocking
+  facade for podbox (`crates/podssh-relay/src/blocking/forward.rs:16` says "const FRAME_PAYLOAD:
+  usize = 32 * 1024;").
+- Read: `crates/podssh-ws/src/frame.rs:30` names the relay's cap, `FORWARD_MAX_FRAME`, which is
+  262,144. The reverse road is not concerned: its node frames end in WebSockets, not in a socket of
+  `connect()` (Inferred).
+- Read in the issue: the failure shows only in the production runtime, not in a local one, and
+  no Cloudflare comment answers it. Not measured by this repository: no test has reached the relay
+  with a frame above 65,536 bytes, and one must not be sent to the live relay without the
+  operator's leave.
+
+## Approach
+
+1. Make the chunk of `relay_stream.rs` 32 KiB, with a comment that says why (the write of a
+   `connect()` socket at 64 KiB; the issue), beside the other forward senders. A frame then has
+   half of the limit to spare.
+2. Name the size once, in `crates/podssh-ws/src/frame.rs` next to `FORWARD_MAX_FRAME` (this entry
+   decides the name), and use it in the three places, so that the next sender does not choose its own.
+3. Check the speed that the smaller frame costs, with `podssh ping`'s throughput (T-053) through the
+   live relay, before and after, in one short run (under 64 MiB).
+4. `docs/relay.md`: a line that says podssh sends at most 32 KiB in a frame, and that the relay's
+   cap is 262144. The question for the relay's operator: does the relay write a frame as one
+   `write()`, and does its runtime have the issue's limit? It goes to the operator beside the
+   questions of T-062 and T-255.
+
+## Decision
+
+Recommendation: 32 KiB, the size that the issue names as the workaround and that the other senders
+use. 16 KiB lost: twice the frames for no gain that anything shows. Keeping 64 KiB lost: no room
+for a sender that adds a byte, and the cost of the change is a measurement of speed that item 3
+makes.
+
+## Prove
+
+```sh
+export CARGO_BUILD_JOBS=4
+cargo test -p podssh-ssh relay_stream
+```
+
+A test through a stand-in relay that records each frame: 1 MiB written by the session reaches the
+relay as frames of 32 KiB at most, and the bytes are equal. Planted defect: set the chunk back to
+64 KiB; the test must fail.

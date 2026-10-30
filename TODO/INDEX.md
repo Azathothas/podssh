@@ -61,15 +61,15 @@ repository and CI).
 
 ## Counts
 
-**317 entries: 35 open, 1 partial, 25 blocked, 256 done.**
+**319 entries: 37 open, 1 partial, 25 blocked, 256 done.**
 
 | Priority | open | partial | blocked | done | total |
 | --- | --- | --- | --- | --- | --- |
 | P0 | 0 | 0 | 0 | 1 | 1 |
 | P1 | 2 | 1 | 0 | 23 | 26 |
 | P2 | 5 | 0 | 19 | 141 | 165 |
-| P3 | 28 | 0 | 6 | 91 | 125 |
-| **All** | 35 | 1 | 25 | 256 | 317 |
+| P3 | 30 | 0 | 6 | 91 | 127 |
+| **All** | 37 | 1 | 25 | 256 | 319 |
 
 ## Entries
 
@@ -392,3 +392,5 @@ repository and CI).
 | [T-319](roads.md) | P2 | L | backlog | feature | blocked | An HTTP road for a proxy that refuses the WebSocket upgrade |
 | [T-320](ws.md) | P3 | S | backlog | defect | open | A `407` names the proxy's authentication scheme |
 | [T-321](roads.md) | P3 | L | backlog | feature | blocked | An HTTP/2 road: the WebSocket over extended CONNECT (RFC 8441) |
+| [T-322](multi.md) | P3 | S | backlog | feature | open | The emergency stop of the broadcast has a key that the user chooses |
+| [T-323](relay.md) | P3 | S | backlog | chore | open | A frame that `podssh ssh` sends to the relay stays under 64 KiB with room to spare |

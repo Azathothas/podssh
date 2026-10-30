@@ -1746,3 +1746,77 @@ one running and two queued must fail.
 2026-10-09 (T-134): 75 (`EX_TEMPFAIL`) is in the table of exit codes
 already (`crates/podssh-cli/src/man/data.rs:19-122`), for a `--timeout` of
 `cp` that passed; this entry adds its sentence for `job wait`.
+
+# T-322: The emergency stop of the broadcast has a key that the user chooses
+
+**Source:** the follow-up that T-185's Done names ("Later", the research of 2026-10-30):
+dtach and abduco take Ctrl-\ as their key to detach, so a user of either beside podssh may want
+another stop key.
+**Category:** feature
+**Milestone:** backlog
+**Priority:** P3
+**Effort:** S
+**Status:** open
+
+## Problem
+
+The stop of `podssh each --interactive` is Ctrl-\ on Unix and Ctrl-Break on Windows, and nothing
+else. A user who runs podssh in dtach or abduco (which eat Ctrl-\ for their detach) cannot reach the
+stop. Many laptops have no Break key, and some non-US keyboard layouts need AltGr for the backslash
+(both Inferred, not checked). A broadcast mistake costs N times, so the stop must be a key that the
+user can type at once.
+
+## Premise
+
+- Read: the stop is a key that the terminal turns into a signal, SIGQUIT on Unix and a break event on
+  Windows (`crates/podssh-cli/src/each/broadcast/keys.rs:1-4`), and the name that the banner and the
+  notes print is a constant (`crates/podssh-cli/src/each/broadcast/hub.rs:19` says "pub const
+  STOP_KEY").
+- Read (POSIX, https://pubs.opengroup.org/onlinepubs/9799919799/basedefs/V1_chap11.html): the QUIT
+  character, with `ISIG` set, raises SIGQUIT and is discarded; the queues are flushed unless
+  `NOFLSH`. Which character is the QUIT character is a setting of the terminal (`stty quit`), so it
+  can be changed for one run. Inferred: that podssh can set it by `tcsetattr` on the terminal that
+  it already puts in and out of raw mode on Unix (`crates/podssh-ssh/src/terminal/unix.rs`).
+- Read in their documents: dtach and abduco use Ctrl-\ as the key to detach. clusterssh makes its
+  own quit key a setting (`key_quit`, default Control-q); csshX reaches its functions by an action
+  key, Ctrl-A, and a submenu.
+- Read: a Windows console has Ctrl-C and Ctrl-Break as control events, and "CTRL+BREAK is always
+  treated as a signal"
+  (https://learn.microsoft.com/en-us/windows/console/setconsolectrlhandler). Inferred: it has no
+  quit character to change.
+
+## Approach
+
+1. A setting that names the stop key as a control character: a flag of `each --interactive`, whose
+   spelling this entry decides (for example `--stop-key ^X`); whether a keyword and a variable also
+   exist follows the other settings of `each`.
+2. On Unix, when stdin is a terminal: set its `VQUIT` to that character for the run, and restore the
+   old one on each way out (the guard of the raw mode does it for the other settings). The kernel then
+   still raises SIGQUIT, `keys.rs` is unchanged, and the terminal still drops the half-typed line.
+   When stdin is not a terminal there is no key, and the stop stays `kill -QUIT`, as now.
+3. Refuse by name (64) a character that the terminal already uses for INTR, EOF, SUSP, ERASE, KILL
+   or the end of a line, and anything that is not a single control character.
+4. On Windows the setting is refused (64), naming Ctrl-Break: an ignored key would be no stop.
+5. The banner, the note of `each` in the manual and `docs/terminal.md` name the key that is in effect.
+6. In the same commit: the rows of the manual, `docs/cli.md`, `docs/STATUS.md`.
+
+## Decision
+
+Recommendation: change the terminal's QUIT character, not read the key from stdin. The terminal
+keeps its normal mode in this feature, so that its own line discipline edits the line (T-185); a key
+that podssh read itself would need the raw mode, which T-185 left out, and would no longer drop a
+half-typed line at the key. Lost: reading the key in raw mode; and a second, softer key for
+`:none`: the stop is the one key that must always work.
+
+## Prove
+
+```sh
+export CARGO_BUILD_JOBS=4
+cargo test -p podssh-cli --test each -- interactive
+```
+
+In a pty that is podssh's controlling terminal (as the test of `Ctrl-\` in T-185 gives one), with
+`--stop-key ^X`: typing Ctrl-X stops the broadcast and drops the line that is half typed, and
+Ctrl-\ no longer does; after podssh exits, the pty's QUIT character is Ctrl-\ again. A character that
+the terminal uses (Ctrl-C), and the setting on Windows, are refused with 64. Planted defect: leave
+the QUIT character changed at the exit; the check of the restored character fails.

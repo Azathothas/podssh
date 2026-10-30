@@ -994,6 +994,32 @@ format with no such file stays out, named as waiting, until one exists. The
 Blocker that asked for the operator's own exports is gone: it lost to files
 that anyone can check.
 
+2026-10-30, a call of the research (the operator may change it): the XML
+parser is `roxmltree` 0.21 with `default-features = false`, in
+`podssh-cli` (a crates.io reading of that day: pure Rust, no C, a
+read-only DOM, MSRV 1.60, 95 M downloads, last release 2026-10-24, one
+dependency, `memchr`, which `Cargo.lock` holds already). The mRemoteNG
+file nests containers and inherits the user down the tree, which a DOM
+reads in a few lines. `quick-xml` lost: its 0.42 needs Rust 1.86 (0.41
+needs 1.79), `Cargo.lock` holds it only for the features `ts` and `iroh`,
+and a pull parser needs more code for a tree. A hand-written XML reader
+lost: its edge cases (entities, CDATA, namespaces such as `mrng:`) are
+the parser's work. INI (Remmina, MobaXterm) and the `.reg` files of PuTTY
+are read by hand with the standard library, as the Ansible INI reader is.
+No format of this entry needs YAML: the entry keeps Ansible's YAML refused
+by name. (If it is wanted later: `saphyr` or `yaml-rust2`, both pure Rust;
+`serde_yaml` is archived and `serde_yml` has RUSTSEC-2025-0068, and both
+bring unsafe transpiled C.)
+
+2026-10-30, a second call: a fixture is a real file whose license allows it
+in this repository (`LICENSE` is 0BSD). Files under the GPL, and files with
+no license, are not committed until the operator rules that GPL test data
+may sit here with a notice of its license (an open point of the
+Correction). The cases that only such files show (a `REGEDIT4` header, a
+jump through `ProxyMethod=5`, a gateway of MobaXterm, nested folders) are
+inputs that the test builds by hand from the documented format, named as
+built, never as exports.
+
 ## Prove
 
 ```sh
@@ -1004,3 +1030,196 @@ cargo test -p podssh-cli --test config_import
 For each format, the blocks of its fixture, and no password on stdout or
 stderr. Planted defect: copy a password field into a comment; the test of
 the secret fails.
+
+## Correction
+
+2026-10-30, the research of that day. Read means: seen in the source at the
+URL or the commit named; Inferred means: concluded from what was read. The
+Premise holds. What follows is what the Approach needs and the Premise did
+not have. The samples lay in `.work/` of one machine; this entry keeps their
+addresses and digests, so that a session can fetch them again.
+
+**The formats.**
+
+- PuTTY. Sessions are in the registry (`HKEY_CURRENT_USER\Software\SimonTatham\PuTTY\Sessions`);
+  the program has no file export, and its manual points to `regedit`
+  (Read: https://the.earth.li/~sgtatham/putty/latest/htmldoc/Chapter4.html,
+  sections 4.1.2 and 4.33). On Unix, one file for each session, in `sessions/` of
+  `PUTTYDIR`, else `$XDG_CONFIG_HOME/putty` or `~/.config/putty` when it exists, else
+  `~/.putty`; a line is `key=value` with no quotes, the file name is `%XX` decoded, and
+  the first line is `Present=1` (Read in `unix/storage.c` of a fork at tag putty-0.83,
+  codefloe.com/dwn/putty-nt35; upstream answered 403, so "the same as upstream" is Inferred).
+  Keys: `HostName` (three real files hold `user@host` there), `PortNumber` (`dword:` hex in a
+  `.reg`, decimal in a Unix file), `UserName` (may be empty), `Protocol` (`ssh`, `telnet`, `raw`,
+  `rlogin`, `serial`: only `ssh` makes a block, the rest a comment), `PublicKeyFile` (a `.ppk`,
+  which OpenSSH cannot read), `ProxyMethod`, `ProxyHost`, `ProxyPort`, `ProxyUsername`,
+  `ProxyPassword`, `ProxyTelnetCommand`. The order of `ProxyMethod` is none, SOCKS4, SOCKS5, HTTP,
+  Telnet, Local, SSH port-forward, SSH exec, SSH subsystem (Read in `putty.h`; that the stored
+  number has the same order is Inferred, a real file with 5 and a `plink -load X -nc %host:%port`
+  command agrees: 5 is Local). A jump is method 6 ("SSH to proxy and use port forwarding", Read in
+  the manual, section 4.16.1); no real file with 6 was found; the pattern in the wild is method 5
+  with `plink -load OTHER -nc %host:%port`. There is no folder: the session name is the label.
+- MobaXterm. The vendor documents the menu only ("Export sessions from this folder"); the
+  format is not documented. The best description is a community study of version 26.3
+  (Read: https://gist.github.com/Ruzgfpegk/ab597838e4abbe8de30d7224afd062ea); the samples agree
+  with it field by field. INI: `[Bookmarks]`, then `[Bookmarks_N]` with `SubRep=Folder\Sub`
+  (the folder path); a session is `Name=` followed by ` #ICON#TYPE%f1%f2...#font...#flags#comment#tabcolor`.
+  Separators are `#` (outer) and `%` (inner). SSH is type 0 (icon 109): field 1 host, 2 port,
+  3 user (`<default>` or empty: none), 7 login command, 8 to 10 gateway hosts, ports and users
+  (several joined by `__PIPE__`), 14 private key path, 15 gateway keys, 19 proxy type (0 none, 6
+  SSH forward, 7 SSH command), 20 to 22 proxy host, port and login, 26 proxy command. Other types
+  (RDP 4, VNC 5, SFTP 7, serial 8) have other field orders: dispatch on the type first. Escapes:
+  `__PIPE__`, `__PTVIRG__` (`;`), `__DBLQUO__`, `__DIEZE__` (`#`), `__PERCENT__`; path macros
+  `_CurrentDrive_`, `_ProfileDir_`, `_MyDocuments_`. A gateway line is confirmed by a real file
+  of `gplv2/mobaxterm2ssh` (`data/moba.ini`, MIT), which carries a company's internal addresses
+  and was not kept. The gist says Windows-1252 and CRLF; the four files that were read are ASCII,
+  so the code page is Inferred: decode bytes 0x80 to 0x9F through a 32-entry table and the rest as
+  Latin-1.
+- Remmina. INI with one `[remmina]` section (Read: the wiki
+  https://gitlab.com/Remmina/Remmina/-/wikis/Remmina-Config-File-Options and `FreeRDP/Remmina` at
+  `bb33690d`: `src/remmina_ssh_plugin.c`, `src/remmina_file.c`, `src/remmina_ssh.c`). Files:
+  `~/.local/share/remmina/*.remmina` (older `~/.remmina`), named `group_ssh_<name>_<host>.remmina`.
+  Keys: `protocol=SSH` (RDP, VNC, SFTP and the rest: a comment), `server=host[:port]` (`[v6]:port`
+  is accepted, the default port is 22), `username`, `name` (the label), `group` (the folder; a
+  nested separator is not verified), `ssh_auth` (0 password, 1 identity file, 2 agent, 3 public key
+  automatic, 4 GSSAPI, 5 keyboard-interactive), `ssh_privatekey`, `ssh_certfile`,
+  `ssh_proxycommand` (a command: a comment), `ssh_stricthostkeycheck`, `ssh_compression`,
+  `ssh_forward_x11`, `ssh_ciphers`, `ssh_kex_algorithms`, `ssh_hostkeytypes`. `ssh_tunnel_*` is
+  the tunnel of a non-SSH profile and the nearest thing to a jump host (Inferred); it is empty in
+  every sample with `protocol=SSH`. A profile that once was RDP keeps its RDP keys. A template can
+  hold `%Host%`.
+- mRemoteNG. GPL-2.0 source, `mRemoteNG/mRemoteNG` at `25ef453a` (2026-10-28): the schemas
+  `mRemoteNG/Schemas/mremoteng_confcons_v2_5.xsd` to `v2_8.xsd`, the reader
+  `XmlConnectionsDeserializer.cs` (`MaxSupportedConfVersion = 2.9`), the writers
+  `XmlConnectionNodeSerializer26.cs` to `28.cs`, `XmlConnectionsDecryptor.cs`,
+  `AeadCryptographyProvider.cs`, `RootNodeInfo.cs` (all Read). The root is
+  `<Connections Name Export EncryptionEngine BlockCipherMode KdfIterations FullFileEncryption Protected ConfVersion>`;
+  version 1.77 writes it as `mrng:Connections xmlns:mrng="http://mremoteng.org"` with lowercase
+  booleans, older test files write `Connections` and `True` and `False`. `Node Type="Container"` is
+  a folder and holds `Node Type="Connection"`. Attributes of a connection: `Name`, `Id`, `Hostname`,
+  `Port`, `Username`, `Domain`, `Password`, `Protocol` (by name: `SSH1`, `SSH2`, `Telnet`, `RAW`,
+  `Rlogin`, `RDP`, `VNC`, `HTTP(S)`, `PowerShell`, `WSL`, `IntApp`), `PuttySession` (the name of a
+  PuTTY session), `SSHTunnelConnectionName` (another connection by name: the jump host),
+  `SSHOptions` (extra ssh arguments, schema 2.7 and later), `Descr`, `UserField`. Inheritance:
+  `InheritUsername="True"` and its kind mean that the value is the container's, so the effective
+  user is resolved up the tree.
+- FinalShell. No vendor documentation. One JSON file for each host, `conn/<id>_connect_config.json`
+  (macOS `~/Library/FinalShell/conn`; Windows `%LOCALAPPDATA%\finalshell\conn` or the install
+  directory). Read in the decoders `XLevon/FinalshellDecoderX` (`src/core.py`) and
+  `jesse0830/jiayang` (a skill file; FinalShell 4.6.5), and in the importers of meatshell,
+  Miaominal and DengShell, which agree: `host`, `port`, `user_name`, `name`, `id`, `parent_id`
+  (`root` or a folder id), `conection_type` (the typo is real; 100 SSH, 101 RDP),
+  `authentication_type` (1 password), `password`, `secret_key_id`, `proxy_id` (`"0"` none),
+  `port_forwarding_list`, `delete_time` (non-zero: in the trash). The folder file format is not
+  verified.
+- Termius. There is no export. The vendor documents import only
+  (https://docs.termius.com/getting-started/import-existing-hosts; the index
+  https://docs.termius.com/llms.txt has no export page). `termius export-ssh-config` of the old
+  CLI is reported empty and incompatible with the current app (`termius/termius-cli` issues 173,
+  183, 188 and 198). The tools on GitHub that call themselves exporters decrypt the local database
+  and write passwords and keys in clear: not an export of the program.
+
+**Passwords: count them, never import them.** PuTTY never stores a login password; the one secret
+is `ProxyPassword`, in plain text (Read: manual, section 4.16.4), and the command of a Local proxy
+may hold `%pass` (4.16.5): a comment with no value, as T-047 does for `ProxyCommand`. MobaXterm keeps
+passwords outside the session string, in `[Passwords]` (`ssh22:user@host=blob`) and `[Sesspass]`
+of `MobaXterm.ini`, under the master password; an `.mxtsessions` export holds `[Bookmarks*]`
+only, so the count there is 0 unless a hand-made file adds the sections; the SFTP proxy password is
+plain text (the gist). Remmina: `password`, `ssh_passphrase`, `ssh_tunnel_password` and
+`ssh_tunnel_passphrase` hold `.` (the keyring) or a base64 blob that `remmina_crypt` encrypts under a
+secret of `remmina.pref` (Read: `src/remmina_file.c`); count the two kinds apart. mRemoteNG:
+`Password`, `VNCProxyPassword` and `RDGatewayPassword` are encrypted (version 2.6 and later: AES-GCM
+with a PBKDF2 key of `KdfIterations`; the key is the master password, or the built-in `mR3m` when
+none is set; earlier versions use a legacy Rijndael provider), so with the default key anybody can
+decrypt them, and podssh must not: count and skip. `FullFileEncryption="True"` encrypts the whole
+body: refuse by name. FinalShell: `password` is a reversible obfuscation that third-party tools
+undo: count it, never decode it.
+
+**Encodings.** A `.reg` file of `regedit /e` and `reg export` (header `Windows Registry Editor
+Version 5.00`) is UTF-16LE with a BOM; `regedit /ea` writes `REGEDIT4` in ANSI (Read in a comment of
+the source of `sshub`, https://docs.rs/crate/sshub/latest/source/src/import/putty.rs; the UTF-16
+claim itself is Inferred: no real UTF-16 file was found, because code search does not index them).
+Of 82 distinct real files with a host, none began with `FF FE`: 75 were ASCII with `5.00` (LF or
+CRLF), 4 were `REGEDIT4`, 3 had a UTF-8 BOM. The reader takes all four, and the test transcodes an
+ASCII fixture to UTF-16LE at test time (a real one is missing; say so in the test). Key names differ
+in case in practice (`SOFTWARE\SimonTatham` and `Software\SimonTatham`). The session
+`Default%20Settings` is the template, never a host. Names are escaped by byte, in uppercase hex
+(space, `\`, `*`, `?`, `%`, controls, bytes above `~`, a leading `.`; Read in
+`windows/utils/escape_registry_key.c` of the fork) and are UTF-8 after the decoding. Values:
+`"x"="a\\b"` escapes `\` and `"`; `dword:` and `hex:`; the file also holds `SshHostKeys`, `Jumplist`
+and the root key, which the reader skips.
+
+**What the writer must do** (the writer and the secret counter of T-047). PuTTY: skip
+`Default%20Settings` and each session that is not `ssh`; split `user@host` of `HostName` into `User`
+and `HostName`, or keep it whole with a comment (an open point); write a `.ppk` as a comment, or as
+`IdentityFile` with a comment (an open point: podssh does not read PuTTY's format); comment
+`ProxyTelnetCommand`; count a non-empty `ProxyPassword`. MobaXterm: dispatch on the type; gateway
+fields 8 to 10 become `ProxyJump`; decode `__PIPE__` and its kind; count the entries of
+`[Passwords]` and `[Sesspass]`; the login and macro fields can hold secrets: a comment with no value.
+Remmina: `server=host:port` is split; `.` and blobs are counted apart. mRemoteNG: resolve the
+inheritance of the user; `SSHTunnelConnectionName` becomes `ProxyJump` when its name is a node, else
+a comment; refuse `FullFileEncryption`; never decrypt.
+
+**The fixtures: real files, with their license** (Read in the GitHub API of 2026-10-30; each file is
+fetched at its commit, from `raw.githubusercontent.com/OWNER/REPO/COMMIT/PATH`). These permissive
+ones can be committed, each with its notice in a `THIRD-PARTY` file next to the fixtures:
+
+| File | Repository and path | Commit | License | SHA-256 |
+| --- | --- | --- | --- | --- |
+| PuTTY `.reg`, one SSH session, a `.ppk` key, CRLF | `ctxis/DynamicLabs:Ansible/tasks/attacks/T1552_2/puttyregkey/putty_session.reg` | `e03ba4b9bccc129819520a76be5552da7b9b3a17` | MIT | `0a5e6690e2b18205b2ac29bfa66d07cbe7bf721809004cfd369e498ba2a2b162` |
+| PuTTY `.reg`, Default Settings with `user@host`, a `Jumplist`, LF | `chauncey-garrett/dotfiles:putty/putty.reg` | `74b4c13665e18ec3b058ffc420932fdb39031880` | MIT | `e3e81a62775888f85b06036e74f93808937bb44a66dff59dd6e30f58054dfe82` |
+| PuTTY `.reg`, a UTF-8 BOM, Default Settings only | `sstallion/dotfiles:extra/Windows/PuTTY.reg` | `ead220ca6e198c066f626e740d95ccf7609b2cbb` | BSD-2-Clause | `8264dbf630178ec4f440af8f72f1613bb5a001b447300db8d4cf00f614b7ab34` |
+| PuTTY Unix file, Default Settings (the name is `%XX` encoded) | `KunoiSayami/dotfiles:.putty/sessions/Default%20Settings` | `f8d4b6fdc1c6ca075231d2ea4b9cbd846b73b07c` | Unlicense | `e55ad9f98c122fb599287c8483b864d8e97f511ba751d32c5d9c95b7d8872644` |
+| MobaXterm `.mxtsessions`, nested `SubRep`, `__PTVIRG__`, localhost | `OElabed/ice-microservices:dev-tools/ice-sessions.mxtsessions` | `2273860d63e496b49e9642aef314b68e08d21a79` | MIT | `ed90b9e9beda688ef75df5fef2760bdc65f00dd5e46eea899308e9cc63c4c6e5` |
+| Remmina, the full key set of `protocol=SSH`, with `%Host%` placeholders | `OneIdentity/SCALUS:scripts/examples/ssh.remmina` | `24e7efa58e5f413b2b4ea80a023525963d8f0aaf` | Apache-2.0 | `e142e9d40b231d3bb7d9f2972b99902f8ec886fe8884b7b6a6250ba94e8d43b9` |
+| mRemoteNG, `mrng:` namespace, ConfVersion 2.6, one SSH2 node with an encrypted password | `DHemken97/NKeeper:export-mremote-example.xml` | `5652109f3fd6b4bcfbc2fba9f93c9b78688d61b0` | MIT | `25f4c05d6469b7f052fbf80c051afeed6b180f84d54e28e352b06d7eebd78408` |
+
+Whether each satisfies Q41 is not settled by its license. The Remmina file is a template (it may not
+come from Remmina's writer, Inferred from the `%Host%`); the NKeeper file has the shape of mRemoteNG
+1.77's output, but that mRemoteNG wrote it is Inferred; the three PuTTY `.reg` files and the Unix file
+hold few or no hosts (Default Settings; one session). The multi-host cases rest on files that cannot
+be committed today:
+
+- No license, real: PuTTY `.reg` of `ardentperf/racattack` (`putty-saved-sessions.reg`, 4 sessions,
+  LF; commit `a41f4b7302fd0afc8bd4c13e6faca9bb4d71b2c6`), `xorrkaz/enterprise-network-programmability`
+  (`putty/putty.reg`, 12 sessions, SSH and Telnet, CRLF; `bf54cfc7086c0da5348ed6e24e9295ad9bdba590`),
+  `theeternalsw0rd/dotfiles` (`terminals/putty/cygwin.reg`, `REGEDIT4`, a Local proxy;
+  `c6e1cda79b8ba32e9b72967158c3dc8ed4f8a7dc`), `JW0914/Wikis`
+  (`Scripts+Configs/PuTTY/Multi-Hop/PuTTY_Profile_TrueNAS_Remote_Multi-hop.reg`, `ProxyMethod=5` with
+  `plink -load OTHER -nc %host:%port`, `HostName=root@host`; `1680c8d3ec4319d4a4f1281e925d5c0e2def1282`),
+  `SteveCTOS/SteveCTOS` (`putty/sessions/ctools` and `development`, Unix files;
+  `f16a045b58eede2de661ea17ba2a052c6e86790e`); MobaXterm `Nomard/network-infra-obsidian-template`
+  (`VaultSample/App Files/MobaXterm/MobaXterm Sessions.mxtsessions`, CRLF, a serial session;
+  `7306420ddc3edb37fc2c7301c9641885bc14554b`); Remmina `srackham/dotfiles`
+  (`dot_local/share/remmina/group_ssh_rpi1_rpi1.remmina`; `39e5147de93ad77ec28358e2ea0fd0b5650bfd7a`),
+  `zany130/dotfiles-garuda` (an SSH profile with RDP keys; `bf44153a7b70c02af69fd2fd3b40a05f5b48242c`)
+  and `aomogol/install-arch-2024` (`448ebc82a05dd30e05f057a078faf1726a944d8a`), all with `password=.`.
+- GPL: mRemoteNG's own test resources `mRemoteNGTests/Resources/confCons_v2_5.xml`,
+  `confCons_v2_6.xml`, `confCons_v2_6_5k-iterations.xml`, `confCons_v2_6_passwordis_Password.xml` (the
+  master password is `Password`) and `confCons_v2_6_fullencryption.xml`, with the schemas
+  `mremoteng_confcons_v2_6.xsd` and `v2_8.xsd`, all at `25ef453aaf18f292478dd41e5bb26798ff504312`
+  (written by the program, real encrypted test passwords, an empty `Hostname` in each, one SSH2 node);
+  `cremenescu/mRemoteNXT:examples/demo-config.xml` (`f52e810f5bbc8bfe620e179d235678886fb0b9bc`; 10 SSH2
+  nodes in 4 folders on TEST-NET addresses; it may not come from mRemoteNG); and, hand-written by
+  other importers and so no export at all, `Ruzgfpegk/sessionator` (GPL-3.0), `2shiraz/tyrminal`
+  (Apache-2.0, `tests/fixtures/import/mobaxterm-sessions.mxtsessions`) and
+  `totoshko88/RustConn` (GPL-3.0, `ssh_server.remmina`).
+- No file that the program wrote was found for FinalShell: the importers' fixtures are synthetic
+  (`AnalyseDeCircuit/oxideterm`, GPL-3.0; `BitsFlowCloud/DengShell`, MIT, built in code); one skill
+  file quotes a real file with its values blanked and has no license. None for Termius (no export).
+  By Q41, these two formats stay out, named as waiting, until one exists.
+- No sample holds a non-empty `ProxyPassword`, a `[Passwords]` entry or a Remmina blob. The test of the
+  secret uses copies of a licensed fixture with a made-up value (mRemoteNG's blobs and the
+  `ssh_passphrase` placeholders already are test values).
+
+**Open points for the operator or a later session** (none is a fact):
+
+1. May GPL files (mRemoteNG's tests, the demo file) live in this repository as test data, with a
+   notice? Else the mRemoteNG cases rest on the NKeeper file and on built inputs; the authors of the
+   unlicensed files could be asked for a license.
+2. A real UTF-16LE PuTTY export, beyond the test-time transcoding, was not found.
+3. The `.ppk` as `IdentityFile`, and `user@host` in `HostName`: the two choices above.
+4. Not checked against a real file: Remmina's nested `group` separator, FinalShell's folder files,
+   mRemoteNG's key derivation before version 2.6, and the `ProxyMethod` numbers 6 to 8.
+5. Whether the NKeeper and demo files were written by mRemoteNG: a user of 1.77.x could say.
+6. FinalShell and Termius: the operator may supply a file from a real install, which settles both.
