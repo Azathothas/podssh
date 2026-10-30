@@ -1281,3 +1281,163 @@ cargo test -p podssh-ws --test dial
 Against a stand-in proxy that answers `407` with `Proxy-Authenticate: NTLM`
 and `Negotiate`, the message names both and says that podssh sends Basic
 only. Planted: the header not read; the test fails.
+
+# T-324: `doctor` tells the three failures of the upgrade apart, and samples each probe
+
+**Source:** GitHub #54 (Nemo-010, 2026-10-30), with its comment on samples.
+**Category:** feature
+**Milestone:** backlog
+**Priority:** P3
+**Effort:** M
+**Status:** open
+
+## Problem
+
+`doctor` gives one verdict for the WebSocket upgrade and one time for each
+probe. A refused upgrade, an answer of 101 with a wrong
+`Sec-WebSocket-Accept`, and a connection that dies after a valid 101 are
+three failures with three ways out, and one sample cannot tell a path that
+refuses from one that was slow, nor a steady path from a lossy one.
+
+## Premise
+
+- Read: the proxy's probes give one time each
+  (`crates/podssh-cli/src/doctor/net.rs`, `through_proxy`), and the relay's
+  checks one verdict for the upgrade and one SSH handshake
+  (`crates/podssh-cli/src/doctor/relay_checks.rs`).
+- Read: since T-317 the probe of port 22 reads the server's banner after the
+  200; nothing else reads what the path does to a stream.
+- Read (#54's comment): the best of nine samples or more is the path's floor,
+  the median its cost, the 95th percentile what a keystroke sometimes pays,
+  and the share of timeouts and resets its loss. Not measured here.
+
+## Approach
+
+1. The upgrade's verdict, three ways: not 101 (with the status and the
+   first line of the body), 101 with a wrong `Sec-WebSocket-Accept`, and a
+   connection that dies within 5 s after a valid 101.
+2. Each probe that connects runs at least nine times over at least a
+   second, and its line gives best, median, 95th percentile, loss (timeouts
+   and resets counted apart) and jitter; `--json` the same fields.
+3. A bound on the whole: `doctor` stays under a minute on a path that
+   answers.
+
+## Prove
+
+```sh
+cargo test -p podssh-cli --test doctor
+cargo test -p podssh-cli --lib doctor::
+```
+
+Against a stand-in relay that answers 403, one that answers 101 with a
+wrong accept, and one that closes after a valid 101, each line names its
+own failure. Against a stand-in that drops one probe in three, the loss
+reads 33 %. Planted: one verdict for the three; the test fails.
+
+# T-325: `doctor` measures what the path does to a stream: buffering, a cap on bodies, an idle limit
+
+**Source:** GitHub #54 (Nemo-010, 2026-10-30).
+**Category:** feature
+**Milestone:** backlog
+**Priority:** P3
+**Effort:** M
+**Status:** blocked
+
+## Problem
+
+Which road can work through a proxy depends on what the proxy does to a
+stream: whether it holds a response until its end, holds a request body
+until its end, refuses a body above a size, or ends a quiet stream after a
+time. `doctor` measures none of these, and the road of T-319 is to be
+chosen by such a probe.
+
+## Premise
+
+- Read: no check of `doctor` sends a body or holds a stream quiet
+  (`crates/podssh-cli/src/doctor/net.rs`,
+  `crates/podssh-cli/src/doctor/relay_checks.rs`).
+- Read (#54): a 408 at 60 s is the default idle limit of an AWS load
+  balancer, a 504 at 60 s nginx's `proxy_read_timeout`, a 524 at 125 s
+  Cloudflare's, and 1 MiB nginx's `client_max_body_size`. Inferred from
+  their documented defaults, not measured.
+- Read (`docs/relay.md`): the relay has no endpoint that streams a response
+  in chunks or takes a body, so the probes have nothing of podssh's to ask.
+
+## Approach
+
+1. With the relay's operator: an endpoint that sends a response in timed
+   chunks, and one that takes a body in chunks and says when each came.
+2. Four probes against the relay's own host: response streaming (the time
+   of the first byte against the last), request streaming (a stall between
+   chunks), the body cap (doubling until 413 or 431), and the idle limit (a
+   quiet stream, and the time and status when it ends).
+3. A table of fingerprints in the source, as `relay-facts.toml` is for the
+   contract, so that a line names the product, never as a fact: "looks like".
+4. The results go to T-319's choice of the split or the serial form.
+
+## Prove
+
+```sh
+cargo test -p podssh-cli --test doctor_stream
+```
+
+Against stand-ins that buffer a response, buffer a body, refuse 1 MiB and
+end a quiet stream at 3 s, each line names the property and the size or
+the time. Planted: the chunk times ignored; the buffering test fails.
+
+## Blocker
+
+The relay's operator: the relay has no endpoint that streams a response or
+takes a body (`docs/relay.md`).
+
+# T-326: A cleartext road on port 443, probed after the TLS road fails
+
+**Source:** GitHub #56 (Nemo-010, 2026-10-30).
+**Category:** feature
+**Milestone:** backlog
+**Priority:** P3
+**Effort:** M
+**Status:** blocked
+
+## Problem
+
+Each road starts with TLS. A proxy that tunnels CONNECT but decides by the
+SNI or the certificate that it sees could pass a WebSocket upgrade in
+cleartext on port 443 where it intercepts TLS. podssh has no such road and
+no probe for it.
+
+## Premise
+
+- Read: the relay's token goes in a header, never in the URL
+  (`crates/podssh-ws/src/handshake.rs`); in cleartext the header is readable
+  by each hop. SSH inside stays encrypted end to end.
+- Measured (2026-10-30, in a Claude Code cloud container, through its agent
+  proxy): `CONNECT tcp.ssh.relay.ajam.dev:443` got 200, then a cleartext
+  `GET /` was reset with no answer, as a hop that expects TLS resets it.
+- Not measured: what Cloudflare's edge answers to cleartext on port 443
+  from a path with no such proxy (GitHub Actions can measure it).
+
+## Approach
+
+1. A variant of the connection with no TLS in `podssh-ws`; the upgrade is
+   the same request over any stream.
+2. Tried only after the TLS road failed, and only when the operator has
+   ruled on the token in cleartext (Q45); `doctor` names which road on 443
+   answered, and tells a refusal by policy (403) from a reset.
+
+## Prove
+
+```sh
+cargo test -p podssh-ws --test cleartext_road
+```
+
+Against a stand-in proxy that intercepts TLS and passes cleartext, the
+session opens on the cleartext road after the TLS road fails; against one
+that resets cleartext, `doctor` says so. Planted: the road tried first; the
+test fails.
+
+## Blocker
+
+The relay's operator: an endpoint that takes the upgrade in cleartext on
+port 443 (Cloudflare's edge serves TLS there). The operator: whether the
+relay's token may cross a hop in cleartext (Q45, `TODO/PROGRESS.md`).

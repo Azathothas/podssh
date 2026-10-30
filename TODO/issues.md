@@ -125,11 +125,14 @@ corrects a claim that the code does not support.
 
 ## Requests after the triage (#51 on)
 
-#37 to #50 are pull requests.
+#37 to #50, #52 and #53 are pull requests.
 
 | Issue | Subject | State | Entries |
 | --- | --- | --- | --- |
-| #51 | An HTTP/2 road over extended CONNECT (RFC 8441) | open | T-321 (it waits for the relay's operator: the relay's edge chose `h2` and did not offer extended CONNECT, measured on 2026-10-30) |
+| #51 | An HTTP/2 road over extended CONNECT (RFC 8441) | open | T-321 (it waits for the relay's operator: the relay's edge chose `h2` and did not offer extended CONNECT, measured on 2026-10-30; the comment on RFC 9113's CONNECT is in its Blocker) |
+| #54 | `doctor` measures what the proxy does to a stream | open | T-324 (the three failures of the upgrade, and samples with their loss), T-325 (buffering, a cap on bodies, an idle limit; it waits for the relay's operator) |
+| #55 | The split road's wire protocol | open | T-319 (its Approach holds the protocol; it waits for the relay's operator and Q44) |
+| #56 | A cleartext road on port 443, probed | open | T-326 (it waits for the relay's operator and Q45) |
 
 ## The reports on other projects (in #18 to #25, and in #29 to #36)
 

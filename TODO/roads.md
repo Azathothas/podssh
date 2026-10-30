@@ -2255,7 +2255,8 @@ hyper-util's SOCKS client, which reqwest already builds, so no crate is added.
 
 **Source:** the research of 2026-10-30 on tunnels through proxies that end
 TLS and refuse `Upgrade`; the proxy of a Claude Code cloud container
-documents that refusal for the names that it intercepts (T-311).
+documents that refusal for the names that it intercepts (T-311). GitHub #55
+(Nemo-010, 2026-10-30): the wire protocol of the split form.
 **Category:** feature
 **Milestone:** backlog
 **Priority:** P2
@@ -2285,8 +2286,13 @@ container's proxy.
    down, a POST for each chunk up, a session id, sequence numbers and
    acknowledgements), in the relay's contract.
 2. A link of this road under the resumable layer (`podssh-relay`, `session/`),
-   chosen by a probe when the upgrade is refused: the split form first, the
-   serial form as its fallback.
+   chosen by a probe when the upgrade is refused (T-325): the split form
+   first, the serial form as its fallback. The protocol of #55: batches up
+   with a sequence number each, retried with the same number and body; a
+   chunk deleted only after the consuming end acknowledged it (`X-Ack`), in
+   a window with a bound; a 204 as a whole answer, so that a hop that
+   buffers holds nothing open; the poll interval and the batch size from
+   the probe, not compiled in.
 3. `doctor` names the road that works.
 
 ## Prove
@@ -2390,3 +2396,12 @@ offers it: `podssh doctor` says so, and `podssh ssh` runs on the road.
 The relay's operator: the relay's edge does not offer extended CONNECT
 (measured above), and a relay that does is the self-hosted relay of
 T-169, which waits for the relay's operator.
+
+Read (#51's comment of 2026-10-30, checked in the RFCs): RFC 9113,
+section 8.5, says that a proxy's CONNECT "MUST" omit `:scheme` and `:path`,
+which RFC 8441, section 4, requires beside `:protocol`, so an HTTP/2 proxy
+that does not implement RFC 8441 reads the request as malformed. RFC 8441,
+section 7, keeps the traditional CONNECT to a proxy, and lets the version of
+HTTP inside the tunnel decide. podssh tunnels by a traditional CONNECT, so
+through a proxy that does not end TLS the relay alone must offer the
+setting; a proxy that ends TLS must implement RFC 8441 itself.

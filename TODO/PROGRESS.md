@@ -112,7 +112,7 @@ and `CARGO_BUILD_JOBS=4`:
 
 ## Counts
 
-`TODO/INDEX.md` holds 319 entries: 36 open, 0 partial, 25 blocked, 258 done.
+`TODO/INDEX.md` holds 322 entries: 37 open, 0 partial, 27 blocked, 258 done.
 
 Open includes parked work. `cargo todo check` verifies this line.
 
@@ -143,13 +143,14 @@ before the tag), and last T-250 (the one release). Between entries: the
 `none` entries, the highest priority first.
 
 **Skip** the entries that wait for the relay's operator (status
-`blocked`): T-086, T-106, T-169, T-173, T-180, T-226, T-253, T-255 and
-T-321; and the entries that the operator holds (status `blocked`, Q32):
+`blocked`): T-086, T-106, T-169, T-173, T-180, T-226, T-253, T-255,
+T-321, T-325 and T-326; and the entries that the operator holds (status
+`blocked`, Q32):
 T-085, T-107 to T-113, T-117, T-118, T-213, T-222, T-245 and T-248; and the work
 parked behind them (T-114, T-115, T-116, T-119, T-120, T-122, T-123,
 T-124, T-150, T-159, T-160, T-161, T-303 and T-304, "Parked open work"),
 which waits as they wait; and the entries that wait for an answer of the
-operator: T-062 (Q42) and T-319 (Q44). T-300 waits for the operator's call on
+operator: T-062 (Q42), T-319 (Q44) and T-326 (Q45). T-300 waits for the operator's call on
 T-299's result, and T-301 for T-300.
 
 ## Parked open work
@@ -218,6 +219,14 @@ another) needs one, but is slow. The relay's operator must add the session
 endpoints in any case. Recommendation: allow the split form's second
 connection, for this road only, after a probe finds the upgrade refused; and
 keep the serial form as its fallback.
+
+Q45 (2026-10-30, blocks T-326): a WebSocket upgrade in cleartext on port 443
+could pass a proxy that intercepts TLS by the SNI, but each hop then reads
+the relay's token in its header (the SSH inside stays encrypted). In this
+cloud container the agent proxy reset such a request. Recommendation: allow
+the road only with a token minted for one session and never cached, tried
+after the TLS road failed, and named by `doctor`; else keep the token off
+cleartext.
 
 ## Operator actions
 
