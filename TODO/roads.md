@@ -44,7 +44,7 @@ unknown flag (exit 64), and `Cargo.lock` has no iroh crate.
    for `ts`. The default build and the releases stay without the feature.
 2. The endpoint: the `Minimal` preset, no pkarr or DNS discovery, and the
    relays of T-165. `proxy_url(...)` gets what `proxy_from_env` selects
-   (`crates/podssh-ws/src/dial.rs:96-120`), so `ALL_PROXY` and `NO_PROXY` act
+   (`crates/podssh-ws/src/dial.rs:96-121`), so `ALL_PROXY` and `NO_PROXY` act
    as on the other roads; iroh's own selection ignores both
    (`docs/design.md:743`).
 3. UDP: `clear_ip_transports()` by default. Add the UDP transport only after a
@@ -56,7 +56,7 @@ unknown flag (exit 64), and `Cargo.lock` has no iroh crate.
 5. `doctor`, with the feature: a UDP line, and the `/ping` of the home relay
    through the proxy (`crates/podssh-cli/src/doctor/host.rs:10-25`).
 6. `availability()` knows `ts` as the only build feature
-   (`crates/podssh-cli/src/flags.rs:469-477`): extend it. With no feature, an
+   (`crates/podssh-cli/src/flags.rs:470-478`): extend it. With no feature, an
    iroh destination refuses before it connects and names `--features iroh`,
    as `crates/podssh-cli/tests/ts_not_built.rs:1-4` shows for `ts`.
 7. Docs: the "Outbound only" item of `README.md`, "Nothing listens" in
@@ -163,7 +163,7 @@ access is by an allowlist of keys or a relay token (`docs/design.md:855-856`).
 Read in the reports, not verified here: iroh-ssh warns when a server's key is
 ephemeral (`rustonbsd/iroh-ssh:src/ssh.rs`); zuko hands over a ticket out of
 band (`adonm/zuko:docs/protocol.md`). Read: `podssh ts` keeps its node key in
-the file that `--ts-state` names (`crates/podssh-cli/src/flags.rs:332-333`,
+the file that `--ts-state` names (`crates/podssh-cli/src/flags.rs:333-334`,
 `crates/podssh-cli/src/ts.rs:166`). Credentials never go on argv
 (`AGENTS.md`, section 4).
 
@@ -1950,8 +1950,8 @@ whether MPTCP helps podssh on any road.
 ## Premise
 
 Read: `--direct` connects with a plain `TcpStream::connect`
-(`crates/podssh-ws/src/dial.rs:238-309`, the call at
-`crates/podssh-ws/src/dial.rs:282`). Through a proxy, MPTCP can reach only the
+(`crates/podssh-ws/src/dial.rs:247-318`, the call at
+`crates/podssh-ws/src/dial.rs:291`). Through a proxy, MPTCP can reach only the
 proxy. `podssh-ws` has no `libc` dependency (`crates/podssh-ws/Cargo.toml`).
 Read in the report, not verified here: RustConn uses MPTCP. Not known:
 whether the relay's edge or a target server accepts MPTCP. Linux offers it

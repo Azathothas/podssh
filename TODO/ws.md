@@ -513,7 +513,7 @@ is possible. `podssh-relay` gives the TLS type back (`Opened`,
 `crates/podssh-relay/src/open.rs:149-154`). The tests use in-memory streams
 (`crates/podssh-ws/tests/session.rs:34-36`) or local TLS servers
 (`crates/podssh-ws/tests/hostname_verification.rs:55`). `dial::is_loopback` exists
-(`crates/podssh-ws/src/dial.rs:122-130`).
+(`crates/podssh-ws/src/dial.rs:131-139`).
 
 ## Approach
 
@@ -712,7 +712,7 @@ once (`crates/podssh-relay/src/open.rs:70`) and gives exit 78 in `podssh proxy`
    user and password of RFC 1929, each of 1 to 255 bytes; CONNECT with the address type 3, the
    host name, so the client needs no DNS (`crates/podssh-ws/src/dial.rs:6-9`). Read exactly the
    length of the reply: the bytes after it belong to TLS, as `read_head_exact` keeps them
-   (`:373-396`). Bound each step.
+   (`:382-405`). Bound each step.
 3. When the proxy answers 0x08 (address type not supported), resolve the name in podssh's own
    order (pinned, system, DNS over HTTPS), and try once with the address.
 4. Map each answer to the HTTP case that `another_host_may_help`
@@ -1213,7 +1213,7 @@ set sends `CONNECT relay-a.test` to the proxy.
 **Milestone:** backlog
 **Priority:** P3
 **Effort:** S
-**Status:** open
+**Status:** done
 
 ## Problem
 
@@ -1238,11 +1238,27 @@ address is only for a relay on this host, which no proxy can reach.
 ## Prove
 
 ```sh
-cargo test -p podssh-relay --lib
+cargo test -p podssh-ws --test dial_pinned
 ```
 
 A unit test: a pin to 127.0.0.1 gives no proxy; a pin to 203.0.113.5 keeps
 the proxy. Planted: the pin not read; the first test fails.
+
+## Done
+
+2026-10-30. `proxy_from_vars` takes a name whose pins are all loopback
+addresses as a loopback target, and gives it no proxy; a name with a pin to
+any other address, or with none, keeps the proxy
+(`crates/podssh-ws/src/dial.rs`, `pinned_to_loopback`). The help of
+`--relay-addr` says it.
+
+- Linux, 2026-10-30: `cargo test -p podssh-ws --test dial_pinned`, 1 passed
+  (a pin to 127.0.0.1; to `::1` and 127.0.0.2, with the name's case and
+  final dot; to 203.0.113.5; one pin on loopback and one not; no pin);
+  `--test dial` 15; podssh-cli's `--lib man::` 35, `--test man_page` 10,
+  `--test ssh_args` 26; clippy and rustfmt clean.
+- Planted: the pin not read; the test failed ("pinned to 127.0.0.1");
+  restored, it passed.
 
 # T-320: A `407` names the proxy's authentication scheme
 

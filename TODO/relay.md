@@ -720,7 +720,7 @@ listener" (lines 86-88 at `22c3b88`), and the ruling on Q10 allows more than one
    (line 186 at `22c3b88`) stays a note of the run. `Failure` keeps each error; `Opened.relay` and the log
    name the host that was kept. tokio's `select!` and `JoinSet` need no new crate and no C.
 7. Add the flag to `SSH_FLAGS`, `PROXY_FLAGS` and `DOCTOR_FLAGS`
-   (`crates/podssh-cli/src/flags.rs:112-279`, 323-343) and to `ONCE`
+   (`crates/podssh-cli/src/flags.rs:112-280`, 323-343) and to `ONCE`
    (`crates/podssh-cli/src/ssh/args.rs:127-147`); the variable to VARIABLES and the modes to THE
    RELAY (`crates/podssh-cli/src/man/facts.rs:45-237`, 170-183); both to `docs/relay.md:30-73`.
 8. T-059 orders the hosts across runs; this entry shortens the wait in one run. GitHub #25 asks
@@ -840,7 +840,7 @@ the module comment repeats it (`crates/podssh-relay/src/cache.rs`, lines 4-8 at 
    (`crates/podssh-relay/src/cache.rs:386-403`), and one that refuses a write is skipped. When the
    directory of `PODSSH_CACHE_DIR` is skipped, say so once on stderr, with the reason.
 4. Take the environment as a parameter, as `dial::proxy_from_vars` does
-   (`crates/podssh-ws/src/dial.rs:106-120`), so that the tests can set it.
+   (`crates/podssh-ws/src/dial.rs:107-121`), so that the tests can set it.
 5. `doctor` names the directory in use and the variable that chose it; `status` (T-051) shows
    it; the settings file of T-048 can set it. The session log (T-056) and the failure records
    (T-059) use the same chain.

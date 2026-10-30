@@ -64,7 +64,7 @@ succeeded. `podssh ssh` takes one destination, as OpenSSH does.
    could not connect or log in; 0 only when each host gave 0. `--fail-fast`
    starts no new host after a failure, and the running ones finish. A
    summary on stderr gives each host and its status.
-7. In the same commit: `crates/podssh-cli/src/flags.rs:375-426`,
+7. In the same commit: `crates/podssh-cli/src/flags.rs:376-427`,
    `crates/podssh-cli/src/positionals.rs:7-178`, a `Parsed` variant,
    `crates/podssh-cli/tests/flag_table.rs:110-136`, the notes, an example,
    `docs/cli.md`, `docs/STATUS.md`. T-013 can then group the commands.
@@ -1433,7 +1433,7 @@ outlives the session, show it later, or stop it.
 ## Premise
 
 - Read: a session ends with its connection (`docs/design.md:381`), and `-f`
-  is refused (`crates/podssh-cli/src/flags.rs:254-255`).
+  is refused (`crates/podssh-cli/src/flags.rs:255-256`).
 - Read: tmux is never assumed; T-178 probes it with `command -v tmux`.
 - Read: `podssh serve` (T-107, M5) runs on the far end only where the user
   starts it.

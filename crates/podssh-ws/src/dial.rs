@@ -102,9 +102,10 @@ pub fn proxy_from_env(target_host: &str) -> Result<Option<Proxy>, String> {
 /// names win over upper-case ones, as in curl; an empty value counts as unset.
 /// A loopback target never goes through a proxy (as in Go's net/http): the
 /// proxy's loopback is not this host's, and podbox measured a proxy answering
-/// 405 to `CONNECT 127.0.0.1`.
+/// 405 to `CONNECT 127.0.0.1`. A name pinned to loopback addresses only is
+/// such a target too (T-318).
 pub fn proxy_from_vars(target_host: &str, var: impl Fn(&str) -> Option<String>) -> Result<Option<Proxy>, String> {
-    if is_loopback(target_host) {
+    if is_loopback(target_host) || pinned_to_loopback(target_host) {
         return Ok(None);
     }
     let get = |names: &[&str]| names.iter().find_map(|n| var(n).filter(|v| !v.trim().is_empty()));
@@ -117,6 +118,14 @@ pub fn proxy_from_vars(target_host: &str, var: impl Fn(&str) -> Option<String>) 
         }
     }
     Proxy::parse(&url).map(Some)
+}
+
+/// A name that `--relay-addr` or `PODSSH_RELAY_ADDR` pins to loopback
+/// addresses alone: a relay on this host, which no proxy can reach. A pin to
+/// any other address keeps the proxy, which is given the name.
+fn pinned_to_loopback(host: &str) -> bool {
+    let pins = crate::resolve::pinned(host);
+    !pins.is_empty() && pins.iter().all(std::net::IpAddr::is_loopback)
 }
 
 /// `localhost`, `*.localhost`, `127.0.0.0/8` and `::1`, with or without

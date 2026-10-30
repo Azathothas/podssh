@@ -173,7 +173,8 @@ pub const SSH_FLAGS: &[FlagRow] = &[
     row(None, "relay-failover", Some("MODE"), FlagKind::Supported,
         "how the relay hosts are tried: staggered (the next starts after 2 s or a failure; the default), parallel or serial; also env PODSSH_RELAY_FAILOVER", None),
     row(None, "relay-addr", Some("HOST=IP"), FlagKind::Supported,
-        "use IP for HOST instead of DNS, HOST=IP[,...]; also env PODSSH_RELAY_ADDR (for hosts with no DNS)", None),
+        "use IP for HOST instead of DNS, HOST=IP[,...]; also env PODSSH_RELAY_ADDR (for hosts with no DNS); a \
+         HOST pinned to loopback addresses alone goes with no proxy", None),
     row(None, "ca-file", Some("FILE"), FlagKind::Supported,
         "trust only the CA certificates in FILE for the relay (default: env SSL_CERT_FILE, else system and built-in roots)", None),
     row(None, "direct", None, FlagKind::Supported,
