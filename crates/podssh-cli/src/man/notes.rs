@@ -232,7 +232,8 @@ const DOCTOR: &[&str] = &[
      whether PODSSH_CACHE_DIR chose the place or is none, /proc, \
      a pty, a socket bind that is closed at once, the directories that can run programs, the terminal); \
      the egress (the proxy setting, TLS and the trust store, what the proxy allows, the system resolver, \
-     DNS over HTTPS); and the relay (each relay host, a token, a session to github.com port 22 that must \
+     DNS over HTTPS; on github.com port 22 only the server's banner shows that plain ssh can leave, as a \
+     proxy can take the CONNECT and carry nothing); and the relay (each relay host, a token, a session to github.com port 22 that must \
      show the published host key of GitHub, and the clock).",
     "podssh doctor connects to the relay hosts and, through the relay, to github.com. The report goes to \
      stdout; the exit codes are in EXIT STATUS.",

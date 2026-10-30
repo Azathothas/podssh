@@ -61,15 +61,15 @@ repository and CI).
 
 ## Counts
 
-**319 entries: 37 open, 1 partial, 25 blocked, 256 done.**
+**319 entries: 36 open, 1 partial, 25 blocked, 257 done.**
 
 | Priority | open | partial | blocked | done | total |
 | --- | --- | --- | --- | --- | --- |
 | P0 | 0 | 0 | 0 | 1 | 1 |
 | P1 | 2 | 1 | 0 | 23 | 26 |
-| P2 | 5 | 0 | 19 | 141 | 165 |
+| P2 | 4 | 0 | 19 | 142 | 165 |
 | P3 | 30 | 0 | 6 | 91 | 127 |
-| **All** | 37 | 1 | 25 | 256 | 319 |
+| **All** | 36 | 1 | 25 | 257 | 319 |
 
 ## Entries
 
@@ -387,7 +387,7 @@ repository and CI).
 | [T-314](robustness.md) | P2 | S | none | defect | done | The test of the man page waits for ever on a real groff |
 | [T-315](ws.md) | P3 | S | none | defect | done | The live handshake tests dial the relay directly, past `HTTPS_PROXY` |
 | [T-316](ws.md) | P2 | S | backlog | defect | done | `no_proxy` with CIDR blocks: an address inside a listed block goes through the proxy |
-| [T-317](ws.md) | P2 | S | backlog | defect | open | A proxy that answers `200` to CONNECT and then carries no SSH: `doctor` says that plain ssh can leave, and `--direct` ends with a bare reset |
+| [T-317](ws.md) | P2 | S | backlog | defect | done | A proxy that answers `200` to CONNECT and then carries no SSH: `doctor` says that plain ssh can leave, and `--direct` ends with a bare reset |
 | [T-318](ws.md) | P3 | S | backlog | defect | open | A relay's name pinned to a loopback address goes to the proxy |
 | [T-319](roads.md) | P2 | L | backlog | feature | blocked | An HTTP road for a proxy that refuses the WebSocket upgrade |
 | [T-320](ws.md) | P3 | S | backlog | defect | open | A `407` names the proxy's authentication scheme |

@@ -442,7 +442,7 @@ podssh with those of OpenSSH.
 
 Measured on `3ee70dc` (`PODSSH_OFFLINE=1`): `podssh ssh -G example.org` exits 64 with "-G is
 refused. ... podssh reads no ssh_config, so it has no configuration to print."
-(`crates/podssh-cli/src/flags.rs:255-256`). Measured with OpenSSH_10.3p1 on this machine:
+(`crates/podssh-cli/src/flags.rs:256-257`). Measured with OpenSSH_10.3p1 on this machine:
 `ssh -G -F none -p 2222 -l alice -o ServerAliveInterval=30 example.org` exits 0 and prints 84
 lines of `keyword value`, the keyword in lower case: `port 2222`, `user alice`,
 `pubkeyauthentication true`, `batchmode no`, `connecttimeout none`, `serveraliveinterval 30`,
@@ -541,7 +541,7 @@ work.
 
 ## Premise
 
-Read: podssh has no import and no `config` command (`crates/podssh-cli/src/flags.rs:374-425`).
+Read: podssh has no import and no `config` command (`crates/podssh-cli/src/flags.rs:375-426`).
 `serde_json` is a dependency of the binary (`crates/podssh-cli/Cargo.toml:53`), so a JSON
 export needs no new crate. XML and YAML need a parser that the binary does not have. The export
 formats of the other clients were not read here. Each step below starts from a real export of
@@ -564,7 +564,7 @@ that client: bytes captured from the real program (`AGENTS.md`, section 6, rule 
    a comment line. Never drop it silently.
 6. The output must read with the reader of T-043 and with OpenSSH.
 7. Add the verb to the tables: `VERBS`, and `VERB_OWNER` or a dispatch arm
-   (`crates/podssh-cli/src/flags.rs:374-455`), the arguments, `usage_tail`
+   (`crates/podssh-cli/src/flags.rs:375-456`), the arguments, `usage_tail`
    (`crates/podssh-cli/src/help.rs:267-286`), the manual's notes and examples, and
    `DISPATCHED` (`crates/podssh-cli/tests/flag_table.rs:110-136`).
 
@@ -624,7 +624,7 @@ output. Planted defect: copy the password field into a comment; the secret test 
 `crates/podssh-cli/src/config_import/mod.rs:94-98` and the options of
 `ansible_ssh_common_args` at
 `crates/podssh-cli/src/config_import/mod.rs:100-153`; the verb in the
-tables at `crates/podssh-cli/src/flags.rs:421-422`,
+tables at `crates/podssh-cli/src/flags.rs:422-423`,
 `crates/podssh-cli/src/positionals.rs:144-149`,
 `crates/podssh-cli/src/tree.rs:374-380` and
 `crates/podssh-cli/src/dispatch.rs:127-128`.

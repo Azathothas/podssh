@@ -26,18 +26,18 @@ the verb, the address grammar, the copy loop, and the local addresses `-`,
 
 - Measured: `PODSSH_OFFLINE=1 podssh pipe stdio relay:example.org:80` exits
   64 with `podssh: unknown subcommand 'pipe'.` The verb table has no `pipe`
-  row (`crates/podssh-cli/src/flags.rs:374-425`).
+  row (`crates/podssh-cli/src/flags.rs:375-426`).
 - Read: the only pump is `crates/podssh-cli/src/pipe/relay.rs:97-223`. At the end
   of input it stops sending and keeps receiving
   (`crates/podssh-cli/src/proxy.rs:8-11`). T-101 is the opposite defect in
   `crates/podssh-ts/src/pipe.rs`; the new pump must not repeat it.
 - Read: `exec:` starts the user's own program. The operator accepted it on
   2026-10-08 (`docs/decisions.md`). On sandbox A, `/tmp` and `$HOME`
-  do not run programs (`docs/STATUS.md:255`).
+  do not run programs (`docs/STATUS.md:256`).
 
 ## Approach
 
-1. The verb: a `pipe` row in `crates/podssh-cli/src/flags.rs:374-425`, two
+1. The verb: a `pipe` row in `crates/podssh-cli/src/flags.rs:375-426`, two
    required positionals (`crates/podssh-cli/src/positionals.rs:7-178`), a
    `Parsed::Pipe` variant (`crates/podssh-cli/src/parsed.rs:8-159`), a
    dispatch arm, and `pipe` in `DISPATCHED`
@@ -315,7 +315,7 @@ not a listener, so `docs/target-environment.md:84-88` allows it.
 - Read: `sun_path` holds 104 to 108 bytes, and doctor refuses a longer name
   before the call (`crates/podssh-cli/src/doctor/unix.rs:189-198`,
   `crates/podssh-cli/src/doctor/unix.rs:210-212`).
-- Read: sandbox A allows an AF_UNIX bind (`docs/STATUS.md:255`); a connect
+- Read: sandbox A allows an AF_UNIX bind (`docs/STATUS.md:256`); a connect
   was not measured. The attempt is the probe, and its errno is the message.
 
 ## Approach
@@ -415,7 +415,7 @@ shows that an AF_UNIX or loopback bind works (`docs/design.md:709-711`).
   `AGENTS.md:240-245`, `docs/architecture.md:120-133`,
   `docs/target-environment.md:84-88`, `SECURITY.md:98-118`, `README.md:40-47`.
 - Read: sandbox A refuses an AF_INET bind and allows an AF_UNIX bind
-  (`docs/STATUS.md:255`). The box refuses each `bind`, AF_UNIX too
+  (`docs/STATUS.md:256`). The box refuses each `bind`, AF_UNIX too
   (`scripts/box/seccomp.json:5-10`), so it gives the refused case.
 - Read: doctor binds, closes, and never listens
   (`crates/podssh-cli/src/doctor/unix.rs:137-231`). A bind that works does
@@ -587,13 +587,13 @@ running on the server (`docs/design.md:417-421`).
   each session (`crates/podssh-ssh/src/session.rs:149-197`).
 - Read: the relay ends a session at 64 MiB (1009) or 12 h (1001)
   (`docs/relay.md:219-225`). Sandbox A measured the cap at 67,107,943 bytes,
-  and one close `1011` in 180 short sessions (`docs/STATUS.md:263-264`).
+  and one close `1011` in 180 short sessions (`docs/STATUS.md:264-265`).
 - Read: tmux is never assumed (`docs/target-environment.md:101-103`).
 
 ## Approach
 
 1. Flags `--persist` and `--persist-name NAME` (default `podssh`; letters,
-   digits, `_` and `-`, 32 at most) in `crates/podssh-cli/src/flags.rs:112-278`.
+   digits, `_` and `-`, 32 at most) in `crates/podssh-cli/src/flags.rs:112-279`.
    With a command, `-W`, `-N`, `-s` or `RemoteCommand`, exit 64.
 2. The probe, after the login: one exec runs `command -v tmux`. No tmux:
    exit 255 with "the server has no tmux on PATH; --persist needs it". T-193
@@ -730,7 +730,7 @@ no listener, or that the relay ends a desktop stream after 64 MiB.
 - Read: 64 MiB for each session, both directions together
   (`docs/relay.md:162`), then Close 1009 (`docs/relay.md:223`); public
   targets only (`docs/relay.md:164`). Through the proxy of sandbox A: 0.5 to
-  0.7 MB/s (`docs/STATUS.md:262`).
+  0.7 MB/s (`docs/STATUS.md:263`).
 - Not measured: no RDP, VNC or Telnet client ran through podssh. Each claim
   about a client below is to verify.
 
@@ -775,7 +775,7 @@ the examples must refuse it.
 ## Correction
 
 2026-10-12: the Prove's plant no longer fails. T-038 made `-L` a flag of
-`podssh ssh` (`crates/podssh-cli/src/flags.rs:237` says "forward-local"),
+`podssh ssh` (`crates/podssh-cli/src/flags.rs:238` says "forward-local"),
 so an example with `podssh ssh -L 5901:127.0.0.1:5901 user@host` parses. The
 plant that the test of the examples must refuse gives `-L` to the
 ProxyCommand's `podssh proxy`, which has no such flag:
@@ -787,8 +787,8 @@ were found by their manuals (read on 2026-10-12, not run here): SSVNC's
 TigerVNC's `vncviewer` takes a Unix socket's path (its synopsis,
 `vncviewer [options] [unix socket]`). The second still needs a listener,
 but an AF_UNIX one, which sandbox A allows where it refuses AF_INET
-(`docs/STATUS.md:252`); there OpenSSH's form a fails before it binds, as
-`ssh` finds no entry for the user (`docs/STATUS.md:257`).
+(`docs/STATUS.md:253`); there OpenSSH's form a fails before it binds, as
+`ssh` finds no entry for the user (`docs/STATUS.md:258`).
 
 ## Done
 
@@ -1168,10 +1168,10 @@ The calls made where the Approach left a choice:
   `torvalds/linux:tools/usb/usbip/src/usbip_attach.c`), so the device's
   traffic passes podssh for as long as the pipe's session lasts; the
   README says so. `usbip` dials TCP only, so a host that refuses an
-  AF_INET bind, as sandbox A does (`docs/STATUS.md:252`), cannot run the
+  AF_INET bind, as sandbox A does (`docs/STATUS.md:253`), cannot run the
   recipe, nor can one without the modules.
 - The row states the limit by the throughput measured through sandbox A's
-  proxy (`docs/STATUS.md:259`): 64 MiB is about 2 minutes of reads at
+  proxy (`docs/STATUS.md:260`): 64 MiB is about 2 minutes of reads at
   0.5 to 0.7 MB/s.
 
 What waits:

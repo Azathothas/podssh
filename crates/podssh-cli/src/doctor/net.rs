@@ -166,8 +166,30 @@ pub(super) async fn check_network(report: &mut Report<'_>, relays: &RelayList) {
     }
 }
 
+/// How long the server of port 22 has to send its banner: an SSH server
+/// sends it at once.
+const BANNER_WAIT: Duration = Duration::from_secs(5);
+
+/// Why a connection to port 22 that opened carries no SSH, or `None` when
+/// the server's banner came. A `200` to CONNECT proves that the proxy took
+/// the request, not that the tunnel carries bytes as they are: a proxy that
+/// intercepts TLS waits for a ClientHello, and sends nothing or resets.
+async fn no_ssh_banner<S: tokio::io::AsyncRead + Unpin>(mut stream: S) -> Option<String> {
+    use tokio::io::AsyncReadExt;
+    let mut first = [0u8; 256];
+    match tokio::time::timeout(BANNER_WAIT, stream.read(&mut first)).await {
+        Err(_) => Some(format!("nothing came in {} s", BANNER_WAIT.as_secs())),
+        Ok(Ok(0)) => Some("it was closed with nothing sent".into()),
+        // RFC 4253 lets a server send other lines before its version line.
+        Ok(Ok(n)) if String::from_utf8_lossy(&first[..n]).lines().any(|l| l.starts_with("SSH-")) => None,
+        Ok(Ok(_)) => Some("what came was not an SSH banner".into()),
+        Ok(Err(e)) => Some(format!("it broke with nothing sent ({e})")),
+    }
+}
+
 /// What the proxy lets through: the relay, and for comparison GitHub on 443
-/// and 22. Each answer is reported as the proxy gave it.
+/// and 22. Each answer is reported as the proxy gave it; on port 22, only
+/// the server's banner says that plain ssh can leave.
 async fn through_proxy(report: &mut Report<'_>, proxy: &HttpProxy, relay_host: &str, relay_port: u16) {
     let via = ProxyChoice::Via(proxy.clone());
     for (host, port) in [(relay_host, relay_port), (REFERENCE_HOST, 443), (REFERENCE_HOST, 22)] {
@@ -175,11 +197,23 @@ async fn through_proxy(report: &mut Report<'_>, proxy: &HttpProxy, relay_host: &
         let is_relay = host == relay_host;
         let started = Instant::now();
         match dial::dial(host, port, &via, PROBE).await {
+            Ok(stream) if port == 22 && !is_relay => {
+                let peer = stream.peer_addr().map(|a| a.to_string()).unwrap_or_else(|_| "?".into());
+                let by = proxy_reached(proxy, &peer);
+                let took = ms(started);
+                let line = match no_ssh_banner(stream).await {
+                    None => format!("{target}: allowed by {by}, {took} ms; plain ssh can leave this way too"),
+                    Some(why) => format!(
+                        "{target}: {by} took the CONNECT ({took} ms), then {why}: it carries no SSH, and may \
+                         expect TLS; plain ssh cannot leave this way, which is what the relay is for"
+                    ),
+                };
+                report.ok("CONNECT", line);
+            }
             Ok(stream) => {
                 let peer = stream.peer_addr().map(|a| a.to_string()).unwrap_or_else(|_| "?".into());
-                let meaning = if port == 22 { "; plain ssh can leave this way too" } else { "" };
                 let by = proxy_reached(proxy, &peer);
-                report.ok("CONNECT", format!("{target}: allowed by {by}, {} ms{meaning}", ms(started)));
+                report.ok("CONNECT", format!("{target}: allowed by {by}, {} ms", ms(started)));
             }
             Err(e) if is_relay => report.fail(
                 "CONNECT",
@@ -202,10 +236,16 @@ async fn direct(report: &mut Report<'_>) {
     match dial::dial(REFERENCE_HOST, 22, &ProxyChoice::Direct, PROBE).await {
         Ok(stream) => {
             let peer = stream.peer_addr().map(|a| a.to_string()).unwrap_or_else(|_| "?".into());
-            report.ok(
-                "direct TCP",
-                format!("{target}: connected to {peer}, {} ms; plain ssh can leave this host too", ms(started)),
-            );
+            let took = ms(started);
+            // A middlebox can take the connection and carry nothing, as a proxy can.
+            let line = match no_ssh_banner(stream).await {
+                None => format!("{target}: connected to {peer}, {took} ms; plain ssh can leave this host too"),
+                Some(why) => format!(
+                    "{target}: connected to {peer} ({took} ms), then {why}: something between carries no SSH; \
+                     plain ssh cannot leave this host, which is what the relay is for"
+                ),
+            };
+            report.ok("direct TCP", line);
         }
         Err(e) => {
             report.ok("direct TCP", format!("{e}; plain ssh cannot leave this host, which is what the relay is for"))
@@ -360,5 +400,58 @@ mod tests {
         let ips: Vec<String> = (1..=5).map(|i| format!("192.0.2.{i}")).collect();
         assert_eq!(shorten(&ips), "192.0.2.1, 192.0.2.2, 192.0.2.3 and 2 more");
         assert_eq!(shorten(&ips[..2]), "192.0.2.1, 192.0.2.2");
+    }
+}
+
+/// The check of a server's banner (T-317), on streams in memory.
+#[cfg(test)]
+mod banner_tests {
+    use super::*;
+    use tokio::io::{AsyncWriteExt, DuplexStream};
+
+    /// The near end of a stream whose far end sent `bytes` and stays open:
+    /// a server that waits for the client's banner.
+    async fn sent(bytes: &[u8]) -> (DuplexStream, DuplexStream) {
+        let (near, mut far) = tokio::io::duplex(1024);
+        far.write_all(bytes).await.unwrap();
+        (near, far)
+    }
+
+    /// A stream that the far end resets.
+    struct Reset;
+
+    impl tokio::io::AsyncRead for Reset {
+        fn poll_read(
+            self: std::pin::Pin<&mut Self>,
+            _: &mut std::task::Context<'_>,
+            _: &mut tokio::io::ReadBuf<'_>,
+        ) -> std::task::Poll<std::io::Result<()>> {
+            std::task::Poll::Ready(Err(std::io::ErrorKind::ConnectionReset.into()))
+        }
+    }
+
+    /// Only a banner says that plain ssh can leave; RFC 4253 lets other
+    /// lines come before it.
+    #[tokio::test]
+    async fn only_the_server_banner_counts() {
+        assert_eq!(no_ssh_banner(sent(b"SSH-2.0-stand-in\r\n").await.0).await, None);
+        assert_eq!(no_ssh_banner(sent(b"welcome\r\nSSH-2.0-stand-in\r\n").await.0).await, None);
+        // A TLS alert, as a proxy that ends TLS may send for the first bytes.
+        let why = no_ssh_banner(sent(b"\x15\x03\x03\x00\x02\x02\x28").await.0).await.unwrap();
+        assert!(why.contains("not an SSH banner"), "{why}");
+        let (near, far) = tokio::io::duplex(64);
+        drop(far);
+        assert_eq!(no_ssh_banner(near).await.as_deref(), Some("it was closed with nothing sent"));
+        assert!(no_ssh_banner(Reset).await.unwrap().starts_with("it broke with nothing sent"));
+    }
+
+    /// A proxy that intercepts TLS waits for a ClientHello: nothing comes,
+    /// and the wait ends at its bound.
+    #[tokio::test(start_paused = true)]
+    async fn silence_after_the_connect_is_named_at_its_bound() {
+        let (near, _far) = tokio::io::duplex(64);
+        let started = tokio::time::Instant::now();
+        assert_eq!(no_ssh_banner(near).await, Some(format!("nothing came in {} s", BANNER_WAIT.as_secs())));
+        assert_eq!(started.elapsed(), BANNER_WAIT);
     }
 }

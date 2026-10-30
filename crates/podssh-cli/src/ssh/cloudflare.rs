@@ -173,7 +173,7 @@ pub(super) async fn reach(host: &str, trust: &Trust, log: &Log) -> Result<Reache
         Ok(session) => {
             log.verbose(&format!("the tunnel of {host} took the session"));
             let (stream, _) = podssh_ssh::relay_stream::spawn(session);
-            Ok(Reached { stream: Box::new(stream), relay: None })
+            Ok(Reached { stream: Box::new(stream), relay: None, direct_proxy: None })
         }
         Err(e) => {
             let (line, code) = refusal(host, &e);

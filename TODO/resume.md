@@ -1320,7 +1320,7 @@ new SSH login to a far end that kept the shell (T-159). Read: podssh knows
 the escapes `~.`, `~R`, `~?` and `~~`, and another character after `~` goes
 to the server with the `~` (`crates/podssh-ssh/src/escape.rs:1-9`,
 `crates/podssh-ssh/src/escape.rs:90-138`). The flag table has 469 lines, near
-the limit of 500 (the table of `ssh`: `crates/podssh-cli/src/flags.rs:112-278`).
+the limit of 500 (the table of `ssh`: `crates/podssh-cli/src/flags.rs:112-279`).
 
 ## Approach
 

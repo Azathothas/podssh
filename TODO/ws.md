@@ -722,7 +722,7 @@ once (`crates/podssh-relay/src/open.rs:70`) and gives exit 78 in `podssh proxy`
 5. Credentials never in output: `Display` shows the host and port only (now
    `crates/podssh-ws/src/proxy.rs:70-75`).
 6. `doctor` names the SOCKS5 proxy, and its proxy checks
-   (`crates/podssh-cli/src/doctor/net.rs:171-195`) work for both forms. The two tests above
+   (`crates/podssh-cli/src/doctor/net.rs:193-229`) work for both forms. The two tests above
    plant `ftp://` and `socks4://` instead; `socks4` and `socks4a` are refused by name.
 7. Change the proxy variables in VARIABLES (`crates/podssh-cli/src/man/facts.rs:46-55`),
    `docs/architecture.md` and `docs/cli.md` in the same commit.
@@ -1137,7 +1137,7 @@ never comes (the proxy waits for TLS); `podssh doctor` printed
 **Milestone:** backlog
 **Priority:** P2
 **Effort:** S
-**Status:** open
+**Status:** done
 
 ## Problem
 
@@ -1166,14 +1166,43 @@ host's banner comes at once.
 ## Prove
 
 ```sh
-cargo test -p podssh-cli --test doctor
-cargo test -p podssh-ssh --lib
+cargo test -p podssh-cli --lib doctor::net
+cargo test -p podssh-cli --test direct_proxy
 ```
 
 Against a stand-in proxy that answers 200 and then sends nothing, and one
 that resets, the line and the message name the cause; against one that
 carries the bytes, the line says that plain ssh can leave. Planted: the 200
 alone trusted; the tests fail.
+
+## Done
+
+2026-10-30. `doctor` reads the first bytes of github.com port 22 for 5 s
+after the proxy's 200, and on the direct road too: only a line that starts
+with `SSH-` says that plain ssh can leave; silence, a close, a reset or other
+bytes say that the proxy took the CONNECT and carries no SSH
+(`crates/podssh-cli/src/doctor/net.rs`, `no_ssh_banner`). `podssh ssh
+--direct` through a proxy watches for the first byte that comes back
+(`crates/podssh-cli/src/ssh/transport.rs`, `Heard`); a session that fails with
+none adds the line that names the proxy and the relay as the way
+(`crates/podssh-cli/src/ssh/mod.rs`). The manual's note of `doctor` and the
+help of `--direct` say it.
+
+- Linux, 2026-10-30: `cargo test -p podssh-cli --lib`, 349 passed (2 new:
+  a banner, a banner after other lines, a TLS alert, a close, a reset, and
+  silence bounded by 5 s); `--test direct_proxy`, 3 passed (a stand-in that
+  resets after its 200, one that stays silent, ended within the connect
+  timeout of 3 s, and one that sends a banner, which is not blamed);
+  `--test doctor` 11, `--test man_page` 10, `--test ssh_args` 26.
+- Planted: the 200 alone trusted in `doctor`, both new unit tests failed;
+  the proxy never named by `--direct`, the reset and silent tests failed.
+- Live, in a Claude Code cloud container through its agent proxy: `doctor`
+  says "github.com:22: 127.0.0.1:35713 took the CONNECT (140 ms), then
+  nothing came in 5 s: it carries no SSH, and may expect TLS", 31 ok; `podssh
+  ssh --direct git@github.com` ends after 2 s with the reset and then "the
+  proxy 127.0.0.1:35713 took the CONNECT, and no byte of an SSH server came
+  back: it may expect TLS and carry no SSH. Without --direct, the relay
+  carries SSH over HTTPS", 255.
 
 # T-318: A relay's name pinned to a loopback address goes to the proxy
 

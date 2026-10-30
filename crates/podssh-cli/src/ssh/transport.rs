@@ -1,12 +1,15 @@
 //! The stream to the first hop: through the relay, with failover, or over
 //! TCP with `--direct`. `ssh` runs a session on it, and `cp` an SFTP session.
 
+use std::pin::Pin;
+use std::sync::atomic::{AtomicBool, Ordering};
 use std::sync::Arc;
+use std::task::{Context, Poll};
 
 use podssh_relay::open::Request;
 use podssh_ssh::{Log, RelayStatus};
 use podssh_ws::ProxyChoice;
-use tokio::io::{AsyncRead, AsyncWrite};
+use tokio::io::{AsyncRead, AsyncWrite, ReadBuf};
 
 use super::resolve::{Resolved, Transport};
 use crate::exitmap::sysexits;
@@ -22,6 +25,61 @@ pub struct Reached {
     pub stream: Box<dyn Duplex>,
     /// The relay leg's status, when the relay carries the stream.
     pub relay: Option<RelayStatus>,
+    /// The proxy of a `--direct` connection, when one carries it.
+    pub direct_proxy: Option<DirectProxy>,
+}
+
+/// The proxy that carries a `--direct` connection, and whether any byte came
+/// back through it. A `200` to CONNECT proves that the proxy took the
+/// request, not that the tunnel carries bytes as they are: a proxy that
+/// intercepts TLS waits for a ClientHello, then sends nothing or resets
+/// (T-317), and a failure with nothing heard names it.
+#[derive(Clone)]
+pub struct DirectProxy {
+    proxy: String,
+    heard: Arc<AtomicBool>,
+}
+
+impl DirectProxy {
+    /// The line that names the proxy as the cause, when no byte came back.
+    pub fn cause(&self, target: &str) -> Option<String> {
+        (!self.heard.load(Ordering::Relaxed)).then(|| {
+            format!(
+                "{target}: the proxy {} took the CONNECT, and no byte of an SSH server came back: it may expect \
+                 TLS and carry no SSH. Without --direct, the relay carries SSH over HTTPS",
+                self.proxy
+            )
+        })
+    }
+}
+
+/// A stream that marks the first byte that it reads.
+struct Heard<S> {
+    inner: S,
+    heard: Arc<AtomicBool>,
+}
+
+impl<S: AsyncRead + Unpin> AsyncRead for Heard<S> {
+    fn poll_read(mut self: Pin<&mut Self>, cx: &mut Context<'_>, buf: &mut ReadBuf<'_>) -> Poll<std::io::Result<()>> {
+        let before = buf.filled().len();
+        let polled = Pin::new(&mut self.inner).poll_read(cx, buf);
+        if buf.filled().len() > before {
+            self.heard.store(true, Ordering::Relaxed);
+        }
+        polled
+    }
+}
+
+impl<S: AsyncWrite + Unpin> AsyncWrite for Heard<S> {
+    fn poll_write(mut self: Pin<&mut Self>, cx: &mut Context<'_>, data: &[u8]) -> Poll<std::io::Result<usize>> {
+        Pin::new(&mut self.inner).poll_write(cx, data)
+    }
+    fn poll_flush(mut self: Pin<&mut Self>, cx: &mut Context<'_>) -> Poll<std::io::Result<()>> {
+        Pin::new(&mut self.inner).poll_flush(cx)
+    }
+    fn poll_shutdown(mut self: Pin<&mut Self>, cx: &mut Context<'_>) -> Poll<std::io::Result<()>> {
+        Pin::new(&mut self.inner).poll_shutdown(cx)
+    }
 }
 
 /// Why the first hop was not reached: the lines that say so, and the
@@ -79,7 +137,7 @@ pub async fn reach_skipping(resolved: &Resolved, skip: usize, log: &Arc<Log>) ->
                     log.verbose(&format!("the relay host {} opened the session", opened.relay.host));
                     podssh_ssh::outcome::relay_host(&opened.relay.host);
                     let (stream, status) = podssh_ssh::relay_stream::spawn(opened.session);
-                    Ok(Reached { stream: Box::new(stream), relay: Some(status) })
+                    Ok(Reached { stream: Box::new(stream), relay: Some(status), direct_proxy: None })
                 }
                 Err(failure) => {
                     Err(NotReached { lines: failure.lines(&target), code: crate::proxy::sysexit(failure.last()) })
@@ -122,7 +180,13 @@ pub async fn reach_skipping(resolved: &Resolved, skip: usize, log: &Arc<Log>) ->
                         // A write that makes no progress fails as on the
                         // relay leg, never a wait for ever (T-227).
                         let stream = podssh_ws::write_limit::WriteLimit::new(tcp, podssh_ws::client::WRITE_TIMEOUT);
-                        return Ok(Reached { stream: Box::new(stream), relay: None });
+                        let Some(proxy) = podssh_ws::dial::proxy_from_env(&first.host).ok().flatten() else {
+                            return Ok(Reached { stream: Box::new(stream), relay: None, direct_proxy: None });
+                        };
+                        let heard = Arc::new(AtomicBool::new(false));
+                        let watched = Heard { inner: stream, heard: heard.clone() };
+                        let direct_proxy = Some(DirectProxy { proxy: proxy.to_string(), heard });
+                        return Ok(Reached { stream: Box::new(watched), relay: None, direct_proxy });
                     }
                     Err(e) => log.error(&format!("could not connect to {target}: {e}")),
                 }

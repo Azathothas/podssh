@@ -259,7 +259,7 @@ pub async fn reach(
         }
     });
     match has_started.await {
-        Ok(Ok(())) => Ok(Reached { stream: Box::new(ours), relay: None }),
+        Ok(Ok(())) => Ok(Reached { stream: Box::new(ours), relay: None, direct_proxy: None }),
         Ok(Err(refusal)) => Err(refused(refusal)),
         Err(_) => Err(NotReached {
             lines: vec![format!("{shown}: the leg's task ended before it started")],

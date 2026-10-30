@@ -306,6 +306,7 @@ async fn tries(resolved: &Resolved, log: &Arc<Log>) -> (i32, Option<podssh_ssh::
             }
         };
         let relay = reached.relay.clone();
+        let direct_proxy = reached.direct_proxy.clone();
         let outcome = podssh_ssh::run::run_outcome(reached.stream, &opts, reached.relay, log.clone()).await;
         let how = match outcome.retry {
             Some(Retry::NextHost) if tried < most && skip + 1 < hosts => {
@@ -319,6 +320,12 @@ async fn tries(resolved: &Resolved, log: &Arc<Log>) -> (i32, Option<podssh_ssh::
             _ => {
                 for line in &outcome.lines {
                     log.error(line);
+                }
+                // A proxy that took the CONNECT and sent nothing back (T-317).
+                if outcome.code != 0 {
+                    if let Some(cause) = direct_proxy.as_ref().and_then(|d| d.cause(&target)) {
+                        log.error(&cause);
+                    }
                 }
                 return (outcome.code, relay);
             }

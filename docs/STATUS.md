@@ -206,6 +206,7 @@ in [ROADMAP.md](ROADMAP.md).
 | `--relay-addr tcp.ssh.relay.ajam.dev=104.21.39.2` (the relay's real address) | GitHub's banner through the relay. |
 | `--relay-addr tcp.ssh.relay.ajam.dev=1.1.1.1` (a wrong address) | Cloudflare's edge there has a valid certificate for the name and refuses the request (its error 1034). podssh fails over to a pool host, and the session opens. |
 | `no_proxy` with blocks (T-316, 2026-10-30): `10.0.0.0/8`, `100.64.0.0/10`, `fd7a::/16`, as a Claude Code cloud container lists them | An address inside a block goes directly, a name never matches a block, and `::ffff:10.1.2.3` is `10.1.2.3`; the Tailscale fork reads the list the same way, case for case; `doctor` names the entry ("NO_PROXY's entry 10.0.0.0/8 excludes 10.1.2.3"). Planted, the blocks removed from either matcher: its test failed (`cargo test -p podssh-ws --test dial`, `-p podssh-ts --test derp_proxy`, `-p podssh-cli --test doctor`, Linux). |
+| A proxy that answers `200` to CONNECT and carries no SSH (T-317, 2026-10-30) | `doctor` trusts port 22 only on the server's banner, read for 5 s after the 200; `podssh ssh --direct` names the proxy when no byte came back. Live through a Claude Code cloud container's agent proxy: "github.com:22: 127.0.0.1:35713 took the CONNECT (140 ms), then nothing came in 5 s: it carries no SSH", and `--direct` 255 after 2 s with the line that names the proxy. Planted, the 200 alone trusted: the tests failed (`cargo test -p podssh-cli --lib doctor::net`, `--test direct_proxy`, Linux) |
 
 ## `podssh doctor`, measured
 

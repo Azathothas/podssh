@@ -69,7 +69,7 @@ GitHub #2, not verified here: the relay's `/trace` dials `[V6]:8079`.
    refuses `V6:PORT`: `2001:db8::1:22` is itself an address. Reuse the rule of
    `split_host_port` (`crates/podssh-ws/src/dial.rs:432-451`).
 5. Messages use `podssh_ws::dial::authority` (`crates/podssh-ws/src/dial.rs:412-419`),
-   not `host:port` (`crates/podssh-cli/src/ssh/transport.rs:48`,
+   not `host:port` (`crates/podssh-cli/src/ssh/transport.rs:106`,
    `crates/podssh-cli/src/proxy.rs:131`, where it is used since this entry). `known_hosts` keeps the literal as
    typed: `host_name` writes `[V6]:PORT` as OpenSSH does
    (`crates/podssh-ssh/src/known_hosts.rs:89-96`).
@@ -393,7 +393,7 @@ rest. For a verb, clap reads each word before `--help` is answered
 3. Keep the verb level as it is: `podssh ssh --help host` prints the help of
    `ssh`, after clap has checked each word.
 4. If the top-level help text changes (`TOP_OPTIONS`,
-   `crates/podssh-cli/src/flags.rs:480-483`), update its test
+   `crates/podssh-cli/src/flags.rs:481-484`), update its test
    `no_top_level_option_runs_into_its_description`
    (`crates/podssh-cli/src/help.rs:338-353`). Same commit: `docs/cli.md:56-60`,
    `docs/STATUS.md`.
@@ -494,8 +494,8 @@ Read, at `61e55d1`: no option made podssh start a program: `ProxyCommand` is ref
 2. A note for `ssh` and `proxy` (`crates/podssh-cli/src/man/notes_ssh.rs:4-256` and `crates/podssh-cli/src/man/notes.rs:52-163`)
    and an example (`crates/podssh-cli/src/man/examples.rs:8-195`). Pitfall: the
    notes test reads a bare `--` as a flag that does not exist
-   (`crates/podssh-cli/src/man/notes.rs:372-380`); teach `flag_exists`
-   (`crates/podssh-cli/src/man/notes.rs:339-355`) that `--` ends the options.
+   (`crates/podssh-cli/src/man/notes.rs:373-381`); teach `flag_exists`
+   (`crates/podssh-cli/src/man/notes.rs:340-356`) that `--` ends the options.
 3. `podssh proxy` (`crates/podssh-cli/src/proxy.rs:203-208`): when HOST or PORT
    is missing and a relay or trust flag was given, add one line: a HOST that
    starts with `-` is read as a flag; put `--` before it.
@@ -581,7 +581,7 @@ Measured offline: `PODSSH_TIMEOUT=5s podssh mv` and
 Read: the `--timeout` rows are those of `cp` and `mv`
 (`crates/podssh-cli/src/flags/copy.rs:47-48`), `chat`
 (`crates/podssh-cli/src/flags.rs`, lines 274-275 at `7aa955a`), `ts`
-(`crates/podssh-cli/src/flags.rs:343-344`) and `relay`
+(`crates/podssh-cli/src/flags.rs:344-345`) and `relay`
 (`crates/podssh-cli/src/flags.rs` lines 317-318 at `af0a163`). Each but `ts` exits 70
 (`crates/podssh-cli/src/flags.rs` lines 436-443 at `af0a163`), and `ts` needs its feature. So the
 variable matters when `cp`, `mv` and `relay` exist. `ssh` and `proxy` have no
@@ -687,7 +687,7 @@ node, operator, chat, cp, mv, man, relay, status, doctor, keygen, ts. Seven
 lines say "(not implemented yet)" and `ts` says "(not in this build)".
 `podssh man --no-pager` shows the same order under "Commands".
 
-Read, at `3a78cff`: one table, `VERBS` (`crates/podssh-cli/src/flags.rs:370-425`), has no
+Read, at `3a78cff`: one table, `VERBS` (`crates/podssh-cli/src/flags.rs:371-426`), has no
 group. Four places render it: `top_level_help`
 (`crates/podssh-cli/src/help.rs`, lines 132-146), the start of the manual
 (`crates/podssh-cli/src/man/model.rs`, lines 120-126), `unknown_verb`
@@ -697,7 +697,7 @@ group. Four places render it: `top_level_help`
 ## Approach
 
 1. Add the group to the table in `crates/podssh-cli/src/flags.rs`: a field of
-   `Verb` (`crates/podssh-cli/src/flags.rs:357-368`), or one list of groups. A
+   `Verb` (`crates/podssh-cli/src/flags.rs:358-369`), or one list of groups. A
    new test in `crates/podssh-cli/tests/flag_table.rs` asserts that each verb
    is in exactly one group, as `every_verb_has_an_owner_so_no_verb_can_be_a_silent_stub`
    does for owners (`crates/podssh-cli/tests/flag_table.rs:104`).
@@ -756,7 +756,7 @@ problem of one long list stands; the mix of working and missing commands is gone
 
 ## Done
 
-2026-10-11. `GROUPS` in `crates/podssh-cli/src/flags.rs:427-443`; `--help`
+2026-10-11. `GROUPS` in `crates/podssh-cli/src/flags.rs:428-444`; `--help`
 (`crates/podssh-cli/src/help.rs:157-184`) and the manual's "Commands"
 (`crates/podssh-cli/src/man/model.rs:120-131`) print the commands in their groups.
 - `cargo test -p podssh-cli --test flag_table -- each_verb_is_in_one_group`: 1 passed. Planted:
@@ -921,7 +921,7 @@ the same for the other fifteen.
 ## Approach
 
 1. Rows in `SSH_FLAGS`: `-c -m -f -G -I -K -M -O -S -Q -w -X -Y -y` are refused
-   by name with what to use instead (`crates/podssh-cli/src/flags.rs:248-277`).
+   by name with what to use instead (`crates/podssh-cli/src/flags.rs:249-278`).
    `-k` is supported and `-g` is accepted with no effect
    (`crates/podssh-cli/src/flags.rs`, lines 205-209 at `97146aa`).
 2. A refusal with nothing to use instead says "Leave it out."
@@ -1987,7 +1987,7 @@ passes.
 ## Approach
 
 1. In `verb_help`, for a verb that is not `Works`
-   (`crates/podssh-cli/src/flags.rs:468-476`): the title with the note, the
+   (`crates/podssh-cli/src/flags.rs:469-477`): the title with the note, the
    sentence of the manual, and no option but `--help`, as the manual does.
 2. Keep that sentence in one place, so that `--help` and the manual
    (`crates/podssh-cli/src/man/model.rs` lines 188-200 at `fdbba30`) cannot
