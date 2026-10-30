@@ -67,7 +67,8 @@ fi
 # twice, then `exit 5`. Right after the submits one runs and two wait (the
 # planted defect, a runner that ignores the slots, runs more); wait on the
 # last exits 5 within 30 s; fetch gets an out that holds J; and a submit to
-# both servers goes to the one with fewer jobs queued or running.
+# two hosts goes to the one with fewer jobs queued or running (the planted
+# defect, a choice of the first host, fails it).
 H="$T:2201"
 q1=$(j submit "$H" --slots 1 -- 'sleep 2; echo J' 2>"$JW/err")
 q2=$(j submit "$H" --slots 1 -- 'sleep 2; echo J' 2>>"$JW/err")
@@ -96,12 +97,23 @@ rc=$?
 [ "$rc" = 0 ] && [ "$(cat "$JW/got/out" 2>/dev/null)" = J ] \
     && ok job.queue.fetch "fetch of the first job: its out holds J" \
     || bad job.queue.fetch "exit $rc" "$JW/err"
+# Both servers run as podtest, so they read one queue in one home, and
+# their counts tie: the second host of the list is Dropbear as a user of its
+# own, with podtest's keys and an empty queue.
+adduser -D -s /bin/sh podjob >/dev/null 2>&1 || true
+echo "podjob:$PW" | chpasswd >/dev/null 2>&1
+mkdir -p /home/podjob/.ssh
+cp /home/podtest/.ssh/authorized_keys /home/podjob/.ssh/authorized_keys
+chown -R podjob:podjob /home/podjob/.ssh
+chmod 700 /home/podjob/.ssh
+chmod 600 /home/podjob/.ssh/authorized_keys
+U2=podjob@127.0.0.1
 s1=$(j submit "$H" -- sleep 60 2>"$JW/err")
-got=$(j submit "$T:2201,$T:2203" -- sleep 60 2>>"$JW/err")
-[ "${got% *}" = "$T:2203" ] && [ "${#s1}" = 8 ] \
-    && ok job.queue.choose "a submit to both servers goes to Dropbear's, which has no job: $got" \
+got=$(j submit "$T:2201,$U2:2203" -- sleep 60 2>>"$JW/err")
+[ "${got% *}" = "$U2:2203" ] && [ "${#s1}" = 8 ] \
+    && ok job.queue.choose "a submit to two hosts goes to the one with no job, Dropbear's podjob: $got" \
     || bad job.queue.choose "the answer '$got'" "$JW/err"
 for id in "$q1" "$q2" "$q3" "$s1"; do
     j stop "$H" "$id" >/dev/null 2>&1
 done
-j stop "$T:2203" "${got#* }" >/dev/null 2>&1
+j stop "$U2:2203" "${got#* }" >/dev/null 2>&1

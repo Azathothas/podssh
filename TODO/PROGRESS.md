@@ -66,7 +66,10 @@ entry keeps its proof in the entry; this page keeps no history (git does).
 
   CI: the gate passed at
   `24b9f6e` (run 38331509229), and its step `release` at `cad2885` (478
-  checks, the desktop's, `usbip` and `each` among them).
+  checks, the desktop's, `usbip` and `each` among them). At `d0dbb59` (run
+  41103062568) the step `release` failed on `job.queue.choose` of T-197,
+  whose two servers share one user and so one queue; the check now has a
+  user of its own on Dropbear (T-197's Done).
 
 ## Baseline
 

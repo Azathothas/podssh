@@ -2120,7 +2120,19 @@ session built it and ran each check below.
   into the text of the remote status; clippy `-D warnings` clean, and
   rustfmt reformatted `args.rs` and `fetch.rs`.
 - `scripts/interop-job.sh`: 4 checks more, `job.queue.*`, in
-  `scripts/interop-baseline.txt`. UNVERIFIED: waits for T-251.
+  `scripts/interop-baseline.txt`. In CI's gate, step release (run
+  41103062568, at `d0dbb59`, 2026-10-30), `job.queue.choose` failed: the
+  harness runs OpenSSH and Dropbear as one user, podtest, so both servers
+  read one queue in one home, their counts tie, and the tie goes to the
+  first host of the list; the check's premise, a Dropbear with no job,
+  could not hold. The check now submits to podtest on OpenSSH, which holds
+  a job, and to a second user, podjob, on Dropbear, with the same keys and
+  an empty queue. Run by hand against this host's OpenSSH 9.6p1 and
+  Dropbear 2022.83, set up as `scripts/interop.sh` sets them up: the 11
+  checks of `job` passed, and the choice went to `podjob@127.0.0.1:2203`.
+  Planted, a choice of the first host of the list: `job.queue.choose`
+  failed, the job on `podtest@127.0.0.1:2201`, and passed again without it.
+  The run in the build image is the gate's.
 - The planted defect: the runner ignores the slots (its test of `$busy`
   against `$k` taken out). The test
   `three_jobs_with_one_slot_run_one_at_a_time_and_the_last_gives_5`
