@@ -54,7 +54,9 @@ jobs:
               xzcat "/tmp/$z.tar.xz" | tar -x -C /tmp
               export PATH="/tmp/$z:$PATH"
               echo "zig $(zig version)"
-              cargo install --quiet --locked --root /tmp/zigbuild cargo-zigbuild --version "$ZIGBUILD_VERSION"
+              # A host build: +crt-static with no --target would reach its
+              # proc-macros on this musl host.
+              RUSTFLAGS= cargo install --quiet --locked --root /tmp/zigbuild cargo-zigbuild --version "$ZIGBUILD_VERSION"
               export PATH="/tmp/zigbuild/bin:$PATH"
               cargo zigbuild --version
               rustup target add riscv64gc-unknown-linux-musl
