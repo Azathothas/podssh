@@ -32,7 +32,7 @@ Read, the parsers that take input from a peer or a file: WebSocket frames
 (`crates/podssh-ws/src/proxy.rs:82`), `NO_PROXY` and the CONNECT status
 (`crates/podssh-ws/src/dial.rs`, lines 178 and 334 at `22c3b88`); since T-070 (2026-10-11), a
 SOCKS5 proxy's answers (`crates/podssh-ws/src/socks5.rs:156`); close
-reasons (`crates/podssh-ws/src/session.rs:371`); PEM bundles
+reasons (`crates/podssh-ws/src/session.rs:381`); PEM bundles
 (`crates/podssh-ws/src/bundle.rs:72`); relay lists and the pool document
 (`crates/podssh-relay/src/relay.rs:107`, `crates/podssh-relay/src/pool.rs:95`);
 `known_hosts` lines, in a private function
@@ -107,7 +107,7 @@ sh scripts/dev.sh check                                   # the gate does not ch
 
 The list names each target, and each run ends with no crash (`ws_frame`
 after T-063). Planted defect: remove the length guard of
-`close_code_and_reason` (`crates/podssh-ws/src/session.rs:372-374`);
+`close_code_and_reason` (`crates/podssh-ws/src/session.rs:382-384`);
 `close_reason` must crash within its 120 s.
 
 ## Done
@@ -363,7 +363,7 @@ Read:
    in the gate's container (installed with apk, as `scripts/interop-man.sh:22`
    installs groff) and through `vt100`. The two must give the same screens
    before the model judges podssh.
-6. docs/terminal.md, section "Tests" (`docs/terminal.md:526`), names the
+6. docs/terminal.md, section "Tests" (`docs/terminal.md:540`), names the
    oracle.
 
 ## Decision
@@ -532,7 +532,7 @@ Read, the bounds today:
   file: 64 KiB (`crates/podssh-relay/src/cache.rs:33`).
 - The SSH window: 512 KiB (`crates/podssh-ssh/src/run.rs:30`). The relay pipe:
   256 KiB each way, frames of 64 KiB
-  (`crates/podssh-ssh/src/relay_stream.rs:30-33`). Pump buffers: 32 KiB
+  (`crates/podssh-ssh/src/relay_stream.rs:36-39`). Pump buffers: 32 KiB
   (`crates/podssh-cli/src/pipe/pump.rs:22`).
 - Time: `crates/podssh-ws/src/client.rs:21-35`,
   `crates/podssh-relay/src/open.rs:30-34`, `crates/podssh-ssh/src/session.rs:22`.
@@ -586,7 +586,7 @@ Each command exits 0. Planted defect: set `WINDOW`
 channel (`channel_buffer_size`, `crates/podssh-ssh/src/run.rs:452-462`) to
 2^20 messages; the slow-reader check must fail. The window alone is not
 enough: the queue is a second bound (Correction). A second plant: remove the
-check at `crates/podssh-ws/src/session.rs:336-338`; the fragment test must
+check at `crates/podssh-ws/src/session.rs:346-348`; the fragment test must
 fail.
 
 ## Correction
@@ -643,7 +643,7 @@ whose output nobody reads; `scripts/interop-baseline.txt` has its two ids.
 - `cargo test -p podssh-ssh --test known_hosts`: 17 passed. A file of 16 MiB is read; one byte
   more is unreadable, with its reason, and a record into it is refused, the file unchanged.
 - Planted, natively: without the check of fragments
-  (`crates/podssh-ws/src/session.rs:336-338`), a message of 16777217 bytes came through, and the
+  (`crates/podssh-ws/src/session.rs:346-348`), a message of 16777217 bytes came through, and the
   test failed; without the bound of `known_hosts`, the larger file was read, and the test failed.
 - In the build image, `scripts/interop-limits.sh` alone with the Prove's plants: as the code is, a
   reader that took each byte peaked at 6884 KiB, and one that took nothing for 30 s at 7460 KiB,
@@ -677,8 +677,8 @@ Read: the candidates, each a pure function or a state machine with no I/O.
 
 - WebSocket frames: `encode` and `decode` (`crates/podssh-ws/src/frame.rs:75`,
   `crates/podssh-ws/src/frame.rs:121`).
-- The joining of fragments (`crates/podssh-ws/src/session.rs:330-354`). It is
-  private, but `RelaySession::new` (`crates/podssh-ws/src/session.rs:82`) takes
+- The joining of fragments (`crates/podssh-ws/src/session.rs:340-364`). It is
+  private, but `RelaySession::new` (`crates/podssh-ws/src/session.rs:85`) takes
   any stream, so a test can drive it.
 - Relay lists and paths (`crates/podssh-relay/src/relay.rs:107-183`, `crates/podssh-ws/src/names.rs:8-57`).
 - `known_hosts` patterns (`crates/podssh-ssh/src/known_hosts.rs:277-333`).
@@ -843,7 +843,7 @@ Read:
   names and answers a status (`scripts/fake-proxy.py:1-27`). Neither shapes
   the traffic.
 - `scripts/interop-faults.sh:42-50` starts one stand-in for each fault; its
-  checks are at lines 73-182 at `8d668b7` (`docs/STATUS.md:495-513`, 14 of 14 since T-236).
+  checks are at lines 73-182 at `8d668b7` (`docs/STATUS.md:496-514`, 14 of 14 since T-236).
 - The time limits that latency meets today: the SSH handshake, 60 s
   (`crates/podssh-ssh/src/options.rs:395`, enforced at
   `crates/podssh-ssh/src/run.rs:369-375`); a reply, 30 s
@@ -977,7 +977,7 @@ Read, each claim of GitHub #34 at the lines as they are now:
 - `crates/podssh-ssh/src/io.rs:391-398`, with `crates/podssh-ssh/src/io.rs:63-65`,
   maps an exit status that does not fit
   (the -1 of `railway.new`) to 255, and an exit signal to 128 plus its number
-  (`docs/STATUS.md:85`, `docs/STATUS.md:90`).
+  (`docs/STATUS.md:86`, `docs/STATUS.md:91`).
 - A correction to the framing of #34: for a signal, podssh differs from
   OpenSSH on purpose. `docs/cli.md:2419-2420` says 128 plus the signal's number,
   and that OpenSSH gives 255. `crates/podssh-ssh/src/lib.rs:16` says that the

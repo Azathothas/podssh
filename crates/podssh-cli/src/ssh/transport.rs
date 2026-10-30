@@ -38,6 +38,11 @@ pub struct Reached {
 /// The end of a task that carries a session in the layer.
 pub type Carriage = tokio::sync::oneshot::Receiver<()>;
 
+/// How long a Ping of the forward road waits for the relay before the
+/// relay counts as silent: the layer's wait (T-302), as the notice is one
+/// on each road.
+pub const SILENCE_WAIT: std::time::Duration = podssh_relay::session::hearing::WAIT;
+
 /// How long a run waits, after SSH, for the layer's task to end: its
 /// `CLOSE`, and the line of a failure.
 pub const CARRIAGE_WAIT: std::time::Duration = std::time::Duration::from_secs(5);
@@ -183,6 +188,9 @@ pub async fn reach_skipping(resolved: &Resolved, skip: usize, log: &Arc<Log>) ->
                     log.verbose(&format!("the relay host {} opened the session", opened.relay.host));
                     podssh_ssh::outcome::relay_host(&opened.relay.host);
                     let (stream, status) = podssh_ssh::relay_stream::spawn(opened.session);
+                    // The relay's silence, for the notice (T-307).
+                    let heard = status.clone();
+                    opts.silence.attach(move || heard.silent(tokio::time::Instant::now(), SILENCE_WAIT));
                     Ok(Reached { stream: Box::new(stream), relay: Some(status), direct_proxy: None, layer: None })
                 }
                 Err(failure) => {

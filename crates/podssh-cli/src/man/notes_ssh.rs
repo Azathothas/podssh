@@ -31,7 +31,11 @@ pub const SSH: &[&str] = &[
      written, and the lines of a loss and a resume are left out meanwhile. That is done only on a \
      terminal known to keep such a stack: xterm (XTERM_VERSION) and VTE (VTE_VERSION), not inside tmux \
      or screen, or another with PODSSH_TITLE_STACK set to yes; elsewhere the lines stay as they are. With no \
-     pty, it is a line on stderr, and another when the node answers again. Never in a pipe, nor with -q.",
+     pty, it is a line on stderr, and another when the node answers again. Never in a pipe, nor with -q. \
+     On the forward road through the relay, the same notice tells the relay's silence: with SSH's bytes \
+     up, while no question waits, podssh sends a WebSocket Ping, which the relay's Pong or the target's \
+     bytes answer, so a key that nothing echoes is no silence; a link that stays silent ends the session \
+     about 30 s after its last frame. With --direct there is none yet.",
     "iroh:TICKET, or user@iroh:TICKET, reaches a node of the iroh road (see podssh node), in a build with \
      the feature iroh. The ticket is the address that the node prints, not a credential: the node lets in \
      only the client keys of its allowlist. This client's key is made on first use, in the cache \

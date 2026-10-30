@@ -15,6 +15,12 @@
 //! When one task ends with the link, it stops the other: russh can wait on a
 //! write into the pipe that only the sending task reads, while the receiving
 //! task waits for russh to read, and neither would see the broken link.
+//!
+//! The status tells the relay's silence too (T-307): nothing below SSH
+//! answers a key on this road, as the relay copies the bytes to the target,
+//! so with SSH's bytes up, while no question waits, a Ping of podssh's
+//! goes too; any frame of the relay answers it, a Pong or the target's
+//! bytes. A notice in the terminal reads the silence while one waits.
 
 use std::sync::atomic::{AtomicU64, Ordering};
 use std::sync::{Arc, Mutex};
@@ -68,11 +74,30 @@ pub struct RelayStatus {
     end: Arc<Mutex<Option<RelayEnd>>>,
     bytes: Arc<AtomicU64>,
     started: Instant,
+    quiet: Arc<Quiet>,
 }
 
 impl Default for RelayStatus {
     fn default() -> Self {
-        RelayStatus { end: Arc::default(), bytes: Arc::default(), started: Instant::now() }
+        RelayStatus { end: Arc::default(), bytes: Arc::default(), started: Instant::now(), quiet: Arc::default() }
+    }
+}
+
+/// The relay's frames so far, and when the last one came.
+type Frames = dyn Fn() -> (u64, tokio::time::Instant) + Send + Sync;
+
+/// What the status knows of the relay's silence: the question that waits,
+/// when it was asked and the relay's frames until then; and the session's
+/// count of frames, once the copying runs.
+#[derive(Default)]
+struct Quiet {
+    asked: Mutex<Option<(tokio::time::Instant, u64)>>,
+    frames: std::sync::OnceLock<Arc<Frames>>,
+}
+
+impl std::fmt::Debug for Quiet {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        f.debug_struct("Quiet").field("asked", &self.asked).finish()
     }
 }
 
@@ -102,7 +127,44 @@ impl RelayStatus {
     pub fn age(&self) -> Duration {
         self.started.elapsed()
     }
+
+    /// Whether to ask the relay, at `now`: when no question waits, or the
+    /// one that did was answered; the question then starts.
+    fn ask(&self, now: tokio::time::Instant) -> bool {
+        let Some(frames) = self.quiet.frames.get() else { return false };
+        let (heard, _) = frames();
+        let mut asked = self.quiet.asked.lock().unwrap_or_else(|e| e.into_inner());
+        match *asked {
+            Some((_, before)) if heard <= before => false,
+            _ => {
+                *asked = Some((now, heard));
+                true
+            }
+        }
+    }
+
+    /// How long the relay has said nothing, at `now`, when a question has
+    /// waited `wait` or more for its answer; `None` while it answers, and
+    /// before the copying runs.
+    pub fn silent(&self, now: tokio::time::Instant, wait: Duration) -> Option<Duration> {
+        let frames = self.quiet.frames.get()?;
+        let (heard, last) = frames();
+        let mut asked = self.quiet.asked.lock().unwrap_or_else(|e| e.into_inner());
+        let (at, before) = (*asked)?;
+        if heard > before {
+            *asked = None;
+            return None;
+        }
+        if now.saturating_duration_since(at) < wait {
+            return None;
+        }
+        Some(now.saturating_duration_since(last))
+    }
 }
+
+/// The payload of the Ping that asks: none of `podssh ping`'s, which are
+/// eight bytes of a count.
+const ASK: &[u8] = b"podssh-ask";
 
 /// Start copying between `session` and a new pipe; returns russh's end of the
 /// pipe. Must be called inside a tokio runtime.
@@ -113,6 +175,9 @@ where
     let (ours, theirs) = tokio::io::duplex(PIPE);
     let status = RelayStatus::default();
     let session = Arc::new(session);
+    let counted = session.clone();
+    let frames: Arc<Frames> = Arc::new(move || (counted.frames_received(), counted.last_heard()));
+    let _ = status.quiet.frames.set(frames);
     let (mut from_ssh, mut to_ssh) = tokio::io::split(theirs);
     // Each task's end with the link stops the other; the pipe then closes,
     // and a write of russh's that waits on it fails.
@@ -146,6 +211,11 @@ where
                         break;
                     }
                     up_status.count(n);
+                    // A question that the relay answers at once (T-307);
+                    // a send that fails is the next write's to find.
+                    if up_status.ask(tokio::time::Instant::now()) {
+                        let _ = up_session.send_ping(ASK).await;
+                    }
                 }
             }
         }
@@ -259,13 +329,13 @@ mod tests {
     /// socket (workerd issue 7074).
     #[tokio::test]
     async fn a_burst_reaches_the_relay_in_frames_that_stay_small() {
-        use podssh_ws::frame::{decode, Role, FORWARD_SEND_PAYLOAD};
+        use podssh_ws::frame::{decode, Role, FORWARD_SEND_PAYLOAD, OPCODE_BINARY, OPCODE_PING};
         let (ours, mut relay) = tokio::io::duplex(1 << 21);
         let session = RelaySession::new(ours, Vec::new(), None, Duration::from_secs(30));
         let (mut ssh, _status) = spawn(session);
         let sent: Vec<u8> = (0..1 << 20).map(|i: u32| (i * 7 % 251) as u8).collect();
         ssh.write_all(&sent).await.expect("written");
-        let (mut wire, mut got) = (Vec::new(), Vec::new());
+        let (mut wire, mut got, mut pings) = (Vec::new(), Vec::new(), 0);
         while got.len() < sent.len() {
             let mut buf = vec![0u8; 1 << 16];
             let n =
@@ -273,11 +343,79 @@ mod tests {
             wire.extend_from_slice(&buf[..n]);
             while let Some((frame, used)) = decode(&wire, Role::Client).expect("a frame") {
                 assert!(frame.payload.len() <= FORWARD_SEND_PAYLOAD, "a frame of {} bytes", frame.payload.len());
-                got.extend_from_slice(&frame.payload);
+                match frame.opcode {
+                    OPCODE_BINARY => got.extend_from_slice(&frame.payload),
+                    OPCODE_PING => pings += 1,
+                    other => panic!("a frame of opcode {other:#x}"),
+                }
                 wire.drain(..used);
             }
         }
         assert_eq!(got, sent, "the bytes, in order");
+        assert_eq!(pings, 1, "one question, which the relay here never answers (T-307)");
+    }
+
+    /// The frames that the relay reads, `n` of them, within a limit.
+    async fn frames_up(relay: &mut tokio::io::DuplexStream, n: usize) -> Vec<podssh_ws::frame::Frame> {
+        use podssh_ws::frame::{decode, Role};
+        let (mut wire, mut frames) = (Vec::new(), Vec::new());
+        while frames.len() < n {
+            let mut buf = vec![0u8; 4096];
+            let got = tokio::time::timeout(Duration::from_secs(5), relay.read(&mut buf)).await.expect("in time");
+            wire.extend_from_slice(&buf[..got.expect("read")]);
+            while let Some((frame, used)) = decode(&wire, Role::Client).expect("a frame") {
+                frames.push(frame);
+                wire.drain(..used);
+            }
+        }
+        frames
+    }
+
+    /// The relay's silence (T-307): SSH's bytes up ask with a Ping while no
+    /// question waits; once one waited `wait`, the silence counts from the
+    /// relay's last frame; and any frame answers it, a Pong as the target's
+    /// bytes.
+    #[tokio::test]
+    async fn the_relay_s_silence_shows_once_a_question_waits_and_any_frame_answers_it() {
+        use podssh_ws::frame::{encode, Frame, Role, OPCODE_BINARY, OPCODE_PING, OPCODE_PONG};
+        let (ours, mut relay) = tokio::io::duplex(1 << 20);
+        let session = RelaySession::new(ours, Vec::new(), None, Duration::from_secs(5));
+        let (mut ssh, status) = spawn(session);
+        let wait = Duration::from_millis(300);
+        let now = tokio::time::Instant::now;
+        assert_eq!(status.silent(now(), wait), None, "no question yet");
+        ssh.write_all(b"k").await.expect("a key");
+        let up = frames_up(&mut relay, 2).await;
+        assert_eq!((up[0].opcode, &up[0].payload[..]), (OPCODE_BINARY, &b"k"[..]));
+        assert_eq!((up[1].opcode, &up[1].payload[..]), (OPCODE_PING, ASK));
+        // A second key while the question waits asks nothing more.
+        ssh.write_all(b"e").await.expect("a key");
+        assert_eq!(frames_up(&mut relay, 1).await[0].payload, b"e");
+        let mut buf = [0u8; 64];
+        let more = tokio::time::timeout(Duration::from_millis(200), relay.read(&mut buf)).await;
+        assert!(more.is_err(), "no second Ping while one waits");
+        assert_eq!(status.silent(now(), Duration::from_secs(60)), None, "not yet: the question is young");
+        tokio::time::sleep(wait).await;
+        let silent = status.silent(now(), wait).expect("silent once the question waited");
+        assert!(silent >= wait, "counted from the relay's last frame: {silent:?}");
+        // The Pong answers it.
+        let pong = Frame { fin: true, opcode: OPCODE_PONG, payload: ASK.to_vec() };
+        relay.write_all(&encode(&pong, Role::Server, [0; 4])).await.expect("a Pong");
+        let deadline = now() + Duration::from_secs(5);
+        while status.silent(now(), wait).is_some() {
+            assert!(now() < deadline, "the Pong did not answer the question");
+            tokio::time::sleep(Duration::from_millis(20)).await;
+        }
+        // A new key asks again, and the target's bytes answer it.
+        ssh.write_all(b"y").await.expect("a key");
+        let up = frames_up(&mut relay, 2).await;
+        assert_eq!((up[1].opcode, &up[1].payload[..]), (OPCODE_PING, ASK));
+        let echo = Frame { fin: true, opcode: OPCODE_BINARY, payload: b"y".to_vec() };
+        relay.write_all(&encode(&echo, Role::Server, [0; 4])).await.expect("the echo");
+        let mut back = [0u8; 1];
+        ssh.read_exact(&mut back).await.expect("the echo");
+        tokio::time::sleep(wait).await;
+        assert_eq!(status.silent(now(), wait), None, "the target's bytes answered it");
     }
 
     /// The link breaks while russh writes and does not read: the sending

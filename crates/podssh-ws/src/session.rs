@@ -38,6 +38,9 @@ pub struct RelaySession<S = RelayStream> {
     /// [`RelaySession::watch_liveness`].
     pongs: AtomicU64,
     heard: AtomicU64,
+    /// When the last frame of any kind came (T-307): a notice of the far
+    /// end's silence reads it. tokio's clock, which a test can pause.
+    last_heard: std::sync::Mutex<tokio::time::Instant>,
     /// The payload of each Pong with when it came, the last [`PONGS_KEPT`],
     /// for `podssh ping`, which matches each Pong to its Ping (T-053); and a
     /// permit for each Pong, for the one who waits.
@@ -87,6 +90,7 @@ impl<S: AsyncRead + AsyncWrite> RelaySession<S> {
             close_sent: AtomicBool::new(false),
             pongs: AtomicU64::new(0),
             heard: AtomicU64::new(0),
+            last_heard: std::sync::Mutex::new(tokio::time::Instant::now()),
             pong_log: std::sync::Mutex::new(std::collections::VecDeque::new()),
             pong_seen: tokio::sync::Notify::new(),
             write_timeout,
@@ -191,6 +195,11 @@ impl<S: AsyncRead + AsyncWrite> RelaySession<S> {
         self.heard.load(Ordering::SeqCst)
     }
 
+    /// When the last frame of any kind came, or the session began.
+    pub fn last_heard(&self) -> tokio::time::Instant {
+        *self.last_heard.lock().unwrap_or_else(|e| e.into_inner())
+    }
+
     /// Ping the relay every `every`; return (with the reason) once `allowed`
     /// intervals in a row pass with nothing at all from the relay. Any frame
     /// counts, not only a Pong: a Ping can wait behind a large upload on a slow
@@ -243,6 +252,7 @@ impl<S: AsyncRead + AsyncWrite> RelaySession<S> {
                 Err(e) => return Err(self.fail(1002, SessionError::Protocol(e.to_string())).await),
             };
             if event.is_some() {
+                *self.last_heard.lock().unwrap_or_else(|e| e.into_inner()) = tokio::time::Instant::now();
                 self.heard.fetch_add(1, Ordering::SeqCst);
             }
             match event {

@@ -116,6 +116,19 @@ impl Stand {
         args.extend([format!("node://{user}@{LABEL}"), command.to_string()]);
         args
     }
+
+    /// The words of `podssh ssh` to the tests' SSH server as `user`, on the
+    /// forward road through the stand-in relay (T-307), `extra` first, then
+    /// `command`; no pin of the relay's name, as through the proxy.
+    #[allow(dead_code)]
+    pub fn forward(&self, extra: &[&str], user: &str, command: &str) -> Vec<String> {
+        let mut args = vec!["ssh".to_string()];
+        args.extend(extra.iter().map(|w| w.to_string()));
+        args.extend(self.session.common());
+        args.extend(["--relay-host".to_string(), self.relay.clone(), "--ca-file".to_string(), self.ca.clone()]);
+        args.extend(["-p".to_string(), self.session.port.to_string(), format!("{user}@127.0.0.1"), command.into()]);
+        args
+    }
 }
 
 /// A stand-in proxy, its names mapped, with `fault` from `start`: its URL.

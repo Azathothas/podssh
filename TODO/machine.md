@@ -327,7 +327,7 @@ and `crates/podssh-ssh/src/keys.rs:99-131` offers a key to the server.
    `keygen::generate`. The key stays in memory and is never written.
 2. Verdicts: a refused key is `ok` ("the handshake, the host key and the authentication path
    work through the relay"); another host key is `FAIL`; a transport failure is `FAIL`, with
-   the relay's reason (`crates/podssh-ssh/src/relay_stream.rs:45-61`); no relay host is `????`.
+   the relay's reason (`crates/podssh-ssh/src/relay_stream.rs:51-67`); no relay host is `????`.
 3. Bound each step with the doctor's limit (`crates/podssh-cli/src/doctor/relay_checks.rs:25`),
    and the whole check too.
 4. No `-tt` line: with GitHub, authentication fails before a channel, so a pty request cannot
@@ -410,7 +410,7 @@ Measured: `podssh ping example.org` exits 64 ("unknown subcommand 'ping'. No clo
 so none is guessed.").
 
 Read: the session pings the relay every 10 s and counts the pongs, but it measures no round
-trip (`crates/podssh-ws/src/session.rs:203-230`; the payload is a counter, `:227`). `doctor`
+trip (`crates/podssh-ws/src/session.rs:212-239`; the payload is a counter, `:236`). `doctor`
 prints the milliseconds of each `/health` request
 (`crates/podssh-cli/src/doctor/relay_checks.rs`, lines 130-132 at `24f3e2a`). The relay counts both directions
 against 64 MiB for each session (`docs/relay.md:167`). The stand-in relay answers pings
@@ -530,8 +530,8 @@ Read: a session ends as `io::End` (`crates/podssh-ssh/src/io.rs:34-51`). The exi
 signal are read in `handle_msg` (`:391-409`). The output goes straight to the process's
 stdout and stderr in `write_out` (`:433-450`), so nothing counts bytes. `session::run` maps
 the end to the exit code (`crates/podssh-ssh/src/session.rs:39-47`). The relay host is known
-at `crates/podssh-cli/src/ssh/transport.rs:183`, and the relay's close reason is in `RelayStatus`
-(`crates/podssh-ssh/src/relay_stream.rs:63-105`).
+at `crates/podssh-cli/src/ssh/transport.rs:188`, and the relay's close reason is in `RelayStatus`
+(`crates/podssh-ssh/src/relay_stream.rs:69-163`).
 
 ## Approach
 
@@ -626,10 +626,10 @@ failure at `crates/podssh-ssh/src/run.rs:136-146` and
 `crates/podssh-cli/src/ssh/result.rs:48-58`, the file at
 `crates/podssh-cli/src/ssh/result.rs:60-74`, written at the end of
 `run_ssh` (`crates/podssh-cli/src/ssh/mod.rs:56-86`); the relay host at
-`crates/podssh-cli/src/ssh/transport.rs:184` and its close at
+`crates/podssh-cli/src/ssh/transport.rs:189` and its close at
 `crates/podssh-cli/src/ssh/mod.rs:266`. The flag in `SSH_FLAGS`
 (`crates/podssh-cli/src/flags.rs:200`), its note at
-`crates/podssh-cli/src/man/notes_ssh.rs:267-279`, and `docs/cli.md`.
+`crates/podssh-cli/src/man/notes_ssh.rs:271-283`, and `docs/cli.md`.
 
 The test `crates/podssh-cli/tests/ssh_result.rs`, against the test server,
 whose `exit N` and `kill NAME` are in

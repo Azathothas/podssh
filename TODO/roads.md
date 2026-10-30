@@ -373,7 +373,7 @@ sandbox can block what iroh needs, so the fallback is necessary
 6. With `-v`, print the road that won and its time.
 7. Each resume of T-153 runs the same race.
 8. Docs: the rule of the race in `docs/design.md` section 2, and the notes of
-   `ssh` in the manual (`crates/podssh-cli/src/man/notes_ssh.rs:4-280`).
+   `ssh` in the manual (`crates/podssh-cli/src/man/notes_ssh.rs:4-284`).
 
 ## Decision
 
@@ -2515,7 +2515,7 @@ Read and verified at the cited lines (2026-10-30):
   it, and `crates/podssh-ws/src/handshake.rs:185` says "status != 101".
 - A relay session is generic over its stream
   (`crates/podssh-ws/src/session.rs:33` says "RelaySession<S = RelayStream>",
-  and `:78`). RFC 8441 section 5 runs the frames of RFC 6455 on the HTTP/2
+  and `:81`). RFC 8441 section 5 runs the frames of RFC 6455 on the HTTP/2
   stream "as if it were the TCP connection", and drops `Sec-WebSocket-Key`
   and `Sec-WebSocket-Accept`.
 - `docs/design.md:269` says "0.4.19 is in": `h2` comes through hyper. Its

@@ -62,15 +62,15 @@ repository and CI).
 
 ## Counts
 
-**328 entries: 20 open, 4 partial, 28 blocked, 276 done.**
+**329 entries: 20 open, 4 partial, 28 blocked, 277 done.**
 
 | Priority | open | partial | blocked | done | total |
 | --- | --- | --- | --- | --- | --- |
 | P0 | 0 | 0 | 0 | 1 | 1 |
 | P1 | 2 | 0 | 0 | 24 | 26 |
 | P2 | 1 | 2 | 19 | 144 | 166 |
-| P3 | 17 | 2 | 9 | 107 | 135 |
-| **All** | 20 | 4 | 28 | 276 | 328 |
+| P3 | 17 | 2 | 9 | 108 | 136 |
+| **All** | 20 | 4 | 28 | 277 | 329 |
 
 ## Entries
 
@@ -379,7 +379,7 @@ repository and CI).
 | [T-304](resume.md) | P3 | L | backlog | feature | open | Keys and screen frames as QUIC datagrams on the iroh road |
 | [T-305](resume.md) | P3 | M | backlog | feature | done | Roam at once: a new link beside a silent one |
 | [T-306](resume.md) | P3 | S | backlog | feature | done | A resume deadline that the user sets, for a host that sleeps |
-| [T-307](resume.md) | P3 | M | backlog | feature | open | A notice of silence on the forward road |
+| [T-307](resume.md) | P3 | M | backlog | feature | done | A notice of silence on the forward road |
 | [T-308](repo.md) | P3 | S | none | defect | done | Dependabot's updates of the images fail: GitHub refuses each pull request it makes |
 | [T-309](release.md) | P1 | M | none | release | done | Publish the rolling betas `v1.0.0-beta.N` |
 | [T-310](repo.md) | P2 | M | none | chore | done | The gate on a Linux host with no wsl-toolkit, and a cloud session made ready |
@@ -404,3 +404,4 @@ repository and CI).
 | [T-329](roads.md) | P2 | S | none | defect | done | Carry the patch of iroh-relay to iroh 1.4.1 (Azathothas/podssh#53) |
 | [T-330](repo.md) | P3 | M | none | chore | open | Dependabot's major updates: sha1 0.11, vt100 0.16, x25519-dalek 3, aes-gcm 0.11 |
 | [T-331](roads.md) | P3 | S | backlog | defect | partial | The layer's `CLOSE` before the exit of `job`, `pipe`, `health`, `containers` and `--upgrade` on `cf://` |
+| [T-332](resume.md) | P3 | M | backlog | feature | open | A notice of silence with `--direct` |

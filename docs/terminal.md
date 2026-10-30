@@ -488,9 +488,11 @@ now, and the check says `env` without one (T-148's Correction).
 ## A notice while the far end is silent
 
 With the resumable layer (`ssh node://`, its race with `--iroh-ticket`,
-`iroh:`, and the session after `--upgrade`), podssh tells a silent far end
-from a slow program before the layer finds the link dead (30 s) and resumes
-the session (T-302).
+`iroh:`, a podssh node's `cf://` name, and the session after `--upgrade`),
+podssh tells a silent far end from a slow program before the layer finds
+the link dead (30 s) and resumes the session (T-302); and on the forward
+road through the relay, before its pings find the link dead and the session
+ends (T-307).
 
 - **The silence.** The layer keeps the time of the far end's last byte, and
   of the oldest question of this side that waits: `DATA` that the far end
@@ -519,9 +521,21 @@ the session (T-302).
   the layer's lines stay as before. Which terminals keep the stack (xterm,
   VTE, Windows Terminal, the Windows console) is not measured yet:
   `python3 scripts/title-stack.py`, run in each, says it.
-- **Not on the forward road.** There, nothing below SSH answers a key; the
-  relay's Pong answers podssh's Ping each 10 s. T-307 is that road's
-  notice.
+- **On the forward road through the relay** (T-307), nothing below SSH
+  answers a key: the relay copies the bytes to the target. So with SSH's
+  bytes up, while no question waits, a WebSocket Ping of podssh's goes
+  too, and any frame of the relay answers it, its Pong or the target's
+  bytes; the silence counts from the relay's last frame, with the same
+  wait of 5 s and the same places. A key that nothing echoes is then no
+  silence. Measured through the stand-in relay and a proxy that holds each
+  byte (`cargo test -p podssh-cli --test silent_notice -- --ignored`): with
+  a pause of 20 s, the notice came 6.0 s after it began and went before the
+  key's answer at 20.0 s; a pause of 90 s ended the session 40.0 s after it
+  began (the relay stream's pings: nothing for 30 s), or 12.0 s after with
+  `ServerAliveInterval=4` and `ServerAliveCountMax=2`.
+- **Not with `--direct`.** There SSH's own keepalive is the one question
+  of the road, and russh asks it and counts its answers inside the
+  encrypted stream; T-332 is that road's notice.
 
 ## Tests
 
@@ -556,6 +570,11 @@ cursor and the attributes of cells:
   far end over the screen of a full-screen program leaves its rows, its
   cursor and its title, with a model of the stack of titles beside the
   oracle (T-302).
+- `cargo test -p podssh-cli --test silent_notice -- --ignored`: the same
+  from end to end, through the stand-in relay and a proxy that holds each
+  byte, on the reverse road (T-302) and the forward road (T-307); keys
+  that nothing echoes give no notice on the forward road; and the end of a
+  forward session on a link that stays silent.
 
 The model must agree with tmux before it judges podssh: each sequence of a
 fixed corpus (`crates/podssh-terminal/tests/screen/corpus.txt`) goes

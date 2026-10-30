@@ -28,7 +28,7 @@ a session id and a 256-bit resume secret, under SSH (`docs/design.md:557-574`),
 in a `session` module of `podssh-relay` (`docs/design.md:460-469`), a crate
 with no C. Measured: `grep -ril resum crates` finds only the IRC client.
 Today russh's bytes go through a pipe to the relay session
-(`crates/podssh-ssh/src/relay_stream.rs:107-209`). Frame boundaries mean nothing
+(`crates/podssh-ssh/src/relay_stream.rs:169-279`). Frame boundaries mean nothing
 on the relay (`docs/relay.md:100-103`), and the relay reads each record and can
 drop or add frames (`SECURITY.md:33-36`).
 
@@ -58,7 +58,7 @@ drop or add frames (`SECURITY.md:33-36`).
    side ignores a name that it does not know (ssh-obi's model, read in
    GitHub #19, not verified here).
 7. On the client, the layer goes between the pipe and the link, and keeps
-   `RelayStatus` (`crates/podssh-ssh/src/relay_stream.rs:63-105`). Docs: the
+   `RelayStatus` (`crates/podssh-ssh/src/relay_stream.rs:69-163`). Docs: the
    records and the threat model in `docs/design.md` section 5,
    `docs/architecture.md`, the map of `AGENTS.md`, and `docs/STATUS.md`.
 
@@ -102,7 +102,7 @@ unknown session. The gate builds `podssh-relay` with `CC=/nonexistent`.
 ## Correction
 
 Step 7 cites the pipe of the forward road
-(`crates/podssh-ssh/src/relay_stream.rs:63-105`), whose far end is the
+(`crates/podssh-ssh/src/relay_stream.rs:69-163`), whose far end is the
 relay itself: it never speaks the layer, so that pipe keeps no layer and its
 `RelayStatus` is unchanged. The client's pipe to a node is in
 `crates/podssh-cli/src/ssh/node.rs`, between SSH and the operator's leg,
@@ -815,7 +815,7 @@ keepalives must not end a session that the layer would resume.
 Read: a read waits 90 s at most (`crates/podssh-ws/src/client.rs:23-25`, set at
 `crates/podssh-relay/src/open.rs:315`), a limit that counts on the relay's
 frame each 25 s. The ping watcher acts only after a first Pong
-(`crates/podssh-ws/src/session.rs:194-231`); Pongs and the idle cut on reverse
+(`crates/podssh-ws/src/session.rs:203-240`); Pongs and the idle cut on reverse
 sockets are not measured (T-061). russh sends a keepalive each 60 s and ends
 the session after 3 with no answer (`crates/podssh-ssh/src/options.rs:354-394`).
 Measured on `3ee70dc`, offline (`PODSSH_OFFLINE=1`, a `.invalid` host):
@@ -828,7 +828,7 @@ Measured on `3ee70dc`, offline (`PODSSH_OFFLINE=1`, a `.invalid` host):
    answers `PONG`. A record is payload, so it resets the relay's idle cut on
    each road.
 2. Any record counts as life, as for the ping watcher
-   (`crates/podssh-ws/src/session.rs:194-203`). After 3 silent intervals the
+   (`crates/podssh-ws/src/session.rs:203-212`). After 3 silent intervals the
    link is dead, and T-153 resumes: 30 to 40 s. Both ends send, so the read
    limit of 90 s also holds on reverse sockets.
 3. Carry the `ACK` of T-152 in each `PONG`. The cost is about 20 bytes each
@@ -838,7 +838,7 @@ Measured on `3ee70dc`, offline (`PODSSH_OFFLINE=1`, a `.invalid` host):
 5. In the same commit: "Liveness" and "Idle limit" in the manual
    (`crates/podssh-cli/src/man/facts.rs:383-398`,
    `crates/podssh-cli/src/man/facts.rs:425-434`), the note at
-   `crates/podssh-cli/src/man/notes_ssh.rs:256`, `docs/relay.md`, `README.md`.
+   `crates/podssh-cli/src/man/notes_ssh.rs:260`, `docs/relay.md`, `README.md`.
 
 ## Decision
 
@@ -2531,7 +2531,7 @@ layer only.
 **Milestone:** backlog
 **Priority:** P3
 **Effort:** M
-**Status:** open
+**Status:** done
 
 ## Problem
 
@@ -2544,7 +2544,7 @@ show on that road.
 
 - Read: the relay's session pings each 10 s, and a link with no frame for three intervals is dead
   (`crates/podssh-ws/src/client.rs:27-32`); the relay stream of the SSH client runs that check
-  (`crates/podssh-ssh/src/relay_stream.rs:158`).
+  (`crates/podssh-ssh/src/relay_stream.rs:228`).
 - Read: on that road nothing below SSH answers a key: the relay copies the bytes to the target's
   TCP connection. A Ping of podssh's, which the relay answers with a Pong, is the one question
   that the road asks.
@@ -2563,6 +2563,23 @@ show on that road.
 3. The forward road attaches it to the session's `Options::silence`; the notice and its places
    are T-302's.
 
+## Decision
+
+2026-10-30. The question on the forward road through the relay is a
+WebSocket Ping of podssh's, sent after SSH's bytes up while no question
+waits, so at most one waits at a time, each answered within a round trip;
+any frame of the relay answers it, a Pong or the target's bytes, as the
+layer counts any byte of the far end (T-302). The alternatives that lost:
+SSH's bytes alone as the question, which a program that echoes nothing (a
+password's prompt) leaves unanswered, and which the plant below shows as a
+false notice; and the relay stream's own pings each 10 s, after which a key
+could wait 10 s before its question is asked, past the notice's 5 s. The
+`--direct` part of the Approach's item 2 goes to a new entry, T-332: there
+the one question below SSH is SSH's own keepalive, which russh asks inside
+the encrypted stream, and russh's `Handle::send_ping` (a keepalive that
+waits for its reply) makes that one a change of podssh-ssh's session loop,
+not of a road.
+
 ## Prove
 
 ```sh
@@ -2573,3 +2590,102 @@ cargo test -p podssh-cli --test silent_notice -- --ignored
 Through the stand-in relay's forward road with `pause:0:20`, the notice comes, counts up and
 goes before the key's answer, and the screen and the title are the ones before the pause. A
 planted relay stream that tells no silence fails it.
+
+## Correction
+
+2026-10-30. The stand-in relay's `pause:AFTER:FOR` starts its clock at the
+upgrade, before the session is ready, so a key cannot be sure to wait in
+it. The test holds the bytes in the client's stand-in proxy instead
+(`fake-proxy.py --pause 0:20`), whose clock starts when the test says so
+(`--start-file`), as T-302's test does: the same stall that ends, both
+ways, on the same link.
+
+## Done
+
+2026-10-30.
+
+- `crates/podssh-ws/src/session.rs`: the session keeps when its last frame
+  of any kind came (`last_heard`), beside the count of frames.
+- `crates/podssh-ssh/src/relay_stream.rs`: the status asks with a Ping
+  (`ASK`) after SSH's bytes up while no question waits, and tells the
+  silence (`RelayStatus::silent`): once a question waited the wait, the
+  time since the relay's last frame; any frame answers it.
+- `crates/podssh-cli/src/ssh/transport.rs`: the forward road attaches it to
+  the session's `Options::silence`, with the layer's wait of 5 s
+  (`SILENCE_WAIT`); the notice and its places are T-302's.
+- `cargo test -p podssh-ssh --lib relay_stream`: 5 passed, of them the
+  relay's silence: a key and its Ping, no second Ping while one waits, the
+  silence once the question waited 300 ms, counted from the last frame, a
+  Pong that answers it, and the target's bytes that answer the next; and
+  the burst of 1 MiB, its bytes in order with one Ping. Planted, no Ping:
+  both failed; a question that no frame answers: the silence's test
+  failed; each passed again without its plant.
+- `cargo test -p podssh-cli --test silent_notice -- --ignored`, through the
+  stand-in relay and a proxy that holds each byte both ways: on the
+  forward road with a pause of 20 s, the notice came 6.0 s after the pause
+  began, counted up, and went before the key's answer at 20.0 s, the
+  screen and the title as before the pause (T-302's test, which shares its
+  body, came at 5.9 s); with `sink`, which echoes nothing, a key each
+  second for 12 s gave no notice; and the measure of item 1: a pause of
+  90 s ended a forward session 40.0 s after it began (nothing from the
+  relay for 30 s, the pings unanswered), and 12.0 s after with
+  `ServerAliveInterval=4` and `ServerAliveCountMax=2` ("the server stopped
+  answering keepalives"). Planted, a relay stream that tells no silence:
+  the forward notice failed; no Ping with the keys: the test of `sink`
+  failed with a notice; each passed again without its plant.
+- `docs/terminal.md` ("A notice while the far end is silent"), the manual's
+  note of the notice (`podssh man ssh`), `docs/STATUS.md`.
+- The four ignored tests together: 4 passed (the notice 6.0 s after the
+  pause on each road). `cargo test -p podssh-ws -p podssh-ssh`: 511 passed,
+  0 failed, in 42 binaries; the manual's tests 28, and its lib tests 35;
+  clippy `-D warnings` on podssh-ws, podssh-ssh and podssh-cli: clean.
+
+# T-332: A notice of silence with `--direct`
+
+**Source:** T-307's Decision (2026-10-30): the forward road's notice runs
+through the relay only.
+**Category:** feature
+**Milestone:** backlog
+**Priority:** P3
+**Effort:** M
+**Status:** open
+
+## Problem
+
+With `--direct`, a link that goes silent shows nothing until SSH's
+keepalives give up (3 times `ServerAliveInterval`, 180 s by default), or the
+kernel's TCP gives up. The notice of T-302 and T-307 does not show there.
+
+## Premise
+
+- Read: on the direct road, nothing below SSH answers a key; the bytes are
+  SSH's own, end to end, so the only question that the road can ask is one
+  of SSH's.
+- Read: russh's `Handle::send_ping` sends `keepalive@openssh.com` with a
+  reply asked for, and waits for the reply (`vendor/russh/src/client/mod.rs`,
+  "Send a keepalive/ping package to the remote peer, and wait for the
+  reply/pong"); a server that does not know the request answers with a
+  failure, which is a reply too (RFC 4254, section 4).
+- Read: the notice takes any road's word on the far end's silence
+  (`Silence::attach`, `crates/podssh-ssh/src/notice/mod.rs`).
+
+## Approach
+
+1. In podssh-ssh's session, with a key from the terminal while no question
+   waits, a task calls `send_ping` and marks the question; its reply, or
+   any byte of a channel, answers it. The silence counts from the server's
+   last packet.
+2. Attach it on the direct road, where no road below SSH tells the silence;
+   through a `-J` hop, on the first hop's connection.
+
+## Prove
+
+```sh
+export CARGO_BUILD_JOBS=4
+cargo test -p podssh-cli --test silent_notice -- --ignored
+```
+
+With `--direct` through the stand-in proxy's `--pause 0:20`, the notice
+comes, counts up and goes before the key's answer; with `sink`, keys that
+nothing echoes give no notice. Planted, a key with no `send_ping`: the test
+of `sink` fails.

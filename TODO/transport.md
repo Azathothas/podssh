@@ -30,7 +30,7 @@ Read, at `692b3b0`: `WsSocket::send_text` calls `self.session.send(text)`
 `send_pong` and `read`, and no text method (the same file, lines 74-81). The live adapter maps
 `send` to `RelaySession::send_binary` (crates/podssh-transport/src/adapt.rs at `e8bbd4d` lines 37-39).
 `Leg::send_control` reaches the wire only through `send_text` (`socket.rs` lines 247-263).
-`podssh-ws` already has `RelaySession::send_text` (`crates/podssh-ws/src/session.rs:141-145`).
+`podssh-ws` already has `RelaySession::send_text` (`crates/podssh-ws/src/session.rs:145-149`).
 
 Read, at `692b3b0`: the test double records each `send` as `OPCODE_BINARY`
 (crates/podssh-transport/tests/socket.rs at `e8bbd4d` lines 43-47). The one `send_text` test counts frames
@@ -125,7 +125,7 @@ same. The text of a read error is lost too.
 The lines of crates/podssh-transport below are those of `3d4785a`.
 
 Read: `RelaySession::read_frame` echoes a Close and returns it to its caller
-(`crates/podssh-ws/src/session.rs:266-274`). `WsSocket::recv` handles the opcodes of text, binary,
+(`crates/podssh-ws/src/session.rs:276-284`). `WsSocket::recv` handles the opcodes of text, binary,
 Ping and Pong, and maps each other opcode, Close included, to `TransportError::Unexpected`
 (crates/podssh-transport/src/socket.rs at `e8bbd4d` lines 136-164). A read error becomes
 `Aborted { clean: false }` and its text is dropped (the same file, lines 165-168). The adapter
@@ -135,7 +135,7 @@ states the gap (crates/podssh-transport/src/adapt.rs at `e8bbd4d` lines 25-29). 
 
 Read: the helper `closed(code, reason, clean)` exists and has no caller (`socket.rs` lines
 478-481). `podssh-ws` parses a Close payload in `close_code_and_reason`
-(`crates/podssh-ws/src/session.rs:370-378`), and `podssh proxy` uses it
+(`crates/podssh-ws/src/session.rs:380-388`), and `podssh proxy` uses it
 (`crates/podssh-cli/src/pipe/relay.rs:156-160`).
 
 Read, a related gap that the former defects page did not list: `Classified::message` prints
@@ -661,7 +661,7 @@ crates/podssh-transport/tests/closes.rs lines 354-391 at `e8bbd4d`.
 Read: a node connects again "with a jittered backoff" (`docs/reverse.md:34-42`,
 `docs/ROADMAP.md:150-158`). `podssh_relay::open::backoff` doubles from 1 s to 30 s and multiplies
 by a random factor from 0.5 to 1.5 (`crates/podssh-relay/src/open.rs:349-363`); `podssh ssh` uses
-it (`crates/podssh-cli/src/ssh/transport.rs:216-222`).
+it (`crates/podssh-cli/src/ssh/transport.rs:224-230`).
 
 ## Approach
 

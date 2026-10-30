@@ -40,7 +40,7 @@ byte is read as a Close with no code (`session.rs` lines 275-278 at `076e3ce`); 
    `WsError::Frame` when `fin` is clear or the length is over 125. Name the rule in the message.
 2. Refuse a Close payload of 1 byte in the same place.
 3. The read then fails (`crates/podssh-ws/src/session.rs` line 176 at `3b60753`). Today a failed
-   read sends no Close (`crates/podssh-ssh/src/relay_stream.rs:197-199`): send 1002 (protocol
+   read sends no Close (`crates/podssh-ssh/src/relay_stream.rs:267-269`): send 1002 (protocol
    error) there, as lines 130-137 do for an unexpected frame. `podssh proxy` exits as for a
    broken session.
 4. `crates/podssh-ws/tests/rfc6455.rs` has 486 lines: put the new tests in a new file,
@@ -833,7 +833,7 @@ minimal. The only caller in the code is `next_event`, for the frames of the rela
 2. A client that receives such a frame fails the WebSocket connection (RFC 6455 section 7.1.7):
    it sends a Close with 1002, a protocol error (section 7.4.1), and then closes the TCP
    connection. Since T-063 the session sends that Close for each error of the decoder
-   (`crates/podssh-ws/src/session.rs:304-311`), so this entry needs no new path.
+   (`crates/podssh-ws/src/session.rs:314-321`), so this entry needs no new path.
 3. The rule holds in both directions (`Role::Client` and `Role::Server`), so a stand-in relay in
    Rust (T-068) checks podssh's own frames with it too.
 4. `crates/podssh-ws/tests/rfc6455.rs` has 486 lines: put the tests in a new file,
