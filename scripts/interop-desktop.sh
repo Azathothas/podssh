@@ -220,7 +220,18 @@ desktop_view() { # NAME: 20 s of TigerVNC's viewer at a unix-listen: socket, thr
     DISPLAY=:22 HOME="$DK/home" timeout 20 vncviewer "$DK/vnc.sock" >"$DK/viewer-$1.log" 2>&1
     wait "$_vpid"
 }
+# desktop_metered N: the meter writes a connection's line when it ends, up
+# to 5 s after the viewer's: wait for its Nth line, 15 s at most. A run that
+# read the log first saw no line of the busy view, and failed at random.
+desktop_metered() {
+    _tries=0
+    while [ "$(wc -l 2>/dev/null <"$DK/meter.log" || echo 0)" -lt "$1" ] && [ "$_tries" -lt 75 ]; do
+        sleep 0.2
+        _tries=$((_tries + 1))
+    done
+}
 desktop_view idle
+desktop_metered 1
 (
     end=$(($(date +%s) + 30))
     while [ "$(date +%s)" -lt "$end" ]; do
@@ -234,6 +245,7 @@ busy_pid=$!
 desktop_view busy
 kill "$busy_pid" 2>/dev/null
 wait "$busy_pid" 2>/dev/null
+desktop_metered 2
 seen=$(grep -m 1 "Using RFB protocol version" "$DK/viewer-idle.log" | sed 's/^ *//')
 [ -n "$seen" ] && [ -s "$DK/meter.log" ] \
     && ok desktop.vnc.viewer_unix_listen "(b) TigerVNC's viewer at a unix-listen: socket: '$seen'" \

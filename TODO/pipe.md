@@ -873,6 +873,15 @@ What ran:
   `python scripts/check-scripts.py`: 44 scripts LF and parse under dash.
 - An RDP client and server, and each client through the live relay, did
   not run: the table says "not measured" for RDP.
+- 2026-10-30, later: `desktop.vnc.rate` failed once in CI's step `release`
+  at `711f18f` (run 41075369339) and passed at the commits around it: the
+  meter held one line, the idle view's (400 bytes, 15.2 s), and none of the
+  busy view's. The meter writes a connection's line when the connection
+  ends, up to 5 s after the viewer's, and the harness read the log at once.
+  It now waits for each line, 15 s at most. Under dash, against a stand-in
+  meter that writes late: the wait ended with each line, and gave up after
+  15 s with none; `dash -n` and shellcheck as before. CI's next runs of the
+  step show it.
 
 # T-180: Publish a local HTTP service at `https://NAME` through the relay
 
