@@ -1,9 +1,10 @@
-//! `podssh config import FORMAT FILE` (T-047): the host list of another tool
-//! as `Host` blocks of `ssh_config`, on stdout, with a summary on stderr. It
-//! never writes `~/.ssh/config`; the user adds what it printed. A password
-//! or a passphrase is never imported and never printed: it is counted. What
-//! has no keyword of `ssh_config` is named in a comment, never dropped
-//! silently.
+//! `podssh config import FORMAT FILE` (T-047, T-292): the host list of
+//! another tool as `Host` blocks of `ssh_config`, on stdout, with a summary
+//! on stderr: an Ansible inventory, or the saved sessions of PuTTY,
+//! MobaXterm or Remmina. It never writes `~/.ssh/config`; the user adds
+//! what it printed. A password or a passphrase is never imported and never
+//! printed: it is counted. What has no keyword of `ssh_config` is named in a
+//! comment, never dropped silently.
 
 use std::io::Write;
 
@@ -11,6 +12,19 @@ use crate::exit_codes::EXIT_USAGE;
 use crate::exitmap::sysexits::{EX_DATAERR, EX_NOINPUT};
 
 pub mod ansible;
+mod mobaxterm;
+mod putty;
+mod remmina;
+mod sessions;
+
+/// A reader of the sessions of one program.
+type Reader = fn(&[Input]) -> Result<sessions::Read, String>;
+
+/// A file of another program, as read: its name and its bytes.
+pub struct Input {
+    pub name: String,
+    pub bytes: Vec<u8>,
+}
 
 /// The arguments of `podssh config`.
 #[derive(Debug, Clone, Default, PartialEq, Eq)]
@@ -21,8 +35,9 @@ pub struct ConfigArgs {
 }
 
 /// The formats that need a real export of their program to be tested
-/// against, which podssh does not have yet (T-292).
-const NOT_YET: &[&str] = &["putty", "mobaxterm", "remmina", "finalshell", "mremoteng", "termius", "ansible-yaml"];
+/// against, published under a license that this repository can hold, which
+/// podssh does not have yet (T-292, T-327).
+const NOT_YET: &[&str] = &["finalshell", "mremoteng", "termius", "ansible-yaml"];
 
 /// The largest file read: far above any host list.
 const MAX_FILE: u64 = 16 << 20;
@@ -49,9 +64,38 @@ fn import(format: &str, file: &str, out: &mut dyn Write, err: &mut dyn Write) ->
             &format!("import {format}: not yet; it waits for a real export of that program to be tested against"),
         );
     }
-    if format != "ansible" {
-        return usage(err, &format!("import {format}: not a format; give ansible (an INI inventory)"));
-    }
+    let (reader, program): (Reader, &str) = match format.as_str() {
+        "ansible" => return inventory(file, out, err),
+        "putty" => (putty::read, "PuTTY"),
+        "mobaxterm" => (mobaxterm::read, "MobaXterm"),
+        "remmina" => (remmina::read, "Remmina"),
+        _ => {
+            let why = format!("import {format}: not a format; give ansible, putty, mobaxterm or remmina");
+            return usage(err, &why);
+        }
+    };
+    let inputs = match inputs(file) {
+        Ok(inputs) => inputs,
+        Err(why) => {
+            let _ = writeln!(err, "podssh config import: {file}: {why}");
+            return EX_NOINPUT;
+        }
+    };
+    let read = match reader(&inputs) {
+        Ok(read) => read,
+        Err(why) => {
+            let _ = writeln!(err, "podssh config import: {why}");
+            return EX_DATAERR;
+        }
+    };
+    let blocks = sessions::write(&read, program, file);
+    let _ = out.write_all(blocks.text.as_bytes());
+    let _ = writeln!(err, "{}", blocks.summary(file));
+    0
+}
+
+/// An Ansible inventory, which is text.
+fn inventory(file: &str, out: &mut dyn Write, err: &mut dyn Write) -> i32 {
     let text = match read(file) {
         Ok(text) => text,
         Err(why) => {
@@ -77,6 +121,11 @@ fn import(format: &str, file: &str, out: &mut dyn Write, err: &mut dyn Write) ->
 
 /// A file of text, `-` for stdin.
 fn read(file: &str) -> Result<String, String> {
+    String::from_utf8(bytes(file)?).map_err(|_| "not UTF-8 text".into())
+}
+
+/// The bytes of a file, `-` for stdin.
+fn bytes(file: &str) -> Result<Vec<u8>, String> {
     use std::io::Read;
     let mut bytes = Vec::new();
     let reader: Box<dyn Read> = if file == "-" {
@@ -88,7 +137,33 @@ fn read(file: &str) -> Result<String, String> {
     if bytes.len() as u64 > MAX_FILE {
         return Err(format!("larger than {} MiB, which no host list is", MAX_FILE >> 20));
     }
-    String::from_utf8(bytes).map_err(|_| "not UTF-8 text".into())
+    Ok(bytes)
+}
+
+/// The files of FILE: itself, or each file of a directory in the order of
+/// their names, as PuTTY on Unix and Remmina keep one file for each session.
+fn inputs(file: &str) -> Result<Vec<Input>, String> {
+    let path = std::path::Path::new(file);
+    if file == "-" || !path.is_dir() {
+        return Ok(vec![Input { name: file.to_string(), bytes: bytes(file)? }]);
+    }
+    let mut files: Vec<std::path::PathBuf> = std::fs::read_dir(path)
+        .map_err(|e| e.to_string())?
+        .filter_map(Result::ok)
+        .map(|entry| entry.path())
+        .filter(|p| p.is_file())
+        .collect();
+    files.sort();
+    if files.is_empty() {
+        return Err("a directory with no file".into());
+    }
+    files
+        .iter()
+        .map(|p| {
+            let name = p.display().to_string();
+            bytes(&name).map(|bytes| Input { name, bytes }).map_err(|why| format!("{}: {why}", p.display()))
+        })
+        .collect()
 }
 
 /// The variables of a host that hold a secret: never imported, never

@@ -1,7 +1,7 @@
 This file holds the work on configuration files: OpenSSH's `ssh_config` (`-F`, `Host`,
 `Include`, `Match` and `-G`), host lists from other clients, and a settings file for podssh's
 own options. The rules of OpenSSH that podssh follows were measured with `ssh -G` and are in
-`docs/cli.md:2238-2334`. Since T-043, `podssh ssh` reads `~/.ssh/config` and the file of `-F`.
+`docs/cli.md:2271-2367`. Since T-043, `podssh ssh` reads `~/.ssh/config` and the file of `-F`.
 
 # T-043: Read `ssh_config`: `~/.ssh/config`, `-F FILE`, `Host` patterns, and `Match` refused by name (GitHub #14, #22)
 
@@ -206,7 +206,7 @@ No glob code exists in podssh. `known_hosts::wildcard`
    stands, and `Match final all` applies after the last line and fills only unset values, as
    measured. Each other `Match` stays refused by name until T-045.
 6. Check each included file as T-043 checks the user file: its owner and its mode.
-7. Change `docs/cli.md:2238-2343`, FILES (`crates/podssh-cli/src/man/data.rs:131-261`) and the
+7. Change `docs/cli.md:2271-2376`, FILES (`crates/podssh-cli/src/man/data.rs:131-261`) and the
    `ssh` notes in the same commit.
 
 ## Prove
@@ -618,12 +618,12 @@ output. Planted defect: copy the password field into a comment; the secret test 
 ## Done
 
 2026-10-12. `podssh config import ansible FILE`: the verb at
-`crates/podssh-cli/src/config_import/mod.rs:30-92`, the inventory at
+`crates/podssh-cli/src/config_import/mod.rs:45-167`, the inventory at
 `crates/podssh-cli/src/config_import/ansible.rs:1-270`, the blocks at
-`crates/podssh-cli/src/config_import/mod.rs:204-248`, with the secrets at
-`crates/podssh-cli/src/config_import/mod.rs:94-98` and the options of
+`crates/podssh-cli/src/config_import/mod.rs:279-323`, with the secrets at
+`crates/podssh-cli/src/config_import/mod.rs:169-173` and the options of
 `ansible_ssh_common_args` at
-`crates/podssh-cli/src/config_import/mod.rs:100-153`; the verb in the
+`crates/podssh-cli/src/config_import/mod.rs:175-228`; the verb in the
 tables at `crates/podssh-cli/src/flags.rs:423-424`,
 `crates/podssh-cli/src/positionals.rs:144-149`,
 `crates/podssh-cli/src/tree.rs:354-360` and
@@ -946,7 +946,7 @@ try after the first reaches each hop (`crates/podssh-ssh/src/options.rs:352-360`
 - `scripts/interop.sh:325-335`: `ssh.config.jump_alias`, `-F FILE -J openssh-alias dropbear-alias`
   with podssh and with OpenSSH's `ssh`, each to exit 6 (the floor of ssh is 72). The gate runs it
   at this push.
-- `docs/cli.md:76-82` and `docs/cli.md:2267-2279`, and the manual's file `~/.ssh/config`, say what
+- `docs/cli.md:76-82` and `docs/cli.md:2300-2312`, and the manual's file `~/.ssh/config`, say what
   a hop takes.
 - `cargo test -p podssh-ssh`: 142 passed; `cargo test -p podssh-cli`: 565 passed, 0 failed,
   31 ignored; clippy; rustfmt.
@@ -960,7 +960,7 @@ T-047 names (read in the reports, not verified here).
 **Milestone:** backlog
 **Priority:** P3
 **Effort:** M
-**Status:** open
+**Status:** done
 
 ## Problem
 
@@ -1019,6 +1019,24 @@ Correction). The cases that only such files show (a `REGEDIT4` header, a
 jump through `ProxyMethod=5`, a gateway of MobaXterm, nested folders) are
 inputs that the test builds by hand from the documented format, named as
 built, never as exports.
+
+2026-10-30, the calls of the work (the operator may change them):
+
+- A session's label becomes the name of its block, each run of characters
+  that a `Host` line cannot hold made one `-` (`John Doe` is `John-Doe`), a
+  second of the same name `-2`, and the label itself goes in a comment
+  above it. Lost: refusing such a label, as the Ansible reader refuses a
+  host name, which would drop most of PuTTY's sessions.
+- `user@host` in PuTTY's `HostName` gives `User` and `HostName`, as PuTTY
+  itself reads the box; it wins over `UserName`, as in PuTTY.
+- A `.ppk` key is a comment that says how `puttygen` converts it, never an
+  `IdentityFile`, which ssh would fail to read at each login. A key path of
+  MobaXterm, in its own macros, is a comment too.
+- PuTTY's `Environment` is a comment with the count of its variables: a
+  variable can hold a secret (a real fixture holds `AWS_SECRET_KEY` there).
+- MobaXterm's text is UTF-8 when it is valid UTF-8, else Windows-1252.
+- mRemoteNG, FinalShell and Termius move to T-327, which waits: no file of
+  theirs is under a license that this repository can hold (Correction).
 
 ## Prove
 
@@ -1223,3 +1241,95 @@ be committed today:
    mRemoteNG's key derivation before version 2.6, and the `ProxyMethod` numbers 6 to 8.
 5. Whether the NKeeper and demo files were written by mRemoteNG: a user of 1.77.x could say.
 6. FinalShell and Termius: the operator may supply a file from a real install, which settles both.
+
+2026-10-30, later: two rows of the table above were wrong when their files
+were fetched at their commits for the fixtures (each digest matched).
+`OneIdentity/SCALUS` is under the MIT license at `24e7efa5`, not Apache-2.0
+(its `LICENSE` there says "MIT License, Copyright (c) 2020 Cody Batt").
+`DHemken97/NKeeper` has no license file at `5652109f` (none of `LICENSE`,
+`LICENSE.md`, `LICENSE.txt`, `COPYING` and the like, and its README names
+none), so its file cannot be committed, and mRemoteNG has no fixture: it
+waits with FinalShell and Termius (T-327). The other five files are in
+`crates/podssh-cli/tests/fixtures/sessions/`, byte for byte, with the
+license of each repository in `THIRD-PARTY.md` there.
+
+## Done
+
+2026-10-30. `podssh config import putty`, `mobaxterm` and `remmina` read
+the saved sessions of those programs into `Host` blocks
+(`crates/podssh-cli/src/config_import/putty.rs`, `mobaxterm.rs`,
+`remmina.rs`, and `sessions.rs` for the model and the writer), with the
+writer, the comments and the counting of secrets of T-047. A `.reg` file is
+read in UTF-16LE, UTF-8 with or without its mark, or the ANSI of
+`REGEDIT4`; a directory gives each of its files, as PuTTY on Unix and
+Remmina keep one file for each session. mRemoteNG, FinalShell and Termius,
+and Ansible's YAML, stay refused by name (64), and wait in T-327.
+
+- Linux, 2026-10-30: `cargo test -p podssh-cli --test config_import`, 9
+  passed: the real PuTTY session (`John Doe`: `HostName 127.0.0.1`,
+  `User blue`, its `.ppk` and its `Environment` as comments), the three
+  templates that are no host, and the same file transcoded to UTF-16LE with
+  its mark, as no real one was found; each of the 12 sessions of the real
+  MobaXterm export, with its folder; the real Remmina template, whose
+  `%Host%` is no host. Copies of the fixtures with made-up values: a proxy
+  password of PuTTY and an SSH proxy as `ProxyJump`, a session file of Unix
+  named `web%20server`, a `[Passwords]` entry of MobaXterm, and a Remmina
+  profile with a secret in the keyring and one encrypted: each counted, none
+  printed. `--lib config_import`, 11 (the encodings, the `%XX` names, a
+  `.reg` value, the fields of MobaXterm, the forms of Remmina's server); the
+  lib 368, `man_page` 10, `flag_table` 8; clippy and rustfmt clean.
+- Planted: the proxy password copied into a comment; the test of the secret
+  failed ("a secret was printed"); restored, it passed.
+- Not measured: a real UTF-16LE export, a real file with a password, a
+  PuTTY session with `ProxyMethod` 6, and a real Remmina profile that its
+  own writer made (the fixture is a template).
+
+# T-327: `podssh config import` from mRemoteNG, FinalShell and Termius
+
+**Source:** T-292, 2026-10-30: these three formats have no real export
+under a license that this repository can hold.
+**Category:** feature
+**Milestone:** backlog
+**Priority:** P3
+**Effort:** M
+**Status:** blocked
+
+## Problem
+
+A user who keeps hosts in mRemoteNG, FinalShell or Termius types each host
+again: `podssh config import` refuses the three by name (64).
+
+## Premise
+
+- Read (T-292's Correction): mRemoteNG's own test files, written by the
+  program, are under the GPL (`mRemoteNG/mRemoteNG`), and the one other file
+  of its shape has no license; FinalShell and Termius have no export, only
+  importers' synthetic fixtures and tools that decrypt their databases.
+- Read: by Q41 (`docs/decisions.md`), a format is tested on a file that its
+  program wrote and that is published under a license that the repository
+  can hold; else it waits, named.
+
+## Approach
+
+1. mRemoteNG: the XML of `confCons.xml` (`roxmltree`, as T-292's Decision
+   chose), the folders and the inheritance of the user, a jump by
+   `SSHTunnelConnectionName`, each password counted and never decrypted,
+   `FullFileEncryption` refused by name; on mRemoteNG's own test files, once
+   the operator rules on GPL test data (Q46), or on a file that the operator
+   supplies.
+2. FinalShell and Termius: on a file of a real install, from the operator.
+
+## Prove
+
+```sh
+cargo test -p podssh-cli --test config_import
+```
+
+For each format, the blocks of its fixture, and no password on stdout or
+stderr. Planted: a password copied into a comment; the test fails.
+
+## Blocker
+
+The operator: whether test files under the GPL may live in this
+repository, with their notice (Q46, `TODO/PROGRESS.md`); or a real export
+of each program, which the operator may supply.

@@ -15,6 +15,9 @@
 * text=auto
 
 *.sh text eol=lf
+# The exports of other programs, kept byte for byte (T-292): their line
+# endings and their byte order marks are part of what is read.
+crates/podssh-cli/tests/fixtures/sessions/** -text
 # The scripts and the workflows read the FROM line of these.
 images/*/Dockerfile text eol=lf
 scripts/gate.sh text eol=lf

@@ -115,7 +115,7 @@ and `CARGO_BUILD_JOBS=4`:
 
 ## Counts
 
-`TODO/INDEX.md` holds 322 entries: 30 open, 1 partial, 27 blocked, 264 done.
+`TODO/INDEX.md` holds 323 entries: 29 open, 0 partial, 28 blocked, 266 done.
 
 Open includes parked work. `cargo todo check` verifies this line.
 
@@ -153,7 +153,7 @@ T-085, T-107 to T-113, T-117, T-118, T-213, T-222, T-245 and T-248; and the work
 parked behind them (T-114, T-115, T-116, T-119, T-120, T-122, T-123,
 T-124, T-150, T-159, T-160, T-161, T-303 and T-304, "Parked open work"),
 which waits as they wait; and the entries that wait for an answer of the
-operator: T-062 (Q42), T-319 (Q44) and T-326 (Q45). T-300 waits for the operator's call on
+operator: T-062 (Q42), T-319 (Q44), T-326 (Q45) and T-327 (Q46). T-300 waits for the operator's call on
 T-299's result, and T-301 for T-300.
 
 ## Parked open work
@@ -230,6 +230,14 @@ cloud container the agent proxy reset such a request. Recommendation: allow
 the road only with a token minted for one session and never cached, tried
 after the TLS road failed, and named by `doctor`; else keep the token off
 cleartext.
+
+Q46 (2026-10-30, blocks T-327): the only real exports of mRemoteNG that were
+found are its own test files, written by the program and under the GPL-2.0;
+this repository is 0BSD, and holds no GPL file today. FinalShell and Termius
+have no export at all. Recommendation: allow GPL test data under
+`crates/podssh-cli/tests/fixtures/`, each file with its license and source
+in a notice beside it, as it is not linked into the binary; or supply an
+export of mRemoteNG, FinalShell or Termius from a real install.
 
 ## Operator actions
 

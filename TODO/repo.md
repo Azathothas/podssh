@@ -1045,14 +1045,14 @@ sees it.
 
 Read:
 
-- `docs/STATUS.md:235-249`: the box, measured by hand on 2026-10-08.
+- `docs/STATUS.md:237-251`: the box, measured by hand on 2026-10-08.
 - `scripts/test_in_box.sh:192-195`: the box runs `probe.sh`, then
   `sandbox-check.sh` (or, with `BOX_RUN=tt`, the session of T-004), and the
   script exits with the code of the second.
   `scripts/sandbox-check.sh:85-218` prints the exit code of each step and does
   not fail on it (T-006). So today the box exits 0 when podssh fails in it.
 - `scripts/box/probe.sh:122-127` exits 1 when the box differs from the sandbox
-  in a required property (17 properties, `docs/STATUS.md:242`).
+  in a required property (17 properties, `docs/STATUS.md:244`).
 - The box needs a static binary; CI uploads one
   (`.github/workflows/build.yml:88-93`).
 - The box uses `--disable-dns` (`scripts/test_in_box.sh:112`) and a mask on
@@ -1079,7 +1079,7 @@ Read:
    that CI runs the box.
 
 Pitfall: the live path can drop a session (179 of 180 short sessions,
-`docs/STATUS.md:272`). Run a failure again by hand and record it. Never retry
+`docs/STATUS.md:274`). Run a failure again by hand and record it. Never retry
 inside the job.
 
 ## Decision
@@ -1097,7 +1097,7 @@ test "$(grep -c '^match ' box.log)" -eq 17                  # the box was faithf
 
 The run passed, with the job `box`, and its log has 17 `match` lines.
 Planted defect: run the job by hand with the seccomp option removed (an input
-of `workflow_dispatch`); the probe must exit 1, as in `docs/STATUS.md:243`,
+of `workflow_dispatch`); the probe must exit 1, as in `docs/STATUS.md:245`,
 and the job must fail.
 
 ## Blocker
@@ -1805,7 +1805,7 @@ Read, in the tree as it is now:
   build must fail at `/nonexistent`; the control, with `CC` alone, must not
   stop there.
 - `docs/development.md:247-249` states the rule with `CXX`, and
-  `docs/STATUS.md:587` records the measurement. Rule 4 of
+  `docs/STATUS.md:589` records the measurement. Rule 4 of
   `docs/architecture.md` named `CC=/nonexistent` only; it was repaired in the
   same change as the record.
 - `.github/workflows/build.yml:103-111` runs the plant on each push.
@@ -1836,7 +1836,7 @@ the same script in its step "the no-C rule is load-bearing".
 (CXX=/nonexistent)"). Measured with `sh scripts/dev.sh plant` in
 `rust:1-alpine`: the C plant failed twice for the right reason, the C++ plant
 failed at `CXX=/nonexistent`, the control with `CC` alone was not stopped
-there, and the clean tree built (`docs/STATUS.md:587`). The CI run of
+there, and the clean tree built (`docs/STATUS.md:589`). The CI run of
 `eacd94e`, which contains `a378863`, passed, with its step "the no-C rule is
 load-bearing".
 
@@ -2229,7 +2229,7 @@ Read:
 
 - `scripts/box/seccomp.json:5-10`: `bind` fails with EACCES for each socket,
   whatever its family.
-- `docs/STATUS.md:263`: in sandbox A, `bind` is refused for AF_INET and
+- `docs/STATUS.md:265`: in sandbox A, `bind` is refused for AF_INET and
   allowed for AF_UNIX. In the KTM report (read there), `doctor` printed
   `Permission denied (os error 13)` for AF_INET, and "bound" for an AF_UNIX
   path and for the abstract namespace.
@@ -3441,7 +3441,7 @@ the workflow "Dependabot Updates" failed, as it did on 2026-10-09 (twice).
 **Milestone:** none
 **Priority:** P3
 **Effort:** S
-**Status:** partial
+**Status:** done
 
 ## Problem
 
@@ -3508,12 +3508,23 @@ of names passes, and the path is what is left. The move is the test.
 
 ## Done
 
-2026-10-30, partial: the images are in `images/` (`git mv`), and each reader
-names them there; check 5 of `scripts/check-repo.py` passes, actionlint is
-clean on the three workflows, each script parses under dash, and the dry
-pull of the build image names its three mirrors. Next: the docker job of
-Dependabot after this push (a change of `.github/dependabot.yml` starts one,
-else the weekly run) passes, and its pull request moves the box's Alpine.
+2026-10-30. The images are in `images/` (`git mv`), and each reader names
+them there; the docker job of Dependabot now opens its pull requests.
+
+- Run 41067611245 of Dependabot's docker job, which the change of
+  `.github/dependabot.yml` started, passed for `/images/box`,
+  `/images/box-proxy`, `/images/build` and `/images/trufflehog`, and opened
+  two pull requests: "Bump library/alpine from 3.20 to 3.24 in /images/box"
+  (Azathothas/podssh#57) and "Bump trufflesecurity/trufflehog from 3.97.9 to
+  3.99.7 in /images/trufflehog" (Azathothas/podssh#58). They wait for the
+  operator, as the other pull requests of Dependabot do.
+- The control: the same job on the same files under .github/images
+  failed each week with the 400 (runs 38671632510, 39712028349 and
+  40807131057, 2026-10-15 to 2026-10-29). A planted run, the files moved
+  back, waits for the checks of the release (T-251).
+- check 5 of `scripts/check-repo.py` passes, actionlint 1.7.7 is clean on
+  `build`, `release` and `secrets`, each script parses under dash, and the
+  dry pull of the build image names its three mirrors.
 
 # T-310: The gate on a Linux host with no wsl-toolkit, and a cloud session made ready
 

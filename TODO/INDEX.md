@@ -62,15 +62,15 @@ repository and CI).
 
 ## Counts
 
-**322 entries: 30 open, 1 partial, 27 blocked, 264 done.**
+**323 entries: 29 open, 0 partial, 28 blocked, 266 done.**
 
 | Priority | open | partial | blocked | done | total |
 | --- | --- | --- | --- | --- | --- |
 | P0 | 0 | 0 | 0 | 1 | 1 |
 | P1 | 2 | 0 | 0 | 24 | 26 |
 | P2 | 4 | 0 | 19 | 142 | 165 |
-| P3 | 24 | 1 | 8 | 97 | 130 |
-| **All** | 30 | 1 | 27 | 264 | 322 |
+| P3 | 23 | 0 | 9 | 99 | 131 |
+| **All** | 29 | 0 | 28 | 266 | 323 |
 
 ## Entries
 
@@ -364,7 +364,7 @@ repository and CI).
 | [T-289](cli.md) | P3 | M | backlog | feature | done | `podssh keygen -Y` with certificates: a signature made with a certificate, and `cert-authority` lines |
 | [T-290](config.md) | P2 | M | none | defect | done | A `-J` hop takes the `ssh_config` block of its own name, as OpenSSH's jump host does |
 | [T-291](forwarding.md) | P3 | M | backlog | feature | done | The escape `~C`: add and stop the forwards of a running session |
-| [T-292](config.md) | P3 | M | backlog | feature | open | `podssh config import` from PuTTY, MobaXterm, Remmina, FinalShell, mRemoteNG and Termius |
+| [T-292](config.md) | P3 | M | backlog | feature | done | `podssh config import` from PuTTY, MobaXterm, Remmina, FinalShell, mRemoteNG and Termius |
 | [T-293](terminal.md) | P3 | M | backlog | feature | done | Ctrl-C with no remote pty sends `signal INT` to the command |
 | [T-294](terminal.md) | P1 | S | none | defect | done | Output that is not UTF-8 stops the session's output in a Windows console |
 | [T-295](terminal.md) | P2 | S | none | defect | done | Ctrl-Break leaves the Windows console raw |
@@ -379,7 +379,7 @@ repository and CI).
 | [T-304](resume.md) | P3 | L | backlog | feature | open | Keys and screen frames as QUIC datagrams on the iroh road |
 | [T-305](resume.md) | P3 | M | backlog | feature | open | Roam at once: a new link beside a silent one |
 | [T-306](resume.md) | P3 | S | backlog | feature | open | A resume deadline that the user sets, for a host that sleeps |
-| [T-308](repo.md) | P3 | S | none | defect | partial | Dependabot's updates of the images fail: GitHub refuses each pull request it makes |
+| [T-308](repo.md) | P3 | S | none | defect | done | Dependabot's updates of the images fail: GitHub refuses each pull request it makes |
 | [T-309](release.md) | P1 | M | none | release | done | Publish the rolling betas `v1.0.0-beta.N` |
 | [T-310](repo.md) | P2 | M | none | chore | done | The gate on a Linux host with no wsl-toolkit, and a cloud session made ready |
 | [T-311](ws.md) | P2 | S | none | measurement | done | podssh in a Claude Code cloud container: an agent proxy, and an egress that intercepts TLS |
@@ -398,3 +398,4 @@ repository and CI).
 | [T-324](ws.md) | P3 | M | backlog | feature | done | `doctor` tells the three failures of the upgrade apart, and samples each probe |
 | [T-325](ws.md) | P3 | M | backlog | feature | blocked | `doctor` measures what the path does to a stream: buffering, a cap on bodies, an idle limit |
 | [T-326](ws.md) | P3 | M | backlog | feature | blocked | A cleartext road on port 443, probed after the TLS road fails |
+| [T-327](config.md) | P3 | M | backlog | feature | blocked | `podssh config import` from mRemoteNG, FinalShell and Termius |

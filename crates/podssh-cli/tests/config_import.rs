@@ -164,9 +164,11 @@ fn stdin_a_bad_line_a_bad_name_and_the_other_formats() {
     let missing = format!("{DIR}/no-such-inventory.ini");
     assert_eq!(podssh(&["config", "import", "ansible", &missing], "").0, Some(66));
     for (words, says) in [
-        (vec!["config", "import", "putty", "x.reg"], "import putty: not yet"),
+        (vec!["config", "import", "mremoteng", "x.xml"], "import mremoteng: not yet"),
+        (vec!["config", "import", "finalshell", "x.json"], "import finalshell: not yet"),
+        (vec!["config", "import", "termius", "x"], "import termius: not yet"),
         (vec!["config", "import", "ansible-yaml", "x.yml"], "import ansible-yaml: not yet"),
-        (vec!["config", "import", "toml", "x"], "import toml: not a format"),
+        (vec!["config", "import", "toml", "x"], "import toml: not a format; give ansible, putty, mobaxterm or remmina"),
         (vec!["config", "import", "ansible"], "give the format and the file"),
         (vec!["config", "export"], "export: not a subcommand of config"),
         (vec!["config"], "give a subcommand"),
@@ -175,4 +177,142 @@ fn stdin_a_bad_line_a_bad_name_and_the_other_formats() {
         assert_eq!(code, Some(64), "{words:?}: {err}");
         assert!(err.contains(says), "{words:?}: {err}");
     }
+}
+
+/// The exports of other programs (T-292), each as its program wrote it and
+/// published under a license that this repository can hold
+/// (`tests/fixtures/sessions/THIRD-PARTY.md`).
+const SESSIONS: &str = concat!(env!("CARGO_MANIFEST_DIR"), "/tests/fixtures/sessions");
+
+fn fixture(name: &str) -> Vec<u8> {
+    std::fs::read(format!("{SESSIONS}/{name}")).unwrap()
+}
+
+/// A scratch directory for the copies with made-up values.
+fn scratch(tag: &str) -> std::path::PathBuf {
+    let dir = std::env::temp_dir().join(format!("podssh-config-import-{tag}-{}", std::process::id()));
+    let _ = std::fs::remove_dir_all(&dir);
+    std::fs::create_dir_all(&dir).unwrap();
+    dir
+}
+
+/// Each block by its name, with its keywords.
+type Hosts = BTreeMap<String, BTreeMap<String, String>>;
+
+/// `podssh config import FORMAT FILE`: the code, the blocks and stderr.
+fn import(format: &str, file: &str) -> (Option<i32>, Hosts, String, String) {
+    let (code, out, err) = podssh(&["config", "import", format, file], "");
+    (code, blocks(&out), out, err)
+}
+
+/// No made-up secret anywhere in what podssh printed.
+fn no_secret(texts: &[&str]) {
+    for text in texts {
+        assert!(!text.contains("made-up"), "a secret was printed: {text}");
+    }
+}
+
+#[test]
+fn putty_each_real_export_and_the_template_that_is_no_host() {
+    let (code, hosts, out, err) = import("putty", &format!("{SESSIONS}/putty-session.reg"));
+    assert_eq!(code, Some(0), "{err}");
+    let want: BTreeMap<String, String> =
+        [("hostname", "127.0.0.1"), ("user", "blue")].iter().map(|(k, v)| (k.to_string(), v.to_string())).collect();
+    assert_eq!(hosts.get("John-Doe"), Some(&want), "{out}");
+    assert!(out.contains("# John Doe\n") && out.contains("priv.ppk is a key of PuTTY's format"), "{out}");
+    assert!(out.contains("Environment (2 variables) is not imported"), "{out}");
+    assert!(err.contains("1 host from"), "{err}");
+    for file in ["putty-default-jumplist.reg", "putty-utf8-bom.reg", "putty-unix"] {
+        let (code, hosts, out, err) = import("putty", &format!("{SESSIONS}/{file}"));
+        assert_eq!(code, Some(0), "{file}: {err}");
+        assert!(hosts.is_empty() && out.contains("# Default Settings: PuTTY's template"), "{file}: {out}");
+    }
+    // As regedit /e writes it: UTF-16LE with its mark. No such real file was
+    // found, so the real one is transcoded here.
+    let text = String::from_utf8(fixture("putty-session.reg")).unwrap();
+    let utf16: Vec<u8> = [0xFF, 0xFE].into_iter().chain(text.encode_utf16().flat_map(u16::to_le_bytes)).collect();
+    let file = scratch("utf16").join("putty-session.reg");
+    std::fs::write(&file, utf16).unwrap();
+    let (code, again, _, err) = import("putty", &file.display().to_string());
+    assert_eq!((code, again), (Some(0), hosts_of_session()), "{err}");
+}
+
+fn hosts_of_session() -> Hosts {
+    import("putty", &format!("{SESSIONS}/putty-session.reg")).1
+}
+
+/// A copy of a real file with a made-up proxy password: counted, never
+/// printed; an SSH proxy becomes ProxyJump; a session file of Unix takes its
+/// name from the file's.
+#[test]
+fn putty_a_password_is_counted_and_never_printed() {
+    let text = String::from_utf8(fixture("putty-session.reg")).unwrap();
+    let text = text
+        .replace("\"ProxyPassword\"=\"\"", "\"ProxyPassword\"=\"made-up-secret\"")
+        .replace("\"ProxyMethod\"=dword:00000000", "\"ProxyMethod\"=dword:00000006")
+        .replace("\"ProxyHost\"=\"proxy\"", "\"ProxyHost\"=\"bastion.example\"");
+    let dir = scratch("putty-secret");
+    std::fs::write(dir.join("with-password.reg"), &text).unwrap();
+    let (code, hosts, out, err) = import("putty", &dir.join("with-password.reg").display().to_string());
+    assert_eq!(code, Some(0), "{err}");
+    assert_eq!(hosts["John-Doe"]["proxyjump"], "bastion.example:80", "{out}");
+    assert!(err.contains("1 password was not imported"), "{err}");
+    no_secret(&[&out, &err]);
+    let unix = String::from_utf8(fixture("putty-unix/Default%20Settings")).unwrap();
+    let sessions = dir.join("sessions");
+    std::fs::create_dir_all(&sessions).unwrap();
+    std::fs::write(sessions.join("web%20server"), unix.replace("ProxyPassword=\n", "ProxyPassword=made-up-secret\n"))
+        .unwrap();
+    let (code, hosts, out, err) = import("putty", &sessions.display().to_string());
+    assert_eq!(code, Some(0), "{err}");
+    assert_eq!(hosts["web-server"].get("hostname").map(String::as_str), Some("localhost"), "{out}");
+    assert!(out.contains("# web server\n") && err.contains("1 password was not imported"), "{out}{err}");
+    no_secret(&[&out, &err]);
+}
+
+#[test]
+fn mobaxterm_each_session_of_the_real_export_with_its_folder() {
+    let (code, hosts, out, err) = import("mobaxterm", &format!("{SESSIONS}/mobaxterm-ice.mxtsessions"));
+    assert_eq!(code, Some(0), "{err}");
+    let lines = String::from_utf8(fixture("mobaxterm-ice.mxtsessions")).unwrap();
+    let sessions = lines.lines().filter(|l| l.contains("#MobaFont")).count();
+    assert!(sessions > 5 && hosts.len() == sessions, "{} of {sessions}: {out}", hosts.len());
+    for (name, block) in &hosts {
+        assert_eq!(block.get("hostname").map(String::as_str), Some("localhost"), "{name}");
+        assert_eq!((block["port"].as_str(), block["user"].as_str()), ("64673", "vagrant"), "{name}");
+    }
+    assert!(out.contains("# MONGODB-ACCOUNT (DEV) (in ice/DEV/Backing)\nHost MONGODB-ACCOUNT-DEV\n"), "{out}");
+    // A copy with the section of passwords that MobaXterm.ini holds.
+    let dir = scratch("moba-secret");
+    let file = dir.join("with-passwords.mxtsessions");
+    std::fs::write(&file, format!("{lines}\r\n[Passwords]\r\nssh22:vagrant@localhost=made-up-blob\r\n")).unwrap();
+    let (code, _, out, err) = import("mobaxterm", &file.display().to_string());
+    assert_eq!(code, Some(0), "{err}");
+    assert!(err.contains("1 password was not imported"), "{err}");
+    no_secret(&[&out, &err]);
+}
+
+#[test]
+fn remmina_the_real_template_and_a_profile_made_from_it() {
+    let (code, hosts, out, err) = import("remmina", &format!("{SESSIONS}/remmina-ssh-template.remmina"));
+    assert_eq!(code, Some(0), "{err}");
+    assert!(hosts.is_empty() && out.contains("the host %Host% is a placeholder of a template"), "{out}");
+    let text = String::from_utf8(fixture("remmina-ssh-template.remmina")).unwrap();
+    let profile = text
+        .replace("server=%Host%", "server=web.example:2222")
+        .replace("username=%User%", "username=alice")
+        .replace("\npassword=\n", "\npassword=.\n")
+        .replace("ssh_passphrase=\n", "ssh_passphrase=made-up-blob\n");
+    let dir = scratch("remmina");
+    std::fs::write(dir.join("group_ssh_web.remmina"), profile).unwrap();
+    let (code, hosts, out, err) = import("remmina", &dir.display().to_string());
+    assert_eq!(code, Some(0), "{err}");
+    let block = &hosts["scalusSSH"];
+    assert_eq!(
+        (block["hostname"].as_str(), block["port"].as_str(), block["user"].as_str()),
+        ("web.example", "2222", "alice")
+    );
+    assert!(out.contains("1 of its secrets are in the keyring"), "{out}");
+    assert!(err.contains("2 passwords were not imported"), "{err}");
+    no_secret(&[&out, &err]);
 }

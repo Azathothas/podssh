@@ -1938,9 +1938,42 @@ imported and never printed: the summary counts it. A host whose
 `ansible_connection` is not `ssh` gets a comment and no block. A host name
 that a `Host` line cannot hold (a space, `*`, `?`, `!`, `"` or `#`) is refused by
 name on stderr. A bad line ends the run with its number (65); a file that
-cannot be read gives 66. The formats of PuTTY, MobaXterm, Remmina,
-FinalShell, mRemoteNG and Termius, and Ansible's YAML, are refused by name
-(64) until a real export of each is at hand to test against (T-292).
+cannot be read gives 66.
+
+`podssh config import putty`, `mobaxterm` and `remmina` (T-292) read the
+saved sessions of those programs, and are tested on exports that each
+program wrote and that were published under a license that this repository
+can hold (`tests/fixtures/sessions/THIRD-PARTY.md`), kept byte for byte:
+
+- **PuTTY**: a `.reg` file of `Software\SimonTatham\PuTTY\Sessions`, as
+  `regedit` and `reg export` write it (UTF-16LE with its mark, UTF-8, or the
+  ANSI of `REGEDIT4`, the key's name in any case), or the session files of
+  PuTTY on Unix, one file or their directory, each name `%XX` escaped.
+  `Default Settings` is the template, never a host. `user@host` in
+  `HostName` gives `User`, as PuTTY reads it. A `.ppk` key is a comment, as
+  ssh cannot read PuTTY's format; an SSH proxy (method 6) is `ProxyJump`;
+  `ProxyPassword` is counted; `Environment`, a local proxy command and the
+  other proxies are comments with no value.
+- **MobaXterm**: an `.mxtsessions` export, or `MobaXterm.ini`. Each line of
+  a bookmark is `NAME= #ICON#TYPE%FIELD...`; for SSH (type 0) the fields
+  give the host, the port, the user and the gateways (`ProxyJump`), and
+  MobaXterm's escapes (`__PIPE__`, `__PTVIRG__` and the others) are undone.
+  A command after the login, a proxy and a key path in MobaXterm's own form
+  are comments; each entry of `[Passwords]` and `[Sesspass]` is counted.
+  The text is UTF-8, else Windows-1252.
+- **Remmina**: one `.remmina` profile, or each of a directory.
+  `protocol=SSH` makes a block; `server` (`host`, `host:port`, `[v6]:port`)
+  gives `HostName` and `Port`; `name` is the label and `group` the folder.
+  Each secret, `.` for the keyring or an encrypted blob, is counted; a value
+  of a template such as `%Host%` is no host.
+
+A session's label becomes the name of its block, each run of characters
+that a `Host` line cannot hold made one `-`, with the label itself in a
+comment above it, and a second label of the same name gets `-2`. FinalShell,
+mRemoteNG and Termius, and Ansible's YAML, are refused by name (64) until a
+real export of each, under such a license, is at hand to test against
+(T-327): FinalShell and Termius have no export, and the files of mRemoteNG
+that were found are under the GPL or under no license.
 
 ## `podssh mcp`
 
