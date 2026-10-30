@@ -686,7 +686,7 @@ Read:
    each binary with `actions/attest-build-provenance`, pinned by commit SHA,
    for a tag `v*` only. Give these jobs `id-token: write` and
    `attestations: write`. A run by hand makes no attestation.
-2. Tell the user how to check, in `README.md` (`:57-58`) and in the
+2. Tell the user how to check, in `README.md` (`:58-59`) and in the
    release notes: `gh attestation verify FILE --repo Azathothas/podssh`.
 3. Let `podssh --version` name the commit: the workflows set a variable at
    compile time (`option_env!`, no build script, no `git` call); a local build
@@ -859,7 +859,7 @@ Read:
   `sha256sum`, and the job published it with the binaries (lines 370-382 at
   `cdf9308`). No signature was published.
 - The notes drafted for the dropped beta told the user that `SHA256SUMS`
-  holds the sums (`git show b1b111b:docs/releases/v0.1.0-beta.1.md`, line 81 at `b1b111b`). `README.md:57-58` gives no step to check a download.
+  holds the sums (`git show b1b111b:docs/releases/v0.1.0-beta.1.md`, line 81 at `b1b111b`). `README.md:58-59` gives no step to check a download.
 - AGENTS.md, section 4: a private key is a credential. The repository has no
   signing key today.
 
@@ -906,7 +906,7 @@ Each command exits 0. Planted defect: change one hex digit in a copy of
 
 ## Correction
 
-2026-10-30: the Premise's "`README.md:57-58` gives no step to check a
+2026-10-30: the Premise's "`README.md:58-59` gives no step to check a
 download" no longer holds: the README's first step now checks a download of
 a beta against `SHA256SUMS` (T-309). The signatures of this entry are still
 missing; that step gains their check when they exist.

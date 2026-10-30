@@ -1135,7 +1135,7 @@ their own server, and the gate tests faults against a stand-in in Python.
 ## Premise
 
 Read: the relay is a Cloudflare Worker, and its own document is the contract
-(`docs/relay.md:1-21`, `README.md:32-35`). The stand-in serves the forward
+(`docs/relay.md:1-21`, `README.md:33-36`). The stand-in serves the forward
 path, `/v1/mint` and `/health` only (`scripts/fake-relay.py:108-126`). The
 pinned contract gives the forward path and the tokens
 (`crates/podssh-probe/tests/spec/relay-spec-2026-10-03-r2.txt:73-104`), the

@@ -44,7 +44,7 @@ exclude = ["vendor/tailscale-rs", "vendor/russh", "vendor/iroh-relay", "fuzz"]
 # Versions below were resolved on 2026-10-01, not recalled. Before loosening a
 # range, re-run the no-C build of the library crates (see scripts/gate.sh).
 [workspace.package]
-version = "1.0.0-beta.1"
+version = "1.0.0-beta.2"
 edition = "2021"
 # MEASURED 2026-10-09: the library crates and podssh-todo pass `cargo check
 # --locked --all-targets` on Rust 1.85.0, podbox's minimum (T-081), and no

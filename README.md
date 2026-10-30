@@ -10,7 +10,8 @@ an HTTP proxy is their only way out. podssh needs no root, no `LD_PRELOAD`,
 no installed `ssh`, and no TLS or crypto library of the system.
 
 > [!WARNING]
-> **Status: beta.** `podssh ssh`, `podssh each`, `podssh run`, `podssh job`, `podssh containers`,
+> **Status: beta.** `podssh ssh`, `podssh each`, `podssh run`, `podssh job`, `podssh session`,
+> `podssh containers`,
 > `podssh proxy`, `podssh pipe`, `podssh cp`, `podssh mv`, `podssh scp`,
 > `podssh sftp` and `podssh edit` (files), `podssh doctor`, `podssh keygen`,
 > `podssh agent`, `podssh man`, `podssh status`, `podssh ping`,
@@ -61,7 +62,7 @@ podssh --TLS 1.3 + WebSocket, port 443--> relay --TCP--> sshd (or another TCP se
    against `SHA256SUMS`, and make it executable:
 
    ```sh
-   T=v1.0.0-beta.1; B=podssh-x86_64-unknown-linux-musl   # or podssh-aarch64-unknown-linux-musl
+   T=v1.0.0-beta.2; B=podssh-x86_64-unknown-linux-musl   # or podssh-aarch64-unknown-linux-musl
    curl -fsSLO "https://github.com/Azathothas/podssh/releases/download/$T/$B"
    curl -fsSLO "https://github.com/Azathothas/podssh/releases/download/$T/SHA256SUMS"
    grep " $B\$" SHA256SUMS | sha256sum -c - && chmod +x "$B"

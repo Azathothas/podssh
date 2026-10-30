@@ -72,12 +72,12 @@ the verb, the address grammar, the copy loop, and the local addresses `-`,
    (`crates/podssh-cli/src/man/examples.rs:8-215`; its test at
    `crates/podssh-cli/src/man/examples.rs:338-360` learns the new variant),
    `docs/design.md:854-863`, `docs/STATUS.md`. Each file stays under 500
-   lines (`AGENTS.md:256-257`).
+   lines (`AGENTS.md:257-258`).
 
 ## Decision
 
 Recommendation: `exec:` splits the words itself and starts no shell, because
-podssh must not assume a shell (`AGENTS.md:238-239`), and the user can name one
+podssh must not assume a shell (`AGENTS.md:239-240`), and the user can name one
 (`exec:sh -c 'CMD'`). The alternative, a `system:` address through
 `/bin/sh -c` as in socat, lost: Windows and some images have no `/bin/sh`.
 
@@ -412,8 +412,8 @@ shows that an AF_UNIX or loopback bind works (`docs/design.md:894-896`).
   allows the bind. The default is loopback and AF_UNIX; the user can
   configure the address and can turn listening off.
 - Read: five documents still say that podssh never listens:
-  `AGENTS.md:240-245`, `docs/architecture.md:120-133`,
-  `docs/target-environment.md:84-88`, `SECURITY.md:98-119`, `README.md:40-48`.
+  `AGENTS.md:241-246`, `docs/architecture.md:120-133`,
+  `docs/target-environment.md:84-88`, `SECURITY.md:98-119`, `README.md:41-49`.
 - Read: sandbox A refuses an AF_INET bind and allows an AF_UNIX bind
   (`docs/STATUS.md:272`). The box refuses each `bind`, AF_UNIX too
   (`scripts/box/seccomp.json:5-10`), so it gives the refused case.
@@ -500,7 +500,7 @@ Plant: bind with no umask; the check of the mode must fail.
 ## Correction
 
 2026-10-10: three of the five documents already say what the ruling
-allows: `AGENTS.md:240-245`, `docs/architecture.md:120-133` and
+allows: `AGENTS.md:241-246`, `docs/architecture.md:120-133` and
 `docs/target-environment.md:84-88` name a listener that the user asks for,
 after a probe. `SECURITY.md` and `README.md` still said that nothing
 listens, and change here. Step 4's umask 077 makes a socket's file mode
@@ -718,7 +718,7 @@ verified here.
 ## Problem
 
 Users ask how to carry RDP, VNC and Telnet. The documents show SSH and one
-HTTP request (`README.md:178-183`). They do not say which clients work with
+HTTP request (`README.md:179-184`). They do not say which clients work with
 no listener, or that the relay ends a desktop stream after 64 MiB.
 
 ## Premise
@@ -752,7 +752,7 @@ no listener, or that the relay ends a desktop stream after 64 MiB.
 3. Telnet: `podssh proxy HOST 23` carries the bytes, but a person needs a
    client that answers the IAC options: form a or b with
    `telnet 127.0.0.1 PORT`.
-4. Write a table "Other TCP protocols" after `README.md:178-183`: the
+4. Write a table "Other TCP protocols" after `README.md:179-184`: the
    protocol, what works now, what needs a listener, the 64 MiB limit. Add
    form a to `crates/podssh-cli/src/man/examples.rs:8-215`; its ProxyCommand
    parses (`crates/podssh-cli/src/man/examples.rs:315-322`). Link the table
@@ -822,7 +822,7 @@ but an AF_UNIX one, which sandbox A allows where it refuses AF_INET
   rows say that the gate's first run fills them in.
 
 The calls made where the Approach left a choice:
-- The table follows "Relay limits", not `README.md:177-182` at once: the
+- The table follows "Relay limits", not `README.md:178-183` at once: the
   paragraphs after those lines (chat, the variables, the tokens) would fall
   under its heading, and the table cites the limits above it.
 - Form c's client is the harness's own (`rfb.py`, about 40 lines of
@@ -868,7 +868,7 @@ What ran:
   example, 4 passed; the plant of the Correction (`-L` given to the
   ProxyCommand's `podssh proxy`) fails the test of the examples with
   "unknown flag '-L'", and was taken out; the whole lib suite, 278 passed.
-  The Prove's `grep` finds the heading, `README.md:216`;
+  The Prove's `grep` finds the heading, `README.md:217`;
   `python scripts/check-repo.py`: each check ok, the doc links too;
   `python scripts/check-scripts.py`: 44 scripts LF and parse under dash.
 - An RDP client and server, and each client through the live relay, did
@@ -1102,7 +1102,7 @@ and with which limits.
 - Read: through the relay, a session ends at 64 MiB (`docs/relay.md:167`);
   the traffic of a USB disk reaches that in seconds.
 - Read: podssh cannot load a module or attach a device, and never assumes a
-  privilege (`AGENTS.md:238-239`). The recipe uses the user's own `usbip` and
+  privilege (`AGENTS.md:239-240`). The recipe uses the user's own `usbip` and
   its privileges.
 
 ## Approach
@@ -1137,7 +1137,7 @@ first command must fail.
 
 2026-10-12. What was made:
 - `README.md`, the row "USB/IP (port 3240)" of the table "Other TCP
-  protocols" of T-179 (`README.md:234`): the recipe, `usbip` with root
+  protocols" of T-179 (`README.md:235`): the recipe, `usbip` with root
   and the modules (`usbip-host` on the server, `vhci-hcd` on the client)
   and podssh with neither, 64 MiB through the relay and then 1009, and
   `ssh:`, never `relay:` to a public `usbipd`, as USB/IP is not
@@ -1190,7 +1190,7 @@ What waits:
   modules and a device): UNVERIFIED.
 
 What ran:
-- Native here: the Prove's `grep` finds the row, `README.md:234`;
+- Native here: the Prove's `grep` finds the row, `README.md:235`;
   `python scripts/check-repo.py`: each check ok, the doc links too.
 - In the build image (Alpine, `linux-tools-usbip`), with no module: the
   harness's stand-in of `usbipd` on a port of its own, and the real

@@ -122,10 +122,13 @@ the surface for agents: done.
 
 **M4:** T-085 (the exit measurement) is on hold (Q32).
 
-**First (2026-10-30):** `v1.0.0-beta.1` is published. The next beta, after
-a batch of repairs that the testers should test again (at most one a day),
-follows `docs/development.md` ("Release builds"); `main` carries the repair
-of a proxy that takes the CONNECT and carries no SSH.
+**First (2026-10-30):** `v1.0.0-beta.1` is published. `v1.0.0-beta.2` is
+made ready (the version in `Cargo.toml` and both lock files, its notes in
+`docs/releases/v1.0.0-beta.2.md`), and is published from `main` on
+2026-10-31 UTC, at most one beta a day, once the gate passed on its commit,
+as `docs/development.md` ("Release builds") says: the batch since beta.1
+holds the repairs of the proxy and the doctor, the new platforms, and the
+drafts merged on 2026-10-30.
 
 **Now:** the `backlog` entries, in the order of `TODO/INDEX.md` ("The
 order, and the argument for it"): M3 to M8 are done, but for the entries on
