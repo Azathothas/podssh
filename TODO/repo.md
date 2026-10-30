@@ -100,7 +100,7 @@ Read:
   `actions/checkout@v5` (`.github/workflows/build.yml` line 30 at `7c70aa7`),
   `actions/upload-artifact@v7` (`.github/workflows/build.yml:89`),
   `actions/download-artifact@v8` (`.github/workflows/release.yml:334`) and
-  `ilammy/setup-nasm@v1` (`.github/workflows/release.yml:149`).
+  `ilammy/setup-nasm@v1` (`.github/workflows/release.yml:274` says "uses: ilammy/setup-nasm@v1").
 - The build image is a variable in two workflows and in a shell script
   (`.github/workflows/build.yml` line 15 at `19ca632`, `.github/workflows/release.yml` line 23 at `19ca632` and
   `scripts/dev.sh` line 60 at `e1ba5ba`). Dependabot's docker ecosystem reads the `FROM` lines
@@ -1783,6 +1783,18 @@ slow, and the job limit is 60 min (`.github/workflows/release.yml:94`).
   the gate, as the Intel image is the last of its kind and slower, and the
   arm64 Mac reaches the same code.
 
+2026-10-30, the operator (`docs/decisions.md`): riscv64 is cross-compiled
+with `cargo-zigbuild`, and only its run is under QEMU. This overrides, for
+riscv64, the first recommendation above (one toolchain, `cargo-zigbuild`
+lost): the build under QEMU passed, but in 88 minutes, which each release
+would wait for. The cross build runs in the gate's own image on a native
+runner (its rustc and `rustup target add`), with zig 0.16.0 from
+ziglang.org, checked by the sum of its download index, and `cargo-zigbuild`
+0.23.4, built from crates.io with `--locked`; versions under two weeks old
+lost (zig 0.17.0, `cargo-zigbuild` 0.24.0). The binary runs on the runner
+through the handler of binfmt that QEMU registers, as the pull of a second
+platform of one image fails ("cannot overwrite digest").
+
 ## Prove
 
 ```sh
@@ -1924,10 +1936,17 @@ probe finds 32-bit ARM, else under QEMU. riscv64 builds in the gate's own image 
   and the checks. The release notes' table of binaries comes with the notes of beta.2 (T-309), and
   the attestation of T-210 takes `dist/podssh-*`, each new file with it.
 
-Next: riscv64. Its build under QEMU passed an hour in run 41076578398 (limit 360 min); when it
-ends, its job moves into `release.yml` as the others did, or its time asks for the Decision
-again. Then the Prove's dry run of `release.yml` with each target, and the planted build without
-`+crt-static` (with T-251).
+- riscv64 under QEMU, run 41076578398: the build in the gate's image took 5287 s (88 min),
+  and the binary passed the short form under QEMU in 41 s. So the operator's call: the cross
+  build of `cargo-zigbuild` (the Decision), tried in `targets.yml` first.
+- The Prove's dry run of `release.yml` at `224ccd2` (run 41087466860): each of the seven jobs and
+  `publish` passed; the files of the artifact `release-dry-run` hold the seven binaries
+  (`file`: Mach-O arm64 and x86_64, PE32+ Aarch64 and x86-64, ELF aarch64 static, ELF armv7
+  static-pie, ELF x86-64 static-pie), `SHA256SUMS` (each sum checks), the licenses and the body.
+  The x86_64 binary passed the short form here with `--net`.
+
+Next: the trial of the cross build of riscv64; when it passes, its job moves into `release.yml`,
+then a dry run with the eight targets. The planted build without `+crt-static` waits for T-251.
 
 # T-219: The no-C gate also stops C++
 
