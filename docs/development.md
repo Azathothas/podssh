@@ -664,6 +664,9 @@ uploads it.
   Alpine's own rust in a container of `linux/arm/v7` on an arm64 runner
   (natively where the runner runs 32-bit ARM, else under QEMU), with the
   same check (T-218);
+- a static musl binary for riscv64, cross-compiled with `cargo-zigbuild`
+  (zig 0.16.0, checked by its sum) in `rust:1-alpine` on a native runner,
+  with the same check; it runs on the runner under QEMU (T-218);
 - Mac binaries for aarch64 and x86_64, built on the macOS runners, with a
   check (`otool -L`) that they link the system's libraries only;
 - Windows binaries for x86_64 and ARM64 with a static C runtime, with a

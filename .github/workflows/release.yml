@@ -16,8 +16,8 @@ name: release
 # Linux binaries are static musl, built in the same image as the gate
 # (rust:1-alpine) on a native runner for each architecture, and checked for
 # dynamic dependencies before they are published; armv7 is built with
-# Alpine's own rust in a container of linux/arm/v7 on an arm64 runner
-# (T-218). The Windows binaries, for x86_64 and ARM64, are linked with a
+# Alpine's own rust in a container of linux/arm/v7 on an arm64 runner, and
+# riscv64 cross-compiled with cargo-zigbuild in the gate's image (T-218). The Windows binaries, for x86_64 and ARM64, are linked with a
 # static C runtime; the Mac binaries, for ARM and Intel, link the system's
 # libraries only. Each binary runs the short form of the release check on
 # its own platform (scripts/release-short.sh, with GitHub's SSH banner
@@ -200,6 +200,77 @@ jobs:
           path: dist/*
           if-no-files-found: error
 
+  # riscv64, cross-compiled by the operator's call (2026-10-30): the gate's
+  # own image on a native runner, with zig and cargo-zigbuild, in about 5
+  # min where the build under QEMU took 88; the binary then runs on the
+  # runner under QEMU.
+  linux-riscv64:
+    if: inputs.publish == '' || startsWith(github.ref, 'refs/tags/')
+    name: linux riscv64gc-unknown-linux-musl
+    runs-on: ubuntu-24.04
+    timeout-minutes: 60
+    env:
+      # zig from ziglang.org, checked by the sum of its download index;
+      # cargo-zigbuild from crates.io, built with its own lock file.
+      ZIG_VERSION: 0.16.0
+      ZIG_SHA256: 70e49664a74374b48b51e6f3fdfbf437f6395d42509050588bd49abe52ba3d00
+      ZIGBUILD_VERSION: 0.23.4
+    steps:
+      - uses: actions/checkout@v7
+      - name: the build image
+        run: |
+          set -eu
+          ref=$(tr -d '\r' < images/build/Dockerfile | sed -n 's/^FROM[[:space:]]\{1,\}\([^[:space:]]\{1,\}\).*/\1/p')
+          case "$ref" in
+            *@sha256:*) echo "BUILD_IMAGE=$(sh scripts/pull-image.sh "$ref")" >> "$GITHUB_ENV" ;;
+            *) echo "images/build/Dockerfile names no image pinned to a digest" >&2; exit 1 ;;
+          esac
+      - name: build (static musl, cross-compiled with cargo-zigbuild in the gate's image)
+        run: |
+          start=$(date +%s)
+          docker run --rm -v "$PWD:/work" -w /work \
+            -e CARGO_BUILD_JOBS=4 -e RUSTFLAGS=-Ctarget-feature=+crt-static -e PODSSH_BUILD_COMMIT \
+            -e ZIG_VERSION -e ZIG_SHA256 -e ZIGBUILD_VERSION \
+            "$BUILD_IMAGE" sh -c '
+              set -eu
+              rustc -vV
+              z="zig-x86_64-linux-$ZIG_VERSION"
+              wget -q -O "/tmp/$z.tar.xz" "https://ziglang.org/download/$ZIG_VERSION/$z.tar.xz"
+              echo "$ZIG_SHA256  /tmp/$z.tar.xz" | sha256sum -c -
+              xzcat "/tmp/$z.tar.xz" | tar -x -C /tmp
+              export PATH="/tmp/$z:$PATH"
+              echo "zig $(zig version)"
+              # A host build: +crt-static with no --target would reach its
+              # proc-macros on this musl host.
+              RUSTFLAGS= cargo install --quiet --locked --root /tmp/zigbuild cargo-zigbuild --version "$ZIGBUILD_VERSION"
+              export PATH="/tmp/zigbuild/bin:$PATH"
+              cargo install --list --root /tmp/zigbuild
+              rustup target add riscv64gc-unknown-linux-musl
+              cargo zigbuild --locked --release --target riscv64gc-unknown-linux-musl -p podssh-cli
+              mkdir -p dist
+              cp target/riscv64gc-unknown-linux-musl/release/podssh dist/podssh-riscv64gc-unknown-linux-musl'
+          echo "the build took $(( $(date +%s) - start )) s"
+      - name: the binary is static
+        run: |
+          set -eu
+          B=dist/podssh-riscv64gc-unknown-linux-musl
+          file "$B"
+          if readelf -d "$B" | grep -q NEEDED; then echo "dynamic dependencies:"; readelf -d "$B"; exit 1; fi
+          if readelf -l "$B" | grep -q INTERP; then echo "asks for a program interpreter"; exit 1; fi
+          readelf -h "$B" | grep -E 'Class|Machine|Flags'
+      # The handler of binfmt that QEMU registers runs a static riscv64 binary
+      # on the runner itself, so the check needs no second image.
+      - uses: docker/setup-qemu-action@v4
+        with:
+          platforms: riscv64
+      - name: the binary runs (under QEMU)
+        run: sh scripts/release-short.sh dist/podssh-riscv64gc-unknown-linux-musl --net
+      - uses: actions/upload-artifact@v7
+        with:
+          name: podssh-riscv64gc-unknown-linux-musl
+          path: dist/*
+          if-no-files-found: error
+
   macos:
     if: inputs.publish == '' || startsWith(github.ref, 'refs/tags/')
     name: macos ${{ matrix.target }}
@@ -320,7 +391,7 @@ jobs:
   # release are proved before its tag, which never moves. A run by hand with
   # the input publish builds nothing, so this job does not run in it.
   publish:
-    needs: [linux, linux-armv7, macos, windows]
+    needs: [linux, linux-armv7, linux-riscv64, macos, windows]
     runs-on: ubuntu-24.04
     permissions:
       contents: write
@@ -368,6 +439,28 @@ jobs:
         env:
           BUNDLE: ${{ steps.attest.outputs.bundle-path }}
         run: cp "$BUNDLE" dist/provenance.sigstore.json
+      # Checked as a user checks it, before anything is published: each
+      # binary against the bundle, with this workflow and the tag; a changed
+      # copy must fail.
+      - name: the provenance, checked
+        if: startsWith(github.ref, 'refs/tags/v')
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          set -eu
+          signer="$GITHUB_REPOSITORY/.github/workflows/release.yml"
+          verify() {
+            gh attestation verify "$1" --repo "$GITHUB_REPOSITORY" --bundle dist/provenance.sigstore.json \
+              --signer-workflow "$signer" --source-ref "$GITHUB_REF" > /dev/null
+          }
+          for f in dist/podssh-*; do
+            verify "$f"
+            echo "ok   $f"
+          done
+          cp dist/podssh-x86_64-unknown-linux-musl "$RUNNER_TEMP/changed"
+          echo changed >> "$RUNNER_TEMP/changed"
+          if verify "$RUNNER_TEMP/changed" 2> /dev/null; then echo "a changed copy verified"; exit 1; fi
+          echo "each binary names $signer at $GITHUB_REF; a changed copy fails"
       # The signature of SHA256SUMS (T-211): keyless, with Sigstore, by the
       # job's own token; its identity is this workflow at the tag. It is
       # checked at once with that identity, and must fail on a changed copy

@@ -67,8 +67,9 @@ podssh --TLS 1.3 + WebSocket, port 443--> relay --TCP--> sshd (or another TCP se
    ```
 
    From `v1.0.0-beta.2` on, a release also has
-   `podssh-armv7-unknown-linux-musleabihf` (static, for a Raspberry Pi with
-   32 bits); `podssh-aarch64-apple-darwin` and `podssh-x86_64-apple-darwin`
+   `podssh-armv7-unknown-linux-musleabihf` (a Raspberry Pi with 32 bits) and
+   `podssh-riscv64gc-unknown-linux-musl`, both static;
+   `podssh-aarch64-apple-darwin` and `podssh-x86_64-apple-darwin`
    (macOS, where the check is `shasum -a 256 -c`); and
    `podssh-aarch64-pc-windows-msvc.exe` (Windows on ARM). The Mac binaries
    are not signed with a Developer ID: fetch them with `curl`, as above,

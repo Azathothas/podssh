@@ -99,8 +99,8 @@ Read:
 - The workflows use four actions, each by a major tag:
   `actions/checkout@v5` (`.github/workflows/build.yml` line 30 at `7c70aa7`),
   `actions/upload-artifact@v7` (`.github/workflows/build.yml:89`),
-  `actions/download-artifact@v8` (`.github/workflows/release.yml:334`) and
-  `ilammy/setup-nasm@v1` (`.github/workflows/release.yml:274` says "uses: ilammy/setup-nasm@v1").
+  `actions/download-artifact@v8` (`.github/workflows/release.yml:405`) and
+  `ilammy/setup-nasm@v1` (`.github/workflows/release.yml:345` says "uses: ilammy/setup-nasm@v1").
 - The build image is a variable in two workflows and in a shell script
   (`.github/workflows/build.yml` line 15 at `19ca632`, `.github/workflows/release.yml` line 23 at `19ca632` and
   `scripts/dev.sh` line 60 at `e1ba5ba`). Dependabot's docker ecosystem reads the `FROM` lines
@@ -430,7 +430,7 @@ previous release, so a change that the notes forget is invisible to a user.
 Read:
 
 - The job `publish` reads the notes from `docs/releases/`, and fails without
-  them (`.github/workflows/release.yml:427-431`).
+  them (`.github/workflows/release.yml:520-524`).
   No notes file exists yet; T-250 writes the first. The notes drafted for a
   beta that the operator dropped are in git:
   `git show b1b111b:docs/releases/v0.1.0-beta.1.md`.
@@ -458,7 +458,7 @@ Read:
 3. On a run by hand, make the list of the commits since the last tag as an
    artifact, so that it can be read before a tag.
 4. Link each "Fixes #N" of a commit to its issue in the list.
-5. docs/development.md, "Release builds" (`docs/development.md:652-718`): the
+5. docs/development.md, "Release builds" (`docs/development.md:652-721`): the
    body is the notes file and the generated list.
 
 No new shell script: each step is a step of the workflow.
@@ -670,9 +670,9 @@ Measured: `target/debug/podssh.exe --version` prints `podssh 0.1.0`, exit 0.
 Read:
 
 - The jobs `linux` and `windows` build the binaries, and `publish` adds
-  `SHA256SUMS` and publishes them (`.github/workflows/release.yml:47-470`).
+  `SHA256SUMS` and publishes them (`.github/workflows/release.yml:47-563`).
   The workflow has `contents: read` (`:39-40`); `publish` adds
-  `contents: write` (`:325-326`).
+  `contents: write` (`:396-397`).
 - The KTM tester could not tell from an artifact which commit made it, and
   moved the checkout one commit ahead (the KTM report, section 1a; read in
   the report).
@@ -703,7 +703,7 @@ for all the binaries (`subject-path: dist/podssh-*`), not in each of `linux` and
 says. It satisfies the Prove, makes one attestation that names every subject, and keeps
 `id-token: write` out of the jobs that run the project's build scripts. The job `publish` builds no
 crate: `cargo-about` and `git-cliff` come as release binaries
-(`.github/workflows/release.yml:343` says "tool: cargo-about@0.9.2"). Lost: attesting in each build
+(`.github/workflows/release.yml:414` says "tool: cargo-about@0.9.2"). Lost: attesting in each build
 job, with its own `id-token: write` where the build scripts of every dependency run, and one
 attestation for each binary. The attest step runs on a tag only (`if: startsWith(github.ref,
 'refs/tags/v')`), as item 1 says, so that a run by hand makes none; and it comes before `gh release
@@ -753,7 +753,7 @@ github.com when the workflow is written). The Approach names `actions/attest-bui
   `actions/attest` v4.2.2 (commit `1e69f48acb82d1966a394da916b4c1698aa569d6`), pinned by that commit,
   as item 1 asks. (The wrapper is at commit `4d101475d8b20a2381f78447822ac1eab6504dd8`.)
 - Permissions for a binary (GitHub documentation): `id-token: write`, `contents: read` and
-  `attestations: write`. `publish` has `contents: write` today (`.github/workflows/release.yml:326`
+  `attestations: write`. `publish` has `contents: write` today (`.github/workflows/release.yml:397`
   says "contents: write"), which includes the read. The README of `actions/attest` also lists
   `artifact-metadata: write`, "necessary to create the artifact storage record"; that record needs
   `push-to-registry: true`, which is for images, so a file subject does not need it (Inferred): add
@@ -771,7 +771,7 @@ github.com when the workflow is written). The Approach names `actions/attest-bui
   --custom-trusted-root trusted_root.jsonl` (the root from `gh attestation trusted-root`). With
   `--bundle` the repository name is checked against the certificate only, so a renamed repository is
   not caught. The job can copy `bundle-path` into `dist/` for the user (this entry decides).
-- `actions/download-artifact@v8`, already in the job (`.github/workflows/release.yml:334`), fails by
+- `actions/download-artifact@v8`, already in the job (`.github/workflows/release.yml:405`), fails by
   default when the digest of a file differs from what the build job uploaded ("Hash mismatches will
   now error by default", v8.0.0): that is a gain for the chain of custody here, with no change.
 - Optional, and the operator's call: immutable releases (a setting of the repository) lock the tag
@@ -824,8 +824,15 @@ bundle as `provenance.sigstore.json`; the README tells how to check it (`gh atte
 --signer-workflow ... --source-ref refs/tags/TAG`) and that the Windows binaries are not signed
 (item 4). actionlint clean.
 
-Next: the trial's run (`sigstore-trial.yml`), the dry run of `release.yml` with the commit, then
-the Prove at the tag of `v1.0.0-beta.2`, whose notes say how to check.
+- The trial (`sigstore-trial.yml`, run 41091530130): `actions/attest` attested a throwaway file
+  and gave its bundle; `gh attestation verify` with the signer workflow and the ref passed, with
+  the API and with `--bundle`, and failed for a changed copy and for another ref. So `publish` now
+  checks each binary the same way after the attestation, before anything is published.
+- The dry run at `758c691` (run 41091534313): each of the seven builds required `podssh VERSION
+  (COMMIT)` and passed; the job `tag` was skipped, and `publish` passed with no proof, as a run
+  on a branch makes none.
+
+Next: the Prove at the tag of `v1.0.0-beta.2`, whose notes say how to check.
 
 
 # T-211: Signed checksums for each release
@@ -848,7 +855,7 @@ the release workflow of podssh.
 
 Read:
 
-- `.github/workflows/release.yml:350-355` writes `SHA256SUMS` with
+- `.github/workflows/release.yml:421-426` writes `SHA256SUMS` with
   `sha256sum`, and the job published it with the binaries (lines 370-382 at
   `cdf9308`). No signature was published.
 - The notes drafted for the dropped beta told the user that `SHA256SUMS`
@@ -917,7 +924,7 @@ Approach, and disproves no Premise.
   deprecated, hidden flag in v3.1.4: do not pass it with v3 (it is needed only with v2.6.x). `--yes`
   skips the prompts, and CI needs it. The keyless signing takes the job's own OIDC token, so the job
   needs `id-token: write`; give `publish` that and `attestations: write` for T-210, beside
-  `contents: write` (`.github/workflows/release.yml:326` says "contents: write"). The convention for
+  `contents: write` (`.github/workflows/release.yml:397` says "contents: write"). The convention for
   the bundle's name is `*.sigstore.json` (https://docs.sigstore.dev/cosign/signing/signing_with_blobs/).
 - The identity. The certificate's subject alternative name is `https://github.com/{job_workflow_ref}`
   (https://github.com/sigstore/fulcio/blob/main/docs/oidc.md), so for a tag
@@ -957,8 +964,14 @@ refused; all before `gh release create`, which publishes the bundle with the fil
 gives the check (`cosign verify-blob` with the identity and the issuer), after `sha256sum -c`;
 `docs/development.md` tells the release's steps. actionlint clean.
 
-Next: the trial's run (`sigstore-trial.yml`, which also reads whether cosign 2.6.5 checks the
-bundle of cosign 3), then the Prove at the tag of `v1.0.0-beta.2`.
+- The trial (`sigstore-trial.yml`, run 41091530130), the same steps on a throwaway file with
+  this branch's identity: cosign v3.1.4 signed and "Verified OK"; a copy with one hex digit
+  changed failed ("invalid signature when validating ASN.1 encoded signature"); the identity of
+  another ref failed ("expected SAN value ...@refs/tags/v0.0.0-none, got ...@refs/heads/main").
+  cosign 2.6.5 checked the bundle of cosign 3, with no flag and with `--new-bundle-format`: the
+  notes say both.
+
+Next: the Prove at the tag of `v1.0.0-beta.2`.
 
 
 # T-212: Parallel CI, with the gate as the one source
@@ -1193,7 +1206,7 @@ so the job of this entry must have both; nobody measured a runner for them.
 # T-214: CI on Windows
 
 **Source:** the triage of GitHub #27 (2026-10-08). Windows is a released
-platform (`.github/workflows/release.yml:246-316`).
+platform (`.github/workflows/release.yml:317-387`).
 **Category:** chore
 **Milestone:** none
 **Priority:** P2
@@ -1213,7 +1226,7 @@ machine.
 Read:
 
 - `.github/workflows/build.yml` lines 17-19 at `e892b0f`: one job, on `ubuntu-latest`.
-- `.github/workflows/release.yml:246-316`: the Windows job installs NASM
+- `.github/workflows/release.yml:317-387`: the Windows job installs NASM
   (line 76), builds, and checks for C runtime DLLs (lines 86-101); it runs no
   test.
 - `docs/STATUS.md` line 230 at `9966ed4`: the default tests pass on Windows,
@@ -1722,11 +1735,11 @@ with a C toolchain for aws-lc.
 Read:
 
 - `.github/workflows/release.yml:88-92`: x86_64 and aarch64 musl, each on a
-  native runner in `rust:1-alpine`. `.github/workflows/release.yml:246-316`:
+  native runner in `rust:1-alpine`. `.github/workflows/release.yml:317-387`:
   Windows x86_64 with a static C runtime.
 - The check of each platform: `readelf` for `NEEDED` and `INTERP`
   (`.github/workflows/release.yml:114-121`), `dumpbin /dependents` on Windows
-  (`:283-308`).
+  (`:354-379`).
 - The binary needs a C compiler for aws-lc (`docs/development.md:12-15`); the
   library crates need none.
 - Some code reads facts of Linux. The terminal check reads `tty_nr` from
@@ -1887,8 +1900,8 @@ Intel macOS after August 2027 (cross build with Rosetta, or drop the target).
 
 ## Done
 
-2026-10-30, partial. The workflow release targets (`.github/workflows/targets.yml`, by hand only,
-publishing nothing) builds each new target on its own platform, checks its links (`otool -L` on
+2026-10-30, partial. The workflow release targets (`targets.yml`, by hand only, publishing
+nothing; it went once each of its jobs moved into `release.yml`) builds each new target on its own platform, checks its links (`otool -L` on
 macOS, `dumpbin` on Windows, `readelf` on Linux), and runs it with `scripts/release-short.sh`, the
 short form of T-251's check: `--version` against `Cargo.toml`, the whole manual, `keygen` with no
 passphrase, then `keygen -y`, which must give the same key, and with `--net` GitHub's SSH banner
@@ -1945,8 +1958,21 @@ probe finds 32-bit ARM, else under QEMU. riscv64 builds in the gate's own image 
   static-pie, ELF x86-64 static-pie), `SHA256SUMS` (each sum checks), the licenses and the body.
   The x86_64 binary passed the short form here with `--net`.
 
-Next: the trial of the cross build of riscv64; when it passes, its job moves into `release.yml`,
-then a dry run with the eight targets. The planted build without `+crt-static` waits for T-251.
+- The cross build of riscv64 in the trial: the first run stopped at "cannot produce proc-macro"
+  in the install of `cargo-zigbuild` (run 41091523632), as `+crt-static` with no `--target`
+  reached the musl host's proc-macros; the install now clears RUSTFLAGS. The second stopped at
+  `cargo zigbuild --version`, which the subcommand does not take (run 41093257619). The third,
+  run 41093657124: zig 0.16.0's download matched its sum, `cargo-zigbuild` 0.23.4 built in about a
+  minute, and the build took 305 s in all, where QEMU took 5287 s; the binary is static (no
+  `NEEDED`, no `INTERP`), and on the runner, through QEMU's handler of binfmt, it passed the short
+  form: `podssh 1.0.0-beta.1 (4fb1728...)`, 3795 lines of the manual, `keygen -y` with the same
+  key, and GitHub's banner through the live relay.
+- So `release.yml` builds riscv64 as the job `linux-riscv64`, and `publish` needs it; the trial
+  workflow `targets.yml` goes, as each of its jobs now lives in the release. The README, the
+  notes of beta.2 and `docs/development.md` name the binary.
+
+Next: the dry run of `release.yml` with the eight targets, then this entry closes; the planted
+build without `+crt-static` waits for T-251.
 
 # T-219: The no-C gate also stops C++
 
