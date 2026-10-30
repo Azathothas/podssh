@@ -2505,7 +2505,7 @@ Read in russh 0.64.1's `src/keys/agent/server.rs` (the local cargo registry): th
 constraint of a key (lines 296-297), and when a request to sign names such a key, it takes a future
 that is always ready with `true`; it never calls the agent's `confirm` (lines 348-356).
 
-Read: podssh's `confirm` refuses (`crates/podssh-cli/src/agent/serve.rs:155-158`), and is never
+Read: podssh's `confirm` refuses (`crates/podssh-cli/src/agent/serve.rs:165-168`), and is never
 called. `docs/cli.md:1809-1810` says that the key "is never used".
 
 ## Approach
