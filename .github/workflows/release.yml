@@ -6,6 +6,9 @@ name: release
 # (workflow_dispatch), it builds and checks the same binaries, makes the
 # files and the body that the tag of Cargo.toml's version would publish, with
 # the same checks, keeps them as workflow artifacts, and publishes nothing.
+# Run by hand with the input `publish` set to that tag, it publishes too, and
+# makes the tag at the commit that it built: a session whose git may not push
+# a tag (a Claude Code cloud session, HTTP 403) releases this way.
 #
 # Linux binaries are static musl, built in the same image as the gate
 # (rust:1-alpine) on a native runner for each architecture, and checked for
@@ -16,6 +19,11 @@ on:
   push:
     tags: ['v*']
   workflow_dispatch:
+    inputs:
+      publish:
+        description: "The tag to publish, v and the version of Cargo.toml; empty: a dry run"
+        required: false
+        default: ""
 
 permissions:
   contents: read
@@ -62,12 +70,15 @@ jobs:
           "$B" --version
       # The binary prints the version of Cargo.toml, and a tag names it.
       - name: the version of the binary
+        env:
+          PUBLISH: ${{ inputs.publish }}
         run: |
           set -eu
           want=$(sed -n '/^\[workspace.package\]/,/^\[/s/^version = "\(.*\)"$/\1/p' Cargo.toml)
           case "$GITHUB_REF" in
             refs/tags/v*) test "$GITHUB_REF_NAME" = "v$want" || { echo "the tag $GITHUB_REF_NAME is not v$want"; exit 1; } ;;
           esac
+          if [ -n "$PUBLISH" ] && [ "$PUBLISH" != "v$want" ]; then echo "the input publish $PUBLISH is not v$want"; exit 1; fi
           got=$(target/${{ matrix.target }}/release/podssh --version)
           test "$got" = "podssh $want" || { echo "the binary prints \"$got\", not \"podssh $want\""; exit 1; }
       - name: package
@@ -168,14 +179,24 @@ jobs:
       - uses: taiki-e/install-action@v2
         with:
           tool: git-cliff@2.9.1
-      # The commits of this release, each one, from cliff.toml.
+      # The commits of this release, each one, from cliff.toml: on a tag, those
+      # since the tag before it; by hand, where the tag does not exist yet,
+      # those since the last tag.
       - name: the list of the commits (git-cliff, pinned)
         run: |
           set -eu
-          git cliff --config cliff.toml --latest --strip all > "$RUNNER_TEMP/changes.md"
+          case "$GITHUB_REF" in
+            refs/tags/v*) range=--latest ;;
+            *) range=--unreleased ;;
+          esac
+          git cliff --config cliff.toml "$range" --strip all > "$RUNNER_TEMP/changes.md"
           test -s "$RUNNER_TEMP/changes.md"
       # The tag, or by hand the tag of Cargo.toml's version: they must agree.
+      # A run by hand that publishes makes the tag, which must not exist: a
+      # tag never moves.
       - name: the tag
+        env:
+          PUBLISH: ${{ inputs.publish }}
         run: |
           set -eu
           version=$(sed -n '/^\[workspace.package\]/,/^\[/s/^version = "\(.*\)"$/\1/p' Cargo.toml)
@@ -184,6 +205,10 @@ jobs:
             *) tag="v$version" ;;
           esac
           test "$tag" = "v$version" || { echo "the tag $tag is not v$version, the version of Cargo.toml"; exit 1; }
+          if [ -n "$PUBLISH" ]; then
+            test "$PUBLISH" = "$tag" || { echo "the input publish $PUBLISH is not $tag"; exit 1; }
+            if [ -n "$(git ls-remote --tags origin "refs/tags/$tag")" ]; then echo "the tag $tag exists already"; exit 1; fi
+          fi
           echo "TAG=$tag" >> "$GITHUB_ENV"
       - name: the body of the release
         run: |
@@ -209,19 +234,25 @@ jobs:
           size=$(wc -c < "$RUNNER_TEMP/body.md")
           echo "the body: $size bytes; the list: $(grep -c '^- ' "$RUNNER_TEMP/changes.md" || true) commits"
           test "$size" -lt 125000
+      # On a tag, the tag that was pushed; by hand, a new tag at the commit
+      # that this run built (--target), which gh makes with the release.
       - name: publish
-        if: startsWith(github.ref, 'refs/tags/v')
+        if: ${{ startsWith(github.ref, 'refs/tags/v') || inputs.publish != '' }}
         env:
           GH_TOKEN: ${{ github.token }}
         run: |
           set -eu
           pre=""
           case "$TAG" in *-*) pre="--prerelease" ;; esac
-          gh release create "$TAG" $pre --verify-tag --title "podssh $TAG" --notes-file "$RUNNER_TEMP/body.md" dist/*
+          case "$GITHUB_REF" in
+            refs/tags/v*) at="--verify-tag" ;;
+            *) at="--target=$GITHUB_SHA" ;;
+          esac
+          gh release create "$TAG" $pre "$at" --title "podssh $TAG" --notes-file "$RUNNER_TEMP/body.md" dist/*
       - name: the files and the body that a tag would publish
-        if: ${{ !startsWith(github.ref, 'refs/tags/v') }}
+        if: ${{ !startsWith(github.ref, 'refs/tags/v') && inputs.publish == '' }}
         run: cp "$RUNNER_TEMP/body.md" dist/BODY.md
-      - if: ${{ !startsWith(github.ref, 'refs/tags/v') }}
+      - if: ${{ !startsWith(github.ref, 'refs/tags/v') && inputs.publish == '' }}
         uses: actions/upload-artifact@v7
         with:
           name: release-dry-run

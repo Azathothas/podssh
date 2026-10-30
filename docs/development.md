@@ -674,7 +674,11 @@ To publish a release:
 1. Write the notes in `docs/releases/<tag>.md`. The workflow fails without
    this file.
 2. Push the tag `vX.Y.Z` or `vX.Y.Z-pre`. A tag with a suffix (`-beta.1`)
-   becomes a prerelease.
+   becomes a prerelease. Where git may not push a tag (a Claude Code cloud
+   session answers HTTP 403), run the workflow by hand with the input
+   `publish` set to the tag: the same jobs, then the release, and the tag
+   made at the commit that the run built, once (the run fails when the tag
+   exists).
 3. The workflow adds `SHA256SUMS` and publishes the release. Its body is
    the notes file, then the list of the commits since the previous tag:
    each commit, grouped by its subject (`cliff.toml`, read by a pinned

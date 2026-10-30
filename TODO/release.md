@@ -208,6 +208,18 @@ since 2026-10-08 reaches them.
 5. The tag once; then the same checks on the published files, and the result
    in `docs/STATUS.md`.
 
+## Decision
+
+2026-10-30: a Claude Code cloud session's git may push branches and not
+tags: `git push origin v1.0.0-beta.1` got HTTP 403 five times, where each
+push of `main` passed. The release workflow therefore takes the tag as an
+input of a run by hand (`publish`), checks it against the version and that
+it does not exist, and publishes with `gh release create --target`, which
+makes the tag at the commit that the run built and checked. Lost: the
+operator pushing the tag from a machine (a person in the loop, for each
+beta); a run by hand that checks out another commit than its own (the
+workflow and the code it releases apart).
+
 ## Prove
 
 ```sh
@@ -249,5 +261,19 @@ published and checked):
   with the list three times, planted, 119,794 bytes and `CHANGES.md`.
 - The notes: docs/releases/v1.0.0-beta.1.md.
 
-Next: CI green on the commit, the release workflow by hand on it, the local
-checks of its binary, the tag, and the checks of the published files.
+- At `f5e06ca`: each job of the gate green (build, deny, secrets); by hand,
+  the release workflow (run 41048945680: the three binaries, each printing
+  `podssh 1.0.0-beta.1`; the job publish made `SHA256SUMS`,
+  `THIRD-PARTY-LICENSES.md` and a body of 54,245 bytes, and its dry run's
+  files), changelog and fuzz (10 s a target), each green. The x86_64 binary
+  of that run, here: its sum, static-pie with no `NEEDED` and no `INTERP`,
+  9,702,752 bytes, the manual (3701 lines, and the roff page), `doctor` 31
+  ok, 0 FAIL, GitHub's banner through `podssh proxy` and the relay, and a
+  login with a throwaway key refused (publickey, 255) after GitHub's Ed25519
+  key was recorded.
+- The tag was refused (HTTP 403; the Decision). The beta is published from
+  a run by hand of the next commit, which carries T-316 as well.
+
+Next: CI green on that commit, the release workflow by hand on it, the local
+checks of its binary, the run that publishes, and the checks of the
+published files.
