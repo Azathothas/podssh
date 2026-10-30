@@ -27,9 +27,15 @@ pub const CONFIG: &[&str] = &[
      each entry of [Passwords] and [Sesspass] is counted. podssh config import remmina FILE reads one \
      profile of Remmina, or each of a directory (~/.local/share/remmina): protocol=SSH makes a block, \
      server gives HostName and Port, name the label and group the folder; each secret, in the keyring or \
-     encrypted, is counted; a placeholder of a template such as %Host% is no host.",
+     encrypted, is counted; a placeholder of a template such as %Host% is no host. podssh config import \
+     mremoteng FILE reads mRemoteNG's connections, confCons.xml or an export of it: Protocol SSH2 makes a \
+     block, each with its folders in a comment; a field that a connection inherits comes from the nearest \
+     folder above it that has its own; SSHTunnelConnectionName gives ProxyJump through that connection; \
+     a PuTTY session other than Default Settings and SSHOptions are comments with no value; each \
+     password is counted, never decrypted; SSH1 is a comment; a file encrypted whole (FullFileEncryption) \
+     is refused by name (exit 65).",
     "A session's label becomes the name of its block, each run of characters that a Host line cannot hold \
      made one -, with the label itself in a comment above it; a session of another protocol gets a \
-     comment and no block. The formats of FinalShell, mRemoteNG and Termius, and Ansible's YAML, are \
-     refused by name (exit 64) until a real export of each is at hand to test against.",
+     comment and no block. The formats of FinalShell and Termius, and Ansible's YAML, are refused by name \
+     (exit 64) until a real export of each is at hand to test against.",
 ];

@@ -1,7 +1,7 @@
 //! `podssh config import FORMAT FILE` (T-047, T-292): the host list of
 //! another tool as `Host` blocks of `ssh_config`, on stdout, with a summary
 //! on stderr: an Ansible inventory, or the saved sessions of PuTTY,
-//! MobaXterm or Remmina. It never writes `~/.ssh/config`; the user adds
+//! MobaXterm, Remmina or mRemoteNG. It never writes `~/.ssh/config`; the user adds
 //! what it printed. A password or a passphrase is never imported and never
 //! printed: it is counted. What has no keyword of `ssh_config` is named in a
 //! comment, never dropped silently.
@@ -13,6 +13,7 @@ use crate::exitmap::sysexits::{EX_DATAERR, EX_NOINPUT};
 
 pub mod ansible;
 mod mobaxterm;
+mod mremoteng;
 mod putty;
 mod remmina;
 mod sessions;
@@ -36,8 +37,8 @@ pub struct ConfigArgs {
 
 /// The formats that need a real export of their program to be tested
 /// against, published under a license that this repository can hold, which
-/// podssh does not have yet (T-292, T-327).
-const NOT_YET: &[&str] = &["finalshell", "mremoteng", "termius", "ansible-yaml"];
+/// podssh does not have yet (T-292, T-328).
+const NOT_YET: &[&str] = &["finalshell", "termius", "ansible-yaml"];
 
 /// The largest file read: far above any host list.
 const MAX_FILE: u64 = 16 << 20;
@@ -69,8 +70,9 @@ fn import(format: &str, file: &str, out: &mut dyn Write, err: &mut dyn Write) ->
         "putty" => (putty::read, "PuTTY"),
         "mobaxterm" => (mobaxterm::read, "MobaXterm"),
         "remmina" => (remmina::read, "Remmina"),
+        "mremoteng" => (mremoteng::read, "mRemoteNG"),
         _ => {
-            let why = format!("import {format}: not a format; give ansible, putty, mobaxterm or remmina");
+            let why = format!("import {format}: not a format; give ansible, putty, mobaxterm, remmina or mremoteng");
             return usage(err, &why);
         }
     };

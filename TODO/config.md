@@ -1,7 +1,7 @@
 This file holds the work on configuration files: OpenSSH's `ssh_config` (`-F`, `Host`,
 `Include`, `Match` and `-G`), host lists from other clients, and a settings file for podssh's
 own options. The rules of OpenSSH that podssh follows were measured with `ssh -G` and are in
-`docs/cli.md:2545-2641`. Since T-043, `podssh ssh` reads `~/.ssh/config` and the file of `-F`.
+`docs/cli.md:2560-2656`. Since T-043, `podssh ssh` reads `~/.ssh/config` and the file of `-F`.
 
 # T-043: Read `ssh_config`: `~/.ssh/config`, `-F FILE`, `Host` patterns, and `Match` refused by name (GitHub #14, #22)
 
@@ -206,7 +206,7 @@ No glob code exists in podssh. `known_hosts::wildcard`
    stands, and `Match final all` applies after the last line and fills only unset values, as
    measured. Each other `Match` stays refused by name until T-045.
 6. Check each included file as T-043 checks the user file: its owner and its mode.
-7. Change `docs/cli.md:2545-2650`, FILES (`crates/podssh-cli/src/man/data.rs:146-283`) and the
+7. Change `docs/cli.md:2560-2665`, FILES (`crates/podssh-cli/src/man/data.rs:146-283`) and the
    `ssh` notes in the same commit.
 
 ## Prove
@@ -618,12 +618,12 @@ output. Planted defect: copy the password field into a comment; the secret test 
 ## Done
 
 2026-10-12. `podssh config import ansible FILE`: the verb at
-`crates/podssh-cli/src/config_import/mod.rs:45-167`, the inventory at
+`crates/podssh-cli/src/config_import/mod.rs:46-169`, the inventory at
 `crates/podssh-cli/src/config_import/ansible.rs:1-270`, the blocks at
-`crates/podssh-cli/src/config_import/mod.rs:279-323`, with the secrets at
-`crates/podssh-cli/src/config_import/mod.rs:169-173` and the options of
+`crates/podssh-cli/src/config_import/mod.rs:281-325`, with the secrets at
+`crates/podssh-cli/src/config_import/mod.rs:171-175` and the options of
 `ansible_ssh_common_args` at
-`crates/podssh-cli/src/config_import/mod.rs:175-228`; the verb in the
+`crates/podssh-cli/src/config_import/mod.rs:177-230`; the verb in the
 tables at `crates/podssh-cli/src/flags.rs:401-402`,
 `crates/podssh-cli/src/positionals.rs:203-208`,
 `crates/podssh-cli/src/tree.rs:355-361` and
@@ -946,7 +946,7 @@ try after the first reaches each hop (`crates/podssh-ssh/src/options.rs:355-363`
 - `scripts/interop.sh:325-335`: `ssh.config.jump_alias`, `-F FILE -J openssh-alias dropbear-alias`
   with podssh and with OpenSSH's `ssh`, each to exit 6 (the floor of ssh is 72). The gate runs it
   at this push.
-- `docs/cli.md:87-93` and `docs/cli.md:2574-2586`, and the manual's file `~/.ssh/config`, say what
+- `docs/cli.md:87-93` and `docs/cli.md:2589-2601`, and the manual's file `~/.ssh/config`, say what
   a hop takes.
 - `cargo test -p podssh-ssh`: 142 passed; `cargo test -p podssh-cli`: 565 passed, 0 failed,
   31 ignored; clippy; rustfmt.
@@ -1299,7 +1299,7 @@ moved to T-328 on 2026-10-30, as they wait for an export.
 **Milestone:** backlog
 **Priority:** P3
 **Effort:** M
-**Status:** open
+**Status:** done
 
 ## Problem
 
@@ -1341,6 +1341,47 @@ cargo test -p podssh-cli --test config_import
 
 The blocks of mRemoteNG's fixtures, and no password on stdout or stderr.
 Planted: a password copied into a comment; the test fails.
+
+## Done
+
+2026-10-30.
+
+- `crates/podssh-cli/src/config_import/mremoteng.rs`: the XML of
+  `confCons.xml` with `roxmltree` 0.21 (`default-features = false`, as
+  T-292's Decision chose; MIT or Apache-2.0): each `Node` of
+  `Type="Connection"` a session in the folders of the `Container` nodes
+  above it; `Protocol="SSH2"` a block, `SSH1`, each other protocol and each
+  other type a comment; each field that a node inherits (`Inherit…`, `True`
+  or `true`) from the nearest folder above it with its own;
+  `SSHTunnelConnectionName` the `ProxyJump` through the connection of that
+  name, its own tunnel first, a tunnel to no SSH connection and a loop as
+  comments; a PuTTY session other than `Default Settings` and `SSHOptions`
+  as comments with no value; each `Password`, `VNCProxyPassword` and
+  `RDGatewayPassword` counted, never decrypted; `FullFileEncryption`
+  refused by name (65). `podssh config import mremoteng FILE`; the manual's
+  note, `docs/cli.md`, `docs/STATUS.md`.
+- The fixtures: mRemoteNG's `confCons_v2_5.xml`, `confCons_v2_6.xml` and
+  `confCons_v2_6_fullencryption.xml` at `25ef453`, with its `COPYING.txt`
+  and a notice of their source and SHA-256
+  (`crates/podssh-cli/tests/fixtures/mremoteng/`), by the ruling of Q46.
+  The real files have no host on any connection; a copy with made-up hosts,
+  a tunnel and a made-up password tests the mapping.
+- `cargo test -p podssh-cli --test config_import`: 12 passed, of them the
+  three of mRemoteNG: each connection of both real files in its folder,
+  their 10 and 15 passwords counted, and no password value of the files
+  printed; the copy's blocks (`Connection1.3`: `HostName web.example`,
+  `Port 2222`, `User userFolder1`, `ProxyJump root@bastion.example`; a user
+  inherited through two folders); the file encrypted whole refused. `cargo
+  test -p podssh-cli --lib`: 413 passed (4 of the reader: inheritance, a
+  chain of tunnels and a loop, SSH1 and another type, the refusals); the
+  manual's tests 28; clippy `-D warnings`: clean. Planted, a password
+  copied into a comment: the copy's test failed ("a secret was printed");
+  it passed again without the plant. A first plant, with the made-up
+  password on an RDP connection, passed: a session of another protocol
+  writes no note, so the test now puts it on the SSH connection.
+- `fuzz/Cargo.lock` gains `roxmltree`, and `h2`, `http` and the crates
+  that T-300's feature `quick` of `podssh-relay` brought to `podssh-cli`,
+  at the versions of `Cargo.lock`.
 
 # T-328: `podssh config import` from FinalShell and Termius
 

@@ -163,11 +163,13 @@ fn stdin_a_bad_line_a_bad_name_and_the_other_formats() {
     let missing = format!("{DIR}/no-such-inventory.ini");
     assert_eq!(podssh(&["config", "import", "ansible", &missing], "").0, Some(66));
     for (words, says) in [
-        (vec!["config", "import", "mremoteng", "x.xml"], "import mremoteng: not yet"),
         (vec!["config", "import", "finalshell", "x.json"], "import finalshell: not yet"),
         (vec!["config", "import", "termius", "x"], "import termius: not yet"),
         (vec!["config", "import", "ansible-yaml", "x.yml"], "import ansible-yaml: not yet"),
-        (vec!["config", "import", "toml", "x"], "import toml: not a format; give ansible, putty, mobaxterm or remmina"),
+        (
+            vec!["config", "import", "toml", "x"],
+            "import toml: not a format; give ansible, putty, mobaxterm, remmina or mremoteng",
+        ),
         (vec!["config", "import", "ansible"], "give the format and the file"),
         (vec!["config", "export"], "export: not a subcommand of config"),
         (vec!["config"], "give a subcommand"),
@@ -330,4 +332,111 @@ fn remmina_the_real_template_and_a_profile_made_from_it() {
     assert!(out.contains("1 of its secrets are in the keyring"), "{out}");
     assert!(err.contains("2 passwords were not imported"), "{err}");
     no_secret(&[&out, &err]);
+}
+
+/// mRemoteNG's own test files (T-327), under the GPL-2.0 by the ruling of
+/// Q46 (`tests/fixtures/mremoteng/NOTICE.md`).
+const MREMOTENG: &str = concat!(env!("CARGO_MANIFEST_DIR"), "/tests/fixtures/mremoteng");
+
+/// `text` with the node named `name`, one line of the file, changed by
+/// each pair of `edits` within that line.
+fn node_edited(text: &str, name: &str, edits: &[(&str, &str)]) -> String {
+    // The node's own start: a tunnel's name holds `Name="..."` too.
+    let marker = format!("<Node Name=\"{name}\" ");
+    let lines: Vec<String> = text
+        .lines()
+        .map(|line| {
+            if !line.contains(&marker) {
+                return line.to_string();
+            }
+            edits.iter().fold(line.to_string(), |line, (from, to)| {
+                assert!(line.contains(from), "{name} has no {from}");
+                line.replacen(from, to, 1)
+            })
+        })
+        .collect();
+    lines.join("\n")
+}
+
+#[test]
+fn mremoteng_each_connection_of_the_real_files_in_its_folder_and_each_password_counted() {
+    for (file, secrets) in [("confCons_v2_6.xml", 10), ("confCons_v2_5.xml", 15)] {
+        let (code, hosts, out, err) = import("mremoteng", &format!("{MREMOTENG}/{file}"));
+        assert_eq!(code, Some(0), "{file}: {err}");
+        assert!(hosts.is_empty(), "{file}: no connection of these files has a host: {out}");
+        assert!(out.contains("# Connection1.3 (in Folder1): no host; no Host block\n"), "{file}: {out}");
+        assert!(
+            out.contains("# Connection2.1.1.1 (in Folder2/Folder2.1/Folder2.1.1): RDP, no SSH; no Host block"),
+            "{out}"
+        );
+        assert!(out.contains("# rootConnection: RDP, no SSH; no Host block"), "{file}: {out}");
+        assert_eq!(out.matches(", no SSH; no Host block").count(), 11, "{file}: {out}");
+        assert!(err.contains(&format!("{secrets} passwords were not imported")), "{file}: {err}");
+        // No password of the file, as it is encrypted there, is printed.
+        let text = String::from_utf8(std::fs::read(format!("{MREMOTENG}/{file}")).unwrap()).unwrap();
+        let blobs: Vec<&str> = text.split(" Password=\"").skip(1).filter_map(|r| r.split('"').next()).collect();
+        assert!(blobs.iter().filter(|b| !b.is_empty()).count() >= 10, "{file}");
+        for blob in blobs.iter().filter(|b| !b.is_empty()) {
+            assert!(!out.contains(blob) && !err.contains(blob), "{file}: a password was printed");
+        }
+    }
+}
+
+/// A copy of the real file with made-up values: hosts on two connections,
+/// one the other's tunnel, a user inherited through two folders, and a
+/// password that is counted and never printed.
+#[test]
+fn mremoteng_a_copy_with_hosts_a_tunnel_and_an_inherited_user() {
+    let text = String::from_utf8(std::fs::read(format!("{MREMOTENG}/confCons_v2_6.xml")).unwrap()).unwrap();
+    let text = node_edited(
+        &text,
+        "Connection1.3",
+        &[
+            ("Hostname=\"\"", "Hostname=\"web.example\" SSHTunnelConnectionName=\"rootConnection\""),
+            ("Port=\"22\"", "Port=\"2222\""),
+        ],
+    );
+    let text = node_edited(
+        &text,
+        "rootConnection",
+        &[
+            ("Hostname=\"\"", "Hostname=\"bastion.example\""),
+            ("Protocol=\"RDP\"", "Protocol=\"SSH2\""),
+            ("Port=\"3389\"", "Port=\"22\""),
+        ],
+    );
+    let text = node_edited(
+        &text,
+        "InheritUsernameConnection",
+        &[
+            ("Hostname=\"\"", "Hostname=\"inherit.example\""),
+            ("Protocol=\"RDP\"", "Protocol=\"SSH2\""),
+            ("Port=\"3389\"", "Port=\"22\""),
+        ],
+    );
+    // On the SSH connection, whose block would hold a note.
+    let text = node_edited(&text, "Connection1.3", &[(" Password=\"", " Password=\"made-up-secret")]);
+    let dir = Scratch::new("mremoteng");
+    let file = dir.join("confCons.xml");
+    std::fs::write(&file, text).unwrap();
+    let (code, hosts, out, err) = import("mremoteng", &file.display().to_string());
+    assert_eq!(code, Some(0), "{err}");
+    let web = &hosts["Connection1.3"];
+    assert_eq!(
+        (web["hostname"].as_str(), web["port"].as_str(), web["user"].as_str(), web["proxyjump"].as_str()),
+        ("web.example", "2222", "userFolder1", "root@bastion.example")
+    );
+    assert_eq!(hosts["rootConnection"]["user"], "root");
+    assert_eq!(hosts["InheritUsernameConnection"]["user"], "userFolder2", "from Folder2, through Folder2.2");
+    assert!(out.contains("# Connection1.3 (in Folder1)\nHost Connection1.3\n"), "{out}");
+    assert!(err.contains("3 hosts from") && err.contains("10 passwords were not imported"), "{err}");
+    no_secret(&[&out, &err]);
+}
+
+#[test]
+fn mremoteng_a_file_encrypted_whole_is_refused_by_name() {
+    let (code, hosts, out, err) = import("mremoteng", &format!("{MREMOTENG}/confCons_v2_6_fullencryption.xml"));
+    assert_eq!(code, Some(65), "{err}");
+    assert!(hosts.is_empty() && out.is_empty(), "{out}");
+    assert!(err.contains("FullFileEncryption") && err.contains("export the connections"), "{err}");
 }

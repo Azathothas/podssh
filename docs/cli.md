@@ -2107,10 +2107,12 @@ that a `Host` line cannot hold (a space, `*`, `?`, `!`, `"` or `#`) is refused b
 name on stderr. A bad line ends the run with its number (65); a file that
 cannot be read gives 66.
 
-`podssh config import putty`, `mobaxterm` and `remmina` (T-292) read the
-saved sessions of those programs, and are tested on exports that each
-program wrote and that were published under a license that this repository
-can hold (`tests/fixtures/sessions/THIRD-PARTY.md`), kept byte for byte:
+`podssh config import putty`, `mobaxterm` and `remmina` (T-292), and
+`mremoteng` (T-327), read the saved sessions of those programs, and are
+tested on exports that each program wrote and that were published under a
+license that this repository can hold (`tests/fixtures/sessions/THIRD-PARTY.md`;
+mRemoteNG's own test files under the GPL-2.0 by the ruling of Q46,
+`tests/fixtures/mremoteng/NOTICE.md`), kept byte for byte:
 
 - **PuTTY**: a `.reg` file of `Software\SimonTatham\PuTTY\Sessions`, as
   `regedit` and `reg export` write it (UTF-16LE with its mark, UTF-8, or the
@@ -2133,14 +2135,27 @@ can hold (`tests/fixtures/sessions/THIRD-PARTY.md`), kept byte for byte:
   gives `HostName` and `Port`; `name` is the label and `group` the folder.
   Each secret, `.` for the keyring or an encrypted blob, is counted; a value
   of a template such as `%Host%` is no host.
+- **mRemoteNG**: `confCons.xml`, or an export of it. Each `Node` of
+  `Type="Connection"` is a session in the folders (`Type="Container"`)
+  above it; `Protocol="SSH2"` makes a block, `SSH1` and each other protocol
+  a comment. A field that a node inherits (`InheritUsername`, `InheritPort`
+  and the others, `True` or `true`) comes from the nearest folder above it
+  that has its own, as mRemoteNG takes it. `SSHTunnelConnectionName` gives
+  `ProxyJump` through the connection of that name, its own tunnel first; a
+  tunnel that is no SSH connection of the file, or a loop, is a comment.
+  A PuTTY session other than `Default Settings`, and `SSHOptions`, are
+  comments with no value. Each password (`Password`, `VNCProxyPassword`,
+  `RDGatewayPassword`), encrypted with the user's master password, is
+  counted, never decrypted. A file encrypted whole (`FullFileEncryption`)
+  is refused by name (65): in mRemoteNG, turn that off and save, or export
+  the connections, and import that file.
 
 A session's label becomes the name of its block, each run of characters
 that a `Host` line cannot hold made one `-`, with the label itself in a
-comment above it, and a second label of the same name gets `-2`. FinalShell,
-mRemoteNG and Termius, and Ansible's YAML, are refused by name (64) until a
-real export of each, under such a license, is at hand to test against
-(T-327): FinalShell and Termius have no export, and the files of mRemoteNG
-that were found are under the GPL or under no license.
+comment above it, and a second label of the same name gets `-2`. FinalShell
+and Termius, and Ansible's YAML, are refused by name (64) until a real export
+of each, under such a license, is at hand to test against (T-328):
+FinalShell and Termius have no export.
 
 ## `podssh mcp`
 

@@ -78,6 +78,10 @@ podssh-terminal = { path = "../podssh-terminal" }
 # session's output. The model of the terminal oracle (T-200), pure Rust over
 # vte, with no build script that compiles C; the lock has it already.
 vt100 = { workspace = true }
+# `podssh config import mremoteng` (T-327): the XML of mRemoteNG's
+# connections, as a read-only tree; pure Rust, whose one dependency
+# (memchr) the lock has already (T-292's Decision).
+roxmltree = { version = "0.21", default-features = false }
 
 # MEASURED 2026-10-02, this machine (Git Bash on Windows) and in
 # `rust:1-alpine` via `sh scripts/dev.sh run`:
