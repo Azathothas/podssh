@@ -73,7 +73,9 @@ repository = "https://github.com/Azathothas/podssh"
 # decision 2026-10-08), and the opt-in `ts` feature links the vendored
 # tailscale-rs fork, which also needs cc and cmake.
 [workspace.dependencies]
-tokio = { version = "1", default-features = false, features = [
+# 1.53.3 at least: AsyncFd::new and try_new are unsound before it
+# (RUSTSEC-2026-0386), and podssh registers with AsyncFd::register (T-312).
+tokio = { version = "1.53.3", default-features = false, features = [
   "rt", "rt-multi-thread", "net", "io-util", "io-std", "time", "sync", "macros",
 ] }
 

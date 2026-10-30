@@ -14,8 +14,9 @@ These commands work: `podssh ssh`, `podssh each`, `podssh containers`,
 `podssh proxy`, `podssh pipe`, `podssh cp`, `podssh mv`, `podssh scp`,
 `podssh sftp` and `podssh edit` (files), `podssh doctor`, `podssh keygen`,
 `podssh agent`, `podssh man`, `podssh status`, `podssh ping`,
-`podssh health`, `podssh node`, `podssh operator`, `podssh relay` and
-`podssh chat`. `podssh ts` and the iroh road refuse with exit code 70 in a
+`podssh health`, `podssh node`, `podssh operator`, `podssh relay`,
+`podssh chat`, `podssh play` (recordings), `podssh config` (settings) and
+`podssh mcp`. `podssh ts` and the iroh road refuse with exit code 70 in a
 build without their features.
 
 ## 2. How a session works
@@ -32,9 +33,9 @@ interrupts you, or when the goal is reached.
 **The goal.** Each entry of `TODO/` is done, except the entries that wait
 for the relay's operator and the entries that the operator holds
 (`TODO/PROGRESS.md`). Each test passes, and the gate is green in CI.
-`v1.0.0`, the first stable release, is published and verified from end to
-end (T-250, T-251). It is the one release: no beta, and no release between
-entries.
+Betas `v1.0.0-beta.N` reach the testers on the way (T-309), and `v1.0.0`,
+the first stable release, is published and verified from end to end at the
+end (T-250, T-251).
 
 ### At the start of a session
 
@@ -108,6 +109,10 @@ the next entries.
   `TODO/PROGRESS.md`: each draft that waits, its branch, its commit and its
   state. Update it when a draft is merged or made, and remove the worktree
   and its branch once each of its drafts is merged.
+- **A draft lives on one machine** until its branch is on GitHub. Before a
+  session ends, push each draft branch as `draft/<branch>` (never to
+  `main`): on 2026-10-30 a cloud session could not see the drafts of the
+  operator's machine.
 - **An agent that stops** (a session limit, a crash): commit what it left
   on its branch as "WIP T-NNN: ...", write its state in the table, and
   later resume it, or start a new agent on that branch.
@@ -131,16 +136,19 @@ the next entries.
 
 ### Releases
 
-- One release only, at the end: `v1.0.0`, when each other entry is done,
-  except the relay's (T-250). Make no release before it: a release run
-  takes CI from the work.
-- Check it from end to end with no human (T-251): before the tag, on the
-  gate's artifact of the last push and a local build; then tag `v1.0.0`
-  once; then check the published files. A defect found after the tag goes
-  into `v1.0.1`.
-- Run the release workflow only in M9: once by hand before the tag, and once
-  for the tag. An entry before M9 leaves its check of that workflow to the
-  run by hand.
+- Betas `v1.0.0-beta.N` (the operator, 2026-10-30; T-309): a prerelease
+  from `main` when the gate passed on its commit, the release workflow
+  passed by hand on it, and the local checks of its binary passed. The next
+  beta follows a batch of repairs that the testers should test again, at
+  most one a day. A tag never moves: a defect found in a beta goes into the
+  next one.
+- `v1.0.0`, the final release, when each other entry is done, except the
+  relay's (T-250). Check it from end to end with no human (T-251): before
+  the tag, on the gate's artifact of the last push and a local build; then
+  tag `v1.0.0` once; then check the published files. A defect found after
+  the tag goes into `v1.0.1`.
+- Run the release workflow by hand on the commit before each tag, and once
+  for the tag.
 - [docs/development.md](docs/development.md) (section "Release builds")
   tells how to build and publish.
 
@@ -156,6 +164,7 @@ current.
 | --- | --- |
 | Look up a command, flag, `-o` keyword, variable, file or exit code | `podssh man` (in the repository: `cargo run -q -p podssh-cli -- man --no-pager`) |
 | Build, test, or run the gate | [docs/development.md](docs/development.md) |
+| Make a Linux host or a cloud session ready (Docker, Podman, the servers and tools of the tests) | `sh scripts/cloud-setup.sh`; [docs/development.md](docs/development.md) (section "A Linux host, or a cloud session") |
 | Measure podssh in a sandbox, or in a box like one | [docs/development.md](docs/development.md) (section "A box like the target sandbox"), [docs/target-environment.md](docs/target-environment.md) |
 | Make a release | [docs/development.md](docs/development.md) (section "Release builds"), [docs/releases/](docs/releases/), T-250 and T-251 (`v1.0.0`) |
 | Change the command line, `doctor`, `keygen` or the manual | [docs/cli.md](docs/cli.md) (section "The manual"), `crates/podssh-cli/src/flags.rs`, `crates/podssh-cli/src/man/` |
@@ -178,7 +187,9 @@ current.
 CAUTION: Builds can use all the memory of this machine. On 2026-10-07, three
 builds at the same time almost stopped it.
 
-1. Set `CARGO_BUILD_JOBS=4` before each cargo command.
+1. Set `CARGO_BUILD_JOBS=4` before each cargo command. In a cloud session,
+   `.claude/settings.json` sets it, and `sh scripts/cloud-setup.sh` makes
+   the container ready first.
 2. Run one build at a time. Do not start a container build while another
    build runs. This holds for subagents too: at most one of them builds at a
    time.
@@ -213,7 +224,9 @@ relay, railway.new, GitHub's SSH endpoint, the two tailnet hosts of
 n0's public iroh relays and the operator's SSH host of
 `PODSSH_THROUGHPUT_SSH`, for the throughput run; and the IRC networks
 undernet, libera and OFTC, with short runs and a throwaway nick and
-channel. Use throwaway keys, and
+channel. Since 2026-10-30: the session's own host, as a restricted host to
+measure podssh in (a cloud container behind its own proxy, T-311), and
+GitHub Actions for a live test that this host cannot run. Use throwaway keys, and
 delete them after the test. Keep keys and scratch files in `.work/`, which
 git ignores, or outside the repository. Never print the claim URL of
 railway.new.
@@ -268,7 +281,8 @@ These rules come from [docs/decisions.md](docs/decisions.md).
    measured it. Close the entry in place: write its `## Done`, then run
    `cargo todo set T-NNN done`, which also updates the counts.
 7. Commit on `main`. Attribute the commit to the operator only. Do not add
-   co-author lines.
+   co-author lines. A cloud session uses no `claude/*` branch; its
+   repository's git identity is the operator's (`scripts/cloud-setup.sh`).
 8. Push work that the native tests verified. Do not rewrite published
    history. CI runs the gate on each push; a failed run may wait for T-251.
 9. Do not change the line endings of a file that you do not otherwise
@@ -295,7 +309,7 @@ These rules come from [docs/decisions.md](docs/decisions.md).
 | `crates/podssh-todo` | The checker of the work record: `cargo todo check` (the gate runs it), `cargo todo set`, `counts`, `next`; `cargo todo interop`, the ids of the interop harnesses and a run's logs against `scripts/interop-baseline.txt` |
 | `vendor/tailscale-rs` | A fork with local patches (`vendor/patches/`). It is outside the workspace and the 500-line rule. |
 | `vendor/russh` | russh 0.64.1 with one patch (`vendor/patches/russh/`, T-279), in the place of the release through `[patch.crates-io]`. It is outside the workspace and the 500-line rule. |
-| `scripts/dev.sh` (with `scripts/dev-wsl.sh`), `scripts/gate.sh` | Container runs, and the build gate that CI also runs |
+| `scripts/dev.sh` (with `scripts/dev-wsl.sh` on Windows, `scripts/dev-native.sh` on Linux), `scripts/cloud-setup.sh`, `scripts/gate.sh` | Container runs, a Linux host or a cloud session made ready, and the build gate that CI also runs |
 | `scripts/interop*.sh`, `scripts/interop-pty.py`, `scripts/interop-conpty.py` | Tests against OpenSSH and Dropbear, faults, groff and mandoc (`interop-man.sh`), and terminals on Linux and Windows |
 | `scripts/test_in_box.sh`, `scripts/box/`, `scripts/sandbox-check.sh` | The Podman box like the target sandbox, and the measurement for a sandbox |
 | `scripts/check-*.py`, `scripts/plant.sh` | Repository checks, and the planted-defect check of the gate |

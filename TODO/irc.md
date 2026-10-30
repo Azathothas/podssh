@@ -3,7 +3,7 @@ to I8 of the former defects page (`git show 3ee70dc:docs/defects.md`), and the r
 decides how `podssh chat` works (T-099). No command uses the client, and `podssh chat` exits 70.
 The client is sans-IO, so its unit tests need no network. The live probe
 `crates/podssh-cli/examples/live_irc.rs` reaches real servers through the relay, with a token from
-the environment, the cache or a mint, never printed (`docs/development.md:542-549`). Each defect was read
+the environment, the cache or a mint, never printed (`docs/development.md:598-605`). Each defect was read
 again on `3ee70dc`.
 
 # T-091: I1: `CAP END` is sent only after 001
@@ -49,7 +49,7 @@ used `--no-cap` (`crates/podssh-cli/examples/live_irc.rs:72-74`). The claim is n
 4. Correct the comments at `crates/podssh-core/src/irc/cap.rs`, lines 9-28 at `9460b4e` and
    `crates/podssh-core/src/irc/session.rs`, lines 22-24 at `9460b4e`, and remove the test at
    `crates/podssh-core/tests/session.rs`, lines 200-223 at `9460b4e`. Record the new network results in
-   `docs/irc.md:99-121`, and update `docs/STATUS.md:525`, in the same commit.
+   `docs/irc.md:99-121`, and update `docs/STATUS.md:548`, in the same commit.
 
 ## Prove
 
@@ -162,7 +162,7 @@ cargo test -p podssh-core --no-fail-fast
 The new file crates/podssh-core/tests/cap_list.rs holds `only_listed_capabilities_are_requested`,
 `a_value_is_never_sent_back`, `a_list_on_several_lines_gives_one_request` and
 `the_continuation_marker_is_not_a_capability`. Its input is a `CAP LS 302` reply captured from a
-real server, kept byte for byte with the server, version and date (`docs/development.md:555-556`).
+real server, kept byte for byte with the server, version and date (`docs/development.md:611-612`).
 Plant: remove the list filter; the first test must fail with `sasl=PLAIN` in the `REQ`. Then repeat
 the live runs of T-091; the probe prints the offered and enabled capabilities.
 
@@ -256,7 +256,7 @@ covers it.
 3. Refuse a transfer name or reason with `|`, CR, LF or NUL. On receive, give the caller a base
    name only (`crates/podssh-core/src/irc/transfer/recv.rs`, lines 89-91 at `c3eb09d`).
 4. Update the callers (`crates/podssh-cli/examples/live_irc/support.rs:197-205`) and
-   `docs/STATUS.md:525` in the same commit.
+   `docs/STATUS.md:548` in the same commit.
 
 ## Decision
 
@@ -361,7 +361,7 @@ measured here.
 3. `CAP`: when the second parameter is a verb, the first is the target, `*` or a nick.
 4. Capture these forms from real servers into the fixture, with the server, version and date. Add
    the capture option to `crates/podssh-cli/examples/live_irc/support.rs`, because the probe's main
-   file has 473 lines. Update `docs/STATUS.md:525`. T-198 fuzzes this parser later.
+   file has 473 lines. Update `docs/STATUS.md:548`. T-198 fuzzes this parser later.
 
 ## Decision
 
@@ -587,7 +587,7 @@ network that took the relay is undernet (`docs/irc.md:108`); its use of Latin-1 
 4. In `Session::on_bytes`, turn each line error into `Event::Protocol`, and go on
    (`crates/podssh-core/src/irc/session.rs`, lines 265-280 at `016baab`).
 5. Correct the comments at `crates/podssh-core/src/irc/framing.rs`, lines 28-33 at `016baab` (the quote is about case
-   mapping) and `crates/podssh-core/src/irc/framing.rs`, lines 121-126 at `016baab`. Update `docs/STATUS.md:525`.
+   mapping) and `crates/podssh-core/src/irc/framing.rs`, lines 121-126 at `016baab`. Update `docs/STATUS.md:548`.
 
 ## Decision
 
@@ -683,7 +683,7 @@ whole file in memory, for any total that the offer gives (`crates/podssh-core/sr
 2. `ack(target)`: name the chunk just accepted, by count, and send it to the transfer's target.
 3. In `accept`, check the index before the bytes go into the file.
 4. Limit the receiver's memory: a size limit from the caller, or a sink that the caller owns. A
-   file is taken only when the user accepts it (`docs/decisions.md:44`).
+   file is taken only when the user accepts it (`docs/decisions.md:45`).
 5. Update `docs/irc.md`, lines 31-37 at `ab7292d` and `docs/STATUS.md`, line 308 at `ab7292d` in the same commit.
 
 ## Decision
@@ -773,7 +773,7 @@ empty frames every 25 s (`docs/relay.md:107-108`, `docs/relay.md:160`). An IRC `
 are bytes of the stream, so they are payload.
 
 Measured on SSH, not on IRC: payload keepalives every 60 s kept a relay session for 602 s; with
-none, the relay cut it after 184 s (`docs/STATUS.md:193-194`).
+none, the relay cut it after 184 s (`docs/STATUS.md:199-200`).
 
 ## Approach
 
@@ -787,7 +787,7 @@ none, the relay cut it after 184 s (`docs/STATUS.md:193-194`).
 4. Rewrite the test at `crates/podssh-core/tests/session.rs`, lines 319-338 at `94f6243`. Correct the comments at
    `crates/podssh-core/src/irc/reap.rs`, lines 5-29 at `94f6243` and the test name at
    `crates/podssh-core/tests/transfer.rs`, lines 382-407 at `94f6243`.
-5. Update `docs/STATUS.md:525` in the same commit.
+5. Update `docs/STATUS.md:548` in the same commit.
 
 Pitfall: a server can limit the rate of `PING` lines. One `PING` in 60 s is far below the usual
 limits (not measured).
@@ -833,7 +833,7 @@ trailing; the three lines are in the fixture of the grammar.
 **Source:** `docs/ROADMAP.md:244-246`; the operator's ruling of 2026-10-08 on
 chat (`docs/decisions.md`): the roads first, after M6, and IRC as a second
 transport (T-252); the decision of 2026-10-01 that two users on constrained
-hosts chat and share files (`docs/decisions.md:47`).
+hosts chat and share files (`docs/decisions.md:48`).
 **Category:** feature
 **Milestone:** M8
 **Priority:** P2
@@ -852,7 +852,7 @@ the IRC server read, and most public networks refused the relay
 Measured on `3ee70dc`: `podssh chat --timeout 5s </dev/null`, and the same
 with `podssh irc`, exit 70 with "'chat' is not implemented yet; nothing was
 done." Read: podssh executes nothing that it receives and takes no file on
-its own (`docs/decisions.md:44`). The roads exist after M6: the reverse road
+its own (`docs/decisions.md:45`). The roads exist after M6: the reverse road
 (T-078, T-083, T-084), the iroh road (T-162), and end-to-end encryption
 between two podssh ends (T-088). No flag of `chat` names a peer or a server
 today (`crates/podssh-cli/src/flags.rs`, lines 265-277 at `7aa955a`,

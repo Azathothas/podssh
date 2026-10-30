@@ -27,11 +27,7 @@ fn through_a_node(tag: &str, extra: &[&str]) -> Option<(i32, String, String, Str
     let at = |flag: &str| cell.args.iter().position(|a| a == flag).map(|i| cell.args[i + 1].clone()).unwrap();
     let (relay, ca) = (at("--relay-host"), at("--ca-file"));
     let pins = ["--relay-addr".to_string(), "relay-a.test=127.0.0.1".to_string()];
-    let command = |args: &[String]| {
-        let mut cmd = session.command(args);
-        cmd.env("SSL_CERT_FILE", &ca);
-        cmd
-    };
+    let command = |args: &[String]| session.stand_in(args, &ca);
     let mut args = vec!["relay".to_string(), "pair".into(), "lab".into(), "--relay-host".into(), relay];
     args.extend(pins.iter().cloned());
     let out = command(&args).stdin(Stdio::null()).output().unwrap();

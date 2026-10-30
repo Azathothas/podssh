@@ -24,7 +24,7 @@ use std::time::{Duration, Instant};
 use pair_harness::{no_token, CONNECT, NAME, NODE, STOP};
 use podssh_relay::pair;
 use podssh_relay::relay::Relay;
-use throughput_harness::{lines_of, wait_for, Cell, Session};
+use throughput_harness::{lines_of, wait_for, without_proxy, Cell, Session};
 
 /// The name of the counting relay, pinned to the loopback.
 const RELAY: &str = "relay-roost.test";
@@ -97,10 +97,8 @@ fn spawn_roost(s: &Session, words: &[String]) -> Child {
     let mut args = vec!["node".to_string(), "lab".into()];
     args.extend(words.iter().cloned());
     args.extend(["--sshd".to_string(), "--relay-addr".into(), format!("{RELAY}=127.0.0.1")]);
-    let mut cmd = s.command(&args);
-    for name in ["https_proxy", "HTTPS_PROXY", "all_proxy", "ALL_PROXY", "PODSSH_RELAY_ADDR"] {
-        cmd.env_remove(name);
-    }
+    let mut cmd = without_proxy(s.command(&args));
+    cmd.env_remove("PODSSH_RELAY_ADDR");
     cmd.stdin(Stdio::null()).stdout(Stdio::piped()).stderr(Stdio::piped()).spawn().expect("podssh runs")
 }
 
@@ -225,8 +223,8 @@ fn through_the_stand_in(
     let command = move |args: &[String]| {
         // The pins go before a command's words, as `ssh` takes each word
         // after its destination for the remote command.
-        let mut cmd = s.command(&args[..1]);
-        cmd.env("SSL_CERT_FILE", &ca).args(["--relay-addr", "relay-a.test=127.0.0.1"]).args(&args[1..]);
+        let mut cmd = s.stand_in(&args[..1], &ca);
+        cmd.args(["--relay-addr", "relay-a.test=127.0.0.1"]).args(&args[1..]);
         cmd
     };
     let words = ["relay", "pair", "lab", "--relay-host", relay.as_str()].map(String::from);

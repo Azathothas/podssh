@@ -28,6 +28,8 @@ use std::time::{Duration, Instant};
 
 use keep_harness::{Plant, Shells};
 use podssh_ssh::keep::SHELL_ID;
+#[cfg(windows)]
+use throughput_harness::PROXY_VARS;
 use throughput_harness::{lines_of, wait_for, Cell, Session};
 
 /// How long each step may take.
@@ -88,11 +90,11 @@ impl Stand {
         Some(stand)
     }
 
-    /// `podssh ARGS` with the scratch HOME and the stand-in relay's trust,
-    /// and in no kept shell.
+    /// `podssh ARGS` with the scratch HOME, the stand-in relay's trust and
+    /// no proxy of the machine, and in no kept shell.
     fn command(&self, args: &[String]) -> Command {
-        let mut cmd = self.session.command(args);
-        cmd.env("SSL_CERT_FILE", &self.ca).env_remove(SHELL_ID);
+        let mut cmd = self.session.stand_in(args, &self.ca);
+        cmd.env_remove(SHELL_ID);
         cmd
     }
 
@@ -229,7 +231,7 @@ impl Stand {
             line.iter().map(|w| if w.contains(' ') { format!("\"{w}\"") } else { w.clone() }).collect();
         let home = self.session.home.display().to_string();
         let cache = self.session.home.join("cache").display().to_string();
-        let changes = [
+        let mut changes = vec![
             ("PODSSH_SSH_CONFIG", Some("none")),
             ("HOME", Some(home.as_str())),
             ("USERPROFILE", Some(home.as_str())),
@@ -242,6 +244,8 @@ impl Stand {
             ("SSH_AUTH_SOCK", None),
             (SHELL_ID, None),
         ];
+        // No proxy of the machine: the stand-in relay is on the loopback.
+        changes.extend(PROXY_VARS.iter().map(|&name| (name, None)));
         conpty_harness::Console::start(&quoted.join(" "), &changes, ROWS as i16, COLS as i16)
     }
 

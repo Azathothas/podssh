@@ -88,9 +88,7 @@ fn udp_node(session: &Session) -> Option<(Vec<String>, String)> {
 }
 
 fn command(session: &Session, ca: &str, args: &[String]) -> Command {
-    let mut cmd = session.command(args);
-    cmd.env("SSL_CERT_FILE", ca);
-    cmd
+    session.stand_in(args, ca)
 }
 
 /// The exit code of `child` within the limit, and its stderr; a child past

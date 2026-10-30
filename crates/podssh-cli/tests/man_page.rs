@@ -8,6 +8,11 @@
 //! does not.
 
 use std::process::{Command, Stdio};
+use std::time::{Duration, Instant};
+
+/// The limit of one run of a renderer: a whole page takes about a second,
+/// and a renderer that waits must fail the test, not hold it.
+const RENDER_LIMIT: Duration = Duration::from_secs(120);
 
 /// Run the real podssh with `args`, stdin from nothing, and the environment
 /// cleared and then set to `env`, or inherited when `env` is `None`.
@@ -180,8 +185,12 @@ fn a_real_renderer_shows_each_flag_name() {
 
 /// `program args` with `input` on stdin, as plain text: overstrikes and
 /// escape sequences removed. `None` when the program does not run.
+///
+/// The page goes in from a thread of its own while the output is read: it is
+/// larger than a pipe's buffer, and groff writes as it reads, so a test that
+/// wrote it all first would wait for groff while groff waited for the test.
 fn render(program: &str, args: &[&str], input: &str) -> Option<String> {
-    use std::io::Write;
+    use std::io::{Read, Write};
     let mut child = Command::new(program)
         .args(args)
         .stdin(Stdio::piped())
@@ -189,12 +198,39 @@ fn render(program: &str, args: &[&str], input: &str) -> Option<String> {
         .stderr(Stdio::piped())
         .spawn()
         .ok()?;
-    child.stdin.take()?.write_all(input.as_bytes()).ok()?;
-    let out = child.wait_with_output().ok()?;
-    if !out.status.success() {
-        panic!("{program} failed: {}", String::from_utf8_lossy(&out.stderr));
+    let (mut stdin, mut stdout, mut stderr) = (child.stdin.take()?, child.stdout.take()?, child.stderr.take()?);
+    let page = input.to_owned();
+    let writer = std::thread::spawn(move || stdin.write_all(page.as_bytes()));
+    let reader = std::thread::spawn(move || {
+        let mut bytes = Vec::new();
+        stdout.read_to_end(&mut bytes).map(|_| bytes)
+    });
+    let errors = std::thread::spawn(move || {
+        let mut bytes = Vec::new();
+        let _ = stderr.read_to_end(&mut bytes);
+        bytes
+    });
+    let deadline = Instant::now() + RENDER_LIMIT;
+    let status = loop {
+        if let Some(status) = child.try_wait().expect("the status of the renderer") {
+            break status;
+        }
+        if Instant::now() > deadline {
+            let _ = child.kill();
+            let _ = child.wait();
+            panic!("{program} did not finish within {} s", RENDER_LIMIT.as_secs());
+        }
+        std::thread::sleep(Duration::from_millis(20));
+    };
+    let errors = errors.join().expect("the reader of stderr");
+    if !status.success() {
+        panic!("{program} failed: {}", String::from_utf8_lossy(&errors));
     }
-    let raw = String::from_utf8_lossy(&out.stdout);
+    if let Err(e) = writer.join().expect("the writer of the page") {
+        panic!("{program}: the page could not be written to its stdin: {e}");
+    }
+    let output = reader.join().expect("the reader of stdout").expect("the output of the renderer");
+    let raw = String::from_utf8_lossy(&output);
     let mut text = String::new();
     let mut chars = raw.chars().peekable();
     while let Some(c) = chars.next() {

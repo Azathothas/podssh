@@ -118,7 +118,7 @@ fn the_session_moves_to_the_temporary_node_and_no_argv_holds_a_token() {
     args.extend(["--direct".to_string(), "-p".into(), port.to_string(), "--upgrade".into(), "-v".into()]);
     args.extend(s.common());
     args.extend(["tester@127.0.0.1".to_string(), "greet".into()]);
-    let out = s.command(&args).env("SSL_CERT_FILE", &ca).stdin(Stdio::null()).output().unwrap();
+    let out = s.stand_in(&args, &ca).stdin(Stdio::null()).output().unwrap();
     let (stdout, err) = (String::from_utf8_lossy(&out.stdout), String::from_utf8_lossy(&out.stderr));
     assert_eq!(out.status.code(), Some(0), "{err}");
     assert_eq!(stdout, ssh_harness::GREETING, "{err}");

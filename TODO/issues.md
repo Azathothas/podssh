@@ -118,6 +118,14 @@ corrects a claim that the code does not support.
 | #35 | Signed pairing grants that are used once | open | T-226 (it waits for the relay's operator) |
 | #36 | `--direct` has no limit on a stuck write | closed (`f502fba`, 2026-10-11) | T-227 |
 
+## Requests after the triage (#51 on)
+
+#37 to #50 are pull requests.
+
+| Issue | Subject | State | Entries |
+| --- | --- | --- | --- |
+| #51 | An HTTP/2 road over extended CONNECT (RFC 8441) | open | T-321 (it waits for the relay's operator: the relay's edge chose `h2` and did not offer extended CONNECT, measured on 2026-10-30) |
+
 ## The reports on other projects (in #18 to #25, and in #29 to #36)
 
 | Report | Entries |

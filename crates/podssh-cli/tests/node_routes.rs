@@ -56,8 +56,8 @@ fn routes_reach_their_own_target_as_the_allowlist_grants() {
     // The pins go before a command's words, as `ssh` takes each word after
     // its destination for the remote command.
     let command = |args: &[String]| {
-        let mut cmd = session.command(&args[..1]);
-        cmd.env("SSL_CERT_FILE", &ca).args(&pins).args(&args[1..]);
+        let mut cmd = session.stand_in(&args[..1], &ca);
+        cmd.args(&pins).args(&args[1..]);
         cmd
     };
     let words = |list: &[&str]| list.iter().map(|w| w.to_string()).collect::<Vec<_>>();

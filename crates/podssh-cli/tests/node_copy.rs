@@ -85,8 +85,8 @@ fn a_node_operand_names_its_pair_and_a_port_with_a_node_is_refused() {
 /// `podssh ARGS` in the session's home, with the stand-in's CA and its
 /// address: the code, stdout and stderr, within [`RUN_LIMIT`].
 fn ran(session: &Session, ca: &str, args: &[String]) -> (i32, String, String) {
-    let mut cmd = session.command(&args[..1]);
-    cmd.env("SSL_CERT_FILE", ca).args(PINS).args(&args[1..]).current_dir(&session.home);
+    let mut cmd = session.stand_in(&args[..1], ca);
+    cmd.args(PINS).args(&args[1..]).current_dir(&session.home);
     let mut child = cmd.stdin(Stdio::null()).stdout(Stdio::piped()).stderr(Stdio::piped()).spawn().unwrap();
     let read = |mut from: Box<dyn Read + Send>| {
         std::thread::spawn(move || {
@@ -153,8 +153,8 @@ fn copies_reach_a_node_and_its_route_through_the_stand_in_relay() {
     let second_port = second_server(&session, &second);
     let target = format!("127.0.0.1:{}", session.port);
     let route = format!("other=127.0.0.1:{second_port}");
-    let mut node = session.command(&words(&["node"]));
-    node.env("SSL_CERT_FILE", &ca).args(PINS).args(["lab", target.as_str(), route.as_str()]);
+    let mut node = session.stand_in(&words(&["node"]), &ca);
+    node.args(PINS).args(["lab", target.as_str(), route.as_str()]);
     let mut node = node.stdin(Stdio::null()).stderr(Stdio::piped()).spawn().unwrap();
     let lines = lines_of(&mut node);
     session.keep(node);

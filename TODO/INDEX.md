@@ -57,19 +57,19 @@ repository and CI).
 6. An entry that waits for a measurement in a real sandbox is done in one
    session with the other entries of that kind.
 7. The entries that wait for the relay's operator are skipped: T-086,
-   T-106, T-169, T-173, T-180, T-226, T-253 and T-255.
+   T-106, T-169, T-173, T-180, T-226, T-253, T-255 and T-321.
 
 ## Counts
 
-**304 entries: 30 open, 0 partial, 25 blocked, 249 done.**
+**317 entries: 36 open, 1 partial, 25 blocked, 255 done.**
 
 | Priority | open | partial | blocked | done | total |
 | --- | --- | --- | --- | --- | --- |
 | P0 | 0 | 0 | 0 | 1 | 1 |
-| P1 | 2 | 0 | 0 | 22 | 24 |
-| P2 | 4 | 0 | 18 | 136 | 158 |
-| P3 | 24 | 0 | 7 | 90 | 121 |
-| **All** | 30 | 0 | 25 | 249 | 304 |
+| P1 | 2 | 1 | 0 | 23 | 26 |
+| P2 | 6 | 0 | 19 | 140 | 165 |
+| P3 | 28 | 0 | 6 | 91 | 125 |
+| **All** | 36 | 1 | 25 | 255 | 317 |
 
 ## Entries
 
@@ -363,14 +363,14 @@ repository and CI).
 | [T-289](cli.md) | P3 | M | backlog | feature | done | `podssh keygen -Y` with certificates: a signature made with a certificate, and `cert-authority` lines |
 | [T-290](config.md) | P2 | M | none | defect | done | A `-J` hop takes the `ssh_config` block of its own name, as OpenSSH's jump host does |
 | [T-291](forwarding.md) | P3 | M | backlog | feature | done | The escape `~C`: add and stop the forwards of a running session |
-| [T-292](config.md) | P3 | M | backlog | feature | blocked | `podssh config import` from PuTTY, MobaXterm, Remmina, FinalShell, mRemoteNG and Termius |
+| [T-292](config.md) | P3 | M | backlog | feature | open | `podssh config import` from PuTTY, MobaXterm, Remmina, FinalShell, mRemoteNG and Termius |
 | [T-293](terminal.md) | P3 | M | backlog | feature | done | Ctrl-C with no remote pty sends `signal INT` to the command |
 | [T-294](terminal.md) | P1 | S | none | defect | done | Output that is not UTF-8 stops the session's output in a Windows console |
 | [T-295](terminal.md) | P2 | S | none | defect | done | Ctrl-Break leaves the Windows console raw |
 | [T-296](copy.md) | P3 | M | backlog | feature | done | `cp`, `scp` and `sftp` to a node |
 | [T-297](copy.md) | P3 | M | backlog | feature | done | `cp --parallel K` copies several small files at once |
 | [T-298](copy.md) | P3 | S | backlog | feature | done | `sftp`'s `-r`: `get -r` and `put -r` of a directory |
-| [T-299](roads.md) | P3 | S | backlog | measurement | blocked | The quick tunnel's edge, measured: its ports through a proxy and the relay, and a captured registration |
+| [T-299](roads.md) | P3 | S | backlog | measurement | open | The quick tunnel's edge, measured: its ports through a proxy and the relay, and a captured registration |
 | [T-300](roads.md) | P3 | L | backlog | feature | open | `podssh node` publishes a quick tunnel over HTTP/2, with no `cloudflared` |
 | [T-301](roads.md) | P3 | M | backlog | feature | open | The quick tunnel over QUIC, where a probe finds UDP |
 | [T-302](resume.md) | P3 | M | backlog | feature | open | A notice in the terminal while the far end is silent |
@@ -379,3 +379,16 @@ repository and CI).
 | [T-305](resume.md) | P3 | M | backlog | feature | open | Roam at once: a new link beside a silent one |
 | [T-306](resume.md) | P3 | S | backlog | feature | open | A resume deadline that the user sets, for a host that sleeps |
 | [T-308](repo.md) | P3 | S | none | defect | open | Dependabot's updates of the images fail: GitHub refuses each pull request it makes |
+| [T-309](release.md) | P1 | M | none | release | partial | Publish the rolling betas `v1.0.0-beta.N` |
+| [T-310](repo.md) | P2 | M | none | chore | done | The gate on a Linux host with no wsl-toolkit, and a cloud session made ready |
+| [T-311](ws.md) | P2 | S | none | measurement | done | podssh in a Claude Code cloud container: an agent proxy, and an egress that intercepts TLS |
+| [T-312](repo.md) | P1 | S | none | defect | done | The job `deny` fails from 2026-10-15: advisories against rustls, rustls-webpki, webpki-roots, tokio, crypto-bigint and ctutils |
+| [T-313](robustness.md) | P2 | S | none | defect | done | The tests of the stand-in relay take the machine's proxy |
+| [T-314](robustness.md) | P2 | S | none | defect | done | The test of the man page waits for ever on a real groff |
+| [T-315](ws.md) | P3 | S | none | defect | done | The live handshake tests dial the relay directly, past `HTTPS_PROXY` |
+| [T-316](ws.md) | P2 | S | backlog | defect | open | `no_proxy` with CIDR blocks: an address inside a listed block goes through the proxy |
+| [T-317](ws.md) | P2 | S | backlog | defect | open | A proxy that answers `200` to CONNECT and then carries no SSH: `doctor` says that plain ssh can leave, and `--direct` ends with a bare reset |
+| [T-318](ws.md) | P3 | S | backlog | defect | open | A relay's name pinned to a loopback address goes to the proxy |
+| [T-319](roads.md) | P2 | L | backlog | feature | blocked | An HTTP road for a proxy that refuses the WebSocket upgrade |
+| [T-320](ws.md) | P3 | S | backlog | defect | open | A `407` names the proxy's authentication scheme |
+| [T-321](roads.md) | P3 | L | backlog | feature | blocked | An HTTP/2 road: the WebSocket over extended CONNECT (RFC 8441) |

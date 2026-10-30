@@ -35,7 +35,9 @@ impl Passed {
         if unsafe { libc::fcntl(raw, libc::F_SETFL, flags | libc::O_NONBLOCK) } < 0 {
             return Err(io::Error::last_os_error());
         }
-        match AsyncFd::try_new(fd) {
+        // SAFETY: an `OwnedFd` holds its descriptor open, and gives the same
+        // one, until the `AsyncFd` that owns it drops it.
+        match unsafe { AsyncFd::register(fd) } {
             Ok(fd) => Ok(Passed::Polled { fd, flags }),
             Err(refused) => {
                 // epoll takes no regular file and no /dev/null.

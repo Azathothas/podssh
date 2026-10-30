@@ -945,3 +945,284 @@ fails.
   limit of 10 s, and the test failed.
 - `podssh doctor` in a build with the feature `iroh`: the line of n0's first
   relay now passes, `/ping` in 576 ms over IPv4.
+
+# T-311: podssh in a Claude Code cloud container: an agent proxy, and an egress that intercepts TLS
+
+**Source:** the operator, 2026-10-30: a cloud session's own container is
+"another unique scenario: how would podssh work here".
+**Category:** measurement
+**Milestone:** none
+**Priority:** P2
+**Effort:** S
+**Status:** done
+
+## Problem
+
+The testers' sandboxes are of several kinds (`docs/target-environment.md`). A
+Claude Code cloud container is one more: its documented way out is a local
+agent proxy (`HTTPS_PROXY` on the loopback) that re-terminates TLS with a CA
+of its own, and its documentation says that WebSocket upgrades, ports other
+than 443 and raw TCP do not go through. Nobody had measured podssh there.
+
+## Premise
+
+Read: the container's description of its proxy (outside the repository)
+names the CA bundle in `SSL_CERT_FILE` and the other CA variables, and lists
+the WebSocket upgrade as not supported. Not measured: what podssh meets.
+
+## Approach
+
+1. `podssh doctor`, with and without `SSL_CERT_FILE`.
+2. The certificate that arrives for the relay and for github.com, through the
+   proxy and directly.
+3. `podssh proxy github.com 22`, and `podssh ssh -T git@github.com` with a
+   throwaway key, through the relay; the same with `--direct`.
+4. The results in `docs/STATUS.md` and `docs/target-environment.md`; an
+   entry for each defect found.
+
+## Prove
+
+The commands of the approach, with their results in `docs/STATUS.md`.
+
+## Done
+
+2026-10-30, with `target/debug/podssh` built in the container at
+`9b6dda2`; the results are in `docs/STATUS.md` ("In a Claude Code cloud
+container, measured") and `docs/target-environment.md`.
+
+- `podssh doctor`: 31 ok, 0 FAIL, 0 ????, exit 0: the relay's four hosts with
+  TLS 1.3 and a verified chain, a token minted, github.com:22 through the
+  relay with GitHub's ED25519 key. With `SSL_CERT_FILE` unset: 32 ok.
+- Through the proxy, the relay's own chain (Google Trust Services WE1), and
+  for github.com a certificate of the proxy's CA; direct TLS on port 443, a
+  certificate of the egress's CA.
+- `podssh proxy github.com 22`: GitHub's banner. `podssh ssh -T
+  git@github.com` with a throwaway key: `Permission denied (publickey)`, 255.
+- `podssh ssh --direct`: 255 with `Connection reset by peer`, after the
+  proxy's `200` (T-317).
+- The defects found: T-313, T-314 and T-315 in the tests, T-316, T-317 and
+  T-318 in podssh; the research of the same day added T-319 and T-320.
+
+# T-315: The live handshake tests dial the relay directly, past `HTTPS_PROXY`
+
+**Source:** the native tests of 2026-10-30 in a Claude Code cloud container
+(T-311): four tests of `crates/podssh-ws/tests/live_handshake.rs` failed with
+`InvalidCertificate(UnknownIssuer)`.
+**Category:** defect
+**Milestone:** none
+**Priority:** P3
+**Effort:** S
+**Status:** done
+
+## Problem
+
+The tests open TCP to the relay themselves and check its chain against the
+compiled-in roots. Where an egress intercepts direct TLS, the chain is the
+egress's, and podssh's verifier refuses it, as it must: the tests fail for a
+fact of the place, not of podssh. podssh itself goes through `HTTPS_PROXY`,
+which there carries the relay's own chain.
+
+## Premise
+
+Measured on 2026-10-30: direct TLS to the relay presents a certificate of
+"Egress Gateway SDS Issuing CA (production)"; through the agent proxy, the
+relay's own chain (Google Trust Services WE1).
+
+## Approach
+
+1. The tests reach the relay as podssh does: through the proxy that
+   `HTTPS_PROXY` names, when one is set (`podssh_ws::dial::dial` with
+   `ProxyChoice::FromEnvironment`), and directly else, as before.
+2. No skip for a chain of another issuer: a broken store of roots gives the
+   same error, and these tests exist to find it. With no proxy, behind an
+   egress that intercepts TLS, they fail, as podssh itself would.
+
+## Prove
+
+```sh
+cargo test -p podssh-ws --test live_handshake
+```
+
+The tests pass in the container through its proxy, with the relay's own
+chain; in CI they pass with no proxy, as before.
+
+## Done
+
+2026-10-30. The dial of `crates/podssh-ws/tests/live_handshake.rs` is
+`podssh_ws::dial::dial` with `ProxyChoice::FromEnvironment`: through the
+proxy that `HTTPS_PROXY` names, else directly, as before.
+
+- In the container, through its proxy: the 4 tests passed with the relay's
+  own chain, in the run of the whole suite; before, they failed with
+  `InvalidCertificate(UnknownIssuer)` against the egress's chain.
+- For CI, with no proxy: the run of this commit.
+
+# T-316: `no_proxy` with CIDR blocks: an address inside a listed block goes through the proxy
+
+**Source:** the research of 2026-10-30 on the proxies of sandboxes, and the
+`NO_PROXY` of a Claude Code cloud container (T-311), which lists
+`10.0.0.0/8`, `172.16.0.0/12`, `192.168.0.0/16`, `100.64.0.0/10` and
+`169.254.0.0/16`.
+**Category:** defect
+**Milestone:** backlog
+**Priority:** P2
+**Effort:** S
+**Status:** open
+
+## Problem
+
+`no_proxy_matches` (`crates/podssh-ws/src/dial.rs`) compares names only: an
+entry `10.0.0.0/8` matches the host `10.0.0.0/8`, and no address. So
+`podssh ssh --direct 10.1.2.3` and a tailnet address in `100.64.0.0/10` go to
+the proxy, where curl, Go and Python's requests go directly.
+
+## Premise
+
+Read: curl matches an address against a CIDR entry since 7.86, and Go's
+`httpproxy` and Python's `requests` do too; wget does not. Not read here: a
+client that reads CIDR entries for names (none of them does).
+
+## Approach
+
+1. An entry `ADDR/BITS` (IPv4 or IPv6) matches a target that is an address
+   inside the block; a name is never resolved for the match.
+2. The man page's note on `no_proxy` and `docs/cli.md` say it; `doctor`'s
+   line names the entry that matched.
+
+## Prove
+
+```sh
+cargo test -p podssh-ws dial::
+```
+
+A unit test for each form: `10.1.2.3` in `10.0.0.0/8`, `100.100.1.1` in
+`100.64.0.0/10`, `fd7a::1` in `fd7a::/16`, `10.1.2.3` not in `10.0.0.0/16`
+of another block, a name never in a block. Planted: the CIDR test removed
+from the matcher; the tests fail.
+
+# T-317: A proxy that answers `200` to CONNECT and then carries no SSH: `doctor` says that plain ssh can leave, and `--direct` ends with a bare reset
+
+**Source:** T-311, 2026-10-30: through the container's agent proxy, `CONNECT
+github.com:22` gets `200 Connection Established`, then the server's banner
+never comes (the proxy waits for TLS); `podssh doctor` printed
+"CONNECT github.com:22: allowed ... plain ssh can leave this way too", and
+`podssh ssh --direct` ended with "Connection reset by peer", 255.
+**Category:** defect
+**Milestone:** backlog
+**Priority:** P2
+**Effort:** S
+**Status:** open
+
+## Problem
+
+A `200` proves that the proxy took the CONNECT, not that the tunnel carries
+bytes as they are. A proxy that intercepts TLS for a name waits for a
+ClientHello and drops SSH. `doctor` then gives wrong advice, and `--direct`
+gives no reason.
+
+## Premise
+
+Measured on 2026-10-30: `CONNECT github.com:22` and `CONNECT
+github.com:443` get 200, and nothing comes in 15 s; `CONNECT
+ssh.github.com:443` gets 200, then a reset. Through the relay, the same
+host's banner comes at once.
+
+## Approach
+
+1. `doctor`'s check of port 22 reads the server's first bytes after the 200,
+   for 5 s: `SSH-2.0-` is "plain ssh can leave this way"; nothing, or a
+   reset, is "the proxy took the CONNECT and carried no SSH: it may expect
+   TLS; use the relay".
+2. `podssh ssh --direct`: a reset or silence before the banner, after a 200,
+   names the proxy and the same cause, with the advice to leave `--direct`
+   out.
+
+## Prove
+
+```sh
+cargo test -p podssh-cli --test doctor
+cargo test -p podssh-ssh --lib
+```
+
+Against a stand-in proxy that answers 200 and then sends nothing, and one
+that resets, the line and the message name the cause; against one that
+carries the bytes, the line says that plain ssh can leave. Planted: the 200
+alone trusted; the tests fail.
+
+# T-318: A relay's name pinned to a loopback address goes to the proxy
+
+**Source:** the native tests of 2026-10-30 (T-313): `--relay-host
+relay-a.test:PORT --relay-addr relay-a.test=127.0.0.1` with `HTTPS_PROXY`
+set sends `CONNECT relay-a.test` to the proxy.
+**Category:** defect
+**Milestone:** backlog
+**Priority:** P3
+**Effort:** S
+**Status:** open
+
+## Problem
+
+podssh never sends a loopback target to a proxy, as the proxy's loopback is
+not this host's (`crates/podssh-ws/src/dial.rs`, `proxy_from_vars`). A name
+that `--relay-addr` pins to a loopback address is such a target, but the
+choice reads the name only, so the proxy gets a name that it cannot reach.
+
+## Premise
+
+Read: the manual says that through a proxy podssh sends names and needs no
+DNS, and that `--relay-addr` is used with no proxy. A pin to a loopback
+address is only for a relay on this host, which no proxy can reach.
+
+## Approach
+
+1. A relay host whose pinned addresses are all loopback addresses goes with
+   no proxy, as a loopback name does; a pin to another address keeps today's
+   rule.
+2. The manual's note on `--relay-addr` says it.
+
+## Prove
+
+```sh
+cargo test -p podssh-relay --lib
+```
+
+A unit test: a pin to 127.0.0.1 gives no proxy; a pin to 203.0.113.5 keeps
+the proxy. Planted: the pin not read; the first test fails.
+
+# T-320: A `407` names the proxy's authentication scheme
+
+**Source:** the research of 2026-10-30 on the proxies of sandboxes: Go,
+wget, requests and reqwest send Basic only, curl also NTLM and Negotiate,
+and enterprise proxies ask for each of them.
+**Category:** defect
+**Milestone:** backlog
+**Priority:** P3
+**Effort:** S
+**Status:** open
+
+## Problem
+
+podssh sends Basic credentials from the proxy URL, and on a `407` does not
+read `Proxy-Authenticate`: a user behind an NTLM or Negotiate proxy reads
+that the proxy refused, with no reason that podssh could have given.
+
+## Premise
+
+Read: RFC 9110, section 11.7.1: a `407` carries `Proxy-Authenticate` with
+the schemes that the proxy accepts. Not measured: a real NTLM proxy.
+
+## Approach
+
+1. On a `407`, the message names each scheme of `Proxy-Authenticate`, and
+   says which podssh can use (Basic, from the URL's user and password).
+2. `doctor`'s proxy line says the same.
+
+## Prove
+
+```sh
+cargo test -p podssh-ws --test dial
+```
+
+Against a stand-in proxy that answers `407` with `Proxy-Authenticate: NTLM`
+and `Negotiate`, the message names both and says that podssh sends Basic
+only. Planted: the header not read; the test fails.

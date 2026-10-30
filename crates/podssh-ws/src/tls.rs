@@ -27,8 +27,8 @@ use crate::error::WsError;
 /// that crates.io published it: the crate holds no date of its own. A test
 /// reads Cargo.lock, so an update of the crate must update both. A binary
 /// keeps the roots that it was built with; `podssh doctor` gives their age.
-pub const ROOTS_VERSION: &str = "1.0.9";
-pub const ROOTS_PUBLISHED: &str = "2026-07-18";
+pub const ROOTS_VERSION: &str = "1.0.11";
+pub const ROOTS_PUBLISHED: &str = "2026-10-23";
 
 /// Where the trust anchors for the relay's certificate come from.
 ///

@@ -54,6 +54,16 @@ the box against the report before it measures podssh. See
   addresses, and TLS to a bare IP fails. podssh pins an address to a name
   (`--relay-addr HOST=IP`) and checks TLS against the name, and it asks DNS
   over HTTPS to resolvers that it reaches by IP literal.
+- **A proxy that re-terminates TLS for some names** (a Claude Code cloud
+  container, measured 2026-10-30, T-311). `HTTPS_PROXY` names an agent proxy
+  on the loopback; its CA is in `SSL_CERT_FILE` and in the system's store.
+  For some names (github.com) it presents a certificate of its own CA; for
+  the relay it passes the relay's own chain, and the WebSocket upgrade goes
+  through, although the proxy's own text says that upgrades do not. Direct
+  TLS on port 443 meets an egress that presents its own CA for each name.
+  `CONNECT github.com:22` gets `200`, and then no SSH banner comes, as the
+  proxy waits for TLS: plain SSH cannot leave that way, and the relay is the
+  road. `NO_PROXY` there holds CIDR blocks (`10.0.0.0/8`, `100.64.0.0/10`).
 
 Some server faults look like key failures. podssh's authentication errors
 should name them:

@@ -156,3 +156,65 @@ whole gate in the build image (`sh scripts/dev.sh check`, the interop
 against OpenSSH and Dropbear with it), then each planted defect that the
 `## Done` of such an entry names as waiting. A failure is repaired, and its
 entry gets a `## Correction`, before the tag.
+
+# T-309: Publish the rolling betas `v1.0.0-beta.N`
+
+**Source:** the operator, 2026-10-30 (`docs/decisions.md`, "Betas before
+`v1.0.0`"): the testers in real sandboxes filed the issues from a beta, and
+they test the current code only when a beta has it.
+**Category:** release
+**Milestone:** none
+**Priority:** P1
+**Effort:** M
+**Status:** partial
+
+## Problem
+
+GitHub has no release and no tag since the history was replaced
+(`docs/decisions.md`, "The repository is public"). The testers are agents in
+real sandboxes that download a binary: with no release, none of the work
+since 2026-10-08 reaches them.
+
+## Premise
+
+- Read: `.github/workflows/release.yml` builds static musl binaries for
+  x86_64 and aarch64 and a Windows binary, and publishes them with
+  `SHA256SUMS` for a tag `vX.Y.Z[-pre]`, as a prerelease when the tag has a
+  suffix. Its job `publish` has never run: each run so far was by hand.
+- Read: the body of a release is the notes file and git-cliff's list of the
+  commits since the previous tag (`cliff.toml`). With no previous tag the
+  list is the whole history: 342 commits, whose first lines hold about
+  118,000 characters, and GitHub refuses a body of more than 125,000.
+- Read: nothing compares the tag with the version of the crates (`Cargo.toml`,
+  `version = "0.1.0"`), which `podssh --version` prints.
+- Read: the SSH banner carries the version
+  (`crates/podssh-ssh/src/run.rs:453`), and RFC 4253, section 4.2, allows no
+  `-` in its software version.
+
+## Approach
+
+1. The version `1.0.0-beta.N` in `Cargo.toml` and the lock files; the banner
+   with `_` for each `-`.
+2. The workflow: each commit's line cut to 200 characters (`cliff.toml`), a
+   check that the body is under GitHub's limit, and a check that the binary
+   of a tag names the tag's version.
+3. The notes, docs/releases/v1.0.0-beta.N.md: what works, the assets, how
+   to check a download, and what a beta does not have yet (T-210, T-211,
+   T-218, T-251).
+4. Before the tag: the gate green on the commit, the release workflow and the
+   changelog workflow by hand on it, and the local checks of its binary
+   (`--version`, static, `man`, `doctor`, `proxy` and `ssh` through the
+   relay).
+5. The tag once; then the same checks on the published files, and the result
+   in `docs/STATUS.md`.
+
+## Prove
+
+```sh
+gh release view v1.0.0-beta.1 -R Azathothas/podssh --json isPrerelease,assets --jq '.isPrerelease, [.assets[].name]'
+```
+
+The release is a prerelease with the three binaries, `SHA256SUMS` and
+`THIRD-PARTY-LICENSES.md`. Each sum checks; the x86_64 binary prints
+`podssh 1.0.0-beta.1`, has no dynamic dependency, and passes `doctor` and a
+login attempt through the relay.

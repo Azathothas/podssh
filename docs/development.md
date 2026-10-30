@@ -10,15 +10,18 @@ target sandbox, and release it.
   feature 1.91. The gate checks each crate on the version that its manifest
   declares.
 - A C compiler for the binary. The SSH client uses aws-lc (`aws-lc-sys`,
-  through `russh`). On Windows, also NASM; without it, aws-lc uses prebuilt
-  objects.
+  through `russh`). On Windows x86_64, also NASM: without it, aws-lc's build
+  fails unless `AWS_LC_SYS_PREBUILT_NASM=1` asks for its prebuilt objects
+  (aws-lc-sys's README).
 - No C compiler for the library crates (`podssh-ws`, `podssh-relay`,
   `podssh-core`, `podssh-terminal`, `podssh-probe`). The gate makes sure of
   this.
 - `cmake` and `perl` for the `ts` feature only.
 - Python 3 for the repository checks.
 - For the container gate on Windows: Git Bash, PowerShell, and the
-  operator's `wsl-toolkit`.
+  operator's `wsl-toolkit`. On Linux: Docker or Podman, which
+  `sh scripts/cloud-setup.sh` installs or starts (section "A Linux host, or a
+  cloud session").
 - For the box like the target sandbox: Podman. On Windows, the Podman
   machine.
 
@@ -194,9 +197,12 @@ sh scripts/dev.sh run -- 'uname -a'
 sh scripts/dev.sh help
 ```
 
-`scripts/dev.sh` reaches the container through `scripts/dev-wsl.sh`, which it
-sources: wsl-toolkit, called through PowerShell from Git Bash, with a copy
-of the tree.
+`scripts/dev.sh` reaches the container through a transport that it sources:
+on Windows `scripts/dev-wsl.sh` (wsl-toolkit, called through PowerShell from
+Git Bash), on Linux `scripts/dev-native.sh` (the host's own Docker or
+Podman). Each gives a container of the pinned image a copy of the tree, and
+returns the run's own exit code. `PODSSH_TRANSPORT=wsl` or `native`
+chooses; by default a host with wsl-toolkit, or a Windows shell, uses `wsl`.
 
 Each image is named in one place, pinned to the digest of its multi-platform
 index: `.github/images/build/Dockerfile` (`rust:1-alpine`, for the gate, CI
@@ -326,6 +332,56 @@ patterns of `scripts/dev-wsl.sh` (`EXCLUDES`): `target/**` and
 limit of 1 GiB), `.git/**`, `.work/**`, `.tmp/**`, `.env/**` (live
 credentials) and `.codegraph/**` (a local index). A pattern matches a file of
 that name at any depth.
+
+## A Linux host, or a cloud session
+
+`sh scripts/cloud-setup.sh` (also `sh scripts/dev.sh setup`) makes a Linux
+host with root ready for this work: a Claude Code cloud container, a new VM.
+Each step probes first and changes nothing that is ready, so a second run
+changes nothing, and a session can run it at each start.
+`sh scripts/cloud-setup.sh --check` reports and changes nothing.
+
+1. The packages (apt): Podman and its helpers, OpenSSH (client, server,
+   `sftp-server`), Dropbear, groff, mandoc, tmux, the musl tools, and the
+   tools of the scripts.
+2. A Docker daemon that is installed and not running (a container has no
+   init system to start it), with the session's proxy for its pulls.
+3. Podman's settings for a host whose PID 1 is not systemd: cgroupfs, and
+   files for events and logs; runc where the cgroups are hybrid, as crun
+   refuses each container there.
+4. The pinned images: the build image into Docker (`scripts/pull-image.sh`),
+   the box's two images into Podman.
+5. The gate's Rust as the host's toolchain, with clippy, rustfmt and the musl
+   target: the clippy that counts is the gate's.
+6. The repository's git identity, when it has none of its own: that of its
+   newest commit by a person. A cloud session's global identity is its own,
+   and each commit is the operator's (`docs/decisions.md`).
+
+The native transport runs each container with `--rm`, `--init` and a copy of
+the tree in `.work/native/`, removed after the run (`PODSSH_KEEP=1` keeps it,
+with its `target/`). It gives the container the host's network when the
+host's proxy listens on the host's loopback, the proxy variables, and the
+host's CA (`SSL_CERT_FILE`) in the image's store, for apk, rustup, cargo and
+git; podssh's tests in the container get no CA variable, as in CI. The crates
+that cargo downloads stay in a volume between runs (`PODSSH_NO_CACHE=1`
+starts empty). `sh scripts/dev.sh clean` removes podssh's own containers and
+copies that a cut run left.
+
+In a Claude Code cloud session:
+
+- The committed `.claude/settings.json` allows each tool with no prompt (a
+  cloud session cannot bypass permissions), sets `CARGO_BUILD_JOBS=4`, and
+  adds no line of attribution to a commit.
+- The environment's setup script (the cloud environment's settings) can run
+  the setup at the start of each session: `cd podssh && sh
+  scripts/cloud-setup.sh`. That script starts one directory above the
+  repository.
+- The way out is the session's agent proxy (`HTTPS_PROXY` on the loopback),
+  which re-terminates TLS for some names with a CA of its own, and passes
+  the relay's own chain; direct TLS on port 443 meets an egress that
+  intercepts it (T-311). podssh's tests ignore the machine's proxy where they
+  use the stand-in relay (T-313), and the live handshakes go through the
+  proxy (T-315).
 
 ## A box like the target sandbox
 
@@ -607,6 +663,9 @@ gh workflow run release.yml --ref main
 
 To publish a release:
 
+0. The version of the tag in `Cargo.toml` (`version`), then
+   `cargo update -w` for `Cargo.lock` and `fuzz/Cargo.lock`: each build runs
+   with `--locked`, and a tag's binary must name the tag's version.
 1. Write the notes in `docs/releases/<tag>.md`. The workflow fails without
    this file.
 2. Push the tag `vX.Y.Z` or `vX.Y.Z-pre`. A tag with a suffix (`-beta.1`)
@@ -623,11 +682,14 @@ also checks that no commit is dropped:
 gh workflow run changelog.yml --ref main
 ```
 
-The plan of releases (the operator, 2026-10-08): one release, `v1.0.0`,
-when each other entry is done, except the relay's (T-250). No beta, and no
-release between entries: a release run takes CI from the work. The check
+The plan of releases (the operator, 2026-10-30): betas `v1.0.0-beta.N`, each
+a prerelease, then `v1.0.0`, the final release (T-309, T-250). A beta is
+tagged on a commit where the gate passed, after the release workflow and the
+changelog workflow ran by hand on it, and after the checks of its binary
+(`--version`, static, `man`, `doctor`, `proxy` and `ssh` through the relay).
+`v1.0.0` comes when each other entry is done, except the relay's: the check
 from end to end with no human (T-251) runs before the tag, on the gate's
 artifact of the last push and a local build; then `v1.0.0` is tagged once,
-and the check runs again on the published files. A defect found then goes
-into `v1.0.1`. From T-210 and T-211 on, each release also has provenance
-and Sigstore signatures.
+and the check runs again on the published files. A tag never moves: a defect
+found after a tag goes into the next beta, or into `v1.0.1`. From T-210 and
+T-211 on, each release also has provenance and Sigstore signatures.

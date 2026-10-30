@@ -46,10 +46,35 @@ done
 SCRIPT_DIR=$(CDPATH= cd -- "$(dirname -- "$script_src")" && pwd -P)
 REPO_ROOT=$(CDPATH= cd -- "$SCRIPT_DIR/.." && pwd -P)
 
-# The Windows transport: wsl-toolkit through PowerShell, the copy of the tree
-# and what it leaves out, the preflight (scripts/dev-wsl.sh).
-# shellcheck source=scripts/dev-wsl.sh
-. "$SCRIPT_DIR/dev-wsl.sh"
+# The transport to the build container. On Windows: wsl-toolkit through
+# PowerShell from Git Bash, with a copy of the tree (scripts/dev-wsl.sh). On a
+# Linux host: its own Docker or Podman, with a copy of the tree
+# (scripts/dev-native.sh). PODSSH_TRANSPORT chooses; by default a host with
+# wsl-toolkit on PATH, or a Windows shell, uses wsl, and any other host native.
+if [ -z "${PODSSH_TRANSPORT:-}" ]; then
+    if command -v "${PODSSH_TOOL:-wsl-toolkit}" >/dev/null 2>&1; then
+        PODSSH_TRANSPORT=wsl
+    else
+        case $(uname -s 2>/dev/null) in
+            MINGW* | MSYS* | CYGWIN*) PODSSH_TRANSPORT=wsl ;;
+            *) PODSSH_TRANSPORT=native ;;
+        esac
+    fi
+fi
+case $PODSSH_TRANSPORT in
+    wsl)
+        # shellcheck source=scripts/dev-wsl.sh
+        . "$SCRIPT_DIR/dev-wsl.sh"
+        ;;
+    native)
+        # shellcheck source=scripts/dev-native.sh
+        . "$SCRIPT_DIR/dev-native.sh"
+        ;;
+    *)
+        echo "podssh: PODSSH_TRANSPORT is '$PODSSH_TRANSPORT'; it must be wsl or native." >&2
+        exit 64
+        ;;
+esac
 
 # ------------------------------------------------------------------ configuration
 # Overridable, so a future session can point at a different image without
@@ -135,8 +160,14 @@ podssh - build and check, in a container, with one command
   sh scripts/dev.sh plant    the plant of the no-C rule, both directions
   sh scripts/dev.sh run -- CMD...   run CMD with the tree mounted at /work
   sh scripts/dev.sh images   the build image and its toolchain
-  sh scripts/dev.sh clean    list leftover wsl-toolkit jobs (removes nothing)
+  sh scripts/dev.sh clean    wsl: list leftover wsl-toolkit jobs (removes nothing);
+                             native: remove podssh's own leftover containers and copies
+  sh scripts/dev.sh setup    make a Linux host ready (scripts/cloud-setup.sh)
   sh scripts/dev.sh help     this text
+
+The transport is wsl-toolkit on Windows (scripts/dev-wsl.sh) and the host's
+own Docker or Podman on Linux (scripts/dev-native.sh); PODSSH_TRANSPORT=wsl
+or native chooses.
 
 `build` and `test` pass their arguments straight to cargo, so
 `sh scripts/dev.sh test -p podssh-core` runs that crate's tests. They do not
@@ -161,13 +192,16 @@ fails for that reason, twice; that a crate that compiles C++ stops at
 CXX=/nonexistent; and that the tree builds again without them.
 
 Only one container run at a time (a lock in .work/), PODSSH_JOBS cargo jobs.
-Overrides: PODSSH_JOBS, PODSSH_TOOL, PODSSH_PS, PODSSH_BUILD_IMAGE, PODSSH_TARGET.
+Overrides: PODSSH_JOBS, PODSSH_BUILD_IMAGE, PODSSH_TARGET, PODSSH_TRANSPORT;
+wsl: PODSSH_TOOL, PODSSH_PS; native: PODSSH_ENGINE, PODSSH_NETWORK,
+PODSSH_TIMEOUT_MIN, PODSSH_HOST_CA, PODSSH_NO_CACHE, PODSSH_KEEP.
 USAGE
     # The names come from the gate itself, so this text cannot name a step
     # that the gate does not have.
     _steps=$(sh "$SCRIPT_DIR/gate.sh" --list)
     # shellcheck disable=SC2086  # one line of names
     printf '\nThe steps of the gate: %s\n' "$(echo $_steps)"
+    printf 'The transport of this host: %s\n' "$PODSSH_TRANSPORT"
 }
 
 
@@ -228,6 +262,10 @@ cmd_gate() {
 }
 
 cmd_images() {
+    if [ "$PODSSH_TRANSPORT" = native ]; then
+        native_images
+        return $?
+    fi
     # No workspace: this is a question about the image, not about the tree.
     # base64, not -c. A -c payload containing spaces is split by the bridge's
     # field separator and arrives as several arguments, which the tool reports
@@ -266,6 +304,10 @@ cmd_plant() {
 }
 
 cmd_clean() {
+    if [ "$PODSSH_TRANSPORT" = native ]; then
+        native_clean
+        return $?
+    fi
     # A dry run on purpose. `wsl-toolkit gc` cannot filter by project, so
     # `--apply` would also delete other projects' jobs on this machine. Runs
     # made by this script are ephemeral and leave nothing behind; this lists
@@ -377,6 +419,7 @@ case $_sub in
     run)            cmd_run "$@" ;;
     images)         no_arguments "$@"; cmd_images ;;
     clean)          no_arguments "$@"; cmd_clean ;;
+    setup)          sh "$SCRIPT_DIR/cloud-setup.sh" "$@" ;;
     gate)           no_arguments "$@"; cmd_gate ;;
     *)
         echo "podssh: no subcommand '$_sub'." >&2

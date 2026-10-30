@@ -680,7 +680,7 @@ go through one function since T-231 (`crates/podssh-cli/src/relay_settings.rs:65
 (`crates/podssh-cli/src/pins.rs:15-31`). The token cache uses the user's
 cache directory first, after the directory of `PODSSH_CACHE_DIR` (T-243;
 `crates/podssh-relay/src/cache/dirs.rs:59-87`). The decision named the
-configuration directory first; the operator corrected it on 2026-10-08 (`docs/decisions.md:48`, T-243).
+configuration directory first; the operator corrected it on 2026-10-08 (`docs/decisions.md:49`, T-243).
 
 ## Approach
 
@@ -960,7 +960,7 @@ T-047 names (read in the reports, not verified here).
 **Milestone:** backlog
 **Priority:** P3
 **Effort:** M
-**Status:** blocked
+**Status:** open
 
 ## Problem
 
@@ -985,6 +985,15 @@ machines of this work, and a session downloads no program to make one.
 3. Each export a fixture under `crates/podssh-cli/tests/fixtures/`, kept
    byte for byte.
 
+## Decision
+
+The operator ruled on Q41 on 2026-10-30 (`docs/decisions.md`): each format is
+tested on export files that the program itself wrote and that are published,
+each cited with its URL and license, and kept byte for byte as a fixture. A
+format with no such file stays out, named as waiting, until one exists. The
+Blocker that asked for the operator's own exports is gone: it lost to files
+that anyone can check.
+
 ## Prove
 
 ```sh
@@ -995,13 +1004,3 @@ cargo test -p podssh-cli --test config_import
 For each format, the blocks of its fixture, and no password on stdout or
 stderr. Planted defect: copy a password field into a comment; the test of
 the secret fails.
-
-## Blocker
-
-The operator (Q41): a real export of each program, each with a host that
-has a password, so that the tests prove that no password is imported: a
-PuTTY `.reg` export of `HKCU\Software\SimonTatham\PuTTY\Sessions`, a
-MobaXterm sessions export, Remmina `.remmina` files, FinalShell's
-`conn/*.json`, an mRemoteNG `confCons.xml`, and a Termius export if it has
-one; or leave to download PuTTY and MobaXterm's portable build to make
-them.

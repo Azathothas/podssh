@@ -295,7 +295,7 @@ a broadcast needs a stop that works at once.
 - Read: escapes work only at the start of a line, and only with a pty
   (`crates/podssh-ssh/src/escape.rs:1-8`).
 - Read: each session can live in one process, so a broadcast needs no
-  listener (`docs/target-environment.md:74-78`).
+  listener (`docs/target-environment.md:84-88`).
 
 ## Approach
 
@@ -416,8 +416,10 @@ SIGQUIT; the check of `/tmp/after-stop` must fail.
 
 ## Done
 
-2026-10-13. Written as a draft, not built and not run; each result below
-is UNVERIFIED until the merge builds it.
+2026-10-13, written as a draft; merged in `d1c5bd1` with no run. Each
+result below was measured on 2026-10-30: natively on Linux (a Claude Code
+cloud container, Rust 1.99.0), and in CI at `d1c5bd1` (run 41040124516:
+each job green, the Windows tests and the gate's steps in the build image).
 
 - **The SSH client** (`crates/podssh-ssh`): `io::Feed`
   (`crates/podssh-ssh/src/io/feed.rs`), lines in, taken back, the end, and
@@ -441,28 +443,36 @@ is UNVERIFIED until the merge builds it.
   from the terminal") say it.
 - **The tests**: `cargo test -p podssh-ssh io::feed` (5 tests: the order
   and the end, a reader that waits, a take with the signals, each signal
-  once, an input that is fed), UNVERIFIED;
-  `cargo test -p podssh-cli broadcast::` (9 tests of the hub), UNVERIFIED;
+  once, an input that is fed): 5 passed;
+  `cargo test -p podssh-cli broadcast::` (9 tests of the hub): 9 passed;
   `cargo test -p podssh-cli --test each -- interactive` (on each system:
   the refusals, the lines and the selection, `--confirm`, `:intr`, a full
   queue; on Unix: SIGQUIT, and Ctrl-C after the end of the input; on Linux:
-  `Ctrl-\` in a pty; on Windows: Ctrl-Break in a pseudo console),
-  UNVERIFIED. The Windows test types Ctrl-Break as the test of T-295 types
-  it, where the pseudo console gave a CTRL_BREAK_EVENT.
-- **The planted defects**, each UNVERIFIED: the stop ignored
-  (`Key::Stop => {}` in `crates/podssh-cli/src/each/broadcast/mod.rs`) fails
-  `interactive_sigquit_stops_the_broadcast_and_drops_what_waits`, the tests
-  of the pty and of the pseudo console, and `broadcast.stop`; the stop that
-  does not take the queues back (no `feed.take()` in `Hub::stop`) fails
+  `Ctrl-\` in a pty; on Windows: Ctrl-Break in a pseudo console): on
+  Linux 8 passed, the 3 of Unix among them; on Windows, CI's job `windows`
+  passed with the default tests, Ctrl-Break in a pseudo console among them.
+  The Windows test types Ctrl-Break as the test of T-295 types it, where the
+  pseudo console gave a CTRL_BREAK_EVENT.
+- **The planted defects**, natively, each alone: the stop ignored
+  (`Key::Stop => {}` in `crates/podssh-cli/src/each/broadcast/mod.rs`) failed
+  `interactive_sigquit_stops_the_broadcast_and_drops_what_waits` and the
+  test of `Ctrl-\` in a pty; the stop that does not take the queues back (no
+  `feed.take()` in `Hub::stop`) failed
   `the_stop_clears_the_selection_what_waits_and_a_half_line_at_once` and
   the SIGQUIT test; no limit of the queue (no check of `QUEUE` in
-  `Hub::send`) fails `a_host_whose_queue_is_full_leaves_the_selection_with_a_word`
+  `Hub::send`) failed `a_host_whose_queue_is_full_leaves_the_selection_with_a_word`
   and `interactive_a_full_queue_takes_its_host_out_of_the_selection`.
-- **What waits for T-251**: the Unix tests in the build image (SIGQUIT,
-  the cut, the pty), `scripts/interop-broadcast.sh` against OpenSSH and
-  Dropbear (`broadcast.both`, `broadcast.only`, `broadcast.stop`, in
-  `scripts/interop-baseline.txt`), its plant (SIGQUIT ignored), and clippy
-  and fmt in the image.
+- **In the build image** (CI at `d1c5bd1`): lint (clippy 1.99 and fmt)
+  green; `scripts/interop-broadcast.sh` against OpenSSH and Dropbear:
+  `score broadcast 3 0 0 0 0 3` (`broadcast.both`, `broadcast.only`,
+  `broadcast.stop`), and 587 ids of 41 harnesses met
+  `scripts/interop-baseline.txt`.
+- **What waits for T-251**: the plant of `scripts/interop-broadcast.sh`
+  (SIGQUIT ignored) in the image, and the planted pseudo console on Windows.
+- **Later** (the research of 2026-10-30): dtach and abduco take `Ctrl-\` as
+  their key to detach, so a user of either beside podssh may want another
+  stop key; a setting for it is a small follow-up, not a defect of this
+  entry.
 
 # T-186: A control surface for agents on live sessions
 
@@ -1015,7 +1025,7 @@ name is copied by hand.
   remote command with a pty (`crates/podssh-cli/src/ssh/resolve.rs:269-277`,
   `crates/podssh-cli/src/ssh/hop.rs:97-108`). Only the list is missing.
 - Read: podssh starts a program only when the user names it or a probe
-  finds it (`AGENTS.md:233-237`). Here the programs run on the server, for a
+  finds it (`AGENTS.md:246-250`). Here the programs run on the server, for a
   request of the user.
 
 ## Approach
@@ -1486,7 +1496,7 @@ a ticket, or a tool that asks an AI.
 ## Premise
 
 - Read: podssh starts another program only when the user names it
-  (`AGENTS.md:233-237`), as it runs `SSH_ASKPASS`: the program, no shell, and
+  (`AGENTS.md:246-250`), as it runs `SSH_ASKPASS`: the program, no shell, and
   its first line read back (`crates/podssh-ssh/src/prompt.rs:102-119`).
 - Read: credentials never go to output, logs, URLs or argv
   (`docs/architecture.md:141-143`). The token type never shows itself
@@ -1679,7 +1689,7 @@ queue, no wait for a result, and no way to get the output back.
   T-178, or under `podssh serve` (T-107).
 - Read: the client can stop at any time: a sandbox ends, a laptop sleeps. A
   queue on the client dies with it, and a client that waits must not need a
-  listener (`docs/target-environment.md:74-78`).
+  listener (`docs/target-environment.md:84-88`).
 - Read: the output comes back with `cp` (T-134), within 64 MiB for each
   relay session (`docs/relay.md:162`); T-137 opens a new session.
 - Read in the report: GPU-Share places jobs by idle time and free VRAM. No

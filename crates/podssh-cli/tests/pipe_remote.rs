@@ -15,7 +15,7 @@ use std::net::TcpListener;
 use std::process::{Command, Stdio};
 use std::time::Duration;
 
-use throughput_harness::{Cell, Session};
+use throughput_harness::{without_proxy, Cell, Session};
 
 /// A target on the loopback that answers each connection with `reply`
 /// `after` its accept, then closes: its port.
@@ -132,14 +132,14 @@ fn a_late_reply_comes_back_after_the_end_of_input_through_the_relay() {
     let mut args = vec!["pipe".to_string()];
     args.extend(flags.iter().cloned());
     args.extend(["stdio".to_string(), format!("relay:127.0.0.1:{port}")]);
-    let (code, out, err) = run(session.command(&args), b"");
+    let (code, out, err) = run(without_proxy(session.command(&args)), b"");
     assert_eq!(code, 0, "{err}");
     assert_eq!(out, "the late reply\n", "{err}");
     // podssh proxy runs the same pipe, with its own words.
     let mut args = vec!["proxy".to_string()];
     args.extend(flags);
     args.extend(["127.0.0.1".to_string(), port.to_string()]);
-    let (code, out, err) = run(session.command(&args), b"");
+    let (code, out, err) = run(without_proxy(session.command(&args)), b"");
     assert_eq!(code, 0, "{err}");
     assert_eq!(out, "the late reply\n", "{err}");
 }
@@ -149,7 +149,7 @@ fn tcp_passes_the_end_of_input_on_and_the_answer_comes_back() {
     let session = Session::start("pipe-tcp");
     let port = counting_target();
     let args = ["pipe".to_string(), "stdio".into(), format!("tcp:127.0.0.1:{port}")];
-    let (code, out, err) = run(session.command(&args), b"twelve bytes");
+    let (code, out, err) = run(without_proxy(session.command(&args)), b"twelve bytes");
     assert_eq!(code, 0, "{err}");
     assert_eq!(out, "12\n", "the target saw the end of its input: {err}");
 }
@@ -161,7 +161,7 @@ fn ssh_opens_the_target_from_the_server_and_passes_the_end_of_input_on() {
     let mut args = vec!["pipe".to_string(), "--direct".into()];
     args.extend(session.common());
     args.extend(["stdio".to_string(), format!("ssh:tester@127.0.0.1:{},127.0.0.1:{port}", session.port)]);
-    let (code, out, err) = run(session.command(&args), b"twelve bytes");
+    let (code, out, err) = run(without_proxy(session.command(&args)), b"twelve bytes");
     assert_eq!(code, 0, "{err}");
     assert_eq!(
         out,
@@ -171,7 +171,7 @@ fn ssh_opens_the_target_from_the_server_and_passes_the_end_of_input_on() {
     );
     // A keyword of a session is refused before anything connects.
     args.extend(["-o".to_string(), "RequestTTY=yes".into()]);
-    let (code, _, err) = run(session.command(&args), b"");
+    let (code, _, err) = run(without_proxy(session.command(&args)), b"");
     assert_eq!(code, 64, "{err}");
 }
 
@@ -180,11 +180,7 @@ fn node_reaches_the_target_of_a_node_over_the_reverse_road() {
     let session = Session::start("pipe-node");
     let Some(flags) = relay_flags(&session) else { return };
     let (relay, ca) = (flags[1].clone(), flags[3].clone());
-    let command = |args: &[String]| {
-        let mut cmd = session.command(args);
-        cmd.env("SSL_CERT_FILE", &ca);
-        cmd
-    };
+    let command = |args: &[String]| session.stand_in(args, &ca);
     let pin = ["--relay-addr".to_string(), "relay-a.test=127.0.0.1".into()];
     let mut args = vec!["relay".to_string(), "pair".into(), "lab".into(), "--relay-host".into(), relay];
     args.extend(pin.iter().cloned());

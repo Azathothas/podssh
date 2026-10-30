@@ -96,7 +96,11 @@ mod unix {
             let doing = format!("could not set {baud} baud, 8 data bits, no parity, 1 stop bit");
             return Err(failed(&shown, &doing, io::Error::last_os_error()));
         }
-        let line = Arc::new(AsyncFd::new(line).map_err(|e| failed(&shown, "could not wait on it", e))?);
+        // SAFETY: a `Line` owns its file, which holds the descriptor open and
+        // the same until the `AsyncFd` that owns the line drops it.
+        let line =
+            unsafe { AsyncFd::register(line) }.map_err(|e| failed(&shown, "could not wait on it", e.into_parts().1))?;
+        let line = Arc::new(line);
         let failure = Failure::default();
         let read = Reader { line: line.clone(), failure: failure.clone() };
         let write = Writer { line, failure: failure.clone() };

@@ -181,7 +181,7 @@ Read:
    `scripts/interop-faults.sh:228` looks for `1009 session byte cap`.
 6. Correct the comment on the window (`crates/podssh-ssh/src/run.rs` lines
    25-29 at `80f20bf`). The window of 512 KiB stays: it is below both limits.
-7. Update `docs/relay.md` (lines 155-158 at `80f20bf`) and `docs/STATUS.md:467`. T-025 uses the
+7. Update `docs/relay.md` (lines 155-158 at `80f20bf`) and `docs/STATUS.md:490`. T-025 uses the
    classification for its retry rule. T-227 is a different path
    (`--direct`).
 
@@ -537,7 +537,7 @@ Read:
   `crates/podssh-ssh/src/hostkey.rs:227-234` (no terminal). `accept-new`
   records the plain key (`crates/podssh-ssh/src/hostkey.rs:198`). GitHub #29
   cites line 91 at `22c3b88`, which builds the question about other key types.
-- `ssh-key` 0.7.0-rc.11 is in the tree (`Cargo.lock:5480`).
+- `ssh-key` 0.7.0-rc.11 is in the tree (`Cargo.lock:5536-5537`).
   `Certificate::validate_at` checks the signature, the SHA-256 fingerprint of
   the CA and the validity window. The caller must check the certificate type,
   the principals and the critical options (the crate's documentation).
@@ -711,7 +711,7 @@ Not measured here: each case needs a server.
 
 Recommendation: no other place for host keys; say clearly that the key was
 not recorded. A fallback directory moves the trust without the user's
-choice, and `docs/target-environment.md:91-93` forbids a silent fallback
+choice, and `docs/target-environment.md:101-103` forbids a silent fallback
 that changes the behaviour. The alternative, the token cache's chain of
 directories (`docs/target-environment.md`, lines 85-89 at `4dd52f8`), lost: a key recorded in
 `$TMPDIR` or `/dev/shm` is invisible to the user and to OpenSSH, and it
@@ -816,7 +816,7 @@ measured: a race needs two processes; the test below makes it certain.
    (`crates/podssh-ssh/src/hostkey.rs:351-375`). Else append.
 3. Hold the lock only for the read and the write, never across a prompt.
 4. When the file system refuses locks, append as today, with a verbose note
-   (a fallback that says so, `AGENTS.md:245`).
+   (a fallback that says so, `AGENTS.md:258`).
 
 ## Prove
 

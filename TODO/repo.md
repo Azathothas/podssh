@@ -457,7 +457,7 @@ Read:
 3. On a run by hand, make the list of the commits since the last tag as an
    artifact, so that it can be read before a tag.
 4. Link each "Fixes #N" of a commit to its issue in the list.
-5. docs/development.md, "Release builds" (`docs/development.md:588-633`): the
+5. docs/development.md, "Release builds" (`docs/development.md:644-695`): the
    body is the notes file and the generated list.
 
 No new shell script: each step is a step of the workflow.
@@ -772,6 +772,13 @@ cosign verify-blob --bundle SHA256SUMS.sigstore.json \
 Each command exits 0. Planted defect: change one hex digit in a copy of
 `SHA256SUMS`; `cosign verify-blob` must fail.
 
+## Correction
+
+2026-10-30: the Premise's "`README.md:56-57` gives no step to check a
+download" no longer holds: the README's first step now checks a download of
+a beta against `SHA256SUMS` (T-309). The signatures of this entry are still
+missing; that step gains their check when they exist.
+
 # T-212: Parallel CI, with the gate as the one source
 
 **Source:** GitHub #27 (the operator, 2026-10-08), which asks for parallel CI.
@@ -801,7 +808,7 @@ Read:
   steps are at lines 80-184 there.
 - `scripts/gate.sh:48-59`: one cargo job for each 3 GiB of free memory.
 - AGENTS.md, section 4: on the operator's machine, one build at a time
-  (`scripts/dev.sh:334-353` holds a lock).
+  (`scripts/dev.sh:376-395` holds a lock).
 
 Not measured: the wall time of a CI run. Measure it with `gh run list` before
 the change.
@@ -930,14 +937,14 @@ sees it.
 
 Read:
 
-- `docs/STATUS.md:220-234`: the box, measured by hand on 2026-10-08.
+- `docs/STATUS.md:226-240`: the box, measured by hand on 2026-10-08.
 - `scripts/test_in_box.sh:192-195`: the box runs `probe.sh`, then
   `sandbox-check.sh` (or, with `BOX_RUN=tt`, the session of T-004), and the
   script exits with the code of the second.
   `scripts/sandbox-check.sh:85-218` prints the exit code of each step and does
   not fail on it (T-006). So today the box exits 0 when podssh fails in it.
 - `scripts/box/probe.sh:122-127` exits 1 when the box differs from the sandbox
-  in a required property (17 properties, `docs/STATUS.md:227`).
+  in a required property (17 properties, `docs/STATUS.md:233`).
 - The box needs a static binary; CI uploads one
   (`.github/workflows/build.yml:88-93`).
 - The box uses `--disable-dns` (`scripts/test_in_box.sh:112`) and a mask on
@@ -964,7 +971,7 @@ Read:
    that CI runs the box.
 
 Pitfall: the live path can drop a session (179 of 180 short sessions,
-`docs/STATUS.md:257`). Run a failure again by hand and record it. Never retry
+`docs/STATUS.md:263`). Run a failure again by hand and record it. Never retry
 inside the job.
 
 ## Decision
@@ -982,7 +989,7 @@ test "$(grep -c '^match ' box.log)" -eq 17                  # the box was faithf
 
 The run passed, with the job `box`, and its log has 17 `match` lines.
 Planted defect: run the job by hand with the seccomp option removed (an input
-of `workflow_dispatch`); the probe must exit 1, as in `docs/STATUS.md:228`,
+of `workflow_dispatch`); the probe must exit 1, as in `docs/STATUS.md:234`,
 and the job must fail.
 
 ## Blocker
@@ -1029,7 +1036,7 @@ Read:
   test.
 - `docs/STATUS.md` line 230 at `9966ed4`: the default tests pass on Windows,
   run by hand.
-  `docs/STATUS.md:85`: `scripts/interop-conpty.py` passes 14 of 14 against a
+  `docs/STATUS.md:91`: `scripts/interop-conpty.py` passes 14 of 14 against a
   Tailscale SSH server, by hand.
 - `scripts/interop-conpty.py:219-275` needs a server with a POSIX shell,
   `stty`, `vi`, `less`, `top`, `seq`, `sed` and `/tmp`.
@@ -1047,7 +1054,7 @@ Read:
    deletes (see Decision). Run the script with `--direct`; 14 of 14 must pass.
 3. With T-199: score the output with the Windows part of the baseline.
 4. The plant: a podssh that does not restore the mode of the console must
-   fail the three restore checks (as measured by hand, `docs/STATUS.md:85`).
+   fail the three restore checks (as measured by hand, `docs/STATUS.md:91`).
    Run it once in CI, and record it.
 5. docs/STATUS.md cites the CI run for the rows of Windows;
    docs/development.md names the job.
@@ -1538,7 +1545,7 @@ Read:
 - The check of each platform: `readelf` for `NEEDED` and `INTERP`
   (`.github/workflows/release.yml:54-61`), `dumpbin /dependents` on Windows
   (`:94-109`).
-- The binary needs a C compiler for aws-lc (`docs/development.md:12-14`); the
+- The binary needs a C compiler for aws-lc (`docs/development.md:12-15`); the
   library crates need none.
 - Some code reads facts of Linux. The terminal check reads `tty_nr` from
   `/proc/self/stat` when it can (`crates/podssh-ssh/src/terminal/ctty.rs:24`),
@@ -1610,8 +1617,8 @@ Read, in the tree as it is now:
   compiles one C++ file with the `cc` crate. With both variables set, the
   build must fail at `/nonexistent`; the control, with `CC` alone, must not
   stop there.
-- `docs/development.md:241-243` states the rule with `CXX`, and
-  `docs/STATUS.md:555` records the measurement. Rule 4 of
+- `docs/development.md:247-249` states the rule with `CXX`, and
+  `docs/STATUS.md:578` records the measurement. Rule 4 of
   `docs/architecture.md` named `CC=/nonexistent` only; it was repaired in the
   same change as the record.
 - `.github/workflows/build.yml:103-111` runs the plant on each push.
@@ -1642,7 +1649,7 @@ the same script in its step "the no-C rule is load-bearing".
 (CXX=/nonexistent)"). Measured with `sh scripts/dev.sh plant` in
 `rust:1-alpine`: the C plant failed twice for the right reason, the C++ plant
 failed at `CXX=/nonexistent`, the control with `CC` alone was not stopped
-there, and the clean tree built (`docs/STATUS.md:555`). The CI run of
+there, and the clean tree built (`docs/STATUS.md:578`). The CI run of
 `eacd94e`, which contains `a378863`, passed, with its step "the no-C rule is
 load-bearing".
 
@@ -1761,7 +1768,7 @@ a reviewer can see it.
 
 Read: the rule as written is rule 3 of `docs/architecture.md:118-131` (the
 bind check of `podssh doctor` is the one exception), rule 3 of
-`docs/target-environment.md:74-78`, and rule 2 of AGENTS.md, section 5. The
+`docs/target-environment.md:84-88`, and rule 2 of AGENTS.md, section 5. The
 operator ruled on 2026-10-08 (`docs/decisions.md`): Q1 allows a local
 listener when the user asks for it and a probe at run time allows the bind
 (T-038, T-039, T-124, T-186, and `podssh agent` in T-034); Q10 allows a race
@@ -1845,7 +1852,7 @@ allowance".
   `crates/podssh-ws/src` of a temporary tree must be found). It prints the
   files read and the uses within the allowance.
 - The documents already state the rule as ruled (`docs/architecture.md:118-131`,
-  `docs/target-environment.md:74-78`, `AGENTS.md`, section 5): nothing to
+  `docs/target-environment.md:84-88`, `AGENTS.md`, section 5): nothing to
   change there. `docs/development.md`, "Checks": the scan.
 - Prove: `python scripts/check-repo.py`: exit 0, "265 Rust files read; 32
   uses of a listener's pattern within the allowance". Plant, restored:
@@ -2035,7 +2042,7 @@ Read:
 
 - `scripts/box/seccomp.json:5-10`: `bind` fails with EACCES for each socket,
   whatever its family.
-- `docs/STATUS.md:248`: in sandbox A, `bind` is refused for AF_INET and
+- `docs/STATUS.md:254`: in sandbox A, `bind` is refused for AF_INET and
   allowed for AF_UNIX. In the KTM report (read there), `doctor` printed
   `Permission denied (os error 13)` for AF_INET, and "bound" for an AF_UNIX
   path and for the abstract namespace.
@@ -3286,3 +3293,185 @@ python scripts/check-repo.py   # each image is pinned, in one place
 
 The docker job passes and opens a pull request that moves the box's Alpine. Planted: the old
 directory again; the job fails as before.
+
+# T-310: The gate on a Linux host with no wsl-toolkit, and a cloud session made ready
+
+**Source:** the operator, 2026-10-30: the dev scripts account for a Claude
+Code cloud session, and make it ready for work hermetically and
+idempotently (a Docker daemon, Podman, the other prerequisites).
+**Category:** chore
+**Milestone:** none
+**Priority:** P2
+**Effort:** M
+**Status:** done
+
+## Problem
+
+`scripts/dev.sh` reaches the build image only through wsl-toolkit from Git
+Bash (`scripts/dev-wsl.sh`); on a Linux host its preflight stops each
+container run with 127. A cloud container has Docker installed and not
+running (it has no init system), and no Podman, OpenSSH, Dropbear, groff or
+mandoc: there the gate, the box and the interop checks cannot run.
+
+## Premise
+
+Measured on 2026-10-30 in a Claude Code cloud container (Ubuntu 24.04, root,
+4 CPUs, 15 GiB, PID 1 not systemd, cgroups v1 with a v2 mount):
+
+- `dockerd` started by hand answers. A container on the host's network
+  reaches crates.io, Alpine's mirrors and static.rust-lang.org through the
+  session's proxy, once the host's CA bundle is in the image's store
+  (`update-ca-certificates`), and keeps it after `apk add`.
+- Podman 4.9.3 from apt: crun refuses each container ("cgroups in hybrid mode
+  not supported"); with runc, cgroupfs and events in a file, it runs, with a
+  bridge network.
+- The host's Rust was 1.97.0; the gate's is 1.99.0.
+
+## Approach
+
+1. `scripts/dev-native.sh`: the transport of `scripts/dev.sh` for a host with
+   Docker or Podman, with the contract of `scripts/dev-wsl.sh`: an ephemeral
+   container of the pinned image, a copy of the tree without the excluded
+   paths, and the run's own exit code; the host's network when its proxy is on
+   the loopback, and the host's CA for the image's tools only.
+2. `scripts/dev.sh` chooses the transport (`PODSSH_TRANSPORT`), and its
+   `setup` runs `scripts/cloud-setup.sh`: each step probes first and changes
+   nothing that is ready (the packages, the Docker daemon, Podman's settings,
+   the pinned images, the gate's Rust, the repository's git identity);
+   `--check` reports only.
+3. `.claude/settings.json`: each tool allowed, `CARGO_BUILD_JOBS=4`, and no
+   line of attribution; `.gitignore` for the worktrees and the local
+   settings.
+4. `docs/development.md` (section "A Linux host, or a cloud session") and
+   `AGENTS.md` say it.
+
+## Prove
+
+```sh
+sh scripts/cloud-setup.sh; echo "exit=$?"    # ready
+sh scripts/cloud-setup.sh; echo "exit=$?"    # again: no step changes anything
+sh scripts/dev.sh images; echo "exit=$?"
+sh scripts/dev.sh run -- 'sh /work/scripts/gate.sh record'; echo "exit=$?"
+python scripts/check-scripts.py
+```
+
+The second setup changes nothing; `images` prints the gate's toolchain; the
+step `record` passes in the image through the native transport.
+
+## Done
+
+2026-10-30, in a Claude Code cloud container (Ubuntu 24.04, root, 4 CPUs).
+`scripts/dev-native.sh` is the transport of `scripts/dev.sh` on Linux;
+`scripts/dev.sh` chooses it by `PODSSH_TRANSPORT`, or by the host (`wsl` with
+wsl-toolkit or a Windows shell, else `native`), and its `setup` runs
+`scripts/cloud-setup.sh`. `.claude/settings.json` allows each tool, sets
+`CARGO_BUILD_JOBS=4` and adds no attribution; `.gitignore` leaves out
+`.claude/worktrees/` and `.claude/settings.local.json`. `docs/development.md`
+("A Linux host, or a cloud session"), `AGENTS.md` (sections 3, 4, 6 and 7)
+and `docs/decisions.md` ("Cloud sessions") say it.
+
+- The steps were first done by hand in the container, then written as the
+  script. Its first run wrote Podman's settings (cgroupfs, file events,
+  runc), pulled the image of the box's proxy, and found the rest ready:
+  exit 0. Its second run changed nothing: exit 0.
+- `sh scripts/dev.sh images`: Linux x86_64, rustc 1.99.0, cargo 1.99.0,
+  musl, cc present; exit 0, with no copy left in `.work/native/`.
+- `sh scripts/dev.sh run -- 'sh /work/scripts/gate.sh record'`: gate green
+  (record), in 14 s.
+- `python scripts/check-scripts.py`: 56 scripts are LF and parse under dash;
+  shellcheck finds nothing in the three scripts but SC1007, the repository's
+  own `CDPATH= cd`.
+- Not measured yet: a first run on a new container (the next cloud session
+  measures it), a whole gate through the native transport, and the box
+  (`scripts/test_in_box.sh`) with this Podman; the last two wait for T-251.
+
+# T-312: The job `deny` fails from 2026-10-15: advisories against rustls, rustls-webpki, webpki-roots, tokio, crypto-bigint and ctutils
+
+**Source:** CI, the workflow `deny` on `main`, each day from 2026-10-15 (run
+40866539483 of 2026-10-29: "advisories FAILED, bans ok, licenses ok,
+sources ok"); found at the start of the session of 2026-10-30.
+**Category:** defect
+**Milestone:** none
+**Priority:** P1
+**Effort:** S
+**Status:** done
+
+## Problem
+
+`cargo deny --locked check advisories` fails on RUSTSEC-2026-0346 to 0349
+(rustls 0.23.45), RUSTSEC-2026-0382 (rustls-webpki 0.103.15),
+RUSTSEC-2026-0381 (webpki-roots 1.0.9), RUSTSEC-2026-0386 (tokio 1.53.2),
+RUSTSEC-2026-0387 (crypto-bigint 0.5.5 and 0.7.5, and 0.7.5 is yanked) and
+RUSTSEC-2026-0385 (ctutils 0.4.3). podssh is a TLS tool: a beta must not
+ship with these.
+
+## Premise
+
+Read in the advisories and in podssh's code (the research of 2026-10-30):
+
+- rustls: podssh's client sets no ECH, has no session store, no brotli, and
+  offers only X25519 and secp256r1 (`crates/podssh-ws/src/crypto/suites.rs`):
+  not affected; 0.23.46 adds no crate.
+- rustls-webpki builds the chains, and webpki-roots is the compiled-in
+  trust: affected. 1.0.11 drops the emSign roots; the test of the roots
+  compares `ROOTS_VERSION` and `ROOTS_PUBLISHED` (`crates/podssh-ws/src/tls.rs`)
+  with `Cargo.lock`.
+- tokio: `AsyncFd::new` and `try_new` are unsound and deprecated in 1.53.3;
+  the replacement is the unsafe `AsyncFd::register`, whose error gives the
+  descriptor back. podssh calls them in `crates/podssh-ssh/src/mux/afd.rs`
+  and `crates/podssh-cli/src/pipe/serial.rs`, and clippy with `-D warnings`
+  refuses a deprecated call.
+- crypto-bigint 0.7.x and ctutils: podssh-ssh's RSA keys use them (Rust 1.87
+  for the patched releases; podssh-ssh needs 1.89): affected, fixed by
+  0.7.10 and 0.4.7.
+- crypto-bigint 0.5.5 comes only through p256 and p384 0.13 in podssh-ws: an
+  ephemeral ECDHE secret used once per handshake, and ECDSA checks of public
+  data. No 0.5.x is patched, and the curves' 0.14 needs Rust 1.87, above
+  podssh-ws's 1.85 (podbox's minimum), which only the operator raises.
+
+## Approach
+
+1. `cargo update` of rustls, rustls-webpki, webpki-roots, tokio,
+   crypto-bigint 0.7 and ctutils; the workspace asks for tokio 1.53.3 or
+   later.
+2. `AsyncFd::register` at the two call sites, with a SAFETY comment each.
+3. `ROOTS_VERSION` and `ROOTS_PUBLISHED` for 1.0.11.
+4. `deny.toml`: RUSTSEC-2026-0387 ignored with its reason and the date read,
+   for the copy of 0.5.5 only that the curves of podssh-ws bring.
+
+## Prove
+
+```sh
+cargo deny --locked check advisories licenses bans sources; echo "exit=$?"
+cargo test -p podssh-ws --test roots_version
+cargo test -p podssh-ssh --lib mux::
+cargo test -p podssh-cli --lib pipe::serial
+cargo clippy --locked --all-targets -p podssh-ssh -p podssh-cli -p podssh-ws -- -D warnings
+```
+
+`deny` passes; the tests pass; clippy has no warning. Planted: the old
+webpki-roots in the lock; the roots test and `deny` fail.
+
+## Done
+
+2026-10-30. `Cargo.lock`: rustls 0.23.46, rustls-webpki 0.103.16,
+webpki-roots 1.0.11, tokio 1.54.1 (1.54.0 is yanked), crypto-bigint 0.7.10
+and ctutils 0.4.7; the last two need Rust 1.87, and `cargo tree -i` finds
+neither in a library crate. The workspace asks for tokio 1.53.3 or later.
+`AsyncFd::register` in `crates/podssh-ssh/src/mux/afd.rs` and
+`crates/podssh-cli/src/pipe/serial.rs`, each with its SAFETY comment;
+`ROOTS_VERSION` 1.0.11 and `ROOTS_PUBLISHED` 2026-10-23 (crates.io's date);
+`deny.toml` ignores RUSTSEC-2026-0387 with its reason, for the copy 0.5.5
+that p256 and p384 0.13 bring to podssh-ws.
+
+- `cargo deny --locked check advisories licenses bans sources` with
+  cargo-deny 0.20.2, CI's: advisories ok, bans ok, licenses ok, sources ok;
+  with `--all-features`: licenses ok, sources ok.
+- `cargo test --no-fail-fast` on Linux: 2069 passed, 55 ignored, and 1 failed,
+  the record's own test before the remap of this commit's documents; after
+  it, `cargo test -p podssh-todo` passed. `cargo clippy --locked
+  --all-targets` of each package but podssh-ts, `-D warnings`, clippy 1.99:
+  no warning. `cargo fmt --check`: clean.
+- Planted: `ROOTS_VERSION` back to 1.0.9; `the_recorded_roots_are_the_ones_built`
+  failed. The old lock: CI's `deny` failed on it each day from 2026-10-15.
+- For CI: the gate in the build image on these versions.

@@ -299,9 +299,13 @@ async fn dial(
 ) -> Result<TlsStream, std::io::Error> {
     with_attempts(|| async {
         let late = |what: &str| std::io::Error::new(std::io::ErrorKind::TimedOut, format!("{what} timed out"));
-        let tcp = tokio::time::timeout(TIMEOUT, tokio::net::TcpStream::connect(addr))
+        // As podssh reaches the relay: through the proxy that HTTPS_PROXY
+        // names, when one is set. Where an egress intercepts direct TLS, only
+        // the proxy carries the relay's own chain (T-315).
+        let choice = podssh_ws::ProxyChoice::FromEnvironment;
+        let tcp = podssh_ws::dial::dial(RELAY_HOST, addr.port(), &choice, TIMEOUT)
             .await
-            .map_err(|_| late("the connect"))??;
+            .map_err(|e| std::io::Error::other(e.to_string()))?;
         tokio::time::timeout(TIMEOUT, connector.connect(name.clone(), tcp)).await.map_err(|_| late("the handshake"))?
     })
     .await

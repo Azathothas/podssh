@@ -2,7 +2,8 @@ The roads beyond the forward and reverse roads: the iroh road of milestone M6
 and its race with the reverse road; a roost next to a standard sshd and a
 start from one; UDP over the relay; a self-hosted relay, which is work of the
 relay project; a quick tunnel and the functions of Mosh, made by podssh
-itself; Multipath TCP; and resumption in the relay (M8).
+itself; Multipath TCP; resumption in the relay (M8); and the roads of plain
+HTTP and of HTTP/2 to the relay.
 
 # T-162: The iroh road behind the cargo feature `iroh`
 
@@ -1134,7 +1135,7 @@ their own server, and the gate tests faults against a stand-in in Python.
 ## Premise
 
 Read: the relay is a Cloudflare Worker, and its own document is the contract
-(`docs/relay.md:1-21`, `README.md:31-34`). The stand-in serves the forward
+(`docs/relay.md:1-21`, `README.md:32-35`). The stand-in serves the forward
 path, `/v1/mint` and `/health` only (`scripts/fake-relay.py:102-120`). The
 pinned contract gives the forward path and the tokens
 (`crates/podssh-probe/tests/spec/relay-spec-2026-10-03-r2.txt:73-104`), the
@@ -1437,7 +1438,7 @@ read, not measured.
 **Milestone:** backlog
 **Priority:** P3
 **Effort:** S
-**Status:** blocked
+**Status:** open
 
 ## Problem
 
@@ -1482,6 +1483,12 @@ the tests of T-300 need.
 6. Write each result in the section of T-170 in `docs/design.md`, under "The edge, measured", and
    in `docs/STATUS.md`, with the date and the command.
 
+## Decision
+
+The operator ruled on Q43 on 2026-10-30 (`docs/decisions.md`): the measurement runs in a job of
+GitHub Actions, with short runs and a throwaway origin; `cloudflared` is a reference only, never a
+road. The operator decides T-300 after this entry's result.
+
 ## Prove
 
 ```sh
@@ -1490,11 +1497,6 @@ grep -n 'The edge, measured' docs/design.md
 
 The section gives, for each port and each road, whether the edge took the connection and the
 tunnel, with the date and the command; a road that was not tried says why. T-300 starts from it.
-
-## Blocker
-
-The operator: Q43 (`TODO/PROGRESS.md`). The targets, `api.trycloudflare.com` and the tunnel edge,
-are not on the list of `AGENTS.md`, and a run of cloudflared needs a download of it.
 
 # T-300: `podssh node` publishes a quick tunnel over HTTP/2, with no `cloudflared`
 
@@ -2058,3 +2060,143 @@ hyper-util's SOCKS client, which reqwest already builds, so no crate is added.
   Linux, and podssh-iroh with the patched iroh-relay checks on Rust 1.91.
 - Waiting for T-251: a real SOCKS5 server on the iroh road, as OpenSSH's `ssh -D` carries the
   relay road in `scripts/interop-socks.sh`.
+
+# T-319: An HTTP road for a proxy that refuses the WebSocket upgrade
+
+**Source:** the research of 2026-10-30 on tunnels through proxies that end
+TLS and refuse `Upgrade`; the proxy of a Claude Code cloud container
+documents that refusal for the names that it intercepts (T-311).
+**Category:** feature
+**Milestone:** backlog
+**Priority:** P2
+**Effort:** L
+**Status:** blocked
+
+## Problem
+
+Each road of podssh starts with a WebSocket upgrade. A proxy that
+re-terminates TLS for the relay's name, and refuses `Upgrade`, leaves podssh
+with no road, where plain HTTPS requests still go through.
+
+## Premise
+
+Read (the research of 2026-10-30): such proxies carry HTTP/1.1 requests and
+responses only, and often buffer a request's body. The tools that work
+there split the stream: one streamed GET carries the bytes down, and a POST
+for each chunk carries them up, with a sequence number (Xray's `packet-up`,
+gost's `pht`); the slowest form is one POST after another (meek). A relay on
+Cloudflare streams responses with no time limit, and a Durable Object can
+join both directions of a session. Not measured: the body buffering of this
+container's proxy.
+
+## Approach
+
+1. With the relay's operator: session endpoints (a GET that streams the bytes
+   down, a POST for each chunk up, a session id, sequence numbers and
+   acknowledgements), in the relay's contract.
+2. A link of this road under the resumable layer (`podssh-relay`, `session/`),
+   chosen by a probe when the upgrade is refused: the split form first, the
+   serial form as its fallback.
+3. `doctor` names the road that works.
+
+## Prove
+
+```sh
+cargo test -p podssh-relay --test http_road
+```
+
+Against a stand-in proxy that refuses `Upgrade` and buffers request bodies,
+a session carries 20 MiB each way with equal digests on the split form and
+on the serial form. Planted: the sequence number ignored; the digests differ.
+
+## Blocker
+
+The relay's operator: the relay has no HTTP endpoints for a session
+(`docs/relay.md`). The operator: the split form opens two connections at once
+for each session, and `AGENTS.md` (section 5, rule 2) allows one outside a
+race of relay hosts (Q44, `TODO/PROGRESS.md`).
+
+# T-321: An HTTP/2 road: the WebSocket over extended CONNECT (RFC 8441)
+
+**Source:** GitHub #51 (Nemo-010, 2026-10-30).
+**Category:** feature
+**Milestone:** backlog
+**Priority:** P3
+**Effort:** L
+**Status:** blocked
+
+## Problem
+
+Each session of podssh opens its own TCP and TLS connection, and starts
+with an HTTP/1.1 upgrade that must end in 101. A fan-out (`podssh each`)
+or many forwards pay a TLS handshake for each session. HTTP/2 with
+extended CONNECT (RFC 8441) carries a WebSocket as one stream of a
+connection, answered with 200, and many sessions on one TLS connection.
+
+## Premise
+
+Read and verified at the cited lines (2026-10-30):
+
+- podssh offers no ALPN: `crates/podssh-ws/src/tls.rs:256` says "no ALPN",
+  and a caller's configuration that offers ALPN is refused
+  (`crates/podssh-ws/src/tls.rs:84` says "alpn_protocols.is_empty()").
+- The upgrade is HTTP/1.1: `crates/podssh-ws/src/handshake.rs:37` builds
+  it, and `crates/podssh-ws/src/handshake.rs:185` says "status != 101".
+- A relay session is generic over its stream
+  (`crates/podssh-ws/src/session.rs:33` says "RelaySession<S = RelayStream>",
+  and `:78`). RFC 8441 section 5 runs the frames of RFC 6455 on the HTTP/2
+  stream "as if it were the TCP connection", and drops `Sec-WebSocket-Key`
+  and `Sec-WebSocket-Accept`.
+- `docs/design.md:232` says "0.4.19 is in": `h2` comes through hyper. Its
+  client reads the server's setting (`is_extended_connect_protocol_enabled`,
+  `hyperium/h2:src/client.rs`), its server's builder offers it
+  (`enable_connect_protocol`, `hyperium/h2:src/server.rs`), and
+  `h2::ext::Protocol` carries `:protocol`.
+- RFC 8441 section 3: a client may use extended CONNECT once it received
+  `SETTINGS_ENABLE_CONNECT_PROTOCOL` with the value 1; a server that does
+  not support it reads such a request as malformed.
+
+Measured (2026-10-30, in a Claude Code cloud container, through its
+proxy's CONNECT; a script offered `h2` and `http/1.1` and read the first
+SETTINGS frame): the relay's edge (Cloudflare) chose `h2`, and sent
+MAX_CONCURRENT_STREAMS 256, INITIAL_WINDOW_SIZE 65536 and MAX_FRAME_SIZE
+16777215, and no ENABLE_CONNECT_PROTOCOL. The relay of today cannot take
+this road.
+
+## Approach
+
+1. A road `h2` in `podssh-ws`: a TLS configuration of its own that offers
+   ALPN `h2` (the HTTP/1.1 road keeps none), the HTTP/2 handshake with
+   larger windows, then for each session a CONNECT with `:protocol
+   websocket`, the `:scheme`, `:path` and `:authority` of the upgrade, and
+   the token. A 200 opens the session; a refusal reads as a refusal of the
+   upgrade.
+2. Taken only when the server's SETTINGS offer extended CONNECT; else the
+   HTTP/1.1 upgrade on a new connection, as today, with a line in `-v`.
+3. The frames run on the stream with the code of today (`frame.rs`,
+   `session.rs`). The sessions of one process share one connection, up to
+   the server's MAX_CONCURRENT_STREAMS; a lost connection is one lost hop
+   for each of its sessions.
+4. `podssh doctor` names the ALPN that the relay chose, and whether it
+   offers extended CONNECT.
+5. The self-hosted relay (T-169) offers it (`enable_connect_protocol`).
+
+## Prove
+
+```sh
+cargo test -p podssh-ws --test h2_road
+```
+
+Against a stand-in server made with the `h2` crate, which offers the
+setting, answers 200 and echoes: 8 sessions on one TLS connection carry
+4 MiB each way with equal digests. A server that does not offer it gets
+the HTTP/1.1 upgrade on a new connection, and no `:protocol`. A 403 on the
+CONNECT ends the session with the relay's refusal. Planted: `:protocol`
+sent with the setting absent; the fallback test fails. Live, when a relay
+offers it: `podssh doctor` says so, and `podssh ssh` runs on the road.
+
+## Blocker
+
+The relay's operator: the relay's edge does not offer extended CONNECT
+(measured above), and a relay that does is the self-hosted relay of
+T-169, which waits for the relay's operator.

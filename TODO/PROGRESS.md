@@ -39,32 +39,49 @@ entry keeps its proof in the entry; this page keeps no history (git does).
   3 minutes, on the resumable layer and on the iroh road; the gate's step
   `m6` runs the checks at each push. T-263 is the last entry of M6.
 
+- **The session of 2026-10-30, in a Claude Code cloud container.** The
+  operator allowed betas again (`docs/decisions.md`): `v1.0.0-beta.N`
+  before `v1.0.0` (T-309). The container is ready by `scripts/cloud-setup.sh`,
+  and `scripts/dev.sh` reaches the build image through its Docker or Podman
+  (T-310). podssh works there through the agent proxy (T-311). The CI's job
+  `deny` was red from 2026-10-15 (T-312), and the native tests met three
+  causes of the test or of the place, none of podssh (T-313, T-314, T-315).
 - **Drafts (2026-10-13).** Since 2026-10-12 agents draft entries in local
   worktrees (`.claude/worktrees/`, excluded from git) on local branches
   `worktree-agent-*`, never pushed; they do not build. The main session
   merges a draft, builds it, runs its tests and plants, fills each
-  UNVERIFIED and closes the entry (T-179 to T-184, T-200, T-202, T-221, T-225, T-232, T-235, T-242, T-279, T-280, T-229, T-281, T-289, T-291, T-293, T-187 to T-191, T-195, T-296, T-297 and T-298 so). Waiting to
-  be merged, in the order of the index:
+  UNVERIFIED and closes the entry (T-179 to T-184, T-200, T-202, T-221, T-225, T-232, T-235, T-242, T-279, T-280, T-229, T-281, T-289, T-291, T-293, T-187 to T-191, T-195, T-296, T-297 and T-298 so, and T-185, merged in
+  `d1c5bd1` and measured on 2026-10-30). Waiting to be merged, in the order
+  of the index:
 
   | Entry | Branch (`worktree-agent-` and) | Commit | State |
   | --- | --- | --- | --- |
   | T-306, T-302, T-305 | `afbe1f388cda562f1` | `bda737c`, `949623b`, `17b4e31` (one each, on `905f92c`) | drafted; T-302 adds a new entry, the notice on the forward road, with the id after T-306, kept free for it; new variables `PODSSH_SPARE_LINKS` and `PODSSH_TITLE_STACK`; spare links off in the library, on in the commands |
   | T-193, T-197, T-192 | `a3f5849c868ae85c1` | `24b9f6e..d95181c`, `d95181c..0e6f48c`, `0e6f48c..a36b0ef` | drafted; `podssh job` (tmux on the far host, probed) and `podssh run`; the far tests need tmux and `sftp-server`, else they say "did not run" and pass; T-192 must call T-195's `not_a_failure` when both are in; T-193's step 3 waits for `podssh serve` |
-  | T-185 | `a273199755d943f3c` | `5ad7b31..20683ab` | drafted, on `5ad7b31`; `podssh each --interactive`, the stop is `Ctrl-\` (SIGQUIT) on Unix and Ctrl-Break on Windows; it meets T-187 in `each/host.rs` and T-291 in `Input::next`; `--interactive` must refuse `--snippet` once T-187 is in |
   | T-186 | `a9361e92a8297d3db` | `b64664a..cad56ba` | drafted; `podssh session` (start, serve, send, wait, capture, stop, list), a daemon on a socket of the user (0600) through `pipe::listen::Listener`, the screen of a `vt100` model; it adds an `io::Feed` to podssh-ssh, as T-185 does: one of the two takes the other's |
 
   Each draft of the table is whole; none is being drafted. Several add a
   harness that `scripts/interop-each.sh` sources, as `scripts/interop.sh`
   is at 500 lines. `crates/podssh-cli/tests/ssh_harness/mod.rs`, `crates/podssh-cli/src/tree.rs`
   and `crates/podssh-cli/src/flags.rs` are near 500 lines, so a merge splits
-  them where needed. The next merge is T-185, then T-186, then the others in
-  the order of the index.
+  them where needed. The next merge is T-186, then the others in the order
+  of the index. These branches are on the operator's machine only: a session
+  elsewhere (a cloud container) merges them once they are on GitHub as
+  `draft/*` (the operator has the commands, 2026-10-30).
 
   Each entry of the work order is drafted. CI: the gate passed at
   `24b9f6e` (run 38331509229), and its step `release` at `cad2885` (478
   checks, the desktop's, `usbip` and `each` among them).
 
 ## Baseline
+
+Measured on 2026-10-30 in a Claude Code cloud container (Linux x86_64,
+Rust 1.99.0, `CARGO_BUILD_JOBS=4`), at `9b6dda2`: `cargo test --no-fail-fast`
+2028 passed, 20 failed, 55 ignored, in 22 min 43 s, with groff stopped by
+hand after 13 minutes (T-314). Each failure is of the test or of the place:
+16 tests take the machine's proxy (T-313), and 4 live handshakes dial past it
+into an egress that intercepts TLS (T-315). `cargo todo check` and
+`python scripts/check-repo.py`: ok.
 
 Measured on 2026-10-09 after T-060, on Windows 11 with native cargo 1.98.0
 and `CARGO_BUILD_JOBS=4`:
@@ -92,7 +109,7 @@ and `CARGO_BUILD_JOBS=4`:
 
 ## Counts
 
-`TODO/INDEX.md` holds 304 entries: 30 open, 0 partial, 25 blocked, 249 done.
+`TODO/INDEX.md` holds 317 entries: 36 open, 1 partial, 25 blocked, 255 done.
 
 Open includes parked work. `cargo todo check` verifies this line.
 
@@ -107,6 +124,10 @@ the surface for agents: done.
 
 **M4:** T-085 (the exit measurement) is on hold (Q32).
 
+**First (2026-10-30):** T-309, the beta (partial: the first beta is being
+published). For the next beta: T-316 and T-317, which the testers'
+sandboxes meet.
+
 **Now:** the `backlog` entries, in the order of `TODO/INDEX.md` ("The
 order, and the argument for it"): M3 to M8 are done, but for the entries on
 hold and those of the relay's operator. The P2 entries are done, but for
@@ -118,14 +139,14 @@ before the tag), and last T-250 (the one release). Between entries: the
 `none` entries, the highest priority first.
 
 **Skip** the entries that wait for the relay's operator (status
-`blocked`): T-086, T-106, T-169, T-173, T-180, T-226, T-253 and T-255;
-and the entries that the operator holds (status `blocked`, Q32): T-085,
-T-107 to T-113, T-117, T-118, T-213, T-222, T-245 and T-248; and the work
+`blocked`): T-086, T-106, T-169, T-173, T-180, T-226, T-253, T-255 and
+T-321; and the entries that the operator holds (status `blocked`, Q32):
+T-085, T-107 to T-113, T-117, T-118, T-213, T-222, T-245 and T-248; and the work
 parked behind them (T-114, T-115, T-116, T-119, T-120, T-122, T-123,
 T-124, T-150, T-159, T-160, T-161, T-303 and T-304, "Parked open work"),
 which waits as they wait; and the entries that wait for an answer of the
-operator: T-292 (Q41), T-062 (Q42) and T-299 (Q43), with T-300 and T-301
-parked behind T-299.
+operator: T-062 (Q42) and T-319 (Q44). T-300 waits for the operator's call on
+T-299's result, and T-301 for T-300.
 
 ## Parked open work
 
@@ -146,7 +167,7 @@ it can start.
 | T-159 | T-107, T-108, T-110 and T-117 are done: `podssh serve` runs a shell on a pty, and stops its process group (the operator holds them, Q32) |
 | T-160 | T-107 and T-110 are done: `podssh serve` runs a shell on a pty, which reports the input's offset and the ECHO flag (the operator holds them, Q32) |
 | T-161 | T-159 is done: a far end keeps a shell, its ring and its pty after the client leaves |
-| T-300 | T-299 is done: the edge's ports are measured, with the operator's leave (Q43) |
+| T-300 | T-299 is done, and the operator decided on its result (Q43) |
 | T-301 | T-300 is done: the connector of a quick tunnel over HTTP/2 |
 | T-303 | T-110 is done: `podssh serve` has a pty (the operator holds it, Q32); and T-161 has a model of the far end's screen |
 | T-304 | T-303 is done: frames of the screen exist |
@@ -171,13 +192,6 @@ may be tested on undernet, libera and OFTC (T-091 to T-098, T-252); and a
 session passes the files of `.env/` to podssh by their paths, never printing
 them (T-100 to T-105, T-240, T-241).
 
-Q41 (2026-10-12, blocks T-292): `podssh config import` reads an Ansible
-inventory (T-047); each other format must be read from a real export of its
-program, and none of those programs is here. Recommendation: send one
-export of each (PuTTY, MobaXterm, Remmina, FinalShell, mRemoteNG, Termius),
-each with a host that has a password; or allow a session to download PuTTY
-and MobaXterm's portable build to make them.
-
 Q42 (2026-10-12, blocks T-062): whether the relay's backpressure close
 (1013) operates needs a target that sends much data fast through the
 relay's forward path, read slowly. From this host no allowed target does:
@@ -187,20 +201,19 @@ set `PODSSH_THROUGHPUT_SSH` and `PODSSH_THROUGHPUT_KEY` where a session
 runs, and allow this measurement on that host (less than 64 MiB, and 5
 minutes); or name another target.
 
-Q43 (2026-10-12, blocks T-299; T-300 and T-301 wait for it): the research
-of T-170 found that the connector of a quick tunnel reaches Cloudflare's
-edge on port 7844, by QUIC or by HTTP/2 over TLS, and never through a proxy
-(`docs/design.md`, section 2). To measure which ports and roads reach the
-edge needs targets that `AGENTS.md` does not list: `api.trycloudflare.com`
-(one quick tunnel at a time, a few minutes each) and the tunnel edge
-(`region1.v2.argotunnel.com` and `region2.v2.argotunnel.com`, ports 7844
-and 443); and a release of `cloudflared` as a reference, never a road. The
-operator kept a tunnel that podssh makes as research (Q33). Cloudflare's
-terms (section 7) forbid getting at its services by means that it did not
-make available on purpose; whether a connector of podssh's own is such a
-means is the operator's call. Recommendation: allow the targets and
-cloudflared for T-299, with a throwaway origin and short runs, and decide
-on T-300 with its result.
+The operator settled Q41 and Q43 on 2026-10-30, kept Q42 and the holds of
+Q32, and allowed betas (`docs/decisions.md`): T-292 uses export files that
+their programs wrote and that are published; T-299 runs in GitHub Actions.
+
+Q44 (2026-10-30, blocks T-319): a proxy that ends TLS and refuses
+`Upgrade` leaves podssh with no road. The tools that work there split the
+stream: one streamed GET down and a POST for each chunk up, two connections
+at once for each session, where `AGENTS.md` (section 5, rule 2) allows a
+second one only in a race of relay hosts; the serial form (one POST after
+another) needs one, but is slow. The relay's operator must add the session
+endpoints in any case. Recommendation: allow the split form's second
+connection, for this road only, after a probe finds the upgrade refused; and
+keep the serial form as its fallback.
 
 ## Operator actions
 

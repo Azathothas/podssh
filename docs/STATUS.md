@@ -5,17 +5,22 @@ the command that measured it.
 
 When the state changes, update this page in the same commit as the change.
 
-Measured on 2026-10-08: a Windows 11 host with native `cargo 1.98.0` and
+Measured from 2026-10-08: a Windows 11 host with native `cargo 1.98.0` and
 `CARGO_BUILD_JOBS=4`, the `rust:1-alpine` container gate, CI, a Podman box,
-and two Linux hosts on a tailnet.
+and two Linux hosts on a tailnet; from 2026-10-30, also a Claude Code cloud
+container (Linux x86_64, Rust 1.99.0) with its own Docker and Podman. Each
+row has its own date.
 
 ## Summary
 
-These commands work: `podssh ssh`, `podssh each`, `podssh proxy`,
-`podssh pipe`, `podssh cp`, `podssh mv`, `podssh scp`, `podssh sftp` and
-`podssh edit` (files), `podssh doctor`, `podssh keygen`, `podssh man`,
-`podssh status`, `podssh node`, `podssh operator` and `podssh relay` (`pair`,
-`revoke`, `status NAME` and `spec`). The other commands refuse with exit code 70.
+These commands work: `podssh ssh`, `podssh each`, `podssh containers`,
+`podssh proxy`, `podssh pipe`, `podssh cp`, `podssh mv`, `podssh scp`,
+`podssh sftp` and `podssh edit` (files), `podssh doctor`, `podssh keygen`,
+`podssh agent`, `podssh man`, `podssh status`, `podssh ping`,
+`podssh health`, `podssh node`, `podssh operator`, `podssh relay`,
+`podssh chat`, `podssh play`, `podssh config` and `podssh mcp`. `podssh ts`
+and the iroh road refuse with exit code 70 in a build without their
+features.
 
 - `podssh ssh` is an SSH client on `russh`, with the command line of
   OpenSSH. It passes the 301 interop checks of the gate against OpenSSH and
@@ -31,9 +36,10 @@ These commands work: `podssh ssh`, `podssh each`, `podssh proxy`,
   tables. It needs nothing but the binary.
 - podssh fails over between relay hosts, and finds a silent relay in 30 to
   40 s. It works with no DNS.
-- podssh was measured in two real sandboxes on 2026-10-08 (below). Not done
-  in M3: the entries that the sandbox runs found. The one release is
-  `v1.0.0`, at the end (T-250).
+- podssh was measured in two real sandboxes on 2026-10-08, and in a Claude
+  Code cloud container on 2026-10-30 (below). M3 is done (2026-10-09).
+  Betas `v1.0.0-beta.N` come before `v1.0.0`, the final release (T-309,
+  T-250).
 
 The open work, the defects included, is in [TODO/INDEX.md](../TODO/INDEX.md),
 and its order in [TODO/PROGRESS.md](../TODO/PROGRESS.md). The milestones are
@@ -156,7 +162,7 @@ in [ROADMAP.md](ROADMAP.md).
 | The host picker (T-188, 2026-10-13: `cargo test -p podssh-cli --test ssh_args -- picker`, 4 passed on Windows 11) | `podssh ssh` with no destination, stdin and stdout both terminals: the literal `Host` names of `ssh_config` (with its `Include`s), numbered; a number logs in to that host, text narrows the list, an empty line or Ctrl-D is 64. With stdout alone a terminal, or no name, nothing is read and the exit stays 64. In a pty of the build image (`scripts/interop-pty.py`): the list of three `Host` names, and 2 logged in to the second; with stdin not a terminal, no list and 64. Planted, the picker with stdout alone a terminal: the test failed. |
 | `podssh containers` (T-190, Windows, 2026-10-13: `cargo test -p podssh-cli --test containers` and `cargo test -p podssh-cli containers::`, 7 and 9 passed) | The script, its marks and its parse on the lists of docker, podman and kubectl in `crates/podssh-cli/tests/fixtures/containers/` (written in the tools' documented formats, not captured: no runtime here); the check of each name, and its plant (`a;b`); the refusals of the command line (64) offline; against the test's server on the loopback, a line for each container whose command parses as `podssh ssh` with the exec of that container, a docker that is refused its socket beside kubectl (69), a name left out (65), a host with no tool (69), and `--exec` on the connection of the list, with `-i`, or with `-tt` and `-it`. |
 | `--expect` and `LocalCommand` of `podssh ssh` (T-191, Windows, 2026-10-13: `cargo test -p podssh-cli --test ssh_expect`, `cargo test -p podssh-cli --lib -- ssh::expect ssh::local_command ssh::keywords ssh::options`, `cargo test -p podssh-ssh --lib -- expect local_command`: 3, 18 and 5 passed on Windows 11; the Unix test in the build image) | `--expect TEXT --send KEYS` with a pty: the rules in order against the test server's `prompt`, `echo EXP` then `exit 4` gives 4; a rule with no match in 2 s ends the session with 255 and is named; a session with no pty runs nothing (255); the refusals with `-T`, `-N`, `-W`, a `--send` first and a bad time (64). `LocalCommand` runs with `PermitLocalCommand=yes` alone, before the session's output (Unix), its tokens and `%T`; with no shell, 78 before anything connects (Windows). The lines of `-G` for `permitlocalcommand` and `localcommand` equal `ssh -G`'s (the gate's `ssh.config.g.*`). Against OpenSSH 10.3p1 and Dropbear in the build image (`scripts/interop-expect.sh`, 6 of 6): the rules drove a login shell to `exit 4` on both, `LocalCommand` ran only with `PermitLocalCommand=yes`, and its output came before the session's, as with OpenSSH's own `ssh`. The end of input after the rules is Ctrl-D in the pty's stream: a channel's EOF let Dropbear hang up the shell before it read the last keys. Planted, the permit ignored: `expect.local_command_no` failed. |
-| The broadcast (T-185, a draft, 2026-10-13: `cargo test -p podssh-cli --test each -- interactive`, `cargo test -p podssh-cli broadcast::` and `cargo test -p podssh-ssh io::feed`, UNVERIFIED) | `podssh each --interactive HOSTS`: a shell with no pty on each host (64 at most), and each line typed to the hosts of the selection, as `HOST: LINE` back; `:all`, `:none`, `:only HOST...`, `:list`, `:intr` (`signal INT`), `::` and `--confirm`. The emergency stop, `Ctrl-\` (SIGQUIT) on Unix and Ctrl-Break on Windows, armed before anything connects (else 78), selects no host and takes back what waits in the queue of each host; Ctrl-C goes to no host, and after the end of the input cuts the shells that still run (130); a host whose queue of 64 KiB is full leaves the selection, named. The tests: UNVERIFIED. The Unix tests, `scripts/interop-broadcast.sh` against OpenSSH and Dropbear, and its planted defect (SIGQUIT ignored) wait for T-251. |
+| The broadcast (T-185, measured 2026-10-30: `cargo test -p podssh-cli --test each -- interactive` 8 passed on Linux, `cargo test -p podssh-cli broadcast::` 9 and `cargo test -p podssh-ssh io::feed` 5; CI at `d1c5bd1`: the Windows tests, and `score broadcast 3 0 0 0 0 3` against OpenSSH and Dropbear) | `podssh each --interactive HOSTS`: a shell with no pty on each host (64 at most), and each line typed to the hosts of the selection, as `HOST: LINE` back; `:all`, `:none`, `:only HOST...`, `:list`, `:intr` (`signal INT`), `::` and `--confirm`. The emergency stop, `Ctrl-\` (SIGQUIT) on Unix and Ctrl-Break on Windows, armed before anything connects (else 78), selects no host and takes back what waits in the queue of each host; Ctrl-C goes to no host, and after the end of the input cuts the shells that still run (130); a host whose queue of 64 KiB is full leaves the selection, named. The tests passed natively and in CI; each of the three planted defects failed its tests. The planted defect of `scripts/interop-broadcast.sh` (SIGQUIT ignored) waits for T-251. |
 | `podssh config import ansible` (T-047, Windows, 2026-10-12: `cargo test -p podssh-cli --test config_import`, 5 passed) | An Ansible INI inventory as `Host` blocks: each of the 15 hosts that ansible-core 2.21.0's ssh reached, in the build image, gets the port, user, key file, ProxyJump and address of the command line that Ansible ran; no password is printed, and the 21 of Ansible's listing are counted. Planted, a password in a comment fails the test. OpenSSH's `ssh -G` reads each block in the gate (`match.config_import`). Other formats wait for real exports (T-292). |
 | podssh's settings file (T-048, Windows and the build image, 2026-10-12: `cargo test -p podssh-cli --test settings`, 4 and 5 passed) | `RelayHost`, `RelayAddr`, `RelayFailover` and `CaFile` from `PODSSH_SETTINGS`, `$XDG_CONFIG_HOME/podssh/settings` (`%APPDATA%` on Windows) or `podssh.settings` beside the binary, below the flags and the variables: `status` takes and names them, `doctor` names the file, and `podssh ssh` resolves with them. A bad line is 78 with its place; on Linux a file that others can change, and a symbolic link, are refused. Planted, the file read before the variable fails the tests of the order. |
 | The scratch of the tests (T-272), in the temporary directory (`cargo test --workspace --no-fail-fast`, Windows, 2026-10-10) | Before: 72 entries `podssh-*` left by one run, from seven helpers. After: 1164 passed, 0 failed, 38 ignored, and no entry left. Planted, the token cache's helper without its removal: 9 left. The gate fails when a step's tests leave an entry (`scripts/gate.sh`). In CI at `84df12a` (run 38034478102) it found one more, in a test of the feature `iroh-test`, which the native run did not build; repaired. At `8cf2587` (run 38074648006) the steps `ssh`, `iroh` and `ts` found six directories of `tests/chat_irc_files.rs` (T-252); it and the other two tests of `chat --irc` now remove theirs (2026-10-11: `cargo test -p podssh-cli --test chat_irc_files --test chat_irc_direct`, none left; six without the change). At `a7c1394` and `73f910b` (runs 38107322252 and 38107894958) the step `libs` found `podssh-tls12-PID`, the certificates of `crates/podssh-ws/tests/tls12.rs` (T-067), made once for the test binary and never removed: they are now made once into a directory that goes at once, and each test writes them into a directory of its own, removed when the test ends (2026-10-11: `PODSSH_TEST_OPENSSL=1 cargo test -p podssh-ws --test tls12`, 9 passed, none left; nine left by earlier runs on this host). The two ignored tests of T-025 in `tests/faults.rs` keep their file in the session's home, which the session removes. |
@@ -259,6 +265,23 @@ reports are outside the repository.
 Not measured in a real sandbox yet: interactive programs over `-tt`
 (T-004), the prompt repair of `eacd94e` (measured in the box, T-005), and
 `podssh ts`.
+
+## In a Claude Code cloud container, measured
+
+On 2026-10-30, in the container of a Claude Code cloud session (T-311):
+Ubuntu 24.04, uid 0, no systemd, cgroups v1 with a v2 mount; `HTTPS_PROXY`
+names an agent proxy on the loopback, whose CA is in `SSL_CERT_FILE` and in
+the system's store. The binary: `target/debug/podssh` built there at
+`9b6dda2`.
+
+| Check | Result |
+| --- | --- |
+| `podssh doctor` | 31 ok, 0 FAIL, 0 ????, exit 0: CONNECT by name through the proxy; the relay's four hosts with TLS 1.3, verified; a token minted; github.com:22 through the relay gives GitHub's ED25519 key. With `SSL_CERT_FILE` unset: 32 ok (121 compiled-in roots and the system's 122) |
+| The certificates through the proxy (`openssl s_client -proxy`) | The relay: its own chain (Google Trust Services WE1); github.com: "CCR agent-proxy interception CA (production)". Direct TLS on port 443: "Egress Gateway SDS Issuing CA (production)" for the relay |
+| `podssh proxy github.com 22` (stdin open) | GitHub's banner, `SSH-2.0-...` |
+| `podssh ssh -T git@github.com`, a throwaway key | `Permission denied (publickey)`, 255, as GitHub answers a key that it does not know |
+| `podssh ssh --direct` to github.com:22 | The proxy answers `200` to CONNECT, then sends nothing, as it waits for TLS; podssh ends with `Connection reset by peer`, 255. `doctor` said that plain ssh could leave that way (T-317) |
+| The native tests at `9b6dda2` | 2028 passed, 20 failed, 55 ignored, 22 min 43 s; each failure was of the test or of the place: 16 took the machine's proxy (T-313), 4 dialled past it into the egress (T-315); and one test waited for groff for ever (T-314) |
 
 ## Throughput, measured
 

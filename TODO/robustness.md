@@ -556,7 +556,7 @@ Read, the bounds today:
    `crates/podssh-ssh/src/run.rs:26-29` does since T-024, and the result of
    T-062 when it exists.
 3. Tests in the process, with a peer over `tokio::io::duplex`, so no network
-   (`docs/development.md:410-413`): a proxy head that never ends stops at
+   (`docs/development.md:466-469`): a proxy head that never ends stops at
    16 KiB, and an upgrade head too; fragments past 16 MiB give the error, not
    more memory; a pool body over 256 KiB is refused; a cache file over 64 KiB
    is ignored.
@@ -843,7 +843,7 @@ Read:
   names and answers a status (`scripts/fake-proxy.py:1-27`). Neither shapes
   the traffic.
 - `scripts/interop-faults.sh:42-50` starts one stand-in for each fault; its
-  checks are at lines 73-182 at `8d668b7` (`docs/STATUS.md:453-471`, 14 of 14 since T-236).
+  checks are at lines 73-182 at `8d668b7` (`docs/STATUS.md:476-494`, 14 of 14 since T-236).
 - The time limits that latency meets today: the SSH handshake, 60 s
   (`crates/podssh-ssh/src/options.rs:392`, enforced at
   `crates/podssh-ssh/src/run.rs:369-375`); a reply, 30 s
@@ -871,7 +871,7 @@ Read:
    session back from 127.0.0.2, and a stall of 3 minutes, each with the digest
    of a running transfer intact. T-156 uses these checks as its measurement.
 5. Update docs/development.md (item 8 of the gate, item 9 since T-156,
-   `docs/development.md:290-302`) and the faults table of docs/STATUS.md.
+   `docs/development.md:296-308`) and the faults table of docs/STATUS.md.
 
 Pitfall: each check must show that its fault was injected (see Prove).
 
@@ -977,7 +977,7 @@ Read, each claim of GitHub #34 at the lines as they are now:
 - `crates/podssh-ssh/src/io.rs:372-379`, with `crates/podssh-ssh/src/io.rs:63-65`,
   maps an exit status that does not fit
   (the -1 of `railway.new`) to 255, and an exit signal to 128 plus its number
-  (`docs/STATUS.md:76`, `docs/STATUS.md:81`).
+  (`docs/STATUS.md:82`, `docs/STATUS.md:87`).
 - A correction to the framing of #34: for a signal, podssh differs from
   OpenSSH on purpose. `docs/cli.md:2070-2071` says 128 plus the signal's number,
   and that OpenSSH gives 255. `crates/podssh-ssh/src/lib.rs:16` says that the
@@ -1137,3 +1137,126 @@ and `cargo test -p podssh-todo` passed. `scripts/interop.sh` had grown to
 the helper `wait_port` of `scripts/interop-lib.sh` now, and the script has
 498.
 
+
+# T-313: The tests of the stand-in relay take the machine's proxy
+
+**Source:** the native tests of 2026-10-30 in a Claude Code cloud container
+(T-311), where `HTTPS_PROXY` names the session's agent proxy: 16 tests of
+`attach`, `node_copy`, `node_plain`, `node_routes`, `pipe_remote`,
+`pipe_udp`, `roost` and `upgrade` (`crates/podssh-cli/tests/`) failed with
+"TLS with the relay failed: Connection reset by peer"; each passes with
+`HTTPS_PROXY` unset.
+**Category:** defect
+**Milestone:** none
+**Priority:** P2
+**Effort:** S
+**Status:** done
+
+## Problem
+
+The harness of these tests keeps the machine's proxy on purpose, as the
+throughput runs measure the place (`crates/podssh-cli/tests/throughput_harness/mod.rs`,
+`Session::command`). The stand-in relay is a name, `relay-a.test`, that only
+`--relay-addr` pins to 127.0.0.1: through a proxy podssh sends the name, and
+the proxy cannot reach it. A developer or a CI runner with a proxy gets 16
+failures that say nothing about podssh. Six other test files already clear
+the proxy variables by hand.
+
+## Premise
+
+Measured on 2026-10-30: `attach`'s test passes with `HTTPS_PROXY` unset,
+and fails with it set; `NO_PROXY` alone changes nothing, as the name is not in
+it.
+
+## Approach
+
+1. `Session::stand_in` in the harness: the command of `Session::command`,
+   the stand-in's CA in `SSL_CERT_FILE`, and no proxy variable (`https_proxy`,
+   `HTTPS_PROXY`, `all_proxy`, `ALL_PROXY`, `no_proxy`, `NO_PROXY`), with the
+   reason in a comment.
+2. Each command of a test that runs against the stand-in relay uses it; the
+   live cells keep the machine's proxy.
+
+## Prove
+
+```sh
+cargo test -p podssh-cli --test attach --test node_copy --test node_plain --test node_routes --test pipe_remote --test pipe_udp --test roost --test upgrade
+```
+
+The tests pass with the container's `HTTPS_PROXY` set, as with none.
+Planted: the proxy variables kept; the 16 tests fail as before.
+
+## Done
+
+2026-10-30. `PROXY_VARS`, `without_proxy` and `Session::stand_in` in
+`crates/podssh-cli/tests/throughput_harness/mod.rs`; each run against the
+stand-in relay in `attach`, `node_copy`, `node_plain`, `node_routes`,
+`pipe_remote`, `pipe_udp`, `roost` and `upgrade` takes them, and the pseudo
+console of `attach` on Windows clears the same variables. The live cells keep
+the machine's proxy.
+
+- With the container's `HTTPS_PROXY` set, the 16 tests passed, in the run of
+  `cargo test --no-fail-fast` (2069 passed).
+- Planted: the harness as it was, with the machine's proxy kept, which the
+  baseline of the same day ran: the 16 tests failed with "TLS with the relay
+  failed: Connection reset by peer".
+
+# T-314: The test of the man page waits for ever on a real groff
+
+**Source:** the native tests of 2026-10-30 on a host with groff 1.23.0:
+`a_real_renderer_shows_each_flag_name`
+(`crates/podssh-cli/tests/man_page.rs`) ran for 13 minutes, until groff was
+stopped by hand.
+**Category:** defect
+**Milestone:** none
+**Priority:** P2
+**Effort:** S
+**Status:** done
+
+## Problem
+
+`render` writes the whole page to the renderer's stdin before it reads the
+renderer's stdout. The page is larger than a pipe's buffer, and groff writes
+as it reads: groff waits for its stdout to drain, the test waits for its
+stdin to drain, and neither returns. No other host of the tests had groff
+when cargo ran them: Windows has none, and the build image gets groff only
+in `scripts/interop-man.sh`, after the tests.
+
+## Premise
+
+Measured on 2026-10-30: groff, troff and grotty waited 13 minutes in the
+state `S`; with them stopped, the test went on. mandoc reads its whole input
+before it writes, so it cannot meet the wait.
+
+## Approach
+
+1. The input goes to the renderer from a thread of its own, and the output
+   is read meanwhile; the whole run has a time limit of 120 s, after which the
+   renderer is stopped and the test fails with the reason (`AGENTS.md`,
+   section 6, rule 4).
+2. A failed write fails the test with the reason: it is not "not on this
+   host".
+
+## Prove
+
+```sh
+cargo test -p podssh-cli --test man_page
+```
+
+The test passes in seconds with groff and mandoc installed, and says
+"skipped" for each that is missing. Planted: the renderer's output never
+read; the test fails at its limit of 120 s instead of waiting.
+
+## Done
+
+2026-10-30. `render` (`crates/podssh-cli/tests/man_page.rs`) writes the page
+from a thread of its own while two threads read stdout and stderr, and waits
+at most `RENDER_LIMIT`, 120 s, after which it stops the renderer and fails; a
+write that fails fails the test with its reason.
+
+- With groff 1.23.0 and mandoc installed, `a_real_renderer_shows_each_flag_name`
+  passed in the run of the whole suite; before, it waited 13 minutes, until
+  groff was stopped by hand.
+- Planted: the renderer's output never read: the test failed at its limit
+  with "groff did not finish within 120 s" (150 s with the build), and did
+  not wait for ever.

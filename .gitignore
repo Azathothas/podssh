@@ -25,3 +25,8 @@ __pycache__/
 
 # CodeGraph index: local to each machine.
 /.codegraph/
+
+# Claude Code: the drafting agents' worktrees and each machine's own
+# overrides. .claude/settings.json is shared and committed.
+/.claude/worktrees/
+/.claude/settings.local.json

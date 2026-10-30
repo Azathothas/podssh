@@ -28,6 +28,20 @@ const RUN_LIMIT: Duration = Duration::from_secs(300);
 /// The bound on each wait of a cell's setup: a pair, a node, a relay.
 const SETUP_LIMIT: Duration = Duration::from_secs(60);
 
+/// The variables that name a proxy, or the hosts that bypass one, as
+/// podssh reads them.
+pub const PROXY_VARS: [&str; 6] = ["https_proxy", "HTTPS_PROXY", "all_proxy", "ALL_PROXY", "no_proxy", "NO_PROXY"];
+
+/// `cmd` with none of the machine's proxy variables, for a run against the
+/// stand-in relay: a name that only `--relay-addr` pins to the loopback,
+/// and through a proxy podssh sends the name, which no proxy can reach.
+pub fn without_proxy(mut cmd: Command) -> Command {
+    for name in PROXY_VARS {
+        cmd.env_remove(name);
+    }
+    cmd
+}
+
 /// The commands that a far end runs.
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub enum Far {
@@ -90,7 +104,8 @@ impl Session {
     }
 
     /// `podssh ARGS` with HOME and the cache under the scratch directory.
-    /// The proxy of the machine stays: it is part of the place measured.
+    /// The proxy of the machine stays: it is part of the place measured. A
+    /// run against the stand-in relay takes [`Session::stand_in`] instead.
     pub fn command(&self, args: &[String]) -> Command {
         let mut cmd = Command::new(env!("CARGO_BIN_EXE_podssh"));
         cmd.args(args);
@@ -101,6 +116,14 @@ impl Session {
         }
         cmd.env("HOME", &self.home).env("USERPROFILE", &self.home);
         cmd.env("XDG_CACHE_HOME", self.home.join("cache")).env("LOCALAPPDATA", self.home.join("cache"));
+        cmd
+    }
+
+    /// [`Session::command`] for a run against the stand-in relay: its CA
+    /// in `SSL_CERT_FILE`, and no proxy of the machine ([`without_proxy`]).
+    pub fn stand_in(&self, args: &[String], ca: &str) -> Command {
+        let mut cmd = without_proxy(self.command(args));
+        cmd.env("SSL_CERT_FILE", ca);
         cmd
     }
 

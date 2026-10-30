@@ -314,7 +314,7 @@ hold"). A session skips this entry until the operator lifts the hold.
 # T-111: `podssh serve` with no `/dev/ptmx`: the line discipline, and Ctrl-C to the child's process group
 
 **Source:** `docs/ROADMAP.md:183-188`, `docs/design.md:349-353`,
-`docs/decisions.md:46`; GitHub #20 (fux line-discipline notes).
+`docs/decisions.md:47`; GitHub #20 (fux line-discipline notes).
 **Category:** feature
 **Milestone:** M5
 **Priority:** P2
@@ -490,10 +490,10 @@ out with matching digests.
   T-079), and the operator connects through the relay (T-084).
 - Read: `vi`, `less` and `top` need a real pty (`docs/terminal.md:247-251`).
   The measured sandboxes have no `/dev/ptmx` (`docs/target-environment.md:26`,
-  `docs/STATUS.md:248`). With no pty device, no podssh code can give the child
-  a tty: shims are excluded (`docs/decisions.md:45`).
+  `docs/STATUS.md:254`). With no pty device, no podssh code can give the child
+  a tty: shims are excluded (`docs/decisions.md:46`).
 - Read: one relay session carries 64 MiB, both directions together
-  (`docs/relay.md:223`; measured: `docs/STATUS.md:256`). 200 MiB each way
+  (`docs/relay.md:223`; measured: `docs/STATUS.md:262`). 200 MiB each way
   needs the new sessions of T-137.
 - Read: the box matches the sandbox, except the `EACCES` on loopback
   `connect()` (`scripts/test_in_box.sh:19-26`).
@@ -543,7 +543,7 @@ hold"). A session skips this entry until the operator lifts the hold.
 The premise that no podssh code can give the child a tty where `/dev/ptmx` is
 missing is too strong. The operator allows two routes, each after a probe at
 run time (Q11, 2026-10-08), and T-248 studies them. The ban on `LD_PRELOAD`
-stays (`docs/decisions.md:45`).
+stays (`docs/decisions.md:46`).
 
 # T-114: `podssh serve`: access rules for each key and command
 
@@ -705,7 +705,7 @@ syslog and no `/var`. A record must not leak secrets or session data.
 
 - Read: podssh's log goes to stderr or to a file
   (`crates/podssh-ssh/src/log.rs:26-42`), as lines with no structure.
-- Read: `serde_json` is a workspace dependency (`Cargo.toml:120`), but not a
+- Read: `serde_json` is a workspace dependency (`Cargo.toml:122`), but not a
   dependency of `podssh-ssh` yet.
 - Read in the report of GitHub #25, not verified here: USBoverSSH writes an
   audit log of connection events.
@@ -1011,8 +1011,8 @@ with no privileges needs a way that the host allows, found by a probe.
 ## Premise
 
 - Read: podssh never assumes a tool or a privilege; it starts a program only
-  when a probe found it (`AGENTS.md:225-237`).
-- Read: a credential never goes on argv or into output (`AGENTS.md:196-201`).
+  when a probe found it (`AGENTS.md:238-250`).
+- Read: a credential never goes on argv or into output (`AGENTS.md:207-212`).
   The command line of a unit file is argv, so it must hold no token.
 - Read in the reports of GitHub #20 and #18, not verified here: tty7, zuko
   and iroh-ssh install services, and iroh-ssh adds a firewall rule (which
@@ -1068,7 +1068,7 @@ own scope; serve does nothing like it.
 ## Premise
 
 - Read: podssh must not assume systemd, and starts a program only when a probe
-  found it (`AGENTS.md:225-237`, `docs/target-environment.md:91-93`).
+  found it (`AGENTS.md:238-250`, `docs/target-environment.md:101-103`).
 - Read: T-110 and T-111 start each child with `setsid`, in serve's cgroup.
 - Read in the report of GitHub #19, not verified here: ssh-obi moves its pty
   children into a transient scope when systemd is there, and works without
@@ -1196,7 +1196,7 @@ a VM with no sshd, or on a network that lets only port 443 in. Without
   when the user asks for it and a probe at run time allows the bind. The
   default is loopback and AF_UNIX; the user can set the address and can turn
   listening off. The rules still say that podssh never listens
-  (`AGENTS.md:227-232`, `docs/architecture.md:118-131`).
+  (`AGENTS.md:240-245`, `docs/architecture.md:118-131`).
 - Read: russh has the listener: `Server::run_on_socket` and `run_on_address`
   (`Eugeny/russh:russh/src/server/mod.rs`, lines 900-1010 at `22c3b88`). doctor binds a
   TCP and an AF_UNIX socket to test the host, and closes them at once
@@ -1222,7 +1222,7 @@ a VM with no sshd, or on a network that lets only port 443 in. Without
 5. Later step: SSH and TLS on one port. Read the first bytes: `SSH-2.0-` goes
    to SSH; a TLS ClientHello (0x16) is refused.
 6. Same commit: the flags, the manual, `docs/cli.md`, and the rules in
-   `AGENTS.md:227-232` and `docs/architecture.md:118-131`, which then name this
+   `AGENTS.md:240-245` and `docs/architecture.md:118-131`, which then name this
    exception and the ruling.
 
 ## Prove
@@ -1260,7 +1260,7 @@ of 2026-10-08 (code at `3ee70dc`).
 `podssh serve` runs with no passwd entry and no `/etc/shells`
 (`docs/ROADMAP.md:177-182`), so no user database names a shell. A shell that
 does not exist lets the login succeed, then ends the session at once, with
-no reason (`docs/target-environment.md:63-64`).
+no reason (`docs/target-environment.md:73-74`).
 
 ## Premise
 
@@ -1269,7 +1269,7 @@ no reason (`docs/target-environment.md:63-64`).
   the report are older; the content is at the lines given here.
 - Read: the report says that `docs/cli.md` records why podssh does not call
   `getpwuid`. It does not; that record is `docs/target-environment.md:37-44`.
-- Read: a sandbox mounts `/tmp` and `$HOME` noexec (`docs/STATUS.md:248`):
+- Read: a sandbox mounts `/tmp` and `$HOME` noexec (`docs/STATUS.md:254`):
   the mode bits pass there, the exec fails, and `access(X_OK)` fails. doctor
   runs a real copy, as "only a real attempt tells them apart"
   (`crates/podssh-cli/src/doctor/host.rs:174-176`).
@@ -1289,7 +1289,7 @@ no reason (`docs/target-environment.md:63-64`).
 3. One line names each failure and why, for example
    `SHELL=/x: not executable (noexec mount); /bin/bash: no such file`.
 4. Probe at each session start, with no cache: the answer can change in the
-   same image (`docs/target-environment.md:91-93`). Probe at the start of
+   same image (`docs/target-environment.md:101-103`). Probe at the start of
    serve too (see Decision).
 5. doctor gets a `shell` line in its host checks
    (`crates/podssh-cli/src/doctor/host.rs:10-25`) from the same function.
@@ -1303,7 +1303,7 @@ Recommendation: a shell that the operator names is strict: when it fails,
 serve refuses (exit 78 at the start, failure for a session) and uses no
 other. `SHELL` and the list fall back in order, and the line names each
 failure, so no probe changes the behaviour in silence
-(`docs/target-environment.md:91-93`). At the start, no usable shell is exit
+(`docs/target-environment.md:101-103`). At the start, no usable shell is exit
 78, unless `--no-shell` says that the node serves only SFTP and forwards.
 Starting with a warning lost: that is the login that ends at once.
 
@@ -1320,7 +1320,7 @@ crates/podssh-ssh/tests/serve_shell.rs gives the function a directory `sh`,
 a data file `dash` (mode 0644), a data file with mode 0755 (the spawn fails),
 a link to a missing file and a good shell: each failure is named, and the
 good shell wins. A planted `exists()` test fails the directory case. In the
-gate, a copy of `/bin/sh` in `/dev/shm` (noexec: `docs/STATUS.md:215`) is
+gate, a copy of `/bin/sh` in `/dev/shm` (noexec: `docs/STATUS.md:221`) is
 refused as `--shell`. The static binary (`$BIN`) refuses a missing named shell.
 
 ## Blocker
@@ -1352,10 +1352,10 @@ criterion of M5 (T-113) needs them.
 
 - Read: `podssh doctor` asks for a pty with `posix_openpt`
   (`crates/podssh-cli/src/doctor/unix.rs:78-93`). Both real sandboxes have no
-  `/dev/ptmx` (`docs/STATUS.md:248`), and the target has no `/dev/pts`
+  `/dev/ptmx` (`docs/STATUS.md:254`), and the target has no `/dev/pts`
   (`docs/target-environment.md:26`).
 - Read: the box and the sandboxes run with `NoNewPrivs=1` and a seccomp
-  filter (`docs/STATUS.md:227`). With `NoNewPrivs=1`, a process can add a
+  filter (`docs/STATUS.md:233`). With `NoNewPrivs=1`, a process can add a
   filter of its own; a filter is inherited by each child.
 - Read, not measured here: for a program, a tty is the success of the tty
   `ioctl` calls on its descriptors. musl's `isatty` calls `TIOCGWINSZ`;
