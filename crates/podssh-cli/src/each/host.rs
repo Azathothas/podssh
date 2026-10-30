@@ -33,6 +33,17 @@ pub(crate) struct Plan {
 /// resolve it, with the `Host` blocks of ssh_config for that host. Each
 /// refusal names the host.
 pub(crate) fn plan(label: &str, args: &SshArgs, env: &Env) -> Result<Plan, Refusal> {
+    planned(label, args, env, false)
+}
+
+/// The plan of the host `label` for the broadcast (T-185): as [`plan`], with
+/// a shell with no pty in place of a command, whose input the broadcast
+/// gives it.
+pub(crate) fn shell_plan(label: &str, args: &SshArgs, env: &Env) -> Result<Plan, Refusal> {
+    planned(label, args, env, true)
+}
+
+fn planned(label: &str, args: &SshArgs, env: &Env, shell: bool) -> Result<Plan, Refusal> {
     let mut ssh = args.clone();
     ssh.destination = Some(label.to_string());
     // Many sessions cannot share one terminal or one stdin.
@@ -40,7 +51,9 @@ pub(crate) fn plan(label: &str, args: &SshArgs, env: &Env) -> Result<Plan, Refus
     ssh.stdin_null = true;
     let named = |r: Refusal| Refusal { message: format!("{label}: {}", r.message), code: r.code };
     let mut resolved = resolve::resolve_or_refuse(&ssh, env).map_err(named)?;
-    if !matches!(resolved.options.request, Request::Exec(_)) {
+    if shell {
+        shell_only(&mut resolved).map_err(named)?;
+    } else if !matches!(resolved.options.request, Request::Exec(_)) {
         return Err(named(Refusal::usage(
             "SessionType in ssh_config asks for no command here, and podssh each runs one on each host",
         )));
@@ -67,6 +80,25 @@ pub(crate) fn plan(label: &str, args: &SshArgs, env: &Env) -> Result<Plan, Refus
     }
     let log = Arc::new(Log::new(resolved.options.log_level).with_prefix(format!("{label}: ")));
     Ok(Plan { label: label.to_string(), resolved, log, batch_mode })
+}
+
+/// The broadcast's shell (T-185): a `RemoteCommand` of ssh_config is not
+/// used, with a note, and a `SessionType` that asks for no shell is
+/// refused. Ctrl-C goes to no host there, so no session sends `signal INT`
+/// for it; `:intr` asks for one.
+fn shell_only(resolved: &mut Resolved) -> Result<(), Refusal> {
+    let command = match &resolved.options.request {
+        Request::Shell => false,
+        Request::Exec(_) => true,
+        _ => return Err(Refusal::usage("SessionType in ssh_config asks for no shell, and --interactive opens one")),
+    };
+    if command {
+        let note = "podssh each --interactive opens a shell on each host: the RemoteCommand of ssh_config is not used";
+        resolved.notes.push(note.to_string());
+        resolved.options.request = Request::Shell;
+    }
+    resolved.options.interrupt_signal = false;
+    Ok(())
 }
 
 /// Run the command on the host of `plan`, its output into `place` as it

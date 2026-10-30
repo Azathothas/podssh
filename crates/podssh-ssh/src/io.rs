@@ -25,8 +25,10 @@ use crate::terminal::text::Consoles;
 use crate::terminal::watch::Resize;
 use crate::zmodem::Zmodem;
 
+mod feed;
 mod input;
 
+pub use feed::Feed;
 pub use input::Input;
 
 /// How a session ended.
@@ -167,7 +169,7 @@ pub async fn pump(
         let _ = writer.eof().await;
     }
     let mut resize = Resize::new(pty);
-    let mut stop = Termination::new(pty && terminal::raw_active(), interrupt);
+    let mut stop = Termination::new(pty && terminal::raw_active(), interrupt).fed(input.feed());
     // The forwards of `~C` -L and -D, served while the session lasts (T-291).
     let mut added = crate::escape_run::Added::default();
     loop {

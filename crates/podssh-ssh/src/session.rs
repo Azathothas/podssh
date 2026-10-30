@@ -23,7 +23,7 @@ const REPLY_WAIT: Duration = Duration::from_secs(30);
 
 /// Run `opts.request` on a new session channel.
 pub async fn run(handle: &Handle<Client>, opts: &Options, host: &str, log: &Arc<Log>) -> Result<i32, String> {
-    let mut input = io::Input::new(opts.stdin_null);
+    let mut input = opts.feed.clone().map_or_else(|| io::Input::new(opts.stdin_null), io::Input::fed);
     let end = attach(handle, opts, host, log, &mut input).await?;
     // russh tells the handler why the connection failed, before the channel
     // ends: a lost session says it.

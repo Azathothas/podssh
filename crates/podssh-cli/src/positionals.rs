@@ -41,7 +41,7 @@ pub fn add(cmd: Command, name: &str) -> Command {
                     .num_args(1..)
                     .trailing_var_arg(true)
                     .allow_hyphen_values(true)
-                    .help("the command to run on each host, its words joined with spaces as OpenSSH joins them"),
+                    .help("the command to run on each host, its words joined with spaces as OpenSSH joins them; none with --interactive"),
             ),
         // One host; a second word is clap's refusal (T-190).
         "containers" => cmd.arg(

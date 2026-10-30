@@ -53,6 +53,10 @@ fn examples() -> Vec<(&'static str, String)> {
             "podssh ssh --snippet logs user@example.org nginx".into(),
         ),
         (
+            "each line typed to the shells of three hosts; Ctrl-\\ (Ctrl-Break on Windows) stops it at once",
+            "podssh each --interactive 'web{1..3}.example.org'".into(),
+        ),
+        (
             "a Unix socket on the server, on stdin and stdout",
             "podssh ssh -W /run/postgresql/.s.PGSQL.5432 user@db.example.org".into(),
         ),

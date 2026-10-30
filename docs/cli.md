@@ -627,6 +627,60 @@ host, and a list of hosts changes both.
   `ssh`'s is (T-025): the phase of a try is the process's, and many
   sessions share it.
 
+### The broadcast: `--interactive`
+
+`podssh each --interactive [OPTIONS] HOSTS` opens a shell on each host,
+and sends each line that the user types to the hosts of the selection
+(T-185, `crates/podssh-cli/src/each/broadcast/`). It is the line mode of
+csshw and of the `synchronize-panes` of tmux, with no panes and no full
+screen: podssh is a CLI (`docs/decisions.md`, Q6). A broadcast mistake
+costs once for each host, so the broadcast has a stop that acts at once.
+
+- **The shells.** Each host gets a shell with no pty (`-T`), on the road
+  and the SSH client of `ssh`, as a command of `each` does; each host is
+  open at the same time, 64 at most. A `RemoteCommand` of `ssh_config` is
+  not used (`-v` says so), and a `SessionType` that asks for no shell is
+  refused (64). A COMMAND, `--parallel`, `--fail-fast` and `--output-dir`
+  are refused (64).
+- **The local terminal keeps its normal mode.** Its own line discipline
+  echoes and edits the line, and podssh reads whole lines. Each line goes,
+  with a newline, into the queue of each selected host; the CR of a
+  console's CR LF goes. The output of each host comes as `HOST: LINE`, as
+  for a command, and podssh's own words come as `podssh: ...` on stderr.
+- **The commands of podssh** are the lines that start with `:`: `:all`,
+  `:none`, `:only HOST...`, `:list`, `:intr` and `:help`. A word of
+  `:only` takes the braces and the groups of HOSTS, and names a host by its
+  label, or by its label without `USER@`; a word that names no host
+  changes nothing. A line that starts with `::` goes to the hosts with one
+  `:` less.
+- **The emergency stop** is a key that the terminal turns into a signal,
+  so that it acts at once, also while a line is half typed: `Ctrl-\`
+  (SIGQUIT) on Unix, Ctrl-Break (`CTRL_BREAK_EVENT`) on Windows. The
+  terminal drops the line that is half typed. podssh then selects no host,
+  and drops each line that waits in a queue, a line that waits for its
+  second Enter, and what it read and did not act on yet; it says
+  "broadcast stopped; :all starts it again". A line that a session has
+  taken is sent: it is in the SSH channel, or it is the one line that the
+  session sends now. The stop is armed before anything connects, also when
+  SIGQUIT was ignored at the start (a script's `&` leaves it so); where it
+  cannot be armed, podssh exits 78.
+- **Ctrl-C goes to no host.** While the input goes on, podssh says what to
+  type instead: `:intr` sends `signal INT` (RFC 4254, section 6.9) to each
+  selected host, and a server may ignore it (`docs/terminal.md`, "Ctrl-C
+  with no remote pty"). At the end of the input (Ctrl-D; Ctrl-Z on
+  Windows), each shell reads what waits for it, then its end; Ctrl-C then
+  cuts the hosts whose shell still runs, each with 130.
+- **`--confirm`.** A line for more than one host waits for a second Enter
+  (an empty line); another line drops it, with a word.
+- **The queues.** Each host has a queue of 64 KiB: the lines that its
+  session has not taken. A session takes a line only when it can send it,
+  so a host that reads slowly fills its queue. A line that does not fit
+  does not go to that host: the host leaves the selection, podssh names it,
+  and the summary counts the lines that did not reach it. No byte that the
+  user typed is dropped with no word.
+- **The exit status** is the largest status of the shells, as for a
+  command: 255 for a host with no session.
+
 ## Snippets
 
 A snippet is a command that the settings file keeps, with placeholders for

@@ -66,6 +66,12 @@ the manual read; a test holds the manual's note to it.
   escapes, with the escape character that the client sent. It offers no
   `~C`, as OpenSSH's master offers none to a client: `~C` goes to the
   server as typed.
+- **The broadcast, `podssh each --interactive`** (T-185): the local
+  terminal keeps its normal mode, and podssh reads whole lines; a line
+  that starts with `:` is for podssh. The terminal turns two keys into
+  signals: `Ctrl-\` (SIGQUIT) on Unix and Ctrl-Break on Windows is the
+  emergency stop, and Ctrl-C goes to no host (`docs/cli.md`, "The
+  broadcast: `--interactive`").
 - **The line discipline of `podssh serve`**, when serve exists (T-107 to
   T-113): the keys and sequences that it acts on and those that it refuses
   are in "When podssh supplies the line discipline" below; each other byte

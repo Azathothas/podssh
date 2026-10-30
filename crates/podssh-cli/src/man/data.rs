@@ -100,7 +100,7 @@ pub fn exit_codes() -> Vec<(Code, String)> {
              read or stored, or a node cannot connect as it is set up. podssh edit: VISUAL, EDITOR and PATH \
              give no editor, the editor does not start, or PODSSH_CACHE_DIR is none. podssh node --sshd: a \
              TARGET whose first line is not an SSH version line, which is another service. podssh node: this host \
-             refuses UDP for a udp: TARGET.",
+             refuses UDP for a udp: TARGET. podssh each --interactive: the emergency stop cannot be armed.",
         ),
         row(
             podssh_ssh::EXIT_FAILURE,
@@ -115,8 +115,7 @@ pub fn exit_codes() -> Vec<(Code, String)> {
             "podssh ssh: the exit status of the remote command, unchanged. When signal N stopped the \
              command, 128 + N. podssh ping: the status of the remote program of a measure that failed, \
              127 when the host lacks it. podssh edit: the status of an editor that failed; nothing was sent. \
-             podssh each: the largest status of the hosts, 0 only when each gave 0. podssh containers \
-             --exec: the status of the session in the container."
+             podssh each: the largest status of the hosts, 0 only when each gave 0; with --interactive, of              their shells, and 130 for a host whose shell Ctrl-C cut after the end of the input. podssh              containers --exec: the status of the session in the container."
                 .to_string(),
         ),
     ]

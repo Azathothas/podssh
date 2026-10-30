@@ -27,6 +27,7 @@ harness snippets interop 7 scripts/interop-snippets.sh
 harness health interop 4 scripts/interop-health.sh
 harness containers interop 8 scripts/interop-containers.sh
 harness expect interop 6 scripts/interop-expect.sh
+harness broadcast interop 3 scripts/interop-broadcast.sh
 harness keygen interop 92 scripts/interop-keygen.sh
 harness agent interop 30 scripts/interop-agent.sh
 harness local interop 6 scripts/interop-local.sh
@@ -696,3 +697,8 @@ expect.local_order pass
 expect.rules.openssh pass
 expect.rules.dropbear pass
 expect.timeout pass
+
+# scripts/interop-broadcast.sh
+broadcast.both pass
+broadcast.only pass
+broadcast.stop pass

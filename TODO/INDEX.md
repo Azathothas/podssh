@@ -61,15 +61,15 @@ repository and CI).
 
 ## Counts
 
-**304 entries: 31 open, 0 partial, 25 blocked, 248 done.**
+**304 entries: 30 open, 0 partial, 25 blocked, 249 done.**
 
 | Priority | open | partial | blocked | done | total |
 | --- | --- | --- | --- | --- | --- |
 | P0 | 0 | 0 | 0 | 1 | 1 |
 | P1 | 2 | 0 | 0 | 22 | 24 |
 | P2 | 4 | 0 | 18 | 136 | 158 |
-| P3 | 25 | 0 | 7 | 89 | 121 |
-| **All** | 31 | 0 | 25 | 248 | 304 |
+| P3 | 24 | 0 | 7 | 90 | 121 |
+| **All** | 30 | 0 | 25 | 249 | 304 |
 
 ## Entries
 
@@ -258,7 +258,7 @@ repository and CI).
 | [T-182](pipe.md) | P3 | S | backlog | docs | done | USB/IP devices through `podssh pipe`: a tested recipe, with no driver in podssh |
 | [T-183](multi.md) | P3 | M | backlog | feature | done | Run one command on many hosts |
 | [T-184](multi.md) | P3 | S | backlog | feature | done | Host groups and brace expansion of host names |
-| [T-185](multi.md) | P3 | L | backlog | feature | open | Interactive broadcast to several sessions, with an emergency stop |
+| [T-185](multi.md) | P3 | L | backlog | feature | done | Interactive broadcast to several sessions, with an emergency stop |
 | [T-186](multi.md) | P3 | L | backlog | feature | open | A control surface for agents on live sessions |
 | [T-187](multi.md) | P3 | M | backlog | feature | done | Snippets and argument templates, shown before they run |
 | [T-188](multi.md) | P3 | S | backlog | feature | done | A host picker when `podssh ssh` gets no destination |

@@ -5,9 +5,15 @@
 //! loopback: a line for each host with its label, a status file of
 //! `--output-dir`, and a host key that no question can accept; and the
 //! braces and the groups of T-184 through the binary. Against OpenSSH and
-//! Dropbear it runs in the gate (`scripts/interop-each.sh`).
+//! Dropbear it runs in the gate (`scripts/interop-each.sh`). The broadcast
+//! of `--interactive` (T-185) is in `each_interactive/`.
 
 mod cleanup;
+#[cfg(windows)]
+mod conpty_harness;
+mod each_interactive;
+#[cfg(target_os = "linux")]
+mod pty_harness;
 mod ssh_harness;
 
 use std::path::{Path, PathBuf};

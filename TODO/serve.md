@@ -52,7 +52,7 @@ core: the handshake, a host key that does not change, and key authentication.
    compares `key_data()`; the login name selects nothing.
 5. The verb: rows in `crates/podssh-cli/src/flags.rs:370-425` and
    `crates/podssh-cli/src/positionals.rs:8-178`, an arm beside
-   `crates/podssh-cli/src/dispatch.rs:218-285`, the manual, `docs/cli.md`,
+   `crates/podssh-cli/src/dispatch.rs:220-287`, the manual, `docs/cli.md`,
    `docs/STATUS.md`. The first source is `--stdio`, as `sshd -i`: OpenSSH
    then tests serve in the gate through `ProxyCommand`, with no listener.
    `podssh serve NAME` follows on the node runner of T-079. Windows: exit 70.
@@ -110,7 +110,7 @@ and stderr apart, and an environment that a cage can give.
   lines 601-667). russh also gives each data message to the kept `Channel`,
   and waits when 100 wait unread (`Eugeny/russh:russh/src/server/encrypted.rs`,
   lines 1350-1356): an unread channel stops the whole connection.
-- Read: the client side to match is `crates/podssh-ssh/src/io.rs:350-410`;
+- Read: the client side to match is `crates/podssh-ssh/src/io.rs:352-412`;
   `crates/podssh-ssh/src/signals.rs:26-64` maps names to numbers only;
   `tokio` with `process` is a dependency (`crates/podssh-ssh/Cargo.toml:22`).
 
@@ -239,7 +239,7 @@ hold"). A session skips this entry until the operator lifts the hold.
 # T-110: `podssh serve`: a real pty when `/dev/ptmx` exists
 
 **Source:** `docs/ROADMAP.md:183-188`, `docs/design.md:349-353`,
-`docs/terminal.md:85-95`; GitHub #20 (bound every PTY wait).
+`docs/terminal.md:91-101`; GitHub #20 (bound every PTY wait).
 **Category:** feature
 **Milestone:** M5
 **Priority:** P2
@@ -277,7 +277,7 @@ it there.
    `crates/podssh-ssh/src/terminal/unix.rs:86-163` to a shared module and
    read it both ways. Skip a mode that the kernel refuses.
 3. Size: `TIOCSWINSZ` on the master from `pty-req` and each `window-change`.
-   A zero size becomes 80x24 (`docs/terminal.md:88-89`).
+   A zero size becomes 80x24 (`docs/terminal.md:94-95`).
 4. The child: `setsid`, `ioctl(TIOCSCTTY)`, the slave on descriptors 0 to 2,
    then exec, in `pre_exec`. The parent closes its copy of the slave, or the
    master never sees the end. `TERM` from the request (empty:
@@ -332,14 +332,14 @@ command, and the session must end.
 ## Premise
 
 - Read: `crates/podssh-terminal` holds podbox's echo, editing and history
-  rules (`docs/terminal.md:162-200`), and reports Ctrl-C and Ctrl-\ as
+  rules (`docs/terminal.md:168-206`), and reports Ctrl-C and Ctrl-\ as
   `Event::Signal` (`crates/podssh-terminal/src/echo.rs:421-423`). No command
   uses it, and it has the defects T-125 to T-129, which come first.
 - Read, at `cb94460`: the crate refuses to add `\r` before `\n`
   (`crates/podssh-terminal/src/echo.rs` lines 31-37,
   `crates/podssh-terminal/src/passthrough.rs:56-74`). Here the child writes
   to a pipe and the client's terminal is raw: the case where a lone `\n`
-  must become `\r\n` (`docs/terminal.md:255-258`).
+  must become `\r\n` (`docs/terminal.md:261-264`).
 - Read: a signal to the group also stops a shell that does not catch it
   (`crates/podssh-terminal/src/session.rs:36-46`). Not measured yet: which
   shell mode survives.
@@ -488,12 +488,12 @@ out with matching digests.
 
 - Read: `podssh serve` runs in the sandbox as a node (T-107 on the runner of
   T-079), and the operator connects through the relay (T-084).
-- Read: `vi`, `less` and `top` need a real pty (`docs/terminal.md:241-245`).
+- Read: `vi`, `less` and `top` need a real pty (`docs/terminal.md:247-251`).
   The measured sandboxes have no `/dev/ptmx` (`docs/target-environment.md:26`,
-  `docs/STATUS.md:247`). With no pty device, no podssh code can give the child
+  `docs/STATUS.md:248`). With no pty device, no podssh code can give the child
   a tty: shims are excluded (`docs/decisions.md:45`).
 - Read: one relay session carries 64 MiB, both directions together
-  (`docs/relay.md:223`; measured: `docs/STATUS.md:255`). 200 MiB each way
+  (`docs/relay.md:223`; measured: `docs/STATUS.md:256`). 200 MiB each way
   needs the new sessions of T-137.
 - Read: the box matches the sandbox, except the `EACCES` on loopback
   `connect()` (`scripts/test_in_box.sh:19-26`).
@@ -765,7 +765,7 @@ a restart ends each session on it (`docs/design.md:384-387`).
 ## Premise
 
 - Read: the client ends its session properly on SIGTERM and SIGHUP
-  (`crates/podssh-ssh/src/terminal/termination.rs:22-67`). The server has no such handling.
+  (`crates/podssh-ssh/src/terminal/termination.rs:26-93`). The server has no such handling.
 - Read: russh can end a connection with a reason: `Handle::disconnect`
   (`Eugeny/russh:russh/src/server/session.rs`, line 457 at `22c3b88`).
 - Read: in `--stdio` mode one process serves one connection. The node mode
@@ -1269,7 +1269,7 @@ no reason (`docs/target-environment.md:63-64`).
   the report are older; the content is at the lines given here.
 - Read: the report says that `docs/cli.md` records why podssh does not call
   `getpwuid`. It does not; that record is `docs/target-environment.md:37-44`.
-- Read: a sandbox mounts `/tmp` and `$HOME` noexec (`docs/STATUS.md:247`):
+- Read: a sandbox mounts `/tmp` and `$HOME` noexec (`docs/STATUS.md:248`):
   the mode bits pass there, the exec fails, and `access(X_OK)` fails. doctor
   runs a real copy, as "only a real attempt tells them apart"
   (`crates/podssh-cli/src/doctor/host.rs:174-176`).
@@ -1320,7 +1320,7 @@ crates/podssh-ssh/tests/serve_shell.rs gives the function a directory `sh`,
 a data file `dash` (mode 0644), a data file with mode 0755 (the spawn fails),
 a link to a missing file and a good shell: each failure is named, and the
 good shell wins. A planted `exists()` test fails the directory case. In the
-gate, a copy of `/bin/sh` in `/dev/shm` (noexec: `docs/STATUS.md:214`) is
+gate, a copy of `/bin/sh` in `/dev/shm` (noexec: `docs/STATUS.md:215`) is
 refused as `--shell`. The static binary (`$BIN`) refuses a missing named shell.
 
 ## Blocker
@@ -1352,10 +1352,10 @@ criterion of M5 (T-113) needs them.
 
 - Read: `podssh doctor` asks for a pty with `posix_openpt`
   (`crates/podssh-cli/src/doctor/unix.rs:78-93`). Both real sandboxes have no
-  `/dev/ptmx` (`docs/STATUS.md:247`), and the target has no `/dev/pts`
+  `/dev/ptmx` (`docs/STATUS.md:248`), and the target has no `/dev/pts`
   (`docs/target-environment.md:26`).
 - Read: the box and the sandboxes run with `NoNewPrivs=1` and a seccomp
-  filter (`docs/STATUS.md:226`). With `NoNewPrivs=1`, a process can add a
+  filter (`docs/STATUS.md:227`). With `NoNewPrivs=1`, a process can add a
   filter of its own; a filter is inherited by each child.
 - Read, not measured here: for a program, a tty is the success of the tty
   `ioctl` calls on its descriptors. musl's `isatty` calls `TIOCGWINSZ`;

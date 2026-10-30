@@ -5,7 +5,8 @@
 # --output-dir, a host key that no question can accept, and --fail-fast.
 # Sourced by scripts/interop.sh; uses ok, bad, expect_rc, $BIN, $W, $K, $T
 # and $KH. At its end it sources scripts/interop-snippets.sh (T-187), which
-# uses its e(); interop.sh has its 500 lines.
+# uses its e(), and the other harnesses of commands on other hosts
+# (T-189, T-190, T-191, T-185); interop.sh has its 500 lines.
 
 echo
 echo "== podssh each (T-183, OpenSSH and Dropbear at once)"
@@ -71,3 +72,5 @@ rc=$?
 . "$HERE/interop-containers.sh"
 # shellcheck source=scripts/interop-expect.sh
 . "$HERE/interop-expect.sh"
+# shellcheck source=scripts/interop-broadcast.sh
+. "$HERE/interop-broadcast.sh"

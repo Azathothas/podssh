@@ -999,7 +999,7 @@ count each chunk twice, and the unit test fails.
 and `crates/podssh-ssh/src/remote.rs:187`, `-W` at
 `crates/podssh-ssh/src/forward.rs:42` and
 `crates/podssh-ssh/src/forward.rs:53`; `~#` at
-`crates/podssh-ssh/src/escape.rs:98` and `crates/podssh-ssh/src/io.rs:219`,
+`crates/podssh-ssh/src/escape.rs:98` and `crates/podssh-ssh/src/io.rs:221`,
 and the lines of `-v` at `crates/podssh-ssh/src/run.rs:260`.
 - `cargo test -p podssh-ssh -- forward_counts`: 3 passed: 262144 bytes up and
   1000 down through a forward's copy, counted once, with one connection; one
@@ -1142,7 +1142,7 @@ link: the mode at `crates/podssh-cli/src/ssh/persist.rs:38-45` and
 serves `-L` and `-D`, and tells a loss from an end
 (`crates/podssh-ssh/src/persist.rs:57-62`); a refused `-R` asked again in
 `crates/podssh-ssh/src/remote.rs:46-125`, as `Options::forwards_again` says
-(`crates/podssh-ssh/src/options.rs:310-319`), which the loop sets after the
+(`crates/podssh-ssh/src/options.rs:314-323`), which the loop sets after the
 first loss (`crates/podssh-cli/src/ssh/persist.rs:163-172`); the rule of
 `STEADY` at `crates/podssh-cli/src/ssh/persist.rs:142-148`.
 - `cargo test -p podssh-cli --test persist`: 5 passed. The new test runs
@@ -1482,7 +1482,7 @@ ssh(1), ESCAPE CHARACTERS: `~C` opens a command line that takes `-L`, `-R`,
 - The line is read from the session's own keys, with the question of
   ZMODEM (`crates/podssh-ssh/src/zmodem/ask.rs:54`), in raw mode, and the
   keys after its Enter in the same read go back to the session
-  (`crates/podssh-ssh/src/io/input.rs:57`). Lost: OpenSSH's way, which
+  (`crates/podssh-ssh/src/io/input.rs:72`). Lost: OpenSSH's way, which
   leaves raw mode and reads the terminal with `read_passphrase`: podssh's
   input task already reads stdin, and a second reader would take keys from
   it (and wait on a Windows console). No key of the line reaches the
