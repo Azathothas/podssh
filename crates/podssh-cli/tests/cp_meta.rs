@@ -256,7 +256,14 @@ fn sparse_leaves_holes_and_each_byte_arrives() {
     #[cfg(unix)]
     {
         use std::os::unix::fs::MetadataExt;
-        let used = |name: &str| std::fs::metadata(home.join(name)).unwrap().blocks() * 512;
+        // The blocks after a sync: a file system may count the room that it
+        // keeps for writes not flushed yet (one run on the arm64 Mac of T-218
+        // counted each copy whole, the next did not).
+        let used = |name: &str| {
+            let file = std::fs::File::open(home.join(name)).unwrap();
+            file.sync_all().unwrap();
+            file.metadata().unwrap().blocks() * 512
+        };
         // A sparse source, a file of 8 MiB with 6 bytes of data, made larger
         // than it was written as cp makes its holes: whether it has holes
         // tells whether this file system keeps any.

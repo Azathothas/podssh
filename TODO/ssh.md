@@ -1469,10 +1469,14 @@ directory, so a failure leaves nothing outside it. In the build image,
 agent of two tests ended before its first line: its socket's path, under a
 `TMPDIR` that is long on macOS (`/var/folders/...`) and longer with a test's
 scratch directory, passed the bytes of `sun_path`, and the bind failed. The
-agent's directory now goes under `/tmp` when its socket's path would reach
-100 bytes, as `doctor`'s probe does. Linux: `agent::serve` 2 passed (a long
-base gives `/tmp/podssh-agent-PID`), `agent_cli` 6, `agent_sk` 1; planted, a
-limit that never falls back: the new test failed.
+agent's directory now goes under `/tmp` when its socket's path would not fit
+in `sun_path` with its NUL, by the size of libc's `sockaddr_un` (104 bytes
+on macOS and the BSDs, 108 on Linux). A first repair took `doctor`'s bound
+of 100 bytes, and the next run on the arm64 Mac moved a path of 100 to 103
+bytes, which fits, out of the test's directory. Linux: `agent::serve` 2
+passed (a path that fits by a byte stays, one byte more goes under `/tmp`),
+`agent_cli` 6, `agent_sk` 1; planted, a limit that never falls back, one
+that forgets the NUL, and the bound of 100: the new test failed each time.
 
 # T-227: `--direct` has no limit on a stuck write, but the relay leg fails after 60 s (GitHub #36)
 
@@ -2505,7 +2509,7 @@ Read in russh 0.64.1's `src/keys/agent/server.rs` (the local cargo registry): th
 constraint of a key (lines 296-297), and when a request to sign names such a key, it takes a future
 that is always ready with `true`; it never calls the agent's `confirm` (lines 348-356).
 
-Read: podssh's `confirm` refuses (`crates/podssh-cli/src/agent/serve.rs:165-168`), and is never
+Read: podssh's `confirm` refuses (`crates/podssh-cli/src/agent/serve.rs:173-176`), and is never
 called. `docs/cli.md:1809-1810` says that the key "is never used".
 
 ## Approach

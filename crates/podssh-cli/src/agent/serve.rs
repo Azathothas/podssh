@@ -117,13 +117,21 @@ impl Place {
 }
 
 /// The agent's directory under `base`, or under /tmp where its socket's path
-/// would not fit: sun_path holds 104 to 108 bytes, and a long TMPDIR (macOS's
-/// is under /var/folders) leaves too few, as doctor's probe knows.
-#[cfg(not(windows))]
+/// would not fit in `sun_path` with its NUL: 104 bytes on macOS and the BSDs,
+/// 108 on Linux; a long TMPDIR (macOS's is under /var/folders) leaves too few.
+#[cfg(unix)]
 fn agent_dir(base: std::path::PathBuf, pid: u32) -> std::path::PathBuf {
+    // SAFETY: a sockaddr_un of zeros is a valid value; only its size is read.
+    let room = unsafe { std::mem::zeroed::<libc::sockaddr_un>() }.sun_path.len();
     let name = format!("podssh-agent-{pid}");
-    let fits = base.join(&name).join("agent.sock").as_os_str().len() < 100;
+    let fits = base.join(&name).join("agent.sock").as_os_str().len() < room;
     if fits { base } else { std::path::PathBuf::from("/tmp") }.join(name)
+}
+
+/// Where no sun_path bounds the path: the directory under `base`.
+#[cfg(not(any(unix, windows)))]
+fn agent_dir(base: std::path::PathBuf, pid: u32) -> std::path::PathBuf {
+    base.join(format!("podssh-agent-{pid}"))
 }
 
 impl Drop for Place {
@@ -255,12 +263,18 @@ mod tests {
     }
 
     /// A socket's path that would pass the bytes of sun_path goes under /tmp
-    /// (macOS's TMPDIR, with a test's scratch directory in it, did, T-218).
+    /// (macOS's TMPDIR, with a test's scratch directory in it, did, T-218);
+    /// one that fits, by a byte, stays where it was asked for.
     #[cfg(unix)]
     #[test]
     fn a_long_temporary_directory_puts_the_socket_under_tmp() {
-        let long = std::path::PathBuf::from(format!("/var/folders/{}/T/podssh-agent-sign-cert-41", "x".repeat(40)));
-        assert_eq!(agent_dir(long, 4242), std::path::PathBuf::from("/tmp/podssh-agent-4242"));
+        let room = unsafe { std::mem::zeroed::<libc::sockaddr_un>() }.sun_path.len();
+        let tail = "/podssh-agent-4242/agent.sock".len();
+        // A base whose socket's path is room - 1 bytes long, the most that fits.
+        let base = |len: usize| std::path::PathBuf::from(format!("/{}", "x".repeat(len - tail - 1)));
+        let most = base(room - 1);
+        assert_eq!(agent_dir(most.clone(), 4242), most.join("podssh-agent-4242"));
+        assert_eq!(agent_dir(base(room), 4242), std::path::PathBuf::from("/tmp/podssh-agent-4242"));
         let short = std::path::PathBuf::from("/run/user/1000");
         assert_eq!(agent_dir(short, 4242), std::path::PathBuf::from("/run/user/1000/podssh-agent-4242"));
     }

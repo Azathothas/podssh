@@ -1740,7 +1740,10 @@ test now makes the sparse source first, and checks the holes only where the
 source itself has them, so that a file system that keeps no hole is not
 taken for a defect of podssh; each byte is checked everywhere. Linux:
 `cp_meta` sparse passed, with the holes checked. The next run on the arm64
-Mac shows which it is.
+Mac (41077717450) passed with the holes checked: the same code, so the count
+of blocks moves there. Each file is now synced before its blocks are
+counted, as a file system may count the room that it keeps for writes not
+flushed yet.
 
 # T-147: `podssh cp --inplace`
 
