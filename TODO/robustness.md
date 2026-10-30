@@ -363,7 +363,7 @@ Read:
    in the gate's container (installed with apk, as `scripts/interop-man.sh:22`
    installs groff) and through `vt100`. The two must give the same screens
    before the model judges podssh.
-6. docs/terminal.md, section "Tests" (`docs/terminal.md:488`), names the
+6. docs/terminal.md, section "Tests" (`docs/terminal.md:526`), names the
    oracle.
 
 ## Decision
@@ -845,7 +845,7 @@ Read:
 - `scripts/interop-faults.sh:42-50` starts one stand-in for each fault; its
   checks are at lines 73-182 at `8d668b7` (`docs/STATUS.md:494-512`, 14 of 14 since T-236).
 - The time limits that latency meets today: the SSH handshake, 60 s
-  (`crates/podssh-ssh/src/options.rs:392`, enforced at
+  (`crates/podssh-ssh/src/options.rs:395`, enforced at
   `crates/podssh-ssh/src/run.rs:369-375`); a reply, 30 s
   (`crates/podssh-ssh/src/session.rs:22`); a write, 60 s, and liveness, three
   times 10 s (`crates/podssh-ws/src/client.rs:31-35`).
@@ -974,7 +974,7 @@ Read, each claim of GitHub #34 at the lines as they are now:
   `openssh-keygen` and others, but no client package. No harness ran the stock `ssh`; only
   `scripts/sandbox-check.sh:228-241` does, in a sandbox. Nobody knows whether
   the gate's image has `/usr/bin/ssh`.
-- `crates/podssh-ssh/src/io.rs:372-379`, with `crates/podssh-ssh/src/io.rs:63-65`,
+- `crates/podssh-ssh/src/io.rs:391-398`, with `crates/podssh-ssh/src/io.rs:63-65`,
   maps an exit status that does not fit
   (the -1 of `railway.new`) to 255, and an exit signal to 128 plus its number
   (`docs/STATUS.md:84`, `docs/STATUS.md:89`).
@@ -1018,7 +1018,7 @@ sh scripts/dev.sh check     # interop: for each case, the code of OpenSSH, of po
 
 The interop section shows, for each case, the reference code, podssh's code
 and the literal, and the signal row as a named difference. Planted defect 1:
-map an exit signal to 255 at `crates/podssh-ssh/src/io.rs:379`; the literal
+map an exit signal to 255 at `crates/podssh-ssh/src/io.rs:398`; the literal
 check of 143 must fail, and the table must report its signal row as broken.
 Planted defect 2: let the reference run `true` in place of `exit 3`; the
 derived check must fail.
@@ -1126,7 +1126,7 @@ source: a signal (OpenSSH 255, podssh 143, on both servers), a changed key
 under `StrictHostKeyChecking=no` (OpenSSH 0, podssh 255), and a directory
 as `known_hosts` (OpenSSH 0, podssh 255). `docs/STATUS.md` has each code.
 Planted, in one run: the signal mapped to 255 at
-`crates/podssh-ssh/src/io.rs:379`, and OpenSSH's code for `exit 3` given
+`crates/podssh-ssh/src/io.rs:398`, and OpenSSH's code for `exit 3` given
 as 0 in `stock_raw`. 8 checks failed, as due: `ssh.exit.openssh.143` and
 `ssh.exit.dropbear.143` ("wanted exit 143, got 255"), `result.*.signal`,
 `ref.exit.*.143` ("the row 'signal' is broken") and `ref.exit.*.3` ("the

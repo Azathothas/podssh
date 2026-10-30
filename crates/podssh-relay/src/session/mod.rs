@@ -21,7 +21,9 @@
 //! - [`client`] and [`far`]: the two ends over tokio streams, [`pump`]: one
 //!   link of a session, [`resume`]: the client's session across links, and
 //!   [`keep`]: the sessions that a far end keeps across links;
-//! - [`deadline`]: how long each end waits for a new link (T-306);
+//! - [`deadline`]: how long each end waits for a new link (T-306), and
+//!   [`hearing`]: what the client heard from the far end, for a notice of
+//!   its silence (T-302);
 //! - [`sessions`]: the secrets and offsets that a far end keeps, by id.
 //!
 //! The records, the offsets, the secrets, the handshakes, the link and the
@@ -33,6 +35,7 @@ pub mod deadline;
 pub mod decode;
 pub mod far;
 pub mod handshake;
+pub mod hearing;
 pub mod keep;
 pub mod link;
 pub mod offset;
@@ -46,6 +49,7 @@ pub mod sessions;
 
 pub use decode::{DecodeError, Decoder};
 pub use handshake::{Ask, ClientHandshake, Established, FarHandshake, HandshakeError, Step};
+pub use hearing::Hearing;
 pub use link::{Event, Link, LinkError};
 pub use offset::{Inbound, OffsetError, Outbound};
 pub use pump::{Carry, End, Ended};

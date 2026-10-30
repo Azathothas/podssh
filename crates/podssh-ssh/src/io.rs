@@ -104,6 +104,8 @@ pub struct Through {
     /// What `~C` asks of the caller, when the session offers it (T-291).
     pub command_line: Option<crate::escape_command::Commands>,
     pub expect: Option<Expect>,
+    /// The notice while the far end is silent (T-302).
+    pub notice: Option<crate::notice::Notice>,
 }
 
 impl Through {
@@ -121,7 +123,15 @@ impl Through {
             Some(z) => z.output(&data, std::time::Instant::now()),
             None => data,
         };
-        self.recorded(data, log)
+        let data = self.recorded(data, log);
+        // A notice of silence goes before the far end's next bytes (T-302).
+        match self.notice.as_mut().map(|notice| notice.before_output(&data, stderr)) {
+            Some(mut first) if !first.is_empty() => {
+                first.extend_from_slice(&data);
+                first
+            }
+            _ => data,
+        }
     }
 
     /// What the terminal shows, into the recording.
@@ -288,6 +298,15 @@ pub async fn pump(
             }
             () = std::future::ready(()), if streaming => {}
             () = added.next() => {}
+            // The notice of a silent far end: its title, or its line (T-302).
+            action = crate::notice::next(through.notice.as_mut()) => match action {
+                crate::notice::Action::Write(bytes) => {
+                    let mut stdout = tokio::io::stdout();
+                    let _ = stdout.write_all(&bytes).await;
+                    let _ = stdout.flush().await;
+                }
+                crate::notice::Action::Say(line) => log.info(&line),
+            },
             stopped = stop.next() => if let Some(end) = stop.act(stopped, &writer, log).await {
                 return end;
             },

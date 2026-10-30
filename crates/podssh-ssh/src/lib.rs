@@ -57,6 +57,7 @@ pub mod local;
 pub mod local_command;
 pub mod log;
 pub mod mux;
+pub mod notice;
 pub mod options;
 pub mod outcome;
 pub mod persist;

@@ -674,7 +674,7 @@ passes a sequence, a user can expect podssh to act on it. No page lists both.
 - Read: in a session with a pty, the client acts only on the escape
   character at the start of a line: `~.`, `~R`, `~?` and `~~`
   (`crates/podssh-ssh/src/escape.rs:1-25`, `crates/podssh-ssh/src/escape.rs:94-138`).
-  Each other byte goes to the channel (`crates/podssh-ssh/src/io.rs:183-202`).
+  Each other byte goes to the channel (`crates/podssh-ssh/src/io.rs:193-212`).
 - Read: the line discipline acts on the arrows, Home, End and its control
   keys, and refuses other sequences (`docs/terminal.md:209-246`). T-128 and
   T-129 change that list.
@@ -723,7 +723,7 @@ fails. The binary (`$BIN`) prints the note in its manual.
 2026-10-12. The table at `crates/podssh-ssh/src/escape.rs:27-40`, read by
 the input at `crates/podssh-ssh/src/escape.rs:94` and by `~?` at
 `crates/podssh-ssh/src/escape.rs:140-150`; the note at
-`crates/podssh-cli/src/man/notes_ssh.rs:63-73`, and the section "What
+`crates/podssh-cli/src/man/notes_ssh.rs:71-81`, and the section "What
 podssh reads from the terminal" of `docs/terminal.md`. The tests:
 `the_terminal_note_names_each_escape` (`crates/podssh-cli/src/man/notes.rs`)
 finds the escapes `~.`, `~R`, `~#`, `~?` and `~~` in the note, and no other;
@@ -852,11 +852,11 @@ find a case that the 14 console checks of podssh do not cover.
   poll every 500 ms (`crates/podssh-ssh/src/terminal/watch.rs:6-54`). The checks of
   `scripts/interop-conpty.py` pass 14 of 14 (`docs/STATUS.md:93`).
 - Read: podssh sets no console code page, and remote output goes through
-  Rust's standard output (`crates/podssh-ssh/src/io.rs:414-431`). Rust's
+  Rust's standard output (`crates/podssh-ssh/src/io.rs:433-450`). Rust's
   documentation of `std::io::Stdout` says that a console refuses bytes that
   are not UTF-8. podssh then takes stdout as closed: it stops writing,
   sends the end of input, and waits for the exit status
-  (`crates/podssh-ssh/src/io.rs:360-367`). Not measured.
+  (`crates/podssh-ssh/src/io.rs:379-386`). Not measured.
 - Read in the report of GitHub #24, not verified here: csshw handles console
   color and ConPTY quirks in `whme/csshw:src/utils/windows.rs`.
 
@@ -1088,13 +1088,13 @@ of Linux shows U+FFFD and goes on.
 - Measured (T-132): `output_after_a_byte_that_is_not_utf8_shows` in
   `crates/podssh-cli/tests/console.rs`, ignored until this entry: "before"
   shows, and "after" does not; podssh exits 0.
-- Read: `write_out` (`crates/podssh-ssh/src/io.rs:414-431`) writes with
+- Read: `write_out` (`crates/podssh-ssh/src/io.rs:433-450`) writes with
   `tokio::io::stdout()`, which writes with Rust's `Stdout`. On a console
   that writer turns UTF-8 into UTF-16, and refuses a byte that is not
   UTF-8 with `InvalidData`
   (`rust-lang/rust:library/std/src/sys/stdio/windows.rs`, `write`).
   `handle_msg` then marks stdout as gone
-  (`crates/podssh-ssh/src/io.rs:360-367`), and each later message goes
+  (`crates/podssh-ssh/src/io.rs:379-386`), and each later message goes
   nowhere.
 - Read: stderr has the same writer; there the rest of the one message is
   lost.
@@ -1127,7 +1127,7 @@ writes each sequence that is not UTF-8 as U+FFFD and holds a sequence that
 the end of a message cuts; `Consoles` keeps one for stdout and one for
 stderr when each is a console (`terminal::is_console`, which is false on
 Unix). The session's output takes it on its way to `write_out`
-(`crates/podssh-ssh/src/io.rs:360-371`), and the close writes what a
+(`crates/podssh-ssh/src/io.rs:379-390`), and the close writes what a
 stream still holds. `cargo test -p podssh-ssh --lib utf8`: 5 passed (text
 unchanged; a bad byte as U+FFFD with the rest after it; a character split
 across three messages shows whole; a cut sequence at the end as U+FFFD; a

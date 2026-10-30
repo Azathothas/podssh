@@ -146,7 +146,7 @@ where
     };
     let settings = parts.settings;
     let mut link = parts.link;
-    let mut carry = Carry::new(settings.link(&established));
+    let mut carry = Carry::new(settings.link(&established)).with_hearing(parts.hearing);
     let moves = lock(&carry.state).moves();
     loop {
         let watch = Watch::moving_at(if moves { settings.move_bytes } else { 0 });
@@ -247,6 +247,9 @@ where
             let _ = app.shutdown().await;
             return Outcome::Layer(ended);
         }
+        // A resume is a question too: the far end is silent until a new
+        // link carries its bytes (T-302).
+        carry.hearing().asked();
         note(Note::Lost { why: describe(&ended.end) });
         match resume_loop(&ended, &established, &mut carry, settings, &mut connect, &mut note, entropy).await {
             Resumed::On(new, new_decoder) => {

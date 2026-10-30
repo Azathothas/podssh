@@ -346,7 +346,7 @@ the node then exits (docs/reverse.md, line 19 at `fb228e9`).
    `/v1/connect/<name>`. If none does, "each relay host" means each address of
    the control host (pins, resolver, DNS over HTTPS). Write it in
    `docs/relay.md`, with `docs/reverse.md` and the manual's relay section
-   (`crates/podssh-cli/src/man/facts.rs:279-441`).
+   (`crates/podssh-cli/src/man/facts.rs:290-452`).
 6. A node keeps the replay buffer of each session (T-152): with the relay's
    limit of 64 sessions and 4 MiB each, 256 MiB. Bound the node's whole
    replay memory (a session past the bound gets `REFUSE` busy, code 6), and
@@ -817,7 +817,7 @@ Read: a read waits 90 s at most (`crates/podssh-ws/src/client.rs:23-25`, set at
 frame each 25 s. The ping watcher acts only after a first Pong
 (`crates/podssh-ws/src/session.rs:194-231`); Pongs and the idle cut on reverse
 sockets are not measured (T-061). russh sends a keepalive each 60 s and ends
-the session after 3 with no answer (`crates/podssh-ssh/src/options.rs:351-391`).
+the session after 3 with no answer (`crates/podssh-ssh/src/options.rs:354-394`).
 Measured on `3ee70dc`, offline (`PODSSH_OFFLINE=1`, a `.invalid` host):
 `-o ServerAliveInterval=0` prints the warning of
 `crates/podssh-cli/src/ssh/resolve.rs:366-380` (the `warnings` of keepalives), and `podssh ssh` exits 255.
@@ -836,9 +836,9 @@ Measured on `3ee70dc`, offline (`PODSSH_OFFLINE=1`, a `.invalid` host):
 4. On the resumable road, do not print the warning of
    `crates/podssh-cli/src/ssh/resolve.rs:366-380` (the `warnings` of keepalives).
 5. In the same commit: "Liveness" and "Idle limit" in the manual
-   (`crates/podssh-cli/src/man/facts.rs:365-380`,
-   `crates/podssh-cli/src/man/facts.rs:407-416`), the note at
-   `crates/podssh-cli/src/man/notes_ssh.rs:235`, `docs/relay.md`, `README.md`.
+   (`crates/podssh-cli/src/man/facts.rs:376-391`,
+   `crates/podssh-cli/src/man/facts.rs:418-427`), the note at
+   `crates/podssh-cli/src/man/notes_ssh.rs:243`, `docs/relay.md`, `README.md`.
 
 ## Decision
 
@@ -957,7 +957,7 @@ node's side (`crates/podssh-probe/tests/spec/relay-spec-2026-10-03-r2.txt:133-13
 6. When the client knows the expiry of the pair (from the node's ticket,
    T-163), it warns 1 h before; at the expiry the session ends with the reason.
 7. `-v` prints one line for each move. Docs: `docs/relay.md` ("Limits that
-   users see") and the manual (`crates/podssh-cli/src/man/facts.rs:279-441`).
+   users see") and the manual (`crates/podssh-cli/src/man/facts.rs:290-452`).
 
 ## Decision
 
@@ -1877,7 +1877,7 @@ starts at the next newline.
 **Milestone:** backlog
 **Priority:** P3
 **Effort:** M
-**Status:** open
+**Status:** done
 
 ## Problem
 
@@ -1888,10 +1888,10 @@ a full-screen program is written into its screen.
 
 ## Premise
 
-- Read: the layer's lines, written always: a loss (`crates/podssh-cli/src/layered.rs:308`) and a
-  resume (`crates/podssh-cli/src/layered.rs:319`). The heartbeat each 10 s, and a link dead after
-  30 s with nothing from the far end (`crates/podssh-relay/src/session/pump.rs:56`,
-  `crates/podssh-relay/src/session/pump.rs:59`). The forward road's checks
+- Read: the layer's lines, written always: a loss (`crates/podssh-cli/src/layered.rs:349`) and a
+  resume (`crates/podssh-cli/src/layered.rs:360`). The heartbeat each 10 s, and a link dead after
+  30 s with nothing from the far end (`crates/podssh-relay/src/session/pump.rs:57`,
+  `crates/podssh-relay/src/session/pump.rs:60`). The forward road's checks
   (`docs/design.md:531`).
 - Read in Mosh (`docs/design.md:614-628`): the notice comes after 6.5 s with no word from the
   server, or 10 s with no acknowledged state; Mosh draws it over its own model of the screen,
@@ -1914,6 +1914,67 @@ a full-screen program is written into its screen.
 4. On a terminal only, never in a pipe; `-q` turns it off. The layer's lines stay when stderr is
    not the terminal.
 
+## Decision
+
+Taken (2026-10-13), the source of the silence: the resumable layer, not
+SSH's bytes. The layer hears each byte of the far end, and knows which of
+its own records the far end answers at once: `DATA` that it acknowledges
+within 200 ms (both named `replay.v1`), a `PING`, and a resume after a loss
+(`crates/podssh-relay/src/session/hearing.rs`). Any byte answers each
+question. The alternative, the time since the SSH channel's last bytes,
+lost: to a node, SSH sends no keepalive (`docs/design.md`, section 5), so
+an idle shell would show the notice, and so would a password's prompt,
+which echoes nothing.
+
+Taken: the notice comes when a question has waited 5 s, and counts the
+seconds since the far end's last byte. These values were provisional
+until the measurement of the Prove, which gave the notice 5.0 s after the
+pause began (2026-10-30, through the stand-ins): 5 s is the entry's own
+value, a few round trips and the 200 ms of an `ACK`. The entry's "10 s with
+no byte at all" lost as a rule of its own: the far end's records come each
+10 s in an idle session (the heartbeat, `PING_EVERY`), so a fixed 10 s would
+show the notice for a moment in each healthy idle session. The heartbeat's
+own `PING`, after 10 s with nothing sent, is a question, so an idle link
+that died shows the notice 15 s after the last word at most.
+
+Taken: the title's sequences are XTWINOPS `CSI 22 ; 2 t` and `CSI 23 ; 2 t`
+(the window's title alone) and OSC 2 ended by BEL; the text has no control
+character and no `;`, at which a model terminal cuts a title. They are
+written only where the session's output left the terminal's parser at its
+ground state (`crates/podssh-ssh/src/notice/boundary.rs`), and the title
+comes back before the far end's next bytes, so that a title that a program
+sets then is kept. T-221's tracker of sequences, a draft, may replace that
+small parser once it is merged.
+
+Taken: the probe of the stack of titles is what is known of the terminal,
+from its environment: xterm (`XTERM_VERSION`) and VTE (`VTE_VERSION`), not
+inside tmux or screen, whose bytes go to the multiplexer; and
+`PODSSH_TITLE_STACK=yes|no` for another terminal. A query lost: its answer
+comes on stdin, which the session's input task reads already, so the
+answer would go to the server as keys, or a key would be lost; and xterm
+does not answer `CSI 21 t` by default. A title with no stack lost: the
+user's title would stay lost. On a terminal not known to keep a stack there
+is no notice, and the layer's lines stay as before. Windows Terminal and
+the Windows console are not in the list until `scripts/title-stack.py`
+measures them (UNVERIFIED); so are xterm and VTE, which the list names from
+their documentation.
+
+Taken: while the title shows the notice, the layer's lines of a loss and of
+a resume are left out (`layered::folded`): they would be written into the
+screen, and the title tells as much. The lines of `-v` stay. With no pty,
+the notice is two lines, at its start and when the far end answers again;
+a line for each second lost, as it would fill the terminal.
+
+Taken: the roads of the layer: `ssh node://`, its race with
+`--iroh-ticket`, `iroh:TICKET` (`podssh_iroh::client::carry_heard`), and
+the session after `--upgrade`. `podssh operator` has no terminal of its
+own: it is the ProxyCommand of OpenSSH, whose terminal it does not know,
+and its lines stay. The forward road lost: there, nothing below SSH
+answers a key, and the relay's Pong answers podssh's Ping each 10 s, so a
+notice would come 15 s after the last word at the soonest; T-307 is that
+road's notice. The top row of item 2 (b) waits for T-160's model of the
+screen, which the operator holds behind T-110.
+
 ## Prove
 
 ```sh
@@ -1926,55 +1987,72 @@ and goes when bytes come back. With the terminal oracle (T-200), the screen afte
 the screen before it, and so does the title. A planted notice written at the cursor fails the
 check of the screen.
 
+The run through the stand-ins is ignored, on Linux only, as it needs a pty, Python and openssl
+(`cargo test -p podssh-cli --test silent_notice -- --ignored --nocapture`); it uses the stand-in
+proxy's `--pause 0:20`, the reverse road's pause, and prints when the notice came and went. The
+same checks with no terminal and no stand-in, with a model of the stack of titles beside the
+oracle: `cargo test -p podssh-ssh --test silent_notice`. The planted defect: `Facts::place`
+that gives `Line` to a terminal in raw mode; in the model, the control
+`a_notice_written_at_the_cursor_changes_the_screen` shows the same.
+
 ## Correction
 
-2026-10-30, the research of that day (Read in the sources named; no terminal was run). The Approach
-says that which terminals keep a stack of titles, "xterm, VTE, Windows Terminal, the Windows console",
-is not verified. It is now, in part, and the list is wrong for two of the four. Read: the sequences
-are `CSI 22 ; 0 t` (save the title on a stack) and `CSI 23 ; 0 t` (restore it)
-(https://invisible-island.net/xterm/ctlseqs/ctlseqs.txt); xterm's default `disallowedWindowOps`
-includes `GetWinTitle`, so the title cannot be read back
-(https://invisible-island.net/xterm/manpage/xterm.txt).
+The first item of the Premise cites the layer's lines at lines of `next_leg`, which opens a new
+leg. The lines are in `line_of`: a loss (`crates/podssh-cli/src/layered.rs:392`) and a resume
+(`crates/podssh-cli/src/layered.rs:403`). What the item says of them holds.
 
-| Terminal | 22 and 23 | Depth | Where it was read |
-| --- | --- | --- | --- |
-| xterm | yes | `CSI # S` reports | ctlseqs |
-| VTE (GNOME Terminal) | yes, since 2018 | 8 | `GNOME/vte:src/vteseq.cc` |
-| tmux | yes, on the pane's title; the outer title only through `set-titles-string` | 10 | `tmux/tmux:input.c` (`screen_push_title`), `tmux.1` |
-| kitty | yes, but a push is skipped when the child never set a title | 10 | `kovidgoyal/kitty:kitty/vt-parser.c` |
-| Alacritty | yes | 4096 | `alacritty/alacritty:alacritty_terminal/src/term/mod.rs` (`push_title`) |
-| iTerm2 | yes | not read | `gnachman/iTerm2` (`XTERMCC_PUSH_TITLE` in `VT100Terminal.m`) |
-| foot | yes (the window title) | 128 | `dnkl/foot:csi.c` (Codeberg) |
-| Windows Terminal and conhost | **ignored**: the enum of the adapter has the operations 1, 2, 7, 8, 14, 16 and 18 only, and `default: break` | none | `microsoft/terminal:src/terminal/adapter/adaptDispatch.cpp` (conhost shares it) |
-| Konsole | **ignored** (`/* IGNORED: Save icon and window title on stack */`) | none | `Vt102Emulation.cpp` of KDE's Konsole |
-| GNU screen | **no**: `CSI t` handles 7, 8, 11, 18 and 21 only | none | `ansi.c` of GNU screen (savannah) |
-| WezTerm | parsed, and an empty arm (`Window::PushWindowTitle ... => {}`) | none | `wezterm/wezterm:terminalstate/mod.rs` |
-| Ghostty | parsed, and a no-op (`.title_push, .title_pop => {}`) | none | `termio/stream_handler.zig` of Ghostty |
+## Done
 
-Where the terminal ignores the pair, "set the notice, then pop" leaves the notice as the title, and
-the title cannot be read back. So:
+2026-10-13, a draft; merged on 2026-10-30, when the main session built it
+and ran each check below.
 
-1. Item 2(a) is allow-listed, not tried everywhere: use the title only where the terminal is known
-   to keep the stack. A probe: XTVERSION (`CSI > 0 q`) is answered by xterm, kitty, foot, VTE
-   (`VTE(n)`), tmux, WezTerm and Ghostty (Read in each source); Konsole, Windows Terminal, screen
-   and Alacritty were not seen to answer, and the replies of iTerm2 and Konsole are not read.
-   Allow xterm, VTE and foot by XTVERSION, and iTerm2, Alacritty and kitty by `TERM_PROGRAM`,
-   `VTE_VERSION` or `KITTY_WINDOW_ID` (the variables are Inferred; check them when this entry is
-   done). Never for the ignoring terminals. Otherwise item 2(b), or 2(c).
-2. Inside tmux the pair touches the pane's title, and the outer title only when `set-titles-string`
-   holds `#T`: treat tmux as unreliable for 2(a).
-3. Never send `CSI Ps t` with `Ps` of 24 or more: xterm resizes the window.
-4. An unknown `CSI t` is dropped by each terminal that was read, with no drawing (Konsole, kitty,
-   foot and tmux log it). Only xterm acts on the large values.
-5. The Windows console has its own title call (the Win32 API); this entry has not verified it, and
-   it measures it.
-6. Prior art: vim sends the pair (`t_ST`, `t_RT`, `runtime/doc/term.txt`); neovim pushes
-   unconditionally and accepts the terminals that ignore it (neovim pull request 9408). The matrix
-   at terminfo.dev only tests that the sequence does not crash, so it lists Ghostty as "yes": it
-   is not used here.
-
-Open: whether a table of terminals is worth its upkeep, given the quirks of kitty and tmux; the
-alternative is the top-row notice (2(b)) alone, once T-160's model exists.
+- `crates/podssh-relay/src/session/hearing.rs`: the far end's last byte and
+  the oldest question that waits, across the links of a session; the pump
+  hears each read, and asks with each `PING` and each `DATA` that the peer
+  acknowledges; a loss asks too. `Client::with_hearing`, and
+  `podssh_iroh::client::carry_heard`.
+- `crates/podssh-ssh/src/notice/`: the road's word (`Silence`, in
+  `Options`), the place of the notice by the facts of the session, the
+  title with its stack and the probe of the stack (`title.rs`), the parser's
+  ground state (`boundary.rs`), and the notice itself, which the session's
+  pump ticks each second and which takes the title back when it ends.
+  `crates/podssh-ssh/src/io.rs` gives it the session's output.
+- `crates/podssh-cli/src/layered.rs` (`Shell`, `heard`, `folded`), and the
+  roads of `ssh`: `node://`, the race, `iroh:`, `--upgrade`.
+- The manual (the note of `ssh`; `PODSSH_TITLE_STACK`, `XTERM_VERSION` and
+  `VTE_VERSION` in ENVIRONMENT), `docs/terminal.md` (a section of its own),
+  `docs/design.md`, `docs/STATUS.md`; `scripts/title-stack.py`, the
+  measurement of a terminal's stack of titles. T-307, the forward road's
+  notice, is a new entry.
+- Prove: `cargo test -p podssh-ssh --test silent_notice`, 5 passed, and
+  `cargo test -p podssh-ssh --lib -- notice`, 5 passed. `podssh-relay`'s
+  lib, `hearing` among it, passed in its whole suite. In all, `podssh-ssh`,
+  `podssh-relay`, `podssh-cli` and `podssh-iroh` passed 1575 of 1576; the
+  one was the note of `ssh`, which wrote `PODSSH_TITLE_STACK=yes`, a word
+  that the check of the notes reads as a keyword of `-o`; it says "set to
+  yes" now, as the other notes say it, and the lib suite passed, 405.
+- The run through the stand-ins on Linux (`cargo test -p podssh-cli --test
+  silent_notice -- --ignored --nocapture`) failed as drafted: it pinned
+  relay-a.test to the loopback, and since T-318 such a pin goes with no
+  proxy, so the client went around the stand-in proxy and its pause, and
+  no silence came. It pins no address now, and clears the machine's proxy
+  variables, as `crates/podssh-cli/tests/m6_exit.rs` does since T-318.
+  Then: the notice came 5.0 s after the pause began ("no word from
+  node://lab for 6 s", then "for 7 s"), and the key's answer came after
+  20.0 s; it passed. The ignored runs of `attach` and `m6_exit` run in the
+  gate's step m6.
+- The merge kept `main`'s pump of `crates/podssh-ssh/src/io.rs` (its stop
+  of T-185 and its `~C` of T-291) and put the notice's arm into it, and
+  `main`'s `Through` (its `command_line` and `expect`) with the field
+  `notice`. clippy `-D warnings` on the four crates and rustfmt clean.
+- The planted defect, `Facts::place` that gives `Line` to a terminal in
+  raw mode: the unit test `a_notice_shows_on_a_terminal_and_nowhere_else`
+  failed with it, and passed without it; `--test silent_notice` passed
+  with it too, as it drives the model with a place that it chooses.
+- The measurement of the terminals: `python3 scripts/title-stack.py` in
+  xterm, in VTE, and under WSL in Windows Terminal and in the Windows
+  console: UNVERIFIED; it waits for the operator's terminals.
+- Waits for T-251: the run in the build image, and clippy at CI's Rust.
 
 # T-303: The latest screen on request: frames that let Ctrl-C show within a round trip
 
@@ -2111,7 +2189,7 @@ then resumes over a new one. For those 30 s, an interactive session shows nothin
 ## Premise
 
 - Read: a link with nothing from the far end for 30 s is dead
-  (`crates/podssh-relay/src/session/pump.rs:59`; `docs/design.md:742-750`).
+  (`crates/podssh-relay/src/session/pump.rs:60`; `docs/design.md:742-750`).
 - Read: a resume can come while the far end still runs the old link; the old link stops, and the
   new one goes on (`docs/design.md:756-758`). The far end lets the newest resume take a session
   (`docs/design.md:795-797`).
@@ -2166,7 +2244,7 @@ session 10 minutes after its link was lost. A session of Mosh waits.
   keeps (`docs/design.md:809-811`); a pair expires after 72 h at most
   (`docs/design.md:797-799`).
 - Read: the client measures the deadline with `Instant`
-  (`crates/podssh-relay/src/session/resume.rs:286`). Not verified: whether `Instant` counts the
+  (`crates/podssh-relay/src/session/resume.rs:289`). Not verified: whether `Instant` counts the
   time that the host slept, on Linux, macOS and Windows. If it does not, a client that wakes
   counts too little, and tries to resume a session that the far end forgot; it then gets
   `REFUSE` with the code 1.
@@ -2295,3 +2373,54 @@ and ran each check below.
   Each passed again without its plant.
 - Waits for T-251: the run in the build image, clippy at CI's Rust, and a
   node with `8h` on the live relay through a client whose host sleeps.
+
+# T-307: A notice of silence on the forward road
+
+**Source:** T-302's Decision: the notice of a silent far end runs on the roads of the resumable
+layer only.
+**Category:** feature
+**Milestone:** backlog
+**Priority:** P3
+**Effort:** M
+**Status:** open
+
+## Problem
+
+On the forward road (`podssh ssh HOST` through the relay, or `--direct`), a link that goes silent
+shows nothing until the WebSocket's checks find it dead, 30 to 40 s later, and the session ends.
+A user cannot tell a slow program from a dead link there either, and the notice of T-302 does not
+show on that road.
+
+## Premise
+
+- Read: the relay's session pings each 10 s, and a link with no frame for three intervals is dead
+  (`crates/podssh-ws/src/client.rs:27-32`); the relay stream of the SSH client runs that check
+  (`crates/podssh-ssh/src/relay_stream.rs:158`).
+- Read: on that road nothing below SSH answers a key: the relay copies the bytes to the target's
+  TCP connection. A Ping of podssh's, which the relay answers with a Pong, is the one question
+  that the road asks.
+- Read: the notice takes any road's word on the far end's silence (`Silence::attach`,
+  `crates/podssh-ssh/src/notice/mod.rs`), and shows it in the window's title (T-302).
+- Not measured: how soon the relay's Pong comes, and how often the relay's own keepalive comes
+  (25 s, read in the relay's document).
+
+## Approach
+
+1. Measure first, with the stand-in relay's `pause:AFTER:FOR` on the forward road: the time from
+   a pause to the WebSocket's end, with and without `ServerAliveInterval`.
+2. The relay stream tells the silence: the time of the last frame from the relay, and a Ping of
+   podssh's that waits for its Pong, as a question; with `ServerAliveInterval`, SSH's keepalive,
+   which asks for a reply, as a question too. `--direct` has SSH's keepalive alone.
+3. The forward road attaches it to the session's `Options::silence`; the notice and its places
+   are T-302's.
+
+## Prove
+
+```sh
+export CARGO_BUILD_JOBS=4
+cargo test -p podssh-cli --test silent_notice -- --ignored
+```
+
+Through the stand-in relay's forward road with `pause:0:20`, the notice comes, counts up and
+goes before the key's answer, and the screen and the title are the ones before the pause. A
+planted relay stream that tells no silence fails it.

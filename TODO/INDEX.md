@@ -62,15 +62,15 @@ repository and CI).
 
 ## Counts
 
-**325 entries: 21 open, 2 partial, 28 blocked, 274 done.**
+**326 entries: 21 open, 2 partial, 28 blocked, 275 done.**
 
 | Priority | open | partial | blocked | done | total |
 | --- | --- | --- | --- | --- | --- |
 | P0 | 0 | 0 | 0 | 1 | 1 |
 | P1 | 2 | 0 | 0 | 24 | 26 |
 | P2 | 1 | 2 | 19 | 144 | 166 |
-| P3 | 18 | 0 | 9 | 105 | 132 |
-| **All** | 21 | 2 | 28 | 274 | 325 |
+| P3 | 18 | 0 | 9 | 106 | 133 |
+| **All** | 21 | 2 | 28 | 275 | 326 |
 
 ## Entries
 
@@ -374,11 +374,12 @@ repository and CI).
 | [T-299](roads.md) | P3 | S | backlog | measurement | done | The quick tunnel's edge, measured: its ports through a proxy and the relay, and a captured registration |
 | [T-300](roads.md) | P3 | L | backlog | feature | open | `podssh node` publishes a quick tunnel over HTTP/2, with no `cloudflared` |
 | [T-301](roads.md) | P3 | M | backlog | feature | open | The quick tunnel over QUIC, where a probe finds UDP |
-| [T-302](resume.md) | P3 | M | backlog | feature | open | A notice in the terminal while the far end is silent |
+| [T-302](resume.md) | P3 | M | backlog | feature | done | A notice in the terminal while the far end is silent |
 | [T-303](resume.md) | P3 | L | backlog | feature | open | The latest screen on request: frames that let Ctrl-C show within a round trip |
 | [T-304](resume.md) | P3 | L | backlog | feature | open | Keys and screen frames as QUIC datagrams on the iroh road |
 | [T-305](resume.md) | P3 | M | backlog | feature | open | Roam at once: a new link beside a silent one |
 | [T-306](resume.md) | P3 | S | backlog | feature | done | A resume deadline that the user sets, for a host that sleeps |
+| [T-307](resume.md) | P3 | M | backlog | feature | open | A notice of silence on the forward road |
 | [T-308](repo.md) | P3 | S | none | defect | done | Dependabot's updates of the images fail: GitHub refuses each pull request it makes |
 | [T-309](release.md) | P1 | M | none | release | done | Publish the rolling betas `v1.0.0-beta.N` |
 | [T-310](repo.md) | P2 | M | none | chore | done | The gate on a Linux host with no wsl-toolkit, and a cloud session made ready |

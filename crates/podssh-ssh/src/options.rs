@@ -273,6 +273,9 @@ pub struct Options {
     /// Kept shells (T-158): whether the far end keeps them, which the road
     /// learns, and what `--attach` asks of them.
     pub keep: crate::keep::Keep,
+    /// The far end's silence, which a road with the resumable layer tells,
+    /// for a notice in the terminal (T-302).
+    pub silence: crate::notice::Silence,
     /// `SetEnv`.
     pub set_env: Vec<(String, String)>,
     /// `SendEnv` patterns, matched against the local environment.
@@ -397,6 +400,7 @@ impl Options {
             escape_char: Some(b'~'),
             command_line: None,
             keep: crate::keep::Keep::default(),
+            silence: crate::notice::Silence::default(),
             set_env: Vec::new(),
             send_env: Vec::new(),
             compression: false,

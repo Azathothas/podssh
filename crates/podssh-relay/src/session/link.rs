@@ -136,6 +136,12 @@ impl Link {
         self.moves
     }
 
+    /// Whether each side acknowledges the other's bytes: both named
+    /// `replay.v1`.
+    pub fn acknowledges(&self) -> bool {
+        self.acks
+    }
+
     /// Keep each byte sent until the peer acknowledges it, `capacity` bytes
     /// at most, and acknowledge the peer's bytes in turn: both sides named
     /// `replay.v1`.

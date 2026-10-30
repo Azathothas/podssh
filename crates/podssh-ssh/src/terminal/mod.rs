@@ -64,6 +64,10 @@ pub fn stdout_is_terminal() -> bool {
     std::io::stdout().is_terminal()
 }
 
+pub fn stderr_is_terminal() -> bool {
+    std::io::stderr().is_terminal()
+}
+
 /// Whether stdout, or stderr, is a Windows console, whose writer takes UTF-8
 /// only (T-294). Never on Unix, where a terminal takes each byte.
 pub fn is_console(stderr: bool) -> bool {

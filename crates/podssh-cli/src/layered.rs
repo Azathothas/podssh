@@ -5,15 +5,18 @@
 //! handshake resumes the session where it was. A node with no layer gets the
 //! bytes as they are, on one leg, as before.
 
-use std::sync::Mutex;
+use std::sync::{Arc, Mutex};
 use std::time::Duration;
 
 use podssh_relay::reverse::closes::resumes;
 use podssh_relay::reverse::{operator, OperatorConfig, Outcome as LegOutcome, RelayClose};
 use podssh_relay::session::client::{self, Found, Outcome};
 use podssh_relay::session::resume::{self, Next, Note};
-use podssh_relay::session::{deadline, replay, Ask, End, Ended, OsEntropy, Settings, KEEP, SHELL_FEATURES};
+use podssh_relay::session::{
+    deadline, hearing, replay, Ask, End, Ended, Hearing, OsEntropy, Settings, KEEP, SHELL_FEATURES,
+};
 use podssh_ssh::keep::Offer;
+use podssh_ssh::notice::Silence;
 use podssh_ws::client::ConnectError;
 use tokio::io::{AsyncRead, AsyncWrite, DuplexStream};
 use tokio::task::JoinHandle;
@@ -124,6 +127,33 @@ pub fn learn(found: &Found, offer: &Offer) {
     }
 }
 
+/// What `podssh ssh` shares with the layer: whether the far end keeps
+/// shells (T-158), and the far end's silence, for a notice (T-302).
+#[derive(Clone, Copy)]
+pub struct Shell<'a> {
+    pub offer: &'a Offer,
+    pub silence: &'a Silence,
+}
+
+/// The session of `client` tells `silence` how long the far end has been
+/// silent while a question waits (T-302).
+pub fn heard<L>(client: client::Client<L>, silence: &Silence) -> client::Client<L>
+where
+    L: AsyncRead + AsyncWrite + Unpin + Send,
+{
+    let shared = Arc::new(Hearing::default());
+    let read = shared.clone();
+    silence.attach(move || read.silent(tokio::time::Instant::now(), hearing::WAIT));
+    client.with_hearing(shared)
+}
+
+/// Whether a line of the layer is left out: a loss or a resume, while the
+/// window's title shows the notice of silence, which tells as much and
+/// writes nothing into the screen (T-302).
+pub fn folded(note: &Note, silence: Option<&Silence>) -> bool {
+    matches!(note, Note::Lost { .. } | Note::Resumed { .. }) && silence.is_some_and(Silence::titled)
+}
+
 /// Where the layer's client starts: on a leg whose far end has not spoken
 /// yet, or already started on it, by a caller that read the far end's
 /// greeting first (`podssh ssh --upgrade`, T-167).
@@ -141,8 +171,9 @@ impl From<DuplexStream> for Begin {
 /// Carry `app` to the node: `link` is the pipe to `first`, a leg already
 /// connected. Each lost leg is replaced, until the session ends or cannot
 /// go on. `expires_ms`, the pair's expiry in milliseconds since the epoch,
-/// gives a warning an hour before it. With `offer`, the client names
-/// `keep.v1`, and `offer` learns whether the far end keeps shells.
+/// gives a warning an hour before it. With `shell`, the client names
+/// `keep.v1`, learns whether the far end keeps shells, and tells the far
+/// end's silence for a notice (T-302).
 pub async fn carry<A>(
     config: &OperatorConfig<'_>,
     link: impl Into<Begin>,
@@ -150,13 +181,13 @@ pub async fn carry<A>(
     app: A,
     expires_ms: Option<i64>,
     say: &(dyn Fn(Line) + Sync),
-    offer: Option<&Offer>,
+    shell: Option<Shell<'_>>,
 ) -> Carried
 where
     A: AsyncRead + AsyncWrite + Unpin + Send,
 {
     let legs = Mutex::new(Some(first));
-    let layer = if offer.is_some() { ssh_settings() } else { settings() };
+    let layer = if shell.is_some() { ssh_settings() } else { settings() };
     let started = match link.into() {
         Begin::Started(client) => Ok(*client),
         Begin::Link(link) => client::start(link, Ask::New, layer, &mut OsEntropy).await,
@@ -173,9 +204,13 @@ where
     if let Some(kept) = client.established().and_then(|e| e.peer_deadline) {
         say(Line::Verbose(format!("the far end keeps the session {} after a loss", deadline::span(kept))));
     }
-    if let Some(offer) = offer {
-        learn(client.found(), offer);
-    }
+    let client = match shell {
+        Some(shell) => {
+            learn(client.found(), shell.offer);
+            heard(client, shell.silence)
+        }
+        None => client,
+    };
     let legs_ref = &legs;
     let connect = |ended: &Ended| {
         // A move opens a new leg while the old one still carries the
@@ -183,7 +218,12 @@ where
         let previous = if matches!(ended.end, End::Moving) { None } else { lock(legs_ref).take() };
         async move { next_leg(config, legs_ref, previous).await }
     };
-    let note = |note: Note| say(line_of(note));
+    let silence = shell.map(|shell| shell.silence);
+    let note = |note: Note| {
+        if !folded(&note, silence) {
+            say(line_of(note));
+        }
+    };
     let mut entropy = OsEntropy;
     let session = resume::run(client, app, connect, note, &mut entropy);
     tokio::pin!(session);
@@ -215,8 +255,9 @@ where
     carry_keeping(config, link, first, app, expires_ms, say, channel, pin_say, None).await
 }
 
-/// [`carry_through`] for `podssh ssh`, which names `keep.v1`: `offer`
-/// learns whether the far end keeps shells (T-158).
+/// [`carry_through`] for `podssh ssh`, which names `keep.v1`: `shell`
+/// learns whether the far end keeps shells (T-158), and tells the far end's
+/// silence (T-302).
 #[allow(clippy::too_many_arguments)]
 pub async fn carry_keeping<A>(
     config: &OperatorConfig<'_>,
@@ -227,15 +268,15 @@ pub async fn carry_keeping<A>(
     say: &(dyn Fn(Line) + Sync),
     channel: Option<crate::channel::Operator>,
     pin_say: impl Fn(String) + Send + 'static,
-    offer: Option<&Offer>,
+    shell: Option<Shell<'_>>,
 ) -> Carried
 where
     A: crate::channel::Bytes + 'static,
 {
     let me = channel.as_ref().map(|c| c.identity.clone());
     let (stream, session) = crate::channel::around(app, channel, pin_say);
-    let Some(session) = session else { return carry(config, link, first, stream, expires_ms, say, offer).await };
-    let (mut carried, outcome) = tokio::join!(carry(config, link, first, stream, expires_ms, say, offer), session);
+    let Some(session) = session else { return carry(config, link, first, stream, expires_ms, say, shell).await };
+    let (mut carried, outcome) = tokio::join!(carry(config, link, first, stream, expires_ms, say, shell), session);
     if let Err(e) = outcome {
         carried.channel = crate::channel::judged(&e, me.as_deref());
     }

@@ -15,6 +15,7 @@ use tokio::io::{AsyncWrite, AsyncWriteExt};
 use tokio::sync::{mpsc, Notify};
 use tokio::time::Instant;
 
+use super::super::hearing::Hearing;
 use super::super::link::Link;
 use super::super::record::Record;
 use super::{lock, Watch};
@@ -155,13 +156,15 @@ fn bytes_of(record: &Record) -> Vec<u8> {
 
 /// The writer: the pump's last record when it asks for one, else the small
 /// records that wait, else the application's next `DATA`; at the end of the
-/// application's bytes, `CLOSE`.
+/// application's bytes, `CLOSE`. A `PING`, and `DATA` that the peer
+/// acknowledges, are questions that the far end answers at once (T-302).
 pub(super) async fn write<W>(
     link: &mut W,
     data: &mut mpsc::Receiver<Vec<u8>>,
     outbox: &Outbox,
     state: &Mutex<Link>,
     watch: &Watch,
+    hearing: &Hearing,
 ) -> Written
 where
     W: AsyncWrite + Unpin,
@@ -192,6 +195,9 @@ where
             if let Err(e) = put(link, &bytes_of(&record), outbox, watch).await {
                 return Written::Failed(e);
             }
+            if matches!(record, Record::Ping { .. }) {
+                hearing.asked();
+            }
             continue;
         }
         tokio::select! {
@@ -201,6 +207,9 @@ where
                 Some(bytes) => {
                     if let Err(e) = put(link, &bytes, outbox, watch).await {
                         return Written::Failed(e);
+                    }
+                    if lock(state).acknowledges() {
+                        hearing.asked();
                     }
                 }
                 // The application ended its bytes: `CLOSE` after the last.

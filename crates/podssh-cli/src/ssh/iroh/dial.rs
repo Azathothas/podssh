@@ -9,8 +9,9 @@ use std::time::Duration;
 use iroh::RelayUrl;
 use podssh_iroh::keys::{self, Place};
 use podssh_iroh::{ticket, Dialer, Failure, Options, Udp};
+use podssh_relay::session::hearing::WAIT;
 use podssh_relay::session::resume::Note;
-use podssh_relay::session::{OsEntropy, Settings};
+use podssh_relay::session::{Hearing, OsEntropy, Settings};
 use podssh_ssh::{Log, EXIT_FAILURE};
 use podssh_ws::{ProxyChoice, Trust};
 
@@ -129,8 +130,16 @@ pub(super) async fn connect(
         Line::Always(text) => log.info(&format!("{shown}: {text}")),
         Line::Verbose(text) => log.verbose(&format!("{shown}: {text}")),
     };
-    let note = |note: Note| say(crate::layered::line_of(note));
+    let note = |note: Note| {
+        if !crate::layered::folded(&note, Some(&opts.silence)) {
+            say(crate::layered::line_of(note));
+        }
+    };
     let settings = Settings { features: podssh_iroh::FEATURES, ..crate::layered::settings() };
+    // The far end's silence, for a notice (T-302).
+    let hearing = Arc::new(Hearing::default());
+    let read = hearing.clone();
+    opts.silence.attach(move || read.silent(tokio::time::Instant::now(), WAIT));
     // The SSH client and the layer in one task: when the client closes its
     // end, the layer sends `CLOSE` on the link that it has.
     // The channel of T-088, to the node that the ticket names.
@@ -149,7 +158,7 @@ pub(super) async fn connect(
     };
     let (code, carried, failed) = tokio::join!(
         podssh_ssh::run(ssh_end, opts, None, log.clone()),
-        podssh_iroh::carry(&dialer, layer_app, settings, note),
+        podssh_iroh::client::carry_heard(&dialer, layer_app, settings, note, hearing),
         session
     );
     if let Some((fault, why)) = failed.as_ref().and_then(|e| crate::channel::judged(e, Some(&me))) {

@@ -101,6 +101,11 @@ impl Pty {
         String::from_utf8_lossy(&self.seen.lock().unwrap()).into_owned()
     }
 
+    /// What the program wrote, each byte, for a model of the terminal.
+    pub fn bytes(&self) -> Vec<u8> {
+        self.seen.lock().unwrap().clone()
+    }
+
     /// Wait until the program wrote `needle`, at most `limit`.
     pub fn expect(&self, needle: &str, limit: Duration) -> bool {
         let end = Instant::now() + limit;

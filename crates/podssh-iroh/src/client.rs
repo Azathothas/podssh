@@ -2,13 +2,14 @@
 //! address of its ticket, a session of the resumable layer on a stream of
 //! it, and a new stream, or a new connection, for each lost link.
 
+use std::sync::Arc;
 use std::time::Duration;
 
 use iroh::endpoint::{ConnectError, ConnectingError, Connection, ConnectionError, VarInt};
 use iroh::{Endpoint, EndpointAddr};
 use podssh_relay::session::client::{self, Outcome};
 use podssh_relay::session::resume::{self, Next, Note};
-use podssh_relay::session::{Ask, OsEntropy, Settings};
+use podssh_relay::session::{Ask, Hearing, OsEntropy, Settings};
 use tokio::io::{AsyncRead, AsyncWrite};
 use tokio::sync::Mutex;
 
@@ -110,9 +111,25 @@ where
     A: AsyncRead + AsyncWrite + Unpin + Send,
     N: FnMut(Note),
 {
+    carry_heard(dialer, app, settings, note, Arc::default()).await
+}
+
+/// [`carry`], with the session's `hearing`, which a notice of the far end's
+/// silence reads (T-302).
+pub async fn carry_heard<A, N>(
+    dialer: &Dialer,
+    app: A,
+    settings: Settings,
+    note: N,
+    hearing: Arc<Hearing>,
+) -> Result<Outcome, Failure>
+where
+    A: AsyncRead + AsyncWrite + Unpin + Send,
+    N: FnMut(Note),
+{
     let first = dialer.link().await?;
     let client = match client::start(first, Ask::New, settings, &mut OsEntropy).await {
-        Ok(client) => client,
+        Ok(client) => client.with_hearing(hearing),
         Err(_) if dialer.refused().await => return Err(Failure::Refused),
         Err(e) => return Err(Failure::Failed(e.to_string())),
     };

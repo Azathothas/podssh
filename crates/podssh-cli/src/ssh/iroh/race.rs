@@ -257,6 +257,8 @@ pub(in crate::ssh) async fn connect(
     };
     log.verbose(&format!("{shown}: {}", client.found()));
     layered::learn(client.found(), &opts.keep.offer);
+    // The far end's silence, for a notice (T-302).
+    let client = layered::heard(client, &opts.silence);
     let say = |line: Line| match line {
         Line::Always(text) => log.info(&format!("{shown}: {text}")),
         Line::Verbose(text) => log.verbose(&format!("{shown}: {text}")),
@@ -275,7 +277,11 @@ pub(in crate::ssh) async fn connect(
             }
         }
     };
-    let note = |note: Note| say(layered::line_of(note));
+    let note = |note: Note| {
+        if !layered::folded(&note, Some(&opts.silence)) {
+            say(layered::line_of(note));
+        }
+    };
     let (ssh_end, layer_end) = tokio::io::duplex(PIPE);
     let me = channel.as_ref().map(|c| c.identity.clone());
     let pin_say = {
