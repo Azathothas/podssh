@@ -1732,6 +1732,16 @@ three tests of `-p` failed; dropped from the plan of the attributes only:
 its test and the tree's failed, and the copy of a file kept its time
 through the check after the rename.
 
+2026-10-30, later: on the arm64 Mac of T-218's trial (run 41074530703) the
+test of `--sparse` found each copy fully allocated (4231168 bytes of
+4228901), where the Intel Mac and Linux kept the holes; the copies were made
+by seeks past the end, by podssh down and by OpenSSH's `sftp-server` up. The
+test now makes the sparse source first, and checks the holes only where the
+source itself has them, so that a file system that keeps no hole is not
+taken for a defect of podssh; each byte is checked everywhere. Linux:
+`cp_meta` sparse passed, with the holes checked. The next run on the arm64
+Mac shows which it is.
+
 # T-147: `podssh cp --inplace`
 
 **Source:** GitHub #21 (syq's atomic replacement and its explicit

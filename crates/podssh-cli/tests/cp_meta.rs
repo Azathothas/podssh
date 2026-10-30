@@ -257,19 +257,31 @@ fn sparse_leaves_holes_and_each_byte_arrives() {
     {
         use std::os::unix::fs::MetadataExt;
         let used = |name: &str| std::fs::metadata(home.join(name)).unwrap().blocks() * 512;
-        let half = want.len() as u64 / 2;
-        assert!(used("up.bin") < half && used("down.bin") < half, "{} {}", used("up.bin"), used("down.bin"));
-        // A sparse source makes holes with no flag; a file of 8 MiB with
-        // 6 bytes of data.
+        // A sparse source, a file of 8 MiB with 6 bytes of data, made larger
+        // than it was written as cp makes its holes: whether it has holes
+        // tells whether this file system keeps any.
         let file = std::fs::File::create(home.join("auto.bin")).unwrap();
         file.set_len(8 << 20).unwrap();
         std::os::unix::fs::FileExt::write_at(&file, b"middle", 4 << 20).unwrap();
         drop(file);
         let (rc, _, err) = podssh(&home, port, "cp", &["auto.bin", "u@127.0.0.1:auto-up.bin"]);
         assert_eq!(rc, 0, "{err}");
-        assert!(used("auto-up.bin") < 1 << 20, "{}", used("auto-up.bin"));
         let same = std::fs::read(home.join("auto.bin")).unwrap() == std::fs::read(home.join("auto-up.bin")).unwrap();
         assert!(same, "each byte of the sparse source");
+        if used("auto.bin") < 1 << 20 {
+            let half = want.len() as u64 / 2;
+            assert!(used("up.bin") < half && used("down.bin") < half, "{} {}", used("up.bin"), used("down.bin"));
+            // A sparse source makes holes with no flag.
+            assert!(used("auto-up.bin") < 1 << 20, "{}", used("auto-up.bin"));
+        } else {
+            // macOS on a runner of GitHub allocated each copy (T-218); with
+            // no hole in the source either, no copy could keep one there.
+            eprintln!(
+                "this file system keeps no hole: the source of 8 MiB with 6 bytes uses {} bytes; each byte is \
+                 checked, and the holes are not",
+                used("auto.bin")
+            );
+        }
     }
     assert_eq!(std::fs::read(home.join("up.bin")).unwrap(), want, "each byte up");
     assert_eq!(std::fs::read(home.join("down.bin")).unwrap(), want, "each byte down");

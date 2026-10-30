@@ -108,12 +108,22 @@ impl Place {
                 .map(std::path::PathBuf::from)
                 .filter(|p| p.is_absolute())
                 .unwrap_or_else(std::env::temp_dir);
-            let dir = base.join(format!("podssh-agent-{}", std::process::id()));
+            let dir = agent_dir(base, std::process::id());
             private_dir(&dir)
                 .map_err(|e| format!("{}: a directory of mode 0700 could not be made: {e}", dir.display()))?;
             Ok(Place { path: dir.join("agent.sock").display().to_string(), made: Some(dir) })
         }
     }
+}
+
+/// The agent's directory under `base`, or under /tmp where its socket's path
+/// would not fit: sun_path holds 104 to 108 bytes, and a long TMPDIR (macOS's
+/// is under /var/folders) leaves too few, as doctor's probe knows.
+#[cfg(not(windows))]
+fn agent_dir(base: std::path::PathBuf, pid: u32) -> std::path::PathBuf {
+    let name = format!("podssh-agent-{pid}");
+    let fits = base.join(&name).join("agent.sock").as_os_str().len() < 100;
+    if fits { base } else { std::path::PathBuf::from("/tmp") }.join(name)
 }
 
 impl Drop for Place {
@@ -242,6 +252,17 @@ mod tests {
         assert!(!socket.exists(), "the socket went with the listener");
         drop(place);
         assert!(!dir.exists(), "the directory went at the end");
+    }
+
+    /// A socket's path that would pass the bytes of sun_path goes under /tmp
+    /// (macOS's TMPDIR, with a test's scratch directory in it, did, T-218).
+    #[cfg(unix)]
+    #[test]
+    fn a_long_temporary_directory_puts_the_socket_under_tmp() {
+        let long = std::path::PathBuf::from(format!("/var/folders/{}/T/podssh-agent-sign-cert-41", "x".repeat(40)));
+        assert_eq!(agent_dir(long, 4242), std::path::PathBuf::from("/tmp/podssh-agent-4242"));
+        let short = std::path::PathBuf::from("/run/user/1000");
+        assert_eq!(agent_dir(short, 4242), std::path::PathBuf::from("/run/user/1000/podssh-agent-4242"));
     }
 
     /// On Windows the agent serves on a named pipe of this user and process.

@@ -1465,6 +1465,15 @@ its directory are gone, and gives the agent `TMPDIR` in its scratch
 directory, so a failure leaves nothing outside it. In the build image,
 2026-10-11: 3 passed, and nothing was left in `/tmp`.
 
+2026-10-30, later: on macOS (T-218's trial, run 41074530703, both Macs) the
+agent of two tests ended before its first line: its socket's path, under a
+`TMPDIR` that is long on macOS (`/var/folders/...`) and longer with a test's
+scratch directory, passed the bytes of `sun_path`, and the bind failed. The
+agent's directory now goes under `/tmp` when its socket's path would reach
+100 bytes, as `doctor`'s probe does. Linux: `agent::serve` 2 passed (a long
+base gives `/tmp/podssh-agent-PID`), `agent_cli` 6, `agent_sk` 1; planted, a
+limit that never falls back: the new test failed.
+
 # T-227: `--direct` has no limit on a stuck write, but the relay leg fails after 60 s (GitHub #36)
 
 **Source:** GitHub #36 (2026-10-08): read by the reporter and marked
