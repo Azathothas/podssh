@@ -3,201 +3,22 @@ name: release targets
 # T-218: each new target of the release, built, checked for its links and
 # run on its own platform, before the release workflow takes it. Started by
 # hand; it publishes nothing, and its artifacts last 3 days. A target moves
-# into release.yml once its job here passes: no target ships that no run
-# executed: each binary runs the short form of the release check
-# (scripts/release-short.sh), the relay's banner included. The input
-# `targets` runs some of the jobs: all, or a list of macos, windows-arm,
-# armv7 and riscv64. A build for a host triple names it as --target, so that
-# +crt-static reaches the binary and not the proc-macros of the host.
+# into release.yml once its job here passes, and its job here goes: no
+# target ships that no run executed. Each binary runs the short form of the
+# release check (scripts/release-short.sh), the relay's banner included.
+# The Macs, Windows on ARM and armv7 passed here and moved; riscv64, built
+# under QEMU, is the one left. A build for a host triple names it as
+# --target, so that +crt-static reaches the binary and not the proc-macros
+# of the host.
 
 on:
   workflow_dispatch:
-    inputs:
-      targets:
-        description: "all, or some of: macos windows-arm armv7 riscv64"
-        required: false
-        default: all
 
 permissions:
   contents: read
 
 jobs:
-  macos:
-    if: inputs.targets == 'all' || contains(inputs.targets, 'macos')
-    name: macos ${{ matrix.target }}
-    strategy:
-      fail-fast: false
-      matrix:
-        include:
-          - runner: macos-15
-            target: aarch64-apple-darwin
-          # The last image of Actions for x86_64 Macs, until August 2027.
-          - runner: macos-15-intel
-            target: x86_64-apple-darwin
-    runs-on: ${{ matrix.runner }}
-    timeout-minutes: 120
-    env:
-      CARGO_BUILD_JOBS: 4
-    steps:
-      - uses: actions/checkout@v7
-      - name: the system and the toolchain
-        run: |
-          sw_vers
-          uname -m
-          rustc --version
-          cargo --version
-          cc --version | head -n 1
-      # The default tests first: code that reads facts of Linux must do
-      # without them here.
-      - name: the default tests
-        run: cargo test --locked --no-fail-fast
-      - name: build
-        run: cargo build --locked --release --target ${{ matrix.target }} -p podssh-cli
-      # A Mac binary links libSystem at least; nothing outside the system.
-      - name: the binary links the system's libraries only
-        run: |
-          set -eu
-          B=target/${{ matrix.target }}/release/podssh
-          file "$B"
-          otool -L "$B"
-          if otool -L "$B" | tail -n +2 | grep -v -E '^[[:space:]]+(/usr/lib/|/System/Library/)'; then
-            echo "a library outside the system's"
-            exit 1
-          fi
-      - name: the binary runs
-        run: sh scripts/release-short.sh target/${{ matrix.target }}/release/podssh --net
-      - name: package
-        run: |
-          mkdir -p dist
-          cp target/${{ matrix.target }}/release/podssh dist/podssh-${{ matrix.target }}
-      - uses: actions/upload-artifact@v7
-        with:
-          name: podssh-${{ matrix.target }}
-          path: dist/*
-          retention-days: 3
-          if-no-files-found: error
-
-  windows-arm:
-    if: inputs.targets == 'all' || contains(inputs.targets, 'windows-arm')
-    name: windows aarch64
-    runs-on: windows-11-arm
-    timeout-minutes: 90
-    env:
-      CARGO_BUILD_JOBS: 4
-      RUSTFLAGS: -Ctarget-feature=+crt-static
-    steps:
-      - uses: actions/checkout@v7
-      # aws-lc on ARM64 Windows wants clang-cl and no NASM; the image has
-      # LLVM and Visual Studio's clang.
-      - name: the system and the toolchain
-        shell: bash
-        run: |
-          uname -a
-          rustc -vV
-          cargo --version
-          command -v clang-cl || echo "clang-cl is not on PATH"
-      - name: build
-        run: cargo build --locked --release -p podssh-cli
-      - name: package
-        shell: bash
-        run: |
-          mkdir -p dist
-          cp target/release/podssh.exe dist/podssh-aarch64-pc-windows-msvc.exe
-      - name: the binary needs no C runtime DLL
-        shell: pwsh
-        run: |
-          # dumpbin is off PATH; vswhere finds it. The ARM image's layout:
-          # the native ARM64 tools first, then any host's.
-          $vswhere = "${env:ProgramFiles(x86)}\Microsoft Visual Studio\Installer\vswhere.exe"
-          $dumpbin = & $vswhere -latest -products * -find "VC\Tools\MSVC\**\bin\Hostarm64\arm64\dumpbin.exe" |
-            Select-Object -First 1
-          if (-not $dumpbin) {
-            $dumpbin = & $vswhere -latest -products * -find "VC\Tools\MSVC\**\bin\Host*\*\dumpbin.exe" |
-              Select-Object -First 1
-          }
-          if (-not $dumpbin) { Write-Error "dumpbin was not found"; exit 1 }
-          Write-Output "dumpbin: $dumpbin"
-          $deps = & $dumpbin /headers /dependents dist\podssh-aarch64-pc-windows-msvc.exe | Out-String
-          if ($LASTEXITCODE -ne 0) { Write-Error "dumpbin failed"; exit 1 }
-          Write-Output ($deps -split "`n" | Select-String -Pattern 'machine|\.dll' | Out-String)
-          if ($deps -notmatch '(?i)AA64 machine|ARM64') { Write-Error "not an ARM64 binary"; exit 1 }
-          if ($deps -match '(?i)vcruntime|msvcp|ucrtbase|api-ms-win-crt') {
-            Write-Error "the binary links a C runtime DLL"
-            exit 1
-          }
-      - name: the binary runs
-        shell: bash
-        run: sh scripts/release-short.sh dist/podssh-aarch64-pc-windows-msvc.exe --net
-      - uses: actions/upload-artifact@v7
-        with:
-          name: podssh-aarch64-pc-windows-msvc
-          path: dist/*
-          retention-days: 3
-          if-no-files-found: error
-
-  # A Raspberry Pi with 32 bits: Alpine's own toolchain for armv7, in a
-  # container of linux/arm/v7 on an arm64 runner. The runner's CPU runs
-  # 32-bit code where its kernel allows it; a probe decides, and QEMU stands
-  # in where it does not.
-  armv7:
-    if: inputs.targets == 'all' || contains(inputs.targets, 'armv7')
-    name: linux armv7-unknown-linux-musleabihf
-    runs-on: ubuntu-24.04-arm
-    timeout-minutes: 360
-    steps:
-      - uses: actions/checkout@v7
-      - name: the image
-        run: |
-          set -eu
-          ref=$(tr -d '\r' < images/armv7/Dockerfile | sed -n 's/^FROM[[:space:]]\{1,\}\([^[:space:]]\{1,\}\).*/\1/p')
-          case "$ref" in
-            *@sha256:*) echo "ARMV7_IMAGE=$(PULL_PLATFORM=linux/arm/v7 sh scripts/pull-image.sh "$ref")" >> "$GITHUB_ENV" ;;
-            *) echo "images/armv7/Dockerfile names no image pinned to a digest" >&2; exit 1 ;;
-          esac
-      - name: does the runner run 32-bit ARM?
-        id: probe
-        run: |
-          if docker run --rm --platform linux/arm/v7 "$ARMV7_IMAGE" uname -m; then
-            echo "native=yes" >> "$GITHUB_OUTPUT"
-          else
-            echo "native=no" >> "$GITHUB_OUTPUT"
-          fi
-      - if: steps.probe.outputs.native != 'yes'
-        uses: docker/setup-qemu-action@v4
-        with:
-          platforms: arm
-      - name: build (static musl, Alpine's rust for armv7)
-        run: |
-          start=$(date +%s)
-          docker run --rm --platform linux/arm/v7 -v "$PWD:/work" -w /work \
-            -e CARGO_BUILD_JOBS=4 -e RUSTFLAGS=-Ctarget-feature=+crt-static \
-            "$ARMV7_IMAGE" sh -c 'apk add --no-cache build-base rust cargo >/dev/null && rustc -vV &&
-              t=$(rustc -vV | sed -n "s/^host: //p") && cargo build --locked --release --target "$t" -p podssh-cli &&
-              mkdir -p dist && cp "target/$t/release/podssh" dist/podssh-armv7-unknown-linux-musleabihf'
-          echo "the build took $(( $(date +%s) - start )) s"
-      - name: the binary is static
-        run: |
-          set -eu
-          B=dist/podssh-armv7-unknown-linux-musleabihf
-          file "$B"
-          if readelf -d "$B" | grep -q NEEDED; then echo "dynamic dependencies:"; readelf -d "$B"; exit 1; fi
-          if readelf -l "$B" | grep -q INTERP; then echo "asks for a program interpreter"; exit 1; fi
-          readelf -h "$B" | grep -E 'Class|Machine|Flags'
-      - name: the binary runs
-        run: |
-          docker run --rm --platform linux/arm/v7 -v "$PWD:/work" -w /work "$ARMV7_IMAGE" \
-            sh scripts/release-short.sh dist/podssh-armv7-unknown-linux-musleabihf --net
-      - uses: actions/upload-artifact@v7
-        with:
-          name: podssh-armv7-unknown-linux-musleabihf
-          path: dist/*
-          retention-days: 3
-          if-no-files-found: error
-
-  # riscv64: the gate's own image, whose index has linux/riscv64, under QEMU.
-  # No hosted runner is riscv64. The limit is wide for the first measurement.
   riscv64:
-    if: inputs.targets == 'all' || contains(inputs.targets, 'riscv64')
     name: linux riscv64gc-unknown-linux-musl
     runs-on: ubuntu-24.04
     timeout-minutes: 360

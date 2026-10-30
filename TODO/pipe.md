@@ -718,7 +718,7 @@ verified here.
 ## Problem
 
 Users ask how to carry RDP, VNC and Telnet. The documents show SSH and one
-HTTP request (`README.md:143-148`). They do not say which clients work with
+HTTP request (`README.md:152-157`). They do not say which clients work with
 no listener, or that the relay ends a desktop stream after 64 MiB.
 
 ## Premise
@@ -752,7 +752,7 @@ no listener, or that the relay ends a desktop stream after 64 MiB.
 3. Telnet: `podssh proxy HOST 23` carries the bytes, but a person needs a
    client that answers the IAC options: form a or b with
    `telnet 127.0.0.1 PORT`.
-4. Write a table "Other TCP protocols" after `README.md:143-148`: the
+4. Write a table "Other TCP protocols" after `README.md:152-157`: the
    protocol, what works now, what needs a listener, the 64 MiB limit. Add
    form a to `crates/podssh-cli/src/man/examples.rs:8-195`; its ProxyCommand
    parses (`crates/podssh-cli/src/man/examples.rs:295-302`). Link the table
@@ -822,7 +822,7 @@ but an AF_UNIX one, which sandbox A allows where it refuses AF_INET
   rows say that the gate's first run fills them in.
 
 The calls made where the Approach left a choice:
-- The table follows "Relay limits", not `README.md:142-147` at once: the
+- The table follows "Relay limits", not `README.md:151-156` at once: the
   paragraphs after those lines (chat, the variables, the tokens) would fall
   under its heading, and the table cites the limits above it.
 - Form c's client is the harness's own (`rfb.py`, about 40 lines of
@@ -868,7 +868,7 @@ What ran:
   example, 4 passed; the plant of the Correction (`-L` given to the
   ProxyCommand's `podssh proxy`) fails the test of the examples with
   "unknown flag '-L'", and was taken out; the whole lib suite, 278 passed.
-  The Prove's `grep` finds the heading, `README.md:181`;
+  The Prove's `grep` finds the heading, `README.md:190`;
   `python scripts/check-repo.py`: each check ok, the doc links too;
   `python scripts/check-scripts.py`: 44 scripts LF and parse under dash.
 - An RDP client and server, and each client through the live relay, did
@@ -1137,7 +1137,7 @@ first command must fail.
 
 2026-10-12. What was made:
 - `README.md`, the row "USB/IP (port 3240)" of the table "Other TCP
-  protocols" of T-179 (`README.md:199`): the recipe, `usbip` with root
+  protocols" of T-179 (`README.md:208`): the recipe, `usbip` with root
   and the modules (`usbip-host` on the server, `vhci-hcd` on the client)
   and podssh with neither, 64 MiB through the relay and then 1009, and
   `ssh:`, never `relay:` to a public `usbipd`, as USB/IP is not
@@ -1190,7 +1190,7 @@ What waits:
   modules and a device): UNVERIFIED.
 
 What ran:
-- Native here: the Prove's `grep` finds the row, `README.md:199`;
+- Native here: the Prove's `grep` finds the row, `README.md:208`;
   `python scripts/check-repo.py`: each check ok, the doc links too.
 - In the build image (Alpine, `linux-tools-usbip`), with no module: the
   harness's stand-in of `usbipd` on a port of its own, and the real

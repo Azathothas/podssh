@@ -259,6 +259,13 @@ None blocks a session. At any time: requiring the status `all` of the
 workflow `build` for `main`, if the operator wants a required check (T-212);
 `main` requires none today.
 
+Dependabot's pull requests wait for the operator. Azathothas/podssh#53 (the
+group of 11 updates) fails the gate's step iroh (run 41075421658): the iroh
+road through a SOCKS5 proxy in `ALL_PROXY` never comes online
+(`crates/podssh-iroh/tests/proxy_env.rs`,
+`a_socks5_proxy_in_all_proxy_reaches_the_relay_by_name`), where `main`
+passes it; it needs a look before a merge.
+
 After the release:
 
 - A run of T-004 and T-005 in a real sandbox, with the brief of

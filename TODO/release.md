@@ -157,6 +157,10 @@ against OpenSSH and Dropbear with it), then each planted defect that the
 `## Done` of such an entry names as waiting. A failure is repaired, and its
 entry gets a `## Correction`, before the tag.
 
+2026-10-30 (T-218): the short form of item 3 is `scripts/release-short.sh
+BINARY --net`, and each job of the release runs it on the binary's own
+platform. The script of item 1 keeps the name scripts/release-check.sh.
+
 # T-309: Publish the rolling betas `v1.0.0-beta.N`
 
 **Source:** the operator, 2026-10-30 (`docs/decisions.md`, "Betas before

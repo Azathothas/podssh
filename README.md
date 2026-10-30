@@ -65,6 +65,15 @@ podssh --TLS 1.3 + WebSocket, port 443--> relay --TCP--> sshd (or another TCP se
    curl -fsSLO "https://github.com/Azathothas/podssh/releases/download/$T/SHA256SUMS"
    grep " $B\$" SHA256SUMS | sha256sum -c - && chmod +x "$B"
    ```
+
+   From `v1.0.0-beta.2` on, a release also has
+   `podssh-armv7-unknown-linux-musleabihf` (static, for a Raspberry Pi with
+   32 bits); `podssh-aarch64-apple-darwin` and `podssh-x86_64-apple-darwin`
+   (macOS, where the check is `shasum -a 256 -c`); and
+   `podssh-aarch64-pc-windows-msvc.exe` (Windows on ARM). The Mac binaries
+   are not signed with a Developer ID: fetch them with `curl`, as above,
+   which marks no quarantine; after a browser's download, run
+   `xattr -d com.apple.quarantine FILE` first.
 2. Run `podssh doctor`. It tells what the host allows and whether the full
    path works: one `ok`, `FAIL` or `????` line for each check (`????` is a
    check that could not run). It exits 1 if a check failed.

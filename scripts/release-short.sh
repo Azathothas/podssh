@@ -11,7 +11,7 @@
 #
 # It runs where the binary runs: a runner of each system, or a container of
 # the target's platform. It needs a POSIX shell, sed, cut, tr, wc, head and
-# mktemp, and for --net, timeout.
+# mktemp, and for --net, timeout, or sleep and kill where there is none.
 set -u
 
 bin=${1:-}
@@ -37,7 +37,7 @@ dir=$(mktemp -d "${TMPDIR:-/tmp}/podssh-release-short.XXXXXX") || fail "no scrat
 trap 'rm -rf "$dir"' EXIT HUP INT TERM
 
 "$bin" man --no-pager > "$dir/man.txt" || fail "man --no-pager failed"
-lines=$(wc -l < "$dir/man.txt")
+lines=$(wc -l < "$dir/man.txt" | tr -d " ")
 # The whole manual is thousands of lines; a stub or a cut one is not.
 [ "$lines" -gt 1000 ] || fail "the manual has $lines lines"
 echo "ok   man --no-pager: $lines lines"

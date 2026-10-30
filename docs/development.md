@@ -660,8 +660,19 @@ uploads it.
 
 - static musl binaries for x86_64 and aarch64, each built in
   `rust:1-alpine` on a native runner, with a check for dynamic dependencies;
-- a Windows binary with a static C runtime, with a check (`dumpbin
-  /dependents`) that it needs no C runtime DLL.
+- a static musl binary for armv7 (a Raspberry Pi with 32 bits), built with
+  Alpine's own rust in a container of `linux/arm/v7` on an arm64 runner
+  (natively where the runner runs 32-bit ARM, else under QEMU), with the
+  same check (T-218);
+- Mac binaries for aarch64 and x86_64, built on the macOS runners, with a
+  check (`otool -L`) that they link the system's libraries only;
+- Windows binaries for x86_64 and ARM64 with a static C runtime, with a
+  check (`dumpbin /headers /dependents`) of the machine, and that each
+  needs no C runtime DLL;
+- each binary then runs on its own platform the short form of the release
+  check, `scripts/release-short.sh BINARY --net`: `--version` against
+  `Cargo.toml`, the whole manual, `keygen` and `keygen -y`, and GitHub's SSH
+  banner through the live relay. No target ships that no run executed.
 
 To build and check the binaries without a release, run the workflow by hand:
 

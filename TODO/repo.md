@@ -99,7 +99,7 @@ Read:
 - The workflows use four actions, each by a major tag:
   `actions/checkout@v5` (`.github/workflows/build.yml` line 30 at `7c70aa7`),
   `actions/upload-artifact@v7` (`.github/workflows/build.yml:89`),
-  `actions/download-artifact@v8` (`.github/workflows/release.yml:155`) and
+  `actions/download-artifact@v8` (`.github/workflows/release.yml:286`) and
   `ilammy/setup-nasm@v1` (`.github/workflows/release.yml:107`).
 - The build image is a variable in two workflows and in a shell script
   (`.github/workflows/build.yml` line 15 at `19ca632`, `.github/workflows/release.yml` line 23 at `19ca632` and
@@ -211,7 +211,7 @@ Read:
   `.github/workflows/release.yml` line 23 and `scripts/dev.sh` line 60, both at `e1ba5ba`. No check makes
   them equal.
 - The release builds aarch64 on an arm64 runner
-  (`.github/workflows/release.yml:40-41`). So the pin must be the digest of
+  (`.github/workflows/release.yml:48-49`). So the pin must be the digest of
   the multi-platform index, not the digest of one platform's image.
 - The box uses two more moving tags, `alpine:3.20` and `python:3.12-alpine`
   (`scripts/test_in_box.sh` lines 39-40 at `e1ba5ba`).
@@ -430,7 +430,7 @@ previous release, so a change that the notes forget is invisible to a user.
 Read:
 
 - The job `publish` reads the notes from `docs/releases/`, and fails without
-  them (`.github/workflows/release.yml:213-217`).
+  them (`.github/workflows/release.yml:344-348`).
   No notes file exists yet; T-250 writes the first. The notes drafted for a
   beta that the operator dropped are in git:
   `git show b1b111b:docs/releases/v0.1.0-beta.1.md`.
@@ -458,7 +458,7 @@ Read:
 3. On a run by hand, make the list of the commits since the last tag as an
    artifact, so that it can be read before a tag.
 4. Link each "Fixes #N" of a commit to its issue in the list.
-5. docs/development.md, "Release builds" (`docs/development.md:652-707`): the
+5. docs/development.md, "Release builds" (`docs/development.md:652-718`): the
    body is the notes file and the generated list.
 
 No new shell script: each step is a step of the workflow.
@@ -670,9 +670,9 @@ Measured: `target/debug/podssh.exe --version` prints `podssh 0.1.0`, exit 0.
 Read:
 
 - The jobs `linux` and `windows` build the binaries, and `publish` adds
-  `SHA256SUMS` and publishes them (`.github/workflows/release.yml:31-260`).
-  The workflow has `contents: read` (`:28-29`); `publish` adds
-  `contents: write` (`:148-149`).
+  `SHA256SUMS` and publishes them (`.github/workflows/release.yml:39-391`).
+  The workflow has `contents: read` (`:36-37`); `publish` adds
+  `contents: write` (`:279-280`).
 - The KTM tester could not tell from an artifact which commit made it, and
   moved the checkout one commit ahead (the KTM report, section 1a; read in
   the report).
@@ -703,7 +703,7 @@ for all the binaries (`subject-path: dist/podssh-*`), not in each of `linux` and
 says. It satisfies the Prove, makes one attestation that names every subject, and keeps
 `id-token: write` out of the jobs that run the project's build scripts. The job `publish` builds no
 crate: `cargo-about` and `git-cliff` come as release binaries
-(`.github/workflows/release.yml:164` says "tool: cargo-about@0.9.2"). Lost: attesting in each build
+(`.github/workflows/release.yml:295` says "tool: cargo-about@0.9.2"). Lost: attesting in each build
 job, with its own `id-token: write` where the build scripts of every dependency run, and one
 attestation for each binary. The attest step runs on a tag only (`if: startsWith(github.ref,
 'refs/tags/v')`), as item 1 says, so that a run by hand makes none; and it comes before `gh release
@@ -735,7 +735,7 @@ github.com when the workflow is written). The Approach names `actions/attest-bui
   `actions/attest` v4.2.2 (commit `1e69f48acb82d1966a394da916b4c1698aa569d6`), pinned by that commit,
   as item 1 asks. (The wrapper is at commit `4d101475d8b20a2381f78447822ac1eab6504dd8`.)
 - Permissions for a binary (GitHub documentation): `id-token: write`, `contents: read` and
-  `attestations: write`. `publish` has `contents: write` today (`.github/workflows/release.yml:149`
+  `attestations: write`. `publish` has `contents: write` today (`.github/workflows/release.yml:280`
   says "contents: write"), which includes the read. The README of `actions/attest` also lists
   `artifact-metadata: write`, "necessary to create the artifact storage record"; that record needs
   `push-to-registry: true`, which is for images, so a file subject does not need it (Inferred): add
@@ -753,7 +753,7 @@ github.com when the workflow is written). The Approach names `actions/attest-bui
   --custom-trusted-root trusted_root.jsonl` (the root from `gh attestation trusted-root`). With
   `--bundle` the repository name is checked against the certificate only, so a renamed repository is
   not caught. The job can copy `bundle-path` into `dist/` for the user (this entry decides).
-- `actions/download-artifact@v8`, already in the job (`.github/workflows/release.yml:155`), fails by
+- `actions/download-artifact@v8`, already in the job (`.github/workflows/release.yml:286`), fails by
   default when the digest of a file differs from what the build job uploaded ("Hash mismatches will
   now error by default", v8.0.0): that is a gain for the chain of custody here, with no change.
 - Optional, and the operator's call: immutable releases (a setting of the repository) lock the tag
@@ -794,11 +794,11 @@ the release workflow of podssh.
 
 Read:
 
-- `.github/workflows/release.yml:171-176` writes `SHA256SUMS` with
-  `sha256sum`, and `.github/workflows/release.yml:239-251` publishes it with
+- `.github/workflows/release.yml:302-307` writes `SHA256SUMS` with
+  `sha256sum`, and `.github/workflows/release.yml:370-382` publishes it with
   the binaries. No signature is published.
 - The notes drafted for the dropped beta told the user that `SHA256SUMS`
-  holds the sums (`git show b1b111b:docs/releases/v0.1.0-beta.1.md`, `:112`). `README.md:56-57` gives no step to check a download.
+  holds the sums (`git show b1b111b:docs/releases/v0.1.0-beta.1.md`, line 81 at `b1b111b`). `README.md:56-57` gives no step to check a download.
 - AGENTS.md, section 4: a private key is a credential. The repository has no
   signing key today.
 
@@ -858,7 +858,7 @@ Approach, and disproves no Premise.
   deprecated, hidden flag in v3.1.4: do not pass it with v3 (it is needed only with v2.6.x). `--yes`
   skips the prompts, and CI needs it. The keyless signing takes the job's own OIDC token, so the job
   needs `id-token: write`; give `publish` that and `attestations: write` for T-210, beside
-  `contents: write` (`.github/workflows/release.yml:149` says "contents: write"). The convention for
+  `contents: write` (`.github/workflows/release.yml:280` says "contents: write"). The convention for
   the bundle's name is `*.sigstore.json` (https://docs.sigstore.dev/cosign/signing/signing_with_blobs/).
 - The identity. The certificate's subject alternative name is `https://github.com/{job_workflow_ref}`
   (https://github.com/sigstore/fulcio/blob/main/docs/oidc.md), so for a tag
@@ -1119,7 +1119,7 @@ so the job of this entry must have both; nobody measured a runner for them.
 # T-214: CI on Windows
 
 **Source:** the triage of GitHub #27 (2026-10-08). Windows is a released
-platform (`.github/workflows/release.yml:95-140`).
+platform (`.github/workflows/release.yml:202-271`).
 **Category:** chore
 **Milestone:** none
 **Priority:** P2
@@ -1139,7 +1139,7 @@ machine.
 Read:
 
 - `.github/workflows/build.yml` lines 17-19 at `e892b0f`: one job, on `ubuntu-latest`.
-- `.github/workflows/release.yml:95-140`: the Windows job installs NASM
+- `.github/workflows/release.yml:202-271`: the Windows job installs NASM
   (line 76), builds, and checks for C runtime DLLs (lines 86-101); it runs no
   test.
 - `docs/STATUS.md` line 230 at `9966ed4`: the default tests pass on Windows,
@@ -1422,7 +1422,7 @@ Read:
   CDLA-Permissive-2.0; russh 0.64.1 Apache-2.0.
 - BSD-3-Clause and Apache-2.0 ask that a binary copy carries the notices. The
   release publishes the binaries and `SHA256SUMS` only
-  (`.github/workflows/release.yml:171-251`).
+  (`.github/workflows/release.yml:302-382`).
 - The fork already has a configuration for cargo-deny
   (`vendor/tailscale-rs/deny.toml:1-35`): an allow list of licenses, one
   ignored advisory with its reason, crates.io only.
@@ -1647,12 +1647,12 @@ with a C toolchain for aws-lc.
 
 Read:
 
-- `.github/workflows/release.yml:37-41`: x86_64 and aarch64 musl, each on a
-  native runner in `rust:1-alpine`. `.github/workflows/release.yml:95-140`:
+- `.github/workflows/release.yml:45-49`: x86_64 and aarch64 musl, each on a
+  native runner in `rust:1-alpine`. `.github/workflows/release.yml:202-271`:
   Windows x86_64 with a static C runtime.
 - The check of each platform: `readelf` for `NEEDED` and `INTERP`
-  (`.github/workflows/release.yml:63-70`), `dumpbin /dependents` on Windows
-  (`:120-135`).
+  (`.github/workflows/release.yml:71-78`), `dumpbin /dependents` on Windows
+  (`:238-263`).
 - The binary needs a C compiler for aws-lc (`docs/development.md:12-15`); the
   library crates need none.
 - Some code reads facts of Linux. The terminal check reads `tty_nr` from
@@ -1686,7 +1686,28 @@ Recommendation: build each new Linux target in the image family of the gate
 under QEMU, where that image exists for the platform, so that there is one
 toolchain. `cross` and `cargo-zigbuild` lost: each brings a second C
 toolchain that the gate never judged. Measure the build time first: QEMU is
-slow, and the job limit is 60 min (`.github/workflows/release.yml:43`).
+slow, and the job limit is 60 min (`.github/workflows/release.yml:51`).
+
+2026-10-30, the calls of this entry's session:
+
+- armv7 builds with Alpine's own rust in a `linux/arm/v7` container, as the
+  Correction's plan A says: the gate's image has no `arm/v7`, and Alpine is
+  the same family of musl and toolchain. The arm64 runner ran the container
+  natively, so the probe keeps QEMU as the fallback only.
+- Each target first runs in a trial workflow of its own (`targets.yml`, by
+  hand), and moves into `release.yml` only when it passed there; the trial
+  then goes, as each of its jobs lives on in the release. Lost: trying each
+  target in `release.yml` at once, which would leave the release red while
+  a target failed, as each did at first.
+- Each binary runs the short form of T-251's check on its own platform
+  (`scripts/release-short.sh`): T-251 names it, and one script serves each
+  system. Lost: a step written again for each job.
+- The default tests run on the arm64 Mac in the gate (`build.yml`, job
+  `macos`) on each push, as they run on Windows; the release builds and runs
+  both Mac binaries. Lost: the tests in the release only, which would find a
+  defect of macOS at a release, as the trial found three; and both Macs in
+  the gate, as the Intel image is the last of its kind and slower, and the
+  arm64 Mac reaches the same code.
 
 ## Prove
 
@@ -1741,7 +1762,7 @@ leaves armv7 out of the Decision; the plan below takes Alpine's own toolchain fo
   22.1.8, Visual Studio 2022 with `VC.Llvm.Clang`, Rust 1.99.0, CMake and Ninja; aws-lc needs clang-cl,
   found in PATH or in Visual Studio; if it is not found, set `CC: clang-cl`. The `dumpbin` step of
   the Windows job looks only under `Hostx64\x64`
-  (`.github/workflows/release.yml:126` says "Hostx64\x64\dumpbin.exe"): for ARM search
+  (`.github/workflows/release.yml` said "Hostx64\x64\dumpbin.exe", line 126 at `ae8447f`): for ARM search
   `bin\Hostarm64\arm64\dumpbin.exe` first, then any `bin\Host*\*\dumpbin.exe` (the layout of the
   ARM image is Inferred). aws-lc-rs's own CI builds this target on an x64 runner and runs cargo-xwin
   on `windows-11-arm`. Add a Windows ARM row to `build.yml` later.
@@ -1768,7 +1789,7 @@ leaves armv7 out of the Decision; the plan below takes Alpine's own toolchain fo
   needs `-Wno-string-compare` with GCC 11; Alpine's GCC is newer (not needed: Inferred). Plan B:
   `ghcr.io/cross-rs/riscv64gc-unknown-linux-musl:main` (musl GCC and qemu inside).
 - The job's own limit. `timeout-minutes: 60` is the repository's choice
-  (`.github/workflows/release.yml:43` says "timeout-minutes: 60"); GitHub's limit for a hosted job is 6
+  (`.github/workflows/release.yml:51` says "timeout-minutes: 60"); GitHub's limit for a hosted job is 6
   hours. Set the QEMU jobs up to 360 for the first measurement, and lower it to the measured time.
 - Public repositories: the standard hosted runners are free and unlimited; the Linux and Windows arm64
   runners (4 vCPU) are generally available for them (changelog of 2025-08-07).
@@ -1808,8 +1829,31 @@ probe finds 32-bit ARM, else under QEMU. riscv64 builds in the gate's own image 
   (Alpine's is `armv7-alpine-linux-musleabihf`). The arm64 runner ran the `linux/arm/v7` container
   natively: the probe passed, and no QEMU was set up.
 
-Next: the runs of the repaired jobs and of macOS, then each target that passes into
-`release.yml`.
+- The repaired jobs, run 41076578398: armv7 built natively in 344 s, `ELF 32-bit LSB pie
+  executable, ARM, EABI5 version 1 (SYSV), static-pie linked` (`hard-float ABI`), no `NEEDED`
+  and no `INTERP`; in the `linux/arm/v7` container the short form passed (`--version`, 3795 lines
+  of the manual, `keygen -y` with the same `ssh-ed25519` key, and `SSH-2.0-` from GitHub through
+  the live relay). Windows on ARM passed again (build 284 s, the short form 42 s).
+- macOS, run 41080813567, after the repairs of T-034 and T-146: on `macos-15` (arm64) the default
+  tests passed in 414 s and the build took 199 s; on `macos-15-intel` the tests took 1400 s and the
+  build 571 s. `file` reads `Mach-O 64-bit executable arm64` and `x86_64`, and `otool -L` lists
+  CoreFoundation, `/usr/lib/libiconv.2.dylib` and `/usr/lib/libSystem.B.dylib` only, on both. The
+  short form passed on both; `wc -l` of macOS pads its count with spaces, which the script now
+  strips.
+- So `release.yml` builds these four, each with its check and the short form, beside the three
+  of before, whose jobs now run the short form too: the job `linux-armv7`, the matrix `macos`, and
+  the job `windows`, now a matrix of x86_64 (NASM) and aarch64 (no NASM; `dumpbin` of
+  `Hostarm64\arm64` first, then any host's; `/headers` checks the machine). The job `publish` needs
+  each. Their jobs left the trial, which keeps riscv64 alone. `build.yml` runs the default tests
+  on the arm64 Mac at each push (the job `macos`, in `all`'s needs). The README names the new
+  files and how a Mac fetches one with no quarantine; `docs/development.md` lists the binaries
+  and the checks. The release notes' table of binaries comes with the notes of beta.2 (T-309), and
+  the attestation of T-210 takes `dist/podssh-*`, each new file with it.
+
+Next: riscv64. Its build under QEMU passed an hour in run 41076578398 (limit 360 min); when it
+ends, its job moves into `release.yml` as the others did, or its time asks for the Decision
+again. Then the Prove's dry run of `release.yml` with each target, and the planted build without
+`+crt-static` (with T-251).
 
 # T-219: The no-C gate also stops C++
 
@@ -3004,7 +3048,7 @@ Read: each image is pinned to a digest in its Dockerfile
 the reference to `docker run`, which pulls from Docker Hub (now
 `.github/workflows/secrets.yml:70`, `.github/workflows/secrets.yml:84`,
 `.github/workflows/build.yml:75-79`, `.github/workflows/build.yml:108-111`
-and `.github/workflows/release.yml:59-62`). Measured on 2026-10-09, each
+and `.github/workflows/release.yml:67-70`). Measured on 2026-10-09, each
 manifest asked for by its digest: Google's mirror of Docker Hub
 (`mirror.gcr.io`) serves both images, the GitHub registry serves the
 scanner, and Amazon's gallery of the official images

@@ -241,12 +241,26 @@ jobs:
       - name: the console checks catch a planted podssh
         run: python scripts/interop-conpty-msys2.py --plant
 
+  # The default tests on a Mac with Apple silicon, each push, as on Windows
+  # (T-218): code that reads facts of Linux must do without them there. The
+  # release builds and runs both Mac binaries.
+  macos:
+    name: macos
+    runs-on: macos-15
+    timeout-minutes: 60
+    env:
+      CARGO_BUILD_JOBS: 4
+    steps:
+      - uses: actions/checkout@v7
+      - name: the default tests
+        run: cargo test --locked --no-fail-fast
+
   # The one status to require: each job above passed. A job that was
   # skipped or cancelled is not a pass.
   all:
     name: all
     if: always()
-    needs: [plan, gate, plant, checks, windows]
+    needs: [plan, gate, plant, checks, windows, macos]
     runs-on: ubuntu-24.04
     timeout-minutes: 5
     steps:

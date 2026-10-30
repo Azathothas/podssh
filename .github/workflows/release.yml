@@ -12,8 +12,16 @@ name: release
 #
 # Linux binaries are static musl, built in the same image as the gate
 # (rust:1-alpine) on a native runner for each architecture, and checked for
-# dynamic dependencies before they are published. The Windows binary is
-# linked with a static C runtime.
+# dynamic dependencies before they are published; armv7 is built with
+# Alpine's own rust in a container of linux/arm/v7 on an arm64 runner
+# (T-218). The Windows binaries, for x86_64 and ARM64, are linked with a
+# static C runtime; the Mac binaries, for ARM and Intel, link the system's
+# libraries only. Each binary runs the short form of the release check on
+# its own platform
+# (scripts/release-short.sh, with GitHub's SSH banner through the live
+# relay): no target ships that no run executed. A build for a host triple
+# names it as --target, so that +crt-static reaches the binary and not the
+# proc-macros of the host.
 
 on:
   push:
@@ -81,6 +89,8 @@ jobs:
           if [ -n "$PUBLISH" ] && [ "$PUBLISH" != "v$want" ]; then echo "the input publish $PUBLISH is not v$want"; exit 1; fi
           got=$(target/${{ matrix.target }}/release/podssh --version)
           test "$got" = "podssh $want" || { echo "the binary prints \"$got\", not \"podssh $want\""; exit 1; }
+      - name: the binary runs
+        run: sh scripts/release-short.sh target/${{ matrix.target }}/release/podssh --net
       - name: package
         run: |
           set -eu
@@ -92,9 +102,120 @@ jobs:
           path: dist/*
           if-no-files-found: error
 
+  # A Raspberry Pi with 32 bits: Alpine's own toolchain for armv7, in a
+  # container of linux/arm/v7 on an arm64 runner. The runner's CPU runs
+  # 32-bit code where its kernel allows it; a probe decides, and QEMU stands
+  # in where it does not.
+  linux-armv7:
+    name: linux armv7-unknown-linux-musleabihf
+    runs-on: ubuntu-24.04-arm
+    timeout-minutes: 120
+    steps:
+      - uses: actions/checkout@v7
+      - name: the image
+        run: |
+          set -eu
+          ref=$(tr -d '\r' < images/armv7/Dockerfile | sed -n 's/^FROM[[:space:]]\{1,\}\([^[:space:]]\{1,\}\).*/\1/p')
+          case "$ref" in
+            *@sha256:*) echo "ARMV7_IMAGE=$(PULL_PLATFORM=linux/arm/v7 sh scripts/pull-image.sh "$ref")" >> "$GITHUB_ENV" ;;
+            *) echo "images/armv7/Dockerfile names no image pinned to a digest" >&2; exit 1 ;;
+          esac
+      - name: does the runner run 32-bit ARM?
+        id: probe
+        run: |
+          if docker run --rm --platform linux/arm/v7 "$ARMV7_IMAGE" uname -m; then
+            echo "native=yes" >> "$GITHUB_OUTPUT"
+          else
+            echo "native=no" >> "$GITHUB_OUTPUT"
+          fi
+      - if: steps.probe.outputs.native != 'yes'
+        uses: docker/setup-qemu-action@v4
+        with:
+          platforms: arm
+      - name: build (static musl, Alpine's rust for armv7)
+        run: |
+          docker run --rm --platform linux/arm/v7 -v "$PWD:/work" -w /work \
+            -e CARGO_BUILD_JOBS=4 -e RUSTFLAGS=-Ctarget-feature=+crt-static \
+            "$ARMV7_IMAGE" sh -c 'apk add --no-cache build-base rust cargo >/dev/null && rustc -vV &&
+              t=$(rustc -vV | sed -n "s/^host: //p") && cargo build --locked --release --target "$t" -p podssh-cli &&
+              mkdir -p dist && cp "target/$t/release/podssh" dist/podssh-armv7-unknown-linux-musleabihf'
+      - name: the binary is static
+        run: |
+          set -eu
+          B=dist/podssh-armv7-unknown-linux-musleabihf
+          file "$B"
+          if readelf -d "$B" | grep -q NEEDED; then echo "dynamic dependencies:"; readelf -d "$B"; exit 1; fi
+          if readelf -l "$B" | grep -q INTERP; then echo "asks for a program interpreter"; exit 1; fi
+          readelf -h "$B" | grep -E 'Class|Machine|Flags'
+      - name: the binary runs
+        run: |
+          docker run --rm --platform linux/arm/v7 -v "$PWD:/work" -w /work "$ARMV7_IMAGE" \
+            sh scripts/release-short.sh dist/podssh-armv7-unknown-linux-musleabihf --net
+      - uses: actions/upload-artifact@v7
+        with:
+          name: podssh-armv7-unknown-linux-musleabihf
+          path: dist/*
+          if-no-files-found: error
+
+  macos:
+    name: macos ${{ matrix.target }}
+    strategy:
+      fail-fast: true
+      matrix:
+        include:
+          - runner: macos-15
+            target: aarch64-apple-darwin
+          # The last image of Actions for x86_64 Macs, until August 2027.
+          - runner: macos-15-intel
+            target: x86_64-apple-darwin
+    runs-on: ${{ matrix.runner }}
+    timeout-minutes: 60
+    env:
+      CARGO_BUILD_JOBS: 4
+    steps:
+      - uses: actions/checkout@v7
+      - name: build
+        run: cargo build --locked --release --target ${{ matrix.target }} -p podssh-cli
+      # A Mac binary links libSystem at least; nothing outside the system.
+      - name: the binary links the system's libraries only
+        run: |
+          set -eu
+          B=target/${{ matrix.target }}/release/podssh
+          file "$B"
+          otool -L "$B"
+          if otool -L "$B" | tail -n +2 | grep -v -E '^[[:space:]]+(/usr/lib/|/System/Library/)'; then
+            echo "a library outside the system's"
+            exit 1
+          fi
+      - name: the binary runs
+        run: sh scripts/release-short.sh target/${{ matrix.target }}/release/podssh --net
+      - name: package
+        run: |
+          mkdir -p dist
+          cp target/${{ matrix.target }}/release/podssh dist/podssh-${{ matrix.target }}
+      - uses: actions/upload-artifact@v7
+        with:
+          name: podssh-${{ matrix.target }}
+          path: dist/*
+          if-no-files-found: error
+
   windows:
-    name: windows x86_64
-    runs-on: windows-2025
+    name: windows ${{ matrix.target }}
+    strategy:
+      fail-fast: true
+      matrix:
+        include:
+          - runner: windows-2025
+            target: x86_64-pc-windows-msvc
+            tools: Hostx64\x64
+            machine: 8664 machine
+          # aws-lc on ARM64 Windows wants clang-cl, which the image has, and
+          # no NASM.
+          - runner: windows-11-arm
+            target: aarch64-pc-windows-msvc
+            tools: Hostarm64\arm64
+            machine: AA64 machine
+    runs-on: ${{ matrix.runner }}
     timeout-minutes: 60
     env:
       CARGO_BUILD_JOBS: 4
@@ -104,7 +225,8 @@ jobs:
       # aws-lc's build needs NASM on Windows x86-64: with no NASM it stops,
       # unless AWS_LC_SYS_PREBUILT_NASM=1 asks for its prebuilt objects
       # (aws-lc-sys 0.45, builder/main.rs). The release assembles them itself.
-      - uses: ilammy/setup-nasm@v1
+      - if: matrix.target == 'x86_64-pc-windows-msvc'
+        uses: ilammy/setup-nasm@v1
       - name: build
         run: cargo build --locked --release -p podssh-cli
       - name: package
@@ -112,30 +234,39 @@ jobs:
         run: |
           set -eu
           mkdir -p dist
-          cp target/release/podssh.exe dist/podssh-x86_64-pc-windows-msvc.exe
-          # The checkout can hold CRLF line ends.
-          want=$(tr -d '\r' < Cargo.toml | sed -n '/^\[workspace.package\]/,/^\[/s/^version = "\(.*\)"$/\1/p')
-          got=$(dist/podssh-x86_64-pc-windows-msvc.exe --version | tr -d '\r')
-          test "$got" = "podssh $want" || { echo "the binary prints \"$got\", not \"podssh $want\""; exit 1; }
+          cp target/release/podssh.exe dist/podssh-${{ matrix.target }}.exe
       - name: the binary needs no C runtime DLL
         shell: pwsh
+        env:
+          TOOLS: ${{ matrix.tools }}
+          MACHINE: ${{ matrix.machine }}
+          BINARY: dist\podssh-${{ matrix.target }}.exe
         run: |
           # dumpbin ships with the runner's Visual Studio, off PATH; vswhere,
-          # installed with it, finds it.
+          # installed with it, finds it: the tools of this host first, then
+          # any host's.
           $vswhere = "${env:ProgramFiles(x86)}\Microsoft Visual Studio\Installer\vswhere.exe"
-          $dumpbin = & $vswhere -latest -products * -find "VC\Tools\MSVC\**\bin\Hostx64\x64\dumpbin.exe" |
+          $dumpbin = & $vswhere -latest -products * -find "VC\Tools\MSVC\**\bin\$env:TOOLS\dumpbin.exe" |
             Select-Object -First 1
+          if (-not $dumpbin) {
+            $dumpbin = & $vswhere -latest -products * -find "VC\Tools\MSVC\**\bin\Host*\*\dumpbin.exe" |
+              Select-Object -First 1
+          }
           if (-not $dumpbin) { Write-Error "dumpbin was not found"; exit 1 }
-          $deps = & $dumpbin /dependents dist\podssh-x86_64-pc-windows-msvc.exe | Out-String
-          Write-Output $deps
+          $deps = & $dumpbin /headers /dependents $env:BINARY | Out-String
           if ($LASTEXITCODE -ne 0) { Write-Error "dumpbin failed"; exit 1 }
+          Write-Output ($deps -split "`n" | Select-String -Pattern 'machine|\.dll' | Out-String)
+          if (-not $deps.Contains($env:MACHINE)) { Write-Error "not a binary of $env:MACHINE"; exit 1 }
           if ($deps -match '(?i)vcruntime|msvcp|ucrtbase|api-ms-win-crt') {
             Write-Error "the binary links a C runtime DLL"
             exit 1
           }
+      - name: the binary runs
+        shell: bash
+        run: sh scripts/release-short.sh dist/podssh-${{ matrix.target }}.exe --net
       - uses: actions/upload-artifact@v7
         with:
-          name: podssh-x86_64-pc-windows-msvc
+          name: podssh-${{ matrix.target }}
           path: dist/*
           if-no-files-found: error
 
@@ -143,7 +274,7 @@ jobs:
   # files and the body are an artifact: the steps of a release are proved
   # before its tag, which never moves.
   publish:
-    needs: [linux, windows]
+    needs: [linux, linux-armv7, macos, windows]
     runs-on: ubuntu-24.04
     permissions:
       contents: write
