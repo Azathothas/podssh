@@ -116,7 +116,7 @@ and `CARGO_BUILD_JOBS=4`:
 
 ## Counts
 
-`TODO/INDEX.md` holds 325 entries: 25 open, 3 partial, 28 blocked, 269 done.
+`TODO/INDEX.md` holds 325 entries: 25 open, 2 partial, 28 blocked, 270 done.
 
 Open includes parked work. `cargo todo check` verifies this line.
 
@@ -142,8 +142,9 @@ hold and those of the relay's operator. The P2 entries are done, but for
 those of M9 and the parked ones; now the P3 entries: first the drafts of
 "State" above, merged one at a time, then the entries not drafted yet.
 
-**Then** M9: T-218, T-210 and T-211, then T-251 (the check, and its run
-before the tag), and last T-250 (the one release). Between entries: the
+**Then** M9: T-210 and T-211, each proven at the tag of
+`v1.0.0-beta.2`, then T-251 (the check, and its run before
+the tag), and last T-250 (the one release). Between entries: the
 `none` entries, the highest priority first.
 
 **Skip** the entries that wait for the relay's operator (status

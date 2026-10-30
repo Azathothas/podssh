@@ -62,15 +62,15 @@ repository and CI).
 
 ## Counts
 
-**325 entries: 25 open, 3 partial, 28 blocked, 269 done.**
+**325 entries: 25 open, 2 partial, 28 blocked, 270 done.**
 
 | Priority | open | partial | blocked | done | total |
 | --- | --- | --- | --- | --- | --- |
 | P0 | 0 | 0 | 0 | 1 | 1 |
 | P1 | 2 | 0 | 0 | 24 | 26 |
-| P2 | 1 | 3 | 19 | 143 | 166 |
+| P2 | 1 | 2 | 19 | 144 | 166 |
 | P3 | 22 | 0 | 9 | 101 | 132 |
-| **All** | 25 | 3 | 28 | 269 | 325 |
+| **All** | 25 | 2 | 28 | 270 | 325 |
 
 ## Entries
 
@@ -290,7 +290,7 @@ repository and CI).
 | [T-215](repo.md) | P2 | M | none | chore | done | rustfmt and clippy in the gate |
 | [T-216](repo.md) | P2 | S | none | chore | done | Advisories and licenses of the dependencies, checked in CI |
 | [T-217](repo.md) | P3 | S | none | chore | done | The declared minimum Rust versions, checked in CI |
-| [T-218](repo.md) | P2 | M | M9 | release | partial | More release targets: macOS, Linux armv7 and riscv64, and Windows aarch64 |
+| [T-218](repo.md) | P2 | M | M9 | release | done | More release targets: macOS, Linux armv7 and riscv64, and Windows aarch64 |
 | [T-219](repo.md) | P2 | S | none | chore | done | The no-C gate also stops C++ |
 | [T-220](relay.md) | P2 | M | backlog | feature | done | A silent first relay host costs a full dial before the next host is tried (GitHub #30) |
 | [T-221](resume.md) | P3 | M | backlog | feature | done | Replayed output after dropped bytes starts at a boundary of the terminal grammar (GitHub #31) |

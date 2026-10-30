@@ -1721,7 +1721,7 @@ The operator's ruling of 2026-10-08: v1.0.0 ships these targets
 **Milestone:** M9
 **Priority:** P2
 **Effort:** M
-**Status:** partial
+**Status:** done
 
 ## Problem
 
@@ -1971,8 +1971,11 @@ probe finds 32-bit ARM, else under QEMU. riscv64 builds in the gate's own image 
   workflow `targets.yml` goes, as each of its jobs now lives in the release. The README, the
   notes of beta.2 and `docs/development.md` name the binary.
 
-Next: the dry run of `release.yml` with the eight targets, then this entry closes; the planted
-build without `+crt-static` waits for T-251.
+- The Prove's dry run at `3992dc3` (run 41095138291): each of the eight builds passed, and
+  `publish`; its artifacts hold the eight binaries, each of which ran under its check on its own
+  platform, and `release-dry-run` the files that a tag publishes.
+
+Waits for T-251: the planted build without `+crt-static`, whose static check must fail.
 
 # T-219: The no-C gate also stops C++
 
