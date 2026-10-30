@@ -130,8 +130,8 @@ fn the_groups_and_a_host_with_no_ssh_are_in_comments() {
 #[test]
 fn podssh_reads_what_it_printed() {
     let (_, out, _) = podssh(&["config", "import", "ansible", &inventory()], "");
-    let dir = std::env::temp_dir().join(format!("podssh-config-import-{}", std::process::id()));
-    podssh_relay::cache::private_dir(&dir).unwrap();
+    let dir = Scratch::new("read");
+    podssh_relay::cache::private_dir(&dir.0).unwrap();
     let file = dir.join("ssh_config");
     std::fs::write(&file, &out).unwrap();
     let file = file.display().to_string();
@@ -146,7 +146,6 @@ fn podssh_reads_what_it_printed() {
             assert!(lines.lines().any(|l| l == line), "{host}: no {line:?} in {lines}");
         }
     }
-    let _ = std::fs::remove_dir_all(&dir);
 }
 
 #[test]
@@ -188,12 +187,27 @@ fn fixture(name: &str) -> Vec<u8> {
     std::fs::read(format!("{SESSIONS}/{name}")).unwrap()
 }
 
-/// A scratch directory for the copies with made-up values.
-fn scratch(tag: &str) -> std::path::PathBuf {
-    let dir = std::env::temp_dir().join(format!("podssh-config-import-{tag}-{}", std::process::id()));
-    let _ = std::fs::remove_dir_all(&dir);
-    std::fs::create_dir_all(&dir).unwrap();
-    dir
+/// A scratch directory for the copies with made-up values, removed when the
+/// test ends, also when it fails: the gate fails a run that leaves one.
+struct Scratch(std::path::PathBuf);
+
+impl Scratch {
+    fn new(tag: &str) -> Scratch {
+        let dir = std::env::temp_dir().join(format!("podssh-config-import-{tag}-{}", std::process::id()));
+        let _ = std::fs::remove_dir_all(&dir);
+        std::fs::create_dir_all(&dir).unwrap();
+        Scratch(dir)
+    }
+
+    fn join(&self, name: &str) -> std::path::PathBuf {
+        self.0.join(name)
+    }
+}
+
+impl Drop for Scratch {
+    fn drop(&mut self) {
+        let _ = std::fs::remove_dir_all(&self.0);
+    }
 }
 
 /// Each block by its name, with its keywords.
@@ -231,7 +245,8 @@ fn putty_each_real_export_and_the_template_that_is_no_host() {
     // found, so the real one is transcoded here.
     let text = String::from_utf8(fixture("putty-session.reg")).unwrap();
     let utf16: Vec<u8> = [0xFF, 0xFE].into_iter().chain(text.encode_utf16().flat_map(u16::to_le_bytes)).collect();
-    let file = scratch("utf16").join("putty-session.reg");
+    let dir = Scratch::new("utf16");
+    let file = dir.join("putty-session.reg");
     std::fs::write(&file, utf16).unwrap();
     let (code, again, _, err) = import("putty", &file.display().to_string());
     assert_eq!((code, again), (Some(0), hosts_of_session()), "{err}");
@@ -251,7 +266,7 @@ fn putty_a_password_is_counted_and_never_printed() {
         .replace("\"ProxyPassword\"=\"\"", "\"ProxyPassword\"=\"made-up-secret\"")
         .replace("\"ProxyMethod\"=dword:00000000", "\"ProxyMethod\"=dword:00000006")
         .replace("\"ProxyHost\"=\"proxy\"", "\"ProxyHost\"=\"bastion.example\"");
-    let dir = scratch("putty-secret");
+    let dir = Scratch::new("putty-secret");
     std::fs::write(dir.join("with-password.reg"), &text).unwrap();
     let (code, hosts, out, err) = import("putty", &dir.join("with-password.reg").display().to_string());
     assert_eq!(code, Some(0), "{err}");
@@ -283,7 +298,7 @@ fn mobaxterm_each_session_of_the_real_export_with_its_folder() {
     }
     assert!(out.contains("# MONGODB-ACCOUNT (DEV) (in ice/DEV/Backing)\nHost MONGODB-ACCOUNT-DEV\n"), "{out}");
     // A copy with the section of passwords that MobaXterm.ini holds.
-    let dir = scratch("moba-secret");
+    let dir = Scratch::new("moba-secret");
     let file = dir.join("with-passwords.mxtsessions");
     std::fs::write(&file, format!("{lines}\r\n[Passwords]\r\nssh22:vagrant@localhost=made-up-blob\r\n")).unwrap();
     let (code, _, out, err) = import("mobaxterm", &file.display().to_string());
@@ -303,9 +318,9 @@ fn remmina_the_real_template_and_a_profile_made_from_it() {
         .replace("username=%User%", "username=alice")
         .replace("\npassword=\n", "\npassword=.\n")
         .replace("ssh_passphrase=\n", "ssh_passphrase=made-up-blob\n");
-    let dir = scratch("remmina");
+    let dir = Scratch::new("remmina");
     std::fs::write(dir.join("group_ssh_web.remmina"), profile).unwrap();
-    let (code, hosts, out, err) = import("remmina", &dir.display().to_string());
+    let (code, hosts, out, err) = import("remmina", &dir.0.display().to_string());
     assert_eq!(code, Some(0), "{err}");
     let block = &hosts["scalusSSH"];
     assert_eq!(

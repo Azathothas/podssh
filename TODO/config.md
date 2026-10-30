@@ -1283,6 +1283,12 @@ and Ansible's YAML, stay refused by name (64), and wait in T-327.
 - Not measured: a real UTF-16LE export, a real file with a password, a
   PuTTY session with `ProxyMethod` 6, and a real Remmina profile that its
   own writer made (the fixture is a template).
+- 2026-10-30, later: the gate's steps ssh, ts and iroh failed on `1891f43`
+  (run 41069857511), "the tests left in the temporary directory": the four
+  scratch directories of `config_import` were never removed. Each is now a
+  guard that removes its directory when the test ends, also when it fails.
+  Linux: `config_import` 9 passed, and `/tmp` held no `podssh-config-import-*`
+  after the run (before the repair, each run left four); clippy clean.
 
 # T-327: `podssh config import` from mRemoteNG, FinalShell and Termius
 
