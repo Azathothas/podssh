@@ -116,8 +116,9 @@ async fn up(
 ) {
     let leaf = Path::new(src).file_name().and_then(|n| n.to_str()).unwrap_or("").to_string();
     let Some(sftp) = conn.sftp() else { return };
-    let into =
-        many || dst.path.is_empty() || dst.path.ends_with('/') || sftp.stat(&dst.path).await.is_ok_and(|a| a.is_dir());
+    // `podssh run` copies onto its directory, also the second time.
+    let is_dir = !tree.onto && sftp.stat(&dst.path).await.is_ok_and(|a| a.is_dir());
+    let into = !tree.onto && (many || dst.path.is_empty() || dst.path.ends_with('/') || is_dir);
     let root = if into { remote_join(&dst.path, &leaf) } else { dst.path.clone() };
     if tree.delete {
         let real = sftp.realpath(if root.is_empty() { "." } else { &root }).await.unwrap_or_else(|_| root.clone());
@@ -157,6 +158,10 @@ async fn up(
             Item::File { rel } => {
                 let from = local_join(Path::new(src), rel).display().to_string();
                 let target = remote_join(&root, rel);
+                if tree.changed_only && !tree.dry_run && same_far(conn.sftp(), &from, &target).await {
+                    outcome.unchanged += 1;
+                    continue;
+                }
                 let id = meta::inode(Path::new(&from));
                 // Another name of a file that waits: the files that wait go
                 // first, so that this name links to its copy.
@@ -405,6 +410,16 @@ async fn down(
             remove_far(sftp, &src.path, &items, log).await;
         }
     }
+}
+
+/// Whether the far regular file `target` has the size of the local file
+/// `from`, and its time of change to the second: a copy of `podssh run`
+/// that kept the times left it so (T-192).
+async fn same_far(sftp: Option<&Sftp>, from: &str, target: &str) -> bool {
+    let (Some(sftp), Ok(local)) = (sftp, std::fs::metadata(from)) else { return false };
+    let Ok(far) = sftp.lstat(target).await else { return false };
+    let time = local.modified().ok().and_then(meta::seconds);
+    far.is_regular() && !far.is_symlink() && far.size == Some(local.len()) && time.is_some() && far.mtime == time
 }
 
 /// A symbolic link at `target` on the server that names `names`: one that a

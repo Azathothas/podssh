@@ -16,6 +16,7 @@ use super::notes_pair::{NODE, OPERATOR};
 use super::notes_ping::PING;
 use super::notes_play::PLAY;
 use super::notes_relay::RELAY;
+use super::notes_run::RUN;
 use super::notes_session::SESSION;
 use super::notes_ssh::SSH;
 
@@ -26,6 +27,7 @@ pub fn for_verb(name: &str) -> &'static [&'static str] {
         "each" => EACH,
         "containers" => CONTAINERS,
         "job" => JOB,
+        "run" => RUN,
         "cp" => CP,
         "mv" => MV,
         "scp" => SCP,

@@ -69,6 +69,22 @@ pub fn add(cmd: Command, name: &str) -> Command {
                     .num_args(0..)
                     .help("log, wait and stop: the job's ID; fetch: the ID, then the directory here (default ./podssh-job-ID); start and submit: the command after --, its words joined with spaces as OpenSSH joins them, for sh on the host"),
             ),
+        // The far side, then the command, which takes everything after its
+        // first word, as `each`'s does (T-192).
+        "run" => cmd
+            .arg(
+                Arg::new("target")
+                    .value_name("[user@]host[:DIR]")
+                    .help("the host, and the far directory of the project: under the home directory when it is relative, ~/.podssh/run/NAME when none is named; scp://[user@]host[:port][/DIR] too"),
+            )
+            .arg(
+                Arg::new("remote-command")
+                    .value_name("COMMAND")
+                    .num_args(1..)
+                    .trailing_var_arg(true)
+                    .allow_hyphen_values(true)
+                    .help("the command to run in the far directory, its words joined with spaces as OpenSSH joins them"),
+            ),
         // Any count parses for `cp`, `mv` and `scp`: each says itself what a
         // short list lacks, in words clap's count error does not have.
         "cp" | "mv" | "scp" => cmd.arg(Arg::new("paths").value_name("PATH").num_args(1..).help("SRC... DST")),

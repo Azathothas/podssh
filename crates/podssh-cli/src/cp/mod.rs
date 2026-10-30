@@ -38,6 +38,7 @@ pub mod rate;
 mod report;
 pub(crate) mod resume;
 pub(crate) mod session;
+pub(crate) mod sync;
 pub(crate) mod transfer;
 pub mod tree;
 pub(crate) mod tree_conn;
@@ -163,6 +164,8 @@ struct Outcome {
     /// run.
     deleted: Vec<String>,
     pending: Vec<mirror::Pending>,
+    /// The files that `podssh run` did not send again (T-192).
+    unchanged: usize,
 }
 
 /// What `-r` and its flags ask for (T-143); `None` without `-r`. `scp -r`
@@ -180,7 +183,8 @@ fn tree_of(args: &CpArgs) -> Result<Option<tree::Tree>, String> {
             tree::read_excludes(std::path::Path::new(file)).map_err(|e| format!("--exclude-from {file}: {e}"))?,
         );
     }
-    Ok(Some(tree::Tree { excludes, dry_run: args.dry_run, follow: args.verb == "scp", delete: args.delete }))
+    let (dry_run, follow, delete) = (args.dry_run, args.verb == "scp", args.delete);
+    Ok(Some(tree::Tree { excludes, dry_run, follow, delete, ..tree::Tree::default() }))
 }
 
 /// `--inplace` down: a local destination that is a link or a directory,

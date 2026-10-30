@@ -300,6 +300,7 @@ mod ping;
 mod pipe;
 mod play;
 mod relay;
+mod run;
 mod scp;
 mod session;
 mod signal;
@@ -323,6 +324,7 @@ pub use ping::PING_FLAGS;
 pub use pipe::PIPE_FLAGS;
 pub use play::PLAY_FLAGS;
 pub use relay::{DOCTOR_FLAGS, PROXY_FLAGS, RELAY_FLAGS, STATUS_FLAGS};
+pub use run::RUN_FLAGS;
 pub use scp::{SCP_FLAGS, SFTP_FLAGS};
 pub use session::SESSION_FLAGS;
 pub use ts::TS_FLAGS;
@@ -351,6 +353,8 @@ pub const VERBS: &[Verb] = &[
         about: "one command on many hosts at once: each line with its host, and the worst status as the exit" },
     Verb { name: "containers", aliases: &["containers"], flags: CONTAINERS_FLAGS,
         about: "the containers of a host, of docker, podman or kubectl, each with the command that enters it" },
+    Verb { name: "run", aliases: &["run"], flags: RUN_FLAGS,
+        about: "copy a project to a host, only the files that changed, then run a command in it, with its exit status" },
     Verb { name: "job", aliases: &["job"], flags: JOB_FLAGS,
         about: "jobs on a host that outlive the connection, each in its tmux, and a queue of them: start, submit, list, log, wait, fetch, stop" },
     Verb { name: "proxy", aliases: &["proxy"], flags: PROXY_FLAGS,
@@ -407,7 +411,7 @@ pub const VERBS: &[Verb] = &[
 /// of the commands that work would.
 pub const GROUPS: &[(&str, &[&str])] = &[
     ("Connect", &["ssh", "each", "containers", "proxy", "pipe", "ts"]),
-    ("Work on a host", &["job"]),
+    ("Work on a host", &["run", "job"]),
     ("Copy files", &["cp", "mv", "scp", "sftp", "edit"]),
     ("Keys", &["keygen", "agent"]),
     ("Check this host and the path", &["doctor", "status", "ping", "health"]),

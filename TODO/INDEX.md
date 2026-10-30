@@ -62,15 +62,15 @@ repository and CI).
 
 ## Counts
 
-**325 entries: 23 open, 2 partial, 28 blocked, 272 done.**
+**325 entries: 22 open, 2 partial, 28 blocked, 273 done.**
 
 | Priority | open | partial | blocked | done | total |
 | --- | --- | --- | --- | --- | --- |
 | P0 | 0 | 0 | 0 | 1 | 1 |
 | P1 | 2 | 0 | 0 | 24 | 26 |
 | P2 | 1 | 2 | 19 | 144 | 166 |
-| P3 | 20 | 0 | 9 | 103 | 132 |
-| **All** | 23 | 2 | 28 | 272 | 325 |
+| P3 | 19 | 0 | 9 | 104 | 132 |
+| **All** | 22 | 2 | 28 | 273 | 325 |
 
 ## Entries
 
@@ -266,7 +266,7 @@ repository and CI).
 | [T-189](multi.md) | P3 | M | backlog | feature | done | The health of the far host over the session |
 | [T-190](multi.md) | P3 | M | backlog | feature | done | Containers and pods as destinations |
 | [T-191](multi.md) | P3 | M | backlog | feature | done | Expect rules, and tasks before and after a connection |
-| [T-192](multi.md) | P3 | S | backlog | feature | open | Copy, then run: `podssh run` |
+| [T-192](multi.md) | P3 | S | backlog | feature | done | Copy, then run: `podssh run` |
 | [T-193](multi.md) | P3 | M | backlog | feature | done | Jobs on the far host: start, list, stop |
 | [T-195](multi.md) | P3 | S | backlog | feature | done | Hand an error report to a program that the user names, for triage by an AI or a script |
 | [T-197](multi.md) | P3 | M | backlog | feature | done | A queue of detached remote jobs: submit, list, wait and fetch the output, with no GPU logic |

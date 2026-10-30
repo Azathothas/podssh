@@ -64,15 +64,15 @@ succeeded. `podssh ssh` takes one destination, as OpenSSH does.
    could not connect or log in; 0 only when each host gave 0. `--fail-fast`
    starts no new host after a failure, and the running ones finish. A
    summary on stderr gives each host and its status.
-7. In the same commit: `crates/podssh-cli/src/flags.rs:347-402`,
-   `crates/podssh-cli/src/positionals.rs:7-221`, a `Parsed` variant,
-   `crates/podssh-cli/tests/flag_table.rs:110-138`, the notes, an example,
+7. In the same commit: `crates/podssh-cli/src/flags.rs:349-406`,
+   `crates/podssh-cli/src/positionals.rs:7-237`, a `Parsed` variant,
+   `crates/podssh-cli/tests/flag_table.rs:110-139`, the notes, an example,
    `docs/cli.md`, `docs/STATUS.md`. T-013 can then group the commands.
 
 ## Decision
 
 Recommendation: a new verb, because `podssh ssh` keeps the command line and
-the exit codes of OpenSSH for one host (`docs/cli.md:2329-2332`), and a list
+the exit codes of OpenSSH for one host (`docs/cli.md:2364-2367`), and a list
 of hosts changes both. The alternative, `podssh ssh --hosts LIST`, lost: one
 flag would change what the exit status means.
 
@@ -184,7 +184,7 @@ is not a shell. A set of hosts has no name.
   (`crates/podssh-cli/src/ssh/hop.rs:30-78`,
   `crates/podssh-ws/src/names.rs:10-24`).
 - Read: the `Host` lines of ssh_config are patterns, not lists
-  (`docs/cli.md:2455-2548`); they cannot define a group.
+  (`docs/cli.md:2492-2585`); they cannot define a group.
 
 ## Approach
 
@@ -904,7 +904,7 @@ short numbered list helps a person; a script must still get the usage error.
 - Measured: `podssh ssh </dev/null` exits 64 with "missing destination"
   (`crates/podssh-cli/src/ssh/resolve.rs:156`).
 - Read: `run_ssh` gets no terminal state
-  (`crates/podssh-cli/src/dispatch.rs:270-272`), and the entry point of the
+  (`crates/podssh-cli/src/dispatch.rs:273-275`), and the entry point of the
   tests has none on purpose (`crates/podssh-cli/src/dispatch.rs:31-39`,
   `crates/podssh-cli/src/pager.rs:21-45`).
 - Read: the names can come only from the `Host` lines of ssh_config (T-043,
@@ -1517,7 +1517,7 @@ report, not verified here.
 **Milestone:** backlog
 **Priority:** P3
 **Effort:** S
-**Status:** open
+**Status:** done
 
 ## Problem
 
@@ -1545,11 +1545,43 @@ of the command.
    changed.
 3. Then one exec on the same SSH connection: `cd DIR && COMMAND`, with DIR
    quoted for a POSIX shell (T-187). When the copy used most of the 64 MiB
-   (`docs/relay.md:167`), run the exec on a new session (T-137).
+   (`docs/relay.md:162`), run the exec on a new session (T-137).
 4. The exit status: the command's, with the rules of `podssh ssh`
-   (`docs/cli.md:2329-2332`). A failed copy exits 255 and runs nothing.
+   (`docs/cli.md:2364-2367`). A failed copy exits 255 and runs nothing.
 5. In the same commit: the rows, the notes, an example, `docs/cli.md`,
    `docs/STATUS.md`. This entry depends on T-134 and T-143.
+
+## Decision
+
+2026-10-13 (the draft): the calls of the work.
+
+- **The project's ignore file is `.podsshignore`**, at its root, read when
+  it is there, with the patterns of `--exclude-from` (T-143); `--exclude`
+  and `--exclude-from` add to it, and the file itself goes with the
+  project. `.gitignore` lost: its rules (`!`, `**`, anchors, a file in
+  each directory) are more than the patterns of T-143, and a part of them
+  would copy what git leaves out or leave out what it keeps.
+- **A file is unchanged when its size and its time of change, to the
+  second, are the far file's**, and each copy keeps the times, as
+  `cp -p`. A digest of each file at each run lost: it reads each file on
+  both sides each time, and a project of many files would then cost as
+  much as a full copy.
+- **The copy goes onto the far directory itself**, also when it is there;
+  `cp -r` would copy into it, as `DIR/NAME`, the second time.
+- **Nothing on the far side is removed.** A file removed here stays there.
+  A mirror with `--delete` (T-144) lost: what the command makes in the far
+  directory, outside `target/`, would go at the next run.
+- **The far directory is never the home directory or the root** (64): the
+  project would be mixed with what is there. `~` and `~/` name the home
+  directory, where a relative DIR starts for SFTP and for the login shell
+  alike.
+- **The command runs on a new session when the relay session has less
+  than 16 MiB left**, of the budget of 60 MiB that `cp` keeps below the
+  relay's 64 MiB; a command with much output would else meet the limit.
+- **Exit codes:** the command's, with the rules of `podssh ssh`, and 255
+  for a copy that failed, as the Approach says. The sysexits of `cp` lost:
+  a script that runs `podssh run` reads the status of its command, as with
+  `podssh ssh`.
 
 ## Prove
 
@@ -1567,6 +1599,48 @@ check of `target/` must fail.
 
 2026-10-09 (T-134): `podssh cp` copies files now; it is no longer
 in `VERB_OWNER`, and this entry can call its engine.
+
+## Done
+
+2026-10-13, a draft (DRAFT T-192); merged on 2026-10-30, when the main
+session built it and ran each check below.
+
+- `podssh run [user@]host[:DIR] [--] COMMAND...`
+  (`crates/podssh-cli/src/run_cmd/`), its rows
+  (`crates/podssh-cli/src/flags/run.rs`: `--from`, `--exclude`,
+  `--exclude-from` and the connection flags of `ssh`), its arguments, its
+  synopsis and its place in the group "Work on a host", the notes
+  (`crates/podssh-cli/src/man/notes_run.rs`), an example, and the rows 255
+  and of the remote status of EXIT STATUS. The copy is
+  `crates/podssh-cli/src/cp/sync.rs` over `cp`'s copy of a directory, with
+  two fields more in `tree::Tree`: `onto` and `changed_only`.
+  `docs/cli.md` (section "`podssh run`"), README.md and AGENTS.md name it.
+- `cargo test -p podssh-cli --lib run_cmd::` (the target, the far
+  directory, the excludes with `.podsshignore`, the command, the
+  refusals): passed, in the lib suite's 404. `cargo test -p podssh-cli
+  --test run` (the refusals, 64, and a host out of reach, 255, offline): 7
+  passed.
+  `cargo test -p podssh-cli --test run_far` (Unix, with `sftp-server`:
+  through the test's server, whose commands run in sh, a run that exits 6,
+  with no `target/` and no `x.tmp` on the server, then a second run with
+  no file sent, and a third with one): failed as drafted, which named the
+  host as `a@127.0.0.1:PORT`, the form of the job's harness; `run` reads
+  `[user@]host[:DIR]`, as `cp` does, so the port became the directory and
+  the dial went to port 22. The test now passes the port with `-p`, as a
+  user does, and passed. The merge moved the draft's copy onto the
+  `Conn` of `crates/podssh-cli/src/cp/tree_conn.rs`, which `main` gained
+  since the draft (T-298): `sync.rs` copies through a `Conn::Again`, and
+  the check of a file that did not change asks `conn.sftp()`. The tests of
+  `cp` with the two new fields of `tree::Tree` (`--lib cp::`, `--test
+  cp_tree`): passed.
+- `scripts/interop-run.sh`, sourced by `scripts/interop-each.sh`: 3 checks
+  against OpenSSH, in `scripts/interop-baseline.txt`. UNVERIFIED: waits for
+  T-251.
+- The planted defect: no default excludes (`DEFAULT_EXCLUDES` empty). The
+  test `a_run_copies_what_changed_leaves_out_target_and_gives_the_status`
+  failed with it, at `crates/podssh-cli/tests/run_far.rs:49` (`target/`
+  went to the server), and passed again without it. The check
+  `run.excludes` of the interop waits for T-251.
 
 # T-193: Jobs on the far host: start, list, stop
 
@@ -1733,14 +1807,14 @@ a ticket, or a tool that asks an AI.
 - Read: credentials never go to output, logs, URLs or argv
   (`docs/architecture.md:143-145`). The token type never shows itself
   (`crates/podssh-relay/src/token.rs:27-56`), and doctor never shows proxy
-  credentials or tokens (`docs/cli.md:1276-1278`).
+  credentials or tokens (`docs/cli.md:1311-1313`).
 - Read: podssh's messages leave through two writers: `Streams.err` in the
   command line (`crates/podssh-cli/src/dispatch.rs:26-29`), and `Log`, which
   writes to the stderr of the process itself
   (`crates/podssh-ssh/src/log.rs:83-103`). The exit code leaves through
-  `crates/podssh-cli/src/dispatch.rs:316-344`.
+  `crates/podssh-cli/src/dispatch.rs:319-347`.
 - Read: for `podssh ssh`, an exit that is not 0 can be the remote command's
-  status (`docs/cli.md:2329-2332`), which is not a failure of podssh.
+  status (`docs/cli.md:2364-2367`), which is not a failure of podssh.
 
 ## Approach
 
@@ -1943,7 +2017,7 @@ queue, no wait for a result, and no way to get the output back.
    gives one object.
 4. `job wait HOST ID [--timeout D]` reads `state` every 5 s until it is
    `done`, and exits with the job's status. When the limit passes first, it
-   exits 75; add the code to `crates/podssh-cli/src/man/data.rs:19-136`.
+   exits 75; add the code to `crates/podssh-cli/src/man/data.rs:19-137`.
 5. `job fetch HOST ID [DIR]` copies `out`, and the files that `--files GLOB`
    names, with the engine of T-134; DIR is `./podssh-job-ID` by default.
 6. With a list of hosts (T-184), `submit` picks the host with the fewest
@@ -2012,7 +2086,7 @@ one running and two queued must fail.
 ## Correction
 
 2026-10-09 (T-134): 75 (`EX_TEMPFAIL`) is in the table of exit codes
-already (`crates/podssh-cli/src/man/data.rs:19-136`), for a `--timeout` of
+already (`crates/podssh-cli/src/man/data.rs:19-137`), for a `--timeout` of
 `cp` that passed; this entry adds its sentence for `job wait`.
 
 2026-10-13 (the draft of T-197): T-193 runs a job under tmux only; the

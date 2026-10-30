@@ -31,6 +31,7 @@ harness broadcast interop 3 scripts/interop-broadcast.sh
 harness keygen interop 92 scripts/interop-keygen.sh
 harness agent interop 30 scripts/interop-agent.sh
 harness job interop 11 scripts/interop-job.sh
+harness run interop 3 scripts/interop-run.sh
 harness local interop 6 scripts/interop-local.sh
 harness control interop 13 scripts/interop-control.sh
 harness faults interop 35 scripts/interop-faults.sh
@@ -731,3 +732,8 @@ job.queue.slots pass
 job.queue.wait pass
 job.queue.fetch pass
 job.queue.choose pass
+
+# scripts/interop-run.sh
+run.status pass
+run.excludes pass
+run.again pass

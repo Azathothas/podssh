@@ -95,6 +95,8 @@ pub mod relay_settings;
 pub mod relay_spec;
 // `podssh session`: a session that outlives each call of an agent (T-186).
 pub mod session;
+// `podssh run`: copy a project, then run a command in it (T-192).
+pub mod run_cmd;
 pub mod session_log;
 pub mod settings;
 pub mod sftp;

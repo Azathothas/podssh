@@ -120,7 +120,7 @@ pub fn exit_codes() -> Vec<(Code, String)> {
              podssh containers: the host could not be reached or logged in to, or its list did not end \
              within 60 s. podssh session start: the connection or the login failed. podssh job: the host \
              could not be reached or logged in to, has no tmux, has no such job, or gave no answer; for \
-             wait, also a job that is lost.",
+             wait, also a job that is lost. podssh run: the copy failed, and the command did not run.",
         ),
         (
             Code::Remote,
@@ -129,7 +129,8 @@ pub fn exit_codes() -> Vec<(Code, String)> {
              127 when the host lacks it. podssh edit: the status of an editor that failed; nothing was sent. \
              podssh each: the largest status of the hosts, 0 only when each gave 0; with --interactive, of their \
              shells, and 130 for a host whose shell Ctrl-C cut after the end of the input. podssh containers \
-             --exec: the status of the session in the container. podssh job wait: the exit status of the job."
+             --exec: the status of the session in the container. podssh job wait: the exit status of the job. \
+             podssh run: the status of the command, as podssh ssh gives it."
                 .to_string(),
         ),
     ]

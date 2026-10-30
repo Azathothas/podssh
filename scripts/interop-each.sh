@@ -80,7 +80,10 @@ rc=$?
 # shellcheck source=scripts/interop-session.sh
 . "$HERE/interop-session.sh"
 
-# The jobs on a far host (T-193), with the same servers and helpers;
-# sourced here so that scripts/interop.sh stays within 500 lines.
+# The jobs on a far host (T-193) and podssh run (T-192), with the same
+# servers and helpers; sourced here so that scripts/interop.sh stays within
+# 500 lines.
 # shellcheck source=scripts/interop-job.sh
 . "$HERE/interop-job.sh"
+# shellcheck source=scripts/interop-run.sh
+. "$HERE/interop-run.sh"

@@ -135,6 +135,7 @@ fn every_verb_has_an_owner_so_no_verb_can_be_a_silent_stub() {
         "containers",
         "session",
         "job",
+        "run",
     ];
     let owner_names: Vec<&str> = podssh_cli::flags::VERB_OWNER.iter().map(|(n, _)| *n).collect();
     for v in VERBS {

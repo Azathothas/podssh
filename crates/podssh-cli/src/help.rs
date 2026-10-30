@@ -270,6 +270,7 @@ pub fn usage_tail(verb: &Verb) -> &'static str {
         "each" => "[OPTIONS] HOSTS [--] COMMAND...",
         "containers" => "[OPTIONS] [user@]host",
         "job" => "[OPTIONS] SUBCOMMAND HOST [ID [DIR]] [-- COMMAND...]",
+        "run" => "[OPTIONS] [user@]host[:DIR] [--] COMMAND...",
         "cp" | "mv" | "scp" => "[OPTIONS] SRC... DST",
         "sftp" => "[OPTIONS] DESTINATION",
         "edit" => "[OPTIONS] [user@]host:PATH",
