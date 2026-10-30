@@ -100,7 +100,7 @@ pub fn run_with(p: &Parsed, s: &mut Streams<'_>, tty: Tty) -> i32 {
             )
         }
         Parsed::Node(args) if refusals("node", &args.refused, s.err) => EXIT_USAGE,
-        Parsed::Node(args) => crate::node::run_node(args, s.err),
+        Parsed::Node(args) => crate::node_install::dispatch(args, s.out, s.err),
         Parsed::Operator(args) if refusals("operator", &args.refused, s.err) => EXIT_USAGE,
         Parsed::Operator(args) => crate::operator::run_operator(args, s.err),
         Parsed::Pipe(args) if refusals("pipe", &args.refused, s.err) => EXIT_USAGE,

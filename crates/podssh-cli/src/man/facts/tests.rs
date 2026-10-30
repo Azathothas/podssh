@@ -77,7 +77,9 @@ fn variables_read(code: &str) -> Vec<String> {
         let rest = &code[i + 1..];
         let Some(end) = rest.find('"') else { continue };
         let word = &rest[..end];
+        // A prefix such as PODSSH_ names no variable.
         let shaped = word.contains('_')
+            && !word.ends_with('_')
             && word.chars().all(|c| c.is_ascii_uppercase() || c.is_ascii_digit() || c == '_')
             && word.starts_with(|c: char| c.is_ascii_uppercase())
             || word.ends_with("_proxy") && word.chars().all(|c| c.is_ascii_lowercase() || c == '_');
@@ -92,7 +94,7 @@ fn variables_read(code: &str) -> Vec<String> {
 /// The control for the test above: the reader finds a planted variable.
 #[test]
 fn the_reader_finds_a_planted_variable() {
-    let code = r#"let a = std::env::var("PLANTED_NAME"); let b = var_os("Plain"); let c = "not a var";"#;
+    let code = r#"let a = std::env::var("PLANTED_NAME"); let b = var_os("Plain"); let c = "not a var"; "PREFIX_";"#;
     assert_eq!(variables_read(code), vec!["PLANTED_NAME", "Plain"]);
 }
 

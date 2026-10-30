@@ -176,6 +176,11 @@ pub const VARIABLES: &[(&[&str], &str)] = &[
       database.",
     ),
     (
+        &["USERDOMAIN"],
+        "On Windows, with USERNAME, the user DOMAIN\\USER whose logon starts the task of podssh node \
+      --install.",
+    ),
+    (
         &["PODSSH_CACHE_DIR"],
         "The directory of podssh's cache, tried before the others; none keeps no file, and a token is \
       then minted on each run. A relative path is not used, and podssh says so. A directory that refuses \

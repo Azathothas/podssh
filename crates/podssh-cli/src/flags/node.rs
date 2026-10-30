@@ -38,6 +38,12 @@ pub const NODE_FLAGS: &[FlagRow] = &[
         "the same as --allow, by its earlier name", None),
     row(None, "iroh-ephemeral", None, FlagKind::Supported,
         "the same as --ephemeral-key, by its earlier name; with --iroh, the ticket lasts as long as the run", None),
+    row(None, "install", None, FlagKind::Supported,
+        "make this node a service of this user, as a probe finds one: a user unit of systemd, else an @reboot line of the crontab; on Windows a task at logon; no privilege is asked for, and no token is written into it", None),
+    row(None, "uninstall", None, FlagKind::Supported,
+        "remove the service that --install made for NAME, and its file of variables, and nothing else", None),
+    row(None, "env-file", Some("FILE"), FlagKind::Supported,
+        "read the node's variables from FILE, a private file of NAME=VALUE lines, before anything else: the file that --install writes beside the pair", None),
     row(None, "iroh-relay", Some("URLS"), FlagKind::Supported,
         "with --iroh: the relays, https://HOST[:PORT][,...]; the first that answers is the home relay (default: env PODSSH_IROH_RELAY, else n0's)", None),
 ];

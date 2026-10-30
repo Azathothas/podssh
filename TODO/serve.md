@@ -490,10 +490,10 @@ out with matching digests.
   T-079), and the operator connects through the relay (T-084).
 - Read: `vi`, `less` and `top` need a real pty (`docs/terminal.md:248-252`).
   The measured sandboxes have no `/dev/ptmx` (`docs/target-environment.md:26`,
-  `docs/STATUS.md:262`). With no pty device, no podssh code can give the child
+  `docs/STATUS.md:263`). With no pty device, no podssh code can give the child
   a tty: shims are excluded (`docs/decisions.md:46`).
 - Read: one relay session carries 64 MiB, both directions together
-  (`docs/relay.md:228`; measured: `docs/STATUS.md:270`). 200 MiB each way
+  (`docs/relay.md:228`; measured: `docs/STATUS.md:271`). 200 MiB each way
   needs the new sessions of T-137.
 - Read: the box matches the sandbox, except the `EACCES` on loopback
   `connect()` (`scripts/test_in_box.sh:19-26`).
@@ -1000,7 +1000,7 @@ Windows service).
 **Milestone:** backlog
 **Priority:** P3
 **Effort:** M
-**Status:** open
+**Status:** partial
 
 ## Problem
 
@@ -1035,6 +1035,43 @@ with no privileges needs a way that the host allows, found by a probe.
 5. `--uninstall` removes exactly what `--install` wrote, and nothing else.
 6. Same commit: the manual, `docs/cli.md`.
 
+## Decision
+
+- `podssh serve` has no command yet (the operator holds it, Q32): the flags
+  go on `node` now, in `crates/podssh-cli/src/node_install/`, and `serve`
+  takes the same module when it comes.
+- A service starts with none of the shell's variables, and a node behind a
+  proxy reaches no relay without them: the node's go into `node-NAME.env`, a
+  private file beside the pair, which `--env-file` reads before anything
+  else. Lost: `Environment=` lines in the unit, a file that others read,
+  with a proxy's password in it; systemd's `EnvironmentFile=`, systemd's
+  alone, with its own quoting, and nothing for cron or a task; no
+  variables, which leaves a node behind a proxy dead at each boot.
+- No token of the environment is carried: `PODSSH_RELAY_TOKEN` and the
+  secrets of Cloudflare Access (whose file, `PODSSH_CF_ACCESS_TOKEN_FILE`,
+  is). The node's credentials are its pair's, in its own file. A proxy's
+  password is carried, in the private file: a proxy that asks for one is
+  not reached without it.
+- podssh's own variables are carried by their prefix, but for the secrets
+  and `PODSSH_OFFLINE`. Lost: a list of names, which a new variable would
+  miss.
+- systemd: `daemon-reload`, `enable`, then `restart`. Lost: `enable --now`,
+  which leaves a running node on its old words when `--install` runs
+  again. `RestartPreventExitStatus=64 77 78`: no restart changes a refused
+  flag, pair or setting.
+- cron: the `@reboot` line runs at the next boot, and the node is not
+  started now: podssh leaves no process of its own behind. The table goes
+  to `crontab` through a private file of the cache, as it holds the user's
+  other lines.
+- Windows: a task made from XML (UTF-16), with a logon trigger and a
+  principal that name `USERDOMAIN\USERNAME`, `InteractiveToken` and
+  `LeastPrivilege`: a user with no privilege may make a task at logon for
+  itself alone. Lost: `schtasks /SC ONLOGON`, which reports say a user with
+  no privilege is refused; the Startup folder, a console window at each
+  logon; a Windows service, which needs an administrator.
+- `--uninstall` removes the files that `--install` wrote, not the
+  directories that it made.
+
 ## Prove
 
 ```sh
@@ -1047,6 +1084,15 @@ Each holds the absolute path and the name, and none holds the token that the
 test puts in the environment. `--uninstall` leaves the home as it was. A
 planted unit with the token on its command line fails. A run on a host with
 systemd is recorded in `docs/STATUS.md`.
+
+## Done
+
+2026-10-30, partial: the code (`crates/podssh-cli/src/node_install/`,
+`--install`, `--uninstall` and `--env-file` of `node`), the tests of
+`serve_install` and of `node_install::`, the manual and `docs/cli.md` are
+in, and pass on Linux. The run on a host with systemd waits for the
+workflow `service live` (`.github/workflows/service-live.yml`), which this
+container cannot be: its PID 1 is not systemd.
 
 # T-122: `podssh serve`: each pty child in its own transient scope when systemd is there
 
@@ -1269,7 +1315,7 @@ no reason (`docs/target-environment.md:73-74`).
   the report are older; the content is at the lines given here.
 - Read: the report says that `docs/cli.md` records why podssh does not call
   `getpwuid`. It does not; that record is `docs/target-environment.md:37-44`.
-- Read: a sandbox mounts `/tmp` and `$HOME` noexec (`docs/STATUS.md:262`):
+- Read: a sandbox mounts `/tmp` and `$HOME` noexec (`docs/STATUS.md:263`):
   the mode bits pass there, the exec fails, and `access(X_OK)` fails. doctor
   runs a real copy, as "only a real attempt tells them apart"
   (`crates/podssh-cli/src/doctor/host.rs:174-176`).
@@ -1295,7 +1341,7 @@ no reason (`docs/target-environment.md:73-74`).
    (`crates/podssh-cli/src/doctor/host.rs:10-25`) from the same function.
 6. T-108 runs the result. Never call `getpwuid`. Same commit: `--shell` in
    `crates/podssh-cli/src/flags.rs`, `SHELL` in
-   `crates/podssh-cli/src/man/facts.rs:45-237`, `docs/cli.md`.
+   `crates/podssh-cli/src/man/facts.rs:45-242`, `docs/cli.md`.
 
 ## Decision
 
@@ -1320,7 +1366,7 @@ crates/podssh-ssh/tests/serve_shell.rs gives the function a directory `sh`,
 a data file `dash` (mode 0644), a data file with mode 0755 (the spawn fails),
 a link to a missing file and a good shell: each failure is named, and the
 good shell wins. A planted `exists()` test fails the directory case. In the
-gate, a copy of `/bin/sh` in `/dev/shm` (noexec: `docs/STATUS.md:229`) is
+gate, a copy of `/bin/sh` in `/dev/shm` (noexec: `docs/STATUS.md:230`) is
 refused as `--shell`. The static binary (`$BIN`) refuses a missing named shell.
 
 ## Blocker
@@ -1352,10 +1398,10 @@ criterion of M5 (T-113) needs them.
 
 - Read: `podssh doctor` asks for a pty with `posix_openpt`
   (`crates/podssh-cli/src/doctor/unix.rs:78-93`). Both real sandboxes have no
-  `/dev/ptmx` (`docs/STATUS.md:262`), and the target has no `/dev/pts`
+  `/dev/ptmx` (`docs/STATUS.md:263`), and the target has no `/dev/pts`
   (`docs/target-environment.md:26`).
 - Read: the box and the sandboxes run with `NoNewPrivs=1` and a seccomp
-  filter (`docs/STATUS.md:241`). With `NoNewPrivs=1`, a process can add a
+  filter (`docs/STATUS.md:242`). With `NoNewPrivs=1`, a process can add a
   filter of its own; a filter is inherited by each child.
 - Read, not measured here: for a program, a tty is the success of the tty
   `ioctl` calls on its descriptors. musl's `isatty` calls `TIOCGWINSZ`;

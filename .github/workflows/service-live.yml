@@ -1,0 +1,77 @@
+name: service live
+
+# T-121: podssh node --install on a host with systemd, from GitHub's
+# network: a pair on the live relay, its node made a user unit of systemd,
+# started by systemd, seen online by the relay, then removed with
+# --uninstall and the pair stopped. Started by hand only. No token is
+# printed: the pair's tokens stay in its private file, and the unit and its
+# file of variables are checked for them.
+
+on:
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  unit:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 30
+    steps:
+      - uses: actions/checkout@v7
+
+      - name: build podssh
+        env:
+          CARGO_BUILD_JOBS: "4"
+        run: cargo build --locked -p podssh-cli
+
+      # One step: the target and the node's checks share its processes.
+      - name: the node as a user unit
+        run: |
+          set -u
+          bin="$PWD/target/debug/podssh"
+          # A runner has no session, so its user manager runs once lingering
+          # is on.
+          sudo loginctl enable-linger "$USER"
+          XDG_RUNTIME_DIR="/run/user/$(id -u)"
+          export XDG_RUNTIME_DIR
+          for _ in $(seq 1 30); do [ -S "$XDG_RUNTIME_DIR/bus" ] && break; sleep 1; done
+          systemctl --user show-environment >/dev/null
+          python3 -m http.server 8765 --bind 127.0.0.1 >/dev/null 2>&1 &
+          label="svc-$GITHUB_RUN_ID"
+          unit="podssh-node-$label.service"
+          "$bin" relay pair "$label"
+          rc=0
+          "$bin" node "$label" 127.0.0.1:8765 --install || rc=$?
+          echo "install: exit $rc"
+          # No token of the pair in the unit or in its file of variables:
+          # compared in one process, so that no token is on a command line.
+          leaked=0
+          python3 - "$HOME/.cache/podssh/pair-$label.json" "$HOME/.config/systemd/user/$unit" \
+            "$HOME/.cache/podssh/node-$label.env" <<'EOF' || leaked=$?
+          import json, os, sys
+          pair = json.load(open(sys.argv[1]))
+          tokens = [str(v) for k, v in pair.items() if k.endswith("token") and v]
+          found = [f for f in sys.argv[2:] if os.path.exists(f) and any(t in open(f).read() for t in tokens)]
+          print("a token in the unit or its variables:", "yes" if found else "no")
+          sys.exit(1 if found else 0)
+          EOF
+          online=no
+          if [ "$rc" = 0 ] && [ "$leaked" = 0 ]; then
+            systemctl --user cat "$unit"
+            for _ in $(seq 1 30); do
+              state=$("$bin" relay status "$label" || true)
+              case $state in *": online"*) online=yes; break ;; esac
+              sleep 2
+            done
+            echo "active: $(systemctl --user is-active "$unit" || true); the relay: $state"
+            journalctl --user -u "$unit" --no-pager -n 20 || true
+          fi
+          urc=0
+          "$bin" node "$label" --uninstall || urc=$?
+          left=no
+          [ -e "$HOME/.config/systemd/user/$unit" ] && left=yes
+          [ -e "$HOME/.cache/podssh/node-$label.env" ] && left=yes
+          echo "uninstall: exit $urc; anything left: $left"
+          "$bin" relay revoke "$label" || true
+          [ "$rc" = 0 ] && [ "$online" = yes ] && [ "$leaked" = 0 ] && [ "$urc" = 0 ] && [ "$left" = no ]

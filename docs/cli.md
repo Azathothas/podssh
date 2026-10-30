@@ -1515,6 +1515,28 @@ commands. The rules behind them:
   not the connection. The caller's address and place, which `/trace` also
   sends, are never shown. `--json` gives each answer as one object: each
   host, the relay's `/relays.json` as it came, or its view of the target.
+- **A node as a service, with no privilege (T-121).** `node NAME TARGET
+  --install` probes for a way that this user may use: a user unit of
+  systemd when `systemctl --user` answers, else an `@reboot` line of the
+  crontab when `crontab -l` answers, and on Windows a task at the user's
+  logon, made from XML by `schtasks`, as a logon trigger of a user with no
+  privilege must name that user and run with its token; never a Windows
+  service. With none, the command to run at login, and 69. The service runs
+  the binary by its absolute path with the node's TARGET and flags, and
+  `--env-file`: a service starts with none of the shell's variables, and a
+  node behind a proxy reaches no relay without them, so the variables that
+  the node reads go into `node-NAME.env`, a private file beside the pair.
+  No token goes into it or on a command line: the pair's tokens stay in
+  `pair-NAME.json`, and `PODSSH_RELAY_TOKEN` and the secrets of Cloudflare
+  Access are not carried (a proxy's password is, in the private file, as a
+  proxy that asks for one is not reached without it). The unit restarts
+  10 s after a failure, but not after 64, 77 or 78, which no restart
+  changes; an expired pair is one of them. podssh says whether lingering is
+  on, and never runs `loginctl`. `--uninstall` removes the unit (stopped
+  first), the line of the crontab with its mark, or the task, and the file
+  of variables: what `--install` wrote, and nothing else. `podssh serve` has
+  no command yet (the operator holds it, Q32); it takes the same module
+  when it comes.
 - **No token in the output.** `relay pair` prints the label and the expiry.
   The operator's part, the connect token alone, goes to the new private
   file of `--operator-file`; the node's token and the stop token stay in

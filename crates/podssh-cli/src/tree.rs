@@ -293,27 +293,7 @@ pub fn parse_verb(verb: &'static Verb, rest: &[std::ffi::OsString]) -> Parsed {
     }
 
     if verb.name == "node" {
-        let get = |id: &str| matches.get_one::<String>(id).cloned();
-        return Parsed::Node(Box::new(crate::node::NodeArgs {
-            name: get("name"),
-            targets: matches.get_many::<String>("target").map(|v| v.cloned().collect()).unwrap_or_default(),
-            relay_addr: get("relay-addr"),
-            ca_file: get("ca-file"),
-            pair_file: get("pair-file"),
-            plain: matches.get_flag("plain"),
-            iroh: matches.get_flag("iroh"),
-            iroh_key: get("iroh-key"),
-            iroh_allow: get("iroh-allow"),
-            iroh_ephemeral: matches.get_flag("iroh-ephemeral"),
-            key: get("key"),
-            allow: get("allow"),
-            ephemeral_key: matches.get_flag("ephemeral-key"),
-            no_e2e: matches.get_flag("no-e2e"),
-            iroh_relay: get("iroh-relay"),
-            sshd: matches.get_flag("sshd"),
-            temporary: get("temporary"),
-            refused,
-        }));
+        return Parsed::Node(Box::new(crate::node::NodeArgs::from_matches(&matches, refused)));
     }
 
     if verb.name == "pipe" {

@@ -70,6 +70,23 @@ pub(super) const NODE: &[&str] = &[
      serves the pair. stdout stays empty; notes go to stderr.",
     "With --pair-file, the pair comes from FILE, in the form of the store, and the store is not used. \
      FILE must be a regular file of the user that nobody else can read.",
+    "--install makes the node a service of this user, with no privilege, by the first way that a probe \
+     finds: a user unit of systemd (podssh-node-NAME.service, enabled and started) when systemctl answers \
+     for this user, else an @reboot line of the crontab when crontab answers; on Windows a task at the \
+     user's logon (schtasks), never a Windows service. The service runs this binary by its absolute \
+     path with the node's own TARGET and flags, each file by its absolute path, and --env-file: the \
+     variables that the node reads (the proxy's, SSL_CERT_FILE, PODSSH_RELAY and the places of podssh's \
+     files) go into node-NAME.env, a private file beside the pair, as a service has none of the shell's. \
+     No token goes in it, nor on a command line: PODSSH_RELAY_TOKEN and the secrets of Cloudflare Access \
+     are not carried, and the pair's tokens stay in the pair's file. A user unit runs while the user has \
+     a session unless lingering is on, which podssh says and never changes. With no way, the command to \
+     run at login is printed on stdout, and the exit is 69. With --temporary, --ephemeral-key or \
+     --iroh-ephemeral, --install is refused (64), as is a pair that is not stored (78). --uninstall \
+     removes what --install wrote for NAME (the unit, stopped first, or the line of the crontab, or the \
+     task, and the file of variables), and nothing else.",
+    "--env-file FILE sets the variables of FILE before anything else: lines of the form name=value, and \
+     # comments, each name a variable that podssh reads. FILE must be a private file of the user; a \
+     token in it is refused (78), with its line.",
     "With --iroh, in a build with the feature iroh, the node serves TARGET over the iroh road, with no \
      pair: QUIC between keys, through an iroh relay and HTTPS_PROXY, and directly when UDP works. The \
      relays are n0's public ones, or those of --iroh-relay, and the first that answers is the node's \

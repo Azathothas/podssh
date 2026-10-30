@@ -35,45 +35,8 @@ const DIAL_LIMIT: Duration = Duration::from_secs(8);
 /// A roost's TARGET when the command line names none: the sshd of this host.
 pub(crate) const SSHD: &str = "127.0.0.1:22";
 
-/// What `podssh node` was asked to do.
-#[derive(Debug, Clone, Default, PartialEq, Eq)]
-pub struct NodeArgs {
-    /// The label of a stored pair.
-    pub name: Option<String>,
-    /// Each TARGET: `HOST:PORT` or `[IPV6]:PORT`, and `ROUTE=TARGET` for a
-    /// route (T-089).
-    pub targets: Vec<String>,
-    pub relay_addr: Option<String>,
-    pub ca_file: Option<String>,
-    /// A pair file to use in place of the store.
-    pub pair_file: Option<String>,
-    /// Each session's bytes as they are, with no resumable layer.
-    pub plain: bool,
-    /// Serve the iroh road, with no pair.
-    pub iroh: bool,
-    /// The node's key file, by its earlier name (T-163).
-    pub iroh_key: Option<String>,
-    /// The allowlist, by its earlier name (T-163).
-    pub iroh_allow: Option<String>,
-    /// A key for this run only, by its earlier name (T-163).
-    pub iroh_ephemeral: bool,
-    /// The node's key file, on each road (T-087).
-    pub key: Option<String>,
-    /// The operator keys that may come in, on each road (T-087).
-    pub allow: Option<String>,
-    /// A key for this run only.
-    pub ephemeral_key: bool,
-    /// No end-to-end channel (T-088).
-    pub no_e2e: bool,
-    /// The iroh relays, in place of the variable and the table.
-    pub iroh_relay: Option<String>,
-    /// A roost (T-166): each TARGET is a standard sshd.
-    pub sshd: bool,
-    /// The temporary node of `podssh ssh --upgrade`, for this client key
-    /// (T-167).
-    pub temporary: Option<String>,
-    pub refused: Vec<(String, &'static str, &'static str)>,
-}
+// The arguments, in their own file: this one is at its limit.
+pub use crate::node_args::NodeArgs;
 
 /// Run the verb; returns the process exit code.
 pub fn run_node(args: &NodeArgs, err: &mut dyn Write) -> i32 {

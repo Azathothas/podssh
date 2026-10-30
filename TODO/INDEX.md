@@ -62,15 +62,15 @@ repository and CI).
 
 ## Counts
 
-**322 entries: 32 open, 0 partial, 27 blocked, 263 done.**
+**322 entries: 31 open, 1 partial, 27 blocked, 263 done.**
 
 | Priority | open | partial | blocked | done | total |
 | --- | --- | --- | --- | --- | --- |
 | P0 | 0 | 0 | 0 | 1 | 1 |
 | P1 | 2 | 0 | 0 | 24 | 26 |
 | P2 | 4 | 0 | 19 | 142 | 165 |
-| P3 | 26 | 0 | 8 | 96 | 130 |
-| **All** | 32 | 0 | 27 | 263 | 322 |
+| P3 | 25 | 1 | 8 | 96 | 130 |
+| **All** | 31 | 1 | 27 | 263 | 322 |
 
 ## Entries
 
@@ -195,7 +195,7 @@ repository and CI).
 | [T-118](serve.md) | P2 | S | M5 | feature | blocked | `podssh serve`: a slow client cannot stall a pty or fill the memory |
 | [T-119](serve.md) | P3 | S | backlog | feature | open | `podssh serve`: the MOTD and `~/.hushlogin` |
 | [T-120](serve.md) | P3 | M | backlog | feature | open | `podssh serve`: shell integration marks, when asked |
-| [T-121](serve.md) | P3 | M | backlog | feature | open | Install `podssh serve` or `podssh node` as a service with no privileges |
+| [T-121](serve.md) | P3 | M | backlog | feature | partial | Install `podssh serve` or `podssh node` as a service with no privileges |
 | [T-122](serve.md) | P3 | S | backlog | feature | open | `podssh serve`: each pty child in its own transient scope when systemd is there |
 | [T-123](serve.md) | P3 | M | backlog | feature | open | `podssh serve` accepts `tcpip-forward` from a standard `ssh -R` |
 | [T-124](serve.md) | P3 | M | backlog | feature | open | `podssh serve --listen`: SSH on a TCP port on a host that allows it |

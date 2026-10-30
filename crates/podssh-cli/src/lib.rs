@@ -64,6 +64,9 @@ pub mod man;
 // `podssh mcp`: the commands as tools for an agent (T-055).
 pub mod mcp;
 pub mod node;
+pub mod node_args;
+// `podssh node --install`: the node as a service of this user (T-121).
+pub mod node_install;
 // `podssh node NAME udp:HOST:PORT`: a UDP target, one flow for each session.
 pub mod node_udp;
 // `podssh node --iroh`: the iroh road, with the feature `iroh` only.
