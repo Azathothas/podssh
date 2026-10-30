@@ -142,7 +142,7 @@ hkdf = { version = "0.12", default-features = false }
 # The 0.10 line, both on aead 0.5, whose traits `crypto/aead.rs` shares: 0.11
 # brings aes 0.9.3 (Rust 1.89) and ctutils 0.4.3 or later (1.87) into the
 # library crates, which build on podbox's 1.85 (T-330, T-333).
-aes-gcm = { version = "0.10", default-features = false, features = ["aes", "alloc"] }
+aes-gcm = { version = "0.11", default-features = false, features = ["aes", "alloc"] }
 chacha20poly1305 = { version = "0.10", default-features = false, features = ["alloc"] }
 # `zeroize` makes `StaticSecret` wipe its scalar when it is dropped; without
 # it, a TLS key exchange and a session's X25519 key outlive their use.
