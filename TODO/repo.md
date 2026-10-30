@@ -1634,7 +1634,7 @@ The operator's ruling of 2026-10-08: v1.0.0 ships these targets
 **Milestone:** M9
 **Priority:** P2
 **Effort:** M
-**Status:** open
+**Status:** partial
 
 ## Problem
 
@@ -1777,6 +1777,21 @@ Not measured, and the first runs answer them: whether the arm runner runs `linux
 natively today; whether aws-lc-sys 0.45.0 (not main) builds on armv7 musl and riscv64 musl with no
 cmake and no bindgen; the time of the riscv64 build under QEMU and the memory of the armv7 link;
 Intel macOS after August 2027 (cross build with Rosetta, or drop the target).
+
+## Done
+
+2026-10-30, partial: the trial is in, and has not run yet. The workflow release targets
+(`.github/workflows/targets.yml`, by hand only, publishing nothing) builds each new target on its
+own platform, checks its links (`otool -L` on macOS, `dumpbin` on Windows, `readelf` on Linux),
+and runs it with `scripts/release-check.sh`: `--version` against `Cargo.toml`, the whole manual,
+`keygen` with no passphrase, then `keygen -y`, which must give the same key. macOS runs the default
+tests first. armv7 builds with Alpine's own rust in a `linux/arm/v7` container of
+`images/armv7/Dockerfile` (alpine 3.24, pinned to the digest of its index, which has `arm/v7`), on
+an arm64 runner, natively where a probe finds 32-bit ARM, else under QEMU. riscv64 builds in the
+gate's own image under QEMU. The check script, run here on a debug build: three ok; with three
+planted binaries (another version, another key from `keygen -y`, a manual of one line), each run
+failed, and left no scratch directory. Next: dispatch it, repair what fails, then move each target
+that passes into `release.yml`.
 
 # T-219: The no-C gate also stops C++
 

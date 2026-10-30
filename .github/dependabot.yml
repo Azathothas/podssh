@@ -37,5 +37,6 @@ updates:
       - /images/box
       - /images/box-proxy
       - /images/trufflehog
+      - /images/armv7
     schedule:
       interval: weekly
