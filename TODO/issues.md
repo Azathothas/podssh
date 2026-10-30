@@ -128,7 +128,8 @@ corrects a claim that the code does not support.
 ## Requests after the triage (#51 on)
 
 #37 to #50, #52, #53, #57 and #58 are pull requests; Dependabot's #44 to #47,
-updates of a major version, are T-330.
+updates of a major version, are T-330, but #47 (aes-gcm 0.11), which is
+T-333 and waits for Q48.
 
 | Issue | Subject | State | Entries |
 | --- | --- | --- | --- |

@@ -107,7 +107,7 @@ and `CARGO_BUILD_JOBS=4`:
 
 ## Counts
 
-`TODO/INDEX.md` holds 329 entries: 17 open, 4 partial, 28 blocked, 280 done.
+`TODO/INDEX.md` holds 330 entries: 17 open, 4 partial, 29 blocked, 280 done.
 
 Open includes parked work. `cargo todo check` verifies this line.
 
@@ -149,7 +149,8 @@ T-085, T-107 to T-113, T-117, T-118, T-213, T-222, T-245 and T-248; and the work
 parked behind them (T-114, T-115, T-116, T-119, T-120, T-122, T-123,
 T-124, T-150, T-159, T-160, T-161, T-303 and T-304, "Parked open work"),
 which waits as they wait; and the entries that wait for the operator:
-T-062 (Q42, a target) and T-328 (an export of FinalShell and of Termius).
+T-062 (Q42, a target), T-328 (an export of FinalShell and of Termius)
+and T-333 (Q48, the library crates' minimum Rust).
 T-301 waits for T-300.
 
 ## Parked open work
@@ -215,6 +216,16 @@ for one session (T-326, which waits for the relay's endpoint); mRemoteNG's
 GPL test files may live beside their notice (T-327; FinalShell and Termius
 moved to T-328, which waits for exports); and podssh builds its quick
 tunnel (T-300).
+
+Q48 (2026-10-30, blocks T-333): the library crates declare Rust 1.85,
+podbox's minimum (`docs/design.md`), and aes-gcm 0.11 (Dependabot's #47)
+brings into them aes 0.9.3, which needs Rust 1.89, and ctutils 0.4.7,
+which needs 1.87. Older pins would hold 1.85, but ctutils before 0.4.7 has
+RUSTSEC-2026-0385 (T-312). podssh-ws keeps the 0.10 line meanwhile, which
+has no advisory; the cost is a second copy of AES and GHASH in the binary.
+Recommendation: keep 1.85 until podbox needs no older Rust than 1.89, and
+then raise the library crates with T-333; or allow 1.89 now, if podbox
+builds with it.
 
 ## Operator actions
 

@@ -62,15 +62,15 @@ repository and CI).
 
 ## Counts
 
-**329 entries: 17 open, 4 partial, 28 blocked, 280 done.**
+**330 entries: 17 open, 4 partial, 29 blocked, 280 done.**
 
 | Priority | open | partial | blocked | done | total |
 | --- | --- | --- | --- | --- | --- |
 | P0 | 0 | 0 | 0 | 1 | 1 |
 | P1 | 2 | 0 | 0 | 24 | 26 |
 | P2 | 1 | 2 | 19 | 144 | 166 |
-| P3 | 14 | 2 | 9 | 111 | 136 |
-| **All** | 17 | 4 | 28 | 280 | 329 |
+| P3 | 14 | 2 | 10 | 111 | 137 |
+| **All** | 17 | 4 | 29 | 280 | 330 |
 
 ## Entries
 
@@ -405,3 +405,4 @@ repository and CI).
 | [T-330](repo.md) | P3 | M | none | chore | done | Dependabot's major updates: sha1 0.11, vt100 0.16, x25519-dalek 3, aes-gcm 0.11 |
 | [T-331](roads.md) | P3 | S | backlog | defect | partial | The layer's `CLOSE` before the exit of `job`, `pipe`, `health`, `containers` and `--upgrade` on `cf://` |
 | [T-332](resume.md) | P3 | M | backlog | feature | done | A notice of silence with `--direct` |
+| [T-333](repo.md) | P3 | S | none | chore | blocked | aes-gcm 0.11 and chacha20poly1305 0.11 in `podssh-ws` |

@@ -1879,7 +1879,7 @@ leaves armv7 out of the Decision; the plan below takes Alpine's own toolchain fo
   container. Plan B, which the Decision rejected, for native speed: `ghcr.io/cross-rs/armv7-unknown-
   linux-musleabihf:main`, or `cargo-zigbuild` (its CI covers x86_64, aarch64 and Apple, not armv7).
   The release profile is `opt-level = "z"`, `lto = true`, `codegen-units = 1`
-  (`Cargo.toml:197` says "opt-level"; the profile is at the lines around it): the link on a 32-bit
+  (`Cargo.toml:198` says "opt-level"; the profile is at the lines around it): the link on a 32-bit
   rustc may run out of address space, and under QEMU it is slow. Measure first.
 - `riscv64gc-unknown-linux-musl`: Rust tier 2 with host tools. Plan A: `runs-on: ubuntu-24.04`,
   `docker/setup-qemu-action` with `platforms: riscv64`, `docker run --platform linux/riscv64
@@ -3940,7 +3940,7 @@ identities (x25519-dalek, `podssh-ws` and `podssh-relay`), and its AEAD
   moves with its `hmac`, where the two meet (the hashed names of
   `known_hosts`): Inferred.
 - Read: the root `Cargo.toml:142` asks for `aes-gcm` 0.10 and
-  `Cargo.toml:146` for `x25519-dalek` 2;
+  `Cargo.toml:147` for `x25519-dalek` 2;
   `crates/podssh-ws/src/crypto/aead.rs` and `crates/podssh-ws/src/crypto/kx.rs`
   hold the calls, with `crates/podssh-relay/src/identity/mod.rs` and
   `crates/podssh-relay/src/session/secret.rs`, and
@@ -3978,6 +3978,19 @@ aes-gcm 0.11 is on `aead` 0.6, so chacha20poly1305 moves with it, to 0.11
 (on `aead` 0.6 too; Rust 1.85, Apache-2.0 or MIT), which Dependabot did not
 ask for: it is the first step's. And Dependabot moved #45 from vt100 0.16.2
 to 0.18.1 (2026-10-30): the second step takes 0.18.1.
+
+2026-10-30, after the close and before the push. The gate's step `msrv`,
+run here on Rust 1.85.1 (`cargo +1.85 check --locked` of the library
+crates and podssh-todo), refuses the first step at resolution: aes 0.9.3
+needs Rust 1.89 and ctutils 0.4.7 needs 1.87, and aes-gcm 0.11 and
+chacha20poly1305 0.11 bring both into podssh-ws. The Done read the minimum
+of each new crate, not of the crates that they bring. aes 0.9.2 and ctutils
+0.4.2 hold 1.85, but ctutils before 0.4.7 has RUSTSEC-2026-0385 (T-312),
+and the lock that russh's aes-gcm 0.11 shares would take the repair out of
+each binary. So podssh-ws keeps aes-gcm 0.10 and chacha20poly1305 0.10,
+`crates/podssh-ws/src/crypto/aead.rs` as before the first step, and
+x25519-dalek 3 stays; #47 goes to T-333, which waits for the operator
+(Q48). T-312's fact holds again: no library crate has ctutils.
 
 ## Done
 
@@ -4041,4 +4054,68 @@ to 0.18.1 (2026-10-30): the second step takes 0.18.1.
   0.11.0 and hmac 0.13.0 1.85, vte 0.15.0 1.62.1: none above the library
   crates' 1.85, or podssh-ssh's and podssh-cli's 1.89. The gate's steps
   `msrv` and `msrv_ssh` run them on the push (this host has Rust 1.99 alone).
-- Dependabot closes #44 to #47 once `main` holds the updates.
+  Not so for the crates that they bring: the second Correction.
+- The first step's aes-gcm 0.11.1 and chacha20poly1305 0.11.0, undone (the
+  second Correction): the root `Cargo.toml` asks for the 0.10 line again,
+  with its reason. `Cargo.lock` loses chacha20poly1305 0.11.0, and both
+  locks hold the AEAD crates of `main` before T-330. On Rust 1.85.1 the
+  library crates and podssh-todo check (`cargo +1.85 check --locked
+  --all-targets`, as the gate's `msrv`), and on Rust 1.89.0 podssh-ssh and
+  podssh-cli (`msrv_ssh`); `cargo test -p podssh-ws -p podssh-relay
+  --features podssh-relay/quick` with `PODSSH_TEST_OPENSSL=1`: 427 passed, 0
+  failed, the vectors and the TLS 1.2 suites against OpenSSL's `s_server`
+  among them.
+- Dependabot closes #44 to #46 once `main` holds the updates; #47 is T-333's.
+
+# T-333: aes-gcm 0.11 and chacha20poly1305 0.11 in `podssh-ws`
+
+**Source:** Azathothas/podssh#47 (aes-gcm 0.10.3 to 0.11.1), Dependabot;
+T-330's second Correction (2026-10-30): the gate's step `msrv` refuses it.
+**Category:** chore
+**Milestone:** none
+**Priority:** P3
+**Effort:** S
+**Status:** blocked
+
+## Problem
+
+Dependabot's #47 waits: aes-gcm 0.11.1, and chacha20poly1305 0.11 with it,
+as `crates/podssh-ws/src/crypto/aead.rs` calls both through one set of
+`aead` traits. Until then the binary holds two lines of AES and of GHASH:
+0.10 for podssh's TLS provider and the layer's AEAD, 0.11 for russh's.
+
+## Premise
+
+- Measured (2026-10-30, Rust 1.85.1, the gate's `msrv`): with aes-gcm
+  0.11.1 in podssh-ws, `cargo +1.85 check --locked` of the library crates
+  stops at resolution: "aes@0.9.3 requires rustc 1.89", "ctutils@0.4.7
+  requires rustc 1.87".
+- Read (crates.io's index, 2026-10-30): aes 0.9.2 and ctutils 0.4.2 are
+  the last of each line on Rust 1.85; ctutils before 0.4.7 has
+  RUSTSEC-2026-0385 (T-312), so no lock of podssh takes an older one.
+- Read: the library crates declare Rust 1.85, podbox's minimum
+  (`docs/design.md:452-455`).
+
+## Approach
+
+1. Once the library crates may need Rust 1.89 (Q48): their `rust-version`,
+   the gate's `msrv`, `docs/design.md` and `docs/development.md`.
+2. Then aes-gcm 0.11 and chacha20poly1305 0.11, as T-330's first step had
+   them: the nonce from its 12 bytes (`.into()`, as `from_slice` is
+   deprecated in `aead` 0.6).
+
+## Prove
+
+```sh
+export CARGO_BUILD_JOBS=4
+cargo test -p podssh-ws --test crypto_vectors
+sh scripts/gate.sh msrv
+```
+
+Each vector holds, and the library crates check on their declared minimum.
+Planted: one byte of a key of the vectors; its test fails.
+
+## Blocker
+
+The operator (Q48, `TODO/PROGRESS.md`): the library crates keep podbox's
+Rust 1.85 until the operator says that they may need 1.89.
