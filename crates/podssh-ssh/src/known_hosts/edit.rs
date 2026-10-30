@@ -9,7 +9,7 @@ use std::io::{ErrorKind, Read, Write};
 use std::path::{Path, PathBuf};
 
 use base64::Engine;
-use hmac::{Hmac, Mac};
+use hmac::{Hmac, KeyInit, Mac};
 use sha1::Sha1;
 
 use super::{lock, matches, parse_line, too_large, Marker, MAX_FILE};

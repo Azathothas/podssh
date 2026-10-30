@@ -2004,7 +2004,7 @@ Read, in the tree as it is now:
   build must fail at `/nonexistent`; the control, with `CC` alone, must not
   stop there.
 - `docs/development.md:247-249` states the rule with `CXX`, and
-  `docs/STATUS.md:599` records the measurement. Rule 4 of
+  `docs/STATUS.md:600` records the measurement. Rule 4 of
   `docs/architecture.md` named `CC=/nonexistent` only; it was repaired in the
   same change as the record.
 - `.github/workflows/build.yml:103-111` runs the plant on each push.
@@ -2035,7 +2035,7 @@ the same script in its step "the no-C rule is load-bearing".
 (CXX=/nonexistent)"). Measured with `sh scripts/dev.sh plant` in
 `rust:1-alpine`: the C plant failed twice for the right reason, the C++ plant
 failed at `CXX=/nonexistent`, the control with `CC` alone was not stopped
-there, and the clean tree built (`docs/STATUS.md:599`). The CI run of
+there, and the clean tree built (`docs/STATUS.md:600`). The CI run of
 `eacd94e`, which contains `a378863`, passed, with its step "the no-C rule is
 load-bearing".
 
@@ -3918,7 +3918,7 @@ the update with the repair.
 **Milestone:** none
 **Priority:** P3
 **Effort:** M
-**Status:** partial
+**Status:** done
 
 ## Problem
 
@@ -3981,7 +3981,7 @@ to 0.18.1 (2026-10-30): the second step takes 0.18.1.
 
 ## Done
 
-2026-10-30, partial: the first step.
+2026-10-30, in three steps.
 
 - aes-gcm 0.11.1 and chacha20poly1305 0.11.0 (`aead` 0.6), and
   x25519-dalek 3.0.0, in the root `Cargo.toml`. `crypto/aead.rs`: the nonce
@@ -4017,4 +4017,28 @@ to 0.18.1 (2026-10-30): the second step takes 0.18.1.
   the four ignored notice tests of `podssh-cli --test silent_notice`, which
   compare screens with the model: 4 passed. clippy `-D warnings` and `cargo
   deny check licenses bans sources`: clean.
-- Next: sha1 0.11 with hmac 0.13.
+- The third step: sha1 0.11.0 (Dependabot's #44) in podssh-ssh and
+  podssh-cli, with hmac 0.13.0 in podssh-ssh, where the two meet (the
+  hashed names of `known_hosts`, HMAC-SHA1), which takes `KeyInit` for its
+  key now. The workspace's hmac 0.12 stays with sha2 0.10 in podssh-ws and
+  podssh-relay (the TLS provider's HMAC and HKDF, the session secret's MAC),
+  as p256 0.13, p384, rsa 0.9 and ed25519-dalek 2 still take sha2 0.10:
+  the Approach's "one line of digest out of the binary" holds for the
+  fuzz build only (it loses sha1 0.10.7), not for the release, where both
+  lines stay until sha2 can move. `Cargo.lock` does not change: sha1 0.11
+  and hmac 0.13 were in it through russh. `cargo test -p podssh-ssh`: 297
+  passed, 0 failed, the hashed names among them, two lines that OpenSSH
+  hashed and one name hashed as OpenSSH hashes it; planted, one character
+  of that hash: its test failed, and passed again without it. `cargo test
+  -p podssh-cli --test keygen_known_hosts --test ssh_config_file --test
+  keygen` (29 passed, `%C` among them) and `--lib tokens`; against this
+  host's OpenSSH 9.6p1: a file of two hosts hashed by `podssh keygen -H`,
+  and `ssh-keygen -F` found each of them, `[alt.example.org]:2222` too, and
+  no third. clippy `-D warnings` and `cargo deny check licenses bans
+  sources`: clean.
+- The minimum Rust of each new crate (crates.io, 2026-10-30): aes-gcm
+  0.11.1, chacha20poly1305 0.11.0, x25519-dalek 3.0.0, vt100 0.18.1, sha1
+  0.11.0 and hmac 0.13.0 1.85, vte 0.15.0 1.62.1: none above the library
+  crates' 1.85, or podssh-ssh's and podssh-cli's 1.89. The gate's steps
+  `msrv` and `msrv_ssh` run them on the push (this host has Rust 1.99 alone).
+- Dependabot closes #44 to #47 once `main` holds the updates.

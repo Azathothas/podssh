@@ -15,7 +15,7 @@ use std::io::{ErrorKind, Read, Seek, SeekFrom, Write};
 use std::path::{Path, PathBuf};
 
 use base64::Engine;
-use hmac::{Hmac, Mac};
+use hmac::{Hmac, KeyInit, Mac};
 use russh::keys::ssh_key::PublicKey;
 use sha1::Sha1;
 

@@ -55,7 +55,7 @@ serde_json = { workspace = true }
 podssh-core = { path = "../podssh-core" }
 # %C of the ssh_config tokens is SHA-1, as OpenSSH computes it; the version
 # podssh-ssh already builds.
-sha1 = { version = "0.10.7", default-features = false }
+sha1 = { version = "0.11", default-features = false }
 # `cp` compares the SHA-256 of both ends (T-134); the version the workspace
 # already builds.
 sha2 = { workspace = true }

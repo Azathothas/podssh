@@ -1222,7 +1222,7 @@ and no player.
   resize branch (`crates/podssh-ssh/src/io.rs:286-291`). The size at the start
   is `terminal::size` (`crates/podssh-ssh/src/terminal/mod.rs:78`).
   `podssh-ssh` has no JSON dependency
-  (`crates/podssh-ssh/Cargo.toml:17-30`).
+  (`crates/podssh-ssh/Cargo.toml:17-33`).
 - Measured, offline: `podssh ssh --record /tmp/s.cast example.invalid` gives
   `unknown flag '--record'`, exit 64. `podssh replay /tmp/s.cast` gives
   `unknown subcommand 'replay'`, suggests `podssh relay`, and exits 64.
