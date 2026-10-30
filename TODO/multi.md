@@ -72,7 +72,7 @@ succeeded. `podssh ssh` takes one destination, as OpenSSH does.
 ## Decision
 
 Recommendation: a new verb, because `podssh ssh` keeps the command line and
-the exit codes of OpenSSH for one host (`docs/cli.md:2068-2071`), and a list
+the exit codes of OpenSSH for one host (`docs/cli.md:2078-2081`), and a list
 of hosts changes both. The alternative, `podssh ssh --hosts LIST`, lost: one
 flag would change what the exit status means.
 
@@ -184,7 +184,7 @@ is not a shell. A set of hosts has no name.
   (`crates/podssh-cli/src/ssh/hop.rs:30-78`,
   `crates/podssh-ws/src/names.rs:10-24`).
 - Read: the `Host` lines of ssh_config are patterns, not lists
-  (`docs/cli.md:2186-2279`); they cannot define a group.
+  (`docs/cli.md:2196-2289`); they cannot define a group.
 
 ## Approach
 
@@ -749,7 +749,7 @@ short numbered list helps a person; a script must still get the usage error.
 - Measured: `podssh ssh </dev/null` exits 64 with "missing destination"
   (`crates/podssh-cli/src/ssh/resolve.rs:156`).
 - Read: `run_ssh` gets no terminal state
-  (`crates/podssh-cli/src/dispatch.rs:263-265`), and the entry point of the
+  (`crates/podssh-cli/src/dispatch.rs:265-267`), and the entry point of the
   tests has none on purpose (`crates/podssh-cli/src/dispatch.rs:31-39`,
   `crates/podssh-cli/src/pager.rs:21-45`).
 - Read: the names can come only from the `Host` lines of ssh_config (T-043,
@@ -1392,7 +1392,7 @@ of the command.
    quoted for a POSIX shell (T-187). When the copy used most of the 64 MiB
    (`docs/relay.md:167`), run the exec on a new session (T-137).
 4. The exit status: the command's, with the rules of `podssh ssh`
-   (`docs/cli.md:2068-2071`). A failed copy exits 255 and runs nothing.
+   (`docs/cli.md:2078-2081`). A failed copy exits 255 and runs nothing.
 5. In the same commit: the rows, the notes, an example, `docs/cli.md`,
    `docs/STATUS.md`. This entry depends on T-134 and T-143.
 
@@ -1501,14 +1501,14 @@ a ticket, or a tool that asks an AI.
 - Read: credentials never go to output, logs, URLs or argv
   (`docs/architecture.md:143-145`). The token type never shows itself
   (`crates/podssh-relay/src/token.rs:27-56`), and doctor never shows proxy
-  credentials or tokens (`docs/cli.md:1187-1189`).
+  credentials or tokens (`docs/cli.md:1197-1199`).
 - Read: podssh's messages leave through two writers: `Streams.err` in the
   command line (`crates/podssh-cli/src/dispatch.rs:26-29`), and `Log`, which
   writes to the stderr of the process itself
   (`crates/podssh-ssh/src/log.rs:83-103`). The exit code leaves through
-  `crates/podssh-cli/src/dispatch.rs:309-337`.
+  `crates/podssh-cli/src/dispatch.rs:311-339`.
 - Read: for `podssh ssh`, an exit that is not 0 can be the remote command's
-  status (`docs/cli.md:2068-2071`), which is not a failure of podssh.
+  status (`docs/cli.md:2078-2081`), which is not a failure of podssh.
 
 ## Approach
 
@@ -1756,7 +1756,7 @@ another stop key.
 **Milestone:** backlog
 **Priority:** P3
 **Effort:** S
-**Status:** open
+**Status:** done
 
 ## Problem
 
@@ -1770,7 +1770,7 @@ user can type at once.
 
 - Read: the stop is a key that the terminal turns into a signal, SIGQUIT on Unix and a break event on
   Windows (`crates/podssh-cli/src/each/broadcast/keys.rs:1-4`), and the name that the banner and the
-  notes print is a constant (`crates/podssh-cli/src/each/broadcast/hub.rs:19` says "pub const
+  notes print is a constant (`crates/podssh-cli/src/each/broadcast/hub.rs:20` says "pub const
   STOP_KEY").
 - Read (POSIX, https://pubs.opengroup.org/onlinepubs/9799919799/basedefs/V1_chap11.html): the QUIT
   character, with `ISIG` set, raises SIGQUIT and is discarded; the queues are flushed unless
@@ -1820,3 +1820,29 @@ In a pty that is podssh's controlling terminal (as the test of `Ctrl-\` in T-185
 Ctrl-\ no longer does; after podssh exits, the pty's QUIT character is Ctrl-\ again. A character that
 the terminal uses (Ctrl-C), and the setting on Windows, are refused with 64. Planted defect: leave
 the QUIT character changed at the exit; the check of the restored character fails.
+
+## Done
+
+2026-10-30. `podssh each --interactive --stop-key KEY` takes one control
+key, as `^X`, `Ctrl-X` or `C-x`, and on Unix makes it the terminal's QUIT
+character for the run when stdin is a terminal, with a guard that puts the
+old character back on each way out
+(`crates/podssh-cli/src/each/broadcast/stop_key.rs`); the terminal still
+raises SIGQUIT and drops the half line, and `keys.rs` is unchanged. A key
+that a terminal keeps by default (INTR, EOF, SUSP, ERASE, KILL, the ends of
+a line), one that this terminal uses for another of its characters, and
+anything but one control key are refused (64); so is the flag on Windows,
+which names Ctrl-Break; so is `--stop-key` without `--interactive`. The
+banner, `:help` and the word at Ctrl-C name the key in effect. The manual's
+note of `each`, `docs/cli.md` and `docs/terminal.md` say it.
+
+- Linux, 2026-10-30: `cargo test -p podssh-cli --test each -- interactive`,
+  10 passed: in a pty that is podssh's controlling terminal, with
+  `--stop-key ^X`, the banner names Ctrl-X, Ctrl-X stops the broadcast and
+  drops the half line, and the pty's QUIT character is Ctrl-\ after podssh;
+  `--stop-key ^C` is refused with 64 and names INTR. `--lib`, 350 passed
+  (the parse and each refusal); clippy and rustfmt clean.
+- Planted: the old character not put back at the exit; the last check
+  failed ("the terminal's QUIT character after podssh"); restored, it
+  passed.
+- Waiting for CI's job `windows`: the refusal of the flag on Windows.

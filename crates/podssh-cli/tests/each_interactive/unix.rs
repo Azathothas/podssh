@@ -112,3 +112,59 @@ fn interactive_ctrl_backslash_in_a_terminal_stops_the_broadcast() {
     assert!(!left(&home, "half", "a") && !left(&home, "half", "b"), "the half line went out: {}", term.text());
     assert!(left(&home, "after", "a") && left(&home, "after", "b"), "{}", term.text());
 }
+
+/// `--stop-key ^X` (T-322): Ctrl-X typed in the terminal stops the broadcast
+/// and drops the line that is half typed, Ctrl-\\ is a plain key for the run,
+/// and the terminal's QUIT character is Ctrl-\\ again after podssh. The
+/// Prove's planted defect, the character left changed, fails the last check.
+#[cfg(target_os = "linux")]
+#[test]
+fn interactive_stop_key_in_a_terminal_stops_the_broadcast_and_is_put_back() {
+    use std::os::unix::process::CommandExt;
+
+    let home = scratch("broadcast-stop-key");
+    let (_runtime, port) = server(&home);
+    let (a, b) = (host("a", port), host("b", port));
+    let at = |name: &str| home.join(name).display().to_string();
+    let mut cmd = Command::new(env!("CARGO_BIN_EXE_podssh"));
+    cmd.args(words(&home, &["--stop-key", "^X"], &[&a, &b]));
+    environment(&mut cmd, &home);
+    // SAFETY: setsid and ioctl are safe between fork and exec, as pre_exec
+    // asks: the pty becomes podssh's controlling terminal.
+    unsafe {
+        cmd.pre_exec(|| {
+            if libc::setsid() < 0 || libc::ioctl(0, libc::TIOCSCTTY, 0) < 0 {
+                return Err(std::io::Error::last_os_error());
+            }
+            Ok(())
+        });
+    }
+    let mut term = crate::pty_harness::Pty::start(cmd, 24, 160);
+    assert!(term.expect("Ctrl-X stops the broadcast at once", LIMIT), "{}", term.text());
+    term.send(b"echo go\r");
+    for host in [&a, &b] {
+        assert!(term.expect(&format!("{host}: go"), LIMIT), "{}", term.text());
+    }
+    term.send(format!("touch {}", at("half")).as_bytes());
+    term.send(b"\x18");
+    assert!(term.expect("broadcast stopped; :all starts it again", LIMIT), "{}", term.text());
+    term.send(format!(":all\rtouch {}\r\x04", at("after")).as_bytes());
+    assert_eq!(term.wait(LIMIT), Some(0), "{}", term.text());
+    assert!(!left(&home, "half", "a") && !left(&home, "half", "b"), "the half line went out: {}", term.text());
+    assert!(left(&home, "after", "a") && left(&home, "after", "b"), "{}", term.text());
+    assert_eq!(term.quit_char(), 0x1c, "the terminal's QUIT character after podssh");
+}
+
+/// A key that the terminal keeps for itself is refused with 64, before
+/// anything connects.
+#[test]
+fn interactive_stop_key_that_the_terminal_keeps_is_refused() {
+    let home = scratch("broadcast-stop-key-refused");
+    let mut cmd = Command::new(env!("CARGO_BIN_EXE_podssh"));
+    cmd.args(["each", "--interactive", "--stop-key", "^C", "a.example"]);
+    environment(&mut cmd, &home);
+    let out = cmd.stdin(std::process::Stdio::null()).output().unwrap();
+    let err = String::from_utf8_lossy(&out.stderr);
+    assert_eq!(out.status.code(), Some(64), "{err}");
+    assert!(err.contains("INTR (Ctrl-C)"), "{err}");
+}

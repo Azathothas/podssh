@@ -15,8 +15,9 @@ use crate::hosts::Groups;
 pub const QUEUE: usize = 64 * 1024;
 const KIB: usize = QUEUE / 1024;
 
-/// The emergency stop's key, as the terminal of this system types it.
-pub const STOP_KEY: &str = if cfg!(windows) { "Ctrl-Break" } else { "Ctrl-\\" };
+/// The emergency stop's key by default, as the terminal of this system types
+/// it; `--stop-key` chooses another on Unix (T-322).
+pub const STOP_KEY: &str = super::stop_key::DEFAULT;
 
 /// The key that ends the input of a terminal of this system.
 const END_KEY: &str = if cfg!(windows) { "Ctrl-Z" } else { "Ctrl-D" };
@@ -59,6 +60,8 @@ pub struct Hub {
     skipping: bool,
     /// The input goes on: the end of a host is said only then.
     reading: bool,
+    /// The name of the stop key, as the banner and `:help` say it.
+    stop_key: String,
 }
 
 impl Hub {
@@ -69,14 +72,22 @@ impl Hub {
             .zip(feeds)
             .map(|(label, feed)| Host { label, feed, selected: true, ended: None, missed: 0 })
             .collect();
-        Hub { hosts, groups, confirm, held: None, partial: Vec::new(), skipping: false, reading: true }
+        let stop_key = STOP_KEY.to_string();
+        Hub { hosts, groups, confirm, held: None, partial: Vec::new(), skipping: false, reading: true, stop_key }
+    }
+
+    /// The same hub, whose banner and help name `name` as the stop key.
+    pub fn with_stop_key(mut self, name: &str) -> Hub {
+        self.stop_key = name.to_string();
+        self
     }
 
     /// The first words: the hosts, the commands and the stop.
     pub fn banner(&self) -> Vec<String> {
         vec![format!(
-            "each line goes to the {} hosts; :help lists the commands, and {STOP_KEY} stops the broadcast at once",
-            self.hosts.len()
+            "each line goes to the {} hosts; :help lists the commands, and {} stops the broadcast at once",
+            self.hosts.len(),
+            self.stop_key
         )]
     }
 
@@ -272,7 +283,8 @@ impl Hub {
 
     fn help(&self) -> Vec<String> {
         let mut lines: Vec<String> = HELP.iter().map(|(command, what)| format!("  {command:14}  {what}")).collect();
-        lines.push(format!("  {STOP_KEY:14}  the emergency stop: no host takes a line, and what waits is dropped"));
+        let stop = &self.stop_key;
+        lines.push(format!("  {stop:14}  the emergency stop: no host takes a line, and what waits is dropped"));
         lines.push(format!("  {END_KEY:14}  the end of the input: each shell ends when it has read its lines"));
         lines
     }
@@ -299,7 +311,8 @@ impl Hub {
     pub fn ctrl_c(&self) -> Vec<String> {
         vec![format!(
             "Ctrl-C goes to no host: :intr sends signal INT to the selected hosts, {END_KEY} ends the input, and \
-             {STOP_KEY} stops the broadcast"
+             {} stops the broadcast",
+            self.stop_key
         )]
     }
 

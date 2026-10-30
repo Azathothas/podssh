@@ -62,15 +62,15 @@ repository and CI).
 
 ## Counts
 
-**322 entries: 34 open, 0 partial, 27 blocked, 261 done.**
+**322 entries: 33 open, 0 partial, 27 blocked, 262 done.**
 
 | Priority | open | partial | blocked | done | total |
 | --- | --- | --- | --- | --- | --- |
 | P0 | 0 | 0 | 0 | 1 | 1 |
 | P1 | 2 | 0 | 0 | 24 | 26 |
 | P2 | 4 | 0 | 19 | 142 | 165 |
-| P3 | 28 | 0 | 8 | 94 | 130 |
-| **All** | 34 | 0 | 27 | 261 | 322 |
+| P3 | 27 | 0 | 8 | 95 | 130 |
+| **All** | 33 | 0 | 27 | 262 | 322 |
 
 ## Entries
 
@@ -393,7 +393,7 @@ repository and CI).
 | [T-319](roads.md) | P2 | L | backlog | feature | blocked | An HTTP road for a proxy that refuses the WebSocket upgrade |
 | [T-320](ws.md) | P3 | S | backlog | defect | done | A `407` names the proxy's authentication scheme |
 | [T-321](roads.md) | P3 | L | backlog | feature | blocked | An HTTP/2 road: the WebSocket over extended CONNECT (RFC 8441) |
-| [T-322](multi.md) | P3 | S | backlog | feature | open | The emergency stop of the broadcast has a key that the user chooses |
+| [T-322](multi.md) | P3 | S | backlog | feature | done | The emergency stop of the broadcast has a key that the user chooses |
 | [T-323](relay.md) | P3 | S | backlog | chore | done | A frame that `podssh ssh` sends to the relay stays under 64 KiB with room to spare |
 | [T-324](ws.md) | P3 | M | backlog | feature | open | `doctor` tells the three failures of the upgrade apart, and samples each probe |
 | [T-325](ws.md) | P3 | M | backlog | feature | blocked | `doctor` measures what the path does to a stream: buffering, a cap on bodies, an idle limit |

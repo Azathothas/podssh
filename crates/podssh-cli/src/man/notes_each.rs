@@ -44,7 +44,10 @@ pub const EACH: &[&str] = &[
      and --output-dir are refused (64).",
     "The emergency stop is Ctrl-\\ (SIGQUIT) on Unix and Ctrl-Break on Windows: at once, also while a line \
      is half typed, no host is selected, and each byte that waits for a host is dropped; podssh says \
-     broadcast stopped; :all starts it again. It is armed before anything connects, and where it cannot \
+     broadcast stopped; :all starts it again. On Unix, --stop-key ^X makes another control key the stop \
+     for the run, as the terminal's QUIT character, and puts the old one back at the end; a key that the \
+     terminal keeps for INTR, EOF, SUSP, ERASE, KILL or the end of a line is refused (64), and so is the \
+     flag on Windows. It is armed before anything connects, and where it cannot \
      be, podssh exits 78. Each host has a queue of 64 KiB, what its shell has not read yet: a line that \
      does not fit does not go to that host, which leaves the selection, and podssh names it. Ctrl-C goes \
      to no host. At the end of the input (Ctrl-D, or Ctrl-Z on Windows), each shell reads what waits for \

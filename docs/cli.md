@@ -664,6 +664,16 @@ costs once for each host, so the broadcast has a stop that acts at once.
   session sends now. The stop is armed before anything connects, also when
   SIGQUIT was ignored at the start (a script's `&` leaves it so); where it
   cannot be armed, podssh exits 78.
+- **`--stop-key KEY`** moves the stop to another control key on Unix, as
+  `^X` or `Ctrl-X` (T-322), for a user of dtach or abduco, which take
+  Ctrl-\ for their own detach: the terminal's QUIT character is that key
+  for the run, so the terminal still raises SIGQUIT and drops the half
+  line, and the old character comes back on each way out. A key that the
+  terminal keeps (INTR, EOF, SUSP, ERASE, KILL, the ends of a line) and
+  anything but one control key are refused (64); so is the flag on
+  Windows, where Ctrl-Break is the stop. The banner and `:help` name the
+  key in effect. With stdin not a terminal there is no key, and the stop is
+  `kill -QUIT`.
 - **Ctrl-C goes to no host.** While the input goes on, podssh says what to
   type instead: `:intr` sends `signal INT` (RFC 4254, section 6.9) to each
   selected host, and a server may ignore it (`docs/terminal.md`, "Ctrl-C

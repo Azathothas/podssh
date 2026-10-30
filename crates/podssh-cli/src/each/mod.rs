@@ -52,9 +52,10 @@ pub struct EachArgs {
     pub parallel: Option<String>,
     pub fail_fast: bool,
     pub output_dir: Option<String>,
-    /// `--interactive` and `--confirm` (T-185).
+    /// `--interactive` and `--confirm` (T-185), and `--stop-key` (T-322).
     pub interactive: bool,
     pub confirm: bool,
+    pub stop_key: Option<String>,
     /// `(flag as written, what to use instead, why)`, as each verb carries
     /// them, so that a `Refused` row added later refuses.
     pub refused: Vec<(String, &'static str, &'static str)>,
@@ -79,6 +80,7 @@ impl EachArgs {
             output_dir: one("output-dir"),
             interactive: flag("interactive"),
             confirm: flag("confirm"),
+            stop_key: one("stop-key"),
             refused,
         }
     }

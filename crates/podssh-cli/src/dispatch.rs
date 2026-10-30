@@ -118,7 +118,9 @@ pub fn run_with(p: &Parsed, s: &mut Streams<'_>, tty: Tty) -> i32 {
         Parsed::Edit(args) => crate::edit::run_edit(args, tty, s.err),
         Parsed::Each(args) if refusals("each", &args.refused, s.err) => EXIT_USAGE,
         // The lines typed on the process's own stdin go to the hosts (T-185).
-        Parsed::Each(args) if args.interactive || args.confirm => crate::each::broadcast::run(args, s.err),
+        Parsed::Each(args) if args.interactive || args.confirm || args.stop_key.is_some() => {
+            crate::each::broadcast::run(args, s.err)
+        }
         // The hosts' output goes to the process's own streams, line by line.
         Parsed::Each(args) => crate::each::run_each(args, s.err),
         Parsed::Containers(args) if refusals("containers", &args.refused, s.err) => EXIT_USAGE,

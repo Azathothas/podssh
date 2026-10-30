@@ -20,6 +20,7 @@
 
 pub mod hub;
 mod keys;
+mod stop_key;
 
 use std::io::Write;
 
@@ -45,7 +46,12 @@ use keys::{Key, Keys};
 pub fn run(args: &EachArgs, err: &mut dyn Write) -> i32 {
     let usage = |err: &mut dyn Write, why: String| Refusal::usage(why).report("each", err);
     if !args.interactive {
-        return usage(err, "--confirm holds the lines of --interactive for a second Enter".into());
+        let why = if args.confirm {
+            "--confirm holds the lines of --interactive for a second Enter"
+        } else {
+            "--stop-key is the emergency stop of --interactive"
+        };
+        return usage(err, why.into());
     }
     let Some(word) = args.hosts.as_deref() else {
         return usage(err, "give the hosts: podssh each --interactive HOSTS".into());
@@ -63,6 +69,10 @@ pub fn run(args: &EachArgs, err: &mut dyn Write) -> i32 {
     if let Some((flag, _)) = for_a_command.iter().find(|(_, given)| *given) {
         return usage(err, format!("{flag} is for a command; --interactive keeps each host open, at once"));
     }
+    let stop = match stop_key::StopKey::from_arg(args.stop_key.as_deref()) {
+        Ok(stop) => stop,
+        Err(why) => return usage(err, why),
+    };
     if let Err(refusal) = crate::pins::apply(args.ssh.relay_addr.as_deref()) {
         return refusal.report("each", err);
     }
@@ -91,7 +101,13 @@ pub fn run(args: &EachArgs, err: &mut dyn Write) -> i32 {
         feeds.push(feed);
     }
     let quiet = plans.iter().all(|p| p.resolved.options.log_level == LogLevel::Quiet);
-    let hub = Hub::new(labels.clone(), feeds, env.settings.groups.clone(), args.confirm);
+    // The terminal's QUIT character is the stop key until this drops (T-322).
+    #[cfg(unix)]
+    let _quit = match stop_key::QuitGuard::set(&stop) {
+        Ok(guard) => guard,
+        Err(why) => return usage(err, why),
+    };
+    let hub = Hub::new(labels.clone(), feeds, env.settings.groups.clone(), args.confirm).with_stop_key(&stop.name);
     let runtime = match tokio::runtime::Builder::new_current_thread().enable_all().build() {
         Ok(rt) => rt,
         Err(e) => {

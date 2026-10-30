@@ -22,6 +22,8 @@ pub const EACH_FLAGS: &[FlagRow] = &[
         "a shell with no pty on each host, and each line typed goes to the selected hosts; Ctrl-\\ (Ctrl-Break on Windows) stops it at once", None),
     row(None, "confirm", None, FlagKind::Supported,
         "with --interactive: a line for more than one host waits for a second Enter", None),
+    row(None, "stop-key", Some("KEY"), FlagKind::Supported,
+        "with --interactive: the emergency stop is the control key KEY, as ^X, in place of Ctrl-\\ (Unix)", None),
     row(Some('p'), "port", Some("PORT"), FlagKind::Supported,
         "port to connect to, for each host that names none", None),
     row(Some('l'), "login-name", Some("USER"), FlagKind::Supported,

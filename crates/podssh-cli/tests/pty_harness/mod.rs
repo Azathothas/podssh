@@ -8,7 +8,7 @@
 
 use std::fs::File;
 use std::io::{Read, Write};
-use std::os::fd::FromRawFd;
+use std::os::fd::{AsRawFd, FromRawFd};
 use std::os::unix::fs::OpenOptionsExt;
 use std::process::{Child, Command, Stdio};
 use std::sync::{Arc, Mutex};
@@ -19,6 +19,8 @@ pub struct Pty {
     input: File,
     seen: Arc<Mutex<Vec<u8>>>,
     child: Mutex<Child>,
+    /// The path of the program's end, to read its settings after it.
+    path: String,
 }
 
 impl Pty {
@@ -70,7 +72,22 @@ impl Pty {
                 into.lock().unwrap().extend_from_slice(&chunk[..n]);
             }
         });
-        Pty { input, seen, child: Mutex::new(child) }
+        Pty { input, seen, child: Mutex::new(child), path }
+    }
+
+    /// The terminal's QUIT character now, as its program left it (T-322).
+    pub fn quit_char(&self) -> u8 {
+        let end = std::fs::OpenOptions::new()
+            .read(true)
+            .custom_flags(libc::O_NOCTTY)
+            .open(&self.path)
+            .expect("the pty's other end");
+        let mut now = std::mem::MaybeUninit::<libc::termios>::uninit();
+        // SAFETY: the open end of the pty, and a buffer that tcgetattr fills
+        // when it returns 0, which the assert checks before the read.
+        assert_eq!(unsafe { libc::tcgetattr(end.as_raw_fd(), now.as_mut_ptr()) }, 0, "tcgetattr");
+        // SAFETY: tcgetattr returned 0.
+        unsafe { now.assume_init() }.c_cc[libc::VQUIT]
     }
 
     /// Type `bytes`, as a terminal sends its keys.
