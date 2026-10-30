@@ -58,7 +58,7 @@ jobs:
               # proc-macros on this musl host.
               RUSTFLAGS= cargo install --quiet --locked --root /tmp/zigbuild cargo-zigbuild --version "$ZIGBUILD_VERSION"
               export PATH="/tmp/zigbuild/bin:$PATH"
-              cargo zigbuild --version
+              cargo install --list --root /tmp/zigbuild
               rustup target add riscv64gc-unknown-linux-musl
               cargo zigbuild --locked --release --target riscv64gc-unknown-linux-musl -p podssh-cli
               mkdir -p dist
