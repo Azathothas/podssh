@@ -1535,7 +1535,7 @@ Read:
    `ServerAliveInterval=0` before this choice.
 4. Keep the forwarder as a fault in `scripts/interop-faults.sh`, with the
    exit code and the time as its check.
-5. Name both roads in the row of a stuck write (`docs/design.md:378`), and add the fault to
+5. Name both roads in the row of a stuck write (`docs/design.md:532`), and add the fault to
    `docs/STATUS.md`. This is not the path of GitHub #17 (T-024, T-025): there
    the relay closes the session.
 

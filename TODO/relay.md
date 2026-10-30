@@ -709,7 +709,7 @@ listener" (lines 86-88 at `22c3b88`), and the ruling on Q10 allows more than one
    a slow target also starts the next host. Measure the open times through a proxy in the box,
    and record D in `docs/STATUS.md`.
 3. Send a Close to each attempt that is not kept, at once. The relay then frees the target
-   socket within 15 s (`docs/design.md:384-386`, `docs/relay.md:226`); the target still sees one
+   socket within 15 s (`docs/design.md:538-540`, `docs/relay.md:226`); the target still sees one
    short connection, because the relay dials it before the upgrade.
 4. One mint at a time for each relay deployment (single flight, keyed as T-057 keys the cache),
    against the brake of `docs/relay.md:168`. When the minting attempt is the silent one, the next

@@ -115,7 +115,7 @@ and `CARGO_BUILD_JOBS=4`:
 
 ## Counts
 
-`TODO/INDEX.md` holds 323 entries: 27 open, 2 partial, 28 blocked, 266 done.
+`TODO/INDEX.md` holds 323 entries: 26 open, 1 partial, 29 blocked, 267 done.
 
 Open includes parked work. `cargo todo check` verifies this line.
 
@@ -153,8 +153,8 @@ T-085, T-107 to T-113, T-117, T-118, T-213, T-222, T-245 and T-248; and the work
 parked behind them (T-114, T-115, T-116, T-119, T-120, T-122, T-123,
 T-124, T-150, T-159, T-160, T-161, T-303 and T-304, "Parked open work"),
 which waits as they wait; and the entries that wait for an answer of the
-operator: T-062 (Q42), T-319 (Q44), T-326 (Q45) and T-327 (Q46). T-300 waits for the operator's call on
-T-299's result, and T-301 for T-300.
+operator: T-062 (Q42), T-319 (Q44), T-326 (Q45), T-327 (Q46) and T-300 (Q47, the operator's call
+on the measured edge of the quick tunnels). T-301 waits for T-300.
 
 ## Parked open work
 
@@ -175,7 +175,6 @@ it can start.
 | T-159 | T-107, T-108, T-110 and T-117 are done: `podssh serve` runs a shell on a pty, and stops its process group (the operator holds them, Q32) |
 | T-160 | T-107 and T-110 are done: `podssh serve` runs a shell on a pty, which reports the input's offset and the ECHO flag (the operator holds them, Q32) |
 | T-161 | T-159 is done: a far end keeps a shell, its ring and its pty after the client leaves |
-| T-300 | T-299 is done, and the operator decided on its result (Q43) |
 | T-301 | T-300 is done: the connector of a quick tunnel over HTTP/2 |
 | T-303 | T-110 is done: `podssh serve` has a pty (the operator holds it, Q32); and T-161 has a model of the far end's screen |
 | T-304 | T-303 is done: frames of the screen exist |
@@ -238,6 +237,21 @@ have no export at all. Recommendation: allow GPL test data under
 `crates/podssh-cli/tests/fixtures/`, each file with its license and source
 in a notice beside it, as it is not linked into the binary; or supply an
 export of mRemoteNG, FinalShell or Termius from a real install.
+
+Q47 (2026-10-30, blocks T-300): T-299 measured the edge of Cloudflare's
+quick tunnels from GitHub's runners (`docs/design.md`, "The edge,
+measured"). A quick tunnel registers over HTTP/2, and the edge takes TCP on
+port 7844 only, with podssh's TLS as it is (X25519 or P-256, no ML-KEM) and
+one of the three roots that cloudflared adds. The API answered a request
+through a CONNECT proxy, with podssh's own User-Agent. The relay's VPC road
+carried TLS to the edge's 7844, so a node in a cage could publish a quick
+tunnel through the relay, where the cage's proxy refuses 7844. The terms
+name no other client, and the research reads the clause of section 7 as
+about what one obtains; that reading is the operator's call. Recommendation:
+build T-300 (HTTP/2 only, a module of `podssh-relay`, the three roots beside
+podssh's), with the relay's road as the fallback where 7844 is not reached,
+and its live tests in GitHub Actions as T-299's; or keep the tunnel as
+research (Q33).
 
 ## Operator actions
 

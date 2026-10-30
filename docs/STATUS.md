@@ -616,6 +616,26 @@ the first run that passes its check.
 | USB/IP on two Linux hosts with the modules `usbip-host` and `vhci-hcd` (T-182): `usbip attach` through the recipe of README.md, a read from the device, `usbip port`, `usbip detach` | Waits for the operator's machines: UNVERIFIED |
 | Read, not run (2026-10-12) | SSVNC's `ssvncviewer` runs the command of `exec=COMMAND` and speaks RFB on its stdio (its manual page); Alpine has no package of it, so the harness's client stands in. TigerVNC's `vncviewer` takes a Unix socket's path, and its `-via` runs `/usr/bin/ssh -f -L` by default (its manual page, `VNC_VIA_CMD`), which binds. FreeRDP's `/proxy:` takes an HTTP or SOCKS5 proxy (its manual page). No RDP server or client ran. |
 
+## The quick tunnel's edge, measured
+
+From GitHub-hosted runners, with the operator's leave (Q43), by the
+workflow quick tunnel edge (T-299, 2026-10-30; runs 41071742798 and
+41072705691). The details, with the commands, are in
+[design.md](design.md), "The edge, measured". A runner's egress is open; the
+box's proxy stands for the measured cage's policy.
+
+| Check | Result |
+| --- | --- |
+| The edge's addresses (SRV and A over DNS over HTTPS) | `region1.v2.argotunnel.com` and `region2.v2.argotunnel.com`, port 7844, ten IPv4 addresses each |
+| TLS with `h2.cftunnel.com` and cloudflared's three roots, direct, to three addresses | 7844: TLS 1.3, verified, no ALPN, X25519 or P-256 with no ML-KEM, each name and none; issued by "CloudFlare Origin SSL ECC Certificate Authority", valid to 2038-12-09, and not by a root of the system. 443 and 8443: TCP, no tunnel's TLS. 80: no TLS |
+| What the edge sends first after TLS | HTTP/2's client preface: the edge is the HTTP/2 client |
+| Through the box's proxy | 7844 gets 403; 443 and 8443 get 200 and no tunnel's TLS; with 7844 let through, TLS verified |
+| `POST https://api.trycloudflare.com/tunnel` through the box's proxy, with podssh's own User-Agent | 200 in 3.1 s: `success`, `errors`, and `result` with `id`, `name`, `hostname`, `account_tag` and `secret` (no value printed); no 429 |
+| cloudflared 2026.10.6 with `--protocol http2`, `HTTPS_PROXY` set | Registered at `msp01` in 5 s; the page through the name at 12 s; nothing through the proxy |
+| cloudflared with no `--protocol` | QUIC, registered at `ord07` in 4 s; the page at 7 s; nothing through the proxy; each precheck passed |
+| The relay (`podssh relay trace`, then TLS over `podssh proxy`) to 7844 | The VPC road dialed each address; TLS 1.3 verified in 525 to 617 ms, then the edge's client preface |
+| Not run | QUIC from a client of podssh's own, a WebSocket through the name, the bytes of a registration (they hold the tunnel's secret: T-300), and a cage |
+
 ## The relay
 
 `tcp.ssh.relay.ajam.dev` reports version `2026-10-03-r2`. It takes an IPv6

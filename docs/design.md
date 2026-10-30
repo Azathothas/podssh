@@ -108,25 +108,30 @@ again. The client keeps sshd's host key under `node://NAME`. MEASURED:
 The question: can podssh publish a service at `https://NAME.trycloudflare.com`
 with no account and no `cloudflared`, and can a cage do it? The research read
 Cloudflare's documents and the source of cloudflared at `bf4f502` (GitHub
-`cloudflare/cloudflared`, release 2026.10.0), online. No test reached
-Cloudflare. Each fact below is READ, unless it says otherwise; a path with a
-line is a file of cloudflared.
+`cloudflare/cloudflared`: main on 2026-10-08, one commit after the tag
+2026.10.0, released in 2026.10.1), online. T-299 read each cited file again
+at the release 2026.10.6 (commit `35b379a`): each claim holds there, and the
+four citations that moved are given here at 2026.10.6. Each fact below is
+READ, unless it says otherwise or says measured (T-299, "The edge,
+measured"); a path with a line is a file of cloudflared at 2026.10.6.
 
 **The answer.** A quick tunnel needs no account, but its connector must reach
 Cloudflare's tunnel edge on port 7844: by QUIC on UDP, or by HTTP/2 over TLS
 on TCP. The measured cage allows `CONNECT` to ports 443, 80 and 8443 only,
-and no UDP (`docs/target-environment.md`), so a cage cannot publish a quick
-tunnel by the documented road (INFERRED: port 7844 was not measured there).
-A host whose egress reaches TCP port 7844 can. There, podssh would be the
-connector and the origin in one process, so nothing listens; and a client in
-a cage reaches the name on port 443 through `HTTPS_PROXY`, with the
-WebSocket of `cf://` (T-264). Whether the edge also takes a tunnel on port
-443 is not verified. T-299 measures the ports, with the operator's leave
-(Q43); T-300 and T-301 build the connector after it.
+and no UDP (`docs/target-environment.md`), and the edge's 443 and 8443 serve
+no tunnel (measured, below), so a cage's proxy gives no road to the edge. The
+relay's VPC road does: TLS to the edge's 7844 through `podssh proxy`
+completed (measured, below). A host whose egress reaches TCP port 7844 can
+publish a quick tunnel directly, and the edge took one over HTTP/2 (measured
+with cloudflared, below). There, podssh would be the connector and the origin
+in one process, so nothing listens; and a client in a cage reaches the name
+on port 443 through `HTTPS_PROXY`, with the WebSocket of `cf://` (T-264).
+T-300 and T-301 build the connector, after the operator's call on the result
+of T-299 (Q43).
 
 **The request for a tunnel.** `cloudflared tunnel --url URL` posts to
 `https://api.trycloudflare.com/tunnel`, the default of a hidden flag
-(`cmd/cloudflared/tunnel/cmd.go:869-874`), with `Content-Type:
+(`cmd/cloudflared/tunnel/cmd.go:866-871`), with `Content-Type:
 application/json`, cloudflared's `User-Agent` and an empty body
 (`cmd/cloudflared/tunnel/quick_tunnel.go:144-150`). It waits 15 s, and reads
 1 MiB of the reply at most (`quick_tunnel.go:24`, `quick_tunnel.go:32`). The
@@ -136,7 +141,9 @@ writes in base64 (`quick_tunnel.go:262-287`). The id, the account tag and the
 secret are the tunnel's credentials (`quick_tunnel.go:182-186`): podssh would
 keep the secret as it keeps a token, never shown. cloudflared's HTTP client
 for this request has no proxy setting, so it goes direct, never through
-`HTTPS_PROXY` (`quick_tunnel.go:137-143`). The body `{"auth_mode":"otp"}`
+`HTTPS_PROXY` (`quick_tunnel.go:137-143`; measured: a proxy in
+`HTTPS_PROXY` saw nothing, T-299). The API took the same request through a
+CONNECT proxy with another `User-Agent` (measured, below). The body `{"auth_mode":"otp"}`
 asks for a protected tunnel, whose visitors get a one-time PIN by mail
 (`--allowed-mail`; `quick_tunnel.go:28-44`); that needs a browser, so podssh
 has no use for it.
@@ -149,12 +156,17 @@ https://developers.cloudflare.com/tunnel/get-started/quick-tunnels/, updated
 2026-09-30). cloudflared's own notice adds that such tunnels fall under
 Cloudflare's Online Services Terms of Use (`quick_tunnel.go:26`). Those terms
 (https://www.cloudflare.com/website-terms/, effective 2025-08-01) do not name
-Tunnel; their section 7 forbids going around a limit of the services, and
-getting at them by means that Cloudflare did not make available on purpose.
-Whether a connector of podssh's own is such a means is the operator's call
-(Q43). A limit on how often a tunnel can be made: not documented, not
+Tunnel. Their section 7 forbids going around a limit of the services, and
+obtaining "materials or information" by "any means not intentionally made
+available through the Websites or Online Services": the clause is about what
+one obtains, not about the client (READ again on 2026-10-30, T-299). The
+Self-Serve Subscription Agreement has no such clause, and binds the users of
+an account; an account-less quick tunnel falls under the Online Services
+Terms, which cloudflared's notice names (INFERRED). No clause that the
+research read names another client. Whether a connector of podssh's own is a
+forbidden means is the operator's call (Q43). A limit on how often a tunnel can be made: not documented, not
 verified. cloudflared makes one connection for a quick tunnel, where a named
-tunnel makes four (`quick_tunnel.go:221-223`, `cmd.go:784-788`). The
+tunnel makes four (`quick_tunnel.go:221-223`, `cmd.go:781-785`). The
 protocol below is not a published contract: cloudflared is its only
 documented client, so podssh would pin it, as it pins the relay's.
 
@@ -172,16 +184,26 @@ port 7844 for TCP and UDP; port 443 serves optional things only (updates,
 them ("Configuration", https://developers.cloudflare.com/tunnel/configuration/,
 updated 2026-09-29). A hidden flag, `--edge`, replaces the lookup with given
 addresses, and its help says that it works only in Cloudflare's own test
-environment (`cmd.go:671-676`, `supervisor/supervisor.go:56-64`). podssh's
+environment (`cmd.go:668-673`, `supervisor/supervisor.go:56-64`). podssh's
 DNS over HTTPS asks for A and AAAA records only
 (`crates/podssh-ws/src/resolve.rs:124`); the connector needs SRV, or the
 two documented names.
 
 **No proxy.** cloudflared dials the edge with a plain dialer, never through a
-proxy (`edgediscovery/dial.go:13-42`). The request for proxy support (GitHub
-cloudflare/cloudflared#350) was closed on 2023-09-05 by a maintainer: the
-project does not want it, and QUIC, not HTTP/2, is the transport that it
-means users to have.
+proxy (`edgediscovery/dial.go:13-42`; measured: a proxy in `HTTPS_PROXY` saw
+no line from it over HTTP/2 or QUIC, T-299). The request for proxy support
+(GitHub cloudflare/cloudflared#350) was closed on 2023-09-05 by a maintainer:
+the project does not want it, and QUIC, not HTTP/2, is the transport that it
+means users to have; cloudflare/cloudflared#1025 says the same ("the
+official transport to use should be QUIC, which wouldn't work for the SOCKS
+proxy"). QUIC is UDP, so it cannot use an HTTP CONNECT proxy (INFERRED);
+HTTP/2 can, through a proxy that allows `CONNECT` to 7844 (measured, below).
+Third-party patches exist: a pull request for SOCKS5, closed unmerged in 2023;
+`AlliotTech/cloudflared_proxy`, SOCKS5 with HTTP/2 forced, which notes proxies
+that choke on a client hello with ML-KEM; a patch of the snap for an HTTP
+proxy. None is a result for quick tunnels. Port 443 of the edge is no
+fallback: the documents call it optional, the code has none, and it serves
+no tunnel's TLS (measured, below).
 
 **The two transports.** Both use TLS, with Cloudflare's own roots added to
 the system's (`tlsconfig/origin_ca.go:76-104`, `tlsconfig/cloudflare_ca.go`).
@@ -190,17 +212,19 @@ the system's (`tlsconfig/origin_ca.go:76-104`, `tlsconfig/cloudflare_ca.go`).
 | --- | --- | --- |
 | Carrier | TLS over TCP, port 7844 | QUIC over UDP, port 7844 |
 | TLS name, ALPN | `h2.cftunnel.com`, no ALPN | `quic.cftunnel.com`, `argotunnel` (`connection/protocol.go:9-21`, `protocol.go:58-72`) |
-| Roles | cloudflared runs an HTTP/2 server on the connection that it dialed; the edge is the HTTP/2 client (`connection/http2.go:53-97`) | The edge opens a stream for each request (`connection/quic_connection.go:170-201`) |
+| Roles | cloudflared runs an HTTP/2 server on the connection that it dialed; the edge is the HTTP/2 client (`connection/http2.go:53-97`; measured: the edge sends the client preface, T-299) | The edge opens a stream for each request (`connection/quic_connection.go:170-201`) |
 | The control stream | The edge's request with `Cf-Cloudflared-Proxy-Connection-Upgrade: control-stream` (`http2.go:26-32`, `http2.go:405-407`) | The first stream, which cloudflared opens (`quic_connection.go:89-96`) |
 | A request | An HTTP/2 stream; the same header says `websocket`, and `Cf-Cloudflared-Proxy-Src` marks raw TCP (`http2.go:377-420`) | Six bytes that name the kind of stream, the version `01`, then a Cap'n Proto `ConnectRequest`: a destination, a type (http, websocket or tcp) and headers as metadata (`tunnelrpc/quic/protocol.go:8-29`, `tunnelrpc/proto/quic_metadata_protocol.capnp:8-28`) |
 | The answer | The status, a 101 sent as 200, and the origin's headers in the one header `Cf-Cloudflared-Response-Headers`, each name and value in base64 with no padding (`http2.go:238-286`, `connection/header.go:50-112`) | The same six bytes and version, then a `ConnectResponse`: an error and metadata (`tunnelrpc/quic/request_server_stream.go:35-58`) |
-| Datagrams | None | On, for the UDP and ICMP of private networks (`supervisor/tunnel.go:580-599`) |
+| Datagrams | None | On, for the UDP and ICMP of private networks (`connection/quic_config.go:20-38`, called at `supervisor/tunnel.go:589-590`) |
 
-A quick tunnel uses QUIC unless `--protocol` names another, and a protocol
-that the user names has no fallback (`quick_tunnel.go:217-219`,
-`protocol.go:117-137`): `--protocol http2` makes a quick tunnel over TCP.
-That the edge accepts a quick tunnel over HTTP/2 is not verified; cloudflared
-allows it, and no document says.
+A quick tunnel sets the protocol to `quic` when none is named
+(`quick_tunnel.go:217-219`), and a protocol that is set has no fallback:
+only `auto`, the default of a named tunnel, falls back
+(`protocol.go:117-137`). So a quick tunnel uses QUIC alone, and
+`--protocol http2` makes one over TCP.
+The edge takes a quick tunnel over HTTP/2, which no document says: measured
+with cloudflared (T-299, below).
 
 **The registration.** On the control stream, cloudflared is a client of
 Cap'n Proto RPC with the standard framing of a stream
@@ -214,9 +238,15 @@ data center, and whether the tunnel is managed remotely
 (`tunnelrpc.capnp:137-158`). A tunnel that is not managed remotely then
 sends its ingress rules as JSON (`updateLocalConfiguration`;
 `connection/control.go:108-119`), and `unregisterConnection` ends the
-connection (`control.go:124-147`). The default features include
-`serialized_headers` (`features/features.go:5-25`), the form of the answers
-of HTTP/2 above.
+connection (`control.go:124-147`). At 2026.10.6 the default features
+include `serialized_headers` (`features/features.go:5-25`), the form of the
+answers of HTTP/2 above. On main since commit `77a79bf` (TUN-10904,
+2026-10-29), not in a release yet, the edge "universally supports the legacy
+default features": `serialized_headers`, `quick_reconnects`,
+`allow_remote_config`, `support_quic_eof` and `management_logs` are
+deprecated and filtered, and registration names `support_datagram_v3_2`
+only when datagram v3 is chosen. There the default list is empty, and the
+answers of HTTP/2 carry the serialized header always.
 
 **A WebSocket through the tunnel.** For an HTTP origin, cloudflared sends the
 upgrade on to the origin, and after its 101 copies the stream's bytes both
@@ -238,21 +268,145 @@ since a quick tunnel has none.
   and cloudflared's (`zombiezen.com/go/capnproto2`) agree on the wire: not
   verified.
 - TLS: podssh's own provider (`crates/podssh-ws/src/tls.rs`), with a trust
-  store that holds the root of the edge's certificate. Which root signs
-  `h2.cftunnel.com`: not verified.
+  store that holds the root of the edge's certificate: "CloudFlare Origin SSL
+  ECC Certificate Authority", one of cloudflared's three, signs it, and no
+  root of the system does (measured, below). cloudflared offers
+  X25519MLKEM768, P256Kyber768Draft00 and P-256, and no X25519
+  (`cloudflare/cloudflared:crypto/curves.go`, and its log); podssh's TLS
+  offers X25519 and secp256r1 with no ML-KEM
+  (`crates/podssh-ws/src/crypto/kx.rs`), and the edge took a classical
+  handshake with each (measured, below).
+- The prechecks of cloudflared at startup
+  (`cloudflare/cloudflared:prechecks/probes.go`: for each region DNS, QUIC,
+  TCP and TLS, 5 s each, and TCP to `api.cloudflare.com:443`; off with
+  `--no-prechecks`) use the name `probe.cftunnel.com`, which the edge took,
+  and log the table "CONNECTIVITY PRE-CHECKS" (measured, below). The edge's
+  requests include the kind `update-configuration`, and a hidden flag,
+  `--cacert`, replaces the roots of the edge's connection (READ).
 - QUIC: only after a UDP probe, as on the iroh road (section 7). A QUIC
   connection binds a UDP socket (`connection/quic.go:24-95`).
 - The egress to port 7844: direct TCP where a probe allows it; through a
   proxy only where it allows `CONNECT` to 7844; through the relay's forward
-  road only if the relay reaches Cloudflare's addresses, which its direct
-  road refuses and its VPC road may not
-  (`crates/podssh-probe/tests/spec/relay-spec-2026-10-03-r2.txt:224-227`; not
-  verified).
+  road, whose VPC road reached the edge's 7844 and carried its TLS (T-299,
+  below). Its direct road refuses Cloudflare's ranges
+  (`crates/podssh-probe/tests/spec/relay-spec-2026-10-03-r2.txt:224-227`).
 
-A connector in Rust exists: libcfd (crates.io, 0.2.0 of 2026-09-23) says that
-it makes quick tunnels over QUIC and HTTP/2 (READ in its documentation, not
-verified). Its repository has no license that GitHub detects, so podssh
-copies nothing from it.
+Two connectors in Rust exist; neither was run here. libcfd (GitHub
+`apersomany/libcfd`, 0.3.0 on 2026-10-30) says that it makes quick tunnels
+over QUIC (quinn or quiche) and HTTP/2, with an RPC written by hand ("it does
+not use `capnp-rpc`"); its repository has no license that GitHub detects.
+`lordmacu/cloudflare-quick-tunnel-rs` makes them over QUIC only (quinn 0.11
+and rustls), with generated Cap'n Proto code committed, cloudflared's schemas
+and the three roots; GitHub says Apache-2.0, and its README says MIT or
+Apache-2.0. podssh copies from neither without reading its license again
+(READ in their repositories on 2026-10-30, T-299).
+
+#### The edge, measured (T-299, 2026-10-30)
+
+Measured from a GitHub-hosted runner with the operator's leave (Q43), by the
+workflow quick tunnel edge (`.github/workflows/quick-tunnel-edge.yml`, with
+`scripts/quick-tunnel-edge.py`): run 41071742798 at 14:29 UTC
+(https://github.com/Azathothas/podssh/actions/runs/41071742798), on the
+image ubuntu24 20261026.354.1 with OpenSSL 3.0.13 and cloudflared 2026.10.6,
+whose sha256 (`1d356dac…462d`) matched its release page. A runner has open
+egress: it shows what the edge takes. The box's proxy
+(`scripts/box/proxy.py`) stands for the policy of the measured cage; no cage
+was measured. Three tunnels were made, each alive for less than 15 s, and no
+request met a 429.
+
+**Where the edge is.** Over DNS over HTTPS, the SRV record
+`_v2-origintunneld._tcp.argotunnel.com` gave `region1.v2.argotunnel.com`
+(priority 1) and `region2.v2.argotunnel.com` (priority 2), both on port 7844.
+Each name had ten IPv4 addresses (198.41.192.7 to .227 and 198.41.200.13 to
+.233), and region1 had ten IPv6 ones (2606:4700:a0::1 to ::10, as curl
+resolved them).
+
+**The ports and TLS, direct.** `openssl s_client` with the three roots of
+cloudflared (`tlsconfig/cloudflare_ca.go` at the tag) and
+`-verify_return_error`, to 198.41.192.7, 198.41.200.13 and 198.41.192.47
+(the first of the SRV answer), each with the same result:
+
+| Port | TCP | TLS with the name `h2.cftunnel.com` |
+| --- | --- | --- |
+| 7844 | connected | TLS 1.3, verified, in 21 to 58 ms; the same with the names `probe.cftunnel.com` and `region1.v2.argotunnel.com`, and with no name |
+| 443 | connected | failed. Through the proxy to the name, Python's ssl said "unable to get local issuer certificate": the certificate there does not chain to cloudflared's roots (Inferred for the direct cells, whose cause openssl's summary did not give) |
+| 8443 | connected | failed, as on 443 |
+| 80 | connected | not TLS ("wrong version number") |
+
+On 7844 the edge took the default groups (it chose X25519), X25519 alone and
+P-256 alone: a classical handshake, with no ML-KEM, passes. It chose no ALPN
+when offered `h2`, and none when offered nothing. The leaf is "CloudFlare
+Origin Certificate" (O = CloudFlare, Inc., OU = CloudFlare Origin CA),
+issued by "CloudFlare Origin SSL ECC Certificate Authority", one of the three
+roots, and valid from 2023-12-13 to 2038-12-09. The system's roots do not
+verify it (curl: "unable to get local issuer certificate"). Python's check of
+the name passed for `h2.cftunnel.com`; curl's failed for
+`region1.v2.argotunnel.com`. After the handshake and this side's HTTP/2
+preface, the first bytes that the edge sent were `PRI * HTT`, the start of
+HTTP/2's client preface: the edge is the client on the connection that the
+connector dialed, as `connection/http2.go` reads.
+
+**Through the box's proxy.** `CONNECT region1.v2.argotunnel.com:7844` got
+`403 not on the egress allowlist`. 443 and 8443 got 200, and TLS then failed
+as above. With 7844 let through (`--allow
+region1.v2.argotunnel.com:7844=198.41.192.7:7844`), TLS 1.3 to the edge
+verified through the proxy. So a proxy that allows CONNECT to 7844 carries
+the edge's TLS. The measured cage's policy does not allow it, and the ports
+that it allows serve no tunnel.
+
+**The request for a tunnel.** `POST https://api.trycloudflare.com/tunnel`
+through the box's proxy (a CONNECT to 443, which its policy allows), with the
+User-Agent `podssh-measurement/T-299`, not cloudflared's: HTTP 200 in 3057
+ms. The reply holds `success` (a boolean), `errors` (an empty list) and
+`result`, with `id` (36 characters), `name` (35), `hostname` (48),
+`account_tag` (32) and `secret` (44, the base64 of 32 bytes: Inferred from
+the length), and no `messages`. The hostname is four words joined by hyphens,
+under `trycloudflare.com`. No value was printed.
+
+**cloudflared, as a reference.** Two runs in front of a page on 127.0.0.1,
+each with `HTTPS_PROXY` set to the box's proxy and `--edge-ip-version 4`:
+
+| | Run A: `--protocol http2` | Run B: no `--protocol` |
+| --- | --- | --- |
+| The request for the tunnel | 5 s | 3 s |
+| Registered | 5 s after the start, at `msp01` through 198.41.192.47, `protocol=http2` | 4 s after the start, at `ord07` through 198.41.200.73, `protocol=quic` |
+| The page through the name (curl, DNS over HTTPS) | at the 4th try, 12 s after the start | at the 2nd try, 7 s after the start |
+| After SIGTERM | "Unregistered tunnel connection", then the end | "Retrying connection in up to 2s", then the end |
+| Lines in the proxy's log | none | none |
+
+So a quick tunnel registers over HTTP/2, and serves. cloudflared sent
+nothing through `HTTPS_PROXY`: not the request, not the prechecks, not the
+edge. Each run logged `ha-connections:1` and "Tunnel connection curve
+preferences: [X25519MLKEM768 CurveID(65074) CurveP256]" (65074 is 0xFE32,
+P256Kyber768Draft00 in IANA's registry: Inferred from the number). In the
+table "CONNECTIVITY PRE-CHECKS" of both runs, each line passed: DNS of both
+regions, "QUIC connection successful" (UDP) and "HTTP/2 connection
+successful" (TCP) to both, and `api.cloudflare.com:443`. Its summary named
+the protocol that the run then used.
+
+**The relay's roads.** Run 41072705691 at 14:35 UTC
+(https://github.com/Azathothas/podssh/actions/runs/41072705691), with podssh
+built from `fb712a2` in the job and the live relay (`tcp.ssh.relay.ajam.dev`,
+version 2026-10-03-r2), which mints its own token. `podssh relay trace` to
+198.41.192.7, 198.41.200.13 and `region1.v2.argotunnel.com` on 7844, and to
+198.41.192.7 on 443, gave for each `ok: true` on the road `vpc`, the address
+dialed as a literal (the name gave 198.41.192.77), and the verdict
+`silent-or-unreachable`. A TLS server sends nothing first, and on this road
+a trace does not tell an open port from a closed one
+([relay.md](relay.md)). Then TLS with `h2.cftunnel.com` and cloudflared's
+roots, over `podssh proxy` to the same three targets on 7844 (the relay's
+forward road): TLS 1.3, verified, no ALPN, in 525 to 617 ms, after which the
+edge sent HTTP/2's client preface. So the relay's VPC road carries a
+connector's TCP to the edge, and a client that reaches the relay on 443
+reaches the edge's 7844, where the cage's proxy refuses it. The direct road
+was not tried: it refuses Cloudflare's ranges ([relay.md](relay.md)), and
+podssh does not choose the road.
+
+**Not tried, and why.** QUIC from a client of podssh's own (the plan's
+`aioquic` client): the prechecks show that a runner reaches UDP 7844, and a
+cage has no UDP. A WebSocket through the name: T-300's tests carry one. The
+bytes of a registration: they hold the tunnel's secret, so their capture
+waits for the operator's machine (item 5 of T-299's Approach).
 
 ## 3. The core as a library for podbox
 
