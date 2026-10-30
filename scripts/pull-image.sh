@@ -14,6 +14,9 @@
 # of the network; the limit itself lasts longer than a job.
 #
 # PULL_DRY=1 prints each reference that would be tried, and pulls nothing.
+# PULL_PLATFORM=linux/riscv64 pulls that platform of the index, for a run
+# with the same --platform (T-218): a digest that holds the host's platform
+# cannot take another's ("cannot overwrite digest").
 set -u
 
 ref=${1:-}
@@ -59,7 +62,7 @@ err=$(mktemp)
 trap 'rm -f "$err"' EXIT
 for round in 1 2; do
     for try in $tries; do
-        if timeout 900 docker pull -q "$try" >/dev/null 2>"$err"; then
+        if timeout 900 docker pull -q ${PULL_PLATFORM:+--platform "$PULL_PLATFORM"} "$try" >/dev/null 2>"$err"; then
             [ "$try" = "$registry/$path@$digest" ] || echo "pull-image.sh: $try served $ref" >&2
             echo "$try"
             exit 0

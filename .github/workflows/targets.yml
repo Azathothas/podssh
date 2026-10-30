@@ -148,7 +148,7 @@ jobs:
           set -eu
           ref=$(tr -d '\r' < images/armv7/Dockerfile | sed -n 's/^FROM[[:space:]]\{1,\}\([^[:space:]]\{1,\}\).*/\1/p')
           case "$ref" in
-            *@sha256:*) echo "ARMV7_IMAGE=$(sh scripts/pull-image.sh "$ref")" >> "$GITHUB_ENV" ;;
+            *@sha256:*) echo "ARMV7_IMAGE=$(PULL_PLATFORM=linux/arm/v7 sh scripts/pull-image.sh "$ref")" >> "$GITHUB_ENV" ;;
             *) echo "images/armv7/Dockerfile names no image pinned to a digest" >&2; exit 1 ;;
           esac
       - name: does the runner run 32-bit ARM?
@@ -207,7 +207,7 @@ jobs:
           set -eu
           ref=$(tr -d '\r' < images/build/Dockerfile | sed -n 's/^FROM[[:space:]]\{1,\}\([^[:space:]]\{1,\}\).*/\1/p')
           case "$ref" in
-            *@sha256:*) echo "BUILD_IMAGE=$(sh scripts/pull-image.sh "$ref")" >> "$GITHUB_ENV" ;;
+            *@sha256:*) echo "BUILD_IMAGE=$(PULL_PLATFORM=linux/riscv64 sh scripts/pull-image.sh "$ref")" >> "$GITHUB_ENV" ;;
             *) echo "images/build/Dockerfile names no image pinned to a digest" >&2; exit 1 ;;
           esac
       - uses: docker/setup-qemu-action@v4
