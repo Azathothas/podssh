@@ -40,8 +40,9 @@ podssh --TLS 1.3 + WebSocket, port 443--> relay --TCP--> sshd (or another TCP se
 - **Outbound only, unless you ask.** podssh opens outbound connections only
   (to the relay, or to the proxy that `HTTPS_PROXY` names). It listens only
   on an address that you name, of `podssh pipe` (`unix-listen:`,
-  `tcp-listen:`) or of `podssh ssh -L` and `-D`, after the bind shows that
-  the host allows it. The iroh
+  `tcp-listen:`) or of `podssh ssh -L` and `-D`, and on the socket of
+  `podssh session start`, your own, after the bind shows that the host
+  allows it. The iroh
   road, in a build with the feature `iroh`, binds UDP for direct paths only
   after a probe allows it. A node that you give a UDP target (`podssh node
   NAME udp:HOST:PORT`) sends UDP from its host, after a probe.
@@ -144,6 +145,10 @@ podssh mv user@example.org:inbox/a.csv .     # down, then the far file goes
   fingerprint, and gives `-o StrictHostKeyChecking=accept-new` as the
   remedy. Passwords and passphrases come from `SSH_ASKPASS` (with
   `SSH_ASKPASS_REQUIRE=force`), or podssh skips them with a note.
+- An agent that runs one command at a time keeps a shell between its
+  calls with `podssh session`: `start NAME HOST`, then `send NAME TEXT`,
+  `wait NAME` (until the output stops), `capture NAME` (the screen) and
+  `stop NAME`. Its socket is your own, and carries no credential.
 - Keepalives are on (every 60 s), because the relay closes a connection
   after 180 s with no traffic.
 - `--direct` connects without the relay.

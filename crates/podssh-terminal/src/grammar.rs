@@ -137,8 +137,9 @@ impl Tracker {
     }
 
     /// Whether a sequence or a character is open, so that a long wait
-    /// breaks it.
-    fn open(&self) -> bool {
+    /// breaks it; and so that output that pauses inside one has not
+    /// stopped yet (`podssh session wait --idle`, T-186).
+    pub fn open(&self) -> bool {
         !matches!(self.state, State::Ground | State::Broken { .. })
     }
 

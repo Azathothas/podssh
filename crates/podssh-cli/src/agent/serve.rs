@@ -190,8 +190,8 @@ fn front(end: End, store: Arc<Store>) -> DuplexStream {
 }
 
 /// SIGINT, SIGTERM and SIGHUP, or Ctrl-C on Windows: 128 and the signal's
-/// number.
-struct Stop {
+/// number. The session daemon of `podssh session` ends at them too (T-186).
+pub(crate) struct Stop {
     #[cfg(unix)]
     signals: Option<(tokio::signal::unix::Signal, tokio::signal::unix::Signal, tokio::signal::unix::Signal)>,
     #[cfg(windows)]
@@ -199,7 +199,7 @@ struct Stop {
 }
 
 impl Stop {
-    fn new() -> Stop {
+    pub(crate) fn new() -> Stop {
         #[cfg(unix)]
         {
             use tokio::signal::unix::{signal, SignalKind};
@@ -219,7 +219,7 @@ impl Stop {
         }
     }
 
-    async fn next(&mut self) -> i32 {
+    pub(crate) async fn next(&mut self) -> i32 {
         #[cfg(unix)]
         if let Some((int, term, hup)) = self.signals.as_mut() {
             return tokio::select! {

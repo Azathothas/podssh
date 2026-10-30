@@ -64,15 +64,15 @@ succeeded. `podssh ssh` takes one destination, as OpenSSH does.
    could not connect or log in; 0 only when each host gave 0. `--fail-fast`
    starts no new host after a failure, and the running ones finish. A
    summary on stderr gives each host and its status.
-7. In the same commit: `crates/podssh-cli/src/flags.rs:376-427`,
-   `crates/podssh-cli/src/positionals.rs:7-178`, a `Parsed` variant,
-   `crates/podssh-cli/tests/flag_table.rs:110-136`, the notes, an example,
+7. In the same commit: `crates/podssh-cli/src/flags.rs:345-398`,
+   `crates/podssh-cli/src/positionals.rs:7-201`, a `Parsed` variant,
+   `crates/podssh-cli/tests/flag_table.rs:110-137`, the notes, an example,
    `docs/cli.md`, `docs/STATUS.md`. T-013 can then group the commands.
 
 ## Decision
 
 Recommendation: a new verb, because `podssh ssh` keeps the command line and
-the exit codes of OpenSSH for one host (`docs/cli.md:2153-2156`), and a list
+the exit codes of OpenSSH for one host (`docs/cli.md:2250-2253`), and a list
 of hosts changes both. The alternative, `podssh ssh --hosts LIST`, lost: one
 flag would change what the exit status means.
 
@@ -184,7 +184,7 @@ is not a shell. A set of hosts has no name.
   (`crates/podssh-cli/src/ssh/hop.rs:30-78`,
   `crates/podssh-ws/src/names.rs:10-24`).
 - Read: the `Host` lines of ssh_config are patterns, not lists
-  (`docs/cli.md:2271-2364`); they cannot define a group.
+  (`docs/cli.md:2372-2465`); they cannot define a group.
 
 ## Approach
 
@@ -485,7 +485,7 @@ verified here.
 **Milestone:** backlog
 **Priority:** P3
 **Effort:** L
-**Status:** open
+**Status:** done
 
 ## Problem
 
@@ -525,9 +525,100 @@ and read the screen, over several of its own calls. Each run of
 4. One JSON line for each request and each answer, with a version first.
 5. The background podssh ends with its session, after `stop`, or after 1 h
    with no request, and removes its socket. Credentials never cross it.
-6. In the same commit: `docs/cli.md`, the notes, `SECURITY.md:98-118` (a
+6. In the same commit: `docs/cli.md`, the notes, `SECURITY.md:98-119` (a
    local socket that runs commands), `docs/STATUS.md`. T-039 can use the
    same background process.
+
+## Decision
+
+Decided in the work (2026-10-13):
+
+- The background podssh is this binary again. `start` runs `podssh session
+  serve --detach` with the words of its own command line, and `serve` is a
+  subcommand that the manual names, for a program that keeps the daemon
+  itself. The child leaves the session of its starter (`setsid`; on
+  Windows a process with no console, in a group of its own, which inherits
+  none of the starter's standard handles). After its line of ready
+  (`--detach`) it writes nothing more on stdout and stderr. `start` passes
+  on what the child says until then, and gives the child's exit code when
+  the child ends first. Lost: a daemon that the user starts with `&`, as
+  `podssh agent`: the call of an agent that runs `CMD &` often waits for
+  the pipes that the job holds, and a login that fails would show only at
+  the next call. Lost: a fork before the runtime: Windows has none, and one
+  road for both systems is tested once. Lost: a variable of the
+  environment that makes `start` the daemon: a hidden switch, which the
+  checks of the manual do not see.
+- `start` returns when the session's request went to the server
+  (`podssh_ssh::retry::phase` is `Requested`): after the login and the pty,
+  so that a host key or a login that fails gives `start` its 255 and its
+  lines. Lost: ready at the bind, which hides a failed login until the next
+  call.
+- The session runs on `connect_and_run` of `podssh ssh`, now `pub(crate)`,
+  on each road of `podssh ssh`. A pty is forced; there is no escape
+  character, no forward, no X11 and no control socket. Its output goes
+  into a sink (`io::Sink` of T-183), and its input comes from a new
+  `io::Feed` of `podssh-ssh` (`Options::input`). The feed is taken at the
+  first read, so that a try after a drop of the relay before the request
+  (T-025) still finds it. Lost: a second SSH client (the invariant of
+  T-183); a feed taken when the session starts, which such a try loses.
+  No `BatchMode` is forced: the daemon has no terminal (its stdin is the
+  null device, and `setsid` left the controlling terminal), so a prompt
+  goes to `podssh agent` or to `SSH_ASKPASS`, the user's own program, or is
+  refused as with no terminal.
+- `capture` gives the screen, not the bytes. A model of a terminal in the
+  session's podssh reads each byte of the session's output from the
+  first: `vt100` 0.15, the model of the oracle of T-200, which becomes a
+  dependency of the binary (pure Rust over vte, in the lock already). Its
+  rows come with no blank at their ends, as `tmux capture-pane` gives them.
+  `--raw` gives the last 64 KiB through the ring of T-221, from a
+  boundary. Lost: the bytes alone, as step 2 planned: an agent must then
+  read a terminal's sequences. Lost: the snapshot of T-161, which is the
+  model of a far end that keeps a shell, and waits for `podssh serve`
+  (Q32); this side reads the whole stream already. The cost: a new
+  dependency of the binary, and a model of 80 by 24 cells for each session.
+- `wait --idle` counts the quiet from the later of the last output and the
+  last send. Output that stops inside a sequence or a character has not
+  stopped until `Tracker::open` (T-221, now public) is false, or 10 s
+  passed. Lost: the quiet from the last output alone: a wait right after a
+  send then returns before the command answers (the plant of
+  `quiet_counts_from_the_last_output_or_the_last_send`).
+- `--match` reads the text since the last send, with each sequence and
+  each control byte but LF and TAB taken out, by the states of the
+  grammar. Lost: the raw bytes, where a colour between two letters hides a
+  match. Lost: the screen, where the text of an earlier command matches at
+  once. The echo of the typed line is output too; the manual says so.
+- The daemon stays 60 s after its session ended, so that the last screen
+  and the status can be read; `wait` and `send` then give 69 and the
+  status. Lost: the end at once (step 5), which loses what a program
+  printed before it exited.
+- `send TEXT` adds Enter (CR; `--no-enter` leaves it out), and reads `\r`,
+  `\n`, `\t`, `\e`, `\xNN` and `\\`, as `--send` of T-191 reads its
+  escapes; each other `\` is refused. With no TEXT, stdin goes as it is,
+  so that a password never stands in a command line. Lost: keys by name, as
+  tmux has them (`Enter`, `C-c`): a table of names, where an escape names
+  each byte.
+- The protocol: one connection can carry several requests, each a JSON line
+  with the version first (`"schema":1`, as the other JSON of podssh names
+  its version), the session's name and its operation. A request for
+  another name is refused (64). Each answer has the exit code that the
+  client gives. Text goes as a string, or as base64 when it is not UTF-8.
+- The socket: `NAME.sock` in `sessions/` of the first directory of the
+  cache's chain that podssh can make private and whose path fits the
+  address of a socket; a client looks in each, in order.
+  `PODSSH_CACHE_DIR=none` keeps no file, so `start` then needs `--socket`
+  (78). On Windows it is an AF_UNIX socket there too (Windows 10 1803 and
+  later), through the listener of T-177, which checks the user of the
+  client's token; `--socket \\.\pipe\NAME` takes a named pipe, and a
+  refused bind names it. Lost: a named pipe by default, as `podssh agent`:
+  `list` would need a second way to find the sessions, where one directory
+  serves both systems. So the later step of step 3 is done here: the
+  listener of T-177 serves both kinds.
+- A name has letters, digits, `_` and `-`, 32 at most, as `--persist-name`
+  has: it names the socket's file. The subcommand comes first, so that
+  `start` can give `serve` its words unchanged.
+- The master of T-039 is not used for this. Its clients pass their
+  descriptors (SCM_RIGHTS), so the master has no copy of the output to
+  model, and Windows has no such master.
 
 ## Prove
 
@@ -549,6 +640,70 @@ the check of the uid; the check of the other uid must fail.
 `ControlPersist` work now, on Unix, with OpenSSH's control protocol
 (`crates/podssh-cli/src/ssh/control.rs`, `crates/podssh-ssh/src/mux/`):
 a control surface can speak to a master's socket as `-O` does.
+
+## Done
+
+2026-10-13, written as a draft; merged on 2026-10-30, when the main session
+built it and ran each check below.
+
+- `crates/podssh-cli/src/session/`: `mod.rs` (the command line, checked
+  before anything runs, 64; the text of `send`), `start.rs` (the child,
+  its line of ready, and the standard handles of a daemon), `daemon.rs`
+  (`serve`: the refusals before the bind, the bind through the listener of
+  `podssh pipe`, the session through `connect_and_run`, the requests),
+  `model.rs` (the screen, the ring, the text of a match, the quiet),
+  `wire.rs` (the protocol), `place.rs` (the place of the socket) and
+  `client.rs` (`send`, `wait`, `capture`, `stop`, `list`). The flag rows
+  are in `crates/podssh-cli/src/flags/session.rs`, the notes in
+  `crates/podssh-cli/src/man/notes_session.rs`; an example, the exit codes
+  and a row of FILES are in the manual.
+- `podssh-ssh`: nothing, at the merge. The draft added its own `io::Feed`
+  (a channel of 64 pieces, on which a send waited 30 s) and
+  `Options::input`; `main` had T-185's `io::Feed` and `Options::feed` since
+  `d1c5bd1`, so the merge kept those, and the daemon puts each text that
+  `send` gives into the feed, which holds it until the session reads it, as
+  keys typed ahead. `podssh-terminal`: `Tracker::open` is public. `podssh-cli` depends on `podssh-terminal` and
+  `vt100` (their lines in `Cargo.lock` written by hand), and on the
+  console's feature of `windows-sys`, which `podssh-ssh` builds already.
+  `scripts/check-repo.py` allows the bind of
+  `crates/podssh-cli/src/session/daemon.rs`.
+- The documents: `docs/cli.md` (a section, and its exit codes),
+  `SECURITY.md` (a session's socket types into its shell), `README.md`,
+  `docs/architecture.md`, `docs/target-environment.md`, `docs/terminal.md`
+  and `docs/STATUS.md`.
+- `cargo test -p podssh-cli session::`: the command line and its refusals,
+  the escapes of `send`, the protocol both ways, the place of the socket;
+  and the model: the text of a match, the quiet after a send, a pause
+  inside a sequence, the screen and the raw bytes: 13 passed.
+- `cargo test -p podssh-cli --test session`, against the test's server
+  with a pty: start, the modes on Unix, send, wait, capture and `--raw`,
+  `--match`, 75 at the limit, list, a second start refused (69), stop and
+  the socket gone; a command that exited 3 (69 with the status, and the
+  screen still read); the refusals before anything listens (64, 69, and 78
+  with nothing made); a closed port (255, and no socket): 4 passed, in
+  2.6 s. `--test flag_table` 8, `--test man_flag_parity` 6 and `--test
+  man_page` 10 passed. The lib suite found one defect of the draft: the note
+  of the socket said `AF_UNIX`, which the check of the names in the notes
+  reads as a variable that ENVIRONMENT must list; the note says "a
+  Unix-domain socket" now, and the lib suite passed, 385. In all,
+  `podssh-cli` and `podssh-terminal` passed 1131 of 1132, the one the note.
+  clippy `-D warnings` clean; rustfmt expanded two variants of an enum.
+  With the draft, `crates/podssh-cli/src/flags.rs` reached 501 lines; the
+  rows of `ts` and `man` moved to `flags/ts.rs` and `flags/man.rs` (467
+  lines left), and the tests of the flags, the manual and the tree passed
+  again.
+- Planted, to run: `Model::idle_left` with no `last_send` must fail
+  `quiet_counts_from_the_last_output_or_the_last_send`, and with no
+  `Tracker::open` must fail
+  `output_that_pauses_inside_a_sequence_has_not_stopped`. Each plant failed
+  its test, and no other.
+- Waits for T-251: `scripts/interop-session.sh`, sourced by
+  `scripts/interop-each.sh` (OpenSSH and Dropbear; the modes; a client of
+  another user at `@NAME`; `PODSSH_LISTEN=no`; 12 ids in
+  `scripts/interop-baseline.txt`), with the Prove's plant: the check of the
+  user skipped in `crates/podssh-cli/src/pipe/listen.rs` must fail
+  `session.other_user`. And the box's step in `scripts/sandbox-check.sh`
+  (`session start exit=77`).
 
 # T-187: Snippets and argument templates, shown before they run
 
@@ -749,7 +904,7 @@ short numbered list helps a person; a script must still get the usage error.
 - Measured: `podssh ssh </dev/null` exits 64 with "missing destination"
   (`crates/podssh-cli/src/ssh/resolve.rs:156`).
 - Read: `run_ssh` gets no terminal state
-  (`crates/podssh-cli/src/dispatch.rs:265-267`), and the entry point of the
+  (`crates/podssh-cli/src/dispatch.rs:267-269`), and the entry point of the
   tests has none on purpose (`crates/podssh-cli/src/dispatch.rs:31-39`,
   `crates/podssh-cli/src/pager.rs:21-45`).
 - Read: the names can come only from the `Host` lines of ssh_config (T-043,
@@ -1392,7 +1547,7 @@ of the command.
    quoted for a POSIX shell (T-187). When the copy used most of the 64 MiB
    (`docs/relay.md:167`), run the exec on a new session (T-137).
 4. The exit status: the command's, with the rules of `podssh ssh`
-   (`docs/cli.md:2153-2156`). A failed copy exits 255 and runs nothing.
+   (`docs/cli.md:2250-2253`). A failed copy exits 255 and runs nothing.
 5. In the same commit: the rows, the notes, an example, `docs/cli.md`,
    `docs/STATUS.md`. This entry depends on T-134 and T-143.
 
@@ -1506,9 +1661,9 @@ a ticket, or a tool that asks an AI.
   command line (`crates/podssh-cli/src/dispatch.rs:26-29`), and `Log`, which
   writes to the stderr of the process itself
   (`crates/podssh-ssh/src/log.rs:83-103`). The exit code leaves through
-  `crates/podssh-cli/src/dispatch.rs:311-339`.
+  `crates/podssh-cli/src/dispatch.rs:313-341`.
 - Read: for `podssh ssh`, an exit that is not 0 can be the remote command's
-  status (`docs/cli.md:2153-2156`), which is not a failure of podssh.
+  status (`docs/cli.md:2250-2253`), which is not a failure of podssh.
 
 ## Approach
 
@@ -1711,7 +1866,7 @@ queue, no wait for a result, and no way to get the output back.
    gives one object.
 4. `job wait HOST ID [--timeout D]` reads `state` every 5 s until it is
    `done`, and exits with the job's status. When the limit passes first, it
-   exits 75; add the code to `crates/podssh-cli/src/man/data.rs:19-122`.
+   exits 75; add the code to `crates/podssh-cli/src/man/data.rs:19-130`.
 5. `job fetch HOST ID [DIR]` copies `out`, and the files that `--files GLOB`
    names, with the engine of T-134; DIR is `./podssh-job-ID` by default.
 6. With a list of hosts (T-184), `submit` picks the host with the fewest
@@ -1744,7 +1899,7 @@ one running and two queued must fail.
 ## Correction
 
 2026-10-09 (T-134): 75 (`EX_TEMPFAIL`) is in the table of exit codes
-already (`crates/podssh-cli/src/man/data.rs:19-122`), for a `--timeout` of
+already (`crates/podssh-cli/src/man/data.rs:19-130`), for a `--timeout` of
 `cp` that passed; this entry adds its sentence for `job wait`.
 
 # T-322: The emergency stop of the broadcast has a key that the user chooses

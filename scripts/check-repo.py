@@ -109,10 +109,14 @@ LISTENERS = {
     # the race of `podssh ssh --iroh-ticket` (T-164). And `podssh agent`
     # (T-034), which the user starts: it binds through `podssh pipe`'s
     # listener, after PODSSH_LISTEN, and the bind is its probe. And the
-    # flows of a node's UDP TARGET (T-168), as above.
+    # flows of a node's UDP TARGET (T-168), as above. And the daemon of
+    # `podssh session start` and `serve` (T-186), which the user asks for:
+    # it binds through the same listener, after PODSSH_LISTEN, before it
+    # connects, and the bind is its probe.
     "bind(": [
         "crates/podssh-relay/src/udp/flow.rs",
         "crates/podssh-cli/src/agent/serve.rs",
+        "crates/podssh-cli/src/session/daemon.rs",
         "crates/podssh-cli/src/doctor/unix.rs",
         "crates/podssh-cli/src/pipe/listen.rs",
         "crates/podssh-cli/src/pipe/listen_win.rs",

@@ -281,6 +281,7 @@ pub fn usage_tail(verb: &Verb) -> &'static str {
         "health" => "[OPTIONS] [user@]host",
         "play" => "[OPTIONS] FILE",
         "config" => "import FORMAT FILE",
+        "session" => "SUBCOMMAND [OPTIONS] [NAME] [HOST [COMMAND...] | TEXT]",
         _ => "[OPTIONS]",
     }
 }

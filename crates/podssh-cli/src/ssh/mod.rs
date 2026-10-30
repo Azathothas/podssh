@@ -195,7 +195,9 @@ fn road(transport: &Transport) -> &'static str {
     }
 }
 
-async fn connect_and_run(mut resolved: Resolved, log: Arc<Log>) -> i32 {
+/// The run of a resolved command line on its road: its exit code. The
+/// session daemon of `podssh session` runs its session here too (T-186).
+pub(crate) async fn connect_and_run(mut resolved: Resolved, log: Arc<Log>) -> i32 {
     // -X and -Y: the probe, before anything connects (T-037).
     if let Some(plan) = resolved.x11.clone() {
         match x11::probe(&plan, &x11::Env::from_process()).await {

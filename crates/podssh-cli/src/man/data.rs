@@ -58,7 +58,8 @@ pub fn exit_codes() -> Vec<(Code, String)> {
              host answered; podssh relay trace: the relay would not dial the target. podssh agent: no agent \
              answers at SSH_AUTH_SOCK, or the agent keeps no passwords. podssh containers: the host has \
              none of docker, podman and kubectl, one of them failed, or --exec names no container that a \
-             list has.",
+             list has. podssh session: no session of that name answers, or its session ended (and the \
+             status that it ended with is said).",
         ),
         row(
             crate::exit_codes::EXIT_NOT_IMPLEMENTED,
@@ -80,7 +81,8 @@ pub fn exit_codes() -> Vec<(Code, String)> {
         row(
             sysexits::EX_TEMPFAIL,
             "podssh cp and mv: the --timeout passed before the copy ended; a later try can work. podssh \
-             chat: the --timeout passed, or the peer talks with another peer; a later try can work.",
+             chat: the --timeout passed, or the peer talks with another peer; a later try can work. podssh \
+             session start and wait: the --timeout passed first.",
         ),
         row(
             sysexits::EX_NOPERM,
@@ -89,7 +91,8 @@ pub fn exit_codes() -> Vec<(Code, String)> {
              trace, the token. podssh operator and pipe node:: the node's key is not the one pinned in known-nodes or named by \
              --node-key, or the node's allowlist refused this client's key. podssh cp and mv: the server \
              refused the login, or podssh did not accept its host key. podssh chat: the same of the pair \
-             and of the keys, or the peer declined the file of --file.",
+             and of the keys, or the peer declined the file of --file. podssh session start: this host refuses \
+             the bind of the session's socket.",
         ),
         row(
             sysexits::EX_CONFIG,
@@ -100,7 +103,9 @@ pub fn exit_codes() -> Vec<(Code, String)> {
              read or stored, or a node cannot connect as it is set up. podssh edit: VISUAL, EDITOR and PATH \
              give no editor, the editor does not start, or PODSSH_CACHE_DIR is none. podssh node --sshd: a \
              TARGET whose first line is not an SSH version line, which is another service. podssh node: this host \
-             refuses UDP for a udp: TARGET. podssh each --interactive: the emergency stop cannot be armed.",
+             refuses UDP for a udp: TARGET. podssh each --interactive: the emergency stop cannot be armed. \
+             podssh session start and serve: PODSSH_LISTEN is no, or no directory takes the session's \
+             socket.",
         ),
         row(
             podssh_ssh::EXIT_FAILURE,
@@ -108,7 +113,10 @@ pub fn exit_codes() -> Vec<(Code, String)> {
              session ended with no exit status (also when stdout closed and none came within 5 s), or the \
              server ended a run of -N. OpenSSH uses the same code. podssh ping: the destination could \
              not be reached or logged in to, or a measure broke. podssh each: a host could not be reached \
-             or logged in to, or its session ended with no exit status. podssh health: the host could not              be reached or logged in to, it has no sh, or its answer had none of the lines of the script.              podssh containers: the host could not be reached or logged in to, or its list did not end              within 60 s.",
+             or logged in to, or its session ended with no exit status. podssh health: the host could not \
+             be reached or logged in to, it has no sh, or its answer had none of the lines of the script. \
+             podssh containers: the host could not be reached or logged in to, or its list did not end \
+             within 60 s. podssh session start: the connection or the login failed.",
         ),
         (
             Code::Remote,
@@ -250,6 +258,13 @@ pub fn files() -> Vec<(Vec<String>, String)> {
              relay's close code; never a command, an environment value, a token or a password. Mode 0600, \
              opened to append with no symbolic link followed, a line in one write; at 1 MiB it becomes the \
              second name, and a new file starts. podssh status shows the last line."
+                .to_string(),
+        ),
+        (
+            vec![format!("sessions{}NAME.sock", std::path::MAIN_SEPARATOR)],
+            "The socket of each session of podssh session, in the cache: the directory sessions has mode 0700, \
+             and each socket mode 0600 (on Windows, the access list of the cache); it goes when its session's \
+             podssh ends. A socket that nobody serves is replaced by the next start of its name."
                 .to_string(),
         ),
         (

@@ -10,7 +10,7 @@
 
 mod credentials;
 mod keys;
-mod serve;
+pub(crate) mod serve;
 
 use std::io::Write;
 

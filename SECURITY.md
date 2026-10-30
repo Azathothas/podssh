@@ -98,12 +98,13 @@ Each rule is implemented.
 - **Nothing listens unless the user asks.** podssh opens outbound
   connections only, except `podssh pipe` with `unix-listen:` or
   `tcp-listen:`, `podssh ssh` with `-L` or `-D` (T-038) and the control
-  socket of `-M` (T-039), which the user names, and `podssh agent`, which
-  the user starts (T-034): each listener
+  socket of `-M` (T-039), which the user names, and `podssh agent` and
+  `podssh session start`, which the user starts (T-034, T-186): each listener
   is made before anything connects, and refuses the run when it cannot be;
   a port of `-L` or `-D` with no address is loopback only; a Unix socket
-  is made mode 0600 (the agent's in a new
-  directory of mode 0700) and takes only programs of the same user, a named
+  is made mode 0600 (the agent's in a new directory of mode 0700, a
+  session's in a directory of mode 0700 of the cache) and takes only
+  programs of the same user, a named
   pipe on Windows only processes of the same user, a TCP port takes each
   local user (and other hosts when its address is not loopback), podssh
   says so, and `PODSSH_LISTEN=no` turns listening off. The agent's keys
@@ -116,6 +117,15 @@ Each rule is implemented.
   is `udp:HOST:PORT` (T-168) sends UDP from its host, one socket of port 0
   for each flow, connected to the target, after a probe; the client of
   such a node, `podssh pipe udp:node:NAME`, sends no UDP and binds nothing.
+- **A session's socket types into its shell** (T-186). `podssh session`
+  keeps an SSH session with a pty in a podssh of its own, for an agent's
+  later calls: each program that runs as this user can type into that
+  session and read its screen, as it can use the user's keys. So its
+  socket is this user's alone, as above, and never TCP, whose peer's user
+  cannot be read. No key, password or token crosses it: the session's
+  podssh logs in as `podssh ssh` would, and a request carries text to type.
+  `send` with no text reads a password from stdin, so that no command line
+  holds it.
 - **Each end of a road between two podssh ends proves its key** (T-087).
   A node has one Ed25519 key for each label and a client one for each user,
   in the private files of the cache, the same on each road; a key is shown

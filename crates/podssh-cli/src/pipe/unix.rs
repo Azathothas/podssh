@@ -43,8 +43,10 @@ fn code(e: &io::Error) -> i32 {
     }
 }
 
+/// Connect to `path`: the end, or the error, whose kind the clients of
+/// `podssh session` read (T-186).
 #[cfg(unix)]
-async fn connect(path: &str) -> io::Result<End> {
+pub(crate) async fn connect(path: &str) -> io::Result<End> {
     let stream = stream(path).await?;
     let (read, write) = stream.into_split();
     Ok(End::plain(Box::new(read), Box::new(write)))
@@ -64,8 +66,9 @@ async fn stream(path: &str) -> io::Result<tokio::net::UnixStream> {
     tokio::net::UnixStream::connect(path).await
 }
 
+/// Connect to `path`, as on Unix: a named pipe or an AF_UNIX socket.
 #[cfg(windows)]
-async fn connect(path: &str) -> io::Result<End> {
+pub(crate) async fn connect(path: &str) -> io::Result<End> {
     if is_named_pipe(path) {
         let client = named_pipe(path).await?;
         let (read, write) = tokio::io::split(client);

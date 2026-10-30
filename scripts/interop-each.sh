@@ -74,3 +74,8 @@ rc=$?
 . "$HERE/interop-expect.sh"
 # shellcheck source=scripts/interop-broadcast.sh
 . "$HERE/interop-broadcast.sh"
+
+# podssh session (T-186), with the same servers and helpers; sourced here so
+# that scripts/interop.sh stays within 500 lines.
+# shellcheck source=scripts/interop-session.sh
+. "$HERE/interop-session.sh"

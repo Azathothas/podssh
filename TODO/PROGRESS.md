@@ -64,14 +64,14 @@ entry keeps its proof in the entry; this page keeps no history (git does).
   | --- | --- | --- | --- |
   | T-306, T-302, T-305 | `afbe1f388cda562f1` | `bda737c`, `949623b`, `17b4e31` (one each, on `905f92c`) | drafted; T-302 adds a new entry, the notice on the forward road, with the id after T-306, kept free for it; new variables `PODSSH_SPARE_LINKS` and `PODSSH_TITLE_STACK`; spare links off in the library, on in the commands |
   | T-193, T-197, T-192 | `a3f5849c868ae85c1` | `24b9f6e..d95181c`, `d95181c..0e6f48c`, `0e6f48c..a36b0ef` | drafted; `podssh job` (tmux on the far host, probed) and `podssh run`; the far tests need tmux and `sftp-server`, else they say "did not run" and pass; T-192 must call T-195's `not_a_failure` when both are in; T-193's step 3 waits for `podssh serve` |
-  | T-186 | `a9361e92a8297d3db` | `b64664a..cad56ba` | drafted; `podssh session` (start, serve, send, wait, capture, stop, list), a daemon on a socket of the user (0600) through `pipe::listen::Listener`, the screen of a `vt100` model; it adds an `io::Feed` to podssh-ssh, as T-185 does: one of the two takes the other's |
 
   Each draft of the table is whole; none is being drafted. Several add a
   harness that `scripts/interop-each.sh` sources, as `scripts/interop.sh`
   is at 500 lines. `crates/podssh-cli/tests/ssh_harness/mod.rs`, `crates/podssh-cli/src/tree.rs`
   and `crates/podssh-cli/src/flags.rs` are near 500 lines, so a merge splits
-  them where needed. The next merge is T-186, then the others in the order
-  of the index. The operator pushed each branch to GitHub as
+  them where needed. T-186 is merged (2026-10-30); the next merges are
+  T-193, T-197 and T-192, in the order of their commits, as each builds on
+  the one before, then T-306, T-302 and T-305. The operator pushed each branch to GitHub as
   `draft/worktree-agent-*` on 2026-10-30, so a session anywhere merges them;
   a fourth, `draft/worktree-agent-a273199755d943f3c`, holds T-185, which
   `main` has since `d1c5bd1`, and needs no merge.
@@ -116,7 +116,7 @@ and `CARGO_BUILD_JOBS=4`:
 
 ## Counts
 
-`TODO/INDEX.md` holds 325 entries: 26 open, 3 partial, 28 blocked, 268 done.
+`TODO/INDEX.md` holds 325 entries: 25 open, 3 partial, 28 blocked, 269 done.
 
 Open includes parked work. `cargo todo check` verifies this line.
 

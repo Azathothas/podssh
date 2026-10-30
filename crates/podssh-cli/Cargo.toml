@@ -71,6 +71,13 @@ zeroize = { workspace = true }
 # The stream of an agent's clients that russh's agent server reads (T-034);
 # russh pulls it in already.
 futures-util = { version = "0.3", default-features = false, features = ["alloc"] }
+# `podssh session` (T-186): where a kept stream of output may start, and its
+# ring (the grammar of T-221), and when the output has stopped.
+podssh-terminal = { path = "../podssh-terminal" }
+# `podssh session capture`: the screen that a terminal shows after the
+# session's output. The model of the terminal oracle (T-200), pure Rust over
+# vte, with no build script that compiles C; the lock has it already.
+vt100 = { workspace = true }
 
 # MEASURED 2026-10-02, this machine (Git Bash on Windows) and in
 # `rust:1-alpine` via `sh scripts/dev.sh run`:
@@ -98,13 +105,16 @@ libc = { workspace = true }
 # AF_UNIX on Windows for `podssh pipe unix-connect:` (T-176), which the
 # standard library has not, the user of a listener's peer (T-177), and a
 # file's index, which finds its hard links (T-146): the version and, for the
-# file system, the feature that tokio and podssh-ssh build.
+# file system, the feature that tokio and podssh-ssh build. The standard
+# handles of a session daemon that leaves its starter (T-186): the console's
+# feature, which podssh-ssh builds.
 [target.'cfg(windows)'.dependencies]
 windows-sys = { version = "0.61", features = [
     "Win32_Foundation",
     "Win32_Networking_WinSock",
     "Win32_Security",
     "Win32_Storage_FileSystem",
+    "Win32_System_Console",
     "Win32_System_IO",
     "Win32_System_Pipes",
     "Win32_System_Threading",

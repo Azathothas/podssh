@@ -540,7 +540,7 @@ credential that a later commit removed, is not found.
 Read:
 
 - `scripts/check-repo.py:50-63` defines the shapes (a relay token, a Tailscale
-  key, a private key block); `scripts/check-repo.py:219-240` scans the tracked
+  key, a private key block); `scripts/check-repo.py:223-244` scans the tracked
   files outside `vendor/`. It reads no history.
 - `docs/decisions.md` (the repository is public): its history was
   replaced by one commit on 2026-10-08, so a scan of the whole history is
@@ -686,7 +686,7 @@ Read:
    each binary with `actions/attest-build-provenance`, pinned by commit SHA,
    for a tag `v*` only. Give these jobs `id-token: write` and
    `attestations: write`. A run by hand makes no attestation.
-2. Tell the user how to check, in `README.md` (`:56-57`) and in the
+2. Tell the user how to check, in `README.md` (`:57-58`) and in the
    release notes: `gh attestation verify FILE --repo Azathothas/podssh`.
 3. Let `podssh --version` name the commit: the workflows set a variable at
    compile time (`option_env!`, no build script, no `git` call); a local build
@@ -859,7 +859,7 @@ Read:
   `sha256sum`, and the job published it with the binaries (lines 370-382 at
   `cdf9308`). No signature was published.
 - The notes drafted for the dropped beta told the user that `SHA256SUMS`
-  holds the sums (`git show b1b111b:docs/releases/v0.1.0-beta.1.md`, line 81 at `b1b111b`). `README.md:56-57` gives no step to check a download.
+  holds the sums (`git show b1b111b:docs/releases/v0.1.0-beta.1.md`, line 81 at `b1b111b`). `README.md:57-58` gives no step to check a download.
 - AGENTS.md, section 4: a private key is a credential. The repository has no
   signing key today.
 
@@ -906,7 +906,7 @@ Each command exits 0. Planted defect: change one hex digit in a copy of
 
 ## Correction
 
-2026-10-30: the Premise's "`README.md:56-57` gives no step to check a
+2026-10-30: the Premise's "`README.md:57-58` gives no step to check a
 download" no longer holds: the README's first step now checks a download of
 a beta against `SHA256SUMS` (T-309). The signatures of this entry are still
 missing; that step gains their check when they exist.
@@ -1132,14 +1132,14 @@ sees it.
 
 Read:
 
-- `docs/STATUS.md:238-252`: the box, measured by hand on 2026-10-08.
+- `docs/STATUS.md:239-253`: the box, measured by hand on 2026-10-08.
 - `scripts/test_in_box.sh:192-195`: the box runs `probe.sh`, then
   `sandbox-check.sh` (or, with `BOX_RUN=tt`, the session of T-004), and the
   script exits with the code of the second.
-  `scripts/sandbox-check.sh:85-218` prints the exit code of each step and does
+  `scripts/sandbox-check.sh:85-242` prints the exit code of each step and does
   not fail on it (T-006). So today the box exits 0 when podssh fails in it.
 - `scripts/box/probe.sh:122-127` exits 1 when the box differs from the sandbox
-  in a required property (17 properties, `docs/STATUS.md:245`).
+  in a required property (17 properties, `docs/STATUS.md:246`).
 - The box needs a static binary; CI uploads one
   (`.github/workflows/build.yml:88-93`).
 - The box uses `--disable-dns` (`scripts/test_in_box.sh:112`) and a mask on
@@ -1166,7 +1166,7 @@ Read:
    that CI runs the box.
 
 Pitfall: the live path can drop a session (179 of 180 short sessions,
-`docs/STATUS.md:275`). Run a failure again by hand and record it. Never retry
+`docs/STATUS.md:276`). Run a failure again by hand and record it. Never retry
 inside the job.
 
 ## Decision
@@ -1184,7 +1184,7 @@ test "$(grep -c '^match ' box.log)" -eq 17                  # the box was faithf
 
 The run passed, with the job `box`, and its log has 17 `match` lines.
 Planted defect: run the job by hand with the seccomp option removed (an input
-of `workflow_dispatch`); the probe must exit 1, as in `docs/STATUS.md:246`,
+of `workflow_dispatch`); the probe must exit 1, as in `docs/STATUS.md:247`,
 and the job must fail.
 
 ## Blocker
@@ -2001,7 +2001,7 @@ Read, in the tree as it is now:
   build must fail at `/nonexistent`; the control, with `CC` alone, must not
   stop there.
 - `docs/development.md:247-249` states the rule with `CXX`, and
-  `docs/STATUS.md:590` records the measurement. Rule 4 of
+  `docs/STATUS.md:591` records the measurement. Rule 4 of
   `docs/architecture.md` named `CC=/nonexistent` only; it was repaired in the
   same change as the record.
 - `.github/workflows/build.yml:103-111` runs the plant on each push.
@@ -2032,7 +2032,7 @@ the same script in its step "the no-C rule is load-bearing".
 (CXX=/nonexistent)"). Measured with `sh scripts/dev.sh plant` in
 `rust:1-alpine`: the C plant failed twice for the right reason, the C++ plant
 failed at `CXX=/nonexistent`, the control with `CC` alone was not stopped
-there, and the clean tree built (`docs/STATUS.md:590`). The CI run of
+there, and the clean tree built (`docs/STATUS.md:591`). The CI run of
 `eacd94e`, which contains `a378863`, passed, with its step "the no-C rule is
 load-bearing".
 
@@ -2061,7 +2061,7 @@ repository (one `README.md`, no `crates/`) printed four `ok` lines and exited
 
 Read:
 
-- `scripts/check-repo.py:158`: the size check walks `crates/` with `rglob`; a
+- `scripts/check-repo.py:162`: the size check walks `crates/` with `rglob`; a
   missing directory yields nothing. (#33 cites line 56 at `22c3b88`; the walk is at 57
   now.)
 - `scripts/check-repo.py` lines 100-129, 132-153 and 156-161 at `e892b0f`: the links, the credentials and the line
@@ -2425,7 +2425,7 @@ Read:
 
 - `scripts/box/seccomp.json:5-10`: `bind` fails with EACCES for each socket,
   whatever its family.
-- `docs/STATUS.md:266`: in sandbox A, `bind` is refused for AF_INET and
+- `docs/STATUS.md:267`: in sandbox A, `bind` is refused for AF_INET and
   allowed for AF_UNIX. In the KTM report (read there), `doctor` printed
   `Permission denied (os error 13)` for AF_INET, and "bound" for an AF_UNIX
   path and for the abstract namespace.

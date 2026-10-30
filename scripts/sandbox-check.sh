@@ -201,6 +201,30 @@ case $rc in
     *) verdict "a listener" no "exit $rc (want 77 where the host refuses the bind, else a listener that SIGTERM ends)" ;;
 esac
 
+say "the socket of podssh session (T-186), within 10 s"
+# The bind of a session's socket is its probe, and comes before any
+# connection: where the host refuses it, start exits 77 with the error and
+# leaves no file; where it works, the connection to a closed port fails
+# (255), and the socket goes with the session's podssh.
+ssock="$T/cache/sessions/probe.sock"
+timeout 10 env PODSSH_CACHE_DIR="$T/cache" "$B" session start probe --direct -p 9 127.0.0.1 </dev/null \
+    >"$T/session.out" 2>"$T/session.err"
+rc=$?
+echo "session start exit=$rc"
+head -n 2 "$T/session.err"
+ok=no
+case $rc in
+    77)
+        [ ! -e "$ssock" ] && has 'need no listener' "$T/session.err" && ok=yes
+        verdict "a session's socket" "$ok" "refused: exit 77, the error named, and no file left"
+        ;;
+    255)
+        [ ! -e "$ssock" ] && ok=yes
+        verdict "a session's socket" "$ok" "it listened; the closed port gave 255, and its file went"
+        ;;
+    *) verdict "a session's socket" no "exit $rc (want 77 where the host refuses the bind, else 255 for the closed port)" ;;
+esac
+
 say "OpenSSH with podssh as its ProxyCommand"
 if ! command -v ssh >/dev/null; then
     verdict OpenSSH skip "no ssh on this host"

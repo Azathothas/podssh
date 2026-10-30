@@ -56,11 +56,11 @@ unknown flag (exit 64), and `Cargo.lock` has no iroh crate.
 5. `doctor`, with the feature: a UDP line, and the `/ping` of the home relay
    through the proxy (`crates/podssh-cli/src/doctor/host.rs:10-25`).
 6. `availability()` knows `ts` as the only build feature
-   (`crates/podssh-cli/src/flags.rs:470-478`): extend it. With no feature, an
+   (`crates/podssh-cli/src/flags.rs:441-449`): extend it. With no feature, an
    iroh destination refuses before it connects and names `--features iroh`,
    as `crates/podssh-cli/tests/ts_not_built.rs:1-4` shows for `ts`.
 7. Docs: the "Outbound only" item of `README.md`, "Nothing listens" in
-   `SECURITY.md:98-118`, `docs/architecture.md` (rule 3, the crates),
+   `SECURITY.md:98-119`, `docs/architecture.md` (rule 3, the crates),
    `docs/design.md` section 7, and `AGENTS.md` (sections 3 and 7).
 
 ## Decision
@@ -163,7 +163,7 @@ access is by an allowlist of keys or a relay token (`docs/design.md:1009-1010`).
 Read in the reports, not verified here: iroh-ssh warns when a server's key is
 ephemeral (`rustonbsd/iroh-ssh:src/ssh.rs`); zuko hands over a ticket out of
 band (`adonm/zuko:docs/protocol.md`). Read: `podssh ts` keeps its node key in
-the file that `--ts-state` names (`crates/podssh-cli/src/flags.rs:333-334`,
+the file that `--ts-state` names (`crates/podssh-cli/src/flags.rs:335-336`,
 `crates/podssh-cli/src/ts.rs:166`). Credentials never go on argv
 (`AGENTS.md`, section 4).
 
@@ -186,7 +186,7 @@ the file that `--ts-state` names (`crates/podssh-cli/src/flags.rs:333-334`,
 5. The node prints its ticket and its fingerprint on stderr when it starts.
    `podssh ssh iroh:TICKET` dials it (the address of `docs/design.md:832`).
 6. Add the key files to FILES in the manual
-   (`crates/podssh-cli/src/man/data.rs:131-261`), and each new variable to
+   (`crates/podssh-cli/src/man/data.rs:139-276`), and each new variable to
    `VARIABLES` (`crates/podssh-cli/src/man/facts.rs:45-242`).
 
 ## Decision

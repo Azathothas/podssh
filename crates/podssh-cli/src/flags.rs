@@ -291,6 +291,7 @@ mod edit;
 mod expect;
 mod health;
 mod keygen;
+mod man;
 mod mcp;
 mod node;
 mod operator;
@@ -299,8 +300,10 @@ mod pipe;
 mod play;
 mod relay;
 mod scp;
+mod session;
 mod signal;
 mod snippet;
+mod ts;
 pub use agent::AGENT_FLAGS;
 pub use chat::CHAT_FLAGS;
 pub use config::CONFIG_FLAGS;
@@ -310,6 +313,7 @@ pub use each::EACH_FLAGS;
 pub use edit::EDIT_FLAGS;
 pub use health::HEALTH_FLAGS;
 pub use keygen::KEYGEN_FLAGS;
+pub use man::MAN_FLAGS;
 pub use mcp::MCP_FLAGS;
 pub use node::NODE_FLAGS;
 pub use operator::PAIR_FLAGS;
@@ -318,43 +322,8 @@ pub use pipe::PIPE_FLAGS;
 pub use play::PLAY_FLAGS;
 pub use relay::{DOCTOR_FLAGS, PROXY_FLAGS, RELAY_FLAGS, STATUS_FLAGS};
 pub use scp::{SCP_FLAGS, SFTP_FLAGS};
-
-/// **`ts` and its `tailscale` alias (Tailscale, the cargo feature `ts`).** The
-/// spelling: `ts`-prefixed flags; `-W` is the byte-pipe target with ssh's own
-/// `stdio-forward` row shape. All three forms parse; `ts.rs` runs them, and a
-/// build without the feature refuses them, naming the feature.
-pub const TS_FLAGS: &[FlagRow] = &[
-    row(None, "ts-mode", Some("MODE"), FlagKind::Supported,
-        "auto tun socks tcp relay: auto takes the first of tcp, relay whose check passes", None),
-    row(None, "ts-proxy", Some("URL"), FlagKind::Supported,
-        "HTTP CONNECT or SOCKS5 proxy for each connection; default: the environment's", None),
-    row(None, "ts-auth-key-file", Some("FILE"), FlagKind::Supported,
-        "tailnet auth key file; never passed on argv", None),
-    row(None, "ts-state", Some("FILE"), FlagKind::Supported,
-        "node key-state file, created when missing", None),
-    row(None, "ts-ephemeral", None, FlagKind::Supported,
-        "register an ephemeral node, logged out at the end of the run", None),
-    row(None, "ts-relay", Some("HOST"), FlagKind::Supported,
-        "DERP-over-WebSocket relay for relay mode", None),
-    row(None, "ts-wait-allowlist", Some("DURATION"), FlagKind::Supported,
-        "wait this long for relay admission; default fail-fast", None),
-    row(Some('W'), "stdio-forward", Some("HOST:PORT"), FlagKind::Supported,
-        "byte pipe over the tailnet: stdio becomes the stream", None),
-    row(None, "jsonl", None, FlagKind::Supported,
-        "the status as one JSON object on stdout; refused with -W", None),
-    row(None, "timeout", Some("DURATION"), FlagKind::Supported,
-        "bound the run; required when stdin is not a TTY (default: env PODSSH_TIMEOUT)", None),
-];
-
-/// `man`: the manual of this binary, generated from these tables.
-pub const MAN_FLAGS: &[FlagRow] = &[
-    row(None, "no-pager", None, FlagKind::Supported,
-        "write the whole manual to stdout; never page, even on a terminal", None),
-    row(None, "roff", None, FlagKind::Supported,
-        "write the manual as a man(7) page instead of text, for man -l; never paged", None),
-    row(None, "json", None, FlagKind::Supported,
-        "write the tables (commands, flags, keywords, variables, files, exit codes) as JSON; never paged", None),
-];
+pub use session::SESSION_FLAGS;
+pub use ts::TS_FLAGS;
 
 /// One verb: its names, its flags, and the flag table its `-P` belongs to.
 #[derive(Clone, Copy)]
@@ -424,6 +393,8 @@ pub const VERBS: &[Verb] = &[
         about: "ssh_config blocks from the host list of another tool: import" },
     Verb { name: "mcp", aliases: &["mcp"], flags: MCP_FLAGS,
         about: "the commands as tools for an agent: a Model Context Protocol server on stdin and stdout" },
+    Verb { name: "session", aliases: &["session"], flags: SESSION_FLAGS,
+        about: "a session that outlives each call, for an agent: start it, send keys, wait until the output stops, read the screen" },
 ];
 
 /// **The verbs by purpose, in the order that `--help` and the manual print
@@ -439,7 +410,7 @@ pub const GROUPS: &[(&str, &[&str])] = &[
     ("Messages", &["chat"]),
     ("Recordings", &["play"]),
     ("Settings", &["config"]),
-    ("Tools for an agent", &["mcp"]),
+    ("Tools for an agent", &["mcp", "session"]),
     ("The relay", &["relay"]),
     ("This manual", &["man"]),
 ];
