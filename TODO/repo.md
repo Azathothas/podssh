@@ -1879,7 +1879,7 @@ leaves armv7 out of the Decision; the plan below takes Alpine's own toolchain fo
   container. Plan B, which the Decision rejected, for native speed: `ghcr.io/cross-rs/armv7-unknown-
   linux-musleabihf:main`, or `cargo-zigbuild` (its CI covers x86_64, aarch64 and Apple, not armv7).
   The release profile is `opt-level = "z"`, `lto = true`, `codegen-units = 1`
-  (`Cargo.toml:195` says "opt-level"; the profile is at the lines around it): the link on a 32-bit
+  (`Cargo.toml:197` says "opt-level"; the profile is at the lines around it): the link on a 32-bit
   rustc may run out of address space, and under QEMU it is slow. Measure first.
 - `riscv64gc-unknown-linux-musl`: Rust tier 2 with host tools. Plan A: `runs-on: ubuntu-24.04`,
   `docker/setup-qemu-action` with `platforms: riscv64`, `docker run --platform linux/riscv64
@@ -3918,7 +3918,7 @@ the update with the repair.
 **Milestone:** none
 **Priority:** P3
 **Effort:** M
-**Status:** open
+**Status:** partial
 
 ## Problem
 
@@ -3969,3 +3969,37 @@ cargo test --no-fail-fast
 
 Each vector holds; each test passes. Planted: one byte of a key of the
 vectors changed; its test fails.
+
+## Correction
+
+2026-10-30. Two facts that the Approach did not have. `crypto/aead.rs`
+calls aes-gcm and chacha20poly1305 through one set of `aead` traits, and
+aes-gcm 0.11 is on `aead` 0.6, so chacha20poly1305 moves with it, to 0.11
+(on `aead` 0.6 too; Rust 1.85, Apache-2.0 or MIT), which Dependabot did not
+ask for: it is the first step's. And Dependabot moved #45 from vt100 0.16.2
+to 0.18.1 (2026-10-30): the second step takes 0.18.1.
+
+## Done
+
+2026-10-30, partial: the first step.
+
+- aes-gcm 0.11.1 and chacha20poly1305 0.11.0 (`aead` 0.6), and
+  x25519-dalek 3.0.0, in the root `Cargo.toml`. `crypto/aead.rs`: the nonce
+  as an `Array` from its 12 bytes (`from_slice` is deprecated in `aead`
+  0.6). `crypto/kx.rs`: x25519-dalek 3 no longer gives `StaticSecret` the
+  trait `Zeroize`, but marks it `ZeroizeOnDrop`, which says the wipe on
+  drop itself, so the guard that does not compile without the feature
+  `zeroize` asks for that trait now; and its comment said that 2.0 clamps
+  on construction, where both versions keep the bytes and clamp at each
+  use (`mul_clamped`). The lock loses x25519-dalek 2.0.1; aes-gcm 0.10 and
+  chacha20poly1305 0.10 stay, for the crates that still ask for them.
+- `cargo test -p podssh-ws --test crypto_vectors`: 18 passed (RFC 7748
+  6.1's X25519, each AEAD's round trip and its flipped bit). `cargo test -p
+  podssh-ws -p podssh-relay --features podssh-relay/quick`: 427 passed, 0
+  failed, in 75 binaries, of them the TLS 1.2 suites against OpenSSL
+  3.0.13's `s_server`, each AES-GCM and ChaCha20-Poly1305 suite with
+  records both ways, and TLS 1.3 with X25519 (`tls12.rs`, 9 passed); the
+  CLI's lib 413; clippy `-D warnings`: clean; `cargo deny check licenses
+  bans sources`: ok. Planted, one byte of the RFC's X25519 key: its test
+  failed, and passed again without the plant.
+- Next: vt100 0.18.1, then sha1 0.11 with hmac 0.13.

@@ -13,8 +13,9 @@ use rustls::{Error, NamedGroup, PeerMisbehaved};
 use x25519_dalek::{PublicKey as XPublicKey, StaticSecret};
 use zeroize::Zeroize as _;
 
-/// `x25519-dalek` 2.0's `StaticSecret` clamps on construction, which is what
-/// RFC 7748 requires; it is generated from 32 OS bytes and re-clamped.
+/// `x25519-dalek`'s `StaticSecret` keeps the 32 OS bytes as they are and
+/// clamps the scalar at each use (`mul_clamped`), which is what RFC 7748
+/// requires.
 pub static X25519: &dyn SupportedKxGroup = &KxGroup { name: NamedGroup::X25519 };
 
 pub static SECP256R1: &dyn SupportedKxGroup = &KxGroup { name: NamedGroup::secp256r1 };
@@ -31,12 +32,14 @@ impl fmt::Debug for KxGroup {
 
 /// A private scalar left in memory after a dropped key exchange is a key that
 /// outlives the session it belonged to. `StaticSecret` wipes itself on drop
-/// with x25519-dalek's `zeroize` feature, which the workspace turns on; this
-/// does not compile without it. (A wiped copy of the bytes, the earlier
-/// guard, left the scalar inside `StaticSecret` as it was.)
-fn _static_secret_wipes(secret: &mut StaticSecret) {
-    secret.zeroize();
-}
+/// with x25519-dalek's `zeroize` feature, which the workspace turns on, and
+/// says so with `ZeroizeOnDrop` (3.0); this does not compile without it. (A
+/// wiped copy of the bytes, the earliest guard, left the scalar inside
+/// `StaticSecret` as it was.)
+const _: fn() = || {
+    fn wipes_on_drop<T: zeroize::ZeroizeOnDrop>() {}
+    wipes_on_drop::<StaticSecret>();
+};
 
 impl SupportedKxGroup for KxGroup {
     fn start(&self) -> Result<Box<dyn ActiveKeyExchange>, Error> {
