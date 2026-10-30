@@ -109,7 +109,7 @@ and `CARGO_BUILD_JOBS=4`:
 
 ## Counts
 
-`TODO/INDEX.md` holds 317 entries: 36 open, 1 partial, 25 blocked, 255 done.
+`TODO/INDEX.md` holds 317 entries: 35 open, 1 partial, 25 blocked, 256 done.
 
 Open includes parked work. `cargo todo check` verifies this line.
 
@@ -125,8 +125,8 @@ the surface for agents: done.
 **M4:** T-085 (the exit measurement) is on hold (Q32).
 
 **First (2026-10-30):** T-309, the beta (partial: the first beta is being
-published). For the next beta: T-316 and T-317, which the testers'
-sandboxes meet.
+published). For the next beta: T-317, which the testers' sandboxes
+meet.
 
 **Now:** the `backlog` entries, in the order of `TODO/INDEX.md` ("The
 order, and the argument for it"): M3 to M8 are done, but for the entries on

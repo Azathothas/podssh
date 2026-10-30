@@ -550,7 +550,7 @@ that client: bytes captured from the real program (`AGENTS.md`, section 6, rule 
 ## Approach
 
 1. Add `podssh config import FORMAT FILE` (Decision). It writes `Host` blocks to stdout and a
-   summary to stderr (`docs/architecture.md:146-147`). It never writes `~/.ssh/config`; the user
+   summary to stderr (`docs/architecture.md:148-149`). It never writes `~/.ssh/config`; the user
    adds the output.
 2. First the formats that need no new crate: the Ansible INI inventory (`ansible_host`,
    `ansible_user`, `ansible_port`), Remmina `.remmina` files and MobaXterm sessions (INI), PuTTY
@@ -702,7 +702,7 @@ configuration directory first; the operator corrected it on 2026-10-08 (`docs/de
 5. No keyword for a token: a token in a file is a stored credential (question Q5, T-034).
 6. podssh never writes the file: csshw creates one, but podssh changes nothing unasked.
 7. `doctor` and `status` (T-051) name the file in use. Change in the same commit: VARIABLES and
-   FILES (`crates/podssh-cli/src/man/facts.rs:45-236`, 98-142), `docs/relay.md:30-81` and
+   FILES (`crates/podssh-cli/src/man/facts.rs:45-237`, 98-142), `docs/relay.md:30-81` and
    `docs/cli.md`. The cache directory is the work of T-243.
 
 ## Decision

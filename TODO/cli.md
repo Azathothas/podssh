@@ -67,8 +67,8 @@ GitHub #2, not verified here: the relay's `/trace` dials `[V6]:8079`.
 4. `podssh proxy` (`crates/podssh-cli/src/proxy.rs:203-213`): `HOST PORT` takes
    a bare literal (the `%h %p` form) or `[V6]`. One word takes `[V6]:PORT` and
    refuses `V6:PORT`: `2001:db8::1:22` is itself an address. Reuse the rule of
-   `split_host_port` (`crates/podssh-ws/src/dial.rs:396-415`).
-5. Messages use `podssh_ws::dial::authority` (`crates/podssh-ws/src/dial.rs:376-383`),
+   `split_host_port` (`crates/podssh-ws/src/dial.rs:432-451`).
+5. Messages use `podssh_ws::dial::authority` (`crates/podssh-ws/src/dial.rs:412-419`),
    not `host:port` (`crates/podssh-cli/src/ssh/transport.rs:48`,
    `crates/podssh-cli/src/proxy.rs:131`, where it is used since this entry). `known_hosts` keeps the literal as
    typed: `host_name` writes `[V6]:PORT` as OpenSSH does
@@ -600,7 +600,7 @@ variable matters when `cp`, `mv` and `relay` exist. `ssh` and `proxy` have no
 3. A malformed value names its source: `--timeout` (exit 64), or
    `PODSSH_TIMEOUT` (exit 78, see Decision). The variable never bounds `ssh`
    or `proxy`.
-4. Same commit: a row in `VARIABLES` (`crates/podssh-cli/src/man/facts.rs:45-236`),
+4. Same commit: a row in `VARIABLES` (`crates/podssh-cli/src/man/facts.rs:45-237`),
    which `each_variable_in_the_source_is_documented` requires
    (`crates/podssh-cli/src/man/facts/tests.rs:57-70`); "default: env
    PODSSH_TIMEOUT" in the help of each `--timeout` row, as `--relay-host` says

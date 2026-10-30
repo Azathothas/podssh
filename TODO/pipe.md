@@ -33,7 +33,7 @@ the verb, the address grammar, the copy loop, and the local addresses `-`,
   `crates/podssh-ts/src/pipe.rs`; the new pump must not repeat it.
 - Read: `exec:` starts the user's own program. The operator accepted it on
   2026-10-08 (`docs/decisions.md`). On sandbox A, `/tmp` and `$HOME`
-  do not run programs (`docs/STATUS.md:254`).
+  do not run programs (`docs/STATUS.md:255`).
 
 ## Approach
 
@@ -175,7 +175,7 @@ local program to a target, and `podssh proxy` stays a second pump.
 
 1. One adapter per kind, in crates/podssh-cli/src/pipe/remote.rs: it opens
    its road and gives a duplex stream and, at the end, a close reason. The
-   pump does not know the road (`docs/architecture.md:115-117`).
+   pump does not know the road (`docs/architecture.md:117-119`).
 2. `relay:HOST:PORT`: parse as `crates/podssh-cli/src/proxy.rs:203-213` does;
    open with `crates/podssh-relay/src/open.rs:188-247`. Keep the rules of
    proxy: no Close at the end of input, the ping watcher
@@ -208,7 +208,7 @@ local program to a target, and `podssh proxy` stays a second pump.
 ## Decision
 
 Recommendation: add `tcp:HOST:PORT`, the direct road through `HTTPS_PROXY`
-with `crates/podssh-ws/src/dial.rs:154-197`, because `ssh --direct` uses the
+with `crates/podssh-ws/src/dial.rs:190-233`, because `ssh --direct` uses the
 same dialer and socat users expect it. The alternative, no direct address,
 lost: a host with egress would then have only `relay:`, and its 64 MiB limit.
 
@@ -315,7 +315,7 @@ not a listener, so `docs/target-environment.md:84-88` allows it.
 - Read: `sun_path` holds 104 to 108 bytes, and doctor refuses a longer name
   before the call (`crates/podssh-cli/src/doctor/unix.rs:189-198`,
   `crates/podssh-cli/src/doctor/unix.rs:210-212`).
-- Read: sandbox A allows an AF_UNIX bind (`docs/STATUS.md:254`); a connect
+- Read: sandbox A allows an AF_UNIX bind (`docs/STATUS.md:255`); a connect
   was not measured. The attempt is the probe, and its errno is the message.
 
 ## Approach
@@ -412,10 +412,10 @@ shows that an AF_UNIX or loopback bind works (`docs/design.md:709-711`).
   allows the bind. The default is loopback and AF_UNIX; the user can
   configure the address and can turn listening off.
 - Read: five documents still say that podssh never listens:
-  `AGENTS.md:240-245`, `docs/architecture.md:118-131`,
+  `AGENTS.md:240-245`, `docs/architecture.md:120-133`,
   `docs/target-environment.md:84-88`, `SECURITY.md:98-118`, `README.md:40-47`.
 - Read: sandbox A refuses an AF_INET bind and allows an AF_UNIX bind
-  (`docs/STATUS.md:254`). The box refuses each `bind`, AF_UNIX too
+  (`docs/STATUS.md:255`). The box refuses each `bind`, AF_UNIX too
   (`scripts/box/seccomp.json:5-10`), so it gives the refused case.
 - Read: doctor binds, closes, and never listens
   (`crates/podssh-cli/src/doctor/unix.rs:137-231`). A bind that works does
@@ -430,7 +430,7 @@ shows that an AF_UNIX or loopback bind works (`docs/design.md:709-711`).
 2. podssh listens only for a `-listen:` address that the user gives.
    `PODSSH_LISTEN=no` turns listening off: each such address then exits 78
    before any bind. Add the variable to `VARIABLES`
-   (`crates/podssh-cli/src/man/facts.rs:45-236`); the settings file of T-048
+   (`crates/podssh-cli/src/man/facts.rs:45-237`); the settings file of T-048
    can set the same.
 3. The attempt is the probe: socket, bind, listen. EACCES or EPERM exits 77
    with the errno and an address that needs no listener; another error exits
@@ -500,7 +500,7 @@ Plant: bind with no umask; the check of the mode must fail.
 ## Correction
 
 2026-10-10: three of the five documents already say what the ruling
-allows: `AGENTS.md:240-245`, `docs/architecture.md:118-131` and
+allows: `AGENTS.md:240-245`, `docs/architecture.md:120-133` and
 `docs/target-environment.md:84-88` name a listener that the user asks for,
 after a probe. `SECURITY.md` and `README.md` still said that nothing
 listens, and change here. Step 4's umask 077 makes a socket's file mode
@@ -587,7 +587,7 @@ running on the server (`docs/design.md:417-421`).
   each session (`crates/podssh-ssh/src/session.rs:149-197`).
 - Read: the relay ends a session at 64 MiB (1009) or 12 h (1001)
   (`docs/relay.md:219-225`). Sandbox A measured the cap at 67,107,943 bytes,
-  and one close `1011` in 180 short sessions (`docs/STATUS.md:262-263`).
+  and one close `1011` in 180 short sessions (`docs/STATUS.md:263-264`).
 - Read: tmux is never assumed (`docs/target-environment.md:101-103`).
 
 ## Approach
@@ -730,7 +730,7 @@ no listener, or that the relay ends a desktop stream after 64 MiB.
 - Read: 64 MiB for each session, both directions together
   (`docs/relay.md:162`), then Close 1009 (`docs/relay.md:223`); public
   targets only (`docs/relay.md:164`). Through the proxy of sandbox A: 0.5 to
-  0.7 MB/s (`docs/STATUS.md:261`).
+  0.7 MB/s (`docs/STATUS.md:262`).
 - Not measured: no RDP, VNC or Telnet client ran through podssh. Each claim
   about a client below is to verify.
 
@@ -787,8 +787,8 @@ were found by their manuals (read on 2026-10-12, not run here): SSVNC's
 TigerVNC's `vncviewer` takes a Unix socket's path (its synopsis,
 `vncviewer [options] [unix socket]`). The second still needs a listener,
 but an AF_UNIX one, which sandbox A allows where it refuses AF_INET
-(`docs/STATUS.md:251`); there OpenSSH's form a fails before it binds, as
-`ssh` finds no entry for the user (`docs/STATUS.md:256`).
+(`docs/STATUS.md:252`); there OpenSSH's form a fails before it binds, as
+`ssh` finds no entry for the user (`docs/STATUS.md:257`).
 
 ## Done
 
@@ -1168,10 +1168,10 @@ The calls made where the Approach left a choice:
   `torvalds/linux:tools/usb/usbip/src/usbip_attach.c`), so the device's
   traffic passes podssh for as long as the pipe's session lasts; the
   README says so. `usbip` dials TCP only, so a host that refuses an
-  AF_INET bind, as sandbox A does (`docs/STATUS.md:251`), cannot run the
+  AF_INET bind, as sandbox A does (`docs/STATUS.md:252`), cannot run the
   recipe, nor can one without the modules.
 - The row states the limit by the throughput measured through sandbox A's
-  proxy (`docs/STATUS.md:258`): 64 MiB is about 2 minutes of reads at
+  proxy (`docs/STATUS.md:259`): 64 MiB is about 2 minutes of reads at
   0.5 to 0.7 MB/s.
 
 What waits:

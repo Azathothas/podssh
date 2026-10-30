@@ -77,6 +77,33 @@ fn no_proxy_lists_match_names_suffixes_and_wildcards() {
     assert!(!no_proxy_matches("other.org", "example.com"));
 }
 
+/// A block `ADDR/BITS` matches each address inside it, and never a name: the
+/// `NO_PROXY` of a Claude Code cloud container lists `10.0.0.0/8` and
+/// `100.64.0.0/10` (T-316).
+#[test]
+fn no_proxy_blocks_match_the_addresses_inside_them() {
+    let list = "localhost,10.0.0.0/8,172.16.0.0/12,100.64.0.0/10,fd7a::/16";
+    for inside in
+        ["10.1.2.3", "10.255.255.255", "172.31.0.1", "100.100.1.1", "fd7a::1", "[fd7a:115c::2]", "::ffff:10.1.2.3"]
+    {
+        assert!(no_proxy_matches(list, inside), "{inside} is inside a block of {list}");
+    }
+    for outside in ["11.0.0.1", "172.32.0.1", "100.128.0.1", "fd7b::1", "relay.example", "10.example"] {
+        assert!(!no_proxy_matches(list, outside), "{outside} is in no block of {list}");
+    }
+    assert!(!no_proxy_matches("10.0.0.0/16", "10.1.2.3"), "another block of 10/8");
+    assert!(no_proxy_matches("10.1.2.3/32", "10.1.2.3") && !no_proxy_matches("10.1.2.3/32", "10.1.2.4"));
+    assert!(no_proxy_matches("0.0.0.0/0", "192.0.2.1") && !no_proxy_matches("0.0.0.0/0", "2001:db8::1"));
+    assert!(no_proxy_matches("::/0", "2001:db8::1"));
+    // A block that is not one: bits out of range, or not an address.
+    for bad in ["10.0.0.0/33", "fd7a::/129", "10.0.0.0/x", "example.com/8", "10.0.0.0/"] {
+        assert!(!no_proxy_matches(bad, "10.1.2.3"), "{bad}");
+    }
+    assert_eq!(podssh_ws::dial::no_proxy_entry(list, "100.100.1.1"), Some("100.64.0.0/10"));
+    assert_eq!(podssh_ws::dial::no_proxy_entry(list, "localhost"), Some("localhost"));
+    assert_eq!(podssh_ws::dial::no_proxy_entry(list, "relay.example"), None);
+}
+
 #[test]
 fn environment_precedence_and_exclusions() {
     let lower_wins = vars(&[("https_proxy", "http://a:1"), ("HTTPS_PROXY", "http://b:2")]);

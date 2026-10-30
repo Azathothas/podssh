@@ -1,7 +1,7 @@
 This file holds the work that makes podssh usable by programs and agents: JSON forms of `doctor`,
 `man` and the result of `ssh`, `podssh status`, the end-to-end check in the binary, `podssh
 ping`, an MCP server, and a log of sessions. stdout carries the answer and nothing else
-(`docs/architecture.md:146-147`). `serde` and `serde_json` are already dependencies of the binary
+(`docs/architecture.md:148-149`). `serde` and `serde_json` are already dependencies of the binary
 (`crates/podssh-cli/Cargo.toml:53`), so no entry here needs a new crate for JSON.
 
 # T-049: `podssh doctor --json` (GitHub #9)
@@ -126,7 +126,7 @@ Read: the data is in tables already. Commands and flags: `VERBS`
 and the availability (lines 443-451 at `22c3b88`). Arguments: the parser
 (`crates/podssh-cli/src/man/model.rs:204-208`). Keywords:
 `crates/podssh-cli/src/ssh/keywords.rs:25-113`, with the stated defaults (lines 99-104 at `22c3b88`).
-Variables: `crates/podssh-cli/src/man/facts.rs:45-236`. The files and the exit codes were text
+Variables: `crates/podssh-cli/src/man/facts.rs:45-237`. The files and the exit codes were text
 blocks only (`crates/podssh-cli/src/man/facts.rs` lines 100-145 and 231-271 at `332ee58`), and the blocks of the
 manual do not keep the kind and the `instead` of a flag.
 
@@ -677,7 +677,7 @@ Measured: `podssh mcp` exits 64 (unknown subcommand).
 Read: a prompt goes to the controlling terminal or to `SSH_ASKPASS` (`docs/cli.md:2120-2145`),
 and the terminal of an agent can be the user's own. The session output goes straight to the
 process's stdout (`crates/podssh-ssh/src/io.rs:414-431`), which an MCP server over stdio uses for
-its protocol. podssh never listens (`docs/architecture.md:118-131`), and stdio needs no listener.
+its protocol. podssh never listens (`docs/architecture.md:120-133`), and stdio needs no listener.
 
 ## Approach
 
@@ -847,7 +847,7 @@ replaces a whole file (lines 178-197 at `22c3b88`), and no function appends to o
    two processes do not mix their lines.
 5. A size limit: at 1 MiB, rename the file to `sessions.1.jsonl`, and start a new one.
 6. `podssh status` (T-051) shows the last line in short form.
-7. Add the variable to VARIABLES (`crates/podssh-cli/src/man/facts.rs:45-236`; the tests require
+7. Add the variable to VARIABLES (`crates/podssh-cli/src/man/facts.rs:45-237`; the tests require
    it) and the file to FILES, in the same commit.
 
 ## Decision

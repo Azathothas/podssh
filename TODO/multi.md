@@ -1215,7 +1215,7 @@ expect rule.
    reads `\r`, `\n`, `\t` and `\xNN`. Each rule waits `--expect-timeout`
    (default 30 s); a miss ends the session with 255 and names the rule.
 3. No secrets: `--send` is on the command line, which each process can read
-   (`docs/architecture.md:141-143`). The manual says so; passwords come
+   (`docs/architecture.md:143-145`). The manual says so; passwords come
    through `SSH_ASKPASS`.
 4. Tasks before and after the connection: the shell does them
    (`cmd && podssh ssh host; cmd`). Only `LocalCommand` needs podssh,
@@ -1499,7 +1499,7 @@ a ticket, or a tool that asks an AI.
   (`AGENTS.md:246-250`), as it runs `SSH_ASKPASS`: the program, no shell, and
   its first line read back (`crates/podssh-ssh/src/prompt.rs:102-119`).
 - Read: credentials never go to output, logs, URLs or argv
-  (`docs/architecture.md:141-143`). The token type never shows itself
+  (`docs/architecture.md:143-145`). The token type never shows itself
   (`crates/podssh-relay/src/token.rs:27-56`), and doctor never shows proxy
   credentials or tokens (`docs/cli.md:1187-1189`).
 - Read: podssh's messages leave through two writers: `Streams.err` in the
@@ -1514,7 +1514,7 @@ a ticket, or a tool that asks an AI.
 
 1. A variable `PODSSH_ERROR_PROGRAM`: one program, with no shell and no
    arguments, as `SSH_ASKPASS`. Add it to `VARIABLES`
-   (`crates/podssh-cli/src/man/facts.rs:45-236`).
+   (`crates/podssh-cli/src/man/facts.rs:45-237`).
 2. When: only when podssh itself fails: a usage error (64), a configuration
    error (78), 69, 70, 77, or 255 for a failure of podssh. Never after a
    success, and never for the status of a remote command or of an `exec:`

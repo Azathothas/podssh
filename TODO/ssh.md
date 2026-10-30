@@ -181,7 +181,7 @@ Read:
    `scripts/interop-faults.sh:228` looks for `1009 session byte cap`.
 6. Correct the comment on the window (`crates/podssh-ssh/src/run.rs` lines
    25-29 at `80f20bf`). The window of 512 KiB stays: it is below both limits.
-7. Update `docs/relay.md` (lines 155-158 at `80f20bf`) and `docs/STATUS.md:490`. T-025 uses the
+7. Update `docs/relay.md` (lines 155-158 at `80f20bf`) and `docs/STATUS.md:491`. T-025 uses the
    classification for its retry rule. T-227 is a different path
    (`--direct`).
 
@@ -1503,7 +1503,7 @@ Read:
   fails. So the relay road ends a stuck write in about 60 to 130 s.
 - The direct road gives russh the TCP stream with only `nodelay` set
   (`crates/podssh-cli/src/ssh/transport.rs`, lines 99-101 at `cafcdb4`,
-  `crates/podssh-ws/src/dial.rs:194-196`).
+  `crates/podssh-ws/src/dial.rs:230-232`).
 - russh takes SSH window credit before it writes, so a remote program that
   stops reading makes the session idle, not stuck (GitHub #36). Only a stall
   below SSH causes the hang.

@@ -41,7 +41,8 @@ HTTPS. Build it only with `--features ts`; see [development.md](development.md).
   connection of the node goes through it: to the control server, and to DERP,
   over WebSocket to the relay too, by name and within 20 s (patch 0017).
   Credentials in `--ts-proxy` can be read in the list of processes, and
-  `podssh ts` says so.
+  `podssh ts` says so. The fork reads `no_proxy` by podssh-ws's rules, a
+  block `ADDR/BITS` too (T-316, patch 0023); a test holds the two equal.
 - The proxy can be SOCKS5 (`socks5://`, `socks5h://`, port 1080; T-281,
   patch 0022), as for each other podssh command: each connection of the
   node sends the host's name to it (the address type 3), with the user and

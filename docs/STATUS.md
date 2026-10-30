@@ -205,6 +205,7 @@ in [ROADMAP.md](ROADMAP.md).
 | DNS over HTTPS: `github.com` through each of 1.1.1.1, 8.8.8.8, 1.0.0.1 and 8.8.4.4 | Each answers through verified TLS (`cargo test -p podssh-ws --test live_doh -- --ignored`). A name that does not exist stops the lookup at the first answer (NXDOMAIN). |
 | `--relay-addr tcp.ssh.relay.ajam.dev=104.21.39.2` (the relay's real address) | GitHub's banner through the relay. |
 | `--relay-addr tcp.ssh.relay.ajam.dev=1.1.1.1` (a wrong address) | Cloudflare's edge there has a valid certificate for the name and refuses the request (its error 1034). podssh fails over to a pool host, and the session opens. |
+| `no_proxy` with blocks (T-316, 2026-10-30): `10.0.0.0/8`, `100.64.0.0/10`, `fd7a::/16`, as a Claude Code cloud container lists them | An address inside a block goes directly, a name never matches a block, and `::ffff:10.1.2.3` is `10.1.2.3`; the Tailscale fork reads the list the same way, case for case; `doctor` names the entry ("NO_PROXY's entry 10.0.0.0/8 excludes 10.1.2.3"). Planted, the blocks removed from either matcher: its test failed (`cargo test -p podssh-ws --test dial`, `-p podssh-ts --test derp_proxy`, `-p podssh-cli --test doctor`, Linux). |
 
 ## `podssh doctor`, measured
 

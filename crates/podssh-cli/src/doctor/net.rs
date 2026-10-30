@@ -118,7 +118,12 @@ fn proxy_setting(report: &mut Report<'_>, relay_host: &str) {
             let why = if dial::is_loopback(relay_host) {
                 format!("{relay_host} is this host's own loopback, which never goes through a proxy")
             } else {
-                format!("NO_PROXY excludes {relay_host}")
+                // The entry that matched: a block (10.0.0.0/8) is not plain to see.
+                let list = dial::NO_PROXY_VARS.iter().find_map(|n| var(n));
+                match list.as_deref().and_then(|l| dial::no_proxy_entry(l, relay_host)) {
+                    Some(entry) => format!("NO_PROXY's entry {entry} excludes {relay_host}"),
+                    None => format!("NO_PROXY excludes {relay_host}"),
+                }
             };
             report.ok("proxy", format!("{name} is set, but {why}, so podssh connects to it directly"));
         }

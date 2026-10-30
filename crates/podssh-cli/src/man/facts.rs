@@ -61,7 +61,8 @@ pub const VARIABLES: &[(&[&str], &str)] = &[
     (
         &["no_proxy", "NO_PROXY"],
         "Hosts to reach without the proxy, separated by commas: example.com also matches its subdomains, \
-      and * matches each host. A loopback address never goes through a proxy.",
+      * matches each host, and a block ADDR/BITS (10.0.0.0/8, fd7a::/16) matches each address inside \
+      it, never a name. A loopback address never goes through a proxy.",
     ),
     (&["PODSSH_RELAY"], "The relay hosts, as --relay-host. The flag wins."),
     (

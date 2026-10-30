@@ -430,7 +430,7 @@ requires TLS 1.3 (`scripts/fake-relay.py`, lines 426-427 at `0d3d13a`).
    (`crates/podssh-relay/src/health.rs:98-101`, which `doctor` and `relay status` share); the live relay must still give TLS
    1.3.
 6. Change the comment of `suites.rs`, `docs/architecture.md` (line 46 at `0d3d13a`), the Trust item of the manual
-   (`crates/podssh-cli/src/man/facts.rs:384-400`) and `docs/STATUS.md` in the same commit.
+   (`crates/podssh-cli/src/man/facts.rs:385-401`) and `docs/STATUS.md` in the same commit.
 
 ## Decision
 
@@ -712,7 +712,7 @@ once (`crates/podssh-relay/src/open.rs:70`) and gives exit 78 in `podssh proxy`
    user and password of RFC 1929, each of 1 to 255 bytes; CONNECT with the address type 3, the
    host name, so the client needs no DNS (`crates/podssh-ws/src/dial.rs:6-9`). Read exactly the
    length of the reply: the bytes after it belong to TLS, as `read_head_exact` keeps them
-   (`:337-360`). Bound each step.
+   (`:373-396`). Bound each step.
 3. When the proxy answers 0x08 (address type not supported), resolve the name in podssh's own
    order (pinned, system, DNS over HTTPS), and try once with the address.
 4. Map each answer to the HTTP case that `another_host_may_help`
@@ -722,7 +722,7 @@ once (`crates/podssh-relay/src/open.rs:70`) and gives exit 78 in `podssh proxy`
 5. Credentials never in output: `Display` shows the host and port only (now
    `crates/podssh-ws/src/proxy.rs:70-75`).
 6. `doctor` names the SOCKS5 proxy, and its proxy checks
-   (`crates/podssh-cli/src/doctor/net.rs:166-190`) work for both forms. The two tests above
+   (`crates/podssh-cli/src/doctor/net.rs:171-195`) work for both forms. The two tests above
    plant `ftp://` and `socks4://` instead; `socks4` and `socks4a` are refused by name.
 7. Change the proxy variables in VARIABLES (`crates/podssh-cli/src/man/facts.rs:46-55`),
    `docs/architecture.md` and `docs/cli.md` in the same commit.
@@ -756,7 +756,7 @@ cargo test -p podssh-cli --test doctor
 sh scripts/dev.sh check   # interop: through the SOCKS5 server of OpenSSH (ssh -D)
 ```
 
-A stand-in on 127.0.0.1, as in `crates/podssh-ws/tests/dial.rs:101-123`, checks the bytes: the
+A stand-in on 127.0.0.1, as in `crates/podssh-ws/tests/dial.rs:128-150`, checks the bytes: the
 greeting, the user and password, and a CONNECT with the address type 3 and the relay's name. In
 the gate, the SOCKS5 server of OpenSSH (`ssh -N -D 127.0.0.1:PORT` to the test server) carries a
 session to the stand-in relay, and a password in the proxy URL never appears in the output.
@@ -1067,7 +1067,7 @@ proxy that `HTTPS_PROXY` names, else directly, as before.
 **Milestone:** backlog
 **Priority:** P2
 **Effort:** S
-**Status:** open
+**Status:** done
 
 ## Problem
 
@@ -1092,13 +1092,39 @@ client that reads CIDR entries for names (none of them does).
 ## Prove
 
 ```sh
-cargo test -p podssh-ws dial::
+cargo test -p podssh-ws --test dial
+cargo test -p podssh-ts --test derp_proxy
+cargo test -p podssh-cli --test doctor
 ```
 
 A unit test for each form: `10.1.2.3` in `10.0.0.0/8`, `100.100.1.1` in
 `100.64.0.0/10`, `fd7a::1` in `fd7a::/16`, `10.1.2.3` not in `10.0.0.0/16`
-of another block, a name never in a block. Planted: the CIDR test removed
-from the matcher; the tests fail.
+of another block, a name never in a block. The Tailscale fork reads the
+list for the node, and must agree case for case. Planted: the CIDR test
+removed from the matcher; the tests fail.
+
+## Done
+
+2026-10-30. A block `ADDR/BITS`, IPv4 or IPv6, matches each address inside
+it, and an IPv4 address written as IPv6 (`::ffff:10.1.2.3`) as the IPv4
+address; a name never matches a block, and a block with bits out of range
+or no address matches nothing (`crates/podssh-ws/src/dial.rs`,
+`no_proxy_entry` and `in_block`). The Tailscale fork reads the list by the
+same rules (`vendor/tailscale-rs/ts_http_util/src/proxy.rs`, patch 0023),
+and the test of their agreement has nine cases of blocks more. `doctor`
+names the entry that kept the relay host off the proxy: "NO_PROXY's entry
+10.0.0.0/8 excludes 10.1.2.3". The manual's row of `no_proxy`,
+`docs/architecture.md` and `docs/tailscale.md` say it.
+
+- Linux, 2026-10-30: `cargo test -p podssh-ws --test dial`, 15 passed;
+  `cargo test -p podssh-ts --test derp_proxy`, 6 passed; `cargo test -p
+  podssh-cli --test doctor`, 11 passed (2 ignored, live);
+  `--lib man::` 35 and `--test man_page` 10 passed. clippy of the three
+  crates and rustfmt clean.
+- Planted: the block test removed from podssh-ws's matcher, the test of
+  blocks failed ("10.1.2.3 is inside a block of ..."); removed from the
+  fork's, the agreement failed ("10.0.0.0/8" for "10.1.2.3"); restored, each
+  passed.
 
 # T-317: A proxy that answers `200` to CONNECT and then carries no SSH: `doctor` says that plain ssh can leave, and `--direct` ends with a bare reset
 

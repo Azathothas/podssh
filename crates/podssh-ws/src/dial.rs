@@ -132,20 +132,56 @@ pub fn is_loopback(host: &str) -> bool {
 /// Whether a `no_proxy` list excludes `host`. Entries are separated by commas
 /// or whitespace; `*` matches everything; `example.com`, `.example.com` and
 /// `*.example.com` all match `example.com` and its subdomains; a `:port`
-/// suffix on an entry is ignored. Matching is case-insensitive.
+/// suffix on an entry is ignored. Matching is case-insensitive. A block
+/// `ADDR/BITS`, IPv4 or IPv6, matches each address inside it, as in curl
+/// (7.86 on), Go and Python's requests; a name is never resolved for it.
 pub fn no_proxy_matches(list: &str, host: &str) -> bool {
+    no_proxy_entry(list, host).is_some()
+}
+
+/// The first entry of a `no_proxy` list that excludes `host`, by the rules of
+/// [`no_proxy_matches`]: `podssh doctor` names it.
+pub fn no_proxy_entry<'a>(list: &'a str, host: &str) -> Option<&'a str> {
     let host = host.trim_start_matches('[').trim_end_matches(']').trim_end_matches('.').to_ascii_lowercase();
-    list.split(|c: char| c == ',' || c.is_whitespace()).map(str::trim).filter(|e| !e.is_empty()).any(|entry| {
-        if entry == "*" {
+    list.split(|c: char| c == ',' || c.is_whitespace()).map(str::trim).filter(|e| !e.is_empty()).find(|raw| {
+        if *raw == "*" || in_block(raw, &host) {
             return true;
         }
-        let entry = match split_host_port(entry) {
+        let entry = match split_host_port(raw) {
             Ok((h, _)) => h,
-            Err(_) => entry.to_string(),
+            Err(_) => raw.to_string(),
         };
         let entry = entry.trim_start_matches("*.").trim_start_matches('.').trim_end_matches('.').to_ascii_lowercase();
         !entry.is_empty() && (host == entry || host.ends_with(&format!(".{entry}")))
     })
+}
+
+/// Whether `host`, an address, lies inside the block `entry` (`ADDR/BITS`). An
+/// IPv4 address written as IPv6 (`::ffff:10.1.2.3`) is the IPv4 address.
+fn in_block(entry: &str, host: &str) -> bool {
+    use std::net::IpAddr;
+    let Some((net, bits)) = entry.split_once('/') else { return false };
+    let (Ok(net), Ok(bits)) =
+        (net.trim_start_matches('[').trim_end_matches(']').parse::<IpAddr>(), bits.parse::<u32>())
+    else {
+        return false;
+    };
+    let Ok(addr) = host.parse::<IpAddr>() else { return false };
+    let addr = match addr {
+        IpAddr::V6(v6) => v6.to_ipv4_mapped().map_or(addr, IpAddr::V4),
+        v4 => v4,
+    };
+    match (net, addr) {
+        (IpAddr::V4(net), IpAddr::V4(addr)) if bits <= 32 => {
+            let mask = u32::MAX.checked_shl(32 - bits).unwrap_or(0);
+            u32::from(net) & mask == u32::from(addr) & mask
+        }
+        (IpAddr::V6(net), IpAddr::V6(addr)) if bits <= 128 => {
+            let mask = u128::MAX.checked_shl(128 - bits).unwrap_or(0);
+            u128::from(net) & mask == u128::from(addr) & mask
+        }
+        _ => false,
+    }
 }
 
 /// Open a TCP connection to `host:port`, through the proxy `proxy` selects.

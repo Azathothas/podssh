@@ -182,7 +182,9 @@ impl ProxyConfig {
     /// 0017): entries apart at commas or white space; `*` is every host;
     /// `example.com`, `.example.com` and `*.example.com` each name
     /// `example.com` and its subdomains; a `:port` on an entry is ignored;
-    /// case does not count. These are podssh's rules for the same variable.
+    /// case does not count; a block `ADDR/BITS` names each address inside
+    /// it, never a name (podssh's patch 0023). These are podssh's rules for
+    /// the same variable.
     pub fn with_no_proxy(mut self, list: &str) -> Self {
         self.no_proxy = list
             .split(|c: char| c == ',' || c.is_whitespace())
@@ -284,12 +286,47 @@ fn no_proxy_entry_matches(entry: &str, host: &str) -> bool {
         .trim_end_matches(']')
         .trim_end_matches('.')
         .to_ascii_lowercase();
+    if in_block(entry, &host) {
+        return true;
+    }
     let entry = without_port(entry)
         .trim_start_matches("*.")
         .trim_start_matches('.')
         .trim_end_matches('.')
         .to_ascii_lowercase();
     !entry.is_empty() && (host == entry || host.ends_with(&format!(".{entry}")))
+}
+
+/// Whether `host`, an address, lies inside the block `entry` (`ADDR/BITS`),
+/// as podssh-ws reads one (podssh's patch 0023). An IPv4 address written as
+/// IPv6 (`::ffff:10.1.2.3`) is the IPv4 address.
+fn in_block(entry: &str, host: &str) -> bool {
+    use std::net::IpAddr;
+    let Some((net, bits)) = entry.split_once('/') else {
+        return false;
+    };
+    let net = net.trim_start_matches('[').trim_end_matches(']');
+    let (Ok(net), Ok(bits)) = (net.parse::<IpAddr>(), bits.parse::<u32>()) else {
+        return false;
+    };
+    let Ok(addr) = host.parse::<IpAddr>() else {
+        return false;
+    };
+    let addr = match addr {
+        IpAddr::V6(v6) => v6.to_ipv4_mapped().map_or(addr, IpAddr::V4),
+        v4 => v4,
+    };
+    match (net, addr) {
+        (IpAddr::V4(net), IpAddr::V4(addr)) if bits <= 32 => {
+            let mask = u32::MAX.checked_shl(32 - bits).unwrap_or(0);
+            u32::from(net) & mask == u32::from(addr) & mask
+        }
+        (IpAddr::V6(net), IpAddr::V6(addr)) if bits <= 128 => {
+            let mask = u128::MAX.checked_shl(128 - bits).unwrap_or(0);
+            u128::from(net) & mask == u128::from(addr) & mask
+        }
+        _ => false,
+    }
 }
 
 /// An entry without its `:port`: `[v6]`, `[v6]:port` and `host:port` lose

@@ -187,7 +187,7 @@ the file that `--ts-state` names (`crates/podssh-cli/src/flags.rs:331-332`,
    `podssh ssh iroh:TICKET` dials it (the address of `docs/design.md:678`).
 6. Add the key files to FILES in the manual
    (`crates/podssh-cli/src/man/data.rs:131-261`), and each new variable to
-   `VARIABLES` (`crates/podssh-cli/src/man/facts.rs:45-236`).
+   `VARIABLES` (`crates/podssh-cli/src/man/facts.rs:45-237`).
 
 ## Decision
 
@@ -511,9 +511,9 @@ in iroh's source at the pinned version.
    not in the list.
 6. `doctor`, with the feature, reports the `/ping` of each relay and the home
    relay.
-7. Add the variable to `VARIABLES` (`crates/podssh-cli/src/man/facts.rs:45-236`),
+7. Add the variable to `VARIABLES` (`crates/podssh-cli/src/man/facts.rs:45-237`),
    the flag to the flag table, and the default to the relay section of the
-   manual (`crates/podssh-cli/src/man/facts.rs:273-435`). The tests compare
+   manual (`crates/podssh-cli/src/man/facts.rs:274-436`). The tests compare
    `VARIABLES` with the source in both directions
    (`crates/podssh-cli/src/man/facts.rs:43-44`), so a variable that only the
    feature reads is in the manual only with the feature.
@@ -1760,8 +1760,8 @@ whether MPTCP helps podssh on any road.
 ## Premise
 
 Read: `--direct` connects with a plain `TcpStream::connect`
-(`crates/podssh-ws/src/dial.rs:202-273`, the call at
-`crates/podssh-ws/src/dial.rs:246`). Through a proxy, MPTCP can reach only the
+(`crates/podssh-ws/src/dial.rs:238-309`, the call at
+`crates/podssh-ws/src/dial.rs:282`). Through a proxy, MPTCP can reach only the
 proxy. `podssh-ws` has no `libc` dependency (`crates/podssh-ws/Cargo.toml`).
 Read in the report, not verified here: RustConn uses MPTCP. Not known:
 whether the relay's edge or a target server accepts MPTCP. Linux offers it

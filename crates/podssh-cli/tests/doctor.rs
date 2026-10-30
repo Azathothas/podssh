@@ -253,6 +253,17 @@ fn json_has_each_check_of_the_text() {
     assert_eq!(doc["counts"], serde_json::json!({ "ok": ok, "fail": failed, "unknown": unknown }));
 }
 
+/// A relay host inside a block of `no_proxy` goes direct, and the line names
+/// the entry that matched, which a block does not make plain (T-316).
+#[test]
+fn a_block_of_no_proxy_is_named_on_the_proxy_line() {
+    let set = [("https_proxy", "http://proxy.example:3128"), ("no_proxy", "localhost,10.0.0.0/8")];
+    let run = doctor(&["--relay-host", "10.1.2.3"], &set, &[], true);
+    assert!(run.out.contains("NO_PROXY's entry 10.0.0.0/8 excludes 10.1.2.3, so podssh connects"), "{}", run.out);
+    let run = doctor(&["--relay-host", "11.1.2.3"], &set, &[], true);
+    assert!(run.out.contains("https_proxy names proxy.example:3128"), "{}", run.out);
+}
+
 /// The JSON hides proxy credentials and a token as the text does.
 #[test]
 fn json_shows_no_proxy_password_and_no_token() {

@@ -50,7 +50,9 @@ the user gives. For each host, `podssh-ws` connects:
    which has no authentication, is refused. The iroh road takes a SOCKS5
    proxy too, by the relay's name, through the patch of iroh-relay that
    podssh carries in `vendor/` (T-280); so does the tailnet, through the
-   fork's patch 0022 (T-281).
+   fork's patch 0022 (T-281). `no_proxy` keeps a host off the proxy: a name
+   with its subdomains, `*`, or a block `ADDR/BITS` for each address inside
+   it, never a name (T-316), as curl, Go and Python's requests read it.
 2. Else directly. The address comes from, in order: an IP literal, a pinned
    address (`--relay-addr`), the system resolver, DNS over HTTPS by IP
    literal.
