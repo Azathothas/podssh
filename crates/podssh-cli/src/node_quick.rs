@@ -89,7 +89,9 @@ fn prepare(args: &NodeArgs) -> Result<Ready, Refusal> {
     }
     let flags = crate::node::key_flags(args)?;
     let allow = flags.allow.ok_or_else(|| {
-        Refusal::usage("--quick-tunnel needs --allow FILE: its name is public, so only the operator keys in FILE come in")
+        Refusal::usage(
+            "--quick-tunnel needs --allow FILE: its name is public, so only the operator keys in FILE come in",
+        )
     })?;
     let place = crate::channel::node_place(&label, flags.key.as_deref(), flags.ephemeral)?;
     crate::pairs::online()?;
@@ -152,7 +154,8 @@ async fn serve_quick(ready: Ready, err: &mut dyn Write) -> i32 {
         let _ = stop.send(true);
     });
     let say = |line: String| eprintln!("podssh node: {label}: {line}");
-    let (client_id, version, arch) = (rand::random::<[u8; 16]>(), format!("podssh {}", env!("CARGO_PKG_VERSION")), arch());
+    let (client_id, version, arch) =
+        (rand::random::<[u8; 16]>(), format!("podssh {}", env!("CARGO_PKG_VERSION")), arch());
     let (mut wait, mut connected_once) = (RETRY_FIRST, false);
     loop {
         if *stopped.borrow() {

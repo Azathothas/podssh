@@ -45,7 +45,10 @@ fn a_quick_tunnel_is_refused_before_any_connection_without_its_needs() {
     let allow = allow.to_string_lossy().into_owned();
     for (args, says) in [
         (vec!["node", "lab", "127.0.0.1:22", "--quick-tunnel"], "needs --allow FILE"),
-        (vec!["node", "lab", "127.0.0.1:22", "--quick-tunnel", "--plain", "--allow", &allow], "--plain is not for --quick-tunnel"),
+        (
+            vec!["node", "lab", "127.0.0.1:22", "--quick-tunnel", "--plain", "--allow", &allow],
+            "--plain is not for --quick-tunnel",
+        ),
         (vec!["node", "lab", "127.0.0.1:22", "--quick-tunnel", "--no-e2e"], "--no-e2e is not for --quick-tunnel"),
         (vec!["node", "lab", "udp:127.0.0.1:53", "--quick-tunnel", "--allow", &allow], "carries TCP only"),
         (vec!["node", "lab", "web=127.0.0.1:80", "--quick-tunnel", "--allow", &allow], "one TARGET, with no route"),

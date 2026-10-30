@@ -107,8 +107,7 @@ impl Aead {
             Inner::Aes128(k) => k.encrypt(&Self::nonce(nonce), payload).ok()?,
             Inner::Aes256(k) => k.encrypt(&Self::nonce(nonce), payload).ok()?,
             Inner::ChaCha(k) => {
-                chacha20poly1305::ChaCha20Poly1305::encrypt(k, &chacha20poly1305::Nonce::from(*nonce), payload)
-                    .ok()?
+                chacha20poly1305::ChaCha20Poly1305::encrypt(k, &chacha20poly1305::Nonce::from(*nonce), payload).ok()?
             }
         };
         *buffer = sealed;
@@ -126,8 +125,7 @@ impl Aead {
             Inner::Aes128(k) => k.decrypt(&Self::nonce(nonce), payload).ok()?,
             Inner::Aes256(k) => k.decrypt(&Self::nonce(nonce), payload).ok()?,
             Inner::ChaCha(k) => {
-                chacha20poly1305::ChaCha20Poly1305::decrypt(k, &chacha20poly1305::Nonce::from(*nonce), payload)
-                    .ok()?
+                chacha20poly1305::ChaCha20Poly1305::decrypt(k, &chacha20poly1305::Nonce::from(*nonce), payload).ok()?
             }
         };
         // The AEAD crates return a `Vec` that may be a fresh allocation, so
