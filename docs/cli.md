@@ -827,6 +827,48 @@ exec -it NAME sh` already says in OpenSSH's words.
   Docker's contexts here are not used: they connect with OpenSSH, not with
   podssh.
 
+## `podssh job`
+
+`podssh job [OPTIONS] SUBCOMMAND HOST [ID] [-- COMMAND...]` keeps jobs on a
+far host that go on after the connection ends (T-193,
+`crates/podssh-cli/src/job/`).
+
+- **The host** is a plain POSIX host, reached as `podssh ssh` reaches a
+  destination, with the connection flags of `ssh` (`-p`, `-l`, `-i`, `-o`,
+  `-F`, `-J`, `-v`, `-q`, `--direct` and the relay's) and the `Host` blocks
+  of `ssh_config`. A `node://` or `iroh:` destination is refused (64).
+- **Nothing of podssh runs on the host** but a POSIX sh script,
+  `crates/podssh-cli/src/job/far.sh`. Each call sends it on the stdin of
+  `sh -c 'INSTALL' sh MARKER ACTION ARG...`, and the host keeps it as
+  `~/.podssh/jobs/jobs.sh`, mode 0600 in a directory of mode 0700: a new
+  name, then a rename, so that a reader never reads half of it. The login
+  shell, POSIX or not, only starts `sh`, and each word is one quoted word,
+  as for the copy by exec of `cp`. The answer comes after a random marker,
+  so that text which a login prints first is never read as an answer.
+- **tmux holds each job.** tmux is probed, never assumed (`AGENTS.md`,
+  section 5, rule 1), as for `--persist` (T-178). `start HOST -- COMMAND`
+  makes the job's directory `~/.podssh/jobs/MILLIS-ID` (the time of the
+  start in milliseconds, then 8 random hex digits), and starts
+  `tmux new-session -d -s podssh-job-ID`, which runs the command in `sh`,
+  in the home directory, with no input. The output and the errors go to the
+  file `out` of that directory, and the exit status to `status` at the end.
+  Then podssh prints the ID on stdout. With no tmux on `PATH`, `start` exits
+  255 and names tmux, and nothing starts. The command must follow `--`, so
+  that no word of it is read as a flag of podssh, and a command with a
+  newline or a NUL has no word for a far shell (64 for each).
+- `list HOST` prints a line for each job, in the order of their starts:
+  the ID, the state (`running`; `done`; or `lost`, when neither the job's
+  tmux session nor its status is there, as after a restart of the host),
+  the exit status (`-` while there is none) and the command. `log HOST ID`
+  writes the job's output to stdout as it comes, also after the job's end.
+  `stop HOST ID` ends the tmux session of that exact name,
+  `-t =podssh-job-ID`, never one whose name only starts so, and removes the
+  job's directory with its output.
+- **The exit status** is that of `podssh ssh`: 0; 64 for a usage error and
+  78 for a setting, before anything connects; 255 when the host cannot be
+  reached or logged in to, has no tmux, has no job of that ID, or gives no
+  answer.
+
 ## A word with no subcommand
 
 `podssh example.org` never connects. podssh selects a suggestion in two
@@ -2278,6 +2320,8 @@ with the report (`docs/decisions.md`, 2026-10-08).
   ended; 75 a `--timeout` that passed; 77 a bind that the host refuses; 78
   `PODSSH_LISTEN=no`; and `start` gives 255 for a connection or a login
   that failed, as `podssh ssh` does.
+- `podssh job` uses the codes of `podssh ssh`: 255 for a failure of podssh,
+  a host with no tmux or no such job among them.
 - A command that is not implemented exits 70. It never exits 0.
 - A drop of the relay before any request reached the destination is tried
   again (T-025): during the SSH handshake or the login, before the

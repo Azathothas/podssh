@@ -116,7 +116,8 @@ pub fn exit_codes() -> Vec<(Code, String)> {
              or logged in to, or its session ended with no exit status. podssh health: the host could not \
              be reached or logged in to, it has no sh, or its answer had none of the lines of the script. \
              podssh containers: the host could not be reached or logged in to, or its list did not end \
-             within 60 s. podssh session start: the connection or the login failed.",
+             within 60 s. podssh session start: the connection or the login failed. podssh job: the host \
+             could not be reached or logged in to, has no tmux, has no such job, or gave no answer.",
         ),
         (
             Code::Remote,

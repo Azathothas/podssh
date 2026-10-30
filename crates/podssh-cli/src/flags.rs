@@ -290,6 +290,7 @@ mod each;
 mod edit;
 mod expect;
 mod health;
+mod job;
 mod keygen;
 mod man;
 mod mcp;
@@ -312,6 +313,7 @@ pub use copy::CP_FLAGS;
 pub use each::EACH_FLAGS;
 pub use edit::EDIT_FLAGS;
 pub use health::HEALTH_FLAGS;
+pub use job::JOB_FLAGS;
 pub use keygen::KEYGEN_FLAGS;
 pub use man::MAN_FLAGS;
 pub use mcp::MCP_FLAGS;
@@ -349,6 +351,8 @@ pub const VERBS: &[Verb] = &[
         about: "one command on many hosts at once: each line with its host, and the worst status as the exit" },
     Verb { name: "containers", aliases: &["containers"], flags: CONTAINERS_FLAGS,
         about: "the containers of a host, of docker, podman or kubectl, each with the command that enters it" },
+    Verb { name: "job", aliases: &["job"], flags: JOB_FLAGS,
+        about: "jobs on a host that outlive the connection, each in the host's tmux: start, list, log, stop" },
     Verb { name: "proxy", aliases: &["proxy"], flags: PROXY_FLAGS,
         about: "ProxyCommand form: a byte pipe, not an SSH client" },
     Verb { name: "pipe", aliases: &["pipe"], flags: PIPE_FLAGS,
@@ -403,6 +407,7 @@ pub const VERBS: &[Verb] = &[
 /// of the commands that work would.
 pub const GROUPS: &[(&str, &[&str])] = &[
     ("Connect", &["ssh", "each", "containers", "proxy", "pipe", "ts"]),
+    ("Work on a host", &["job"]),
     ("Copy files", &["cp", "mv", "scp", "sftp", "edit"]),
     ("Keys", &["keygen", "agent"]),
     ("Check this host and the path", &["doctor", "status", "ping", "health"]),

@@ -79,3 +79,8 @@ rc=$?
 # that scripts/interop.sh stays within 500 lines.
 # shellcheck source=scripts/interop-session.sh
 . "$HERE/interop-session.sh"
+
+# The jobs on a far host (T-193), with the same servers and helpers;
+# sourced here so that scripts/interop.sh stays within 500 lines.
+# shellcheck source=scripts/interop-job.sh
+. "$HERE/interop-job.sh"

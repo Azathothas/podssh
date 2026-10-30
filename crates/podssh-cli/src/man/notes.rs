@@ -9,6 +9,7 @@ use super::notes_containers::CONTAINERS;
 use super::notes_each::EACH;
 use super::notes_edit::EDIT;
 use super::notes_health::HEALTH;
+use super::notes_job::JOB;
 use super::notes_keygen::KEYGEN;
 use super::notes_mcp::MCP;
 use super::notes_pair::{NODE, OPERATOR};
@@ -24,6 +25,7 @@ pub fn for_verb(name: &str) -> &'static [&'static str] {
         "ssh" => SSH,
         "each" => EACH,
         "containers" => CONTAINERS,
+        "job" => JOB,
         "cp" => CP,
         "mv" => MV,
         "scp" => SCP,

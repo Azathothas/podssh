@@ -108,6 +108,8 @@ pub enum Parsed {
     Each(Box<crate::each::EachArgs>),
     /// `podssh containers HOST` (T-190).
     Containers(Box<crate::containers::ContainersArgs>),
+    /// `podssh job SUBCOMMAND HOST ...` (T-193).
+    Job(Box<crate::job::JobArgs>),
     /// `podssh config import FORMAT FILE` (T-047).
     Config(Box<crate::config_import::ConfigArgs>),
     /// `podssh mcp` (T-055).
@@ -184,6 +186,7 @@ impl Parsed {
             Parsed::Edit(args) => !args.refused.is_empty(),
             Parsed::Each(args) => !args.refused.is_empty(),
             Parsed::Containers(args) => !args.refused.is_empty(),
+            Parsed::Job(args) => !args.refused.is_empty(),
             Parsed::Config(args) => !args.refused.is_empty(),
             Parsed::Mcp(args) => !args.refused.is_empty(),
             Parsed::Session(args) => !args.refused.is_empty(),

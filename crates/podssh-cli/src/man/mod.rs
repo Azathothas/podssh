@@ -25,6 +25,7 @@ mod notes_containers;
 mod notes_each;
 mod notes_edit;
 mod notes_health;
+mod notes_job;
 mod notes_keygen;
 mod notes_mcp;
 mod notes_pair;

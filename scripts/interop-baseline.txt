@@ -30,6 +30,7 @@ harness expect interop 6 scripts/interop-expect.sh
 harness broadcast interop 3 scripts/interop-broadcast.sh
 harness keygen interop 92 scripts/interop-keygen.sh
 harness agent interop 30 scripts/interop-agent.sh
+harness job interop 7 scripts/interop-job.sh
 harness local interop 6 scripts/interop-local.sh
 harness control interop 13 scripts/interop-control.sh
 harness faults interop 35 scripts/interop-faults.sh
@@ -717,3 +718,12 @@ expect.timeout pass
 broadcast.both pass
 broadcast.only pass
 broadcast.stop pass
+
+# scripts/interop-job.sh
+job.openssh.start pass
+job.openssh.stop pass
+job.openssh.log pass
+job.dropbear.start pass
+job.dropbear.stop pass
+job.dropbear.log pass
+job.no_tmux pass

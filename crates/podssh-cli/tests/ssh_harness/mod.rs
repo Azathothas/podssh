@@ -38,6 +38,7 @@
 //! the exec of a container answer as on a host with docker and kubectl, and
 //! a pty is granted (T-190, `containers.rs`). For a user `pty-...`, `prompt`
 //! is a shell's prompt, for the expect rules (T-191, `prompt.rs`).
+//! On one of `start_shell`, each command runs in `sh` (T-193, `shell.rs`).
 
 // Each test binary uses a part of it.
 #![allow(dead_code)]
@@ -60,6 +61,7 @@ pub mod podssh;
 mod prompt;
 mod serve;
 pub mod sftp;
+mod shell;
 mod sudo;
 pub mod watch;
 mod x11;
@@ -67,7 +69,9 @@ mod x11;
 // Each test binary uses a part of it.
 use far::Far;
 #[allow(unused_imports)]
-pub use serve::{start, start_counting, start_podssh, start_with};
+pub use serve::{start, start_counting, start_podssh, start_shell, start_with};
+#[allow(unused_imports)]
+pub use shell::Shell;
 use sudo::{elevation, Elevated};
 use x11::x11_probe;
 
@@ -239,6 +243,13 @@ impl server::Handler for Far {
             return Ok(());
         }
         session.channel_success(channel)?;
+        if let Some(shell) = &self.shell {
+            // Its stdin takes the channel's data, as a subsystem's does.
+            if let Some(stdin) = shell::run(shell, &command, channel, session)? {
+                self.sftps.insert(channel, stdin);
+            }
+            return Ok(());
+        }
         if let Some(ran) = podssh::run(self.podssh.as_ref(), &command, channel, session) {
             return ran;
         }

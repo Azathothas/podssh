@@ -62,4 +62,6 @@ pub(super) struct Far {
     pub(super) prompts: HashMap<ChannelId, Vec<u8>>,
     /// The commands of `wait-signal` (T-293).
     pub(super) waits: HashMap<ChannelId, super::interrupt::Wait>,
+    /// A server of `start_shell`: each command runs in sh (T-193).
+    pub(super) shell: Option<super::shell::Shell>,
 }
