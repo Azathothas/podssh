@@ -54,7 +54,7 @@ pub fn run_with(p: &Parsed, s: &mut Streams<'_>, tty: Tty) -> i32 {
             0
         }
         Parsed::Version => {
-            let _ = writeln!(s.out, "podssh {}", help::version());
+            let _ = writeln!(s.out, "{}", crate::version::line());
             0
         }
         // A usage error is a refusal. Nothing goes to stdout, because the

@@ -84,7 +84,10 @@ fn variables_read(code: &str) -> Vec<String> {
             && word.starts_with(|c: char| c.is_ascii_uppercase())
             || word.ends_with("_proxy") && word.chars().all(|c| c.is_ascii_lowercase() || c == '_');
         let called = code[..i].ends_with("var(") || code[..i].ends_with("var_os(");
-        if (shaped || called) && !word.starts_with("CARGO_") && !out.iter().any(|w| w == word) {
+        // A name that the compiler reads (env!, option_env!) is no variable
+        // of a run, so ENVIRONMENT does not list it (T-210).
+        let compiled = code[..i].ends_with("env!(");
+        if (shaped || called) && !compiled && !word.starts_with("CARGO_") && !out.iter().any(|w| w == word) {
             out.push(word.to_string());
         }
     }
@@ -94,8 +97,9 @@ fn variables_read(code: &str) -> Vec<String> {
 /// The control for the test above: the reader finds a planted variable.
 #[test]
 fn the_reader_finds_a_planted_variable() {
-    let code = r#"let a = std::env::var("PLANTED_NAME"); let b = var_os("Plain"); let c = "not a var"; "PREFIX_";"#;
-    assert_eq!(variables_read(code), vec!["PLANTED_NAME", "Plain"]);
+    let code = r#"let a = std::env::var("PLANTED_NAME"); let b = var_os("Plain"); let c = "not a var"; "PREFIX_";
+        let d = option_env!("BUILT_NAME"); let e = env!("BUILT_TOO"); let f = "LATER_NAME";"#;
+    assert_eq!(variables_read(code), vec!["PLANTED_NAME", "Plain", "LATER_NAME"]);
 }
 
 /// The cache directories are the ones FILES describes (T-243): the one of

@@ -654,7 +654,7 @@ verified here.
 **Milestone:** M9
 **Priority:** P2
 **Effort:** S
-**Status:** open
+**Status:** partial
 
 ## Problem
 
@@ -676,7 +676,7 @@ Read:
 - The KTM tester could not tell from an artifact which commit made it, and
   moved the checkout one commit ahead (the KTM report, section 1a; read in
   the report).
-- `crates/podssh-cli/src/man/facts/tests.rs:74-92`: the drift test of the manual
+- `crates/podssh-cli/src/man/facts/tests.rs:74-95`: the drift test of the manual
   counts each quoted upper-case name with `_` in the sources as a variable
   (except `CARGO_` names).
 
@@ -773,6 +773,32 @@ github.com when the workflow is written). The Approach names `actions/attest-bui
 - The snippet of the step, as the research drafted it (not run): `uses:
   actions/attest@1e69f48acb82d1966a394da916b4c1698aa569d6` with `id: attest`, `with: subject-path:
   dist/podssh-*`, after the step "checksums" and before `gh release create`.
+
+## Done
+
+2026-10-30, partial. Item 3: `podssh --version` names the commit of a release build. The
+workflow gives the commit to the compiler as `PODSSH_BUILD_COMMIT`, read with `option_env!` in
+`crates/podssh-cli/src/version.rs` (no build script, no `git` call), and `--version` prints
+`podssh VERSION (COMMIT)`, as rustc names its own; doctor's header carries the same line. A local
+build names none and prints `podssh VERSION` as before, and a value that is not a hex digest of 7
+to 64 characters is no commit. The drift test of the manual skips a name that the compiler reads
+(`env!`, `option_env!`), which is no variable of a run; the help of `-V` says that a release build
+names its commit.
+
+- Here: with `PODSSH_BUILD_COMMIT=$(git rev-parse HEAD)`, `cargo build` built again (cargo
+  tracks the variable) and `--version` printed `podssh 1.0.0-beta.1 (224ccd272f7c...)`, doctor's
+  second line the same with `, linux x86_64`; without it, `podssh 1.0.0-beta.1`.
+- `cargo test -p podssh-cli --lib`: 372 passed; the integration tests `doctor`, `man_page`,
+  `tree`, `plants`, `error_program` and `upgrade` passed (the upgrade and doctor read only the
+  prefix `podssh `). clippy `-D warnings` and rustfmt clean.
+- Planted: any value taken as a commit, and the test of the digest failed; the compile-time
+  names read as variables, and both tests of the drift reader failed (`PODSSH_BUILD_COMMIT`
+  "read but not in ENVIRONMENT").
+
+Next: the workflow sets `PODSSH_BUILD_COMMIT` in each build job, and the short check requires
+it in `--version`; then the attestation of item 1 in the job `publish`, and items 2 and 4 in the
+README and the notes. The Prove runs at the tag of `v1.0.0-beta.2`.
+
 
 # T-211: Signed checksums for each release
 

@@ -82,13 +82,7 @@ pub fn run_doctor(args: &DoctorArgs, out: &mut dyn Write, err: &mut dyn Write) -
     report.json = args.json;
     if !report.json {
         let _ = writeln!(report.out, "podssh doctor: what this host allows, measured rather than assumed");
-        let _ = writeln!(
-            report.out,
-            "podssh {}, {} {}",
-            crate::help::version(),
-            std::env::consts::OS,
-            std::env::consts::ARCH
-        );
+        let _ = writeln!(report.out, "{}, {} {}", crate::version::line(), std::env::consts::OS, std::env::consts::ARCH);
     }
 
     report.section("this host");

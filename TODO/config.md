@@ -766,7 +766,7 @@ of a bad file at `crates/podssh-cli/src/pins.rs:13-31`, the CA file at
 `crates/podssh-cli/src/status.rs:62` and
 `crates/podssh-cli/src/status.rs:75`, `doctor` at
 `crates/podssh-cli/src/doctor/mod.rs:77` and
-`crates/podssh-cli/src/doctor/mod.rs:97`.
+`crates/podssh-cli/src/doctor/mod.rs:91`.
 - `cargo test -p podssh-cli --test settings`: 4 passed here, and 5 in the
   build image (`sh scripts/dev.sh run`), with the test of Unix: `status`
   takes the file's relay hosts, `PODSSH_RELAY` beats it and

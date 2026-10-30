@@ -481,7 +481,7 @@ pub fn availability(verb: &Verb) -> Availability {
 /// manual.
 pub const TOP_OPTIONS: &[(&str, &str, &str)] = &[
     ("-h", "--help", "Print help; --help COMMAND prints the help of one command"),
-    ("-V", "--version", "Print version"),
+    ("-V", "--version", "Print the version, and the commit of a release build"),
 ];
 
 /// Find a verb by any of its spellings. Returns `None` for anything else —

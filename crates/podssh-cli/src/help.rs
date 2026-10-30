@@ -340,7 +340,7 @@ mod tests {
         let h = top_level_help();
         for (left, right) in [
             ("  -h, --help", "Print help; --help COMMAND prints the help of one command"),
-            ("  -V, --version", "Print version"),
+            ("  -V, --version", "Print the version, and the commit of a release build"),
         ] {
             let line = h
                 .lines()

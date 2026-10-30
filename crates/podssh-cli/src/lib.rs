@@ -106,6 +106,8 @@ pub mod tree;
 pub mod ts;
 // The line of a temporary node to `podssh ssh --upgrade` (T-167).
 mod upgrade_line;
+// The commit that a release build names in `--version` (T-210).
+pub mod version;
 
 pub use flags::{FlagKind, FlagRow, Verb, VERBS};
 pub use tree::{parse, Parsed};
