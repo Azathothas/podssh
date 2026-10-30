@@ -1,6 +1,7 @@
 //! The jobs of a host as the far script lists them (T-193), and as `podssh
 //! job list` prints them: one line for each job, in the order of their
-//! start, with its ID, its state, its exit status and its command.
+//! start, with its ID, its state, its exit status and its command; or, with
+//! `--json`, one object (T-197).
 
 /// One job of a host.
 #[derive(Debug, Clone, PartialEq, Eq)]
@@ -10,8 +11,8 @@ pub struct Job {
     /// When it was started, in milliseconds since 1970, by the clock of the
     /// client that started it.
     pub started_ms: u64,
-    /// `running`, `done`, or `lost` (no status and no session: the host or
-    /// tmux's server stopped).
+    /// `queued` (T-197), `running`, `done`, or `lost` (no status and no
+    /// session: the host or tmux's server stopped).
     pub state: String,
     /// The exit status, once it ended; 128 + N for a signal, as sh gives it.
     pub status: Option<i32>,
@@ -65,9 +66,45 @@ pub fn text(jobs: &[Job]) -> String {
     out
 }
 
+/// The list as one JSON object, for `--json` (T-197): the host as it was
+/// named, and each job with its ID, state, status (null while there is
+/// none), the time of its start and its command.
+pub fn json(host: &str, jobs: &[Job]) -> serde_json::Value {
+    let jobs: Vec<serde_json::Value> = jobs
+        .iter()
+        .map(|j| {
+            serde_json::json!({
+                "id": j.id,
+                "state": j.state,
+                "status": j.status,
+                "started_ms": j.started_ms,
+                "command": j.command,
+            })
+        })
+        .collect();
+    serde_json::json!({ "host": host, "jobs": jobs })
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;
+
+    #[test]
+    fn the_json_list_is_one_object_with_each_job() {
+        let jobs = vec![Job {
+            id: "aaaaaaaa".into(),
+            started_ms: 7,
+            state: "queued".into(),
+            status: None,
+            command: "make".into(),
+        }];
+        let value = json("web1", &jobs);
+        assert_eq!(value["host"], "web1");
+        assert_eq!(value["jobs"][0]["id"], "aaaaaaaa");
+        assert_eq!(value["jobs"][0]["state"], "queued");
+        assert!(value["jobs"][0]["status"].is_null());
+        assert_eq!(value["jobs"][0]["started_ms"], 7);
+    }
 
     #[test]
     fn a_line_of_the_far_script_is_one_job() {

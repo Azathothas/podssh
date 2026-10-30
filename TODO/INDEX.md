@@ -62,15 +62,15 @@ repository and CI).
 
 ## Counts
 
-**325 entries: 24 open, 2 partial, 28 blocked, 271 done.**
+**325 entries: 23 open, 2 partial, 28 blocked, 272 done.**
 
 | Priority | open | partial | blocked | done | total |
 | --- | --- | --- | --- | --- | --- |
 | P0 | 0 | 0 | 0 | 1 | 1 |
 | P1 | 2 | 0 | 0 | 24 | 26 |
 | P2 | 1 | 2 | 19 | 144 | 166 |
-| P3 | 21 | 0 | 9 | 102 | 132 |
-| **All** | 24 | 2 | 28 | 271 | 325 |
+| P3 | 20 | 0 | 9 | 103 | 132 |
+| **All** | 23 | 2 | 28 | 272 | 325 |
 
 ## Entries
 
@@ -269,7 +269,7 @@ repository and CI).
 | [T-192](multi.md) | P3 | S | backlog | feature | open | Copy, then run: `podssh run` |
 | [T-193](multi.md) | P3 | M | backlog | feature | done | Jobs on the far host: start, list, stop |
 | [T-195](multi.md) | P3 | S | backlog | feature | done | Hand an error report to a program that the user names, for triage by an AI or a script |
-| [T-197](multi.md) | P3 | M | backlog | feature | open | A queue of detached remote jobs: submit, list, wait and fetch the output, with no GPU logic |
+| [T-197](multi.md) | P3 | M | backlog | feature | done | A queue of detached remote jobs: submit, list, wait and fetch the output, with no GPU logic |
 | [T-198](robustness.md) | P2 | M | backlog | chore | done | Fuzz each parser |
 | [T-199](robustness.md) | P2 | M | backlog | chore | done | A scored interop harness |
 | [T-200](robustness.md) | P3 | M | backlog | chore | done | A terminal oracle |

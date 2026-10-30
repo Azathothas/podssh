@@ -1,6 +1,6 @@
-//! The flag rows of `job` (T-193): the connection flags of `ssh` for one
-//! host. A module of its own so that `flags.rs` stays short; the rules of
-//! the table are in [`super`].
+//! The flag rows of `job` (T-193, T-197): those of the queue, and the
+//! connection flags of `ssh`. A module of its own so that `flags.rs` stays
+//! short; the rules of the table are in [`super`].
 
 use super::{row, FlagKind, FlagRow};
 
@@ -8,6 +8,15 @@ use super::{row, FlagKind, FlagRow};
 /// their ids with `ssh`'s, so `SshArgs` reads them from `job`'s matches
 /// too; `-p` is the port, as on `ssh`.
 pub const JOB_FLAGS: &[FlagRow] = &[
+    // The queue (T-197): each flag goes with one subcommand.
+    row(None, "slots", Some("N"), FlagKind::Supported,
+        "submit: the jobs of the host's queue that run at once, 1 to 64; it stays for the next submits (default 1)", None),
+    row(None, "timeout", Some("DURATION"), FlagKind::Supported,
+        "wait: exit 75 when the job has not ended within DURATION, such as 30s, 10m or 2h", None),
+    row(None, "files", Some("GLOB"), FlagKind::Supported,
+        "fetch: also the files of this pattern of sh in the host's home directory, under DIR/files", None),
+    row(None, "json", None, FlagKind::Supported,
+        "list: one JSON object on stdout: the host, and each job with its id, state, status, start and command", None),
     row(Some('p'), "port", Some("PORT"), FlagKind::Supported,
         "port to connect to", None),
     row(Some('l'), "login-name", Some("USER"), FlagKind::Supported,

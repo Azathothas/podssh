@@ -269,7 +269,7 @@ pub fn usage_tail(verb: &Verb) -> &'static str {
         "ssh" => "[OPTIONS] [--] [user@]host [COMMAND...]",
         "each" => "[OPTIONS] HOSTS [--] COMMAND...",
         "containers" => "[OPTIONS] [user@]host",
-        "job" => "[OPTIONS] SUBCOMMAND HOST [ID] [-- COMMAND...]",
+        "job" => "[OPTIONS] SUBCOMMAND HOST [ID [DIR]] [-- COMMAND...]",
         "cp" | "mv" | "scp" => "[OPTIONS] SRC... DST",
         "sftp" => "[OPTIONS] DESTINATION",
         "edit" => "[OPTIONS] [user@]host:PATH",

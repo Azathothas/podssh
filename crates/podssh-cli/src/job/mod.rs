@@ -2,9 +2,13 @@
 //! `start HOST -- COMMAND` starts the command in the host's tmux and prints
 //! its ID; `list HOST` gives each job with its state and its exit status;
 //! `log HOST ID` gives its output; `stop HOST ID` ends it and removes it.
-//! The host is a plain POSIX host reached with SSH: nothing of podssh runs
-//! there but the far script ([`far`]), under sh, with tmux, which it probes
-//! before anything starts.
+//! A queue of detached jobs comes on top (T-197, [`queue`]): `submit`
+//! queues a command, which a runner on the host starts when a slot is free;
+//! `wait` reads the state until the job ends, and exits with its status;
+//! `fetch` copies the output and named files back ([`fetch`]). The host is a
+//! plain POSIX host reached with SSH: nothing of podssh runs there but the
+//! far script ([`far`]), under sh, with tmux, which it probes before
+//! anything starts.
 //!
 //! **tmux holds each job.** The job outlives the connection, and `stop`
 //! ends the tmux session of that exact name, so that no other process can
@@ -14,125 +18,27 @@
 //!
 //! **Exit codes are those of `podssh ssh`**: 64 a usage error and 78 a
 //! setting, before anything connects; 255 a failure of podssh (no
-//! connection, no login, no tmux, no such job); else 0.
+//! connection, no login, no tmux, no such job); `wait` the job's status;
+//! 75 when the `--timeout` of `wait` passed, or when `fetch` finds the job
+//! still queued or running; else 0.
 
+mod args;
 pub mod far;
+pub mod fetch;
 pub mod list;
+pub mod queue;
 
 use std::io::Write;
+use std::path::PathBuf;
 use std::sync::Arc;
 
-use clap::ArgMatches;
 use podssh_ssh::{Connection, Log, EXIT_FAILURE};
 
+use crate::exitmap::sysexits;
 use crate::relay_settings::Refusal;
 use crate::ssh::args::SshArgs;
 use crate::ssh::resolve::{self, Env, Resolved, Transport};
-
-/// The subcommands, in the order of the manual.
-pub const SUBCOMMANDS: &[&str] = &["start", "list", "log", "stop"];
-/// The hex digits of an ID.
-pub const ID_LEN: usize = 8;
-
-/// `job`'s command line as parsed.
-#[derive(Debug, Clone, Default, PartialEq, Eq)]
-pub struct JobArgs {
-    pub subcommand: Option<String>,
-    pub host: Option<String>,
-    /// The words after the host: an ID, or the command after `--`.
-    pub words: Vec<String>,
-    /// Whether `--` came on the command line: a command must follow it, so
-    /// that no word of it is read as a flag of podssh.
-    pub dashed: bool,
-    /// The connection flags, read as `ssh` reads them: `job`'s rows share
-    /// their ids. The destination is the host.
-    pub ssh: SshArgs,
-    /// `(flag as written, what to use instead, why)`, as each verb carries
-    /// them, so that a `Refused` row added later refuses.
-    pub refused: Vec<(String, &'static str, &'static str)>,
-}
-
-impl JobArgs {
-    /// Read the values out of `job`'s matches; `dashed` when the command
-    /// line held `--`.
-    pub fn from_matches(m: &ArgMatches, dashed: bool, refused: Vec<(String, &'static str, &'static str)>) -> Self {
-        let one = |id: &str| m.try_get_one::<String>(id).ok().flatten().cloned();
-        let words = m.try_get_many::<String>("words").ok().flatten().map(|v| v.cloned().collect()).unwrap_or_default();
-        JobArgs {
-            subcommand: one("subcommand"),
-            host: one("host"),
-            words,
-            dashed,
-            ssh: SshArgs::from_matches(m),
-            refused,
-        }
-    }
-}
-
-/// What a command line of `job` asks for.
-#[derive(Debug, Clone, PartialEq, Eq)]
-pub enum Action {
-    /// Start the command: its words joined with spaces, as OpenSSH joins
-    /// them, for sh on the host.
-    Start(String),
-    List,
-    Log(String),
-    Stop(String),
-}
-
-/// An ID as `start` printed it: 8 hex digits, in either case.
-pub fn id(text: &str) -> Result<String, String> {
-    if text.len() == ID_LEN && text.bytes().all(|b| b.is_ascii_hexdigit()) {
-        Ok(text.to_ascii_lowercase())
-    } else {
-        Err(format!("{text}: an ID is the {ID_LEN} hex digits that podssh job start printed"))
-    }
-}
-
-/// A new ID: 8 random hex digits.
-pub fn new_id() -> String {
-    format!("{:08x}", rand::random::<u32>())
-}
-
-/// The time now, in milliseconds since 1970, which orders the jobs.
-pub fn now_ms() -> u64 {
-    std::time::SystemTime::now()
-        .duration_since(std::time::UNIX_EPOCH)
-        .map_or(0, |d| u64::try_from(d.as_millis()).unwrap_or(u64::MAX))
-}
-
-/// The action of `args`, or why the command line is refused (64).
-pub fn action(args: &JobArgs) -> Result<Action, String> {
-    let Some(sub) = args.subcommand.as_deref() else {
-        return Err(format!("give what to do and the host: podssh job {} HOST", SUBCOMMANDS.join("|")));
-    };
-    if !SUBCOMMANDS.contains(&sub) {
-        return Err(format!("{sub} is not a command of podssh job: give {}", SUBCOMMANDS.join(", ")));
-    }
-    if args.host.is_none() {
-        return Err(format!("give the host: podssh job {sub} HOST"));
-    }
-    let words = args.words.as_slice();
-    match (sub, words) {
-        ("start", []) => Err("give the command after --: podssh job start HOST -- COMMAND".into()),
-        ("start", _) if !args.dashed => {
-            Err("give the command after --, so that no word of it is read as a flag: podssh job start HOST -- COMMAND"
-                .into())
-        }
-        ("start", _) => {
-            let command = words.join(" ");
-            if command.contains(['\n', '\0']) {
-                return Err("the command holds a newline or a NUL, which no word of a far shell can carry".into());
-            }
-            Ok(Action::Start(command))
-        }
-        ("list", []) => Ok(Action::List),
-        ("list", [extra, ..]) => Err(format!("list takes no word after the host: {extra}")),
-        ("log", [one]) => Ok(Action::Log(id(one)?)),
-        ("stop", [one]) => Ok(Action::Stop(id(one)?)),
-        _ => Err(format!("give one ID: podssh job {sub} HOST ID")),
-    }
-}
+pub use args::{action, files, id, new_id, now_ms, slots, Action, JobArgs, ID_LEN, MOST_SLOTS, SUBCOMMANDS};
 
 /// The connection to `host`, resolved as `podssh ssh` resolves its
 /// destination, with the `Host` blocks of ssh_config for it: no terminal and
@@ -143,7 +49,8 @@ pub(crate) fn plan(host: &str, args: &SshArgs, env: &Env) -> Result<Resolved, Re
     ssh.destination = Some(host.to_string());
     ssh.no_tty = true;
     ssh.stdin_null = true;
-    let mut resolved = resolve::resolve_or_refuse(&ssh, env)?;
+    let named = |r: Refusal| Refusal { message: format!("{host}: {}", r.message), code: r.code };
+    let mut resolved = resolve::resolve_or_refuse(&ssh, env).map_err(named)?;
     if matches!(resolved.transport, Transport::Node { .. } | Transport::Iroh { .. }) {
         return Err(Refusal::usage(
             "podssh job reaches a host through the relay or with --direct; a node:// or iroh: destination is for \
@@ -162,21 +69,44 @@ pub fn run_job(args: &JobArgs, out: &mut dyn Write, err: &mut dyn Write) -> i32 
         Ok(action) => action,
         Err(why) => return Refusal::usage(why).report("job", err),
     };
-    let host = args.host.clone().unwrap_or_default();
+    let word = args.host.clone().unwrap_or_default();
     if let Err(refusal) = crate::pins::apply(args.ssh.relay_addr.as_deref()) {
         return refusal.report("job", err);
     }
-    let resolved = match plan(&host, &args.ssh, &Env::from_process()) {
-        Ok(resolved) => resolved,
-        Err(refusal) => return refusal.report("job", err),
+    let env = Env::from_process();
+    // `submit` takes a list of hosts, with braces and groups (T-184); each
+    // other call takes one host, and `resolve` refuses a pattern of more.
+    let labels = match &action {
+        Action::Submit { .. } => match crate::hosts::expand(&word, &env.settings.groups) {
+            Ok(labels) => labels,
+            Err(refusal) => return refusal.report("job", err),
+        },
+        _ => vec![word],
     };
-    let log = Arc::new(Log::new(resolved.options.log_level));
-    for note in &resolved.notes {
-        log.verbose(note);
+    let mut plans = Vec::with_capacity(labels.len());
+    for label in &labels {
+        match plan(label, &args.ssh, &env) {
+            Ok(resolved) => plans.push(resolved),
+            Err(refusal) => return refusal.report("job", err),
+        }
     }
-    for warning in &resolved.warnings {
-        log.info(warning);
+    let log = Arc::new(Log::new(plans[0].options.log_level));
+    // Each note and warning once: the same of many hosts is one line.
+    let mut said: Vec<&str> = Vec::new();
+    for resolved in &plans {
+        let notes = resolved.notes.iter().map(|n| (n, true));
+        for (text, verbose) in notes.chain(resolved.warnings.iter().map(|w| (w, false))) {
+            if !said.contains(&text.as_str()) {
+                said.push(text);
+                if verbose {
+                    log.verbose(text);
+                } else {
+                    log.info(text);
+                }
+            }
+        }
     }
+    crate::cp::gauge::init(false, plans[0].options.log_level == podssh_ssh::LogLevel::Quiet);
     let runtime = match tokio::runtime::Builder::new_current_thread().enable_all().build() {
         Ok(rt) => rt,
         Err(e) => {
@@ -186,24 +116,109 @@ pub fn run_job(args: &JobArgs, out: &mut dyn Write, err: &mut dyn Write) -> i32 
     };
     // On the heap: the future of a connection is large, and Windows gives
     // the main thread 1 MiB of stack.
-    let code = runtime.block_on(Box::pin(perform(&action, &host, &resolved, &log, out)));
+    let code = runtime.block_on(Box::pin(perform(&action, &labels, &plans, &log, out)));
     runtime.shutdown_background();
     code
 }
 
-/// Connect, act, and close: the exit code.
-async fn perform(action: &Action, host: &str, resolved: &Resolved, log: &Arc<Log>, out: &mut dyn Write) -> i32 {
-    let Some(handles) = far::connect(resolved, log).await else { return EXIT_FAILURE };
-    let handle = handles.last().expect("the destination's connection");
-    let code = match act(action, host, handle, log, out).await {
-        Ok(()) => 0,
+/// The calls of `action` on the hosts of `plans`: the exit code.
+async fn perform(action: &Action, labels: &[String], plans: &[Resolved], log: &Arc<Log>, out: &mut dyn Write) -> i32 {
+    let (host, resolved) = (labels[0].as_str(), &plans[0]);
+    match action {
+        Action::Submit { command, slots } => submit(labels, plans, command, *slots, log, out).await,
+        Action::Wait { id, timeout } => {
+            let waited = queue::wait(resolved, host, id, log);
+            match timeout {
+                Some(limit) => match tokio::time::timeout(*limit, Box::pin(waited)).await {
+                    Ok(code) => code,
+                    Err(_) => {
+                        log.error(&format!(
+                            "the --timeout of {} s passed, and job {id} on {host} has not ended",
+                            limit.as_secs()
+                        ));
+                        sysexits::EX_TEMPFAIL
+                    }
+                },
+                None => waited.await,
+            }
+        }
+        Action::Fetch { id, dir, files } => {
+            let dir = PathBuf::from(dir.clone().unwrap_or_else(|| format!("podssh-job-{id}")));
+            fetch::fetch(resolved, host, id, &dir, files.as_deref(), log).await
+        }
+        _ => {
+            let Some(handles) = far::connect(resolved, log).await else { return EXIT_FAILURE };
+            let handle = handles.last().expect("the destination's connection");
+            let code = match act(action, host, handle, log, out).await {
+                Ok(()) => 0,
+                Err(why) => {
+                    log.error(&why);
+                    EXIT_FAILURE
+                }
+            };
+            podssh_ssh::run::disconnect_all(&handles).await;
+            code
+        }
+    }
+}
+
+/// `submit` (T-197): to the one host, or to the host of the list with the
+/// fewest jobs queued or running, read with one list of each. The ID on
+/// stdout, after the host when the list had more than one.
+async fn submit(
+    labels: &[String],
+    plans: &[Resolved],
+    command: &str,
+    slots: Option<u32>,
+    log: &Arc<Log>,
+    out: &mut dyn Write,
+) -> i32 {
+    let at = if labels.len() == 1 {
+        0
+    } else {
+        let mut counts = Vec::with_capacity(labels.len());
+        for (label, resolved) in labels.iter().zip(plans) {
+            let Some(handles) = far::connect(resolved, log).await else {
+                log.info(&format!("{label}: no connection, so it is left out"));
+                counts.push(None);
+                continue;
+            };
+            let counted = queue::count(handles.last().expect("the destination's connection"), label).await;
+            podssh_ssh::run::disconnect_all(&handles).await;
+            counts.push(match counted {
+                Ok(n) => {
+                    log.verbose(&format!("{label}: {n} jobs queued or running"));
+                    Some(n)
+                }
+                Err(why) => {
+                    log.info(&format!("{why}; {label} is left out"));
+                    None
+                }
+            });
+        }
+        match queue::choose(&counts) {
+            Some(at) => at,
+            None => {
+                log.error("no host of the list gave the list of its jobs; nothing was queued");
+                return EXIT_FAILURE;
+            }
+        }
+    };
+    let host = labels[at].as_str();
+    let Some(handles) = far::connect(&plans[at], log).await else { return EXIT_FAILURE };
+    let queued = queue::submit(handles.last().expect("the destination's connection"), host, command, slots).await;
+    podssh_ssh::run::disconnect_all(&handles).await;
+    match queued {
+        Ok(id) => {
+            let _ = if labels.len() == 1 { writeln!(out, "{id}") } else { writeln!(out, "{host} {id}") };
+            log.verbose(&format!("job {id} is queued on {host}: {command}"));
+            0
+        }
         Err(why) => {
             log.error(&why);
             EXIT_FAILURE
         }
-    };
-    podssh_ssh::run::disconnect_all(&handles).await;
-    code
+    }
 }
 
 /// The first line of an answer, when it says what was done; else why not.
@@ -221,12 +236,13 @@ pub(crate) fn unexpected(host: &str, line: &str) -> String {
     format!("{host} gave an answer that podssh job does not know: {line}")
 }
 
+/// One call on one connection: `start`, `list`, `log` or `stop`.
 async fn act(action: &Action, host: &str, handle: &Connection, log: &Log, out: &mut dyn Write) -> Result<(), String> {
     match action {
         Action::Start(command) => {
             let id = new_id();
             let name = list::dir_name(now_ms(), &id);
-            let lines = far::lines(handle, host, &["start", name.as_str(), command.as_str()]).await?;
+            let lines = far::lines(handle, host, &["start", name.as_str(), "-", command.as_str()]).await?;
             let first = first_line(host, &lines)?;
             if first != format!("started {id}") {
                 return Err(unexpected(host, first));
@@ -235,11 +251,12 @@ async fn act(action: &Action, host: &str, handle: &Connection, log: &Log, out: &
             log.verbose(&format!("job {id} runs on {host}: {command}"));
             Ok(())
         }
-        Action::List => {
+        Action::List { json } => {
             let lines = far::lines(handle, host, &["list"]).await?;
             first_line(host, &lines)?;
             let jobs = list::parse(&lines).ok_or_else(|| format!("{host}: the list of its jobs came cut"))?;
-            let _ = out.write_all(list::text(&jobs).as_bytes());
+            let text = if *json { format!("{}\n", list::json(host, &jobs)) } else { list::text(&jobs) };
+            let _ = out.write_all(text.as_bytes());
             Ok(())
         }
         Action::Log(id) => match far::stream(handle, host, &["log", id.as_str()], "out", out).await? {
@@ -264,6 +281,9 @@ async fn act(action: &Action, host: &str, handle: &Connection, log: &Log, out: &
                 return Err(unexpected(host, first));
             }
             Ok(())
+        }
+        Action::Submit { .. } | Action::Wait { .. } | Action::Fetch { .. } => {
+            unreachable!("perform runs them with connections of their own")
         }
     }
 }

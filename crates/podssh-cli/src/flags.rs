@@ -352,7 +352,7 @@ pub const VERBS: &[Verb] = &[
     Verb { name: "containers", aliases: &["containers"], flags: CONTAINERS_FLAGS,
         about: "the containers of a host, of docker, podman or kubectl, each with the command that enters it" },
     Verb { name: "job", aliases: &["job"], flags: JOB_FLAGS,
-        about: "jobs on a host that outlive the connection, each in the host's tmux: start, list, log, stop" },
+        about: "jobs on a host that outlive the connection, each in its tmux, and a queue of them: start, submit, list, log, wait, fetch, stop" },
     Verb { name: "proxy", aliases: &["proxy"], flags: PROXY_FLAGS,
         about: "ProxyCommand form: a byte pipe, not an SSH client" },
     Verb { name: "pipe", aliases: &["pipe"], flags: PIPE_FLAGS,

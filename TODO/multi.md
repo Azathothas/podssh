@@ -65,14 +65,14 @@ succeeded. `podssh ssh` takes one destination, as OpenSSH does.
    starts no new host after a failure, and the running ones finish. A
    summary on stderr gives each host and its status.
 7. In the same commit: `crates/podssh-cli/src/flags.rs:347-402`,
-   `crates/podssh-cli/src/positionals.rs:7-217`, a `Parsed` variant,
+   `crates/podssh-cli/src/positionals.rs:7-221`, a `Parsed` variant,
    `crates/podssh-cli/tests/flag_table.rs:110-138`, the notes, an example,
    `docs/cli.md`, `docs/STATUS.md`. T-013 can then group the commands.
 
 ## Decision
 
 Recommendation: a new verb, because `podssh ssh` keeps the command line and
-the exit codes of OpenSSH for one host (`docs/cli.md:2292-2295`), and a list
+the exit codes of OpenSSH for one host (`docs/cli.md:2329-2332`), and a list
 of hosts changes both. The alternative, `podssh ssh --hosts LIST`, lost: one
 flag would change what the exit status means.
 
@@ -184,7 +184,7 @@ is not a shell. A set of hosts has no name.
   (`crates/podssh-cli/src/ssh/hop.rs:30-78`,
   `crates/podssh-ws/src/names.rs:10-24`).
 - Read: the `Host` lines of ssh_config are patterns, not lists
-  (`docs/cli.md:2416-2509`); they cannot define a group.
+  (`docs/cli.md:2455-2548`); they cannot define a group.
 
 ## Approach
 
@@ -1547,7 +1547,7 @@ of the command.
    quoted for a POSIX shell (T-187). When the copy used most of the 64 MiB
    (`docs/relay.md:167`), run the exec on a new session (T-137).
 4. The exit status: the command's, with the rules of `podssh ssh`
-   (`docs/cli.md:2292-2295`). A failed copy exits 255 and runs nothing.
+   (`docs/cli.md:2329-2332`). A failed copy exits 255 and runs nothing.
 5. In the same commit: the rows, the notes, an example, `docs/cli.md`,
    `docs/STATUS.md`. This entry depends on T-134 and T-143.
 
@@ -1733,14 +1733,14 @@ a ticket, or a tool that asks an AI.
 - Read: credentials never go to output, logs, URLs or argv
   (`docs/architecture.md:143-145`). The token type never shows itself
   (`crates/podssh-relay/src/token.rs:27-56`), and doctor never shows proxy
-  credentials or tokens (`docs/cli.md:1239-1241`).
+  credentials or tokens (`docs/cli.md:1276-1278`).
 - Read: podssh's messages leave through two writers: `Streams.err` in the
   command line (`crates/podssh-cli/src/dispatch.rs:26-29`), and `Log`, which
   writes to the stderr of the process itself
   (`crates/podssh-ssh/src/log.rs:83-103`). The exit code leaves through
   `crates/podssh-cli/src/dispatch.rs:316-344`.
 - Read: for `podssh ssh`, an exit that is not 0 can be the remote command's
-  status (`docs/cli.md:2292-2295`), which is not a failure of podssh.
+  status (`docs/cli.md:2329-2332`), which is not a failure of podssh.
 
 ## Approach
 
@@ -1906,7 +1906,7 @@ that devices and workloads are streams (`docs/decisions.md`).
 **Milestone:** backlog
 **Priority:** P3
 **Effort:** M
-**Status:** open
+**Status:** done
 
 ## Problem
 
@@ -1921,9 +1921,9 @@ queue, no wait for a result, and no way to get the output back.
   T-178, or under `podssh serve` (T-107).
 - Read: the client can stop at any time: a sandbox ends, a laptop sleeps. A
   queue on the client dies with it, and a client that waits must not need a
-  listener (`docs/target-environment.md:84-88`).
+  listener (`docs/target-environment.md:74-78`).
 - Read: the output comes back with `cp` (T-134), within 64 MiB for each
-  relay session (`docs/relay.md:167`); T-137 opens a new session.
+  relay session (`docs/relay.md:162`); T-137 opens a new session.
 - Read in the report: GPU-Share places jobs by idle time and free VRAM. No
   such logic here: a count of slots is the only limit.
 
@@ -1943,7 +1943,7 @@ queue, no wait for a result, and no way to get the output back.
    gives one object.
 4. `job wait HOST ID [--timeout D]` reads `state` every 5 s until it is
    `done`, and exits with the job's status. When the limit passes first, it
-   exits 75; add the code to `crates/podssh-cli/src/man/data.rs:19-131`.
+   exits 75; add the code to `crates/podssh-cli/src/man/data.rs:19-136`.
 5. `job fetch HOST ID [DIR]` copies `out`, and the files that `--files GLOB`
    names, with the engine of T-134; DIR is `./podssh-job-ID` by default.
 6. With a list of hosts (T-184), `submit` picks the host with the fewest
@@ -1958,6 +1958,42 @@ Recommendation: the queue lives on the far host, because the client can
 stop at any time, and must not listen to wait. The alternative, a queue in
 a process on the client, lost: it dies with the client, and each later
 command needs a local endpoint to reach it.
+
+2026-10-13 (the draft): the calls of the work.
+
+- **One directory for the jobs of `start` and of the queue**,
+  `~/.podssh/jobs/`, in place of the Approach's `~/.podssh/queue/`: a
+  queued job is a job of T-193 whose state is `queued`, so that `list`,
+  `log`, `stop`, `wait` and `fetch` read each kind. Two directories lost:
+  each verb would then read two, and an ID could be in both.
+- **The job's wrapper writes its status and its state**, in tmux, as for
+  `start`; the runner starts the wrapper, and writes nothing at a job's
+  end. A runner that waits for each job lost: it would need a process for
+  each job that runs, and could not end while one runs.
+- **The jobs of `start` count against the slots.** The slots say how many
+  jobs of podssh run on the host at once. A count of the queue's jobs alone
+  lost: a host given 1 slot would run more than one.
+- **The runner gives its name up before it ends**, looks once more, then
+  ends; with a job queued meanwhile it takes the name back, or ends when a
+  new runner has it. A runner that ends at once lost: a submit between its
+  last look and its end would find a runner and start none, and its job
+  would wait for the next submit. `list` and `state` start a runner too
+  when they find a queued job and none, as after a restart of tmux's
+  server.
+- **`--slots` stays for the next submits**, in the file `slots` of the
+  host. Slots for each submit lost: two submits with different slots would
+  give the runner no single rule.
+- **`fetch` waits for the end, with 75.** A job that is queued or running
+  has no whole output, and a copy whose source grows fails its digest. 75
+  (`EX_TEMPFAIL`) is the code of "a later try can work", as for `cp`'s
+  `--timeout`. The files of `--files` go under `DIR/files` by their paths,
+  so that no name of the host takes the place of `DIR/out`; a pattern with
+  an absolute path or `..` is refused (64), and a failed copy is 255, as
+  the other failures of `podssh job`.
+- **`wait` connects again after a loss**, 5 times in a row at most, with
+  the relay opener's backoff, as `cp` does: the job runs on the host, and
+  a lost link must not end the wait. A host that does not answer the first
+  connection is 255 at once.
 
 ## Prove
 
@@ -1976,8 +2012,50 @@ one running and two queued must fail.
 ## Correction
 
 2026-10-09 (T-134): 75 (`EX_TEMPFAIL`) is in the table of exit codes
-already (`crates/podssh-cli/src/man/data.rs:19-131`), for a `--timeout` of
+already (`crates/podssh-cli/src/man/data.rs:19-136`), for a `--timeout` of
 `cp` that passed; this entry adds its sentence for `job wait`.
+
+2026-10-13 (the draft of T-197): T-193 runs a job under tmux only; the
+road through `podssh serve` waits for T-107, which the operator holds
+(Q32). So does the queue.
+
+## Done
+
+2026-10-13, a draft (DRAFT T-197); merged on 2026-10-30, when the main
+session built it and ran each check below.
+
+- `podssh job submit|wait|fetch`, `--slots`, `--timeout`, `--files` and
+  `list --json` (`crates/podssh-cli/src/job/args.rs`,
+  `crates/podssh-cli/src/job/queue.rs`, `crates/podssh-cli/src/job/fetch.rs`),
+  and the actions `submit`, `runner`, `state` and `files` of
+  `crates/podssh-cli/src/job/far.sh`. The rows, the notes, an example, the
+  rows 75, 255 and the remote status of EXIT STATUS, `docs/cli.md`
+  (section "`podssh job`") and `docs/STATUS.md`.
+- `cargo test -p podssh-cli --lib job::` (the choice of the host from the
+  counts of each host, the state lines, the flags of the queue, the
+  answer of `files` and the places of the files, the JSON list): passed,
+  in the lib suite's 401. `cargo test -p podssh-cli --test job` (the flags
+  of the queue refused with 64, a list of hosts for `submit` alone, and the
+  queue's calls offline with 255): 3 passed.
+  `cargo test -p podssh-cli --test job_queue` (Unix, with tmux: three jobs
+  with one slot, `wait` with 5, `fetch` with `out` and `--files`, `--json`,
+  and a submit to a list of two hosts): 3 passed, on Linux with tmux 3.4,
+  five runs of five. The merge set `node: false` in the remote operand of
+  `fetch`, a field that `main` gained since the draft (T-296), and repaired
+  `main`'s manual once more, where lost continuations put runs of spaces
+  into the text of the remote status; clippy `-D warnings` clean, and
+  rustfmt reformatted `args.rs` and `fetch.rs`.
+- `scripts/interop-job.sh`: 4 checks more, `job.queue.*`, in
+  `scripts/interop-baseline.txt`. UNVERIFIED: waits for T-251.
+- The planted defect: the runner ignores the slots (its test of `$busy`
+  against `$k` taken out). The test
+  `three_jobs_with_one_slot_run_one_at_a_time_and_the_last_gives_5`
+  passed with it, as drafted: it stopped looking at the first list that
+  showed one job running and two queued, which the planted runner shows
+  too. It now looks until the last job ended, and asks that the two jobs
+  of 3 s took 5.5 s at least; with the plant it failed at its check of
+  one slot (`crates/podssh-cli/tests/job_queue.rs:50`), and it passed again
+  without it. The check `job.queue.slots` of the interop waits for T-251.
 
 # T-322: The emergency stop of the broadcast has a key that the user chooses
 

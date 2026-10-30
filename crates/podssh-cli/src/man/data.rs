@@ -82,7 +82,9 @@ pub fn exit_codes() -> Vec<(Code, String)> {
             sysexits::EX_TEMPFAIL,
             "podssh cp and mv: the --timeout passed before the copy ended; a later try can work. podssh \
              chat: the --timeout passed, or the peer talks with another peer; a later try can work. podssh \
-             session start and wait: the --timeout passed first.",
+             session start and wait: the --timeout passed first. podssh job wait: the --timeout passed \
+             before the job ended, which runs on; podssh job fetch: the job is queued or running, so its \
+             output is not whole yet.",
         ),
         row(
             sysexits::EX_NOPERM,
@@ -117,14 +119,17 @@ pub fn exit_codes() -> Vec<(Code, String)> {
              be reached or logged in to, it has no sh, or its answer had none of the lines of the script. \
              podssh containers: the host could not be reached or logged in to, or its list did not end \
              within 60 s. podssh session start: the connection or the login failed. podssh job: the host \
-             could not be reached or logged in to, has no tmux, has no such job, or gave no answer.",
+             could not be reached or logged in to, has no tmux, has no such job, or gave no answer; for \
+             wait, also a job that is lost.",
         ),
         (
             Code::Remote,
             "podssh ssh: the exit status of the remote command, unchanged. When signal N stopped the \
              command, 128 + N. podssh ping: the status of the remote program of a measure that failed, \
              127 when the host lacks it. podssh edit: the status of an editor that failed; nothing was sent. \
-             podssh each: the largest status of the hosts, 0 only when each gave 0; with --interactive, of              their shells, and 130 for a host whose shell Ctrl-C cut after the end of the input. podssh              containers --exec: the status of the session in the container."
+             podssh each: the largest status of the hosts, 0 only when each gave 0; with --interactive, of their \
+             shells, and 130 for a host whose shell Ctrl-C cut after the end of the input. podssh containers \
+             --exec: the status of the session in the container. podssh job wait: the exit status of the job."
                 .to_string(),
         ),
     ]
