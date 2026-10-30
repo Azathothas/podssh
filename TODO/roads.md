@@ -1438,7 +1438,7 @@ read, not measured.
 **Milestone:** backlog
 **Priority:** P3
 **Effort:** S
-**Status:** open
+**Status:** partial
 
 ## Problem
 
@@ -1641,6 +1641,20 @@ Open points, which the measurement answers (none is a fact yet):
   read in full).
 - The terms: whether carrying SSH, with a connector of podssh's own, is acceptable use of an
   account-less tunnel. The operator's call; the research found no ruling.
+
+## Done
+
+2026-10-30, partial: the job is in and has not run yet. The workflow quick tunnel edge
+(`.github/workflows/quick-tunnel-edge.yml`, dispatched by hand with `confirm` set to `Q43`) runs
+steps 1 to 4 and 6 to 8 of the plan with `scripts/quick-tunnel-edge.py`, and skips both runs
+when the API answers 429 or 1015. Not in it: the `aioquic` client of step 5 (the precheck table
+of run B answers for QUIC) and the WebSocket echo of step 7. The digest of cloudflared 2026.10.6
+matched its release page on that day. Its help, read in a network namespace that had no network,
+lists `--no-prechecks`, `--edge-ip-version`, `--grace-period` (30 s) and `--output`, and hides
+`--protocol`. The script's redaction was checked in this container, with no contact with
+Cloudflare: a made-up log and a stand-in for the API left no secret, id or tunnel name in what
+it printed. With two planted defects, values kept as they were and names left unredacted, each
+check found the leak. Next: dispatch the workflow and write its results.
 
 # T-300: `podssh node` publishes a quick tunnel over HTTP/2, with no `cloudflared`
 

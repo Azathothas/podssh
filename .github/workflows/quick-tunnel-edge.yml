@@ -1,0 +1,195 @@
+name: quick tunnel edge
+
+# T-299: what the edge of Cloudflare's quick tunnels takes, measured from
+# GitHub's network with the operator's leave (Q43, docs/decisions.md): the
+# request that makes a tunnel, the edge's ports and TLS, directly and
+# through the box's proxy (scripts/box/proxy.py, the measured cage's
+# policy), and cloudflared at a pinned release as a reference, never a road.
+# Started by hand only, with confirm=Q43. At most three tunnels, each under
+# two minutes, in front of a fixed page. The logs of this public repository
+# are public: no tunnel's secret is printed, kept or uploaded.
+
+on:
+  workflow_dispatch:
+    inputs:
+      confirm:
+        description: "Q43: the operator's leave for a run against Cloudflare's quick tunnels"
+        required: true
+
+permissions:
+  contents: read
+
+concurrency:
+  group: quick-tunnel-edge
+  cancel-in-progress: false
+
+jobs:
+  edge:
+    if: inputs.confirm == 'Q43'
+    runs-on: ubuntu-24.04
+    timeout-minutes: 15
+    env:
+      CLOUDFLARED: "2026.10.6"
+      # The digest of cloudflared-linux-amd64 on the release's page, read on
+      # 2026-10-30, and the file's own.
+      CLOUDFLARED_SHA256: "1d356dac769d0dbf62ebe588c4034824bbff98d5790c2f844cc99e0e2f57462d"
+    steps:
+      # The job runs a program of another project: no token stays in .git.
+      - uses: actions/checkout@v7
+        with:
+          persist-credentials: false
+
+      - name: the runner
+        run: |
+          echo "image $ImageOS $ImageVersion, kernel $(uname -r)"
+          openssl version
+          curl --version | head -n 1
+          python3 --version
+          date -u +%Y-%m-%dT%H:%M:%SZ
+
+      - name: cloudflared, pinned by its digest
+        run: |
+          timeout 120 curl -sSfL -o "$RUNNER_TEMP/cloudflared" \
+            "https://github.com/cloudflare/cloudflared/releases/download/$CLOUDFLARED/cloudflared-linux-amd64"
+          echo "$CLOUDFLARED_SHA256  $RUNNER_TEMP/cloudflared" | sha256sum -c -
+          chmod +x "$RUNNER_TEMP/cloudflared"
+          "$RUNNER_TEMP/cloudflared" --version
+
+      - name: the roots of cloudflared, and the edge's addresses
+        run: |
+          timeout 60 curl -sSfL -o "$RUNNER_TEMP/cloudflare_ca.go" \
+            "https://raw.githubusercontent.com/cloudflare/cloudflared/$CLOUDFLARED/tlsconfig/cloudflare_ca.go"
+          python3 scripts/quick-tunnel-edge.py roots "$RUNNER_TEMP/cloudflare_ca.go" "$RUNNER_TEMP/roots.pem"
+          timeout 60 python3 scripts/quick-tunnel-edge.py discover > "$RUNNER_TEMP/discover.txt"
+          cat "$RUNNER_TEMP/discover.txt"
+
+      - name: the edge, directly
+        continue-on-error: true
+        run: |
+          first=$(sed -n 's/^FIRST //p' "$RUNNER_TEMP/discover.txt")
+          # shellcheck disable=SC2086
+          timeout 480 python3 scripts/quick-tunnel-edge.py matrix "$RUNNER_TEMP/roots.pem" \
+            198.41.192.7 198.41.200.13 $first
+          # Cloudflare's own test of the port, with the system's roots, then
+          # with cloudflared's.
+          for roots in system cloudflared; do
+            echo "curl to region1.v2.argotunnel.com:7844, the roots of $roots:"
+            extra=""
+            [ "$roots" = cloudflared ] && extra="--cacert $RUNNER_TEMP/roots.pem"
+            # shellcheck disable=SC2086
+            timeout 30 curl -sSv --max-time 20 $extra -o /dev/null https://region1.v2.argotunnel.com:7844/ 2>&1 \
+              | grep -E '^(\* |< HTTP|curl:)' | head -n 40
+          done
+
+      - name: the box's proxy, and the request that makes a tunnel
+        id: api
+        continue-on-error: true
+        run: |
+          python3 scripts/box/proxy.py --listen 127.0.0.1:3128 > "$RUNNER_TEMP/proxy-1.log" 2>&1 &
+          proxy=$!
+          sleep 1
+          # The first tunnel, which is never connected.
+          timeout 30 python3 scripts/quick-tunnel-edge.py api http://127.0.0.1:3128 | tee "$RUNNER_TEMP/api.txt"
+          if grep -q -E 'HTTP 429|error code: 1015' "$RUNNER_TEMP/api.txt"; then
+            echo "the API refused for the rate: no tunnel is run"
+            echo "limited=yes" >> "$GITHUB_OUTPUT"
+          fi
+          timeout 60 python3 scripts/quick-tunnel-edge.py through 127.0.0.1:3128 "$RUNNER_TEMP/roots.pem" \
+            region1.v2.argotunnel.com:7844 region1.v2.argotunnel.com:443 region1.v2.argotunnel.com:8443
+          kill "$proxy" || true
+          python3 scripts/box/proxy.py --listen 127.0.0.1:3128 \
+            --allow region1.v2.argotunnel.com:7844=198.41.192.7:7844 > "$RUNNER_TEMP/proxy-2.log" 2>&1 &
+          proxy=$!
+          sleep 1
+          timeout 30 python3 scripts/quick-tunnel-edge.py through 127.0.0.1:3128 "$RUNNER_TEMP/roots.pem" \
+            region1.v2.argotunnel.com:7844
+          kill "$proxy" || true
+          echo "the proxy's lines, without --allow, then with it:"
+          cat "$RUNNER_TEMP/proxy-1.log" "$RUNNER_TEMP/proxy-2.log"
+
+      # Run A: HTTP/2; run B: the default protocol, for the table of
+      # prechecks. Each with HTTPS_PROXY set to the box's proxy, whose lines
+      # show whether cloudflared used it, and under two minutes: 50 s for
+      # the registration, then six fetches 10 s apart.
+      - name: cloudflared's quick tunnels, runs A and B
+        if: steps.api.outputs.limited != 'yes'
+        continue-on-error: true
+        run: |
+          mkdir -p "$RUNNER_TEMP/page" "$RUNNER_TEMP/logs"
+          echo "podssh T-299 $GITHUB_RUN_ID" > "$RUNNER_TEMP/page/index.html"
+          python3 -m http.server 8765 --bind 127.0.0.1 --directory "$RUNNER_TEMP/page" > /dev/null 2>&1 &
+          for run in a b; do
+            python3 scripts/box/proxy.py --listen 127.0.0.1:3129 > "$RUNNER_TEMP/proxy-$run.log" 2>&1 &
+            proxy=$!
+            protocol=""
+            if [ "$run" = a ]; then protocol="--protocol http2"; fi
+            log="$RUNNER_TEMP/run-$run.log"
+            started=$(date +%s)
+            # shellcheck disable=SC2086
+            HTTPS_PROXY=http://127.0.0.1:3129 timeout --foreground 115 "$RUNNER_TEMP/cloudflared" tunnel \
+              --no-autoupdate $protocol --edge-ip-version 4 --url http://127.0.0.1:8765 > "$log" 2>&1 &
+            tunnel=$!
+            registered=no
+            for _ in $(seq 1 50); do
+              if grep -q "Registered tunnel connection" "$log"; then
+                registered="after $(( $(date +%s) - started )) s"
+                break
+              fi
+              sleep 1
+            done
+            name=$(grep -o -E 'https://[a-z0-9-]+\.trycloudflare\.com' "$log" | head -n 1 || true)
+            served=no
+            if [ -n "$name" ]; then
+              for try in 1 2 3 4 5 6; do
+                body=$(timeout 10 curl -sS --max-time 8 --doh-url https://cloudflare-dns.com/dns-query "$name/" 2>/dev/null || true)
+                if [ "$body" = "podssh T-299 $GITHUB_RUN_ID" ]; then
+                  served="yes, at try $try, $(( $(date +%s) - started )) s after the start"
+                  break
+                fi
+                sleep 2
+              done
+            fi
+            echo "run $run: registered: $registered; the page through the tunnel's name: $served"
+            # SIGTERM starts cloudflared's graceful shutdown, as SIGINT does:
+            # its connections unregister, then it ends.
+            kill "$tunnel" 2>/dev/null || true
+            for _ in $(seq 1 15); do
+              kill -0 "$tunnel" 2>/dev/null || break
+              sleep 1
+            done
+            pkill -KILL -f "$RUNNER_TEMP/cloudflared" || true
+            kill "$proxy" 2>/dev/null || true
+            echo "run $run: cloudflared's log, each tunnel's name redacted:"
+            python3 scripts/quick-tunnel-edge.py run "$log" "$RUNNER_TEMP/logs/run-$run.log"
+            echo "run $run: the proxy's lines:"
+            cat "$RUNNER_TEMP/proxy-$run.log"
+          done
+
+      # Only the redacted logs go up, and only when no line names a secret.
+      - name: the logs, when they name no secret
+        id: logs
+        if: always()
+        run: |
+          mkdir -p "$RUNNER_TEMP/logs"
+          cp "$RUNNER_TEMP"/proxy-*.log "$RUNNER_TEMP/logs/" 2>/dev/null || true
+          if grep -l -i -E 'secret|credential' "$RUNNER_TEMP"/logs/* 2>/dev/null; then
+            echo "a log names a secret: none is uploaded"
+            echo "clean=no" >> "$GITHUB_OUTPUT"
+          else
+            echo "clean=yes" >> "$GITHUB_OUTPUT"
+          fi
+
+      - uses: actions/upload-artifact@v7
+        if: always() && steps.logs.outputs.clean == 'yes'
+        with:
+          name: quick-tunnel-edge-logs
+          path: ${{ runner.temp }}/logs/
+          retention-days: 3
+          if-no-files-found: ignore
+
+      - name: no process is left
+        if: always()
+        run: |
+          pkill -f "$RUNNER_TEMP/cloudflared" || true
+          pkill -f scripts/box/proxy.py || true
+          pkill -f "http.server 8765" || true

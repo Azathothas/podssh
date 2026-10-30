@@ -62,15 +62,15 @@ repository and CI).
 
 ## Counts
 
-**323 entries: 29 open, 0 partial, 28 blocked, 266 done.**
+**323 entries: 28 open, 1 partial, 28 blocked, 266 done.**
 
 | Priority | open | partial | blocked | done | total |
 | --- | --- | --- | --- | --- | --- |
 | P0 | 0 | 0 | 0 | 1 | 1 |
 | P1 | 2 | 0 | 0 | 24 | 26 |
 | P2 | 4 | 0 | 19 | 142 | 165 |
-| P3 | 23 | 0 | 9 | 99 | 131 |
-| **All** | 29 | 0 | 28 | 266 | 323 |
+| P3 | 22 | 1 | 9 | 99 | 131 |
+| **All** | 28 | 1 | 28 | 266 | 323 |
 
 ## Entries
 
@@ -371,7 +371,7 @@ repository and CI).
 | [T-296](copy.md) | P3 | M | backlog | feature | done | `cp`, `scp` and `sftp` to a node |
 | [T-297](copy.md) | P3 | M | backlog | feature | done | `cp --parallel K` copies several small files at once |
 | [T-298](copy.md) | P3 | S | backlog | feature | done | `sftp`'s `-r`: `get -r` and `put -r` of a directory |
-| [T-299](roads.md) | P3 | S | backlog | measurement | open | The quick tunnel's edge, measured: its ports through a proxy and the relay, and a captured registration |
+| [T-299](roads.md) | P3 | S | backlog | measurement | partial | The quick tunnel's edge, measured: its ports through a proxy and the relay, and a captured registration |
 | [T-300](roads.md) | P3 | L | backlog | feature | open | `podssh node` publishes a quick tunnel over HTTP/2, with no `cloudflared` |
 | [T-301](roads.md) | P3 | M | backlog | feature | open | The quick tunnel over QUIC, where a probe finds UDP |
 | [T-302](resume.md) | P3 | M | backlog | feature | open | A notice in the terminal while the far end is silent |
