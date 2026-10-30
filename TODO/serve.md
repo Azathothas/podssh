@@ -1000,7 +1000,7 @@ Windows service).
 **Milestone:** backlog
 **Priority:** P3
 **Effort:** M
-**Status:** partial
+**Status:** done
 
 ## Problem
 
@@ -1087,12 +1087,39 @@ systemd is recorded in `docs/STATUS.md`.
 
 ## Done
 
-2026-10-30, partial: the code (`crates/podssh-cli/src/node_install/`,
-`--install`, `--uninstall` and `--env-file` of `node`), the tests of
-`serve_install` and of `node_install::`, the manual and `docs/cli.md` are
-in, and pass on Linux. The run on a host with systemd waits for the
-workflow `service live` (`.github/workflows/service-live.yml`), which this
-container cannot be: its PID 1 is not systemd.
+2026-10-30. `podssh node NAME TARGET --install` makes the node a service of
+its user by the first way that a probe finds, and `--uninstall` removes what
+it wrote (`crates/podssh-cli/src/node_install/`); `--env-file FILE` reads the
+node's variables from a private file before anything else. The unit, the
+line and the task run the binary by its absolute path with the node's
+TARGET and flags and `--env-file`, and hold no token. `podssh serve` takes
+the same module when it comes (Decision).
+
+- Linux, 2026-10-30: `cargo test -p podssh-cli --test serve_install`, 5
+  passed (fake `systemctl` and `crontab` on PATH, made of shell builtins:
+  the unit and the line hold the binary's absolute path, NAME and
+  `--env-file`, and no token of the pair or of the environment; the private
+  `node-NAME.env` holds the proxy with its password and no token; the
+  user's other lines of the crontab stay, and a second `--install` leaves
+  one line; with neither program, the command to run at login and 69; the
+  refusals; `--env-file` read first, a file that others can read and a
+  token in it refused); `--lib node_install::`, 5 (each quoting, the unit,
+  the crontab's lines, the task's XML, the variables); the lib 362, `node`
+  11, `node_plain` 3, `node_routes` 2, `flag_table` 8, `man_page` 10;
+  clippy and rustfmt clean.
+- Planted: a token in the unit; the test failed at its check of tokens;
+  restored, it passed.
+- A host with systemd, 2026-10-30: the workflow `service live` (run
+  41066805844, a GitHub runner, ubuntu-24.04) made a pair on the live relay,
+  and `--install` gave "a user unit of systemd, ...podssh-node-svc-....service,
+  enabled and started" and "lingering is on for runner"; no token of the
+  pair was in the unit or its file of variables; systemd had the unit
+  active, the node's journal said "online: the relay takes this pair's
+  sessions", and `relay status` "online, 0 sessions"; `--uninstall` said
+  "removed the user unit ... (stopped and disabled)" and "removed the file
+  of its variables", and nothing was left.
+- Not measured: the task of Windows (its XML is tested on each system, and
+  `schtasks` runs in no test), and a crontab of a real cron at boot.
 
 # T-122: `podssh serve`: each pty child in its own transient scope when systemd is there
 
