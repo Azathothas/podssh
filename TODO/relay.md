@@ -58,7 +58,7 @@ the token is stored under A; in the next run, A answers and gets B's token in `X
 Recommendation: key by deployment. One token serves the hosts of the default deployment (a
 pool host accepted the token of the default host: `docs/STATUS.md`, "`podssh proxy`, measured
 live"), and no token goes to another deployment. The exact minting host lost: each pool host
-would mint its own token, against the brake of 120 attempts a minute (`docs/relay.md:163`).
+would mint its own token, against the brake of 120 attempts a minute (`docs/relay.md:168`).
 The decision said "one machine has one cached token"; on 2026-10-08 the operator ruled
 "one for each relay deployment" (`docs/decisions.md:49`).
 
@@ -131,7 +131,7 @@ Measured on `3ee70dc` (`PODSSH_OFFLINE=1`, stdin from `/dev/null`): `podssh rela
 ("'relay' is not implemented yet; nothing was done."). Its help shows `--relay-host URL`
 (`crates/podssh-cli/src/flags.rs` lines 315-316 at `af0a163`), not the `HOSTS` of the other commands (lines
 169-170, 326-327, 337-338). Read: `/trace` needs a forward token in `X-Relay-Token`
-(`docs/relay.md:212-213`). The `health` function of `doctor`
+(`docs/relay.md:217-218`). The `health` function of `doctor`
 (`crates/podssh-cli/src/doctor/relay_checks.rs:81-94`) already makes a verified `/health`
 request; `crates/podssh-relay/src/pool.rs:120-137` fetches `/relays.json`. `https_get` sends no
 token header (`crates/podssh-ws/src/client.rs:284-295`); `https_request` takes headers (lines
@@ -147,7 +147,7 @@ token header (`crates/podssh-ws/src/client.rs:284-295`); `https_request` takes h
    `verdict_from` (`crates/podssh-probe/src/relay_facts.rs:276-290`), or `--document FILE`.
    This is T-060.
 4. `relay trace HOST PORT`: `/trace` with `banner=1`, the token in the header and never in the
-   URL (`docs/relay.md:148-150`). Check HOST with `relay::check_host`
+   URL (`docs/relay.md:153-155`). Check HOST with `relay::check_host`
    (`crates/podssh-ws/src/names.rs:10-24`), so no text can add a query parameter.
 5. `pair` and `revoke`: refuse by name, and name M4 (T-078, T-083).
 6. Flags as for `doctor` (`--relay-host HOSTS`, `--relay-addr`, `--ca-file`), and `--json`
@@ -592,7 +592,7 @@ pairs need, and the file of Decision 1.
 
 # T-062: Measure whether the relay's backpressure close (1013) operates
 
-**Source:** `docs/relay.md:236-240`; the reverse close table of the pinned contract
+**Source:** `docs/relay.md:241-245`; the reverse close table of the pinned contract
 (`crates/podssh-probe/tests/spec/relay-spec-2026-10-03-r2.txt:185`); the comment on the SSH
 window (`crates/podssh-ssh/src/run.rs` lines 25-29 at `80f20bf`).
 **Category:** measurement
@@ -610,8 +610,8 @@ rule is true.
 
 ## Premise
 
-Not measured. Read: `docs/relay.md:225` gives the forward codes `1013` `client receive backlog`
-and `target write backlog` (2 MiB queued), read from the relay's source; `docs/relay.md:236-240`
+Not measured. Read: `docs/relay.md:230` gives the forward codes `1013` `client receive backlog`
+and `target write backlog` (2 MiB queued), read from the relay's source; `docs/relay.md:241-245`
 says that no frame is dropped, and that the check reads `bufferedAmount`, which Workers may not
 supply. The comment on the SSH window (`crates/podssh-ssh/src/run.rs` lines 25-29 at `80f20bf`)
 said that the relay drops a frame when more than 1 MiB waits (`1011 relay backpressure`). That is
@@ -634,7 +634,7 @@ so the comment applied a rule of the reverse path to the forward path.
 4. The other direction (`target write backlog`) needs a slow target; record it as not measured
    when none is at hand.
 5. Write the result into the comment on the window (`crates/podssh-ssh/src/run.rs:26-30`) and
-   into `docs/relay.md:236-240`. Change the window (512 KiB) only if the result asks for it.
+   into `docs/relay.md:241-245`. Change the window (512 KiB) only if the result asks for it.
 
 ## Prove
 
@@ -661,10 +661,10 @@ test of `podssh-cli`), so that no SSH window stands between the relay and the sl
 ## Correction
 
 2026-10-08, T-024: the comment on the SSH window now gives the forward path's rule that
-`docs/relay.md:225` reads from the relay's source: `1013` when 2 MiB wait, and no frame dropped
+`docs/relay.md:230` reads from the relay's source: `1013` when 2 MiB wait, and no frame dropped
 (`crates/podssh-ssh/src/run.rs:26-29`). The two texts agree now. The question of this entry
 stays: whether the relay's check operates at all (it reads `bufferedAmount`,
-`docs/relay.md:236-240`).
+`docs/relay.md:241-245`).
 
 # T-220: A silent first relay host costs a full dial before the next host is tried (GitHub #30)
 
@@ -709,10 +709,10 @@ listener" (lines 86-88 at `22c3b88`), and the ruling on Q10 allows more than one
    a slow target also starts the next host. Measure the open times through a proxy in the box,
    and record D in `docs/STATUS.md`.
 3. Send a Close to each attempt that is not kept, at once. The relay then frees the target
-   socket within 15 s (`docs/design.md:384-386`, `docs/relay.md:221`); the target still sees one
+   socket within 15 s (`docs/design.md:384-386`, `docs/relay.md:226`); the target still sees one
    short connection, because the relay dials it before the upgrade.
 4. One mint at a time for each relay deployment (single flight, keyed as T-057 keys the cache),
-   against the brake of `docs/relay.md:163`. When the minting attempt is the silent one, the next
+   against the brake of `docs/relay.md:168`. When the minting attempt is the silent one, the next
    attempt mints at its own host after D.
 5. An error that each host would give (`crates/podssh-relay/src/open.rs:62-84`) still stops the
    run, and stops the other attempts.
@@ -1194,7 +1194,7 @@ at `cloudflare/workerd`).
 **Milestone:** backlog
 **Priority:** P3
 **Effort:** S
-**Status:** open
+**Status:** done
 
 ## Problem
 
@@ -1209,14 +1209,15 @@ known: the relay's source is not available to the repository.
 
 ## Premise
 
-- Read: the stream that carries `podssh ssh` over the relay reads its pipe in chunks and sends each
-  as one frame; `crates/podssh-ssh/src/relay_stream.rs:33` says "const CHUNK: usize = 64 * 1024;".
-  That is exactly the largest write that the issue says passes. SSH packets are far smaller
-  (russh's default packet size is 32 KiB, Inferred), but one read of the pipe can hold several.
-- Read: the other forward senders already use 32 KiB: the relay leg of `podssh pipe`
-  (`crates/podssh-cli/src/pipe/relay.rs:34` says "const CHUNK: usize = 32 * 1024;") and the blocking
-  facade for podbox (`crates/podssh-relay/src/blocking/forward.rs:16` says "const FRAME_PAYLOAD:
-  usize = 32 * 1024;").
+- Read, at `c00c9fd`: the stream that carries `podssh ssh` over the relay reads its pipe in chunks
+  and sends each as one frame, with "const CHUNK: usize = 64 * 1024;" in
+  crates/podssh-ssh/src/relay_stream.rs (line 33 at `c00c9fd`). That is exactly the largest write
+  that the issue says passes. SSH packets are far smaller (russh's default packet size is 32 KiB,
+  Inferred), but one read of the pipe can hold several.
+- Read, at `c00c9fd`: the other forward senders already use 32 KiB: the relay leg of `podssh pipe`
+  ("const CHUNK: usize = 32 * 1024;", crates/podssh-cli/src/pipe/relay.rs line 34 at `c00c9fd`) and
+  the blocking facade for podbox ("const FRAME_PAYLOAD: usize = 32 * 1024;",
+  crates/podssh-relay/src/blocking/forward.rs line 16 at `c00c9fd`).
 - Read: `crates/podssh-ws/src/frame.rs:30` names the relay's cap, `FORWARD_MAX_FRAME`, which is
   262,144. The reverse road is not concerned: its node frames end in WebSockets, not in a socket of
   `connect()` (Inferred).
@@ -1256,3 +1257,27 @@ cargo test -p podssh-ssh relay_stream
 A test through a stand-in relay that records each frame: 1 MiB written by the session reaches the
 relay as frames of 32 KiB at most, and the bytes are equal. Planted defect: set the chunk back to
 64 KiB; the test must fail.
+
+## Done
+
+2026-10-30. `FORWARD_SEND_PAYLOAD`, 32 KiB, beside `FORWARD_MAX_FRAME` in
+`crates/podssh-ws/src/frame.rs`, is the one size of the three forward
+senders: the stream of `podssh ssh` (`crates/podssh-ssh/src/relay_stream.rs`,
+64 KiB before), the relay leg of `podssh pipe` and the blocking facade (32
+KiB before, by their own constants). `docs/relay.md` says it, with the
+question for the relay's operator.
+
+- Linux, 2026-10-30: `cargo test -p podssh-ssh --lib relay_stream`, 4
+  passed; the new test writes 1 MiB through the stream and reads it back
+  from the stand-in relay's side in frames of 32 KiB at most, in order.
+  clippy of podssh-ws, podssh-ssh, podssh-cli, and podssh-relay with its
+  features `blocking` and `plain-ws`, and rustfmt clean.
+- Planted: the chunk back to 64 KiB; the test failed ("a frame of 65536
+  bytes"); restored, it passed.
+- Live, through the relay from a Claude Code cloud container: `doctor` 31
+  ok, its forward check through the relay with GitHub's published key, and a
+  login to github.com refused with a throwaway key (publickey, 255).
+- Waiting for T-251: the speed before and after through the live relay
+  (`podssh ping` with a host to log in to; none here, `PODSSH_THROUGHPUT_SSH`
+  is not set). Each frame's header is 14 bytes of 32 KiB, so the cost on the
+  wire is under 0.1 %.

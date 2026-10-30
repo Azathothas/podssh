@@ -31,7 +31,7 @@ use crate::exitmap::sysexits::EX_UNAVAILABLE;
 /// The pipe in memory, each way.
 const PIPE: usize = 256 * 1024;
 /// The largest frame sent, as the pump reads.
-const CHUNK: usize = 32 * 1024;
+const CHUNK: usize = podssh_ws::frame::FORWARD_SEND_PAYLOAD;
 
 /// How the session ended; the first word wins.
 #[derive(Debug, Clone)]

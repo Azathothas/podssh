@@ -28,9 +28,9 @@ use tokio::sync::Notify;
 
 /// Size of the in-memory pipe in each direction.
 const PIPE: usize = 256 * 1024;
-/// The largest frame sent. The relay accepts 262144 bytes; SSH packets are
-/// far smaller, so this only bounds a burst.
-const CHUNK: usize = 64 * 1024;
+/// The largest frame sent: one read of the pipe at most, so a burst of SSH
+/// packets is cut where the relay's write to its socket stays safe.
+const CHUNK: usize = frame::FORWARD_SEND_PAYLOAD;
 
 /// How the relay leg ended.
 #[derive(Debug, Clone, PartialEq, Eq)]
@@ -252,6 +252,32 @@ mod tests {
         assert_eq!(back, vec![9u8; 500]);
         assert_eq!(status.bytes(), 1500, "out and in together, no keepalive");
         assert!(status.age() < Duration::from_secs(60));
+    }
+
+    /// A burst from russh reaches the relay in frames of 32 KiB at most, with
+    /// its bytes in order (T-323): a frame above 64 KiB can break the relay's
+    /// socket (workerd issue 7074).
+    #[tokio::test]
+    async fn a_burst_reaches_the_relay_in_frames_that_stay_small() {
+        use podssh_ws::frame::{decode, Role, FORWARD_SEND_PAYLOAD};
+        let (ours, mut relay) = tokio::io::duplex(1 << 21);
+        let session = RelaySession::new(ours, Vec::new(), None, Duration::from_secs(30));
+        let (mut ssh, _status) = spawn(session);
+        let sent: Vec<u8> = (0..1 << 20).map(|i: u32| (i * 7 % 251) as u8).collect();
+        ssh.write_all(&sent).await.expect("written");
+        let (mut wire, mut got) = (Vec::new(), Vec::new());
+        while got.len() < sent.len() {
+            let mut buf = vec![0u8; 1 << 16];
+            let n =
+                tokio::time::timeout(Duration::from_secs(10), relay.read(&mut buf)).await.expect("in time").unwrap();
+            wire.extend_from_slice(&buf[..n]);
+            while let Some((frame, used)) = decode(&wire, Role::Client).expect("a frame") {
+                assert!(frame.payload.len() <= FORWARD_SEND_PAYLOAD, "a frame of {} bytes", frame.payload.len());
+                got.extend_from_slice(&frame.payload);
+                wire.drain(..used);
+            }
+        }
+        assert_eq!(got, sent, "the bytes, in order");
     }
 
     /// The link breaks while russh writes and does not read: the sending

@@ -311,7 +311,7 @@ the configuration on each call (`crates/podssh-ws/src/client.rs` lines 187-207 a
 (`crates/podssh-relay/src/token.rs:94-99`), the pool refresh
 (`crates/podssh-relay/src/pool.rs:120-128`), and the `https_*` functions (`client.rs` lines
 261-287). podssh's configuration offers no ALPN (`tls.rs` lines 174-177 at `723d90b`), because the upgrade is
-HTTP/1.1 only (`docs/relay.md:241`). The `tls12` feature of `rustls` is on in the workspace
+HTTP/1.1 only (`docs/relay.md:246`). The `tls12` feature of `rustls` is on in the workspace
 (`[workspace.dependencies]` of `Cargo.toml`).
 
 ## Approach
@@ -816,10 +816,10 @@ peer that sends one breaks the protocol, and podssh reads the frame as valid.
 ## Premise
 
 Read on `3ee70dc`, the defect holds. `frame::decode` reads the 16-bit length with no lower
-bound (`crates/podssh-ws/src/frame.rs:149-164`). It reads the 64-bit length and checks only the
+bound (`crates/podssh-ws/src/frame.rs:157-172`). It reads the 64-bit length and checks only the
 size of the platform and the forward cap of 262144 bytes (lines 166-186 at `22c3b88`); that cap also refuses
 a value with its top bit set, which section 5.2 forbids too. `frame::encode` writes the minimal
-form (`:80-88`). The tests check the encoder at the boundaries 125, 126, 65535 and 65536
+form (`:88-96`). The tests check the encoder at the boundaries 125, 126, 65535 and 65536
 (`crates/podssh-ws/tests/rfc6455.rs:92-117`), and no test decodes a length that is not
 minimal. The only caller in the code is `next_event`, for the frames of the relay
 (`crates/podssh-ws/src/client.rs:405-414`). The stand-in relay writes the minimal form
@@ -828,7 +828,7 @@ minimal. The only caller in the code is `next_event`, for the frames of the rela
 ## Approach
 
 1. In `frame::decode`, refuse a 16-bit length below 126 and a 64-bit length below 65536 with a
-   `WsError::Frame` that names the rule (`crates/podssh-ws/src/frame.rs:149-189`), before the
+   `WsError::Frame` that names the rule (`crates/podssh-ws/src/frame.rs:157-197`), before the
    payload is copied.
 2. A client that receives such a frame fails the WebSocket connection (RFC 6455 section 7.1.7):
    it sends a Close with 1002, a protocol error (section 7.4.1), and then closes the TCP

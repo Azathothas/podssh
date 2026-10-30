@@ -30,6 +30,14 @@ pub const OPCODE_PONG: u8 = 0xa;
 pub const FORWARD_MAX_FRAME: usize = 262_144;
 pub const NODE_MAX_FRAME: usize = 65_568;
 
+/// The largest payload that podssh sends in one forward frame, far under the
+/// relay's cap. The relay writes what it takes to a socket of a Worker's
+/// `connect()`, and workerd issue 7074 reports that one write of more than
+/// 65,536 bytes there resolves and the socket then fails ("Network
+/// connection lost"); 32 KiB, the issue's workaround, leaves half of that.
+/// Each sender of the forward road takes this one size (T-323).
+pub const FORWARD_SEND_PAYLOAD: usize = 32 * 1024;
+
 /// RFC 6455 §5.5: *"All control frames MUST have a payload length of 125
 /// bytes or less."* It is the cap the reader checks before it answers a
 /// Ping: a larger Ping is already the peer's violation, and echoing it would

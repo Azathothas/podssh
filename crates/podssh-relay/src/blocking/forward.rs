@@ -13,7 +13,7 @@ use crate::reverse::wire::Socket;
 
 /// The largest payload of a frame that a forward session sends, as `podssh
 /// proxy` sends them.
-const FRAME_PAYLOAD: usize = 32 * 1024;
+const FRAME_PAYLOAD: usize = podssh_ws::frame::FORWARD_SEND_PAYLOAD;
 
 /// The relay ended a forward session with a code other than `1000`: the code
 /// and the reason. A read gives it in an `io::Error` of the kind

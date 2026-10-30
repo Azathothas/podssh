@@ -26,7 +26,7 @@ acceptance on rare input stays hidden. The release build aborts on a panic
 ## Premise
 
 Read, the parsers that take input from a peer or a file: WebSocket frames
-(`crates/podssh-ws/src/frame.rs:113`); HTTP heads and chunked bodies
+(`crates/podssh-ws/src/frame.rs:121`); HTTP heads and chunked bodies
 (`crates/podssh-ws/src/http.rs:110`, line 183 at `e892b0f`); the upgrade answer
 (`crates/podssh-ws/src/handshake.rs:175`); proxy URLs
 (`crates/podssh-ws/src/proxy.rs:82`), `NO_PROXY` and the CONNECT status
@@ -544,7 +544,7 @@ Read, the bounds today:
   backpressure`): the row of the reverse path in the relay's document
   (`crates/podssh-probe/tests/spec/relay-spec-2026-10-03-r2.txt:185`). It
   now gives the forward path's rule (`crates/podssh-ssh/src/run.rs:26-29`):
-  `docs/relay.md:236-240` says that backpressure closes with `1013` at
+  `docs/relay.md:241-245` says that backpressure closes with `1013` at
   2 MiB and drops no frame. T-062 measures whether that check operates.
 
 ## Approach
@@ -593,8 +593,8 @@ fail.
 
 2026-10-11, read against the Premise; each holds at the cited lines:
 
-- The frame's bound refuses a 64-bit length (`crates/podssh-ws/src/frame.rs:185-187`). The check
-  after it (`crates/podssh-ws/src/frame.rs:193-197`) cannot fire: a shorter length is at most 65535.
+- The frame's bound refuses a 64-bit length (`crates/podssh-ws/src/frame.rs:193-195`). The check
+  after it (`crates/podssh-ws/src/frame.rs:201-205`) cannot fire: a shorter length is at most 65535.
 - The upgrade that podssh sends is `client::upgrade`, whose bound was a literal; it is
   `UPGRADE_HEAD` now (`crates/podssh-ws/src/client.rs:38`). `MAX_HANDSHAKE_RESPONSE`
   (`crates/podssh-ws/src/handshake.rs:124`) bounds `handshake::handshake`, which no command calls.
@@ -675,8 +675,8 @@ split of the input only is not found.
 
 Read: the candidates, each a pure function or a state machine with no I/O.
 
-- WebSocket frames: `encode` and `decode` (`crates/podssh-ws/src/frame.rs:67`,
-  `crates/podssh-ws/src/frame.rs:113`).
+- WebSocket frames: `encode` and `decode` (`crates/podssh-ws/src/frame.rs:75`,
+  `crates/podssh-ws/src/frame.rs:121`).
 - The joining of fragments (`crates/podssh-ws/src/session.rs:330-354`). It is
   private, but `RelaySession::new` (`crates/podssh-ws/src/session.rs:82`) takes
   any stream, so a test can drive it.
@@ -759,7 +759,7 @@ sh scripts/dev.sh check     # proptest builds under CC=/nonexistent and CXX=/non
 ```
 
 Each command exits 0. Planted defect: in `encode`, mask with
-`masking_key[(i + 1) % 4]` (`crates/podssh-ws/src/frame.rs:100`); the round
+`masking_key[(i + 1) % 4]` (`crates/podssh-ws/src/frame.rs:108`); the round
 trip of frames must fail and print the smallest frame that fails.
 
 ## Done
@@ -843,7 +843,7 @@ Read:
   names and answers a status (`scripts/fake-proxy.py:1-27`). Neither shapes
   the traffic.
 - `scripts/interop-faults.sh:42-50` starts one stand-in for each fault; its
-  checks are at lines 73-182 at `8d668b7` (`docs/STATUS.md:478-496`, 14 of 14 since T-236).
+  checks are at lines 73-182 at `8d668b7` (`docs/STATUS.md:479-497`, 14 of 14 since T-236).
 - The time limits that latency meets today: the SSH handshake, 60 s
   (`crates/podssh-ssh/src/options.rs:392`, enforced at
   `crates/podssh-ssh/src/run.rs:369-375`); a reply, 30 s
