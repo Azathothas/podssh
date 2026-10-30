@@ -11,6 +11,7 @@ use crate::node::NodeArgs;
 use crate::relay_settings::Refusal;
 
 /// The first line of a unit that podssh wrote, which `--uninstall` checks.
+#[cfg_attr(windows, allow(dead_code))]
 pub(super) const UNIT_MARK: &str = "# Written by podssh node ";
 
 /// The node's words for its service: NAME, each TARGET and the flags of this
@@ -65,6 +66,7 @@ fn command(spec: &Spec) -> impl Iterator<Item = String> + '_ {
 
 /// A word as `ExecStart=` reads it: `%` and `$` doubled, as systemd expands
 /// them, and in double quotes when it is not plain.
+#[cfg_attr(windows, allow(dead_code))]
 pub(super) fn systemd_word(word: &str) -> String {
     let escaped = word.replace('%', "%%").replace('$', "$$");
     if plain(word) {
@@ -75,6 +77,7 @@ pub(super) fn systemd_word(word: &str) -> String {
 
 /// The user unit. It starts again 10 s after a failure, but not after a
 /// refused flag, pair or setting (64, 77, 78), which no restart changes.
+#[cfg_attr(windows, allow(dead_code))]
 pub(super) fn unit(spec: &Spec) -> String {
     let name = &spec.name;
     let words: Vec<String> = command(spec).map(|w| systemd_word(&w)).collect();
@@ -104,12 +107,14 @@ pub(super) fn sh_word(word: &str) -> String {
 }
 
 /// The comment above the line of `name` in the crontab.
+#[cfg_attr(windows, allow(dead_code))]
 pub(super) fn cron_mark(name: &str) -> String {
     format!("# podssh node {name} --install wrote the line below; podssh node {name} --uninstall removes it")
 }
 
 /// The line of the crontab. cron runs it with sh, and reads `%` as a line
 /// break: `\%` is a `%`.
+#[cfg_attr(windows, allow(dead_code))]
 pub(super) fn cron_line(spec: &Spec) -> String {
     let words: Vec<String> = command(spec).map(|w| sh_word(&w)).collect();
     format!("@reboot {}", words.join(" ").replace('%', "\\%"))
@@ -118,6 +123,7 @@ pub(super) fn cron_line(spec: &Spec) -> String {
 /// `table` without the lines of `name`, then with `line` and its mark when
 /// one is given; and whether the lines of `name` were there. The line below
 /// a mark is removed only when it is an `@reboot` line.
+#[cfg_attr(windows, allow(dead_code))]
 pub(super) fn cron_table(table: &str, name: &str, line: Option<&str>) -> (String, bool) {
     let mark = cron_mark(name);
     let mut kept: Vec<&str> = Vec::new();

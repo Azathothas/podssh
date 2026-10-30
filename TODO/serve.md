@@ -1120,6 +1120,12 @@ the same module when it comes (Decision).
   of its variables", and nothing was left.
 - Not measured: the task of Windows (its XML is tested on each system, and
   `schtasks` runs in no test), and a crontab of a real cron at boot.
+- 2026-10-30, later: the release build for Windows on ARM (T-218, run
+  41074530703) warned that six items of `node_install/text.rs` are never
+  used there: the unit's mark and writer, and the crontab's, which only Unix
+  reaches. Each now allows dead code on Windows, as the task's XML does on
+  Unix. Linux: clippy with `-D warnings`, `--lib node_install` 5 passed; the
+  next Windows builds of CI show the warnings gone.
 
 # T-122: `podssh serve`: each pty child in its own transient scope when systemd is there
 
