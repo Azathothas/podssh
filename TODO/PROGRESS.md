@@ -46,6 +46,9 @@ entry keeps its proof in the entry; this page keeps no history (git does).
   (T-310). podssh works there through the agent proxy (T-311). The CI's job
   `deny` was red from 2026-10-15 (T-312), and the native tests met three
   causes of the test or of the place, none of podssh (T-313, T-314, T-315).
+  `v1.0.0-beta.1` was published from that session (T-309): its git may not
+  push a tag, so the release workflow publishes from a run by hand. GitHub
+  #14, #21, #23 and #26 are closed.
 - **Drafts (2026-10-13).** Since 2026-10-12 agents draft entries in local
   worktrees (`.claude/worktrees/`, excluded from git) on local branches
   `worktree-agent-*`, never pushed; they do not build. The main session
@@ -109,7 +112,7 @@ and `CARGO_BUILD_JOBS=4`:
 
 ## Counts
 
-`TODO/INDEX.md` holds 319 entries: 36 open, 1 partial, 25 blocked, 257 done.
+`TODO/INDEX.md` holds 319 entries: 36 open, 0 partial, 25 blocked, 258 done.
 
 Open includes parked work. `cargo todo check` verifies this line.
 
@@ -124,9 +127,10 @@ the surface for agents: done.
 
 **M4:** T-085 (the exit measurement) is on hold (Q32).
 
-**First (2026-10-30):** T-309, the beta (partial: the first beta is being
-published, with the two repairs of the proxy that the testers' sandboxes
-meet).
+**First (2026-10-30):** `v1.0.0-beta.1` is published. The next beta, after
+a batch of repairs that the testers should test again (at most one a day),
+follows `docs/development.md` ("Release builds"); `main` carries the repair
+of a proxy that takes the CONNECT and carries no SSH.
 
 **Now:** the `backlog` entries, in the order of `TODO/INDEX.md` ("The
 order, and the argument for it"): M3 to M8 are done, but for the entries on

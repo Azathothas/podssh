@@ -166,7 +166,7 @@ they test the current code only when a beta has it.
 **Milestone:** none
 **Priority:** P1
 **Effort:** M
-**Status:** partial
+**Status:** done
 
 ## Problem
 
@@ -233,8 +233,9 @@ login attempt through the relay.
 
 ## Done
 
-So far, 2026-10-30 (the entry stays `partial` until the first beta is
-published and checked):
+2026-10-30: `v1.0.0-beta.1` is published, a prerelease at `5c8d423`
+(https://github.com/Azathothas/podssh/releases/tag/v1.0.0-beta.1, run
+41054194363, at 12:26 UTC), and its files pass the Prove. The steps:
 
 - The version `1.0.0-beta.1` in `Cargo.toml`; `cargo update -w` wrote it in
   `Cargo.lock` and `fuzz/Cargo.lock`, which also took tokio 1.54.1 and the
@@ -274,6 +275,20 @@ published and checked):
 - The tag was refused (HTTP 403; the Decision). The beta is published from
   a run by hand of the next commit, which carries T-316 as well.
 
-Next: CI green on that commit, the release workflow by hand on it, the local
-checks of its binary, the run that publishes, and the checks of the
-published files.
+- At `5c8d423`: each job of the gate green (build 16 of 16, deny, secrets);
+  by hand, the release workflow's dry run (run 41051568231) and changelog,
+  each green; its x86_64 binary passed the same local checks.
+- The run that publishes (`publish=v1.0.0-beta.1`, run 41054194363) made the
+  tag at `5c8d423` and the prerelease, with the three binaries, `SHA256SUMS`
+  and `THIRD-PARTY-LICENSES.md`, and a body of 54,692 characters.
+- The published files, by their public URLs, here: each of the five
+  downloads; each sum checks; the x86_64 binary prints `podssh 1.0.0-beta.1`,
+  is static-pie with no dynamic dependency, writes its manual (3702 lines),
+  passes `doctor` (31 ok, 0 FAIL), carries GitHub's banner through `podssh
+  proxy` and the relay, and a login with a throwaway key is refused
+  (publickey, 255).
+- The two Linux binaries of the run that publishes are the dry run's, byte
+  for byte (equal sums); the Windows binary is not.
+- The next betas follow the same steps (`docs/development.md`, "Release
+  builds"), each after a batch of repairs that the testers should test
+  again, at most one a day.

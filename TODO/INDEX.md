@@ -61,15 +61,15 @@ repository and CI).
 
 ## Counts
 
-**319 entries: 36 open, 1 partial, 25 blocked, 257 done.**
+**319 entries: 36 open, 0 partial, 25 blocked, 258 done.**
 
 | Priority | open | partial | blocked | done | total |
 | --- | --- | --- | --- | --- | --- |
 | P0 | 0 | 0 | 0 | 1 | 1 |
-| P1 | 2 | 1 | 0 | 23 | 26 |
+| P1 | 2 | 0 | 0 | 24 | 26 |
 | P2 | 4 | 0 | 19 | 142 | 165 |
 | P3 | 30 | 0 | 6 | 91 | 127 |
-| **All** | 36 | 1 | 25 | 257 | 319 |
+| **All** | 36 | 0 | 25 | 258 | 319 |
 
 ## Entries
 
@@ -379,7 +379,7 @@ repository and CI).
 | [T-305](resume.md) | P3 | M | backlog | feature | open | Roam at once: a new link beside a silent one |
 | [T-306](resume.md) | P3 | S | backlog | feature | open | A resume deadline that the user sets, for a host that sleeps |
 | [T-308](repo.md) | P3 | S | none | defect | open | Dependabot's updates of the images fail: GitHub refuses each pull request it makes |
-| [T-309](release.md) | P1 | M | none | release | partial | Publish the rolling betas `v1.0.0-beta.N` |
+| [T-309](release.md) | P1 | M | none | release | done | Publish the rolling betas `v1.0.0-beta.N` |
 | [T-310](repo.md) | P2 | M | none | chore | done | The gate on a Linux host with no wsl-toolkit, and a cloud session made ready |
 | [T-311](ws.md) | P2 | S | none | measurement | done | podssh in a Claude Code cloud container: an agent proxy, and an egress that intercepts TLS |
 | [T-312](repo.md) | P1 | S | none | defect | done | The job `deny` fails from 2026-10-15: advisories against rustls, rustls-webpki, webpki-roots, tokio, crypto-bigint and ctutils |

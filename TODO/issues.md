@@ -24,7 +24,7 @@ Triage of 2026-10-08: issues #1 to #36.
 | #11 | `podssh status` | closed | T-051 (the commit "podssh status: one line of JSON about this host") |
 | #12 | `PODSSH_TIMEOUT` | closed | T-012 (the commit "PODSSH_TIMEOUT gives the default of --timeout") |
 | #13 | `podssh doctor --full` | closed | T-052 (the commit "podssh doctor --full logs in to GitHub with a key made for the check") |
-| #14 | `ssh_config`, `-F` and `-G` | open | T-043, T-044, T-045, T-046 |
+| #14 | `ssh_config`, `-F` and `-G` | closed (2026-10-30, with a comment that names the entries and commits; in `v1.0.0-beta.1`) | T-043, T-044, T-045, T-046 |
 | #15 | `keygen` waits for ever on a dead `/dev/tty` | closed | T-005 (repaired in `eacd94e`; measured in the box in the commit "The box has the sandbox's dead /dev/tty; T-005 measured there") |
 | #16 | A repeated flag keeps the last value | closed | T-017 |
 | #17 | Relay drops (1011): a generic message, no retry | open | T-024 (done in the commit "A dropped session names the hop that broke"), T-025; T-062 (the backpressure close). The issue closes with T-025 and T-062 |
@@ -66,7 +66,9 @@ A limit on each wait: T-110, T-111, T-112, T-133. Transient scopes: T-122.
 copy options: T-141, T-142, T-143, T-144. A fast road with a fallback: T-164.
 Integrity, atomic replacement, `--inplace`, metadata: T-134, T-147, T-146. A
 dry run: T-143. Progress, cancellation, remote changes: T-145, T-149. ZMODEM:
-T-148. Pipelined SFTP: T-140.
+T-148. Pipelined SFTP: T-140. Closed on 2026-10-30 with a comment that names
+the entries and commits; each is in `v1.0.0-beta.1` but T-164, which needs a
+build with the feature `iroh`.
 
 **#22, `ssh_config` and the flags of OpenSSH.** The parser: T-043, T-044. The
 settings in effect (`-G`): T-046. `Match`: T-045. `-F` and the port forms of
@@ -79,7 +81,8 @@ T-303, T-304, T-305 and T-306.
 T-054. Latency and throughput, and a short preflight: T-053. The health of
 the far host: T-189. An exec result with the real exit status: T-054. No
 success without an exit status: T-026. The flag table: T-050. The state of
-this host: T-051.
+this host: T-051. Closed on 2026-10-30 with a comment that names the entries
+and commits, all in `v1.0.0-beta.1`.
 
 **#24, many sessions.** Broadcast, an emergency stop and reviewed macros:
 T-185, T-187. A control surface for agents: T-186; over stdio: T-055.
@@ -100,6 +103,8 @@ equal digests over exec, and `-W`). AF_UNIX streams: T-176, T-040. Desktop
 streams: T-179. UDP over TCP: T-168. Publish a local HTTP service: T-180 (it waits for the relay's
 operator).
 Port discovery: T-180. A local-only mode: T-177. USB/IP: T-182 (a tested recipe over `podssh pipe`).
+Closed on 2026-10-30 with a comment that names the entries and commits, and
+T-180, which waits for the relay's operator.
 
 ## Requests of a second review (#29 to #36)
 

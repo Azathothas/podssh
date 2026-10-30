@@ -39,7 +39,7 @@ features.
 - podssh was measured in two real sandboxes on 2026-10-08, and in a Claude
   Code cloud container on 2026-10-30 (below). M3 is done (2026-10-09).
   Betas `v1.0.0-beta.N` come before `v1.0.0`, the final release (T-309,
-  T-250).
+  T-250): `v1.0.0-beta.1` is published (2026-10-30, at `5c8d423`).
 
 The open work, the defects included, is in [TODO/INDEX.md](../TODO/INDEX.md),
 and its order in [TODO/PROGRESS.md](../TODO/PROGRESS.md). The milestones are
@@ -582,6 +582,7 @@ The lines are `wc -l` of each crate's `src/` and `tests/` (2026-10-09, T-082;
 | The runners of CI (T-278, 2026-10-11) | Each workflow names its system: `ubuntu-24.04` and `windows-2025`, the systems of the last green run, before `ubuntu-latest` moves to Ubuntu 26 on 2026-10-19. Run 38081754484 at `4dd52f8` passed each job on them; its Linux jobs ran on the image `ubuntu-24.04`. | `grep -rn "ubuntu-latest\|windows-latest" .github/workflows/` finds no line |
 | The release workflow, run by hand | At `f5e06ca`, 2026-10-30 (run 41048945680): the three binaries, the Linux ones static musl (x86_64 9,702,752 bytes) and the Windows one with no C runtime DLL, each printing `podssh 1.0.0-beta.1`; the job publish made `SHA256SUMS`, `THIRD-PARTY-LICENSES.md` and a body of 54,245 bytes, and published nothing. The x86_64 binary, checked in a Claude Code cloud container: its sum, static-pie, the manual, `doctor` 31 ok, GitHub's banner through `podssh proxy` and the relay, a login refused with a throwaway key (publickey, 255). With the input `publish`, the run publishes too, and makes the tag (T-309) | `gh workflow run release.yml --ref main`, `-f publish=vX.Y.Z` |
 | The body of a release, and the version (T-309), 2026-10-30 | git-cliff 2.9.1 with `cliff.toml`: 343 of 343 commits in 50,475 bytes, each subject cut to 200 characters, and no `@` mention outside code (the subjects hold `@NAME`, `@GROUP` and `@cert-authority`). With the notes of `v1.0.0-beta.1`, the body as the job `publish` makes it: 54,029 bytes, under GitHub's 125,000; planted, the list three times: cut at a line to 119,794 bytes, and whole in `CHANGES.md`. The version `1.0.0-beta.1`; the SSH banner `SSH-2.0-podssh_1.0.0_beta.1`, with no `-` in its software version (RFC 4253, section 4.2): its test failed with the `-` planted back | `git cliff --config cliff.toml --unreleased --strip all`; `cargo test -p podssh-ssh --lib run::tests` |
+| `v1.0.0-beta.1` (T-309), 2026-10-30 | Published by the run by hand with `publish` (run 41054194363), a prerelease at `5c8d423`, after the gate, deny, secrets, the dry run and changelog passed on that commit. Its five files by their public URLs: each sum checks; the x86_64 binary prints `podssh 1.0.0-beta.1`, is static-pie, and passes `doctor` (31 ok, 0 FAIL), GitHub's banner through `podssh proxy` and the relay, and a login refused with a throwaway key (publickey, 255). The Linux binaries are the dry run's byte for byte; the Windows binary is not | `gh release view v1.0.0-beta.1 -R Azathothas/podssh` |
 
 ## Other TCP protocols, measured
 
