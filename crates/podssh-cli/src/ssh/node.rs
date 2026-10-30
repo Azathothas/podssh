@@ -221,6 +221,7 @@ pub async fn reach(
     log.verbose(&format!("connecting to {shown} through the relay {}", part.relay.host));
     let (ours, theirs) = tokio::io::duplex(PIPE);
     let (started, has_started) = oneshot::channel();
+    let (ended, done) = oneshot::channel();
     let (task_label, task_shown, task_trust, task_log) = (label.to_string(), shown.clone(), trust.clone(), log.clone());
     tokio::spawn(async move {
         let proxy = ProxyChoice::FromEnvironment;
@@ -258,9 +259,10 @@ pub async fn reach(
         if let Some((_, why)) = crate::operator::judged(&task_label, &carried) {
             task_log.error(&format!("{task_shown}: {why}"));
         }
+        let _ = ended.send(());
     });
     match has_started.await {
-        Ok(Ok(())) => Ok(Reached { stream: Box::new(ours), relay: None, direct_proxy: None }),
+        Ok(Ok(())) => Ok(Reached { stream: Box::new(ours), relay: None, direct_proxy: None, layer: Some(done) }),
         Ok(Err(refusal)) => Err(refused(refusal)),
         Err(_) => Err(NotReached {
             lines: vec![format!("{shown}: the leg's task ended before it started")],

@@ -43,8 +43,9 @@ pub enum Transport {
     /// ticket's (T-165).
     Iroh { ticket: String, key: Option<String>, relays: Vec<String>, trust: Trust, channel: crate::channel::Ask },
     /// The service that `cloudflared` publishes under `host`, over its
-    /// WebSocket (`cf://HOST`, T-264).
-    Cloudflare { host: String, trust: Trust },
+    /// WebSocket (`cf://HOST`, T-264), or a podssh node's quick tunnel,
+    /// with the channel that the command line asks of a node (T-300).
+    Cloudflare { host: String, trust: Trust, channel: crate::channel::Ask },
 }
 
 /// A command line, resolved.
@@ -77,6 +78,9 @@ pub struct Resolved {
     pub x11: Option<super::x11::Plan>,
     /// `--upgrade` (T-167): what the move to a temporary node needs.
     pub upgrade: Option<super::upgrade::Upgrade>,
+    /// No `ServerAliveInterval` was given: a far end that the road finds
+    /// to run the resumable layer turns SSH's keepalives off (T-300).
+    pub alive_default: bool,
 }
 
 /// What the process environment contributes, gathered once so it can be
@@ -181,8 +185,10 @@ pub fn resolve_or_refuse(args: &SshArgs, env: &Env) -> Result<Resolved, Refusal>
         ("--node-key", args.node_key.is_some()),
         ("--no-e2e", args.no_e2e),
     ];
-    if let Some((flag, _)) = channel.iter().find(|(_, given)| *given).filter(|_| node.is_none() && iroh.is_none()) {
-        return Err(format!("{flag} is for a node://NAME or iroh:TICKET destination").into());
+    // A cf://HOST name may be a podssh node's quick tunnel (T-300).
+    let podssh_ends = node.is_some() || iroh.is_some() || tunnel.is_some();
+    if let Some((flag, _)) = channel.iter().find(|(_, given)| *given).filter(|_| !podssh_ends) {
+        return Err(format!("{flag} is for a node://NAME, iroh:TICKET or cf://HOST destination").into());
     }
     let fingerprints = args
         .host_key_fingerprint
@@ -450,6 +456,7 @@ pub fn resolve_or_refuse(args: &SshArgs, env: &Env) -> Result<Resolved, Refusal>
         record: None,
         x11: None,
         upgrade: None,
+        alive_default: settings.alive_interval.is_none(),
     };
     super::persist::check(args, &mut resolved)?;
     super::upgrade::check(args, env, &mut resolved)?;

@@ -29,6 +29,12 @@ ed25519-dalek = { workspace = true, features = ["zeroize"] }
 base64 = { workspace = true }
 # The channel between two podssh ends (src/e2e/, T-088): Noise XX, pure Rust.
 snow = { workspace = true }
+# A quick tunnel's connection to Cloudflare's edge (src/quick/serve.rs, T-300):
+# the edge is the client of HTTP/2 on the connection that podssh dialed. Pure
+# Rust, in the lock already through hyper; only with the feature `quick`.
+h2 = { version = "0.4.19", optional = true }
+http = { version = "1.5", optional = true }
+bytes = { version = "1.12", optional = true }
 
 [features]
 # Pairs of the reverse road: `POST /v1/pair`, the status of a pair and
@@ -38,6 +44,9 @@ pair = []
 # A synchronous facade over pairs, the runners and forward sessions, for a
 # caller with no async runtime (podbox, T-081). No C either; the gate builds it.
 blocking = ["pair"]
+# A quick tunnel that podssh serves itself (T-300): HTTP/2 to the edge. No C
+# either; the gate builds it.
+quick = ["dep:h2", "dep:http", "dep:bytes"]
 # Plain ws:// to a stand-in relay on the loopback, for the tests of an embedder
 # (T-068). The binary never enables it (scripts/no-plain-ws.sh).
 plain-ws = ["podssh-ws/plain-ws"]

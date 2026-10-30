@@ -132,6 +132,23 @@ scripts. The facts about OpenSSH on this page were measured with OpenSSH
   up is at most 16 KiB, as the origin cuts a longer one; podssh sends no
   Ping, as the origin answers one outside the lock of its writes; and the
   end of the stream, with no Close, is the end of the session.
+  A podssh node behind HOST (`podssh node --quick-tunnel`, T-300) sends the
+  resumable layer's `GREETING` first, where cloudflared's SSH service
+  speaks SSH first: the session then runs in the layer, with the
+  end-to-end channel above it, and a new WebSocket to HOST carries it after
+  each lost one, as on `node://`. The node's key is the one of
+  `--node-key` (the key that the node prints as it starts), else it is
+  pinned under `cf://HOST` at its first sight: a quick tunnel's name lives
+  one run of its node, so the pin guards that run's later sessions, and
+  `--node-key` the first. `--client-key` applies as on `node://`, and no
+  key of this client is made before the far end greets as a node;
+  `--node-key` with a far end that greets with no layer is refused (255;
+  77 for a copy), and `--no-e2e` with `cf://` (64), as a quick tunnel's
+  node always runs the channel. SSH's keepalives are off there unless
+  `ServerAliveInterval` is given, as the layer's heartbeat finds a dead
+  link, and the run waits up to 5 s after SSH for the layer's `CLOSE`.
+  `podssh proxy cf://HOST` carries the bytes as they are, so OpenSSH's
+  `ProxyCommand` reaches cloudflared's services only.
 - **`PODSSH_MPTCP=yes` asks for Multipath TCP on the direct road** (T-172),
   on Linux, and only on request. With `--direct` and no proxy, each attempt
   asks the kernel for a socket of `IPPROTO_MPTCP`: where the server speaks
@@ -1750,6 +1767,23 @@ commands. The rules behind them:
   node's only one: a second TARGET, a route of UDP and `--iroh` are usage
   errors (64). The client is `pipe`'s `udp:node:NAME`; `operator` carries
   the same framing on stdin and stdout.
+- **`node NAME TARGET --quick-tunnel` serves TARGET at
+  `https://NAME.trycloudflare.com`** (T-300), a quick tunnel of
+  Cloudflare's that podssh makes itself: no pair, no account and no
+  `cloudflared`. The name is new each run, and the one line on stdout. The
+  node asks `api.trycloudflare.com` for the tunnel (through `HTTPS_PROXY`
+  when it is set), then reaches the edge on TCP port 7844, directly or
+  through a proxy that allows it, and exits 69 when it reaches neither; it
+  registers its connection over HTTP/2, and each visitor's WebSocket is one
+  link of the resumable layer. The name is public, so `--allow FILE` is
+  needed: only an operator whose key is in FILE reaches TARGET, through
+  the end-to-end channel. A lost connection to the edge is made again with
+  the same name, and Ctrl-C unregisters it. `--iroh`, `--plain`,
+  `--no-e2e`, `--pair-file`, a route and a UDP TARGET are refused with it
+  (64). The client is `podssh ssh cf://NAME.trycloudflare.com`, or `cp`,
+  `each` and the other commands of a destination on that road: it tells the
+  node apart by the layer's greeting (`cf://[user@]HOST`, above). The node
+  prints its key as it starts, for the client's `--node-key`.
 - **The exit codes follow the faults of E24**
   (`crates/podssh-cli/src/exitmap.rs`): 69 for a relay or TARGET out of
   reach, a stopped pair, or a pair that another node serves; 77 for a

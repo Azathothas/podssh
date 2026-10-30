@@ -218,6 +218,7 @@ async fn one(
         Kept::Tmux(name) => persist::attempt(reached.stream, opts, relay.as_ref(), name, first, input, log).await,
         Kept::Forwards => persist::carry(reached.stream, opts, relay.as_ref(), first, log).await,
     };
+    transport::settle(reached.layer).await;
     match attempt {
         Attempt::Lost { attached: false, why } if first => {
             for line in podssh_ssh::run::failure_lines(&why, relay.and_then(|r| r.get()).as_ref(), &target) {

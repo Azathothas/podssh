@@ -557,7 +557,7 @@ Read: the commands already check the forward path. `podssh_relay::relay::forward
 (`crates/podssh-relay/src/relay.rs` lines 158-174 at `3b60753`), with a test of bad hosts (lines 218-226 at `3b60753`).
 Nothing checks a node name.
 
-Read in a local copy of podbox at `5bd8cb0` (`docs/design.md:413` names `452d792`): `validate_name`
+Read in a local copy of podbox at `5bd8cb0` (`docs/design.md:420` names `452d792`): `validate_name`
 accepts 1 to 128 characters of `[A-Za-z0-9._-]` and refuses anything else, with no encoding
 (`Azathothas/podbox:crates/podbox-ssh/src/mux.rs`). The contract does not give the form of a pair
 name (`crates/podssh-probe/tests/spec/relay-spec-2026-10-03-r2.txt:130-134`). To measure: the name
@@ -661,7 +661,7 @@ crates/podssh-transport/tests/closes.rs lines 354-391 at `e8bbd4d`.
 Read: a node connects again "with a jittered backoff" (`docs/reverse.md:34-42`,
 `docs/ROADMAP.md:150-158`). `podssh_relay::open::backoff` doubles from 1 s to 30 s and multiplies
 by a random factor from 0.5 to 1.5 (`crates/podssh-relay/src/open.rs:349-363`); `podssh ssh` uses
-it (`crates/podssh-cli/src/ssh/transport.rs:168-174`).
+it (`crates/podssh-cli/src/ssh/transport.rs:192-198`).
 
 ## Approach
 

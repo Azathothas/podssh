@@ -127,6 +127,7 @@ pub(crate) async fn run(plan: &Plan, place: Place) -> Ended {
             }
         };
         let outcome = podssh_ssh::run::run_outcome(reached.stream, &opts, reached.relay, log.clone()).await;
+        transport::settle(reached.layer).await;
         for line in &outcome.lines {
             log.error(line);
         }

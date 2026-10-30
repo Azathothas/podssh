@@ -106,6 +106,15 @@ pub(super) const NODE: &[&str] = &[
      the node reads again for each connection, so a key added counts at once. With no such file, no \
      client gets in. Each refused key is said on stderr: it is the line to add. A session reaches TARGET \
      only after the layer's handshake, and resumes on a new link for 10 minutes, as on the relay.",
+    "With --quick-tunnel, the node serves TARGET at https://NAME.trycloudflare.com, a quick tunnel of \
+     Cloudflare's that podssh makes itself, with no pair, no account and no cloudflared. The name is new \
+     each run, and is the one line on stdout. The node needs TCP port 7844 of Cloudflare's edge, \
+     directly or through a proxy that allows it, and exits 69 when it reaches neither; a client in a \
+     cage reaches the name on port 443. The name is public, so --allow FILE is needed: only an operator \
+     whose key is a line of FILE reaches TARGET, through the end-to-end channel above the resumable \
+     layer. A connection to the edge that is lost is made again, with the same name; at Ctrl-C the node \
+     unregisters it. --iroh, --plain, --no-e2e, --pair-file, a route and a udp: TARGET are refused \
+     with it (64).",
 ];
 
 pub(super) const OPERATOR: &[&str] = &[

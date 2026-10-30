@@ -8,13 +8,21 @@
 //! Access cannot run in a cage. Each credential comes from the environment or
 //! a file, never from the command line. The host key is recorded under HOST,
 //! as with OpenSSH's `ProxyCommand cloudflared access ssh --hostname %h`.
+//! A podssh node behind HOST (`podssh node --quick-tunnel`, T-300) greets
+//! with the resumable layer first, and the session runs in it ([`layer`]).
+
+mod layer;
 
 use std::io::Read;
+use std::sync::Arc;
 
+use podssh_relay::session::client;
+use podssh_relay::session::resume::Next;
 use podssh_ssh::Log;
 use podssh_ws::client::{ConnectError, DEFAULT_IDLE_TIMEOUT};
 use podssh_ws::cloudflare::{self, Access};
 use podssh_ws::{ProxyChoice, Trust};
+use tokio::io::DuplexStream;
 use zeroize::Zeroizing;
 
 use super::resolve::{Env, Transport};
@@ -69,6 +77,8 @@ pub(super) fn transport(r: &super::node::Ask<'_>, env: &Env) -> Result<Transport
         Some("-o HostName cannot apply to a Cloudflare tunnel")
     } else if r.family.is_some() {
         Some("-4 and -6 do not apply: Cloudflare's edge dials the service")
+    } else if r.args.no_e2e {
+        Some("--no-e2e cannot go with it: a quick tunnel's node always runs the end-to-end channel")
     } else {
         None
     };
@@ -79,7 +89,9 @@ pub(super) fn transport(r: &super::node::Ask<'_>, env: &Env) -> Result<Transport
         Some(file) => Trust::File(file.into()),
         None => Trust::Default,
     };
-    Ok(Transport::Cloudflare { host: r.label.to_string(), trust })
+    // The channel of a node behind the name, if the far end greets so.
+    let channel = super::iroh::channel_ask(r.args).map_err(|why| format!("{SCHEME}{}: {why}", r.label))?;
+    Ok(Transport::Cloudflare { host: r.label.to_string(), trust, channel })
 }
 
 /// The credentials of Cloudflare Access, as `read` gives each variable: a
@@ -157,8 +169,18 @@ pub fn refusal(host: &str, e: &ConnectError) -> (String, i32) {
     }
 }
 
-/// The stream to the service of `host`'s tunnel.
-pub(super) async fn reach(host: &str, trust: &Trust, log: &Log) -> Result<Reached, NotReached> {
+/// The stream to the service of `host`'s tunnel: the bytes of the far end
+/// as they are, or, when its first frame is the resumable layer's
+/// `GREETING`, the session of a podssh node in the layer, carried to a new
+/// WebSocket after each lost one. `opts` is the run's, whose offer of kept
+/// shells and notice of silence the layer feeds.
+pub(super) async fn reach(
+    host: &str,
+    trust: &Trust,
+    ask: &crate::channel::Ask,
+    opts: &podssh_ssh::options::Options,
+    log: &Arc<Log>,
+) -> Result<Reached, NotReached> {
     if podssh_relay::open::offline() {
         let line = format!("{} is set, so podssh does not connect anywhere", podssh_relay::open::OFFLINE_ENV);
         return Err(NotReached { lines: vec![line], code: sysexits::EX_UNAVAILABLE });
@@ -166,19 +188,57 @@ pub(super) async fn reach(host: &str, trust: &Trust, log: &Log) -> Result<Reache
     let access = access_from(&|name| std::env::var(name).ok())
         .map_err(|why| NotReached { lines: vec![why], code: sysexits::EX_CONFIG })?;
     log.verbose(&format!("connecting to {SCHEME}{host} over its Cloudflare tunnel"));
+    let link = open(host, &access, trust).await.map_err(|(line, code)| NotReached { lines: vec![line], code })?;
+    log.verbose(&format!("the tunnel of {host} took the session"));
+    let shown = format!("{SCHEME}{host}");
+    let greeted = client::greeted(link)
+        .await
+        .map_err(|e| NotReached { lines: vec![format!("{shown}: {e}")], code: sysexits::EX_UNAVAILABLE })?;
+    if !greeted.layer() {
+        // cloudflared's service: SSH, which speaks first, or silence.
+        if ask.node_key.is_some() {
+            let line = format!("{shown}: --node-key names a podssh node, but the far end greets with no layer");
+            return Err(NotReached { lines: vec![line], code: sysexits::EX_NOPERM });
+        }
+        return Ok(Reached { stream: Box::new(greeted.rewound()), relay: None, direct_proxy: None, layer: None });
+    }
+    log.verbose(&format!("{shown}: the far end greets with the resumable layer: a podssh node"));
+    let say_line = |line: String| log.info(&format!("{shown}: {line}"));
+    // A quick tunnel's name lives one run of its node: its pin guards that
+    // run's later sessions, and --node-key the first.
+    let channel = ask
+        .operator(crate::channel::Expect::Pinned(shown.clone()), &say_line)
+        .map_err(|why| NotReached { lines: vec![format!("{shown}: {why}")], code: sysexits::EX_CONFIG })?;
+    let (host, trust) = (host.to_string(), trust.clone());
+    let dial = move || {
+        let (host, access, trust) = (host.clone(), access.clone(), trust.clone());
+        async move {
+            match open(&host, &access, &trust).await {
+                Ok(link) => Next::Link(link),
+                // Access refuses again: no new link can come.
+                Err((line, sysexits::EX_NOPERM)) => Next::Stop(line),
+                Err((line, _)) => Next::Retry(line),
+            }
+        }
+    };
+    let shared = layer::Shared { offer: opts.keep.offer.clone(), silence: opts.silence.clone() };
+    match layer::carry(greeted, dial, channel, shared, shown.clone(), log.clone()).await {
+        Ok((stream, done)) => {
+            Ok(Reached { stream: Box::new(stream), relay: None, direct_proxy: None, layer: Some(done) })
+        }
+        Err(why) => Err(NotReached { lines: vec![format!("{shown}: {why}")], code: sysexits::EX_UNAVAILABLE }),
+    }
+}
+
+/// A new WebSocket to the service of `host`'s tunnel, as bytes; else the
+/// line that says why not, and its code.
+async fn open(host: &str, access: &Access, trust: &Trust) -> Result<DuplexStream, (String, i32)> {
     let timeout = podssh_relay::open::CONNECT_TIMEOUT;
-    match cloudflare::connect(host, &access, trust, &ProxyChoice::FromEnvironment, timeout, Some(DEFAULT_IDLE_TIMEOUT))
+    match cloudflare::connect(host, access, trust, &ProxyChoice::FromEnvironment, timeout, Some(DEFAULT_IDLE_TIMEOUT))
         .await
     {
-        Ok(session) => {
-            log.verbose(&format!("the tunnel of {host} took the session"));
-            let (stream, _) = podssh_ssh::relay_stream::spawn(session);
-            Ok(Reached { stream: Box::new(stream), relay: None, direct_proxy: None })
-        }
-        Err(e) => {
-            let (line, code) = refusal(host, &e);
-            Err(NotReached { lines: vec![line], code })
-        }
+        Ok(session) => Ok(podssh_ssh::relay_stream::spawn(session).0),
+        Err(e) => Err(refusal(host, &e)),
     }
 }
 

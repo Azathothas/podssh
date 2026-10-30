@@ -68,9 +68,9 @@ pub const CP_FLAGS: &[FlagRow] = &[
     row(None, "pair-file", Some("FILE"), FlagKind::Supported,
         "node://NAME: the pair in FILE, or its operator's part, not the one stored under NAME", None),
     row(None, "client-key", Some("FILE"), FlagKind::Supported,
-        "node://NAME: this client's key in FILE, made when missing (default: client.key in the cache)", None),
+        "node://NAME and a node's cf://HOST: this client's key in FILE, made when missing (default: client.key in the cache)", None),
     row(None, "node-key", Some("KEY"), FlagKind::Supported,
-        "node://NAME: the node's key, or its fingerprint SHA256:..., in place of the pins of known-nodes", None),
+        "node://NAME and a node's cf://HOST: the node's key, or its fingerprint SHA256:..., in place of the pins of known-nodes", None),
     row(None, "no-e2e", None, FlagKind::Supported,
         "node://NAME: no end-to-end channel, to a node that runs none either; the relay then sees each byte", None),
 ];

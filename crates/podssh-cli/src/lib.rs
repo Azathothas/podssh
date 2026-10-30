@@ -77,6 +77,9 @@ pub mod node_udp;
 // `podssh node --iroh`: the iroh road, with the feature `iroh` only.
 #[cfg(feature = "iroh")]
 pub mod node_iroh;
+// `podssh node --quick-tunnel`: a quick tunnel of Cloudflare's, which podssh
+// makes itself (T-300).
+pub mod node_quick;
 // `podssh node --temporary`: the far end of `podssh ssh --upgrade` (T-167).
 pub mod node_temp;
 pub mod non_interactive;

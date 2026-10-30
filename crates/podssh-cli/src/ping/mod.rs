@@ -246,6 +246,8 @@ async fn destination(resolved: &resolve::Resolved, size: u64, count: usize, log:
         far.up = Some((command, result.map_err(|e| e.to_string())));
     }
     podssh_ssh::run::disconnect_all(&handles).await;
+    drop(handles);
+    crate::ssh::transport::settle(reached.layer).await;
     far
 }
 

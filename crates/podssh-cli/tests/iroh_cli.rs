@@ -90,12 +90,13 @@ fn a_race_with_a_bad_ticket_is_refused_before_anything_connects() {
 }
 
 /// This client's key serves each destination of two podssh ends (T-087):
-/// node://NAME and iroh:TICKET; a plain host has no use for it.
+/// node://NAME, iroh:TICKET, and cf://HOST, which may be a node's quick
+/// tunnel (T-300); a plain host has no use for it.
 #[test]
 fn iroh_key_needs_a_destination_of_two_podssh_ends() {
     let (rc, _, err) = podssh(&["ssh", "--iroh-key", "client.key", "user@example.org", "true"], &scratch("ssh-key"));
     assert_eq!(rc, 64, "{err}");
-    assert!(err.contains("--iroh-key is for a node://NAME or iroh:TICKET destination"), "{err}");
+    assert!(err.contains("--iroh-key is for a node://NAME, iroh:TICKET or cf://HOST destination"), "{err}");
 }
 
 #[cfg(not(feature = "iroh"))]

@@ -48,7 +48,14 @@ pub const SSH: &[&str] = &[
      Access needs a service token (PODSSH_CF_ACCESS_CLIENT_ID and PODSSH_CF_ACCESS_CLIENT_SECRET) or a \
      token made where its login runs (PODSSH_CF_ACCESS_TOKEN or PODSSH_CF_ACCESS_TOKEN_FILE); a refusal \
      of Access says so. The host key is recorded and checked under HOST. A tunnel has no port here, and \
-     -J, -4, -6, HostName and --direct cannot go with it. podssh proxy cf://HOST is the same pipe.",
+     -J, -4, -6, HostName and --direct cannot go with it. podssh proxy cf://HOST is the same pipe. A \
+     podssh node that makes the quick tunnel of HOST itself sends the resumable layer's greeting first, \
+     where cloudflared's service speaks SSH first: the session then runs in the layer, with the \
+     end-to-end channel above it, and a new WebSocket to HOST carries it after each lost one. The \
+     node's key is the one of --node-key, the key that the node prints as it starts, else it is pinned \
+     under cf://HOST at its first sight; --node-key with a far end that greets with no layer is \
+     refused. SSH's keepalives are off there unless ServerAliveInterval is given. podssh proxy \
+     cf://HOST carries the bytes as they are, for cloudflared's services.",
     "node://NAME with --iroh-ticket TICKET races the two roads to the node: the iroh road starts first, \
      the pair's road 250 ms later, or at once when the iroh road fails, and the first far end that \
      speaks carries the session; the other link ends before it sends anything, so it opens nothing at \

@@ -313,7 +313,14 @@ async fn tries(resolved: &Resolved, log: &Arc<Log>) -> (i32, Option<podssh_ssh::
         };
         let relay = reached.relay.clone();
         let direct_proxy = reached.direct_proxy.clone();
+        // A podssh node behind a cf:// name (T-300): the layer's heartbeat
+        // finds a dead link, as on node:// (T-154).
+        if reached.layer.is_some() && resolved.alive_default && opts.keepalive_interval.take().is_some() {
+            log.verbose("the far end runs the resumable layer, whose heartbeat finds a dead link: no SSH keepalives");
+        }
         let outcome = podssh_ssh::run::run_outcome(reached.stream, &opts, reached.relay, log.clone()).await;
+        // The layer's CLOSE, and the line of its failure, before the exit.
+        transport::settle(reached.layer).await;
         let how = match outcome.retry {
             Some(Retry::NextHost) if tried < most && skip + 1 < hosts => {
                 skip += 1;

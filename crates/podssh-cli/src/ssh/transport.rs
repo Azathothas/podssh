@@ -27,6 +27,28 @@ pub struct Reached {
     pub relay: Option<RelayStatus>,
     /// The proxy of a `--direct` connection, when one carries it.
     pub direct_proxy: Option<DirectProxy>,
+    /// The task that carries the session in the resumable layer, when the
+    /// road runs one (a podssh node behind a `cf://` name, T-300): it ends
+    /// once its `CLOSE` went out and its last line was said. The layer's
+    /// heartbeat finds a dead link, so SSH's keepalives by default would
+    /// only end a session that it carries onto a new one (T-154).
+    pub layer: Option<Carriage>,
+}
+
+/// The end of a task that carries a session in the layer.
+pub type Carriage = tokio::sync::oneshot::Receiver<()>;
+
+/// How long a run waits, after SSH, for the layer's task to end: its
+/// `CLOSE`, and the line of a failure.
+pub const CARRIAGE_WAIT: std::time::Duration = std::time::Duration::from_secs(5);
+
+/// Wait for the layer's task of a road, if it runs one, within
+/// [`CARRIAGE_WAIT`]: else the node keeps the session for a resume until
+/// its deadline, and the line of a failure may never be said.
+pub async fn settle(layer: Option<Carriage>) {
+    if let Some(layer) = layer {
+        let _ = tokio::time::timeout(CARRIAGE_WAIT, layer).await;
+    }
 }
 
 /// The proxy that carries a `--direct` connection, and whether any byte came
@@ -137,7 +159,7 @@ pub async fn reach_skipping(resolved: &Resolved, skip: usize, log: &Arc<Log>) ->
                     log.verbose(&format!("the relay host {} opened the session", opened.relay.host));
                     podssh_ssh::outcome::relay_host(&opened.relay.host);
                     let (stream, status) = podssh_ssh::relay_stream::spawn(opened.session);
-                    Ok(Reached { stream: Box::new(stream), relay: Some(status), direct_proxy: None })
+                    Ok(Reached { stream: Box::new(stream), relay: Some(status), direct_proxy: None, layer: None })
                 }
                 Err(failure) => {
                     Err(NotReached { lines: failure.lines(&target), code: crate::proxy::sysexit(failure.last()) })
@@ -152,7 +174,9 @@ pub async fn reach_skipping(resolved: &Resolved, skip: usize, log: &Arc<Log>) ->
             lines: vec!["an iroh: destination is reached over the iroh road, not here".into()],
             code: sysexits::EX_USAGE,
         }),
-        Transport::Cloudflare { host, trust } => super::cloudflare::reach(host, trust, log).await,
+        Transport::Cloudflare { host, trust, channel } => {
+            super::cloudflare::reach(host, trust, channel, opts, log).await
+        }
         Transport::Direct => {
             if podssh_relay::open::offline() {
                 return Err(NotReached {
@@ -181,12 +205,17 @@ pub async fn reach_skipping(resolved: &Resolved, skip: usize, log: &Arc<Log>) ->
                         // relay leg, never a wait for ever (T-227).
                         let stream = podssh_ws::write_limit::WriteLimit::new(tcp, podssh_ws::client::WRITE_TIMEOUT);
                         let Some(proxy) = podssh_ws::dial::proxy_from_env(&first.host).ok().flatten() else {
-                            return Ok(Reached { stream: Box::new(stream), relay: None, direct_proxy: None });
+                            return Ok(Reached {
+                                stream: Box::new(stream),
+                                relay: None,
+                                direct_proxy: None,
+                                layer: None,
+                            });
                         };
                         let heard = Arc::new(AtomicBool::new(false));
                         let watched = Heard { inner: stream, heard: heard.clone() };
                         let direct_proxy = Some(DirectProxy { proxy: proxy.to_string(), heard });
-                        return Ok(Reached { stream: Box::new(watched), relay: None, direct_proxy });
+                        return Ok(Reached { stream: Box::new(watched), relay: None, direct_proxy, layer: None });
                     }
                     Err(e) => log.error(&format!("could not connect to {target}: {e}")),
                 }

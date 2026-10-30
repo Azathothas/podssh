@@ -1,0 +1,145 @@
+name: quick tunnel live
+
+# T-300: podssh's own quick tunnel, live, with the operator's leave (Q43,
+# docs/decisions.md): podssh node --quick-tunnel, built from this commit, in
+# front of an OpenSSH server on the loopback; a visitor of its name with
+# Python's standard library (scripts/quick-tunnel-probe.py), whose first
+# frame must be the layer's GREETING; then podssh ssh cf://NAME, whose first
+# session is refused by the node's empty allowlist, and whose next, with the
+# client's key in the list and the node's key named, carries 8 MiB both
+# ways: directly, and through the box's proxy (scripts/box/proxy.py, the
+# measured cage's policy). Started by hand only, with confirm=Q43. One
+# tunnel, alive for a few minutes at most. The logs of this public
+# repository are public: the tunnel's name is masked, its secret never
+# leaves the node's memory, and the keys are throwaway ones of this run.
+
+on:
+  workflow_dispatch:
+    inputs:
+      confirm:
+        description: "Q43: the operator's leave for a run against Cloudflare's quick tunnels"
+        required: true
+
+permissions:
+  contents: read
+
+concurrency:
+  group: quick-tunnel-live
+  cancel-in-progress: false
+
+jobs:
+  live:
+    if: inputs.confirm == 'Q43'
+    runs-on: ubuntu-24.04
+    timeout-minutes: 30
+    steps:
+      - uses: actions/checkout@v7
+        with:
+          persist-credentials: false
+
+      # A debug build: the check is of the protocol, not of the release's
+      # optimisations, and it builds in a few minutes.
+      - name: podssh, built from this commit
+        env:
+          CARGO_PROFILE_DEV_DEBUG: "0"
+        run: |
+          timeout 1200 cargo build -p podssh-cli --locked
+          target/debug/podssh --version
+
+      - name: an OpenSSH server on the loopback, the node's TARGET
+        run: |
+          command -v /usr/sbin/sshd >/dev/null || { sudo apt-get update -q && sudo apt-get install -y -q openssh-server; }
+          sudo mkdir -p /run/sshd
+          ssh-keygen -q -t ed25519 -N '' -C quick-live -f "$RUNNER_TEMP/user_ed25519"
+          sudo ssh-keygen -q -t ed25519 -N '' -C quick-live-host -f "$RUNNER_TEMP/host_ed25519"
+          cp "$RUNNER_TEMP/user_ed25519.pub" "$RUNNER_TEMP/authorized_keys"
+          sudo /usr/sbin/sshd -f /dev/null -E "$RUNNER_TEMP/sshd.log" -o ListenAddress=127.0.0.1:4022 \
+            -o HostKey="$RUNNER_TEMP/host_ed25519" -o PidFile="$RUNNER_TEMP/sshd.pid" \
+            -o AuthorizedKeysFile="$RUNNER_TEMP/authorized_keys" -o StrictModes=no -o UsePAM=yes \
+            -o PasswordAuthentication=no -o KbdInteractiveAuthentication=no
+          for _ in $(seq 1 20); do (exec 3<>/dev/tcp/127.0.0.1/4022) 2>/dev/null && break; sleep 0.5; done
+          timeout 20 ssh -o BatchMode=yes -o StrictHostKeyChecking=no -o UserKnownHostsFile=/dev/null \
+            -i "$RUNNER_TEMP/user_ed25519" -p 4022 "$(whoami)@127.0.0.1" true
+          echo "ok    the sshd takes the throwaway key"
+
+      - name: the node, in front of the sshd
+        run: |
+          : > "$RUNNER_TEMP/allow"
+          target/debug/podssh node live 127.0.0.1:4022 --quick-tunnel --allow "$RUNNER_TEMP/allow" \
+            --ephemeral-key >"$RUNNER_TEMP/url" 2>"$RUNNER_TEMP/node.log" &
+          echo $! >"$RUNNER_TEMP/node.pid"
+          for _ in $(seq 1 60); do [ -s "$RUNNER_TEMP/url" ] && break; sleep 1; done
+          host=$(sed -n 's#^https://##p' "$RUNNER_TEMP/url" | head -n 1)
+          if [ -z "$host" ]; then sed 's/^/node: /' "$RUNNER_TEMP/node.log"; echo "FAIL no name on stdout"; exit 1; fi
+          echo "::add-mask::$host"
+          echo "QUICK_HOST=$host" >>"$GITHUB_ENV"
+          for _ in $(seq 1 60); do grep -q "registered at" "$RUNNER_TEMP/node.log" && break; sleep 1; done
+          sed 's/^/node: /' "$RUNNER_TEMP/node.log"
+          grep -q "registered at" "$RUNNER_TEMP/node.log" || { echo "FAIL the edge took no registration"; exit 1; }
+          echo "ok    registered; the name is $(echo "$host" | grep -c '\.trycloudflare\.com$') name under trycloudflare.com"
+
+      - name: a visitor, directly
+        run: timeout 120 python3 scripts/quick-tunnel-probe.py --limit 90 "$QUICK_HOST"
+
+      - name: the box's proxy
+        run: |
+          python3 scripts/box/proxy.py --listen 127.0.0.1:3128 >"$RUNNER_TEMP/proxy.log" 2>&1 &
+          sleep 1
+          timeout 120 python3 scripts/quick-tunnel-probe.py --proxy http://127.0.0.1:3128 --limit 60 "$QUICK_HOST"
+
+      - name: podssh ssh cf://NAME, refused by the allowlist, then let in
+        run: |
+          who="$(whoami)"
+          ssh_opts=(-o BatchMode=yes -o StrictHostKeyChecking=accept-new
+            -o "UserKnownHostsFile=$RUNNER_TEMP/known_hosts" -i "$RUNNER_TEMP/user_ed25519"
+            --client-key "$RUNNER_TEMP/client.key")
+          set +e
+          timeout 120 target/debug/podssh ssh "${ssh_opts[@]}" "cf://$who@$QUICK_HOST" true 2>"$RUNNER_TEMP/first.log"
+          rc=$?
+          set -e
+          sed 's/^/client: /' "$RUNNER_TEMP/first.log"
+          [ "$rc" = 255 ] || { echo "FAIL a key out of the allowlist: exit $rc, not 255"; exit 1; }
+          grep -q "the node refused this client's key" "$RUNNER_TEMP/first.log" || { echo "FAIL no refusal of the key"; exit 1; }
+          key=$(sed -n 's/.*a new key for this client, in [^:]*: \([^;]*\);.*/\1/p' "$RUNNER_TEMP/first.log" | head -n 1)
+          [ -n "$key" ] || { echo "FAIL the client's new key was not said"; exit 1; }
+          echo "$key quick-live" >>"$RUNNER_TEMP/allow"
+          echo "ok    a key out of the allowlist is refused (exit 255); it is in the list now"
+          node_key=$(sed -n 's/^podssh node: live: key \([^ ]*\) (.*/\1/p' "$RUNNER_TEMP/node.log" | head -n 1)
+          [ -n "$node_key" ] || { echo "FAIL the node's key was not said"; exit 1; }
+          head -c 8388608 /dev/urandom >"$RUNNER_TEMP/blob"
+          want=$(sha256sum <"$RUNNER_TEMP/blob" | cut -d' ' -f1)
+          for road in direct proxy; do
+            if [ "$road" = proxy ]; then export HTTPS_PROXY=http://127.0.0.1:3128; fi
+            set +e
+            got=$(timeout 180 target/debug/podssh ssh "${ssh_opts[@]}" --node-key "$node_key" -v \
+              "cf://$who@$QUICK_HOST" 'sha256sum | cut -d" " -f1' <"$RUNNER_TEMP/blob" 2>"$RUNNER_TEMP/$road.log")
+            rc=$?
+            set -e
+            sed "s/^/client ($road): /" "$RUNNER_TEMP/$road.log" | grep -v "debug" | tail -n 40
+            [ "$rc" = 0 ] || { echo "FAIL the session ($road) exited $rc"; exit 1; }
+            grep -q "greets with the resumable layer" "$RUNNER_TEMP/$road.log" || { echo "FAIL ($road) no layer"; exit 1; }
+            [ "$got" = "$want" ] || { echo "FAIL ($road) the far end's digest of 8 MiB is not this end's"; exit 1; }
+            echo "ok    podssh ssh cf://NAME ($road): the layer, the channel with --node-key, 8 MiB with equal digests"
+          done
+          unset HTTPS_PROXY
+          set +e
+          other=$(timeout 120 target/debug/podssh ssh "${ssh_opts[@]}" --node-key "SHA256:47DEQpj8HBSa+/TImW+5JCeuQeRkm5NMpJWZG3hSuFU" \
+            "cf://$who@$QUICK_HOST" true 2>&1)
+          rc=$?
+          set -e
+          [ "$rc" = 255 ] && echo "$other" | grep -q "which --node-key names" || { echo "$other"; echo "FAIL another --node-key ($rc)"; exit 1; }
+          echo "ok    a --node-key that is not the node's is refused (exit 255)"
+          sed 's/^/proxy: /' "$RUNNER_TEMP/proxy.log" | tail -n 20
+
+      - name: the end
+        if: always()
+        run: |
+          pid=$(cat "$RUNNER_TEMP/node.pid" 2>/dev/null || true)
+          if [ -n "$pid" ]; then kill -TERM "$pid" 2>/dev/null || true; fi
+          for _ in $(seq 1 20); do kill -0 "$pid" 2>/dev/null || break; sleep 1; done
+          sed 's/^/node: /' "$RUNNER_TEMP/node.log" 2>/dev/null || true
+          grep -q "unregistered" "$RUNNER_TEMP/node.log" && echo "ok    the node unregistered at its end" || echo "note: no unregistration seen"
+          pkill -f scripts/box/proxy.py || true
+          sudo kill "$(cat "$RUNNER_TEMP/sshd.pid" 2>/dev/null)" 2>/dev/null || true
+          rm -f "$RUNNER_TEMP"/user_ed25519* "$RUNNER_TEMP"/client.key* "$RUNNER_TEMP/blob"
+          sudo rm -f "$RUNNER_TEMP"/host_ed25519*

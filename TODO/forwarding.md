@@ -59,7 +59,7 @@ server listens, and the client connects out for each connection.
 3. In the handler, accept a `forwarded-tcpip` channel only for an address and
    a port that podssh asked for, and reject the rest. Dial the spec's target
    with `podssh_ws::dial::dial` and `ProxyChoice::FromEnvironment`, as
-   `--direct` does (`crates/podssh-cli/src/ssh/transport.rs:223-229`), with the
+   `--direct` does (`crates/podssh-cli/src/ssh/transport.rs:252-258`), with the
    limit of 20 s (`crates/podssh-relay/src/open.rs:28-30`).
 4. Copy both ways. Pass EOF on in each direction, and close both ends on an
    error. The SSH window is the flow control.
@@ -458,7 +458,7 @@ command line in `crates/podssh-cli/src/ssh/x11.rs:1-153`, the flags at
   this Xvfb takes an untrusted cookie of `xauth` at all
   (`scripts/interop-x11.sh:37-51`): env when it does not, a failure when it
   does and podssh's `-X` fails.
-- `docs/cli.md:497-520`, a note of the manual and the variable `XAUTHORITY`
+- `docs/cli.md:514-537`, a note of the manual and the variable `XAUTHORITY`
   say what the flags do, and the risk of `-Y`.
 - `cargo test -p podssh-ssh`: 155 passed; `cargo test -p podssh-cli`:
   577 passed, 0 failed, 31 ignored; clippy; rustfmt.
@@ -494,7 +494,7 @@ AF_UNIX.
 - Read: `AGENTS.md:241-246` (no bind, no listen),
   `docs/target-environment.md:84-88` (rule 3), `SECURITY.md:98-119` ("Nothing
   listens") and `README.md:41-49` state the rule from before the ruling.
-  `docs/design.md:894-896` already allows a local listener for `pipe` after
+  `docs/design.md:901-903` already allows a local listener for `pipe` after
   a probe.
 - Read: the Podman box refuses each `bind` (`scripts/box/seccomp.json:5-10`),
   so it tests the refusal.
@@ -1014,7 +1014,7 @@ and the lines of `-v` at `crates/podssh-ssh/src/run.rs:260`.
   -W` through OpenSSH's sshd to a TCP echo server, 262144 bytes each way) and
   `pty.forwards` (`scripts/interop-pty.py`, `~#` in a session with `-R
   0:127.0.0.1:2201`).
-- `docs/cli.md:333-340` and the manual's note of `-t` say what `~#` and `-v`
+- `docs/cli.md:350-357` and the manual's note of `-t` say what `~#` and `-v`
   print.
 - `cargo test -p podssh-ssh`: 158 passed; `cargo test -p podssh-cli`:
   578 passed, 0 failed, 31 ignored; clippy; rustfmt.
@@ -1059,7 +1059,7 @@ Read: a drop ends the run with 255 (`crates/podssh-ssh/src/run.rs:62-78`,
 backs off with jitter, but only before a session exists
 (`crates/podssh-relay/src/open.rs:188-247`,
 `crates/podssh-relay/src/open.rs:349-363`). With `-N`, no command runs, so a
-new connection has no side effect on the server. `docs/design.md:568-575`
+new connection has no side effect on the server. `docs/design.md:575-582`
 puts a new connection with a new login in layer 3, for a standard sshd.
 T-153 (M6) resumes a session when both ends run podssh.
 
@@ -1587,7 +1587,7 @@ a session with a pty:
   of `podssh ssh`, which `crates/podssh-cli/src/ssh/mod.rs:246` gives to
   each session.
 - The manual: the note of the terminal names `~C`, and a note of its own
-  (`crates/podssh-cli/src/man/notes_ssh.rs:184`); `docs/cli.md` ("`~C`
+  (`crates/podssh-cli/src/man/notes_ssh.rs:191`); `docs/cli.md` ("`~C`
   adds and stops forwards") and `docs/terminal.md` ("What podssh reads
   from the terminal").
 - Tests, `cargo test -p podssh-ssh -- escape_command` (8): the commands of

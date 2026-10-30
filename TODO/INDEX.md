@@ -62,15 +62,15 @@ repository and CI).
 
 ## Counts
 
-**327 entries: 21 open, 2 partial, 28 blocked, 276 done.**
+**328 entries: 21 open, 3 partial, 28 blocked, 276 done.**
 
 | Priority | open | partial | blocked | done | total |
 | --- | --- | --- | --- | --- | --- |
 | P0 | 0 | 0 | 0 | 1 | 1 |
 | P1 | 2 | 0 | 0 | 24 | 26 |
 | P2 | 1 | 2 | 19 | 144 | 166 |
-| P3 | 18 | 0 | 9 | 107 | 134 |
-| **All** | 21 | 2 | 28 | 276 | 327 |
+| P3 | 18 | 1 | 9 | 107 | 135 |
+| **All** | 21 | 3 | 28 | 276 | 328 |
 
 ## Entries
 
@@ -372,7 +372,7 @@ repository and CI).
 | [T-297](copy.md) | P3 | M | backlog | feature | done | `cp --parallel K` copies several small files at once |
 | [T-298](copy.md) | P3 | S | backlog | feature | done | `sftp`'s `-r`: `get -r` and `put -r` of a directory |
 | [T-299](roads.md) | P3 | S | backlog | measurement | done | The quick tunnel's edge, measured: its ports through a proxy and the relay, and a captured registration |
-| [T-300](roads.md) | P3 | L | backlog | feature | open | `podssh node` publishes a quick tunnel over HTTP/2, with no `cloudflared` |
+| [T-300](roads.md) | P3 | L | backlog | feature | partial | `podssh node` publishes a quick tunnel over HTTP/2, with no `cloudflared` |
 | [T-301](roads.md) | P3 | M | backlog | feature | open | The quick tunnel over QUIC, where a probe finds UDP |
 | [T-302](resume.md) | P3 | M | backlog | feature | done | A notice in the terminal while the far end is silent |
 | [T-303](resume.md) | P3 | L | backlog | feature | open | The latest screen on request: frames that let Ctrl-C show within a round trip |
@@ -403,3 +403,4 @@ repository and CI).
 | [T-328](config.md) | P3 | M | backlog | feature | blocked | `podssh config import` from FinalShell and Termius |
 | [T-329](roads.md) | P2 | S | none | defect | done | Carry the patch of iroh-relay to iroh 1.4.1 (Azathothas/podssh#53) |
 | [T-330](repo.md) | P3 | M | none | chore | open | Dependabot's major updates: sha1 0.11, vt100 0.16, x25519-dalek 3, aes-gcm 0.11 |
+| [T-331](roads.md) | P3 | S | backlog | defect | open | The layer's `CLOSE` before the exit of `job`, `pipe`, `health`, `containers` and `--upgrade` on `cf://` |

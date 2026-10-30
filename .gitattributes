@@ -18,6 +18,8 @@
 # The exports of other programs, kept byte for byte (T-292): their line
 # endings and their byte order marks are part of what is read.
 crates/podssh-cli/tests/fixtures/sessions/** -text
+# The bytes of capnp encode (T-300), read byte for byte.
+crates/podssh-relay/tests/fixtures/quick/*.bin -text
 # The scripts and the workflows read the FROM line of these.
 images/*/Dockerfile text eol=lf
 scripts/gate.sh text eol=lf

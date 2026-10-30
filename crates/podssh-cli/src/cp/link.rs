@@ -28,6 +28,9 @@ pub struct Link {
     handles: Vec<Connection>,
     pub road: Road,
     pub meter: Meter,
+    /// The task of the resumable layer that carries the connection, on a
+    /// road that runs one (T-296, T-300): the close waits for its `CLOSE`.
+    layer: Option<crate::ssh::transport::Carriage>,
 }
 
 /// What one relay session may still carry before a copy opens a new one
@@ -84,11 +87,13 @@ impl Link {
 
     /// End the SFTP session, then each connection.
     pub async fn close(self) {
-        let Link { handles, road, .. } = self;
+        let Link { handles, road, layer, .. } = self;
         if let Road::Sftp(sftp) = road {
             let _ = sftp.close_session();
         }
         podssh_ssh::run::disconnect_all(&handles).await;
+        drop(handles);
+        crate::ssh::transport::settle(layer).await;
     }
 }
 
@@ -104,11 +109,11 @@ pub async fn connect(resolved: &Resolved, log: &Arc<Log>) -> Result<Link, Failed
 /// Connect to `resolved`'s server for SFTP only, on the subsystem `name`
 /// (`podssh sftp`, `-s NAME`).
 pub async fn open_sftp(resolved: &Resolved, log: &Arc<Log>, name: &str) -> Result<Link, Failed> {
-    let (handles, relay) = hops(resolved, log).await?;
+    let (handles, relay, layer) = hops(resolved, log).await?;
     let handle = handles.last().expect("the destination's connection");
     let host = &resolved.options.destination.host;
     match Sftp::open_named(handle, name, Limits::default()).await {
-        Ok(sftp) => Ok(Link { handles, road: Road::Sftp(sftp), meter: Meter::new(relay) }),
+        Ok(sftp) => Ok(Link { handles, road: Road::Sftp(sftp), meter: Meter::new(relay), layer }),
         Err(e) => {
             podssh_ssh::run::disconnect_all(&handles).await;
             let why = match e {
@@ -120,9 +125,12 @@ pub async fn open_sftp(resolved: &Resolved, log: &Arc<Log>, name: &str) -> Resul
     }
 }
 
-/// The connection to `resolved`'s server, each hop logged in, and the relay
-/// leg's status when the relay carries it.
-async fn hops(resolved: &Resolved, log: &Arc<Log>) -> Result<(Vec<Connection>, Option<RelayStatus>), Failed> {
+/// The connection to `resolved`'s server, each hop logged in; the relay
+/// leg's status when the relay carries it, and the layer's task when the
+/// layer does.
+type Hops = (Vec<Connection>, Option<RelayStatus>, Option<crate::ssh::transport::Carriage>);
+
+async fn hops(resolved: &Resolved, log: &Arc<Log>) -> Result<Hops, Failed> {
     let reached = match &resolved.transport {
         // A node of a pair, through its pair, as `ssh node://` reaches it
         // (T-296). Its session has no relay status here: the resumable layer
@@ -143,14 +151,14 @@ async fn hops(resolved: &Resolved, log: &Arc<Log>) -> Result<(Vec<Connection>, O
         }
     };
     let handles = podssh_ssh::run::connect_hops(reached.stream, &resolved.options, log).await.map_err(hop_failure)?;
-    Ok((handles, reached.relay))
+    Ok((handles, reached.relay, reached.layer))
 }
 
 /// Connect to `resolved`'s server and open the road of its files. With no
 /// SFTP, `exec` probes for a copy by exec, and says so once; without it the
 /// answer is `None`.
 pub async fn open(resolved: &Resolved, log: &Arc<Log>, exec: bool) -> Result<Option<Link>, Failed> {
-    let (handles, relay) = hops(resolved, log).await?;
+    let (handles, relay, layer) = hops(resolved, log).await?;
     let handle = handles.last().expect("the destination's connection");
     let host = &resolved.options.destination.host;
     let road = match Sftp::open(handle, Limits::default()).await {
@@ -175,7 +183,7 @@ pub async fn open(resolved: &Resolved, log: &Arc<Log>, exec: bool) -> Result<Opt
             return Err(Failed::new(Fault::RelayUnreachable, format!("{host}: {e}")));
         }
     };
-    Ok(Some(Link { handles, road, meter: Meter::new(relay) }))
+    Ok(Some(Link { handles, road, meter: Meter::new(relay), layer }))
 }
 
 /// The fault of a sysexits code that `transport::reach` gave.

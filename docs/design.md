@@ -126,8 +126,15 @@ publish a quick tunnel directly, and the edge took one over HTTP/2 (measured
 with cloudflared, below). There, podssh would be the connector and the origin
 in one process, so nothing listens; and a client in a cage reaches the name
 on port 443 through `HTTPS_PROXY`, with the WebSocket of `cf://` (T-264).
-T-300 and T-301 build the connector, after the operator's call on the result
-of T-299 (Q43).
+T-300 builds the connector over HTTP/2, and T-301 over QUIC: podssh's own
+is `crates/podssh-relay/src/quick/` (the Cap'n Proto of the registration by
+hand, tested against bytes of `capnp encode`; HTTP/2 with `h2`), and
+`podssh node NAME TARGET --quick-tunnel` (`crates/podssh-cli/src/node_quick.rs`).
+Its client is `cf://NAME`, the road of T-264: a far end whose first frame is
+the layer's `GREETING` is a podssh node, and the session runs in the layer
+with the end-to-end channel above it, a new WebSocket after each lost one
+(`crates/podssh-cli/src/ssh/cloudflare/layer.rs`); cloudflared's services
+speak SSH first, and their bytes pass on as they are.
 
 **The request for a tunnel.** `cloudflared tunnel --url URL` posts to
 `https://api.trycloudflare.com/tunnel`, the default of a hidden flag

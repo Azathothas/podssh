@@ -40,6 +40,8 @@ pub const NODE_FLAGS: &[FlagRow] = &[
         "carry each session's bytes with no end-to-end channel, to operators that run none either; the relay then sees them", None),
     row(None, "iroh", None, FlagKind::Supported,
         "serve TARGET over the iroh road, with no pair: a client dials the ticket that the node prints; a build with the feature iroh", None),
+    row(None, "quick-tunnel", None, FlagKind::Supported,
+        "serve TARGET at https://NAME.trycloudflare.com, a quick tunnel of Cloudflare's that podssh makes itself, with no pair and no account; the name, new each run, is the line on stdout; needs --allow, and TCP port 7844 of Cloudflare's edge, directly or through a proxy that allows it", None),
     row(None, "iroh-key", Some("FILE"), FlagKind::Supported,
         "the same as --key, by its earlier name", None),
     row(None, "iroh-allow", Some("FILE"), FlagKind::Supported,

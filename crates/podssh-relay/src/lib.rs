@@ -20,6 +20,9 @@
 //!   resumable layer, in which each end proves its key;
 //! - [`udp`]: UDP in a stream (T-168): each datagram after its length, and
 //!   the flow at the far end, a UDP socket connected to the target;
+//! - [`quick`]: a quick tunnel of Cloudflare's that podssh makes itself, with
+//!   no `cloudflared` (T-300): the registration's Cap'n Proto and its RPC,
+//!   and the headers of its answers;
 //! - `blocking` (feature `blocking`): a synchronous facade over all of these,
 //!   for a caller with no async runtime: it owns a runtime on the current
 //!   thread, and refuses a call from inside a tokio runtime.
@@ -39,6 +42,7 @@ pub mod open;
 #[cfg(feature = "pair")]
 pub mod pair;
 pub mod pool;
+pub mod quick;
 pub mod relay;
 #[cfg(feature = "pair")]
 pub mod reverse;

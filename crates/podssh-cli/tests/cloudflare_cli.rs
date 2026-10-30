@@ -62,6 +62,31 @@ fn a_cloudflare_destination_is_checked_before_anything_connects() {
     assert!(err.contains("PODSSH_OFFLINE"), "{err}");
 }
 
+/// A cf://HOST name may be a podssh node's quick tunnel (T-300): the
+/// channel's keys are taken for it, and checked before anything connects;
+/// no key of this client is made before the far end greets as a node, and
+/// --no-e2e is refused.
+#[test]
+fn the_channel_s_flags_are_taken_for_a_cloudflare_name_that_may_be_a_node() {
+    let key = "SHA256:47DEQpj8HBSa+/TImW+5JCeuQeRkm5NMpJWZG3hSuFU";
+    let offline = [("PODSSH_OFFLINE", "1")];
+    for args in [
+        &["ssh", "-o", "BatchMode=yes", "--node-key", key, "cf://q.trycloudflare.com", "true"][..],
+        &["ssh", "-o", "BatchMode=yes", "--client-key", "no-such.key", "cf://q.trycloudflare.com", "true"][..],
+    ] {
+        let (rc, err) = podssh(args, &offline);
+        assert_eq!(rc, 255, "{args:?}: {err}");
+        assert!(err.contains("PODSSH_OFFLINE"), "{args:?}: {err}");
+    }
+    let (rc, err) = podssh(&["ssh", "--node-key", "not-a-key", "cf://q.trycloudflare.com", "true"], &offline);
+    assert_eq!(rc, 64, "{err}");
+    assert!(err.contains("cf://q.trycloudflare.com"), "{err}");
+    // A quick tunnel's node always runs the channel.
+    let (rc, err) = podssh(&["ssh", "--no-e2e", "cf://q.trycloudflare.com", "true"], &offline);
+    assert_eq!(rc, 64, "{err}");
+    assert!(err.contains("--no-e2e cannot go with it"), "{err}");
+}
+
 /// A service token with no secret, and a token that is not one: refused
 /// before any connection (78 for proxy; ssh exits 255), naming the
 /// variables, never the value.

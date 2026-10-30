@@ -19,6 +19,8 @@ pub struct NodeArgs {
     pub plain: bool,
     /// Serve the iroh road, with no pair.
     pub iroh: bool,
+    /// Serve a quick tunnel of Cloudflare's, with no pair (T-300).
+    pub quick_tunnel: bool,
     /// The node's key file, by its earlier name (T-163).
     pub iroh_key: Option<String>,
     /// The allowlist, by its earlier name (T-163).
@@ -64,6 +66,7 @@ impl NodeArgs {
             pair_file: get("pair-file"),
             plain: matches.get_flag("plain"),
             iroh: matches.get_flag("iroh"),
+            quick_tunnel: matches.get_flag("quick-tunnel"),
             iroh_key: get("iroh-key"),
             iroh_allow: get("iroh-allow"),
             iroh_ephemeral: matches.get_flag("iroh-ephemeral"),

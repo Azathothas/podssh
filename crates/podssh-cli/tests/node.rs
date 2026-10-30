@@ -34,6 +34,33 @@ fn node_routes_are_read_and_refused_before_any_connection() {
     }
 }
 
+/// A quick tunnel (T-300): the layer and the channel, with no pair, one
+/// TCP TARGET with no route, and an allowlist, as its name is public; each
+/// refused before any connection. With PODSSH_OFFLINE, nothing is asked.
+#[test]
+fn a_quick_tunnel_is_refused_before_any_connection_without_its_needs() {
+    let home = scratch("quick");
+    let allow = home.join("allow");
+    std::fs::write(&allow, "").unwrap();
+    let allow = allow.to_string_lossy().into_owned();
+    for (args, says) in [
+        (vec!["node", "lab", "127.0.0.1:22", "--quick-tunnel"], "needs --allow FILE"),
+        (vec!["node", "lab", "127.0.0.1:22", "--quick-tunnel", "--plain", "--allow", &allow], "--plain is not for --quick-tunnel"),
+        (vec!["node", "lab", "127.0.0.1:22", "--quick-tunnel", "--no-e2e"], "--no-e2e is not for --quick-tunnel"),
+        (vec!["node", "lab", "udp:127.0.0.1:53", "--quick-tunnel", "--allow", &allow], "carries TCP only"),
+        (vec!["node", "lab", "web=127.0.0.1:80", "--quick-tunnel", "--allow", &allow], "one TARGET, with no route"),
+    ] {
+        let (rc, out, err) = podssh(&home, &args, &[]);
+        assert_eq!(rc, 64, "{args:?}: {err}");
+        assert!(err.contains(says), "{args:?}: {err}");
+        assert!(out.is_empty(), "{args:?}: stdout {out:?}");
+    }
+    let args = ["node", "lab", "127.0.0.1:22", "--quick-tunnel", "--allow", &allow];
+    let (rc, out, err) = podssh(&home, &args, &[("PODSSH_OFFLINE", "1")]);
+    assert_eq!(rc, 69, "{err}");
+    assert!(err.contains("PODSSH_OFFLINE") && out.is_empty(), "{err}");
+}
+
 #[test]
 fn node_needs_a_name_and_a_target_and_refuses_bad_ones_before_any_connection() {
     let home = scratch("parse");
