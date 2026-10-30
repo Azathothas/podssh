@@ -215,7 +215,7 @@ pub async fn pump(
                             Err(end) => return end,
                         }
                         // A question that the server answers at once (T-332).
-                        if ping.is_none() && through.asked.as_ref().is_some_and(|a| a.ask()) {
+                        if through.asked.as_ref().is_some_and(|a| a.key(ping.is_some())) {
                             ping = Some(Box::pin(handle.send_ping()));
                         }
                     }

@@ -50,6 +50,14 @@ impl Asked {
         true
     }
 
+    /// A key went out: its question is marked when none waits, and the
+    /// answer says whether a keepalive goes with it. A keepalive that still
+    /// waits for its reply asks the new question too, so a reply that never
+    /// comes counts, though the far end's bytes answered the last question.
+    pub fn key(&self, keepalive_waits: bool) -> bool {
+        self.ask() && !keepalive_waits
+    }
+
     /// How long the server has said nothing, at `now`, when a question has
     /// waited `wait` or more for its answer; `None` while it answers.
     pub fn silent(&self, now: Instant, wait: Duration) -> Option<Duration> {
@@ -80,5 +88,19 @@ mod tests {
         asked.heard();
         assert_eq!(asked.silent(Instant::now() + Duration::from_secs(60), WAIT), None, "answered");
         assert!(asked.ask(), "the next key asks again");
+    }
+
+    /// The far end's bytes answer a question before the keepalive's reply,
+    /// and then the link dies: the next key's question must still count.
+    #[test]
+    fn a_keepalive_that_waits_asks_the_next_question_too() {
+        let asked = Asked::default();
+        assert!(asked.key(false), "the first key asks, with a keepalive");
+        asked.heard();
+        assert!(!asked.key(true), "no second keepalive while the first waits");
+        let later = Instant::now();
+        assert!(asked.silent(later + WAIT, WAIT).is_some(), "the question counts though no keepalive went with it");
+        asked.heard();
+        assert!(asked.key(false), "once the reply came, the next key sends a keepalive again");
     }
 }

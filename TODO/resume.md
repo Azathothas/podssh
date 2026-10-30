@@ -2750,3 +2750,14 @@ of `sink` fails.
 - clippy `-D warnings` on podssh-ssh and podssh-cli, all targets: clean.
 - `docs/terminal.md` ("A notice while the far end is silent"), the
   manual's note of the notice (`podssh man ssh`), `docs/STATUS.md`.
+- A repair after the close, found in review (2026-10-30): a keepalive
+  that still waited for its reply kept the next key from asking, so a
+  link that died after the far end's bytes answered one question, and
+  before the keepalive's reply, showed no notice again. Each key now marks
+  its question, and a keepalive goes only when none waits; the waiting one
+  asks the new question too (`Asked::key`). `cargo test -p podssh-ssh --lib
+  notice::asked`: 2 passed; planted, the old order of the test, so that a
+  waiting keepalive marks no question: the new test failed, and passed
+  again without it. The two `--direct` tests of `silent_notice` passed
+  again: the notice came 5.9 s into the pause and went before the key's
+  answer at 20.1 s; keys that nothing echoes gave none.
