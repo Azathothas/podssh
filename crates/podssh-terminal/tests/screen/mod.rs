@@ -15,15 +15,21 @@
 // Each test binary uses a part of it.
 #![allow(dead_code)]
 
+/// `n`, or 1 for none: a terminal has a row and a column at least.
+fn at_least_one(n: u16) -> std::num::NonZeroU16 {
+    std::num::NonZeroU16::new(n).unwrap_or(std::num::NonZeroU16::MIN)
+}
+
 /// A model terminal, and what it shows.
 pub struct Screen {
     parser: vt100::Parser,
 }
 
 impl Screen {
-    /// An empty screen of `rows` and `cols`, the cursor at the top left.
+    /// An empty screen of `rows` and `cols`, the cursor at the top left;
+    /// vt100 0.18 takes neither as zero.
     pub fn new(rows: u16, cols: u16) -> Screen {
-        Screen { parser: vt100::Parser::new(rows, cols, 0) }
+        Screen { parser: vt100::Parser::new(at_least_one(rows), at_least_one(cols), 0) }
     }
 
     /// The screen after `bytes`, from an empty one.
@@ -40,7 +46,8 @@ impl Screen {
 
     /// Rows, then columns.
     pub fn size(&self) -> (u16, u16) {
-        self.parser.screen().size()
+        let (rows, cols) = self.parser.screen().size();
+        (rows.get(), cols.get())
     }
 
     /// The text of each row, with no blank cell at its end.

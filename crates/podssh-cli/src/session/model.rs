@@ -38,11 +38,16 @@ pub struct Model {
     last_send: Option<Instant>,
 }
 
+/// `n`, or 1 for none: vt100 takes neither size as zero.
+fn at_least_one(n: u16) -> std::num::NonZeroU16 {
+    std::num::NonZeroU16::new(n).unwrap_or(std::num::NonZeroU16::MIN)
+}
+
 impl Model {
     /// A model of a terminal of `rows` and `cols`, from `now`.
     pub fn new(rows: u16, cols: u16, now: Instant) -> Self {
         Model {
-            screen: vt100::Parser::new(rows.max(1), cols.max(1), 0),
+            screen: vt100::Parser::new(at_least_one(rows), at_least_one(cols), 0),
             ring: Ring::new(KEPT),
             tracker: Tracker::new(),
             plain: Plain::default(),
@@ -96,7 +101,8 @@ impl Model {
     pub fn screen(&self) -> String {
         let screen = self.screen.screen();
         let (_, cols) = screen.size();
-        let mut rows: Vec<String> = screen.rows(0, cols).map(|row| row.trim_end_matches(' ').to_string()).collect();
+        let mut rows: Vec<String> =
+            screen.rows(0, cols.get()).map(|row| row.trim_end_matches(' ').to_string()).collect();
         while rows.last().is_some_and(String::is_empty) {
             rows.pop();
         }
@@ -110,7 +116,8 @@ impl Model {
 
     /// The rows and the columns of the screen.
     pub fn size(&self) -> (u16, u16) {
-        self.screen.screen().size()
+        let (rows, cols) = self.screen.screen().size();
+        (rows.get(), cols.get())
     }
 
     /// The last bytes, as they came, from a clean place of the grammar.

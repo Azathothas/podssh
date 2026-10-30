@@ -4002,4 +4002,19 @@ to 0.18.1 (2026-10-30): the second step takes 0.18.1.
   CLI's lib 413; clippy `-D warnings`: clean; `cargo deny check licenses
   bans sources`: ok. Planted, one byte of the RFC's X25519 key: its test
   failed, and passed again without the plant.
-- Next: vt100 0.18.1, then sha1 0.11 with hmac 0.13.
+- The second step: vt100 0.18.1 (Dependabot's #45), on vte 0.15. The size
+  is a `NonZero<u16>` there, both ways: the model of the oracle
+  (`crates/podssh-terminal/tests/screen/mod.rs`) and `podssh session`'s
+  (`crates/podssh-cli/src/session/model.rs`) give it a row and a column at
+  least, and read it back as numbers. The lock loses vt100 0.15.2, vte
+  0.11.1 and `vte_generate_state_changes`, and unicode-width 0.1.14.
+  `cargo test -p podssh-terminal`: each test passed, of them the
+  calibration against tmux 3.4 (3, the corpus through both: the same rows
+  and cursor), the oracle's 10, and the plants of the oracle's checks
+  (8, each defect caught); the oracle's tests of podssh-ws (3) and
+  podssh-ssh (5), `podssh-ssh --test silent_notice` (4), `podssh-cli --test
+  session --test session_log` (8) and its lib's tests of `session` (31);
+  the four ignored notice tests of `podssh-cli --test silent_notice`, which
+  compare screens with the model: 4 passed. clippy `-D warnings` and `cargo
+  deny check licenses bans sources`: clean.
+- Next: sha1 0.11 with hmac 0.13.
