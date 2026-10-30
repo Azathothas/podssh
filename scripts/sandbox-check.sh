@@ -110,7 +110,7 @@ say "podssh proxy github.com 22 (GitHub's SSH banner, then exit 0)"
 # After its banner the server waits for key exchange, and podssh rightly
 # keeps the connection open while the server does; eight zero bytes (a
 # packet of length 0) make the server hang up, so the exit is podssh's own.
-(printf 'SSH-2.0-podssh-sandbox-check\r\n'; sleep 2; printf '\000\000\000\000\000\000\000\000'; sleep 3) |
+(printf 'SSH-2.0-podssh_sandbox_check\r\n'; sleep 2; printf '\000\000\000\000\000\000\000\000'; sleep 3) |
     timeout 60 "$B" proxy github.com 22 >"$T/banner" 2>"$T/banner.err"
 rc=$?
 first=$(head -c 64 "$T/banner" | head -n 1 | tr -d '\r')

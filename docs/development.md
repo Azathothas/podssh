@@ -382,6 +382,11 @@ In a Claude Code cloud session:
   intercepts it (T-311). podssh's tests ignore the machine's proxy where they
   use the stand-in relay (T-313), and the live handshakes go through the
   proxy (T-315).
+- The session's disk is an allowance of about 40 GB, and `df` reads it
+  wrong: on 2026-10-30, clippy and the tests of the workspace with full
+  debug information filled it, `target/debug` at 15 GB. Build with less:
+  `CARGO_INCREMENTAL=0 CARGO_PROFILE_DEV_DEBUG=line-tables-only
+  CARGO_PROFILE_TEST_DEBUG=line-tables-only`; `cargo clean` frees it.
 
 ## A box like the target sandbox
 

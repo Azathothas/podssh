@@ -188,7 +188,7 @@ since 2026-10-08 reaches them.
 - Read: nothing compares the tag with the version of the crates (`Cargo.toml`,
   `version = "0.1.0"`), which `podssh --version` prints.
 - Read: the SSH banner carries the version
-  (`crates/podssh-ssh/src/run.rs:453`), and RFC 4253, section 4.2, allows no
+  (`crates/podssh-ssh/src/run.rs:454`), and RFC 4253, section 4.2, allows no
   `-` in its software version.
 
 ## Approach
@@ -218,3 +218,36 @@ The release is a prerelease with the three binaries, `SHA256SUMS` and
 `THIRD-PARTY-LICENSES.md`. Each sum checks; the x86_64 binary prints
 `podssh 1.0.0-beta.1`, has no dynamic dependency, and passes `doctor` and a
 login attempt through the relay.
+
+## Done
+
+So far, 2026-10-30 (the entry stays `partial` until the first beta is
+published and checked):
+
+- The version `1.0.0-beta.1` in `Cargo.toml`; `cargo update -w` wrote it in
+  `Cargo.lock` and `fuzz/Cargo.lock`, which also took tokio 1.54.1 and the
+  `libc` of podssh-ws that it lacked.
+- The banner is `SSH-2.0-podssh_1.0.0_beta.1`
+  (`crates/podssh-ssh/src/run.rs:454`). `cargo test -p podssh-ssh --lib
+  run::tests`: 6 passed, and the new test of the banner failed planted (the
+  `-` kept: `SSH-2.0-podssh_1.0.0-beta.1`). `scripts/sandbox-check.sh:113`
+  sent a `-` in its software version too: `podssh_sandbox_check` now.
+- `cliff.toml`: each subject cut to 200 characters; after the cut, a name
+  after `@` becomes code (the subjects hold `@NAME`, `@GROUP` and
+  `@cert-authority`, which GitHub would read as mentions), then `#N` links.
+  git-cliff 2.9.1, its release binary checked against its SHA-512: 343 of
+  343 commits in 50,475 bytes, no mention outside code.
+- `.github/workflows/release.yml`: each binary prints the version of
+  `Cargo.toml`, and a tag must name it; the job `publish` runs by hand too,
+  each step but `gh release create`, and keeps the files and the body as
+  the artifact `release-dry-run`; the body stays under 120,000 bytes, else
+  the list is cut at a line and is whole in `CHANGES.md`; git-cliff from
+  `taiki-e/install-action`; `--verify-tag`. The comment on NASM said that
+  aws-lc falls back without it: aws-lc-sys 0.45 stops (`builder/main.rs`,
+  `use_prebuilt_nasm`) unless `AWS_LC_SYS_PREBUILT_NASM=1`. actionlint 1.7.7
+  with shellcheck: clean. The body, made as the step makes it: 54,029 bytes;
+  with the list three times, planted, 119,794 bytes and `CHANGES.md`.
+- The notes: docs/releases/v1.0.0-beta.1.md.
+
+Next: CI green on the commit, the release workflow by hand on it, the local
+checks of its binary, the tag, and the checks of the published files.

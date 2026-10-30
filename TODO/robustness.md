@@ -556,7 +556,7 @@ Read, the bounds today:
    `crates/podssh-ssh/src/run.rs:26-29` does since T-024, and the result of
    T-062 when it exists.
 3. Tests in the process, with a peer over `tokio::io::duplex`, so no network
-   (`docs/development.md:466-469`): a proxy head that never ends stops at
+   (`docs/development.md:471-474`): a proxy head that never ends stops at
    16 KiB, and an upgrade head too; fragments past 16 MiB give the error, not
    more memory; a pool body over 256 KiB is refused; a cache file over 64 KiB
    is ignored.
@@ -583,7 +583,7 @@ sh scripts/dev.sh check                    # interop: the slow reader stays unde
 
 Each command exits 0. Planted defect: set `WINDOW`
 (`crates/podssh-ssh/src/run.rs:30`) to 64 MiB, and russh's queue of a
-channel (`channel_buffer_size`, `crates/podssh-ssh/src/run.rs:452-461`) to
+channel (`channel_buffer_size`, `crates/podssh-ssh/src/run.rs:452-462`) to
 2^20 messages; the slow-reader check must fail. The window alone is not
 enough: the queue is a second bound (Correction). A second plant: remove the
 check at `crates/podssh-ws/src/session.rs:336-338`; the fragment test must
@@ -614,7 +614,7 @@ fail.
   ignored. The table says so.
 - The window is not the only bound of a reader that takes nothing: russh queues at most 100
   messages of a channel (`channel_buffer_size`, its default, which
-  `crates/podssh-ssh/src/run.rs:452-461` leaves), each of 32 KiB at most, and its task then reads
+  `crates/podssh-ssh/src/run.rs:452-462` leaves), each of 32 KiB at most, and its task then reads
   no more from the server. Measured in the build image on 2026-10-11, with the Prove's plant: the
   window at 64 MiB gave a peak of 8948 KiB, held by the queue; the queue at 2^20 messages as well
   gave 62708 KiB, and even a reader that took each byte held 62084 KiB, as the server outran the

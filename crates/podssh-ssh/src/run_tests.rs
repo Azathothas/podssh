@@ -52,6 +52,29 @@ fn hop_key_name_is_each_hops_own() {
     assert_eq!(hop_key_name(&jump, false, &own), "jump-alias");
 }
 
+/// The identification string names podssh and its version, with `_` for
+/// each `-`: RFC 4253, section 4.2, allows no minus sign and no space in
+/// the software version, and a beta's version holds one.
+#[test]
+fn the_banner_has_no_minus_sign_in_its_software_version() {
+    let opts = Options::new(Hop { user: None, host: "dest.example".into(), port: 22 }, "u".into());
+    let policy = Policy {
+        name: "dest.example".into(),
+        strict: crate::options::StrictHostKeyChecking::No,
+        user_files: Vec::new(),
+        no_user_file: None,
+        global_files: Vec::new(),
+        batch_mode: true,
+        pin: None,
+        fingerprints: Vec::new(),
+    };
+    let config = client_config(&opts, &policy);
+    let SshId::Standard(id) = &config.client_id else { panic!("not a standard identification") };
+    let software = id.strip_prefix("SSH-2.0-").expect("protocol 2.0");
+    assert!(!software.contains('-') && !software.contains(' '), "{id}");
+    assert_eq!(software, format!("podssh_{}", env!("CARGO_PKG_VERSION").replace('-', "_")));
+}
+
 /// Each hop takes its own options when the caller resolved them, with the
 /// run's memory of its logins; else the connection's (T-290).
 #[test]

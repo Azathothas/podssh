@@ -128,7 +128,7 @@ sends with its disconnect is not shown at all.
 Read:
 
 - `describe` maps `Disconnect`, `HUP`, `RecvError`, `SendError` and an
-  unexpected EOF to one sentence (`crates/podssh-ssh/src/run.rs:475-481`).
+  unexpected EOF to one sentence (`crates/podssh-ssh/src/run.rs:476-482`).
   `run` prints it first, and the relay's reason second
   (`crates/podssh-ssh/src/run.rs` lines 38-46 at `80f20bf`,
   `crates/podssh-ssh/src/relay_stream.rs:45-61`).
@@ -549,7 +549,7 @@ back to the plain key only when no CA line matches.
 
 1. Ask for certificates: when a `@cert-authority` line matches the name of a
    hop, set `host_key_certificates` in `client_config`
-   (`crates/podssh-ssh/src/run.rs:409-462`) to the algorithms of
+   (`crates/podssh-ssh/src/run.rs:409-463`) to the algorithms of
    `preferred.key`. A host with no CA line keeps today's negotiation.
 2. Add a lookup of CA keys in `crates/podssh-ssh/src/known_hosts.rs`, beside
    the `@revoked` arm (`crates/podssh-ssh/src/known_hosts.rs:113-115`). Match CA
@@ -600,7 +600,7 @@ Planted defect: accept each certificate, and the wrong-principal test fails.
 GitHub #29 says that podssh drops a certificate that russh gives. In fact no
 certificate comes: russh 0.64.1 offers certificate algorithms only from
 `Preferred::host_key_certificates`, which is empty by default, and
-`client_config` does not set it (`crates/podssh-ssh/src/run.rs:409-462`). So
+`client_config` does not set it (`crates/podssh-ssh/src/run.rs:409-463`). So
 a server always presents its plain key. The words "checked as plain keys"
 in `docs/STATUS.md` and `SECURITY.md` were not exact either: podssh never
 asks for a certificate. They were corrected in the change that wrote this
@@ -1490,7 +1490,7 @@ after 60 s" and names no road.
 Read:
 
 - `client_config` sets `inactivity_timeout: None`
-  (`crates/podssh-ssh/src/run.rs:456`). russh 0.64.1 races each write against
+  (`crates/podssh-ssh/src/run.rs:457`). russh 0.64.1 races each write against
   that timer in `flush_or_timeout`; with `None`, the timer never fires, so
   only the write can end the wait.
 - The relay leg limits each write: `WRITE_TIMEOUT` is 60 s
@@ -1528,7 +1528,7 @@ Read:
    `crates/podssh-cli/src/ssh/transport.rs:98-131` changes, and both roads behave
    the same.
 3. The other change: set `inactivity_timeout` at
-   `crates/podssh-ssh/src/run.rs:456`. russh resets that timer only in a loop
+   `crates/podssh-ssh/src/run.rs:457`. russh resets that timer only in a loop
    round that sent no keepalive, podssh's keepalive interval is also 60 s
    (`crates/podssh-ssh/src/options.rs:390`), and the timer also ends a
    session that is only idle. Measure an idle session with

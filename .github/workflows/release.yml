@@ -3,8 +3,9 @@ name: release
 # A tag `vX.Y.Z[-pre]` builds the release binaries and publishes them, with
 # checksums, as a GitHub release (a prerelease when the tag has a suffix).
 # The notes come from docs/releases/<tag>.md, which must exist. Run by hand
-# (workflow_dispatch), it builds and checks the same binaries and keeps them
-# as workflow artifacts, and publishes nothing.
+# (workflow_dispatch), it builds and checks the same binaries, makes the
+# files and the body that the tag of Cargo.toml's version would publish, with
+# the same checks, keeps them as workflow artifacts, and publishes nothing.
 #
 # Linux binaries are static musl, built in the same image as the gate
 # (rust:1-alpine) on a native runner for each architecture, and checked for
@@ -59,6 +60,16 @@ jobs:
           if readelf -l "$B" | grep -q INTERP; then echo "asks for a program interpreter"; exit 1; fi
           file "$B"
           "$B" --version
+      # The binary prints the version of Cargo.toml, and a tag names it.
+      - name: the version of the binary
+        run: |
+          set -eu
+          want=$(sed -n '/^\[workspace.package\]/,/^\[/s/^version = "\(.*\)"$/\1/p' Cargo.toml)
+          case "$GITHUB_REF" in
+            refs/tags/v*) test "$GITHUB_REF_NAME" = "v$want" || { echo "the tag $GITHUB_REF_NAME is not v$want"; exit 1; } ;;
+          esac
+          got=$(target/${{ matrix.target }}/release/podssh --version)
+          test "$got" = "podssh $want" || { echo "the binary prints \"$got\", not \"podssh $want\""; exit 1; }
       - name: package
         run: |
           set -eu
@@ -79,8 +90,9 @@ jobs:
       RUSTFLAGS: -Ctarget-feature=+crt-static
     steps:
       - uses: actions/checkout@v7
-      # aws-lc's build wants NASM on Windows; it falls back to prebuilt
-      # objects without it, but the release does not depend on the fallback.
+      # aws-lc's build needs NASM on Windows x86-64: with no NASM it stops,
+      # unless AWS_LC_SYS_PREBUILT_NASM=1 asks for its prebuilt objects
+      # (aws-lc-sys 0.45, builder/main.rs). The release assembles them itself.
       - uses: ilammy/setup-nasm@v1
       - name: build
         run: cargo build --locked --release -p podssh-cli
@@ -90,7 +102,10 @@ jobs:
           set -eu
           mkdir -p dist
           cp target/release/podssh.exe dist/podssh-x86_64-pc-windows-msvc.exe
-          dist/podssh-x86_64-pc-windows-msvc.exe --version
+          # The checkout can hold CRLF line ends.
+          want=$(tr -d '\r' < Cargo.toml | sed -n '/^\[workspace.package\]/,/^\[/s/^version = "\(.*\)"$/\1/p')
+          got=$(dist/podssh-x86_64-pc-windows-msvc.exe --version | tr -d '\r')
+          test "$got" = "podssh $want" || { echo "the binary prints \"$got\", not \"podssh $want\""; exit 1; }
       - name: the binary needs no C runtime DLL
         shell: pwsh
         run: |
@@ -113,9 +128,11 @@ jobs:
           path: dist/*
           if-no-files-found: error
 
+  # On a tag it publishes. Run by hand, each step but the last runs, and the
+  # files and the body are an artifact: the steps of a release are proved
+  # before its tag, which never moves.
   publish:
     needs: [linux, windows]
-    if: startsWith(github.ref, 'refs/tags/v')
     runs-on: ubuntu-24.04
     permissions:
       contents: write
@@ -127,6 +144,7 @@ jobs:
       - uses: actions/download-artifact@v8
         with:
           path: dist
+          pattern: podssh-*
           merge-multiple: true
       # The licenses of the crates in the binaries, with their texts: the
       # notices that Apache-2.0 and the BSD licenses ask a binary to carry.
@@ -145,17 +163,29 @@ jobs:
           cd dist
           sha256sum podssh-* > SHA256SUMS
           cat SHA256SUMS
+      # A release binary of git-cliff, checked against its checksum: no
+      # crate is built in the job that publishes.
+      - uses: taiki-e/install-action@v2
+        with:
+          tool: git-cliff@2.9.1
       # The commits of this release, each one, from cliff.toml.
       - name: the list of the commits (git-cliff, pinned)
         run: |
           set -eu
-          cargo install --locked git-cliff --version 2.9.1
           git cliff --config cliff.toml --latest --strip all > "$RUNNER_TEMP/changes.md"
           test -s "$RUNNER_TEMP/changes.md"
-      - name: publish
-        env:
-          GH_TOKEN: ${{ github.token }}
-          TAG: ${{ github.ref_name }}
+      # The tag, or by hand the tag of Cargo.toml's version: they must agree.
+      - name: the tag
+        run: |
+          set -eu
+          version=$(sed -n '/^\[workspace.package\]/,/^\[/s/^version = "\(.*\)"$/\1/p' Cargo.toml)
+          case "$GITHUB_REF" in
+            refs/tags/v*) tag=$GITHUB_REF_NAME ;;
+            *) tag="v$version" ;;
+          esac
+          test "$tag" = "v$version" || { echo "the tag $tag is not v$version, the version of Cargo.toml"; exit 1; }
+          echo "TAG=$tag" >> "$GITHUB_ENV"
+      - name: the body of the release
         run: |
           set -eu
           notes="docs/releases/$TAG.md"
@@ -164,8 +194,36 @@ jobs:
             cat "$notes"
             printf '\nThe licenses of the crates in the binaries, with their texts: THIRD-PARTY-LICENSES.md.\n'
             printf '\n## The commits of this release\n\n'
-            cat "$RUNNER_TEMP/changes.md"
           } > "$RUNNER_TEMP/body.md"
+          # GitHub refuses a body of more than 125,000 characters. A character
+          # is at least one byte, so a count of bytes errs on the safe side.
+          budget=$((120000 - $(wc -c < "$RUNNER_TEMP/body.md")))
+          if [ "$(wc -c < "$RUNNER_TEMP/changes.md")" -le "$budget" ]; then
+            cat "$RUNNER_TEMP/changes.md" >> "$RUNNER_TEMP/body.md"
+          else
+            # After the checksums: CHANGES.md is not a binary.
+            cp "$RUNNER_TEMP/changes.md" dist/CHANGES.md
+            printf 'The list is cut; CHANGES.md, among the files, holds each commit.\n\n' >> "$RUNNER_TEMP/body.md"
+            head -c "$((budget - 200))" "$RUNNER_TEMP/changes.md" | sed '$d' >> "$RUNNER_TEMP/body.md"
+          fi
+          size=$(wc -c < "$RUNNER_TEMP/body.md")
+          echo "the body: $size bytes; the list: $(grep -c '^- ' "$RUNNER_TEMP/changes.md" || true) commits"
+          test "$size" -lt 125000
+      - name: publish
+        if: startsWith(github.ref, 'refs/tags/v')
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          set -eu
           pre=""
           case "$TAG" in *-*) pre="--prerelease" ;; esac
-          gh release create "$TAG" $pre --title "podssh $TAG" --notes-file "$RUNNER_TEMP/body.md" dist/*
+          gh release create "$TAG" $pre --verify-tag --title "podssh $TAG" --notes-file "$RUNNER_TEMP/body.md" dist/*
+      - name: the files and the body that a tag would publish
+        if: ${{ !startsWith(github.ref, 'refs/tags/v') }}
+        run: cp "$RUNNER_TEMP/body.md" dist/BODY.md
+      - if: ${{ !startsWith(github.ref, 'refs/tags/v') }}
+        uses: actions/upload-artifact@v7
+        with:
+          name: release-dry-run
+          path: dist/*
+          if-no-files-found: error

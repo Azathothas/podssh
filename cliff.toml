@@ -2,6 +2,8 @@
 # release (docs/development.md, "Release builds"). Each commit is kept: no
 # parser skips one, and a subject need not be a Conventional Commit. The
 # groups follow the subjects of this repository; "Other" takes the rest.
+# A subject is cut to 200 characters: the first lines of this history hold
+# about 112,000, and GitHub refuses a release body of more than 125,000.
 
 [changelog]
 header = ""
@@ -9,21 +11,24 @@ body = """
 {% for group, commits in commits | group_by(attribute="group") %}
 ### {{ group | striptags | trim }}
 {% for commit in commits %}
-- {{ commit.message | split(pat="\n") | first | trim }} ({{ commit.id | truncate(length=7, end="") }})
+- {{ commit.message | split(pat="\n") | first | trim | truncate(length=200) }} ({{ commit.id | truncate(length=7, end="") }})
 {%- endfor %}
 {% endfor %}
 """
 footer = ""
 trim = true
+# After the cut, so that no link is cut in two. A name after `@` becomes
+# code, so that a release notifies nobody (the subjects hold @NAME and
+# @GROUP); an issue named as #N links to it.
+postprocessors = [
+  { pattern = '(?m)(^|[^A-Za-z0-9_`])@([A-Za-z0-9][A-Za-z0-9-]*)', replace = "${1}`@${2}`" },
+  { pattern = '#([0-9]+)', replace = "[#${1}](https://github.com/Azathothas/podssh/issues/${1})" },
+]
 
 [git]
 conventional_commits = false
 filter_unconventional = false
 split_commits = false
-# An issue named as #N links to it.
-commit_preprocessors = [
-  { pattern = '#([0-9]+)', replace = "[#${1}](https://github.com/Azathothas/podssh/issues/${1})" },
-]
 # The comment before each group's name only orders the groups.
 commit_parsers = [
   { message = '^podssh [a-z-]+:', group = "<!-- 0 -->Commands" },

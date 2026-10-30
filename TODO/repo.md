@@ -99,8 +99,8 @@ Read:
 - The workflows use four actions, each by a major tag:
   `actions/checkout@v5` (`.github/workflows/build.yml` line 30 at `7c70aa7`),
   `actions/upload-artifact@v7` (`.github/workflows/build.yml:89`),
-  `actions/download-artifact@v8` (`.github/workflows/release.yml:127`) and
-  `ilammy/setup-nasm@v1` (`.github/workflows/release.yml:84`).
+  `actions/download-artifact@v8` (`.github/workflows/release.yml:144`) and
+  `ilammy/setup-nasm@v1` (`.github/workflows/release.yml:96`).
 - The build image is a variable in two workflows and in a shell script
   (`.github/workflows/build.yml` line 15 at `19ca632`, `.github/workflows/release.yml` line 23 at `19ca632` and
   `scripts/dev.sh` line 60 at `e1ba5ba`). Dependabot's docker ecosystem reads the `FROM` lines
@@ -211,7 +211,7 @@ Read:
   `.github/workflows/release.yml` line 23 and `scripts/dev.sh` line 60, both at `e1ba5ba`. No check makes
   them equal.
 - The release builds aarch64 on an arm64 runner
-  (`.github/workflows/release.yml:31-32`). So the pin must be the digest of
+  (`.github/workflows/release.yml:32-33`). So the pin must be the digest of
   the multi-platform index, not the digest of one platform's image.
 - The box uses two more moving tags, `alpine:3.20` and `python:3.12-alpine`
   (`scripts/test_in_box.sh` lines 39-40 at `e1ba5ba`).
@@ -429,7 +429,7 @@ previous release, so a change that the notes forget is invisible to a user.
 Read:
 
 - The job `publish` reads the notes from `docs/releases/`, and fails without
-  them (`.github/workflows/release.yml:145-155`).
+  them (`.github/workflows/release.yml:188-192`).
   No notes file exists yet; T-250 writes the first. The notes drafted for a
   beta that the operator dropped are in git:
   `git show b1b111b:docs/releases/v0.1.0-beta.1.md`.
@@ -457,7 +457,7 @@ Read:
 3. On a run by hand, make the list of the commits since the last tag as an
    artifact, so that it can be read before a tag.
 4. Link each "Fixes #N" of a commit to its issue in the list.
-5. docs/development.md, "Release builds" (`docs/development.md:644-695`): the
+5. docs/development.md, "Release builds" (`docs/development.md:649-700`): the
    body is the notes file and the generated list.
 
 No new shell script: each step is a step of the workflow.
@@ -669,9 +669,9 @@ Measured: `target/debug/podssh.exe --version` prints `podssh 0.1.0`, exit 0.
 Read:
 
 - The jobs `linux` and `windows` build the binaries, and `publish` adds
-  `SHA256SUMS` and publishes them (`.github/workflows/release.yml:23-171`).
-  The workflow has `contents: read` (`:19-20`); `publish` adds
-  `contents: write` (`:120-121`).
+  `SHA256SUMS` and publishes them (`.github/workflows/release.yml:23-229`).
+  The workflow has `contents: read` (`:20-21`); `publish` adds
+  `contents: write` (`:137-138`).
 - The KTM tester could not tell from an artifact which commit made it, and
   moved the checkout one commit ahead (the KTM report, section 1a; read in
   the report).
@@ -728,11 +728,11 @@ the release workflow of podssh.
 
 Read:
 
-- `.github/workflows/release.yml:142-147` writes `SHA256SUMS` with
-  `sha256sum`, and `.github/workflows/release.yml:155-171` publishes it with
+- `.github/workflows/release.yml:160-165` writes `SHA256SUMS` with
+  `sha256sum`, and `.github/workflows/release.yml:212-220` publishes it with
   the binaries. No signature is published.
 - The notes drafted for the dropped beta told the user that `SHA256SUMS`
-  holds the sums (`git show b1b111b:docs/releases/v0.1.0-beta.1.md`, `:89`). `README.md:56-57` gives no step to check a download.
+  holds the sums (`git show b1b111b:docs/releases/v0.1.0-beta.1.md`, `:101`). `README.md:56-57` gives no step to check a download.
 - AGENTS.md, section 4: a private key is a credential. The repository has no
   signing key today.
 
@@ -1011,7 +1011,7 @@ so the job of this entry must have both; nobody measured a runner for them.
 # T-214: CI on Windows
 
 **Source:** the triage of GitHub #27 (2026-10-08). Windows is a released
-platform (`.github/workflows/release.yml:73-114`).
+platform (`.github/workflows/release.yml:84-129`).
 **Category:** chore
 **Milestone:** none
 **Priority:** P2
@@ -1031,7 +1031,7 @@ machine.
 Read:
 
 - `.github/workflows/build.yml` lines 17-19 at `e892b0f`: one job, on `ubuntu-latest`.
-- `.github/workflows/release.yml:73-114`: the Windows job installs NASM
+- `.github/workflows/release.yml:84-129`: the Windows job installs NASM
   (line 76), builds, and checks for C runtime DLLs (lines 86-101); it runs no
   test.
 - `docs/STATUS.md` line 230 at `9966ed4`: the default tests pass on Windows,
@@ -1314,7 +1314,7 @@ Read:
   CDLA-Permissive-2.0; russh 0.64.1 Apache-2.0.
 - BSD-3-Clause and Apache-2.0 ask that a binary copy carries the notices. The
   release publishes the binaries and `SHA256SUMS` only
-  (`.github/workflows/release.yml:142-171`).
+  (`.github/workflows/release.yml:160-220`).
 - The fork already has a configuration for cargo-deny
   (`vendor/tailscale-rs/deny.toml:1-35`): an allow list of licenses, one
   ignored advisory with its reason, crates.io only.
@@ -1539,12 +1539,12 @@ with a C toolchain for aws-lc.
 
 Read:
 
-- `.github/workflows/release.yml:28-32`: x86_64 and aarch64 musl, each on a
-  native runner in `rust:1-alpine`. `.github/workflows/release.yml:73-114`:
+- `.github/workflows/release.yml:29-33`: x86_64 and aarch64 musl, each on a
+  native runner in `rust:1-alpine`. `.github/workflows/release.yml:84-129`:
   Windows x86_64 with a static C runtime.
 - The check of each platform: `readelf` for `NEEDED` and `INTERP`
-  (`.github/workflows/release.yml:54-61`), `dumpbin /dependents` on Windows
-  (`:94-109`).
+  (`.github/workflows/release.yml:55-62`), `dumpbin /dependents` on Windows
+  (`:109-124`).
 - The binary needs a C compiler for aws-lc (`docs/development.md:12-15`); the
   library crates need none.
 - Some code reads facts of Linux. The terminal check reads `tty_nr` from
@@ -1578,7 +1578,7 @@ Recommendation: build each new Linux target in the image family of the gate
 under QEMU, where that image exists for the platform, so that there is one
 toolchain. `cross` and `cargo-zigbuild` lost: each brings a second C
 toolchain that the gate never judged. Measure the build time first: QEMU is
-slow, and the job limit is 60 min (`.github/workflows/release.yml:34`).
+slow, and the job limit is 60 min (`.github/workflows/release.yml:35`).
 
 ## Prove
 
@@ -2784,7 +2784,7 @@ Read: each image is pinned to a digest in its Dockerfile
 the reference to `docker run`, which pulls from Docker Hub (now
 `.github/workflows/secrets.yml:70`, `.github/workflows/secrets.yml:84`,
 `.github/workflows/build.yml:75-79`, `.github/workflows/build.yml:108-111`
-and `.github/workflows/release.yml:50-53`). Measured on 2026-10-09, each
+and `.github/workflows/release.yml:51-54`). Measured on 2026-10-09, each
 manifest asked for by its digest: Google's mirror of Docker Hub
 (`mirror.gcr.io`) serves both images, the GitHub registry serves the
 scanner, and Amazon's gallery of the official images

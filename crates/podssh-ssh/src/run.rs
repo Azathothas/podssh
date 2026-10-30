@@ -450,7 +450,8 @@ fn client_config(opts: &Options, policy: &Policy) -> Config {
             Cow::Owned(vec![russh::compression::ZLIB_LEGACY, russh::compression::ZLIB, russh::compression::NONE]);
     }
     Config {
-        client_id: SshId::Standard(Cow::Owned(format!("SSH-2.0-podssh_{}", env!("CARGO_PKG_VERSION")))),
+        // RFC 4253, section 4.2: no `-` in the software version, as in `1.0.0-beta.1`.
+        client_id: SshId::Standard(format!("SSH-2.0-podssh_{}", env!("CARGO_PKG_VERSION").replace('-', "_")).into()),
         keepalive_interval: opts.keepalive_interval,
         keepalive_max: opts.keepalive_max,
         inactivity_timeout: None,

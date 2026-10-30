@@ -11,7 +11,8 @@
 # The steps: the packages of the tests and of the interop checks (apt), a
 # Docker daemon that is installed but not running, Podman's settings for a
 # host with no systemd, the pinned images of the gate and of the box, the
-# gate's Rust on the host, and the operator's git identity for the commits.
+# gate's Rust on the host, the operator's git identity for the commits, and
+# in a Claude Code cloud session, cargo settings that fit its disk.
 # docs/development.md ("A Linux host, or a cloud session") tells why each is
 # needed.
 #
@@ -33,7 +34,7 @@ case ${1:-} in
     --check) CHECK_ONLY=1 ;;
     "") ;;
     -h | --help)
-        sed -n '2,17p' "$0" | sed 's/^# \{0,1\}//'
+        sed -n '2,18p' "$0" | sed 's/^# \{0,1\}//'
         exit 0
         ;;
     *)
@@ -307,6 +308,41 @@ step_git() {
     say "git: the repository's identity is now $_name <$_mail>, the author of its newest commit"
 }
 
+# --------------------------------------------------------------- the session
+# A Claude Code cloud session has a disk allowance of about 40 GB, which
+# clippy and the tests of the workspace with full debug information filled
+# on 2026-10-30. Its own settings file, which git ignores, gives cargo less to
+# keep; a file that is already there is the session's, and is kept.
+SESSION_SETTINGS="$REPO_ROOT/.claude/settings.local.json"
+step_session() {
+    if [ "${CLAUDE_CODE_REMOTE:-}" != true ]; then
+        say "session: not a Claude Code cloud session; nothing to set"
+        return 0
+    fi
+    if [ -f "$SESSION_SETTINGS" ]; then
+        if grep -q CARGO_PROFILE_DEV_DEBUG "$SESSION_SETTINGS"; then
+            say "session: $SESSION_SETTINGS sets cargo's debug information"
+        else
+            warn "session: $SESSION_SETTINGS is the session's own; add the env of docs/development.md to it"
+        fi
+        return 0
+    fi
+    if [ "$CHECK_ONLY" = 1 ]; then
+        warn "session: no $SESSION_SETTINGS; builds keep full debug information"
+        return 0
+    fi
+    mkdir -p "$REPO_ROOT/.claude" && cat >"$SESSION_SETTINGS" <<'EOF'
+{
+  "env": {
+    "CARGO_INCREMENTAL": "0",
+    "CARGO_PROFILE_DEV_DEBUG": "line-tables-only",
+    "CARGO_PROFILE_TEST_DEBUG": "line-tables-only"
+  }
+}
+EOF
+    say "session: wrote $SESSION_SETTINGS (cargo keeps less, for the disk allowance)"
+}
+
 # -------------------------------------------------------------------- report
 report() {
     _v() { "$@" 2>&1 | head -n 1; }
@@ -325,6 +361,7 @@ report() {
                 ssh) _ver=$(_v ssh -V) ;;
                 sshd) _ver=$(_v sshd -V) ;;
                 dropbear) _ver=$(_v dropbear -V) ;;
+                tmux) _ver=$(_v tmux -V) ;;
                 mandoc) _ver=present ;;
                 *) _ver=$(_v "$_t" --version) ;;
             esac
@@ -342,6 +379,7 @@ step_podman
 step_images
 step_rust
 step_git
+step_session
 report
 if [ $failed -ne 0 ]; then
     echo "setup: FAILED: a step above did not finish." >&2
