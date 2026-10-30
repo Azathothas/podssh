@@ -29,6 +29,7 @@ mod iroh;
 mod net;
 mod pairs;
 mod relay_checks;
+mod samples;
 #[cfg(unix)]
 mod unix;
 
@@ -155,6 +156,8 @@ struct Line {
     check: String,
     status: &'static str,
     detail: String,
+    /// A probe's tries as numbers (T-324).
+    samples: Option<serde_json::Value>,
 }
 
 /// The lines so far, and their counts. The text is printed as each check
@@ -211,7 +214,16 @@ impl<'a> Report<'a> {
             // Network checks take seconds each: show every line as it is known.
             let _ = self.out.flush();
         }
-        self.lines.push(Line { section: self.section.clone(), check: name.to_string(), status, detail });
+        self.lines.push(Line { section: self.section.clone(), check: name.to_string(), status, detail, samples: None });
+    }
+
+    /// [`Report::line`] for a probe that was tried several times; `--json`
+    /// gives its times and its losses as numbers too.
+    fn sampled(&mut self, name: &str, verdict: Verdict, samples: &samples::Samples) {
+        self.line(name, verdict);
+        if let Some(line) = self.lines.last_mut() {
+            line.samples = Some(samples.json());
+        }
     }
 
     pub(crate) fn ok(&mut self, name: &str, detail: impl Into<String>) {
@@ -254,9 +266,13 @@ impl Report<'_> {
             .lines
             .iter()
             .map(|l| {
-                serde_json::json!({
+                let mut item = serde_json::json!({
                     "section": l.section, "check": l.check, "status": l.status, "detail": l.detail,
-                })
+                });
+                if let Some(samples) = &l.samples {
+                    item["samples"] = samples.clone();
+                }
+                item
             })
             .collect();
         let doc = serde_json::json!({

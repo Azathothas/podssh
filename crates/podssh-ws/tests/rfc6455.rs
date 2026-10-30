@@ -364,6 +364,9 @@ fn a_101_with_the_wrong_accept_value_is_rejected() {
                 Sec-WebSocket-Accept: AAAAAAAAAAAAAAAAAAAAAAAAAAA=\r\n\r\n";
     let err = handshake::check_response(head, "dGhlIHNhbXBsZSBub25jZQ==").expect_err("a wrong accept value");
     assert!(format!("{err}").contains("Sec-WebSocket-Accept"), "got {err}");
+    // What that means, apart from a refusal and a death after a valid 101
+    // (T-324).
+    assert!(format!("{err}").contains("answered in the relay's place"), "got {err}");
 }
 
 /// A refused upgrade's text is the peer's, on its way to a terminal: no ESC,

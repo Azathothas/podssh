@@ -206,12 +206,16 @@ pub fn check_response(head: &str, expected_key: &str) -> Result<(), WsError> {
     // **The accept value is compared, not merely present.** Checking that
     // the header exists proves nothing: any cache can echo it.
     let expected = accept_key(expected_key);
+    // Either way, what answered did not read this request's key: not the
+    // relay, and a way out is a road that this hop does not answer (T-324).
+    let stranger = "so something between answered in the relay's place";
     match accept {
         Some(v) if v == expected => Ok(()),
-        Some(v) => {
-            Err(WsError::Upgrade { status, why: format!("Sec-WebSocket-Accept was {v:?}, expected {expected:?}") })
-        }
-        None => Err(WsError::Upgrade { status, why: "101 without Sec-WebSocket-Accept".into() }),
+        Some(v) => Err(WsError::Upgrade {
+            status,
+            why: format!("Sec-WebSocket-Accept was {v:?}, expected {expected:?}, {stranger}"),
+        }),
+        None => Err(WsError::Upgrade { status, why: format!("101 without Sec-WebSocket-Accept, {stranger}") }),
     }
 }
 

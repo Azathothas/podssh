@@ -77,10 +77,14 @@ RC=
 r() {
     _relays=$1
     shift
+    # Through the proxy, its map names the relay hosts: a pin to the
+    # loopback would go around it (T-318).
+    _pins=$PINS
+    [ -n "$RP" ] && _pins=
     # shellcheck disable=SC2086
     ${as_job:-} env -u SSH_AUTH_SOCK -u https_proxy -u HTTPS_PROXY -u all_proxy -u ALL_PROXY ${RP:+https_proxy=$RP} \
         ${RC:+XDG_CACHE_HOME=$RC} \
-        HOME="$W" "$BIN" ssh --relay-host "$_relays" --relay-addr "$PINS" --ca-file "$FK/ca.pem" -p 2201 \
+        HOME="$W" "$BIN" ssh --relay-host "$_relays" ${_pins:+--relay-addr "$_pins"} --ca-file "$FK/ca.pem" -p 2201 \
         -o UserKnownHostsFile="$KH" -o StrictHostKeyChecking=accept-new \
         -o IdentityAgent=none -o IdentitiesOnly=yes $K -o BatchMode=yes "$@"
 }

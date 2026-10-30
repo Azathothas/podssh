@@ -11,9 +11,9 @@ use podssh_relay::open::Request;
 use podssh_relay::relay::{Relay, RelayList};
 use podssh_relay::token::{self, MintContext, Origin};
 use podssh_ssh::probe::Login;
-use podssh_ssh::relay_stream::RelayStatus;
+use podssh_ssh::relay_stream::{RelayEnd, RelayStatus};
 use podssh_ws::dial::{self, ProxyChoice};
-use podssh_ws::{Trust, Verdict};
+use podssh_ws::{SessionError, Trust, Verdict};
 
 use super::clock::{format_http_date, parse_http_date};
 use super::Report;
@@ -183,8 +183,8 @@ async fn forward(report: &mut Report<'_>, relays: &RelayList, trust: &Trust, fai
     let key = match podssh_ssh::probe::host_key(stream, TIMEOUT).await {
         Ok(key) => key,
         Err(why) => {
-            let relay = status.get().and_then(|end| end.explain()).map(|e| format!(" ({e})")).unwrap_or_default();
-            report.fail("forward", format!("{target} through {via}: {why}{relay}"));
+            let after = after_upgrade(&why, status.get(), status.age());
+            report.fail("forward", format!("{target} through {via}: {after}"));
             return None;
         }
     };
@@ -202,6 +202,27 @@ async fn forward(report: &mut Report<'_>, relays: &RelayList, trust: &Trust, fai
     let passed = matches!(verdict, Verdict::Ok { .. });
     report.line("forward", verdict);
     passed.then_some(fingerprint)
+}
+
+/// Why a session failed after its upgrade passed (T-324): the 101 carried
+/// the accept of this request's key, so this is neither a refusal nor a
+/// stranger's answer. A stream that ends with no Close is cut by a hop that
+/// drops the upgraded stream; the relay's own end comes with a Close and
+/// its reason. `age` is the time since the 101.
+fn after_upgrade(why: &str, end: Option<RelayEnd>, age: Duration) -> String {
+    let passed = "the upgrade passed (101, with this request's accept)";
+    match end {
+        Some(RelayEnd::Failed(e @ (SessionError::Io { .. } | SessionError::ClosedWithoutClose(_)))) => format!(
+            "{passed}, then the connection ended {:.1} s later with no Close ({e}): something between drops \
+             the stream after the upgrade",
+            age.as_secs_f64()
+        ),
+        Some(end) => match end.explain() {
+            Some(relay) => format!("{passed}, then {why} ({relay})"),
+            None => format!("{passed}, then {why}"),
+        },
+        None => format!("{passed}, then {why}"),
+    }
 }
 
 /// `--full`: a login to GitHub through the relay, as `git`, with a key made
@@ -352,6 +373,23 @@ mod tests {
         assert!(matches!(&wrong, Verdict::Failed { detail } if detail.contains("something in between")), "{wrong:?}");
         let broken = judge_login("g", Err("no answer within 20 s".into()), Some("the relay closed".into()));
         assert!(matches!(&broken, Verdict::Failed { detail } if detail.contains("(the relay closed)")), "{broken:?}");
+    }
+
+    /// After a valid 101, a cut with no Close, the relay's Close and a
+    /// silence each read as their own (T-324).
+    #[test]
+    fn a_death_after_the_upgrade_is_told_from_the_relay_s_close() {
+        let age = Duration::from_millis(230);
+        let eof = SessionError::Io { kind: std::io::ErrorKind::UnexpectedEof, text: "eof".into() };
+        let cut = after_upgrade("no banner", Some(RelayEnd::Failed(eof)), age);
+        assert!(cut.starts_with("the upgrade passed (101"), "{cut}");
+        assert!(cut.contains("ended 0.2 s later with no Close") && cut.contains("drops the stream"), "{cut}");
+        let closed = RelayEnd::Closed { code: Some(1011), reason: "connect failed".into() };
+        let relay = after_upgrade("no banner", Some(closed), age);
+        assert!(relay.ends_with("then no banner (the relay closed the connection (code 1011): connect failed)"));
+        assert!(!relay.contains("drops"), "{relay}");
+        let open = after_upgrade("no host key within 10 s", None, age);
+        assert!(open.ends_with("then no host key within 10 s") && !open.contains("drops"), "{open}");
     }
 
     #[test]

@@ -235,6 +235,15 @@ const DOCTOR: &[&str] = &[
      DNS over HTTPS; on github.com port 22 only the server's banner shows that plain ssh can leave, as a \
      proxy can take the CONNECT and carry nothing); and the relay (each relay host, a token, a session to github.com port 22 that must \
      show the published host key of GitHub, and the clock).",
+    "Each CONNECT, and the direct TCP check, is tried nine times over a second or more: its line gives \
+     the best time (the path's floor), the median, the 95th percentile and the jitter (the median change \
+     from one try to the next), and the loss, the tries that timed out and those that broke counted \
+     apart. A refusal is an answer, not a loss. A first try that timed out is not repeated, and no try \
+     starts that could end more than 10 s after the first began.",
+    "A forward session whose upgrade fails says which of three ways: an answer other than 101 (its status \
+     and its text: the relay or a hop refused), a 101 whose Sec-WebSocket-Accept is not the one of the \
+     request's key (something between answered in the relay's place), or a valid 101 after which the \
+     connection ends with no Close (something between drops the stream after the upgrade).",
     "podssh doctor connects to the relay hosts and, through the relay, to github.com. The report goes to \
      stdout; the exit codes are in EXIT STATUS.",
     "With --full, the relay section adds login: podssh logs in to github.com through the relay as git, \
@@ -243,8 +252,10 @@ const DOCTOR: &[&str] = &[
      is asked for: GitHub refuses the key before a channel opens.",
     "With --json, the report is one JSON object on stdout when every check has run: schema (1), podssh, \
      os, arch, checks (each with section, check, status and detail; status is ok, FAIL or unknown) and \
-     counts (ok, fail, unknown). The details are the text's, the exit code is the same, and nothing is \
-     printed before the object.",
+     counts (ok, fail, unknown). A check tried several times adds samples: tries, connected, best_ms, \
+     median_ms, p95_ms and jitter_ms (null when no try connected), timed_out, broke, refused, and ms, the \
+     time of each try that connected. The details are the text's, the exit code is the same, and nothing \
+     is printed before the object.",
 ];
 
 const STATUS: &[&str] = &[

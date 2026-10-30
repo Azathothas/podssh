@@ -605,7 +605,7 @@ returns a `String` (142-166). The callers keep or pass the text:
 `TransportError::Unexpected` (crates/podssh-transport/src/socket.rs at `e8bbd4d` lines 104-113, 143, 161
 and 185), and, since T-072, a read error `Aborted` with its text. Tests and the gate match the
 text: `crates/podssh-ws/tests/session.rs` lines 108 ("continuation") and 172 ("without a
-WebSocket Close"), and `scripts/interop-faults.sh:236` ("pings unanswered").
+WebSocket Close"), and `scripts/interop-faults.sh:240` ("pings unanswered").
 `WsError` exists (`crates/podssh-ws/src/error.rs:56-76`), but the session does not use it.
 
 ## Approach
@@ -722,7 +722,7 @@ once (`crates/podssh-relay/src/open.rs:70`) and gives exit 78 in `podssh proxy`
 5. Credentials never in output: `Display` shows the host and port only (now
    `crates/podssh-ws/src/proxy.rs:70-75`).
 6. `doctor` names the SOCKS5 proxy, and its proxy checks
-   (`crates/podssh-cli/src/doctor/net.rs:193-229`) work for both forms. The two tests above
+   (`crates/podssh-cli/src/doctor/net.rs:195-237`) work for both forms. The two tests above
    plant `ftp://` and `socks4://` instead; `socks4` and `socks4a` are refused by name.
 7. Change the proxy variables in VARIABLES (`crates/podssh-cli/src/man/facts.rs:46-55`),
    `docs/architecture.md` and `docs/cli.md` in the same commit.
@@ -1259,6 +1259,17 @@ any other address, or with none, keeps the proxy
   `--test ssh_args` 26; clippy and rustfmt clean.
 - Planted: the pin not read; the test failed ("pinned to 127.0.0.1");
   restored, it passed.
+- Later, 2026-10-30: the gate failed at `472adff`, in its steps m6 and
+  release. The runs of `m6_exit` and `faults` and the interop checks
+  `faults.proxy_502.failover`, `roost.cut` and `upgrade.cut` go through a
+  stand-in proxy whose map names relay-a.test, and pinned that name to the
+  loopback too; since this entry the pin sent them around the proxy, and no
+  fault came. They pin no address now (`scripts/interop-faults.sh`,
+  `scripts/interop-roost.sh`, `scripts/interop-upgrade.sh`,
+  `crates/podssh-cli/tests/m6_exit.rs`, `crates/podssh-cli/tests/faults.rs`),
+  and the runs of `m6_exit` and `faults` clear the machine's proxy
+  variables first: a cloud container's `https_proxy` is read before the
+  test's `HTTPS_PROXY`, and here sent them to the container's proxy.
 
 # T-320: A `407` names the proxy's authentication scheme
 
@@ -1324,7 +1335,7 @@ error.
 **Milestone:** backlog
 **Priority:** P3
 **Effort:** M
-**Status:** open
+**Status:** done
 
 ## Problem
 
@@ -1357,17 +1368,102 @@ refuses from one that was slow, nor a steady path from a lossy one.
 3. A bound on the whole: `doctor` stays under a minute on a path that
    answers.
 
+## Decision
+
+- Only the probes of TCP are tried nine times: each `CONNECT` through the
+  proxy, and `direct TCP`. The relay's `/health`, its upgrade and the SSH
+  handshake stay one each: each is a request to the relay's Worker, on its
+  operator's quota, and a session to GitHub, and nine of each in each run
+  would multiply that load for a time that the `CONNECT` to the relay's
+  host already gives. Lost: the upgrade sampled too (#54's comment: the loss
+  tells a refused upgrade from a dropped one), as its three verdicts tell
+  those apart at one try.
+- A first try that timed out ends the probe; a later try waits four times
+  the first try's time, from 3 s to 8 s; and no try starts that could end
+  more than 10 s after the first began
+  (`crates/podssh-cli/src/doctor/samples.rs:129`). Lost: nine tries always,
+  72 s for one probe on a path that does not answer; one short bound for
+  each try, which counts the tries of a slow path as lost.
+- A refusal (the proxy's `403`, a port that refuses) is an answer, not a
+  loss, as #54's comment counts timeouts and resets. Lost: a refusal counted
+  as a loss, which would call a strict proxy lossy.
+- The banner of port 22 is read on the first connection that opened, held
+  while the other tries run: no tenth connection.
+- The meaning of a wrong accept is podssh-ws's
+  (`crates/podssh-ws/src/handshake.rs:211`), so `podssh ssh` says it too; the
+  death after a valid 101 is doctor's
+  (`crates/podssh-cli/src/doctor/relay_checks.rs:212`), as a session of
+  `podssh ssh` already names the relay's end.
+
 ## Prove
 
 ```sh
 cargo test -p podssh-cli --test doctor
+cargo test -p podssh-cli --test doctor_upgrade
 cargo test -p podssh-cli --lib doctor::
+cargo test -p podssh-ws --test rfc6455
 ```
 
-Against a stand-in relay that answers 403, one that answers 101 with a
-wrong accept, and one that closes after a valid 101, each line names its
-own failure. Against a stand-in that drops one probe in three, the loss
-reads 33 %. Planted: one verdict for the three; the test fails.
+Against a stand-in relay that answers 403 (`scripts/fake-relay.py`, mode
+`refuse:403`), one that answers 101 with a wrong accept (`badaccept`), and
+one that closes after a valid 101 (`hangup:200`), each line names its own
+failure. Against a stand-in that drops one probe in three, the loss reads
+33 %. Planted: one verdict for the three; the test fails.
+
+## Correction
+
+2026-10-30. Item 1 was met in part before this entry: `check_response`
+gives an answer other than 101 its status and its text
+(`crates/podssh-ws/src/handshake.rs:185` says "if status != 101 {"), and a
+101 with a wrong or no `Sec-WebSocket-Accept` its own error, and the
+forward line carries each (`crates/podssh-cli/src/doctor/relay_checks.rs:158`).
+Measured against the stand-in relay before the change: a wrong accept read
+"Sec-WebSocket-Accept was ..., expected ...", with nothing of what it means,
+and a valid 101 that the stand-in ended 200 ms later read "the connection
+closed unexpectedly (the relay connection failed: peer closed connection
+without sending TLS close_notify ...)", which named neither the 101 nor the
+cut. What was left of item 1: the meaning of a wrong accept, and the third
+failure. The Prove names the new test `doctor_upgrade`, which runs the
+stand-in relay, and the test of podssh-ws.
+
+## Done
+
+2026-10-30. Each probe of TCP in `doctor` (each `CONNECT` through the
+proxy, and `direct TCP`) is tried nine times, 125 ms apart
+(`crates/podssh-cli/src/doctor/samples.rs`), and its line gives the best
+time, the median, the 95th percentile, the jitter and the loss, the
+timeouts and the other breaks apart, with each refusal counted as an
+answer; `--json` gives the same as `samples` (`tries`, `connected`,
+`best_ms`, `median_ms`, `p95_ms`, `jitter_ms`, `timed_out`, `broke`,
+`refused`, `ms`). A 101 with a wrong or no accept says that something
+between answered in the relay's place; a valid 101 after which the
+connection ends with no Close says that the upgrade passed, when the
+connection ended, and that something between drops the stream after the
+upgrade. The stand-in relay has two modes for them, `badaccept` and
+`hangup:MS`. The manual and `docs/cli.md` say it.
+
+- Linux, 2026-10-30: `cargo test -p podssh-cli --lib doctor::`, 27 passed
+  (the summary of nine tries, a lossy path's 33 %, refusals, a first try
+  that timed out, the budget of 10 s on tokio's paused clock, and the three
+  ends after a valid 101); `--test doctor`, 12 passed (through a stand-in
+  proxy that drops each third CONNECT, each line says "loss 3 of 9 (33 %: 3
+  broke)", and `--json` 9 tries, 6 connected and 3 broke); `--test
+  doctor_upgrade` passed (the stand-in relay in `refuse:403`, `badaccept`
+  and `hangup:200`: three lines, each with its own failure and none of the
+  words of the others); `cargo test -p podssh-ws --test rfc6455`, 25
+  passed; `--test man_page` 10 and `--test flag_table` 8; clippy and rustfmt
+  clean.
+- Planted: one verdict for the three ("the forward session failed"):
+  `doctor_upgrade` failed; one try for each probe (`TRIES` 1): the test of
+  the lossy proxy failed; restored, both passed.
+- Live, in a Claude Code cloud container through its agent proxy,
+  2026-10-30: `podssh doctor`, 31 ok and 0 FAIL in 15 s.
+  "tcp.ssh.relay.ajam.dev:443: allowed by 127.0.0.1:35713; best 202 ms,
+  median 238 ms, p95 264 ms, jitter 14 ms; loss 0 of 9"; github.com:443
+  best 118 ms, median 128 ms; github.com:22 took the CONNECT and carried no
+  SSH, with its nine tries (best 101 ms, median 129 ms).
+- Not measured: a real proxy that loses tries, and a real hop that drops
+  the upgraded stream.
 
 # T-325: `doctor` measures what the path does to a stream: buffering, a cap on bodies, an idle limit
 

@@ -47,8 +47,8 @@ failed (lines 156-168). The sections are "this host", "egress" and "relay" (line
    `crates/podssh-cli/src/dispatch.rs:147-163`. `tree.rs` has 454 lines and `dispatch.rs` 448:
    keep the additions small, or split first.
 5. The JSON carries the same detail strings as the text, which hide proxy credentials and
-   tokens today (`crates/podssh-cli/tests/doctor.rs:131-156`).
-6. Change the `doctor` notes (`crates/podssh-cli/src/man/notes.rs:227-248`) and
+   tokens today (`crates/podssh-cli/tests/doctor.rs:142-167`).
+6. Change the `doctor` notes (`crates/podssh-cli/src/man/notes.rs:227-259`) and
    `docs/cli.md:1181-1199` in the same commit.
 
 ## Decision
@@ -72,7 +72,7 @@ echo "exit=$?"
 cargo test -p podssh-cli --test doctor -- --ignored  # the live relay, on request
 ```
 
-The new tests run the binary offline, as `crates/podssh-cli/tests/doctor.rs:99-120` does: stdout
+The new tests run the binary offline, as `crates/podssh-cli/tests/doctor.rs:110-131` does: stdout
 is one JSON object; each text line has an item with the same check, status and detail; the
 counts agree; a planted proxy password and a planted token do not appear. Planted defect: leave
 the last check out of the JSON; the parity test fails.
@@ -335,7 +335,7 @@ and `crates/podssh-ssh/src/keys.rs:99-131` offers a key to the server.
 5. The line joins the JSON of T-049. The script can call `doctor --full` and keep its OpenSSH
    step.
 6. Change `DOCTOR_FLAGS` (`crates/podssh-cli/src/flags/relay.rs:45-58`), the `doctor` notes
-   (`crates/podssh-cli/src/man/notes.rs:227-248`) and `docs/cli.md:1181-1199` in the same commit.
+   (`crates/podssh-cli/src/man/notes.rs:227-259`) and `docs/cli.md:1181-1199` in the same commit.
 
 ## Decision
 
@@ -355,7 +355,7 @@ sh scripts/test_in_box.sh path/to/static/podssh            # the Podman box: log
 ```
 
 Offline, `--full` adds one `????` line and no `FAIL`. A unit test of the verdict, as
-`crates/podssh-cli/src/doctor/relay_checks.rs:326-342` tests the keys: a refused key gives `ok`,
+`crates/podssh-cli/src/doctor/relay_checks.rs:347-363` tests the keys: a refused key gives `ok`,
 another host key gives `FAIL`. Planted defect: a handshake that accepts any host key; the
 wrong-key test fails.
 
@@ -414,7 +414,7 @@ trip (`crates/podssh-ws/src/session.rs:203-230`; the payload is a counter, `:227
 prints the milliseconds of each `/health` request
 (`crates/podssh-cli/src/doctor/relay_checks.rs`, lines 130-132 at `24f3e2a`). The relay counts both directions
 against 64 MiB for each session (`docs/relay.md:167`). The stand-in relay answers pings
-(`scripts/fake-relay.py:370-371`).
+(`scripts/fake-relay.py:388-389`).
 
 ## Approach
 
@@ -674,7 +674,7 @@ stdin and stdout gives typed tools, with no shell quoting.
 
 Measured: `podssh mcp` exits 64 (unknown subcommand).
 
-Read: a prompt goes to the controlling terminal or to `SSH_ASKPASS` (`docs/cli.md:2130-2155`),
+Read: a prompt goes to the controlling terminal or to `SSH_ASKPASS` (`docs/cli.md:2150-2175`),
 and the terminal of an agent can be the user's own. The session output goes straight to the
 process's stdout (`crates/podssh-ssh/src/io.rs:414-431`), which an MCP server over stdio uses for
 its protocol. podssh never listens (`docs/architecture.md:120-133`), and stdio needs no listener.

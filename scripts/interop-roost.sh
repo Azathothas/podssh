@@ -72,8 +72,10 @@ for srv in openssh:2201 dropbear:2203; do
     echo $! >"$RO/$label.proxy.pid"
     waitfor "$RO/$label.proxy.port" .
     RX="http://127.0.0.1:$(cat "$RO/$label.proxy.port")"
+    # No pin: the proxy's map names relay-a.test, and a pin to the loopback
+    # would go around the proxy and its cut (T-318).
     # shellcheck disable=SC2086
-    ro ssh --relay-addr "$PINS" --ca-file "$FK/ca.pem" -o UserKnownHostsFile="$KH" \
+    ro ssh --ca-file "$FK/ca.pem" -o UserKnownHostsFile="$KH" \
         -o StrictHostKeyChecking=accept-new -o IdentityAgent=none -o IdentitiesOnly=yes $K -o BatchMode=yes \
         "node://podtest@$label" "touch $START; sleep 4; echo roost-survived" >"$RO/out" 2>"$RO/err" </dev/null
     rc=$?

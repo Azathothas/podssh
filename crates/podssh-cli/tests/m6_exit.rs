@@ -25,7 +25,7 @@ use std::path::PathBuf;
 use std::process::{Child, Command, Stdio};
 use std::time::{Duration, Instant};
 
-use throughput_harness::{found, lines_of, scripts, wait_for, Cell, Session};
+use throughput_harness::{found, lines_of, scripts, wait_for, without_proxy, Cell, Session};
 
 const MIB: usize = 1 << 20;
 const BYTES: usize = 20 * MIB;
@@ -74,24 +74,24 @@ impl Stand {
         self.through(&self.proxy, args)
     }
 
+    /// The machine's proxy variables go first: podssh reads https_proxy
+    /// before HTTPS_PROXY, and a cloud container sets it.
     fn through(&self, proxy: &str, args: &[String]) -> Command {
-        let mut cmd = self.session.command(args);
+        let mut cmd = without_proxy(self.session.command(args));
         cmd.env("HTTPS_PROXY", proxy).env("SSL_CERT_FILE", &self.ca);
         cmd
     }
 
     /// A pair on the stand-in relay, and its node in front of the tests'
-    /// SSH server: the pair's label.
+    /// SSH server: the pair's label. Each run here goes through a stand-in
+    /// proxy whose map names relay-a.test, and pins no address: a pin to the
+    /// loopback would go around the proxy and its fault (T-318).
     fn node(&self) -> String {
         let label = "m6".to_string();
-        let pins = ["--relay-addr".to_string(), "relay-a.test=127.0.0.1".to_string()];
-        let mut args =
-            vec!["relay".to_string(), "pair".into(), label.clone(), "--relay-host".into(), self.relay.clone()];
-        args.extend(pins.iter().cloned());
+        let args = vec!["relay".to_string(), "pair".into(), label.clone(), "--relay-host".into(), self.relay.clone()];
         let out = self.through(&self.node_proxy, &args).stdin(Stdio::null()).output().unwrap();
         assert!(out.status.success(), "podssh relay pair: {}", String::from_utf8_lossy(&out.stderr));
-        let mut args = vec!["node".to_string(), label.clone(), format!("127.0.0.1:{}", self.session.port)];
-        args.extend(pins);
+        let args = vec!["node".to_string(), label.clone(), format!("127.0.0.1:{}", self.session.port)];
         let mut node =
             self.through(&self.node_proxy, &args).stdin(Stdio::null()).stderr(Stdio::piped()).spawn().unwrap();
         let lines = lines_of(&mut node);
@@ -220,12 +220,7 @@ fn through_the_layer(fault: &[&str], node_fault: &[&str], tag: &str) {
     let label = stand.node();
     let mut args = vec!["ssh".to_string()];
     args.extend(stand.session.common());
-    args.extend([
-        "--relay-addr".to_string(),
-        "relay-a.test=127.0.0.1".into(),
-        format!("node://tester@{label}"),
-        "echo".into(),
-    ]);
+    args.extend([format!("node://tester@{label}"), "echo".into()]);
     let child =
         stand.command(&args).stdin(Stdio::piped()).stdout(Stdio::piped()).stderr(Stdio::piped()).spawn().unwrap();
     let started = Instant::now();
@@ -246,12 +241,7 @@ fn on_the_forward_road(fault: &[&str], tag: &str) {
     let Some(stand) = Stand::new(tag, fault, &[]) else { return };
     let mut args = vec!["ssh".to_string()];
     args.extend(stand.session.common());
-    args.extend([
-        "--relay-host".to_string(),
-        stand.relay.clone(),
-        "--relay-addr".into(),
-        "relay-a.test=127.0.0.1".into(),
-    ]);
+    args.extend(["--relay-host".to_string(), stand.relay.clone()]);
     args.extend(["-p".to_string(), stand.session.port.to_string(), "tester@127.0.0.1".into(), "echo".into()]);
     let child =
         stand.command(&args).stdin(Stdio::piped()).stdout(Stdio::piped()).stderr(Stdio::piped()).spawn().unwrap();
@@ -306,12 +296,7 @@ fn with_no_fault_the_layer_carries_the_session() {
     let label = stand.node();
     let mut args = vec!["ssh".to_string(), "-v".into()];
     args.extend(stand.session.common());
-    args.extend([
-        "--relay-addr".to_string(),
-        "relay-a.test=127.0.0.1".into(),
-        format!("node://tester@{label}"),
-        "echo".into(),
-    ]);
+    args.extend([format!("node://tester@{label}"), "echo".into()]);
     let child =
         stand.command(&args).stdin(Stdio::piped()).stdout(Stdio::piped()).stderr(Stdio::piped()).spawn().unwrap();
     let (code, whole, err) = echo(child, &stand.start);
@@ -388,7 +373,7 @@ mod iroh {
                 "--iroh-key".into(),
                 text(&session.home.join("node.key")),
             ];
-            let mut cmd = session.command(&args);
+            let mut cmd = super::without_proxy(session.command(&args));
             cmd.env("HTTPS_PROXY", &node_proxy).env("PODSSH_IROH_UDP", "off");
             let mut node = cmd.stdin(Stdio::null()).stderr(Stdio::piped()).spawn().unwrap();
             let lines = lines_of(&mut node);
@@ -423,7 +408,7 @@ mod iroh {
                 format!("tester@{}", self.ticket),
                 "echo".into(),
             ]);
-            let mut cmd = self.session.command(&args);
+            let mut cmd = super::without_proxy(self.session.command(&args));
             cmd.env("HTTPS_PROXY", &self.proxy).env("PODSSH_IROH_UDP", "off");
             let child = cmd.stdin(Stdio::piped()).stdout(Stdio::piped()).stderr(Stdio::piped()).spawn().unwrap();
             let started = Instant::now();

@@ -48,6 +48,12 @@ Modes:
                    the same, SECONDS after the first session's upgrade
   slowopen:MS      behave, with each upgrade answered MS milliseconds late:
                    a host that opens after another (T-220)
+  badaccept        answer each upgrade with a 101 whose Sec-WebSocket-Accept
+                   is not the key's, and dial no target: a hop that answers
+                   in the relay's place (T-324)
+  hangup:MS        answer each upgrade with a valid 101, MS milliseconds
+                   later end the TCP connection with no frame, and dial no
+                   target: a hop that drops the upgraded stream (T-324)
 
 Each mint, each upgrade and each Close from the client is a line on stdout
 (`mint`, `upgrade`, `close CODE`), so a harness counts them (T-220).
@@ -201,6 +207,18 @@ async def connect(reader, writer, path, headers):
     if args.mode.startswith("refuse:"):
         status = int(args.mode.split(":")[1])
         writer.write(response(status, "Refused", b"connect: refused by fault injection"))
+        return
+    if args.mode == "badaccept":
+        writer.write(upgraded({"sec-websocket-key": "not the key that the client sent"}))
+        await writer.drain()
+        event("upgrade")
+        return
+    if args.mode.startswith("hangup:"):
+        writer.write(upgraded(headers))
+        await writer.drain()
+        event("upgrade")
+        await asyncio.sleep(int(args.mode.split(":")[1]) / 1000)
+        writer.transport.abort()
         return
     parts = path.split("?")[0].split("/")
     host, port = parts[2], int(parts[3])

@@ -7,8 +7,9 @@ use podssh_relay::relay::RelayList;
 // The variables podssh reads for a proxy, in the order it reads them: the
 // dialer's own list, so this report names the one that the dialer takes.
 use podssh_ws::dial::{self, HttpProxy, ProxyChoice, PROXY_VARS};
-use podssh_ws::Trust;
+use podssh_ws::{Trust, Verdict};
 
+use super::samples::{sample, Tried};
 use super::Report;
 
 /// The bound on each network probe here.
@@ -188,43 +189,50 @@ async fn no_ssh_banner<S: tokio::io::AsyncRead + Unpin>(mut stream: S) -> Option
 }
 
 /// What the proxy lets through: the relay, and for comparison GitHub on 443
-/// and 22. Each answer is reported as the proxy gave it; on port 22, only
-/// the server's banner says that plain ssh can leave.
+/// and 22, each tried several times (T-324). Each answer is reported as the
+/// proxy gave it; on port 22, only the server's banner, read on the first
+/// connection that opened, says that plain ssh can leave.
 async fn through_proxy(report: &mut Report<'_>, proxy: &HttpProxy, relay_host: &str, relay_port: u16) {
-    let via = ProxyChoice::Via(proxy.clone());
+    let via = &ProxyChoice::Via(proxy.clone());
     for (host, port) in [(relay_host, relay_port), (REFERENCE_HOST, 443), (REFERENCE_HOST, 22)] {
         let target = dial::authority(host, port);
         let is_relay = host == relay_host;
-        let started = Instant::now();
-        match dial::dial(host, port, &via, PROBE).await {
-            Ok(stream) if port == 22 && !is_relay => {
+        let Tried { samples, first, error } = sample(PROBE, move |bound| dial::dial(host, port, via, bound)).await;
+        let summary = samples.summary();
+        let verdict = match first {
+            Some(stream) => {
                 let peer = stream.peer_addr().map(|a| a.to_string()).unwrap_or_else(|_| "?".into());
                 let by = proxy_reached(proxy, &peer);
-                let took = ms(started);
-                let line = match no_ssh_banner(stream).await {
-                    None => format!("{target}: allowed by {by}, {took} ms; plain ssh can leave this way too"),
-                    Some(why) => format!(
-                        "{target}: {by} took the CONNECT ({took} ms), then {why}: it carries no SSH, and may \
-                         expect TLS; plain ssh cannot leave this way, which is what the relay is for"
-                    ),
+                let detail = match (port == 22 && !is_relay).then_some(stream) {
+                    None => format!("{target}: allowed by {by}; {summary}"),
+                    Some(stream) => match no_ssh_banner(stream).await {
+                        None => format!("{target}: allowed by {by}; {summary}; plain ssh can leave this way too"),
+                        Some(why) => format!(
+                            "{target}: {by} took the CONNECT, then {why}: it carries no SSH, and may expect TLS; \
+                             plain ssh cannot leave this way, which is what the relay is for; {summary}"
+                        ),
+                    },
                 };
-                report.ok("CONNECT", line);
+                Verdict::Ok { detail }
             }
-            Ok(stream) => {
-                let peer = stream.peer_addr().map(|a| a.to_string()).unwrap_or_else(|_| "?".into());
-                let by = proxy_reached(proxy, &peer);
-                report.ok("CONNECT", format!("{target}: allowed by {by}, {} ms", ms(started)));
+            None => {
+                let e = error.map(|e| e.to_string()).unwrap_or_default();
+                match (is_relay, port) {
+                    (true, _) => Verdict::Failed {
+                        detail: format!(
+                            "{target}: {e}; {summary}; another relay host may be allowed (--relay-host or PODSSH_RELAY)"
+                        ),
+                    },
+                    (false, 22) => Verdict::Ok {
+                        detail: format!(
+                            "{target}: {e}; {summary}; plain ssh cannot leave this way, which is what the relay is for"
+                        ),
+                    },
+                    (false, _) => Verdict::Ok { detail: format!("{target}: {e}; {summary}") },
+                }
             }
-            Err(e) if is_relay => report.fail(
-                "CONNECT",
-                format!("{target}: {e}; another relay host may be allowed (--relay-host or PODSSH_RELAY)"),
-            ),
-            Err(e) => {
-                let meaning =
-                    if port == 22 { "; plain ssh cannot leave this way, which is what the relay is for" } else { "" };
-                report.ok("CONNECT", format!("{target}: {e}{meaning}"));
-            }
-        }
+        };
+        report.sampled("CONNECT", verdict, &samples);
     }
 }
 
@@ -232,25 +240,28 @@ async fn through_proxy(report: &mut Report<'_>, proxy: &HttpProxy, relay_host: &
 /// relay is a convenience here rather than the only way.
 async fn direct(report: &mut Report<'_>) {
     let target = dial::authority(REFERENCE_HOST, 22);
-    let started = Instant::now();
-    match dial::dial(REFERENCE_HOST, 22, &ProxyChoice::Direct, PROBE).await {
-        Ok(stream) => {
+    let straight = &ProxyChoice::Direct;
+    let Tried { samples, first, error } =
+        sample(PROBE, move |bound| dial::dial(REFERENCE_HOST, 22, straight, bound)).await;
+    let summary = samples.summary();
+    let detail = match first {
+        Some(stream) => {
             let peer = stream.peer_addr().map(|a| a.to_string()).unwrap_or_else(|_| "?".into());
-            let took = ms(started);
             // A middlebox can take the connection and carry nothing, as a proxy can.
-            let line = match no_ssh_banner(stream).await {
-                None => format!("{target}: connected to {peer}, {took} ms; plain ssh can leave this host too"),
+            match no_ssh_banner(stream).await {
+                None => format!("{target}: connected to {peer}; {summary}; plain ssh can leave this host too"),
                 Some(why) => format!(
-                    "{target}: connected to {peer} ({took} ms), then {why}: something between carries no SSH; \
-                     plain ssh cannot leave this host, which is what the relay is for"
+                    "{target}: connected to {peer}, then {why}: something between carries no SSH; plain ssh \
+                     cannot leave this host, which is what the relay is for; {summary}"
                 ),
-            };
-            report.ok("direct TCP", line);
+            }
         }
-        Err(e) => {
-            report.ok("direct TCP", format!("{e}; plain ssh cannot leave this host, which is what the relay is for"))
-        }
-    }
+        None => format!(
+            "{}; {summary}; plain ssh cannot leave this host, which is what the relay is for",
+            error.map(|e| e.to_string()).unwrap_or_default()
+        ),
+    };
+    report.sampled("direct TCP", Verdict::Ok { detail }, &samples);
 }
 
 /// With a proxy podssh never resolves the relay's name; the system resolver

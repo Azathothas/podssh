@@ -20,10 +20,14 @@ UPX=
 up() {
     _port=$1
     shift
+    # Through the proxy, its map names relay-a.test: a pin to the loopback
+    # would go around it (T-318).
+    _pins=$PINS
+    [ -n "$UPX" ] && _pins=
     # shellcheck disable=SC2086
     env -u SSH_AUTH_SOCK -u https_proxy -u HTTPS_PROXY -u all_proxy -u ALL_PROXY ${UPX:+https_proxy=$UPX} \
         XDG_CACHE_HOME="$UP/cache" HOME="$W" "$BIN" ssh --upgrade --relay-host "relay-a.test:$(port a)" \
-        --relay-addr "$PINS" --ca-file "$FK/ca.pem" -p "$_port" -o UserKnownHostsFile="$KH" \
+        ${_pins:+--relay-addr "$_pins"} --ca-file "$FK/ca.pem" -p "$_port" -o UserKnownHostsFile="$KH" \
         -o StrictHostKeyChecking=accept-new -o IdentityAgent=none -o IdentitiesOnly=yes $K -o BatchMode=yes "$@"
 }
 

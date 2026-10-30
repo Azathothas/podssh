@@ -1050,10 +1050,10 @@ a stall of 3 minutes. Today each of these faults ends the session.
 
 Measured in the gate (`docs/STATUS.md`, "Faults between podssh and the relay,
 measured"): a relay that stalls is declared dead at 50 s, and a relay host
-killed in a session gives exit 255 (`scripts/interop-faults.sh:232-250`).
+killed in a session gives exit 255 (`scripts/interop-faults.sh:236-254`).
 These checks stay, for the forward road, which has no resumption. Read: the
-stand-in relay serves the forward path only (`scripts/fake-relay.py:102-120`),
-and its `stall` mode never ends (`scripts/fake-relay.py:350-353`). The
+stand-in relay serves the forward path only (`scripts/fake-relay.py:108-126`),
+and its `stall` mode never ends (`scripts/fake-relay.py:368-371`). The
 harness cannot change an address or end a stall yet (T-203). The checks need
 T-151 to T-155, the iroh road (T-162 to T-165), the reverse runners (T-079,
 T-080) and a far end (`podssh serve`, T-107).
@@ -2116,7 +2116,7 @@ then resumes over a new one. For those 30 s, an interactive session shows nothin
   new one goes on (`docs/design.md:602-604`). The far end lets the newest resume take a session
   (`docs/design.md:629-631`).
 - Measured (T-156): a session on the layer and on the iroh road survives a new address of its
-  client (`crates/podssh-cli/tests/m6_exit.rs:272`); the time that the resume took is not in the
+  client (`crates/podssh-cli/tests/m6_exit.rs:262`); the time that the resume took is not in the
   record.
 - Read in Mosh (`docs/design.md:460-474`): its client tries a new source port after 10 s with no
   round trip, and its server follows each newer authentic datagram at once.

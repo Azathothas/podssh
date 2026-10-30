@@ -93,6 +93,22 @@ fn cell(session: &Session, mode: &str) -> Option<Cell> {
     }
 }
 
+/// The cell's arguments with no pin of the relay's name: through the
+/// stand-in proxy, its map names the host, and a pin to the loopback would
+/// go around the proxy and its fault (T-318).
+fn unpinned(cell: &Cell) -> Vec<String> {
+    let mut args = Vec::new();
+    let mut words = cell.args.iter();
+    while let Some(word) = words.next() {
+        if word == "--relay-addr" {
+            words.next();
+        } else {
+            args.push(word.clone());
+        }
+    }
+    args
+}
+
 /// Bytes that are not all alike, so that a reordered chunk shows.
 fn pattern(len: usize) -> Vec<u8> {
     let mut x: u32 = 0x2545_f491;
@@ -206,11 +222,11 @@ fn after_a_move_the_old_link_goes_silent_and_a_new_one_leaves_from_the_new_addre
         assert!(Instant::now() < deadline, "the stand-in proxy did not start");
         std::thread::sleep(Duration::from_millis(100));
     };
-    let mut args = cell.args.clone();
+    let mut args = unpinned(&cell);
     args.push("sink".into());
     let started = Instant::now();
-    let mut held = session
-        .command(&args)
+    // The machine's proxy variables go: podssh reads https_proxy first.
+    let mut held = throughput_harness::without_proxy(session.command(&args))
         .env("HTTPS_PROXY", format!("http://127.0.0.1:{proxy_port}"))
         .stdin(Stdio::piped())
         .stdout(Stdio::piped())
@@ -231,10 +247,9 @@ fn after_a_move_the_old_link_goes_silent_and_a_new_one_leaves_from_the_new_addre
     let _ = held.stderr.take().unwrap().read_to_string(&mut err);
     assert_eq!(code, 255, "{err}");
     assert!(err.contains("relay"), "{err}");
-    let mut args = cell.args.clone();
+    let mut args = unpinned(&cell);
     args.push("greet".into());
-    let out = session
-        .command(&args)
+    let out = throughput_harness::without_proxy(session.command(&args))
         .env("HTTPS_PROXY", format!("http://127.0.0.1:{proxy_port}"))
         .stdin(Stdio::null())
         .output()

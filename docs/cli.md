@@ -1210,6 +1210,26 @@ and no `--timeout`: a person decides how long an edit takes.
   with `section`, `check`, `status` and `detail`; `status` is `ok`, `FAIL`
   or `unknown`) and `counts`. The exit code does not change. `--json` is
   for a report that ends; `--jsonl` stays for the events of a long run.
+- Each probe that connects (each `CONNECT`, and `direct TCP`) is tried nine
+  times, 125 ms apart (GitHub #54, T-324): one time cannot tell a path that
+  refuses from one that was slow, nor a steady path from a lossy one. The
+  line gives the best time (the floor), the median, the 95th percentile, the
+  jitter (the median change from one try to the next) and the loss, the
+  timeouts and the other breaks counted apart; a refusal is an answer, not a
+  loss. `--json` gives the same as `samples`. A first try that timed out is
+  not repeated, a later try waits four times the first try's time (3 s to
+  8 s), and none starts that could end more than 10 s after the first: a path
+  that does not answer never holds `doctor` for minutes. Only the probes of
+  TCP are sampled: the relay's `/health`, its upgrade and the SSH handshake
+  stay one each, as each is a request to the relay's Worker and a session
+  to GitHub.
+- A forward session whose upgrade fails names one of three failures, each
+  with its own way out: an answer other than `101` (its status and its text:
+  the relay or a hop refused), a `101` whose `Sec-WebSocket-Accept` is not
+  the one of the request's key (something between answered in the relay's
+  place), and a valid `101` after which the connection ends with no Close
+  (something between drops the stream after the upgrade). A Close from the
+  relay is the relay's own end, with its code and its reason.
 
 ## `podssh status`
 

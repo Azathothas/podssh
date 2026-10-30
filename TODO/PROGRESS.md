@@ -48,7 +48,10 @@ entry keeps its proof in the entry; this page keeps no history (git does).
   causes of the test or of the place, none of podssh (T-313, T-314, T-315).
   `v1.0.0-beta.1` was published from that session (T-309): its git may not
   push a tag, so the release workflow publishes from a run by hand. GitHub
-  #14, #21, #23 and #26 are closed.
+  #14, #21, #23 and #26 are closed. The gate's steps m6 and release were
+  red from `472adff`, as T-318 sent the runs of the fault checks around
+  their stand-in proxy, and the job secrets from `95ef7a3`, as TruffleHog
+  took a placeholder for a credential; both are repaired (T-318's Done).
 - **Drafts (2026-10-13).** Since 2026-10-12 agents draft entries in local
   worktrees (`.claude/worktrees/`, excluded from git) on local branches
   `worktree-agent-*`, never pushed; they do not build. The main session
@@ -112,7 +115,7 @@ and `CARGO_BUILD_JOBS=4`:
 
 ## Counts
 
-`TODO/INDEX.md` holds 322 entries: 33 open, 0 partial, 27 blocked, 262 done.
+`TODO/INDEX.md` holds 322 entries: 32 open, 0 partial, 27 blocked, 263 done.
 
 Open includes parked work. `cargo todo check` verifies this line.
 

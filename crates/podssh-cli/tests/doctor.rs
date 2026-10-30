@@ -82,18 +82,29 @@ fn doctor_in(home: &Path, args: &[&str], set: &[(&str, &str)], unset: &[&str], o
     for name in unset {
         cmd.env_remove(name);
     }
-    let output = cmd
-        .stdin(Stdio::null())
-        .stdout(Stdio::piped())
-        .stderr(Stdio::piped())
-        .output()
-        .expect("the podssh binary runs");
-    Run {
-        code: output.status.code().unwrap_or(-1),
-        out: String::from_utf8_lossy(&output.stdout).into_owned(),
-        err: String::from_utf8_lossy(&output.stderr).into_owned(),
-    }
+    let mut child =
+        cmd.stdin(Stdio::null()).stdout(Stdio::piped()).stderr(Stdio::piped()).spawn().expect("the podssh binary runs");
+    // The report is read as it comes, so a long one cannot fill the pipe
+    // and hold the process.
+    let (mut out, mut err) = (child.stdout.take().unwrap(), child.stderr.take().unwrap());
+    let out = std::thread::spawn(move || std::io::read_to_string(&mut out).unwrap_or_default());
+    let err = std::thread::spawn(move || std::io::read_to_string(&mut err).unwrap_or_default());
+    let deadline = std::time::Instant::now() + LIMIT;
+    let status = loop {
+        if let Some(status) = child.try_wait().unwrap() {
+            break status;
+        }
+        if std::time::Instant::now() > deadline {
+            let _ = child.kill();
+            panic!("podssh doctor {args:?} still ran after {LIMIT:?}");
+        }
+        std::thread::sleep(std::time::Duration::from_millis(50));
+    };
+    Run { code: status.code().unwrap_or(-1), out: out.join().unwrap(), err: err.join().unwrap() }
 }
+
+/// The bound on each run of doctor: a path that answers takes seconds.
+const LIMIT: std::time::Duration = std::time::Duration::from_secs(120);
 
 /// The counts on the summary line: (ok, FAIL, ????).
 fn counts(out: &str) -> (usize, usize, usize) {
@@ -301,4 +312,58 @@ fn full_live_logs_in_to_github() {
     let run = doctor(&["--full"], &[], &[], false);
     let line = run.out.lines().find(|l| l.contains(" login ")).unwrap_or_else(|| panic!("{}", run.out));
     assert!(line.starts_with("  ok") && line.contains("GitHub refused a key made for this check"), "{line}");
+}
+
+/// A proxy on the loopback that drops each third CONNECT, closing with no
+/// answer, and answers the others with 200, then closes. Its port.
+fn lossy_proxy() -> u16 {
+    use std::io::{Read, Write};
+    let listener = std::net::TcpListener::bind("127.0.0.1:0").unwrap();
+    let port = listener.local_addr().unwrap().port();
+    std::thread::spawn(move || {
+        for (n, conn) in listener.incoming().enumerate() {
+            let Ok(mut conn) = conn else { return };
+            std::thread::spawn(move || {
+                let mut head = Vec::new();
+                let mut byte = [0u8; 1];
+                while !head.ends_with(b"\r\n\r\n") {
+                    if conn.read(&mut byte).unwrap_or(0) == 0 {
+                        return;
+                    }
+                    head.push(byte[0]);
+                }
+                if n % 3 != 2 {
+                    let _ = conn.write_all(b"HTTP/1.1 200 Connection Established\r\n\r\n");
+                    std::thread::sleep(std::time::Duration::from_millis(100));
+                }
+            });
+        }
+    });
+    port
+}
+
+/// Each CONNECT probe is tried nine times, and through a proxy that drops
+/// one in three, each line says a loss of 33 %, and `--json` the counts
+/// (T-324, GitHub #54).
+#[test]
+fn a_proxy_that_drops_one_connect_in_three_shows_a_loss_of_33_percent() {
+    let proxy = format!("http://127.0.0.1:{}", lossy_proxy());
+    let set = [("https_proxy", proxy.as_str())];
+    let args = ["--relay-host", "relay.example"];
+    let run = doctor(&args, &set, &[], false);
+    let lines: Vec<&str> = run.out.lines().filter(|l| l.split_whitespace().nth(1) == Some("CONNECT")).collect();
+    assert_eq!(lines.len(), 3, "{}", run.out);
+    for line in &lines {
+        assert!(line.contains("loss 3 of 9 (33 %: 3 broke)"), "{line}");
+    }
+    let json = doctor(&["--json", "--relay-host", "relay.example"], &set, &[], false);
+    let doc: serde_json::Value = serde_json::from_str(&json.out).expect("stdout is one JSON object");
+    let probes: Vec<&serde_json::Value> =
+        doc["checks"].as_array().unwrap().iter().filter(|c| c["check"] == "CONNECT").collect();
+    assert_eq!(probes.len(), 3, "{}", json.out);
+    for probe in probes {
+        let s = &probe["samples"];
+        assert_eq!((s["tries"].as_u64(), s["connected"].as_u64(), s["broke"].as_u64()), (Some(9), Some(6), Some(3)));
+        assert!(s["best_ms"].as_u64().is_some() && s["p95_ms"].as_u64() >= s["best_ms"].as_u64(), "{probe}");
+    }
 }
