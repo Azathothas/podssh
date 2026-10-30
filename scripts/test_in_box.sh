@@ -28,7 +28,7 @@
 set -u
 HERE=$(cd "$(dirname "$0")" && pwd)
 REPO=$(cd "$HERE/.." && pwd)
-# The image that a Dockerfile of .github/images/ names on its FROM line: the
+# The image that a Dockerfile of images/ names on its FROM line: the
 # one place that names it, pinned to a digest. A CR is dropped, as a checkout
 # on Windows can add one.
 image_of() {
@@ -49,8 +49,8 @@ TARGET=podssh-box-target
 RUN=${BOX_RUN:-check}
 case $RUN in check | tt) ;; *) echo "test_in_box: BOX_RUN is check or tt, not $RUN" >&2; exit 1 ;; esac
 IMAGE=localhost/podssh-box:2
-BASE_IMAGE=$(image_of "$REPO/.github/images/box/Dockerfile") || exit 78
-PROXY_IMAGE=$(image_of "$REPO/.github/images/box-proxy/Dockerfile") || exit 78
+BASE_IMAGE=$(image_of "$REPO/images/box/Dockerfile") || exit 78
+PROXY_IMAGE=$(image_of "$REPO/images/box-proxy/Dockerfile") || exit 78
 PORT=45331
 
 die() {

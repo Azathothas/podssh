@@ -80,7 +80,7 @@ esac
 # Overridable, so a future session can point at a different image without
 # reading this file first. The tool's settings are in scripts/dev-wsl.sh.
 
-# The image that a Dockerfile of .github/images/ names on its FROM line: the
+# The image that a Dockerfile of images/ names on its FROM line: the
 # one place that names it, pinned to a digest. A CR is dropped, as a checkout
 # on Windows can add one.
 image_of() {
@@ -94,14 +94,14 @@ image_of() {
     esac
 }
 
-# The build image, from .github/images/build/Dockerfile. podssh ships a static
+# The build image, from images/build/Dockerfile. podssh ships a static
 # musl binary, and `rust:1-alpine` is musl with rustc and cargo installed. The
 # image DOES carry a working `cc` (the binary and the Tailscale feature need
 # one), so the no-C rule of the library crates is enforced by
 # `CC=/nonexistent` in scripts/gate.sh, and scripts/plant.sh proves that
 # setting is load-bearing.
 if [ -z "${PODSSH_BUILD_IMAGE:-}" ]; then
-    PODSSH_BUILD_IMAGE=$(image_of "$REPO_ROOT/.github/images/build/Dockerfile") || exit 78
+    PODSSH_BUILD_IMAGE=$(image_of "$REPO_ROOT/images/build/Dockerfile") || exit 78
 fi
 PODSSH_TARGET=${PODSSH_TARGET:-x86_64-unknown-linux-musl}
 # Cargo jobs inside the container. Raise it only on a machine with the memory

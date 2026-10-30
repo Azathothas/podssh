@@ -28,12 +28,14 @@ updates:
         patterns:
           - "*"
 
-  # The one place of each image: its digest moves with the tag.
+  # The one place of each image: its digest moves with the tag. They are
+  # not under .github/, where Dependabot's service refused each change that
+  # this ecosystem made (T-308).
   - package-ecosystem: docker
     directories:
-      - /.github/images/build
-      - /.github/images/box
-      - /.github/images/box-proxy
-      - /.github/images/trufflehog
+      - /images/build
+      - /images/box
+      - /images/box-proxy
+      - /images/trufflehog
     schedule:
       interval: weekly

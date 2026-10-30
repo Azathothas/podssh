@@ -34,10 +34,10 @@ jobs:
         id: image
         run: |
           set -eu
-          ref=$(tr -d '\r' < .github/images/build/Dockerfile | sed -n 's/^FROM[[:space:]]\{1,\}\([^[:space:]]\{1,\}\).*/\1/p')
+          ref=$(tr -d '\r' < images/build/Dockerfile | sed -n 's/^FROM[[:space:]]\{1,\}\([^[:space:]]\{1,\}\).*/\1/p')
           case "$ref" in
             *@sha256:*) echo "image=$ref" >> "$GITHUB_OUTPUT" ;;
-            *) echo ".github/images/build/Dockerfile names no image pinned to a digest" >&2; exit 1 ;;
+            *) echo "images/build/Dockerfile names no image pinned to a digest" >&2; exit 1 ;;
           esac
 
       # A list that is empty, or a name that the gate refuses, fails here

@@ -61,7 +61,7 @@ native_engine() {
     cat >&2 <<'EOF'
 podssh: no container engine answers here (docker info, podman info).
 
-  The gate builds in the image of .github/images/build/Dockerfile, so that
+  The gate builds in the image of images/build/Dockerfile, so that
   its result does not depend on what this host happens to have installed.
   On a Linux host with root (a cloud session, a fresh VM), one command
   installs Podman, starts a Docker daemon that is installed but stopped,

@@ -62,15 +62,15 @@ repository and CI).
 
 ## Counts
 
-**322 entries: 31 open, 0 partial, 27 blocked, 264 done.**
+**322 entries: 30 open, 1 partial, 27 blocked, 264 done.**
 
 | Priority | open | partial | blocked | done | total |
 | --- | --- | --- | --- | --- | --- |
 | P0 | 0 | 0 | 0 | 1 | 1 |
 | P1 | 2 | 0 | 0 | 24 | 26 |
 | P2 | 4 | 0 | 19 | 142 | 165 |
-| P3 | 25 | 0 | 8 | 97 | 130 |
-| **All** | 31 | 0 | 27 | 264 | 322 |
+| P3 | 24 | 1 | 8 | 97 | 130 |
+| **All** | 30 | 1 | 27 | 264 | 322 |
 
 ## Entries
 
@@ -379,7 +379,7 @@ repository and CI).
 | [T-304](resume.md) | P3 | L | backlog | feature | open | Keys and screen frames as QUIC datagrams on the iroh road |
 | [T-305](resume.md) | P3 | M | backlog | feature | open | Roam at once: a new link beside a silent one |
 | [T-306](resume.md) | P3 | S | backlog | feature | open | A resume deadline that the user sets, for a host that sleeps |
-| [T-308](repo.md) | P3 | S | none | defect | open | Dependabot's updates of the images fail: GitHub refuses each pull request it makes |
+| [T-308](repo.md) | P3 | S | none | defect | partial | Dependabot's updates of the images fail: GitHub refuses each pull request it makes |
 | [T-309](release.md) | P1 | M | none | release | done | Publish the rolling betas `v1.0.0-beta.N` |
 | [T-310](repo.md) | P2 | M | none | chore | done | The gate on a Linux host with no wsl-toolkit, and a cloud session made ready |
 | [T-311](ws.md) | P2 | S | none | measurement | done | podssh in a Claude Code cloud container: an agent proxy, and an egress that intercepts TLS |

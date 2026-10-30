@@ -10,7 +10,7 @@
      or a private key block with a body).
   4. Shell scripts use LF line endings (dash rejects CRLF; bash -n does not).
   5. Each image that builds or tests podssh is named in one place, a
-     Dockerfile of .github/images/, pinned to a digest; no workflow and no
+     Dockerfile of images/, pinned to a digest; no workflow and no
      script names one by its tag.
   6. No Rust source under crates/ makes a listener outside its allowance:
      the rule "no listener unless the user asks for it and a probe at run
@@ -251,10 +251,10 @@ def check_shell_line_endings() -> list[str]:
 
 
 def check_images() -> list[str]:
-    dockerfiles = sorted((ROOT / ".github" / "images").glob("*/Dockerfile"))
+    dockerfiles = sorted((ROOT / "images").glob("*/Dockerfile"))
     # A check that finds nothing to check does not pass.
     if not dockerfiles:
-        return [".github/images/: no Dockerfile, so no image is pinned"]
+        return ["images/: no Dockerfile, so no image is pinned"]
     problems = []
     for path in dockerfiles:
         rel = path.relative_to(ROOT).as_posix()
@@ -274,7 +274,7 @@ def check_images() -> list[str]:
             if line.lstrip().startswith("#"):
                 continue
             if IMAGE_BY_TAG.search(line):
-                problems.append(f"{rel}:{line_no}: names an image by its tag; read it from .github/images/")
+                problems.append(f"{rel}:{line_no}: names an image by its tag; read it from images/")
     return problems
 
 

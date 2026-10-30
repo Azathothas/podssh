@@ -169,7 +169,7 @@ preflight() {
         cat >&2 <<EOF
 podssh: '$PODSSH_TOOL' is not on PATH, so the container gate cannot run here.
 
-  The gate builds in the image of .github/images/build/Dockerfile so that
+  The gate builds in the image of images/build/Dockerfile so that
   its result does not depend on what this machine happens to have installed. On Windows this
   script drives that container through wsl-toolkit, a single executable
   kept on PATH (usually ~/bin). Anywhere else, run the gate in the image

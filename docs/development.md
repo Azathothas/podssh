@@ -170,7 +170,7 @@ an empty repository and must exit 1; CI runs both.
 
 CI also scans each commit of the history for credentials, on each push, each
 pull request and each week (`.github/workflows/secrets.yml`): TruffleHog,
-pinned in `.github/images/trufflehog/Dockerfile`, in its git mode only, as
+pinned in `images/trufflehog/Dockerfile`, in its git mode only, as
 its filesystem mode on a developer's machine would read `.env/`. A key made
 for the run and committed in a repository of its own must be found first.
 `scripts/secrets-report.py` prints each finding with no secret in it, as the
@@ -205,9 +205,9 @@ returns the run's own exit code. `PODSSH_TRANSPORT=wsl` or `native`
 chooses; by default a host with wsl-toolkit, or a Windows shell, uses `wsl`.
 
 Each image is named in one place, pinned to the digest of its multi-platform
-index: `.github/images/build/Dockerfile` (`rust:1-alpine`, for the gate, CI
-and the release), `.github/images/box/Dockerfile` (`alpine:3.20`, the box and
-its SSH server) and `.github/images/box-proxy/Dockerfile`
+index: `images/build/Dockerfile` (`rust:1-alpine`, for the gate, CI
+and the release), `images/box/Dockerfile` (`alpine:3.20`, the box and
+its SSH server) and `images/box-proxy/Dockerfile`
 (`python:3.12-alpine`, the box's proxy). The scripts and the workflows read
 their `FROM` line, so two runs of one commit use one compiler, and
 `python scripts/check-repo.py` fails on a second name. CI pulls each through
@@ -621,8 +621,11 @@ cargo run -p podssh-cli --example live_irc                 # an IRC registration
 ## Updates
 
 Dependabot (`.github/dependabot.yml`) looks each week at the crates of the
-workspace's `Cargo.lock`, the actions of the workflows, and the three pinned
-images of `.github/images/`. Minor and patch updates of the crates come in one
+workspace's `Cargo.lock`, the actions of the workflows, and the four pinned
+images of `images/`. The images are not under `.github/`: there, Dependabot's
+service refused each pull request of the docker ecosystem with a 400, "The
+request contains invalid or unauthorized changes" (T-308). Minor and patch
+updates of the crates come in one
 pull request, and each major update alone; the actions come in one. The fork
 in `vendor/tailscale-rs` has no entry: it follows its own patches. CI checks
 the configuration against Dependabot's published schema, with a planted copy

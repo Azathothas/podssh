@@ -53,9 +53,9 @@ else
     SUDO=none
 fi
 
-# The image that a Dockerfile of .github/images/ names on its FROM line.
+# The image that a Dockerfile of images/ names on its FROM line.
 image_of() {
-    tr -d '\r' <"$REPO_ROOT/.github/images/$1/Dockerfile" |
+    tr -d '\r' <"$REPO_ROOT/images/$1/Dockerfile" |
         sed -n 's/^FROM[[:space:]]\{1,\}\([^[:space:]]\{1,\}\).*/\1/p'
 }
 BUILD_IMAGE=$(image_of build)

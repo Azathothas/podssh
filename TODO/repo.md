@@ -160,7 +160,7 @@ planted copy passes.
 
 The state (partial), 2026-10-09: `.github/dependabot.yml` (cargo, one group
 for minor and patch, at most 5 pull requests; the actions, one group; the
-three images of `.github/images/`, after T-206), the CI step, and the section
+three images of `images/`, then under `.github/`, after T-206), the CI step, and the section
 "Updates" of `docs/development.md` are written. Next: the step's result in
 CI, then Dependabot's first pull requests.
 
@@ -171,8 +171,8 @@ pinned images", and closed in the commit "Secret scanning of the history".
 
 - `.github/dependabot.yml`: the crates, weekly, minor and patch updates in
   one group, each major update alone, at most 5 pull requests open; the
-  actions, in one group; the images of `.github/images/` (since T-209 also
-  the scanner's).
+  actions, in one group; the images of `images/`, then under `.github/`
+  (since T-209 also the scanner's).
 - The step "dependabot's configuration is valid" of
   `.github/workflows/build.yml` passed in run 37875200107: "ok -- validation
   done", then "the planted ecosystem failed, as it must".
@@ -238,8 +238,9 @@ Read:
 ## Decision
 
 2026-10-09: the three images live in one directory, each in its own
-Dockerfile of one `FROM` line: `.github/images/build/Dockerfile`,
-`.github/images/box/Dockerfile` and `.github/images/box-proxy/Dockerfile`.
+Dockerfile of one `FROM` line: `images/build/Dockerfile`,
+`images/box/Dockerfile` and `images/box-proxy/Dockerfile` (under
+`.github/` until T-308).
 Dependabot's docker ecosystem (T-205) then takes one directory for each.
 Lost: .github/build-image/Dockerfile alone, as step 2 proposed, with the
 box's two images elsewhere: three places for one kind of fact.
@@ -457,7 +458,7 @@ Read:
 3. On a run by hand, make the list of the commits since the last tag as an
    artifact, so that it can be read before a tag.
 4. Link each "Fixes #N" of a commit to its issue in the list.
-5. docs/development.md, "Release builds" (`docs/development.md:649-704`): the
+5. docs/development.md, "Release builds" (`docs/development.md:652-707`): the
    body is the notes file and the generated list.
 
 No new shell script: each step is a step of the workflow.
@@ -576,7 +577,7 @@ Read:
    each pull request, each week, and by hand), not a job of
    `.github/workflows/build.yml`: a weekly scan there would run the gate too.
 2. The scanner is pinned by the digest of its index, in
-   `.github/images/trufflehog/Dockerfile`: the one place of T-206, which
+   `images/trufflehog/Dockerfile`: the one place of T-206, which
    Dependabot updates and check 5 of `scripts/check-repo.py` checks.
 3. Each run scans the whole history, not only the commits of the push: the
    history is short since its rewrite on 2026-10-08.
@@ -630,7 +631,7 @@ scan reads the scanner's exit code under bash -e" and "The test values that
 look like credentials, listed for the secret scan"; closed in the commit
 "Advisories, licenses and sources of the dependencies, and the notices".
 
-- `.github/workflows/secrets.yml`, `.github/images/trufflehog/Dockerfile`
+- `.github/workflows/secrets.yml`, `images/trufflehog/Dockerfile`
   (TruffleHog 3.97.9, by the digest of its index), `scripts/secrets-report.py`,
   `.github/secrets-allow.txt` (9 test values, Decision 6), and the section
   "Checks" of `docs/development.md`.
@@ -1717,7 +1718,7 @@ x86_64 and ppc64le, and for another architecture such as riscv64 it warns "No ta
 found" and compiles the portable C. Windows on ARM64 needs a C compiler, clang-cl, and no NASM.
 macOS needs the Xcode command line tools only.
 
-**The Decision's reach.** `.github/images/build/Dockerfile:4` says "linux/amd64 and linux/arm64",
+**The Decision's reach.** `images/build/Dockerfile:4` says "linux/amd64 and linux/arm64",
 and the comment is stale for riscv64: the pinned digest is an index, and the index read through
 `mirror.gcr.io` lists linux/amd64, linux/arm64, linux/ppc64le and linux/riscv64. So the same image
 runs `--platform linux/riscv64` under QEMU. There is no `linux/arm/v7` variant of `rust:1-alpine`
@@ -2965,8 +2966,8 @@ code. A run of the release can fail in the same way.
 ## Premise
 
 Read: each image is pinned to a digest in its Dockerfile
-(`.github/images/trufflehog/Dockerfile:3`,
-`.github/images/build/Dockerfile:6`), and at `b932993` each workflow gave
+(`images/trufflehog/Dockerfile:3`,
+`images/build/Dockerfile:6`), and at `b932993` each workflow gave
 the reference to `docker run`, which pulls from Docker Hub (now
 `.github/workflows/secrets.yml:70`, `.github/workflows/secrets.yml:84`,
 `.github/workflows/build.yml:75-79`, `.github/workflows/build.yml:108-111`
@@ -3000,7 +3001,7 @@ lasts longer than a job, and a retry meets it again).
 ## Prove
 
 ```sh
-PULL_DRY=1 sh scripts/pull-image.sh "$(sed -n 's/^FROM //p' .github/images/build/Dockerfile)"
+PULL_DRY=1 sh scripts/pull-image.sh "$(sed -n 's/^FROM //p' images/build/Dockerfile)"
 shellcheck -s sh scripts/pull-image.sh
 python scripts/check-repo.py
 ```
@@ -3440,7 +3441,7 @@ the workflow "Dependabot Updates" failed, as it did on 2026-10-09 (twice).
 **Milestone:** none
 **Priority:** P3
 **Effort:** S
-**Status:** open
+**Status:** partial
 
 ## Problem
 
@@ -3455,9 +3456,9 @@ Alpine 3.20 stays, where 3.24 exists.
   Dependabot found `library/alpine` 3.24 for 3.20, and its `create_pull_request` got 400, "The
   request contains invalid or unauthorized changes"; the job then said
   `dependency_file_not_supported` and failed.
-- Read: the ecosystem's directories are `/.github/images/build`, `box`, `box-proxy` and
-  `trufflehog` (`.github/dependabot.yml:32-38`). The jobs of cargo and of GitHub Actions passed
-  in the same run.
+- Read, at `0b760dd`: the ecosystem's directories were `/.github/images/build`, `box`,
+  `box-proxy` and `trufflehog` (`.github/dependabot.yml`, lines 32-38 at `0b760dd`). The jobs of
+  cargo and of GitHub Actions passed in the same run.
 - Inferred, not verified: GitHub refuses a change that Dependabot's docker job makes under
   `.github/`, as it refuses a change of `.github/workflows` to a job with no right to write them.
 
@@ -3470,6 +3471,19 @@ Alpine 3.20 stays, where 3.24 exists.
    workflows, the documents), or the change that the cause names.
 3. Record a run of the job that passes, and the pull request it makes.
 
+## Decision
+
+The images move to `images/` at the root of the repository, with each
+reader of their paths: the workflows `build`, `release` and `secrets`,
+`scripts/dev.sh`, `dev-native.sh`, `dev-wsl.sh`, `cloud-setup.sh`,
+`test_in_box.sh`, `chat-in-boxes.sh` and `ts-derp-prove.sh`, check 5 of
+`scripts/check-repo.py`, `.gitattributes`, `.github/dependabot.yml` and
+`docs/development.md`. Lost: one image as a probe outside `.github/` first,
+a second place of an image that check 5 refuses, for a week of waiting;
+`docker/` or `ci/images/`, as the images also serve the box and the scripts
+on a developer's host, and `images/` is the shortest name that says what
+they are.
+
 ## Prove
 
 ```sh
@@ -3479,6 +3493,27 @@ python scripts/check-repo.py   # each image is pinned, in one place
 
 The docker job passes and opens a pull request that moves the box's Alpine. Planted: the old
 directory again; the job fails as before.
+
+## Correction
+
+2026-10-30. The inference of the Premise has support, not proof: two reports
+meet the same 400 in `create_pull_request`. In dependabot-core issue 11320
+the service refuses a base image's update in a `Containerfile` and takes the
+same file named `Dockerfile`, so it checks the paths that a change touches;
+in composure-labs/dynamodb-guard issue 15 a uv update under .github/zizmor of that repository
+gets the 400, and its author's theory, not verified, is that the service
+refuses a change under `.github/` from an ecosystem other than
+`github_actions`. Each Dockerfile here is named `Dockerfile`, so that check
+of names passes, and the path is what is left. The move is the test.
+
+## Done
+
+2026-10-30, partial: the images are in `images/` (`git mv`), and each reader
+names them there; check 5 of `scripts/check-repo.py` passes, actionlint is
+clean on the three workflows, each script parses under dash, and the dry
+pull of the build image names its three mirrors. Next: the docker job of
+Dependabot after this push (a change of `.github/dependabot.yml` starts one,
+else the weekly run) passes, and its pull request moves the box's Alpine.
 
 # T-310: The gate on a Linux host with no wsl-toolkit, and a cloud session made ready
 

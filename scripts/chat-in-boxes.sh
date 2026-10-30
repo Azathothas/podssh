@@ -38,8 +38,8 @@ PROXY=podssh-chat-proxy
 BOX_A=podssh-chat-a
 BOX_B=podssh-chat-b
 IMAGE=localhost/podssh-box:2
-BASE_IMAGE=$(image_of "$REPO/.github/images/box/Dockerfile") || exit 78
-PROXY_IMAGE=$(image_of "$REPO/.github/images/box-proxy/Dockerfile") || exit 78
+BASE_IMAGE=$(image_of "$REPO/images/box/Dockerfile") || exit 78
+PROXY_IMAGE=$(image_of "$REPO/images/box-proxy/Dockerfile") || exit 78
 PORT=45332
 PLANT=${CHAT_PLANT:-}
 case $PLANT in '' | accept) ;; *) echo "chat-in-boxes: CHAT_PLANT is accept or empty, not $PLANT" >&2; exit 1 ;; esac
