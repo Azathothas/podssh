@@ -6136,7 +6136,7 @@ version = "0.6.1"
 dependencies = [
  "base64 0.23.1",
  "bytes",
- "chacha20poly1305 0.10.1",
+ "chacha20poly1305 0.11.0",
  "futures-util",
  "pin-project-lite",
  "static_assertions",
@@ -6336,9 +6336,8 @@ dependencies = [
 name = "ts_noise"
 version = "0.6.1"
 dependencies = [
- "aead 0.5.2",
  "blake2 0.10.6",
- "chacha20poly1305 0.10.1",
+ "chacha20poly1305 0.11.0",
  "hkdf 0.12.4",
  "itertools",
  "ts_keys",
@@ -6352,6 +6351,7 @@ name = "ts_packet"
 version = "0.6.1"
 dependencies = [
  "bytes",
+ "chacha20poly1305 0.11.0",
  "crypto_box",
  "stable_deref_trait",
  "ts_util",
@@ -6470,9 +6470,8 @@ dependencies = [
 name = "ts_tunnel"
 version = "0.6.1"
 dependencies = [
- "aead 0.5.2",
  "blake2 0.10.6",
- "chacha20poly1305 0.10.1",
+ "chacha20poly1305 0.11.0",
  "itertools",
  "rand 0.10.3",
  "tracing",

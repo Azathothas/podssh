@@ -62,15 +62,15 @@ repository and CI).
 
 ## Counts
 
-**373 entries: 43 open, 2 partial, 29 blocked, 299 done.**
+**373 entries: 43 open, 1 partial, 29 blocked, 300 done.**
 
 | Priority | open | partial | blocked | done | total |
 | --- | --- | --- | --- | --- | --- |
 | P0 | 0 | 0 | 0 | 1 | 1 |
 | P1 | 2 | 0 | 0 | 29 | 31 |
-| P2 | 10 | 2 | 20 | 153 | 185 |
+| P2 | 10 | 1 | 20 | 154 | 185 |
 | P3 | 31 | 0 | 9 | 116 | 156 |
-| **All** | 43 | 2 | 29 | 299 | 373 |
+| **All** | 43 | 1 | 29 | 300 | 373 |
 
 ## Entries
 
@@ -427,7 +427,7 @@ repository and CI).
 | [T-352](roads.md) | P3 | L | backlog | feature | open | WARP's MASQUE road over HTTP/2 |
 | [T-353](roads.md) | P3 | L | backlog | feature | open | Tor through Arti, in a feature crate |
 | [T-354](resume.md) | P2 | S | backlog | defect | done | A session that closes while it moves can say a loss that was none |
-| [T-355](repo.md) | P2 | M | none | chore | partial | Dependabot's updates of 2026-10-30 and 2026-10-31, and the curves' 0.14 |
+| [T-355](repo.md) | P2 | M | none | chore | done | Dependabot's updates of 2026-10-30 and 2026-10-31, and the curves' 0.14 |
 | [T-356](ssh.md) | P1 | M | none | defect | done | russh 0.65.0 fixes six advisories, three of them in the client, and gives the session binding |
 | [T-357](cli.md) | P1 | S | backlog | defect | done | `doctor` names `pipe` alone as a listener, and its module says that it alone calls `bind()` |
 | [T-358](cli.md) | P1 | S | backlog | defect | done | `doctor` measures a bind and never a listen, so a host that refuses `listen()` reads as one that listens |

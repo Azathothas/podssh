@@ -1,7 +1,7 @@
 use std::{io::ErrorKind, marker::PhantomData};
 
 use bytes::{Buf, BufMut, BytesMut};
-use chacha20poly1305::{AeadInPlace, ChaCha20Poly1305, Key, KeyInit, Nonce};
+use chacha20poly1305::{AeadInOut, ChaCha20Poly1305, Key, KeyInit, Nonce, Tag};
 use tokio_util::codec::{Decoder, Encoder};
 use ts_noise::core::{Role, Session};
 use zerocopy::{IntoBytes, TryCastError, TryFromBytes, network_endian::U16};
@@ -128,7 +128,7 @@ where
             let nonce = self.next_nonce();
             let tag = self
                 .cipher
-                .encrypt_in_place_detached(&nonce, &[], &mut dst[data_start..])
+                .encrypt_inout_detached(&nonce, &[], (&mut dst[data_start..]).into())
                 .unwrap();
             dst.put(tag.as_ref());
         }
@@ -156,6 +156,13 @@ impl Decoder for Codec<Rx> {
             return Ok(None);
         }
 
+        // A record shorter than its tag cannot be one; taking the tag off it
+        // would underflow and end the process (podssh's patch 0025).
+        if header.typ == MessageType::Record && len < AEAD_OVERHEAD {
+            tracing::error!(len, "control record shorter than its tag");
+            return Err(ErrorKind::InvalidData.into());
+        }
+
         src.advance(size_of::<Header>());
         let mut body = src.split_to(len);
 
@@ -163,9 +170,12 @@ impl Decoder for Codec<Rx> {
             MessageType::Record => {
                 let nonce = self.next_nonce();
                 let tag = body.split_off(body.len() - AEAD_OVERHEAD);
+                let Ok(tag) = Tag::try_from(tag.as_ref()) else {
+                    return Err(ErrorKind::InvalidData.into());
+                };
                 if self
                     .cipher
-                    .decrypt_in_place_detached(&nonce, &[], body.as_mut(), tag.as_ref().into())
+                    .decrypt_inout_detached(&nonce, &[], body.as_mut().into(), &tag)
                     .is_err()
                 {
                     tracing::error!("decryption failed");
@@ -224,6 +234,24 @@ mod test {
 
         let decoded = decrypt_codec.decode(&mut buf).unwrap().unwrap();
         assert_eq!(decoded.as_ref(), TEST_PAYLOAD);
+    }
+
+    /// A record shorter than its tag is refused, not taken apart: the tag's
+    /// split would underflow and end the process (podssh's patch 0025).
+    #[test]
+    fn a_record_shorter_than_its_tag_is_refused() {
+        let (_, mut decrypt_codec) = rand_codec_pair();
+        for len in [0u16, 1, 15] {
+            let hdr = Header {
+                typ: MessageType::Record,
+                len: U16::new(len),
+            };
+            let mut buf = BytesMut::new();
+            buf.put(hdr.as_bytes());
+            buf.put(&[0u8; 15][..len as usize]);
+            let err = decrypt_codec.decode(&mut buf).unwrap_err();
+            assert_eq!(err.kind(), ErrorKind::InvalidData, "len={len}");
+        }
     }
 
     #[test]

@@ -12,9 +12,8 @@
 //! cover all possible invalid sequences, it is still the caller's responsibility to ensure
 //! that their sequence correctly reflects the desired handshake pattern.
 
-use aead::AeadInPlace;
 use blake2::{Blake2s256, Digest};
-use chacha20poly1305::{ChaCha20Poly1305, KeyInit};
+use chacha20poly1305::{ChaCha20Poly1305, KeyInit, aead::AeadInOut};
 use hkdf::SimpleHkdf;
 use zerocopy::IntoBytes;
 use zeroize::ZeroizeOnDrop;
@@ -203,9 +202,9 @@ impl StateWithAead {
         let nonce = [0; 12];
         let res = self
             .aead
-            .encrypt_in_place_detached(&nonce.into(), &self.state.hash, cleartext)
+            .encrypt_inout_detached(&nonce.into(), &self.state.hash, cleartext.into())
             .unwrap();
-        res.write_to(tag).unwrap();
+        tag.copy_from_slice(&res);
 
         self.state.mix_hash_gather(&[cleartext, tag])
     }
@@ -227,7 +226,7 @@ impl StateWithAead {
 
         let nonce = [0; 12];
         self.aead
-            .decrypt_in_place_detached(&nonce.into(), &hash, ciphertext, tag.into())
+            .decrypt_inout_detached(&nonce.into(), &hash, ciphertext.into(), &(*tag).into())
             .ok()?;
 
         Some(state)

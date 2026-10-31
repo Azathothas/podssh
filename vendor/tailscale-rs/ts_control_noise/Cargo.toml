@@ -20,7 +20,7 @@ ts_util.workspace = true
 # Unconditionally required dependencies.
 base64.workspace = true
 bytes.workspace = true
-chacha20poly1305 = "0.10"
+chacha20poly1305.workspace = true
 futures-util = { workspace = true, features = ["sink"] }
 pin-project-lite.workspace = true
 static_assertions.workspace = true

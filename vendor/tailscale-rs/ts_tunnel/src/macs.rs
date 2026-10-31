@@ -3,8 +3,9 @@ use std::{
     time::{Duration, Instant},
 };
 
-use aead::{Aead, Payload, consts::U16};
+use blake2::digest::consts::U16;
 use blake2::{Blake2s256, Blake2sMac, Digest, digest::FixedOutput};
+use chacha20poly1305::aead::{Aead, Payload};
 use chacha20poly1305::{KeyInit, XChaCha20Poly1305};
 use ts_keys::NodePublicKey;
 use zerocopy::{FromBytes, Immutable, IntoBytes, KnownLayout, TryFromBytes, Unaligned};

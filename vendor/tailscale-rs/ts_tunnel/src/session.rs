@@ -4,8 +4,7 @@ use std::{
     time::{Duration, Instant},
 };
 
-use aead::AeadInPlace;
-use chacha20poly1305::{ChaCha20Poly1305, KeyInit};
+use chacha20poly1305::{ChaCha20Poly1305, KeyInit, aead::AeadInOut};
 use ts_packet::PacketMut;
 use ts_time::{Handle, TimeRange};
 use zerocopy::{
@@ -108,7 +107,8 @@ impl From<u64> for Nonce {
 impl AsRef<chacha20poly1305::Nonce> for Nonce {
     fn as_ref(&self) -> &chacha20poly1305::Nonce {
         let array: &[u8] = self.as_bytes();
-        array.into()
+        // The struct is 12 bytes by its layout, so this cannot fail.
+        array.try_into().expect("a nonce is 12 bytes")
     }
 }
 

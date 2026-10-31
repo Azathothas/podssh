@@ -18,7 +18,6 @@ ts_time.workspace = true
 ts_noise.workspace = true
 
 # Unconditionally required dependencies.
-aead.workspace = true
 blake2.workspace = true
 chacha20poly1305.workspace = true
 itertools.workspace = true

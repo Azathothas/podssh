@@ -4505,7 +4505,7 @@ what an update breaks, and commits the update with the repair.
 **Milestone:** none
 **Priority:** P2
 **Effort:** M
-**Status:** partial
+**Status:** done
 
 ## Problem
 
@@ -4572,8 +4572,8 @@ provider refuses it on 0.14 as on 0.13.
 
 ## Done
 
-2026-10-31, partial: #64 (19e30fb), #66 and #65 (1a9aefe), #68 with p256 (48a8744) and #57 done;
-#67 follows.
+2026-10-31: done. #64 (19e30fb), #66 and #65 (1a9aefe), #68 with p256 (48a8744), #57 (4594d62)
+and #67, each pull request closed with a comment.
 
 - #64, the lock alone: unicode-width 0.2.2 to 0.2.3, proptest 1.11.0 to 1.12.0, h2 0.4.19 to
   0.4.20 and rcgen 0.14.7 to 0.14.10, applied onto russh 0.65.0's lock. `cargo test --locked`:
@@ -4612,6 +4612,21 @@ provider refuses it on 0.14 as on 0.13.
   a container on the loopback with `--direct`: logged in with a throwaway key, ran a command, and
   carried 20 MB with equal SHA-256. The box's own run waits for T-251: its proxy reaches the
   internet itself, and this container's only way out is its own proxy.
+- #67, chacha20poly1305 0.10 to 0.11 in the Tailscale fork (patch 0025, in
+  `vendor/tailscale-rs/LOCAL-PATCHES.md`): with its feature `zeroize`, which 0.11 needs to wipe a
+  key; `ts_control_noise`, which pinned 0.10 apart and takes the keys of `ts_noise`, moves too, so
+  the pull request alone could not build. The Noise of control and of WireGuard on aead 0.6's
+  `AeadInOut`; `PacketMut` is aead 0.6's `Buffer` too, beside crypto_box's aead 0.5. Found and
+  repaired in the same patch: a control record shorter than its tag underflowed its split and
+  ended the process; it is refused now. The fork's own lock moves its optional russh 0.60.3 to
+  0.60.1, as 0.60.3 pinned aead's release candidate (podssh never turns it on); snow keeps
+  chacha20poly1305 0.10.1 in podssh's lock, which wipes its keys with no feature. Tests: the
+  fork's `ts_noise`, `ts_tunnel`, `ts_packet` and `ts_control_noise`, 49 passed, its
+  `test_zeroize` compiling; the short record refused, and with the check planted away the test
+  panicked; the port's calls on 0.10.1 and on 0.11.0 give the same bytes (RFC 8439 2.8.2, and
+  2000 cases with WireGuard's nonce, in a scratch crate); `cargo test -p podssh-ts`, 54 passed;
+  the CLI with the feature `ts`, `--test ts_probe` 12 passed and `--test ts_behave` 9 passed;
+  the 25 patches applied to the pinned commit give the shipped tree.
 
 # T-360: Nothing reads `TODO/issues.md`: issues #59 to #63 have no row, and no check compares the map with GitHub
 

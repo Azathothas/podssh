@@ -641,6 +641,19 @@ impl crypto_box::aead::Buffer for PacketMut {
     }
 }
 
+// The same buffer for the aead of chacha20poly1305 0.11, which the tunnel's
+// sessions encrypt with; crypto_box's DERP and disco keep the older aead.
+impl chacha20poly1305::aead::Buffer for PacketMut {
+    fn extend_from_slice(&mut self, other: &[u8]) -> chacha20poly1305::aead::Result<()> {
+        self.contents.extend_from_slice(other);
+        Ok(())
+    }
+
+    fn truncate(&mut self, len: usize) {
+        self.truncate(len);
+    }
+}
+
 impl From<&[u8]> for PacketMut {
     fn from(value: &[u8]) -> Self {
         Self {
