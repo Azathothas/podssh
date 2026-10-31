@@ -1,7 +1,7 @@
 //! The flag rows of `pipe` (T-174, T-175): the settings of the remote
 //! addresses, with the ids of `ssh`'s flags, so that `SshArgs` reads them
 //! from `pipe`'s matches too. A local address needs none; a listening side
-//! may keep listening (T-177).
+//! may keep listening (T-177); a proxy may need credentials (T-367).
 
 use super::{row, FlagKind, FlagRow};
 
@@ -38,5 +38,7 @@ pub const PIPE_FLAGS: &[FlagRow] = &[
     row(None, "iroh-relay", Some("URLS"), FlagKind::Supported,
         "iroh: the relays, https://HOST[:PORT][,...], after the ticket's (default: env PODSSH_IROH_RELAY, else n0's)", None),
     row(None, "keep-listening", None, FlagKind::Supported,
-        "unix-listen:, tcp-listen: take each client in turn, 8 at once, each with a new instance of the other side, until SIGINT or SIGTERM", None),
+        "unix-listen:, tcp-listen: take each client in turn, 8 at once, each with a new instance of the other side, until SIGINT or SIGTERM; http-listen: always does, 32 at once", None),
+    row(None, "proxy-auth-file", Some("FILE"), FlagKind::Supported,
+        "http-listen: each client gives a USER:PASSWORD of FILE, a private file, one a line, in Proxy-Authorization; needed off loopback", None),
 ];

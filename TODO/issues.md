@@ -150,7 +150,7 @@ root lock), made on `main` and closed with a comment.
 | #72 | The direct road has no automatic selection | open | T-363 (after the relay hosts fail, in the order of the road table, not before them as the issue asks) |
 | #73 | `-R` refuses the socket forms that `-L` and `-D` carry | closed | T-365 (done, 2026-10-31), which takes the remote SOCKS form (`-R [bind_address:]port`) too: #73 reads its refusal as parity, but OpenSSH carries it (measured with OpenSSH 9.6p1's `ssh -G`) |
 | #74 | `doctor` never tells a name allowlist from an address allowlist | closed 2026-10-31, its entry done | T-366 |
-| #75 | An HTTP CONNECT listener | open | T-367 |
+| #75 | An HTTP CONNECT listener | closed 2026-10-31, its entry done | T-367 |
 | #76 | `ws:` and `ws-listen:` as addresses of `pipe` | open | T-368, with the reader of requests of T-367 |
 
 **The survey of #59, of 2026-10-31.** It extends #18 and the study of

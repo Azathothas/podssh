@@ -11,6 +11,7 @@ use podssh_ws::{ProxyChoice, Trust};
 
 use super::address::Address;
 use super::pump::End;
+use super::web::Template;
 use super::PipeArgs;
 use crate::exitmap::sysexits::{EX_CONFIG, EX_NOPERM, EX_UNAVAILABLE};
 use crate::relay_settings::Refusal;
@@ -43,7 +44,9 @@ pub fn is_remote(address: &Address) -> bool {
 /// `--relay-addr`, the relay hosts, the trust.
 pub fn settings(args: &PipeArgs, addresses: [&Address; 2]) -> Result<Settings, Refusal> {
     crate::pins::apply(args.ssh.relay_addr.as_deref())?;
-    let relays = if addresses.iter().any(|a| matches!(a, Address::Relay { .. })) {
+    // The template of a proxy's other side is the road of each request (T-367).
+    let relay = |a: &&Address| matches!(a, Address::Relay { .. } | Address::Template(Template::Relay));
+    let relays = if addresses.iter().any(relay) {
         Some(crate::relay_settings::relays(args.ssh.relay_host.as_deref(), std::env::var(relay::RELAY_ENV).ok())?)
     } else {
         None
@@ -57,7 +60,7 @@ pub fn settings(args: &PipeArgs, addresses: [&Address; 2]) -> Result<Settings, R
         Some(file) => Trust::File(file.into()),
         None => Trust::Default,
     };
-    if addresses.iter().any(|a| matches!(a, Address::Ssh { .. })) {
+    if addresses.iter().any(|a| matches!(a, Address::Ssh { .. } | Address::Template(Template::Ssh(_)))) {
         super::ssh::check_options(&args.ssh.options)?;
     }
     Ok(Settings { relays, failover, trust, ssh: args.ssh.clone() })
@@ -87,26 +90,35 @@ pub async fn open(address: &Address, settings: &Settings, err: &mut dyn Write) -
 /// set, as `ssh --direct` dials. TCP has a half-close, so each direction
 /// ends by itself.
 async fn tcp(host: &str, port: u16, say: &mut dyn FnMut(&str)) -> Result<End, i32> {
+    tcp_dial(host, port).await.map_err(|e| {
+        say(&tcp_failure(host, port, e.as_ref()));
+        e.as_ref().map_or(EX_UNAVAILABLE, dial_code)
+    })
+}
+
+/// The stream of `tcp:HOST:PORT`, or the error of its dial: `None` when
+/// `PODSSH_OFFLINE` forbids each connection.
+pub(super) async fn tcp_dial(host: &str, port: u16) -> Result<End, Option<podssh_ws::DialError>> {
     if podssh_relay::open::offline() {
-        say(&format!("{} is set, so podssh does not connect anywhere", podssh_relay::open::OFFLINE_ENV));
-        return Err(EX_UNAVAILABLE);
+        return Err(None);
     }
-    let target = podssh_ws::dial::authority(host, port);
-    match podssh_ws::dial::dial(host, port, &ProxyChoice::FromEnvironment, podssh_relay::open::CONNECT_TIMEOUT).await {
-        Ok(stream) => {
-            let _ = stream.set_nodelay(true);
-            let (read, write) = tokio::io::split(stream);
-            Ok(End::plain(Box::new(read), Box::new(write)))
-        }
-        Err(e) => {
-            say(&format!("could not connect to {target}: {e}"));
-            Err(dial_code(&e))
-        }
+    let timeout = podssh_relay::open::CONNECT_TIMEOUT;
+    let stream = podssh_ws::dial::dial(host, port, &ProxyChoice::FromEnvironment, timeout).await.map_err(Some)?;
+    let _ = stream.set_nodelay(true);
+    let (read, write) = tokio::io::split(stream);
+    Ok(End::plain(Box::new(read), Box::new(write)))
+}
+
+/// The line of a dial of `tcp:` that failed, or that `PODSSH_OFFLINE` forbade.
+pub(super) fn tcp_failure(host: &str, port: u16, e: Option<&podssh_ws::DialError>) -> String {
+    match e {
+        None => format!("{} is set, so podssh does not connect anywhere", podssh_relay::open::OFFLINE_ENV),
+        Some(e) => format!("could not connect to {}: {e}", podssh_ws::dial::authority(host, port)),
     }
 }
 
 /// The sysexits code of a dial that failed, as `proxy` gives it.
-fn dial_code(e: &podssh_ws::DialError) -> i32 {
+pub(super) fn dial_code(e: &podssh_ws::DialError) -> i32 {
     use podssh_ws::DialError;
     match e {
         DialError::BadProxy(_) | DialError::InvalidTarget(_) => EX_CONFIG,

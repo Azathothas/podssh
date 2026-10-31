@@ -553,7 +553,7 @@ sh scripts/dev.sh check                     # interop-cp.sh through scripts/fake
 ```
 
 The stand-in relay's `close:BYTES:CODE` mode
-(`scripts/fake-relay.py:352-380`) ends each session after 1,500,000 bytes
+(`scripts/fake-relay.py:358-386`) ends each session after 1,500,000 bytes
 from the target with `1011`. A 5,000,000-byte download must finish over 4
 sessions or more with equal digests, and `-v` names each offset. A new mode
 that counts both directions does the same for an upload. A run stopped with
@@ -958,7 +958,7 @@ Where podssh must replace them, OpenSSH's own `scp` and `sftp` cannot run
 
 Recommendation: `scp` and `sftp` get no `--timeout` row, as in OpenSSH, so
 the gate of `crates/podssh-cli/src/dispatch.rs:251-269` skips them; T-133's
-limits keep each wait finite. Usage errors stay 64 (`docs/cli.md:2579-2582`)
+limits keep each wait finite. Usage errors stay 64 (`docs/cli.md:2614-2617`)
 where OpenSSH gives 1; a script that tests for "not zero" works with both.
 `--timeout` required with no terminal, as for `cp`, lost: each script that
 runs `scp` in a pipe would exit 64 under `podssh scp`.
@@ -1177,7 +1177,7 @@ stream.
 - Read: `AGENTS.md` rule 2 allows one outbound connection. Several channels
   in one SSH connection keep the rule; several relay sessions at once do
   not. The operator accepted more than one outbound connection for the iroh
-  road (`docs/design.md:1136-1139`), and on 2026-10-08 for one copy when the
+  road (`docs/design.md:1137-1140`), and on 2026-10-08 for one copy when the
   user asks (`docs/decisions.md`).
 - Read: the cap of 64 MiB is for each session (`docs/relay.md:192`).
 - Not measured: whether one relay session, or the path itself, limits the
@@ -2094,7 +2094,7 @@ defect wait for T-251.
 **Source:** GitHub #18 (zuko's `files` server, `adonm/zuko:src/files.rs`)
 and GitHub #21 (parsync's internal helper,
 `AlpinDale/parsync:src/remote_helper.rs`), read in the issues;
-`docs/design.md:1141-1147`.
+`docs/design.md:1142-1148`.
 **Category:** feature
 **Milestone:** backlog
 **Priority:** P3
@@ -2115,7 +2115,7 @@ can do better.
   request; it names its own requests `NAME@openssh.com`.
 - Read: `podssh serve` will have an SFTP server in the process (T-112).
 - Read: both roads between podssh ends carry the same `cp`
-  (`docs/design.md:1141-1147`).
+  (`docs/design.md:1142-1148`).
 
 ## Approach
 

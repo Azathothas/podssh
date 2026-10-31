@@ -1,11 +1,11 @@
 The work of milestone M7, `podssh pipe` and `--persist`, and the backlog of
 streams that `pipe` can carry: desktop streams and Telnet, a published HTTP
-service, serial devices and USB/IP. The design is `docs/design.md:886-951`;
+service, serial devices and USB/IP. The design is `docs/design.md:886-952`;
 the milestone is `docs/ROADMAP.md:231-240`.
 
 # T-174: `podssh pipe A B` with local addresses
 
-**Source:** ROADMAP M7 (`docs/ROADMAP.md:233-237`), `docs/design.md:903-951`;
+**Source:** ROADMAP M7 (`docs/ROADMAP.md:233-237`), `docs/design.md:903-952`;
 GitHub #26 (Nemo-010, 2026-10-08). Measured here on `3ee70dc`.
 **Category:** feature
 **Milestone:** M7
@@ -27,7 +27,7 @@ the verb, the address grammar, the copy loop, and the local addresses `-`,
 - Measured: `PODSSH_OFFLINE=1 podssh pipe stdio relay:example.org:80` exits
   64 with `podssh: unknown subcommand 'pipe'.` The verb table has no `pipe`
   row (`crates/podssh-cli/src/flags.rs:353-412`).
-- Read: the only pump is `crates/podssh-cli/src/pipe/relay.rs:97-223`. At the end
+- Read: the only pump is `crates/podssh-cli/src/pipe/relay.rs:104-230`. At the end
   of input it stops sending and keeps receiving
   (`crates/podssh-cli/src/proxy.rs:8-11`). T-101 is the opposite defect in
   `crates/podssh-ts/src/pipe.rs`; the new pump must not repeat it.
@@ -47,12 +47,12 @@ the verb, the address grammar, the copy loop, and the local addresses `-`,
    An unknown kind exits 64 and lists the kinds. `-` is `stdio`; `stdio` on
    both sides exits 64. Invariant: both addresses are valid before anything
    starts.
-3. Move the pump of `crates/podssh-cli/src/pipe/relay.rs:97-183` to
+3. Move the pump of `crates/podssh-cli/src/pipe/relay.rs:104-190` to
    crates/podssh-cli/src/pipe/pump.rs, over two duplex ends, with its rules:
    reads of 32 KiB; an end of input half-closes the other side (a shutdown
    of the write side, never a drop, or the reply is lost), and the other
    direction goes on; a reader that is gone ends the pipe with 0
-   (`crates/podssh-cli/src/pipe/relay.rs:215-219`). Keep
+   (`crates/podssh-cli/src/pipe/relay.rs:222-226`). Keep
    `runtime.shutdown_background()` (`crates/podssh-cli/src/proxy.rs:138-140`).
    This is the one path: T-175 moves `podssh proxy` onto it.
 4. `fd:N` (Unix): `fcntl(F_GETFD)` first. A closed N, or N below 3, exits 64.
@@ -68,9 +68,9 @@ the verb, the address grammar, the copy loop, and the local addresses `-`,
    B's. A program that is not found gives 127, one that cannot run 126, as a
    shell gives. With no child, a clean end gives 0.
 7. In the same commit: `docs/cli.md`, the notes
-   (`crates/podssh-cli/src/man/notes.rs:25-58`), two examples
-   (`crates/podssh-cli/src/man/examples.rs:8-219`; its test at
-   `crates/podssh-cli/src/man/examples.rs:342-365` learns the new variant),
+   (`crates/podssh-cli/src/man/notes.rs:26-59`), two examples
+   (`crates/podssh-cli/src/man/examples.rs:8-224`; its test at
+   `crates/podssh-cli/src/man/examples.rs:347-370` learns the new variant),
    `docs/design.md:905-914`, `docs/STATUS.md`. Each file stays under 500
    lines (`AGENTS.md:266-267`).
 
@@ -179,12 +179,12 @@ local program to a target, and `podssh proxy` stays a second pump.
 2. `relay:HOST:PORT`: parse as `crates/podssh-cli/src/proxy.rs:207-217` does;
    open with `crates/podssh-relay/src/open.rs:200-277`. Keep the rules of
    proxy: no Close at the end of input, the ping watcher
-   (`crates/podssh-cli/src/pipe/relay.rs:122-124`), empty frames dropped. IPv6
+   (`crates/podssh-cli/src/pipe/relay.rs:129-131`), empty frames dropped. IPv6
    literals follow T-007.
 3. Move `podssh proxy` onto the pipe: `run_proxy`
    (`crates/podssh-cli/src/proxy.rs:47-142`) runs `stdio` and `relay:`. Keep
    its exit codes and messages (`crates/podssh-cli/src/proxy.rs:278-291`,
-   `crates/podssh-cli/src/pipe/relay.rs:193-223`).
+   `crates/podssh-cli/src/pipe/relay.rs:200-230`).
 4. `ssh:[USER@]HOP[,HOP...],HOST:PORT`: the last item is the target, each
    other item a hop, read as `-J` reads it
    (`crates/podssh-cli/src/ssh/resolve.rs:232-236`,
@@ -198,7 +198,7 @@ local program to a target, and `podssh proxy` stays a second pump.
 5. `node:NAME` after T-084, and `iroh:TICKET` after T-163: one adapter and
    one test each. If T-163 makes a ticket a credential, read it from a file
    (`iroh:@FILE`), never from argv.
-6. Exit codes: sysexits, as `podssh proxy` (`docs/cli.md:2589`): 69; 77 for a
+6. Exit codes: sysexits, as `podssh proxy` (`docs/cli.md:2624`): 69; 77 for a
    refusal (the relay, the proxy, a host key, the authentication); 78. Give
    `crates/podssh-ssh/src/run.rs:332-412` a typed error, so that 77 is not
    guessed from a message.
@@ -389,7 +389,7 @@ ROADMAP M7 is done; T-040 gives the remote form.
 
 # T-177: `podssh pipe` with a local listener after a probe
 
-**Source:** ROADMAP M7 (`docs/ROADMAP.md:236-237`), `docs/design.md:945-951`;
+**Source:** ROADMAP M7 (`docs/ROADMAP.md:236-237`), `docs/design.md:946-952`;
 GitHub #26 (a local-only mode, as the `--local` of bunflared; read in the
 report, not verified here); sandbox A of T-001.
 **Category:** feature
@@ -401,9 +401,9 @@ report, not verified here); sandbox A of T-001.
 ## Problem
 
 Desktop clients, browsers and database clients call `connect()` themselves:
-they need a local port or socket (`docs/design.md:948-951`). podssh refuses
+they need a local port or socket (`docs/design.md:949-952`). podssh refuses
 each listener. The design allows one for `pipe`, locally, after a probe
-shows that an AF_UNIX or loopback bind works (`docs/design.md:945-947`).
+shows that an AF_UNIX or loopback bind works (`docs/design.md:946-948`).
 
 ## Premise
 
@@ -413,7 +413,7 @@ shows that an AF_UNIX or loopback bind works (`docs/design.md:945-947`).
   configure the address and can turn listening off.
 - Read: five documents still say that podssh never listens:
   `AGENTS.md:249-255`, `docs/architecture.md:147-162`,
-  `docs/target-environment.md:84-88`, `SECURITY.md:129-152`, `README.md:42-50`.
+  `docs/target-environment.md:84-88`, `SECURITY.md:129-155`, `README.md:42-51`.
 - Read: sandbox A refuses an AF_INET bind and allows an AF_UNIX bind
   (`docs/STATUS.md:280`). The box refuses each `bind`, AF_UNIX too
   (`scripts/box/seccomp.json:5-10`), so it gives the refused case.
@@ -610,7 +610,7 @@ running on the server (`docs/design.md:614-618`).
    Keys typed meanwhile wait in a queue of 64 KiB, and go after the attach.
 6. Each attempt checks the host key with the same policy, and uses the
    cached token. A prompt with no terminal ends the loop
-   (`docs/cli.md:2660-2662`). After the attach, send the window size again.
+   (`docs/cli.md:2695-2697`). After the attach, send the window size again.
 7. In the same commit: `docs/cli.md`, the notes of ssh
    (`crates/podssh-cli/src/man/notes_ssh.rs:4-318`), `docs/design.md:614-618`,
    `docs/STATUS.md`, and tmux in the interop image
@@ -718,14 +718,14 @@ verified here.
 ## Problem
 
 Users ask how to carry RDP, VNC and Telnet. The documents show SSH and one
-HTTP request (`README.md:180-185`). They do not say which clients work with
+HTTP request (`README.md:181-186`). They do not say which clients work with
 no listener, or that the relay ends a desktop stream after 64 MiB.
 
 ## Premise
 
 - Read: a byte pipe carries each TCP protocol
-  (`crates/podssh-cli/src/man/notes.rs:158-162`); a client that calls
-  `connect()` itself needs a listener (`docs/design.md:948-951`), which
+  (`crates/podssh-cli/src/man/notes.rs:159-163`); a client that calls
+  `connect()` itself needs a listener (`docs/design.md:949-952`), which
   T-177 adds where a probe allows it.
 - Read: 64 MiB for each session, both directions together
   (`docs/relay.md:192`), then Close 1009 (`docs/relay.md:253`); public
@@ -752,11 +752,11 @@ no listener, or that the relay ends a desktop stream after 64 MiB.
 3. Telnet: `podssh proxy HOST 23` carries the bytes, but a person needs a
    client that answers the IAC options: form a or b with
    `telnet 127.0.0.1 PORT`.
-4. Write a table "Other TCP protocols" after `README.md:180-185`: the
+4. Write a table "Other TCP protocols" after `README.md:181-186`: the
    protocol, what works now, what needs a listener, the 64 MiB limit. Add
-   form a to `crates/podssh-cli/src/man/examples.rs:8-219`; its ProxyCommand
-   parses (`crates/podssh-cli/src/man/examples.rs:319-326`). Link the table
-   from `docs/design.md:948-951`.
+   form a to `crates/podssh-cli/src/man/examples.rs:8-224`; its ProxyCommand
+   parses (`crates/podssh-cli/src/man/examples.rs:324-331`). Link the table
+   from `docs/design.md:949-952`.
 5. No code. Record the measurements in `docs/STATUS.md`.
 
 ## Prove
@@ -822,7 +822,7 @@ but an AF_UNIX one, which sandbox A allows where it refuses AF_INET
   rows say that the gate's first run fills them in.
 
 The calls made where the Approach left a choice:
-- The table follows "Relay limits", not `README.md:179-184` at once: the
+- The table follows "Relay limits", not `README.md:180-185` at once: the
   paragraphs after those lines (chat, the variables, the tokens) would fall
   under its heading, and the table cites the limits above it.
 - Form c's client is the harness's own (`rfb.py`, about 40 lines of
@@ -841,10 +841,10 @@ The calls made where the Approach left a choice:
 - The example puts `-N -L` before the ProxyCommand: the start of the
   manual keeps three first steps, and its filter takes each command that
   starts with "ssh -o ProxyCommand='podssh proxy"
-  (`crates/podssh-cli/src/man/examples.rs:222`). It has no
+  (`crates/podssh-cli/src/man/examples.rs:227`). It has no
   `ServerAliveInterval`, so that its line stays within rustfmt's 120
   columns; the note of proxy asks for it
-  (`crates/podssh-cli/src/man/notes.rs:163`).
+  (`crates/podssh-cli/src/man/notes.rs:164`).
 - Form b runs with `--direct`, as `scripts/interop-pipe.sh` runs `ssh:`;
   forms a and c go through the stand-in relay.
 - The citations of `crates/podssh-cli/src/man/examples.rs` in
@@ -868,7 +868,7 @@ What ran:
   example, 4 passed; the plant of the Correction (`-L` given to the
   ProxyCommand's `podssh proxy`) fails the test of the examples with
   "unknown flag '-L'", and was taken out; the whole lib suite, 278 passed.
-  The Prove's `grep` finds the heading, `README.md:218`;
+  The Prove's `grep` finds the heading, `README.md:219`;
   `python scripts/check-repo.py`: each check ok, the doc links too;
   `python scripts/check-scripts.py`: 44 scripts LF and parse under dash.
 - An RDP client and server, and each client through the live relay, did
@@ -1137,7 +1137,7 @@ first command must fail.
 
 2026-10-12. What was made:
 - `README.md`, the row "USB/IP (port 3240)" of the table "Other TCP
-  protocols" of T-179 (`README.md:236`): the recipe, `usbip` with root
+  protocols" of T-179 (`README.md:237`): the recipe, `usbip` with root
   and the modules (`usbip-host` on the server, `vhci-hcd` on the client)
   and podssh with neither, 64 MiB through the relay and then 1009, and
   `ssh:`, never `relay:` to a public `usbipd`, as USB/IP is not
@@ -1190,7 +1190,7 @@ What waits:
   modules and a device): UNVERIFIED.
 
 What ran:
-- Native here: the Prove's `grep` finds the row, `README.md:236`;
+- Native here: the Prove's `grep` finds the row, `README.md:237`;
   `python scripts/check-repo.py`: each check ok, the doc links too.
 - In the build image (Alpine, `linux-tools-usbip`), with no module: the
   harness's stand-in of `usbipd` on a port of its own, and the real
@@ -1279,7 +1279,7 @@ the slowest in 1.66 s.
 **Milestone:** backlog
 **Priority:** P3
 **Effort:** M
-**Status:** open
+**Status:** done
 
 ## Problem
 
@@ -1293,9 +1293,9 @@ the request's target, would be the proxy that such a program points at.
 
 - Read: podssh-ws reads HTTP responses only: one request of its own and the response to it
   (`crates/podssh-ws/src/http.rs:1-3`), with `read_response` and `parse_head`, which reads a
-  status line (`:75-120`). Nothing reads a request.
-- Read: no kind of `pipe` answers HTTP (`crates/podssh-cli/src/pipe/address.rs:54-70`); two kinds
-  listen, and one side at most (`:47-52`, `:87-89`).
+  status line (`:80-125`). Nothing reads a request.
+- Read: no kind of `pipe` answers HTTP (`crates/podssh-cli/src/pipe/address.rs:69-87`); two kinds
+  listen, and one side at most (`:54-67`, `:111-113`).
 - Read: a listener of `pipe` binds only an address that the user gives, never with
   `PODSSH_LISTEN=no` (78), and its bind is the probe; a socket is made mode 0600, and a client of
   another user is closed (`crates/podssh-cli/src/pipe/listen.rs:1-13`, `:28-39`, `:82-95`). It
@@ -1303,7 +1303,7 @@ the request's target, would be the proxy that such a program points at.
   each joined to a new instance of the other side (`crates/podssh-cli/src/pipe/serve.rs:1-11`).
 - Read: the operator allows a listener that the user asks for, when a probe allows the bind, on
   loopback or AF_UNIX by default (`docs/decisions.md:33`; `docs/architecture.md:147-154`); the
-  gate's scan of listeners allows the listener of `pipe` (`scripts/check-repo.py:79-96`).
+  gate's scan of listeners allows the listener of `pipe` (`scripts/check-repo.py:79-97`).
 - Read: the SOCKS side of `-D` answers once the server's channel opened, so that a client learns
   whether its target was reached (`crates/podssh-ssh/src/socks.rs:1-5`). The relay refuses a target
   of its policy with a `403` that names it, `not in the ALLOW list` (`docs/relay.md:176-178`).
@@ -1348,6 +1348,44 @@ the request's target, would be the proxy that such a program points at.
   the user's relay token. Lost: a warning alone, as `-D` with `-g` gives, which is OpenSSH's
   behaviour for `-D`.
 - The reader of requests serves T-368 (`ws-listen:`) too; whichever is done first writes it.
+- The checks in this order: the credentials, then the method, then the target, so that a client
+  with no credential learns nothing of the proxy but its challenge. Lost: the method first, which
+  tells such a client what the proxy takes.
+- A proxy takes 32 tunnels at once, where `--keep-listening` takes 8: a program behind a proxy
+  opens several connections at a time (npm up to 15, pip 10), and each further one would wait in the
+  backlog until a tunnel ended. Lost: 8, which stalls such a program; no bound, with which one client
+  opens sessions of the road without end.
+- The status line carries the words after its phrase (`403 Forbidden: ... not in the ALLOW
+  list`), and the body repeats them: Python's `http.client`, under pip, shows the status line of a
+  refused tunnel ("Tunnel connection failed: 403 ..."), and curl only its status. Lost: the
+  standard phrase alone, which hides the relay's reason from pip's user.
+- The bytes that a client sends after its CONNECT and before the answer are the tunnel's, and go
+  to the road once it is open. Lost: dropping them, which breaks a client that sends its TLS hello
+  at once.
+- One request on each connection: a refusal shuts the write half, reads what the client still
+  sends for 2 s, then closes, as a close with bytes unread is a reset that can lose the answer.
+  Lost: keep-alive after a 407, for which a second request on one connection is a request to
+  smuggle past the reader; curl and the others open a new connection.
+- A line may end with a bare LF (RFC 9112 section 2.2 allows it), and a bare CR, a space before a
+  colon and a folded line are refused (400). Lost: CRLF alone, which refuses a request typed with
+  `nc`; obs-fold joined with a space, which a second reader may read otherwise.
+- The file of credentials holds lines `USER:PASSWORD` in clear, read as a pair's file is
+  (`podssh_relay::cache::read_private`: this user's, which nobody else can read, else 78);
+  podssh keeps the SHA-256 of each and compares the client's with each one, all of them, with no
+  branch on a byte. Lost: the base64 token compared as text, which a client's base64 with no
+  padding fails; the hashes of `htpasswd`, which need a crypt that podssh has not.
+- `http-listen:PATH` is a path when it holds a `/` (on Windows also a `\`) or begins with `@`; a
+  bare name is refused, and the line gives its `./` form. Lost: a bare name taken as a path, which
+  binds a file for a typo of a port (`http-listen:808O`).
+- `%h:%p` is the target, once and last, of `relay:`, `tcp:` or `ssh:` alone. Lost: a fixed port
+  (`relay:%h:443`), which serves no program that `HTTPS_PROXY` drives; `exec:` with `%h` and `%p`,
+  as `ProxyCommand` takes them, which #75 does not ask for.
+- With `ssh:`, each request logs in anew, as each client of `--keep-listening` opens its own
+  instance of the other side. Lost: one SSH connection with a channel for each tunnel, as
+  `podssh ssh -D` keeps one for its SOCKS clients; that is `-D`'s.
+- The stand-in relay has a mode `policy` (`scripts/fake-relay.py`), which answers each upgrade
+  `403` with `not in the ALLOW list`, as the live relay answers a target of its policy, so that the
+  403 of the proxy is tested against the relay's own shape.
 
 ## Prove
 
@@ -1368,6 +1406,62 @@ that dials before it checks the credential; the test of `407` fails. Live:
 `git ls-remote https://github.com/Azathothas/podssh` with `HTTPS_PROXY` at the listener and the
 live relay behind it.
 
+## Correction
+
+2026-10-31: three citations of the Premise name other lines, as they did when the entry was
+written (read at `8207d29`). The ruling on a listener that the user asks for is
+`docs/decisions.md:38`; `docs/decisions.md:33` is the ruling on `exec:`. The relay's `403` of its
+policy is `docs/relay.md:181-183`; `docs/relay.md:176-178` is the form of a token and its header.
+The rest reads as cited. Nothing in the Approach changes.
+
+## Done
+
+2026-10-31: drafted (branch `draft-pipe`, `6b43718`), then merged and measured.
+
+- `http-listen:[ADDR:]PORT` and `http-listen:PATH` (`crates/podssh-cli/src/pipe/web.rs`), bound
+  by `Listener::bind` with the rules of `tcp-listen:` and `unix-listen:`
+  (`crates/podssh-cli/src/pipe/serve.rs`); a proxy always keeps listening, 32 at once, and its
+  first line names the value of `HTTPS_PROXY`. The other side is a template of `%h:%p`
+  (`relay:`, `tcp:`, `ssh:`), checked with a target before anything starts; `%h:%p` beside
+  another side is refused (64).
+- The reader of requests, `podssh_ws::http::request` (`crates/podssh-ws/src/http/request.rs`):
+  the head within 16 KiB (431), a bare LF taken, a bare CR, a space before a colon, a folded line
+  and a control byte refused (400), another version 505; `connect_target` checks `HOST:PORT` and
+  `[IPV6]:PORT` with `check_target`; `refusal` writes a status with its words on one line, and
+  `established` the `200` with no length. T-368 and T-369 read their requests with it.
+- Each client (`crates/podssh-cli/src/pipe/http_listen.rs`): its request within 30 s (408), its
+  credentials (407 with `Proxy-Authenticate: Basic realm="podssh"`), CONNECT alone (405 with
+  `Allow: CONNECT`), no content, its target (400); then the road, through
+  `crates/podssh-cli/src/pipe/gateway.rs`: 403 for a policy (the relay's words, an upstream
+  proxy's 403, an SSH server's `AdministrativelyProhibited`), 504 for a limit, 502 else; `200` only
+  once the road is open, then the bytes that came after the request. A refusal closes the
+  connection after its answer.
+- `--proxy-auth-file FILE` (`crates/podssh-cli/src/pipe/credentials.rs`): a private file of
+  `USER:PASSWORD` lines, the SHA-256 of each kept and compared in constant time; needed for an
+  address that is not loopback (64), and refused beside a side that is no proxy (64).
+- The manual (`crates/podssh-cli/src/man/notes_pipe.rs`, where `pipe`'s notes moved from
+  `notes.rs`; an example; `PODSSH_LISTEN`'s fact), the help, doctor's table of listeners,
+  `docs/cli.md`, `README.md`, `SECURITY.md`, `docs/design.md`, and the comment of the scan of
+  listeners in `scripts/check-repo.py`. The stand-in relay's mode `policy`.
+- Measured at the merge (2026-10-31): `cargo test -p podssh-ws --lib http`, 9 passed (the
+  reader); `--test rfc6455`, 25. `cargo test -p podssh-cli --lib pipe::`, 33 passed (the grammar of
+  `web`, the credentials, the statuses of `gateway`, the order of the checks); `--lib doctor`, 37;
+  `--lib man`, 55; `--test flag_table`, 9; `--test pipe_listen`, 8, `http-listen:` under
+  `PODSSH_LISTEN=no` among them.
+- `cargo test -p podssh-cli --test pipe_http`, 6 passed, curl 8 of this host as the client: a page
+  of 256 KiB over TLS through `tcp:%h:%p` and through `relay:%h:%p` to the stand-in relay, equal to a
+  direct fetch; 502 for a target that the stand-in cannot reach; 403 with `ALLOW list` in curl's
+  lines and in podssh's from the stand-in's mode `policy`; the banner of the test's sshd through
+  `ssh:` to its own port; 405 for a GET and 407 with its challenge for no credential and a wrong
+  one, with no connection at the target, then 200 with the right one; 78, 64, and 78 for a file
+  that others can read.
+- Planted, the credentials' check skipped: the test of 405 and 407 failed, curl reaching the
+  target.
+- Live, `cargo test -p podssh-cli --test pipe_http -- --ignored live_git`: `git ls-remote` of this
+  repository's HEAD through the proxy and the live relay, from this cloud session's host through
+  its own proxy, passed.
+- clippy named an explicit deref in `pipe/address.rs`; clean after it.
+
 # T-368: `ws:`, `wss:` and `ws-listen:` as addresses of `podssh pipe`
 
 **Source:** GitHub #76 (Nemo-010, 2026-10-31).
@@ -1385,9 +1479,9 @@ user who needs `websocat` must bring it, and a cage may not run it.
 
 ## Premise
 
-- Read: the kinds of `pipe` have no WebSocket (`crates/podssh-cli/src/pipe/address.rs:54-70`); the
-  relay is reached by `relay:HOST:PORT`, whose path is the relay's forward path (`:105-111`), and
-  `tcp:HOST:PORT` carries bytes in the clear to any host that the user names (`:24-25`).
+- Read: the kinds of `pipe` have no WebSocket (`crates/podssh-cli/src/pipe/address.rs:69-87`); the
+  relay is reached by `relay:HOST:PORT`, whose path is the relay's forward path (`:129-135`), and
+  `tcp:HOST:PORT` carries bytes in the clear to any host that the user names (`:26-27`).
 - Read: the endpoint of the client is a host, a port and a path
   (`crates/podssh-ws/src/client.rs:40-47`); `validate` refuses a query other than the relay's
   knobs, as a query goes into the logs of proxies (`:66-105`); `connect` takes a token and sends it

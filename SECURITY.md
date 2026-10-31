@@ -127,8 +127,11 @@ Each rule is implemented.
   target host, never under the relay's name. A changed key is never replaced
   automatically: podssh gives the file, the line and both fingerprints.
 - **Nothing listens unless the user asks.** podssh opens outbound
-  connections only, except `podssh pipe` with `unix-listen:` or
-  `tcp-listen:`, `podssh ssh` with `-L` or `-D` (T-038) and the control
+  connections only, except `podssh pipe` with `unix-listen:`,
+  `tcp-listen:` or `http-listen:` (T-367: an HTTP CONNECT proxy, which on
+  an address that is not loopback takes only the clients that give a
+  credential of its private file, compared in constant time, and dials
+  nothing for another), `podssh ssh` with `-L` or `-D` (T-038) and the control
   socket of `-M` (T-039), which the user names, and `podssh agent` and
   `podssh session start`, which the user starts (T-034, T-186): each listener
   is made before anything connects, and refuses the run when it cannot be;

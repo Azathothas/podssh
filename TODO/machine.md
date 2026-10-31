@@ -48,7 +48,7 @@ failed (lines 156-168). The sections are "this host", "egress" and "relay" (line
    keep the additions small, or split first.
 5. The JSON carries the same detail strings as the text, which hide proxy credentials and
    tokens today (`crates/podssh-cli/tests/doctor.rs:142-167`).
-6. Change the `doctor` notes (`crates/podssh-cli/src/man/notes.rs:241-283`) and
+6. Change the `doctor` notes (`crates/podssh-cli/src/man/notes.rs:180-222`) and
    `docs/cli.md` lines 1329-1347 at `48a8744` in the same commit.
 
 ## Decision
@@ -146,7 +146,7 @@ manual do not keep the kind and the `instead` of a flag.
    (`crates/podssh-cli/src/man/mod.rs` lines 73-78 at `332ee58`).
 5. The JSON is the same on each host: no path from `HOME` (`docs/cli.md:41-42`).
 6. Add the row to `MAN_FLAGS` (`crates/podssh-cli/src/flags.rs:364-371`), the field to
-   `man::Request` (`crates/podssh-cli/src/man/mod.rs:44-51`), and the parse
+   `man::Request` (`crates/podssh-cli/src/man/mod.rs:45-52`), and the parse
    (`crates/podssh-cli/src/tree.rs:262-270`). JSON for `--help` stays with T-010.
 
 ## Prove
@@ -335,7 +335,7 @@ and `crates/podssh-ssh/src/keys.rs:99-131` offers a key to the server.
 5. The line joins the JSON of T-049. The script can call `doctor --full` and keep its OpenSSH
    step.
 6. Change `DOCTOR_FLAGS` (`crates/podssh-cli/src/flags/relay.rs:45-59`), the `doctor` notes
-   (`crates/podssh-cli/src/man/notes.rs:241-283`) and `docs/cli.md` lines 1329-1347 at `48a8744` in the same commit.
+   (`crates/podssh-cli/src/man/notes.rs:180-222`) and `docs/cli.md` lines 1329-1347 at `48a8744` in the same commit.
 
 ## Decision
 
@@ -414,7 +414,7 @@ trip (`crates/podssh-ws/src/session.rs:233-260`; the payload is a counter, `:257
 prints the milliseconds of each `/health` request
 (`crates/podssh-cli/src/doctor/relay_checks.rs`, lines 130-132 at `24f3e2a`). The relay counts both directions
 against 64 MiB for each session (`docs/relay.md:192`). The stand-in relay answers pings
-(`scripts/fake-relay.py:342-343`).
+(`scripts/fake-relay.py:348-349`).
 
 ## Approach
 
@@ -674,7 +674,7 @@ stdin and stdout gives typed tools, with no shell quoting.
 
 Measured: `podssh mcp` exits 64 (unknown subcommand).
 
-Read: a prompt goes to the controlling terminal or to `SSH_ASKPASS` (`docs/cli.md:2647-2672`),
+Read: a prompt goes to the controlling terminal or to `SSH_ASKPASS` (`docs/cli.md:2682-2707`),
 and the terminal of an agent can be the user's own. The session output goes straight to the
 process's stdout (`crates/podssh-ssh/src/io/msg.rs:77-94`), which an MCP server over stdio uses for
 its protocol. podssh never listens (`docs/architecture.md:147-162`), and stdio needs no listener.
@@ -908,7 +908,7 @@ line of `podssh ssh` at the end of `run_ssh`, from its result
 its session at `crates/podssh-cli/src/proxy.rs:262-265`; the bytes of the
 pump at `crates/podssh-cli/src/pipe/pump.rs:94` and
 `crates/podssh-cli/src/pipe/pump.rs:104-132`, and the relay's close at
-`crates/podssh-cli/src/pipe/relay.rs:198`. `SessionLog` at
+`crates/podssh-cli/src/pipe/relay.rs:205`. `SessionLog` at
 `crates/podssh-cli/src/settings.rs:246-249`, and `podssh status` at
 `crates/podssh-cli/src/status.rs:103-114`. The variable in VARIABLES, the
 two files in FILES, and `docs/cli.md`.

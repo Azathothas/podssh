@@ -601,7 +601,7 @@ Read; the lines of the files that this entry changed are those of `723d90b`. `se
 `read_frame` (170-221) and `write` (223-228) return `Result<_, String>`; `watch_liveness`
 returns a `String` (142-166). The callers keep or pass the text:
 `crates/podssh-ssh/src/relay_stream.rs` lines 95-96 and 138-140 at `23b5d82` put it in `RelayEnd::Failed`;
-`crates/podssh-cli/src/pipe/relay.rs:105-181` prints it; `podssh-transport` makes a write error
+`crates/podssh-cli/src/pipe/relay.rs:112-188` prints it; `podssh-transport` makes a write error
 `TransportError::Unexpected` (crates/podssh-transport/src/socket.rs at `e8bbd4d` lines 104-113, 143, 161
 and 185), and, since T-072, a read error `Aborted` with its text. Tests and the gate match the
 text: `crates/podssh-ws/tests/session.rs` lines 108 ("continuation") and 172 ("without a

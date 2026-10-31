@@ -143,7 +143,7 @@ states the gap (crates/podssh-transport/src/adapt.rs at `e8bbd4d` lines 25-29). 
 Read: the helper `closed(code, reason, clean)` exists and has no caller (`socket.rs` lines
 478-481). `podssh-ws` parses a Close payload in `close_code_and_reason`
 (`crates/podssh-ws/src/close.rs:19-27`), and `podssh proxy` uses it
-(`crates/podssh-cli/src/pipe/relay.rs:156-160`).
+(`crates/podssh-cli/src/pipe/relay.rs:163-167`).
 
 Read, a related gap that the former defects page did not list: `Classified::message` prints
 "code withheld" and "reason withheld" for a close that matches no row, and the row's own words

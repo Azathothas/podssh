@@ -1052,8 +1052,8 @@ Measured in the gate (`docs/STATUS.md`, "Faults between podssh and the relay,
 measured"): a relay that stalls is declared dead at 50 s, and a relay host
 killed in a session gives exit 255 (`scripts/interop-faults.sh:265-283`).
 These checks stay, for the forward road, which has no resumption. Read: the
-stand-in relay serves the forward path only (`scripts/fake-relay.py:114-132`),
-and its `stall` mode never ends (`scripts/fake-relay.py:322-325`). The
+stand-in relay serves the forward path only (`scripts/fake-relay.py:117-135`),
+and its `stall` mode never ends (`scripts/fake-relay.py:328-331`). The
 harness cannot change an address or end a stall yet (T-203). The checks need
 T-151 to T-155, the iroh road (T-162 to T-165), the reverse runners (T-079,
 T-080) and a far end (`podssh serve`, T-107).
@@ -1164,7 +1164,7 @@ road, and the same faults end a session of the forward road with 255
 # T-157: Throughput on each road and relay, by a committed method
 
 **Source:** ROADMAP M6 (throughput on each road and relay, in and out of a
-sandbox, before a default depends on it); `docs/design.md:1109-1129`; the two
+sandbox, before a default depends on it); `docs/design.md:1110-1130`; the two
 sandbox reports of 2026-10-08; GitHub #18 (warren's method) and GitHub #23
 (sshping: throughput up and down).
 **Category:** measurement
@@ -1188,7 +1188,7 @@ proxy (4 runs). Read in the report, not verified here: the script's target
 (thinkbroadband) gave `1011 write failed` and 0 bytes, and the relay's
 `/trace` showed that the relay could not reach it.
 Read: no iroh figure exists for a relay through a CONNECT proxy
-(`docs/design.md:1109-1129`). A session carries 64 MiB at most, both directions
+(`docs/design.md:1110-1130`). A session carries 64 MiB at most, both directions
 together (`docs/relay.md:192`).
 
 ## Approach

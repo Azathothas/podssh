@@ -172,6 +172,11 @@ fn examples() -> Vec<(&'static str, String)> {
             "podssh pipe tcp-listen:5432 ssh:user@bastion.example.org,db.internal:5432".into(),
         ),
         (
+            "an HTTP CONNECT proxy for pip, npm, cargo or git, with HTTPS_PROXY set to http://127.0.0.1:3128: \
+             each CONNECT goes through the relay",
+            "podssh pipe http-listen:3128 relay:%h:%p".into(),
+        ),
+        (
             "offer a service of this host to an operator outside: a pair, with its operator's part in a file",
             "podssh relay pair lab --operator-file lab-operator.json".into(),
         ),

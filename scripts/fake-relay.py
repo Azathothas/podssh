@@ -20,6 +20,9 @@ Modes:
   tls12            behave, over TLS 1.2 alone, as a proxy that intercepts
                    TLS can (T-067)
   refuse:STATUS    answer every upgrade with HTTP STATUS
+  policy           answer each upgrade 403, naming its target `not in the
+                   ALLOW list`, as the relay refuses a target of its policy,
+                   and dial no target (T-367)
   blackhole        accept TCP and never start TLS
   silent           finish TLS, then never answer a request
   stall:SECONDS    SECONDS after the upgrade, stop: no frames, no Pongs
@@ -228,6 +231,9 @@ async def connect(reader, writer, path, headers):
         return
     parts = path.split("?")[0].split("/")
     host, port = parts[2], int(parts[3])
+    if args.mode == "policy":
+        writer.write(response(403, "Forbidden", f"forward: {host}:{port} is not in the ALLOW list".encode()))
+        return
     try:
         t_reader, t_writer = await asyncio.wait_for(asyncio.open_connection(host, port), 10)
     except (OSError, asyncio.TimeoutError) as e:

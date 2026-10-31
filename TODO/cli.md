@@ -76,7 +76,7 @@ GitHub #2, not verified here: the relay's `/trace` dials `[V6]:8079`.
 6. Same commit: `docs/cli.md` (lines 62-75 at `3cbf215`), the help at
    `crates/podssh-cli/src/positionals.rs:20` and
    `crates/podssh-cli/src/positionals.rs:189`, an example in
-   `crates/podssh-cli/src/man/examples.rs:8-219`, `docs/relay.md`,
+   `crates/podssh-cli/src/man/examples.rs:8-224`, `docs/relay.md`,
    `docs/STATUS.md`. Use `2001:db8::/32` in offline tests only: the relay
    refuses that range.
 
@@ -187,7 +187,7 @@ measured: the debug binary has no `ts`).
 1. In the `Parsed::Command` arm, refuse a verb of `VERB_OWNER`
    (`crates/podssh-cli/src/flags.rs`, line 453 at `7aa955a`) before the gate. Keep one usage
    error first: a `--timeout` value that was given and does not parse is 64
-   (`docs/cli.md:2579-2580`).
+   (`docs/cli.md:2614-2615`).
 2. Give `require_timeout` the verb's name. The message names that verb, gives
    one true reason, and shows an example for that verb only. Replace
    `({attachment:?})` with words: "stdin or stdout is not a terminal", or
@@ -197,7 +197,7 @@ measured: the debug binary has no `ts`).
    (`crates/podssh-cli/src/dispatch.rs`, lines 424-477 at `7aa955a`,
    `crates/podssh-cli/tests/non_interactive.rs` lines 252-284 at `37ace00`). `ts` is the only verb
    that runs the gate today (`crates/podssh-cli/tests/ts_behave.rs:220-226`).
-5. Same commit: `docs/STATUS.md`. `docs/cli.md:2622` needs no change.
+5. Same commit: `docs/STATUS.md`. `docs/cli.md:2657` needs no change.
 
 ## Decision
 
@@ -491,11 +491,11 @@ Read, at `61e55d1`: no option made podssh start a program: `ProxyCommand` is ref
    `[OPTIONS] [--] [user@]host [COMMAND...]` for `ssh` and
    `[OPTIONS] [--] HOST PORT` for `proxy`; `--help` and the synopsis of the
    manual (`crates/podssh-cli/src/man/model.rs:186-190`) read it.
-2. A note for `ssh` and `proxy` (`crates/podssh-cli/src/man/notes_ssh.rs:4-318` and `crates/podssh-cli/src/man/notes.rs:60-177`)
-   and an example (`crates/podssh-cli/src/man/examples.rs:8-219`). Pitfall: the
+2. A note for `ssh` and `proxy` (`crates/podssh-cli/src/man/notes_ssh.rs:4-318` and `crates/podssh-cli/src/man/notes.rs:61-178`)
+   and an example (`crates/podssh-cli/src/man/examples.rs:8-224`). Pitfall: the
    notes test reads a bare `--` as a flag that does not exist
-   (`crates/podssh-cli/src/man/notes.rs:408-416`); teach `flag_exists`
-   (`crates/podssh-cli/src/man/notes.rs:375-391`) that `--` ends the options.
+   (`crates/podssh-cli/src/man/notes.rs:347-355`); teach `flag_exists`
+   (`crates/podssh-cli/src/man/notes.rs:314-330`) that `--` ends the options.
 3. `podssh proxy` (`crates/podssh-cli/src/proxy.rs:207-212`): when HOST or PORT
    is missing and a relay or trust flag was given, add one line: a HOST that
    starts with `-` is read as a flag; put `--` before it.
@@ -604,7 +604,7 @@ variable matters when `cp`, `mv` and `relay` exist. `ssh` and `proxy` have no
    which `each_variable_in_the_source_is_documented` requires
    (`crates/podssh-cli/src/man/facts/tests.rs:57-70`); "default: env
    PODSSH_TIMEOUT" in the help of each `--timeout` row, as `--relay-host` says
-   it (`crates/podssh-cli/src/flags.rs:171-172`); `docs/cli.md:2698-2700`;
+   it (`crates/podssh-cli/src/flags.rs:171-172`); `docs/cli.md:2733-2735`;
    `docs/STATUS.md`.
 5. Do this after T-008, so that a verb that does nothing still exits 70 first.
 
@@ -988,7 +988,7 @@ Read then: each value flag but `-i` and `-o` was `ArgAction::Set`.
 3. `ONCE` and `repeated` refuse a second `-J`, `-W`, `--relay-host`,
    `--relay-addr` or `--ca-file` with exit 64 before anything connects
    (`crates/podssh-cli/src/ssh/args.rs:126-165`, called at
-   `crates/podssh-cli/src/tree.rs:467-471`).
+   `crates/podssh-cli/src/tree.rs:468-472`).
 4. `docs/cli.md:468-473` and a note of the manual
    (`crates/podssh-cli/src/man/notes_ssh.rs:291-293`) state the rule.
 
@@ -1762,7 +1762,7 @@ file); measured here on `3ee70dc`.
 A `PODSSH_RELAY` or `PODSSH_RELAY_ADDR` that cannot be used makes
 `podssh proxy`, `podssh ssh` and `podssh doctor` exit 64, the code of a usage
 error. The command line is correct; a setting of the environment is not.
-`docs/cli.md:2579-2580` and `docs/decisions.md` ("Exit codes") give 78
+`docs/cli.md:2614-2615` and `docs/decisions.md` ("Exit codes") give 78
 (`EX_CONFIG`) for a configuration error. A script that reads 64 looks for the
 fault in its arguments.
 
@@ -1877,7 +1877,7 @@ flag (`crates/podssh-cli/tests/non_interactive.rs`, line 185 at `8c05b5e`).
 The real gate is `can_ask` (`crates/podssh-ssh/src/prompt.rs:82`), called at
 `crates/podssh-ssh/src/auth.rs:189`, `crates/podssh-ssh/src/auth.rs:306`,
 `crates/podssh-ssh/src/keys.rs:321` and `crates/podssh-cli/src/keygen.rs:382`.
-Its refusals name the real remedies (`docs/cli.md:2660-2662`). Commands use
+Its refusals name the real remedies (`docs/cli.md:2695-2697`). Commands use
 these parts of the module, which stay: `Attachment`, `resolve`, `resolve_tty`,
 `parse_timeout`, `require_timeout` (`crates/podssh-cli/src/dispatch.rs:251-269`,
 `crates/podssh-cli/src/ts.rs:54-63`) and `refuse_jsonl_in_proxy`
@@ -2467,9 +2467,9 @@ nothing.
   `crates/podssh-cli/src/doctor/unix.rs` line 4 at `48a8744` says "needs none of these".
 - Read: `crates/podssh-cli/src/doctor/mod.rs` line 15 at `48a8744` says "The bind probes here are the only place
   podssh calls". The listener scan of `scripts/check-repo.py` allows a `bind(` in 17 files
-  (`scripts/check-repo.py:138-157`), and these listen, each when the user asks: `pipe`'s
-  `tcp-listen:` and `unix-listen:` (`crates/podssh-cli/src/pipe/listen.rs:118-132`, `:159-183`),
-  the control socket of `-M` (`:185-193`), `-L` and `-D` on a port or a path
+  (`scripts/check-repo.py:139-158`), and these listen, each when the user asks: `pipe`'s
+  `tcp-listen:` and `unix-listen:` (`crates/podssh-cli/src/pipe/listen.rs:127-141`, `:168-192`),
+  the control socket of `-M` (`:194-202`), `-L` and `-D` on a port or a path
   (`crates/podssh-cli/src/ssh/local_bind.rs:78-88`, `:111-128`), `podssh agent`
   (`crates/podssh-cli/src/agent/serve.rs:38-41`) and `podssh session`
   (`crates/podssh-cli/src/session/daemon.rs:163`); on Windows, `bind` and `listen` together
@@ -2482,7 +2482,7 @@ nothing.
 - Read: `crates/podssh-cli/src/flags.rs` line 364 at `48a8744` says "join two byte streams, as socat does, with no
   listener", though `pipe` listens for `tcp-listen:` and `unix-listen:` since T-177; the note of
   the manual says it right, "with no listener unless one side asks for one"
-  (`crates/podssh-cli/src/man/notes.rs:180`).
+  (`crates/podssh-cli/src/man/notes_pipe.rs:6`, where `pipe`'s notes moved from `notes.rs`).
 - Read: doctor's rule: a condition that podssh is built for, no listener among them, is a fact,
   reported `ok`, and `FAIL` is kept for what stops podssh or one of its fallbacks
   (`crates/podssh-cli/src/doctor/mod.rs:6-9`); `docs/cli.md:1403-1409` says the same.
@@ -2595,7 +2595,7 @@ alone measures less than they use, so it cannot answer what a user asks it.
 1. After the bind, `listen(fd, 1)` on the same socket, then close: nothing is accepted, and
    nothing is left. For AF_INET on 127.0.0.1 port 0; for AF_UNIX on the file in the temporary
    directory, made mode 0600 as `pipe` makes its socket
-   (`crates/podssh-cli/src/pipe/listen.rs:195-207`), and on Linux on an abstract name. With
+   (`crates/podssh-cli/src/pipe/listen.rs:204-216`), and on Linux on an abstract name. With
    `PODSSH_LISTEN=no` (`crates/podssh-cli/src/pipe/listen.rs:22-39`) no listen is made, and the
    line says so.
 2. The lines `listen AF_INET` and `listen AF_UNIX`, each with what happened: bound and listened;

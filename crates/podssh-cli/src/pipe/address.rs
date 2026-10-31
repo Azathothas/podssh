@@ -4,8 +4,10 @@
 //! `tcp:HOST:PORT`, `ssh:[USER@]HOP[,HOP...],HOST:PORT`, `node:NAME` and
 //! `iroh:TICKET`; a local socket `unix-connect:PATH` (T-176); the
 //! listeners `unix-listen:PATH` and `tcp-listen:[ADDR:]PORT` (T-177), one
-//! side at most; UDP through a node, `udp:node:NAME` (T-168); and a serial
-//! line `serial:PATH[,BAUD]` (T-181), on Unix.
+//! side at most; UDP through a node, `udp:node:NAME` (T-168); a serial
+//! line `serial:PATH[,BAUD]` (T-181), on Unix; and an HTTP CONNECT proxy,
+//! `http-listen:`, whose other side names each request's target as `%h:%p`
+//! (T-367, `web`).
 
 use crate::exit_codes::EXIT_NOT_IMPLEMENTED;
 use crate::relay_settings::Refusal;
@@ -40,6 +42,11 @@ pub enum Address {
     UnixListen(String),
     /// A TCP port that podssh listens on: 127.0.0.1, or the address given.
     TcpListen { host: String, port: u16 },
+    /// An HTTP CONNECT proxy on the `TcpListen` or `UnixListen` within it.
+    HttpListen(Box<Address>),
+    /// The other side of `http-listen:`: a road whose target each request
+    /// names, `%h:%p`.
+    Template(super::web::Template),
     /// A serial device of this host, at a speed of [`BAUDS`] (Unix).
     Serial { path: String, baud: u32 },
 }
@@ -47,7 +54,15 @@ pub enum Address {
 impl Address {
     /// Whether this side waits for a client to connect.
     pub fn listens(&self) -> bool {
-        matches!(self, Address::UnixListen(_) | Address::TcpListen { .. })
+        matches!(self, Address::UnixListen(_) | Address::TcpListen { .. } | Address::HttpListen(_))
+    }
+
+    /// What this side binds: itself, or the port or the socket of a proxy.
+    pub fn bound(&self) -> &Address {
+        match self {
+            Address::HttpListen(at) => at,
+            other => other,
+        }
     }
 }
 
@@ -66,6 +81,8 @@ pub const KINDS: &[&str] = &[
     "unix-connect:PATH",
     "unix-listen:PATH",
     "tcp-listen:[ADDR:]PORT",
+    "http-listen:[ADDR:]PORT",
+    "http-listen:PATH",
     "serial:PATH[,BAUD]",
 ];
 
@@ -79,8 +96,15 @@ pub const DEFAULT_BAUD: u32 = 115200;
 
 /// A and B, each checked: no side starts before both are good.
 pub fn both(a: Option<&str>, b: Option<&str>) -> Result<(Address, Address), Refusal> {
-    let a = parse(a.ok_or("missing A and B: the two addresses to join, such as stdio exec:CMD")?)?;
-    let b = parse(b.ok_or("missing B: the second address")?)?;
+    let a = a.ok_or("missing A and B: the two addresses to join, such as stdio exec:CMD")?;
+    let b = b.ok_or("missing B: the second address")?;
+    // The other side of a proxy names no target: each request gives one.
+    let proxy = |text: &str| text.starts_with("http-listen:");
+    let (a, b) = match (proxy(a), proxy(b)) {
+        (true, false) => (parse(a)?, super::web::template(b)?),
+        (false, true) => (super::web::template(a)?, parse(b)?),
+        _ => (parse(a)?, parse(b)?),
+    };
     if a == Address::Stdio && b == Address::Stdio {
         return Err(Refusal::usage("stdio on both sides joins stdin to stdout; name another address"));
     }
@@ -116,7 +140,8 @@ pub fn parse(text: &str) -> Result<Address, Refusal> {
         "iroh" => iroh(rest),
         "unix-connect" => socket_name(kind, rest).map(Address::Unix),
         "unix-listen" => socket_name(kind, rest).map(Address::UnixListen),
-        "tcp-listen" => tcp_port(rest),
+        "tcp-listen" => tcp_port(kind, rest),
+        "http-listen" => super::web::http_proxy(rest),
         "serial" => serial(rest),
         "stdio" => Err(Refusal::usage("stdio takes nothing after it")),
         other => Err(Refusal::usage(format!("{other}: no such kind of address; the kinds are {kinds}"))),
@@ -163,7 +188,7 @@ fn ssh(rest: &str) -> Result<Address, Refusal> {
 /// The PATH of `unix-connect:` and `unix-listen:`: a name that fits a
 /// socket's address, checked before the call; `@NAME` on Linux alone. A
 /// named pipe of Windows has room for more.
-fn socket_name(kind: &str, rest: &str) -> Result<String, Refusal> {
+pub(super) fn socket_name(kind: &str, rest: &str) -> Result<String, Refusal> {
     if rest.is_empty() {
         return Err(Refusal::usage(format!("{kind}: names no socket")));
     }
@@ -182,9 +207,10 @@ fn socket_name(kind: &str, rest: &str) -> Result<String, Refusal> {
 
 /// `tcp-listen:PORT` on 127.0.0.1, or `tcp-listen:ADDR:PORT` on an address
 /// of this host: an IP literal (an IPv6 one in brackets) or `localhost`.
-/// Port 0 asks the system for a free one, and podssh says which.
-fn tcp_port(rest: &str) -> Result<Address, Refusal> {
-    let bad = |why: &str| Refusal::usage(format!("tcp-listen:{rest}: {why}"));
+/// Port 0 asks the system for a free one, and podssh says which. `kind` is
+/// the address's, for its lines: `http-listen:` takes a port so too.
+pub(super) fn tcp_port(kind: &str, rest: &str) -> Result<Address, Refusal> {
+    let bad = |why: &str| Refusal::usage(format!("{kind}:{rest}: {why}"));
     let (host, port) = match rest.rsplit_once(':') {
         None => ("127.0.0.1", rest),
         Some((host, port)) => (host, port),
@@ -240,6 +266,10 @@ fn iroh(rest: &str) -> Result<Address, Refusal> {
 
 /// `HOST:PORT` or `[IPV6]:PORT`, as `podssh proxy` reads its one word.
 fn target(kind: &str, rest: &str) -> Result<(String, u16), Refusal> {
+    if rest.contains("%h") || rest.contains("%p") {
+        let why = "%h:%p is a target that each request of http-listen: fills in, on its other side";
+        return Err(Refusal::usage(format!("{kind}:{rest}: {why}")));
+    }
     crate::proxy::parse_target(Some(rest), None).map_err(|why| Refusal::usage(format!("{kind}:{rest}: {why}")))
 }
 

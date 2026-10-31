@@ -17,7 +17,7 @@ use std::pin::Pin;
 use std::sync::{Arc, Mutex};
 
 use podssh_relay::failover::Mode;
-use podssh_relay::open::Request;
+use podssh_relay::open::{Failure, Request};
 use podssh_relay::relay::RelayList;
 use podssh_ws::session::close_code_and_reason;
 use podssh_ws::{frame, RelaySession, SessionError, Trust};
@@ -71,23 +71,30 @@ pub async fn open(road: &Road<'_>, host: &str, port: u16, say: &mut dyn FnMut(&s
         crate::exit_codes::EXIT_USAGE
     })?;
     let target = podssh_ws::dial::authority(host, port);
-    let request = Request {
-        relays: road.relays,
-        path: &path,
-        trust: road.trust,
-        target: &target,
-        rounds: 1,
-        failover: road.failover,
-    };
-    match podssh_relay::open(&request, &mut |note: &str| say(note)).await {
-        Ok(opened) => Ok(carry(opened.session, target, podssh_relay::relay::is_ipv6_literal(host), false)),
-        Err(failure) => {
-            for line in failure.lines(&target) {
-                say(&line);
-            }
-            Err(crate::proxy::sysexit(failure.last()))
+    let opened = session(road, host, port, &path, say).await;
+    opened.map_err(|failure| {
+        for line in failure.lines(&target) {
+            say(&line);
         }
-    }
+        crate::proxy::sysexit(failure.last())
+    })
+}
+
+/// The session to `host:port` at its forward `path`: the end, or the
+/// opener's failure, for the caller to say; a proxy's client hears it too
+/// (T-367).
+pub async fn session(
+    road: &Road<'_>,
+    host: &str,
+    port: u16,
+    path: &str,
+    say: &mut dyn FnMut(&str),
+) -> Result<End, Failure> {
+    let target = podssh_ws::dial::authority(host, port);
+    let request =
+        Request { relays: road.relays, path, trust: road.trust, target: &target, rounds: 1, failover: road.failover };
+    let opened = podssh_relay::open(&request, &mut |note: &str| say(note)).await?;
+    Ok(carry(opened.session, target, podssh_relay::relay::is_ipv6_literal(host), false))
 }
 
 /// The end of an open session to `target` (`host:port`); `v6` for the note

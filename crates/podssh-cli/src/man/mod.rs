@@ -30,6 +30,7 @@ mod notes_keygen;
 mod notes_mcp;
 mod notes_pair;
 mod notes_ping;
+mod notes_pipe;
 mod notes_play;
 mod notes_relay;
 mod notes_run;

@@ -58,19 +58,19 @@ entry keeps its proof in the entry; this page keeps no history (git does).
   merges a draft, builds it, runs its tests and plants, fills each
   UNVERIFIED and closes the entry (T-179 to T-184, T-200, T-202, T-221, T-225, T-232, T-235, T-242, T-279, T-280, T-229, T-281, T-289, T-291, T-293, T-187 to T-191, T-195, T-296, T-297 and T-298 so, T-185, merged in
   `d1c5bd1` and measured on 2026-10-30, and T-186, T-193, T-197, T-192,
-  T-306, T-302 and T-305, merged on 2026-10-30; T-344, T-349 and T-351, merged on
+  T-306, T-302 and T-305, merged on 2026-10-30; T-344, T-349, T-351 and T-367, merged on
   2026-10-31). The operator pushed each branch to GitHub as
   `draft/worktree-agent-*` on 2026-10-30; each draft of the four is in
   `main` now, so those branches and the worktrees on the operator's machine
   can go, as can `draft/draft-dns` and `draft/draft-derp` (merged on
-  2026-10-31), which this cloud session's git proxy would not delete.
+  2026-10-31), and `draft/draft-cloud`, which this cloud session's git
+  proxy would not delete.
 
   The drafts that wait (2026-10-31), in the order of the index:
 
   | Entry | Branch on GitHub | Commit | State |
   | --- | --- | --- | --- |
-      | T-367 | `draft/draft-pipe` | `6b43718` | drafted, to merge |
-  | T-368 | `draft/draft-pipe` | `f3f6a77` | drafted, to merge after T-367 |
+  | T-368 | `draft/draft-pipe` | `f3f6a77` | drafted, to merge (T-367 of this branch is merged) |
 
   CI: the gate passed at
   `24b9f6e` (run 38331509229), and its step `release` at `cad2885` (478
@@ -115,7 +115,7 @@ and `CARGO_BUILD_JOBS=4`:
 
 ## Counts
 
-`TODO/INDEX.md` holds 375 entries: 30 open, 0 partial, 30 blocked, 315 done.
+`TODO/INDEX.md` holds 375 entries: 29 open, 0 partial, 30 blocked, 316 done.
 
 Open includes parked work. `cargo todo check` verifies this line.
 
@@ -145,8 +145,8 @@ T-379 (the DERP road in the command line, and the fallback to tailcat's relays, 
 then the P3 entry T-363 (the direct road after the relay hosts fail), then those of the
 same rulings: T-350
 (Q50), T-352 and T-353 (Q52), and T-374 after T-352; then those of
-GitHub #59 to #63 and #73 to #76: T-367, T-368 and T-369 in that order, as each writes what
-the next uses (the reader of requests, the dial with no token), and T-370 after T-369 (Q56);
+GitHub #59 to #63 and #73 to #76: T-368 and T-369 in that order, as each writes what the next
+uses (the reader of requests, the dial with no token), and T-370 after T-369 (Q56);
 T-371 before T-372; and T-373.
 Each other `backlog` entry is done, but for those on hold, those of the relay's operator and the
 parked ones.

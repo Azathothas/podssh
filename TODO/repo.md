@@ -540,7 +540,7 @@ credential that a later commit removed, is not found.
 Read:
 
 - `scripts/check-repo.py:53-66` defines the shapes (a relay token, a Tailscale
-  key, a private key block); `scripts/check-repo.py:247-268` scans the tracked
+  key, a private key block); `scripts/check-repo.py:248-269` scans the tracked
   files outside `vendor/`. It reads no history.
 - `docs/decisions.md` (the repository is public): its history was
   replaced by one commit on 2026-10-08, so a scan of the whole history is
@@ -686,7 +686,7 @@ Read:
    each binary with `actions/attest-build-provenance`, pinned by commit SHA,
    for a tag `v*` only. Give these jobs `id-token: write` and
    `attestations: write`. A run by hand makes no attestation.
-2. Tell the user how to check, in `README.md` (`:59-60`) and in the
+2. Tell the user how to check, in `README.md` (`:60-61`) and in the
    release notes: `gh attestation verify FILE --repo Azathothas/podssh`.
 3. Let `podssh --version` name the commit: the workflows set a variable at
    compile time (`option_env!`, no build script, no `git` call); a local build
@@ -872,7 +872,7 @@ Read:
   `sha256sum`, and the job published it with the binaries (lines 370-382 at
   `cdf9308`). No signature was published.
 - The notes drafted for the dropped beta told the user that `SHA256SUMS`
-  holds the sums (`git show b1b111b:docs/releases/v0.1.0-beta.1.md`, line 81 at `b1b111b`). `README.md:59-60` gives no step to check a download.
+  holds the sums (`git show b1b111b:docs/releases/v0.1.0-beta.1.md`, line 81 at `b1b111b`). `README.md:60-61` gives no step to check a download.
 - AGENTS.md, section 4: a private key is a credential. The repository has no
   signing key today.
 
@@ -919,7 +919,7 @@ Each command exits 0. Planted defect: change one hex digit in a copy of
 
 ## Correction
 
-2026-10-30: the Premise's "`README.md:59-60` gives no step to check a
+2026-10-30: the Premise's "`README.md:60-61` gives no step to check a
 download" no longer holds: the README's first step now checks a download of
 a beta against `SHA256SUMS` (T-309). The signatures of this entry are still
 missing; that step gains their check when they exist.
@@ -1503,7 +1503,7 @@ warning, and the gate checks the format and the lints".
 # T-216: Advisories and licenses of the dependencies, checked in CI
 
 **Source:** the triage of GitHub #27 (2026-10-08); the advisories of iroh
-(`docs/design.md:967-969`) show that a dependency can get one.
+(`docs/design.md:968-970`) show that a dependency can get one.
 **Category:** chore
 **Milestone:** none
 **Priority:** P2
@@ -2086,7 +2086,7 @@ repository (one `README.md`, no `crates/`) printed four `ok` lines and exited
 
 Read:
 
-- `scripts/check-repo.py:186`: the size check walks `crates/` with `rglob`; a
+- `scripts/check-repo.py:187`: the size check walks `crates/` with `rglob`; a
   missing directory yields nothing. (#33 cites line 56 at `22c3b88`; the walk is at 57
   now.)
 - `scripts/check-repo.py` lines 100-129, 132-153 and 156-161 at `e892b0f`: the links, the credentials and the line
@@ -4196,7 +4196,7 @@ two jobs of the release run an image of Docker Hub by the tag `latest`, with no 
 
 ## Premise
 
-- Read: `README.md:83-86` says "the release workflow also proves where each binary comes from".
+- Read: `README.md:84-87` says "the release workflow also proves where each binary comes from".
 - Read: the job `publish` needs each build job (`.github/workflows/release.yml` at `1a3e7b6`, lines 393-394) and holds
   `contents: write`, `id-token: write` and `attestations: write` (lines 396-399). After it downloads
   the binaries (line 405), it runs `taiki-e/install-action@v2` for cargo-about (lines 412-414), then
@@ -4216,7 +4216,7 @@ two jobs of the release run an image of Docker Hub by the tag `latest`, with no 
   (https://github.com/docker/setup-qemu-action/blob/v4/action.yml): the action's `image` defaults
   to `docker.io/tonistiigi/binfmt:latest`. The riscv64 job runs it each time, and the armv7 job
   when the runner does not run 32-bit ARM (`.github/workflows/release.yml` lines 166-177 at `1a3e7b6`). No file of
-  `images/` names the image, so the check of images (`scripts/check-repo.py:281-306`) does not
+  `images/` names the image, so the check of images (`scripts/check-repo.py:282-307`) does not
   see it, and its pull gets none of the mirrors of `scripts/pull-image.sh:9-13`.
 - Read: T-210 found the commit of each action, and `TODO/repo.md:786-787` says "whether to pin
   them by commit is a choice of this entry's session"; no entry took it. `setup-nasm` declares

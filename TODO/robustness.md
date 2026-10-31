@@ -27,7 +27,7 @@ acceptance on rare input stays hidden. The release build aborts on a panic
 
 Read, the parsers that take input from a peer or a file: WebSocket frames
 (`crates/podssh-ws/src/frame.rs:134`); HTTP heads and chunked bodies
-(`crates/podssh-ws/src/http.rs:110`, line 183 at `e892b0f`); the upgrade answer
+(`crates/podssh-ws/src/http.rs:115`, line 183 at `e892b0f`); the upgrade answer
 (`crates/podssh-ws/src/handshake.rs:175`); proxy URLs
 (`crates/podssh-ws/src/proxy.rs:82`), `NO_PROXY` and the CONNECT status
 (`crates/podssh-ws/src/dial.rs`, lines 178 and 334 at `22c3b88`); since T-070 (2026-10-11), a
@@ -525,7 +525,7 @@ Read, the bounds today:
 - A frame: 262144 bytes (`crates/podssh-ws/src/frame.rs:30`, refused at lines
   180-194). A message in fragments: 16 MiB
   (`crates/podssh-ws/src/session.rs:29`, checked at lines 240-242 at `23b5d82`).
-- A response head: 16 KiB for HTTP (`crates/podssh-ws/src/http.rs:8`), for the
+- A response head: 16 KiB for HTTP (`crates/podssh-ws/src/http.rs:13`), for the
   proxy (`crates/podssh-ws/src/dial.rs:25`) and for the upgrade
   (`crates/podssh-ws/src/handshake.rs:124`).
 - The pool document: 256 KiB (`crates/podssh-relay/src/pool.rs:36`). A cache
@@ -839,7 +839,7 @@ minutes, and no harness can test that yet.
 Read:
 
 - The modes of the stand-in relay: `normal`, `refuse`, `blackhole`, `silent`,
-  `stall` and `close` (`scripts/fake-relay.py:18-27`). The stand-in proxy maps
+  `stall` and `close` (`scripts/fake-relay.py:18-30`). The stand-in proxy maps
   names and answers a status (`scripts/fake-proxy.py:1-27`). Neither shapes
   the traffic.
 - `scripts/interop-faults.sh:35-44` starts one stand-in for each fault; its
@@ -913,7 +913,7 @@ fail when the resume layer is off.
 ## Correction
 
 Item 4 needs the reverse road in the stand-in relay, which serves the
-forward road only (`scripts/fake-relay.py:109-110`). T-156 builds it (its
+forward road only (`scripts/fake-relay.py:112-113`). T-156 builds it (its
 item 1) and makes those checks its measurement (its items 2 to 5). T-203
 gives T-156 the faults that those checks need: `pause:AFTER:FOR` for the
 stall that ends, `cut` for a host stopped mid-session, and `--move` for the
@@ -979,7 +979,7 @@ Read, each claim of GitHub #34 at the lines as they are now:
   (the -1 of `railway.new`) to 255, and an exit signal to 128 plus its number
   (`docs/STATUS.md:89`, `docs/STATUS.md:94`).
 - A correction to the framing of #34: for a signal, podssh differs from
-  OpenSSH on purpose. `docs/cli.md:2587-2588` says 128 plus the signal's number,
+  OpenSSH on purpose. `docs/cli.md:2622-2623` says 128 plus the signal's number,
   and that OpenSSH gives 255. `crates/podssh-ssh/src/lib.rs:16` says that the
   codes follow OpenSSH, with 128 plus a signal. The two texts disagree, and no
   record measures the code of OpenSSH.
@@ -996,14 +996,14 @@ Read, each claim of GitHub #34 at the lines as they are now:
    code. Then run podssh and compare.
 3. A table of the intended differences, each with its reason. Today one row:
    a signal (OpenSSH's code, against 128 plus the number;
-   `docs/cli.md:2587-2588`). A difference that the table does not name fails,
+   `docs/cli.md:2622-2623`). A difference that the table does not name fails,
    with both codes and the command.
 4. Keep each literal as a second check with its own name, so that a change
    gives two named failures: "differs from OpenSSH" and "differs from the
    promise".
 5. Refuse a reference of 0 for a case that must fail, so that a broken
    reference cannot pass.
-6. Make `crates/podssh-ssh/src/lib.rs:16` and `docs/cli.md:2587-2588` agree with
+6. Make `crates/podssh-ssh/src/lib.rs:16` and `docs/cli.md:2622-2623` agree with
    the measurement, and record the codes of OpenSSH in docs/STATUS.md.
 
 Relation: T-199 (GitHub #25) scores the harness against a committed
@@ -1040,7 +1040,7 @@ for `podssh ssh`.
 (openssh-portable at its default branch, 2026-10-12; read, not run):
 `client_input_channel_req` in `clientloop.c` takes `exit-status` and no
 `exit-signal`, and `client_loop` starts its status at -1, so a signal gives
-255, as `docs/cli.md:2286-2287` says. `check_host_key` in `sshconnect.c`
+255, as `docs/cli.md:2321-2322` says. `check_host_key` in `sshconnect.c`
 goes on past a changed key under `StrictHostKeyChecking=no`: it turns off
 password and keyboard-interactive login and the forwardings, then accepts
 the key, so `ssh.hostkey.changed_refused` gives 0 with OpenSSH. In
@@ -1081,7 +1081,7 @@ has three rows.
   podssh 143), `changed_key` (OpenSSH 0, podssh 255) and
   `unreadable_known_hosts` (OpenSSH 0, podssh 255).
 - `crates/podssh-ssh/src/lib.rs:16` now agrees with
-  `docs/cli.md:2286-2287`: 128 plus the signal's number, where OpenSSH
+  `docs/cli.md:2321-2322`: 128 plus the signal's number, where OpenSSH
   gives 255. `docs/cli.md` names the two differences of the host keys
   beside their rules; `docs/development.md` (item 7 of the gate) says that
   each code is checked twice; `docs/STATUS.md` has a row for OpenSSH's
