@@ -7,7 +7,7 @@ HTTP and of HTTP/2 to the relay.
 
 # T-162: The iroh road behind the cargo feature `iroh`
 
-**Source:** ROADMAP M6 (the iroh road); `docs/design.md:930-1118`;
+**Source:** ROADMAP M6 (the iroh road); `docs/design.md:930-1122`;
 `docs/decisions.md` (2026-10-08: iroh is a road that the user must select);
 GitHub #18 (Nemo-010, 2026-10-08: the iroh-ssh, zuko, GPU-Share and quic-ssh
 reports).
@@ -31,7 +31,7 @@ to 245 crates. In the target sandbox it runs only with no UDP transport (or a
 UDP bind after a probe), podssh's proxy in `proxy_url(...)`, the `Minimal`
 preset with no pkarr or DNS, peers dialled by ticket, and a home relay whose
 `/ping` passes the proxy. The operator accepted netlink sockets and extra
-connections for this road (`docs/design.md:1107-1110`). The sandbox refuses UDP
+connections for this road (`docs/design.md:1111-1114`). The sandbox refuses UDP
 (`docs/target-environment.md:23`). Measured on `3ee70dc`: `--iroh` is an
 unknown flag (exit 64), and `Cargo.lock` has no iroh crate.
 
@@ -142,7 +142,7 @@ that uses iroh's own proxy selection fails with `ALL_PROXY` set.
 # T-163: iroh tickets and node keys
 
 **Source:** ROADMAP M6 (dialled by ticket); `docs/design.md:957` and
-`docs/design.md:1075-1076`; GitHub #18 (Nemo-010, 2026-10-08: zuko's ticket
+`docs/design.md:1079-1080`; GitHub #18 (Nemo-010, 2026-10-08: zuko's ticket
 handoff; iroh-ssh's persistent and ephemeral keys).
 **Category:** feature
 **Milestone:** M6
@@ -159,7 +159,7 @@ no form for a ticket, no place for the keys, and no rule for who may connect.
 
 Read: with the `Minimal` preset nothing is discovered, so a ticket gives the
 key and the relay URL (`docs/design.md:957`). The key is the identity, and
-access is by an allowlist of keys or a relay token (`docs/design.md:1075-1076`).
+access is by an allowlist of keys or a relay token (`docs/design.md:1079-1080`).
 Read in the reports, not verified here: iroh-ssh warns when a server's key is
 ephemeral (`rustonbsd/iroh-ssh:src/ssh.rs`); zuko hands over a ticket out of
 band (`adonm/zuko:docs/protocol.md`). Read: `podssh ts` keeps its node key in
@@ -349,7 +349,7 @@ limit of iroh to each connection.
 Read: for a podssh node, the iroh road is first and the reverse road with the
 resumable layer is second, raced (`docs/design.md:48-53`). The first real
 sandbox can block what iroh needs, so the fallback is necessary
-(`docs/design.md:1112-1118`). The user must select iroh (`docs/decisions.md`,
+(`docs/design.md:1116-1122`). The user must select iroh (`docs/decisions.md`,
 2026-10-08). Each road has one attempt for each host, with a time limit
 (`docs/design.md:56-63`). The relay opener tries one host at a time
 (`crates/podssh-relay/src/open.rs:188-253`), and no code races two roads.
@@ -489,9 +489,9 @@ forward road has one default relay name in library code
 (`crates/podssh-relay/src/relay.rs:12-13`) and a seed pool
 (`crates/podssh-relay/src/pool.rs:20-29`); the same shape fits the iroh
 relays. n0's free relays are for development, with a rate limit that is not
-published (`docs/design.md:1092-1094`). At least three projects run the iroh
+published (`docs/design.md:1096-1098`). At least three projects run the iroh
 relay protocol on Workers and Durable Objects (read, not verified:
-`docs/design.md:1098-1100`). The URLs of n0's relays for iroh 1.x must be read
+`docs/design.md:1102-1104`). The URLs of n0's relays for iroh 1.x must be read
 in iroh's source at the pinned version.
 
 ## Approach
@@ -624,7 +624,7 @@ other build.
 # T-166: A roost: a podssh next to a standard sshd
 
 **Source:** `docs/design.md:52` (a standard sshd behind a podssh `roost`) and
-`docs/design.md:584-587`; the `roost` of pigeons (`docs/design.md:1102-1105`);
+`docs/design.md:584-587`; the `roost` of pigeons (`docs/design.md:1106-1109`);
 GitHub #18 (Nemo-010, 2026-10-08: iroh-ssh reaches sshd by node id, and
 refuses early when no sshd answers).
 **Category:** feature
@@ -2403,7 +2403,7 @@ The `grep` shows the recorded result.
 # T-173: Resumption in the relay for a standard sshd
 
 **Source:** ROADMAP M8 (not now; look at it again after M6);
-`docs/design.md:588-605` (layer 3) and `docs/design.md:1127-1130` (question 1 of
+`docs/design.md:588-605` (layer 3) and `docs/design.md:1131-1134` (question 1 of
 section 8).
 **Category:** feature
 **Milestone:** M8
@@ -2426,7 +2426,7 @@ a resume token in the `101` response, and offset framing as a protocol
 version that the client selects. It is a project of the relay's operator, and
 it costs Durable Object time for the whole session (`docs/design.md:601-605`).
 The recommendation is "not now; look at it again after M6"
-(`docs/design.md:1127-1130`). The relay is in another repository.
+(`docs/design.md:1131-1134`). The relay is in another repository.
 
 ## Approach
 
@@ -3224,7 +3224,7 @@ relay and a plain first hop does.
 **Milestone:** backlog
 **Priority:** P2
 **Effort:** M
-**Status:** open
+**Status:** partial
 
 ## Problem
 
@@ -3249,7 +3249,7 @@ that says why.
 - Read in the study (https://docs.iroh.computer/iroh-services/relays/public): the public relays
   are "suitable for development and hobby use only", they rate-limit, and "Only the latest stable
   release of iroh is officially supported".
-- Read: the armv7 job builds with Alpine's rust (`.github/workflows/release.yml:188`); whether it
+- Read: the armv7 job builds with Alpine's rust (`.github/workflows/release.yml:191`); whether it
   is 1.91 or later was not read (T-343 checks it in the job). The notices of the licenses are
   made for the default features (`.github/workflows/release.yml:438`); `cargo deny` checks the
   licenses and the sources with each feature (`.github/workflows/deny.yml:44-46`).
@@ -3286,6 +3286,35 @@ cargo test -p podssh-cli --features iroh-test --test iroh_road
 Each of the eight binaries of the dry run has the road. With a relay on the loopback that refuses
 the version, the notice names this binary's iroh and `--iroh-relay`. Planted: the feature left out
 of one target; the check of `scripts/release-short.sh` fails on it.
+
+## Correction
+
+2026-10-31: `podssh man --json` names no feature of the build, so item 5's check reads the exit of
+`podssh ssh iroh:x`: 64 with the road (a ticket that is no ticket, read as one), 70 without it.
+Item 4's relay is asked after its connection failed, not before each dial: iroh's relay client
+keeps only the status of a refusal, and a question on each dial would be one more connection to
+n0 for each session that works. Item 6 moves 200 MiB in its five runs of 20 MiB each way, over
+the 100 MiB of a live test that runs with its entry (`AGENTS.md`, section 6): it waits for the
+checks of the release (T-251), and a short run through n0's relays from this session's host runs
+now.
+
+## Done
+
+2026-10-31, partial: each target of the release builds `--features "$RELEASE_FEATURES"` (`iroh`),
+one variable of `.github/workflows/release.yml`, as the gate's step `release` does; the notices
+are made with the same features and the eight targets of the release (`about.toml`, so that a
+crate of WebAssembly alone, as iroh-relay's three under the Unlicense, ships in no notice); the
+armv7 job's Alpine 3.24 has rust 1.96.1, read from its index on 2026-10-31, past iroh's 1.91
+(T-343 makes the job check it); `scripts/release-short.sh` checks the road, and planted on a
+build without the feature it failed, naming exit 70. The notice (`podssh-iroh`'s `version.rs`):
+`cargo test -p podssh-iroh` passed, iroh's own relay server taking this build's versions and
+refusing `iroh-relay-v0` in its own words; `cargo test -p podssh-cli --features iroh-test --test
+iroh_road` passed, a node whose relay refuses its iroh stopping in 4 s, not its 30, with the
+notice; planted, the early stop removed (the node waited 34 s) and the refusal not read (no
+notice), each failed the test. Live, a build with the release's features on this host, through its
+proxy: a node came online on n0's relay `use1-1`, and a client reached its Dropbear through it, the
+relay carrying each byte. What waits: the dry run of the release workflow by hand, its eight
+binaries and their sizes.
 
 
 # T-349: A DERP link through Tailscale's tailcat relays, a second carrier of the reverse road
@@ -3381,7 +3410,7 @@ podssh's own, which makes it M.
 
 - Read: the endpoint has no address lookup: a peer is dialled by its key and its relay
   (`crates/podssh-iroh/src/endpoint.rs:4-7`, `:305-306`), as the design chose for a host with no
-  DNS (`docs/design.md:957`, `:963`).
+  DNS (`docs/design.md:957`, `:967`).
 - Read: the node's key is Ed25519 and stays across its pairs, and the operator pins it by label
   (`docs/reverse.md:180-184`).
 - Read in the study (https://docs.iroh.computer/connecting/dns-address-lookup): an endpoint

@@ -21,6 +21,7 @@ use std::time::Duration;
 
 use iroh::{PublicKey, RelayUrl};
 use podssh_iroh::keys::{self, Place};
+use podssh_iroh::version::Offline;
 use podssh_iroh::{ticket, Allowlist, Options, Udp};
 use podssh_relay::e2e::ends;
 use podssh_relay::pair::Pair;
@@ -206,6 +207,8 @@ where
     for why in &missed {
         let _ = writeln!(err, "podssh {verb}: {label}: an iroh relay did not answer: {why}");
     }
+    // The question of a refused version (T-348) goes as the endpoint goes.
+    let (asked, asked_trust, asked_proxy) = (home.clone(), trust.clone(), proxy.clone());
     let options = Options {
         relays: home,
         proxy,
@@ -224,20 +227,25 @@ where
         }
         Err(e) => return Refusal::config(e.to_string()).report(verb, err),
     };
-    let relay = match tokio::time::timeout(ONLINE_LIMIT, endpoint.online()).await {
-        Ok(()) => ticket::home_relay(&endpoint),
-        Err(_) => None,
+    // A home relay that refuses this build's iroh ends the wait at once; a
+    // relay that never became the home relay is asked at the limit.
+    let came = podssh_iroh::version::online(&endpoint, ONLINE_LIMIT, &asked_trust, &asked_proxy).await;
+    let refused = match &came {
+        Ok(()) => None,
+        Err(Offline::Refused(notice)) => Some(notice.clone()),
+        Err(Offline::TimedOut) => podssh_iroh::version::refusal(&asked, &asked_trust, &asked_proxy).await,
     };
+    let relay = if came.is_ok() { ticket::home_relay(&endpoint) } else { None };
     let Some(relay) = relay else {
         let relays: Vec<String> = relays.iter().map(ToString::to_string).collect();
-        let refusal = Refusal {
-            message: format!(
+        let message = refused.unwrap_or_else(|| {
+            format!(
                 "no iroh relay answered within {} s ({}); podssh doctor checks the way to them",
                 ONLINE_LIMIT.as_secs(),
                 relays.join(", ")
-            ),
-            code: Fault::RelayUnreachable.code(),
-        };
+            )
+        });
+        let refusal = Refusal { message, code: Fault::RelayUnreachable.code() };
         let _ = tokio::time::timeout(CLOSE_LIMIT, endpoint.close()).await;
         return refusal.report(verb, err);
     };

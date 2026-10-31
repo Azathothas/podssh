@@ -59,7 +59,7 @@ mod built {
             say(&why);
             crate::exitmap::sysexits::EX_USAGE
         })?;
-        let Prepared { dialer, endpoint, shown, fingerprint, identity, node } =
+        let Prepared { dialer, endpoint, shown, fingerprint, identity, node, .. } =
             dial::prepare(ticket, ask.client_key.as_deref(), &relays, trust, &log).await.map_err(|why| {
                 say(&why);
                 EX_UNAVAILABLE

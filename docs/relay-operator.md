@@ -280,7 +280,8 @@ relay's endpoints are in the contract.
     the binary will name the three of #59 and try them when each relay host
     fails (T-370). Item 15 holds for such a Worker too.
 13. **An iroh relay of the operator's** (no entry; optional). podssh's iroh
-    road (behind the cargo feature `iroh`) uses n0's public relays
+    road (behind the cargo feature `iroh`, in each release binary since
+    T-348) uses n0's public relays
     (`crates/podssh-iroh/src/relays.rs`), which n0 offers for development
     and hobby use ([design.md](design.md), section 7). The operator decided
     on 2026-10-08 that an iroh relay on the operator's own Cloudflare

@@ -1283,7 +1283,7 @@ podbox has the same, on by default (`NodeChannel`, `OperatorChannel`). The manua
 # T-088: End-to-end encryption between two podssh ends
 
 **Source:** GitHub #18 (report on warren; read in the report, not verified here);
-`docs/design.md:1112-1118`, `:1131-1135`.
+`docs/design.md:1116-1122`, `:1135-1139`.
 **Category:** feature
 **Milestone:** backlog
 **Priority:** P2
@@ -1302,8 +1302,8 @@ Read: the relay sees the target, the time and volume of the traffic, and the sta
 connection; after the key exchange it sees only ciphertext (`SECURITY.md:21-31`). It can drop, delay
 or add frames (`SECURITY.md:33-36`).
 
-Read: the road between two podssh ends carries SSH, `cp`, `pipe` and chat (`docs/design.md:1112-1118`);
-for chat, the operator chose the roads, end to end encrypted, after M6 (`docs/design.md:1134-1136`).
+Read: the road between two podssh ends carries SSH, `cp`, `pipe` and chat (`docs/design.md:1116-1122`);
+for chat, the operator chose the roads, end to end encrypted, after M6 (`docs/design.md:1138-1140`).
 The resumable layer of M6 runs under SSH (`docs/design.md:570-582`).
 
 Read in the report (GitHub #18, not verified here): warren uses `Noise_IK_25519_ChaChaPoly_BLAKE2s`
@@ -1692,7 +1692,7 @@ Measured: `grep -rni sshsig crates scripts docs Cargo.toml` finds nothing (exit 
 tests of primitives (`crates/podssh-ws/tests/crypto_vectors.rs:125-159`,
 `crates/podssh-ws/tests/signatures.rs:29-172`); the comment's `crypto_vectors.rs:192` is not one. Read: the
 issue's "rule 8" is rule 6 (`docs/architecture.md:165-167`), and its "section 2" sentence about an allowlist of
-keys is in section 7 (`docs/design.md:1075-1076`). Read in the report (not verified here): syq signs a grant in a
+keys is in section 7 (`docs/design.md:1079-1080`). Read in the report (not verified here): syq signs a grant in a
 fixed namespace and redeems it at most once with `flock`, `O_EXCL`, `linkat` and `fsync` (lines 55 at `22c3b88` and
 1416-1492 of `greaber/syq:src/delegation.rs`). The reporter's correction: a signed grant leaks as a token does
 (lines 11-12 at `22c3b88`); signing buys scope, single use and non-repudiation, not safety after a leak.

@@ -958,7 +958,11 @@ iroh can run only with this configuration (READ; not MEASURED yet):
 | A home relay | The HTTPS `/ping` probe must pass through the proxy. Without it, the endpoint can connect out but nothing can connect to it. |
 
 **Built (T-162, 2026-10-09):** the crate `podssh-iroh`, in the binary with
-the feature `iroh` only. iroh 1.4.1 with no default features and
+the feature `iroh` only, which each release binary has since T-348 (Q50).
+When a home relay refuses the iroh of a binary, as n0's relays will refuse
+an old one, the relay is asked once, after its connection failed, with
+iroh's own upgrade, and its answer is named, with `podssh update` and
+`--iroh-relay` as the ways out (`podssh-iroh`'s `version.rs`). iroh 1.4.1 with no default features and
 `tls-aws-lc-rs`: no ring, no port mapping, no metrics. The endpoint has the
 `Minimal` preset and no address lookup; the relays given, n0's four public
 relays by default; podssh's proxy for the relay (iroh's `proxy_url`), at an

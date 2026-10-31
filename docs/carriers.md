@@ -173,8 +173,10 @@ The candidates, ranked:
      sender [R2]; a paid tier at $19 a month gives 5 MB/s [R4].
    - Rust and C: built (`podssh-iroh`); its aws-lc-rs is C, which is allowed
      outside the library crates.
-   - Effort: S. Risks: only the newest iroh is supported [R1], and the
-     release binaries do not have the road. T-348, after Q50.
+   - Effort: S. Risks: only the newest iroh is supported [R1]: a relay
+     that refuses the iroh of a binary is named, with `podssh update` and
+     `--iroh-relay` as the ways out. The release binaries have the road
+     since T-348 (Q50).
 2. **Tailscale's DERP relays for tailcat** (`tc301a.ipn.dev` to
    `tc304a.ipn.dev`).
    - Who, and the account: Tailscale, "our free rate-limited DERP relays"
@@ -284,9 +286,10 @@ The chain that the study recommends, for `podssh node` and
 
 The meeting point stays the ticket, or the key and the relay, pinned by a
 label, with a pkarr record for a node whose home relay changed (T-350).
-Whether the release binaries carry the iroh road, and whether n0's relays
-and tailcat's may be tried when the user did not ask, is Q50
-([TODO/PROGRESS.md](../TODO/PROGRESS.md)).
+The operator ruled both on 2026-10-31 (Q50,
+[decisions.md](decisions.md)): the release binaries carry the iroh road
+(T-348), and n0's relays and tailcat's may be tried when the user did not
+ask (T-349, T-350).
 
 ## Sources
 

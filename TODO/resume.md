@@ -1164,7 +1164,7 @@ road, and the same faults end a session of the forward road with 255
 # T-157: Throughput on each road and relay, by a committed method
 
 **Source:** ROADMAP M6 (throughput on each road and relay, in and out of a
-sandbox, before a default depends on it); `docs/design.md:1080-1100`; the two
+sandbox, before a default depends on it); `docs/design.md:1084-1104`; the two
 sandbox reports of 2026-10-08; GitHub #18 (warren's method) and GitHub #23
 (sshping: throughput up and down).
 **Category:** measurement
@@ -1188,7 +1188,7 @@ proxy (4 runs). Read in the report, not verified here: the script's target
 (thinkbroadband) gave `1011 write failed` and 0 bytes, and the relay's
 `/trace` showed that the relay could not reach it.
 Read: no iroh figure exists for a relay through a CONNECT proxy
-(`docs/design.md:1080-1100`). A session carries 64 MiB at most, both directions
+(`docs/design.md:1084-1104`). A session carries 64 MiB at most, both directions
 together (`docs/relay.md:192`).
 
 ## Approach

@@ -18,3 +18,16 @@ accepted = [
 ]
 # The binary's graph only: a crate of the tests ships in no binary.
 ignore-dev-dependencies = true
+# The targets of the release (.github/workflows/release.yml): a crate that
+# only another target builds, as iroh-relay's for WebAssembly, ships in no
+# binary.
+targets = [
+  "x86_64-unknown-linux-musl",
+  "aarch64-unknown-linux-musl",
+  "armv7-unknown-linux-musleabihf",
+  "riscv64gc-unknown-linux-musl",
+  "aarch64-apple-darwin",
+  "x86_64-apple-darwin",
+  "x86_64-pc-windows-msvc",
+  "aarch64-pc-windows-msvc",
+]

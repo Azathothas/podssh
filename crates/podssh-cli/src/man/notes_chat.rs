@@ -8,7 +8,8 @@ pub(super) const CHAT: &[&str] = &[
      serves the pair NAME as its node (see podssh relay). The other side reaches it: podssh chat NAME, \
      with the pair stored under NAME, or the operator's part of it in --pair-file. One peer talks at a \
      time; another is told that the chat is busy.",
-    "In a build with the feature iroh, --listen NAME --iroh serves the iroh road too, with no pair \
+    "In a build with the feature iroh, as each release binary is, --listen NAME --iroh serves the iroh road \
+     too, with no pair \
      needed for it, and says its ticket on stderr; the other side reaches it as podssh chat \
      iroh:TICKET, and the ticket names the key that the channel checks. On the iroh road, only the \
      keys of --allow come in, as on each node of that road. --iroh-relay gives the relays.",

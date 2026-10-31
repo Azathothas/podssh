@@ -40,7 +40,7 @@ pub const SSH: &[&str] = &[
      (keepalive@openssh.com), and the reply, even a failure, or any byte of the session answers it; \
      through -J, the target's own, through the hop.",
     "iroh:TICKET, or user@iroh:TICKET, reaches a node of the iroh road (see podssh node), in a build with \
-     the feature iroh. The ticket is the address that the node prints, not a credential: the node lets in \
+     the feature iroh, as each release binary is. The ticket is the address that the node prints, not a credential: the node lets in \
      only the client keys of its allowlist. This client's key is made on first use, in the cache \
      (client.key, or iroh-client.key of an earlier podssh) or in the file of --iroh-key; podssh prints \
      its fingerprint when it is new, and when a node refuses it, as the line that the node's operator \

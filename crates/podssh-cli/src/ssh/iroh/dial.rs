@@ -33,6 +33,9 @@ pub(crate) struct Prepared {
     pub fingerprint: String,
     pub identity: Arc<podssh_relay::identity::Identity>,
     pub node: podssh_relay::identity::PublicKey,
+    /// The relays of the dial, the ticket's first: each is asked whether it
+    /// takes this build's iroh when the road fails with no relay (T-348).
+    pub relays: Vec<RelayUrl>,
 }
 
 /// Set up the dial of the node of the ticket `text`: this client's key,
@@ -92,7 +95,7 @@ pub(crate) async fn prepare(
     log.verbose(&format!("connecting to {shown} over the iroh road, through {}", through.join(", ")));
     let dialer = Dialer::new(endpoint.clone(), addr);
     let identity = Arc::new(key.identity);
-    Ok(Prepared { dialer, endpoint, shown, fingerprint, identity, node })
+    Ok(Prepared { dialer, endpoint, shown, fingerprint, identity, node, relays: list })
 }
 
 /// What a session of the iroh road that failed says; nothing for a clean
@@ -120,7 +123,7 @@ pub(super) async fn connect(
     opts: &podssh_ssh::options::Options,
     log: Arc<Log>,
 ) -> i32 {
-    let Prepared { dialer, endpoint, shown, fingerprint, identity, node } =
+    let Prepared { dialer, endpoint, shown, fingerprint, identity, node, relays } =
         match prepare(text, key, relays, trust, &log).await {
             Ok(prepared) => prepared,
             Err(why) => {
@@ -177,6 +180,13 @@ pub(super) async fn connect(
     }
     if let (true, Some(why)) = (code == EXIT_FAILURE, why_failed(carried, &fingerprint)) {
         log.error(&format!("{shown}: {why}"));
+        // A relay that refused this build's iroh says so (T-348).
+        if !podssh_iroh::version::is_online(&endpoint) {
+            let proxy = ProxyChoice::FromEnvironment;
+            if let Some(notice) = podssh_iroh::version::refusal(&relays, trust, &proxy).await {
+                log.error(&format!("{shown}: {notice}"));
+            }
+        }
     }
     dialer.close().await;
     let _ = tokio::time::timeout(CLOSE_LIMIT, endpoint.close()).await;

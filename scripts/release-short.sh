@@ -1,10 +1,10 @@
 #!/bin/sh
 # The short form of the release check (T-251), on each target's own platform
 # (T-218): a release binary prints the version of Cargo.toml, writes the
-# whole manual, makes a key with no passphrase, and prints that key's public
-# key again from the private key. With --net, it also reads GitHub's SSH
-# banner through the live relay (podssh proxy github.com 22), a test target
-# of AGENTS.md. No target ships that no run executed. The key is a
+# whole manual, makes a key with no passphrase, prints that key's public key
+# again from the private key, and has the iroh road (T-348). With --net, it
+# also reads GitHub's SSH banner through the live relay (podssh proxy
+# github.com 22), a test target of AGENTS.md. No target ships that no run executed. The key is a
 # throwaway, made in a directory of this run and removed with it. Where
 # PODSSH_BUILD_COMMIT names the commit of the build (the release's builds,
 # T-210), the binary must name it in --version; else it may name a commit.
@@ -60,6 +60,16 @@ if [ -z "$made" ] || [ "$made" != "$again" ]; then
     fail "keygen -y gives another key: '$again', not '$made'"
 fi
 echo "ok   keygen, then keygen -y: ${made%% *}"
+
+# The iroh road is in the binary (T-348): a ticket that is no ticket is read
+# as one and refused as a usage error (64), where a build without the road
+# refuses each iroh: destination with 70. Nothing is dialled.
+"$bin" ssh -o BatchMode=yes iroh:x true < /dev/null > /dev/null 2> "$dir/iroh.err"
+rc=$?
+if [ "$rc" != 64 ] || ! grep -q "not an iroh ticket" "$dir/iroh.err"; then
+    fail "iroh:x exited $rc, not 64, so the binary has no iroh road: $(tr -d '\r' < "$dir/iroh.err" | head -n 2)"
+fi
+echo "ok   the iroh road: iroh:x is read as a ticket, and refused as one"
 
 [ -n "$net" ] || exit 0
 

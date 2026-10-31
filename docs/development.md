@@ -675,7 +675,10 @@ built with `RUSTFLAGS=-Ctarget-feature=+crt-static` and the `release`
 profile (optimized for size, fat LTO). `scripts/gate.sh` builds it, and CI
 uploads it.
 
-`.github/workflows/release.yml` makes the release binaries:
+`.github/workflows/release.yml` makes the release binaries, each with the
+features of its variable `RELEASE_FEATURES`, the same on each target: the
+iroh road (T-348). `scripts/release-short.sh` checks that each binary has
+the road, and the gate's step `release` builds the same features:
 
 - static musl binaries for x86_64 and aarch64, each built in
   `rust:1-alpine` on a native runner, with a check for dynamic dependencies;

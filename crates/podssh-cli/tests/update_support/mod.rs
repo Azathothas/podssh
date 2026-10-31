@@ -225,6 +225,8 @@ pub enum Answer {
     Body(Arc<Vec<u8>>),
     Redirect(String),
     Status(u16),
+    /// A status with a body that says why, as iroh's relay refuses (T-348).
+    Refuse(u16, String),
 }
 
 /// A TLS server on the loopback, of the test's own CA, that answers each
@@ -351,6 +353,7 @@ where
         Some(Answer::Body(body)) => (200, String::new(), body),
         Some(Answer::Redirect(to)) => (302, format!("Location: {to}\r\n"), Arc::default()),
         Some(Answer::Status(code)) => (code, String::new(), Arc::new(b"refused by the stand-in".to_vec())),
+        Some(Answer::Refuse(code, why)) => (code, String::new(), Arc::new(why.into_bytes())),
         None => (404, String::new(), Arc::new(b"Not Found".to_vec())),
     };
     let reply = format!("HTTP/1.1 {status} X\r\n{extra}Content-Length: {}\r\nConnection: close\r\n\r\n", body.len());

@@ -90,7 +90,8 @@ pub(super) const NODE: &[&str] = &[
     "--env-file FILE sets the variables of FILE before anything else: lines of the form name=value, and \
      # comments, each name a variable that podssh reads. FILE must be a private file of the user; a \
      token in it is refused (78), with its line.",
-    "With --iroh, in a build with the feature iroh, the node serves TARGET over the iroh road, with no \
+    "With --iroh, in a build with the feature iroh, as each release binary is, the node serves TARGET over the \
+     iroh road, with no \
      pair: QUIC between keys, through an iroh relay and HTTPS_PROXY, and directly when UDP works. The \
      relays are n0's public ones, or those of --iroh-relay, and the first that answers is the node's \
      (see THE RELAY). The node's key is the same on both roads (see above); --iroh-key and \

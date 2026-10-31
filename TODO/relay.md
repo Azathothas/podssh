@@ -1444,8 +1444,8 @@ Nothing watches the expiry of the relay's domain, on which each road but `--dire
   (a relay that cannot be read) alike (`.github/workflows/build.yml:191-221`);
   the gate's step `release` asks the binary and the script for one verdict, live (`:81-86`).
 - Read: each of the eight build jobs of the release runs `podssh proxy github.com 22` through the
-  live relay (`scripts/release-short.sh:86-92`, run at `.github/workflows/release.yml:141`, `:202`,
-  `:273`, `:312` and `:405`; three of these run in a matrix of two). The audit counted seven
+  live relay (`scripts/release-short.sh:96-102`, run at `.github/workflows/release.yml:144`, `:206`,
+  `:278`, `:317` and `:411`; three of these run in a matrix of two). The audit counted seven
   jobs; the matrices give eight.
 - Read: a beta needs the job `all` of the gate (`docs/decisions.md:25`). Citations of an older
   document of the relay were once off by 35 (`TODO/repo.md:2318-2321`).

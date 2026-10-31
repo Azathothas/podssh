@@ -8,6 +8,9 @@
 
 mod cleanup;
 mod ssh_harness;
+// A TLS stand-in of the test's own CA, for a relay that refuses (T-348).
+#[path = "update_support/mod.rs"]
+mod update_support;
 
 use std::io::{BufRead, BufReader, Write};
 use std::path::{Path, PathBuf};
@@ -236,6 +239,45 @@ fn a_client_is_refused_then_let_in_and_runs_a_command_over_the_iroh_road() {
     assert_eq!(node_key_hex.len(), 64, "the node says its name in the known hosts: {node_line}");
     assert!(recorded.contains(&format!("iroh:{node_key_hex}")), "the host key is under the node's key: {recorded}");
     drop(relay);
+}
+
+/// A home relay that refuses this build's iroh (T-348), as iroh's relay
+/// server words a refusal of the version: the node stops at once, well
+/// before its limit of 30 s, with the notice, which names the relay, this
+/// binary's iroh, the relay's words and the two ways out.
+#[test]
+fn a_relay_that_refuses_this_iroh_stops_the_node_with_its_notice() {
+    let home = scratch("refused");
+    let runtime = tokio::runtime::Builder::new_multi_thread().worker_threads(2).enable_all().build().unwrap();
+    let relay = runtime.block_on(update_support::Server::start(&home));
+    relay.body("/ping", Vec::new());
+    let words = "invalid header value for sec-websocket-protocol: unsupported relay version: we support \
+                 iroh-relay-v3 but you only provide iroh-relay-v2, iroh-relay-v1";
+    relay.route("/relay", update_support::Answer::Refuse(400, words.into()));
+    let (url, cert) = (relay.url(), relay.ca_file.to_string_lossy().into_owned());
+    let allow = home.join("allow");
+    std::fs::write(&allow, "# the client keys that may connect\n").unwrap();
+    let allow = allow.to_string_lossy().into_owned();
+    // The node checks its TARGET first: a port of the test's own, open.
+    let target = std::net::TcpListener::bind("127.0.0.1:0").unwrap();
+    let target_text = target.local_addr().unwrap().to_string();
+    let started = Instant::now();
+    let args =
+        ["node", "lab", &target_text, "--iroh", "--iroh-relay", &url, "--ca-file", &cert, "--iroh-allow", &allow];
+    let (code, _, err) = run(&home, &args);
+    let took = started.elapsed();
+    assert_ne!(code, 0, "{err}");
+    for part in [
+        "127.0.0.1 refuses the iroh of this binary",
+        &format!("iroh {}", podssh_iroh::version::IROH),
+        "we support iroh-relay-v3",
+        "podssh update",
+        "--iroh-relay URL",
+    ] {
+        assert!(err.contains(part), "{part}: {err}");
+    }
+    assert!(took < Duration::from_secs(25), "the node waited {} s for a relay that refused it", took.as_secs());
+    assert!(relay.was_asked("/relay"), "the relay was never asked");
 }
 
 /// `podssh doctor` asks `/ping` of each iroh relay of the list, in order,

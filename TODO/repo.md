@@ -211,7 +211,7 @@ Read:
   `.github/workflows/release.yml` line 23 and `scripts/dev.sh` line 60, both at `e1ba5ba`. No check makes
   them equal.
 - The release builds aarch64 on an arm64 runner
-  (`.github/workflows/release.yml:97-98`). So the pin must be the digest of
+  (`.github/workflows/release.yml:100-101`). So the pin must be the digest of
   the multi-platform index, not the digest of one platform's image.
 - The box uses two more moving tags, `alpine:3.20` and `python:3.12-alpine`
   (`scripts/test_in_box.sh` lines 39-40 at `e1ba5ba`).
@@ -329,7 +329,7 @@ Read:
   members with `CC=/nonexistent`, and the release too (lines 339-342). The
   gate builds the library crates with `CC` and `CXX` set to `/nonexistent`,
   and the release with neither (`scripts/gate.sh:154-166`,
-  `scripts/gate.sh:299-301`). The help omits the work record, interop, the man
+  `scripts/gate.sh:302-304`). The help omits the work record, interop, the man
   page, the C++ plant, and the subcommand `gate` (line 602 at `912acd0`).
 - Stale comments, at `912acd0`: `scripts/dev.sh` lines 69-73 ("the default
   build"), lines 397-404 ("links the fork since 4b", "steps 4-5") and line
@@ -349,7 +349,7 @@ Read:
    comment. Invariant: the text of the bridge does not change by one byte;
    compare the old and the new text with `cmp`.
 3. Correct the help and the stale comments to the gate as it is
-   (`scripts/gate.sh:135-353`).
+   (`scripts/gate.sh:135-356`).
 4. Extend the size check of `scripts/check-repo.py` to the shell and Python
    files under `scripts/`, with a floor (T-223).
 5. Drop the sentence on the exception from `docs/decisions.md`, and move it
@@ -430,7 +430,7 @@ previous release, so a change that the notes forget is invisible to a user.
 Read:
 
 - The job `publish` reads the notes from `docs/releases/`, and fails without
-  them (`.github/workflows/release.yml:572-576`).
+  them (`.github/workflows/release.yml:578-582`).
   No notes file exists yet; T-250 writes the first. The notes drafted for a
   beta that the operator dropped are in git:
   `git show b1b111b:docs/releases/v0.1.0-beta.1.md`.
@@ -458,7 +458,7 @@ Read:
 3. On a run by hand, make the list of the commits since the last tag as an
    artifact, so that it can be read before a tag.
 4. Link each "Fixes #N" of a commit to its issue in the list.
-5. docs/development.md, "Release builds" (`docs/development.md:671-768`): the
+5. docs/development.md, "Release builds" (`docs/development.md:671-771`): the
    body is the notes file and the generated list.
 
 No new shell script: each step is a step of the workflow.
@@ -670,9 +670,9 @@ Measured: `target/debug/podssh.exe --version` prints `podssh 0.1.0`, exit 0.
 Read:
 
 - The jobs `linux` and `windows` build the binaries, and `publish` adds
-  `SHA256SUMS` and publishes them (`.github/workflows/release.yml:53-615`).
+  `SHA256SUMS` and publishes them (`.github/workflows/release.yml:56-621`).
   The workflow has `contents: read` (`:45-46`); `publish` adds
-  `contents: write` (`:469-470`).
+  `contents: write` (`:475-476`).
 - The KTM tester could not tell from an artifact which commit made it, and
   moved the checkout one commit ahead (the KTM report, section 1a; read in
   the report).
@@ -753,7 +753,7 @@ github.com when the workflow is written). The Approach names `actions/attest-bui
   `actions/attest` v4.2.2 (commit `1e69f48acb82d1966a394da916b4c1698aa569d6`), pinned by that commit,
   as item 1 asks. (The wrapper is at commit `4d101475d8b20a2381f78447822ac1eab6504dd8`.)
 - Permissions for a binary (GitHub documentation): `id-token: write`, `contents: read` and
-  `attestations: write`. `publish` has `contents: write` today (`.github/workflows/release.yml:470`
+  `attestations: write`. `publish` has `contents: write` today (`.github/workflows/release.yml:476`
   says "contents: write"), which includes the read. The README of `actions/attest` also lists
   `artifact-metadata: write`, "necessary to create the artifact storage record"; that record needs
   `push-to-registry: true`, which is for images, so a file subject does not need it (Inferred): add
@@ -868,7 +868,7 @@ the release workflow of podssh.
 
 Read:
 
-- `.github/workflows/release.yml:490-495` writes `SHA256SUMS` with
+- `.github/workflows/release.yml:496-501` writes `SHA256SUMS` with
   `sha256sum`, and the job published it with the binaries (lines 370-382 at
   `cdf9308`). No signature was published.
 - The notes drafted for the dropped beta told the user that `SHA256SUMS`
@@ -937,7 +937,7 @@ Approach, and disproves no Premise.
   deprecated, hidden flag in v3.1.4: do not pass it with v3 (it is needed only with v2.6.x). `--yes`
   skips the prompts, and CI needs it. The keyless signing takes the job's own OIDC token, so the job
   needs `id-token: write`; give `publish` that and `attestations: write` for T-210, beside
-  `contents: write` (`.github/workflows/release.yml:470` says "contents: write"). The convention for
+  `contents: write` (`.github/workflows/release.yml:476` says "contents: write"). The convention for
   the bundle's name is `*.sigstore.json` (https://docs.sigstore.dev/cosign/signing/signing_with_blobs/).
 - The identity. The certificate's subject alternative name is `https://github.com/{job_workflow_ref}`
   (https://github.com/sigstore/fulcio/blob/main/docs/oidc.md), so for a tag
@@ -1228,7 +1228,7 @@ so the job of this entry must have both; nobody measured a runner for them.
 # T-214: CI on Windows
 
 **Source:** the triage of GitHub #27 (2026-10-08). Windows is a released
-platform (`.github/workflows/release.yml:323-410`).
+platform (`.github/workflows/release.yml:328-416`).
 **Category:** chore
 **Milestone:** none
 **Priority:** P2
@@ -1248,7 +1248,7 @@ machine.
 Read:
 
 - `.github/workflows/build.yml` lines 17-19 at `e892b0f`: one job, on `ubuntu-latest`.
-- `.github/workflows/release.yml:323-410`: the Windows job installs NASM
+- `.github/workflows/release.yml:328-416`: the Windows job installs NASM
   (line 76), builds, and checks for C runtime DLLs (lines 86-101); it runs no
   test.
 - `docs/STATUS.md` line 230 at `9966ed4`: the default tests pass on Windows,
@@ -1756,12 +1756,12 @@ with a C toolchain for aws-lc.
 
 Read:
 
-- `.github/workflows/release.yml:94-98`: x86_64 and aarch64 musl, each on a
-  native runner in `rust:1-alpine`. `.github/workflows/release.yml:323-410`:
+- `.github/workflows/release.yml:97-101`: x86_64 and aarch64 musl, each on a
+  native runner in `rust:1-alpine`. `.github/workflows/release.yml:328-416`:
   Windows x86_64 with a static C runtime.
 - The check of each platform: `readelf` for `NEEDED` and `INTERP`
-  (`.github/workflows/release.yml:120-127`), `dumpbin /dependents` on Windows
-  (`:377-402`).
+  (`.github/workflows/release.yml:123-130`), `dumpbin /dependents` on Windows
+  (`:383-408`).
 - The binary needs a C compiler for aws-lc (`docs/development.md:12-15`); the
   library crates need none.
 - Some code reads facts of Linux. The terminal check reads `tty_nr` from
@@ -1795,7 +1795,7 @@ Recommendation: build each new Linux target in the image family of the gate
 under QEMU, where that image exists for the platform, so that there is one
 toolchain. `cross` and `cargo-zigbuild` lost: each brings a second C
 toolchain that the gate never judged. Measure the build time first: QEMU is
-slow, and the job limit is 60 min (`.github/workflows/release.yml:100`).
+slow, and the job limit is 60 min (`.github/workflows/release.yml:103`).
 
 2026-10-30, the calls of this entry's session:
 
@@ -1910,7 +1910,7 @@ leaves armv7 out of the Decision; the plan below takes Alpine's own toolchain fo
   needs `-Wno-string-compare` with GCC 11; Alpine's GCC is newer (not needed: Inferred). Plan B:
   `ghcr.io/cross-rs/riscv64gc-unknown-linux-musl:main` (musl GCC and qemu inside).
 - The job's own limit. `timeout-minutes: 60` is the repository's choice
-  (`.github/workflows/release.yml:100` says "timeout-minutes: 60"); GitHub's limit for a hosted job is 6
+  (`.github/workflows/release.yml:103` says "timeout-minutes: 60"); GitHub's limit for a hosted job is 6
   hours. Set the QEMU jobs up to 360 for the first measurement, and lower it to the measured time.
 - Public repositories: the standard hosted runners are free and unlimited; the Linux and Windows arm64
   runners (4 vCPU) are generally available for them (changelog of 2025-08-07).
@@ -4232,13 +4232,13 @@ two jobs of the release run an image of Docker Hub by the tag `latest`, with no 
 ## Approach
 
 1. Each `uses:` of each workflow names a commit of 40 hexadecimal digits, with its tag in a
-   comment, as `actions/attest` is pinned (`.github/workflows/release.yml:503`): the commits of
+   comment, as `actions/attest` is pinned (`.github/workflows/release.yml:509`): the commits of
    T-210's list, read again at each release's API on the day of the change.
 2. A check in `scripts/check-repo.py`: each `uses:` under `.github/workflows/` names a commit. A
    copy with a planted `@v7` fails it, and its floor fails on an empty tree.
 3. binfmt: `images/binfmt/Dockerfile` names `tonistiigi/binfmt` by its tag and its digest, and
    Dependabot's list of directories takes it (`.github/dependabot.yml:35-41`). The two jobs read it
-   as the armv7 job reads its image (`.github/workflows/release.yml:164-171`), pull it through
+   as the armv7 job reads its image (`.github/workflows/release.yml:167-174`), pull it through
    `scripts/pull-image.sh`, and run `docker run --privileged --rm IMAGE --install riscv64` (`arm`
    for armv7) in the place of the action. The step then checks that the kernel lists the handler
    (`/proc/sys/fs/binfmt_misc/qemu-riscv64`, or `qemu-arm`) before the binary runs.
@@ -4453,19 +4453,19 @@ Each can stop a release, or the gate, for a reason outside podssh.
 ## Premise
 
 - Read: the riscv64 job pins Zig's version and SHA-256 and downloads it from ziglang.org
-  (`.github/workflows/release.yml:218-223`, `:243-245`).
+  (`.github/workflows/release.yml:222-227`, `:247-249`).
 - Read, through read.web.pkgforge.dev on 2026-10-31
   (https://ziglang.org/download/community-mirrors/): "The ziglang.org website does not offer any
   uptime or speed guarantees, meaning that your CI will sporadically fail or have slower runs if
   it hardcodes it as a download URL." The mirrors that
   https://ziglang.org/download/community-mirrors.txt lists serve the same file names, and each
   download must be checked; the pinned SHA-256 checks the exact bytes.
-- Read: the armv7 job installs Alpine's own `rust` and `cargo` (`.github/workflows/release.yml:184-190`),
+- Read: the armv7 job installs Alpine's own `rust` and `cargo` (`.github/workflows/release.yml:187-194`),
   in Alpine 3.24 (`images/armv7/Dockerfile`); the CLI declares Rust 1.89
   (`crates/podssh-cli/Cargo.toml:8`), and Q48 lets the minimum rise (`docs/decisions.md:21`).
   Inferred: Alpine 3.24's rust is 1.89 or later, as the job built `v1.0.0-beta.2`.
 - Read: `pipx run check-jsonschema` names no version (`.github/workflows/build.yml:175`, `:177`).
-- Read: the signatures use Sigstore's public instance (`.github/workflows/release.yml:533-558`).
+- Read: the signatures use Sigstore's public instance (`.github/workflows/release.yml:539-564`).
   Inferred (the audit): an outage delays a release, and a run again repairs it.
 
 ## Approach

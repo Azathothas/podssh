@@ -40,15 +40,17 @@ base64 = { workspace = true }
 # A node's address as iroh's own tools write it (T-163); the version of
 # iroh's own crates.
 iroh-tickets = "1"
-# iroh's relay server, and a certificate under any name, for the feature
-# `test-relay` only.
-iroh-relay = { version = "1", default-features = false, features = ["server", "test-utils"], optional = true }
+# The versions of iroh's relay protocol, which the question of a refused
+# version offers (T-348), and, with the feature `test-relay` only, iroh's
+# relay server: the iroh-relay that iroh builds, so no crate is added.
+iroh-relay = { version = "1", default-features = false }
+# A certificate under any name, for the feature `test-relay` only.
 rcgen = { version = "0.14", optional = true }
 
 [features]
 # A relay server on the loopback for the tests of this crate and of the
 # command line (`podssh-cli`'s feature `iroh-test`); never in a release.
-test-relay = ["iroh/test-utils", "dep:iroh-relay", "dep:rcgen", "rustls/ring"]
+test-relay = ["iroh/test-utils", "iroh-relay/server", "iroh-relay/test-utils", "dep:rcgen", "rustls/ring"]
 
 [dev-dependencies]
 # A relay server on the loopback, and the skip of its certificate check, for

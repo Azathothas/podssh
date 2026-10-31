@@ -27,6 +27,8 @@ pub mod stream;
 #[cfg(feature = "test-relay")]
 pub mod test_relay;
 pub mod ticket;
+// Whether a relay takes this build's iroh (T-348).
+pub mod version;
 
 pub use allow::Allowlist;
 pub use client::{carry, Dialer, Failure};

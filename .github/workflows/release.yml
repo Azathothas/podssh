@@ -46,9 +46,12 @@ permissions:
   contents: read
 
 # The commit that each binary names in --version (T-210), read at compile
-# time; a container gets it with -e.
+# time; a container gets it with -e. The features of each binary, the same
+# on each target: the iroh road (T-348, Q50); scripts/release-short.sh
+# checks that each binary has it.
 env:
   PODSSH_BUILD_COMMIT: ${{ github.sha }}
+  RELEASE_FEATURES: iroh
 
 jobs:
   # A tag that git pushes with the job's token starts no workflow, and a
@@ -116,7 +119,7 @@ jobs:
           docker run --rm -v "$PWD:/work" -w /work \
             -e CARGO_BUILD_JOBS=4 -e RUSTFLAGS=-Ctarget-feature=+crt-static -e PODSSH_BUILD_COMMIT \
             "$image" \
-            cargo build --locked --release --target ${{ matrix.target }} -p podssh-cli
+            cargo build --locked --release --target ${{ matrix.target }} -p podssh-cli --features "$RELEASE_FEATURES"
       - name: the binary is static
         run: |
           set -eu
@@ -184,9 +187,10 @@ jobs:
       - name: build (static musl, Alpine's rust for armv7)
         run: |
           docker run --rm --platform linux/arm/v7 -v "$PWD:/work" -w /work \
-            -e CARGO_BUILD_JOBS=4 -e RUSTFLAGS=-Ctarget-feature=+crt-static -e PODSSH_BUILD_COMMIT \
+            -e CARGO_BUILD_JOBS=4 -e RUSTFLAGS=-Ctarget-feature=+crt-static -e PODSSH_BUILD_COMMIT -e RELEASE_FEATURES \
             "$ARMV7_IMAGE" sh -c 'apk add --no-cache build-base rust cargo >/dev/null && rustc -vV &&
-              t=$(rustc -vV | sed -n "s/^host: //p") && cargo build --locked --release --target "$t" -p podssh-cli &&
+              t=$(rustc -vV | sed -n "s/^host: //p") &&
+              cargo build --locked --release --target "$t" -p podssh-cli --features "$RELEASE_FEATURES" &&
               mkdir -p dist && cp "target/$t/release/podssh" dist/podssh-armv7-unknown-linux-musleabihf'
       - name: the binary is static
         run: |
@@ -236,7 +240,7 @@ jobs:
           start=$(date +%s)
           docker run --rm -v "$PWD:/work" -w /work \
             -e CARGO_BUILD_JOBS=4 -e RUSTFLAGS=-Ctarget-feature=+crt-static -e PODSSH_BUILD_COMMIT \
-            -e ZIG_VERSION -e ZIG_SHA256 -e ZIGBUILD_VERSION \
+            -e ZIG_VERSION -e ZIG_SHA256 -e ZIGBUILD_VERSION -e RELEASE_FEATURES \
             "$BUILD_IMAGE" sh -c '
               set -eu
               rustc -vV
@@ -252,7 +256,8 @@ jobs:
               export PATH="/tmp/zigbuild/bin:$PATH"
               cargo install --list --root /tmp/zigbuild
               rustup target add riscv64gc-unknown-linux-musl
-              cargo zigbuild --locked --release --target riscv64gc-unknown-linux-musl -p podssh-cli
+              cargo zigbuild --locked --release --target riscv64gc-unknown-linux-musl -p podssh-cli \
+                --features "$RELEASE_FEATURES"
               mkdir -p dist
               cp target/riscv64gc-unknown-linux-musl/release/podssh dist/podssh-riscv64gc-unknown-linux-musl'
           echo "the build took $(( $(date +%s) - start )) s"
@@ -296,7 +301,7 @@ jobs:
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
       - name: build
-        run: cargo build --locked --release --target ${{ matrix.target }} -p podssh-cli
+        run: cargo build --locked --release --target ${{ matrix.target }} -p podssh-cli --features "$RELEASE_FEATURES"
       # A Mac binary links libSystem at least; nothing outside the system.
       - name: the binary links the system's libraries only
         run: |
@@ -367,7 +372,8 @@ jobs:
             echo "AWS_LC_SYS_PREBUILT_NASM=1" >> "$GITHUB_ENV"
           fi
       - name: build
-        run: cargo build --locked --release -p podssh-cli
+        shell: bash
+        run: cargo build --locked --release -p podssh-cli --features "$RELEASE_FEATURES"
       - name: package
         shell: bash
         run: |
@@ -435,8 +441,8 @@ jobs:
         run: |
           set -eu
           mkdir -p notes
-          cargo about generate --manifest-path crates/podssh-cli/Cargo.toml --locked -c about.toml about.hbs \
-            -o notes/THIRD-PARTY-LICENSES.md
+          cargo about generate --manifest-path crates/podssh-cli/Cargo.toml --locked --features "$RELEASE_FEATURES" \
+            -c about.toml about.hbs -o notes/THIRD-PARTY-LICENSES.md
           test -s notes/THIRD-PARTY-LICENSES.md
       # The commits of this release, each one, from cliff.toml: on a tag, those
       # since the tag before it; by hand, where the tag does not exist yet,

@@ -62,15 +62,15 @@ repository and CI).
 
 ## Counts
 
-**374 entries: 38 open, 1 partial, 29 blocked, 306 done.**
+**374 entries: 37 open, 2 partial, 29 blocked, 306 done.**
 
 | Priority | open | partial | blocked | done | total |
 | --- | --- | --- | --- | --- | --- |
 | P0 | 0 | 0 | 0 | 1 | 1 |
 | P1 | 2 | 0 | 0 | 29 | 31 |
-| P2 | 5 | 1 | 20 | 159 | 185 |
+| P2 | 4 | 2 | 20 | 159 | 185 |
 | P3 | 31 | 0 | 9 | 117 | 157 |
-| **All** | 38 | 1 | 29 | 306 | 374 |
+| **All** | 37 | 2 | 29 | 306 | 374 |
 
 ## Entries
 
@@ -420,7 +420,7 @@ repository and CI).
 | [T-345](ws.md) | P3 | S | backlog | defect | done | Only `doctor` names the clock when a certificate has expired or is not valid yet |
 | [T-346](relay.md) | P2 | M | backlog | feature | open | Relay hosts outside the default domain from a signed `/relays.json`, and a list of deployments |
 | [T-347](roads.md) | P2 | S | backlog | feature | done | `-J cf://HOST`: a Cloudflare tunnel as the first hop of a jump chain |
-| [T-348](roads.md) | P2 | M | backlog | feature | open | The iroh road in the release binaries, and a notice when n0 refuses an old iroh |
+| [T-348](roads.md) | P2 | M | backlog | feature | partial | The iroh road in the release binaries, and a notice when n0 refuses an old iroh |
 | [T-349](roads.md) | P2 | L | backlog | feature | open | A DERP link through Tailscale's tailcat relays, a second carrier of the reverse road |
 | [T-350](roads.md) | P3 | M | backlog | feature | open | A pkarr record that finds a node whose home relay changed |
 | [T-351](roads.md) | P3 | L | backlog | feature | open | Roads through a cloud's own tunnel: GCP IAP TCP forwarding, then EC2 Instance Connect Endpoint |
