@@ -168,6 +168,12 @@ const PROXY: &[&str] = &[
      [ADDRESS]:PORT. Through the relay, see the IPv6 note of ssh.",
     "Put -- before a HOST that a script did not write: podssh proxy -- \"$HOST\" 22. Else a HOST that \
      starts with - is read as a flag.",
+    "podssh proxy iap://PROJECT/ZONE/INSTANCE:PORT and podssh proxy eice://ENDPOINT/ADDRESS:PORT carry the \
+     pipe through a cloud's own tunnel to a VM, as podssh ssh does (see its notes), with no relay and no \
+     relay flag; the port goes in the destination, 22 when none is given, and the destination takes no \
+     user. As the ProxyCommand of OpenSSH: ssh -o \
+     ProxyCommand='podssh proxy iap://my-project/us-central1-a/%h:%p' user@my-vm. On IAP the end of stdin \
+     ends the session once its bytes went, as IAP has no half-close.",
 ];
 
 const PIPE: &[&str] = &[

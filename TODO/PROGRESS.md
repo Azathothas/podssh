@@ -58,7 +58,7 @@ entry keeps its proof in the entry; this page keeps no history (git does).
   merges a draft, builds it, runs its tests and plants, fills each
   UNVERIFIED and closes the entry (T-179 to T-184, T-200, T-202, T-221, T-225, T-232, T-235, T-242, T-279, T-280, T-229, T-281, T-289, T-291, T-293, T-187 to T-191, T-195, T-296, T-297 and T-298 so, T-185, merged in
   `d1c5bd1` and measured on 2026-10-30, and T-186, T-193, T-197, T-192,
-  T-306, T-302 and T-305, merged on 2026-10-30; T-344 and T-349, merged on
+  T-306, T-302 and T-305, merged on 2026-10-30; T-344, T-349 and T-351, merged on
   2026-10-31). The operator pushed each branch to GitHub as
   `draft/worktree-agent-*` on 2026-10-30; each draft of the four is in
   `main` now, so those branches and the worktrees on the operator's machine
@@ -69,8 +69,7 @@ entry keeps its proof in the entry; this page keeps no history (git does).
 
   | Entry | Branch on GitHub | Commit | State |
   | --- | --- | --- | --- |
-    | T-351 | `draft/draft-cloud` | `058d364` | drafted, to merge; never compiled |
-  | T-367 | `draft/draft-pipe` | `6b43718` | drafted, to merge |
+      | T-367 | `draft/draft-pipe` | `6b43718` | drafted, to merge |
   | T-368 | `draft/draft-pipe` | `f3f6a77` | drafted, to merge after T-367 |
 
   CI: the gate passed at
@@ -116,7 +115,7 @@ and `CARGO_BUILD_JOBS=4`:
 
 ## Counts
 
-`TODO/INDEX.md` holds 375 entries: 31 open, 0 partial, 30 blocked, 314 done.
+`TODO/INDEX.md` holds 375 entries: 30 open, 0 partial, 30 blocked, 315 done.
 
 Open includes parked work. `cargo todo check` verifies this line.
 
@@ -145,7 +144,7 @@ opened,
 T-379 (the DERP road in the command line, and the fallback to tailcat's relays, Q50);
 then the P3 entry T-363 (the direct road after the relay hosts fail), then those of the
 same rulings: T-350
-(Q50), T-351 (Q51, against stand-ins), T-352 and T-353 (Q52), and T-374 after T-352; then those of
+(Q50), T-352 and T-353 (Q52), and T-374 after T-352; then those of
 GitHub #59 to #63 and #73 to #76: T-367, T-368 and T-369 in that order, as each writes what
 the next uses (the reader of requests, the dial with no token), and T-370 after T-369 (Q56);
 T-371 before T-372; and T-373.
@@ -166,7 +165,7 @@ T-124, T-150, T-159, T-160, T-161, T-303 and T-304, "Parked open work"),
 which waits as they wait; and the entries that wait for the operator:
 T-328 (an export of FinalShell and of Termius: a known gap, which
 `v1.0.0` does not wait for) and T-376 (the operator's throwaway cloud
-accounts for T-351's live run).
+accounts for the live run of the roads of iap:// and eice://).
 
 ## Parked open work
 

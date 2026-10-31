@@ -176,7 +176,10 @@ These rules apply to each change. The reasons are in
    child ([decisions.md](decisions.md), 2026-10-08; T-248).
 6. **Credentials never go to output.** Tokens and keys never appear in
    stdout, stderr, logs, URLs or argv. They go in headers, in files with
-   tight permissions, or in the environment.
+   tight permissions, or in the environment. One URL is the exception, by
+   the operator's ruling Q51: the presigned URL of an EC2 Instance Connect
+   Endpoint (`eice://`, T-351) carries its signature and credential; podssh
+   signs one for each connection and never shows it.
 7. **stdout is data.** Diagnostics go to stderr, so podssh can be in a pipe
    or be the `ProxyCommand` of OpenSSH.
 8. **Errors tell what to do.** One line says what failed and what to do,

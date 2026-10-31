@@ -14,7 +14,7 @@ use podssh_ssh::{Hop, Options};
 use super::args::SshArgs;
 use super::hop::{host_rule, jump_hop};
 use super::options::Settings;
-use super::resolve::Env;
+use super::resolve::{Env, Transport};
 use super::tokens::{jump_token, lower_host, Tokens, USER_REFUSES};
 use crate::relay_settings::Refusal;
 
@@ -31,9 +31,34 @@ pub(super) fn hops(list: &str, args: &SshArgs, cli: &Settings, env: &Env) -> Res
     Ok((chain.hops, chain.options, chain.tunnel))
 }
 
-/// The hops, their options, and the name of a Cloudflare tunnel that is the
-/// first hop (T-347).
-pub(super) type Hops = (Vec<Hop>, Vec<Options>, Option<String>);
+/// The hops, their options, and the tunnel that reaches the first hop.
+pub(super) type Hops = (Vec<Hop>, Vec<Options>, Option<Tunnel>);
+
+/// The road to a first hop that a tunnel reaches: Cloudflare's, by the
+/// name of its rule (T-347), or a cloud's own to a VM (T-351).
+#[derive(Debug, Clone)]
+pub(super) enum Tunnel {
+    Cloudflare(String),
+    Cloud(super::cloud::Road),
+}
+
+impl Tunnel {
+    /// The tunnel's name in the messages.
+    pub(super) fn label(&self) -> String {
+        match self {
+            Tunnel::Cloudflare(host) => host.clone(),
+            Tunnel::Cloud(road) => road.shown(),
+        }
+    }
+
+    /// The run's road to the first hop, at the hop's `port`.
+    pub(super) fn transport(&self, at: &super::node::Ask<'_>, env: &Env, port: u16) -> Result<Transport, Refusal> {
+        match self {
+            Tunnel::Cloudflare(_) => Ok(super::cloudflare::transport(at, env)?),
+            Tunnel::Cloud(road) => super::cloud::transport(road, at, env, port),
+        }
+    }
+}
 
 /// The settings of the command line that hold for each hop too (T-030):
 /// host keys, authentication, keys and time.
@@ -68,8 +93,9 @@ struct Chain<'a> {
     options: Vec<Options>,
     /// The hops whose own chain is being read: one met again is a loop.
     path: Vec<String>,
-    /// The first hop's tunnel, `cf://HOST` (T-347).
-    tunnel: Option<String>,
+    /// The first hop's tunnel: `cf://HOST` (T-347), `iap://` or `eice://`
+    /// (T-351).
+    tunnel: Option<Tunnel>,
 }
 
 /// A hop's settings: the command line's, then those of its blocks; and the
@@ -86,22 +112,37 @@ impl Chain<'_> {
     fn list(&mut self, list: &str) -> Result<(), Refusal> {
         for (i, text) in list.split(',').map(str::trim).enumerate() {
             let tunnel = super::cloudflare::destination(text)?;
+            let cloud = super::cloud::destination(text)?;
             let first = i == 0 && self.path.is_empty() && self.hops.is_empty();
-            let target = match tunnel {
+            let target = match (tunnel, cloud) {
                 // The road of the run reaches the tunnel; a hop inside an SSH
                 // channel has no road to Cloudflare's edge (T-347).
-                Some(_) if !first => {
+                (Some(_), _) if !first => {
                     return Err(format!(
                         "-J {text}: a Cloudflare tunnel can only be the first hop: a hop inside an SSH channel has \
                          no road to Cloudflare's edge"
                     )
                     .into())
                 }
-                Some((user, host)) => {
-                    self.tunnel = Some(host.clone());
+                // Nor to a cloud's tunnel, which opens from this host (T-351).
+                (_, Some(_)) if !first => {
+                    return Err(format!(
+                        "-J {text}: a cloud's tunnel can only be the first hop: its tunnel opens from this host"
+                    )
+                    .into())
+                }
+                (Some((user, host)), _) => {
+                    self.tunnel = Some(Tunnel::Cloudflare(host.clone()));
                     Hop { user, host, port: 22 }
                 }
-                None => jump_hop(text)?,
+                // The VM's name matches the blocks of ssh_config, and its
+                // port is the hop's, as the destination's is.
+                (None, Some((user, road))) => {
+                    let hop = Hop { user, host: road.host(), port: road.port() };
+                    self.tunnel = Some(Tunnel::Cloud(road));
+                    hop
+                }
+                (None, None) => jump_hop(text)?,
             };
             let filed = self.filed(&target)?;
             let own = filed.settings.proxy_jump.clone().filter(|j| i == 0 && j != "none" && self.tunnel.is_none());
@@ -116,7 +157,13 @@ impl Chain<'_> {
             if self.hops.len() >= MOST_HOPS {
                 return Err(format!("-J {text}: a chain of more than {MOST_HOPS} jump hosts").into());
             }
-            let (hop, options) = self.hop(&target, filed)?;
+            let (mut hop, mut options) = self.hop(&target, filed)?;
+            // A VM of a cloud's tunnel is named, and its key kept, as the
+            // tunnel names it.
+            if let (true, Some(Tunnel::Cloud(road))) = (first, &self.tunnel) {
+                hop.host = road.shown();
+                options.destination.host = road.shown();
+            }
             self.hops.push(hop);
             self.options.push(options);
         }

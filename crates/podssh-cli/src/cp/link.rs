@@ -33,19 +33,28 @@ pub struct Link {
     layer: Option<crate::ssh::transport::Carriage>,
 }
 
-/// What one relay session may still carry before a copy opens a new one
-/// (T-137): its payload bytes and its age, against podssh's budgets. A
-/// direct connection has no cap.
+/// What one session may still carry before a copy opens a new one: through
+/// the relay, its payload bytes and its age, against podssh's budgets
+/// (T-137); on a road that ends each session after a time, its age (EICE's
+/// tunnel, T-351). A direct connection has no cap.
 #[derive(Debug, Clone)]
 pub struct Meter {
     relay: Option<RelayStatus>,
     budget: u64,
+    /// When the road ends the session, less a margin.
+    until: Option<std::time::Instant>,
 }
 
 impl Meter {
     /// The meter of a session: `relay` when the relay carries it.
     pub fn new(relay: Option<RelayStatus>) -> Meter {
-        Meter { relay, budget: byte_budget(std::env::var(SESSION_BUDGET_ENV).ok().as_deref()) }
+        Meter::lasting(relay, None)
+    }
+
+    /// The same, for a session that its road ends after `age`.
+    pub fn lasting(relay: Option<RelayStatus>, age: Option<std::time::Duration>) -> Meter {
+        let budget = byte_budget(std::env::var(SESSION_BUDGET_ENV).ok().as_deref());
+        Meter { relay, budget, until: age.map(|age| std::time::Instant::now() + age) }
     }
 
     /// Whether the relay carries the session: its tasks then share its room.
@@ -55,6 +64,9 @@ impl Meter {
 
     /// The bytes that the session may still carry; no end without a relay.
     pub fn left(&self) -> u64 {
+        if self.until.is_some_and(|until| std::time::Instant::now() >= until) {
+            return 0;
+        }
         match &self.relay {
             None => u64::MAX,
             Some(status) if status.age() >= time_budget(&podssh_relay::pool::in_use()) => 0,
@@ -65,9 +77,11 @@ impl Meter {
     /// Whether a request that moves `n` more bytes must wait for a new
     /// session: the failure that says so, else `None`.
     pub fn spent(&self, n: u64) -> Option<Failed> {
+        let message =
+            if self.relay.is_some() { "the relay session is near its limits" } else { "the tunnel is near its end" };
         (self.left() < n.saturating_add(OVERHEAD)).then(|| Failed {
             fault: Fault::SessionFault,
-            message: "the relay session is near its limits".into(),
+            message: message.into(),
             cause: Cause::Spent,
         })
     }
@@ -113,7 +127,7 @@ pub async fn open_sftp(resolved: &Resolved, log: &Arc<Log>, name: &str) -> Resul
     let handle = handles.last().expect("the destination's connection");
     let host = &resolved.options.destination.host;
     match Sftp::open_named(handle, name, Limits::default()).await {
-        Ok(sftp) => Ok(Link { handles, road: Road::Sftp(sftp), meter: Meter::new(relay), layer }),
+        Ok(sftp) => Ok(Link { handles, road: Road::Sftp(sftp), meter: meter(resolved, relay), layer }),
         Err(e) => {
             podssh_ssh::run::disconnect_all(&handles).await;
             let why = match e {
@@ -183,7 +197,13 @@ pub async fn open(resolved: &Resolved, log: &Arc<Log>, exec: bool) -> Result<Opt
             return Err(Failed::new(Fault::RelayUnreachable, format!("{host}: {e}")));
         }
     };
-    Ok(Some(Link { handles, road, meter: Meter::new(relay), layer }))
+    Ok(Some(Link { handles, road, meter: meter(resolved, relay), layer }))
+}
+
+/// The meter of a session of `resolved`'s road: a tunnel of EICE ends at
+/// its duration (T-351).
+fn meter(resolved: &Resolved, relay: Option<RelayStatus>) -> Meter {
+    Meter::lasting(relay, crate::ssh::cloud::age_limit(&resolved.transport))
 }
 
 /// The fault of a sysexits code that `transport::reach` gave.
@@ -206,13 +226,25 @@ mod tests {
 
     #[test]
     fn a_session_is_spent_before_its_budget_and_a_direct_one_never() {
-        let direct = Meter { relay: None, budget: 1 << 20 };
+        let direct = Meter { relay: None, budget: 1 << 20, until: None };
         assert_eq!(direct.left(), u64::MAX);
         assert!(direct.spent(u64::MAX / 2).is_none());
-        let relayed = Meter { relay: Some(RelayStatus::default()), budget: 1 << 20 };
+        let relayed = Meter { relay: Some(RelayStatus::default()), budget: 1 << 20, until: None };
         assert_eq!(relayed.left(), 1 << 20, "a new session has the whole budget");
         assert!(relayed.spent(1000).is_none());
         let spent = relayed.spent(1 << 20).expect("a request that would pass the budget, with its framing");
         assert_eq!((spent.cause, spent.fault), (Cause::Spent, Fault::SessionFault));
+    }
+
+    /// A tunnel that its road ends after a time is spent at that time, and
+    /// not before (T-351).
+    #[test]
+    fn a_tunnel_is_spent_at_its_age() {
+        let young = Meter::lasting(None, Some(std::time::Duration::from_secs(3300)));
+        assert!(young.spent(1 << 30).is_none());
+        let old = Meter { relay: None, budget: 1 << 20, until: Some(std::time::Instant::now()) };
+        assert_eq!(old.left(), 0);
+        let spent = old.spent(1).expect("spent at its age");
+        assert_eq!((spent.cause, spent.message.as_str()), (Cause::Spent, "the tunnel is near its end"));
     }
 }

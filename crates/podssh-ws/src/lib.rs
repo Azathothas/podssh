@@ -18,10 +18,14 @@ mod close;
 pub mod cloudflare;
 pub mod crypto;
 pub mod dial;
+// The road of AWS's EC2 Instance Connect Endpoint (T-351).
+pub mod eice;
 pub mod error;
 pub mod frame;
 pub mod handshake;
 pub mod http;
+// The road of GCP's Identity-Aware Proxy for TCP (T-351).
+pub mod iap;
 pub mod mptcp;
 pub mod names;
 #[cfg(feature = "plain-ws")]

@@ -1,7 +1,7 @@
 This file holds the work on `podssh-ws`, the crate that reaches the relay: TCP and proxies, TLS
 with podssh's own pure-Rust provider, and the WebSocket client. W10, W13 and W14 are rows of the
 former defects page (`git show 3ee70dc:docs/defects.md`); the features come from the
-`podssh-ws` item of ROADMAP M4 and `docs/design.md:484-488`, and from GitHub issues. The crate
+`podssh-ws` item of ROADMAP M4 and `docs/design.md:507-511`, and from GitHub issues. The crate
 must build with no C compiler (`scripts/gate.sh:154-167`).
 
 # T-063: W10: the frame decoder does not check a received control frame
@@ -287,7 +287,7 @@ The scan passes on the tree, and the example still builds. Planted defect: add a
 
 # T-066: A `rustls::ClientConfig` that the caller supplies, for podbox
 
-**Source:** the `podssh-ws` item of ROADMAP M4; `docs/design.md:446-447` and 102-104. Read here
+**Source:** the `podssh-ws` item of ROADMAP M4; `docs/design.md:469-470` and 102-104. Read here
 on `3ee70dc`.
 **Category:** feature
 **Milestone:** M4
@@ -328,7 +328,7 @@ HTTP/1.1 only (`docs/relay.md:279`). The `tls12` feature of `rustls` is on in th
 5. `podssh-ws` must not depend on `ring`, also not in its tests: the gate builds the tests with
    no C compiler. The tests make the caller's configuration with podssh's own provider.
 6. The default stays `Trust`, so the binary does not change.
-7. Change `docs/design.md:484-488` and `docs/architecture.md` in the same commit.
+7. Change `docs/design.md:507-511` and `docs/architecture.md` in the same commit.
 
 ## Decision
 
@@ -388,7 +388,7 @@ unknown, and the test fails.
 # T-067: TLS 1.2, for intercepting proxies
 
 **Source:** `docs/STATUS.md` (Components, `podssh-ws`: "No TLS 1.2 (some intercepting proxies
-need it)"); `docs/design.md:446-447`. podssh has not measured such a proxy.
+need it)"); `docs/design.md:469-470`. podssh has not measured such a proxy.
 **Category:** feature
 **Milestone:** backlog
 **Priority:** P2
@@ -491,7 +491,7 @@ that speaks only TLS 1.2 carrying an OpenSSH session.
 
 # T-068: Plain `ws://` to loopback, for tests only
 
-**Source:** the `podssh-ws` item of ROADMAP M4; `docs/design.md:485-486`.
+**Source:** the `podssh-ws` item of ROADMAP M4; `docs/design.md:508-509`.
 **Category:** feature
 **Milestone:** M4
 **Priority:** P3
@@ -525,7 +525,7 @@ is possible. `podssh-relay` gives the TLS type back (`Opened`,
 4. The runners of `podssh-relay` (T-079, T-081) must take any stream type, so that podbox's
    tests can use them.
 5. The binary never enables the feature; a check in the gate proves it.
-6. Change `docs/design.md:485-486` in the same commit.
+6. Change `docs/design.md:508-509` in the same commit.
 
 ## Decision
 
@@ -581,7 +581,7 @@ the feature. Planted defect: remove the loopback check; the refusal test fails.
 
 # T-069: Typed session errors in `podssh-ws`
 
-**Source:** the `podssh-ws` item of ROADMAP M4; `docs/design.md:486-487`.
+**Source:** the `podssh-ws` item of ROADMAP M4; `docs/design.md:509-510`.
 **Category:** feature
 **Milestone:** M4
 **Priority:** P2
@@ -705,7 +705,7 @@ socks5:// is not supported; podssh speaks HTTP CONNECT to an http:// proxy"
 `HTTPS_PROXY`, `all_proxy` and `ALL_PROXY` (lines 163 and 184), and parses the first that is set
 (line 192). `dial` makes the error `DialError::BadProxy` (line 232), which stops the failover at
 once (`crates/podssh-relay/src/open.rs:70`) and gives exit 78 in `podssh proxy`
-(`crates/podssh-cli/src/proxy.rs:278`). `doctor` reports it as `FAIL`
+(`crates/podssh-cli/src/proxy.rs:282`). `doctor` reports it as `FAIL`
 (`crates/podssh-cli/src/doctor/net.rs`, lines 101-107). Two tests assert the refusal:
 `crates/podssh-cli/tests/doctor.rs`, lines 144-153, and `crates/podssh-ws/tests/dial.rs`, lines
 50-58.
@@ -724,7 +724,7 @@ once (`crates/podssh-relay/src/open.rs:70`) and gives exit 78 in `podssh proxy`
    order (pinned, system, DNS over HTTPS), and try once with the address.
 4. Map each answer to the HTTP case that `another_host_may_help`
    (`crates/podssh-relay/src/open.rs:62-84`) and the exit codes of `podssh proxy`
-   (`crates/podssh-cli/src/proxy.rs:274-287`) already treat: a refused user or password as 407
+   (`crates/podssh-cli/src/proxy.rs:278-291`) already treat: a refused user or password as 407
    (the same for each host: stop); 0x02 (not allowed) as 403; 0x03, 0x04 and 0x05 as 502.
 5. Credentials never in output: `Display` shows the host and port only (now
    `crates/podssh-ws/src/proxy.rs:70-75`).
@@ -1618,7 +1618,7 @@ command says what to do. Four of the eight release binaries are for Windows and 
 - Read: `windows-sys` 0.61 is already a dependency of `podssh-relay` on Windows
   (`crates/podssh-relay/Cargo.toml:76-77`), a crate with no C; `rustls-native-certs` 0.8.4,
   `schannel` and `security-framework` are in the lock through other crates
-  (`Cargo.lock:4827-4828`).
+  (`Cargo.lock:4828-4829`).
 - Read: one proxy that re-terminates TLS was measured, with its CA in `SSL_CERT_FILE` and in the
   system's store of Linux (`docs/target-environment.md:57-63`).
 - Inferred: on macOS, `/etc/ssl/cert.pem` lacks a root that an administrator added to a keychain;
@@ -1952,7 +1952,7 @@ test of the order fails.
 A host whose clock is wrong sees each certificate as expired, or as not valid yet. `doctor` says
 that certificates are checked against this host's clock, and gives its reading; `ssh`, `proxy`
 and each other command print rustls's words alone. An error should tell what to do
-(`docs/architecture.md:182`).
+(`docs/architecture.md:185`).
 
 ## Premise
 
@@ -1961,7 +1961,7 @@ and each other command print rustls's words alone. An error should tell what to 
 - Read: the other commands print the error's text: `crates/podssh-ws/src/client.rs:133` says "TLS
   with the relay failed: {why}"; the TLS of IRC and of the quick tunnel's edge gives the text of
   `crates/podssh-ws/src/tls.rs:151` (`crates/podssh-relay/src/quick/edge.rs:111-113`).
-- Read: rustls 0.23.46 (`Cargo.lock:4777-4778`) has the errors `Expired`, `ExpiredContext`,
+- Read: rustls 0.23.46 (`Cargo.lock:4778-4779`) has the errors `Expired`, `ExpiredContext`,
   `NotValidYet` and `NotValidYetContext`, and writes the two with a context as "certificate
   expired: verification time" and "certificate not valid yet: verification time" (its
   `src/error.rs`, read in cargo's registry); doctor's match of the text ("expired", "not valid

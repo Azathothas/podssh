@@ -1,7 +1,7 @@
 This file holds the work on configuration files: OpenSSH's `ssh_config` (`-F`, `Host`,
 `Include`, `Match` and `-G`), host lists from other clients, and a settings file for podssh's
 own options. The rules of OpenSSH that podssh follows were measured with `ssh -G` and are in
-`docs/cli.md:2653-2749`. Since T-043, `podssh ssh` reads `~/.ssh/config` and the file of `-F`.
+`docs/cli.md:2713-2809`. Since T-043, `podssh ssh` reads `~/.ssh/config` and the file of `-F`.
 
 # T-043: Read `ssh_config`: `~/.ssh/config`, `-F FILE`, `Host` patterns, and `Match` refused by name (GitHub #14, #22)
 
@@ -206,7 +206,7 @@ No glob code exists in podssh. `known_hosts::wildcard`
    stands, and `Match final all` applies after the last line and fills only unset values, as
    measured. Each other `Match` stays refused by name until T-045.
 6. Check each included file as T-043 checks the user file: its owner and its mode.
-7. Change `docs/cli.md:2653-2758`, FILES (`crates/podssh-cli/src/man/data.rs:146-293`) and the
+7. Change `docs/cli.md:2713-2818`, FILES (`crates/podssh-cli/src/man/data.rs:146-293`) and the
    `ssh` notes in the same commit.
 
 ## Prove
@@ -300,7 +300,7 @@ Read: `docs/cli.md`, lines 1197-1200 at `ec7f018`: `Match` never overrides a val
 it by name, not skip it. `-P TAG` is accepted and ignored today
 (`crates/podssh-cli/src/flags.rs`, lines 220-221 at `ec7f018`), so `Match tagged` would give the tag its meaning.
 The login name comes from the environment, never from the user database
-(`crates/podssh-cli/src/ssh/resolve.rs:112-141`); `Match localuser` needs it. podssh does no
+(`crates/podssh-cli/src/ssh/resolve.rs:114-143`); `Match localuser` needs it. podssh does no
 canonical pass: `CanonicalizeHostname` is accepted and ignored
 (`crates/podssh-cli/src/ssh/keywords.rs:87-101`). Measured with OpenSSH_10.3p1 (T-044):
 `Match all` applies where it stands, and `Match final all` fills only unset values.
@@ -386,8 +386,8 @@ case fails.
 `crates/podssh-cli/src/ssh/config.rs:93-105`, the lines at
 `crates/podssh-cli/src/ssh/config.rs:210-228` and what a `Match` line sees
 at `crates/podssh-cli/src/ssh/config.rs:233-269`; the command line's part
-at `crates/podssh-cli/src/ssh/resolve.rs:196-207` and, for a hop of `-J`,
-`crates/podssh-cli/src/ssh/jump.rs:132-138`. `Tag` at
+at `crates/podssh-cli/src/ssh/resolve.rs:202-213` and, for a hop of `-J`,
+`crates/podssh-cli/src/ssh/jump.rs:179-185`. `Tag` at
 `crates/podssh-cli/src/ssh/options.rs:204` and the `tag` line of `-G` at
 `crates/podssh-cli/src/ssh/dump.rs:102-104`; a key file once at
 `crates/podssh-cli/src/ssh/options.rs:105` and
@@ -447,14 +447,14 @@ refused. ... podssh reads no ssh_config, so it has no configuration to print."
 lines of `keyword value`, the keyword in lower case: `port 2222`, `user alice`,
 `pubkeyauthentication true`, `batchmode no`, `connecttimeout none`, `serveraliveinterval 30`,
 `identityfile ~/.ssh/id_rsa` (with `~`), and others. Read: `resolve::resolve`
-(`crates/podssh-cli/src/ssh/resolve.rs:146-464`) decides each setting before any connection; its
+(`crates/podssh-cli/src/ssh/resolve.rs:148-472`) decides each setting before any connection; its
 result, `Resolved` (lines 27-41 at `22c3b88`), holds the settings in effect, the defaults included.
 
 ## Approach
 
 1. Make the `-G` row Supported, with no `instead`; `crates/podssh-cli/tests/flag_table.rs:60-80`
    requires that pair. The reviewed set of short flags does not change.
-2. In `run_ssh` (`crates/podssh-cli/src/ssh/mod.rs:59-189`), after `resolve` (lines 36-42 at `e8bbd4d`): with
+2. In `run_ssh` (`crates/podssh-cli/src/ssh/mod.rs:61-191`), after `resolve` (lines 36-42 at `e8bbd4d`): with
    `-G`, print the settings and exit 0. Open nothing: no relay, no token, no pool refresh.
 3. Print from `Resolved` and its `Options`, not from `Settings`, so the defaults are shown.
 4. Print only keywords of OpenSSH that podssh applies
@@ -464,7 +464,7 @@ result, `Resolved` (lines 27-41 at `22c3b88`), holds the settings in effect, the
    `serveraliveinterval 60` (the relay's idle cut, `docs/relay.md:190`) and `connecttimeout 60`.
 6. It does not wait for T-043: with no file, `-G` shows the effect of `-o`. After T-043 and
    T-044, `-v` names the files that were read, on stderr.
-7. Change the `ssh` notes (`crates/podssh-cli/src/man/notes_ssh.rs:4-292`) and `docs/cli.md:48-418`
+7. Change the `ssh` notes (`crates/podssh-cli/src/man/notes_ssh.rs:4-318`) and `docs/cli.md:48-478`
    in the same commit.
 
 ## Decision
@@ -542,7 +542,7 @@ work.
 ## Premise
 
 Read: podssh has no import and no `config` command (`crates/podssh-cli/src/flags.rs:353-412`).
-`serde_json` is a dependency of the binary (`crates/podssh-cli/Cargo.toml:58`), so a JSON
+`serde_json` is a dependency of the binary (`crates/podssh-cli/Cargo.toml:63`), so a JSON
 export needs no new crate. XML and YAML need a parser that the binary does not have. The export
 formats of the other clients were not read here. Each step below starts from a real export of
 that client: bytes captured from the real program (`AGENTS.md`, section 6, rule 2).
@@ -550,7 +550,7 @@ that client: bytes captured from the real program (`AGENTS.md`, section 6, rule 
 ## Approach
 
 1. Add `podssh config import FORMAT FILE` (Decision). It writes `Host` blocks to stdout and a
-   summary to stderr (`docs/architecture.md:180-181`). It never writes `~/.ssh/config`; the user
+   summary to stderr (`docs/architecture.md:183-184`). It never writes `~/.ssh/config`; the user
    adds the output.
 2. First the formats that need no new crate: the Ansible INI inventory (`ansible_host`,
    `ansible_user`, `ansible_port`), Remmina `.remmina` files and MobaXterm sessions (INI), PuTTY
@@ -674,7 +674,7 @@ Read: each command resolves the same settings in its own copy. Relay hosts (`--r
 then `PODSSH_RELAY`, then the default and the pool: `crates/podssh-relay/src/relay.rs:107-125`)
 go through one function since T-231 (`crates/podssh-cli/src/relay_settings.rs:65-87`), called in
 `crates/podssh-cli/src/ssh/resolve.rs`, line 314 at `99743e6`, `crates/podssh-cli/src/doctor/mod.rs:68-71` and
-`crates/podssh-cli/src/proxy.rs:100-103`. Trust (`--ca-file`, then `SSL_CERT_FILE`) in
+`crates/podssh-cli/src/proxy.rs:104-107`. Trust (`--ca-file`, then `SSL_CERT_FILE`) in
 `crates/podssh-cli/src/ssh/resolve.rs`, lines 328-331 at `99743e6`, `crates/podssh-cli/src/doctor/mod.rs:79-86` and
 `crates/podssh-cli/src/proxy.rs`, lines 100-104 at `99743e6`. The pins of the flag and of the variable add up
 (`crates/podssh-cli/src/pins.rs:15-34`). The token cache uses the user's
@@ -762,7 +762,7 @@ failover below the flag and the variable at
 `crates/podssh-cli/src/relay_settings.rs:97-107`, the pins and the refusal
 of a bad file at `crates/podssh-cli/src/pins.rs:13-34`, the CA file at
 `crates/podssh-cli/src/settings.rs:264-274` and, for `podssh ssh`,
-`crates/podssh-cli/src/ssh/resolve.rs:128-132`; `status` at
+`crates/podssh-cli/src/ssh/resolve.rs:130-134`; `status` at
 `crates/podssh-cli/src/status.rs:62` and
 `crates/podssh-cli/src/status.rs:75`, `doctor` at
 `crates/podssh-cli/src/doctor/mod.rs:84` and
@@ -929,7 +929,7 @@ the check fail.
 
 ## Done
 
-2026-10-11. Each hop reads its own blocks in `crates/podssh-cli/src/ssh/jump.rs:1-222`, and its
+2026-10-11. Each hop reads its own blocks in `crates/podssh-cli/src/ssh/jump.rs:1-269`, and its
 login, made as the destination's, in `crates/podssh-cli/src/ssh/login.rs:1-93`. The options of
 each hop are `Options::jump_options` (`crates/podssh-ssh/src/options.rs:217-221`), which
 `connect_hops` gives each hop with the run's memory of its logins
@@ -946,7 +946,7 @@ try after the first reaches each hop (`crates/podssh-ssh/src/options.rs:333-341`
 - `scripts/interop.sh:325-335`: `ssh.config.jump_alias`, `-F FILE -J openssh-alias dropbear-alias`
   with podssh and with OpenSSH's `ssh`, each to exit 6 (the floor of ssh is 72). The gate runs it
   at this push.
-- `docs/cli.md:87-93` and `docs/cli.md:2682-2694`, and the manual's file `~/.ssh/config`, say what
+- `docs/cli.md:87-93` and `docs/cli.md:2742-2754`, and the manual's file `~/.ssh/config`, say what
   a hop takes.
 - `cargo test -p podssh-ssh`: 142 passed; `cargo test -p podssh-cli`: 565 passed, 0 failed,
   31 ignored; clippy; rustfmt.

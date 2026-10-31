@@ -155,6 +155,66 @@ scripts. The facts about OpenSSH on this page were measured with OpenSSH
   link, and the run waits up to 5 s after SSH for the layer's `CLOSE`.
   `podssh proxy cf://HOST` carries the bytes as they are, so OpenSSH's
   `ProxyCommand` reaches cloudflared's services only.
+- **`iap://[user@]PROJECT/ZONE/INSTANCE[:PORT]` is a port of a VM of GCP,
+  through its Identity-Aware Proxy for TCP (T-351).** podssh opens the
+  WebSocket that `gcloud compute start-iap-tunnel` opens, to
+  `wss://tunnel.cloudproxy.app/v4/connect` through `HTTPS_PROXY` when one is
+  set, with the upgrade that gcloud 570.0.0's own client sent to a stand-in
+  on the loopback: the target in the query, `Origin: bot:iap-tunneler`, the
+  subprotocol `relay.tunnel.cloudproxy.app`, and the token in
+  `Authorization`, never in the URL. The token comes from the file of
+  `PODSSH_IAP_TOKEN_FILE`, else of `GOOGLE_APPLICATION_CREDENTIALS`, refused
+  when another user may read it, as a pair file is: a token of `gcloud auth
+  print-access-token`, read again for each link; the JSON key of a service
+  account, whose token podssh asks `oauth2.googleapis.com` for, through the
+  same proxy, with a JWT that it signs RS256 through aws-lc-rs; or the
+  credentials of `gcloud auth application-default login`. IAP's messages
+  carry the stream: data of 16 KiB at most, acknowledged as gcloud and IAP
+  Desktop acknowledge it. A lost link is taken up on a new one at the bytes
+  that each side had (`/v4/reconnect` with the session's id), with a new
+  token, three times at most, and what IAP had not taken goes again; a line
+  tells of each. podssh waits 20 s for IAP's connect success, and a failure
+  names its step: the token (78), the upgrade (401 or 403: 77, naming the
+  role `roles/iap.tunnelResourceAccessor`), the account (close 4033: 77),
+  the VM's port (close 4003: 69, naming the firewall's range
+  35.235.240.0/20), or the VM (close 4047: 69). The host key is recorded
+  under `iap://PROJECT/ZONE/INSTANCE`; the blocks of `ssh_config` are those
+  of INSTANCE. `-p` and `Port` give the port; `--direct`, `-4`, `-6`,
+  `HostName` and a `-J` hop before it are refused (64). `-J iap://...` makes
+  the VM the first hop of a chain, as `-J cf://HOST` does. `podssh proxy
+  iap://PROJECT/ZONE/INSTANCE:PORT` is the same pipe, with no PORT word, no
+  user and no relay flag; the end of its input ends the session once its
+  bytes went, as gcloud ends it, as IAP has no half-close. IAP "isn't
+  intended for bulk transfer of data", and ends a session after an hour
+  with no traffic (Google's documents).
+- **`eice://[user@]ENDPOINT/ADDRESS[:PORT]` is a port of an EC2 instance,
+  through an EC2 Instance Connect Endpoint (T-351).** ENDPOINT is the
+  endpoint's DNS name, as `aws ec2 describe-instance-connect-endpoints`
+  gives it, and ADDRESS the instance's private address, an IPv6 one in
+  brackets: podssh makes no call to EC2's API. It opens the WebSocket that
+  `aws ec2-instance-connect open-tunnel` opens, to `wss://ENDPOINT/openTunnel`
+  through `HTTPS_PROXY` when one is set, its URL presigned with SigV4 for
+  60 s as aws-cli's own signer presigns it, once TLS is up, for that one
+  connection. The URL carries the credential (the key's id, the signature,
+  and a temporary key's token): the one exception to "credentials never in
+  URLs", by the operator's ruling Q51. podssh keeps it in memory that is
+  wiped, never prints or logs it, and takes each part of it, and of the
+  credential, out of an answer that quotes it. The credential comes from
+  the file of `PODSSH_EICE_CREDENTIALS_FILE`, else of
+  `AWS_SHARED_CREDENTIALS_FILE`, else `~/.aws/credentials`, each refused when
+  another user may read it: the JSON that `aws configure export-credentials`
+  writes in its process format, or a shared credentials file, its profile
+  that of `AWS_PROFILE`, else `default`. The stream goes in binary messages
+  as they are. A tunnel lasts an hour at most, or
+  `PODSSH_EICE_MAX_TUNNEL_DURATION` (1 to 3600 s, sent as
+  `maxTunnelDuration`, which an IAM policy may require), and an endpoint
+  takes 20 at once; `podssh cp` goes on in a new tunnel a twelfth of the
+  duration before its end, 30 s at least, as it does before the relay's
+  limits. A refusal (401 or 403) exits 77, naming
+  `ec2-instance-connect:OpenTunnel` and this host's clock, as a presigned URL
+  is checked against AWS's. The host key is recorded under
+  `eice://ID/ADDRESS`, ID the endpoint's; the flags, `-J` and `podssh proxy`
+  go as with `iap://`.
 - **`PODSSH_MPTCP=yes` asks for Multipath TCP on the direct road** (T-172),
   on Linux, and only on request. With `--direct` and no proxy, each attempt
   asks the kernel for a socket of `IPPROTO_MPTCP`: where the server speaks

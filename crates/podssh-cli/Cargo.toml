@@ -53,6 +53,11 @@ podssh-relay = { path = "../podssh-relay", features = ["pair", "quick"] }
 # The native SSH client. It needs a C compiler (russh with aws-lc-rs); the
 # operator accepted that for the binary on 2026-10-08.
 podssh-ssh = { path = "../podssh-ssh" }
+# The JWT of a service account's key for IAP (T-351), signed RS256 in
+# aws-lc-rs, whose RSA is constant-time, never with the `rsa` crate
+# (RUSTSEC-2023-0071): the version and features that podssh-ssh builds, so
+# nothing new is compiled.
+aws-lc-rs = "1.16.2"
 # `signal`: `podssh node` stops on Ctrl-C and SIGTERM.
 tokio = { workspace = true, features = ["signal", "process", "fs"] }
 serde_json = { workspace = true }

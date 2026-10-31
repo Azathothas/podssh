@@ -497,7 +497,7 @@ lines 53-76 at `4b6e917`, and the test at line 300 at `4b6e917`).
 4. Update crates/podssh-transport/tests/closes.rs at `e8bbd4d` (lines 129-149) and the texts of
    crates/podssh-transport/src/error.rs at `e8bbd4d` (lines 170-184). Close this entry in place.
 5. Pitfall: the body comes from the network. Keep it out of format strings and remove control
-   characters before it reaches a terminal (`SECURITY.md:94-97`).
+   characters before it reaches a terminal (`SECURITY.md:114-117`).
 
 ## Decision
 
@@ -592,7 +592,7 @@ Read: the commands already check the forward path. `podssh_relay::relay::forward
 (`crates/podssh-relay/src/relay.rs` lines 158-174 at `3b60753`), with a test of bad hosts (lines 218-226 at `3b60753`).
 Nothing checks a node name.
 
-Read in a local copy of podbox at `5bd8cb0` (`docs/design.md:433` names `452d792`): `validate_name`
+Read in a local copy of podbox at `5bd8cb0` (`docs/design.md:456` names `452d792`): `validate_name`
 accepts 1 to 128 characters of `[A-Za-z0-9._-]` and refuses anything else, with no encoding
 (`Azathothas/podbox:crates/podbox-ssh/src/mux.rs`). The contract does not give the form of a pair
 name (`crates/podssh-probe/tests/spec/relay-spec-2026-10-03-r2.txt:130-134`). To measure: the name
@@ -703,7 +703,7 @@ crates/podssh-transport/tests/closes.rs lines 354-391 at `e8bbd4d`.
 Read: a node connects again "with a jittered backoff" (`docs/reverse.md:34-42`,
 `docs/ROADMAP.md:150-158`). `podssh_relay::open::backoff` doubles from 1 s to 30 s and multiplies
 by a random factor from 0.5 to 1.5 (`crates/podssh-relay/src/open.rs:379-393`); `podssh ssh` uses
-it (`crates/podssh-cli/src/ssh/transport.rs:232-238`).
+it (`crates/podssh-cli/src/ssh/transport.rs:233-239`).
 
 ## Approach
 

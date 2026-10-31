@@ -10,6 +10,8 @@
 mod agents;
 pub mod args;
 mod attach;
+// iap:// and eice://, a cloud's own tunnel to a VM (T-351).
+pub mod cloud;
 pub mod cloudflare;
 pub mod config;
 pub mod control;
@@ -196,6 +198,7 @@ fn road(transport: &Transport) -> &'static str {
         Transport::Node { .. } => "node",
         Transport::Iroh { .. } => "iroh",
         Transport::Cloudflare { .. } => "cloudflare",
+        Transport::Cloud { road, .. } => road.word(),
     }
 }
 

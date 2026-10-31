@@ -65,6 +65,32 @@ pub const SSH: &[&str] = &[
      under cf://HOST at its first sight; --node-key with a far end that greets with no layer is \
      refused. SSH's keepalives are off there unless ServerAliveInterval is given. podssh proxy \
      cf://HOST carries the bytes as they are, for cloudflared's services.",
+    "iap://[user@]PROJECT/ZONE/INSTANCE[:PORT] reaches a port of a VM of GCP, 22 by default, through \
+     Google's Identity-Aware Proxy for TCP, as gcloud compute start-iap-tunnel reaches it: a WebSocket to \
+     tunnel.cloudproxy.app through HTTPS_PROXY when one is set, with no relay and no program of Google's. \
+     It needs an account with the role IAP-secured Tunnel User (roles/iap.tunnelResourceAccessor), a \
+     firewall rule that lets TCP in from 35.235.240.0/20, and a token in the file of PODSSH_IAP_TOKEN_FILE \
+     or GOOGLE_APPLICATION_CREDENTIALS (see ENVIRONMENT), which goes in a header, never in a URL. podssh \
+     waits 20 s for IAP to open the session, and a refusal names its step: the token, the upgrade, or the \
+     VM, its port or its name. A lost link is taken up on a new one at the bytes that each side had, as \
+     gcloud takes it up, with a new token when the old one expired; a line tells of each. IAP is not made \
+     for bulk transfer, and ends a session after an hour with no traffic. The host key is recorded under \
+     iap://PROJECT/ZONE/INSTANCE, and the blocks of ssh_config are those of INSTANCE. -p and Port give the \
+     port; --direct, -4, -6 and HostName cannot go with it. -J with it first makes the VM the first hop of \
+     a chain, as with a Cloudflare tunnel.",
+    "eice://[user@]ENDPOINT/ADDRESS[:PORT] reaches a port of an EC2 instance by its private address (an \
+     IPv6 one in brackets), 22 by default, through an EC2 Instance Connect Endpoint by its DNS name, which \
+     aws ec2 describe-instance-connect-endpoints gives, as aws ec2-instance-connect open-tunnel reaches it: \
+     a WebSocket to the endpoint through HTTPS_PROXY when one is set, with no relay and no call to the API \
+     of EC2. It needs the permission ec2-instance-connect:OpenTunnel and a credential of AWS in the file of \
+     PODSSH_EICE_CREDENTIALS_FILE or AWS_SHARED_CREDENTIALS_FILE, else ~/.aws/credentials (see \
+     ENVIRONMENT). Each connection signs a new URL, good for 60 s, which carries the credential: the one \
+     URL of podssh that does, by the operator's ruling, and podssh never prints it. A tunnel lasts an hour \
+     at most, or PODSSH_EICE_MAX_TUNNEL_DURATION, and an endpoint takes 20 at once; podssh cp goes on in a \
+     new tunnel before the end. A refusal gives this host's clock, as a signed URL is checked against \
+     AWS's. The host key is recorded under eice://ID/ADDRESS, ID the endpoint's. -p and Port give the \
+     port; --direct, -4, -6 and HostName cannot go with it, and -J with it first makes the instance the \
+     first hop of a chain.",
     "node://NAME with --iroh-ticket TICKET races the two roads to the node: the iroh road starts first, \
      the pair's road 250 ms later, or at once when the iroh road fails, and the first far end that \
      speaks carries the session; the other link ends before it sends anything, so it opens nothing at \

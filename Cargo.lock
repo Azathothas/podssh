@@ -3862,6 +3862,7 @@ dependencies = [
 name = "podssh-cli"
 version = "1.0.0-beta.2"
 dependencies = [
+ "aws-lc-rs",
  "base64 0.23.1",
  "clap",
  "futures-util",

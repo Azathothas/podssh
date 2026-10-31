@@ -54,7 +54,7 @@ Read:
 4. Give the note about skipped encrypted keys
    (`crates/podssh-ssh/src/keys.rs:152-158`) the same condition as step 1.
 5. Keep `PublicKeys::new` for each login (`crates/podssh-ssh/src/auth.rs:106`),
-   so that only the notes change. No document changes: `docs/cli.md:2585-2640`
+   so that only the notes change. No document changes: `docs/cli.md:2645-2700`
    already says that a refusal names the remedy.
 
 ## Prove
@@ -181,7 +181,7 @@ Read:
    `scripts/interop-faults.sh:261` looks for `1009 session byte cap`.
 6. Correct the comment on the window (`crates/podssh-ssh/src/run.rs` lines
    25-29 at `80f20bf`). The window of 512 KiB stays: it is below both limits.
-7. Update `docs/relay.md` (lines 155-158 at `80f20bf`) and `docs/STATUS.md:535`. T-025 uses the
+7. Update `docs/relay.md` (lines 155-158 at `80f20bf`) and `docs/STATUS.md:536`. T-025 uses the
    classification for its retry rule. T-227 is a different path
    (`--direct`).
 
@@ -289,19 +289,19 @@ Read:
    `1001`, `1009` or `1013`.
 4. Wait with the jittered backoff that exists
    (`crates/podssh-relay/src/open.rs:379-393`). Bound the whole by the rounds
-   of `ConnectionAttempts` (`crates/podssh-cli/src/ssh/resolve.rs:460`) and
+   of `ConnectionAttempts` (`crates/podssh-cli/src/ssh/resolve.rs:468`) and
    the deadline of each host.
 5. Never prompt again without a person: under `BatchMode`, or with no
    terminal and no `SSH_ASKPASS`, a retry that needs a prompt stops. Keep a
    typed password in memory (zeroized) for the retry; do not ask twice.
 6. Say each retry on stderr, with the hop and the reason. Document the rule
-   in `docs/cli.md:2515-2583`, and add a row to `docs/STATUS.md`.
+   in `docs/cli.md:2575-2643`, and add a row to `docs/STATUS.md`.
 
 ## Decision
 
 Recommendation: retry inside podssh, and only before the session request.
 Only podssh knows whether the request was sent, and `podssh ssh` keeps the
-exit code 255 of OpenSSH (`docs/cli.md:2525-2528`). The alternative, a distinct
+exit code 255 of OpenSSH (`docs/cli.md:2585-2588`). The alternative, a distinct
 exit code for the caller to retry on, lost: it breaks scripts that expect
 OpenSSH's codes, and a caller that retries each 255 runs a command twice.
 
@@ -420,7 +420,7 @@ Read:
    measured code.
 4. Make the mapping from `io::End` to an exit code a pure function in
    `crates/podssh-ssh/src/session.rs`, with a test for each variant.
-5. Write the measured rule in `docs/cli.md:2515-2583`, and the measurement in
+5. Write the measured rule in `docs/cli.md:2575-2643`, and the measurement in
    `docs/STATUS.md`.
 
 ## Prove
@@ -537,7 +537,7 @@ Read:
   `crates/podssh-ssh/src/hostkey.rs:227-234` (no terminal). `accept-new`
   records the plain key (`crates/podssh-ssh/src/hostkey.rs:198`). GitHub #29
   cites line 91 at `22c3b88`, which builds the question about other key types.
-- `ssh-key` 0.7.0-rc.11 is in the tree (`Cargo.lock:5483-5484`).
+- `ssh-key` 0.7.0-rc.11 is in the tree (`Cargo.lock:5484-5485`).
   `Certificate::validate_at` checks the signature, the SHA-256 fingerprint of
   the CA and the validity window. The caller must check the certificate type,
   the principals and the critical options (the crate's documentation).
@@ -704,7 +704,7 @@ Not measured here: each case needs a server.
    (`HOME` is not set, `UserKnownHostsFile none`, or the write error); the
    next run cannot detect a changed key.
 4. Check the file type before the open: a FIFO blocks an open for reading.
-5. Update `docs/cli.md:2585-2640` (one line) and the manual's note on host keys
+5. Update `docs/cli.md:2645-2700` (one line) and the manual's note on host keys
    (`crates/podssh-cli/src/man/notes.rs`, lines 60-66 at `33c9a31`).
 
 ## Decision
@@ -964,7 +964,7 @@ filed as it is, with no port, as OpenSSH files it (the Correction).
   a run in the build image stalled on the download of the crates, and the
   checks' plant waits for T-251.
 - `docs/cli.md:84-93` and the manual's note of host keys
-  (`crates/podssh-cli/src/man/notes_ssh.rs:72-83`) say how each hop is checked,
+  (`crates/podssh-cli/src/man/notes_ssh.rs:98-109`) say how each hop is checked,
   and which settings hold for each hop.
 - `cargo test -p podssh-ssh`: 141 passed; `cargo test -p podssh-cli`:
   563 passed, 0 failed, 31 ignored; clippy; rustfmt.
@@ -1022,7 +1022,7 @@ and no other.
    `known_hosts` cannot be read (`unverifiable` in
    `crates/podssh-ssh/src/hostkey.rs`, T-028), next to
    `-o UserKnownHostsFile=FILE`.
-6. The flag's row gives the help and the manual. Update `docs/cli.md:48-418`,
+6. The flag's row gives the help and the manual. Update `docs/cli.md:48-478`,
    and add an example to `crates/podssh-cli/src/man/examples.rs`.
 
 ## Decision
@@ -1193,7 +1193,7 @@ asks, and holds its input until the start (`crates/podssh-ssh/src/io.rs:158-172`
   OpenSSH's sshd and Alpine's sudo in the box: `sudo.password`, `sudo.wrong`
   and `sudo.nopass`. The gate runs them at this push; their plant in the box
   waits for T-251.
-- `docs/cli.md:296-311` and a note of the manual say what the flags do.
+- `docs/cli.md:356-371` and a note of the manual say what the flags do.
 - `cargo test -p podssh-ssh`: 147 passed; `cargo test -p podssh-cli`:
   570 passed, 0 failed, 31 ignored; clippy; rustfmt.
 
@@ -1240,7 +1240,7 @@ and no player.
    hold a secret.
 4. Playback: a new verb `podssh play FILE`, with `--speed` and
    `--idle-limit`. Not `replay`: it is one edit from `relay`, and the
-   suggestion step would mix them (`docs/cli.md:991-1000`). Add it to `VERBS`
+   suggestion step would mix them (`docs/cli.md:1051-1060`). Add it to `VERBS`
    (`crates/podssh-cli/src/flags.rs:353-412`), to
    `crates/podssh-cli/src/positionals.rs`, to dispatch, and to `DISPATCHED`
    (`crates/podssh-cli/tests/flag_table.rs:110-140`).
@@ -1308,7 +1308,7 @@ session starts with the size of its start
   place of the one of `scripts/interop.sh`. The next commit names that helper
   `ping_via` (`scripts/interop-ping.sh:10-16`), so that each later harness
   gets `podssh ssh`.
-- `docs/cli.md:312-323` and `docs/cli.md:2114-2126`, the manual's notes and an
+- `docs/cli.md:372-383` and `docs/cli.md:2174-2186`, the manual's notes and an
   example, say what the flag and the verb do, and their risks.
 - `cargo test -p podssh-ssh`: 151 passed; `cargo test -p podssh-cli`:
   574 passed, 0 failed, 31 ignored; clippy; rustfmt.
@@ -1376,7 +1376,7 @@ runs: with no user database entry, OpenSSH's programs stop at once
    (`crates/podssh-cli/src/flags.rs:353-412`), in
    `crates/podssh-cli/src/positionals.rs` and in `DISPATCHED`
    (`crates/podssh-cli/tests/flag_table.rs:110-140`); `docs/cli.md`;
-   "Nothing listens" in `SECURITY.md:109-132`; `docs/STATUS.md`.
+   "Nothing listens" in `SECURITY.md:129-152`; `docs/STATUS.md`.
 
 ## Decision
 
@@ -1538,7 +1538,7 @@ Read:
 2. Preferred change: wrap the direct stream in a writer that fails a write
    that makes no progress for 60 s, with the constant of the relay leg
    (`crates/podssh-ws/src/client.rs:34-35`). Only
-   `crates/podssh-cli/src/ssh/transport.rs:220-264` changes, and both roads behave
+   `crates/podssh-cli/src/ssh/transport.rs:221-265` changes, and both roads behave
    the same.
 3. The other change: set `inactivity_timeout` at
    `crates/podssh-ssh/src/run_config.rs:65`. russh resets that timer only in a loop
@@ -1548,7 +1548,7 @@ Read:
    `ServerAliveInterval=0` before this choice.
 4. Keep the forwarder as a fault in `scripts/interop-faults.sh`, with the
    exit code and the time as its check.
-5. Name both roads in the row of a stuck write (`docs/design.md:552`), and add the fault to
+5. Name both roads in the row of a stuck write (`docs/design.md:575`), and add the fault to
    `docs/STATUS.md`. This is not the path of GitHub #17 (T-024, T-025): there
    the relay closes the session.
 
@@ -2037,7 +2037,7 @@ Read, at `9fefff2`:
   the session after 180 s with no payload (`docs/relay.md:190`). The relay's
   own keepalive frames keep the ping watcher content meanwhile.
 - A prompt has its own limit when nobody watches the terminal (60 s, T-005;
-  `docs/cli.md:2608-2611`). A person who types slowly must not meet a limit
+  `docs/cli.md:2668-2671`). A person who types slowly must not meet a limit
   of the server.
 
 Not measured: it needs a server that stalls.
@@ -2061,7 +2061,7 @@ Not measured: it needs a server that stalls.
 5. Make the comment and the manual (`crates/podssh-cli/src/ssh/keywords.rs:36-37`,
    `crates/podssh-cli/src/flags.rs:169-170`) say the same: the handshake, and
    each answer during the authentication.
-   `docs/cli.md:2638-2640` asks for a limit on the whole operation.
+   `docs/cli.md:2698-2700` asks for a limit on the whole operation.
 
 ## Decision
 
@@ -2261,14 +2261,14 @@ files, the `known_hosts` files, `IdentityAgent` and `-E` (lines 118-130,
    local user, `%r` the remote user, `%n` the destination as typed, `%k` the
    `HostKeyAlias` or the host.
 2. Take the local user from `USER`, `LOGNAME` or `USERNAME`, as `Env` does
-   (`crates/podssh-cli/src/ssh/resolve.rs:109-125`), and the host name from the
-   system; never `getpwuid` (`crates/podssh-cli/src/ssh/resolve.rs:134-146`).
+   (`crates/podssh-cli/src/ssh/resolve.rs:111-127`), and the host name from the
+   system; never `getpwuid` (`crates/podssh-cli/src/ssh/resolve.rs:136-148`).
 3. Compute `%C` as OpenSSH does, and check it against `ssh -G` (step 6).
 4. Refuse an unknown token with exit 64, before anything connects, and name
    it.
 5. Do not expand `-E`, as OpenSSH does not.
 6. T-043 uses the same function for `ssh_config`. Name the tokens in the
-   manual's notes and in `docs/cli.md:48-418`.
+   manual's notes and in `docs/cli.md:48-478`.
 
 ## Prove
 
@@ -2510,7 +2510,7 @@ constraint of a key (lines 296-297), and when a request to sign names such a key
 that is always ready with `true`; it never calls the agent's `confirm` (lines 348-356).
 
 Read: podssh's `confirm` refuses (`crates/podssh-cli/src/agent/serve.rs:173-176`), and is never
-called. `docs/cli.md:2023-2024` says that the key "is never used".
+called. `docs/cli.md:2083-2084` says that the key "is never used".
 
 ## Approach
 

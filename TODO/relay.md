@@ -779,7 +779,7 @@ listener" (lines 86-88 at `22c3b88`), and the ruling on Q10 allows more than one
    a slow target also starts the next host. Measure the open times through a proxy in the box,
    and record D in `docs/STATUS.md`.
 3. Send a Close to each attempt that is not kept, at once. The relay then frees the target
-   socket within 15 s (`docs/design.md:558-560`, `docs/relay.md:251`); the target still sees one
+   socket within 15 s (`docs/design.md:581-583`, `docs/relay.md:251`); the target still sees one
    short connection, because the relay dials it before the upgrade.
 4. One mint at a time for each relay deployment (single flight, keyed as T-057 keys the cache),
    against the brake of `docs/relay.md:193`. When the minting attempt is the silent one, the next
@@ -917,7 +917,7 @@ the module comment repeats it (`crates/podssh-relay/src/cache.rs`, lines 4-8 at 
 6. Change in the same commit: VARIABLES and FILES (`crates/podssh-cli/src/man/facts.rs:196-210`,
    `crates/podssh-cli/src/man/data.rs:153-160`), the test of lines 365-377 at `22c3b88`, the comment
    of `cache.rs`, and the `doctor`
-   notes (`crates/podssh-cli/src/man/notes.rs:235-277`).
+   notes (`crates/podssh-cli/src/man/notes.rs:241-283`).
 
 ## Decision
 
@@ -1083,7 +1083,7 @@ with no reason. Each drop read as the end of the TCP stream with no Close frame
 had drops, so the traffic does not cause them.
 
 Read: on the forward path, keepalives every 60 s kept one session for 602 s
-(`docs/STATUS.md:211`). That is one run, before 2026-10-09.
+(`docs/STATUS.md:212`). That is one run, before 2026-10-09.
 
 ## Approach
 
