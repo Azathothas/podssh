@@ -11,7 +11,7 @@ Each fact has a label:
 
 - **MEASURED**: a test was run.
 - **READ**: read in code or in a document.
-- **INFERRED**: a conclusion that no test or document confirms yet.
+- **INFERRED**: a conclusion that no test or document confirms.
 
 ## 1. The summary
 
@@ -776,7 +776,7 @@ version, 5 the role, 6 busy, 7 a record out of its place, 0 another reason.
   loss; the far end keeps the session and its target as long, then forgets
   it, and a late resume gets `REFUSE` (1, an unknown session). A resume can come while the
   far end still runs the old link: the old link stops, and the new one goes
-  on from the client's offset. Bytes received but not yet written to the
+  on from the client's offset. Bytes received and not written to the
   application stay with the session, so a link that ends in a write loses
   none.
 - **The deadline** (T-306). A far end keeps a lost session 10 minutes, or
@@ -948,7 +948,9 @@ Facts (READ):
   does. It adds about 190 to 245 crates, and several megabytes.
 
 **In the target sandbox** (no UDP, egress only through CONNECT, no DNS),
-iroh can run only with this configuration (READ; not MEASURED yet):
+iroh can run only with this configuration (READ; MEASURED on 2026-10-31 on a
+host with no UDP out and its egress through CONNECT, though with DNS, T-348; the target
+sandbox itself is not measured):
 
 | Need | How |
 | --- | --- |
@@ -1005,7 +1007,7 @@ relay on the loopback, under a name that only the proxy resolves, with equal
 digests; podssh's trust store refuses the test relay's self-signed
 certificate. `podssh doctor`, with the feature, reached n0's first relay
 with `/ping` in 576 ms. Not measured yet: a real sandbox, and the
-throughput (T-157).
+throughput by the method of T-157, which T-251 runs (T-348).
 
 **Built (T-163, 2026-10-10):** keys, tickets and the allowlist.
 `podssh node NAME TARGET --iroh` serves TARGET over the iroh road with no

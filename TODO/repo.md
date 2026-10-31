@@ -4788,7 +4788,7 @@ that does not exist today.
 ## Premise
 
 - Read: the check of a Prove is that its body holds a backtick
-  (`crates/podssh-todo/src/check.rs:321-325`); a line in a fenced block is no citation
+  (`crates/podssh-todo/src/check.rs:325-329`); a line in a fenced block is no citation
   (`crates/podssh-todo/src/refs.rs:96-99`), and the commands of a Prove are in one.
 - Measured on 2026-10-31, with a script of this triage over the `## Prove` of each entry: each
   `cargo test -p CRATE --test NAME` against the crate's `tests/` and its `[[test]]` targets, and
@@ -4869,7 +4869,7 @@ refuses a Prove whose target does not exist, with its name.
 **Milestone:** none
 **Priority:** P3
 **Effort:** S
-**Status:** open
+**Status:** done
 
 ## Problem
 
@@ -4908,7 +4908,8 @@ of GitHub #69 to #72 corrected these; nothing finds the next.
    date; else a problem names the line. A done entry named beside "yet" is a problem too: the
    claim is stale, or names the wrong entry.
 2. A "yet" that states nothing of podssh's state is written with no "yet": four today
-   (`docs/design.md:14`, `:779`; `docs/cli.md:702`, `:976`). The others that the first run finds
+   (`docs/design.md` lines 14 and 779 at `93f11b3`; `docs/cli.md` lines 708 and 982 at `93f11b3`).
+   The others that the first run finds
    get their entry or a date, or are corrected, in the same change.
 3. A status written beside an id in those documents (`T-NNN, partial`, `(T-NNN, open)`) agrees
    with the index, unless its paragraph reads at a date or at a commit, as the record's readings
@@ -4920,7 +4921,8 @@ of GitHub #69 to #72 corrected these; nothing finds the next.
 
 The word "yet" won over the issue's four phrases ("not yet", "does not exist yet", "No command
 uses", "(not used yet)"), which miss "the real sandbox is not run yet", one of its own five; and
-over a list of verbs of state, which misses "does not read it yet" (`docs/terminal.md:339`). A
+over a list of verbs of state, which misses "does not read it yet" (`docs/terminal.md` line 339
+at `93f11b3`). A
 claim that is true today passes with its entry or a date, which says when to read it again.
 Lost: a check of truth, which no checker makes; the entry and the date make a stale claim
 findable, not impossible.
@@ -4936,3 +4938,21 @@ cargo todo check
 Planted, each in a copy of the tree: the four statements put back, and "T-252, partial"; the
 check names each, and passes once each is restored. A "yet" with a done entry beside it; the
 check names both.
+
+## Done
+
+2026-10-31: `cargo todo check` reads the claims of `docs/`, `README.md`, `AGENTS.md` and
+`SECURITY.md` (`crates/podssh-todo/src/claims.rs`): each "yet" outside fenced blocks and code
+spans is in a unit, a paragraph, an item of a list or a row of a table, that names an entry that is
+not done, or a date or a commit, and a done entry beside it is named; each status beside an id
+agrees with the index, unless its unit reads at a date or a commit. The release notes are
+readings at their tags. A "yet" in a code span quotes what podssh prints, as `(not implemented
+yet)` in `docs/STATUS.md`'s row of T-233, and claims nothing. Its first run named 19 lines, as the
+Premise counted: four said with no "yet", as item 2 asked, and the others given their entry (T-107,
+T-111, T-348), a date, or corrected; one was stale, `docs/STATUS.md`'s row of T-239, where `-W
+/tmp/sock` works since T-040. `cargo test -p podssh-todo` passed 111: on the checker's own tree, a
+"yet" with no entry or date, one beside a done entry, and a status that the index does not give,
+each named with its line, and each passing once right. Planted on the real tree: the four
+statements of GitHub #71 put back and "T-252, partial", each named, and the check passed once they
+were removed; with the check disconnected, three of the four tests failed. `TODO/RULES.md` says
+the rule.

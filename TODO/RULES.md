@@ -146,6 +146,20 @@ tree says so: "line N at `COMMIT`", or a paragraph that reads at a named
 commit ("Read, at `COMMIT`: ..."). The checker finds a plain "line N" after
 a citation (T-258).
 
+### A claim of "not yet" names its entry or its date
+
+A "yet" in `docs/`, `README.md`, `AGENTS.md` or `SECURITY.md`, outside a
+fenced block and a code span, says that something is not built, and it
+goes stale on the day its work is done, in a file that the work did not
+touch. So its paragraph, its item of a list or its row of a table names an
+entry that is not done, or a date (`YYYY-MM-DD`) or a commit in a code span
+at which it was read; a done entry beside it is a claim gone stale, or the
+wrong entry. A "yet" that says nothing of podssh's state is written with no
+"yet". A status written beside an id (`T-NNN, partial`) agrees with the
+index, unless its unit reads at a date or at a commit. `cargo todo check`
+reads both (T-362); the release notes (`docs/releases/`) are readings at
+their tags.
+
 ## 3. Decisions that are not discussed again
 
 - The milestone order: M3, then M4, M5 and M6

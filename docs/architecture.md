@@ -79,7 +79,7 @@ roots are the bundle's. `podssh doctor` names each store with its count. A
 handshake that fails with rustls's `UnknownIssuer` says what to do: a proxy
 that re-signs TLS needs its CA in `--ca-file` or `SSL_CERT_FILE`, which
 replace the roots, or in `podssh-ca.pem`, which adds to them. One that fails
-because a certificate has expired or is not valid yet gives this host's
+because a certificate has expired or its validity has not begun gives this host's
 clock and its reading, as `podssh doctor` does: certificates are checked
 against that clock, and a wrong one refuses each host (T-345). A binary keeps
 the roots that it was built with: an update of the roots makes a release

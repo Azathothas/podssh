@@ -9,6 +9,7 @@
 //! or against the revision that `--base` names.
 
 pub mod check;
+pub mod claims;
 pub mod diff;
 pub mod github;
 pub mod interop;

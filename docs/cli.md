@@ -64,7 +64,7 @@ scripts. The facts about OpenSSH on this page were measured with OpenSSH
   label NAME (T-084), reached through the relay, with its host key recorded
   under `node://NAME`, which no DNS name can be; `node:22` is still the host
   `node` on port 22. A node has no port, and `-J`, `-W` and `--direct` do
-  not go with it yet (exit 64). To a node, podssh sends nothing until the
+  not go with it (exit 64). To a node, podssh sends nothing until the
   node's first bytes, 30 s at most: a node that offers the resumable layer
   greets with its first record, and `-v` says whether it did (T-151,
   `docs/design.md` section 5). With the layer, a lost link to the relay is
@@ -262,7 +262,7 @@ scripts. The facts about OpenSSH on this page were measured with OpenSSH
   `--upgrade` with `node://`, `iroh:`, `cf://`, `--persist`, `-R` or `-O`
   is a usage error (64); `ControlPath` has no effect with it. The move takes
   the pair's road alone: the iroh road to the node, raced with it as T-164
-  races them, is not built yet (T-167's Decision).
+  races them, is not built: T-167's Decision left it out.
 - **Ctrl-C with no remote pty sends `signal INT` to the command** (T-293),
   in a session that runs a command or a shell: podssh waits 2 s for the
   command's end, whose signal or status is the exit code, and a second
@@ -705,7 +705,7 @@ costs once for each host, so the broadcast has a stop that acts at once.
   (SIGQUIT) on Unix, Ctrl-Break (`CTRL_BREAK_EVENT`) on Windows. The
   terminal drops the line that is half typed. podssh then selects no host,
   and drops each line that waits in a queue, a line that waits for its
-  second Enter, and what it read and did not act on yet; it says
+  second Enter, and what it read and had not acted on; it says
   "broadcast stopped; :all starts it again". A line that a session has
   taken is sent: it is in the SSH channel, or it is the one line that the
   session sends now. The stop is armed before anything connects, also when
@@ -979,7 +979,7 @@ them (T-197; `crates/podssh-cli/src/job/`).
   `DIR/files` by its path. DIR is `./podssh-job-ID` by default. A pattern
   with an absolute path or a `..` is refused (64), and so is each path that
   has no place under `DIR/files`. A job that is queued or running is not
-  fetched, as its output is not whole yet (75). `list --json` gives one
+  fetched, as its output is not whole until it ends (75). `list --json` gives one
   JSON object: `host`, and `jobs`, each with `id`, `state`, `status` (null
   while there is none), `started_ms` and `command`.
 - **The exit status** is that of `podssh ssh`: 0; 64 for a usage error and
@@ -1711,7 +1711,7 @@ commands. The rules behind them:
   on, and never runs `loginctl`. `--uninstall` removes the unit (stopped
   first), the line of the crontab with its mark, or the task, and the file
   of variables: what `--install` wrote, and nothing else. `podssh serve` has
-  no command yet (the operator holds it, Q32); it takes the same module
+  no command yet (T-107; the operator holds it, Q32); it takes the same module
   when it comes.
 - **No token in the output.** `relay pair` prints the label and the expiry.
   The operator's part, the connect token alone, goes to the new private
@@ -1746,7 +1746,7 @@ commands. The rules behind them:
   that it may not use. With no allowlist, each operator with the pair's
   connect token may use each route. The known hosts keep a route's host key
   under `node://NAME/ROUTE`. `pipe`'s `node:` and `iroh:` addresses name no
-  route yet.
+  route.
 - **A node dials TARGET first,** once, and exits 69 when it cannot; else
   each operator would get a `reject`. With routes, each TARGET is dialled
   once. It says `online` once the relay has

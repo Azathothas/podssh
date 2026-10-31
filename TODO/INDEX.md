@@ -62,15 +62,15 @@ repository and CI).
 
 ## Counts
 
-**374 entries: 35 open, 2 partial, 30 blocked, 307 done.**
+**374 entries: 34 open, 2 partial, 30 blocked, 308 done.**
 
 | Priority | open | partial | blocked | done | total |
 | --- | --- | --- | --- | --- | --- |
 | P0 | 0 | 0 | 0 | 1 | 1 |
 | P1 | 2 | 0 | 0 | 29 | 31 |
 | P2 | 3 | 1 | 21 | 160 | 185 |
-| P3 | 30 | 1 | 9 | 117 | 157 |
-| **All** | 35 | 2 | 30 | 307 | 374 |
+| P3 | 29 | 1 | 9 | 118 | 157 |
+| **All** | 34 | 2 | 30 | 308 | 374 |
 
 ## Entries
 
@@ -434,7 +434,7 @@ repository and CI).
 | [T-359](roads.md) | P2 | M | backlog | defect | done | The iroh road takes UDP on a bind alone, and `doctor` says that it may go direct with nothing sent |
 | [T-360](repo.md) | P2 | M | none | defect | done | Nothing reads `TODO/issues.md`: issues #59 to #63 have no row, and no check compares the map with GitHub |
 | [T-361](repo.md) | P2 | S | none | defect | done | A Prove may name a test target or a script that no longer exists, and the record's check passes |
-| [T-362](repo.md) | P3 | S | none | chore | open | A claim that something is not built yet carries no date or entry, and a status beside an id is not checked |
+| [T-362](repo.md) | P3 | S | none | chore | done | A claim that something is not built yet carries no date or entry, and a status beside an id is not checked |
 | [T-363](roads.md) | P3 | M | backlog | feature | open | The direct road is never tried after the relay hosts fail, though the road table says that a probe chooses it |
 | [T-365](forwarding.md) | P2 | M | backlog | feature | done | `-R` with a socket path on either side, and the remote SOCKS form, as OpenSSH carries them |
 | [T-366](ws.md) | P3 | S | backlog | feature | open | `doctor` asks the proxy for an address as well as for names, and says which of the two it takes |

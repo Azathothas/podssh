@@ -449,7 +449,7 @@ entry). The script exits 1 when a step failed.
 In a sandbox where `/tmp` or `$HOME` is mounted `noexec`, `CARGO_HOME`
 cannot be written, or `/tmp` is small, give cargo a directory where programs
 can run. `podssh doctor` names such directories in its `exec` lines; with no
-binary yet, copy `/bin/true` into a directory and run it from there.
+binary there, copy `/bin/true` into a directory and run it from there.
 
 ```sh
 export CARGO_HOME=/work/cargo CARGO_TARGET_DIR=/work/target TMPDIR=/work/tmp

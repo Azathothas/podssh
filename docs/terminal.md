@@ -32,7 +32,7 @@ echoes and edits only when it is selected and neither is below; `podssh
 serve` with no `/dev/ptmx` selects it (T-111), and a client flag may later.
 In each other case the session is transparent: each byte goes both ways as
 it came, with no echo and no refusal. The absence of a pty alone never
-selects it (T-125). No command uses the crate yet (milestone M5).
+selects it (T-125). No command uses the crate yet (T-111, milestone M5).
 
 ## What podssh reads from the terminal
 
@@ -336,7 +336,7 @@ the client's host.
   A podssh node never names it: its SSH server is another program, which
   keeps no shell. The road of `node://NAME`, raced with `--iroh-ticket`
   too, learns the offer before the SSH login. The iroh road alone
-  (`iroh:TICKET`) does not read it yet, so no shell is kept there.
+  (`iroh:TICKET`) does not read it, so no shell is kept there.
 - **`~d`.** With the offer, in a session of a shell with a pty on a
   terminal, `~d` at the start of a line sends `env detach@podssh NAME` on
   the shell's channel, with a reply asked. NAME is new (8 hexadecimal
@@ -519,8 +519,8 @@ ends (T-307).
   VTE (`VTE_VERSION`), but inside tmux or screen; `PODSSH_TITLE_STACK=yes`
   or `no` says it for another terminal. Elsewhere there is no notice, and
   the layer's lines stay as before. Which terminals keep the stack (xterm,
-  VTE, Windows Terminal, the Windows console) is not measured yet:
-  `python3 scripts/title-stack.py`, run in each, says it.
+  VTE, Windows Terminal, the Windows console) is not measured on
+  2026-10-31: `python3 scripts/title-stack.py`, run in each, says it.
 - **On the forward road through the relay** (T-307), nothing below SSH
   answers a key: the relay copies the bytes to the target. So with SSH's
   bytes up, while no question waits, a WebSocket Ping of podssh's goes

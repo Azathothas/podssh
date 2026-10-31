@@ -140,7 +140,7 @@ relay's endpoints are in the contract.
    after another on one connection, each answered with the bytes that wait
    to go down, as meek does. The protocol that #55 proposes:
    - `POST {base}/s/{sid}/up?seq={seq}` carries one batch. `204`: stored,
-     not consumed yet; `200`: stored and consumed; any other answer: the
+     and not consumed; `200`: stored and consumed; any other answer: the
      client sends the same `seq` with the same body again. An `X-Ack`
      header says that each `seq` below it is consumed.
    - `GET {base}/s/{sid}/down?ack={ack}` streams the chunks down, or
