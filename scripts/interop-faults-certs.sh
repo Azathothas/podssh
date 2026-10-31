@@ -1,6 +1,7 @@
 # The certificates of scripts/interop-faults.sh, which sources this file: a
 # test CA, the stand-in relays' leaf for each name of $SAN, and the same leaf
-# expired (T-345). Uses its $FK, $SAN, ok and bad.
+# expired (T-345). Uses its $FK and $SAN; prints no id, and sets FAULT_CERTS
+# to made or failed, which interop-faults.sh says as faults.certs.
 
 printf 'subjectAltName=%s\nbasicConstraints=CA:FALSE\nkeyUsage=critical,digitalSignature\nextendedKeyUsage=serverAuth\n' \
     "$SAN" >"$FK/ext"
@@ -14,9 +15,9 @@ if openssl req -config "$FK/req.cnf" -x509 -newkey ec -pkeyopt ec_paramgen_curve
         -keyout "$FK/relay.key" -out "$FK/relay.csr" >>"$FK/openssl.log" 2>&1 \
     && openssl x509 -req -in "$FK/relay.csr" -CA "$FK/ca.pem" -CAkey "$FK/ca.key" -CAcreateserial \
         -days 2 -extfile "$FK/ext" -out "$FK/relay.pem" >>"$FK/openssl.log" 2>&1; then
-    ok faults.certs "the test certificates are made"
+    FAULT_CERTS=made
 else
-    bad faults.certs "the test certificates could not be made" "$FK/openssl.log"
+    FAULT_CERTS=failed
 fi
 # T-345: the same leaf, valid on 2020-01-01 alone, as a host whose clock is
 # wrong sees each certificate. `openssl ca` takes the dates in each OpenSSL,

@@ -605,7 +605,7 @@ returns a `String` (142-166). The callers keep or pass the text:
 `TransportError::Unexpected` (crates/podssh-transport/src/socket.rs at `e8bbd4d` lines 104-113, 143, 161
 and 185), and, since T-072, a read error `Aborted` with its text. Tests and the gate match the
 text: `crates/podssh-ws/tests/session.rs` lines 108 ("continuation") and 172 ("without a
-WebSocket Close"), and `scripts/interop-faults.sh:261` ("pings unanswered").
+WebSocket Close"), and `scripts/interop-faults.sh:269` ("pings unanswered").
 `WsError` exists (`crates/podssh-ws/src/error.rs:56-76`), but the session does not use it.
 
 ## Approach
@@ -1904,6 +1904,16 @@ its own only to a text that does not hold them.
   gave the CI's error; here, the script's changed part made each certificate and started each
   stand-in, and with `openssl ca` planted to fail, each other certificate and stand-in still;
   `--test faults -- --ignored a_relay_whose_certificate`, 1 passed.
+- 2026-10-31, the gate's step `release` at 91c62c8 (build run 41188615860): the leaf of 2020
+  was made and its stand-in started, and podssh said "invalid peer certificate: certificate
+  expired: verification time ..., but certificate is not valid after ...; certificates are checked
+  against this host's clock, which reads Sat, 31 Oct 2026 09:31:41 GMT", which is right; but
+  faults.clock looked for "Expired", rustls's word for a leaf that ends before it begins, and failed.
+  It now takes either of rustls's two words after "invalid peer certificate", and a refusal that
+  names the host `relay-expired.test` does not match. And `cargo todo interop` found the new file
+  a harness that the baseline did not name, as it printed `faults.certs`: it prints no id now and
+  sets `FAULT_CERTS`, which `interop-faults.sh` says, and the baseline names it a support file;
+  `cargo todo interop`, 617 ids of 44 harnesses, and `--test interop`, 11 passed.
 
 
 # T-366: `doctor` asks the proxy for an address as well as for names, and says which of the two it takes

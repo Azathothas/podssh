@@ -24,6 +24,11 @@ done
 # The test CA and the leaves: faults.certs, and the expired leaf of T-345.
 # shellcheck source=scripts/interop-faults-certs.sh
 . "$HERE/interop-faults-certs.sh"
+if [ "$FAULT_CERTS" = made ]; then
+    ok faults.certs "the test certificates are made"
+else
+    bad faults.certs "the test certificates could not be made" "$FK/openssl.log"
+fi
 
 # The shapes of T-203: 2 s each way, a jitter of 0 to 1.5 s, 64 KiB/s, and
 # the connection ended with no Close after 1,000,000 bytes.
@@ -117,7 +122,10 @@ rc=$?
 if [ -s "$FK/relay-expired.pem" ]; then
     r "relay-expired.test:$(port expired)" "$T" true >"$FK/out" 2>"$FK/err" </dev/null
     rc=$?
-    [ "$rc" != 0 ] && grep -q "Expired" "$FK/err" && grep -q "this host's clock, which reads" "$FK/err" \
+    # rustls's two words for it: "Expired" of a leaf that ends before it
+    # begins, and "certificate expired: ..." with the times of one that ended.
+    [ "$rc" != 0 ] && grep -qE "invalid peer certificate: (Expired|certificate expired)" "$FK/err" \
+        && grep -q "this host's clock, which reads" "$FK/err" \
         && ok faults.clock "a relay whose certificate has expired ends with this host's clock and its reading" \
         || bad faults.clock "an expired certificate: exit $rc, without the clock" "$FK/err"
 else

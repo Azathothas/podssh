@@ -10,6 +10,7 @@
 #   ID env-allowed REASON          ok, or env when the host lacks REASON
 support scripts/interop-lib.sh
 support scripts/interop-conpty-msys2.py
+support scripts/interop-faults-certs.sh
 harness ssh interop 72 scripts/interop.sh
 harness limits interop 2 scripts/interop-limits.sh
 harness status interop 6 scripts/interop-status.sh
