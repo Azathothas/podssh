@@ -175,7 +175,7 @@ local program to a target, and `podssh proxy` stays a second pump.
 
 1. One adapter per kind, in crates/podssh-cli/src/pipe/remote.rs: it opens
    its road and gives a duplex stream and, at the end, a close reason. The
-   pump does not know the road (`docs/architecture.md:117-119`).
+   pump does not know the road (`docs/architecture.md:129-131`).
 2. `relay:HOST:PORT`: parse as `crates/podssh-cli/src/proxy.rs:203-213` does;
    open with `crates/podssh-relay/src/open.rs:188-247`. Keep the rules of
    proxy: no Close at the end of input, the ping watcher
@@ -412,7 +412,7 @@ shows that an AF_UNIX or loopback bind works (`docs/design.md:922-924`).
   allows the bind. The default is loopback and AF_UNIX; the user can
   configure the address and can turn listening off.
 - Read: five documents still say that podssh never listens:
-  `AGENTS.md:245-250`, `docs/architecture.md:120-133`,
+  `AGENTS.md:245-250`, `docs/architecture.md:132-145`,
   `docs/target-environment.md:84-88`, `SECURITY.md:98-119`, `README.md:41-49`.
 - Read: sandbox A refuses an AF_INET bind and allows an AF_UNIX bind
   (`docs/STATUS.md:278`). The box refuses each `bind`, AF_UNIX too
@@ -500,7 +500,7 @@ Plant: bind with no umask; the check of the mode must fail.
 ## Correction
 
 2026-10-10: three of the five documents already say what the ruling
-allows: `AGENTS.md:245-250`, `docs/architecture.md:120-133` and
+allows: `AGENTS.md:245-250`, `docs/architecture.md:132-145` and
 `docs/target-environment.md:84-88` name a listener that the user asks for,
 after a probe. `SECURITY.md` and `README.md` still said that nothing
 listens, and change here. Step 4's umask 077 makes a socket's file mode

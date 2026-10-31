@@ -513,7 +513,7 @@ in iroh's source at the pinned version.
    relay.
 7. Add the variable to `VARIABLES` (`crates/podssh-cli/src/man/facts.rs:45-260`),
    the flag to the flag table, and the default to the relay section of the
-   manual (`crates/podssh-cli/src/man/facts.rs:297-459`). The tests compare
+   manual (`crates/podssh-cli/src/man/facts.rs:297-443`). The tests compare
    `VARIABLES` with the source in both directions
    (`crates/podssh-cli/src/man/facts.rs:43-44`), so a variable that only the
    feature reads is in the manual only with the feature.
@@ -2676,9 +2676,9 @@ connection, answered with 200, and many sessions on one TLS connection.
 
 Read and verified at the cited lines (2026-10-30):
 
-- podssh offers no ALPN: `crates/podssh-ws/src/tls.rs:282` says "no ALPN",
+- podssh offers no ALPN: `crates/podssh-ws/src/tls.rs:293` says "no ALPN",
   and a caller's configuration that offers ALPN is refused
-  (`crates/podssh-ws/src/tls.rs:84` says "alpn_protocols.is_empty()").
+  (`crates/podssh-ws/src/tls.rs:86` says "alpn_protocols.is_empty()").
 - The upgrade is HTTP/1.1: `crates/podssh-ws/src/handshake.rs:37` builds
   it, and `crates/podssh-ws/src/handshake.rs:185` says "status != 101".
 - A relay session is generic over its stream
@@ -2974,7 +2974,7 @@ roots must be exactly three, and a refusal of the edge does not say which releas
   (`crates/podssh-ws/src/resolve.rs:125`).
 - Read: the edge's trust is podssh's default roots, `podssh-ca.pem` next to the binary among them,
   and cloudflared's three (`crates/podssh-relay/src/quick/edge.rs:35-46`;
-  `crates/podssh-ws/src/tls.rs:180-200`).
+  `crates/podssh-ws/src/tls.rs:182-211`).
 - Inferred: Cloudflare cannot map `podssh 1.0.0-beta.2` to a release of cloudflared; some filters
   block `trycloudflare.com`.
 
@@ -3396,7 +3396,7 @@ Endpoint puts a credential in its URL.
   aws/aws-cli:awscli/customizations/ec2instanceconnect/eicesigner.py): EC2 Instance Connect
   Endpoint takes a presigned SigV4 `wss://` URL, valid for 60 s, then raw binary frames; AWS's
   client honours `HTTPS_PROXY`; a connection lasts an hour at most, and 20 run at once.
-- Read: credentials never go in URLs (`docs/architecture.md:145-147`; `docs/design.md:62`), and
+- Read: credentials never go in URLs (`docs/architecture.md:157-159`; `docs/design.md:62`), and
   `docs/decisions.md:36` says "in a header or a 0600 file and never in a URL" of the relay's
   tokens. The presigned URL carries an access key id and a signature in its query.
 - Read: the `cf://` road uses podssh-ws's WebSocket client through the proxy
@@ -3469,7 +3469,7 @@ T-353.
   reverse engineer" it, and let Cloudflare "block certain kinds of usage"
   (https://www.cloudflare.com/application/terms/, last updated 2024-10-18).
 - Read: podssh-ws refuses a caller's ALPN and offers no client certificate
-  (`crates/podssh-ws/src/tls.rs:83-94`, `:282-285`); the WebSocket over HTTP/2 is T-321, which
+  (`crates/podssh-ws/src/tls.rs:85-96`, `:293-296`); the WebSocket over HTTP/2 is T-321, which
   waits for the relay.
 - Read in the study: with no IP stack, usque's L4 mode runs over QUIC only
   (https://github.com/Diniboy1123/usque/wiki/L4-proxy-mode); over HTTP/2 a client needs one.

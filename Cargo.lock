@@ -4103,6 +4103,7 @@ dependencies = [
  "rsa 0.9.10",
  "rustls",
  "rustls-pki-types",
+ "security-framework",
  "serde_json",
  "sha2 0.10.9",
  "tokio",
@@ -4110,6 +4111,7 @@ dependencies = [
  "unicode-width",
  "vt100",
  "webpki-roots",
+ "windows-sys 0.61.2",
  "x25519-dalek",
  "zeroize",
 ]

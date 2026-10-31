@@ -405,23 +405,7 @@ fn relay() -> Vec<Block> {
                 doh.join(", ")
             ),
         ),
-        item(
-            vec![lit("Trust")],
-            format!(
-                "TLS is always verified, and no option turns the check off. With --ca-file or SSL_CERT_FILE, \
-                 only that file is trusted. Else the trust store is the Mozilla roots in the binary \
-                 (webpki-roots {} of {}), {} next to the binary, and the first system bundle. A system \
-                 bundle adds roots and removes none: to stop trusting a root that Mozilla removed after this \
-                 binary was built, give --ca-file or SSL_CERT_FILE with a current bundle, or use a newer \
-                 podssh. podssh doctor says when the roots in the binary are older than 12 months. podssh \
-                 offers TLS 1.3 first, and TLS 1.2 with ECDHE and AES-GCM or ChaCha20-Poly1305, for a proxy \
-                 that intercepts TLS and speaks only 1.2; a server that speaks 1.3 gets 1.3, and a fall to 1.2 \
-                 cannot be forced. There is no CBC suite and no RSA key exchange.",
-                podssh_ws::tls::ROOTS_VERSION,
-                podssh_ws::tls::ROOTS_PUBLISHED,
-                podssh_ws::bundle::BUNDLE_FILE_NAME
-            ),
-        ),
+        trust::block(),
         item(
             vec![lit("Idle limit")],
             format!(
@@ -498,3 +482,4 @@ fn exit_status() -> Vec<Block> {
 
 #[cfg(test)]
 mod tests;
+mod trust;

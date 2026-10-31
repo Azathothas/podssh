@@ -29,6 +29,7 @@ mod proxy_auth;
 pub mod resolve;
 pub mod session;
 mod socks5;
+pub mod stores;
 pub mod text;
 pub mod tls;
 pub mod write_limit;

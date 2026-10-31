@@ -263,7 +263,7 @@ account, a VM or an instance, and a token in a file. IAP sends its token
 in a Bearer header. EICE's URL is presigned with SigV4 for 60 s, and its
 query carries an access key id and a signature: a credential in a URL,
 against the rule that credentials never go in URLs
-(`docs/architecture.md:145-147`; for the relay's tokens, "never in a URL",
+(`docs/architecture.md:157-159`; for the relay's tokens, "never in a URL",
 `docs/decisions.md:36`). The question: may podssh have roads that need the
 user's cloud account and a token file, and may EICE's URL carry its
 credential? Recommendation: IAP yes, its token read from a file that the

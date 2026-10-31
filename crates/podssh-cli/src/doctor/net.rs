@@ -61,8 +61,14 @@ pub(super) fn check_local(report: &mut Report<'_>, relays: &RelayList, trust: &T
         }
         Err(e) => report.fail("trust store", format!("{e} (chosen by {trust_from})")),
     }
-    // A file chosen by the user replaces the compiled-in roots.
+    // A file chosen by the user replaces the compiled-in roots and the
+    // system's stores.
     if *trust == Trust::Default {
+        // Each store of Windows and macOS, with its count or why it gave
+        // none (T-340); a system whose roots are files has no line.
+        if let Some(stores) = podssh_ws::stores::summary(&podssh_ws::stores::read()) {
+            report.ok("system stores", stores);
+        }
         let now =
             std::time::SystemTime::now().duration_since(std::time::UNIX_EPOCH).map(|d| d.as_secs() as i64).unwrap_or(0);
         roots_age(report, podssh_ws::tls::ROOTS_PUBLISHED, now);

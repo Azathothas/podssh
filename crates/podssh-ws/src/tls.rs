@@ -34,14 +34,16 @@ pub const ROOTS_PUBLISHED: &str = "2026-10-23";
 ///
 /// An explicit file (`--ca-file`, `SSL_CERT_FILE`) is used alone and never
 /// widened. Otherwise podssh trusts everything it can find, so a host with no
-/// setup still connects: a `podssh-ca.pem` next to the binary, the first
-/// readable system bundle, and the Mozilla root store compiled into the binary
-/// (`webpki-roots`). Hostname and chain verification are the same either way.
+/// setup still connects: a `podssh-ca.pem` next to the binary, the stores of
+/// Windows and macOS ([`crate::stores`]), the first readable system bundle,
+/// and the Mozilla root store compiled into the binary (`webpki-roots`).
+/// Hostname and chain verification are the same either way.
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub enum Trust {
     /// Only the certificates in this PEM file.
     File(PathBuf),
-    /// The bundle next to the binary, a system bundle, and the compiled-in roots.
+    /// The bundle next to the binary, the system's stores, a system bundle,
+    /// and the compiled-in roots.
     Default,
     /// The caller's own configuration, with its provider, roots, verifier and
     /// protocol versions, used as it is. Built only by [`Trust::caller`].
@@ -178,9 +180,10 @@ pub fn handshake_failure(error: &std::io::Error) -> String {
 }
 
 /// The default trust store: the compiled-in Mozilla roots, plus a
-/// `podssh-ca.pem` next to the binary, plus the first readable system bundle.
-/// Unreadable or unparsable extras are skipped; the compiled-in set is always
-/// there, so this cannot come back empty.
+/// `podssh-ca.pem` next to the binary, plus the roots of the system's stores,
+/// plus the first readable system bundle. Unreadable or unparsable extras are
+/// skipped; the compiled-in set is always there, so this cannot come back
+/// empty.
 pub fn default_roots() -> TlsRoots {
     let mut roots = RootCertStore { roots: webpki_roots::TLS_SERVER_ROOTS.to_vec() };
     let mut sources = vec![format!(
@@ -189,6 +192,14 @@ pub fn default_roots() -> TlsRoots {
     )];
     if let Ok(path) = bundle::default_bundle_path() {
         add_extra(&mut roots, &mut sources, &path);
+    }
+    // Where an administrator puts the root of a proxy that re-signs TLS, on
+    // systems that keep it outside files (T-340).
+    for store in crate::stores::read() {
+        let (added, _ignored) = roots.add_parsable_certificates(store.roots);
+        if added > 0 {
+            sources.push(format!("{added} from {}", store.name));
+        }
     }
     for candidate in SYSTEM_BUNDLES {
         if add_extra(&mut roots, &mut sources, Path::new(candidate)) {

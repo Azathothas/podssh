@@ -251,6 +251,39 @@ jobs:
         env:
           PODSSH_TEST_SFTP_SERVER: C:\Program Files\Git\usr\lib\ssh\sftp-server.exe
         run: cargo test --locked --no-fail-fast
+      # T-340: the test's root in the machine's ROOT store lets a server that
+      # it signs through with the default trust, which the same server did not
+      # get with the root out of the store; doctor names each store. The root
+      # leaves the store in each case. The user's ROOT store would ask its
+      # user in a dialog, which a runner cannot answer.
+      - name: a root in the system's store
+        shell: pwsh
+        env:
+          PODSSH_TEST_STORE_ROOT: ${{ runner.temp }}\store-root.cer
+        run: |
+          $test = "a_server_that_the_root_signs_is_trusted_through_the_store_alone"
+          cargo test --locked -p podssh-ws --test system_store -- --ignored --exact the_root_is_written
+          if ($LASTEXITCODE -ne 0) { exit 1 }
+          $env:PODSSH_TEST_STORE_HOLDS = "0"
+          cargo test --locked -p podssh-ws --test system_store -- --ignored --exact --nocapture $test
+          if ($LASTEXITCODE -ne 0) { exit 1 }
+          $added = Import-Certificate -FilePath $env:PODSSH_TEST_STORE_ROOT -CertStoreLocation Cert:\LocalMachine\Root
+          try {
+            $env:PODSSH_TEST_STORE_HOLDS = "1"
+            cargo test --locked -p podssh-ws --test system_store -- --ignored --exact --nocapture $test
+            if ($LASTEXITCODE -ne 0) { exit 1 }
+            # Offline, doctor runs the checks that open nothing; its exit code
+            # also counts the network's ????, so only its lines are read.
+            $env:PODSSH_OFFLINE = "1"
+            $doctor = & target\debug\podssh.exe doctor 2>&1 | Out-String
+            Write-Output $doctor
+            if ($doctor -notmatch "system stores +the current user's ROOT store: \d+ root.*; the machine's ROOT store: \d+ root") {
+              Write-Output "FAIL doctor named no store"
+              exit 1
+            }
+          } finally {
+            Remove-Item -Path ("Cert:\LocalMachine\Root\" + $added.Thumbprint)
+          }
       - name: repository checks
         run: python scripts/check-repo.py
       # podssh in a real pseudo console (interop-conpty.py), against the
@@ -280,6 +313,29 @@ jobs:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
       - name: the default tests
         run: cargo test --locked --no-fail-fast
+      # T-340: the test's root, trusted in the System keychain by the
+      # administrator's settings, lets a server that it signs through with the
+      # default trust, which the same server did not get before; the test also
+      # shows that /etc/ssl/cert.pem does not hold the root. doctor names each
+      # domain. The root leaves the keychain in each case.
+      - name: a root in the system's trust settings
+        env:
+          PODSSH_TEST_STORE_ROOT: ${{ runner.temp }}/store-root.cer
+        run: |
+          set -eu
+          test=a_server_that_the_root_signs_is_trusted_through_the_store_alone
+          cargo test --locked -p podssh-ws --test system_store -- --ignored --exact the_root_is_written
+          PODSSH_TEST_STORE_HOLDS=0 cargo test --locked -p podssh-ws --test system_store -- --ignored --exact --nocapture "$test"
+          sudo security add-trusted-cert -d -r trustRoot -k /Library/Keychains/System.keychain "$PODSSH_TEST_STORE_ROOT"
+          trap 'sudo security remove-trusted-cert -d "$PODSSH_TEST_STORE_ROOT" || true
+                sudo security delete-certificate -c store.podssh.test-anchor /Library/Keychains/System.keychain || true' EXIT
+          PODSSH_TEST_STORE_HOLDS=1 cargo test --locked -p podssh-ws --test system_store -- --ignored --exact --nocapture "$test"
+          # Offline, doctor runs the checks that open nothing; its exit code
+          # also counts the network's ????, so only its lines are read.
+          PODSSH_OFFLINE=1 target/debug/podssh doctor >"$RUNNER_TEMP/doctor.out" 2>&1 || true
+          cat "$RUNNER_TEMP/doctor.out"
+          grep -Eq "system stores +the user's trust settings: [0-9]+ root.*; the administrator's trust settings: [1-9][0-9]* root" \
+            "$RUNNER_TEMP/doctor.out" || { echo "FAIL doctor named no trust settings with the root"; exit 1; }
 
   # The one status to require: each job above passed. A job that was
   # skipped or cancelled is not a pass.

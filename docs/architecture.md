@@ -66,12 +66,24 @@ the user gives. For each host, `podssh-ws` connects:
 
 The trust store is `--ca-file` or `SSL_CERT_FILE` alone, else the Mozilla
 roots compiled into the binary (`webpki-roots`), a `podssh-ca.pem` next to
-the binary, and the first readable system bundle. A binary keeps the roots
-that it was built with: an update of the roots makes a release (Dependabot,
-T-205; after `v1.0.0`, a patch release), and `podssh doctor` says when the
-compiled-in roots are older than 12 months. A system bundle adds roots and
-removes none, so to stop trusting a root that Mozilla removed after the
-build, give `--ca-file` or `SSL_CERT_FILE` with a current bundle.
+the binary, the roots of the system's stores, and the first readable system
+bundle (T-340, `crates/podssh-ws/src/stores/`). On Windows the stores are
+`ROOT` of the current user and of the machine, read through crypt32, less a
+certificate that a `Disallowed` store holds, that is not valid today, or
+whose usage leaves out server authentication; the `CA` stores hold
+intermediates, which Windows trusts only through a root, and are not read.
+On macOS they are the trust settings of the user and of the administrator,
+through the Security framework, where `security add-trusted-cert` and an MDM
+profile put a root that `/etc/ssl/cert.pem` does not hold. Elsewhere the
+roots are the bundle's. `podssh doctor` names each store with its count. A
+handshake that fails with rustls's `UnknownIssuer` says what to do: a proxy
+that re-signs TLS needs its CA in `--ca-file` or `SSL_CERT_FILE`, which
+replace the roots, or in `podssh-ca.pem`, which adds to them. A binary keeps
+the roots that it was built with: an update of the roots makes a release
+(Dependabot, T-205; after `v1.0.0`, a patch release), and `podssh doctor`
+says when the compiled-in roots are older than 12 months. A system bundle
+adds roots and removes none, so to stop trusting a root that Mozilla removed
+after the build, give `--ca-file` or `SSL_CERT_FILE` with a current bundle.
 
 A library that embeds `podssh-ws` or `podssh-relay` can bring its own
 `rustls::ClientConfig` (`Trust::caller`, T-066): podbox keeps `ring` and

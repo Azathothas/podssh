@@ -35,6 +35,15 @@ serde_json = { workspace = true }
 [target.'cfg(target_os = "linux")'.dependencies]
 libc = { workspace = true }
 
+# The stores of trust that are not files (T-340, stores/): crypt32 on Windows
+# and the Security framework on macOS. Bindings that link the system's own
+# libraries; neither compiles C.
+[target.'cfg(windows)'.dependencies]
+windows-sys = { version = "0.61", features = ["Win32_Security_Cryptography"] }
+
+[target.'cfg(target_os = "macos")'.dependencies]
+security-framework = { version = "3.7", default-features = false }
+
 [features]
 # A plain WebSocket over TCP to the loopback, for the tests of an embedder
 # (podbox) and a stand-in relay (T-068). Off by default; the binary never

@@ -214,10 +214,8 @@ async fn an_issuer_that_no_root_signs_ends_with_what_to_do() {
     let dir = std::env::temp_dir().join(format!("podssh-issuer-{}", std::process::id()));
     std::fs::create_dir_all(&dir).expect("a directory for the root");
     let pem_path = dir.join("root.pem");
-    let der = cert::encoding::self_signed_inner("issuer.example-anchor", true).der;
-    let body = base64_lines(&der);
-    std::fs::write(&pem_path, format!("-----BEGIN CERTIFICATE-----\n{body}-----END CERTIFICATE-----\n"))
-        .expect("the root is written");
+    let der = cert::encoding::self_signed_inner(&cert::encoding::anchor_name("issuer.example"), true).der;
+    std::fs::write(&pem_path, cert::encoding::pem(&der)).expect("the root is written");
     let listener = tokio::net::TcpListener::bind("127.0.0.1:0").await.expect("bind");
     let addr = listener.local_addr().expect("an address");
     let server = serve(acceptor, listener);
@@ -228,26 +226,4 @@ async fn an_issuer_that_no_root_signs_ends_with_what_to_do() {
     if let Err(why) = through {
         panic!("the control, the root in a file, must pass: {why}");
     }
-}
-
-/// `der` in base64, 64 characters to a line, as PEM holds it.
-fn base64_lines(der: &[u8]) -> String {
-    const ALPHABET: &[u8; 64] = b"ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789+/";
-    let mut text = String::new();
-    for chunk in der.chunks(3) {
-        let n = chunk.iter().enumerate().fold(0u32, |n, (i, b)| n | (u32::from(*b) << (16 - 8 * i)));
-        for i in 0..4 {
-            if i <= chunk.len() {
-                text.push(ALPHABET[(n >> (18 - 6 * i) & 63) as usize] as char);
-            } else {
-                text.push('=');
-            }
-        }
-    }
-    let mut lines = String::new();
-    for line in text.as_bytes().chunks(64) {
-        lines.push_str(std::str::from_utf8(line).expect("base64 is ASCII"));
-        lines.push('\n');
-    }
-    lines
 }

@@ -366,3 +366,27 @@ pub fn der_length_covers_the_certificate(der: &[u8]) {
         der.len() - header
     );
 }
+
+/// `der` as a PEM certificate, base64 in lines of 64 characters, as
+/// `--ca-file` and a system's tools read it.
+pub(crate) fn pem(der: &[u8]) -> String {
+    const ALPHABET: &[u8; 64] = b"ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789+/";
+    let mut text = String::new();
+    for chunk in der.chunks(3) {
+        let n = chunk.iter().enumerate().fold(0u32, |n, (i, b)| n | (u32::from(*b) << (16 - 8 * i)));
+        for i in 0..4 {
+            if i <= chunk.len() {
+                text.push(ALPHABET[((n >> (18 - 6 * i)) & 63) as usize] as char);
+            } else {
+                text.push('=');
+            }
+        }
+    }
+    let mut out = String::from("-----BEGIN CERTIFICATE-----\n");
+    for line in text.as_bytes().chunks(64) {
+        out.push_str(std::str::from_utf8(line).expect("base64 is ASCII"));
+        out.push('\n');
+    }
+    out.push_str("-----END CERTIFICATE-----\n");
+    out
+}

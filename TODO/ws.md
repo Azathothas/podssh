@@ -223,7 +223,7 @@ module comment says that the test suite asserts that the shipped configuration d
 (`probe.rs` lines 9-12 at `510d86f`), but no test names `PrintChain`: a search finds it only in `probe.rs`,
 the example and the documents. Also, lines 134 and 178 at `510d86f` of `probe.rs` index the certificate with
 no bound check, so a short certificate panics the probe. The shipped configuration calls
-`.dangerous()` to install the WebPKI verifier (`crates/podssh-ws/src/tls.rs:277-281`), so a scan
+`.dangerous()` to install the WebPKI verifier (`crates/podssh-ws/src/tls.rs:288-292`), so a scan
 cannot look for that word alone.
 
 ## Approach
@@ -405,7 +405,7 @@ the system bundle).
 
 Read: the provider has two suites, both TLS 1.3 (`crates/podssh-ws/src/crypto/suites.rs`, line 55
 at `0d3d13a`), and its comment says that TLS 1.2 suites are absent on purpose (lines 7-11 at `0d3d13a`). The configuration
-enables both versions (`crates/podssh-ws/src/tls.rs:277-279`); rustls accepts that, because one
+enables both versions (`crates/podssh-ws/src/tls.rs:288-290`); rustls accepts that, because one
 suite is usable, and then offers no TLS 1.2 suite (rustls 0.23.45, `with_protocol_versions` in
 its `src/builder.rs`, read in the cargo registry). The `tls12` feature of `rustls` and
 `tokio-rustls` is on (`Cargo.toml`). The provider has HMAC
@@ -430,7 +430,7 @@ requires TLS 1.3 (`scripts/fake-relay.py`, lines 426-427 at `0d3d13a`).
    (`crates/podssh-relay/src/health.rs:98-101`, which `doctor` and `relay status` share); the live relay must still give TLS
    1.3.
 6. Change the comment of `suites.rs`, `docs/architecture.md` (line 46 at `0d3d13a`), the Trust item of the manual
-   (`crates/podssh-cli/src/man/facts.rs:408-424`) and `docs/STATUS.md` in the same commit.
+   (`crates/podssh-cli/src/man/facts.rs` lines 408-424 at `59b67e6`) and `docs/STATUS.md` in the same commit.
 
 ## Decision
 
@@ -722,7 +722,7 @@ once (`crates/podssh-relay/src/open.rs:70`) and gives exit 78 in `podssh proxy`
 5. Credentials never in output: `Display` shows the host and port only (now
    `crates/podssh-ws/src/proxy.rs:70-75`).
 6. `doctor` names the SOCKS5 proxy, and its proxy checks
-   (`crates/podssh-cli/src/doctor/net.rs:195-237`) work for both forms. The two tests above
+   (`crates/podssh-cli/src/doctor/net.rs:201-243`) work for both forms. The two tests above
    plant `ftp://` and `socks4://` instead; `socks4` and `socks4a` are refused by name.
 7. Change the proxy variables in VARIABLES (`crates/podssh-cli/src/man/facts.rs:46-55`),
    `docs/architecture.md` and `docs/cli.md` in the same commit.
@@ -1596,10 +1596,11 @@ command says what to do. Four of the eight release binaries are for Windows and 
 
 ## Premise
 
-- Read: the system's bundles are Unix paths (`crates/podssh-ws/src/tls.rs:97-106`), and the
-  default roots are the compiled-in Mozilla roots, `podssh-ca.pem` next to the binary and the
-  first bundle that reads (`:180-200`). An explicit file (`--ca-file`, `SSL_CERT_FILE`) is used
-  alone and never widened (`:35-39`).
+- Read: the system's bundles are Unix paths (`crates/podssh-ws/src/tls.rs:99-108`), and the
+  default roots were the compiled-in Mozilla roots, `podssh-ca.pem` next to the binary and the
+  first bundle that reads (`crates/podssh-ws/src/tls.rs` lines 180-200 at `59b67e6`). An explicit
+  file (`--ca-file`, `SSL_CERT_FILE`) is used alone and never widened
+  (`crates/podssh-ws/src/tls.rs:35-36`).
 - Read: a failed handshake gives rustls's text: `crates/podssh-ws/src/client.rs:133` says "TLS
   with the relay failed: {why}", and `crates/podssh-ws/src/client.rs` lines 202-203 at `1316e53`
   kept rustls's words. doctor adds a hint for the
@@ -1610,7 +1611,7 @@ command says what to do. Four of the eight release binaries are for Windows and 
 - Read: `windows-sys` 0.61 is already a dependency of `podssh-relay` on Windows
   (`crates/podssh-relay/Cargo.toml:67-68`), a crate with no C; `rustls-native-certs` 0.8.4,
   `schannel` and `security-framework` are in the lock through other crates
-  (`Cargo.lock:4899-4900`).
+  (`Cargo.lock:4901-4902`).
 - Read: one proxy that re-terminates TLS was measured, with its CA in `SSL_CERT_FILE` and in the
   system's store of Linux (`docs/target-environment.md:57-63`).
 - Inferred: on macOS, `/etc/ssl/cert.pem` lacks a root that an administrator added to a keychain;
@@ -1624,7 +1625,7 @@ command says what to do. Four of the eight release binaries are for Windows and 
    here; a proxy that re-signs TLS needs its CA, in `--ca-file FILE` or `SSL_CERT_FILE` (which
    replace the store) or in `podssh-ca.pem` next to the binary (which adds to it). Each command
    gets it with the error's text (`crates/podssh-ws/src/client.rs:204`,
-   `crates/podssh-ws/src/tls.rs:149`), and doctor too. T-345 adds the clock's errors to the same
+   `crates/podssh-ws/src/tls.rs:151`), and doctor too. T-345 adds the clock's errors to the same
    function.
 2. Windows: the stores `ROOT` and `CA` of the current user and of the machine, read through
    `windows-sys` (its feature `Win32_Security_Cryptography`: `CertOpenSystemStoreW`,
@@ -1643,6 +1644,20 @@ command says what to do. Four of the eight release binaries are for Windows and 
 its own order of sources. `rustls-native-certs` lost: its sources and their order are its own on
 each system (Inferred), and on Linux it would read again what podssh reads.
 
+Decision 2, the stores of Windows: `ROOT` of the user and of the machine, as roots. `CA` lost: its
+certificates are intermediates, which Windows trusts only through a root, and a process of the
+user adds one to the user's `CA` with no prompt, where an addition to the user's `ROOT` asks the
+user (Inferred); read as roots, they would widen what Windows trusts. A certificate counts as
+Windows counts it for TLS: its usage, from the extension and the store's property
+(`CertGetEnhancedKeyUsage`), is all or holds server authentication, it is valid today, and no
+`Disallowed` store holds it. Each certificate of `ROOT` lost: it would trust a root that Windows
+limits to another usage, or that an administrator distrusted.
+
+Decision 3, macOS: `security-framework` won, as `windows-sys` did: it compiles no C, it is in the
+lock, and podssh reads with it only the trust settings of the user and of the administrator,
+where an addition goes; the user's decide first, as in the framework. The System domain is
+Apple's own roots, which `/etc/ssl/cert.pem` holds (Inferred), beside podssh's compiled-in roots.
+
 ## Prove
 
 ```sh
@@ -1656,9 +1671,19 @@ with the hint, which names `--ca-file`. In CI on `windows-2025`: a root added to
 `ROOT` store lets a session through a stand-in that it signs, and doctor names the store.
 Planted: the match of `UnknownIssuer` removed; the test of the hint fails.
 
+## Correction
+
+Approach item 2 named the stores `ROOT` and `CA`, `CertOpenSystemStoreW`, and a proof with a root
+in the user's `ROOT`. Decision 2 reads `ROOT` alone; `CertOpenStore` with the store's place opens
+the machine's too, where `CertOpenSystemStoreW` opens the user's only; and CI adds the root to the
+machine's `ROOT`, which the user's view of `ROOT` holds too, as an addition to the user's asks its
+user in a dialog that a runner cannot answer (Inferred). Approach item 3's experiment is a step
+of the same test: on the runner it asserts that no bundle of `SYSTEM_BUNDLES`, `/etc/ssl/cert.pem`
+among them, holds the root that the keychain trusts.
+
 ## Done
 
-2026-10-31, partial. Done here, item 1; next, items 2 to 4:
+2026-10-31, partial. Done here, items 1, 2, 3 and 4; the runs of CI on Windows and macOS wait:
 
 - `podssh_ws::tls::handshake_hint` and `handshake_failure`: rustls's
   `CertificateError::UnknownIssuer`, found in the `io::Error` by its type and
@@ -1676,6 +1701,27 @@ Planted: the match of `UnknownIssuer` removed; the test of the hint fails.
   1 passed), and the gate's `scripts/interop-faults.sh` has the same check,
   `faults.issuer`. Planted, the match of `UnknownIssuer` removed: each of the
   three failed.
+- `podssh_ws::stores` (`crates/podssh-ws/src/stores/`): on Windows, `ROOT` of the current user
+  and of the machine through crypt32 (`CertOpenStore` read-only, `CertEnumCertificatesInStore`,
+  `CertGetEnhancedKeyUsage`, `CertVerifyTimeValidity`), less what a `Disallowed` store holds; on
+  macOS, the trust settings of the user and of the administrator through `security-framework`
+  3.7 (no C; both already in the lock). `tls::default_roots` adds each store's roots after
+  `podssh-ca.pem`; a store that does not open is passed over with its note. doctor's line
+  "system stores" names each store with its count, on Windows and macOS only. Tests: the sort
+  of a store's certificates (usage, `Disallowed`, a root given by an earlier store) and the
+  summary (`cargo test -p podssh-ws --lib stores`, 3 passed; planted, the `Disallowed` check and
+  the dedupe each removed: each failed); `cargo clippy -p podssh-ws --all-targets` for
+  `x86_64-pc-windows-gnu` and `aarch64-apple-darwin`, `-D warnings`, clean.
+- `crates/podssh-ws/tests/system_store.rs`, which the jobs `windows` and `macos` of
+  `.github/workflows/build.yml` run: the test's root written, a server that it signs refused
+  with `UnknownIssuer` while no store holds it, then trusted with the default trust once the root
+  is in the machine's `ROOT` (`Import-Certificate`) or in the System keychain with the
+  administrator's trust (`security add-trusted-cert -d`), no bundle file holding it; doctor offline
+  names each store; the root leaves the store in each case. Here, with no store: the control
+  passes and the run that wants the root in a store fails.
+- The manual's Trust item (now `crates/podssh-cli/src/man/facts/trust.rs`, out of `facts.rs` at
+  its 500 lines) and `docs/architecture.md` give the sources in their order on each system and
+  the hint.
 
 # T-344: DNS over HTTPS: two operators, one encoding, and no memory of the addresses that worked
 
@@ -1753,7 +1799,7 @@ test of the order fails.
 A host whose clock is wrong sees each certificate as expired, or as not valid yet. `doctor` says
 that certificates are checked against this host's clock, and gives its reading; `ssh`, `proxy`
 and each other command print rustls's words alone. An error should tell what to do
-(`docs/architecture.md:150`).
+(`docs/architecture.md:162`).
 
 ## Premise
 
@@ -1761,8 +1807,8 @@ and each other command print rustls's words alone. An error should tell what to 
   (`:341-344`).
 - Read: the other commands print the error's text: `crates/podssh-ws/src/client.rs:133` says "TLS
   with the relay failed: {why}"; the TLS of IRC and of the quick tunnel's edge gives the text of
-  `crates/podssh-ws/src/tls.rs:149` (`crates/podssh-relay/src/quick/edge.rs:111-113`).
-- Read: rustls 0.23.46 (`Cargo.lock:4849-4850`) has the errors `Expired`, `ExpiredContext`,
+  `crates/podssh-ws/src/tls.rs:151` (`crates/podssh-relay/src/quick/edge.rs:111-113`).
+- Read: rustls 0.23.46 (`Cargo.lock:4851-4852`) has the errors `Expired`, `ExpiredContext`,
   `NotValidYet` and `NotValidYetContext`, and writes the two with a context as "certificate
   expired: verification time" and "certificate not valid yet: verification time" (its
   `src/error.rs`, read in cargo's registry); doctor's match of the text ("expired", "not valid
@@ -1777,7 +1823,7 @@ and each other command print rustls's words alone. An error should tell what to 
    failed with one of the four time errors (their text as the fallback) gets the clock's hint,
    with this host's clock in UTC, in doctor's words.
 2. Each place where podssh-ws makes the text of a TLS error uses it: `ConnectError::Tls`
-   (`crates/podssh-ws/src/client.rs:204`), `tls::connect_over` (`crates/podssh-ws/src/tls.rs:149`)
+   (`crates/podssh-ws/src/client.rs:204`), `tls::connect_over` (`crates/podssh-ws/src/tls.rs:151`)
    and the query of DNS over HTTPS (`crates/podssh-ws/src/resolve.rs:150-153`). doctor's `clock_hint`
    calls it, so that the words are the same.
 3. Tests through a stand-in relay with an expired certificate: `podssh ssh`, `podssh proxy` and
