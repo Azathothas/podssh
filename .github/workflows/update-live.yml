@@ -56,9 +56,14 @@ jobs:
         shell: bash
         run: |
           set -eu
+          # A time limit on each wait: timeout(1), else perl's alarm, which an
+          # exec keeps (macOS has no timeout).
+          limited() {
+            if command -v timeout > /dev/null 2>&1; then timeout "$@"; else perl -e 'alarm shift; exec @ARGV' "$@"; fi
+          }
           tag=$ASKED
           if [ -z "$tag" ]; then
-            tag=$(timeout 60 gh release list --repo "$GITHUB_REPOSITORY" --exclude-drafts --limit 1 --json tagName --jq '.[].tagName')
+            tag=$(limited 60 gh release list --repo "$GITHUB_REPOSITORY" --exclude-drafts --limit 1 --json tagName --jq '.[].tagName')
           fi
           case "$tag" in
             v[0-9]*) ;;
@@ -70,11 +75,11 @@ jobs:
           mkdir -p "$dir"
           cp "target/debug/$exe" "$dir/$exe"
           # The newest release, and nothing written.
-          timeout 120 "$dir/$exe" update --check
-          timeout 120 "$dir/$exe" update --check --version "$tag"
+          limited 120 "$dir/$exe" update --check
+          limited 120 "$dir/$exe" update --check --version "$tag"
           before=$(ls "$dir")
           test "$before" = "$exe"
-          timeout 900 "$dir/$exe" update --version "$tag"
+          limited 900 "$dir/$exe" update --version "$tag"
           got=$("$dir/$exe" --version)
           case "$got" in
             "podssh ${tag#v} ("*) ;;

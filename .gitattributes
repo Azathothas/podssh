@@ -20,6 +20,11 @@
 crates/podssh-cli/tests/fixtures/sessions/** -text
 # The bytes of capnp encode (T-300), read byte for byte.
 crates/podssh-relay/tests/fixtures/quick/*.bin -text
+# A release's files as GitHub served them (T-375): the bundle signs the
+# digest of these bytes, so a checkout that changed a line end would make the
+# signature fail (it did, on Windows, at 5877a00). Sigstore's roots too.
+crates/podssh-cli/tests/fixtures/update/** -text
+crates/podssh-cli/src/update/trust/*.pem -text
 # The scripts and the workflows read the FROM line of these.
 images/*/Dockerfile text eol=lf
 scripts/gate.sh text eol=lf

@@ -17,6 +17,16 @@ pub fn running() -> Result<PathBuf, String> {
     fs::canonicalize(&exe).map_err(|e| format!("{}: {e}", exe.display()))
 }
 
+/// `path` as a user reads it: on Windows without the `\\?\` that the
+/// canonical form of a path on a drive begins with.
+pub fn shown(path: &Path) -> String {
+    let text = path.display().to_string();
+    match text.strip_prefix(r"\\?\") {
+        Some(rest) if rest.as_bytes().get(1) == Some(&b':') => rest.to_string(),
+        _ => text,
+    }
+}
+
 /// Where a running binary is moved on Windows: `podssh.exe.old`.
 pub fn aside(exe: &Path) -> PathBuf {
     let mut name = exe.as_os_str().to_owned();
@@ -131,6 +141,13 @@ mod tests {
         let expected = if cfg!(windows) { 2 } else { 1 };
         assert_eq!(left.len(), expected, "{left:?}");
         let _ = fs::remove_dir_all(&dir);
+    }
+
+    #[test]
+    fn a_path_is_shown_without_the_prefix_of_a_canonical_drive_path() {
+        assert_eq!(shown(Path::new(r"\\?\D:\a\podssh.exe")), r"D:\a\podssh.exe");
+        assert_eq!(shown(Path::new(r"\\?\UNC\host\share\podssh.exe")), r"\\?\UNC\host\share\podssh.exe");
+        assert_eq!(shown(Path::new("/usr/local/bin/podssh")), "/usr/local/bin/podssh");
     }
 
     #[test]

@@ -212,7 +212,7 @@ async fn newest(opts: &Options) -> Result<(Version, &'static str), Failure> {
 /// `SHA256SUMS` and its signature, checked; with `check`, no more; else the
 /// binary of this target, checked, in place of `opts.exe`.
 pub async fn update(opts: &Options, check: bool, asked: Option<&Version>, out: &mut dyn Write) -> Result<(), Failure> {
-    let _ = writeln!(out, "podssh {}, {}: {}", opts.current, opts.target, opts.exe.display());
+    let _ = writeln!(out, "podssh {}, {}: {}", opts.current, opts.target, replace::shown(&opts.exe));
     let version = match asked {
         Some(version) => version.clone(),
         None => {
@@ -266,7 +266,7 @@ pub async fn update(opts: &Options, check: bool, asked: Option<&Version>, out: &
         let _ = writeln!(out, "this build has the feature ts, which the release's binary has not");
     }
     if check {
-        let _ = writeln!(out, "podssh update would replace {} with {name} of {tag}", opts.exe.display());
+        let _ = writeln!(out, "podssh update would replace {} with {name} of {tag}", replace::shown(&opts.exe));
         return Ok(());
     }
     let binary = get(opts, &format!("{base}/{name}"), MAX_BINARY, BINARY_LIMIT).await?;
@@ -278,8 +278,8 @@ pub async fn update(opts: &Options, check: bool, asked: Option<&Version>, out: &
     }
     let _ = writeln!(out, "{name}: {}, its SHA-256 is the one of SHA256SUMS", mib(binary.len()));
     replace::replace(&opts.exe, &binary)
-        .map_err(|why| Failure::CantWrite(format!("{why}; {} is as it was", opts.exe.display())))?;
-    let _ = writeln!(out, "{}: replaced; it is podssh {version} now", opts.exe.display());
+        .map_err(|why| Failure::CantWrite(format!("{why}; {} is as it was", replace::shown(&opts.exe))))?;
+    let _ = writeln!(out, "{}: replaced; it is podssh {version} now", replace::shown(&opts.exe));
     Ok(())
 }
 
