@@ -20,7 +20,7 @@ use std::time::Duration;
 use podssh_relay::identity::file;
 use podssh_relay::quick::register::{Registration, FEATURES};
 use podssh_relay::quick::serve::{self, Ended, Step};
-use podssh_relay::quick::{api, edge, quic};
+use podssh_relay::quick::{self, api, edge, quic};
 use podssh_relay::reverse::framing::SessionId;
 use podssh_relay::reverse::routes::Route;
 use podssh_relay::reverse::{self, E2e, Handler, Layered, TcpHandler};
@@ -161,11 +161,19 @@ async fn serve_quick(ready: Ready, err: &mut dyn Write) -> i32 {
     // QUIC first, as cloudflared's own default, where no proxy stands in its
     // way: a proxy carries no UDP (T-301).
     let mut over_quic = matches!(podssh_ws::dial::proxy_from_env(edge::REGIONS[0]), Ok(None));
+    // The fixed names of the edge are said once a run, as `podssh node` has
+    // no -v (T-339).
+    let mut said_fixed = false;
     loop {
         if *stopped.borrow() {
             break;
         }
-        let link = match link(&mut over_quic, &proxy, &say).await {
+        let found = edge::find(&proxy).await;
+        if let Some(why) = found.fixed.as_ref().filter(|_| !said_fixed) {
+            say(format!("{why}; the two names of Cloudflare's documents, port {}", edge::PORT));
+            said_fixed = true;
+        }
+        let link = match link(&mut over_quic, &proxy, &found, &say).await {
             Ok(link) => link,
             // A host whose egress never reaches the edge cannot publish.
             Err(why) if !connected_once => {
@@ -225,17 +233,24 @@ async fn serve_quick(ready: Ready, err: &mut dyn Write) -> i32 {
         if registered.load(Ordering::SeqCst) {
             wait = RETRY_FIRST;
         }
+        // An end that a change of cloudflared would give names the release
+        // that podssh speaks (T-339).
+        let speaks = match &served {
+            Err(e) if e.may_be_the_protocol() => format!(" (podssh speaks {})", quick::SPEAKS),
+            _ => String::new(),
+        };
         match served {
             Ok(()) => break,
             Err(Ended::Refused { cause, retry: false, .. }) => {
-                let message = format!("the edge refused the tunnel's connection: {cause}");
+                let message = format!("the edge refused the tunnel's connection: {cause}{speaks}");
                 return Refusal { message, code: Fault::Auth.code() }.report("node", err);
             }
             Err(Ended::Refused { cause, after, .. }) => {
                 wait = after.clamp(RETRY_FIRST, RETRY_MOST);
-                say(format!("the edge refused the connection for now ({cause}); trying again in {} s", wait.as_secs()));
+                let secs = wait.as_secs();
+                say(format!("the edge refused the connection for now ({cause}){speaks}; trying again in {secs} s"));
             }
-            Err(e) => say(format!("{e}; connecting again in {} s", wait.as_secs())),
+            Err(e) => say(format!("{e}{speaks}; connecting again in {} s", wait.as_secs())),
         }
         pause(&mut wait, &stopped).await;
     }
@@ -264,10 +279,11 @@ impl<T> Link<T> {
 async fn link(
     over_quic: &mut bool,
     proxy: &ProxyChoice,
+    found: &edge::Edge,
     say: &dyn Fn(String),
 ) -> Result<Link<impl AsyncRead + AsyncWrite + Unpin + Send>, String> {
     if *over_quic {
-        match quic::connect_edge().await {
+        match quic::connect_edge(found).await {
             Ok(edge) => return Ok(Link::Quic(edge)),
             Err(why) => {
                 *over_quic = false;
@@ -275,7 +291,7 @@ async fn link(
             }
         }
     }
-    edge::connect(proxy).await.map(Link::Http2)
+    edge::connect(proxy, found).await.map(Link::Http2)
 }
 
 /// Wait `wait`, unless the end comes first, and double it for the next time.

@@ -1,7 +1,7 @@
 This file holds the work on `podssh-ws`, the crate that reaches the relay: TCP and proxies, TLS
 with podssh's own pure-Rust provider, and the WebSocket client. W10, W13 and W14 are rows of the
 former defects page (`git show 3ee70dc:docs/defects.md`); the features come from the
-`podssh-ws` item of ROADMAP M4 and `docs/design.md:471-475`, and from GitHub issues. The crate
+`podssh-ws` item of ROADMAP M4 and `docs/design.md:484-488`, and from GitHub issues. The crate
 must build with no C compiler (`scripts/gate.sh:154-166`).
 
 # T-063: W10: the frame decoder does not check a received control frame
@@ -287,7 +287,7 @@ The scan passes on the tree, and the example still builds. Planted defect: add a
 
 # T-066: A `rustls::ClientConfig` that the caller supplies, for podbox
 
-**Source:** the `podssh-ws` item of ROADMAP M4; `docs/design.md:433-434` and 102-104. Read here
+**Source:** the `podssh-ws` item of ROADMAP M4; `docs/design.md:446-447` and 102-104. Read here
 on `3ee70dc`.
 **Category:** feature
 **Milestone:** M4
@@ -328,7 +328,7 @@ HTTP/1.1 only (`docs/relay.md:274`). The `tls12` feature of `rustls` is on in th
 5. `podssh-ws` must not depend on `ring`, also not in its tests: the gate builds the tests with
    no C compiler. The tests make the caller's configuration with podssh's own provider.
 6. The default stays `Trust`, so the binary does not change.
-7. Change `docs/design.md:471-475` and `docs/architecture.md` in the same commit.
+7. Change `docs/design.md:484-488` and `docs/architecture.md` in the same commit.
 
 ## Decision
 
@@ -388,7 +388,7 @@ unknown, and the test fails.
 # T-067: TLS 1.2, for intercepting proxies
 
 **Source:** `docs/STATUS.md` (Components, `podssh-ws`: "No TLS 1.2 (some intercepting proxies
-need it)"); `docs/design.md:433-434`. podssh has not measured such a proxy.
+need it)"); `docs/design.md:446-447`. podssh has not measured such a proxy.
 **Category:** feature
 **Milestone:** backlog
 **Priority:** P2
@@ -491,7 +491,7 @@ that speaks only TLS 1.2 carrying an OpenSSH session.
 
 # T-068: Plain `ws://` to loopback, for tests only
 
-**Source:** the `podssh-ws` item of ROADMAP M4; `docs/design.md:472-473`.
+**Source:** the `podssh-ws` item of ROADMAP M4; `docs/design.md:485-486`.
 **Category:** feature
 **Milestone:** M4
 **Priority:** P3
@@ -525,7 +525,7 @@ is possible. `podssh-relay` gives the TLS type back (`Opened`,
 4. The runners of `podssh-relay` (T-079, T-081) must take any stream type, so that podbox's
    tests can use them.
 5. The binary never enables the feature; a check in the gate proves it.
-6. Change `docs/design.md:472-473` in the same commit.
+6. Change `docs/design.md:485-486` in the same commit.
 
 ## Decision
 
@@ -581,7 +581,7 @@ the feature. Planted defect: remove the loopback check; the refusal test fails.
 
 # T-069: Typed session errors in `podssh-ws`
 
-**Source:** the `podssh-ws` item of ROADMAP M4; `docs/design.md:473-474`.
+**Source:** the `podssh-ws` item of ROADMAP M4; `docs/design.md:486-487`.
 **Category:** feature
 **Milestone:** M4
 **Priority:** P2
@@ -822,7 +822,7 @@ a value with its top bit set, which section 5.2 forbids too. `frame::encode` wri
 form (`:88-96`). The tests check the encoder at the boundaries 125, 126, 65535 and 65536
 (`crates/podssh-ws/tests/rfc6455.rs:92-117`), and no test decodes a length that is not
 minimal. The only caller in the code is `next_event`, for the frames of the relay
-(`crates/podssh-ws/src/client.rs:405-414`). The stand-in relay writes the minimal form
+(`crates/podssh-ws/src/client.rs:421-430`). The stand-in relay writes the minimal form
 (`scripts/fake_ws.py:21-29`); the frames of the real relay were not checked for it.
 
 ## Approach
@@ -1676,8 +1676,8 @@ of that form, leaves `--relay-addr` alone. podssh keeps no address that carried 
   HTTPS (`crates/podssh-ws/src/resolve.rs:1-11`); with an HTTP proxy none of it runs for the
   target, and TLS always checks the target's name (`:12-15`).
 - Read: the resolvers are Cloudflare's and Google's, by IP literal, each with its JSON path
-  (`crates/podssh-ws/src/resolve.rs:27-31`); each query dials port 443 directly (`:143-160`),
-  with `Accept: application/dns-json` (`:153`), for A and then AAAA (`:124`).
+  (`crates/podssh-ws/src/resolve.rs:28-32`); each query dials port 443 directly (`:144-161`),
+  with `Accept: application/dns-json` (`:154`), for A and then AAAA (`:125`).
 - Read: the relay's pool is cached on disk at a mint (`crates/podssh-relay/src/pool.rs:118-137`);
   nothing caches an address.
 - Inferred: RFC 8484 defines the wire form, `application/dns-message`, and no standard defines the
@@ -1739,7 +1739,7 @@ and each other command print rustls's words alone. An error should tell what to 
   (`:341-344`).
 - Read: the other commands print the error's text: `crates/podssh-ws/src/client.rs:133` says "TLS
   with the relay failed: {why}"; the TLS of IRC and of the quick tunnel's edge gives the text of
-  `crates/podssh-ws/src/tls.rs:149` (`crates/podssh-relay/src/quick/edge.rs:55-57`).
+  `crates/podssh-ws/src/tls.rs:149` (`crates/podssh-relay/src/quick/edge.rs:111-113`).
 - Read: rustls 0.23.46 (`Cargo.lock:4849-4850`) has the errors `Expired`, `ExpiredContext`,
   `NotValidYet` and `NotValidYetContext`, and writes the two with a context as "certificate
   expired: verification time" and "certificate not valid yet: verification time" (its
@@ -1756,7 +1756,7 @@ and each other command print rustls's words alone. An error should tell what to 
    with this host's clock in UTC, in doctor's words.
 2. Each place where podssh-ws makes the text of a TLS error uses it: `ConnectError::Tls`
    (`crates/podssh-ws/src/client.rs:203`), `tls::connect_over` (`crates/podssh-ws/src/tls.rs:149`)
-   and the query of DNS over HTTPS (`crates/podssh-ws/src/resolve.rs:150`). doctor's `clock_hint`
+   and the query of DNS over HTTPS (`crates/podssh-ws/src/resolve.rs:151`). doctor's `clock_hint`
    calls it, so that the words are the same.
 3. Tests through a stand-in relay with an expired certificate: `podssh ssh`, `podssh proxy` and
    `podssh cp` each name the clock and its reading.

@@ -294,6 +294,22 @@ pub async fn https_get(
         .await
 }
 
+/// GET over HTTPS as [`https_get`], with `accept` as the answer's type: a
+/// resolver's JSON API answers `application/dns-json` (T-339).
+#[allow(clippy::too_many_arguments)]
+pub async fn https_get_accepting(
+    host: &str,
+    port: u16,
+    path: &str,
+    accept: &str,
+    max_body: usize,
+    trust: &Trust,
+    proxy: &ProxyChoice,
+    timeout: Duration,
+) -> Result<http::Response, ConnectError> {
+    https_request("GET", host, port, path, &[("Accept", accept)], b"", max_body, trust, proxy, timeout).await
+}
+
 /// A request over HTTPS with a relay token in its `X-Relay-Token` header, as
 /// the pairing calls need (`/v1/status/<name>`, `/v1/stop/<name>`), through
 /// the same proxy-aware, verified path as [`connect`]. The token goes into the

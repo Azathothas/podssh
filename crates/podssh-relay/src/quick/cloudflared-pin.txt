@@ -1,0 +1,23 @@
+# The release of cloudflared whose protocol podssh's quick tunnel speaks
+# (T-300), and the SHA-256 of each file of cloudflared that holds a part of
+# it: the registration's schema, the features it names, the edge's roots,
+# and the edge's names and ALPN. scripts/check-upstream.py reads
+# cloudflared's newest release each week (.github/workflows/upstream.yml)
+# and fails when one of these files holds other bytes there than a sum
+# below, or when the pin is 9 months old: Cloudflare supports a cloudflared
+# for a year after its newest release (T-339). A later release's sum joins
+# its file once a person read that release's change and judged it the same
+# for podssh, with the reason.
+tag 2026.10.6
+commit 35b379ac174d60a4301615defedc821de5625cef
+released 2026-10-29
+file tunnelrpc/proto/tunnelrpc.capnp 448aa30f4e251dc8810aba1a16c60ebeaaa5e000f88c46a8a28ba29f73e3bc3c
+file features/features.go 3395575e09287a9240dbab439c5ad39b74b772fab0cd6fd3e804da2014014578
+# 2026.10.7, read 2026-10-31: TUN-10904 calls the five features that the
+# registration names (register.rs) legacy, ones that the edge supports for
+# each connector and no longer needs to be told, and cloudflared stops
+# sending them; the edge takes them from each release that it supports, so
+# podssh names them on, as 2026.10.6 does.
+file features/features.go 098fb887e189ac0640046ee1a7e71c7e74a44d35eea2e02f8f49cfbb219fcfd0
+file tlsconfig/cloudflare_ca.go 2cbafae6d85350392221a06d77cdab9223767b791dbca07d18a28de320b99321
+file connection/protocol.go a8adb832cc252397bebcd04ff3a40b37ed10d5573a1a7637f8313fcc3f377000

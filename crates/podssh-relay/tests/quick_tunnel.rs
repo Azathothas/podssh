@@ -106,3 +106,20 @@ async fn any_other_request_gets_404_with_no_body() {
     tokio::time::timeout(LIMIT, served).await.unwrap().unwrap().expect("the end was asked for");
     drop(edge);
 }
+
+/// The edge's SRV record through a proxy at a port of this host where
+/// nothing listens: no resolver answers, and the edge is the fixed one, with
+/// the reason (T-339).
+#[tokio::test]
+async fn a_record_that_cannot_be_read_gives_the_fixed_names_and_why() {
+    use podssh_relay::quick::edge;
+    let closed = std::net::TcpListener::bind("127.0.0.1:0").unwrap();
+    let port = closed.local_addr().unwrap().port();
+    drop(closed);
+    let proxy = podssh_ws::proxy::Proxy::parse(&format!("http://127.0.0.1:{port}")).unwrap();
+    let found = edge::find(&podssh_ws::ProxyChoice::Via(proxy)).await;
+    assert_eq!(found.regions, edge::REGIONS.map(String::from).to_vec());
+    assert_eq!(found.port, edge::PORT);
+    let why = found.fixed.expect("the reason of the fixed names");
+    assert!(why.contains("the edge's SRV record was not read"), "{why}");
+}

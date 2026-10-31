@@ -28,6 +28,7 @@ mod host;
 mod iroh;
 mod net;
 mod pairs;
+mod quick;
 mod relay_checks;
 mod samples;
 #[cfg(unix)]
@@ -108,6 +109,7 @@ pub fn run_doctor(args: &DoctorArgs, out: &mut dyn Write, err: &mut dyn Write) -
 
     report.section("egress");
     net::check_local(&mut report, &relays, &trust, trust_from);
+    quick::check(&mut report);
     if podssh_relay::open::offline() {
         report.unknown("network", "not attempted: PODSSH_OFFLINE is set");
         if args.full {

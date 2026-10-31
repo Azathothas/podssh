@@ -43,3 +43,20 @@ pub mod rpc;
 pub mod serve;
 #[cfg(feature = "quick")]
 pub mod visitor;
+
+/// The release whose protocol podssh speaks: named where the edge refuses
+/// podssh, or answers what podssh does not read, for a change of cloudflared
+/// would look so (T-339). `cloudflared-pin.txt` holds its sums.
+pub const SPEAKS: &str = "the quick tunnel of cloudflared 2026.10.6";
+
+#[cfg(test)]
+mod pin_tests {
+    #[test]
+    fn the_release_named_is_the_pin_of_the_table() {
+        let table = include_str!("cloudflared-pin.txt");
+        let tag = table.lines().find_map(|line| line.strip_prefix("tag ")).expect("the table names its tag");
+        assert_eq!(super::SPEAKS, format!("the quick tunnel of cloudflared {}", tag.trim()));
+        // And the module's own words of the pin.
+        assert!(include_str!("mod.rs").contains(&format!("cloudflared {}", tag.trim())));
+    }
+}

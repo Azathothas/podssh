@@ -84,6 +84,9 @@ jobs:
           sed 's/^/node: /' "$RUNNER_TEMP/node.log"
           grep -q "registered at" "$RUNNER_TEMP/node.log" || { echo "FAIL the edge took no registration"; exit 1; }
           grep -q "registered at .*, over QUIC" "$RUNNER_TEMP/node.log" || { echo "FAIL not over QUIC (T-301)"; exit 1; }
+          # The edge by its SRV record: the fixed names would be said (T-339).
+          if grep -q "the edge's SRV record" "$RUNNER_TEMP/node.log"; then echo "FAIL the SRV record did not name the edge"; exit 1; fi
+          echo "ok    the edge's two regions came from its SRV record"
           echo "ok    registered over QUIC; the name is $(echo "$host" | grep -c '\.trycloudflare\.com$') name under trycloudflare.com"
 
       - name: a visitor, directly

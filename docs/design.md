@@ -193,8 +193,12 @@ updated 2026-09-29). A hidden flag, `--edge`, replaces the lookup with given
 addresses, and its help says that it works only in Cloudflare's own test
 environment (`cmd.go:668-673`, `supervisor/supervisor.go:56-64`). podssh's
 DNS over HTTPS asks for A and AAAA records only
-(`crates/podssh-ws/src/resolve.rs:124`); the connector needs SRV, or the
-two documented names.
+(`crates/podssh-ws/src/resolve.rs:125`); the connector needs SRV, or the
+two documented names. Since T-339, `podssh node --quick-tunnel` asks for
+the SRV record over DNS over HTTPS, through the proxy when one is set
+(`podssh_ws::resolve::doh_srv`), and takes its two targets and their port
+when the record names two regions under `argotunnel.com` on one port; else
+the two documented names and port 7844, and the node says why once a run.
 
 **No proxy.** cloudflared dials the edge with a plain dialer, never through a
 proxy (`edgediscovery/dial.go:13-42`; measured: a proxy in `HTTPS_PROXY` saw
@@ -247,13 +251,22 @@ sends its ingress rules as JSON (`updateLocalConfiguration`;
 `connection/control.go:108-119`), and `unregisterConnection` ends the
 connection (`control.go:124-147`). At 2026.10.6 the default features
 include `serialized_headers` (`features/features.go:5-25`), the form of the
-answers of HTTP/2 above. On main since commit `77a79bf` (TUN-10904,
-2026-10-29), not in a release yet, the edge "universally supports the legacy
-default features": `serialized_headers`, `quick_reconnects`,
-`allow_remote_config`, `support_quic_eof` and `management_logs` are
-deprecated and filtered, and registration names `support_datagram_v3_2`
-only when datagram v3 is chosen. There the default list is empty, and the
-answers of HTTP/2 carry the serialized header always.
+answers of HTTP/2 above. Since commit `77a79bf` (TUN-10904, 2026-10-29),
+in the release 2026.10.7 of 2026-10-30 (read 2026-10-31), the edge
+"universally supports the legacy default features": `serialized_headers`,
+`quick_reconnects`, `allow_remote_config`, `support_quic_eof` and
+`management_logs` are deprecated and filtered, and registration names
+`support_datagram_v3_2` only when datagram v3 is chosen. There the default
+list is empty, and the answers of HTTP/2 carry the serialized header always.
+podssh names the five on, as 2026.10.6 does, which the edge takes from each
+release that it supports. A weekly workflow, `upstream.yml`, compares
+cloudflared's newest release with the pin's table
+(`crates/podssh-relay/src/quick/cloudflared-pin.txt`: the tag, the commit,
+the day, and the SHA-256 of the four files of the protocol at the pin, and
+of a later release where a person read its change and judged it the same):
+it fails when one of the files moved, or the pin is 9 months old, and names
+each file (T-339). The edge's refusals, and its answers that podssh does
+not read, name the release that podssh speaks.
 
 **A WebSocket through the tunnel.** For an HTTP origin, cloudflared sends the
 upgrade on to the origin, and after its 101 copies the stream's bytes both

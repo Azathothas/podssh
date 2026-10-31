@@ -79,6 +79,19 @@ pub enum Ended {
     Quic(String),
 }
 
+impl Ended {
+    /// Whether the end may come of a change of cloudflared's protocol, which
+    /// podssh speaks as one release: a refusal, or an answer of the edge
+    /// that podssh does not read or that is an error (T-339).
+    pub fn may_be_the_protocol(&self) -> bool {
+        matches!(
+            self,
+            Ended::Refused { .. }
+                | Ended::Control(Failure::Malformed(_) | Failure::Exception { .. } | Failure::Aborted(_))
+        )
+    }
+}
+
 impl std::fmt::Display for Ended {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         match self {

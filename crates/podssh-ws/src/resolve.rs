@@ -21,6 +21,7 @@ use std::time::Duration;
 use tokio::net::TcpStream;
 use tokio::time::Instant;
 
+use crate::dial::ProxyChoice;
 use crate::http;
 use crate::tls::{self, Trust};
 
@@ -162,6 +163,12 @@ async fn query(ip: &str, path: &str, host: &str, kind: &str) -> Result<Vec<IpAdd
 /// The addresses in a DNS JSON answer (`Answer[].data` of type 1 or 28).
 pub fn parse_answer(body: &[u8], kind: &str) -> Result<Vec<IpAddr>, String> {
     let want: u64 = if kind == "AAAA" { 28 } else { 1 };
+    Ok(answers(body, want)?.iter().filter_map(|data| data.parse().ok()).collect())
+}
+
+/// The `data` of each answer of the type `want` in a DNS JSON answer, or why
+/// there is none.
+fn answers(body: &[u8], want: u64) -> Result<Vec<String>, String> {
     let doc: serde_json::Value = serde_json::from_slice(body).map_err(|_| "not a DNS JSON answer".to_string())?;
     match doc.get("Status").and_then(|s| s.as_u64()) {
         Some(0) => {}
@@ -177,10 +184,70 @@ pub fn parse_answer(body: &[u8], kind: &str) -> Result<Vec<IpAddr>, String> {
             answers
                 .iter()
                 .filter(|a| a.get("type").and_then(|t| t.as_u64()) == Some(want))
-                .filter_map(|a| a.get("data").and_then(|d| d.as_str()).and_then(|d| d.parse().ok()))
+                .filter_map(|a| a.get("data").and_then(|d| d.as_str()).map(str::to_string))
                 .collect()
         })
         .unwrap_or_default())
+}
+
+/// One SRV record (RFC 2782): where a service is.
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub struct Srv {
+    pub priority: u16,
+    pub weight: u16,
+    pub port: u16,
+    /// The target's name, with no final dot.
+    pub target: String,
+}
+
+/// The SRV records in a DNS JSON answer: each `data` of type 33 is
+/// `PRIORITY WEIGHT PORT TARGET`; one that does not read so is left out.
+pub fn parse_srv(body: &[u8]) -> Result<Vec<Srv>, String> {
+    Ok(answers(body, 33)?
+        .iter()
+        .filter_map(|data| {
+            let mut field = data.split_whitespace();
+            let (priority, weight, port) = (field.next()?.parse().ok()?, field.next()?.parse().ok()?, field.next()?);
+            let target = field.next()?.trim_end_matches('.').to_ascii_lowercase();
+            (field.next().is_none() && dns_safe(&target)).then_some(Srv {
+                priority,
+                weight,
+                port: port.parse().ok()?,
+                target,
+            })
+        })
+        .collect())
+}
+
+/// The SRV records of `name`, from the [`DOH_RESOLVERS`] in turn by their
+/// JSON API, through `proxy` when one is set, as podssh reaches anything
+/// else: the first resolver that answers wins (T-339).
+pub async fn doh_srv(name: &str, proxy: &ProxyChoice, deadline: Instant) -> Result<Vec<Srv>, String> {
+    if !dns_safe(name) {
+        return Err(format!("{name:?} is not a name to ask a resolver for"));
+    }
+    let mut reasons = Vec::new();
+    for (ip, path) in DOH_RESOLVERS {
+        let left = deadline.saturating_duration_since(Instant::now()).min(DOH_EACH);
+        if left.is_zero() {
+            reasons.push("out of time".to_string());
+            break;
+        }
+        let target = format!("{path}?name={name}&type=SRV");
+        let accept = "application/dns-json";
+        let answer =
+            crate::client::https_get_accepting(ip, 443, &target, accept, 64 * 1024, &Trust::Default, proxy, left).await;
+        match answer {
+            Ok(response) if response.status == 200 => match parse_srv(&response.body) {
+                Ok(records) => return Ok(records),
+                Err(e) if e == NXDOMAIN => return Err(format!("{ip}: {e}")),
+                Err(e) => reasons.push(format!("{ip}: {e}")),
+            },
+            Ok(response) => reasons.push(format!("{ip}: HTTP {}", response.status)),
+            Err(e) => reasons.push(format!("{ip}: {e}")),
+        }
+    }
+    Err(if reasons.is_empty() { "no resolver answered".into() } else { reasons.join("; ") })
 }
 
 /// Letters, digits, `.`, `-` and `_` only: safe in a query string and in DNS.
@@ -202,6 +269,30 @@ mod tests {
             assert!(parse_pins(bad).is_err(), "{bad}");
         }
         assert!(parse_pins("").unwrap().is_empty());
+    }
+
+    #[test]
+    fn srv_answers_parse_and_drop_what_does_not_read() {
+        // The answer that 1.1.1.1 gave for the edge's record (T-299), and
+        // the forms that must not read as a record.
+        let body = br#"{"Status":0,"Answer":[
+            {"name":"_v2-origintunneld._tcp.argotunnel.com","type":33,"TTL":60,"data":"1 1 7844 region1.v2.argotunnel.com."},
+            {"name":"_v2-origintunneld._tcp.argotunnel.com","type":33,"TTL":60,"data":"2 1 7844 REGION2.v2.argotunnel.com"},
+            {"name":"x","type":33,"data":"1 1 notaport a.example"},
+            {"name":"x","type":33,"data":"1 1 7844 a.example extra"},
+            {"name":"x","type":33,"data":"1 1 7844 bad/name.example"},
+            {"name":"x","type":1,"data":"192.0.2.1"}]}"#;
+        let records = parse_srv(body).unwrap();
+        assert_eq!(
+            records,
+            vec![
+                Srv { priority: 1, weight: 1, port: 7844, target: "region1.v2.argotunnel.com".into() },
+                Srv { priority: 2, weight: 1, port: 7844, target: "region2.v2.argotunnel.com".into() },
+            ]
+        );
+        assert_eq!(parse_srv(br#"{"Status":3}"#).unwrap_err(), NXDOMAIN);
+        assert!(parse_srv(br#"{"Status":0}"#).unwrap().is_empty());
+        assert!(parse_srv(b"not json").is_err());
     }
 
     #[test]

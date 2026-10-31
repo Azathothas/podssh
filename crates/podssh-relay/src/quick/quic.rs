@@ -162,14 +162,14 @@ impl EdgeConnection {
     }
 }
 
-/// QUIC to the edge: each region in turn, at its first address of each
-/// family that it has.
-pub async fn connect_edge() -> Result<EdgeConnection, String> {
+/// QUIC to `found`, the edge: each region in turn, at its first address of
+/// each family that it has.
+pub async fn connect_edge(found: &edge::Edge) -> Result<EdgeConnection, String> {
     let tls = tls(&edge::roots()?)?;
     let mut failed = Vec::new();
-    for region in edge::REGIONS {
+    for region in &found.regions {
         let deadline = tokio::time::Instant::now() + edge::DIAL_LIMIT;
-        let addrs = match podssh_ws::resolve::resolve(region, edge::PORT, deadline).await {
+        let addrs = match podssh_ws::resolve::resolve(region, found.port, deadline).await {
             Ok(addrs) => addrs,
             Err(e) => {
                 failed.push(format!("{region}: {e}"));
