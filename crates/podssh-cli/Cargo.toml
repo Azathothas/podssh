@@ -43,6 +43,11 @@ podssh-iroh = { path = "../podssh-iroh", optional = true }
 # podssh-iroh builds, and its range (T-359).
 iroh = { version = ">=1.4.1, <1.5", default-features = false, features = ["tls-aws-lc-rs"], optional = true }
 podssh-ws = { path = "../podssh-ws" }
+# The leaf of a release's Sigstore bundle, read (T-375): no C, as its
+# feature `verify` (ring) is off; the signatures are podssh-ws's own.
+x509-parser = { version = "0.18", default-features = false }
+# The trait of podssh-ws's signature checks, for that bundle.
+rustls = { workspace = true }
 # Relay hosts and failover, tokens, forward sessions (C-free, shared with podbox).
 podssh-relay = { path = "../podssh-relay", features = ["pair", "quick"] }
 # The native SSH client. It needs a C compiler (russh with aws-lc-rs); the
@@ -134,6 +139,14 @@ russh = { version = "0.65.0", default-features = false, features = ["aws-lc-rs",
 # The terminal oracle (T-200) of `tests/silent_notice.rs` (T-302): the
 # model terminal that the tests of podssh-ssh run, so no crate is added.
 vt100 = { workspace = true }
+# The stand-in release of `tests/update.rs` (T-375): its certificates, of
+# its own Fulcio and of its TLS server, made by rcgen with no crypto
+# feature and signed by P-256 keys of p256, as podssh-relay's tests make
+# theirs, so that no C is compiled; the server's TLS, of tokio-rustls, which
+# podssh-ws builds. The lock has each one.
+rcgen = { version = "0.14", default-features = false }
+p256 = { workspace = true, features = ["getrandom"] }
+tokio-rustls = { workspace = true }
 
 # The pseudo console of `tests/console.rs` (T-132): the version above, with
 # the console's functions, which podssh-ssh builds too.

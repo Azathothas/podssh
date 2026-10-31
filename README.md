@@ -17,7 +17,8 @@ no installed `ssh`, and no TLS or crypto library of the system.
 > `podssh agent`, `podssh man`, `podssh status`, `podssh ping`,
 > `podssh health`, the reverse road (`podssh node`, `podssh operator`,
 > `podssh relay`), `podssh chat`, `podssh play` (recordings),
-> `podssh config` (settings) and `podssh mcp` work.
+> `podssh config` (settings), `podssh mcp` and `podssh update` (this
+> binary, from a signed release) work.
 > Tests run them against OpenSSH and Dropbear servers, through the live
 > relay, and in a box like the target sandbox. The measured state is in
 > [docs/STATUS.md](docs/STATUS.md).

@@ -379,6 +379,10 @@ pub fn parse_verb(verb: &'static Verb, rest: &[std::ffi::OsString]) -> Parsed {
         }));
     }
 
+    if verb.name == "update" {
+        return Parsed::Update(Box::new(crate::update::UpdateArgs::from_matches(&matches, refused)));
+    }
+
     if verb.name == "edit" {
         return Parsed::Edit(Box::new(crate::edit::EditArgs::from_matches(&matches, refused)));
     }

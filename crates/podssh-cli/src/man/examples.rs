@@ -93,6 +93,10 @@ fn examples() -> Vec<(&'static str, String)> {
             "podssh ssh -tt --record top.cast user@example.org top && podssh play --speed 2 top.cast".into(),
         ),
         (
+            "say what an update would do, its signature checked, then replace this binary with the newest release",
+            "podssh update --check && podssh update".into(),
+        ),
+        (
             "a port, a key, and a new host key recorded with no question",
             "podssh ssh -p 2222 -i ~/.ssh/id_ed25519 -o StrictHostKeyChecking=accept-new user@example.org".into(),
         ),
@@ -343,6 +347,7 @@ mod tests {
                     Parsed::Ping(_) => "ping",
                     Parsed::Health(_) => "health",
                     Parsed::Play(_) => "play",
+                    Parsed::Update(_) => "update",
                     Parsed::Edit(_) => "edit",
                     Parsed::Each(_) => "each",
                     Parsed::Containers(_) => "containers",

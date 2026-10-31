@@ -56,11 +56,11 @@ unknown flag (exit 64), and `Cargo.lock` has no iroh crate.
 5. `doctor`, with the feature: a UDP line, and the `/ping` of the home relay
    through the proxy (`crates/podssh-cli/src/doctor/host.rs:10-25`).
 6. `availability()` knows `ts` as the only build feature
-   (`crates/podssh-cli/src/flags.rs:452-460`): extend it. With no feature, an
+   (`crates/podssh-cli/src/flags.rs:457-465`): extend it. With no feature, an
    iroh destination refuses before it connects and names `--features iroh`,
    as `crates/podssh-cli/tests/ts_not_built.rs:1-4` shows for `ts`.
 7. Docs: the "Outbound only" item of `README.md`, "Nothing listens" in
-   `SECURITY.md:98-121`, `docs/architecture.md` (rule 3, the crates),
+   `SECURITY.md:109-132`, `docs/architecture.md` (rule 3, the crates),
    `docs/design.md` section 7, and `AGENTS.md` (sections 3 and 7).
 
 ## Decision
@@ -163,7 +163,7 @@ access is by an allowlist of keys or a relay token (`docs/design.md:1075-1076`).
 Read in the reports, not verified here: iroh-ssh warns when a server's key is
 ephemeral (`rustonbsd/iroh-ssh:src/ssh.rs`); zuko hands over a ticket out of
 band (`adonm/zuko:docs/protocol.md`). Read: `podssh ts` keeps its node key in
-the file that `--ts-state` names (`crates/podssh-cli/src/flags.rs:341-342`,
+the file that `--ts-state` names (`crates/podssh-cli/src/flags.rs:343-344`,
 `crates/podssh-cli/src/ts.rs:166`). Credentials never go on argv
 (`AGENTS.md`, section 4).
 
@@ -186,7 +186,7 @@ the file that `--ts-state` names (`crates/podssh-cli/src/flags.rs:341-342`,
 5. The node prints its ticket and its fingerprint on stderr when it starts.
    `podssh ssh iroh:TICKET` dials it (the address of `docs/design.md:891`).
 6. Add the key files to FILES in the manual
-   (`crates/podssh-cli/src/man/data.rs:146-283`), and each new variable to
+   (`crates/podssh-cli/src/man/data.rs:146-290`), and each new variable to
    `VARIABLES` (`crates/podssh-cli/src/man/facts.rs:45-260`).
 
 ## Decision
@@ -1135,7 +1135,7 @@ their own server, and the gate tests faults against a stand-in in Python.
 ## Premise
 
 Read: the relay is a Cloudflare Worker, and its own document is the contract
-(`docs/relay.md:1-21`, `README.md:33-36`). The stand-in serves the forward
+(`docs/relay.md:1-21`, `README.md:34-37`). The stand-in serves the forward
 path, `/v1/mint` and `/health` only (`scripts/fake-relay.py:114-132`). The
 pinned contract gives the forward path and the tokens
 (`crates/podssh-probe/tests/spec/relay-spec-2026-10-03-r2.txt:73-104`), the
@@ -3450,7 +3450,7 @@ Endpoint puts a credential in its URL.
   aws/aws-cli:awscli/customizations/ec2instanceconnect/eicesigner.py): EC2 Instance Connect
   Endpoint takes a presigned SigV4 `wss://` URL, valid for 60 s, then raw binary frames; AWS's
   client honours `HTTPS_PROXY`; a connection lasts an hour at most, and 20 run at once.
-- Read: credentials never go in URLs (`docs/architecture.md:162-164`; `docs/design.md:62`), and
+- Read: credentials never go in URLs (`docs/architecture.md:165-167`; `docs/design.md:62`), and
   `docs/decisions.md:43` says "in a header or a 0600 file and never in a URL" of the relay's
   tokens. The presigned URL carries an access key id and a signature in its query.
 - Read: the `cf://` road uses podssh-ws's WebSocket client through the proxy
@@ -3917,7 +3917,7 @@ does not depend on them.
   "`--direct`, or when a probe shows it works"; the triage of GitHub #69 to #72 named this entry
   there.
 - Read: rule 2 of `AGENTS.md` allows a second connection at once for a race between relay hosts,
-  and for the split HTTP road (`AGENTS.md:248-256`); a race of the forward and the direct road is
+  and for the split HTTP road (`AGENTS.md:249-257`); a race of the forward and the direct road is
   neither.
 - Read: the direct dial goes through `HTTPS_PROXY` when it is set, with the relay's step limit of
   20 s (`crates/podssh-cli/src/ssh/transport.rs:285-299`, `crates/podssh-relay/src/open.rs:30`),
@@ -4106,7 +4106,7 @@ and no notice.
 - Read: whether Cloudflare's terms, which forbid using its services "to provide a virtual private
   network or other similar proxy services", hold for the relay is a question for the relay's
   operator (`docs/relay-operator.md:83-87`).
-- Read: the test targets of a session are the operator's list (`AGENTS.md:225-240`), which names
+- Read: the test targets of a session are the operator's list (`AGENTS.md:226-241`), which names
   none of the three.
 
 ## Approach
@@ -4177,7 +4177,7 @@ a hop. `doctor` has no line for a hop, so a user cannot see whether one is reach
   measured here): SSH banners on port 443 at `bg2.vpnjantit.com` (Dropbear 2017.75, an account with
   a password that a form makes), `ssh.tilde.club` and `ssh.blinkenshell.org` (OpenSSH); whether
   they allow `direct-tcpip` was not measured.
-- Read: GitHub's SSH endpoint is a test target, and those three are not (`AGENTS.md:225-240`). The
+- Read: GitHub's SSH endpoint is a test target, and those three are not (`AGENTS.md:226-241`). The
   box's proxy allows ports 443, 80 and 8443, and lets one test target through by its name
   (`scripts/box/proxy.py:6-16`).
 
@@ -4318,7 +4318,7 @@ cannot make it a road.
   (`crates/podssh-ws/src/socks5.rs:1-7`); a library crate has no C (`AGENTS.md`, section 5, rule
   4).
 - Read: tokens and keys never appear in argv, logs or URLs, and go in files with tight permissions
-  (`docs/architecture.md:162-164`); an `ss://` URI holds the password.
+  (`docs/architecture.md:165-167`); an `ss://` URI holds the password.
 - Read: podssh starts no program that the user did not name (`AGENTS.md`, section 5, rule 3), and
   a plugin of Shadowsocks is another program.
 - Inferred: a proxy that waits for TLS on port 443 carries no Shadowsocks, as it carries no SSH
@@ -4352,7 +4352,7 @@ cannot make it a road.
   `--via ss://...`, which puts the password in argv.
 - The user names each server and each list, as a proxy of `ALL_PROXY` (T-070); podssh names none.
   Its tests use servers that podssh did not write, never a public one: no public server is a test
-  target of the operator's (`AGENTS.md:225-240`).
+  target of the operator's (`AGENTS.md:226-241`).
 - Shadowsocks 2022 (SIP022) is refused by name in this entry; a later entry can take it.
 
 ## Prove

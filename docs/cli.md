@@ -2349,6 +2349,52 @@ ended; 70 an answer that this podssh cannot read; 75 the `--timeout` passed
 first; 77 the bind refused; 78 `PODSSH_LISTEN=no`, or no directory for the
 socket; 255 the connection or the login of `start` failed.
 
+## `podssh update`
+
+`podssh update [--check] [--version TAG] [--ca-file FILE]` (T-375) replaces
+this binary with the binary of a release for its own target, and only when
+asked: no other command looks for a release.
+
+- **Which release.** `--version TAG` takes that one, an older one too.
+  Without it, the newest one, from GitHub's API, else from the releases'
+  Atom feed (the API allows 60 calls an hour to an address with no token): a
+  prerelease only when this binary is one, as a `-` in its tag says, and
+  never one older than this build, which is then nothing to do (exit 0).
+- **Which binary.** The release's file for this build's architecture and
+  system, as `podssh-x86_64-unknown-linux-musl` or
+  `podssh-aarch64-pc-windows-msvc.exe`: on Linux the static one of musl,
+  whatever this build's libc. A system with no binary in the release is
+  refused (78).
+- **Two checks before anything is written.** First the release's
+  `SHA256SUMS` against `SHA256SUMS.sigstore.json`, the signature that the
+  release workflow made with Sigstore (T-211): the leaf certificate that
+  Fulcio gave the workflow `release.yml` of this repository at that tag,
+  checked by Sigstore's roots, which are compiled into podssh
+  (`crates/podssh-cli/src/update/trust/`); its use for code signing and the
+  issuer of its token, GitHub Actions; and Rekor's signed record of the
+  signature, which gives the time at which the leaf must hold. No other
+  network is needed for it. Then the binary's SHA-256 against its line. A
+  failed check is exit 65.
+- **The replacement.** The new binary goes beside the old one, in its
+  directory, with its mode, and then over it in one rename, so that a
+  running podssh keeps running from the old file. Windows refuses to write
+  over a running program and allows its rename: there the running file is
+  renamed `podssh.exe.old` first, and the next run of podssh removes it. A
+  failure at any step leaves the old binary as it was (exit 73 when it
+  cannot be written, as in a directory that this user cannot write).
+- **Through the proxy.** Each connection goes through `HTTPS_PROXY` when it
+  is set, one after another: the list, then each file, through the redirect
+  that GitHub gives an asset, whose query is a credential of the moment and
+  is never printed. TLS to GitHub trusts `--ca-file`, else `SSL_CERT_FILE`,
+  else `CaFile`, else the system's; it carries none of the update's trust,
+  which is the signature's. GitHub or a file that does not come is exit 69.
+- **`--check`** stops before the binary: it names the release, checks its
+  signature, and names the file that it would replace.
+- **When Sigstore changes.** A rotation of Fulcio's roots, or cosign's
+  move to Rekor v2, makes a binary of before refuse the releases after it;
+  its message says to download the release by hand. Each release's proofs
+  (`release-proofs.yml`) run podssh update on it, so the day it comes shows.
+
 ## podssh's settings file
 
 A file states podssh's own settings once (T-048), below the flags and the

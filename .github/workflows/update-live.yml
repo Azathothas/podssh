@@ -1,0 +1,84 @@
+name: update live
+
+# podssh update from end to end on the repository's own releases (T-375),
+# on Linux, macOS and Windows, with GitHub's network and no proxy: a build
+# of this commit looks for the newest release, checks the signature of a
+# published release with the roots compiled into it, then replaces itself
+# with that release's binary for its target, which then runs and names the
+# tag. On Windows the running binary is renamed aside first, a path that no
+# test of a file can take. Started by hand only; it reads the releases and
+# publishes nothing.
+
+on:
+  workflow_dispatch:
+    inputs:
+      tag:
+        description: "The published tag to update to, as v1.0.0-beta.2 (default: the newest release)"
+        required: false
+
+permissions:
+  contents: read
+
+jobs:
+  update:
+    name: update (${{ matrix.os }})
+    strategy:
+      fail-fast: false
+      matrix:
+        os: [ubuntu-24.04, macos-15, windows-2025]
+    runs-on: ${{ matrix.os }}
+    timeout-minutes: 45
+    env:
+      CARGO_BUILD_JOBS: 4
+      GH_TOKEN: ${{ github.token }}
+      ASKED: ${{ inputs.tag }}
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+      # aws-lc's build wants NASM on Windows, as in the build's job, with its
+      # fallback: the prebuilt objects when NASM cannot be set up.
+      - if: runner.os == 'Windows'
+        uses: ilammy/setup-nasm@72793074d3c8cdda771dba85f6deafe00623038b # v1.5.2
+        continue-on-error: true
+      - if: runner.os == 'Windows'
+        name: NASM, or aws-lc's prebuilt objects
+        shell: bash
+        run: |
+          if command -v nasm > /dev/null 2>&1; then
+            nasm -v
+          else
+            echo "::warning::no NASM: aws-lc's prebuilt objects (AWS_LC_SYS_PREBUILT_NASM=1)"
+            echo "AWS_LC_SYS_PREBUILT_NASM=1" >> "$GITHUB_ENV"
+          fi
+      - name: the build
+        shell: bash
+        run: cargo build --locked -p podssh-cli
+      - name: podssh update
+        shell: bash
+        run: |
+          set -eu
+          tag=$ASKED
+          if [ -z "$tag" ]; then
+            tag=$(timeout 60 gh release list --repo "$GITHUB_REPOSITORY" --exclude-drafts --limit 1 --json tagName --jq '.[].tagName')
+          fi
+          case "$tag" in
+            v[0-9]*) ;;
+            *) echo "not the tag of a release: '$tag'"; exit 1 ;;
+          esac
+          exe=podssh
+          if [ "$RUNNER_OS" = Windows ]; then exe=podssh.exe; fi
+          dir="$RUNNER_TEMP/update"
+          mkdir -p "$dir"
+          cp "target/debug/$exe" "$dir/$exe"
+          # The newest release, and nothing written.
+          timeout 120 "$dir/$exe" update --check
+          timeout 120 "$dir/$exe" update --check --version "$tag"
+          before=$(ls "$dir")
+          test "$before" = "$exe"
+          timeout 900 "$dir/$exe" update --version "$tag"
+          got=$("$dir/$exe" --version)
+          case "$got" in
+            "podssh ${tag#v} ("*) ;;
+            *) echo "after the update, the binary says: $got"; exit 1 ;;
+          esac
+          ls -la "$dir"
+          echo "ok   $RUNNER_OS: this build replaced itself with $tag's binary, which runs: $got"

@@ -112,6 +112,8 @@ pub mod ssh;
 pub mod status;
 pub mod suggest;
 pub mod tree;
+// `podssh update` (T-375).
+pub mod update;
 // `podssh ts` links the vendored tailscale-rs fork, which needs a C toolchain,
 // so it is compiled only with the `ts` feature (see Cargo.toml).
 #[cfg(feature = "ts")]

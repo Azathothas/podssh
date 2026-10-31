@@ -19,6 +19,7 @@ use super::notes_relay::RELAY;
 use super::notes_run::RUN;
 use super::notes_session::SESSION;
 use super::notes_ssh::SSH;
+use super::notes_update::UPDATE;
 
 /// The notes of the verb `name`, one paragraph each.
 pub fn for_verb(name: &str) -> &'static [&'static str] {
@@ -44,6 +45,7 @@ pub fn for_verb(name: &str) -> &'static [&'static str] {
         "ping" => PING,
         "health" => HEALTH,
         "play" => PLAY,
+        "update" => UPDATE,
         "config" => CONFIG,
         "mcp" => MCP,
         "session" => SESSION,

@@ -60,6 +60,17 @@ Each rule is implemented.
   crate carries a verifier that accepts each certificate: a test scans the
   source of each one (T-065). The verifier that prints a chain for a
   diagnosis lives in an example of `podssh-ws`, outside each library.
+- **An update is checked before it is written** (T-375). `podssh update`
+  runs only when asked, and no other command looks for a release. Before it
+  writes a byte, it checks the release's `SHA256SUMS` against the signature
+  that the release workflow made with Sigstore: the leaf certificate that
+  Fulcio gave `release.yml` of this repository at that tag, by Sigstore's
+  roots compiled into podssh, and Rekor's signed record of the signature,
+  with no other network; then the binary's SHA-256 against its line. TLS to
+  GitHub carries no part of this trust: a proxy that reads the traffic can
+  hold a release back, and cannot change one. It never goes to an older
+  release than the running one unless `--version` names it, and a failure
+  leaves the old binary as it was.
 - **Credentials are not shown.** A relay token, a tailnet auth key or a key
   never goes into output, logs, URLs or command lines. The types that hold a
   token or the tailnet key do not print it, and clear it from memory when

@@ -102,6 +102,8 @@ pub enum Parsed {
     Health(Box<crate::health::HealthArgs>),
     /// `podssh play FILE` (T-033).
     Play(Box<crate::play::PlayArgs>),
+    /// `podssh update` (T-375).
+    Update(Box<crate::update::UpdateArgs>),
     /// `podssh edit [user@]host:PATH` (T-149).
     Edit(Box<crate::edit::EditArgs>),
     /// `podssh each HOSTS -- COMMAND` (T-183).
@@ -185,6 +187,7 @@ impl Parsed {
             Parsed::Ping(args) => !args.refused.is_empty(),
             Parsed::Health(args) => !args.refused.is_empty(),
             Parsed::Play(args) => !args.refused.is_empty(),
+            Parsed::Update(args) => !args.refused.is_empty(),
             Parsed::Edit(args) => !args.refused.is_empty(),
             Parsed::Each(args) => !args.refused.is_empty(),
             Parsed::Containers(args) => !args.refused.is_empty(),

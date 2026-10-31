@@ -148,6 +148,9 @@ These rules apply to each change. The reasons are in
    `udp:HOST:PORT` (T-168), which the user names, sends UDP from its host:
    one socket of port 0 for each flow, connected to the target, after a
    probe that made and closed one. The near end of a flow binds nothing.
+   `podssh update` (T-375), which the user runs, opens one connection after
+   another to GitHub, each through the proxy: the list of the releases,
+   then each file of one, and the host that a file's redirect names.
 4. **No C in the library crates.** `podssh-ws`, `podssh-relay`,
    `podssh-core`, `podssh-terminal` and `podssh-probe` use rustls with
    podssh's own provider and RustCrypto crates. The gate

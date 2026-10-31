@@ -686,7 +686,7 @@ Read:
    each binary with `actions/attest-build-provenance`, pinned by commit SHA,
    for a tag `v*` only. Give these jobs `id-token: write` and
    `attestations: write`. A run by hand makes no attestation.
-2. Tell the user how to check, in `README.md` (`:58-59`) and in the
+2. Tell the user how to check, in `README.md` (`:59-60`) and in the
    release notes: `gh attestation verify FILE --repo Azathothas/podssh`.
 3. Let `podssh --version` name the commit: the workflows set a variable at
    compile time (`option_env!`, no build script, no `git` call); a local build
@@ -872,7 +872,7 @@ Read:
   `sha256sum`, and the job published it with the binaries (lines 370-382 at
   `cdf9308`). No signature was published.
 - The notes drafted for the dropped beta told the user that `SHA256SUMS`
-  holds the sums (`git show b1b111b:docs/releases/v0.1.0-beta.1.md`, line 81 at `b1b111b`). `README.md:58-59` gives no step to check a download.
+  holds the sums (`git show b1b111b:docs/releases/v0.1.0-beta.1.md`, line 81 at `b1b111b`). `README.md:59-60` gives no step to check a download.
 - AGENTS.md, section 4: a private key is a credential. The repository has no
   signing key today.
 
@@ -919,7 +919,7 @@ Each command exits 0. Planted defect: change one hex digit in a copy of
 
 ## Correction
 
-2026-10-30: the Premise's "`README.md:58-59` gives no step to check a
+2026-10-30: the Premise's "`README.md:59-60` gives no step to check a
 download" no longer holds: the README's first step now checks a download of
 a beta against `SHA256SUMS` (T-309). The signatures of this entry are still
 missing; that step gains their check when they exist.
@@ -3954,7 +3954,7 @@ identities (x25519-dalek, `podssh-ws` and `podssh-relay`), and its AEAD
 
 ## Premise
 
-- Read: `crates/podssh-ssh/Cargo.toml:26` and `crates/podssh-cli/Cargo.toml:58`
+- Read: `crates/podssh-ssh/Cargo.toml:26` and `crates/podssh-cli/Cargo.toml:63`
   ask for `sha1` 0.10.7, and the root `Cargo.toml:139` for `hmac` 0.12;
   `Cargo.lock` holds `sha1` 0.10.7 and 0.11.0, `hmac` 0.12.1 and 0.13.0,
   and `digest` 0.10.7 and 0.11.3, as russh 0.64.1 (vendor/russh/Cargo.toml)
@@ -4196,7 +4196,7 @@ two jobs of the release run an image of Docker Hub by the tag `latest`, with no 
 
 ## Premise
 
-- Read: `README.md:82-85` says "the release workflow also proves where each binary comes from".
+- Read: `README.md:83-86` says "the release workflow also proves where each binary comes from".
 - Read: the job `publish` needs each build job (`.github/workflows/release.yml` at `1a3e7b6`, lines 393-394) and holds
   `contents: write`, `id-token: write` and `attestations: write` (lines 396-399). After it downloads
   the binaries (line 405), it runs `taiki-e/install-action@v2` for cargo-about (lines 412-414), then
@@ -4205,7 +4205,7 @@ two jobs of the release run an image of Docker Hub by the tag `latest`, with no 
   `gh release create` (lines 546-554). The audit put both runs before the attestation; the second
   is after it.
 - Read: the actions of the attestation and of cosign are pinned by commit
-  (`.github/workflows/release.yml` lines 434 and 469 at `1a3e7b6`; `.github/workflows/release-proofs.yml:95`, `:98`).
+  (`.github/workflows/release.yml` lines 434 and 469 at `1a3e7b6`; `.github/workflows/release-proofs.yml:97`, `:100`).
   Each other `uses:` names a tag: `actions/checkout@v7`, `actions/upload-artifact@v7` and
   `actions/download-artifact@v8` in each workflow; `taiki-e/install-action@v2` also in
   `.github/workflows/deny.yml` line 27 and `.github/workflows/fuzz.yml` line 32; `ilammy/setup-nasm@v1`

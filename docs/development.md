@@ -801,4 +801,15 @@ API and with `provenance.sigstore.json`: the release workflow at the tag,
 and the tag's commit) and the signature of `SHA256SUMS` (cosign 3.1.4 and
 2.6.5: the release workflow at the tag), requires that a changed copy fails
 each check, and runs `scripts/release-short.sh` with `--net` on the
-published x86_64 binary, whose `--version` must name the tag's commit.
+published x86_64 binary, whose `--version` must name the tag's commit. Then
+`podssh update` (T-375): the published binary replaces itself with its
+release's, and the binary of the release before updates to it, each then
+naming the tag's commit; a binary from before T-375 is passed over, as it
+has no `podssh update`.
+
+`podssh update` from a build of a commit, on Linux, macOS and Windows, to a
+published release (the newest by default):
+
+```sh
+gh workflow run update-live.yml --ref main -f tag=vX.Y.Z
+```

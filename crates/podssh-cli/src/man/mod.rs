@@ -35,6 +35,7 @@ mod notes_relay;
 mod notes_run;
 mod notes_session;
 mod notes_ssh;
+mod notes_update;
 pub mod roff;
 pub mod text;
 

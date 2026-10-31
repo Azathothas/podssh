@@ -327,7 +327,7 @@ files pass the Prove, and the proofs of `.github/workflows/release-proofs.yml` (
 **Milestone:** none
 **Priority:** P2
 **Effort:** M
-**Status:** open
+**Status:** partial
 
 ## Problem
 
@@ -358,15 +358,59 @@ A binary that was copied into a sandbox is never updated (Q48): a fix such as ru
 
 ## Decision
 
-To decide when the entry is taken up, between the two checks of item 2, in its own section.
+2026-10-31: Sigstore's bundle of the release (T-211), checked in podssh with no network and no C.
+The release publishes it already, and it needs nothing of the operator; podssh checks, in
+`crates/podssh-cli/src/update/sigstore.rs`: the digest of `SHA256SUMS`; the leaf's ECDSA signature
+of the file; the leaf's chain to Fulcio's root, compiled in from Sigstore's trusted root
+(`trust/fulcio.pem`), at the time that Rekor gives; the leaf's identity (code signing, the URI of
+`release.yml` at the tag, and GitHub Actions as its token's issuer); Rekor's signed entry timestamp
+with Rekor's key (`trust/rekor.pem`); and the entry's body against the file, the signature and the
+leaf. The signatures are podssh-ws's own ECDSA; x509-parser reads the certificates, with no
+feature, so no ring.
+
+The alternative that lost: a second signature by an Ed25519 key whose public half is compiled in.
+It needs a key that the operator makes and keeps as a secret of the workflow, whose loss stops each
+update and whose leak signs any binary, and a second scheme beside Sigstore's. What Sigstore's
+choice risks: when Sigstore rotates Fulcio's CA, or moves cosign to Rekor v2 (with no signed entry
+timestamp), the binaries of before refuse the new releases; the refusal says to download by hand,
+and the release workflow checks each published release with its own `podssh update --check`, so
+the change shows on the day it comes.
+
+The release: `--version TAG`, else the newest of GitHub's API, else of the releases' Atom feed
+(redundancy: the API allows 60 calls an hour to an address with no token); a prerelease only when
+this binary is one, as the tag says (`-` in it, which is how the workflow marks one); never older
+than this build unless `--version` names it. The binary of the target: the release's for this
+build's architecture and system, the musl one on Linux whatever this build's libc.
 
 ## Prove
 
 ```sh
 export CARGO_BUILD_JOBS=4
+cargo test -p podssh-cli --lib update::
 cargo test -p podssh-cli --test update
 ```
 
 Against a stand-in release on the loopback: a binary replaced and run; a planted sum, a planted
 signature and a binary of another target are each refused, the old binary left as it was. Live, in
 Actions: a beta's binary updated to the next beta.
+
+## Correction
+
+2026-10-31: no release before `v1.0.0-beta.3` has `podssh update`, so the Prove's live form, a
+beta's binary updated to the next beta, can run first in the proofs of the release after beta.3:
+`release-proofs.yml` runs it for each release from then on (the published binary updated to its own
+release, and the binary of the release before updated to it). Until then, the live test in Actions
+is `update-live.yml`: a build of the commit replaces itself with a published release's binary on
+Linux, macOS and Windows, where the running file is renamed aside.
+
+## Done
+
+2026-10-31, partial: the command, the check, the fetch, the replacement, the manual and the documents
+(`docs/cli.md`, `SECURITY.md`, `docs/architecture.md`); what waits is the first run of
+`update-live.yml`. `cargo test -p podssh-cli --lib update::` passed 18 and
+`cargo test -p podssh-cli --test update` passed 9: beta.2's own bundle verifies, and each tampered
+copy is refused; against the stand-in, a file replaced with its mode and a new inode, which ran, and
+each planted sum, signature, leaf (tag, issuer, time, use, Fulcio), Rekor and target refused with the
+old binary as it was. Five planted defects each failed a test; the first plant of the chain did not,
+as the test read a later check's words, and now reads the chain's own. Live on this host through its
+proxy: a copy of the build replaced itself with v1.0.0-beta.2's published binary, which ran.

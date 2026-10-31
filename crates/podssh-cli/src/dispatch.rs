@@ -113,6 +113,8 @@ pub fn run_with(p: &Parsed, s: &mut Streams<'_>, tty: Tty) -> i32 {
         Parsed::Health(args) => crate::health::run(args, s.out, s.err),
         Parsed::Play(args) if refusals("play", &args.refused, s.err) => EXIT_USAGE,
         Parsed::Play(args) => crate::play::run(args, s.out, s.err),
+        Parsed::Update(args) if refusals("update", &args.refused, s.err) => EXIT_USAGE,
+        Parsed::Update(args) => crate::update::run(args, s.out, s.err),
         Parsed::Edit(args) if refusals("edit", &args.refused, s.err) => EXIT_USAGE,
         // The editor is on the process's own terminal.
         Parsed::Edit(args) => crate::edit::run_edit(args, tty, s.err),
@@ -322,6 +324,9 @@ where
     S: Into<std::ffi::OsString> + Clone,
 {
     let argv: Vec<std::ffi::OsString> = args.into_iter().map(Into::into).collect();
+    // The binary that an update on Windows moved aside, which runs no more
+    // (T-375); elsewhere nothing.
+    crate::update::replace::remove_aside();
     // A program that the user names gets the report of a failure (T-195).
     let hook = crate::error_program::Hook::from_env(argv.first().map(|a| a.as_os_str()));
     let parsed = crate::tree::parse(argv);

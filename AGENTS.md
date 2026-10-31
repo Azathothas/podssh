@@ -16,9 +16,10 @@ These commands work: `podssh ssh`, `podssh each`, `podssh run`, `podssh job`, `p
 `podssh sftp` and `podssh edit` (files), `podssh doctor`, `podssh keygen`,
 `podssh agent`, `podssh man`, `podssh status`, `podssh ping`,
 `podssh health`, `podssh node`, `podssh operator`, `podssh relay`,
-`podssh chat`, `podssh play` (recordings), `podssh config` (settings) and
-`podssh mcp`. `podssh ts` and the iroh road refuse with exit code 70 in a
-build without their features.
+`podssh chat`, `podssh play` (recordings), `podssh config` (settings),
+`podssh mcp` and `podssh update` (this binary, from a signed release).
+`podssh ts` and the iroh road refuse with exit code 70 in a build without
+their features.
 
 ## 2. How a session works
 

@@ -161,7 +161,7 @@ token header (`crates/podssh-ws/src/client.rs:285-296`); `https_request` takes h
 
 Recommendation: remove the `--timeout` and `--jsonl` rows of `relay`
 (`crates/podssh-cli/src/flags/relay.rs:9-22`), and bound each request in the code, as `doctor`
-does. With the row, the gate of `crates/podssh-cli/src/dispatch.rs:249-267` stops
+does. With the row, the gate of `crates/podssh-cli/src/dispatch.rs:251-269` stops
 `podssh relay status` in each script that leaves `--timeout` out. Keeping the gate lost for that
 reason: the command is bounded anyway.
 
@@ -917,7 +917,7 @@ the module comment repeats it (`crates/podssh-relay/src/cache.rs`, lines 4-8 at 
 6. Change in the same commit: VARIABLES and FILES (`crates/podssh-cli/src/man/facts.rs:196-210`,
    `crates/podssh-cli/src/man/data.rs:153-160`), the test of lines 365-377 at `22c3b88`, the comment
    of `cache.rs`, and the `doctor`
-   notes (`crates/podssh-cli/src/man/notes.rs:233-268`).
+   notes (`crates/podssh-cli/src/man/notes.rs:235-270`).
 
 ## Decision
 

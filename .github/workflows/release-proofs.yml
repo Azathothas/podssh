@@ -7,8 +7,10 @@ name: release proofs
 # names release.yml at the tag and the tag's commit; the signature of
 # SHA256SUMS names release.yml at the tag (cosign 3, and 2.6, as the notes
 # say both check it); and the x86_64 binary runs the short form of the
-# release check, its --version naming the same commit. Each proof must refuse
-# a changed copy. It reads the release and publishes nothing.
+# release check, its --version naming the same commit; and podssh update
+# (T-375): the x86_64 binary replaces itself with its release's, and the
+# binary of the release before updates to it. Each proof must refuse a
+# changed copy. It reads the release and publishes nothing.
 
 on:
   workflow_dispatch:
@@ -134,3 +136,47 @@ jobs:
           bin="$RUNNER_TEMP/release/podssh-x86_64-unknown-linux-musl"
           chmod +x "$bin"
           PODSSH_BUILD_COMMIT="$COMMIT" timeout 300 sh scripts/release-short.sh "$bin" --net
+      # podssh update on the published release (T-375), as a user runs it:
+      # the published binary checks its own release's signature with the
+      # roots compiled into it, replaces itself with its download, which runs;
+      # and the binary of the release before, when it has podssh update,
+      # updates to this one. A binary from before T-375 has no podssh update,
+      # and the step says so. A change of Sigstore's roots, or of cosign's
+      # bundle, fails here.
+      - name: podssh update to this release
+        run: |
+          set -eu
+          dir="$RUNNER_TEMP/update"
+          mkdir -p "$dir/before"
+          cp "$RUNNER_TEMP/release/podssh-x86_64-unknown-linux-musl" "$dir/podssh"
+          chmod 0755 "$dir/podssh"
+          if ! "$dir/podssh" update --help > /dev/null 2>&1; then
+            echo "skip $TAG's binary has no podssh update (T-375 came after it)"
+            exit 0
+          fi
+          timeout 300 "$dir/podssh" update --check --version "$TAG"
+          timeout 600 "$dir/podssh" update --version "$TAG"
+          got=$("$dir/podssh" --version)
+          test "$got" = "podssh ${TAG#v} ($COMMIT)" || { echo "after the update, the binary says: $got"; exit 1; }
+          echo "ok   $TAG's binary replaced itself with its download, which runs: $got"
+          tags=$(timeout 60 gh release list --repo "$GITHUB_REPOSITORY" --exclude-drafts --limit 20 --json tagName --jq '.[].tagName')
+          newest="" before="" seen=no
+          for t in $tags; do
+            if [ -z "$newest" ]; then newest=$t; fi
+            if [ "$seen" = yes ]; then before=$t; break; fi
+            if [ "$t" = "$TAG" ]; then seen=yes; fi
+          done
+          if [ -z "$before" ]; then echo "skip no release before $TAG"; exit 0; fi
+          timeout 300 gh release download "$before" --repo "$GITHUB_REPOSITORY" \
+            --pattern podssh-x86_64-unknown-linux-musl --dir "$dir/before"
+          old="$dir/before/podssh-x86_64-unknown-linux-musl"
+          chmod 0755 "$old"
+          if ! "$old" update --help > /dev/null 2>&1; then
+            echo "skip $before's binary has no podssh update: the update from it waits for a release that has"
+            exit 0
+          fi
+          # The newest release by default, as a user's update finds it.
+          if [ "$newest" = "$TAG" ]; then timeout 600 "$old" update; else timeout 600 "$old" update --version "$TAG"; fi
+          got=$("$old" --version)
+          test "$got" = "podssh ${TAG#v} ($COMMIT)" || { echo "$before's binary, updated, says: $got"; exit 1; }
+          echo "ok   $before's binary updated to $TAG, which runs: $got"

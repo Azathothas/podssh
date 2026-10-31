@@ -278,6 +278,13 @@ pub fn files() -> Vec<(Vec<String>, String)> {
             podssh_ws::tls::SYSTEM_BUNDLES.iter().map(|s| s.to_string()).collect(),
             "The system CA bundles. The first one that podssh can read is added to the trust store.".to_string(),
         ),
+        (
+            vec![".podssh.update-RANDOM".to_string(), "podssh.exe.old".to_string()],
+            "In the directory of the podssh binary, while podssh update runs: the new binary, written beside \
+             the old one with its mode, then renamed over it, or removed when a step fails. On Windows the \
+             running binary is renamed to podssh.exe.old first, and the next run of podssh removes it."
+                .to_string(),
+        ),
     ];
     rows
 }

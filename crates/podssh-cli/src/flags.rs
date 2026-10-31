@@ -308,6 +308,7 @@ mod session;
 mod signal;
 mod snippet;
 mod ts;
+mod update;
 pub use agent::AGENT_FLAGS;
 pub use chat::CHAT_FLAGS;
 pub use config::CONFIG_FLAGS;
@@ -330,6 +331,7 @@ pub use run::RUN_FLAGS;
 pub use scp::{SCP_FLAGS, SFTP_FLAGS};
 pub use session::SESSION_FLAGS;
 pub use ts::TS_FLAGS;
+pub use update::UPDATE_FLAGS;
 
 /// One verb: its names, its flags, and the flag table its `-P` belongs to.
 #[derive(Clone, Copy)]
@@ -405,6 +407,8 @@ pub const VERBS: &[Verb] = &[
         about: "the commands as tools for an agent: a Model Context Protocol server on stdin and stdout" },
     Verb { name: "session", aliases: &["session"], flags: SESSION_FLAGS,
         about: "a session that outlives each call, for an agent: start it, send keys, wait until the output stops, read the screen" },
+    Verb { name: "update", aliases: &["update"], flags: UPDATE_FLAGS,
+        about: "this binary from the newest release, its signature and its sum checked first; only when asked" },
 ];
 
 /// **The verbs by purpose, in the order that `--help` and the manual print
@@ -424,6 +428,7 @@ pub const GROUPS: &[(&str, &[&str])] = &[
     ("Tools for an agent", &["mcp", "session"]),
     ("The relay", &["relay"]),
     ("This manual", &["man"]),
+    ("This binary", &["update"]),
 ];
 
 /// Every verb that dispatch refuses as "not implemented yet", with the roadmap

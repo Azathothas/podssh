@@ -581,7 +581,7 @@ and crates/podssh-transport/examples/live_forward.rs lines 23-25 at `e8bbd4d`; `
 (`crates/podssh-cli/Cargo.toml` line 34 at `e8bbd4d`). The plan: "`podssh-transport` moves into `podssh-relay`. Its
 unused backpressure module goes." (`docs/design.md` lines 122-123 at `e8bbd4d`).
 
-Read: the comments of the crate break rule 6 of `AGENTS.md:267-268`: they carry the stop-sign marker,
+Read: the comments of the crate break rule 6 of `AGENTS.md:268-269`: they carry the stop-sign marker,
 session history and line numbers of documents, for example crates/podssh-transport/src/socket.rs lines 1-11 at `e8bbd4d`
 and crates/podssh-transport/src/control.rs lines 3-14 at `e8bbd4d`. The close rows cite lines of the pinned contract,
 and a test reads that copy to check them (crates/podssh-transport/src/closes.rs lines 45-59 at `e8bbd4d`).
@@ -592,11 +592,11 @@ and a test reads that copy to check them (crates/podssh-transport/src/closes.rs 
    and T-080 use the repaired codecs as a dependency until then.
 2. Move into crates/podssh-relay/src/reverse/: `framing.rs` and `framing/legs.rs`, `control.rs`,
    `closes.rs`, the retry parts of `error.rs`, and the name check of T-076, with their tests. Keep
-   each file at 500 lines or fewer (`AGENTS.md:265-266`).
+   each file at 500 lines or fewer (`AGENTS.md:266-267`).
 3. Delete, do not move: the backpressure module (T-074), the `Transport` trait and `backoff.rs`
    (T-077), and `RelayConfig` (`podssh-relay` has `Relay` and `RelayList`,
    `crates/podssh-relay/src/relay.rs:80-102`).
-4. Rewrite the comments of the moved code to `AGENTS.md:267-268`: why, in few words; no markers, no
+4. Rewrite the comments of the moved code to `AGENTS.md:268-269`: why, in few words; no markers, no
    history, no line numbers. Keep the check of the close rows against the pinned copy as a test
    (T-060 decides where the copy lives).
 5. Move the examples to `podssh_relay::open`, the forward path that the commands use. Then remove
@@ -750,15 +750,15 @@ So a local TCP TARGET exists only where the host allows it; `podssh serve` (M5) 
    FILE, and prints only the label and the expiry. `podssh relay revoke NAME` stops the pair and deletes the
    local copies. `podssh relay status NAME` gives presence; agree on the form with T-058, whose `relay status`
    has no NAME.
-4. Exit codes as `podssh proxy` (`docs/cli.md:2473`): 64 usage; 69 the relay or TARGET cannot be reached; 77 a
+4. Exit codes as `podssh proxy` (`docs/cli.md:2519`): 64 usage; 69 the relay or TARGET cannot be reached; 77 a
    refused pair (`403`); 78 no usable pair; 0 after a stop by a signal. Add the rows to
    `crates/podssh-cli/src/man/facts.rs:474`.
 5. `doctor`: one line for each stored pair, with its expiry and its presence, as in
    `crates/podssh-cli/src/doctor/relay_checks.rs:40-76` (zuko's doctor checks its ticket and state).
 6. Remove `node` and `relay` from `VERB_OWNER`, and add them to `DISPATCHED`
-   (`crates/podssh-cli/tests/flag_table.rs:110-139`). New variables go in `VARIABLES`
+   (`crates/podssh-cli/tests/flag_table.rs:110-140`). New variables go in `VARIABLES`
    (`crates/podssh-cli/src/man/facts.rs:45`), files in FILES (`:295` there), examples in
-   `crates/podssh-cli/src/man/examples.rs:8-208`; update `docs/cli.md`, `docs/reverse.md` and
+   `crates/podssh-cli/src/man/examples.rs:8-212`; update `docs/cli.md`, `docs/reverse.md` and
    `docs/STATUS.md` (lines 48-50 at `af0a163`).
 7. Pitfalls: `podssh man relay` shows the command; the topic THE RELAY has its own key since
    T-234 (`relay-facts`, `crates/podssh-cli/src/man/facts.rs:38`), so keep the two apart. Never
@@ -886,9 +886,9 @@ Read: `parse_hop` strips `ssh://` and reads `host:PORT` (`crates/podssh-cli/src/
 `connect_and_run` gives `relay_stream::spawn` to russh (`crates/podssh-cli/src/ssh/mod.rs` lines 73-116 at `6483366`), and
 `relay_stream` closes with 1002 on a text frame (`crates/podssh-ssh/src/relay_stream.rs:259-265`); the
 operator leg receives text frames (`docs/relay.md:332-335`). A host key is recorded under the target
-host, never the relay's name (`SECURITY.md:87-97`); `HostKeyAlias` exists
+host, never the relay's name (`SECURITY.md:98-108`); `HostKeyAlias` exists
 (`crates/podssh-cli/src/ssh/resolve.rs:411`). `podssh ssh` uses the exit codes of OpenSSH, and
-`podssh proxy` sysexits (`docs/cli.md:2469-2473`).
+`podssh proxy` sysexits (`docs/cli.md:2515-2519`).
 
 ## Approach
 
@@ -1091,7 +1091,7 @@ short code safe.
 3. A meeting point that both reach with no pair: see the Decision.
 4. The code: three words from a fixed list and a number, used once, valid for 10 min. The node shows
    it only on its terminal, never in stdout, a log or argv; the operator types it at a prompt.
-5. A pure-Rust SPAKE2 crate, built under `CC=/nonexistent` before it is chosen (`AGENTS.md:262-264`).
+5. A pure-Rust SPAKE2 crate, built under `CC=/nonexistent` before it is chosen (`AGENTS.md:263-265`).
 6. Pitfalls: limit the attempts at the meeting point; one failed exchange ends the code; check the
    received part as T-076 and T-078 check a pair.
 
@@ -1145,7 +1145,7 @@ Read: credentials are HMAC tokens scoped to a name and a role, issued by the rel
 over a trusted channel (`:137-138`); the node chooses what to expose (`:245-246`).
 
 Read: `podssh ssh` checks host keys with `known_hosts`, and never records one under the relay's name
-(`SECURITY.md:46-50`, `:87-97`). `podssh serve` keeps its host key in a state file and takes
+(`SECURITY.md:46-50`, `:98-108`). `podssh serve` keeps its host key in a state file and takes
 authorized keys from a flag or a file (`docs/ROADMAP.md:177-182`, T-107).
 
 Read in the reports (not verified here): iroh-ssh warns about an ephemeral node key
@@ -1309,7 +1309,7 @@ The resumable layer of M6 runs under SSH (`docs/design.md:570-582`).
 Read in the report (GitHub #18, not verified here): warren uses `Noise_IK_25519_ChaChaPoly_BLAKE2s`
 so that the relay cannot read a stream (`willykeenan/warren:src/noise.rs`).
 
-Read: the library crates must build with no C compiler (`AGENTS.md:262-264`, `scripts/gate.sh:133`).
+Read: the library crates must build with no C compiler (`AGENTS.md:263-265`, `scripts/gate.sh:133`).
 
 ## Approach
 
@@ -1597,7 +1597,7 @@ workloads (`arjun988/GPU-Share`); iroh-ssh has an open request for local discove
 56 of `rustonbsd/iroh-ssh`); cubic names and lists remote state (`cubic-vm/cubic:docs/howto/snapshots.rst`).
 
 Read: the measured sandbox refuses UDP (`docs/target-environment.md:23`), so mDNS cannot work there,
-and podssh must probe before it uses UDP (`AGENTS.md:246-247`).
+and podssh must probe before it uses UDP (`AGENTS.md:247-248`).
 
 ## Approach
 
@@ -1691,7 +1691,7 @@ ends each token at once (`docs/relay.md:303-305`). A text frame from the operato
 Measured: `grep -rni sshsig crates scripts docs Cargo.toml` finds nothing (exit 1). The wider `sign(` hits are
 tests of primitives (`crates/podssh-ws/tests/crypto_vectors.rs:125-159`,
 `crates/podssh-ws/tests/signatures.rs:29-172`); the comment's `crypto_vectors.rs:192` is not one. Read: the
-issue's "rule 8" is rule 6 (`docs/architecture.md:162-164`), and its "section 2" sentence about an allowlist of
+issue's "rule 8" is rule 6 (`docs/architecture.md:165-167`), and its "section 2" sentence about an allowlist of
 keys is in section 7 (`docs/design.md:1075-1076`). Read in the report (not verified here): syq signs a grant in a
 fixed namespace and redeems it at most once with `flock`, `O_EXCL`, `linkat` and `fsync` (lines 55 at `22c3b88` and
 1416-1492 of `greaber/syq:src/delegation.rs`). The reporter's correction: a signed grant leaks as a token does
@@ -1710,7 +1710,7 @@ T-107), and the relay stays a separate project (`docs/decisions.md`). The two sh
 1. On the relay: an endpoint in place of `POST /v1/pair` that returns a signed grant naming the node, the
    principals that may use it (key fingerprints, T-087), an expiry and a nonce. The relay records the nonce as
    spent and refuses a second use. podssh caches the grant and sends it in a header or a 0600 file, never in
-   a URL (`docs/relay.md:178-180`, `docs/architecture.md:162-164`).
+   a URL (`docs/relay.md:178-180`, `docs/architecture.md:165-167`).
 2. On the client: keep the pair's tokens, and add a signed grant inside the operator leg, which the relay has
    authenticated. A text frame closes that leg with `1003`, so the grant needs a typed binary header at the
    start of the session: a change of the framing in crates/podssh-transport/src/framing/legs.rs lines 60-76 at `e8bbd4d`. The
@@ -1718,7 +1718,7 @@ T-107), and the relay stays a separate project (`docs/decisions.md`). The two sh
    the seam of T-088 and T-089. Spent nonces are create-new private files
    (`crates/podssh-relay/src/cache.rs:338-356`).
 3. Both shapes: an SSHSIG signature in a fixed podssh namespace, which `ssh-keygen -Y verify` can check
-   (T-020), with the keys of T-087, in pure Rust (`AGENTS.md:262-264`).
+   (T-020), with the keys of T-087, in pure Rust (`AGENTS.md:263-265`).
 4. Relations: T-078 makes the pair that a grant protects; T-086 can deliver a grant in place of the
    `connect_token`; T-087 gives the keys that a grant names.
 
