@@ -3758,6 +3758,10 @@ measured; the live run waits for the operator's throwaway accounts (T-376), as Q
   named a `from_file` with `self`, now `read_file`, and an array of bytes in a test.
 - Planted: the token printed on stderr where its file is read: three tests of `iap_cli` failed,
   each naming the token shown. The workspace: 2539 passed; clippy `-D warnings` clean.
+- After the merge (`68314c6`), the gate's steps ssh, ts and iroh failed (run 41209696320): the
+  tests of `iap_cli` and `eice_cli` left their scratch directories in the temporary directory.
+  `scratch` gives a guard now that removes its directory as the test ends, passed or failed; in a
+  temporary directory of its own, podssh-cli's tests left nothing, and all passed.
 - Waits: the format and the Unix-only tests in the build image (T-251); the live run with the
   operator's throwaway accounts (T-376).
 

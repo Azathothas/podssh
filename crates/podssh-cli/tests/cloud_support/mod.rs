@@ -246,12 +246,35 @@ impl Frames {
     }
 }
 
+/// A scratch directory of the test, removed when the test ends, as it
+/// passes or fails: the gate fails a test that leaves one behind.
+pub struct Scratch(PathBuf);
+
+impl std::ops::Deref for Scratch {
+    type Target = Path;
+    fn deref(&self) -> &Path {
+        &self.0
+    }
+}
+
+impl AsRef<Path> for Scratch {
+    fn as_ref(&self) -> &Path {
+        &self.0
+    }
+}
+
+impl Drop for Scratch {
+    fn drop(&mut self) {
+        let _ = std::fs::remove_dir_all(&self.0);
+    }
+}
+
 /// A scratch directory of the test.
-pub fn scratch(name: &str) -> PathBuf {
+pub fn scratch(name: &str) -> Scratch {
     let dir = std::env::temp_dir().join(format!("podssh-cloud-{name}-{}", std::process::id()));
     let _ = std::fs::remove_dir_all(&dir);
     std::fs::create_dir_all(&dir).unwrap();
-    dir
+    Scratch(dir)
 }
 
 /// A file of `body` that only this user can read.
