@@ -1117,7 +1117,88 @@ real sandbox can block what iroh needs (the `/ping` probe, netlink, or the
 relay name in the proxy's allowlist). Both roads carry the same SSH, `cp`,
 `pipe` and chat, so a session does not depend on its road.
 
-## 8. Questions for the operator
+## 8. DERP
+
+**Use DERP as the second carrier between two podssh ends that needs no
+relay of the operator's, after n0's iroh relays, under the same resumable
+layer and end-to-end channel.** The operator's ruling Q50 (2026-10-31) makes
+Tailscale's servers for tailcat a fallback that podssh may try when the user
+did not ask ([decisions.md](decisions.md)); [carriers.md](carriers.md) ranks
+the carriers. (Read on 2026-10-31 in Tailscale's source at v1.104.4, in
+coder/websocket at v1.8.15, and in tailcat's map and README, through the
+services of web.pkgforge.dev; nothing of theirs was run.)
+
+Facts (READ):
+
+- A DERP server forwards packets between Curve25519 keys. It upgrades a
+  WebSocket at `/derp` only when the request names the subprotocol `derp`
+  (`derp/derpserver/websocket.go`), and answers `/derp/probe` with nothing,
+  for a measure of latency. A WebSocket message of more than 32,768 bytes
+  from a client ends the connection: that is coder/websocket's default read
+  limit, and derper does not raise it.
+- The handshake: the server sends its key after the magic `DERP🔑`; the
+  client sends its key and its info, JSON sealed to the server's key with
+  NaCl's box under a random nonce; the server answers with its info, sealed
+  back. The info may name a rate (a token bucket), which derper does not. A
+  client may name its program (`AppName`), and a server may refuse a name
+  (`--disallow-app-names`).
+- A server queues 32 packets for each receiver, and drops the oldest when a
+  packet comes to a full queue (`sendPkt`). It keeps the order of one
+  sender's packets. It drops a client whose connection takes no bytes for
+  2 s (`DefaultTCPWiteTimeout`). It may limit what it reads from each client
+  (`--rate-config`), by reading slower, which slows the sender.
+- A packet to a key that is not on the server is dropped; the server answers
+  `PeerGone` (not here) only to Tailscale's disco packets. When a peer that
+  sent to a client leaves, the client gets `PeerGone` (disconnected).
+- tailcat's map (https://tailcat.dev/derpmap.json) has four regions of one
+  server each, `tc301a.ipn.dev` (New York) to `tc304a.ipn.dev` (Tokyo).
+  tailcat calls them "our free rate-limited DERP relays", and refuses its own
+  test of throughput through them.
+
+**Built (T-349, drafted 2026-10-31):** the module `derp` of `podssh-relay`,
+feature `derp`, pure Rust (NaCl's box from RustCrypto's `crypto_box`, which
+the lock had already through the vendored fork).
+
+- The way: TLS through `HTTPS_PROXY` with podssh's provider and trust store,
+  then the WebSocket with the subprotocol `derp`, as Tailscale's own client in
+  a browser asks for it. No token goes to a DERP server.
+- The keys: a node's DERP key is derived from the seed of its identity with a
+  label of its own, so that its address stays across runs and no key does two
+  jobs; a client's is new for each run, so that two clients of one user are
+  never taken for one client connected twice. `AppName` is `podssh`.
+- The adapter under the layer: each link is a stream of numbered segments of
+  30 KiB at most, so that a packet stays under one message's 32,768 bytes.
+  The receiver acknowledges each segment past a gap at once, with up to 8
+  ranges that it holds, and the window that it has room for. As the server
+  keeps their order, a segment is lost once a segment sent after it arrived;
+  else at its retransmission timeout, as RFC 6298 computes it, which doubles.
+  The window halves at a loss, once for each window, and grows as TCP's, up
+  to 24 segments, under the queue of 32 that the acknowledgements share. A
+  link with segments on their way and no acknowledgement for 30 s is dead,
+  as the layer takes a silent link.
+- A link: the client sends `OPEN` until the node answers, 6 s at most; then
+  the layer runs on it with the features of the iroh road (`replay.v1`,
+  `heartbeat.v1`). A lost link is replaced by a new one, on the same
+  connection while it lives, else on a new one.
+- The node: one connection to its home, made again after each loss with the
+  forward opener's jittered backoff, and one keeper of sessions across links
+  and connections. Its home is the first server of the list whose probe
+  answers: the fleet, or the servers of `PODSSH_DERP_SERVER`.
+- The ticket: `derp:` and one word of base32 that holds the node's Ed25519
+  key, its DERP key and its home server. A client tries that server first,
+  then the other servers of the fleet, where a node whose home went away
+  calls the next one home; so this road needs no record of pkarr.
+
+MEASURED: UNVERIFIED, until the merge of T-349 runs
+`cargo test -p podssh-relay --features derp --test derp_link` (a stand-in
+server in memory, with 5 % of the packets dropped) and
+`sh scripts/interop-derp.sh` (Tailscale's derper in Podman).
+
+The command line (`podssh node --derp`, `podssh ssh derp:TICKET`), the race
+of T-164 with the other roads, and the fallback that Q50 allows come with
+T-379.
+
+## 9. Questions for the operator
 
 The operator decided the questions about the beta, the order of M4 to M6,
 iroh, the resumable layers, `podssh pipe exec:` and chat

@@ -332,7 +332,7 @@ relay's endpoints are in the contract.
     the relay offers it, keeps the resume token in memory, and sends it in
     a header only. A resume must reach the same object, so only the hosts
     of one deployment can resume a session. Decide it with podssh's
-    operator first ([design.md](design.md), section 8, question 1); its
+    operator first ([design.md](design.md), section 9, question 1); its
     condition, the end of M6, holds since 2026-10-10.
 17. **A local HTTP service published at `https://NAME`** (T-180, [TODO/pipe.md](../TODO/pipe.md); [#26](https://github.com/Azathothas/podssh/issues/26)).
     An endpoint that takes public HTTPS for a name, and hands each incoming

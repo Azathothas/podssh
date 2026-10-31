@@ -56,6 +56,7 @@ harness session interop 12 scripts/interop-session.sh
 harness pty interop 17 scripts/interop-pty.py
 harness man man 7 scripts/interop-man.sh
 harness conpty conpty 14 scripts/interop-conpty.py
+harness derp derp 3 scripts/interop-derp.sh
 
 # scripts/interop.sh
 ssh.exit.dropbear.0 pass
@@ -747,3 +748,8 @@ job.queue.choose pass
 run.status pass
 run.excludes pass
 run.again pass
+
+# scripts/interop-derp.sh
+derp.transfer pass
+derp.absent pass
+derp.layer pass

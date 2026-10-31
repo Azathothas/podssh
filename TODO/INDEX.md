@@ -450,3 +450,4 @@ repository and CI).
 | [T-376](roads.md) | P3 | S | backlog | chore | blocked | The live run of the roads through a cloud's own tunnel (T-351) |
 | [T-377](ws.md) | P1 | S | none | defect | done | The keys of podssh's own AEAD ciphers outlive their use, since chacha20poly1305 0.11 |
 | [T-378](roads.md) | P3 | S | backlog | defect | open | The quick tunnel's loop over HTTP/2 may read the connection's end as its control stream's |
+| [T-379](roads.md) | P2 | L | backlog | feature | open | The DERP road in the command line, in the race of T-164, and as the fallback that Q50 allows |

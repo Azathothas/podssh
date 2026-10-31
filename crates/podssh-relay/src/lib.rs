@@ -23,6 +23,9 @@
 //! - [`quick`]: a quick tunnel of Cloudflare's that podssh makes itself, with
 //!   no `cloudflared` (T-300): the registration's Cap'n Proto and its RPC,
 //!   and the headers of its answers;
+//! - `derp` (feature `derp`): the DERP road (T-349), through Tailscale's
+//!   servers for tailcat or a derper of the user's own, with an adapter
+//!   under the resumable layer that sends again what a server drops;
 //! - `blocking` (feature `blocking`): a synchronous facade over all of these,
 //!   for a caller with no async runtime: it owns a runtime on the current
 //!   thread, and refuses a call from inside a tokio runtime.
@@ -33,6 +36,8 @@
 #[cfg(feature = "blocking")]
 pub mod blocking;
 pub mod cache;
+#[cfg(feature = "derp")]
+pub mod derp;
 pub mod e2e;
 pub mod failover;
 pub mod failures;

@@ -191,7 +191,17 @@ The candidates, ranked:
      use by other clients is not stated, and Tailscale's terms were not
      read. derper can verify its clients, refuse names of applications, or
      admit clients by a URL [R7]; the main fleet, "free-to-use" in
-     Headscale's words [R10], is for Tailscale's clients. T-349, after Q50.
+     Headscale's words [R10], is for Tailscale's clients. T-349; Q50 makes
+     it a fallback that podssh may try unasked.
+   - Built (T-349, drafted 2026-10-31): the link in `podssh-relay`, feature
+     `derp`, on podssh-ws, with an adapter under the layer that sends again
+     what a server drops ([design.md](design.md), section 8). derper
+     upgrades its WebSocket only with the subprotocol `derp`, and ends a
+     connection at a message of more than 32,768 bytes [R46] [R47]; a full
+     queue drops its oldest packet [R9]; a client names its program, which
+     a server may refuse [R48]. tailcat refuses its own test of throughput
+     through the fleet [R5], so no throughput run goes there. The command
+     line and the race follow (T-379).
 3. **Cloudflare's quick tunnel** (T-300).
    - Who, and the account: Cloudflare, for testing and development; no
      account.
@@ -283,10 +293,11 @@ The chain that the study recommends, for `podssh node` and
    account, n0's paid relays, Dev Tunnels, or Azure Relay.
 
 The meeting point stays the ticket, or the key and the relay, pinned by a
-label, with a pkarr record for a node whose home relay changed (T-350).
-Whether the release binaries carry the iroh road, and whether n0's relays
-and tailcat's may be tried when the user did not ask, is Q50
-([TODO/PROGRESS.md](../TODO/PROGRESS.md)).
+label, with a pkarr record for a node whose home relay changed (T-350); on
+DERP, a client tries the other servers of the fleet after the ticket's. The
+operator's ruling Q50 (2026-10-31) puts the iroh road in the release
+binaries, and lets n0's relays and tailcat's be tried when the user did not
+ask ([decisions.md](decisions.md)).
 
 ## Sources
 
@@ -387,3 +398,8 @@ The reverse road:
   https://github.com/ekzhang/bore/issues/196
 - [R44] https://zrok.io/pricing/; https://docs.zrok.io/docs/concepts/sharing-private
 - [R45] https://testmqtt.com/brokers/eclipse
+- [R46] https://github.com/tailscale/tailscale/blob/v1.104.4/derp/derpserver/websocket.go,
+  and `handler.go` beside it
+- [R47] https://github.com/coder/websocket/blob/v1.8.15/read.go (`defaultReadLimit`)
+- [R48] https://github.com/tailscale/tailscale/blob/v1.104.4/derp/derp_client.go,
+  and `types/key/node.go`
