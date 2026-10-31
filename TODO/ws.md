@@ -1755,7 +1755,7 @@ a store's certificates is the unit test's below, the same on each system:
 **Milestone:** backlog
 **Priority:** P3
 **Effort:** M
-**Status:** partial
+**Status:** done
 
 ## Problem
 
@@ -1881,7 +1881,7 @@ test of the order fails.
 
 ## Done
 
-2026-10-31, a draft: each result that says UNVERIFIED is the merge's to measure.
+2026-10-31, done: drafted, then merged and measured; the fuzz run waits for T-251 (below).
 
 - `podssh_ws::resolve` asks, in order, an IP literal, the pins, the system resolver, the fresh
   addresses that carried a session, DNS over HTTPS, then the old ones
@@ -1932,7 +1932,10 @@ test of the order fails.
   through a proxy. `cargo test -p podssh-ws --test doh_h2` passed 3 against h2's own server behind
   TLS: Quad9's captured answer came whole and decoded, a server of HTTP/1.1 alone was refused before
   a request, an answer over the bound was refused; planted, no ALPN offered, the two that need an
-  answer failed. podssh-ws, 254 passed; clippy clean. Its second run: UNVERIFIED.
+  answer failed. podssh-ws, 254 passed; clippy clean. Its second run (41205878813, at `22d9de6`)
+  passed: each of the six resolvers answered `github.com` by its address through verified TLS,
+  each in the wire form, Quad9's two over HTTP/2, and a reserved name stopped at the first answer
+  (NXDOMAIN).
 - Waits for T-251: `dns_wire` for 120 s in `fuzz.yml` (UNVERIFIED).
 
 # T-345: Only `doctor` names the clock when a certificate has expired or is not valid yet
