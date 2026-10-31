@@ -20,12 +20,31 @@ use crate::pair::Pair;
 /// The local side of a session, as a handler opens it.
 pub type Opening<S> = Pin<Box<dyn Future<Output = Result<S, String>> + Send>>;
 
+/// Lets a session's client in, and says whether the node has room for it:
+/// the resumable layer's admission (T-300).
+pub type Admit = Box<dyn FnOnce() -> bool + Send>;
+
+/// Why a client that the node would let in is not: the budget is full.
+pub const NO_ROOM: &str = "this node keeps as many sessions as its budget allows";
+
 /// What a node does with each session that the relay opens: a byte stream to
 /// carry, or a reason to refuse it. The node carries bytes only; what they
 /// mean is the handler's (`docs/architecture.md`).
 pub trait Handler: Send + Sync + 'static {
     type Stream: AsyncRead + AsyncWrite + Send + Unpin + 'static;
     fn open(&self, id: SessionId) -> Opening<Self::Stream>;
+
+    /// [`Handler::open`] under the resumable layer, which keeps the session
+    /// for a resume once `admit` let its client in. A handler that checks
+    /// no client lets it in at once; one that checks a key, once the key is
+    /// let in.
+    fn open_admitted(&self, id: SessionId, admit: Admit) -> Opening<Self::Stream> {
+        if admit() {
+            self.open(id)
+        } else {
+            Box::pin(async { Err(NO_ROOM.to_string()) })
+        }
+    }
 
     /// The bytes that may wait for a session's local side before the node
     /// takes it for stalled and ends the session. A handler with its own

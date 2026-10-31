@@ -12,7 +12,7 @@ use std::time::Duration;
 use tokio::io::DuplexStream;
 
 use super::framing::SessionId as RelayId;
-use super::node::{Handler, Opening};
+use super::node::{Admit, Handler, Opening};
 use crate::session::keep::Keeper;
 use crate::session::record::Role;
 use crate::session::{far, Settings};
@@ -77,7 +77,15 @@ impl<H: Handler> Handler for Layered<H> {
         let (ours, theirs) = tokio::io::duplex(PIPE);
         let (inner, keeper, settings, budget) = (self.inner.clone(), self.keeper.clone(), self.settings, self.budget);
         tokio::spawn(async move {
-            far::serve(ours, Role::NODE, settings, &keeper, budget, || inner.open(id)).await;
+            // The handler lets the client in: the channel, once its key is,
+            // and the keeper counts it against the budget from then (T-300).
+            let admitted = Arc::new(AtomicBool::new(false));
+            let admit: Admit = {
+                let (keeper, admitted) = (keeper.clone(), admitted.clone());
+                Box::new(move || keeper.admit(&admitted, settings.replay_capacity, budget))
+            };
+            let open = || inner.open_admitted(id, admit);
+            far::serve_admitted(ours, Role::NODE, settings, &keeper, budget, open, admitted).await;
         });
         Box::pin(async move { Ok(theirs) })
     }

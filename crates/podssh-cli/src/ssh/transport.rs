@@ -63,8 +63,16 @@ static KEPT: std::sync::Mutex<Vec<Carriage>> = std::sync::Mutex::new(Vec::new())
 /// Keep the layer's task of a road, if it runs one, for [`settled`].
 pub fn keep(layer: Option<Carriage>) {
     if let Some(layer) = layer {
-        KEPT.lock().unwrap_or_else(std::sync::PoisonError::into_inner).push(layer);
+        let mut kept = KEPT.lock().unwrap_or_else(std::sync::PoisonError::into_inner);
+        running(&mut kept);
+        kept.push(layer);
     }
+}
+
+/// Only the tasks that still run: a listener that keeps listening hands on
+/// a road for each client, and the list would grow with each.
+fn running(kept: &mut Vec<Carriage>) {
+    kept.retain_mut(|layer| matches!(layer.try_recv(), Err(tokio::sync::oneshot::error::TryRecvError::Empty)));
 }
 
 /// Run `work`, a command's whole run, then wait for each task of the layer
@@ -294,7 +302,7 @@ async fn direct(
 mod tests {
     use std::time::Duration;
 
-    use super::{keep, multipath_asked, settled, CARRIAGE_WAIT};
+    use super::{keep, multipath_asked, running, settled, CARRIAGE_WAIT};
 
     /// A command that hands its connection on waits, at its end, for the
     /// layer's task that it kept: its `CLOSE` and its last line (T-331);
@@ -323,6 +331,20 @@ mod tests {
         let started = tokio::time::Instant::now();
         settled(async {}).await;
         assert_eq!(started.elapsed(), Duration::ZERO, "nothing kept, no wait");
+    }
+
+    /// The tasks that ended leave the list as the next one comes: those of
+    /// the clients that a listener served before.
+    #[test]
+    fn a_kept_task_that_ended_leaves_the_list() {
+        let (sent, ended) = tokio::sync::oneshot::channel::<()>();
+        let _ = sent.send(());
+        let (gone, dropped) = tokio::sync::oneshot::channel::<()>();
+        drop(gone);
+        let (_runs, running_one) = tokio::sync::oneshot::channel::<()>();
+        let mut kept = vec![ended, dropped, running_one];
+        running(&mut kept);
+        assert_eq!(kept.len(), 1, "the one that still runs");
     }
 
     #[test]

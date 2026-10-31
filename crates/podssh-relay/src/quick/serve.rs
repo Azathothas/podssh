@@ -19,9 +19,11 @@ use h2::{RecvStream, SendStream};
 use http::{Request, Response, StatusCode};
 use podssh_ws::frame::{self, Frame, Role};
 use tokio::io::{AsyncRead, AsyncReadExt, AsyncWrite, AsyncWriteExt, DuplexStream};
-use tokio::sync::mpsc;
+use tokio::sync::{mpsc, watch};
+use tokio::time::Instant;
 
 use super::control::{Control, Event, Failure};
+use super::goaway;
 use super::headers::{self, Kind};
 use super::register::{Registered, Registration};
 
@@ -29,6 +31,18 @@ use super::register::{Registered, Registration};
 const MAX_STREAMS: u32 = 256;
 /// The buffer of each bridge between a stream and its user.
 const PIPE: usize = 64 * 1024;
+/// Each stream's window, and the connection's: as many as the streams, so
+/// that streams whose users read slowly never hold the window of the
+/// others, or of the control stream.
+const STREAM_WINDOW: u32 = 64 * 1024;
+const CONNECTION_WINDOW: u32 = MAX_STREAMS * STREAM_WINDOW;
+/// How long the edge has for HTTP/2's handshake.
+pub const HANDSHAKE_WAIT: Duration = Duration::from_secs(30);
+/// How often the node asks whether the edge is there (an HTTP/2 PING), and
+/// how long its answer may take: an edge that answers none is gone, though
+/// nothing closed the connection.
+pub const PING_EVERY: Duration = Duration::from_secs(30);
+pub const PONG_WAIT: Duration = Duration::from_secs(30);
 /// How long the end waits for the edge to take the unregistration.
 pub const UNREGISTER_WAIT: Duration = Duration::from_secs(5);
 /// How long the streams still open may take, once the connection closes.
@@ -57,6 +71,10 @@ pub enum Ended {
     Refused { cause: String, retry: bool, after: Duration },
     /// The edge closed the connection.
     Closed,
+    /// The edge answered neither the handshake nor a PING in time.
+    Silent,
+    /// The edge sent GOAWAY: it opens no new stream on this connection.
+    GoingAway,
 }
 
 impl std::fmt::Display for Ended {
@@ -66,6 +84,8 @@ impl std::fmt::Display for Ended {
             Ended::Control(e) => write!(f, "{e}"),
             Ended::Refused { cause, .. } => write!(f, "the edge refused the connection: {cause}"),
             Ended::Closed => write!(f, "the edge closed the connection"),
+            Ended::Silent => write!(f, "the edge stopped answering"),
+            Ended::GoingAway => write!(f, "the edge takes no new visitor on this connection (GOAWAY)"),
         }
     }
 }
@@ -86,18 +106,30 @@ where
     V: FnMut(DuplexStream) -> F,
     F: Future<Output = ()> + Send + 'static,
 {
-    let mut conn = h2::server::Builder::new()
+    tokio::pin!(stop);
+    let (io, mut going) = goaway::watched(io);
+    let handshake = h2::server::Builder::new()
         .max_concurrent_streams(MAX_STREAMS)
-        .handshake::<_, Bytes>(io)
-        .await
-        .map_err(Ended::Http2)?;
+        .initial_window_size(STREAM_WINDOW)
+        .initial_connection_window_size(CONNECTION_WINDOW)
+        .handshake::<_, Bytes>(io);
+    let mut conn = tokio::select! {
+        shaken = tokio::time::timeout(HANDSHAKE_WAIT, handshake) => match shaken {
+            Ok(shaken) => shaken.map_err(Ended::Http2)?,
+            Err(_) => return Err(Ended::Silent),
+        },
+        // Nothing was registered yet: nothing to undo.
+        () = &mut stop => return Ok(()),
+    };
+    // The PING that waits for its answer, and when the next one goes.
+    let mut pinger = conn.ping_pong();
+    let (mut ping_at, mut pong_by) = (Some(Instant::now() + PING_EVERY), None::<Instant>);
     let (control, first) = Control::register(registration);
     let mut control = Some((control, first));
     // The control task's word: the registration's answer, then the end.
     let (said, mut heard) = mpsc::unbounded_channel::<Result<Event, Failure>>();
     let (unregister, asked) = mpsc::unbounded_channel::<()>();
     let mut asked = Some(asked);
-    tokio::pin!(stop);
     // Whether the end was asked for, and the deadline of its phase: the
     // unregistration, then the close.
     let (mut stopping, mut deadline) = (false, None);
@@ -118,9 +150,12 @@ where
                         let key = header(&request, "sec-websocket-key").unwrap_or_default().to_string();
                         let answer = headers::websocket_answer(&key);
                         let pairs = [(headers::RESPONSE_HEADERS, answer.as_str()), (headers::RESPONSE_META, headers::META_ORIGIN)];
-                        let send = respond_200(respond, &pairs)?;
-                        let _ = steps.send(Step::Visitor);
-                        tokio::spawn(visit(websocket(request.into_body(), send)));
+                        // A visitor that the edge reset before the answer
+                        // ends with its stream, not the connection.
+                        if let Ok(send) = respond_200(respond, &pairs) {
+                            let _ = steps.send(Step::Visitor);
+                            tokio::spawn(visit(websocket(request.into_body(), send)));
+                        }
                     }
                     Kind::Http | Kind::Configuration | Kind::Tcp => refuse(respond, StatusCode::NOT_FOUND),
                 },
@@ -155,6 +190,28 @@ where
                     deadline = Some(tokio::time::Instant::now() + UNREGISTER_WAIT);
                 }
             },
+            () = sleep_until(ping_at), if ping_at.is_some() && pinger.is_some() => {
+                ping_at = None;
+                if pinger.as_mut().is_some_and(|p| p.send_ping(h2::Ping::opaque()).is_ok()) {
+                    pong_by = Some(Instant::now() + PONG_WAIT);
+                } else if !stopping {
+                    return Err(Ended::Silent);
+                }
+            },
+            pong = pong(&mut pinger), if pong_by.is_some() => match pong {
+                Ok(()) => (pong_by, ping_at) = (None, Some(Instant::now() + PING_EVERY)),
+                Err(_) if stopping => pong_by = None,
+                Err(e) => return Err(Ended::Http2(e)),
+            },
+            () = sleep_until(pong_by), if pong_by.is_some() => {
+                pong_by = None;
+                if !stopping {
+                    return Err(Ended::Silent);
+                }
+            },
+            // Once the edge went away, a new connection takes the visitors;
+            // the sessions on this one resume there.
+            Ok(_) = going.wait_for(|went| *went), if !stopping => return Err(Ended::GoingAway),
             () = sleep_until(deadline), if deadline.is_some() => {
                 // The edge did not take the end in time, or streams stay
                 // open past the grace: close, then end.
@@ -177,6 +234,14 @@ fn close<IO: AsyncRead + AsyncWrite + Unpin>(
         *closing = true;
         conn.graceful_shutdown();
         *deadline = Some(tokio::time::Instant::now() + CLOSE_GRACE);
+    }
+}
+
+/// Until the edge answers the PING that waits; for ever with none.
+async fn pong(pinger: &mut Option<h2::PingPong>) -> Result<(), h2::Error> {
+    match pinger {
+        Some(pinger) => std::future::poll_fn(|cx| pinger.poll_pong(cx)).await.map(|_| ()),
+        None => std::future::pending().await,
     }
 }
 
@@ -218,16 +283,23 @@ async fn run_control(
     mut asked: mpsc::UnboundedReceiver<()>,
 ) {
     if send_all(&mut send, &first).await.is_err() {
+        let _ = said.send(Err(Failure::Ended));
         return;
     }
     loop {
         tokio::select! {
             chunk = recv.data() => {
-                let Some(Ok(chunk)) = chunk else { return };
+                // The edge ended or reset the stream: the connection is no
+                // longer registered, and the node connects again.
+                let Some(Ok(chunk)) = chunk else {
+                    let _ = said.send(Err(Failure::Ended));
+                    return;
+                };
                 let _ = recv.flow_control().release_capacity(chunk.len());
                 match control.feed(&chunk) {
                     Ok((events, out)) => {
                         if !out.is_empty() && send_all(&mut send, &out).await.is_err() {
+                            let _ = said.send(Err(Failure::Ended));
                             return;
                         }
                         let done = events.contains(&Event::Unregistered);
@@ -281,7 +353,10 @@ async fn send_all(send: &mut SendStream<Bytes>, mut bytes: &[u8]) -> Result<(), 
 fn websocket(mut recv: RecvStream, mut send: SendStream<Bytes>) -> DuplexStream {
     let (user, ours) = tokio::io::duplex(PIPE);
     let (mut from_user, mut to_user) = tokio::io::split(ours);
-    let (pongs, mut pongs_due) = mpsc::unbounded_channel::<Vec<u8>>();
+    // The latest ping's payload only: RFC 6455, section 5.5.3, lets an end
+    // answer the most recent of the pings that wait, so a visitor that
+    // pings while the writer waits for the edge's window holds one payload.
+    let (pongs, mut pongs_due) = watch::channel::<Option<Vec<u8>>>(None);
     // The visitor's frames, masked as a client writes them, to the user.
     tokio::spawn(async move {
         let mut inbox = Vec::new();
@@ -300,7 +375,7 @@ fn websocket(mut recv: RecvStream, mut send: SendStream<Bytes>) -> DuplexStream 
                                 }
                             }
                             0x9 => {
-                                let _ = pongs.send(frame.payload);
+                                pongs.send_replace(Some(frame.payload));
                             }
                             0x8 => {
                                 let _ = to_user.shutdown().await;
@@ -336,7 +411,8 @@ fn websocket(mut recv: RecvStream, mut send: SendStream<Bytes>) -> DuplexStream 
                         return;
                     }
                 }
-                Some(payload) = pongs_due.recv() => {
+                Ok(()) = pongs_due.changed() => {
+                    let Some(payload) = pongs_due.borrow_and_update().clone() else { continue };
                     let pong = Frame { fin: true, opcode: 0xA, payload };
                     if send_all(&mut send, &frame::encode(&pong, Role::Server, [0; 4])).await.is_err() {
                         return;

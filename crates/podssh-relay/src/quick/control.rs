@@ -37,6 +37,9 @@ pub enum Failure {
     Exception { question: u32, why: String },
     /// The edge ended the RPC, with its reason.
     Aborted(String),
+    /// The edge ended the control stream: the connection is no longer
+    /// registered.
+    Ended,
 }
 
 impl From<Malformed> for Failure {
@@ -52,6 +55,7 @@ impl std::fmt::Display for Failure {
             Failure::Exception { question: REGISTER, why } => write!(f, "the edge refused the registration: {why}"),
             Failure::Exception { why, .. } => write!(f, "the edge answered with an error: {why}"),
             Failure::Aborted(why) => write!(f, "the edge ended the control stream: {why}"),
+            Failure::Ended => write!(f, "the edge closed the control stream"),
         }
     }
 }

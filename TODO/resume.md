@@ -2478,7 +2478,7 @@ Item 3 of the Approach says that a session past the node's bound is refused
 with `REFUSE` (6). Read: the far end accepts the handshake, then ends the
 session with a `CLOSE` that gives the reason ("this node keeps as many
 resumable sessions as its budget allows",
-`crates/podssh-relay/src/session/far.rs:175-180`); code 6 is not sent. The
+`crates/podssh-relay/src/session/far.rs:196-201`); code 6 is not sent. The
 bound and its words stay as they are.
 
 ## Done

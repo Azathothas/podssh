@@ -1922,6 +1922,64 @@ Partial, 2026-10-30. Done so far, each checked, nothing live yet:
   node's, refused. UNVERIFIED: it runs once `v1.0.0-beta.2` is out.
 - Filed: T-331, the layer's `CLOSE` in the five commands that hand their
   connection on (`job`, `pipe`, `health`, `containers`, `--upgrade`).
+- A review of the code (2026-10-30, read only, by an agent of this session)
+  named seven defects; each was read again at its lines, and holds. The
+  allowlist held: TARGET opens only after the key is let in. Repaired, each
+  with a test that its plant fails (2026-10-31):
+  - A visitor's stream that the edge reset before the answer ended the
+    whole connection (`respond_200(...)?`); now that visitor alone. And the
+    wait between connections never fell back after a registered one
+    (`crates/podssh-cli/src/node_quick.rs`): it does now (read, not tested).
+  - Each ping's payload went into an unbounded queue while the writer
+    waited for the edge's window; now only the latest waits, as RFC 6455,
+    section 5.5.3, allows.
+  - A visitor with no key could hold the node's budget: the layer took a
+    slot before the channel checked the key, and a lost link kept it 600 s.
+    Now the layered handler gives the channel an admission
+    (`Handler::open_admitted`, `Keeper::admit`): a session counts against
+    the budget once its key is let in, the keeper refusing it there when
+    the budget is full, and one that was not let in waits 30 s at most for
+    a resume (`UNADMITTED_WAIT`, the channel's handshake limit), not the
+    deadline.
+  - The edge's connection could die with no new one: HTTP/2's handshake now
+    has 30 s (`HANDSHAKE_WAIT`) and ends at a stop; a PING each 30 s,
+    unanswered for 30 s, ends the connection (`Ended::Silent`); the end of
+    the control stream is `Failure::Ended`; and the edge's GOAWAY, which h2
+    keeps to itself, is seen in the frames' headers as they pass
+    (`crates/podssh-relay/src/quick/goaway.rs`) and ends the connection
+    (`Ended::GoingAway`), so that the node connects again and the sessions
+    resume.
+  - One stream whose user read slowly held the connection's window of
+    65,535 bytes; the connection's window is now that of its 256 streams,
+    16 MiB.
+  - A double far pointer to a segment that is not there panicked the
+    reader of Cap'n Proto, and the release aborts on a panic; now it is
+    malformed.
+  - T-331's: `pipe` with a listener ran outside `settled` (its Done).
+- `cargo test -p podssh-relay --features quick --test quick_resilience`: 7
+  passed, against the stand-in edge, the helpers of `quick_tunnel` moved to
+  `tests/quick_harness/`: a visitor reset before its answer, then the next
+  one echoed on the same connection; a raw GOAWAY of the edge's, ended at
+  once; a control stream that the edge ended; an edge that answers no PING
+  (paused time: gone within 60 s); a stalled visitor beside an echoed one;
+  300 pings while the writer waited: fewer than 10 pongs, the last the last
+  ping's; an edge that never shakes hands (gone at 30 s), and a stop in
+  the handshake. Planted, each repair undone alone (the answer fatal again,
+  no GOAWAY, no end of the control stream, no PONG limit, the window of
+  65,535, the unbounded queue, no handshake limit): its test failed each
+  time; each passed again without its plant. `--lib quick::`: 26 passed,
+  the missing segment among them (planted, the old reader panicked at its
+  index), the watcher of GOAWAY's 2 among them. `cargo test -p podssh-relay --features pair --test e2e_layered`:
+  4 passed, of them three visitors with no key that finish the layer's
+  handshake and leave, then two clients with a key let in on a budget of
+  two, and a third refused by the budget; planted, the old count of the
+  budget, and a channel that admits at once: each failed at the first
+  client ("this node keeps as many resumable sessions as its budget
+  allows"). And two clients that reach the channel at once on a budget of
+  one, both past the layer's count as neither was let in: the second is
+  refused there, in the budget's words ("this node keeps as many sessions
+  as its budget allows", not the target's), and the node says so. `cargo test -p podssh-relay --features blocking,quick,pair`:
+  313 passed, 0 failed, in 45 binaries.
 - Next: the live run, then the entry's close.
 
 # T-301: The quick tunnel over QUIC, where a probe finds UDP
@@ -2753,3 +2811,11 @@ no TCP connection of the node to TARGET is left once a command exits.
   once `v1.0.0-beta.2` is out.
 - `cargo test -p podssh-cli`: 996 passed, 0 failed, 39 ignored, in 117
   binaries.
+- The review of T-300's code (2026-10-30) found `podssh pipe` with a
+  listener outside `settled`, though its `ssh:` end keeps the layer's task:
+  the last client's `CLOSE` never went out, and with `--keep-listening`
+  the list grew by one for each client. Repaired (2026-10-31): the
+  listener's run is settled, and `keep` drops the tasks that ended
+  (`transport::running`). `cargo test -p podssh-cli --lib ssh::transport`:
+  3 passed; planted, a list that keeps each task: the new test failed (3
+  kept, not 1).

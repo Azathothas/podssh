@@ -78,7 +78,9 @@ pub fn run_pipe(args: &PipeArgs, err: &mut dyn Write) -> i32 {
         let (listening, other, listener_is_a) = if a.listens() { (&a, &b, true) } else { (&b, &a, false) };
         let quiet = args.ssh.quiet > 0;
         let serve = serve::Serve { listening, other, listener_is_a, keep: args.keep_listening, quiet };
-        runtime.block_on(serve::run(serve, &settings, err))
+        // A client's road through a node's layer ends with its CLOSE, the
+        // last one's before the exit (T-331).
+        runtime.block_on(crate::ssh::transport::settled(serve::run(serve, &settings, err)))
     } else {
         runtime.block_on(crate::ssh::transport::settled(run(a, b, &settings, err)))
     };

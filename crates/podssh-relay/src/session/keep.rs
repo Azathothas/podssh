@@ -12,6 +12,7 @@
 //! not by the order in which their tasks start (T-270).
 
 use std::collections::HashMap;
+use std::sync::atomic::{AtomicBool, Ordering};
 use std::sync::{Arc, Mutex};
 use std::time::Duration;
 
@@ -34,6 +35,23 @@ const STOP_WAIT: Duration = Duration::from_secs(10);
 const STOP_CHECK: Duration = Duration::from_millis(50);
 /// How long a `REFUSE` may take to go out before the link is dropped.
 const REFUSE_WAIT: Duration = Duration::from_secs(5);
+/// How long a session whose client was not let in yet waits for a resume:
+/// the channel's handshake has as long for each step, and a session kept
+/// longer would only hold a visitor's handshake.
+pub const UNADMITTED_WAIT: Duration = Duration::from_secs(30);
+
+/// Whether what runs above the layer let a session's client in: the
+/// end-to-end channel's admission of its key (T-300). A session counts
+/// against the budget once it is admitted, and waits the whole deadline for
+/// a resume only then: a visitor with no key, which can reach the layer of a
+/// public name, takes nothing from the clients with one.
+pub type Admitted = Arc<AtomicBool>;
+
+/// An admission that holds from the start: a road that checks its client
+/// before the layer, or has nothing above it that checks.
+pub fn admitted_at_once() -> Admitted {
+    Arc::new(AtomicBool::new(true))
+}
 
 /// Why a resume did not take its session.
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
@@ -60,9 +78,17 @@ enum Slot<A> {
     /// A link carries the session; its `watch` stops it, and `done` tells
     /// when it has ended. `state` is the session's, for the count of its
     /// buffer.
-    Live { watch: Arc<Watch>, done: Arc<Notify>, state: Arc<Mutex<Link>> },
+    Live { watch: Arc<Watch>, done: Arc<Notify>, state: Arc<Mutex<Link>>, admitted: Admitted },
     /// No link: the target and the state wait until `until`.
-    Idle { app: A, carry: Carry, until: Instant },
+    Idle { app: A, carry: Carry, until: Instant, admitted: Admitted },
+}
+
+impl<A> Slot<A> {
+    fn admitted(&self) -> bool {
+        match self {
+            Slot::Live { admitted, .. } | Slot::Idle { admitted, .. } => admitted.load(Ordering::SeqCst),
+        }
+    }
 }
 
 /// The sessions of a far end, with their targets, across links.
@@ -94,6 +120,26 @@ where
         lock(&self.slots).len()
     }
 
+    /// The sessions that count against a budget: those whose client was let
+    /// in. One still in its channel's handshake holds a few hundred bytes.
+    pub fn kept_admitted(&self) -> usize {
+        lock(&self.slots).values().filter(|slot| slot.admitted()).count()
+    }
+
+    /// Let a session's client in, marking `admitted`, when `budget` has room
+    /// for one more session of `each` bytes; else `false`. The count and the
+    /// mark are under one lock, so that two clients let in at once do not
+    /// pass the budget together.
+    pub fn admit(&self, admitted: &AtomicBool, each: usize, budget: usize) -> bool {
+        let slots = lock(&self.slots);
+        let held = slots.values().filter(|slot| slot.admitted()).count();
+        if held.saturating_add(1).saturating_mul(each) > budget {
+            return false;
+        }
+        admitted.store(true, Ordering::SeqCst);
+        true
+    }
+
     /// The bytes that the replay buffers of all sessions hold.
     pub fn replay_bytes(&self) -> usize {
         lock(&self.slots)
@@ -110,13 +156,27 @@ where
     where
         L: AsyncRead + AsyncWrite + Unpin + Send,
     {
+        self.run_new_admitted(accepted, app, admitted_at_once()).await
+    }
+
+    /// [`Keeper::run_new`] for a session whose client is let in above the
+    /// layer later, when `admitted` is set.
+    pub async fn run_new_admitted<L>(&self, accepted: Accepted<L>, app: A, admitted: Admitted) -> Ended
+    where
+        L: AsyncRead + AsyncWrite + Unpin + Send,
+    {
         let (link, decoder, established, settings) = accepted.into_parts();
         let carry = Carry::new(settings.link(&established));
         lock(&self.sessions).attach(&established.id, carry.state.clone());
         let (watch, done) = (Arc::new(Watch::default()), Arc::new(Notify::new()));
-        let live = Slot::Live { watch: watch.clone(), done: done.clone(), state: carry.state.clone() };
+        let live = Slot::Live {
+            watch: watch.clone(),
+            done: done.clone(),
+            state: carry.state.clone(),
+            admitted: admitted.clone(),
+        };
         lock(&self.slots).insert(established.id, live);
-        self.carry(established.id, app, link, decoder, carry, &watch, &done).await
+        self.carry(established.id, app, link, decoder, carry, &watch, &done, admitted).await
     }
 
     /// Carry a resumed session onto `accepted`'s link: its old link stops
@@ -137,7 +197,7 @@ where
             *at = (*at).max(number);
         }
         let (watch, done) = (Arc::new(Watch::default()), Arc::new(Notify::new()));
-        let (mut app, mut carry) = match self.take(&id, number, &watch, &done).await {
+        let (mut app, mut carry, admitted) = match self.take(&id, number, &watch, &done).await {
             Ok(taken) => taken,
             // The client hears the session's end, not a lost link.
             Err(NotTaken::Ended) => {
@@ -163,7 +223,7 @@ where
         // The pump sends the bytes that the client lacks while it reads the
         // client's.
         carry.send_again(again);
-        Ok(self.carry(id, app, link, decoder, carry, &watch, &done).await)
+        Ok(self.carry(id, app, link, decoder, carry, &watch, &done, admitted).await)
     }
 
     /// The target and the state of a kept session for resume `number`, the
@@ -176,7 +236,7 @@ where
         number: u64,
         watch: &Arc<Watch>,
         done: &Arc<Notify>,
-    ) -> Result<(A, Carry), NotTaken> {
+    ) -> Result<(A, Carry, Admitted), NotTaken> {
         let deadline = Instant::now() + STOP_WAIT;
         loop {
             match lock(&self.newest).get(id) {
@@ -187,14 +247,14 @@ where
             let stopping = {
                 let mut slots = lock(&self.slots);
                 match slots.remove(id) {
-                    Some(Slot::Idle { app, carry, .. }) => {
-                        let live = Slot::Live { watch: watch.clone(), done: done.clone(), state: carry.state.clone() };
-                        slots.insert(*id, live);
-                        return Ok((app, carry));
+                    Some(Slot::Idle { app, carry, admitted, .. }) => {
+                        let (watch, done, state) = (watch.clone(), done.clone(), carry.state.clone());
+                        slots.insert(*id, Slot::Live { watch, done, state, admitted: admitted.clone() });
+                        return Ok((app, carry, admitted));
                     }
-                    Some(Slot::Live { watch, done, state }) => {
+                    Some(Slot::Live { watch, done, state, admitted }) => {
                         watch.stop.notify_one();
-                        slots.insert(*id, Slot::Live { watch, done: done.clone(), state });
+                        slots.insert(*id, Slot::Live { watch, done: done.clone(), state, admitted });
                         done
                     }
                     None => return Err(NotTaken::Ended),
@@ -217,13 +277,14 @@ where
         mut carry: Carry,
         watch: &Watch,
         done: &Notify,
+        admitted: Admitted,
     ) -> Ended
     where
         L: AsyncRead + AsyncWrite + Unpin + Send,
     {
         let ended = pump::run(&mut app, link, decoder, &mut carry, watch).await;
         if ended.end.resumable() {
-            self.idle(id, app, carry);
+            self.idle(id, app, carry, admitted);
         } else {
             lock(&self.slots).remove(&id);
             self.forget(&id);
@@ -241,9 +302,12 @@ where
         lock(&self.newest).remove(id);
     }
 
-    fn idle(&self, id: SessionId, app: A, carry: Carry) {
-        let until = Instant::now() + self.deadline;
-        lock(&self.slots).insert(id, Slot::Idle { app, carry, until });
+    /// The session waits for a resume: the deadline, or less while its
+    /// client was not let in.
+    fn idle(&self, id: SessionId, app: A, carry: Carry, admitted: Admitted) {
+        let wait = if admitted.load(Ordering::SeqCst) { self.deadline } else { self.deadline.min(UNADMITTED_WAIT) };
+        let until = Instant::now() + wait;
+        lock(&self.slots).insert(id, Slot::Idle { app, carry, until, admitted });
     }
 
     /// Forget each session whose link has been lost for longer than the

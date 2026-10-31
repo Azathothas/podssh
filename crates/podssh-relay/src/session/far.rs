@@ -17,7 +17,7 @@ use tokio::io::{AsyncRead, AsyncReadExt, AsyncWrite, AsyncWriteExt};
 use super::deadline;
 use super::decode::{DecodeError, Decoder};
 use super::handshake::{Established, FarHandshake, HandshakeError, Step};
-use super::keep::Keeper;
+use super::keep::{admitted_at_once, Admitted, Keeper};
 use super::pump::{self, Carry, Ended};
 use super::record::{Record, Role};
 use super::secret::{Entropy, OsEntropy};
@@ -160,6 +160,27 @@ where
     O: FnOnce() -> F,
     F: Future<Output = Result<A, String>>,
 {
+    serve_admitted(link, role, settings, keeper, budget, open, admitted_at_once()).await;
+}
+
+/// [`serve`] for a session whose client is let in above the layer, later,
+/// with `admitted` (T-300): until then it takes nothing of `budget`, which
+/// counts the sessions that were let in.
+#[allow(clippy::too_many_arguments)]
+pub async fn serve_admitted<L, A, O, F>(
+    link: L,
+    role: Role,
+    settings: Settings,
+    keeper: &Keeper<A>,
+    budget: usize,
+    open: O,
+    admitted: Admitted,
+) where
+    L: AsyncRead + AsyncWrite + Unpin + Send,
+    A: AsyncRead + AsyncWrite + Unpin + Send,
+    O: FnOnce() -> F,
+    F: Future<Output = Result<A, String>>,
+{
     let accepted = match accept(link, role, settings, &keeper.sessions, &mut OsEntropy).await {
         Ok(accepted) => accepted,
         // A link that never completed its handshake: nothing to keep.
@@ -171,7 +192,7 @@ where
     }
     // A new session holds a whole buffer's worth of the budget while it is
     // kept, so the budget is a bound, not a hope.
-    let held = keeper.kept().saturating_mul(settings.replay_capacity);
+    let held = keeper.kept_admitted().saturating_mul(settings.replay_capacity);
     if held.saturating_add(settings.replay_capacity) > budget {
         let reason = format!(
             "this node keeps as many resumable sessions as its budget allows ({} MiB of replay buffers)",
@@ -182,7 +203,7 @@ where
     }
     match tokio::time::timeout(TARGET_LIMIT, open()).await {
         Ok(Ok(target)) => {
-            keeper.run_new(accepted, target).await;
+            keeper.run_new_admitted(accepted, target, admitted).await;
         }
         Ok(Err(why)) => {
             let reason = format!("the node could not reach its target: {why}");

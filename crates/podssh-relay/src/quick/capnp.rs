@@ -244,7 +244,9 @@ impl<'a> Message<'a> {
     }
 
     fn in_segment(&self, seg: usize, start: usize, words: usize) -> Result<(), Malformed> {
-        let len = self.segments.get(seg).map_or(0, |s| s.len() / 8);
+        // A segment that is not there is malformed, an empty object in it
+        // too: a far pointer can name any segment.
+        let len = self.segments.get(seg).ok_or(Malformed("a pointer to a segment that is not there"))?.len() / 8;
         if start.checked_add(words).is_some_and(|end| end <= len) {
             Ok(())
         } else {
@@ -315,7 +317,7 @@ impl<'a> Message<'a> {
         let words = (count as usize).div_ceil(8);
         self.in_segment(seg, start, words)?;
         self.spend(words as u64)?;
-        let segment: &'a [u8] = self.segments[seg];
+        let segment: &'a [u8] = self.segments.get(seg).ok_or(Malformed("a pointer to a segment that is not there"))?;
         Ok(Some(&segment[start * 8..start * 8 + count as usize]))
     }
 

@@ -12,7 +12,7 @@
 
 use std::io::Write;
 use std::path::PathBuf;
-use std::sync::atomic::{AtomicU64, Ordering};
+use std::sync::atomic::{AtomicBool, AtomicU64, Ordering};
 use std::sync::Arc;
 use std::time::Duration;
 
@@ -186,12 +186,18 @@ async fn serve_quick(ready: Ready, err: &mut dyn Write) -> i32 {
             arch: &arch,
         };
         let (steps, mut heard) = mpsc::unbounded_channel();
+        // A connection that registered was a good one: the next waits from
+        // the start again, not from the longest wait of the failures before.
+        let registered = Arc::new(AtomicBool::new(false));
         let said = tokio::spawn({
-            let label = label.clone();
+            let (label, registered) = (label.clone(), registered.clone());
             async move {
                 while let Some(step) = heard.recv().await {
                     let line = match step {
-                        Step::Registered { location } => format!("registered at Cloudflare's {location}"),
+                        Step::Registered { location } => {
+                            registered.store(true, Ordering::SeqCst);
+                            format!("registered at Cloudflare's {location}")
+                        }
                         Step::Visitor => continue,
                         Step::Unregistered => "unregistered".to_string(),
                     };
@@ -205,6 +211,9 @@ async fn serve_quick(ready: Ready, err: &mut dyn Write) -> i32 {
         };
         let served = serve::serve(tls, &registration, visit.clone(), steps, stop_asked).await;
         let _ = said.await;
+        if registered.load(Ordering::SeqCst) {
+            wait = RETRY_FIRST;
+        }
         match served {
             Ok(()) => break,
             Err(Ended::Refused { cause, retry: false, .. }) => {

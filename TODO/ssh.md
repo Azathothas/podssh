@@ -279,7 +279,7 @@ Read:
    that a failure reached: the handshake, the authentication, the session
    request sent, or data moved. Keep the exit codes of OpenSSH.
 2. In `connect_and_run` (`crates/podssh-cli/src/ssh/mod.rs`, lines 99-126 at `97146aa`, which
-   reaches the relay through `crates/podssh-cli/src/ssh/transport.rs:159-200`), open a
+   reaches the relay through `crates/podssh-cli/src/ssh/transport.rs:167-208`), open a
    new relay session and run again only when the failure came before the
    session request, and before `-W` read a byte of stdin.
 3. Decide by the close, with the classification of T-024. The link from the
@@ -1538,7 +1538,7 @@ Read:
 2. Preferred change: wrap the direct stream in a writer that fails a write
    that makes no progress for 60 s, with the constant of the relay leg
    (`crates/podssh-ws/src/client.rs:34-35`). Only
-   `crates/podssh-cli/src/ssh/transport.rs:212-256` changes, and both roads behave
+   `crates/podssh-cli/src/ssh/transport.rs:220-264` changes, and both roads behave
    the same.
 3. The other change: set `inactivity_timeout` at
    `crates/podssh-ssh/src/run.rs:457`. russh resets that timer only in a loop

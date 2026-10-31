@@ -15,6 +15,7 @@
 //!   origin's headers;
 //! - [`api`]: the request for a tunnel, and its reply;
 //! - `edge` (feature `quick`): where the edge is, and its TLS;
+//! - `goaway` (feature `quick`): the edge's GOAWAY, seen as it passes;
 //! - `serve` (feature `quick`): the connection to the edge, served over
 //!   HTTP/2: the control stream, and each visitor's WebSocket.
 
@@ -23,6 +24,8 @@ pub mod capnp;
 pub mod control;
 #[cfg(feature = "quick")]
 pub mod edge;
+#[cfg(feature = "quick")]
+pub mod goaway;
 pub mod headers;
 pub mod register;
 pub mod rpc;

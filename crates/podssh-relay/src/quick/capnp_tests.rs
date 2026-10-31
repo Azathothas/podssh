@@ -156,3 +156,29 @@ fn a_struct_of_no_size_points_at_its_own_pointer() {
     let message = Message::read(&frame).unwrap();
     assert_eq!(message.root().unwrap().u64(0), 0);
 }
+
+/// An empty list of bytes behind a double far pointer whose landing pad
+/// names a segment that is not there: an error, not a panic, as the release
+/// aborts on a panic and the node would end.
+#[test]
+fn a_double_far_pointer_to_a_missing_segment_is_malformed() {
+    let words: [u64; 4] = [
+        // The root: a struct at the next word, with no data and one pointer.
+        1 << 48,
+        // Its pointer: double far, the landing pad at word 2 of segment 0.
+        2 | 4 | (2 << 3),
+        // The pad: the object at word 0 of segment 5, which is not there.
+        2 | (5 << 32),
+        // The tag: a list of bytes, none.
+        1 | (BYTE << 32),
+    ];
+    let mut frame = Vec::new();
+    frame.extend_from_slice(&0u32.to_le_bytes());
+    frame.extend_from_slice(&(words.len() as u32).to_le_bytes());
+    for word in words {
+        frame.extend_from_slice(&word.to_le_bytes());
+    }
+    let message = Message::read(&frame).unwrap();
+    let root = message.root().unwrap();
+    assert_eq!(root.get_data(0).unwrap_err(), Malformed("a pointer to a segment that is not there"));
+}
