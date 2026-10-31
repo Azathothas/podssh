@@ -20,6 +20,9 @@
      stop-sign marker, a line number of a document (NAME.md:N), or a path of
      the documents that moved (under docs/spec/ or docs/TODO/): rule 6 of
      AGENTS.md, section 5. Planted copies of each must be found first.
+  8. Each action that a workflow uses is named by a commit of 40 hexadecimal
+     digits, its tag in a comment: a tag can move to another commit after
+     its review, and a commit cannot (T-337). A planted tag must be found.
 
 Each check counts the files that it read, and fails below a floor, so a
 scan that read nothing never passes. `--plant-empty` runs each check on an
@@ -67,6 +70,11 @@ PRIVATE_KEY = re.compile(
 PINNED_FROM = re.compile(r"^FROM\s+\S+@sha256:[0-9a-f]{64}\s*$")
 # An image of these, named by a tag, as a workflow or a script would pull it.
 IMAGE_BY_TAG = re.compile(r"\b(?:rust|alpine|python):[0-9][\w.-]*")
+
+# A step's action, and the forms that pin it: a commit of 40 hexadecimal
+# digits, an action of this repository, or an image by its digest.
+USES = re.compile(r"^\s*(?:-\s+)?uses:\s*['\"]?(?P<ref>[^\s'\"#]+)")
+PINNED_USES = re.compile(r"^(?:[\w.-]+/[\w./-]+@[0-9a-f]{40}|\./\S+|docker://\S+@sha256:[0-9a-f]{64})$")
 
 # Each pattern that makes or names a listening socket, and the files outside
 # a crate's tests/ where it may stand. A listener that the user asks for, and
@@ -292,6 +300,41 @@ def check_images() -> list[str]:
     return problems
 
 
+def unpinned_uses(root: Path) -> tuple[int, list[tuple[str, int, str]]]:
+    """Each `uses:` of the workflows under root that names no commit, as
+    (file, line, reference); and the count of `uses:` read."""
+    count, hits = 0, []
+    workflows = root / ".github" / "workflows"
+    for path in sorted([*workflows.glob("*.yml"), *workflows.glob("*.yaml")]):
+        rel = path.relative_to(root).as_posix()
+        for line_no, line in enumerate(path.read_text(encoding="utf-8").splitlines(), 1):
+            found = USES.match(line)
+            if not found:
+                continue
+            count += 1
+            if not PINNED_USES.match(found.group("ref")):
+                hits.append((rel, line_no, found.group("ref")))
+    return count, hits
+
+
+def check_actions_pinned() -> list[str]:
+    count, hits = unpinned_uses(ROOT)
+    # A check that finds nothing to check does not pass.
+    if count == 0:
+        return [".github/workflows/: no `uses:` read, so no action is checked"]
+    problems = [f"{rel}:{line_no}: `uses: {ref}` names no commit; pin it, its tag in a comment"
+                for rel, line_no, ref in hits]
+    # The plant: a step that names its action by a tag must be found.
+    with tempfile.TemporaryDirectory() as tmp:
+        planted = Path(tmp) / ".github" / "workflows" / "planted.yml"
+        planted.parent.mkdir(parents=True)
+        planted.write_text("jobs:\n  a:\n    steps:\n      - uses: actions/checkout@v7\n", encoding="utf-8")
+        if not unpinned_uses(Path(tmp))[1]:
+            problems.append("the scan of `uses:` is vacuous: a planted `uses: actions/checkout@v7` was not found")
+    check_actions_pinned.note = f"{count} uses of an action read; a planted tag found"
+    return problems
+
+
 def listener_hits(root: Path) -> tuple[int, list[tuple[str, int, str]]]:
     """Each use of a listener's pattern in the Rust files under root/crates,
     outside comment lines, as (file, line, pattern); and the files read."""
@@ -393,6 +436,7 @@ CHECKS = [
     ("each image is pinned, in one place", check_images),
     ("no listener outside its allowance", check_listeners),
     ("no marker, document line or old path in the code", check_code_text),
+    ("each action is pinned by its commit", check_actions_pinned),
 ]
 
 

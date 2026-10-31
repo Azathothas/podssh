@@ -3106,7 +3106,7 @@ that says why.
 ## Premise
 
 - Read: the release builds `podssh-cli` with no feature on each target
-  (`.github/workflows/release.yml:113`, `:183`, `:249`, `:293`, `:347`); the feature `iroh` is
+  (`.github/workflows/release.yml:119`, `:189`, `:255`, `:299`, `:370`); the feature `iroh` is
   off by default, and `crates/podssh-cli/Cargo.toml:28-30` says "about 200 crates, needs Rust
   1.91 and a C compiler" of it.
 - Read: `docs/decisions.md:41` says "iroh is a road that the user must select", and makes n0's
@@ -3117,9 +3117,9 @@ that says why.
 - Read in the study (https://docs.iroh.computer/iroh-services/relays/public): the public relays
   are "suitable for development and hobby use only", they rate-limit, and "Only the latest stable
   release of iroh is officially supported".
-- Read: the armv7 job builds with Alpine's rust (`.github/workflows/release.yml:182`); whether it
+- Read: the armv7 job builds with Alpine's rust (`.github/workflows/release.yml:188`); whether it
   is 1.91 or later was not read (T-343 checks it in the job). The notices of the licenses are
-  made for the default features (`.github/workflows/release.yml:418`); `cargo deny` checks the
+  made for the default features (`.github/workflows/release.yml:438`); `cargo deny` checks the
   licenses and the sources with each feature (`.github/workflows/deny.yml:34-36`).
 - Read: `docs/design.md:934-935` says "about 190 to 245 crates, and several megabytes" of iroh.
 

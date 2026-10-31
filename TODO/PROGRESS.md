@@ -107,7 +107,7 @@ and `CARGO_BUILD_JOBS=4`:
 
 ## Counts
 
-`TODO/INDEX.md` holds 351 entries: 27 open, 0 partial, 35 blocked, 289 done.
+`TODO/INDEX.md` holds 351 entries: 26 open, 1 partial, 35 blocked, 289 done.
 
 Open includes parked work. `cargo todo check` verifies this line.
 
@@ -238,7 +238,7 @@ Q50 (2026-10-31, blocks T-348, T-349 and T-350): the study of carriers of
 need no relay of the operator's: iroh through n0's public relays first,
 and DERP through Tailscale's relays for tailcat second. (a) The release
 binaries have no iroh road: the release builds with no feature
-(`.github/workflows/release.yml:113`), and the feature brings about 200
+(`.github/workflows/release.yml:119`), and the feature brings about 200
 crates, and C outside the library crates as russh does
 (`crates/podssh-cli/Cargo.toml:28-31`). The row of 2026-10-08 says that
 iroh "is a road that the user must select" (`docs/decisions.md:41`), and

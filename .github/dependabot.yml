@@ -38,5 +38,6 @@ updates:
       - /images/box-proxy
       - /images/trufflehog
       - /images/armv7
+      - /images/binfmt
     schedule:
       interval: weekly

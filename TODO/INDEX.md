@@ -62,15 +62,15 @@ repository and CI).
 
 ## Counts
 
-**351 entries: 27 open, 0 partial, 35 blocked, 289 done.**
+**351 entries: 26 open, 1 partial, 35 blocked, 289 done.**
 
 | Priority | open | partial | blocked | done | total |
 | --- | --- | --- | --- | --- | --- |
 | P0 | 0 | 0 | 0 | 1 | 1 |
-| P1 | 3 | 0 | 0 | 24 | 27 |
+| P1 | 2 | 1 | 0 | 24 | 27 |
 | P2 | 8 | 0 | 23 | 148 | 179 |
 | P3 | 16 | 0 | 12 | 116 | 144 |
-| **All** | 27 | 0 | 35 | 289 | 351 |
+| **All** | 26 | 1 | 35 | 289 | 351 |
 
 ## Entries
 
@@ -409,7 +409,7 @@ repository and CI).
 | [T-334](ts.md) | P2 | M | M9 | measurement | open | A headscale stand-in for the live runs of `podssh ts` |
 | [T-335](resume.md) | P2 | S | M9 | defect | done | The iroh cells of the throughput run may not cross a relay |
 | [T-336](relay.md) | P2 | M | backlog | defect | blocked | The relay holds a slow client's bytes with no bound, and closes nothing |
-| [T-337](repo.md) | P1 | M | none | defect | open | The publish job runs actions by tags that can move, before it attests the binaries |
+| [T-337](repo.md) | P1 | M | none | defect | partial | The publish job runs actions by tags that can move, before it attests the binaries |
 | [T-338](relay.md) | P2 | M | none | chore | open | The relay's facts are read by their line, and only a push checks the live relay |
 | [T-339](roads.md) | P2 | M | backlog | chore | open | Nothing watches the quick tunnel's pin of cloudflared, and its edge names are fixed |
 | [T-340](ws.md) | P2 | M | backlog | defect | open | On Windows and macOS podssh reads no store of the system, and `UnknownIssuer` comes with no hint |

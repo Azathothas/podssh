@@ -27,7 +27,7 @@ jobs:
       image: ${{ steps.image.outputs.image }}
       steps: ${{ steps.steps.outputs.steps }}
     steps:
-      - uses: actions/checkout@v7
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
 
       # The one place that names the build image, pinned to a digest.
       - name: the build image
@@ -62,7 +62,7 @@ jobs:
       matrix:
         step: ${{ fromJSON(needs.plan.outputs.steps) }}
     steps:
-      - uses: actions/checkout@v7
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
 
       # gate.sh caps cargo jobs from the runner's available memory.
       - name: the gate, step ${{ matrix.step }}
@@ -86,7 +86,7 @@ jobs:
         run: python3 scripts/relay-spec-agree.py target/x86_64-unknown-linux-musl/release/podssh
 
       - if: matrix.step == 'release'
-        uses: actions/upload-artifact@v7
+        uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
         with:
           name: podssh-x86_64-unknown-linux-musl
           path: target/x86_64-unknown-linux-musl/release/podssh
@@ -99,7 +99,7 @@ jobs:
     runs-on: ubuntu-24.04
     timeout-minutes: 30
     steps:
-      - uses: actions/checkout@v7
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
       - name: the no-C rule is load-bearing
         env:
           BUILD_IMAGE: ${{ needs.plan.outputs.image }}
@@ -115,7 +115,7 @@ jobs:
     runs-on: ubuntu-24.04
     timeout-minutes: 15
     steps:
-      - uses: actions/checkout@v7
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
         with:
           # The parent of the last commit, for the check of its citations.
           fetch-depth: 2
@@ -217,9 +217,20 @@ jobs:
     env:
       CARGO_BUILD_JOBS: 4
     steps:
-      - uses: actions/checkout@v7
-      # aws-lc's build wants NASM on Windows, as in the release.
-      - uses: ilammy/setup-nasm@v1
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+      # aws-lc's build wants NASM on Windows, as in the release, with the
+      # release's fallback: its prebuilt objects when NASM cannot be set up.
+      - uses: ilammy/setup-nasm@72793074d3c8cdda771dba85f6deafe00623038b # v1.5.2
+        continue-on-error: true
+      - name: NASM, or aws-lc's prebuilt objects
+        shell: bash
+        run: |
+          if command -v nasm > /dev/null 2>&1; then
+            nasm -v
+          else
+            echo "::warning::no NASM: aws-lc's prebuilt objects (AWS_LC_SYS_PREBUILT_NASM=1)"
+            echo "AWS_LC_SYS_PREBUILT_NASM=1" >> "$GITHUB_ENV"
+          fi
       # The SFTP client's tests run the sftp-server of Git for Windows.
       - name: the default tests
         env:
@@ -251,7 +262,7 @@ jobs:
     env:
       CARGO_BUILD_JOBS: 4
     steps:
-      - uses: actions/checkout@v7
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
       - name: the default tests
         run: cargo test --locked --no-fail-fast
 

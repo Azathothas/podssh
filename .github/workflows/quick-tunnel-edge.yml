@@ -41,7 +41,7 @@ jobs:
       CLOUDFLARED_SHA256: "1d356dac769d0dbf62ebe588c4034824bbff98d5790c2f844cc99e0e2f57462d"
     steps:
       # The job runs a program of another project: no token stays in .git.
-      - uses: actions/checkout@v7
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
         with:
           persist-credentials: false
 
@@ -185,7 +185,7 @@ jobs:
             echo "clean=yes" >> "$GITHUB_OUTPUT"
           fi
 
-      - uses: actions/upload-artifact@v7
+      - uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
         if: always() && steps.logs.outputs.clean == 'yes'
         with:
           name: quick-tunnel-edge-logs
@@ -211,7 +211,7 @@ jobs:
       CARGO_BUILD_JOBS: 4
       CLOUDFLARED: "2026.10.6"
     steps:
-      - uses: actions/checkout@v7
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
         with:
           persist-credentials: false
       - name: podssh

@@ -35,6 +35,12 @@ on:
         description: "The tag to publish, v and the version of Cargo.toml; empty: a dry run"
         required: false
         default: ""
+      nasm:
+        description: "NASM for aws-lc on Windows x86-64: setup, or prebuilt, its fallback, to prove it"
+        required: false
+        default: setup
+        type: choice
+        options: [setup, prebuilt]
 
 permissions:
   contents: read
@@ -56,7 +62,7 @@ jobs:
       contents: write
       actions: write
     steps:
-      - uses: actions/checkout@v7
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
       - name: the tag, and the release's run on it
         env:
           PUBLISH: ${{ inputs.publish }}
@@ -93,7 +99,7 @@ jobs:
     runs-on: ${{ matrix.runner }}
     timeout-minutes: 60
     steps:
-      - uses: actions/checkout@v7
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
       # The one place that names the build image, pinned to a digest.
       - name: the build image
         run: |
@@ -138,7 +144,7 @@ jobs:
           set -eu
           mkdir -p dist
           cp target/${{ matrix.target }}/release/podssh dist/podssh-${{ matrix.target }}
-      - uses: actions/upload-artifact@v7
+      - uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
         with:
           name: podssh-${{ matrix.target }}
           path: dist/*
@@ -154,7 +160,7 @@ jobs:
     runs-on: ubuntu-24.04-arm
     timeout-minutes: 120
     steps:
-      - uses: actions/checkout@v7
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
       - name: the image
         run: |
           set -eu
@@ -171,10 +177,10 @@ jobs:
           else
             echo "native=no" >> "$GITHUB_OUTPUT"
           fi
+      # QEMU's handler, from the pinned image of images/binfmt.
       - if: steps.probe.outputs.native != 'yes'
-        uses: docker/setup-qemu-action@v4
-        with:
-          platforms: arm
+        name: QEMU for 32-bit ARM
+        run: sh scripts/binfmt.sh arm
       - name: build (static musl, Alpine's rust for armv7)
         run: |
           docker run --rm --platform linux/arm/v7 -v "$PWD:/work" -w /work \
@@ -194,7 +200,7 @@ jobs:
         run: |
           docker run --rm --platform linux/arm/v7 -v "$PWD:/work" -w /work -e PODSSH_BUILD_COMMIT "$ARMV7_IMAGE" \
             sh scripts/release-short.sh dist/podssh-armv7-unknown-linux-musleabihf --net
-      - uses: actions/upload-artifact@v7
+      - uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
         with:
           name: podssh-armv7-unknown-linux-musleabihf
           path: dist/*
@@ -216,7 +222,7 @@ jobs:
       ZIG_SHA256: 70e49664a74374b48b51e6f3fdfbf437f6395d42509050588bd49abe52ba3d00
       ZIGBUILD_VERSION: 0.23.4
     steps:
-      - uses: actions/checkout@v7
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
       - name: the build image
         run: |
           set -eu
@@ -259,13 +265,13 @@ jobs:
           if readelf -l "$B" | grep -q INTERP; then echo "asks for a program interpreter"; exit 1; fi
           readelf -h "$B" | grep -E 'Class|Machine|Flags'
       # The handler of binfmt that QEMU registers runs a static riscv64 binary
-      # on the runner itself, so the check needs no second image.
-      - uses: docker/setup-qemu-action@v4
-        with:
-          platforms: riscv64
+      # on the runner itself, so the check needs no second image; the handler
+      # comes from the pinned image of images/binfmt.
+      - name: QEMU for riscv64
+        run: sh scripts/binfmt.sh riscv64
       - name: the binary runs (under QEMU)
         run: sh scripts/release-short.sh dist/podssh-riscv64gc-unknown-linux-musl --net
-      - uses: actions/upload-artifact@v7
+      - uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
         with:
           name: podssh-riscv64gc-unknown-linux-musl
           path: dist/*
@@ -288,7 +294,7 @@ jobs:
     env:
       CARGO_BUILD_JOBS: 4
     steps:
-      - uses: actions/checkout@v7
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
       - name: build
         run: cargo build --locked --release --target ${{ matrix.target }} -p podssh-cli
       # A Mac binary links libSystem at least; nothing outside the system.
@@ -308,7 +314,7 @@ jobs:
         run: |
           mkdir -p dist
           cp target/${{ matrix.target }}/release/podssh dist/podssh-${{ matrix.target }}
-      - uses: actions/upload-artifact@v7
+      - uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
         with:
           name: podssh-${{ matrix.target }}
           path: dist/*
@@ -337,12 +343,29 @@ jobs:
       CARGO_BUILD_JOBS: 4
       RUSTFLAGS: -Ctarget-feature=+crt-static
     steps:
-      - uses: actions/checkout@v7
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
       # aws-lc's build needs NASM on Windows x86-64: with no NASM it stops,
       # unless AWS_LC_SYS_PREBUILT_NASM=1 asks for its prebuilt objects
-      # (aws-lc-sys 0.46, builder/main.rs). The release assembles them itself.
+      # (aws-lc-sys 0.46, builder/main.rs), its fallback here. The release
+      # assembles them itself, and takes the prebuilt ones, with a warning,
+      # when NASM cannot be set up, or when a run by hand asks for them with
+      # the input nasm, which proves the fallback (T-337).
+      - if: matrix.target == 'x86_64-pc-windows-msvc' && inputs.nasm != 'prebuilt'
+        continue-on-error: true
+        uses: ilammy/setup-nasm@72793074d3c8cdda771dba85f6deafe00623038b # v1.5.2
       - if: matrix.target == 'x86_64-pc-windows-msvc'
-        uses: ilammy/setup-nasm@v1
+        name: NASM, or aws-lc's prebuilt objects
+        shell: bash
+        env:
+          NASM_INPUT: ${{ inputs.nasm }}
+        run: |
+          if [ "$NASM_INPUT" != prebuilt ] && command -v nasm > /dev/null 2>&1; then
+            nasm -v
+          else
+            command -v nasm || echo "no NASM on PATH"
+            echo "::warning::no NASM: aws-lc's prebuilt objects (AWS_LC_SYS_PREBUILT_NASM=1)"
+            echo "AWS_LC_SYS_PREBUILT_NASM=1" >> "$GITHUB_ENV"
+          fi
       - name: build
         run: cargo build --locked --release -p podssh-cli
       - name: package
@@ -380,44 +403,90 @@ jobs:
       - name: the binary runs
         shell: bash
         run: sh scripts/release-short.sh dist/podssh-${{ matrix.target }}.exe --net
-      - uses: actions/upload-artifact@v7
+      - uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
         with:
           name: podssh-${{ matrix.target }}
           path: dist/*
           if-no-files-found: error
 
+  # The notices of the third-party licenses and the list of the commits,
+  # made with tools of third parties (cargo-about, git-cliff) in a job that
+  # can write nothing and holds no token of the release: the job that
+  # attests, signs and publishes runs no tool of a third party (T-337).
+  notes:
+    if: inputs.publish == '' || startsWith(github.ref, 'refs/tags/')
+    runs-on: ubuntu-24.04
+    timeout-minutes: 20
+    permissions:
+      contents: read
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          # git-cliff reads the commits since the previous tag.
+          fetch-depth: 0
+      # Release binaries of both tools, each checked against its checksum:
+      # no crate is built for the notes.
+      - uses: taiki-e/install-action@68a389c788b2cd04016ce8c80ee23b80d2ab3d68 # v2.88.1
+        with:
+          tool: cargo-about@0.9.2,git-cliff@2.9.1
+      # The licenses of the crates in the binaries, with their texts: the
+      # notices that Apache-2.0 and the BSD licenses ask a binary to carry.
+      - name: the notices of the third-party licenses
+        run: |
+          set -eu
+          mkdir -p notes
+          cargo about generate --manifest-path crates/podssh-cli/Cargo.toml --locked -c about.toml about.hbs \
+            -o notes/THIRD-PARTY-LICENSES.md
+          test -s notes/THIRD-PARTY-LICENSES.md
+      # The commits of this release, each one, from cliff.toml: on a tag, those
+      # since the tag before it; by hand, where the tag does not exist yet,
+      # those since the last tag.
+      - name: the list of the commits (git-cliff, pinned)
+        run: |
+          set -eu
+          case "$GITHUB_REF" in
+            refs/tags/v*) range=--latest ;;
+            *) range=--unreleased ;;
+          esac
+          git cliff --config cliff.toml "$range" --strip all > notes/changes.md
+          test -s notes/changes.md
+      - uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
+        with:
+          name: notes
+          path: notes/*
+          if-no-files-found: error
+
   # On a tag it publishes. Run by hand, each step but the proofs and the
   # last runs, and the files and the body are an artifact: the steps of a
   # release are proved before its tag, which never moves. A run by hand with
-  # the input publish builds nothing, so this job does not run in it.
+  # the input publish builds nothing, so this job does not run in it. It runs
+  # GitHub's actions and Sigstore's installer of cosign, each pinned by its
+  # commit, and no other tool: it holds the rights to write the release and
+  # to sign as this workflow (T-337).
   publish:
-    needs: [linux, linux-armv7, linux-riscv64, macos, windows]
+    needs: [linux, linux-armv7, linux-riscv64, macos, windows, notes]
     runs-on: ubuntu-24.04
     permissions:
       contents: write
       id-token: write
       attestations: write
     steps:
-      - uses: actions/checkout@v7
-        with:
-          # git-cliff reads the commits since the previous tag.
-          fetch-depth: 0
-      - uses: actions/download-artifact@v8
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+      - uses: actions/download-artifact@9000827ccba6bdab643e8b6fd33ac0654aef8333 # v8.0.2
         with:
           path: dist
           pattern: podssh-*
           merge-multiple: true
-      # The licenses of the crates in the binaries, with their texts: the
-      # notices that Apache-2.0 and the BSD licenses ask a binary to carry.
-      - uses: taiki-e/install-action@v2
+      - uses: actions/download-artifact@9000827ccba6bdab643e8b6fd33ac0654aef8333 # v8.0.2
         with:
-          tool: cargo-about@0.9.2
+          name: notes
+          path: ${{ runner.temp }}/notes
       - name: the notices of the third-party licenses
         run: |
           set -eu
-          cargo about generate --manifest-path crates/podssh-cli/Cargo.toml --locked -c about.toml about.hbs \
-            -o dist/THIRD-PARTY-LICENSES.md
+          cp "$RUNNER_TEMP/notes/THIRD-PARTY-LICENSES.md" dist/THIRD-PARTY-LICENSES.md
           test -s dist/THIRD-PARTY-LICENSES.md
+          test -s "$RUNNER_TEMP/notes/changes.md"
       - name: checksums
         run: |
           set -eu
@@ -487,23 +556,6 @@ jobs:
           if check "$workflow@$GITHUB_REF" "$RUNNER_TEMP/changed"; then echo "a changed copy verified"; exit 1; fi
           if check "$workflow@refs/heads/main" SHA256SUMS; then echo "a branch's identity verified"; exit 1; fi
           echo "signed by $workflow@$GITHUB_REF; a changed copy and a branch's identity fail"
-      # A release binary of git-cliff, checked against its checksum: no
-      # crate is built in the job that publishes.
-      - uses: taiki-e/install-action@v2
-        with:
-          tool: git-cliff@2.9.1
-      # The commits of this release, each one, from cliff.toml: on a tag, those
-      # since the tag before it; by hand, where the tag does not exist yet,
-      # those since the last tag.
-      - name: the list of the commits (git-cliff, pinned)
-        run: |
-          set -eu
-          case "$GITHUB_REF" in
-            refs/tags/v*) range=--latest ;;
-            *) range=--unreleased ;;
-          esac
-          git cliff --config cliff.toml "$range" --strip all > "$RUNNER_TEMP/changes.md"
-          test -s "$RUNNER_TEMP/changes.md"
       # The tag, or by hand the tag of Cargo.toml's version: they must agree.
       # The job tag makes a new tag only, which must not exist: a tag never
       # moves.
@@ -530,16 +582,16 @@ jobs:
           # GitHub refuses a body of more than 125,000 characters. A character
           # is at least one byte, so a count of bytes errs on the safe side.
           budget=$((120000 - $(wc -c < "$RUNNER_TEMP/body.md")))
-          if [ "$(wc -c < "$RUNNER_TEMP/changes.md")" -le "$budget" ]; then
-            cat "$RUNNER_TEMP/changes.md" >> "$RUNNER_TEMP/body.md"
+          if [ "$(wc -c < "$RUNNER_TEMP/notes/changes.md")" -le "$budget" ]; then
+            cat "$RUNNER_TEMP/notes/changes.md" >> "$RUNNER_TEMP/body.md"
           else
             # After the checksums: CHANGES.md is not a binary.
-            cp "$RUNNER_TEMP/changes.md" dist/CHANGES.md
+            cp "$RUNNER_TEMP/notes/changes.md" dist/CHANGES.md
             printf 'The list is cut; CHANGES.md, among the files, holds each commit.\n\n' >> "$RUNNER_TEMP/body.md"
-            head -c "$((budget - 200))" "$RUNNER_TEMP/changes.md" | sed '$d' >> "$RUNNER_TEMP/body.md"
+            head -c "$((budget - 200))" "$RUNNER_TEMP/notes/changes.md" | sed '$d' >> "$RUNNER_TEMP/body.md"
           fi
           size=$(wc -c < "$RUNNER_TEMP/body.md")
-          echo "the body: $size bytes; the list: $(grep -c '^- ' "$RUNNER_TEMP/changes.md" || true) commits"
+          echo "the body: $size bytes; the list: $(grep -c '^- ' "$RUNNER_TEMP/notes/changes.md" || true) commits"
           test "$size" -lt 125000
       # On a tag's run, the tag that is there: one that git pushed, or one
       # that the job tag made.
@@ -556,7 +608,7 @@ jobs:
         if: ${{ !startsWith(github.ref, 'refs/tags/v') }}
         run: cp "$RUNNER_TEMP/body.md" dist/BODY.md
       - if: ${{ !startsWith(github.ref, 'refs/tags/v') }}
-        uses: actions/upload-artifact@v7
+        uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
         with:
           name: release-dry-run
           path: dist/*

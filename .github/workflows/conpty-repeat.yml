@@ -25,9 +25,20 @@ jobs:
     env:
       CARGO_BUILD_JOBS: 4
     steps:
-      - uses: actions/checkout@v7
-      # aws-lc's build wants NASM on Windows, as in the release.
-      - uses: ilammy/setup-nasm@v1
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+      # aws-lc's build wants NASM on Windows, as in the release, with the
+      # release's fallback: its prebuilt objects when NASM cannot be set up.
+      - uses: ilammy/setup-nasm@72793074d3c8cdda771dba85f6deafe00623038b # v1.5.2
+        continue-on-error: true
+      - name: NASM, or aws-lc's prebuilt objects
+        shell: bash
+        run: |
+          if command -v nasm > /dev/null 2>&1; then
+            nasm -v
+          else
+            echo "::warning::no NASM: aws-lc's prebuilt objects (AWS_LC_SYS_PREBUILT_NASM=1)"
+            echo "AWS_LC_SYS_PREBUILT_NASM=1" >> "$GITHUB_ENV"
+          fi
       - name: build podssh
         run: cargo build --locked -p podssh-cli
       # The input reaches the loop through the environment, never through

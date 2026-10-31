@@ -680,6 +680,32 @@ uploads it.
   and GitHub's SSH banner through the live relay. No target ships that no
   run executed.
 
+The actions of each job, each named by its commit, with its tag in a
+comment: a tag can move to another commit after its review, and a commit
+cannot (T-337; `scripts/check-repo.py` fails a `uses:` that names no commit,
+and Dependabot moves the commit and its comment together):
+
+- each build job: `actions/checkout` and `actions/upload-artifact`; the
+  Windows x86-64 build also `ilammy/setup-nasm`, for aws-lc. When NASM
+  cannot be set up, aws-lc takes its prebuilt objects
+  (`AWS_LC_SYS_PREBUILT_NASM=1`), with a warning; the input `nasm=prebuilt`
+  of a run by hand asks for them, to prove that fallback;
+- the riscv64 job, and the armv7 job where the runner does not run 32-bit
+  ARM, register QEMU's handler with `scripts/binfmt.sh`, from the image of
+  `images/binfmt` pinned to its digest and pulled through the mirrors of
+  `scripts/pull-image.sh`, in place of a third-party action;
+- the job `notes`, which may only read the repository: `actions/checkout`,
+  `taiki-e/install-action` for cargo-about and git-cliff (release binaries,
+  checked by their sums), and `actions/upload-artifact`. It writes
+  `THIRD-PARTY-LICENSES.md` and the list of the commits;
+- the job `publish`, which holds the rights to write the release and to sign
+  as this workflow: `actions/checkout`, `actions/download-artifact`,
+  `actions/attest`, Sigstore's `cosign-installer` and
+  `actions/upload-artifact`, and no other tool. Any step of a job with
+  `id-token: write` can ask for the job's token, so a tool of a third party
+  there could sign other files as this workflow; the tools that the notes
+  need run in `notes` instead.
+
 To build and check the binaries without a release, run the workflow by hand:
 
 ```sh
