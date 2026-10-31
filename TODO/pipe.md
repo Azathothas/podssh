@@ -652,7 +652,7 @@ sh scripts/dev.sh check                               # interop-faults.sh: the d
 
 In `scripts/interop-faults.sh`, `--persist -tt` goes through two stand-in
 relays. The input sets `MARK=kept`; the harness kills the first stand-in, as
-`scripts/interop-faults.sh:244-254` does; the input then runs `echo M=$MARK`
+`scripts/interop-faults.sh:246-256` does; the input then runs `echo M=$MARK`
 and `tmux kill-session`. The output has `M=kept`, and the exit is 0. With
 tmux moved off `PATH`, the exit is 255 and names tmux. Plant: start tmux
 without `-A`; the second attach fails, and the check must fail.
@@ -899,14 +899,14 @@ and sandhole. Read in the reports, not verified here.
 
 A developer in a sandbox runs a web application and wants a URL for it. The
 relay carries TCP to public targets and reverse sessions to named nodes
-(`docs/relay.md:274-316`). It has no endpoint that takes public HTTPS for a
+(`docs/relay.md:282-324`). It has no endpoint that takes public HTTPS for a
 name, and podssh alone cannot add one.
 
 ## Premise
 
 - Read: the relay is the operator's Cloudflare Worker, another project, and
   its document is the contract (`docs/relay.md:3-16`). It has no publish
-  endpoint (`docs/relay.md:93-125`, `docs/relay.md:274-338`).
+  endpoint (`docs/relay.md:93-125`, `docs/relay.md:282-346`).
 - Read: on the measured sandbox, `connect()` to loopback fails with EACCES
   (`docs/target-environment.md:22`). A node there cannot reach a server on
   127.0.0.1; it can reach a Unix socket (T-176) or a program (`exec:`,
@@ -922,7 +922,7 @@ When the relay's operator adds the endpoint:
 
 1. The relay's operator publishes it in the contract first: a name, a public
    host name, and each incoming connection as a reverse session
-   (`open {id}`, `ready {id}`; `docs/relay.md:282-302`).
+   (`open {id}`, `ready {id}`; `docs/relay.md:290-310`).
 2. podssh uses the node runner (T-079) and `podssh node` (T-083):
    `podssh node NAME TARGET --publish`, TARGET each address of T-174 to
    T-176. podssh parses no HTTP: the bytes pass, WebSocket upgrades too.

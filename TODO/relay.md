@@ -188,7 +188,7 @@ sh scripts/dev.sh check                                   # interop: the stand-i
 cargo test -p podssh-cli --test relay_live -- --ignored   # the live relay, on request
 ```
 
-`scripts/fake-relay.py` (it serves `/health` and the mint: `:108-117`) gets `/relays.json`,
+`scripts/fake-relay.py` (it serves `/health` and the mint: `:114-123`) gets `/relays.json`,
 `/trace` and `/llms-full.txt`. In the gate, `relay status` exits 0 with the stand-in's version;
 `relay trace` sends `X-Relay-Token`, which the stand-in requires; a HOST of `a&b` exits 64 before
 any connection. Planted defect: leave the header out; the stand-in answers 403, the test fails.
@@ -592,14 +592,14 @@ pairs need, and the file of Decision 1.
 
 # T-062: Measure whether the relay's backpressure close (1013) operates
 
-**Source:** `docs/relay.md:241-245`; the reverse close table of the pinned contract
+**Source:** `docs/relay.md:241-253`; the reverse close table of the pinned contract
 (`crates/podssh-probe/tests/spec/relay-spec-2026-10-03-r2.txt:185`); the comment on the SSH
 window (`crates/podssh-ssh/src/run.rs` lines 25-29 at `80f20bf`).
 **Category:** measurement
 **Milestone:** backlog
 **Priority:** P3
 **Effort:** S
-**Status:** partial
+**Status:** done
 
 ## Problem
 
@@ -611,7 +611,7 @@ rule is true.
 ## Premise
 
 Not measured. Read: `docs/relay.md:230` gives the forward codes `1013` `client receive backlog`
-and `target write backlog` (2 MiB queued), read from the relay's source; `docs/relay.md:241-245`
+and `target write backlog` (2 MiB queued), read from the relay's source; `docs/relay.md:241-253`
 says that no frame is dropped, and that the check reads `bufferedAmount`, which Workers may not
 supply. The comment on the SSH window (`crates/podssh-ssh/src/run.rs` lines 25-29 at `80f20bf`)
 said that the relay drops a frame when more than 1 MiB waits (`1011 relay backpressure`). That is
@@ -634,13 +634,30 @@ so the comment applied a rule of the reverse path to the forward path.
 4. The other direction (`target write backlog`) needs a slow target; record it as not measured
    when none is at hand.
 5. Write the result into the comment on the window (`crates/podssh-ssh/src/run.rs:26-30`) and
-   into `docs/relay.md:241-245`. Change the window (512 KiB) only if the result asks for it.
+   into `docs/relay.md:241-253`. Change the window (512 KiB) only if the result asks for it.
+
+## Decision
+
+2026-10-31, after the runs:
+
+1. The window stays at 512 KiB (Approach, item 5). The result takes away
+   the reason that the comment gave, a `1013` at 2 MiB; but the window is
+   now the only bound on what the relay holds for an SSH session, and a
+   relay whose check operated as its document says would close a session
+   whose window is 2 MiB or more. Lost: 2 MiB, russh's default, faster on a
+   long path and at the edge of the document's limit; a window that grows
+   with the path's delay, which T-157's measurement of the speed comes
+   before.
+2. The stand-in relay's mode is `backlog:BYTES:RATE`, a real queue toward a
+   client slower than the target, so that it checks the window against the
+   relay's check as well as podssh's handling. Lost: `close:BYTES:1013` with
+   the client's reason, which checks the handling only.
 
 ## Prove
 
 ```sh
 export CARGO_BUILD_JOBS=4
-cargo test -p podssh-relay --test live_backpressure -- --ignored --nocapture   # the live relay
+cargo test -p podssh-relay --features pair --test live_backpressure -- --ignored --nocapture   # the live relay
 ```
 
 The control: the same target, read at full speed, ends with 1000 `target closed` and the full
@@ -653,7 +670,7 @@ size, which shows that the target and the path work. The slow run then gives the
 `docs/relay.md:230` reads from the relay's source: `1013` when 2 MiB wait, and no frame dropped
 (`crates/podssh-ssh/src/run.rs:26-29`). The two texts agree now. The question of this entry
 stays: whether the relay's check operates at all (it reads `bufferedAmount`,
-`docs/relay.md:241-245`).
+`docs/relay.md:241-253`).
 
 2026-10-31. The blocker cleared: the operator made the relay's own loop the
 target (Q42, `docs/decisions.md`). The target of item 1 is the relay
@@ -671,31 +688,52 @@ that many bytes wait, shows the client's link lost and never tried again
 
 ## Done
 
-2026-10-31, partial. The live test is
+2026-10-31. The relay's check of a slow client does not operate; T-336
+holds the relay's part. The live test is
 `crates/podssh-relay/tests/live_backpressure.rs`: a pair whose node takes
 its bytes from a local source; the operator's leg of the pair reaches the
 relay through a CONNECT proxy of the test, whose upstream is a forward
 session to the relay's own host and port 443, read at full speed (the
-control) or at 16 KiB/s for 90 s. `podssh relay trace
-tcp.ssh.relay.ajam.dev 443` showed first that the relay dials itself (road
-`vpc`, 104.21.39.2). Two runs here, through this cloud session's egress
-proxy (`cargo test -p podssh-relay --features pair --test
-live_backpressure -- --ignored --nocapture`, 108 s each):
+control) or at 16 KiB/s for 90 s, with the bytes that the node took
+counted. `podssh relay trace tcp.ssh.relay.ajam.dev 443` showed first that
+the relay dials itself (road `vpc`, 104.21.39.2). The operator ruled
+during the work that the relay is theirs to use as much as needed
+(`docs/decisions.md`), so it ran three times (`cargo test -p podssh-relay
+--features pair --test live_backpressure -- --ignored --nocapture`, 108 s
+each): twice from a cloud container, through its egress proxy, and once
+from GitHub Actions, with no proxy (`.github/workflows/relay-live.yml`, run
+41157016178).
 
 - The control, 8 MiB: each byte reached the operator; the inner session
-  ended `1000 close`, the outer `1000 target closed`, in 12.1 s and 12.3 s.
-- The slow client, 24 MiB and then 48 MiB offered: no Close came in 90 s;
-  the client read 1459766 and 1459616 bytes (15.8 KiB/s). The second run
-  counted the node's bytes: the node had taken each of the 48 MiB within
-  15 s, so 48872032 bytes more than the client read waited past the node,
-  and no 1013 came.
-
-Still to do: the same run from GitHub's network
-(`.github/workflows/relay-live.yml`), with no egress proxy between the
-client and the relay, so that the bytes that wait are the relay's or its
-edge's; the stand-in relay's mode `backlog:BYTES` and podssh's handling of
-its close (the Correction); then the comment on the window, `docs/relay.md`
-and `docs/STATUS.md`.
+  ended `1000 close`, the outer `1000 target closed`, in 12.1 s to 13.4 s.
+- The slow client, 24 MiB and then 48 MiB offered: no Close came in 90 s,
+  neither the forward road's `1013` nor the reverse road's `1011`; the
+  client read 1459616 to 1460244 bytes (15.8 KiB/s). The runs that counted
+  saw the node give each of the 48 MiB within 15 s, from both networks:
+  48872032 and 48871404 bytes more than the client read waited in the relay
+  or its edge.
+- podssh's handling: the stand-in relay's mode `backlog:BYTES:RATE`
+  (`scripts/fake-relay.py`, its shaper moved to `scripts/fake_shape.py` to
+  keep the file under 500 lines) sends at RATE from a queue with no bound
+  and closes `1013 client receive backlog` once more than BYTES wait. Two
+  cases of `crates/podssh-cli/tests/faults.rs` (`cargo test -p podssh-cli
+  --test faults -- --ignored --test-threads 1 a_backlog the_window`, 2 of 2
+  in 16 s): the close in the handshake ends the run with 255, names the
+  close and what makes it, and is tried on no second host; and at
+  256 KiB/s the window keeps what waits under 2 MiB, 4 MB whole. Each
+  failed on its plant: 1013 out of the list that is never tried again (a
+  try on the next relay host), and a window of 4 MiB (a `1013`, exit 255).
+  The same two checks against OpenSSH are `faults.backlog` and
+  `faults.window` of `scripts/interop-faults.sh`, which the gate runs
+  (`scripts/interop-baseline.txt`).
+- The remedy of a `1013 client receive backlog` says what makes it, in
+  place of `podssh doctor` (`crates/podssh-ws/src/session.rs`, with its
+  unit test).
+- The comment on the window (`crates/podssh-ssh/src/run.rs:26-30`),
+  `docs/relay.md` ("Backpressure") and the limits of `docs/architecture.md`
+  give the result; `docs/STATUS.md` records it.
+- Not measured: the other direction (`target write backlog`), as no slow
+  target was at hand (Approach, item 4).
 
 # T-220: A silent first relay host costs a full dial before the next host is tried (GitHub #30)
 
@@ -1312,3 +1350,61 @@ question for the relay's operator.
   (`podssh ping` with a host to log in to; none here, `PODSSH_THROUGHPUT_SSH`
   is not set). Each frame's header is 14 bytes of 32 KiB, so the cost on the
   wire is under 0.1 %.
+
+# T-336: The relay holds a slow client's bytes with no bound, and closes nothing
+
+**Source:** the runs of T-062 on 2026-10-31
+(`crates/podssh-relay/tests/live_backpressure.rs`; `.github/workflows/relay-live.yml`, run
+41157016178).
+**Category:** defect
+**Milestone:** backlog
+**Priority:** P2
+**Effort:** M
+**Status:** blocked
+
+## Problem
+
+A forward client that reads slowly makes the relay hold the bytes that come for it, with no
+bound short of the session byte cap (64 MiB). The relay's document closes such a session at
+2 MiB (`1013 client receive backlog`), and the reverse road's at 1 MiB (`1011 relay
+backpressure`); neither closed. Inferred: a Worker's memory has a limit, so a few such sessions
+in one isolate could end it, and with it each session that it carries. Whether the drops of
+T-255 come from this is not known.
+
+## Premise
+
+Measured on 2026-10-31 by T-062, twice from a cloud container and once from GitHub's network:
+through the relay's own loop, a pair's node gave the relay each of 48 MiB within 15 s, while the
+outer forward client read 16 KiB/s. After 90 s the client had read 1.46 MB, and no Close had
+come; 48.9 MB that it had not read had left the node, and the relay or its edge held them
+(`docs/STATUS.md`, "The relay"). Read: the forward codes in `docs/relay.md:230` (2 MiB queued),
+and the reverse row of the pinned contract
+(`crates/podssh-probe/tests/spec/relay-spec-2026-10-03-r2.txt:185`, 1 MiB). The forward check
+reads `bufferedAmount`, which Workers may not supply (`docs/relay.md`, "Backpressure").
+
+## Approach
+
+1. The relay's operator finds where the bytes wait: the forward road's Worker, the reverse road's
+   object, or the edge between the relay's egress and its own front, from a count of what each
+   socket queued.
+2. The relay bounds them: it stops reading the target, or the node's socket, while its limit
+   waits for the client, or it closes with the documented code once the limit is passed; its
+   contract says which.
+3. podssh's side is done (T-062): an SSH session puts at most its window of 512 KiB at the relay,
+   and podssh names a `1013`, says what makes it, and does not try again.
+4. When the contract changes, run the Prove from here and in `relay-live.yml`, and record it.
+
+## Prove
+
+```sh
+export CARGO_BUILD_JOBS=4
+cargo test -p podssh-relay --features pair --test live_backpressure -- --ignored --nocapture   # the live relay
+```
+
+The slow run's verdict names a `1013`, or the bytes past the node stay under 16 MiB.
+
+## Blocker
+
+The relay's operator: the relay's queues are work of the relay project (`docs/decisions.md`,
+2026-10-08: the relay stays separate). The evidence is in this entry and in
+`docs/relay-operator.md`.

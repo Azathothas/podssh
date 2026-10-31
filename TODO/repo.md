@@ -2026,7 +2026,7 @@ Read, in the tree as it is now:
   build must fail at `/nonexistent`; the control, with `CC` alone, must not
   stop there.
 - `docs/development.md:247-249` states the rule with `CXX`, and
-  `docs/STATUS.md:603` records the measurement. Rule 4 of
+  `docs/STATUS.md:614` records the measurement. Rule 4 of
   `docs/architecture.md` named `CC=/nonexistent` only; it was repaired in the
   same change as the record.
 - `.github/workflows/build.yml:103-111` runs the plant on each push.
@@ -2057,7 +2057,7 @@ the same script in its step "the no-C rule is load-bearing".
 (CXX=/nonexistent)"). Measured with `sh scripts/dev.sh plant` in
 `rust:1-alpine`: the C plant failed twice for the right reason, the C++ plant
 failed at `CXX=/nonexistent`, the control with `CC` alone was not stopped
-there, and the clean tree built (`docs/STATUS.md:603`). The CI run of
+there, and the clean tree built (`docs/STATUS.md:614`). The CI run of
 `eacd94e`, which contains `a378863`, passed, with its step "the no-C rule is
 load-bearing".
 
@@ -2321,7 +2321,7 @@ Read, wrong facts:
   `crates/podssh-probe/tests/spec/relay-spec-2026-10-03-r2.txt`).
 - crates/podssh-transport/src/backpressure/mod.rs lines 4-22 at `e8bbd4d` gives the reverse
   path's backpressure (1011, 1 MiB, the frame dropped: line 185 of that copy)
-  as the forward path's. For the forward path, `docs/relay.md:241-245` says
+  as the forward path's. For the forward path, `docs/relay.md:241-253` says
   1013 at 2 MiB, with no frame dropped. The comment on the SSH window said
   the same as `backpressure/mod.rs` (`crates/podssh-ssh/src/run.rs` lines
   25-28 at `80f20bf`); T-024 corrected it.

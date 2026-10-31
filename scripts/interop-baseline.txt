@@ -34,7 +34,7 @@ harness job interop 11 scripts/interop-job.sh
 harness run interop 3 scripts/interop-run.sh
 harness local interop 6 scripts/interop-local.sh
 harness control interop 13 scripts/interop-control.sh
-harness faults interop 35 scripts/interop-faults.sh
+harness faults interop 37 scripts/interop-faults.sh
 harness ping interop 3 scripts/interop-ping.sh
 harness relay interop 4 scripts/interop-relay.sh
 harness socks interop 4 scripts/interop-socks.sh
@@ -354,6 +354,8 @@ faults.cut pass
 faults.stuck_write pass
 faults.drop.handshake pass
 faults.drop.after_start pass
+faults.backlog pass
+faults.window pass
 
 # scripts/interop-ping.sh
 ping.relay_leg pass

@@ -9,7 +9,8 @@ echo "== faults (a stand-in relay and proxy, OpenSSH behind them)"
 FK="$W/faults"
 mkdir -p "$FK"
 NAMES="relay-a relay-r503 relay-silent relay-hole relay-dead relay-stall relay-close relay-cap relay-kill relay-hshake
-relay-delay relay-jitter relay-rate relay-cut relay-persist relay-dropfirst relay-dropafter relay-tls12 relay-tunnel"
+relay-delay relay-jitter relay-rate relay-cut relay-persist relay-dropfirst relay-dropafter relay-tls12 relay-tunnel
+relay-backlog relay-backlog2 relay-window"
 SAN=$(for n in $NAMES; do printf 'DNS:%s.test,' "$n"; done)
 PINS=$(for n in $NAMES; do printf '%s.test=127.0.0.1,' "$n"; done)
 SAN=${SAN%,}
@@ -42,7 +43,8 @@ fi
 for spec in a:normal r503:refuse:503 silent:silent hole:blackhole dead:normal stall:stall:12 \
         close:close:300000:1011 cap:close:1:1009 kill:normal hshake:close:1:1011 \
         delay:delay:2000 jitter:jitter:0:1500:7 rate:rate:65536 cut:cut:1000000 persist:normal \
-        dropfirst:dropfirst:20:1011 dropafter:dropfirstat:3:1011 tls12:tls12 slowopen:slowopen:500 tunnel:normal; do
+        dropfirst:dropfirst:20:1011 dropafter:dropfirstat:3:1011 tls12:tls12 slowopen:slowopen:500 tunnel:normal \
+        backlog:backlog:256:1024 window:backlog:2097152:262144; do
     name=${spec%%:*}
     python3 "$HERE/fake-relay.py" --cert "$FK/relay.pem" --key "$FK/relay.key" --keepalive 2 \
         --port-file "$FK/$name.port" --mode "${spec#*:}" >"$FK/$name.log" 2>&1 &
@@ -53,7 +55,7 @@ tries=0
 while [ "$tries" -lt 30 ]; do
     missing=0
     for n in a r503 silent hole dead stall close cap kill hshake delay jitter rate cut persist dropfirst dropafter tls12 \
-            slowopen tunnel; do
+            slowopen tunnel backlog window; do
         [ -s "$FK/$n.port" ] || missing=1
     done
     [ "$missing" = 0 ] && break
@@ -423,6 +425,24 @@ runs=$(grep -c . "$RAN-after" 2>/dev/null)
 [ "$rc" = 255 ] && ! grep -q "so podssh tries" "$FK/err" && [ "$runs" = 1 ] \
     && ok faults.drop.after_start "a drop after the command started is not tried again (exit 255, one run)" \
     || bad faults.drop.after_start "a drop after the request: exit $rc, ${runs:-0} runs" "$FK/err"
+
+# T-062: the relay's check of a slow client. More than 256 bytes wait in the
+# handshake: 1013 `client receive backlog`, exit 255, the close and its cause
+# named, and no try on the second host. And the window of 512 KiB keeps what
+# waits under the relay's 2 MiB, at 256 KiB/s from a queue with no bound.
+r "relay-backlog.test:$(port backlog),relay-backlog2.test:$(port backlog)" "$T" 'echo ran' \
+    >"$FK/out" 2>"$FK/err" </dev/null
+rc=$?
+[ "$rc" = 255 ] && grep -q "relay close 1013: client receive backlog" "$FK/err" \
+    && grep -q "2 MiB wait for podssh" "$FK/err" && ! grep -q "so podssh tries" "$FK/err" \
+    && ok faults.backlog "a backlog at the relay ends the run with 255, says why, and is not tried again" \
+    || bad faults.backlog "a backlog at the relay: exit $rc" "$FK/err"
+r "relay-window.test:$(port window)" "$T" 'head -c 4000000 /dev/zero' >"$FK/out" 2>"$FK/err" </dev/null
+rc=$?
+got=$(wc -c <"$FK/out")
+[ "$rc" = 0 ] && [ "$got" = 4000000 ] \
+    && ok faults.window "the window keeps what waits under the relay's 2 MiB: 4,000,000 bytes at 256 KiB/s" \
+    || bad faults.window "the window and the relay's backlog: exit $rc, $got bytes" "$FK/err"
 
 # shellcheck source=scripts/interop-ping.sh
 . "$HERE/interop-ping.sh"

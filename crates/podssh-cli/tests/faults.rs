@@ -109,6 +109,29 @@ fn unpinned(cell: &Cell) -> Vec<String> {
     args
 }
 
+/// The cell with a second relay host, the same stand-in under the name that
+/// its certificate also holds, so that a try on the next host can happen.
+fn two_hosts(cell: Cell) -> Cell {
+    let mut args = Vec::new();
+    let mut words = cell.args.iter();
+    while let Some(word) = words.next() {
+        args.push(word.clone());
+        match (word.as_str(), words.clone().next()) {
+            ("--relay-host", Some(host)) => {
+                let port = host.rsplit(':').next().unwrap_or_default();
+                args.push(format!("{host},relay-b.test:{port}"));
+                words.next();
+            }
+            ("--relay-addr", Some(pin)) => {
+                args.push(format!("{pin},relay-b.test=127.0.0.1"));
+                words.next();
+            }
+            _ => {}
+        }
+    }
+    Cell { args, ..cell }
+}
+
 /// Bytes that are not all alike, so that a reordered chunk shows.
 fn pattern(len: usize) -> Vec<u8> {
     let mut x: u32 = 0x2545_f491;
@@ -295,4 +318,35 @@ fn a_drop_after_the_request_is_not_tried_again() {
     assert_eq!(ran.code, 255, "{}", ran.err);
     assert!(!ran.err.contains("so podssh tries"), "{}", ran.err);
     assert_eq!(runs_in(&file), 1, "{}", ran.err);
+}
+
+/// The relay's check of a slow client (T-062): once more than 256 bytes
+/// wait for podssh, in the handshake, the stand-in closes `1013 client
+/// receive backlog`, as the relay's source does at 2 MiB. podssh ends with
+/// 255, names the close and what makes it, and tries on no other host: a
+/// backlog is no drop, and a new session would meet the same reader.
+#[test]
+#[ignore = "the fault harness, on the loopback: a few seconds"]
+fn a_backlog_at_the_relay_ends_the_run_and_is_never_tried_again() {
+    let session = Session::start("backlog");
+    let Some(cell) = cell(&session, "backlog:256:1024") else { return };
+    let ran = ssh(&session, &two_hosts(cell), &[], "greet", None);
+    assert_eq!(ran.code, 255, "{}", ran.err);
+    assert!(ran.err.contains("relay close 1013: client receive backlog"), "{}", ran.err);
+    assert!(ran.err.contains("2 MiB wait for podssh"), "{}", ran.err);
+    assert!(!ran.err.contains("so podssh tries"), "{}", ran.err);
+}
+
+/// The window of 512 KiB keeps what waits for podssh under the relay's
+/// 2 MiB (T-062): at 256 KiB/s from a queue with no bound, 4 MB come whole
+/// and no Close comes. A window of 4 MiB would let the server put 4 MiB in
+/// the queue.
+#[test]
+#[ignore = "the fault harness, on the loopback: about 20 s"]
+fn the_window_keeps_what_waits_under_the_relay_s_check() {
+    let session = Session::start("window");
+    let Some(cell) = cell(&session, "backlog:2097152:262144") else { return };
+    let ran = ssh(&session, &cell, &[], "source 4000000", None);
+    assert_eq!(ran.code, 0, "{}", ran.err);
+    assert_eq!(ran.out.len(), 4_000_000, "{}", ran.err);
 }

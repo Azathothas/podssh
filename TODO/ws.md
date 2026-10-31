@@ -311,7 +311,7 @@ the configuration on each call (`crates/podssh-ws/src/client.rs` lines 187-207 a
 (`crates/podssh-relay/src/token.rs:94-99`), the pool refresh
 (`crates/podssh-relay/src/pool.rs:120-128`), and the `https_*` functions (`client.rs` lines
 261-287). podssh's configuration offers no ALPN (`tls.rs` lines 174-177 at `723d90b`), because the upgrade is
-HTTP/1.1 only (`docs/relay.md:246`). The `tls12` feature of `rustls` is on in the workspace
+HTTP/1.1 only (`docs/relay.md:254`). The `tls12` feature of `rustls` is on in the workspace
 (`[workspace.dependencies]` of `Cargo.toml`).
 
 ## Approach
@@ -605,7 +605,7 @@ returns a `String` (142-166). The callers keep or pass the text:
 `TransportError::Unexpected` (crates/podssh-transport/src/socket.rs at `e8bbd4d` lines 104-113, 143, 161
 and 185), and, since T-072, a read error `Aborted` with its text. Tests and the gate match the
 text: `crates/podssh-ws/tests/session.rs` lines 108 ("continuation") and 172 ("without a
-WebSocket Close"), and `scripts/interop-faults.sh:240` ("pings unanswered").
+WebSocket Close"), and `scripts/interop-faults.sh:242` ("pings unanswered").
 `WsError` exists (`crates/podssh-ws/src/error.rs:56-76`), but the session does not use it.
 
 ## Approach

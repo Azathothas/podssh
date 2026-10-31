@@ -553,7 +553,7 @@ sh scripts/dev.sh check                     # interop-cp.sh through scripts/fake
 ```
 
 The stand-in relay's `close:BYTES:CODE` mode
-(`scripts/fake-relay.py:398-420`) ends each session after 1,500,000 bytes
+(`scripts/fake-relay.py:352-380`) ends each session after 1,500,000 bytes
 from the target with `1011`. A 5,000,000-byte download must finish over 4
 sessions or more with equal digests, and `-v` names each offset. A new mode
 that counts both directions does the same for an upload. A run stopped with
@@ -1062,7 +1062,7 @@ trip is long, so such a copy uses a small part of what the path carries.
   (1 MiB queued, `1011`, a dropped frame;
   `crates/podssh-probe/tests/spec/relay-spec-2026-10-03-r2.txt:185`). T-024
   corrected it to the forward path's rule
-  (`crates/podssh-ssh/src/run.rs:26-29`): `docs/relay.md:241-245` gives
+  (`crates/podssh-ssh/src/run.rs:26-29`): `docs/relay.md:241-253` gives
   2 MiB, `1013` and no drop. The window can grow only after that is
   settled; T-062 measures the `1013`.
 - Measured in two sandboxes (`docs/STATUS.md:285`): 20 MiB through the

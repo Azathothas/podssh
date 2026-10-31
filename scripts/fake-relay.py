@@ -54,6 +54,12 @@ Modes:
   hangup:MS        answer each upgrade with a valid 101, MS milliseconds
                    later end the TCP connection with no frame, and dial no
                    target: a hop that drops the upgraded stream (T-324)
+  backlog:BYTES:RATE
+                   to the client at RATE bytes a second, from a queue with
+                   no bound, as a relay that reads its target at once; once
+                   more than BYTES wait in it, Close 1013 `client receive
+                   backlog`, the relay's check of a slow client, and drop
+                   what waits (T-062)
 
 Each mint, each upgrade and each Close from the client is a line on stdout
 (`mint`, `upgrade`, `close CODE`), so a harness counts them (T-220).
@@ -62,12 +68,12 @@ Each mint, each upgrade and each Close from the client is a line on stdout
 import argparse
 import asyncio
 import json
-import random
 import ssl
 import time
 import urllib.parse
 
 import fake_reverse
+from fake_shape import SHAPED, Shaper
 from fake_ws import close_frame, frame, read_frame, response, upgraded
 
 TOKEN = "fake-relay-token-for-the-interop-harness"
@@ -236,60 +242,6 @@ async def connect(reader, writer, path, headers):
     await pump(reader, writer, t_reader, t_writer, first=UPGRADED["count"] == 1)
 
 
-class Shaper:
-    """One direction's bytes, sent in order, late or slow as the mode says.
-    A bounded queue keeps the sender's flow control."""
-
-    def __init__(self, send, mode, started, seed_offset):
-        self.send, self.started = send, started
-        self.delay, self.jitter, self.rate, self.pause = 0.0, None, None, None
-        kind, _, rest = mode.partition(":")
-        if kind == "delay":
-            self.delay = int(rest) / 1000
-        elif kind == "jitter":
-            low, high, seed = rest.split(":")
-            self.jitter = (int(low) / 1000, int(high) / 1000, random.Random(int(seed) + seed_offset))
-        elif kind == "rate":
-            self.rate = int(rest)
-        elif kind == "pause":
-            after, held = rest.split(":")
-            self.pause = (started + float(after), started + float(after) + float(held))
-        self.queue = asyncio.Queue(maxsize=64)
-        self.last = 0.0
-        self.task = asyncio.ensure_future(self.run())
-
-    async def put(self, data):
-        await self.queue.put((time.monotonic(), data))
-
-    async def run(self):
-        while True:
-            arrived, data = await self.queue.get()
-            if data is None:
-                return
-            wait = self.delay
-            if self.jitter is not None:
-                low, high, rng = self.jitter
-                wait = rng.uniform(low, high)
-            due = max(arrived + wait, self.last)
-            if self.pause is not None and self.pause[0] <= due < self.pause[1]:
-                due = self.pause[1]
-            self.last = due
-            now = time.monotonic()
-            if due > now:
-                await asyncio.sleep(due - now)
-            if self.rate is not None:
-                await asyncio.sleep(len(data) / self.rate)
-            await self.send(data)
-
-    async def flush(self):
-        """Each byte queued, sent: before a Close, or the end."""
-        await self.queue.put((time.monotonic(), None))
-        await self.task
-
-
-SHAPED = ("delay:", "jitter:", "rate:", "pause:")
-
-
 async def pump(reader, writer, t_reader, t_writer, first=False):
     stalled = asyncio.Event()
     done = asyncio.Event()
@@ -312,8 +264,10 @@ async def pump(reader, writer, t_reader, t_writer, first=False):
         await t_writer.drain()
 
     shaped = args.mode.startswith(SHAPED)
+    # backlog: only the bytes to the client wait, as at a slow client.
+    backlog = args.mode.startswith("backlog:")
     to_client = Shaper(write_client, args.mode, started, 0) if shaped else None
-    to_target = Shaper(write_target, args.mode, started, 1) if shaped else None
+    to_target = Shaper(write_target, args.mode, started, 1) if shaped and not backlog else None
 
     async def send_client(data, last=False):
         """A frame to the client, through the shaper when there is one."""
@@ -409,6 +363,12 @@ async def pump(reader, writer, t_reader, t_writer, first=False):
                 await send_client(close_frame(1000, "target closed"), last=True)
                 return
             await send_client(frame(0x2, data))
+            if to_client is not None and to_client.over():
+                # What waits is dropped; the Close goes after the last
+                # whole frame.
+                to_client.task.cancel()
+                await write_client(close_frame(1013, "client receive backlog"))
+                return
             if await counted(len(data)):
                 return
             sent += len(data)

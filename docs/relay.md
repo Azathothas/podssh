@@ -238,11 +238,19 @@ is not a number as `0`, with no message.
   connection that ends with no Close is the link between podssh and the
   relay. podssh reports a code that is not in this table as it is, with
   control characters removed from the reason.
-- Backpressure closes the session (`1013`, at 2 MiB queued); the relay does
-  not drop a frame. podssh advertises an SSH window of 512 KiB, so a server
-  cannot have more than that in flight to a slow podssh. It is not verified
-  that the relay's check operates: it reads `bufferedAmount`, which Workers
-  may not supply.
+- By the relay's source, backpressure closes the session (`1013`, at 2 MiB
+  queued), and the relay drops no frame; the check reads `bufferedAmount`,
+  which Workers may not supply. Measured on 2026-10-31 (T-062), the check
+  does not operate: through the relay's own loop, a client that read
+  16 KiB/s for 90 s got no Close, from a cloud container and from GitHub's
+  network, while 47 MiB more than it read had left the far end; the relay or
+  its edge held them (`crates/podssh-relay/tests/live_backpressure.rs`,
+  `.github/workflows/relay-live.yml`). podssh advertises an SSH window of
+  512 KiB, so a server cannot have more than that in flight to a slow
+  podssh, and the relay holds no more for an SSH session; a raw stream
+  (`podssh proxy`, `-W`) has no bound short of the session byte cap. When a
+  `1013` comes, podssh names it, says what makes it, and does not try again
+  (the stand-in relay's mode `backlog`, `crates/podssh-cli/tests/faults.rs`).
 - The upgrade is HTTP/1.1 only. podssh never offers h2 through ALPN.
 
 ### Relay facts for a client that selects a relay

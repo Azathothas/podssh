@@ -440,6 +440,11 @@ impl ForwardClose {
     pub fn remedy(self, reason: &str) -> Option<&'static str> {
         match self {
             ForwardClose::Target => Some("another relay host may reach it: --relay-host HOST"),
+            // The link held; what crossed it came too slowly for the relay.
+            ForwardClose::Client if reason.starts_with("client receive backlog") => Some(
+                "the relay closes a session when 2 MiB wait for podssh: the link to the relay, or the reader of \
+                 podssh's output, is slower than the target",
+            ),
             ForwardClose::Client => Some("podssh doctor checks the way to the relay"),
             ForwardClose::Limit if reason.contains("idle") => {
                 Some("the relay closes a session after 180 s with no traffic; set ServerAliveInterval below 180")
@@ -486,5 +491,7 @@ mod forward_close_tests {
         assert_eq!(ForwardClose::Target.what("railway.new:22"), "the relay lost its connection to railway.new:22");
         assert!(ForwardClose::Limit.remedy("idle timeout").unwrap().contains("ServerAliveInterval"));
         assert!(ForwardClose::Unknown.remedy("x").is_none());
+        assert!(ForwardClose::Client.remedy("client receive backlog").unwrap().contains("2 MiB wait for podssh"));
+        assert!(ForwardClose::Client.remedy("client send failed: reset").unwrap().contains("doctor"));
     }
 }

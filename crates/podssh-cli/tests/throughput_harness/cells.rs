@@ -192,7 +192,7 @@ fn certificates(dir: &std::path::Path) -> Result<(), String> {
     std::fs::write(dir.join("req.cnf"), "[req]\ndistinguished_name = dn\n[dn]\n").map_err(|e| e.to_string())?;
     std::fs::write(
         dir.join("ext"),
-        "subjectAltName=DNS:relay-a.test\nbasicConstraints=CA:FALSE\nkeyUsage=critical,digitalSignature\n\
+        "subjectAltName=DNS:relay-a.test,DNS:relay-b.test\nbasicConstraints=CA:FALSE\nkeyUsage=critical,digitalSignature\n\
          extendedKeyUsage=serverAuth\n",
     )
     .map_err(|e| e.to_string())?;

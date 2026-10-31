@@ -23,10 +23,10 @@ use crate::{auth, forward, retry, session};
 /// and a session that ends without an exit status.
 pub const EXIT_FAILURE: i32 = 255;
 
-/// The SSH window advertised to the server. On the forward path the relay
-/// closes a session when 2 MiB wait for a slow receiver (`1013 client receive
-/// backlog`); a window of 512 KiB keeps the server from ever having that much
-/// in flight (russh's default is 2 MiB).
+/// The SSH window advertised to the server: the most that a server has in
+/// flight to a slow podssh, so all that the relay holds for it (its own check,
+/// `1013` at 2 MiB by its document, does not operate: T-062). Under those
+/// 2 MiB for a relay whose check does; russh's default is 2 MiB.
 pub(crate) const WINDOW: u32 = 512 * 1024;
 
 /// Run `opts` over `stream`, which reaches the first `-J` hop or, without one,

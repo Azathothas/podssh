@@ -107,7 +107,7 @@ and `CARGO_BUILD_JOBS=4`:
 
 ## Counts
 
-`TODO/INDEX.md` holds 332 entries: 19 open, 1 partial, 27 blocked, 285 done.
+`TODO/INDEX.md` holds 333 entries: 19 open, 0 partial, 28 blocked, 286 done.
 
 Open includes parked work. `cargo todo check` verifies this line.
 
@@ -135,13 +135,12 @@ those of M9 and the parked ones; now the P3 entries that no draft holds:
 the drafts of "State" above are merged.
 
 **Then** M9: T-335 and T-334, which T-251 runs, then T-251 (the check,
-and its run before the tag), and last T-250 (the one release). T-062 runs
-with the relay's loop (Q42) before T-251. Between entries: the `none` entries, the highest
-priority first.
+and its run before the tag), and last T-250 (the one release). Between
+entries: the `none` entries, the highest priority first.
 
 **Skip** the entries that wait for the relay's operator (status
 `blocked`): T-086, T-106, T-169, T-173, T-180, T-226, T-253, T-255,
-T-319, T-321, T-325 and T-326; and the entries that the operator holds (status
+T-319, T-321, T-325, T-326 and T-336; and the entries that the operator holds (status
 `blocked`, Q32):
 T-085, T-107 to T-113, T-117, T-118, T-213, T-222, T-245 and T-248; and the work
 parked behind them (T-114, T-115, T-116, T-119, T-120, T-122, T-123,
@@ -237,5 +236,6 @@ After the release:
 As the relay's operator: a mailbox for pairing (T-086), the node keys of
 the Tailscale test (T-106), a self-hosted relay (T-169), resumption in the
 relay (T-173), a publish endpoint (T-180), signed pairing grants (T-226),
-an IPv6 route out of the relay (T-253), and the cause of the drops of
-reverse sockets (T-255).
+an IPv6 route out of the relay (T-253), the cause of the drops of
+reverse sockets (T-255), and a bound on what the relay holds for a slow
+client (T-336).

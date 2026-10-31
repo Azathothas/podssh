@@ -148,7 +148,7 @@ Read:
   (`crates/podssh-probe/tests/spec/relay-spec-2026-10-03-r2.txt:160-166`, row
   `crates/podssh-probe/tests/spec/relay-spec-2026-10-03-r2.txt:185`). On the
   forward path, backpressure closes with `1013` at 2 MiB (`docs/relay.md:230`,
-  `docs/relay.md:241-245`). The comment on the SSH window
+  `docs/relay.md:241-253`). The comment on the SSH window
   (`crates/podssh-ssh/src/run.rs` lines 25-29 at `80f20bf`) also cites the
   reverse row.
 
@@ -172,13 +172,13 @@ Read:
    disconnect, then `describe`. Example: "railway.new: the relay lost its
    connection to railway.new:22 (relay close 1011: write failed: Network
    connection lost.)". Keep the code and the reason verbatim:
-   `scripts/interop-faults.sh:211` looks for them.
+   `scripts/interop-faults.sh:213` looks for them.
 4. Write a second line that says what to do. For the hop from the relay to
    the target: another relay host (`--relay-host`), and
    `podssh relay trace HOST:PORT` when T-058 exists.
 5. Use the same classification in `podssh proxy`
    (`crates/podssh-cli/src/proxy.rs` lines 252-280 at `80f20bf`). Keep `CODE REASON` in its line:
-   `scripts/interop-faults.sh:232` looks for `1009 session byte cap`.
+   `scripts/interop-faults.sh:234` looks for `1009 session byte cap`.
 6. Correct the comment on the window (`crates/podssh-ssh/src/run.rs` lines
    25-29 at `80f20bf`). The window of 512 KiB stays: it is below both limits.
 7. Update `docs/relay.md` (lines 155-158 at `80f20bf`) and `docs/STATUS.md:514`. T-025 uses the
@@ -1521,7 +1521,7 @@ Read:
   stops reading makes the session idle, not stuck (GitHub #36). Only a stall
   below SSH causes the hang.
 - The stand-in relay's `stall:` mode reads the client's frames and drops them
-  (`scripts/fake-relay.py:379-383`), so no fault tests a stuck write today.
+  (`scripts/fake-relay.py:333-337`), so no fault tests a stuck write today.
   GitHub #36 cites it as scripts/box/fake-relay.py, which does not exist.
 - The reporter measured a zero-window stall outside podssh: after 2.0 MiB,
   the write stayed blocked (read in the issue, not verified here).

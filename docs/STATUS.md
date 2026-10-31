@@ -558,6 +558,17 @@ The gate's step `m6` runs the same checks in the build image at each push:
 11 of 11 in 692 s at `94e3e6a` (run 38001904475). The live run from the box, through the live relay, comes with the checks of
 the release (T-251).
 
+A backlog at the relay (T-062, 2026-10-31, in a cloud container, `cargo
+test -p podssh-cli --test faults -- --ignored --test-threads 1 a_backlog
+the_window`, 2 of 2 in 16 s; each failed on its plant, a try on the next
+host for a `1013` and a window of 4 MiB): with the stand-in relay's mode
+`backlog`, a `1013 client receive backlog` in the handshake ends `podssh
+ssh` with 255, names the close and what makes it, and is tried on no other
+host; at 256 KiB/s from a queue with no bound, the window of 512 KiB keeps
+what waits under 2 MiB, and 4 MB come whole. The same checks against
+OpenSSH are `faults.backlog` and `faults.window` of
+`scripts/interop-faults.sh`, in the gate.
+
 ## Components
 
 The lines are `wc -l` of each crate's `src/` and `tests/` (2026-10-09, T-082;
@@ -690,6 +701,18 @@ ended at once at 02:01:01Z, which this machine did not see. Before, from
 beside them from both networks had no drop in 1.2 hours; the relay's idle cut
 ended 22 of them at 180.3 s to 180.9 s, with Pings every 10 s. The planted
 drop of each run reached the node. T-255 waits for the relay's operator.
+
+The relay's checks of a slow receiver do not operate (T-062, 2026-10-31,
+`cargo test -p podssh-relay --features pair --test live_backpressure -- --ignored --nocapture`,
+twice from a cloud container and once from GitHub Actions, run 41157016178
+of `relay-live.yml`). Through the relay's own loop (a forward session to
+the relay's own host and port 443 that carries the operator's leg of a
+pair), the control carried 8 MiB at full speed in 12.1 s to 13.4 s and
+ended `1000` at both levels. A client that then read 16 KiB/s got no Close
+in 90 s, neither the forward road's `1013` nor the reverse road's `1011`,
+while the node had given the relay each of 48 MiB within 15 s: 48.9 MB that
+the client had not read waited in the relay or its edge, on both networks.
+T-336 waits for the relay's operator.
 
 ## Measure again
 

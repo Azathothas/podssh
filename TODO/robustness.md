@@ -544,7 +544,7 @@ Read, the bounds today:
   backpressure`): the row of the reverse path in the relay's document
   (`crates/podssh-probe/tests/spec/relay-spec-2026-10-03-r2.txt:185`). It
   now gives the forward path's rule (`crates/podssh-ssh/src/run.rs:26-29`):
-  `docs/relay.md:241-245` says that backpressure closes with `1013` at
+  `docs/relay.md:241-253` says that backpressure closes with `1013` at
   2 MiB and drops no frame. T-062 measures whether that check operates.
 
 ## Approach
@@ -842,7 +842,7 @@ Read:
   `stall` and `close` (`scripts/fake-relay.py:18-27`). The stand-in proxy maps
   names and answers a status (`scripts/fake-proxy.py:1-27`). Neither shapes
   the traffic.
-- `scripts/interop-faults.sh:42-50` starts one stand-in for each fault; its
+- `scripts/interop-faults.sh:43-52` starts one stand-in for each fault; its
   checks are at lines 73-182 at `8d668b7` (`docs/STATUS.md:500-518`, 14 of 14 since T-236).
 - The time limits that latency meets today: the SSH handshake, 60 s
   (`crates/podssh-ssh/src/options.rs:395`, enforced at
@@ -913,7 +913,7 @@ fail when the resume layer is off.
 ## Correction
 
 Item 4 needs the reverse road in the stand-in relay, which serves the
-forward road only (`scripts/fake-relay.py:103-104`). T-156 builds it (its
+forward road only (`scripts/fake-relay.py:109-110`). T-156 builds it (its
 item 1) and makes those checks its measurement (its items 2 to 5). T-203
 gives T-156 the faults that those checks need: `pause:AFTER:FOR` for the
 stall that ends, `cut` for a host stopped mid-session, and `--move` for the
