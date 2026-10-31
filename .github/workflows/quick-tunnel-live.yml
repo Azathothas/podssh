@@ -10,7 +10,9 @@ name: quick tunnel live
 # ways: directly, and through the box's proxy (scripts/box/proxy.py, the
 # measured cage's policy). The node registers over QUIC, as no proxy is set
 # here (T-301); a second node, with UDP to port 7844 dropped, falls back to
-# HTTP/2 and says so. Started by hand only, with confirm=Q43. Two tunnels,
+# HTTP/2 and says so. podssh doctor --full's line UDP out says that QUIC to the edge
+# answered, and with UDP to 7844 dropped that none did (T-359). Started by
+# hand only, with confirm=Q43. Two tunnels,
 # each alive for a few minutes at most. The logs of this public
 # repository are public: the tunnel's name is masked, its secret never
 # leaves the node's memory, and the keys are throwaway ones of this run.
@@ -51,6 +53,18 @@ jobs:
         run: |
           timeout 1200 cargo build -p podssh-cli --locked
           target/debug/podssh --version
+
+      # T-359: doctor's UDP out makes the node's first QUIC handshake with the
+      # edge, closed at once with nothing registered; here UDP reaches it.
+      - name: doctor's UDP out, with UDP to the edge
+        run: |
+          timeout 120 target/debug/podssh doctor --full >"$RUNNER_TEMP/doctor.txt" 2>&1 || true
+          line=$(grep -E '^ +[^ ]+ +UDP out ' "$RUNNER_TEMP/doctor.txt" | head -n 1)
+          echo "doctor: $line"
+          case $line in
+            *ok*"answered in "*"takes QUIC"*) echo "ok    doctor's UDP out: QUIC to the edge answered" ;;
+            *) echo "FAIL doctor's UDP out did not say that QUIC answered"; exit 1 ;;
+          esac
 
       - name: an OpenSSH server on the loopback, the node's TARGET
         run: |
@@ -190,6 +204,14 @@ jobs:
       - name: a second node, with UDP to 7844 dropped
         run: |
           sudo iptables -I OUTPUT -p udp --dport 7844 -j DROP
+          # T-359: doctor's UDP out finds no answer, and says HTTP/2.
+          timeout 120 target/debug/podssh doctor --full >"$RUNNER_TEMP/doctor2.txt" 2>&1 || true
+          line=$(grep -E '^ +[^ ]+ +UDP out ' "$RUNNER_TEMP/doctor2.txt" | head -n 1)
+          echo "doctor: $line"
+          case $line in
+            *ok*"no region of the edge answered over QUIC"*"takes HTTP/2"*) echo "ok    doctor's UDP out: no answer, HTTP/2" ;;
+            *) echo "FAIL doctor's UDP out did not say that QUIC found no answer"; exit 1 ;;
+          esac
           : > "$RUNNER_TEMP/allow2"
           target/debug/podssh node fallback 127.0.0.1:4022 --quick-tunnel --allow "$RUNNER_TEMP/allow2" \
             --ephemeral-key >"$RUNNER_TEMP/url2" 2>"$RUNNER_TEMP/node2.log" &

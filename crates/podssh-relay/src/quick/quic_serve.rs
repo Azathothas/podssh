@@ -83,6 +83,12 @@ where
                 }
                 // A control stream that fails in the end: close anyway.
                 Err(_) if stopping => (closing, deadline) = (true, Some(Instant::now() + CLOSE_GRACE)),
+                // The connection's own end, a close or a silence, can reach
+                // the control stream before `accept_bi`: its reason is then
+                // the end, not the stream's.
+                Err(_) if connection.close_reason().is_some() => {
+                    return Err(connection.close_reason().map(ended).unwrap_or(Ended::Closed));
+                }
                 Err(e) => {
                     connection.close(VarInt::from_u32(0), b"");
                     return Err(Ended::Control(e));

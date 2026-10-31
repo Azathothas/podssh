@@ -251,11 +251,14 @@ const DOCTOR: &[&str] = &[
      request's key (something between answered in the relay's place), or a valid 101 after which the \
      connection ends with no Close (something between drops the stream after the upgrade).",
     "podssh doctor connects to the relay hosts and, through the relay, to github.com. The report goes to \
-     stdout; the exit codes are in EXIT STATUS.",
+     stdout; the exit codes are in EXIT STATUS. Its line UDP out says whether a node's quick tunnel takes \
+     QUIC: with a proxy set it takes HTTP/2, as no proxy carries UDP, and nothing is sent.",
     "With --full, the relay section adds login: podssh logs in to github.com through the relay as git, \
      with an Ed25519 key made for the check and never written, and GitHub refuses it. That shows that the \
      handshake, the host key (the one that forward identified) and the authentication path work. No pty \
-     is asked for: GitHub refuses the key before a channel opens.",
+     is asked for: GitHub refuses the key before a channel opens. With no proxy set, --full also makes a \
+     QUIC handshake with the quick tunnel's edge, Cloudflare's, as the node's first try makes one, and \
+     closes it at once with nothing registered: UDP out then says whether it answered, and in what time.",
     "With --json, the report is one JSON object on stdout when every check has run: schema (1), podssh, \
      os, arch, checks (each with section, check, status and detail; status is ok, FAIL or unknown) and \
      counts (ok, fail, unknown). A check tried several times adds samples: tries, connected, best_ms, \

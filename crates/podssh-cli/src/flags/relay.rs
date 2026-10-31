@@ -54,7 +54,8 @@ pub const DOCTOR_FLAGS: &[FlagRow] = &[
     row(None, "json", None, FlagKind::Supported,
         "write the report as one JSON object on stdout, when every check has run", None),
     row(None, "full", None, FlagKind::Supported,
-        "also log in to github.com through the relay with a key made for the check, which GitHub refuses", None),
+        "also log in to github.com through the relay with a key made for the check, which GitHub refuses, and, with no \
+         proxy set, make a QUIC handshake with the quick tunnel's edge", None),
 ];
 
 /// `status`: the relay settings that it reports, as `doctor` takes them.

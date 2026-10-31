@@ -2159,6 +2159,22 @@ got in; the first node, whose QUIC connection the same rule cut, found the
 silence ("the edge stopped answering") and went on over HTTP/2, as the
 fallback says.
 
+2026-10-31, after the close (found by T-359's tests): the test
+`an_edge_that_closes_and_one_that_falls_silent_end_the_connection` failed
+one run in six alone, once at the edge's close and once at the silence, each
+time with `Err(Control(Ended))`. When the connection ends, `accept_bi` and
+the control stream both see it, and the first of the two to reach the loop
+of `crates/podssh-relay/src/quick/quic_serve.rs` won: a close or a silence
+read as a control stream that ended. A control stream that fails on a
+connection with a reason now ends with that reason (`Closed` or `Silent`);
+the test passed 16 runs of 16 alone and the file 10 of 10. Also, QUIC's own
+limit of a silence and the handshake's wait, both 5 s, ended a handshake
+with two sets of words, "QUIC: timed out" and "no answer over QUIC within
+5 s": a handshake's timeout now has the second alone. The loop over HTTP/2
+(`serve.rs`) has the same two arms; its tests passed 6 runs of 6, but none of
+them ends the connection while the control stream reads, so the race is not
+measured there.
+
 # T-171: The functions of Mosh that M6 and T-160 do not give, made in podssh itself
 
 **Source:** GitHub #22 (Nemo-010, 2026-10-08: SSHub selects a Mosh transport
@@ -3718,7 +3734,7 @@ code that no command of the default build uses is P2 at most".
   (`TODO/roads.md:2020`); its Decision took QUIC only where no proxy is set, on the connection's
   own socket (`TODO/roads.md:2052-2059`), and the QUIC handshake, bounded at 5 s, is its probe:
   QUIC that fails gives way to HTTP/2 for the run (`crates/podssh-cli/src/node_quick.rs:161-163`,
-  `:276-295`; `crates/podssh-relay/src/quick/quic.rs:29`). Its cost on a host that drops UDP is
+  `:276-295`; `crates/podssh-relay/src/quick/quic.rs:32`). Its cost on a host that drops UDP is
   one handshake a run, as its Decision item 5 chose (`TODO/roads.md:2060-2064`). doctor says
   nothing of it in the default build, where the quick tunnel is.
 - Read: the measured cage refuses UDP (`docs/target-environment.md:23`), and the box does too
@@ -3745,7 +3761,7 @@ code that no command of the default build uses is P2 at most".
 4. doctor: `bind UDP` says only what a bind shows. A new line, `UDP out`, gives the answer and
    its time: with the feature, the QAD round trip to the home relay; in each build where no proxy
    is set, a QUIC handshake to the quick tunnel's edge as `podssh node --quick-tunnel` makes it
-   (`crates/podssh-relay/src/quick/quic.rs:122-138`), and with a proxy set, that the quick tunnel
+   (`crates/podssh-relay/src/quick/quic.rs:125-145`), and with a proxy set, that the quick tunnel
    takes HTTP/2. Each answer is `ok`, as a road with no UDP works; a home relay that does not
    answer is already `FAIL` (`crates/podssh-cli/src/doctor/iroh.rs:83-89`).
 5. `-v` says which answer the road took. The manual's `PODSSH_IROH_UDP`, `docs/design.md`
@@ -3777,6 +3793,21 @@ code that no command of the default build uses is P2 at most".
    behind iroh's feature `unstable-net-report`, outside its semver, so a minor version may change
    it. Lost: the range `>=1.1, <2`, under which `cargo update` could take such a version and the
    build would break, not the update be read.
+7. doctor's handshake with the quick tunnel's edge tries the first address of each family of each
+   region at once (`podssh_relay::quick::quic::handshake`), where the node tries them in turn
+   (`connect_edge`): the answer is the same fact, whether QUIC reaches the edge, within the 5 s of
+   one handshake. Lost: the node's own order, under which a host that drops UDP waits 5 s for
+   each address, up to 20 s for doctor's line.
+8. The handshake closes at once, with no stream: nothing is registered at the edge, and no tunnel
+   is made. Lost: a registration, which would make a tunnel for doctor alone.
+9. The handshake with the edge is made with `--full` alone, where Approach item 4 has it in each
+   run with no proxy set: the edge is Cloudflare's, a server that doctor reached in no run before,
+   where the manual says that doctor reaches the relay hosts and, through the relay, github.com;
+   and each test of doctor that runs its network checks would reach it, from any host, this
+   session's among them, where Q43 keeps Cloudflare's edge to Actions. `--full` already adds the
+   check that goes further (the login). With a proxy set, each run says that the node takes HTTP/2,
+   which needs nothing sent; with none, a run without `--full` says that the line was not probed and
+   how to probe it. Lost: the handshake in each run, as the Approach had it.
 
 ## Prove
 
@@ -3806,8 +3837,8 @@ proxy, for one that drops UDP. The wait on a host that drops UDP stays the 3 s o
 
 ## Done
 
-2026-10-31, partial: the iroh road and doctor's `iroh UDP out` are done; doctor's `UDP out` to the
-quick tunnel's edge is not (Approach item 4, its second half).
+2026-10-31, partial: each part is done; the live run of doctor's `UDP out` against Cloudflare's
+edge, from Actions (Q43), is not.
 
 - `podssh_iroh::endpoint::open` gives the endpoint and the probe's answer: `Answered` (a round trip
   of QUIC address discovery to the home relay in the first report, within 6 s), `Refused` (no UDP
@@ -3832,6 +3863,23 @@ quick tunnel's edge is not (Approach item 4, its second half).
   nothing", the four relays of n0 answered `/ping`, and "iroh UDP out: a UDP socket binds, and no
   QUIC address discovery to the home relay came back within 3003 ms, so the relay carries each
   byte". Before this entry, the same host read "the iroh road may go direct".
+- doctor's `UDP out` (part 2), in each build: with a proxy set, that the node takes HTTP/2 and
+  sends no UDP; else, with `--full` (Decision item 9), a QUIC handshake with the quick tunnel's
+  edge, as the node's first try makes it, closed at once with no stream, and without it, that the
+  line was not probed and that `--full` probes it. Against the stand-in edge of
+  `crates/podssh-relay/tests/quick_tunnel_quic.rs`: the handshake answers and the edge sees the
+  connection closed with no stream; a port that answers nothing: "no region of the edge answered
+  over QUIC", in 5 s; a silent region beside one that answers: the answer, within the 5 s (Linux,
+  where 127/8 is the loopback). Planted, each answer awaited before the first is taken: the last
+  test failed on its time. The words of each answer (`doctor::quick`), 34 passed with doctor's
+  others. Here, with the session's proxy set: "UDP out: a proxy is set, and no proxy carries UDP,
+  so podssh node --quick-tunnel takes HTTP/2 and sends no UDP". The flag's help, the MCP tool's
+  `full`, the manual's notes and `docs/cli.md` say it; `--test flag_table --test man_page --test
+  doctor --test mcp` passed. `quick-tunnel-live.yml` checks both answers of Cloudflare's edge with
+  `doctor --full`, and its run is to come.
+- Found on the way, in T-301's loop over QUIC: a close or a silence of the connection could read
+  as a control stream that ended (the test of the edge's close and silence, one run in six); and a
+  handshake's timeout had two sets of words. Both repaired (T-301's Done).
 - The box (UDP refused) and a box that drops UDP wait for T-251.
 
 # T-363: The direct road is never tried after the relay hosts fail, though the road table says that a probe chooses it
@@ -4376,3 +4424,52 @@ refused on the runner.
 
 T-352 is done: WARP's road, on which this road runs. The operator allowed it on 2026-10-31 (Q52,
 `docs/decisions.md`).
+
+# T-378: The quick tunnel's loop over HTTP/2 may read the connection's end as its control stream's
+
+**Source:** T-359's tests, 2026-10-31: the same race in the loop over QUIC, found and repaired
+(T-301's Done).
+**Category:** defect
+**Milestone:** backlog
+**Priority:** P3
+**Effort:** S
+**Status:** open
+
+## Problem
+
+When the edge closes a connection over HTTP/2, or the connection falls silent, the connection's
+accept and the control stream's read can both see it. The loop takes the first of the two that
+comes, and a control stream that ended returns its own end, not the connection's close or
+silence. Over QUIC this happened one run in six; over HTTP/2 no test ends the connection while
+the control stream reads, so it is not measured. A wrong end gives the node's operator a wrong
+line. P3: the node connects again either way, and only its words differ.
+
+## Premise
+
+- Read: the loop over HTTP/2 returns `Ended::Http2` or `Ended::Closed` from the connection's
+  accept (`crates/podssh-relay/src/quick/serve.rs:181-182`), and `Ended::Control` from the control
+  stream's failure (`crates/podssh-relay/src/quick/serve.rs:197`), in one `tokio::select!`
+  (`crates/podssh-relay/src/quick/serve.rs:184`).
+- Read: the loop over QUIC had the same two arms, and a close or a silence read as the control
+  stream's end one run in six, until the control stream's failure took the connection's reason
+  (T-301's Done, 2026-10-31).
+- Inferred, not measured: h2 wakes the connection's task and each stream's when the connection
+  ends, so either arm can come first.
+
+## Approach
+
+1. A test of the loop over HTTP/2 (`crates/podssh-relay/tests/quick_tunnel.rs`) that ends the
+   connection, by a close and by a silence, while the control stream reads; run it 20 times.
+2. If it fails: a control stream that fails while the connection has ended takes the connection's
+   end. h2 gives a stream no reason of its connection, so the loop polls the connection once
+   more, within a bound, before it says the control stream's end.
+
+## Prove
+
+```sh
+export CARGO_BUILD_JOBS=4
+for i in $(seq 1 20); do cargo test -p podssh-relay --features quick --test quick_tunnel || break; done
+```
+
+Each of the 20 runs passes, with the test of step 1 among them. If step 2 was needed: with it
+planted away, the test fails within the 20 runs.

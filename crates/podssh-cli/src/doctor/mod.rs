@@ -137,6 +137,9 @@ pub fn run_doctor(args: &DoctorArgs, out: &mut dyn Write, err: &mut dyn Write) -
 
 async fn network(report: &mut Report<'_>, relays: &RelayList, trust: &Trust, failover: Mode, full: bool) {
     net::check_network(report, relays).await;
+    // Whether UDP reaches the quick tunnel's edge, Cloudflare's, with --full
+    // alone (T-359).
+    quick::udp_out(report, full).await;
     report.section("relay");
     relay_checks::check(report, relays, trust, failover, full).await;
     #[cfg(feature = "iroh")]

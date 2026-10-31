@@ -1360,6 +1360,14 @@ and no `--timeout`: a person decides how long an edit takes.
   No pty request is tested (GitHub refuses the key before a channel), and
   the binary runs no OpenSSH: `scripts/sandbox-check.sh` keeps that step,
   and calls `doctor --full`.
+- `UDP out` (T-359) says whether `podssh node --quick-tunnel` takes QUIC:
+  with a proxy set, nothing is sent, as the node then takes HTTP/2; with
+  none, `--full` makes a QUIC handshake with the quick tunnel's edge,
+  Cloudflare's, as the node's first try makes one, each region at once,
+  and closes it with nothing registered. A run without `--full` reaches no
+  server of Cloudflare's, and says so. In a build with the feature `iroh`,
+  `iroh UDP out` gives the iroh road's own answer: whether a QUIC address
+  discovery to its home relay came back.
 - `--json` writes the same report as one JSON object, when every check has
   run (GitHub #9): `schema` (1), `podssh`, `os`, `arch`, `checks` (each
   with `section`, `check`, `status` and `detail`; `status` is `ok`, `FAIL`

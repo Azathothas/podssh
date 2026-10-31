@@ -55,7 +55,7 @@ pub fn list(settings: &Settings) -> Vec<Value> {
         "description": "podssh doctor --json: what this host allows (outbound TLS, DNS, a proxy) and whether the relay \
              works, with ok, FAIL or ???? for each check, as one JSON object.",
         "inputSchema": object(json!({
-            "full": { "type": "boolean", "description": "also log in to github.com through the relay, with a key made for the check" },
+            "full": { "type": "boolean", "description": "also log in to github.com through the relay, with a key made for the check, and, with no proxy set, make a QUIC handshake with the quick tunnel's edge" },
         })),
         "annotations": { "readOnlyHint": true, "openWorldHint": true },
     }));

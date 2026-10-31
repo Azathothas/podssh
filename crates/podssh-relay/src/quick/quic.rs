@@ -15,7 +15,10 @@ use std::time::Duration;
 use hmac::{Hmac, Mac};
 use noq::crypto::rustls::QuicClientConfig;
 use noq::crypto::{CryptoError, HmacKey};
-use noq::{ClientConfig, Connection, Endpoint, EndpointConfig, IdleTimeout, TokioRuntime, TransportConfig, VarInt};
+use noq::{
+    ClientConfig, Connection, ConnectionError, Endpoint, EndpointConfig, IdleTimeout, TokioRuntime, TransportConfig,
+    VarInt,
+};
 use podssh_ws::tls::TlsRoots;
 use sha2::Sha256;
 
@@ -132,8 +135,12 @@ pub async fn connect(
     let connecting = endpoint.connect_with(config, addr, server_name).map_err(|e| format!("{addr}: {e}"))?;
     match tokio::time::timeout(HANDSHAKE_WAIT, connecting).await {
         Ok(Ok(connection)) => Ok(connection),
+        // QUIC's own limit of a silence is the handshake's wait too, and
+        // either can end it first: one fact, in one set of words.
+        Ok(Err(ConnectionError::TimedOut)) | Err(_) => {
+            Err(format!("{addr}: no answer over QUIC within {} s", HANDSHAKE_WAIT.as_secs()))
+        }
         Ok(Err(e)) => Err(format!("{addr}: QUIC: {e}")),
-        Err(_) => Err(format!("{addr}: no answer over QUIC within {} s", HANDSHAKE_WAIT.as_secs())),
     }
 }
 
@@ -189,6 +196,53 @@ pub async fn connect_edge(found: &edge::Edge) -> Result<EdgeConnection, String> 
                 Ok(connection) => return Ok(EdgeConnection { endpoint, connection }),
                 Err(e) => failed.push(format!("{region} {e}")),
             }
+        }
+    }
+    Err(format!("no region of the edge answered over QUIC: {}", failed.join("; ")))
+}
+
+/// How long a handshake's close may take to leave, before its endpoint goes.
+const CLOSE_WAIT: Duration = Duration::from_millis(500);
+
+/// A QUIC handshake with the edge, as `podssh doctor` asks it (T-359): the
+/// first address of each family of each region of `found`, all at once, where
+/// [`connect_edge`] tries them in turn, each within the handshake's wait. The
+/// address that answered first and the time that its handshake took, the
+/// connection closed at once with nothing registered; else why none answered.
+pub async fn handshake(found: &edge::Edge, tls: Arc<rustls::ClientConfig>) -> Result<(SocketAddr, Duration), String> {
+    let mut tries = tokio::task::JoinSet::new();
+    let mut failed = Vec::new();
+    for region in &found.regions {
+        let deadline = tokio::time::Instant::now() + edge::DIAL_LIMIT;
+        let addrs = match podssh_ws::resolve::resolve(region, found.port, deadline).await {
+            Ok(addrs) => addrs,
+            Err(e) => {
+                failed.push(format!("{region}: {e}"));
+                continue;
+            }
+        };
+        let firsts = [addrs.iter().find(|a| a.is_ipv4()), addrs.iter().find(|a| a.is_ipv6())];
+        for addr in firsts.into_iter().flatten().copied() {
+            let (region, tls) = (region.clone(), tls.clone());
+            tries.spawn(async move {
+                let socket = endpoint(addr.is_ipv6())?;
+                let began = tokio::time::Instant::now();
+                let connection = connect(&socket, addr, SERVER_NAME, tls).await.map_err(|e| format!("{region} {e}"))?;
+                let took = began.elapsed();
+                connection.close(VarInt::from_u32(0), b"");
+                let _ = tokio::time::timeout(CLOSE_WAIT, socket.wait_idle()).await;
+                Ok::<_, String>((addr, took))
+            });
+        }
+    }
+    while let Some(joined) = tries.join_next().await {
+        match joined {
+            Ok(Ok(answered)) => {
+                tries.abort_all();
+                return Ok(answered);
+            }
+            Ok(Err(why)) => failed.push(why),
+            Err(e) => failed.push(e.to_string()),
         }
     }
     Err(format!("no region of the edge answered over QUIC: {}", failed.join("; ")))

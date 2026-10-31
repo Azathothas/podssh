@@ -338,3 +338,63 @@ async fn an_edge_that_closes_and_one_that_falls_silent_end_the_connection() {
     assert!(matches!(served, Err(Ended::Silent)), "{served:?}");
     assert!(took >= quic::SILENCE - std::time::Duration::from_secs(1) && took < quic::SILENCE * 2, "{took:?}");
 }
+
+/// The edge as `podssh doctor` probes it (T-359): one region at `host`.
+fn found(hosts: &[&str], port: u16) -> podssh_relay::quick::edge::Edge {
+    podssh_relay::quick::edge::Edge { regions: hosts.iter().map(|h| h.to_string()).collect(), port, fixed: None }
+}
+
+#[tokio::test(flavor = "multi_thread")]
+async fn doctors_handshake_answers_and_closes_with_nothing_registered() {
+    let (edge, addr, roots) = edge();
+    let region = found(&["127.0.0.1"], addr.port());
+    let probe = tokio::spawn(async move { quic::handshake(&region, quic::tls(&roots).unwrap()).await });
+    let incoming = timeout(LIMIT, edge.accept()).await.unwrap().expect("a connection");
+    let at_edge = timeout(LIMIT, incoming).await.unwrap().expect("the handshake");
+    let (answered, took) = timeout(LIMIT, probe).await.unwrap().unwrap().expect("an answer");
+    assert_eq!(answered, addr);
+    assert!(took < quic::HANDSHAKE_WAIT, "{took:?}");
+    // Closed at once, with no stream: nothing is registered at the edge.
+    assert!(timeout(LIMIT, at_edge.accept_bi()).await.expect("an end in time").is_err(), "a stream was opened");
+    let closed = timeout(LIMIT, at_edge.closed()).await.expect("closed in time");
+    assert!(matches!(closed, noq::ConnectionError::ApplicationClosed(_)), "{closed:?}");
+}
+
+#[tokio::test(flavor = "multi_thread")]
+async fn doctors_handshake_with_a_silent_edge_says_that_none_answered() {
+    // A port that takes each datagram and answers none, as a network that
+    // drops UDP further on.
+    let silent = UdpSocket::bind((Ipv4Addr::LOCALHOST, 0)).unwrap();
+    let (_edge, _, roots) = edge();
+    let region = found(&["127.0.0.1"], silent.local_addr().unwrap().port());
+    let started = std::time::Instant::now();
+    let why = timeout(LIMIT, quic::handshake(&region, quic::tls(&roots).unwrap()))
+        .await
+        .unwrap()
+        .expect_err("no answer from a silent edge");
+    let took = started.elapsed();
+    assert!(why.contains("no region of the edge answered over QUIC") && why.contains("within 5 s"), "{why}");
+    let wait = quic::HANDSHAKE_WAIT;
+    assert!(took >= wait - std::time::Duration::from_millis(100) && took < wait * 2, "{took:?}");
+    drop(silent);
+}
+
+/// The regions at once, where the node tries them in turn: a silent first
+/// region costs doctor no wait. Linux only, where all of 127/8 is the
+/// loopback.
+#[cfg(target_os = "linux")]
+#[tokio::test(flavor = "multi_thread")]
+async fn doctors_handshake_tries_the_regions_at_once() {
+    let (edge, addr, roots) = edge();
+    let silent = UdpSocket::bind((Ipv4Addr::new(127, 0, 0, 2), addr.port())).unwrap();
+    let regions = found(&["127.0.0.2", "127.0.0.1"], addr.port());
+    let started = std::time::Instant::now();
+    let probe = tokio::spawn(async move { quic::handshake(&regions, quic::tls(&roots).unwrap()).await });
+    let incoming = timeout(LIMIT, edge.accept()).await.unwrap().expect("a connection");
+    let _at_edge = timeout(LIMIT, incoming).await.unwrap().expect("the handshake");
+    let (answered, _) = timeout(LIMIT, probe).await.unwrap().unwrap().expect("an answer");
+    let took = started.elapsed();
+    assert_eq!(answered, addr, "the region that answers, not the silent one");
+    assert!(took < quic::HANDSHAKE_WAIT, "the silent region was waited for: {took:?}");
+    drop(silent);
+}
