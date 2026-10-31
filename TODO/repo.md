@@ -4182,7 +4182,7 @@ fallback of NASM).
 **Milestone:** none
 **Priority:** P1
 **Effort:** M
-**Status:** partial
+**Status:** done
 
 ## Problem
 
@@ -4274,33 +4274,55 @@ pinned image.
 
 ## Done
 
-2026-10-31, partial. The commits, read again at each repository's release
-API through forge.web.pkgforge.dev on 2026-10-31, each the commit of its
-major tag that day: `actions/checkout` v7.0.1
-`3d3c42e5aac5ba805825da76410c181273ba90b1`, `actions/upload-artifact`
-v7.0.2 `cf430e030ddbb5b0abf93d22962f4752f3646cd9`,
-`actions/download-artifact` v8.0.2
-`9000827ccba6bdab643e8b6fd33ac0654aef8333`, `taiki-e/install-action`
-v2.88.1 `68a389c788b2cd04016ce8c80ee23b80d2ab3d68` (T-210 read v2.88.0),
-`ilammy/setup-nasm` v1.5.2 `72793074d3c8cdda771dba85f6deafe00623038b` (an
-annotated tag). binfmt: Docker Hub's `latest` is `qemu-v10.2.3`, index
-`sha256:400a4873b838d1b89194d982c45e5fb3cda4593fbfd7e08a02e76b03b21166f0`.
+2026-10-31. Each action that a workflow runs is named by its commit, and the
+job that attests, signs and publishes runs no tool of a third party:
 
-Done here, not yet run on GitHub: each `uses:` of the 13 workflows pinned
-(43 lines; the attestation's and cosign's were); the check of
-`scripts/check-repo.py` (47 uses read, all pinned; the copy of `deny.yml`
-with `actions/checkout@v7` failed it with its line; `--plant-empty` exit 1,
-each of the 8 checks failing); `images/binfmt/Dockerfile` and
-`scripts/binfmt.sh`, which mounts `binfmt_misc` where no init system did
-(this host: a handler registered with none mounted lived only in its
-container), and here, from a clean state, registered `qemu-riscv64` from the
-pinned image (Docker Hub answered 429, and `mirror.gcr.io` served the same
-digest), and beta.2's published riscv64 binary then ran on this x86-64 host
-(`podssh 1.0.0-beta.2 (f7f97a58c5bc4940a886f7bc64ea3976798d0b7b)`); planted,
-an install of another architecture, the script failed (exit 1, "the kernel
-lists no /proc/sys/fs/binfmt_misc/qemu-riscv64"); the job `notes`; NASM's
-fallback with the input `nasm`; `docs/development.md`. Next: push, then the
-release workflow by hand with `nasm=prebuilt`.
+- The commits, read again at each repository's release API through
+  forge.web.pkgforge.dev, each the commit of its major tag that day:
+  `actions/checkout` v7.0.1 `3d3c42e5aac5ba805825da76410c181273ba90b1`,
+  `actions/upload-artifact` v7.0.2 `cf430e030ddbb5b0abf93d22962f4752f3646cd9`,
+  `actions/download-artifact` v8.0.2
+  `9000827ccba6bdab643e8b6fd33ac0654aef8333`, `taiki-e/install-action`
+  v2.88.1 `68a389c788b2cd04016ce8c80ee23b80d2ab3d68` (T-210 read v2.88.0),
+  `ilammy/setup-nasm` v1.5.2 `72793074d3c8cdda771dba85f6deafe00623038b` (an
+  annotated tag). 43 uses pinned in the 13 workflows, each with its tag in a
+  comment.
+- `scripts/check-repo.py` fails a `uses:` that names no commit: 47 read, all
+  pinned; the copy of `deny.yml` with `actions/checkout@v7` failed it with its
+  line; `python scripts/check-repo.py --plant-empty` exit 1, each of the 8
+  checks failing on an empty tree.
+- binfmt: `images/binfmt/Dockerfile` (`qemu-v10.2.3`, index
+  `sha256:400a4873b838d1b89194d982c45e5fb3cda4593fbfd7e08a02e76b03b21166f0`,
+  Docker Hub's `latest` that day), in Dependabot's list, and
+  `scripts/binfmt.sh`, which mounts `binfmt_misc` where no init system did:
+  on this host a handler registered with none mounted lived only in its
+  container. Here, from a clean state, it registered `qemu-riscv64` from the
+  pinned image (Docker Hub answered 429; `mirror.gcr.io` served the same
+  digest), and beta.2's published riscv64 binary then ran on this x86-64 host
+  (`podssh 1.0.0-beta.2 (f7f97a58c5bc4940a886f7bc64ea3976798d0b7b)`).
+  Planted, an install of another architecture: the script failed, exit 1,
+  "the kernel lists no /proc/sys/fs/binfmt_misc/qemu-riscv64".
+- The job `notes` (`contents: read`) installs cargo-about and git-cliff and
+  uploads `THIRD-PARTY-LICENSES.md` and the list of the commits; `publish`
+  downloads them, and runs `actions/checkout`, `actions/download-artifact`,
+  `actions/attest`, Sigstore's `cosign-installer` and
+  `actions/upload-artifact`, each pinned, and no other tool. The checksums
+  cover the binaries, as before.
+- NASM: when `setup-nasm` cannot set it up, aws-lc takes its prebuilt objects
+  (`AWS_LC_SYS_PREBUILT_NASM=1`), with a warning, in the release and in CI's
+  Windows jobs; the release's input `nasm=prebuilt` asks for them.
+- `docs/development.md` ("Release builds") says which actions each job runs,
+  and why `publish` runs no other tool.
+- The Prove: the release workflow by hand with `nasm=prebuilt` at `33d8253`
+  (run 41166843026, 04:01 to 04:15 UTC), each job passed: `notes` made
+  `THIRD-PARTY-LICENSES.md` (400,567 bytes) and the list of 29 commits;
+  `publish` downloaded them, ran no tool, and kept the files and the body as
+  the artifact `release-dry-run`; the riscv64 job's "QEMU for riscv64" ran
+  `scripts/binfmt.sh`, and the binary ran under it; the Windows x86-64 job
+  skipped `setup-nasm`, built with the prebuilt objects, and its binary needs
+  no C runtime DLL and ran its release check. The armv7 runner ran 32-bit ARM
+  itself, so that job's QEMU step did not run (its own branch of the script is
+  the riscv64 one with `arm`).
 
 # T-341: Nothing watches the upstreams of the vendored crates
 
