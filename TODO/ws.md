@@ -1618,7 +1618,7 @@ command says what to do. Four of the eight release binaries are for Windows and 
 - Read: `windows-sys` 0.61 is already a dependency of `podssh-relay` on Windows
   (`crates/podssh-relay/Cargo.toml:67-68`), a crate with no C; `rustls-native-certs` 0.8.4,
   `schannel` and `security-framework` are in the lock through other crates
-  (`Cargo.lock:4823-4824`).
+  (`Cargo.lock:4826-4827`).
 - Read: one proxy that re-terminates TLS was measured, with its CA in `SSL_CERT_FILE` and in the
   system's store of Linux (`docs/target-environment.md:57-63`).
 - Inferred: on macOS, `/etc/ssl/cert.pem` lacks a root that an administrator added to a keychain;
@@ -1924,7 +1924,15 @@ test of the order fails.
   failed it.
 - The live run (less than 5 minutes) cannot run on this host: its sandbox answers TLS to any
   address with a certificate for `default.domain`, which podssh refused for each of the six. It
-  runs in GitHub Actions, `.github/workflows/doh-live.yml`, by hand: UNVERIFIED until its run.
+  runs in GitHub Actions, `.github/workflows/doh-live.yml`, by hand. Its first run (41203490598,
+  at `298761e`) found a defect that no test here could: the four of Cloudflare and Google answered
+  in each form, and Quad9 answered `HTTP 505`, as it serves HTTP/2 alone (curl through this host's
+  proxy: 505 to HTTP/1.1, 200 to HTTP/2). Repaired: a resolver marked `http2` is asked over HTTP/2
+  with ALPN `h2` (`crates/podssh-ws/src/resolve/h2.rs`, h2's client, pure Rust), directly and
+  through a proxy. `cargo test -p podssh-ws --test doh_h2` passed 3 against h2's own server behind
+  TLS: Quad9's captured answer came whole and decoded, a server of HTTP/1.1 alone was refused before
+  a request, an answer over the bound was refused; planted, no ALPN offered, the two that need an
+  answer failed. podssh-ws, 254 passed; clippy clean. Its second run: UNVERIFIED.
 - Waits for T-251: `dns_wire` for 120 s in `fuzz.yml` (UNVERIFIED).
 
 # T-345: Only `doctor` names the clock when a certificate has expired or is not valid yet
@@ -1950,7 +1958,7 @@ and each other command print rustls's words alone. An error should tell what to 
 - Read: the other commands print the error's text: `crates/podssh-ws/src/client.rs:133` says "TLS
   with the relay failed: {why}"; the TLS of IRC and of the quick tunnel's edge gives the text of
   `crates/podssh-ws/src/tls.rs:151` (`crates/podssh-relay/src/quick/edge.rs:111-113`).
-- Read: rustls 0.23.46 (`Cargo.lock:4773-4774`) has the errors `Expired`, `ExpiredContext`,
+- Read: rustls 0.23.46 (`Cargo.lock:4776-4777`) has the errors `Expired`, `ExpiredContext`,
   `NotValidYet` and `NotValidYetContext`, and writes the two with a context as "certificate
   expired: verification time" and "certificate not valid yet: verification time" (its
   `src/error.rs`, read in cargo's registry); doctor's match of the text ("expired", "not valid
@@ -1966,7 +1974,7 @@ and each other command print rustls's words alone. An error should tell what to 
    with this host's clock in UTC, in doctor's words.
 2. Each place where podssh-ws makes the text of a TLS error uses it: `ConnectError::Tls`
    (`crates/podssh-ws/src/client.rs:204`), `tls::connect_over` (`crates/podssh-ws/src/tls.rs:151`)
-   and the query of DNS over HTTPS (`crates/podssh-ws/src/resolve.rs:150-153`). doctor's `clock_hint`
+   and the query of DNS over HTTPS (`crates/podssh-ws/src/resolve.rs:155-158`). doctor's `clock_hint`
    calls it, so that the words are the same.
 3. Tests through a stand-in relay with an expired certificate: `podssh ssh`, `podssh proxy` and
    `podssh cp` each name the clock and its reading.
@@ -2072,7 +2080,7 @@ host has.
 - Read: with no proxy, `doctor` reaches addresses already: DNS over HTTPS to the resolvers'
   address literals (`crates/podssh-cli/src/doctor/net.rs:294-365`;
   `crates/podssh-ws/src/resolve.rs:28-32`), each checked by TLS for its address
-  (`crates/podssh-ws/src/resolve.rs:143-153`).
+  (`crates/podssh-ws/src/resolve.rs:148-158`).
 - Read: the proxy of the measured sandbox gave `200` for public names on ports 443, 80 and 8443,
   and `403 not a public host` for private and metadata addresses
   (`docs/target-environment.md:21`); no public address literal was asked. The box's proxy

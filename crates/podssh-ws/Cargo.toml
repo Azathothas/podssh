@@ -27,6 +27,12 @@ rsa = { workspace = true }
 rand = { workspace = true }
 base64 = { workspace = true }
 zeroize = { workspace = true }
+# DNS over HTTPS to a resolver that serves HTTP/2 alone, as Quad9 does
+# (resolve/h2.rs, T-344): h2 and its types, pure Rust, in the lock already
+# through the quick tunnel of podssh-relay.
+h2 = "0.4.19"
+http = "1.5"
+bytes = "1.12"
 # DNS-over-HTTPS answers are JSON (resolve.rs).
 serde_json = { workspace = true }
 

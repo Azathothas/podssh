@@ -31,6 +31,7 @@ use crate::dial::ProxyChoice;
 use crate::http;
 use crate::tls::{self, Trust};
 
+pub mod h2;
 mod memory;
 mod order;
 pub mod wire;
@@ -48,18 +49,22 @@ pub struct Doh {
     pub json: Option<&'static str>,
     /// The path of RFC 8484's wire form (`?dns=...`).
     pub wire: &'static str,
+    /// Whether it serves HTTP/2 alone, so that it is asked over HTTP/2
+    /// (`resolve/h2.rs`): Quad9 answered HTTP/1.1 with `505`.
+    pub http2: bool,
 }
 
 /// The resolvers, in order: Cloudflare's and Google's, two addresses each,
 /// the operators taking turns, then Quad9's two, which serve the wire form
-/// alone (Quad9 answered the JSON API's query with 400, 2026-10-31).
+/// alone (Quad9 answered the JSON API's query with 400, 2026-10-31), over
+/// HTTP/2 alone (505 to HTTP/1.1, the same day).
 pub const DOH_RESOLVERS: &[Doh] = &[
-    Doh { ip: "1.1.1.1", json: Some("/dns-query"), wire: "/dns-query" },
-    Doh { ip: "8.8.8.8", json: Some("/resolve"), wire: "/dns-query" },
-    Doh { ip: "1.0.0.1", json: Some("/dns-query"), wire: "/dns-query" },
-    Doh { ip: "8.8.4.4", json: Some("/resolve"), wire: "/dns-query" },
-    Doh { ip: "9.9.9.9", json: None, wire: "/dns-query" },
-    Doh { ip: "149.112.112.112", json: None, wire: "/dns-query" },
+    Doh { ip: "1.1.1.1", json: Some("/dns-query"), wire: "/dns-query", http2: false },
+    Doh { ip: "8.8.8.8", json: Some("/resolve"), wire: "/dns-query", http2: false },
+    Doh { ip: "1.0.0.1", json: Some("/dns-query"), wire: "/dns-query", http2: false },
+    Doh { ip: "8.8.4.4", json: Some("/resolve"), wire: "/dns-query", http2: false },
+    Doh { ip: "9.9.9.9", json: None, wire: "/dns-query", http2: true },
+    Doh { ip: "149.112.112.112", json: None, wire: "/dns-query", http2: true },
 ];
 
 /// The bound on one resolver's answers, inside the caller's overall deadline.
@@ -266,7 +271,7 @@ async fn ask_direct(
     kind: &str,
 ) -> Result<Vec<IpAddr>, Miss> {
     let target = resolver.target(form, host, kind).map_err(Miss::Way)?;
-    let response = get_direct(config, resolver.ip, &target, form.accept()).await.map_err(Miss::Way)?;
+    let response = get_direct(config, resolver, &target, form.accept()).await.map_err(Miss::Way)?;
     read(&response, |body| match (form, wire::code(kind)) {
         (Form::Json, _) => parse_answer(body, kind),
         (Form::Wire, Some(code)) => wire::addrs(body, host, code),
@@ -274,20 +279,24 @@ async fn ask_direct(
     })
 }
 
-/// GET `target` of the resolver at `ip`: TCP within [`DOH_CONNECT`], then
-/// TLS verified for that address.
+/// GET `target` of `resolver`: TCP within [`DOH_CONNECT`], then TLS
+/// verified for its address, and HTTP/2 where it serves no HTTP/1.1.
 async fn get_direct(
     config: &Arc<ClientConfig>,
-    ip: &str,
+    resolver: &Doh,
     target: &str,
     accept: &str,
 ) -> Result<http::Response, String> {
+    let ip = resolver.ip;
     let name = rustls_pki_types::ServerName::try_from(ip.to_string()).map_err(|e| e.to_string())?;
     let addr: IpAddr = ip.parse().map_err(|_| format!("{ip} is not an IP"))?;
     let tcp = tokio::time::timeout(DOH_CONNECT, TcpStream::connect(SocketAddr::new(addr, 443)))
         .await
         .map_err(|_| format!("no connection within {} s", DOH_CONNECT.as_secs()))?
         .map_err(|e| e.to_string())?;
+    if resolver.http2 {
+        return h2::get_over(config, tcp, ip, target, accept, MAX_ANSWER).await;
+    }
     let mut stream = tokio_rustls::TlsConnector::from(config.clone())
         .connect(name, tcp)
         .await
@@ -374,18 +383,24 @@ pub async fn doh_srv(name: &str, proxy: &ProxyChoice, deadline: Instant) -> Resu
                 return Err(reasons.join("; "));
             }
             let target = resolver.target(form, name, "SRV")?;
-            let answer = crate::client::https_get_accepting(
-                ip,
-                443,
-                &target,
-                form.accept(),
-                MAX_ANSWER,
-                &Trust::Default,
-                proxy,
-                left,
-            )
-            .await;
-            let records = answer.map_err(|e| Miss::Way(e.to_string())).and_then(|response| {
+            let answer = if resolver.http2 {
+                let config = crate::tls::config_for(&Trust::Default).map_err(|e| e.to_string())?;
+                h2::get_via(&config, ip, &target, form.accept(), MAX_ANSWER, proxy, left).await.map_err(Miss::Way)
+            } else {
+                crate::client::https_get_accepting(
+                    ip,
+                    443,
+                    &target,
+                    form.accept(),
+                    MAX_ANSWER,
+                    &Trust::Default,
+                    proxy,
+                    left,
+                )
+                .await
+                .map_err(|e| Miss::Way(e.to_string()))
+            };
+            let records = answer.and_then(|response| {
                 read(&response, |body| match form {
                     Form::Json => parse_srv(body),
                     Form::Wire => wire::srv(body, name),
