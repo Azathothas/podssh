@@ -1,6 +1,6 @@
-//! The notes of `podssh pipe` (T-174 to T-177, T-181, T-168), and of its
-//! proxy `http-listen:` (T-367), apart from the others so that each file
-//! stays short.
+//! The notes of `podssh pipe` (T-174 to T-177, T-181, T-168), of its proxy
+//! `http-listen:` (T-367) and of its WebSockets (T-368), apart from the
+//! others so that each file stays short.
 
 pub const PIPE: &[&str] = &[
     "podssh pipe A B joins two byte streams, as socat does, with no listener unless one side asks for \
@@ -38,6 +38,22 @@ pub const PIPE: &[&str] = &[
      challenge, and nothing is dialed. A port on an ADDR that is not loopback needs the file (64): other \
      hosts reach it, and each request spends this host's road. The bytes that a client sends after its \
      CONNECT, before the 200, go to the road once it is open.",
+    "ws://HOST[:PORT]/PATH and wss://HOST[:PORT]/PATH are a WebSocket by the URL that a user copies, \
+     reached through HTTPS_PROXY when it is set: wss: checks the certificate for HOST with the trust of \
+     --ca-file, and ws: is in the clear, as tcp: is. No token goes on them; the path and its query are the \
+     user's, and podssh's lines show the URL without its query. Bytes go out in binary frames, and text and \
+     binary frames come in as bytes. At the end of this side's input podssh sends a Close, and what the \
+     other end sends before its own Close still comes; the other end's Close ends the pipe, and a code other \
+     than 1000 is on stderr with its reason (69). A refused upgrade gives its status: 77 for 401 and 403, \
+     else 69.",
+    "ws-listen:[ADDR:]PORT or ws-listen:PATH is a WebSocket server, by the rules of tcp-listen: and \
+     unix-listen:, whose clients are joined to the other side as given. A client's upgrade is checked as \
+     RFC 6455 asks (GET, Upgrade, Connection, version 13, a key of 16 bytes) and refused with its status \
+     (405, 400, 426); a request with an Origin is a browser's, and is refused (403), so that no page that \
+     the user opens reaches the other side. The other side opens before the client hears 101, and 502 when \
+     it does not. podssh's frames are a server's, unmasked, and a client's unmasked frame closes the \
+     session with 1002. One client by default, the first whose upgrade is good; --keep-listening takes \
+     each in turn.",
     "The hops of ssh: log in as podssh ssh logs in: through the relay, or with --direct, with -i and \
      -o; an -o of a session (RequestTTY, RemoteCommand) is refused. node: takes the pair stored under \
      NAME, or the one of --pair-file. iroh: takes this client's key of --iroh-key, and the relays of \

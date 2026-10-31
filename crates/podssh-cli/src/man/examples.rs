@@ -177,6 +177,10 @@ fn examples() -> Vec<(&'static str, String)> {
             "podssh pipe http-listen:3128 relay:%h:%p".into(),
         ),
         (
+            "a WebSocket of another service on stdin and stdout, by its URL, as websocat joins one",
+            "podssh pipe stdio wss://ws.example.org/socket".into(),
+        ),
+        (
             "offer a service of this host to an operator outside: a pair, with its operator's part in a file",
             "podssh relay pair lab --operator-file lab-operator.json".into(),
         ),

@@ -1954,10 +1954,11 @@ commands. The rules behind them:
   `ssh:[USER@]HOP[,HOP...],HOST:PORT`, `node:NAME`, `udp:node:NAME` (T-168)
   and `iroh:TICKET`; or a local socket (T-176), `unix-connect:PATH`; or a
   serial line (T-181), `serial:PATH[,BAUD]`; or, on one side at most, a
-  listener (T-177): `unix-listen:PATH` or `tcp-listen:[ADDR:]PORT`, or an
-  HTTP CONNECT proxy (T-367), `http-listen:`. Both addresses are checked
-  before anything starts; an unknown kind is a usage error (64) that lists
-  the kinds.
+  listener (T-177): `unix-listen:PATH` or `tcp-listen:[ADDR:]PORT`, an
+  HTTP CONNECT proxy (T-367), `http-listen:`, or a WebSocket server
+  (T-368), `ws-listen:`; or a WebSocket by its URL (T-368), `ws://` or
+  `wss://`. Both addresses are checked before anything starts; an unknown
+  kind is a usage error (64) that lists the kinds.
 - **A listener only when asked, and only where a probe allows it** (the
   operator's ruling of 2026-10-08). `PODSSH_LISTEN=no` turns listening off:
   a listening address then exits 78 before any bind. The bind itself is
@@ -2016,6 +2017,42 @@ commands. The rules behind them:
   needs the file (64): scanners find an open proxy, and each request would
   spend this host's road. With `ssh:`, each request logs in anew; `podssh
   ssh -D` keeps one connection for many SOCKS clients.
+- **A WebSocket by its URL, with no token** (T-368, GitHub #76).
+  `wss://HOST[:PORT]/PATH` and `ws://HOST[:PORT]/PATH`, the URL as a user
+  copies it for websocat (the form `wss:HOST:PORT/PATH` is refused with the
+  URL's, 64): TLS checked for HOST with podssh's trust and `--ca-file`, or
+  plain TCP, through `HTTPS_PROXY` as each road. The dial of podssh-ws
+  (`podssh_ws::url`) sends no `X-Relay-Token`, no `Origin`, no subprotocol
+  and no extension; the path and its query are the user's, sent as written
+  but for a byte that is not ASCII (percent-encoded), and CR, LF, a space
+  and a control character are refused (64), as is a user or a password in
+  the URL, as a credential does not go in a URL. `ws:` is in the clear, as
+  `tcp:` is: the rule of `plain-ws` is for the relay's token, which never
+  goes on this road. podssh's lines show the URL without its query. Bytes
+  go out in binary frames of 32 KiB at most; text and binary frames come
+  in as bytes. At the end of this side's input podssh sends a Close 1000,
+  and what the other end sends before its own Close still comes (RFC 6455
+  section 5.5.1); the other end's Close is answered at once and ends the
+  pipe, and a code other than 1000 gives its code and its reason on stderr
+  and 69. Pings every 10 s find a link that died, as on the relay's road.
+  A refused upgrade gives its status: 77 for 401 and 403, 69 else.
+- **A WebSocket server** (T-368). `ws-listen:[ADDR:]PORT` and
+  `ws-listen:PATH` listen by the rules of `tcp-listen:` and `unix-listen:`
+  (the same probe, `PODSSH_LISTEN`, the mode 0600 and the peer's user), and
+  each client is joined to the other side as given: the request names no
+  target, as podssh is no public forwarder. A client's request is read as
+  `http-listen:` reads one, and checked as RFC 6455 section 4.2.1 asks (GET
+  405, HTTP/1.1 and a Host 400, `Upgrade: websocket` and `Connection:
+  Upgrade` 426, version 13 426 with `Sec-WebSocket-Version: 13`, a key of 16
+  bytes 400); a request with an `Origin` is a browser's and gets 403, so
+  that a page that the user opens cannot reach the other side. The other
+  side opens next, and the client hears `101` with `Sec-WebSocket-Accept`
+  once it is open, or 502. Then podssh writes frames as a server, unmasked,
+  and takes only masked ones: an unmasked frame of the client closes the
+  session with 1002. One client by default, the first whose upgrade is
+  good (a refused request is no session); `--keep-listening` takes each in
+  turn. No `wss-listen:`: a server of TLS would need a certificate and a
+  key of the user's.
 - **A local socket, by its name.** `unix-connect:PATH` connects, which the
   rule of no listener allows; `@NAME` is Linux's abstract namespace. A name
   that does not fit a socket's address is refused first (64). A missing

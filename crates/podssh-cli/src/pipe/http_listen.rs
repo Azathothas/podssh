@@ -14,7 +14,7 @@ use std::io::Write;
 use std::rc::Rc;
 use std::time::Duration;
 
-use podssh_ws::http::request::{self, RequestError};
+use podssh_ws::http::request::{self, Request, RequestError};
 use tokio::io::{AsyncReadExt, AsyncWriteExt};
 
 use super::address::Address;
@@ -90,14 +90,27 @@ pub fn reach_line(listener: &Listener, at: &Address, credentials: Option<&Creden
 }
 
 /// A request that is refused: its answer, when a client is there to read
-/// one, and podssh's line.
-struct Refused {
-    answer: Option<Vec<u8>>,
-    line: String,
+/// one, and podssh's line. `ws-listen:` refuses with it too (T-368).
+pub(super) struct Refused {
+    pub(super) answer: Option<Vec<u8>>,
+    pub(super) line: String,
 }
 
-fn refuse(status: u16, words: &str, headers: &[(&str, &str)], line: String) -> Refused {
+pub(super) fn refuse(status: u16, words: &str, headers: &[(&str, &str)], line: String) -> Refused {
     Refused { answer: Some(request::refusal(status, words, headers)), line: format!("{line}: answered {status}") }
+}
+
+/// A client's request head, within 16 KiB and 30 s, and the bytes after it.
+pub(super) async fn read_head(client: &mut End) -> Result<(Request, Vec<u8>), Refused> {
+    let read = tokio::time::timeout(REQUEST_LIMIT, request::read_request(&mut client.read, Vec::new())).await;
+    match read {
+        Err(_) => Err(refuse(408, "no request came within 30 s", &[], "no request within 30 s".into())),
+        Ok(Err(RequestError::Gone(why))) => {
+            Err(Refused { answer: None, line: format!("left before its request ended: {why}") })
+        }
+        Ok(Err(e)) => Err(refuse(e.status().unwrap_or(400), &e.to_string(), &[], e.to_string())),
+        Ok(Ok(read)) => Ok(read),
+    }
 }
 
 /// One client: its request, then its tunnel; its lines on stderr after
@@ -158,15 +171,7 @@ pub async fn client(n: u64, mut client: End, proxy: Rc<Proxy>, settings: Rc<Sett
 /// target as shown, and the bytes after the request, which are the
 /// tunnel's.
 async fn asked(client: &mut End, proxy: &Proxy) -> Result<(Address, String, Vec<u8>), Refused> {
-    let read = tokio::time::timeout(REQUEST_LIMIT, request::read_request(&mut client.read, Vec::new())).await;
-    let (head, rest) = match read {
-        Err(_) => return Err(refuse(408, "no request came within 30 s", &[], "no request within 30 s".into())),
-        Ok(Err(RequestError::Gone(why))) => {
-            return Err(Refused { answer: None, line: format!("left before its request ended: {why}") });
-        }
-        Ok(Err(e)) => return Err(refuse(e.status().unwrap_or(400), &e.to_string(), &[], e.to_string())),
-        Ok(Ok(read)) => read,
-    };
+    let (head, rest) = read_head(client).await?;
     if let Some(credentials) = &proxy.credentials {
         if !credentials.admit(head.header("proxy-authorization")) {
             let line = format!("a request with no credentials of {}, or wrong ones", credentials.file);
@@ -192,7 +197,7 @@ async fn asked(client: &mut End, proxy: &Proxy) -> Result<(Address, String, Vec<
 /// Send `answer`, then end the connection: the write half first, then the
 /// client's bytes read for a while, so that a close with bytes unread does
 /// not reset the answer away.
-async fn close_after(client: &mut End, answer: &[u8]) {
+pub(super) async fn close_after(client: &mut End, answer: &[u8]) {
     let sent = async {
         client.write.write_all(answer).await?;
         client.write.flush().await?;
@@ -207,7 +212,7 @@ async fn close_after(client: &mut End, answer: &[u8]) {
 }
 
 /// Close a road that no client takes, as at any end.
-async fn abandon(end: End) {
+pub(super) async fn abandon(end: End) {
     let End { read, write, ending, .. } = end;
     drop((read, write));
     if let Some(ending) = ending {

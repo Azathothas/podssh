@@ -364,7 +364,7 @@ pub const VERBS: &[Verb] = &[
     Verb { name: "proxy", aliases: &["proxy"], flags: PROXY_FLAGS,
         about: "ProxyCommand form: a byte pipe, not an SSH client" },
     Verb { name: "pipe", aliases: &["pipe"], flags: PIPE_FLAGS,
-        about: "join two byte streams, as socat does: stdio, fd:N, exec:CMD, with no listener unless one side is tcp-listen:, unix-listen: or http-listen:" },
+        about: "join two byte streams, as socat does: stdio, fd:N, exec:CMD, with no listener unless one side is tcp-listen:, unix-listen:, http-listen: or ws-listen:" },
     Verb { name: "node", aliases: &["node"], flags: NODE_FLAGS,
         about: "reverse mode: expose a local service to operators" },
     Verb { name: "operator", aliases: &["operator"], flags: PAIR_FLAGS,

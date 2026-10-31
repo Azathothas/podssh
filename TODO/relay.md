@@ -515,7 +515,7 @@ relay sends no keepalives on reverse sockets, and a quiet socket becomes dormant
 1. A live test, ignored by default, in a new file crates/podssh-relay/tests/live_reverse.rs:
    `POST /v1/pair`; a node socket to `/v1/node/NAME`; an operator socket to `/v1/connect/NAME`;
    the node answers `open` with `ready`. Send `ready` with `RelaySession::send_text`
-   (`crates/podssh-ws/src/session.rs:166-170`), which sends a real text frame; since T-071,
+   (`crates/podssh-ws/src/session.rs:189-193`), which sends a real text frame; since T-071,
    `Leg::send_control` over `WsSocket` sends one too.
 2. Three runs of 240 s: (a) no payload and no pings; (b) WebSocket pings every 20 s from both
    ends; (c) one byte of payload every 60 s. For each socket, record the time, the code and the
@@ -1593,8 +1593,8 @@ in; the code compiles it in, and the live check never reads `/relays.json`.
   under them (60 MiB, 11 h 30 min) are constants (`crates/podssh-relay/src/relay.rs:19-37`);
   `PODSSH_SESSION_BUDGET` lowers the byte budget and never raises it (`:39-73`).
 - Read: the frame decoder refuses a received frame over 262144 bytes
-  (`crates/podssh-ws/src/frame.rs:30`, `:211-221`), and the session then ends with a Close 1002
-  (`crates/podssh-ws/src/session.rs:273`); a message is at most 16 MiB (`:29`).
+  (`crates/podssh-ws/src/frame.rs:30`, `:221-231`), and the session then ends with a Close 1002
+  (`crates/podssh-ws/src/session.rs:298`); a message is at most 16 MiB (`:32`).
 - Read: `crates/podssh-probe/facts/relay-facts.toml` line 14 at `deacafd` said "Read from /relays.json at startup,
   never compiled in" of that cap. `crates/podssh-ws/src/frame.rs:30` compiles it in, and
   `podssh-core` takes it from the facts file at compile time

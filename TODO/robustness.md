@@ -26,7 +26,7 @@ acceptance on rare input stays hidden. The release build aborts on a panic
 ## Premise
 
 Read, the parsers that take input from a peer or a file: WebSocket frames
-(`crates/podssh-ws/src/frame.rs:134`); HTTP heads and chunked bodies
+(`crates/podssh-ws/src/frame.rs:144`); HTTP heads and chunked bodies
 (`crates/podssh-ws/src/http.rs:115`, line 183 at `e892b0f`); the upgrade answer
 (`crates/podssh-ws/src/handshake.rs:175`); proxy URLs
 (`crates/podssh-ws/src/proxy.rs:82`), `NO_PROXY` and the CONNECT status
@@ -524,7 +524,7 @@ Read, the bounds today:
 
 - A frame: 262144 bytes (`crates/podssh-ws/src/frame.rs:30`, refused at lines
   180-194). A message in fragments: 16 MiB
-  (`crates/podssh-ws/src/session.rs:29`, checked at lines 240-242 at `23b5d82`).
+  (`crates/podssh-ws/src/session.rs:32`, checked at lines 240-242 at `23b5d82`).
 - A response head: 16 KiB for HTTP (`crates/podssh-ws/src/http.rs:13`), for the
   proxy (`crates/podssh-ws/src/dial.rs:25`) and for the upgrade
   (`crates/podssh-ws/src/handshake.rs:124`).
@@ -586,15 +586,15 @@ Each command exits 0. Planted defect: set `WINDOW`
 channel (`channel_buffer_size`, `crates/podssh-ssh/src/run_config.rs:60-70`) to
 2^20 messages; the slow-reader check must fail. The window alone is not
 enough: the queue is a second bound (Correction). A second plant: remove the
-check at `crates/podssh-ws/src/session.rs:378-380`; the fragment test must
+check at `crates/podssh-ws/src/session.rs:401-403`; the fragment test must
 fail.
 
 ## Correction
 
 2026-10-11, read against the Premise; each holds at the cited lines:
 
-- The frame's bound refuses a 64-bit length (`crates/podssh-ws/src/frame.rs:211-213`). The check
-  after it (`crates/podssh-ws/src/frame.rs:219-221`) cannot fire: a shorter length is at most 65535.
+- The frame's bound refuses a 64-bit length (`crates/podssh-ws/src/frame.rs:221-223`). The check
+  after it (`crates/podssh-ws/src/frame.rs:229-231`) cannot fire: a shorter length is at most 65535.
 - The upgrade that podssh sends is `client::upgrade`, whose bound was a literal; it is
   `UPGRADE_HEAD` now (`crates/podssh-ws/src/client.rs:38`). `MAX_HANDSHAKE_RESPONSE`
   (`crates/podssh-ws/src/handshake.rs:124`) bounds `handshake::handshake`, which no command calls.
@@ -643,7 +643,7 @@ whose output nobody reads; `scripts/interop-baseline.txt` has its two ids.
 - `cargo test -p podssh-ssh --test known_hosts`: 17 passed. A file of 16 MiB is read; one byte
   more is unreadable, with its reason, and a record into it is refused, the file unchanged.
 - Planted, natively: without the check of fragments
-  (`crates/podssh-ws/src/session.rs:378-380`), a message of 16777217 bytes came through, and the
+  (`crates/podssh-ws/src/session.rs:401-403`), a message of 16777217 bytes came through, and the
   test failed; without the bound of `known_hosts`, the larger file was read, and the test failed.
 - In the build image, `scripts/interop-limits.sh` alone with the Prove's plants: as the code is, a
   reader that took each byte peaked at 6884 KiB, and one that took nothing for 30 s at 7460 KiB,
@@ -675,10 +675,10 @@ split of the input only is not found.
 
 Read: the candidates, each a pure function or a state machine with no I/O.
 
-- WebSocket frames: `encode` and `decode` (`crates/podssh-ws/src/frame.rs:88`,
-  `crates/podssh-ws/src/frame.rs:134`).
-- The joining of fragments (`crates/podssh-ws/src/session.rs:372-396`). It is
-  private, but `RelaySession::new` (`crates/podssh-ws/src/session.rs:91`) takes
+- WebSocket frames: `encode` and `decode` (`crates/podssh-ws/src/frame.rs:98`,
+  `crates/podssh-ws/src/frame.rs:144`).
+- The joining of fragments (`crates/podssh-ws/src/session.rs:395-419`). It is
+  private, but `RelaySession::new` (`crates/podssh-ws/src/session.rs:99`) takes
   any stream, so a test can drive it.
 - Relay lists and paths (`crates/podssh-relay/src/relay.rs:131-207`, `crates/podssh-ws/src/names.rs:8-57`).
 - `known_hosts` patterns (`crates/podssh-ssh/src/known_hosts.rs:277-333`).
@@ -759,7 +759,7 @@ sh scripts/dev.sh check     # proptest builds under CC=/nonexistent and CXX=/non
 ```
 
 Each command exits 0. Planted defect: in `encode`, mask with
-`masking_key[(i + 1) % 4]` (`crates/podssh-ws/src/frame.rs:121`); the round
+`masking_key[(i + 1) % 4]` (`crates/podssh-ws/src/frame.rs:131`); the round
 trip of frames must fail and print the smallest frame that fails.
 
 ## Done
@@ -979,7 +979,7 @@ Read, each claim of GitHub #34 at the lines as they are now:
   (the -1 of `railway.new`) to 255, and an exit signal to 128 plus its number
   (`docs/STATUS.md:89`, `docs/STATUS.md:94`).
 - A correction to the framing of #34: for a signal, podssh differs from
-  OpenSSH on purpose. `docs/cli.md:2622-2623` says 128 plus the signal's number,
+  OpenSSH on purpose. `docs/cli.md:2659-2660` says 128 plus the signal's number,
   and that OpenSSH gives 255. `crates/podssh-ssh/src/lib.rs:16` says that the
   codes follow OpenSSH, with 128 plus a signal. The two texts disagree, and no
   record measures the code of OpenSSH.
@@ -996,14 +996,14 @@ Read, each claim of GitHub #34 at the lines as they are now:
    code. Then run podssh and compare.
 3. A table of the intended differences, each with its reason. Today one row:
    a signal (OpenSSH's code, against 128 plus the number;
-   `docs/cli.md:2622-2623`). A difference that the table does not name fails,
+   `docs/cli.md:2659-2660`). A difference that the table does not name fails,
    with both codes and the command.
 4. Keep each literal as a second check with its own name, so that a change
    gives two named failures: "differs from OpenSSH" and "differs from the
    promise".
 5. Refuse a reference of 0 for a case that must fail, so that a broken
    reference cannot pass.
-6. Make `crates/podssh-ssh/src/lib.rs:16` and `docs/cli.md:2622-2623` agree with
+6. Make `crates/podssh-ssh/src/lib.rs:16` and `docs/cli.md:2659-2660` agree with
    the measurement, and record the codes of OpenSSH in docs/STATUS.md.
 
 Relation: T-199 (GitHub #25) scores the harness against a committed
@@ -1040,7 +1040,7 @@ for `podssh ssh`.
 (openssh-portable at its default branch, 2026-10-12; read, not run):
 `client_input_channel_req` in `clientloop.c` takes `exit-status` and no
 `exit-signal`, and `client_loop` starts its status at -1, so a signal gives
-255, as `docs/cli.md:2321-2322` says. `check_host_key` in `sshconnect.c`
+255, as `docs/cli.md:2358-2359` says. `check_host_key` in `sshconnect.c`
 goes on past a changed key under `StrictHostKeyChecking=no`: it turns off
 password and keyboard-interactive login and the forwardings, then accepts
 the key, so `ssh.hostkey.changed_refused` gives 0 with OpenSSH. In
@@ -1081,7 +1081,7 @@ has three rows.
   podssh 143), `changed_key` (OpenSSH 0, podssh 255) and
   `unreadable_known_hosts` (OpenSSH 0, podssh 255).
 - `crates/podssh-ssh/src/lib.rs:16` now agrees with
-  `docs/cli.md:2321-2322`: 128 plus the signal's number, where OpenSSH
+  `docs/cli.md:2358-2359`: 128 plus the signal's number, where OpenSSH
   gives 255. `docs/cli.md` names the two differences of the host keys
   beside their rules; `docs/development.md` (item 7 of the gate) says that
   each code is checked twice; `docs/STATUS.md` has a row for OpenSSH's

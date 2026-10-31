@@ -438,3 +438,43 @@ fn only_the_relays_connect_knobs_may_ride_in_the_path() {
         assert!(!err.contains("SECRET"), "the error leaked a value: {err}");
     }
 }
+
+// ── the server's side, for `podssh pipe ws-listen:` (T-368) ─────────────────
+
+/// **A server's session writes no mask, takes only masked frames, and
+/// closes on an unmasked one with 1002** (RFC 6455 §5.1, §7.4.1). Each of
+/// its frames is read here as a client reads it, so a server that masked
+/// would fail the first decode.
+#[tokio::test]
+async fn a_server_masks_nothing_and_closes_an_unmasked_client_frame_with_1002() {
+    use tokio::io::{AsyncReadExt, AsyncWriteExt};
+    let (ours, mut theirs) = tokio::io::duplex(64 * 1024);
+    let session = podssh_ws::server::session(ours, Vec::new(), None);
+    let next = |bytes: &[u8]| frame::decode(bytes, Role::Server).expect("unmasked, as a server's").expect("whole");
+    let mut buf = vec![0u8; 256];
+    session.send_binary(b"from the server").await.unwrap();
+    let n = theirs.read(&mut buf).await.unwrap();
+    assert_eq!(next(&buf[..n]).0.payload, b"from the server");
+    let client = |payload: &[u8], role| {
+        frame::encode(&Frame { fin: true, opcode: frame::OPCODE_BINARY, payload: payload.to_vec() }, role, [9, 8, 7, 6])
+    };
+    theirs.write_all(&client(b"from the client", Role::Client)).await.unwrap();
+    assert_eq!(session.read_frame().await.unwrap().payload, b"from the client");
+    theirs.write_all(&client(b"unmasked", Role::Server)).await.unwrap();
+    let refused = session.read_frame().await.expect_err("an unmasked client frame");
+    assert!(refused.to_string().contains("not masked"), "{refused}");
+    let n = theirs.read(&mut buf).await.unwrap();
+    let (close, _) = next(&buf[..n]);
+    assert_eq!((close.opcode, close.payload), (frame::OPCODE_CLOSE, 1002u16.to_be_bytes().to_vec()));
+}
+
+/// **The server's 101 carries the accept value of §1.3's key.**
+#[test]
+fn the_server_answers_rfc6455_section_1_3_with_its_accept_value() {
+    let head = "GET /chat HTTP/1.1\r\nHost: server.example.com\r\nUpgrade: websocket\r\nConnection: Upgrade\r\n\
+                Sec-WebSocket-Key: dGhlIHNhbXBsZSBub25jZQ==\r\nSec-WebSocket-Version: 13\r\n\r\n";
+    let request = podssh_ws::http::request::parse_request(head.as_bytes()).unwrap();
+    let key = podssh_ws::server::check_upgrade(&request).unwrap();
+    let answer = String::from_utf8(podssh_ws::server::switching(&key)).unwrap();
+    assert!(answer.contains("\r\nSec-WebSocket-Accept: s3pPLMBiTxaQ9kYGzzhZRbK+xOo=\r\n"), "{answer}");
+}

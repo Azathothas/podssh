@@ -62,15 +62,15 @@ repository and CI).
 
 ## Counts
 
-**375 entries: 29 open, 0 partial, 30 blocked, 316 done.**
+**375 entries: 28 open, 0 partial, 30 blocked, 317 done.**
 
 | Priority | open | partial | blocked | done | total |
 | --- | --- | --- | --- | --- | --- |
 | P0 | 0 | 0 | 0 | 1 | 1 |
 | P1 | 2 | 0 | 0 | 29 | 31 |
 | P2 | 3 | 0 | 21 | 162 | 186 |
-| P3 | 24 | 0 | 9 | 124 | 157 |
-| **All** | 29 | 0 | 30 | 316 | 375 |
+| P3 | 23 | 0 | 9 | 125 | 157 |
+| **All** | 28 | 0 | 30 | 317 | 375 |
 
 ## Entries
 
@@ -439,7 +439,7 @@ repository and CI).
 | [T-365](forwarding.md) | P2 | M | backlog | feature | done | `-R` with a socket path on either side, and the remote SOCKS form, as OpenSSH carries them |
 | [T-366](ws.md) | P3 | S | backlog | feature | done | `doctor` asks the proxy for an address as well as for names, and says which of the two it takes |
 | [T-367](pipe.md) | P3 | M | backlog | feature | done | `http-listen:`: `podssh pipe` as an HTTP CONNECT proxy, for programs that know only `HTTPS_PROXY` |
-| [T-368](pipe.md) | P3 | M | backlog | feature | open | `ws:`, `wss:` and `ws-listen:` as addresses of `podssh pipe` |
+| [T-368](pipe.md) | P3 | M | backlog | feature | done | `ws:`, `wss:` and `ws-listen:` as addresses of `podssh pipe` |
 | [T-369](roads.md) | P3 | M | backlog | feature | open | `--forwarder TEMPLATE`: a road through a WebSocket forwarder that takes the target from its URL |
 | [T-370](roads.md) | P3 | S | backlog | feature | open | Built-in templates of other products' public forwarders, and a fallback to them |
 | [T-371](roads.md) | P3 | M | backlog | measurement | open | A `-J` hop on port 443 through the proxy, measured, and a `doctor` line for a hop |

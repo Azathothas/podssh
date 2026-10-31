@@ -2,7 +2,9 @@
 //! an HTTP CONNECT proxy on a port as `tcp-listen:` takes it or on a socket
 //! as `unix-listen:` takes it, and the template of its other side, a road
 //! whose target each request names as `%h:%p`, as `ProxyCommand` names the
-//! host and the port in OpenSSH.
+//! host and the port in OpenSSH. And those of a WebSocket (T-368): `ws://`
+//! and `wss://` by the URL that a user copies, and `ws-listen:`, a server
+//! on a port or a socket by the same rules.
 
 use super::address::{self, Address};
 use crate::relay_settings::Refusal;
@@ -31,6 +33,19 @@ pub(super) fn listening_at(kind: &str, rest: &str) -> Result<Address, Refusal> {
         )));
     }
     address::tcp_port(kind, rest)
+}
+
+/// `ws://HOST[:PORT]/PATH` or `wss://...`, as `podssh_ws::url` reads it.
+/// The form `wss:HOST:PORT/PATH` is refused with the URL's; a line shows the
+/// address without its query, which may hold a secret.
+pub fn ws_url(text: &str) -> Result<Address, Refusal> {
+    let shown = text.split(['?', '#']).next().unwrap_or_default();
+    podssh_ws::url::WsUrl::parse(text).map(Address::Ws).map_err(|why| Refusal::usage(format!("{shown}: {why}")))
+}
+
+/// `ws-listen:[ADDR:]PORT`, or `ws-listen:PATH` for a socket.
+pub fn ws_server(rest: &str) -> Result<Address, Refusal> {
+    listening_at("ws-listen", rest).map(|at| Address::WsListen(Box::new(at)))
 }
 
 /// The road of the other side of `http-listen:`, whose target each request
@@ -135,5 +150,21 @@ mod tests {
         let hops = vec!["me@bastion".to_string()];
         assert_eq!(ssh, Address::Ssh { hops, host: "db.internal".into(), port: 5432 });
         assert_eq!(Template::Relay.fill("a/b", 443).unwrap_err().code, 64);
+    }
+
+    #[test]
+    fn a_websocket_is_its_url_and_ws_listen_a_port_or_a_socket() {
+        let Address::Ws(url) = address::parse("wss://example.org/socket?k=v").unwrap() else { panic!("not ws") };
+        assert_eq!((url.tls, url.port, url.target.as_str()), (true, 443, "/socket?k=v"));
+        let refusal = address::parse("wss:example.org:443/socket?token=SECRET").unwrap_err();
+        assert_eq!(refusal.code, 64);
+        assert!(refusal.message.contains("wss://HOST") && !refusal.message.contains("SECRET"), "{}", refusal.message);
+        let server = address::parse("ws-listen:8080").unwrap();
+        assert_eq!(server.bound(), &Address::TcpListen { host: "127.0.0.1".into(), port: 8080 });
+        assert!(server.listens() && address::parse("ws-listen:/tmp/ws.sock").unwrap().listens());
+        assert!(!address::parse("ws://example.org/").unwrap().listens());
+        assert_eq!(code("ws-listen:1", "tcp-listen:2"), 64);
+        assert_eq!(code("ws-listen:x.sock", "stdio"), 64);
+        assert!(address::both(Some("ws-listen:1"), Some("wss://example.org/")).is_ok());
     }
 }

@@ -37,6 +37,7 @@ pub fn is_remote(address: &Address) -> bool {
             | Address::Node(_)
             | Address::UdpNode(_)
             | Address::Iroh(_)
+            | Address::Ws(_)
     )
 }
 
@@ -82,6 +83,7 @@ pub async fn open(address: &Address, settings: &Settings, err: &mut dyn Write) -
         Address::Node(label) => super::node::open(label, &settings.ssh, &mut say).await,
         Address::UdpNode(label) => super::datagram::open_node(label, &settings.ssh, &mut say).await,
         Address::Iroh(ticket) => super::iroh::open(ticket, &settings.ssh, &settings.trust, &mut say).await,
+        Address::Ws(url) => super::ws::open(url, &settings.trust, &mut say).await,
         _ => unreachable!("a local address"),
     }
 }

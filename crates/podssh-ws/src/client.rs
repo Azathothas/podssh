@@ -423,20 +423,15 @@ pub fn next_event(buf: &mut Vec<u8>) -> Result<Option<Event>, WsError> {
     next_event_capped(buf, frame::FORWARD_MAX_FRAME)
 }
 
-/// [`next_event`], with `cap` on a received frame (T-342).
+/// [`next_event`], with `cap` on a received frame (T-342): a server's frame,
+/// as a client reads it.
 pub fn next_event_capped(buf: &mut Vec<u8>, cap: usize) -> Result<Option<Event>, WsError> {
-    let Some((frame, used)) = frame::decode_capped(buf, frame::Role::Server, cap)? else {
-        return Ok(None);
-    };
-    buf.drain(..used);
-    if frame.opcode == frame::OPCODE_PING {
-        return Ok(Some(Event::Pong(frame.payload)));
-    }
-    Ok(Some(Event::Frame(frame)))
+    crate::wire::next_event_from(buf, frame::Role::Server, cap)
 }
 
-/// Write one frame, masked with a fresh key (RFC 6455 §5.3 requires a new key
-/// per frame). Client frames are always masked; there is no unmasked path.
+/// Write one frame of a client's, masked with a fresh key (RFC 6455 §5.3
+/// requires a new key per frame). Client frames are always masked; there is
+/// no unmasked path for a client ([`crate::wire::write_frame_as`]).
 pub(crate) async fn write_frame_over<S>(
     stream: &mut S,
     opcode: u8,
@@ -445,13 +440,7 @@ pub(crate) async fn write_frame_over<S>(
 where
     S: tokio::io::AsyncWrite + Unpin,
 {
-    use crate::error::SessionError;
-    // No bytes for a masking key: the frame cannot be sent (RFC 6455 5.3).
-    let key = handshake::masking_key()
-        .map_err(|e| SessionError::Io { kind: std::io::ErrorKind::Other, text: e.to_string() })?;
-    let bytes = frame::encode(&Frame { fin: true, opcode, payload: payload.to_vec() }, frame::Role::Client, key);
-    stream.write_all(&bytes).await.map_err(|e| SessionError::io(&e))?;
-    stream.flush().await.map_err(|e| SessionError::io(&e))
+    crate::wire::write_frame_as(stream, frame::Role::Client, opcode, payload).await
 }
 
 /// What can be checked without a token: the crypto provider and the trust

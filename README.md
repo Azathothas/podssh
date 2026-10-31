@@ -42,8 +42,8 @@ podssh --TLS 1.3 + WebSocket, port 443--> relay --TCP--> sshd (or another TCP se
 - **Outbound only, unless you ask.** podssh opens outbound connections only
   (to the relay, or to the proxy that `HTTPS_PROXY` names). It listens only
   on an address that you name, of `podssh pipe` (`unix-listen:`,
-  `tcp-listen:`, and `http-listen:`, an HTTP CONNECT proxy) or of
-  `podssh ssh -L` and `-D`, and on the socket of
+  `tcp-listen:`, `http-listen:`, an HTTP CONNECT proxy, and `ws-listen:`,
+  a WebSocket server) or of `podssh ssh -L` and `-D`, and on the socket of
   `podssh session start`, your own, after the bind shows that the host
   allows it. The iroh
   road, in each release binary and in a build with the feature `iroh`,

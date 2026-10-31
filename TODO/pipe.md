@@ -1,11 +1,11 @@
 The work of milestone M7, `podssh pipe` and `--persist`, and the backlog of
 streams that `pipe` can carry: desktop streams and Telnet, a published HTTP
-service, serial devices and USB/IP. The design is `docs/design.md:886-952`;
+service, serial devices and USB/IP. The design is `docs/design.md:886-954`;
 the milestone is `docs/ROADMAP.md:231-240`.
 
 # T-174: `podssh pipe A B` with local addresses
 
-**Source:** ROADMAP M7 (`docs/ROADMAP.md:233-237`), `docs/design.md:903-952`;
+**Source:** ROADMAP M7 (`docs/ROADMAP.md:233-237`), `docs/design.md:903-954`;
 GitHub #26 (Nemo-010, 2026-10-08). Measured here on `3ee70dc`.
 **Category:** feature
 **Milestone:** M7
@@ -69,8 +69,8 @@ the verb, the address grammar, the copy loop, and the local addresses `-`,
    shell gives. With no child, a clean end gives 0.
 7. In the same commit: `docs/cli.md`, the notes
    (`crates/podssh-cli/src/man/notes.rs:26-59`), two examples
-   (`crates/podssh-cli/src/man/examples.rs:8-224`; its test at
-   `crates/podssh-cli/src/man/examples.rs:347-370` learns the new variant),
+   (`crates/podssh-cli/src/man/examples.rs:8-228`; its test at
+   `crates/podssh-cli/src/man/examples.rs:351-374` learns the new variant),
    `docs/design.md:905-914`, `docs/STATUS.md`. Each file stays under 500
    lines (`AGENTS.md:266-267`).
 
@@ -198,7 +198,7 @@ local program to a target, and `podssh proxy` stays a second pump.
 5. `node:NAME` after T-084, and `iroh:TICKET` after T-163: one adapter and
    one test each. If T-163 makes a ticket a credential, read it from a file
    (`iroh:@FILE`), never from argv.
-6. Exit codes: sysexits, as `podssh proxy` (`docs/cli.md:2624`): 69; 77 for a
+6. Exit codes: sysexits, as `podssh proxy` (`docs/cli.md:2661`): 69; 77 for a
    refusal (the relay, the proxy, a host key, the authentication); 78. Give
    `crates/podssh-ssh/src/run.rs:332-412` a typed error, so that 77 is not
    guessed from a message.
@@ -389,7 +389,7 @@ ROADMAP M7 is done; T-040 gives the remote form.
 
 # T-177: `podssh pipe` with a local listener after a probe
 
-**Source:** ROADMAP M7 (`docs/ROADMAP.md:236-237`), `docs/design.md:946-952`;
+**Source:** ROADMAP M7 (`docs/ROADMAP.md:236-237`), `docs/design.md:948-954`;
 GitHub #26 (a local-only mode, as the `--local` of bunflared; read in the
 report, not verified here); sandbox A of T-001.
 **Category:** feature
@@ -401,9 +401,9 @@ report, not verified here); sandbox A of T-001.
 ## Problem
 
 Desktop clients, browsers and database clients call `connect()` themselves:
-they need a local port or socket (`docs/design.md:949-952`). podssh refuses
+they need a local port or socket (`docs/design.md:951-954`). podssh refuses
 each listener. The design allows one for `pipe`, locally, after a probe
-shows that an AF_UNIX or loopback bind works (`docs/design.md:946-948`).
+shows that an AF_UNIX or loopback bind works (`docs/design.md:948-950`).
 
 ## Premise
 
@@ -413,7 +413,7 @@ shows that an AF_UNIX or loopback bind works (`docs/design.md:946-948`).
   configure the address and can turn listening off.
 - Read: five documents still say that podssh never listens:
   `AGENTS.md:249-255`, `docs/architecture.md:147-162`,
-  `docs/target-environment.md:84-88`, `SECURITY.md:129-155`, `README.md:42-51`.
+  `docs/target-environment.md:84-88`, `SECURITY.md:129-156`, `README.md:42-51`.
 - Read: sandbox A refuses an AF_INET bind and allows an AF_UNIX bind
   (`docs/STATUS.md:280`). The box refuses each `bind`, AF_UNIX too
   (`scripts/box/seccomp.json:5-10`), so it gives the refused case.
@@ -610,7 +610,7 @@ running on the server (`docs/design.md:614-618`).
    Keys typed meanwhile wait in a queue of 64 KiB, and go after the attach.
 6. Each attempt checks the host key with the same policy, and uses the
    cached token. A prompt with no terminal ends the loop
-   (`docs/cli.md:2695-2697`). After the attach, send the window size again.
+   (`docs/cli.md:2732-2734`). After the attach, send the window size again.
 7. In the same commit: `docs/cli.md`, the notes of ssh
    (`crates/podssh-cli/src/man/notes_ssh.rs:4-318`), `docs/design.md:614-618`,
    `docs/STATUS.md`, and tmux in the interop image
@@ -725,7 +725,7 @@ no listener, or that the relay ends a desktop stream after 64 MiB.
 
 - Read: a byte pipe carries each TCP protocol
   (`crates/podssh-cli/src/man/notes.rs:159-163`); a client that calls
-  `connect()` itself needs a listener (`docs/design.md:949-952`), which
+  `connect()` itself needs a listener (`docs/design.md:951-954`), which
   T-177 adds where a probe allows it.
 - Read: 64 MiB for each session, both directions together
   (`docs/relay.md:192`), then Close 1009 (`docs/relay.md:253`); public
@@ -754,9 +754,9 @@ no listener, or that the relay ends a desktop stream after 64 MiB.
    `telnet 127.0.0.1 PORT`.
 4. Write a table "Other TCP protocols" after `README.md:181-186`: the
    protocol, what works now, what needs a listener, the 64 MiB limit. Add
-   form a to `crates/podssh-cli/src/man/examples.rs:8-224`; its ProxyCommand
-   parses (`crates/podssh-cli/src/man/examples.rs:324-331`). Link the table
-   from `docs/design.md:949-952`.
+   form a to `crates/podssh-cli/src/man/examples.rs:8-228`; its ProxyCommand
+   parses (`crates/podssh-cli/src/man/examples.rs:328-335`). Link the table
+   from `docs/design.md:951-954`.
 5. No code. Record the measurements in `docs/STATUS.md`.
 
 ## Prove
@@ -841,7 +841,7 @@ The calls made where the Approach left a choice:
 - The example puts `-N -L` before the ProxyCommand: the start of the
   manual keeps three first steps, and its filter takes each command that
   starts with "ssh -o ProxyCommand='podssh proxy"
-  (`crates/podssh-cli/src/man/examples.rs:227`). It has no
+  (`crates/podssh-cli/src/man/examples.rs:231`). It has no
   `ServerAliveInterval`, so that its line stays within rustfmt's 120
   columns; the note of proxy asks for it
   (`crates/podssh-cli/src/man/notes.rs:164`).
@@ -1294,8 +1294,8 @@ the request's target, would be the proxy that such a program points at.
 - Read: podssh-ws reads HTTP responses only: one request of its own and the response to it
   (`crates/podssh-ws/src/http.rs:1-3`), with `read_response` and `parse_head`, which reads a
   status line (`:80-125`). Nothing reads a request.
-- Read: no kind of `pipe` answers HTTP (`crates/podssh-cli/src/pipe/address.rs:69-87`); two kinds
-  listen, and one side at most (`:54-67`, `:111-113`).
+- Read: no kind of `pipe` answers HTTP (`crates/podssh-cli/src/pipe/address.rs:75-97`); two kinds
+  listen, and one side at most (`:59-73`, `:121-123`).
 - Read: a listener of `pipe` binds only an address that the user gives, never with
   `PODSSH_LISTEN=no` (78), and its bind is the probe; a socket is made mode 0600, and a client of
   another user is closed (`crates/podssh-cli/src/pipe/listen.rs:1-13`, `:28-39`, `:82-95`). It
@@ -1303,7 +1303,7 @@ the request's target, would be the proxy that such a program points at.
   each joined to a new instance of the other side (`crates/podssh-cli/src/pipe/serve.rs:1-11`).
 - Read: the operator allows a listener that the user asks for, when a probe allows the bind, on
   loopback or AF_UNIX by default (`docs/decisions.md:33`; `docs/architecture.md:147-154`); the
-  gate's scan of listeners allows the listener of `pipe` (`scripts/check-repo.py:79-97`).
+  gate's scan of listeners allows the listener of `pipe` (`scripts/check-repo.py:79-98`).
 - Read: the SOCKS side of `-D` answers once the server's channel opened, so that a client learns
   whether its target was reached (`crates/podssh-ssh/src/socks.rs:1-5`). The relay refuses a target
   of its policy with a `403` that names it, `not in the ALLOW list` (`docs/relay.md:176-178`).
@@ -1469,7 +1469,7 @@ The rest reads as cited. Nothing in the Approach changes.
 **Milestone:** backlog
 **Priority:** P3
 **Effort:** M
-**Status:** open
+**Status:** done
 
 ## Problem
 
@@ -1479,9 +1479,9 @@ user who needs `websocat` must bring it, and a cage may not run it.
 
 ## Premise
 
-- Read: the kinds of `pipe` have no WebSocket (`crates/podssh-cli/src/pipe/address.rs:69-87`); the
-  relay is reached by `relay:HOST:PORT`, whose path is the relay's forward path (`:129-135`), and
-  `tcp:HOST:PORT` carries bytes in the clear to any host that the user names (`:26-27`).
+- Read: the kinds of `pipe` have no WebSocket (`crates/podssh-cli/src/pipe/address.rs:75-97`); the
+  relay is reached by `relay:HOST:PORT`, whose path is the relay's forward path (`:139-145`), and
+  `tcp:HOST:PORT` carries bytes in the clear to any host that the user names (`:27-28`).
 - Read: the endpoint of the client is a host, a port and a path
   (`crates/podssh-ws/src/client.rs:40-47`); `validate` refuses a query other than the relay's
   knobs, as a query goes into the logs of proxies (`:66-105`); `connect` takes a token and sends it
@@ -1492,7 +1492,7 @@ user who needs `websocat` must bring it, and a cage may not run it.
   on the vector of RFC 6455 (`crates/podssh-ws/tests/rfc6455.rs:259`).
 - Read: the codec of frames takes its role, and never writes a masked frame of a server
   (`crates/podssh-ws/src/frame.rs:61-70`); a session is generic over its stream
-  (`crates/podssh-ws/src/session.rs:33`).
+  (`crates/podssh-ws/src/session.rs:36`).
 - Read: plain `ws://` goes to the loopback only, for tests, behind the feature `plain-ws`, which
   the binary never enables, as the relay's token over plain TCP must not leave the host
   (`crates/podssh-ws/src/plain.rs:1-6`).
@@ -1528,6 +1528,36 @@ user who needs `websocat` must bring it, and a cage may not run it.
   ask for it.
 - The reader of requests is T-367's; whichever is done first writes it. The dial with no token
   serves T-369 too.
+- At the end of this side's input a Close 1000 goes out, and what the other end sends before its
+  own Close still comes; the other end's Close is answered at once and ends the pipe, as RFC 6455
+  section 5.5.1 asks the answer "as soon as practical". Lost: no Close, as `relay:` sends none,
+  with which a server that waits for more never ends the pipe; the other end's Close taken as a
+  half-close, sending on until this side's input ends, which holds a terminal's pipe open after
+  the server closed it.
+- A Close of 1000, or the end of the connection after this side's Close, is a clean end (0); any
+  other code is the pipe's failure (69), with the code and the reason. Lost: 1001 as a clean end,
+  which hides a server that went away under the session.
+- The session pings every 10 s and bounds each read at 90 s, as on the relay's road: a server
+  answers a Ping (RFC 6455 section 5.5.2), so only a dead link meets the bound. Lost: no bound,
+  which never ends a link that died with no word.
+- The URL: a user or a password in it is refused (64), a byte that is not ASCII percent-encoded, a
+  fragment not sent, the port in `Host` only when it is not the scheme's own (RFC 6455 section
+  4.1), and `User-Agent: podssh/VERSION`, as on the road of `cloudflared`; the request names no
+  `Origin`. Lost: a user and a password sent as Basic, which puts a credential in a URL and in argv.
+- `ws-listen:` refuses a request with an `Origin` (403): a browser sends one with each WebSocket,
+  and any page that the user opens could else reach the other side, a shell of `exec:` among them.
+  Lost: each Origin taken; a flag that names the origins allowed, which #76 does not ask for.
+- `ws-listen:` opens the other side before it answers 101, and a client hears 502 when it did not
+  open, as `http-listen:` answers 200 only once its road is open. Lost: 101 at once, after which a
+  failure is a close alone.
+- One client by default, the first whose upgrade is good: a refused request is no session, and
+  the listener waits for the next. Lost: the first connection, which a port scanner or a stray
+  request would use up.
+- The server's session is `RelaySession` with a role (`as_server`), and its errors name the other
+  end (`naming`), the relay's words unchanged by default: one reader, one writer and one reassembly
+  of fragments for both sides. The writer and the reader of frames for a role are in
+  `crates/podssh-ws/src/wire.rs`. Lost: a second session for the server, which would repeat the
+  reassembly, the Pings and the closing handshake.
 
 ## Prove
 
@@ -1543,3 +1573,50 @@ the client of `ws-listen:` reaches a test server through `tcp:`, 1 MiB each way 
 digests; `wss://` to a stand-in with a certificate for another name is refused. A stand-in client
 that sends an unmasked frame gets the close 1002. `PODSSH_LISTEN=no` exits 78 before any bind.
 Planted: the server's frames encoded as `Role::Client`; the test of the masks fails.
+
+## Correction
+
+2026-10-31: two citations name other lines, as they did when the entry was written (read at
+`8207d29`). The role of the codec is `crates/podssh-ws/src/frame.rs:74-83`, and `encode` ignores a
+key of a server's at `:85-88`; `crates/podssh-ws/src/frame.rs:61-70` holds the markers of a length
+and `Frame`. The relay stays a separate project at `docs/decisions.md:43`; `docs/decisions.md:38`
+is the ruling on a listener that the user asks for. Nothing in the Approach changes.
+
+## Done
+
+2026-10-31: drafted (branch `draft-pipe`, `f3f6a77`), then merged and measured.
+
+- `ws://` and `wss://` (`crates/podssh-cli/src/pipe/ws.rs`): the URL as `podssh_ws::url` reads
+  it (`crates/podssh-ws/src/url.rs`), dialed with no token through `HTTPS_PROXY`, TLS checked for
+  HOST with `--ca-file`'s trust; the form `wss:HOST:PORT/PATH`, a user or a password, CR, LF, a
+  space and a control character refused (64); podssh's lines show the URL without its query.
+  Binary frames out, text and binary frames in as bytes, a Close at the end of input, the other
+  end's Close the end, a code other than 1000 on stderr and 69; a refused upgrade 77 for 401 and
+  403, else 69. T-369 dials its forwarders with `podssh_ws::url::dial`.
+- `ws-listen:[ADDR:]PORT` and `ws-listen:PATH` (`crates/podssh-cli/src/pipe/ws_listen.rs`), bound by
+  `Listener::bind`; the request read by T-367's reader and checked by `podssh_ws::server`
+  (`crates/podssh-ws/src/server.rs`: 405, 400, 426, a key of 16 bytes, 403 for an `Origin`); the
+  other side opened, then `101` with `Sec-WebSocket-Accept`, or 502; the session as
+  `Role::Server` (`RelaySession::as_server`), whose unmasked frame of a client closes with 1002.
+- The manual (`crates/podssh-cli/src/man/notes_pipe.rs`, an example, `PODSSH_LISTEN`'s fact), the
+  help, doctor's table of listeners, `docs/cli.md`, `README.md`, `SECURITY.md`, `docs/design.md`
+  and the comment of the scan of listeners in `scripts/check-repo.py`.
+- Measured at the merge (2026-10-31): `cargo test -p podssh-ws --test rfc6455`, 27 passed (a
+  server masks nothing, takes masked frames, and closes on an unmasked one with 1002; its 101
+  carries the accept of section 1.3's key); `--lib url::`, 3; `--lib server::`, 2.
+- `cargo test -p podssh-cli --test pipe_ws`, 5 passed, with websocat 1.14.0 (its static release
+  for x86-64 Linux, fetched into `.work/` and put on the PATH, as the cloud session's host has none):
+  websocat's echo server through `ws://`; websocat as the client of `ws-listen:` to a test server
+  through `tcp:`, 1 MiB each way with equal digests; `wss://localhost` to a certificate of
+  127.0.0.1 refused, and `wss://127.0.0.1` reaching its upgrade with the query sent and not shown;
+  426 and 403 for a request that is no upgrade and a browser's, then 101, a masked frame echoed
+  unmasked and an unmasked one closed with 1002 (exit 69); a server's text and binary frames as
+  bytes and its Close 4000 on stderr (69), and 1000 (0), with no `X-Relay-Token` and no `Origin`
+  sent.
+- `--test pipe_listen`, 8 passed (`ws-listen:` under `PODSSH_LISTEN=no`, 78); `--lib pipe::`, 34;
+  `--lib doctor`, 37; `--lib man`, 55; `--test flag_table`, 9; `--test pipe_http`, 6, again.
+- Planted, the server's frames encoded as `Role::Client`: `pipe_ws`'s test of the 1002 and its run
+  of 1 MiB with websocat failed, and `rfc6455`'s test of a server's masks.
+- At the merge: the session's field `peer`, the name of the other end in an error, met T-344's
+  `peer`, the address of the connection; the name is `peer_name` now, and each keeps its method.
+  `ws_listen::first` was public with a private argument's type, now `pub(super)`; clippy clean.

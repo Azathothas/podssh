@@ -5,9 +5,10 @@
 //! `iroh:TICKET`; a local socket `unix-connect:PATH` (T-176); the
 //! listeners `unix-listen:PATH` and `tcp-listen:[ADDR:]PORT` (T-177), one
 //! side at most; UDP through a node, `udp:node:NAME` (T-168); a serial
-//! line `serial:PATH[,BAUD]` (T-181), on Unix; and an HTTP CONNECT proxy,
+//! line `serial:PATH[,BAUD]` (T-181), on Unix; an HTTP CONNECT proxy,
 //! `http-listen:`, whose other side names each request's target as `%h:%p`
-//! (T-367, `web`).
+//! (T-367, `web`); and a WebSocket, `ws://` and `wss://` by its URL, or
+//! `ws-listen:` (T-368).
 
 use crate::exit_codes::EXIT_NOT_IMPLEMENTED;
 use crate::relay_settings::Refusal;
@@ -44,6 +45,10 @@ pub enum Address {
     TcpListen { host: String, port: u16 },
     /// An HTTP CONNECT proxy on the `TcpListen` or `UnixListen` within it.
     HttpListen(Box<Address>),
+    /// A WebSocket by its URL, with no token.
+    Ws(podssh_ws::url::WsUrl),
+    /// A WebSocket server on the `TcpListen` or `UnixListen` within it.
+    WsListen(Box<Address>),
     /// The other side of `http-listen:`: a road whose target each request
     /// names, `%h:%p`.
     Template(super::web::Template),
@@ -54,13 +59,14 @@ pub enum Address {
 impl Address {
     /// Whether this side waits for a client to connect.
     pub fn listens(&self) -> bool {
-        matches!(self, Address::UnixListen(_) | Address::TcpListen { .. } | Address::HttpListen(_))
+        matches!(self.bound(), Address::UnixListen(_) | Address::TcpListen { .. })
     }
 
-    /// What this side binds: itself, or the port or the socket of a proxy.
+    /// What this side binds: itself, or the port or the socket of a proxy or
+    /// of a WebSocket server.
     pub fn bound(&self) -> &Address {
         match self {
-            Address::HttpListen(at) => at,
+            Address::HttpListen(at) | Address::WsListen(at) => at,
             other => other,
         }
     }
@@ -83,6 +89,10 @@ pub const KINDS: &[&str] = &[
     "tcp-listen:[ADDR:]PORT",
     "http-listen:[ADDR:]PORT",
     "http-listen:PATH",
+    "ws://HOST[:PORT]/PATH",
+    "wss://HOST[:PORT]/PATH",
+    "ws-listen:[ADDR:]PORT",
+    "ws-listen:PATH",
     "serial:PATH[,BAUD]",
 ];
 
@@ -142,6 +152,8 @@ pub fn parse(text: &str) -> Result<Address, Refusal> {
         "unix-listen" => socket_name(kind, rest).map(Address::UnixListen),
         "tcp-listen" => tcp_port(kind, rest),
         "http-listen" => super::web::http_proxy(rest),
+        "ws" | "wss" => super::web::ws_url(text),
+        "ws-listen" => super::web::ws_server(rest),
         "serial" => serial(rest),
         "stdio" => Err(Refusal::usage("stdio takes nothing after it")),
         other => Err(Refusal::usage(format!("{other}: no such kind of address; the kinds are {kinds}"))),

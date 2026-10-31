@@ -3,9 +3,9 @@
 //! CONNECT`. Bytes go both ways, each end of input passes on, and both end
 //! with 0: through a Unix socket (mode 0600, and its file goes at the end),
 //! `@NAME` on Linux, an AF_UNIX socket and a named pipe on Windows, and a
-//! TCP port. `PODSSH_LISTEN=no` binds nothing (78), for `http-listen:`
-//! too; a file that is not a socket is kept (64); a socket that answers is
-//! another's (69), and one that nobody serves is replaced;
+//! TCP port. `PODSSH_LISTEN=no` binds nothing (78), for `http-listen:` and
+//! `ws-listen:` too; a file that is not a socket is kept (64); a socket
+//! that answers is another's (69), and one that nobody serves is replaced;
 //! `--keep-listening` takes each client.
 
 use std::io::{Read, Write};
@@ -205,6 +205,7 @@ fn podssh_listen_no_turns_listening_off_before_anything_binds() {
         (format!("unix-listen:{path}"), "stdio"),
         ("tcp-listen:0".to_string(), "stdio"),
         ("http-listen:0".to_string(), "tcp:%h:%p"),
+        ("ws-listen:0".to_string(), "stdio"),
     ];
     for (listen, other) in listeners {
         let mut server = spawn(&[&listen, other], &[("PODSSH_LISTEN", "no")]);

@@ -508,7 +508,7 @@ TCP on the loopback. `podssh-ws` always does TLS, so each such test needs a CA a
 Read: `connect` always calls `open_tls` (`crates/podssh-ws/src/client.rs` lines 162-184 at
 `23b5d82`), and the upgrade takes the TLS stream type (the same file, lines 212-256 at
 `23b5d82`). `RelaySession` is
-generic over its stream (`crates/podssh-ws/src/session.rs:33`), so a session over `TcpStream`
+generic over its stream (`crates/podssh-ws/src/session.rs:36`), so a session over `TcpStream`
 is possible. `podssh-relay` gives the TLS type back (`Opened`,
 `crates/podssh-relay/src/open.rs:161-166`). The tests use in-memory streams
 (`crates/podssh-ws/tests/session.rs:34-36`) or local TLS servers
@@ -823,24 +823,24 @@ peer that sends one breaks the protocol, and podssh reads the frame as valid.
 ## Premise
 
 Read on `3ee70dc`, the defect holds. `frame::decode` reads the 16-bit length with no lower
-bound (`crates/podssh-ws/src/frame.rs:175-190`). It reads the 64-bit length and checks only the
+bound (`crates/podssh-ws/src/frame.rs:185-200`). It reads the 64-bit length and checks only the
 size of the platform and the forward cap of 262144 bytes (lines 166-186 at `22c3b88`); that cap also refuses
 a value with its top bit set, which section 5.2 forbids too. `frame::encode` writes the minimal
-form (`:101-109`). The tests check the encoder at the boundaries 125, 126, 65535 and 65536
+form (`:111-119`). The tests check the encoder at the boundaries 125, 126, 65535 and 65536
 (`crates/podssh-ws/tests/rfc6455.rs:92-117`), and no test decodes a length that is not
 minimal. The only caller in the code is `next_event`, for the frames of the relay
-(`crates/podssh-ws/src/client.rs:422-436`). The stand-in relay writes the minimal form
+(`crates/podssh-ws/src/client.rs:422-430`). The stand-in relay writes the minimal form
 (`scripts/fake_ws.py:21-29`); the frames of the real relay were not checked for it.
 
 ## Approach
 
 1. In `frame::decode`, refuse a 16-bit length below 126 and a 64-bit length below 65536 with a
-   `WsError::Frame` that names the rule (`crates/podssh-ws/src/frame.rs:175-215`), before the
+   `WsError::Frame` that names the rule (`crates/podssh-ws/src/frame.rs:185-225`), before the
    payload is copied.
 2. A client that receives such a frame fails the WebSocket connection (RFC 6455 section 7.1.7):
    it sends a Close with 1002, a protocol error (section 7.4.1), and then closes the TCP
    connection. Since T-063 the session sends that Close for each error of the decoder
-   (`crates/podssh-ws/src/session.rs:335-342`), so this entry needs no new path.
+   (`crates/podssh-ws/src/session.rs:361-368`), so this entry needs no new path.
 3. The rule holds in both directions (`Role::Client` and `Role::Server`), so a stand-in relay in
    Rust (T-068) checks podssh's own frames with it too.
 4. `crates/podssh-ws/tests/rfc6455.rs` has 486 lines: put the tests in a new file,
