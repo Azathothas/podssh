@@ -4572,8 +4572,8 @@ provider refuses it on 0.14 as on 0.13.
 
 ## Done
 
-2026-10-31, partial: #64 (19e30fb), #66 and #65 (1a9aefe), and #68 with p256 done; #67 and #57
-follow.
+2026-10-31, partial: #64 (19e30fb), #66 and #65 (1a9aefe), #68 with p256 (48a8744) and #57 done;
+#67 follows.
 
 - #64, the lock alone: unicode-width 0.2.2 to 0.2.3, proptest 1.11.0 to 1.12.0, h2 0.4.19 to
   0.4.20 and rcgen 0.14.7 to 0.14.10, applied onto russh 0.65.0's lock. `cargo test --locked`:
@@ -4604,6 +4604,14 @@ follow.
   edge, 3 passed; podssh-cli, 1006 passed in 117 binaries. The test of P-384 now refuses a
   signature with one byte of `s` changed too; planted, a P-384 check that accepts each signature:
   two tests failed.
+- #57, the box's Alpine 3.20 to 3.24 (`images/box/Dockerfile`, by the digest of the pull
+  request). Both images that `scripts/test_in_box.sh` makes from it build on 3.24.3 (here with
+  the session's proxy and its CA added to the build's bundle): the box with `openssh-client`,
+  now `openssh-client-default` 10.3_p1-r1, and curl 8.23.0; the target with `openssh-server`
+  10.3_p1-r1, less 702 and `procps`, now `procps-ng`. podssh against that sshd, OpenSSH_10.3p1, in
+  a container on the loopback with `--direct`: logged in with a throwaway key, ran a command, and
+  carried 20 MB with equal SHA-256. The box's own run waits for T-251: its proxy reaches the
+  internet itself, and this container's only way out is its own proxy.
 
 # T-360: Nothing reads `TODO/issues.md`: issues #59 to #63 have no row, and no check compares the map with GitHub
 

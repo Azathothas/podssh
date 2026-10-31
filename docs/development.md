@@ -209,7 +209,7 @@ chooses; by default a host with wsl-toolkit, or a Windows shell, uses `wsl`.
 
 Each image is named in one place, pinned to the digest of its multi-platform
 index: `images/build/Dockerfile` (`rust:1-alpine`, for the gate, CI
-and the release), `images/box/Dockerfile` (`alpine:3.20`, the box and
+and the release), `images/box/Dockerfile` (`alpine:3.24`, the box and
 its SSH server) and `images/box-proxy/Dockerfile`
 (`python:3.12-alpine`, the box's proxy). The scripts and the workflows read
 their `FROM` line, so two runs of one commit use one compiler, and
