@@ -32,6 +32,11 @@ iroh = ["dep:podssh-iroh", "dep:iroh"]
 # The iroh road with a relay server on the loopback, for the test of the
 # command line from end to end (`tests/iroh_road.rs`); never in a release.
 iroh-test = ["iroh", "podssh-iroh/test-relay"]
+# WARP's MASQUE road over HTTP/2 (T-352, the operator's ruling Q52):
+# `warp://HOST[:PORT]`. Off by default, as a trial: pure Rust, but smoltcp
+# needs Rust 1.91, and the road waits for its live run (T-352's Prove).
+# Without it, a warp:// destination is refused with exit 70.
+warp = ["dep:podssh-warp"]
 
 # Each dependency is one that the library uses: `unused_crate_dependencies`
 # is denied in src/lib.rs, so a dependency that no code uses fails the build.
@@ -39,6 +44,7 @@ iroh-test = ["iroh", "podssh-iroh/test-relay"]
 podssh-probe = { path = "../podssh-probe" }
 podssh-ts = { path = "../podssh-ts", optional = true }
 podssh-iroh = { path = "../podssh-iroh", optional = true }
+podssh-warp = { path = "../podssh-warp", optional = true }
 # The type of a relay's URL, for `doctor`'s line; the version that
 # podssh-iroh builds, and its range (T-359).
 iroh = { version = ">=1.4.1, <1.5", default-features = false, features = ["tls-aws-lc-rs"], optional = true }

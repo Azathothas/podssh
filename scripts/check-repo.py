@@ -92,10 +92,14 @@ LISTENERS = {
     # -L and -D of `podssh ssh` (T-038), which the user asks for: the bind and
     # the listen, before anything connects, are the probe, and PODSSH_LISTEN
     # turns them off.
+    # And the stand-in of WARP's edge (T-352), for the tests of this crate
+    # and of podssh-relay (T-374), on the loopback: podssh-warp's feature
+    # `stand-in`, which no binary enables.
     "TcpListener": [
         "crates/podssh-cli/src/pipe/listen.rs",
         "crates/podssh-ssh/src/remote_tests.rs",
         "crates/podssh-cli/src/ssh/local_bind.rs",
+        "crates/podssh-warp/src/stand_in.rs",
     ],
     # The control socket of `podssh ssh -M` (T-039), which the user asks for:
     # pipe/listen.rs makes it before anything connects (the probe), and the
@@ -156,8 +160,17 @@ LISTENERS = {
         "crates/podssh-ssh/src/agent_forward_tests.rs",
         "crates/podssh-cli/src/ssh/local_bind.rs",
         "crates/podssh-ssh/src/mux/tests.rs",
+        "crates/podssh-warp/src/stand_in.rs",
     ],
-    "listen(": ["crates/podssh-cli/src/pipe/listen_win.rs", "crates/podssh-cli/src/doctor/unix.rs"],
+    # And the stand-in of WARP's edge, as above, whose far end waits for
+    # connections inside its tunnel: sockets of smoltcp in the process, no
+    # socket of the system (T-352).
+    "listen(": [
+        "crates/podssh-cli/src/pipe/listen_win.rs",
+        "crates/podssh-cli/src/doctor/unix.rs",
+        "crates/podssh-warp/src/stand_in.rs",
+        "crates/podssh-warp/src/inside.rs",
+    ],
     "socket2": [],
 }
 # Rule 6 of AGENTS.md in the code: the four markers (written here as escapes,

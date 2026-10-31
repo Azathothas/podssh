@@ -113,6 +113,12 @@ fn run(args: &SshArgs, tty: Tty, err: &mut dyn Write) -> i32 {
         let _ = writeln!(err, "podssh ssh: {}", iroh::not_built("--iroh-ticket"));
         return EXIT_NOT_IMPLEMENTED;
     }
+    // WARP's road is in a build with the feature `warp` alone (T-352).
+    let unbuilt = |d: &&str| cloud::warp::is_warp(d) && !cfg!(feature = "warp");
+    if let Some(destination) = args.destination.as_deref().filter(unbuilt) {
+        let _ = writeln!(err, "podssh ssh: {}", cloud::warp::not_built(destination));
+        return EXIT_NOT_IMPLEMENTED;
+    }
     if let Err(refusal) = crate::pins::apply(args.relay_addr.as_deref()) {
         return refusal.report("ssh", err);
     }

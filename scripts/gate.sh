@@ -122,7 +122,7 @@ echo "steps: $*"
 
 # Each package of the workspace, by name: `cargo fmt --all` would also format
 # the fork in vendor/, which keeps its own format and its patches.
-PKGS="-p podssh-cli -p podssh-ssh -p podssh-relay -p podssh-ws -p podssh-core -p podssh-terminal -p podssh-probe -p podssh-ts -p podssh-iroh -p podssh-todo"
+PKGS="-p podssh-cli -p podssh-ssh -p podssh-relay -p podssh-ws -p podssh-core -p podssh-terminal -p podssh-probe -p podssh-ts -p podssh-iroh -p podssh-todo -p podssh-warp"
 
 # The library crates must build with no C compiler. The image ships a working
 # `cc`, so `CC=/nonexistent` is what enforces the rule, and `CXX=/nonexistent`
@@ -147,6 +147,10 @@ step_lint() {
     # the road, its end-to-end test included.
     run "clippy: no warning with the iroh feature" \
         cargo clippy --locked --all-targets -p podssh-cli -p podssh-iroh --features podssh-cli/iroh-test -- -D warnings
+    # WARP's road (T-352): the CLI's road with its feature, and the crate's
+    # stand-in, which another crate's tests take.
+    run "clippy: no warning with the WARP feature" \
+        cargo clippy --locked --all-targets -p podssh-cli -p podssh-warp --features podssh-cli/warp,podssh-warp/stand-in -- -D warnings
 }
 
 # The feature `blocking` of podssh-relay (the facade for podbox, T-081) brings
@@ -155,8 +159,10 @@ step_libs() {
     # shellcheck disable=SC2086  # $LIBS is a list of flags
     # The quick tunnel's QUIC too (T-301): noq with no ring and no aws-lc.
     # DERP too (T-349): crypto_box and its curve in pure Rust.
+    # WARP's road too (T-352): pure Rust, with Rust 1.91 for smoltcp, so it
+    # is built here and not in step_msrv's check on the library crates' 1.89.
     run "library crates build with no C compiler" \
-        env CC=/nonexistent CXX=/nonexistent cargo build --locked $LIBS --features podssh-relay/blocking,podssh-relay/quick,podssh-relay/derp
+        env CC=/nonexistent CXX=/nonexistent cargo build --locked $LIBS -p podssh-warp --features podssh-relay/blocking,podssh-relay/quick,podssh-relay/derp
 
     # The TLS 1.2 suites (T-067) against OpenSSL's s_server, each alone, and the
     # terminal oracle's model against tmux (T-200); named, so that one missing fails.
@@ -164,7 +170,7 @@ step_libs() {
     # shellcheck disable=SC2086
     tests "library crates: tests, no C compiler" \
         env CC=/nonexistent CXX=/nonexistent PODSSH_TEST_OPENSSL=1 PODSSH_TEST_TMUX=/usr/bin/tmux \
-        cargo test --locked --no-fail-fast $LIBS --features podssh-relay/blocking,podssh-relay/quick,podssh-relay/derp
+        cargo test --locked --no-fail-fast $LIBS -p podssh-warp --features podssh-relay/blocking,podssh-relay/quick,podssh-relay/derp
 
     # The plain ws:// to the loopback (T-068) is behind the feature `plain-ws`:
     # its tests run with the feature, and the binary must never enable it.
@@ -266,6 +272,10 @@ step_ssh() {
     tests "the SSH client and the CLI (need cc): tests" \
         env PODSSH_TEST_SFTP_SERVER=/usr/lib/ssh/sftp-server \
         cargo test --locked --no-fail-fast -p podssh-ssh -p podssh-cli
+    # The road of warp:// in the CLI, with its feature (T-352): its own tests
+    # and those of the manual, whose variables the feature's crate joins.
+    tests "the CLI with WARP's road (feature warp): tests" \
+        cargo test --locked --no-fail-fast -p podssh-cli --features warp --lib
 }
 
 # The Tailscale adapter (feature `ts`) links the vendored tailscale-rs fork,

@@ -155,6 +155,22 @@ async fn pipe(road: &Road, trust: &Trust, err: &mut dyn Write) -> i32 {
                 }
             }
         }
+        // WARP's tunnel (T-352): the stream's end is the end of the pipe,
+        // and a lost tunnel ends its read with the tunnel's words.
+        Road::Warp(target) => {
+            let say = |line: &str| eprintln!("podssh: {line}");
+            let quiet = |_: &str| {};
+            match super::warp::open(target, trust, &say, &quiet).await {
+                Ok(stream) => {
+                    let (read, write) = tokio::io::split(stream);
+                    End { read: Box::new(read), write: Box::new(write), child: None, last_word: true, ending: None }
+                }
+                Err((line, code)) => {
+                    let _ = writeln!(err, "podssh: {line}");
+                    return code;
+                }
+            }
+        }
     };
     crate::session_log::opened(None);
     let pumped = crate::pipe::pump::pump(crate::pipe::local::stdio(), end).await;

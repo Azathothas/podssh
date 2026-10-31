@@ -223,6 +223,15 @@ pub fn files() -> Vec<(Vec<String>, String)> {
                 .to_string(),
         ),
         (
+            vec![crate::ssh::cloud::warp::DEVICE_FILE.to_string()],
+            "The device of WARP's road (warp://, in a build with the feature warp), in the cache, as JSON: its id \
+             and its token at WARP's API, its P-256 key, the endpoint's key that the road pins, and its \
+             addresses inside the tunnel. Written once, as the device registers, with mode 0600, and read at \
+             each run; a record that cannot be read is a configuration error (78), never a new registration: \
+             remove it to register again."
+                .to_string(),
+        ),
+        (
             vec![podssh_relay::identity::pins::FILE.to_string()],
             "The node keys that an operator has met, in the cache: one line for each key of a label, LABEL \
              KEY, the key as its fingerprint (SHA256:...) or itself. The first sight of a label's node \

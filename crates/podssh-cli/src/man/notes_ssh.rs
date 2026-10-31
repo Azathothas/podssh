@@ -91,6 +91,18 @@ pub const SSH: &[&str] = &[
      AWS's. The host key is recorded under eice://ID/ADDRESS, ID the endpoint's. -p and Port give the \
      port; --direct, -4, -6 and HostName cannot go with it, and -J with it first makes the instance the \
      first hop of a chain.",
+    "warp://[user@]HOST[:PORT] reaches a port of any host, 22 by default (an IPv6 address in brackets), \
+     inside WARP's tunnel, in a build with the feature warp: MASQUE over HTTP/2 to Cloudflare's endpoint \
+     162.159.198.2:443 (or PODSSH_WARP_ENDPOINT), through HTTPS_PROXY when one is set, with no relay and no \
+     account; Cloudflare's network reaches HOST, whose name is asked of 1.1.1.1 inside the tunnel. The \
+     first run registers a device with WARP's API, once PODSSH_WARP_ACCEPT_TERMS=yes accepts Cloudflare's \
+     Terms, and keeps its record in the cache (see FILES); each run then reads it. The proxy must take a \
+     CONNECT to that address: one that allows listed names alone refuses it, and podssh doctor's line \
+     egress takes names the case; a proxy that re-terminates TLS shows a certificate of another key than \
+     the endpoint's pinned one, is named by its issuer, and the road is not tried again in the run. TCP \
+     inside the tunnel is smoltcp's, in this process, with no TUN device. The host key is recorded under \
+     warp://HOST. -p and Port give the port; --direct, -4, -6 and HostName cannot go with it, and -J with \
+     it first makes HOST the first hop of a chain.",
     "node://NAME with --iroh-ticket TICKET races the two roads to the node: the iroh road starts first, \
      the pair's road 250 ms later, or at once when the iroh road fails, and the first far end that \
      speaks carries the session; the other link ends before it sends anything, so it opens nothing at \

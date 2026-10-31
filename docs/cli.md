@@ -215,6 +215,36 @@ scripts. The facts about OpenSSH on this page were measured with OpenSSH
   is checked against AWS's. The host key is recorded under
   `eice://ID/ADDRESS`, ID the endpoint's; the flags, `-J` and `podssh proxy`
   go as with `iap://`.
+- **`warp://[user@]HOST[:PORT]` is a port of any host inside WARP's tunnel
+  (T-352), in a build with the feature `warp`.** Cloudflare's own network
+  reaches HOST, with no relay and no account: the road that usque speaks
+  over HTTP/2 (`crates/podssh-warp/src/lib.rs`). podssh dials Cloudflare's endpoint
+  162.159.198.2:443 (or `PODSSH_WARP_ENDPOINT`) through `HTTPS_PROXY` when
+  one is set, by its address, as the names of MASQUE have no A record; TLS
+  1.3 with ALPN `h2`, the name `consumer-masque.cloudflareclient.com`, the
+  device's self-signed certificate, and the endpoint's key pinned, as no
+  public root signs it; one CONNECT of HTTP/2 with `cf-connect-proto:
+  cf-connect-ip`, whose bodies carry IP packets in capsules of type 0; and
+  TCP inside on smoltcp, in this process, with no TUN device. HOST's name is
+  asked of 1.1.1.1 inside the tunnel, over TCP, else of podssh's own
+  resolver. The first run registers a device with WARP's API
+  (`api.cloudflareclient.com`, through the proxy, with the headers of "WARP
+  for Android" that the open clients send) once `PODSSH_WARP_ACCEPT_TERMS=yes`
+  accepts Cloudflare's Terms, and keeps its record, its token and its key in
+  the cache (`warp-device.json`, mode 0600); with no record and no
+  acceptance, the run refuses (78), naming the Terms. A team's token of a
+  Cloudflare One organization, in the private file of
+  `PODSSH_WARP_TEAM_TOKEN_FILE`, enrols the device there. A proxy that
+  refuses the CONNECT to the address, or cuts the TLS after it, is named,
+  with `podssh doctor`'s line `egress takes` for the case (69); a proxy that
+  re-terminates TLS shows a certificate of another key, is named by its
+  issuer (69), and the road is not tried again with it in the run; a key
+  that the edge does not know exits 77. The host key is recorded under
+  `warp://HOST`; `-p` and `Port` give the port; `--direct`, `-4`, `-6`,
+  `HostName` and a `-J` hop before it are refused (64), and `-J warp://HOST`
+  makes HOST the first hop of a chain. `podssh proxy warp://HOST:PORT` is
+  the same pipe. In a build without the feature, a `warp://` destination
+  exits 70 before anything connects.
 - **`PODSSH_MPTCP=yes` asks for Multipath TCP on the direct road** (T-172),
   on Linux, and only on request. With `--direct` and no proxy, each attempt
   asks the kernel for a socket of `IPPROTO_MPTCP`: where the server speaks

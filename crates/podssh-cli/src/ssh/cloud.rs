@@ -6,6 +6,10 @@
 //! user names: a token or a key of Google's ([`google`]), a credential of
 //! AWS's ([`aws`]). The VM is then a jump host like any other: `-J` with
 //! the tunnel as its first hop reaches the hosts that the VM reaches.
+//!
+//! `podssh ssh warp://...` (T-352) is a road of the same kind, a provider's
+//! own tunnel from this host: WARP's, whose network reaches any host
+//! ([`warp`]), in a build with the feature `warp`.
 
 mod aws;
 mod eice;
@@ -13,6 +17,7 @@ pub mod google;
 mod iap;
 pub mod proxy;
 mod told;
+pub mod warp;
 
 use std::sync::Arc;
 use std::time::Duration;
@@ -34,6 +39,8 @@ pub enum Road {
     Iap(podssh_ws::iap::Target),
     /// AWS: the endpoint, and the instance's address and port.
     Eice { endpoint: podssh_ws::eice::Endpoint, target: podssh_ws::eice::Target },
+    /// WARP: any host and port, inside Cloudflare's tunnel (T-352).
+    Warp(warp::Target),
 }
 
 /// `iap://[user@]PROJECT/ZONE/INSTANCE[:PORT]` or
@@ -45,6 +52,9 @@ pub fn destination(text: &str) -> Result<Option<(Option<String>, Road)>, String>
     }
     if let Some((user, endpoint, target)) = eice::destination(text)? {
         return Ok(Some((user, Road::Eice { endpoint, target })));
+    }
+    if let Some((user, target)) = warp::destination(text)? {
+        return Ok(Some((user, Road::Warp(target))));
     }
     Ok(None)
 }
@@ -82,6 +92,7 @@ impl Road {
                 std::net::IpAddr::V6(v6) => format!("{}{}/[{v6}]", eice::SCHEME, endpoint.id),
                 v4 => format!("{}{}/{v4}", eice::SCHEME, endpoint.id),
             },
+            Road::Warp(target) => target.shown(),
         }
     }
 
@@ -91,6 +102,7 @@ impl Road {
         match self {
             Road::Iap(t) => t.instance.clone(),
             Road::Eice { target, .. } => target.address.to_string(),
+            Road::Warp(target) => target.host.clone(),
         }
     }
 
@@ -98,6 +110,7 @@ impl Road {
         match self {
             Road::Iap(t) => t.port,
             Road::Eice { target, .. } => target.port,
+            Road::Warp(target) => target.port,
         }
     }
 
@@ -106,6 +119,7 @@ impl Road {
         match self {
             Road::Iap(_) => "iap",
             Road::Eice { .. } => "eice",
+            Road::Warp(_) => "warp",
         }
     }
 
@@ -124,7 +138,7 @@ impl Road {
 /// `--direct`, no `-J` hop before it, no `HostName`, no `-4` or `-6`.
 pub(super) fn transport(road: &Road, r: &super::node::Ask<'_>, env: &Env, port: u16) -> Result<Transport, Refusal> {
     let why = if r.args.direct {
-        Some("--direct cannot reach it: its road is the cloud's own tunnel")
+        Some("--direct cannot reach it: its road is the provider's own tunnel")
     } else if r.jumps > 0 {
         Some("a -J hop cannot reach it, as its tunnel opens from this host: make it the first hop of -J")
     } else if r.host_name {
@@ -148,6 +162,10 @@ pub(super) fn transport(road: &Road, r: &super::node::Ask<'_>, env: &Env, port: 
                 .map_err(|why| Refusal::config(format!("{DURATION_ENV}: {why}")))?;
             Road::Eice { endpoint, target }
         }
+        Road::Warp(mut target) => {
+            target.port = port;
+            Road::Warp(target)
+        }
     };
     let trust = match super::resolve::ca_file(r.args, env) {
         Some(file) => Trust::File(file.into()),
@@ -165,6 +183,7 @@ pub(super) async fn reach(road: &Road, trust: &Trust, log: &Arc<Log>) -> Result<
     match road {
         Road::Iap(target) => iap::reach(target, trust, log).await,
         Road::Eice { endpoint, target } => eice::reach(endpoint, target, trust, log).await,
+        Road::Warp(target) => warp::reach(target, trust, log).await,
     }
 }
 

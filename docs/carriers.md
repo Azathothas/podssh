@@ -99,6 +99,15 @@ The candidates, ranked:
      TCP features" [F7].
    - Effort: L. Risks: a closed API that can change at any time, and the
      terms. T-352, after Q52.
+   - Built (T-352, drafted 2026-10-31): `warp://HOST[:PORT]`, in a feature
+     crate (`crates/podssh-warp/src/lib.rs`), pure Rust. Read in the fork of
+     connect-ip-go that usque takes (`client_h2.go`): over HTTP/2 the request
+     is a classic CONNECT, `:authority cloudflareaccess.com:443`, with the
+     protocol in the header `cf-connect-proto` and no `:protocol`, so it
+     needs no extended CONNECT; usque sends `pq-enabled: false` and no
+     `User-Agent`. A device is registered once, with the user's acceptance of
+     the Terms, and kept in the cache. The live run waits for GitHub Actions
+     (Q52).
 5. **Tor through Arti** (class A).
    - Who, and the account: volunteers [F17]; no account.
    - Through a proxy: Arti 2.2.0 and later dials through an HTTP CONNECT

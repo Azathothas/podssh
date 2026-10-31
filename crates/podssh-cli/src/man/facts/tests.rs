@@ -17,6 +17,10 @@ fn sources() -> Vec<(PathBuf, String)> {
     if cfg!(feature = "iroh") {
         crates.push("podssh-iroh");
     }
+    // WARP's road's crate is in the binary with its feature only (T-352).
+    if cfg!(feature = "warp") {
+        crates.push("podssh-warp");
+    }
     let mut dirs: Vec<PathBuf> = crates.iter().map(|c| crate_dir(c)).collect();
     while let Some(dir) = dirs.pop() {
         for entry in std::fs::read_dir(&dir).unwrap().flatten() {
