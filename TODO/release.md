@@ -327,7 +327,7 @@ files pass the Prove, and the proofs of `.github/workflows/release-proofs.yml` (
 **Milestone:** none
 **Priority:** P2
 **Effort:** M
-**Status:** partial
+**Status:** done
 
 ## Problem
 
@@ -405,12 +405,22 @@ Linux, macOS and Windows, where the running file is renamed aside.
 
 ## Done
 
-2026-10-31, partial: the command, the check, the fetch, the replacement, the manual and the documents
-(`docs/cli.md`, `SECURITY.md`, `docs/architecture.md`); what waits is the first run of
-`update-live.yml`. `cargo test -p podssh-cli --lib update::` passed 18 and
-`cargo test -p podssh-cli --test update` passed 9: beta.2's own bundle verifies, and each tampered
-copy is refused; against the stand-in, a file replaced with its mode and a new inode, which ran, and
-each planted sum, signature, leaf (tag, issuer, time, use, Fulcio), Rekor and target refused with the
-old binary as it was. Five planted defects each failed a test; the first plant of the chain did not,
-as the test read a later check's words, and now reads the chain's own. Live on this host through its
-proxy: a copy of the build replaced itself with v1.0.0-beta.2's published binary, which ran.
+2026-10-31, commits `5877a00` and `1a46970`: `podssh update`, `--check` and `--version TAG`; the
+check of the release's Sigstore bundle with roots compiled in (`update/sigstore.rs`); the fetch
+through the proxy with bounded redirects (`update/fetch.rs`); the release from GitHub's API, else
+its Atom feed, in semver's order (`update/release.rs`); and the replacement by a rename, on
+Windows with the running file renamed aside (`update/replace.rs`). `cargo test -p podssh-cli --lib
+update::` passed 19 and `cargo test -p podssh-cli --test update` passed 9: beta.2's own bundle
+verifies and each tampered copy is refused; against the stand-in, a file replaced with its mode
+and a new inode, which ran, and each planted sum, signature, leaf (tag, issuer, time, use,
+Fulcio), Rekor and target refused, the old binary as it was. Five planted defects each failed a
+test; the first plant of the chain did not, as its test read a later check's words, and now reads
+the chain's own. Live on this host through its proxy: a copy of the build replaced itself with
+v1.0.0-beta.2's published binary, which ran. In Actions, `update-live.yml` run 41199118452: on
+Linux, macOS and Windows a build of `1a46970` checked the release's signature with its own roots
+and replaced itself with v1.0.0-beta.2's binary for its target (7.9 MiB on Windows, where the
+running `podssh.exe` was renamed aside to `podssh.exe.old`; 6.2 MiB on macOS), which ran as
+`podssh 1.0.0-beta.2 (f7f97a58...)`. Its first run (41197067974) found that macOS has no
+`timeout(1)`, and the build's first run at `5877a00` that a Windows checkout turned the fixture's
+LF into CRLF; each is repaired in `1a46970`. The beta-to-beta form runs in `release-proofs.yml`
+from the release after `v1.0.0-beta.3` (the Correction).
