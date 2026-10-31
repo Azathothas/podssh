@@ -62,15 +62,15 @@ repository and CI).
 
 ## Counts
 
-**355 entries: 29 open, 3 partial, 29 blocked, 294 done.**
+**356 entries: 29 open, 4 partial, 29 blocked, 294 done.**
 
 | Priority | open | partial | blocked | done | total |
 | --- | --- | --- | --- | --- | --- |
 | P0 | 0 | 0 | 0 | 1 | 1 |
-| P1 | 2 | 1 | 0 | 25 | 28 |
-| P2 | 7 | 2 | 20 | 152 | 181 |
+| P1 | 3 | 1 | 0 | 25 | 29 |
+| P2 | 6 | 3 | 20 | 152 | 181 |
 | P3 | 20 | 0 | 9 | 116 | 145 |
-| **All** | 29 | 3 | 29 | 294 | 355 |
+| **All** | 29 | 4 | 29 | 294 | 356 |
 
 ## Entries
 
@@ -427,7 +427,8 @@ repository and CI).
 | [T-352](roads.md) | P3 | L | backlog | feature | open | WARP's MASQUE road over HTTP/2 |
 | [T-353](roads.md) | P3 | L | backlog | feature | open | Tor through Arti, in a feature crate |
 | [T-354](resume.md) | P2 | S | backlog | defect | done | A session that closes while it moves can say a loss that was none |
-| [T-355](repo.md) | P2 | M | none | chore | open | Dependabot's updates of 2026-10-30 and 2026-10-31, and the curves' 0.14 |
+| [T-355](repo.md) | P2 | M | none | chore | partial | Dependabot's updates of 2026-10-30 and 2026-10-31, and the curves' 0.14 |
 | [T-356](ssh.md) | P1 | M | none | defect | partial | russh 0.65.0 fixes six advisories, three of them in the client, and gives the session binding |
 | [T-375](release.md) | P2 | M | none | feature | open | `podssh update`: the release for its own target, checked, in place of the binary |
 | [T-376](roads.md) | P3 | S | backlog | chore | blocked | The live run of the roads through a cloud's own tunnel (T-351) |
+| [T-377](ws.md) | P1 | S | none | defect | open | The keys of podssh's own AEAD ciphers outlive their use, since chacha20poly1305 0.11 |

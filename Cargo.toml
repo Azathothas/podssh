@@ -121,7 +121,7 @@ proptest = { version = "1.11", default-features = false, features = ["std"] }
 serde_json = "1"
 # The relay's facts file (podssh-probe). Pure Rust, and it must stay so: the build image
 # has no C compiler, so a TOML parser that wanted `cc` would fail the gate.
-toml = { version = "0.9", default-features = false, features = ["parse", "serde"] }
+toml = { version = "1.1", default-features = false, features = ["parse", "serde"] }
 # The structural facts are asserted with patterns, not with prose parsing.
 # `regex` is pure Rust; `fancy-regex` is not, and neither is a C toolchain.
 #
@@ -176,7 +176,10 @@ rsa = { version = "0.9", default-features = false, features = ["std"] }
 rand = { version = "0.8", default-features = false, features = ["std", "std_rng"] }
 
 # podssh's own. No crates.io equivalent is acceptable for these.
-base64 = "0.22"
+# No default features: 0.23's `simd-unsafe` adds unsafe SIMD engines for input
+# that podssh reads from files and peers, and no base64 of podssh is large enough
+# to gain from them; the scalar engine is 0.22's.
+base64 = { version = "0.23", default-features = false, features = ["std"] }
 # The channel between two podssh ends (T-088): Noise XX with ChaChaPoly,
 # SHA-256 and Curve25519 only. No default features: its `std` turns on ring,
 # which compiles C.

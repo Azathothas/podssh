@@ -20,9 +20,10 @@ read" (or `deny.toml`'s ignores) with the day and the reason.
   (MEASURED 2026-10-05: `git log -1 --format='%H %cd'` in that clone printed
   the sha above). The **import** is byte-identical to that clone except
   `.git/`, which was dropped; the **shipped tree** is that import plus the
-  patch set below and `LOCAL-PATCHES.md`. A `diff -r` against the pristine
-  clone therefore reports those nine paths and nothing else — they are the
-  eight patches plus the bookkeeping file, not drift.
+  patch set below and `LOCAL-PATCHES.md`. The patch set applied to an export
+  of the pristine commit gives the shipped tree, and `diff -r` then names
+  `LOCAL-PATCHES.md` alone (measured on 2026-10-31 with the 24 patches,
+  T-355).
 - **License**: BSD-3-Clause, with the patent grant (`LICENSE`, `PATENTS`
   retained). CI files and the upstream `AGENTS.md` are retained for fidelity.
 - **Local patch set**: `patches/*.patch`, described patch by patch in

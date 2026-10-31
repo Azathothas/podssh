@@ -1901,7 +1901,7 @@ leaves armv7 out of the Decision; the plan below takes Alpine's own toolchain fo
   container. Plan B, which the Decision rejected, for native speed: `ghcr.io/cross-rs/armv7-unknown-
   linux-musleabihf:main`, or `cargo-zigbuild` (its CI covers x86_64, aarch64 and Apple, not armv7).
   The release profile is `opt-level = "z"`, `lto = true`, `codegen-units = 1`
-  (`Cargo.toml:198` says "opt-level"; the profile is at the lines around it): the link on a 32-bit
+  (`Cargo.toml:201` says "opt-level"; the profile is at the lines around it): the link on a 32-bit
   rustc may run out of address space, and under QEMU it is slow. Measure first.
 - `riscv64gc-unknown-linux-musl`: Rust tier 2 with host tools. Plan A: `runs-on: ubuntu-24.04`,
   `docker/setup-qemu-action` with `platforms: riscv64`, `docker run --platform linux/riscv64
@@ -4347,7 +4347,7 @@ would get no pull request, and maybe no red job.
   checksum, as a path package has none (`vendor/README.md` lines 133-134 at `80e26fc`); Dependabot's file says that
   an update of russh moves the patch by hand (`.github/dependabot.yml` lines 7-9 at `80e26fc`).
 - Read: the copy of russh is the release 0.64.1 (`vendor/README.md` lines 90-92 at `80e26fc`), iroh-relay is 1.4.1
-  (`vendor/README.md:90-94`), and the Tailscale fork is upstream's commit `f4781c4` of
+  (`vendor/README.md:91-95`), and the Tailscale fork is upstream's commit `f4781c4` of
   2026-09-29 with podssh's patch set (`vendor/README.md:12-19`).
 - Read, through fetch.web.pkgforge.dev on 2026-10-31
   (https://github.com/rustsec/advisory-db/blob/main/crates/russh/RUSTSEC-2026-0154.md):
@@ -4505,7 +4505,7 @@ what an update breaks, and commits the update with the repair.
 **Milestone:** none
 **Priority:** P2
 **Effort:** M
-**Status:** open
+**Status:** partial
 
 ## Problem
 
@@ -4546,6 +4546,16 @@ the curves' 0.14 once needed a newer Rust than the library crates allowed.
 3. `cargo deny --locked check` with each feature; `docs/STATUS.md` records
    each version.
 
+## Decision
+
+base64 0.23 is taken with `default-features = false, features = ["std"]`, in podssh's crates and
+in the fork. Its default `simd-unsafe` adds SIMD engines, unsafe code with a choice of CPU at run
+time, which podssh never selects: each of its 23 uses is a `general_purpose` engine, whose code
+0.23 keeps; without the feature the crate is built under `forbid(unsafe_code)`. Lost: the
+defaults of Dependabot's pull request, which gain nothing for inputs of a few KiB. The feature
+`iroh` turns it on anyway, through hyper-util's own request for base64 (reqwest's proxy), so
+there the engines are compiled and still unused.
+
 ## Prove
 
 ```sh
@@ -4559,3 +4569,25 @@ cargo tree -i crypto-bigint@0.5.5   # no such package
 Each test passes; `deny` passes with no ignore of RUSTSEC-2026-0387.
 Planted: a P-384 signature of the relay's chain with one byte changed; the
 provider refuses it on 0.14 as on 0.13.
+
+## Done
+
+2026-10-31, partial: #64 (19e30fb), #66 and #65 done; #67, #68 with p256, and #57 follow, one
+at a time.
+
+- #64, the lock alone: unicode-width 0.2.2 to 0.2.3, proptest 1.11.0 to 1.12.0, h2 0.4.19 to
+  0.4.20 and rcgen 0.14.7 to 0.14.10, applied onto russh 0.65.0's lock. `cargo test --locked`:
+  podssh-relay with quick and pair, podssh-terminal and podssh-ws, 732 passed; the CLI's unit
+  tests, 415 passed. The pull request is closed with a comment.
+- #66, toml 0.9 to 1.1 for the facts files of podssh-probe, the line that iroh already takes: the
+  lock drops toml 0.9.12, toml_datetime 0.7.5 and winnow 0.7.15, and fuzz/Cargo.lock takes the
+  same toml 1.1.6. `cargo test -p podssh-probe`, 18 passed; the CLI's `relay_spec`, 3 passed, and
+  its live test against the relay's contract, 1 passed; `scripts/check-relay-spec.py`, exit 0.
+- #65, base64 0.22 to 0.23, in the root and in the fork (patch 0024, described in
+  `vendor/tailscale-rs/LOCAL-PATCHES.md`, with the missing row of 0023), with no default
+  features (the Decision). The 24 patches applied to an export of the fork's pinned commit give
+  the shipped tree (`diff -r -q` names `LOCAL-PATCHES.md` alone). `cargo test --locked`:
+  podssh-ws, podssh-relay, podssh-ssh and podssh-probe, 769 passed in 95 binaries; podssh-cli,
+  1006 passed in 117; podssh-ts, 54 passed. `cargo deny --locked check advisories licenses bans
+  sources`: exit 0. base64 0.22.1 stays for pem 3, which tokio-rustls-acme takes under the
+  feature `iroh`.

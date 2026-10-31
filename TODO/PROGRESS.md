@@ -107,7 +107,7 @@ and `CARGO_BUILD_JOBS=4`:
 
 ## Counts
 
-`TODO/INDEX.md` holds 355 entries: 29 open, 3 partial, 29 blocked, 294 done.
+`TODO/INDEX.md` holds 356 entries: 29 open, 4 partial, 29 blocked, 294 done.
 
 Open includes parked work. `cargo todo check` verifies this line.
 
@@ -133,7 +133,7 @@ commit.
 **Now:** the entries of the audit and the study of 2026-10-31, the highest
 priority first: T-356 (russh 0.65.0's security fixes, P1), then the P2 entries T-340, whose
 runs in CI wait, and T-347, then T-355 (Dependabot's updates, and the curves' 0.14 that ends an ignore
-of `deny.toml`), then the P2 entries that the operator's rulings of 2026-10-31 opened: T-375
+of `deny.toml`) with T-377 (the AEAD keys' zeroize, P1, found in T-355), then the P2 entries that the operator's rulings of 2026-10-31 opened: T-375
 (`podssh update`), T-348 and T-349 (the iroh road in the release binaries, and the public relays as
 a fallback, Q50) and T-346 (relays outside the default domain, Q49); then the P3 entries T-343,
 T-344 and T-345, then those of the same rulings: T-350 (Q50), T-351 (Q51, against stand-ins),

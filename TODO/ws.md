@@ -1849,3 +1849,56 @@ cargo test -p podssh-cli --test proxy
 A stand-in relay with a certificate that ended a day ago: the error of each command names this
 host's clock. Planted: the match of `ExpiredContext` removed; the test with rustls's error with a
 context fails.
+
+# T-377: The keys of podssh's own AEAD ciphers outlive their use, since chacha20poly1305 0.11
+
+**Source:** T-355's reading of chacha20poly1305 0.11 for the fork (#67), 2026-10-31: the fork's
+`ts_noise` warns that 0.11 makes the zeroize of a key a feature.
+**Category:** defect
+**Milestone:** none
+**Priority:** P1
+**Effort:** S
+**Status:** open
+
+## Problem
+
+The TLS provider of podssh-ws keeps each session's AEAD key in a cipher of RustCrypto. When the
+session ends, the key stays in the freed memory, where a dump of the process, or a later bug
+that reads freed memory, finds it; x25519-dalek's secrets are wiped for this reason. T-333 moved
+podssh to chacha20poly1305 0.11, which wipes its key only with a feature that podssh does not
+turn on, where 0.10 always did. AES-GCM and the block cipher of QUIC's header protection never
+wiped theirs.
+
+## Premise
+
+- Read: the root `Cargo.toml` asks for `chacha20poly1305` 0.11 with `alloc` alone
+  (`Cargo.toml:146`), `aes-gcm` 0.11 with `aes` and `alloc` (`Cargo.toml:141`) and `aes` 0.9 with
+  no feature (`Cargo.toml:143`); x25519-dalek takes `zeroize`, with the reason
+  (`Cargo.toml:147-149`).
+- Read, in cargo's registry: chacha20poly1305 0.10.1 wipes its key in the `Drop` of
+  `ChaChaPoly1305` and implements `ZeroizeOnDrop` with no condition; 0.11.0 does both only under
+  `#[cfg(feature = "zeroize")]`, a feature that also turns on `chacha20/zeroize`. aes-gcm 0.10.3 and 0.11.1 implement `ZeroizeOnDrop` only with their
+  optional `zeroize`, and aes 0.9.3 wipes its key schedule only with its optional `zeroize`.
+- Read: podssh-ws makes the ciphers of TLS from a session's key
+  (`crates/podssh-ws/src/crypto/aead.rs:79-85`) and those of QUIC
+  (`crates/podssh-ws/src/crypto/quic.rs:67`).
+
+## Approach
+
+1. The root `Cargo.toml`: `zeroize` for chacha20poly1305, aes-gcm and aes, with the reason beside
+   x25519-dalek's.
+2. A test of podssh-ws that each cipher type it holds (ChaCha20-Poly1305, AES-128-GCM,
+   AES-256-GCM, AES-128 and AES-256) implements `ZeroizeOnDrop`, as the fork's `ts_noise` checks
+   its own: it fails to compile when a feature is gone.
+3. `cargo deny` (zeroize is already in the tree), STATUS.
+
+## Prove
+
+```sh
+export CARGO_BUILD_JOBS=4
+cargo test -p podssh-ws --lib crypto
+cargo test -p podssh-ws
+```
+
+The test compiles and passes; planted, `zeroize` taken from chacha20poly1305 alone, it fails to
+compile and names `ZeroizeOnDrop`.
