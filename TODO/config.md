@@ -464,7 +464,7 @@ result, `Resolved` (lines 27-41 at `22c3b88`), holds the settings in effect, the
    `serveraliveinterval 60` (the relay's idle cut, `docs/relay.md:190`) and `connecttimeout 60`.
 6. It does not wait for T-043: with no file, `-G` shows the effect of `-o`. After T-043 and
    T-044, `-v` names the files that were read, on stderr.
-7. Change the `ssh` notes (`crates/podssh-cli/src/man/notes_ssh.rs:4-318`) and `docs/cli.md:48-478`
+7. Change the `ssh` notes (`crates/podssh-cli/src/man/notes_ssh.rs:4-320`) and `docs/cli.md:48-478`
    in the same commit.
 
 ## Decision
@@ -680,7 +680,7 @@ go through one function since T-231 (`crates/podssh-cli/src/relay_settings.rs:65
 (`crates/podssh-cli/src/pins.rs:15-34`). The token cache uses the user's
 cache directory first, after the directory of `PODSSH_CACHE_DIR` (T-243;
 `crates/podssh-relay/src/cache/dirs.rs:59-87`). The decision named the
-configuration directory first; the operator corrected it on 2026-10-08 (`docs/decisions.md:60`, T-243).
+configuration directory first; the operator corrected it on 2026-10-08 (`docs/decisions.md:63`, T-243).
 
 ## Approach
 

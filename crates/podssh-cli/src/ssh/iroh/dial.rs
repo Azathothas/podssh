@@ -1,14 +1,16 @@
 //! The dial of `podssh ssh iroh:TICKET` (T-163): this client's key, an
 //! endpoint set up as podssh's other roads, and SSH over a session of the
-//! resumable layer, carried to a new link after each lost one. `podssh pipe
-//! iroh:` (T-175) sets up its dial the same way (`prepare`).
+//! resumable layer, carried to a new link after each lost one. When the
+//! ticket's relay does not reach the node, the node's record of pkarr names
+//! where it is now (T-350). `podssh pipe iroh:` (T-175) sets up its dial the
+//! same way (`prepare`).
 
 use std::sync::Arc;
 use std::time::Duration;
 
 use iroh::RelayUrl;
 use podssh_iroh::keys::{self, Place};
-use podssh_iroh::{ticket, Dialer, Failure, Options, Udp};
+use podssh_iroh::{ticket, Dialer, Failure, Finder, Options, Udp};
 use podssh_relay::session::hearing::WAIT;
 use podssh_relay::session::resume::Note;
 use podssh_relay::session::{Hearing, OsEntropy};
@@ -46,7 +48,7 @@ pub(crate) async fn prepare(
     key: Option<&str>,
     relays: &[String],
     trust: &Trust,
-    log: &Log,
+    log: &Arc<Log>,
 ) -> Result<Prepared, String> {
     let addr = ticket::parse(text)?;
     let shown = format!("{}{}", super::SCHEME, keys::name(&addr.id));
@@ -68,11 +70,16 @@ pub(crate) async fn prepare(
     // The ticket's relays first: this client's home relay is then the
     // node's, when it answers (T-165).
     let mut list: Vec<RelayUrl> = addr.relay_urls().cloned().collect();
-    for relay in relays.iter().filter_map(|text| podssh_iroh::relays::parse_url(text).ok()) {
-        if !list.contains(&relay) {
-            list.push(relay);
+    let theirs = list.len();
+    let ours: Vec<RelayUrl> = relays.iter().filter_map(|text| podssh_iroh::relays::parse_url(text).ok()).collect();
+    for relay in &ours {
+        if !list.contains(relay) {
+            list.push(relay.clone());
         }
     }
+    // The server of the node's record: n0's for n0's relays, else the
+    // variable's (T-350).
+    let record = podssh_iroh::pkarr::choose(&ours).map_err(|why| format!("{shown}: {why}"))?;
     let proxy = ProxyChoice::FromEnvironment;
     let (home, missed) = podssh_iroh::relays::home(&list, trust, &proxy).await;
     for why in &missed {
@@ -93,7 +100,18 @@ pub(crate) async fn prepare(
     let endpoint = opened.endpoint;
     let through: Vec<String> = addr.relay_urls().map(ToString::to_string).collect();
     log.verbose(&format!("connecting to {shown} over the iroh road, through {}", through.join(", ")));
-    let dialer = Dialer::new(endpoint.clone(), addr);
+    let mut dialer = Dialer::new(endpoint.clone(), addr);
+    if let Some(server) = record {
+        // Each of the ticket's relays missed its `/ping`: the record is
+        // asked before the first dial, not after a wait at that relay.
+        let first = theirs > 0 && missed.len() >= theirs;
+        log.verbose(&format!("{shown}: if the ticket's relay does not reach the node, its record is at {server}"));
+        let (said, about) = (log.clone(), shown.clone());
+        let finder = Finder::new(server, trust.clone(), ProxyChoice::FromEnvironment)
+            .first(first)
+            .saying(move |line| said.verbose(&format!("{about}: {line}")));
+        dialer = dialer.finding(finder);
+    }
     let identity = Arc::new(key.identity);
     Ok(Prepared { dialer, endpoint, shown, fingerprint, identity, node, relays: list })
 }
@@ -170,6 +188,10 @@ pub(super) async fn connect(
     // Whether the relay carried each byte, or a direct path some (T-335).
     if let Some(path) = dialer.path() {
         log.verbose(&format!("{shown}: {path}"));
+    }
+    // The ticket names a relay where the node is no more (T-350).
+    if let Some(now) = dialer.moved() {
+        log.info(&format!("{shown}: the node's record named another home relay than the ticket: its ticket is {now}"));
     }
     if let Some((fault, why)) = failed.as_ref().and_then(|e| crate::channel::judged(e, Some(&me))) {
         log.error(&format!("{shown}: {why}"));

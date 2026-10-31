@@ -40,17 +40,32 @@ base64 = { workspace = true }
 # A node's address as iroh's own tools write it (T-163); the version of
 # iroh's own crates.
 iroh-tickets = "1"
+# A node's record of pkarr as iroh writes and reads it, its signature checked
+# (T-350): the iroh-dns that iroh builds, in iroh's range, so no crate is
+# added and the two move together.
+iroh-dns = { version = ">=1.4.1, <1.5", default-features = false }
 # The versions of iroh's relay protocol, which the question of a refused
 # version offers (T-348), and, with the feature `test-relay` only, iroh's
 # relay server: the iroh-relay that iroh builds, so no crate is added.
 iroh-relay = { version = "1", default-features = false }
 # A certificate under any name, for the feature `test-relay` only.
 rcgen = { version = "0.14", optional = true }
+# The TLS of the stand-in server of pkarr, for the feature `test-relay` only
+# (T-350): the tokio-rustls that podssh-ws builds.
+tokio-rustls = { workspace = true, optional = true }
 
 [features]
-# A relay server on the loopback for the tests of this crate and of the
-# command line (`podssh-cli`'s feature `iroh-test`); never in a release.
-test-relay = ["iroh/test-utils", "iroh-relay/server", "iroh-relay/test-utils", "dep:rcgen", "rustls/ring"]
+# A relay server and a server of pkarr on the loopback for the tests of this
+# crate and of the command line (`podssh-cli`'s feature `iroh-test`); never
+# in a release.
+test-relay = [
+  "iroh/test-utils",
+  "iroh-relay/server",
+  "iroh-relay/test-utils",
+  "dep:rcgen",
+  "rustls/ring",
+  "dep:tokio-rustls",
+]
 
 [dev-dependencies]
 # A relay server on the loopback, and the skip of its certificate check, for

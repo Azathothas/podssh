@@ -54,7 +54,8 @@ mod built {
             say(&refusal.message);
             refusal.code
         })?;
-        let log = Log::new(LogLevel::from_flags(args.verbose, args.quiet));
+        // Shared: the lookups of the node's record speak through it (T-350).
+        let log = std::sync::Arc::new(Log::new(LogLevel::from_flags(args.verbose, args.quiet)));
         let ask = crate::ssh::iroh::channel_ask(args).map_err(|why| {
             say(&why);
             crate::exitmap::sysexits::EX_USAGE

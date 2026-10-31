@@ -55,7 +55,7 @@ a local echo to the echo of the remote pty, so each key shows two times.
    `docs/terminal.md` ("Select a mode"), `docs/STATUS.md:607`, and the module notes
    (`crates/podssh-terminal/src/session.rs:1-46`,
    `crates/podssh-terminal/src/lib.rs:18-34`). Remove the warning markers
-   from the lines that you change (`AGENTS.md:268-269`).
+   from the lines that you change (`AGENTS.md:270-271`).
 
 ## Decision
 
@@ -723,7 +723,7 @@ fails. The binary (`$BIN`) prints the note in its manual.
 2026-10-12. The table at `crates/podssh-ssh/src/escape.rs:27-40`, read by
 the input at `crates/podssh-ssh/src/escape.rs:94` and by `~?` at
 `crates/podssh-ssh/src/escape.rs:140-150`; the note at
-`crates/podssh-cli/src/man/notes_ssh.rs:119-129`, and the section "What
+`crates/podssh-cli/src/man/notes_ssh.rs:121-131`, and the section "What
 podssh reads from the terminal" of `docs/terminal.md`. The tests:
 `the_terminal_note_names_each_escape` (`crates/podssh-cli/src/man/notes.rs`)
 finds the escapes `~.`, `~R`, `~#`, `~?` and `~~` in the note, and no other;

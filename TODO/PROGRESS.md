@@ -58,14 +58,26 @@ entry keeps its proof in the entry; this page keeps no history (git does).
   merges a draft, builds it, runs its tests and plants, fills each
   UNVERIFIED and closes the entry (T-179 to T-184, T-200, T-202, T-221, T-225, T-232, T-235, T-242, T-279, T-280, T-229, T-281, T-289, T-291, T-293, T-187 to T-191, T-195, T-296, T-297 and T-298 so, T-185, merged in
   `d1c5bd1` and measured on 2026-10-30, and T-186, T-193, T-197, T-192,
-  T-306, T-302 and T-305, merged on 2026-10-30; T-344, T-349, T-351, T-367 and T-368, merged on
+  T-306, T-302 and T-305, merged on 2026-10-30; T-344, T-349, T-351, T-367, T-368 and T-350, merged on
   2026-10-31). The operator pushed each branch to GitHub as
   `draft/worktree-agent-*` on 2026-10-30; each draft of the four is in
   `main` now, so those branches and the worktrees on the operator's machine
   can go, as can `draft/draft-dns` and `draft/draft-derp` (merged on
   2026-10-31), and `draft/draft-cloud` and `draft/draft-pipe`, which this
-  cloud session's git proxy would not delete. No draft waits to be merged
-  (2026-10-31).
+  cloud session's git proxy would not delete.
+
+  The drafts that wait (2026-10-31), in the order they merge: the index's,
+  but T-379 before T-363, whose draft builds on T-379's split of
+  `ssh/resolve.rs`.
+
+  | Entry | Branch on GitHub | Commit | State |
+  | --- | --- | --- | --- |
+  | T-352 | `draft/draft-warp` | `e423ba2` | drafted, to merge |
+  | T-374 | `draft/draft-warp` | `8dd3c18` | drafted, after T-352 |
+  | T-379 | `draft/draft-roads-cli` | `48d1867` | drafted, to merge |
+  | T-363 | `draft/draft-roads-cli` | `e8f7b52` | drafted, after T-379 |
+  | T-369 | `draft/draft-forwarder` | `04ea77e` | drafted, to merge |
+  | T-370 | `draft/draft-forwarder` | `f27fbe2` | drafted, after T-369 |
 
   CI: the gate passed at
   `24b9f6e` (run 38331509229), and its step `release` at `cad2885` (478
@@ -110,7 +122,7 @@ and `CARGO_BUILD_JOBS=4`:
 
 ## Counts
 
-`TODO/INDEX.md` holds 375 entries: 27 open, 0 partial, 30 blocked, 318 done.
+`TODO/INDEX.md` holds 375 entries: 26 open, 0 partial, 30 blocked, 319 done.
 
 Open includes parked work. `cargo todo check` verifies this line.
 
@@ -138,8 +150,7 @@ zeroize and the curves' 0.14 make that batch, so `v1.0.0-beta.3` comes from
 opened,
 T-379 (the DERP road in the command line, and the fallback to tailcat's relays, Q50);
 then the P3 entry T-363 (the direct road after the relay hosts fail), then those of the
-same rulings: T-350
-(Q50), T-352 and T-353 (Q52), and T-374 after T-352; then those of
+same rulings: T-352 and T-353 (Q52), and T-374 after T-352; then those of
 GitHub #59 to #63 and #73 to #76: T-369, which uses the reader of requests and the dial with no
 token, and T-370 after T-369 (Q56);
 T-372; and T-373.
@@ -207,6 +218,13 @@ them (T-100 to T-105, T-240, T-241).
 The operator settled Q41 and Q43 on 2026-10-30, kept Q42 and the holds of
 Q32, and allowed betas (`docs/decisions.md`): T-292 uses export files that
 their programs wrote and that are published; T-299 runs in GitHub Actions.
+
+The operator settled Q57 to Q59 on 2026-10-31 (`docs/decisions.md`): a
+node on n0's relays publishes its record of pkarr to n0's server by default
+(T-350); tailcat's DERP fleet may be tested live, short, from Actions and a
+session's host, and a node with no pair serves the DERP road unasked
+(T-349, T-379); WARP joins the release binaries once its live run passes
+(T-352).
 
 The operator settled Q44 to Q47 on 2026-10-30 (`docs/decisions.md`): the
 split HTTP road may open its second connection (T-319, which waits for the

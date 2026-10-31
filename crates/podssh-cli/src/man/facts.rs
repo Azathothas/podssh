@@ -259,33 +259,11 @@ pub const VARIABLES: &[(&[&str], &str)] = &[
     ),
 ];
 
-/// The variables of the iroh road (T-165), which only a build with the
-/// feature `iroh` reads.
-#[cfg(feature = "iroh")]
-const FEATURE_VARIABLES: &[(&[&str], &str)] = &[
-    (
-        &["PODSSH_IROH_RELAY"],
-        "The iroh relays, as --iroh-relay: https://HOST[:PORT], separated by commas, in order. The flag \
-          wins; an empty value is no value, and a bad one is a configuration error (78).",
-    ),
-    (
-        &["PODSSH_IROH_UDP"],
-        "off: the iroh road takes no direct path, and its relay carries each byte, as where UDP is refused. on: \
-          UDP is used once a socket binds, with nothing sent, for a relay that runs no QUIC address discovery. \
-          Else UDP is used once a datagram came back: a QUIC address discovery to the home relay within 6 s of \
-          the start, before anything is dialled or served; with none, the relay carries each byte. -v says \
-          which answer the road took, and at a session's end which path carried it; podssh doctor's line iroh \
-          UDP out gives the answer.",
-    ),
-];
-
-#[cfg(not(feature = "iroh"))]
-const FEATURE_VARIABLES: &[(&[&str], &str)] = &[];
-
 /// Each variable that this build reads: [`VARIABLES`], those of the cloud
-/// roads (T-351), and those of its features.
+/// roads (T-351), and those of its features: the iroh road's in a build
+/// with it (`iroh_road`, T-165, T-350).
 pub fn variables() -> impl Iterator<Item = &'static (&'static [&'static str], &'static str)> {
-    VARIABLES.iter().chain(cloud::VARIABLES).chain(FEATURE_VARIABLES).chain(roads::VARIABLES)
+    VARIABLES.iter().chain(cloud::VARIABLES).chain(iroh_road::VARIABLES).chain(roads::VARIABLES)
 }
 
 fn environment() -> Vec<Block> {
@@ -451,32 +429,9 @@ fn relay() -> Vec<Block> {
         ),
     ]
     .into_iter()
-    .chain(iroh_relays())
+    // The iroh road's relays and its record, in a build that has it.
+    .chain(iroh_road::blocks())
     .collect()
-}
-
-/// The relays of the iroh road, in a build that has it.
-#[cfg(feature = "iroh")]
-fn iroh_relays() -> Vec<Block> {
-    use podssh_iroh::relays;
-    vec![item(
-        vec![lit("iroh relays")],
-        format!(
-            "The iroh road (podssh node --iroh, podssh ssh iroh:TICKET) has relays of its own: {}, or those of \
-             --iroh-relay or {}, the flag first. podssh asks /ping of each, in order, through the proxy, {} s \
-             at most each, and the first that answers is the home relay; a node's ticket names it. A client \
-             asks the relay of the ticket first. When none answers, iroh probes them all and takes the one \
-             that answers fastest.",
-            relays::DEFAULT.join(", "),
-            relays::ENV,
-            relays::PING_LIMIT.as_secs()
-        ),
-    )]
-}
-
-#[cfg(not(feature = "iroh"))]
-fn iroh_relays() -> Vec<Block> {
-    Vec::new()
 }
 
 /// The exit codes, from the constants that the commands return.
@@ -494,6 +449,7 @@ fn exit_status() -> Vec<Block> {
 }
 
 mod cloud;
+mod iroh_road;
 mod roads;
 #[cfg(test)]
 mod tests;

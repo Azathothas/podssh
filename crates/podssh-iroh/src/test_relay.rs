@@ -61,8 +61,9 @@ async fn run(
     Ok(TestRelay { url, cert, _server: server })
 }
 
-/// A certificate's DER as PEM.
-fn pem(der: &[u8]) -> String {
+/// A certificate's DER as PEM; the stand-in server of pkarr writes its own
+/// so (`crate::test_pkarr`).
+pub(crate) fn pem(der: &[u8]) -> String {
     use base64::Engine as _;
     let text = base64::engine::general_purpose::STANDARD.encode(der);
     let mut out = String::from("-----BEGIN CERTIFICATE-----\n");

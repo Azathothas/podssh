@@ -233,9 +233,11 @@ undernet, libera and OFTC, with short runs and a throwaway nick and
 channel. Since 2026-10-30: the session's own host, as a restricted host to
 measure podssh in (a cloud container behind its own proxy, T-311), and
 GitHub Actions for a live test that this host cannot run. Since 2026-10-31:
-WARP's network, from GitHub Actions and the session's own host (Q52); and
-the three public WebSocket forwarders of GitHub #59, from GitHub Actions
-only, with short runs (Q56). Use throwaway keys, and
+WARP's network, from GitHub Actions and the session's own host (Q52), with
+a throwaway WARP device (Q59); the three public WebSocket forwarders of
+GitHub #59, from GitHub Actions only, with short runs (Q56); and Tailscale's
+tailcat DERP fleet, with short runs, from GitHub Actions and the session's
+own host (Q58). Use throwaway keys, and
 delete them after the test. Keep keys and scratch files in `.work/`, which
 git ignores, or outside the repository. Never print the claim URL of
 railway.new.

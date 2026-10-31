@@ -491,7 +491,7 @@ Read, at `61e55d1`: no option made podssh start a program: `ProxyCommand` is ref
    `[OPTIONS] [--] [user@]host [COMMAND...]` for `ssh` and
    `[OPTIONS] [--] HOST PORT` for `proxy`; `--help` and the synopsis of the
    manual (`crates/podssh-cli/src/man/model.rs:186-190`) read it.
-2. A note for `ssh` and `proxy` (`crates/podssh-cli/src/man/notes_ssh.rs:4-318` and `crates/podssh-cli/src/man/notes.rs:61-178`)
+2. A note for `ssh` and `proxy` (`crates/podssh-cli/src/man/notes_ssh.rs:4-320` and `crates/podssh-cli/src/man/notes.rs:61-178`)
    and an example (`crates/podssh-cli/src/man/examples.rs:8-228`). Pitfall: the
    notes test reads a bare `--` as a flag that does not exist
    (`crates/podssh-cli/src/man/notes.rs:347-355`); teach `flag_exists`
@@ -990,7 +990,7 @@ Read then: each value flag but `-i` and `-o` was `ArgAction::Set`.
    (`crates/podssh-cli/src/ssh/args.rs:126-165`, called at
    `crates/podssh-cli/src/tree.rs:469-473`).
 4. `docs/cli.md:468-473` and a note of the manual
-   (`crates/podssh-cli/src/man/notes_ssh.rs:291-293`) state the rule.
+   (`crates/podssh-cli/src/man/notes_ssh.rs:293-295`) state the rule.
 
 ## Prove
 
@@ -2467,7 +2467,7 @@ nothing.
   `crates/podssh-cli/src/doctor/unix.rs` line 4 at `48a8744` says "needs none of these".
 - Read: `crates/podssh-cli/src/doctor/mod.rs` line 15 at `48a8744` says "The bind probes here are the only place
   podssh calls". The listener scan of `scripts/check-repo.py` allows a `bind(` in 17 files
-  (`scripts/check-repo.py:140-159`), and these listen, each when the user asks: `pipe`'s
+  (`scripts/check-repo.py:144-164`), and these listen, each when the user asks: `pipe`'s
   `tcp-listen:` and `unix-listen:` (`crates/podssh-cli/src/pipe/listen.rs:127-141`, `:168-192`),
   the control socket of `-M` (`:194-202`), `-L` and `-D` on a port or a path
   (`crates/podssh-cli/src/ssh/local_bind.rs:78-88`, `:111-128`), `podssh agent`
@@ -2579,7 +2579,7 @@ alone measures less than they use, so it cannot answer what a user asks it.
 - Read: `AGENTS.md` lines 248-250 at `48a8744` says "closes it without listening" of doctor's bind in rule 2;
   `SECURITY.md` lines 112-113 at `48a8744`, `docs/architecture.md` lines 133-134 at `48a8744` and `docs/cli.md` lines 1346-1347 at `48a8744` say the same.
   The ruling of 2026-10-08 lets a listener open when the user asks for it and a probe at run time
-  allows the bind (`docs/decisions.md:33`). A listen of doctor's is no listener that the user asks
+  allows the bind (`docs/decisions.md:36`). A listen of doctor's is no listener that the user asks
   for, so it waits for a ruling: Q53.
 - Read: the measured cage's listening was not measured, and stands on the operator's report
   (`docs/target-environment.md:25`); sandbox A's AF_UNIX bind was doctor's bind

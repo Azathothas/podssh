@@ -338,7 +338,7 @@ A binary that was copied into a sandbox is never updated (Q48): a fix such as ru
 
 - Read: the operator's decision of 2026-10-31: an explicit command that fetches the release for
   its own target through the proxy, checks the signed `SHA256SUMS` and the binary's sum, and
-  replaces itself at once; it never runs on its own (`docs/decisions.md:20`).
+  replaces itself at once; it never runs on its own (`docs/decisions.md:23`).
 - Inferred: the release publishes each binary with its provenance and a signed `SHA256SUMS`
   (T-210, T-211), which a client can check before it runs anything that it fetched.
 

@@ -69,7 +69,8 @@ pub(in crate::chat) async fn run<W: AsyncWrite + Unpin>(
     until: Until,
 ) -> i32 {
     let Ready { label, ticket, ask, relays, trust } = ready;
-    let log = Log::new(LogLevel::Info);
+    // Shared: the lookups of the node's record speak through it (T-350).
+    let log = std::sync::Arc::new(Log::new(LogLevel::Info));
     let prepared = tokio::select! {
         prepared = dial::prepare(&ticket, ask.client_key.as_deref(), &relays, &trust, &log) => prepared,
         ended = until.wait() => return run::finish(&ended, 0, lines, out).await,

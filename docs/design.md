@@ -1092,6 +1092,26 @@ client is refused and prints its key, and once that key is in the
 allowlist, with no new start of the node, the command runs, and the host
 key is kept under `iroh:` and the node's key.
 
+**Built (T-350, 2026-10-31):** a node's record of pkarr, for a client whose
+ticket names a relay where the node is no more (`podssh-iroh`'s
+`pkarr.rs`). The node keeps a record of its home relay at a server of
+pkarr: n0's (`https://dns.iroh.link/pkarr`) when its relays are n0's, else
+the one of `PODSSH_IROH_PKARR`, and none with `off`; at its start, when its
+home relay changes, and each 5 minutes, through podssh's proxy and trust
+store, as `/ping` goes. The record is iroh's own, a signed packet of pkarr
+whose `_iroh` TXT says `relay=URL` (iroh-dns writes it), and names the relay
+alone, no address of the host. A client whose ticket's relay does not
+reach the node within 10 s, or at once when that relay misses its `/ping`,
+asks for the record, 10 s at most, checks its signature against the node's
+key, and dials the relay that it names beside the ticket's: iroh sends to
+each relay of the address until one path is chosen. The endpoint has no
+address lookup of iroh's still: iroh 1.4.1's would take the endpoint's one
+proxy (READ: `address_lookup/pkarr.rs`), but it asks at each dial, beside the
+ticket's relay, and says why it failed to its traces alone.
+
+MEASURED offline (`cargo test -p podssh-iroh --features test-relay --test
+pkarr_lookup`): UNVERIFIED.
+
 MEASURED on the loopback (T-157, the debug build, 2026-10-10): SSH through
 iroh's relay server, p50 34.6 MiB/s up and 25.6 MiB/s down, where `--direct`
 to the same server gives 165.9 and 106.3: the iroh road's own limit on this

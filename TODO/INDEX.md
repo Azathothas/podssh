@@ -62,15 +62,15 @@ repository and CI).
 
 ## Counts
 
-**375 entries: 27 open, 0 partial, 30 blocked, 318 done.**
+**375 entries: 26 open, 0 partial, 30 blocked, 319 done.**
 
 | Priority | open | partial | blocked | done | total |
 | --- | --- | --- | --- | --- | --- |
 | P0 | 0 | 0 | 0 | 1 | 1 |
 | P1 | 2 | 0 | 0 | 29 | 31 |
 | P2 | 3 | 0 | 21 | 162 | 186 |
-| P3 | 22 | 0 | 9 | 126 | 157 |
-| **All** | 27 | 0 | 30 | 318 | 375 |
+| P3 | 21 | 0 | 9 | 127 | 157 |
+| **All** | 26 | 0 | 30 | 319 | 375 |
 
 ## Entries
 
@@ -422,7 +422,7 @@ repository and CI).
 | [T-347](roads.md) | P2 | S | backlog | feature | done | `-J cf://HOST`: a Cloudflare tunnel as the first hop of a jump chain |
 | [T-348](roads.md) | P2 | M | backlog | feature | done | The iroh road in the release binaries, and a notice when n0 refuses an old iroh |
 | [T-349](roads.md) | P2 | L | backlog | feature | done | A DERP link through Tailscale's tailcat relays, a second carrier of the reverse road |
-| [T-350](roads.md) | P3 | M | backlog | feature | open | A pkarr record that finds a node whose home relay changed |
+| [T-350](roads.md) | P3 | M | backlog | feature | done | A pkarr record that finds a node whose home relay changed |
 | [T-351](roads.md) | P3 | L | backlog | feature | done | Roads through a cloud's own tunnel: GCP IAP TCP forwarding, then EC2 Instance Connect Endpoint |
 | [T-352](roads.md) | P3 | L | backlog | feature | open | WARP's MASQUE road over HTTP/2 |
 | [T-353](roads.md) | P3 | L | backlog | feature | open | Tor through Arti, in a feature crate |
