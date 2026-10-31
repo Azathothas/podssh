@@ -123,3 +123,121 @@ async fn a_record_that_cannot_be_read_gives_the_fixed_names_and_why() {
     let why = found.fixed.expect("the reason of the fixed names");
     assert!(why.contains("the edge's SRV record was not read"), "{why}");
 }
+
+/// The node's end of a connection, which a test can freeze: nothing comes
+/// to the node then, and what it writes goes nowhere, as on a connection
+/// that fell silent.
+#[derive(Clone)]
+struct Gate {
+    io: std::sync::Arc<std::sync::Mutex<tokio::io::DuplexStream>>,
+    frozen: std::sync::Arc<std::sync::atomic::AtomicBool>,
+}
+
+impl Gate {
+    fn new(io: tokio::io::DuplexStream) -> Gate {
+        Gate { io: std::sync::Arc::new(std::sync::Mutex::new(io)), frozen: Default::default() }
+    }
+
+    fn freeze(&self) {
+        self.frozen.store(true, std::sync::atomic::Ordering::SeqCst);
+    }
+
+    fn is_frozen(&self) -> bool {
+        self.frozen.load(std::sync::atomic::Ordering::SeqCst)
+    }
+}
+
+impl tokio::io::AsyncRead for Gate {
+    fn poll_read(
+        self: std::pin::Pin<&mut Self>,
+        cx: &mut std::task::Context<'_>,
+        buf: &mut tokio::io::ReadBuf<'_>,
+    ) -> std::task::Poll<std::io::Result<()>> {
+        if self.is_frozen() {
+            return std::task::Poll::Pending;
+        }
+        std::pin::Pin::new(&mut *self.io.lock().unwrap()).poll_read(cx, buf)
+    }
+}
+
+impl tokio::io::AsyncWrite for Gate {
+    fn poll_write(
+        self: std::pin::Pin<&mut Self>,
+        cx: &mut std::task::Context<'_>,
+        buf: &[u8],
+    ) -> std::task::Poll<std::io::Result<usize>> {
+        if self.is_frozen() {
+            return std::task::Poll::Ready(Ok(buf.len()));
+        }
+        std::pin::Pin::new(&mut *self.io.lock().unwrap()).poll_write(cx, buf)
+    }
+
+    fn poll_flush(
+        self: std::pin::Pin<&mut Self>,
+        cx: &mut std::task::Context<'_>,
+    ) -> std::task::Poll<std::io::Result<()>> {
+        if self.is_frozen() {
+            return std::task::Poll::Ready(Ok(()));
+        }
+        std::pin::Pin::new(&mut *self.io.lock().unwrap()).poll_flush(cx)
+    }
+
+    fn poll_shutdown(
+        self: std::pin::Pin<&mut Self>,
+        cx: &mut std::task::Context<'_>,
+    ) -> std::task::Poll<std::io::Result<()>> {
+        std::pin::Pin::new(&mut *self.io.lock().unwrap()).poll_shutdown(cx)
+    }
+}
+
+/// The edge closes the connection while the control stream reads (T-378):
+/// the connection's accept and the control stream's read each see the end,
+/// and the node says the connection's, never the control stream's. Fifty
+/// connections, each closed once it registered, as one run in six of the
+/// same race over QUIC took the wrong one.
+async fn fifty_closes() {
+    for round in 0..50 {
+        let (node_io, edge_io) = tokio::io::duplex(1 << 20);
+        let (mut steps, _stop, served) = node(node_io);
+        let (mut edge, conn) = h2::client::handshake(edge_io).await.unwrap();
+        let conn = tokio::spawn(conn);
+        let (to_node, from_node) = register(&mut edge, &mut steps).await;
+        // The edge's end of the connection goes, its streams with it.
+        conn.abort();
+        let ended = tokio::time::timeout(LIMIT, served).await.unwrap().unwrap().unwrap_err();
+        assert!(
+            matches!(ended, Ended::Closed | Ended::Http2(_)),
+            "round {round}: the control stream's end, not the connection's: {ended}"
+        );
+        drop((edge, to_node, from_node));
+    }
+}
+
+#[tokio::test]
+async fn a_close_while_the_control_stream_reads_ends_as_the_connection_s() {
+    fifty_closes().await;
+}
+
+/// The same on two threads, where the control stream's task may run beside
+/// the connection's.
+#[tokio::test(flavor = "multi_thread", worker_threads = 2)]
+async fn a_close_on_two_threads_ends_as_the_connection_s() {
+    fifty_closes().await;
+}
+
+/// The edge falls silent while the control stream reads (T-378): no pong
+/// comes to the node's ping, and the end is the connection's silence, on a
+/// paused clock that takes the ping's 30 s and the pong's 30 s at once.
+#[tokio::test(start_paused = true)]
+async fn a_silence_while_the_control_stream_reads_ends_as_silent() {
+    let (node_io, edge_io) = tokio::io::duplex(1 << 20);
+    let gate = Gate::new(node_io);
+    let (mut steps, _stop, served) = node_with(gate.clone(), echo);
+    let (mut edge, conn) = h2::client::handshake(edge_io).await.unwrap();
+    tokio::spawn(conn);
+    let (to_node, from_node) = register(&mut edge, &mut steps).await;
+    gate.freeze();
+    let ended = served.await.unwrap().unwrap_err();
+    assert!(matches!(ended, Ended::Silent), "{ended}");
+    drop((edge, to_node, from_node));
+}

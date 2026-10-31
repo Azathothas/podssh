@@ -4467,7 +4467,7 @@ T-352 is done: WARP's road, on which this road runs. The operator allowed it on 
 **Milestone:** backlog
 **Priority:** P3
 **Effort:** S
-**Status:** open
+**Status:** done
 
 ## Problem
 
@@ -4507,3 +4507,21 @@ for i in $(seq 1 20); do cargo test -p podssh-relay --features quick --test quic
 
 Each of the 20 runs passes, with the test of step 1 among them. If step 2 was needed: with it
 planted away, the test fails within the 20 runs.
+
+## Correction
+
+2026-10-31: the Premise's inference did not hold: over HTTP/2 the connection's end comes first.
+h2's connection is driven in the loop's own task, by its accept, so the poll that reads the end
+of the connection also fails its streams; the control stream's failure reaches the loop only
+through its task of its own and a channel, a later poll. Measured: 2,000 closes, on one thread and
+on two, each the connection's end. Step 2 is not needed.
+
+## Done
+
+2026-10-31: `crates/podssh-relay/tests/quick_tunnel.rs` closes the connection while the control
+stream reads, 50 connections on one thread and 50 on two, each registered and then closed; and
+silences it, the node's end frozen (a `Gate`), on a paused clock that takes the ping's 30 s and the
+pong's 30 s at once. Twenty runs of the file passed (`cargo test -p podssh-relay --features quick
+--test quick_tunnel`, 7 tests each): each close ended as `Closed` or `Http2`, and the silence as
+`Silent`. Planted, a close read as the control stream's end: the test failed at its first round,
+naming it. Step 2 is not needed (the Correction); clippy clean.

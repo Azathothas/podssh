@@ -62,15 +62,15 @@ repository and CI).
 
 ## Counts
 
-**374 entries: 34 open, 2 partial, 30 blocked, 308 done.**
+**374 entries: 33 open, 2 partial, 30 blocked, 309 done.**
 
 | Priority | open | partial | blocked | done | total |
 | --- | --- | --- | --- | --- | --- |
 | P0 | 0 | 0 | 0 | 1 | 1 |
 | P1 | 2 | 0 | 0 | 29 | 31 |
 | P2 | 3 | 1 | 21 | 160 | 185 |
-| P3 | 29 | 1 | 9 | 118 | 157 |
-| **All** | 34 | 2 | 30 | 308 | 374 |
+| P3 | 28 | 1 | 9 | 119 | 157 |
+| **All** | 33 | 2 | 30 | 309 | 374 |
 
 ## Entries
 
@@ -449,4 +449,4 @@ repository and CI).
 | [T-375](release.md) | P2 | M | none | feature | done | `podssh update`: the release for its own target, checked, in place of the binary |
 | [T-376](roads.md) | P3 | S | backlog | chore | blocked | The live run of the roads through a cloud's own tunnel (T-351) |
 | [T-377](ws.md) | P1 | S | none | defect | done | The keys of podssh's own AEAD ciphers outlive their use, since chacha20poly1305 0.11 |
-| [T-378](roads.md) | P3 | S | backlog | defect | open | The quick tunnel's loop over HTTP/2 may read the connection's end as its control stream's |
+| [T-378](roads.md) | P3 | S | backlog | defect | done | The quick tunnel's loop over HTTP/2 may read the connection's end as its control stream's |
