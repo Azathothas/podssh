@@ -30,8 +30,9 @@ jobs:
           export HOME="$RUNNER_TEMP/hop"
           mkdir -p "$HOME"
           b="$GITHUB_WORKSPACE/target/debug/podssh"
-          timeout 120 "$b" doctor --hop git@ssh.github.com:443 > doctor.txt
-          rc=$?
+          # Each exit code is read directly; the shell's -e would stop at it.
+          rc=0
+          timeout 120 "$b" doctor --hop git@ssh.github.com:443 > doctor.txt || rc=$?
           sed -n '/^hop/,$p' doctor.txt
           [ "$rc" = 0 ] || { echo "doctor --hop exited $rc"; exit 1; }
           grep -q 'an SSH server answered with its banner' doctor.txt
@@ -39,9 +40,9 @@ jobs:
           grep -q 'the server refused a key made for this check' doctor.txt
           # The key is made for the run and removed with the runner.
           timeout 30 "$b" keygen -q -t ed25519 -N '' -f "$HOME/k"
+          rc=0
           timeout 120 "$b" ssh --direct -i "$HOME/k" -o StrictHostKeyChecking=accept-new \
-            -o UserKnownHostsFile="$HOME/kh" -J git@ssh.github.com:443 git@github.com < /dev/null 2> ssh.txt
-          rc=$?
+            -o UserKnownHostsFile="$HOME/kh" -J git@ssh.github.com:443 git@github.com < /dev/null 2> ssh.txt || rc=$?
           cat ssh.txt
           # GitHub refuses the key at the hop: its words, and 255, as OpenSSH's.
           [ "$rc" = 255 ] || { echo "podssh ssh exited $rc"; exit 1; }

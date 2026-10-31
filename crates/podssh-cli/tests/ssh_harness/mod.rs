@@ -57,6 +57,7 @@ mod far;
 mod forward;
 mod health;
 mod interrupt;
+pub mod pass;
 pub mod podssh;
 mod prompt;
 mod serve;
@@ -93,6 +94,10 @@ impl server::Handler for Far {
         self.pty = user.starts_with("pty-");
         self.evil = user.starts_with("evil-");
         self.containers = user.starts_with("containers-").then(|| user.to_string());
+        self.nofwd = pass::refuses_forwarding(user);
+        if let Some(auth) = pass::none(user) {
+            return Ok(auth);
+        }
         if watch::refused(self.watch.as_deref(), user, &mut self.cut) {
             return Ok(Auth::reject());
         }
@@ -104,6 +109,10 @@ impl server::Handler for Far {
             });
         }
         Ok(Auth::Accept)
+    }
+
+    async fn auth_password(&mut self, user: &str, password: &str) -> Result<Auth, Self::Error> {
+        Ok(pass::password(user, password))
     }
 
     async fn auth_publickey_offered(
@@ -145,6 +154,10 @@ impl server::Handler for Far {
         reply: server::ChannelOpenHandle,
         _session: &mut Session,
     ) -> Result<(), Self::Error> {
+        if self.nofwd {
+            reply.reject(russh::ChannelOpenFailure::AdministrativelyProhibited).await;
+            return Ok(());
+        }
         forward::tcpip(channel, host, port, reply).await;
         Ok(())
     }

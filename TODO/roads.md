@@ -4498,6 +4498,13 @@ gives its banner and its methods; a hop that refuses `direct-tcpip` is named in 
 Planted: the hop dialed on port 22 whatever its port; the stand-in proxy refuses it, and the test
 fails. In the box: the runs of step 1. Live: the lines of step 2, in `docs/STATUS.md`.
 
+## Correction
+
+2026-10-31: the Prove's tests are files of their own, `cargo test -p podssh-cli --test jump_hop` and
+`--test doctor_hop` (`tests/doctor.rs` holds 481 of its 500 lines, and `ssh_args` tests the parse
+alone). `-L` through the hop is not tested apart: it opens the same `direct-tcpip` channel of the
+hop as `-W`, which the test carries 64 KiB through, and the refusal of that channel is tested.
+
 ## Done
 
 2026-10-31, partial:
@@ -4522,12 +4529,21 @@ fails. In the box: the runs of step 1. Live: the lines of step 2, in `docs/STATU
   banner's check skipped: the test of the silent proxy failed, `hop` reading ok. `--test doctor`
   13, `--lib doctor` 38, `--test ssh_args` 26, `--lib man` 55, `--test flag_table` 9; clippy
   clean. `docs/cli.md` says it.
-- What waits: the `-J` test of Approach item 1 through a stand-in proxy that allows port 443 only,
-  with the password from a stand-in of `SSH_ASKPASS` (the harness's server takes keys only, so it
-  needs a password of its own), `-W` and `-L` through the hop, the refusal of `direct-tcpip` in the
-  hop's words, and the plant of a hop dialed on port 22; the box's run (`scripts/test_in_box.sh`);
-  the live run from GitHub's network, `.github/workflows/hop-live.yml` by hand: UNVERIFIED.
-
+- `cargo test -p podssh-cli --test jump_hop`, 3 passed, through a stand-in proxy that allows port
+  443 only and refuses another port with 403: `-J pass-hop@hop.test:443` logged in with the
+  password of a stand-in of `SSH_ASKPASS` and reached the target, the hop alone going through the
+  proxy and the password shown nowhere; `-W` through the hop carried 64 KiB back whole; a hop that
+  refuses `direct-tcpip` (the harness's `pass-nofwd-`, as `AllowTcpForwarding no`) ended with 255
+  in its own words, `administratively prohibited`. The harness's server takes a password for a user
+  `pass-...` now (`crates/podssh-cli/tests/ssh_harness/pass.rs`). Planted, the first hop dialed on
+  port 22 whatever its port: each of the three failed, the proxy refusing `hop.test:22`.
+- Live from GitHub's network (`.github/workflows/hop-live.yml`, run 41214144960 at `60fff70`):
+  `doctor --hop git@ssh.github.com:443` gave `hop` ok with no proxy (best 36 ms, loss 0 of 9), `hop
+  key` GitHub's ed25519 key `SHA256:+DiY3wvvV6TuJJhbpZisF/zLDA0zPMSvHdkr4UvCOqU`, and `hop login`
+  refused with `publickey` offered. Its step then stopped at the expected 255 of the `-J` run, as
+  Actions' shell runs with `-e`; the workflow reads each exit code directly now. The `-J` run
+  through GitHub's hop: UNVERIFIED until its next run.
+- What waits: the box's run (`scripts/test_in_box.sh`), with the checks of the release (T-251).
 
 # T-372: A hop or a destination whose SSH is wrapped in TLS: `ssh+tls://`
 

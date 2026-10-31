@@ -23,6 +23,8 @@ pub(super) struct Far {
     pub(super) spews: HashMap<ChannelId, (Arc<std::sync::atomic::AtomicBool>, bool)>,
     /// The user `kick`: the server ends the connection after the login.
     pub(super) kick: bool,
+    /// The user `pass-nofwd-...`: each direct-tcpip channel refused (T-371).
+    pub(super) nofwd: bool,
     /// The channels of `cat > /dev/null`: read to the end, say nothing.
     pub(super) drains: Vec<ChannelId>,
     /// The user `bare-...`: a host with no `cat` and no `head`; and
