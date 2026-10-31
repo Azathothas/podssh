@@ -3,7 +3,9 @@
 //! podssh's own for the edge. A binary keeps the roots that it was built
 //! with, as it keeps its compiled-in roots (`net.rs`): the day is said, not
 //! failed, as podssh works until it comes. And whether UDP reaches the edge,
-//! as the node takes QUIC (T-359).
+//! as the node takes QUIC (T-359), and which road over TCP reaches it, as
+//! the node takes HTTP/2: directly or through the proxy, else inside WARP's
+//! tunnel (T-374).
 
 use std::net::SocketAddr;
 use std::time::Duration;
@@ -53,6 +55,77 @@ pub(super) async fn udp_out(report: &mut Report<'_>, full: bool) {
             report.ok("UDP out", handshake_words(&quic::handshake(&found, tls).await));
         }
     }
+}
+
+/// What a run without `--full` says of the edge's road over TCP.
+const EDGE_NOT_PROBED: &str = "not probed: podssh doctor --full opens TLS with the quick tunnel's edge on TCP port \
+                               7844, as podssh node --quick-tunnel does over HTTP/2, and inside WARP's tunnel when \
+                               that fails";
+
+/// Which road over TCP reaches the quick tunnel's edge, as the node tries
+/// them (T-374): TCP port 7844 directly or through the proxy, then inside
+/// WARP's tunnel, with the device that the cache keeps; doctor registers no
+/// device. TLS with the edge, closed at once, with nothing registered. Each
+/// answer is `ok`, as the node is one road of podssh among others.
+pub(super) async fn edge_road(report: &mut Report<'_>, full: bool) {
+    if !full {
+        return report.unknown("edge road", EDGE_NOT_PROBED.to_string());
+    }
+    let proxy = ProxyChoice::FromEnvironment;
+    let found = edge::find(&proxy).await;
+    let first = found.regions.first().map(String::as_str).unwrap_or(edge::REGIONS[0]);
+    let way = match podssh_ws::dial::proxy_from_env(first) {
+        Ok(Some(proxy)) => format!("through the proxy {proxy}"),
+        _ => "directly".to_string(),
+    };
+    let detail = match edge::connect(&proxy, &found).await {
+        Ok(_) => format!(
+            "TCP port {} of the edge answered TLS {way}, so podssh node --quick-tunnel takes HTTP/2 there",
+            found.port
+        ),
+        Err(why) => inside_warp(&found, why).await,
+    };
+    report.ok("edge road", detail);
+}
+
+/// The edge inside WARP's tunnel, after `why` of TCP: what the node would
+/// take.
+#[cfg(feature = "warp")]
+async fn inside_warp(found: &edge::Edge, why: String) -> String {
+    use crate::ssh::cloud::warp::{road, ACCEPT_TERMS_ENV};
+    let device = match road::kept() {
+        Ok(Some(device)) => device,
+        Ok(None) => {
+            return format!(
+                "{why}; no WARP device is kept: podssh node --quick-tunnel registers one where {ACCEPT_TERMS_ENV} \
+                 is yes, then tries the edge inside WARP's tunnel"
+            )
+        }
+        Err((line, _)) => return format!("{why}; {line}"),
+    };
+    let limit = podssh_relay::open::CONNECT_TIMEOUT;
+    let warp = match podssh_warp::Warp::open(&device, &ProxyChoice::FromEnvironment, limit).await {
+        Ok(warp) => warp,
+        Err(fault) => return format!("{why}; WARP's tunnel: {fault}"),
+    };
+    let trust = match edge::trust() {
+        Ok(trust) => trust,
+        Err(e) => return format!("{why}; the edge's roots: {e}"),
+    };
+    match podssh_relay::quick::edge_warp::connect(&warp, found, &trust).await {
+        Ok(_) => format!(
+            "{why}; inside WARP's tunnel ({}) the edge answered TLS, so podssh node --quick-tunnel takes HTTP/2 \
+             inside it",
+            warp.via()
+        ),
+        Err(inside) => format!("{why}; {inside}"),
+    }
+}
+
+/// In a build without the feature: what such a build would try.
+#[cfg(not(feature = "warp"))]
+async fn inside_warp(_found: &edge::Edge, why: String) -> String {
+    format!("{why}; a build with the feature warp tries the edge inside WARP's tunnel too")
 }
 
 /// The day that the first root ends, `end`, at `now` (seconds since the
@@ -117,5 +190,6 @@ mod tests {
         assert!(silent.starts_with("no region") && silent.ends_with("takes HTTP/2"), "{silent}");
         assert!(BEHIND_A_PROXY.contains("HTTP/2") && BEHIND_A_PROXY.contains("sends no UDP"));
         assert!(NOT_PROBED.contains("--full"), "{NOT_PROBED}");
+        assert!(EDGE_NOT_PROBED.contains("--full") && EDGE_NOT_PROBED.contains("WARP"), "{EDGE_NOT_PROBED}");
     }
 }

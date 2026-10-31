@@ -148,9 +148,11 @@ step_lint() {
     run "clippy: no warning with the iroh feature" \
         cargo clippy --locked --all-targets -p podssh-cli -p podssh-iroh --features podssh-cli/iroh-test -- -D warnings
     # WARP's road (T-352): the CLI's road with its feature, and the crate's
-    # stand-in, which another crate's tests take.
+    # stand-in, which another crate's tests take; the quick tunnel's edge
+    # inside it (T-374).
     run "clippy: no warning with the WARP feature" \
-        cargo clippy --locked --all-targets -p podssh-cli -p podssh-warp --features podssh-cli/warp,podssh-warp/stand-in -- -D warnings
+        cargo clippy --locked --all-targets -p podssh-cli -p podssh-warp -p podssh-relay \
+            --features podssh-cli/warp,podssh-warp/stand-in,podssh-relay/warp-stand-in -- -D warnings
 }
 
 # The feature `blocking` of podssh-relay (the facade for podbox, T-081) brings
@@ -162,7 +164,8 @@ step_libs() {
     # WARP's road too (T-352): pure Rust, with Rust 1.91 for smoltcp, so it
     # is built here and not in step_msrv's check on the library crates' 1.89.
     run "library crates build with no C compiler" \
-        env CC=/nonexistent CXX=/nonexistent cargo build --locked $LIBS -p podssh-warp --features podssh-relay/blocking,podssh-relay/quick,podssh-relay/derp
+        env CC=/nonexistent CXX=/nonexistent cargo build --locked $LIBS -p podssh-warp \
+            --features podssh-relay/blocking,podssh-relay/quick,podssh-relay/derp,podssh-relay/warp
 
     # The TLS 1.2 suites (T-067) against OpenSSL's s_server, each alone, and the
     # terminal oracle's model against tmux (T-200); named, so that one missing fails.
@@ -170,7 +173,8 @@ step_libs() {
     # shellcheck disable=SC2086
     tests "library crates: tests, no C compiler" \
         env CC=/nonexistent CXX=/nonexistent PODSSH_TEST_OPENSSL=1 PODSSH_TEST_TMUX=/usr/bin/tmux \
-        cargo test --locked --no-fail-fast $LIBS -p podssh-warp --features podssh-relay/blocking,podssh-relay/quick,podssh-relay/derp
+        cargo test --locked --no-fail-fast $LIBS -p podssh-warp \
+            --features podssh-relay/blocking,podssh-relay/quick,podssh-relay/derp,podssh-relay/warp-stand-in
 
     # The plain ws:// to the loopback (T-068) is behind the feature `plain-ws`:
     # its tests run with the feature, and the binary must never enable it.
@@ -252,14 +256,16 @@ step_msrv_iroh() {
 }
 
 # WARP's minimum, which its road declares for smoltcp (T-352); the CLI with
-# the feature `warp` too, which brings the road in.
+# the feature `warp` too, which brings the road in, and podssh-relay with
+# its own, the quick tunnel's edge inside WARP's tunnel (T-374).
 step_msrv_warp() {
     rust_version crates/podssh-warp/Cargo.toml
     WARP_RUST=$RV
     run "Rust $WARP_RUST, the declared minimum of podssh-warp: install" \
         retry3 rustup toolchain install "$WARP_RUST" --profile minimal
     run "podssh-warp and podssh-cli with the feature warp: check on Rust $WARP_RUST" \
-        cargo "+$WARP_RUST" check --locked --all-targets -p podssh-warp -p podssh-cli --features podssh-cli/warp,podssh-warp/stand-in
+        cargo "+$WARP_RUST" check --locked --all-targets -p podssh-warp -p podssh-cli -p podssh-relay \
+            --features podssh-cli/warp,podssh-warp/stand-in,podssh-relay/warp-stand-in
 }
 
 # The work record (TODO/): the checker's own tests, where each planted

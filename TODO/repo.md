@@ -120,7 +120,7 @@ Read:
      image. Do this item after T-206;
    - no entry for `vendor/tailscale-rs`.
 2. Each pull request of Dependabot runs the whole CI: the gate, the plant and
-   the live check. The no-C steps of the gate (`scripts/gate.sh:154-167`) judge
+   the live check. The no-C steps of the gate (`scripts/gate.sh:156-170`) judge
    each update of a library crate's dependencies.
 3. Dependabot alerts and security updates: on since 2026-10-08, turned on
    with `gh api` and the operator's approval (`gh api
@@ -328,8 +328,8 @@ Read:
 - The help (`scripts/dev.sh` lines 331-366 at `912acd0`) says that the gate builds the default
   members with `CC=/nonexistent`, and the release too (lines 339-342). The
   gate builds the library crates with `CC` and `CXX` set to `/nonexistent`,
-  and the release with neither (`scripts/gate.sh:154-167`,
-  `scripts/gate.sh:324-326`). The help omits the work record, interop, the man
+  and the release with neither (`scripts/gate.sh:156-170`,
+  `scripts/gate.sh:330-332`). The help omits the work record, interop, the man
   page, the C++ plant, and the subcommand `gate` (line 602 at `912acd0`).
 - Stale comments, at `912acd0`: `scripts/dev.sh` lines 69-73 ("the default
   build"), lines 397-404 ("links the fork since 4b", "steps 4-5") and line
@@ -349,7 +349,7 @@ Read:
    comment. Invariant: the text of the bridge does not change by one byte;
    compare the old and the new text with `cmp`.
 3. Correct the help and the stale comments to the gate as it is
-   (`scripts/gate.sh:135-378`).
+   (`scripts/gate.sh:135-384`).
 4. Extend the size check of `scripts/check-repo.py` to the shell and Python
    files under `scripts/`, with a floor (T-223).
 5. Drop the sentence on the exception from `docs/decisions.md`, and move it
@@ -458,7 +458,7 @@ Read:
 3. On a run by hand, make the list of the commits since the last tag as an
    artifact, so that it can be read before a tag.
 4. Link each "Fixes #N" of a commit to its issue in the list.
-5. docs/development.md, "Release builds" (`docs/development.md:673-785`): the
+5. docs/development.md, "Release builds" (`docs/development.md:677-789`): the
    body is the notes file and the generated list.
 
 No new shell script: each step is a step of the workflow.
@@ -1154,14 +1154,14 @@ sees it.
 
 Read:
 
-- `docs/STATUS.md:253-267`: the box, measured by hand on 2026-10-08.
+- `docs/STATUS.md:254-268`: the box, measured by hand on 2026-10-08.
 - `scripts/test_in_box.sh:202-205`: the box runs `probe.sh`, then
   `sandbox-check.sh` (or, with `BOX_RUN=tt`, the session of T-004), and the
   script exits with the code of the second.
   `scripts/sandbox-check.sh:85-242` prints the exit code of each step and does
   not fail on it (T-006). So today the box exits 0 when podssh fails in it.
 - `scripts/box/probe.sh:122-127` exits 1 when the box differs from the sandbox
-  in a required property (17 properties, `docs/STATUS.md:260`).
+  in a required property (17 properties, `docs/STATUS.md:261`).
 - The box needs a static binary; CI uploads one
   (`.github/workflows/build.yml:88-93`).
 - The box uses `--disable-dns` (`scripts/test_in_box.sh:122`) and a mask on
@@ -1188,7 +1188,7 @@ Read:
    that CI runs the box.
 
 Pitfall: the live path can drop a session (179 of 180 short sessions,
-`docs/STATUS.md:290`). Run a failure again by hand and record it. Never retry
+`docs/STATUS.md:291`). Run a failure again by hand and record it. Never retry
 inside the job.
 
 ## Decision
@@ -1206,7 +1206,7 @@ test "$(grep -c '^match ' box.log)" -eq 17                  # the box was faithf
 
 The run passed, with the job `box`, and its log has 17 `match` lines.
 Planted defect: run the job by hand with the seccomp option removed (an input
-of `workflow_dispatch`); the probe must exit 1, as in `docs/STATUS.md:261`,
+of `workflow_dispatch`); the probe must exit 1, as in `docs/STATUS.md:262`,
 and the job must fail.
 
 ## Blocker
@@ -1253,7 +1253,7 @@ Read:
   test.
 - `docs/STATUS.md` line 230 at `9966ed4`: the default tests pass on Windows,
   run by hand.
-  `docs/STATUS.md:98`: `scripts/interop-conpty.py` passes 14 of 14 against a
+  `docs/STATUS.md:99`: `scripts/interop-conpty.py` passes 14 of 14 against a
   Tailscale SSH server, by hand.
 - `scripts/interop-conpty.py:219-275` needs a server with a POSIX shell,
   `stty`, `vi`, `less`, `top`, `seq`, `sed` and `/tmp`.
@@ -1271,7 +1271,7 @@ Read:
    deletes (see Decision). Run the script with `--direct`; 14 of 14 must pass.
 3. With T-199: score the output with the Windows part of the baseline.
 4. The plant: a podssh that does not restore the mode of the console must
-   fail the three restore checks (as measured by hand, `docs/STATUS.md:98`).
+   fail the three restore checks (as measured by hand, `docs/STATUS.md:99`).
    Run it once in CI, and record it.
 5. docs/STATUS.md cites the CI run for the rows of Windows;
    docs/development.md names the job.
@@ -2019,14 +2019,14 @@ the gate on any host that has a C++ compiler. The no-C rule held only because
 
 Read, in the tree as it is now:
 
-- `scripts/gate.sh:127-167`: the library crates build and test with
+- `scripts/gate.sh:127-170`: the library crates build and test with
   `CC=/nonexistent` and `CXX=/nonexistent`.
 - `scripts/plant.sh:100-145`: a crate in a temporary path whose build script
   compiles one C++ file with the `cc` crate. With both variables set, the
   build must fail at `/nonexistent`; the control, with `CC` alone, must not
   stop there.
-- `docs/development.md:251-253` states the rule with `CXX`, and
-  `docs/STATUS.md:640` records the measurement. Rule 4 of
+- `docs/development.md:255-257` states the rule with `CXX`, and
+  `docs/STATUS.md:641` records the measurement. Rule 4 of
   `docs/architecture.md` named `CC=/nonexistent` only; it was repaired in the
   same change as the record.
 - `.github/workflows/build.yml:103-111` runs the plant on each push.
@@ -2057,7 +2057,7 @@ the same script in its step "the no-C rule is load-bearing".
 (CXX=/nonexistent)"). Measured with `sh scripts/dev.sh plant` in
 `rust:1-alpine`: the C plant failed twice for the right reason, the C++ plant
 failed at `CXX=/nonexistent`, the control with `CC` alone was not stopped
-there, and the clean tree built (`docs/STATUS.md:640`). The CI run of
+there, and the clean tree built (`docs/STATUS.md:641`). The CI run of
 `eacd94e`, which contains `a378863`, passed, with its step "the no-C rule is
 load-bearing".
 
@@ -2450,7 +2450,7 @@ Read:
 
 - `scripts/box/seccomp.json:5-10`: `bind` fails with EACCES for each socket,
   whatever its family.
-- `docs/STATUS.md:281`: in sandbox A, `bind` is refused for AF_INET and
+- `docs/STATUS.md:282`: in sandbox A, `bind` is refused for AF_INET and
   allowed for AF_UNIX. In the KTM report (read there), `doctor` printed
   `Permission denied (os error 13)` for AF_INET, and "bound" for an AF_UNIX
   path and for the abstract namespace.
@@ -2544,7 +2544,7 @@ Read:
 - The record's checker reads `AGENTS.md` for ids, and drops a missing file
   with no word (`crates/podssh-todo/src/refs.rs:43-48`). It accepts
   `AGENTS.md` as a cited root file (line 20). The gate runs the checker in the
-  container (`scripts/gate.sh:268-275`). 22 lines of `TODO/` cite `AGENTS.md`.
+  container (`scripts/gate.sh:274-281`). 22 lines of `TODO/` cite `AGENTS.md`.
 - The area file that was TODO/agents.md is `TODO/machine.md` now.
 
 Not known: whether `wsl-toolkit run --exclude` matches a pattern at any depth,
@@ -2643,7 +2643,7 @@ command uses `podssh-probe`.
 2. Move `podssh-core` and `podssh-transport` to the dev-dependencies: an
    example can use a dev-dependency, and the binary does not declare them.
 3. Move `libc` to the dependencies for Unix only, as
-   `crates/podssh-relay/Cargo.toml:69` does; else the lint of step 4 fails on
+   `crates/podssh-relay/Cargo.toml:80` does; else the lint of step 4 fails on
    Windows.
 4. The check: `#![cfg_attr(not(test), deny(unused_crate_dependencies))]` in
    `crates/podssh-cli/src/lib.rs`. rustc then refuses a dependency that the
@@ -3954,7 +3954,7 @@ identities (x25519-dalek, `podssh-ws` and `podssh-relay`), and its AEAD
 
 ## Premise
 
-- Read: `crates/podssh-ssh/Cargo.toml:26` and `crates/podssh-cli/Cargo.toml:74`
+- Read: `crates/podssh-ssh/Cargo.toml:26` and `crates/podssh-cli/Cargo.toml:75`
   ask for `sha1` 0.10.7, and the root `Cargo.toml:142` for `hmac` 0.12;
   `Cargo.lock` holds `sha1` 0.10.7 and 0.11.0, `hmac` 0.12.1 and 0.13.0,
   and `digest` 0.10.7 and 0.11.3, as russh 0.64.1 (vendor/russh/Cargo.toml)
@@ -4892,8 +4892,8 @@ of GitHub #69 to #72 corrected these; nothing finds the next.
   `docs/design.md` gave "A reverse node and operator" first of what podssh "does not yet have",
   and said that "the real sandbox is not run yet"; `docs/irc.md` said "No command uses the IRC
   client yet", with T-097 and T-098 as its known defects; `docs/STATUS.md` said "Over IRC too
-  (T-252, partial)". Each part is built: the reverse road (`docs/STATUS.md:64`, `:68`), two runs
-  in real sandboxes (T-001; `docs/STATUS.md:272-281`), and `podssh chat --irc` (T-252, done, as
+  (T-252, partial)". Each part is built: the reverse road (`docs/STATUS.md:64`, `:69`), two runs
+  in real sandboxes (T-001; `docs/STATUS.md:273-282`), and `podssh chat --irc` (T-252, done, as
   T-097 and T-098 are). Of the same kind: `docs/design.md`'s summary and the head of its section
   4, and the row of `podssh-terminal` in `docs/architecture.md`. The triage's commit corrected
   each in place.
@@ -4920,7 +4920,7 @@ of GitHub #69 to #72 corrected these; nothing finds the next.
 3. A status written beside an id in those documents (`T-NNN, partial`, `(T-NNN, open)`) agrees
    with the index, unless its paragraph reads at a date or at a commit, as the record's readings
    do (`TODO/RULES.md:142-147`): "T-099, partial" of 2026-10-10 is such a reading
-   (`docs/STATUS.md:608`).
+   (`docs/STATUS.md:609`).
 4. `TODO/RULES.md` says it, beside the rules of citations.
 
 ## Decision

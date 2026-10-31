@@ -40,6 +40,9 @@ cargo build -p podssh-cli --features iroh                        # with the iroh
 cargo test -p podssh-iroh -p podssh-cli --features podssh-cli/iroh-test   # its tests
 cargo test -p podssh-ws --features plain-ws --test plain_loopback   # plain ws:// to loopback, for tests
 cargo test -p podssh-ws --features plain-ws --test cloudflare_access # the road of cloudflared (T-264)
+cargo build -p podssh-cli --features warp                        # with WARP's road (T-352, Rust 1.91)
+cargo test -p podssh-warp -p podssh-cli --features podssh-cli/warp --lib   # its tests
+cargo test -p podssh-relay --features warp-stand-in --test quick_edge_warp # the edge inside it (T-374)
 ```
 
 - A `cargo build` or `cargo test` at the root uses `default-members`. These
@@ -243,7 +246,8 @@ sh scripts/dev.sh run -- 'sh /work/scripts/gate.sh ssh'
 for the library crates and `podssh-todo` (with no C compiler), and for
 `podssh-ssh` and `podssh-cli`, 1.92 for `podssh-ts` and the CLI with the
 feature `ts`, 1.91 for `podssh-iroh` and the CLI with the feature `iroh`, and
-1.91 for `podssh-warp` and the CLI with the feature `warp`.
+1.91 for `podssh-warp`, the CLI with the feature `warp` and podssh-relay with
+its feature `warp`.
 rustup fetches each toolchain into the build image, so the C toolchain is
 the gate's. `.cargo/config.toml` makes `cargo update` prefer the versions of
 dependencies that these minimums allow. The other steps make sure that:

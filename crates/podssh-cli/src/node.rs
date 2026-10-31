@@ -50,6 +50,10 @@ pub fn run_node(args: &NodeArgs, err: &mut dyn Write) -> i32 {
     if let Some(key) = &args.temporary {
         return crate::node_temp::run(args, key, err);
     }
+    if args.warp && !args.quick_tunnel {
+        let why = "--warp is for --quick-tunnel, whose node then reaches Cloudflare's edge inside WARP's tunnel";
+        return Refusal::usage(why.to_string()).report("node", err);
+    }
     // A quick tunnel of Cloudflare's, which podssh makes itself (T-300).
     if args.quick_tunnel {
         return crate::node_quick::run(args, err);

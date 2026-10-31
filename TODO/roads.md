@@ -2975,7 +2975,7 @@ roots must be exactly three, and a refusal of the edge does not say which releas
 - Read: two fixed regions, port 7844 and the TLS name `h2.cftunnel.com`
   (`crates/podssh-relay/src/quick/edge.rs:22-29`); the roots must give 3 anchors and no invalid
   one (`:40-44`); the API's host is fixed (`crates/podssh-relay/src/quick/api.rs:18`). The node
-  registers as `podssh` and the package's version (`crates/podssh-cli/src/node_quick.rs:158-159`),
+  registers as `podssh` and the package's version (`crates/podssh-cli/src/node_quick.rs:168-169`),
   `1.0.0-beta.2` today (`Cargo.toml:49`).
 - Read: the three roots end on 2029-08-15, 2029-08-15 and 2029-11-01
   (`crates/podssh-relay/src/quick/cloudflare-roots.pem:6`, `:25`, `:52`).
@@ -4234,7 +4234,7 @@ code that no command of the default build uses is P2 at most".
   roads" is wrong. T-301's Approach item 1 said "After a UDP probe (the iroh road's)"
   (`TODO/roads.md:2020`); its Decision took QUIC only where no proxy is set, on the connection's
   own socket (`TODO/roads.md:2052-2059`), and the QUIC handshake, bounded at 5 s, is its probe:
-  QUIC that fails gives way to HTTP/2 for the run (`crates/podssh-cli/src/node_quick.rs:161-163`,
+  QUIC that fails gives way to HTTP/2 for the run (`crates/podssh-cli/src/node_quick.rs:171-173`,
   `:276-295`; `crates/podssh-relay/src/quick/quic.rs:32`). Its cost on a host that drops UDP is
   one handshake a run, as its Decision item 5 chose (`TODO/roads.md:2060-2064`). doctor says
   nothing of it in the default build, where the quick tunnel is.
@@ -4671,7 +4671,7 @@ a hop. `doctor` has no line for a hop, so a user cannot see whether one is reach
 - Read: through the agent proxy of a cloud container, a CONNECT to `ssh.github.com:443` got `200`,
   and then a reset: `TODO/ws.md:1160` says "gets 200, then a reset". A proxy that waits for TLS
   carries no SSH on port 443; T-372 wraps SSH in TLS for it. Through the relay, GitHub's SSH on
-  port 443 answers (`docs/STATUS.md:108`).
+  port 443 answers (`docs/STATUS.md:109`).
 - Read: `doctor` asks the proxy for the relay and for `github.com` only
   (`crates/podssh-cli/src/doctor/net.rs:201-251`).
 - Read in GitHub #61 (a tester's measurement of 2026-10-31, from a host with direct egress; not
@@ -4927,7 +4927,7 @@ incremented after the chunk of the length; the session through `ssserver` fails.
 **Milestone:** backlog
 **Priority:** P3
 **Effort:** M
-**Status:** open
+**Status:** partial
 
 ## Problem
 
@@ -4964,11 +4964,40 @@ After T-352:
 4. A measurement in GitHub Actions: a runner whose egress refuses port 7844 publishes a quick
    tunnel through WARP, and a client reaches it.
 
+## Decision
+
+The draft's calls, 2026-10-31:
+
+1. Where the road comes: after QUIC and the TCP dial of the edge, direct or through the proxy, have
+   failed, in `link` of `crates/podssh-cli/src/node_quick.rs`, at each connection to the edge;
+   first with the node's flag `--warp` (exit 70 in a build without the feature `warp`, 64 without
+   `--quick-tunnel`). Lost: a variable, where the node's other choices are flags; WARP before TCP
+   by default, which would send each node's tunnel through Cloudflare's WARP where its own edge
+   answers.
+2. The tunnel: opened once, with the device of `warp://` (T-352: its record in the cache, or a
+   registration once `PODSSH_WARP_ACCEPT_TERMS=yes`), and kept for the node's next connections
+   to the edge until it ends. A node with no device and no acceptance registers nothing: its line
+   says what the road needs. Lost: a tunnel for each connection, which costs a handshake each time
+   and gains nothing while the tunnel lives.
+3. The library: `crates/podssh-relay/src/quick/edge_warp.rs`, feature `warp` of podssh-relay, with
+   the trust as a parameter, so that a test's CA stands in for cloudflared's roots, and a boxed
+   stream, which the node serves as it serves the TCP one; the edge's names are asked inside the
+   tunnel (T-352), and its SRV record through the proxy as before.
+4. `doctor`'s line `edge road`, with `--full` alone: TLS with the edge on port 7844 directly or
+   through the proxy, else inside WARP's tunnel with a device that the cache keeps; doctor
+   registers no device. Lost: a line without `--full`, which would reach Cloudflare's servers
+   unasked.
+5. The Prove's test takes the feature `warp-stand-in` of podssh-relay, as the quick tunnel's tests
+   take `quick`: the stand-in of WARP's edge listens on the loopback, and no binary enables it.
+
 ## Prove
 
 ```sh
 export CARGO_BUILD_JOBS=4
-cargo test -p podssh-relay --test quick_edge_warp
+cargo test -p podssh-relay --features warp-stand-in --test quick_edge_warp
+cargo test -p podssh-cli --features warp --lib
+cargo test -p podssh-cli --lib node_warp
+gh workflow run quick-tunnel-live.yml -f confirm=Q43
 ```
 
 A stand-in of WARP's edge, T-352's, carries a stand-in of the quick tunnel's edge: the node
@@ -4980,6 +5009,60 @@ refused on the runner.
 
 T-352 is done: WARP's road, on which this road runs. The operator allowed it on 2026-10-31 (Q52,
 `docs/decisions.md`).
+
+## Correction
+
+Read at `a3f948d` on 2026-10-31.
+
+- The first item of the Premise holds for the edge's port:
+  `crates/podssh-relay/src/quick/edge.rs:23` says "pub const PORT: u16 = 7844". But the node has
+  no road of the relay to the edge: `link`
+  of `crates/podssh-cli/src/node_quick.rs` takes QUIC, then TCP directly or through the proxy, and
+  the VPC road carried TLS to 7844 when T-299 measured it by hand through `podssh proxy`. Step 1
+  of the Approach therefore reads: after QUIC and the TCP dial failed.
+- The ruling of the quick tunnel's live tests in GitHub Actions alone is Q47's row (and Q43's),
+  `docs/decisions.md:22`; the Premise's `docs/decisions.md:15` names the row of Q50 since rows
+  came above it.
+- The Prove names its test with no feature; the test needs the stand-in of WARP's edge, a
+  feature of podssh-relay (the Decision, item 5).
+
+## Done
+
+2026-10-31: drafted in the worktree `warp` (branch `draft-warp`, `8dd3c18`), on the draft of
+T-352; merged into `main` the same day, built and measured here. Partial: the live run waits for
+this commit on GitHub.
+
+- podssh-relay: `crates/podssh-relay/src/quick/edge_warp.rs` (feature `warp`), and the test
+  `crates/podssh-relay/tests/quick_edge_warp.rs` (feature `warp-stand-in`): the node's TLS with
+  a stand-in of the quick tunnel's edge, at 198.51.100.7:7844 inside a stand-in of WARP's edge
+  that carries it to the loopback; the edge's side of HTTP/2 registers the node and a visitor's
+  WebSocket passes both ways; and an edge that the tunnel does not reach is named.
+  `cargo test -p podssh-relay --features warp-stand-in --test quick_edge_warp`: 2 passed
+  (2026-10-31). The quick tunnel's other tests, `--features quick --test quick_tunnel --test
+  quick_tunnel_quic`: 13 passed.
+- podssh-cli: `crates/podssh-cli/src/node_warp.rs`, the road in `link` of
+  `crates/podssh-cli/src/node_quick.rs`, the flag `--warp` of `node` with its refusals, the
+  device that `podssh doctor` reads without registering (`kept`), and doctor's line `edge road`
+  with `--full`; the manual's notes of `node` and `doctor`, and `docs/cli.md`.
+  `cargo test -p podssh-cli --lib node_warp`: 2 passed; `--lib doctor::quick`: 2 passed;
+  `cargo test -p podssh-cli --features warp --lib`: 474 passed; the flag in help and in the
+  manual, `cargo test -p podssh-cli --test man_flag_parity --test flag_table --test node`: 9, 6
+  and 14 passed. podssh-cli's whole suite: 1109 passed, 49 ignored, in a temporary directory of
+  its own, which it left empty.
+- The gate: podssh-relay's `warp` in the build with no C compiler, `warp-stand-in` in its tests,
+  and clippy with both; at the merge, the step `msrv_warp` checks podssh-relay with
+  `warp-stand-in` on Rust 1.91 too. Here: clippy `-D warnings` clean with
+  `podssh-cli/warp,podssh-warp/stand-in,podssh-relay/warp-stand-in` and on each package without
+  them; rustfmt clean; `CC=/nonexistent cargo build --locked` of the library crates with
+  `podssh-relay/warp`: ok; `cargo +1.91 check --locked --all-targets` with the three features:
+  exit 0. `sh scripts/dev.sh check` waits for the checks of the release (T-251).
+- Planted (2026-10-31): `edge_warp::connect` that dials the region with `podssh_ws::dial::dial`,
+  past the tunnel: the test of the node's registration through WARP's tunnel failed, as
+  198.51.100.7 answers nowhere and the stand-in of WARP's edge carried nothing; the other passed.
+- Live, in `.github/workflows/quick-tunnel-live.yml` (Q43, Q52): a third node built with the
+  feature `warp`, with TCP and UDP to 7844 dropped, registers over HTTP/2 inside WARP's tunnel, a
+  visitor reaches it, and doctor's `edge road` names WARP's tunnel: waits for this commit on
+  GitHub.
 
 # T-378: The quick tunnel's loop over HTTP/2 may read the connection's end as its control stream's
 
@@ -5070,7 +5153,7 @@ ask, and nothing does so.
 
 - Read: the node of the iroh road serves the pair's road beside it, with one keeper for both
   (`crates/podssh-cli/src/node_iroh.rs:323-324`), and `podssh node` sends `--iroh` there
-  (`crates/podssh-cli/src/node.rs:72-74`).
+  (`crates/podssh-cli/src/node.rs:76-78`).
 - Read: `podssh ssh` resolves its destination into an enum of transports
   (`crates/podssh-cli/src/ssh/resolve.rs:24-51`), in a file of 488 of its 500 lines.
 - Read: the race of T-164 orders two roads (`crates/podssh-relay/src/session/race.rs:56-58`), and

@@ -18,6 +18,8 @@
 //! - [`connect`]: the first bytes of each QUIC stream, and the request and
 //!   answer that follow them (T-301);
 //! - `edge` (feature `quick`): where the edge is, and its TLS;
+//! - `edge_warp` (feature `warp`): the edge inside WARP's tunnel, for a node
+//!   whose cage does not reach TCP port 7844 (T-374);
 //! - `goaway` (feature `quick`): the edge's GOAWAY, seen as it passes;
 //! - `serve` (feature `quick`): the connection to the edge, served over
 //!   HTTP/2: the control stream, and each visitor's WebSocket;
@@ -30,6 +32,8 @@ pub mod connect;
 pub mod control;
 #[cfg(feature = "quick")]
 pub mod edge;
+#[cfg(feature = "warp")]
+pub mod edge_warp;
 #[cfg(feature = "quick")]
 pub mod goaway;
 pub mod headers;

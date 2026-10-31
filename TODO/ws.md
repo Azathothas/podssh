@@ -2,7 +2,7 @@ This file holds the work on `podssh-ws`, the crate that reaches the relay: TCP a
 with podssh's own pure-Rust provider, and the WebSocket client. W10, W13 and W14 are rows of the
 former defects page (`git show 3ee70dc:docs/defects.md`); the features come from the
 `podssh-ws` item of ROADMAP M4 and `docs/design.md:507-511`, and from GitHub issues. The crate
-must build with no C compiler (`scripts/gate.sh:154-167`).
+must build with no C compiler (`scripts/gate.sh:156-170`).
 
 # T-063: W10: the frame decoder does not check a received control frame
 
@@ -1616,9 +1616,9 @@ command says what to do. Four of the eight release binaries are for Windows and 
 - Read: the release builds two binaries for macOS and two for Windows
   (`.github/workflows/release.yml:286-297`, `:329-345`).
 - Read: `windows-sys` 0.61 is already a dependency of `podssh-relay` on Windows
-  (`crates/podssh-relay/Cargo.toml:76-77`), a crate with no C; `rustls-native-certs` 0.8.4,
+  (`crates/podssh-relay/Cargo.toml:87-88`), a crate with no C; `rustls-native-certs` 0.8.4,
   `schannel` and `security-framework` are in the lock through other crates
-  (`Cargo.lock:4853-4854`).
+  (`Cargo.lock:4855-4856`).
 - Read: one proxy that re-terminates TLS was measured, with its CA in `SSL_CERT_FILE` and in the
   system's store of Linux (`docs/target-environment.md:57-63`).
 - Inferred: on macOS, `/etc/ssl/cert.pem` lacks a root that an administrator added to a keychain;
@@ -1961,7 +1961,7 @@ and each other command print rustls's words alone. An error should tell what to 
 - Read: the other commands print the error's text: `crates/podssh-ws/src/client.rs:133` says "TLS
   with the relay failed: {why}"; the TLS of IRC and of the quick tunnel's edge gives the text of
   `crates/podssh-ws/src/tls.rs:151` (`crates/podssh-relay/src/quick/edge.rs:111-113`).
-- Read: rustls 0.23.46 (`Cargo.lock:4803-4804`) has the errors `Expired`, `ExpiredContext`,
+- Read: rustls 0.23.46 (`Cargo.lock:4805-4806`) has the errors `Expired`, `ExpiredContext`,
   `NotValidYet` and `NotValidYetContext`, and writes the two with a context as "certificate
   expired: verification time" and "certificate not valid yet: verification time" (its
   `src/error.rs`, read in cargo's registry); doctor's match of the text ("expired", "not valid

@@ -64,6 +64,25 @@ fn a_quick_tunnel_is_refused_before_any_connection_without_its_needs() {
     assert!(err.contains("PODSSH_OFFLINE") && out.is_empty(), "{err}");
 }
 
+/// `--warp` (T-374) is a flag of the quick tunnel's node alone, and of a
+/// build with the feature `warp`; each refusal comes before any connection.
+#[test]
+fn warp_is_a_flag_of_the_quick_tunnel_alone() {
+    let home = scratch("warp");
+    let (rc, out, err) = podssh(&home, &["node", "lab", "127.0.0.1:22", "--warp"], &[]);
+    assert_eq!(rc, 64, "{err}");
+    assert!(err.contains("--warp is for --quick-tunnel") && out.is_empty(), "{err}");
+    if cfg!(not(feature = "warp")) {
+        let allow = home.join("allow");
+        std::fs::write(&allow, "").unwrap();
+        let allow = allow.to_string_lossy().into_owned();
+        let args = ["node", "lab", "127.0.0.1:22", "--quick-tunnel", "--warp", "--allow", &allow];
+        let (rc, out, err) = podssh(&home, &args, &[]);
+        assert_eq!(rc, 70, "{err}");
+        assert!(err.contains("--features warp") && out.is_empty(), "{err}");
+    }
+}
+
 #[test]
 fn node_needs_a_name_and_a_target_and_refuses_bad_ones_before_any_connection() {
     let home = scratch("parse");

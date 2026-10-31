@@ -46,6 +46,11 @@ rustls = { workspace = true, optional = true }
 # Rust, RustCrypto's, in the lock already through the vendored tailscale-rs;
 # no `getrandom`: a nonce comes from podssh's own source.
 crypto_box = { version = "0.9", default-features = false, features = ["alloc", "salsa20"], optional = true }
+# The quick tunnel's edge inside WARP's tunnel (src/quick/edge_warp.rs,
+# T-374): a TCP stream to the edge's port 7844 on podssh-warp's road (T-352),
+# pure Rust, which needs Rust 1.91 (smoltcp's) where this crate declares
+# 1.89; only with the feature `warp`.
+podssh-warp = { path = "../podssh-warp", optional = true }
 
 [features]
 # Pairs of the reverse road: `POST /v1/pair`, the status of a pair and
@@ -62,6 +67,12 @@ quick = ["dep:h2", "dep:http", "dep:bytes", "dep:noq", "dep:rustls"]
 # user's own, under the resumable layer, with an adapter that sends again
 # what a server drops. No C either; the gate builds it.
 derp = ["dep:crypto_box"]
+# The quick tunnel's edge inside WARP's tunnel (T-374), for a node whose cage
+# reaches TCP port 7844 only through it. No C either; Rust 1.91.
+warp = ["quick", "dep:podssh-warp"]
+# The same with podssh-warp's stand-in of WARP's edge, which listens on the
+# loopback, for tests/quick_edge_warp.rs alone; the binary never enables it.
+warp-stand-in = ["warp", "podssh-warp/stand-in"]
 # Plain ws:// to a stand-in relay on the loopback, for the tests of an embedder
 # (T-068). The binary never enables it (scripts/no-plain-ws.sh).
 plain-ws = ["podssh-ws/plain-ws"]
@@ -95,3 +106,6 @@ proptest = { workspace = true }
 # `Generate`.
 rcgen = { version = "0.14", default-features = false }
 p256 = { workspace = true, features = ["getrandom"] }
+# The stand-in edge's TLS in tests/quick_edge_warp.rs (T-374): the version
+# that podssh-ws builds.
+tokio-rustls = { workspace = true }

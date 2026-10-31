@@ -750,7 +750,7 @@ So a local TCP TARGET exists only where the host allows it; `podssh serve` (M5) 
    FILE, and prints only the label and the expiry. `podssh relay revoke NAME` stops the pair and deletes the
    local copies. `podssh relay status NAME` gives presence; agree on the form with T-058, whose `relay status`
    has no NAME.
-4. Exit codes as `podssh proxy` (`docs/cli.md:2701`): 64 usage; 69 the relay or TARGET cannot be reached; 77 a
+4. Exit codes as `podssh proxy` (`docs/cli.md:2712`): 64 usage; 69 the relay or TARGET cannot be reached; 77 a
    refused pair (`403`); 78 no usable pair; 0 after a stop by a signal. Add the rows to
    `crates/podssh-cli/src/man/facts.rs:438`.
 5. `doctor`: one line for each stored pair, with its expiry and its presence, as in
@@ -888,7 +888,7 @@ Read: `parse_hop` strips `ssh://` and reads `host:PORT` (`crates/podssh-cli/src/
 operator leg receives text frames (`docs/relay.md:332-335`). A host key is recorded under the target
 host, never the relay's name (`SECURITY.md:118-128`); `HostKeyAlias` exists
 (`crates/podssh-cli/src/ssh/resolve.rs:419`). `podssh ssh` uses the exit codes of OpenSSH, and
-`podssh proxy` sysexits (`docs/cli.md:2697-2701`).
+`podssh proxy` sysexits (`docs/cli.md:2708-2712`).
 
 ## Approach
 
@@ -947,7 +947,7 @@ cargo test -p podssh-cli --test node_live -- --ignored ssh_to_a_node
 22. `operator.rs` runs the binary with no stored pair (78, naming `podssh relay pair`), and checks
 that stdout stays empty. The binary line must exit 255, name `podssh relay pair lab`, and open no
 connection. The live test runs `podssh ssh node://lab 'exit 3'` through a node whose TARGET is
-`railway.new:22` (an anonymous SSH service, `docs/STATUS.md:93`), and expects 3. Plant: read `node:`
+`railway.new:22` (an anonymous SSH service, `docs/STATUS.md:94`), and expects 3. Plant: read `node:`
 with no slashes as a node; `node_destinations` must fail.
 
 ## Done
@@ -1000,9 +1000,9 @@ facade later, as an operator action (the operator's ruling of 2026-10-08).
 ## Premise
 
 Read: the box like the target sandbox has one CONNECT proxy for ports 443, 80 and 8443 as its only
-way out, refuses `bind` and UDP, and has no `/dev/ptmx` (`docs/development.md:395-437`,
+way out, refuses `bind` and UDP, and has no `/dev/ptmx` (`docs/development.md:399-441`,
 `scripts/test_in_box.sh`). It allows `connect()` to loopback, which the real sandbox refuses
-(`docs/development.md:436-437`, `docs/target-environment.md:22`).
+(`docs/development.md:440-441`, `docs/target-environment.md:22`).
 
 Read: in such a sandbox nothing can listen (`docs/target-environment.md:25`, `:84-87`), so a node
 there has no local TCP service to offer before `podssh serve` (M5). Its TARGET must be a host that
@@ -1531,10 +1531,10 @@ operator's at `crates/podssh-relay/src/e2e/ends.rs:129-137`. The grants at
 `crates/podssh-relay/src/identity/allow.rs:33-64` and
 `crates/podssh-relay/src/identity/allow.rs:114-122`. The routes of a node,
 their check and their dial in `crates/podssh-relay/src/reverse/routes.rs:1-88`.
-The command line: the targets at `crates/podssh-cli/src/node.rs:158-193`,
-`NAME/ROUTE` at `crates/podssh-cli/src/node.rs:195-210`, the dial of each
-target at `crates/podssh-cli/src/node.rs:221-246`, the routes at
-`crates/podssh-cli/src/node.rs:258-266`; the channel's glue at
+The command line: the targets at `crates/podssh-cli/src/node.rs:162-197`,
+`NAME/ROUTE` at `crates/podssh-cli/src/node.rs:199-214`, the dial of each
+target at `crates/podssh-cli/src/node.rs:225-250`, the routes at
+`crates/podssh-cli/src/node.rs:262-270`; the channel's glue at
 `crates/podssh-cli/src/channel.rs:260-269` and
 `crates/podssh-cli/src/channel.rs:313-333`; `node://NAME/ROUTE` at
 `crates/podssh-cli/src/ssh/node.rs:32-60`, and `iroh:TICKET/ROUTE` at
@@ -1840,7 +1840,7 @@ session through a node loses a link that it need not lose.
 - Measured: CI's step `m6` at `a220c13` failed in that test with `relay close 1011: node
   unavailable`; the step had passed at each push since T-156.
 - Read: `podssh node` prints its `serving` line after its probe of TARGET, before its socket to
-  the relay opens (`crates/podssh-cli/src/node.rs:287-292`), and the tests waited for that line
+  the relay opens (`crates/podssh-cli/src/node.rs:291-296`), and the tests waited for that line
   (`crates/podssh-cli/tests/m6_exit.rs:99`, `crates/podssh-cli/tests/node_plain.rs:41`,
   `crates/podssh-cli/tests/pipe_remote.rs:194`).
 - Measured, native, 2026-10-10: on a host at 42 % of its CPU, the control lost a link in each of
