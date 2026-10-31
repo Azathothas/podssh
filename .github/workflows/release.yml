@@ -47,11 +47,11 @@ permissions:
 
 # The commit that each binary names in --version (T-210), read at compile
 # time; a container gets it with -e. The features of each binary, the same
-# on each target: the iroh road (T-348, Q50); scripts/release-short.sh
-# checks that each binary has it.
+# on each target: the iroh road (T-348, Q50) and WARP's road (T-352, Q59);
+# scripts/release-short.sh checks that each binary has both.
 env:
   PODSSH_BUILD_COMMIT: ${{ github.sha }}
-  RELEASE_FEATURES: iroh
+  RELEASE_FEATURES: iroh,warp
 
 jobs:
   # A tag that git pushes with the job's token starts no workflow, and a

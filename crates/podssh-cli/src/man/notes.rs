@@ -175,7 +175,8 @@ const PROXY: &[&str] = &[
      user. As the ProxyCommand of OpenSSH: ssh -o \
      ProxyCommand='podssh proxy iap://my-project/us-central1-a/%h:%p' user@my-vm. On IAP the end of stdin \
      ends the session once its bytes went, as IAP has no half-close.",
-    "podssh proxy warp://HOST:PORT carries the pipe inside WARP's tunnel, in a build with the feature warp, \
+    "podssh proxy warp://HOST:PORT carries the pipe inside WARP's tunnel, in a build with the feature warp \
+     (each release binary), \
      as podssh ssh does (see its notes): ssh -o ProxyCommand='podssh proxy warp://%h:%p' user@host.",
 ];
 

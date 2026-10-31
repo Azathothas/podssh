@@ -3895,7 +3895,7 @@ measured; the live run waits for the operator's throwaway accounts (T-376), as Q
 **Milestone:** backlog
 **Priority:** P3
 **Effort:** L
-**Status:** partial
+**Status:** done
 
 ## Problem
 
@@ -4027,7 +4027,7 @@ Read at `a3f948d` on 2026-10-31.
 ## Done
 
 2026-10-31: drafted in the worktree `warp` (branch `draft-warp`, `e423ba2`), merged into `main`
-the same day, built and measured here. Partial: the live run waits for this commit on GitHub.
+(`cadf9d5`) the same day, built and measured here, and live in GitHub Actions.
 
 - The crate `crates/podssh-warp/src/lib.rs`: the capsules (`capsule.rs`), the DER of the device's
   certificate and of a pinned key (`der.rs`), the device's key (`key.rs`), its record
@@ -4066,13 +4066,29 @@ the same day, built and measured here. Partial: the live run waits for this comm
   key): 3 failed, the endpoint of another key, the proxy that re-terminates TLS and the pin's own
   test; the `cf-connect-proto` header left out: the stand-in answered 400, and each test through it
   failed, with the request's own test.
-- The live run, `.github/workflows/warp-live.yml` (Q52): GitHub's SSH banner through WARP
-  directly and through the box's proxy of port 443 alone, OpenSSH with `podssh proxy warp://` as
-  its ProxyCommand to GitHub's refusal of no key, and a proxy of names alone named (69): waits for
-  this commit on GitHub.
+- The live run, `.github/workflows/warp-live.yml` (Q52), run 41221235188 at `4576497`
+  (2026-10-31), passed: `podssh ssh -v warp://git@github.com` registered one device, kept its
+  record (0600), opened the tunnel to 162.159.198.2:443 and reached GitHub's refusal of a client
+  with no key (255), with GitHub's published Ed25519 key
+  (`SHA256:+DiY3wvvV6TuJJhbpZisF/zLDA0zPMSvHdkr4UvCOqU`); `podssh proxy warp://github.com:22`
+  gave GitHub's banner directly (842 bytes back for a client's banner) and through the box's
+  proxy of port 443 alone, which saw `CONNECT 162.159.198.2:443` and nothing to port 22, with no
+  second registration; OpenSSH with `podssh proxy warp://%h:%p` as its ProxyCommand reached the
+  same refusal with the same key; the proxy of names alone refused the address, named (69).
+  Three runs before it repaired the workflow, not the road: the first (41220048854) had
+  `/dev/null` as its stdin, so podssh half-closed at once and the server closed with no banner,
+  and it kept no exit code; the second (41220681991) passed, but took each host key as new; the
+  third (41221031927) compared the keys, and OpenSSH, which checks github.com against the runner's
+  global file, wrote none until that file was set aside.
+- The release binaries (Q59): `RELEASE_FEATURES` of `.github/workflows/release.yml` is
+  `iroh,warp`, and so is the default of the gate's step `release`. `scripts/release-short.sh`
+  checks the road in each binary: with no cache and the Terms not accepted, `podssh proxy
+  warp://example.invalid` is refused with 78 and dials nothing. On a debug build with `iroh,warp`:
+  each check passed; planted, a build with `iroh` alone: refused with 70, and the check failed.
+  `sh scripts/check-rustc.sh iroh,warp`: rustc 1.99.0, at least 1.91. The release workflow's run
+  by hand waits for the next beta (T-309).
 - Waits: the throughput and a session's life beside the forward road (Approach, step 4, T-157's
-  method), with the checks of the release (T-251); the release binaries with the feature, after
-  the live run (Q59).
+  method), with the checks of the release (T-251).
 
 # T-353: Tor through Arti, in a feature crate
 

@@ -62,15 +62,15 @@ repository and CI).
 
 ## Counts
 
-**375 entries: 24 open, 2 partial, 30 blocked, 319 done.**
+**375 entries: 24 open, 1 partial, 30 blocked, 320 done.**
 
 | Priority | open | partial | blocked | done | total |
 | --- | --- | --- | --- | --- | --- |
 | P0 | 0 | 0 | 0 | 1 | 1 |
 | P1 | 2 | 0 | 0 | 29 | 31 |
 | P2 | 3 | 0 | 21 | 162 | 186 |
-| P3 | 19 | 2 | 9 | 127 | 157 |
-| **All** | 24 | 2 | 30 | 319 | 375 |
+| P3 | 19 | 1 | 9 | 128 | 157 |
+| **All** | 24 | 1 | 30 | 320 | 375 |
 
 ## Entries
 
@@ -424,7 +424,7 @@ repository and CI).
 | [T-349](roads.md) | P2 | L | backlog | feature | done | A DERP link through Tailscale's tailcat relays, a second carrier of the reverse road |
 | [T-350](roads.md) | P3 | M | backlog | feature | done | A pkarr record that finds a node whose home relay changed |
 | [T-351](roads.md) | P3 | L | backlog | feature | done | Roads through a cloud's own tunnel: GCP IAP TCP forwarding, then EC2 Instance Connect Endpoint |
-| [T-352](roads.md) | P3 | L | backlog | feature | partial | WARP's MASQUE road over HTTP/2 |
+| [T-352](roads.md) | P3 | L | backlog | feature | done | WARP's MASQUE road over HTTP/2 |
 | [T-353](roads.md) | P3 | L | backlog | feature | open | Tor through Arti, in a feature crate |
 | [T-354](resume.md) | P2 | S | backlog | defect | done | A session that closes while it moves can say a loss that was none |
 | [T-355](repo.md) | P2 | M | none | chore | done | Dependabot's updates of 2026-10-30 and 2026-10-31, and the curves' 0.14 |

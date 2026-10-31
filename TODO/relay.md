@@ -917,7 +917,7 @@ the module comment repeats it (`crates/podssh-relay/src/cache.rs`, lines 4-8 at 
 6. Change in the same commit: VARIABLES and FILES (`crates/podssh-cli/src/man/facts.rs:196-210`,
    `crates/podssh-cli/src/man/data.rs:153-160`), the test of lines 365-377 at `22c3b88`, the comment
    of `cache.rs`, and the `doctor`
-   notes (`crates/podssh-cli/src/man/notes.rs:182-227`).
+   notes (`crates/podssh-cli/src/man/notes.rs:183-228`).
 
 ## Decision
 
@@ -1444,7 +1444,7 @@ Nothing watches the expiry of the relay's domain, on which each road but `--dire
   (a relay that cannot be read) alike (`.github/workflows/build.yml:192-222`);
   the gate's step `release` asks the binary and the script for one verdict, live (`:81-86`).
 - Read: each of the eight build jobs of the release runs `podssh proxy github.com 22` through the
-  live relay (`scripts/release-short.sh:96-102`, run at `.github/workflows/release.yml:144`, `:207`,
+  live relay (`scripts/release-short.sh:109-115`, run at `.github/workflows/release.yml:144`, `:207`,
   `:279`, `:318` and `:412`; three of these run in a matrix of two). The audit counted seven
   jobs; the matrices give eight.
 - Read: a beta needs the job `all` of the gate (`docs/decisions.md:28`). Citations of an older

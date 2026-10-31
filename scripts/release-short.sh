@@ -2,7 +2,8 @@
 # The short form of the release check (T-251), on each target's own platform
 # (T-218): a release binary prints the version of Cargo.toml, writes the
 # whole manual, makes a key with no passphrase, prints that key's public key
-# again from the private key, and has the iroh road (T-348). With --net, it
+# again from the private key, and has the iroh road (T-348) and WARP's
+# (T-352). With --net, it
 # also reads GitHub's SSH banner through the live relay (podssh proxy
 # github.com 22), a test target of AGENTS.md. No target ships that no run executed. The key is a
 # throwaway, made in a directory of this run and removed with it. Where
@@ -70,6 +71,18 @@ if [ "$rc" != 64 ] || ! grep -q "not an iroh ticket" "$dir/iroh.err"; then
     fail "iroh:x exited $rc, not 64, so the binary has no iroh road: $(tr -d '\r' < "$dir/iroh.err" | head -n 2)"
 fi
 echo "ok   the iroh road: iroh:x is read as a ticket, and refused as one"
+
+# WARP's road is in the binary (T-352, Q59): with no device's record and
+# Cloudflare's Terms not accepted, a warp:// destination is refused as a
+# setting (78) before anything is dialled, where a build without the road
+# refuses it with 70. With no cache, no record of the host's is found.
+PODSSH_CACHE_DIR=none PODSSH_WARP_ACCEPT_TERMS= "$bin" proxy warp://example.invalid \
+    < /dev/null > /dev/null 2> "$dir/warp.err"
+rc=$?
+if [ "$rc" != 78 ] || ! grep -q "PODSSH_WARP_ACCEPT_TERMS=yes" "$dir/warp.err"; then
+    fail "warp://example.invalid exited $rc, not 78, so the binary has no WARP road: $(tr -d '\r' < "$dir/warp.err" | head -n 2)"
+fi
+echo "ok   WARP's road: warp:// asks for the Terms, and dials nothing"
 
 [ -n "$net" ] || exit 0
 

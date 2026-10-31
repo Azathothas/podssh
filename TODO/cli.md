@@ -491,11 +491,11 @@ Read, at `61e55d1`: no option made podssh start a program: `ProxyCommand` is ref
    `[OPTIONS] [--] [user@]host [COMMAND...]` for `ssh` and
    `[OPTIONS] [--] HOST PORT` for `proxy`; `--help` and the synopsis of the
    manual (`crates/podssh-cli/src/man/model.rs:186-190`) read it.
-2. A note for `ssh` and `proxy` (`crates/podssh-cli/src/man/notes_ssh.rs:4-332` and `crates/podssh-cli/src/man/notes.rs:61-180`)
+2. A note for `ssh` and `proxy` (`crates/podssh-cli/src/man/notes_ssh.rs:4-332` and `crates/podssh-cli/src/man/notes.rs:61-181`)
    and an example (`crates/podssh-cli/src/man/examples.rs:8-228`). Pitfall: the
    notes test reads a bare `--` as a flag that does not exist
-   (`crates/podssh-cli/src/man/notes.rs:352-360`); teach `flag_exists`
-   (`crates/podssh-cli/src/man/notes.rs:319-335`) that `--` ends the options.
+   (`crates/podssh-cli/src/man/notes.rs:353-361`); teach `flag_exists`
+   (`crates/podssh-cli/src/man/notes.rs:320-336`) that `--` ends the options.
 3. `podssh proxy` (`crates/podssh-cli/src/proxy.rs:207-212`): when HOST or PORT
    is missing and a relay or trust flag was given, add one line: a HOST that
    starts with `-` is read as a flag; put `--` before it.
