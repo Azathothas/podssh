@@ -2939,7 +2939,7 @@ no TCP connection of the node to TARGET is left once a command exits.
 **Milestone:** backlog
 **Priority:** P2
 **Effort:** M
-**Status:** partial
+**Status:** done
 
 ## Problem
 
@@ -3041,8 +3041,15 @@ moved, which Decision 2 judges.
 
 ## Done
 
-2026-10-31, partial. Done here; next, `upstream.yml` and
-`quick-tunnel-live.yml` by hand, then the entry closes:
+2026-10-31. Live in GitHub Actions at `4ee1053`: `upstream.yml`, run
+41169460255, read 2026.10.7, the newest release, "ok each of the 4 files at
+2026.10.7 holds bytes that the table knows", and its plant exited 1 and named
+`features/features.go`; `quick-tunnel-live.yml` (Q43), run 41169470799, said
+no fixed names, so the SRV record named the regions (`region1.v2` and
+`region2.v2` under `argotunnel.com`, port 7844), registered at Cloudflare's
+`iad15` over QUIC, carried 8 MiB both ways directly and through the box's
+proxy, and with UDP to 7844 dropped a second node registered at `iad17` over
+HTTP/2. Here:
 
 - `crates/podssh-relay/src/quick/cloudflared-pin.txt`: the pin 2026.10.6,
   commit `35b379ac174d60a4301615defedc821de5625cef`, released 2026-10-29,
