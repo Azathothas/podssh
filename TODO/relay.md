@@ -599,7 +599,7 @@ window (`crates/podssh-ssh/src/run.rs` lines 25-29 at `80f20bf`).
 **Milestone:** backlog
 **Priority:** P3
 **Effort:** S
-**Status:** open
+**Status:** partial
 
 ## Problem
 
@@ -668,6 +668,34 @@ back through TCP. And podssh's own handling, against the stand-in relay: a
 mode `backlog:BYTES` of `scripts/fake-relay.py`, which closes with 1013 once
 that many bytes wait, shows the client's link lost and never tried again
 (`crates/podssh-ssh/src/retry.rs`).
+
+## Done
+
+2026-10-31, partial. The live test is
+`crates/podssh-relay/tests/live_backpressure.rs`: a pair whose node takes
+its bytes from a local source; the operator's leg of the pair reaches the
+relay through a CONNECT proxy of the test, whose upstream is a forward
+session to the relay's own host and port 443, read at full speed (the
+control) or at 16 KiB/s for 90 s. `podssh relay trace
+tcp.ssh.relay.ajam.dev 443` showed first that the relay dials itself (road
+`vpc`, 104.21.39.2). Two runs here, through this cloud session's egress
+proxy (`cargo test -p podssh-relay --features pair --test
+live_backpressure -- --ignored --nocapture`, 108 s each):
+
+- The control, 8 MiB: each byte reached the operator; the inner session
+  ended `1000 close`, the outer `1000 target closed`, in 12.1 s and 12.3 s.
+- The slow client, 24 MiB and then 48 MiB offered: no Close came in 90 s;
+  the client read 1459766 and 1459616 bytes (15.8 KiB/s). The second run
+  counted the node's bytes: the node had taken each of the 48 MiB within
+  15 s, so 48872032 bytes more than the client read waited past the node,
+  and no 1013 came.
+
+Still to do: the same run from GitHub's network
+(`.github/workflows/relay-live.yml`), with no egress proxy between the
+client and the relay, so that the bytes that wait are the relay's or its
+edge's; the stand-in relay's mode `backlog:BYTES` and podssh's handling of
+its close (the Correction); then the comment on the window, `docs/relay.md`
+and `docs/STATUS.md`.
 
 # T-220: A silent first relay host costs a full dial before the next host is tried (GitHub #30)
 

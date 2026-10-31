@@ -272,7 +272,8 @@ These rules come from [docs/decisions.md](docs/decisions.md).
    of its Prove pass. Runs in the build image and planted defects wait for
    the checks of the release (T-251; `docs/decisions.md`, 2026-10-09); the
    entry's `## Done` says what waits. So does a live test of more than 5
-   minutes or 100 MiB; a shorter live test runs with the entry. A test that
+   minutes or 100 MiB; a shorter live test runs with the entry, and so does
+   each live test of the relay (the operator, 2026-10-31). A test that
    fails at random is repaired before any other work.
 2. Test protocol code against software that podssh did not write: OpenSSH,
    Dropbear, a real IRC server, the live relay, or bytes captured from one.

@@ -62,15 +62,15 @@ repository and CI).
 
 ## Counts
 
-**332 entries: 20 open, 0 partial, 27 blocked, 285 done.**
+**332 entries: 19 open, 1 partial, 27 blocked, 285 done.**
 
 | Priority | open | partial | blocked | done | total |
 | --- | --- | --- | --- | --- | --- |
 | P0 | 0 | 0 | 0 | 1 | 1 |
 | P1 | 2 | 0 | 0 | 24 | 26 |
 | P2 | 3 | 0 | 19 | 146 | 168 |
-| P3 | 15 | 0 | 8 | 114 | 137 |
-| **All** | 20 | 0 | 27 | 285 | 332 |
+| P3 | 14 | 1 | 8 | 114 | 137 |
+| **All** | 19 | 1 | 27 | 285 | 332 |
 
 ## Entries
 
@@ -136,7 +136,7 @@ repository and CI).
 | [T-059](relay.md) | P3 | S | backlog | feature | done | A relay host that failed recently is tried last, also in the next run |
 | [T-060](relay.md) | P3 | S | none | chore | done | P1: no command uses `podssh-probe` |
 | [T-061](relay.md) | P3 | S | M4 | measurement | done | Measure whether the relay's idle cut applies to reverse sockets |
-| [T-062](relay.md) | P3 | S | backlog | measurement | open | Measure whether the relay's backpressure close (1013) operates |
+| [T-062](relay.md) | P3 | S | backlog | measurement | partial | Measure whether the relay's backpressure close (1013) operates |
 | [T-063](ws.md) | P2 | S | M4 | defect | done | W10: the frame decoder does not check a received control frame |
 | [T-064](ws.md) | P3 | S | M4 | defect | done | W13: `OsRng::fill_bytes` panics when the system gives no random bytes |
 | [T-065](ws.md) | P2 | S | M4 | defect | done | W14: `probe::PrintChain` accepts each certificate, and is a public export |

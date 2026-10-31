@@ -1,0 +1,46 @@
+name: relay live
+
+# The live tests of the relay that need no secret, from GitHub's network,
+# where no egress proxy stands between the client and the relay (T-062).
+# Started by hand only. Each test mints its own tokens and pairs on the live
+# relay, stops its pairs at the end, and prints no token.
+
+on:
+  workflow_dispatch:
+    inputs:
+      test:
+        description: "The live test of podssh-relay to run"
+        required: true
+        type: choice
+        options:
+          - live_backpressure
+          - reverse_live
+
+permissions:
+  contents: read
+
+jobs:
+  live:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 40
+    steps:
+      - uses: actions/checkout@v7
+
+      # The input reaches the shell through the environment, and only a name
+      # of the list runs.
+      - name: build the test
+        env:
+          CARGO_BUILD_JOBS: "4"
+          TEST: ${{ inputs.test }}
+        run: |
+          case "$TEST" in
+            live_backpressure|reverse_live) ;;
+            *) echo "not a live test of the list: $TEST" >&2; exit 2 ;;
+          esac
+          cargo test --locked -p podssh-relay --features pair --test "$TEST" --no-run
+
+      - name: the live test
+        env:
+          CARGO_BUILD_JOBS: "4"
+          TEST: ${{ inputs.test }}
+        run: cargo test --locked -p podssh-relay --features pair --test "$TEST" -- --ignored --nocapture
