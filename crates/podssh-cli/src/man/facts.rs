@@ -235,8 +235,8 @@ pub const VARIABLES: &[(&[&str], &str)] = &[
     ),
     (
         &["PODSSH_LISTEN"],
-        "no: podssh pipe listens on nothing, and unix-listen:, tcp-listen: and http-listen: exit 78 before any \
-      bind; so do podssh session start and serve. Else they listen where the bind works.",
+        "no: podssh pipe listens on nothing, and unix-listen:, tcp-listen:, http-listen: and ws-listen: exit 78 \
+      before any bind; so do podssh session start and serve. Else they listen where the bind works.",
     ),
     (
         &["PODSSH_MPTCP"],

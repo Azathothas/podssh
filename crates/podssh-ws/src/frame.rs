@@ -82,6 +82,16 @@ pub enum Role {
     Server,
 }
 
+impl Role {
+    /// The other side: the role of the frames that this side reads.
+    pub fn peer(self) -> Role {
+        match self {
+            Role::Client => Role::Server,
+            Role::Server => Role::Client,
+        }
+    }
+}
+
 /// **Encode a frame for the given direction.** `masking_key` is ignored for
 /// [`Role::Server`], because a masked server frame is a protocol violation and
 /// producing one is worse than ignoring a key a caller happened to pass.

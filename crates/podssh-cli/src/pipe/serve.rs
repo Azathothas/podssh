@@ -11,7 +11,8 @@
 //! exits with 128 and the signal's number, as a shell gives it.
 //!
 //! A proxy of `http-listen:` always keeps listening, and reads each client's
-//! request before its road opens (T-367).
+//! request before its road opens (T-367); a client of `ws-listen:` upgrades
+//! before the other side opens (T-368).
 
 use std::io::Write;
 use std::rc::Rc;
@@ -41,11 +42,12 @@ pub struct Serve<'a> {
     pub credentials: Option<super::credentials::Credentials>,
 }
 
-/// What a client does before its session: nothing, or the CONNECT of a
-/// proxy (T-367).
+/// What a client does before its session: nothing, the CONNECT of a proxy
+/// (T-367), or a WebSocket's upgrade (T-368).
 enum Front {
     Plain,
     Proxy(Rc<Proxy>),
+    Upgrade,
 }
 
 /// The task of one client.
@@ -66,6 +68,7 @@ impl Front {
             Front::Proxy(proxy) => {
                 Box::pin(super::http_listen::client(n, client, proxy.clone(), settings, listener_is_a))
             }
+            Front::Upgrade => Box::pin(super::ws_listen::client(n, client, other, settings, listener_is_a)),
         }
     }
 }
@@ -95,6 +98,9 @@ pub async fn run(serve: Serve<'_>, settings: &remote::Settings, err: &mut dyn Wr
     }
     if serve.keep {
         return keep_listening(listener, serve, settings, &mut stop).await;
+    }
+    if let Address::WsListen(_) = serve.listening {
+        return super::ws_listen::first(listener, &serve, settings, err, &mut stop).await;
     }
     let client = {
         let mut say = |line: &str| {
@@ -146,6 +152,7 @@ async fn keep_listening(
         (Address::HttpListen(_), Address::Template(template)) => {
             Front::Proxy(Rc::new(Proxy { template: template.clone(), credentials, quiet }))
         }
+        (Address::WsListen(_), _) => Front::Upgrade,
         _ => Front::Plain,
     };
     let at_once = if matches!(front, Front::Proxy(_)) { super::http_listen::AT_ONCE } else { AT_ONCE };

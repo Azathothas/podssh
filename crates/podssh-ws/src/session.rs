@@ -1,4 +1,6 @@
-//! An open WebSocket session to the relay, usable from two tasks at once.
+//! An open WebSocket session, to the relay unless made otherwise, usable
+//! from two tasks at once. It speaks as a client unless made a server's
+//! (T-368), and names the other end in its errors as the relay unless named.
 //!
 //! The stream is split into a read half and a write half with separate locks,
 //! so a task waiting for the relay's next frame never blocks another task that
@@ -17,9 +19,10 @@ use tokio::io::{AsyncRead, AsyncReadExt, AsyncWrite, ReadHalf, WriteHalf};
 use tokio::net::TcpStream;
 use tokio::sync::Mutex;
 
-use crate::client::{next_event_capped, write_frame_over, Event};
+use crate::client::Event;
 use crate::error::SessionError;
 use crate::frame::{self, Frame};
+use crate::wire::{next_event_from, write_frame_as};
 
 /// The stream a live session runs over.
 pub type RelayStream = tokio_rustls::client::TlsStream<TcpStream>;
@@ -56,6 +59,11 @@ pub struct RelaySession<S = RelayStream> {
     /// The cap on a received frame: the forward cap, or the relay's own,
     /// wider one (T-342, [`frame::receive_cap`]).
     receive_cap: AtomicUsize,
+    /// The side that this end speaks: a client masks each frame and takes
+    /// the server's unmasked, a server the reverse (RFC 6455 section 5.1).
+    role: frame::Role,
+    /// The other end, in the words of an error: `the relay`, unless named.
+    peer: &'static str,
 }
 
 /// The Pongs that [`RelaySession::take_pongs`] keeps for the one who reads.
@@ -100,7 +108,22 @@ impl<S: AsyncRead + AsyncWrite> RelaySession<S> {
             max_message: None,
             pings: true,
             receive_cap: AtomicUsize::new(frame::FORWARD_MAX_FRAME),
+            role: frame::Role::Client,
+            peer: "the relay",
         }
+    }
+
+    /// Speak as the server: each frame written unmasked, and only masked
+    /// ones taken, as from a client of `podssh pipe ws-listen:` (T-368).
+    pub fn as_server(mut self) -> Self {
+        self.role = frame::Role::Server;
+        self
+    }
+
+    /// Name the other end in the words of an error, such as `the server`.
+    pub fn naming(mut self, peer: &'static str) -> Self {
+        self.peer = peer;
+        self
     }
 
     /// Send no binary message over `max` bytes: a larger payload goes as
@@ -238,13 +261,14 @@ impl<S: AsyncRead + AsyncWrite> RelaySession<S> {
             }
             if self.pongs_received() > 0 && missed >= allowed {
                 return SessionError::Dead(format!(
-                    "nothing from the relay for {} s, pings unanswered: the connection is dead",
+                    "nothing from {} for {} s, pings unanswered: the connection is dead",
+                    self.peer,
                     every.as_secs() * u64::from(allowed)
                 ));
             }
             sent += 1;
             if let Err(e) = self.send_ping(&sent.to_be_bytes()).await {
-                return e.context("sending a ping to the relay failed");
+                return e.context(&format!("sending a ping to {} failed", self.peer));
             }
         }
     }
@@ -257,7 +281,8 @@ impl<S: AsyncRead + AsyncWrite> RelaySession<S> {
         let reader = &mut *guard;
         let mut chunk = vec![0u8; 16 * 1024];
         loop {
-            let event = match next_event_capped(&mut reader.pending, self.receive_cap.load(Ordering::SeqCst)) {
+            let cap = self.receive_cap.load(Ordering::SeqCst);
+            let event = match next_event_from(&mut reader.pending, self.role.peer(), cap) {
                 Ok(event) => event,
                 Err(e) => return Err(self.fail(1002, SessionError::Protocol(e.to_string())).await),
             };
@@ -292,7 +317,7 @@ impl<S: AsyncRead + AsyncWrite> RelaySession<S> {
                     }
                     return Ok(f);
                 }
-                Some(Event::Frame(f)) => match reader.assemble(f) {
+                Some(Event::Frame(f)) => match reader.assemble(f, self.peer) {
                     Ok(Some(message)) => return Ok(message),
                     Ok(None) => {}
                     Err((code, why)) => {
@@ -305,15 +330,16 @@ impl<S: AsyncRead + AsyncWrite> RelaySession<S> {
                     let read = reader.half.read(&mut chunk);
                     let n = match reader.idle {
                         Some(limit) => tokio::time::timeout(limit, read).await.map_err(|_| {
-                            SessionError::Idle(format!("no data from the relay for {}s", limit.as_secs()))
+                            SessionError::Idle(format!("no data from {} for {}s", self.peer, limit.as_secs()))
                         })?,
                         None => read.await,
                     }
                     .map_err(|e| SessionError::io(&e))?;
                     if n == 0 {
-                        return Err(SessionError::ClosedWithoutClose(
-                            "the relay closed the connection without a WebSocket Close".into(),
-                        ));
+                        return Err(SessionError::ClosedWithoutClose(format!(
+                            "{} closed the connection without a WebSocket Close",
+                            self.peer
+                        )));
                     }
                     reader.pending.extend_from_slice(&chunk[..n]);
                 }
@@ -332,14 +358,11 @@ impl<S: AsyncRead + AsyncWrite> RelaySession<S> {
 
     async fn write(&self, opcode: u8, payload: &[u8]) -> Result<(), SessionError> {
         let mut writer = self.writer.lock().await;
-        tokio::time::timeout(self.write_timeout, write_frame_over(&mut *writer, opcode, payload)).await.map_err(
-            |_| {
-                SessionError::WriteStalled(format!(
-                    "sending to the relay stalled for {}s",
-                    self.write_timeout.as_secs()
-                ))
-            },
-        )?
+        let written = write_frame_as(&mut *writer, self.role, opcode, payload);
+        let (peer, limit) = (self.peer, self.write_timeout.as_secs());
+        tokio::time::timeout(self.write_timeout, written)
+            .await
+            .map_err(|_| SessionError::WriteStalled(format!("sending to {peer} stalled for {limit}s")))?
     }
 }
 
@@ -347,10 +370,10 @@ impl<S> Reader<S> {
     /// Feed one data or continuation frame; returns a whole message when one
     /// is complete. An error carries the close code that it fails the
     /// connection with: 1002 for a protocol error, 1009 for a message too big.
-    fn assemble(&mut self, f: Frame) -> Result<Option<Frame>, (u16, String)> {
+    fn assemble(&mut self, f: Frame, peer: &str) -> Result<Option<Frame>, (u16, String)> {
         match (f.opcode, self.partial.take()) {
             (frame::OPCODE_CONTINUATION, None) => {
-                Err((1002, "the relay sent a continuation frame with no message to continue".into()))
+                Err((1002, format!("{peer} sent a continuation frame with no message to continue")))
             }
             (frame::OPCODE_CONTINUATION, Some((opcode, mut payload))) => {
                 if payload.len() + f.payload.len() > MAX_MESSAGE {
@@ -364,7 +387,7 @@ impl<S> Reader<S> {
                     Ok(None)
                 }
             }
-            (_, Some(_)) => Err((1002, "the relay started a new message inside a fragmented one".into())),
+            (_, Some(_)) => Err((1002, format!("{peer} started a new message inside a fragmented one"))),
             (opcode, None) if !f.fin => {
                 self.partial = Some((opcode, f.payload));
                 Ok(None)

@@ -108,7 +108,8 @@ Each rule is implemented.
   automatically: podssh gives the file, the line and both fingerprints.
 - **Nothing listens unless the user asks.** podssh opens outbound
   connections only, except `podssh pipe` with `unix-listen:`,
-  `tcp-listen:` or `http-listen:` (T-367: an HTTP CONNECT proxy, which on
+  `tcp-listen:`, `ws-listen:` (T-368: a WebSocket server, which refuses a
+  browser's request, one with an `Origin`) or `http-listen:` (T-367: an HTTP CONNECT proxy, which on
   an address that is not loopback takes only the clients that give a
   credential of its private file, compared in constant time, and dials
   nothing for another), `podssh ssh` with `-L` or `-D` (T-038) and the control

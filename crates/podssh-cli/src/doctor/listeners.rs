@@ -33,6 +33,7 @@ pub const LISTENERS: &[Listener] = &[
     Listener { family: Family::Inet, verb: "ssh", form: "-D", label: "-D on a port" },
     Listener { family: Family::Inet, verb: "pipe", form: "tcp-listen:", label: "podssh pipe tcp-listen:" },
     Listener { family: Family::Inet, verb: "pipe", form: "http-listen:", label: "podssh pipe http-listen: on a port" },
+    Listener { family: Family::Inet, verb: "pipe", form: "ws-listen:", label: "podssh pipe ws-listen: on a port" },
     Listener { family: Family::Unix, verb: "ssh", form: "-L", label: "-L on a path" },
     Listener { family: Family::Unix, verb: "ssh", form: "-D", label: "-D on a path" },
     Listener { family: Family::Unix, verb: "ssh", form: "-M", label: "the control socket of -M" },
@@ -40,6 +41,7 @@ pub const LISTENERS: &[Listener] = &[
     Listener { family: Family::Unix, verb: "session", form: "", label: "podssh session" },
     Listener { family: Family::Unix, verb: "pipe", form: "unix-listen:", label: "podssh pipe unix-listen:" },
     Listener { family: Family::Unix, verb: "pipe", form: "http-listen:", label: "podssh pipe http-listen: on a path" },
+    Listener { family: Family::Unix, verb: "pipe", form: "ws-listen:", label: "podssh pipe ws-listen: on a path" },
 ];
 
 /// The listeners of `family`, as a list in words.
@@ -140,7 +142,8 @@ mod tests {
 
     #[test]
     fn the_names_are_a_list_in_words() {
-        let inet = "-L on a port, -D on a port, podssh pipe tcp-listen: and podssh pipe http-listen: on a port";
+        let inet = "-L on a port, -D on a port, podssh pipe tcp-listen:, podssh pipe http-listen: on a port and \
+                    podssh pipe ws-listen: on a port";
         assert_eq!(names(Family::Inet), inet);
     }
 }

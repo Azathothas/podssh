@@ -9,7 +9,8 @@
 //! serial line (`serial`) is a local end whose settings go back at each end,
 //! a signal's too; `http-listen:` is an HTTP CONNECT proxy whose other side
 //! is a road that each request names (`web`, `http_listen`, `gateway`,
-//! T-367). A road that failed gives the pipe's exit code, as
+//! T-367); `ws://`, `wss://` and `ws-listen:` speak WebSocket (`ws`,
+//! `ws_listen`, T-368). A road that failed gives the pipe's exit code, as
 //! `podssh proxy` gives it; else a child's status, B's when both are
 //! children, as a shell gives it; with neither, a clean end gives 0.
 
@@ -34,6 +35,8 @@ pub mod serve;
 pub mod ssh;
 pub mod unix;
 pub mod web;
+pub mod ws;
+pub mod ws_listen;
 
 use crate::exit_codes::EXIT_SOFTWARE;
 
@@ -62,7 +65,7 @@ pub fn run_pipe(args: &PipeArgs, err: &mut dyn Write) -> i32 {
     let listening = a.listens() || b.listens();
     if args.keep_listening && !listening {
         let refusal = crate::relay_settings::Refusal::usage(
-            "--keep-listening is for a listening side: unix-listen:PATH, tcp-listen:[ADDR:]PORT or http-listen:",
+            "--keep-listening is for a listening side: unix-listen:, tcp-listen:, http-listen: or ws-listen:",
         );
         return refusal.report("pipe", err);
     }

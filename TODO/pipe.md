@@ -1527,6 +1527,36 @@ user who needs `websocat` must bring it, and a cage may not run it.
   ask for it.
 - The reader of requests is T-367's; whichever is done first writes it. The dial with no token
   serves T-369 too.
+- At the end of this side's input a Close 1000 goes out, and what the other end sends before its
+  own Close still comes; the other end's Close is answered at once and ends the pipe, as RFC 6455
+  section 5.5.1 asks the answer "as soon as practical". Lost: no Close, as `relay:` sends none,
+  with which a server that waits for more never ends the pipe; the other end's Close taken as a
+  half-close, sending on until this side's input ends, which holds a terminal's pipe open after
+  the server closed it.
+- A Close of 1000, or the end of the connection after this side's Close, is a clean end (0); any
+  other code is the pipe's failure (69), with the code and the reason. Lost: 1001 as a clean end,
+  which hides a server that went away under the session.
+- The session pings every 10 s and bounds each read at 90 s, as on the relay's road: a server
+  answers a Ping (RFC 6455 section 5.5.2), so only a dead link meets the bound. Lost: no bound,
+  which never ends a link that died with no word.
+- The URL: a user or a password in it is refused (64), a byte that is not ASCII percent-encoded, a
+  fragment not sent, the port in `Host` only when it is not the scheme's own (RFC 6455 section
+  4.1), and `User-Agent: podssh/VERSION`, as on the road of `cloudflared`; the request names no
+  `Origin`. Lost: a user and a password sent as Basic, which puts a credential in a URL and in argv.
+- `ws-listen:` refuses a request with an `Origin` (403): a browser sends one with each WebSocket,
+  and any page that the user opens could else reach the other side, a shell of `exec:` among them.
+  Lost: each Origin taken; a flag that names the origins allowed, which #76 does not ask for.
+- `ws-listen:` opens the other side before it answers 101, and a client hears 502 when it did not
+  open, as `http-listen:` answers 200 only once its road is open. Lost: 101 at once, after which a
+  failure is a close alone.
+- One client by default, the first whose upgrade is good: a refused request is no session, and
+  the listener waits for the next. Lost: the first connection, which a port scanner or a stray
+  request would use up.
+- The server's session is `RelaySession` with a role (`as_server`), and its errors name the other
+  end (`naming`), the relay's words unchanged by default: one reader, one writer and one reassembly
+  of fragments for both sides. The writer and the reader of frames for a role are in
+  `crates/podssh-ws/src/wire.rs`. Lost: a second session for the server, which would repeat the
+  reassembly, the Pings and the closing handshake.
 
 ## Prove
 
@@ -1542,3 +1572,46 @@ the client of `ws-listen:` reaches a test server through `tcp:`, 1 MiB each way 
 digests; `wss://` to a stand-in with a certificate for another name is refused. A stand-in client
 that sends an unmasked frame gets the close 1002. `PODSSH_LISTEN=no` exits 78 before any bind.
 Planted: the server's frames encoded as `Role::Client`; the test of the masks fails.
+
+## Correction
+
+2026-10-31: two citations name other lines, as they did when the entry was written (read at
+`8207d29`). The role of the codec is `crates/podssh-ws/src/frame.rs:74-83`, and `encode` ignores a
+key of a server's at `:85-88`; `crates/podssh-ws/src/frame.rs:61-70` holds the markers of a length
+and `Frame`. The relay stays a separate project at `docs/decisions.md:43`; `docs/decisions.md:38`
+is the ruling on a listener that the user asks for. Nothing in the Approach changes.
+
+## Done
+
+2026-10-31, drafted, not built: each result below is UNVERIFIED until the merge measures it.
+
+- `ws://` and `wss://` (`crates/podssh-cli/src/pipe/ws.rs`): the URL as `podssh_ws::url` reads
+  it (`crates/podssh-ws/src/url.rs`), dialed with no token through `HTTPS_PROXY`, TLS checked for
+  HOST with `--ca-file`'s trust; the form `wss:HOST:PORT/PATH`, a user or a password, CR, LF, a
+  space and a control character refused (64); podssh's lines show the URL without its query.
+  Binary frames out, text and binary frames in as bytes, a Close at the end of input, the other
+  end's Close the end, a code other than 1000 on stderr and 69; a refused upgrade 77 for 401 and
+  403, else 69. T-369 dials its forwarders with `podssh_ws::url::dial`.
+- `ws-listen:[ADDR:]PORT` and `ws-listen:PATH` (`crates/podssh-cli/src/pipe/ws_listen.rs`), bound by
+  `Listener::bind`; the request read by T-367's reader and checked by `podssh_ws::server`
+  (`crates/podssh-ws/src/server.rs`: 405, 400, 426, a key of 16 bytes, 403 for an `Origin`); the
+  other side opened, then `101` with `Sec-WebSocket-Accept`, or 502; the session as
+  `Role::Server` (`RelaySession::as_server`), whose unmasked frame of a client closes with 1002.
+- The manual (`crates/podssh-cli/src/man/notes_pipe.rs`, an example, `PODSSH_LISTEN`'s fact), the
+  help, doctor's table of listeners, `docs/cli.md`, `README.md`, `SECURITY.md`, `docs/design.md`
+  and the comment of the scan of listeners in `scripts/check-repo.py`.
+- `cargo test -p podssh-ws --test rfc6455` (a server masks nothing, takes masked frames, and
+  closes on an unmasked one with 1002; its 101 carries the accept of section 1.3's key):
+  UNVERIFIED. `cargo test -p podssh-ws --lib url::` and `--lib server::`: UNVERIFIED.
+- `cargo test -p podssh-cli --test pipe_ws`: websocat's echo server through `ws://`; websocat as
+  the client of `ws-listen:` to a test server through `tcp:`, 1 MiB each way with equal digests;
+  `wss://localhost` to a certificate of 127.0.0.1 refused, and `wss://127.0.0.1` reaching its
+  upgrade with the query sent and not shown; 426 and 403 for a request that is no upgrade and a
+  browser's, then 101, a masked frame echoed unmasked and an unmasked one closed with 1002 (exit
+  69); a server's text and binary frames as bytes and its Close 4000 on stderr (69), and 1000
+  (0), with no `X-Relay-Token` and no `Origin` sent: UNVERIFIED. The two runs of websocat say that
+  they did not run where it is not installed: in Podman or the build image, UNVERIFIED.
+- `cargo test -p podssh-cli --test pipe_listen` (`ws-listen:` under `PODSSH_LISTEN=no`, 78) and
+  `--lib pipe::web`, `--lib doctor`, `--lib man`, `--test flag_table`: UNVERIFIED.
+- Planted, the server's frames encoded as `Role::Client`: the test of the masks fails:
+  UNVERIFIED (waits for T-251).
