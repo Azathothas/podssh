@@ -1116,7 +1116,7 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "c54e03a951783e8b327515db3f2a2fd0e3bed362a96b066f341ce66ed49b4ead"
 dependencies = [
  "data-encoding",
- "syn 2.0.119",
+ "syn 3.0.6",
 ]
 
 [[package]]
@@ -6465,7 +6465,7 @@ version = "0.6.1"
 dependencies = [
  "aead 0.5.2",
  "blake2 0.10.6",
- "chacha20poly1305 0.10.1",
+ "chacha20poly1305 0.11.0",
  "hkdf 0.12.4",
  "itertools",
  "ts_keys",
@@ -6599,7 +6599,7 @@ version = "0.6.1"
 dependencies = [
  "aead 0.5.2",
  "blake2 0.10.6",
- "chacha20poly1305 0.10.1",
+ "chacha20poly1305 0.11.0",
  "itertools",
  "rand 0.10.3",
  "tracing",
