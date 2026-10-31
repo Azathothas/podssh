@@ -494,7 +494,7 @@ AF_UNIX.
 - Read: `AGENTS.md:245-250` (no bind, no listen),
   `docs/target-environment.md:84-88` (rule 3), `SECURITY.md:98-119` ("Nothing
   listens") and `README.md:41-49` state the rule from before the ruling.
-  `docs/design.md:901-903` already allows a local listener for `pipe` after
+  `docs/design.md:909-911` already allows a local listener for `pipe` after
   a probe.
 - Read: the Podman box refuses each `bind` (`scripts/box/seccomp.json:5-10`),
   so it tests the refusal.

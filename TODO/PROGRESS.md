@@ -107,7 +107,7 @@ and `CARGO_BUILD_JOBS=4`:
 
 ## Counts
 
-`TODO/INDEX.md` holds 351 entries: 28 open, 0 partial, 35 blocked, 288 done.
+`TODO/INDEX.md` holds 351 entries: 27 open, 0 partial, 35 blocked, 289 done.
 
 Open includes parked work. `cargo todo check` verifies this line.
 
@@ -128,12 +128,11 @@ the surface for agents: done.
 beta follows the next batch of repairs that the testers should test again,
 at most one a day.
 
-**Now:** T-354 first, a test that failed at random (`AGENTS.md`, section
-6, item 1). Then the entries of the audit and the study of 2026-10-31, the
-highest priority first: T-337 (P1), the P2 entries T-338, T-339, T-340,
-T-341, T-342 and T-347, then the P3 entries T-343, T-344 and T-345. Each
-other `backlog` entry is done, but for those on hold, those of the relay's
-operator and the parked ones.
+**Now:** the entries of the audit and the study of 2026-10-31, the highest
+priority first: T-337 (P1), the P2 entries T-338, T-339, T-340, T-341, T-342
+and T-347, then the P3 entries T-343, T-344 and T-345. Each other `backlog`
+entry is done, but for those on hold, those of the relay's operator and the
+parked ones.
 
 **Then** M9: T-334, which T-251 runs, then T-251 (the check, and its run
 before the tag), and last T-250 (the one release). Between

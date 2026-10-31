@@ -1210,7 +1210,7 @@ default of russh refuses each `tcpip-forward` with no reason.
 - Read: the cage refuses `bind` (`docs/target-environment.md:25`; the box:
   `scripts/box/probe.sh:86-91`). The operator's ruling on Q1 (2026-10-08)
   allows a listener only when the user asks and a probe allows the bind.
-- Read: `docs/design.md:901-903` allows a listener on the far side. The relay
+- Read: `docs/design.md:909-911` allows a listener on the far side. The relay
   is a listener that podssh does not run: a node name takes operator
   sessions (`docs/relay.md:282-306`).
 - Read in the report of GitHub #18, not verified here: sandhole publishes

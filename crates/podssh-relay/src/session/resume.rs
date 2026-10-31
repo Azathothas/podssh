@@ -51,6 +51,10 @@ pub const MOVE_BYTES: u64 = 48 << 20;
 pub const MOVE_AGE: Duration = Duration::from_secs(11 * 3600);
 /// How long a `REFUSE` may take to go out before the link is dropped.
 const REFUSE_WAIT: Duration = Duration::from_secs(5);
+/// How long a resume after a `CLOSE` with no answer goes on before its loss
+/// is said: a first new link learns sooner whether the far end had the
+/// `CLOSE`, as a spare link opens after a question waited as long (T-354).
+const LOSS_GRACE: Duration = beside::SPARE_AFTER;
 
 /// What the caller gives in place of a lost link, or for a move.
 pub enum Next<L> {
@@ -264,10 +268,14 @@ where
         // A resume is a question too: the far end is silent until a new
         // link carries its bytes (T-302).
         carry.hearing().asked();
-        if !lost_said {
-            note(Note::Lost { why: describe(&ended.end) });
+        // A `CLOSE` with no answer is most often one that the far end had,
+        // its answer gone with the link: that loss waits until the resume
+        // says whether the session goes on (T-354).
+        let mut unsaid = (!lost_said).then(|| Note::Lost { why: describe(&ended.end) });
+        if !matches!(ended.end, End::Closing) {
+            say_lost(&mut unsaid, &mut note);
         }
-        match resume_loop(&ended, &established, &mut carry, settings, &mut connect, &mut note, entropy).await {
+        match resume_loop(&ended, &established, &mut carry, settings, &mut connect, &mut note, unsaid, entropy).await {
             Resumed::On(new, new_decoder) => {
                 hearing.heard();
                 link = new;
@@ -297,7 +305,11 @@ async fn gave_up<A: AsyncWrite + Unpin>(app: &mut A, reason: String, ended: &End
 }
 
 /// New links after a loss, with the backoff, until one resumes the session or
-/// the deadline passes.
+/// the deadline passes. `unsaid` is a loss not said yet: it comes before the
+/// next step said, or once the resume outlasts [`LOSS_GRACE`]; a far end that
+/// forgot a session whose application ended had its `CLOSE`, and then no
+/// loss was.
+#[allow(clippy::too_many_arguments)]
 async fn resume_loop<L, C, F, N>(
     ended: &Ended,
     established: &Established,
@@ -305,6 +317,7 @@ async fn resume_loop<L, C, F, N>(
     settings: Settings,
     connect: &mut C,
     note: &mut N,
+    mut unsaid: Option<Note>,
     entropy: &mut (dyn Entropy + Send),
 ) -> Resumed<L>
 where
@@ -320,13 +333,14 @@ where
     // As long as the far end keeps the session, or less when the user asked.
     let wait = client_wait(&settings, established.peer_deadline);
     let deadline = lost + wait;
-    let gave_up = |reason: String| Resumed::Over(End::GaveUp(reason));
+    let say_at = lost + LOSS_GRACE;
     let mut attempt = 0u32;
-    loop {
+    let reason = loop {
         attempt += 1;
-        let why = match tokio::time::timeout_at(deadline, connect(ended)).await {
-            Err(_) => return gave_up(format!("no new link within {} s", wait.as_secs())),
-            Ok(Next::Stop(reason)) => return gave_up(reason),
+        let next = tokio::time::timeout_at(deadline, connect(ended));
+        let why = match waiting(next, say_at, &mut unsaid, note).await {
+            Err(_) => break format!("no new link within {} s", wait.as_secs()),
+            Ok(Next::Stop(reason)) => break reason,
             Ok(Next::Retry(why)) => why,
             Ok(Next::Link(new)) => {
                 let limit = client::HANDSHAKE_LIMIT.min(deadline.saturating_duration_since(Instant::now()));
@@ -334,8 +348,9 @@ where
                     let shaken = prove(greeted(new).await?, established, &carry.state, settings, entropy).await?;
                     resend(shaken, carry).await
                 };
-                match tokio::time::timeout(limit, resumed).await {
+                match waiting(tokio::time::timeout(limit, resumed), say_at, &mut unsaid, note).await {
                     Ok(Ok((new, new_decoder, resent))) => {
+                        say_lost(&mut unsaid, note);
                         note(Note::Resumed { resent, after: lost.elapsed() });
                         return Resumed::On(new, new_decoder);
                     }
@@ -348,9 +363,9 @@ where
                     Ok(Err(Failed::Forgotten(why))) => {
                         let kept = established.peer_deadline.unwrap_or(settings.resume_deadline);
                         let gone = away(lost_wall, (settings.wall_clock)(), lost.elapsed());
-                        return gave_up(forgotten(&why, kept, &gone));
+                        break forgotten(&why, kept, &gone);
                     }
-                    Ok(Err(failed @ Failed::Final(_))) => return gave_up(failed.reason()),
+                    Ok(Err(failed @ Failed::Final(_))) => break failed.reason(),
                     Ok(Err(Failed::Again(why))) => why,
                     Err(_) => format!("the handshake took more than {} s", limit.as_secs()),
                 }
@@ -358,11 +373,41 @@ where
         };
         let pause = crate::open::backoff(attempt);
         if Instant::now() + pause >= deadline {
-            return gave_up(format!("no new link within {} s: {why}", wait.as_secs()));
+            break format!("no new link within {} s: {why}", wait.as_secs());
         }
+        say_lost(&mut unsaid, note);
         note(Note::Retry { why, wait: pause });
         tokio::time::sleep(pause).await;
+    };
+    // The loss, then the end that it came to.
+    say_lost(&mut unsaid, note);
+    Resumed::Over(End::GaveUp(reason))
+}
+
+/// Say the loss that waits, if one does.
+fn say_lost<N: FnMut(Note)>(unsaid: &mut Option<Note>, note: &mut N) {
+    if let Some(lost) = unsaid.take() {
+        note(lost);
     }
+}
+
+/// `step`; a loss that waits is said at `say_at` if the step is not over by
+/// then: a resume that takes longer than a far end's first answer is one
+/// worth a line.
+async fn waiting<T, N: FnMut(Note)>(
+    step: impl Future<Output = T>,
+    say_at: Instant,
+    unsaid: &mut Option<Note>,
+    note: &mut N,
+) -> T {
+    tokio::pin!(step);
+    if unsaid.is_some() {
+        tokio::select! {
+            done = &mut step => return done,
+            () = tokio::time::sleep_until(say_at) => say_lost(unsaid, note),
+        }
+    }
+    step.await
 }
 
 /// A loss, in words.

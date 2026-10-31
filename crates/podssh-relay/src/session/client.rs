@@ -31,6 +31,9 @@ use super::Settings;
 pub const FIRST_BYTE_WAIT: Duration = Duration::from_secs(30);
 /// How long the handshake may take once `GREETING` began.
 pub const HANDSHAKE_LIMIT: Duration = Duration::from_secs(30);
+/// How long a handshake whose write failed reads on for what the far end
+/// sent before: it waits in the transport's buffers, so it takes little time.
+const DRAIN: Duration = Duration::from_secs(2);
 
 /// What the client found at the far end.
 #[derive(Debug, Clone, PartialEq, Eq)]
@@ -256,10 +259,16 @@ where
             let step = handshake.handle(record).map_err(ClientError::Handshake)?;
             // The `OPEN` follows the `GREETING`, which is the first record.
             if let Some(open) = open.take() {
-                send(link, &open).await?;
+                if let Err(failed) = send(link, &open).await {
+                    return Err(heard_before(link, decoder, &mut handshake, buf, failed).await);
+                }
             }
             match step {
-                Step::Send(record) => send(link, &record).await?,
+                Step::Send(record) => {
+                    if let Err(failed) = send(link, &record).await {
+                        return Err(heard_before(link, decoder, &mut handshake, buf, failed).await);
+                    }
+                }
                 Step::Wait => {}
                 Step::Established(_, established) => return Ok(established),
                 // A client never refuses: its errors end the handshake.
@@ -271,6 +280,36 @@ where
             Ok(n) => decoder.push(&buf[..n]),
             Err(e) => return Err(ClientError::Io(e)),
         }
+    }
+}
+
+/// A write of the handshake failed with `failed`; what the far end sent
+/// before it ended the link may still wait to be read: a `REFUSE` that says
+/// why, from a far end that refused at the `OPEN` and was gone while this
+/// side wrote its proof (T-354). That end, else `failed`.
+async fn heard_before<L: AsyncRead + Unpin>(
+    link: &mut L,
+    decoder: &mut Decoder,
+    handshake: &mut ClientHandshake,
+    buf: &mut [u8],
+    failed: ClientError,
+) -> ClientError {
+    let heard = async {
+        loop {
+            while let Ok(Some(record)) = decoder.next() {
+                if let Err(e) = handshake.handle(record) {
+                    return Some(ClientError::Handshake(e));
+                }
+            }
+            match link.read(buf).await {
+                Ok(n) if n > 0 => decoder.push(&buf[..n]),
+                _ => return None,
+            }
+        }
+    };
+    match tokio::time::timeout(DRAIN, heard).await {
+        Ok(Some(refused)) => refused,
+        _ => failed,
     }
 }
 

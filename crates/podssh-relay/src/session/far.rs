@@ -28,6 +28,12 @@ use super::Settings;
 pub const HANDSHAKE_LIMIT: Duration = Duration::from_secs(30);
 /// How long a new session's target may take to answer.
 pub const TARGET_LIMIT: Duration = Duration::from_secs(10);
+/// How long this side's last record on a link may take to go out.
+const LAST_WORD_SEND: Duration = Duration::from_secs(5);
+/// How long a link stays after this side's last record on it, for the client
+/// to read the record and end the link: as long as a `CLOSE` waits for its
+/// answer.
+const LAST_WORD_WAIT: Duration = Duration::from_secs(10);
 
 /// Why the far end could not accept the link.
 #[derive(Debug)]
@@ -128,8 +134,7 @@ where
                 }
                 Step::Refuse(refusal, error) => {
                     // The client reads why before the link ends.
-                    let _ = send(link, &refusal).await;
-                    let _ = link.shutdown().await;
+                    last_word(link, &refusal).await;
                     return Err(FarError::Handshake(error));
                 }
             }
@@ -146,6 +151,25 @@ async fn send<L: AsyncWrite + Unpin>(link: &mut L, record: &Record) -> Result<()
     let bytes = record.to_bytes().map_err(|e| FarError::Io(std::io::Error::other(e)))?;
     link.write_all(&bytes).await.map_err(FarError::Io)?;
     link.flush().await.map_err(FarError::Io)
+}
+
+/// Write `record`, this side's last on `link`, then keep the link until the
+/// client ends it or [`LAST_WORD_WAIT`] passes, reading what the client sends
+/// meanwhile. The client writes on until it reads the record, and a relay
+/// that ends both ways when one fails would drop the record, still on its
+/// way, at the first write to a link that is gone (T-354).
+pub(super) async fn last_word<L: AsyncRead + AsyncWrite + Unpin>(link: &mut L, record: &Record) {
+    let written = async {
+        let bytes = record.to_bytes().map_err(std::io::Error::other)?;
+        link.write_all(&bytes).await?;
+        link.flush().await
+    };
+    if !matches!(tokio::time::timeout(LAST_WORD_SEND, written).await, Ok(Ok(()))) {
+        return;
+    }
+    let mut buf = vec![0u8; 16 * 1024];
+    let until_ended = async { while matches!(link.read(&mut buf).await, Ok(n) if n > 0) {} };
+    let _ = tokio::time::timeout(LAST_WORD_WAIT, until_ended).await;
 }
 
 /// One link of a far end that keeps its sessions in `keeper`: the layer's
@@ -237,15 +261,12 @@ where
 
     /// End the session at once, with `reason` in a `CLOSE` (its target could
     /// not be reached, or the far end keeps as many sessions as it can): the
-    /// session is forgotten, and the client ends with the reason.
+    /// session is forgotten, and the client ends with the reason, which the
+    /// link keeps until the client read it.
     pub async fn close(self, reason: &str, sessions: &Mutex<Sessions>) {
         let Accepted { mut link, established, .. } = self;
         sessions.lock().unwrap_or_else(|e| e.into_inner()).remove(&established.id);
-        let close = Record::Close { reason: super::record::cut_reason(reason) };
-        if let Ok(bytes) = close.to_bytes() {
-            let _ = link.write_all(&bytes).await;
-        }
-        let _ = link.shutdown().await;
+        last_word(&mut link, &Record::Close { reason: super::record::cut_reason(reason) }).await;
     }
 
     /// Carry the session between the target `app` and the link until either

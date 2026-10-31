@@ -62,15 +62,15 @@ repository and CI).
 
 ## Counts
 
-**351 entries: 28 open, 0 partial, 35 blocked, 288 done.**
+**351 entries: 27 open, 0 partial, 35 blocked, 289 done.**
 
 | Priority | open | partial | blocked | done | total |
 | --- | --- | --- | --- | --- | --- |
 | P0 | 0 | 0 | 0 | 1 | 1 |
 | P1 | 3 | 0 | 0 | 24 | 27 |
-| P2 | 9 | 0 | 23 | 147 | 179 |
+| P2 | 8 | 0 | 23 | 148 | 179 |
 | P3 | 16 | 0 | 12 | 116 | 144 |
-| **All** | 28 | 0 | 35 | 288 | 351 |
+| **All** | 27 | 0 | 35 | 289 | 351 |
 
 ## Entries
 
@@ -426,4 +426,4 @@ repository and CI).
 | [T-351](roads.md) | P3 | L | backlog | feature | blocked | Roads through a cloud's own tunnel: GCP IAP TCP forwarding, then EC2 Instance Connect Endpoint |
 | [T-352](roads.md) | P3 | L | backlog | feature | blocked | WARP's MASQUE road over HTTP/2 |
 | [T-353](roads.md) | P3 | L | backlog | feature | blocked | Tor through Arti, in a feature crate |
-| [T-354](resume.md) | P2 | S | backlog | defect | open | A session that closes while it moves can say a loss that was none |
+| [T-354](resume.md) | P2 | S | backlog | defect | done | A session that closes while it moves can say a loss that was none |

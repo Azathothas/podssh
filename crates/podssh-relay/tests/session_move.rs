@@ -6,7 +6,9 @@
 //! session, then retired the old one. The same at full speed both ways, with
 //! a move each 256 KiB: the offsets of each new link's handshake are taken
 //! after the old link stopped, so none is one that the other side no longer
-//! keeps (T-262).
+//! keeps (T-262). And both ends end their bytes at once, 50 times, while the
+//! session moves each 16 KiB: no loss is said, as a move cuts no `CLOSE` in
+//! flight (T-354).
 
 use std::sync::atomic::{AtomicI64, AtomicUsize, Ordering};
 use std::sync::{Arc, Mutex};
@@ -104,9 +106,9 @@ async fn exchange(stream: DuplexStream, out: Vec<u8>, paced: bool) -> Vec<u8> {
     got
 }
 
-/// 8 MiB each way through links capped at `cap`, with a move at `move_at`:
-/// the notes, and the count of links that met their cap.
-async fn moved(move_at: usize, cap: usize, paced: bool) -> (Vec<Note>, usize) {
+/// `len` bytes each way through links capped at `cap`, with a move at
+/// `move_at`: the notes, and the count of links that met their cap.
+async fn moved(move_at: usize, cap: usize, paced: bool, len: usize) -> (Vec<Note>, usize) {
     let settings = Settings { move_bytes: move_at as u64, ..Settings::default() };
     let capped = Arc::new(AtomicUsize::new(0));
     let keeper = Arc::new(Keeper::new(Duration::from_secs(30)));
@@ -154,8 +156,8 @@ async fn moved(move_at: usize, cap: usize, paced: bool) -> (Vec<Note>, usize) {
     let session = tokio::spawn(async move { resume::run(client, app_end, connect, note, &mut OsEntropy).await });
 
     let target = tokio::time::timeout(LIMIT, targets_rx.recv()).await.unwrap().unwrap();
-    let up = pseudo_random(8 * MIB, 3);
-    let down = pseudo_random(8 * MIB, 4);
+    let up = pseudo_random(len, 3);
+    let down = pseudo_random(len, 4);
     let (at_target, at_client) = tokio::time::timeout(LIMIT, async {
         tokio::join!(exchange(target, down.clone(), paced), exchange(app, up.clone(), paced))
     })
@@ -172,7 +174,7 @@ async fn moved(move_at: usize, cap: usize, paced: bool) -> (Vec<Note>, usize) {
 
 #[tokio::test(flavor = "multi_thread", worker_threads = 4)]
 async fn a_session_moves_before_each_cap() {
-    let (notes, capped) = moved(CAP * 3 / 4, CAP, true).await;
+    let (notes, capped) = moved(CAP * 3 / 4, CAP, true, 8 * MIB).await;
     let moves = notes.iter().filter(|n| matches!(n, Note::Moved { .. })).count();
     let losses: Vec<&Note> = notes.iter().filter(|n| !matches!(n, Note::Moved { .. })).collect();
     assert!(moves > 8, "{moves} moves for 16 MiB under a cap of 1 MiB");
@@ -184,10 +186,23 @@ async fn a_session_moves_before_each_cap() {
 /// the old link carries acknowledgements until it stops, and no move fails.
 #[tokio::test(flavor = "multi_thread", worker_threads = 4)]
 async fn a_session_moves_while_both_ends_send_at_full_speed() {
-    let (notes, capped) = moved(256 * KIB, 64 * MIB, false).await;
+    let (notes, capped) = moved(256 * KIB, 64 * MIB, false, 8 * MIB).await;
     let moves = notes.iter().filter(|n| matches!(n, Note::Moved { .. })).count();
     let losses: Vec<&Note> = notes.iter().filter(|n| !matches!(n, Note::Moved { .. })).collect();
     assert!(moves > 16, "{moves} moves for 16 MiB, with a mark at 256 KiB of each link");
     assert!(losses.is_empty(), "no loss, no failed move: {losses:?}");
     assert_eq!(capped, 0);
+}
+
+/// Both ends end their bytes at once, as each has read the other's, while
+/// the session moves each 16 KiB, so that a move is due or in flight as the
+/// `CLOSE`s cross: 50 sessions, and none says a loss (T-354).
+#[tokio::test(flavor = "multi_thread", worker_threads = 4)]
+async fn both_ends_close_at_once_while_the_session_moves() {
+    for round in 0..50 {
+        let (notes, capped) = moved(16 * KIB, 64 * MIB, false, 64 * KIB).await;
+        let losses: Vec<&Note> = notes.iter().filter(|n| !matches!(n, Note::Moved { .. })).collect();
+        assert!(losses.is_empty(), "session {round}: no loss, no failed move: {losses:?}");
+        assert_eq!(capped, 0);
+    }
 }

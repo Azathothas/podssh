@@ -21,7 +21,7 @@ use tokio::sync::Notify;
 use tokio::time::Instant;
 
 use super::decode::Decoder;
-use super::far::Accepted;
+use super::far::{last_word, Accepted};
 use super::link::Link;
 use super::pump::{self, Carry, Ended, Watch};
 use super::record::Record;
@@ -33,8 +33,6 @@ const STOP_WAIT: Duration = Duration::from_secs(10);
 /// How often a resume looks at the session again while it waits: `done` is
 /// the signal, and this the fallback for a signal that came before the wait.
 const STOP_CHECK: Duration = Duration::from_millis(50);
-/// How long a `REFUSE` may take to go out before the link is dropped.
-const REFUSE_WAIT: Duration = Duration::from_secs(5);
 /// How long a session whose client was not let in yet waits for a resume:
 /// the channel's handshake has as long for each step, and a session kept
 /// longer would only hold a visitor's handshake.
@@ -201,9 +199,7 @@ where
             Ok(taken) => taken,
             // The client hears the session's end, not a lost link.
             Err(NotTaken::Ended) => {
-                if let Ok(bytes) = (Record::Close { reason: String::new() }).to_bytes() {
-                    let _ = tokio::time::timeout(REFUSE_WAIT, link.write_all(&bytes)).await;
-                }
+                last_word(&mut link, &Record::Close { reason: String::new() }).await;
                 return Err(NotTaken::Ended.to_string());
             }
             Err(other) => return Err(other.to_string()),
@@ -211,13 +207,11 @@ where
         let mut again = Vec::new();
         let resumed = lock(&carry.state).resume(established.peer_received, &mut again);
         if let Err(not_kept) = resumed {
-            if let Ok(bytes) = not_kept.refusal().to_bytes() {
-                let _ = tokio::time::timeout(REFUSE_WAIT, link.write_all(&bytes)).await;
-            }
             lock(&self.slots).remove(&id);
             self.forget(&id);
             let _ = app.shutdown().await;
             done.notify_waiters();
+            last_word(&mut link, &not_kept.refusal()).await;
             return Err(not_kept.to_string());
         }
         // The pump sends the bytes that the client lacks while it reads the

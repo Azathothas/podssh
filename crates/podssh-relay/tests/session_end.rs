@@ -3,7 +3,9 @@
 //! with its own `CLOSE`; only then is the session over at that side. A link
 //! that ends between the two leaves the session to a resume, which sends the
 //! `CLOSE` again. And a link whose writes fail still gives what it carried
-//! before: the far end's last bytes and its `CLOSE` are read, not lost.
+//! before: the far end's last bytes and its `CLOSE` are read, not lost. A
+//! `CLOSE` whose answer was lost, at a far end that had it, ends the session
+//! with no loss said (T-354).
 
 use std::sync::{Arc, Mutex};
 use std::time::Duration;
@@ -182,6 +184,14 @@ fn plain() -> (DuplexStream, DuplexStream) {
     (client, far)
 }
 
+/// When the client's next links reach the far end: at once, or once the far
+/// end forgot the session, so that a resume finds it gone.
+#[derive(Clone, Copy)]
+enum After {
+    Now,
+    Forgotten,
+}
+
 /// A session whose first link loses the first `CLOSE` of `from`, and whose
 /// next links cut nothing: the client's application, the target, the
 /// session's end and its notes.
@@ -195,7 +205,7 @@ struct Run {
     _keeper: Arc<Keeper<DuplexStream>>,
 }
 
-async fn start(from: From) -> Run {
+async fn start(from: From, after: After) -> Run {
     let settings = Settings::default();
     // The far end keeps a lost session for a minute: longer than the test.
     let keeper = Arc::new(Keeper::new(Duration::from_secs(60)));
@@ -223,10 +233,22 @@ async fn start(from: From) -> Run {
     let (client_link, far_link) = cut_at_close(from);
     links_tx.send(far_link).unwrap();
     let client = client::start(client_link, Ask::New, settings, &mut OsEntropy).await.unwrap();
+    let kept = held.clone();
     let connect = move |_: &Ended| {
         let (client_link, far_link) = plain();
-        links_tx.send(far_link).unwrap();
-        async move { Next::Link(client_link) }
+        let (links_tx, kept) = (links_tx.clone(), kept.clone());
+        async move {
+            if let After::Forgotten = after {
+                let gone = async {
+                    while !kept.sessions.lock().unwrap().is_empty() {
+                        tokio::time::sleep(Duration::from_millis(10)).await;
+                    }
+                };
+                tokio::time::timeout(LIMIT, gone).await.expect("the far end forgot the session");
+            }
+            links_tx.send(far_link).unwrap();
+            Next::Link(client_link)
+        }
     };
     let notes: Arc<Mutex<Vec<Note>>> = Arc::default();
     let note = {
@@ -244,7 +266,7 @@ async fn start(from: From) -> Run {
 /// learns that the session ended long before the far end's deadline.
 #[tokio::test(flavor = "multi_thread", worker_threads = 2)]
 async fn a_close_that_its_link_lost_goes_again_on_the_next() {
-    let run = start(From::Client).await;
+    let run = start(From::Client, After::Now).await;
     let sent = pseudo_random(100_000, 43);
     let (_app_r, mut app_w) = tokio::io::split(run.app);
     app_w.write_all(&sent).await.unwrap();
@@ -267,7 +289,7 @@ async fn a_close_that_its_link_lost_goes_again_on_the_next() {
 /// on the new link: the session ends with it, not with a refusal.
 #[tokio::test(flavor = "multi_thread", worker_threads = 2)]
 async fn the_far_ends_close_that_its_link_lost_comes_on_the_next() {
-    let run = start(From::Far).await;
+    let run = start(From::Far, After::Now).await;
     let sent = pseudo_random(100_000, 47);
     let (mut target_r, mut target_w) = tokio::io::split(run.target);
     target_w.write_all(&sent).await.unwrap();
@@ -283,4 +305,25 @@ async fn the_far_ends_close_that_its_link_lost_comes_on_the_next() {
     tokio::time::timeout(SOON, target_r.read_to_end(&mut rest)).await.expect("the target's session ended").unwrap();
     let notes = run.notes.lock().unwrap().clone();
     assert!(notes.iter().any(|n| matches!(n, Note::Resumed { .. })), "{notes:?}");
+}
+
+/// The client's application ends; the far end has its `CLOSE` and forgets
+/// the session, and the relay loses the far end's answer with the link. The
+/// client's resume finds the session gone, and the session ends there with
+/// no loss said: none was (T-354).
+#[tokio::test(flavor = "multi_thread", worker_threads = 2)]
+async fn a_close_whose_answer_its_link_lost_ends_with_no_loss_said() {
+    let run = start(From::Far, After::Forgotten).await;
+    let sent = pseudo_random(100_000, 53);
+    let (_app_r, mut app_w) = tokio::io::split(run.app);
+    app_w.write_all(&sent).await.unwrap();
+    app_w.shutdown().await.unwrap();
+    let (mut target_r, _target_w) = tokio::io::split(run.target);
+    let mut got = Vec::new();
+    tokio::time::timeout(SOON, target_r.read_to_end(&mut got)).await.expect("the target's session ended").unwrap();
+    assert_eq!(Sha256::digest(&got), Sha256::digest(&sent));
+    let outcome = tokio::time::timeout(LIMIT, run.session).await.unwrap().unwrap();
+    assert!(matches!(&outcome, Outcome::Layer(Ended { end: End::LocalEnd, .. })), "{outcome:?}");
+    let notes = run.notes.lock().unwrap().clone();
+    assert!(notes.is_empty(), "no loss and no resume said: {notes:?}");
 }

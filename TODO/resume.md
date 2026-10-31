@@ -680,7 +680,7 @@ would see a loss that should not happen.
 ## Premise
 
 - Measured: `a_session_moves_while_both_ends_send_at_full_speed`
-  (`crates/podssh-relay/tests/session_move.rs:183-193`) failed once in the
+  (`crates/podssh-relay/tests/session_move.rs:185-195`) failed once in the
   native run of the workspace on 2026-10-10, with `[Lost { why: "the link
   ended with no word from the far end" }]`. It then passed 30 runs alone,
   60 with four copies at once, 40 with the other test of its file, and 75
@@ -1164,7 +1164,7 @@ road, and the same faults end a session of the forward road with 255
 # T-157: Throughput on each road and relay, by a committed method
 
 **Source:** ROADMAP M6 (throughput on each road and relay, in and out of a
-sandbox, before a default depends on it); `docs/design.md:1052-1072`; the two
+sandbox, before a default depends on it); `docs/design.md:1060-1080`; the two
 sandbox reports of 2026-10-08; GitHub #18 (warren's method) and GitHub #23
 (sshping: throughput up and down).
 **Category:** measurement
@@ -1188,7 +1188,7 @@ proxy (4 runs). Read in the report, not verified here: the script's target
 (thinkbroadband) gave `1011 write failed` and 0 bytes, and the relay's
 `/trace` showed that the relay could not reach it.
 Read: no iroh figure exists for a relay through a CONNECT proxy
-(`docs/design.md:1052-1072`). A session carries 64 MiB at most, both directions
+(`docs/design.md:1060-1080`). A session carries 64 MiB at most, both directions
 together (`docs/relay.md:167`).
 
 ## Approach
@@ -2192,7 +2192,7 @@ then resumes over a new one. For those 30 s, an interactive session shows nothin
   (`crates/podssh-relay/src/session/pump.rs:60`; `docs/design.md:749-757`).
 - Read: a resume can come while the far end still runs the old link; the old link stops, and the
   new one goes on (`docs/design.md:763-765`). The far end lets the newest resume take a session
-  (`docs/design.md:802-804`).
+  (`docs/design.md:810-812`).
 - Measured (T-156): a session on the layer and on the iroh road survives a new address of its
   client (`crates/podssh-cli/tests/m6_exit.rs:262`); the time that the resume took is not in the
   record.
@@ -2390,10 +2390,10 @@ session 10 minutes after its link was lost. A session of Mosh waits.
   `docs/design.md:758-768`). T-153's Decision kept a deadline, as a node in a cage would keep
   connections for clients that never come back.
 - Read: a node keeps 64 MiB of replay buffers at most, a whole buffer for each session that it
-  keeps (`docs/design.md:835-837`); a pair expires after 72 h at most
-  (`docs/design.md:804-806`).
+  keeps (`docs/design.md:843-845`); a pair expires after 72 h at most
+  (`docs/design.md:812-814`).
 - Read: the client measures the deadline with `Instant`
-  (`crates/podssh-relay/src/session/resume.rs:316`). Not verified: whether `Instant` counts the
+  (`crates/podssh-relay/src/session/resume.rs:329`). Not verified: whether `Instant` counts the
   time that the host slept, on Linux, macOS and Windows. If it does not, a client that wakes
   counts too little, and tries to resume a session that the far end forgot; it then gets
   `REFUSE` with the code 1.
@@ -2478,7 +2478,7 @@ Item 3 of the Approach says that a session past the node's bound is refused
 with `REFUSE` (6). Read: the far end accepts the handshake, then ends the
 session with a `CLOSE` that gives the reason ("this node keeps as many
 resumable sessions as its budget allows",
-`crates/podssh-relay/src/session/far.rs:196-201`); code 6 is not sent. The
+`crates/podssh-relay/src/session/far.rs:220-225`); code 6 is not sent. The
 bound and its words stay as they are.
 
 ## Done
@@ -2847,12 +2847,12 @@ say so:
 
 **Source:** CI's macOS job at `08275ee`, 2026-10-31 (run 41158346607):
 `a_session_moves_while_both_ends_send_at_full_speed`
-(`crates/podssh-relay/tests/session_move.rs:186-193`) failed once.
+(`crates/podssh-relay/tests/session_move.rs:188-195`) failed once.
 **Category:** defect
 **Milestone:** backlog
 **Priority:** P2
 **Effort:** S
-**Status:** open
+**Status:** done
 
 ## Problem
 
@@ -2867,8 +2867,8 @@ for a new link, and the test that asks for no loss fails at random.
 - Measured: in the macOS job of CI at `08275ee` (run 41158346607), the
   test's notes held one loss, `Lost { why: "the link ended before the far end
   answered this side's CLOSE" }`, and no `Resumed`; the outcome and both
-  digests held (`crates/podssh-relay/tests/session_move.rs:166-168`), and the
-  assertion that failed is `:191`. The commit changed only `TODO/issues.md`.
+  digests held (`crates/podssh-relay/tests/session_move.rs:168-170`), and the
+  assertion that failed is `:193`. The commit changed only `TODO/issues.md`.
 - Not reproduced here: 40 runs of the test alone, and 80 runs eight at a
   time, passed (a Claude Code cloud container, 2026-10-31).
 - Read: `End::Closing` comes from the pump's wait for the answer to its
@@ -2876,7 +2876,7 @@ for a new link, and the test that asks for no loss fails at random.
   ended with anything but the peer's `CLOSE`, the 10 s of `LINGER` (not
   reached in a run of 2.9 s), or a stop. A loss with no `Resumed` after it is
   a resume that found the session forgotten while this side's application
-  had ended (`crates/podssh-relay/src/session/resume.rs:344`): the far end
+  had ended (`crates/podssh-relay/src/session/resume.rs:359`): the far end
   had the `CLOSE` and ended the session, and this side's reader ended before
   its answer.
 - Inferred: both ends closed at once (the test's target ends as the
@@ -2892,6 +2892,40 @@ for a new link, and the test that asks for no loss fails at random.
    loss; a move does not cut a `CLOSE` in flight.
 3. A test that closes both ends at once, with a move beside, many times.
 
+## Decision
+
+1. **A far end's last record on a link waits for the client**: `last_word`
+   (`crates/podssh-relay/src/session/far.rs:156-173`) writes the record, then
+   keeps the link, reading and dropping what the client sends, until the
+   client ends it or 10 s pass (the wait of a `CLOSE` for its answer). It
+   ends the four places: the `REFUSE` of the handshake, the `CLOSE` of a
+   session that cannot start, the `CLOSE` of a resumed link whose session
+   ended, and the `REFUSE` of an offset no longer kept. No shut of the write
+   side first: a stand-in that ends at the first end of either way would
+   then end before the client's next write, and the cut comes back. Lost:
+   a shorter wait (1 s), which a slow path to the client could outlast; a
+   wait in the relay's own close, which podssh cannot change.
+2. **A loss after this side's `CLOSE` is said only when the resume goes
+   on** (`crates/podssh-relay/src/session/resume.rs:271-277`, `:307-411`): the
+   line "the link ended before the far end answered this side's CLOSE;
+   resuming the session" waits, and comes before the next step said (a
+   retry, the resume, the end that the resume gave up at), or once the
+   resume takes longer than 3 s (`LOSS_GRACE`, the wait of a spare link). A
+   far end that forgot the session had the `CLOSE`: nothing is said, and the
+   session ends `LocalEnd`. Lost: saying it at once, as before, which is a
+   line on each end whose answer a relay drops; never saying it, which hides
+   a resume that waits.
+3. **A handshake whose write fails reads what came before**
+   (`crates/podssh-relay/src/session/client.rs:286-314`), 2 s at most, as the
+   pump reads a link whose writes fail: a `REFUSE` there is the answer, else
+   the write's failure is. Redundant with item 1 at podssh's own far end,
+   and the answer from a far end or a relay that closes right after its
+   last record.
+4. Not done: the client's own `REFUSE` of a resume whose offset it no
+   longer keeps (`resume.rs`, `resend`) is still sent and dropped; it ends a
+   session that cannot go on, the far end's pump reads it after a failed
+   write as each record, and the far end's deadline ends the rest.
+
 ## Prove
 
 ```sh
@@ -2902,3 +2936,57 @@ cargo test -p podssh-relay --test session_move
 200 runs of `a_session_moves_while_both_ends_send_at_full_speed` with no loss
 said; a planted race fails the new test.
 
+## Correction
+
+The reproduction found the cause on the far end's side, in three places of
+one kind, and the client's word for it in a fourth. Debug lines in the close
+paths, 40 runs of the test on one CPU (a Claude Code cloud container,
+2026-10-31): in one run the far end accepted a resume on a move's new link,
+then found the session ended on the old link (`NotTaken::Ended`,
+`crates/podssh-relay/src/session/keep.rs:201-204`), wrote its `CLOSE` there and
+dropped the link at once. The client's pump wrote on that link (the `DATA`
+of a resume, its own `CLOSE`), and the stand-in relay, which ends both ways
+when one way ends or fails as the relay ends a session, failed that write and
+dropped the far end's `CLOSE` still on its way. The client then saw a link
+end with no answer (`End::Closing`), said a loss, and learned on one more
+link that the far end had ended the session. A new test of both ends closing
+at once while the session moves each 16 KiB, 50 sessions a run, failed once
+in 10 runs on one CPU on the code before, by the same kind of cut in the
+handshake: the far end refused a resume at its `OPEN` and dropped the link
+(`crates/podssh-relay/src/session/far.rs:135-139`) while the client wrote its
+`PROOF`, so the client got a broken pipe in place of the refusal, said a
+move's failure and a loss, and tried again. The same pattern is in
+`Accepted::close`, whose reason the client would lose for "the far end did
+not resume the session" (`crates/podssh-relay/src/session/far.rs:262-270`).
+Approach item 2 is done as the Decision says.
+
+## Done
+
+2026-10-31. A session whose ends close at once while it moves says no loss:
+
+- The far end's last record on a link waits for the client (Decision 1);
+  the client says a loss after its `CLOSE` only when the resume goes on or
+  waits (Decision 2); a handshake whose write fails reads the `REFUSE` before
+  it (Decision 3). `docs/design.md` (the end of a session) says so.
+- Tests, each against a stand-in relay that ends both ways when one fails:
+  `crates/podssh-relay/tests/session_end.rs`,
+  `a_close_whose_answer_its_link_lost_ends_with_no_loss_said` (the far end
+  had the `CLOSE` and forgot the session; no note); the new
+  `crates/podssh-relay/tests/session_last_word.rs`, 4 tests: a resumed
+  link's `CLOSE` slower than the client's next write, the handshake's
+  `REFUSE` at the `OPEN` while the `PROOF` is on its way, a `REFUSE` before a
+  failed write read, and a new session's reason "no target here" while the
+  client's application writes; `crates/podssh-relay/tests/session_move.rs`,
+  `both_ends_close_at_once_while_the_session_moves` (50 sessions, both ends
+  closing at once, a move each 16 KiB, no note but moves). `cargo test -p
+  podssh-relay --test session_end --test session_last_word --test
+  session_move`: 11 passed.
+- Planted, each failed its test in 3 runs of 3: the loss said at once; the
+  handshake's `REFUSE` sent and dropped; no read after a failed write; a new
+  session's reason sent and dropped; a resumed link's `CLOSE` sent and
+  dropped.
+- The Prove: 200 runs of `a_session_moves_while_both_ends_send_at_full_speed`
+  (100 on one CPU with `taskset -c 0`, 100 on four), none failed; 30 runs of
+  the new test on one CPU, 1500 sessions, none failed, where the code before
+  failed 1 run in 10. `cargo test -p podssh-relay`: 220 passed; with
+  `--all-features`: 340 passed.

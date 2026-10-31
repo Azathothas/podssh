@@ -790,8 +790,16 @@ version, 5 the role, 6 busy, 7 a record out of its place, 0 another reason.
   own `CLOSE`; then both forget the session. A link that ends before the
   answer leaves the session to a resume, which sends the `CLOSE` again. A
   far end that no longer knows the session, after this side's application
-  ended, had the `CLOSE`, and the session ended there. A resume that the far
-  end accepted while the session ended on the old link gets a `CLOSE`.
+  ended, had the `CLOSE`, and the session ended there; then no loss is said,
+  and a loss after a `CLOSE` is said only when the resume goes on, or takes
+  longer than 3 s (T-354). A resume that the far end accepted while the
+  session ended on the old link gets a `CLOSE`. A far end's last record on a
+  link (that `CLOSE`, a `REFUSE`, the `CLOSE` of a session that it cannot
+  start) stays until the client ends the link, 10 s at most: a relay that
+  ends both ways when one fails drops a record still on its way at the
+  client's next write, as a stand-in relay showed (T-354). A client whose
+  write in the handshake fails reads what came before, so a `REFUSE` that
+  says why is not taken for a failed link.
 - **A move** (T-155), when both sides name `move.v1` and
   `replay.v1`. At 48 MiB of a link both ways, or at 11 h, the client opens a
   new link and waits for its `GREETING` while the old link carries the
