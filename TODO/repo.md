@@ -4441,7 +4441,7 @@ plant exited 1 naming russh; `deny.yml`, run 41172617035, passed with both new s
 **Milestone:** none
 **Priority:** P3
 **Effort:** S
-**Status:** partial
+**Status:** done
 
 ## Problem
 
@@ -4519,7 +4519,13 @@ without), and with podssh-iroh's `rust-version` planted at 1.150 it exited 1, na
 armv7 job runs it before its build. check-jsonschema is pinned at 0.39.0, PyPI's newest of the
 day. `scripts/check-release-tools.py` passed, and each of its plants (a mirror, a pin) exited 1;
 the weekly `upstream.yml` runs it and its plants. `docs/development.md` says that a signing step
-that failed is run again. What waits: the dry run of the release workflow by hand.
+that failed is run again.
+
+2026-10-31, done: the dry run of the release workflow by hand at `7e7650b` (run 41199469920)
+passed each job. riscv64's job took zig 0.16.0 from the mirror pkg.alexrp.com with the pinned
+SHA-256 (`fetch-zig: zig-x86_64-linux-0.16.0.tar.xz from https://pkg.alexrp.com/zig`), and
+built; armv7's job printed `ok   rustc 1.96.1, at least the 1.91 that podssh-iroh declares
+(features: iroh)` before its build; each binary passed the short form of the release check.
 
 # T-355: Dependabot's updates of 2026-10-30 and 2026-10-31, and the curves' 0.14
 

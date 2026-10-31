@@ -107,7 +107,7 @@ and `CARGO_BUILD_JOBS=4`:
 
 ## Counts
 
-`TODO/INDEX.md` holds 374 entries: 32 open, 2 partial, 30 blocked, 310 done.
+`TODO/INDEX.md` holds 374 entries: 32 open, 0 partial, 30 blocked, 312 done.
 
 Open includes parked work. `cargo todo check` verifies this line.
 
@@ -133,8 +133,7 @@ zeroize and the curves' 0.14 make that batch, so `v1.0.0-beta.3` comes from
 **Now:** the entries of the audit, the study and the issues of 2026-10-31 (GitHub #59 to #63 and
 #69 to #76), the highest priority first: the P2 entries that the operator's rulings of 2026-10-31
 opened,
-T-348 and T-349 (the iroh road in the release binaries, and the public relays as a fallback,
-Q50); then the P3 entries T-343, T-344
+T-349 (a DERP link through Tailscale's tailcat relays, Q50); then the P3 entries T-344
 and T-363 (the direct road after the relay hosts fail), then those of the same rulings: T-350
 (Q50), T-351 (Q51, against stand-ins), T-352 and T-353 (Q52), and T-374 after T-352; then those of
 GitHub #59 to #63 and #73 to #76: T-367, T-368 and T-369 in that order, as each writes what

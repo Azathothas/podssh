@@ -3224,7 +3224,7 @@ relay and a plain first hop does.
 **Milestone:** backlog
 **Priority:** P2
 **Effort:** M
-**Status:** partial
+**Status:** done
 
 ## Problem
 
@@ -3313,8 +3313,18 @@ iroh_road` passed, a node whose relay refuses its iroh stopping in 4 s, not its 
 notice; planted, the early stop removed (the node waited 34 s) and the refusal not read (no
 notice), each failed the test. Live, a build with the release's features on this host, through its
 proxy: a node came online on n0's relay `use1-1`, and a client reached its Dropbear through it, the
-relay carrying each byte. What waits: the dry run of the release workflow by hand, its eight
-binaries and their sizes.
+relay carrying each byte.
+
+2026-10-31, done: the dry run of the release workflow by hand at `7e7650b` (run 41199469920)
+built the eight binaries with `RELEASE_FEATURES=iroh`, and each passed the short form of the
+release check on its own platform (QEMU for riscv64), its line `ok   the iroh road: iroh:x is
+read as a ticket, and refused as one` included; the preview of the release matched its
+`SHA256SUMS`, and its x86_64 binary passed `scripts/release-short.sh` here too. The sizes,
+beta.2's and then this build's (which also carries `podssh update`, T-375): x86_64 Linux 9.6 to
+14.3 MiB (+49 %), aarch64 Linux 7.5 to 11.0 (+47 %), armv7 5.6 to 8.2 (+47 %), riscv64 7.2 to
+10.9 (+51 %), macOS on Apple silicon 6.2 to 8.6 (+39 %), macOS on Intel 8.1 to 11.3 (+40 %),
+Windows x86-64 7.9 to 11.1 (+40 %), Windows ARM64 6.9 to 9.7 (+41 %). The release notes of the
+next beta carry the table (T-309).
 
 
 # T-349: A DERP link through Tailscale's tailcat relays, a second carrier of the reverse road
