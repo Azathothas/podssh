@@ -62,7 +62,8 @@ entry keeps its proof in the entry; this page keeps no history (git does).
   2026-10-31). The operator pushed each branch to GitHub as
   `draft/worktree-agent-*` on 2026-10-30; each draft of the four is in
   `main` now, so those branches and the worktrees on the operator's machine
-  can go.
+  can go, as can `draft/draft-dns` and `draft/draft-derp` (merged on
+  2026-10-31), which this cloud session's git proxy would not delete.
 
   The drafts that wait (2026-10-31), in the order of the index:
 

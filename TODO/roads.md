@@ -3506,6 +3506,10 @@ The Approach stands; item 4 moves to T-379 (the Decision).
   `derp,blocking,quick`: 378 passed; clippy `-D warnings` clean; the library crates build with no
   C compiler with the feature, which `scripts/gate.sh` now builds, tests and checks on the minimum
   Rust.
+- After the merge (`0920c54`), podssh-cli's sweep of variables failed: `PODSSH_DERP_SERVER` was
+  read and not in the manual's ENVIRONMENT, and the merge had run podssh-relay's tests alone. The
+  manual names it now (`crates/podssh-cli/src/man/facts/roads.rs`), with the note that no command
+  takes the road before T-379; the whole workspace's tests ran again.
 
 # T-350: A pkarr record that finds a node whose home relay changed
 

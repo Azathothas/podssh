@@ -285,7 +285,7 @@ const FEATURE_VARIABLES: &[(&[&str], &str)] = &[];
 /// Each variable that this build reads: [`VARIABLES`], and those of its
 /// features.
 pub fn variables() -> impl Iterator<Item = &'static (&'static [&'static str], &'static str)> {
-    VARIABLES.iter().chain(FEATURE_VARIABLES)
+    VARIABLES.iter().chain(FEATURE_VARIABLES).chain(roads::VARIABLES)
 }
 
 fn environment() -> Vec<Block> {
@@ -495,4 +495,5 @@ fn exit_status() -> Vec<Block> {
 
 #[cfg(test)]
 mod tests;
+mod roads;
 mod trust;
