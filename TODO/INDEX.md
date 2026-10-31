@@ -62,15 +62,15 @@ repository and CI).
 
 ## Counts
 
-**373 entries: 44 open, 4 partial, 31 blocked, 294 done.**
+**373 entries: 46 open, 4 partial, 29 blocked, 294 done.**
 
 | Priority | open | partial | blocked | done | total |
 | --- | --- | --- | --- | --- | --- |
 | P0 | 0 | 0 | 0 | 1 | 1 |
-| P1 | 4 | 1 | 1 | 25 | 31 |
+| P1 | 5 | 1 | 0 | 25 | 31 |
 | P2 | 10 | 3 | 20 | 152 | 185 |
-| P3 | 30 | 0 | 10 | 116 | 156 |
-| **All** | 44 | 4 | 31 | 294 | 373 |
+| P3 | 31 | 0 | 9 | 116 | 156 |
+| **All** | 46 | 4 | 29 | 294 | 373 |
 
 ## Entries
 
@@ -430,7 +430,7 @@ repository and CI).
 | [T-355](repo.md) | P2 | M | none | chore | partial | Dependabot's updates of 2026-10-30 and 2026-10-31, and the curves' 0.14 |
 | [T-356](ssh.md) | P1 | M | none | defect | partial | russh 0.65.0 fixes six advisories, three of them in the client, and gives the session binding |
 | [T-357](cli.md) | P1 | S | backlog | defect | open | `doctor` names `pipe` alone as a listener, and its module says that it alone calls `bind()` |
-| [T-358](cli.md) | P1 | S | backlog | defect | blocked | `doctor` measures a bind and never a listen, so a host that refuses `listen()` reads as one that listens |
+| [T-358](cli.md) | P1 | S | backlog | defect | open | `doctor` measures a bind and never a listen, so a host that refuses `listen()` reads as one that listens |
 | [T-359](roads.md) | P2 | M | backlog | defect | open | The iroh road takes UDP on a bind alone, and `doctor` says that it may go direct with nothing sent |
 | [T-360](repo.md) | P2 | M | none | defect | open | Nothing reads `TODO/issues.md`: issues #59 to #63 have no row, and no check compares the map with GitHub |
 | [T-361](repo.md) | P2 | S | none | defect | open | A Prove may name a test target or a script that no longer exists, and the record's check passes |
@@ -441,7 +441,7 @@ repository and CI).
 | [T-367](pipe.md) | P3 | M | backlog | feature | open | `http-listen:`: `podssh pipe` as an HTTP CONNECT proxy, for programs that know only `HTTPS_PROXY` |
 | [T-368](pipe.md) | P3 | M | backlog | feature | open | `ws:`, `wss:` and `ws-listen:` as addresses of `podssh pipe` |
 | [T-369](roads.md) | P3 | M | backlog | feature | open | `--forwarder TEMPLATE`: a road through a WebSocket forwarder that takes the target from its URL |
-| [T-370](roads.md) | P3 | S | backlog | feature | blocked | Built-in templates of other products' public forwarders, and a fallback to them |
+| [T-370](roads.md) | P3 | S | backlog | feature | open | Built-in templates of other products' public forwarders, and a fallback to them |
 | [T-371](roads.md) | P3 | M | backlog | measurement | open | A `-J` hop on port 443 through the proxy, measured, and a `doctor` line for a hop |
 | [T-372](roads.md) | P3 | M | backlog | feature | open | A hop or a destination whose SSH is wrapped in TLS: `ssh+tls://` |
 | [T-373](roads.md) | P3 | M | backlog | feature | open | A Shadowsocks road, from a file of `ss://` lines that a subscription can refresh |

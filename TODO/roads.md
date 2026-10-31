@@ -3103,7 +3103,7 @@ account (`podssh node NAME --sshd --quick-tunnel`), and reach it from a cage wit
 `podssh ssh cf://NAME`. That host cannot yet be a jump host: `-J cf://HOST` is refused, so the
 targets that it can reach still need the relay. With it, the forward road has a carrier that is not the operator's
 relay, for each user with such a host. Cloudflare documents SSH through a tunnel, and the operator
-allows podssh as a client of Cloudflare (`docs/decisions.md:25`).
+allows podssh as a client of Cloudflare (`docs/decisions.md:27`).
 
 ## Premise
 
@@ -3423,7 +3423,7 @@ Endpoint puts a credential in its URL.
   Endpoint takes a presigned SigV4 `wss://` URL, valid for 60 s, then raw binary frames; AWS's
   client honours `HTTPS_PROXY`; a connection lasts an hour at most, and 20 run at once.
 - Read: credentials never go in URLs (`docs/architecture.md:157-159`; `docs/design.md:62`), and
-  `docs/decisions.md:41` says "in a header or a 0600 file and never in a URL" of the relay's
+  `docs/decisions.md:43` says "in a header or a 0600 file and never in a URL" of the relay's
   tokens. The presigned URL carries an access key id and a signature in its query.
 - Read: the `cf://` road uses podssh-ws's WebSocket client through the proxy
   (`crates/podssh-cli/src/ssh/cloudflare.rs:237`); an RSA key signs through aws-lc-rs in the
@@ -3796,7 +3796,7 @@ does not depend on them.
   "`--direct`, or when a probe shows it works"; the triage of GitHub #69 to #72 named this entry
   there.
 - Read: rule 2 of `AGENTS.md` allows a second connection at once for a race between relay hosts,
-  and for the split HTTP road (`AGENTS.md:245-252`); a race of the forward and the direct road is
+  and for the split HTTP road (`AGENTS.md:248-255`); a race of the forward and the direct road is
   neither.
 - Read: the direct dial goes through `HTTPS_PROXY` when it is set, with the relay's step limit of
   20 s (`crates/podssh-cli/src/ssh/transport.rs:285-299`, `crates/podssh-relay/src/open.rs:30`),
@@ -3902,7 +3902,7 @@ relay's path and token.
   (`crates/podssh-cli/src/ssh/resolve.rs:23-49`).
 - Read: `validate` refuses a query other than the relay's knobs, and `connect` always sends a token
   (`crates/podssh-ws/src/client.rs:66-105`, `:159-182`); a token goes only to the deployment that
-  minted it (`docs/decisions.md:53`).
+  minted it (`docs/decisions.md:55`).
 - Read: a SOCKS5 proxy that the user names in `ALL_PROXY` carries each road already (T-070;
   `crates/podssh-ws/src/socks5.rs:1-7`): podssh takes a third party's proxy that the user chooses.
 
@@ -3936,7 +3936,7 @@ relay's path and token.
   step.
 - A forwarder of the user's own, #59's road 2 (the same Worker in the user's own Cloudflare
   account), is a template as any other; podssh ships no forwarder, as the relay stays a separate
-  project (`docs/decisions.md:36`; T-169).
+  project (`docs/decisions.md:38`; T-169).
 
 ## Prove
 
@@ -3962,7 +3962,7 @@ built-in presets"; GitHub #60, a template "one the build knows".
 **Milestone:** backlog
 **Priority:** P3
 **Effort:** S
-**Status:** blocked
+**Status:** open
 
 ## Problem
 
@@ -3985,19 +3985,32 @@ and no notice.
 - Read: whether Cloudflare's terms, which forbid using its services "to provide a virtual private
   network or other similar proxy services", hold for the relay is a question for the relay's
   operator (`docs/relay-operator.md:83-87`).
-- Read: the test targets of a session are the operator's list (`AGENTS.md:225-237`), which names
+- Read: the test targets of a session are the operator's list (`AGENTS.md:225-240`), which names
   none of the three.
 
 ## Approach
 
-After the ruling on Q56, as far as it allows:
+As the operator's ruling on Q56 allows (2026-10-31, `docs/decisions.md`):
 
 1. Templates in the binary, each with its form (the query, or the frame of JSON), selected by a
    word (`--forwarder mudlet`), each with its note in the manual.
 2. A fallback to them when each relay host failed, said on stderr with the forwarder's name.
 3. A watch of their life, as T-339 watches the quick tunnel's pin: a check in CI that each one
    still upgrades and gives GitHub's banner.
-4. A recipe in the manual for a forwarder in the user's own Cloudflare account.
+4. The manual says that a template may also name a forwarder that the user runs (the Decision).
+
+## Decision
+
+- The operator's ruling on Q56: the three forwarders of #59 are built in, each selected by a word,
+  and tried when each relay host fails, after the relay hosts and before the run ends; live tests
+  against them run in GitHub Actions only, short. No relay token goes to a forwarder (T-369).
+- No recipe of a forwarder in podssh's manual, which the ruling left open: a relay or a forwarder
+  that its users host is the relay project's (T-169, `docs/relay-operator.md`, item 12), and the
+  relay stays a separate project (`docs/decisions.md`, Q4 and Q9). Lost: a recipe of #59's road 2,
+  the same Worker in the user's own account, which podssh would then have to keep up with
+  Cloudflare's platform.
+- The fallback comes after the relay hosts, not before: the relay's contract, limits and close
+  codes are known (`docs/relay.md`), and a forwarder publishes none.
 
 ## Prove
 
@@ -4008,11 +4021,6 @@ cargo test -p podssh-cli --test forwarder_cli -- builtin
 
 Each built-in template passes the stand-ins of T-369 in its form; a fallback runs only after each
 relay host failed. Live, as Q56 allows: GitHub's banner through each, in GitHub Actions.
-
-## Blocker
-
-The operator: Q56, whether podssh may name other products' public forwarders, try them when the
-user did not ask, test against them live, and give a recipe for one.
 
 # T-371: A `-J` hop on port 443 through the proxy, measured, and a `doctor` line for a hop
 
@@ -4048,7 +4056,7 @@ a hop. `doctor` has no line for a hop, so a user cannot see whether one is reach
   measured here): SSH banners on port 443 at `bg2.vpnjantit.com` (Dropbear 2017.75, an account with
   a password that a form makes), `ssh.tilde.club` and `ssh.blinkenshell.org` (OpenSSH); whether
   they allow `direct-tcpip` was not measured.
-- Read: GitHub's SSH endpoint is a test target, and those three are not (`AGENTS.md:225-237`). The
+- Read: GitHub's SSH endpoint is a test target, and those three are not (`AGENTS.md:225-240`). The
   box's proxy allows ports 443, 80 and 8443, and lets one test target through by its name
   (`scripts/box/proxy.py:6-16`).
 
@@ -4223,7 +4231,7 @@ cannot make it a road.
   `--via ss://...`, which puts the password in argv.
 - The user names each server and each list, as a proxy of `ALL_PROXY` (T-070); podssh names none.
   Its tests use servers that podssh did not write, never a public one: no public server is a test
-  target of the operator's (`AGENTS.md:225-237`).
+  target of the operator's (`AGENTS.md:225-240`).
 - Shadowsocks 2022 (SIP022) is refused by name in this entry; a later entry can take it.
 
 ## Prove

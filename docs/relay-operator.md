@@ -276,8 +276,9 @@ relay's endpoints are in the contract.
     ([TODO/roads.md](../TODO/roads.md)): `--forwarder TEMPLATE`, a road
     through a forwarder that the user names, which takes the target from its
     URL or from a first frame of JSON, and gets no relay token. podssh ships
-    no forwarder, and names none in the binary until the operator rules on
-    Q56 (T-370). Item 15 holds for such a Worker too.
+    no forwarder of its own; by the operator's ruling on Q56 (2026-10-31),
+    the binary will name the three of #59 and try them when each relay host
+    fails (T-370). Item 15 holds for such a Worker too.
 13. **An iroh relay of the operator's** (no entry; optional). podssh's iroh
     road (behind the cargo feature `iroh`) uses n0's public relays
     (`crates/podssh-iroh/src/relays.rs`), which n0 offers for development

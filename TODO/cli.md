@@ -2536,7 +2536,7 @@ socket, then close.
 **Milestone:** backlog
 **Priority:** P1
 **Effort:** S
-**Status:** blocked
+**Status:** open
 
 ## Problem
 
@@ -2555,10 +2555,10 @@ alone measures less than they use, so it cannot answer what a user asks it.
 - Read: T-038 and T-177 knew it. `TODO/forwarding.md:501-504` says "A seccomp filter can allow",
   and `TODO/pipe.md:420-422` says "A bind that works does not prove"; T-177 kept doctor as it
   was, and `TODO/pipe.md:448-449` says "doctor stays bind-and-close".
-- Read: `AGENTS.md:245-247` says "closes it without listening" of doctor's bind in rule 2;
+- Read: `AGENTS.md:248-250` says "closes it without listening" of doctor's bind in rule 2;
   `SECURITY.md:112-113`, `docs/architecture.md:133-134` and `docs/cli.md:1340-1341` say the same.
   The ruling of 2026-10-08 lets a listener open when the user asks for it and a probe at run time
-  allows the bind (`docs/decisions.md:31`). A listen of doctor's is no listener that the user asks
+  allows the bind (`docs/decisions.md:33`). A listen of doctor's is no listener that the user asks
   for, so it waits for a ruling: Q53.
 - Read: the measured cage's listening was not measured, and stands on the operator's report
   (`docs/target-environment.md:25`); sandbox A's AF_UNIX bind was doctor's bind
@@ -2587,6 +2587,14 @@ alone measures less than they use, so it cannot answer what a user asks it.
    refuses `listen` with EPERM, for doctor's line and for the refusals of `pipe`, `-L` and
    `podssh agent`.
 
+## Decision
+
+The operator's ruling of 2026-10-31 on Q53 (`docs/decisions.md`): `doctor` may call `listen()` once
+on each socket that it binds, with a backlog of 1, on 127.0.0.1 port 0 and on a Unix socket of mode
+0600 in the temporary directory, accept nothing, and close each at once; never with
+`PODSSH_LISTEN=no`. Rule 2 of `AGENTS.md`, `SECURITY.md` and `docs/architecture.md` say so in the
+same change.
+
 ## Prove
 
 ```sh
@@ -2601,7 +2609,3 @@ listen. In the box with the second profile: `listen AF_INET` says that the bind 
 the listen left out; the line says that the bind worked, and the check of the box fails. The run
 in the box waits for T-251.
 
-## Blocker
-
-The operator: Q53, whether `podssh doctor` may call `listen()` once on each socket that it binds,
-accept nothing, and close it at once.
