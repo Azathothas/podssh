@@ -46,6 +46,9 @@ pub mod exitmap;
 // Tables, one flag to a row: rustfmt would spread each row over many lines.
 #[rustfmt::skip]
 pub mod flags;
+// `--forwarder`: other products' WebSocket forwarders, in place of the
+// relay (T-369).
+pub mod forwarder;
 pub mod help;
 // `podssh health`: the facts of the far host, over one exec (T-189).
 pub mod health;

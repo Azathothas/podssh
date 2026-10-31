@@ -83,7 +83,7 @@ pub fn run_with(p: &Parsed, s: &mut Streams<'_>, tty: Tty) -> i32 {
                 crate::man::Request { section: section.as_deref(), no_pager: *no_pager, roff: *roff, json: *json };
             crate::man::run(&request, tty, &mut keys, s.out, s.err)
         }
-        Parsed::Proxy { target, port, relay_host, relay_failover, relay_addr, ca_file, refused } => {
+        Parsed::Proxy { target, port, relay_host, relay_failover, relay_addr, ca_file, forwarder, refused } => {
             if refusals("proxy", refused, s.err) {
                 return EXIT_USAGE;
             }
@@ -95,6 +95,7 @@ pub fn run_with(p: &Parsed, s: &mut Streams<'_>, tty: Tty) -> i32 {
                     relay_failover: relay_failover.clone(),
                     relay_addr: relay_addr.clone(),
                     ca_file: ca_file.clone(),
+                    forwarder: forwarder.clone(),
                 },
                 s.err,
             )
@@ -154,7 +155,7 @@ pub fn run_with(p: &Parsed, s: &mut Streams<'_>, tty: Tty) -> i32 {
             };
             crate::status::run_status(&args, tty, s.out, s.err)
         }
-        Parsed::Doctor { relay_host, relay_failover, relay_addr, ca_file, json, full, refused } => {
+        Parsed::Doctor { relay_host, relay_failover, relay_addr, ca_file, json, full, forwarder, refused } => {
             if refusals("doctor", refused, s.err) {
                 return EXIT_USAGE;
             }
@@ -166,6 +167,7 @@ pub fn run_with(p: &Parsed, s: &mut Streams<'_>, tty: Tty) -> i32 {
                     ca_file: ca_file.clone(),
                     json: *json,
                     full: *full,
+                    forwarder: forwarder.clone(),
                 },
                 s.out,
                 s.err,

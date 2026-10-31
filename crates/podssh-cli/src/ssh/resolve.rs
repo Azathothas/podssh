@@ -48,6 +48,8 @@ pub enum Transport {
     Cloudflare { host: String, trust: Trust, channel: crate::channel::Ask },
     /// A VM through its cloud's own tunnel (`iap://`, `eice://`, T-351).
     Cloud { road: super::cloud::Road, trust: Trust },
+    /// Through other products' WebSocket forwarders, in order (T-369).
+    Forwarder { forwarders: Vec<crate::forwarder::Forwarder>, trust: Trust },
 }
 
 /// A command line, resolved.
@@ -375,7 +377,7 @@ pub fn resolve_or_refuse(args: &SshArgs, env: &Env) -> Result<Resolved, Refusal>
             Some(file) => Trust::File(file.into()),
             None => Trust::Default,
         };
-        Transport::Relay { relays, trust, family, failover }
+        crate::forwarder::or_relay(args, env, Transport::Relay { relays, trust, family, failover })?
     };
 
     // A node runs the resumable layer, whose heartbeat finds a dead link and
@@ -479,6 +481,7 @@ pub fn resolve_or_refuse(args: &SshArgs, env: &Env) -> Result<Resolved, Refusal>
         alive_default: settings.alive_interval.is_none(),
     };
     super::persist::check(args, &mut resolved)?;
+    crate::forwarder::check(args, &resolved)?;
     super::upgrade::check(args, env, &mut resolved)?;
     super::elevate::check(args, &mut resolved)?;
     super::recording::check(args, &mut resolved)?;

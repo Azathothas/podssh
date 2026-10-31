@@ -77,6 +77,8 @@ pub enum Parsed {
         relay_addr: Option<String>,
         /// `--ca-file`.
         ca_file: Option<String>,
+        /// `--forwarder` (T-369).
+        forwarder: Option<String>,
         refused: Vec<(String, &'static str, &'static str)>,
     },
     /// `podssh status`: the relay settings in effect, and the destination
@@ -130,6 +132,8 @@ pub enum Parsed {
         json: bool,
         /// `--full`: the login check too.
         full: bool,
+        /// `--forwarder`: the forwarders to check too (T-369).
+        forwarder: Option<String>,
         refused: Vec<(String, &'static str, &'static str)>,
     },
     /// **`podssh ts`, and it is its own variant because it carries behaviour

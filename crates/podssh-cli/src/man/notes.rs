@@ -175,6 +175,9 @@ const PROXY: &[&str] = &[
      user. As the ProxyCommand of OpenSSH: ssh -o \
      ProxyCommand='podssh proxy iap://my-project/us-central1-a/%h:%p' user@my-vm. On IAP the end of stdin \
      ends the session once its bytes went, as IAP has no half-close.",
+    "podssh proxy --forwarder TEMPLATES carries the pipe through other products' WebSocket forwarders, in \
+     order, with no relay, as podssh ssh does (see its notes); PODSSH_FORWARDER gives them too. The end of \
+     stdin sends no Close, as a Close is no half-close: the target's bytes come until it closes.",
 ];
 
 const DOCTOR: &[&str] = &[
@@ -213,6 +216,10 @@ const DOCTOR: &[&str] = &[
      is asked for: GitHub refuses the key before a channel opens. With no proxy set, --full also makes a \
      QUIC handshake with the quick tunnel's edge, Cloudflare's, as the node's first try makes one, and \
      closes it at once with nothing registered: UDP out then says whether it answered, and in what time.",
+    "With --forwarder, PODSSH_FORWARDER or Forwarder of the settings file, the section forwarders gives a \
+     line for each forwarder, in order: the upgrade, then a session to github.com port 22 through it, whose \
+     host key must be one that GitHub publishes, as the relay's forward line asks; a forwarder that closes \
+     before GitHub's bytes says its code and its reason.",
     "With --json, the report is one JSON object on stdout when every check has run: schema (1), podssh, \
      os, arch, checks (each with section, check, status and detail; status is ok, FAIL or unknown) and \
      counts (ok, fail, unknown). A check tried several times adds samples: tries, connected, best_ms, \

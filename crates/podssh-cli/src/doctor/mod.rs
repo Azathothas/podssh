@@ -27,6 +27,8 @@ use podssh_ws::{Trust, Verdict};
 mod address;
 mod agent;
 pub(crate) mod clock;
+// The forwarders of --forwarder (T-369).
+mod forwarder;
 mod host;
 #[cfg(feature = "iroh")]
 mod iroh;
@@ -57,6 +59,8 @@ pub struct DoctorArgs {
     /// `--full`: also log in to GitHub through the relay with a key made
     /// for the check (`login`).
     pub full: bool,
+    /// `--forwarder`: forwarders to check after the relay (T-369).
+    pub forwarder: Option<String>,
 }
 
 /// Run every check; returns the exit code. The report goes to `out`; only a
@@ -74,6 +78,10 @@ pub fn run_doctor(args: &DoctorArgs, out: &mut dyn Write, err: &mut dyn Write) -
         std::env::var(podssh_relay::failover::MODE_ENV).ok(),
     ) {
         Ok(mode) => mode,
+        Err(refusal) => return refusal.report("doctor", err),
+    };
+    let forwarders = match crate::forwarder::for_doctor(args.forwarder.as_deref()) {
+        Ok(forwarders) => forwarders,
         Err(refusal) => return refusal.report("doctor", err),
     };
     let cert_env = std::env::var("SSL_CERT_FILE").ok().filter(|v| !v.trim().is_empty());
@@ -121,6 +129,9 @@ pub fn run_doctor(args: &DoctorArgs, out: &mut dyn Write, err: &mut dyn Write) -
         if args.full {
             report.unknown("login", "not attempted: PODSSH_OFFLINE is set");
         }
+        if !forwarders.is_empty() {
+            report.unknown("forwarder", "not attempted: PODSSH_OFFLINE is set");
+        }
         report.section("pairs");
         let stored = pairs::stored(&mut report);
         pairs::not_asked(&mut report, &stored, "not asked: PODSSH_OFFLINE is set");
@@ -128,7 +139,8 @@ pub fn run_doctor(args: &DoctorArgs, out: &mut dyn Write, err: &mut dyn Write) -
     }
     match tokio::runtime::Builder::new_current_thread().enable_all().build() {
         Ok(runtime) => {
-            runtime.block_on(network(&mut report, &relays, &trust, failover, args.full));
+            let checks = Checks { relays: &relays, trust: &trust, failover, full: args.full, forwarders: &forwarders };
+            runtime.block_on(network(&mut report, &checks));
             // A probe may have left a task behind (a relay leg still closing);
             // the report is done, so none is waited for.
             runtime.shutdown_background();
@@ -138,13 +150,27 @@ pub fn run_doctor(args: &DoctorArgs, out: &mut dyn Write, err: &mut dyn Write) -
     report.finish()
 }
 
-async fn network(report: &mut Report<'_>, relays: &RelayList, trust: &Trust, failover: Mode, full: bool) {
+/// What the checks of the network take.
+struct Checks<'a> {
+    relays: &'a RelayList,
+    trust: &'a Trust,
+    failover: Mode,
+    full: bool,
+    forwarders: &'a [crate::forwarder::Forwarder],
+}
+
+async fn network(report: &mut Report<'_>, checks: &Checks<'_>) {
+    let Checks { relays, trust, failover, full, forwarders } = *checks;
     net::check_network(report, relays, trust).await;
     // Whether UDP reaches the quick tunnel's edge, Cloudflare's, with --full
     // alone (T-359).
     quick::udp_out(report, full).await;
     report.section("relay");
     relay_checks::check(report, relays, trust, failover, full).await;
+    if !forwarders.is_empty() {
+        report.section("forwarders");
+        forwarder::check(report, forwarders, trust).await;
+    }
     #[cfg(feature = "iroh")]
     {
         report.section("iroh");

@@ -215,6 +215,42 @@ scripts. The facts about OpenSSH on this page were measured with OpenSSH
   is checked against AWS's. The host key is recorded under
   `eice://ID/ADDRESS`, ID the endpoint's; the flags, `-J` and `podssh proxy`
   go as with `iap://`.
+- **`--forwarder TEMPLATES` reaches the first hop through other products'
+  WebSocket forwarders, in place of the relay** (T-369, GitHub #60). A
+  forwarder dials the host and the port that a client names and carries the
+  bytes in binary frames: the plumbing of Mudlet's web client or of ssheasy's
+  SSH client in a browser. A template is a `ws://` or `wss://` URL with
+  `{host}` and `{port}` once each, in its path or its query, which podssh
+  fills with the target, checked as a target of the relay is and then
+  percent-encoded; or a URL with neither, and then the target goes in a first
+  text frame, `{"Host":HOST,"Port":PORT}`, which podssh writes itself, and
+  the forwarder's answer `{"status":"ok"}` (ssheasy's, in a binary frame)
+  comes before the target's bytes and is not passed on. A template with one
+  placeholder, either twice, another brace, a placeholder in the authority,
+  a fragment, or a user and a password, is refused (64). A list, separated
+  by commas (a comma inside a template is `%2C`), is tried in order: a
+  forwarder that refuses the upgrade, that closes within 3 s of it (a
+  Worker answers the upgrade before it dials, and closes with 1011 when it
+  cannot reach the target), or that answers with a failure, gives way to the
+  next. The dial is that of `podssh pipe wss://` (T-368): TLS checked for
+  the forwarder's name, through `HTTPS_PROXY`, and no relay token, no
+  `/v1/mint`, no `/relays.json` and no pool. Binary frames carry the bytes,
+  out in frames of 32 KiB at most; a text frame is the forwarder's own word,
+  shown with `-v` and never written into the session; a close other than
+  1000 names the forwarder, its code and its reason. `PODSSH_FORWARDER`,
+  and `Forwarder` in the settings file, give the list below the flag. A run
+  has one road: `--relay-host`, `--relay-failover`, `--direct`, `-4`, `-6`,
+  and a destination with a road of its own are refused beside the flag
+  (64), and `PODSSH_FORWARDER` beside `PODSSH_RELAY` (78); a relay flag on
+  the command line beats the variable and the file. The commands that reach
+  their server as `ssh` does take it (`cp`, `mv`, `scp`, `sftp`, `edit`,
+  `each`, `run`, `job`, `session`, `containers`, `health`), and so does
+  `podssh proxy`, whose end of stdin sends no Close, as on the relay's road;
+  `podssh pipe` reaches a forwarder by its URL with `wss://`. `podssh doctor
+  --forwarder` checks each one: the upgrade, then GitHub's published host key
+  on `github.com:22` through it. A forwarder is another product's endpoint,
+  which publishes no limit and can stop at any time, so a user names more
+  than one; podssh names none.
 - **`PODSSH_MPTCP=yes` asks for Multipath TCP on the direct road** (T-172),
   on Linux, and only on request. With `--direct` and no proxy, each attempt
   asks the kernel for a socket of `IPPROTO_MPTCP`: where the server speaks

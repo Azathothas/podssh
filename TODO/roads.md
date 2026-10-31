@@ -4334,6 +4334,38 @@ relay's path and token.
 - A forwarder of the user's own, #59's road 2 (the same Worker in the user's own Cloudflare
   account), is a template as any other; podssh ships no forwarder, as the relay stays a separate
   project (`docs/decisions.md:38`; T-169).
+- The drafting agent's calls (2026-10-31):
+  1. The template, the dial and the stream are in `podssh-ws` (`forwarder/`), pure Rust, so a
+     live check of a forwarder builds that crate alone (T-370); `podssh-cli` chooses a run's road
+     and says its lines. Lost: the stream of `podssh_ssh::relay_stream`, which fails a session on a
+     text frame, which a Worker sends (`game.connected`); and the end of `podssh pipe ws://`, which
+     writes text frames into the stream.
+  2. The frame form reads the forwarder's answer before the target's bytes: ssheasy sends
+     `{"status":"ok"}` in a binary frame, or `{"status":"failed","error":E}` and closes
+     (`hullarb/ssheasy:proxy/main.go`, read 2026-10-31 through forge.web.pkgforge.dev; #59 saw
+     "BINARY {"status":"ok"}"). Lost: passing it on, which would put it before SSH's version line.
+  3. The query form waits 3 s after the 101 for the forwarder's first frame: Mudlet's Worker
+     answers the upgrade before it dials, and closes with 1011 when it cannot reach the target
+     (`Mudlet/mudlet-web:worker/index.js`, read the same day), so a Close in the wait lets the next
+     forwarder be tried. Lost: no wait (a list would give way only at the upgrade); a wait for the
+     first binary frame (a target whose client speaks first would wait out the bound).
+  4. The road's place: `or_relay` in the relay's arm of the resolve and `check` at its end, three
+     lines of `crates/podssh-cli/src/ssh/resolve.rs`, at its 500 lines; the variable is read where
+     it is used, as `PODSSH_EICE_MAX_TUNNEL_DURATION` is. The command line beats the environment,
+     and the environment the settings file; two roads at one level are refused (64, 78). Lost: a
+     field of `Env` (three more lines there).
+  5. The commands: each of `ssh`'s road (`cp`, `mv`, `scp`, `sftp`, `edit`, `each`, `run`, `job`,
+     `session`, `containers`, `health`), `proxy`, and `doctor` (Approach 5). Not `relay`, `status`
+     and `ping`, which measure the relay itself, nor `pipe`, which names a forwarder by its URL
+     (Approach 1); `PODSSH_FORWARDER` holds for its `ssh:` address, which resolves as `ssh` does.
+  6. The end: `ssh` sends a Close once SSH is done; `proxy` sends none at the end of stdin and
+     waits for the forwarder's, as on the relay's road: a Close is no half-close, and data may not
+     follow it (RFC 6455 section 5.5.1).
+  7. `doctor --forwarder` identifies GitHub by its published host key, as its forward line does
+     (`crates/podssh-cli/src/doctor/mod.rs`, its rule "never by the shape of a banner"), where
+     Approach 5 says the banner. Lost: the banner alone, which a server in GitHub's place sends too.
+  8. Frames out of 32 KiB at most, as on the relay's road (a Worker's socket: workerd issue 7074),
+     and frames in of 1 MiB at most, as a forwarder publishes no size.
 
 ## Prove
 
@@ -4350,6 +4382,52 @@ refused (64); a target whose name holds `&` is refused before it is put in. The 
 `X-Relay-Token`. Against websockify in Podman, software that podssh did not write, with its target
 fixed on its command line: the session's bytes pass (Inferred: it carries binary frames as they
 are). Planted: the host put in with no check; the test of `&` fails.
+
+## Correction
+
+2026-10-31 (the drafting agent): four citations of the Premise name other lines, read at
+`a3f948d`. A relay is a host and a port at `crates/podssh-relay/src/relay.rs:80-86`, and its
+forward path is built at `crates/podssh-relay/src/relay.rs:163-176`; `:56-62` and `:139-152` hold
+the byte budget and the parser of a relay list. A token goes only to the deployment that minted it
+at `docs/decisions.md:60` (T-057), and at Q49's row, `docs/decisions.md:14`; `docs/decisions.md:55`
+holds the exit codes. `Transport` in `crates/podssh-cli/src/ssh/resolve.rs` had six kinds, not five
+(the relay, `--direct`, `node://`, `iroh:`, `cf://`, and the clouds' roads of T-351); this entry
+adds the seventh. Two facts of #59 that the Premise did not hold, read in the forwarders' sources:
+ssheasy answers the first frame with `{"status":"ok"}` in a binary frame before the target's bytes,
+and takes one connection a second from each address; Mudlet's Worker sends `game.connected` in a
+text frame once its socket opens. The Approach gains the read of the answer (Decision, call 2).
+
+## Done
+
+2026-10-31: drafted (branch `draft-forwarder`); built, tested and measured at the merge.
+
+- `podssh_ws::forwarder` (`crates/podssh-ws/src/forwarder/`): `Template` (the two forms, each
+  refusal of Approach 2, the target checked by `check_target` and then percent-encoded, the first
+  frame `{"Host":HOST,"Port":PORT}`, the URL shown with no query); `open`, the dial of
+  `podssh_ws::url::dial` with no token, the first frame and its answer, and the wait of the query
+  form; the stream (`carry.rs`): binary frames as bytes, text frames to a note, a Close kept in a
+  `Status`.
+- `podssh-cli`: `--forwarder` in the tables of `ssh` and of each command of its road, of `proxy`
+  and of `doctor` (`crates/podssh-cli/src/flags/forwarder.rs`); `PODSSH_FORWARDER` and `Forwarder`
+  of the settings file; `Transport::Forwarder`, chosen by `crate::forwarder::or_relay` and refused
+  beside another road by `crate::forwarder::check`; the reach in order
+  (`crates/podssh-cli/src/forwarder/reach.rs`), its end said once by the clouds' `Told`; `podssh
+  proxy --forwarder` (`crates/podssh-cli/src/forwarder/pipe.rs`); the section `forwarders` of
+  `doctor` (`crates/podssh-cli/src/doctor/forwarder.rs`).
+- The manual (the notes of `ssh`, `proxy` and `doctor`, `PODSSH_FORWARDER` in ENVIRONMENT, the
+  settings file in FILES), `docs/cli.md`, `docs/carriers.md` (its item 7) and `docs/STATUS.md`.
+- UNVERIFIED: `cargo test -p podssh-ws --test forwarder` (each form 1 MiB each way with equal
+  digests, notes out of the stream, a Close and a failed answer named, no token, a bad template or
+  target dials nothing), and `cargo test -p podssh-ws --lib forwarder` (the templates, the answer,
+  the lines).
+- UNVERIFIED: `cargo test -p podssh-cli --test forwarder_cli` (`ssh` through each form 1 MiB each
+  way; a closing forwarder gives way to the next; the refusals 64 and 78 with nothing dialed;
+  `proxy`; `doctor`; websockify where it is on the PATH), and `cargo test -p podssh-cli --lib
+  forwarder`, `--lib settings`, `--lib man`, `--test flag_table`, `--test proxy`.
+- UNVERIFIED, planted: `check_target` removed from `Template::fill`; the test of `&`
+  (`cargo test -p podssh-ws --lib forwarder::template`) fails.
+- UNVERIFIED: websockify in the box (`scripts/test_in_box.sh`), with its target fixed; waits for
+  T-251, as each run in the build image does.
 
 # T-370: Built-in templates of other products' public forwarders, and a fallback to them
 

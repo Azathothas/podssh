@@ -12,7 +12,8 @@ mod eice;
 pub mod google;
 mod iap;
 pub mod proxy;
-mod told;
+// The forwarders' road says its end the same way (T-369).
+pub(crate) mod told;
 
 use std::sync::Arc;
 use std::time::Duration;

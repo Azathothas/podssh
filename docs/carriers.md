@@ -125,6 +125,19 @@ The candidates, ranked:
    (Inferred). The terms: section 2.2.1(j) [F8]. Effort: S, but podssh ships
    no relay: the relay stays a separate project
    ([decisions.md](decisions.md), Q4 and Q9; T-169).
+7. **Other products' WebSocket forwarders** (class A in shape: the
+   forwarder dials the target). Read in GitHub #59 and #60, a tester's
+   measurement of 2026-10-31 from a host with direct egress, not measured
+   here: the Worker of Mudlet's web client (`web-proxy.mudlet.org`, the
+   target in its query), an older copy of it (`mudix.delwing.workers.dev`),
+   and ssheasy's proxy (`ssheasy.com/p`, the target in a first frame of
+   JSON) each gave GitHub's banner. Their sources: `Mudlet/mudlet-web:worker/index.js`
+   (Cloudflare's runtime refuses port 25, private addresses and
+   Cloudflare's own) and `hullarb/ssheasy:proxy/main.go` (1 GiB at full
+   speed, then 100 KiB/s; one connection a second from each address). No
+   account, no token; they serve their own products' users and publish no
+   limit. podssh's road to a forwarder that the user names is
+   `--forwarder` (T-369), with no relay token.
 
 Ruled out:
 

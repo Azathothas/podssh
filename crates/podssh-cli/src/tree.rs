@@ -278,6 +278,7 @@ pub fn parse_verb(verb: &'static Verb, rest: &[std::ffi::OsString]) -> Parsed {
             relay_failover: get("relay-failover"),
             relay_addr: get("relay-addr"),
             ca_file: get("ca-file"),
+            forwarder: get("forwarder"),
             refused,
         };
     }
@@ -431,6 +432,7 @@ pub fn parse_verb(verb: &'static Verb, rest: &[std::ffi::OsString]) -> Parsed {
             ca_file: get("ca-file"),
             json: matches.get_flag("json"),
             full: matches.get_flag("full"),
+            forwarder: get("forwarder"),
             refused,
         };
     }
