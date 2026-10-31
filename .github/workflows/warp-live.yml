@@ -27,6 +27,9 @@ permissions:
 
 env:
   PODSSH_CACHE_DIR: ${{ github.workspace }}/../podssh-cache
+  # GitHub's published Ed25519 host key (docs.github.com, "GitHub's SSH key
+  # fingerprints"), as docs/STATUS.md records it through the relay.
+  GITHUB_ED25519: "SHA256:+DiY3wvvV6TuJJhbpZisF/zLDA0zPMSvHdkr4UvCOqU"
 
 concurrency:
   group: warp-live
@@ -65,6 +68,9 @@ jobs:
           echo "ok    the device's record is kept, mode 0600"
           grep -q "Permission denied (publickey)" "$RUNNER_TEMP/ssh.log" || { echo "FAIL no refusal of GitHub's ($rc)"; exit 1; }
           [ "$rc" = 255 ] || { echo "FAIL exit $rc, not 255"; exit 1; }
+          # The far end is GitHub itself: its published Ed25519 key.
+          ssh-keygen -lf "$RUNNER_TEMP/known_hosts_podssh" | tee "$RUNNER_TEMP/keys.txt"
+          grep -q "$GITHUB_ED25519" "$RUNNER_TEMP/keys.txt" || { echo "FAIL the host key is not GitHub's published one"; exit 1; }
           echo "ok    the SSH handshake with GitHub passed inside WARP, to the refusal of a client with no key"
 
       # A client's banner, then stdin held open: a server may close a
@@ -117,6 +123,8 @@ jobs:
           set -e
           echo "$out" | sed 's/^/ssh: /'
           echo "$out" | grep -q "Permission denied (publickey)" || { echo "FAIL ssh did not reach GitHub's refusal ($rc)"; exit 1; }
+          ssh-keygen -lf "$RUNNER_TEMP/known_hosts" | tee "$RUNNER_TEMP/keys-openssh.txt"
+          grep -q "$GITHUB_ED25519" "$RUNNER_TEMP/keys-openssh.txt" || { echo "FAIL the host key is not GitHub's published one"; exit 1; }
           echo "ok    the SSH handshake with GitHub passed inside WARP, to the refusal of a client with no key"
 
       - name: a proxy of names alone refuses the endpoint's address, and is named
