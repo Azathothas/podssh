@@ -140,6 +140,8 @@ sha2 = { version = "0.10", default-features = false, features = ["oid"] }
 hmac = { version = "0.12", default-features = false }
 hkdf = { version = "0.12", default-features = false }
 aes-gcm = { version = "0.11", default-features = false, features = ["aes", "alloc"] }
+# The block cipher under aes-gcm, for QUIC's header protection (T-301).
+aes = { version = "0.9", default-features = false }
 # 0.11 with aes-gcm 0.11: both on aead 0.6, whose traits `crypto/aead.rs`
 # shares between them (T-330, T-333).
 chacha20poly1305 = { version = "0.11", default-features = false, features = ["alloc"] }

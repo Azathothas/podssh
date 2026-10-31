@@ -1997,7 +1997,7 @@ user names HTTP/2.
 **Milestone:** backlog
 **Priority:** P3
 **Effort:** M
-**Status:** open
+**Status:** partial
 
 ## Problem
 
@@ -2028,6 +2028,28 @@ functions.
 5. The QUIC crate: the iroh road's, or another with no C; this entry decides, with the size of
    each.
 
+## Decision
+
+2026-10-31, before the code:
+
+1. The QUIC crate is noq 1.4 (n0's QUIC, which the iroh road already
+   builds), with no default features: `runtime-tokio` and `rustls` only.
+   Read in its manifest: `ring` and `aws-lc-rs` are optional there, and its
+   `rustls` feature adds only `aes-gcm` 0.10 (pure Rust, for the integrity
+   tag of a Retry). Its endpoint takes the reset key as an `HmacKey` of the
+   caller's (`EndpointConfig::new`), so nothing of C is needed. Lost: quinn
+   0.11, the same code before n0's fork, which would put a second QUIC
+   stack beside the iroh road's in a build with both.
+2. The keys of QUIC come from `podssh-ws`'s own provider: the packet key
+   (AES-GCM, the nonce the IV XOR the packet number) and the header
+   protection (AES on the sample, RFC 9001, section 5.4), for its two
+   TLS 1.3 suites, with the limits of RFC 9001, section 6.6. Lost: rustls's
+   ring or aws-lc provider for QUIC alone, which puts C in a library crate.
+3. The stand-in edge's certificate is made in the test by `rcgen` with no
+   crypto feature, signed by a P-256 key of `p256` through rcgen's
+   `SigningKey`, so the test builds with no C compiler as the gate's
+   `libs` step builds it.
+
 ## Prove
 
 ```sh
@@ -2055,6 +2077,35 @@ protocol of a quick tunnel to `quic` (a named protocol has no fallback), so a ne
 on 7844 never connects with `cloudflared tunnel --url` alone (Inferred); the precheck table of
 cloudflared's startup, which T-299 records from a hosted runner, is the first row of this entry's
 evidence for UDP. This entry waits for it.
+
+## Done
+
+2026-10-31, partial: the Decision; cloudflared 2026.10.6 read in a copy
+under `.tmp/` (`tunnelrpc/quic/protocol.go`: the signature of a data
+stream `0A 36 CD 12 A1 3E`, of an RPC stream `52 BB 82 5C DB 65`, the
+version `01`; `tunnelrpc/proto/quic_metadata_protocol.capnp`;
+`connection/quic_connection.go:89-262`: the control stream is the first
+that cloudflared opens, the edge opens one stream for each request, and
+the metadata `HttpMethod`, `HttpHost`, `HttpHeader:NAME` and
+`HttpStatus`).
+
+The keys of QUIC, done: `crates/podssh-ws/src/crypto/quic.rs` gives both
+TLS 1.3 suites of the provider their `quic` keys: AES-GCM packets with the
+nonce of RFC 9001, section 5.3, and AES header protection, section 5.4,
+with the limits of section 6.6. `cargo test -p podssh-ws --test quic_keys`,
+6 passed: RFC 9001's server Initial (A.3) protected and opened byte for
+byte, and the client's header masked from its sample (A.2); the same packet
+under QUIC v2 (RFC 9369, as rustls's tests hold it); FIPS-197's AES-256 for
+a mask; the GCM specification's test case 14 for an AES-256-GCM packet, a
+changed byte and another packet number refused; and a mask whose first
+byte has the bit 0x10 (computed with OpenSSL 3.0.13), which tells a long
+header from a short one. Each failed on its plant: the bits of a long and a
+short header swapped (the RFC's samples alone missed it, hence the last
+test), a nonce with no packet number, and the mask one byte off.
+`cargo test -p podssh-ws`: 220 passed.
+
+Still to do: the connector on noq; the stand-in edge over QUIC; the
+fallback to HTTP/2; the documents; the live run in GitHub Actions.
 
 # T-171: The functions of Mosh that M6 and T-160 do not give, made in podssh itself
 

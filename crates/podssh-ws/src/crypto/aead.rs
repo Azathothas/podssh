@@ -169,9 +169,8 @@ impl Tls13AeadAlgorithm for PureAead {
     }
 
     fn extract_keys(&self, key: AeadKey, iv: Iv) -> Result<ConnectionTrafficSecrets, UnsupportedOperationError> {
-        // QUIC is not something podssh offers: it speaks TLS over TCP to a
-        // relay, not QUIC. Refusing here is what makes `quic: None` on the
-        // suites consistent with this implementation rather than a claim.
+        // The keys of a kernel's TLS, which podssh never hands over. QUIC
+        // takes its keys from `quic.rs`, not from here.
         let _ = (key, iv);
         Err(UnsupportedOperationError)
     }

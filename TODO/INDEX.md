@@ -62,15 +62,15 @@ repository and CI).
 
 ## Counts
 
-**333 entries: 18 open, 0 partial, 28 blocked, 287 done.**
+**333 entries: 17 open, 1 partial, 28 blocked, 287 done.**
 
 | Priority | open | partial | blocked | done | total |
 | --- | --- | --- | --- | --- | --- |
 | P0 | 0 | 0 | 0 | 1 | 1 |
 | P1 | 2 | 0 | 0 | 24 | 26 |
 | P2 | 2 | 0 | 20 | 147 | 169 |
-| P3 | 14 | 0 | 8 | 115 | 137 |
-| **All** | 18 | 0 | 28 | 287 | 333 |
+| P3 | 13 | 1 | 8 | 115 | 137 |
+| **All** | 17 | 1 | 28 | 287 | 333 |
 
 ## Entries
 
@@ -373,7 +373,7 @@ repository and CI).
 | [T-298](copy.md) | P3 | S | backlog | feature | done | `sftp`'s `-r`: `get -r` and `put -r` of a directory |
 | [T-299](roads.md) | P3 | S | backlog | measurement | done | The quick tunnel's edge, measured: its ports through a proxy and the relay, and a captured registration |
 | [T-300](roads.md) | P3 | L | backlog | feature | done | `podssh node` publishes a quick tunnel over HTTP/2, with no `cloudflared` |
-| [T-301](roads.md) | P3 | M | backlog | feature | open | The quick tunnel over QUIC, where a probe finds UDP |
+| [T-301](roads.md) | P3 | M | backlog | feature | partial | The quick tunnel over QUIC, where a probe finds UDP |
 | [T-302](resume.md) | P3 | M | backlog | feature | done | A notice in the terminal while the far end is silent |
 | [T-303](resume.md) | P3 | L | backlog | feature | open | The latest screen on request: frames that let Ctrl-C show within a round trip |
 | [T-304](resume.md) | P3 | L | backlog | feature | open | Keys and screen frames as QUIC datagrams on the iroh road |

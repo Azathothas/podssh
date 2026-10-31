@@ -4084,6 +4084,7 @@ dependencies = [
 name = "podssh-ws"
 version = "1.0.0-beta.2"
 dependencies = [
+ "aes 0.9.3",
  "aes-gcm 0.11.1",
  "base64 0.22.1",
  "chacha20poly1305 0.11.0",

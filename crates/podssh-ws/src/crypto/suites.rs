@@ -34,10 +34,9 @@ pub static TLS13_AES_256_GCM_SHA384: SupportedCipherSuite = SupportedCipherSuite
     },
     hkdf_provider: &PureHkdf(HashAlgorithmId::Sha384),
     aead_alg: &PureAead(AeadId::Aes256Gcm),
-    // `None`, and `PureAead::extract_keys` refuses. These two are one
-    // decision written twice; a suite claiming QUIC support whose keys cannot
-    // be extracted would fail only on a QUIC peer, which podssh never has.
-    quic: None,
+    // The quick tunnel's QUIC (T-301): its own keys, from `quic.rs`, and
+    // checked against RFC 9001's vectors (`tests/quic_keys.rs`).
+    quic: Some(&super::quic::AES_256_GCM),
 });
 
 pub static TLS13_AES_128_GCM_SHA256: SupportedCipherSuite = SupportedCipherSuite::Tls13(&rustls::Tls13CipherSuite {
@@ -48,7 +47,8 @@ pub static TLS13_AES_128_GCM_SHA256: SupportedCipherSuite = SupportedCipherSuite
     },
     hkdf_provider: &PureHkdf(HashAlgorithmId::Sha256),
     aead_alg: &PureAead(AeadId::Aes128Gcm),
-    quic: None,
+    // Also the keys of QUIC's Initial packets, whatever suite follows.
+    quic: Some(&super::quic::AES_128_GCM),
 });
 
 /// **Preference order is this order**, and the first entry is also the

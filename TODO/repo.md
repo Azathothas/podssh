@@ -1901,7 +1901,7 @@ leaves armv7 out of the Decision; the plan below takes Alpine's own toolchain fo
   container. Plan B, which the Decision rejected, for native speed: `ghcr.io/cross-rs/armv7-unknown-
   linux-musleabihf:main`, or `cargo-zigbuild` (its CI covers x86_64, aarch64 and Apple, not armv7).
   The release profile is `opt-level = "z"`, `lto = true`, `codegen-units = 1`
-  (`Cargo.toml:197` says "opt-level"; the profile is at the lines around it): the link on a 32-bit
+  (`Cargo.toml:199` says "opt-level"; the profile is at the lines around it): the link on a 32-bit
   rustc may run out of address space, and under QEMU it is slow. Measure first.
 - `riscv64gc-unknown-linux-musl`: Rust tier 2 with host tools. Plan A: `runs-on: ubuntu-24.04`,
   `docker/setup-qemu-action` with `platforms: riscv64`, `docker run --platform linux/riscv64
@@ -3962,7 +3962,7 @@ identities (x25519-dalek, `podssh-ws` and `podssh-relay`), and its AEAD
   moves with its `hmac`, where the two meet (the hashed names of
   `known_hosts`): Inferred.
 - Read: the root `Cargo.toml:142` asks for `aes-gcm` 0.10 and
-  `Cargo.toml:146` for `x25519-dalek` 2;
+  `Cargo.toml:148` for `x25519-dalek` 2;
   `crates/podssh-ws/src/crypto/aead.rs` and `crates/podssh-ws/src/crypto/kx.rs`
   hold the calls, with `crates/podssh-relay/src/identity/mod.rs` and
   `crates/podssh-relay/src/session/secret.rs`, and

@@ -18,6 +18,7 @@ pub mod hash;
 pub mod hkdf;
 pub mod hmac;
 pub mod kx;
+pub mod quic;
 pub mod random;
 pub mod rsa_sig;
 pub mod sign;
