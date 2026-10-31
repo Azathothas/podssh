@@ -605,7 +605,7 @@ returns a `String` (142-166). The callers keep or pass the text:
 `TransportError::Unexpected` (crates/podssh-transport/src/socket.rs at `e8bbd4d` lines 104-113, 143, 161
 and 185), and, since T-072, a read error `Aborted` with its text. Tests and the gate match the
 text: `crates/podssh-ws/tests/session.rs` lines 108 ("continuation") and 172 ("without a
-WebSocket Close"), and `scripts/interop-faults.sh:269` ("pings unanswered").
+WebSocket Close"), and `scripts/interop-faults.sh:261` ("pings unanswered").
 `WsError` exists (`crates/podssh-ws/src/error.rs:56-76`), but the session does not use it.
 
 ## Approach
@@ -1892,6 +1892,18 @@ its own only to a text that does not hold them.
   checks `faults.clock`; `scripts/interop-baseline.txt` holds it, and the floor of `faults` is
   39 (`cargo todo interop`: 617 ids of 44 harnesses meet the baseline). Its run is CI's.
 - `docs/architecture.md` and the manual's Trust item say it.
+- 2026-10-31, after the close: the gate's step `release` failed at 925c94b (build run
+  41185627815): the build image's OpenSSL 3.5.9 refuses `x509 -days -1` ("Error: end date before
+  start date"), where this host's 3.0.13 took it, and as that leaf was a step of the chain of
+  certificates, faults.certs, faults.standins and faults.clock failed. The leaf is now made by
+  `openssl ca` with `-startdate 20200101000000Z -enddate 20200102000000Z`, in a step of its own,
+  so that its failure is faults.clock's alone, with names relative to the certificates'
+  directory, as OpenSSL reads a path in its config with escapes; the fault harness of the Rust
+  tests makes it the same way, when a cell asks for it. Measured: in an Alpine 3.24.3 container,
+  OpenSSL 3.5.9, the recipe made a leaf that `openssl verify` calls expired, and the old command
+  gave the CI's error; here, the script's changed part made each certificate and started each
+  stand-in, and with `openssl ca` planted to fail, each other certificate and stand-in still;
+  `--test faults -- --ignored a_relay_whose_certificate`, 1 passed.
 
 
 # T-366: `doctor` asks the proxy for an address as well as for names, and says which of the two it takes

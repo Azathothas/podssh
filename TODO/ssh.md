@@ -172,13 +172,13 @@ Read:
    disconnect, then `describe`. Example: "railway.new: the relay lost its
    connection to railway.new:22 (relay close 1011: write failed: Network
    connection lost.)". Keep the code and the reason verbatim:
-   `scripts/interop-faults.sh:240` looks for them.
+   `scripts/interop-faults.sh:232` looks for them.
 4. Write a second line that says what to do. For the hop from the relay to
    the target: another relay host (`--relay-host`), and
    `podssh relay trace HOST:PORT` when T-058 exists.
 5. Use the same classification in `podssh proxy`
    (`crates/podssh-cli/src/proxy.rs` lines 252-280 at `80f20bf`). Keep `CODE REASON` in its line:
-   `scripts/interop-faults.sh:261` looks for `1009 session byte cap`.
+   `scripts/interop-faults.sh:253` looks for `1009 session byte cap`.
 6. Correct the comment on the window (`crates/podssh-ssh/src/run.rs` lines
    25-29 at `80f20bf`). The window of 512 KiB stays: it is below both limits.
 7. Update `docs/relay.md` (lines 155-158 at `80f20bf`) and `docs/STATUS.md:535`. T-025 uses the

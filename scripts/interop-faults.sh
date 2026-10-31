@@ -21,24 +21,9 @@ for n in $DEPLOYED; do
     SAN="$SAN,DNS:$n"
     PINS="$PINS,$n=127.0.0.1"
 done
-printf 'subjectAltName=%s\nbasicConstraints=CA:FALSE\nkeyUsage=critical,digitalSignature\nextendedKeyUsage=serverAuth\n' \
-    "$SAN" >"$FK/ext"
-# A config of its own, so no host's default openssl.cnf adds extensions (Git
-# for Windows' adds one its own openssl cannot parse).
-printf '[req]\ndistinguished_name = dn\n[dn]\n' >"$FK/req.cnf"
-if openssl req -config "$FK/req.cnf" -x509 -newkey ec -pkeyopt ec_paramgen_curve:P-256 -nodes -days 2 \
-        -subj /CN=podssh-test-ca -addext basicConstraints=critical,CA:TRUE \
-        -addext keyUsage=critical,keyCertSign,cRLSign -keyout "$FK/ca.key" -out "$FK/ca.pem" >"$FK/openssl.log" 2>&1 \
-    && openssl req -config "$FK/req.cnf" -newkey ec -pkeyopt ec_paramgen_curve:P-256 -nodes -subj /CN=relay.test \
-        -keyout "$FK/relay.key" -out "$FK/relay.csr" >>"$FK/openssl.log" 2>&1 \
-    && openssl x509 -req -in "$FK/relay.csr" -CA "$FK/ca.pem" -CAkey "$FK/ca.key" -CAcreateserial \
-        -days 2 -extfile "$FK/ext" -out "$FK/relay.pem" >>"$FK/openssl.log" 2>&1 \
-    && openssl x509 -req -in "$FK/relay.csr" -CA "$FK/ca.pem" -CAkey "$FK/ca.key" -CAcreateserial \
-        -days -1 -extfile "$FK/ext" -out "$FK/relay-expired.pem" >>"$FK/openssl.log" 2>&1; then
-    ok faults.certs "the test certificates are made"
-else
-    bad faults.certs "the test certificates could not be made" "$FK/openssl.log"
-fi
+# The test CA and the leaves: faults.certs, and the expired leaf of T-345.
+# shellcheck source=scripts/interop-faults-certs.sh
+. "$HERE/interop-faults-certs.sh"
 
 # The shapes of T-203: 2 s each way, a jitter of 0 to 1.5 s, 64 KiB/s, and
 # the connection ended with no Close after 1,000,000 bytes.
@@ -52,17 +37,20 @@ for spec in a:normal r503:refuse:503 silent:silent hole:blackhole dead:normal st
         --port-file "$FK/$name.port" --mode "${spec#*:}" >"$FK/$name.log" 2>&1 &
     echo $! >"$FK/$name.pid"
 done
-# T-345: the same leaf, its end a day before its start (OpenSSL takes -days
-# down to -1), as a host whose clock is wrong sees each certificate.
-python3 "$HERE/fake-relay.py" --cert "$FK/relay-expired.pem" --key "$FK/relay.key" --keepalive 2 \
-    --port-file "$FK/expired.port" --mode normal >"$FK/expired.log" 2>&1 &
-echo $! >"$FK/expired.pid"
+# T-345: the same leaf, expired, when it could be made.
+STANDINS="a r503 silent hole dead stall close cap kill hshake delay jitter rate cut persist dropfirst dropafter tls12
+slowopen tunnel backlog window"
+if [ -s "$FK/relay-expired.pem" ]; then
+    python3 "$HERE/fake-relay.py" --cert "$FK/relay-expired.pem" --key "$FK/relay.key" --keepalive 2 \
+        --port-file "$FK/expired.port" --mode normal >"$FK/expired.log" 2>&1 &
+    echo $! >"$FK/expired.pid"
+    STANDINS="$STANDINS expired"
+fi
 port() { cat "$FK/$1.port" 2>/dev/null; }
 tries=0
 while [ "$tries" -lt 30 ]; do
     missing=0
-    for n in a r503 silent hole dead stall close cap kill hshake delay jitter rate cut persist dropfirst dropafter tls12 \
-            slowopen tunnel backlog window expired; do
+    for n in $STANDINS; do
         [ -s "$FK/$n.port" ] || missing=1
     done
     [ "$missing" = 0 ] && break
@@ -126,11 +114,15 @@ rc=$?
 
 # T-345: a certificate that its CA signed and that has expired: the error
 # names this host's clock and its reading, as doctor's line does.
-r "relay-expired.test:$(port expired)" "$T" true >"$FK/out" 2>"$FK/err" </dev/null
-rc=$?
-[ "$rc" != 0 ] && grep -q "Expired" "$FK/err" && grep -q "this host's clock, which reads" "$FK/err" \
-    && ok faults.clock "a relay whose certificate has expired ends with this host's clock and its reading" \
-    || bad faults.clock "an expired certificate: exit $rc, without the clock" "$FK/err"
+if [ -s "$FK/relay-expired.pem" ]; then
+    r "relay-expired.test:$(port expired)" "$T" true >"$FK/out" 2>"$FK/err" </dev/null
+    rc=$?
+    [ "$rc" != 0 ] && grep -q "Expired" "$FK/err" && grep -q "this host's clock, which reads" "$FK/err" \
+        && ok faults.clock "a relay whose certificate has expired ends with this host's clock and its reading" \
+        || bad faults.clock "an expired certificate: exit $rc, without the clock" "$FK/err"
+else
+    bad faults.clock "the expired certificate could not be made" "$FK/openssl-expired.log"
+fi
 
 files() { n=0; for f in "$@"; do [ -e "$f" ] && n=$((n + 1)); done; echo "$n"; }
 for spec in "dead:a relay host that is down" "r503:a relay host answering 503"; do

@@ -49,7 +49,7 @@ impl Cell {
     }
 
     /// The stand-in relay with a certificate that its CA signed and that
-    /// ended a day ago, as a host whose clock is wrong sees each one (T-345).
+    /// ended in 2020, as a host whose clock is wrong sees each one (T-345).
     pub fn fake_relay_expired(s: &Session) -> Result<Cell, Skipped> {
         Cell::fake_relay_cert(s, "normal", "the stand-in relay, its certificate expired", "relay-expired.pem")
     }
@@ -65,6 +65,9 @@ impl Cell {
         if !dir.join("relay.pem").exists() {
             std::fs::create_dir_all(&dir).map_err(|e| (name.clone(), e.to_string()))?;
             certificates(&dir).map_err(|why| (name.clone(), why))?;
+        }
+        if cert == "relay-expired.pem" && !dir.join(cert).exists() {
+            expired(&dir).map_err(|why| (name.clone(), why))?;
         }
         let port_file = dir.join(format!("port-{}-{cert}", mode.replace(':', "-")));
         let child = Command::new(python)
@@ -217,7 +220,7 @@ fn certificates(dir: &std::path::Path) -> Result<(), String> {
          extendedKeyUsage=serverAuth\n",
     )
     .map_err(|e| e.to_string())?;
-    let steps: [Vec<String>; 4] = [
+    let steps: [Vec<String>; 3] = [
         ["req", "-config", &p("req.cnf"), "-x509", "-newkey", "ec", "-pkeyopt", "ec_paramgen_curve:P-256", "-nodes"]
             .iter()
             .map(|s| s.to_string())
@@ -258,19 +261,35 @@ fn certificates(dir: &std::path::Path) -> Result<(), String> {
             .map(|s| s.to_string())
             .chain(["-days".into(), "2".into(), "-extfile".into(), p("ext"), "-out".into(), p("relay.pem")])
             .collect(),
-        // The same leaf, its end a day before its start: expired now. OpenSSL
-        // takes -days down to -1.
-        ["x509", "-req", "-in", &p("relay.csr"), "-CA", &p("ca.pem"), "-CAkey", &p("ca.key"), "-CAcreateserial"]
-            .iter()
-            .map(|s| s.to_string())
-            .chain(["-days".into(), "-1".into(), "-extfile".into(), p("ext"), "-out".into(), p("relay-expired.pem")])
-            .collect(),
     ];
     for step in steps {
         let out = Command::new("openssl").args(&step).stdin(Stdio::null()).output().map_err(|e| e.to_string())?;
         if !out.status.success() {
             return Err(format!("openssl {}: {}", step[0], String::from_utf8_lossy(&out.stderr).trim()));
         }
+    }
+    Ok(())
+}
+
+/// The same leaf, valid on 2020-01-01 alone, as a host whose clock is wrong
+/// sees each certificate (T-345), as `scripts/interop-faults.sh` makes it:
+/// `openssl ca` takes the dates in each OpenSSL, where `x509 -days -1` is
+/// refused from 3.5 on. Run in `dir` with names relative to it, as OpenSSL
+/// reads a path in its config with escapes, and Windows' have backslashes.
+fn expired(dir: &std::path::Path) -> Result<(), String> {
+    let config = "[ca]\ndefault_ca = fake\n[fake]\ndatabase = index.txt\nnew_certs_dir = .\nserial = serial\n\
+                  default_md = sha256\npolicy = any\n[any]\ncommonName = supplied\n";
+    std::fs::write(dir.join("ca.cnf"), config).map_err(|e| e.to_string())?;
+    std::fs::write(dir.join("index.txt"), "").map_err(|e| e.to_string())?;
+    std::fs::write(dir.join("serial"), "1000\n").map_err(|e| e.to_string())?;
+    let args = ["ca", "-batch", "-config", "ca.cnf", "-cert", "ca.pem", "-keyfile", "ca.key", "-in", "relay.csr"]
+        .into_iter()
+        .chain(["-startdate", "20200101000000Z", "-enddate", "20200102000000Z", "-extfile", "ext", "-notext"])
+        .chain(["-out", "relay-expired.pem"]);
+    let out =
+        Command::new("openssl").args(args).current_dir(dir).stdin(Stdio::null()).output().map_err(|e| e.to_string())?;
+    if !out.status.success() {
+        return Err(format!("openssl ca: {}", String::from_utf8_lossy(&out.stderr).trim()));
     }
     Ok(())
 }

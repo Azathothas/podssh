@@ -1050,7 +1050,7 @@ a stall of 3 minutes. Today each of these faults ends the session.
 
 Measured in the gate (`docs/STATUS.md`, "Faults between podssh and the relay,
 measured"): a relay that stalls is declared dead at 50 s, and a relay host
-killed in a session gives exit 255 (`scripts/interop-faults.sh:265-283`).
+killed in a session gives exit 255 (`scripts/interop-faults.sh:257-275`).
 These checks stay, for the forward road, which has no resumption. Read: the
 stand-in relay serves the forward path only (`scripts/fake-relay.py:114-132`),
 and its `stall` mode never ends (`scripts/fake-relay.py:322-325`). The
