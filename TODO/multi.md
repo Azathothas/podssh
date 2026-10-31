@@ -47,7 +47,7 @@ succeeded. `podssh ssh` takes one destination, as OpenSSH does.
    flags), and `--parallel N` (default 8, 64 at most), `--fail-fast`,
    `--output-dir DIR`.
 2. One runtime, one task for each host, each on the existing path: the relay
-   open and `podssh_ssh::run` (`crates/podssh-cli/src/ssh/mod.rs:205-281`,
+   open and `podssh_ssh::run` (`crates/podssh-cli/src/ssh/mod.rs:211-287`,
    `crates/podssh-ssh/src/run.rs:34-79`). Invariant: no second SSH client.
 3. Sinks: give `crates/podssh-ssh/src/io.rs:151-446` (and `crates/podssh-ssh/src/io/msg.rs:11-94`) a sink for stdout and
    stderr in place of the streams of the process, and give `Log` a prefix
@@ -72,7 +72,7 @@ succeeded. `podssh ssh` takes one destination, as OpenSSH does.
 ## Decision
 
 Recommendation: a new verb, because `podssh ssh` keeps the command line and
-the exit codes of OpenSSH for one host (`docs/cli.md:2667-2670`), and a list
+the exit codes of OpenSSH for one host (`docs/cli.md:2697-2700`), and a list
 of hosts changes both. The alternative, `podssh ssh --hosts LIST`, lost: one
 flag would change what the exit status means.
 
@@ -184,7 +184,7 @@ is not a shell. A set of hosts has no name.
   (`crates/podssh-cli/src/ssh/hop.rs:30-78`,
   `crates/podssh-ws/src/names.rs:10-24`).
 - Read: the `Host` lines of ssh_config are patterns, not lists
-  (`docs/cli.md:2795-2888`); they cannot define a group.
+  (`docs/cli.md:2825-2918`); they cannot define a group.
 
 ## Approach
 
@@ -1180,7 +1180,7 @@ name is copied by hand.
   remote command with a pty (`crates/podssh-cli/src/ssh/resolve.rs:287-295`,
   `crates/podssh-cli/src/ssh/hop.rs:97-108`). Only the list is missing.
 - Read: podssh starts a program only when the user names it or a probe
-  finds it (`AGENTS.md:260-264`). Here the programs run on the server, for a
+  finds it (`AGENTS.md:261-265`). Here the programs run on the server, for a
   request of the user.
 
 ## Approach
@@ -1547,7 +1547,7 @@ of the command.
    quoted for a POSIX shell (T-187). When the copy used most of the 64 MiB
    (`docs/relay.md:187`), run the exec on a new session (T-137).
 4. The exit status: the command's, with the rules of `podssh ssh`
-   (`docs/cli.md:2667-2670`). A failed copy exits 255 and runs nothing.
+   (`docs/cli.md:2697-2700`). A failed copy exits 255 and runs nothing.
 5. In the same commit: the rows, the notes, an example, `docs/cli.md`,
    `docs/STATUS.md`. This entry depends on T-134 and T-143.
 
@@ -1802,7 +1802,7 @@ a ticket, or a tool that asks an AI.
 ## Premise
 
 - Read: podssh starts another program only when the user names it
-  (`AGENTS.md:260-264`), as it runs `SSH_ASKPASS`: the program, no shell, and
+  (`AGENTS.md:261-265`), as it runs `SSH_ASKPASS`: the program, no shell, and
   its first line read back (`crates/podssh-ssh/src/prompt.rs:102-119`).
 - Read: credentials never go to output, logs, URLs or argv
   (`docs/architecture.md:175-177`). The token type never shows itself
@@ -1814,7 +1814,7 @@ a ticket, or a tool that asks an AI.
   (`crates/podssh-ssh/src/log.rs:83-103`). The exit code leaves through
   `crates/podssh-cli/src/dispatch.rs:322-353`.
 - Read: for `podssh ssh`, an exit that is not 0 can be the remote command's
-  status (`docs/cli.md:2667-2670`), which is not a failure of podssh.
+  status (`docs/cli.md:2697-2700`), which is not a failure of podssh.
 
 ## Approach
 

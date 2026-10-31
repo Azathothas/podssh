@@ -175,6 +175,8 @@ const PROXY: &[&str] = &[
      user. As the ProxyCommand of OpenSSH: ssh -o \
      ProxyCommand='podssh proxy iap://my-project/us-central1-a/%h:%p' user@my-vm. On IAP the end of stdin \
      ends the session once its bytes went, as IAP has no half-close.",
+    "podssh proxy warp://HOST:PORT carries the pipe inside WARP's tunnel, in a build with the feature warp, \
+     as podssh ssh does (see its notes): ssh -o ProxyCommand='podssh proxy warp://%h:%p' user@host.",
 ];
 
 const DOCTOR: &[&str] = &[
@@ -353,13 +355,18 @@ mod tests {
             if flag_shaped && !w.contains('=') && !flag_exists(verb, w) {
                 out.push(format!("{verb}: the flag {w} does not exist"));
             }
+            // A variable given a value (NAME=yes) is a variable, not a keyword.
+            let variable_shaped = |s: &str| s.contains('_') && s.chars().all(|c| c.is_ascii_uppercase() || c == '_');
             if let Some((name, _)) = w.split_once('=') {
-                if name.starts_with(|c: char| c.is_ascii_uppercase()) && !keyword_exists(name) {
+                if variable_shaped(name) {
+                    if !variables.contains(&name) {
+                        out.push(format!("{verb}: the variable {name} is not in ENVIRONMENT"));
+                    }
+                } else if name.starts_with(|c: char| c.is_ascii_uppercase()) && !keyword_exists(name) {
                     out.push(format!("{verb}: the keyword {name} does not exist"));
                 }
             }
-            let variable_shaped = w.contains('_') && w.chars().all(|c| c.is_ascii_uppercase() || c == '_');
-            if variable_shaped && !variables.contains(&w) {
+            if variable_shaped(w) && !variables.contains(&w) {
                 out.push(format!("{verb}: the variable {w} is not in ENVIRONMENT"));
             }
         }
@@ -408,8 +415,11 @@ mod tests {
     #[test]
     fn a_planted_name_is_found() {
         let variables = ["SSH_ASKPASS"];
-        let p = problems_in("ssh", "use --no-such-flag, -o NoSuchKeyword=yes and NO_SUCH_VAR", &variables);
-        assert_eq!(p.len(), 3, "{p:#?}");
-        assert!(problems_in("ssh", "use -W HOST:PORT, BatchMode=yes and SSH_ASKPASS", &variables).is_empty());
+        let p =
+            problems_in("ssh", "use --no-such-flag, -o NoSuchKeyword=yes, NO_SUCH_VAR and NO_SUCH_SET=yes", &variables);
+        assert_eq!(p.len(), 4, "{p:#?}");
+        assert!(
+            problems_in("ssh", "use -W HOST:PORT, BatchMode=yes, SSH_ASKPASS=x and SSH_ASKPASS", &variables).is_empty()
+        );
     }
 }

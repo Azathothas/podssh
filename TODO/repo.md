@@ -329,7 +329,7 @@ Read:
   members with `CC=/nonexistent`, and the release too (lines 339-342). The
   gate builds the library crates with `CC` and `CXX` set to `/nonexistent`,
   and the release with neither (`scripts/gate.sh:154-167`,
-  `scripts/gate.sh:303-305`). The help omits the work record, interop, the man
+  `scripts/gate.sh:324-326`). The help omits the work record, interop, the man
   page, the C++ plant, and the subcommand `gate` (line 602 at `912acd0`).
 - Stale comments, at `912acd0`: `scripts/dev.sh` lines 69-73 ("the default
   build"), lines 397-404 ("links the fork since 4b", "steps 4-5") and line
@@ -349,7 +349,7 @@ Read:
    comment. Invariant: the text of the bridge does not change by one byte;
    compare the old and the new text with `cmp`.
 3. Correct the help and the stale comments to the gate as it is
-   (`scripts/gate.sh:135-357`).
+   (`scripts/gate.sh:135-378`).
 4. Extend the size check of `scripts/check-repo.py` to the shell and Python
    files under `scripts/`, with a floor (T-223).
 5. Drop the sentence on the exception from `docs/decisions.md`, and move it
@@ -458,7 +458,7 @@ Read:
 3. On a run by hand, make the list of the commits since the last tag as an
    artifact, so that it can be read before a tag.
 4. Link each "Fixes #N" of a commit to its issue in the list.
-5. docs/development.md, "Release builds" (`docs/development.md:672-784`): the
+5. docs/development.md, "Release builds" (`docs/development.md:673-785`): the
    body is the notes file and the generated list.
 
 No new shell script: each step is a step of the workflow.
@@ -540,7 +540,7 @@ credential that a later commit removed, is not found.
 Read:
 
 - `scripts/check-repo.py:53-66` defines the shapes (a relay token, a Tailscale
-  key, a private key block); `scripts/check-repo.py:254-275` scans the tracked
+  key, a private key block); `scripts/check-repo.py:267-288` scans the tracked
   files outside `vendor/`. It reads no history.
 - `docs/decisions.md` (the repository is public): its history was
   replaced by one commit on 2026-10-08, so a scan of the whole history is
@@ -676,7 +676,7 @@ Read:
 - The KTM tester could not tell from an artifact which commit made it, and
   moved the checkout one commit ahead (the KTM report, section 1a; read in
   the report).
-- `crates/podssh-cli/src/man/facts/tests.rs:74-95`: the drift test of the manual
+- `crates/podssh-cli/src/man/facts/tests.rs:78-99`: the drift test of the manual
   counts each quoted upper-case name with `_` in the sources as a variable
   (except `CARGO_` names).
 
@@ -1154,14 +1154,14 @@ sees it.
 
 Read:
 
-- `docs/STATUS.md:252-266`: the box, measured by hand on 2026-10-08.
+- `docs/STATUS.md:253-267`: the box, measured by hand on 2026-10-08.
 - `scripts/test_in_box.sh:202-205`: the box runs `probe.sh`, then
   `sandbox-check.sh` (or, with `BOX_RUN=tt`, the session of T-004), and the
   script exits with the code of the second.
   `scripts/sandbox-check.sh:85-242` prints the exit code of each step and does
   not fail on it (T-006). So today the box exits 0 when podssh fails in it.
 - `scripts/box/probe.sh:122-127` exits 1 when the box differs from the sandbox
-  in a required property (17 properties, `docs/STATUS.md:259`).
+  in a required property (17 properties, `docs/STATUS.md:260`).
 - The box needs a static binary; CI uploads one
   (`.github/workflows/build.yml:88-93`).
 - The box uses `--disable-dns` (`scripts/test_in_box.sh:122`) and a mask on
@@ -1188,7 +1188,7 @@ Read:
    that CI runs the box.
 
 Pitfall: the live path can drop a session (179 of 180 short sessions,
-`docs/STATUS.md:289`). Run a failure again by hand and record it. Never retry
+`docs/STATUS.md:290`). Run a failure again by hand and record it. Never retry
 inside the job.
 
 ## Decision
@@ -1206,7 +1206,7 @@ test "$(grep -c '^match ' box.log)" -eq 17                  # the box was faithf
 
 The run passed, with the job `box`, and its log has 17 `match` lines.
 Planted defect: run the job by hand with the seccomp option removed (an input
-of `workflow_dispatch`); the probe must exit 1, as in `docs/STATUS.md:260`,
+of `workflow_dispatch`); the probe must exit 1, as in `docs/STATUS.md:261`,
 and the job must fail.
 
 ## Blocker
@@ -1901,7 +1901,7 @@ leaves armv7 out of the Decision; the plan below takes Alpine's own toolchain fo
   container. Plan B, which the Decision rejected, for native speed: `ghcr.io/cross-rs/armv7-unknown-
   linux-musleabihf:main`, or `cargo-zigbuild` (its CI covers x86_64, aarch64 and Apple, not armv7).
   The release profile is `opt-level = "z"`, `lto = true`, `codegen-units = 1`
-  (`Cargo.toml:204` says "opt-level"; the profile is at the lines around it): the link on a 32-bit
+  (`Cargo.toml:207` says "opt-level"; the profile is at the lines around it): the link on a 32-bit
   rustc may run out of address space, and under QEMU it is slow. Measure first.
 - `riscv64gc-unknown-linux-musl`: Rust tier 2 with host tools. Plan A: `runs-on: ubuntu-24.04`,
   `docker/setup-qemu-action` with `platforms: riscv64`, `docker run --platform linux/riscv64
@@ -2025,8 +2025,8 @@ Read, in the tree as it is now:
   compiles one C++ file with the `cc` crate. With both variables set, the
   build must fail at `/nonexistent`; the control, with `CC` alone, must not
   stop there.
-- `docs/development.md:250-252` states the rule with `CXX`, and
-  `docs/STATUS.md:638` records the measurement. Rule 4 of
+- `docs/development.md:251-253` states the rule with `CXX`, and
+  `docs/STATUS.md:640` records the measurement. Rule 4 of
   `docs/architecture.md` named `CC=/nonexistent` only; it was repaired in the
   same change as the record.
 - `.github/workflows/build.yml:103-111` runs the plant on each push.
@@ -2057,7 +2057,7 @@ the same script in its step "the no-C rule is load-bearing".
 (CXX=/nonexistent)"). Measured with `sh scripts/dev.sh plant` in
 `rust:1-alpine`: the C plant failed twice for the right reason, the C++ plant
 failed at `CXX=/nonexistent`, the control with `CC` alone was not stopped
-there, and the clean tree built (`docs/STATUS.md:638`). The CI run of
+there, and the clean tree built (`docs/STATUS.md:640`). The CI run of
 `eacd94e`, which contains `a378863`, passed, with its step "the no-C rule is
 load-bearing".
 
@@ -2086,7 +2086,7 @@ repository (one `README.md`, no `crates/`) printed four `ok` lines and exited
 
 Read:
 
-- `scripts/check-repo.py:193`: the size check walks `crates/` with `rglob`; a
+- `scripts/check-repo.py:206`: the size check walks `crates/` with `rglob`; a
   missing directory yields nothing. (#33 cites line 56 at `22c3b88`; the walk is at 57
   now.)
 - `scripts/check-repo.py` lines 100-129, 132-153 and 156-161 at `e892b0f`: the links, the credentials and the line
@@ -2450,7 +2450,7 @@ Read:
 
 - `scripts/box/seccomp.json:5-10`: `bind` fails with EACCES for each socket,
   whatever its family.
-- `docs/STATUS.md:280`: in sandbox A, `bind` is refused for AF_INET and
+- `docs/STATUS.md:281`: in sandbox A, `bind` is refused for AF_INET and
   allowed for AF_UNIX. In the KTM report (read there), `doctor` printed
   `Permission denied (os error 13)` for AF_INET, and "bound" for an AF_UNIX
   path and for the abstract namespace.
@@ -2544,7 +2544,7 @@ Read:
 - The record's checker reads `AGENTS.md` for ids, and drops a missing file
   with no word (`crates/podssh-todo/src/refs.rs:43-48`). It accepts
   `AGENTS.md` as a cited root file (line 20). The gate runs the checker in the
-  container (`scripts/gate.sh:251-258`). 22 lines of `TODO/` cite `AGENTS.md`.
+  container (`scripts/gate.sh:268-275`). 22 lines of `TODO/` cite `AGENTS.md`.
 - The area file that was TODO/agents.md is `TODO/machine.md` now.
 
 Not known: whether `wsl-toolkit run --exclude` matches a pattern at any depth,
@@ -3954,20 +3954,20 @@ identities (x25519-dalek, `podssh-ws` and `podssh-relay`), and its AEAD
 
 ## Premise
 
-- Read: `crates/podssh-ssh/Cargo.toml:26` and `crates/podssh-cli/Cargo.toml:68`
-  ask for `sha1` 0.10.7, and the root `Cargo.toml:139` for `hmac` 0.12;
+- Read: `crates/podssh-ssh/Cargo.toml:26` and `crates/podssh-cli/Cargo.toml:74`
+  ask for `sha1` 0.10.7, and the root `Cargo.toml:142` for `hmac` 0.12;
   `Cargo.lock` holds `sha1` 0.10.7 and 0.11.0, `hmac` 0.12.1 and 0.13.0,
   and `digest` 0.10.7 and 0.11.3, as russh 0.64.1 (vendor/russh/Cargo.toml)
   builds on the newer line, so the binary holds both lines today. podssh's `sha1`
   moves with its `hmac`, where the two meet (the hashed names of
   `known_hosts`): Inferred.
-- Read: the root `Cargo.toml:141` asks for `aes-gcm` 0.10 and
-  `Cargo.toml:150` for `x25519-dalek` 2;
+- Read: the root `Cargo.toml:144` asks for `aes-gcm` 0.10 and
+  `Cargo.toml:153` for `x25519-dalek` 2;
   `crates/podssh-ws/src/crypto/aead.rs` and `crates/podssh-ws/src/crypto/kx.rs`
   hold the calls, with `crates/podssh-relay/src/identity/mod.rs` and
   `crates/podssh-relay/src/session/secret.rs`, and
   `crates/podssh-ws/tests/crypto_vectors.rs` their vectors.
-- Read: `vt100` 0.15 (`Cargo.toml:113`) is the model of the terminal
+- Read: `vt100` 0.15 (`Cargo.toml:116`) is the model of the terminal
   oracle (T-200) and of `podssh session` (T-186).
 
 ## Approach
@@ -4216,7 +4216,7 @@ two jobs of the release run an image of Docker Hub by the tag `latest`, with no 
   (https://github.com/docker/setup-qemu-action/blob/v4/action.yml): the action's `image` defaults
   to `docker.io/tonistiigi/binfmt:latest`. The riscv64 job runs it each time, and the armv7 job
   when the runner does not run 32-bit ARM (`.github/workflows/release.yml` lines 166-177 at `1a3e7b6`). No file of
-  `images/` names the image, so the check of images (`scripts/check-repo.py:288-313`) does not
+  `images/` names the image, so the check of images (`scripts/check-repo.py:301-326`) does not
   see it, and its pull gets none of the mirrors of `scripts/pull-image.sh:9-13`.
 - Read: T-210 found the commit of each action, and `TODO/repo.md:786-787` says "whether to pin
   them by commit is a choice of this entry's session"; no entry took it. `setup-nasm` declares
@@ -4893,14 +4893,14 @@ of GitHub #69 to #72 corrected these; nothing finds the next.
   and said that "the real sandbox is not run yet"; `docs/irc.md` said "No command uses the IRC
   client yet", with T-097 and T-098 as its known defects; `docs/STATUS.md` said "Over IRC too
   (T-252, partial)". Each part is built: the reverse road (`docs/STATUS.md:64`, `:68`), two runs
-  in real sandboxes (T-001; `docs/STATUS.md:271-280`), and `podssh chat --irc` (T-252, done, as
+  in real sandboxes (T-001; `docs/STATUS.md:272-281`), and `podssh chat --irc` (T-252, done, as
   T-097 and T-098 are). Of the same kind: `docs/design.md`'s summary and the head of its section
   4, and the row of `podssh-terminal` in `docs/architecture.md`. The triage's commit corrected
   each in place.
 - Read, by `grep -w yet` over `docs/`, `README.md`, `AGENTS.md` and `SECURITY.md` on 2026-10-31,
   after the corrections: 19 lines with no date and no id on them. Most are true today, as of the
   work that the operator holds (Q32); some state nothing of podssh, as "not whole yet"
-  (`docs/cli.md:1036`) and "did not act on yet" (`docs/cli.md:762`).
+  (`docs/cli.md:1066`) and "did not act on yet" (`docs/cli.md:792`).
 - Read: the checker reads the ids of these documents and the citations of `TODO/` alone
   (`crates/podssh-todo/src/refs.rs:22-35`); it reads no sentence of a document.
 - Read: the fifth statement of GitHub #71, the comment of the facts file that the relay's frame
@@ -4920,7 +4920,7 @@ of GitHub #69 to #72 corrected these; nothing finds the next.
 3. A status written beside an id in those documents (`T-NNN, partial`, `(T-NNN, open)`) agrees
    with the index, unless its paragraph reads at a date or at a commit, as the record's readings
    do (`TODO/RULES.md:142-147`): "T-099, partial" of 2026-10-10 is such a reading
-   (`docs/STATUS.md:607`).
+   (`docs/STATUS.md:608`).
 4. `TODO/RULES.md` says it, beside the rules of citations.
 
 ## Decision

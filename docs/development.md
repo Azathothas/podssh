@@ -226,7 +226,7 @@ write it into the Dockerfile, and run the gate.
 
 `scripts/gate.sh` is the gate. CI runs the same file in the same image. Its
 steps, in order: `lint`, `libs`, `msrv`, `msrv_ssh`, `msrv_ts`, `msrv_iroh`,
-`record`, `ssh`, `ts`, `iroh`, `m6` and `release`; `sh scripts/gate.sh --list` prints them. With no argument, the
+`msrv_warp`, `record`, `ssh`, `ts`, `iroh`, `m6` and `release`; `sh scripts/gate.sh --list` prints them. With no argument, the
 gate runs each step; with names, those steps, in the order given. CI runs
 each step in a job of its own, at the same time: its job `plan` reads the
 list, so CI cannot miss a step that the gate has. `python
@@ -238,11 +238,12 @@ sh scripts/dev.sh run -- 'sh /work/scripts/gate.sh ssh'
 ```
 
 `lint` checks the format and clippy's lints (see "Checks"). `msrv`,
-`msrv_ssh`, `msrv_ts` and `msrv_iroh` check each crate with `cargo check
+`msrv_ssh`, `msrv_ts`, `msrv_iroh` and `msrv_warp` check each crate with `cargo check
 --locked --all-targets` on the minimum Rust that its manifest declares: 1.89
 for the library crates and `podssh-todo` (with no C compiler), and for
 `podssh-ssh` and `podssh-cli`, 1.92 for `podssh-ts` and the CLI with the
-feature `ts`, 1.91 for `podssh-iroh` and the CLI with the feature `iroh`.
+feature `ts`, 1.91 for `podssh-iroh` and the CLI with the feature `iroh`, and
+1.91 for `podssh-warp` and the CLI with the feature `warp`.
 rustup fetches each toolchain into the build image, so the C toolchain is
 the gate's. `.cargo/config.toml` makes `cargo update` prefer the versions of
 dependencies that these minimums allow. The other steps make sure that:

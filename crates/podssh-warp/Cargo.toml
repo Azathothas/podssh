@@ -1,0 +1,57 @@
+[package]
+name = "podssh-warp"
+description = "WARP's MASQUE road over HTTP/2: the registration, TLS with a client certificate and a pinned key, connect-ip's capsules, and TCP inside on smoltcp. No C compiler needed."
+version.workspace = true
+edition.workspace = true
+# smoltcp 0.14 declares 1.91 (read from its Cargo.toml), above the library
+# crates' 1.89; podssh-iroh declares 1.91 too.
+rust-version = "1.91"
+license.workspace = true
+publish.workspace = true
+
+# A feature crate (T-352, the operator's ruling Q52): podssh-cli takes it
+# with its feature `warp`, and podssh-relay with its feature `warp` for the
+# quick tunnel's edge (T-374). Pure Rust, as the library crates are: the
+# gate builds it with no C compiler.
+[dependencies]
+podssh-ws = { path = "../podssh-ws" }
+tokio = { workspace = true }
+rustls = { workspace = true }
+tokio-rustls = { workspace = true }
+rustls-pki-types = { workspace = true }
+# connect-ip's stream over HTTP/2: the versions that podssh-ws builds for
+# DNS over HTTPS and podssh-relay for the quick tunnel.
+h2 = "0.4.19"
+http = "1.5"
+bytes = "1.12"
+# TCP inside the tunnel, in the process: no TUN device, no privilege. The
+# version in the lock already, through the vendored tailscale-rs. No default
+# features: no raw sockets, no TUN, no Ethernet, no DHCP; `async` gives each
+# socket the wakers that the streams wait on.
+smoltcp = { version = "0.14", default-features = false, features = [
+  "std", "async", "medium-ip", "proto-ipv4", "proto-ipv6", "socket-tcp",
+] }
+# The device's key, its signatures and its certificate: P-256, as the edge
+# asks for, in pure Rust.
+p256 = { workspace = true }
+# The device's record and the API's answers.
+serde = { workspace = true }
+serde_json = { workspace = true }
+base64 = { workspace = true }
+zeroize = { workspace = true }
+
+[features]
+# The stand-in of WARP's edge and of its API, for the tests of another crate
+# (podssh-relay's `quick_edge_warp`, T-374). It listens on the loopback, so a
+# binary never enables it.
+stand-in = []
+
+[dev-dependencies]
+tokio = { workspace = true, features = ["macros", "rt", "rt-multi-thread"] }
+# The stand-in API's certificate, for 127.0.0.1 under a CA of the test,
+# signed with a P-256 key of podssh's own, with no crypto feature and no C:
+# as podssh-relay's tests make theirs.
+rcgen = { version = "0.14", default-features = false }
+# A reader of certificates that podssh did not write, for the client's own
+# certificate: the version that podssh-cli builds, with no feature.
+x509-parser = { version = "0.18", default-features = false }

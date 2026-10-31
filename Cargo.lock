@@ -3876,6 +3876,7 @@ dependencies = [
  "podssh-ssh",
  "podssh-terminal",
  "podssh-ts",
+ "podssh-warp",
  "podssh-ws",
  "rand 0.10.3",
  "rcgen",
@@ -4021,6 +4022,28 @@ dependencies = [
  "ts_derp",
  "ts_http_util",
  "ts_runtime",
+ "zeroize",
+]
+
+[[package]]
+name = "podssh-warp"
+version = "1.0.0-beta.2"
+dependencies = [
+ "base64 0.23.1",
+ "bytes",
+ "h2",
+ "http",
+ "p256",
+ "podssh-ws",
+ "rcgen",
+ "rustls",
+ "rustls-pki-types",
+ "serde",
+ "serde_json",
+ "smoltcp",
+ "tokio",
+ "tokio-rustls",
+ "x509-parser",
  "zeroize",
 ]
 

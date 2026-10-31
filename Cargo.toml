@@ -11,6 +11,7 @@ members = [
   "crates/podssh-iroh",
   "crates/podssh-ssh",
   "crates/podssh-todo",
+  "crates/podssh-warp",
 ]
 
 # What a bare `cargo build` / `cargo test` at the root compiles: everything
@@ -27,6 +28,8 @@ default-members = [
   "crates/podssh-relay",
   "crates/podssh-ssh",
   "crates/podssh-todo",
+  # WARP's road (T-352): pure Rust, as the library crates are.
+  "crates/podssh-warp",
 ]
 
 # The vendored fork keeps its own `[workspace]` (it builds standalone with

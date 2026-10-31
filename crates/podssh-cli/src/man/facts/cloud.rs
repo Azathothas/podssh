@@ -1,7 +1,7 @@
 //! The variables of the roads of a cloud's own tunnel, `iap://` and
-//! `eice://` (T-351), out of `facts.rs` at its 500 lines. Each one names a
-//! file or a setting, never a credential: a credential is read from its
-//! file by the file's path alone.
+//! `eice://` (T-351), and of WARP's, `warp://` (T-352), out of `facts.rs` at
+//! its 500 lines. Each one names a file or a setting, never a credential: a
+//! credential is read from its file by the file's path alone.
 
 /// The variables, as [`super::VARIABLES`] holds the others.
 pub const VARIABLES: &[(&[&str], &str)] = &[
@@ -33,6 +33,25 @@ pub const VARIABLES: &[(&[&str], &str)] = &[
         "AWS's own variables: the shared credentials file, read for eice:// when PODSSH_EICE_CREDENTIALS_FILE \
       is not set (else ~/.aws/credentials, when it is there), and the profile of either file (default when \
       it is not set).",
+    ),
+    (
+        &["PODSSH_WARP_ACCEPT_TERMS"],
+        "yes accepts Cloudflare's Terms (https://www.cloudflare.com/application/terms/), which a device of \
+      WARP needs: with it, the first warp:// destination registers one device with Cloudflare's API, \
+      api.cloudflareclient.com, through the proxy, and keeps its record in the cache (see FILES); later runs \
+      read the record and register nothing. Unset, no or empty, a run with no record refuses (78) and names \
+      it. Another word is a configuration error (78). A build with the feature warp.",
+    ),
+    (
+        &["PODSSH_WARP_TEAM_TOKEN_FILE"],
+        "The file of a team's token of a Cloudflare One organization, which must be private: the device \
+      registers in that organization (its header CF-Access-Jwt-Assertion), not as an anonymous one. Read at \
+      the registration alone; podssh never prints it.",
+    ),
+    (
+        &["PODSSH_WARP_ENDPOINT"],
+        "WARP's endpoint of HTTP/2 as ADDRESS:PORT, in place of 162.159.198.2:443; the device's pinned key \
+      stays its own. Another value is a configuration error (78).",
     ),
     (
         &["PODSSH_EICE_MAX_TUNNEL_DURATION"],

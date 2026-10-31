@@ -917,7 +917,7 @@ the module comment repeats it (`crates/podssh-relay/src/cache.rs`, lines 4-8 at 
 6. Change in the same commit: VARIABLES and FILES (`crates/podssh-cli/src/man/facts.rs:196-210`,
    `crates/podssh-cli/src/man/data.rs:153-160`), the test of lines 365-377 at `22c3b88`, the comment
    of `cache.rs`, and the `doctor`
-   notes (`crates/podssh-cli/src/man/notes.rs:180-222`).
+   notes (`crates/podssh-cli/src/man/notes.rs:182-224`).
 
 ## Decision
 
@@ -939,7 +939,7 @@ sh scripts/dev.sh check                   # interop-faults: a token in PODSSH_CA
 
 With a set environment: `PODSSH_CACHE_DIR` comes first, `none` gives no candidate, and
 `XDG_RUNTIME_DIR` comes before the temporary directory. A scan of `cache.rs`, as
-`crates/podssh-cli/src/man/facts/tests.rs:13-37` scans source, finds no absolute path literal. In
+`crates/podssh-cli/src/man/facts/tests.rs:13-41` scans source, finds no absolute path literal. In
 the gate, the token file goes into a new `PODSSH_CACHE_DIR`; with a plain file there, the run
 still exits 0 and names the refusal. Planted defect: put `/dev/shm` back; the scan fails.
 
@@ -1083,7 +1083,7 @@ with no reason. Each drop read as the end of the TCP stream with no Close frame
 had drops, so the traffic does not cause them.
 
 Read: on the forward path, keepalives every 60 s kept one session for 602 s
-(`docs/STATUS.md:212`). That is one run, before 2026-10-09.
+(`docs/STATUS.md:213`). That is one run, before 2026-10-09.
 
 ## Approach
 

@@ -18,8 +18,8 @@ These commands work: `podssh ssh`, `podssh each`, `podssh run`, `podssh job`, `p
 `podssh health`, `podssh node`, `podssh operator`, `podssh relay`,
 `podssh chat`, `podssh play` (recordings), `podssh config` (settings),
 `podssh mcp` and `podssh update` (this binary, from a signed release).
-`podssh ts` and the iroh road refuse with exit code 70 in a build without
-their features.
+`podssh ts`, the iroh road and WARP's `warp://` refuse with exit code 70 in a
+build without their features.
 
 ## 2. How a session works
 
@@ -202,8 +202,9 @@ builds at the same time almost stopped it.
 3. For daily work, build natively: `cargo build`, `cargo test`.
 4. For the Linux gate and the static binary, use `sh scripts/dev.sh check`.
    It limits its jobs and runs one at a time.
-5. Use `--features ts` only for work on Tailscale, and `--features iroh`
-   only for work on the iroh road.
+5. Use `--features ts` only for work on Tailscale, `--features iroh` only
+   for work on the iroh road, and `--features warp` only for work on WARP's
+   road.
 
 CAUTION: A `wsl.exe` command acts on each WSL distribution of this machine.
 Do not call `wsl.exe`. Do not use `wsl --shutdown`, `--terminate` or
@@ -321,6 +322,7 @@ These rules come from [docs/decisions.md](docs/decisions.md).
 | `crates/podssh-probe` | Facts about the relay document (tests only) |
 | `crates/podssh-ts` | The Tailscale adapter (feature `ts`) |
 | `crates/podssh-iroh` | The iroh road (feature `iroh`): the endpoint as podssh sets it up, the UDP probe, the session streams, the far end and its allowlist, the client, the keys and the tickets |
+| `crates/podssh-warp` | WARP's MASQUE road over HTTP/2 (feature `warp`): the device's registration and record, TLS with its pin and client certificate, connect-ip's capsules, TCP inside on smoltcp, names inside, and a stand-in edge for the tests |
 | `crates/podssh-todo` | The checker of the work record: `cargo todo check` (the gate runs it), `cargo todo set`, `counts`, `next`; `cargo todo interop`, the ids of the interop harnesses and a run's logs against `scripts/interop-baseline.txt` |
 | `vendor/tailscale-rs` | A fork with local patches (`vendor/patches/`). It is outside the workspace and the 500-line rule. |
 | `scripts/dev.sh` (with `scripts/dev-wsl.sh` on Windows, `scripts/dev-native.sh` on Linux), `scripts/cloud-setup.sh`, `scripts/gate.sh` | Container runs, a Linux host or a cloud session made ready, and the build gate that CI also runs |

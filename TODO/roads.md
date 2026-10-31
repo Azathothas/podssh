@@ -186,7 +186,7 @@ the file that `--ts-state` names (`crates/podssh-cli/src/flags.rs:343-344`,
 5. The node prints its ticket and its fingerprint on stderr when it starts.
    `podssh ssh iroh:TICKET` dials it (the address of `docs/design.md:914`).
 6. Add the key files to FILES in the manual
-   (`crates/podssh-cli/src/man/data.rs:146-293`), and each new variable to
+   (`crates/podssh-cli/src/man/data.rs:146-302`), and each new variable to
    `VARIABLES` (`crates/podssh-cli/src/man/facts.rs:45-260`).
 
 ## Decision
@@ -373,7 +373,7 @@ sandbox can block what iroh needs, so the fallback is necessary
 6. With `-v`, print the road that won and its time.
 7. Each resume of T-153 runs the same race.
 8. Docs: the rule of the race in `docs/design.md` section 2, and the notes of
-   `ssh` in the manual (`crates/podssh-cli/src/man/notes_ssh.rs:4-320`).
+   `ssh` in the manual (`crates/podssh-cli/src/man/notes_ssh.rs:4-332`).
 
 ## Decision
 
@@ -2976,7 +2976,7 @@ roots must be exactly three, and a refusal of the edge does not say which releas
   (`crates/podssh-relay/src/quick/edge.rs:22-29`); the roots must give 3 anchors and no invalid
   one (`:40-44`); the API's host is fixed (`crates/podssh-relay/src/quick/api.rs:18`). The node
   registers as `podssh` and the package's version (`crates/podssh-cli/src/node_quick.rs:158-159`),
-  `1.0.0-beta.2` today (`Cargo.toml:46`).
+  `1.0.0-beta.2` today (`Cargo.toml:49`).
 - Read: the three roots end on 2029-08-15, 2029-08-15 and 2029-11-01
   (`crates/podssh-relay/src/quick/cloudflare-roots.pem:6`, `:25`, `:52`).
 - Read: cloudflared's README says "Cloudflare currently supports versions of cloudflared that are
@@ -3895,7 +3895,7 @@ measured; the live run waits for the operator's throwaway accounts (T-376), as Q
 **Milestone:** backlog
 **Priority:** P3
 **Effort:** L
-**Status:** open
+**Status:** partial
 
 ## Problem
 
@@ -3959,16 +3959,120 @@ T-353.
 
 The operator's ruling of 2026-10-31 (Q52, `docs/decisions.md`): the WARP road is allowed; its live test may run in GitHub Actions and on a session's own host.
 
+The draft's calls, 2026-10-31:
+
+1. The crate: `podssh-warp`, pure Rust (smoltcp, h2, rustls on podssh-ws's provider, p256), with
+   Rust 1.91 declared, smoltcp 0.14's minimum; podssh-cli takes it with its feature `warp`, off by
+   default and out of the release binaries (`RELEASE_FEATURES`) until the live run passes. Lost:
+   the default build, as smoltcp would raise podssh-cli's declared 1.89 for a road that is a trial
+   on a closed API; podssh-ws, a library crate on 1.89 whose rules (no ALPN, no client
+   certificate) the road needs outside of, as the Approach says.
+2. The command line: a destination, `warp://[user@]HOST[:PORT]`, a road of the kind of `iap://`
+   and `eice://` (`Road::Warp` of `crates/podssh-cli/src/ssh/cloud.rs`), so that `ssh`, `-J` with
+   it first, `proxy`, and each command on that plumbing take it. Lost: a flag `--warp`, which
+   would need its own path through `crates/podssh-cli/src/ssh/resolve.rs`, at 496 lines, and
+   each command's flags. The host key is kept under `warp://HOST`, as each road of a provider's
+   tunnel names its host; `HostKeyAlias` takes a key kept under HOST.
+3. The registration's headers: those of "WARP for Android", as usque sends them (its
+   `internal/consts.go`), with its API version `v0a4471` and client `a-6.35-4471`, in one place
+   (`crates/podssh-warp/src/register.rs`). Lost: podssh's own `User-Agent`, which no reading
+   shows the API to take, where each refused try counts against a rate limit; the tester's
+   `v0a5641`, read with no matching client version.
+4. The Terms: a registration only with `PODSSH_WARP_ACCEPT_TERMS=yes`, and the record of the
+   device kept in the cache (Approach, step 5) through podssh-relay's private files. Lost: a
+   flag, which each command of the destination would need; a question on the terminal, which an
+   unattended host cannot answer; an acceptance that podssh gives for the user.
+5. The endpoint: 162.159.198.2:443, usque's endpoint of HTTP/2, which the API's answer does not
+   name (it names QUIC's), with `PODSSH_WARP_ENDPOINT` in its place.
+6. Names: asked of 1.1.1.1 (then 1.0.0.1) over TCP inside the tunnel, then of podssh's own
+   resolver. Lost: DNS over HTTPS through the proxy first, which a cage's proxy may refuse by
+   address as it refuses the endpoint.
+7. The probe (Approach, step 2) is the opening itself; the run keeps each interception by its
+   proxy and endpoint, so that the road is not tried again through that proxy, and a test's
+   stand-ins do not meet one another's.
+8. The organization first (Approach, step 3) is not needed, as Q52 allows the anonymous device; a
+   team's token in a private file (`PODSSH_WARP_TEAM_TOKEN_FILE`) enrols one in an organization.
+9. The frames: no client of usque runs here (no Go, no build), so the tests take the bytes of the
+   tests of usque's own connect-ip-go fork and RFC 9000's varints; frames captured from usque
+   come with the live run.
+
 ## Prove
 
 ```sh
 export CARGO_BUILD_JOBS=4
 cargo test -p podssh-warp
+cargo test -p podssh-cli --features warp --lib
+cargo test -p podssh-cli --test warp_not_built
+gh workflow run warp-live.yml -f confirm=Q52
 ```
 
 Tests against capsules and frames captured from usque; live runs in GitHub Actions only, short
 ones.
 
+## Correction
+
+Read at `a3f948d` on 2026-10-31.
+
+- The Premise's lines of `crates/podssh-ws/src/tls.rs` hold: `Trust::caller` refuses ALPN at
+  `:85-96`, and the configuration takes no client certificate at `:315-318`.
+- Step 1 of the Approach, and the WARP item of `docs/carriers.md`, name HTTP/2's extended CONNECT.
+  Read in usque's fork of connect-ip-go (`client_h2.go`, `DialH2`): over HTTP/2 the request is a
+  classic CONNECT, `:authority cloudflareaccess.com:443`, the protocol in the header
+  `cf-connect-proto`, no `:protocol`, so no SETTINGS_ENABLE_CONNECT_PROTOCOL is needed; usque
+  adds `pq-enabled: false` and sends no `User-Agent`. A capsule of another type than 0 is
+  skipped, and a DATAGRAM's payload is the packet, with no context ID, as the Premise says.
+- Two versions of the API are read: usque's `v0a4471` (the Premise's first item) and the tester's
+  `v0a5641` (its last); the draft takes usque's (the Decision, item 3).
+
+## Done
+
+2026-10-31: drafted in the worktree `warp` (branch `draft-warp`, `e423ba2`), merged into `main`
+the same day, built and measured here. Partial: the live run waits for this commit on GitHub.
+
+- The crate `crates/podssh-warp/src/lib.rs`: the capsules (`capsule.rs`), the DER of the device's
+  certificate and of a pinned key (`der.rs`), the device's key (`key.rs`), its record
+  (`device.rs`), the registration (`register.rs`), TLS with the pin and the client's certificate
+  (`tls.rs`), the tunnel (`tunnel.rs`), smoltcp's device (`phy.rs`), the stack (`stack.rs`), its
+  streams (`stream.rs`), DNS inside (`dns.rs`), the road (`road.rs`), and the stand-in edge
+  (`stand_in.rs`, `inside.rs`, feature `stand-in`). `cargo test --locked --no-fail-fast -p
+  podssh-warp --features stand-in`: 41 passed (2026-10-31): the unit tests of each module, and
+  `src/tests/`: 1 MiB each way through the stand-in, a name inside the tunnel, a key not
+  enrolled, an endpoint of another key, a closed port and no route, the tunnel's end, a proxy that
+  carries the tunnel, one of names alone, one that re-terminates TLS, and the registration against
+  a stand-in API, then its device through the stand-in edge.
+- The command line: `crates/podssh-cli/src/ssh/cloud/warp.rs` and `warp/road.rs`, `Road::Warp`,
+  `podssh proxy warp://`, the refusal of a build without the feature; the manual's variables
+  (`PODSSH_WARP_ACCEPT_TERMS`, `PODSSH_WARP_TEAM_TOKEN_FILE`, `PODSSH_WARP_ENDPOINT`), the record
+  in FILES, the notes of `ssh` and `proxy`; `docs/cli.md`, `docs/carriers.md`, `docs/STATUS.md`.
+  `cargo test -p podssh-cli --features warp --lib`: 473 passed; `cargo test -p podssh-cli --test
+  warp_not_built` (exit 70 for `ssh` and `proxy`): 4 passed; `cargo test -p podssh-cli --lib man`:
+  55 passed, after a repair at the merge: the check of the notes read `PODSSH_WARP_ACCEPT_TERMS=yes`
+  as an `-o` keyword. A variable given a value is now checked against ENVIRONMENT, and the check's
+  control plants one that is missing (`crates/podssh-cli/src/man/notes.rs`). podssh-cli's whole
+  suite: 1106 passed, 49 ignored, in a temporary directory of its own, which it left empty.
+- The gate (`scripts/gate.sh`): podssh-warp in the format, clippy (with `podssh-cli/warp` and
+  `podssh-warp/stand-in`), the build and the tests with no C compiler, podssh-cli's tests with the
+  feature, and, added at the merge, the step `msrv_warp`: the crate and the CLI with the feature on
+  Rust 1.91, the crate's declared minimum, as `msrv_iroh` checks iroh's. Here: rustfmt clean;
+  clippy `-D warnings` clean with the feature and on each package without it, after two repairs
+  (the capsule reader's `next`, read as an iterator's, is `next_capsule`; a `then_some`); `CC=/nonexistent
+  cargo build --locked -p podssh-warp`: ok; `cargo +1.91 check --locked --all-targets -p
+  podssh-warp -p podssh-cli --features podssh-cli/warp,podssh-warp/stand-in`: exit 0; `cargo deny
+  --locked --all-features check licenses sources bans`: exit 0; `python scripts/check-scripts.py`:
+  ok. `sh scripts/dev.sh check` waits for the checks of the release (T-251).
+- Planted, each alone (2026-10-31, `cargo test -p podssh-warp --features stand-in`): a context ID
+  of 0 before each packet (`capsule::datagram`): 8 failed, the bytes of connect-ip-go's test
+  first, then each session through the stand-in; the pin skipped (`tls::Pinned` that passes each
+  key): 3 failed, the endpoint of another key, the proxy that re-terminates TLS and the pin's own
+  test; the `cf-connect-proto` header left out: the stand-in answered 400, and each test through it
+  failed, with the request's own test.
+- The live run, `.github/workflows/warp-live.yml` (Q52): GitHub's SSH banner through WARP
+  directly and through the box's proxy of port 443 alone, OpenSSH with `podssh proxy warp://` as
+  its ProxyCommand to GitHub's refusal of no key, and a proxy of names alone named (69): waits for
+  this commit on GitHub.
+- Waits: the throughput and a session's life beside the forward road (Approach, step 4, T-157's
+  method), with the checks of the release (T-251); the release binaries with the feature, after
+  the live run (Q59).
 
 # T-353: Tor through Arti, in a feature crate
 
@@ -4305,7 +4409,7 @@ does not depend on them.
 
 - Read: `Transport::Direct` comes from `--direct` alone
   (`crates/podssh-cli/src/ssh/resolve.rs`, lines 340-346 at `4e2010e`), and else the relay (lines 348-371 at `4e2010e`); its other
-  uses are a label (`crates/podssh-cli/src/ssh/mod.rs:197`), the dial
+  uses are a label (`crates/podssh-cli/src/ssh/mod.rs:203`), the dial
   (`crates/podssh-cli/src/ssh/transport.rs:221-265`) and a check of `--upgrade`
   (`crates/podssh-cli/src/ssh/upgrade.rs:59`). The issue's citation of
   the arm began two lines early; it is at `crates/podssh-cli/src/ssh/resolve.rs:348-354`.
@@ -4314,7 +4418,7 @@ does not depend on them.
   "`--direct`, or when a probe shows it works"; the triage of GitHub #69 to #72 named this entry
   there.
 - Read: rule 2 of `AGENTS.md` allows a second connection at once for a race between relay hosts,
-  and for the split HTTP road (`AGENTS.md:251-259`); a race of the forward and the direct road is
+  and for the split HTTP road (`AGENTS.md:252-260`); a race of the forward and the direct road is
   neither.
 - Read: the direct dial goes through `HTTPS_PROXY` when it is set, with the relay's step limit of
   20 s (`crates/podssh-cli/src/ssh/transport.rs:286-300`, `crates/podssh-relay/src/open.rs:30`),
@@ -4503,7 +4607,7 @@ and no notice.
 - Read: whether Cloudflare's terms, which forbid using its services "to provide a virtual private
   network or other similar proxy services", hold for the relay is a question for the relay's
   operator (`docs/relay-operator.md:83-87`).
-- Read: the test targets of a session are the operator's list (`AGENTS.md:226-243`), which names
+- Read: the test targets of a session are the operator's list (`AGENTS.md:227-244`), which names
   none of the three.
 
 ## Approach
@@ -4574,7 +4678,7 @@ a hop. `doctor` has no line for a hop, so a user cannot see whether one is reach
   measured here): SSH banners on port 443 at `bg2.vpnjantit.com` (Dropbear 2017.75, an account with
   a password that a form makes), `ssh.tilde.club` and `ssh.blinkenshell.org` (OpenSSH); whether
   they allow `direct-tcpip` was not measured.
-- Read: GitHub's SSH endpoint is a test target, and those three are not (`AGENTS.md:226-243`). The
+- Read: GitHub's SSH endpoint is a test target, and those three are not (`AGENTS.md:227-244`). The
   box's proxy allows ports 443, 80 and 8443, and lets one test target through by its name
   (`scripts/box/proxy.py:6-16`).
 
@@ -4799,7 +4903,7 @@ cannot make it a road.
   `--via ss://...`, which puts the password in argv.
 - The user names each server and each list, as a proxy of `ALL_PROXY` (T-070); podssh names none.
   Its tests use servers that podssh did not write, never a public one: no public server is a test
-  target of the operator's (`AGENTS.md:226-243`).
+  target of the operator's (`AGENTS.md:227-244`).
 - Shadowsocks 2022 (SIP022) is refused by name in this entry; a later entry can take it.
 
 ## Prove

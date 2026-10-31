@@ -137,7 +137,7 @@ row, panic the same way: `rng.fill_bytes` for the X25519 secret
    range), and compute the shared secret with the `diffie_hellman` function of `elliptic-curve`
    0.13. Check the API of `p256` 0.13.2 first. No generator that can panic goes in.
 4. Make the source a parameter in the tests, so a failing source can be planted.
-5. Add a test that reads the crate's source, as `crates/podssh-cli/src/man/facts/tests.rs:13-37`
+5. Add a test that reads the crate's source, as `crates/podssh-cli/src/man/facts/tests.rs:13-41`
    does, and fails on `fill_bytes(` or `OsRng` outside `random.rs`.
 
 ## Decision
@@ -232,7 +232,7 @@ cannot look for that word alone.
    (`crates/podssh-ws/examples/inspect_peer_chain.rs`), and remove `pub mod probe;`. Keep each
    file under 500 lines.
 2. Add the test that `probe.rs` (lines 9-12 at `510d86f`) promised: a scan of the source of `podssh-ws`,
-   `podssh-relay`, `podssh-ssh` and `podssh-cli`, as `crates/podssh-cli/src/man/facts/tests.rs:13-37`
+   `podssh-relay`, `podssh-ssh` and `podssh-cli`, as `crates/podssh-cli/src/man/facts/tests.rs:13-41`
    reads source. It fails on `impl ServerCertVerifier` and on `set_certificate_verifier`.
 3. In the example, replace the two unchecked indexes with `get`, so a short certificate gives
    "cannot read" and no panic.
@@ -1618,7 +1618,7 @@ command says what to do. Four of the eight release binaries are for Windows and 
 - Read: `windows-sys` 0.61 is already a dependency of `podssh-relay` on Windows
   (`crates/podssh-relay/Cargo.toml:76-77`), a crate with no C; `rustls-native-certs` 0.8.4,
   `schannel` and `security-framework` are in the lock through other crates
-  (`Cargo.lock:4830-4831`).
+  (`Cargo.lock:4853-4854`).
 - Read: one proxy that re-terminates TLS was measured, with its CA in `SSL_CERT_FILE` and in the
   system's store of Linux (`docs/target-environment.md:57-63`).
 - Inferred: on macOS, `/etc/ssl/cert.pem` lacks a root that an administrator added to a keychain;
@@ -1961,7 +1961,7 @@ and each other command print rustls's words alone. An error should tell what to 
 - Read: the other commands print the error's text: `crates/podssh-ws/src/client.rs:133` says "TLS
   with the relay failed: {why}"; the TLS of IRC and of the quick tunnel's edge gives the text of
   `crates/podssh-ws/src/tls.rs:151` (`crates/podssh-relay/src/quick/edge.rs:111-113`).
-- Read: rustls 0.23.46 (`Cargo.lock:4780-4781`) has the errors `Expired`, `ExpiredContext`,
+- Read: rustls 0.23.46 (`Cargo.lock:4803-4804`) has the errors `Expired`, `ExpiredContext`,
   `NotValidYet` and `NotValidYetContext`, and writes the two with a context as "certificate
   expired: verification time" and "certificate not valid yet: verification time" (its
   `src/error.rs`, read in cargo's registry); doctor's match of the text ("expired", "not valid

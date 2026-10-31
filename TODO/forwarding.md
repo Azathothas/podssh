@@ -71,7 +71,7 @@ server listens, and the client connects out for each connection.
    asserts the refusal (`crates/podssh-cli/tests/flag_table.rs`, lines 82-101 at `a9299c4`).
    Update `docs/cli.md`, lines 146-160 at `a9299c4` (correct line 78 at `e8bbd4d`) and `docs/STATUS.md`.
 7. Pitfalls: each forwarded connection is one more outbound connection, made
-   under the proxy rule of `AGENTS.md:251-257`; say so in the help. The relay's
+   under the proxy rule of `AGENTS.md:252-258`; say so in the help. The relay's
    64 MiB and 12 h cover all the forwarded connections of a session
    together.
 
@@ -364,7 +364,7 @@ X11 channel.
    spoofed cookie, put the real cookie in its place, then copy bytes.
 4. `-Y` (trusted) uses the real cookie. `-X` (untrusted) needs a cookie that
    the X server makes (`xauth generate ... untrusted`): run `xauth` only when
-   a probe finds it (`XAuthLocation`, or `PATH`), as `AGENTS.md:260-264`
+   a probe finds it (`XAuthLocation`, or `PATH`), as `AGENTS.md:261-265`
    allows. Else refuse `-X`, and name `-Y`.
 5. Move `ForwardX11`, `ForwardX11Trusted`, `ForwardX11Timeout` and
    `XAuthLocation` to `HONOURED`. Change the help of `-x`
@@ -458,7 +458,7 @@ command line in `crates/podssh-cli/src/ssh/x11.rs:1-153`, the flags at
   this Xvfb takes an untrusted cookie of `xauth` at all
   (`scripts/interop-x11.sh:37-51`): env when it does not, a failure when it
   does and podssh's `-X` fails.
-- `docs/cli.md:593-616`, a note of the manual and the variable `XAUTHORITY`
+- `docs/cli.md:623-646`, a note of the manual and the variable `XAUTHORITY`
   say what the flags do, and the risk of `-Y`.
 - `cargo test -p podssh-ssh`: 155 passed; `cargo test -p podssh-cli`:
   577 passed, 0 failed, 31 ignored; clippy; rustfmt.
@@ -491,7 +491,7 @@ AF_UNIX.
   "podssh never binds a listener", exit 64
   (`crates/podssh-cli/src/flags.rs`, lines 215-220 at `97146aa`). Read: `-o LocalForward` and
   `-o DynamicForward` too (`crates/podssh-cli/src/ssh/options.rs`, lines 185-189 at `97146aa`).
-- Read: `AGENTS.md:251-257` (no bind, no listen),
+- Read: `AGENTS.md:252-258` (no bind, no listen),
   `docs/target-environment.md:84-88` (rule 3), `SECURITY.md:129-156` ("Nothing
   listens") and `README.md:42-51` state the rule from before the ruling.
   `docs/design.md:948-950` already allows a local listener for `pipe` after
@@ -589,7 +589,7 @@ box fails.
 The refusals of `-L` and `-D` say "podssh ssh opens no local listener yet"
 and name `podssh pipe tcp-listen:` (`crates/podssh-cli/src/flags.rs`, lines 215-220 at `97146aa`,
 `crates/podssh-cli/src/ssh/options.rs`, lines 185-189 at `97146aa`). `SECURITY.md:129-156` and
-`README.md:42-51` state the ruling now, as `AGENTS.md:251-257` and
+`README.md:42-51` state the ruling now, as `AGENTS.md:252-258` and
 `docs/target-environment.md:84-88` did already.
 
 ## Done
@@ -674,7 +674,7 @@ OpenSSH shares one connection through a control socket (`-M`, `-S`, `-O`,
   accepted with no effect; only `-v` says so
   (`crates/podssh-cli/src/ssh/keywords.rs`, line 78 at `5fb9c1e`). A script that sets them still
   works, with one connection for each run.
-- Read: a control socket is a listener. `AGENTS.md:251-257` forbids it in the
+- Read: a control socket is a listener. `AGENTS.md:252-258` forbids it in the
   words from before the ruling. Sandbox A allowed a bind for AF_UNIX
   (T-001); the Podman box refuses each `bind`
   (`scripts/box/seccomp.json:5-10`).
@@ -1014,7 +1014,7 @@ and the lines of `-v` at `crates/podssh-ssh/src/run.rs:259`.
   -W` through OpenSSH's sshd to a TCP echo server, 262144 bytes each way) and
   `pty.forwards` (`scripts/interop-pty.py`, `~#` in a session with `-R
   0:127.0.0.1:2201`).
-- `docs/cli.md:416-423` and the manual's note of `-t` say what `~#` and `-v`
+- `docs/cli.md:446-453` and the manual's note of `-t` say what `~#` and `-v`
   print.
 - `cargo test -p podssh-ssh`: 158 passed; `cargo test -p podssh-cli`:
   578 passed, 0 failed, 31 ignored; clippy; rustfmt.
@@ -1584,10 +1584,10 @@ a session with a pty:
 - `crates/podssh-cli/src/ssh/local_bind.rs`: the TCP listener and the
   socket of `-L` and `-D` can be closed (`crates/podssh-cli/src/ssh/local_bind.rs:137`
   and `crates/podssh-cli/src/ssh/local_bind.rs:184`), and the `Forwarder`
-  of `podssh ssh`, which `crates/podssh-cli/src/ssh/mod.rs:249` gives to
+  of `podssh ssh`, which `crates/podssh-cli/src/ssh/mod.rs:255` gives to
   each session.
 - The manual: the note of the terminal names `~C`, and a note of its own
-  (`crates/podssh-cli/src/man/notes_ssh.rs:231`); `docs/cli.md` ("`~C`
+  (`crates/podssh-cli/src/man/notes_ssh.rs:243`); `docs/cli.md` ("`~C`
   adds and stops forwards") and `docs/terminal.md` ("What podssh reads
   from the terminal").
 - Tests, `cargo test -p podssh-ssh -- escape_command` (8): the commands of
@@ -1633,15 +1633,15 @@ server (`remote_socket:host:hostport`), a socket on this host as the target
 (`[bind_address:]port:local_socket`, `remote_socket:local_socket`), and a SOCKS proxy that the
 server listens for and the client serves (`[bind_address:]port`). podssh refuses each by name, so
 a command line of OpenSSH fails with podssh. A server whose host refuses an AF_INET bind and
-allows an AF_UNIX one, as sandbox A does (`docs/STATUS.md:280`), can listen on a socket only; and
+allows an AF_UNIX one, as sandbox A does (`docs/STATUS.md:281`), can listen on a socket only; and
 the SOCKS form gives a server whose egress is closed a way out through the client.
 
 ## Premise
 
 - Read: `crates/podssh-cli/src/ssh/forward.rs` line 43 at `6f6eda2` says "a Unix socket is not
   carried yet", and its line 49 says "the server's SOCKS proxy (-R [bind_address:]port) is not
-  carried yet", for a spec of one or two fields (its lines 45-54); `docs/cli.md:539-540` and
-  `crates/podssh-cli/src/man/notes_ssh.rs:224-225` say so too. `TODO/forwarding.md:52-54` says
+  carried yet", for a spec of one or two fields (its lines 45-54); `docs/cli.md:569-570` and
+  `crates/podssh-cli/src/man/notes_ssh.rs:236-237` say so too. `TODO/forwarding.md:52-54` says
   "until a later step" of both, in T-035.
 - Read: `RemoteForward` holds a port and a `host:host_port` only
   (`crates/podssh-ssh/src/options.rs` lines 328-339 at `6f6eda2`). podssh asks for it with `tcpip_forward`
