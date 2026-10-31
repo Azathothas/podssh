@@ -184,7 +184,7 @@ an escape sequence of GitHub #31 needs dropped bytes (T-221). The reverse road
 drops a frame and closes with `1011 relay backpressure` above 1 MiB queued
 (`crates/podssh-probe/tests/spec/relay-spec-2026-10-03-r2.txt:185`); the buffer
 turns that close into a resume. The SSH window is 512 KiB for each channel
-(`crates/podssh-ssh/src/run.rs:26-30`). Do not bring back the backpressure module of
+(`crates/podssh-ssh/src/run.rs:25-29`). Do not bring back the backpressure module of
 `podssh-transport`, which T-074 removed (`docs/design.md:489-490`).
 
 ## Approach
@@ -2662,7 +2662,7 @@ kernel's TCP gives up. The notice of T-302 and T-307 does not show there.
   SSH's own, end to end, so the only question that the road can ask is one
   of SSH's.
 - Read: russh's `Handle::send_ping` sends `keepalive@openssh.com` with a
-  reply asked for, and waits for the reply (`vendor/russh/src/client/mod.rs`,
+  reply asked for, and waits for the reply (vendor/russh/src/client/mod.rs,
   "Send a keepalive/ping package to the remote peer, and wait for the
   reply/pong"); a server that does not know the request answers with a
   failure, which is a reply too (RFC 4254, section 4).

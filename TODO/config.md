@@ -884,8 +884,8 @@ settings (read in the manual).
 Read: the hops come from `-J` or `ProxyJump` as text
 (`crates/podssh-cli/src/ssh/resolve.rs`, lines 201-205 at `b0177cf`), parsed by `jump_hop` alone
 (`crates/podssh-cli/src/ssh/hop.rs:60-65`). Each hop logs in as its own user or the destination's
-(`crates/podssh-ssh/src/run.rs:343`), with the identities of the destination
-(`crates/podssh-ssh/src/run.rs:392`).
+(`crates/podssh-ssh/src/run.rs:342`), with the identities of the destination
+(`crates/podssh-ssh/src/run.rs:397`).
 
 ## Approach
 
@@ -933,7 +933,7 @@ the check fail.
 login, made as the destination's, in `crates/podssh-cli/src/ssh/login.rs:1-93`. The options of
 each hop are `Options::jump_options` (`crates/podssh-ssh/src/options.rs:217-221`), which
 `connect_hops` gives each hop with the run's memory of its logins
-(`crates/podssh-ssh/src/run.rs:148-172`, `crates/podssh-ssh/src/run.rs:306-317`); `BatchMode` of a
+(`crates/podssh-ssh/src/run.rs:147-171`, `crates/podssh-ssh/src/run.rs:305-316`); `BatchMode` of a
 try after the first reaches each hop (`crates/podssh-ssh/src/options.rs:355-363`).
 - `cargo test -p podssh-cli --test ssh_config_file -- jump`: 2 passed. `-J bastion` takes the
   bastion's `HostName`, `Port`, `User`, `IdentityFile` and `HostKeyAlias` and the command line's

@@ -1,8 +1,9 @@
 #!/usr/bin/env python3
 """The upstreams of the vendored crates against what vendor/README.md names (T-341).
 
-Dependabot moves no path package, so nothing else says that russh, iroh-relay
-or the Tailscale fork released again. For each section of vendor/README.md
+Dependabot moves no path package, so nothing else says that iroh-relay or
+the Tailscale fork released again (russh was one until T-356 took crates.io's
+0.65.0, which Dependabot and cargo-deny see). For each section of vendor/README.md
 that a copy under vendor/ still has, this reads the upstream's newest release
 (crates.io's max_stable_version, or the repository's latest release on
 GitHub) and compares it with the version of the copy and with the section's
@@ -20,9 +21,10 @@ Exit codes, and they are not interchangeable:
 Usage:
     check-vendored.py                     live; GH_TOKEN, when set, for GitHub
     check-vendored.py --offline DIR       DIR/NAME.json, the APIs' answers
-    check-vendored.py --plant-read NAME   the line "Upstream read" of NAME, or of
-                                          the first crate with `first`, taken as
-                                          0.0.0, so the check must fail
+    check-vendored.py --plant-read NAME   the copy of NAME, or of the first crate
+                                          with `first`, and its line "Upstream
+                                          read" taken as 0.0.0, so that its newest
+                                          release is new to both: the check must fail
 """
 
 from __future__ import annotations
@@ -42,7 +44,6 @@ README = ROOT / "vendor" / "README.md"
 # The section of vendor/README.md, where its upstream releases, and the
 # manifest of the copy with the keys of its version.
 WATCHES = [
-    ("russh", "crates.io", "russh", "vendor/russh/Cargo.toml", ("package", "version")),
     ("iroh-relay", "crates.io", "iroh-relay", "vendor/iroh-relay/Cargo.toml", ("package", "version")),
     ("tailscale-rs", "github", "tailscale/tailscale-rs", "vendor/tailscale-rs/Cargo.toml",
      ("workspace", "package", "version")),
@@ -107,6 +108,8 @@ def main() -> int:
             if not read:
                 raise ValueError(f"vendor/README.md, section {name}: no line \"- **Upstream read**: VERSION on DATE\"")
             judged, day = ("0.0.0", "a plant") if name == plant else (read[1], read[2])
+            if name == plant:
+                value = "0.0.0"
             if args.offline:
                 answer = json.loads((Path(args.offline) / f"{name}.json").read_text(encoding="utf-8"))
             else:

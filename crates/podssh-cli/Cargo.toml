@@ -3,7 +3,7 @@ name = "podssh-cli"
 description = "Argument parsing, subcommand dispatch, the doctor command."
 version.workspace = true
 edition.workspace = true
-# russh 0.64.1 declares 1.89 (read from its Cargo.toml); the library crates
+# russh 0.65.0 declares 1.89 (read from its Cargo.toml); the library crates
 # keep the workspace minimum.
 rust-version = "1.89"
 license.workspace = true
@@ -130,7 +130,7 @@ windows-sys = { version = "0.61", features = [
 tokio = { workspace = true, features = ["macros", "rt", "test-util"] }
 # An SSH server for a node's TARGET in `tests/iroh_road.rs`; the version and
 # the features that podssh-ssh builds, so no crate is added.
-russh = { version = "0.64.1", default-features = false, features = ["aws-lc-rs", "rsa", "flate2"] }
+russh = { version = "0.65.0", default-features = false, features = ["aws-lc-rs", "rsa", "flate2"] }
 # The terminal oracle (T-200) of `tests/silent_notice.rs` (T-302): the
 # model terminal that the tests of podssh-ssh run, so no crate is added.
 vt100 = { workspace = true }

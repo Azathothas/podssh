@@ -16,7 +16,11 @@ struct Strict;
 impl server::Handler for Strict {
     type Error = russh::Error;
 
-    async fn auth_publickey(&mut self, _user: &str, _key: &PublicKey) -> Result<Auth, Self::Error> {
+    async fn auth_publickey(
+        &mut self,
+        _user: &str,
+        _key: russh::server::VerifiedPublicKey<'_>,
+    ) -> Result<Auth, Self::Error> {
         Ok(Auth::reject())
     }
 }

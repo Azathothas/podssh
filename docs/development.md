@@ -654,11 +654,11 @@ let an update in.
 
 Dependabot moves no path package, so the crates of `vendor/` have two
 watches of their own (T-341). `.github/workflows/upstream.yml` reads each
-week crates.io's newest release of russh and of iroh-relay, and the latest
-release of tailscale-rs on GitHub, against each copy and the line
+week crates.io's newest release of iroh-relay, and the latest release of
+tailscale-rs on GitHub, against each copy and the line
 "Upstream read" of its section of `vendor/README.md`
 (`scripts/check-vendored.py`). And cargo-deny passes over a path package (an
-advisory planted for the vendored russh passed it), so
+advisory planted for russh passed it while `vendor/russh` held it), so
 `.github/workflows/deny.yml` reads its copy of advisory-db for each package
 of the lock files with no source, but podssh's own
 (`scripts/check-vendored-advisories.py`), on each push and each day. When the

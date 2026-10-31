@@ -5,7 +5,7 @@ use std::sync::Arc;
 use std::time::Duration;
 
 use russh::keys::ssh_key::LineEnding;
-use russh::keys::{Algorithm, PrivateKey, PublicKey};
+use russh::keys::{Algorithm, PrivateKey};
 use russh::server::{self, Auth};
 use russh::{MethodKind, MethodSet};
 
@@ -37,11 +37,19 @@ impl server::Handler for Mute {
         }
     }
 
-    async fn auth_publickey_offered(&mut self, _user: &str, _key: &PublicKey) -> Result<Auth, Self::Error> {
+    async fn auth_publickey_offered(
+        &mut self,
+        _user: &str,
+        _key: russh::server::PublicKeyOffer<'_>,
+    ) -> Result<Auth, Self::Error> {
         std::future::pending().await
     }
 
-    async fn auth_publickey(&mut self, _user: &str, _key: &PublicKey) -> Result<Auth, Self::Error> {
+    async fn auth_publickey(
+        &mut self,
+        _user: &str,
+        _key: russh::server::VerifiedPublicKey<'_>,
+    ) -> Result<Auth, Self::Error> {
         std::future::pending().await
     }
 }
@@ -130,11 +138,19 @@ struct TakesAny;
 impl server::Handler for TakesAny {
     type Error = russh::Error;
 
-    async fn auth_publickey_offered(&mut self, _user: &str, _key: &PublicKey) -> Result<Auth, Self::Error> {
+    async fn auth_publickey_offered(
+        &mut self,
+        _user: &str,
+        _key: russh::server::PublicKeyOffer<'_>,
+    ) -> Result<Auth, Self::Error> {
         Ok(Auth::Accept)
     }
 
-    async fn auth_publickey(&mut self, _user: &str, _key: &PublicKey) -> Result<Auth, Self::Error> {
+    async fn auth_publickey(
+        &mut self,
+        _user: &str,
+        _key: russh::server::VerifiedPublicKey<'_>,
+    ) -> Result<Auth, Self::Error> {
         Ok(Auth::Accept)
     }
 }
@@ -228,4 +244,67 @@ async fn agent_sign_failure_lets_the_login_go_on() {
         assert!(matches!(first, Ok(russh::client::AuthResult::Failure { .. })), "{kind}: the stand-in was not refused");
         assert_eq!(failed.as_deref(), Some("the agent refused to sign"), "{kind}");
     }
+}
+
+/// A server that lets anyone in and opens each session channel.
+struct Opens;
+
+impl server::Handler for Opens {
+    type Error = russh::Error;
+
+    async fn auth_none(&mut self, _user: &str) -> Result<Auth, Self::Error> {
+        Ok(Auth::Accept)
+    }
+
+    async fn channel_open_session(
+        &mut self,
+        _channel: russh::Channel<server::Msg>,
+        reply: server::ChannelOpenHandle,
+        _session: &mut server::Session,
+    ) -> Result<(), Self::Error> {
+        reply.accept().await;
+        Ok(())
+    }
+}
+
+/// Log in to a server whose packets hold at most `size` bytes, open a
+/// session channel and write five bytes on it, each within its limit.
+async fn write_through(size: u32) -> Result<(), String> {
+    let (client_end, server_end) = tokio::io::duplex(1 << 16);
+    let mut config = server::Config::default();
+    config.keys.push(PrivateKey::random(&mut rand::rng(), Algorithm::Ed25519).expect("a host key"));
+    config.maximum_packet_size = size;
+    let config = Arc::new(config);
+    tokio::spawn(async move {
+        if let Ok(session) = server::run_stream(config, server_end, Opens).await {
+            let _ = session.await;
+        }
+    });
+    let hop = Hop { user: Some("podtest".into()), host: "packet.test".into(), port: 22 };
+    let mut opts = Options::new(hop.clone(), "podtest".into());
+    opts.connect_timeout = Duration::from_secs(5);
+    opts.strict_host_key_checking = StrictHostKeyChecking::No;
+    opts.agent = Agent::Off;
+    opts.batch_mode = true;
+    let log = Arc::new(Log::new(LogLevel::Quiet));
+    let handle = crate::run::connect(client_end, &hop, true, &opts, &log).await.map_err(|e| e.to_string())?;
+    let opened = tokio::time::timeout(Duration::from_secs(10), handle.channel_open_session())
+        .await
+        .map_err(|_| "the channel's open had no answer within 10 s".to_string())?;
+    let channel = opened.map_err(|e| e.to_string())?;
+    tokio::time::timeout(Duration::from_secs(10), channel.data(&b"hello"[..]))
+        .await
+        .map_err(|_| "a write of 5 bytes stalled for 10 s".to_string())?
+        .map_err(|e| e.to_string())
+}
+
+/// T-356: a server whose packets hold no byte gets a refusal of its channel
+/// (russh 0.65.0, GHSA-fw5c-8223-6h42), where russh 0.64.1 took the channel
+/// and each write on it waited for ever.
+#[tokio::test]
+async fn a_server_whose_packets_hold_no_byte_is_refused_not_waited_for() {
+    let refused = write_through(0).await.expect_err("a channel whose packets hold no byte took a write");
+    assert!(!refused.contains("stalled"), "the write waited, where the channel should be refused: {refused}");
+    // The control: the same server with packets of 32 KiB takes the write.
+    write_through(32 * 1024).await.expect("the control, packets of 32 KiB");
 }

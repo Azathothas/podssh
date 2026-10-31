@@ -165,9 +165,9 @@ fn private_dir(dir: &std::path::Path) -> std::io::Result<()> {
 
 /// The agent's behaviour beyond the store of keys: a key added with a
 /// confirmation of each use (`ssh-add -c`) is never used, as nobody here
-/// can confirm one. russh 0.64.1's server never asks this, and signs with
-/// such a key unasked, so the front refuses it as it is added (T-284); this
-/// stays for a server that asks.
+/// can confirm one. russh's server before 0.65.0 never asked this, and
+/// signed with such a key unasked (GHSA-vp5q-ff62-jwqv), so the front
+/// refuses it as it is added (T-284); 0.65.0 asks, and this refuses.
 #[derive(Clone)]
 struct Keys;
 

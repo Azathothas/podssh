@@ -498,8 +498,8 @@ scripts. The facts about OpenSSH on this page were measured with OpenSSH
   first byte on each agent channel, podssh binds the agent to the server's
   host key, as OpenSSH does (`session-bind@openssh.com`, T-279: the host
   key, the session identifier and the server's signature of it, from the
-  first key exchange, which podssh's patch of russh keeps,
-  `vendor/README.md`), so an OpenSSH agent hides and refuses each key that
+  first key exchange, which russh 0.65.0 gives the client, T-356), so an
+  OpenSSH agent hides and refuses each key that
   `ssh-add -h` limits to other hosts. An agent that refuses the bind (one
   that knows no extension: Pageant, `podssh agent`) serves the channel
   unbound, as with OpenSSH, and `-v` says so; one that does not answer it

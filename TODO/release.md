@@ -208,7 +208,7 @@ since 2026-10-08 reaches them.
 - Read: nothing compares the tag with the version of the crates (`Cargo.toml`,
   `version = "0.1.0"`), which `podssh --version` prints.
 - Read: the SSH banner carries the version
-  (`crates/podssh-ssh/src/run.rs:454`), and RFC 4253, section 4.2, allows no
+  (`crates/podssh-ssh/src/run_config.rs:62`), and RFC 4253, section 4.2, allows no
   `-` in its software version.
 
 ## Approach
@@ -261,7 +261,7 @@ login attempt through the relay.
   `Cargo.lock` and `fuzz/Cargo.lock`, which also took tokio 1.54.1 and the
   `libc` of podssh-ws that it lacked.
 - The banner is `SSH-2.0-podssh_1.0.0_beta.1`
-  (`crates/podssh-ssh/src/run.rs:454`). `cargo test -p podssh-ssh --lib
+  (`crates/podssh-ssh/src/run_config.rs:62`). `cargo test -p podssh-ssh --lib
   run::tests`: 6 passed, and the new test of the banner failed planted (the
   `-` kept: `SSH-2.0-podssh_1.0.0-beta.1`). `scripts/sandbox-check.sh:113`
   sent a `-` in its software version too: `podssh_sandbox_check` now.

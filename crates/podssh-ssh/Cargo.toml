@@ -3,7 +3,7 @@ name = "podssh-ssh"
 description = "The native SSH client behind `podssh ssh`: russh over a relay or TCP stream, with podssh's host-key, authentication and terminal handling."
 version.workspace = true
 edition.workspace = true
-# russh 0.64.1 declares 1.89 (read from its Cargo.toml); the library crates
+# russh 0.65.0 declares 1.89 (read from its Cargo.toml); the library crates
 # keep the workspace minimum.
 rust-version = "1.89"
 license.workspace = true
@@ -15,7 +15,7 @@ publish.workspace = true
 # backend choice explicit: `aws-lc-rs`, plus RSA keys and zlib compression
 # (flate2's default backend is pure Rust).
 [dependencies]
-russh = { version = "0.64.1", default-features = false, features = ["aws-lc-rs", "rsa", "flate2"] }
+russh = { version = "0.65.0", default-features = false, features = ["aws-lc-rs", "rsa", "flate2"] }
 podssh-ws = { path = "../podssh-ws" }
 # fs: a descriptor that a control client passes and epoll does not take
 # (a regular file) is read and written on tokio's blocking threads (T-039).

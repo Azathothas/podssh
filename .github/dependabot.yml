@@ -5,8 +5,9 @@
 version: 2
 updates:
   # The workspace's Cargo.lock; the fork in vendor/tailscale-rs follows its
-  # own patches and has no entry. russh is vendor/russh with a patch (T-279):
-  # an update of it moves the patch onto the new release (vendor/README.md).
+  # own patches and has no entry, and vendor/iroh-relay carries a patch: an
+  # update of iroh moves it (vendor/README.md). scripts/check-vendored.py
+  # watches what Dependabot cannot (T-341).
   - package-ecosystem: cargo
     directory: /
     schedule:

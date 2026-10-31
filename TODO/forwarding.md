@@ -429,7 +429,7 @@ it (`SECURITY.md`, "Design rules").
 swap of the cookie in `crates/podssh-ssh/src/x11.rs:1-339`; the session asks
 (`crates/podssh-ssh/src/session.rs:107-109`) and the handler joins an `x11`
 channel when the destination's run asked
-(`crates/podssh-ssh/src/handler.rs:263-276`). The plan and the probe of the
+(`crates/podssh-ssh/src/handler.rs:255-268`). The plan and the probe of the
 command line in `crates/podssh-cli/src/ssh/x11.rs:1-153`, the flags at
 `crates/podssh-cli/src/flags.rs:275-278`, and the keywords, honoured now, at
 `crates/podssh-cli/src/ssh/keywords.rs:44-46` and
@@ -1000,7 +1000,7 @@ and `crates/podssh-ssh/src/remote.rs:187`, `-W` at
 `crates/podssh-ssh/src/forward.rs:42` and
 `crates/podssh-ssh/src/forward.rs:53`; `~#` at
 `crates/podssh-ssh/src/escape.rs:98` and `crates/podssh-ssh/src/io.rs:240`,
-and the lines of `-v` at `crates/podssh-ssh/src/run.rs:260`.
+and the lines of `-v` at `crates/podssh-ssh/src/run.rs:259`.
 - `cargo test -p podssh-ssh -- forward_counts`: 3 passed: 262144 bytes up and
   1000 down through a forward's copy, counted once, with one connection; one
   name, one forward, across connections and a failure; the listing in the
@@ -1054,8 +1054,8 @@ sessions (GitHub #17).
 
 ## Premise
 
-Read: a drop ends the run with 255 (`crates/podssh-ssh/src/run.rs:62-78`,
-`crates/podssh-ssh/src/run.rs:209-251`). `podssh_relay::open` fails over and
+Read: a drop ends the run with 255 (`crates/podssh-ssh/src/run.rs:61-77`,
+`crates/podssh-ssh/src/run.rs:208-250`). `podssh_relay::open` fails over and
 backs off with jitter, but only before a session exists
 (`crates/podssh-relay/src/open.rs:188-247`,
 `crates/podssh-relay/src/open.rs:349-363`). With `-N`, no command runs, so a
@@ -1331,8 +1331,8 @@ podssh's forward (T-036) sends no bind: a server that the user reached with
 
 2026-10-12, in the work.
 
-- A patch of russh, carried in `vendor/russh` with
-  `vendor/patches/russh/0001-session-binding.patch`, in the place of the
+- A patch of russh, carried in vendor/russh with
+  vendor/patches/russh/0001-session-binding.patch, in the place of the
   release through `[patch.crates-io]` (the root `Cargo.toml` and
   `fuzz/Cargo.toml`), and excluded from the workspace. The version stays
   0.64.1. Lost: asking upstream first (warp-tech/russh, once
@@ -1385,8 +1385,8 @@ refuses its use). Planted defect: send no bind, and the unit test fails.
 2026-10-13. `-A` binds the agent to the server's host key before each
 agent channel (`session-bind@openssh.com`, `is_forwarding` true):
 
-- `vendor/russh` is russh 0.64.1 as published, with one patch
-  (`vendor/patches/russh/0001-session-binding.patch`, which `patch -p1`
+- vendor/russh is russh 0.64.1 as published, with one patch
+  (vendor/patches/russh/0001-session-binding.patch, which `patch -p1`
   applies to the published crate to give this tree byte for byte): the
   client's key exchange keeps `SessionBinding` at its first exchange, and
   `Session::session_binding` gives it. `Cargo.lock` and `fuzz/Cargo.lock`
@@ -1417,8 +1417,8 @@ agent channel (`session-bind@openssh.com`, `is_forwarding` true):
   passed. The functions that send the bind are `bind_agent` and
   `set_binding`: a function named `bind` read as a socket's bind to the
   listener check of `scripts/check-repo.py`.
-- `patch -p1` of `vendor/patches/russh/0001-session-binding.patch` on
-  russh 0.64.1 from the registry gave `vendor/russh` file for file
+- `patch -p1` of vendor/patches/russh/0001-session-binding.patch on
+  russh 0.64.1 from the registry gave vendor/russh file for file
   (`diff -r`). `cargo deny` passed, with russh as a path package.
 - The workspace's tests (`cargo test --workspace --no-fail-fast`, Windows
   11): 1942 passed, and 3 failed on the merge itself: the manual's check of
@@ -1434,7 +1434,7 @@ agent channel (`session-bind@openssh.com`, `is_forwarding` true):
   elsewhere.invalid` keeps for that host).
 - Waits for T-251: the gate's plant (no bind: id_ecdsa is listed on the
   server), and whether CI's TruffleHog reads each test key of russh's own
-  source (`vendor/russh/src/keys/`) as a note.
+  source (vendor/russh/src/keys/) as a note.
 - Not done here: podssh's own login through the agent sends no bind
   (`is_forwarding` false), which OpenSSH's client also sends.
 

@@ -106,11 +106,19 @@ impl server::Handler for Far {
         Ok(Auth::Accept)
     }
 
-    async fn auth_publickey_offered(&mut self, user: &str, _key: &russh::keys::PublicKey) -> Result<Auth, Self::Error> {
+    async fn auth_publickey_offered(
+        &mut self,
+        user: &str,
+        _key: russh::server::PublicKeyOffer<'_>,
+    ) -> Result<Auth, Self::Error> {
         Ok(if user.starts_with("key-") { Auth::Accept } else { Auth::reject() })
     }
 
-    async fn auth_publickey(&mut self, user: &str, _key: &russh::keys::PublicKey) -> Result<Auth, Self::Error> {
+    async fn auth_publickey(
+        &mut self,
+        user: &str,
+        _key: russh::server::VerifiedPublicKey<'_>,
+    ) -> Result<Auth, Self::Error> {
         // russh checked the signature first: whoever holds a key gets in.
         Ok(if user.starts_with("key-") { Auth::Accept } else { Auth::reject() })
     }

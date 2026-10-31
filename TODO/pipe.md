@@ -33,7 +33,7 @@ the verb, the address grammar, the copy loop, and the local addresses `-`,
   `crates/podssh-ts/src/pipe.rs`; the new pump must not repeat it.
 - Read: `exec:` starts the user's own program. The operator accepted it on
   2026-10-08 (`docs/decisions.md`). On sandbox A, `/tmp` and `$HOME`
-  do not run programs (`docs/STATUS.md:278`).
+  do not run programs (`docs/STATUS.md:279`).
 
 ## Approach
 
@@ -63,7 +63,7 @@ the verb, the address grammar, the copy loop, and the local addresses `-`,
    ENOSYS), two pipes; Windows uses pipes. stderr is shared. When the other
    side ends, the child gets the end of input, and podssh waits for it as a
    shell waits. Add the `process` feature of tokio to podssh-cli
-   (`Cargo.toml:78-80` lacks it; `crates/podssh-ssh/Cargo.toml:22` has it).
+   (`Cargo.toml:77-79` lacks it; `crates/podssh-ssh/Cargo.toml:22` has it).
 6. The exit status: the child's, and 128 + N for a signal; with two children,
    B's. A program that is not found gives 127, one that cannot run 126, as a
    shell gives. With no child, a clean end gives 0.
@@ -161,9 +161,9 @@ local program to a target, and `podssh proxy` stays a second pump.
   its write side ends. That is right for SSH and wrong for a pipe: the relay
   has no half-close (`docs/relay.md:129-135`), so a Close cuts a reply on its
   way. Measured live for proxy: the full reply after stdin closed
-  (`docs/STATUS.md:206`).
+  (`docs/STATUS.md:207`).
 - Read: `-W` opens its stream with `crates/podssh-ssh/src/forward.rs:14-22`
-  after the hops of `crates/podssh-ssh/src/run.rs:157-170`, but that code is
+  after the hops of `crates/podssh-ssh/src/run.rs:156-169`, but that code is
   private and gives only an exit code.
 - Read: `TODO/issues.md` (#26) says that a binary protocol through `-W` is
   measured. Only exec is measured with digests (`docs/STATUS.md:89`); `-W`
@@ -189,7 +189,7 @@ local program to a target, and `podssh proxy` stays a second pump.
    other item a hop, read as `-J` reads it
    (`crates/podssh-cli/src/ssh/resolve.rs:239-243`,
    `crates/podssh-cli/src/ssh/hop.rs:30-78`). Make
-   `crates/podssh-ssh/src/run.rs:157-170` a public `connect_chain` that `-W`
+   `crates/podssh-ssh/src/run.rs:156-169` a public `connect_chain` that `-W`
    and the pipe both use; keep each handle alive until the pipe ends. The
    options: `-i`, `-o NAME=VALUE` through
    `crates/podssh-cli/src/ssh/options.rs:87-255` (a keyword of a session,
@@ -200,7 +200,7 @@ local program to a target, and `podssh proxy` stays a second pump.
    (`iroh:@FILE`), never from argv.
 6. Exit codes: sysexits, as `podssh proxy` (`docs/cli.md:2439`): 69; 77 for a
    refusal (the relay, the proxy, a host key, the authentication); 78. Give
-   `crates/podssh-ssh/src/run.rs:333-407` a typed error, so that 77 is not
+   `crates/podssh-ssh/src/run.rs:332-412` a typed error, so that 77 is not
    guessed from a message.
 7. In the same commit: `docs/cli.md`, `docs/design.md:882-891`, the notes,
    the examples, `docs/STATUS.md`.
@@ -241,7 +241,7 @@ a reply that comes within 15 s of silence; a target that waits for the end of
 its input sees no end.
 
 2026-10-09 (T-133): the hop chain is a public function now,
-`podssh_ssh::run::connect_hops` (`crates/podssh-ssh/src/run.rs:152-172`): it
+`podssh_ssh::run::connect_hops` (`crates/podssh-ssh/src/run.rs:151-171`): it
 returns each handle, authenticated, for `ssh` and for SFTP. So the Premise's
 "that code is private" no longer holds, and the step that makes it a public
 `connect_chain` is done under that name.
@@ -315,7 +315,7 @@ not a listener, so `docs/target-environment.md:84-88` allows it.
 - Read: `sun_path` holds 104 to 108 bytes, and doctor refuses a longer name
   before the call (`crates/podssh-cli/src/doctor/unix.rs:189-198`,
   `crates/podssh-cli/src/doctor/unix.rs:210-212`).
-- Read: sandbox A allows an AF_UNIX bind (`docs/STATUS.md:278`); a connect
+- Read: sandbox A allows an AF_UNIX bind (`docs/STATUS.md:279`); a connect
   was not measured. The attempt is the probe, and its errno is the message.
 
 ## Approach
@@ -415,7 +415,7 @@ shows that an AF_UNIX or loopback bind works (`docs/design.md:922-924`).
   `AGENTS.md:245-250`, `docs/architecture.md:132-145`,
   `docs/target-environment.md:84-88`, `SECURITY.md:98-119`, `README.md:41-49`.
 - Read: sandbox A refuses an AF_INET bind and allows an AF_UNIX bind
-  (`docs/STATUS.md:278`). The box refuses each `bind`, AF_UNIX too
+  (`docs/STATUS.md:279`). The box refuses each `bind`, AF_UNIX too
   (`scripts/box/seccomp.json:5-10`), so it gives the refused case.
 - Read: doctor binds, closes, and never listens
   (`crates/podssh-cli/src/doctor/unix.rs:137-231`). A bind that works does
@@ -587,7 +587,7 @@ running on the server (`docs/design.md:591-595`).
   each session (`crates/podssh-ssh/src/session.rs:149-208`).
 - Read: the relay ends a session at 64 MiB (1009) or 12 h (1001)
   (`docs/relay.md:244-250`). Sandbox A measured the cap at 67,107,943 bytes,
-  and one close `1011` in 180 short sessions (`docs/STATUS.md:286-287`).
+  and one close `1011` in 180 short sessions (`docs/STATUS.md:287-288`).
 - Read: tmux is never assumed (`docs/target-environment.md:101-103`).
 
 ## Approach
@@ -730,7 +730,7 @@ no listener, or that the relay ends a desktop stream after 64 MiB.
 - Read: 64 MiB for each session, both directions together
   (`docs/relay.md:187`), then Close 1009 (`docs/relay.md:248`); public
   targets only (`docs/relay.md:189`). Through the proxy of sandbox A: 0.5 to
-  0.7 MB/s (`docs/STATUS.md:285`).
+  0.7 MB/s (`docs/STATUS.md:286`).
 - Not measured: no RDP, VNC or Telnet client ran through podssh. Each claim
   about a client below is to verify.
 
@@ -787,8 +787,8 @@ were found by their manuals (read on 2026-10-12, not run here): SSVNC's
 TigerVNC's `vncviewer` takes a Unix socket's path (its synopsis,
 `vncviewer [options] [unix socket]`). The second still needs a listener,
 but an AF_UNIX one, which sandbox A allows where it refuses AF_INET
-(`docs/STATUS.md:275`); there OpenSSH's form a fails before it binds, as
-`ssh` finds no entry for the user (`docs/STATUS.md:280`).
+(`docs/STATUS.md:276`); there OpenSSH's form a fails before it binds, as
+`ssh` finds no entry for the user (`docs/STATUS.md:281`).
 
 ## Done
 
@@ -1177,10 +1177,10 @@ The calls made where the Approach left a choice:
   `torvalds/linux:tools/usb/usbip/src/usbip_attach.c`), so the device's
   traffic passes podssh for as long as the pipe's session lasts; the
   README says so. `usbip` dials TCP only, so a host that refuses an
-  AF_INET bind, as sandbox A does (`docs/STATUS.md:275`), cannot run the
+  AF_INET bind, as sandbox A does (`docs/STATUS.md:276`), cannot run the
   recipe, nor can one without the modules.
 - The row states the limit by the throughput measured through sandbox A's
-  proxy (`docs/STATUS.md:282`): 64 MiB is about 2 minutes of reads at
+  proxy (`docs/STATUS.md:283`): 64 MiB is about 2 minutes of reads at
   0.5 to 0.7 MB/s.
 
 What waits:

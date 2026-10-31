@@ -1154,14 +1154,14 @@ sees it.
 
 Read:
 
-- `docs/STATUS.md:250-264`: the box, measured by hand on 2026-10-08.
+- `docs/STATUS.md:251-265`: the box, measured by hand on 2026-10-08.
 - `scripts/test_in_box.sh:192-195`: the box runs `probe.sh`, then
   `sandbox-check.sh` (or, with `BOX_RUN=tt`, the session of T-004), and the
   script exits with the code of the second.
   `scripts/sandbox-check.sh:85-242` prints the exit code of each step and does
   not fail on it (T-006). So today the box exits 0 when podssh fails in it.
 - `scripts/box/probe.sh:122-127` exits 1 when the box differs from the sandbox
-  in a required property (17 properties, `docs/STATUS.md:257`).
+  in a required property (17 properties, `docs/STATUS.md:258`).
 - The box needs a static binary; CI uploads one
   (`.github/workflows/build.yml:88-93`).
 - The box uses `--disable-dns` (`scripts/test_in_box.sh:112`) and a mask on
@@ -1188,7 +1188,7 @@ Read:
    that CI runs the box.
 
 Pitfall: the live path can drop a session (179 of 180 short sessions,
-`docs/STATUS.md:287`). Run a failure again by hand and record it. Never retry
+`docs/STATUS.md:288`). Run a failure again by hand and record it. Never retry
 inside the job.
 
 ## Decision
@@ -1206,7 +1206,7 @@ test "$(grep -c '^match ' box.log)" -eq 17                  # the box was faithf
 
 The run passed, with the job `box`, and its log has 17 `match` lines.
 Planted defect: run the job by hand with the seccomp option removed (an input
-of `workflow_dispatch`); the probe must exit 1, as in `docs/STATUS.md:258`,
+of `workflow_dispatch`); the probe must exit 1, as in `docs/STATUS.md:259`,
 and the job must fail.
 
 ## Blocker
@@ -1901,7 +1901,7 @@ leaves armv7 out of the Decision; the plan below takes Alpine's own toolchain fo
   container. Plan B, which the Decision rejected, for native speed: `ghcr.io/cross-rs/armv7-unknown-
   linux-musleabihf:main`, or `cargo-zigbuild` (its CI covers x86_64, aarch64 and Apple, not armv7).
   The release profile is `opt-level = "z"`, `lto = true`, `codegen-units = 1`
-  (`Cargo.toml:199` says "opt-level"; the profile is at the lines around it): the link on a 32-bit
+  (`Cargo.toml:198` says "opt-level"; the profile is at the lines around it): the link on a 32-bit
   rustc may run out of address space, and under QEMU it is slow. Measure first.
 - `riscv64gc-unknown-linux-musl`: Rust tier 2 with host tools. Plan A: `runs-on: ubuntu-24.04`,
   `docker/setup-qemu-action` with `platforms: riscv64`, `docker run --platform linux/riscv64
@@ -2026,7 +2026,7 @@ Read, in the tree as it is now:
   build must fail at `/nonexistent`; the control, with `CC` alone, must not
   stop there.
 - `docs/development.md:250-252` states the rule with `CXX`, and
-  `docs/STATUS.md:636` records the measurement. Rule 4 of
+  `docs/STATUS.md:637` records the measurement. Rule 4 of
   `docs/architecture.md` named `CC=/nonexistent` only; it was repaired in the
   same change as the record.
 - `.github/workflows/build.yml:103-111` runs the plant on each push.
@@ -2057,7 +2057,7 @@ the same script in its step "the no-C rule is load-bearing".
 (CXX=/nonexistent)"). Measured with `sh scripts/dev.sh plant` in
 `rust:1-alpine`: the C plant failed twice for the right reason, the C++ plant
 failed at `CXX=/nonexistent`, the control with `CC` alone was not stopped
-there, and the clean tree built (`docs/STATUS.md:636`). The CI run of
+there, and the clean tree built (`docs/STATUS.md:637`). The CI run of
 `eacd94e`, which contains `a378863`, passed, with its step "the no-C rule is
 load-bearing".
 
@@ -2450,7 +2450,7 @@ Read:
 
 - `scripts/box/seccomp.json:5-10`: `bind` fails with EACCES for each socket,
   whatever its family.
-- `docs/STATUS.md:278`: in sandbox A, `bind` is refused for AF_INET and
+- `docs/STATUS.md:279`: in sandbox A, `bind` is refused for AF_INET and
   allowed for AF_UNIX. In the KTM report (read there), `doctor` printed
   `Permission denied (os error 13)` for AF_INET, and "bound" for an AF_UNIX
   path and for the abstract namespace.
@@ -3955,19 +3955,19 @@ identities (x25519-dalek, `podssh-ws` and `podssh-relay`), and its AEAD
 ## Premise
 
 - Read: `crates/podssh-ssh/Cargo.toml:26` and `crates/podssh-cli/Cargo.toml:58`
-  ask for `sha1` 0.10.7, and the root `Cargo.toml:140` for `hmac` 0.12;
+  ask for `sha1` 0.10.7, and the root `Cargo.toml:139` for `hmac` 0.12;
   `Cargo.lock` holds `sha1` 0.10.7 and 0.11.0, `hmac` 0.12.1 and 0.13.0,
-  and `digest` 0.10.7 and 0.11.3, as russh 0.64.1 (`vendor/russh/Cargo.toml`)
+  and `digest` 0.10.7 and 0.11.3, as russh 0.64.1 (vendor/russh/Cargo.toml)
   builds on the newer line, so the binary holds both lines today. podssh's `sha1`
   moves with its `hmac`, where the two meet (the hashed names of
   `known_hosts`): Inferred.
-- Read: the root `Cargo.toml:142` asks for `aes-gcm` 0.10 and
-  `Cargo.toml:148` for `x25519-dalek` 2;
+- Read: the root `Cargo.toml:141` asks for `aes-gcm` 0.10 and
+  `Cargo.toml:147` for `x25519-dalek` 2;
   `crates/podssh-ws/src/crypto/aead.rs` and `crates/podssh-ws/src/crypto/kx.rs`
   hold the calls, with `crates/podssh-relay/src/identity/mod.rs` and
   `crates/podssh-relay/src/session/secret.rs`, and
   `crates/podssh-ws/tests/crypto_vectors.rs` their vectors.
-- Read: `vt100` 0.15 (`Cargo.toml:114`) is the model of the terminal
+- Read: `vt100` 0.15 (`Cargo.toml:113`) is the model of the terminal
   oracle (T-200) and of `podssh session` (T-186).
 
 ## Approach
@@ -4222,7 +4222,7 @@ two jobs of the release run an image of Docker Hub by the tag `latest`, with no 
   them by commit is a choice of this entry's session"; no entry took it. `setup-nasm` declares
   Node 20 (`TODO/repo.md:788-790`); with no NASM, `AWS_LC_SYS_PREBUILT_NASM=1` asks aws-lc for its
   prebuilt objects (`.github/workflows/release.yml` lines 341-343 at `1a3e7b6`).
-- Read: Dependabot updates the actions each week, in one group (`.github/dependabot.yml:22-29`).
+- Read: Dependabot updates the actions each week, in one group (`.github/dependabot.yml:23-30`).
   Inferred: it moves a pin by commit, and the version in its comment, as it moves a tag.
 - Inferred (the audit's reading, with no source kept): the compromise of tj-actions/changed-files
   (CVE-2025-30066) was a tag moved to an attacker's commit. Each step of a job with
@@ -4237,7 +4237,7 @@ two jobs of the release run an image of Docker Hub by the tag `latest`, with no 
 2. A check in `scripts/check-repo.py`: each `uses:` under `.github/workflows/` names a commit. A
    copy with a planted `@v7` fails it, and its floor fails on an empty tree.
 3. binfmt: `images/binfmt/Dockerfile` names `tonistiigi/binfmt` by its tag and its digest, and
-   Dependabot's list of directories takes it (`.github/dependabot.yml:34-40`). The two jobs read it
+   Dependabot's list of directories takes it (`.github/dependabot.yml:35-41`). The two jobs read it
    as the armv7 job reads its image (`.github/workflows/release.yml:164-171`), pull it through
    `scripts/pull-image.sh`, and run `docker run --privileged --rm IMAGE --install riscv64` (`arm`
    for armv7) in the place of the action. The step then checks that the kernel lists the handler
@@ -4335,19 +4335,19 @@ job that attests, signs and publishes runs no tool of a third party:
 
 ## Problem
 
-russh, which parses each byte that a server sends, is a copy in `vendor/russh` with a patch; so
+russh, which parses each byte that a server sends, is a copy in vendor/russh with a patch; so
 are iroh's relay client and the Tailscale fork. Dependabot moves none of them, and no test shows
 that `cargo deny` matches an advisory to a crate that comes from a path. The next fix of russh
 would get no pull request, and maybe no red job.
 
 ## Premise
 
-- Read: `[patch.crates-io]` puts `vendor/russh` and `vendor/iroh-relay` in the place of their
-  releases (`Cargo.toml:218-220`); russh's entries of the lock files have no source and no
-  checksum, as a path package has none (`vendor/README.md:133-134`); Dependabot's file says that
-  an update of russh moves the patch by hand (`.github/dependabot.yml:7-9`).
-- Read: the copy of russh is the release 0.64.1 (`vendor/README.md:90-92`), iroh-relay is 1.4.1
-  (`vendor/README.md:138-142`), and the Tailscale fork is upstream's commit `f4781c4` of
+- Read: `[patch.crates-io]` puts vendor/russh and `vendor/iroh-relay` in the place of their
+  releases (`Cargo.toml` lines 218-220 at `80e26fc`); russh's entries of the lock files have no source and no
+  checksum, as a path package has none (`vendor/README.md` lines 133-134 at `80e26fc`); Dependabot's file says that
+  an update of russh moves the patch by hand (`.github/dependabot.yml` lines 7-9 at `80e26fc`).
+- Read: the copy of russh is the release 0.64.1 (`vendor/README.md` lines 90-92 at `80e26fc`), iroh-relay is 1.4.1
+  (`vendor/README.md:90-94`), and the Tailscale fork is upstream's commit `f4781c4` of
   2026-09-29 with podssh's patch set (`vendor/README.md:12-19`).
 - Read, through fetch.web.pkgforge.dev on 2026-10-31
   (https://github.com/rustsec/advisory-db/blob/main/crates/russh/RUSTSEC-2026-0154.md):
@@ -4399,7 +4399,7 @@ the crate. The plant of the advisory fails as step 2 says.
 The Premise's guess was right: cargo-deny passes over a path package. An advisory planted for
 russh with `patched = [">= 0.64.2"]`, in a scratch advisory-db at the directory that cargo-deny
 names for its database, passed `cargo deny --locked --offline check advisories` with 0.64.1 in
-`vendor/russh`, and the same advisory for base64 failed it; so Approach item 3 holds, and the
+vendor/russh, and the same advisory for base64 failed it; so Approach item 3 holds, and the
 plant of item 2 runs against its check. Approach item 1 named the head of tailscale-rs: the watch
 reads its latest release, as tailscale-rs publishes releases (v0.6.1 of 2026-09-18 is the newest;
 the vendored commit of 2026-09-29 is past it) and its head moved on 2026-10-31 again. The first
@@ -4407,7 +4407,9 @@ reading found russh 0.65.0 of 2026-10-25, which T-356 judges and moves to.
 
 ## Done
 
-2026-10-31:
+2026-10-31. Live in Actions at `80e26fc`: `upstream.yml`, run 41172620958, the job `vendored`
+read russh 0.65.0, iroh-relay 1.4.1 and tailscale-rs 0.6.1 from the APIs and passed, and its
+plant exited 1 naming russh; `deny.yml`, run 41172617035, passed with both new steps. Here:
 
 - `scripts/check-vendored.py`: crates.io's `max_stable_version` of russh and iroh-relay, and
   tailscale-rs's latest release on GitHub, against each copy's manifest and the line "Upstream

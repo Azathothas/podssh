@@ -127,18 +127,18 @@ impl russh::server::Handler for Takes {
     async fn auth_publickey_offered(
         &mut self,
         _user: &str,
-        key: &russh::keys::PublicKey,
+        offer: russh::server::PublicKeyOffer<'_>,
     ) -> Result<russh::server::Auth, Self::Error> {
         *self.offered.lock().unwrap() += 1;
-        Ok(self.judge(key))
+        Ok(self.judge(offer.public_key))
     }
 
     async fn auth_publickey(
         &mut self,
         _user: &str,
-        key: &russh::keys::PublicKey,
+        key: russh::server::VerifiedPublicKey<'_>,
     ) -> Result<russh::server::Auth, Self::Error> {
-        Ok(self.judge(key))
+        Ok(self.judge(key.public_key))
     }
 }
 

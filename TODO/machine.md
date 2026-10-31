@@ -615,10 +615,10 @@ they pass: stdin at `crates/podssh-ssh/src/io.rs:210`, stdout and stderr at
 `crates/podssh-ssh/src/forward.rs:83`. The status and the signal at
 `crates/podssh-ssh/src/io/msg.rs:36` and `crates/podssh-ssh/src/io/msg.rs:41`,
 the end at `crates/podssh-ssh/src/session.rs:38`; the class of a hop's
-failure at `crates/podssh-ssh/src/run.rs:136-146` and
-`crates/podssh-ssh/src/run.rs:186`, a new connection at
-`crates/podssh-ssh/src/run.rs:156`, the relay's close first at
-`crates/podssh-ssh/src/run.rs:68-75`; a control master at
+failure at `crates/podssh-ssh/src/run.rs:135-145` and
+`crates/podssh-ssh/src/run.rs:185`, a new connection at
+`crates/podssh-ssh/src/run.rs:155`, the relay's close first at
+`crates/podssh-ssh/src/run.rs:67-74`; a control master at
 `crates/podssh-ssh/src/mux/client.rs:168`,
 `crates/podssh-ssh/src/mux/client.rs:202` and
 `crates/podssh-ssh/src/mux/client.rs:264-271`. The object in

@@ -22,11 +22,6 @@ podssh-ssh = { path = "../crates/podssh-ssh" }
 podssh-core = { path = "../crates/podssh-core" }
 podssh-cli = { path = "../crates/podssh-cli" }
 
-# The russh of the root workspace, with podssh's patch (T-279): podssh-ssh
-# reads what it adds.
-[patch.crates-io]
-russh = { path = "../vendor/russh" }
-
 # A crash names its line.
 [profile.release]
 debug = 1

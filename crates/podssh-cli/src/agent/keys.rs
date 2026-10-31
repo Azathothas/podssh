@@ -120,8 +120,8 @@ pub async fn remove(args: &AgentArgs, _out: &mut dyn Write, err: &mut dyn Write)
         Err(code) => return code,
     };
     if args.all {
-        // Each key in turn: russh 0.64.1's own request for all of them goes
-        // out with no length, and no agent understands it.
+        // Each key in turn: russh's own request for all of them goes out with
+        // no length, in 0.64.1 and 0.65.0, and no agent understands it.
         let identities = match agent.request_identities().await {
             Ok(identities) => identities,
             Err(e) => {

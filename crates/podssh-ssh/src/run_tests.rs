@@ -1,3 +1,5 @@
+use russh::SshId;
+
 use super::*;
 
 const DROP: &str = "railway.new: the connection closed unexpectedly";

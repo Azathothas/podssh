@@ -8,8 +8,29 @@
 
 use std::time::Duration;
 
-use russh::client::SessionBinding;
+use russh::keys::agent::AgentSessionBinding;
 use tokio::io::{AsyncRead, AsyncReadExt, AsyncWrite, AsyncWriteExt};
+
+/// What binds an agent to one server: its host key, the session identifier
+/// of the first key exchange and the server's signature of it, each as the
+/// server sent it. russh gives them, as `AgentSessionBinding`, since 0.65.0;
+/// before, podssh's patch of russh did (T-356).
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub struct SessionBinding {
+    pub host_key: Vec<u8>,
+    pub session_id: Vec<u8>,
+    pub signature: Vec<u8>,
+}
+
+impl From<&AgentSessionBinding> for SessionBinding {
+    fn from(binding: &AgentSessionBinding) -> Self {
+        SessionBinding {
+            host_key: binding.host_key().to_vec(),
+            session_id: binding.session_id().to_vec(),
+            signature: binding.signature().to_vec(),
+        }
+    }
+}
 
 /// SSH_AGENTC_EXTENSION, and the name of the bind (OpenSSH's
 /// PROTOCOL.agent).

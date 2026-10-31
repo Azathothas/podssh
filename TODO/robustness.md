@@ -530,7 +530,7 @@ Read, the bounds today:
   (`crates/podssh-ws/src/handshake.rs:124`).
 - The pool document: 256 KiB (`crates/podssh-relay/src/pool.rs:36`). A cache
   file: 64 KiB (`crates/podssh-relay/src/cache.rs:33`).
-- The SSH window: 512 KiB (`crates/podssh-ssh/src/run.rs:30`). The relay pipe:
+- The SSH window: 512 KiB (`crates/podssh-ssh/src/run.rs:29`). The relay pipe:
   256 KiB each way, frames of 64 KiB
   (`crates/podssh-ssh/src/relay_stream.rs:36-39`). Pump buffers: 32 KiB
   (`crates/podssh-cli/src/pipe/pump.rs:22`).
@@ -543,7 +543,7 @@ Read, the bounds today:
   relay drops a frame when more than 1 MiB waits (`1011 relay
   backpressure`): the row of the reverse path in the relay's document
   (`crates/podssh-probe/tests/spec/relay-spec-2026-10-03-r2.txt:185`). It
-  now gives the forward path's rule (`crates/podssh-ssh/src/run.rs:26-29`):
+  now gives the forward path's rule (`crates/podssh-ssh/src/run.rs:25-28`):
   `docs/relay.md:261-273` says that backpressure closes with `1013` at
   2 MiB and drops no frame. T-062 measures whether that check operates.
 
@@ -553,7 +553,7 @@ Read, the bounds today:
    its value, its file, and what podssh does at the bound (the error and its
    exit code). Name the two missing limits as missing.
 2. The table states the forward path's bound, as the comment at
-   `crates/podssh-ssh/src/run.rs:26-29` does since T-024, and the result of
+   `crates/podssh-ssh/src/run.rs:25-28` does since T-024, and the result of
    T-062 when it exists.
 3. Tests in the process, with a peer over `tokio::io::duplex`, so no network
    (`docs/development.md:474-477`): a proxy head that never ends stops at
@@ -582,8 +582,8 @@ sh scripts/dev.sh check                    # interop: the slow reader stays unde
 ```
 
 Each command exits 0. Planted defect: set `WINDOW`
-(`crates/podssh-ssh/src/run.rs:30`) to 64 MiB, and russh's queue of a
-channel (`channel_buffer_size`, `crates/podssh-ssh/src/run.rs:452-462`) to
+(`crates/podssh-ssh/src/run.rs:29`) to 64 MiB, and russh's queue of a
+channel (`channel_buffer_size`, `crates/podssh-ssh/src/run_config.rs:60-70`) to
 2^20 messages; the slow-reader check must fail. The window alone is not
 enough: the queue is a second bound (Correction). A second plant: remove the
 check at `crates/podssh-ws/src/session.rs:346-348`; the fragment test must
@@ -614,7 +614,7 @@ fail.
   ignored. The table says so.
 - The window is not the only bound of a reader that takes nothing: russh queues at most 100
   messages of a channel (`channel_buffer_size`, its default, which
-  `crates/podssh-ssh/src/run.rs:452-462` leaves), each of 32 KiB at most, and its task then reads
+  `crates/podssh-ssh/src/run_config.rs:60-70` leaves), each of 32 KiB at most, and its task then reads
   no more from the server. Measured in the build image on 2026-10-11, with the Prove's plant: the
   window at 64 MiB gave a peak of 8948 KiB, held by the queue; the queue at 2^20 messages as well
   gave 62708 KiB, and even a reader that took each byte held 62084 KiB, as the server outran the
@@ -843,7 +843,7 @@ Read:
   names and answers a status (`scripts/fake-proxy.py:1-27`). Neither shapes
   the traffic.
 - `scripts/interop-faults.sh:43-52` starts one stand-in for each fault; its
-  checks are at lines 73-182 at `8d668b7` (`docs/STATUS.md:518-538`, 14 of 14 since T-236).
+  checks are at lines 73-182 at `8d668b7` (`docs/STATUS.md:519-539`, 14 of 14 since T-236).
 - The time limits that latency meets today: the SSH handshake, 60 s
   (`crates/podssh-ssh/src/options.rs:395`, enforced at
   `crates/podssh-ssh/src/run.rs:369-375`); a reply, 30 s

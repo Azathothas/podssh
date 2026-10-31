@@ -128,7 +128,7 @@ sends with its disconnect is not shown at all.
 Read:
 
 - `describe` maps `Disconnect`, `HUP`, `RecvError`, `SendError` and an
-  unexpected EOF to one sentence (`crates/podssh-ssh/src/run.rs:476-482`).
+  unexpected EOF to one sentence (`crates/podssh-ssh/src/run.rs:425-431`).
   `run` prints it first, and the relay's reason second
   (`crates/podssh-ssh/src/run.rs` lines 38-46 at `80f20bf`,
   `crates/podssh-ssh/src/relay_stream.rs:51-67`).
@@ -181,7 +181,7 @@ Read:
    `scripts/interop-faults.sh:246` looks for `1009 session byte cap`.
 6. Correct the comment on the window (`crates/podssh-ssh/src/run.rs` lines
    25-29 at `80f20bf`). The window of 512 KiB stays: it is below both limits.
-7. Update `docs/relay.md` (lines 155-158 at `80f20bf`) and `docs/STATUS.md:534`. T-025 uses the
+7. Update `docs/relay.md` (lines 155-158 at `80f20bf`) and `docs/STATUS.md:535`. T-025 uses the
    classification for its retry rule. T-227 is a different path
    (`--direct`).
 
@@ -265,7 +265,7 @@ Read:
 - The command starts with the exec, shell or subsystem request
   (`crates/podssh-ssh/src/session.rs:118-145`). `-W` reads stdin only after its
   channel opens (`crates/podssh-ssh/src/forward.rs:39-70`). `-N` never reads
-  stdin (`crates/podssh-ssh/src/run.rs:209-251`).
+  stdin (`crates/podssh-ssh/src/run.rs:208-250`).
 - Measured by the reporter (read in the reports, not verified here): on one
   target the drop came back 3 times in 3, while other targets worked in the
   same minute, also with a client that shares no code with podssh. A blind
@@ -275,7 +275,7 @@ Read:
 
 ## Approach
 
-1. Make `run_inner` (`crates/podssh-ssh/src/run.rs:181-265`) report the phase
+1. Make `run_inner` (`crates/podssh-ssh/src/run.rs:180-264`) report the phase
    that a failure reached: the handshake, the authentication, the session
    request sent, or data moved. Keep the exit codes of OpenSSH.
 2. In `connect_and_run` (`crates/podssh-cli/src/ssh/mod.rs`, lines 99-126 at `97146aa`, which
@@ -537,7 +537,7 @@ Read:
   `crates/podssh-ssh/src/hostkey.rs:227-234` (no terminal). `accept-new`
   records the plain key (`crates/podssh-ssh/src/hostkey.rs:198`). GitHub #29
   cites line 91 at `22c3b88`, which builds the question about other key types.
-- `ssh-key` 0.7.0-rc.11 is in the tree (`Cargo.lock:5559-5560`).
+- `ssh-key` 0.7.0-rc.11 is in the tree (`Cargo.lock:5561-5562`).
   `Certificate::validate_at` checks the signature, the SHA-256 fingerprint of
   the CA and the validity window. The caller must check the certificate type,
   the principals and the critical options (the crate's documentation).
@@ -549,13 +549,13 @@ back to the plain key only when no CA line matches.
 
 1. Ask for certificates: when a `@cert-authority` line matches the name of a
    hop, set `host_key_certificates` in `client_config`
-   (`crates/podssh-ssh/src/run.rs:409-463`) to the algorithms of
+   (`crates/podssh-ssh/src/run_config.rs:17-71`) to the algorithms of
    `preferred.key`. A host with no CA line keeps today's negotiation.
 2. Add a lookup of CA keys in `crates/podssh-ssh/src/known_hosts.rs`, beside
    the `@revoked` arm (`crates/podssh-ssh/src/known_hosts.rs:113-115`). Match CA
    lines with the name `host` or `[host]:port`
    (`crates/podssh-ssh/src/known_hosts.rs:89-96`).
-3. In `check_server_key` (`crates/podssh-ssh/src/handler.rs:118-140`), branch on
+3. In `check_server_key` (`crates/podssh-ssh/src/handler.rs:124-146`), branch on
    `PublicKeyOrCertificate`. For a certificate: `validate_at` with the clock
    and the fingerprints of the matching CA keys; the type must be `host`; a
    principal must equal the host name or `HostKeyAlias`, with no port;
@@ -600,7 +600,7 @@ Planted defect: accept each certificate, and the wrong-principal test fails.
 GitHub #29 says that podssh drops a certificate that russh gives. In fact no
 certificate comes: russh 0.64.1 offers certificate algorithms only from
 `Preferred::host_key_certificates`, which is empty by default, and
-`client_config` does not set it (`crates/podssh-ssh/src/run.rs:409-463`). So
+`client_config` does not set it (`crates/podssh-ssh/src/run_config.rs:17-71`). So
 a server always presents its plain key. The words "checked as plain keys"
 in `docs/STATUS.md` and `SECURITY.md` were not exact either: podssh never
 asks for a certificate. They were corrected in the change that wrote this
@@ -888,7 +888,7 @@ Read: each hop gets its own name for the check, its host and its port, as
 `crates/podssh-ssh/src/known_hosts.rs:89-96`). `HostKeyAlias` applies to the
 destination only (`crates/podssh-ssh/src/run.rs`, lines 270-273 at `e85e6d2`). The order of
 host-key algorithms comes from the keys recorded for that hop
-(`crates/podssh-ssh/src/run.rs:414-436`). The gate's check "-J through
+(`crates/podssh-ssh/src/run.rs:420-442`). The gate's check "-J through
 OpenSSH to Dropbear" (`scripts/interop.sh:359-360`) passes only when this
 holds: both hops are 127.0.0.1, both keys are Ed25519 and differ, and each
 is recorded under its own port.
@@ -942,8 +942,8 @@ takes no block of its own name, as OpenSSH's does (T-290).
 ## Done
 
 2026-10-11. The name of each hop's key is `hop_key_name`
-(`crates/podssh-ssh/src/run.rs:320-330`), which each hop's check takes
-(`crates/podssh-ssh/src/run.rs:344-345`); the destination's `HostKeyAlias` is
+(`crates/podssh-ssh/src/run.rs:319-329`), which each hop's check takes
+(`crates/podssh-ssh/src/run.rs:343-344`); the destination's `HostKeyAlias` is
 filed as it is, with no port, as OpenSSH files it (the Correction).
 - `cargo test -p podssh-ssh --lib -- hop_key_name`: 1 passed: a jump hop on
   port 22 and on port 2222, with and without the alias set, and the destination
@@ -1011,7 +1011,7 @@ and no other.
    exit 64 before anything connects.
 2. Carry it in `Options` (`crates/podssh-ssh/src/options.rs:192-315`) and
    `Policy` (`crates/podssh-ssh/src/hostkey.rs:19-39`), for the destination
-   only, as `HostKeyAlias` (`crates/podssh-ssh/src/run.rs:325-330`).
+   only, as `HostKeyAlias` (`crates/podssh-ssh/src/run.rs:324-329`).
 3. In `Policy::check`, refuse a revoked key and a changed key first, as today
    (`crates/podssh-ssh/src/hostkey.rs:147-150`). Then accept a key whose SHA-256
    fingerprint (`crates/podssh-ssh/src/known_hosts.rs:426-429`) is in the
@@ -1503,7 +1503,7 @@ after 60 s" and names no road.
 Read:
 
 - `client_config` sets `inactivity_timeout: None`
-  (`crates/podssh-ssh/src/run.rs:457`). russh 0.64.1 races each write against
+  (`crates/podssh-ssh/src/run_config.rs:65`). russh 0.64.1 races each write against
   that timer in `flush_or_timeout`; with `None`, the timer never fires, so
   only the write can end the wait.
 - The relay leg limits each write: `WRITE_TIMEOUT` is 60 s
@@ -1541,7 +1541,7 @@ Read:
    `crates/podssh-cli/src/ssh/transport.rs:220-264` changes, and both roads behave
    the same.
 3. The other change: set `inactivity_timeout` at
-   `crates/podssh-ssh/src/run.rs:457`. russh resets that timer only in a loop
+   `crates/podssh-ssh/src/run_config.rs:65`. russh resets that timer only in a loop
    round that sent no keepalive, podssh's keepalive interval is also 60 s
    (`crates/podssh-ssh/src/options.rs:393`), and the timer also ends a
    session that is only idle. Measure an idle session with
@@ -2709,12 +2709,12 @@ cipher are refused by name before the question.
 # T-356: russh 0.65.0 fixes six advisories, three of them in the client, and gives the session binding
 
 **Source:** T-341's first reading of the vendored crates' upstreams, 2026-10-31: crates.io's
-newest russh is 0.65.0, of 2026-10-25, where `vendor/russh` holds 0.64.1.
+newest russh is 0.65.0, of 2026-10-25, where vendor/russh holds 0.64.1.
 **Category:** defect
 **Milestone:** none
 **Priority:** P1
 **Effort:** M
-**Status:** open
+**Status:** partial
 
 ## Problem
 
@@ -2742,7 +2742,7 @@ package (T-341).
 - Read, through forge.web.pkgforge.dev on 2026-10-31: advisory-db's directory of russh holds
   RUSTSEC-2026-0154 alone; none of the six is there yet.
 - Read: the same release adds `AgentSessionBinding` to the client (#794): "Exposes the verified
-  initial key-exchange data", for `session-bind@openssh.com`. `vendor/README.md:108-119` says the
+  initial key-exchange data", for `session-bind@openssh.com`. `vendor/README.md` lines 108-119 at `80e26fc` said the
   patch and the tree go when a release of russh gives a client the binding.
 - Read: the breaking changes of 0.65.0 are in the server's `Handler` (`auth_publickey_offered`,
   `auth_publickey`) and the removal of the feature `async-trait`.
@@ -2751,9 +2751,9 @@ package (T-341).
 
 1. Read `AgentSessionBinding` of 0.65.0 against what podssh's patch keeps: the server's host
    key, the session identifier of the first key exchange and the server's signature of it. If it
-   holds them, podssh-ssh takes it; `[patch.crates-io]`, `vendor/russh` and
-   `vendor/patches/russh` go, and the lock names crates.io's russh 0.65.0 with its checksum, which
-   cargo-deny checks again. Else `vendor/russh` becomes 0.65.0 with the patch moved onto it.
+   holds them, podssh-ssh takes it; `[patch.crates-io]`, vendor/russh and
+   vendor/patches/russh go, and the lock names crates.io's russh 0.65.0 with its checksum, which
+   cargo-deny checks again. Else vendor/russh becomes 0.65.0 with the patch moved onto it.
 2. The breaking changes, in podssh's code and in the servers of its tests.
 3. Tests of the three fixes of the client, through a stand-in server of the tests: a flood of
    EXT_INFO ends with an error and bounded memory; a channel whose peer gives a maximum packet
@@ -2771,3 +2771,50 @@ cargo deny --locked check advisories licenses bans sources
 
 The three tests of the client fail on 0.64.1 and pass on 0.65.0; the agent's session binding
 (T-279) passes with the same bytes; the gate's interop suites pass in CI.
+
+## Correction
+
+Approach item 1 holds: 0.65.0's `AgentSessionBinding` keeps the server's host key, the exchange
+hash of the first key exchange and the server's signature of it, as the server sent them, and
+none for a re-key. It reaches the client's `Handle` (`agent_session_binding`) once `connect` has
+seen the first key exchange, not the handler's `kex_done`, so podssh takes it there, before the
+server can ask for the agent. Approach item 3: the test of a maximum packet size of zero runs
+through podssh's client, against a russh server that gives one; a flood of EXT_INFO and nested
+certificates need a server that writes SSH by hand, which podssh's tests do not have, and russh's
+commits carry their own tests (`b33e93b`, `730d663`, and `39cb9db`'s of the parser). No test runs
+against 0.64.1 first: podssh's code now takes 0.65.0's type. The test's assertion names what
+0.64.1 did, a write that waits for ever, and its control is the same server with packets of
+32 KiB.
+
+## Done
+
+2026-10-31, partial: done here; the gate's interop suites and the jobs of Windows and macOS wait
+for CI on the push.
+
+- podssh-ssh, podssh-cli's tests and the fuzz workspace take crates.io's russh 0.65.0 with its
+  checksum; `[patch.crates-io]` keeps iroh-relay alone, and vendor/russh with its patch is gone
+  (and the TruffleHog allowlist's 13 lines of its test keys, the map of `AGENTS.md`, the section
+  of `vendor/README.md`). cargo-deny checks russh again: `cargo deny --locked check advisories
+  licenses bans sources`, exit 0, and with each feature; `scripts/check-vendored-advisories.py`
+  now reads 32 path packages, exit 0.
+- The binding: podssh-ssh's own `SessionBinding`, from russh's `AgentSessionBinding`;
+  `run::connect` hands it from the client's handle to the agent's forward, whose clones share
+  it (`agent_forward::Forward::set_binding`). T-279's tests pass with it: the bind before the
+  server's first byte, checked as OpenSSH's agent checks it against the server's host key.
+- The breaking change: the stand-in servers of the tests take `PublicKeyOffer` and
+  `VerifiedPublicKey`, and accept a channel through its `ChannelOpenHandle`.
+- `answer::tests::a_server_whose_packets_hold_no_byte_is_refused_not_waited_for`: a russh server
+  with a maximum packet size of zero; podssh's client ends at once with "Disconnected", where
+  0.64.1 waited on the write for ever; its control, packets of 32 KiB, takes the write. Planted, a
+  control of zero: failed.
+- The agent: russh 0.65.0's server asks `Agent::confirm`, which podssh's agent answers with a
+  refusal (the front still refuses such a key as it is added); russh's request to remove each
+  key still has no length in 0.65.0, so podssh removes them in turn, as before.
+- Tests: `cargo test -p podssh-cli`, 1005 passed, 0 failed, 47 ignored (117 binaries);
+  `cargo test --workspace --exclude podssh-cli`, 1247 passed and the record's test, which passed
+  once the record's citations moved; podssh-ssh 300 passed; clippy `-D warnings` clean for
+  podssh-ssh and podssh-cli.
+- T-341's watch: its plant set only the line "Upstream read" to 0.0.0, which failed while
+  russh's copy was older than its release; with russh gone, the first crate's copy is its newest
+  release and the plant passed. The plant now takes the copy as 0.0.0 too, and fails again.
+

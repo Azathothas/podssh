@@ -72,6 +72,12 @@ impl Client {
         self
     }
 
+    /// The agent's forward, whose clones share the binding that the
+    /// handshake's end gives (T-279).
+    pub fn agent_forward(&self) -> Forward {
+        self.agent.clone()
+    }
+
     /// Let this server open X11 channels to `x11` (T-037): the destination's,
     /// with `-X` or `-Y`.
     pub fn forwarding_x11(mut self, x11: Option<crate::x11::Forward>) -> Self {
@@ -137,20 +143,6 @@ impl Handler for Client {
                 Ok(false)
             }
         }
-    }
-
-    /// The first key exchange's binding is there from now on (russh with
-    /// podssh's patch, `vendor/russh`): `-A` binds the agent with it (T-279).
-    async fn kex_done(
-        &mut self,
-        _shared_secret: Option<&[u8]>,
-        _names: &russh::Names,
-        session: &mut Session,
-    ) -> Result<(), Self::Error> {
-        if let Some(binding) = session.session_binding() {
-            self.agent.set_binding(binding);
-        }
-        Ok(())
     }
 
     async fn auth_banner(&mut self, banner: &str, _session: &mut Session) -> Result<(), Self::Error> {

@@ -6,14 +6,15 @@
 //! connection refuses such a channel.
 
 use std::sync::atomic::{AtomicBool, Ordering};
-use std::sync::Arc;
+use std::sync::{Arc, OnceLock};
 use std::time::Duration;
 
-use russh::client::{ChannelOpenHandle, Msg, SessionBinding};
+use russh::client::{ChannelOpenHandle, Msg};
+use russh::keys::agent::AgentSessionBinding;
 use russh::{Channel, ChannelMsg, ChannelOpenFailure};
 use tokio::io::{AsyncRead, AsyncWrite, AsyncWriteExt};
 
-use crate::agent_bind::Bound;
+use crate::agent_bind::{Bound, SessionBinding};
 use crate::log::Log;
 use crate::options::Agent;
 
@@ -39,24 +40,28 @@ pub struct Forward {
     /// the server may ask for the agent again and again.
     said: Arc<AtomicBool>,
     /// What binds the agent to this connection's server (T-279), from its
-    /// first key exchange; none before it, and none for the `none` exchange.
-    binding: Option<Arc<SessionBinding>>,
+    /// first key exchange, which russh gives once the handshake ends: shared
+    /// by the clones, as the handler is in russh's task by then.
+    binding: Arc<OnceLock<SessionBinding>>,
 }
 
 impl Forward {
     pub fn new(agent: Agent) -> Self {
-        Forward { agent, said: Arc::new(AtomicBool::new(false)), binding: None }
+        Forward { agent, said: Arc::new(AtomicBool::new(false)), binding: Arc::new(OnceLock::new()) }
     }
 
     pub fn is_on(&self) -> bool {
         self.agent != Agent::Off
     }
 
-    /// Keep the binding of the first key exchange; a re-key changes nothing.
-    pub fn set_binding(&mut self, binding: &SessionBinding) {
-        if self.binding.is_none() {
-            self.binding = Some(Arc::new(binding.clone()));
-        }
+    /// Keep the binding of the first key exchange; a second changes nothing.
+    pub fn set_binding(&self, binding: &AgentSessionBinding) {
+        let _ = self.binding.set(SessionBinding::from(binding));
+    }
+
+    /// The binding kept, if any.
+    pub fn binding(&self) -> Option<&SessionBinding> {
+        self.binding.get()
     }
 
     /// Say why a channel is refused: once at info, then with `-v`, as a
@@ -103,7 +108,7 @@ pub fn join(forward: Forward, channel: Channel<Msg>, reply: ChannelOpenHandle, l
         };
         // The bind goes before the channel is accepted, so before any byte of
         // the server, as OpenSSH's client binds before it makes the channel.
-        match &forward.binding {
+        match forward.binding() {
             Some(binding) => match crate::agent_bind::bind_agent(&mut agent, binding, BIND_LIMIT).await {
                 Bound::Yes => log.verbose("agent forwarding: the agent is bound to this server's host key"),
                 // An agent that knows no extension: OpenSSH goes on too.
