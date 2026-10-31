@@ -4,6 +4,17 @@
 pub const SSH: &[&str] = &[
     "podssh ssh reaches the host through the relay (see THE RELAY), or over TCP with --direct. It needs \
      no installed ssh, no pty and no user database entry.",
+    "When no relay host opened a session, and the user named no relay (--relay-host, PODSSH_RELAY or \
+     RelayHost) and no -4 or -6, podssh ssh tries the direct road once, as the road table gives it: one \
+     line says that the relay hosts failed and that it tries HOST:PORT directly, through HTTPS_PROXY when \
+     one is set, whose CONNECT then names the target. The server's version line must come within 10 s, \
+     as a proxy that takes the CONNECT and carries no SSH sends nothing; the proxy is then named. When \
+     both fail, the relay's lines come first, then one that names both roads with their times, and the \
+     exit is the relay's. -v gives the relay's lines when the direct road carries the session, and says \
+     so. --direct is the direct road alone, and a relay that the user names is the relay alone: neither \
+     falls back. PODSSH_DIRECT=no, or Direct no in the settings file, turns the fallback off. The commands \
+     that reach a server as podssh ssh does (cp, each, job, health, containers, ping, pipe ssh:) do the \
+     same, and so does the first hop of -J.",
     "node://[user@]NAME reaches the node of the pair under the label NAME (see podssh node), through the \
      relay. Its host key is recorded and checked under the name node://NAME. --pair-file gives the pair, \
      or its operator's part, in a file. The session runs the end-to-end channel, with the node's key \

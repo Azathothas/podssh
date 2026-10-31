@@ -215,6 +215,28 @@ scripts. The facts about OpenSSH on this page were measured with OpenSSH
   is checked against AWS's. The host key is recorded under
   `eice://ID/ADDRESS`, ID the endpoint's; the flags, `-J` and `podssh proxy`
   go as with `iap://`.
+- **The direct road after the relay hosts** (T-363), as the road table of
+  [design.md](design.md) gives it. When no relay host opened a session, and
+  the user named no relay (`--relay-host`, `PODSSH_RELAY` or the settings
+  file's `RelayHost`) and no `-4` or `-6`, podssh tries the direct road
+  once: the dial of `--direct`, through `HTTPS_PROXY` when one is set, then
+  the server's version line within 10 s, whose bytes go to the SSH client
+  first. One line says that the relay hosts failed, after how long, and that
+  podssh tries HOST:PORT directly, and through which proxy, whose CONNECT
+  then names the target, which the relay's does not. A proxy that takes the
+  CONNECT and sends nothing is no road (T-317): the line names it. When both
+  fail, the relay's lines come first, then one that names both roads with
+  their times, and the exit is the relay's. With `-v`, the relay's lines
+  come before the dial, and a line says that the direct road carried the
+  session. `--direct` is the direct road alone, and a named relay is the
+  relay alone: neither falls back. `PODSSH_DIRECT=no`, or `Direct no` in the
+  settings file, turns the fallback off; another word is refused (78). The
+  first hop of `-J`, and each command that reaches its server as `ssh` does
+  (`cp`, `each`, `job`, `health`, `containers`, `ping`, `pipe ssh:`), do the
+  same; `podssh proxy`, which has no direct road, does not. The direct road
+  comes after the relay, never before it or beside it: where podssh is
+  built for, a direct dial is dropped with no answer
+  ([target-environment.md](target-environment.md)).
 - **`PODSSH_MPTCP=yes` asks for Multipath TCP on the direct road** (T-172),
   on Linux, and only on request. With `--direct` and no proxy, each attempt
   asks the kernel for a socket of `IPPROTO_MPTCP`: where the server speaks
@@ -2583,7 +2605,8 @@ variables and above the built-in defaults: `RelayHost` (as `--relay-host`
 and `PODSSH_RELAY`), `RelayAddr` (as `--relay-addr` and `PODSSH_RELAY_ADDR`;
 each line adds to the flag's and the variable's pins), `RelayFailover` (as
 `--relay-failover`), `CaFile` (as `--ca-file` and `SSL_CERT_FILE`; `~` is
-the home) and `SessionLog` (as `PODSSH_SESSION_LOG`, below). It has `Keyword value` lines, `Keyword=value` too, and `#`
+the home), `SessionLog` (as `PODSSH_SESSION_LOG`, below) and `Direct` (yes
+or no, as `PODSSH_DIRECT`: the direct road after the relay hosts, T-363). It has `Keyword value` lines, `Keyword=value` too, and `#`
 comments, read as an `ssh_config` line is; the first value of a keyword
 wins. The file is the one that `PODSSH_SETTINGS` names, an absolute path
 that must exist (`none` reads none); else the first that exists of

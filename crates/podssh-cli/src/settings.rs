@@ -2,7 +2,7 @@
 //! below the flags and the variables, above the built-in defaults. The
 //! file has `Keyword value` lines, `#` comments and `Keyword=value` too, as
 //! an `ssh_config` has: `RelayHost`, `RelayAddr` (which adds up), `RelayFailover`
-//! and `CaFile`, and `SessionLog` (T-056). It is found once for the process: the file that
+//! and `CaFile`, `SessionLog` (T-056), and `Direct` (T-363). It is found once for the process: the file that
 //! `PODSSH_SETTINGS` names (`none` names none), else the first that exists
 //! of `$XDG_CONFIG_HOME/podssh/settings` (`~/.config/podssh/settings`, and
 //! `%APPDATA%\podssh\settings` on Windows) and `podssh.settings` next to the
@@ -31,6 +31,7 @@ pub const KEYWORDS: &[(&str, &str)] = &[
     ("RelayFailover", "MODE: how the relay hosts are tried, as --relay-failover"),
     ("CaFile", "FILE: trust only the CA certificates in FILE, as --ca-file and SSL_CERT_FILE; ~ is the home"),
     ("SessionLog", "yes, no or FILE: a line for each session of this host, as PODSSH_SESSION_LOG; ~ is the home"),
+    ("Direct", "yes or no: whether podssh tries the direct road once each relay host failed, as PODSSH_DIRECT"),
 ];
 /// The largest file read.
 const MAX_FILE: u64 = 1 << 20;
@@ -55,6 +56,8 @@ pub struct Defaults {
     pub ca_file: Option<Value>,
     /// `SessionLog` (T-056).
     pub session_log: Option<Value>,
+    /// `Direct`: the direct road after the relay hosts (T-363).
+    pub direct: Option<Value>,
     /// The `[groups]` table (T-184): each group's name and its hosts.
     pub groups: crate::hosts::Groups,
     /// The `[snippets]` table (T-187): each snippet's name and its command.
@@ -246,6 +249,10 @@ pub fn parse(text: &str, file: &str, home: Option<&Path>) -> Result<Defaults, St
             "sessionlog" => {
                 crate::session_log::parse(text, home).map_err(|why| format!("{at}: SessionLog {why}"))?;
                 d.session_log.get_or_insert(value);
+            }
+            "direct" => {
+                crate::relay_settings::yes_or_no(text).ok_or_else(|| format!("{at}: Direct {text:?}: yes or no"))?;
+                d.direct.get_or_insert(value);
             }
             _ => {
                 let names: Vec<&str> = KEYWORDS.iter().map(|(k, _)| *k).collect();

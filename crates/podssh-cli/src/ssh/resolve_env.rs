@@ -17,6 +17,9 @@ pub struct Env {
     pub relay: Option<String>,
     /// `PODSSH_RELAY_FAILOVER` (T-220).
     pub relay_failover: Option<String>,
+    /// `PODSSH_DIRECT`: whether the direct road follows the relay hosts
+    /// (T-363).
+    pub direct: Option<String>,
     pub ssl_cert_file: Option<String>,
     /// The local host name and user id, for the `%` tokens.
     pub local_host: Option<String>,
@@ -40,6 +43,7 @@ impl Env {
             user,
             relay: var(relay::RELAY_ENV),
             relay_failover: var(podssh_relay::failover::MODE_ENV),
+            direct: var(crate::relay_settings::DIRECT_ENV),
             ssl_cert_file: var("SSL_CERT_FILE"),
             local_host: super::tokens::local_host_name(),
             uid: super::tokens::local_uid(),

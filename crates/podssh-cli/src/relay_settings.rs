@@ -111,9 +111,47 @@ pub fn failover_of_env() -> Result<Mode, Refusal> {
     failover(None, std::env::var(MODE_ENV).ok())
 }
 
+/// `no`: when each relay host failed, podssh tries the direct road no more
+/// (T-363).
+pub const DIRECT_ENV: &str = "PODSSH_DIRECT";
+
+/// Whether the direct road follows the relay hosts: [`DIRECT_ENV`], else the
+/// settings file's `Direct`, else yes. A bad variable is 78; the file's
+/// value was checked as the file was read.
+pub fn direct_from(env: Option<String>, file: &Defaults) -> Result<bool, Refusal> {
+    match (env.as_deref().filter(|v| !v.trim().is_empty()), &file.direct) {
+        (Some(word), _) => yes_or_no(word).ok_or_else(|| Refusal::config(format!("{DIRECT_ENV}={word}: yes or no"))),
+        (None, Some(value)) => Ok(yes_or_no(&value.text).unwrap_or(true)),
+        (None, None) => Ok(true),
+    }
+}
+
+/// `yes`, `on`, `true` or `1`; `no`, `off`, `false` or `0`; else none.
+pub fn yes_or_no(word: &str) -> Option<bool> {
+    match word.trim().to_ascii_lowercase().as_str() {
+        "yes" | "on" | "true" | "1" => Some(true),
+        "no" | "off" | "false" | "0" => Some(false),
+        _ => None,
+    }
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;
+
+    #[test]
+    fn podssh_direct_turns_the_fallback_off_and_beats_the_file() {
+        let file = |text: &str| crate::settings::parse(&format!("Direct {text}\n"), "settings", None).unwrap();
+        assert_eq!(direct_from(None, &Defaults::default()), Ok(true), "on by default");
+        assert_eq!(direct_from(Some("no".into()), &Defaults::default()), Ok(false));
+        assert_eq!(direct_from(None, &file("no")), Ok(false), "the file's key");
+        assert_eq!(direct_from(Some("yes".into()), &file("no")), Ok(true), "the variable wins");
+        assert_eq!(direct_from(Some(" ".into()), &file("no")), Ok(false), "an empty variable is none");
+        let bad = direct_from(Some("maybe".into()), &Defaults::default()).unwrap_err();
+        assert_eq!(bad.code, EX_CONFIG);
+        assert!(bad.message.contains("PODSSH_DIRECT=maybe"), "{bad}");
+        assert!(crate::settings::parse("Direct maybe\n", "settings", None).is_err(), "the file checks its value");
+    }
 
     #[test]
     fn a_bad_variable_is_78_and_a_bad_flag_64() {

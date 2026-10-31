@@ -10,6 +10,8 @@
 mod agents;
 pub mod args;
 mod attach;
+// The server's version line, for doctor and the direct road (T-363).
+pub(crate) mod banner;
 // iap:// and eice://, a cloud's own tunnel to a VM (T-351).
 pub mod cloud;
 pub mod cloudflare;

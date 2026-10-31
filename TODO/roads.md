@@ -4247,6 +4247,30 @@ does not depend on them.
    `PODSSH_DIRECT=no` prevents it. Lost: off by default, which keeps the road of the table from
    each user who does not know of it.
 
+2026-10-31, the draft (each call with the alternatives that lost):
+
+5. The fallback is in the one function that reaches a first hop (`reach_skipping` of
+   `crates/podssh-cli/src/ssh/transport.rs`), after the relay's opener failed, so that each command
+   of the Premise has it with no change of its own. Lost: a fallback in `podssh ssh`'s own run,
+   which `cp`, `each` and the others would not have.
+6. With `-4` or `-6` the relay alone: the direct road cannot keep the family that the user asked
+   for. Offline (`PODSSH_OFFLINE`), the relay alone too. `--relay-addr` names no relay: it gives
+   an address of the built-in one, which falls back as before. Lost: a fallback that drops the
+   family with a note, which runs a road that the user's flag ruled out.
+7. The version line is read on the dial within 10 s, by doctor's check, now shared
+   (`crates/podssh-cli/src/ssh/banner.rs`): one read of up to 4 KiB, whose bytes go to russh first
+   (`Prefixed`). Lost: a peek that leaves the bytes in the socket, which a proxy's stream through
+   podssh-ws does not offer, and russh's own banner wait, which gives no word of a proxy that
+   intercepts TLS before its own limit.
+8. The words: one line before the dial (the relay's time, the target, the proxy whose CONNECT names
+   it, and the switch); with `-v`, the relay's own lines too, and the road that carried the session.
+   When both fail, the relay's lines as before, then one line of both roads with their times; the
+   exit is the relay's. Lost: the relay's lines as errors before a dial that then works, which reads
+   as a failed run.
+9. The switch has a key of the settings file, `Direct yes|no`, below the variable, checked when the
+   file is read (78), as `RelayFailover` is. The fallback's one dial is plain TCP when
+   `PODSSH_MPTCP` holds a bad word, as the relay's road never reads it.
+
 ## Prove
 
 ```sh
@@ -4261,6 +4285,39 @@ Through a stand-in relay that refuses each host, and a stand-in SSH server on th
 with `PODSSH_DIRECT=no`, a failing relay ends the run; when both fail, the lines name both roads
 and their times. A proxy of the test that takes the CONNECT and sends nothing: the fallback ends
 with the proxy named. Planted: the fallback removed; the first test fails.
+
+## Correction
+
+2026-10-31, read at `a3f948d`: a stand-in relay of the Prove cannot be named, as a relay that the
+user names is the relay alone (item 2). The test pins the built-in relay host, and each host of
+the seed pool that a fresh cache tries after it (`crates/podssh-relay/src/pool.rs`, `SEED`), to
+127.0.0.1 with `PODSSH_RELAY_ADDR`, where port 443 takes no connection: each relay host fails at
+once, as one that refuses. A host where something takes 127.0.0.1:443 says that the test did not
+run. The Approach stands.
+
+## Done
+
+2026-10-31: drafted (branch `draft-roads-cli`, after T-379), not built and not run; each result is
+UNVERIFIED until the merge.
+
+- `Transport::Relay` carries `then_direct`: no relay named (`RelayList::explicit`), no `-4` or `-6`,
+  and `PODSSH_DIRECT`, else the settings file's `Direct`, not `no` (`relay_settings::direct_from`).
+  After the opener failed, `after_relay` dials the first hop as `--direct` does, reads the version
+  line within `VERSION_WAIT` (10 s), and gives the session its bytes first; the lines of
+  `announce` and `both_failed`. doctor's `no_ssh_banner` calls the shared check.
+- The manual: the help of `--direct`, a note of `podssh ssh`, `PODSSH_DIRECT` in ENVIRONMENT, and
+  the settings file's `Direct`; `docs/cli.md`, `docs/relay.md` (step 7), the row of a public sshd in
+  `docs/design.md`, `docs/STATUS.md`.
+- UNVERIFIED: `cargo test -p podssh-cli --test direct_fallback` (4 tests: the fallback logs in and
+  says so; `--direct`, `--relay-host` and `PODSSH_DIRECT=no` do not fall back, and a bad
+  `PODSSH_DIRECT` is 78; both fail, with both roads and their times; a proxy that takes the
+  CONNECT and sends nothing is named, within 40 s).
+- UNVERIFIED: `cargo test -p podssh-cli --lib ssh::transport` (the lines, and the version line on a
+  paused clock), `cargo test -p podssh-cli --lib relay_settings`, `cargo test -p podssh-cli --test
+  doctor` and `--test direct_proxy` (the shared check), the manual's sweep of variables
+  (`cargo test -p podssh-cli --lib man::facts`), clippy `-D warnings` and `cargo fmt --check`.
+- UNVERIFIED, planted: the fallback removed (`then_direct` read as false in `reach_skipping`); the
+  first test of `direct_fallback` should fail.
 
 # T-369: `--forwarder TEMPLATE`: a road through a WebSocket forwarder that takes the target from its URL
 
