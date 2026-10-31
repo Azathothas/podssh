@@ -2705,3 +2705,69 @@ cipher are refused by name before the question.
   working tree, where the second was formatted and not committed, and the gate failed again on it.
   `63cad33` (T-019) formats the second: `cargo fmt` of the gate's packages, in a clean tree of
   `63cad33`, finds nothing.
+
+# T-356: russh 0.65.0 fixes six advisories, three of them in the client, and gives the session binding
+
+**Source:** T-341's first reading of the vendored crates' upstreams, 2026-10-31: crates.io's
+newest russh is 0.65.0, of 2026-10-25, where `vendor/russh` holds 0.64.1.
+**Category:** defect
+**Milestone:** none
+**Priority:** P1
+**Effort:** M
+**Status:** open
+
+## Problem
+
+podssh's SSH client is russh 0.64.1, vendored with one patch. A server that podssh reaches, or
+anything in its path before the host key is checked, can make it grow its memory with no bound,
+stall a channel's writes for ever, or end it with a stack overflow; russh 0.65.0 fixes the
+three. cargo-deny will not say so when RustSec publishes them, as it passes over a path
+package (T-341).
+
+## Premise
+
+- Read, the release notes of russh v0.65.0, through forge.web.pkgforge.dev on 2026-10-31
+  (https://github.com/warp-tech/russh/releases/tag/v0.65.0): six security fixes.
+  GHSA-4p9f-7p9m-5vfg, the client takes any number of EXT_INFO messages (commit `b33e93b`, in
+  `russh/src/client/encrypted.rs` and `client/mod.rs`); GHSA-fw5c-8223-6h42, a peer's maximum
+  packet size of zero stalls a channel's writes (`39cb9db`, in `client/encrypted.rs` and
+  `parsing.rs`); GHSA-3hm4-p7h4-rvwp, nested OpenSSH certificates exhaust the stack (`730d663`,
+  in `client/kex.rs`, `keys/agent/client.rs` and `keys/key.rs`); and three of the agent and
+  pageant: GHSA-9wfm-jcj8-jfv9 and GHSA-662x-8wvj-2276, allocations that an agent's client sets,
+  and GHSA-vp5q-ff62-jwqv, an agent server that never calls `Agent::confirm`.
+- Read: podssh runs russh's client and its agent server (`crates/podssh-cli/src/agent/serve.rs:14`),
+  and russh's SSH server only in tests; the agent refuses a key added for confirmation as it is
+  added (`crates/podssh-cli/src/agent/serve.rs:166-170`, T-284), and its front bounds each frame
+  (`crates/podssh-cli/src/agent/serve.rs:182-190`).
+- Read, through forge.web.pkgforge.dev on 2026-10-31: advisory-db's directory of russh holds
+  RUSTSEC-2026-0154 alone; none of the six is there yet.
+- Read: the same release adds `AgentSessionBinding` to the client (#794): "Exposes the verified
+  initial key-exchange data", for `session-bind@openssh.com`. `vendor/README.md:93-104` says the
+  patch and the tree go when a release of russh gives a client the binding.
+- Read: the breaking changes of 0.65.0 are in the server's `Handler` (`auth_publickey_offered`,
+  `auth_publickey`) and the removal of the feature `async-trait`.
+
+## Approach
+
+1. Read `AgentSessionBinding` of 0.65.0 against what podssh's patch keeps: the server's host
+   key, the session identifier of the first key exchange and the server's signature of it. If it
+   holds them, podssh-ssh takes it; `[patch.crates-io]`, `vendor/russh` and
+   `vendor/patches/russh` go, and the lock names crates.io's russh 0.65.0 with its checksum, which
+   cargo-deny checks again. Else `vendor/russh` becomes 0.65.0 with the patch moved onto it.
+2. The breaking changes, in podssh's code and in the servers of its tests.
+3. Tests of the three fixes of the client, through a stand-in server of the tests: a flood of
+   EXT_INFO ends with an error and bounded memory; a channel whose peer gives a maximum packet
+   size of zero is refused; a host key that nests certificates gives an error, not an abort.
+   Each runs against 0.64.1 first, where it must fail.
+4. `vendor/README.md`, `docs/development.md` (the vendored crates), STATUS.
+
+## Prove
+
+```sh
+export CARGO_BUILD_JOBS=4
+cargo test --workspace
+cargo deny --locked check advisories licenses bans sources
+```
+
+The three tests of the client fail on 0.64.1 and pass on 0.65.0; the agent's session binding
+(T-279) passes with the same bytes; the gate's interop suites pass in CI.

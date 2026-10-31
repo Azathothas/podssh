@@ -107,7 +107,7 @@ and `CARGO_BUILD_JOBS=4`:
 
 ## Counts
 
-`TODO/INDEX.md` holds 352 entries: 24 open, 1 partial, 35 blocked, 292 done.
+`TODO/INDEX.md` holds 353 entries: 25 open, 1 partial, 35 blocked, 292 done.
 
 Open includes parked work. `cargo todo check` verifies this line.
 
@@ -129,7 +129,8 @@ beta follows the next batch of repairs that the testers should test again,
 at most one a day.
 
 **Now:** the entries of the audit and the study of 2026-10-31, the highest
-priority first: the P2 entries T-340, T-341, T-342 and T-347, then T-355 (Dependabot's updates, and the curves' 0.14 that ends an ignore
+priority first: T-341, whose watch found T-356, then T-356 (russh 0.65.0's security fixes, P1),
+then the P2 entries T-340, whose runs in CI wait, T-342 and T-347, then T-355 (Dependabot's updates, and the curves' 0.14 that ends an ignore
 of `deny.toml`), then the P3 entries T-343, T-344 and T-345. Each other `backlog`
 entry is done, but for those on hold, those of the relay's operator and the
 parked ones.

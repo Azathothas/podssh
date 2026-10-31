@@ -62,15 +62,15 @@ repository and CI).
 
 ## Counts
 
-**352 entries: 24 open, 1 partial, 35 blocked, 292 done.**
+**353 entries: 25 open, 1 partial, 35 blocked, 292 done.**
 
 | Priority | open | partial | blocked | done | total |
 | --- | --- | --- | --- | --- | --- |
 | P0 | 0 | 0 | 0 | 1 | 1 |
-| P1 | 2 | 0 | 0 | 25 | 27 |
+| P1 | 3 | 0 | 0 | 25 | 28 |
 | P2 | 6 | 1 | 23 | 150 | 180 |
 | P3 | 16 | 0 | 12 | 116 | 144 |
-| **All** | 24 | 1 | 35 | 292 | 352 |
+| **All** | 25 | 1 | 35 | 292 | 353 |
 
 ## Entries
 
@@ -428,3 +428,4 @@ repository and CI).
 | [T-353](roads.md) | P3 | L | backlog | feature | blocked | Tor through Arti, in a feature crate |
 | [T-354](resume.md) | P2 | S | backlog | defect | done | A session that closes while it moves can say a loss that was none |
 | [T-355](repo.md) | P2 | M | none | chore | open | Dependabot's updates of 2026-10-30 and 2026-10-31, and the curves' 0.14 |
+| [T-356](ssh.md) | P1 | M | none | defect | open | russh 0.65.0 fixes six advisories, three of them in the client, and gives the session binding |
