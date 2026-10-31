@@ -3693,7 +3693,7 @@ and an EICE endpoint, their credential files in `.env/`.
 **Milestone:** backlog
 **Priority:** P2
 **Effort:** M
-**Status:** partial
+**Status:** done
 
 ## Problem
 
@@ -3837,8 +3837,9 @@ proxy, for one that drops UDP. The wait on a host that drops UDP stays the 3 s o
 
 ## Done
 
-2026-10-31, partial: each part is done; the live run of doctor's `UDP out` against Cloudflare's
-edge, from Actions (Q43), is not.
+2026-10-31: the iroh road keeps UDP only after a datagram came back from its home relay, and
+doctor's `bind UDP`, `iroh UDP out` and `UDP out` say what each measures; live from Actions
+against Cloudflare's edge.
 
 - `podssh_iroh::endpoint::open` gives the endpoint and the probe's answer: `Answered` (a round trip
   of QUIC address discovery to the home relay in the first report, within 6 s), `Refused` (no UDP
@@ -3875,8 +3876,12 @@ edge, from Actions (Q43), is not.
   others. Here, with the session's proxy set: "UDP out: a proxy is set, and no proxy carries UDP,
   so podssh node --quick-tunnel takes HTTP/2 and sends no UDP". The flag's help, the MCP tool's
   `full`, the manual's notes and `docs/cli.md` say it; `--test flag_table --test man_page --test
-  doctor --test mcp` passed. `quick-tunnel-live.yml` checks both answers of Cloudflare's edge with
-  `doctor --full`, and its run is to come.
+  doctor --test mcp` passed. Live, `quick-tunnel-live.yml` (run 41190476795 at b5b3398, Q43):
+  `doctor --full` said "UDP out: QUIC to the quick tunnel's edge at 198.41.192.167:7844 answered in
+  17 ms, so podssh node --quick-tunnel takes QUIC"; with UDP to 7844 dropped, "no region of the
+  edge answered over QUIC: region1.v2.argotunnel.com 198.41.192.57:7844: no answer over QUIC
+  within 5 s; ..." for its four addresses, IPv4 and IPv6 of both regions, "so podssh node
+  --quick-tunnel takes HTTP/2"; each other step of the run passed.
 - Found on the way, in T-301's loop over QUIC: a close or a silence of the connection could read
   as a control stream that ended (the test of the edge's close and silence, one run in six); and a
   handshake's timeout had two sets of words. Both repaired (T-301's Done).

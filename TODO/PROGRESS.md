@@ -107,7 +107,7 @@ and `CARGO_BUILD_JOBS=4`:
 
 ## Counts
 
-`TODO/INDEX.md` holds 374 entries: 42 open, 1 partial, 29 blocked, 302 done.
+`TODO/INDEX.md` holds 374 entries: 42 open, 0 partial, 29 blocked, 303 done.
 
 Open includes parked work. `cargo todo check` verifies this line.
 
@@ -131,7 +131,7 @@ zeroize and the curves' 0.14 make that batch, so `v1.0.0-beta.3` comes from
 2026-11-01 00:12 UTC, once the gate is green on its commit.
 
 **Now:** the entries of the audit, the study and the issues of 2026-10-31 (GitHub #59 to #63 and
-#69 to #76), the highest priority first: the P2 entries T-359 (the iroh road's probe of UDP) and
+#69 to #76), the highest priority first: the P2 entry
 T-365 (the forms of `-R` that OpenSSH carries, GitHub #73), then the record's own checks T-360
 and T-361,
 then the P2 entries that the operator's rulings of 2026-10-31 opened: T-375 (`podssh update`),
@@ -141,7 +141,7 @@ and T-363 (the direct road after the relay hosts fail), then those of the same r
 (Q50), T-351 (Q51, against stand-ins), T-352 and T-353 (Q52), and T-374 after T-352; then those of
 GitHub #59 to #63 and #73 to #76: T-366; T-367, T-368 and T-369 in that order, as each writes what
 the next uses (the reader of requests, the dial with no token), and T-370 after T-369 (Q56);
-T-371 before T-372; and T-373; and T-378 (the loop over HTTP/2, after T-359's find over QUIC).
+T-371 before T-372; and T-373; and T-378 (the loop over HTTP/2, after the same find over QUIC).
 Each other `backlog` entry is done, but for those on hold, those of the relay's operator and the
 parked ones.
 
