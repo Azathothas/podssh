@@ -62,15 +62,15 @@ repository and CI).
 
 ## Counts
 
-**330 entries: 17 open, 4 partial, 29 blocked, 280 done.**
+**330 entries: 17 open, 2 partial, 29 blocked, 282 done.**
 
 | Priority | open | partial | blocked | done | total |
 | --- | --- | --- | --- | --- | --- |
 | P0 | 0 | 0 | 0 | 1 | 1 |
 | P1 | 2 | 0 | 0 | 24 | 26 |
-| P2 | 1 | 2 | 19 | 144 | 166 |
+| P2 | 1 | 0 | 19 | 146 | 166 |
 | P3 | 14 | 2 | 10 | 111 | 137 |
-| **All** | 17 | 4 | 29 | 280 | 330 |
+| **All** | 17 | 2 | 29 | 282 | 330 |
 
 ## Entries
 
@@ -282,8 +282,8 @@ repository and CI).
 | [T-207](repo.md) | P3 | S | none | chore | done | B8: `scripts/dev.sh` has about 600 lines |
 | [T-208](repo.md) | P2 | S | none | chore | done | A changelog from the commits, and release notes from it (GitHub #27) |
 | [T-209](repo.md) | P2 | S | none | chore | done | Secret scanning with TruffleHog in CI (GitHub #27) |
-| [T-210](repo.md) | P2 | S | M9 | release | partial | Build provenance for each release binary |
-| [T-211](repo.md) | P2 | S | M9 | release | partial | Signed checksums for each release |
+| [T-210](repo.md) | P2 | S | M9 | release | done | Build provenance for each release binary |
+| [T-211](repo.md) | P2 | S | M9 | release | done | Signed checksums for each release |
 | [T-212](repo.md) | P2 | M | none | chore | done | Parallel CI, with the gate as the one source |
 | [T-213](repo.md) | P2 | M | none | chore | blocked | CI runs the box like the target sandbox |
 | [T-214](repo.md) | P2 | M | none | chore | done | CI on Windows |

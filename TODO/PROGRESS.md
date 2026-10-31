@@ -107,7 +107,7 @@ and `CARGO_BUILD_JOBS=4`:
 
 ## Counts
 
-`TODO/INDEX.md` holds 330 entries: 17 open, 4 partial, 29 blocked, 280 done.
+`TODO/INDEX.md` holds 330 entries: 17 open, 2 partial, 29 blocked, 282 done.
 
 Open includes parked work. `cargo todo check` verifies this line.
 
@@ -122,13 +122,11 @@ the surface for agents: done.
 
 **M4:** T-085 (the exit measurement) is on hold (Q32).
 
-**First (2026-10-30):** `v1.0.0-beta.1` is published. `v1.0.0-beta.2` is
-made ready (the version in `Cargo.toml` and both lock files, its notes in
-`docs/releases/v1.0.0-beta.2.md`), and is published from `main` on
-2026-10-31 UTC, at most one beta a day, once the gate passed on its commit,
-as `docs/development.md` ("Release builds") says: the batch since beta.1
-holds the repairs of the proxy and the doctor, the new platforms, and the
-drafts merged on 2026-10-30.
+**First (2026-10-31):** `v1.0.0-beta.2` is published, a prerelease at
+`f7f97a5`, with the provenance of each binary and the signature of
+`SHA256SUMS`, each proven on the published files (`docs/STATUS.md`). The next
+beta follows the next batch of repairs that the testers should test again,
+at most one a day.
 
 **Now:** the `backlog` entries, in the order of `TODO/INDEX.md` ("The
 order, and the argument for it"): M3 to M8 are done, but for the entries on
@@ -136,10 +134,9 @@ hold and those of the relay's operator. The P2 entries are done, but for
 those of M9 and the parked ones; now the P3 entries that no draft holds:
 the drafts of "State" above are merged.
 
-**Then** M9: T-210 and T-211, each proven at the tag of
-`v1.0.0-beta.2`, then T-251 (the check, and its run before
-the tag), and last T-250 (the one release). Between entries: the
-`none` entries, the highest priority first.
+**Then** M9: T-251 (the check, and its run before the tag), and last
+T-250 (the one release). Between entries: the `none` entries, the highest
+priority first.
 
 **Skip** the entries that wait for the relay's operator (status
 `blocked`): T-086, T-106, T-169, T-173, T-180, T-226, T-253, T-255,

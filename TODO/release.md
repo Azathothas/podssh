@@ -296,3 +296,10 @@ login attempt through the relay.
 - The next betas follow the same steps (`docs/development.md`, "Release
   builds"), each after a batch of repairs that the testers should test
   again, at most one a day.
+
+2026-10-31: `v1.0.0-beta.2` is published, a prerelease at `f7f97a5`
+(https://github.com/Azathothas/podssh/releases/tag/v1.0.0-beta.2, the tag's run 41147977814),
+with eight binaries, their provenance and the signature of `SHA256SUMS` (T-210, T-211). `main`
+held newer commits by then, so the run by hand with `publish` ran on a branch at `f7f97a5`
+(`beta/v1.0.0-beta.2`): the job `tag` tags the commit of its run, whatever its branch. Its
+files pass the Prove, and the proofs of `.github/workflows/release-proofs.yml` (`docs/STATUS.md`).

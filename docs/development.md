@@ -706,7 +706,9 @@ To publish a release:
    the run was started on, once (it fails when the tag exists), and starts
    the workflow by hand on the tag, as a tag that the job's token pushes
    starts no workflow. The run on the tag builds, attests, signs and
-   publishes.
+   publishes. When `main` already holds newer commits than the one to tag,
+   push a branch at that commit and give it to `--ref` (`v1.0.0-beta.2`
+   went so, from `beta/v1.0.0-beta.2`).
 3. On the tag, the workflow adds `SHA256SUMS`, attests the provenance of
    each binary (`actions/attest`, one attestation of SLSA for all of them,
    T-210), signs `SHA256SUMS` with Sigstore's keyless signing (`cosign
