@@ -179,3 +179,75 @@ async fn a_permissive_verifier_could_not_satisfy_both() {
          accepted the right one"
     );
 }
+
+/// T-340: a certificate whose root is in no store that podssh reads, as a
+/// proxy's that re-signs TLS is, ends with rustls's `UnknownIssuer` and the
+/// hint that names `--ca-file`; the same server through a file that holds
+/// its root is the control.
+#[tokio::test]
+async fn an_issuer_that_no_root_signs_ends_with_what_to_do() {
+    use podssh_ws::tls::{connect_over, Trust};
+    let limit = std::time::Duration::from_secs(10);
+    let (acceptor, _roots) = server_for("issuer.example").expect("a server for the name");
+    let serve = |acceptor: tokio_rustls::TlsAcceptor, listener: tokio::net::TcpListener| {
+        tokio::spawn(async move {
+            if let Ok((stream, _)) = listener.accept().await {
+                let _ = acceptor.accept(stream).await;
+            }
+        })
+    };
+
+    let listener = tokio::net::TcpListener::bind("127.0.0.1:0").await.expect("bind");
+    let addr = listener.local_addr().expect("an address");
+    let server = serve(acceptor.clone(), listener);
+    let tcp = tokio::net::TcpStream::connect(addr).await.expect("connect");
+    let refused = connect_over(tcp, "issuer.example", &Trust::Default, limit).await.err();
+    let _ = server.await;
+    let refused = refused.expect("no root of the default trust signs the test's certificate");
+    assert!(
+        refused.contains("UnknownIssuer") && refused.contains("--ca-file FILE or SSL_CERT_FILE"),
+        "the failure must be the unknown issuer, with the hint: {refused}"
+    );
+
+    // The control: the test's root in a file, as --ca-file gives it. Its key
+    // comes from its name, so the root minted again is the server's.
+    let dir = std::env::temp_dir().join(format!("podssh-issuer-{}", std::process::id()));
+    std::fs::create_dir_all(&dir).expect("a directory for the root");
+    let pem_path = dir.join("root.pem");
+    let der = cert::encoding::self_signed_inner("issuer.example-anchor", true).der;
+    let body = base64_lines(&der);
+    std::fs::write(&pem_path, format!("-----BEGIN CERTIFICATE-----\n{body}-----END CERTIFICATE-----\n"))
+        .expect("the root is written");
+    let listener = tokio::net::TcpListener::bind("127.0.0.1:0").await.expect("bind");
+    let addr = listener.local_addr().expect("an address");
+    let server = serve(acceptor, listener);
+    let tcp = tokio::net::TcpStream::connect(addr).await.expect("connect");
+    let through = connect_over(tcp, "issuer.example", &Trust::File(pem_path.clone()), limit).await;
+    let _ = server.await;
+    let _ = std::fs::remove_dir_all(&dir);
+    if let Err(why) = through {
+        panic!("the control, the root in a file, must pass: {why}");
+    }
+}
+
+/// `der` in base64, 64 characters to a line, as PEM holds it.
+fn base64_lines(der: &[u8]) -> String {
+    const ALPHABET: &[u8; 64] = b"ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789+/";
+    let mut text = String::new();
+    for chunk in der.chunks(3) {
+        let n = chunk.iter().enumerate().fold(0u32, |n, (i, b)| n | (u32::from(*b) << (16 - 8 * i)));
+        for i in 0..4 {
+            if i <= chunk.len() {
+                text.push(ALPHABET[(n >> (18 - 6 * i) & 63) as usize] as char);
+            } else {
+                text.push('=');
+            }
+        }
+    }
+    let mut lines = String::new();
+    for line in text.as_bytes().chunks(64) {
+        lines.push_str(std::str::from_utf8(line).expect("base64 is ASCII"));
+        lines.push('\n');
+    }
+    lines
+}

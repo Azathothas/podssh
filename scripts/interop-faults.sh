@@ -105,6 +105,18 @@ rc=$?
     && ok faults.tls12 "a stand-in relay that speaks only TLS 1.2 carries a session" \
     || bad faults.tls12 "TLS 1.2: exit $rc" "$FK/err"
 
+# T-340: with no --ca-file, the stand-in's CA is in no store that podssh
+# reads, as a proxy's that re-signs TLS is not; the error says what to do.
+# shellcheck disable=SC2086
+env -u SSH_AUTH_SOCK -u https_proxy -u HTTPS_PROXY -u all_proxy -u ALL_PROXY -u SSL_CERT_FILE HOME="$W" "$BIN" ssh \
+    --relay-host "relay-a.test:$(port a)" --relay-addr "$PINS" -p 2201 -o UserKnownHostsFile="$KH" \
+    -o StrictHostKeyChecking=accept-new -o IdentityAgent=none -o IdentitiesOnly=yes $K -o BatchMode=yes \
+    "$T" true >"$FK/out" 2>"$FK/err" </dev/null
+rc=$?
+[ "$rc" != 0 ] && grep -q UnknownIssuer "$FK/err" && grep -q -- '--ca-file FILE or SSL_CERT_FILE' "$FK/err" \
+    && ok faults.issuer "a relay whose issuer podssh does not trust ends with the hint that names --ca-file" \
+    || bad faults.issuer "an untrusted issuer: exit $rc, without the hint" "$FK/err"
+
 files() { n=0; for f in "$@"; do [ -e "$f" ] && n=$((n + 1)); done; echo "$n"; }
 for spec in "dead:a relay host that is down" "r503:a relay host answering 503"; do
     name=${spec%%:*}

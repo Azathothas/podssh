@@ -34,7 +34,7 @@ harness job interop 11 scripts/interop-job.sh
 harness run interop 3 scripts/interop-run.sh
 harness local interop 6 scripts/interop-local.sh
 harness control interop 13 scripts/interop-control.sh
-harness faults interop 37 scripts/interop-faults.sh
+harness faults interop 38 scripts/interop-faults.sh
 harness ping interop 3 scripts/interop-ping.sh
 harness relay interop 4 scripts/interop-relay.sh
 harness socks interop 4 scripts/interop-socks.sh
@@ -323,6 +323,7 @@ faults.certs pass
 faults.standins pass
 faults.control pass
 faults.tls12 pass
+faults.issuer pass
 faults.failover.dead pass
 faults.failover.r503 pass
 faults.failover.token_cache pass

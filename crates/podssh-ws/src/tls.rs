@@ -146,8 +146,34 @@ where
     match tokio::time::timeout(limit, connector.connect(name, stream)).await {
         Ok(Ok(tls)) => Ok(tls),
         // rustls's text tells an unknown issuer from a name mismatch.
-        Ok(Err(e)) => Err(format!("the TLS handshake with {server_name} failed: {e}")),
+        Ok(Err(e)) => Err(format!("the TLS handshake with {server_name} failed: {}", handshake_failure(&e))),
         Err(_) => Err(format!("the TLS handshake with {server_name} did not end within {} s", limit.as_secs())),
+    }
+}
+
+/// What to do about an issuer that no root here signs, as a proxy that
+/// re-signs TLS gives (T-340).
+pub const UNKNOWN_ISSUER_HINT: &str = "no root that podssh trusts here signs the certificate: a proxy that \
+    re-signs TLS needs its CA, in --ca-file FILE or SSL_CERT_FILE, which replace podssh's roots, or in \
+    podssh-ca.pem next to the binary, which adds to them";
+
+/// What to do when a TLS handshake failed with `error`: for an issuer that no
+/// root here signs, [`UNKNOWN_ISSUER_HINT`]; none for another failure. The
+/// error's type first, its text when a wrapper hides the type. T-345 adds the
+/// clock's errors here.
+pub fn handshake_hint(error: &std::io::Error) -> Option<&'static str> {
+    use rustls::{CertificateError, Error};
+    let inner = error.get_ref().and_then(|inner| inner.downcast_ref::<Error>());
+    let unknown = matches!(inner, Some(Error::InvalidCertificate(CertificateError::UnknownIssuer)))
+        || error.to_string().contains("UnknownIssuer");
+    unknown.then_some(UNKNOWN_ISSUER_HINT)
+}
+
+/// The text of a failed handshake, with its hint when it has one.
+pub fn handshake_failure(error: &std::io::Error) -> String {
+    match handshake_hint(error) {
+        Some(hint) => format!("{error}; {hint}"),
+        None => error.to_string(),
     }
 }
 
@@ -259,4 +285,33 @@ pub fn client_config_with(roots: &TlsRoots, provider: CryptoProvider) -> Result<
         .with_no_client_auth();
 
     Ok(Arc::new(config))
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use rustls::{CertificateError, Error};
+
+    /// The hint comes with rustls's own error, found by its type, and by its
+    /// text when a wrapper hides the type; another failure has none.
+    #[test]
+    fn an_unknown_issuer_gets_the_hint_and_another_failure_none() {
+        let typed = std::io::Error::new(
+            std::io::ErrorKind::InvalidData,
+            Error::InvalidCertificate(CertificateError::UnknownIssuer),
+        );
+        assert_eq!(handshake_hint(&typed), Some(UNKNOWN_ISSUER_HINT));
+        let said = handshake_failure(&typed);
+        assert!(said.contains("UnknownIssuer") && said.contains("--ca-file FILE or SSL_CERT_FILE"), "{said}");
+        let text = std::io::Error::other("TLS with the relay failed: invalid peer certificate: UnknownIssuer");
+        assert_eq!(handshake_hint(&text), Some(UNKNOWN_ISSUER_HINT));
+        let name = std::io::Error::new(
+            std::io::ErrorKind::InvalidData,
+            Error::InvalidCertificate(CertificateError::NotValidForName),
+        );
+        assert_eq!(handshake_hint(&name), None);
+        assert_eq!(handshake_failure(&name), name.to_string());
+        let reset = std::io::Error::from(std::io::ErrorKind::ConnectionReset);
+        assert_eq!(handshake_hint(&reset), None);
+    }
 }

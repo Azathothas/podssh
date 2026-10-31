@@ -147,8 +147,10 @@ async fn query(ip: &str, path: &str, host: &str, kind: &str) -> Result<Vec<IpAdd
     let name = rustls_pki_types::ServerName::try_from(ip.to_string()).map_err(|e| e.to_string())?;
     let addr: IpAddr = ip.parse().map_err(|_| format!("{ip} is not an IP"))?;
     let tcp = TcpStream::connect(SocketAddr::new(addr, 443)).await.map_err(|e| e.to_string())?;
-    let mut stream =
-        tokio_rustls::TlsConnector::from(config).connect(name, tcp).await.map_err(|e| format!("TLS: {e}"))?;
+    let mut stream = tokio_rustls::TlsConnector::from(config)
+        .connect(name, tcp)
+        .await
+        .map_err(|e| format!("TLS: {}", tls::handshake_failure(&e)))?;
     let target = format!("{path}?name={host}&type={kind}");
     let response =
         http::exchange(&mut stream, "GET", ip, &target, &[("Accept", "application/dns-json")], b"", 64 * 1024)

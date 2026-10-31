@@ -522,6 +522,7 @@ behind them.
 | Fault | What podssh did |
 | --- | --- |
 | None (the control) | The stand-in carried a session. |
+| A certificate whose root is in no store that podssh reads, as a proxy's that re-signs TLS (T-340, 2026-10-31) | `podssh ssh`, `podssh proxy` and `podssh doctor` end with rustls's `UnknownIssuer` and what to do: the proxy's CA in `--ca-file FILE` or `SSL_CERT_FILE`, which replace podssh's roots, or in `podssh-ca.pem` next to the binary, which adds to them (`cargo test -p podssh-cli --test faults -- --ignored a_relay_whose_issuer`, 1 passed; `cargo test -p podssh-ws --lib tls`, 1 passed; `--test hostname_verification`, 4 passed; the gate's `faults.issuer`; planted, the match of `UnknownIssuer` removed, each of the three failed). |
 | The first relay host is down (connection refused) | Failed over to the next host at once. |
 | The first host answers the upgrade with 503 | Failed over at once. |
 | The first host completes TLS, then does not answer | Since T-220 (2026-10-11, the build image): the session went through the next host in 2 s with `staggered`, the default, and with `parallel`, and in 5 s with `serial`. Before, after the 20 s limit. |

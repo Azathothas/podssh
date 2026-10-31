@@ -199,8 +199,9 @@ pub async fn open_tls(
     tokio::time::timeout(timeout, connector.connect(name, tcp))
         .await
         .map_err(|_| ConnectError::Timeout { step: "the TLS handshake", after: timeout })?
-        // rustls's text distinguishes an unknown issuer from a name mismatch.
-        .map_err(|e| ConnectError::Tls(e.to_string()))
+        // rustls's text distinguishes an unknown issuer from a name mismatch,
+        // and an unknown issuer gets what to do (T-340).
+        .map_err(|e| ConnectError::Tls(crate::tls::handshake_failure(&e)))
 }
 
 /// Send the upgrade request and read the answer. On `101`, returns the stream

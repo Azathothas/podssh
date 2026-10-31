@@ -132,6 +132,22 @@ fn two_hosts(cell: Cell) -> Cell {
     Cell { args, ..cell }
 }
 
+/// The cell's arguments with no `--ca-file`: the stand-in's certificate then
+/// chains to no root that podssh trusts, as a proxy's that re-signs TLS does
+/// (T-340).
+fn untrusted(cell: Cell) -> Cell {
+    let mut args = Vec::new();
+    let mut words = cell.args.iter();
+    while let Some(word) = words.next() {
+        if word == "--ca-file" {
+            words.next();
+        } else {
+            args.push(word.clone());
+        }
+    }
+    Cell { args, ..cell }
+}
+
 /// Bytes that are not all alike, so that a reordered chunk shows.
 fn pattern(len: usize) -> Vec<u8> {
     let mut x: u32 = 0x2545_f491;
@@ -349,4 +365,29 @@ fn the_window_keeps_what_waits_under_the_relay_s_check() {
     let ran = ssh(&session, &cell, &[], "source 4000000", None);
     assert_eq!(ran.code, 0, "{}", ran.err);
     assert_eq!(ran.out.len(), 4_000_000, "{}", ran.err);
+}
+
+#[test]
+#[ignore = "the fault harness, on the loopback: a few seconds"]
+fn a_relay_whose_issuer_podssh_does_not_trust_ends_with_what_to_do() {
+    let session = Session::start("issuer");
+    let Some(cell) = cell(&session, "normal") else { return };
+    let cell = untrusted(cell);
+    let ran = ssh(&session, &cell, &[], "true", None);
+    let says = |err: &str| err.contains("UnknownIssuer") && err.contains("--ca-file FILE or SSL_CERT_FILE");
+    assert!(ran.code != 0 && says(&ran.err), "ssh: {}: {}", ran.code, ran.err);
+    // podssh proxy, through the same relay arguments.
+    let relay: Vec<String> = cell.args.windows(2).filter(|w| w[0].starts_with("--relay-")).flatten().cloned().collect();
+    let mut args = vec!["proxy".to_string()];
+    args.extend(relay);
+    args.extend(["127.0.0.1".to_string(), "22".to_string()]);
+    let done = session.command(&args).stdin(Stdio::null()).output().expect("podssh runs");
+    let err = String::from_utf8_lossy(&done.stderr);
+    assert!(!done.status.success() && says(&err), "proxy: {:?}: {err}", done.status);
+    // podssh doctor, with the same relay: its line of the relay says it too.
+    let mut args = vec!["doctor".to_string()];
+    args.extend(cell.args.windows(2).filter(|w| w[0].starts_with("--relay-")).flatten().cloned());
+    let done = session.command(&args).stdin(Stdio::null()).output().expect("podssh runs");
+    let out = String::from_utf8_lossy(&done.stdout);
+    assert!(!done.status.success() && says(&out), "doctor: {:?}: {out}", done.status);
 }

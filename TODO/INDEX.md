@@ -62,15 +62,15 @@ repository and CI).
 
 ## Counts
 
-**352 entries: 25 open, 0 partial, 35 blocked, 292 done.**
+**352 entries: 24 open, 1 partial, 35 blocked, 292 done.**
 
 | Priority | open | partial | blocked | done | total |
 | --- | --- | --- | --- | --- | --- |
 | P0 | 0 | 0 | 0 | 1 | 1 |
 | P1 | 2 | 0 | 0 | 25 | 27 |
-| P2 | 7 | 0 | 23 | 150 | 180 |
+| P2 | 6 | 1 | 23 | 150 | 180 |
 | P3 | 16 | 0 | 12 | 116 | 144 |
-| **All** | 25 | 0 | 35 | 292 | 352 |
+| **All** | 24 | 1 | 35 | 292 | 352 |
 
 ## Entries
 
@@ -412,7 +412,7 @@ repository and CI).
 | [T-337](repo.md) | P1 | M | none | defect | done | The publish job runs actions by tags that can move, before it attests the binaries |
 | [T-338](relay.md) | P2 | M | none | chore | done | The relay's facts are read by their line, and only a push checks the live relay |
 | [T-339](roads.md) | P2 | M | backlog | chore | done | Nothing watches the quick tunnel's pin of cloudflared, and its edge names are fixed |
-| [T-340](ws.md) | P2 | M | backlog | defect | open | On Windows and macOS podssh reads no store of the system, and `UnknownIssuer` comes with no hint |
+| [T-340](ws.md) | P2 | M | backlog | defect | partial | On Windows and macOS podssh reads no store of the system, and `UnknownIssuer` comes with no hint |
 | [T-341](repo.md) | P2 | M | none | chore | open | Nothing watches the upstreams of the vendored crates |
 | [T-342](relay.md) | P2 | M | backlog | defect | open | The relay's limits are compiled in, and nothing compares them with `/relays.json` |
 | [T-343](repo.md) | P3 | S | none | chore | open | The release takes Zig from one site, builds armv7 with an unchecked rust, and runs an unpinned schema check |

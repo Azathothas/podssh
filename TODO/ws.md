@@ -223,7 +223,7 @@ module comment says that the test suite asserts that the shipped configuration d
 (`probe.rs` lines 9-12 at `510d86f`), but no test names `PrintChain`: a search finds it only in `probe.rs`,
 the example and the documents. Also, lines 134 and 178 at `510d86f` of `probe.rs` index the certificate with
 no bound check, so a short certificate panics the probe. The shipped configuration calls
-`.dangerous()` to install the WebPKI verifier (`crates/podssh-ws/src/tls.rs:251-255`), so a scan
+`.dangerous()` to install the WebPKI verifier (`crates/podssh-ws/src/tls.rs:277-281`), so a scan
 cannot look for that word alone.
 
 ## Approach
@@ -405,7 +405,7 @@ the system bundle).
 
 Read: the provider has two suites, both TLS 1.3 (`crates/podssh-ws/src/crypto/suites.rs`, line 55
 at `0d3d13a`), and its comment says that TLS 1.2 suites are absent on purpose (lines 7-11 at `0d3d13a`). The configuration
-enables both versions (`crates/podssh-ws/src/tls.rs:251-253`); rustls accepts that, because one
+enables both versions (`crates/podssh-ws/src/tls.rs:277-279`); rustls accepts that, because one
 suite is usable, and then offers no TLS 1.2 suite (rustls 0.23.45, `with_protocol_versions` in
 its `src/builder.rs`, read in the cargo registry). The `tls12` feature of `rustls` and
 `tokio-rustls` is on (`Cargo.toml`). The provider has HMAC
@@ -605,7 +605,7 @@ returns a `String` (142-166). The callers keep or pass the text:
 `TransportError::Unexpected` (crates/podssh-transport/src/socket.rs at `e8bbd4d` lines 104-113, 143, 161
 and 185), and, since T-072, a read error `Aborted` with its text. Tests and the gate match the
 text: `crates/podssh-ws/tests/session.rs` lines 108 ("continuation") and 172 ("without a
-WebSocket Close"), and `scripts/interop-faults.sh:242` ("pings unanswered").
+WebSocket Close"), and `scripts/interop-faults.sh:254` ("pings unanswered").
 `WsError` exists (`crates/podssh-ws/src/error.rs:56-76`), but the session does not use it.
 
 ## Approach
@@ -822,7 +822,7 @@ a value with its top bit set, which section 5.2 forbids too. `frame::encode` wri
 form (`:88-96`). The tests check the encoder at the boundaries 125, 126, 65535 and 65536
 (`crates/podssh-ws/tests/rfc6455.rs:92-117`), and no test decodes a length that is not
 minimal. The only caller in the code is `next_event`, for the frames of the relay
-(`crates/podssh-ws/src/client.rs:421-430`). The stand-in relay writes the minimal form
+(`crates/podssh-ws/src/client.rs:422-431`). The stand-in relay writes the minimal form
 (`scripts/fake_ws.py:21-29`); the frames of the real relay were not checked for it.
 
 ## Approach
@@ -1585,7 +1585,7 @@ port 443 (Cloudflare's edge serves TLS there).
 **Milestone:** backlog
 **Priority:** P2
 **Effort:** M
-**Status:** open
+**Status:** partial
 
 ## Problem
 
@@ -1598,10 +1598,11 @@ command says what to do. Four of the eight release binaries are for Windows and 
 
 - Read: the system's bundles are Unix paths (`crates/podssh-ws/src/tls.rs:97-106`), and the
   default roots are the compiled-in Mozilla roots, `podssh-ca.pem` next to the binary and the
-  first bundle that reads (`:154-174`). An explicit file (`--ca-file`, `SSL_CERT_FILE`) is used
+  first bundle that reads (`:180-200`). An explicit file (`--ca-file`, `SSL_CERT_FILE`) is used
   alone and never widened (`:35-39`).
 - Read: a failed handshake gives rustls's text: `crates/podssh-ws/src/client.rs:133` says "TLS
-  with the relay failed: {why}", and `:202-203` keeps rustls's words. doctor adds a hint for the
+  with the relay failed: {why}", and `crates/podssh-ws/src/client.rs` lines 202-203 at `1316e53`
+  kept rustls's words. doctor adds a hint for the
   clock's errors only (`crates/podssh-cli/src/doctor/relay_checks.rs:96-105`), and its test
   asserts none for `UnknownIssuer` (`:344`).
 - Read: the release builds two binaries for macOS and two for Windows
@@ -1622,7 +1623,7 @@ command says what to do. Four of the eight release binaries are for Windows and 
    `CertificateError::UnknownIssuer`, and its text as the fallback): the issuer is not trusted
    here; a proxy that re-signs TLS needs its CA, in `--ca-file FILE` or `SSL_CERT_FILE` (which
    replace the store) or in `podssh-ca.pem` next to the binary (which adds to it). Each command
-   gets it with the error's text (`crates/podssh-ws/src/client.rs:203`,
+   gets it with the error's text (`crates/podssh-ws/src/client.rs:204`,
    `crates/podssh-ws/src/tls.rs:149`), and doctor too. T-345 adds the clock's errors to the same
    function.
 2. Windows: the stores `ROOT` and `CA` of the current user and of the machine, read through
@@ -1655,6 +1656,27 @@ with the hint, which names `--ca-file`. In CI on `windows-2025`: a root added to
 `ROOT` store lets a session through a stand-in that it signs, and doctor names the store.
 Planted: the match of `UnknownIssuer` removed; the test of the hint fails.
 
+## Done
+
+2026-10-31, partial. Done here, item 1; next, items 2 to 4:
+
+- `podssh_ws::tls::handshake_hint` and `handshake_failure`: rustls's
+  `CertificateError::UnknownIssuer`, found in the `io::Error` by its type and
+  by its text as the fallback, gets `UNKNOWN_ISSUER_HINT`, which names
+  `--ca-file FILE`, `SSL_CERT_FILE` and `podssh-ca.pem` next to the binary.
+  `ConnectError::Tls`, `tls::connect_over` and the query of DNS over HTTPS
+  give it, so each command and doctor's relay line say it.
+- Tests: the hint by type and by text, none for a wrong name or a reset
+  (`cargo test -p podssh-ws --lib tls`, 1 passed); a server whose root is in
+  no store gives the hint through `connect_over` with the default trust, and
+  through a file of its root it passes (`--test hostname_verification`, 4
+  passed); through the stand-in relay with no `--ca-file`, `podssh ssh`,
+  `podssh proxy` and `podssh doctor` end with it
+  (`cargo test -p podssh-cli --test faults -- --ignored a_relay_whose_issuer`,
+  1 passed), and the gate's `scripts/interop-faults.sh` has the same check,
+  `faults.issuer`. Planted, the match of `UnknownIssuer` removed: each of the
+  three failed.
+
 # T-344: DNS over HTTPS: two operators, one encoding, and no memory of the addresses that worked
 
 **Source:** the audit of hardcoded assumptions of 2026-10-31, finding 9.
@@ -1676,8 +1698,8 @@ of that form, leaves `--relay-addr` alone. podssh keeps no address that carried 
   HTTPS (`crates/podssh-ws/src/resolve.rs:1-11`); with an HTTP proxy none of it runs for the
   target, and TLS always checks the target's name (`:12-15`).
 - Read: the resolvers are Cloudflare's and Google's, by IP literal, each with its JSON path
-  (`crates/podssh-ws/src/resolve.rs:28-32`); each query dials port 443 directly (`:144-161`),
-  with `Accept: application/dns-json` (`:154`), for A and then AAAA (`:125`).
+  (`crates/podssh-ws/src/resolve.rs:28-32`); each query dials port 443 directly (`:144-163`),
+  with `Accept: application/dns-json` (`:156`), for A and then AAAA (`:125`).
 - Read: the relay's pool is cached on disk at a mint (`crates/podssh-relay/src/pool.rs:118-137`);
   nothing caches an address.
 - Inferred: RFC 8484 defines the wire form, `application/dns-message`, and no standard defines the
@@ -1755,8 +1777,8 @@ and each other command print rustls's words alone. An error should tell what to 
    failed with one of the four time errors (their text as the fallback) gets the clock's hint,
    with this host's clock in UTC, in doctor's words.
 2. Each place where podssh-ws makes the text of a TLS error uses it: `ConnectError::Tls`
-   (`crates/podssh-ws/src/client.rs:203`), `tls::connect_over` (`crates/podssh-ws/src/tls.rs:149`)
-   and the query of DNS over HTTPS (`crates/podssh-ws/src/resolve.rs:151`). doctor's `clock_hint`
+   (`crates/podssh-ws/src/client.rs:204`), `tls::connect_over` (`crates/podssh-ws/src/tls.rs:149`)
+   and the query of DNS over HTTPS (`crates/podssh-ws/src/resolve.rs:150-153`). doctor's `clock_hint`
    calls it, so that the words are the same.
 3. Tests through a stand-in relay with an expired certificate: `podssh ssh`, `podssh proxy` and
    `podssh cp` each name the clock and its reading.
