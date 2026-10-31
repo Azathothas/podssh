@@ -652,6 +652,22 @@ as the author, and each commit of this repository is the operator's
 (`docs/decisions.md`). A minimum Rust is raised only by a decision, never to
 let an update in.
 
+Dependabot moves no path package, so the crates of `vendor/` have two
+watches of their own (T-341). `.github/workflows/upstream.yml` reads each
+week crates.io's newest release of russh and of iroh-relay, and the latest
+release of tailscale-rs on GitHub, against each copy and the line
+"Upstream read" of its section of `vendor/README.md`
+(`scripts/check-vendored.py`). And cargo-deny passes over a path package (an
+advisory planted for the vendored russh passed it), so
+`.github/workflows/deny.yml` reads its copy of advisory-db for each package
+of the lock files with no source, but podssh's own
+(`scripts/check-vendored-advisories.py`), on each push and each day. When the
+first is red, read the release that it names and judge it: move the copy, or
+write the release and the day in the line "Upstream read", with the reason.
+When the second is red, move the copy to a patched release, or judge the
+advisory and ignore it in `deny.toml` with the reason, as for any crate.
+Each check runs its own plant beside it.
+
 ## Release builds
 
 The released Linux binary is `podssh-cli` for `x86_64-unknown-linux-musl`,

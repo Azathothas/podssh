@@ -458,7 +458,7 @@ Read:
 3. On a run by hand, make the list of the commits since the last tag as an
    artifact, so that it can be read before a tag.
 4. Link each "Fixes #N" of a commit to its issue in the list.
-5. docs/development.md, "Release builds" (`docs/development.md:655-752`): the
+5. docs/development.md, "Release builds" (`docs/development.md:671-768`): the
    body is the notes file and the generated list.
 
 No new shell script: each step is a step of the workflow.
@@ -2026,7 +2026,7 @@ Read, in the tree as it is now:
   build must fail at `/nonexistent`; the control, with `CC` alone, must not
   stop there.
 - `docs/development.md:250-252` states the rule with `CXX`, and
-  `docs/STATUS.md:635` records the measurement. Rule 4 of
+  `docs/STATUS.md:636` records the measurement. Rule 4 of
   `docs/architecture.md` named `CC=/nonexistent` only; it was repaired in the
   same change as the record.
 - `.github/workflows/build.yml:103-111` runs the plant on each push.
@@ -2057,7 +2057,7 @@ the same script in its step "the no-C rule is load-bearing".
 (CXX=/nonexistent)"). Measured with `sh scripts/dev.sh plant` in
 `rust:1-alpine`: the C plant failed twice for the right reason, the C++ plant
 failed at `CXX=/nonexistent`, the control with `CC` alone was not stopped
-there, and the clean tree built (`docs/STATUS.md:635`). The CI run of
+there, and the clean tree built (`docs/STATUS.md:636`). The CI run of
 `eacd94e`, which contains `a378863`, passed, with its step "the no-C rule is
 load-bearing".
 
@@ -4331,7 +4331,7 @@ job that attests, signs and publishes runs no tool of a third party:
 **Milestone:** none
 **Priority:** P2
 **Effort:** M
-**Status:** open
+**Status:** done
 
 ## Problem
 
@@ -4344,11 +4344,11 @@ would get no pull request, and maybe no red job.
 
 - Read: `[patch.crates-io]` puts `vendor/russh` and `vendor/iroh-relay` in the place of their
   releases (`Cargo.toml:218-220`); russh's entries of the lock files have no source and no
-  checksum, as a path package has none (`vendor/README.md:118-119`); Dependabot's file says that
+  checksum, as a path package has none (`vendor/README.md:133-134`); Dependabot's file says that
   an update of russh moves the patch by hand (`.github/dependabot.yml:7-9`).
-- Read: the copy of russh is the release 0.64.1 (`vendor/README.md:78-80`), iroh-relay is 1.4.1
-  (`vendor/README.md:123-126`), and the Tailscale fork is upstream's commit `f4781c4` of
-  2026-09-29 with podssh's patch set (`vendor/README.md:3-7`).
+- Read: the copy of russh is the release 0.64.1 (`vendor/README.md:90-92`), iroh-relay is 1.4.1
+  (`vendor/README.md:138-142`), and the Tailscale fork is upstream's commit `f4781c4` of
+  2026-09-29 with podssh's patch set (`vendor/README.md:12-19`).
 - Read, through fetch.web.pkgforge.dev on 2026-10-31
   (https://github.com/rustsec/advisory-db/blob/main/crates/russh/RUSTSEC-2026-0154.md):
   RUSTSEC-2026-0154, an allocation whose size a peer sets, in russh's agent client and server
@@ -4393,6 +4393,44 @@ cargo deny --locked check advisories   # with the planted db-path: exit 1; the c
 
 Planted: the weekly job's "Upstream read" line set to an old version; the job fails and names
 the crate. The plant of the advisory fails as step 2 says.
+
+## Correction
+
+The Premise's guess was right: cargo-deny passes over a path package. An advisory planted for
+russh with `patched = [">= 0.64.2"]`, in a scratch advisory-db at the directory that cargo-deny
+names for its database, passed `cargo deny --locked --offline check advisories` with 0.64.1 in
+`vendor/russh`, and the same advisory for base64 failed it; so Approach item 3 holds, and the
+plant of item 2 runs against its check. Approach item 1 named the head of tailscale-rs: the watch
+reads its latest release, as tailscale-rs publishes releases (v0.6.1 of 2026-09-18 is the newest;
+the vendored commit of 2026-09-29 is past it) and its head moved on 2026-10-31 again. The first
+reading found russh 0.65.0 of 2026-10-25, which T-356 judges and moves to.
+
+## Done
+
+2026-10-31:
+
+- `scripts/check-vendored.py`: crates.io's `max_stable_version` of russh and iroh-relay, and
+  tailscale-rs's latest release on GitHub, against each copy's manifest and the line "Upstream
+  read" of its section of `vendor/README.md`; a section and its copy go together, or the run
+  exits 2. Offline, on the answers read through fetch.web.pkgforge.dev and forge.web.pkgforge.dev
+  (russh 0.65.0, iroh-relay 1.4.1, tailscale-rs v0.6.1): exit 0; `--plant-read first`, the
+  line of russh as 0.0.0, exit 1 naming russh; iroh-relay at 1.5.0, exit 1 naming it; an answer
+  missing, exit 2. `.github/workflows/upstream.yml` has the job `vendored`, each Monday and by
+  hand, with its plant.
+- `scripts/check-vendored-advisories.py`: cargo-deny's copy of advisory-db, for each package of
+  `Cargo.lock` and `fuzz/Cargo.lock` with no source but podssh's own (russh, iroh-relay and the
+  33 packages of the Tailscale fork today), with deny.toml's ignores and Cargo's reading of each
+  requirement. On the database of 2026-10-30: exit 0. On the scratch database, the advisory of
+  russh patched from 0.64.2: exit 1 naming RUSTSEC-2099-0001 and russh 0.64.1; patched from
+  0.64.1: exit 0. `--self-test`: 17 requirements, and planted databases on a planted lock
+  (patched past the version: 1; at it: 0; unaffected: 0; withdrawn: 0; no patched release: 1;
+  ignored in deny.toml: 0; no database: 2), each as it must; its own plant, an ignore of the wrong
+  id, failed it. `.github/workflows/deny.yml` runs both after cargo-deny, on each push and each
+  day.
+- `vendor/README.md` has the lines "Upstream read" (russh 0.65.0, judged for T-356; iroh-relay
+  1.4.1; tailscale-rs v0.6.1) and says what each watch reads; `docs/development.md` ("Updates")
+  says what a session does when one is red.
+
 
 # T-343: The release takes Zig from one site, builds armv7 with an unchecked rust, and runs an unpinned schema check
 

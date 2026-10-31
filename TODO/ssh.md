@@ -2742,7 +2742,7 @@ package (T-341).
 - Read, through forge.web.pkgforge.dev on 2026-10-31: advisory-db's directory of russh holds
   RUSTSEC-2026-0154 alone; none of the six is there yet.
 - Read: the same release adds `AgentSessionBinding` to the client (#794): "Exposes the verified
-  initial key-exchange data", for `session-bind@openssh.com`. `vendor/README.md:93-104` says the
+  initial key-exchange data", for `session-bind@openssh.com`. `vendor/README.md:108-119` says the
   patch and the tree go when a release of russh gives a client the binding.
 - Read: the breaking changes of 0.65.0 are in the server's `Handler` (`auth_publickey_offered`,
   `auth_publickey`) and the removal of the feature `async-trait`.

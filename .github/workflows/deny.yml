@@ -31,6 +31,16 @@ jobs:
       - name: advisories, licenses, duplicates and sources
         run: cargo deny --locked check advisories licenses bans sources
 
+      # cargo-deny passes over a path package (T-341): the advisories of
+      # vendor/ and the Tailscale fork, from the copy of advisory-db that the
+      # step above fetched, and the check's own plants.
+      - name: the advisories of the crates built from a path
+        if: ${{ !cancelled() }}
+        run: python3 scripts/check-vendored-advisories.py
+      - name: that check fails on planted advisories
+        if: ${{ !cancelled() }}
+        run: python3 scripts/check-vendored-advisories.py --self-test
+
       # The Tailscale fork comes with the feature ts.
       - name: licenses and sources, with each feature
         run: cargo deny --locked --all-features check licenses sources

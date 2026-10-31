@@ -1,9 +1,21 @@
 # vendor/ — carried third-party source
 
+Dependabot moves none of these copies, and cargo-deny passes over their
+advisories, as each is a path package. Two watches stand in (T-341;
+`docs/development.md`, "Updates"): `scripts/check-vendored.py`, each week,
+fails when an upstream released what the line "Upstream read" of its section
+does not name; `scripts/check-vendored-advisories.py`, on each push and each
+day, fails on an advisory of advisory-db that names a copy's version. Read the
+release or the advisory, judge it, then move the copy, or the line "Upstream
+read" (or `deny.toml`'s ignores) with the day and the reason.
+
 ## tailscale-rs
 
 - **Upstream**: <https://github.com/tailscale/tailscale-rs>
 - **Commit**: `f4781c480e8d1376aed89f737beefe7425e8b866` (2026-09-29)
+- **Upstream read**: `v0.6.1` on 2026-10-31, the newest release, which the
+  commit above is past. Its head moves each day; its releases are what the
+  watch reads (T-341).
 - **Vendored**: 2026-10-05, from the clone `.tmp/tailscale-rs`
   (MEASURED 2026-10-05: `git log -1 --format='%H %cd'` in that clone printed
   the sha above). The **import** is byte-identical to that clone except
@@ -78,6 +90,9 @@ Not done here: the home-region override, and connecting again after a drop
 - **Upstream**: <https://github.com/warp-tech/russh> (once Eugeny/russh),
   the release 0.64.1 of crates.io, whose `.cargo_vcs_info.json` names the
   commit `e5d80a07dc554480b6ea3b2e14adfc190407b627`.
+- **Upstream read**: 0.65.0 on 2026-10-31: six security fixes, three of them
+  in the client, and the session binding (#794) that the patch gives; T-356
+  moves to it.
 - **Vendored**: 2026-10-12 (T-279), from the copy that cargo unpacked of
   that release. The import is the published crate byte for byte, but
   `.cargo-ok`, a mark of cargo's own; the shipped tree is the import plus
@@ -123,6 +138,7 @@ source and no checksum, as a path package has none.
 - **Upstream**: the crate `iroh-relay` 1.4.1 as crates.io publishes it
   (<https://crates.io/crates/iroh-relay>), from n0-computer/iroh at
   `d6c6963b9602d1b8dd2ba53b6519e7eb19cc7940` (its `.cargo_vcs_info.json`).
+- **Upstream read**: 1.4.1 on 2026-10-31, the copy's own release.
 - **Vendored**: 2026-10-12 (T-280) at 1.3.0, and carried to 1.4.1 on
   2026-10-30 with Dependabot's update of iroh, from cargo's copy of the
   published crate; the patch applied with no change. The import is that crate byte for byte, but cargo's own marker

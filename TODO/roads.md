@@ -3199,7 +3199,7 @@ that says why.
 - Read: the armv7 job builds with Alpine's rust (`.github/workflows/release.yml:188`); whether it
   is 1.91 or later was not read (T-343 checks it in the job). The notices of the licenses are
   made for the default features (`.github/workflows/release.yml:438`); `cargo deny` checks the
-  licenses and the sources with each feature (`.github/workflows/deny.yml:34-36`).
+  licenses and the sources with each feature (`.github/workflows/deny.yml:44-46`).
 - Read: `docs/design.md:947-948` says "about 190 to 245 crates, and several megabytes" of iroh.
 
 ## Approach

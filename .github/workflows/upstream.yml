@@ -5,7 +5,8 @@ name: upstream
 # cloudflared's protocol, which publishes no contract, and Cloudflare
 # supports a cloudflared for a year after its newest release. The run is red
 # when a file of the protocol moved, or the pin is 9 months old. It makes no
-# tunnel. T-341 adds the upstreams of the vendored crates here.
+# tunnel. And the upstreams of the vendored crates (scripts/check-vendored.py,
+# T-341): red when one released what no session read and judged.
 
 on:
   schedule:
@@ -38,3 +39,29 @@ jobs:
             exit 1
           fi
           echo "the planted sum exited 1, as it must"
+
+  # crates.io's newest russh and iroh-relay, and tailscale-rs's latest
+  # release, against the copies and the lines "Upstream read" of
+  # vendor/README.md: Dependabot moves no path package.
+  vendored:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+      - name: the vendored crates' upstreams against vendor/README.md
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: python3 scripts/check-vendored.py
+      # The check must see a release that no session judged: a planted line
+      # fails it.
+      - name: a planted line fails it
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          rc=0
+          python3 scripts/check-vendored.py --plant-read first || rc=$?
+          if [ "$rc" -ne 1 ]; then
+            echo "the check is vacuous: the planted line exited $rc, not 1"
+            exit 1
+          fi
+          echo "the planted line exited 1, as it must"
