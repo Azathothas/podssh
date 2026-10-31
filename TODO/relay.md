@@ -395,7 +395,7 @@ Read on `3ee70dc`, the defect holds. No source, test or example of `podssh-cli` 
 declares `libc` (`crates/podssh-probe/Cargo.toml` line 11 at `f8a94ca`), which none of its sources uses.
 `crates/podssh-probe/src/facts.rs` lines 3-6 at `f8a94ca` name a "startup assertion" that no command runs;
 `crates/podssh-probe/src/relay_facts.rs` lines 261-289 at `f8a94ca` are that unused startup part. CI runs
-`scripts/check-relay-spec.py` live, with three plants (`.github/workflows/build.yml:191-221`).
+`scripts/check-relay-spec.py` live, with three plants (`.github/workflows/build.yml:192-222`).
 The gate runs the crate's tests with no C compiler (`scripts/gate.sh:154-166`). The build image
 has no Python (`crates/podssh-probe/src/facts.rs:14-19`), so the crate is the only form of the
 check that the container gate can run.
@@ -1441,11 +1441,11 @@ Nothing watches the expiry of the relay's domain, on which each road but `--dire
   document: "Exact addresses" (`:9`), "Reverse close codes" (`:160`) and "Protocol (for other
   clients)" (`:205`).
 - Read: the job `checks` runs the live check, and fails on exit 1 (a changed fact) and on exit 2
-  (a relay that cannot be read) alike (`.github/workflows/build.yml:191-221`);
+  (a relay that cannot be read) alike (`.github/workflows/build.yml:192-222`);
   the gate's step `release` asks the binary and the script for one verdict, live (`:81-86`).
 - Read: each of the eight build jobs of the release runs `podssh proxy github.com 22` through the
-  live relay (`scripts/release-short.sh:96-102`, run at `.github/workflows/release.yml:144`, `:206`,
-  `:278`, `:317` and `:411`; three of these run in a matrix of two). The audit counted seven
+  live relay (`scripts/release-short.sh:96-102`, run at `.github/workflows/release.yml:144`, `:207`,
+  `:279`, `:318` and `:412`; three of these run in a matrix of two). The audit counted seven
   jobs; the matrices give eight.
 - Read: a beta needs the job `all` of the gate (`docs/decisions.md:25`). Citations of an older
   document of the relay were once off by 35 (`TODO/repo.md:2318-2321`).

@@ -6,7 +6,9 @@ name: upstream
 # supports a cloudflared for a year after its newest release. The run is red
 # when a file of the protocol moved, or the pin is 9 months old. It makes no
 # tunnel. And the upstreams of the vendored crates (scripts/check-vendored.py,
-# T-341): red when one released what no session read and judged.
+# T-341): red when one released what no session read and judged. And the
+# tools that no lock pins (scripts/check-release-tools.py, T-343): Zig's
+# community mirrors against their copy, and check-jsonschema against its pin.
 
 on:
   schedule:
@@ -65,3 +67,26 @@ jobs:
             exit 1
           fi
           echo "the planted line exited 1, as it must"
+
+  # Zig's mirrors, which the riscv64 build reads, and check-jsonschema, which
+  # the build's checks run, against their sources (T-343).
+  release-tools:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+      - name: Zig's mirrors and check-jsonschema against their sources
+        run: python3 scripts/check-release-tools.py
+      # The check must see each change: a planted mirror and a planted pin
+      # each fail it.
+      - name: a planted mirror and a planted pin fail it
+        run: |
+          for plant in --plant-mirror --plant-pin; do
+            rc=0
+            python3 scripts/check-release-tools.py "$plant" || rc=$?
+            if [ "$rc" -ne 1 ]; then
+              echo "the check is vacuous: $plant exited $rc, not 1"
+              exit 1
+            fi
+            echo "$plant exited 1, as it must"
+          done

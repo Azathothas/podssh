@@ -1,0 +1,21 @@
+# The community mirrors of Zig (T-343), a copy of
+# https://ziglang.org/download/community-mirrors.txt of 2026-10-31, which
+# scripts/fetch-zig.sh reads in a random order before ziglang.org itself;
+# scripts/check-release-tools.py compares it with ziglang.org's each week.
+https://pkg.hexops.org/zig
+https://zigmirror.hryx.net/zig
+https://zig.linus.dev/zig
+https://zig.squirl.dev
+https://zig.mirror.mschae23.de/zig
+https://ziglang.freetls.fastly.net
+https://zig.tilok.dev
+https://zig-mirror.tsimnet.eu/zig
+https://zig.karearl.com/zig
+https://pkg.earth/zig
+https://fs.liujiacai.net/zigbuilds
+https://zigmirror.com
+https://zig.chainsafe.dev
+https://zig.savalione.com
+https://zig.bcr.ist
+https://zig.vortan.dev/zig
+https://pkg.alexrp.com/zig

@@ -189,6 +189,7 @@ jobs:
           docker run --rm --platform linux/arm/v7 -v "$PWD:/work" -w /work \
             -e CARGO_BUILD_JOBS=4 -e RUSTFLAGS=-Ctarget-feature=+crt-static -e PODSSH_BUILD_COMMIT -e RELEASE_FEATURES \
             "$ARMV7_IMAGE" sh -c 'apk add --no-cache build-base rust cargo >/dev/null && rustc -vV &&
+              sh scripts/check-rustc.sh "$RELEASE_FEATURES" &&
               t=$(rustc -vV | sed -n "s/^host: //p") &&
               cargo build --locked --release --target "$t" -p podssh-cli --features "$RELEASE_FEATURES" &&
               mkdir -p dist && cp "target/$t/release/podssh" dist/podssh-armv7-unknown-linux-musleabihf'
@@ -220,8 +221,9 @@ jobs:
     runs-on: ubuntu-24.04
     timeout-minutes: 60
     env:
-      # zig from ziglang.org, checked by the sum of its download index;
-      # cargo-zigbuild from crates.io, built with its own lock file.
+      # zig from a community mirror, else ziglang.org, checked by the sum of
+      # its download index (scripts/fetch-zig.sh, T-343); cargo-zigbuild from
+      # crates.io, built with its own lock file.
       ZIG_VERSION: 0.16.0
       ZIG_SHA256: 70e49664a74374b48b51e6f3fdfbf437f6395d42509050588bd49abe52ba3d00
       ZIGBUILD_VERSION: 0.23.4
@@ -245,8 +247,7 @@ jobs:
               set -eu
               rustc -vV
               z="zig-x86_64-linux-$ZIG_VERSION"
-              wget -q -O "/tmp/$z.tar.xz" "https://ziglang.org/download/$ZIG_VERSION/$z.tar.xz"
-              echo "$ZIG_SHA256  /tmp/$z.tar.xz" | sha256sum -c -
+              sh scripts/fetch-zig.sh "$ZIG_VERSION" "$ZIG_SHA256" "/tmp/$z.tar.xz"
               xzcat "/tmp/$z.tar.xz" | tar -x -C /tmp
               export PATH="/tmp/$z:$PATH"
               echo "zig $(zig version)"

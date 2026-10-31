@@ -172,9 +172,10 @@ jobs:
       - name: dependabot's configuration is valid
         run: |
           set -eu
-          pipx run check-jsonschema --builtin-schema vendor.dependabot .github/dependabot.yml
+          # A pinned version (T-343); the weekly watch reads PyPI's newest.
+          pipx run check-jsonschema==0.39.0 --builtin-schema vendor.dependabot .github/dependabot.yml
           sed 's/package-ecosystem: cargo$/package-ecosystem: cargoo/' .github/dependabot.yml > "$RUNNER_TEMP/planted.yml"
-          if pipx run check-jsonschema --builtin-schema vendor.dependabot "$RUNNER_TEMP/planted.yml"; then
+          if pipx run check-jsonschema==0.39.0 --builtin-schema vendor.dependabot "$RUNNER_TEMP/planted.yml"; then
             echo "the schema check is vacuous: a planted ecosystem passed"
             exit 1
           fi

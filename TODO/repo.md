@@ -334,7 +334,7 @@ Read:
 - Stale comments, at `912acd0`: `scripts/dev.sh` lines 69-73 ("the default
   build"), lines 397-404 ("links the fork since 4b", "steps 4-5") and line
   462.
-- CI parses `scripts/*.sh` with dash (`.github/workflows/build.yml:183-189`);
+- CI parses `scripts/*.sh` with dash (`.github/workflows/build.yml:184-190`);
   `scripts/check-scripts.py:53-57` finds the scripts under `scripts/` at any
   depth.
 
@@ -430,7 +430,7 @@ previous release, so a change that the notes forget is invisible to a user.
 Read:
 
 - The job `publish` reads the notes from `docs/releases/`, and fails without
-  them (`.github/workflows/release.yml:578-582`).
+  them (`.github/workflows/release.yml:579-583`).
   No notes file exists yet; T-250 writes the first. The notes drafted for a
   beta that the operator dropped are in git:
   `git show b1b111b:docs/releases/v0.1.0-beta.1.md`.
@@ -458,7 +458,7 @@ Read:
 3. On a run by hand, make the list of the commits since the last tag as an
    artifact, so that it can be read before a tag.
 4. Link each "Fixes #N" of a commit to its issue in the list.
-5. docs/development.md, "Release builds" (`docs/development.md:671-771`): the
+5. docs/development.md, "Release builds" (`docs/development.md:671-783`): the
    body is the notes file and the generated list.
 
 No new shell script: each step is a step of the workflow.
@@ -670,9 +670,9 @@ Measured: `target/debug/podssh.exe --version` prints `podssh 0.1.0`, exit 0.
 Read:
 
 - The jobs `linux` and `windows` build the binaries, and `publish` adds
-  `SHA256SUMS` and publishes them (`.github/workflows/release.yml:56-621`).
+  `SHA256SUMS` and publishes them (`.github/workflows/release.yml:56-622`).
   The workflow has `contents: read` (`:45-46`); `publish` adds
-  `contents: write` (`:475-476`).
+  `contents: write` (`:476-477`).
 - The KTM tester could not tell from an artifact which commit made it, and
   moved the checkout one commit ahead (the KTM report, section 1a; read in
   the report).
@@ -753,7 +753,7 @@ github.com when the workflow is written). The Approach names `actions/attest-bui
   `actions/attest` v4.2.2 (commit `1e69f48acb82d1966a394da916b4c1698aa569d6`), pinned by that commit,
   as item 1 asks. (The wrapper is at commit `4d101475d8b20a2381f78447822ac1eab6504dd8`.)
 - Permissions for a binary (GitHub documentation): `id-token: write`, `contents: read` and
-  `attestations: write`. `publish` has `contents: write` today (`.github/workflows/release.yml:476`
+  `attestations: write`. `publish` has `contents: write` today (`.github/workflows/release.yml:477`
   says "contents: write"), which includes the read. The README of `actions/attest` also lists
   `artifact-metadata: write`, "necessary to create the artifact storage record"; that record needs
   `push-to-registry: true`, which is for images, so a file subject does not need it (Inferred): add
@@ -868,7 +868,7 @@ the release workflow of podssh.
 
 Read:
 
-- `.github/workflows/release.yml:496-501` writes `SHA256SUMS` with
+- `.github/workflows/release.yml:497-502` writes `SHA256SUMS` with
   `sha256sum`, and the job published it with the binaries (lines 370-382 at
   `cdf9308`). No signature was published.
 - The notes drafted for the dropped beta told the user that `SHA256SUMS`
@@ -937,7 +937,7 @@ Approach, and disproves no Premise.
   deprecated, hidden flag in v3.1.4: do not pass it with v3 (it is needed only with v2.6.x). `--yes`
   skips the prompts, and CI needs it. The keyless signing takes the job's own OIDC token, so the job
   needs `id-token: write`; give `publish` that and `attestations: write` for T-210, beside
-  `contents: write` (`.github/workflows/release.yml:476` says "contents: write"). The convention for
+  `contents: write` (`.github/workflows/release.yml:477` says "contents: write"). The convention for
   the bundle's name is `*.sigstore.json` (https://docs.sigstore.dev/cosign/signing/signing_with_blobs/).
 - The identity. The certificate's subject alternative name is `https://github.com/{job_workflow_ref}`
   (https://github.com/sigstore/fulcio/blob/main/docs/oidc.md), so for a tag
@@ -1228,7 +1228,7 @@ so the job of this entry must have both; nobody measured a runner for them.
 # T-214: CI on Windows
 
 **Source:** the triage of GitHub #27 (2026-10-08). Windows is a released
-platform (`.github/workflows/release.yml:328-416`).
+platform (`.github/workflows/release.yml:329-417`).
 **Category:** chore
 **Milestone:** none
 **Priority:** P2
@@ -1248,7 +1248,7 @@ machine.
 Read:
 
 - `.github/workflows/build.yml` lines 17-19 at `e892b0f`: one job, on `ubuntu-latest`.
-- `.github/workflows/release.yml:328-416`: the Windows job installs NASM
+- `.github/workflows/release.yml:329-417`: the Windows job installs NASM
   (line 76), builds, and checks for C runtime DLLs (lines 86-101); it runs no
   test.
 - `docs/STATUS.md` line 230 at `9966ed4`: the default tests pass on Windows,
@@ -1757,11 +1757,11 @@ with a C toolchain for aws-lc.
 Read:
 
 - `.github/workflows/release.yml:97-101`: x86_64 and aarch64 musl, each on a
-  native runner in `rust:1-alpine`. `.github/workflows/release.yml:328-416`:
+  native runner in `rust:1-alpine`. `.github/workflows/release.yml:329-417`:
   Windows x86_64 with a static C runtime.
 - The check of each platform: `readelf` for `NEEDED` and `INTERP`
   (`.github/workflows/release.yml:123-130`), `dumpbin /dependents` on Windows
-  (`:383-408`).
+  (`:384-409`).
 - The binary needs a C compiler for aws-lc (`docs/development.md:12-15`); the
   library crates need none.
 - Some code reads facts of Linux. The terminal check reads `tty_nr` from
@@ -2111,7 +2111,7 @@ Read:
 3. A plant in the same script: a mode `--plant-empty` runs the checks on an
    empty temporary directory and must exit 1. The control is the real tree,
    which must exit 0. CI runs both, as it does for the relay check
-   (`.github/workflows/build.yml:196-221`).
+   (`.github/workflows/build.yml:197-222`).
 4. With T-207: the size check also reads `scripts/`, with its own floor.
 5. The checker of `TODO/` gets its own floor in its own change; this entry
    does not plan it.
@@ -4232,7 +4232,7 @@ two jobs of the release run an image of Docker Hub by the tag `latest`, with no 
 ## Approach
 
 1. Each `uses:` of each workflow names a commit of 40 hexadecimal digits, with its tag in a
-   comment, as `actions/attest` is pinned (`.github/workflows/release.yml:509`): the commits of
+   comment, as `actions/attest` is pinned (`.github/workflows/release.yml:510`): the commits of
    T-210's list, read again at each release's API on the day of the change.
 2. A check in `scripts/check-repo.py`: each `uses:` under `.github/workflows/` names a commit. A
    copy with a planted `@v7` fails it, and its floor fails on an empty tree.
@@ -4441,7 +4441,7 @@ plant exited 1 naming russh; `deny.yml`, run 41172617035, passed with both new s
 **Milestone:** none
 **Priority:** P3
 **Effort:** S
-**Status:** open
+**Status:** partial
 
 ## Problem
 
@@ -4453,19 +4453,21 @@ Each can stop a release, or the gate, for a reason outside podssh.
 ## Premise
 
 - Read: the riscv64 job pins Zig's version and SHA-256 and downloads it from ziglang.org
-  (`.github/workflows/release.yml:222-227`, `:247-249`).
+  (`.github/workflows/release.yml:223-229`; its download, `.github/workflows/release.yml` lines
+  247-249 at `1a46970`).
 - Read, through read.web.pkgforge.dev on 2026-10-31
   (https://ziglang.org/download/community-mirrors/): "The ziglang.org website does not offer any
   uptime or speed guarantees, meaning that your CI will sporadically fail or have slower runs if
   it hardcodes it as a download URL." The mirrors that
   https://ziglang.org/download/community-mirrors.txt lists serve the same file names, and each
   download must be checked; the pinned SHA-256 checks the exact bytes.
-- Read: the armv7 job installs Alpine's own `rust` and `cargo` (`.github/workflows/release.yml:187-194`),
+- Read: the armv7 job installs Alpine's own `rust` and `cargo` (`.github/workflows/release.yml:187-195`),
   in Alpine 3.24 (`images/armv7/Dockerfile`); the CLI declares Rust 1.89
   (`crates/podssh-cli/Cargo.toml:8`), and Q48 lets the minimum rise (`docs/decisions.md:21`).
   Inferred: Alpine 3.24's rust is 1.89 or later, as the job built `v1.0.0-beta.2`.
-- Read: `pipx run check-jsonschema` names no version (`.github/workflows/build.yml:175`, `:177`).
-- Read: the signatures use Sigstore's public instance (`.github/workflows/release.yml:539-564`).
+- Read: `pipx run check-jsonschema` names no version (`.github/workflows/build.yml` lines 175 and
+  177 at `1a46970`).
+- Read: the signatures use Sigstore's public instance (`.github/workflows/release.yml:540-565`).
   Inferred (the audit): an outage delays a release, and a run again repairs it.
 
 ## Approach
@@ -4482,6 +4484,17 @@ Each can stop a release, or the gate, for a reason outside podssh.
 4. Sigstore: no change; `docs/development.md` ("Release builds") says that a signing step that
    failed is run again.
 
+## Decision
+
+2026-10-31: item 2 compares the rustc with the highest `rust-version` that a crate of the
+workspace in the binary's graph declares (`cargo tree -p podssh-cli --features ...`, its crates
+with a path), not with each dependency's. The workspace's crates declare what their dependencies
+need (Q48), which the gate's steps msrv check on each push; and a dependency above them still
+stops the build, as cargo names both versions. The alternative that lost: each `rust-version` of
+`cargo metadata`, whose JSON Alpine's image has no reader for (no jq, no python), and whose graph
+holds the crates of each target and of the tests, so that a crate that the binary never builds
+would stop the release.
+
 ## Prove
 
 ```sh
@@ -4492,6 +4505,21 @@ gh workflow run release.yml --ref main   # a dry run by hand
 The dry run passes with ziglang.org's address planted as a name that does not resolve: a mirror
 served Zig, with the same SHA-256. A planted `rust-version` above Alpine's stops the armv7 job
 with both versions named.
+
+## Done
+
+2026-10-31, partial: `scripts/fetch-zig.sh` reads the 17 mirrors of `scripts/zig-mirrors.txt`
+(ziglang.org's list of the day) in a random order, then ziglang.org. Against a server of the
+test's own, with the origin's name planted not to resolve: in 6 runs of 6 it took the mirror of
+the right bytes, named the one that served other bytes and the one with no file, and with neither
+a good mirror nor the origin it exited 1. Live, with ziglang.org planted as `ziglang.invalid`: the
+mirror zig.tilok.dev served zig 0.16.0 with the pinned SHA-256, in 5 s. `scripts/check-rustc.sh`
+passed here (rustc 1.99.0, the 1.91 of podssh-iroh with the feature iroh, the 1.89 of podssh-cli
+without), and with podssh-iroh's `rust-version` planted at 1.150 it exited 1, naming both; the
+armv7 job runs it before its build. check-jsonschema is pinned at 0.39.0, PyPI's newest of the
+day. `scripts/check-release-tools.py` passed, and each of its plants (a mirror, a pin) exited 1;
+the weekly `upstream.yml` runs it and its plants. `docs/development.md` says that a signing step
+that failed is run again. What waits: the dry run of the release workflow by hand.
 
 # T-355: Dependabot's updates of 2026-10-30 and 2026-10-31, and the curves' 0.14
 

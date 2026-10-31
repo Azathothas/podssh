@@ -688,7 +688,15 @@ the road, and the gate's step `release` builds the same features:
   same check (T-218);
 - a static musl binary for riscv64, cross-compiled with `cargo-zigbuild`
   (zig 0.16.0, checked by its sum) in `rust:1-alpine` on a native runner,
-  with the same check; it runs on the runner under QEMU (T-218);
+  with the same check; it runs on the runner under QEMU (T-218). Zig comes
+  from a community mirror of `scripts/zig-mirrors.txt` in a random order,
+  else from ziglang.org, which asks CI not to depend on it; a mirror that
+  serves other bytes is named and passed over (`scripts/fetch-zig.sh`,
+  T-343). The armv7 job first checks Alpine's rustc against the highest
+  `rust-version` of the workspace's crates in the binary
+  (`scripts/check-rustc.sh`), and stops with both named; the weekly
+  `upstream.yml` compares the copy of the mirrors, and the pin of
+  check-jsonschema, with their sources;
 - Mac binaries for aarch64 and x86_64, built on the macOS runners, with a
   check (`otool -L`) that they link the system's libraries only;
 - Windows binaries for x86_64 and ARM64 with a static C runtime, with a
@@ -768,7 +776,11 @@ To publish a release:
    commits since the previous tag: each commit, grouped by its subject
    (`cliff.toml`, read by a pinned git-cliff). No `CHANGELOG.md` is kept in
    the tree: git holds the history. A run by hand on a branch makes no
-   proof: its identity would name the branch.
+   proof: its identity would name the branch. The attestation and the
+   signature use Sigstore's public instance: when it is down, the step
+   fails before anything is published, and the failed jobs of the tag's run
+   are run again (`gh run rerun RUN --failed`); the tag stays where it is
+   (T-343).
 
 The list can be read at any time, as an artifact named `changes`; the run
 also checks that no commit is dropped:
