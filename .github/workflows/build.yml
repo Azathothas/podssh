@@ -318,17 +318,27 @@ jobs:
       # default trust, which the same server did not get before; the test also
       # shows that /etc/ssl/cert.pem does not hold the root. doctor names each
       # domain. The root leaves the keychain in each case.
+      # The administrator's trust settings ask for the right
+      # com.apple.trust-settings.admin in a dialog, which a runner cannot
+      # answer, and the first run waited on it until the job's limit: the
+      # right is granted for the step and put back after it, and each call of
+      # security has 60 s.
       - name: a root in the system's trust settings
+        timeout-minutes: 15
         env:
           PODSSH_TEST_STORE_ROOT: ${{ runner.temp }}/store-root.cer
         run: |
           set -eu
           test=a_server_that_the_root_signs_is_trusted_through_the_store_alone
+          limit() { perl -e 'alarm shift; exec @ARGV' 60 "$@"; }
           cargo test --locked -p podssh-ws --test system_store -- --ignored --exact the_root_is_written
           PODSSH_TEST_STORE_HOLDS=0 cargo test --locked -p podssh-ws --test system_store -- --ignored --exact --nocapture "$test"
-          sudo security add-trusted-cert -d -r trustRoot -k /Library/Keychains/System.keychain "$PODSSH_TEST_STORE_ROOT"
+          security authorizationdb read com.apple.trust-settings.admin >"$RUNNER_TEMP/right.plist"
           trap 'sudo security remove-trusted-cert -d "$PODSSH_TEST_STORE_ROOT" || true
-                sudo security delete-certificate -c store.podssh.test-anchor /Library/Keychains/System.keychain || true' EXIT
+                sudo security delete-certificate -c store.podssh.test-anchor /Library/Keychains/System.keychain || true
+                sudo security authorizationdb write com.apple.trust-settings.admin <"$RUNNER_TEMP/right.plist" || true' EXIT
+          limit sudo security authorizationdb write com.apple.trust-settings.admin allow
+          limit sudo security add-trusted-cert -d -r trustRoot -k /Library/Keychains/System.keychain "$PODSSH_TEST_STORE_ROOT"
           PODSSH_TEST_STORE_HOLDS=1 cargo test --locked -p podssh-ws --test system_store -- --ignored --exact --nocapture "$test"
           # Offline, doctor runs the checks that open nothing; its exit code
           # also counts the network's ????, so only its lines are read.

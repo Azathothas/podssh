@@ -1683,7 +1683,16 @@ among them, holds the root that the keychain trusts.
 
 ## Done
 
-2026-10-31, partial. Done here, items 1, 2, 3 and 4; the runs of CI on Windows and macOS wait:
+2026-10-31, partial. Done here, items 1, 2, 3 and 4. Windows in CI at `eee611a` (build run 41171716387, the
+job `windows`): with the root out of the store, the server that it signs was refused with
+`UnknownIssuer`; with the root in the machine's `ROOT` store (`Import-Certificate`), the same
+server passed with the default trust, the root coming from the user's view of `ROOT` (340 roots,
+339 before; 225 passed over as no root for TLS), no bundle file holding it; doctor said "trust
+store 458 anchors: 118 compiled-in roots (webpki-roots 1.0.11 of 2026-10-23) + 340 from the
+current user's ROOT store" and named both stores. macOS waits: the first run's `security
+add-trusted-cert` waited on the dialog of the right `com.apple.trust-settings.admin` until the
+job's limit; the step now grants the right for its run, puts it back after, and gives each call
+60 s:
 
 - `podssh_ws::tls::handshake_hint` and `handshake_failure`: rustls's
   `CertificateError::UnknownIssuer`, found in the `io::Error` by its type and
