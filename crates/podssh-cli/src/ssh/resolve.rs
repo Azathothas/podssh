@@ -177,19 +177,6 @@ pub fn resolve_or_refuse(args: &SshArgs, env: &Env) -> Result<Resolved, Refusal>
     if args.iroh_relay.is_some() && !iroh_road {
         return Err("--iroh-relay is for an iroh:TICKET destination, or --iroh-ticket".into());
     }
-    // The channel's flags are for a destination of two podssh ends (T-087);
-    // --upgrade takes this client's key for its temporary node (T-167).
-    let channel = [
-        ("--client-key", args.client_key.is_some() && !args.upgrade),
-        ("--iroh-key", args.iroh_key.is_some() && !args.upgrade),
-        ("--node-key", args.node_key.is_some()),
-        ("--no-e2e", args.no_e2e),
-    ];
-    // A cf://HOST name may be a podssh node's quick tunnel (T-300).
-    let podssh_ends = node.is_some() || iroh.is_some() || tunnel.is_some();
-    if let Some((flag, _)) = channel.iter().find(|(_, given)| *given).filter(|_| !podssh_ends) {
-        return Err(format!("{flag} is for a node://NAME, iroh:TICKET or cf://HOST destination").into());
-    }
     let fingerprints = args
         .host_key_fingerprint
         .as_deref()
@@ -241,6 +228,24 @@ pub fn resolve_or_refuse(args: &SshArgs, env: &Env) -> Result<Resolved, Refusal>
         None | Some("none") => (Vec::new(), Vec::new(), None),
         Some(list) => super::jump::hops(list, args, &cli, env)?,
     };
+    // The channel's flags are for a destination of two podssh ends (T-087);
+    // --upgrade takes this client's key for its temporary node (T-167).
+    let channel = [
+        ("--client-key", args.client_key.is_some() && !args.upgrade),
+        ("--iroh-key", args.iroh_key.is_some() && !args.upgrade),
+        ("--node-key", args.node_key.is_some()),
+        ("--no-e2e", args.no_e2e),
+    ];
+    // A cf://HOST name may be a podssh node's quick tunnel (T-300), as the
+    // destination or as the first hop of -J, whose node takes the same keys
+    // (T-347).
+    let podssh_ends = node.is_some() || iroh.is_some() || tunnel.is_some() || jump_tunnel.is_some();
+    if let Some((flag, _)) = channel.iter().find(|(_, given)| *given).filter(|_| !podssh_ends) {
+        return Err(format!(
+            "{flag} is for a node://NAME, iroh:TICKET or cf://HOST destination, or a cf://HOST first hop of -J"
+        )
+        .into());
+    }
 
     // The `%` tokens, with OpenSSH's values for this connection; `%r` once
     // the user is known.

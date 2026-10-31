@@ -138,4 +138,20 @@ fn a_cloudflare_tunnel_is_the_road_to_a_first_jump_hop() {
     let (_, err) =
         podssh(&["ssh", "-v", "-o", "BatchMode=yes", "-J", "jump.example", "dest.example", "true"], &offline);
     assert!(err.contains("through the relay"), "{err}");
+    // The first hop's node takes this client's key (quick-tunnel-live.yml found
+    // it refused): the run reaches its road; with a plain first hop the flag
+    // has no podssh end, and is refused.
+    let key = std::env::temp_dir().join(format!("podssh-cf-jump-{}.key", std::process::id()));
+    std::fs::write(&key, "not read before the road").expect("a key file");
+    let key = key.to_str().expect("a path").to_string();
+    let (rc, err) = podssh(
+        &["ssh", "-o", "BatchMode=yes", "--client-key", &key, "-J", "cf://me@jump.example.org", "dest.example", "true"],
+        &offline,
+    );
+    assert!(!err.contains("--client-key is for"), "{err}");
+    assert_eq!(rc, 255, "{err}");
+    let (rc, err) = podssh(&["ssh", "--client-key", &key, "-J", "jump.example", "dest.example", "true"], &offline);
+    assert_eq!(rc, 64, "{err}");
+    assert!(err.contains("--client-key is for") && err.contains("first hop of -J"), "{err}");
+    let _ = std::fs::remove_file(&key);
 }

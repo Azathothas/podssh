@@ -386,7 +386,7 @@ case fails.
 `crates/podssh-cli/src/ssh/config.rs:93-105`, the lines at
 `crates/podssh-cli/src/ssh/config.rs:210-228` and what a `Match` line sees
 at `crates/podssh-cli/src/ssh/config.rs:233-269`; the command line's part
-at `crates/podssh-cli/src/ssh/resolve.rs:209-220` and, for a hop of `-J`,
+at `crates/podssh-cli/src/ssh/resolve.rs:196-207` and, for a hop of `-J`,
 `crates/podssh-cli/src/ssh/jump.rs:132-138`. `Tag` at
 `crates/podssh-cli/src/ssh/options.rs:204` and the `tag` line of `-G` at
 `crates/podssh-cli/src/ssh/dump.rs:102-104`; a key file once at
@@ -447,7 +447,7 @@ refused. ... podssh reads no ssh_config, so it has no configuration to print."
 lines of `keyword value`, the keyword in lower case: `port 2222`, `user alice`,
 `pubkeyauthentication true`, `batchmode no`, `connecttimeout none`, `serveraliveinterval 30`,
 `identityfile ~/.ssh/id_rsa` (with `~`), and others. Read: `resolve::resolve`
-(`crates/podssh-cli/src/ssh/resolve.rs:146-459`) decides each setting before any connection; its
+(`crates/podssh-cli/src/ssh/resolve.rs:146-464`) decides each setting before any connection; its
 result, `Resolved` (lines 27-41 at `22c3b88`), holds the settings in effect, the defaults included.
 
 ## Approach

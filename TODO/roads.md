@@ -3114,7 +3114,7 @@ allows podssh as a client of Cloudflare (`docs/decisions.md:27`).
   `crates/podssh-cli/src/ssh/cloudflare.rs:73` says "a Cloudflare tunnel cannot be reached
   through a -J hop yet", and `docs/cli.md:129-130` says so too.
 - Read: the road of a run is chosen for the first hop's host
-  (`crates/podssh-cli/src/ssh/resolve.rs:306`), and each later hop runs in a `direct-tcpip`
+  (`crates/podssh-cli/src/ssh/resolve.rs:311`), and each later hop runs in a `direct-tcpip`
   channel of the session before it (`crates/podssh-ssh/src/run.rs:160-167`;
   `crates/podssh-ssh/src/forward.rs:14-22`).
 - Read: the `cf://` road opens the WebSocket of `cloudflared access tcp` through `HTTPS_PROXY`,
@@ -3187,6 +3187,14 @@ relay and a plain first hop does.
   26 passed). Planted, no hop counted as first: the test failed.
 - `docs/cli.md` and the manual's note on `cf://` give the first hop, the refusal of a later one,
   and the jump host whose sshd a tunnel publishes.
+- The live run (`quick-tunnel-live.yml`, run 41176392964 at `86e4b91`): `podssh ssh cf://NAME`
+  direct and through the proxy each carried 8 MiB with equal digests; the jump through the same
+  node's tunnel exited 64, "--client-key is for a node://NAME, iroh:TICKET or cf://HOST
+  destination": the check of the channel's flags ran before the chain was read, so a `cf://`
+  first hop was no podssh end. It now runs after it, and counts that hop. Tests: `--client-key`
+  with `-J cf://me@HOST` reaches its road offline (255), with a plain first hop it is refused
+  (64), naming the first hop of `-J`; planted, the hop not counted, the test failed;
+  `cloudflare_cli` 4 passed, `iroh_cli` 4, `ssh_args` 26; clippy clean. The live run again waits.
 
 
 # T-348: The iroh road in the release binaries, and a notice when n0 refuses an old iroh
@@ -3786,11 +3794,11 @@ does not depend on them.
 ## Premise
 
 - Read: `Transport::Direct` comes from `--direct` alone
-  (`crates/podssh-cli/src/ssh/resolve.rs:328-334`), and else the relay (`:335-358`); its other
+  (`crates/podssh-cli/src/ssh/resolve.rs:333-339`), and else the relay (`:340-363`); its other
   uses are a label (`crates/podssh-cli/src/ssh/mod.rs:195`), the dial
   (`crates/podssh-cli/src/ssh/transport.rs:220-264`) and a check of `--upgrade`
   (`crates/podssh-cli/src/ssh/upgrade.rs:59`). The issue cited
-  `crates/podssh-cli/src/ssh/resolve.rs:326-334`; the arm is at `:328-334`.
+  `crates/podssh-cli/src/ssh/resolve.rs:331-339`; the arm is at `:333-339`.
 - Read: `docs/design.md:45` says "podssh tries the roads in this order"; for a public sshd, the
   forward road comes first, then the direct road (`docs/design.md:51`), which at `8554930` said
   "`--direct`, or when a probe shows it works"; the triage of GitHub #69 to #72 named this entry
@@ -4042,8 +4050,8 @@ a hop. `doctor` has no line for a hop, so a user cannot see whether one is reach
 
 - Read: a hop is `[user@]host[:port]` or `ssh://[user@]host[:port]`
   (`crates/podssh-cli/src/ssh/hop.rs:30-57`), and `-J` refuses a node only (`:59-65`). The road is
-  chosen for the first hop's host (`crates/podssh-cli/src/ssh/resolve.rs:306`); with `--direct` it
-  is TCP through `HTTPS_PROXY` (`:328-334`; `crates/podssh-cli/src/ssh/transport.rs:1-2`).
+  chosen for the first hop's host (`crates/podssh-cli/src/ssh/resolve.rs:311`); with `--direct` it
+  is TCP through `HTTPS_PROXY` (`:333-339`; `crates/podssh-cli/src/ssh/transport.rs:1-2`).
 - Read: a prompt goes to the terminal, or to the program of `SSH_ASKPASS`, chosen as OpenSSH
   chooses it (`crates/podssh-ssh/src/prompt.rs:1-12`).
 - Read: through the agent proxy of a cloud container, a CONNECT to `ssh.github.com:443` got `200`,
