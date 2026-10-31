@@ -128,7 +128,7 @@ in one process, so nothing listens; and a client in a cage reaches the name
 on port 443 through `HTTPS_PROXY`, with the WebSocket of `cf://` (T-264).
 T-300 builds the connector over HTTP/2, and T-301 over QUIC: podssh's own
 is `crates/podssh-relay/src/quick/` (the Cap'n Proto of the registration by
-hand, tested against bytes of `capnp encode`; HTTP/2 with `h2`), and
+hand, tested against bytes of `capnp encode`; HTTP/2 with `h2`; QUIC with `noq` and the keys of podssh-ws's own provider), and
 `podssh node NAME TARGET --quick-tunnel` (`crates/podssh-cli/src/node_quick.rs`).
 Its client is `cf://NAME`, the road of T-264: a far end whose first frame is
 the layer's `GREETING` is a podssh node, and the session runs in the layer

@@ -6,9 +6,10 @@
 //! link of the resumable layer, with the end-to-end channel above it: the
 //! name is public, so only an operator whose key is in the file of `--allow`
 //! reaches TARGET, which is dialled only after the layer's handshake. The
-//! node needs TCP port 7844 of Cloudflare's edge, directly or through a
-//! proxy that allows it; a lost connection to the edge is made again, with
-//! the same name, until Ctrl-C.
+//! node reaches port 7844 of Cloudflare's edge over QUIC where no proxy is
+//! set and UDP gets there, as cloudflared does (T-301), else over HTTP/2 on
+//! TCP, directly or through a proxy that allows it; a lost connection to the
+//! edge is made again, with the same name, until Ctrl-C.
 
 use std::io::Write;
 use std::path::PathBuf;
@@ -19,12 +20,12 @@ use std::time::Duration;
 use podssh_relay::identity::file;
 use podssh_relay::quick::register::{Registration, FEATURES};
 use podssh_relay::quick::serve::{self, Ended, Step};
-use podssh_relay::quick::{api, edge};
+use podssh_relay::quick::{api, edge, quic};
 use podssh_relay::reverse::framing::SessionId;
 use podssh_relay::reverse::routes::Route;
 use podssh_relay::reverse::{self, E2e, Handler, Layered, TcpHandler};
 use podssh_ws::ProxyChoice;
-use tokio::io::DuplexStream;
+use tokio::io::{AsyncRead, AsyncWrite, DuplexStream};
 use tokio::sync::{mpsc, watch};
 
 use crate::exitmap::Fault;
@@ -157,15 +158,21 @@ async fn serve_quick(ready: Ready, err: &mut dyn Write) -> i32 {
     let (client_id, version, arch) =
         (rand::random::<[u8; 16]>(), format!("podssh {}", env!("CARGO_PKG_VERSION")), arch());
     let (mut wait, mut connected_once) = (RETRY_FIRST, false);
+    // QUIC first, as cloudflared's own default, where no proxy stands in its
+    // way: a proxy carries no UDP (T-301).
+    let mut over_quic = matches!(podssh_ws::dial::proxy_from_env(edge::REGIONS[0]), Ok(None));
     loop {
         if *stopped.borrow() {
             break;
         }
-        let tls = match edge::connect(&proxy).await {
-            Ok(tls) => tls,
+        let link = match link(&mut over_quic, &proxy, &say).await {
+            Ok(link) => link,
             // A host whose egress never reaches the edge cannot publish.
             Err(why) if !connected_once => {
-                let message = format!("{why}; a quick tunnel needs TCP port 7844 of Cloudflare's edge, directly or through a proxy that allows it");
+                let message = format!(
+                    "{why}; a quick tunnel needs port 7844 of Cloudflare's edge: UDP for QUIC, or TCP, directly or \
+                     through a proxy that allows it"
+                );
                 return Refusal { message, code: Fault::RelayUnreachable.code() }.report("node", err);
             }
             Err(why) => {
@@ -189,6 +196,7 @@ async fn serve_quick(ready: Ready, err: &mut dyn Write) -> i32 {
         // A connection that registered was a good one: the next waits from
         // the start again, not from the longest wait of the failures before.
         let registered = Arc::new(AtomicBool::new(false));
+        let transport = link.transport();
         let said = tokio::spawn({
             let (label, registered) = (label.clone(), registered.clone());
             async move {
@@ -196,7 +204,7 @@ async fn serve_quick(ready: Ready, err: &mut dyn Write) -> i32 {
                     let line = match step {
                         Step::Registered { location } => {
                             registered.store(true, Ordering::SeqCst);
-                            format!("registered at Cloudflare's {location}")
+                            format!("registered at Cloudflare's {location}, over {transport}")
                         }
                         Step::Visitor => continue,
                         Step::Unregistered => "unregistered".to_string(),
@@ -209,7 +217,10 @@ async fn serve_quick(ready: Ready, err: &mut dyn Write) -> i32 {
         let stop_asked = async move {
             let _ = until.wait_for(|stop| *stop).await;
         };
-        let served = serve::serve(tls, &registration, visit.clone(), steps, stop_asked).await;
+        let served = match link {
+            Link::Quic(edge) => edge.serve(&registration, visit.clone(), steps, stop_asked).await,
+            Link::Http2(tls) => serve::serve(tls, &registration, visit.clone(), steps, stop_asked).await,
+        };
         let _ = said.await;
         if registered.load(Ordering::SeqCst) {
             wait = RETRY_FIRST;
@@ -230,6 +241,41 @@ async fn serve_quick(ready: Ready, err: &mut dyn Write) -> i32 {
     }
     say("stopped".into());
     0
+}
+
+/// A connection to the edge, by the transport that answered.
+enum Link<T> {
+    Quic(quic::EdgeConnection),
+    Http2(T),
+}
+
+impl<T> Link<T> {
+    fn transport(&self) -> &'static str {
+        match self {
+            Link::Quic(_) => "QUIC",
+            Link::Http2(_) => "HTTP/2",
+        }
+    }
+}
+
+/// QUIC while `over_quic` holds, else HTTP/2 through `proxy`. QUIC that
+/// fails says why and gives way to HTTP/2 for the rest of the run, as a
+/// network that drops UDP drops it again.
+async fn link(
+    over_quic: &mut bool,
+    proxy: &ProxyChoice,
+    say: &dyn Fn(String),
+) -> Result<Link<impl AsyncRead + AsyncWrite + Unpin + Send>, String> {
+    if *over_quic {
+        match quic::connect_edge().await {
+            Ok(edge) => return Ok(Link::Quic(edge)),
+            Err(why) => {
+                *over_quic = false;
+                say(format!("{why}; over HTTP/2 from now on"));
+            }
+        }
+    }
+    edge::connect(proxy).await.map(Link::Http2)
 }
 
 /// Wait `wait`, unless the end comes first, and double it for the next time.

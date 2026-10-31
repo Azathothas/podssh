@@ -101,8 +101,16 @@ LISTENERS = {
     # allowed it does the endpoint bind UDP for direct paths. And a node's
     # UDP TARGET (T-168), which the user names (`podssh node NAME
     # udp:HOST:PORT`): each flow is a socket of port 0, connected to the
-    # target, made only after the node's probe made and closed one.
-    "UdpSocket": ["crates/podssh-iroh/src/probe.rs", "crates/podssh-relay/src/udp/flow.rs"],
+    # target, made only after the node's probe made and closed one. And the
+    # quick tunnel over QUIC (T-301), which the user asks for with `podssh
+    # node --quick-tunnel`: one socket of port 0 for its one connection to
+    # the edge, only with no proxy set; a bind that fails is the probe's
+    # answer, and the node takes HTTP/2.
+    "UdpSocket": [
+        "crates/podssh-iroh/src/probe.rs",
+        "crates/podssh-relay/src/udp/flow.rs",
+        "crates/podssh-relay/src/quick/quic.rs",
+    ],
     # The bind probes of `podssh doctor`, which close at once and never listen;
     # and the iroh road's probe and endpoint, as above, with the commands that
     # make the endpoint: `podssh node --iroh`, `podssh ssh iroh:` (T-163) and
@@ -112,9 +120,11 @@ LISTENERS = {
     # flows of a node's UDP TARGET (T-168), as above. And the daemon of
     # `podssh session start` and `serve` (T-186), which the user asks for:
     # it binds through the same listener, after PODSSH_LISTEN, before it
-    # connects, and the bind is its probe.
+    # connects, and the bind is its probe. And the quick tunnel over QUIC
+    # (T-301), as above.
     "bind(": [
         "crates/podssh-relay/src/udp/flow.rs",
+        "crates/podssh-relay/src/quick/quic.rs",
         "crates/podssh-cli/src/agent/serve.rs",
         "crates/podssh-cli/src/session/daemon.rs",
         "crates/podssh-cli/src/doctor/unix.rs",

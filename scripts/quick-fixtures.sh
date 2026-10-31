@@ -2,7 +2,8 @@
 # The fixtures of T-300's Cap'n Proto (crates/podssh-relay/tests/fixtures/quick/):
 # bytes that the reference tool `capnp encode` (Cap'n Proto 1.0) writes from
 # the text form beside each, with the schemas of cloudflared at 2026.10.6
-# (commit 35b379a, tunnelrpc/proto/tunnelrpc.capnp, Apache-2.0) and of
+# (commit 35b379a, tunnelrpc/proto/tunnelrpc.capnp and, for QUIC (T-301),
+# quic_metadata_protocol.capnp, Apache-2.0) and of
 # capnproto2 at v2.18.0, the version cloudflared pins (std/capnp/rpc.capnp,
 # MIT). Nothing here runs in the tests: they read the bytes. Run it again
 # after a change of a text form; it needs git, capnp and network.
@@ -74,3 +75,8 @@ enc rpc-return.capnp Message rpc-return-refused
 enc rpc-return.capnp Message rpc-return-exception
 enc rpc-return.capnp Message rpc-abort
 enc rpc-return.capnp Message rpc-return-unimplemented
+# The request and the answers of a QUIC stream (T-301).
+enc quic_metadata_protocol.capnp ConnectRequest quic-connect-request
+enc quic_metadata_protocol.capnp ConnectRequest quic-connect-http
+enc quic_metadata_protocol.capnp ConnectResponse quic-connect-response
+enc quic_metadata_protocol.capnp ConnectResponse quic-connect-refusal

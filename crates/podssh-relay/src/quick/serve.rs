@@ -75,6 +75,8 @@ pub enum Ended {
     Silent,
     /// The edge sent GOAWAY: it opens no new stream on this connection.
     GoingAway,
+    /// QUIC to the edge failed (T-301).
+    Quic(String),
 }
 
 impl std::fmt::Display for Ended {
@@ -86,6 +88,7 @@ impl std::fmt::Display for Ended {
             Ended::Closed => write!(f, "the edge closed the connection"),
             Ended::Silent => write!(f, "the edge stopped answering"),
             Ended::GoingAway => write!(f, "the edge takes no new visitor on this connection (GOAWAY)"),
+            Ended::Quic(e) => write!(f, "QUIC to the edge failed: {e}"),
         }
     }
 }

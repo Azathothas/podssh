@@ -2049,6 +2049,19 @@ functions.
    crypto feature, signed by a P-256 key of `p256` through rcgen's
    `SigningKey`, so the test builds with no C compiler as the gate's
    `libs` step builds it.
+4. Q47's "HTTP/2 only" is T-300's scope: the question recommended building
+   T-300 over HTTP/2, which T-299 had measured, and this entry stayed open
+   beside it with T-300 as its start condition. QUIC is taken only where no
+   proxy is set, as a proxy carries no UDP and rule 2 of `AGENTS.md` sends
+   the connection through `HTTPS_PROXY` when it is set; HTTP/2 stays the
+   road through a proxy and the fallback. Its UDP socket is the
+   connection's own, on a port that the system picks, as the iroh road's
+   endpoint is (`scripts/check-repo.py`, the listener's allowance).
+5. QUIC that fails once gives way to HTTP/2 for the rest of the run, as
+   cloudflared's `auto` falls back: a network that drops UDP drops it
+   again, and each try costs the handshake's 5 s. Lost: QUIC again after
+   each lost connection, which a network that let UDP through later would
+   reward.
 
 ## Prove
 
@@ -2104,8 +2117,37 @@ short header swapped (the RFC's samples alone missed it, hence the last
 test), a nonce with no packet number, and the mask one byte off.
 `cargo test -p podssh-ws`: 220 passed.
 
-Still to do: the connector on noq; the stand-in edge over QUIC; the
-fallback to HTTP/2; the documents; the live run in GitHub Actions.
+The connector, done: `crates/podssh-relay/src/quick/connect.rs` (sans-IO:
+the signatures, the version, `ConnectRequest` read and `ConnectResponse`
+written; `cargo test -p podssh-relay --lib quick::connect`, 4 passed: the
+edge's request as `capnp encode` wrote it, and the node's 101 and 404
+answers byte for byte as it writes them, from
+`tests/fixtures/quick/quic-connect-*.txt`); `quic.rs` (TLS 1.3 with the
+ALPN, cloudflared's settings of the transport, one endpoint of port 0 for
+each connection, a reset key of HMAC-SHA-256); `quic_serve.rs` (the
+control stream first, then each stream of the edge in its own task: a
+WebSocket answered 101 and bridged by `visitor.rs` with the bytes that came
+after its request, any other request 404, an RPC stream reset).
+`cargo test -p podssh-relay --features quick --test quick_tunnel_quic`, 3
+passed in 5 s, against a stand-in edge of noq on the loopback whose
+certificate rcgen made under a CA of the test: the registration as over
+HTTP/2, 1 MB of a visitor's WebSocket echoed with equal digests, its first
+bytes in the same write as its request; the 404 and the RPC stream; the
+unregistration and `Ok`; a refused registration; an edge that closes
+(`Closed`); and a path cut by a forwarder, with no close (`Silent` after
+the 5 s). Each failed on its plant: the bytes after a request dropped, a
+stream opened before the control stream, and no idle timeout. With
+`CC=/nonexistent`, `podssh-relay` builds and passes them with `quick`, and
+`cargo +1.89 check` of the library crates with it passes: the gate's steps
+`libs` and `msrv` now build `quick` too. `cargo test -p podssh-relay
+--features quick,blocking`: 321 passed.
+
+`podssh node --quick-tunnel` (`crates/podssh-cli/src/node_quick.rs`): QUIC
+first where no proxy is set, HTTP/2 after a failure of QUIC, which it says;
+its line of the registration names the transport. The manual, `docs/cli.md`
+and `docs/design.md` say so. Still to do: the live run in GitHub Actions
+(`.github/workflows/quick-tunnel-live.yml`: a node over QUIC, and a second
+with UDP to 7844 dropped, over HTTP/2).
 
 # T-171: The functions of Mosh that M6 and T-160 do not give, made in podssh itself
 
@@ -2900,14 +2942,14 @@ roots must be exactly three, and a refusal of the edge does not say which releas
 ## Premise
 
 - Read: the module pins cloudflared 2026.10.6 at commit 35b379a
-  (`crates/podssh-relay/src/quick/mod.rs:3-6`); the registration names that release's features
+  (`crates/podssh-relay/src/quick/mod.rs:4-7`); the registration names that release's features
   (`crates/podssh-relay/src/quick/register.rs:22-26`); cloudflared's main deprecates and filters
   them since its commit 77a79bf, in no release when it was read (`docs/design.md:248-256`; the
   audit cited `:250-256`).
 - Read: two fixed regions, port 7844 and the TLS name `h2.cftunnel.com`
   (`crates/podssh-relay/src/quick/edge.rs:14-18`); the roots must give 3 anchors and no invalid
-  one (`:28-31`); the API's host is fixed (`crates/podssh-relay/src/quick/api.rs:18`). The node
-  registers as `podssh` and the package's version (`crates/podssh-cli/src/node_quick.rs:157-158`),
+  one (`:29-32`); the API's host is fixed (`crates/podssh-relay/src/quick/api.rs:18`). The node
+  registers as `podssh` and the package's version (`crates/podssh-cli/src/node_quick.rs:158-159`),
   `1.0.0-beta.2` today (`Cargo.toml:47`).
 - Read: the three roots end on 2029-08-15, 2029-08-15 and 2029-11-01
   (`crates/podssh-relay/src/quick/cloudflare-roots.pem:6`, `:25`, `:52`).
@@ -2921,7 +2963,7 @@ roots must be exactly three, and a refusal of the edge does not say which releas
   (`docs/design.md:180-186`), and podssh's DNS over HTTPS asks for A and AAAA only
   (`crates/podssh-ws/src/resolve.rs:124`).
 - Read: the edge's trust is podssh's default roots, `podssh-ca.pem` next to the binary among them,
-  and cloudflared's three (`crates/podssh-relay/src/quick/edge.rs:24-33`;
+  and cloudflared's three (`crates/podssh-relay/src/quick/edge.rs:24-34`;
   `crates/podssh-ws/src/tls.rs:154-174`).
 - Inferred: Cloudflare cannot map `podssh 1.0.0-beta.2` to a release of cloudflared; some filters
   block `trycloudflare.com`.

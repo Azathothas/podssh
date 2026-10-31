@@ -2,7 +2,7 @@ This file holds the work on `podssh-ws`, the crate that reaches the relay: TCP a
 with podssh's own pure-Rust provider, and the WebSocket client. W10, W13 and W14 are rows of the
 former defects page (`git show 3ee70dc:docs/defects.md`); the features come from the
 `podssh-ws` item of ROADMAP M4 and `docs/design.md:471-475`, and from GitHub issues. The crate
-must build with no C compiler (`scripts/gate.sh:154-165`).
+must build with no C compiler (`scripts/gate.sh:154-166`).
 
 # T-063: W10: the frame decoder does not check a received control frame
 
@@ -1607,9 +1607,9 @@ command says what to do. Four of the eight release binaries are for Windows and 
 - Read: the release builds two binaries for macOS and two for Windows
   (`.github/workflows/release.yml:274-285`, `:317-333`).
 - Read: `windows-sys` 0.61 is already a dependency of `podssh-relay` on Windows
-  (`crates/podssh-relay/Cargo.toml:61-62`), a crate with no C; `rustls-native-certs` 0.8.4,
+  (`crates/podssh-relay/Cargo.toml:67-68`), a crate with no C; `rustls-native-certs` 0.8.4,
   `schannel` and `security-framework` are in the lock through other crates
-  (`Cargo.lock:4895-4896`).
+  (`Cargo.lock:4899-4900`).
 - Read: one proxy that re-terminates TLS was measured, with its CA in `SSL_CERT_FILE` and in the
   system's store of Linux (`docs/target-environment.md:57-63`).
 - Inferred: on macOS, `/etc/ssl/cert.pem` lacks a root that an administrator added to a keychain;
@@ -1739,8 +1739,8 @@ and each other command print rustls's words alone. An error should tell what to 
   (`:341-344`).
 - Read: the other commands print the error's text: `crates/podssh-ws/src/client.rs:133` says "TLS
   with the relay failed: {why}"; the TLS of IRC and of the quick tunnel's edge gives the text of
-  `crates/podssh-ws/src/tls.rs:149` (`crates/podssh-relay/src/quick/edge.rs:49-51`).
-- Read: rustls 0.23.46 (`Cargo.lock:4845-4846`) has the errors `Expired`, `ExpiredContext`,
+  `crates/podssh-ws/src/tls.rs:149` (`crates/podssh-relay/src/quick/edge.rs:55-57`).
+- Read: rustls 0.23.46 (`Cargo.lock:4849-4850`) has the errors `Expired`, `ExpiredContext`,
   `NotValidYet` and `NotValidYetContext`, and writes the two with a context as "certificate
   expired: verification time" and "certificate not valid yet: verification time" (its
   `src/error.rs`, read in cargo's registry); doctor's match of the text ("expired", "not valid

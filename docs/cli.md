@@ -1772,10 +1772,13 @@ commands. The rules behind them:
   Cloudflare's that podssh makes itself: no pair, no account and no
   `cloudflared`. The name is new each run, and the one line on stdout. The
   node asks `api.trycloudflare.com` for the tunnel (through `HTTPS_PROXY`
-  when it is set), then reaches the edge on TCP port 7844, directly or
-  through a proxy that allows it, and exits 69 when it reaches neither; it
-  registers its connection over HTTP/2, and each visitor's WebSocket is one
-  link of the resumable layer. The name is public, so `--allow FILE` is
+  when it is set), then reaches the edge on port 7844: over QUIC where no
+  proxy is set and UDP gets there, as cloudflared does (T-301), else over
+  HTTP/2 on TCP, directly or through a proxy that allows it; QUIC that fails
+  gives way to HTTP/2 for the rest of the run, and the node exits 69 when it
+  reaches neither. It registers its connection on the first stream, and its
+  line of the registration names the transport; each visitor's WebSocket is
+  one link of the resumable layer. The name is public, so `--allow FILE` is
   needed: only an operator whose key is in FILE reaches TARGET, through
   the end-to-end channel. A lost connection to the edge is made again with
   the same name, and Ctrl-C unregisters it. `--iroh`, `--plain`,

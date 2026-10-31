@@ -153,8 +153,9 @@ step_lint() {
 # `pair` and the runners of the reverse road.
 step_libs() {
     # shellcheck disable=SC2086  # $LIBS is a list of flags
+    # The quick tunnel's QUIC too (T-301): noq with no ring and no aws-lc.
     run "library crates build with no C compiler" \
-        env CC=/nonexistent CXX=/nonexistent cargo build --locked $LIBS --features podssh-relay/blocking
+        env CC=/nonexistent CXX=/nonexistent cargo build --locked $LIBS --features podssh-relay/blocking,podssh-relay/quick
 
     # The TLS 1.2 suites (T-067) against OpenSSL's s_server, each alone, and the
     # terminal oracle's model against tmux (T-200); named, so that one missing fails.
@@ -162,7 +163,7 @@ step_libs() {
     # shellcheck disable=SC2086
     tests "library crates: tests, no C compiler" \
         env CC=/nonexistent CXX=/nonexistent PODSSH_TEST_OPENSSL=1 PODSSH_TEST_TMUX=/usr/bin/tmux \
-        cargo test --locked --no-fail-fast $LIBS --features podssh-relay/blocking
+        cargo test --locked --no-fail-fast $LIBS --features podssh-relay/blocking,podssh-relay/quick
 
     # The plain ws:// to the loopback (T-068) is behind the feature `plain-ws`:
     # its tests run with the feature, and the binary must never enable it.
@@ -204,7 +205,7 @@ step_msrv() {
     # shellcheck disable=SC2086
     run "library crates and podssh-todo: check on Rust $MSRV (no C compiler)" \
         env CC=/nonexistent CXX=/nonexistent cargo "+$MSRV" check --locked $LIBS -p podssh-todo \
-            --features podssh-relay/blocking,podssh-relay/plain-ws --all-targets
+            --features podssh-relay/blocking,podssh-relay/plain-ws,podssh-relay/quick --all-targets
 }
 
 # russh's minimum, which the SSH client and the CLI declare, each on its own.

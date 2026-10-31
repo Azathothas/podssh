@@ -1,0 +1,1 @@
+(metadata = [(key = "HttpStatus", val = "101"), (key = "HttpHeader:Connection", val = "Upgrade"), (key = "HttpHeader:Sec-Websocket-Accept", val = "s3pPLMBiTxaQ9kYGzzhZRbK+xOo="), (key = "HttpHeader:Upgrade", val = "websocket")])

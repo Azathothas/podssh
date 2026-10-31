@@ -35,6 +35,12 @@ snow = { workspace = true }
 h2 = { version = "0.4.19", optional = true }
 http = { version = "1.5", optional = true }
 bytes = { version = "1.12", optional = true }
+# The quick tunnel over QUIC (src/quick/quic.rs, T-301): noq, the QUIC of the
+# iroh road, with its tokio runtime and its rustls glue only: no ring and no
+# aws-lc, as its manifest makes them optional. QUIC's keys come from
+# podssh-ws's provider; rustls for the TLS 1.3 configuration of QUIC.
+noq = { version = "1.4", default-features = false, features = ["runtime-tokio", "rustls"], optional = true }
+rustls = { workspace = true, optional = true }
 
 [features]
 # Pairs of the reverse road: `POST /v1/pair`, the status of a pair and
@@ -44,9 +50,9 @@ pair = []
 # A synchronous facade over pairs, the runners and forward sessions, for a
 # caller with no async runtime (podbox, T-081). No C either; the gate builds it.
 blocking = ["pair"]
-# A quick tunnel that podssh serves itself (T-300): HTTP/2 to the edge. No C
-# either; the gate builds it.
-quick = ["dep:h2", "dep:http", "dep:bytes"]
+# A quick tunnel that podssh serves itself (T-300): HTTP/2 to the edge, and
+# QUIC where UDP reaches it (T-301). No C either; the gate builds it.
+quick = ["dep:h2", "dep:http", "dep:bytes", "dep:noq", "dep:rustls"]
 # Plain ws:// to a stand-in relay on the loopback, for the tests of an embedder
 # (T-068). The binary never enables it (scripts/no-plain-ws.sh).
 plain-ws = ["podssh-ws/plain-ws"]
@@ -73,3 +79,8 @@ windows-sys = { version = "0.61", features = [
 tokio = { workspace = true, features = ["macros", "rt", "test-util"] }
 # Property tests of relay lists and paths (T-202, tests/properties.rs).
 proptest = { workspace = true }
+# The stand-in edge of the quick tunnel over QUIC (tests/quick_tunnel_quic.rs,
+# T-301): its certificate, made by rcgen with no crypto feature and signed by
+# a P-256 key of p256, so that the test builds with no C compiler.
+rcgen = { version = "0.14", default-features = false }
+p256 = { workspace = true }

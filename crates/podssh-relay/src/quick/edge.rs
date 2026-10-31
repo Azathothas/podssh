@@ -21,15 +21,21 @@ pub const DIAL_LIMIT: Duration = Duration::from_secs(10);
 
 const CLOUDFLARE_ROOTS: &str = include_str!("cloudflare-roots.pem");
 
-/// The trust of the edge's TLS: podssh's roots, and cloudflared's three.
-pub fn trust() -> Result<Trust, String> {
+/// The roots of the edge's TLS, over either transport: podssh's, and
+/// cloudflared's three.
+pub fn roots() -> Result<podssh_ws::tls::TlsRoots, String> {
     let mut roots = podssh_ws::tls::default_roots();
     let certs = podssh_ws::bundle::pem_certificates(CLOUDFLARE_ROOTS.as_bytes())?;
     let (added, invalid) = roots.roots.add_parsable_certificates(certs);
     if added != 3 || invalid != 0 {
         return Err(format!("cloudflared's roots gave {added} anchors and {invalid} that do not parse, not 3"));
     }
-    let config = podssh_ws::tls::client_config(&roots).map_err(|e| e.to_string())?;
+    Ok(roots)
+}
+
+/// The trust of the edge's TLS over HTTP/2.
+pub fn trust() -> Result<Trust, String> {
+    let config = podssh_ws::tls::client_config(&roots()?).map_err(|e| e.to_string())?;
     Trust::caller(config).map_err(|e| e.to_string())
 }
 

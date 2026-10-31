@@ -1,0 +1,1 @@
+(error = "podssh serves only a visitor's WebSocket here", metadata = [(key = "HttpStatus", val = "404")])

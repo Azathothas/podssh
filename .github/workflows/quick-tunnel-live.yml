@@ -8,8 +8,10 @@ name: quick tunnel live
 # session is refused by the node's empty allowlist, and whose next, with the
 # client's key in the list and the node's key named, carries 8 MiB both
 # ways: directly, and through the box's proxy (scripts/box/proxy.py, the
-# measured cage's policy). Started by hand only, with confirm=Q43. One
-# tunnel, alive for a few minutes at most. The logs of this public
+# measured cage's policy). The node registers over QUIC, as no proxy is set
+# here (T-301); a second node, with UDP to port 7844 dropped, falls back to
+# HTTP/2 and says so. Started by hand only, with confirm=Q43. Two tunnels,
+# each alive for a few minutes at most. The logs of this public
 # repository are public: the tunnel's name is masked, its secret never
 # leaves the node's memory, and the keys are throwaway ones of this run.
 
@@ -81,7 +83,8 @@ jobs:
           for _ in $(seq 1 60); do grep -q "registered at" "$RUNNER_TEMP/node.log" && break; sleep 1; done
           sed 's/^/node: /' "$RUNNER_TEMP/node.log"
           grep -q "registered at" "$RUNNER_TEMP/node.log" || { echo "FAIL the edge took no registration"; exit 1; }
-          echo "ok    registered; the name is $(echo "$host" | grep -c '\.trycloudflare\.com$') name under trycloudflare.com"
+          grep -q "registered at .*, over QUIC" "$RUNNER_TEMP/node.log" || { echo "FAIL not over QUIC (T-301)"; exit 1; }
+          echo "ok    registered over QUIC; the name is $(echo "$host" | grep -c '\.trycloudflare\.com$') name under trycloudflare.com"
 
       - name: a visitor, directly
         run: timeout 120 python3 scripts/quick-tunnel-probe.py --limit 90 "$QUICK_HOST"
@@ -168,9 +171,31 @@ jobs:
           echo "ok    a --node-key that is not the node's is refused (exit 255)"
           sed 's/^/proxy: /' "$RUNNER_TEMP/proxy.log" | tail -n 20
 
+      # T-301: with UDP to the edge's 7844 dropped, QUIC fails, the node says
+      # so and registers over HTTP/2; a visitor of that second name gets in.
+      - name: a second node, with UDP to 7844 dropped
+        run: |
+          sudo iptables -I OUTPUT -p udp --dport 7844 -j DROP
+          : > "$RUNNER_TEMP/allow2"
+          target/debug/podssh node fallback 127.0.0.1:4022 --quick-tunnel --allow "$RUNNER_TEMP/allow2" \
+            --ephemeral-key >"$RUNNER_TEMP/url2" 2>"$RUNNER_TEMP/node2.log" &
+          echo $! >"$RUNNER_TEMP/node2.pid"
+          for _ in $(seq 1 90); do grep -q "registered at" "$RUNNER_TEMP/node2.log" && break; sleep 1; done
+          host2=$(sed -n 's#^https://##p' "$RUNNER_TEMP/url2" | head -n 1)
+          [ -n "$host2" ] && echo "::add-mask::$host2"
+          sed 's/^/node2: /' "$RUNNER_TEMP/node2.log"
+          grep -q "over HTTP/2 from now on" "$RUNNER_TEMP/node2.log" || { echo "FAIL QUIC's failure was not said"; exit 1; }
+          grep -q "registered at .*, over HTTP/2" "$RUNNER_TEMP/node2.log" || { echo "FAIL not over HTTP/2"; exit 1; }
+          timeout 120 python3 scripts/quick-tunnel-probe.py --limit 60 "$host2"
+          echo "ok    with UDP to 7844 dropped, the node said so and served over HTTP/2"
+          kill -TERM "$(cat "$RUNNER_TEMP/node2.pid")" 2>/dev/null || true
+          sudo iptables -D OUTPUT -p udp --dport 7844 -j DROP
+
       - name: the end
         if: always()
         run: |
+          sudo iptables -D OUTPUT -p udp --dport 7844 -j DROP 2>/dev/null || true
+          kill -TERM "$(cat "$RUNNER_TEMP/node2.pid" 2>/dev/null)" 2>/dev/null || true
           pid=$(cat "$RUNNER_TEMP/node.pid" 2>/dev/null || true)
           if [ -n "$pid" ]; then kill -TERM "$pid" 2>/dev/null || true; fi
           for _ in $(seq 1 20); do kill -0 "$pid" 2>/dev/null || break; sleep 1; done
