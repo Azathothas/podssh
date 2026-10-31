@@ -110,7 +110,7 @@ and `CARGO_BUILD_JOBS=4`:
 
 ## Counts
 
-`TODO/INDEX.md` holds 375 entries: 27 open, 1 partial, 30 blocked, 317 done.
+`TODO/INDEX.md` holds 375 entries: 27 open, 0 partial, 30 blocked, 318 done.
 
 Open includes parked work. `cargo todo check` verifies this line.
 
@@ -142,7 +142,7 @@ same rulings: T-350
 (Q50), T-352 and T-353 (Q52), and T-374 after T-352; then those of
 GitHub #59 to #63 and #73 to #76: T-369, which uses the reader of requests and the dial with no
 token, and T-370 after T-369 (Q56);
-T-371 before T-372; and T-373.
+T-372; and T-373.
 Each other `backlog` entry is done, but for those on hold, those of the relay's operator and the
 parked ones.
 

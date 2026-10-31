@@ -4426,7 +4426,7 @@ relay host failed. Live, as Q56 allows: GitHub's banner through each, in GitHub 
 **Milestone:** backlog
 **Priority:** P3
 **Effort:** M
-**Status:** partial
+**Status:** done
 
 ## Problem
 
@@ -4507,7 +4507,7 @@ hop as `-W`, which the test carries 64 KiB through, and the refusal of that chan
 
 ## Done
 
-2026-10-31, partial:
+2026-10-31, done; the box's run waits for T-251:
 
 - Measured first, as the Decision says: from this cloud session's host, `podssh ssh --direct -J
   git@ssh.github.com:443 git@github.com` through its proxy got the CONNECT taken and then a reset,
@@ -4541,8 +4541,11 @@ hop as `-W`, which the test carries 64 KiB through, and the refusal of that chan
   `doctor --hop git@ssh.github.com:443` gave `hop` ok with no proxy (best 36 ms, loss 0 of 9), `hop
   key` GitHub's ed25519 key `SHA256:+DiY3wvvV6TuJJhbpZisF/zLDA0zPMSvHdkr4UvCOqU`, and `hop login`
   refused with `publickey` offered. Its step then stopped at the expected 255 of the `-J` run, as
-  Actions' shell runs with `-e`; the workflow reads each exit code directly now. The `-J` run
-  through GitHub's hop: UNVERIFIED until its next run.
+  Actions' shell runs with `-e`; the workflow reads each exit code directly now. Its next run
+  (41214493084 at `df4adb5`) passed: `doctor --hop` as above, then `podssh ssh --direct -J
+  git@ssh.github.com:443 git@github.com` added `[ssh.github.com]:443` to the known hosts and ended
+  with 255 in GitHub's words, `git@ssh.github.com: Permission denied (publickey).`, a key made for
+  the run being no account's.
 - What waits: the box's run (`scripts/test_in_box.sh`), with the checks of the release (T-251).
 
 # T-372: A hop or a destination whose SSH is wrapped in TLS: `ssh+tls://`
