@@ -28,6 +28,9 @@ tokio = { workspace = true }
 rustls = { workspace = true }
 url = "2"
 n0-error = "1"
+# The stream of a connection's paths, for the line that says which carried
+# a session (T-335): the version that iroh already builds.
+n0-future = "0.3"
 # The check of the proxy's credentials against iroh's encoding of them.
 base64 = { workspace = true }
 # A node's address as iroh's own tools write it (T-163); the version of

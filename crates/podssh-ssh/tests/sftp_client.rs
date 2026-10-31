@@ -26,6 +26,9 @@ const USUAL: &[&str] = &[
 
 /// The limit of each test call: a call that passes it is a wait with no limit.
 const OUTER: Duration = Duration::from_secs(10);
+/// The limit of the server's start and its version exchange: a first start of
+/// an MSYS2 program on a cold Windows host can take far longer than a call.
+const START: Duration = Duration::from_secs(60);
 
 fn server_path() -> Option<PathBuf> {
     match std::env::var_os("PODSSH_TEST_SFTP_SERVER") {
@@ -57,7 +60,10 @@ async fn start(server: &Path, dir: &Path) -> (Sftp, Child) {
         .spawn()
         .expect("the sftp-server starts");
     let pipes = tokio::io::join(child.stdout.take().expect("stdout"), child.stdin.take().expect("stdin"));
-    let sftp = bounded(Sftp::over(pipes, Limits::default())).await.expect("the version exchange");
+    let sftp = tokio::time::timeout(START, Sftp::over(pipes, Limits::default()))
+        .await
+        .expect("the server started within 60 s")
+        .expect("the version exchange");
     (sftp, child)
 }
 

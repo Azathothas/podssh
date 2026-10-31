@@ -161,6 +161,10 @@ pub(super) async fn connect(
         podssh_iroh::client::carry_heard(&dialer, layer_app, settings, note, hearing),
         session
     );
+    // Whether the relay carried each byte, or a direct path some (T-335).
+    if let Some(path) = dialer.path() {
+        log.verbose(&format!("{shown}: {path}"));
+    }
     if let Some((fault, why)) = failed.as_ref().and_then(|e| crate::channel::judged(e, Some(&me))) {
         log.error(&format!("{shown}: {why}"));
         crate::ssh::result::channel_failed(&fault);

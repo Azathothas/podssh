@@ -189,6 +189,7 @@ pub fn run(s: &Session, cell: &Cell, up: bool, bytes: u64) -> Result<f64, String
     args.push(cell.far.command(up, bytes));
     let mut child = s
         .command(&args)
+        .envs(cell.env.iter().map(|(name, value)| (name, value)))
         .stdin(if up { Stdio::piped() } else { Stdio::null() })
         .stdout(Stdio::piped())
         .stderr(Stdio::piped())
@@ -231,6 +232,11 @@ pub fn run(s: &Session, cell: &Cell, up: bool, bytes: u64) -> Result<f64, String
     let _ = watchdog.join();
     let said = said.join().unwrap_or_default();
     let last = said.lines().rev().find(|l| !l.trim().is_empty()).unwrap_or("no message").to_string();
+    if let (Ok(_), Some(line)) = (&carried, &cell.must_say) {
+        if status.success() && !said.contains(line.as_str()) {
+            return Err(format!("not this cell's figure: podssh did not say \"{line}\"; {last}"));
+        }
+    }
     match carried {
         Ok(rate) if status.success() => Ok(rate),
         Ok(_) => Err(format!("exit {:?}: {last}", status.code())),

@@ -2770,7 +2770,7 @@ throughput harness never turns the iroh road's UDP off.
 **Milestone:** M9
 **Priority:** P2
 **Effort:** S
-**Status:** open
+**Status:** done
 
 ## Problem
 
@@ -2805,3 +2805,41 @@ cargo test -p podssh-cli --features iroh-test --test throughput_live -- --ignore
 
 Each relay cell reports the relay as its path. Planted: UDP on again in a
 relay cell; that cell fails.
+
+## Done
+
+2026-10-31. The iroh cells of the throughput run measure the relay, and
+say so:
+
+- The iroh client watches the paths of each connection (iroh's
+  `paths_stream`), and notes when a direct path is the one that carries the
+  data (`crates/podssh-iroh/src/client.rs`); `Dialer::path` gives "the
+  relay carried each byte of the session" or "a direct path carried the
+  session", and nothing before a connection. `podssh ssh iroh:TICKET`, and
+  the race of a pair's label with the iroh road, say it at the end of the
+  session with `-v` (`crates/podssh-cli/src/ssh/iroh/dial.rs`,
+  `crates/podssh-cli/src/ssh/iroh/race.rs`); the manual's entry of
+  `PODSSH_IROH_UDP` says so too.
+- The harness: a cell holds the variables of its runs and a line that each
+  run must say (`crates/podssh-cli/tests/throughput_harness/cells.rs`,
+  `mod.rs`). The iroh cells set `PODSSH_IROH_UDP=off` at the node and at
+  each run, run with `-v`, and a run that does not say that the relay
+  carried each byte gives no figure: the table gives the reason.
+- Here, a Claude Code cloud container (Linux, the debug build): the
+  loopback cells at 20 MiB a run (`cargo test -p podssh-cli --features
+  iroh-test --test throughput_live -- --ignored --nocapture
+  throughput_on_the_loopback`, 110 s): the iroh cell 4.2 MiB/s up and
+  2.8 MiB/s down at the p50, each run said that the relay carried each
+  byte; the table of `docs/STATUS.md` is replaced, and its old iroh row
+  (34.6 MiB/s up) is named as most likely a direct path's. Planted: UDP on
+  (`probe`) at both ends of the cell: its first run said "a direct path
+  carried the session", and the cell gave no figure.
+- Through n0's relay `use1-1` (`PODSSH_THROUGHPUT_IROH_RELAY=https://use1-1.relay.n0.iroh.link.`,
+  the same command with `throughput_on_each_road`, 442 s with the other
+  cells): 1.08 MiB/s up and 1.10 MiB/s down, alike in each run, and each
+  run said that the relay carried each byte. Inferred: the flat figure is
+  n0's limit for each connection (Read:
+  <https://docs.iroh.computer/relays/rate-limiting>). The same run gave the
+  reverse road through the live relay, with the layer, 2.37 MiB/s up and
+  1.37 MiB/s down at the p50; both rows are in `docs/STATUS.md`.
+

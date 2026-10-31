@@ -724,8 +724,9 @@ from GitHub Actions, with no proxy (`.github/workflows/relay-live.yml`, run
   failed on its plant: 1013 out of the list that is never tried again (a
   try on the next relay host), and a window of 4 MiB (a `1013`, exit 255).
   The same two checks against OpenSSH are `faults.backlog` and
-  `faults.window` of `scripts/interop-faults.sh`, which the gate runs
-  (`scripts/interop-baseline.txt`).
+  `faults.window` of `scripts/interop-faults.sh`
+  (`scripts/interop-baseline.txt`): both passed in the gate at `b1f75c9`
+  (run 41158061448).
 - The remedy of a `1013 client receive backlog` says what makes it, in
   place of `podssh doctor` (`crates/podssh-ws/src/session.rs`, with its
   unit test).

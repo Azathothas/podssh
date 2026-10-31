@@ -62,15 +62,15 @@ repository and CI).
 
 ## Counts
 
-**333 entries: 19 open, 0 partial, 28 blocked, 286 done.**
+**333 entries: 18 open, 0 partial, 28 blocked, 287 done.**
 
 | Priority | open | partial | blocked | done | total |
 | --- | --- | --- | --- | --- | --- |
 | P0 | 0 | 0 | 0 | 1 | 1 |
 | P1 | 2 | 0 | 0 | 24 | 26 |
-| P2 | 3 | 0 | 20 | 146 | 169 |
+| P2 | 2 | 0 | 20 | 147 | 169 |
 | P3 | 14 | 0 | 8 | 115 | 137 |
-| **All** | 19 | 0 | 28 | 286 | 333 |
+| **All** | 18 | 0 | 28 | 287 | 333 |
 
 ## Entries
 
@@ -407,5 +407,5 @@ repository and CI).
 | [T-332](resume.md) | P3 | M | backlog | feature | done | A notice of silence with `--direct` |
 | [T-333](repo.md) | P3 | S | none | chore | done | aes-gcm 0.11 and chacha20poly1305 0.11 in `podssh-ws` |
 | [T-334](ts.md) | P2 | M | M9 | measurement | open | A headscale stand-in for the live runs of `podssh ts` |
-| [T-335](resume.md) | P2 | S | M9 | defect | open | The iroh cells of the throughput run may not cross a relay |
+| [T-335](resume.md) | P2 | S | M9 | defect | done | The iroh cells of the throughput run may not cross a relay |
 | [T-336](relay.md) | P2 | M | backlog | defect | blocked | The relay holds a slow client's bytes with no bound, and closes nothing |

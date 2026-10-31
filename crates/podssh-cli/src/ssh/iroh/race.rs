@@ -138,6 +138,11 @@ impl Iroh<'_> {
         }
     }
 
+    /// Which path carried the iroh road's links, once it had one (T-335).
+    fn path(&self) -> Option<&'static str> {
+        self.made.get().and_then(|(_, dialer)| dialer.path())
+    }
+
     async fn close(&self) {
         if let Some((endpoint, dialer)) = self.made.get() {
             dialer.close().await;
@@ -301,6 +306,9 @@ pub(in crate::ssh) async fn connect(
         Box::pin(resume::run(client, layer_app, connect, note, &mut entropy)),
         session
     );
+    if let Some(path) = iroh.path() {
+        log.verbose(&format!("{shown}: the iroh road: {path}"));
+    }
     if let Some((fault, why)) = failed.as_ref().and_then(|e| crate::channel::judged(e, me.as_deref())) {
         log.error(&format!("{shown}: {why}"));
         crate::ssh::result::channel_failed(&fault);

@@ -2,11 +2,13 @@
 //! address of its ticket, a session of the resumable layer on a stream of
 //! it, and a new stream, or a new connection, for each lost link.
 
+use std::sync::atomic::{AtomicBool, Ordering};
 use std::sync::Arc;
 use std::time::Duration;
 
 use iroh::endpoint::{ConnectError, ConnectingError, Connection, ConnectionError, VarInt};
 use iroh::{Endpoint, EndpointAddr};
+use n0_future::StreamExt;
 use podssh_relay::session::client::{self, Outcome};
 use podssh_relay::session::resume::{self, Next, Note};
 use podssh_relay::session::{Ask, Hearing, OsEntropy, Settings};
@@ -20,6 +22,10 @@ use crate::stream::{open_session, Stream};
 pub const CONNECT_LIMIT: Duration = Duration::from_secs(30);
 /// How long a connection whose link failed may take to say why it closed.
 const CLOSE_WAIT: Duration = Duration::from_secs(2);
+/// What `-v` says at the end of a session that no direct path carried, and
+/// of one that a direct path carried at some time (T-335).
+pub const RELAY_ONLY: &str = "the relay carried each byte of the session";
+pub const WENT_DIRECT: &str = "a direct path carried the session";
 
 /// Why no link was had.
 #[derive(Debug, Clone, PartialEq, Eq)]
@@ -44,11 +50,25 @@ pub struct Dialer {
     endpoint: Endpoint,
     addr: EndpointAddr,
     connection: Mutex<Option<Connection>>,
+    /// Whether a connection was had, and whether a direct path carried one.
+    linked: AtomicBool,
+    direct: Arc<AtomicBool>,
 }
 
 impl Dialer {
     pub fn new(endpoint: Endpoint, addr: EndpointAddr) -> Dialer {
-        Dialer { endpoint, addr, connection: Mutex::new(None) }
+        Dialer { endpoint, addr, connection: Mutex::new(None), linked: AtomicBool::new(false), direct: Arc::default() }
+    }
+
+    /// Which path carried the session, in words for `-v`: [`WENT_DIRECT`]
+    /// once a direct path was the one in use, else [`RELAY_ONLY`]; nothing
+    /// before a connection was had.
+    pub fn path(&self) -> Option<&'static str> {
+        match (self.linked.load(Ordering::SeqCst), self.direct.load(Ordering::SeqCst)) {
+            (false, _) => None,
+            (true, true) => Some(WENT_DIRECT),
+            (true, false) => Some(RELAY_ONLY),
+        }
     }
 
     /// A new link: a stream on the connection while it lives, else on a new
@@ -75,6 +95,8 @@ impl Dialer {
                 return Err(Failure::Failed(format!("no connection to the node within {} s", CONNECT_LIMIT.as_secs())))
             }
         };
+        self.linked.store(true, Ordering::SeqCst);
+        watch_paths(&connection, self.direct.clone());
         let stream = open_session(&connection).await;
         *slot = Some(connection);
         stream.map_err(|e| Failure::Failed(format!("no stream to the node: {e}")))
@@ -142,6 +164,20 @@ where
     };
     let mut entropy = OsEntropy;
     Ok(resume::run(client, app, connect, note, &mut entropy).await)
+}
+
+/// Note in `direct` when a direct path is the one that carries the data of
+/// `connection`, from its first path to its close.
+fn watch_paths(connection: &Connection, direct: Arc<AtomicBool>) {
+    let connection = connection.clone();
+    tokio::spawn(async move {
+        let mut paths = connection.paths_stream();
+        while let Some(list) = paths.next().await {
+            if list.iter().any(|path| path.is_selected() && path.is_ip()) {
+                direct.store(true, Ordering::SeqCst);
+            }
+        }
+    });
 }
 
 /// Whether a connection closed because the node refused this client.

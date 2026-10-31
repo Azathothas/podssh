@@ -139,7 +139,7 @@ fn table(session: &Session, cells: Vec<Result<Cell, (String, String)>>) -> Strin
         let cell = match cell {
             Ok(cell) => cell,
             Err((name, why)) => {
-                let skipped = Cell { name, args: Vec::new(), far: Far::Test };
+                let skipped = Cell { name, args: Vec::new(), far: Far::Test, env: Vec::new(), must_say: None };
                 table.push_str(&report(&skipped, &[], &[], Some(&why)));
                 continue;
             }

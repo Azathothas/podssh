@@ -317,22 +317,40 @@ the far end is ready and stops at the last byte, so the setup of the
 connection is not counted. With 5 runs, the p95 is the maximum (nearest
 rank).
 
-On this machine's loopback, with no network (Windows 11, the debug build,
-2026-10-10; `cargo test -p podssh-cli --features iroh-test --test
-throughput_live throughput_on_the_loopback -- --ignored --nocapture`), in
-MiB/s, min / p50 / p95 / max:
+On the loopback, with no network (a Claude Code cloud container, Linux
+x86_64, the debug build, 2026-10-31; `cargo test -p podssh-cli --features
+iroh-test --test throughput_live throughput_on_the_loopback -- --ignored
+--nocapture`), in MiB/s, min / p50 / p95 / max:
 
 | Cell | Up | Down |
 | --- | --- | --- |
-| `--direct` to the test's server: podssh's own limit | 107.3 / 165.9 / 173.3 / 173.3 | 101.5 / 106.3 / 115.4 / 115.4 |
-| The forward road through `scripts/fake-relay.py` (Python's asyncio): the stand-in sets this figure | 6.6 / 7.1 / 7.2 / 7.2 | 7.7 / 7.9 / 8.0 / 8.0 |
-| The iroh road through iroh's relay server | 32.4 / 34.6 / 34.8 / 34.8 | 21.8 / 25.6 / 28.6 / 28.6 |
+| `--direct` to the test's server: podssh's own limit | 91.1 / 109.9 / 139.4 / 139.4 | 70.1 / 76.7 / 80.1 / 80.1 |
+| The forward road through `scripts/fake-relay.py` (Python's asyncio): the stand-in sets this figure | 4.4 / 4.7 / 4.7 / 4.7 | 5.0 / 5.1 / 5.3 / 5.3 |
+| The iroh road through iroh's relay server, UDP off at both ends: each run said that the relay carried each byte | 4.1 / 4.2 / 4.3 / 4.3 | 2.6 / 2.8 / 2.9 / 2.9 |
 
-Not measured yet: the reverse road through the live relay, the forward road
-to a public server, the direct road, and the iroh road through n0's relays,
-here and in a sandbox (the live run of T-251, with 500 MiB a direction in
-each cell, `PODSSH_THROUGHPUT_MIB=100`, as the operator ruled on 2026-10-10:
-Q38).
+The iroh row of 2026-10-10 (Windows 11: 34.6 MiB/s up, 25.6 down, at the
+p50) was most likely a direct path's: both ends ran with UDP on, on one
+host, and with UDP on the cell's runs here say that a direct path carried
+them (T-335).
+
+From the same container, through its egress proxy, at 20 MiB a run
+(2026-10-31; `PODSSH_THROUGHPUT_IROH_RELAY=https://use1-1.relay.n0.iroh.link.
+cargo test -p podssh-cli --features iroh-test --test throughput_live --
+--ignored --nocapture throughput_on_each_road`, 442 s), in MiB/s, min / p50
+/ p95 / max:
+
+| Cell | Up | Down |
+| --- | --- | --- |
+| The reverse road through the live relay, with the layer | 2.29 / 2.37 / 2.50 / 2.50 | 1.32 / 1.37 / 1.40 / 1.40 |
+| The iroh road through n0's relay `use1-1`, UDP off: each run said that the relay carried each byte | 1.08 / 1.08 / 1.08 / 1.08 | 1.10 / 1.10 / 1.10 / 1.10 |
+
+The iroh row is the same in each run; inferred, it is n0's limit for each
+connection (Read: <https://docs.iroh.computer/relays/rate-limiting>).
+
+Not measured yet: the forward road to a public server and the direct road
+(`PODSSH_THROUGHPUT_SSH` names no server here), and each cell in a sandbox
+(the live run of T-251, with 500 MiB a direction in each cell,
+`PODSSH_THROUGHPUT_MIB=100`, as the operator ruled on 2026-10-10: Q38).
 
 SFTP by the requests in flight and their size (T-140; Windows 11, the debug
 build, 2026-10-12; `PODSSH_THROUGHPUT_MIB=10 cargo test -p podssh-cli --test
@@ -567,7 +585,8 @@ ssh` with 255, names the close and what makes it, and is tried on no other
 host; at 256 KiB/s from a queue with no bound, the window of 512 KiB keeps
 what waits under 2 MiB, and 4 MB come whole. The same checks against
 OpenSSH are `faults.backlog` and `faults.window` of
-`scripts/interop-faults.sh`, in the gate.
+`scripts/interop-faults.sh`: both passed in the gate at `b1f75c9` (run
+41158061448).
 
 ## Components
 
@@ -621,6 +640,7 @@ The lines are `wc -l` of each crate's `src/` and `tests/` (2026-10-09, T-082;
 | The body of a release, and the version (T-309), 2026-10-30 | git-cliff 2.9.1 with `cliff.toml`: 343 of 343 commits in 50,475 bytes, each subject cut to 200 characters, and no `@` mention outside code (the subjects hold `@NAME`, `@GROUP` and `@cert-authority`). With the notes of `v1.0.0-beta.1`, the body as the job `publish` makes it: 54,029 bytes, under GitHub's 125,000; planted, the list three times: cut at a line to 119,794 bytes, and whole in `CHANGES.md`. The version `1.0.0-beta.1`; the SSH banner `SSH-2.0-podssh_1.0.0_beta.1`, with no `-` in its software version (RFC 4253, section 4.2): its test failed with the `-` planted back | `git cliff --config cliff.toml --unreleased --strip all`; `cargo test -p podssh-ssh --lib run::tests` |
 | `v1.0.0-beta.1` (T-309), 2026-10-30 | Published by the run by hand with `publish` (run 41054194363), a prerelease at `5c8d423`, after the gate, deny, secrets, the dry run and changelog passed on that commit. Its five files by their public URLs: each sum checks; the x86_64 binary prints `podssh 1.0.0-beta.1`, is static-pie, and passes `doctor` (31 ok, 0 FAIL), GitHub's banner through `podssh proxy` and the relay, and a login refused with a throwaway key (publickey, 255). The Linux binaries are the dry run's byte for byte; the Windows binary is not | `gh release view v1.0.0-beta.1 -R Azathothas/podssh` |
 | `v1.0.0-beta.2` (T-309, T-210, T-211), 2026-10-31 | Published by the run by hand with `publish` on a branch at `f7f97a5`, as `main` held newer commits (run 41147962571; the tag's run 41147977814, 00:02 to 00:11 UTC), a prerelease, after the gate, deny, secrets, the dry run and changelog passed on that commit. Its proofs on a fresh runner (run 41149070555): `SHA256SUMS` against each of the eight binaries; `gh attestation verify` of each binary with the release workflow, `refs/tags/v1.0.0-beta.2` and `f7f97a5`, through the API and with `provenance.sigstore.json`, and a changed copy refused both ways; `cosign verify-blob` of `SHA256SUMS` with the workflow at the tag, "Verified OK" with cosign 3.1.4 and 2.6.5, and a changed copy and a branch's identity refused; the short form on the published x86_64 binary (`--version` naming `f7f97a5`, the manual of 4231 lines, keygen, GitHub's banner through the relay). Here, by its public URL: its sum checks, it is static-pie, `doctor` 31 ok and 0 FAIL, and a login with no key refused (publickey, 255) | `gh workflow run release-proofs.yml --ref main -f tag=v1.0.0-beta.2` |
+| The start of an `sftp-server` in two tests, 2026-10-31 | CI's windows job at `f93e4a2` failed once at random (run 41157007958): the test of `cp::digest` gave Git for Windows' `sftp-server.exe` 10 s for its version exchange, and the first start of an MSYS2 program on a cold runner took longer. That start now has 60 s of its own, in that test and in `crates/podssh-ssh/tests/sftp_client.rs`; each call keeps 10 s. | `cargo test -p podssh-cli --lib cp::digest` (5 passed) and `cargo test -p podssh-ssh --test sftp_client` (8 passed), Linux with OpenSSH's `sftp-server`; the windows job of the next push |
 
 ## Other TCP protocols, measured
 

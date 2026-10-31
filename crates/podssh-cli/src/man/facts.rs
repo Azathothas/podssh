@@ -270,8 +270,8 @@ const FEATURE_VARIABLES: &[(&[&str], &str)] = &[
     ),
     (
         &["PODSSH_IROH_UDP"],
-        "off: the iroh road takes no direct path, and its relay carries each byte, as where UDP is \
-          refused. Else UDP is used when a socket binds.",
+        "off: the iroh road takes no direct path, and its relay carries each byte, as where UDP is refused. Else \
+          UDP is used when a socket binds; -v says at a session's end which path carried it.",
     ),
 ];
 

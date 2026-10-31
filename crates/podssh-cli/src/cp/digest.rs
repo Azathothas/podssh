@@ -202,9 +202,12 @@ mod tests {
             .expect("the sftp-server starts");
         let pipes = tokio::io::join(child.stdout.take().expect("stdout"), child.stdin.take().expect("stdin"));
         let limit = Duration::from_secs(10);
-        let sftp = tokio::time::timeout(limit, Sftp::over(pipes, podssh_ssh::sftp::Limits::default()))
+        // A first start of an MSYS2 program on a cold Windows host can take
+        // far longer than its answers.
+        let start = Duration::from_secs(60);
+        let sftp = tokio::time::timeout(start, Sftp::over(pipes, podssh_ssh::sftp::Limits::default()))
             .await
-            .expect("the version exchange within 10 s")
+            .expect("the server started within 60 s")
             .expect("the version exchange");
         let of = |bytes: &[u8]| -> Sum { Sha256::digest(bytes).into() };
         let same = tokio::time::timeout(limit, by_reading(&sftp, "f", data.len() as u64)).await.expect("within 10 s");

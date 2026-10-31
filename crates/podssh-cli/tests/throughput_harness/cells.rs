@@ -11,6 +11,11 @@ pub struct Cell {
     pub name: String,
     pub args: Vec<String>,
     pub far: Far,
+    /// The variables that each run of the cell sets.
+    pub env: Vec<(String, String)>,
+    /// A line that each run must say, else its figure is not the cell's:
+    /// the iroh cells must say that the relay carried each byte (T-335).
+    pub must_say: Option<String>,
 }
 
 /// A cell that is not set up: its name, and why.
@@ -22,7 +27,13 @@ impl Cell {
         let mut args = vec!["ssh".to_string()];
         args.extend(s.common());
         args.extend(["--direct", "-p", &s.port.to_string(), "tester@127.0.0.1"].map(String::from));
-        Cell { name: "loopback, --direct (podssh's own limit)".into(), args, far: Far::Test }
+        Cell {
+            name: "loopback, --direct (podssh's own limit)".into(),
+            args,
+            far: Far::Test,
+            env: Vec::new(),
+            must_say: None,
+        }
     }
 
     /// The forward road through `scripts/fake-relay.py` on the loopback: the
@@ -87,7 +98,7 @@ impl Cell {
             s.port.to_string(),
             "tester@127.0.0.1".to_string(),
         ]);
-        Ok(Cell { name, args, far: Far::Test })
+        Ok(Cell { name, args, far: Far::Test, env: Vec::new(), must_say: None })
     }
 
     /// The reverse road through the live relay, with the resumable layer: a
@@ -117,7 +128,7 @@ impl Cell {
         let mut args = vec!["ssh".to_string()];
         args.extend(s.common());
         args.push(format!("node://tester@{label}"));
-        Ok(Cell { name, args, far: Far::Test })
+        Ok(Cell { name, args, far: Far::Test, env: Vec::new(), must_say: None })
     }
 
     /// The cells whose target a variable names (Q38): none when it is not
@@ -146,7 +157,7 @@ impl Cell {
                 }
                 _ => args.push(target.clone()),
             }
-            cells.push(Ok(Cell { name: name.to_string(), args, far: Far::Posix }));
+            cells.push(Ok(Cell { name: name.to_string(), args, far: Far::Posix, env: Vec::new(), must_say: None }));
         }
         cells.push(iroh_named(s));
         cells
@@ -276,8 +287,11 @@ mod iroh {
         node_args.push(allow.display().to_string());
         node_args.extend(["--iroh-key".to_string(), s.home.join("iroh-node.key").display().to_string()]);
         node_args.extend(trust.iter().cloned());
+        // The relay carries each byte at both ends: on one host, UDP would
+        // find a direct path (T-335).
         let mut node = s
             .command(&node_args)
+            .env(podssh_iroh::endpoint::UDP_ENV, "off")
             .stdin(Stdio::null())
             .stderr(Stdio::piped())
             .spawn()
@@ -286,7 +300,8 @@ mod iroh {
         s.keep(node);
         let line = wait_for(&lines, "ticket iroh:").map_err(|why| (name.clone(), format!("the node: {why}")))?;
         let ticket = line[line.find("iroh:").unwrap_or(0)..].trim().to_string();
-        let mut args = vec!["ssh".to_string()];
+        // -v: the line that says which path carried the session.
+        let mut args = vec!["ssh".to_string(), "-v".to_string()];
         args.extend(s.common());
         args.extend(trust);
         args.extend([
@@ -296,7 +311,9 @@ mod iroh {
             client_key.display().to_string(),
         ]);
         args.push(format!("tester@{ticket}"));
-        Ok(Cell { name, args, far: Far::Test })
+        let env = vec![(podssh_iroh::endpoint::UDP_ENV.to_string(), "off".to_string())];
+        let must_say = Some(podssh_iroh::client::RELAY_ONLY.to_string());
+        Ok(Cell { name, args, far: Far::Test, env, must_say })
     }
 }
 
