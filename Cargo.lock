@@ -3621,18 +3621,6 @@ dependencies = [
 
 [[package]]
 name = "p384"
-version = "0.13.1"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "fe42f1670a52a47d448f14b6a5c61dd78fce51856e68edaa38f7ae3a46b8d6b6"
-dependencies = [
- "ecdsa 0.16.9",
- "elliptic-curve 0.13.8",
- "primeorder 0.13.6",
- "sha2 0.10.9",
-]
-
-[[package]]
-name = "p384"
 version = "0.14.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "d17b851e6b3e378ab4ecb07fa2ed23f4d15f075735f8fec9fa1e7bdce5f8301f"
@@ -4097,7 +4085,7 @@ dependencies = [
  "hmac 0.12.1",
  "libc",
  "p256 0.13.2",
- "p384 0.13.1",
+ "p384",
  "proptest",
  "rand 0.8.8",
  "rsa 0.9.10",
@@ -4739,7 +4727,7 @@ dependencies = [
  "module-lattice",
  "num-bigint 0.5.1",
  "p256 0.14.0",
- "p384 0.14.0",
+ "p384",
  "p521",
  "pageant",
  "pbkdf2",
@@ -5583,7 +5571,7 @@ dependencies = [
  "hex",
  "hmac 0.13.0",
  "p256 0.14.0",
- "p384 0.14.0",
+ "p384",
  "p521",
  "rand_core 0.10.1",
  "rsa 0.10.0-rc.18",

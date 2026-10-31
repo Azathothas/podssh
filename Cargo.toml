@@ -166,7 +166,7 @@ p256 = { version = "0.13", default-features = false, features = ["ecdsa", "arith
 # and that OID is `ecdsa-with-SHA384` (1.2.840.10045.4.3.3). A provider that
 # offers only P-256/SHA-256 cannot verify the chain the relay actually
 # presents, so it is not a provider.
-p384 = { version = "0.13", default-features = false, features = ["ecdsa", "arithmetic"] }
+p384 = { version = "0.14", default-features = false, features = ["ecdsa", "arithmetic"] }
 # RSA signature verification in podssh's TLS provider (public keys only).
 rsa = { version = "0.9", default-features = false, features = ["std"] }
 
