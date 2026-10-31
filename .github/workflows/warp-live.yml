@@ -4,7 +4,8 @@ name: warp live
 # (Q52, docs/decisions.md): podssh with the feature warp, built from this
 # commit, registers one device with WARP's API (PODSSH_WARP_ACCEPT_TERMS=yes
 # accepts Cloudflare's Terms for this run) and keeps its record in a cache
-# directory of this run; then the banner of GitHub's SSH endpoint through
+# directory of this run, in a run of podssh ssh -v to GitHub's refusal of a
+# client with no key; then the banner of GitHub's SSH endpoint through
 # podssh proxy warp://, directly and through the box's proxy, which allows
 # port 443 alone (scripts/box/proxy.py, the measured cage's policy), so that
 # port 22 is reached only inside WARP's tunnel; OpenSSH's ssh to GitHub
@@ -49,34 +50,58 @@ jobs:
           target/debug/podssh --version
           mkdir -p "$PODSSH_CACHE_DIR"
 
-      - name: GitHub's SSH banner inside WARP's tunnel, directly
+      - name: podssh ssh -v to GitHub inside WARP's tunnel, which registers the device
         run: |
           set +e
-          banner=$(PODSSH_WARP_ACCEPT_TERMS=yes timeout 90 target/debug/podssh proxy warp://github.com:22 \
-            </dev/null 2>"$RUNNER_TEMP/direct.log" | head -c 64)
+          PODSSH_WARP_ACCEPT_TERMS=yes timeout 120 target/debug/podssh ssh -v -o BatchMode=yes \
+            -o StrictHostKeyChecking=accept-new -o UserKnownHostsFile="$RUNNER_TEMP/known_hosts_podssh" \
+            warp://git@github.com </dev/null >"$RUNNER_TEMP/ssh.out" 2>"$RUNNER_TEMP/ssh.log"
+          rc=$?
           set -e
-          sed 's/^/podssh: /' "$RUNNER_TEMP/direct.log"
-          case $banner in
-            SSH-2.0-*) echo "ok    the banner of github.com:22 came through WARP: ${banner%%$'\r'*}" ;;
-            *) echo "FAIL no SSH banner through WARP"; exit 1 ;;
-          esac
+          sed 's/^/podssh: /' "$RUNNER_TEMP/ssh.log"
+          echo "podssh ssh exited $rc"
           [ -s "$PODSSH_CACHE_DIR/warp-device.json" ] || { echo "FAIL the device's record was not kept"; exit 1; }
           [ "$(stat -c %a "$PODSSH_CACHE_DIR/warp-device.json")" = 600 ] || { echo "FAIL the record is not 0600"; exit 1; }
           echo "ok    the device's record is kept, mode 0600"
+          grep -q "Permission denied (publickey)" "$RUNNER_TEMP/ssh.log" || { echo "FAIL no refusal of GitHub's ($rc)"; exit 1; }
+          [ "$rc" = 255 ] || { echo "FAIL exit $rc, not 255"; exit 1; }
+          echo "ok    the SSH handshake with GitHub passed inside WARP, to the refusal of a client with no key"
+
+      # A client's banner, then stdin held open: a server may close a
+      # connection whose client ends at once, before its own banner.
+      - name: GitHub's SSH banner inside WARP's tunnel, directly
+        run: |
+          set +e
+          { printf 'SSH-2.0-podssh_live\r\n'; sleep 10; } | PODSSH_SESSION_LOG="$RUNNER_TEMP/direct.jsonl" \
+            timeout 60 target/debug/podssh proxy warp://github.com:22 2>"$RUNNER_TEMP/direct.log" >"$RUNNER_TEMP/direct.out"
+          rc=$?
+          set -e
+          sed 's/^/podssh: /' "$RUNNER_TEMP/direct.log"
+          echo "podssh proxy exited $rc"
+          cat "$RUNNER_TEMP/direct.jsonl" 2>/dev/null | sed 's/^/session: /' || true
+          grep -q "registering a device" "$RUNNER_TEMP/direct.log" && { echo "FAIL a second registration"; exit 1; }
+          banner=$(head -c 64 "$RUNNER_TEMP/direct.out" | tr -d '\r' | head -n 1)
+          case $banner in
+            SSH-2.0-*) echo "ok    the banner of github.com:22 came through WARP: $banner" ;;
+            *) echo "FAIL no SSH banner through WARP"; exit 1 ;;
+          esac
 
       - name: the same through the box's proxy, which allows port 443 alone
         run: |
           python3 scripts/box/proxy.py --listen 127.0.0.1:3128 >"$RUNNER_TEMP/proxy.log" 2>&1 &
           sleep 1
           set +e
-          banner=$(HTTPS_PROXY=http://127.0.0.1:3128 timeout 90 target/debug/podssh proxy warp://github.com:22 \
-            </dev/null 2>"$RUNNER_TEMP/proxied.log" | head -c 64)
+          { printf 'SSH-2.0-podssh_live\r\n'; sleep 10; } | HTTPS_PROXY=http://127.0.0.1:3128 \
+            timeout 60 target/debug/podssh proxy warp://github.com:22 2>"$RUNNER_TEMP/proxied.log" >"$RUNNER_TEMP/proxied.out"
+          rc=$?
           set -e
           sed 's/^/podssh: /' "$RUNNER_TEMP/proxied.log"
+          echo "podssh proxy exited $rc"
           sed 's/^/proxy: /' "$RUNNER_TEMP/proxy.log"
           grep -q "registering a device" "$RUNNER_TEMP/proxied.log" && { echo "FAIL a second registration"; exit 1; }
           grep -q "CONNECT 162.159.198.2:443" "$RUNNER_TEMP/proxy.log" || { echo "FAIL the proxy saw no CONNECT to the endpoint"; exit 1; }
           if grep -q ":22 " "$RUNNER_TEMP/proxy.log"; then echo "FAIL port 22 went to the proxy"; exit 1; fi
+          banner=$(head -c 64 "$RUNNER_TEMP/proxied.out" | tr -d '\r' | head -n 1)
           case $banner in
             SSH-2.0-*) echo "ok    through a proxy of port 443 alone, the banner of github.com:22 came inside WARP" ;;
             *) echo "FAIL no SSH banner through the proxy"; exit 1 ;;
