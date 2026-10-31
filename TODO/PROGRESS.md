@@ -107,7 +107,7 @@ and `CARGO_BUILD_JOBS=4`:
 
 ## Counts
 
-`TODO/INDEX.md` holds 351 entries: 25 open, 1 partial, 35 blocked, 290 done.
+`TODO/INDEX.md` holds 352 entries: 26 open, 1 partial, 35 blocked, 290 done.
 
 Open includes parked work. `cargo todo check` verifies this line.
 
@@ -130,7 +130,8 @@ at most one a day.
 
 **Now:** the entries of the audit and the study of 2026-10-31, the highest
 priority first: the P2 entries T-338, T-339, T-340, T-341, T-342 and T-347,
-then the P3 entries T-343, T-344 and T-345. Each other `backlog`
+then T-355 (Dependabot's updates, and the curves' 0.14 that ends an ignore
+of `deny.toml`), then the P3 entries T-343, T-344 and T-345. Each other `backlog`
 entry is done, but for those on hold, those of the relay's operator and the
 parked ones.
 

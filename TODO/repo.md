@@ -4452,3 +4452,70 @@ gh workflow run release.yml --ref main   # a dry run by hand
 The dry run passes with ziglang.org's address planted as a name that does not resolve: a mirror
 served Zig, with the same SHA-256. A planted `rust-version` above Alpine's stops the armv7 job
 with both versions named.
+
+# T-355: Dependabot's updates of 2026-10-30 and 2026-10-31, and the curves' 0.14
+
+**Source:** Azathothas/podssh#57 (Alpine 3.20 to 3.24 for the box,
+2026-10-30), #64 (h2, proptest, rcgen and unicode-width), #65 (base64 0.22 to
+0.23), #66 (toml 0.9 to 1.1), #67 (chacha20poly1305 0.10 to 0.11 in the
+vendored tailscale-rs) and #68 (p384 0.13 to 0.14), Dependabot, 2026-10-31;
+the operator's ruling of 2026-10-30 (`docs/decisions.md`): a session repairs
+what an update breaks, and commits the update with the repair.
+**Category:** chore
+**Milestone:** none
+**Priority:** P2
+**Effort:** M
+**Status:** open
+
+## Problem
+
+Six updates wait, two of them of a major version that may change an API, and
+one of them the curves of podssh's own TLS provider. The curves' 0.13 line
+brings crypto-bigint 0.5.5, whose advisory `deny.toml` ignores only because
+the curves' 0.14 once needed a newer Rust than the library crates allowed.
+
+## Premise
+
+- Read: the root `Cargo.toml` asks for `p256` 0.13 and `p384` 0.13 for
+  podssh-ws's provider; `deny.toml` ignores RUSTSEC-2026-0387 for the
+  crypto-bigint 0.5.5 that they bring (`TODO/repo.md:3880-3883` says why:
+  the curves' 0.14 needed Rust 1.87, above the library crates' 1.85 then).
+  T-333 raised the library crates to 1.89 (the operator's ruling of Q48).
+- Read: #68 moves `p384` alone; `p256` stays at 0.13 in the PR, so the copy
+  of crypto-bigint 0.5.5 would stay. #66 moves `toml` (the facts file's
+  parser, podssh-probe) to the 1.1 line that iroh already takes, and drops
+  the copies of toml 0.9 and winnow 0.7 from the lock. #65 moves `base64` in
+  the root `Cargo.toml` and in `vendor/tailscale-rs/Cargo.toml`; #67
+  `chacha20poly1305` in `vendor/tailscale-rs/Cargo.toml`, a fork with local
+  patches (`vendor/patches/`). #64 changes the lock only. #57 changes
+  `images/box/Dockerfile`.
+- Inferred: each pull request is closed by Dependabot once `main` holds its
+  version, as T-330's were.
+
+## Approach
+
+1. One update at a time, each built and tested with the crates that it
+   reaches, each repair beside it: #64; #66 (the facts' tests and
+   `podssh relay spec`); #65 (each crate that encodes base64, and the build
+   with the feature `ts`); #67 with the feature `ts`; #57 (the box's run,
+   `scripts/test_in_box.sh`, or its build where the run waits for T-251).
+2. The curves: `p256` and `p384` 0.14 together in podssh-ws's provider (the
+   key exchange and the checks of ECDSA signatures), against the provider's
+   tests and the TLS of the live relay; then crypto-bigint 0.5.5 leaves the
+   tree, and its line leaves `deny.toml`.
+3. `cargo deny --locked check` with each feature; `docs/STATUS.md` records
+   each version.
+
+## Prove
+
+```sh
+export CARGO_BUILD_JOBS=4
+cargo test -p podssh-ws -p podssh-probe
+cargo test --workspace
+cargo deny --locked check advisories licenses bans sources
+cargo tree -i crypto-bigint@0.5.5   # no such package
+```
+
+Each test passes; `deny` passes with no ignore of RUSTSEC-2026-0387.
+Planted: a P-384 signature of the relay's chain with one byte changed; the
+provider refuses it on 0.14 as on 0.13.

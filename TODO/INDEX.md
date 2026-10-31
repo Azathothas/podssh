@@ -62,15 +62,15 @@ repository and CI).
 
 ## Counts
 
-**351 entries: 25 open, 1 partial, 35 blocked, 290 done.**
+**352 entries: 26 open, 1 partial, 35 blocked, 290 done.**
 
 | Priority | open | partial | blocked | done | total |
 | --- | --- | --- | --- | --- | --- |
 | P0 | 0 | 0 | 0 | 1 | 1 |
 | P1 | 2 | 0 | 0 | 25 | 27 |
-| P2 | 7 | 1 | 23 | 148 | 179 |
+| P2 | 8 | 1 | 23 | 148 | 180 |
 | P3 | 16 | 0 | 12 | 116 | 144 |
-| **All** | 25 | 1 | 35 | 290 | 351 |
+| **All** | 26 | 1 | 35 | 290 | 352 |
 
 ## Entries
 
@@ -427,3 +427,4 @@ repository and CI).
 | [T-352](roads.md) | P3 | L | backlog | feature | blocked | WARP's MASQUE road over HTTP/2 |
 | [T-353](roads.md) | P3 | L | backlog | feature | blocked | Tor through Arti, in a feature crate |
 | [T-354](resume.md) | P2 | S | backlog | defect | done | A session that closes while it moves can say a loss that was none |
+| [T-355](repo.md) | P2 | M | none | chore | open | Dependabot's updates of 2026-10-30 and 2026-10-31, and the curves' 0.14 |
