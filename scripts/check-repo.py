@@ -83,13 +83,14 @@ PINNED_USES = re.compile(r"^(?:[\w.-]+/[\w./-]+@[0-9a-f]{40}|\./\S+|docker://\S+
 LISTENER_RULE = "no listener unless the user asks for it and a probe at run time allows the bind"
 LISTENERS = {
     # The listening side of `podssh pipe`, which the user asks for with
-    # unix-listen: or tcp-listen: (T-177): the bind itself is the probe, and
-    # PODSSH_LISTEN turns it off. And the target of the tests of -R (T-035),
-    # on the loopback, and the stand-in agent of the tests of -A (T-036), on
-    # a socket in a scratch directory: test modules of src/ that reach the
-    # crate's own login. And -L and -D of `podssh ssh` (T-038), which the
-    # user asks for: the bind and the listen, before anything connects, are
-    # the probe, and PODSSH_LISTEN turns them off.
+    # unix-listen:, tcp-listen: or http-listen: (T-177, T-367): the bind itself
+    # is the probe, and PODSSH_LISTEN turns it off; pipe/serve.rs binds each.
+    # And the target of the tests of -R (T-035), on the loopback, and the
+    # stand-in agent of the tests of -A (T-036), on a socket in a scratch
+    # directory: test modules of src/ that reach the crate's own login. And
+    # -L and -D of `podssh ssh` (T-038), which the user asks for: the bind and
+    # the listen, before anything connects, are the probe, and PODSSH_LISTEN
+    # turns them off.
     "TcpListener": [
         "crates/podssh-cli/src/pipe/listen.rs",
         "crates/podssh-ssh/src/remote_tests.rs",

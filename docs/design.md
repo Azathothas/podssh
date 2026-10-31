@@ -896,8 +896,9 @@ Since T-174 and T-175, `podssh pipe` has the local addresses (`-`,
 since T-176, `unix-connect:PATH`, with a named pipe or AF_UNIX on Windows;
 since T-177, the listeners `unix-listen:PATH` and `tcp-listen:[ADDR:]PORT`,
 after a probe, for one client or, with `--keep-listening`, each in turn;
-since T-168, `udp:node:NAME`; and since T-181, `serial:PATH[,BAUD]`, a serial
-line of this host, on Unix.
+since T-168, `udp:node:NAME`; since T-181, `serial:PATH[,BAUD]`, a serial
+line of this host, on Unix; and since T-367, `http-listen:`, an HTTP CONNECT
+proxy whose other side opens a road to each request's target, `%h:%p`.
 
 **UDP over the relay** (T-168). The relay carries TCP only, and the
 measured sandbox refuses UDP, so a datagram leaves from a node on a host

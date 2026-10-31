@@ -29,6 +29,7 @@ mod notes_job;
 mod notes_keygen;
 mod notes_mcp;
 mod notes_pair;
+mod notes_pipe;
 mod notes_ping;
 mod notes_play;
 mod notes_relay;

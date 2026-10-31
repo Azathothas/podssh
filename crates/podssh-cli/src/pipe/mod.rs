@@ -7,14 +7,19 @@
 //! client to the other side; `udp:node:NAME` carries datagrams through a
 //! node, and gives a program beside it a datagram socket (`datagram`); a
 //! serial line (`serial`) is a local end whose settings go back at each end,
-//! a signal's too. A road that failed gives the pipe's exit code, as
+//! a signal's too; `http-listen:` is an HTTP CONNECT proxy whose other side
+//! is a road that each request names (`web`, `http_listen`, `gateway`,
+//! T-367). A road that failed gives the pipe's exit code, as
 //! `podssh proxy` gives it; else a child's status, B's when both are
 //! children, as a shell gives it; with neither, a clean end gives 0.
 
 use std::io::Write;
 
 pub mod address;
+pub mod credentials;
 pub mod datagram;
+pub mod gateway;
+pub mod http_listen;
 pub mod iroh;
 pub mod listen;
 #[cfg(windows)]
@@ -28,6 +33,7 @@ pub mod serial;
 pub mod serve;
 pub mod ssh;
 pub mod unix;
+pub mod web;
 
 use crate::exit_codes::EXIT_SOFTWARE;
 
@@ -42,6 +48,8 @@ pub struct PipeArgs {
     pub ssh: crate::ssh::args::SshArgs,
     /// `--keep-listening`: each client in turn, not only the first.
     pub keep_listening: bool,
+    /// `--proxy-auth-file`: the credentials of the clients of `http-listen:`.
+    pub proxy_auth_file: Option<String>,
     pub refused: Vec<(String, &'static str, &'static str)>,
 }
 
@@ -54,10 +62,14 @@ pub fn run_pipe(args: &PipeArgs, err: &mut dyn Write) -> i32 {
     let listening = a.listens() || b.listens();
     if args.keep_listening && !listening {
         let refusal = crate::relay_settings::Refusal::usage(
-            "--keep-listening is for a listening side: unix-listen:PATH or tcp-listen:[ADDR:]PORT",
+            "--keep-listening is for a listening side: unix-listen:PATH, tcp-listen:[ADDR:]PORT or http-listen:",
         );
         return refusal.report("pipe", err);
     }
+    let credentials = match http_listen::credentials([&a, &b], args.proxy_auth_file.as_deref()) {
+        Ok(credentials) => credentials,
+        Err(refusal) => return refusal.report("pipe", err),
+    };
     if listening {
         if let Err(refusal) = listen::allowed() {
             return refusal.report("pipe", err);
@@ -77,7 +89,9 @@ pub fn run_pipe(args: &PipeArgs, err: &mut dyn Write) -> i32 {
     let code = if listening {
         let (listening, other, listener_is_a) = if a.listens() { (&a, &b, true) } else { (&b, &a, false) };
         let quiet = args.ssh.quiet > 0;
-        let serve = serve::Serve { listening, other, listener_is_a, keep: args.keep_listening, quiet };
+        // A proxy takes each client: a program opens a tunnel for each host.
+        let keep = args.keep_listening || matches!(listening, address::Address::HttpListen(_));
+        let serve = serve::Serve { listening, other, listener_is_a, keep, quiet, credentials };
         // A client's road through a node's layer ends with its CLOSE, the
         // last one's before the exit (T-331).
         runtime.block_on(crate::ssh::transport::settled(serve::run(serve, &settings, err)))

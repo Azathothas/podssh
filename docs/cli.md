@@ -1884,9 +1884,10 @@ commands. The rules behind them:
   `ssh:[USER@]HOP[,HOP...],HOST:PORT`, `node:NAME`, `udp:node:NAME` (T-168)
   and `iroh:TICKET`; or a local socket (T-176), `unix-connect:PATH`; or a
   serial line (T-181), `serial:PATH[,BAUD]`; or, on one side at most, a
-  listener (T-177): `unix-listen:PATH` or `tcp-listen:[ADDR:]PORT`. Both
-  addresses are checked before anything starts; an unknown kind is a usage
-  error (64) that lists the kinds.
+  listener (T-177): `unix-listen:PATH` or `tcp-listen:[ADDR:]PORT`, or an
+  HTTP CONNECT proxy (T-367), `http-listen:`. Both addresses are checked
+  before anything starts; an unknown kind is a usage error (64) that lists
+  the kinds.
 - **A listener only when asked, and only where a probe allows it** (the
   operator's ruling of 2026-10-08). `PODSSH_LISTEN=no` turns listening off:
   a listening address then exits 78 before any bind. The bind itself is
@@ -1911,6 +1912,40 @@ commands. The rules behind them:
   is another program's (69); one that nobody serves is replaced. A named
   pipe has no half-close: its listening side closes it at the end of its
   input, and the client reads the rest, then its end.
+- **An HTTP CONNECT proxy, for a program that knows only `HTTPS_PROXY`**
+  (T-367, GitHub #75). `http-listen:[ADDR:]PORT` listens as `tcp-listen:`
+  does, and `http-listen:PATH` (a path with a `/`, or `@NAME`) as
+  `unix-listen:` does, by the same rules and the same probe. Its other side
+  names its target `%h:%p`, once and last, as `ProxyCommand` names the host
+  and the port: `relay:%h:%p`, `tcp:%h:%p` or
+  `ssh:[USER@]HOP[,HOP...],%h:%p`; another side exits 64, and so does
+  `%h:%p` beside a side that is not a proxy. A proxy takes each client, 32
+  at once (a program opens a connection for each host, npm up to 15 at a
+  time), and each request opens a road of its own, until SIGINT or SIGTERM;
+  its first line names the value of `HTTPS_PROXY`. A request's head is read
+  within 16 KiB and 30 s (431 and 408 past them), by the reader of requests
+  of podssh-ws (`http::request`), which refuses a head that two readers
+  could read two ways (400): a bare CR, a space before a header's colon, a
+  folded line. Then, in this order: the credentials, when
+  `--proxy-auth-file FILE` names some (407 with `Proxy-Authenticate:
+  Basic`); the method, CONNECT alone (405 with `Allow: CONNECT`; a request
+  in absolute form, `GET http://...`, too); and the target, `HOST:PORT` or
+  `[IPV6]:PORT`, checked as each target is (400). Nothing is dialed for a
+  request that is refused. Then the road opens with the target, and only
+  then does the client hear `200 Connection Established`, so that it learns
+  whether the target was reached, as `-D` answers: a refusal of a policy is
+  403 with its words (the relay's `not in the ALLOW list`, an upstream
+  proxy's 403, an SSH server's administratively prohibited), a dial past
+  its limit 504, and another failure 502 with its reason, in the status line
+  and in the body. The bytes that a client sends after its CONNECT go to
+  the road once it is open. `--proxy-auth-file` names a private file (read
+  as a pair's file is: this user's, which nobody else can read; else 78) of
+  lines `USER:PASSWORD`, `#` for a comment; a client gives one in
+  `Proxy-Authorization: Basic`, and podssh keeps only the SHA-256 of each,
+  compared in constant time. A port on an address that is not loopback
+  needs the file (64): scanners find an open proxy, and each request would
+  spend this host's road. With `ssh:`, each request logs in anew; `podssh
+  ssh -D` keeps one connection for many SOCKS clients.
 - **A local socket, by its name.** `unix-connect:PATH` connects, which the
   rule of no listener allows; `@NAME` is Linux's abstract namespace. A name
   that does not fit a socket's address is refused first (64). A missing

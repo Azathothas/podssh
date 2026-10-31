@@ -111,6 +111,15 @@ impl Listener {
             Kind::Win(bound) => bound.accept(say).await,
         }
     }
+
+    /// A TCP listener's address, with the port that the system chose; a
+    /// socket has none.
+    pub fn local_addr(&self) -> Option<std::net::SocketAddr> {
+        match &self.kind {
+            Kind::Tcp(listener) => listener.local_addr().ok(),
+            _ => None,
+        }
+    }
 }
 
 /// `tcp-listen:`: one line of who can connect, with the port that the

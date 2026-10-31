@@ -2482,7 +2482,7 @@ nothing.
 - Read: `crates/podssh-cli/src/flags.rs` line 364 at `48a8744` says "join two byte streams, as socat does, with no
   listener", though `pipe` listens for `tcp-listen:` and `unix-listen:` since T-177; the note of
   the manual says it right, "with no listener unless one side asks for one"
-  (`crates/podssh-cli/src/man/notes.rs:174`).
+  (`crates/podssh-cli/src/man/notes_pipe.rs:6`, where `pipe`'s notes moved from `notes.rs`).
 - Read: doctor's rule: a condition that podssh is built for, no listener among them, is a fact,
   reported `ok`, and `FAIL` is kept for what stops podssh or one of its fallbacks
   (`crates/podssh-cli/src/doctor/mod.rs:6-9`); `docs/cli.md:1343-1349` says the same.

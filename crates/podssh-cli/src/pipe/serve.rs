@@ -9,12 +9,16 @@
 //! forget. With `--keep-listening`, each client in turn, 8 at once at most,
 //! until SIGINT or SIGTERM. A signal removes the socket's file, then podssh
 //! exits with 128 and the signal's number, as a shell gives it.
+//!
+//! A proxy of `http-listen:` always keeps listening, and reads each client's
+//! request before its road opens (T-367).
 
 use std::io::Write;
 use std::rc::Rc;
 use std::time::Duration;
 
 use super::address::Address;
+use super::http_listen::Proxy;
 use super::listen::Listener;
 use super::{open, pump, remote, report};
 use crate::exitmap::sysexits::EX_UNAVAILABLE;
@@ -33,6 +37,37 @@ pub struct Serve<'a> {
     pub keep: bool,
     /// `-q`: no line of podssh's own but a failure's.
     pub quiet: bool,
+    /// What the clients of `http-listen:` must give (T-367).
+    pub credentials: Option<super::credentials::Credentials>,
+}
+
+/// What a client does before its session: nothing, or the CONNECT of a
+/// proxy (T-367).
+enum Front {
+    Plain,
+    Proxy(Rc<Proxy>),
+}
+
+/// The task of one client.
+type Task = std::pin::Pin<Box<dyn std::future::Future<Output = ()>>>;
+
+impl Front {
+    /// The task of client `n`, with its own instance of `other`.
+    fn task(
+        &self,
+        n: u64,
+        client: pump::End,
+        other: Rc<Address>,
+        settings: Rc<remote::Settings>,
+        listener_is_a: bool,
+    ) -> Task {
+        match self {
+            Front::Plain => Box::pin(session(n, client, other, settings, listener_is_a)),
+            Front::Proxy(proxy) => {
+                Box::pin(super::http_listen::client(n, client, proxy.clone(), settings, listener_is_a))
+            }
+        }
+    }
 }
 
 /// Run the pipe; its exit code.
@@ -46,7 +81,7 @@ pub async fn run(serve: Serve<'_>, settings: &remote::Settings, err: &mut dyn Wr
                 let _ = writeln!(err, "podssh pipe: {line}");
             }
         };
-        match Listener::bind(serve.listening, &mut say).await {
+        match Listener::bind(serve.listening.bound(), &mut say).await {
             Ok(listener) => listener,
             Err((code, line)) => {
                 let _ = writeln!(err, "podssh pipe: {line}");
@@ -54,8 +89,12 @@ pub async fn run(serve: Serve<'_>, settings: &remote::Settings, err: &mut dyn Wr
             }
         }
     };
+    if let (Address::HttpListen(at), false) = (serve.listening, quiet) {
+        let line = super::http_listen::reach_line(&listener, at, serve.credentials.as_ref());
+        let _ = writeln!(err, "podssh pipe: {line}");
+    }
     if serve.keep {
-        return keep_listening(listener, &serve, settings, &mut stop).await;
+        return keep_listening(listener, serve, settings, &mut stop).await;
     }
     let client = {
         let mut say = |line: &str| {
@@ -93,16 +132,24 @@ pub async fn run(serve: Serve<'_>, settings: &remote::Settings, err: &mut dyn Wr
     report(pumped, "podssh pipe", err).await
 }
 
-/// Each client in turn, 8 at once at most, each on a task of its own with a
-/// new instance of the other address; each session's lines name its client.
+/// Each client in turn, 8 at once at most (a proxy's 32), each on a task of
+/// its own with a new instance of the other address; each session's lines
+/// name its client.
 async fn keep_listening(
     mut listener: Listener,
-    serve: &Serve<'_>,
+    serve: Serve<'_>,
     settings: &remote::Settings,
     stop: &mut Interrupt,
 ) -> i32 {
-    let (other, settings) = (Rc::new(serve.other.clone()), Rc::new(settings.clone()));
-    let (listener_is_a, quiet) = (serve.listener_is_a, serve.quiet);
+    let Serve { listening, other, listener_is_a, quiet, credentials, .. } = serve;
+    let front = match (listening, other) {
+        (Address::HttpListen(_), Address::Template(template)) => {
+            Front::Proxy(Rc::new(Proxy { template: template.clone(), credentials, quiet }))
+        }
+        _ => Front::Plain,
+    };
+    let at_once = if matches!(front, Front::Proxy(_)) { super::http_listen::AT_ONCE } else { AT_ONCE };
+    let (other, settings) = (Rc::new(other.clone()), Rc::new(settings.clone()));
     let local = tokio::task::LocalSet::new();
     local
         .run_until(async move {
@@ -115,12 +162,12 @@ async fn keep_listening(
             };
             loop {
                 tokio::select! {
-                    client = listener.accept(&mut say), if running.len() < AT_ONCE => match client {
+                    client = listener.accept(&mut say), if running.len() < at_once => match client {
                         Ok(client) => {
                             failed = 0;
                             clients += 1;
                             let (other, settings) = (other.clone(), settings.clone());
-                            running.spawn_local(session(clients, client, other, settings, listener_is_a));
+                            running.spawn_local(front.task(clients, client, other, settings, listener_is_a));
                         }
                         Err(e) => {
                             failed += 1;

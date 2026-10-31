@@ -1348,6 +1348,44 @@ the request's target, would be the proxy that such a program points at.
   the user's relay token. Lost: a warning alone, as `-D` with `-g` gives, which is OpenSSH's
   behaviour for `-D`.
 - The reader of requests serves T-368 (`ws-listen:`) too; whichever is done first writes it.
+- The checks in this order: the credentials, then the method, then the target, so that a client
+  with no credential learns nothing of the proxy but its challenge. Lost: the method first, which
+  tells such a client what the proxy takes.
+- A proxy takes 32 tunnels at once, where `--keep-listening` takes 8: a program behind a proxy
+  opens several connections at a time (npm up to 15, pip 10), and each further one would wait in the
+  backlog until a tunnel ended. Lost: 8, which stalls such a program; no bound, with which one client
+  opens sessions of the road without end.
+- The status line carries the words after its phrase (`403 Forbidden: ... not in the ALLOW
+  list`), and the body repeats them: Python's `http.client`, under pip, shows the status line of a
+  refused tunnel ("Tunnel connection failed: 403 ..."), and curl only its status. Lost: the
+  standard phrase alone, which hides the relay's reason from pip's user.
+- The bytes that a client sends after its CONNECT and before the answer are the tunnel's, and go
+  to the road once it is open. Lost: dropping them, which breaks a client that sends its TLS hello
+  at once.
+- One request on each connection: a refusal shuts the write half, reads what the client still
+  sends for 2 s, then closes, as a close with bytes unread is a reset that can lose the answer.
+  Lost: keep-alive after a 407, for which a second request on one connection is a request to
+  smuggle past the reader; curl and the others open a new connection.
+- A line may end with a bare LF (RFC 9112 section 2.2 allows it), and a bare CR, a space before a
+  colon and a folded line are refused (400). Lost: CRLF alone, which refuses a request typed with
+  `nc`; obs-fold joined with a space, which a second reader may read otherwise.
+- The file of credentials holds lines `USER:PASSWORD` in clear, read as a pair's file is
+  (`podssh_relay::cache::read_private`: this user's, which nobody else can read, else 78);
+  podssh keeps the SHA-256 of each and compares the client's with each one, all of them, with no
+  branch on a byte. Lost: the base64 token compared as text, which a client's base64 with no
+  padding fails; the hashes of `htpasswd`, which need a crypt that podssh has not.
+- `http-listen:PATH` is a path when it holds a `/` (on Windows also a `\`) or begins with `@`; a
+  bare name is refused, and the line gives its `./` form. Lost: a bare name taken as a path, which
+  binds a file for a typo of a port (`http-listen:808O`).
+- `%h:%p` is the target, once and last, of `relay:`, `tcp:` or `ssh:` alone. Lost: a fixed port
+  (`relay:%h:443`), which serves no program that `HTTPS_PROXY` drives; `exec:` with `%h` and `%p`,
+  as `ProxyCommand` takes them, which #75 does not ask for.
+- With `ssh:`, each request logs in anew, as each client of `--keep-listening` opens its own
+  instance of the other side. Lost: one SSH connection with a channel for each tunnel, as
+  `podssh ssh -D` keeps one for its SOCKS clients; that is `-D`'s.
+- The stand-in relay has a mode `policy` (`scripts/fake-relay.py`), which answers each upgrade
+  `403` with `not in the ALLOW list`, as the live relay answers a target of its policy, so that the
+  403 of the proxy is tested against the relay's own shape.
 
 ## Prove
 
@@ -1367,6 +1405,61 @@ any bind; an address that is not loopback with no credential file exits 64. Plan
 that dials before it checks the credential; the test of `407` fails. Live:
 `git ls-remote https://github.com/Azathothas/podssh` with `HTTPS_PROXY` at the listener and the
 live relay behind it.
+
+## Correction
+
+2026-10-31: three citations of the Premise name other lines, as they did when the entry was
+written (read at `8207d29`). The ruling on a listener that the user asks for is
+`docs/decisions.md:38`; `docs/decisions.md:33` is the ruling on `exec:`. The relay's `403` of its
+policy is `docs/relay.md:181-183`; `docs/relay.md:176-178` is the form of a token and its header.
+The rest reads as cited. Nothing in the Approach changes.
+
+## Done
+
+2026-10-31, drafted, not built: each result below is UNVERIFIED until the merge measures it.
+
+- `http-listen:[ADDR:]PORT` and `http-listen:PATH` (`crates/podssh-cli/src/pipe/web.rs`), bound
+  by `Listener::bind` with the rules of `tcp-listen:` and `unix-listen:`
+  (`crates/podssh-cli/src/pipe/serve.rs`); a proxy always keeps listening, 32 at once, and its
+  first line names the value of `HTTPS_PROXY`. The other side is a template of `%h:%p`
+  (`relay:`, `tcp:`, `ssh:`), checked with a target before anything starts; `%h:%p` beside
+  another side is refused (64).
+- The reader of requests, `podssh_ws::http::request` (`crates/podssh-ws/src/http/request.rs`):
+  the head within 16 KiB (431), a bare LF taken, a bare CR, a space before a colon, a folded line
+  and a control byte refused (400), another version 505; `connect_target` checks `HOST:PORT` and
+  `[IPV6]:PORT` with `check_target`; `refusal` writes a status with its words on one line, and
+  `established` the `200` with no length. T-368 and T-369 read their requests with it.
+- Each client (`crates/podssh-cli/src/pipe/http_listen.rs`): its request within 30 s (408), its
+  credentials (407 with `Proxy-Authenticate: Basic realm="podssh"`), CONNECT alone (405 with
+  `Allow: CONNECT`), no content, its target (400); then the road, through
+  `crates/podssh-cli/src/pipe/gateway.rs`: 403 for a policy (the relay's words, an upstream
+  proxy's 403, an SSH server's `AdministrativelyProhibited`), 504 for a limit, 502 else; `200` only
+  once the road is open, then the bytes that came after the request. A refusal closes the
+  connection after its answer.
+- `--proxy-auth-file FILE` (`crates/podssh-cli/src/pipe/credentials.rs`): a private file of
+  `USER:PASSWORD` lines, the SHA-256 of each kept and compared in constant time; needed for an
+  address that is not loopback (64), and refused beside a side that is no proxy (64).
+- The manual (`crates/podssh-cli/src/man/notes_pipe.rs`, where `pipe`'s notes moved from
+  `notes.rs`; an example; `PODSSH_LISTEN`'s fact), the help, doctor's table of listeners,
+  `docs/cli.md`, `README.md`, `SECURITY.md`, `docs/design.md`, and the comment of the scan of
+  listeners in `scripts/check-repo.py`. The stand-in relay's mode `policy`.
+- `cargo test -p podssh-ws --lib http`: UNVERIFIED (7 tests of the reader).
+- `cargo test -p podssh-cli --lib pipe::` (the grammar of `web`, the credentials, the statuses of
+  `gateway`, the order of the checks): UNVERIFIED; `--lib doctor` and `--lib man`: UNVERIFIED;
+  `--test flag_table`: UNVERIFIED.
+- `cargo test -p podssh-cli --test pipe_listen` (with `http-listen:` under `PODSSH_LISTEN=no`):
+  UNVERIFIED.
+- `cargo test -p podssh-cli --test pipe_http`, curl as the client: a page of 256 KiB over TLS
+  through `tcp:%h:%p` and through `relay:%h:%p` to the stand-in relay, equal to a direct fetch;
+  502 for a target that the stand-in cannot reach; 403 with `ALLOW list` in curl's lines and in
+  podssh's from the stand-in's mode `policy`; the banner of the test's sshd through `ssh:` to
+  its own port; 405 for a GET and 407 with its challenge for no credential and a wrong one, with no
+  connection at the target, then 200 and a connection with the right one; 78, 64 and a file
+  that others can read 78: UNVERIFIED.
+- Planted, the request dialed before its credentials are checked: the test of 407 fails:
+  UNVERIFIED (waits for T-251).
+- Live, `cargo test -p podssh-cli --test pipe_http -- --ignored live_git`: `git ls-remote` of
+  this repository through the proxy and the live relay: UNVERIFIED.
 
 # T-368: `ws:`, `wss:` and `ws-listen:` as addresses of `podssh pipe`
 

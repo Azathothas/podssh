@@ -1,6 +1,11 @@
 //! The little HTTP/1.1 podssh needs besides the WebSocket upgrade: one request
 //! and one response over an already-open stream, with bounded sizes. It reads
 //! `Content-Length`, `Transfer-Encoding: chunked`, and read-until-close bodies.
+//! The other side, a server's reading of a request, is [`request`] (T-367).
+
+pub mod request;
+
+pub use request::{read_request, Request, RequestError};
 
 use tokio::io::{AsyncRead, AsyncReadExt, AsyncWrite, AsyncWriteExt};
 

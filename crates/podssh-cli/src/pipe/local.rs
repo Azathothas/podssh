@@ -37,7 +37,9 @@ pub fn open(address: &Address) -> Result<End, Unopened> {
         | Address::UdpNode(_)
         | Address::Unix(_)
         | Address::UnixListen(_)
-        | Address::TcpListen { .. } => Err(Unopened {
+        | Address::TcpListen { .. }
+        | Address::HttpListen(_)
+        | Address::Template(_) => Err(Unopened {
             code: crate::exit_codes::EXIT_SOFTWARE,
             why: "a remote or listening address is not a local end".into(),
         }),

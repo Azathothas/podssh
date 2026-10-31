@@ -3,9 +3,10 @@
 //! CONNECT`. Bytes go both ways, each end of input passes on, and both end
 //! with 0: through a Unix socket (mode 0600, and its file goes at the end),
 //! `@NAME` on Linux, an AF_UNIX socket and a named pipe on Windows, and a
-//! TCP port. `PODSSH_LISTEN=no` binds nothing (78); a file that is not a
-//! socket is kept (64); a socket that answers is another's (69), and one
-//! that nobody serves is replaced; `--keep-listening` takes each client.
+//! TCP port. `PODSSH_LISTEN=no` binds nothing (78), for `http-listen:`
+//! too; a file that is not a socket is kept (64); a socket that answers is
+//! another's (69), and one that nobody serves is replaced;
+//! `--keep-listening` takes each client.
 
 use std::io::{Read, Write};
 use std::ops::{Deref, DerefMut};
@@ -200,8 +201,13 @@ fn a_named_pipe_joins_one_client_both_ways() {
 fn podssh_listen_no_turns_listening_off_before_anything_binds() {
     let path = socket_path("off");
     let _ = std::fs::remove_file(&path);
-    for listen in [format!("unix-listen:{path}"), "tcp-listen:0".to_string()] {
-        let mut server = spawn(&[&listen, "stdio"], &[("PODSSH_LISTEN", "no")]);
+    let listeners = [
+        (format!("unix-listen:{path}"), "stdio"),
+        ("tcp-listen:0".to_string(), "stdio"),
+        ("http-listen:0".to_string(), "tcp:%h:%p"),
+    ];
+    for (listen, other) in listeners {
+        let mut server = spawn(&[&listen, other], &[("PODSSH_LISTEN", "no")]);
         let err = collect(server.stderr.take().unwrap());
         assert_eq!(ended(&mut server, "the server"), 78, "{}", text(&err));
         assert!(all(&err).contains("PODSSH_LISTEN=no"), "{}", text(&err));
