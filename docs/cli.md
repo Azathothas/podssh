@@ -1365,6 +1365,16 @@ and no `--timeout`: a person decides how long an edit takes.
   control socket of `-M`, `podssh agent` and `podssh session`). A refusal is
   `ok`: no road needs a listener. With `PODSSH_LISTEN=no` no listen is
   tried, and the line says so. Proxy credentials and tokens are never shown.
+- **Names and addresses** (T-366). Each road of the release binaries asks
+  the proxy for a name, so a proxy of an allowlist of names and one that
+  takes any public address answer those probes alike. Through a proxy, the
+  line `IP CONNECT` asks for an address, the first resolver of DNS over
+  HTTPS, sampled as each probe is, then does its TLS for that address, so
+  that a `200` which carries nothing is named; the line `egress takes`
+  names the case: names and addresses, names only (a road to an address,
+  `--direct` to one, WARP's endpoint or Tor's first hops, cannot leave),
+  addresses only, or neither. With no proxy, it comes of `direct TCP` and of
+  DNS over HTTPS, which reaches its resolvers by their addresses.
 - `--full` adds the check `login` (GitHub #13): a login to `github.com` as
   `git` through the relay, with an Ed25519 key made for the check, kept in
   memory and never written. GitHub refuses it, which is `ok`: the handshake,

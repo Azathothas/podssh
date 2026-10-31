@@ -149,7 +149,7 @@ root lock), made on `main` and closed with a comment.
 | #71 | The record checks its citations, not its sentences | closed 2026-10-31, each entry done | T-360 (the map of issues against GitHub), T-361 (the targets of a Prove), T-362 (claims of "yet", and a status beside an id). Its five statements: four corrected in place in the commit of the triage (`docs/architecture.md`, `docs/design.md`, `docs/irc.md`), and the fifth, the facts file's comment, is T-342's (its Approach item 5). The reporter withdrew its item on `UNVERIFIED`. #59 to #63, which it found with no row, wait for their triage (T-360, item 5) |
 | #72 | The direct road has no automatic selection | open | T-363 (after the relay hosts fail, in the order of the road table, not before them as the issue asks) |
 | #73 | `-R` refuses the socket forms that `-L` and `-D` carry | closed | T-365 (done, 2026-10-31), which takes the remote SOCKS form (`-R [bind_address:]port`) too: #73 reads its refusal as parity, but OpenSSH carries it (measured with OpenSSH 9.6p1's `ssh -G`) |
-| #74 | `doctor` never tells a name allowlist from an address allowlist | open | T-366 |
+| #74 | `doctor` never tells a name allowlist from an address allowlist | closed 2026-10-31, its entry done | T-366 |
 | #75 | An HTTP CONNECT listener | open | T-367 |
 | #76 | `ws:` and `ws-listen:` as addresses of `pipe` | open | T-368, with the reader of requests of T-367 |
 

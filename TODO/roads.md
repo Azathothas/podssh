@@ -1454,8 +1454,8 @@ the tests of T-300 need.
   cloudflared asks for a tunnel, and dials the edge, with no proxy (`docs/design.md:139-156`,
   `docs/design.md:203-217`).
 - Read: the box's proxy, as the measured one, allows `CONNECT` to ports 443, 80 and 8443 only
-  (`scripts/box/proxy.py:27`, `docs/target-environment.md:21`), and lets one more target through
-  by its name with `--allow` (`scripts/box/proxy.py:14-18`).
+  (`scripts/box/proxy.py:32`, `docs/target-environment.md:21`), and lets one more target through
+  by its name with `--allow` (`scripts/box/proxy.py:14-16`).
 - Read: the relay's direct road refuses Cloudflare's address ranges; on its VPC road the platform
   does not (`crates/podssh-probe/tests/spec/relay-spec-2026-10-03-r2.txt:224-227`).
 - Read: neither `api.trycloudflare.com` nor the edge is a test target of `AGENTS.md` (section
@@ -3748,7 +3748,7 @@ code that no command of the default build uses is P2 at most".
 - Read: doctor's two answers are `ok`: "the iroh road may go direct" after a bind, and "the iroh
   road then uses its relay alone" after a refusal (`crates/podssh-cli/src/doctor/iroh.rs` lines
   12-18 at `925c94b`), in a build with the feature only
-  (`crates/podssh-cli/src/doctor/mod.rs:110-111`). The refusal's
+  (`crates/podssh-cli/src/doctor/mod.rs:112-113`). The refusal's
   `ok` is doctor's rule, as the relay alone is a road that works; the bind's "may go direct" is
   not measured.
 - Read, in iroh 1.4.1 (the local cargo registry, `src/net_report/report.rs`): iroh's report of
@@ -3952,7 +3952,7 @@ does not depend on them.
   20 s (`crates/podssh-cli/src/ssh/transport.rs:285-299`, `crates/podssh-relay/src/open.rs:30`),
   and names a proxy that takes the CONNECT and sends nothing back (T-317). doctor reads the
   server's version line on port 22, straight out or through the proxy, to say whether plain ssh
-  can leave (`crates/podssh-cli/src/doctor/net.rs:180-195`, `:197-271`).
+  can leave (`crates/podssh-cli/src/doctor/net.rs:184-199`, `:201-282`).
 - Read: `cp`, `each`, `job`, `health`, `containers`, `ping` and the `ssh:` address of `pipe` reach
   their server through the same function as `podssh ssh`
   (`crates/podssh-cli/src/ssh/transport.rs:154-158`; `crates/podssh-cli/src/cp/link.rs`,
@@ -4201,7 +4201,7 @@ a hop. `doctor` has no line for a hop, so a user cannot see whether one is reach
   carries no SSH on port 443; T-372 wraps SSH in TLS for it. Through the relay, GitHub's SSH on
   port 443 answers (`docs/STATUS.md:108`).
 - Read: `doctor` asks the proxy for the relay and for `github.com` only
-  (`crates/podssh-cli/src/doctor/net.rs:197-243`).
+  (`crates/podssh-cli/src/doctor/net.rs:201-251`).
 - Read in GitHub #61 (a tester's measurement of 2026-10-31, from a host with direct egress; not
   measured here): SSH banners on port 443 at `bg2.vpnjantit.com` (Dropbear 2017.75, an account with
   a password that a form makes), `ssh.tilde.club` and `ssh.blinkenshell.org` (OpenSSH); whether

@@ -276,10 +276,17 @@ impl rustls::server::ResolvesServerCert for OneCertificate {
 impl Server {
     /// The server, its CA's PEM written in `dir`.
     pub async fn start(dir: &Path) -> Server {
+        Server::start_for(dir, &["127.0.0.1"]).await
+    }
+
+    /// [`Server::start`] with a certificate for `names`, each a name or an
+    /// address, as a stand-in for a host of another address (T-366).
+    pub async fn start_for(dir: &Path, names: &[&str]) -> Server {
         let (ca_key, leaf_key) = (Key::new(), Key::new());
         let ca_params = ca("test-github-ca");
         let ca_cert = ca_params.self_signed(&ca_key).unwrap();
-        let mut leaf = rcgen::CertificateParams::new(vec!["127.0.0.1".to_string()]).unwrap();
+        let names: Vec<String> = names.iter().map(|n| n.to_string()).collect();
+        let mut leaf = rcgen::CertificateParams::new(names).unwrap();
         leaf.serial_number = Some(serial());
         let leaf = leaf.signed_by(&leaf_key, &rcgen::Issuer::new(ca_params, &ca_key)).unwrap();
         let ca_file = dir.join("ca.pem");

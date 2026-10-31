@@ -23,6 +23,8 @@ use podssh_relay::failover::Mode;
 use podssh_relay::relay::{self, RelayList};
 use podssh_ws::{Trust, Verdict};
 
+// Whether the way out takes an address as well as a name (T-366).
+mod address;
 mod agent;
 pub(crate) mod clock;
 mod host;
@@ -136,7 +138,7 @@ pub fn run_doctor(args: &DoctorArgs, out: &mut dyn Write, err: &mut dyn Write) -
 }
 
 async fn network(report: &mut Report<'_>, relays: &RelayList, trust: &Trust, failover: Mode, full: bool) {
-    net::check_network(report, relays).await;
+    net::check_network(report, relays, trust).await;
     // Whether UDP reaches the quick tunnel's edge, Cloudflare's, with --full
     // alone (T-359).
     quick::udp_out(report, full).await;

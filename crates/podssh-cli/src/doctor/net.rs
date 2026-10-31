@@ -158,16 +158,20 @@ fn has_credentials(url: &str) -> bool {
 
 /// The checks that connect: what the proxy lets through, or whether port 22
 /// is open straight out, and name resolution.
-pub(super) async fn check_network(report: &mut Report<'_>, relays: &RelayList) {
+pub(super) async fn check_network(report: &mut Report<'_>, relays: &RelayList, trust: &Trust) {
     let primary = relays.primary();
     match dial::proxy_from_env(&primary.host) {
         Ok(Some(proxy)) => {
-            through_proxy(report, &proxy, &primary.host, primary.port).await;
+            let names = through_proxy(report, &proxy, &primary.host, primary.port).await;
+            // An address too (T-366), and what the two mean.
+            let addresses = super::address::through_proxy(report, &proxy, trust).await;
+            super::address::case(report, names, addresses, true);
             names_with_proxy(report, &primary.host).await;
         }
         Ok(None) => {
-            direct(report).await;
-            names_direct(report, &primary.host).await;
+            let straight = direct(report).await;
+            let (named, by_address) = names_direct(report, &primary.host).await;
+            super::address::case(report, named, by_address || straight, false);
         }
         Err(_) => report.unknown("egress", "not probed: the proxy setting cannot be used"),
     }
@@ -197,14 +201,17 @@ async fn no_ssh_banner<S: tokio::io::AsyncRead + Unpin>(mut stream: S) -> Option
 /// What the proxy lets through: the relay, and for comparison GitHub on 443
 /// and 22, each tried several times (T-324). Each answer is reported as the
 /// proxy gave it; on port 22, only the server's banner, read on the first
-/// connection that opened, says that plain ssh can leave.
-async fn through_proxy(report: &mut Report<'_>, proxy: &HttpProxy, relay_host: &str, relay_port: u16) {
+/// connection that opened, says that plain ssh can leave. Whether the proxy
+/// took a name on port 443, the relay's or GitHub's.
+async fn through_proxy(report: &mut Report<'_>, proxy: &HttpProxy, relay_host: &str, relay_port: u16) -> bool {
+    let mut named = false;
     let via = &ProxyChoice::Via(proxy.clone());
     for (host, port) in [(relay_host, relay_port), (REFERENCE_HOST, 443), (REFERENCE_HOST, 22)] {
         let target = dial::authority(host, port);
         let is_relay = host == relay_host;
         let Tried { samples, first, error } = sample(PROBE, move |bound| dial::dial(host, port, via, bound)).await;
         let summary = samples.summary();
+        named |= first.is_some() && port != 22;
         let verdict = match first {
             Some(stream) => {
                 let peer = stream.peer_addr().map(|a| a.to_string()).unwrap_or_else(|_| "?".into());
@@ -240,16 +247,19 @@ async fn through_proxy(report: &mut Report<'_>, proxy: &HttpProxy, relay_host: &
         };
         report.sampled("CONNECT", verdict, &samples);
     }
+    named
 }
 
 /// With no proxy: whether port 22 is open straight out, in which case the
-/// relay is a convenience here rather than the only way.
-async fn direct(report: &mut Report<'_>) {
+/// relay is a convenience here rather than the only way; and whether the
+/// connection to its address opened.
+async fn direct(report: &mut Report<'_>) -> bool {
     let target = dial::authority(REFERENCE_HOST, 22);
     let straight = &ProxyChoice::Direct;
     let Tried { samples, first, error } =
         sample(PROBE, move |bound| dial::dial(REFERENCE_HOST, 22, straight, bound)).await;
     let summary = samples.summary();
+    let opened = first.is_some();
     let detail = match first {
         Some(stream) => {
             let peer = stream.peer_addr().map(|a| a.to_string()).unwrap_or_else(|_| "?".into());
@@ -268,6 +278,7 @@ async fn direct(report: &mut Report<'_>) {
         ),
     };
     report.sampled("direct TCP", Verdict::Ok { detail }, &samples);
+    opened
 }
 
 /// With a proxy podssh never resolves the relay's name; the system resolver
@@ -281,8 +292,9 @@ async fn names_with_proxy(report: &mut Report<'_>, host: &str) {
 }
 
 /// Without a proxy: pinned addresses, the system resolver, then DNS over
-/// HTTPS, the order the dialer uses them in.
-async fn names_direct(report: &mut Report<'_>, host: &str) {
+/// HTTPS, the order the dialer uses them in. Whether a name resolved, and
+/// whether a resolver answered by its address.
+async fn names_direct(report: &mut Report<'_>, host: &str) -> (bool, bool) {
     let pinned = podssh_ws::resolve::pinned(host);
     if !pinned.is_empty() {
         let ips: Vec<String> = pinned.iter().map(|ip| ip.to_string()).collect();
@@ -301,12 +313,14 @@ async fn names_direct(report: &mut Report<'_>, host: &str) {
             report.ok("DNS", format!("the system resolver fails for {host} ({e}); podssh falls back to DNS over HTTPS"))
         }
     }
-    doh(report, host, system.is_ok() || !pinned.is_empty()).await;
+    let by_address = doh(report, host, system.is_ok() || !pinned.is_empty()).await;
+    (system.is_ok() || by_address, by_address)
 }
 
 /// The first DNS-over-HTTPS resolver that answers. Missing it is a failure
-/// only when nothing else can resolve the relay's name.
-async fn doh(report: &mut Report<'_>, host: &str, another_way: bool) {
+/// only when nothing else can resolve the relay's name. Whether one
+/// answered, which it does by its address.
+async fn doh(report: &mut Report<'_>, host: &str, another_way: bool) -> bool {
     let mut failures = Vec::new();
     for &(ip, path) in podssh_ws::resolve::DOH_RESOLVERS {
         let started = Instant::now();
@@ -320,7 +334,7 @@ async fn doh(report: &mut Report<'_>, host: &str, another_way: bool) {
                     "DNS over HTTPS",
                     format!("{ip} answered: {host} is {}, {} ms{before}", shorten(&ips), ms(started)),
                 );
-                return;
+                return true;
             }
             // An answer, not a failure: the name does not exist anywhere.
             Err(e) if e.ends_with(podssh_ws::resolve::NXDOMAIN) => {
@@ -333,7 +347,7 @@ async fn doh(report: &mut Report<'_>, host: &str, another_way: bool) {
                         format!("{detail}: check the relay's name, or pin its address with --relay-addr HOST=IP"),
                     );
                 }
-                return;
+                return true;
             }
             Err(e) => failures.push(e),
         }
@@ -347,6 +361,7 @@ async fn doh(report: &mut Report<'_>, host: &str, another_way: bool) {
             format!("{detail}, and the system resolver fails too: pin the relay's address with --relay-addr HOST=IP"),
         );
     }
+    false
 }
 
 async fn system_lookup(host: &str) -> Result<String, String> {

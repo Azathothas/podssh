@@ -248,6 +248,11 @@ const DOCTOR: &[&str] = &[
      from one try to the next), and the loss, the tries that timed out and those that broke counted \
      apart. A refusal is an answer, not a loss. A first try that timed out is not repeated, and no try \
      starts that could end more than 10 s after the first began.",
+    "Through a proxy, the line IP CONNECT asks for an address, the first resolver of DNS over HTTPS, and \
+     then its TLS for that address, as each other road asks for a name; the line egress takes names the \
+     case: names and addresses, names only (a road to an address, as --direct to one, cannot leave), \
+     addresses only, or neither. With no proxy, the same line comes of the direct TCP check and of DNS over \
+     HTTPS, which reaches its resolvers by their addresses.",
     "A forward session whose upgrade fails says which of three ways: an answer other than 101 (its status \
      and its text: the relay or a hop refused), a 101 whose Sec-WebSocket-Accept is not the one of the \
      request's key (something between answered in the relay's place), or a valid 101 after which the \

@@ -1930,7 +1930,7 @@ its own only to a text that does not hold them.
 **Milestone:** backlog
 **Priority:** P3
 **Effort:** S
-**Status:** open
+**Status:** done
 
 ## Problem
 
@@ -1944,7 +1944,7 @@ host has.
 ## Premise
 
 - Read: through a proxy, `doctor` asks for the relay's host and for `github.com` on ports 443 and
-  22, each by name (`crates/podssh-cli/src/doctor/net.rs:18-20`, `:197-243`), and
+  22, each by name (`crates/podssh-cli/src/doctor/net.rs:18-20`, `:201-251`), and
   `crates/podssh-cli/src/doctor/net.rs:146` says "podssh asks it to CONNECT by name, so no DNS is
   needed".
 - Read: the dialer gives a proxy the relay's name and never an address, and a pin of the relay's
@@ -1953,16 +1953,16 @@ host has.
   (`:346-355`). So no road of the release binaries asks a proxy for an address, but `--direct`,
   `pipe tcp:` and a target of `-R`, each to an address that the user gives.
 - Read: with no proxy, `doctor` reaches addresses already: DNS over HTTPS to the resolvers'
-  address literals (`crates/podssh-cli/src/doctor/net.rs:283-350`;
+  address literals (`crates/podssh-cli/src/doctor/net.rs:294-365`;
   `crates/podssh-ws/src/resolve.rs:28-32`), each checked by TLS for its address
   (`crates/podssh-ws/src/resolve.rs:143-153`).
 - Read: the proxy of the measured sandbox gave `200` for public names on ports 443, 80 and 8443,
   and `403 not a public host` for private and metadata addresses
   (`docs/target-environment.md:21`); no public address literal was asked. The box's proxy
   resolves each name and checks its addresses, so it takes a public literal as it takes a name
-  (`scripts/box/proxy.py:86-94`).
+  (`scripts/box/proxy.py:107-115`).
 - Read: the study of carriers takes it as Inferred that a proxy which allows listed names only
-  refuses WARP's address literal (`docs/carriers.md:81-86`).
+  refuses WARP's address literal (`docs/carriers.md:81-89`).
 - Read: a test of `doctor` counts the lines whose check is `CONNECT`, and wants three
   (`crates/podssh-cli/tests/doctor.rs:345-369`).
 
@@ -2008,6 +2008,24 @@ case names each of the three, and the three `CONNECT` lines stay. Planted: the p
 the case "names only" is not found, and its test fails. In the box, with its proxy in each mode:
 the same. Live, behind the agent proxy of a cloud session (a host that a session may measure): the
 probe's line and the case, in `docs/STATUS.md`.
+
+## Done
+
+2026-10-31: `doctor/address.rs`: through a proxy, the line `IP CONNECT` asks for the first resolver
+of DNS over HTTPS by its address on port 443, sampled nine times as the other probes are, then does
+its TLS for that address on the first connection that opened; the line `egress takes` names the
+case, which with no proxy comes of `direct TCP` and of DNS over HTTPS; `--json` gives both, the
+probe with its samples. `scripts/box/proxy.py` takes `--take names|addresses|both`. `cargo test -p
+podssh-cli --test doctor` passed 13: through three stand-in proxies, of names only (literals
+refused with `403 not on the allowlist`), of addresses only and of both, each piping what it takes
+on port 443 to a TLS server of the test's own for the resolver's address, the line of the case
+named each, and the three `CONNECT` lines stayed; `--json` gave both checks. Planted, the probe
+sent by name with its TLS for the address: the names-only proxy took it, and the test failed. `cargo
+test -p podssh-cli --lib doctor::` passed 35; clippy clean. Live, on this cloud session's host
+behind its agent proxy: `IP CONNECT` 1.1.1.1:443, the CONNECT taken and its TLS reset; `egress
+takes` names only. The manual's note of doctor, `docs/cli.md` and WARP's item of
+`docs/carriers.md` say it. The box's run, with its proxy in each mode, waits for the checks of the
+release (T-251), as each run in a container does.
 
 # T-377: The keys of podssh's own AEAD ciphers outlive their use, since chacha20poly1305 0.11
 

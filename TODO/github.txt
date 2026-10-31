@@ -79,7 +79,7 @@
 71 issue closed
 72 issue open
 73 issue closed
-74 issue open
+74 issue closed
 75 issue open
 76 issue open
 77 pull closed

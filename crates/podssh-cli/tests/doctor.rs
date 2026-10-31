@@ -367,3 +367,115 @@ fn a_proxy_that_drops_one_connect_in_three_shows_a_loss_of_33_percent() {
         assert!(s["best_ms"].as_u64().is_some() && s["p95_ms"].as_u64() >= s["best_ms"].as_u64(), "{probe}");
     }
 }
+
+// A TLS server of the test's own CA, for an address of the internet (T-366).
+#[path = "update_support/mod.rs"]
+mod update_support;
+
+/// What a stand-in proxy takes: names, address literals, or both.
+#[derive(Clone, Copy, PartialEq)]
+enum Takes {
+    Names,
+    Addresses,
+    Both,
+}
+
+/// A CONNECT proxy on the loopback that takes what `takes` says, as a proxy
+/// of an allowlist of names, one of addresses, or an open one, and refuses
+/// the other with its reason. A CONNECT that it takes on port 443 goes to
+/// the TLS server at `tls`, so a probe of the address's TLS is answered; on
+/// port 22 nothing comes.
+fn picky_proxy(takes: Takes, tls: u16) -> u16 {
+    use std::io::{Read, Write};
+    let listener = std::net::TcpListener::bind("127.0.0.1:0").unwrap();
+    let port = listener.local_addr().unwrap().port();
+    std::thread::spawn(move || {
+        for conn in listener.incoming().flatten() {
+            std::thread::spawn(move || {
+                let mut conn = conn;
+                let mut head = Vec::new();
+                let mut byte = [0u8; 1];
+                while !head.ends_with(b"\r\n\r\n") && head.len() < 8192 {
+                    if conn.read(&mut byte).unwrap_or(0) == 0 {
+                        return;
+                    }
+                    head.push(byte[0]);
+                }
+                let line = String::from_utf8_lossy(&head).lines().next().unwrap_or_default().to_string();
+                let target = line.split_whitespace().nth(1).unwrap_or_default().to_string();
+                let (host, port) = target.rsplit_once(':').unwrap_or((target.as_str(), "443"));
+                let literal = host.trim_matches(['[', ']']).parse::<std::net::IpAddr>().is_ok();
+                let refused = match takes {
+                    Takes::Names if literal => Some("403 not on the allowlist"),
+                    Takes::Addresses if !literal => Some("403 names are not allowed"),
+                    _ => None,
+                };
+                if let Some(answer) = refused {
+                    let _ = conn.write_all(format!("HTTP/1.1 {answer}\r\nContent-Length: 0\r\n\r\n").as_bytes());
+                    return;
+                }
+                let _ = conn.write_all(b"HTTP/1.1 200 Connection Established\r\n\r\n");
+                if port != "443" {
+                    std::thread::sleep(std::time::Duration::from_millis(100));
+                    return;
+                }
+                let Ok(up) = std::net::TcpStream::connect(("127.0.0.1", tls)) else { return };
+                let (mut down_r, mut up_w) = (conn.try_clone().unwrap(), up.try_clone().unwrap());
+                std::thread::spawn(move || {
+                    let _ = std::io::copy(&mut down_r, &mut up_w);
+                });
+                let (mut up_r, mut down_w) = (up, conn);
+                let _ = std::io::copy(&mut up_r, &mut down_w);
+            });
+        }
+    });
+    port
+}
+
+/// Through a proxy that takes names, addresses or both (T-366): the probe
+/// of the address, a CONNECT to the first resolver of DNS over HTTPS by its
+/// address and then its TLS, has a line of its own, and the line of the
+/// case names each of the three; the three CONNECT lines stay.
+#[test]
+fn the_case_of_names_and_addresses_is_named_for_each_proxy() {
+    let home = scratch_home();
+    let runtime = tokio::runtime::Builder::new_multi_thread().worker_threads(2).enable_all().build().unwrap();
+    let address = podssh_ws::resolve::DOH_RESOLVERS[0].0;
+    let tls = runtime.block_on(update_support::Server::start_for(&home, &[address]));
+    let ca = tls.ca_file.to_string_lossy().into_owned();
+    for (takes, case) in
+        [(Takes::Names, "names only"), (Takes::Addresses, "addresses only"), (Takes::Both, "names and addresses")]
+    {
+        let proxy = format!("http://127.0.0.1:{}", picky_proxy(takes, tls.addr.port()));
+        let set = [("https_proxy", proxy.as_str())];
+        let run = doctor(&["--relay-host", "relay.example", "--ca-file", &ca], &set, &[], false);
+        let line = |name: &str| {
+            run.out
+                .lines()
+                .find(|l| l.split_whitespace().skip(1).collect::<Vec<_>>().join(" ").starts_with(name))
+                .unwrap_or_default()
+                .to_string()
+        };
+        let connects = run.out.lines().filter(|l| l.split_whitespace().nth(1) == Some("CONNECT")).count();
+        assert_eq!(connects, 3, "{case}: {}", run.out);
+        let probe = line("IP CONNECT");
+        assert!(probe.contains(&format!("{address}:443")), "{case}: {probe}");
+        match takes {
+            Takes::Names => assert!(probe.contains("403 not on the allowlist"), "{case}: {probe}"),
+            _ => assert!(probe.contains(&format!("TLS with {address} for its address")), "{case}: {probe}"),
+        }
+        let said = line("egress takes");
+        assert!(said.contains(&format!("egress takes   {case}:")), "{case}: {said}");
+    }
+    // --json gives the probe, with its samples, and the case (T-049).
+    let proxy = format!("http://127.0.0.1:{}", picky_proxy(Takes::Names, tls.addr.port()));
+    let set = [("https_proxy", proxy.as_str())];
+    let json = doctor(&["--json", "--relay-host", "relay.example", "--ca-file", &ca], &set, &[], false);
+    let doc: serde_json::Value = serde_json::from_str(&json.out).expect("stdout is one JSON object");
+    let check = |name: &str| doc["checks"].as_array().unwrap().iter().find(|c| c["check"] == name).cloned();
+    let probe = check("IP CONNECT").expect("the probe in --json");
+    assert_eq!(probe["samples"]["tries"].as_u64(), Some(9), "{probe}");
+    let case = check("egress takes").expect("the case in --json");
+    assert!(case["detail"].as_str().unwrap_or_default().starts_with("names only"), "{case}");
+    drop(tls);
+}

@@ -82,7 +82,10 @@ The candidates, ranked:
      [F2]; Cloudflare says that TCP 443 is "required for HTTP/2 fallback"
      [F5]. The names of MASQUE had no A record on 2026-10-31, so a CONNECT
      must name the IP literal, which a proxy that allows listed names only
-     refuses (Inferred). The client pins the endpoint's key and presents a
+     refuses (Inferred). `podssh doctor` measures it (T-366): its line
+     `egress takes` names the case. Measured on 2026-10-31 on a cloud
+     session's host behind its agent proxy: names only (the proxy took the
+     CONNECT to 1.1.1.1:443 and reset its TLS), so WARP cannot leave there. The client pins the endpoint's key and presents a
      client certificate [F4], so a proxy that re-terminates TLS breaks it.
    - Terms: the Application Terms license "the Application" only, forbid to
      reverse engineer it, and let Cloudflare "block certain kinds of usage"

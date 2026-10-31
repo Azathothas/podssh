@@ -62,15 +62,15 @@ repository and CI).
 
 ## Counts
 
-**374 entries: 33 open, 2 partial, 30 blocked, 309 done.**
+**374 entries: 32 open, 2 partial, 30 blocked, 310 done.**
 
 | Priority | open | partial | blocked | done | total |
 | --- | --- | --- | --- | --- | --- |
 | P0 | 0 | 0 | 0 | 1 | 1 |
 | P1 | 2 | 0 | 0 | 29 | 31 |
 | P2 | 3 | 1 | 21 | 160 | 185 |
-| P3 | 28 | 1 | 9 | 119 | 157 |
-| **All** | 33 | 2 | 30 | 309 | 374 |
+| P3 | 27 | 1 | 9 | 120 | 157 |
+| **All** | 32 | 2 | 30 | 310 | 374 |
 
 ## Entries
 
@@ -437,7 +437,7 @@ repository and CI).
 | [T-362](repo.md) | P3 | S | none | chore | done | A claim that something is not built yet carries no date or entry, and a status beside an id is not checked |
 | [T-363](roads.md) | P3 | M | backlog | feature | open | The direct road is never tried after the relay hosts fail, though the road table says that a probe chooses it |
 | [T-365](forwarding.md) | P2 | M | backlog | feature | done | `-R` with a socket path on either side, and the remote SOCKS form, as OpenSSH carries them |
-| [T-366](ws.md) | P3 | S | backlog | feature | open | `doctor` asks the proxy for an address as well as for names, and says which of the two it takes |
+| [T-366](ws.md) | P3 | S | backlog | feature | done | `doctor` asks the proxy for an address as well as for names, and says which of the two it takes |
 | [T-367](pipe.md) | P3 | M | backlog | feature | open | `http-listen:`: `podssh pipe` as an HTTP CONNECT proxy, for programs that know only `HTTPS_PROXY` |
 | [T-368](pipe.md) | P3 | M | backlog | feature | open | `ws:`, `wss:` and `ws-listen:` as addresses of `podssh pipe` |
 | [T-369](roads.md) | P3 | M | backlog | feature | open | `--forwarder TEMPLATE`: a road through a WebSocket forwarder that takes the target from its URL |

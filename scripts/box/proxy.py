@@ -15,7 +15,12 @@ is logged to stdout as one line: the status, then the request line.
 name and port that the client asks for: an SSH server next to the box
 (T-004). Every other request meets the policy above.
 
-Usage: proxy.py [--listen HOST:PORT] [--allow NAME:PORT=HOST:PORT ...]
+`--take names` refuses an address literal with 403 not on the allowlist,
+as a proxy that allows listed names only does; `--take addresses` refuses
+a name with 403 names are not allowed; `--take both`, the default, takes
+each (T-366).
+
+Usage: proxy.py [--listen HOST:PORT] [--allow NAME:PORT=HOST:PORT ...] [--take names|addresses|both]
 """
 
 import argparse
@@ -27,6 +32,16 @@ import sys
 ALLOWED_PORTS = {443, 80, 8443}
 # NAME:PORT -> (HOST, PORT): the test targets of --allow.
 TARGETS = {}
+# What a CONNECT may name: names, addresses, or both (--take).
+TAKE = {"mode": "both"}
+
+
+def is_literal(host):
+    try:
+        ipaddress.ip_address(host.strip("[]"))
+        return True
+    except ValueError:
+        return False
 
 
 def log(line):
@@ -82,6 +97,12 @@ async def handle(reader, writer):
     if not port_text.isdigit() or int(port_text) not in ALLOWED_PORTS:
         await answer(writer, 403, "not on the egress allowlist", request_line)
         return
+    if TAKE["mode"] == "names" and is_literal(host):
+        await answer(writer, 403, "not on the allowlist", request_line)
+        return
+    if TAKE["mode"] == "addresses" and not is_literal(host):
+        await answer(writer, 403, "names are not allowed", request_line)
+        return
     port = int(port_text)
     try:
         infos = await asyncio.get_running_loop().getaddrinfo(host, port, type=socket.SOCK_STREAM)
@@ -107,7 +128,9 @@ async def main():
     parser = argparse.ArgumentParser()
     parser.add_argument("--listen", default="0.0.0.0:45331")
     parser.add_argument("--allow", action="append", default=[])
+    parser.add_argument("--take", choices=["names", "addresses", "both"], default="both")
     args = parser.parse_args()
+    TAKE["mode"] = args.take
     for item in args.allow:
         name, target = item.split("=", 1)
         target_host, target_port = target.rsplit(":", 1)
