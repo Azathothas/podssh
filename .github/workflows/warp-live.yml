@@ -117,12 +117,15 @@ jobs:
         run: |
           set +e
           out=$(HTTPS_PROXY=http://127.0.0.1:3128 timeout 90 ssh -T -o BatchMode=yes -o StrictHostKeyChecking=accept-new \
-            -o UserKnownHostsFile="$RUNNER_TEMP/known_hosts" -o IdentitiesOnly=yes -o IdentityFile=/dev/null \
+            -o UserKnownHostsFile="$RUNNER_TEMP/known_hosts" -o GlobalKnownHostsFile=/dev/null \
+            -o IdentitiesOnly=yes -o IdentityFile=/dev/null \
             -o ProxyCommand="$PWD/target/debug/podssh proxy warp://%h:%p" git@github.com 2>&1)
           rc=$?
           set -e
           echo "$out" | sed 's/^/ssh: /'
           echo "$out" | grep -q "Permission denied (publickey)" || { echo "FAIL ssh did not reach GitHub's refusal ($rc)"; exit 1; }
+          # The runner's global file holds github.com's keys; with it set
+          # aside, OpenSSH records the key that it was shown.
           ssh-keygen -lf "$RUNNER_TEMP/known_hosts" | tee "$RUNNER_TEMP/keys-openssh.txt"
           grep -q "$GITHUB_ED25519" "$RUNNER_TEMP/keys-openssh.txt" || { echo "FAIL the host key is not GitHub's published one"; exit 1; }
           echo "ok    the SSH handshake with GitHub passed inside WARP, to the refusal of a client with no key"
