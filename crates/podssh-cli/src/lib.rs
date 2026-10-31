@@ -80,6 +80,9 @@ pub mod node_iroh;
 // `podssh node --quick-tunnel`: a quick tunnel of Cloudflare's, which podssh
 // makes itself (T-300).
 pub mod node_quick;
+// The quick tunnel's edge inside WARP's tunnel (T-374), with the feature
+// `warp`; without it, the road says what such a build does.
+pub mod node_warp;
 // `podssh node --temporary`: the far end of `podssh ssh --upgrade` (T-167).
 pub mod node_temp;
 pub mod non_interactive;

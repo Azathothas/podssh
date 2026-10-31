@@ -221,6 +221,8 @@ The candidates, ranked:
      account.
    - Through a proxy: the client, yes (`cf://`); the node needs TCP 7844,
      which the measured cage refuses ([design.md](design.md), section 2).
+     Inside WARP's tunnel, on port 443, a node reaches it from a cage whose
+     proxy takes a CONNECT to an address (T-374, drafted 2026-10-31).
    - Limits: 200 requests in flight; no SLA. Built, pure Rust. Effort: S.
    - Risks: nodes with an open egress only; the protocol is not published,
      and T-339 watches its pin.

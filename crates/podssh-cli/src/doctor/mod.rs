@@ -143,6 +143,8 @@ async fn network(report: &mut Report<'_>, relays: &RelayList, trust: &Trust, fai
     // Whether UDP reaches the quick tunnel's edge, Cloudflare's, with --full
     // alone (T-359).
     quick::udp_out(report, full).await;
+    // And which road over TCP reaches it, inside WARP's tunnel too (T-374).
+    quick::edge_road(report, full).await;
     report.section("relay");
     relay_checks::check(report, relays, trust, failover, full).await;
     #[cfg(feature = "iroh")]

@@ -21,6 +21,8 @@ pub struct NodeArgs {
     pub iroh: bool,
     /// Serve a quick tunnel of Cloudflare's, with no pair (T-300).
     pub quick_tunnel: bool,
+    /// Reach the quick tunnel's edge inside WARP's tunnel first (T-374).
+    pub warp: bool,
     /// The node's key file, by its earlier name (T-163).
     pub iroh_key: Option<String>,
     /// The allowlist, by its earlier name (T-163).
@@ -67,6 +69,7 @@ impl NodeArgs {
             plain: matches.get_flag("plain"),
             iroh: matches.get_flag("iroh"),
             quick_tunnel: matches.get_flag("quick-tunnel"),
+            warp: matches.get_flag("warp"),
             iroh_key: get("iroh-key"),
             iroh_allow: get("iroh-allow"),
             iroh_ephemeral: matches.get_flag("iroh-ephemeral"),

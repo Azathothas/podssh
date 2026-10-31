@@ -8,8 +8,9 @@
 //! reaches TARGET, which is dialled only after the layer's handshake. The
 //! node reaches port 7844 of Cloudflare's edge over QUIC where no proxy is
 //! set and UDP gets there, as cloudflared does (T-301), else over HTTP/2 on
-//! TCP, directly or through a proxy that allows it; a lost connection to the
-//! edge is made again, with the same name, until Ctrl-C.
+//! TCP, directly or through a proxy that allows it, else over HTTP/2 inside
+//! WARP's tunnel (T-374, `crate::node_warp`), first with `--warp`; a lost
+//! connection to the edge is made again, with the same name, until Ctrl-C.
 
 use std::io::Write;
 use std::path::PathBuf;
@@ -30,7 +31,9 @@ use tokio::sync::{mpsc, watch};
 
 use crate::exitmap::Fault;
 use crate::node::NodeArgs;
+use crate::node_warp::WarpRoad;
 use crate::relay_settings::Refusal;
+use crate::ssh::transport::Duplex;
 
 /// Bound on each dial of TARGET.
 const DIAL_LIMIT: Duration = Duration::from_secs(8);
@@ -46,6 +49,8 @@ struct Ready {
     key: file::Key,
     allow: PathBuf,
     sshd: bool,
+    /// The edge inside WARP's tunnel first (`--warp`).
+    warp: bool,
 }
 
 /// Run the node; returns the process exit code.
@@ -81,6 +86,10 @@ fn prepare(args: &NodeArgs) -> Result<Ready, Refusal> {
             "{flag} is not for --quick-tunnel, which runs the resumable layer and the end-to-end channel, with no pair"
         )));
     }
+    if args.warp && !cfg!(feature = "warp") {
+        let message = crate::ssh::cloud::warp::not_built("--warp");
+        return Err(Refusal { message, code: crate::exit_codes::EXIT_NOT_IMPLEMENTED });
+    }
     if args.targets.iter().any(|t| t.starts_with("udp:")) {
         return Err(Refusal::usage("a udp: TARGET goes on the pair's road: a quick tunnel carries TCP only"));
     }
@@ -97,7 +106,7 @@ fn prepare(args: &NodeArgs) -> Result<Ready, Refusal> {
     let place = crate::channel::node_place(&label, flags.key.as_deref(), flags.ephemeral)?;
     crate::pairs::online()?;
     let key = crate::channel::load_node_key(&place)?;
-    Ok(Ready { label, targets, key, allow, sshd: args.sshd })
+    Ok(Ready { label, targets, key, allow, sshd: args.sshd, warp: args.warp })
 }
 
 /// The system and the machine as cloudflared names them, Go's names.
@@ -116,7 +125,8 @@ fn arch() -> String {
 }
 
 async fn serve_quick(ready: Ready, err: &mut dyn Write) -> i32 {
-    let Ready { label, targets, key, allow, sshd: roost } = ready;
+    let Ready { label, targets, key, allow, sshd: roost, warp } = ready;
+    let mut warp = WarpRoad::new(warp);
     let target = match crate::node::probe(&targets, roost).await {
         Ok(versions) => crate::node::serving(&targets, &versions),
         Err(refusal) => return refusal.report("node", err),
@@ -173,13 +183,13 @@ async fn serve_quick(ready: Ready, err: &mut dyn Write) -> i32 {
             say(format!("{why}; the two names of Cloudflare's documents, port {}", edge::PORT));
             said_fixed = true;
         }
-        let link = match link(&mut over_quic, &proxy, &found, &say).await {
+        let link = match link(&mut over_quic, &proxy, &found, &say, &mut warp).await {
             Ok(link) => link,
             // A host whose egress never reaches the edge cannot publish.
             Err(why) if !connected_once => {
                 let message = format!(
-                    "{why}; a quick tunnel needs port 7844 of Cloudflare's edge: UDP for QUIC, or TCP, directly or \
-                     through a proxy that allows it"
+                    "{why}; a quick tunnel needs port 7844 of Cloudflare's edge: UDP for QUIC, TCP directly or \
+                     through a proxy that allows it, or TCP inside WARP's tunnel"
                 );
                 return Refusal { message, code: Fault::RelayUnreachable.code() }.report("node", err);
             }
@@ -228,6 +238,7 @@ async fn serve_quick(ready: Ready, err: &mut dyn Write) -> i32 {
         let served = match link {
             Link::Quic(edge) => edge.serve(&registration, visit.clone(), steps, stop_asked).await,
             Link::Http2(tls) => serve::serve(tls, &registration, visit.clone(), steps, stop_asked).await,
+            Link::Warp(io) => serve::serve(io, &registration, visit.clone(), steps, stop_asked).await,
         };
         let _ = said.await;
         if registered.load(Ordering::SeqCst) {
@@ -258,10 +269,12 @@ async fn serve_quick(ready: Ready, err: &mut dyn Write) -> i32 {
     0
 }
 
-/// A connection to the edge, by the transport that answered.
+/// A connection to the edge, by the transport that answered: QUIC, HTTP/2
+/// over TCP, or HTTP/2 inside WARP's tunnel.
 enum Link<T> {
     Quic(quic::EdgeConnection),
     Http2(T),
+    Warp(Box<dyn Duplex>),
 }
 
 impl<T> Link<T> {
@@ -269,19 +282,28 @@ impl<T> Link<T> {
         match self {
             Link::Quic(_) => "QUIC",
             Link::Http2(_) => "HTTP/2",
+            Link::Warp(_) => crate::node_warp::ROAD,
         }
     }
 }
 
-/// QUIC while `over_quic` holds, else HTTP/2 through `proxy`. QUIC that
-/// fails says why and gives way to HTTP/2 for the rest of the run, as a
-/// network that drops UDP drops it again.
+/// QUIC while `over_quic` holds, else HTTP/2 through `proxy`, else HTTP/2
+/// inside WARP's tunnel; with `--warp`, WARP's tunnel first. QUIC that fails
+/// says why and gives way to HTTP/2 for the rest of the run, as a network
+/// that drops UDP drops it again.
 async fn link(
     over_quic: &mut bool,
     proxy: &ProxyChoice,
     found: &edge::Edge,
     say: &dyn Fn(String),
+    warp: &mut WarpRoad,
 ) -> Result<Link<impl AsyncRead + AsyncWrite + Unpin + Send>, String> {
+    if warp.first {
+        match warp.edge(found, say).await {
+            Ok(io) => return Ok(Link::Warp(io)),
+            Err(why) => say(format!("{why}; the edge's other roads now")),
+        }
+    }
     if *over_quic {
         match quic::connect_edge(found).await {
             Ok(edge) => return Ok(Link::Quic(edge)),
@@ -291,7 +313,18 @@ async fn link(
             }
         }
     }
-    edge::connect(proxy, found).await.map(Link::Http2)
+    let why = match edge::connect(proxy, found).await {
+        Ok(tls) => return Ok(Link::Http2(tls)),
+        Err(why) => why,
+    };
+    if warp.first {
+        return Err(why);
+    }
+    // The cage's proxy may refuse port 7844 and take 443: WARP's tunnel.
+    match warp.edge(found, say).await {
+        Ok(io) => Ok(Link::Warp(io)),
+        Err(inside) => Err(format!("{why}; {inside}")),
+    }
 }
 
 /// Wait `wait`, unless the end comes first, and double it for the next time.

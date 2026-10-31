@@ -56,27 +56,36 @@ fn register_code(fault: &register::Fault) -> i32 {
     }
 }
 
-/// The device: its record in the cache, at `PODSSH_WARP_ENDPOINT` when it
-/// is set; else a new one, registered when the user accepted the Terms,
-/// whose record is kept. A record that cannot be read is a configuration
-/// error that names the file, never one that registers again on its own.
+/// The device of the record in the cache, at `PODSSH_WARP_ENDPOINT` when
+/// it is set; `None` with no record. It never registers: `podssh doctor`
+/// reads it so (T-374).
+pub fn kept() -> Result<Option<Device>, (String, i32)> {
+    let at = endpoint()?;
+    let Some(text) = podssh_relay::cache::load_file(DEVICE_FILE) else { return Ok(None) };
+    let text = zeroize::Zeroizing::new(text);
+    let device = Device::from_json(&text).map_err(|why| {
+        let line = format!("the device's record {DEVICE_FILE} in the cache: {why}; remove it to register again");
+        (line, EX_CONFIG)
+    })?;
+    Ok(Some(match at {
+        Some(at) => device.at(at),
+        None => device,
+    }))
+}
+
+/// The device: [`kept`]; else a new one, registered when the user accepted
+/// the Terms, whose record is kept. A record that cannot be read is a
+/// configuration error that names the file, never one that registers again
+/// on its own.
 pub async fn device(
     trust: &Trust,
     say: &(dyn Fn(&str) + Sync),
     verbose: &(dyn Fn(&str) + Sync),
 ) -> Result<Device, (String, i32)> {
-    let at = endpoint()?;
-    let place = |device: Device| match at {
-        Some(at) => device.at(at),
-        None => device,
-    };
-    if let Some(text) = podssh_relay::cache::load_file(DEVICE_FILE) {
-        let text = zeroize::Zeroizing::new(text);
-        return Device::from_json(&text).map(place).map_err(|why| {
-            let line = format!("the device's record {DEVICE_FILE} in the cache: {why}; remove it to register again");
-            (line, EX_CONFIG)
-        });
+    if let Some(device) = kept()? {
+        return Ok(device);
     }
+    let at = endpoint()?;
     let yes = accepted(std::env::var(ACCEPT_TERMS_ENV).ok().as_deref()).map_err(|why| (why, EX_CONFIG))?;
     if !yes {
         let line = format!(
@@ -99,5 +108,8 @@ pub async fn device(
         Ok(path) => verbose(&format!("the device's record is in {}", path.display())),
         Err(why) => say(&format!("the device's record was not kept ({why}): the next run registers again")),
     }
-    Ok(place(device))
+    Ok(match at {
+        Some(at) => device.at(at),
+        None => device,
+    })
 }

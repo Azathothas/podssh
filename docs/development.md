@@ -40,6 +40,9 @@ cargo build -p podssh-cli --features iroh                        # with the iroh
 cargo test -p podssh-iroh -p podssh-cli --features podssh-cli/iroh-test   # its tests
 cargo test -p podssh-ws --features plain-ws --test plain_loopback   # plain ws:// to loopback, for tests
 cargo test -p podssh-ws --features plain-ws --test cloudflare_access # the road of cloudflared (T-264)
+cargo build -p podssh-cli --features warp                        # with WARP's road (T-352, Rust 1.91)
+cargo test -p podssh-warp -p podssh-cli --features podssh-cli/warp --lib   # its tests
+cargo test -p podssh-relay --features warp-stand-in --test quick_edge_warp # the edge inside it (T-374)
 ```
 
 - A `cargo build` or `cargo test` at the root uses `default-members`. These

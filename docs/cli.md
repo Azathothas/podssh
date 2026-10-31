@@ -1481,6 +1481,12 @@ and no `--timeout`: a person decides how long an edit takes.
   server of Cloudflare's, and says so. In a build with the feature `iroh`,
   `iroh UDP out` gives the iroh road's own answer: whether a QUIC address
   discovery to its home relay came back.
+- `edge road` (T-374) says, with `--full`, which road over TCP reaches the
+  quick tunnel's edge, as `podssh node --quick-tunnel` tries them: TLS with
+  the edge on port 7844 directly or through the proxy; else, in a build with
+  the feature `warp` and with a device of WARP kept in the cache, inside
+  WARP's tunnel (`warp://`, above); doctor registers no device. TLS closes
+  at once, with nothing registered. A run without `--full` says so.
 - `--json` writes the same report as one JSON object, when every check has
   run (GitHub #9): `schema` (1), `podssh`, `os`, `arch`, `checks` (each
   with `section`, `check`, `status` and `detail`; `status` is `ok`, `FAIL`
@@ -1908,9 +1914,14 @@ commands. The rules behind them:
   node asks `api.trycloudflare.com` for the tunnel (through `HTTPS_PROXY`
   when it is set), then reaches the edge on port 7844: over QUIC where no
   proxy is set and UDP gets there, as cloudflared does (T-301), else over
-  HTTP/2 on TCP, directly or through a proxy that allows it; QUIC that fails
-  gives way to HTTP/2 for the rest of the run, and the node exits 69 when it
-  reaches neither. It registers its connection on the first stream, and its
+  HTTP/2 on TCP, directly or through a proxy that allows it, else, in a
+  build with the feature `warp` (T-374), over HTTP/2 inside WARP's tunnel,
+  as a cage whose proxy allows port 443 alone reaches the edge so: the
+  device of `warp://` (above), the edge's name asked inside the tunnel, and
+  the edge's own TLS over the stream; `--warp` tries WARP's tunnel first,
+  and without the feature it exits 70. QUIC that fails gives way to HTTP/2
+  for the rest of the run, and the node exits 69 when it reaches none. It
+  registers its connection on the first stream, and its
   line of the registration names the transport; each visitor's WebSocket is
   one link of the resumable layer. The name is public, so `--allow FILE` is
   needed: only an operator whose key is in FILE reaches TARGET, through

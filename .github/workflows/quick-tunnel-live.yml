@@ -12,8 +12,11 @@ name: quick tunnel live
 # here (T-301); a second node, with UDP to port 7844 dropped, falls back to
 # HTTP/2 and says so. podssh doctor --full's line UDP out says that QUIC to the edge
 # answered, and with UDP to 7844 dropped that none did (T-359). Started by
-# hand only, with confirm=Q43. Two tunnels,
-# each alive for a few minutes at most. The logs of this public
+# hand only, with confirm=Q43. A third node, built with the feature warp,
+# with TCP and UDP to 7844 dropped as in a cage whose proxy allows port 443
+# alone, reaches the edge inside WARP's tunnel (T-374; WARP's live run is
+# allowed in Actions by Q52), and its device is one of this run. Three
+# tunnels, each alive for a few minutes at most. The logs of this public
 # repository are public: the tunnel's name is masked, its secret never
 # leaves the node's memory, and the keys are throwaway ones of this run.
 
@@ -227,10 +230,48 @@ jobs:
           kill -TERM "$(cat "$RUNNER_TEMP/node2.pid")" 2>/dev/null || true
           sudo iptables -D OUTPUT -p udp --dport 7844 -j DROP
 
+      # T-374: TCP and UDP to the edge's 7844 dropped: the node says that
+      # QUIC and TCP failed, opens WARP's tunnel on port 443, registers over
+      # HTTP/2 inside it, and a visitor of that third name gets in; then
+      # doctor's line edge road names the road, with the device kept.
+      - name: a third node, with 7844 dropped, inside WARP's tunnel
+        env:
+          CARGO_PROFILE_DEV_DEBUG: "0"
+          PODSSH_WARP_ACCEPT_TERMS: "yes"
+        run: |
+          timeout 1200 cargo build -p podssh-cli --locked --features warp --target-dir target/warp
+          sudo iptables -I OUTPUT -p udp --dport 7844 -j DROP
+          sudo iptables -I OUTPUT -p tcp --dport 7844 -j DROP
+          : > "$RUNNER_TEMP/allow3"
+          target/warp/debug/podssh node inside 127.0.0.1:4022 --quick-tunnel --allow "$RUNNER_TEMP/allow3" \
+            --ephemeral-key >"$RUNNER_TEMP/url3" 2>"$RUNNER_TEMP/node3.log" &
+          echo $! >"$RUNNER_TEMP/node3.pid"
+          for _ in $(seq 1 180); do grep -q "registered at" "$RUNNER_TEMP/node3.log" && break; sleep 1; done
+          host3=$(sed -n 's#^https://##p' "$RUNNER_TEMP/url3" | head -n 1)
+          [ -n "$host3" ] && echo "::add-mask::$host3"
+          sed 's/^/node3: /' "$RUNNER_TEMP/node3.log"
+          grep -q "WARP's tunnel opened" "$RUNNER_TEMP/node3.log" || { echo "FAIL WARP's tunnel was not said"; exit 1; }
+          grep -q "registered at .*, over HTTP/2 inside WARP's tunnel" "$RUNNER_TEMP/node3.log" \
+            || { echo "FAIL not registered inside WARP's tunnel"; exit 1; }
+          timeout 120 python3 scripts/quick-tunnel-probe.py --limit 60 "$host3"
+          echo "ok    with 7844 dropped, the node registered inside WARP's tunnel and served a visitor"
+          timeout 180 target/warp/debug/podssh doctor --full >"$RUNNER_TEMP/doctor3.txt" 2>&1 || true
+          line=$(grep -E '^ +[^ ]+ +edge road ' "$RUNNER_TEMP/doctor3.txt" | head -n 1)
+          echo "doctor: $line"
+          case $line in
+            *ok*"inside WARP's tunnel"*"the edge answered TLS"*) echo "ok    doctor's edge road: inside WARP's tunnel" ;;
+            *) echo "FAIL doctor's edge road did not name WARP's tunnel"; exit 1 ;;
+          esac
+          kill -TERM "$(cat "$RUNNER_TEMP/node3.pid")" 2>/dev/null || true
+          sudo iptables -D OUTPUT -p tcp --dport 7844 -j DROP
+          sudo iptables -D OUTPUT -p udp --dport 7844 -j DROP
+
       - name: the end
         if: always()
         run: |
+          sudo iptables -D OUTPUT -p tcp --dport 7844 -j DROP 2>/dev/null || true
           sudo iptables -D OUTPUT -p udp --dport 7844 -j DROP 2>/dev/null || true
+          kill -TERM "$(cat "$RUNNER_TEMP/node3.pid" 2>/dev/null)" 2>/dev/null || true
           kill -TERM "$(cat "$RUNNER_TEMP/node2.pid" 2>/dev/null)" 2>/dev/null || true
           pid=$(cat "$RUNNER_TEMP/node.pid" 2>/dev/null || true)
           if [ -n "$pid" ]; then kill -TERM "$pid" 2>/dev/null || true; fi
