@@ -1997,7 +1997,7 @@ user names HTTP/2.
 **Milestone:** backlog
 **Priority:** P3
 **Effort:** M
-**Status:** partial
+**Status:** done
 
 ## Problem
 
@@ -2093,7 +2093,9 @@ evidence for UDP. This entry waits for it.
 
 ## Done
 
-2026-10-31, partial: the Decision; cloudflared 2026.10.6 read in a copy
+2026-10-31. The quick tunnel runs over QUIC where no proxy is set and UDP
+reaches the edge, as cloudflared's does, and over HTTP/2 elsewhere and
+after a failure of QUIC. The Decision; cloudflared 2026.10.6 read in a copy
 under `.tmp/` (`tunnelrpc/quic/protocol.go`: the signature of a data
 stream `0A 36 CD 12 A1 3E`, of an RPC stream `52 BB 82 5C DB 65`, the
 version `01`; `tunnelrpc/proto/quic_metadata_protocol.capnp`;
@@ -2145,9 +2147,17 @@ stream opened before the control stream, and no idle timeout. With
 `podssh node --quick-tunnel` (`crates/podssh-cli/src/node_quick.rs`): QUIC
 first where no proxy is set, HTTP/2 after a failure of QUIC, which it says;
 its line of the registration names the transport. The manual, `docs/cli.md`
-and `docs/design.md` say so. Still to do: the live run in GitHub Actions
-(`.github/workflows/quick-tunnel-live.yml`: a node over QUIC, and a second
-with UDP to 7844 dropped, over HTTP/2).
+and `docs/design.md` say so.
+
+Live, in GitHub Actions (`.github/workflows/quick-tunnel-live.yml`, run
+41162536619 at `98e05c2`): the node registered at Cloudflare's `dfw16` over
+QUIC, and the visitors, `podssh ssh cf://NAME` with 8 MiB both ways
+directly and through the box's proxy, and `podssh health` went over that
+connection. With UDP to 7844 dropped, a second node said that no region
+answered over QUIC and registered at `dfw13` over HTTP/2, and its visitor
+got in; the first node, whose QUIC connection the same rule cut, found the
+silence ("the edge stopped answering") and went on over HTTP/2, as the
+fallback says.
 
 # T-171: The functions of Mosh that M6 and T-160 do not give, made in podssh itself
 

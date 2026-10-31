@@ -2843,3 +2843,62 @@ say so:
   reverse road through the live relay, with the layer, 2.37 MiB/s up and
   1.37 MiB/s down at the p50; both rows are in `docs/STATUS.md`.
 
+# T-354: A session that closes while it moves can say a loss that was none
+
+**Source:** CI's macOS job at `08275ee`, 2026-10-31 (run 41158346607):
+`a_session_moves_while_both_ends_send_at_full_speed`
+(`crates/podssh-relay/tests/session_move.rs:186-193`) failed once.
+**Category:** defect
+**Milestone:** backlog
+**Priority:** P2
+**Effort:** S
+**Status:** open
+
+## Problem
+
+A session whose application ends while the layer moves it at full speed can
+say a loss ("the link ended before the far end answered this side's CLOSE"),
+then open a new link only to learn that the far end had ended the session.
+The session ends well, but `-v` shows a loss that was none, the exit waits
+for a new link, and the test that asks for no loss fails at random.
+
+## Premise
+
+- Measured: in the macOS job of CI at `08275ee` (run 41158346607), the
+  test's notes held one loss, `Lost { why: "the link ended before the far end
+  answered this side's CLOSE" }`, and no `Resumed`; the outcome and both
+  digests held (`crates/podssh-relay/tests/session_move.rs:166-168`), and the
+  assertion that failed is `:191`. The commit changed only `TODO/issues.md`.
+- Not reproduced here: 40 runs of the test alone, and 80 runs eight at a
+  time, passed (a Claude Code cloud container, 2026-10-31).
+- Read: `End::Closing` comes from the pump's wait for the answer to its
+  `CLOSE` (`crates/podssh-relay/src/session/pump.rs:292-299`): a reader that
+  ended with anything but the peer's `CLOSE`, the 10 s of `LINGER` (not
+  reached in a run of 2.9 s), or a stop. A loss with no `Resumed` after it is
+  a resume that found the session forgotten while this side's application
+  had ended (`crates/podssh-relay/src/session/resume.rs:344`): the far end
+  had the `CLOSE` and ended the session, and this side's reader ended before
+  its answer.
+- Inferred: both ends closed at once (the test's target ends as the
+  client's application does), and the far end's answer met a reader that
+  had already ended, or the stop of a move.
+
+## Approach
+
+1. Reproduce: the test in a loop with the far end's answer delayed, or on
+   paused time, to find which branch ends the wait.
+2. Repair that branch: a reader that ended with the peer's own `CLOSE`
+   before this side's (both closing at once) is the session's end, not a
+   loss; a move does not cut a `CLOSE` in flight.
+3. A test that closes both ends at once, with a move beside, many times.
+
+## Prove
+
+```sh
+export CARGO_BUILD_JOBS=4
+cargo test -p podssh-relay --test session_move
+```
+
+200 runs of `a_session_moves_while_both_ends_send_at_full_speed` with no loss
+said; a planted race fails the new test.
+
