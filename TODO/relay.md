@@ -1418,7 +1418,7 @@ expiry of the relay's domain.
 **Milestone:** none
 **Priority:** P2
 **Effort:** M
-**Status:** partial
+**Status:** done
 
 ## Problem
 
@@ -1504,8 +1504,8 @@ ahead passes.
 
 ## Done
 
-2026-10-31, partial. Done here; next, `relay-watch.yml` by hand, then the
-entry closes:
+2026-10-31. A fact of the relay's document is read at its line, then in its
+section, and a watch reads the relay and its domain each day:
 
 - Each fact of `crates/podssh-probe/facts/relay-facts.toml`, and each operand
   of the relation, names its `section`, a heading of the relay's document by
@@ -1558,6 +1558,15 @@ entry closes:
   are not a target of this session's tests: the script runs live in Actions.
 - `docs/relay.md` and `docs/development.md` name the search, the notes, the
   retries, the watch and what each exit means.
+- The watch by hand at `1d16bb4`, each with `dry_run`: plain (run
+  41168076920), the live relay at the pin, 7 facts with no problem and no
+  note, `ajam.dev` 445 days ahead by `https://pubapi.registry.google/rdap/`,
+  its result kept, "nothing to open", green; `plant=moved-section` (run
+  41168079191), it read the result before it and would open "relay-watch:
+  the relay's document disagrees with the pin 2026-10-03-r2:
+  reverse-node-path", kept no result, red; `plant=unreadable` (run
+  41168085583), three tries 60 s apart, exit 2, "run 41168079191 kept no
+  result", nothing to open after one unread run, red.
 
 
 # T-342: The relay's limits are compiled in, and nothing compares them with `/relays.json`
