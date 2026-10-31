@@ -192,12 +192,12 @@ them ("Configuration", https://developers.cloudflare.com/tunnel/configuration/,
 updated 2026-09-29). A hidden flag, `--edge`, replaces the lookup with given
 addresses, and its help says that it works only in Cloudflare's own test
 environment (`cmd.go:668-673`, `supervisor/supervisor.go:56-64`). podssh's
-DNS over HTTPS asks for A and AAAA records only
-(`crates/podssh-ws/src/resolve.rs:125`); the connector needs SRV, or the
-two documented names. Since T-339, `podssh node --quick-tunnel` asks for
-the SRV record over DNS over HTTPS, through the proxy when one is set
-(`podssh_ws::resolve::doh_srv`), and takes its two targets and their port
-when the record names two regions under `argotunnel.com` on one port; else
+DNS over HTTPS asked for A and AAAA records only before T-339; the
+connector needs SRV, or the two documented names. Since T-339, the node of
+`podssh node --quick-tunnel` asks for the SRV record over DNS over HTTPS,
+through the proxy when one is set (`podssh_ws::resolve::doh_srv`, in RFC
+8484's wire form too since T-344), and takes its two targets and port when
+the record names two regions under `argotunnel.com` on one port; else
 the two documented names and port 7844, and the node says why once a run.
 
 **No proxy.** cloudflared dials the edge with a plain dialer, never through a

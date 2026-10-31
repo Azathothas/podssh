@@ -31,8 +31,9 @@ pub struct Health {
     pub took: Duration,
     /// The TLS version, as `TLS 1.3`.
     pub tls: String,
-    /// `TCP ADDRESS`, or `CONNECT HOST:PORT through PROXY`: a reader can
-    /// then tell a proxy's answer from the relay's.
+    /// `TCP ADDRESS (SOURCE)`, the source of the address as the dialer found
+    /// it (T-344), or `CONNECT HOST:PORT through PROXY`: a reader can then
+    /// tell a proxy's answer from the relay's.
     pub opened: String,
     /// The relay's `Date` header, for a check of this host's clock.
     pub date: Option<String>,
@@ -94,7 +95,11 @@ pub async fn fetch(
         .await
         .map_err(|e| HealthError::Connect(e.to_string()))?;
     let (tcp, connection) = tls.get_ref();
-    let peer = tcp.peer_addr().map(|a| a.to_string()).unwrap_or_else(|e| format!("an address it cannot name ({e})"));
+    let peer_addr = tcp.peer_addr();
+    let peer = peer_addr.as_ref().map(|a| a.to_string()).unwrap_or_else(|e| format!("an address it cannot name ({e})"));
+    // Where the address came from: a pin, the system, the cache or DNS over
+    // HTTPS (T-344).
+    let source = peer_addr.ok().and_then(|a| podssh_ws::resolve::dialed(host, a));
     let tls_version = connection
         .protocol_version()
         .map(|v| format!("{v:?}").replace("TLSv1_", "TLS 1."))
@@ -109,7 +114,10 @@ pub async fn fetch(
             let request = proxy.kind.request();
             format!("{request} {} through {}", dial::authority(host, relay.port), proxy_reached(&proxy, &peer))
         }
-        None => format!("TCP {peer}"),
+        None => match source {
+            Some(source) => format!("TCP {peer} ({})", source.words()),
+            None => format!("TCP {peer}"),
+        },
     };
     let answer = |why: String| HealthError::Answer { opened: opened.clone(), why };
     let host_header = if relay.port == 443 { host.clone() } else { dial::authority(host, relay.port) };

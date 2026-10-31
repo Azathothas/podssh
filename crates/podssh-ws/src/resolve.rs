@@ -1,23 +1,29 @@
 //! Turning a host name into addresses without trusting that this host's
-//! resolver works. In order:
+//! resolver works. In order (`resolve/order.rs`):
 //!
 //! 1. an IP literal is its own address;
 //! 2. addresses pinned for the name ([`set_pins`]: podssh's `--relay-addr` and
 //!    `PODSSH_RELAY_ADDR`), for hosts with no DNS at all;
 //! 3. the system resolver;
-//! 4. DNS over HTTPS to public resolvers reached by IP literal, whose
+//! 4. the addresses that carried a session to the name within [`FRESH`]
+//!    ([`set_remembered`]: podssh keeps them in its cache, T-344);
+//! 5. DNS over HTTPS to public resolvers reached by IP literal, whose
 //!    certificates are verified against those IPs like any other — for hosts
-//!    whose resolver is broken but whose TCP egress works.
+//!    whose resolver is broken but whose TCP egress works: each resolver's
+//!    JSON API where it serves one, and RFC 8484's wire form ([`wire`]) where
+//!    it serves none or its answer is not of that form;
+//! 6. the older addresses that carried a session, last.
 //!
 //! With an HTTP proxy none of this runs for the target: the proxy is given the
 //! name and resolves it. TLS to the target always checks the target's name, so
-//! a wrong pinned or resolved address fails the handshake instead of
-//! connecting somewhere else.
+//! a wrong pinned, resolved or remembered address fails the handshake instead
+//! of connecting somewhere else.
 
 use std::net::{IpAddr, SocketAddr};
-use std::sync::RwLock;
+use std::sync::{Arc, RwLock};
 use std::time::Duration;
 
+use rustls::ClientConfig;
 use tokio::net::TcpStream;
 use tokio::time::Instant;
 
@@ -25,18 +31,96 @@ use crate::dial::ProxyChoice;
 use crate::http;
 use crate::tls::{self, Trust};
 
-/// Public DNS-over-HTTPS resolvers, by IP literal (a resolver needs no
-/// resolver), with the JSON API path each one serves. Two operators, two
-/// addresses each.
-pub const DOH_RESOLVERS: &[(&str, &str)] =
-    &[("1.1.1.1", "/dns-query"), ("8.8.8.8", "/resolve"), ("1.0.0.1", "/dns-query"), ("8.8.4.4", "/resolve")];
+mod memory;
+mod order;
+pub mod wire;
 
-/// The bound on one resolver's answer, inside the caller's overall deadline.
+pub(crate) use memory::note_dialed;
+pub use memory::{dialed, last_dialed, remembered, set_remembered, split, Remembered, FRESH};
+pub use order::{resolve, resolve_from, Found, Source, ORDER, SOURCE_WAIT};
+
+/// A public resolver of DNS over HTTPS, by IP literal (a resolver needs no
+/// resolver), whose certificate names that address.
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub struct Doh {
+    pub ip: &'static str,
+    /// The path of its JSON API (`?name=...&type=...`), where it serves one.
+    pub json: Option<&'static str>,
+    /// The path of RFC 8484's wire form (`?dns=...`).
+    pub wire: &'static str,
+}
+
+/// The resolvers, in order: Cloudflare's and Google's, two addresses each,
+/// the operators taking turns, then Quad9's two, which serve the wire form
+/// alone (Quad9 answered the JSON API's query with 400, 2026-10-31).
+pub const DOH_RESOLVERS: &[Doh] = &[
+    Doh { ip: "1.1.1.1", json: Some("/dns-query"), wire: "/dns-query" },
+    Doh { ip: "8.8.8.8", json: Some("/resolve"), wire: "/dns-query" },
+    Doh { ip: "1.0.0.1", json: Some("/dns-query"), wire: "/dns-query" },
+    Doh { ip: "8.8.4.4", json: Some("/resolve"), wire: "/dns-query" },
+    Doh { ip: "9.9.9.9", json: None, wire: "/dns-query" },
+    Doh { ip: "149.112.112.112", json: None, wire: "/dns-query" },
+];
+
+/// The bound on one resolver's answers, inside the caller's overall deadline.
 const DOH_EACH: Duration = Duration::from_secs(5);
+
+/// The bound on the connection to one resolver: an address that a firewall
+/// drops costs this, not [`DOH_EACH`], before the next resolver is asked.
+const DOH_CONNECT: Duration = Duration::from_secs(3);
+
+/// The largest answer read: a DNS message is at most 64 KiB.
+const MAX_ANSWER: usize = 64 * 1024;
 
 /// A resolver's answer that the name does not exist (DNS status 3). It holds
 /// for every record type and every resolver, so the lookup stops there.
 pub const NXDOMAIN: &str = "no such name (NXDOMAIN)";
+
+/// How a resolver is asked.
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub enum Form {
+    /// Its JSON API, `application/dns-json`, which no standard defines.
+    Json,
+    /// RFC 8484's GET with `?dns=`, `application/dns-message`.
+    Wire,
+}
+
+impl Form {
+    /// The form in a few words, as `podssh doctor` names it.
+    pub fn words(self) -> &'static str {
+        match self {
+            Form::Json => "its JSON API",
+            Form::Wire => "RFC 8484's wire form",
+        }
+    }
+
+    fn accept(self) -> &'static str {
+        match self {
+            Form::Json => "application/dns-json",
+            Form::Wire => "application/dns-message",
+        }
+    }
+}
+
+impl Doh {
+    /// The forms to ask, in order: the JSON API first where there is one,
+    /// then the wire form, its fallback and the only form of a resolver with
+    /// no JSON.
+    pub fn forms(&self) -> Vec<Form> {
+        self.json.map(|_| Form::Json).into_iter().chain([Form::Wire]).collect()
+    }
+
+    /// The request target of the question of `kind` for `name` in `form`.
+    fn target(&self, form: Form, name: &str, kind: &str) -> Result<String, String> {
+        match (form, self.json) {
+            (Form::Json, Some(path)) => Ok(format!("{path}?name={name}&type={kind}")),
+            _ => {
+                let code = wire::code(kind).ok_or_else(|| format!("no record type {kind}"))?;
+                Ok(format!("{}?dns={}", self.wire, wire::query_param(name, code)?))
+            }
+        }
+    }
+}
 
 static PINS: RwLock<Vec<(String, IpAddr)>> = RwLock::new(Vec::new());
 
@@ -72,39 +156,6 @@ pub fn pinned(host: &str) -> Vec<IpAddr> {
     PINS.read().unwrap_or_else(|e| e.into_inner()).iter().filter(|(h, _)| *h == host).map(|(_, ip)| *ip).collect()
 }
 
-/// The addresses to try for `host:port`, by the order in the module comment.
-/// The error names every source that was tried.
-pub async fn resolve(host: &str, port: u16, deadline: Instant) -> Result<Vec<SocketAddr>, String> {
-    let bare = host.trim_start_matches('[').trim_end_matches(']');
-    if let Ok(ip) = bare.parse::<IpAddr>() {
-        return Ok(vec![SocketAddr::new(ip, port)]);
-    }
-    let pins = pinned(host);
-    if !pins.is_empty() {
-        return Ok(pins.into_iter().map(|ip| SocketAddr::new(ip, port)).collect());
-    }
-    let system = match tokio::time::timeout_at(deadline, tokio::net::lookup_host((host, port))).await {
-        Ok(Ok(addrs)) => {
-            let addrs: Vec<SocketAddr> = addrs.collect();
-            if !addrs.is_empty() {
-                return Ok(addrs);
-            }
-            "no addresses".to_string()
-        }
-        Ok(Err(e)) => e.to_string(),
-        Err(_) => "timed out".to_string(),
-    };
-    // The caller names the host ("could not resolve HOST: ..."), so these
-    // say only what each source answered.
-    if !dns_safe(host) {
-        return Err(system);
-    }
-    match doh_lookup(host, deadline).await {
-        Ok(ips) => Ok(ips.into_iter().map(|ip| SocketAddr::new(ip, port)).collect()),
-        Err(doh) => Err(format!("{system}; DNS over HTTPS: {doh}")),
-    }
-}
-
 /// Ask the [`DOH_RESOLVERS`] in turn for A, then AAAA records; the first
 /// resolver that answers with addresses wins, and the first that says the
 /// name does not exist ends the lookup.
@@ -112,54 +163,138 @@ pub async fn doh_lookup(host: &str, deadline: Instant) -> Result<Vec<IpAddr>, St
     doh_lookup_with(DOH_RESOLVERS, host, deadline).await
 }
 
-/// [`doh_lookup`] over a given list of `(ip, path)` resolvers.
-pub async fn doh_lookup_with(resolvers: &[(&str, &str)], host: &str, deadline: Instant) -> Result<Vec<IpAddr>, String> {
+/// [`doh_lookup`] over a given list of resolvers.
+pub async fn doh_lookup_with(resolvers: &[Doh], host: &str, deadline: Instant) -> Result<Vec<IpAddr>, String> {
     let mut reasons = Vec::new();
-    for (ip, path) in resolvers {
+    for resolver in resolvers {
         if Instant::now() >= deadline {
             reasons.push("out of time".to_string());
             break;
         }
-        let each = (Instant::now() + DOH_EACH).min(deadline);
-        let mut found = Vec::new();
-        for kind in ["A", "AAAA"] {
-            match tokio::time::timeout_at(each, query(ip, path, host, kind)).await {
-                Ok(Ok(mut ips)) => found.append(&mut ips),
-                Ok(Err(e)) if e == NXDOMAIN => return Err(format!("{ip}: {e}")),
-                Ok(Err(e)) => reasons.push(format!("{ip}: {e}")),
-                Err(_) => reasons.push(format!("{ip}: timed out")),
-            }
-            if kind == "A" && !found.is_empty() {
-                break;
-            }
-        }
-        if !found.is_empty() {
-            return Ok(found);
+        match doh_ask(resolver, host, deadline).await {
+            Ok((ips, _)) => return Ok(ips),
+            Err(e) if e.ends_with(NXDOMAIN) => return Err(e),
+            Err(e) => reasons.push(e),
         }
     }
     Err(if reasons.is_empty() { "no resolver answered".into() } else { reasons.join("; ") })
 }
 
-/// One JSON-API query (`?name=...&type=...`) to the resolver at `ip`.
-async fn query(ip: &str, path: &str, host: &str, kind: &str) -> Result<Vec<IpAddr>, String> {
-    let roots = tls::roots_for(&Trust::Default).map_err(|e| e.to_string())?;
-    let config = tls::client_config(&roots).map_err(|e| e.to_string())?;
+/// One resolver, straight to its address: A, then AAAA when A gave none,
+/// each in the first of its forms that answers in its form, within
+/// [`DOH_EACH`] and `deadline`. The addresses and the form that gave them, or
+/// why none came, each reason after the resolver's address.
+pub async fn doh_ask(resolver: &Doh, host: &str, deadline: Instant) -> Result<(Vec<IpAddr>, Form), String> {
+    let ip = resolver.ip;
+    let each = (Instant::now() + DOH_EACH).min(deadline);
+    let config = tls::config_for(&Trust::Default).map_err(|e| format!("{ip}: {e}"))?;
+    let mut forms = resolver.forms();
+    let (mut found, mut by, mut reasons) = (Vec::new(), None, Vec::new());
+    'kinds: for kind in ["A", "AAAA"] {
+        while let Some(&form) = forms.first() {
+            match tokio::time::timeout_at(each, ask_direct(&config, resolver, form, host, kind)).await {
+                Ok(Ok(mut ips)) => {
+                    found.append(&mut ips);
+                    by = Some(form);
+                    break;
+                }
+                Ok(Err(Miss::Said(e))) if e == NXDOMAIN => return Err(format!("{ip}: {e}")),
+                // The other form would say the same.
+                Ok(Err(Miss::Said(e))) => {
+                    reasons.push(format!("{ip}: {e}"));
+                    break;
+                }
+                // Not served here, or not as podssh reads it: the next form,
+                // for this question and the next.
+                Ok(Err(Miss::Form(e))) => {
+                    reasons.push(format!("{ip} ({}): {e}", form.words()));
+                    forms.remove(0);
+                }
+                Ok(Err(Miss::Way(e))) => {
+                    reasons.push(format!("{ip}: {e}"));
+                    break 'kinds;
+                }
+                Err(_) => {
+                    reasons.push(format!("{ip}: timed out"));
+                    break 'kinds;
+                }
+            }
+        }
+        if !found.is_empty() {
+            break;
+        }
+    }
+    match by {
+        Some(form) if !found.is_empty() => Ok((found, form)),
+        _ if reasons.is_empty() => Err(format!("{ip}: no addresses")),
+        _ => Err(reasons.join("; ")),
+    }
+}
+
+/// Why a question got no addresses: the way to the resolver failed, and the
+/// other form would meet the same; the answer was not of the form asked, and
+/// the other form may work; or the resolver said why there is none.
+#[derive(Debug, Clone, PartialEq, Eq)]
+enum Miss {
+    Way(String),
+    Form(String),
+    Said(String),
+}
+
+/// What an answer gives, by `parse`, or why it gives nothing. The status of a
+/// resolver that is busy or broken is the way's: the other form would meet it.
+fn read<T>(response: &http::Response, parse: impl FnOnce(&[u8]) -> Result<T, String>) -> Result<T, Miss> {
+    match response.status {
+        200 => parse(&response.body).map_err(|e| if said(&e) { Miss::Said(e) } else { Miss::Form(e) }),
+        status @ (429 | 500..=599) => Err(Miss::Way(format!("HTTP {status}"))),
+        status => Err(Miss::Form(format!("HTTP {status}"))),
+    }
+}
+
+/// Whether the text of a parse is a resolver's own status, rather than an
+/// answer of another form than the one asked.
+fn said(e: &str) -> bool {
+    e == NXDOMAIN || e.strip_prefix("DNS status ").is_some_and(|n| n.parse::<u16>().is_ok())
+}
+
+/// One question over a connection of its own, straight to the resolver.
+async fn ask_direct(
+    config: &Arc<ClientConfig>,
+    resolver: &Doh,
+    form: Form,
+    host: &str,
+    kind: &str,
+) -> Result<Vec<IpAddr>, Miss> {
+    let target = resolver.target(form, host, kind).map_err(Miss::Way)?;
+    let response = get_direct(config, resolver.ip, &target, form.accept()).await.map_err(Miss::Way)?;
+    read(&response, |body| match (form, wire::code(kind)) {
+        (Form::Json, _) => parse_answer(body, kind),
+        (Form::Wire, Some(code)) => wire::addrs(body, host, code),
+        (Form::Wire, None) => Err(format!("no record type {kind}")),
+    })
+}
+
+/// GET `target` of the resolver at `ip`: TCP within [`DOH_CONNECT`], then
+/// TLS verified for that address.
+async fn get_direct(
+    config: &Arc<ClientConfig>,
+    ip: &str,
+    target: &str,
+    accept: &str,
+) -> Result<http::Response, String> {
     let name = rustls_pki_types::ServerName::try_from(ip.to_string()).map_err(|e| e.to_string())?;
     let addr: IpAddr = ip.parse().map_err(|_| format!("{ip} is not an IP"))?;
-    let tcp = TcpStream::connect(SocketAddr::new(addr, 443)).await.map_err(|e| e.to_string())?;
-    let mut stream = tokio_rustls::TlsConnector::from(config)
+    let tcp = tokio::time::timeout(DOH_CONNECT, TcpStream::connect(SocketAddr::new(addr, 443)))
+        .await
+        .map_err(|_| format!("no connection within {} s", DOH_CONNECT.as_secs()))?
+        .map_err(|e| e.to_string())?;
+    let mut stream = tokio_rustls::TlsConnector::from(config.clone())
         .connect(name, tcp)
         .await
         .map_err(|e| format!("TLS: {}", tls::handshake_failure(&e)))?;
-    let target = format!("{path}?name={host}&type={kind}");
-    let response =
-        http::exchange(&mut stream, "GET", ip, &target, &[("Accept", "application/dns-json")], b"", 64 * 1024)
-            .await
-            .map_err(|e| e.to_string())?;
-    if response.status != 200 {
-        return Err(format!("HTTP {}", response.status));
-    }
-    parse_answer(&response.body, kind)
+    http::exchange(&mut stream, "GET", ip, target, &[("Accept", accept)], b"", MAX_ANSWER)
+        .await
+        .map_err(|e| e.to_string())
 }
 
 /// The addresses in a DNS JSON answer (`Answer[].data` of type 1 or 28).
@@ -221,32 +356,50 @@ pub fn parse_srv(body: &[u8]) -> Result<Vec<Srv>, String> {
         .collect())
 }
 
-/// The SRV records of `name`, from the [`DOH_RESOLVERS`] in turn by their
-/// JSON API, through `proxy` when one is set, as podssh reaches anything
-/// else: the first resolver that answers wins (T-339).
+/// The SRV records of `name`, from the [`DOH_RESOLVERS`] in turn, through
+/// `proxy` when one is set, as podssh reaches anything else (T-339), each in
+/// the first of its forms that answers in its form (T-344): the first
+/// resolver that answers wins.
 pub async fn doh_srv(name: &str, proxy: &ProxyChoice, deadline: Instant) -> Result<Vec<Srv>, String> {
     if !dns_safe(name) {
         return Err(format!("{name:?} is not a name to ask a resolver for"));
     }
     let mut reasons = Vec::new();
-    for (ip, path) in DOH_RESOLVERS {
-        let left = deadline.saturating_duration_since(Instant::now()).min(DOH_EACH);
-        if left.is_zero() {
-            reasons.push("out of time".to_string());
-            break;
-        }
-        let target = format!("{path}?name={name}&type=SRV");
-        let accept = "application/dns-json";
-        let answer =
-            crate::client::https_get_accepting(ip, 443, &target, accept, 64 * 1024, &Trust::Default, proxy, left).await;
-        match answer {
-            Ok(response) if response.status == 200 => match parse_srv(&response.body) {
+    for resolver in DOH_RESOLVERS {
+        let ip = resolver.ip;
+        for form in resolver.forms() {
+            let left = deadline.saturating_duration_since(Instant::now()).min(DOH_EACH);
+            if left.is_zero() {
+                reasons.push("out of time".to_string());
+                return Err(reasons.join("; "));
+            }
+            let target = resolver.target(form, name, "SRV")?;
+            let answer = crate::client::https_get_accepting(
+                ip,
+                443,
+                &target,
+                form.accept(),
+                MAX_ANSWER,
+                &Trust::Default,
+                proxy,
+                left,
+            )
+            .await;
+            let records = answer.map_err(|e| Miss::Way(e.to_string())).and_then(|response| {
+                read(&response, |body| match form {
+                    Form::Json => parse_srv(body),
+                    Form::Wire => wire::srv(body, name),
+                })
+            });
+            match records {
                 Ok(records) => return Ok(records),
-                Err(e) if e == NXDOMAIN => return Err(format!("{ip}: {e}")),
-                Err(e) => reasons.push(format!("{ip}: {e}")),
-            },
-            Ok(response) => reasons.push(format!("{ip}: HTTP {}", response.status)),
-            Err(e) => reasons.push(format!("{ip}: {e}")),
+                Err(Miss::Said(e)) if e == NXDOMAIN => return Err(format!("{ip}: {e}")),
+                Err(Miss::Form(e)) => reasons.push(format!("{ip} ({}): {e}", form.words())),
+                Err(Miss::Said(e) | Miss::Way(e)) => {
+                    reasons.push(format!("{ip}: {e}"));
+                    break;
+                }
+            }
         }
     }
     Err(if reasons.is_empty() { "no resolver answered".into() } else { reasons.join("; ") })
@@ -258,67 +411,4 @@ fn dns_safe(host: &str) -> bool {
 }
 
 #[cfg(test)]
-mod tests {
-    use super::*;
-
-    #[test]
-    fn pins_parse_and_reject_garbage() {
-        let pins = parse_pins("tcp.ssh.relay.ajam.dev=104.21.39.2, Relay.Example.=[2001:db8::1],x=1.2.3.4").unwrap();
-        assert_eq!(pins[0], ("tcp.ssh.relay.ajam.dev".into(), "104.21.39.2".parse().unwrap()));
-        assert_eq!(pins[1], ("relay.example".into(), "2001:db8::1".parse().unwrap()));
-        assert_eq!(pins.len(), 3);
-        for bad in ["noequals", "=1.2.3.4", "host=not-an-ip", "bad host=1.2.3.4", "h=1.2.3.4.5"] {
-            assert!(parse_pins(bad).is_err(), "{bad}");
-        }
-        assert!(parse_pins("").unwrap().is_empty());
-    }
-
-    #[test]
-    fn srv_answers_parse_and_drop_what_does_not_read() {
-        // The answer that 1.1.1.1 gave for the edge's record (T-299), and
-        // the forms that must not read as a record.
-        let body = br#"{"Status":0,"Answer":[
-            {"name":"_v2-origintunneld._tcp.argotunnel.com","type":33,"TTL":60,"data":"1 1 7844 region1.v2.argotunnel.com."},
-            {"name":"_v2-origintunneld._tcp.argotunnel.com","type":33,"TTL":60,"data":"2 1 7844 REGION2.v2.argotunnel.com"},
-            {"name":"x","type":33,"data":"1 1 notaport a.example"},
-            {"name":"x","type":33,"data":"1 1 7844 a.example extra"},
-            {"name":"x","type":33,"data":"1 1 7844 bad/name.example"},
-            {"name":"x","type":1,"data":"192.0.2.1"}]}"#;
-        let records = parse_srv(body).unwrap();
-        assert_eq!(
-            records,
-            vec![
-                Srv { priority: 1, weight: 1, port: 7844, target: "region1.v2.argotunnel.com".into() },
-                Srv { priority: 2, weight: 1, port: 7844, target: "region2.v2.argotunnel.com".into() },
-            ]
-        );
-        assert_eq!(parse_srv(br#"{"Status":3}"#).unwrap_err(), NXDOMAIN);
-        assert!(parse_srv(br#"{"Status":0}"#).unwrap().is_empty());
-        assert!(parse_srv(b"not json").is_err());
-    }
-
-    #[test]
-    fn dns_json_answers_parse_by_type() {
-        let body = br#"{"Status":0,"Answer":[
-            {"name":"a.example.","type":5,"data":"b.example."},
-            {"name":"b.example.","type":1,"data":"192.0.2.7"},
-            {"name":"b.example.","type":28,"data":"2001:db8::7"}]}"#;
-        assert_eq!(parse_answer(body, "A").unwrap(), vec!["192.0.2.7".parse::<IpAddr>().unwrap()]);
-        assert_eq!(parse_answer(body, "AAAA").unwrap(), vec!["2001:db8::7".parse::<IpAddr>().unwrap()]);
-        assert_eq!(parse_answer(br#"{"Status":3}"#, "A").unwrap_err(), NXDOMAIN);
-        assert_eq!(parse_answer(br#"{"Status":2}"#, "A").unwrap_err(), "DNS status 2");
-        assert_eq!(parse_answer(br#"{"Answer":[]}"#, "A").unwrap_err(), "DNS status missing");
-        assert!(parse_answer(b"nope", "A").is_err());
-        assert!(parse_answer(br#"{"Status":0}"#, "A").unwrap().is_empty());
-    }
-
-    #[tokio::test]
-    async fn literals_and_pins_need_no_resolver() {
-        let soon = Instant::now() + Duration::from_secs(1);
-        assert_eq!(resolve("192.0.2.1", 443, soon).await.unwrap(), vec!["192.0.2.1:443".parse().unwrap()]);
-        assert_eq!(resolve("[2001:db8::1]", 22, soon).await.unwrap(), vec!["[2001:db8::1]:22".parse().unwrap()]);
-        set_pins(parse_pins("pinned.invalid=192.0.2.9").unwrap());
-        assert_eq!(resolve("PINNED.invalid", 443, soon).await.unwrap(), vec!["192.0.2.9:443".parse().unwrap()]);
-        set_pins(Vec::new());
-    }
-}
+mod tests;

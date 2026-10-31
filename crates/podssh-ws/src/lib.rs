@@ -28,6 +28,7 @@ pub mod names;
 pub mod plain;
 pub mod proxy;
 mod proxy_auth;
+mod race;
 pub mod resolve;
 pub mod session;
 mod socks5;

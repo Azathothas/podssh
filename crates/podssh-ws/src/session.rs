@@ -56,6 +56,9 @@ pub struct RelaySession<S = RelayStream> {
     /// The cap on a received frame: the forward cap, or the relay's own,
     /// wider one (T-342, [`frame::receive_cap`]).
     receive_cap: AtomicUsize,
+    /// The address of the TCP connection that carries the session, when the
+    /// stream knows it: the relay's, or the proxy's (T-344).
+    peer: Option<std::net::SocketAddr>,
 }
 
 /// The Pongs that [`RelaySession::take_pongs`] keeps for the one who reads.
@@ -100,7 +103,15 @@ impl<S: AsyncRead + AsyncWrite> RelaySession<S> {
             max_message: None,
             pings: true,
             receive_cap: AtomicUsize::new(frame::FORWARD_MAX_FRAME),
+            peer: None,
         }
+    }
+
+    /// The address of the TCP connection that carries the session: the
+    /// relay's when no proxy carried it, which the cache of addresses keeps
+    /// once the upgrade passed (T-344); none for a stream of another kind.
+    pub fn peer(&self) -> Option<std::net::SocketAddr> {
+        self.peer
     }
 
     /// Send no binary message over `max` bytes: a larger payload goes as
@@ -340,6 +351,17 @@ impl<S: AsyncRead + AsyncWrite> RelaySession<S> {
                 ))
             },
         )?
+    }
+}
+
+impl RelaySession<RelayStream> {
+    /// A session over the relay's TLS stream, as [`crate::connect`] opens it,
+    /// which keeps the address of its TCP connection ([`RelaySession::peer`]).
+    pub fn over_tls(stream: RelayStream, pending: Vec<u8>, idle: Option<Duration>) -> Self {
+        let peer = stream.get_ref().0.peer_addr().ok();
+        let mut session = Self::new(stream, pending, idle, crate::client::WRITE_TIMEOUT);
+        session.peer = peer;
+        session
     }
 }
 

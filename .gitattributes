@@ -65,6 +65,9 @@ crates/podssh-ws/tests/fixtures/rsa/*.der binary
 crates/podssh-ws/tests/fixtures/rsa/*.sig binary
 crates/podssh-ws/tests/fixtures/rsa/msg -text
 
+# Answers of DNS over HTTPS as three resolvers sent them (T-344): bytes.
+crates/podssh-ws/tests/fixtures/doh/*.bin binary
+
 # Test data of signatures and certificates (T-020, T-021): the bytes that
 # were signed stay as they are. With text=auto, a checkout with CRLF made the
 # signed file another one, and the check of OpenSSH's signature failed in CI

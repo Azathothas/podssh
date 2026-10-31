@@ -54,8 +54,20 @@ the user gives. For each host, `podssh-ws` connects:
    with its subdomains, `*`, or a block `ADDR/BITS` for each address inside
    it, never a name (T-316), as curl, Go and Python's requests read it.
 2. Else directly. The address comes from, in order: an IP literal, a pinned
-   address (`--relay-addr`), the system resolver, DNS over HTTPS by IP
-   literal.
+   address (`--relay-addr`), the system resolver, an address that carried a
+   session to the name in the last 7 days (`relay-addresses.json` in the
+   cache, T-344), DNS over HTTPS by IP literal, and last an older address
+   that carried one. DNS over HTTPS asks Cloudflare's and Google's
+   resolvers by their JSON API, and by RFC 8484's wire form where the JSON
+   answer does not read, then Quad9's, which serve the wire form alone; the
+   wire form is podssh's own codec of A, AAAA and SRV
+   (`crates/podssh-ws/src/resolve/wire.rs`), which a fuzz target reaches.
+   The addresses of the cache, or of DNS over HTTPS with an old address
+   after them, that do not connect within 4 s hand over to the next source;
+   an address of the cache at which a host fails as no relay would (TLS
+   refuses the name, the upgrade breaks, another server answers) is
+   forgotten. `podssh doctor` names the source of each address that it
+   reached.
 3. TLS with a verified certificate for the relay's name, then the
    WebSocket upgrade. One ClientHello offers TLS 1.3 first, and TLS 1.2
    with ECDHE and AES-GCM or ChaCha20-Poly1305, for a proxy that intercepts
@@ -195,7 +207,9 @@ session whose output nobody reads.
 | The body of an HTTPS answer | The caller's: 64 KiB for a mint, 256 KiB for the pool, 4096 bytes of a refused upgrade | `crates/podssh-ws/src/http.rs`, and each caller | "the response body is larger than allowed": from the length before the body, from the chunks, or from the bytes before the close. A refused upgrade is then named by its status line alone |
 | The head of a proxy's answer to CONNECT | 16 KiB | `MAX_PROXY_RESPONSE`, `crates/podssh-ws/src/dial.rs` | "the proxy PROXY did not answer as its protocol says: no end of headers within 16384 bytes", and the next relay host |
 | The pool, `/relays.json` | 256 KiB | `MAX_BODY`, `crates/podssh-relay/src/pool.rs` | The refresh after a mint fails with no word: the cached pool, or the default relay's seed, stays |
-| A file of the cache: a token, the pool | 64 KiB | `MAX_FILE`, `crates/podssh-relay/src/cache.rs` | Not read, as a file that the cache makes again: the token is minted again, and the pool is fetched at the next mint |
+| A file of the cache: a token, the pool, the addresses | 64 KiB | `MAX_FILE`, `crates/podssh-relay/src/cache.rs` | Not read, as a file that the cache makes again: the token is minted again, the pool is fetched at the next mint, and the next session's address is kept |
+| The addresses kept for each relay host; the hosts | 4; 32 | `PER_HOST`, `HOSTS`, `crates/podssh-relay/src/addresses.rs` | The host's oldest address goes; the host that carried no session for the longest goes |
+| An answer of DNS over HTTPS | 64 KiB | `MAX_ANSWER`, `crates/podssh-ws/src/resolve.rs` | "the response body is larger than allowed", and the next resolver |
 | A `known_hosts` file | 16 MiB | `MAX_FILE`, `crates/podssh-ssh/src/known_hosts.rs` | "FILE cannot be read (it is larger than 16 MiB, which no known_hosts file is)": no key of it is trusted, and a user file past it records no new key, so `accept-new` refuses an unknown one (exit 255) |
 | An `ssh_config` file | 4 MiB | `MAX_FILE`, `crates/podssh-cli/src/ssh/config.rs` | "FILE is larger than 4 MiB, which no ssh_config is", exit 78 |
 | The SSH window of a channel | 512 KiB | `WINDOW`, `crates/podssh-ssh/src/run.rs` | The server waits until podssh reads: a session whose output nobody read for 30 s, while the server wrote 50 MB, peaked at 7460 KiB, and one whose reader took each byte at 6884 KiB (`scripts/interop-limits.sh`) |
@@ -217,6 +231,8 @@ session whose output nobody reads.
 | --- | --- | --- | --- |
 | Each step of reaching a relay host: the proxy and TCP, TLS, the upgrade, a mint | 20 s | `CONNECT_TIMEOUT`, `crates/podssh-relay/src/open.rs` | The next relay host |
 | One relay host, its mint included | 45 s | `HOST_DEADLINE`, `crates/podssh-relay/src/open.rs` | "the relay host did not answer within 45 s", and the next relay host |
+| The connection to one resolver of DNS over HTTPS; its answers | 3 s; 5 s | `DOH_CONNECT`, `DOH_EACH`, `crates/podssh-ws/src/resolve.rs` | "no connection within 3 s" or "timed out", and the next resolver |
+| The addresses of a source with another after it: the cache's, or those of DNS over HTTPS before an old address | 4 s | `SOURCE_WAIT`, `crates/podssh-ws/src/resolve/order.rs` | "no address of this source answered within 4 s", and the next source; DNS over HTTPS ends 4 s before the step's limit, for the old address |
 | The SSH handshake | `ConnectTimeout`, 60 s when none is set | `crates/podssh-ssh/src/run.rs` | "HOST: the SSH handshake did not finish within N s", exit 255 |
 | Nothing from the relay | 90 s | `DEFAULT_IDLE_TIMEOUT`, `crates/podssh-ws/src/client.rs` | "no data from the relay for 90s": the session ends |
 | The relay's answer to a ping | A ping each 10 s; 3 intervals with nothing | `LIVENESS_EVERY`, `LIVENESS_ALLOWED`, `crates/podssh-ws/src/client.rs` | The link is dead ("pings unanswered"): a session of the forward road ends (255), and the resumable layer moves its session to a new link |

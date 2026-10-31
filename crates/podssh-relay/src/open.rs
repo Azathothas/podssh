@@ -122,6 +122,18 @@ impl OpenError {
 /// defined once in `podssh-ws`.
 pub use podssh_ws::client::is_policy_refusal;
 
+/// Whether `e` came once a connection to the host had opened, and is no
+/// answer of the relay's own (a rate, a relay that issues no token): then
+/// the server at that address may be another's.
+fn after_connection(e: &OpenError) -> bool {
+    let opened = |c: &ConnectError| !matches!(c, ConnectError::Dial(_) | ConnectError::Config(_));
+    match e {
+        OpenError::Connect { error, .. } | OpenError::Token(TokenError::Connect(error)) => opened(error),
+        OpenError::Token(TokenError::Failed { .. }) => true,
+        _ => false,
+    }
+}
+
 /// A `502` whose reason is the target's name or address, which no other host
 /// will resolve differently.
 fn target_name_fails(body: &str) -> bool {
@@ -190,6 +202,8 @@ pub async fn open(req: &Request<'_>, notes: &mut dyn FnMut(&str)) -> Result<Open
     if offline() {
         return Err(Failure { attempts: vec![(req.relays.primary().host.clone(), OpenError::Offline)] });
     }
+    // The addresses that carried a session, for a resolver that fails (T-344).
+    crate::addresses::install();
     // A host that failed lately goes last (T-059).
     let mut records = Records::load();
     let (order, moved) = failures::order(&req.relays.hosts, &records, crate::pool::now_ms());
@@ -235,8 +249,18 @@ pub async fn open(req: &Request<'_>, notes: &mut dyn FnMut(&str)) -> Result<Open
         if records.update(&failed, opened, crate::pool::now_ms()) {
             records.store();
         }
+        // A host that failed after its connection opened, as the relay itself
+        // would not (TLS, the upgrade, another's refusal): an address of the
+        // cache that it was reached at is not the relay's (T-344).
+        for (i, e) in &raced.failed {
+            if failures::reason(e).is_some() && after_connection(e) {
+                crate::addresses::failed(&hosts[*i].host);
+            }
+        }
         attempts.extend(raced.failed.into_iter().map(|(i, e)| (hosts[i].host.clone(), e)));
         if let Some((i, session)) = raced.kept {
+            // The address that carried it, for a run whose resolver fails.
+            crate::addresses::carried(&hosts[i].host, session.peer());
             // The relay's own limits, as its pool's cache keeps them: the
             // run's budgets go under them, and the session takes in frames
             // up to its cap (T-342).
@@ -403,6 +427,24 @@ mod tests {
         };
         assert!(proxy_504.another_host_may_help());
         assert!(proxy_504.lines("h:22").iter().any(|l| l.contains("another relay host")));
+    }
+
+    /// A host that failed once its connection opened, as no relay would, is
+    /// told from one whose connection never opened, and from the relay's own
+    /// refusals, which keep the address of the cache (T-344).
+    #[test]
+    fn a_failure_after_the_connection_is_told_from_the_others() {
+        let connect = |error| OpenError::Connect { error, origin: Origin::Minted };
+        assert!(after_connection(&connect(ConnectError::Tls("NotValidForName".into()))));
+        assert!(after_connection(&refused(530, "error code: 1034")));
+        assert!(after_connection(&OpenError::Token(TokenError::Failed { status: 409, detail: String::new() })));
+        let unreachable = DialError::Connect { target: "relay:443".into(), detail: "refused".into() };
+        assert!(!after_connection(&connect(ConnectError::Dial(unreachable.clone()))));
+        assert!(!after_connection(&OpenError::Token(TokenError::Connect(ConnectError::Dial(unreachable)))));
+        assert!(!after_connection(&OpenError::Token(TokenError::RateLimited { retry_after: None })));
+        assert!(!after_connection(&OpenError::Deadline));
+        assert!(failures::reason(&refused(403, "not in the ALLOW list")).is_none());
+        assert!(failures::reason(&refused(502, "connect failed")).is_none());
     }
 
     #[test]

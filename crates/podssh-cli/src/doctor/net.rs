@@ -1,5 +1,5 @@
-//! Egress: the proxy the environment names and what it lets through, name
-//! resolution, and podssh's TLS setup.
+//! Egress: the proxy the environment names and what it lets through, and
+//! podssh's TLS setup; name resolution is `names.rs`'s.
 
 use std::time::{Duration, Instant};
 
@@ -12,8 +12,8 @@ use podssh_ws::{Trust, Verdict};
 use super::samples::{sample, Tried};
 use super::Report;
 
-/// The bound on each network probe here.
-const PROBE: Duration = Duration::from_secs(8);
+/// The bound on each network probe here and in `names.rs`.
+pub(super) const PROBE: Duration = Duration::from_secs(8);
 
 /// A host every proxy and resolver can be asked about. Its port 22 tells an
 /// egress that lets SSH out from one that allows only HTTPS.
@@ -23,7 +23,7 @@ fn var(name: &str) -> Option<String> {
     std::env::var(name).ok().filter(|v| !v.trim().is_empty())
 }
 
-fn ms(since: Instant) -> u128 {
+pub(super) fn ms(since: Instant) -> u128 {
     since.elapsed().as_millis()
 }
 
@@ -163,11 +163,11 @@ pub(super) async fn check_network(report: &mut Report<'_>, relays: &RelayList) {
     match dial::proxy_from_env(&primary.host) {
         Ok(Some(proxy)) => {
             through_proxy(report, &proxy, &primary.host, primary.port).await;
-            names_with_proxy(report, &primary.host).await;
+            super::names::with_proxy(report, &primary.host).await;
         }
         Ok(None) => {
             direct(report).await;
-            names_direct(report, &primary.host).await;
+            super::names::direct(report, &primary.host).await;
         }
         Err(_) => report.unknown("egress", "not probed: the proxy setting cannot be used"),
     }
@@ -270,113 +270,6 @@ async fn direct(report: &mut Report<'_>) {
     report.sampled("direct TCP", Verdict::Ok { detail }, &samples);
 }
 
-/// With a proxy podssh never resolves the relay's name; the system resolver
-/// is still asked, so the report says what this host can do on its own.
-async fn names_with_proxy(report: &mut Report<'_>, host: &str) {
-    let fact = match system_lookup(host).await {
-        Ok(ips) => format!("{host} is {ips} here (system resolver)"),
-        Err(e) => format!("{host} does not resolve here ({e})"),
-    };
-    report.ok("DNS", format!("{fact}; not needed: the proxy is given names and resolves them"));
-}
-
-/// Without a proxy: pinned addresses, the system resolver, then DNS over
-/// HTTPS, the order the dialer uses them in.
-async fn names_direct(report: &mut Report<'_>, host: &str) {
-    let pinned = podssh_ws::resolve::pinned(host);
-    if !pinned.is_empty() {
-        let ips: Vec<String> = pinned.iter().map(|ip| ip.to_string()).collect();
-        report.ok(
-            "pinned",
-            format!(
-                "{host} is pinned to {} (--relay-addr or PODSSH_RELAY_ADDR); used before any resolver",
-                ips.join(", ")
-            ),
-        );
-    }
-    let system = system_lookup(host).await;
-    match &system {
-        Ok(ips) => report.ok("DNS", format!("{host} is {ips} (system resolver)")),
-        Err(e) => {
-            report.ok("DNS", format!("the system resolver fails for {host} ({e}); podssh falls back to DNS over HTTPS"))
-        }
-    }
-    doh(report, host, system.is_ok() || !pinned.is_empty()).await;
-}
-
-/// The first DNS-over-HTTPS resolver that answers. Missing it is a failure
-/// only when nothing else can resolve the relay's name.
-async fn doh(report: &mut Report<'_>, host: &str, another_way: bool) {
-    let mut failures = Vec::new();
-    for &(ip, path) in podssh_ws::resolve::DOH_RESOLVERS {
-        let started = Instant::now();
-        let deadline = tokio::time::Instant::now() + PROBE;
-        match podssh_ws::resolve::doh_lookup_with(&[(ip, path)], host, deadline).await {
-            Ok(ips) => {
-                let ips: Vec<String> = ips.iter().map(|ip| ip.to_string()).collect();
-                let before =
-                    if failures.is_empty() { String::new() } else { format!("; before it: {}", failures.join("; ")) };
-                report.ok(
-                    "DNS over HTTPS",
-                    format!("{ip} answered: {host} is {}, {} ms{before}", shorten(&ips), ms(started)),
-                );
-                return;
-            }
-            // An answer, not a failure: the name does not exist anywhere.
-            Err(e) if e.ends_with(podssh_ws::resolve::NXDOMAIN) => {
-                let detail = format!("{ip} answered that {host} does not exist (NXDOMAIN)");
-                if another_way {
-                    report.ok("DNS over HTTPS", detail);
-                } else {
-                    report.fail(
-                        "DNS over HTTPS",
-                        format!("{detail}: check the relay's name, or pin its address with --relay-addr HOST=IP"),
-                    );
-                }
-                return;
-            }
-            Err(e) => failures.push(e),
-        }
-    }
-    let detail = format!("no resolver answered ({})", failures.join("; "));
-    if another_way {
-        report.ok("DNS over HTTPS", format!("{detail}; only a fallback is missing"));
-    } else {
-        report.fail(
-            "DNS over HTTPS",
-            format!("{detail}, and the system resolver fails too: pin the relay's address with --relay-addr HOST=IP"),
-        );
-    }
-}
-
-async fn system_lookup(host: &str) -> Result<String, String> {
-    match tokio::time::timeout(PROBE, tokio::net::lookup_host((host, 443))).await {
-        Ok(Ok(addrs)) => {
-            let mut ips: Vec<String> = Vec::new();
-            for ip in addrs.map(|a| a.ip().to_string()) {
-                if !ips.contains(&ip) {
-                    ips.push(ip);
-                }
-            }
-            if ips.is_empty() {
-                Err("no addresses".into())
-            } else {
-                Ok(shorten(&ips))
-            }
-        }
-        Ok(Err(e)) => Err(e.to_string()),
-        Err(_) => Err(format!("no answer within {} s", PROBE.as_secs())),
-    }
-}
-
-/// At most three addresses, then how many more.
-fn shorten(ips: &[String]) -> String {
-    match ips.len() {
-        0..=3 => ips.join(", "),
-        n => format!("{} and {} more", ips[..3].join(", "), n - 3),
-    }
-}
-
 #[cfg(test)]
 mod tests {
     use super::*;
@@ -410,13 +303,6 @@ mod tests {
         assert!(old.contains("--ca-file or SSL_CERT_FILE"), "{old}");
         let early = run(start - 86_400);
         assert!(early.contains("????") && early.contains("clock is before"), "{early}");
-    }
-
-    #[test]
-    fn long_address_lists_are_cut_to_three() {
-        let ips: Vec<String> = (1..=5).map(|i| format!("192.0.2.{i}")).collect();
-        assert_eq!(shorten(&ips), "192.0.2.1, 192.0.2.2, 192.0.2.3 and 2 more");
-        assert_eq!(shorten(&ips[..2]), "192.0.2.1, 192.0.2.2");
     }
 }
 

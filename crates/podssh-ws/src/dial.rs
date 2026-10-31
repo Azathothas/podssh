@@ -8,7 +8,6 @@
 //! the proxy accepts `CONNECT name:443` and resolves the name itself. So the
 //! proxy path sends the relay's *name*, never an address, and needs no DNS.
 
-use std::net::SocketAddr;
 use std::time::Duration;
 
 use base64::Engine as _;
@@ -18,6 +17,9 @@ use tokio::time::Instant;
 
 pub use crate::mptcp::Multipath;
 pub use crate::proxy::{HttpProxy, Proxy, ProxyKind};
+// The direct connection, a source of the resolver after another (T-344).
+pub(crate) use crate::race::connect_direct;
+pub use crate::race::interleave;
 
 /// The longest CONNECT response head podssh reads before giving up.
 const MAX_PROXY_RESPONSE: usize = 16 * 1024;
@@ -230,7 +232,7 @@ async fn dial_as(
     // Through a proxy, MPTCP could reach the proxy only, never the target.
     let proxied = || Multipath::Plain("a proxy carries the connection, and Multipath TCP would reach it only".into());
     let (stream, how) = match proxy {
-        None => connect_race(host, port, deadline, timeout, multipath.then(crate::mptcp::probe)).await?,
+        None => crate::race::connect_race(host, port, deadline, timeout, multipath.then(crate::mptcp::probe)).await?,
         Some(p) if p.kind == ProxyKind::Socks5 => {
             (crate::socks5::connect(&p, host, port, deadline, timeout).await?, proxied())
         }
@@ -239,99 +241,6 @@ async fn dial_as(
     // A keystroke and an echo must not wait for Nagle.
     let _ = stream.set_nodelay(true);
     Ok((stream, how))
-}
-
-/// Resolve and connect: the addresses in the order of [`interleave`], each
-/// started [`ATTEMPT_DELAY`] after the one before, or at once when the one
-/// before failed; the first that connects wins, and the others stop.
-pub(crate) async fn connect_direct(
-    host: &str,
-    port: u16,
-    deadline: Instant,
-    budget: Duration,
-) -> Result<TcpStream, DialError> {
-    connect_race(host, port, deadline, budget, None).await.map(|(stream, _)| stream)
-}
-
-/// One attempt of the race: plain TCP, or with `ask`, the probe's answer,
-/// Multipath TCP where the host offers it.
-async fn attempt(addr: SocketAddr, ask: Option<Result<(), String>>) -> std::io::Result<(TcpStream, Multipath)> {
-    match ask {
-        Some(offer) => crate::mptcp::connect(addr, offer).await,
-        None => Ok((TcpStream::connect(addr).await?, Multipath::Plain("Multipath TCP was not asked for".into()))),
-    }
-}
-
-/// [`connect_direct`], each attempt as `ask` says.
-async fn connect_race(
-    host: &str,
-    port: u16,
-    deadline: Instant,
-    budget: Duration,
-    ask: Option<Result<(), String>>,
-) -> Result<(TcpStream, Multipath), DialError> {
-    let target = authority(host, port);
-    // Pinned addresses, the system resolver, then DNS over HTTPS: a host with
-    // a broken resolver but working TCP egress still gets there.
-    let addrs = crate::resolve::resolve(host, port, deadline)
-        .await
-        .map_err(|detail| DialError::Resolve { host: host.to_string(), detail })?;
-    if Instant::now() >= deadline {
-        return Err(DialError::Timeout { step: format!("resolving {host}"), after: budget });
-    }
-    let mut waiting = interleave(addrs).into_iter();
-    // Dropped at the return: each attempt that still runs stops.
-    let mut running = tokio::task::JoinSet::new();
-    let mut next_at = Instant::now();
-    let mut last = String::new();
-    loop {
-        if running.is_empty() || Instant::now() >= next_at {
-            if let Some(addr) = waiting.next() {
-                let ask = ask.clone();
-                running.spawn(async move { (addr, attempt(addr, ask).await) });
-                next_at = Instant::now() + ATTEMPT_DELAY;
-                continue;
-            }
-            if running.is_empty() {
-                return Err(DialError::Connect { target, detail: last });
-            }
-        }
-        let wake = if waiting.len() > 0 { next_at.min(deadline) } else { deadline };
-        tokio::select! {
-            joined = running.join_next() => match joined {
-                Some(Ok((_, Ok(stream)))) => return Ok(stream),
-                Some(Ok((addr, Err(e)))) => {
-                    last = format!("{addr}: {e}");
-                    next_at = Instant::now();
-                }
-                // An attempt that panicked counts as one that failed.
-                Some(Err(e)) => last = e.to_string(),
-                None => {}
-            },
-            _ = tokio::time::sleep_until(wake) => {
-                if Instant::now() >= deadline {
-                    return Err(DialError::Timeout { step: format!("connecting to {target}"), after: budget });
-                }
-            }
-        }
-    }
-}
-
-/// The addresses with the families taking turns, the first family first
-/// (RFC 8305, section 4): a family that does not work costs one attempt
-/// delay, not each of its addresses in a row.
-pub fn interleave(addrs: Vec<std::net::SocketAddr>) -> Vec<std::net::SocketAddr> {
-    let Some(first) = addrs.first().map(|a| a.is_ipv6()) else { return addrs };
-    let (mut lead, mut other): (Vec<_>, Vec<_>) = addrs.into_iter().partition(|a| a.is_ipv6() == first);
-    let mut out = Vec::with_capacity(lead.len() + other.len());
-    lead.reverse();
-    other.reverse();
-    loop {
-        match (lead.pop(), other.pop()) {
-            (None, None) => return out,
-            (a, b) => out.extend(a.into_iter().chain(b)),
-        }
-    }
 }
 
 /// Connect to the proxy and ask it for a tunnel to `host:port`.

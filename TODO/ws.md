@@ -1797,6 +1797,63 @@ of that form, leaves `--relay-addr` alone. podssh keeps no address that carried 
 A codec by hand won: three record types and a fuzz target. `hickory-proto` lost: a large crate
 for so little, and a parser of untrusted bytes that podssh does not fuzz. Both are pure Rust.
 
+Decided in the work (2026-10-31):
+
+- **Where the cache stands in the order.** Its addresses are asked only once the system resolver
+  failed, so a host whose resolver works never meets them: those younger than 7 days
+  (`podssh_ws::resolve::FRESH`) before DNS over HTTPS, an older one after it, last. A week: the
+  relay's names keep their addresses for months (the address that `docs/STATUS.md` measured for
+  `--relay-addr` is one that each operator gave on 2026-10-31), and a host that runs podssh once
+  a week finds its own still fresh. Lost: the record's TTL (300 s), which would leave nearly each
+  run's address old, behind DNS over HTTPS; no window, which would keep a stale address before
+  DNS over HTTPS for good.
+- **A dial hands over to the next source.** `resolve` gave the addresses of one source; now the
+  dialer (`crates/podssh-ws/src/race.rs`) asks the sources after the cache when none of its
+  addresses connects within 4 s (`SOURCE_WAIT`), and DNS over HTTPS ends 4 s before the dial's
+  limit when an old address waits. The system resolver's answer, a pin and an IP literal hand
+  over to nothing, as before. Lost: the cache's addresses alone, which would put a stale address
+  in the place of DNS over HTTPS for a week; a race of the sources, which would open more than
+  one connection at once (`AGENTS.md`, rule 2 of section 5).
+- **What is kept, and what goes.** The address of a session's `101`, when the dialer reached it
+  straight (through a proxy it is the proxy's), for a name that no pin holds, and not this
+  host's own; 4 addresses a host and 32 hosts, a time written again after an hour at most. An
+  address goes when a host failed at it after its connection opened, as no relay would: TLS
+  refused the name, the upgrade broke, or another server answered, as Cloudflare's edge does
+  with a valid certificate at an address of another of its sites (`docs/STATUS.md`, the row of
+  a wrong `--relay-addr`); the relay's own refusals (a token, the policy, a target that it
+  cannot reach) keep it. Lost: forgetting at a TLS failure alone, which would keep such an
+  address of Cloudflare's for a week; forgetting at a failure of TCP, which would empty the
+  cache in the hour that a network is down, the hour when it is needed next.
+- **The JSON form first, the wire form for a miss of its form.** An answer that is not of the
+  form asked (a status of 4xx but 429, a body that does not read) goes to the wire form at the
+  same address, which then answers the next record type too; a failure of the way (TCP, TLS, no
+  answer in time, 429, 5xx) goes to the next resolver, and a status of the resolver's own
+  (NXDOMAIN, SERVFAIL) is its answer. Lost: the wire form after each failure, which would double
+  the cost of each address that a firewall drops.
+- **Quad9 third, its two addresses, in the wire form alone.** Read on 2026-10-31 through
+  fetch.web.pkgforge.dev: `https://dns.quad9.net/dns-query` answered RFC 8484's GET in the wire
+  form (`crates/podssh-ws/tests/fixtures/doh/README.md`), and the JSON API's query with
+  `400 DoH unable to decode BASE64-URL`; the certificate that `dns.quad9.net` presented (serial
+  `0cc33029e45df0257de872a8fccf1731`, read from crt.sh) names 9.9.9.9 and 149.112.112.112 among
+  its IP addresses. Its filter of malware's names takes no relay's name.
+- **A resolver's connection has 3 s** (`DOH_CONNECT`) of its 5 s: a firewall that drops the four
+  addresses of Cloudflare and Google costs 12 s, not 20 s, so Quad9 is asked within a step's
+  20 s. Lost: 5 s as before, which would leave Quad9 unasked behind four dropped addresses.
+- **The wire form checks the question** of its answer, name and type, case aside: an answer for
+  another question is refused. A label holds printable ASCII and no dot, and a pointer goes back
+  before its run of labels, so that each walk ends. The JSON form is read as before.
+- **The dialer keeps the source of each connection** (`podssh_ws::resolve::dialed`, the last
+  32), which `health` reads for doctor's relay lines and the opener for the address to forget.
+  Lost: the source in the stream's type, which would change `open_tls` and each of its callers.
+- **The system resolver has no bound of its own**, as before: a bound would change which answer
+  wins where the resolver is slow; a fresh address of the cache needs no network, so it is
+  asked within a step once glibc's resolver gives up (Inferred: 5 s, twice, by default).
+- **Files under 500 lines**: the race of addresses moved from `dial.rs` to
+  `crates/podssh-ws/src/race.rs`, doctor's DNS checks from `net.rs` to
+  `crates/podssh-cli/src/doctor/names.rs`, and the tests of `resolve.rs` to
+  `crates/podssh-ws/src/resolve/tests.rs`; `podssh_ws::dial::interleave` and `connect_direct` stay
+  where their callers find them.
+
 ## Prove
 
 ```sh
@@ -1809,6 +1866,57 @@ A wire answer captured from each operator (bytes that podssh did not write) deco
 addresses; a cached address is tried when the system's resolver and DNS over HTTPS fail; a wrong
 cached address fails TLS on the name. Planted: the cache asked before the system's resolver; the
 test of the order fails.
+
+## Correction
+
+- Premise, the second item: since T-339, `doh_srv` asks the same resolvers for SRV records
+  through the proxy when one is set (`crates/podssh-ws/src/resolve.rs`, lines 224-253 at
+  `5877a00`): only the lookup of addresses dials port 443 directly. Both take the wire form now.
+- Premise, the Inferred item: Read, RFC 8484 (through fetch.web.pkgforge.dev): a GET with `dns=`
+  in base64url with no padding, `application/dns-message`, and the ID 0 that a cache wants
+  (sections 4.1 and 6). Approach item 2's Inferred is measured (Decision).
+- Prove: at the dialer, the test of a cached address after the system resolver and DNS over
+  HTTPS fail takes a name that no resolver can be asked for (with a `+`), so that it needs no
+  network; DNS over HTTPS's own failure is the unit test's, with a stand-in for its answer.
+
+## Done
+
+2026-10-31, a draft: each result that says UNVERIFIED is the merge's to measure.
+
+- `podssh_ws::resolve` asks, in order, an IP literal, the pins, the system resolver, the fresh
+  addresses that carried a session, DNS over HTTPS, then the old ones
+  (`crates/podssh-ws/src/resolve/order.rs`); `resolve_from` resumes after a source, and `Found`
+  names the source and whether another follows. The dialer races each source's addresses, hands
+  over after 4 s when another follows, and keeps the source of each connection
+  (`crates/podssh-ws/src/race.rs`, `crates/podssh-ws/src/resolve/memory.rs`). The wire form is
+  `crates/podssh-ws/src/resolve/wire.rs`: the query, its base64url, and the decoder of A, AAAA
+  and SRV. `DOH_RESOLVERS` gives each resolver's forms, Quad9's two after the four; `doh_ask`
+  names the form that answered, and `doh_srv` takes the wire form too.
+- `podssh_relay::addresses` keeps `relay-addresses.json` in the cache
+  (`crates/podssh-relay/src/addresses.rs`): the opener keeps the address of each session's
+  `101`, and forgets one of the cache at which a host failed as no relay would; `pins::apply`
+  and the opener give the record to the dialer.
+- doctor: a line `cached` with each address, its age and its turn; the line of DNS over HTTPS
+  names the form that answered; each relay line names the source of its address, as
+  `TCP ADDRESS (SOURCE)` (`crates/podssh-relay/src/health.rs`).
+- The manual (THE RELAY's DNS, the cache of FILES, doctor's note), `docs/architecture.md` (the
+  way to the relay, three limits), `docs/design.md`, `docs/development.md` (the seeds), and
+  `docs/STATUS.md`.
+- Bytes that podssh did not write: 15 answers of Cloudflare, Google and Quad9
+  (`crates/podssh-ws/tests/fixtures/doh/`), and RFC 8484's own queries and answer in the unit
+  tests. The fuzz target `dns_wire`, seeded by the 15 answers (`scripts/fuzz-seeds.py`).
+- UNVERIFIED: `cargo test -p podssh-ws --lib resolve` (the order with stand-ins, the codec against
+  RFC 8484's examples, the forms and their misses, the memory); `cargo test -p podssh-ws --test
+  doh_wire` (the 15 answers; each cut refused, no changed byte a panic; the system resolver before
+  the cache; a fresh address that does not connect hands over to the old one; a wrong address of
+  the cache refused by TLS on the name). Planted, `Source::Cache` before `Source::System` in
+  `ORDER`: the two tests of the order fail, UNVERIFIED.
+- UNVERIFIED: `cargo test -p podssh-relay --lib addresses` and `--lib open`; `cargo test -p
+  podssh-relay --features quick --test quick_tunnel`; `cargo test -p podssh-cli --lib doctor` and
+  `--test doctor`; each test of podssh-ws; clippy `-D warnings` and rustfmt.
+- UNVERIFIED, live (less than 5 minutes): `cargo test -p podssh-ws --test live_doh -- --ignored`,
+  each of the six resolvers through verified TLS by its address, and each in the wire form.
+- Waits for T-251: `dns_wire` for 120 s in `fuzz.yml` (UNVERIFIED).
 
 # T-345: Only `doctor` names the clock when a certificate has expired or is not valid yet
 

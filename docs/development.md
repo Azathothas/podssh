@@ -532,8 +532,9 @@ gh workflow run fuzz.yml -f seconds=300                       # in CI
 4. A crash becomes a unit test first, then a repair. The test names the
    target that found it.
 5. `scripts/fuzz-seeds.py` seeds the targets with bytes that podssh did not
-   make: the frames of RFC 6455, the IRC grammar fixture, and the hosts of
-   the relay's document.
+   make: the frames of RFC 6455, the IRC grammar fixture, the hosts of the
+   relay's document, and the answers of DNS over HTTPS that Cloudflare,
+   Google and Quad9 sent in RFC 8484's wire form, for `dns_wire` (T-344).
 6. A private parser is reached through a function under `cfg(fuzzing)`,
    which cargo-fuzz sets: `podssh_ws::fuzz_exchange` and
    `podssh_ssh::known_hosts::fuzz_parse_line`. Their crates declare the cfg
