@@ -1577,3 +1577,198 @@ test fails.
 
 The relay's operator: an endpoint that takes the upgrade in cleartext on
 port 443 (Cloudflare's edge serves TLS there).
+
+# T-340: On Windows and macOS podssh reads no store of the system, and `UnknownIssuer` comes with no hint
+
+**Source:** the audit of hardcoded assumptions of 2026-10-31, finding 5.
+**Category:** defect
+**Milestone:** backlog
+**Priority:** P2
+**Effort:** M
+**Status:** open
+
+## Problem
+
+podssh trusts its compiled-in roots, a `podssh-ca.pem` next to the binary and the first bundle at
+a Unix path. A proxy that re-terminates TLS with a root that an administrator put in the system's
+store (by GPO or MDM) makes each relay connection fail with rustls's `UnknownIssuer`, and no
+command says what to do. Four of the eight release binaries are for Windows and macOS.
+
+## Premise
+
+- Read: the system's bundles are Unix paths (`crates/podssh-ws/src/tls.rs:97-106`), and the
+  default roots are the compiled-in Mozilla roots, `podssh-ca.pem` next to the binary and the
+  first bundle that reads (`:154-174`). An explicit file (`--ca-file`, `SSL_CERT_FILE`) is used
+  alone and never widened (`:35-39`).
+- Read: a failed handshake gives rustls's text: `crates/podssh-ws/src/client.rs:133` says "TLS
+  with the relay failed: {why}", and `:202-203` keeps rustls's words. doctor adds a hint for the
+  clock's errors only (`crates/podssh-cli/src/doctor/relay_checks.rs:96-105`), and its test
+  asserts none for `UnknownIssuer` (`:344`).
+- Read: the release builds two binaries for macOS and two for Windows
+  (`.github/workflows/release.yml:274-285`, `:317-333`).
+- Read: `windows-sys` 0.61 is already a dependency of `podssh-relay` on Windows
+  (`crates/podssh-relay/Cargo.toml:61-62`), a crate with no C; `rustls-native-certs` 0.8.4,
+  `schannel` and `security-framework` are in the lock through other crates
+  (`Cargo.lock:4895-4896`).
+- Read: one proxy that re-terminates TLS was measured, with its CA in `SSL_CERT_FILE` and in the
+  system's store of Linux (`docs/target-environment.md:57-63`).
+- Inferred: on macOS, `/etc/ssl/cert.pem` lacks a root that an administrator added to a keychain;
+  on Windows, no path of the list exists. No Windows or macOS host behind such a proxy was
+  measured.
+
+## Approach
+
+1. One hint, in podssh-ws, for a handshake that failed with `UnknownIssuer` (rustls's
+   `CertificateError::UnknownIssuer`, and its text as the fallback): the issuer is not trusted
+   here; a proxy that re-signs TLS needs its CA, in `--ca-file FILE` or `SSL_CERT_FILE` (which
+   replace the store) or in `podssh-ca.pem` next to the binary (which adds to it). Each command
+   gets it with the error's text (`crates/podssh-ws/src/client.rs:203`,
+   `crates/podssh-ws/src/tls.rs:149`), and doctor too. T-345 adds the clock's errors to the same
+   function.
+2. Windows: the stores `ROOT` and `CA` of the current user and of the machine, read through
+   `windows-sys` (its feature `Win32_Security_Cryptography`: `CertOpenSystemStoreW`,
+   `CertEnumCertificatesInStore`), as a source of the default trust after `podssh-ca.pem`; an
+   explicit file stays alone. doctor names each store and its count. A store that does not open
+   is passed over with a note, never an error.
+3. macOS: on a macOS runner, add a root to the System keychain and compare `/etc/ssl/cert.pem`.
+   If the file lacks the root, read the keychains through the Security framework's Rust bindings
+   (`security-framework`) in the same way.
+4. The manual's section on TLS and `docs/architecture.md` give the sources in their order, for
+   each system.
+
+## Decision
+
+`windows-sys` won: the workspace builds it already, the call is two functions, and podssh keeps
+its own order of sources. `rustls-native-certs` lost: its sources and their order are its own on
+each system (Inferred), and on Linux it would read again what podssh reads.
+
+## Prove
+
+```sh
+export CARGO_BUILD_JOBS=4
+cargo test -p podssh-ws --lib tls
+cargo test -p podssh-cli --test proxy
+```
+
+A stand-in relay whose certificate no root of podssh signs: `podssh proxy` and `podssh ssh` end
+with the hint, which names `--ca-file`. In CI on `windows-2025`: a root added to the user's
+`ROOT` store lets a session through a stand-in that it signs, and doctor names the store.
+Planted: the match of `UnknownIssuer` removed; the test of the hint fails.
+
+# T-344: DNS over HTTPS: two operators, one encoding, and no memory of the addresses that worked
+
+**Source:** the audit of hardcoded assumptions of 2026-10-31, finding 9.
+**Category:** feature
+**Milestone:** backlog
+**Priority:** P3
+**Effort:** M
+**Status:** open
+
+## Problem
+
+On a host with no working resolver and no proxy, podssh asks DNS over HTTPS of two operators, at
+four known addresses, in their own JSON form. A firewall that blocks those addresses, or a change
+of that form, leaves `--relay-addr` alone. podssh keeps no address that carried a session.
+
+## Premise
+
+- Read: the resolution goes from an IP literal to the pins, the system's resolver, then DNS over
+  HTTPS (`crates/podssh-ws/src/resolve.rs:1-11`); with an HTTP proxy none of it runs for the
+  target, and TLS always checks the target's name (`:12-15`).
+- Read: the resolvers are Cloudflare's and Google's, by IP literal, each with its JSON path
+  (`crates/podssh-ws/src/resolve.rs:27-31`); each query dials port 443 directly (`:143-160`),
+  with `Accept: application/dns-json` (`:153`), for A and then AAAA (`:124`).
+- Read: the relay's pool is cached on disk at a mint (`crates/podssh-relay/src/pool.rs:118-137`);
+  nothing caches an address.
+- Inferred: RFC 8484 defines the wire form, `application/dns-message`, and no standard defines the
+  JSON form; firewalls that block the known addresses of public resolvers are common.
+
+## Approach
+
+1. A cache of addresses: when a session through the relay reached `101`, the address that carried
+   it, under its name, in the cache beside the pool, with the time. It is tried after the system's
+   resolver fails and before DNS over HTTPS; TLS still checks the name, so a wrong address fails
+   the handshake. An old address is still tried, last.
+2. A third operator by IP literal, after the four of today (Quad9 is a candidate; Inferred: it
+   serves RFC 8484 at `/dns-query`).
+3. RFC 8484's wire form beside the JSON form: a GET with `?dns=` and
+   `Accept: application/dns-message`, with a small encoder of the query and a decoder of A, AAAA
+   and SRV answers in podssh-ws, by hand, and a fuzz target (T-198). The JSON form stays first where an
+   operator serves it; the wire form is its fallback, and the only form for an operator with no
+   JSON. T-339 takes the SRV answer.
+4. doctor names the source of each address it used: a pin, the system, the cache, or DNS over
+   HTTPS.
+
+## Decision
+
+A codec by hand won: three record types and a fuzz target. `hickory-proto` lost: a large crate
+for so little, and a parser of untrusted bytes that podssh does not fuzz. Both are pure Rust.
+
+## Prove
+
+```sh
+export CARGO_BUILD_JOBS=4
+cargo test -p podssh-ws --lib resolve
+cargo test -p podssh-ws --test doh_wire
+```
+
+A wire answer captured from each operator (bytes that podssh did not write) decodes to its
+addresses; a cached address is tried when the system's resolver and DNS over HTTPS fail; a wrong
+cached address fails TLS on the name. Planted: the cache asked before the system's resolver; the
+test of the order fails.
+
+# T-345: Only `doctor` names the clock when a certificate has expired or is not valid yet
+
+**Source:** the audit of hardcoded assumptions of 2026-10-31, finding 11.
+**Category:** defect
+**Milestone:** backlog
+**Priority:** P3
+**Effort:** S
+**Status:** open
+
+## Problem
+
+A host whose clock is wrong sees each certificate as expired, or as not valid yet. `doctor` says
+that certificates are checked against this host's clock, and gives its reading; `ssh`, `proxy`
+and each other command print rustls's words alone. An error should tell what to do
+(`docs/architecture.md:150`).
+
+## Premise
+
+- Read: doctor's hint (`crates/podssh-cli/src/doctor/relay_checks.rs:96-105`) and its tests
+  (`:341-344`).
+- Read: the other commands print the error's text: `crates/podssh-ws/src/client.rs:133` says "TLS
+  with the relay failed: {why}"; the TLS of IRC and of the quick tunnel's edge gives the text of
+  `crates/podssh-ws/src/tls.rs:149` (`crates/podssh-relay/src/quick/edge.rs:49-51`).
+- Read: rustls 0.23.46 (`Cargo.lock:4845-4846`) has the errors `Expired`, `ExpiredContext`,
+  `NotValidYet` and `NotValidYetContext`, and writes the two with a context as "certificate
+  expired: verification time" and "certificate not valid yet: verification time" (its
+  `src/error.rs`, read in cargo's registry); doctor's match of the text ("expired", "not valid
+  yet") holds for both.
+- Read: the expiry of a cached token is read against the local clock, and a token that the relay
+  refuses is minted again once (`crates/podssh-relay/src/cache.rs:84`;
+  `crates/podssh-relay/src/open.rs:319-330`): that case needs no hint.
+
+## Approach
+
+1. The function of T-340 in podssh-ws (this entry makes it, if it comes first): a handshake that
+   failed with one of the four time errors (their text as the fallback) gets the clock's hint,
+   with this host's clock in UTC, in doctor's words.
+2. Each place where podssh-ws makes the text of a TLS error uses it: `ConnectError::Tls`
+   (`crates/podssh-ws/src/client.rs:203`), `tls::connect_over` (`crates/podssh-ws/src/tls.rs:149`)
+   and the query of DNS over HTTPS (`crates/podssh-ws/src/resolve.rs:150`). doctor's `clock_hint`
+   calls it, so that the words are the same.
+3. Tests through a stand-in relay with an expired certificate: `podssh ssh`, `podssh proxy` and
+   `podssh cp` each name the clock and its reading.
+
+## Prove
+
+```sh
+export CARGO_BUILD_JOBS=4
+cargo test -p podssh-ws --lib tls
+cargo test -p podssh-cli --test proxy
+```
+
+A stand-in relay with a certificate that ended a day ago: the error of each command names this
+host's clock. Planted: the match of `ExpiredContext` removed; the test with rustls's error with a
+context fails.

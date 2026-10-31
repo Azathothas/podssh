@@ -2,7 +2,7 @@
 
 podssh talks to a WebSocket-to-TCP relay. The relay's own document is the
 contract. This page gives the parts that podssh uses, and how podssh selects
-relay hosts.
+relay hosts. [carriers.md](carriers.md) studies the carriers that need no such relay.
 
 - The live contract: <https://tcp.ssh.relay.ajam.dev/llms-full.txt>
 - The pinned copy that the tests use:

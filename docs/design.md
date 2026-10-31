@@ -43,7 +43,7 @@ Each fact has a label:
 ### Select a road
 
 podssh tries the roads in this order. When two roads are possible, podssh
-races them.
+races them. [carriers.md](carriers.md) studies the carriers that need no relay of the operator's.
 
 | Far end | First | Then | Last |
 | --- | --- | --- | --- |

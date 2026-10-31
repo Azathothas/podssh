@@ -4173,3 +4173,230 @@ declare Rust 1.89.
   `-D warnings` over the gate's packages and with the features `ts` and
   `iroh-test`: clean.
 - Dependabot closes Azathothas/podssh#47 once `main` holds aes-gcm 0.11.1.
+
+# T-337: The publish job runs actions by tags that can move, before it attests the binaries
+
+**Source:** the audit of hardcoded assumptions of 2026-10-31, finding 3 (and finding 8 for the
+fallback of NASM).
+**Category:** defect
+**Milestone:** none
+**Priority:** P1
+**Effort:** M
+**Status:** open
+
+## Problem
+
+The README says that the release workflow proves where each binary comes from: the provenance of
+each binary names the workflow and the commit of the tag. The job that attests and signs runs a
+third-party action by a major tag after it downloads the binaries and before it attests them,
+with the rights to write the release and to ask for an OIDC token. A tag that moves to an
+attacker's commit could change `dist/` before the attestation, and the provenance would then
+verify a binary that no build job made. Each other workflow takes its actions by tags too, and
+two jobs of the release run an image of Docker Hub by the tag `latest`, with no mirror.
+
+## Premise
+
+- Read: `README.md:82-85` says "the release workflow also proves where each binary comes from".
+- Read: the job `publish` needs each build job (`.github/workflows/release.yml:393-394`) and holds
+  `contents: write`, `id-token: write` and `attestations: write` (`:396-399`). After it downloads
+  the binaries (`:405`), it runs `taiki-e/install-action@v2` for cargo-about (`:412-414`), then
+  the checksums (`:421-426`) and the attestation (`:431-436`). It runs the same action by its tag
+  again for git-cliff (`:492-494`): after the signature of the checksums, and before
+  `gh release create` (`:546-554`). The audit put both runs before the attestation; the second
+  is after it.
+- Read: the actions of the attestation and of cosign are pinned by commit
+  (`.github/workflows/release.yml:434`, `:469`; `.github/workflows/release-proofs.yml:95`, `:98`).
+  Each other `uses:` names a tag: `actions/checkout@v7`, `actions/upload-artifact@v7` and
+  `actions/download-artifact@v8` in each workflow; `taiki-e/install-action@v2` also in
+  `.github/workflows/deny.yml:27` and `.github/workflows/fuzz.yml:32`; `ilammy/setup-nasm@v1`
+  (`.github/workflows/release.yml:345`, `.github/workflows/build.yml:222`,
+  `.github/workflows/conpty-repeat.yml:30`); and `docker/setup-qemu-action@v4`
+  (`.github/workflows/release.yml:175`, `:263`).
+- Read, through fetch.web.pkgforge.dev on 2026-10-31
+  (https://github.com/docker/setup-qemu-action/blob/v4/action.yml): the action's `image` defaults
+  to `docker.io/tonistiigi/binfmt:latest`. The riscv64 job runs it each time, and the armv7 job
+  when the runner does not run 32-bit ARM (`.github/workflows/release.yml:166-177`). No file of
+  `images/` names the image, so the check of images (`scripts/check-repo.py:257-282`) does not
+  see it, and its pull gets none of the mirrors of `scripts/pull-image.sh:9-13`.
+- Read: T-210 found the commit of each action, and `TODO/repo.md:786-787` says "whether to pin
+  them by commit is a choice of this entry's session"; no entry took it. `setup-nasm` declares
+  Node 20 (`TODO/repo.md:788-790`); with no NASM, `AWS_LC_SYS_PREBUILT_NASM=1` asks aws-lc for its
+  prebuilt objects (`.github/workflows/release.yml:341-343`).
+- Read: Dependabot updates the actions each week, in one group (`.github/dependabot.yml:22-29`).
+  Inferred: it moves a pin by commit, and the version in its comment, as it moves a tag.
+- Inferred (the audit's reading, with no source kept): the compromise of tj-actions/changed-files
+  (CVE-2025-30066) was a tag moved to an attacker's commit. Each step of a job with
+  `id-token: write` can ask for the job's OIDC token, so an action that runs in `publish` could
+  sign other files as this workflow.
+
+## Approach
+
+1. Each `uses:` of each workflow names a commit of 40 hexadecimal digits, with its tag in a
+   comment, as `actions/attest` is pinned (`.github/workflows/release.yml:434`): the commits of
+   T-210's list, read again at each release's API on the day of the change.
+2. A check in `scripts/check-repo.py`: each `uses:` under `.github/workflows/` names a commit. A
+   copy with a planted `@v7` fails it, and its floor fails on an empty tree.
+3. binfmt: `images/binfmt/Dockerfile` names `tonistiigi/binfmt` by its tag and its digest, and
+   Dependabot's list of directories takes it (`.github/dependabot.yml:34-40`). The two jobs read it
+   as the armv7 job reads its image (`.github/workflows/release.yml:158-165`), pull it through
+   `scripts/pull-image.sh`, and run `docker run --privileged --rm IMAGE --install riscv64` (`arm`
+   for armv7) in the place of the action. The step then checks that the kernel lists the handler
+   (`/proc/sys/fs/binfmt_misc/qemu-riscv64`, or `qemu-arm`) before the binary runs.
+4. The job `publish` installs no tool: a job `notes`, with `contents: read` only, installs
+   cargo-about and git-cliff, writes `THIRD-PARTY-LICENSES.md` and the list of commits, and
+   uploads them; `publish` downloads them with the binaries, and runs only actions pinned by
+   commit (GitHub's own, and Sigstore's installer of cosign). The checksums cover the same files
+   as today.
+5. NASM: `setup-nasm` pinned by commit. The workflow's comment names `AWS_LC_SYS_PREBUILT_NASM=1`
+   as its fallback, and one run by hand with it proves that the Windows x86-64 build passes with
+   no NASM.
+6. `docs/development.md` ("Release builds") says which actions each job runs, and why `publish`
+   installs no tool.
+
+## Decision
+
+`docker run` of the pinned image won over the action with its `image` input set to the pinned
+reference: one third-party action fewer, and the pull gets the mirrors. Pins by commit won over
+tags with a review of each update: a tag can move after the review, and a commit cannot.
+
+## Prove
+
+```sh
+python scripts/check-repo.py
+python scripts/check-repo.py --plant-empty   # exits 1
+gh workflow run release.yml --ref main       # a dry run by hand
+```
+
+The check fails on a copy of a workflow with one planted `uses: actions/checkout@v7`, and passes
+on the tree. The dry run passes: `notes` runs with `contents: read`, `publish` installs no tool
+and runs actions pinned by commit only, and the riscv64 and armv7 jobs register QEMU from the
+pinned image.
+
+# T-341: Nothing watches the upstreams of the vendored crates
+
+**Source:** the audit of hardcoded assumptions of 2026-10-31, finding 6.
+**Category:** chore
+**Milestone:** none
+**Priority:** P2
+**Effort:** M
+**Status:** open
+
+## Problem
+
+russh, which parses each byte that a server sends, is a copy in `vendor/russh` with a patch; so
+are iroh's relay client and the Tailscale fork. Dependabot moves none of them, and no test shows
+that `cargo deny` matches an advisory to a crate that comes from a path. The next fix of russh
+would get no pull request, and maybe no red job.
+
+## Premise
+
+- Read: `[patch.crates-io]` puts `vendor/russh` and `vendor/iroh-relay` in the place of their
+  releases (`Cargo.toml:218-220`); russh's entries of the lock files have no source and no
+  checksum, as a path package has none (`vendor/README.md:118-119`); Dependabot's file says that
+  an update of russh moves the patch by hand (`.github/dependabot.yml:7-9`).
+- Read: the copy of russh is the release 0.64.1 (`vendor/README.md:78-80`), iroh-relay is 1.4.1
+  (`vendor/README.md:123-126`), and the Tailscale fork is upstream's commit `f4781c4` of
+  2026-09-29 with podssh's patch set (`vendor/README.md:3-7`).
+- Read, through fetch.web.pkgforge.dev on 2026-10-31
+  (https://github.com/rustsec/advisory-db/blob/main/crates/russh/RUSTSEC-2026-0154.md):
+  RUSTSEC-2026-0154, an allocation whose size a peer sets, in russh's agent client and server
+  (CVSS: availability high), dated 2026-05-15, patched from 0.60.3; 0.64.1 has the fix. The audit
+  gave its date as 2026-06-02.
+- Read: `cargo deny` checks the advisories of the lock on each push and each day
+  (`.github/workflows/deny.yml:7-13`, `:31-32`).
+- Inferred: cargo-deny matches an advisory to a package of crates.io's source, and may pass over
+  a path package. Not measured.
+
+## Approach
+
+1. A job in the weekly workflow `upstream.yml` (T-339), with `contents: read`: crates.io's newest
+   release of `russh` and of `iroh-relay` (its API's `max_stable_version`), and the head of the
+   default branch of `tailscale/tailscale-rs`, each against what `vendor/README.md` names. Each
+   section of `vendor/README.md` gets a line "Upstream read: VERSION on DATE", the newest upstream
+   that a session judged. The job fails when the upstream differs from both, and names each.
+2. The plant: a test makes a copy of advisory-db's layout in a scratch directory, with one
+   advisory for `russh` whose `patched` is `>= 0.64.2`, and runs `cargo deny check advisories`
+   against it (`db-path`, no fetch). The run must fail and name russh; a control with `>= 0.64.1`
+   passes.
+3. If cargo-deny passes over the path package (the plant passes), the job reads cargo-deny's copy
+   of advisory-db for each vendored crate itself, and fails on an advisory whose `patched` leaves
+   out the vendored version; the plant then runs against that check.
+4. `vendor/README.md` and `docs/development.md` ("Updates") say what each watch reads, and what a
+   session does when one fails.
+
+## Decision
+
+The line "Upstream read" won over a job that stays red until the copy moves: a session reads the
+new upstream, judges it (a release that does not touch what podssh uses can wait), records it,
+and the job is green again. A watch of each commit of the fork's upstream lost to the same line:
+the head of the fork's upstream moves often (Inferred).
+
+## Prove
+
+```sh
+export CARGO_BUILD_JOBS=4
+gh workflow run upstream.yml
+cargo deny --locked check advisories   # with the planted db-path: exit 1; the control: exit 0
+```
+
+Planted: the weekly job's "Upstream read" line set to an old version; the job fails and names
+the crate. The plant of the advisory fails as step 2 says.
+
+# T-343: The release takes Zig from one site, builds armv7 with an unchecked rust, and runs an unpinned schema check
+
+**Source:** the audit of hardcoded assumptions of 2026-10-31, finding 8.
+**Category:** chore
+**Milestone:** none
+**Priority:** P3
+**Effort:** S
+**Status:** open
+
+## Problem
+
+The riscv64 job downloads Zig from ziglang.org alone, a site that gives no uptime guarantee. The
+armv7 job builds with the rust that Alpine ships, while the minimum Rust of the crates may rise
+(Q48). The check of Dependabot's file runs whichever `check-jsonschema` PyPI serves that day.
+Each can stop a release, or the gate, for a reason outside podssh.
+
+## Premise
+
+- Read: the riscv64 job pins Zig's version and SHA-256 and downloads it from ziglang.org
+  (`.github/workflows/release.yml:212-217`, `:237-239`).
+- Read, through read.web.pkgforge.dev on 2026-10-31
+  (https://ziglang.org/download/community-mirrors/): "The ziglang.org website does not offer any
+  uptime or speed guarantees, meaning that your CI will sporadically fail or have slower runs if
+  it hardcodes it as a download URL." The mirrors that
+  https://ziglang.org/download/community-mirrors.txt lists serve the same file names, and each
+  download must be checked; the pinned SHA-256 checks the exact bytes.
+- Read: the armv7 job installs Alpine's own `rust` and `cargo` (`.github/workflows/release.yml:178-184`),
+  in Alpine 3.24 (`images/armv7/Dockerfile`); the CLI declares Rust 1.89
+  (`crates/podssh-cli/Cargo.toml:8`), and Q48 lets the minimum rise (`docs/decisions.md:14`).
+  Inferred: Alpine 3.24's rust is 1.89 or later, as the job built `v1.0.0-beta.2`.
+- Read: `pipx run check-jsonschema` names no version (`.github/workflows/build.yml:175`, `:177`).
+- Read: the signatures use Sigstore's public instance (`.github/workflows/release.yml:464-489`).
+  Inferred (the audit): an outage delays a release, and a run again repairs it.
+
+## Approach
+
+1. Zig: a copy of the list of mirrors in `scripts/` (a text file), read in a random order; from
+   each mirror `zig-x86_64-linux-VERSION.tar.xz?source=podssh-release`, checked by `ZIG_SHA256`;
+   ziglang.org last. A mirror that gives other bytes is named and passed over. The weekly watch of
+   T-341 compares the copy with ziglang.org's list.
+2. armv7: before the build, the job compares `rustc -V` with the highest `rust-version` of the
+   crates that the binary builds (from `cargo metadata`), and stops with both named when Alpine's
+   is lower.
+3. check-jsonschema: a pinned version (`pipx run check-jsonschema==VERSION`); the weekly watch of
+   T-341 reads PyPI's newest.
+4. Sigstore: no change; `docs/development.md` ("Release builds") says that a signing step that
+   failed is run again.
+
+## Prove
+
+```sh
+python scripts/check-repo.py
+gh workflow run release.yml --ref main   # a dry run by hand
+```
+
+The dry run passes with ziglang.org's address planted as a name that does not resolve: a mirror
+served Zig, with the same SHA-256. A planted `rust-version` above Alpine's stops the armv7 job
+with both versions named.

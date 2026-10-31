@@ -71,6 +71,20 @@ Q44 and Q45 in [decisions.md](decisions.md)).
     [TODO/ts.md](../TODO/ts.md)). It needs the node keys of two kept state files
     on the relay's allowlist, a Tailscale admin token, and the relay's
     deployment credential ([tailscale.md](tailscale.md)).
+14. **A signed `/relays.json`, and a second deployment** (T-346,
+    [TODO/relay.md](../TODO/relay.md)). podssh's operator rules on it first
+    (Q49 in [TODO/PROGRESS.md](../TODO/PROGRESS.md)). A binary in the field
+    takes relay hosts under `ssh.relay.ajam.dev` only, and no update reaches
+    it, so a lapse of the domain or an outage of Cloudflare stops it. Sign
+    `/relays.json` with an offline Ed25519 key (podssh compiles in its public
+    half, and that of the next key), and run a second deployment on another
+    provider and under another domain, which the signed document names. The
+    entry gives the form that podssh would check.
+15. **Cloudflare's Self-Serve Subscription Agreement**, section 2.2.1(j),
+    forbids using its services "to provide a virtual private network or
+    other similar proxy services". Read whether it applies to the relay
+    (<https://www.cloudflare.com/terms/>, last updated 2025-09-12). No entry
+    holds this; [carriers.md](carriers.md) gives the study that found it.
 
 ## When an item is ready
 

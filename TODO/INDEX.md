@@ -58,7 +58,7 @@ repository and CI).
    session with the other entries of that kind.
 7. The entries that wait for the relay's operator are skipped: T-086,
    T-106, T-169, T-173, T-180, T-226, T-253, T-255, T-319, T-321, T-325,
-   T-326 and T-336.
+   T-326, T-336 and T-346.
 
 ## Counts
 
@@ -409,3 +409,20 @@ repository and CI).
 | [T-334](ts.md) | P2 | M | M9 | measurement | open | A headscale stand-in for the live runs of `podssh ts` |
 | [T-335](resume.md) | P2 | S | M9 | defect | done | The iroh cells of the throughput run may not cross a relay |
 | [T-336](relay.md) | P2 | M | backlog | defect | blocked | The relay holds a slow client's bytes with no bound, and closes nothing |
+| [T-337](repo.md) | P1 | M | none | defect | open | The publish job runs actions by tags that can move, before it attests the binaries |
+| [T-338](relay.md) | P2 | M | none | chore | open | The relay's facts are read by their line, and only a push checks the live relay |
+| [T-339](roads.md) | P2 | M | backlog | chore | open | Nothing watches the quick tunnel's pin of cloudflared, and its edge names are fixed |
+| [T-340](ws.md) | P2 | M | backlog | defect | open | On Windows and macOS podssh reads no store of the system, and `UnknownIssuer` comes with no hint |
+| [T-341](repo.md) | P2 | M | none | chore | open | Nothing watches the upstreams of the vendored crates |
+| [T-342](relay.md) | P2 | M | backlog | defect | open | The relay's limits are compiled in, and nothing compares them with `/relays.json` |
+| [T-343](repo.md) | P3 | S | none | chore | open | The release takes Zig from one site, builds armv7 with an unchecked rust, and runs an unpinned schema check |
+| [T-344](ws.md) | P3 | M | backlog | feature | open | DNS over HTTPS: two operators, one encoding, and no memory of the addresses that worked |
+| [T-345](ws.md) | P3 | S | backlog | defect | open | Only `doctor` names the clock when a certificate has expired or is not valid yet |
+| [T-346](relay.md) | P2 | M | backlog | feature | blocked | Relay hosts outside the default domain from a signed `/relays.json`, and a list of deployments |
+| [T-347](roads.md) | P2 | S | backlog | feature | open | `-J cf://HOST`: a Cloudflare tunnel as the first hop of a jump chain |
+| [T-348](roads.md) | P2 | M | backlog | feature | blocked | The iroh road in the release binaries, and a notice when n0 refuses an old iroh |
+| [T-349](roads.md) | P2 | L | backlog | feature | blocked | A DERP link through Tailscale's tailcat relays, a second carrier of the reverse road |
+| [T-350](roads.md) | P3 | M | backlog | feature | blocked | A pkarr record that finds a node whose home relay changed |
+| [T-351](roads.md) | P3 | L | backlog | feature | blocked | Roads through a cloud's own tunnel: GCP IAP TCP forwarding, then EC2 Instance Connect Endpoint |
+| [T-352](roads.md) | P3 | L | backlog | feature | blocked | WARP's MASQUE road over HTTP/2 |
+| [T-353](roads.md) | P3 | L | backlog | feature | blocked | Tor through Arti, in a feature crate |

@@ -2879,3 +2879,565 @@ no TCP connection of the node to TARGET is left once a command exits.
   (`transport::running`). `cargo test -p podssh-cli --lib ssh::transport`:
   3 passed; planted, a list that keeps each task: the new test failed (3
   kept, not 1).
+
+# T-339: Nothing watches the quick tunnel's pin of cloudflared, and its edge names are fixed
+
+**Source:** the audit of hardcoded assumptions of 2026-10-31, finding 2.
+**Category:** chore
+**Milestone:** backlog
+**Priority:** P2
+**Effort:** M
+**Status:** open
+
+## Problem
+
+`podssh node --quick-tunnel` speaks cloudflared's protocol, which has no published contract, as
+cloudflared 2026.10.6 speaks it. Cloudflare supports a cloudflared for a year after the newest
+release, and cloudflared's main branch already drops the features that podssh's registration
+names. No job tells when cloudflared moves. The edge's two names and its port are fixed, its
+roots must be exactly three, and a refusal of the edge does not say which release podssh speaks.
+
+## Premise
+
+- Read: the module pins cloudflared 2026.10.6 at commit 35b379a
+  (`crates/podssh-relay/src/quick/mod.rs:3-6`); the registration names that release's features
+  (`crates/podssh-relay/src/quick/register.rs:22-26`); cloudflared's main deprecates and filters
+  them since its commit 77a79bf, in no release when it was read (`docs/design.md:248-256`; the
+  audit cited `:250-256`).
+- Read: two fixed regions, port 7844 and the TLS name `h2.cftunnel.com`
+  (`crates/podssh-relay/src/quick/edge.rs:14-18`); the roots must give 3 anchors and no invalid
+  one (`:28-31`); the API's host is fixed (`crates/podssh-relay/src/quick/api.rs:18`). The node
+  registers as `podssh` and the package's version (`crates/podssh-cli/src/node_quick.rs:157-158`),
+  `1.0.0-beta.2` today (`Cargo.toml:47`).
+- Read: the three roots end on 2029-08-15, 2029-08-15 and 2029-11-01
+  (`crates/podssh-relay/src/quick/cloudflare-roots.pem:6`, `:25`, `:52`).
+- Read: cloudflared's README says "Cloudflare currently supports versions of cloudflared that are
+  within one year of the most recent release", and that breaking changes "may be introduced" for
+  older ones (`cloudflare/cloudflared:README.md`, read in a clone).
+- Read, through fetch.web.pkgforge.dev on 2026-10-31
+  (https://api.github.com/repos/cloudflare/cloudflared/releases): 2026.10.7 came on 2026-10-30, a
+  day after 2026.10.6; 2026.10.3 to 2026.10.7 came in ten days.
+- Read: cloudflared finds the edge by the SRV record `_v2-origintunneld._tcp.argotunnel.com`
+  (`docs/design.md:180-186`), and podssh's DNS over HTTPS asks for A and AAAA only
+  (`crates/podssh-ws/src/resolve.rs:124`).
+- Read: the edge's trust is podssh's default roots, `podssh-ca.pem` next to the binary among them,
+  and cloudflared's three (`crates/podssh-relay/src/quick/edge.rs:24-33`;
+  `crates/podssh-ws/src/tls.rs:154-174`).
+- Inferred: Cloudflare cannot map `podssh 1.0.0-beta.2` to a release of cloudflared; some filters
+  block `trycloudflare.com`.
+
+## Approach
+
+1. A weekly workflow `upstream.yml` (and by hand), with `contents: read`, that makes no tunnel: it
+   reads cloudflared's newest release and, at its tag, the SHA-256 of
+   `tunnelrpc/proto/tunnelrpc.capnp`, `features/features.go`, `tlsconfig/cloudflare_ca.go` and
+   `connection/protocol.go`, against a table beside the pin (the tag, the commit and the four
+   sums, in `crates/podssh-relay/src/quick/`). It fails when a sum differs, or when the pin is 9
+   months old, and names each file that moved. T-341 adds its jobs to the same workflow.
+2. The regions: an SRV query of `_v2-origintunneld._tcp.argotunnel.com` over DNS over HTTPS (the
+   JSON API takes `type=SRV`; T-344 adds the wire form), through the proxy when one is set, within
+   the dial limit. Its targets and port when it gives two names under `argotunnel.com`; else the
+   two names and 7844, as today, with a note in `-v`.
+3. A refusal of the edge (a registration refused, or an error that podssh does not know) names the
+   release that podssh speaks: the quick tunnel of cloudflared 2026.10.6.
+4. The roots: three or more anchors, none invalid; doctor names the day that the first of them
+   ends, as it names the age of the compiled-in roots (T-003).
+5. `docs/design.md` (the quick tunnel's section) names the watch and the lookup.
+
+## Prove
+
+```sh
+export CARGO_BUILD_JOBS=4
+cargo test -p podssh-relay --features quick --lib quick
+gh workflow run upstream.yml
+```
+
+Tests of the SRV answer: two targets under `argotunnel.com` give two regions; one, none, or a
+name elsewhere gives the fixed names. Planted: one sum of the table changed; the watch fails and
+names its file.
+
+# T-347: `-J cf://HOST`: a Cloudflare tunnel as the first hop of a jump chain
+
+**Source:** the study of carriers of 2026-10-31, the forward road, item 1.
+**Category:** feature
+**Milestone:** backlog
+**Priority:** P2
+**Effort:** S
+**Status:** open
+
+## Problem
+
+A user with one host whose egress is open can publish its sshd as a Cloudflare tunnel, with no
+account (`podssh node NAME --sshd --quick-tunnel`), and reach it from a cage with
+`podssh ssh cf://NAME`. That host cannot yet be a jump host: `-J cf://HOST` is refused, so the
+targets that it can reach still need the relay. With it, the forward road has a carrier that is not the operator's
+relay, for each user with such a host. Cloudflare documents SSH through a tunnel, and the operator
+allows podssh as a client of Cloudflare (`docs/decisions.md:20`).
+
+## Premise
+
+- Read: a `-J` hop is read by `parse_hop`; `cf://HOST` holds one colon, so it is read as the host
+  `cf` with the port `//HOST`, which is refused as a port
+  (`crates/podssh-cli/src/ssh/hop.rs:49-51`); `jump_hop` refuses a node only (`:59-65`).
+- Read: a `cf://` destination refuses `-J`:
+  `crates/podssh-cli/src/ssh/cloudflare.rs:73` says "a Cloudflare tunnel cannot be reached
+  through a -J hop yet", and `docs/cli.md:129-130` says so too.
+- Read: the road of a run is chosen for the first hop's host
+  (`crates/podssh-cli/src/ssh/resolve.rs:306`), and each later hop runs in a `direct-tcpip`
+  channel of the session before it (`crates/podssh-ssh/src/run.rs:161-168`;
+  `crates/podssh-ssh/src/forward.rs:14-22`).
+- Read: the `cf://` road opens the WebSocket of `cloudflared access tcp` through `HTTPS_PROXY`,
+  and a node behind it greets with the resumable layer first
+  (`crates/podssh-cli/src/ssh/cloudflare.rs:1-12`); a roost is a node in front of a standard
+  sshd (`docs/design.md:93-96`).
+- Read in the study
+  (https://developers.cloudflare.com/cloudflare-one/networks/connectors/cloudflare-tunnel/use-cases/ssh/ssh-cloudflared-authentication/):
+  SSH through a tunnel is a documented use. A quick tunnel is for testing, with no uptime
+  guarantee (`docs/design.md:158-162`).
+- Inferred: a proxy that re-terminates TLS passes it when podssh trusts the proxy's CA and the
+  proxy passes the upgrade; a proxy that refuses the upgrade stops it, as it stops the relay.
+
+## Approach
+
+1. `jump_hop` takes `cf://[user@]HOST` as the first hop of a chain: its user, and HOST, the name
+   of the tunnel's rule. A `cf://` hop after the first is refused with the reason: a hop inside an
+   SSH channel has no road to Cloudflare's edge.
+2. The road of the run is the `cf://` road when the first hop is one: `cloudflare::transport` for
+   that hop, with its refusals of `--direct`, a port, `HostName`, `-4` and `-6` as today
+   (`crates/podssh-cli/src/ssh/cloudflare.rs:69-87`), and no refusal of the hops after it.
+3. The first hop's host key is kept under HOST, as for a `cf://` destination; the next hops run in
+   its `direct-tcpip` channels, as each hop does today. A node behind the tunnel (a roost with
+   `--quick-tunnel`) carries the first hop in the layer, as for a destination.
+4. The probe is the upgrade itself: a refusal names the step and the hop, as a `cf://`
+   destination's does.
+5. `docs/cli.md` and the manual: `-J cf://HOST` as a first hop, the refusal of a later one, and
+   the recipe of a quick tunnel in front of a jump host's sshd.
+
+## Decision
+
+The first hop only: a later hop would need a WebSocket to Cloudflare from inside an SSH channel
+(TLS and the upgrade over `direct-tcpip`), which no user has asked for. It lost to a refusal that
+says why.
+
+## Prove
+
+```sh
+export CARGO_BUILD_JOBS=4
+cargo test -p podssh-cli --test ssh_args
+cargo test -p podssh-cli --test cloudflare_cli
+```
+
+A stand-in of the tunnel's WebSocket on the loopback in front of a test sshd, and a second sshd
+behind it: `podssh ssh -J cf://HOST second` reaches the second, with the first key under HOST; a
+`cf://` second hop is refused (64). Planted: the first hop's road left as the relay's; the
+stand-in sees no upgrade, and the test fails. Live in `quick-tunnel-live.yml`: a roost with
+`--quick-tunnel` as the jump host of a second sshd on the runner.
+
+# T-348: The iroh road in the release binaries, and a notice when n0 refuses an old iroh
+
+**Source:** the study of carriers of 2026-10-31, the reverse road, build order 1.
+**Category:** feature
+**Milestone:** backlog
+**Priority:** P2
+**Effort:** M
+**Status:** blocked
+
+## Problem
+
+The iroh road reaches a podssh node through n0's public relays, with no relay of the operator's,
+and races the pair's road (T-164). The study ranks it first of the carriers of the reverse road
+that need no relay of the operator's. The release binaries do not have it, so a user who
+downloads podssh has the operator's relay alone to reach a node. n0 supports the newest iroh only,
+and a release binary is not updated in the field, so n0 may one day refuse its iroh, with no word
+that says why.
+
+## Premise
+
+- Read: the release builds `podssh-cli` with no feature on each target
+  (`.github/workflows/release.yml:113`, `:183`, `:249`, `:293`, `:347`); the feature `iroh` is
+  off by default, and `crates/podssh-cli/Cargo.toml:28-30` says "about 200 crates, needs Rust
+  1.91 and a C compiler" of it.
+- Read: `docs/decisions.md:41` says "iroh is a road that the user must select", and makes n0's
+  public relays its default until the operator runs one. The row says nothing of the release
+  binaries: "off in the release" is the default of `Cargo.toml` and the build of the workflow,
+  which the study reads as the operator's policy. In a build without the feature, the iroh road
+  refuses with exit code 70 (`AGENTS.md:20-21`).
+- Read in the study (https://docs.iroh.computer/iroh-services/relays/public): the public relays
+  are "suitable for development and hobby use only", they rate-limit, and "Only the latest stable
+  release of iroh is officially supported".
+- Read: the armv7 job builds with Alpine's rust (`.github/workflows/release.yml:182`); whether it
+  is 1.91 or later was not read (T-343 checks it in the job). The notices of the licenses are
+  made for the default features (`.github/workflows/release.yml:418`); `cargo deny` checks the
+  licenses and the sources with each feature (`.github/workflows/deny.yml:34-36`).
+- Read: `docs/design.md:926-927` says "about 190 to 245 crates, and several megabytes" of iroh.
+
+## Approach
+
+1. After Q50 (a): the release builds `-p podssh-cli --features iroh` on each target, and the
+   gate's step `release` builds what ships. A target that cannot build it stops the release with
+   the reason; no binary ships without the road unless the release notes say so.
+2. The armv7 job checks Alpine's rust against 1.91 first (T-343).
+3. The notices: `cargo about` with the feature; the release notes name the road, and the size of
+   each binary before and after.
+4. The notice: when n0's relay refuses the client's handshake as an old version (Inferred: the
+   relay's error names the protocol), podssh says that n0 serves the newest iroh only, names the
+   iroh of this binary, and names `--iroh-relay URL` (T-165).
+5. `scripts/release-short.sh` checks that the binary has the road: `podssh man --json` lists it,
+   and an iroh destination does not exit 70.
+6. A measurement from a cage through n0's relays, by the method of T-157 (Q38 allows n0's
+   relays).
+
+## Prove
+
+```sh
+gh workflow run release.yml --ref main   # a dry run by hand
+export CARGO_BUILD_JOBS=4
+cargo test -p podssh-cli --features iroh-test --test iroh_road
+```
+
+Each of the eight binaries of the dry run has the road. With a relay on the loopback that refuses
+the version, the notice names this binary's iroh and `--iroh-relay`. Planted: the feature left out
+of one target; the check of `scripts/release-short.sh` fails on it.
+
+## Blocker
+
+The operator: Q50 (a), the iroh road in the release binaries, and Q50 (b), whether a node and a
+client try it when the user did not ask for it.
+
+# T-349: A DERP link through Tailscale's tailcat relays, a second carrier of the reverse road
+
+**Source:** the study of carriers of 2026-10-31, the reverse road, build order 2.
+**Category:** feature
+**Milestone:** backlog
+**Priority:** P2
+**Effort:** L
+**Status:** blocked
+
+## Problem
+
+The reverse road has the relay's pairs, on one provider, and the iroh road's carrier is n0.
+Tailscale runs DERP relays for tailcat, which needs no account, and DERP runs over a WebSocket on
+port 443. A DERP link in `podssh-relay` would be the second carrier that needs no relay of the
+operator's, after n0's, with the same layer and channel above it. The study put it at M; the
+adapter under the layer and the tests against derper make it L.
+
+## Premise
+
+- Read: a carrier of the reverse road gives a meeting point and bytes in order, and no more: the
+  end-to-end channel (Noise XX, each end's Ed25519 key, a verdict before the node dials) ends the
+  session on a message that is changed, dropped, repeated or reordered
+  (`crates/podssh-relay/src/e2e/mod.rs:1-16`; `crates/podssh-relay/src/e2e/channel.rs:1-4`), and
+  the layer resumes on any link that reads and writes
+  (`crates/podssh-relay/src/session/resume.rs:139-152`).
+- Read: a gap of the layer's offsets ends a link (`docs/design.md:707-710`): a carrier of packets
+  that may drop needs a layer under it that sends again.
+- Read: the vendored fork's client speaks DERP over a WebSocket
+  (`vendor/tailscale-rs/ts_derp/src/client.rs:31-39`), seals with `crypto_box`
+  (`vendor/tailscale-rs/ts_derp/Cargo.toml:24`), and takes its TLS from a crate that builds
+  aws-lc-rs (`vendor/tailscale-rs/ts_tls_util/Cargo.toml:17`); `podssh-relay` has no C
+  (`AGENTS.md`, section 5, rule 4).
+- Read in the study: tailcat's README offers "our free rate-limited DERP relays", whose map is
+  https://tailcat.dev/derpmap.json, with four hosts, `tc301a.ipn.dev` to `tc304a.ipn.dev`
+  (https://github.com/tailscale/tailcat). Tailscale's post of 2026-08-31 says that tailcat has
+  "no accounts", and asks for contact about other uses (https://tailscale.com/blog/tailcat).
+  derper serves a WebSocket at `/derp`, a packet is 64 KiB at most, and the server drops a
+  client's packets when its queue of 32 is full (tailscale/tailscale:cmd/derper/derper.go,
+  tailscale/tailscale:derp/derp.go, tailscale/tailscale:derp/derpserver/derpserver.go). Who else
+  may use the fleet is not stated, and Tailscale's terms were not read.
+- Read: `noq` 1.4.0, the QUIC of iroh, is in the lock (`Cargo.lock:3296-3297`).
+
+## Approach
+
+1. After Q50 (b): a module `derp` in `podssh-relay`, behind a feature: DERP's frames and its
+   handshake (the server's key, the client's info sealed with `crypto_box`), with the fork as the
+   reference, over podssh-ws's WebSocket and TLS to `wss://HOST/derp`, through `HTTPS_PROXY`.
+2. The key of DERP: an X25519 key derived from the node's Ed25519 key, or a second key kept beside
+   it (the entry's session decides). The client finds the node by the key that it pins (T-087), at
+   a home region that the node names in its ticket.
+3. Under the layer, an adapter that numbers, acknowledges and sends again, with a window under the
+   server's queue; or noq's streams over DERP's packets. A measurement under drops decides.
+4. The road joins the race of T-164, after the iroh road and the pair's.
+5. Tests against Tailscale's derper in Podman (software that podssh did not write), and short live
+   runs against tailcat's fleet when Q50 allows them.
+
+## Prove
+
+```sh
+export CARGO_BUILD_JOBS=4
+cargo test -p podssh-relay --features derp --test derp_link
+sh scripts/interop-derp.sh   # Tailscale's derper in Podman
+```
+
+8 MiB both ways through derper with equal digests, also with 5 % of the packets dropped by a
+stand-in under the adapter. Planted: the adapter's resend turned off; the test with drops fails.
+
+## Blocker
+
+The operator: Q50 (b), Tailscale's tailcat fleet as a carrier of podssh, by default or only when
+the user asks; and Q50 (c), whether the operator asks Tailscale first.
+
+# T-350: A pkarr record that finds a node whose home relay changed
+
+**Source:** the study of carriers of 2026-10-31, the reverse road, build order 3.
+**Category:** feature
+**Milestone:** backlog
+**Priority:** P3
+**Effort:** M
+**Status:** blocked
+
+## Problem
+
+A client dials an iroh node by its key and the relay of its ticket. A node's home relay is the
+first relay that answers, so it can change; a client with the old ticket then dials a relay where
+the node is not. A signed record under the node's key, at a server of pkarr, would tell the client
+where the node is now. The study put it at S; a client of pkarr through podssh's proxy may be
+podssh's own, which makes it M.
+
+## Premise
+
+- Read: the endpoint has no address lookup: a peer is dialled by its key and its relay
+  (`crates/podssh-iroh/src/endpoint.rs:4-7`, `:209-210`), as the design chose for a host with no
+  DNS (`docs/design.md:936`, `:942`).
+- Read: the node's key is Ed25519 and stays across its pairs, and the operator pins it by label
+  (`docs/reverse.md:180-184`).
+- Read in the study (https://docs.iroh.computer/connecting/dns-address-lookup): an endpoint
+  publishes a signed packet to a DNS/Pkarr server over HTTP; n0's servers are free, rate-limited,
+  with no guaranteed uptime, and "You're more than welcome to run production systems" on them,
+  where the page of its relays says "development and hobby use only".
+- Inferred: iroh's own publisher and resolver of pkarr use an HTTP client of iroh's, which may not
+  take podssh's proxy (T-280 patched the relay's dial alone).
+
+## Approach
+
+1. After Q50 (b): the node publishes a record under its key, signed with it: its home relay's
+   URL, with a short life, and again when the home relay changes; through podssh's proxy, to n0's
+   server or to one that the user names.
+2. A client whose ticket's relay does not answer, or does not hold the node, resolves the key
+   within a time limit and tries the relay of the record. The end-to-end channel still checks the
+   node's key (T-087, T-088), so a wrong record fails the session, and no more.
+3. iroh's own address lookup, if a test shows that it goes through podssh's proxy; else a small
+   client of pkarr in `podssh-iroh`, over podssh-ws.
+4. The record is published only when the user asks for it, until the ruling of Q50 says
+   otherwise.
+
+## Prove
+
+```sh
+export CARGO_BUILD_JOBS=4
+cargo test -p podssh-iroh --features test-relay --test pkarr_lookup
+```
+
+Two relays and a server of pkarr on the loopback: the node moves to the second relay, and a
+client with the first ticket finds it and connects; a record signed by another key is refused.
+Planted: the check of the signature skipped; the test of the other key fails.
+
+## Blocker
+
+The operator: Q50 (b), n0's server of pkarr as a default, or only when the user asks.
+
+# T-351: Roads through a cloud's own tunnel: GCP IAP TCP forwarding, then EC2 Instance Connect Endpoint
+
+**Source:** the study of carriers of 2026-10-31, the forward road, items 4 and 5.
+**Category:** feature
+**Milestone:** backlog
+**Priority:** P3
+**Effort:** L
+**Status:** blocked
+
+## Problem
+
+A user with a cloud account can reach a VM of theirs, with no public address, through the cloud's
+own tunnel over a WebSocket on port 443; the VM then reaches the target, as a jump host. These
+roads give the forward road a carrier that is not the operator's relay, for users with a cloud
+account and no domain. Each needs the user's account and a token, and EC2 Instance Connect
+Endpoint puts a credential in its URL.
+
+## Premise
+
+- Read in the study (https://cloud.google.com/iap/docs/using-tcp-forwarding;
+  https://emile.hofsink.net/posts/iap-deep-dive/): IAP's TCP forwarding is a WebSocket to
+  `wss://tunnel.cloudproxy.app/v4/connect` with a Bearer token in its header and the subprotocol
+  `relay.tunnel.cloudproxy.app`; its data goes in frames of 16 KiB at most, with
+  acknowledgements; it "isn't intended for bulk transfer of data", and it ends a session after an
+  hour of inactivity.
+- Read in the study
+  (https://docs.aws.amazon.com/AWSEC2/latest/UserGuide/connect-with-ec2-instance-connect-endpoint.html;
+  aws/aws-cli:awscli/customizations/ec2instanceconnect/eicesigner.py): EC2 Instance Connect
+  Endpoint takes a presigned SigV4 `wss://` URL, valid for 60 s, then raw binary frames; AWS's
+  client honours `HTTPS_PROXY`; a connection lasts an hour at most, and 20 run at once.
+- Read: credentials never go in URLs (`docs/architecture.md:145-147`; `docs/design.md:62`), and
+  `docs/decisions.md:36` says "in a header or a 0600 file and never in a URL" of the relay's
+  tokens. The presigned URL carries an access key id and a signature in its query.
+- Read: the `cf://` road uses podssh-ws's WebSocket client through the proxy
+  (`crates/podssh-cli/src/ssh/cloudflare.rs:237`); an RSA key signs through aws-lc-rs in the
+  binary (`deny.toml`, the reason of RUSTSEC-2023-0071); `podssh cp` opens a new session before
+  the relay's caps (`docs/relay.md:180-186`), as an hour of EICE would need.
+- Inferred: a proxy that re-terminates TLS passes either road where it passes a WebSocket.
+
+## Approach
+
+1. After Q51: a road `iap://PROJECT/ZONE/INSTANCE[:PORT]` on podssh-ws's WebSocket, through
+   `HTTPS_PROXY`. Its token comes from a file that the user names (private, as the relay's token
+   file) and goes in its header only: a token of a service account, signed RS256 with aws-lc-rs in
+   the binary crate, or a token that gcloud made, from the file.
+2. IAP's frames (the connect's SID, DATA and ACK) in a module with no I/O, tested against bytes
+   captured from Google's own client.
+3. The probe: the connect's `CONNECT_SUCCESS_SID` within 20 s; else the step that failed is named
+   (the upgrade, the token, the instance).
+4. EICE second, and only if Q51 allows its URL: the presigned URL in memory only, never printed,
+   new for each connection; a session that nears the hour opens a new connection, as `cp` does.
+5. The manual names each road, the account that it needs and its limits.
+
+## Prove
+
+```sh
+export CARGO_BUILD_JOBS=4
+cargo test -p podssh-ws --lib iap
+cargo test -p podssh-cli --test iap_cli
+```
+
+Frames captured from gcloud decode; a stand-in of the tunnel on the loopback carries a session;
+a test reads the process's arguments and its output, and finds no token. Live in GitHub Actions
+with a throwaway project of the operator's.
+
+## Blocker
+
+The operator: Q51, roads that need the user's cloud account and a token file, and EICE's
+credential in its URL; then a throwaway cloud project for the live run.
+
+# T-352: WARP's MASQUE road over HTTP/2
+
+**Source:** the study of carriers of 2026-10-31, the forward road, item 2.
+**Category:** feature
+**Milestone:** backlog
+**Priority:** P3
+**Effort:** L
+**Status:** blocked
+
+## Problem
+
+WARP is the one carrier that the study found that reaches any target with no setup and no
+account: Cloudflare's own network goes to the target. Over HTTP/2 on port 443 it could serve a
+host whose proxy allows a CONNECT to an IP literal, where the operator's relay is down or blocked.
+Its API is closed, its open clients pose as Cloudflare's app, and a proxy that re-terminates TLS
+breaks it. WARP and Tor, the study's items 2 and 3, are two entries, as each is L; Tor is
+T-353.
+
+## Premise
+
+- Read in the study (https://github.com/Diniboy1123/usque; its `internal/consts.go` and
+  `api/cloudflare.go`): the registration is anonymous, `POST /v0a4471/reg` with no e-mail, but the
+  open client sends the headers of "WARP for Android" and a random Android serial. It speaks
+  connect-ip over HTTP/2 to 162.159.198.2:443, a port that Cloudflare calls "required for HTTP/2
+  fallback"
+  (https://developers.cloudflare.com/cloudflare-one/team-and-resources/devices/cloudflare-one-client/deployment/firewall/).
+- Read in the study (usque's `api/masque.go`): the client pins the endpoint's key and presents a
+  client certificate, so a proxy that re-terminates TLS breaks it; the names of MASQUE had no A
+  record on 2026-10-31, so a CONNECT names the IP literal.
+- Read: Cloudflare's Application Terms license "the Application", forbid to "modify, decompile,
+  reverse engineer" it, and let Cloudflare "block certain kinds of usage"
+  (https://www.cloudflare.com/application/terms/, last updated 2024-10-18).
+- Read: podssh-ws refuses a caller's ALPN and offers no client certificate
+  (`crates/podssh-ws/src/tls.rs:83-94`, `:256-259`); the WebSocket over HTTP/2 is T-321, which
+  waits for the relay.
+- Read in the study: with no IP stack, usque's L4 mode runs over QUIC only
+  (https://github.com/Diniboy1123/usque/wiki/L4-proxy-mode); over HTTP/2 a client needs one.
+  smoltcp is pure Rust (https://crates.io/crates/smoltcp), and Cloudflare says that it "does not
+  support modern TCP features" (https://blog.cloudflare.com/faster-sase-proxy-mode-quic/).
+  usque-rs takes quiche, whose BoringSSL is C (https://github.com/Diniboy1123/usque-rs).
+- Read in the study: a variant is the user's own Cloudflare One organization, free under 50 users,
+  with a headless enrolment by a service token
+  (https://developers.cloudflare.com/cloudflare-one/tutorials/deploy-client-headless-linux/;
+  https://www.cloudflare.com/zero-trust/products/access).
+
+## Approach
+
+1. After Q52, a trial in a feature crate (`podssh-warp`): the registration; TLS with ALPN `h2`,
+   the client certificate and the pinned key, in its own rustls configuration outside
+   podssh-ws's rules; connect-ip with its capsules over HTTP/2's extended CONNECT; and smoltcp
+   for TCP inside.
+2. The probe: a CONNECT to the IP literal through the proxy, then the handshake against the pinned
+   key; a proxy that re-terminates TLS is named, and the road is not tried again in the run.
+3. The user's own organization first, with a service token from a file, if Q52 allows only that.
+4. A measurement of throughput and of a session's life beside the forward road, by the method of
+   T-157.
+
+## Prove
+
+```sh
+export CARGO_BUILD_JOBS=4
+cargo test -p podssh-warp
+```
+
+Tests against capsules and frames captured from usque; live runs in GitHub Actions only, short
+ones.
+
+## Blocker
+
+The operator: Q52, a client of a closed API that poses as Cloudflare's app, under its
+Application Terms.
+
+# T-353: Tor through Arti, in a feature crate
+
+**Source:** the study of carriers of 2026-10-31, the forward road, item 3.
+**Category:** feature
+**Milestone:** backlog
+**Priority:** P3
+**Effort:** L
+**Status:** blocked
+
+## Problem
+
+Tor is run by volunteers, needs no account, and its exits accept port 22. Through Arti it could be
+an anonymous fallback of the forward road, slow, where the operator's relay is down or blocked.
+Arti brings C, as the features `ts` and `iroh` do.
+
+## Premise
+
+- Read in the study (https://docs.rs/arti-client/latest/arti_client/): arti-client is 0.47, not
+  1.x; its default compression needs C, it keeps its state in SQLite (C), and its pluggable
+  transports are other programs. Inferred: `TorClientBuilder` has no hook for a transport.
+- Read in the study (zydou/arti:CHANGELOG.md, a mirror of Tor's repository;
+  zydou/arti:crates/arti/src/arti-example-config.toml): from 2.2.0, Arti dials out through an HTTP
+  CONNECT proxy, whose address must be an IP literal.
+- Read: the measured cage allows CONNECT to ports 443, 80 and 8443 only
+  (`docs/target-environment.md:21`), so only Tor relays on those ports could be first hops;
+  whether Arti can be held to them was not read.
+- Read in the study (https://bridges.torproject.org/moat/circumvention/builtin;
+  https://www.bamsoftware.com/papers/fronting/): meek_lite fronts through CDN77 with POST
+  requests, which a proxy that refuses the upgrade would pass (Inferred); WebTunnel is a
+  "WebSocket-like HTTPS connection", but no built-in bridge uses it; Snowflake's built-in line
+  names STUN servers, so it needs UDP (Inferred: no road from a cage).
+- Read in the study (https://manpages.debian.org/testing/tor/torrc.5.en.html): the default exit
+  policy accepts port 22. Inferred: some targets refuse Tor's exits.
+- Read: podssh starts no program that the user did not name (`AGENTS.md`, section 5, rule 3), so
+  a transport must run in podssh's process; podssh-ws does CONNECT, TLS and the upgrade already.
+  C in a feature crate has a precedent in `ts` and `iroh` (`crates/podssh-cli/Cargo.toml:23-31`).
+
+## Approach
+
+1. After Q52, a feature crate `podssh-tor`, as `podssh-iroh` is one: arti-client with its HTTP
+   CONNECT proxy (podssh resolves the proxy's name to an IP literal first), its first hops held
+   to the ports that a probe of the proxy allows, and its state in podssh's cache directory
+   (T-243).
+2. meek, then WebTunnel, written in podssh-ws, under a runtime of `tor-rtcompat` that podssh
+   gives, so that a bridge needs no other program.
+3. A road with the time limits of each road; doctor says whether Tor bootstraps through the proxy,
+   and in how long.
+4. A measurement of the time to the first byte and of throughput, by the method of T-157.
+
+## Prove
+
+```sh
+export CARGO_BUILD_JOBS=4
+cargo test -p podssh-tor
+cargo test -p podssh-cli --features tor --test tor_road -- --ignored   # live, through the box's proxy
+```
+
+Through the box's proxy, which allows the cage's ports alone: Tor bootstraps, and a session
+through it gets GitHub's SSH banner. Planted: the first hops not held to the proxy's ports; the
+bootstrap through the box fails.
+
+## Blocker
+
+The operator: Q52, C in a feature crate for Tor, as for `ts` and `iroh`.

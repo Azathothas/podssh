@@ -1409,3 +1409,248 @@ The slow run's verdict names a `1013`, or the bytes past the node stay under 16 
 The relay's operator: the relay's queues are work of the relay project (`docs/decisions.md`,
 2026-10-08: the relay stays separate). The evidence is in this entry and in
 `docs/relay-operator.md`.
+
+# T-338: The relay's facts are read by their line, and only a push checks the live relay
+
+**Source:** the audit of hardcoded assumptions of 2026-10-31, finding 4, and finding 1 for the
+expiry of the relay's domain.
+**Category:** chore
+**Milestone:** none
+**Priority:** P2
+**Effort:** M
+**Status:** open
+
+## Problem
+
+The check of the relay's contract reads each fact at one line of the relay's document. A line
+that the relay inserts above a fact, with the fact unchanged, turns the gate red, and so does a
+relay that cannot be read for a minute; a beta needs the gate green. Only a push runs the live
+check, and after `v1.0.0` pushes become rare, so a change of the contract could go unseen.
+Nothing watches the expiry of the relay's domain, on which each road but `--direct` depends.
+
+## Premise
+
+- Read: the reader takes exactly the line that a fact names
+  (`crates/podssh-probe/src/relay_facts.rs:75-84`), and asserts each fact on that line alone, with
+  no search (`:161-168`).
+- Read: `crates/podssh-probe/facts/relay-facts.toml:24-59` holds six facts, each by its line of
+  the pinned document: the node's path and the operator's
+  (`crates/podssh-probe/tests/spec/relay-spec-2026-10-03-r2.txt:23`, `:24`), "no subprotocol"
+  (`:207`), binary frames (`:210`), the node's open timeout (`:190`) and the `1009` of a bad
+  multiplex frame (`:182`); the relation reads `:182` too. Each fact stands under a heading of the
+  document: "Exact addresses" (`:9`), "Reverse close codes" (`:160`) and "Protocol (for other
+  clients)" (`:205`).
+- Read: the job `checks` runs the live check, and fails on exit 1 (a changed fact) and on exit 2
+  (a relay that cannot be read) alike (`.github/workflows/build.yml:191-208`);
+  the gate's step `release` asks the binary and the script for one verdict, live (`:81-86`).
+- Read: each of the eight build jobs of the release runs `podssh proxy github.com 22` through the
+  live relay (`scripts/release-short.sh:86-92`, run at `.github/workflows/release.yml:135`, `:196`,
+  `:267`, `:306` and `:382`; three of these run in a matrix of two). The audit counted seven
+  jobs; the matrices give eight.
+- Read: a beta needs the job `all` of the gate (`docs/decisions.md:18`). Citations of an older
+  document of the relay were once off by 35 (`TODO/repo.md:2318-2321`).
+- Read: no workflow checks the relay on a schedule: `relay-live.yml` runs by hand
+  (`.github/workflows/relay-live.yml:8-17`), and `build.yml` on a push, a pull request or by hand
+  (`.github/workflows/build.yml:9-13`).
+- Read, by the audit through web.pkgforge.dev on 2026-10-31 (the registry's RDAP,
+  https://pubapi.registry.google/rdap/domain/ajam.dev): `ajam.dev` expires on 2028-01-19, under
+  Cloudflare's name servers, with no DNSSEC. No check reads the expiry. The relay's origin is the
+  first key of the facts file (`crates/podssh-probe/facts/relay-facts.toml:1`).
+- Inferred: a registrar that renews by itself keeps the date ahead; a lapse would stop each road
+  but `--direct` for each user.
+
+## Approach
+
+1. Each fact of `relay-facts.toml` names its section, a heading of the relay's document, beside
+   its `line`, which stays as a hint. The reader looks for the fact's text (`contains` or
+   `pattern`) at the hint first, then in the whole section. Found at another line of its section:
+   a pass, with a note that names the old line and the new one (`podssh relay spec` prints it, and
+   `--json` gives it). Not in its section: a FAIL, as today. The relation's operands do the same.
+2. The same in `scripts/check-relay-spec.py`; `scripts/relay-spec-agree.py` asks both for one
+   verdict, with the notes.
+3. Two plants: a document with one line inserted at its top passes, with a note for each fact; a
+   document whose fact moved to another section fails. The plants of today still fail.
+4. The live step of the gate tries an unreadable relay (exit 2) twice more, 60 s apart, before it
+   fails; a changed fact (exit 1) fails at once.
+5. A workflow `relay-watch.yml`, each day and by hand, with `contents: read` and `issues: write`:
+   the live check; on exit 1 it opens one issue, titled with the pinned version and the facts that
+   failed, unless an open issue has that title; on exit 2 three days in a row, one issue too. It
+   mints no token.
+6. In the same workflow, the domain of the facts file's origin: the `expiration` event of its
+   RDAP record (the registry's RDAP server, then rdap.org as the fallback). It fails when the date
+   is less than 90 days ahead; no answer is exit 2, never a pass.
+7. `docs/relay.md` and `docs/development.md` name the watch, and what each exit means.
+
+## Decision
+
+The gate keeps the live check, as a relay that changed its contract must stop a release: a
+second and a third try of exit 2 won over taking exit 2 out of the gate, which would let a beta
+pass with the relay unread. A note for a moved line won over a silent pass, so that a session
+moves the hints of the facts file by hand.
+
+## Prove
+
+```sh
+export CARGO_BUILD_JOBS=4
+cargo test -p podssh-probe --test relay_facts
+python scripts/check-relay-spec.py --plant-moved-line      # exit 0, with a note for each fact
+python scripts/check-relay-spec.py --plant-moved-section   # exit 1
+gh workflow run relay-watch.yml
+```
+
+Planted: the search turned off, so that a fact is read at its line alone; the plant of the moved
+line then fails. The check of the domain with a planted expiry 89 days ahead fails, and 91 days
+ahead passes.
+
+# T-342: The relay's limits are compiled in, and nothing compares them with `/relays.json`
+
+**Source:** the audit of hardcoded assumptions of 2026-10-31, finding 7.
+**Category:** defect
+**Milestone:** backlog
+**Priority:** P2
+**Effort:** M
+**Status:** open
+
+## Problem
+
+podssh holds the relay's limits as constants: the idle cut, the byte and time caps of a session,
+and the frame cap of the forward road. If the relay raised its frame cap, the first larger frame
+would end each session that receives one; if it lowered its byte cap, a copy would meet `1009` in
+its middle. The facts file says that the frame cap is read from `/relays.json` and never compiled
+in; the code compiles it in, and the live check never reads `/relays.json`.
+
+## Premise
+
+- Read: the idle cut (180 s), the byte cap (64 MiB), the time cap (12 h) and podssh's budgets
+  under them (60 MiB, 11 h 30 min) are constants (`crates/podssh-relay/src/relay.rs:19-37`);
+  `PODSSH_SESSION_BUDGET` lowers the byte budget and never raises it (`:39-49`).
+- Read: the frame decoder refuses a received frame over 262144 bytes
+  (`crates/podssh-ws/src/frame.rs:30`, `:193-205`), and the session then ends with a Close 1002
+  (`crates/podssh-ws/src/session.rs:252`); a message is at most 16 MiB (`:29`).
+- Read: `crates/podssh-probe/facts/relay-facts.toml:14` says "Read from /relays.json at startup,
+  never compiled in" of that cap. `crates/podssh-ws/src/frame.rs:30` compiles it in, and
+  `podssh-core` takes it from the facts file at compile time
+  (`crates/podssh-core/src/irc/limits.rs:3-9`). The live check fetches `/llms-full.txt` and
+  `/health` alone (`scripts/check-relay-spec.py:374-375`); `:187-188` reads the cap from the
+  facts file.
+- Read: podssh fetches `/relays.json` at a mint for its pool, and keeps `pool[].host` alone
+  (`crates/podssh-relay/src/pool.rs:93-153`). `podssh relay info` reads its `limits`
+  (`connect_timeout_ms`, `idle_timeout_ms`, `max_session_ms`, `max_session_bytes` and
+  `max_frame_bytes`; `crates/podssh-cli/src/relay_diag_text.rs:64-77`), and a test asserts a
+  stand-in's `max_frame_bytes` of 262144 (`crates/podssh-cli/tests/relay.rs:216`).
+- Read: to a node, the resumable layer resumes after the relay's `1009` at the cap
+  (`docs/relay.md:188-194`); a forward session has no layer.
+
+## Approach
+
+1. The pool's cache keeps the `limits` object of the same `/relays.json`, with the time it was
+   read: nothing more is fetched.
+2. The budgets take the smaller of the compiled-in value and the cached one: the byte budget keeps
+   its 4 MiB under a smaller `max_session_bytes`, the time budget its 30 min under
+   `max_session_ms`, and the keepalive stays under `idle_timeout_ms`. A value that does not parse,
+   or 0, is passed over with a note in `-v`.
+3. The receive cap takes the larger of 262144 and `max_frame_bytes`, and never more than 16 MiB;
+   what podssh sends stays `FORWARD_SEND_PAYLOAD` (T-323).
+4. The live check (`scripts/check-relay-spec.py`, and `podssh relay spec`) fetches
+   `/relays.json?host=github.com&port=22` too, and compares its `limits` with the facts file, which
+   then holds each limit; a change fails, as a fact of the document does.
+5. The comment of the facts file says what the code does: the cap is compiled in, the live check
+   compares it, and a cached value can only widen what podssh takes in and narrow what it spends.
+
+## Prove
+
+```sh
+export CARGO_BUILD_JOBS=4
+cargo test -p podssh-relay --lib pool
+cargo test -p podssh-ws --lib frame
+python scripts/check-relay-spec.py
+```
+
+Tests: a cached `max_session_bytes` of 32 MiB gives a byte budget of 28 MiB, and 128 MiB leaves
+60 MiB; a cached `max_frame_bytes` of 524288 lets a received frame of that size in, and 32 MiB
+still stops at 16 MiB. Planted: the larger value taken for the budget; the first test fails.
+
+# T-346: Relay hosts outside the default domain from a signed `/relays.json`, and a list of deployments
+
+**Source:** the audit of hardcoded assumptions of 2026-10-31, finding 1 (its first two proposals:
+a signed `/relays.json`, and a default of several deployments).
+**Category:** feature
+**Milestone:** backlog
+**Priority:** P2
+**Effort:** M
+**Status:** blocked
+
+## Problem
+
+Each road of the release binaries but `--direct` reaches one relay deployment, on Cloudflare,
+under one domain, `ajam.dev`. A release binary copied into a cage is not updated, and it takes no
+relay host outside `ssh.relay.ajam.dev`. A lapse of the domain, an outage of Cloudflare, or a
+proxy that blocks the name stops `ssh`, `proxy`, `cp`, `node` and `chat` for each user, and the
+relay's operator has no way to move the binaries in the field to another deployment.
+
+## Premise
+
+- Read: the default host and the six seeds of the pool are names under `ssh.relay.ajam.dev`
+  (`crates/podssh-relay/src/relay.rs:13`; `crates/podssh-relay/src/pool.rs:20-29`), and a host of
+  `/relays.json` outside the default's parent domain is dropped
+  (`crates/podssh-relay/src/pool.rs:82-95`).
+- Read: the relay is a Worker of Cloudflare
+  (`crates/podssh-probe/tests/spec/relay-spec-2026-10-03-r2.txt:5-7`); its pool names placements
+  in regions of AWS, GCP and Azure, each a name of the same domain (`:30-68`). Inferred: each is a
+  placement of the same Worker.
+- Read: the pairs of the reverse road live on the control host alone
+  (`crates/podssh-relay/src/pair.rs:1-4`; `docs/relay.md:311-316`). The audit cited
+  `docs/relay.md:303-308`; the fact is at `:311-316`.
+- Read: a release binary is uploaded or copied into its host, which cannot build it or download
+  it (Q48, `docs/decisions.md:14`); a machine keeps one token for each deployment, and podssh
+  "never sends a token to a deployment that did not mint it" (`docs/decisions.md:53`).
+- Read, by the audit through web.pkgforge.dev on 2026-10-31
+  (https://pubapi.registry.google/rdap/domain/ajam.dev): Cloudflare's name servers, no DNSSEC, an
+  expiry on 2028-01-19.
+- Inferred (the audit's reading, with no source kept): Cloudflare's outages of 2025-11-18 and
+  2025-12-05 reached its whole network.
+- Read: T-169 is a relay that its users host; no entry covers a second deployment of the
+  operator's.
+
+## Approach
+
+podssh's side:
+
+1. A signed document: the relay serves `/relays.json` with a detached Ed25519 signature over its
+   exact bytes (in a header, or at `/relays.json.sig`; podssh reads both), and the document holds
+   a `serial` and a `not_after`. The relay's operator chooses the form; this entry follows it.
+2. Two public keys are compiled in, the current one and the next, each by its id; the private
+   keys stay offline with the relay's operator.
+3. podssh checks the signature before it uses any host of the document. A host outside the parent
+   domain comes only from a signed document whose `not_after` is ahead and whose `serial` is not
+   below the cached one; an unsigned or a badly signed document keeps today's rule. Each host
+   still meets TLS on its own name.
+4. The default becomes a list of deployments: today's first, then those that the signed document
+   names. A token is minted at each deployment and sent to no other (T-057), and the hosts are
+   tried in the ways of Q10 (`docs/decisions.md:32`).
+5. The cache keeps the signed document and its signature, so that a binary keeps the other
+   deployments when the old domain is gone.
+6. `podssh relay status` and doctor name each deployment, and whether its pool was signed.
+
+The relay's side is item 14 of `docs/relay-operator.md`: the keys, the signed document, and a
+second deployment on another provider and under another domain.
+
+## Prove
+
+```sh
+export CARGO_BUILD_JOBS=4
+cargo test -p podssh-relay --lib pool
+cargo test -p podssh-cli --test relay
+```
+
+With a test key: a signed document's host outside the domain is used; one changed byte, an old
+`not_after`, a lower `serial` or an unknown id of a key keeps the parent domain alone. Planted:
+the check of the signature skipped; the tests of the changed byte and of the unknown key fail.
+Live, once the relay signs: `podssh relay status` names the second deployment.
+
+## Blocker
+
+The operator first: Q49, whether a binary may take relay hosts outside `ssh.relay.ajam.dev` from
+a signed `/relays.json`, and whether the default is a list of deployments. Then the relay's
+operator: the signing keys, the signed document and a second deployment
+(`docs/relay-operator.md`, item 14).
