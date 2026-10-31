@@ -138,7 +138,50 @@ to #68 are T-355.
 | #54 | `doctor` measures what the proxy does to a stream | closed | T-324 (the three failures of the upgrade, and samples with their loss; the commit "doctor samples each probe of TCP, and names three failures of the upgrade"); T-325 (buffering, a cap on bodies, an idle limit) waits for the relay's operator |
 | #55 | The split road's wire protocol | open | T-319 (its Approach holds the protocol; the operator allowed its second connection, Q44, and it waits for the relay's operator) |
 | #56 | A cleartext road on port 443, probed | open | T-326 (the operator allowed it with a token for one session, Q45, and it waits for the relay's operator) |
+| #59 | The forward road without the operator's relay: ways with no account to reach a `host:port` (research) | open | Each road of its ranking, in the paragraph below |
+| #60 | A relay template: a WebSocket forwarder that takes the destination from the URL | open | T-369 (a forwarder that the user names); T-370 (templates of the public forwarders in the binary, and a fallback to them) waits for the operator's ruling Q56 |
+| #61 | SSH on port 443 as a hop | open | T-371 (the hop measured, and a `doctor` line for a hop), T-372 (a hop whose SSH is wrapped in TLS) |
+| #62 | A Shadowsocks road with a refreshable subscription | open | T-373 |
+| #63 | Anonymous exits with no TUN device: WARP over HTTP/2, and Arti | open | T-352 (Option 1, WARP; its first comment's measurements are in the Premise), T-353 (Option 2, Arti), T-374 (its second comment: the quick tunnel's edge through WARP); each waits for the operator's ruling Q52 |
+| #69 | `doctor` reports a bind as if it had measured a listener | open | T-357 (the words of its lines and of its module, and the help of `pipe`); T-358 (a listen after the bind; it waits for the operator's ruling on Q53). `-L` exits 255 on a refused listener, not 77 as the issue says (T-357's Premise) |
+| #70 | The UDP probe measures a local bind, not egress | open | T-359; the quick tunnel's QUIC has its own probe, its handshake (T-301), not this one, so one bind does not decide two roads |
+| #71 | The record checks its citations, not its sentences | open | T-360 (the map of issues against GitHub), T-361 (the targets of a Prove), T-362 (claims of "yet", and a status beside an id). Its five statements: four corrected in place in the commit of the triage (`docs/architecture.md`, `docs/design.md`, `docs/irc.md`), and the fifth, the facts file's comment, is T-342's (its Approach item 5). The reporter withdrew its item on `UNVERIFIED`. #59 to #63, which it found with no row, wait for their triage (T-360, item 5) |
+| #72 | The direct road has no automatic selection | open | T-363 (after the relay hosts fail, in the order of the road table, not before them as the issue asks) |
+| #73 | `-R` refuses the socket forms that `-L` and `-D` carry | open | T-365, which takes the remote SOCKS form (`-R [bind_address:]port`) too: #73 reads its refusal as parity, but OpenSSH carries it (measured with OpenSSH 9.6p1's `ssh -G`) |
+| #74 | `doctor` never tells a name allowlist from an address allowlist | open | T-366 |
+| #75 | An HTTP CONNECT listener | open | T-367 |
+| #76 | `ws:` and `ws-listen:` as addresses of `pipe` | open | T-368, with the reader of requests of T-367 |
 
+**#59, the survey of 2026-10-31.** It extends #18 and the study of
+carriers of the same day (`docs/carriers.md`, whose forward road is T-347,
+T-351, T-352 and T-353). Its ranking, road by road: 1, a forwarder that
+takes its target from the URL: T-369, and T-370 for the forwarders in the
+binary (Q56); 2, the same Worker in the user's own Cloudflare account: a
+template of T-369 can name it, podssh ships no forwarder (the relay stays a
+separate project, `docs/decisions.md`, Q4 and Q9; a relay of the user's own
+is T-169, which waits for the relay's operator), and a recipe for it is
+part of Q56; 3, SSH on port 443 as a hop: T-371 and T-372 (#61); 4,
+Shadowsocks: T-373 (#62); 5 and 6, WARP and Arti: T-352 and T-353 (#63,
+Q52, settled); 7, n0's iroh relays: a road already (T-162, done), and T-348 for the
+release binaries (Q50, settled on 2026-10-31). The comment's corrections of the
+study: the three forwarders are T-369 and T-370; the 60 s of EICE's
+presigned URL, which the comment found in no document of AWS, the study
+cites to AWS's own client, its source F24
+(`aws/aws-cli:awscli/customizations/ec2instanceconnect/eicesigner.py`),
+which the comment does not name, and T-351 keeps it; Microsoft Dev
+Tunnels, which the study left out of the forward road as a tunnel of the
+class of `cf://` that needs an account, is fourth on its reverse road, and
+`cf://` with a quick tunnel gives that class with no account (T-347); the
+rules of `connect()` in a Worker (port 25, and Cloudflare's and private
+addresses, refused as targets) hold for the forwarders of T-369. The
+classes that gave no road (TURN with TCP allocations, public frp, VPN exits
+that need a TUN device, domain fronting) need what a cage does not give
+(UDP, a TUN device, a port other than 443, 80 and 8443), or do not exist (a
+public front to any target), as #59 says.
+
+**#63, its two options.** Its prerequisite for both, a TCP/IP stack in the
+process, holds for T-352 and T-374; Arti gives a stream for each target, so
+T-353 needs none (Inferred).
 ## The reports on other projects (in #18 to #25, and in #29 to #36)
 
 | Report | Entries |

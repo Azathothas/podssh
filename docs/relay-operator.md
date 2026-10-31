@@ -15,9 +15,9 @@ tell podssh's operator, as the last section says
 
 Each item below waits for the relay, unless it says that it is optional or
 a question. It names the entry of [TODO/](../TODO/INDEX.md) that holds the
-detail, and the GitHub issue where there is one; "entry pending" marks a
-request that has no entry yet. podssh's sessions skip the entries that wait
-for the relay. The most urgent come first: the defects of the relay's side,
+detail, and the GitHub issue where there is one; "no entry" marks a
+question or an option that podssh's record does not hold. podssh's sessions
+skip the entries that wait for the relay. The most urgent come first: the defects of the relay's side,
 then the roads that the testers asked for. Read on 2026-10-31: the relay
 served version `2026-10-03-r2`, byte for byte the pinned copy
 [`relay-spec-2026-10-03-r2.txt`](../crates/podssh-probe/tests/spec/relay-spec-2026-10-03-r2.txt)
@@ -236,8 +236,11 @@ relay's endpoints are in the contract.
     and needs the node key of each on the allowlist. That takes a Tailscale
     admin token and the relay's deployment credential, which only the
     operator has ([tailscale.md](tailscale.md)). Ask podssh's operator for
-    the two state files first: step 2 of the entry's Approach makes them,
-    and `podssh ts` prints only the first 8 hex characters of a node key.
+    the two nodes first: step 2 of the entry's Approach makes their state
+    files, on podssh's operator's machine, which holds the tailnet's auth
+    key. Never take a state file: it holds the node's private key. `podssh
+    ts` prints the first 8 hex characters of a node key on its status line,
+    and exits 77, with a hint, when the relay refuses the key.
     [tailscale.md](tailscale.md) also names the relay's `derpMap` runbook as
     open.
 
@@ -261,16 +264,20 @@ relay's endpoints are in the contract.
       and quotas for each address and each token.
 
     Such a front can offer what Cloudflare's edge cannot: items 7 and 8.
-    The smallest form (entry pending, issue #60): the relay's forward road
-    as a Worker that a user deploys under a free Cloudflare account of
-    their own. #59 reports three public WebSocket forwarders that take the
+    The smallest form ([#60](https://github.com/Azathothas/podssh/issues/60)):
+    the relay's forward road as a Worker that a user deploys under a free
+    Cloudflare account of their own. #59 reports three public WebSocket forwarders that take the
     destination from the client; on 2026-10-31 each carried GitHub's SSH
     banner with no account. Two are Cloudflare Workers
     (`Mudlet/mudlet-web:worker/index.js`). They publish no limit and give no
     notice, and #59 ranks as its road 2 the same Worker, about 40 lines,
     under the user's own free account: one `wrangler deploy`, an e-mail
-    address, no card. podssh's side is a road that takes a URL template
-    (#60). Item 15 holds for such a Worker too.
+    address, no card. podssh's side is T-369
+    ([TODO/roads.md](../TODO/roads.md)): `--forwarder TEMPLATE`, a road
+    through a forwarder that the user names, which takes the target from its
+    URL or from a first frame of JSON, and gets no relay token. podssh ships
+    no forwarder, and names none in the binary until the operator rules on
+    Q56 (T-370). Item 15 holds for such a Worker too.
 13. **An iroh relay of the operator's** (no entry; optional). podssh's iroh
     road (behind the cargo feature `iroh`) uses n0's public relays
     (`crates/podssh-iroh/src/relays.rs`), which n0 offers for development

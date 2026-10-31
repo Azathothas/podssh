@@ -1614,3 +1614,110 @@ a session with a pty:
   runs against OpenSSH only.
 - The merge kept, beside `~C`, the sink of `podssh each` (T-183) and the
   Ctrl-C of T-293 in `io.rs` and `session.rs`.
+
+# T-365: `-R` with a socket path on either side, and the remote SOCKS form, as OpenSSH carries them
+
+**Source:** GitHub #73 (Nemo-010, 2026-10-31): `-R` refuses the socket forms that `-L` and `-D`
+carry. T-035 refused them, and the remote SOCKS form, until a later step. #73 asks to keep the
+SOCKS form refused, as parity with OpenSSH; OpenSSH carries it (measured here, see the Premise).
+**Category:** feature
+**Milestone:** backlog
+**Priority:** P2
+**Effort:** M
+**Status:** open
+
+## Problem
+
+`-R` carries `[bind_address:]port:host:hostport` alone. OpenSSH also carries a socket on the
+server (`remote_socket:host:hostport`), a socket on this host as the target
+(`[bind_address:]port:local_socket`, `remote_socket:local_socket`), and a SOCKS proxy that the
+server listens for and the client serves (`[bind_address:]port`). podssh refuses each by name, so
+a command line of OpenSSH fails with podssh. A server whose host refuses an AF_INET bind and
+allows an AF_UNIX one, as sandbox A does (`docs/STATUS.md:279`), can listen on a socket only; and
+the SOCKS form gives a server whose egress is closed a way out through the client.
+
+## Premise
+
+- Read: `crates/podssh-cli/src/ssh/forward.rs:43` says "a Unix socket is not carried yet", and
+  `crates/podssh-cli/src/ssh/forward.rs:49` says "the server's SOCKS proxy (-R [bind_address:]port)
+  is not carried yet", for a spec of one or two fields (`:45-54`); `docs/cli.md:479-480` and
+  `crates/podssh-cli/src/man/notes_ssh.rs:196-197` say so too. `TODO/forwarding.md:52-54` says
+  "until a later step" of both, in T-035.
+- Read: `RemoteForward` holds a port and a `host:host_port` only
+  (`crates/podssh-ssh/src/options.rs:328-339`). podssh asks for it with `tcpip_forward`
+  (`crates/podssh-ssh/src/remote.rs:95-120`), and so does a control master for `-O forward -R`
+  (`crates/podssh-ssh/src/mux/fwd.rs:52`); `-G` prints it from those fields
+  (`crates/podssh-cli/src/ssh/dump.rs:111-117`), and `~C -R` reads it with the same parser
+  (`crates/podssh-cli/src/ssh/local_bind.rs:264-266`).
+- Read: the handler joins a `forwarded-tcpip` channel that podssh asked for
+  (`crates/podssh-ssh/src/handler.rs:173-193`), and refuses each
+  `forwarded-streamlocal@openssh.com` channel as one that podssh did not ask for (`:195-204`,
+  through `unasked`, `:103-118`). The target of a `-R` is dialed from this host, through
+  `HTTPS_PROXY` when it is set (`crates/podssh-ssh/src/remote.rs:170-190`).
+- Read: `-L` and `-D` read a socket path on either side with OpenSSH's field reader
+  (`crates/podssh-cli/src/ssh/local_spec.rs:126-158`); `-L` opens `direct-streamlocal@openssh.com`
+  to a socket on the server (`crates/podssh-ssh/src/local.rs:293`); the SOCKS side of `-D` reads a
+  client's request and answers once the server's channel opened
+  (`crates/podssh-ssh/src/socks.rs:1-5`); `podssh pipe unix-connect:` reaches a local socket, and
+  the attempt is the probe (`crates/podssh-cli/src/pipe/unix.rs:1-9`).
+- Read, in the source of russh 0.65.0, which `Cargo.lock` names (its `src/client/mod.rs`, read in
+  cargo's registry): `Handle::streamlocal_forward` and `Handle::cancel_streamlocal_forward` send
+  `streamlocal-forward@openssh.com` and its cancel, and the client's `Handler` has
+  `server_channel_open_forwarded_streamlocal`. #73 read them in vendor/russh, which T-356
+  removed.
+- Read, in what OpenSSH 9.6p1 printed on 2026-10-31 for
+  `ssh -F /dev/null -G -R SPEC example.invalid`, which connects nowhere: `-R 1080` gives
+  `remoteforward 1080 [socks]:0`; `-R /tmp/r.sock:127.0.0.1:22` gives
+  `remoteforward /tmp/r.sock [127.0.0.1]:22`; `-R 8080:/tmp/local.sock` gives
+  `remoteforward 8080 /tmp/local.sock`; `-R /tmp/r.sock:/tmp/local.sock` gives
+  `remoteforward /tmp/r.sock /tmp/local.sock`.
+- Inferred: OpenSSH serves the remote SOCKS form in its client alone, so a server needs only
+  `tcpip-forward` for it.
+
+## Approach
+
+1. One reader for `-R`, `-o RemoteForward` and `~C -R`: the field reader of `-L`
+   (`local_spec.rs`), so that brackets, a backslash and a field with a `/` mean one thing in each
+   direction. Five forms: `[bind_address:]port:host:hostport`, `remote_socket:host:hostport`,
+   `[bind_address:]port:local_socket`, `remote_socket:local_socket` and `[bind_address:]port`.
+2. `RemoteForward` gets the side that the server listens on (a port with its address, or a path)
+   and a target (a host and a port, a socket on this host, or SOCKS), as `LocalSpec` has `Listen`
+   and `Target`.
+3. A path is asked for with `streamlocal-forward@openssh.com`, and kept in the table by its path;
+   `~C -KR PATH` and `-O cancel` cancel it; a control master asks for it as for a port.
+4. The handler accepts a `forwarded-streamlocal@openssh.com` channel for a path that podssh asked
+   for, as it accepts `forwarded-tcpip`, and refuses another one, as now.
+5. A socket on this host is reached as `unix-connect:` reaches it; a failure closes that channel
+   and says why. The SOCKS form reads the client's request on the channel with the code of `-D`,
+   dials the target as each target of `-R` is dialed, then answers, with the reason of a failure.
+6. `-G` prints each form as OpenSSH 9.6p1 printed it above; `~#` (T-041) names each.
+7. The manual's note, the help and `docs/cli.md`. A server that refuses the request (sshd's
+   `AllowStreamLocalForwarding no`, or a path that it cannot bind) gives no reason, as for
+   `tcpip-forward` (RFC 4254, section 4), so podssh names the path, as it names a port.
+
+## Decision
+
+- The four forms are one entry: they share the reader, the type and the table, and T-035 left them
+  together. The SOCKS form is in it, although #73 asks to keep it refused as parity: OpenSSH
+  carries it (Premise), so its refusal is a gap of podssh.
+- The SOCKS form's targets are dialed from this host through `HTTPS_PROXY`, as each target of `-R`
+  is: one more outbound connection for each, under rule 2 of `AGENTS.md`, section 5. Lost: the
+  relay as their road, a second road for the targets of one forward, which nobody asked for.
+
+## Prove
+
+```sh
+export CARGO_BUILD_JOBS=4
+cargo test -p podssh-cli --lib ssh::forward
+cargo test -p podssh-cli --test ssh_args -- remote_forward
+cargo test -p podssh-ssh -- forwarded_channel
+```
+
+The reader takes the five forms, and `-G` prints the lines of OpenSSH 9.6p1 above. Against a
+russh server in the process: a `forwarded-streamlocal` channel for the path that podssh asked for
+reaches an echo target and comes back whole, and one for another path is refused; a SOCKS5
+request on a channel of the SOCKS form reaches an echo target and gets its answer after the dial,
+and a target that is down gets its SOCKS code. In the gate, `scripts/interop.sh` against OpenSSH:
+`-N -R PATH:127.0.0.1:2203`, then Dropbear's banner read at PATH on the server; and the SOCKS form
+reaches Dropbear's port. Planted: `unasked` kept for `forwarded-streamlocal`; the test of the path
+fails.

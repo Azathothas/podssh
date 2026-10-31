@@ -819,10 +819,20 @@ static binary built with `--features ts`. Each command must exit 0 with the two 
 
 ## Blocker
 
-The relay's operator: the node keys of the two kept state files on the relay's allowlist, with a
-Tailscale admin token and the relay's deployment credential that only the operator has
-(`docs/tailscale.md:20-21`). T-103, T-104 and T-105 are done first. Sessions skip this entry until
-then (the operator's ruling of 2026-10-08).
+Two steps, in this order; T-103, T-104 and T-105 are done.
+
+1. podssh's operator: Approach item 2, the two kept state files. They need the tailnet's auth key,
+   which the operator keeps in `.env/` on the operator's own machine (the operator's note of
+   2026-10-10, `AGENTS.md`, section 4), so a cloud session cannot make them. A session on that
+   machine makes them, and the operator names the two nodes to the relay's operator, never their
+   state files, which hold the private keys (`podssh ts` prints the first 8 hex characters of a
+   node key, and exits 77 when the relay refuses one). Until then the relay's operator has no node
+   to admit (`docs/relay-operator.md`, item 11, asks for them first).
+2. The relay's operator: the two node keys on the relay's allowlist, with a Tailscale admin token
+   and the relay's deployment credential that only the operator has (`docs/tailscale.md:20-21`).
+
+Sessions skip this entry until then (the operator's ruling of 2026-10-08). For `v1.0.0`, the
+stand-in of T-334 (headscale in Podman, Q42) carries the runs with two nodes that this test cannot.
 
 # T-240: `podssh ts --jsonl` writes no JSON
 

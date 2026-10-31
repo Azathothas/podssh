@@ -3464,7 +3464,8 @@ with a throwaway project of the operator's.
 
 # T-352: WARP's MASQUE road over HTTP/2
 
-**Source:** the study of carriers of 2026-10-31, the forward road, item 2.
+**Source:** the study of carriers of 2026-10-31, the forward road, item 2; GitHub #63 (Nemo-010,
+2026-10-31), its Option 1, and its first comment, with a tester's measurements.
 **Category:** feature
 **Milestone:** backlog
 **Priority:** P3
@@ -3506,6 +3507,14 @@ T-353.
   with a headless enrolment by a service token
   (https://developers.cloudflare.com/cloudflare-one/tutorials/deploy-client-headless-linux/;
   https://www.cloudflare.com/zero-trust/products/access).
+- Read in GitHub #63's first comment (a tester's run of `cfrs`, a client in Rust, on 2026-10-31;
+  not measured here): the registration is a `POST` to `api.cloudflareclient.com/v0a5641/reg` with
+  the headers of "WARP for Android", then a `PATCH` of the device with a P-256 key and the tunnel
+  type `masque`, whose answer gives the endpoint's key and its address; the edge takes TLS 1.3
+  with ALPN `h2` and the name `consumer-masque.cloudflareclient.com`, then a CONNECT with
+  `cf-connect-proto: cf-connect-ip`; a capsule of type 0 holds a bare IP packet, with no context
+  ID, where RFC 9484 has one; the endpoint's key is the key of its certificate, whose chain no
+  public root signs, and the client's certificate is self-signed over the key of the `PATCH`.
 
 ## Approach
 
@@ -3518,6 +3527,8 @@ T-353.
 3. The user's own organization first, with a service token from a file, if Q52 allows only that.
 4. A measurement of throughput and of a session's life beside the forward road, by the method of
    T-157.
+5. The device's record and its key are kept in a private file of the cache directory (T-243) and
+   used again: a registration at each start spends a device (#63's first comment).
 
 ## Decision
 
@@ -3536,7 +3547,8 @@ ones.
 
 # T-353: Tor through Arti, in a feature crate
 
-**Source:** the study of carriers of 2026-10-31, the forward road, item 3.
+**Source:** the study of carriers of 2026-10-31, the forward road, item 3; GitHub #63 (Nemo-010,
+2026-10-31), its Option 2.
 **Category:** feature
 **Milestone:** backlog
 **Priority:** P3
@@ -3570,6 +3582,11 @@ Arti brings C, as the features `ts` and `iroh` do.
 - Read: podssh starts no program that the user did not name (`AGENTS.md`, section 5, rule 3), so
   a transport must run in podssh's process; podssh-ws does CONNECT, TLS and the upgrade already.
   C in a feature crate has a precedent in `ts` and `iroh` (`crates/podssh-cli/Cargo.toml:23-31`).
+- Read in GitHub #63 (a tester's reading and count of 2026-10-31; not verified here): Arti's
+  `reachable_addrs` holds its first hops to the ports that it lists, such as 443, 80 and 8443; 919
+  of the 2,893 exits running then accepted port 22 (Onionoo's details). Inferred: Arti gives a
+  stream for each target, so this road needs no TCP/IP stack in the process, which #63 counts as a
+  need of both its options.
 
 ## Approach
 
@@ -3640,3 +3657,646 @@ output, and EICE's presigned URL in no log.
 
 The operator: a throwaway GCP project with a VM behind IAP, and an AWS account with an instance
 and an EICE endpoint, their credential files in `.env/`.
+
+# T-359: The iroh road takes UDP on a bind alone, and `doctor` says that it may go direct with nothing sent
+
+**Source:** GitHub #70 (Nemo-010, 2026-10-31).
+**Category:** defect
+**Milestone:** backlog
+**Priority:** P2
+**Effort:** M
+**Status:** open
+
+## Problem
+
+The iroh road gives its endpoint UDP sockets when a UDP socket binds on this host; it sends
+nothing to learn whether a datagram leaves. A host that allows the bind and drops UDP further on
+gets the sockets, and probes from them that never arrive, and `doctor` says that the road "may go
+direct". `PODSSH_IROH_UDP=off` is for such a host, but only a user who knows to set it has it. A
+capability is probed before it is used, and a bind is not what a direct path uses. P2, not P1:
+the code is in a build with the feature `iroh` alone, and `TODO/INDEX.md:24` says "A defect in
+code that no command of the default build uses is P2 at most".
+
+## Premise
+
+- Read: the probe binds a UDP socket to port 0 and drops it, and
+  `crates/podssh-iroh/src/probe.rs:9-10` says "Nothing is sent"; the endpoint adds `0.0.0.0:0`
+  and `[::]:0`, not required, when the probe binds (`crates/podssh-iroh/src/endpoint.rs:222-227`).
+  T-162 chose this probe (`TODO/roads.md:50-52`).
+- Read: `crates/podssh-iroh/src/endpoint.rs:71-74` says "as on a host whose UDP is refused
+  further on than the probe sees" of `PODSSH_IROH_UDP=off`, and the manual says that "UDP is used
+  when a socket binds" (`crates/podssh-cli/src/man/facts.rs:273-274`).
+- Read: doctor's two answers are `ok`: "the iroh road may go direct" after a bind, and "the iroh
+  road then uses its relay alone" after a refusal (`crates/podssh-cli/src/doctor/iroh.rs:12-18`),
+  in a build with the feature only (`crates/podssh-cli/src/doctor/mod.rs:107-108`). The refusal's
+  `ok` is doctor's rule, as the relay alone is a road that works; the bind's "may go direct" is
+  not measured.
+- Read, in iroh 1.4.1 (the local cargo registry, `src/net_report/report.rs`): iroh's report of
+  the network holds `udp_v4` and `udp_v6`, "A QAD IPv4 round trip completed", QAD being QUIC
+  address discovery against a relay, on the relay's port 7842
+  (`vendor/iroh-relay/src/defaults.rs:3-7`). The report is public behind iroh's feature
+  `unstable-net-report` (`Endpoint::net_report`), and iroh's test relay runs QAD when it is asked
+  to (`run_relay_server_with`, in iroh's `src/test_utils.rs`). So a datagram that came back from
+  the road's own relay is in reach.
+- Read: the quick tunnel's QUIC does not take this probe, so the issue's "one bind decides two
+  roads" is wrong. T-301's Approach item 1 said "After a UDP probe (the iroh road's)"
+  (`TODO/roads.md:2020`); its Decision took QUIC only where no proxy is set, on the connection's
+  own socket (`TODO/roads.md:2052-2059`), and the QUIC handshake, bounded at 5 s, is its probe:
+  QUIC that fails gives way to HTTP/2 for the run (`crates/podssh-cli/src/node_quick.rs:161-163`,
+  `:276-295`; `crates/podssh-relay/src/quick/quic.rs:29`). Its cost on a host that drops UDP is
+  one handshake a run, as its Decision item 5 chose (`TODO/roads.md:2060-2064`). doctor says
+  nothing of it in the default build, where the quick tunnel is.
+- Read: the measured cage refuses UDP (`docs/target-environment.md:23`), and the box does too
+  (`scripts/box/seccomp.json:11-30`): there the probe is right. Inferred: it is wrong on a host
+  that allows a UDP socket and drops its datagrams, as a network whose way out is a proxy can.
+- Inferred, not measured: iroh dials a peer that it knows by its key and relay alone
+  (`crates/podssh-iroh/src/endpoint.rs:4-5`) over the relay first, and tries direct paths beside
+  it; so on a host that drops UDP the cost is probes that never arrive and a report that waits
+  for them, not a wait before the relay. `-v` says at a session's end which path carried it
+  (T-335).
+
+## Approach
+
+1. The probe has three answers: `Answered`, a QAD round trip to the road's home relay came back
+   within 3 s; `Refused`, the UDP socket did not bind; `Unknown`, it bound and nothing came back
+   in time.
+2. No UDP for a session before an answer: the endpoint binds with its UDP sockets not required,
+   as today, and dials nothing until its first report of the network, 3 s at most. A report with
+   a round trip keeps it; one without closes it, and an endpoint with no UDP takes its place. A
+   node's endpoint does the same before it serves. The work reads iroh 1.4.1 for how the first
+   report is awaited (`Endpoint::net_report`).
+3. `PODSSH_IROH_UDP=off` skips the probe, as today; `PODSSH_IROH_UDP=on` takes UDP on a bind
+   alone, as before this entry, for a relay that runs no QAD.
+4. doctor: `bind UDP` says only what a bind shows. A new line, `UDP out`, gives the answer and
+   its time: with the feature, the QAD round trip to the home relay; in each build where no proxy
+   is set, a QUIC handshake to the quick tunnel's edge as `podssh node --quick-tunnel` makes it
+   (`crates/podssh-relay/src/quick/quic.rs:122-138`), and with a proxy set, that the quick tunnel
+   takes HTTP/2. Each answer is `ok`, as a road with no UDP works; a home relay that does not
+   answer is already `FAIL` (`crates/podssh-cli/src/doctor/iroh.rs:54-57`).
+5. `-v` says which answer the road took. The manual's `PODSSH_IROH_UDP`, `docs/design.md`
+   (section 7), `docs/architecture.md` (rule 3) and `SECURITY.md` say that the iroh road takes UDP
+   after a datagram came back, not after a socket binds.
+
+## Decision
+
+1. The datagram that decides is QAD's, to the road's own relay: it is what a direct path needs,
+   UDP out and back, to a server that the road already reaches. Lost: a STUN Binding to a server
+   that the tree does not name, which is a new host whose answer says nothing of the relay's; a
+   datagram to the peer, which is not known before the dial.
+2. The wait is 3 s at each start on a host that drops UDP. Lost: a cache of the answer for each
+   network, as a network can change under the same address; the race of T-164 already hides the
+   wait where the reverse road is there, and `PODSSH_IROH_UDP=off` takes it away.
+3. UDP beside a proxy does not change: the operator accepted the iroh road's UDP after a probe
+   (`docs/architecture.md:139-142`), and the quick tunnel's narrower rule, no QUIC where a proxy
+   is set (T-301), stays its own.
+
+## Prove
+
+```sh
+export CARGO_BUILD_JOBS=4
+cargo test -p podssh-iroh --lib probe
+cargo test -p podssh-iroh -p podssh-cli --features podssh-cli/iroh-test
+cargo test -p podssh-cli --lib doctor
+```
+
+With iroh's relay server on the loopback and its QAD on: `Answered`, and the endpoint keeps its
+UDP sockets (`Endpoint::bound_sockets`). The same relay with its QAD port behind a forwarder of
+the test that reads and never answers: `Unknown` within the bound, and the endpoint has no UDP
+socket. A refused bind, planted: `Refused`. Planted: the bind-only probe back; the test of the
+silent port fails, as the endpoint keeps its UDP sockets. In the box, where UDP is refused,
+doctor's `UDP out` says so; a box that allows UDP and drops it waits for T-251.
+
+# T-363: The direct road is never tried after the relay hosts fail, though the road table says that a probe chooses it
+
+**Source:** GitHub #72 (Nemo-010, 2026-10-31); `docs/design.md:51`.
+**Category:** feature
+**Milestone:** backlog
+**Priority:** P3
+**Effort:** M
+**Status:** open
+
+## Problem
+
+The road table gives the direct road as the second road to a public sshd, when a probe shows
+that it works; no code tries it. When each relay host fails, `podssh ssh` ends, also where a
+direct connection, or a CONNECT through the host's proxy, would reach the server. The relay's
+hosts share one provider and one domain, so the direct road is the one road to a public sshd that
+does not depend on them.
+
+## Premise
+
+- Read: `Transport::Direct` comes from `--direct` alone
+  (`crates/podssh-cli/src/ssh/resolve.rs:328-334`), and else the relay (`:335-358`); its other
+  uses are a label (`crates/podssh-cli/src/ssh/mod.rs:195`), the dial
+  (`crates/podssh-cli/src/ssh/transport.rs:220-264`) and a check of `--upgrade`
+  (`crates/podssh-cli/src/ssh/upgrade.rs:59`). The issue cited
+  `crates/podssh-cli/src/ssh/resolve.rs:326-334`; the arm is at `:328-334`.
+- Read: `docs/design.md:45` says "podssh tries the roads in this order"; for a public sshd, the
+  forward road comes first, then the direct road (`docs/design.md:51`), which at `8554930` said
+  "`--direct`, or when a probe shows it works"; the triage of GitHub #69 to #72 named this entry
+  there.
+- Read: rule 2 of `AGENTS.md` allows a second connection at once for a race between relay hosts,
+  and for the split HTTP road (`AGENTS.md:245-252`); a race of the forward and the direct road is
+  neither.
+- Read: the direct dial goes through `HTTPS_PROXY` when it is set, with the relay's step limit of
+  20 s (`crates/podssh-cli/src/ssh/transport.rs:285-299`, `crates/podssh-relay/src/open.rs:30`),
+  and names a proxy that takes the CONNECT and sends nothing back (T-317). doctor reads the
+  server's version line on port 22, straight out or through the proxy, to say whether plain ssh
+  can leave (`crates/podssh-cli/src/doctor/net.rs:180-195`, `:197-271`).
+- Read: `cp`, `each`, `job`, `health`, `containers`, `ping` and the `ssh:` address of `pipe` reach
+  their server through the same function as `podssh ssh`
+  (`crates/podssh-cli/src/ssh/transport.rs:154-158`; `crates/podssh-cli/src/cp/link.rs`,
+  `crates/podssh-cli/src/each/host.rs`).
+- Read: on the hosts that podssh is built for, the proxy refuses port 22 and a direct dial is
+  dropped with no answer (`docs/target-environment.md:21-22`); a cloud container's proxy takes
+  `CONNECT github.com:22` and carries no SSH (`docs/target-environment.md:57-66`; the issue cited
+  `:66-73`).
+- Read: each road of the release binaries but `--direct` depends on Cloudflare and on one domain
+  (`docs/carriers.md:17-19`; T-346).
+- Read: the opener tries the relay hosts in turn, and stops at once on a failure that each host
+  would repeat (`crates/podssh-relay/src/open.rs:1-14`).
+
+## Approach
+
+1. When no road is named (no `--direct`, no `--relay-host` and no `PODSSH_RELAY`, no `node://`,
+   `iroh:` or `cf://` destination) and no relay host opened a session, podssh tries the direct
+   road once: the dial of `--direct`, then the server's version line within 10 s, by the check of
+   doctor's `no_ssh_banner`, shared; the bytes that it read go to russh first. Before the dial,
+   one line says that the relay hosts failed and that podssh tries HOST:PORT directly, through the
+   proxy when one is set.
+2. `--direct` stays the direct road alone, and a relay that the user names stays the relay alone:
+   neither falls back. `PODSSH_DIRECT=no`, and its key in the settings file (T-048), turns the
+   fallback off.
+3. When both fail, the lines name both roads, each with its error and its time, and the exit is
+   the relay's, as today.
+4. The first hop of `-J`, and each command that reaches its server through the same function, as
+   in the Premise; `podssh proxy`, which has no direct road, does not change.
+5. `-v` names the road that carried the session. The manual (`--direct` and the variables),
+   `docs/cli.md`, `docs/relay.md` and the row of `docs/design.md:51` say so.
+
+## Decision
+
+1. The order is the table's: the forward road, then the direct road. The issue's order, the
+   direct road first with a bound of 8 s, lost: where podssh is built for, a direct dial is dropped
+   with no answer (`docs/target-environment.md:22`), so each run there would wait out the bound
+   before the relay that works.
+2. A race of the two roads lost: no exception of rule 2 of `AGENTS.md` covers it, so a race would
+   be the operator's to allow; a road that follows a failure needs no ruling.
+3. The probe is the dial that carries the session, and the server's version line on it, never
+   another port or protocol (the issue's ask 3); a CONNECT that the proxy takes and that carries no
+   SSH is no road (T-317).
+4. The fallback is on by default, as the table gives it. Through a proxy, its CONNECT names the
+   target, which the forward road's does not: the line before the dial says so, and
+   `PODSSH_DIRECT=no` prevents it. Lost: off by default, which keeps the road of the table from
+   each user who does not know of it.
+
+## Prove
+
+```sh
+export CARGO_BUILD_JOBS=4
+cargo test -p podssh-cli --test direct_fallback
+cargo test -p podssh-cli --lib ssh::transport
+```
+
+Through a stand-in relay that refuses each host, and a stand-in SSH server on the loopback:
+`podssh ssh` with no `--direct` logs in over the direct road, and says that it fell back; with
+`--direct` and the server's port closed, it fails and does not fall back; with `--relay-host`, or
+with `PODSSH_DIRECT=no`, a failing relay ends the run; when both fail, the lines name both roads
+and their times. A proxy of the test that takes the CONNECT and sends nothing: the fallback ends
+with the proxy named. Planted: the fallback removed; the first test fails.
+
+# T-369: `--forwarder TEMPLATE`: a road through a WebSocket forwarder that takes the target from its URL
+
+**Source:** GitHub #60 (Nemo-010, 2026-10-31), and the survey of GitHub #59, its roads 1 and 2.
+**Category:** feature
+**Milestone:** backlog
+**Priority:** P3
+**Effort:** M
+**Status:** open
+
+## Problem
+
+To reach a target that the user does not run, podssh has the relay, whose one deployment the
+operator runs (T-346), and `--direct`, which needs an egress that reaches the target; `cf://` and
+`node://` need a host of the user's. Some public services take a target from the client and carry
+its bytes over a WebSocket, with no account: the plumbing of other products, such as a MUD client
+or an SSH client in a browser. A user who names one could reach a target with neither the
+operator's relay nor a host of their own. podssh-ws can speak to them, but for its rules on the
+relay's path and token.
+
+## Premise
+
+- Read in GitHub #59 and #60 (a tester's measurement of 2026-10-31, from a host with direct
+  egress; not measured here): `wss://web-proxy.mudlet.org/?host=H&port=P`, the Worker of Mudlet's
+  web client; an older copy of it at `mudix.delwing.workers.dev`; and `wss://ssheasy.com/p`, which
+  takes the target in a first frame of JSON. Each gave GitHub's banner from `github.com:22`, and the
+  first and the third from `ssh.github.com:443` too. The Worker refuses port 25, and private and
+  Cloudflare addresses, and sends JSON messages in text frames (`Mudlet/mudlet-web:worker/index.js`,
+  as #59 read it); ssheasy's code caps a connection at 1 GiB, then 100 KiB/s
+  (`hullarb/ssheasy:proxy/main.go`, as #60 read it).
+- Read: the study of carriers found no documented service, with no account, that carries any TCP
+  target over a WebSocket (`docs/carriers.md:16-17`); the three above publish no limit, and say
+  nothing of other clients.
+- Read: a relay is a host and a port (`crates/podssh-relay/src/relay.rs:56-62`), and its forward
+  path is `/connect/<host>/<port>` (`:139-152`); a run has one road, of five kinds
+  (`crates/podssh-cli/src/ssh/resolve.rs:23-49`).
+- Read: `validate` refuses a query other than the relay's knobs, and `connect` always sends a token
+  (`crates/podssh-ws/src/client.rs:66-105`, `:159-182`); a token goes only to the deployment that
+  minted it (`docs/decisions.md:53`).
+- Read: a SOCKS5 proxy that the user names in `ALL_PROXY` carries each road already (T-070;
+  `crates/podssh-ws/src/socks5.rs:1-7`): podssh takes a third party's proxy that the user chooses.
+
+## Approach
+
+1. `--forwarder TEMPLATE`, `PODSSH_FORWARDER` and `Forwarder` in the settings file (T-048), for the
+   commands that take `--relay-host`; a list is tried in order, as the relay hosts are (T-220).
+   `pipe` reaches a forwarder with the `wss:` of T-368.
+2. A template is a `wss://` or `ws://` URL with `{host}` and `{port}` once each: podssh checks the
+   target as each target is (`check_target`), then puts it in, percent-encoded. A template with
+   neither sends them in a first text frame of JSON, `{"Host":HOST,"Port":PORT}`, which podssh
+   writes itself. Another template is refused (64).
+3. The dial is T-368's, with no token: TLS checked for the forwarder's name, the upgrade through
+   `HTTPS_PROXY`, and no `/v1/mint`, no `/relays.json` and no pool.
+4. The stream is the binary frames. A text frame of the forwarder is shown with `-v`, and never
+   written into the stream; a close names the forwarder, its code and its reason.
+5. `doctor --forwarder TEMPLATE`: the upgrade, then GitHub's banner from `github.com:22` through it.
+6. The manual: a forwarder is an endpoint of another product, which publishes no limit and can
+   stop at any time, so a user names more than one; podssh names none.
+
+## Decision
+
+- `--forwarder`, not `--relay-template` (#60's word): a forwarder does not speak the relay's
+  contract, and `relay` names that contract in each flag of podssh. Lost: a kind of host in
+  `--relay-host`, whose failover could then give a forwarder the relay's token.
+- The user names each forwarder, as the user names a proxy in `ALL_PROXY` (Premise). Built-in
+  templates of the forwarders that #59 measured, a fallback to them, and a live test against them
+  wait for the operator's ruling on Q56 (T-370).
+- One road for each run, as each road of `podssh ssh` is: with `--forwarder`, the relay is not
+  tried after the forwarders. A race with the relay, as T-164 races the iroh road, can be a later
+  step.
+- A forwarder of the user's own, #59's road 2 (the same Worker in the user's own Cloudflare
+  account), is a template as any other; podssh ships no forwarder, as the relay stays a separate
+  project (`docs/decisions.md:36`; T-169).
+
+## Prove
+
+```sh
+export CARGO_BUILD_JOBS=4
+cargo test -p podssh-ws --test forwarder
+cargo test -p podssh-cli --test forwarder_cli
+```
+
+Two stand-in forwarders on the loopback, one that takes the target from its query and one from a
+first frame of JSON: a session to a test sshd through each, 1 MiB each way with equal digests; a
+close names the forwarder; a template with `{host}` and no `{port}`, or with `{port}` twice, is
+refused (64); a target whose name holds `&` is refused before it is put in. The stand-ins see no
+`X-Relay-Token`. Against websockify in Podman, software that podssh did not write, with its target
+fixed on its command line: the session's bytes pass (Inferred: it carries binary frames as they
+are). Planted: the host put in with no check; the test of `&` fails.
+
+# T-370: Built-in templates of other products' public forwarders, and a fallback to them
+
+**Source:** GitHub #59 (Nemo-010, 2026-10-31), road 1 of its ranking, "with Mudlet and ssheasy as
+built-in presets"; GitHub #60, a template "one the build knows".
+**Category:** feature
+**Milestone:** backlog
+**Priority:** P3
+**Effort:** S
+**Status:** blocked
+
+## Problem
+
+With T-369, a user who knows a forwarder can name it. #59 asks for the three that it measured in
+the binary, so that each binary has a second road to any target with no setup. Those forwarders
+serve other products: their operators offer them to those products' users, and publish no limit
+and no notice.
+
+## Premise
+
+- Read in GitHub #59 and #60, as in T-369: the three forwarders, measured from a host with direct
+  egress; Mudlet's Worker (`Mudlet/mudlet-web:worker/index.js`) and ssheasy's caps
+  (`hullarb/ssheasy:proxy/main.go`), as the tester read them.
+- Read in GitHub #59 (the tester's reading): Mudlet's Worker runs on Cloudflare's free plan, and
+  each user of Mudlet's web client shares its 100,000 requests a day.
+- Read: the operator's ruling on Q50 (`docs/decisions.md`, 2026-10-31) lets the release binaries
+  try n0's public relays and Tailscale's tailcat fleet when the user did not ask for them, their
+  operators not asked first. Those two offer their relays to the public, for development and for
+  tailcat; the forwarders of #59 serve their own products' users, and say nothing of others.
+- Read: whether Cloudflare's terms, which forbid using its services "to provide a virtual private
+  network or other similar proxy services", hold for the relay is a question for the relay's
+  operator (`docs/relay-operator.md:83-87`).
+- Read: the test targets of a session are the operator's list (`AGENTS.md:225-237`), which names
+  none of the three.
+
+## Approach
+
+After the ruling on Q56, as far as it allows:
+
+1. Templates in the binary, each with its form (the query, or the frame of JSON), selected by a
+   word (`--forwarder mudlet`), each with its note in the manual.
+2. A fallback to them when each relay host failed, said on stderr with the forwarder's name.
+3. A watch of their life, as T-339 watches the quick tunnel's pin: a check in CI that each one
+   still upgrades and gives GitHub's banner.
+4. A recipe in the manual for a forwarder in the user's own Cloudflare account.
+
+## Prove
+
+```sh
+export CARGO_BUILD_JOBS=4
+cargo test -p podssh-cli --test forwarder_cli -- builtin
+```
+
+Each built-in template passes the stand-ins of T-369 in its form; a fallback runs only after each
+relay host failed. Live, as Q56 allows: GitHub's banner through each, in GitHub Actions.
+
+## Blocker
+
+The operator: Q56, whether podssh may name other products' public forwarders, try them when the
+user did not ask, test against them live, and give a recipe for one.
+
+# T-371: A `-J` hop on port 443 through the proxy, measured, and a `doctor` line for a hop
+
+**Source:** GitHub #61 (Nemo-010, 2026-10-31), and the survey of GitHub #59, its road 3.
+**Category:** measurement
+**Milestone:** backlog
+**Priority:** P3
+**Effort:** M
+**Status:** open
+
+## Problem
+
+An SSH server that listens on port 443 can be the first hop of `-J`, reached with `--direct`
+through a proxy that allows port 443 only, with no relay. `-J user@HOST:443` parses, but no test
+runs it: not the login of a hop with a password and no terminal, and not `-W` or `-L` through such
+a hop. `doctor` has no line for a hop, so a user cannot see whether one is reachable from here.
+
+## Premise
+
+- Read: a hop is `[user@]host[:port]` or `ssh://[user@]host[:port]`
+  (`crates/podssh-cli/src/ssh/hop.rs:30-57`), and `-J` refuses a node only (`:59-65`). The road is
+  chosen for the first hop's host (`crates/podssh-cli/src/ssh/resolve.rs:306`); with `--direct` it
+  is TCP through `HTTPS_PROXY` (`:328-334`; `crates/podssh-cli/src/ssh/transport.rs:1-2`).
+- Read: a prompt goes to the terminal, or to the program of `SSH_ASKPASS`, chosen as OpenSSH
+  chooses it (`crates/podssh-ssh/src/prompt.rs:1-12`).
+- Read: through the agent proxy of a cloud container, a CONNECT to `ssh.github.com:443` got `200`,
+  and then a reset: `TODO/ws.md:1153` says "gets 200, then a reset". A proxy that waits for TLS
+  carries no SSH on port 443; T-372 wraps SSH in TLS for it. Through the relay, GitHub's SSH on
+  port 443 answers (`docs/STATUS.md:108`).
+- Read: `doctor` asks the proxy for the relay and for `github.com` only
+  (`crates/podssh-cli/src/doctor/net.rs:197-243`).
+- Read in GitHub #61 (a tester's measurement of 2026-10-31, from a host with direct egress; not
+  measured here): SSH banners on port 443 at `bg2.vpnjantit.com` (Dropbear 2017.75, an account with
+  a password that a form makes), `ssh.tilde.club` and `ssh.blinkenshell.org` (OpenSSH); whether
+  they allow `direct-tcpip` was not measured.
+- Read: GitHub's SSH endpoint is a test target, and those three are not (`AGENTS.md:225-237`). The
+  box's proxy allows ports 443, 80 and 8443, and lets one test target through by its name
+  (`scripts/box/proxy.py:6-16`).
+
+## Approach
+
+1. In the box: a test sshd, with a user who logs in with a password, that the box's proxy lets
+   through on port 443 by a name (`--allow`); `podssh ssh --direct -J user@NAME:443 TARGET` with
+   the password from `SSH_ASKPASS` and the box's dead `/dev/tty` (T-005); `-W HOST:PORT` and `-L`
+   through the hop; a second hop with `AllowTcpForwarding no`, whose refusal is named in the hop's
+   words.
+2. Live: `podssh ssh --direct -J git@ssh.github.com:443 HOST`, through the session's own proxy and
+   through a proxy that passes bytes as they are (GitHub Actions): the banner, then GitHub's
+   refusal of a key made for the check.
+3. `doctor --hop [USER@]HOST[:PORT]`: the CONNECT (or the TCP with no proxy), the server's banner,
+   as T-317 reads it, and the methods that the server offers for the request `none`. Through a
+   proxy that waits for TLS, the line names the road of T-372.
+4. `docs/cli.md` and the manual: a hop on port 443 with `--direct`, and the password of a hop from
+   `SSH_ASKPASS` or from the credential store (T-228), never from the command line.
+   `docs/STATUS.md`: each result.
+
+## Decision
+
+- The measurement first, as #61 asks: if a hop on port 443 works as it is, the entry is the tests,
+  the line of `doctor` and the documents. A hop whose SSH is wrapped in TLS is T-372.
+- The live hop is GitHub's (`ssh.github.com:443`), a test target. GitHub takes no login of a key
+  made for the check, so it measures the dial, the banner and the refusal, and the box's sshd
+  measures the rest. The free SSH services of #61 are not test targets of the operator's, and this
+  entry does not need them.
+
+## Prove
+
+```sh
+export CARGO_BUILD_JOBS=4
+cargo test -p podssh-cli --test ssh_args -- jump
+cargo test -p podssh-cli --test doctor -- hop
+sh scripts/test_in_box.sh   # the hop on port 443 behind the box's proxy
+```
+
+A stand-in SSH server on the loopback behind a stand-in proxy that allows port 443 only: `-J` with
+the password from a stand-in of `SSH_ASKPASS` reaches the target through it, and `doctor --hop`
+gives its banner and its methods; a hop that refuses `direct-tcpip` is named in its words.
+Planted: the hop dialed on port 22 whatever its port; the stand-in proxy refuses it, and the test
+fails. In the box: the runs of step 1. Live: the lines of step 2, in `docs/STATUS.md`.
+
+# T-372: A hop or a destination whose SSH is wrapped in TLS: `ssh+tls://`
+
+**Source:** GitHub #61 (Nemo-010, 2026-10-31), its part "What changes if it does not": a hop with
+SSH inside TLS, which `hop.rs` cannot write.
+**Category:** feature
+**Milestone:** backlog
+**Priority:** P3
+**Effort:** M
+**Status:** open
+
+## Problem
+
+Some SSH servers on port 443 sit behind TLS, as stunnel puts them, and a proxy that waits for TLS
+on port 443 carries no plain SSH (T-317). podssh can write neither case: a hop is plain SSH over
+TCP, and podssh runs no `ProxyCommand` that could add TLS.
+
+## Premise
+
+- Read: a hop is `[user@]host[:port]` or `ssh://[user@]host[:port]`
+  (`crates/podssh-cli/src/ssh/hop.rs:30-57`); a destination can also name a road by its scheme,
+  `cf://`, `node://` or `iroh:` (`crates/podssh-cli/src/ssh/resolve.rs:23-49`).
+- Read: podssh runs no `ProxyCommand` (`crates/podssh-cli/src/ssh/options.rs:219-224`).
+- Read: podssh-ws opens TCP through the proxy, then a TLS handshake checked for a name
+  (`crates/podssh-ws/src/client.rs:184-205`), with no ALPN and no client certificate
+  (`crates/podssh-ws/src/tls.rs:293-296`).
+- Read: the agent proxy of a cloud container re-terminates TLS for some names, with its CA in
+  `SSL_CERT_FILE` (`docs/target-environment.md:57-66`), and reset SSH on port 443
+  (`TODO/ws.md:1151-1154`). Inferred: SSH inside TLS passes such a proxy where podssh trusts the
+  proxy's CA.
+- Read in GitHub #61 (a tester's report, which the tester's own run did not reproduce):
+  `mx1.vpnjantit.com:443` and `ee2.vpnjantit.com:443` answer TLS, then SSH.
+
+## Approach
+
+1. A scheme `ssh+tls://[user@]host[:port]`, for a destination and for a hop of `-J`, port 443 by
+   default: TCP (through the relay, `--direct`, or the hop before it), then TLS checked for `host`
+   with podssh's trust (`--ca-file`), then SSH inside it. The host key is checked as for each hop.
+2. A hop of TLS after the first runs its TLS inside the `direct-tcpip` channel of the hop before
+   it.
+3. A refusal names its step: the CONNECT, TLS (an unknown issuer with the words of T-340), or SSH.
+4. `doctor --hop ssh+tls://...` (T-371): TLS, then the banner.
+5. The manual and `docs/cli.md`.
+
+## Decision
+
+- A scheme, as `cf://` and `node://` are, not #61's `?tls=1`: a hop is not a URL with options, and
+  a query would be the only one in a hop, with rules of its own.
+- Any hop of a chain, not the first only, as TLS over a channel's stream is the same code. Lost: the
+  first hop only, as T-347 chose for `cf://`, whose WebSocket inside a channel would need more.
+
+## Prove
+
+```sh
+export CARGO_BUILD_JOBS=4
+cargo test -p podssh-cli --test ssh_tls_hop
+```
+
+stunnel, software that podssh did not write, in the build image or in the box, in front of a test
+sshd: `podssh ssh -J ssh+tls://user@hop:443 target` reaches the target, and so does the scheme as
+the destination; a certificate for another name is refused at the TLS step; through a stand-in
+proxy that waits for TLS and resets plain SSH, the hop of TLS passes and a plain one fails.
+Planted: the certificate's name not checked; the test of another name fails.
+
+# T-373: A Shadowsocks road, from a file of `ss://` lines that a subscription can refresh
+
+**Source:** GitHub #62 (Nemo-010, 2026-10-31), and the survey of GitHub #59, its road 4.
+**Category:** feature
+**Milestone:** backlog
+**Priority:** P3
+**Effort:** M
+**Status:** open
+
+## Problem
+
+A Shadowsocks server takes a target in an address header and dials it, as the relay's forward path
+does, with a key in place of a token. Such servers run on port 443, with keys that their operators
+give out, some of them on public pages. podssh has no client for it, so a user with such a server
+cannot make it a road.
+
+## Premise
+
+- Read in GitHub #62 (the tester's reading of https://shadowsocks.org/doc/aead.html; not read
+  here): a stream starts with a salt; each chunk is a length of 2 bytes sealed by an AEAD, then the
+  sealed payload; the first payload starts with the address header (its type, the address, the
+  port); the ciphers are `chacha20-ietf-poly1305` and `aes-256-gcm`; the key comes from the
+  password by EVP_BytesToKey (MD5), and each subkey by HKDF-SHA1 with the info `ss-subkey`. An
+  `ss://` URI (SIP002) holds the method, the password, the host and the port, and can name a
+  plugin.
+- Read in GitHub #62 (a tester's probe of 2026-10-31): a key that VPNBook publishes for its servers
+  on port 443 took the salt and the header and gave no byte back, so it is not confirmed that such
+  a server dials an arbitrary target.
+- Read: podssh-ws has AES-GCM, ChaCha20-Poly1305 and HKDF of RustCrypto
+  (`crates/podssh-ws/Cargo.toml:16-21`), and a SOCKS5 tunnel that names its target to a proxy
+  (`crates/podssh-ws/src/socks5.rs:1-7`); a library crate has no C (`AGENTS.md`, section 5, rule
+  4).
+- Read: tokens and keys never appear in argv, logs or URLs, and go in files with tight permissions
+  (`docs/architecture.md:157-159`); an `ss://` URI holds the password.
+- Read: podssh starts no program that the user did not name (`AGENTS.md`, section 5, rule 3), and
+  a plugin of Shadowsocks is another program.
+- Inferred: a proxy that waits for TLS on port 443 carries no Shadowsocks, as it carries no SSH
+  (T-317).
+
+## Approach
+
+1. A stream in podssh-ws: the AEAD form of Shadowsocks, with those two ciphers and `aes-128-gcm`,
+   over TCP through `HTTPS_PROXY`, with the target in the first chunk. No plugin: a URI that names
+   one is refused, with the reason.
+2. `--shadowsocks FILE`: a private file, checked as the relay's token file is, of `ss://` lines,
+   tried in order as the relay hosts are (T-220). A line `subscription URL` names a list to fetch
+   through the proxy, over TLS and bounded in size; the list is kept in the cache directory
+   (T-243) with mode 0600, and fetched again when each node of the kept list failed, or after a
+   day.
+3. The road joins the kinds of a run, for the commands that take `--relay-host`; the host key of
+   SSH protects the session, as on each road.
+4. The probe: the server's salt within a limit; silence or a reset names the proxy as the likely
+   cause, as T-317 does. `doctor --shadowsocks FILE` gives a line for the first node: the TCP, the
+   salt, then GitHub's banner through it.
+5. The manual: a published key is shared with strangers, has no operator, and changes; podssh names
+   no server and no list.
+
+## Decision
+
+- The protocol is written in podssh-ws with the ciphers that it has, not taken from the crate
+  `shadowsocks`: the form is small, a library crate takes no C, and no runtime of another project
+  comes with it. Lost: the crate in the binary, which brings more than the AEAD form needs
+  (Inferred).
+- The URI comes from a file, never from the command line, as it holds a password. Lost: #62's
+  `--via ss://...`, which puts the password in argv.
+- The user names each server and each list, as a proxy of `ALL_PROXY` (T-070); podssh names none.
+  Its tests use servers that podssh did not write, never a public one: no public server is a test
+  target of the operator's (`AGENTS.md:225-237`).
+- Shadowsocks 2022 (SIP022) is refused by name in this entry; a later entry can take it.
+
+## Prove
+
+```sh
+export CARGO_BUILD_JOBS=4
+cargo test -p podssh-ws --test shadowsocks
+cargo test -p podssh-cli --test shadowsocks_cli
+```
+
+`ssserver` of shadowsocks-rust, software that podssh did not write, in Podman, for each cipher: a
+session through it to a test sshd, 1 MiB each way with equal digests; a wrong password ends at the
+first chunk, with the server named; a kept list whose nodes changed is fetched again from a
+stand-in subscription. Bytes that `sslocal` of shadowsocks-rust sent decode. Planted: the nonce not
+incremented after the chunk of the length; the session through `ssserver` fails.
+
+# T-374: The quick tunnel's edge through WARP's tunnel, for a node whose cage reaches port 443 only
+
+**Source:** GitHub #63 (Nemo-010), its second comment, of 2026-10-31.
+**Category:** feature
+**Milestone:** backlog
+**Priority:** P3
+**Effort:** M
+**Status:** open
+
+## Problem
+
+A node publishes a quick tunnel at the edge's TCP port 7844 (T-300). A cage whose proxy allows
+ports 443, 80 and 8443 reaches 7844 only through the relay's VPC road, so the node's road to the
+edge still needs the operator's relay. WARP's tunnel (T-352) carries any port over HTTP/2 on port
+443; through it, the node would reach the edge with no relay and no account.
+
+## Premise
+
+- Read: `crates/podssh-relay/src/quick/edge.rs:23` says "pub const PORT: u16 = 7844". The relay's
+  VPC road carried TLS to that port, and `TODO/roads.md:1823` says "the edge's 443 and 8443 serve
+  no tunnel".
+- Read: the measured proxy allows ports 443, 80 and 8443 alone (`docs/target-environment.md:21`).
+- Read: T-352 plans WARP's road over HTTP/2, with smoltcp for TCP inside, which the operator
+  allowed on 2026-10-31 (Q52).
+- Read in GitHub #63's second comment (a tester's report of 2026-10-31; not measured here): a
+  sibling implementation registered a quick tunnel with the edge reached through WARP, and the
+  tunnel's name answered `200`, after a closed port and an address with no route had failed first.
+  It carried QUIC through its stack; the edge's HTTP/2 on TCP 7844, over smoltcp's TCP, would reuse
+  the client of T-300.
+- Read: the quick tunnel's live tests run in GitHub Actions only (`docs/decisions.md:15`).
+
+## Approach
+
+After T-352:
+
+1. The node's dial of the edge gets one more road: a TCP stream to the edge's address on port 7844
+   inside WARP's tunnel, after the direct dial and the relay's VPC road failed, or first when the
+   user asks for it.
+2. The client of T-300 runs on it as it is; the request for a tunnel to `api.trycloudflare.com`
+   goes as now, through the proxy.
+3. `doctor` names the road that reached the edge.
+4. A measurement in GitHub Actions: a runner whose egress refuses port 7844 publishes a quick
+   tunnel through WARP, and a client reaches it.
+
+## Prove
+
+```sh
+export CARGO_BUILD_JOBS=4
+cargo test -p podssh-relay --test quick_edge_warp
+```
+
+A stand-in of WARP's edge, T-352's, carries a stand-in of the quick tunnel's edge: the node
+registers, and a client's session passes. Planted: the stream sent past the tunnel; the stand-in
+of the edge sees no connection, and the test fails. Live in `quick-tunnel-live.yml`, with port 7844
+refused on the runner.
+
+## Start condition
+
+T-352 is done: WARP's road, on which this road runs. The operator allowed it on 2026-10-31 (Q52,
+`docs/decisions.md`).

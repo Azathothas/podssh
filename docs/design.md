@@ -16,7 +16,7 @@ Each fact has a label:
 ## 1. The summary
 
 - podssh gets out of a cage better than each sibling project.
-- podssh does not yet get into a cage: that is milestones M4 and M5.
+- podssh gets into a cage on the reverse road (M4), to a service that runs there; its own SSH server for the cage is M5, which the operator holds (Q32).
 - One architecture serves all three needs: a shared C-free relay library
   with several transport roads, a resumable session layer when both ends run
   podssh, and an SSH server in the process for the cage side.
@@ -48,7 +48,7 @@ races them. [carriers.md](carriers.md) studies the carriers that need no relay o
 | Far end | First | Then | Last |
 | --- | --- | --- | --- |
 | A podssh node or peer (a name or a ticket) | The iroh road (direct when UDP works, else through a relay) | The reverse road with the resumable layer | None |
-| A standard sshd, public | The forward road, with failover across relay hosts | The direct road (`--direct`, or when a probe shows it works) | None |
+| A standard sshd, public | The forward road, with failover across relay hosts | The direct road (`--direct`, or when a probe shows it works; the probe is T-363) | None |
 | A standard sshd behind a podssh `roost` (`podssh node NAME --sshd`) | The iroh or reverse road to the roost | The forward road | None |
 | A tailnet node | The tailscale road (feature `ts`) | None | None |
 | A service that `cloudflared` publishes (`cf://HOST`) | The WebSocket of the tunnel, as `cloudflared access tcp` opens it, through `HTTPS_PROXY` | None | None |
@@ -493,8 +493,8 @@ podssh-relay
 
 ## 4. Constrained hosts, and the sibling projects
 
-To get out of a cage, podssh is ready now. To get into one, podssh needs M4
-and M5. Getting into the cage was the main job of sandssh and dropssh.
+To get out of a cage, podssh is ready now. To get into one, it has M4 and needs
+M5. Getting into the cage was the main job of sandssh and dropssh.
 
 The sibling projects (READ in their code):
 
@@ -511,8 +511,8 @@ argv, and tests against real servers. podssh also has, since 2026-10-08:
 `podssh doctor`, `podssh keygen`, pinned addresses and DNS over HTTPS, and a
 box like the target sandbox for tests.
 
-podssh does not yet have, in order of importance:
-
+What podssh needs to get into a cage, in order of importance. Item 1 is built (M4), item 5
+is done (T-001), `podssh cp` of item 4 is built, and `podssh serve` is held (Q32):
 1. **A reverse node and operator** with the measured rules of dropssh
    (section 3).
 2. **An SSH server in the process for the node** (`podssh serve`): the
@@ -531,7 +531,7 @@ podssh does not yet have, in order of importance:
    resumable from an offset, and aware of the relay's limits (64 MiB and
    12 h for each session).
 5. **A run in a real sealed sandbox.** Each sibling records one. podssh
-   passes in a box like the sandbox; the real sandbox is not run yet.
+   passes in a box like the sandbox, and in two real sandboxes (T-001).
 
 The job of sandhome (to make third-party programs work in the cage with
 LD_PRELOAD shims and toolchains) is not in the scope of podssh, because of

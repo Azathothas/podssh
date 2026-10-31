@@ -107,7 +107,7 @@ and `CARGO_BUILD_JOBS=4`:
 
 ## Counts
 
-`TODO/INDEX.md` holds 356 entries: 29 open, 4 partial, 29 blocked, 294 done.
+`TODO/INDEX.md` holds 373 entries: 44 open, 4 partial, 31 blocked, 294 done.
 
 Open includes parked work. `cargo todo check` verifies this line.
 
@@ -130,15 +130,20 @@ at most one a day: russh 0.65.0's security fixes (T-356) make that batch, so
 `v1.0.0-beta.3` comes from 2026-11-01 00:12 UTC, once the gate is green on its
 commit.
 
-**Now:** the entries of the audit and the study of 2026-10-31, the highest
-priority first: T-356 (russh 0.65.0's security fixes, P1), then the P2 entries T-340, whose
-runs in CI wait, and T-347, then T-355 (Dependabot's updates, and the curves' 0.14 that ends an ignore
-of `deny.toml`) with T-377 (the AEAD keys' zeroize, P1, found in T-355), then the P2 entries that the operator's rulings of 2026-10-31 opened: T-375
-(`podssh update`), T-348 and T-349 (the iroh road in the release binaries, and the public relays as
-a fallback, Q50) and T-346 (relays outside the default domain, Q49); then the P3 entries T-343,
-T-344 and T-345, then those of the same rulings: T-350 (Q50), T-351 (Q51, against stand-ins),
-T-352 and T-353 (Q52). Each other `backlog`
-entry is done, but for those on hold, those of the relay's operator and the
+**Now:** the entries of the audit, the study and the issues of 2026-10-31 (GitHub #59 to #63 and
+#69 to #76), the highest priority first: T-356 (russh 0.65.0's security fixes, P1), T-357
+(`doctor`'s words about listeners, P1) and T-377 (the AEAD keys' zeroize, P1, found in T-355),
+then the P2 entries T-340, whose runs in CI wait, T-347, T-359 (the iroh road's probe of UDP) and
+T-365 (the forms of `-R` that OpenSSH carries, GitHub #73), then T-355 (Dependabot's updates, and
+the curves' 0.14 that ends an ignore of `deny.toml`) and the record's own checks T-360 and T-361,
+then the P2 entries that the operator's rulings of 2026-10-31 opened: T-375 (`podssh update`),
+T-348 and T-349 (the iroh road in the release binaries, and the public relays as a fallback, Q50)
+and T-346 (relays outside the default domain, Q49); then the P3 entries T-343, T-344, T-345, T-362
+and T-363 (the direct road after the relay hosts fail), then those of the same rulings: T-350
+(Q50), T-351 (Q51, against stand-ins), T-352 and T-353 (Q52), and T-374 after T-352; then those of
+GitHub #59 to #63 and #73 to #76: T-366; T-367, T-368 and T-369 in that order, as each writes what
+the next uses (the reader of requests, the dial with no token); T-371 before T-372; and T-373.
+Each other `backlog` entry is done, but for those on hold, those of the relay's operator and the
 parked ones.
 
 **Then** M9: T-334, which T-251 runs, then T-251 (the check, and its run
@@ -155,7 +160,8 @@ T-124, T-150, T-159, T-160, T-161, T-303 and T-304, "Parked open work"),
 which waits as they wait; and the entries that wait for the operator:
 T-328 (an export of FinalShell and of Termius: a known gap, which
 `v1.0.0` does not wait for) and T-376 (the operator's throwaway cloud
-accounts for T-351's live run).
+accounts for T-351's live run); and T-358 and T-370, which wait for the
+operator's rulings on Q53 and Q56.
 
 ## Parked open work
 
@@ -229,6 +235,49 @@ the iroh road, with n0's public relays and Tailscale's tailcat fleet as an autom
 URL alone, built against stand-ins first (T-351; the live run, T-376, waits for the operator's
 accounts); and WARP's MASQUE road and Tor through Arti in a feature crate (T-352, T-353), WARP's
 live test in Actions and on a session's host. The entries that they opened work before `v1.0.0`.
+
+Q53 (2026-10-31, blocks T-358): GitHub #69 found that `podssh doctor`
+measures a bind and never a listen: it binds a TCP socket on 127.0.0.1 and
+a Unix socket, and closes each with no `listen()`
+(`crates/podssh-cli/src/doctor/unix.rs:137-231`). A host can allow `bind()`
+and refuse `listen()`; `-L`, `-D`, `-M`, `podssh agent`, `podssh session`
+and the `-listen:` addresses of `pipe` then fail where doctor says that the
+bind works. Rule 2 of `AGENTS.md` lets doctor bind because it "closes it
+without listening" (`AGENTS.md:245-247`; `SECURITY.md:112-113`), and the
+ruling of 2026-10-08 lets a listener open only when the user asks for it
+(`docs/decisions.md:31`). The question: may doctor call `listen()` once on
+each socket that it binds, accept nothing, and close it at once?
+Recommendation: yes, with a backlog of 1, on 127.0.0.1 port 0 and on a Unix
+socket of mode 0600 in the temporary directory (and an abstract name on
+Linux), never with `PODSSH_LISTEN=no`; `AGENTS.md`, `SECURITY.md` and
+`docs/architecture.md` then say so. Meanwhile T-357 corrects doctor's words.
+
+Q56 (2026-10-31, blocks T-370): GitHub #59 and #60, a tester's survey of
+the same day, found three public WebSocket forwarders that take a target
+from the client, with no account: the Worker of Mudlet's web MUD client
+(`web-proxy.mudlet.org`), an older copy of it under one person's
+`workers.dev` name, and ssheasy's proxy for its SSH in a browser
+(`ssheasy.com/p`). The tester reached GitHub's SSH through each. Each is
+the plumbing of another product: none names other clients or publishes a
+limit; Mudlet's Worker runs on Cloudflare's free plan, whose requests each
+user of Mudlet shares; ssheasy's code caps a connection at 1 GiB, then
+100 KiB/s. T-369 gives podssh a road through a forwarder that the user
+names, as `ALL_PROXY` can name a third party's SOCKS5 proxy (T-070). The
+questions: (a) may the binary name these forwarders, as templates that a
+word selects, or try them when the relay hosts fail; (b) may a session
+test against them live (`AGENTS.md:225-237` names none of them); (c) may
+podssh's documents give a recipe for such a forwarder in the user's own
+Cloudflare account, while whether Cloudflare's terms allow a proxy is a
+question for the relay's operator (`docs/relay-operator.md:83-87`)?
+Recommendation: (a) no, until their operators agree: n0 and tailcat offer
+their relays to the public, which let the operator rule a fallback to them
+(Q50), and these forwarders serve their own products' users; a forwarder
+only when the user names it; (b) no: stand-ins, and software that podssh did not write;
+(c) no recipe: the manual says that a template may name a forwarder that
+the user runs.
+
+A yes to Q53 or Q56 makes the entries that it unblocks work before `v1.0.0`
+(T-250), unless the ruling says that they come after it.
 
 ## Operator actions
 

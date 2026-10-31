@@ -36,9 +36,11 @@ pub const FACTS_TOML: &str = include_str!("../facts/relay-facts.toml");
 pub struct Facts {
     pub origin: String,
     pub pin: Pin,
-    /// Read from `/relays.json` at startup, never compiled in. There is no
-    /// `hello` frame on the forward path, so a constant here is a number
-    /// nothing could correct. `None` means "not yet measured".
+    /// The relay's cap of a forward frame, as `/relays.json` gives it. podssh
+    /// compiles the same number in (a test of podssh-relay ties them), the live
+    /// check compares it each day, and a cached document can only widen what a
+    /// session takes in and narrow what it spends. `None` means "not yet
+    /// measured".
     pub forward_max_frame_bytes: Option<i64>,
     #[serde(default)]
     pub facts: Vec<Fact>,

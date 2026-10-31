@@ -4591,3 +4591,214 @@ at a time.
   1006 passed in 117; podssh-ts, 54 passed. `cargo deny --locked check advisories licenses bans
   sources`: exit 0. base64 0.22.1 stays for pem 3, which tokio-rustls-acme takes under the
   feature `iroh`.
+
+# T-360: Nothing reads `TODO/issues.md`: issues #59 to #63 have no row, and no check compares the map with GitHub
+
+**Source:** GitHub #71 (Nemo-010, 2026-10-31), its first rule that nothing enforces, and its
+Approach item 1.
+**Category:** defect
+**Milestone:** none
+**Priority:** P2
+**Effort:** M
+**Status:** open
+
+## Problem
+
+The record asks that each GitHub issue be mapped to its entries in `TODO/issues.md`, and nothing
+reads the map. Five issues of 2026-10-31, #59 to #63, have no place in it, and no check went
+red: a session that reads the map to learn which requests wait does not see them.
+
+## Premise
+
+- Read: `TODO/RULES.md:96-97` says "Map each GitHub issue to its entries in"; an issue closes
+  when each of its entries is done, and the map then says so (`TODO/RULES.md:99-104`).
+- Read: the checker knows `issues.md` as a file of the record that holds no entries
+  (`crates/podssh-todo/src/model.rs:23`); it reads its ids and its citations, as in each file of
+  `TODO/` (`crates/podssh-todo/src/refs.rs:22-35`), and no number of an issue.
+- Read, on GitHub on 2026-10-31: #59 is a survey of the carriers that need no relay of the
+  operator's, and #60 to #63 are its four requests (a relay template, SSH on port 443 as a hop, a
+  Shadowsocks road, and WARP and Arti). The map names none of them, and its line of pull requests
+  names #52, #53, #57, #58 and #64 to #68 (`TODO/issues.md:130-133`). The issue's amendment says
+  that #59 to #63 have entries, T-352 and T-353: those two come from the study of carriers of
+  2026-10-31 (`docs/carriers.md`), name no issue, and hold #63's two roads; #59 to #62 have none.
+- Read: a weekly job of CI already reads the network for a watch of the tree, and stays red until
+  a session moves the copy that it compares (`.github/workflows/upstream.yml`, T-341).
+
+## Approach
+
+1. A list of the repository's numbers, each an issue or a pull request with its state, in a text
+   file of the record that `cargo todo check` reads; a session moves it when it maps an issue.
+2. `cargo todo check` reads the numbers that the map names: the first cell of each row of its
+   tables, the head of each paragraph of the requests with reports (`**#18, ...**`), and the line
+   of pull requests with its ranges (`#37 to #50`). Each issue of the list has one place in the
+   map; each pull request is in that line; a number in two places, or in none, is a problem that
+   names it.
+3. The State of a row begins with the state of its issue in the list, `open` or `closed`.
+4. A scheduled job of CI (a workflow record-issues.yml), each day and by hand, as the watch of
+   T-341: `gh issue list` and `gh pr list` against the list; a difference fails the job and names each number, and a session
+   then maps it and moves the list. Its plant: a number dropped from the list.
+5. The first finding of the check, #59 to #63: their triage, as `TODO/RULES.md` says, unless a
+   triage of them is in the record first.
+
+## Decision
+
+The list in the tree won over a call to GitHub in `cargo todo check`: the gate runs with no
+network and no token, and a check that needs GitHub is a check that the gate skips. The live
+comparison runs in its own job, as the watch of the vendored crates does (T-341). Lost: GitHub at
+each push alone, which leaves `cargo todo check` blind where a session runs it.
+
+## Prove
+
+```sh
+export CARGO_BUILD_JOBS=4
+cargo test -p podssh-todo
+cargo todo check
+gh workflow run record-issues.yml
+```
+
+Planted: an issue's row removed from `TODO/issues.md`; the check names its number. A number
+named twice; the check names it. A closed issue whose row says open; the check names it. In the
+job: a number removed from the list; the run fails and names it.
+
+# T-361: A Prove may name a test target or a script that no longer exists, and the record's check passes
+
+**Source:** GitHub #71 (Nemo-010, 2026-10-31), its second rule that nothing enforces, and its
+Approach item 2.
+**Category:** defect
+**Milestone:** none
+**Priority:** P2
+**Effort:** S
+**Status:** open
+
+## Problem
+
+`cargo todo check` asks of a Prove only that it holds a backtick. A Prove names its tests by
+crate and target; when a target moves, the Prove of a done entry names nothing, and a session
+that runs it again meets an error that the record did not show. Six done entries name a target
+that does not exist today.
+
+## Premise
+
+- Read: the check of a Prove is that its body holds a backtick
+  (`crates/podssh-todo/src/check.rs:296-300`); a line in a fenced block is no citation
+  (`crates/podssh-todo/src/refs.rs:96-99`), and the commands of a Prove are in one.
+- Measured on 2026-10-31, with a script of this triage over the `## Prove` of each entry: each
+  `cargo test -p CRATE --test NAME` against the crate's `tests/` and its `[[test]]` targets, and
+  each `scripts/` path. Five done entries name `-p podssh-transport` (T-071, T-072, T-073, T-075
+  and T-076; the first is `TODO/transport.md:70`), a crate that T-082 moved into `podssh-relay`;
+  T-136 names `--test cp_resume` (`TODO/copy.md:551`), which its Correction calls the unit tests
+  of a module (`TODO/copy.md:574-577`). T-102 names a test of the vendored Tailscale fork, which
+  exists (`vendor/tailscale-rs/ts_control/tests/logout.rs`). 41 open or blocked entries name the
+  targets that their work will write.
+
+## Approach
+
+1. `cargo todo check` reads each `cargo test` line of the Prove of a done entry: each `-p CRATE`
+   is a package of the workspace, of `fuzz/` or of `vendor/`, and each `--test NAME` a target of
+   one of them, a file of its `tests/` or a `[[test]]` of its manifest; each `scripts/` path in
+   the Prove's block exists. A problem names the entry, the line and the target.
+2. An open, partial or blocked entry names the targets that its work will write: they are read
+   once the entry is done, and `cargo todo set T-NNN done` refuses a Prove whose target does not
+   exist, with its name.
+3. A done entry keeps the Prove that ran: a target that moved is named, with where it went, in
+   the entry's `## Correction`, and the check takes a target that the Correction names. T-071,
+   T-072, T-073, T-075 and T-076 each get a Correction for the move of T-082; T-136's names its
+   own already.
+4. `TODO/RULES.md` says that a change which renames a test target corrects each done Prove that
+   names it, as a citation moves with its file.
+
+## Decision
+
+A Correction for a target that moved won over an edit of the Prove: a Prove of a done entry is
+what ran when the entry closed (`TODO/RULES.md:41-45`). Lost: a read of the Proves of open
+entries too, whose targets the work has not written yet; and a run of each Prove, which is the
+gate's work, not the record's.
+
+## Prove
+
+```sh
+export CARGO_BUILD_JOBS=4
+cargo test -p podssh-todo
+cargo todo check
+```
+
+Planted: a done entry's `--test` renamed to one that does not exist; the check names the entry,
+the line and the target. A `scripts/` path of a done Prove renamed; the check names it. The
+control: the record with the five Corrections passes, and `cargo todo set` refuses to close an
+entry whose Prove names a target that does not exist.
+
+# T-362: A claim that something is not built yet carries no date or entry, and a status beside an id is not checked
+
+**Source:** GitHub #71 (Nemo-010, 2026-10-31), its five statements and its Approach items 4 and
+5.
+**Category:** chore
+**Milestone:** none
+**Priority:** P3
+**Effort:** S
+**Status:** open
+
+## Problem
+
+Four statements on the pages that a session reads first said that a built part did not exist:
+reverse mode, the reverse node and operator, the run in a real sandbox, and the command of the
+IRC client. Each citation near them resolved, so `cargo todo check` saw nothing. A claim of "not
+yet" goes stale on the day its work is done, in a file that the work did not touch; so does a
+status written beside an id, as "T-252, partial" of a done entry in `docs/STATUS.md`. The triage
+of GitHub #69 to #72 corrected these; nothing finds the next.
+
+## Premise
+
+- Read, at `8554930`: `docs/architecture.md` said that "reverse mode does not exist yet";
+  `docs/design.md` gave "A reverse node and operator" first of what podssh "does not yet have",
+  and said that "the real sandbox is not run yet"; `docs/irc.md` said "No command uses the IRC
+  client yet", with T-097 and T-098 as its known defects; `docs/STATUS.md` said "Over IRC too
+  (T-252, partial)". Each part is built: the reverse road (`docs/STATUS.md:64`, `:68`), two runs
+  in real sandboxes (T-001; `docs/STATUS.md:270-279`), and `podssh chat --irc` (T-252, done, as
+  T-097 and T-098 are). Of the same kind: `docs/design.md`'s summary and the head of its section
+  4, and the row of `podssh-terminal` in `docs/architecture.md`. The triage's commit corrected
+  each in place.
+- Read, by `grep -w yet` over `docs/`, `README.md`, `AGENTS.md` and `SECURITY.md` on 2026-10-31,
+  after the corrections: 19 lines with no date and no id on them. Most are true today, as of the
+  work that the operator holds (Q32); some state nothing of podssh, as "not whole yet"
+  (`docs/cli.md:963`) and "did not act on yet" (`docs/cli.md:689`).
+- Read: the checker reads the ids of these documents and the citations of `TODO/` alone
+  (`crates/podssh-todo/src/refs.rs:22-35`); it reads no sentence of a document.
+- Read: the fifth statement of GitHub #71, the comment of the facts file that the relay's frame
+  cap is never compiled in, is T-342's: its Premise reads that line, and its Approach item 5
+  corrects it with the code (`TODO/relay.md:1625-1628`).
+
+## Approach
+
+1. `cargo todo check` reads each line of `docs/`, `README.md`, `AGENTS.md` and `SECURITY.md`
+   outside fenced blocks for the word "yet": its paragraph names an entry that is not done, or a
+   date; else a problem names the line. A done entry named beside "yet" is a problem too: the
+   claim is stale, or names the wrong entry.
+2. A "yet" that states nothing of podssh's state is written with no "yet": four today
+   (`docs/design.md:14`, `:779`; `docs/cli.md:689`, `:963`). The others that the first run finds
+   get their entry or a date, or are corrected, in the same change.
+3. A status written beside an id in those documents (`T-NNN, partial`, `(T-NNN, open)`) agrees
+   with the index, unless its paragraph reads at a date or at a commit, as the record's readings
+   do (`TODO/RULES.md:127-132`): "T-099, partial" of 2026-10-10 is such a reading
+   (`docs/STATUS.md:606`).
+4. `TODO/RULES.md` says it, beside the rules of citations.
+
+## Decision
+
+The word "yet" won over the issue's four phrases ("not yet", "does not exist yet", "No command
+uses", "(not used yet)"), which miss "the real sandbox is not run yet", one of its own five; and
+over a list of verbs of state, which misses "does not read it yet" (`docs/terminal.md:339`). A
+claim that is true today passes with its entry or a date, which says when to read it again.
+Lost: a check of truth, which no checker makes; the entry and the date make a stale claim
+findable, not impossible.
+
+## Prove
+
+```sh
+export CARGO_BUILD_JOBS=4
+cargo test -p podssh-todo
+cargo todo check
+```
+
+Planted, each in a copy of the tree: the four statements put back, and "T-252, partial"; the
+check names each, and passes once each is restored. A "yet" with a done entry beside it; the
+check names both.

@@ -1850,6 +1850,92 @@ A stand-in relay with a certificate that ended a day ago: the error of each comm
 host's clock. Planted: the match of `ExpiredContext` removed; the test with rustls's error with a
 context fails.
 
+# T-366: `doctor` asks the proxy for an address as well as for names, and says which of the two it takes
+
+**Source:** GitHub #74 (Nemo-010, 2026-10-31).
+**Category:** feature
+**Milestone:** backlog
+**Priority:** P3
+**Effort:** S
+**Status:** open
+
+## Problem
+
+Each CONNECT of `doctor` names a host, as each road of the release binaries does. A proxy that
+allows listed names only and a proxy that takes any public address give those probes the same
+answers. A road that must ask for an address works through the second only: an address that the
+user gives to `--direct`, WARP's endpoint (T-352), and Tor's first hops (T-353), which the
+consensus names by their addresses (Inferred). So `doctor` cannot say which of those roads this
+host has.
+
+## Premise
+
+- Read: through a proxy, `doctor` asks for the relay's host and for `github.com` on ports 443 and
+  22, each by name (`crates/podssh-cli/src/doctor/net.rs:18-20`, `:197-243`), and
+  `crates/podssh-cli/src/doctor/net.rs:146` says "podssh asks it to CONNECT by name, so no DNS is
+  needed".
+- Read: the dialer gives a proxy the relay's name and never an address, and a pin of the relay's
+  name to an address that is not the loopback keeps the name for the proxy
+  (`crates/podssh-ws/src/dial.rs:6-9`, `:123-129`); a CONNECT names the host as it was given
+  (`:346-355`). So no road of the release binaries asks a proxy for an address, but `--direct`,
+  `pipe tcp:` and a target of `-R`, each to an address that the user gives.
+- Read: with no proxy, `doctor` reaches addresses already: DNS over HTTPS to the resolvers'
+  address literals (`crates/podssh-cli/src/doctor/net.rs:283-350`;
+  `crates/podssh-ws/src/resolve.rs:28-32`), each checked by TLS for its address
+  (`crates/podssh-ws/src/resolve.rs:143-153`).
+- Read: the proxy of the measured sandbox gave `200` for public names on ports 443, 80 and 8443,
+  and `403 not a public host` for private and metadata addresses
+  (`docs/target-environment.md:21`); no public address literal was asked. The box's proxy
+  resolves each name and checks its addresses, so it takes a public literal as it takes a name
+  (`scripts/box/proxy.py:86-94`).
+- Read: the study of carriers takes it as Inferred that a proxy which allows listed names only
+  refuses WARP's address literal (`docs/carriers.md:81-86`).
+- Read: a test of `doctor` counts the lines whose check is `CONNECT`, and wants three
+  (`crates/podssh-cli/tests/doctor.rs:345-369`).
+
+## Approach
+
+1. Through a proxy, one more probe: a CONNECT to the first address of `DOH_RESOLVERS` on port 443,
+   sampled as the other probes are (T-324), then the TLS handshake of that resolver for its
+   address, so that a `200` that carries nothing is named, as T-317 names it for port 22. The
+   probe has a check name of its own, not `CONNECT`, so the three `CONNECT` lines and their test
+   stay as they are.
+2. Its line gives the proxy's answer as the proxy gave it: a `403` with its reason, a `407`, a
+   `502`, or a loss, which T-324 counts.
+3. One line names the case: names and addresses; names only (a road that asks for an address
+   cannot leave here); addresses only (the relay's name is refused here, and a road by address
+   can leave); neither. With no proxy, the same line comes from `direct TCP` and DNS over HTTPS.
+4. `--json` gives the probe and the case (T-049).
+5. `scripts/box/proxy.py` gets a mode that takes names only and one that takes addresses only.
+6. The manual's note of `doctor`, and the item of WARP in `docs/carriers.md`: the probe that
+   measures the case, with the date and the host of each measurement.
+
+## Decision
+
+- The address is the first of `DOH_RESOLVERS`: podssh depends on it already, it is public and
+  long lived, and it serves TLS on port 443 with a certificate for its address. Lost: an address
+  of `github.com`, which a cage cannot resolve and a proxy resolves only for itself; an address
+  compiled in for this probe alone, one more fact to keep.
+- P3, not P2: no road of the release binaries asks a proxy for an address (Premise). The fact
+  serves `--direct` to an address, and the roads of T-352 and T-353, which wait for Q52.
+- A road to the relay by its address, where a proxy refuses names and takes addresses, is not in
+  this entry: #74 does not ask for it, and no host of that kind was measured.
+
+## Prove
+
+```sh
+export CARGO_BUILD_JOBS=4
+cargo test -p podssh-cli --test doctor
+cargo test -p podssh-cli --lib doctor::net
+```
+
+Three stand-in proxies on the loopback: one takes names and refuses each address literal with
+`403 not on the allowlist`, one takes literals and refuses names, one takes both. The line of the
+case names each of the three, and the three `CONNECT` lines stay. Planted: the probe sent by name;
+the case "names only" is not found, and its test fails. In the box, with its proxy in each mode:
+the same. Live, behind the agent proxy of a cloud session (a host that a session may measure): the
+probe's line and the case, in `docs/STATUS.md`.
+
 # T-377: The keys of podssh's own AEAD ciphers outlive their use, since chacha20poly1305 0.11
 
 **Source:** T-355's reading of chacha20poly1305 0.11 for the fork (#67), 2026-10-31: the fork's

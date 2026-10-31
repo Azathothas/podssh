@@ -4,9 +4,9 @@
 It runs between two podssh ends, over the end-to-end channel of a road
 (T-099), so the relay sees ciphertext only. IRC through public servers is
 the second transport (T-252): podssh speaks IRC itself, and the relay
-carries the bytes, as for SSH. No command uses the IRC client yet. It has
-known defects ([TODO/irc.md](../TODO/irc.md), T-097 and T-098): among them,
-it sends plain text through the relay. Since T-091 the registration finishes
+carries the bytes, as for SSH, in `podssh chat --irc` (below), with TLS inside
+the relay stream by default; `--irc-plaintext` sends plain text, which the relay
+and each server read, and says so. Since T-091 the registration finishes
 on a server that holds it until `CAP END`: measured with ngircd 27 on the
 loopback of the build image, 2026-10-10.
 

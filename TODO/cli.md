@@ -2433,3 +2433,175 @@ and `check-novalidate` (`:339-397`) and `find-principals` (`:414-454`). The manu
   10.3p1's `ssh-keygen`: the 8 passed, `keygen` 87 of 87. So OpenSSH refuses a signature of a
   certificate by a plain line of its key, and filters the certificate's principals by the line,
   as the Decision read from memory of its source.
+
+# T-357: `doctor` names `pipe` alone as a listener, and its module says that it alone calls `bind()`
+
+**Source:** GitHub #69 (Nemo-010, 2026-10-31), its asks 1 and 3 as its amendment restates them;
+its ask 2, a listen after the bind, is T-358.
+**Category:** defect
+**Milestone:** backlog
+**Priority:** P1
+**Effort:** S
+**Status:** open
+
+## Problem
+
+`podssh doctor` binds a TCP socket and a Unix socket, closes each, and reports each answer as
+`ok`. Where the host refuses the bind, the line says that only `pipe` would listen; five more
+features listen: `-L` and `-D`, on a port or a path, the control socket of `-M`, `podssh agent`
+and `podssh session`. Where the host allows the bind, the line does not say that a bind is not a
+listener, so it reads as a listener that works. The module says that its probes are the only
+place where podssh calls `bind()`, and the help of `pipe` says that it joins two streams with no
+listener. A user who asks doctor whether `-L` can work on this host is told the wrong thing, or
+nothing.
+
+## Premise
+
+- Read: `bind_inet` makes a TCP socket, binds 127.0.0.1 port 0, reads its name and closes it,
+  with no `listen()` (`crates/podssh-cli/src/doctor/unix.rs:137-161`); each answer is `ok`, and
+  `crates/podssh-cli/src/doctor/unix.rs:164` says "only podssh pipe tcp-listen: would listen".
+  The Unix probe ends each answer the same way:
+  `crates/podssh-cli/src/doctor/unix.rs:186` says "podssh listens only for podssh pipe unix-listen:".
+  The lines are `bind AF_INET` and `bind AF_UNIX` (`crates/podssh-cli/src/doctor/host.rs:20-21`),
+  and the module's head says of its probes that podssh needs none of them:
+  `crates/podssh-cli/src/doctor/unix.rs:4` says "needs none of these".
+- Read: `crates/podssh-cli/src/doctor/mod.rs:15` says "The bind probes here are the only place
+  podssh calls". The listener scan of `scripts/check-repo.py` allows a `bind(` in 17 files
+  (`scripts/check-repo.py:133-151`), and these listen, each when the user asks: `pipe`'s
+  `tcp-listen:` and `unix-listen:` (`crates/podssh-cli/src/pipe/listen.rs:118-132`, `:159-183`),
+  the control socket of `-M` (`:185-193`), `-L` and `-D` on a port or a path
+  (`crates/podssh-cli/src/ssh/local_bind.rs:78-88`, `:111-128`), `podssh agent`
+  (`crates/podssh-cli/src/agent/serve.rs:38-41`) and `podssh session`
+  (`crates/podssh-cli/src/session/daemon.rs:163`); on Windows, `bind` and `listen` together
+  (`crates/podssh-cli/src/pipe/listen_win.rs:136`).
+- Read: a refused listener exits 77 in `pipe`, `podssh agent` and `podssh session`
+  (`crates/podssh-cli/src/pipe/listen.rs:48-55`), and 255 in `-L` and `-D`, with the system's
+  words and "this host refuses the listener" (`crates/podssh-cli/src/ssh/local_bind.rs:89-93`).
+  The issue's amendment says that `-L` exits 77: it exits 255, as OpenSSH's ssh does for a
+  failure of its own (`crates/podssh-ssh/src/run.rs:23`).
+- Read: `crates/podssh-cli/src/flags.rs:364` says "join two byte streams, as socat does, with no
+  listener", though `pipe` listens for `tcp-listen:` and `unix-listen:` since T-177; the note of
+  the manual says it right, "with no listener unless one side asks for one"
+  (`crates/podssh-cli/src/man/notes.rs:172`).
+- Read: doctor's rule: a condition that podssh is built for, no listener among them, is a fact,
+  reported `ok`, and `FAIL` is kept for what stops podssh or one of its fallbacks
+  (`crates/podssh-cli/src/doctor/mod.rs:6-9`); `docs/cli.md:1330-1336` says the same.
+
+## Approach
+
+1. The module's comment (`crates/podssh-cli/src/doctor/mod.rs:15-16`) says what is true: the
+   probes of doctor bind and close; each other bind is a listener that the user asks for, or the
+   UDP socket of a road, and the listener scan of `scripts/check-repo.py` holds their files. The
+   head of `crates/podssh-cli/src/doctor/unix.rs` names what needs each probe's capability.
+2. The detail of a refused bind names each feature that cannot listen here, by family: for
+   AF_INET, `-L` and `-D` on a port and `pipe tcp-listen:`; for AF_UNIX, `-L` and `-D` on a path,
+   the control socket of `-M`, `podssh agent`, `podssh session` and `pipe unix-listen:`; and it
+   says that the roads need no listener. The detail of a bind that worked says that `listen()` was
+   not tried, so the same features may still be refused (until T-358).
+3. One table in doctor of the features that listen, each with its family, and a test that each
+   verb and flag of the table is in the flag tables (`crates/podssh-cli/src/flags.rs`), so that a
+   later change that renames one meets the test.
+4. The about of `pipe` (`crates/podssh-cli/src/flags.rs:363-364`) names its listeners, as the
+   manual's note does. `docs/cli.md` ("`podssh doctor`") gives the words of the new lines.
+
+## Decision
+
+A refused bind stays `ok`, with the features named. `FAIL` lost: the hosts that podssh is built
+for refuse the bind (sandbox A for AF_INET, `docs/STATUS.md:279`; the measured cage by the
+operator's report, `docs/target-environment.md:25`), and doctor exits 1 on a `FAIL`, so each run
+there would fail where each road works (`crates/podssh-cli/src/doctor/mod.rs:6-9`). A fourth
+status lost: the report and its JSON have three (`docs/cli.md:1350-1353`). The issue's grade by a
+run for a listener feature lost: doctor is given no feature to check, and each feature refuses on
+its own, with the system's words.
+
+## Prove
+
+```sh
+export CARGO_BUILD_JOBS=4
+cargo test -p podssh-cli --lib doctor
+cargo test -p podssh-cli --test flag_table
+python scripts/check-repo.py
+```
+
+The details of a refused and of an allowed bind, from the function that writes them, given a
+planted error: each names the features of its family, and the allowed one says that no
+`listen()` was tried. Planted: a verb of the table renamed; the test against the flag tables
+fails.
+
+# T-358: `doctor` measures a bind and never a listen, so a host that refuses `listen()` reads as one that listens
+
+**Source:** GitHub #69 (Nemo-010, 2026-10-31), its ask 2: `listen()` after `bind()` on the same
+socket, then close.
+**Category:** defect
+**Milestone:** backlog
+**Priority:** P1
+**Effort:** S
+**Status:** blocked
+
+## Problem
+
+A host can allow `bind()` and refuse `listen()`: a seccomp filter takes each call apart, and the
+policy of an LSM can refuse listening for one family. On such a host doctor says that the bind
+works, and `-L`, `-D`, `-M`, `podssh agent`, `podssh session` and the `-listen:` addresses of
+`pipe` each fail at `listen()`. Each of them takes the bind and the listen as its probe; doctor
+alone measures less than they use, so it cannot answer what a user asks it.
+
+## Premise
+
+- Read: doctor's probes bind and close with no `listen()`
+  (`crates/podssh-cli/src/doctor/unix.rs:137-166`, `:200-231`). The listeners make the socket,
+  bind and listen in one attempt, which is their probe
+  (`crates/podssh-cli/src/pipe/listen.rs:1-6`, `crates/podssh-cli/src/ssh/local_bind.rs:1-6`).
+- Read: T-038 and T-177 knew it. `TODO/forwarding.md:501-504` says "A seccomp filter can allow",
+  and `TODO/pipe.md:420-422` says "A bind that works does not prove"; T-177 kept doctor as it
+  was, and `TODO/pipe.md:448-449` says "doctor stays bind-and-close".
+- Read: `AGENTS.md:245-247` says "closes it without listening" of doctor's bind in rule 2;
+  `SECURITY.md:112-113`, `docs/architecture.md:133-134` and `docs/cli.md:1340-1341` say the same.
+  The ruling of 2026-10-08 lets a listener open when the user asks for it and a probe at run time
+  allows the bind (`docs/decisions.md:31`). A listen of doctor's is no listener that the user asks
+  for, so it waits for a ruling: Q53.
+- Read: the measured cage's listening was not measured, and stands on the operator's report
+  (`docs/target-environment.md:25`); sandbox A's AF_UNIX bind was doctor's bind
+  (`docs/STATUS.md:279`), so whether it listens is not known. The box refuses each bind
+  (`scripts/box/seccomp.json:5-10`): it has no case of a bind allowed and a listen refused.
+- Read, in the issue (measured by its reporter on a development host, not with podssh): a bind
+  of an AF_INET stream socket refused, where an AF_INET datagram socket and an AF_UNIX socket
+  bound. Inferred: each call and each family is a gate of its own, so one line cannot stand for
+  another.
+
+## Approach
+
+1. After the bind, `listen(fd, 1)` on the same socket, then close: nothing is accepted, and
+   nothing is left. For AF_INET on 127.0.0.1 port 0; for AF_UNIX on the file in the temporary
+   directory, made mode 0600 as `pipe` makes its socket
+   (`crates/podssh-cli/src/pipe/listen.rs:195-207`), and on Linux on an abstract name. With
+   `PODSSH_LISTEN=no` (`crates/podssh-cli/src/pipe/listen.rs:22-39`) no listen is made, and the
+   line says so.
+2. The lines `listen AF_INET` and `listen AF_UNIX`, each with what happened: bound and listened;
+   bound, and `listen()` refused with its error; or the bind refused. A refusal names the features
+   that cannot listen here (T-357's table), and stays `ok` by T-357's Decision.
+3. `AGENTS.md` (rule 2), `SECURITY.md`, `docs/architecture.md` (rule 3) and `docs/cli.md` say what
+   doctor does; the listener scan allows `listen(` in `crates/podssh-cli/src/doctor/unix.rs`
+   (`scripts/check-repo.py:152`).
+4. The box: a second seccomp profile beside `scripts/box/seccomp.json`, which allows `bind` and
+   refuses `listen` with EPERM, for doctor's line and for the refusals of `pipe`, `-L` and
+   `podssh agent`.
+
+## Prove
+
+```sh
+export CARGO_BUILD_JOBS=4
+cargo test -p podssh-cli --lib doctor
+sh scripts/test_in_box.sh   # with the second profile, which refuses listen
+```
+
+Natively: the lines from the function that writes them, given each answer of the bind and of the
+listen. In the box with the second profile: `listen AF_INET` says that the bind worked and
+`listen()` was refused, and `podssh pipe tcp-listen:0 -` exits 77 with the same error. Planted:
+the listen left out; the line says that the bind worked, and the check of the box fails. The run
+in the box waits for T-251.
+
+## Blocker
+
+The operator: Q53, whether `podssh doctor` may call `listen()` once on each socket that it binds,
+accept nothing, and close it at once.

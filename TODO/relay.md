@@ -1571,7 +1571,8 @@ section, and a watch reads the relay and its domain each day:
 
 # T-342: The relay's limits are compiled in, and nothing compares them with `/relays.json`
 
-**Source:** the audit of hardcoded assumptions of 2026-10-31, finding 7.
+**Source:** the audit of hardcoded assumptions of 2026-10-31, finding 7; GitHub #71 (Nemo-010,
+2026-10-31), the fifth of its false statements, the comment of the facts file.
 **Category:** defect
 **Milestone:** backlog
 **Priority:** P2
@@ -1621,8 +1622,10 @@ in; the code compiles it in, and the live check never reads `/relays.json`.
 4. The live check (`scripts/check-relay-spec.py`, and `podssh relay spec`) fetches
    `/relays.json?host=github.com&port=22` too, and compares its `limits` with the facts file, which
    then holds each limit; a change fails, as a fact of the document does.
-5. The comment of the facts file says what the code does: the cap is compiled in, the live check
-   compares it, and a cached value can only widen what podssh takes in and narrow what it spends.
+5. The comment of the facts file, and the same words on `Facts::forward_max_frame_bytes`
+   (`crates/podssh-probe/src/facts.rs:39-43`), say what the code does: the cap is compiled in, the
+   live check compares it, and a cached value can only widen what podssh takes in and narrow what
+   it spends.
 
 ## Prove
 
@@ -1682,6 +1685,10 @@ read the five limits of the live `/relays.json?host=github.com&port=22` (10000, 
   (`relay::tests::the_compiled_limits_are_the_facts_of_the_relays_limits`; planted, a fact of
   524288, failed). The comment of `relay-facts.toml` and `docs/relay.md` say what the code does.
   podssh-probe and podssh-core, 158 passed.
+- 2026-10-31, after the close: GitHub #71 found the same false words on
+  `Facts::forward_max_frame_bytes` (`crates/podssh-probe/src/facts.rs:39-43`), "never compiled
+  in"; they now say what the comment of the facts file says. `cargo test -p podssh-probe`, 18
+  passed.
 
 
 # T-346: Relay hosts outside the default domain from a signed `/relays.json`, and a list of deployments

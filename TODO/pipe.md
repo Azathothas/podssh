@@ -1271,3 +1271,181 @@ the second "[podssh] attached" before it types. Without the repair the test
 failed (exit 101, after 31.4 s); with it, `cargo test -p podssh-cli --test
 persist`: 4 passed, and 48 runs of the test binary, six at once: 48 passed,
 the slowest in 1.66 s.
+
+# T-367: `http-listen:`: `podssh pipe` as an HTTP CONNECT proxy, for programs that know only `HTTPS_PROXY`
+
+**Source:** GitHub #75 (Nemo-010, 2026-10-31).
+**Category:** feature
+**Milestone:** backlog
+**Priority:** P3
+**Effort:** M
+**Status:** open
+
+## Problem
+
+podssh can use an HTTP CONNECT proxy, and cannot be one. Most programs in a container (pip, npm,
+cargo, git) read `HTTPS_PROXY` and send CONNECT; some of them speak no SOCKS, or only with more
+setup, so `-D` does not serve them, and a cage often cannot run a proxy of another project. A
+listener of `podssh pipe` that answers CONNECT, and joins each request to a road of podssh with
+the request's target, would be the proxy that such a program points at.
+
+## Premise
+
+- Read: podssh-ws reads HTTP responses only: one request of its own and the response to it
+  (`crates/podssh-ws/src/http.rs:1-3`), with `read_response` and `parse_head`, which reads a
+  status line (`:75-120`). Nothing reads a request.
+- Read: no kind of `pipe` answers HTTP (`crates/podssh-cli/src/pipe/address.rs:54-70`); two kinds
+  listen, and one side at most (`:47-52`, `:87-89`).
+- Read: a listener of `pipe` binds only an address that the user gives, never with
+  `PODSSH_LISTEN=no` (78), and its bind is the probe; a socket is made mode 0600, and a client of
+  another user is closed (`crates/podssh-cli/src/pipe/listen.rs:1-13`, `:28-39`, `:82-95`). It
+  takes one client by default, and with `--keep-listening` each client in turn, 8 at once at most,
+  each joined to a new instance of the other side (`crates/podssh-cli/src/pipe/serve.rs:1-11`).
+- Read: the operator allows a listener that the user asks for, when a probe allows the bind, on
+  loopback or AF_UNIX by default (`docs/decisions.md:31`; `docs/architecture.md:132-138`); the
+  gate's scan of listeners allows the listener of `pipe` (`scripts/check-repo.py:79-96`).
+- Read: the SOCKS side of `-D` answers once the server's channel opened, so that a client learns
+  whether its target was reached (`crates/podssh-ssh/src/socks.rs:1-5`). The relay refuses a target
+  of its policy with a `403` that names it, `not in the ALLOW list` (`docs/relay.md:176-178`).
+- Read: a secret of the resumable layer is compared in constant time
+  (`crates/podssh-relay/src/session/secret.rs:247-251`).
+
+## Approach
+
+1. A kind `http-listen:[ADDR:]PORT`, and `http-listen:PATH` for a socket, bound by
+   `Listener::bind` with each rule of `tcp-listen:` and `unix-listen:` (T-177). It keeps listening,
+   as with `--keep-listening`.
+2. The other side names its target as `%h:%p`: `relay:%h:%p`, `tcp:%h:%p` (through `HTTPS_PROXY`),
+   or `ssh:[USER@]HOP[,HOP...],%h:%p`; each request fills it in. Another side is refused (64).
+3. A reader of requests in podssh-ws, beside `read_response`: the request line and its headers
+   within 16 KiB, as for a response's head. It takes `CONNECT HOST:PORT HTTP/1.1` (and `HTTP/1.0`),
+   the target checked as each target is (`check_target`). Another method gets `405` and nothing is
+   dialed; `Upgrade` is not taken.
+4. `200 Connection Established` once the other side opened; else a `403` with the relay's words
+   for a target of its policy, a `502` with the reason of a failed dial, a `504` for a dial past
+   its limit.
+5. With a credential file that the user names (private, as the relay's token file):
+   `Proxy-Authorization: Basic`, compared in constant time. A request without it, or with a wrong
+   one, gets `407` with a `Proxy-Authenticate: Basic` challenge, and nothing is dialed. An address
+   that is not loopback needs the file: without it, the listener is refused (64).
+6. The manual, the help, `docs/cli.md`, and the comment of the gate's scan of listeners
+   (`http-listen:` beside `tcp-listen:`).
+
+## Decision
+
+- A kind of `pipe`, as #75 asks, not a verb: `pipe` joins two streams with one listener at most,
+  and here the listener's other side takes its target from each request. Lost: a new verb, which
+  would repeat the rules of the listener; `-D` that answers HTTP too, which serves one road only,
+  the SSH destination's, and is not OpenSSH's.
+- `%h:%p` names the request's target, as `ProxyCommand` names the host and the port in OpenSSH.
+  Lost: `*`, which a shell can expand.
+- CONNECT only, as #75 asks. A request in absolute form (`GET http://...`, a proxy request for
+  plain HTTP) gets `405`: to carry it, podssh would rewrite HTTP, a second protocol on the port.
+  Lost: such requests carried, for a program that fetches `http://` URLs; it can fetch `https://`
+  through CONNECT.
+- An address that is not loopback needs the credential file, where `tcp-listen:` only says that
+  other hosts can connect: scanners find an open CONNECT proxy, and each of its clients would spend
+  the user's relay token. Lost: a warning alone, as `-D` with `-g` gives, which is OpenSSH's
+  behaviour for `-D`.
+- The reader of requests serves T-368 (`ws-listen:`) too; whichever is done first writes it.
+
+## Prove
+
+```sh
+export CARGO_BUILD_JOBS=4
+cargo test -p podssh-ws --lib http
+cargo test -p podssh-cli --test pipe_listen
+cargo test -p podssh-cli --test pipe_http
+```
+
+curl, software that podssh did not write, through `http-listen:` with `relay:%h:%p` to a stand-in
+relay: `curl -x http://127.0.0.1:PORT` fetches a page over TLS from a test server, and its bytes
+equal those of a direct fetch; with `ssh:` to a test sshd, a CONNECT to its port 22 gets the
+banner. A `GET /` gets `405`, and the stand-in sees no dial; a request with no credential, or a
+wrong one, gets `407` with `Proxy-Authenticate`, and no dial; `PODSSH_LISTEN=no` exits 78 before
+any bind; an address that is not loopback with no credential file exits 64. Planted: a listener
+that dials before it checks the credential; the test of `407` fails. Live:
+`git ls-remote https://github.com/Azathothas/podssh` with `HTTPS_PROXY` at the listener and the
+live relay behind it.
+
+# T-368: `ws:`, `wss:` and `ws-listen:` as addresses of `podssh pipe`
+
+**Source:** GitHub #76 (Nemo-010, 2026-10-31).
+**Category:** feature
+**Milestone:** backlog
+**Priority:** P3
+**Effort:** M
+**Status:** open
+
+## Problem
+
+podssh-ws speaks RFC 6455 only to the relay and to the services that `cloudflared` publishes. A
+WebSocket of another service cannot be a side of `pipe`, and podssh cannot listen as one, so a
+user who needs `websocat` must bring it, and a cage may not run it.
+
+## Premise
+
+- Read: the kinds of `pipe` have no WebSocket (`crates/podssh-cli/src/pipe/address.rs:54-70`); the
+  relay is reached by `relay:HOST:PORT`, whose path is the relay's forward path (`:105-111`), and
+  `tcp:HOST:PORT` carries bytes in the clear to any host that the user names (`:24-25`).
+- Read: the endpoint of the client is a host, a port and a path
+  (`crates/podssh-ws/src/client.rs:40-47`); `validate` refuses a query other than the relay's
+  knobs, as a query goes into the logs of proxies (`:66-105`); `connect` takes a token and sends it
+  in `X-Relay-Token` (`:159-182`); the name of the certificate has no bypass (`:55-57`); the upgrade
+  is generic over its stream (`:207-213`).
+- Read: the token never goes in a URL, and the request has no query
+  (`crates/podssh-ws/src/handshake.rs:1-8`); `accept_key` gives the server's value (`:62`), tested
+  on the vector of RFC 6455 (`crates/podssh-ws/tests/rfc6455.rs:259`).
+- Read: the codec of frames takes its role, and never writes a masked frame of a server
+  (`crates/podssh-ws/src/frame.rs:61-70`); a session is generic over its stream
+  (`crates/podssh-ws/src/session.rs:33`).
+- Read: plain `ws://` goes to the loopback only, for tests, behind the feature `plain-ws`, which
+  the binary never enables, as the relay's token over plain TCP must not leave the host
+  (`crates/podssh-ws/src/plain.rs:1-6`).
+- Read: the rules of a listener of `pipe` (`crates/podssh-cli/src/pipe/listen.rs:1-13`; T-177).
+
+## Approach
+
+1. `wss://HOST[:PORT]/PATH` and `ws://HOST[:PORT]/PATH`, the URL as a user writes it: TLS checked
+   for HOST with podssh's trust, or plain TCP; through `HTTPS_PROXY`, as each road. No token is ever
+   sent on them. The path and its query are the user's; podssh's own lines show the URL without
+   its query.
+2. A dial in podssh-ws with no token: `connect` keeps its token for the relay, and `validate` its
+   rule for the relay's path; the new dial refuses CR, LF and a space in the path.
+3. Bytes go out in binary frames; text and binary frames come in as bytes; a close gives its code
+   and its reason on stderr.
+4. `ws-listen:[ADDR:]PORT` and `ws-listen:PATH`, bound by `Listener::bind`: the reader of requests
+   of T-367, a check of `Upgrade: websocket`, `Connection: Upgrade`, version 13 and the key, then
+   `101` with `accept_key`, and frames as `Role::Server`. An unmasked frame from a client closes
+   with 1002. Each client is joined to the other side as given.
+5. The manual, the help and `docs/cli.md`: `ws:` is in the clear, as `tcp:` is.
+
+## Decision
+
+- `ws:` reaches any host that the user names, with no token: `tcp:` carries the same bytes in the
+  clear already, and the rule of `plain-ws` is for the relay's token, which never goes on `ws:`.
+  Lost: `ws:` to the loopback only, which keeps no secret that `tcp:` does not already give away.
+- The form of a URL (`wss://host/path`), not #76's `wss:HOST:PORT/PATH`: a user copies a URL, as
+  for `websocat`.
+- `ws-listen:` takes no target from the request: each client goes to the other side as given.
+  Lost: a target from the URL, which would make podssh a public forwarder of the kind of T-369's,
+  that is a relay, and the relay stays a separate project (`docs/decisions.md:36`).
+- No `wss-listen:`: a server of TLS needs a certificate and a key of the user's, and #76 does not
+  ask for it.
+- The reader of requests is T-367's; whichever is done first writes it. The dial with no token
+  serves T-369 too.
+
+## Prove
+
+```sh
+export CARGO_BUILD_JOBS=4
+cargo test -p podssh-ws --test rfc6455
+cargo test -p podssh-cli --test pipe_ws
+```
+
+Against websocat, software that podssh did not write, in Podman or in the build image:
+`podssh pipe stdio ws://HOST:PORT/` to its server that echoes gets each line back; websocat as
+the client of `ws-listen:` reaches a test server through `tcp:`, 1 MiB each way with equal
+digests; `wss://` to a stand-in with a certificate for another name is refused. A stand-in client
+that sends an unmasked frame gets the close 1002. `PODSSH_LISTEN=no` exits 78 before any bind.
+Planted: the server's frames encoded as `Role::Client`; the test of the masks fails.
