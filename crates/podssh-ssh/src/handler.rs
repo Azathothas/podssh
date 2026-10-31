@@ -194,12 +194,20 @@ impl Handler for Client {
 
     async fn server_channel_open_forwarded_streamlocal(
         &mut self,
-        _channel: Channel<Msg>,
-        _socket_path: &str,
+        channel: Channel<Msg>,
+        socket_path: &str,
         reply: ChannelOpenHandle,
         _session: &mut Session,
     ) -> Result<(), Self::Error> {
-        self.unasked("forwarded-streamlocal@openssh.com", reply).await;
+        // A path that podssh asked the server to listen on (T-365), as a
+        // port of `forwarded-tcpip`.
+        match crate::remote::find_path(&self.forwards, socket_path) {
+            Some(forward) => {
+                reply.accept().await;
+                tokio::spawn(crate::remote::join(channel, forward, self.log.clone()));
+            }
+            None => self.unasked("forwarded-streamlocal@openssh.com", reply).await,
+        }
         Ok(())
     }
 

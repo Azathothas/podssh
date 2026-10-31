@@ -240,7 +240,8 @@ pub const SSH_FLAGS: &[FlagRow] = &[
     row(Some('L'), "forward-local", Some("SPEC"), FlagKind::Supported,
         "[BIND:]PORT:HOST:HOSTPORT or PATH:HOST:HOSTPORT: listen here; each connection goes on from the server", None),
     row(Some('R'), "forward-remote", Some("SPEC"), FlagKind::Supported,
-        "[BIND:]PORT:HOST:HOSTPORT: the server listens; each connection goes on to HOST:HOSTPORT through the proxy", None),
+        "[BIND:]PORT:HOST:HOSTPORT, a socket path in place of either side, or [BIND:]PORT alone for SOCKS: the server \
+         listens; each connection goes on from here, through the proxy", None),
     row(Some('D'), "dynamic-forward", Some("SPEC"), FlagKind::Supported,
         "[BIND:]PORT or PATH: a SOCKS4 and SOCKS5 proxy here; each connection goes on from the server", None),
     // Refused rows. Each names what to type instead; none prints a usage block.

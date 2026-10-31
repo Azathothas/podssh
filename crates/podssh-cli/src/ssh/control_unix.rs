@@ -223,14 +223,20 @@ fn fwd_of(spec: &LocalSpec) -> Fwd {
     Fwd { kind, listen_host, listen_port, connect_host, connect_port }
 }
 
+/// A forward of `-R` as OpenSSH's client sends it to a master: a path on
+/// either side is the port `PORT_STREAMLOCAL`, and SOCKS has no host and
+/// the port 0 (T-365).
 fn remote_fwd(forward: &RemoteForward) -> Fwd {
-    Fwd {
-        kind: FwdKind::Remote,
-        listen_host: forward.bind.clone().unwrap_or_default(),
-        listen_port: u32::from(forward.port),
-        connect_host: forward.host.clone(),
-        connect_port: u32::from(forward.host_port),
-    }
+    let (listen_host, listen_port) = match &forward.listen {
+        podssh_ssh::RemoteListen::Port { bind, port } => (bind.clone().unwrap_or_default(), u32::from(*port)),
+        podssh_ssh::RemoteListen::Path(path) => (path.clone(), PORT_STREAMLOCAL),
+    };
+    let (connect_host, connect_port) = match &forward.target {
+        podssh_ssh::RemoteTarget::Tcp { host, port } => (host.clone(), u32::from(*port)),
+        podssh_ssh::RemoteTarget::Socket(path) => (path.clone(), PORT_STREAMLOCAL),
+        podssh_ssh::RemoteTarget::Socks => (String::new(), 0),
+    };
+    Fwd { kind: FwdKind::Remote, listen_host, listen_port, connect_host, connect_port }
 }
 
 /// A forward of a client as `-L` or `-D` would give it to this master.

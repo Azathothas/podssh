@@ -67,6 +67,8 @@ pub mod record;
 pub mod relay_stream;
 pub mod remember;
 pub mod remote;
+mod remote_join;
+pub mod remote_spec;
 pub mod retry;
 mod rsa_key;
 pub mod run;
@@ -91,8 +93,8 @@ pub type Connection = russh::client::Handle<handler::Client>;
 pub use local::LocalForward;
 pub use log::Log;
 pub use options::{
-    Agent, Elevate, Hop, LogLevel, Method, Options, RemoteForward, Request, RequestTty, StdioTarget,
-    StrictHostKeyChecking,
+    Agent, Elevate, Hop, LogLevel, Method, Options, RemoteForward, RemoteListen, RemoteTarget, Request, RequestTty,
+    StdioTarget, StrictHostKeyChecking,
 };
 pub use relay_stream::{RelayEnd, RelayStatus};
 pub use run::{run, EXIT_FAILURE};

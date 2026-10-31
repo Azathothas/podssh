@@ -482,8 +482,21 @@ scripts. The facts about OpenSSH on this page were measured with OpenSSH
   loopback is refused; podssh then closes that channel, and says why on
   stderr. `-o RemoteForward=[bind_address:]port host:hostport` is the same,
   and each one is kept. A port of 0 lets the server choose, and podssh
-  prints it, as OpenSSH does. A socket path, and the server's SOCKS proxy
-  (`-R [bind_address:]port`), are refused by name (exit 64).
+  prints it, as OpenSSH does.
+- `-R` takes each form of OpenSSH (T-365), read as `-L` reads its own: a
+  socket path on the server (`remote_socket:host:hostport`), asked for with
+  `streamlocal-forward@openssh.com`; a socket on this host as the target
+  (`[bind_address:]port:local_socket`, `remote_socket:local_socket`), on
+  Unix; and a SOCKS proxy that the server listens for and podssh serves
+  (`[bind_address:]port`, or `remote_socket` alone): SOCKS4, SOCKS4a and
+  SOCKS5 with CONNECT, as `-D` reads them, each target dialed from this
+  host through `HTTPS_PROXY`, and the answer sent after the dial, so that a
+  target that is down gets its code. A channel for a path that podssh did
+  not ask for is refused. `~C -KR PATH` and `-O cancel` stop a forward of
+  a path; `-G` prints each form as OpenSSH 9.6p1 does (a SOCKS one as
+  `[socks]:0`). A server that refuses a path (sshd's
+  `AllowStreamLocalForwarding no`, or one that it cannot bind) gives no
+  reason, so podssh names the path.
 - A server that refuses `tcpip-forward` gives no reason (RFC 4254, section
   4, has no field for one), so podssh names the port: a warning, or with
   `-o ExitOnForwardFailure=yes` the end of the run (exit 255). A channel

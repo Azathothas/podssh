@@ -143,7 +143,7 @@ pub(crate) async fn run<'a>(
             cancel_remote(bind.as_deref(), port, handle, table, log).await;
         }
         // A forward of the server to a socket is not carried (T-035).
-        Order::Cancel(Kind::Remote, Place::Path(_)) => log.info("Unknown port forwarding."),
+        Order::Cancel(Kind::Remote, Place::Path(path)) => cancel_remote_path(&path, handle, table, log).await,
         Order::Cancel(kind, at) => {
             let closed = crate::local::close(kind == Kind::Dynamic, |listening| at.holds(listening));
             if closed.is_empty() {
@@ -195,6 +195,23 @@ async fn cancel_remote(bind: Option<&str>, port: u16, handle: &Handle<Client>, t
     };
     let cancelled = crate::remote::cancel(handle, table, bind, u32::from(port));
     match tokio::time::timeout(ANSWER_LIMIT, cancelled).await {
+        Ok(Ok(Some(name))) => log.info(&format!("Canceled forwarding: {name}")),
+        Ok(Ok(None)) => log.info("Unknown port forwarding."),
+        Ok(Err(why)) => log.info(&format!("Port forwarding was not canceled: {why}")),
+        Err(_) => log.info(&format!(
+            "Port forwarding was not canceled: no answer of the server within {} s",
+            ANSWER_LIMIT.as_secs()
+        )),
+    }
+}
+
+/// `-KR PATH`: as `-KR [BIND:]PORT`, for a socket path on the server (T-365).
+async fn cancel_remote_path(path: &str, handle: &Handle<Client>, table: Option<&Table>, log: &Log) {
+    let Some(table) = table else {
+        log.info("Unknown port forwarding.");
+        return;
+    };
+    match tokio::time::timeout(ANSWER_LIMIT, crate::remote::cancel_path(handle, table, path)).await {
         Ok(Ok(Some(name))) => log.info(&format!("Canceled forwarding: {name}")),
         Ok(Ok(None)) => log.info("Unknown port forwarding."),
         Ok(Err(why)) => log.info(&format!("Port forwarding was not canceled: {why}")),

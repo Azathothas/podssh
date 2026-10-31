@@ -106,14 +106,20 @@ pub fn lines(resolved: &Resolved) -> Vec<String> {
     let socks = |spec: &&super::local_spec::LocalSpec| spec.target == podssh_ssh::local::Target::Socks;
     out.extend(resolved.local.iter().filter(socks).map(|spec| spec.dumped()));
     out.extend(resolved.local.iter().filter(|spec| !socks(spec)).map(|spec| spec.dumped()));
-    // OpenSSH writes a port alone when no address was given, and each host
-    // in brackets.
+    // OpenSSH writes a port alone when no address was given, each host in
+    // brackets, a path as it is, and SOCKS as `[socks]:0` (T-365).
     for f in &o.remote_forwards {
-        let listen = match &f.bind {
-            None => f.port.to_string(),
-            Some(bind) => format!("[{bind}]:{}", f.port),
+        let listen = match &f.listen {
+            podssh_ssh::RemoteListen::Port { bind: None, port } => port.to_string(),
+            podssh_ssh::RemoteListen::Port { bind: Some(bind), port } => format!("[{bind}]:{port}"),
+            podssh_ssh::RemoteListen::Path(path) => path.clone(),
         };
-        out.push(format!("remoteforward {listen} [{}]:{}", f.host, f.host_port));
+        let target = match &f.target {
+            podssh_ssh::RemoteTarget::Tcp { host, port } => format!("[{host}]:{port}"),
+            podssh_ssh::RemoteTarget::Socket(path) => path.clone(),
+            podssh_ssh::RemoteTarget::Socks => "[socks]:0".to_string(),
+        };
+        out.push(format!("remoteforward {listen} {target}"));
     }
     for file in &o.identity_files {
         out.push(format!("identityfile {}", shown_path(file, s.home.as_deref())));

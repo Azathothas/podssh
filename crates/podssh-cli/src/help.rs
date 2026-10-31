@@ -245,7 +245,8 @@ pub fn verb_notes(verb: &Verb) -> String {
         s.push_str("-L and -D listen here, and each connection that they take goes on from\n");
         s.push_str("  the server; -W HOST:PORT carries one connection, with no listener.\n");
         s.push_str("-R [BIND:]PORT:HOST:HOSTPORT: the server listens, and each connection\n");
-        s.push_str("  reaches HOST:HOSTPORT from here, through HTTPS_PROXY when it is set.\n");
+        s.push_str("  reaches HOST:HOSTPORT from here, through HTTPS_PROXY when it is set; a\n");
+        s.push_str("  socket path in place of either side, or [BIND:]PORT alone for SOCKS.\n");
         s.push_str("-P on ssh is OpenSSH's Tag, which Match tagged reads, not a port. On\n");
         s.push_str("  scp and sftp, -P is the port. The meaning is per-verb.\n");
     }

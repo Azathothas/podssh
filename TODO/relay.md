@@ -790,7 +790,7 @@ listener" (lines 86-88 at `22c3b88`), and the ruling on Q10 allows more than one
    (line 186 at `22c3b88`) stays a note of the run. `Failure` keeps each error; `Opened.relay` and the log
    name the host that was kept. tokio's `select!` and `JoinSet` need no new crate and no C.
 7. Add the flag to `SSH_FLAGS`, `PROXY_FLAGS` and `DOCTOR_FLAGS`
-   (`crates/podssh-cli/src/flags.rs:112-281`, 323-343) and to `ONCE`
+   (`crates/podssh-cli/src/flags.rs:112-282`, 323-343) and to `ONCE`
    (`crates/podssh-cli/src/ssh/args.rs:130-151`); the variable to VARIABLES and the modes to THE
    RELAY (`crates/podssh-cli/src/man/facts.rs:45-260`, 170-183); both to `docs/relay.md:50-93`.
 8. T-059 orders the hosts across runs; this entry shortens the wait in one run. GitHub #25 asks

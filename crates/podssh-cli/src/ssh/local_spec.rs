@@ -123,7 +123,22 @@ struct Field {
     path: bool,
 }
 
+/// The kind of a forward: `-L`, `-D` or `-R` (T-365), which share the
+/// reader and differ in the targets that they take.
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub(super) enum Side {
+    Local,
+    Dynamic,
+    Remote,
+}
+
 fn parse(spec: &str, dynamic: bool) -> Result<(Listen, Target), String> {
+    forms(spec, if dynamic { Side::Dynamic } else { Side::Local })
+}
+
+/// `spec` as OpenSSH reads it for `side`: `-R` takes each target, SOCKS
+/// among them, and a listening port of 0, which the server chooses.
+pub(super) fn forms(spec: &str, side: Side) -> Result<(Listen, Target), String> {
     let fields = fields(spec).ok_or("a bracket that is not closed, a \\ at the end, or more than four fields")?;
     let port = |f: &Field| f.text.parse::<u16>().map_err(|_| format!("{:?} is not a port", f.text));
     let text = |f: &Field| f.text.clone();
@@ -140,14 +155,14 @@ fn parse(spec: &str, dynamic: bool) -> Result<(Listen, Target), String> {
         [a, b, c, d] => (Listen::Port { bind: Some(text(a)), port: port(b)? }, tcp(c, d)?),
         _ => return Err("an empty spec".into()),
     };
-    match (dynamic, &target) {
-        (true, Target::Socks) | (false, Target::Tcp { .. } | Target::Socket(_)) => {}
-        (true, _) => return Err("not [bind_address:]port, or a socket path".into()),
-        (false, Target::Socks) => {
+    match (side, &target) {
+        (Side::Remote, _) | (Side::Dynamic, Target::Socks) | (Side::Local, Target::Tcp { .. } | Target::Socket(_)) => {}
+        (Side::Dynamic, _) => return Err("not [bind_address:]port, or a socket path".into()),
+        (Side::Local, Target::Socks) => {
             return Err("not [bind_address:]port:host:hostport, with a socket path in place of either side".into())
         }
     }
-    if matches!(listen, Listen::Port { port: 0, .. }) {
+    if side != Side::Remote && matches!(listen, Listen::Port { port: 0, .. }) {
         return Err("a listening port of 0 is not allowed".into());
     }
     match &target {

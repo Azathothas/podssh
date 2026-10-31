@@ -414,6 +414,8 @@ rc=$?
 [ "$rc" = 255 ] && grep -q "remote port forwarding failed for listen port 2291" "$W/err" \
     && ok ssh.forward.remote_refused "-R to a port that OpenSSH refuses, with ExitOnForwardFailure: exit 255, named" \
     || bad ssh.forward.remote_refused "-R refused: exit $rc" "$W/err"
+# shellcheck source=scripts/interop-remote.sh
+. "$HERE/interop-remote.sh"
 
 echo
 echo "== pseudo-terminals without a local terminal (pipes only, as on a host with no /dev/ptmx)"

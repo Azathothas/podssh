@@ -325,31 +325,9 @@ pub struct Again {
     pub wait: fn(u32) -> Duration,
 }
 
-/// One remote forward: the server listens at `bind:port`, and podssh
-/// connects each connection that it takes to `host:host_port`.
-#[derive(Debug, Clone, PartialEq, Eq)]
-pub struct RemoteForward {
-    /// The address that the server binds, as given: `None` when none was,
-    /// which `-G` prints as OpenSSH does.
-    pub bind: Option<String>,
-    /// The port that the server binds; 0 lets it choose.
-    pub port: u16,
-    pub host: String,
-    pub host_port: u16,
-}
-
-impl RemoteForward {
-    /// The address sent to the server, as OpenSSH sends it: `localhost` when
-    /// none was given, and the empty string (each interface, as the server's
-    /// `GatewayPorts` allows) for an empty one or `*`.
-    pub fn sent_address(&self) -> &str {
-        match self.bind.as_deref() {
-            None => "localhost",
-            Some("") | Some("*") => "",
-            Some(address) => address,
-        }
-    }
-}
+/// One remote forward (T-035, T-365): its own module, as `-R` takes a
+/// port or a path on the server, and a host, a socket here or SOCKS.
+pub use crate::remote_spec::{RemoteForward, RemoteListen, RemoteTarget};
 
 impl Options {
     /// `BatchMode` from now on, for the destination and each hop with options

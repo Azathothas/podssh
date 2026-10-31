@@ -26,7 +26,10 @@ const EVERY: &[&str] = &[
     "-o", "BatchMode=yes", "-o", "IdentitiesOnly=yes", "-o", "NumberOfPasswordPrompts=2",
     "-o", "ConnectionAttempts=3", "-o", "ServerAliveCountMax=5", "-o", "StdinNull=yes", "-o", "RequestTTY=force",
     "-o", "PubkeyAuthentication=no", "-o", "PermitLocalCommand=yes", "-o", "LocalCommand=touch /tmp/lc-%h",
-    "-R", "8080:localhost:80", "-R", "0.0.0.0:0:[::1]:443", "-R", ":8081:web:80", "-o", "RemoteForward 9090 db:5432",
+    "-R", "8080:localhost:80", "-R", "0.0.0.0:0:[::1]:443", "-R", ":8081:web:80",
+    // The socket and SOCKS forms of -R (T-365), as OpenSSH 9.6p1 printed them.
+    "-R", "/tmp/r.sock:127.0.0.1:22", "-R", "8083:/tmp/local.sock", "-R", "/tmp/r2.sock:/tmp/local.sock",
+    "-R", "1082", "-R", "/tmp/x.sock", "-R", "127.0.0.1:1083", "-o", "RemoteForward 9090 db:5432",
     "-o", "ExitOnForwardFailure=yes", "EXAMPLE.org",
 ];
 const EVERY_OPENSSH: &str = "host EXAMPLE.org
@@ -67,6 +70,12 @@ localforward /tmp/l.sock [db]:22
 remoteforward 8080 [localhost]:80
 remoteforward [0.0.0.0]:0 [::1]:443
 remoteforward []:8081 [web]:80
+remoteforward /tmp/r.sock [127.0.0.1]:22
+remoteforward 8083 /tmp/local.sock
+remoteforward /tmp/r2.sock /tmp/local.sock
+remoteforward 1082 [socks]:0
+remoteforward /tmp/x.sock [socks]:0
+remoteforward [127.0.0.1]:1083 [socks]:0
 remoteforward 9090 [db]:5432
 identityfile /tmp/podssh-k1
 globalknownhostsfile none

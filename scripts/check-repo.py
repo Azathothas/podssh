@@ -97,10 +97,12 @@ LISTENERS = {
     ],
     # The control socket of `podssh ssh -M` (T-039), which the user asks for:
     # pipe/listen.rs makes it before anything connects (the probe), and the
-    # master serves it; its tests make one in a scratch directory.
+    # master serves it; its tests make one in a scratch directory. And the
+    # target of the tests of -R to a socket on this host (T-365), in one.
     "UnixListener": [
         "crates/podssh-cli/src/pipe/listen.rs",
         "crates/podssh-ssh/src/agent_forward_tests.rs",
+        "crates/podssh-ssh/src/remote_tests.rs",
         "crates/podssh-ssh/src/mux/master.rs",
         "crates/podssh-ssh/src/mux/tests.rs",
     ],

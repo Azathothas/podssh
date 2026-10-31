@@ -1,25 +1,31 @@
-//! `-R` and `-o RemoteForward`: the server listens, and podssh connects each
-//! connection that it takes to the spec's target, with one more outbound
-//! connection through the proxy (T-035). The specs are OpenSSH's; the forms
-//! that podssh does not carry yet are refused by name.
+//! `-R` and `-o RemoteForward`: the server listens, on a port or a socket
+//! path, and podssh connects each connection that it takes to the spec's
+//! target, a host and a port, a socket on this host, or the SOCKS proxy that
+//! podssh serves (T-035, T-365). The specs are OpenSSH's, read with the
+//! reader of `-L` (`local_spec`), so that brackets, a backslash and a field
+//! with a `/` mean one thing in each direction.
 
-use podssh_ssh::options::RemoteForward;
+use podssh_ssh::local::Target;
+use podssh_ssh::{RemoteForward, RemoteListen, RemoteTarget};
 
-/// One `-R` spec: `[bind_address:]port:host:hostport`, an IPv6 address in
-/// brackets. A socket path, on either side, and the server's SOCKS proxy
-/// (`[bind_address:]port` alone) are refused by name.
+use super::local_spec::{forms, Listen, Side};
+
+/// One `-R` spec, in OpenSSH's six forms: `[bind_address:]port:host:hostport`,
+/// `remote_socket:host:hostport`, `[bind_address:]port:local_socket`,
+/// `remote_socket:local_socket`, and the SOCKS proxy, `[bind_address:]port`
+/// or `remote_socket` alone.
 pub fn parse_remote(spec: &str) -> Result<RemoteForward, String> {
     parse(spec).map_err(|why| format!("-R {spec}: {why}"))
 }
 
-/// `-o RemoteForward=[bind_address:]port host:hostport`: the keyword's two
-/// arguments, as `ssh_config` writes them.
+/// `-o RemoteForward=LISTEN [TARGET]`: the keyword's arguments, as
+/// `ssh_config` writes them; one alone is the SOCKS form.
 pub fn parse_remote_keyword(value: &str) -> Result<RemoteForward, String> {
     let mut words = value.split_whitespace();
     let parsed = match (words.next(), words.next(), words.next()) {
         (Some(listen), Some(target), None) => parse(&format!("{listen}:{target}")),
         (Some(listen), None, None) => parse(listen),
-        _ => Err("not [bind_address:]port host:hostport".into()),
+        _ => Err("not LISTEN TARGET, or LISTEN alone for SOCKS".into()),
     };
     parsed.map_err(|why| format!("-o RemoteForward={value}: {why}"))
 }
@@ -38,55 +44,17 @@ pub fn remote_forwards(command_line: &[String], keyword: &[RemoteForward]) -> Re
 }
 
 fn parse(spec: &str) -> Result<RemoteForward, String> {
-    let fields = split(spec).ok_or("a bracket is not closed")?;
-    if fields.iter().any(|f| f.starts_with('/')) {
-        return Err("a Unix socket is not carried yet; forward to a HOST:PORT".into());
-    }
-    let (bind, port, host, host_port) = match fields.as_slice() {
-        [port, host, host_port] => (None, port, host, host_port),
-        [bind, port, host, host_port] => (Some(bind.as_str()), port, host, host_port),
-        [_] | [_, _] => {
-            return Err("the server's SOCKS proxy (-R [bind_address:]port) is not carried yet; \
-                        give [bind_address:]port:host:hostport"
-                .into())
-        }
-        _ => return Err("not [bind_address:]port:host:hostport".into()),
+    let (listen, target) = forms(spec, Side::Remote)?;
+    let listen = match listen {
+        Listen::Port { bind, port } => RemoteListen::Port { bind, port },
+        Listen::Path(path) => RemoteListen::Path(path),
     };
-    let port: u16 = port.parse().map_err(|_| format!("{port:?} is not a port"))?;
-    let host_port: u16 = match host_port.parse() {
-        Ok(p) if p > 0 => p,
-        _ => return Err(format!("{host_port:?} is not a port to connect to")),
+    let target = match target {
+        Target::Tcp { host, port } => RemoteTarget::Tcp { host, port },
+        Target::Socket(path) => RemoteTarget::Socket(path),
+        Target::Socks => RemoteTarget::Socks,
     };
-    if host.is_empty() {
-        return Err("no host to connect to".into());
-    }
-    Ok(RemoteForward { bind: bind.map(str::to_string), port, host: host.clone(), host_port })
-}
-
-/// The fields between colons, with the brackets of an IPv6 address taken
-/// off; `None` for a bracket that is not closed.
-fn split(spec: &str) -> Option<Vec<String>> {
-    let mut fields = Vec::new();
-    let mut field = String::new();
-    let mut chars = spec.chars();
-    while let Some(c) = chars.next() {
-        match c {
-            '[' if field.is_empty() => {
-                let mut inner = String::new();
-                loop {
-                    match chars.next()? {
-                        ']' => break,
-                        c => inner.push(c),
-                    }
-                }
-                field.push_str(&inner);
-            }
-            ':' => fields.push(std::mem::take(&mut field)),
-            c => field.push(c),
-        }
-    }
-    fields.push(field);
-    Some(fields)
+    Ok(RemoteForward { listen, target })
 }
 
 #[cfg(test)]
@@ -94,7 +62,7 @@ mod tests {
     use super::*;
 
     fn forward(bind: Option<&str>, port: u16, host: &str, host_port: u16) -> RemoteForward {
-        RemoteForward { bind: bind.map(str::to_string), port, host: host.into(), host_port }
+        RemoteForward::tcp(bind.map(str::to_string), port, host, host_port)
     }
 
     #[test]
@@ -115,23 +83,43 @@ mod tests {
         );
     }
 
+    /// The forms of a socket path on either side, and of SOCKS (T-365), as
+    /// OpenSSH 9.6p1's `-G` read them.
     #[test]
-    fn the_forms_not_carried_yet_are_refused_by_name() {
+    fn the_socket_and_socks_forms_parse() {
+        let path = |p: &str| RemoteListen::Path(p.into());
+        let port = |bind: Option<&str>, port| RemoteListen::Port { bind: bind.map(str::to_string), port };
+        let cases = [
+            ("/tmp/r.sock:127.0.0.1:22", path("/tmp/r.sock"), RemoteTarget::Tcp { host: "127.0.0.1".into(), port: 22 }),
+            ("8080:/tmp/local.sock", port(None, 8080), RemoteTarget::Socket("/tmp/local.sock".into())),
+            ("/tmp/r.sock:/tmp/local.sock", path("/tmp/r.sock"), RemoteTarget::Socket("/tmp/local.sock".into())),
+            ("1080", port(None, 1080), RemoteTarget::Socks),
+            ("0", port(None, 0), RemoteTarget::Socks),
+            ("127.0.0.1:1080", port(Some("127.0.0.1"), 1080), RemoteTarget::Socks),
+            ("/tmp/x.sock", path("/tmp/x.sock"), RemoteTarget::Socks),
+        ];
+        for (spec, listen, target) in cases {
+            assert_eq!(parse_remote(spec), Ok(RemoteForward { listen, target }), "{spec}");
+        }
+        assert_eq!(parse_remote_keyword("8080").map(|f| f.target), Ok(RemoteTarget::Socks));
+        assert_eq!(
+            parse_remote_keyword("/tmp/r.sock /tmp/local.sock").map(|f| f.target),
+            Ok(RemoteTarget::Socket("/tmp/local.sock".into()))
+        );
+    }
+
+    #[test]
+    fn a_spec_of_no_form_is_refused_with_why() {
         for (spec, says) in [
-            ("8080", "SOCKS"),
-            ("0.0.0.0:8080", "SOCKS"),
-            ("8080:/tmp/sock", "Unix socket"),
-            ("/tmp/remote:web:80", "Unix socket"),
             ("8080:web:http", "not a port"),
-            ("8080:web:0", "not a port"),
-            ("x:8080:web:80:9", "not [bind_address:]port:host:hostport"),
+            ("8080:web:0", "not allowed"),
+            ("x:8080:web:80:9", "more than four fields"),
             ("[::1:8080:web:80", "bracket"),
             ("8080::80", "no host"),
         ] {
             let err = parse_remote(spec).expect_err(spec);
             assert!(err.contains(says), "{spec}: {err}");
         }
-        assert!(parse_remote_keyword("8080").unwrap_err().contains("SOCKS"));
         assert!(parse_remote_keyword("a b c").is_err());
     }
 }

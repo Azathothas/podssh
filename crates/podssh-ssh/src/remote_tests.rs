@@ -18,6 +18,9 @@ use crate::run::HopError;
 /// The port that the server chooses for a forward that asks for 0.
 const CHOSEN: u32 = 4242;
 
+/// What `asked` keeps for a path, which has no port.
+const PATH: u32 = u32::MAX;
+
 /// Lets anyone in, gives its session handle to the test, and takes each
 /// forward after refusing the first `refuse` requests: the requests it saw
 /// are kept. With `open_first`, it opens a channel for a taken port before
@@ -62,6 +65,16 @@ impl server::Handler for Forwarder {
             session.channel_open_forwarded_tcpip(address, *port, "192.0.2.1", 40000)?;
         }
         Ok(take)
+    }
+
+    async fn streamlocal_forward(
+        &mut self,
+        socket_path: &str,
+        _session: &mut ServerSession,
+    ) -> Result<bool, Self::Error> {
+        let mut asked = self.asked.lock().unwrap();
+        asked.push((socket_path.to_string(), PATH));
+        Ok(asked.len() > self.refuse)
     }
 
     async fn channel_open_confirmation(
@@ -144,7 +157,7 @@ async fn log_in_with(
 }
 
 fn forward(port: u16, host: &str, host_port: u16) -> RemoteForward {
-    RemoteForward { bind: None, port, host: host.into(), host_port }
+    RemoteForward::tcp(None, port, host, host_port)
 }
 
 /// A forwarded channel for the port that the server chose reaches the
@@ -311,20 +324,143 @@ async fn a_channel_that_comes_before_the_answer_is_accepted() {
 /// decides else.
 #[test]
 fn the_port_finds_the_forward_and_the_address_between_two() {
+    use super::Listening::Port;
     let table: super::Table = Arc::new(Mutex::new(vec![
-        super::Bound { port: 80, forward: RemoteForward { bind: None, port: 80, host: "a".into(), host_port: 1 } },
-        super::Bound {
-            port: 81,
-            forward: RemoteForward { bind: Some(String::new()), port: 81, host: "b".into(), host_port: 2 },
-        },
-        super::Bound {
-            port: 81,
-            forward: RemoteForward { bind: Some("10.0.0.1".into()), port: 81, host: "c".into(), host_port: 3 },
-        },
+        super::Bound { at: Port(80), forward: RemoteForward::tcp(None, 80, "a", 1) },
+        super::Bound { at: Port(81), forward: RemoteForward::tcp(Some(String::new()), 81, "b", 2) },
+        super::Bound { at: Port(81), forward: RemoteForward::tcp(Some("10.0.0.1".into()), 81, "c", 3) },
     ]));
-    assert_eq!(super::find(&table, "127.0.0.1", 80).map(|f| f.host), Some("a".into()));
-    assert_eq!(super::find(&table, "10.0.0.1", 81).map(|f| f.host), Some("c".into()));
-    assert_eq!(super::find(&table, "", 81).map(|f| f.host), Some("b".into()));
+    let host = |f: RemoteForward| match f.target {
+        crate::options::RemoteTarget::Tcp { host, .. } => host,
+        other => panic!("{other:?}"),
+    };
+    assert_eq!(super::find(&table, "127.0.0.1", 80).map(host), Some("a".into()));
+    assert_eq!(super::find(&table, "10.0.0.1", 81).map(host), Some("c".into()));
+    assert_eq!(super::find(&table, "", 81).map(host), Some("b".into()));
     assert_eq!(super::find(&table, "192.0.2.9", 81), None);
     assert_eq!(super::find(&table, "localhost", 8080), None);
+}
+
+/// Bytes of `channel` until `n` came, or its end.
+async fn read_n(channel: &mut Channel<ServerMsg>, n: usize) -> Vec<u8> {
+    let mut back = Vec::new();
+    while back.len() < n {
+        match channel.wait().await {
+            Some(ChannelMsg::Data { data }) => back.extend_from_slice(&data),
+            Some(ChannelMsg::Eof | ChannelMsg::Close) | None => break,
+            _ => {}
+        }
+    }
+    back
+}
+
+/// An echo of one connection on the loopback, and its port.
+async fn echo() -> u16 {
+    let echo = tokio::net::TcpListener::bind("127.0.0.1:0").await.expect("a listener");
+    let port = echo.local_addr().unwrap().port();
+    tokio::spawn(async move {
+        let (mut tcp, _) = echo.accept().await.expect("one connection");
+        let (mut r, mut w) = tcp.split();
+        let _ = tokio::io::copy(&mut r, &mut w).await;
+    });
+    port
+}
+
+/// A path on the server is asked for with `streamlocal-forward`; a channel
+/// for that path reaches the target whole, and one for another path is
+/// refused (T-365).
+#[tokio::test]
+async fn a_streamlocal_channel_for_the_path_asked_for_reaches_its_target_and_another_is_refused() {
+    let test = async {
+        let echo_port = echo().await;
+        let forward = RemoteForward {
+            listen: crate::options::RemoteListen::Path("/srv/r.sock".into()),
+            target: crate::options::RemoteTarget::Tcp { host: "127.0.0.1".into(), port: echo_port },
+        };
+        let run = log_in(vec![forward], true, false).await;
+        let _client = run.client.expect("logged in");
+        let server = run.server.expect("the server's handle");
+        assert_eq!(*run.asked.lock().unwrap(), [("/srv/r.sock".to_string(), PATH)]);
+        let mut channel = server
+            .channel_open_forwarded_streamlocal("/srv/r.sock")
+            .await
+            .expect("the client accepts the channel of the path it asked for");
+        channel.data(&b"through the socket's forward"[..]).await.expect("data sent");
+        channel.eof().await.expect("eof sent");
+        assert_eq!(read_n(&mut channel, 28).await, b"through the socket's forward", "the target's answer, whole");
+        match server.channel_open_forwarded_streamlocal("/srv/other.sock").await {
+            Err(russh::Error::ChannelOpenFailure(ChannelOpenFailure::AdministrativelyProhibited)) => {}
+            Err(e) => panic!("refused with another reason: {e:?}"),
+            Ok(_) => panic!("the client accepted a channel for a path it did not ask for"),
+        }
+    };
+    tokio::time::timeout(Duration::from_secs(60), test).await.expect("the test ends within 60 s");
+}
+
+/// A socket on this host as the target: each channel reaches it.
+#[cfg(unix)]
+#[tokio::test]
+async fn a_socket_on_this_host_is_the_target_of_each_channel() {
+    let test = async {
+        let dir = std::env::temp_dir().join(format!("podssh-r-sock-{}-{}", std::process::id(), rand::random::<u32>()));
+        std::fs::create_dir_all(&dir).expect("a directory");
+        let path = dir.join("echo.sock");
+        let echo = tokio::net::UnixListener::bind(&path).expect("an echo on a socket");
+        tokio::spawn(async move {
+            let (mut stream, _) = echo.accept().await.expect("one connection");
+            let (mut r, mut w) = stream.split();
+            let _ = tokio::io::copy(&mut r, &mut w).await;
+        });
+        let forward = RemoteForward {
+            listen: crate::options::RemoteListen::Port { bind: None, port: 0 },
+            target: crate::options::RemoteTarget::Socket(path.to_string_lossy().into_owned()),
+        };
+        let run = log_in(vec![forward], true, false).await;
+        let _client = run.client.expect("logged in");
+        let server = run.server.expect("the server's handle");
+        let mut channel =
+            server.channel_open_forwarded_tcpip("localhost", CHOSEN, "192.0.2.1", 40000).await.expect("accepted");
+        channel.data(&b"to a socket here"[..]).await.expect("data sent");
+        channel.eof().await.expect("eof sent");
+        assert_eq!(read_n(&mut channel, 16).await, b"to a socket here");
+        let _ = std::fs::remove_dir_all(&dir);
+    };
+    tokio::time::timeout(Duration::from_secs(60), test).await.expect("the test ends within 60 s");
+}
+
+/// The SOCKS form: a SOCKS5 request on the channel reaches its target, and
+/// is answered after the dial; a target that is down gets its code, 5.
+#[tokio::test]
+async fn the_socks_form_answers_after_its_dial_and_names_a_target_that_is_down() {
+    let test = async {
+        let echo_port = echo().await;
+        let gone = tokio::net::TcpListener::bind("127.0.0.1:0").await.expect("a listener");
+        let gone_port = gone.local_addr().unwrap().port();
+        drop(gone);
+        let forward = RemoteForward {
+            listen: crate::options::RemoteListen::Port { bind: None, port: 1080 },
+            target: crate::options::RemoteTarget::Socks,
+        };
+        let run = log_in(vec![forward], true, false).await;
+        let _client = run.client.expect("logged in");
+        let server = run.server.expect("the server's handle");
+        let request = |port: u16| [&[5, 1, 0, 1, 127, 0, 0, 1][..], &port.to_be_bytes()[..]].concat();
+        let mut channel =
+            server.channel_open_forwarded_tcpip("localhost", 1080, "192.0.2.1", 40000).await.expect("accepted");
+        channel.data(&[5u8, 1, 0][..]).await.expect("the greeting");
+        assert_eq!(read_n(&mut channel, 2).await, [5, 0], "no authentication");
+        channel.data(&request(echo_port)[..]).await.expect("the request");
+        assert_eq!(read_n(&mut channel, 10).await, [5, 0, 0, 1, 0, 0, 0, 0, 0, 0], "granted after the dial");
+        channel.data(&b"through SOCKS"[..]).await.expect("data sent");
+        channel.eof().await.expect("eof sent");
+        assert_eq!(read_n(&mut channel, 13).await, b"through SOCKS");
+
+        let mut down =
+            server.channel_open_forwarded_tcpip("localhost", 1080, "192.0.2.1", 40001).await.expect("accepted");
+        down.data(&[5u8, 1, 0][..]).await.expect("the greeting");
+        assert_eq!(read_n(&mut down, 2).await, [5, 0]);
+        down.data(&request(gone_port)[..]).await.expect("the request");
+        assert_eq!(read_n(&mut down, 10).await, [5, 5, 0, 1, 0, 0, 0, 0, 0, 0], "refused: the target is down");
+    };
+    tokio::time::timeout(Duration::from_secs(60), test).await.expect("the test ends within 60 s");
 }

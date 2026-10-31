@@ -36,6 +36,7 @@ harness run interop 3 scripts/interop-run.sh
 harness local interop 6 scripts/interop-local.sh
 harness control interop 13 scripts/interop-control.sh
 harness faults interop 39 scripts/interop-faults.sh
+harness remote interop 3 scripts/interop-remote.sh
 harness ping interop 3 scripts/interop-ping.sh
 harness relay interop 4 scripts/interop-relay.sh
 harness socks interop 4 scripts/interop-socks.sh
@@ -319,6 +320,10 @@ control.openssh_master.output pass
 control.openssh_master.exit pass
 control.openssh_master.gone pass
 
+# scripts/interop-remote.sh
+remote.path pass
+remote.socks pass
+remote.socket pass
 # scripts/interop-faults.sh
 faults.certs pass
 faults.standins pass

@@ -195,8 +195,11 @@ pub const SSH: &[&str] = &[
     "-R [BIND:]PORT:HOST:HOSTPORT asks the server to listen; each connection that it takes reaches \
      HOST:HOSTPORT from this host, as one more outbound connection, through HTTPS_PROXY when it is set, \
      within 20 s. A port of 0 lets the server choose, and podssh prints it. A forward that the server \
-     refuses is a warning; with -o ExitOnForwardFailure=yes it ends the run (exit 255). A socket path and \
-     the server's SOCKS proxy (-R [BIND:]PORT) are refused by name (exit 64).",
+     refuses is a warning; with -o ExitOnForwardFailure=yes it ends the run (exit 255). -R takes \
+     OpenSSH's other forms too: a socket path on the server (-R SERVERPATH:HOST:HOSTPORT), a socket \
+     on this host as the target (-R [BIND:]PORT:LOCALPATH, -R SERVERPATH:LOCALPATH; on Unix), \
+     and a SOCKS proxy that the server listens for and podssh serves (-R [BIND:]PORT, or -R \
+     SERVERPATH alone), whose targets are dialed from this host, the answer after the dial.",
     "--persist -N keeps the forwards: no tmux runs, and after a loss, the server's own close too, podssh \
      connects again and asks for each -R again; -L and -D keep their listeners. A forward refused after \
      a loss is asked again for 2 minutes, as the server may hold its port for the old connection, then \

@@ -66,7 +66,7 @@ pub const HONOURED: &[Keyword] = &[
     kw("ProxyJump", "HOSTS|none", "the same as -J", "none"),
     kw("PubkeyAuthentication", "yes|no", "allow key authentication", "yes"),
     kw("RemoteCommand", "COMMAND", "the command to run when the command line gives none; it takes the % tokens", "uptime"),
-    kw("RemoteForward", "[BIND:]PORT HOST:HOSTPORT", "the same as -R; repeatable", "8080 localhost:80"),
+    kw("RemoteForward", "LISTEN [TARGET]", "the same as -R: a port or a socket path, then HOST:PORT or a socket here, or none for SOCKS; repeatable", "8080 localhost:80"),
     kw("RequestTTY", "auto|yes|force|no", "yes is -t, force is -tt, no is -T", "force"),
     kw("SendEnv", "NAME...", "send these local variables; the server decides which to accept", "LANG"),
     kw("ServerAliveCountMax", "N", "keepalives with no answer before podssh ends the session (default 3)", "5"),

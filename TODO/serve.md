@@ -50,7 +50,7 @@ core: the handshake, a host key that does not change, and key authentication.
    `$HOME/.ssh/authorized_keys`. Lines with options wait for T-114. No usable
    key: exit 78. Invariant: no setting accepts each key. `auth_publickey`
    compares `key_data()`; the login name selects nothing.
-5. The verb: rows in `crates/podssh-cli/src/flags.rs:346-407` and
+5. The verb: rows in `crates/podssh-cli/src/flags.rs:347-408` and
    `crates/podssh-cli/src/positionals.rs:8-237`, an arm beside
    `crates/podssh-cli/src/dispatch.rs:230-297`, the manual, `docs/cli.md`,
    `docs/STATUS.md`. The first source is `--stdio`, as `sshd -i`: OpenSSH
@@ -303,7 +303,7 @@ The test file crates/podssh-ssh/tests/serve_pty.rs applies modes and sizes to
 a real pty and reads them back. In the gate, the pty driver
 `scripts/interop-pty.py` gets a mode that runs OpenSSH's `ssh -t` against
 `podssh serve --stdio`: size, resize, Ctrl-C, `vi`, `less`, `top`, an exit
-status and `~.`. The `-tt` cases of `scripts/interop.sh:418-446` run against
+status and `~.`. The `-tt` cases of `scripts/interop.sh:420-448` run against
 serve too. A planted serve that skips `TIOCSWINSZ` fails the size check.
 
 ## Blocker
@@ -379,7 +379,7 @@ sh scripts/test_in_box.sh target/x86_64-unknown-linux-musl/release/podssh
 The test file crates/podssh-ssh/tests/serve_line.rs uses `--pty line`: Ctrl-C
 ends `sleep 30` within 5 s, the next line runs, and output lines end in CR
 LF. The gate runs the same through OpenSSH's `ssh -tt`, in the shape of
-`scripts/interop.sh:427-436`: `AFTER-5` and exit 9 within 15 s. In the box
+`scripts/interop.sh:429-438`: `AFTER-5` and exit 9 within 15 s. In the box
 (no `/dev/ptmx`), a new step drives `podssh serve --stdio` with
 `podman exec -i` from OpenSSH on the host. A planted serve that signals the
 shell's pid and not its group fails the 15 s check.
@@ -1344,7 +1344,7 @@ no reason (`docs/target-environment.md:73-74`).
 ## Premise
 
 - Read: no source in `crates/` reads `SHELL` or selects a shell; `serve` is
-  not a verb (`crates/podssh-cli/src/flags.rs:346-407`). The line numbers in
+  not a verb (`crates/podssh-cli/src/flags.rs:347-408`). The line numbers in
   the report are older; the content is at the lines given here.
 - Read: the report says that `docs/cli.md` records why podssh does not call
   `getpwuid`. It does not; that record is `docs/target-environment.md:37-44`.

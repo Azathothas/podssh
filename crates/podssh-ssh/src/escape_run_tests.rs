@@ -118,7 +118,7 @@ impl Forwarder for Stub {
     fn remote(&self, spec: &str) -> Result<RemoteForward, String> {
         let (port, host) = spec.split_once(':').ok_or_else(|| "no port".to_string())?;
         let port = port.parse::<u16>().map_err(|_| format!("{port}: no port"))?;
-        Ok(RemoteForward { bind: None, port, host: host.to_string(), host_port: 9 })
+        Ok(RemoteForward::tcp(None, port, host, 9))
     }
 }
 
@@ -201,7 +201,10 @@ async fn escape_command_r_asks_the_server_and_kr_lets_it_go() {
         let table = Some(&run.table);
         run_order(order("-R 0:escape-r.test"), &run, table, &commands, &mut added).await;
         assert_eq!(*lock(&run.asked), [("forward", "localhost".to_string(), 0)]);
-        assert_eq!(lock(&run.table).iter().map(|b| b.port).collect::<Vec<_>>(), [CHOSEN]);
+        assert_eq!(
+            lock(&run.table).iter().map(|b| b.at.clone()).collect::<Vec<_>>(),
+            [crate::remote::Listening::Port(CHOSEN)]
+        );
         let logged = run.logged();
         assert!(logged.contains(&format!("Allocated port {CHOSEN}")), "{logged}");
         assert!(logged.contains("Forwarding port."), "{logged}");
@@ -228,7 +231,7 @@ async fn escape_command_r_asks_the_server_and_kr_lets_it_go() {
         // command line, but not for one that `-KR` stopped.
         let hop = Hop { user: Some("podtest".into()), host: "escape.test".into(), port: 22 };
         let mut opts = Options::new(hop, "podtest".into());
-        opts.remote_forwards = vec![RemoteForward { bind: None, port: 0, host: "escape-r.test".into(), host_port: 9 }];
+        opts.remote_forwards = vec![RemoteForward::tcp(None, 0, "escape-r.test", 9)];
         crate::remote::request(&run.handle, &run.table, &opts, &run.log).await.expect("no refusal");
         assert_eq!(lock(&run.asked).len(), 2, "a forward that -KR stopped was asked for again");
     };

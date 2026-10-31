@@ -1,29 +1,33 @@
-//! The channels of `-R` (T-035): the server takes a connection on a port that
-//! podssh asked it to listen on, and opens a `forwarded-tcpip` channel;
-//! podssh connects to the forward's target, through the proxy as `--direct`
-//! does, and joins the two. A channel for a port that podssh did not ask for
-//! is refused, in the handler. `~C` asks for one more, or stops one (T-291).
+//! The channels of `-R` (T-035, T-365): the server takes a connection on a
+//! port, or on a socket path, that podssh asked it to listen on, and opens a
+//! `forwarded-tcpip` or a `forwarded-streamlocal@openssh.com` channel;
+//! podssh joins it to the forward's target (`remote_join`). A channel for a
+//! port or a path that podssh did not ask for is refused, in the handler.
+//! `~C` asks for one more, or stops one (T-291).
 
 use std::sync::{Arc, Mutex};
-use std::time::{Duration, Instant};
+use std::time::Instant;
 
 use russh::client::{Handle, Msg};
 use russh::Channel;
 
 use crate::handler::Client;
 use crate::log::Log;
-use crate::options::{Options, RemoteForward};
+use crate::options::{Options, RemoteForward, RemoteListen};
 use crate::run::HopError;
 
-/// The bound on a connection to a forward's target: the bound on each step
-/// of reaching a relay host.
-const DIAL_LIMIT: Duration = Duration::from_secs(20);
+/// Where the server listens for a forward that it took: the port that it
+/// chose when the forward asked for 0, or the path.
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub enum Listening {
+    Port(u32),
+    Path(String),
+}
 
-/// A forward that the server took, with the port it listens on: the one it
-/// chose when the forward asked for 0.
+/// A forward that the server took, with where it listens.
 #[derive(Debug, Clone)]
 pub struct Bound {
-    pub port: u32,
+    pub at: Listening,
     pub forward: RemoteForward,
 }
 
@@ -92,36 +96,95 @@ pub async fn request(handle: &Handle<Client>, table: &Table, opts: &Options, log
     Ok(())
 }
 
+/// Where the server will listen for `forward` before it answers: a port or
+/// a path named in advance; `None` for a port of 0, which the server names.
+fn named(forward: &RemoteForward) -> Option<Listening> {
+    match &forward.listen {
+        RemoteListen::Port { port: 0, .. } => None,
+        RemoteListen::Port { port, .. } => Some(Listening::Port(u32::from(*port))),
+        RemoteListen::Path(path) => Some(Listening::Path(path.clone())),
+    }
+}
+
+/// Ask the server to listen for `forward`: `tcpip-forward` for a port,
+/// `streamlocal-forward@openssh.com` for a path; where it listens, or `None`
+/// when it refused.
+pub(crate) async fn open_on_server(handle: &Handle<Client>, forward: &RemoteForward) -> Option<Listening> {
+    match &forward.listen {
+        RemoteListen::Port { port, .. } => {
+            let chosen = handle.tcpip_forward(forward.sent_address(), u32::from(*port)).await.ok()?;
+            Some(Listening::Port(if *port == 0 { chosen } else { u32::from(*port) }))
+        }
+        RemoteListen::Path(path) => {
+            handle.streamlocal_forward(path.clone()).await.ok()?;
+            Some(Listening::Path(path.clone()))
+        }
+    }
+}
+
+/// Ask the server to stop listening at `at` for `forward`.
+pub(crate) async fn close_on_server(
+    handle: &Handle<Client>,
+    forward: &RemoteForward,
+    at: &Listening,
+) -> Result<(), String> {
+    let done = match at {
+        Listening::Port(port) => handle.cancel_tcpip_forward(forward.sent_address(), *port).await,
+        Listening::Path(path) => handle.cancel_streamlocal_forward(path.clone()).await,
+    };
+    done.map_err(|e| format!("the server kept the forward: {}", crate::run::describe(&e)))
+}
+
 /// Ask the server for one forward: whether it took it, which is then in
 /// `table`.
 pub(crate) async fn ask(handle: &Handle<Client>, table: &Table, forward: &RemoteForward, log: &Log) -> bool {
-    // A port named in advance is in the table before the request, as
-    // OpenSSH's client records it: the server may open a channel for it as
-    // soon as it answers, before this task reads the answer.
-    let named = u32::from(forward.port);
-    if forward.port != 0 {
-        table.lock().unwrap_or_else(|e| e.into_inner()).push(Bound { port: named, forward: forward.clone() });
+    // A port or a path named in advance is in the table before the request,
+    // as OpenSSH's client records it: the server may open a channel for it
+    // as soon as it answers, before this task reads the answer.
+    let early = named(forward);
+    if let Some(at) = &early {
+        table.lock().unwrap_or_else(|e| e.into_inner()).push(Bound { at: at.clone(), forward: forward.clone() });
     }
-    let Ok(chosen) = handle.tcpip_forward(forward.sent_address(), named).await else {
-        if forward.port != 0 {
-            table.lock().unwrap_or_else(|e| e.into_inner()).retain(|b| !(b.port == named && b.forward == *forward));
+    let Some(at) = open_on_server(handle, forward).await else {
+        if let Some(at) = early {
+            table.lock().unwrap_or_else(|e| e.into_inner()).retain(|b| !(b.at == at && b.forward == *forward));
         }
         return false;
     };
     // The server names a port only when it chose one; it may choose another
     // on each connection of a run.
-    if forward.port == 0 {
-        log.info(&format!("Allocated port {chosen} for remote forward to {}:{}", forward.host, forward.host_port));
-        table.lock().unwrap_or_else(|e| e.into_inner()).push(Bound { port: chosen, forward: forward.clone() });
+    if early.is_none() {
+        if let Listening::Port(chosen) = &at {
+            log.info(&format!("Allocated port {chosen} for remote forward to {}", target_words(forward)));
+        }
+        table.lock().unwrap_or_else(|e| e.into_inner()).push(Bound { at, forward: forward.clone() });
     }
     // In the list of ~# from now on (T-041), open again if ~C had stopped it.
     crate::tally::opened(&name(forward));
     true
 }
 
+/// The target of `forward` in OpenSSH's line of an allocated port.
+fn target_words(forward: &RemoteForward) -> String {
+    match &forward.target {
+        crate::options::RemoteTarget::Tcp { host, port } => format!("{host}:{port}"),
+        crate::options::RemoteTarget::Socket(path) => path.clone(),
+        crate::options::RemoteTarget::Socks => "the SOCKS proxy of this client".into(),
+    }
+}
+
 /// OpenSSH's line for a forward that the server refused.
 pub(crate) fn failed(level: &str, forward: &RemoteForward) -> String {
-    format!("{level}: remote port forwarding failed for listen port {}", forward.port)
+    format!("{level}: {}", refused(forward))
+}
+
+/// OpenSSH's words for a forward that the server refused, with no level, as
+/// a control master answers them.
+pub(crate) fn refused(forward: &RemoteForward) -> String {
+    match &forward.listen {
+        RemoteListen::Port { port, .. } => format!("remote port forwarding failed for listen port {port}"),
+        RemoteListen::Path(path) => format!("remote port forwarding failed for listen path {path}"),
+    }
 }
 
 /// Stop the forward that the server listens for at `[bind:]port` (`~C -KR`,
@@ -134,21 +197,31 @@ pub(crate) async fn cancel(
     bind: Option<&str>,
     port: u32,
 ) -> Result<Option<String>, String> {
-    let given = RemoteForward { bind: bind.map(str::to_string), port: 0, host: String::new(), host_port: 0 };
+    let address = crate::remote_spec::sent(bind);
+    let at = Listening::Port(port);
+    cancel_where(handle, table, &at, |forward| bind.is_none() || forward.sent_address() == address).await
+}
+
+/// Stop the forward that the server listens for at `path` (`~C -KR PATH`).
+pub(crate) async fn cancel_path(handle: &Handle<Client>, table: &Table, path: &str) -> Result<Option<String>, String> {
+    cancel_where(handle, table, &Listening::Path(path.to_string()), |_| true).await
+}
+
+/// Stop the first forward at `at` that `matches`: its name once the server
+/// let it go, and a channel for it is refused from then on.
+async fn cancel_where(
+    handle: &Handle<Client>,
+    table: &Table,
+    at: &Listening,
+    matches: impl Fn(&RemoteForward) -> bool,
+) -> Result<Option<String>, String> {
     let found = {
         let bound = table.lock().unwrap_or_else(|e| e.into_inner());
-        bound
-            .iter()
-            .find(|b| b.port == port && (bind.is_none() || b.forward.sent_address() == given.sent_address()))
-            .map(|b| b.forward.clone())
+        bound.iter().find(|b| b.at == *at && matches(&b.forward)).map(|b| b.forward.clone())
     };
     let Some(forward) = found else { return Ok(None) };
-    handle
-        .cancel_tcpip_forward(forward.sent_address(), port)
-        .await
-        .map_err(|e| format!("the server kept the forward: {}", crate::run::describe(&e)))?;
-    // A channel that the server opens for it from now on is refused.
-    table.lock().unwrap_or_else(|e| e.into_inner()).retain(|b| !(b.port == port && b.forward == forward));
+    close_on_server(handle, &forward, at).await?;
+    table.lock().unwrap_or_else(|e| e.into_inner()).retain(|b| !(b.at == *at && b.forward == forward));
     let name = name(&forward);
     crate::tally::closed(&name);
     Ok(Some(name))
@@ -160,39 +233,28 @@ pub(crate) async fn cancel(
 /// one port.
 pub fn find(table: &Table, address: &str, port: u32) -> Option<RemoteForward> {
     let bound = table.lock().unwrap_or_else(|e| e.into_inner());
-    let on_port: Vec<&Bound> = bound.iter().filter(|b| b.port == port).collect();
+    let on_port: Vec<&Bound> = bound.iter().filter(|b| b.at == Listening::Port(port)).collect();
     match on_port.as_slice() {
         [one] => Some(one.forward.clone()),
         many => many.iter().find(|b| b.forward.sent_address() == address).map(|b| b.forward.clone()),
     }
 }
 
-/// Join an accepted channel to its forward's target: connect through the
-/// proxy, then copy both ways, each end of input passed on. A connection
-/// that fails closes this channel only, and says why.
+/// The forward that a channel for the socket `path` belongs to, if podssh
+/// asked for one: the server names the path that it listens on.
+pub fn find_path(table: &Table, path: &str) -> Option<RemoteForward> {
+    let bound = table.lock().unwrap_or_else(|e| e.into_inner());
+    bound.iter().find(|b| b.at == Listening::Path(path.to_string())).map(|b| b.forward.clone())
+}
+
+/// Join an accepted channel to its forward's target (`remote_join`).
 pub async fn join(channel: Channel<Msg>, forward: RemoteForward, log: Arc<Log>) {
-    let target = podssh_ws::dial::authority(&forward.host, forward.host_port);
-    let counts = crate::tally::of(&name(&forward));
-    let choice = podssh_ws::dial::ProxyChoice::FromEnvironment;
-    let tcp = match podssh_ws::dial::dial(&forward.host, forward.host_port, &choice, DIAL_LIMIT).await {
-        Ok(tcp) => tcp,
-        Err(e) => {
-            counts.failed();
-            log.info(&format!("remote forward to {target}: cannot connect: {e}"));
-            let _ = channel.close().await;
-            return;
-        }
-    };
-    let _ = tcp.set_nodelay(true);
-    if let Err(e) = crate::tally::copy(tcp, channel.into_stream(), &counts).await {
-        log.verbose(&format!("remote forward to {target} ended: {e}"));
-    }
+    crate::remote_join::join(channel, forward, log).await;
 }
 
 /// A remote forward as `-R` writes it, for the lines of its counts (T-041).
 pub fn name(forward: &RemoteForward) -> String {
-    let bind = forward.bind.as_deref().map(|b| format!("{b}:")).unwrap_or_default();
-    format!("-R {bind}{}:{}", forward.port, podssh_ws::dial::authority(&forward.host, forward.host_port))
+    forward.to_string()
 }
 
 #[cfg(test)]
