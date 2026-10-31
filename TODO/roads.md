@@ -373,7 +373,7 @@ sandbox can block what iroh needs, so the fallback is necessary
 6. With `-v`, print the road that won and its time.
 7. Each resume of T-153 runs the same race.
 8. Docs: the rule of the race in `docs/design.md` section 2, and the notes of
-   `ssh` in the manual (`crates/podssh-cli/src/man/notes_ssh.rs:4-287`).
+   `ssh` in the manual (`crates/podssh-cli/src/man/notes_ssh.rs:4-289`).
 
 ## Decision
 
@@ -3094,7 +3094,7 @@ HTTP/2. Here:
 **Milestone:** backlog
 **Priority:** P2
 **Effort:** S
-**Status:** open
+**Status:** partial
 
 ## Problem
 
@@ -3163,6 +3163,31 @@ behind it: `podssh ssh -J cf://HOST second` reaches the second, with the first k
 `cf://` second hop is refused (64). Planted: the first hop's road left as the relay's; the
 stand-in sees no upgrade, and the test fails. Live in `quick-tunnel-live.yml`: a roost with
 `--quick-tunnel` as the jump host of a second sshd on the runner.
+
+## Correction
+
+The Prove's stand-in of the tunnel on the loopback is the live run instead: the jump host is the
+node's own sshd behind a real quick tunnel, and the second hop the same sshd again through that
+hop's `direct-tcpip` channel (`quick-tunnel-live.yml`, Actions only, Q43). The choice of the road
+and the refusals are tested offline, where the road of a `cf://` first hop says nothing of the
+relay and a plain first hop does.
+
+## Done
+
+2026-10-31, partial: done here; the live run waits for `quick-tunnel-live.yml` on the push.
+
+- `jump::hops` reads `cf://[user@]HOST` as the first hop of the command's own chain (not of a
+  hop's `ProxyJump`), its user and HOST, and keeps HOST as the chain's tunnel; a `cf://` hop after
+  it is refused with the reason. `resolve` takes `cloudflare::transport` as the road of the run for
+  that hop, with its refusals of `--direct`, `-4` and `-6`, and none of the destination's port or
+  `HostName`, which are the next hop's.
+- Tests: a tunnel after the first hop, `--direct` and `-4` refused (64); `-p 2222 -J
+  cf://me@HOST dest` ends at its road offline (255) and says nothing of the relay, where a plain
+  first hop does (`cargo test -p podssh-cli --test cloudflare_cli`, 4 passed; `--test ssh_args`,
+  26 passed). Planted, no hop counted as first: the test failed.
+- `docs/cli.md` and the manual's note on `cf://` give the first hop, the refusal of a later one,
+  and the jump host whose sshd a tunnel publishes.
+
 
 # T-348: The iroh road in the release binaries, and a notice when n0 refuses an old iroh
 

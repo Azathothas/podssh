@@ -127,7 +127,13 @@ scripts. The facts about OpenSSH on this page were measured with OpenSSH
   variable, never the value. A refusal of Access (a redirect to its login
   page, 401 or 403) names those variables and exits 77, another refusal 69.
   The host key is recorded under HOST. A tunnel has no port here; `-J`,
-  `-4`, `-6`, `HostName` and `--direct` are refused (64). `podssh proxy
+  `-4`, `-6`, `HostName` and `--direct` are refused (64). `-J cf://HOST`
+  makes a tunnel the first hop of a chain (T-347): the run's road reaches the
+  tunnel, and the hops after it, and the destination with its own port, run
+  in its `direct-tcpip` channels, so a jump host whose sshd a tunnel publishes
+  (`cloudflared` or `podssh node --quick-tunnel`) reaches the rest. A
+  tunnel after the first hop is refused (64): a hop inside an SSH channel has
+  no road to Cloudflare's edge. `podssh proxy
   cf://HOST` is the same pipe, with no PORT and no relay flag. Each message
   up is at most 16 KiB, as the origin cuts a longer one; podssh sends no
   Ping, as the origin answers one outside the lock of its writes; and the

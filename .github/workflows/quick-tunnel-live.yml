@@ -146,6 +146,17 @@ jobs:
             left_at_target || { echo "FAIL ($road) a session is left at the node's TARGET after ssh"; exit 1; }
           done
           unset HTTPS_PROXY
+          # T-347: the tunnel as the first hop of a chain: the node's sshd,
+          # then the same sshd again through that hop's direct-tcpip channel.
+          set +e
+          jumped=$(timeout 120 target/debug/podssh ssh "${ssh_opts[@]}" --node-key "$node_key" -v \
+            -J "cf://$who@$QUICK_HOST" -p 4022 "$who@127.0.0.1" 'echo through-the-jump' 2>"$RUNNER_TEMP/jump.log")
+          rc=$?
+          set -e
+          sed 's/^/client (jump): /' "$RUNNER_TEMP/jump.log" | grep -v "debug" | tail -n 20
+          [ "$rc" = 0 ] && [ "$jumped" = through-the-jump ] || { echo "FAIL -J cf://NAME exited $rc"; exit 1; }
+          echo "ok    podssh ssh -J cf://NAME: the tunnel's sshd the first hop, the second through its channel"
+          left_at_target || { echo "FAIL a session is left at the node's TARGET after the jump"; exit 1; }
           # A command that hands its connection on (T-331), with the client
           # key of the cache: refused, then in the list, then let in.
           set +e

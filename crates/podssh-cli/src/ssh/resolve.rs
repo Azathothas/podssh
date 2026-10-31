@@ -237,8 +237,8 @@ pub fn resolve_or_refuse(args: &SshArgs, env: &Env) -> Result<Resolved, Refusal>
         None => settings.port.or(Some(target.port).filter(|p| *p != 22)).or(file_port).unwrap_or(22),
     };
     let proxy_jump = args.jump.as_deref().or(settings.proxy_jump.as_deref());
-    let (jump, jump_options) = match proxy_jump {
-        None | Some("none") => (Vec::new(), Vec::new()),
+    let (jump, jump_options, jump_tunnel) = match proxy_jump {
+        None | Some("none") => (Vec::new(), Vec::new(), None),
         Some(list) => super::jump::hops(list, args, &cli, env)?,
     };
 
@@ -325,6 +325,13 @@ pub fn resolve_or_refuse(args: &SshArgs, env: &Env) -> Result<Resolved, Refusal>
         super::iroh::transport(dest, &ask(&dest.shown, None), trust)?
     } else if let Some((_, host)) = &tunnel {
         super::cloudflare::transport(&ask(host, None), env)?
+    } else if let Some(first) = &jump_tunnel {
+        // The first hop is a Cloudflare tunnel (T-347): the road reaches it,
+        // and the destination's port and HostName are the next hop's.
+        super::cloudflare::transport(
+            &super::node::Ask { jumps: 0, port: false, host_name: false, ..ask(first, None) },
+            env,
+        )?
     } else if args.direct {
         if family.is_some() {
             return Err(

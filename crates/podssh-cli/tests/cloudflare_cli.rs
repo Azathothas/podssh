@@ -109,3 +109,33 @@ fn a_bad_credential_of_access_is_refused_before_anything_connects() {
         }
     }
 }
+
+/// T-347: `-J cf://HOST` takes the tunnel as the road of the run, and the
+/// hops after it run in its channels; a tunnel after the first hop, and the
+/// flags that cannot reach a tunnel, are refused before anything connects.
+#[test]
+fn a_cloudflare_tunnel_is_the_road_to_a_first_jump_hop() {
+    let offline = [("PODSSH_OFFLINE", "1")];
+    for (args, says) in [
+        (
+            &["ssh", "-J", "jump.example,cf://second.example.org", "dest.example", "true"][..],
+            "can only be the first hop",
+        ),
+        (&["ssh", "--direct", "-J", "cf://jump.example.org", "dest.example", "true"][..], "--direct cannot reach"),
+        (&["ssh", "-4", "-J", "cf://jump.example.org", "dest.example", "true"][..], "-4 and -6 do not apply"),
+    ] {
+        let (rc, err) = podssh(args, &offline);
+        assert_eq!(rc, 64, "{args:?}: {err}");
+        assert!(err.contains(says), "{args:?}: {err}");
+    }
+    // The road is the tunnel, not the relay; the destination keeps its port.
+    let args =
+        ["ssh", "-v", "-o", "BatchMode=yes", "-p", "2222", "-J", "cf://me@jump.example.org", "dest.example", "true"];
+    let (rc, err) = podssh(&args, &offline);
+    assert_eq!(rc, 255, "{err}");
+    assert!(err.contains("PODSSH_OFFLINE") && !err.contains("through the relay"), "{err}");
+    // The control: a plain first hop goes through the relay.
+    let (_, err) =
+        podssh(&["ssh", "-v", "-o", "BatchMode=yes", "-J", "jump.example", "dest.example", "true"], &offline);
+    assert!(err.contains("through the relay"), "{err}");
+}

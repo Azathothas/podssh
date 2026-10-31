@@ -55,7 +55,9 @@ pub const SSH: &[&str] = &[
      Access needs a service token (PODSSH_CF_ACCESS_CLIENT_ID and PODSSH_CF_ACCESS_CLIENT_SECRET) or a \
      token made where its login runs (PODSSH_CF_ACCESS_TOKEN or PODSSH_CF_ACCESS_TOKEN_FILE); a refusal \
      of Access says so. The host key is recorded and checked under HOST. A tunnel has no port here, and \
-     -J, -4, -6, HostName and --direct cannot go with it. podssh proxy cf://HOST is the same pipe. A \
+     -J, -4, -6, HostName and --direct cannot go with it. -J cf://HOST makes a tunnel the first hop of a \
+     chain, the hops after it in its channels, so a jump host whose sshd a tunnel publishes reaches the \
+     rest; a tunnel after the first hop is refused. podssh proxy cf://HOST is the same pipe. A \
      podssh node that makes the quick tunnel of HOST itself sends the resumable layer's greeting first, \
      where cloudflared's service speaks SSH first: the session then runs in the layer, with the \
      end-to-end channel above it, and a new WebSocket to HOST carries it after each lost one. The \

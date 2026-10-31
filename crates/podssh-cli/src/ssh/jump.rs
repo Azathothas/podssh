@@ -24,11 +24,16 @@ const MOST_HOPS: usize = 16;
 
 /// The hops of `list`, a value of `-J` or `ProxyJump`, in order, each with
 /// its options; `cli` holds the settings of the command line's `-o`.
-pub(super) fn hops(list: &str, args: &SshArgs, cli: &Settings, env: &Env) -> Result<(Vec<Hop>, Vec<Options>), Refusal> {
-    let mut chain = Chain { args, cli: for_hop(cli), env, hops: Vec::new(), options: Vec::new(), path: Vec::new() };
+pub(super) fn hops(list: &str, args: &SshArgs, cli: &Settings, env: &Env) -> Result<Hops, Refusal> {
+    let mut chain =
+        Chain { args, cli: for_hop(cli), env, hops: Vec::new(), options: Vec::new(), path: Vec::new(), tunnel: None };
     chain.list(list)?;
-    Ok((chain.hops, chain.options))
+    Ok((chain.hops, chain.options, chain.tunnel))
 }
+
+/// The hops, their options, and the name of a Cloudflare tunnel that is the
+/// first hop (T-347).
+pub(super) type Hops = (Vec<Hop>, Vec<Options>, Option<String>);
 
 /// The settings of the command line that hold for each hop too (T-030):
 /// host keys, authentication, keys and time.
@@ -63,6 +68,8 @@ struct Chain<'a> {
     options: Vec<Options>,
     /// The hops whose own chain is being read: one met again is a loop.
     path: Vec<String>,
+    /// The first hop's tunnel, `cf://HOST` (T-347).
+    tunnel: Option<String>,
 }
 
 /// A hop's settings: the command line's, then those of its blocks; and the
@@ -78,9 +85,26 @@ impl Chain<'_> {
     /// `ProxyJump`.
     fn list(&mut self, list: &str) -> Result<(), Refusal> {
         for (i, text) in list.split(',').map(str::trim).enumerate() {
-            let target = jump_hop(text)?;
+            let tunnel = super::cloudflare::destination(text)?;
+            let first = i == 0 && self.path.is_empty() && self.hops.is_empty();
+            let target = match tunnel {
+                // The road of the run reaches the tunnel; a hop inside an SSH
+                // channel has no road to Cloudflare's edge (T-347).
+                Some(_) if !first => {
+                    return Err(format!(
+                        "-J {text}: a Cloudflare tunnel can only be the first hop: a hop inside an SSH channel has \
+                         no road to Cloudflare's edge"
+                    )
+                    .into())
+                }
+                Some((user, host)) => {
+                    self.tunnel = Some(host.clone());
+                    Hop { user, host, port: 22 }
+                }
+                None => jump_hop(text)?,
+            };
             let filed = self.filed(&target)?;
-            let own = filed.settings.proxy_jump.clone().filter(|j| i == 0 && j != "none");
+            let own = filed.settings.proxy_jump.clone().filter(|j| i == 0 && j != "none" && self.tunnel.is_none());
             if let Some(own) = own {
                 if self.path.iter().any(|t| t == text) {
                     return Err(format!("ProxyJump {own} of {text}: a jump host loop, through {text} again").into());
