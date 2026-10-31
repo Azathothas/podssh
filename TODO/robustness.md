@@ -346,7 +346,7 @@ Read:
 
 1. A model of a VT terminal for the tests: the `vt100` crate (pure Rust, over
    `vte`) as a dev-dependency. The gate's library test step runs under
-   `CC=/nonexistent` and `CXX=/nonexistent` (`scripts/gate.sh:164-166`), so it
+   `CC=/nonexistent` and `CXX=/nonexistent` (`scripts/gate.sh:165-167`), so it
    shows that no C or C++ comes with it.
 2. A helper: bytes in, screen out (rows, cursor, attributes). Each case
    compares screens, not bytes.
@@ -693,7 +693,7 @@ the gate must show it.
 
 1. `proptest` as a dev-dependency of podssh-ws, podssh-relay and podssh-ssh.
    The gate's library test step runs under `CC=/nonexistent` and
-   `CXX=/nonexistent` (`scripts/gate.sh:164-166`), so it shows that no C comes
+   `CXX=/nonexistent` (`scripts/gate.sh:165-167`), so it shows that no C comes
    with it. Commit the regression files of proptest as seeds.
 2. One test file for each crate (tests/properties.rs), with these properties:
    - frames: for each opcode, FIN, role, mask and payload up to 262144 bytes,

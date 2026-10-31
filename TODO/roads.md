@@ -2403,7 +2403,7 @@ The `grep` shows the recorded result.
 # T-173: Resumption in the relay for a standard sshd
 
 **Source:** ROADMAP M8 (not now; look at it again after M6);
-`docs/design.md:588-605` (layer 3) and `docs/design.md:1133-1136` (question 1 of
+`docs/design.md:588-605` (layer 3) and `docs/design.md:1214-1217` (question 1 of
 section 8).
 **Category:** feature
 **Milestone:** M8
@@ -2426,7 +2426,7 @@ a resume token in the `101` response, and offset framing as a protocol
 version that the client selects. It is a project of the relay's operator, and
 it costs Durable Object time for the whole session (`docs/design.md:601-605`).
 The recommendation is "not now; look at it again after M6"
-(`docs/design.md:1133-1136`). The relay is in another repository.
+(`docs/design.md:1214-1217`). The relay is in another repository.
 
 ## Approach
 
@@ -2463,7 +2463,7 @@ relay offers the feature.
 ## Blocker
 
 The relay's operator: resumption in the relay is work of the relay project. After M6 (T-156), the
-operator and the relay's operator decide question 1 of `docs/design.md` section 8. Sessions skip
+operator and the relay's operator decide question 1 of `docs/design.md` section 9. Sessions skip
 this entry (the operator's ruling of 2026-10-08).
 
 # T-280: The iroh road through a SOCKS5 proxy
@@ -3334,7 +3334,7 @@ next beta carry the table (T-309).
 **Milestone:** backlog
 **Priority:** P2
 **Effort:** L
-**Status:** open
+**Status:** done
 
 ## Problem
 
@@ -3387,6 +3387,56 @@ adapter under the layer and the tests against derper make it L.
 
 The operator's ruling of 2026-10-31 (Q50, `docs/decisions.md`): Tailscale's tailcat fleet is an automatic fallback of the reverse road, tried when the user did not ask; the operator does not ask Tailscale first.
 
+2026-10-31, the draft (each call with the alternatives that lost):
+
+- The scope: items 1, 2, 3 and 5 here, in `podssh-relay`; item 4, the command line around it
+  (`podssh node --derp`, `podssh ssh derp:TICKET`), the race of T-164 and the fallback that Q50
+  allows a node and a client with no pair, moves to T-379. Lost: each in one entry, which is more
+  than L and so two entries (`TODO/RULES.md`, "Size"): the resolver of `podssh ssh` is at 488 of
+  its 500 lines, the race of the command line is behind the feature `iroh`, and T-348 moves the
+  iroh road into the release binaries meanwhile. Lost too: the node's side alone here, whose
+  ticket no command would dial.
+- A node's DERP key: derived from the seed of its identity by HKDF-SHA256 with the label
+  `podssh derp key, version 1`, so that its address stays across runs and no key does two jobs,
+  as the identity's channel key is derived (`crates/podssh-relay/src/identity/mod.rs:8-11`).
+  Lost: the Montgomery form of the Ed25519 key, which a client could compute from the pinned key
+  alone, but which makes the signing key agree keys too, as ed25519-dalek 2.2.0's own
+  documentation of `to_scalar_bytes` advises against; and a second key file beside the node's,
+  one more file to make whole, when the ticket carries the DERP key either way. A client's key is
+  new for each run: one derived from the client's identity would make two processes of one user
+  one client connected twice, which derper's policy for duplicates disables or switches.
+- The adapter: selective repeat of podssh's own (`crates/podssh-relay/src/derp/send.rs`,
+  `crates/podssh-relay/src/derp/recv.rs`). Lost: noq's streams over DERP's packets, which need a
+  socket of QUIC over DERP, TLS 1.3 inside it with podssh-ws's provider, and a second layer of
+  sessions beside the resumable layer's; a measurement of both was not made, and the Prove
+  measures the one built. A loss is found by the order of the sends, as a server keeps one
+  sender's order: lost, TCP's three repeated acknowledgements, which wait for three more segments
+  where the first shows the loss.
+- A segment is 30 KiB at most: a packet then stays under the 32,768 bytes of one message, past
+  which derper's WebSocket ends the connection. Lost: DERP's 64 KiB, which ends it; 16 KiB, half
+  the bytes for the same queue of 32 packets. The window is 24 segments at most, under that queue,
+  which the acknowledgements share.
+- The program's name in the client's info is `podssh`, so that a server's operator can count it,
+  or refuse it. Lost: no name, which hides podssh from the operator of the server; and a name of
+  another program.
+- A node's home is the first server of the list whose `/derp/probe` answers, in the map's order,
+  as the iroh road picks its home relay (T-165). Lost: the least latency, which probes each server
+  at once, four connections at the start, for a gain that the layer does not need. A client tries
+  the ticket's server first, then the rest of the fleet: lost, a record of pkarr (T-350's way)
+  for a fleet of four servers.
+- A rate that a server names in its info is kept by waiting. Lost: Go's client's drop of what
+  exceeds it, which here only makes the adapter send again.
+- The tests: a stand-in DERP server in memory (`crates/podssh-relay/tests/derp_stand_in/mod.rs`),
+  over pipes and with frames of its own, so that no test listens and a defect of the library's
+  frames is not the stand-in's too. Lost: the library's frames in the stand-in; TLS on the
+  loopback, a listener and certificates for nothing that the interop with derper does not prove.
+- The interop builds derper from its tag v1.104.4, in the Go image of `images/derper/Dockerfile`,
+  and runs it with its own certificate for 127.0.0.1. Lost: an image of derper of a third party,
+  which Tailscale does not publish; derper's `--dev`, plain HTTP, which podssh speaks in no road.
+- The live runs against tailcat's fleet are short and by hand (`--test derp_live`, 64 KiB each
+  way), as Q50 lets the road use the fleet unasked and item 5 waited for Q50; no throughput run
+  goes there, as tailcat refuses its own through Tailscale's relays.
+
 ## Prove
 
 ```sh
@@ -3398,6 +3448,64 @@ sh scripts/interop-derp.sh   # Tailscale's derper in Podman
 8 MiB both ways through derper with equal digests, also with 5 % of the packets dropped by a
 stand-in under the adapter. Planted: the adapter's resend turned off; the test with drops fails.
 
+## Correction
+
+2026-10-31, read in Tailscale's source at v1.104.4 and in coder/websocket at v1.8.15, through the
+services of web.pkgforge.dev (`docs/design.md`, section 8; `docs/carriers.md`, [R46] to [R48]):
+
+- A full queue drops its oldest packet to take the new one (`sendPkt`), not the new one.
+- derper upgrades the WebSocket at `/derp` only for a request that names the subprotocol `derp`,
+  and coder/websocket ends the connection at a message of more than 32,768 bytes, its default
+  read limit, which derper does not raise: a DERP packet of 64 KiB is not sent whole there.
+- A server drops a client whose connection takes no bytes for 2 s (`DefaultTCPWiteTimeout`), so
+  the reader of a connection never waits for a link.
+- A packet to a key that is not on the server is dropped with no word: `PeerGone` (not here)
+  answers only Tailscale's disco packets. So a client that finds no node waits for no answer,
+  within a limit.
+- The server's info has `TokenBucketBytesPerSecond` and `TokenBucketBytesBurst` by those names;
+  the vendored fork reads them as `tokenBucketBytesPerSecond`, which serde matches in no other
+  case, and never acts on them (`vendor/tailscale-rs/ts_derp/src/frame/body/server_info.rs:26-32`).
+
+The Approach stands; item 4 moves to T-379 (the Decision).
+
+## Done
+
+2026-10-31: drafted (branch `draft-derp`, `35e0b44`), then merged and measured.
+
+- `crates/podssh-relay/src/derp/`, feature `derp`: DERP's frames (`frame.rs`), its keys and
+  NaCl's box (`key.rs`), a link's packets (`packet.rs`), the adapter (`send.rs`, `recv.rs`,
+  `rtt.rs`), a link and its task (`link.rs`), a connection, its handshake, its reader, writer,
+  pings and pacing (`conn.rs`), TLS through the proxy and the upgrade (`dial.rs`), the fleet,
+  `PODSSH_DERP_SERVER`, the probe and the home (`servers.rs`), the ticket (`ticket.rs`), the
+  client (`client.rs`) and the node (`far.rs`). `crypto_box` 0.9.1 with `alloc` and `salsa20`
+  only, which the lock had already.
+- Measured at the merge (2026-10-31). `cargo test -p podssh-relay --features derp --lib derp`
+  passed 29: the frames, the boxes (the vector of PHP Sodium Compat that crypto_box 0.9.1
+  carries, sealed to the same bytes), the packets, the timeout, the ticket and its base32 (RFC
+  4648's vectors), and the two halves through a simulated server (8 MiB each way with no loss and
+  with 5 % dropped; a tenth dropped; a slow receiver whose queue fills; a reader that stops for
+  90 s). `--test derp_link` passed 4 through the stand-in: 8 MiB both ways with equal digests,
+  with no loss and with 5 % dropped, each end's link with a measured round trip; a client gives up
+  on a key that is not there within 6 s; a session of the layer goes on after the client's
+  connection is cut.
+- `sh scripts/interop-derp.sh`, Tailscale's derper v1.104.4 built from its tag in Podman on this
+  cloud session's host: `derp.transfer` (8 MiB each way over one link, equal digests),
+  `derp.absent` and `derp.layer` (2 MiB of a session of the layer echoed whole) passed. The script
+  now gives the build of derper the bundle of `SSL_CERT_FILE` and the host's network when the proxy
+  is on the loopback, as a cloud session's re-signs TLS on 127.0.0.1.
+- Live, `cargo test -p podssh-relay --features derp --test derp_live -- --ignored`, from this host
+  through its proxy: the node's home was tailcat's `tc301a.ipn.dev`, 64 KiB went each way with
+  equal digests, and the client's link measured a round trip of 197 ms. The test now waits up to
+  5 s for that measurement, as the node's acknowledgements of the last segments may still be on
+  their way when the reads end; it first printed `None` for that reason.
+- Planted: the loop of `Sender::poll` that sends each lost segment again, turned off: the tests
+  with drops failed, `derp::arq_tests` (5 % dropped; a reader that stops) and `derp_link`'s 5 %.
+- At the merge: the writer's task held the watch's guard across an await (not `Send`), and a
+  link's `opened` returned a borrow of a temporary; clippy named the decoder's `next` and the
+  counter of the resend loop, now `decode` and a `take` of the window's room. podssh-relay with
+  `derp,blocking,quick`: 378 passed; clippy `-D warnings` clean; the library crates build with no
+  C compiler with the feature, which `scripts/gate.sh` now builds, tests and checks on the minimum
+  Rust.
 
 # T-350: A pkarr record that finds a node whose home relay changed
 
@@ -4535,3 +4643,72 @@ pong's 30 s at once. Twenty runs of the file passed (`cargo test -p podssh-relay
 --test quick_tunnel`, 7 tests each): each close ended as `Closed` or `Http2`, and the silence as
 `Silent`. Planted, a close read as the control stream's end: the test failed at its first round,
 naming it. Step 2 is not needed (the Correction); clippy clean.
+
+# T-379: The DERP road in the command line, in the race of T-164, and as the fallback that Q50 allows
+
+**Source:** T-349, item 4 of its Approach, which its Decision of 2026-10-31 moves here; the
+operator's ruling Q50.
+**Category:** feature
+**Milestone:** backlog
+**Priority:** P2
+**Effort:** L
+**Status:** open
+
+## Problem
+
+T-349 builds the DERP link in `podssh-relay` (feature `derp`): a node's connection to its home,
+the links that clients open, the adapter under the layer, and the ticket. No command uses it:
+`podssh node` serves no DERP road, `podssh ssh` dials no `derp:` ticket, and the race of T-164
+has two roads. Q50 lets a node and a client with no pair try tailcat's fleet when the user did not
+ask, and nothing does so.
+
+## Premise
+
+- Read: the node of the iroh road serves the pair's road beside it, with one keeper for both
+  (`crates/podssh-cli/src/node_iroh.rs:305-306`), and `podssh node` sends `--iroh` there
+  (`crates/podssh-cli/src/node.rs:72-74`).
+- Read: `podssh ssh` resolves its destination into an enum of transports
+  (`crates/podssh-cli/src/ssh/resolve.rs:24-49`), in a file of 488 of its 500 lines.
+- Read: the race of T-164 orders two roads (`crates/podssh-relay/src/session/race.rs:56-58`), and
+  the race of the command line is in a build with the feature `iroh` only
+  (`crates/podssh-cli/src/ssh/iroh.rs:8-11`).
+- Read: T-349's node and dialer (`crates/podssh-relay/src/derp/far.rs`,
+  `crates/podssh-relay/src/derp/client.rs`); a client's DERP key is new for each run, so the
+  node's allowlist checks the key that the end-to-end channel proves.
+
+## Approach
+
+1. `podssh node NAME TARGET --derp`: the DERP road, alone, or beside the pair's road when the
+   pair NAME is stored or `--pair-file` gives one, with one keeper; its home by `/derp/probe`
+   (tailcat's fleet, else `--derp-server HOST[:PORT][,...]` or `PODSSH_DERP_SERVER`); its ticket
+   on stderr, and again when its home changes. It needs the end-to-end channel and `--allow`.
+2. `podssh ssh [USER@]derp:TICKET[/ROUTE]`: T-349's dialer, the layer's client, and the channel to
+   the ticket's Ed25519 key; the host key under `derp:` and the node's key. The resolver is split
+   first, so that each file stays under 500 lines.
+3. `podssh ssh node://NAME --derp-ticket TICKET`: the race of T-164 with the DERP road third,
+   after the iroh road and the pair's road, at the start and at each resume.
+4. Q50's fallback: a node with no pair serves the DERP road unasked, and says so; a client whose
+   label holds the node's ticket dials it when the pair's road cannot run.
+5. The manual: the flags, the destination, the fallback, the fleet and its limits; `podssh
+   doctor` says the probe of each server of the fleet.
+
+## Decision
+
+The operator's ruling of 2026-10-31 (Q50, `docs/decisions.md`): Tailscale's tailcat fleet is an
+automatic fallback of the reverse road, tried when the user did not ask.
+
+## Prove
+
+```sh
+export CARGO_BUILD_JOBS=4
+cargo test -p podssh-cli --test derp_road
+```
+
+A node and a client of the command line through a stand-in DERP server: refused, then let in once
+the client's key is in the node's allowlist; with the pair's road blocked, the race gives the
+session to the DERP road; a client whose node's home moved finds it at the next server of the
+fleet. Planted: a client that tries the ticket's server alone fails that last check.
+
+## Start condition
+
+T-349 is done: the DERP link of `podssh-relay` is merged and measured.

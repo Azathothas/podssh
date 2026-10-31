@@ -11,7 +11,7 @@ on a server that holds it until `CAP END`: measured with ngircd 27 on the
 loopback of the build image, 2026-10-10.
 
 The operator ruled on 2026-10-08: the roads first, and IRC second
-([decisions.md](decisions.md); [design.md](design.md), section 8).
+([decisions.md](decisions.md); [design.md](design.md), section 9).
 
 ## Between two podssh ends
 

@@ -445,7 +445,7 @@ Read: podbox keeps `ring` and TLS 1.2 through a `rustls::ClientConfig` that it s
    it needs 1.88, and podbox follows (the operator's ruling of 2026-10-08). Write the result in
    `docs/design.md` (section 3).
 7. Document the facade in `docs/design.md` (lines 89-110 at `0d92eef`) and in the crate's header
-   (`crates/podssh-relay/src/lib.rs:1-33`); add the feature to the gate (`scripts/gate.sh:133`).
+   (`crates/podssh-relay/src/lib.rs:1-36`); add the feature to the gate (`scripts/gate.sh:133`).
 
 ## Decision
 
@@ -1283,7 +1283,7 @@ podbox has the same, on by default (`NodeChannel`, `OperatorChannel`). The manua
 # T-088: End-to-end encryption between two podssh ends
 
 **Source:** GitHub #18 (report on warren; read in the report, not verified here);
-`docs/design.md:1118-1124`, `:1137-1141`.
+`docs/design.md:1118-1124`, `:1218-1222`.
 **Category:** feature
 **Milestone:** backlog
 **Priority:** P2
@@ -1303,7 +1303,7 @@ connection; after the key exchange it sees only ciphertext (`SECURITY.md:21-31`)
 or add frames (`SECURITY.md:33-36`).
 
 Read: the road between two podssh ends carries SSH, `cp`, `pipe` and chat (`docs/design.md:1118-1124`);
-for chat, the operator chose the roads, end to end encrypted, after M6 (`docs/design.md:1140-1142`).
+for chat, the operator chose the roads, end to end encrypted, after M6 (`docs/design.md:1221-1223`).
 The resumable layer of M6 runs under SSH (`docs/design.md:570-582`).
 
 Read in the report (GitHub #18, not verified here): warren uses `Noise_IK_25519_ChaChaPoly_BLAKE2s`

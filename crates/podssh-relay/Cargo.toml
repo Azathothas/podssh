@@ -41,6 +41,11 @@ bytes = { version = "1.12", optional = true }
 # podssh-ws's provider; rustls for the TLS 1.3 configuration of QUIC.
 noq = { version = "1.4", default-features = false, features = ["runtime-tokio", "rustls"], optional = true }
 rustls = { workspace = true, optional = true }
+# DERP's handshake (src/derp/, T-349): the client's info sealed to the
+# server's key with NaCl's crypto_box (X25519, XSalsa20, Poly1305). Pure
+# Rust, RustCrypto's, in the lock already through the vendored tailscale-rs;
+# no `getrandom`: a nonce comes from podssh's own source.
+crypto_box = { version = "0.9", default-features = false, features = ["alloc", "salsa20"], optional = true }
 
 [features]
 # Pairs of the reverse road: `POST /v1/pair`, the status of a pair and
@@ -53,6 +58,10 @@ blocking = ["pair"]
 # A quick tunnel that podssh serves itself (T-300): HTTP/2 to the edge, and
 # QUIC where UDP reaches it (T-301). No C either; the gate builds it.
 quick = ["dep:h2", "dep:http", "dep:bytes", "dep:noq", "dep:rustls"]
+# The DERP road (T-349): Tailscale's servers for tailcat, or a derper of the
+# user's own, under the resumable layer, with an adapter that sends again
+# what a server drops. No C either; the gate builds it.
+derp = ["dep:crypto_box"]
 # Plain ws:// to a stand-in relay on the loopback, for the tests of an embedder
 # (T-068). The binary never enables it (scripts/no-plain-ws.sh).
 plain-ws = ["podssh-ws/plain-ws"]

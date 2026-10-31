@@ -62,15 +62,15 @@ repository and CI).
 
 ## Counts
 
-**374 entries: 31 open, 0 partial, 30 blocked, 313 done.**
+**375 entries: 31 open, 0 partial, 30 blocked, 314 done.**
 
 | Priority | open | partial | blocked | done | total |
 | --- | --- | --- | --- | --- | --- |
 | P0 | 0 | 0 | 0 | 1 | 1 |
 | P1 | 2 | 0 | 0 | 29 | 31 |
-| P2 | 3 | 0 | 21 | 161 | 185 |
+| P2 | 3 | 0 | 21 | 162 | 186 |
 | P3 | 26 | 0 | 9 | 122 | 157 |
-| **All** | 31 | 0 | 30 | 313 | 374 |
+| **All** | 31 | 0 | 30 | 314 | 375 |
 
 ## Entries
 
@@ -421,7 +421,7 @@ repository and CI).
 | [T-346](relay.md) | P2 | M | backlog | feature | blocked | Relay hosts outside the default domain from a signed `/relays.json`, and a list of deployments |
 | [T-347](roads.md) | P2 | S | backlog | feature | done | `-J cf://HOST`: a Cloudflare tunnel as the first hop of a jump chain |
 | [T-348](roads.md) | P2 | M | backlog | feature | done | The iroh road in the release binaries, and a notice when n0 refuses an old iroh |
-| [T-349](roads.md) | P2 | L | backlog | feature | open | A DERP link through Tailscale's tailcat relays, a second carrier of the reverse road |
+| [T-349](roads.md) | P2 | L | backlog | feature | done | A DERP link through Tailscale's tailcat relays, a second carrier of the reverse road |
 | [T-350](roads.md) | P3 | M | backlog | feature | open | A pkarr record that finds a node whose home relay changed |
 | [T-351](roads.md) | P3 | L | backlog | feature | open | Roads through a cloud's own tunnel: GCP IAP TCP forwarding, then EC2 Instance Connect Endpoint |
 | [T-352](roads.md) | P3 | L | backlog | feature | open | WARP's MASQUE road over HTTP/2 |
@@ -450,3 +450,4 @@ repository and CI).
 | [T-376](roads.md) | P3 | S | backlog | chore | blocked | The live run of the roads through a cloud's own tunnel (T-351) |
 | [T-377](ws.md) | P1 | S | none | defect | done | The keys of podssh's own AEAD ciphers outlive their use, since chacha20poly1305 0.11 |
 | [T-378](roads.md) | P3 | S | backlog | defect | done | The quick tunnel's loop over HTTP/2 may read the connection's end as its control stream's |
+| [T-379](roads.md) | P2 | L | backlog | feature | open | The DERP road in the command line, in the race of T-164, and as the fallback that Q50 allows |
