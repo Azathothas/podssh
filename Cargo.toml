@@ -138,12 +138,15 @@ regex = { version = "1", default-features = false, features = ["unicode-perl"] }
 sha2 = { version = "0.10", default-features = false, features = ["oid"] }
 hmac = { version = "0.12", default-features = false }
 hkdf = { version = "0.12", default-features = false }
-aes-gcm = { version = "0.11", default-features = false, features = ["aes", "alloc"] }
+# `zeroize` on each AEAD and on the block cipher: their key, or its schedule,
+# is wiped when a cipher is dropped. chacha20poly1305 0.10 did so with no
+# feature, 0.11 only with it, and AES-GCM and AES never without it (T-377).
+aes-gcm = { version = "0.11", default-features = false, features = ["aes", "alloc", "zeroize"] }
 # The block cipher under aes-gcm, for QUIC's header protection (T-301).
-aes = { version = "0.9", default-features = false }
+aes = { version = "0.9", default-features = false, features = ["zeroize"] }
 # 0.11 with aes-gcm 0.11: both on aead 0.6, whose traits `crypto/aead.rs`
 # shares between them (T-330, T-333).
-chacha20poly1305 = { version = "0.11", default-features = false, features = ["alloc"] }
+chacha20poly1305 = { version = "0.11", default-features = false, features = ["alloc", "zeroize"] }
 # `zeroize` makes `StaticSecret` wipe its scalar when it is dropped; without
 # it, a TLS key exchange and a session's X25519 key outlive their use.
 x25519-dalek = { version = "3", default-features = false, features = ["static_secrets", "zeroize"] }

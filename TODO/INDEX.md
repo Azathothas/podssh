@@ -62,15 +62,15 @@ repository and CI).
 
 ## Counts
 
-**373 entries: 46 open, 4 partial, 29 blocked, 294 done.**
+**373 entries: 45 open, 4 partial, 29 blocked, 295 done.**
 
 | Priority | open | partial | blocked | done | total |
 | --- | --- | --- | --- | --- | --- |
 | P0 | 0 | 0 | 0 | 1 | 1 |
-| P1 | 5 | 1 | 0 | 25 | 31 |
+| P1 | 4 | 1 | 0 | 26 | 31 |
 | P2 | 10 | 3 | 20 | 152 | 185 |
 | P3 | 31 | 0 | 9 | 116 | 156 |
-| **All** | 46 | 4 | 29 | 294 | 373 |
+| **All** | 45 | 4 | 29 | 295 | 373 |
 
 ## Entries
 
@@ -448,4 +448,4 @@ repository and CI).
 | [T-374](roads.md) | P3 | M | backlog | feature | open | The quick tunnel's edge through WARP's tunnel, for a node whose cage reaches port 443 only |
 | [T-375](release.md) | P2 | M | none | feature | open | `podssh update`: the release for its own target, checked, in place of the binary |
 | [T-376](roads.md) | P3 | S | backlog | chore | blocked | The live run of the roads through a cloud's own tunnel (T-351) |
-| [T-377](ws.md) | P1 | S | none | defect | open | The keys of podssh's own AEAD ciphers outlive their use, since chacha20poly1305 0.11 |
+| [T-377](ws.md) | P1 | S | none | defect | done | The keys of podssh's own AEAD ciphers outlive their use, since chacha20poly1305 0.11 |

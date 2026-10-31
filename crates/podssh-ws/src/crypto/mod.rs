@@ -26,3 +26,23 @@ pub mod suites;
 pub mod tls12;
 
 pub use suites::provider;
+
+#[cfg(test)]
+mod tests {
+    use zeroize::ZeroizeOnDrop;
+
+    fn wipes_its_key_when_dropped<T: ZeroizeOnDrop>() {}
+
+    /// Each cipher that this provider builds from a session's key wipes the key,
+    /// or its schedule, when it is dropped. RustCrypto's crates do so only with
+    /// their `zeroize` feature (chacha20poly1305 since 0.11), so a lost feature
+    /// is a build error here, not a key left in freed memory (T-377).
+    #[test]
+    fn each_cipher_wipes_its_key_when_dropped() {
+        wipes_its_key_when_dropped::<chacha20poly1305::ChaCha20Poly1305>();
+        wipes_its_key_when_dropped::<aes_gcm::Aes128Gcm>();
+        wipes_its_key_when_dropped::<aes_gcm::Aes256Gcm>();
+        wipes_its_key_when_dropped::<aes::Aes128>();
+        wipes_its_key_when_dropped::<aes::Aes256>();
+    }
+}
