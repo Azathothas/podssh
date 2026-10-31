@@ -95,9 +95,16 @@ pub fn from_environment(flag: Option<&str>) -> Result<(Vec<Server>, bool), Strin
 /// first, then the rest of the fleet when it is of the fleet, as the node
 /// calls the next one home when its own goes away.
 pub fn for_client(home: &Server) -> Vec<Server> {
+    for_client_in(home, &fleet())
+}
+
+/// [`for_client`] with the client's own list in place of the fleet (T-379):
+/// `home` first, then the rest of `list` when `home` is of it, in the
+/// list's order, which is the order in which a node of that list moves.
+pub fn for_client_in(home: &Server, list: &[Server]) -> Vec<Server> {
     let mut servers = vec![home.clone()];
-    if home.in_fleet() {
-        servers.extend(fleet().into_iter().filter(|server| server != home));
+    if list.contains(home) {
+        servers.extend(list.iter().filter(|server| *server != home).cloned());
     }
     servers
 }
@@ -154,6 +161,18 @@ mod tests {
         assert_eq!(order.len(), 4);
         let own = Server::parse("derp.example.org").unwrap();
         assert_eq!(for_client(&own), vec![own]);
+    }
+
+    #[test]
+    fn a_client_s_own_list_follows_the_ticket_s_server_when_it_holds_that_server() {
+        let list: Vec<Server> = ["a.example.org", "b.example.org:8443", "c.example.org"]
+            .iter()
+            .map(|s| Server::parse(s).unwrap())
+            .collect();
+        let shown = |servers: Vec<Server>| servers.iter().map(ToString::to_string).collect::<Vec<_>>();
+        assert_eq!(shown(for_client_in(&list[1], &list)), ["b.example.org:8443", "a.example.org", "c.example.org"]);
+        let other = Server::parse("d.example.org").unwrap();
+        assert_eq!(for_client_in(&other, &list), vec![other], "a home of no list is tried alone");
     }
 
     #[test]

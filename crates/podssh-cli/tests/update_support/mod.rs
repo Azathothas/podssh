@@ -282,23 +282,7 @@ impl Server {
     /// [`Server::start`] with a certificate for `names`, each a name or an
     /// address, as a stand-in for a host of another address (T-366).
     pub async fn start_for(dir: &Path, names: &[&str]) -> Server {
-        let (ca_key, leaf_key) = (Key::new(), Key::new());
-        let ca_params = ca("test-github-ca");
-        let ca_cert = ca_params.self_signed(&ca_key).unwrap();
-        let names: Vec<String> = names.iter().map(|n| n.to_string()).collect();
-        let mut leaf = rcgen::CertificateParams::new(names).unwrap();
-        leaf.serial_number = Some(serial());
-        let leaf = leaf.signed_by(&leaf_key, &rcgen::Issuer::new(ca_params, &ca_key)).unwrap();
-        let ca_file = dir.join("ca.pem");
-        std::fs::write(&ca_file, pem(ca_cert.der())).unwrap();
-        let certified =
-            rustls::sign::CertifiedKey::new(vec![leaf.der().clone()], Arc::new(TlsKey(leaf_key.signing.clone())));
-        let tls = rustls::ServerConfig::builder_with_provider(Arc::new(podssh_ws::crypto::provider()))
-            .with_protocol_versions(&[&rustls::version::TLS13])
-            .unwrap()
-            .with_no_client_auth()
-            .with_cert_resolver(Arc::new(OneCertificate(Arc::new(certified))));
-        let acceptor = tokio_rustls::TlsAcceptor::from(Arc::new(tls));
+        let (acceptor, ca_file) = acceptor(dir, names);
         let listener = tokio::net::TcpListener::bind((Ipv4Addr::LOCALHOST, 0)).await.unwrap();
         let addr = listener.local_addr().unwrap();
         let routes: Arc<Mutex<HashMap<String, Answer>>> = Arc::default();
@@ -332,6 +316,30 @@ impl Server {
     pub fn was_asked(&self, path: &str) -> bool {
         self.asked.lock().unwrap().iter().any(|p| p == path)
     }
+}
+
+/// A TLS acceptor with a certificate for `names`, each a name or an
+/// address, of a CA of the test's own, whose PEM is written in `dir` as
+/// `ca.pem`: the acceptor, and that file. A stand-in of another protocol
+/// takes it too (the DERP servers of `tests/derp_road.rs`, T-379).
+pub fn acceptor(dir: &Path, names: &[&str]) -> (tokio_rustls::TlsAcceptor, PathBuf) {
+    let (ca_key, leaf_key) = (Key::new(), Key::new());
+    let ca_params = ca("test-github-ca");
+    let ca_cert = ca_params.self_signed(&ca_key).unwrap();
+    let names: Vec<String> = names.iter().map(|n| n.to_string()).collect();
+    let mut leaf = rcgen::CertificateParams::new(names).unwrap();
+    leaf.serial_number = Some(serial());
+    let leaf = leaf.signed_by(&leaf_key, &rcgen::Issuer::new(ca_params, &ca_key)).unwrap();
+    let ca_file = dir.join("ca.pem");
+    std::fs::write(&ca_file, pem(ca_cert.der())).unwrap();
+    let certified =
+        rustls::sign::CertifiedKey::new(vec![leaf.der().clone()], Arc::new(TlsKey(leaf_key.signing.clone())));
+    let tls = rustls::ServerConfig::builder_with_provider(Arc::new(podssh_ws::crypto::provider()))
+        .with_protocol_versions(&[&rustls::version::TLS13])
+        .unwrap()
+        .with_no_client_auth()
+        .with_cert_resolver(Arc::new(OneCertificate(Arc::new(certified))));
+    (tokio_rustls::TlsAcceptor::from(Arc::new(tls)), ca_file)
 }
 
 /// One request and its answer.

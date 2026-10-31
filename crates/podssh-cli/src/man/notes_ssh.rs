@@ -95,6 +95,21 @@ pub const SSH: &[&str] = &[
      the pair's road 250 ms later, or at once when the iroh road fails, and the first far end that \
      speaks carries the session; the other link ends before it sends anything, so it opens nothing at \
      the node's TARGET. Each resume races them again, and -v says which road answered first.",
+    "[user@]derp:TICKET[/ROUTE] reaches a node of the DERP road (see podssh node --derp), in each build: \
+     the ticket's server first, then, when the list of --derp-server, PODSSH_DERP_SERVER or Tailscale's \
+     tailcat fleet holds that server, the rest of the list in its order, where a node whose home went \
+     away calls the next server home. This client's key on the servers is new for each run; the \
+     end-to-end channel runs to the node's key that the ticket names, and the node lets this client's \
+     key (see --client-key) in by its allowlist, so --no-e2e is refused (64). The host key is recorded \
+     under derp: and the node's key, which stays when the ticket changes. -J, -W, -p, -4, -6, HostName \
+     and --direct cannot go with it. -v says each server tried, and which carried the session.",
+    "node://NAME with --derp-ticket TICKET adds the DERP road to the race: the iroh road of \
+     --iroh-ticket first, the pair's road 250 ms later, the DERP road 250 ms after that, each at once \
+     when the roads before it failed. The tickets name one node, or the run is refused (64). The ticket \
+     is kept under NAME in the cache (derp-NAME.ticket), and a later podssh ssh node://NAME that gives \
+     none dials it only once the roads before it failed, or as the only road when no pair is stored \
+     under NAME: the fallback that the operator's ruling Q50 allows, which PODSSH_DERP=no turns off. -v \
+     says the order of the roads, and which answered first.",
     "Host keys are checked against the known_hosts files. On a terminal, podssh asks about an unknown \
      key. With no terminal and no SSH_ASKPASS, it refuses the key and names the remedy: \
      -o StrictHostKeyChecking=accept-new records a new key with no question. A changed key is always \

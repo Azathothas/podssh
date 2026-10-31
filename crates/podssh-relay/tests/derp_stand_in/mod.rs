@@ -5,9 +5,10 @@
 //! the client's info opened with NaCl's box, its own info sealed back; then
 //! it forwards each packet to the key that it names, through a queue of 32
 //! for each receiver whose oldest packet goes when it is full, and drops a
-//! share of the packets at random, by a seed. It answers pings. Its frames
-//! are written here, apart from the library's, so that a defect of one is
-//! not the other's.
+//! share of the packets at random, by a seed. It answers pings, and derper's
+//! probe at `/derp/probe`. Its frames are written here, apart from the
+//! library's, so that a defect of one is not the other's. The tests of the
+//! command line serve it over TLS on the loopback (T-379).
 
 #![allow(dead_code)]
 
@@ -235,6 +236,13 @@ async fn upgrade(reader: &mut ReadHalf<DuplexStream>, writer: &mut WriteHalf<Dup
         buf.extend_from_slice(&chunk[..n]);
     };
     let head = String::from_utf8_lossy(&buf[..end]).to_string();
+    // derper's probe of latency, an empty answer, by which a node of the
+    // command line finds its home (T-379).
+    if head.starts_with("GET /derp/probe HTTP/1.1\r\n") {
+        let _ = writer.write_all(b"HTTP/1.1 200 OK\r\nContent-Length: 0\r\nConnection: close\r\n\r\n").await;
+        let _ = writer.shutdown().await;
+        return None;
+    }
     let header = |name: &str| {
         head.split("\r\n").find_map(|line| {
             let (key, value) = line.split_once(':')?;

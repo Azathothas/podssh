@@ -58,9 +58,9 @@ fn planned(label: &str, args: &SshArgs, env: &Env, shell: bool) -> Result<Plan, 
             "SessionType in ssh_config asks for no command here, and podssh each runs one on each host",
         )));
     }
-    if matches!(resolved.transport, Transport::Node { .. } | Transport::Iroh { .. }) {
+    if matches!(resolved.transport, Transport::Node { .. } | Transport::Iroh { .. } | Transport::Derp { .. }) {
         return Err(named(Refusal::usage(
-            "podssh each reaches a host through the relay or with --direct; a node:// or iroh: destination is \
+            "podssh each reaches a host through the relay or with --direct; a node://, iroh: or derp: destination is \
              for podssh ssh",
         )));
     }

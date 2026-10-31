@@ -85,6 +85,8 @@ fn prepare(args: &NodeArgs, key: &str) -> Result<Ready, Refusal> {
         ("--allow", args.allow.is_some() || args.iroh_allow.is_some()),
         ("--ephemeral-key", args.ephemeral_key || args.iroh_ephemeral),
         ("--iroh-relay", args.iroh_relay.is_some()),
+        ("--derp", args.derp),
+        ("--derp-server", args.derp_server.is_some()),
     ];
     if let Some((flag, _)) = refused.iter().find(|(_, given)| *given) {
         return Err(Refusal::usage(format!(

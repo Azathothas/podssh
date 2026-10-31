@@ -30,12 +30,14 @@ pub enum Transport {
     Direct,
     /// The node of a pair, through the operator's leg of the reverse road
     /// (`node://NAME`, T-084); raced with its iroh road when `race` names
-    /// one (T-164).
+    /// one (T-164), and with its DERP road when `derp` gives a ticket or
+    /// one is kept under NAME (T-379).
     Node {
         label: String,
         pair_file: Option<String>,
         trust: Trust,
         race: Option<super::iroh::Race>,
+        derp: super::derp::Race,
         channel: crate::channel::Ask,
     },
     /// A node over the iroh road (`iroh:TICKET`, T-163), with this client's
@@ -48,6 +50,14 @@ pub enum Transport {
     Cloudflare { host: String, trust: Trust, channel: crate::channel::Ask },
     /// A VM through its cloud's own tunnel (`iap://`, `eice://`, T-351).
     Cloud { road: super::cloud::Road, trust: Trust },
+    /// A node over the DERP road (`derp:TICKET`, T-379), at the servers in
+    /// the order that they are tried, the ticket's first.
+    Derp {
+        ticket: podssh_relay::derp::Ticket,
+        servers: Vec<podssh_relay::derp::Server>,
+        trust: Trust,
+        channel: crate::channel::Ask,
+    },
 }
 
 /// A command line, resolved.
@@ -85,67 +95,9 @@ pub struct Resolved {
     pub alive_default: bool,
 }
 
-/// What the process environment contributes, gathered once so it can be
-/// replaced in tests.
-#[derive(Debug, Clone, Default)]
-pub struct Env {
-    pub home: Option<PathBuf>,
-    pub user: Option<String>,
-    pub relay: Option<String>,
-    /// `PODSSH_RELAY_FAILOVER` (T-220).
-    pub relay_failover: Option<String>,
-    pub ssl_cert_file: Option<String>,
-    /// The local host name and user id, for the `%` tokens.
-    pub local_host: Option<String>,
-    pub uid: Option<u32>,
-    /// `PODSSH_SSH_CONFIG`: the file of `-F`, when `-F` is not given.
-    pub ssh_config: Option<String>,
-    /// The system's `ssh_config`, read after `~/.ssh/config`; `None` reads
-    /// none, as in the tests.
-    pub system_config: Option<PathBuf>,
-    /// podssh's own settings file (T-048); none in the tests.
-    pub settings: crate::settings::Defaults,
-}
-
-impl Env {
-    pub fn from_process() -> Self {
-        let var = |name: &str| std::env::var(name).ok().filter(|v| !v.trim().is_empty());
-        let home = var("HOME").or_else(|| if cfg!(windows) { var("USERPROFILE") } else { None }).map(PathBuf::from);
-        let user = var("USER").or_else(|| var("LOGNAME")).or_else(|| var("USERNAME")).or_else(uid_zero_is_root);
-        Env {
-            home,
-            user,
-            relay: var(relay::RELAY_ENV),
-            relay_failover: var(podssh_relay::failover::MODE_ENV),
-            ssl_cert_file: var("SSL_CERT_FILE"),
-            local_host: super::tokens::local_host_name(),
-            uid: super::tokens::local_uid(),
-            ssh_config: var("PODSSH_SSH_CONFIG"),
-            system_config: Some(super::config::system_file()),
-            settings: crate::settings::here().clone(),
-        }
-    }
-}
-
-/// The CA file: `--ca-file`, else `SSL_CERT_FILE`, else the settings
-/// file's `CaFile` (T-048).
-pub(super) fn ca_file(args: &SshArgs, env: &Env) -> Option<String> {
-    crate::settings::ca_file_from(args.ca_file.as_deref(), env.ssl_cert_file.clone(), &env.settings)
-}
-
-/// With no user name in the environment, uid 0 is `root` by convention; any
-/// other uid has no name podssh may assume (never `getpwuid`: hosts without a
-/// passwd entry make OpenSSH fail exactly there).
-#[cfg(unix)]
-fn uid_zero_is_root() -> Option<String> {
-    // SAFETY: getuid has no preconditions.
-    (unsafe { libc::getuid() } == 0).then(|| "root".to_string())
-}
-
-#[cfg(not(unix))]
-fn uid_zero_is_root() -> Option<String> {
-    None
-}
+// The environment, in its own file for the length of this one (T-379).
+pub(super) use super::resolve_env::ca_file;
+pub use super::resolve_env::Env;
 
 /// Resolve `args`; `Err` is the message of a refusal.
 pub fn resolve(args: &SshArgs, env: &Env) -> Result<Resolved, String> {
@@ -167,17 +119,25 @@ pub fn resolve_or_refuse(args: &SshArgs, env: &Env) -> Result<Resolved, Refusal>
     let iroh = super::iroh::destination(destination)?;
     let tunnel = super::cloudflare::destination(destination)?;
     let cloud = super::cloud::destination(destination)?;
+    let derp = super::derp::destination(destination)?;
     let target = match (&node, &iroh, &tunnel) {
         (Some((user, label, _)), ..) => Hop { user: user.clone(), host: label.clone(), port: 22 },
         (None, Some(dest), _) => Hop { user: dest.user.clone(), host: dest.shown.clone(), port: 22 },
         (None, None, Some((user, host))) => Hop { user: user.clone(), host: host.clone(), port: 22 },
-        (None, None, None) => match &cloud {
-            Some((user, road)) => Hop { user: user.clone(), host: road.host(), port: road.port() },
-            None => parse_hop(destination)?,
+        (None, None, None) => match (&cloud, &derp) {
+            (Some((user, road)), _) => Hop { user: user.clone(), host: road.host(), port: road.port() },
+            (None, Some(dest)) => Hop { user: dest.user.clone(), host: dest.shown.clone(), port: 22 },
+            (None, None) => parse_hop(destination)?,
         },
     };
     if args.iroh_ticket.is_some() && node.is_none() {
         return Err("--iroh-ticket is for a node://NAME destination, whose pair it races with".into());
+    }
+    if args.derp_ticket.is_some() && node.is_none() {
+        return Err("--derp-ticket is for a node://NAME destination, whose pair it races with".into());
+    }
+    if args.derp_server.is_some() && node.is_none() && derp.is_none() {
+        return Err("--derp-server is for a derp:TICKET or node://NAME destination".into());
     }
     let iroh_road = iroh.is_some() || args.iroh_ticket.is_some();
     if args.iroh_relay.is_some() && !iroh_road {
@@ -246,10 +206,11 @@ pub fn resolve_or_refuse(args: &SshArgs, env: &Env) -> Result<Resolved, Refusal>
     // destination or as the first hop of -J, whose node takes the same keys
     // (T-347).
     let cf_hop = matches!(jump_tunnel, Some(super::jump::Tunnel::Cloudflare(_)));
-    let podssh_ends = node.is_some() || iroh.is_some() || tunnel.is_some() || cf_hop;
+    let podssh_ends = node.is_some() || iroh.is_some() || tunnel.is_some() || cf_hop || derp.is_some();
     if let Some((flag, _)) = channel.iter().find(|(_, given)| *given).filter(|_| !podssh_ends) {
         return Err(format!(
-            "{flag} is for a node://NAME, iroh:TICKET or cf://HOST destination, or a cf://HOST first hop of -J"
+            "{flag} is for a node://NAME, iroh:TICKET, derp:TICKET or cf://HOST destination, or a cf://HOST first \
+             hop of -J"
         )
         .into());
     }
@@ -328,13 +289,21 @@ pub fn resolve_or_refuse(args: &SshArgs, env: &Env) -> Result<Resolved, Refusal>
     };
     let transport = if let Some((_, label, route)) = &node {
         let race = super::iroh::race(args)?;
-        super::node::transport(&ask(label, route.as_deref()), env, race)?
+        // The DERP road of the node (T-379): one node, one key for each road.
+        let derp = super::derp::race(args)?;
+        if let (Some(iroh), Some(ticket)) = (&race, &derp.ticket) {
+            super::iroh::same_node(&iroh.ticket, ticket)?;
+        }
+        super::node::transport(&ask(label, route.as_deref()), env, race, derp)?
     } else if let Some(dest) = &iroh {
         let trust = match ca_file(args, env) {
             Some(file) => Trust::File(file.into()),
             None => Trust::Default,
         };
         super::iroh::transport(dest, &ask(&dest.shown, None), trust)?
+    } else if let Some(dest) = &derp {
+        let trust = ca_file(args, env).map_or(Trust::Default, |file| Trust::File(file.into()));
+        super::derp::transport(dest, &ask(&dest.shown, None), trust)?
     } else if let Some((_, host)) = &tunnel {
         super::cloudflare::transport(&ask(host, None), env)?
     } else if let Some((_, road)) = &cloud {
@@ -381,7 +350,7 @@ pub fn resolve_or_refuse(args: &SshArgs, env: &Env) -> Result<Resolved, Refusal>
     // A node runs the resumable layer, whose heartbeat finds a dead link and
     // keeps the relay's idle cut away; SSH's own keepalives would end a
     // session that the layer carries onto a new link (T-154).
-    let resumable = matches!(transport, Transport::Node { .. } | Transport::Iroh { .. });
+    let resumable = matches!(transport, Transport::Node { .. } | Transport::Iroh { .. } | Transport::Derp { .. });
     let keepalive_interval = match settings.alive_interval {
         Some(0) => None,
         Some(s) => Some(Duration::from_secs(s)),
@@ -408,11 +377,13 @@ pub fn resolve_or_refuse(args: &SshArgs, env: &Env) -> Result<Resolved, Refusal>
     // OpenSSH opens -E FILE with the name as typed.
     let log_file = args.log_file.as_deref().map(PathBuf::from);
     // A node is named `node://NAME` in the messages and the known hosts; a
-    // node of the iroh road, `iroh:` and its key.
-    let shown = match (&node, &iroh) {
-        (Some((_, label, route)), _) => super::node::shown(label, route.as_deref()),
-        (None, Some(dest)) => dest.shown.clone(),
-        (None, None) => cloud.as_ref().map_or_else(|| host.clone(), |(_, road)| road.shown()),
+    // node of the iroh road, `iroh:` and its key; of the DERP road, `derp:`
+    // and its key.
+    let shown = match (&node, &iroh, &derp) {
+        (Some((_, label, route)), ..) => super::node::shown(label, route.as_deref()),
+        (None, Some(dest), _) => dest.shown.clone(),
+        (None, None, Some(dest)) => dest.shown.clone(),
+        (None, None, None) => cloud.as_ref().map_or_else(|| host.clone(), |(_, road)| road.shown()),
     };
     let mut options = Options::new(Hop { user: None, host: shown, port }, user.clone());
     // OpenSSH looks a host key up, and records it, under the alias in lowercase.

@@ -4826,6 +4826,68 @@ ask, and nothing does so.
 The operator's ruling of 2026-10-31 (Q50, `docs/decisions.md`): Tailscale's tailcat fleet is an
 automatic fallback of the reverse road, tried when the user did not ask.
 
+2026-10-31, the draft (each call with the alternatives that lost):
+
+- The road is in each build: podssh-cli turns podssh-relay's feature `derp` on, as it does `quick`.
+  Lost: a feature of the command line, as the iroh road has one: the road is pure Rust and small
+  (`crypto_box`, in the lock already), and Q50 makes it a fallback that a build without the feature
+  would lose with no word.
+- A node moves home after 3 failed connections in a row to its home (`far::MOVE_AFTER`): to the first
+  other server of its list, from the top, that takes a connection, and it stays there
+  (`crates/podssh-relay/src/derp/far.rs`). Lost: a move at the first failure, which a derper that
+  restarts would turn into a move of each node and a longer try of each client; a new probe of the
+  whole list, where a connection that completes DERP's handshake proves more than an empty GET; a
+  move back when the first server returns, which moves each client again with a home that flaps.
+- A client tries the ticket's server, then the rest of its own list (`--derp-server`, else
+  `PODSSH_DERP_SERVER`, else the fleet) when that list holds the ticket's server
+  (`servers::for_client_in`); T-349's `for_client` is the case of the fleet. Lost: the fleet after
+  each ticket, where a node of the user's own derper never moves to tailcat's; each server of the
+  list after any ticket, where a ticket of a server outside the list belongs to another list.
+- More than two roads race by `session::race::in_turn`: each road 250 ms after the one before it, or
+  at once when each road that started before it failed, as Happy Eyeballs staggers (RFC 8305), so
+  the DERP road starts 500 ms in behind the iroh road and the pair's. Lost: the two-road race nested,
+  whose inner race greets its winner before the outer one could start the third road.
+- The race leaves `crates/podssh-cli/src/ssh/iroh/race.rs` for `crates/podssh-cli/src/ssh/roads.rs`,
+  in each build, as a build with no iroh still races the pair's road and the DERP road; the iroh
+  road's part (`IrohRoad`) stays behind the feature, with an empty type in its place without it.
+  Lost: the race behind the feature `iroh`, which would refuse `--derp-ticket` in a build that has
+  the DERP road.
+- The fallback of a client (item 4): a ticket given with `--derp-ticket` is kept under NAME, in the
+  cache as the pins are (`derp-NAME.ticket`), and a later run that gives none dials it only when each
+  road before it failed (`Start::WhenAllFailed`), or alone when no pair is stored under NAME. Lost:
+  the kept ticket only when no pair is stored, which misses an outage of the relay, the case the
+  fallback is for (T-346); the kept ticket with the head start of a ticket given, which would load
+  tailcat's fleet on each run while the pair's road works.
+- The fallback of a node: a node with no pair (none stored, or one expired), an allowlist, and none of
+  `--iroh`, `--plain`, `--no-e2e`, `--pair-file` or a `udp:` TARGET serves the DERP road unasked, and
+  its first line says why. Lost: the road with no allowlist, which no client could pass, so the node
+  refuses as before; the DERP road unasked beside `--iroh`, a node that has a road with no relay of
+  the operator's already, which `--derp` adds when asked.
+- `PODSSH_DERP=no` turns both fallbacks off; `--derp`, `--derp-ticket` and `derp:` still take the
+  road. Lost: no switch, which leaves a user whose policy forbids a third party's relay with no way
+  out, where T-363 gives `PODSSH_DIRECT=no` for its fallback; a key of the settings file first, as a
+  node's service gets its variables from its file of `--env-file` and each end reads the variable
+  alike.
+- The road needs the end-to-end channel and `--allow`: a DERP server forwards packets from any key, so
+  the channel's allowlist is the node's only door, and a client's key on the servers is new for each
+  run (T-349's Decision). Lost: the allowlist's absence as "each client", as on the pair's road, where
+  the relay's connect token decided who reaches the node.
+- The node's name in the known hosts and the messages is `derp:` and its Ed25519 key in hex, as
+  `iroh:` names the iroh road's node; `derp:PORT`, all digits, stays the host `derp` and a port, as a
+  ticket starts with a letter (its version byte). Lost: the ticket, which changes with the home.
+- `podssh doctor` has a section `derp` in each build: `/derp/probe` of each server in order, `FAIL`
+  for each that does not answer, then the home, as `crates/podssh-cli/src/doctor/iroh.rs` does for
+  n0's relays. Lost: `????` for a server that does not answer, where doctor keeps `FAIL` for a
+  fallback that does not work here.
+- The resolver's split (item 2): its environment (`Env`, `ca_file`) moves to
+  `crates/podssh-cli/src/ssh/resolve_env.rs`, re-exported, so no caller changes, with each comment.
+  Lost: the transport's choice moved out, which changes more callers' paths.
+- The test: podssh-relay's own stand-in (`crates/podssh-relay/tests/derp_stand_in/mod.rs`, frames of
+  its own, now with `/derp/probe`) behind TLS of the test's own CA on the loopback
+  (`crates/podssh-cli/tests/derp_support/mod.rs`), as the command line is a process of its own. Lost:
+  Tailscale's derper, which `scripts/interop-derp.sh` runs for the library in Podman: the road's
+  interop is T-349's, and this test needs no container.
+
 ## Prove
 
 ```sh
@@ -4841,3 +4903,51 @@ fleet. Planted: a client that tries the ticket's server alone fails that last ch
 ## Start condition
 
 T-349 is done: the DERP link of `podssh-relay` is merged and measured.
+
+## Correction
+
+2026-10-31, read at `a3f948d`: the keeper of both roads of the iroh road's node is not at the cited
+lines, which make the sessions' pipe, but a block below them, at line 313 at `a3f948d` ("One keeper
+for both roads"). The resolver had 496 lines at `a3f948d`, not 488. The Approach stands: the split
+moves the resolver's environment to `crates/podssh-cli/src/ssh/resolve_env.rs`.
+
+## Done
+
+2026-10-31: drafted (branch `draft-roads-cli`), not built and not run; each result is UNVERIFIED
+until the merge.
+
+- podssh-relay: `session::race::in_turn` and `Start`, a race of more than two roads of one link
+  (`crates/podssh-relay/src/session/race.rs`); a node that moves home, `far::serve_roaming`, `Roam`,
+  `MOVE_AFTER` and `connect_to` (`crates/podssh-relay/src/derp/far.rs`); a client of the user's own
+  list, `servers::for_client_in` and `Dialer::with_servers`; the stand-in answers `/derp/probe`.
+- podssh-cli: `podssh node --derp` and `--derp-server`, the DERP road alone, beside the pair's road,
+  or beside the iroh road and the pair's road, with one keeper (`crates/podssh-cli/src/node_derp.rs`,
+  `crates/podssh-cli/src/node_iroh.rs`), and a node with no pair that serves it unasked;
+  `--derp` refused with `--quick-tunnel` and `--temporary`; `--install` carries `--derp` and
+  `--derp-server` into the service, and asks for no pair with `--derp`, as with `--iroh`;
+  `podssh ssh derp:TICKET[/ROUTE]`
+  (`crates/podssh-cli/src/ssh/derp.rs`); `node://NAME --derp-ticket TICKET` and the kept ticket, in
+  the race of a node's roads (`crates/podssh-cli/src/ssh/roads.rs`); `PODSSH_DERP`; doctor's section
+  `derp` (`crates/podssh-cli/src/doctor/derp.rs`); the flags (`crates/podssh-cli/src/flags/derp.rs`),
+  the manual's notes of `ssh` and `node` and its ENVIRONMENT; `docs/cli.md`, `docs/design.md` (the
+  road table and section 8), `docs/STATUS.md`. `derp:`, like `iroh:`, is refused by `cp`, `each`,
+  `job`, `run`, `containers` and `--persist`.
+- The resolver's split: `crates/podssh-cli/src/ssh/resolve.rs` keeps 467 lines.
+- UNVERIFIED: `cargo test -p podssh-cli --test derp_road` (4 tests: refused, then let in, with the
+  host key under `derp:`; the race with the pair's road blocked, then the kept ticket, then
+  `PODSSH_DERP=no`; a node with no pair, unasked, and `PODSSH_DERP=no`; the node that moved home and
+  the client of its old ticket, with the ticket's server alone as the control).
+- UNVERIFIED: `cargo test -p podssh-relay --features derp --test derp_link` (the move, through two
+  stand-ins in memory), `cargo test -p podssh-relay --test session_race` (four tests of `in_turn` on
+  a paused clock), `cargo test -p podssh-relay --features derp --lib derp::servers`, and
+  `cargo test -p podssh-cli --lib -- node_derp ssh::derp`.
+- UNVERIFIED: the rest of the workspace with the change: `cargo test --workspace` (podssh-cli's
+  `iroh_cli` names `derp:TICKET` in the refusal of a channel's flag now; the manual's sweep of
+  variables reads `PODSSH_DERP`), `cargo build -p podssh-cli --features iroh` and
+  `cargo test -p podssh-cli --features iroh-test --test iroh_road` (the race moved out of the iroh
+  module), clippy `-D warnings`, `cargo fmt --check`, and the planted defect: `for_client_in`
+  returning the ticket's server alone, which the last test of `derp_road` and the move's test of
+  `derp_link` should fail.
+- UNVERIFIED, live and short, as Q50 allows: `podssh node lab 127.0.0.1:22 --derp --allow FILE` and
+  `podssh ssh derp:TICKET` through tailcat's fleet from a session's own host, and `podssh doctor`'s
+  section `derp` there.

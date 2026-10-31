@@ -15,6 +15,8 @@ pub mod cloud;
 pub mod cloudflare;
 pub mod config;
 pub mod control;
+// derp:TICKET, and the DERP road of node://NAME (T-379).
+pub mod derp;
 pub mod dump;
 mod elevate;
 // `--expect` and `--send` (T-191).
@@ -35,7 +37,10 @@ pub mod persist;
 pub mod picker;
 mod recording;
 pub mod resolve;
+mod resolve_env;
 pub mod result;
+// The race of a node's roads: iroh, the pair's, DERP (T-164, T-379).
+pub(crate) mod roads;
 pub mod tokens;
 pub mod transport;
 mod upgrade;
@@ -199,6 +204,7 @@ fn road(transport: &Transport) -> &'static str {
         Transport::Iroh { .. } => "iroh",
         Transport::Cloudflare { .. } => "cloudflare",
         Transport::Cloud { road, .. } => road.word(),
+        Transport::Derp { .. } => "derp",
     }
 }
 
@@ -255,14 +261,21 @@ pub(crate) async fn connect_and_run(mut resolved: Resolved, log: Arc<Log>) -> i3
         return Box::pin(upgrade::run(&resolved, &upgrade, log)).await;
     }
     let opts = &resolved.options;
-    if let Transport::Node { label, pair_file, trust, race, channel } = &resolved.transport {
-        if let Some(race) = race {
-            return Box::pin(iroh::race_connect(label, pair_file.as_deref(), trust, race, channel, opts, log)).await;
+    if let Transport::Node { label, pair_file, trust, race, derp, channel } = &resolved.transport {
+        // The DERP road: the ticket given, else the one kept under the label
+        // (Q50); never with --no-e2e, as its node's door is the channel.
+        let derp = derp.road(label).filter(|_| !channel.off);
+        if race.is_some() || derp.is_some() {
+            let raced = roads::Raced { iroh: race.as_ref(), derp };
+            return Box::pin(roads::connect(label, pair_file.as_deref(), trust, raced, channel, opts, log)).await;
         }
         return Box::pin(node::connect(label, pair_file.as_deref(), trust, channel, opts, log)).await;
     }
     if let Transport::Iroh { ticket, key, relays, trust, channel } = &resolved.transport {
         return Box::pin(iroh::connect(ticket, key.as_deref(), relays, trust, channel, opts, log)).await;
+    }
+    if let Transport::Derp { ticket, servers, trust, channel } = &resolved.transport {
+        return Box::pin(derp::connect(ticket, servers, trust, channel, opts, log)).await;
     }
     let (code, relay) = Box::pin(tries(&resolved, &log)).await;
     if let Some(end) = relay.as_ref().and_then(podssh_ssh::RelayStatus::get) {

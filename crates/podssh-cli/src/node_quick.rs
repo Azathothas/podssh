@@ -75,6 +75,8 @@ fn prepare(args: &NodeArgs) -> Result<Ready, Refusal> {
         (args.no_e2e, "--no-e2e"),
         (args.pair_file.is_some(), "--pair-file"),
         (args.iroh_relay.is_some(), "--iroh-relay"),
+        (args.derp, "--derp"),
+        (args.derp_server.is_some(), "--derp-server"),
     ];
     if let Some((_, flag)) = alone.iter().find(|(given, _)| *given) {
         return Err(Refusal::usage(format!(

@@ -37,8 +37,15 @@ pub struct Dialer {
 impl Dialer {
     /// The dialer of the node of `ticket`, with a key of this run's.
     pub fn new(ticket: &Ticket, dial: Dial, say: Say) -> Result<Dialer, NoRandom> {
+        Dialer::with_servers(ticket, servers::for_client(&ticket.server), dial, say)
+    }
+
+    /// [`Dialer::new`], trying `servers` in their order (T-379): the
+    /// ticket's server and the rest of the user's list, by
+    /// [`servers::for_client_in`].
+    pub fn with_servers(ticket: &Ticket, servers: Vec<Server>, dial: Dial, say: Say) -> Result<Dialer, NoRandom> {
         let secret = Arc::new(Secret::random(&mut OsEntropy)?);
-        let servers = servers::for_client(&ticket.server);
+        let servers = if servers.is_empty() { vec![ticket.server.clone()] } else { servers };
         Ok(Dialer { node: ticket.derp, servers, dial, secret, say, conn: Mutex::new(None) })
     }
 

@@ -3,22 +3,27 @@
 //! with no loss and with 5 % of the packets dropped under the adapter; a
 //! session of the resumable layer that goes on after the client's connection
 //! is cut; and a client that gives up on a node that is not there within
-//! its limit. The tests marked `ignore` run against Tailscale's derper,
-//! which `scripts/interop-derp.sh` starts in Podman. A planted adapter that
-//! never sends a segment again fails the test with drops.
+//! its limit. A node whose home goes away moves to the next server of its
+//! list, and a client of the old ticket and that list finds it there, where
+//! the ticket's server alone finds nothing (T-379). The tests marked
+//! `ignore` run against Tailscale's derper, which `scripts/interop-derp.sh`
+//! starts in Podman. A planted adapter that never sends a segment again
+//! fails the test with drops.
 
 #![cfg(feature = "derp")]
 
 mod derp_stand_in;
 
+use std::sync::atomic::{AtomicBool, Ordering};
 use std::sync::{Arc, Mutex};
 use std::time::Duration;
 
 use derp_stand_in::StandIn;
 use podssh_relay::derp::conn::Setup;
-use podssh_relay::derp::dial::{self, Dial};
+use podssh_relay::derp::dial::{self, Dial, Dialing};
+use podssh_relay::derp::far::Roam;
 use podssh_relay::derp::link::OPEN_LIMIT;
-use podssh_relay::derp::{self as road, Conn, Dialer, Key, Link, Node, Secret, Server, Ticket};
+use podssh_relay::derp::{self as road, servers, Conn, Dialer, Key, Link, Node, Secret, Server, Ticket};
 use podssh_relay::identity::PublicKey;
 use podssh_relay::session::keep::Keeper;
 use podssh_relay::session::resume::Note;
@@ -205,6 +210,57 @@ async fn a_session_of_the_layer_goes_on_after_the_client_s_connection_is_cut() {
     assert!(notes.iter().any(|n| matches!(n, Note::Resumed { .. })), "a resume: {notes:?}");
     let logins = stand_in.logins.load(std::sync::atomic::Ordering::SeqCst);
     assert!(logins >= 3, "the node, the client, and the client again: {logins}");
+}
+
+/// A node at a.test, whose home goes away: its connection is cut, and
+/// a.test takes no new one. After its failed tries, it calls b.test home
+/// and says so; a client of the old ticket and the list [a.test, b.test]
+/// finds it there. The planted client, the ticket's server alone, does not.
+#[tokio::test(flavor = "multi_thread", worker_threads = 2)]
+async fn a_node_whose_home_went_away_moves_and_a_client_of_the_old_ticket_finds_it() {
+    let (a, b, down) = (StandIn::new(0), StandIn::new(0), Arc::new(AtomicBool::new(false)));
+    let (at_a, at_b) = (Server::new("a.test", 443).unwrap(), Server::new("b.test", 443).unwrap());
+    let dial: Dial = {
+        let (a, b, down) = (a.clone(), b.clone(), down.clone());
+        Arc::new(move |server: &Server| -> Dialing {
+            let io = match server.host.as_str() {
+                "a.test" if down.load(Ordering::SeqCst) => Err("a.test: connection refused".to_string()),
+                "a.test" => Ok(a.connect()),
+                _ => Ok(b.connect()),
+            };
+            Box::pin(async move { io })
+        })
+    };
+    let settings = Settings { features: road::FEATURES, ..Settings::default() };
+    let secret = Arc::new(Secret::random(&mut OsEntropy).unwrap());
+    let node = Node { secret, server: at_a.clone(), dial: dial.clone(), say: say("node") };
+    let first = road::far::connect(&node).await.expect("the node at a.test");
+    let ticket = Ticket { node: PublicKey([0; 32]), derp: first.key(), server: at_a.clone() };
+    let (moved, mut heard) = tokio::sync::mpsc::unbounded_channel();
+    let roam = Roam {
+        servers: vec![at_a.clone(), at_b.clone()],
+        moved: Arc::new(move |server: &Server| {
+            let _ = moved.send(server.clone());
+        }),
+    };
+    let keeper = Arc::new(Keeper::new(settings.resume_deadline));
+    let serving = tokio::spawn(road::far::serve_roaming(node, roam, Some(first), settings, BUDGET, echo, keeper));
+    down.store(true, Ordering::SeqCst);
+    a.cut(&ticket.derp.0);
+    let home = tokio::time::timeout(LIMIT, heard.recv()).await.expect("a move in time").expect("a move");
+    assert_eq!(home, at_b, "the next server of the list");
+    let list = [at_a.clone(), at_b.clone()];
+    let order = servers::for_client_in(&ticket.server, &list);
+    let dialer = Dialer::with_servers(&ticket, order, dial.clone(), say("client")).unwrap();
+    let link = tokio::time::timeout(LIMIT, dialer.link()).await.expect("in time").expect("the node at b.test");
+    assert_eq!(dialer.server().await, Some(at_b.clone()));
+    drop(link);
+    dialer.close().await;
+    let alone = Dialer::with_servers(&ticket, vec![at_a], dial, say("client")).unwrap();
+    let missed = tokio::time::timeout(LIMIT, alone.link()).await.expect("in time");
+    assert!(missed.is_err(), "the ticket's server alone found the node that moved");
+    assert!(b.logins.load(Ordering::SeqCst) >= 2, "the node and the client at b.test");
+    serving.abort();
 }
 
 /// The server and the trust of the derper of `scripts/interop-derp.sh`.

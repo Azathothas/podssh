@@ -53,9 +53,10 @@ pub fn check(args: &SshArgs, resolved: &mut Resolved) -> Result<(), Refusal> {
         (false, Some(_)) => return Err("--persist-name names the tmux session of --persist; give --persist too".into()),
         (true, name) => name.unwrap_or(DEFAULT_NAME),
     };
-    if matches!(resolved.transport, Transport::Node { .. } | Transport::Iroh { .. }) {
+    if matches!(resolved.transport, Transport::Node { .. } | Transport::Iroh { .. } | Transport::Derp { .. }) {
         return Err(
-            "--persist is for a standard sshd; a node:// or iroh: session survives a lost link on its own layer".into(),
+            "--persist is for a standard sshd; a node://, iroh: or derp: session survives a lost link on its own layer"
+                .into(),
         );
     }
     if resolved.options.request == Request::Nothing {

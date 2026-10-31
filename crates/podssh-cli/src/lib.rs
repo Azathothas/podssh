@@ -74,6 +74,9 @@ pub mod node_install;
 pub mod node_flags;
 // `podssh node NAME udp:HOST:PORT`: a UDP target, one flow for each session.
 pub mod node_udp;
+// `podssh node --derp`: the DERP road, and its fallback of a node with no
+// pair (T-379).
+pub mod node_derp;
 // `podssh node --iroh`: the iroh road, with the feature `iroh` only.
 #[cfg(feature = "iroh")]
 pub mod node_iroh;

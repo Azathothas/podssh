@@ -51,10 +51,10 @@ pub(crate) fn plan(host: &str, args: &SshArgs, env: &Env) -> Result<Resolved, Re
     ssh.stdin_null = true;
     let named = |r: Refusal| Refusal { message: format!("{host}: {}", r.message), code: r.code };
     let mut resolved = resolve::resolve_or_refuse(&ssh, env).map_err(named)?;
-    if matches!(resolved.transport, Transport::Node { .. } | Transport::Iroh { .. }) {
+    if matches!(resolved.transport, Transport::Node { .. } | Transport::Iroh { .. } | Transport::Derp { .. }) {
         return Err(Refusal::usage(
-            "podssh job reaches a host through the relay or with --direct; a node:// or iroh: destination is for \
-             podssh ssh",
+            "podssh job reaches a host through the relay or with --direct; a node://, iroh: or derp: destination is \
+             for podssh ssh",
         ));
     }
     resolved.options.forward_agent = podssh_ssh::Agent::Off;
