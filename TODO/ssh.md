@@ -2793,8 +2793,7 @@ for CI on the push.
 
 - podssh-ssh, podssh-cli's tests and the fuzz workspace take crates.io's russh 0.65.0 with its
   checksum; `[patch.crates-io]` keeps iroh-relay alone, and vendor/russh with its patch is gone
-  (and the TruffleHog allowlist's 13 lines of its test keys, the map of `AGENTS.md`, the section
-  of `vendor/README.md`). cargo-deny checks russh again: `cargo deny --locked check advisories
+  (and the map of `AGENTS.md`, the section of `vendor/README.md`). cargo-deny checks russh again: `cargo deny --locked check advisories
   licenses bans sources`, exit 0, and with each feature; `scripts/check-vendored-advisories.py`
   now reads 32 path packages, exit 0.
 - The binding: podssh-ssh's own `SessionBinding`, from russh's `AgentSessionBinding`;
@@ -2817,4 +2816,9 @@ for CI on the push.
 - T-341's watch: its plant set only the line "Upstream read" to 0.0.0, which failed while
   russh's copy was older than its release; with russh gone, the first crate's copy is its newest
   release and the plant passed. The plant now takes the copy as 0.0.0 too, and fails again.
+- The TruffleHog allowlist: the push removed the 13 lines of russh's test keys with the copy, and
+  the job `secrets` failed from 27b8d8f on (run 41175920199: two of them unknown, keys of
+  russh's keys tests in the copy, added in 922f1aa2cde7), as the scan reads each
+  commit of the history, which keeps the copy. The 13 lines are back, with that reason. Measured:
+  `scripts/secrets-report.py` over those findings, exit 1 without the lines and 0 with them.
 
