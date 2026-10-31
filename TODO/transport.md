@@ -79,6 +79,13 @@ with the 32-byte id first. Plant: make `WsSocket::send_text` call `session.send`
 must fail on the opcode. No command uses this leg, so there is no check of the binary here; T-079
 runs the node leg against the live relay.
 
+
+## Correction
+
+2026-10-31 (T-361): T-082 moved the codecs of `podssh-transport`, with their tests, into
+`podssh-relay`, and the crate is gone: this Prove's `cargo test -p podssh-transport` runs as `cargo
+test -p podssh-relay` since.
+
 ## Done
 
 2026-10-09, in the commit "The node leg's control leaves as a text frame".
@@ -183,6 +190,13 @@ the live relay (for example `1000 target closed` through `podssh proxy`) as a fi
 parser also meets bytes that podssh did not make (`docs/development.md:465-467`). The second test
 asserts that an unmatched `4000 x` and a node's `1011 connection refused` both show their own code
 and reason. Plant: delete the new 0x8 arm; the first test must fail with `Unexpected`.
+
+
+## Correction
+
+2026-10-31 (T-361): T-082 moved the codecs of `podssh-transport`, with their tests, into
+`podssh-relay`, and the crate is gone: this Prove's `cargo test -p podssh-transport` runs as `cargo
+test -p podssh-relay` since.
 
 ## Done
 
@@ -302,6 +316,13 @@ again. Second test: the double queues `open` (text), a binary frame for that id,
 captured from the live relay when T-079 records them. Plant: remove the readied check; the first
 test must fail because a frame was sent.
 
+
+## Correction
+
+2026-10-31 (T-361): T-082 moved the codecs of `podssh-transport`, with their tests, into
+`podssh-relay`, and the crate is gone: this Prove's `cargo test -p podssh-transport` runs as `cargo
+test -p podssh-relay` since.
+
 ## Done
 
 2026-10-09, in the commit "The node leg sends data only for a readied session".
@@ -403,6 +424,13 @@ python scripts/check-repo.py
 `git grep` exits 1 when no code or script names the module (exit 0 means that a caller is left).
 The tests show that nothing else depended on it, and the repository check passes.
 
+
+## Correction
+
+2026-10-31 (T-361): T-082 moved the codecs of `podssh-transport`, with their tests, into
+`podssh-relay`, and the crate is gone: this Prove's `cargo test -p podssh-transport` runs as `cargo
+test -p podssh-relay` since.
+
 ## Done
 
 2026-10-09, with T-082, in the commit "The codecs of the reverse road in podssh-relay".
@@ -500,6 +528,13 @@ The new test gives the relay's own bodies (`missing or wrong token`,
 the action. The bodies come from the contract and from the tests of
 `crates/podssh-relay/src/open.rs:375-393`. Plant: map `503` back to `Reconnect`; the test must
 fail.
+
+
+## Correction
+
+2026-10-31 (T-361): T-082 moved the codecs of `podssh-transport`, with their tests, into
+`podssh-relay`, and the crate is gone: this Prove's `cargo test -p podssh-transport` runs as `cargo
+test -p podssh-relay` since.
 
 ## Done
 
@@ -610,6 +645,13 @@ The new tests try `a/b`, `a?b`, `a#b`, `..`, `.`, `-x`, `a b`, a CR LF header, a
 `a.b_c-1` and `github.com` pass. Plant: remove the call to `check_node_name`; the node and the
 operator cases must fail.
 
+
+## Correction
+
+2026-10-31 (T-361): T-082 moved the codecs of `podssh-transport`, with their tests, into
+`podssh-relay`, and the crate is gone: this Prove's `cargo test -p podssh-transport` runs as `cargo
+test -p podssh-relay` since.
+
 ## Done
 
 2026-10-09, in the commit "A host or a pair name cannot change the relay path".
@@ -691,6 +733,13 @@ cargo test -p podssh-relay --no-fail-fast
 ```
 
 `git grep` exits 1 when the three items are gone. The tests show that nothing else used them.
+
+
+## Correction
+
+2026-10-31 (T-361): T-082 moved the codecs of `podssh-transport`, with their tests, into
+`podssh-relay`, and the crate is gone: this Prove's `cargo test -p podssh-transport` runs as `cargo
+test -p podssh-relay` since.
 
 ## Done
 

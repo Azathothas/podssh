@@ -161,6 +161,9 @@ impl Tree {
         t.write("TODO/area.md", AREA);
         t.write("docs/ROADMAP.md", ROADMAP);
         t.write("crates/x/src/lib.rs", SOURCE);
+        // The package that the Proves name, with a test target (T-361).
+        t.write("crates/x/Cargo.toml", "[package]\nname = \"x\"\n");
+        t.write("crates/x/tests/third.rs", "#[test]\nfn third() {}\n");
         t.write("README.md", "# x\n\nThe work order is in `TODO/PROGRESS.md` (T-001 first).\n");
         t
     }

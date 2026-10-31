@@ -15,6 +15,7 @@ pub mod interop;
 pub mod model;
 pub mod numbers;
 pub mod parse;
+pub mod prove;
 pub mod refs;
 pub mod remap;
 pub mod write;

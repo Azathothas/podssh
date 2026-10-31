@@ -110,6 +110,13 @@ entry that large is two entries.
   you map an issue, close one, or a pull request comes, move the list in the
   same commit. `.github/workflows/record-issues.yml` holds the list to GitHub
   each day, and is red until a session moves it.
+- `cargo todo check` reads the Prove of each done entry (T-361): each `-p
+  CRATE` and `--test NAME` of its `cargo test` commands, and each `scripts/`
+  path, must exist. A change that renames or moves a test target, a crate or
+  a script corrects each done Prove that names it, as a citation moves with
+  its file: a `## Correction` names the old target and where it went, as a
+  done Prove is what ran. `cargo todo set T-NNN done` refuses a Prove whose
+  target does not exist.
 
 ### Citations move with their documents
 

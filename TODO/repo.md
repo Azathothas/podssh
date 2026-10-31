@@ -4735,8 +4735,8 @@ beginning with the issue's state; and no number that the list does not hold.
   which compares the list with `gh issue list` and `gh pr list` (a merged pull request is
   closed), and its plant: a number dropped, which must exit 1. Here, with GitHub's lists of the
   day as files: exit 0 ("holds GitHub's 77 numbers"); with #1 dropped, exit 1, naming it; with an
-  issue #78 that the list does not hold, exit 1, naming it. Its first run on GitHub is the next
-  push's or the next day's.
+  issue #78 that the list does not hold, exit 1, naming it. Its first run on GitHub, by hand
+  (run 41193184671 at 34ce8ab): passed, the list holding GitHub's numbers, and the plant exited 1.
 - `TODO/RULES.md` says to move the list with each mapping, closing and pull request.
 
 
@@ -4748,7 +4748,7 @@ Approach item 2.
 **Milestone:** none
 **Priority:** P2
 **Effort:** S
-**Status:** open
+**Status:** done
 
 ## Problem
 
@@ -4760,7 +4760,7 @@ that does not exist today.
 ## Premise
 
 - Read: the check of a Prove is that its body holds a backtick
-  (`crates/podssh-todo/src/check.rs:298-302`); a line in a fenced block is no citation
+  (`crates/podssh-todo/src/check.rs:321-325`); a line in a fenced block is no citation
   (`crates/podssh-todo/src/refs.rs:96-99`), and the commands of a Prove are in one.
 - Measured on 2026-10-31, with a script of this triage over the `## Prove` of each entry: each
   `cargo test -p CRATE --test NAME` against the crate's `tests/` and its `[[test]]` targets, and
@@ -4806,6 +4806,32 @@ Planted: a done entry's `--test` renamed to one that does not exist; the check n
 the line and the target. A `scripts/` path of a done Prove renamed; the check names it. The
 control: the record with the five Corrections passes, and `cargo todo set` refuses to close an
 entry whose Prove names a target that does not exist.
+
+## Correction
+
+2026-10-31: eight done entries named `-p podssh-transport`, not five: T-069, T-071, T-072, T-073,
+T-074, T-075, T-076 and T-077, as the check reads each line of a Prove, its prose among them,
+where the triage's script read its commands. Each has a Correction for the move of T-082 now.
+
+## Done
+
+2026-10-31: `cargo todo check` reads the Prove of each done entry
+(`crates/podssh-todo/src/prove.rs`): each `-p`/`--package` of its `cargo test` commands is a
+package of the tree (the workspace's crates, `fuzz/`, `vendor/` and its crates), each `--test` a
+file of a `tests/` of one of them or a `[[test]]` of its manifest, and each `scripts/` path
+exists; a target that the entry's `## Correction` names is taken. `cargo todo set T-NNN done`
+refuses a Prove whose target does not exist, with its name.
+
+- Its first run named the eight entries of the Correction above; each got a Correction for the
+  move of T-082 into `podssh-relay`. T-136's `cp_resume` is taken, as its Correction names it.
+- Tests (`crates/podssh-todo/tests/prove.rs`, on the checker's own tree, which now holds the
+  manifest and a test of its package `x`): the control, and a `--test` that exists, pass; planted,
+  a `--test gone` ("TODO/area.md:84: T-003: its Prove names the test target gone"), and a
+  script that does not exist (check.sh of the tree's scripts), are named; a target that the Correction names is taken;
+  `set` refuses to close T-001 with a Prove that names `gone`, and closes it once the target
+  exists. `cargo test -p podssh-todo`, 101 passed; clippy `-D warnings` clean.
+- `TODO/RULES.md` says that a change which renames a target corrects each done Prove.
+
 
 # T-362: A claim that something is not built yet carries no date or entry, and a status beside an id is not checked
 
@@ -4858,7 +4884,7 @@ of GitHub #69 to #72 corrected these; nothing finds the next.
    get their entry or a date, or are corrected, in the same change.
 3. A status written beside an id in those documents (`T-NNN, partial`, `(T-NNN, open)`) agrees
    with the index, unless its paragraph reads at a date or at a commit, as the record's readings
-   do (`TODO/RULES.md:135-140`): "T-099, partial" of 2026-10-10 is such a reading
+   do (`TODO/RULES.md:142-147`): "T-099, partial" of 2026-10-10 is such a reading
    (`docs/STATUS.md:606`).
 4. `TODO/RULES.md` says it, beside the rules of citations.
 

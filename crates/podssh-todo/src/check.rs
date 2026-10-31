@@ -117,6 +117,7 @@ pub fn check_with(root: &Path, changed: Option<Vec<String>>, head: &crate::remap
     crate::refs::check(root, &record, &mut problems);
     // GitHub's numbers in the map (T-360).
     crate::github::check(root, &mut problems);
+    check_proves(root, &record.entries, &mut problems);
     if let Some(files) = changed.filter(|f| !f.is_empty()) {
         unmoved(root, &files, head, rev, &mut problems);
     }
@@ -243,6 +244,28 @@ fn check_agreement(rows: &[Row], entries: &[Entry], p: &mut Vec<Problem>) {
             p.push(Problem::new(&format!("TODO/{}", e.file), e.line, format!("{} has no row in the index", e.id)));
         }
     }
+}
+
+/// The targets of each done Prove (T-361): what it names must exist, but a
+/// target that its Correction names, which moved since the entry closed.
+fn check_proves(root: &Path, entries: &[Entry], p: &mut Vec<Problem>) {
+    let packages = crate::prove::Packages::of(root);
+    for e in entries.iter().filter(|e| e.field("Status") == Some("done")) {
+        for (line, what) in prove_gaps(root, &packages, e) {
+            p.push(Problem::new(&format!("TODO/{}", e.file), line, format!("{}: {what}", e.id)));
+        }
+    }
+}
+
+/// What the Prove of `e` names and the tree does not hold, each with its
+/// line and its words.
+pub fn prove_gaps(root: &Path, packages: &crate::prove::Packages, e: &Entry) -> Vec<(usize, String)> {
+    let Some(prove) = e.section("Prove") else { return Vec::new() };
+    let correction = e.section("Correction").map(|c| c.body.as_str()).unwrap_or("");
+    crate::prove::missing(root, packages, &prove.body, prove.line, correction)
+        .into_iter()
+        .map(|(line, what)| (line, format!("its Prove names {what}; a target that moved is named in `## Correction`")))
+        .collect()
 }
 
 /// The form of one entry: its fields, its sections, and what its status

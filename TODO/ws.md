@@ -653,6 +653,13 @@ New tests make each class with a scripted peer on an in-memory stream: a peer th
 of stream with no Close, and a peer that stops answering pings (`Dead`). The tests that match
 the text still pass. Planted defect: map each error to `Io`; the class tests fail.
 
+
+## Correction
+
+2026-10-31 (T-361): T-082 moved the codecs of `podssh-transport`, with their tests, into
+`podssh-relay`, and the crate is gone: this Prove's `cargo test -p podssh-transport` runs as `cargo
+test -p podssh-relay` since.
+
 ## Done
 
 2026-10-09, in the commit "A session's failure has a class".

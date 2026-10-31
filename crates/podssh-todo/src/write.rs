@@ -99,6 +99,13 @@ pub fn set_status(root: &Path, id: &str, status: &str) -> Result<(), String> {
         "done" if !entry.section("Done").is_some_and(|d| crate::check::has_date(&d.body)) => {
             return Err(format!("{id}: write the evidence first, in `## Done` with its date"))
         }
+        // A Prove that names what the tree does not hold did not run (T-361).
+        "done" => {
+            let packages = crate::prove::Packages::of(root);
+            if let Some((_, what)) = crate::check::prove_gaps(root, &packages, entry).into_iter().next() {
+                return Err(format!("{id}: {what}"));
+            }
+        }
         "blocked" if entry.section("Blocker").is_none() => {
             return Err(format!("{id}: write what blocks it first, in `## Blocker`"))
         }

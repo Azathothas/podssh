@@ -4168,7 +4168,7 @@ a hop. `doctor` has no line for a hop, so a user cannot see whether one is reach
 - Read: a prompt goes to the terminal, or to the program of `SSH_ASKPASS`, chosen as OpenSSH
   chooses it (`crates/podssh-ssh/src/prompt.rs:1-12`).
 - Read: through the agent proxy of a cloud container, a CONNECT to `ssh.github.com:443` got `200`,
-  and then a reset: `TODO/ws.md:1153` says "gets 200, then a reset". A proxy that waits for TLS
+  and then a reset: `TODO/ws.md:1160` says "gets 200, then a reset". A proxy that waits for TLS
   carries no SSH on port 443; T-372 wraps SSH in TLS for it. Through the relay, GitHub's SSH on
   port 443 answers (`docs/STATUS.md:108`).
 - Read: `doctor` asks the proxy for the relay and for `github.com` only
@@ -4249,7 +4249,7 @@ TCP, and podssh runs no `ProxyCommand` that could add TLS.
   (`crates/podssh-ws/src/tls.rs:315-318`).
 - Read: the agent proxy of a cloud container re-terminates TLS for some names, with its CA in
   `SSL_CERT_FILE` (`docs/target-environment.md:57-66`), and reset SSH on port 443
-  (`TODO/ws.md:1151-1154`). Inferred: SSH inside TLS passes such a proxy where podssh trusts the
+  (`TODO/ws.md:1158-1161`). Inferred: SSH inside TLS passes such a proxy where podssh trusts the
   proxy's CA.
 - Read in GitHub #61 (a tester's report, which the tester's own run did not reproduce):
   `mx1.vpnjantit.com:443` and `ee2.vpnjantit.com:443` answer TLS, then SSH.
