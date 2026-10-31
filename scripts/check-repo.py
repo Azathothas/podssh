@@ -149,7 +149,7 @@ LISTENERS = {
         "crates/podssh-cli/src/ssh/local_bind.rs",
         "crates/podssh-ssh/src/mux/tests.rs",
     ],
-    "listen(": ["crates/podssh-cli/src/pipe/listen_win.rs"],
+    "listen(": ["crates/podssh-cli/src/pipe/listen_win.rs", "crates/podssh-cli/src/doctor/unix.rs"],
     "socket2": [],
 }
 # Rule 6 of AGENTS.md in the code: the four markers (written here as escapes,

@@ -110,7 +110,9 @@ Each rule is implemented.
   says so, and `PODSSH_LISTEN=no` turns listening off. The agent's keys
   live in its memory only. It never executes something that
   it receives over chat. `podssh doctor` binds a socket to test whether the
-  host allows a bind, and closes it without listening. The iroh road, in a
+  host allows a bind and a listen, listens once with a backlog of 1 on
+  127.0.0.1 and on a socket file of mode 0600, accepts nothing, and closes it
+  at once; with `PODSSH_LISTEN=no` it does not listen. The iroh road, in a
   build with the feature `iroh`, binds UDP for its direct paths only after
   a probe allows it; with no UDP, its relay carries each byte, and a peer
   is accepted only with the ALPN of podssh's sessions. A node whose TARGET

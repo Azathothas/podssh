@@ -62,15 +62,15 @@ repository and CI).
 
 ## Counts
 
-**373 entries: 45 open, 4 partial, 29 blocked, 295 done.**
+**373 entries: 43 open, 4 partial, 29 blocked, 297 done.**
 
 | Priority | open | partial | blocked | done | total |
 | --- | --- | --- | --- | --- | --- |
 | P0 | 0 | 0 | 0 | 1 | 1 |
-| P1 | 4 | 1 | 0 | 26 | 31 |
+| P1 | 2 | 1 | 0 | 28 | 31 |
 | P2 | 10 | 3 | 20 | 152 | 185 |
 | P3 | 31 | 0 | 9 | 116 | 156 |
-| **All** | 45 | 4 | 29 | 295 | 373 |
+| **All** | 43 | 4 | 29 | 297 | 373 |
 
 ## Entries
 
@@ -429,8 +429,8 @@ repository and CI).
 | [T-354](resume.md) | P2 | S | backlog | defect | done | A session that closes while it moves can say a loss that was none |
 | [T-355](repo.md) | P2 | M | none | chore | partial | Dependabot's updates of 2026-10-30 and 2026-10-31, and the curves' 0.14 |
 | [T-356](ssh.md) | P1 | M | none | defect | partial | russh 0.65.0 fixes six advisories, three of them in the client, and gives the session binding |
-| [T-357](cli.md) | P1 | S | backlog | defect | open | `doctor` names `pipe` alone as a listener, and its module says that it alone calls `bind()` |
-| [T-358](cli.md) | P1 | S | backlog | defect | open | `doctor` measures a bind and never a listen, so a host that refuses `listen()` reads as one that listens |
+| [T-357](cli.md) | P1 | S | backlog | defect | done | `doctor` names `pipe` alone as a listener, and its module says that it alone calls `bind()` |
+| [T-358](cli.md) | P1 | S | backlog | defect | done | `doctor` measures a bind and never a listen, so a host that refuses `listen()` reads as one that listens |
 | [T-359](roads.md) | P2 | M | backlog | defect | open | The iroh road takes UDP on a bind alone, and `doctor` says that it may go direct with nothing sent |
 | [T-360](repo.md) | P2 | M | none | defect | open | Nothing reads `TODO/issues.md`: issues #59 to #63 have no row, and no check compares the map with GitHub |
 | [T-361](repo.md) | P2 | S | none | defect | open | A Prove may name a test target or a script that no longer exists, and the record's check passes |

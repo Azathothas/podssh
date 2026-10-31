@@ -262,14 +262,14 @@ it there.
   (`crates/podssh-ssh/src/terminal/unix.rs:86-163`). That table is the one to
   read in reverse on the server; a second table would drift.
 - Read: doctor already opens a pty to test the host
-  (`crates/podssh-cli/src/doctor/unix.rs:78-134`). The client continues
+  (`crates/podssh-cli/src/doctor/unix.rs:83-139`). The client continues
   without a pty when the server refuses (`crates/podssh-ssh/src/session.rs:81-94`).
 - Read: the measured sandbox has no `/dev/ptmx` and no `/dev/pts`
   (`docs/target-environment.md:26`); there, T-111 applies.
 
 ## Approach
 
-1. Move the pty code of `crates/podssh-cli/src/doctor/unix.rs:78-134` into
+1. Move the pty code of `crates/podssh-cli/src/doctor/unix.rs:83-139` into
    the server module, with `O_CLOEXEC`, and let doctor call it. Try
    `/dev/ptmx`, then `/dev/pts/ptmx`, at each `pty-req`; never keep the
    result for the next session. Failure: T-111, or failure until T-111 exists.
@@ -496,7 +496,7 @@ out with matching digests.
   (`docs/relay.md:253`; measured: `docs/STATUS.md:287`). 200 MiB each way
   needs the new sessions of T-137.
 - Read: the box matches the sandbox, except the `EACCES` on loopback
-  `connect()` (`scripts/test_in_box.sh:19-26`).
+  `connect()` (`scripts/test_in_box.sh:24-31`).
 
 ## Approach
 
@@ -1011,7 +1011,7 @@ with no privileges needs a way that the host allows, found by a probe.
 ## Premise
 
 - Read: podssh never assumes a tool or a privilege; it starts a program only
-  when a probe found it (`AGENTS.md:246-260`).
+  when a probe found it (`AGENTS.md:246-261`).
 - Read: a credential never goes on argv or into output (`AGENTS.md:212-217`).
   The command line of a unit file is argv, so it must hold no token.
 - Read in the reports of GitHub #20 and #18, not verified here: tty7, zuko
@@ -1147,7 +1147,7 @@ own scope; serve does nothing like it.
 ## Premise
 
 - Read: podssh must not assume systemd, and starts a program only when a probe
-  found it (`AGENTS.md:246-260`, `docs/target-environment.md:101-103`).
+  found it (`AGENTS.md:246-261`, `docs/target-environment.md:101-103`).
 - Read: T-110 and T-111 start each child with `setsid`, in serve's cgroup.
 - Read in the report of GitHub #19, not verified here: ssh-obi moves its pty
   children into a transient scope when systemd is there, and works without
@@ -1275,11 +1275,11 @@ a VM with no sshd, or on a network that lets only port 443 in. Without
   when the user asks for it and a probe at run time allows the bind. The
   default is loopback and AF_UNIX; the user can set the address and can turn
   listening off. The rules still say that podssh never listens
-  (`AGENTS.md:248-253`, `docs/architecture.md:132-145`).
+  (`AGENTS.md:248-254`, `docs/architecture.md:132-146`).
 - Read: russh has the listener: `Server::run_on_socket` and `run_on_address`
   (`Eugeny/russh:russh/src/server/mod.rs`, lines 900-1010 at `22c3b88`). doctor binds a
-  TCP and an AF_UNIX socket to test the host, and closes them at once
-  (`crates/podssh-cli/src/doctor/unix.rs:137-188`).
+  TCP and an AF_UNIX socket to test the host, listens once on each, and closes them at once
+  (`crates/podssh-cli/src/doctor/unix.rs:142-265`).
 - Read in the report of GitHub #18, not verified here: sandhole can take SSH
   on its HTTPS port, and quic-ssh falls back to TLS over TCP on one port.
 
@@ -1301,7 +1301,7 @@ a VM with no sshd, or on a network that lets only port 443 in. Without
 5. Later step: SSH and TLS on one port. Read the first bytes: `SSH-2.0-` goes
    to SSH; a TLS ClientHello (0x16) is refused.
 6. Same commit: the flags, the manual, `docs/cli.md`, and the rules in
-   `AGENTS.md:248-253` and `docs/architecture.md:132-145`, which then name this
+   `AGENTS.md:248-254` and `docs/architecture.md:132-146`, which then name this
    exception and the ruling.
 
 ## Prove
@@ -1430,7 +1430,7 @@ criterion of M5 (T-113) needs them.
 ## Premise
 
 - Read: `podssh doctor` asks for a pty with `posix_openpt`
-  (`crates/podssh-cli/src/doctor/unix.rs:78-93`). Both real sandboxes have no
+  (`crates/podssh-cli/src/doctor/unix.rs:83-98`). Both real sandboxes have no
   `/dev/ptmx` (`docs/STATUS.md:279`), and the target has no `/dev/pts`
   (`docs/target-environment.md:26`).
 - Read: the box and the sandboxes run with `NoNewPrivs=1` and a seccomp

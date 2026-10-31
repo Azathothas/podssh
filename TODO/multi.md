@@ -72,7 +72,7 @@ succeeded. `podssh ssh` takes one destination, as OpenSSH does.
 ## Decision
 
 Recommendation: a new verb, because `podssh ssh` keeps the command line and
-the exit codes of OpenSSH for one host (`docs/cli.md:2441-2444`), and a list
+the exit codes of OpenSSH for one host (`docs/cli.md:2448-2451`), and a list
 of hosts changes both. The alternative, `podssh ssh --hosts LIST`, lost: one
 flag would change what the exit status means.
 
@@ -184,7 +184,7 @@ is not a shell. A set of hosts has no name.
   (`crates/podssh-cli/src/ssh/hop.rs:30-78`,
   `crates/podssh-ws/src/names.rs:10-24`).
 - Read: the `Host` lines of ssh_config are patterns, not lists
-  (`docs/cli.md:2569-2662`); they cannot define a group.
+  (`docs/cli.md:2576-2669`); they cannot define a group.
 
 ## Approach
 
@@ -525,7 +525,7 @@ and read the screen, over several of its own calls. Each run of
 4. One JSON line for each request and each answer, with a version first.
 5. The background podssh ends with its session, after `stop`, or after 1 h
    with no request, and removes its socket. Credentials never cross it.
-6. In the same commit: `docs/cli.md`, the notes, `SECURITY.md:98-119` (a
+6. In the same commit: `docs/cli.md`, the notes, `SECURITY.md:98-121` (a
    local socket that runs commands), `docs/STATUS.md`. T-039 can use the
    same background process.
 
@@ -1180,7 +1180,7 @@ name is copied by hand.
   remote command with a pty (`crates/podssh-cli/src/ssh/resolve.rs:275-283`,
   `crates/podssh-cli/src/ssh/hop.rs:97-108`). Only the list is missing.
 - Read: podssh starts a program only when the user names it or a probe
-  finds it (`AGENTS.md:256-260`). Here the programs run on the server, for a
+  finds it (`AGENTS.md:257-261`). Here the programs run on the server, for a
   request of the user.
 
 ## Approach
@@ -1370,7 +1370,7 @@ expect rule.
    reads `\r`, `\n`, `\t` and `\xNN`. Each rule waits `--expect-timeout`
    (default 30 s); a miss ends the session with 255 and names the rule.
 3. No secrets: `--send` is on the command line, which each process can read
-   (`docs/architecture.md:155-157`). The manual says so; passwords come
+   (`docs/architecture.md:156-158`). The manual says so; passwords come
    through `SSH_ASKPASS`.
 4. Tasks before and after the connection: the shell does them
    (`cmd && podssh ssh host; cmd`). Only `LocalCommand` needs podssh,
@@ -1547,7 +1547,7 @@ of the command.
    quoted for a POSIX shell (T-187). When the copy used most of the 64 MiB
    (`docs/relay.md:187`), run the exec on a new session (T-137).
 4. The exit status: the command's, with the rules of `podssh ssh`
-   (`docs/cli.md:2441-2444`). A failed copy exits 255 and runs nothing.
+   (`docs/cli.md:2448-2451`). A failed copy exits 255 and runs nothing.
 5. In the same commit: the rows, the notes, an example, `docs/cli.md`,
    `docs/STATUS.md`. This entry depends on T-134 and T-143.
 
@@ -1802,19 +1802,19 @@ a ticket, or a tool that asks an AI.
 ## Premise
 
 - Read: podssh starts another program only when the user names it
-  (`AGENTS.md:256-260`), as it runs `SSH_ASKPASS`: the program, no shell, and
+  (`AGENTS.md:257-261`), as it runs `SSH_ASKPASS`: the program, no shell, and
   its first line read back (`crates/podssh-ssh/src/prompt.rs:102-119`).
 - Read: credentials never go to output, logs, URLs or argv
-  (`docs/architecture.md:155-157`). The token type never shows itself
+  (`docs/architecture.md:156-158`). The token type never shows itself
   (`crates/podssh-relay/src/token.rs:27-56`), and doctor never shows proxy
-  credentials or tokens (`docs/cli.md:1345-1347`).
+  credentials or tokens (`docs/cli.md` lines 1345-1347 at `48a8744`).
 - Read: podssh's messages leave through two writers: `Streams.err` in the
   command line (`crates/podssh-cli/src/dispatch.rs:26-29`), and `Log`, which
   writes to the stderr of the process itself
   (`crates/podssh-ssh/src/log.rs:83-103`). The exit code leaves through
   `crates/podssh-cli/src/dispatch.rs:319-347`.
 - Read: for `podssh ssh`, an exit that is not 0 can be the remote command's
-  status (`docs/cli.md:2441-2444`), which is not a failure of podssh.
+  status (`docs/cli.md:2448-2451`), which is not a failure of podssh.
 
 ## Approach
 

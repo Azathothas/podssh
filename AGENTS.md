@@ -247,7 +247,8 @@ These rules come from [docs/decisions.md](docs/decisions.md).
    Probe it at runtime. Do not use a capability that was not probed.
 2. Make one outbound connection, through `HTTPS_PROXY` when it is set. Do
    not bind, listen, or use loopback helpers. (`podssh doctor` binds a
-   socket to test the host, and closes it without listening.) Three
+   socket to test the host, listens once with a backlog of 1, accepts
+   nothing, and closes it at once; never with `PODSSH_LISTEN=no`, Q53.) Three
    exceptions: by the decisions of 2026-10-08, a listener that the user asks
    for, when a probe at run time allows the bind, and a race between relay
    hosts, which can open a second connection for a short time; by the

@@ -12,8 +12,10 @@
 //! published host key), never by the shape of a banner. The token is used and
 //! never shown, and proxy credentials never appear.
 //!
-//! The bind probes here are the only place podssh calls `bind()`: they never
-//! listen, and close at once.
+//! The bind probes here listen once, accept nothing and close at once (T-358).
+//! Each other bind of podssh is a listener that the user asks for, or the UDP
+//! socket of a road; the listener scan of `scripts/check-repo.py` holds their
+//! files, and `listeners.rs` names the listeners for doctor's lines.
 
 use std::io::Write;
 
@@ -26,6 +28,7 @@ pub(crate) mod clock;
 mod host;
 #[cfg(feature = "iroh")]
 mod iroh;
+pub mod listeners;
 mod net;
 mod pairs;
 mod quick;

@@ -49,7 +49,7 @@ unknown flag (exit 64), and `Cargo.lock` has no iroh crate.
    (`docs/design.md:956`).
 3. UDP: `clear_ip_transports()` by default. Add the UDP transport only after a
    probe that binds a UDP socket to port 0 and closes it, as `bind_inet`
-   probes TCP (`crates/podssh-cli/src/doctor/unix.rs:137-166`).
+   probes TCP (`crates/podssh-cli/src/doctor/unix.rs` lines 137-166 at `48a8744`).
 4. A session is one QUIC stream with the ALPN `podssh/1`. It carries the
    records of the resumable layer (T-151), so it can resume on the other road
    (T-153).
@@ -60,7 +60,7 @@ unknown flag (exit 64), and `Cargo.lock` has no iroh crate.
    iroh destination refuses before it connects and names `--features iroh`,
    as `crates/podssh-cli/tests/ts_not_built.rs:1-4` shows for `ts`.
 7. Docs: the "Outbound only" item of `README.md`, "Nothing listens" in
-   `SECURITY.md:98-119`, `docs/architecture.md` (rule 3, the crates),
+   `SECURITY.md:98-121`, `docs/architecture.md` (rule 3, the crates),
    `docs/design.md` section 7, and `AGENTS.md` (sections 3 and 7).
 
 ## Decision
@@ -3422,7 +3422,7 @@ Endpoint puts a credential in its URL.
   aws/aws-cli:awscli/customizations/ec2instanceconnect/eicesigner.py): EC2 Instance Connect
   Endpoint takes a presigned SigV4 `wss://` URL, valid for 60 s, then raw binary frames; AWS's
   client honours `HTTPS_PROXY`; a connection lasts an hour at most, and 20 run at once.
-- Read: credentials never go in URLs (`docs/architecture.md:157-159`; `docs/design.md:62`), and
+- Read: credentials never go in URLs (`docs/architecture.md:158-160`; `docs/design.md:62`), and
   `docs/decisions.md:43` says "in a header or a 0600 file and never in a URL" of the relay's
   tokens. The presigned URL carries an access key id and a signature in its query.
 - Read: the `cf://` road uses podssh-ws's WebSocket client through the proxy
@@ -3688,7 +3688,7 @@ code that no command of the default build uses is P2 at most".
   when a socket binds" (`crates/podssh-cli/src/man/facts.rs:273-274`).
 - Read: doctor's two answers are `ok`: "the iroh road may go direct" after a bind, and "the iroh
   road then uses its relay alone" after a refusal (`crates/podssh-cli/src/doctor/iroh.rs:12-18`),
-  in a build with the feature only (`crates/podssh-cli/src/doctor/mod.rs:107-108`). The refusal's
+  in a build with the feature only (`crates/podssh-cli/src/doctor/mod.rs:110-111`). The refusal's
   `ok` is doctor's rule, as the relay alone is a road that works; the bind's "may go direct" is
   not measured.
 - Read, in iroh 1.4.1 (the local cargo registry, `src/net_report/report.rs`): iroh's report of
@@ -3747,7 +3747,7 @@ code that no command of the default build uses is P2 at most".
    network, as a network can change under the same address; the race of T-164 already hides the
    wait where the reverse road is there, and `PODSSH_IROH_UDP=off` takes it away.
 3. UDP beside a proxy does not change: the operator accepted the iroh road's UDP after a probe
-   (`docs/architecture.md:139-142`), and the quick tunnel's narrower rule, no QUIC where a proxy
+   (`docs/architecture.md:140-143`), and the quick tunnel's narrower rule, no QUIC where a proxy
    is set (T-301), stays its own.
 
 ## Prove
@@ -3796,7 +3796,7 @@ does not depend on them.
   "`--direct`, or when a probe shows it works"; the triage of GitHub #69 to #72 named this entry
   there.
 - Read: rule 2 of `AGENTS.md` allows a second connection at once for a race between relay hosts,
-  and for the split HTTP road (`AGENTS.md:248-255`); a race of the forward and the direct road is
+  and for the split HTTP road (`AGENTS.md:248-256`); a race of the forward and the direct road is
   neither.
 - Read: the direct dial goes through `HTTPS_PROXY` when it is set, with the relay's step limit of
   20 s (`crates/podssh-cli/src/ssh/transport.rs:285-299`, `crates/podssh-relay/src/open.rs:30`),
@@ -4197,7 +4197,7 @@ cannot make it a road.
   (`crates/podssh-ws/src/socks5.rs:1-7`); a library crate has no C (`AGENTS.md`, section 5, rule
   4).
 - Read: tokens and keys never appear in argv, logs or URLs, and go in files with tight permissions
-  (`docs/architecture.md:157-159`); an `ss://` URI holds the password.
+  (`docs/architecture.md:158-160`); an `ss://` URI holds the password.
 - Read: podssh starts no program that the user did not name (`AGENTS.md`, section 5, rule 3), and
   a plugin of Shadowsocks is another program.
 - Inferred: a proxy that waits for TLS on port 443 carries no Shadowsocks, as it carries no SSH

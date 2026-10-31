@@ -17,8 +17,8 @@ pub(super) fn check(report: &mut Report<'_>) {
     #[cfg(unix)]
     {
         report.line("pty", super::unix::pty());
-        report.line("bind AF_INET", super::unix::bind_inet());
-        report.line("bind AF_UNIX", super::unix::bind_unix());
+        report.line("listen AF_INET", super::unix::bind_inet());
+        report.line("listen AF_UNIX", super::unix::bind_unix());
         exec::check(report);
     }
     terminal(report);

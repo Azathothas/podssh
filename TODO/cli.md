@@ -187,7 +187,7 @@ measured: the debug binary has no `ts`).
 1. In the `Parsed::Command` arm, refuse a verb of `VERB_OWNER`
    (`crates/podssh-cli/src/flags.rs`, line 453 at `7aa955a`) before the gate. Keep one usage
    error first: a `--timeout` value that was given and does not parse is 64
-   (`docs/cli.md:2435-2436`).
+   (`docs/cli.md:2442-2443`).
 2. Give `require_timeout` the verb's name. The message names that verb, gives
    one true reason, and shows an example for that verb only. Replace
    `({attachment:?})` with words: "stdin or stdout is not a terminal", or
@@ -197,7 +197,7 @@ measured: the debug binary has no `ts`).
    (`crates/podssh-cli/src/dispatch.rs`, lines 424-477 at `7aa955a`,
    `crates/podssh-cli/tests/non_interactive.rs` lines 252-284 at `37ace00`). `ts` is the only verb
    that runs the gate today (`crates/podssh-cli/tests/ts_behave.rs:220-226`).
-5. Same commit: `docs/STATUS.md`. `docs/cli.md:2478` needs no change.
+5. Same commit: `docs/STATUS.md`. `docs/cli.md:2485` needs no change.
 
 ## Decision
 
@@ -604,7 +604,7 @@ variable matters when `cp`, `mv` and `relay` exist. `ssh` and `proxy` have no
    which `each_variable_in_the_source_is_documented` requires
    (`crates/podssh-cli/src/man/facts/tests.rs:57-70`); "default: env
    PODSSH_TIMEOUT" in the help of each `--timeout` row, as `--relay-host` says
-   it (`crates/podssh-cli/src/flags.rs:171-172`); `docs/cli.md:2554-2556`;
+   it (`crates/podssh-cli/src/flags.rs:171-172`); `docs/cli.md:2561-2563`;
    `docs/STATUS.md`.
 5. Do this after T-008, so that a verb that does nothing still exits 70 first.
 
@@ -1035,7 +1035,7 @@ read in the report, not verified here.
 
 A host with no working `ssh-keygen` cannot change the passphrase or the
 comment of a key: the `ssh-keygen` of OpenSSH does not run without a user
-database entry (`docs/cli.md:1487-1488`). `podssh keygen -p` and `-c` exit 64
+database entry (`docs/cli.md:1494-1495`). `podssh keygen -p` and `-c` exit 64
 with "unknown flag", not a refusal by name. podssh's own message for a PEM key
 names `ssh-keygen -p -f FILE` as the remedy
 (`crates/podssh-ssh/src/keygen.rs`, lines 163-166 at `bdbe658`), a program that may not run there.
@@ -1067,13 +1067,13 @@ on argv (`crates/podssh-cli/src/keygen.rs:129-136`).
 3. `-p`: ask for the new passphrase twice (or take `-N ''`), and encrypt with
    `keygen::protect`. `-c`: take `-C` or ask; refuse a control character, as
    `crates/podssh-cli/src/keygen.rs:289-292` does. Write the OpenSSH format.
-4. A new invariant beside "never over an existing file" (`docs/cli.md:1489`):
+4. A new invariant beside "never over an existing file" (`docs/cli.md:1496`):
    write a new file in the same directory (`create_new`, mode 0600), read it
    back, decrypt it with the new passphrase, compare its public key with the
    original, then rename it over the original. Never write a different key
    over the file. For `-c`, write `FILE.pub` again.
 5. Same commit: the PEM message at `crates/podssh-ssh/src/keygen.rs` (lines 184-187 at `8290fe1`)
-   names `podssh keygen -p`; `docs/cli.md:1483-1586`, the notes of `keygen`
+   names `podssh keygen -p`; `docs/cli.md:1490-1593`, the notes of `keygen`
    (`crates/podssh-cli/src/man/notes_keygen.rs:4-50`), `docs/STATUS.md`.
 
 ## Decision
@@ -1192,7 +1192,7 @@ The default files are the ones of `podssh ssh`
    it, and say so.
 4. `-H`: a random salt of 20 bytes and the HMAC-SHA1 of `hashed_matches`, so
    podssh and OpenSSH both find the result.
-5. Same commit: `docs/cli.md:1483-1586`, the notes of `keygen`, `docs/STATUS.md`.
+5. Same commit: `docs/cli.md:1490-1593`, the notes of `keygen`, `docs/STATUS.md`.
 
 Pitfall: a rewrite can lose a key that `podssh ssh` appends at the same moment
 (T-029). Read the file again just before the rename, and refuse if it changed.
@@ -1314,7 +1314,7 @@ that crate as `russh::keys::ssh_key` (`crates/podssh-ssh/src/keygen.rs:11-13`).
    matcher of `known_hosts` (`crates/podssh-ssh/src/known_hosts.rs:311-333`).
    Print the lines and the exit codes of OpenSSH.
 4. Refuse `-r` (a key revocation list) by name until podssh reads one.
-5. Same commit: `docs/cli.md:1483-1586`, the notes of `keygen`, `docs/STATUS.md`.
+5. Same commit: `docs/cli.md:1490-1593`, the notes of `keygen`, `docs/STATUS.md`.
 
 Pitfalls: read the signed file as bytes, never as text. A namespace that does
 not match is a failure, never a warning.
@@ -1437,7 +1437,7 @@ as plain keys (`docs/STATUS.md`, section "Components"). T-027 covers that side.
    `force-command=`, `source-address=`, and the `no-` and `permit-` options;
    refuse the others by name.
 5. `-L`: print the certificate as `ssh-keygen -L` does.
-6. Same commit: `docs/cli.md:1483-1586`, the notes of `keygen`, `docs/STATUS.md`.
+6. Same commit: `docs/cli.md:1490-1593`, the notes of `keygen`, `docs/STATUS.md`.
 
 ## Decision
 
@@ -1565,7 +1565,7 @@ keys/format/mod.rs, read in the local cargo registry).
    public key in that format, and write the OpenSSH line to stdout.
 4. `-m` with a new key and with `-p` (T-018): write the private key in that
    format; use `encode_pkcs8_pem_encrypted` when there is a passphrase.
-5. Same commit: `docs/cli.md:1483-1586`, the notes of `keygen`, `docs/STATUS.md`.
+5. Same commit: `docs/cli.md:1490-1593`, the notes of `keygen`, `docs/STATUS.md`.
 
 Pitfalls: no new C dependency. A format that a key type does not have (PEM
 for Ed25519) is refused by name.
@@ -1762,7 +1762,7 @@ file); measured here on `3ee70dc`.
 A `PODSSH_RELAY` or `PODSSH_RELAY_ADDR` that cannot be used makes
 `podssh proxy`, `podssh ssh` and `podssh doctor` exit 64, the code of a usage
 error. The command line is correct; a setting of the environment is not.
-`docs/cli.md:2435-2436` and `docs/decisions.md` ("Exit codes") give 78
+`docs/cli.md:2442-2443` and `docs/decisions.md` ("Exit codes") give 78
 (`EX_CONFIG`) for a configuration error. A script that reads 64 looks for the
 fault in its arguments.
 
@@ -1877,7 +1877,7 @@ flag (`crates/podssh-cli/tests/non_interactive.rs`, line 185 at `8c05b5e`).
 The real gate is `can_ask` (`crates/podssh-ssh/src/prompt.rs:82`), called at
 `crates/podssh-ssh/src/auth.rs:189`, `crates/podssh-ssh/src/auth.rs:306`,
 `crates/podssh-ssh/src/keys.rs:321` and `crates/podssh-cli/src/keygen.rs:382`.
-Its refusals name the real remedies (`docs/cli.md:2516-2518`). Commands use
+Its refusals name the real remedies (`docs/cli.md:2523-2525`). Commands use
 these parts of the module, which stay: `Attachment`, `resolve`, `resolve_tty`,
 `parse_timeout`, `require_timeout` (`crates/podssh-cli/src/dispatch.rs:249-267`,
 `crates/podssh-cli/src/ts.rs:54-63`) and `refuse_jsonl_in_proxy`
@@ -2442,7 +2442,7 @@ its ask 2, a listen after the bind, is T-358.
 **Milestone:** backlog
 **Priority:** P1
 **Effort:** S
-**Status:** open
+**Status:** done
 
 ## Problem
 
@@ -2458,14 +2458,14 @@ nothing.
 ## Premise
 
 - Read: `bind_inet` makes a TCP socket, binds 127.0.0.1 port 0, reads its name and closes it,
-  with no `listen()` (`crates/podssh-cli/src/doctor/unix.rs:137-161`); each answer is `ok`, and
-  `crates/podssh-cli/src/doctor/unix.rs:164` says "only podssh pipe tcp-listen: would listen".
+  with no `listen()` (`crates/podssh-cli/src/doctor/unix.rs` lines 137-161 at `48a8744`); each answer is `ok`, and
+  `crates/podssh-cli/src/doctor/unix.rs` line 164 at `48a8744` says "only podssh pipe tcp-listen: would listen".
   The Unix probe ends each answer the same way:
-  `crates/podssh-cli/src/doctor/unix.rs:186` says "podssh listens only for podssh pipe unix-listen:".
-  The lines are `bind AF_INET` and `bind AF_UNIX` (`crates/podssh-cli/src/doctor/host.rs:20-21`),
+  `crates/podssh-cli/src/doctor/unix.rs` line 186 at `48a8744` says "podssh listens only for podssh pipe unix-listen:".
+  The lines are `bind AF_INET` and `bind AF_UNIX` (`crates/podssh-cli/src/doctor/host.rs` lines 20-21 at `48a8744`),
   and the module's head says of its probes that podssh needs none of them:
-  `crates/podssh-cli/src/doctor/unix.rs:4` says "needs none of these".
-- Read: `crates/podssh-cli/src/doctor/mod.rs:15` says "The bind probes here are the only place
+  `crates/podssh-cli/src/doctor/unix.rs` line 4 at `48a8744` says "needs none of these".
+- Read: `crates/podssh-cli/src/doctor/mod.rs` line 15 at `48a8744` says "The bind probes here are the only place
   podssh calls". The listener scan of `scripts/check-repo.py` allows a `bind(` in 17 files
   (`scripts/check-repo.py:133-151`), and these listen, each when the user asks: `pipe`'s
   `tcp-listen:` and `unix-listen:` (`crates/podssh-cli/src/pipe/listen.rs:118-132`, `:159-183`),
@@ -2479,7 +2479,7 @@ nothing.
   words and "this host refuses the listener" (`crates/podssh-cli/src/ssh/local_bind.rs:89-93`).
   The issue's amendment says that `-L` exits 77: it exits 255, as OpenSSH's ssh does for a
   failure of its own (`crates/podssh-ssh/src/run.rs:23`).
-- Read: `crates/podssh-cli/src/flags.rs:364` says "join two byte streams, as socat does, with no
+- Read: `crates/podssh-cli/src/flags.rs` line 364 at `48a8744` says "join two byte streams, as socat does, with no
   listener", though `pipe` listens for `tcp-listen:` and `unix-listen:` since T-177; the note of
   the manual says it right, "with no listener unless one side asks for one"
   (`crates/podssh-cli/src/man/notes.rs:172`).
@@ -2489,7 +2489,7 @@ nothing.
 
 ## Approach
 
-1. The module's comment (`crates/podssh-cli/src/doctor/mod.rs:15-16`) says what is true: the
+1. The module's comment (`crates/podssh-cli/src/doctor/mod.rs` lines 15-16 at `48a8744`) says what is true: the
    probes of doctor bind and close; each other bind is a listener that the user asks for, or the
    UDP socket of a road, and the listener scan of `scripts/check-repo.py` holds their files. The
    head of `crates/podssh-cli/src/doctor/unix.rs` names what needs each probe's capability.
@@ -2501,7 +2501,7 @@ nothing.
 3. One table in doctor of the features that listen, each with its family, and a test that each
    verb and flag of the table is in the flag tables (`crates/podssh-cli/src/flags.rs`), so that a
    later change that renames one meets the test.
-4. The about of `pipe` (`crates/podssh-cli/src/flags.rs:363-364`) names its listeners, as the
+4. The about of `pipe` (`crates/podssh-cli/src/flags.rs` lines 363-364 at `48a8744`) names its listeners, as the
    manual's note does. `docs/cli.md` ("`podssh doctor`") gives the words of the new lines.
 
 ## Decision
@@ -2510,7 +2510,7 @@ A refused bind stays `ok`, with the features named. `FAIL` lost: the hosts that 
 for refuse the bind (sandbox A for AF_INET, `docs/STATUS.md:279`; the measured cage by the
 operator's report, `docs/target-environment.md:25`), and doctor exits 1 on a `FAIL`, so each run
 there would fail where each road works (`crates/podssh-cli/src/doctor/mod.rs:6-9`). A fourth
-status lost: the report and its JSON have three (`docs/cli.md:1350-1353`). The issue's grade by a
+status lost: the report and its JSON have three (`docs/cli.md:1357-1360`). The issue's grade by a
 run for a listener feature lost: doctor is given no feature to check, and each feature refuses on
 its own, with the system's words.
 
@@ -2528,6 +2528,27 @@ planted error: each names the features of its family, and the allowed one says t
 `listen()` was tried. Planted: a verb of the table renamed; the test against the flag tables
 fails.
 
+## Done
+
+2026-10-31, in one change with T-358, whose listen replaces the words of item 2 for a bind that
+worked ("listen() was not tried"): the line now says what the listen did.
+
+- `crates/podssh-cli/src/doctor/listeners.rs`: the table `LISTENERS` of the features that listen,
+  each with its family (AF_INET: `-L` and `-D` on a port, `pipe tcp-listen:`; AF_UNIX: `-L` and
+  `-D` on a path, the control socket of `-M`, `podssh agent`, `podssh session`, `pipe
+  unix-listen:`), and the words of the lines: a refused bind or listen ends "so ... cannot listen
+  here; no road needs a listener", each feature of its family named, and stays `ok` (the
+  Decision).
+- The module's comment says what is true (`crates/podssh-cli/src/doctor/mod.rs:15-18`), the head
+  of `crates/podssh-cli/src/doctor/unix.rs` names what needs each probe, and the about of `pipe`
+  names its listeners.
+- Tests: `doctor::listeners::tests`, three: a refused bind names each listener of its family and
+  no other, a bind that worked says what its listen did, the list in words; `cargo test -p
+  podssh-cli --lib doctor`, 33 passed. `flag_table`'s
+  `each_listener_that_doctor_names_is_a_verb_and_a_form_of_the_tables`, 9 passed; planted, the
+  verb `session` written `sessions`, it failed ("sessions: no such verb"). `python3
+  scripts/check-repo.py`, exit 0. `docs/cli.md` gives the lines.
+
 # T-358: `doctor` measures a bind and never a listen, so a host that refuses `listen()` reads as one that listens
 
 **Source:** GitHub #69 (Nemo-010, 2026-10-31), its ask 2: `listen()` after `bind()` on the same
@@ -2536,7 +2557,7 @@ socket, then close.
 **Milestone:** backlog
 **Priority:** P1
 **Effort:** S
-**Status:** open
+**Status:** done
 
 ## Problem
 
@@ -2549,14 +2570,14 @@ alone measures less than they use, so it cannot answer what a user asks it.
 ## Premise
 
 - Read: doctor's probes bind and close with no `listen()`
-  (`crates/podssh-cli/src/doctor/unix.rs:137-166`, `:200-231`). The listeners make the socket,
+  (`crates/podssh-cli/src/doctor/unix.rs` lines 137-166 and 200-231 at `48a8744`). The listeners make the socket,
   bind and listen in one attempt, which is their probe
   (`crates/podssh-cli/src/pipe/listen.rs:1-6`, `crates/podssh-cli/src/ssh/local_bind.rs:1-6`).
 - Read: T-038 and T-177 knew it. `TODO/forwarding.md:501-504` says "A seccomp filter can allow",
   and `TODO/pipe.md:420-422` says "A bind that works does not prove"; T-177 kept doctor as it
   was, and `TODO/pipe.md:448-449` says "doctor stays bind-and-close".
-- Read: `AGENTS.md:248-250` says "closes it without listening" of doctor's bind in rule 2;
-  `SECURITY.md:112-113`, `docs/architecture.md:133-134` and `docs/cli.md:1340-1341` say the same.
+- Read: `AGENTS.md` lines 248-250 at `48a8744` says "closes it without listening" of doctor's bind in rule 2;
+  `SECURITY.md` lines 112-113 at `48a8744`, `docs/architecture.md` lines 133-134 at `48a8744` and `docs/cli.md` lines 1346-1347 at `48a8744` say the same.
   The ruling of 2026-10-08 lets a listener open when the user asks for it and a probe at run time
   allows the bind (`docs/decisions.md:33`). A listen of doctor's is no listener that the user asks
   for, so it waits for a ruling: Q53.
@@ -2582,7 +2603,7 @@ alone measures less than they use, so it cannot answer what a user asks it.
    that cannot listen here (T-357's table), and stays `ok` by T-357's Decision.
 3. `AGENTS.md` (rule 2), `SECURITY.md`, `docs/architecture.md` (rule 3) and `docs/cli.md` say what
    doctor does; the listener scan allows `listen(` in `crates/podssh-cli/src/doctor/unix.rs`
-   (`scripts/check-repo.py:152`).
+   (`scripts/check-repo.py` line 152 at `48a8744`).
 4. The box: a second seccomp profile beside `scripts/box/seccomp.json`, which allows `bind` and
    refuses `listen` with EPERM, for doctor's line and for the refusals of `pipe`, `-L` and
    `podssh agent`.
@@ -2609,3 +2630,22 @@ listen. In the box with the second profile: `listen AF_INET` says that the bind 
 the listen left out; the line says that the bind worked, and the check of the box fails. The run
 in the box waits for T-251.
 
+## Done
+
+2026-10-31, under the operator's ruling on Q53: doctor's lines are `listen AF_INET` and `listen
+AF_UNIX`. After the bind, one `listen()` with a backlog of 1, nothing accepted, the socket closed
+at once; the socket file is made mode 0600 before it listens; on Linux the abstract name too; with
+`PODSSH_LISTEN=no` no listen is tried, and the line says that the variable turns the listeners
+off. Here: "127.0.0.1:41303: bound, listened and closed with no connection taken; so -L on a
+port, -D on a port and podssh pipe tcp-listen: can listen here".
+
+- Tests: `doctor::unix::tests::listen_once_makes_the_socket_listen` reads `SO_ACCEPTCONN` after
+  the probe; planted, an answer of `Listened` with no listen made, it failed ("the socket does not
+  listen"), where the words alone passed. `a_probe_listens_once_and_says_so`, and the three of
+  `doctor::listeners`; `cargo test -p podssh-cli --lib doctor`, 33 passed; clippy `-D warnings`
+  and rustfmt clean.
+- Rule 2 of `AGENTS.md`, `SECURITY.md`, `docs/architecture.md` (rule 3) and `docs/cli.md` say
+  what doctor does; the listener scan allows `listen(` in `crates/podssh-cli/src/doctor/unix.rs`.
+- The box: `scripts/box/seccomp-nolisten.json` allows the bind and refuses `listen` with EPERM,
+  selected by `BOX_SECCOMP=nolisten sh scripts/test_in_box.sh`. Its run, and the plant of the
+  listen left out there, wait for T-251.

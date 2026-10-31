@@ -1155,7 +1155,7 @@ sees it.
 Read:
 
 - `docs/STATUS.md:251-265`: the box, measured by hand on 2026-10-08.
-- `scripts/test_in_box.sh:192-195`: the box runs `probe.sh`, then
+- `scripts/test_in_box.sh:202-205`: the box runs `probe.sh`, then
   `sandbox-check.sh` (or, with `BOX_RUN=tt`, the session of T-004), and the
   script exits with the code of the second.
   `scripts/sandbox-check.sh:85-242` prints the exit code of each step and does
@@ -1164,8 +1164,8 @@ Read:
   in a required property (17 properties, `docs/STATUS.md:258`).
 - The box needs a static binary; CI uploads one
   (`.github/workflows/build.yml:88-93`).
-- The box uses `--disable-dns` (`scripts/test_in_box.sh:112`) and a mask on
-  `/dev/pts` (`scripts/test_in_box.sh:180`). Nobody measured the Podman of a
+- The box uses `--disable-dns` (`scripts/test_in_box.sh:122`) and a mask on
+  `/dev/pts` (`scripts/test_in_box.sh:190`). Nobody measured the Podman of a
   GitHub runner with them.
 - The box reaches the live relay and `github.com` through its proxy.
 
@@ -2174,7 +2174,7 @@ a reviewer can see it.
 
 ## Premise
 
-Read: the rule as written is rule 3 of `docs/architecture.md:132-145` (the
+Read: the rule as written is rule 3 of `docs/architecture.md:132-146` (the
 bind check of `podssh doctor` is the one exception), rule 3 of
 `docs/target-environment.md:84-88`, and rule 2 of AGENTS.md, section 5. The
 operator ruled on 2026-10-08 (`docs/decisions.md`): Q1 allows a local
@@ -2186,9 +2186,9 @@ is not a listener.
 call; `scripts/plant.sh` plants C and C++ only.
 
 Measured with grep over `git ls-files 'crates/*'`: three files hold a
-listener or a bind. `crates/podssh-cli/src/doctor/unix.rs:151` and line 226 at `22c3b88`
+listener or a bind. `crates/podssh-cli/src/doctor/unix.rs` line 151 at `48a8744` and line 226 at `22c3b88`
 are the bind probes of `doctor`, which close at once and never listen
-(`crates/podssh-cli/src/doctor/mod.rs:15-16`). The test servers are in
+(`crates/podssh-cli/src/doctor/mod.rs` lines 15-16 at `48a8744`). The test servers are in
 `crates/podssh-ws/tests/dial.rs:129` and
 `crates/podssh-ws/tests/hostname_verification.rs:55`. No file uses
 `UdpSocket`, `UnixListener` or `socket2`. The model of a sweep with a floor
@@ -2205,7 +2205,7 @@ that skips comments and test modules is
    `tests/` directory of a crate (servers on 127.0.0.1 for tests). `listen(`
    is allowed in no source file today.
 2. The scan reads each `.rs` file under `crates/` and skips comment lines
-   (`crates/podssh-cli/src/doctor/mod.rs:15` names `bind()` in a comment). A
+   (`crates/podssh-cli/src/doctor/mod.rs` line 15 at `48a8744` names `bind()` in a comment). A
    floor comes first: the scan fails when it read fewer than 100 files (T-223).
 3. A plant at each run: the same scan over a temporary tree with one
    `TcpListener::bind` in the `src/` of a library crate must report it, or the
@@ -2259,7 +2259,7 @@ allowance".
   files, and a plant at each run (one `TcpListener::bind` in
   `crates/podssh-ws/src` of a temporary tree must be found). It prints the
   files read and the uses within the allowance.
-- The documents already state the rule as ruled (`docs/architecture.md:132-145`,
+- The documents already state the rule as ruled (`docs/architecture.md:132-146`,
   `docs/target-environment.md:84-88`, `AGENTS.md`, section 5): nothing to
   change there. `docs/development.md`, "Checks": the scan.
 - Prove: `python scripts/check-repo.py`: exit 0, "265 Rust files read; 32

@@ -107,7 +107,7 @@ and `CARGO_BUILD_JOBS=4`:
 
 ## Counts
 
-`TODO/INDEX.md` holds 373 entries: 45 open, 4 partial, 29 blocked, 295 done.
+`TODO/INDEX.md` holds 373 entries: 43 open, 4 partial, 29 blocked, 297 done.
 
 Open includes parked work. `cargo todo check` verifies this line.
 
@@ -131,9 +131,7 @@ at most one a day: russh 0.65.0's security fixes (T-356) make that batch, so
 commit.
 
 **Now:** the entries of the audit, the study and the issues of 2026-10-31 (GitHub #59 to #63 and
-#69 to #76), the highest priority first: T-356 (russh 0.65.0's security fixes, P1), T-357
-(`doctor`'s words about listeners, P1) and T-358 (its listen after the bind, Q53),
-then the P2 entries T-340, whose runs in CI wait, T-347, T-359 (the iroh road's probe of UDP) and
+#69 to #76), the highest priority first: T-356 (russh 0.65.0's security fixes, P1), then the P2 entries T-340, whose runs in CI wait, T-347, T-359 (the iroh road's probe of UDP) and
 T-365 (the forms of `-R` that OpenSSH carries, GitHub #73), then T-355 (Dependabot's updates, and
 the curves' 0.14 that ends an ignore of `deny.toml`) and the record's own checks T-360 and T-361,
 then the P2 entries that the operator's rulings of 2026-10-31 opened: T-375 (`podssh update`),

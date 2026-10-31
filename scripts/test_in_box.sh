@@ -5,11 +5,16 @@
 #
 #   sh scripts/test_in_box.sh [PODSSH_LINUX_BINARY]
 #   BOX_RUN=tt sh scripts/test_in_box.sh [PODSSH_LINUX_BINARY]
+#   BOX_SECCOMP=nolisten sh scripts/test_in_box.sh [PODSSH_LINUX_BINARY]
 #
 # BOX_RUN=tt runs scripts/box/tt-session.sh in place of sandbox-check.sh: an
 # interactive session over -tt (T-004) against OpenSSH in a container next
 # to the box, reached with --direct through the box's proxy, which lets that
 # one target through.
+#
+# BOX_SECCOMP=nolisten takes scripts/box/seccomp-nolisten.json in place of
+# seccomp.json: a bind works and each listen is refused with EPERM, the host
+# that doctor's lines listen AF_INET and listen AF_UNIX tell apart (T-358).
 #
 # The binary is a static Linux build (default:
 # target/x86_64-unknown-linux-musl/release/podssh, or one from the release
@@ -48,6 +53,11 @@ BOX=podssh-box
 TARGET=podssh-box-target
 RUN=${BOX_RUN:-check}
 case $RUN in check | tt) ;; *) echo "test_in_box: BOX_RUN is check or tt, not $RUN" >&2; exit 1 ;; esac
+case ${BOX_SECCOMP:-} in
+    "") SECCOMP=seccomp.json ;;
+    nolisten) SECCOMP=seccomp-nolisten.json ;;
+    *) echo "test_in_box: BOX_SECCOMP is empty or nolisten, not $BOX_SECCOMP" >&2; exit 1 ;;
+esac
 IMAGE=localhost/podssh-box:2
 BASE_IMAGE=$(image_of "$REPO/images/box/Dockerfile") || exit 78
 PROXY_IMAGE=$(image_of "$REPO/images/box-proxy/Dockerfile") || exit 78
@@ -176,7 +186,7 @@ echo "== in the box"
 timeout 1800 podman run --rm --name "$BOX" --network "$NET" \
     --dns 1.1.1.1 --dns 8.8.8.8 --dns 9.9.9.9 --dns-option timeout:1 --dns-option attempts:2 \
     --cap-drop all --security-opt no-new-privileges \
-    --security-opt "seccomp=$(hostpath "$HERE/box/seccomp.json")" \
+    --security-opt "seccomp=$(hostpath "$HERE/box/$SECCOMP")" \
     --security-opt mask=/dev/pts \
     --mount "type=bind,source=$SLAVE,target=/dev/tty" \
     --mount "type=bind,source=$(hostpath "$WORK/empty"),target=/etc/passwd,readonly" \

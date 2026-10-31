@@ -189,3 +189,26 @@ fn each_verb_is_in_one_group() {
     }
     assert!(podssh_cli::flags::GROUPS.iter().all(|(_, names)| !names.is_empty()), "an empty group");
 }
+
+#[test]
+fn each_listener_that_doctor_names_is_a_verb_and_a_form_of_the_tables() {
+    // doctor's bind lines name the features that listen (T-357); a verb or a
+    // flag renamed here, and not there, would leave doctor naming nothing.
+    use podssh_cli::doctor::listeners::LISTENERS;
+    use podssh_cli::pipe::address::KINDS;
+    for l in LISTENERS {
+        let verb = podssh_cli::flags::verb_for(l.verb).unwrap_or_else(|| panic!("{}: no such verb", l.verb));
+        if let Some(short) = l.form.strip_prefix('-') {
+            let c = short.chars().next().expect("a short flag");
+            assert!(
+                verb.flags.iter().any(|f| f.short == Some(c)),
+                "{} {}: no such flag of {}",
+                l.verb,
+                l.form,
+                verb.name
+            );
+        } else if !l.form.is_empty() {
+            assert!(KINDS.iter().any(|k| k.starts_with(l.form)), "{}: no such address of pipe", l.form);
+        }
+    }
+}

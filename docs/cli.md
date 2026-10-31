@@ -1343,8 +1343,15 @@ and no `--timeout`: a person decides how long an edit takes.
 - `????`: the check could not run. It never counts as `ok`, and it never
   makes the run fail.
 - Servers are identified by equality (GitHub's published host key), never
-  by the form of a banner. A socket bind is closed at once and never
-  listens. Proxy credentials and tokens are never shown.
+  by the form of a banner. The lines `listen AF_INET` and `listen AF_UNIX`
+  bind a socket (127.0.0.1 port 0; a file of mode 0600 in the temporary
+  directory, and on Linux an abstract name), listen once with a backlog of
+  1, accept nothing and close it at once; each says what the bind and the
+  listen did, and which listeners of podssh can or cannot listen here (`-L`
+  and `-D` on a port or a path, `pipe tcp-listen:` and `unix-listen:`, the
+  control socket of `-M`, `podssh agent` and `podssh session`). A refusal is
+  `ok`: no road needs a listener. With `PODSSH_LISTEN=no` no listen is
+  tried, and the line says so. Proxy credentials and tokens are never shown.
 - `--full` adds the check `login` (GitHub #13): a login to `github.com` as
   `git` through the relay, with an Ed25519 key made for the check, kept in
   memory and never written. GitHub refuses it, which is `ok`: the handshake,
