@@ -24,6 +24,16 @@ fn scratch(name: &str) -> PathBuf {
     dir
 }
 
+/// The tests of this file run one at a time. Each forward listens on a port
+/// that nothing held a moment before (`free_port`), and a test that binds
+/// port 0 meanwhile can be given that same port (seen on Windows): a client
+/// then reached the other test's listener, whose end reset it.
+static ONE_AT_A_TIME: std::sync::Mutex<()> = std::sync::Mutex::new(());
+
+fn one_at_a_time() -> std::sync::MutexGuard<'static, ()> {
+    ONE_AT_A_TIME.lock().unwrap_or_else(|e| e.into_inner())
+}
+
 /// A process that is killed when the test ends, also when it fails.
 struct Running(Child);
 
@@ -152,6 +162,7 @@ fn line(stream: &mut impl Read) -> String {
 
 #[test]
 fn local_forward_carries_connections_to_the_target() {
+    let _one = one_at_a_time();
     let s = setup("local");
     let port = free_port();
     let spec = format!("127.0.0.1:{port}:{}", s.target);
@@ -166,6 +177,7 @@ fn local_forward_carries_connections_to_the_target() {
 
 #[test]
 fn dynamic_forward_is_a_socks5_proxy_to_the_target() {
+    let _one = one_at_a_time();
     let s = setup("dynamic");
     let port = free_port();
     let spec = format!("127.0.0.1:{port}");
@@ -185,6 +197,7 @@ fn dynamic_forward_is_a_socks5_proxy_to_the_target() {
 #[cfg(unix)]
 #[test]
 fn local_forward_listens_on_a_socket_of_mode_0600() {
+    let _one = one_at_a_time();
     use std::os::unix::fs::PermissionsExt;
     use std::os::unix::net::UnixStream;
     let s = setup("socket");
@@ -206,6 +219,7 @@ fn local_forward_listens_on_a_socket_of_mode_0600() {
 
 #[test]
 fn a_listener_that_cannot_be_made_refuses_before_anything_connects() {
+    let _one = one_at_a_time();
     let s = setup("taken");
     let taken = TcpListener::bind("127.0.0.1:0").unwrap();
     let port = taken.local_addr().unwrap().port();
@@ -227,6 +241,7 @@ fn a_listener_that_cannot_be_made_refuses_before_anything_connects() {
 
 #[test]
 fn stdio_forward_clears_the_forwards_as_openssh_does() {
+    let _one = one_at_a_time();
     let s = setup("stdio");
     let port = free_port();
     let mut cmd = s.podssh(&["-W", &s.target.to_string(), "-L", &format!("127.0.0.1:{port}:{}", s.target)]);

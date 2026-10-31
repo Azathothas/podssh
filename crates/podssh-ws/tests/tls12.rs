@@ -161,9 +161,27 @@ fn make(dir: &Path) -> Result<(), String> {
     Ok(())
 }
 
+/// How many ports a server is given before the test fails.
+const TRIES: usize = 5;
+
 /// `s_server -rev` with `key`'s certificate and `extra`, once it listens:
-/// its port.
+/// its port. The port is free when it is chosen, but a test that binds port
+/// 0 meanwhile can be given it before `s_server` binds it (seen on Windows,
+/// where `s_server` then ends), so a server that ends before it listens is
+/// started again on a new port.
 fn server(dir: &Path, key: Key, extra: &[&str]) -> (Server, u16) {
+    let mut why = Vec::new();
+    for _ in 0..TRIES {
+        match listen(dir, key, extra) {
+            Ok(up) => return up,
+            Err(ended) => why.push(ended),
+        }
+    }
+    panic!("openssl s_server ended before it listened, {TRIES} times: {}", why.join("; "));
+}
+
+/// One `s_server` once it listens, or why it ended before that.
+fn listen(dir: &Path, key: Key, extra: &[&str]) -> Result<(Server, u16), String> {
     let port = TcpListener::bind("127.0.0.1:0").unwrap().local_addr().unwrap().port();
     let name = match key {
         Key::Ecdsa => "ecdsa",
@@ -179,10 +197,11 @@ fn server(dir: &Path, key: Key, extra: &[&str]) -> (Server, u16) {
         .args(extra)
         .stdin(Stdio::null())
         .stdout(Stdio::piped())
-        .stderr(Stdio::null())
+        .stderr(Stdio::piped())
         .spawn()
         .expect("openssl s_server starts");
-    // `ACCEPT` once it listens.
+    // `ACCEPT` once it listens; what it says on stderr, read as it comes so
+    // that the pipe never fills.
     let stdout = child.stdout.take().unwrap();
     let (tx, rx) = std::sync::mpsc::channel();
     std::thread::spawn(move || {
@@ -190,13 +209,25 @@ fn server(dir: &Path, key: Key, extra: &[&str]) -> (Server, u16) {
             let _ = tx.send(line);
         }
     });
+    let stderr = child.stderr.take().unwrap();
+    let said =
+        std::thread::spawn(move || BufReader::new(stderr).lines().map_while(Result::ok).collect::<Vec<_>>().join(" "));
     let deadline = Instant::now() + LIMIT;
     loop {
         let left = deadline.saturating_duration_since(Instant::now());
         match rx.recv_timeout(left) {
-            Ok(line) if line.contains("ACCEPT") => return (Server(child), port),
+            Ok(line) if line.contains("ACCEPT") => return Ok((Server(child), port)),
             Ok(_) => continue,
-            Err(_) => panic!("openssl s_server did not listen within {LIMIT:?}"),
+            Err(std::sync::mpsc::RecvTimeoutError::Timeout) => {
+                let _ = child.kill();
+                panic!("openssl s_server did not listen within {LIMIT:?}")
+            }
+            // Its stdout closed: it ended.
+            Err(std::sync::mpsc::RecvTimeoutError::Disconnected) => {
+                let status = child.wait().map(|s| s.to_string()).unwrap_or_else(|e| e.to_string());
+                let said = said.join().unwrap_or_default();
+                return Err(format!("on port {port}, {status}: {said}"));
+            }
         }
     }
 }
