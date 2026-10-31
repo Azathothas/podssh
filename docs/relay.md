@@ -134,7 +134,12 @@ X-Relay-Token: <forward token>
   answer, 800 bytes, came 0.4 s after the Close, and the relay's Close
   15.4 s after it.
 - The maximum frame is 262144 bytes (`/relays.json`,
-  `limits.max_frame_bytes`). podssh sends at most 32 KiB in a frame
+  `limits.max_frame_bytes`). podssh takes in frames up to that cap, or up to
+  a larger `max_frame_bytes` that its cached `/relays.json` gives, never over
+  16 MiB; its byte and time budgets go under a smaller `max_session_bytes` or
+  `max_session_ms` (T-342). `scripts/check-relay-limits.py` compares the live
+  limits with `crates/podssh-probe/facts/relay-limits.toml` on each push and
+  each day. podssh sends at most 32 KiB in a frame
   (`FORWARD_SEND_PAYLOAD`, T-323): workerd issue 7074 reports that one write
   of more than 65,536 bytes to a socket of a Worker's `connect()` resolves,
   and that the socket then fails. A question for the relay's operator:

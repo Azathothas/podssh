@@ -701,7 +701,7 @@ document is the same, byte for byte, as the pinned copy (SHA-256
 `/relays.json`: frames of 262144 bytes, an idle cut at 180 s, and 12 h and
 64 MiB for each session. See [relay.md](relay.md).
 
-Since T-342 (partial, 2026-10-31) the pool's cache keeps the `limits` of the
+Since T-342 (2026-10-31) the pool's cache keeps the `limits` of the
 same `/relays.json`, and the opener records them for the run: a session takes
 in frames up to the relay's `max_frame_bytes`, never under 262144 and never
 over 16 MiB, and the byte and time budgets go under a smaller limit with the
@@ -709,7 +709,7 @@ same margin, never above their own (`cargo test -p podssh-relay --lib pool`,
 6 passed: 32 MiB gives 28 MiB, 128 MiB leaves 60 MiB, 6 h gives 5 h 30 min;
 `cargo test -p podssh-ws --lib frame`: a frame of 524288 bytes taken at the
 relay's cap, and one byte over 16 MiB refused; planted, the larger budget,
-failed). The live check of the limits waits.
+failed). `scripts/check-relay-limits.py` reads the live limits (10000, 180000, 43200000, 67108864, 262144 on 2026-10-31), each that of `crates/podssh-probe/facts/relay-limits.toml`, which a test ties to the compiled constants; planted, a limit of 524288, it failed and named it. CI runs it on each push and the watch each day.
 
 The reverse road has no idle cut (T-061, 2026-10-09, 00:27 to 01:11 UTC,
 `cargo test -p podssh-relay --features pair --test reverse_idle_live -- --ignored --nocapture --test-threads 1`,

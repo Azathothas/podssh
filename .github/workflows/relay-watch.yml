@@ -115,3 +115,18 @@ jobs:
         run: |
           echo "the relay's facts: exit $FACTS; the domain's expiry: exit $DOMAIN"
           [ "$FACTS" = 0 ] && [ "$DOMAIN" = 0 ]
+      # The limits of /relays.json against relay-limits.toml (T-342): a change
+      # fails the watch's run, which the next push's checks fail too.
+      - name: the relay's limits
+        if: ${{ !cancelled() }}
+        run: |
+          try=1
+          while :; do
+            rc=0
+            python3 scripts/check-relay-limits.py || rc=$?
+            if [ "$rc" -ne 2 ] || [ "$try" -ge 3 ]; then break; fi
+            echo "the relay could not be read (try $try of 3); again in 60 s"
+            try=$((try + 1))
+            sleep 60
+          done
+          exit "$rc"

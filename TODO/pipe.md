@@ -586,7 +586,7 @@ running on the server (`docs/design.md:591-595`).
   (`crates/podssh-ssh/src/session.rs:39-41`). Raw mode is entered once for
   each session (`crates/podssh-ssh/src/session.rs:149-208`).
 - Read: the relay ends a session at 64 MiB (1009) or 12 h (1001)
-  (`docs/relay.md:244-250`). Sandbox A measured the cap at 67,107,943 bytes,
+  (`docs/relay.md:249-255`). Sandbox A measured the cap at 67,107,943 bytes,
   and one close `1011` in 180 short sessions (`docs/STATUS.md:287-288`).
 - Read: tmux is never assumed (`docs/target-environment.md:101-103`).
 
@@ -728,8 +728,8 @@ no listener, or that the relay ends a desktop stream after 64 MiB.
   `connect()` itself needs a listener (`docs/design.md:925-928`), which
   T-177 adds where a probe allows it.
 - Read: 64 MiB for each session, both directions together
-  (`docs/relay.md:187`), then Close 1009 (`docs/relay.md:248`); public
-  targets only (`docs/relay.md:189`). Through the proxy of sandbox A: 0.5 to
+  (`docs/relay.md:192`), then Close 1009 (`docs/relay.md:253`); public
+  targets only (`docs/relay.md:194`). Through the proxy of sandbox A: 0.5 to
   0.7 MB/s (`docs/STATUS.md:286`).
 - Not measured: no RDP, VNC or Telnet client ran through podssh. Each claim
   about a client below is to verify.
@@ -899,14 +899,14 @@ and sandhole. Read in the reports, not verified here.
 
 A developer in a sandbox runs a web application and wants a URL for it. The
 relay carries TCP to public targets and reverse sessions to named nodes
-(`docs/relay.md:302-344`). It has no endpoint that takes public HTTPS for a
+(`docs/relay.md:307-349`). It has no endpoint that takes public HTTPS for a
 name, and podssh alone cannot add one.
 
 ## Premise
 
 - Read: the relay is the operator's Cloudflare Worker, another project, and
   its document is the contract (`docs/relay.md:3-16`). It has no publish
-  endpoint (`docs/relay.md:113-145`, `docs/relay.md:302-366`).
+  endpoint (`docs/relay.md:113-150`, `docs/relay.md:307-371`).
 - Read: on the measured sandbox, `connect()` to loopback fails with EACCES
   (`docs/target-environment.md:22`). A node there cannot reach a server on
   127.0.0.1; it can reach a Unix socket (T-176) or a program (`exec:`,
@@ -922,7 +922,7 @@ When the relay's operator adds the endpoint:
 
 1. The relay's operator publishes it in the contract first: a name, a public
    host name, and each incoming connection as a reverse session
-   (`open {id}`, `ready {id}`; `docs/relay.md:310-330`).
+   (`open {id}`, `ready {id}`; `docs/relay.md:315-335`).
 2. podssh uses the node runner (T-079) and `podssh node` (T-083):
    `podssh node NAME TARGET --publish`, TARGET each address of T-174 to
    T-176. podssh parses no HTTP: the bytes pass, WebSocket upgrades too.
@@ -1099,7 +1099,7 @@ and with which limits.
   SSH exec channel, and says that USB/IP needs kernel modules on the server.
 - Read: an exec channel carries binary data with equal digests
   (`docs/STATUS.md:89`), and `pipe` carries a TCP stream (T-174, T-175).
-- Read: through the relay, a session ends at 64 MiB (`docs/relay.md:187`);
+- Read: through the relay, a session ends at 64 MiB (`docs/relay.md:192`);
   the traffic of a USB disk reaches that in seconds.
 - Read: podssh cannot load a module or attach a device, and never assumes a
   privilege (`AGENTS.md:243-244`). The recipe uses the user's own `usbip` and

@@ -145,7 +145,7 @@ Read: `podssh proxy` keeps receiving after the end of stdin (`crates/podssh-cli/
 and a closed stdout is a clean end there (`crates/podssh-cli/src/pipe/relay.rs:215-219`) and in the rules
 (`docs/cli.md`, line 610 at `8cf2587`). `podssh ts -W` exits 70 on each copy error (`crates/podssh-cli/src/ts.rs`, lines 404-407 at `1ee321d`).
 The relay closes a half-closed forward session after 15 s with no bytes from the target
-(`docs/relay.md:246`). An earlier version of the pipe waited with no limit, and hung
+(`docs/relay.md:251`). An earlier version of the pipe waited with no limit, and hung
 (`crates/podssh-ts/src/pipe.rs`, lines 77-81 at `1ee321d`).
 
 ## Approach
@@ -533,7 +533,7 @@ supervision (`vendor/tailscale-rs/ts_runtime/src/lib.rs` lines 161-170): five re
 most, with no wait
 (`tqwewe/kameo:src/supervision.rs`). podssh's relay client has the rules to copy: a capped backoff
 with jitter (`crates/podssh-relay/src/open.rs:355-369`), and a ping every 10 s with three silent
-checks allowed (`crates/podssh-ws/src/client.rs:31-32`, `docs/relay.md:144-146`).
+checks allowed (`crates/podssh-ws/src/client.rs:31-32`, `docs/relay.md:149-151`).
 
 ## Approach
 

@@ -221,6 +221,28 @@ jobs:
           done
           # Each fact one line down, within its section: each holds, noted.
           live --plant-moved-line
+      # The limits of /relays.json against relay-limits.toml (T-342), with the
+      # same tries for a relay that cannot be read, and the check's plant.
+      - name: the relay's limits, live
+        run: |
+          set -eu
+          try=1
+          while :; do
+            rc=0
+            "$PY" scripts/check-relay-limits.py || rc=$?
+            if [ "$rc" -ne 2 ] || [ "$try" -ge 3 ]; then break; fi
+            echo "the relay could not be read (try $try of 3); again in 60 s"
+            try=$((try + 1))
+            sleep 60
+          done
+          [ "$rc" -eq 0 ] || exit "$rc"
+          rc=0
+          "$PY" scripts/check-relay-limits.py --plant max_frame_bytes=524288 || rc=$?
+          if [ "$rc" -ne 1 ]; then
+            echo "the limits check is vacuous: its plant exited $rc, not 1"
+            exit 1
+          fi
+          echo "the planted limit exited 1, as it must"
 
   # Windows is a released platform: each default test runs on it here, as the
   # gate runs them in Linux. The console code of Windows and the branches of

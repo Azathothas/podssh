@@ -210,6 +210,24 @@ pub fn ipv6_note(ipv6_target: bool, reason: &str) -> Option<&'static str> {
 mod tests {
     use super::*;
 
+    /// T-342: the compiled-in limits are the facts of the relay's limits,
+    /// which scripts/check-relay-limits.py compares with the live
+    /// `/relays.json`; a change of the facts fails here until they move.
+    #[test]
+    fn the_compiled_limits_are_the_facts_of_the_relays_limits() {
+        let facts = include_str!("../../podssh-probe/facts/relay-limits.toml");
+        let value = |name: &str| -> u64 {
+            facts
+                .lines()
+                .find_map(|line| line.strip_prefix(name)?.trim_start().strip_prefix('=')?.trim().parse().ok())
+                .unwrap_or_else(|| panic!("relay-limits.toml holds no {name}"))
+        };
+        assert_eq!(value("idle_timeout_ms"), RELAY_IDLE_SECS * 1000);
+        assert_eq!(value("max_session_ms"), SESSION_TIME_CAP.as_millis() as u64);
+        assert_eq!(value("max_session_bytes"), SESSION_BYTE_CAP);
+        assert_eq!(value("max_frame_bytes"), podssh_ws::frame::FORWARD_MAX_FRAME as u64);
+    }
+
     // The byte budget stays under the cap, with room for what the relay can
     // hold queued: checked when the crate compiles.
     const _: () = assert!(SESSION_BYTE_BUDGET < SESSION_BYTE_CAP && SESSION_BYTE_CAP - SESSION_BYTE_BUDGET >= 2 << 20);

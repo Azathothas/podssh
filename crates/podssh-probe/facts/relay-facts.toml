@@ -11,10 +11,14 @@ spec-bytes = 18359
 measured-on = "2026-10-04"
 measured-how = "curl -sSL https://tcp.ssh.relay.ajam.dev/llms-full.txt | tee /tmp/llms.txt | wc -lc ; sha256sum /tmp/llms.txt ; curl -sSL https://tcp.ssh.relay.ajam.dev/health | grep -o version"
 
-# Read from /relays.json at startup, never compiled in. There is no `hello`
-# frame on the forward path, so a constant here is a number nothing could
-# correct. Re-measured 2026-10-02 from
-# https://tcp.ssh.relay.ajam.dev/relays.json?host=github.com&port=22
+# The relay's cap on a forward frame, compiled in: podssh-core reads it here
+# when it compiles, and podssh-ws holds the same number as its forward cap. A
+# session takes the relay's own `max_frame_bytes` from its cached /relays.json
+# when it is larger, never more than 16 MiB, and a cached value can only widen
+# what podssh takes in and narrow what it spends (T-342).
+# scripts/check-relay-limits.py compares the live /relays.json with
+# relay-limits.toml, which holds this one with the other limits. Re-measured
+# 2026-10-31 from https://tcp.ssh.relay.ajam.dev/relays.json?host=github.com&port=22
 forward-max-frame-bytes = 262144
 
 # ── Structural facts ────────────────────────────────────────────────────────

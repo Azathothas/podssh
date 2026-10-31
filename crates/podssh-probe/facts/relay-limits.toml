@@ -1,0 +1,13 @@
+# The relay's limits, as /relays.json?host=github.com&port=22 gives them under
+# "limits" (T-342), read on 2026-10-31. scripts/check-relay-limits.py compares
+# the live document's with these on each push and each day, and a change
+# fails, as a fact of the document does: read the change, then move these and
+# the constants that podssh compiles in, which a test of podssh-relay ties to
+# this file (crates/podssh-relay/src/relay.rs, and the forward cap of
+# crates/podssh-ws/src/frame.rs). A session takes a larger frame cap, or
+# smaller budgets, from its cached /relays.json at run time.
+connect_timeout_ms = 10000
+idle_timeout_ms = 180000
+max_session_ms = 43200000
+max_session_bytes = 67108864
+max_frame_bytes = 262144
