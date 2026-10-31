@@ -599,7 +599,7 @@ window (`crates/podssh-ssh/src/run.rs` lines 25-29 at `80f20bf`).
 **Milestone:** backlog
 **Priority:** P3
 **Effort:** S
-**Status:** blocked
+**Status:** open
 
 ## Problem
 
@@ -647,19 +647,6 @@ The control: the same target, read at full speed, ends with 1000 `target closed`
 size, which shows that the target and the path work. The slow run then gives the answer, and
 `docs/STATUS.md` records it with the date.
 
-## Blocker
-
-The operator (Q42, 2026-10-12): a target that sends much data fast through the relay's forward
-path, approved for this measurement. From this host none of the targets that `AGENTS.md`
-allows does: railway.new refuses an anonymous visitor (exit 13, `docs/STATUS.md`), GitHub's
-SSH endpoint sends its banner and then waits, the relay has no endpoint that sends data (its
-document names `/trace` alone), and `PODSSH_THROUGHPUT_SSH`, the operator's SSH host of the
-throughput run (Q38), is not set here. With that host, the target is a command that writes
-48 MiB on it, and the session needs a client with a window larger than the data (russh, in a
-test of `podssh-cli`), so that no SSH window stands between the relay and the slow reader.
-The operator asked on 2026-10-31 for a study of local stand-ins before any secret is added
-(`docs/decisions.md`).
-
 ## Correction
 
 2026-10-08, T-024: the comment on the SSH window now gives the forward path's rule that
@@ -667,6 +654,20 @@ The operator asked on 2026-10-31 for a study of local stand-ins before any secre
 (`crates/podssh-ssh/src/run.rs:26-29`). The two texts agree now. The question of this entry
 stays: whether the relay's check operates at all (it reads `bufferedAmount`,
 `docs/relay.md:241-245`).
+
+2026-10-31. The blocker cleared: the operator made the relay's own loop the
+target (Q42, `docs/decisions.md`). The target of item 1 is the relay
+itself: a forward session to `tcp.ssh.relay.ajam.dev:443` that carries,
+inside its TLS, the operator's leg of a pair of the reverse road, whose node
+is `podssh node --plain` in front of a local source of 48 MiB; the outer
+client reads at 16 KiB/s. `podssh relay trace tcp.ssh.relay.ajam.dev 443`
+shows first that the relay dials itself. An outer 1013 means that the
+forward check operates; an inner `1011 relay backpressure` of the reverse
+road, or a slow and complete transfer, means that the forward road pushes
+back through TCP. And podssh's own handling, against the stand-in relay: a
+mode `backlog:BYTES` of `scripts/fake-relay.py`, which closes with 1013 once
+that many bytes wait, shows the client's link lost and never tried again
+(`crates/podssh-ssh/src/retry.rs`).
 
 # T-220: A silent first relay host costs a full dial before the next host is tried (GitHub #30)
 

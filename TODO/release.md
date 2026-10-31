@@ -161,6 +161,22 @@ entry gets a `## Correction`, before the tag.
 BINARY --net`, and each job of the release runs it on the binary's own
 platform. The script of item 1 keeps the name scripts/release-check.sh.
 
+2026-10-31, the operator's rulings of that day (`docs/decisions.md`) and the
+study of stand-ins. The check runs from a cloud session, where item 3's
+Windows host is not:
+
+- the Windows and macOS parts run on GitHub's runners (windows-2025,
+  macos-15), where the console checks already run (`.github/workflows/build.yml`),
+  and the container parts (a fresh container, the box, `chat-in-boxes.sh`,
+  `irc-in-image.sh`) with Podman here or on an ubuntu runner, from a workflow
+  started by hand;
+- the Tailscale runs and T-026's exit status run against T-334's headscale,
+  in place of the operator's tailnet and the key of `.env/`;
+- the throughput run's forward cell goes through the relay's loop of Q42 at
+  100 MiB a direction, as a lower bound, and the direct cell is named as not
+  run; T-335's repair comes first, so that the relay cells cross a relay;
+- T-062 runs with the loop.
+
 # T-309: Publish the rolling betas `v1.0.0-beta.N`
 
 **Source:** the operator, 2026-10-30 (`docs/decisions.md`, "Betas before

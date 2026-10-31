@@ -62,15 +62,15 @@ repository and CI).
 
 ## Counts
 
-**330 entries: 17 open, 0 partial, 28 blocked, 285 done.**
+**332 entries: 20 open, 0 partial, 27 blocked, 285 done.**
 
 | Priority | open | partial | blocked | done | total |
 | --- | --- | --- | --- | --- | --- |
 | P0 | 0 | 0 | 0 | 1 | 1 |
 | P1 | 2 | 0 | 0 | 24 | 26 |
-| P2 | 1 | 0 | 19 | 146 | 166 |
-| P3 | 14 | 0 | 9 | 114 | 137 |
-| **All** | 17 | 0 | 28 | 285 | 330 |
+| P2 | 3 | 0 | 19 | 146 | 168 |
+| P3 | 15 | 0 | 8 | 114 | 137 |
+| **All** | 20 | 0 | 27 | 285 | 332 |
 
 ## Entries
 
@@ -136,7 +136,7 @@ repository and CI).
 | [T-059](relay.md) | P3 | S | backlog | feature | done | A relay host that failed recently is tried last, also in the next run |
 | [T-060](relay.md) | P3 | S | none | chore | done | P1: no command uses `podssh-probe` |
 | [T-061](relay.md) | P3 | S | M4 | measurement | done | Measure whether the relay's idle cut applies to reverse sockets |
-| [T-062](relay.md) | P3 | S | backlog | measurement | blocked | Measure whether the relay's backpressure close (1013) operates |
+| [T-062](relay.md) | P3 | S | backlog | measurement | open | Measure whether the relay's backpressure close (1013) operates |
 | [T-063](ws.md) | P2 | S | M4 | defect | done | W10: the frame decoder does not check a received control frame |
 | [T-064](ws.md) | P3 | S | M4 | defect | done | W13: `OsRng::fill_bytes` panics when the system gives no random bytes |
 | [T-065](ws.md) | P2 | S | M4 | defect | done | W14: `probe::PrintChain` accepts each certificate, and is a public export |
@@ -406,3 +406,5 @@ repository and CI).
 | [T-331](roads.md) | P3 | S | backlog | defect | done | The layer's `CLOSE` before the exit of `job`, `pipe`, `health`, `containers` and `--upgrade` on `cf://` |
 | [T-332](resume.md) | P3 | M | backlog | feature | done | A notice of silence with `--direct` |
 | [T-333](repo.md) | P3 | S | none | chore | done | aes-gcm 0.11 and chacha20poly1305 0.11 in `podssh-ws` |
+| [T-334](ts.md) | P2 | M | M9 | measurement | open | A headscale stand-in for the live runs of `podssh ts` |
+| [T-335](resume.md) | P2 | S | M9 | defect | open | The iroh cells of the throughput run may not cross a relay |

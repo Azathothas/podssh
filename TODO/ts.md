@@ -1141,3 +1141,62 @@ to DERP.
   blank line less in `crates/podssh-cli/tests/ts_behave.rs`, which it has now.
 - Waiting for T-251: the fork's prove in the build image (`scripts/ts-derp-prove.sh`, which
   reaches a DERP relay), and a live node through a real SOCKS5 server.
+
+# T-334: A headscale stand-in for the live runs of `podssh ts`
+
+**Source:** the operator's ruling of 2026-10-31 (`docs/decisions.md`, "A
+headscale stand-in"), after a study of stand-ins: the live runs of T-100 to
+T-105, T-240 and T-241, and T-026's exit status on a tailnet host, run
+against a local headscale in place of the operator's tailnet.
+**Category:** measurement
+**Milestone:** M9
+**Priority:** P2
+**Effort:** M
+**Status:** open
+
+## Problem
+
+The live parts of the Tailscale entries wait for the operator's tailnet and
+its auth key in `.env/` (Q40), which a cloud session does not have, and
+T-251 runs them. With a control server of its own, a session can run them
+anywhere that Podman runs.
+
+## Premise
+
+- Read: the fork takes the control server's URL
+  (`vendor/tailscale-rs/src/config.rs:24`), and podssh-ts passes it on
+  (`crates/podssh-ts/src/node.rs:119-122`), but the CLI gives none
+  (`crates/podssh-cli/src/ts.rs:211`).
+- Read: the fork fetches the control key over https only, unless its test
+  feature `insecure-keyfetch` is on
+  (`vendor/tailscale-rs/ts_control/src/client/connect.rs:209-210`), and its
+  TLS trusts the roots of `webpki-roots` alone
+  (`vendor/tailscale-rs/ts_tls_util/src/lib.rs:19-21`).
+- Read: the probe of `podssh ts` reads Tailscale's DERP map from
+  `login.tailscale.com` (`crates/podssh-cli/src/ts/probe.rs:23-24`).
+- Inferred, from headscale's documents: it serves the same `/key` and
+  `/ts2021` endpoints, an embedded DERP server, pre-auth keys and Tailscale
+  SSH.
+
+## Approach
+
+1. `podssh ts --ts-control-url URL`: the control server, and the probe
+   reads that server's DERP map.
+2. A patch of the fork (`vendor/patches/`): a CA file added to its roots
+   from a variable that only a test sets; TLS is checked as before.
+3. A harness in Podman: headscale with its DERP server and a CA of the run,
+   a throwaway pre-auth key, a node of tailscaled with `--ssh` as the
+   target, and a second tailscaled in user space for OpenSSH's path.
+4. The runs: the live parts that T-100 to T-105, T-240 and T-241 left to
+   T-251, and T-026's `exit 7` through `podssh ssh --direct -tt` and
+   `ssh -v -tt`; T-251 runs the harness.
+
+## Prove
+
+```sh
+sh scripts/ts-headscale.sh; echo "exit=$?"
+```
+
+Each run gives its result, and the harness exits 0 only when each passes.
+Planted: a pre-auth key that headscale does not know; the registration
+fails, and the harness says so.

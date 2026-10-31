@@ -107,7 +107,7 @@ and `CARGO_BUILD_JOBS=4`:
 
 ## Counts
 
-`TODO/INDEX.md` holds 330 entries: 17 open, 0 partial, 28 blocked, 285 done.
+`TODO/INDEX.md` holds 332 entries: 20 open, 0 partial, 27 blocked, 285 done.
 
 Open includes parked work. `cargo todo check` verifies this line.
 
@@ -134,8 +134,9 @@ hold and those of the relay's operator. The P2 entries are done, but for
 those of M9 and the parked ones; now the P3 entries that no draft holds:
 the drafts of "State" above are merged.
 
-**Then** M9: T-251 (the check, and its run before the tag), and last
-T-250 (the one release). Between entries: the `none` entries, the highest
+**Then** M9: T-335 and T-334, which T-251 runs, then T-251 (the check,
+and its run before the tag), and last T-250 (the one release). T-062 runs
+with the relay's loop (Q42) before T-251. Between entries: the `none` entries, the highest
 priority first.
 
 **Skip** the entries that wait for the relay's operator (status
@@ -146,9 +147,8 @@ T-085, T-107 to T-113, T-117, T-118, T-213, T-222, T-245 and T-248; and the work
 parked behind them (T-114, T-115, T-116, T-119, T-120, T-122, T-123,
 T-124, T-150, T-159, T-160, T-161, T-303 and T-304, "Parked open work"),
 which waits as they wait; and the entries that wait for the operator:
-T-062 (Q42, a target, for which the operator asked a study of local
-stand-ins on 2026-10-31) and T-328 (an export of FinalShell and of
-Termius: a known gap, which `v1.0.0` does not wait for).
+T-328 (an export of FinalShell and of Termius: a known gap, which
+`v1.0.0` does not wait for).
 
 ## Parked open work
 
@@ -192,15 +192,6 @@ may be tested on undernet, libera and OFTC (T-091 to T-098, T-252); and a
 session passes the files of `.env/` to podssh by their paths, never printing
 them (T-100 to T-105, T-240, T-241).
 
-Q42 (2026-10-12, blocks T-062): whether the relay's backpressure close
-(1013) operates needs a target that sends much data fast through the
-relay's forward path, read slowly. From this host no allowed target does:
-railway.new refuses an anonymous visitor, GitHub's SSH endpoint sends its
-banner only, and `PODSSH_THROUGHPUT_SSH` is not set here. Recommendation:
-set `PODSSH_THROUGHPUT_SSH` and `PODSSH_THROUGHPUT_KEY` where a session
-runs, and allow this measurement on that host (less than 64 MiB, and 5
-minutes); or name another target.
-
 The operator settled Q41 and Q43 on 2026-10-30, kept Q42 and the holds of
 Q32, and allowed betas (`docs/decisions.md`): T-292 uses export files that
 their programs wrote and that are published; T-299 runs in GitHub Actions.
@@ -218,7 +209,10 @@ client first, and no legacy constraint holds it back, so the library crates'
 minimum Rust rises with their dependencies (T-333). The same day the operator
 kept immutable releases off for `v1.0.0`, left T-328 as a known gap, and asked
 for a study of local stand-ins for the live checks that need the operator's
-hosts (Q42; T-062, T-157 and T-251).
+hosts. After it, the operator settled Q42: the relay's own loop is T-062's
+target, and the throughput run's forward cell goes through it at 100 MiB a
+direction; and a headscale stand-in replaces the runs with the operator's
+tailnet for `v1.0.0` (T-334).
 
 ## Operator actions
 

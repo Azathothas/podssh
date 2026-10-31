@@ -2761,3 +2761,47 @@ of `sink` fails.
   again without it. The two `--direct` tests of `silent_notice` passed
   again: the notice came 5.9 s into the pause and went before the key's
   answer at 20.1 s; keys that nothing echoes gave none.
+
+# T-335: The iroh cells of the throughput run may not cross a relay
+
+**Source:** the study of stand-ins for the live checks (2026-10-31): the
+throughput harness never turns the iroh road's UDP off.
+**Category:** defect
+**Milestone:** M9
+**Priority:** P2
+**Effort:** S
+**Status:** open
+
+## Problem
+
+The cells of the iroh road "through iroh's relay server" may measure a
+direct path: with both ends on one host and UDP on, iroh can leave the
+relay for a direct path, and the figure in `docs/STATUS.md` is then no
+relay's figure.
+
+## Premise
+
+- Read: the iroh road turns UDP off with `PODSSH_IROH_UDP`
+  (`crates/podssh-iroh/src/endpoint.rs:74`), and its probe only binds a
+  socket (`crates/podssh-iroh/src/probe.rs:11-14`).
+- Read: no file of `crates/podssh-cli/tests/throughput_harness/` sets
+  `PODSSH_IROH_UDP`.
+- Inferred: iroh moves a connection to a direct path when one works.
+
+## Approach
+
+1. The relay cells set `PODSSH_IROH_UDP=off` on both ends.
+2. Each cell records the path that iroh used, and a relay cell that went
+   direct fails.
+3. Run the cells again, and correct the rows of `docs/STATUS.md` that the
+   old figures hold.
+
+## Prove
+
+```sh
+export CARGO_BUILD_JOBS=4
+cargo test -p podssh-cli --features iroh-test --test throughput_live -- --ignored --nocapture
+```
+
+Each relay cell reports the relay as its path. Planted: UDP on again in a
+relay cell; that cell fails.
