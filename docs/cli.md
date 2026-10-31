@@ -1443,6 +1443,16 @@ and no `--timeout`: a person decides how long an edit takes.
   No pty request is tested (GitHub refuses the key before a channel), and
   the binary runs no OpenSSH: `scripts/sandbox-check.sh` keeps that step,
   and calls `doctor --full`.
+- `--hop [USER@]HOST[:PORT]` (T-371) checks this host and a first hop of
+  `-J` alone, as `--direct` reaches it: `hop`, the connection through
+  `HTTPS_PROXY` (or straight out with none), sampled as the other probes,
+  and the server's banner, as T-317 reads it; `hop key`, the host key that
+  it presents; `hop login`, a login as USER (or `podssh-doctor`) with a key
+  made for the check, whose refusal names the methods that the server
+  offers. A proxy that takes the CONNECT and then waits for TLS carries no
+  SSH: the line says so, and names the relay as the road for SSH over
+  HTTPS. A password of a hop comes from `SSH_ASKPASS` or the terminal,
+  never from the command line. A value that does not read is 64.
 - `UDP out` (T-359) says whether `podssh node --quick-tunnel` takes QUIC:
   with a proxy set, nothing is sent, as the node then takes HTTP/2; with
   none, `--full` makes a QUIC handshake with the quick tunnel's edge,

@@ -3995,7 +3995,7 @@ code that no command of the default build uses is P2 at most".
 - Read: doctor's two answers are `ok`: "the iroh road may go direct" after a bind, and "the iroh
   road then uses its relay alone" after a refusal (`crates/podssh-cli/src/doctor/iroh.rs` lines
   12-18 at `925c94b`), in a build with the feature only
-  (`crates/podssh-cli/src/doctor/mod.rs:113-114`). The refusal's
+  (`crates/podssh-cli/src/doctor/mod.rs:124-125`). The refusal's
   `ok` is doctor's rule, as the relay alone is a road that works; the bind's "may go direct" is
   not measured.
 - Read, in iroh 1.4.1 (the local cargo registry, `src/net_report/report.rs`): iroh's report of
@@ -4426,7 +4426,7 @@ relay host failed. Live, as Q56 allows: GitHub's banner through each, in GitHub 
 **Milestone:** backlog
 **Priority:** P3
 **Effort:** M
-**Status:** open
+**Status:** partial
 
 ## Problem
 
@@ -4497,6 +4497,37 @@ the password from a stand-in of `SSH_ASKPASS` reaches the target through it, and
 gives its banner and its methods; a hop that refuses `direct-tcpip` is named in its words.
 Planted: the hop dialed on port 22 whatever its port; the stand-in proxy refuses it, and the test
 fails. In the box: the runs of step 1. Live: the lines of step 2, in `docs/STATUS.md`.
+
+## Done
+
+2026-10-31, partial:
+
+- Measured first, as the Decision says: from this cloud session's host, `podssh ssh --direct -J
+  git@ssh.github.com:443 git@github.com` through its proxy got the CONNECT taken and then a reset,
+  and podssh's words named it (T-317's check): `the proxy ... took the CONNECT, and no byte of an
+  SSH server came back: it may expect TLS and carry no SSH`. So through a proxy that waits for TLS a
+  hop on port 443 carries no SSH, as the Premise read; T-372 is the road for that.
+- `podssh doctor --hop [USER@]HOST[:PORT]` (`crates/podssh-cli/src/doctor/hop.rs`): this host and
+  the hop alone. `hop`, the connection through `HTTPS_PROXY` or straight out, sampled nine times,
+  with the server's banner as T-317 reads it; `hop key`, the host key; `hop login`, a login as USER
+  (or `podssh-doctor`) with a key made for the check, never written, whose refusal names the
+  methods that the server still offers, with where a password comes from (`SSH_ASKPASS` or the
+  terminal). A value that does not read is 64 before any probe; `PODSSH_OFFLINE` asks nothing.
+  Live here, `--hop git@ssh.github.com:443` and `--hop git@github.com` each failed `hop`, naming the
+  reset and the silence of 5 s through this host's proxy.
+- `cargo test -p podssh-cli --test doctor_hop`, 3 passed: against the harness's SSH server
+  (russh's) with no proxy, the banner, the key and the login's refusal, and no line of the relay;
+  through a stand-in proxy that takes the CONNECT and then sends nothing, `hop` fails naming it, and
+  no login is tried; a hop that does not read is 64, and offline nothing is asked. Planted, the
+  banner's check skipped: the test of the silent proxy failed, `hop` reading ok. `--test doctor`
+  13, `--lib doctor` 38, `--test ssh_args` 26, `--lib man` 55, `--test flag_table` 9; clippy
+  clean. `docs/cli.md` says it.
+- What waits: the `-J` test of Approach item 1 through a stand-in proxy that allows port 443 only,
+  with the password from a stand-in of `SSH_ASKPASS` (the harness's server takes keys only, so it
+  needs a password of its own), `-W` and `-L` through the hop, the refusal of `direct-tcpip` in the
+  hop's words, and the plant of a hop dialed on port 22; the box's run (`scripts/test_in_box.sh`);
+  the live run from GitHub's network, `.github/workflows/hop-live.yml` by hand: UNVERIFIED.
+
 
 # T-372: A hop or a destination whose SSH is wrapped in TLS: `ssh+tls://`
 

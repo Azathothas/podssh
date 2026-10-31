@@ -154,7 +154,7 @@ pub fn run_with(p: &Parsed, s: &mut Streams<'_>, tty: Tty) -> i32 {
             };
             crate::status::run_status(&args, tty, s.out, s.err)
         }
-        Parsed::Doctor { relay_host, relay_failover, relay_addr, ca_file, json, full, refused } => {
+        Parsed::Doctor { relay_host, relay_failover, relay_addr, ca_file, json, full, hop, refused } => {
             if refusals("doctor", refused, s.err) {
                 return EXIT_USAGE;
             }
@@ -166,6 +166,7 @@ pub fn run_with(p: &Parsed, s: &mut Streams<'_>, tty: Tty) -> i32 {
                     ca_file: ca_file.clone(),
                     json: *json,
                     full: *full,
+                    hop: hop.clone(),
                 },
                 s.out,
                 s.err,

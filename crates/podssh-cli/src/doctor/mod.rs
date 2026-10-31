@@ -27,6 +27,7 @@ use podssh_ws::{Trust, Verdict};
 mod address;
 mod agent;
 pub(crate) mod clock;
+mod hop;
 mod host;
 #[cfg(feature = "iroh")]
 mod iroh;
@@ -57,11 +58,18 @@ pub struct DoctorArgs {
     /// `--full`: also log in to GitHub through the relay with a key made
     /// for the check (`login`).
     pub full: bool,
+    /// `--hop`: this host and a first hop of `-J` alone (T-371).
+    pub hop: Option<String>,
 }
 
 /// Run every check; returns the exit code. The report goes to `out`; only a
 /// bad setting (64 for a flag, 78 for a variable) goes to `err`.
 pub fn run_doctor(args: &DoctorArgs, out: &mut dyn Write, err: &mut dyn Write) -> i32 {
+    // A hop that does not read is a usage error, before any probe.
+    if let Some(Err(why)) = args.hop.as_deref().map(crate::ssh::hop::parse_hop) {
+        let _ = writeln!(err, "podssh doctor: --hop {why}");
+        return crate::exit_codes::EXIT_USAGE;
+    }
     if let Err(refusal) = crate::pins::apply(args.relay_addr.as_deref()) {
         return refusal.report("doctor", err);
     }
@@ -94,6 +102,9 @@ pub fn run_doctor(args: &DoctorArgs, out: &mut dyn Write, err: &mut dyn Write) -
 
     report.section("this host");
     host::check(&mut report);
+    if let Some(text) = &args.hop {
+        return hop::only(report, text);
+    }
     match &settings.path {
         Some(path) => report.ok("settings", format!("podssh's settings are read from {}", path.display())),
         None => report.ok("settings", "no settings file; the flags, the variables and the defaults hold".to_string()),

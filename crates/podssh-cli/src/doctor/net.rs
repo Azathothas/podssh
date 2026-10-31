@@ -185,7 +185,7 @@ const BANNER_WAIT: Duration = Duration::from_secs(5);
 /// the server's banner came. A `200` to CONNECT proves that the proxy took
 /// the request, not that the tunnel carries bytes as they are: a proxy that
 /// intercepts TLS waits for a ClientHello, and sends nothing or resets.
-async fn no_ssh_banner<S: tokio::io::AsyncRead + Unpin>(mut stream: S) -> Option<String> {
+pub(super) async fn no_ssh_banner<S: tokio::io::AsyncRead + Unpin>(mut stream: S) -> Option<String> {
     use tokio::io::AsyncReadExt;
     let mut first = [0u8; 256];
     match tokio::time::timeout(BANNER_WAIT, stream.read(&mut first)).await {

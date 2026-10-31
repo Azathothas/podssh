@@ -56,6 +56,9 @@ pub const DOCTOR_FLAGS: &[FlagRow] = &[
     row(None, "full", None, FlagKind::Supported,
         "also log in to github.com through the relay with a key made for the check, which GitHub refuses, and, with no \
          proxy set, make a QUIC handshake with the quick tunnel's edge", None),
+    row(None, "hop", Some("[USER@]HOST[:PORT]"), FlagKind::Supported,
+        "check only this host and a first hop of -J as --direct reaches it: the connection through HTTPS_PROXY with the \
+         server's banner, its host key, and the methods that it offers to a key made for the check", None),
 ];
 
 /// `status`: the relay settings that it reports, as `doctor` takes them.

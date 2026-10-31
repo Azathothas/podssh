@@ -130,6 +130,8 @@ pub enum Parsed {
         json: bool,
         /// `--full`: the login check too.
         full: bool,
+        /// `--hop`: a first hop of `-J` alone (T-371).
+        hop: Option<String>,
         refused: Vec<(String, &'static str, &'static str)>,
     },
     /// **`podssh ts`, and it is its own variant because it carries behaviour

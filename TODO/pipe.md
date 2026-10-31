@@ -39,10 +39,10 @@ the verb, the address grammar, the copy loop, and the local addresses `-`,
 
 1. The verb: a `pipe` row in `crates/podssh-cli/src/flags.rs:353-412`, two
    required positionals (`crates/podssh-cli/src/positionals.rs:7-237`), a
-   `Parsed::Pipe` variant (`crates/podssh-cli/src/parsed.rs:8-167`), a
+   `Parsed::Pipe` variant (`crates/podssh-cli/src/parsed.rs:8-169`), a
    dispatch arm, and `pipe` in `DISPATCHED`
    (`crates/podssh-cli/tests/flag_table.rs:110-140`). No `--timeout` row: the
-   gate at `crates/podssh-cli/src/dispatch.rs:251-269` would require it.
+   gate at `crates/podssh-cli/src/dispatch.rs:252-270` would require it.
 2. The grammar, in a new crates/podssh-cli/src/pipe/address.rs: `KIND:REST`.
    An unknown kind exits 64 and lists the kinds. `-` is `stdio`; `stdio` on
    both sides exits 64. Invariant: both addresses are valid before anything
@@ -198,7 +198,7 @@ local program to a target, and `podssh proxy` stays a second pump.
 5. `node:NAME` after T-084, and `iroh:TICKET` after T-163: one adapter and
    one test each. If T-163 makes a ticket a credential, read it from a file
    (`iroh:@FILE`), never from argv.
-6. Exit codes: sysexits, as `podssh proxy` (`docs/cli.md:2661`): 69; 77 for a
+6. Exit codes: sysexits, as `podssh proxy` (`docs/cli.md:2671`): 69; 77 for a
    refusal (the relay, the proxy, a host key, the authentication); 78. Give
    `crates/podssh-ssh/src/run.rs:332-412` a typed error, so that 77 is not
    guessed from a message.
@@ -610,7 +610,7 @@ running on the server (`docs/design.md:614-618`).
    Keys typed meanwhile wait in a queue of 64 KiB, and go after the attach.
 6. Each attempt checks the host key with the same policy, and uses the
    cached token. A prompt with no terminal ends the loop
-   (`docs/cli.md:2732-2734`). After the attach, send the window size again.
+   (`docs/cli.md:2742-2744`). After the attach, send the window size again.
 7. In the same commit: `docs/cli.md`, the notes of ssh
    (`crates/podssh-cli/src/man/notes_ssh.rs:4-318`), `docs/design.md:614-618`,
    `docs/STATUS.md`, and tmux in the interop image

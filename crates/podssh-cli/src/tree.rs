@@ -431,6 +431,7 @@ pub fn parse_verb(verb: &'static Verb, rest: &[std::ffi::OsString]) -> Parsed {
             ca_file: get("ca-file"),
             json: matches.get_flag("json"),
             full: matches.get_flag("full"),
+            hop: get("hop"),
             refused,
         };
     }

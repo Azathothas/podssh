@@ -52,7 +52,7 @@ core: the handshake, a host key that does not change, and key authentication.
    compares `key_data()`; the login name selects nothing.
 5. The verb: rows in `crates/podssh-cli/src/flags.rs:349-412` and
    `crates/podssh-cli/src/positionals.rs:8-237`, an arm beside
-   `crates/podssh-cli/src/dispatch.rs:232-299`, the manual, `docs/cli.md`,
+   `crates/podssh-cli/src/dispatch.rs:233-300`, the manual, `docs/cli.md`,
    `docs/STATUS.md`. The first source is `--stdio`, as `sshd -i`: OpenSSH
    then tests serve in the gate through `ProxyCommand`, with no listener.
    `podssh serve NAME` follows on the node runner of T-079. Windows: exit 70.

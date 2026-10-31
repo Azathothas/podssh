@@ -1,0 +1,50 @@
+name: hop live
+
+# A first hop of -J on port 443 with --direct, live (T-371), from GitHub's
+# network, where no proxy stands between the runner and GitHub's SSH on
+# port 443: doctor --hop gives its banner, its host key and the methods
+# that it offers to a key made for the check; then podssh ssh -J through
+# it, as git with a key made for the run, which GitHub refuses. A cloud
+# session's proxy waits for TLS on port 443 and carries no SSH, which is
+# why this runs here. Started by hand only; it publishes nothing.
+
+on:
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  live:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 30
+    env:
+      CARGO_BUILD_JOBS: "4"
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+      - name: the build
+        run: cargo build --locked -p podssh-cli
+      - name: doctor --hop and a -J hop on port 443
+        run: |
+          set -u
+          export HOME="$RUNNER_TEMP/hop"
+          mkdir -p "$HOME"
+          b="$GITHUB_WORKSPACE/target/debug/podssh"
+          timeout 120 "$b" doctor --hop git@ssh.github.com:443 > doctor.txt
+          rc=$?
+          sed -n '/^hop/,$p' doctor.txt
+          [ "$rc" = 0 ] || { echo "doctor --hop exited $rc"; exit 1; }
+          grep -q 'an SSH server answered with its banner' doctor.txt
+          grep -q 'presents the host key SHA256:' doctor.txt
+          grep -q 'the server refused a key made for this check' doctor.txt
+          # The key is made for the run and removed with the runner.
+          timeout 30 "$b" keygen -q -t ed25519 -N '' -f "$HOME/k"
+          timeout 120 "$b" ssh --direct -i "$HOME/k" -o StrictHostKeyChecking=accept-new \
+            -o UserKnownHostsFile="$HOME/kh" -J git@ssh.github.com:443 git@github.com < /dev/null 2> ssh.txt
+          rc=$?
+          cat ssh.txt
+          # GitHub refuses the key at the hop: its words, and 255, as OpenSSH's.
+          [ "$rc" = 255 ] || { echo "podssh ssh exited $rc"; exit 1; }
+          grep -qi 'ssh.github.com' ssh.txt
+          grep -qiE 'permission denied|refused|publickey' ssh.txt
+          echo "ok   doctor --hop and -J through GitHub's SSH on port 443, with no proxy"

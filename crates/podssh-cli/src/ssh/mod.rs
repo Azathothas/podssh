@@ -20,7 +20,7 @@ mod elevate;
 // `--expect` and `--send` (T-191).
 pub mod expect;
 pub mod forward;
-mod hop;
+pub(crate) mod hop;
 pub mod iroh;
 mod jump;
 pub mod keywords;

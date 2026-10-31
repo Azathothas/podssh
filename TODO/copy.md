@@ -957,8 +957,8 @@ Where podssh must replace them, OpenSSH's own `scp` and `sftp` cannot run
 ## Decision
 
 Recommendation: `scp` and `sftp` get no `--timeout` row, as in OpenSSH, so
-the gate of `crates/podssh-cli/src/dispatch.rs:251-269` skips them; T-133's
-limits keep each wait finite. Usage errors stay 64 (`docs/cli.md:2651-2654`)
+the gate of `crates/podssh-cli/src/dispatch.rs:252-270` skips them; T-133's
+limits keep each wait finite. Usage errors stay 64 (`docs/cli.md:2661-2664`)
 where OpenSSH gives 1; a script that tests for "not zero" works with both.
 `--timeout` required with no terminal, as for `cp`, lost: each script that
 runs `scp` in a pipe would exit 64 under `podssh scp`.
