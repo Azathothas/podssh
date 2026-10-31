@@ -52,6 +52,8 @@ races them. [carriers.md](carriers.md) studies the carriers that need no relay o
 | A standard sshd behind a podssh `roost` (`podssh node NAME --sshd`) | The iroh or reverse road to the roost | The forward road | None |
 | A tailnet node | The tailscale road (feature `ts`) | None | None |
 | A service that `cloudflared` publishes (`cf://HOST`) | The WebSocket of the tunnel, as `cloudflared access tcp` opens it, through `HTTPS_PROXY` | None | None |
+| A VM of the user's on GCP (`iap://PROJECT/ZONE/INSTANCE`) | IAP's WebSocket for TCP, as `gcloud compute start-iap-tunnel` opens it, through `HTTPS_PROXY` | None | None |
+| An EC2 instance of the user's (`eice://ENDPOINT/ADDRESS`) | The WebSocket of an EC2 Instance Connect Endpoint, its URL presigned as aws-cli presigns it, through `HTTPS_PROXY` | None | None |
 
 Each road has the same rules:
 
@@ -72,6 +74,27 @@ one outside the lock of its writes; the end of the stream, with no Close, is
 the end of the session. MEASURED against a stand-in on the loopback
 (`cargo test -p podssh-ws --features plain-ws --test cloudflare_access`); a
 live check waits for a service that the operator publishes.
+
+**The roads of a cloud's own tunnel (T-351, built against stand-ins on
+2026-10-31).** `podssh ssh iap://PROJECT/ZONE/INSTANCE` and `podssh ssh
+eice://ENDPOINT/ADDRESS` reach a VM of the user's through GCP's
+Identity-Aware Proxy for TCP and AWS's EC2 Instance Connect Endpoint, each
+a WebSocket on port 443 through `HTTPS_PROXY`, with no relay: the VM is then
+a jump host (`-J`), a carrier of the forward road that is not the
+operator's relay, for a user with a cloud account and no domain
+([carriers.md](carriers.md), class B). Each needs the user's account, in a
+file that the user names (Q51). IAP's token goes in a header, and IAP's own
+messages carry the stream, with acknowledgements and a reconnect that takes
+a lost link up, as gcloud does; a service account's key signs its JWT in
+aws-lc-rs, in the binary. EICE's URL is presigned with SigV4 and carries the
+credential: the one exception to the rule above, made for each connection
+and never shown. The protocol code is in `podssh-ws` (`iap`, `eice`), with
+no C; the files of the accounts, the JWT and the token's exchange are in
+the binary (`crates/podssh-cli/src/ssh/cloud.rs`). Checked against
+stand-ins, in memory and on the loopback, that speak each protocol as
+gcloud's, IAP Desktop's and aws-cli's sources say, with bytes that gcloud's
+own client wrote and URLs that aws-cli's own signer made; the live run
+waits for the operator's throwaway accounts (T-376).
 
 **The race (T-164, built 2026-10-10).** `podssh ssh node://NAME
 --iroh-ticket TICKET` races the iroh road to the node's ticket and the

@@ -217,6 +217,7 @@ pub async fn reach_skipping(resolved: &Resolved, skip: usize, log: &Arc<Log>) ->
         Transport::Cloudflare { host, trust, channel } => {
             super::cloudflare::reach(host, trust, channel, opts, log).await
         }
+        Transport::Cloud { road, trust } => super::cloud::reach(road, trust, log).await,
         Transport::Direct => {
             if podssh_relay::open::offline() {
                 return Err(NotReached {

@@ -80,6 +80,26 @@ Each rule is implemented.
   (T-195) holds podssh's own messages only, each through a mask that hides
   the value of each credential and proxy variable and the user and password
   of each URL; the program gets no credential variable in its environment.
+- **A cloud's road takes the user's account from a file, and EICE's URL
+  is the one URL that carries a credential** (T-351). `iap://` reads a
+  token, or the key of a service account, from the file of
+  `PODSSH_IAP_TOKEN_FILE` or `GOOGLE_APPLICATION_CREDENTIALS`, and `eice://`
+  a credential of AWS from the file of `PODSSH_EICE_CREDENTIALS_FILE`,
+  `AWS_SHARED_CREDENTIALS_FILE` or `~/.aws/credentials`: each file is refused
+  when another user may read it, as a pair file is, and only its path goes
+  in a variable. A service account's key signs its JWT through aws-lc-rs,
+  never through `rsa`, and its token comes from `oauth2.googleapis.com`
+  alone (a key that names another token endpoint is refused), through the
+  same proxy and the same trust as the tunnel. IAP's token goes in the
+  upgrade's `Authorization` header alone. EICE's URL is presigned with SigV4,
+  as AWS's own client presigns it, and so carries the key's id, the
+  signature and a temporary key's token: the one exception to the rule
+  above, by the operator's ruling Q51. podssh signs a new one for each
+  connection once TLS is up, good for 60 s, keeps it in memory that is
+  wiped, never prints or logs it, and takes each part of it, and of the
+  credential, out of an answer that quotes it. Google and AWS end the TLS,
+  so they see what the relay sees: the target, the time and the volume,
+  and the start of SSH before its key exchange.
 - **On Windows, the owner and the access list of a private file are
   checked** (T-274), as OpenSSH for Windows checks them: the owner is the
   user, SYSTEM, the Administrators or TrustedInstaller, and a file that

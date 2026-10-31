@@ -282,10 +282,10 @@ const FEATURE_VARIABLES: &[(&[&str], &str)] = &[
 #[cfg(not(feature = "iroh"))]
 const FEATURE_VARIABLES: &[(&[&str], &str)] = &[];
 
-/// Each variable that this build reads: [`VARIABLES`], and those of its
-/// features.
+/// Each variable that this build reads: [`VARIABLES`], those of the cloud
+/// roads (T-351), and those of its features.
 pub fn variables() -> impl Iterator<Item = &'static (&'static [&'static str], &'static str)> {
-    VARIABLES.iter().chain(FEATURE_VARIABLES)
+    VARIABLES.iter().chain(cloud::VARIABLES).chain(FEATURE_VARIABLES)
 }
 
 fn environment() -> Vec<Block> {
@@ -484,6 +484,7 @@ fn exit_status() -> Vec<Block> {
         .collect()
 }
 
+mod cloud;
 #[cfg(test)]
 mod tests;
 mod trust;

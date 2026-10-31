@@ -46,6 +46,8 @@ pub enum Transport {
     /// WebSocket (`cf://HOST`, T-264), or a podssh node's quick tunnel,
     /// with the channel that the command line asks of a node (T-300).
     Cloudflare { host: String, trust: Trust, channel: crate::channel::Ask },
+    /// A VM through its cloud's own tunnel (`iap://`, `eice://`, T-351).
+    Cloud { road: super::cloud::Road, trust: Trust },
 }
 
 /// A command line, resolved.
@@ -164,11 +166,15 @@ pub fn resolve_or_refuse(args: &SshArgs, env: &Env) -> Result<Resolved, Refusal>
     let node = super::node::destination(destination)?;
     let iroh = super::iroh::destination(destination)?;
     let tunnel = super::cloudflare::destination(destination)?;
+    let cloud = super::cloud::destination(destination)?;
     let target = match (&node, &iroh, &tunnel) {
         (Some((user, label, _)), ..) => Hop { user: user.clone(), host: label.clone(), port: 22 },
         (None, Some(dest), _) => Hop { user: dest.user.clone(), host: dest.shown.clone(), port: 22 },
         (None, None, Some((user, host))) => Hop { user: user.clone(), host: host.clone(), port: 22 },
-        (None, None, None) => parse_hop(destination)?,
+        (None, None, None) => match &cloud {
+            Some((user, road)) => Hop { user: user.clone(), host: road.host(), port: road.port() },
+            None => parse_hop(destination)?,
+        },
     };
     if args.iroh_ticket.is_some() && node.is_none() {
         return Err("--iroh-ticket is for a node://NAME destination, whose pair it races with".into());
@@ -239,7 +245,8 @@ pub fn resolve_or_refuse(args: &SshArgs, env: &Env) -> Result<Resolved, Refusal>
     // A cf://HOST name may be a podssh node's quick tunnel (T-300), as the
     // destination or as the first hop of -J, whose node takes the same keys
     // (T-347).
-    let podssh_ends = node.is_some() || iroh.is_some() || tunnel.is_some() || jump_tunnel.is_some();
+    let cf_hop = matches!(jump_tunnel, Some(super::jump::Tunnel::Cloudflare(_)));
+    let podssh_ends = node.is_some() || iroh.is_some() || tunnel.is_some() || cf_hop;
     if let Some((flag, _)) = channel.iter().find(|(_, given)| *given).filter(|_| !podssh_ends) {
         return Err(format!(
             "{flag} is for a node://NAME, iroh:TICKET or cf://HOST destination, or a cf://HOST first hop of -J"
@@ -330,13 +337,14 @@ pub fn resolve_or_refuse(args: &SshArgs, env: &Env) -> Result<Resolved, Refusal>
         super::iroh::transport(dest, &ask(&dest.shown, None), trust)?
     } else if let Some((_, host)) = &tunnel {
         super::cloudflare::transport(&ask(host, None), env)?
+    } else if let Some((_, road)) = &cloud {
+        super::cloud::transport(road, &ask(&road.shown(), None), env, port)?
     } else if let Some(first) = &jump_tunnel {
-        // The first hop is a Cloudflare tunnel (T-347): the road reaches it,
-        // and the destination's port and HostName are the next hop's.
-        super::cloudflare::transport(
-            &super::node::Ask { jumps: 0, port: false, host_name: false, ..ask(first, None) },
-            env,
-        )?
+        // The first hop is a tunnel (T-347, T-351): the road reaches it, and
+        // the destination's port and HostName are the next hop's.
+        let (label, port) = (first.label(), jump[0].port);
+        let at = super::node::Ask { jumps: 0, port: false, host_name: false, ..ask(&label, None) };
+        first.transport(&at, env, port)?
     } else if args.direct {
         if family.is_some() {
             return Err(
@@ -404,7 +412,7 @@ pub fn resolve_or_refuse(args: &SshArgs, env: &Env) -> Result<Resolved, Refusal>
     let shown = match (&node, &iroh) {
         (Some((_, label, route)), _) => super::node::shown(label, route.as_deref()),
         (None, Some(dest)) => dest.shown.clone(),
-        (None, None) => host.clone(),
+        (None, None) => cloud.as_ref().map_or_else(|| host.clone(), |(_, road)| road.shown()),
     };
     let mut options = Options::new(Hop { user: None, host: shown, port }, user.clone());
     // OpenSSH looks a host key up, and records it, under the alias in lowercase.

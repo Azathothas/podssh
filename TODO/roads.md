@@ -3477,17 +3477,132 @@ Endpoint puts a credential in its URL.
 
 The operator's ruling of 2026-10-31 (Q51, `docs/decisions.md`): both roads, IAP and EICE; EICE's presigned URL may carry its credential, an exception for that URL alone, which podssh never prints or logs. They are built and tested against stand-ins of the two endpoints; the live run waits for the operator's throwaway accounts (T-376).
 
+The draft's calls (2026-10-31), each with what lost:
+
+- **Read in documents, not measured live.** gcloud 570.0.0 as installed on the session's host
+  (googlecloudsdk/api_lib/compute/iap_tunnel_websocket.py, iap_tunnel_websocket_utils.py,
+  iap_tunnel_websocket_helper.py, iap_tunnel_lightweight_websocket.py; surface/compute/start_iap_tunnel.py);
+  `GoogleCloudPlatform/iap-desktop:sources/Google.Solutions.Iap/Protocol/SshRelayFormat.cs`, its
+  SshRelayConstants.cs, SshRelaySession.cs and SshRelayStream.cs at master; Google's pages
+  using-tcp-forwarding and oauth2/service-account; `aws/aws-cli:awscli/customizations/ec2instanceconnect/eicesigner.py`
+  with its websocket.py, opentunnel.py and eicefetcher.py at v2; `boto/botocore:botocore/auth.py` at develop;
+  AWS's pages connect-with-ec2-instance-connect-endpoint, eice-quotas,
+  permissions-for-ec2-instance-connect-endpoint and describe-instance-connect-endpoints; and
+  `awslabs/aws-c-auth:tests/aws-signing-test-suite/v4/get-vanilla/query-signature.txt` with two more cases
+  of its suite. Each page and file came through fetch.web.pkgforge.dev or read.web.pkgforge.dev, after
+  their `llms.txt`.
+- **Captured on the session's host, with no network.** gcloud's own `IapTunnelWebSocket` ran against a TLS
+  stand-in on the loopback (`--iap-tunnel-url-override`'s path in its code): its connect, its reconnect
+  after a Close 4004, its data, its acknowledgements and its resend are the tests' bytes. aws-cli's own
+  `InstanceConnectEndpointRequestSigner` ran on the botocore 1.34.22 that gcloud bundles, at a fixed time
+  with AWS's example key: its four presigned URLs are the tests' vectors.
+- **The destinations** are `iap://[user@]PROJECT/ZONE/INSTANCE[:PORT]` and
+  `eice://[user@]ENDPOINT/ADDRESS[:PORT]`, the endpoint by its DNS name and the instance by its private
+  address. Lost: flags of their own (`--zone`, `--project`), which every other road would refuse; the
+  instance's name or id alone, found through Compute's or EC2's API, as gcloud and aws-cli find it: a second
+  host, another scope of token or two more signed calls, XML and paging, for what the user can give once.
+  The host key is kept under the road's name, as `node://NAME`'s is; the blocks of `ssh_config` are the
+  instance's, as a node's are its label's.
+- **IAP's token** comes from a file that the user names (`PODSSH_IAP_TOKEN_FILE`, else Google's own
+  `GOOGLE_APPLICATION_CREDENTIALS`), read by `podssh_relay::cache::read_private`, which refuses a file that
+  another user can read, as a pair file is refused. It holds a token, read again for each link; a service
+  account's key, whose JWT podssh signs RS256 through aws-lc-rs and trades at `oauth2.googleapis.com` alone;
+  or `authorized_user` credentials, whose refresh token gets a token. Lost: a token in a variable (Q51 names
+  a token file); a self-signed JWT as the bearer, which Google takes for some APIs and documents for no
+  tunnel; the metadata server, which only a VM of GCP has; workload identity federation, another flow that
+  no one asked for; the well-known file of gcloud's own credentials, which `GOOGLE_APPLICATION_CREDENTIALS`
+  can name. The signature is in the binary, as rule 4 of `AGENTS.md` keeps C out of the library crates:
+  podssh-cli takes aws-lc-rs at the version that podssh-ssh builds, so no crate is added.
+- **The session** follows gcloud and IAP Desktop: data of 16 KiB at most; an acknowledgement once more than
+  twice 16 KiB came (gcloud), before data when bytes came since the last (IAP Desktop), and after 1 s with
+  nothing to send (gcloud waits 2 s); an acknowledgement below the last, or above what went, ends the
+  session (gcloud). A lost link, or a Close of a code that no table names, is taken up by
+  `/v4/reconnect`, three times at most, with a new token (IAP Desktop tries twice; gcloud for 15 minutes).
+  Lost: gcloud's end at any Close but 4004, as a proxy's or a balancer's Close would end a session that a
+  new link takes up; a resend buffer with no bound, as both clients keep, for one of 8 MiB, past which a
+  lost link ends the session: a stalled server cannot make podssh hold more, and a server that waits for
+  more bytes before it acknowledges cannot hang it, as a send that waited for room would.
+- **The end of SSH's input** ends the session as gcloud ends it, with a Close once its bytes went, and the
+  server's bytes before its own Close still reach SSH for 5 s. Lost: going on receiving, as the relay's road
+  does: IAP has no half-close, so a far end that waits for the end of its input would wait for ever.
+- **No Ping and no read bound on IAP**, as gcloud sends none; SSH's keepalives stay on, as on `--direct`.
+  The 101's subprotocol is not read: the first message must be the connect success, which proves more
+  than a header, and reading the 101's headers would copy `upgrade_with` out of a client.rs at its 500
+  lines.
+- **EICE's URL** is signed once TLS is up, as late as can be within its 60 s, and anew for each
+  connection; `maxTunnelDuration` goes only when `PODSSH_EICE_MAX_TUNNEL_DURATION` asks, as aws-cli sends
+  it only when asked. The credential comes from a file alone (Q51): the JSON of `aws configure
+  export-credentials`, or a shared credentials file and `AWS_PROFILE`, in `PODSSH_EICE_CREDENTIALS_FILE`,
+  `AWS_SHARED_CREDENTIALS_FILE` or `~/.aws/credentials`. Lost: the variables `AWS_ACCESS_KEY_ID` and the
+  rest, as Q51 names a file; `credential_process`, which would start another program; SSO and the
+  instance's metadata, more flows and hosts. SigV4 is in podssh-ws, with the hmac and sha2 that it builds,
+  so that it is tested with no C. The stream is the relay stream's, binary as it is, its frames taken up to
+  1 MiB, as the endpoint documents none; its Pings stay, as RFC 6455 asks a Pong of the endpoint.
+- **A copy before the end of a tunnel**: `podssh cp`'s meter takes a road's age limit, EICE's duration
+  less a twelfth, 30 s at least, and goes on in a new tunnel, as before the relay's limits. An SSH session
+  cannot move, as an sshd runs no resumable layer: it ends at the tunnel's end, with the endpoint's reason.
+- **The tests reach the stand-ins through a proxy that re-terminates TLS** with the test's own CA, by
+  `https_proxy` and `--ca-file`, so the binary needs no hook to reach a stand-in. Lost: a variable that
+  points the road at another host, through which a token could leave for a host that is not Google's.
+  The carrier's own tests, in podssh-ws's src, run over links in memory, so that no listener stands
+  outside a crate's tests directory; and the feature `plain-ws` gets no connector of either road, which
+  no test would use.
+
 ## Prove
 
 ```sh
 export CARGO_BUILD_JOBS=4
 cargo test -p podssh-ws --lib iap
+cargo test -p podssh-ws --lib eice
+cargo test -p podssh-cli --lib ssh::cloud
+cargo test -p podssh-cli --lib cp::link
+cargo test -p podssh-cli --lib man
 cargo test -p podssh-cli --test iap_cli
+cargo test -p podssh-cli --test eice_cli
 ```
 
 Frames captured from gcloud decode; a stand-in of the tunnel on the loopback carries a session;
 a test reads the process's arguments and its output, and finds no token. Live in GitHub Actions
 with a throwaway project of the operator's.
+
+## Correction
+
+Read at `5877a00` on 2026-10-31.
+
+- The Source names items 4 and 5 of the forward road; in `docs/carriers.md` GCP IAP and AWS EICE are items
+  2 and 3, and items 4 and 5 are WARP and Tor (T-352, T-353).
+- The first bullet holds, and gcloud's own client says more: the URL's query names the target (`project`,
+  `port`, `newWebsocket=True`, `zone`, `instance`, and `interface` `nic0`) and holds no credential; the
+  upgrade sends `Origin: bot:iap-tunneler`; a reconnect is `/v4/reconnect` with the session's id, the bytes
+  received and the zone; gcloud takes a session up after a Close 4004 and after a link lost with no Close.
+- The second bullet holds; aws-cli reads `HTTP_PROXY` before `HTTPS_PROXY`, in upper case alone, and
+  `NO_PROXY` by a substring; podssh reads its own proxy variables, as on each road.
+- The fourth bullet: aws-lc-rs was podssh-ssh's dependency, not the binary crate's; podssh-cli takes it now,
+  the same version. `podssh cp` opened a new session before the relay's caps alone: its meter applied the
+  budgets to a relay session and never spent one of another road (`Meter::left` of
+  crates/podssh-cli/src/cp/link.rs, lines 56-63 at `5877a00`), so the meter now takes a road's age limit too.
+
+## Done
+
+2026-10-31, drafted in the worktree `cloud`, branch `draft-cloud`; the merge, the build and each result
+are UNVERIFIED.
+
+- IAP: the messages (`crates/podssh-ws/src/iap/frame.rs`), the flow (`crates/podssh-ws/src/iap/flow.rs`), the
+  close codes (`crates/podssh-ws/src/iap/close.rs`), the upgrade (`crates/podssh-ws/src/iap/mod.rs`) and the
+  carriage with its reconnect (`crates/podssh-ws/src/iap/carry.rs`). `cargo test -p podssh-ws --lib iap`:
+  UNVERIFIED passed.
+- EICE: SigV4 (`crates/podssh-ws/src/eice/sigv4.rs`) and the road (`crates/podssh-ws/src/eice/mod.rs`).
+  `cargo test -p podssh-ws --lib eice`: UNVERIFIED passed (aws-c-auth's three vectors and aws-cli's four
+  URLs).
+- The command line: `crates/podssh-cli/src/ssh/cloud.rs` and its directory (the destinations, the token
+  of Google, the credential of AWS, the stream that says the road's end, `podssh proxy`), `-J` with a
+  cloud's tunnel first, and the copy's meter. `cargo test -p podssh-cli --lib ssh::cloud` and
+  `--lib cp::link`: UNVERIFIED passed. The manual's variables and notes: `cargo test -p podssh-cli --lib man`
+  UNVERIFIED passed.
+- Through the stand-in proxy that re-terminates TLS: `cargo test -p podssh-cli --test iap_cli`,
+  UNVERIFIED passed; `--test eice_cli`, UNVERIFIED passed.
+- Waits: clippy, the format and the Unix-only tests in the build image, and the planted defects (T-251);
+  the live run with the operator's throwaway accounts (T-376).
 
 
 # T-352: WARP's MASQUE road over HTTP/2

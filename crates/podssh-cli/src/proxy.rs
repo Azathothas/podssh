@@ -61,6 +61,10 @@ pub fn run_proxy(args: &ProxyArgs, err: &mut dyn Write) -> i32 {
 }
 
 fn proxy(args: &ProxyArgs, err: &mut dyn Write) -> i32 {
+    // iap:// and eice://, a cloud's own tunnel (T-351).
+    if let Some(code) = crate::ssh::cloud::proxy::run(args, err) {
+        return code;
+    }
     match args.target.as_deref().map(crate::ssh::cloudflare::destination) {
         Some(Ok(Some((None, host)))) => return run_cloudflare(&host, args, err),
         Some(Ok(Some((Some(_), _)))) => {
