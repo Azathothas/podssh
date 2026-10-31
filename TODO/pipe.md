@@ -175,7 +175,7 @@ local program to a target, and `podssh proxy` stays a second pump.
 
 1. One adapter per kind, in crates/podssh-cli/src/pipe/remote.rs: it opens
    its road and gives a duplex stream and, at the end, a close reason. The
-   pump does not know the road (`docs/architecture.md:129-131`).
+   pump does not know the road (`docs/architecture.md:132-134`).
 2. `relay:HOST:PORT`: parse as `crates/podssh-cli/src/proxy.rs:203-213` does;
    open with `crates/podssh-relay/src/open.rs:188-253`. Keep the rules of
    proxy: no Close at the end of input, the ping watcher
@@ -412,7 +412,7 @@ shows that an AF_UNIX or loopback bind works (`docs/design.md:922-924`).
   allows the bind. The default is loopback and AF_UNIX; the user can
   configure the address and can turn listening off.
 - Read: five documents still say that podssh never listens:
-  `AGENTS.md:248-254`, `docs/architecture.md:132-146`,
+  `AGENTS.md:248-254`, `docs/architecture.md:135-149`,
   `docs/target-environment.md:84-88`, `SECURITY.md:98-121`, `README.md:41-49`.
 - Read: sandbox A refuses an AF_INET bind and allows an AF_UNIX bind
   (`docs/STATUS.md:279`). The box refuses each `bind`, AF_UNIX too
@@ -500,7 +500,7 @@ Plant: bind with no umask; the check of the mode must fail.
 ## Correction
 
 2026-10-10: three of the five documents already say what the ruling
-allows: `AGENTS.md:248-254`, `docs/architecture.md:132-146` and
+allows: `AGENTS.md:248-254`, `docs/architecture.md:135-149` and
 `docs/target-environment.md:84-88` name a listener that the user asks for,
 after a probe. `SECURITY.md` and `README.md` still said that nothing
 listens, and change here. Step 4's umask 077 makes a socket's file mode
@@ -652,7 +652,7 @@ sh scripts/dev.sh check                               # interop-faults.sh: the d
 
 In `scripts/interop-faults.sh`, `--persist -tt` goes through two stand-in
 relays. The input sets `MARK=kept`; the harness kills the first stand-in, as
-`scripts/interop-faults.sh:258-268` does; the input then runs `echo M=$MARK`
+`scripts/interop-faults.sh:273-283` does; the input then runs `echo M=$MARK`
 and `tmux kill-session`. The output has `M=kept`, and the exit is 0. With
 tmux moved off `PATH`, the exit is 255 and names tmux. Plant: start tmux
 without `-A`; the second attach fails, and the check must fail.
@@ -1302,7 +1302,7 @@ the request's target, would be the proxy that such a program points at.
   takes one client by default, and with `--keep-listening` each client in turn, 8 at once at most,
   each joined to a new instance of the other side (`crates/podssh-cli/src/pipe/serve.rs:1-11`).
 - Read: the operator allows a listener that the user asks for, when a probe allows the bind, on
-  loopback or AF_UNIX by default (`docs/decisions.md:33`; `docs/architecture.md:132-139`); the
+  loopback or AF_UNIX by default (`docs/decisions.md:33`; `docs/architecture.md:135-142`); the
   gate's scan of listeners allows the listener of `pipe` (`scripts/check-repo.py:79-96`).
 - Read: the SOCKS side of `-D` answers once the server's channel opened, so that a client learns
   whether its target was reached (`crates/podssh-ssh/src/socks.rs:1-5`). The relay refuses a target

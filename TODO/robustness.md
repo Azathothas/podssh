@@ -842,7 +842,7 @@ Read:
   `stall` and `close` (`scripts/fake-relay.py:18-27`). The stand-in proxy maps
   names and answers a status (`scripts/fake-proxy.py:1-27`). Neither shapes
   the traffic.
-- `scripts/interop-faults.sh:43-52` starts one stand-in for each fault; its
+- `scripts/interop-faults.sh:45-54` starts one stand-in for each fault; its
   checks are at lines 73-182 at `8d668b7` (`docs/STATUS.md:519-539`, 14 of 14 since T-236).
 - The time limits that latency meets today: the SSH handshake, 60 s
   (`crates/podssh-ssh/src/options.rs:395`, enforced at

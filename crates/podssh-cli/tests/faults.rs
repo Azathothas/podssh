@@ -391,3 +391,40 @@ fn a_relay_whose_issuer_podssh_does_not_trust_ends_with_what_to_do() {
     let out = String::from_utf8_lossy(&done.stdout);
     assert!(!done.status.success() && says(&out), "doctor: {:?}: {out}", done.status);
 }
+
+#[test]
+#[ignore = "the fault harness, on the loopback: a few seconds"]
+fn a_relay_whose_certificate_has_expired_names_this_hosts_clock() {
+    let session = Session::start("clock");
+    let cell = match Cell::fake_relay_expired(&session) {
+        Ok(cell) => cell,
+        Err((_, why)) => return eprintln!("skipped: {why}"),
+    };
+    let says = |err: &str| err.contains("this host's clock, which reads") && err.contains(" GMT");
+    let ran = ssh(&session, &cell, &[], "true", None);
+    assert!(ran.code != 0 && says(&ran.err), "ssh: {}: {}", ran.code, ran.err);
+    let relay: Vec<String> = cell
+        .args
+        .windows(2)
+        .filter(|w| w[0].starts_with("--relay-") || w[0] == "--ca-file")
+        .flatten()
+        .cloned()
+        .collect();
+    let mut args = vec!["proxy".to_string()];
+    args.extend(relay.clone());
+    args.extend(["127.0.0.1".to_string(), "22".to_string()]);
+    let done = session.command(&args).stdin(Stdio::null()).output().expect("podssh runs");
+    let err = String::from_utf8_lossy(&done.stderr);
+    assert!(!done.status.success() && says(&err), "proxy: {:?}: {err}", done.status);
+    // podssh cp, to the same far end through the same relay.
+    let here = session.home.join("clock-copy.bin");
+    std::fs::write(&here, b"a byte or two").expect("a file to copy");
+    let mut args =
+        vec!["cp".to_string(), "--timeout".to_string(), "60s".to_string(), "-P".to_string(), session.port.to_string()];
+    args.extend(session.common());
+    args.extend(relay);
+    args.extend([here.display().to_string(), "tester@127.0.0.1:clock-copy.bin".to_string()]);
+    let done = session.command(&args).stdin(Stdio::null()).output().expect("podssh runs");
+    let err = String::from_utf8_lossy(&done.stderr);
+    assert!(!done.status.success() && says(&err), "cp: {:?}: {err}", done.status);
+}

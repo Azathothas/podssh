@@ -2,8 +2,12 @@
 //! compare this host's clock with the relay's `Date` header. Certificates
 //! and cached tokens are checked against this host's clock.
 
+// The writing of a date and its calendar are podssh-ws's, whose TLS errors
+// give this host's clock in the same words (T-345).
+use podssh_ws::clock::civil_from_days;
+pub(super) use podssh_ws::clock::http_date as format_http_date;
+
 const MONTHS: [&str; 12] = ["Jan", "Feb", "Mar", "Apr", "May", "Jun", "Jul", "Aug", "Sep", "Oct", "Nov", "Dec"];
-const DAYS: [&str; 7] = ["Thu", "Fri", "Sat", "Sun", "Mon", "Tue", "Wed"];
 
 /// Seconds since the Unix epoch for an IMF-fixdate, or `None` for anything
 /// else (the obsolete formats are not sent by the relay).
@@ -41,21 +45,6 @@ pub(crate) fn format_utc(secs: i64) -> String {
     format!("{y:04}-{m:02}-{d:02}T{:02}:{:02}:{:02}Z", rest / 3600, rest % 3600 / 60, rest % 60)
 }
 
-/// An IMF-fixdate for seconds since the Unix epoch.
-pub(super) fn format_http_date(secs: i64) -> String {
-    let days = secs.div_euclid(86_400);
-    let rest = secs.rem_euclid(86_400);
-    let (y, m, d) = civil_from_days(days);
-    format!(
-        "{}, {d:02} {} {y} {:02}:{:02}:{:02} GMT",
-        DAYS[days.rem_euclid(7) as usize],
-        MONTHS[(m - 1) as usize],
-        rest / 3600,
-        rest % 3600 / 60,
-        rest % 60
-    )
-}
-
 /// Days since 1970-01-01 for a proleptic Gregorian date (Howard Hinnant's
 /// algorithm).
 fn days_from_civil(y: i64, m: i64, d: i64) -> i64 {
@@ -66,19 +55,6 @@ fn days_from_civil(y: i64, m: i64, d: i64) -> i64 {
     let doy = (153 * mp + 2) / 5 + d - 1;
     let doe = yoe * 365 + yoe / 4 - yoe / 100 + doy;
     era * 146_097 + doe - 719_468
-}
-
-/// The inverse of [`days_from_civil`].
-fn civil_from_days(z: i64) -> (i64, i64, i64) {
-    let z = z + 719_468;
-    let era = z.div_euclid(146_097);
-    let doe = z - era * 146_097;
-    let yoe = (doe - doe / 1460 + doe / 36_524 - doe / 146_096) / 365;
-    let doy = doe - (365 * yoe + yoe / 4 - yoe / 100);
-    let mp = (5 * doy + 2) / 153;
-    let d = doy - (153 * mp + 2) / 5 + 1;
-    let m = if mp < 10 { mp + 3 } else { mp - 9 };
-    (yoe + era * 400 + i64::from(m <= 2), m, d)
 }
 
 #[cfg(test)]

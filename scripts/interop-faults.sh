@@ -10,7 +10,7 @@ FK="$W/faults"
 mkdir -p "$FK"
 NAMES="relay-a relay-r503 relay-silent relay-hole relay-dead relay-stall relay-close relay-cap relay-kill relay-hshake
 relay-delay relay-jitter relay-rate relay-cut relay-persist relay-dropfirst relay-dropafter relay-tls12 relay-tunnel
-relay-backlog relay-backlog2 relay-window"
+relay-backlog relay-backlog2 relay-window relay-expired"
 SAN=$(for n in $NAMES; do printf 'DNS:%s.test,' "$n"; done)
 PINS=$(for n in $NAMES; do printf '%s.test=127.0.0.1,' "$n"; done)
 SAN=${SAN%,}
@@ -32,7 +32,9 @@ if openssl req -config "$FK/req.cnf" -x509 -newkey ec -pkeyopt ec_paramgen_curve
     && openssl req -config "$FK/req.cnf" -newkey ec -pkeyopt ec_paramgen_curve:P-256 -nodes -subj /CN=relay.test \
         -keyout "$FK/relay.key" -out "$FK/relay.csr" >>"$FK/openssl.log" 2>&1 \
     && openssl x509 -req -in "$FK/relay.csr" -CA "$FK/ca.pem" -CAkey "$FK/ca.key" -CAcreateserial \
-        -days 2 -extfile "$FK/ext" -out "$FK/relay.pem" >>"$FK/openssl.log" 2>&1; then
+        -days 2 -extfile "$FK/ext" -out "$FK/relay.pem" >>"$FK/openssl.log" 2>&1 \
+    && openssl x509 -req -in "$FK/relay.csr" -CA "$FK/ca.pem" -CAkey "$FK/ca.key" -CAcreateserial \
+        -days -1 -extfile "$FK/ext" -out "$FK/relay-expired.pem" >>"$FK/openssl.log" 2>&1; then
     ok faults.certs "the test certificates are made"
 else
     bad faults.certs "the test certificates could not be made" "$FK/openssl.log"
@@ -50,12 +52,17 @@ for spec in a:normal r503:refuse:503 silent:silent hole:blackhole dead:normal st
         --port-file "$FK/$name.port" --mode "${spec#*:}" >"$FK/$name.log" 2>&1 &
     echo $! >"$FK/$name.pid"
 done
+# T-345: the same leaf, its end a day before its start (OpenSSL takes -days
+# down to -1), as a host whose clock is wrong sees each certificate.
+python3 "$HERE/fake-relay.py" --cert "$FK/relay-expired.pem" --key "$FK/relay.key" --keepalive 2 \
+    --port-file "$FK/expired.port" --mode normal >"$FK/expired.log" 2>&1 &
+echo $! >"$FK/expired.pid"
 port() { cat "$FK/$1.port" 2>/dev/null; }
 tries=0
 while [ "$tries" -lt 30 ]; do
     missing=0
     for n in a r503 silent hole dead stall close cap kill hshake delay jitter rate cut persist dropfirst dropafter tls12 \
-            slowopen tunnel backlog window; do
+            slowopen tunnel backlog window expired; do
         [ -s "$FK/$n.port" ] || missing=1
     done
     [ "$missing" = 0 ] && break
@@ -116,6 +123,14 @@ rc=$?
 [ "$rc" != 0 ] && grep -q UnknownIssuer "$FK/err" && grep -q -- '--ca-file FILE or SSL_CERT_FILE' "$FK/err" \
     && ok faults.issuer "a relay whose issuer podssh does not trust ends with the hint that names --ca-file" \
     || bad faults.issuer "an untrusted issuer: exit $rc, without the hint" "$FK/err"
+
+# T-345: a certificate that its CA signed and that has expired: the error
+# names this host's clock and its reading, as doctor's line does.
+r "relay-expired.test:$(port expired)" "$T" true >"$FK/out" 2>"$FK/err" </dev/null
+rc=$?
+[ "$rc" != 0 ] && grep -q "Expired" "$FK/err" && grep -q "this host's clock, which reads" "$FK/err" \
+    && ok faults.clock "a relay whose certificate has expired ends with this host's clock and its reading" \
+    || bad faults.clock "an expired certificate: exit $rc, without the clock" "$FK/err"
 
 files() { n=0; for f in "$@"; do [ -e "$f" ] && n=$((n + 1)); done; echo "$n"; }
 for spec in "dead:a relay host that is down" "r503:a relay host answering 503"; do

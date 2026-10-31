@@ -2676,7 +2676,7 @@ connection, answered with 200, and many sessions on one TLS connection.
 
 Read and verified at the cited lines (2026-10-30):
 
-- podssh offers no ALPN: `crates/podssh-ws/src/tls.rs:293` says "no ALPN",
+- podssh offers no ALPN: `crates/podssh-ws/src/tls.rs:315` says "no ALPN",
   and a caller's configuration that offers ALPN is refused
   (`crates/podssh-ws/src/tls.rs:86` says "alpn_protocols.is_empty()").
 - The upgrade is HTTP/1.1: `crates/podssh-ws/src/handshake.rs:37` builds
@@ -2974,7 +2974,7 @@ roots must be exactly three, and a refusal of the edge does not say which releas
   (`crates/podssh-ws/src/resolve.rs:125`).
 - Read: the edge's trust is podssh's default roots, `podssh-ca.pem` next to the binary among them,
   and cloudflared's three (`crates/podssh-relay/src/quick/edge.rs:35-46`;
-  `crates/podssh-ws/src/tls.rs:182-211`).
+  `crates/podssh-ws/src/tls.rs:204-233`).
 - Inferred: Cloudflare cannot map `podssh 1.0.0-beta.2` to a release of cloudflared; some filters
   block `trycloudflare.com`.
 
@@ -3434,7 +3434,7 @@ Endpoint puts a credential in its URL.
   aws/aws-cli:awscli/customizations/ec2instanceconnect/eicesigner.py): EC2 Instance Connect
   Endpoint takes a presigned SigV4 `wss://` URL, valid for 60 s, then raw binary frames; AWS's
   client honours `HTTPS_PROXY`; a connection lasts an hour at most, and 20 run at once.
-- Read: credentials never go in URLs (`docs/architecture.md:158-160`; `docs/design.md:62`), and
+- Read: credentials never go in URLs (`docs/architecture.md:161-163`; `docs/design.md:62`), and
   `docs/decisions.md:43` says "in a header or a 0600 file and never in a URL" of the relay's
   tokens. The presigned URL carries an access key id and a signature in its query.
 - Read: the `cf://` road uses podssh-ws's WebSocket client through the proxy
@@ -3508,7 +3508,7 @@ T-353.
   reverse engineer" it, and let Cloudflare "block certain kinds of usage"
   (https://www.cloudflare.com/application/terms/, last updated 2024-10-18).
 - Read: podssh-ws refuses a caller's ALPN and offers no client certificate
-  (`crates/podssh-ws/src/tls.rs:85-96`, `:293-296`); the WebSocket over HTTP/2 is T-321, which
+  (`crates/podssh-ws/src/tls.rs:85-96`, `:315-318`); the WebSocket over HTTP/2 is T-321, which
   waits for the relay.
 - Read in the study: with no IP stack, usque's L4 mode runs over QUIC only
   (https://github.com/Diniboy1123/usque/wiki/L4-proxy-mode); over HTTP/2 a client needs one.
@@ -3759,7 +3759,7 @@ code that no command of the default build uses is P2 at most".
    network, as a network can change under the same address; the race of T-164 already hides the
    wait where the reverse road is there, and `PODSSH_IROH_UDP=off` takes it away.
 3. UDP beside a proxy does not change: the operator accepted the iroh road's UDP after a probe
-   (`docs/architecture.md:140-143`), and the quick tunnel's narrower rule, no QUIC where a proxy
+   (`docs/architecture.md:143-146`), and the quick tunnel's narrower rule, no QUIC where a proxy
    is set (T-301), stays its own.
 
 ## Prove
@@ -4137,7 +4137,7 @@ TCP, and podssh runs no `ProxyCommand` that could add TLS.
 - Read: podssh runs no `ProxyCommand` (`crates/podssh-cli/src/ssh/options.rs:219-224`).
 - Read: podssh-ws opens TCP through the proxy, then a TLS handshake checked for a name
   (`crates/podssh-ws/src/client.rs:184-205`), with no ALPN and no client certificate
-  (`crates/podssh-ws/src/tls.rs:293-296`).
+  (`crates/podssh-ws/src/tls.rs:315-318`).
 - Read: the agent proxy of a cloud container re-terminates TLS for some names, with its CA in
   `SSL_CERT_FILE` (`docs/target-environment.md:57-66`), and reset SSH on port 443
   (`TODO/ws.md:1151-1154`). Inferred: SSH inside TLS passes such a proxy where podssh trusts the
@@ -4209,7 +4209,7 @@ cannot make it a road.
   (`crates/podssh-ws/src/socks5.rs:1-7`); a library crate has no C (`AGENTS.md`, section 5, rule
   4).
 - Read: tokens and keys never appear in argv, logs or URLs, and go in files with tight permissions
-  (`docs/architecture.md:158-160`); an `ss://` URI holds the password.
+  (`docs/architecture.md:161-163`); an `ss://` URI holds the password.
 - Read: podssh starts no program that the user did not name (`AGENTS.md`, section 5, rule 3), and
   a plugin of Shadowsocks is another program.
 - Inferred: a proxy that waits for TLS on port 443 carries no Shadowsocks, as it carries no SSH

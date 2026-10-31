@@ -2174,7 +2174,7 @@ a reviewer can see it.
 
 ## Premise
 
-Read: the rule as written is rule 3 of `docs/architecture.md:132-146` (the
+Read: the rule as written is rule 3 of `docs/architecture.md:135-149` (the
 bind check of `podssh doctor` is the one exception), rule 3 of
 `docs/target-environment.md:84-88`, and rule 2 of AGENTS.md, section 5. The
 operator ruled on 2026-10-08 (`docs/decisions.md`): Q1 allows a local
@@ -2259,7 +2259,7 @@ allowance".
   files, and a plant at each run (one `TcpListener::bind` in
   `crates/podssh-ws/src` of a temporary tree must be found). It prints the
   files read and the uses within the allowance.
-- The documents already state the rule as ruled (`docs/architecture.md:132-146`,
+- The documents already state the rule as ruled (`docs/architecture.md:135-149`,
   `docs/target-environment.md:84-88`, `AGENTS.md`, section 5): nothing to
   change there. `docs/development.md`, "Checks": the scan.
 - Prove: `python scripts/check-repo.py`: exit 0, "265 Rust files read; 32

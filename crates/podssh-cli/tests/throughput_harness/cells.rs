@@ -45,6 +45,16 @@ impl Cell {
     /// The forward road through a stand-in relay of `mode` (T-203), its own
     /// process; the certificates are made once for the session.
     pub fn fake_relay_mode(s: &Session, mode: &str, name: &str) -> Result<Cell, Skipped> {
+        Cell::fake_relay_cert(s, mode, name, "relay.pem")
+    }
+
+    /// The stand-in relay with a certificate that its CA signed and that
+    /// ended a day ago, as a host whose clock is wrong sees each one (T-345).
+    pub fn fake_relay_expired(s: &Session) -> Result<Cell, Skipped> {
+        Cell::fake_relay_cert(s, "normal", "the stand-in relay, its certificate expired", "relay-expired.pem")
+    }
+
+    fn fake_relay_cert(s: &Session, mode: &str, name: &str, cert: &str) -> Result<Cell, Skipped> {
         let name = name.to_string();
         let python = ["python3", "python"].into_iter().find(|p| found(p, &["--version"]));
         let Some(python) = python else { return Err((name, "no Python here".into())) };
@@ -56,11 +66,11 @@ impl Cell {
             std::fs::create_dir_all(&dir).map_err(|e| (name.clone(), e.to_string()))?;
             certificates(&dir).map_err(|why| (name.clone(), why))?;
         }
-        let port_file = dir.join(format!("port-{}", mode.replace(':', "-")));
+        let port_file = dir.join(format!("port-{}-{cert}", mode.replace(':', "-")));
         let child = Command::new(python)
             .arg(scripts().join("fake-relay.py"))
             .arg("--cert")
-            .arg(dir.join("relay.pem"))
+            .arg(dir.join(cert))
             .arg("--key")
             .arg(dir.join("relay.key"))
             .arg("--port-file")
@@ -207,7 +217,7 @@ fn certificates(dir: &std::path::Path) -> Result<(), String> {
          extendedKeyUsage=serverAuth\n",
     )
     .map_err(|e| e.to_string())?;
-    let steps: [Vec<String>; 3] = [
+    let steps: [Vec<String>; 4] = [
         ["req", "-config", &p("req.cnf"), "-x509", "-newkey", "ec", "-pkeyopt", "ec_paramgen_curve:P-256", "-nodes"]
             .iter()
             .map(|s| s.to_string())
@@ -247,6 +257,13 @@ fn certificates(dir: &std::path::Path) -> Result<(), String> {
             .iter()
             .map(|s| s.to_string())
             .chain(["-days".into(), "2".into(), "-extfile".into(), p("ext"), "-out".into(), p("relay.pem")])
+            .collect(),
+        // The same leaf, its end a day before its start: expired now. OpenSSL
+        // takes -days down to -1.
+        ["x509", "-req", "-in", &p("relay.csr"), "-CA", &p("ca.pem"), "-CAkey", &p("ca.key"), "-CAcreateserial"]
+            .iter()
+            .map(|s| s.to_string())
+            .chain(["-days".into(), "-1".into(), "-extfile".into(), p("ext"), "-out".into(), p("relay-expired.pem")])
             .collect(),
     ];
     for step in steps {

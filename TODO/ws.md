@@ -223,7 +223,7 @@ module comment says that the test suite asserts that the shipped configuration d
 (`probe.rs` lines 9-12 at `510d86f`), but no test names `PrintChain`: a search finds it only in `probe.rs`,
 the example and the documents. Also, lines 134 and 178 at `510d86f` of `probe.rs` index the certificate with
 no bound check, so a short certificate panics the probe. The shipped configuration calls
-`.dangerous()` to install the WebPKI verifier (`crates/podssh-ws/src/tls.rs:288-292`), so a scan
+`.dangerous()` to install the WebPKI verifier (`crates/podssh-ws/src/tls.rs:310-314`), so a scan
 cannot look for that word alone.
 
 ## Approach
@@ -405,7 +405,7 @@ the system bundle).
 
 Read: the provider has two suites, both TLS 1.3 (`crates/podssh-ws/src/crypto/suites.rs`, line 55
 at `0d3d13a`), and its comment says that TLS 1.2 suites are absent on purpose (lines 7-11 at `0d3d13a`). The configuration
-enables both versions (`crates/podssh-ws/src/tls.rs:288-290`); rustls accepts that, because one
+enables both versions (`crates/podssh-ws/src/tls.rs:310-312`); rustls accepts that, because one
 suite is usable, and then offers no TLS 1.2 suite (rustls 0.23.45, `with_protocol_versions` in
 its `src/builder.rs`, read in the cargo registry). The `tls12` feature of `rustls` and
 `tokio-rustls` is on (`Cargo.toml`). The provider has HMAC
@@ -605,7 +605,7 @@ returns a `String` (142-166). The callers keep or pass the text:
 `TransportError::Unexpected` (crates/podssh-transport/src/socket.rs at `e8bbd4d` lines 104-113, 143, 161
 and 185), and, since T-072, a read error `Aborted` with its text. Tests and the gate match the
 text: `crates/podssh-ws/tests/session.rs` lines 108 ("continuation") and 172 ("without a
-WebSocket Close"), and `scripts/interop-faults.sh:254` ("pings unanswered").
+WebSocket Close"), and `scripts/interop-faults.sh:269` ("pings unanswered").
 `WsError` exists (`crates/podssh-ws/src/error.rs:56-76`), but the session does not use it.
 
 ## Approach
@@ -1604,7 +1604,7 @@ command says what to do. Four of the eight release binaries are for Windows and 
 - Read: a failed handshake gives rustls's text: `crates/podssh-ws/src/client.rs:133` says "TLS
   with the relay failed: {why}", and `crates/podssh-ws/src/client.rs` lines 202-203 at `1316e53`
   kept rustls's words. doctor adds a hint for the
-  clock's errors only (`crates/podssh-cli/src/doctor/relay_checks.rs:96-105`), and its test
+  clock's errors only (`crates/podssh-cli/src/doctor/relay_checks.rs` lines 96-105 at `b9e007c`), and its test
   asserts none for `UnknownIssuer` (`:344`).
 - Read: the release builds two binaries for macOS and two for Windows
   (`.github/workflows/release.yml:280-291`, `:323-339`).
@@ -1810,18 +1810,18 @@ test of the order fails.
 **Milestone:** backlog
 **Priority:** P3
 **Effort:** S
-**Status:** open
+**Status:** done
 
 ## Problem
 
 A host whose clock is wrong sees each certificate as expired, or as not valid yet. `doctor` says
 that certificates are checked against this host's clock, and gives its reading; `ssh`, `proxy`
 and each other command print rustls's words alone. An error should tell what to do
-(`docs/architecture.md:163`).
+(`docs/architecture.md:166`).
 
 ## Premise
 
-- Read: doctor's hint (`crates/podssh-cli/src/doctor/relay_checks.rs:96-105`) and its tests
+- Read: doctor's hint (`crates/podssh-cli/src/doctor/relay_checks.rs` lines 96-105 at `b9e007c`) and its tests
   (`:341-344`).
 - Read: the other commands print the error's text: `crates/podssh-ws/src/client.rs:133` says "TLS
   with the relay failed: {why}"; the TLS of IRC and of the quick tunnel's edge gives the text of
@@ -1858,6 +1858,41 @@ cargo test -p podssh-cli --test proxy
 A stand-in relay with a certificate that ended a day ago: the error of each command names this
 host's clock. Planted: the match of `ExpiredContext` removed; the test with rustls's error with a
 context fails.
+
+## Correction
+
+Approach item 3 and the Prove named `--test proxy` for a stand-in relay with an expired
+certificate: the stand-in relay with its own CA is the fault harness's (`--test faults`, and
+`scripts/interop-faults.sh` in the gate), where T-340's test of an unknown issuer is; the new
+test is there, beside it. doctor's date is podssh-ws's now (`podssh_ws::clock`), which doctor's
+words and each command's share, so item 2's "doctor's `clock_hint` calls it" holds by its words.
+
+## Done
+
+2026-10-31: each command names this host's clock when a certificate has expired or is not valid
+yet. `podssh_ws::tls::handshake_hint` gives, beside T-340's hint of an unknown issuer, the clock's
+words for rustls's `Expired`, `ExpiredContext`, `NotValidYet` and `NotValidYetContext`, by type
+and by text; `ConnectError::Tls`, `tls::connect_over` and the query of DNS over HTTPS take it
+through `handshake_failure`, as they took T-340's. `podssh_ws::clock` holds the words and the
+IMF-fixdate that doctor wrote before (doctor's `clock.rs` takes them from there), and doctor adds
+its own only to a text that does not hold them.
+
+- Through the fault harness's stand-in relay, with a leaf that its CA signed and that ended a day
+  before it began (`openssl x509 -days -1`): `podssh ssh` said "TLS with the relay failed:
+  invalid peer certificate: Expired; certificates are checked against this host's clock, which
+  reads Sat, 31 Oct 2026 07:47:07 GMT", and `podssh proxy` and `podssh cp` say the same
+  (`cargo test -p podssh-cli --test faults -- --ignored a_relay_whose_certificate`, 1 passed;
+  with T-340's of the issuer, 2 passed). Planted, the clock's branch taken away: that test and
+  the unit test failed.
+- Unit tests: the four errors by type and one by text get the words, a name mismatch none
+  (`cargo test -p podssh-ws --lib tls`); the date and the words of a given clock
+  (`podssh_ws::clock::tests`); podssh-ws 231 passed in 33 binaries; doctor 33, `--test doctor`
+  12, `--test proxy` 9; clippy `-D warnings` and rustfmt clean.
+- The gate: `scripts/interop-faults.sh` makes the expired leaf, starts a stand-in with it and
+  checks `faults.clock`; `scripts/interop-baseline.txt` holds it, and the floor of `faults` is
+  39 (`cargo todo interop`: 617 ids of 44 harnesses meet the baseline). Its run is CI's.
+- `docs/architecture.md` and the manual's Trust item say it.
+
 
 # T-366: `doctor` asks the proxy for an address as well as for names, and says which of the two it takes
 

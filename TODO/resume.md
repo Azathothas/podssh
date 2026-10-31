@@ -34,7 +34,7 @@ drop or add frames (`SECURITY.md:33-36`).
 
 ## Approach
 
-1. A sans-IO codec (`docs/architecture.md:124-128`) in a new module
+1. A sans-IO codec (`docs/architecture.md:127-131`) in a new module
    crates/podssh-relay/src/session/, with each file under 500 lines. A record
    is a type byte, a 32-bit length and a body of 64 KiB or less: `GREETING`
    and `ACCEPT` (far end), `OPEN` and `PROOF` (client), `REFUSE`, `DATA` (its
@@ -1050,7 +1050,7 @@ a stall of 3 minutes. Today each of these faults ends the session.
 
 Measured in the gate (`docs/STATUS.md`, "Faults between podssh and the relay,
 measured"): a relay that stalls is declared dead at 50 s, and a relay host
-killed in a session gives exit 255 (`scripts/interop-faults.sh:250-268`).
+killed in a session gives exit 255 (`scripts/interop-faults.sh:265-283`).
 These checks stay, for the forward road, which has no resumption. Read: the
 stand-in relay serves the forward path only (`scripts/fake-relay.py:114-132`),
 and its `stall` mode never ends (`scripts/fake-relay.py:322-325`). The
@@ -1735,7 +1735,7 @@ that invariant. Bytes are dropped only where a client attaches after output
 that it never received: T-158, T-159 and T-161. The report puts the tracker
 in `podssh-transport`; it cannot work there. The layer runs under SSH and
 sees only ciphertext (`docs/design.md:570-571`), and the transport crates do
-not know the protocol that they carry (`docs/architecture.md:129-131`). The
+not know the protocol that they carry (`docs/architecture.md:132-134`). The
 plaintext of a pty exists only on the far end that keeps the shell. Read in
 the report, not verified here: tty7 drops bytes from its ring until a tracker
 says that it is at a boundary

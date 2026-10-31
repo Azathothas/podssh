@@ -19,6 +19,8 @@ pub(super) fn block() -> Block {
              doctor names each store with its count. A certificate that no root here signs ends with \
              UnknownIssuer and what to do: a proxy that re-signs TLS needs its CA, in --ca-file or \
              SSL_CERT_FILE, which replace podssh's roots, or in {} next to the binary, which adds to them. A \
+             certificate that has expired or is not valid yet ends with this host's clock and its reading: \
+             certificates are checked against it, and a wrong clock refuses each host. A \
              system bundle adds roots and removes none: to stop trusting a root that Mozilla removed after \
              this binary was built, give --ca-file or SSL_CERT_FILE with a current bundle, or use a newer \
              podssh. podssh doctor says when the roots in the binary are older than 12 months. podssh offers \

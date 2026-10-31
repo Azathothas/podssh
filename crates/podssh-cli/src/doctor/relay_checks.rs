@@ -94,11 +94,11 @@ async fn health(relay: &Relay, trust: &Trust) -> Result<(String, Option<String>)
 }
 
 /// A certificate that is "expired" or "not valid yet" for every relay host
-/// usually means this host's clock is wrong.
+/// usually means this host's clock is wrong; the words are each command's
+/// (T-345), and a text that already holds them gets them once.
 fn clock_hint(error: &str) -> String {
-    let lower = error.to_ascii_lowercase();
-    if lower.contains("expired") || lower.contains("notvalidyet") || lower.contains("not valid yet") {
-        format!("; certificates are checked against this host's clock, which reads {}", format_http_date(now()))
+    if podssh_ws::tls::clock_refused(error) && !error.contains("this host's clock") {
+        format!("; {}", podssh_ws::clock::hint(SystemTime::now()))
     } else {
         String::new()
     }

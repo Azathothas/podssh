@@ -1129,7 +1129,7 @@ In the fault harness (`scripts/interop-faults.sh`), a run with the new flag,
 `--relay-host` set to `relay-kill` then `relay-a`, and
 `-N -R 127.0.0.1:2291:127.0.0.1:2203` carries a connection to port 2291.
 Then the stand-in relay `relay-kill` stops, as at
-`scripts/interop-faults.sh:258-268`. Within 60 s, a new connection to port
+`scripts/interop-faults.sh:273-283`. Within 60 s, a new connection to port
 2291 reads Dropbear's banner again. Planted defect: no new connection, and
 the second read fails.
 
@@ -1167,7 +1167,7 @@ first loss (`crates/podssh-cli/src/ssh/persist.rs:163-172`); the rule of
 - In the build image (`sh scripts/dev.sh run`), `cargo clippy --all-targets
   -p podssh-ssh -p podssh-cli -- -D warnings` passed.
 - In the gate at this push: `faults.persist.tunnel`
-  (`scripts/interop-faults.sh:306-346`): `--persist -N -R
+  (`scripts/interop-faults.sh:321-361`): `--persist -N -R
   127.0.0.1:2290:127.0.0.1:2203` through the stand-in relays `relay-tunnel`
   and `relay-a`; port 2290 reads Dropbear's banner, `relay-tunnel` is
   killed, and within 60 s port 2290 reads it again through the next.

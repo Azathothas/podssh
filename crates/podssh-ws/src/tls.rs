@@ -160,15 +160,37 @@ pub const UNKNOWN_ISSUER_HINT: &str = "no root that podssh trusts here signs the
     podssh-ca.pem next to the binary, which adds to them";
 
 /// What to do when a TLS handshake failed with `error`: for an issuer that no
-/// root here signs, [`UNKNOWN_ISSUER_HINT`]; none for another failure. The
-/// error's type first, its text when a wrapper hides the type. T-345 adds the
-/// clock's errors here.
-pub fn handshake_hint(error: &std::io::Error) -> Option<&'static str> {
+/// root here signs, [`UNKNOWN_ISSUER_HINT`]; for a certificate that is expired
+/// or not valid yet, this host's clock and its reading (T-345); none for
+/// another failure. The error's type first, its text when a wrapper hides the
+/// type.
+pub fn handshake_hint(error: &std::io::Error) -> Option<String> {
     use rustls::{CertificateError, Error};
     let inner = error.get_ref().and_then(|inner| inner.downcast_ref::<Error>());
-    let unknown = matches!(inner, Some(Error::InvalidCertificate(CertificateError::UnknownIssuer)))
-        || error.to_string().contains("UnknownIssuer");
-    unknown.then_some(UNKNOWN_ISSUER_HINT)
+    let text = error.to_string();
+    if matches!(inner, Some(Error::InvalidCertificate(CertificateError::UnknownIssuer)))
+        || text.contains("UnknownIssuer")
+    {
+        return Some(UNKNOWN_ISSUER_HINT.to_string());
+    }
+    let clock = matches!(
+        inner,
+        Some(Error::InvalidCertificate(
+            CertificateError::Expired
+                | CertificateError::ExpiredContext { .. }
+                | CertificateError::NotValidYet
+                | CertificateError::NotValidYetContext { .. }
+        ))
+    ) || clock_refused(&text);
+    clock.then(|| crate::clock::hint(std::time::SystemTime::now()))
+}
+
+/// Whether the text of a TLS failure says that a certificate's time refused
+/// it: rustls writes "certificate expired" and "certificate not valid yet",
+/// and their names in a `Debug`.
+pub fn clock_refused(text: &str) -> bool {
+    let lower = text.to_ascii_lowercase();
+    lower.contains("expired") || lower.contains("notvalidyet") || lower.contains("not valid yet")
 }
 
 /// The text of a failed handshake, with its hint when it has one.
@@ -311,11 +333,11 @@ mod tests {
             std::io::ErrorKind::InvalidData,
             Error::InvalidCertificate(CertificateError::UnknownIssuer),
         );
-        assert_eq!(handshake_hint(&typed), Some(UNKNOWN_ISSUER_HINT));
+        assert_eq!(handshake_hint(&typed).as_deref(), Some(UNKNOWN_ISSUER_HINT));
         let said = handshake_failure(&typed);
         assert!(said.contains("UnknownIssuer") && said.contains("--ca-file FILE or SSL_CERT_FILE"), "{said}");
         let text = std::io::Error::other("TLS with the relay failed: invalid peer certificate: UnknownIssuer");
-        assert_eq!(handshake_hint(&text), Some(UNKNOWN_ISSUER_HINT));
+        assert_eq!(handshake_hint(&text).as_deref(), Some(UNKNOWN_ISSUER_HINT));
         let name = std::io::Error::new(
             std::io::ErrorKind::InvalidData,
             Error::InvalidCertificate(CertificateError::NotValidForName),
@@ -324,5 +346,27 @@ mod tests {
         assert_eq!(handshake_failure(&name), name.to_string());
         let reset = std::io::Error::from(std::io::ErrorKind::ConnectionReset);
         assert_eq!(handshake_hint(&reset), None);
+    }
+
+    /// Each of rustls's four errors of a certificate's time gets the clock's
+    /// words with its reading, by type and by text; a name mismatch does not.
+    #[test]
+    fn a_certificate_refused_by_its_time_names_the_clock() {
+        let time = rustls_pki_types::UnixTime::since_unix_epoch(std::time::Duration::from_secs(1_791_440_989));
+        for e in [
+            CertificateError::Expired,
+            CertificateError::NotValidYet,
+            CertificateError::ExpiredContext { time, not_after: time },
+            CertificateError::NotValidYetContext { time, not_before: time },
+        ] {
+            let typed = std::io::Error::new(std::io::ErrorKind::InvalidData, Error::InvalidCertificate(e));
+            let said = handshake_failure(&typed);
+            assert!(said.contains("certificates are checked against this host's clock, which reads"), "{said}");
+            assert!(said.ends_with(" GMT"), "{said}");
+        }
+        let text = std::io::Error::other("TLS with the relay failed: invalid peer certificate: certificate expired");
+        assert!(handshake_hint(&text).is_some_and(|h| h.contains("this host's clock")));
+        let name = std::io::Error::other("invalid peer certificate: NotValidForName");
+        assert_eq!(handshake_hint(&name), None);
     }
 }

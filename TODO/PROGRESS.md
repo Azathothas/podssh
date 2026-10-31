@@ -107,7 +107,7 @@ and `CARGO_BUILD_JOBS=4`:
 
 ## Counts
 
-`TODO/INDEX.md` holds 373 entries: 43 open, 0 partial, 29 blocked, 301 done.
+`TODO/INDEX.md` holds 373 entries: 42 open, 0 partial, 29 blocked, 302 done.
 
 Open includes parked work. `cargo todo check` verifies this line.
 
@@ -136,7 +136,7 @@ T-365 (the forms of `-R` that OpenSSH carries, GitHub #73), then the record's ow
 and T-361,
 then the P2 entries that the operator's rulings of 2026-10-31 opened: T-375 (`podssh update`),
 T-348 and T-349 (the iroh road in the release binaries, and the public relays as a fallback, Q50)
-and T-346 (relays outside the default domain, Q49); then the P3 entries T-343, T-344, T-345, T-362
+and T-346 (relays outside the default domain, Q49); then the P3 entries T-343, T-344, T-362
 and T-363 (the direct road after the relay hosts fail), then those of the same rulings: T-350
 (Q50), T-351 (Q51, against stand-ins), T-352 and T-353 (Q52), and T-374 after T-352; then those of
 GitHub #59 to #63 and #73 to #76: T-366; T-367, T-368 and T-369 in that order, as each writes what
