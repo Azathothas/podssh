@@ -1693,7 +1693,7 @@ quick tunnel itself (`docs/decisions.md`).
 **Milestone:** backlog
 **Priority:** P3
 **Effort:** L
-**Status:** partial
+**Status:** done
 
 ## Problem
 
@@ -1919,7 +1919,15 @@ Partial, 2026-10-30. Done so far, each checked, nothing live yet:
   cf://NAME`: refused with the client's new key, which then goes into the
   list; 8 MiB both ways with `--node-key`, directly and through the box's
   proxy, the far end's digest equal; and a `--node-key` that is not the
-  node's, refused. UNVERIFIED: it runs once `v1.0.0-beta.2` is out.
+  node's, refused. Run 41152476358 at `200ff2d` (2026-10-31, 00:52 to 00:54
+  UTC, a hosted runner): the node registered at Cloudflare's `sjc01`, one
+  name under `trycloudflare.com`; the visitor of Python's standard library
+  got a 101 with its key's accept, directly and through the box's proxy,
+  and the layer's `GREETING` first (98 bytes, its type `0x01`); the first
+  `podssh ssh cf://NAME` was refused (255), its key then went into the
+  list; 8 MiB both ways with `--node-key`, with equal digests, directly and
+  through the proxy; a `--node-key` not the node's, refused (255); the node
+  unregistered at its end.
 - Filed: T-331, the layer's `CLOSE` in the five commands that hand their
   connection on (`job`, `pipe`, `health`, `containers`, `--upgrade`).
 - A review of the code (2026-10-30, read only, by an agent of this session)
@@ -1980,7 +1988,6 @@ Partial, 2026-10-30. Done so far, each checked, nothing live yet:
   refused there, in the budget's words ("this node keeps as many sessions
   as its budget allows", not the target's), and the node says so. `cargo test -p podssh-relay --features blocking,quick,pair`:
   313 passed, 0 failed, in 45 binaries.
-- Next: the live run, then the entry's close.
 
 # T-301: The quick tunnel over QUIC, where a probe finds UDP
 
@@ -2726,7 +2733,7 @@ that exits before the task ends leaves its session at the node.
 **Milestone:** backlog
 **Priority:** P3
 **Effort:** S
-**Status:** partial
+**Status:** done
 
 ## Problem
 
@@ -2807,8 +2814,10 @@ no TCP connection of the node to TARGET is left once a command exits.
 - The live check, in `.github/workflows/quick-tunnel-live.yml`: after
   each `podssh ssh` and after `podssh health` (refused with its new key,
   which is said before the exit, then let in), no TCP connection of the
-  node to TARGET is left within 8 s. UNVERIFIED: with T-300's live run,
-  once `v1.0.0-beta.2` is out.
+  node to TARGET is left within 8 s. Run 41152476358 at `200ff2d`
+  (2026-10-31, with T-300's): none was left after each `podssh ssh`,
+  directly and through the proxy, and after `podssh health`, whose new key
+  was refused and said before the exit, then let in, the facts read.
 - `cargo test -p podssh-cli`: 996 passed, 0 failed, 39 ignored, in 117
   binaries.
 - The review of T-300's code (2026-10-30) found `podssh pipe` with a

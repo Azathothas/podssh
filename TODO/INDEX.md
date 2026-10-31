@@ -62,15 +62,15 @@ repository and CI).
 
 ## Counts
 
-**330 entries: 17 open, 2 partial, 29 blocked, 282 done.**
+**330 entries: 17 open, 0 partial, 29 blocked, 284 done.**
 
 | Priority | open | partial | blocked | done | total |
 | --- | --- | --- | --- | --- | --- |
 | P0 | 0 | 0 | 0 | 1 | 1 |
 | P1 | 2 | 0 | 0 | 24 | 26 |
 | P2 | 1 | 0 | 19 | 146 | 166 |
-| P3 | 14 | 2 | 10 | 111 | 137 |
-| **All** | 17 | 2 | 29 | 282 | 330 |
+| P3 | 14 | 0 | 10 | 113 | 137 |
+| **All** | 17 | 0 | 29 | 284 | 330 |
 
 ## Entries
 
@@ -372,7 +372,7 @@ repository and CI).
 | [T-297](copy.md) | P3 | M | backlog | feature | done | `cp --parallel K` copies several small files at once |
 | [T-298](copy.md) | P3 | S | backlog | feature | done | `sftp`'s `-r`: `get -r` and `put -r` of a directory |
 | [T-299](roads.md) | P3 | S | backlog | measurement | done | The quick tunnel's edge, measured: its ports through a proxy and the relay, and a captured registration |
-| [T-300](roads.md) | P3 | L | backlog | feature | partial | `podssh node` publishes a quick tunnel over HTTP/2, with no `cloudflared` |
+| [T-300](roads.md) | P3 | L | backlog | feature | done | `podssh node` publishes a quick tunnel over HTTP/2, with no `cloudflared` |
 | [T-301](roads.md) | P3 | M | backlog | feature | open | The quick tunnel over QUIC, where a probe finds UDP |
 | [T-302](resume.md) | P3 | M | backlog | feature | done | A notice in the terminal while the far end is silent |
 | [T-303](resume.md) | P3 | L | backlog | feature | open | The latest screen on request: frames that let Ctrl-C show within a round trip |
@@ -403,6 +403,6 @@ repository and CI).
 | [T-328](config.md) | P3 | M | backlog | feature | blocked | `podssh config import` from FinalShell and Termius |
 | [T-329](roads.md) | P2 | S | none | defect | done | Carry the patch of iroh-relay to iroh 1.4.1 (Azathothas/podssh#53) |
 | [T-330](repo.md) | P3 | M | none | chore | done | Dependabot's major updates: sha1 0.11, vt100 0.16, x25519-dalek 3, aes-gcm 0.11 |
-| [T-331](roads.md) | P3 | S | backlog | defect | partial | The layer's `CLOSE` before the exit of `job`, `pipe`, `health`, `containers` and `--upgrade` on `cf://` |
+| [T-331](roads.md) | P3 | S | backlog | defect | done | The layer's `CLOSE` before the exit of `job`, `pipe`, `health`, `containers` and `--upgrade` on `cf://` |
 | [T-332](resume.md) | P3 | M | backlog | feature | done | A notice of silence with `--direct` |
 | [T-333](repo.md) | P3 | S | none | chore | blocked | aes-gcm 0.11 and chacha20poly1305 0.11 in `podssh-ws` |

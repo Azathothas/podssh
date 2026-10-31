@@ -60,7 +60,7 @@ pool host accepted the token of the default host: `docs/STATUS.md`, "`podssh pro
 live"), and no token goes to another deployment. The exact minting host lost: each pool host
 would mint its own token, against the brake of 120 attempts a minute (`docs/relay.md:168`).
 The decision said "one machine has one cached token"; on 2026-10-08 the operator ruled
-"one for each relay deployment" (`docs/decisions.md:52`).
+"one for each relay deployment" (`docs/decisions.md:53`).
 
 The session that did it (2026-10-08) made one call stricter than step 3: an old entry, with
 no minting host, is not used at all, also under the default key. An old list that put the
@@ -657,6 +657,8 @@ document names `/trace` alone), and `PODSSH_THROUGHPUT_SSH`, the operator's SSH 
 throughput run (Q38), is not set here. With that host, the target is a command that writes
 48 MiB on it, and the session needs a client with a window larger than the data (russh, in a
 test of `podssh-cli`), so that no SSH window stands between the relay and the slow reader.
+The operator asked on 2026-10-31 for a study of local stand-ins before any secret is added
+(`docs/decisions.md`).
 
 ## Correction
 

@@ -51,7 +51,7 @@ a self node with no home region (`crates/podssh-cli/src/ts.rs`, lines 288-320 at
    a later send must not panic.
 3. With no `--timeout` (a terminal), limit the first map wait by `--ts-wait-allowlist`, else by a
    named constant of 20 s, "a design constant, not a measurement", as at
-   `crates/podssh-cli/src/ts.rs`, lines 298-301 at `4c3b456`. The default stays fail-fast (`docs/decisions.md:46`).
+   `crates/podssh-cli/src/ts.rs`, lines 298-301 at `4c3b456`. The default stays fail-fast (`docs/decisions.md:47`).
 4. Apply the same limit to the address wait in `Device::tcp_connect`
    (`vendor/tailscale-rs/src/lib.rs:308-312`). Keep one message and exit 78 for "no map in time".
 5. Correct the two comments, and update `docs/STATUS.md`, line 307 at `7aa955a` in the same commit.
@@ -232,7 +232,7 @@ Read, at `c17e64f`: `probe` returns `Ok` for `Tcp` and `Relay` when `has_key` is
 (`crates/podssh-ts/src/chain.rs` lines 44-61), which `podssh ts` always sets
 (`crates/podssh-cli/src/ts.rs` line 136). The first ready mode of `tcp`, `relay` wins
 (`crates/podssh-ts/src/chain.rs` lines 63-76), and a test asserts it (`crates/podssh-ts/tests/chain.rs`
-lines 26-31). The decided chain is tun, socks, tcp, relay (`docs/decisions.md:46`), and the rule is to probe
+lines 26-31). The decided chain is tun, socks, tcp, relay (`docs/decisions.md:47`), and the rule is to probe
 before use (`docs/target-environment.md:101-103`).
 
 Read, at `c17e64f`: `ephemeral` goes into the register request (`crates/podssh-ts/src/node.rs` line
@@ -543,7 +543,7 @@ checks allowed (`crates/podssh-ws/src/client.rs:31-32`, `docs/relay.md:124-126`)
 2. Wait with podssh's backoff, passed in `RuntimeOptions`; count from 1 after a link of 60 s. With
    a pin, each region dials the relay with one key (`vendor/tailscale-rs/ts_runtime/src/multiderp/uniderp.rs:333-340`):
    two sockets must not replace each other for ever (`crates/podssh-ts/src/classify.rs:3-6`).
-3. Do not retry `1008 "not authorized"`, except under `--ts-wait-allowlist` (`docs/decisions.md:46`);
+3. Do not retry `1008 "not authorized"`, except under `--ts-wait-allowlist` (`docs/decisions.md:47`);
    it goes to the state of T-105. The inactivity close of a region that is not home is no error
    (`vendor/tailscale-rs/ts_runtime/src/multiderp/uniderp.rs:404-409`).
 4. Ping every 10 s; three silent intervals mean a dead link, after the relay answered one ping.
