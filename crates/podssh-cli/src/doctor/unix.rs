@@ -311,7 +311,10 @@ mod tests {
 
     /// The kernel says that the socket listens once `listen_once` answers
     /// `Listened`: an answer with no listen made fails here, where a bind and
-    /// a listen both work and the words alone could not tell (T-358).
+    /// a listen both work and the words alone could not tell (T-358). A
+    /// connection to it completes into its backlog, where a socket that is
+    /// bound and not listening refuses it; Linux also says so through
+    /// SO_ACCEPTCONN, which macOS refuses to read (-1 on macos-15).
     #[test]
     fn listen_once_makes_the_socket_listen() {
         // SAFETY: plain socket creation, closed below.
@@ -320,26 +323,37 @@ mod tests {
         let mut addr: libc::sockaddr_in = unsafe { std::mem::zeroed() };
         addr.sin_family = libc::AF_INET as libc::sa_family_t;
         addr.sin_addr.s_addr = u32::from_ne_bytes([127, 0, 0, 1]);
-        let len = std::mem::size_of::<libc::sockaddr_in>() as libc::socklen_t;
+        let mut len = std::mem::size_of::<libc::sockaddr_in>() as libc::socklen_t;
         // SAFETY: `addr` is a sockaddr_in of `len` bytes.
         assert_eq!(unsafe { libc::bind(fd, (&addr as *const libc::sockaddr_in).cast(), len) }, 0);
+        // SAFETY: `addr` has room for `len` bytes; the kernel writes the port it chose.
+        let named = unsafe { libc::getsockname(fd, (&mut addr as *mut libc::sockaddr_in).cast(), &mut len) };
+        assert_eq!(named, 0, "{}", io::Error::last_os_error());
         let probe = listen_once(fd);
-        let mut on: libc::c_int = 0;
-        let mut on_len = std::mem::size_of::<libc::c_int>() as libc::socklen_t;
-        // SAFETY: `on` has room for `on_len` bytes.
-        let rc = unsafe {
-            libc::getsockopt(
-                fd,
-                libc::SOL_SOCKET,
-                libc::SO_ACCEPTCONN,
-                (&mut on as *mut libc::c_int).cast(),
-                &mut on_len,
-            )
+        let to = std::net::SocketAddr::from((std::net::Ipv4Addr::LOCALHOST, u16::from_be(addr.sin_port)));
+        let reached = std::net::TcpStream::connect_timeout(&to, std::time::Duration::from_secs(10));
+        #[cfg(target_os = "linux")]
+        let accepting = {
+            let mut on: libc::c_int = 0;
+            let mut on_len = std::mem::size_of::<libc::c_int>() as libc::socklen_t;
+            // SAFETY: `on` has room for `on_len` bytes.
+            let rc = unsafe {
+                libc::getsockopt(
+                    fd,
+                    libc::SOL_SOCKET,
+                    libc::SO_ACCEPTCONN,
+                    (&mut on as *mut libc::c_int).cast(),
+                    &mut on_len,
+                )
+            };
+            (rc, on != 0)
         };
         // SAFETY: `fd` was opened above and is closed once.
         unsafe { libc::close(fd) };
         assert!(matches!(probe, Probe::Listened), "{probe:?}");
-        assert_eq!((rc, on != 0), (0, true), "the socket does not listen");
+        assert!(reached.is_ok(), "the socket does not listen: {reached:?}");
+        #[cfg(target_os = "linux")]
+        assert_eq!(accepting, (0, true), "the socket does not listen");
     }
 
     /// Here a bind and a listen both work, so each probe listens, and says

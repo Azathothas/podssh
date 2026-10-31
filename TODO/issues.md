@@ -127,10 +127,11 @@ corrects a claim that the code does not support.
 
 ## Requests after the triage (#51 on)
 
-#37 to #50, #52, #53, #57, #58 and #64 to #68 are pull requests; Dependabot's #44 to #47,
+#37 to #50, #52, #53, #57, #58, #64 to #68 and #77 are pull requests; Dependabot's #44 to #47,
 updates of a major version, are T-330, but #47 (aes-gcm 0.11), which is
 T-333 (done on 2026-10-31, after the ruling of Q48); Dependabot's #57 and #64
-to #68 are T-355.
+to #68 are T-355, and so is #77 (pageant 0.2.5 in `fuzz/Cargo.lock`, as in the
+root lock), made on `main` and closed with a comment.
 
 | Issue | Subject | State | Entries |
 | --- | --- | --- | --- |

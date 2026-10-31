@@ -2649,3 +2649,9 @@ port, -D on a port and podssh pipe tcp-listen: can listen here".
 - The box: `scripts/box/seccomp-nolisten.json` allows the bind and refuses `listen` with EPERM,
   selected by `BOX_SECCOMP=nolisten sh scripts/test_in_box.sh`. Its run, and the plant of the
   listen left out there, wait for T-251.
+- 2026-10-31, after the close: CI's job macos failed this test at b9e007c (build run
+  41181675084), as macOS refuses to read `SO_ACCEPTCONN` (`getsockopt` gave -1 on macos-15).
+  The test now also connects to the socket with a bound of 10 s, which completes into the
+  backlog of a socket that listens and is refused by one that does not, on each Unix;
+  `SO_ACCEPTCONN` stays a second witness on Linux. Planted again, `Listened` with no listen
+  made: refused, "the socket does not listen: ... Connection refused", at the connect's check.

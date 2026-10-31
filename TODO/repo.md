@@ -4637,6 +4637,10 @@ and #67, each pull request closed with a comment.
   advisories` passes, where it failed on twelve advisories (eight older than 0025). The feature
   and its example build, the fork's four crates 50 passed, podssh's lock is unchanged, and the 26
   patches give the shipped tree.
+- 2026-10-31: Dependabot's #77, pageant 0.2.4 to 0.2.5 in `fuzz/Cargo.lock` (an indirect
+  dependency of russh on Windows), where the root lock already had 0.2.5: made on `main` by
+  `cargo update --manifest-path fuzz/Cargo.toml -p pageant --precise 0.2.5`, and `cargo metadata
+  --locked` of the fuzz crate passes; the pull request closed with a comment.
 
 # T-360: Nothing reads `TODO/issues.md`: issues #59 to #63 have no row, and no check compares the map with GitHub
 
