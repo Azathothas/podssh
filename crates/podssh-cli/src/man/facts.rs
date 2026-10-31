@@ -270,8 +270,12 @@ const FEATURE_VARIABLES: &[(&[&str], &str)] = &[
     ),
     (
         &["PODSSH_IROH_UDP"],
-        "off: the iroh road takes no direct path, and its relay carries each byte, as where UDP is refused. Else \
-          UDP is used when a socket binds; -v says at a session's end which path carried it.",
+        "off: the iroh road takes no direct path, and its relay carries each byte, as where UDP is refused. on: \
+          UDP is used once a socket binds, with nothing sent, for a relay that runs no QUIC address discovery. \
+          Else UDP is used once a datagram came back: a QUIC address discovery to the home relay within 6 s of \
+          the start, before anything is dialled or served; with none, the relay carries each byte. -v says \
+          which answer the road took, and at a session's end which path carried it; podssh doctor's line iroh \
+          UDP out gives the answer.",
     ),
 ];
 

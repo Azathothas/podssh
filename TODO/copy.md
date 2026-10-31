@@ -670,7 +670,7 @@ old writer can race the new one.
 5. Only the relay transport counts: `--direct` has no cap. With `-J`, the
    one relay session carries the whole chain.
 6. A "Session limits" item in the manual's relay section
-   (`crates/podssh-cli/src/man/facts.rs:298-443`), from the constants;
+   (`crates/podssh-cli/src/man/facts.rs:302-447`), from the constants;
    `docs/relay.md` and `docs/cli.md`. T-155 does the same for the
    resumable layer of M6; this entry needs no M6 work.
 
@@ -1177,7 +1177,7 @@ stream.
 - Read: `AGENTS.md` rule 2 allows one outbound connection. Several channels
   in one SSH connection keep the rule; several relay sessions at once do
   not. The operator accepted more than one outbound connection for the iroh
-  road (`docs/design.md:1100-1103`), and on 2026-10-08 for one copy when the
+  road (`docs/design.md:1107-1110`), and on 2026-10-08 for one copy when the
   user asks (`docs/decisions.md`).
 - Read: the cap of 64 MiB is for each session (`docs/relay.md:192`).
 - Not measured: whether one relay session, or the path itself, limits the
@@ -2094,7 +2094,7 @@ defect wait for T-251.
 **Source:** GitHub #18 (zuko's `files` server, `adonm/zuko:src/files.rs`)
 and GitHub #21 (parsync's internal helper,
 `AlpinDale/parsync:src/remote_helper.rs`), read in the issues;
-`docs/design.md:1105-1111`.
+`docs/design.md:1112-1118`.
 **Category:** feature
 **Milestone:** backlog
 **Priority:** P3
@@ -2115,7 +2115,7 @@ can do better.
   request; it names its own requests `NAME@openssh.com`.
 - Read: `podssh serve` will have an SFTP server in the process (T-112).
 - Read: both roads between podssh ends carry the same `cp`
-  (`docs/design.md:1105-1111`).
+  (`docs/design.md:1112-1118`).
 
 ## Approach
 

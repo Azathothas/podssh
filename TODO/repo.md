@@ -540,7 +540,7 @@ credential that a later commit removed, is not found.
 Read:
 
 - `scripts/check-repo.py:53-66` defines the shapes (a relay token, a Tailscale
-  key, a private key block); `scripts/check-repo.py:241-262` scans the tracked
+  key, a private key block); `scripts/check-repo.py:245-266` scans the tracked
   files outside `vendor/`. It reads no history.
 - `docs/decisions.md` (the repository is public): its history was
   replaced by one commit on 2026-10-08, so a scan of the whole history is
@@ -2086,7 +2086,7 @@ repository (one `README.md`, no `crates/`) printed four `ok` lines and exited
 
 Read:
 
-- `scripts/check-repo.py:180`: the size check walks `crates/` with `rglob`; a
+- `scripts/check-repo.py:184`: the size check walks `crates/` with `rglob`; a
   missing directory yields nothing. (#33 cites line 56 at `22c3b88`; the walk is at 57
   now.)
 - `scripts/check-repo.py` lines 100-129, 132-153 and 156-161 at `e892b0f`: the links, the credentials and the line
@@ -2174,7 +2174,7 @@ a reviewer can see it.
 
 ## Premise
 
-Read: the rule as written is rule 3 of `docs/architecture.md:135-149` (the
+Read: the rule as written is rule 3 of `docs/architecture.md:135-150` (the
 bind check of `podssh doctor` is the one exception), rule 3 of
 `docs/target-environment.md:84-88`, and rule 2 of AGENTS.md, section 5. The
 operator ruled on 2026-10-08 (`docs/decisions.md`): Q1 allows a local
@@ -2259,7 +2259,7 @@ allowance".
   files, and a plant at each run (one `TcpListener::bind` in
   `crates/podssh-ws/src` of a temporary tree must be found). It prints the
   files read and the uses within the allowance.
-- The documents already state the rule as ruled (`docs/architecture.md:135-149`,
+- The documents already state the rule as ruled (`docs/architecture.md:135-150`,
   `docs/target-environment.md:84-88`, `AGENTS.md`, section 5): nothing to
   change there. `docs/development.md`, "Checks": the scan.
 - Prove: `python scripts/check-repo.py`: exit 0, "265 Rust files read; 32
@@ -4216,7 +4216,7 @@ two jobs of the release run an image of Docker Hub by the tag `latest`, with no 
   (https://github.com/docker/setup-qemu-action/blob/v4/action.yml): the action's `image` defaults
   to `docker.io/tonistiigi/binfmt:latest`. The riscv64 job runs it each time, and the armv7 job
   when the runner does not run 32-bit ARM (`.github/workflows/release.yml` lines 166-177 at `1a3e7b6`). No file of
-  `images/` names the image, so the check of images (`scripts/check-repo.py:275-300`) does not
+  `images/` names the image, so the check of images (`scripts/check-repo.py:279-304`) does not
   see it, and its pull gets none of the mirrors of `scripts/pull-image.sh:9-13`.
 - Read: T-210 found the commit of each action, and `TODO/repo.md:786-787` says "whether to pin
   them by commit is a choice of this entry's session"; no entry took it. `setup-nasm` declares

@@ -2467,7 +2467,7 @@ nothing.
   `crates/podssh-cli/src/doctor/unix.rs` line 4 at `48a8744` says "needs none of these".
 - Read: `crates/podssh-cli/src/doctor/mod.rs` line 15 at `48a8744` says "The bind probes here are the only place
   podssh calls". The listener scan of `scripts/check-repo.py` allows a `bind(` in 17 files
-  (`scripts/check-repo.py:133-151`), and these listen, each when the user asks: `pipe`'s
+  (`scripts/check-repo.py:136-155`), and these listen, each when the user asks: `pipe`'s
   `tcp-listen:` and `unix-listen:` (`crates/podssh-cli/src/pipe/listen.rs:118-132`, `:159-183`),
   the control socket of `-M` (`:185-193`), `-L` and `-D` on a port or a path
   (`crates/podssh-cli/src/ssh/local_bind.rs:78-88`, `:111-128`), `podssh agent`

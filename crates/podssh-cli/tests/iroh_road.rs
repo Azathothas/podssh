@@ -51,6 +51,7 @@ fn command(home: &Path, args: &[&str]) -> Command {
         "http_proxy",
         "NO_PROXY",
         "no_proxy",
+        "PODSSH_IROH_UDP",
     ] {
         cmd.env_remove(name);
     }
@@ -182,6 +183,11 @@ fn a_client_is_refused_then_let_in_and_runs_a_command_over_the_iroh_road() {
     let ticket = ticket_line[ticket_line.find("iroh:").unwrap()..].trim().to_string();
     let node_line = line_with(&started, ": key ").to_string();
     assert!(node_line.contains("a new key"), "a new node key is said: {node_line}");
+    // The relay on the loopback runs no QUIC address discovery, so no
+    // datagram comes back, and the node says that its relay carries each
+    // byte, whatever a UDP bind does here (T-359).
+    let udp_line = line_with(&started, "relay carries each byte");
+    assert!(!udp_line.contains("direct paths may take UDP"), "{udp_line}");
 
     let known = home.join("known_hosts").to_string_lossy().into_owned();
     let client_key = home.join("client.key").to_string_lossy().into_owned();
@@ -215,9 +221,14 @@ fn a_client_is_refused_then_let_in_and_runs_a_command_over_the_iroh_road() {
     let mut file = std::fs::OpenOptions::new().append(true).open(&allow).unwrap();
     writeln!(file, "{key} the test's client").unwrap();
     drop(file);
-    let (rc, out, err) = run(&home, &ssh);
+    // With -v, the client says the answer that its road took (T-359).
+    let mut verbose = ssh.to_vec();
+    verbose.insert(1, "-v");
+    let (rc, out, err) = run(&home, &verbose);
     assert_eq!(rc, 0, "stdout {out:?}, stderr {err}");
     assert_eq!(out, GREETING, "the command's output over the road");
+    let said = err.lines().find(|l| l.contains("the iroh road: ")).unwrap_or_default();
+    assert!(said.contains("relay carries each byte"), "-v says the road's answer of UDP: {err}");
     let connected = wait_for(&lines, "connected");
     assert!(line_with(&connected, "connected").contains(&key), "{connected:#?}");
     let recorded = std::fs::read_to_string(&known).unwrap();
@@ -228,7 +239,8 @@ fn a_client_is_refused_then_let_in_and_runs_a_command_over_the_iroh_road() {
 }
 
 /// `podssh doctor` asks `/ping` of each iroh relay of the list, in order,
-/// and names the first that answers as the home relay (T-165). Live: the
+/// names the first that answers as the home relay (T-165), and gives the
+/// road's own answer of UDP from it (T-359). Live: the
 /// doctor's other checks reach the relay of the forward road.
 #[test]
 #[ignore = "live: podssh doctor reaches the relay of the forward road"]
@@ -248,5 +260,11 @@ fn doctor_says_the_ping_of_each_iroh_relay_and_the_home_relay() {
     assert!(line(&format!("iroh relay localhost:{port}")).starts_with("ok"), "the relay that answers: {text}");
     let home_line = line("iroh home relay");
     assert!(home_line.starts_with("ok") && home_line.contains(relay.url.as_str()), "{text}");
+    // A bind says only that it bound; the road's own probe, to a relay that
+    // runs no QUIC address discovery, finds no datagram that came back, and
+    // the road keeps its relay alone, which works (T-359).
+    assert!(!line("bind UDP").contains("direct"), "a bind claims a direct path: {text}");
+    let out = line("iroh UDP out");
+    assert!(out.starts_with("ok") && out.contains("relay carries each byte"), "{text}");
     drop(relay);
 }

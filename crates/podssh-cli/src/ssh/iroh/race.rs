@@ -118,7 +118,10 @@ impl Iroh<'_> {
             accepts: false,
             ..Options::default()
         };
-        let endpoint = podssh_iroh::bind(&options).await.map_err(|e| e.to_string())?;
+        let opened = podssh_iroh::endpoint::open(&options).await.map_err(|e| e.to_string())?;
+        // Which answer the road took of this host's UDP (T-359).
+        self.log.verbose(&format!("the iroh road: {}", opened.udp));
+        let endpoint = opened.endpoint;
         Ok((endpoint.clone(), Dialer::new(endpoint, self.addr.clone())))
     }
 

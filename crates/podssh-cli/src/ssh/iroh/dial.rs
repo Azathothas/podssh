@@ -84,7 +84,10 @@ pub(crate) async fn prepare(
         accepts: false,
         ..Options::default()
     };
-    let endpoint = podssh_iroh::bind(&options).await.map_err(|e| format!("{shown}: {e}"))?;
+    let opened = podssh_iroh::endpoint::open(&options).await.map_err(|e| format!("{shown}: {e}"))?;
+    // Which answer the road took of this host's UDP (T-359).
+    log.verbose(&format!("{shown}: the iroh road: {}", opened.udp));
+    let endpoint = opened.endpoint;
     let through: Vec<String> = addr.relay_urls().map(ToString::to_string).collect();
     log.verbose(&format!("connecting to {shown} over the iroh road, through {}", through.join(", ")));
     let dialer = Dialer::new(endpoint.clone(), addr);

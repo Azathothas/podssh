@@ -113,9 +113,12 @@ LISTENERS = {
     # quick tunnel over QUIC (T-301), which the user asks for with `podssh
     # node --quick-tunnel`: one socket of port 0 for its one connection to
     # the edge, only with no proxy set; a bind that fails is the probe's
-    # answer, and the node takes HTTP/2.
+    # answer, and the node takes HTTP/2. And the tests of the iroh road's
+    # probe (T-359): a UDP port on the loopback that reads and never answers,
+    # as a network that drops UDP further on.
     "UdpSocket": [
         "crates/podssh-iroh/src/probe.rs",
+        "crates/podssh-iroh/src/endpoint_udp_tests.rs",
         "crates/podssh-relay/src/udp/flow.rs",
         "crates/podssh-relay/src/quick/quic.rs",
     ],
@@ -129,8 +132,9 @@ LISTENERS = {
     # `podssh session start` and `serve` (T-186), which the user asks for:
     # it binds through the same listener, after PODSSH_LISTEN, before it
     # connects, and the bind is its probe. And the quick tunnel over QUIC
-    # (T-301), as above.
+    # (T-301), and the tests of the iroh road's probe (T-359), as above.
     "bind(": [
+        "crates/podssh-iroh/src/endpoint_udp_tests.rs",
         "crates/podssh-relay/src/udp/flow.rs",
         "crates/podssh-relay/src/quick/quic.rs",
         "crates/podssh-cli/src/agent/serve.rs",

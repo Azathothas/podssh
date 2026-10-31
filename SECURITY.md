@@ -113,8 +113,8 @@ Each rule is implemented.
   host allows a bind and a listen, listens once with a backlog of 1 on
   127.0.0.1 and on a socket file of mode 0600, accepts nothing, and closes it
   at once; with `PODSSH_LISTEN=no` it does not listen. The iroh road, in a
-  build with the feature `iroh`, binds UDP for its direct paths only after
-  a probe allows it; with no UDP, its relay carries each byte, and a peer
+  build with the feature `iroh`, keeps UDP for its direct paths only after
+  a datagram came back from its home relay (T-359); with no UDP, its relay carries each byte, and a peer
   is accepted only with the ALPN of podssh's sessions. A node whose TARGET
   is `udp:HOST:PORT` (T-168) sends UDP from its host, one socket of port 0
   for each flow, connected to the target, after a probe; the client of

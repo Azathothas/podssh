@@ -1,20 +1,49 @@
 //! The iroh road, in a build with the feature `iroh` (T-162, T-165): whether
-//! a UDP socket binds here, so that the road may take direct paths, and
-//! whether each relay of the list answers `/ping` through the proxy. The
-//! first that answers is the home relay; an endpoint with no UDP path has no
+//! a UDP socket binds here, whether each relay of the list answers `/ping`
+//! through the proxy, and whether a datagram to the home relay comes back,
+//! as the road's own probe finds it before it takes UDP (T-359). The first
+//! relay that answers is the home relay; an endpoint with no UDP path has no
 //! other way in, so with no relay that answers, the road has none.
 
+use std::time::Duration;
+
+use iroh::RelayUrl;
 use podssh_iroh::relays::{self, Source};
+use podssh_iroh::{Options, Udp};
 use podssh_ws::{ProxyChoice, Trust};
 
 use super::Report;
 
+/// A bind says only that a socket binds: whether a datagram leaves is the
+/// line `iroh UDP out`.
 pub(super) fn udp(report: &mut Report<'_>) {
     match podssh_iroh::probe::udp() {
-        Ok(addr) => {
-            report.ok("bind UDP", format!("bound {addr} and closed it, sending nothing: the iroh road may go direct"))
-        }
+        Ok(addr) => report.ok("bind UDP", format!("bound {addr} and closed it, sending nothing")),
         Err(e) => report.ok("bind UDP", format!("refused: {e}; the iroh road then uses its relay alone")),
+    }
+}
+
+/// How long the probe's endpoint may take to close.
+const CLOSE_LIMIT: Duration = Duration::from_secs(3);
+
+/// The road's own probe of UDP: an endpoint on the home relay, as `podssh
+/// ssh` makes it, with a key of its own that no file keeps, and the answer
+/// that the road would take. Each answer is `ok`, as the relay alone is a
+/// road that works; an endpoint that cannot start is the road's failure.
+async fn udp_out(report: &mut Report<'_>, home: RelayUrl, trust: &Trust) {
+    let options = Options {
+        relays: vec![home],
+        proxy: ProxyChoice::FromEnvironment,
+        trust: trust.clone(),
+        udp: Udp::from_environment(),
+        ..Options::default()
+    };
+    match podssh_iroh::endpoint::open(&options).await {
+        Ok(opened) => {
+            report.ok("iroh UDP out", opened.udp.to_string());
+            let _ = tokio::time::timeout(CLOSE_LIMIT, opened.endpoint.close()).await;
+        }
+        Err(e) => report.fail("iroh UDP out", e.to_string()),
     }
 }
 
@@ -52,7 +81,10 @@ pub(super) async fn relay(report: &mut Report<'_>, trust: &Trust) {
         }
     }
     match home {
-        Some(relay) => report.ok("iroh home relay", format!("{relay}: the first of {from} that answered")),
+        Some(relay) => {
+            report.ok("iroh home relay", format!("{relay}: the first of {from} that answered"));
+            udp_out(report, relay, trust).await;
+        }
         None => report.fail("iroh home relay", format!("no relay of {from} answered /ping")),
     }
 }

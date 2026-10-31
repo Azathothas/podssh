@@ -215,8 +215,13 @@ where
         accepts: true,
         ..Options::default()
     };
-    let endpoint = match Box::pin(podssh_iroh::bind(&options)).await {
-        Ok(endpoint) => endpoint,
+    let endpoint = match Box::pin(podssh_iroh::endpoint::open(&options)).await {
+        Ok(opened) => {
+            // Which answer the road took of this host's UDP, once a run, as
+            // a node has no -v (T-359).
+            let _ = writeln!(err, "podssh {verb}: {label}: {}", opened.udp);
+            opened.endpoint
+        }
         Err(e) => return Refusal::config(e.to_string()).report(verb, err),
     };
     let relay = match tokio::time::timeout(ONLINE_LIMIT, endpoint.online()).await {

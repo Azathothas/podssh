@@ -141,8 +141,9 @@ These rules apply to each change. The reasons are in
    AF_UNIX, unless the user sets the address. A race between relay hosts can
    open a second connection for a short time ([decisions.md](decisions.md),
    2026-10-08). The iroh road (feature `iroh`), which the user selects,
-   binds UDP for direct paths only after a probe shows that a UDP socket
-   binds, and opens more than one outbound connection (its relay's probes),
+   binds UDP for direct paths, and keeps it only after a probe shows that a
+   datagram comes back from its home relay (QUIC address discovery, T-359),
+   and opens more than one outbound connection (its relay's probes),
    as the operator accepted for that road. A node whose TARGET is
    `udp:HOST:PORT` (T-168), which the user names, sends UDP from its host:
    one socket of port 0 for each flow, connected to the target, after a

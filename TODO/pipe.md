@@ -412,7 +412,7 @@ shows that an AF_UNIX or loopback bind works (`docs/design.md:922-924`).
   allows the bind. The default is loopback and AF_UNIX; the user can
   configure the address and can turn listening off.
 - Read: five documents still say that podssh never listens:
-  `AGENTS.md:248-254`, `docs/architecture.md:135-149`,
+  `AGENTS.md:248-254`, `docs/architecture.md:135-150`,
   `docs/target-environment.md:84-88`, `SECURITY.md:98-121`, `README.md:41-49`.
 - Read: sandbox A refuses an AF_INET bind and allows an AF_UNIX bind
   (`docs/STATUS.md:279`). The box refuses each `bind`, AF_UNIX too
@@ -500,7 +500,7 @@ Plant: bind with no umask; the check of the mode must fail.
 ## Correction
 
 2026-10-10: three of the five documents already say what the ruling
-allows: `AGENTS.md:248-254`, `docs/architecture.md:135-149` and
+allows: `AGENTS.md:248-254`, `docs/architecture.md:135-150` and
 `docs/target-environment.md:84-88` name a listener that the user asks for,
 after a probe. `SECURITY.md` and `README.md` still said that nothing
 listens, and change here. Step 4's umask 077 makes a socket's file mode

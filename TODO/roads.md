@@ -7,7 +7,7 @@ HTTP and of HTTP/2 to the relay.
 
 # T-162: The iroh road behind the cargo feature `iroh`
 
-**Source:** ROADMAP M6 (the iroh road); `docs/design.md:930-1111`;
+**Source:** ROADMAP M6 (the iroh road); `docs/design.md:930-1118`;
 `docs/decisions.md` (2026-10-08: iroh is a road that the user must select);
 GitHub #18 (Nemo-010, 2026-10-08: the iroh-ssh, zuko, GPU-Share and quic-ssh
 reports).
@@ -31,7 +31,7 @@ to 245 crates. In the target sandbox it runs only with no UDP transport (or a
 UDP bind after a probe), podssh's proxy in `proxy_url(...)`, the `Minimal`
 preset with no pkarr or DNS, peers dialled by ticket, and a home relay whose
 `/ping` passes the proxy. The operator accepted netlink sockets and extra
-connections for this road (`docs/design.md:1100-1103`). The sandbox refuses UDP
+connections for this road (`docs/design.md:1107-1110`). The sandbox refuses UDP
 (`docs/target-environment.md:23`). Measured on `3ee70dc`: `--iroh` is an
 unknown flag (exit 64), and `Cargo.lock` has no iroh crate.
 
@@ -142,7 +142,7 @@ that uses iroh's own proxy selection fails with `ALL_PROXY` set.
 # T-163: iroh tickets and node keys
 
 **Source:** ROADMAP M6 (dialled by ticket); `docs/design.md:957` and
-`docs/design.md:1068-1069`; GitHub #18 (Nemo-010, 2026-10-08: zuko's ticket
+`docs/design.md:1075-1076`; GitHub #18 (Nemo-010, 2026-10-08: zuko's ticket
 handoff; iroh-ssh's persistent and ephemeral keys).
 **Category:** feature
 **Milestone:** M6
@@ -159,7 +159,7 @@ no form for a ticket, no place for the keys, and no rule for who may connect.
 
 Read: with the `Minimal` preset nothing is discovered, so a ticket gives the
 key and the relay URL (`docs/design.md:957`). The key is the identity, and
-access is by an allowlist of keys or a relay token (`docs/design.md:1068-1069`).
+access is by an allowlist of keys or a relay token (`docs/design.md:1075-1076`).
 Read in the reports, not verified here: iroh-ssh warns when a server's key is
 ephemeral (`rustonbsd/iroh-ssh:src/ssh.rs`); zuko hands over a ticket out of
 band (`adonm/zuko:docs/protocol.md`). Read: `podssh ts` keeps its node key in
@@ -349,7 +349,7 @@ limit of iroh to each connection.
 Read: for a podssh node, the iroh road is first and the reverse road with the
 resumable layer is second, raced (`docs/design.md:48-53`). The first real
 sandbox can block what iroh needs, so the fallback is necessary
-(`docs/design.md:1105-1111`). The user must select iroh (`docs/decisions.md`,
+(`docs/design.md:1112-1118`). The user must select iroh (`docs/decisions.md`,
 2026-10-08). Each road has one attempt for each host, with a time limit
 (`docs/design.md:56-63`). The relay opener tries one host at a time
 (`crates/podssh-relay/src/open.rs:188-253`), and no code races two roads.
@@ -489,9 +489,9 @@ forward road has one default relay name in library code
 (`crates/podssh-relay/src/relay.rs:12-13`) and a seed pool
 (`crates/podssh-relay/src/pool.rs:20-29`); the same shape fits the iroh
 relays. n0's free relays are for development, with a rate limit that is not
-published (`docs/design.md:1085-1087`). At least three projects run the iroh
+published (`docs/design.md:1092-1094`). At least three projects run the iroh
 relay protocol on Workers and Durable Objects (read, not verified:
-`docs/design.md:1091-1093`). The URLs of n0's relays for iroh 1.x must be read
+`docs/design.md:1098-1100`). The URLs of n0's relays for iroh 1.x must be read
 in iroh's source at the pinned version.
 
 ## Approach
@@ -513,7 +513,7 @@ in iroh's source at the pinned version.
    relay.
 7. Add the variable to `VARIABLES` (`crates/podssh-cli/src/man/facts.rs:45-260`),
    the flag to the flag table, and the default to the relay section of the
-   manual (`crates/podssh-cli/src/man/facts.rs:297-443`). The tests compare
+   manual (`crates/podssh-cli/src/man/facts.rs:301-447`). The tests compare
    `VARIABLES` with the source in both directions
    (`crates/podssh-cli/src/man/facts.rs:43-44`), so a variable that only the
    feature reads is in the manual only with the feature.
@@ -624,7 +624,7 @@ other build.
 # T-166: A roost: a podssh next to a standard sshd
 
 **Source:** `docs/design.md:52` (a standard sshd behind a podssh `roost`) and
-`docs/design.md:584-587`; the `roost` of pigeons (`docs/design.md:1095-1098`);
+`docs/design.md:584-587`; the `roost` of pigeons (`docs/design.md:1102-1105`);
 GitHub #18 (Nemo-010, 2026-10-08: iroh-ssh reaches sshd by node id, and
 refuses early when no sshd answers).
 **Category:** feature
@@ -2387,7 +2387,7 @@ The `grep` shows the recorded result.
 # T-173: Resumption in the relay for a standard sshd
 
 **Source:** ROADMAP M8 (not now; look at it again after M6);
-`docs/design.md:588-605` (layer 3) and `docs/design.md:1120-1123` (question 1 of
+`docs/design.md:588-605` (layer 3) and `docs/design.md:1127-1130` (question 1 of
 section 8).
 **Category:** feature
 **Milestone:** M8
@@ -2410,7 +2410,7 @@ a resume token in the `101` response, and offset framing as a protocol
 version that the client selects. It is a project of the relay's operator, and
 it costs Durable Object time for the whole session (`docs/design.md:601-605`).
 The recommendation is "not now; look at it again after M6"
-(`docs/design.md:1120-1123`). The relay is in another repository.
+(`docs/design.md:1127-1130`). The relay is in another repository.
 
 ## Approach
 
@@ -3364,7 +3364,7 @@ podssh's own, which makes it M.
 ## Premise
 
 - Read: the endpoint has no address lookup: a peer is dialled by its key and its relay
-  (`crates/podssh-iroh/src/endpoint.rs:4-7`, `:209-210`), as the design chose for a host with no
+  (`crates/podssh-iroh/src/endpoint.rs:4-7`, `:305-306`), as the design chose for a host with no
   DNS (`docs/design.md:957`, `:963`).
 - Read: the node's key is Ed25519 and stays across its pairs, and the operator pins it by label
   (`docs/reverse.md:180-184`).
@@ -3434,7 +3434,7 @@ Endpoint puts a credential in its URL.
   aws/aws-cli:awscli/customizations/ec2instanceconnect/eicesigner.py): EC2 Instance Connect
   Endpoint takes a presigned SigV4 `wss://` URL, valid for 60 s, then raw binary frames; AWS's
   client honours `HTTPS_PROXY`; a connection lasts an hour at most, and 20 run at once.
-- Read: credentials never go in URLs (`docs/architecture.md:161-163`; `docs/design.md:62`), and
+- Read: credentials never go in URLs (`docs/architecture.md:162-164`; `docs/design.md:62`), and
   `docs/decisions.md:43` says "in a header or a 0600 file and never in a URL" of the relay's
   tokens. The presigned URL carries an access key id and a signature in its query.
 - Read: the `cf://` road uses podssh-ws's WebSocket client through the proxy
@@ -3677,7 +3677,7 @@ and an EICE endpoint, their credential files in `.env/`.
 **Milestone:** backlog
 **Priority:** P2
 **Effort:** M
-**Status:** open
+**Status:** partial
 
 ## Problem
 
@@ -3692,15 +3692,18 @@ code that no command of the default build uses is P2 at most".
 ## Premise
 
 - Read: the probe binds a UDP socket to port 0 and drops it, and
-  `crates/podssh-iroh/src/probe.rs:9-10` says "Nothing is sent"; the endpoint adds `0.0.0.0:0`
-  and `[::]:0`, not required, when the probe binds (`crates/podssh-iroh/src/endpoint.rs:222-227`).
+  `crates/podssh-iroh/src/probe.rs` lines 9-10 at `925c94b` say "Nothing is sent"; the endpoint
+  adds `0.0.0.0:0` and `[::]:0`, not required, when the probe binds
+  (`crates/podssh-iroh/src/endpoint.rs` lines 222-227 at `925c94b`).
   T-162 chose this probe (`TODO/roads.md:50-52`).
-- Read: `crates/podssh-iroh/src/endpoint.rs:71-74` says "as on a host whose UDP is refused
-  further on than the probe sees" of `PODSSH_IROH_UDP=off`, and the manual says that "UDP is used
-  when a socket binds" (`crates/podssh-cli/src/man/facts.rs:273-274`).
+- Read: `crates/podssh-iroh/src/endpoint.rs` lines 71-74 at `925c94b` say "as on a host whose
+  UDP is refused further on than the probe sees" of `PODSSH_IROH_UDP=off`, and the manual says
+  that "UDP is used when a socket binds" (`crates/podssh-cli/src/man/facts.rs` lines 273-274 at
+  `925c94b`).
 - Read: doctor's two answers are `ok`: "the iroh road may go direct" after a bind, and "the iroh
-  road then uses its relay alone" after a refusal (`crates/podssh-cli/src/doctor/iroh.rs:12-18`),
-  in a build with the feature only (`crates/podssh-cli/src/doctor/mod.rs:110-111`). The refusal's
+  road then uses its relay alone" after a refusal (`crates/podssh-cli/src/doctor/iroh.rs` lines
+  12-18 at `925c94b`), in a build with the feature only
+  (`crates/podssh-cli/src/doctor/mod.rs:110-111`). The refusal's
   `ok` is doctor's rule, as the relay alone is a road that works; the bind's "may go direct" is
   not measured.
 - Read, in iroh 1.4.1 (the local cargo registry, `src/net_report/report.rs`): iroh's report of
@@ -3744,7 +3747,7 @@ code that no command of the default build uses is P2 at most".
    is set, a QUIC handshake to the quick tunnel's edge as `podssh node --quick-tunnel` makes it
    (`crates/podssh-relay/src/quick/quic.rs:122-138`), and with a proxy set, that the quick tunnel
    takes HTTP/2. Each answer is `ok`, as a road with no UDP works; a home relay that does not
-   answer is already `FAIL` (`crates/podssh-cli/src/doctor/iroh.rs:54-57`).
+   answer is already `FAIL` (`crates/podssh-cli/src/doctor/iroh.rs:83-89`).
 5. `-v` says which answer the road took. The manual's `PODSSH_IROH_UDP`, `docs/design.md`
    (section 7), `docs/architecture.md` (rule 3) and `SECURITY.md` say that the iroh road takes UDP
    after a datagram came back, not after a socket binds.
@@ -3759,8 +3762,21 @@ code that no command of the default build uses is P2 at most".
    network, as a network can change under the same address; the race of T-164 already hides the
    wait where the reverse road is there, and `PODSSH_IROH_UDP=off` takes it away.
 3. UDP beside a proxy does not change: the operator accepted the iroh road's UDP after a probe
-   (`docs/architecture.md:143-146`), and the quick tunnel's narrower rule, no QUIC where a proxy
+   (`docs/architecture.md:143-147`), and the quick tunnel's narrower rule, no QUIC where a proxy
    is set (T-301), stays its own.
+4. Two lines in doctor, not one: `iroh UDP out` (the round trip to the home relay, in the section
+   `iroh`) and `UDP out` (the quick tunnel's edge, in each build), as they measure two servers on
+   two ports, 7842 and 7844, and a host can let one through and drop the other. Lost: one line
+   with two answers, which reads as one fact.
+5. The endpoint that gave up on UDP is made again, with the same key, where the first one is
+   closed: iroh 1.4.1 has no call that takes the UDP transports away from an endpoint that is
+   bound (its builder's `clear_ip_transports` acts before the bind alone). The key is the one
+   that a node's ticket and a node's allowlist name. Lost: the first endpoint kept with UDP that
+   iroh would go on probing, which is the defect.
+6. iroh's range is `>=1.4.1, <1.5` in `podssh-iroh` and `podssh-cli`: the report of the network is
+   behind iroh's feature `unstable-net-report`, outside its semver, so a minor version may change
+   it. Lost: the range `>=1.1, <2`, under which `cargo update` could take such a version and the
+   build would break, not the update be read.
 
 ## Prove
 
@@ -3777,6 +3793,46 @@ the test that reads and never answers: `Unknown` within the bound, and the endpo
 socket. A refused bind, planted: `Refused`. Planted: the bind-only probe back; the test of the
 silent port fails, as the endpoint keeps its UDP sockets. In the box, where UDP is refused,
 doctor's `UDP out` says so; a box that allows UDP and drops it waits for T-251.
+
+## Correction
+
+2026-10-31: the bound of the wait is 6 s (`crates/podssh-iroh/src/probe.rs`, `REPORT_LIMIT`), not
+the 3 s of Approach item 2. iroh 1.4.1 publishes its first report once its QUIC address discovery
+probes have ended, each within 3 s (its `PROBES_TIMEOUT`), and its HTTPS probes, which go through
+the proxy, within 5 s (its `TIMEOUT`); a host with an IPv6 address and no IPv6 route waits the
+3 s of its IPv6 probe even where IPv4 answers. A bound of 3 s would take such a host, and a slow
+proxy, for one that drops UDP. The wait on a host that drops UDP stays the 3 s of Decision item
+2, as iroh's own limit gives it: 3003 ms against n0's relay on this session's host.
+
+## Done
+
+2026-10-31, partial: the iroh road and doctor's `iroh UDP out` are done; doctor's `UDP out` to the
+quick tunnel's edge is not (Approach item 4, its second half).
+
+- `podssh_iroh::endpoint::open` gives the endpoint and the probe's answer: `Answered` (a round trip
+  of QUIC address discovery to the home relay in the first report, within 6 s), `Refused` (no UDP
+  socket binds), `Unknown` (bound, and nothing came back), `BindOnly` (`PODSSH_IROH_UDP=on`) and
+  `Off`. With no round trip, the endpoint is closed and made again with no UDP and its key, before
+  it dials or serves. `podssh ssh` says the answer with `-v`, and a node at its start.
+- Tests (`crates/podssh-iroh/src/endpoint_udp_tests.rs`, against iroh's relay server on the
+  loopback with its QUIC address discovery on): `Answered`, with the UDP sockets kept
+  (`Endpoint::bound_sockets`); the discovery's port behind a socket of the test that reads and
+  never answers: `Unknown` in about 3 s, datagrams read, no UDP socket, the same key, and online
+  through the relay alone; a refused bind, planted: `Refused`, no UDP socket; `on` with no wait,
+  and `off`. Planted: the bind-only probe back, the test of the silent port failed ("a port that
+  never answers gave BindOnly"); the answer kept with the UDP endpoint, it failed ("the endpoint
+  kept UDP that never came back"). `crates/podssh-cli/tests/iroh_road.rs`: the node says that its
+  relay carries each byte, and `-v` says the road's answer; planted, each line taken away, the test
+  failed. Its live test of doctor: `bind UDP` claims nothing direct, and `iroh UDP out` is `ok`.
+- `cargo test -p podssh-iroh -p podssh-cli --features podssh-cli/iroh-test`: 1048 passed;
+  `cargo test -p podssh-cli --lib doctor`: 33 passed; clippy `-D warnings` with the features, and
+  rustfmt: clean.
+- Live, this session's host (a UDP socket binds; the way out is the session's HTTPS proxy):
+  `podssh doctor` with the feature said "bind UDP: bound 0.0.0.0:39130 and closed it, sending
+  nothing", the four relays of n0 answered `/ping`, and "iroh UDP out: a UDP socket binds, and no
+  QUIC address discovery to the home relay came back within 3003 ms, so the relay carries each
+  byte". Before this entry, the same host read "the iroh road may go direct".
+- The box (UDP refused) and a box that drops UDP wait for T-251.
 
 # T-363: The direct road is never tried after the relay hosts fail, though the road table says that a probe chooses it
 
@@ -4209,7 +4265,7 @@ cannot make it a road.
   (`crates/podssh-ws/src/socks5.rs:1-7`); a library crate has no C (`AGENTS.md`, section 5, rule
   4).
 - Read: tokens and keys never appear in argv, logs or URLs, and go in files with tight permissions
-  (`docs/architecture.md:161-163`); an `ss://` URI holds the password.
+  (`docs/architecture.md:162-164`); an `ss://` URI holds the password.
 - Read: podssh starts no program that the user did not name (`AGENTS.md`, section 5, rule 3), and
   a plugin of Shadowsocks is another program.
 - Inferred: a proxy that waits for TLS on port 443 carries no Shadowsocks, as it carries no SSH

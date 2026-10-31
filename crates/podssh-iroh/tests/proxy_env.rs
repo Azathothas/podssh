@@ -40,6 +40,7 @@ fn from_environment(relay: &iroh::RelayUrl) -> Options {
         secret: None,
         accepts: true,
         relay_tls: Some(CaTlsConfig::insecure_skip_verify()),
+        qad_port: None,
     }
 }
 

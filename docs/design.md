@@ -952,7 +952,7 @@ iroh can run only with this configuration (READ; not MEASURED yet):
 
 | Need | How |
 | --- | --- |
-| No UDP | `clear_ip_transports()` (relay only), or a UDP bind marked as not required and tried only after podssh's own probe. The default endpoint requires a UDP bind and does not start without one. |
+| No UDP | `clear_ip_transports()` (relay only), or a UDP bind marked as not required and tried only after podssh's own probe. The default endpoint requires a UDP bind and does not start without one. A bind is not a datagram that leaves: the sockets stay only after a QUIC address discovery to the home relay came back (T-359). |
 | Egress only through CONNECT | `proxy_url(...)`: the relay dial sends `CONNECT relay:443` with the name. podssh gives its own proxy resolution (the `proxy_from_env` of iroh ignores `ALL_PROXY` and `NO_PROXY`). |
 | No DNS | The `Minimal` preset (no pkarr or DNS lookups), podssh's own relay URL, peers dialled by ticket (a key and a relay URL), a resolver that fails fast |
 | A home relay | The HTTPS `/ping` probe must pass through the proxy. Without it, the endpoint can connect out but nothing can connect to it. |
@@ -965,7 +965,14 @@ relays by default; podssh's proxy for the relay (iroh's `proxy_url`), at an
 address that podssh resolved; podssh's name resolution in place of iroh's
 resolver; podssh's trust store for the relay's certificate; and no IP
 transport unless a UDP probe binds, then UDP sockets that are not required.
-The HTTPS probe of the relays, through the proxy, picks the home relay; the
+Since T-359 (2026-10-31) those sockets stay only after a datagram came back:
+the endpoint's first report of the network (iroh's `unstable-net-report`)
+holds a round trip of QUIC address discovery to the home relay, on its port
+7842, within 6 s of the start; else the endpoint is made again with no UDP and
+the same key, before it dials or serves. The wait on a host that drops UDP
+is iroh's own limit for that probe, 3 s. `PODSSH_IROH_UDP=on` takes UDP after
+the bind alone, for a relay that runs no QUIC address discovery, and `off`
+takes none. The HTTPS probe of the relays, through the proxy, picks the home relay; the
 captive portal check is off. A session is a bidirectional QUIC stream with
 the ALPN `podssh/1`; the client's first byte announces it, as a QUIC peer
 learns of a stream only from its first byte, and the stream then carries the

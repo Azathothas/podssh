@@ -11,15 +11,19 @@
 //!   podssh carries (T-280, `vendor/patches/iroh-relay/`);
 //! - podssh's name resolution ([`crate::resolve`]) and podssh's trust store
 //!   for the relay's certificate;
-//! - no UDP unless this host lets a UDP socket bind, as a probe found
-//!   ([`crate::probe`]): the relay alone, else.
+//! - UDP only after a datagram came back: a round trip of QUIC address
+//!   discovery to the home relay in the endpoint's first report, before
+//!   anything is dialled or served ([`crate::probe`], T-359); the relay
+//!   alone, else.
 
+use std::net::SocketAddr;
 use std::sync::Arc;
+use std::time::Duration;
 
 use iroh::dns::DnsResolver;
 use iroh::endpoint::{presets, BindOpts};
 use iroh::tls::CaTlsConfig;
-use iroh::{Endpoint, NetReportConfig, RelayMap, RelayMode, RelayUrl, SecretKey};
+use iroh::{Endpoint, NetReportConfig, RelayConfig, RelayMap, RelayMode, RelayUrl, SecretKey};
 use podssh_ws::{ProxyChoice, Trust};
 
 /// The relays to use, and the endpoint's way out.
@@ -43,6 +47,9 @@ pub struct Options {
     /// The trust for the relay's certificate in place of `trust`, as an
     /// embedder or a test gives it. podssh's own commands never set it.
     pub relay_tls: Option<CaTlsConfig>,
+    /// The port of the relays' QUIC address discovery in place of iroh's
+    /// 7842, as a test gives it. podssh's own commands never set it.
+    pub qad_port: Option<u16>,
 }
 
 impl Default for Options {
@@ -55,6 +62,7 @@ impl Default for Options {
             secret: None,
             accepts: false,
             relay_tls: None,
+            qad_port: None,
         }
     }
 }
@@ -62,22 +70,34 @@ impl Default for Options {
 /// Whether the endpoint may use direct UDP paths.
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub enum Udp {
-    /// When a UDP socket binds on this host (see [`crate::probe::udp`]).
+    /// After a datagram came back: a QUIC address discovery's round trip to
+    /// the home relay (see [`crate::probe`]).
     Probe,
+    /// After a UDP socket binds, with nothing sent: for a relay that runs no
+    /// QUIC address discovery.
+    On,
     /// Never: the relay carries each byte.
     Off,
 }
 
-/// The variable that turns UDP off: `off` makes the relay carry each byte,
-/// as on a host whose UDP is refused further on than the probe sees, and as
-/// the checks of a sandbox need (T-156).
+/// The variable that chooses: `off` makes the relay carry each byte, as the
+/// checks of a sandbox need (T-156); `on` takes UDP after a bind alone, as
+/// before T-359, for a relay that runs no QUIC address discovery; anything
+/// else is the probe.
 pub const UDP_ENV: &str = "PODSSH_IROH_UDP";
 
 impl Udp {
-    /// [`Udp::Off`] when the variable says `off`; else [`Udp::Probe`].
+    /// [`Udp::Off`] or [`Udp::On`] when the variable says `off` or `on`;
+    /// else [`Udp::Probe`].
     pub fn from_environment() -> Udp {
-        match std::env::var(UDP_ENV) {
-            Ok(value) if value.trim().eq_ignore_ascii_case("off") => Udp::Off,
+        Udp::from_value(std::env::var(UDP_ENV).ok().as_deref())
+    }
+
+    /// The choice of the variable's value.
+    pub fn from_value(value: Option<&str>) -> Udp {
+        match value.map(str::trim) {
+            Some(v) if v.eq_ignore_ascii_case("off") => Udp::Off,
+            Some(v) if v.eq_ignore_ascii_case("on") => Udp::On,
             _ => Udp::Probe,
         }
     }
@@ -112,10 +132,18 @@ pub fn default_relays() -> Vec<RelayUrl> {
     crate::relays::defaults()
 }
 
-/// The relay map of `relays`, or of the table when it is empty.
-fn relay_mode(relays: &[RelayUrl]) -> RelayMode {
+/// The relay map of `relays`, or of the table when it is empty; each relay's
+/// QUIC address discovery on iroh's port, or on `qad_port`.
+fn relay_mode(relays: &[RelayUrl], qad_port: Option<u16>) -> RelayMode {
     let relays = if relays.is_empty() { default_relays() } else { relays.to_vec() };
-    RelayMode::Custom(relays.into_iter().collect::<RelayMap>())
+    let configs = relays.into_iter().map(|url| {
+        let mut config = RelayConfig::from(url);
+        if let (Some(port), Some(quic)) = (qad_port, config.quic.as_mut()) {
+            quic.port = port;
+        }
+        config
+    });
+    RelayMode::Custom(configs.collect::<RelayMap>())
 }
 
 /// The proxy for the first relay, as podssh selects it, as the URL that iroh
@@ -191,15 +219,83 @@ fn relay_tls(trust: &Trust) -> Result<CaTlsConfig, BindError> {
     })))
 }
 
+/// An endpoint, and what its probe of UDP found.
+#[derive(Debug)]
+pub struct Opened {
+    pub endpoint: Endpoint,
+    pub udp: crate::probe::Answer,
+}
+
+/// How long the endpoint that a probe gave up on may take to close.
+const CLOSE_LIMIT: Duration = Duration::from_secs(3);
+
+/// What each endpoint of one [`open`] shares: the one made without UDP after
+/// a probe takes the same.
+struct Parts {
+    tls: CaTlsConfig,
+    mode: RelayMode,
+    proxy: Option<url::Url>,
+}
+
 /// An endpoint with `options`; with the ALPN of podssh's sessions when it
 /// takes them.
 pub async fn bind(options: &Options) -> Result<Endpoint, BindError> {
+    Ok(open(options).await?.endpoint)
+}
+
+/// An endpoint with `options`, and what the probe of UDP found. Its UDP
+/// sockets stay only after a QUIC address discovery to the home relay came
+/// back within [`crate::probe::REPORT_LIMIT`]; else the endpoint is made
+/// again without them, with the same key, before it dials or serves.
+pub async fn open(options: &Options) -> Result<Opened, BindError> {
+    open_with(options, crate::probe::udp).await
+}
+
+/// [`open`], with the bind of the probe given, so that a test can plant a
+/// refusal.
+pub(crate) async fn open_with(
+    options: &Options,
+    bind_probe: fn() -> std::io::Result<SocketAddr>,
+) -> Result<Opened, BindError> {
+    use crate::probe::Answer;
     let tls = match &options.relay_tls {
         Some(tls) => tls.clone(),
         None => relay_tls(&options.trust)?,
     };
-    let mode = relay_mode(&options.relays);
+    let mode = relay_mode(&options.relays, options.qad_port);
     let proxy = proxy_url(&options.proxy, &mode).await?;
+    let parts = Parts { tls, mode, proxy };
+    let addr = match options.udp {
+        Udp::Off => return Ok(Opened { endpoint: make(&parts, options, false, None).await?, udp: Answer::Off }),
+        Udp::Probe | Udp::On => match bind_probe() {
+            Ok(addr) => addr,
+            Err(e) => {
+                let endpoint = make(&parts, options, false, None).await?;
+                return Ok(Opened { endpoint, udp: Answer::Refused(e) });
+            }
+        },
+    };
+    let endpoint = make(&parts, options, true, None).await?;
+    if options.udp == Udp::On {
+        return Ok(Opened { endpoint, udp: Answer::BindOnly(addr) });
+    }
+    let started = tokio::time::Instant::now();
+    let came_back = crate::probe::round_trip(&endpoint, crate::probe::REPORT_LIMIT).await == Some(true);
+    let took = started.elapsed();
+    if came_back {
+        return Ok(Opened { endpoint, udp: Answer::Answered(took) });
+    }
+    // The same key for the endpoint that takes its place: a node's ticket,
+    // and a client's allowlisted key, name it.
+    let secret = endpoint.secret_key().clone();
+    let _ = tokio::time::timeout(CLOSE_LIMIT, endpoint.close()).await;
+    let endpoint = make(&parts, options, false, Some(secret)).await?;
+    Ok(Opened { endpoint, udp: Answer::Unknown(took) })
+}
+
+/// One endpoint of `parts`, with UDP sockets (not required) or none, and
+/// `secret` in place of the options' key.
+async fn make(parts: &Parts, options: &Options, udp: bool, secret: Option<SecretKey>) -> Result<Endpoint, BindError> {
     // The HTTPS probe of the relays picks the home relay when no UDP path
     // exists, and it goes through the proxy; the captive portal check is
     // one more connection, plain HTTP, that a sandbox's proxy refuses.
@@ -208,31 +304,35 @@ pub async fn bind(options: &Options) -> Result<Endpoint, BindError> {
     report.captive_portal_check = false;
     let mut builder = Endpoint::builder(presets::Minimal)
         .clear_address_lookup()
-        .relay_mode(mode)
+        .relay_mode(parts.mode.clone())
         .dns_resolver(DnsResolver::custom(crate::resolve::Podssh))
-        .ca_tls_config(tls)
+        .ca_tls_config(parts.tls.clone())
         .net_report_config(report)
         // iroh's own UDP sockets are required by default: a host that
         // refuses UDP would stop the endpoint. They come back below, not
-        // required, after the probe.
+        // required, for the probe.
         .clear_ip_transports();
-    if let Some(url) = proxy {
-        builder = builder.proxy_url(url);
+    if let Some(url) = &parts.proxy {
+        builder = builder.proxy_url(url.clone());
     }
-    if options.udp == Udp::Probe && crate::probe::udp().is_ok() {
+    if udp {
         let optional = || BindOpts::default().set_is_required(false);
         for any in ["0.0.0.0:0", "[::]:0"] {
             builder = builder.bind_addr_with_opts(any, optional()).map_err(|e| BindError::Iroh(e.to_string()))?;
         }
     }
-    if let Some(secret) = &options.secret {
-        builder = builder.secret_key(secret.clone());
+    if let Some(secret) = secret.or_else(|| options.secret.clone()) {
+        builder = builder.secret_key(secret);
     }
     if options.accepts {
         builder = builder.alpns(vec![crate::ALPN.to_vec()]);
     }
     builder.bind().await.map_err(|e| BindError::Iroh(e.to_string()))
 }
+
+#[cfg(test)]
+#[path = "endpoint_udp_tests.rs"]
+mod udp_tests;
 
 #[cfg(test)]
 mod tests {
