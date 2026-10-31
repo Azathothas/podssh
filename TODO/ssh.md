@@ -256,7 +256,7 @@ after it.
 Read:
 
 - `podssh_relay::open` fails over and repeats rounds only until the
-  WebSocket upgrade succeeds (`crates/podssh-relay/src/open.rs:188-253`).
+  WebSocket upgrade succeeds (`crates/podssh-relay/src/open.rs:200-277`).
   After the upgrade, a relay close ends the run
   (`crates/podssh-ssh/src/run.rs`, lines 38-47 at `981b8fc`).
 - Both reported drops printed `HOST: the connection closed unexpectedly`,
@@ -288,7 +288,7 @@ Read:
    link from the relay to the target: try once more, then stop. Never retry
    `1001`, `1009` or `1013`.
 4. Wait with the jittered backoff that exists
-   (`crates/podssh-relay/src/open.rs:355-369`). Bound the whole by the rounds
+   (`crates/podssh-relay/src/open.rs:379-393`). Bound the whole by the rounds
    of `ConnectionAttempts` (`crates/podssh-cli/src/ssh/resolve.rs:460`) and
    the deadline of each host.
 5. Never prompt again without a person: under `BatchMode`, or with no
@@ -1509,14 +1509,14 @@ Read:
 - The relay leg limits each write: `WRITE_TIMEOUT` is 60 s
   (`crates/podssh-ws/src/client.rs:34-35`, given to the session at
   `crates/podssh-ws/src/client.rs:181`), and `write` applies it
-  (`crates/podssh-ws/src/session.rs:333-343`). Then the copy task stops
+  (`crates/podssh-ws/src/session.rs:344-354`). Then the copy task stops
   (`crates/podssh-ssh/src/relay_stream.rs:203-219`), the next ping meets the
-  same limit and ends the read task (`crates/podssh-ws/src/session.rs:245-248`,
+  same limit and ends the read task (`crates/podssh-ws/src/session.rs:256-259`,
   `crates/podssh-ssh/src/relay_stream.rs:225-236`), and russh's next write
   fails. So the relay road ends a stuck write in about 60 to 130 s.
 - The direct road gives russh the TCP stream with only `nodelay` set
   (`crates/podssh-cli/src/ssh/transport.rs`, lines 99-101 at `cafcdb4`,
-  `crates/podssh-ws/src/dial.rs:239-241`).
+  `crates/podssh-ws/src/dial.rs:241-243`).
 - russh takes SSH window credit before it writes, so a remote program that
   stops reading makes the session idle, not stuck (GitHub #36). Only a stall
   below SSH causes the hang.

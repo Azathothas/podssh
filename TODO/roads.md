@@ -44,7 +44,7 @@ unknown flag (exit 64), and `Cargo.lock` has no iroh crate.
    for `ts`. The default build and the releases stay without the feature.
 2. The endpoint: the `Minimal` preset, no pkarr or DNS discovery, and the
    relays of T-165. `proxy_url(...)` gets what `proxy_from_env` selects
-   (`crates/podssh-ws/src/dial.rs:96-121`), so `ALL_PROXY` and `NO_PROXY` act
+   (`crates/podssh-ws/src/dial.rs:98-123`), so `ALL_PROXY` and `NO_PROXY` act
    as on the other roads; iroh's own selection ignores both
    (`docs/design.md:958`).
 3. UDP: `clear_ip_transports()` by default. Add the UDP transport only after a
@@ -186,7 +186,7 @@ the file that `--ts-state` names (`crates/podssh-cli/src/flags.rs:343-344`,
 5. The node prints its ticket and its fingerprint on stderr when it starts.
    `podssh ssh iroh:TICKET` dials it (the address of `docs/design.md:891`).
 6. Add the key files to FILES in the manual
-   (`crates/podssh-cli/src/man/data.rs:146-290`), and each new variable to
+   (`crates/podssh-cli/src/man/data.rs:146-293`), and each new variable to
    `VARIABLES` (`crates/podssh-cli/src/man/facts.rs:45-260`).
 
 ## Decision
@@ -352,7 +352,7 @@ sandbox can block what iroh needs, so the fallback is necessary
 (`docs/design.md:1118-1124`). The user must select iroh (`docs/decisions.md`,
 2026-10-08). Each road has one attempt for each host, with a time limit
 (`docs/design.md:56-63`). The relay opener tries one host at a time
-(`crates/podssh-relay/src/open.rs:188-253`), and no code races two roads.
+(`crates/podssh-relay/src/open.rs:200-277`), and no code races two roads.
 
 ## Approach
 
@@ -513,7 +513,7 @@ in iroh's source at the pinned version.
    relay.
 7. Add the variable to `VARIABLES` (`crates/podssh-cli/src/man/facts.rs:45-260`),
    the flag to the flag table, and the default to the relay section of the
-   manual (`crates/podssh-cli/src/man/facts.rs:301-447`). The tests compare
+   manual (`crates/podssh-cli/src/man/facts.rs:301-456`). The tests compare
    `VARIABLES` with the source in both directions
    (`crates/podssh-cli/src/man/facts.rs:43-44`), so a variable that only the
    feature reads is in the manual only with the feature.
@@ -1710,7 +1710,7 @@ a name: it runs no `cloudflared`.
 - Read: `h2` 0.4.19 is in `Cargo.lock`, through hyper; the crates `capnp` and `capnp-rpc` are
   Rust, and their code generator needs the C++ tool `capnp` (`docs/design.md:280-312`).
 - Read: podssh's DNS over HTTPS asks for A and AAAA records only
-  (`crates/podssh-ws/src/resolve.rs:125`).
+  (`crates/podssh-ws/src/resolve.rs`, line 125 at `927eb24`).
 - Read: the client exists: `cf://HOST` opens cloudflared's WebSocket through `HTTPS_PROXY`
   (T-264, `crates/podssh-ws/src/cloudflare.rs`).
 - Read: a node runs the far end of the resumable layer for each session (T-083, T-153).
@@ -2304,8 +2304,8 @@ whether MPTCP helps podssh on any road.
 ## Premise
 
 Read: `--direct` connects with a plain `TcpStream::connect`
-(`crates/podssh-ws/src/dial.rs:247-318`, the call at
-`crates/podssh-ws/src/dial.rs:291`). Through a proxy, MPTCP can reach only the
+(`crates/podssh-ws/src/dial.rs`, lines 247-318 at `927eb24`, the call at
+line 291 at `927eb24`). Through a proxy, MPTCP can reach only the
 proxy. `podssh-ws` has no `libc` dependency (`crates/podssh-ws/Cargo.toml`).
 Read in the report, not verified here: RustConn uses MPTCP. Not known:
 whether the relay's edge or a target server accepts MPTCP. Linux offers it
@@ -2699,7 +2699,7 @@ Read and verified at the cited lines (2026-10-30):
   it, and `crates/podssh-ws/src/handshake.rs:185` says "status != 101".
 - A relay session is generic over its stream
   (`crates/podssh-ws/src/session.rs:33` says "RelaySession<S = RelayStream>",
-  and `:84`). RFC 8441 section 5 runs the frames of RFC 6455 on the HTTP/2
+  and `:87`). RFC 8441 section 5 runs the frames of RFC 6455 on the HTTP/2
   stream "as if it were the TCP connection", and drops `Sec-WebSocket-Key`
   and `Sec-WebSocket-Accept`.
 - `docs/design.md:282` says "0.4.19 is in": `h2` comes through hyper. Its
@@ -2987,7 +2987,7 @@ roots must be exactly three, and a refusal of the edge does not say which releas
   day after 2026.10.6; 2026.10.3 to 2026.10.7 came in ten days.
 - Read: cloudflared finds the edge by the SRV record `_v2-origintunneld._tcp.argotunnel.com`
   (`docs/design.md:180-186`), and podssh's DNS over HTTPS asks for A and AAAA only
-  (`crates/podssh-ws/src/resolve.rs:125`).
+  (`crates/podssh-ws/src/resolve.rs`, line 125 at `927eb24`).
 - Read: the edge's trust is podssh's default roots, `podssh-ca.pem` next to the binary among them,
   and cloudflared's three (`crates/podssh-relay/src/quick/edge.rs:35-46`;
   `crates/podssh-ws/src/tls.rs:204-233`).
@@ -3489,7 +3489,7 @@ Endpoint puts a credential in its URL.
   aws/aws-cli:awscli/customizations/ec2instanceconnect/eicesigner.py): EC2 Instance Connect
   Endpoint takes a presigned SigV4 `wss://` URL, valid for 60 s, then raw binary frames; AWS's
   client honours `HTTPS_PROXY`; a connection lasts an hour at most, and 20 run at once.
-- Read: credentials never go in URLs (`docs/architecture.md:165-167`; `docs/design.md:62`), and
+- Read: credentials never go in URLs (`docs/architecture.md:177-179`; `docs/design.md:62`), and
   `docs/decisions.md:43` says "in a header or a 0600 file and never in a URL" of the relay's
   tokens. The presigned URL carries an access key id and a signature in its query.
 - Read: the `cf://` road uses podssh-ws's WebSocket client through the proxy
@@ -3758,7 +3758,7 @@ code that no command of the default build uses is P2 at most".
 - Read: doctor's two answers are `ok`: "the iroh road may go direct" after a bind, and "the iroh
   road then uses its relay alone" after a refusal (`crates/podssh-cli/src/doctor/iroh.rs` lines
   12-18 at `925c94b`), in a build with the feature only
-  (`crates/podssh-cli/src/doctor/mod.rs:112-113`). The refusal's
+  (`crates/podssh-cli/src/doctor/mod.rs:113-114`). The refusal's
   `ok` is doctor's rule, as the relay alone is a road that works; the bind's "may go direct" is
   not measured.
 - Read, in iroh 1.4.1 (the local cargo registry, `src/net_report/report.rs`): iroh's report of
@@ -3817,7 +3817,7 @@ code that no command of the default build uses is P2 at most".
    network, as a network can change under the same address; the race of T-164 already hides the
    wait where the reverse road is there, and `PODSSH_IROH_UDP=off` takes it away.
 3. UDP beside a proxy does not change: the operator accepted the iroh road's UDP after a probe
-   (`docs/architecture.md:143-147`), and the quick tunnel's narrower rule, no QUIC where a proxy
+   (`docs/architecture.md:155-159`), and the quick tunnel's narrower rule, no QUIC where a proxy
    is set (T-301), stays its own.
 4. Two lines in doctor, not one: `iroh UDP out` (the round trip to the home relay, in the section
    `iroh`) and `UDP out` (the quick tunnel's edge, in each build), as they measure two servers on
@@ -4357,7 +4357,7 @@ cannot make it a road.
   (`crates/podssh-ws/src/socks5.rs:1-7`); a library crate has no C (`AGENTS.md`, section 5, rule
   4).
 - Read: tokens and keys never appear in argv, logs or URLs, and go in files with tight permissions
-  (`docs/architecture.md:165-167`); an `ss://` URI holds the password.
+  (`docs/architecture.md:177-179`); an `ss://` URI holds the password.
 - Read: podssh starts no program that the user did not name (`AGENTS.md`, section 5, rule 3), and
   a plugin of Shadowsocks is another program.
 - Inferred: a proxy that waits for TLS on port 443 carries no Shadowsocks, as it carries no SSH

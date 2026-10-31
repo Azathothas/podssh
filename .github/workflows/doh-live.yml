@@ -1,0 +1,27 @@
+name: doh live
+
+# The live test of DNS over HTTPS (T-344), from GitHub's network: each of the
+# six resolvers that podssh falls back to, by its address through verified
+# TLS, in each form that it serves. A host behind a proxy of names, as a
+# cloud session's, cannot reach a resolver by its address, which is what the
+# dialer asks with no proxy. Started by hand only; it reads public DNS and
+# publishes nothing.
+
+on:
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  live:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 30
+    env:
+      CARGO_BUILD_JOBS: "4"
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+      - name: build the test
+        run: cargo test --locked -p podssh-ws --test live_doh --no-run
+      - name: the live test
+        run: timeout 300 cargo test --locked -p podssh-ws --test live_doh -- --ignored --nocapture

@@ -62,15 +62,15 @@ repository and CI).
 
 ## Counts
 
-**374 entries: 32 open, 0 partial, 30 blocked, 312 done.**
+**374 entries: 31 open, 1 partial, 30 blocked, 312 done.**
 
 | Priority | open | partial | blocked | done | total |
 | --- | --- | --- | --- | --- | --- |
 | P0 | 0 | 0 | 0 | 1 | 1 |
 | P1 | 2 | 0 | 0 | 29 | 31 |
 | P2 | 3 | 0 | 21 | 161 | 185 |
-| P3 | 27 | 0 | 9 | 121 | 157 |
-| **All** | 32 | 0 | 30 | 312 | 374 |
+| P3 | 26 | 1 | 9 | 121 | 157 |
+| **All** | 31 | 1 | 30 | 312 | 374 |
 
 ## Entries
 
@@ -416,7 +416,7 @@ repository and CI).
 | [T-341](repo.md) | P2 | M | none | chore | done | Nothing watches the upstreams of the vendored crates |
 | [T-342](relay.md) | P2 | M | backlog | defect | done | The relay's limits are compiled in, and nothing compares them with `/relays.json` |
 | [T-343](repo.md) | P3 | S | none | chore | done | The release takes Zig from one site, builds armv7 with an unchecked rust, and runs an unpinned schema check |
-| [T-344](ws.md) | P3 | M | backlog | feature | open | DNS over HTTPS: two operators, one encoding, and no memory of the addresses that worked |
+| [T-344](ws.md) | P3 | M | backlog | feature | partial | DNS over HTTPS: two operators, one encoding, and no memory of the addresses that worked |
 | [T-345](ws.md) | P3 | S | backlog | defect | done | Only `doctor` names the clock when a certificate has expired or is not valid yet |
 | [T-346](relay.md) | P2 | M | backlog | feature | blocked | Relay hosts outside the default domain from a signed `/relays.json`, and a list of deployments |
 | [T-347](roads.md) | P2 | S | backlog | feature | done | `-J cf://HOST`: a Cloudflare tunnel as the first hop of a jump chain |

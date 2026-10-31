@@ -40,8 +40,8 @@ server listens, and the client connects out for each connection.
   does not override it (`crates/podssh-ssh/src/handler.rs` lines 44-88 at
   `8d668b7`).
 - Read: `dial` goes through `HTTPS_PROXY`, but never for a loopback target
-  (`crates/podssh-ws/src/dial.rs:103-110`,
-  `crates/podssh-ws/src/dial.rs:196-242`). On the measured sandbox, a direct
+  (`crates/podssh-ws/src/dial.rs:105-112`,
+  `crates/podssh-ws/src/dial.rs`, lines 196-242 at `927eb24`). On the measured sandbox, a direct
   connection to loopback is refused (`docs/target-environment.md:22`).
 - Read: a refused `tcpip-forward` gets SSH_MSG_REQUEST_FAILURE, which has no
   reason field (RFC 4254, section 4). So `docs/cli.md`, line 158 at `a9299c4` ("podssh gives the
@@ -1057,8 +1057,8 @@ sessions (GitHub #17).
 Read: a drop ends the run with 255 (`crates/podssh-ssh/src/run.rs:61-77`,
 `crates/podssh-ssh/src/run.rs:208-250`). `podssh_relay::open` fails over and
 backs off with jitter, but only before a session exists
-(`crates/podssh-relay/src/open.rs:188-253`,
-`crates/podssh-relay/src/open.rs:355-369`). With `-N`, no command runs, so a
+(`crates/podssh-relay/src/open.rs:200-277`,
+`crates/podssh-relay/src/open.rs:379-393`). With `-N`, no command runs, so a
 new connection has no side effect on the server. `docs/design.md:588-595`
 puts a new connection with a new login in layer 3, for a standard sshd.
 T-153 (M6) resumes a session when both ends run podssh.

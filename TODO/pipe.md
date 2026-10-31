@@ -155,7 +155,7 @@ local program to a target, and `podssh proxy` stays a second pump.
 ## Premise
 
 - Read: `podssh proxy` is the `relay:` address today. It opens the session
-  with `crates/podssh-relay/src/open.rs:188-253` and pumps it
+  with `crates/podssh-relay/src/open.rs:200-277` and pumps it
   (`crates/podssh-cli/src/proxy.rs:47-138`).
 - Read: `crates/podssh-ssh/src/relay_stream.rs:198-201` sends Close 1000 when
   its write side ends. That is right for SSH and wrong for a pipe: the relay
@@ -175,9 +175,9 @@ local program to a target, and `podssh proxy` stays a second pump.
 
 1. One adapter per kind, in crates/podssh-cli/src/pipe/remote.rs: it opens
    its road and gives a duplex stream and, at the end, a close reason. The
-   pump does not know the road (`docs/architecture.md:132-134`).
+   pump does not know the road (`docs/architecture.md:144-146`).
 2. `relay:HOST:PORT`: parse as `crates/podssh-cli/src/proxy.rs:203-213` does;
-   open with `crates/podssh-relay/src/open.rs:188-253`. Keep the rules of
+   open with `crates/podssh-relay/src/open.rs:200-277`. Keep the rules of
    proxy: no Close at the end of input, the ping watcher
    (`crates/podssh-cli/src/pipe/relay.rs:122-124`), empty frames dropped. IPv6
    literals follow T-007.
@@ -208,7 +208,7 @@ local program to a target, and `podssh proxy` stays a second pump.
 ## Decision
 
 Recommendation: add `tcp:HOST:PORT`, the direct road through `HTTPS_PROXY`
-with `crates/podssh-ws/src/dial.rs:199-242`, because `ssh --direct` uses the
+with `crates/podssh-ws/src/dial.rs`, lines 199-242 at `927eb24`, because `ssh --direct` uses the
 same dialer and socat users expect it. The alternative, no direct address,
 lost: a host with egress would then have only `relay:`, and its 64 MiB limit.
 
@@ -412,7 +412,7 @@ shows that an AF_UNIX or loopback bind works (`docs/design.md:922-924`).
   allows the bind. The default is loopback and AF_UNIX; the user can
   configure the address and can turn listening off.
 - Read: five documents still say that podssh never listens:
-  `AGENTS.md:249-255`, `docs/architecture.md:135-150`,
+  `AGENTS.md:249-255`, `docs/architecture.md:147-162`,
   `docs/target-environment.md:84-88`, `SECURITY.md:109-132`, `README.md:42-50`.
 - Read: sandbox A refuses an AF_INET bind and allows an AF_UNIX bind
   (`docs/STATUS.md:279`). The box refuses each `bind`, AF_UNIX too
@@ -500,7 +500,7 @@ Plant: bind with no umask; the check of the mode must fail.
 ## Correction
 
 2026-10-10: three of the five documents already say what the ruling
-allows: `AGENTS.md:249-255`, `docs/architecture.md:135-150` and
+allows: `AGENTS.md:249-255`, `docs/architecture.md:147-162` and
 `docs/target-environment.md:84-88` name a listener that the user asks for,
 after a probe. `SECURITY.md` and `README.md` still said that nothing
 listens, and change here. Step 4's umask 077 makes a socket's file mode
@@ -605,7 +605,7 @@ running on the server (`docs/design.md:591-595`).
    1006, 1009 or 1011. Never after an exit status, `~.`, a detach of tmux
    (exit 0), or a failure of the host key or the authentication.
 5. Between attempts: leave raw mode, print one line for each attempt, and
-   wait with `crates/podssh-relay/src/open.rs:363-369` (jittered, 30 s at
+   wait with `crates/podssh-relay/src/open.rs:387-393` (jittered, 30 s at
    most); 10 attempts or 5 minutes at most. Ctrl-C stops the wait with 255.
    Keys typed meanwhile wait in a queue of 64 KiB, and go after the attach.
 6. Each attempt checks the host key with the same policy, and uses the
@@ -1302,7 +1302,7 @@ the request's target, would be the proxy that such a program points at.
   takes one client by default, and with `--keep-listening` each client in turn, 8 at once at most,
   each joined to a new instance of the other side (`crates/podssh-cli/src/pipe/serve.rs:1-11`).
 - Read: the operator allows a listener that the user asks for, when a probe allows the bind, on
-  loopback or AF_UNIX by default (`docs/decisions.md:33`; `docs/architecture.md:135-142`); the
+  loopback or AF_UNIX by default (`docs/decisions.md:33`; `docs/architecture.md:147-154`); the
   gate's scan of listeners allows the listener of `pipe` (`scripts/check-repo.py:79-96`).
 - Read: the SOCKS side of `-D` answers once the server's channel opened, so that a client learns
   whether its target was reached (`crates/podssh-ssh/src/socks.rs:1-5`). The relay refuses a target

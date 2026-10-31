@@ -23,7 +23,7 @@ const PROBE: Duration = Duration::from_secs(8);
 /// podssh reaches by address already, public and long lived, with a
 /// certificate for that address.
 pub(super) fn address() -> &'static str {
-    podssh_ws::resolve::DOH_RESOLVERS[0].0
+    podssh_ws::resolve::DOH_RESOLVERS[0].ip
 }
 
 /// The probe through `proxy`: whether the proxy took a CONNECT to an

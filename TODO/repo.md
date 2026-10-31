@@ -458,7 +458,7 @@ Read:
 3. On a run by hand, make the list of the commits since the last tag as an
    artifact, so that it can be read before a tag.
 4. Link each "Fixes #N" of a commit to its issue in the list.
-5. docs/development.md, "Release builds" (`docs/development.md:671-783`): the
+5. docs/development.md, "Release builds" (`docs/development.md:672-784`): the
    body is the notes file and the generated list.
 
 No new shell script: each step is a step of the workflow.
@@ -2093,7 +2093,7 @@ Read:
   endings have no floor either.
 - `scripts/check-repo.py` lines 230-249 at `e892b0f`: `main` passes when each list of problems is
   empty.
-- The model of a floor: `crates/podssh-relay/tests/default_relay.rs:54`
+- The model of a floor: `crates/podssh-relay/tests/default_relay.rs:57`
   asserts that the sweep read more than 20 files.
   `scripts/check-scripts.py:152-155` already fails when it finds no script.
 - The counts today: 216 tracked Rust files under `crates/`, 24 live Markdown
@@ -2174,7 +2174,7 @@ a reviewer can see it.
 
 ## Premise
 
-Read: the rule as written is rule 3 of `docs/architecture.md:135-150` (the
+Read: the rule as written is rule 3 of `docs/architecture.md:147-162` (the
 bind check of `podssh doctor` is the one exception), rule 3 of
 `docs/target-environment.md:84-88`, and rule 2 of AGENTS.md, section 5. The
 operator ruled on 2026-10-08 (`docs/decisions.md`): Q1 allows a local
@@ -2193,7 +2193,7 @@ are the bind probes of `doctor`, which close at once and never listen
 `crates/podssh-ws/tests/hostname_verification.rs:55`. No file uses
 `UdpSocket`, `UnixListener` or `socket2`. The model of a sweep with a floor
 that skips comments and test modules is
-`crates/podssh-relay/tests/default_relay.rs:21-56`.
+`crates/podssh-relay/tests/default_relay.rs:21-59`.
 
 ## Approach
 
@@ -2259,7 +2259,7 @@ allowance".
   files, and a plant at each run (one `TcpListener::bind` in
   `crates/podssh-ws/src` of a temporary tree must be found). It prints the
   files read and the uses within the allowance.
-- The documents already state the rule as ruled (`docs/architecture.md:135-150`,
+- The documents already state the rule as ruled (`docs/architecture.md:147-162`,
   `docs/target-environment.md:84-88`, `AGENTS.md`, section 5): nothing to
   change there. `docs/development.md`, "Checks": the scan.
 - Prove: `python scripts/check-repo.py`: exit 0, "265 Rust files read; 32

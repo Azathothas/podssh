@@ -240,9 +240,11 @@ const DOCTOR: &[&str] = &[
      whether PODSSH_CACHE_DIR chose the place or is none, /proc, \
      a pty, a socket bind that is closed at once, the directories that can run programs, the terminal); \
      the egress (the proxy setting, TLS and the trust store, what the proxy allows, the system resolver, \
-     DNS over HTTPS; on github.com port 22 only the server's banner shows that plain ssh can leave, as a \
-     proxy can take the CONNECT and carry nothing); and the relay (each relay host, a token, a session to github.com port 22 that must \
-     show the published host key of GitHub, and the clock).",
+     the addresses of the cache, and DNS over HTTPS with the form that answered; on github.com port 22 only \
+     the server's banner shows that plain ssh can leave, as a proxy can take the CONNECT and carry nothing); \
+     and the relay (each relay host, with where its address came from: a pin, the system resolver, the \
+     cache or DNS over HTTPS; a token, a session to github.com port 22 that must show the published host key \
+     of GitHub, and the clock).",
     "Each CONNECT, and the direct TCP check, is tried nine times over a second or more: its line gives \
      the best time (the path's floor), the median, the 95th percentile and the jitter (the median change \
      from one try to the next), and the loss, the tries that timed out and those that broke counted \

@@ -67,8 +67,8 @@ GitHub #2, not verified here: the relay's `/trace` dials `[V6]:8079`.
 4. `podssh proxy` (`crates/podssh-cli/src/proxy.rs:203-213`): `HOST PORT` takes
    a bare literal (the `%h %p` form) or `[V6]`. One word takes `[V6]:PORT` and
    refuses `V6:PORT`: `2001:db8::1:22` is itself an address. Reuse the rule of
-   `split_host_port` (`crates/podssh-ws/src/dial.rs:447-466`).
-5. Messages use `podssh_ws::dial::authority` (`crates/podssh-ws/src/dial.rs:427-434`),
+   `split_host_port` (`crates/podssh-ws/src/dial.rs:356-375`).
+5. Messages use `podssh_ws::dial::authority` (`crates/podssh-ws/src/dial.rs:336-343`),
    not `host:port` (`crates/podssh-cli/src/ssh/transport.rs:165`,
    `crates/podssh-cli/src/proxy.rs:131`, where it is used since this entry). `known_hosts` keeps the literal as
    typed: `host_name` writes `[V6]:PORT` as OpenSSH does
@@ -494,8 +494,8 @@ Read, at `61e55d1`: no option made podssh start a program: `ProxyCommand` is ref
 2. A note for `ssh` and `proxy` (`crates/podssh-cli/src/man/notes_ssh.rs:4-292` and `crates/podssh-cli/src/man/notes.rs:60-171`)
    and an example (`crates/podssh-cli/src/man/examples.rs:8-219`). Pitfall: the
    notes test reads a bare `--` as a flag that does not exist
-   (`crates/podssh-cli/src/man/notes.rs:400-408`); teach `flag_exists`
-   (`crates/podssh-cli/src/man/notes.rs:367-383`) that `--` ends the options.
+   (`crates/podssh-cli/src/man/notes.rs:402-410`); teach `flag_exists`
+   (`crates/podssh-cli/src/man/notes.rs:369-385`) that `--` ends the options.
 3. `podssh proxy` (`crates/podssh-cli/src/proxy.rs:203-208`): when HOST or PORT
    is missing and a relay or trust flag was given, add one line: a HOST that
    starts with `-` is read as a flag; put `--` before it.
@@ -591,7 +591,7 @@ variable matters when `cp`, `mv` and `relay` exist. `ssh` and `proxy` have no
 
 1. One reader in `crates/podssh-cli/src/non_interactive.rs`, with the variable
    lookup passed in, as `proxy_from_vars` does
-   (`crates/podssh-ws/src/dial.rs:107-121`): the flag, else a `PODSSH_TIMEOUT`
+   (`crates/podssh-ws/src/dial.rs:109-123`): the flag, else a `PODSSH_TIMEOUT`
    that is not empty, else nothing. It returns the text and its source.
 2. Call it at both gate sites: `crates/podssh-cli/src/dispatch.rs:251-269` and
    `crates/podssh-cli/src/ts.rs:54-63`. Parse with `parse_timeout`

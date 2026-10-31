@@ -302,7 +302,7 @@ fn files() -> Vec<Block> {
 fn relay() -> Vec<Block> {
     use podssh_relay::{failover, open, pool, relay};
     let secs = |d: std::time::Duration| d.as_secs();
-    let doh: Vec<&str> = podssh_ws::resolve::DOH_RESOLVERS.iter().map(|(ip, _)| *ip).collect();
+    let doh: Vec<&str> = podssh_ws::resolve::DOH_RESOLVERS.iter().map(|r| r.ip).collect();
     let every = secs(podssh_ws::client::LIVENESS_EVERY);
     let allowed = podssh_ws::client::LIVENESS_ALLOWED;
     let keepalive = crate::ssh::keywords::documented_default("ServerAliveInterval").unwrap_or("60");
@@ -405,8 +405,17 @@ fn relay() -> Vec<Block> {
             format!(
                 "Through a proxy, podssh sends host names and needs no DNS. With no proxy, it finds a relay's \
                  address in this order: an IP address in place of the name, --relay-addr and \
-                 PODSSH_RELAY_ADDR, the system resolver, then DNS over HTTPS to {} (by address).",
-                doh.join(", ")
+                 PODSSH_RELAY_ADDR, the system resolver, an address that carried a session to the host in the \
+                 last {fresh} days ({file} in the cache), then DNS over HTTPS to {} (by address; each by its \
+                 JSON API where it has one, and by RFC 8484's wire form where it has none or the JSON does not \
+                 read), and last an older address that carried a session. An address of the cache that does not \
+                 connect within {wait} s hands over to the next source. TLS checks the relay's name at each \
+                 address, so a wrong one fails the handshake; an address of the cache at which a host fails \
+                 so, or as no relay would (the upgrade, another server's answer), is forgotten.",
+                doh.join(", "),
+                fresh = podssh_ws::resolve::FRESH.as_secs() / 86_400,
+                file = podssh_relay::addresses::FILE,
+                wait = podssh_ws::resolve::SOURCE_WAIT.as_secs(),
             ),
         ),
         trust::block(),

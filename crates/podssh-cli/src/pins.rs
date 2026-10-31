@@ -27,5 +27,8 @@ pub fn apply(flag: Option<&str>) -> Result<(), Refusal> {
         pins.extend(more.map_err(|e| Refusal::config(format!("{}: RelayAddr {}: {e}", value.at, value.text)))?);
     }
     podssh_ws::resolve::set_pins(pins);
+    // The addresses that carried a session, which the dialer asks after the
+    // system resolver fails (T-344).
+    podssh_relay::addresses::install();
     Ok(())
 }

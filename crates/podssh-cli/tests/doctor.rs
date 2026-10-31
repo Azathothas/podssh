@@ -440,7 +440,7 @@ fn picky_proxy(takes: Takes, tls: u16) -> u16 {
 fn the_case_of_names_and_addresses_is_named_for_each_proxy() {
     let home = scratch_home();
     let runtime = tokio::runtime::Builder::new_multi_thread().worker_threads(2).enable_all().build().unwrap();
-    let address = podssh_ws::resolve::DOH_RESOLVERS[0].0;
+    let address = podssh_ws::resolve::DOH_RESOLVERS[0].ip;
     let tls = runtime.block_on(update_support::Server::start_for(&home, &[address]));
     let ca = tls.ca_file.to_string_lossy().into_owned();
     for (takes, case) in

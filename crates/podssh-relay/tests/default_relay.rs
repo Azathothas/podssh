@@ -39,6 +39,9 @@ fn default_relay_literals_in_library_code() -> Vec<String> {
                 continue;
             }
             files += 1;
+            if is_test_file(&path) {
+                continue;
+            }
             let text = std::fs::read_to_string(&path).expect("UTF-8 source");
             for (n, line) in text.lines().enumerate() {
                 // Unit tests sit in a `#[cfg(test)]` module at the end of a file.
@@ -53,4 +56,29 @@ fn default_relay_literals_in_library_code() -> Vec<String> {
     }
     assert!(files > 20, "the sweep read only {files} source files, so it measured nothing");
     hits
+}
+
+/// Whether the module of `path` is test code of a file of its own: its
+/// parent declares it as `mod NAME;` under `#[cfg(test)]`. The parent of
+/// `a/b.rs` is `a.rs`, or `a/mod.rs`, `a/lib.rs`, `a/main.rs`; of `a/mod.rs`,
+/// the same three one level up.
+fn is_test_file(path: &std::path::Path) -> bool {
+    let stem = path.file_stem().and_then(|s| s.to_str()).unwrap_or_default().to_string();
+    let Some(dir) = path.parent() else { return false };
+    let (name, home) = if stem == "mod" {
+        let name = dir.file_name().and_then(|s| s.to_str()).unwrap_or_default().to_string();
+        (name, dir.parent().map(|p| p.to_path_buf()))
+    } else {
+        (stem, Some(dir.to_path_buf()))
+    };
+    let Some(home) = home else { return false };
+    let mut parents = vec![home.join("mod.rs"), home.join("lib.rs"), home.join("main.rs")];
+    if let (Some(up), Some(base)) = (home.parent(), home.file_name()) {
+        parents.push(up.join(format!("{}.rs", base.to_string_lossy())));
+    }
+    let declared = format!("mod {name};");
+    parents.iter().filter_map(|p| std::fs::read_to_string(p).ok()).any(|text| {
+        let lines: Vec<&str> = text.lines().map(str::trim).collect();
+        lines.windows(2).any(|w| w[0] == "#[cfg(test)]" && w[1].trim_start_matches("pub ") == declared)
+    })
 }

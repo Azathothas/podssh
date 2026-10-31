@@ -178,7 +178,7 @@ pub async fn connect(config: &WsClientConfig, token: &str) -> Result<RelaySessio
     let (tls, pending) = tokio::time::timeout(config.timeout, upgrade(tls, &host_header, &config.endpoint.path, token))
         .await
         .map_err(|_| ConnectError::Timeout { step: "the WebSocket upgrade", after: config.timeout })??;
-    Ok(RelaySession::new(tls, pending, config.idle_timeout, WRITE_TIMEOUT))
+    Ok(RelaySession::over_tls(tls, pending, config.idle_timeout))
 }
 
 /// TCP (direct or through the proxy) and a verified TLS handshake.

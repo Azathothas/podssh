@@ -44,7 +44,7 @@ the token is stored under A; in the next run, A answers and gets B's token in `X
    is the one rule that already decides where a token may go.
 2. Use the key of the host in use at each place: the load and the store through `MintContext`
    (`crates/podssh-relay/src/token.rs` lines 84-112 at `2da855f`), the removal after a 403
-   (`crates/podssh-relay/src/open.rs:327-335`), and the token check of `doctor`
+   (`crates/podssh-relay/src/open.rs:351-359`), and the token check of `doctor`
    (`crates/podssh-cli/src/doctor/relay_checks.rs` lines 142-165 at `2da855f`).
 3. Store the minting host in the cache entry (`crates/podssh-relay/src/cache.rs:35-44`), with a
    serde default for old files. `doctor` says "a cached token minted at HOST (not shown)". Use
@@ -265,7 +265,7 @@ as a `ProxyCommand` for each connection, pays this wait in each run.
 ## Premise
 
 Read: `open` tries the hosts in the order of the list in each round
-(`crates/podssh-relay/src/open.rs:210-251`), and keeps nothing between runs: a failure is a
+(`crates/podssh-relay/src/open.rs:224-275`), and keeps nothing between runs: a failure is a
 note, and an entry of `Failure`. The limits are 20 s for each step and 45 s for each host (lines
 25-29). Measured in the gate (`docs/STATUS.md`): a host that completes TLS and then says
 nothing, and a host that does not start TLS, each cost the 20 s limit before the failover.
@@ -276,7 +276,7 @@ nothing, and a host that does not start TLS, each cost the 20 s limit before the
    `crates/podssh-relay/src/open.rs:62-84`), write a record (host, time, class) into a private
    file `relay-failures-KEY.json` with `cache::store_file`
    (`crates/podssh-relay/src/cache.rs:138-172`). Remove the record when the host succeeds.
-2. At the start of `open` (`crates/podssh-relay/src/open.rs:188-253`), move each host whose
+2. At the start of `open` (`crates/podssh-relay/src/open.rs:200-277`), move each host whose
    record is younger than a fixed window (10 min) to the end of the list, in its old order.
    Never remove a host: each host is still tried.
 3. Record no error that each host would give (a policy refusal, a bad token in the
@@ -341,8 +341,8 @@ file and window at `crates/podssh-relay/src/failures.rs:22-25`, its entries
 at `crates/podssh-relay/src/failures.rs:40-86`, the order of a run and its
 notes at `crates/podssh-relay/src/failures.rs:90-104`, and the reason of a
 failure at `crates/podssh-relay/src/failures.rs:116-135`. `open` orders
-the hosts at `crates/podssh-relay/src/open.rs:193-199` and keeps the record
-after each round at `crates/podssh-relay/src/open.rs:231-237`; the race
+the hosts at `crates/podssh-relay/src/open.rs:207-213` and keeps the record
+after each round at `crates/podssh-relay/src/open.rs:245-251`; the race
 gives the silent hosts at `crates/podssh-relay/src/failover.rs:245-248`.
 `podssh status` at `crates/podssh-cli/src/status.rs:95-99`, `podssh
 doctor` at `crates/podssh-cli/src/doctor/mod.rs:99-109`, THE RELAY in the
@@ -515,7 +515,7 @@ relay sends no keepalives on reverse sockets, and a quiet socket becomes dormant
 1. A live test, ignored by default, in a new file crates/podssh-relay/tests/live_reverse.rs:
    `POST /v1/pair`; a node socket to `/v1/node/NAME`; an operator socket to `/v1/connect/NAME`;
    the node answers `open` with `ready`. Send `ready` with `RelaySession::send_text`
-   (`crates/podssh-ws/src/session.rs:155-159`), which sends a real text frame; since T-071,
+   (`crates/podssh-ws/src/session.rs:166-170`), which sends a real text frame; since T-071,
    `Leg::send_control` over `WsSocket` sends one too.
 2. Three runs of 240 s: (a) no payload and no pings; (b) WebSocket pings every 20 s from both
    ends; (c) one byte of payload every 60 s. For each socket, record the time, the code and the
@@ -910,14 +910,14 @@ the module comment repeats it (`crates/podssh-relay/src/cache.rs`, lines 4-8 at 
    (`crates/podssh-relay/src/cache.rs:386-403`), and one that refuses a write is skipped. When the
    directory of `PODSSH_CACHE_DIR` is skipped, say so once on stderr, with the reason.
 4. Take the environment as a parameter, as `dial::proxy_from_vars` does
-   (`crates/podssh-ws/src/dial.rs:107-121`), so that the tests can set it.
+   (`crates/podssh-ws/src/dial.rs:109-123`), so that the tests can set it.
 5. `doctor` names the directory in use and the variable that chose it; `status` (T-051) shows
    it; the settings file of T-048 can set it. The session log (T-056) and the failure records
    (T-059) use the same chain.
 6. Change in the same commit: VARIABLES and FILES (`crates/podssh-cli/src/man/facts.rs:196-210`,
    `crates/podssh-cli/src/man/data.rs:153-160`), the test of lines 365-377 at `22c3b88`, the comment
    of `cache.rs`, and the `doctor`
-   notes (`crates/podssh-cli/src/man/notes.rs:235-275`).
+   notes (`crates/podssh-cli/src/man/notes.rs:235-277`).
 
 ## Decision
 
@@ -1594,7 +1594,7 @@ in; the code compiles it in, and the live check never reads `/relays.json`.
   `PODSSH_SESSION_BUDGET` lowers the byte budget and never raises it (`:39-73`).
 - Read: the frame decoder refuses a received frame over 262144 bytes
   (`crates/podssh-ws/src/frame.rs:30`, `:211-221`), and the session then ends with a Close 1002
-  (`crates/podssh-ws/src/session.rs:262`); a message is at most 16 MiB (`:29`).
+  (`crates/podssh-ws/src/session.rs:273`); a message is at most 16 MiB (`:29`).
 - Read: `crates/podssh-probe/facts/relay-facts.toml` line 14 at `deacafd` said "Read from /relays.json at startup,
   never compiled in" of that cap. `crates/podssh-ws/src/frame.rs:30` compiles it in, and
   `podssh-core` takes it from the facts file at compile time

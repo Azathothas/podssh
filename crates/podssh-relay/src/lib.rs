@@ -7,6 +7,8 @@
 //!   status` read it;
 //! - [`token`] and [`cache`]: tokens from the environment, the cache or a
 //!   fresh mint, kept between runs in a private file, never printed;
+//! - [`addresses`]: the addresses that carried a session to each relay host,
+//!   kept in the cache for a run whose resolver fails (T-344);
 //! - [`mod@open`]: a forward session, failing over from host to host with backoff,
 //!   one bounded attempt per host;
 //! - `pair` (feature `pair`): the pairs of the reverse road, made, asked
@@ -30,6 +32,7 @@
 //! No C compiler is needed (the gate builds this crate with
 //! `CC=/nonexistent`), so other projects can depend on it.
 
+pub mod addresses;
 #[cfg(feature = "blocking")]
 pub mod blocking;
 pub mod cache;

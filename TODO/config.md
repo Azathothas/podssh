@@ -206,7 +206,7 @@ No glob code exists in podssh. `known_hosts::wildcard`
    stands, and `Match final all` applies after the last line and fills only unset values, as
    measured. Each other `Match` stays refused by name until T-045.
 6. Check each included file as T-043 checks the user file: its owner and its mode.
-7. Change `docs/cli.md:2653-2758`, FILES (`crates/podssh-cli/src/man/data.rs:146-290`) and the
+7. Change `docs/cli.md:2653-2758`, FILES (`crates/podssh-cli/src/man/data.rs:146-293`) and the
    `ssh` notes in the same commit.
 
 ## Prove
@@ -550,7 +550,7 @@ that client: bytes captured from the real program (`AGENTS.md`, section 6, rule 
 ## Approach
 
 1. Add `podssh config import FORMAT FILE` (Decision). It writes `Host` blocks to stdout and a
-   summary to stderr (`docs/architecture.md:168-169`). It never writes `~/.ssh/config`; the user
+   summary to stderr (`docs/architecture.md:180-181`). It never writes `~/.ssh/config`; the user
    adds the output.
 2. First the formats that need no new crate: the Ansible INI inventory (`ansible_host`,
    `ansible_user`, `ansible_port`), Remmina `.remmina` files and MobaXterm sessions (INI), PuTTY
@@ -673,11 +673,11 @@ command, or edits a shell profile. No file states them once.
 Read: each command resolves the same settings in its own copy. Relay hosts (`--relay-host`,
 then `PODSSH_RELAY`, then the default and the pool: `crates/podssh-relay/src/relay.rs:107-125`)
 go through one function since T-231 (`crates/podssh-cli/src/relay_settings.rs:65-87`), called in
-`crates/podssh-cli/src/ssh/resolve.rs`, line 314 at `99743e6`, `crates/podssh-cli/src/doctor/mod.rs:67-70` and
+`crates/podssh-cli/src/ssh/resolve.rs`, line 314 at `99743e6`, `crates/podssh-cli/src/doctor/mod.rs:68-71` and
 `crates/podssh-cli/src/proxy.rs:100-103`. Trust (`--ca-file`, then `SSL_CERT_FILE`) in
-`crates/podssh-cli/src/ssh/resolve.rs`, lines 328-331 at `99743e6`, `crates/podssh-cli/src/doctor/mod.rs:78-85` and
+`crates/podssh-cli/src/ssh/resolve.rs`, lines 328-331 at `99743e6`, `crates/podssh-cli/src/doctor/mod.rs:79-86` and
 `crates/podssh-cli/src/proxy.rs`, lines 100-104 at `99743e6`. The pins of the flag and of the variable add up
-(`crates/podssh-cli/src/pins.rs:15-31`). The token cache uses the user's
+(`crates/podssh-cli/src/pins.rs:15-34`). The token cache uses the user's
 cache directory first, after the directory of `PODSSH_CACHE_DIR` (T-243;
 `crates/podssh-relay/src/cache/dirs.rs:59-87`). The decision named the
 configuration directory first; the operator corrected it on 2026-10-08 (`docs/decisions.md:60`, T-243).
@@ -760,13 +760,13 @@ its places at `crates/podssh-cli/src/settings.rs:109-132`, its checks at
 failover below the flag and the variable at
 `crates/podssh-cli/src/relay_settings.rs:70-84` and
 `crates/podssh-cli/src/relay_settings.rs:97-107`, the pins and the refusal
-of a bad file at `crates/podssh-cli/src/pins.rs:13-31`, the CA file at
+of a bad file at `crates/podssh-cli/src/pins.rs:13-34`, the CA file at
 `crates/podssh-cli/src/settings.rs:264-274` and, for `podssh ssh`,
 `crates/podssh-cli/src/ssh/resolve.rs:128-132`; `status` at
 `crates/podssh-cli/src/status.rs:62` and
 `crates/podssh-cli/src/status.rs:75`, `doctor` at
-`crates/podssh-cli/src/doctor/mod.rs:83` and
-`crates/podssh-cli/src/doctor/mod.rs:97`.
+`crates/podssh-cli/src/doctor/mod.rs:84` and
+`crates/podssh-cli/src/doctor/mod.rs:98`.
 - `cargo test -p podssh-cli --test settings`: 4 passed here, and 5 in the
   build image (`sh scripts/dev.sh run`), with the test of Unix: `status`
   takes the file's relay hosts, `PODSSH_RELAY` beats it and

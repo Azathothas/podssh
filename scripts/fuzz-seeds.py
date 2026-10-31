@@ -2,9 +2,11 @@
 
 Each seed is bytes that podssh did not make: the frames of RFC 6455's
 section 5.7, the IRC lines that crates/podssh-core/tests/fixtures/grammar.txt
-recorded from the RFCs and from real servers, and the relay hosts that the
-relay's own document names. They go into fuzz/corpus/TARGET/, which libFuzzer
-reads first and adds to. scripts/fuzz.sh runs this before each run.
+recorded from the RFCs and from real servers, the relay hosts that the
+relay's own document names, and the answers of DNS over HTTPS that three
+resolvers sent (crates/podssh-ws/tests/fixtures/doh/, T-344). They go into
+fuzz/corpus/TARGET/, which libFuzzer reads first and adds to. scripts/fuzz.sh
+runs this before each run.
 """
 import hashlib
 import pathlib
@@ -71,7 +73,15 @@ def main():
     put("relay_list", ",".join(hosts).encode())
     pool = ",".join('{"host":"%s"}' % host for host in hosts)
     put("relay_pool", ('{"pool":[%s]}' % pool).encode())
-    print(f"fuzz-seeds.py: {len(FRAMES)} frames, {len(lines)} IRC lines, {len(hosts)} relay hosts")
+    answers = sorted((ROOT / "crates/podssh-ws/tests/fixtures/doh").glob("*.bin"))
+    if not answers:
+        sys.exit("fuzz-seeds.py: no answer of DNS over HTTPS in crates/podssh-ws/tests/fixtures/doh")
+    for answer in answers:
+        put("dns_wire", answer.read_bytes())
+    print(
+        f"fuzz-seeds.py: {len(FRAMES)} frames, {len(lines)} IRC lines, {len(hosts)} relay hosts, "
+        f"{len(answers)} DNS answers"
+    )
 
 
 if __name__ == "__main__":

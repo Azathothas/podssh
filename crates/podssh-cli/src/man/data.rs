@@ -192,8 +192,10 @@ pub fn files() -> Vec<(Vec<String>, String)> {
             vec![cache.to_string()],
             format!(
                 "The cache: the first of these directories that podssh can use. It holds one relay token for \
-                 each relay deployment, with the host that minted it ({} for the default relay), and the \
-                 relay's list of hosts ({}). It holds each pair of the reverse road under its label ({}), \
+                 each relay deployment, with the host that minted it ({} for the default relay), the \
+                 relay's list of hosts ({}), and the last addresses that carried a session to each relay host \
+                 ({}), which a run whose resolver fails asks before DNS over HTTPS. It holds each pair of the \
+                 reverse road under its label ({}), \
                  as podssh relay pair writes it, and, until a copy that broke is done, its side file \
                  (podssh-cp-*.resume: the offset, the temporary file's name and the source's state, never a \
                  byte of the file). While podssh edit runs, a directory edit-RANDOM of mode 0700 holds the \
@@ -203,6 +205,7 @@ pub fn files() -> Vec<(Vec<String>, String)> {
                  that belongs to another user, or that others can read.",
                 podssh_relay::cache::file_name(podssh_relay::DEFAULT_RELAY_HOST),
                 podssh_relay::pool::file_name(podssh_relay::DEFAULT_RELAY_HOST),
+                podssh_relay::addresses::FILE,
                 podssh_relay::pair::file_name("LABEL").unwrap_or_default()
             ),
         ),

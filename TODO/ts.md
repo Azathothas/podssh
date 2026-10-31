@@ -246,7 +246,7 @@ current node key (`vendor/tailscale-rs/ts_control_serde/src/register.rs:92-97`).
 1. Probe each mode before `TsNode::start`, through the proxy of T-103, in 8 s per step as
    `podssh doctor` does (`crates/podssh-cli/src/doctor/net.rs:15-16`): for `tcp`, a TLS handshake to
    a stock DERP server on port 443; for `relay`, one to the relay host. Dial with
-   `crates/podssh-ws/src/dial.rs:196-199`. `Unknown` is never ready (`crates/podssh-ts/src/chain.rs:15-24`).
+   `crates/podssh-ws/src/dial.rs:198-201`. `Unknown` is never ready (`crates/podssh-ts/src/chain.rs:15-24`).
 2. Add a logout to the fork: a register request with an expiry in the past, a `ControlRunner`
    message and `Device::logout(timeout)`, as a new patch with its row in
    `vendor/tailscale-rs/LOCAL-PATCHES.md`.
@@ -395,7 +395,7 @@ Not measured: whether the proxy of a sandbox allows `tcp.ts.relay.ajam.dev:443` 
 2. Add it as a new patch with its row in `vendor/tailscale-rs/LOCAL-PATCHES.md`, replace the stale
    text at `vendor/README.md`, lines 62-75 at `0b6f4b8`, and check that the whole chain of patches still applies.
 3. In `podssh ts`, take `--ts-proxy`, else `podssh_ws::dial::proxy_from_env`
-   (`crates/podssh-ws/src/dial.rs:96-121`). Give the fork a URL with an explicit port, and never
+   (`crates/podssh-ws/src/dial.rs:98-123`). Give the fork a URL with an explicit port, and never
    print its credentials. The fork has one proxy for each process
    (`vendor/tailscale-rs/ts_http_util/src/proxy.rs:222-237`), so apply `NO_PROXY` for each host in
    the new function.
@@ -444,7 +444,7 @@ which follows `vendor/tailscale-rs/ts_derp/tests/proxy_dial.rs:14-67`: the call
 `ws::connect("relay.invalid", 443)` must send `CONNECT relay.invalid:443` to a fake proxy, then fail
 at TLS, not at the name. Plant: remove the proxy branch; the fake sees nothing, and the test fails.
 A new test in crates/podssh-ts/tests/config.rs checks the choice: the flag, then the variables in
-the order of `crates/podssh-ws/src/dial.rs:90`. Live: with `HTTPS_PROXY` naming
+the order of `crates/podssh-ws/src/dial.rs:92`. Live: with `HTTPS_PROXY` naming
 `scripts/fake-proxy.py`, `podssh ts --ts-mode relay` must make its log list the relay host.
 
 ## Correction
@@ -532,7 +532,7 @@ Read, at `a3c196e`: `ControlRunner` stops when the map stream ends
 supervision (`vendor/tailscale-rs/ts_runtime/src/lib.rs` lines 161-170): five restarts in 5 s at
 most, with no wait
 (`tqwewe/kameo:src/supervision.rs`). podssh's relay client has the rules to copy: a capped backoff
-with jitter (`crates/podssh-relay/src/open.rs:355-369`), and a ping every 10 s with three silent
+with jitter (`crates/podssh-relay/src/open.rs:379-393`), and a ping every 10 s with three silent
 checks allowed (`crates/podssh-ws/src/client.rs:31-32`, `docs/relay.md:149-151`).
 
 ## Approach
@@ -549,7 +549,7 @@ checks allowed (`crates/podssh-ws/src/client.rs:31-32`, `docs/relay.md:149-151`)
 4. Ping every 10 s; three silent intervals mean a dead link, after the relay answered one ping.
 5. Restart `ControlRunner` with the same backoff and no count limit. podssh-cli prints one stderr
    line for each drop and each new connection. Add the patch and its row, and update
-   `docs/tailscale.md`, `docs/STATUS.md:608` and `crates/podssh-cli/src/man/notes.rs:327-353`.
+   `docs/tailscale.md`, `docs/STATUS.md:608` and `crates/podssh-cli/src/man/notes.rs:329-355`.
 
 ## Decision
 
@@ -801,7 +801,7 @@ Not measured: whether the proxy of a sandbox allows `tcp.ts.relay.ajam.dev:443` 
 5. Repair the ignored test: the key and state paths come from variables that only the test reads,
    and the state stays. Name M8 in its reason.
 6. Record each result with its date in `docs/STATUS.md:83`, `docs/tailscale.md:8-24` and
-   `crates/podssh-cli/src/man/notes.rs:327-353`.
+   `crates/podssh-cli/src/man/notes.rs:329-355`.
 
 ## Prove
 

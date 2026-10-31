@@ -31,6 +31,7 @@ mod host;
 #[cfg(feature = "iroh")]
 mod iroh;
 pub mod listeners;
+mod names;
 mod net;
 mod pairs;
 mod quick;
