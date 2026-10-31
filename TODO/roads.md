@@ -3103,7 +3103,7 @@ account (`podssh node NAME --sshd --quick-tunnel`), and reach it from a cage wit
 `podssh ssh cf://NAME`. That host cannot yet be a jump host: `-J cf://HOST` is refused, so the
 targets that it can reach still need the relay. With it, the forward road has a carrier that is not the operator's
 relay, for each user with such a host. Cloudflare documents SSH through a tunnel, and the operator
-allows podssh as a client of Cloudflare (`docs/decisions.md:20`).
+allows podssh as a client of Cloudflare (`docs/decisions.md:25`).
 
 ## Premise
 
@@ -3171,7 +3171,7 @@ stand-in sees no upgrade, and the test fails. Live in `quick-tunnel-live.yml`: a
 **Milestone:** backlog
 **Priority:** P2
 **Effort:** M
-**Status:** blocked
+**Status:** open
 
 ## Problem
 
@@ -3188,7 +3188,7 @@ that says why.
   (`.github/workflows/release.yml:119`, `:189`, `:255`, `:299`, `:370`); the feature `iroh` is
   off by default, and `crates/podssh-cli/Cargo.toml:28-30` says "about 200 crates, needs Rust
   1.91 and a C compiler" of it.
-- Read: `docs/decisions.md:41` says "iroh is a road that the user must select", and makes n0's
+- Read: `docs/decisions.md` line 41 at `27b8d8f` said "iroh is a road that the user must select", and made n0's
   public relays its default until the operator runs one. The row says nothing of the release
   binaries: "off in the release" is the default of `Cargo.toml` and the build of the workflow,
   which the study reads as the operator's policy. In a build without the feature, the iroh road
@@ -3218,6 +3218,10 @@ that says why.
 6. A measurement from a cage through n0's relays, by the method of T-157 (Q38 allows n0's
    relays).
 
+## Decision
+
+The operator's ruling of 2026-10-31 (Q50, `docs/decisions.md`): the release binaries carry the iroh road, and a node and a client try n0's public relays when the user did not ask, as a fallback; the operator does not ask n0 first.
+
 ## Prove
 
 ```sh
@@ -3230,10 +3234,6 @@ Each of the eight binaries of the dry run has the road. With a relay on the loop
 the version, the notice names this binary's iroh and `--iroh-relay`. Planted: the feature left out
 of one target; the check of `scripts/release-short.sh` fails on it.
 
-## Blocker
-
-The operator: Q50 (a), the iroh road in the release binaries, and Q50 (b), whether a node and a
-client try it when the user did not ask for it.
 
 # T-349: A DERP link through Tailscale's tailcat relays, a second carrier of the reverse road
 
@@ -3242,7 +3242,7 @@ client try it when the user did not ask for it.
 **Milestone:** backlog
 **Priority:** P2
 **Effort:** L
-**Status:** blocked
+**Status:** open
 
 ## Problem
 
@@ -3291,6 +3291,10 @@ adapter under the layer and the tests against derper make it L.
 5. Tests against Tailscale's derper in Podman (software that podssh did not write), and short live
    runs against tailcat's fleet when Q50 allows them.
 
+## Decision
+
+The operator's ruling of 2026-10-31 (Q50, `docs/decisions.md`): Tailscale's tailcat fleet is an automatic fallback of the reverse road, tried when the user did not ask; the operator does not ask Tailscale first.
+
 ## Prove
 
 ```sh
@@ -3302,10 +3306,6 @@ sh scripts/interop-derp.sh   # Tailscale's derper in Podman
 8 MiB both ways through derper with equal digests, also with 5 % of the packets dropped by a
 stand-in under the adapter. Planted: the adapter's resend turned off; the test with drops fails.
 
-## Blocker
-
-The operator: Q50 (b), Tailscale's tailcat fleet as a carrier of podssh, by default or only when
-the user asks; and Q50 (c), whether the operator asks Tailscale first.
 
 # T-350: A pkarr record that finds a node whose home relay changed
 
@@ -3314,7 +3314,7 @@ the user asks; and Q50 (c), whether the operator asks Tailscale first.
 **Milestone:** backlog
 **Priority:** P3
 **Effort:** M
-**Status:** blocked
+**Status:** open
 
 ## Problem
 
@@ -3351,6 +3351,10 @@ podssh's own, which makes it M.
 4. The record is published only when the user asks for it, until the ruling of Q50 says
    otherwise.
 
+## Decision
+
+The operator's ruling of 2026-10-31 (Q50, `docs/decisions.md`): n0's server of pkarr may be a default, as n0's relays are a fallback.
+
 ## Prove
 
 ```sh
@@ -3362,9 +3366,6 @@ Two relays and a server of pkarr on the loopback: the node moves to the second r
 client with the first ticket finds it and connects; a record signed by another key is refused.
 Planted: the check of the signature skipped; the test of the other key fails.
 
-## Blocker
-
-The operator: Q50 (b), n0's server of pkarr as a default, or only when the user asks.
 
 # T-351: Roads through a cloud's own tunnel: GCP IAP TCP forwarding, then EC2 Instance Connect Endpoint
 
@@ -3373,7 +3374,7 @@ The operator: Q50 (b), n0's server of pkarr as a default, or only when the user 
 **Milestone:** backlog
 **Priority:** P3
 **Effort:** L
-**Status:** blocked
+**Status:** open
 
 ## Problem
 
@@ -3397,7 +3398,7 @@ Endpoint puts a credential in its URL.
   Endpoint takes a presigned SigV4 `wss://` URL, valid for 60 s, then raw binary frames; AWS's
   client honours `HTTPS_PROXY`; a connection lasts an hour at most, and 20 run at once.
 - Read: credentials never go in URLs (`docs/architecture.md:157-159`; `docs/design.md:62`), and
-  `docs/decisions.md:36` says "in a header or a 0600 file and never in a URL" of the relay's
+  `docs/decisions.md:41` says "in a header or a 0600 file and never in a URL" of the relay's
   tokens. The presigned URL carries an access key id and a signature in its query.
 - Read: the `cf://` road uses podssh-ws's WebSocket client through the proxy
   (`crates/podssh-cli/src/ssh/cloudflare.rs:237`); an RSA key signs through aws-lc-rs in the
@@ -3419,6 +3420,10 @@ Endpoint puts a credential in its URL.
    new for each connection; a session that nears the hour opens a new connection, as `cp` does.
 5. The manual names each road, the account that it needs and its limits.
 
+## Decision
+
+The operator's ruling of 2026-10-31 (Q51, `docs/decisions.md`): both roads, IAP and EICE; EICE's presigned URL may carry its credential, an exception for that URL alone, which podssh never prints or logs. They are built and tested against stand-ins of the two endpoints; the live run waits for the operator's throwaway accounts (T-376).
+
 ## Prove
 
 ```sh
@@ -3431,10 +3436,6 @@ Frames captured from gcloud decode; a stand-in of the tunnel on the loopback car
 a test reads the process's arguments and its output, and finds no token. Live in GitHub Actions
 with a throwaway project of the operator's.
 
-## Blocker
-
-The operator: Q51, roads that need the user's cloud account and a token file, and EICE's
-credential in its URL; then a throwaway cloud project for the live run.
 
 # T-352: WARP's MASQUE road over HTTP/2
 
@@ -3443,7 +3444,7 @@ credential in its URL; then a throwaway cloud project for the live run.
 **Milestone:** backlog
 **Priority:** P3
 **Effort:** L
-**Status:** blocked
+**Status:** open
 
 ## Problem
 
@@ -3493,6 +3494,10 @@ T-353.
 4. A measurement of throughput and of a session's life beside the forward road, by the method of
    T-157.
 
+## Decision
+
+The operator's ruling of 2026-10-31 (Q52, `docs/decisions.md`): the WARP road is allowed; its live test may run in GitHub Actions and on a session's own host.
+
 ## Prove
 
 ```sh
@@ -3503,10 +3508,6 @@ cargo test -p podssh-warp
 Tests against capsules and frames captured from usque; live runs in GitHub Actions only, short
 ones.
 
-## Blocker
-
-The operator: Q52, a client of a closed API that poses as Cloudflare's app, under its
-Application Terms.
 
 # T-353: Tor through Arti, in a feature crate
 
@@ -3515,7 +3516,7 @@ Application Terms.
 **Milestone:** backlog
 **Priority:** P3
 **Effort:** L
-**Status:** blocked
+**Status:** open
 
 ## Problem
 
@@ -3557,6 +3558,10 @@ Arti brings C, as the features `ts` and `iroh` do.
    and in how long.
 4. A measurement of the time to the first byte and of throughput, by the method of T-157.
 
+## Decision
+
+The operator's ruling of 2026-10-31 (Q52, `docs/decisions.md`): Tor through Arti, as a feature crate `podssh-tor` with the C of `arti-client`, as `podssh-iroh` is one.
+
 ## Prove
 
 ```sh
@@ -3569,6 +3574,44 @@ Through the box's proxy, which allows the cage's ports alone: Tor bootstraps, an
 through it gets GitHub's SSH banner. Planted: the first hops not held to the proxy's ports; the
 bootstrap through the box fails.
 
+# T-376: The live run of the roads through a cloud's own tunnel (T-351)
+
+**Source:** the operator's answer of 2026-10-31 to the live part of T-351: stand-ins first.
+**Category:** chore
+**Milestone:** backlog
+**Priority:** P3
+**Effort:** S
+**Status:** blocked
+
+## Problem
+
+T-351 builds its roads, GCP IAP's TCP forwarding and AWS's EC2 Instance Connect Endpoint,
+against stand-ins of their endpoints. Nothing shows that they reach a real VM through a real
+tunnel until a run against the clouds.
+
+## Premise
+
+- Read: the operator allowed both roads and asked for stand-ins first, the live run to wait for
+  accounts (`docs/decisions.md:16`).
+
+## Approach
+
+1. With the operator's throwaway GCP project (one small VM behind IAP) and AWS account (one
+   instance and an EICE endpoint), their credential files in `.env/`, used by their paths only:
+   `podssh ssh` through each road to the VM, a session and a copy of 1 MiB.
+2. Delete what the run made; record the run in `docs/STATUS.md`.
+
+## Prove
+
+```sh
+export CARGO_BUILD_JOBS=4
+cargo test -p podssh-cli --test cloud_tunnels_live -- --ignored --test-threads 1
+```
+
+Each road carries a session to its VM and a copy with equal digests; the credentials appear in no
+output, and EICE's presigned URL in no log.
+
 ## Blocker
 
-The operator: Q52, C in a feature crate for Tor, as for `ts` and `iroh`.
+The operator: a throwaway GCP project with a VM behind IAP, and an AWS account with an instance
+and an EICE endpoint, their credential files in `.env/`.

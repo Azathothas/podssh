@@ -319,3 +319,54 @@ with eight binaries, their provenance and the signature of `SHA256SUMS` (T-210, 
 held newer commits by then, so the run by hand with `publish` ran on a branch at `f7f97a5`
 (`beta/v1.0.0-beta.2`): the job `tag` tags the commit of its run, whatever its branch. Its
 files pass the Prove, and the proofs of `.github/workflows/release-proofs.yml` (`docs/STATUS.md`).
+
+# T-375: `podssh update`: the release for its own target, checked, in place of the binary
+
+**Source:** the operator, 2026-10-31: "we will add self update soon", as an explicit command.
+**Category:** feature
+**Milestone:** none
+**Priority:** P2
+**Effort:** M
+**Status:** open
+
+## Problem
+
+A binary that was copied into a sandbox is never updated (Q48): a fix such as russh 0.65.0's
+(T-356) reaches no binary in the field until its user copies a new one by hand.
+
+## Premise
+
+- Read: the operator's decision of 2026-10-31: an explicit command that fetches the release for
+  its own target through the proxy, checks the signed `SHA256SUMS` and the binary's sum, and
+  replaces itself at once; it never runs on its own (`docs/decisions.md:18`).
+- Inferred: the release publishes each binary with its provenance and a signed `SHA256SUMS`
+  (T-210, T-211), which a client can check before it runs anything that it fetched.
+
+## Approach
+
+1. `podssh update`, and `podssh update --check`, which only says what it would do: the latest
+   release (or `--version TAG`), through the proxy, with its `SHA256SUMS`, its signature and the
+   asset of the binary's own target, named as `podssh --version` names its target.
+2. The check, before anything is written: the signature of `SHA256SUMS`, then the asset's SHA-256
+   against its line. The Decision chooses how the signature is checked with no C in the binary's
+   path: Sigstore's bundle of the release (T-211), or a second signature by an Ed25519 key whose
+   public half is compiled in.
+3. The replacement: the new binary beside the old one, its mode copied, then a rename over the
+   running file; on Windows, the running file is renamed aside first, and removed at the next run.
+   A failure at any step leaves the old binary as it was.
+4. Never on its own: no run of another command checks or installs a release.
+
+## Decision
+
+To decide when the entry is taken up, between the two checks of item 2, in its own section.
+
+## Prove
+
+```sh
+export CARGO_BUILD_JOBS=4
+cargo test -p podssh-cli --test update
+```
+
+Against a stand-in release on the loopback: a binary replaced and run; a planted sum, a planted
+signature and a binary of another target are each refused, the old binary left as it was. Live, in
+Actions: a beta's binary updated to the next beta.

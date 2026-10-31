@@ -107,7 +107,7 @@ and `CARGO_BUILD_JOBS=4`:
 
 ## Counts
 
-`TODO/INDEX.md` holds 353 entries: 22 open, 3 partial, 35 blocked, 293 done.
+`TODO/INDEX.md` holds 355 entries: 30 open, 3 partial, 29 blocked, 293 done.
 
 Open includes parked work. `cargo todo check` verifies this line.
 
@@ -126,12 +126,18 @@ the surface for agents: done.
 `f7f97a5`, with the provenance of each binary and the signature of
 `SHA256SUMS`, each proven on the published files (`docs/STATUS.md`). The next
 beta follows the next batch of repairs that the testers should test again,
-at most one a day.
+at most one a day: russh 0.65.0's security fixes (T-356) make that batch, so
+`v1.0.0-beta.3` comes from 2026-11-01 00:12 UTC, once the gate is green on its
+commit.
 
 **Now:** the entries of the audit and the study of 2026-10-31, the highest
 priority first: T-356 (russh 0.65.0's security fixes, P1), then the P2 entries T-340, whose
 runs in CI wait, T-342 and T-347, then T-355 (Dependabot's updates, and the curves' 0.14 that ends an ignore
-of `deny.toml`), then the P3 entries T-343, T-344 and T-345. Each other `backlog`
+of `deny.toml`), then the P2 entries that the operator's rulings of 2026-10-31 opened: T-375
+(`podssh update`), T-348 and T-349 (the iroh road in the release binaries, and the public relays as
+a fallback, Q50) and T-346 (relays outside the default domain, Q49); then the P3 entries T-343,
+T-344 and T-345, then those of the same rulings: T-350 (Q50), T-351 (Q51, against stand-ins),
+T-352 and T-353 (Q52). Each other `backlog`
 entry is done, but for those on hold, those of the relay's operator and the
 parked ones.
 
@@ -141,16 +147,15 @@ entries: the `none` entries, the highest priority first.
 
 **Skip** the entries that wait for the relay's operator (status
 `blocked`): T-086, T-106, T-169, T-173, T-180, T-226, T-253, T-255,
-T-319, T-321, T-325, T-326, T-336 and T-346; and the entries that the operator holds (status
+T-319, T-321, T-325, T-326 and T-336; and the entries that the operator holds (status
 `blocked`, Q32):
 T-085, T-107 to T-113, T-117, T-118, T-213, T-222, T-245 and T-248; and the work
 parked behind them (T-114, T-115, T-116, T-119, T-120, T-122, T-123,
 T-124, T-150, T-159, T-160, T-161, T-303 and T-304, "Parked open work"),
 which waits as they wait; and the entries that wait for the operator:
 T-328 (an export of FinalShell and of Termius: a known gap, which
-`v1.0.0` does not wait for); and the entries that wait for the
-operator's ruling on Q49 to Q52: T-346 (Q49, then the relay's operator),
-T-348, T-349 and T-350 (Q50), T-351 (Q51), T-352 and T-353 (Q52).
+`v1.0.0` does not wait for) and T-376 (the operator's throwaway cloud
+accounts for T-351's live run).
 
 ## Parked open work
 
@@ -216,80 +221,14 @@ target, and the throughput run's forward cell goes through it at 100 MiB a
 direction; and a headscale stand-in replaces the runs with the operator's
 tailnet for `v1.0.0` (T-334).
 
-Q49 (2026-10-31, blocks T-346): the audit of hardcoded assumptions of
-2026-10-31 found that each road of the release binaries but `--direct`
-reaches one relay deployment, on Cloudflare, under one domain: the default
-host and the six seeds of the pool are names under `ssh.relay.ajam.dev`,
-and a host of `/relays.json` outside that domain is dropped
-(`crates/podssh-relay/src/pool.rs:139-152`). A binary copied into a cage is
-not updated (Q48), so no binary in the field can move to another
-deployment if the domain lapses or Cloudflare stops. The question: may a
-binary take relay hosts outside `ssh.relay.ajam.dev` from a `/relays.json`
-signed by a key compiled into it, and should the default be a list of
-deployments on more than one provider? Recommendation: yes, with an
-offline Ed25519 key that the relay's operator holds (two keys compiled in,
-the current one and the next), the signature checked before any host of
-the document is used, and an unsigned document kept to the parent domain,
-as today. T-346 then waits for the relay's operator alone: the keys, the
-signed document and a second deployment (`docs/relay-operator.md`, item
-14).
-
-Q50 (2026-10-31, blocks T-348, T-349 and T-350): the study of carriers of
-2026-10-31 (`docs/carriers.md`) ranks two carriers of the reverse road that
-need no relay of the operator's: iroh through n0's public relays first,
-and DERP through Tailscale's relays for tailcat second. (a) The release
-binaries have no iroh road: the release builds with no feature
-(`.github/workflows/release.yml:119`), and the feature brings about 200
-crates, and C outside the library crates as russh does
-(`crates/podssh-cli/Cargo.toml:28-31`). The row of 2026-10-08 says that
-iroh "is a road that the user must select" (`docs/decisions.md:41`), and
-says nothing of the release binaries. (b) The same row makes n0's public
-relays the default of the iroh road; n0 says that they are for
-"development and hobby use only", and tailcat's README offers "our free
-rate-limited DERP relays" to tailcat, which has no accounts; neither names
-other clients. (c) Tailscale's post on tailcat asks for contact about
-other uses, and n0 sells relays. The questions: (a) may the release
-binaries carry the iroh road; (b) may a node and a client with no pair try
-n0's relays and tailcat's fleet when the user did not ask for them (a
-fallback of `podssh node` and `ssh node://`), or only when asked; (c) does
-the operator ask Tailscale and n0 first? Recommendation: (a) yes, by Q48's
-ruling that a capability comes first; (b) only when the user asks, until
-their operators agree; (c) yes.
-
-Q51 (2026-10-31, blocks T-351): after `-J cf://HOST` (T-347), the same
-study ranks the tunnels of clouds for the forward road: GCP IAP's TCP
-forwarding and AWS's EC2 Instance Connect Endpoint reach a VM of the
-user's, which then reaches the target. Each needs the user's cloud
-account, a VM or an instance, and a token in a file. IAP sends its token
-in a Bearer header. EICE's URL is presigned with SigV4 for 60 s, and its
-query carries an access key id and a signature: a credential in a URL,
-against the rule that credentials never go in URLs
-(`docs/architecture.md:157-159`; for the relay's tokens, "never in a URL",
-`docs/decisions.md:36`). The question: may podssh have roads that need the
-user's cloud account and a token file, and may EICE's URL carry its
-credential? Recommendation: IAP yes, its token read from a file that the
-user names (private, as the relay's token) and sent in a header only; EICE
-no, while its credential rides in its URL.
-
-Q52 (2026-10-31, blocks T-352 and T-353): two carriers of the forward road
-need no setup of the user's. WARP is Cloudflare's own network: its open
-clients speak a closed API that they reverse-engineered, and pose as
-Cloudflare's app ("WARP for Android"), while Cloudflare's Application
-Terms license "the Application" only, forbid to reverse engineer it, and
-let Cloudflare "block certain kinds of usage"
-(https://www.cloudflare.com/application/terms/, 2024-10-18); it also fails
-behind a proxy that re-terminates TLS. Q47 read the quick tunnel's terms
-as allowing a client other than cloudflared (`docs/decisions.md:15`); WARP
-differs, as its client poses as Cloudflare's own. Tor through Arti is an
-anonymous fallback, and slow: arti-client 0.47 brings C (its default
-compression, SQLite), as the features `ts` and `iroh` bring C. The
-questions: may podssh have a WARP road, and may a feature crate bring Tor
-through Arti with its C? Recommendation: Tor yes, as a feature crate
-`podssh-tor`, as `podssh-iroh` is one; WARP no, unless the operator reads
-the terms otherwise.
-
-A yes to Q50, Q51 or Q52 makes the entries that it unblocks work before
-`v1.0.0` (T-250), unless the ruling says that they come after it.
+The operator settled Q49 to Q52 on 2026-10-31 (`docs/decisions.md`): a binary may
+use relays outside `ssh.relay.ajam.dev` when they are compatible (T-346; relays that their users
+bring and `podssh update`, T-375, make a signed list less pressing); the release binaries carry
+the iroh road, with n0's public relays and Tailscale's tailcat fleet as an automatic fallback
+(T-348 to T-350); roads through GCP IAP and AWS EICE, EICE's presigned URL an exception for that
+URL alone, built against stand-ins first (T-351; the live run, T-376, waits for the operator's
+accounts); and WARP's MASQUE road and Tor through Arti in a feature crate (T-352, T-353), WARP's
+live test in Actions and on a session's host. The entries that they opened work before `v1.0.0`.
 
 ## Operator actions
 
@@ -316,5 +255,5 @@ the Tailscale test (T-106), a self-hosted relay (T-169), resumption in the
 relay (T-173), a publish endpoint (T-180), signed pairing grants (T-226),
 an IPv6 route out of the relay (T-253), the cause of the drops of
 reverse sockets (T-255), a bound on what the relay holds for a slow
-client (T-336), and a signed `/relays.json` with a second deployment
-(T-346, after the operator's ruling on Q49).
+client (T-336), and, if the relay's operator wants one, a signed
+`/relays.json` with a second deployment (T-346, Q49).

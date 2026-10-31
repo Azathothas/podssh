@@ -352,7 +352,7 @@ never answers, and the test fails at its limit of 10 s.
 ## Correction
 
 2026-10-10: the Prove's "On Windows, the address exits 64" was written
-before the operator's ruling of 2026-10-08 (Q24, `docs/decisions.md:28`),
+before the operator's ruling of 2026-10-08 (Q24, `docs/decisions.md:33`),
 which step 4 of the Approach follows: on Windows, `unix-connect:` reaches
 an AF_UNIX socket or a named pipe (`\\.\pipe\NAME`), each tried when the
 pipe starts. So the Prove on Windows is the one of Unix, through an AF_UNIX

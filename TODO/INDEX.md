@@ -58,19 +58,19 @@ repository and CI).
    session with the other entries of that kind.
 7. The entries that wait for the relay's operator are skipped: T-086,
    T-106, T-169, T-173, T-180, T-226, T-253, T-255, T-319, T-321, T-325,
-   T-326, T-336 and T-346.
+   T-326 and T-336.
 
 ## Counts
 
-**353 entries: 22 open, 3 partial, 35 blocked, 293 done.**
+**355 entries: 30 open, 3 partial, 29 blocked, 293 done.**
 
 | Priority | open | partial | blocked | done | total |
 | --- | --- | --- | --- | --- | --- |
 | P0 | 0 | 0 | 0 | 1 | 1 |
 | P1 | 2 | 1 | 0 | 25 | 28 |
-| P2 | 4 | 2 | 23 | 151 | 180 |
-| P3 | 16 | 0 | 12 | 116 | 144 |
-| **All** | 22 | 3 | 35 | 293 | 353 |
+| P2 | 8 | 2 | 20 | 151 | 181 |
+| P3 | 20 | 0 | 9 | 116 | 145 |
+| **All** | 30 | 3 | 29 | 293 | 355 |
 
 ## Entries
 
@@ -418,14 +418,16 @@ repository and CI).
 | [T-343](repo.md) | P3 | S | none | chore | open | The release takes Zig from one site, builds armv7 with an unchecked rust, and runs an unpinned schema check |
 | [T-344](ws.md) | P3 | M | backlog | feature | open | DNS over HTTPS: two operators, one encoding, and no memory of the addresses that worked |
 | [T-345](ws.md) | P3 | S | backlog | defect | open | Only `doctor` names the clock when a certificate has expired or is not valid yet |
-| [T-346](relay.md) | P2 | M | backlog | feature | blocked | Relay hosts outside the default domain from a signed `/relays.json`, and a list of deployments |
+| [T-346](relay.md) | P2 | M | backlog | feature | open | Relay hosts outside the default domain from a signed `/relays.json`, and a list of deployments |
 | [T-347](roads.md) | P2 | S | backlog | feature | open | `-J cf://HOST`: a Cloudflare tunnel as the first hop of a jump chain |
-| [T-348](roads.md) | P2 | M | backlog | feature | blocked | The iroh road in the release binaries, and a notice when n0 refuses an old iroh |
-| [T-349](roads.md) | P2 | L | backlog | feature | blocked | A DERP link through Tailscale's tailcat relays, a second carrier of the reverse road |
-| [T-350](roads.md) | P3 | M | backlog | feature | blocked | A pkarr record that finds a node whose home relay changed |
-| [T-351](roads.md) | P3 | L | backlog | feature | blocked | Roads through a cloud's own tunnel: GCP IAP TCP forwarding, then EC2 Instance Connect Endpoint |
-| [T-352](roads.md) | P3 | L | backlog | feature | blocked | WARP's MASQUE road over HTTP/2 |
-| [T-353](roads.md) | P3 | L | backlog | feature | blocked | Tor through Arti, in a feature crate |
+| [T-348](roads.md) | P2 | M | backlog | feature | open | The iroh road in the release binaries, and a notice when n0 refuses an old iroh |
+| [T-349](roads.md) | P2 | L | backlog | feature | open | A DERP link through Tailscale's tailcat relays, a second carrier of the reverse road |
+| [T-350](roads.md) | P3 | M | backlog | feature | open | A pkarr record that finds a node whose home relay changed |
+| [T-351](roads.md) | P3 | L | backlog | feature | open | Roads through a cloud's own tunnel: GCP IAP TCP forwarding, then EC2 Instance Connect Endpoint |
+| [T-352](roads.md) | P3 | L | backlog | feature | open | WARP's MASQUE road over HTTP/2 |
+| [T-353](roads.md) | P3 | L | backlog | feature | open | Tor through Arti, in a feature crate |
 | [T-354](resume.md) | P2 | S | backlog | defect | done | A session that closes while it moves can say a loss that was none |
 | [T-355](repo.md) | P2 | M | none | chore | open | Dependabot's updates of 2026-10-30 and 2026-10-31, and the curves' 0.14 |
 | [T-356](ssh.md) | P1 | M | none | defect | partial | russh 0.65.0 fixes six advisories, three of them in the client, and gives the session binding |
+| [T-375](release.md) | P2 | M | none | feature | open | `podssh update`: the release for its own target, checked, in place of the binary |
+| [T-376](roads.md) | P3 | S | backlog | chore | blocked | The live run of the roads through a cloud's own tunnel (T-351) |

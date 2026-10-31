@@ -680,7 +680,7 @@ go through one function since T-231 (`crates/podssh-cli/src/relay_settings.rs:65
 (`crates/podssh-cli/src/pins.rs:15-31`). The token cache uses the user's
 cache directory first, after the directory of `PODSSH_CACHE_DIR` (T-243;
 `crates/podssh-relay/src/cache/dirs.rs:59-87`). The decision named the
-configuration directory first; the operator corrected it on 2026-10-08 (`docs/decisions.md:53`, T-243).
+configuration directory first; the operator corrected it on 2026-10-08 (`docs/decisions.md:58`, T-243).
 
 ## Approach
 
