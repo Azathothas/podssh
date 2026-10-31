@@ -24,13 +24,37 @@ async fn pair() -> (TcpStream, TcpStream) {
     (client.unwrap(), accepted.unwrap().0)
 }
 
+/// Writes to a peer that reads nothing until three pauses of real time in a
+/// row let no byte go. The loopback of macOS moves bytes on in real time
+/// while the paused clock jumps, and a byte that went after a jump started
+/// the limit's count again: 117 s of the clock in CI, at `1d16bb4`.
+fn fill(client: &mut std::net::TcpStream) -> u64 {
+    let chunk = vec![0x5a_u8; 64 * 1024];
+    let (mut sent, mut idle) = (0_u64, 0);
+    while idle < 3 {
+        match client.write(&chunk) {
+            Ok(n) => (sent, idle) = (sent + n as u64, 0),
+            Err(e) if e.kind() == std::io::ErrorKind::WouldBlock => {
+                idle += 1;
+                std::thread::sleep(Duration::from_millis(100));
+            }
+            Err(e) => panic!("a write to a peer that reads nothing failed: {e}"),
+        }
+        assert!(sent < 1 << 30, "1 GiB went to a peer that reads nothing");
+    }
+    sent
+}
+
 #[tokio::test(start_paused = true)]
 async fn direct_write_limit_ends_a_write_that_the_peer_never_reads() {
-    let (client, _server) = pair().await;
-    let mut stream = WriteLimit::new(client, WRITE_TIMEOUT);
+    let listener = std::net::TcpListener::bind("127.0.0.1:0").unwrap();
+    let mut client = std::net::TcpStream::connect(listener.local_addr().unwrap()).unwrap();
+    let _server = listener.accept().unwrap().0;
+    client.set_nonblocking(true).unwrap();
+    let mut sent = fill(&mut client);
+    let mut stream = WriteLimit::new(TcpStream::from_std(client).unwrap(), WRITE_TIMEOUT);
     let chunk = vec![0x5a_u8; 64 * 1024];
     let started = tokio::time::Instant::now();
-    let mut sent = 0_u64;
     let error = loop {
         match stream.write_all(&chunk).await {
             Ok(()) => sent += chunk.len() as u64,
