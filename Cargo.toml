@@ -176,7 +176,7 @@ rsa = { version = "0.9", default-features = false, features = ["std"] }
 rand = { version = "0.8", default-features = false, features = ["std", "std_rng"] }
 
 # podssh's own. No crates.io equivalent is acceptable for these.
-base64 = "0.22"
+base64 = "0.23"
 # The channel between two podssh ends (T-088): Noise XX with ChaChaPoly,
 # SHA-256 and Curve25519 only. No default features: its `std` turns on ring,
 # which compiles C.
