@@ -4627,6 +4627,16 @@ and #67, each pull request closed with a comment.
   2000 cases with WireGuard's nonce, in a scratch crate); `cargo test -p podssh-ts`, 54 passed;
   the CLI with the feature `ts`, `--test ts_probe` 12 passed and `--test ts_behave` 9 passed;
   the 25 patches applied to the pinned commit give the shipped tree.
+- 2026-10-31, after the close: GitHub reported one Dependabot alert at the push of 93e8031. 0025's
+  update of the fork's own lock had moved its optional russh (the feature `ssh`, never on in
+  podssh) to 0.60.1 and russh-cryptovec to 0.59.0, under RUSTSEC-2026-0153 and -0154, patched from
+  0.60.3, which pins the aead release candidate that chacha20poly1305 0.11 cannot share. Patch 0026
+  moves the feature to russh 0.65, as podssh, with its `channel_open_session` on the open's
+  handle, and the lock's rustls, rustls-webpki, webpki-roots, webpki-root-certs and tokio to
+  podssh's versions: `cargo deny --manifest-path vendor/tailscale-rs/Cargo.toml --locked check
+  advisories` passes, where it failed on twelve advisories (eight older than 0025). The feature
+  and its example build, the fork's four crates 50 passed, podssh's lock is unchanged, and the 26
+  patches give the shipped tree.
 
 # T-360: Nothing reads `TODO/issues.md`: issues #59 to #63 have no row, and no check compares the map with GitHub
 
