@@ -13,7 +13,9 @@
 
 use std::path::Path;
 
-use podssh_probe::relay_facts::{assert_facts, line_count, read_operand, sha256_hex, verdict_from, Observed, Verdict};
+use podssh_probe::relay_facts::{
+    assert_facts, line_count, read_operand, sha256_hex, verdict_from, Moved, Observed, Verdict,
+};
 use podssh_probe::Facts;
 
 const SPEC_COPY: &str = include_str!("spec/relay-spec-2026-10-03-r2.txt");
@@ -87,6 +89,7 @@ fn the_node_frame_cap_arithmetic_is_the_one_the_relay_publishes() {
         read_operand(
             &podssh_probe::facts::Operand {
                 line: 184,
+                section: "Reverse close codes".to_string(),
                 pattern: "exceeded (\\d+) payload bytes".to_string(),
                 names: vec!["cap".to_string()],
             },
@@ -233,6 +236,80 @@ fn the_facts_file_is_one_file_and_there_is_only_one() {
         "crates/podssh-probe/facts/relay-facts.toml is the only facts file; \
          these are copies that can drift from it: {found:?}"
     );
+}
+
+// ── a fact moved within its section, or out of it (T-338) ───────────────────
+
+/// The pinned document with `text` inserted before its line `at` (1-based).
+fn insert_before(spec: &str, at: usize, text: &str) -> String {
+    let mut out = String::with_capacity(spec.len() + text.len());
+    for (index, line) in spec.split_inclusive('\n').enumerate() {
+        if index + 1 == at {
+            out.push_str(text);
+        }
+        out.push_str(line);
+    }
+    out
+}
+
+/// The notes of an `Ok` verdict, or a panic that names what came instead.
+fn moved_of(spec: &str) -> Vec<Moved> {
+    match assert_facts(spec, &facts(), None) {
+        Verdict::Ok { moved, .. } => moved,
+        other => panic!("each fact moved within its section, so each holds: {other:?}"),
+    }
+}
+
+#[test]
+fn a_line_inserted_at_the_top_moves_each_fact_and_each_holds_with_a_note() {
+    let facts = facts();
+    assert!(moved_of(SPEC_COPY).is_empty(), "the pinned copy: each fact at its line");
+    let moved = moved_of(&insert_before(SPEC_COPY, 1, "A line that the relay inserted.\n"));
+    let ids: Vec<&str> =
+        facts.facts.iter().map(|f| f.id.as_str()).chain(facts.relations.iter().map(|r| r.id.as_str())).collect();
+    for id in &ids {
+        assert!(moved.iter().any(|m| m.fact_id == *id && m.to == m.from + 1), "{id} moved by one line: {moved:?}");
+    }
+    assert_eq!(moved.len(), ids.len(), "one note for each fact, the relation's two operands in one: {moved:?}");
+    let node = moved.iter().find(|m| m.fact_id == "reverse-node-path").expect("the node path's note");
+    assert_eq!((node.from, node.to, node.section.as_str()), (23, 24, "Exact addresses"));
+}
+
+#[test]
+fn a_fact_that_left_its_section_fails_though_the_document_holds_its_text() {
+    // The node path stands on line 23, under "Exact addresses"; the same text
+    // stands under "Reverse transport (outbound-only nodes)" too, so the
+    // search must stop at the section's end.
+    let node_line = SPEC_COPY.split_inclusive('\n').nth(22).expect("line 23").to_string();
+    assert!(node_line.contains("/v1/node/<name>"));
+    let without: String =
+        SPEC_COPY.split_inclusive('\n').enumerate().filter(|(i, _)| *i != 22).map(|(_, l)| l).collect();
+    let moved_out = format!("{without}{node_line}");
+    assert!(moved_out.contains("/v1/node/<name>"), "the text is still in the document");
+    assert_fact_fired(&moved_out, "reverse-node-path");
+}
+
+#[test]
+fn a_hash_line_in_a_fence_of_code_ends_no_section() {
+    // Three lines before the node path, in its section: a fence whose middle
+    // line starts with `#`, as a shell comment does. Read as a heading, it
+    // would end "Exact addresses" before the fact.
+    let fenced = insert_before(SPEC_COPY, 23, "```sh\n# a shell comment\n```\n");
+    let moved = moved_of(&fenced);
+    let node = moved.iter().find(|m| m.fact_id == "reverse-node-path").expect("the node path moved");
+    assert_eq!((node.from, node.to), (23, 26));
+}
+
+#[test]
+fn a_heading_whose_version_changed_still_names_its_section() {
+    // The close codes' heading carries the document's version; a section is
+    // named by the heading's first words, so a new version keeps it.
+    let renamed = SPEC_COPY
+        .replace("## Reverse close codes (version 2026-10-03-r2)", "## Reverse close codes (version 2027-01-01-r1)");
+    assert_ne!(renamed, SPEC_COPY, "the plant must change the heading");
+    let moved = moved_of(&insert_before(&renamed, 161, "A line that the relay inserted.\n"));
+    assert!(moved.iter().any(|m| m.fact_id == "bad-multiplex-frame-is-1009" && m.to == 183), "{moved:?}");
+    assert!(moved.iter().any(|m| m.fact_id == "node-open-timeout" && m.to == 191), "{moved:?}");
 }
 
 fn assert_fact_fired(planted: &str, fact_id: &str) {

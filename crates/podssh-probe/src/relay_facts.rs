@@ -6,6 +6,12 @@
 //! rewording cannot turn into a red run while a renamed path, a changed frame
 //! cap or a changed timeout does.
 //!
+//! **A fact is read at its line, then in its section.** The facts file names
+//! the line of each fact as a hint, and the heading that it stands under: a
+//! line that the relay inserts above a fact moves it within its section,
+//! which holds, with a note to move the hint; a fact that left its section, or
+//! changed, fails (T-338).
+//!
 //! **Every outcome is three-valued**, and the third value is not optional.
 //! `ok` means the facts were checked and they hold. `Failed` means they were
 //! checked and they do not. `Unknown` means the document was not read, and it is
@@ -30,6 +36,27 @@ impl std::fmt::Display for Disagreement {
     }
 }
 
+/// A fact found at another line of its section than the one that the facts
+/// file names: the document moved and the fact did not, so it holds, and the
+/// hint is old.
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub struct Moved {
+    pub fact_id: String,
+    pub section: String,
+    pub from: usize,
+    pub to: usize,
+}
+
+impl std::fmt::Display for Moved {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        write!(
+            f,
+            "{}: at line {} of its section {:?}, not at line {}: move the line in the facts file",
+            self.fact_id, self.to, self.section, self.from
+        )
+    }
+}
+
 /// **Never an empty vector.** An unreadable relay is not a relay with no
 /// disagreements, and the two must not print the same way.
 #[derive(Debug, Clone, PartialEq, Eq)]
@@ -45,10 +72,13 @@ pub enum Verdict {
         pinned: String,
         sha256: String,
         lines: usize,
+        /// The facts found away from their line, each within its section.
+        moved: Vec<Moved>,
     },
     Failed {
         version: Option<String>,
         disagreements: Vec<Disagreement>,
+        moved: Vec<Moved>,
     },
     Unknown {
         why: String,
@@ -72,18 +102,68 @@ impl Verdict {
     }
 }
 
-fn line_of(spec: &str, number: usize) -> Result<&str, String> {
-    let total = spec.split('\n').count();
-    // `split('\n')` on a document ending in a newline yields a trailing empty
-    // element, so this is one more than a reader's `wc -l`. Subtract it rather
-    // than let a citation one line past the end resolve.
-    let total = if spec.ends_with('\n') { total - 1 } else { total };
-    spec.split('\n')
-        .nth(number.checked_sub(1).ok_or("line 0 does not exist")?)
-        .ok_or_else(|| format!("spec line {number} does not exist; the document has {total} lines"))
+/// The document's lines: the empty piece after a last newline is no line,
+/// as `wc -l` counts.
+fn lines_of(spec: &str) -> Vec<&str> {
+    let mut lines: Vec<&str> = spec.split('\n').collect();
+    if spec.ends_with('\n') {
+        lines.pop();
+    }
+    lines
 }
 
-/// Read an operand's numbers off one line of the peer's document.
+/// The lines, 1-based and inclusive, of the section whose heading starts with
+/// `name`: its heading, and each line before the next heading of its level or
+/// above. A line in a fence of code is no heading.
+fn section_of(lines: &[&str], name: &str) -> Option<(usize, usize)> {
+    let (mut fenced, mut found) = (false, None::<(usize, usize)>);
+    for (index, line) in lines.iter().enumerate() {
+        let text = line.trim_end();
+        if text.starts_with("```") || text.starts_with("~~~") {
+            fenced = !fenced;
+            continue;
+        }
+        let level = text.bytes().take_while(|b| *b == b'#').count();
+        if fenced || level == 0 || !text[level..].starts_with(' ') {
+            continue;
+        }
+        match found {
+            None if text[level..].trim().starts_with(name) => found = Some((index + 1, level)),
+            Some((start, at)) if level <= at => return Some((start, index)),
+            _ => {}
+        }
+    }
+    found.map(|(start, _)| (start, lines.len()))
+}
+
+/// The line that `holds` a fact, and its number: the hint first, then each
+/// line of its section; else why none does, with `what` the fact's text.
+fn locate<'a>(
+    lines: &[&'a str],
+    hint: usize,
+    section: &str,
+    holds: impl Fn(&str) -> bool,
+    what: &str,
+) -> Result<(usize, &'a str), String> {
+    let at_hint = hint.checked_sub(1).and_then(|index| lines.get(index).copied());
+    if let Some(line) = at_hint.filter(|line| holds(line)) {
+        return Ok((hint, line));
+    }
+    let reads = match at_hint {
+        Some(line) => format!("spec line {hint} reads: {}", line.trim()),
+        None => format!("spec line {hint} does not exist; the document has {} lines", lines.len()),
+    };
+    let Some((first, last)) = section_of(lines, section) else {
+        return Err(format!("{reads}; and the document has no section {section:?}"));
+    };
+    (first..=last)
+        .find(|number| holds(lines[number - 1]))
+        .map(|number| (number, lines[number - 1]))
+        .ok_or_else(|| format!("no line of its section {section:?} (lines {first}-{last}) carries {what}; {reads}"))
+}
+
+/// Read an operand's numbers off one line of the peer's document: the line
+/// that the pattern matches, its hint first, then its section.
 ///
 /// **The names bound the groups.** `names = ["cap", "payload"]` binds group 1
 /// to `cap` and group 2 to `payload`, and the arithmetic in `evaluate` refers to
@@ -91,23 +171,24 @@ fn line_of(spec: &str, number: usize) -> Result<&str, String> {
 /// whose meaning can change when a pattern is edited — which is the defect the
 /// first version of `scripts/check-relay-spec.py` shipped.
 pub fn read_operand(operand: &Operand, spec: &str) -> Result<Vec<(String, i64)>, String> {
-    let line = line_of(spec, operand.line)?;
-    let captures =
+    read_operand_in(operand, &lines_of(spec)).map(|(_, values)| values)
+}
+
+/// [`read_operand`] on the document's lines, with the number of the line read.
+fn read_operand_in(operand: &Operand, lines: &[&str]) -> Result<(usize, Vec<(String, i64)>), String> {
+    let pattern =
         regex::Regex::new(&operand.pattern).map_err(|e| format!("fact file has an uncompilable pattern: {e}"))?;
-    let found = captures
-        .captures(line)
-        .ok_or_else(|| format!("spec line {} carries no match for the pattern", operand.line))?;
+    let (number, line) =
+        locate(lines, operand.line, &operand.section, |line| pattern.is_match(line), "a match for the pattern")?;
+    let found = pattern.captures(line).ok_or_else(|| format!("spec line {number} carries no match for the pattern"))?;
     let mut values = Vec::with_capacity(operand.names.len());
     for (index, name) in operand.names.iter().enumerate() {
-        let group =
-            found.get(index + 1).ok_or_else(|| format!("spec line {} has no capture group {index}", operand.line))?;
-        let value: i64 = group
-            .as_str()
-            .parse()
-            .map_err(|_| format!("spec line {}: group {index} is not an integer", operand.line))?;
+        let group = found.get(index + 1).ok_or_else(|| format!("spec line {number} has no capture group {index}"))?;
+        let value: i64 =
+            group.as_str().parse().map_err(|_| format!("spec line {number}: group {index} is not an integer"))?;
         values.push((name.clone(), value));
     }
-    Ok(values)
+    Ok((number, values))
 }
 
 /// The arithmetic, evaluated over named operands.
@@ -156,78 +237,65 @@ fn evaluate(expression: &str, left: &[(String, i64)], right: &[(String, i64)]) -
 /// be `None` — a document read without `/health` — and that is reported as
 /// "no version observed" rather than as the pin.
 pub fn assert_facts(spec: &str, facts: &Facts, observed: Option<&str>) -> Verdict {
-    let mut disagreements = Vec::new();
+    let lines = lines_of(spec);
+    let (mut disagreements, mut moved) = (Vec::new(), Vec::new());
+    let mut disagree = |fact_id: &str, detail: String| {
+        disagreements.push(Disagreement { fact_id: fact_id.to_string(), detail });
+    };
+    let mut was_moved = |fact_id: &str, section: &str, from: usize, to: usize| {
+        let note = Moved { fact_id: fact_id.to_string(), section: section.to_string(), from, to };
+        if from != to && !moved.contains(&note) {
+            moved.push(note);
+        }
+    };
 
     for fact in &facts.facts {
-        let line = match line_of(spec, fact.line) {
-            Ok(line) => line,
-            Err(why) => {
-                disagreements.push(Disagreement { fact_id: fact.id.clone(), detail: why });
-                continue;
-            }
-        };
         match &fact.expect {
             Expect::Contains { contains } => {
-                if !line.contains(contains.as_str()) {
-                    disagreements.push(Disagreement {
-                        fact_id: fact.id.clone(),
-                        detail: format!(
-                            "spec line {} does not carry {contains:?}. It reads: {}",
-                            fact.line,
-                            line.trim()
-                        ),
-                    });
+                let holds = |line: &str| line.contains(contains.as_str());
+                match locate(&lines, fact.line, &fact.section, holds, &format!("{contains:?}")) {
+                    Ok((number, _)) => was_moved(&fact.id, &fact.section, fact.line, number),
+                    Err(why) => disagree(&fact.id, why),
                 }
             }
             Expect::Number { pattern, value } => {
                 let pattern = match regex::Regex::new(pattern) {
                     Ok(p) => p,
                     Err(e) => {
-                        disagreements.push(Disagreement {
-                            fact_id: fact.id.clone(),
-                            detail: format!("fact file has an uncompilable pattern: {e}"),
-                        });
+                        disagree(&fact.id, format!("fact file has an uncompilable pattern: {e}"));
                         continue;
                     }
                 };
-                match pattern.captures(line).and_then(|c| c.get(1)) {
-                    None => disagreements.push(Disagreement {
-                        fact_id: fact.id.clone(),
-                        detail: format!("spec line {} carries no value for this fact", fact.line),
-                    }),
-                    Some(found) => match found.as_str().parse::<i64>() {
-                        Err(_) => disagreements.push(Disagreement {
-                            fact_id: fact.id.clone(),
-                            detail: format!("spec line {} holds a non-integer value", fact.line),
-                        }),
-                        Ok(got) if got == *value => {}
-                        Ok(got) => disagreements.push(Disagreement {
-                            fact_id: fact.id.clone(),
-                            detail: format!("spec line {} says {got}; this repository says {value}", fact.line),
-                        }),
-                    },
+                let holds = |line: &str| pattern.captures(line).and_then(|c| c.get(1)).is_some();
+                let (number, line) = match locate(&lines, fact.line, &fact.section, holds, "a value for this fact") {
+                    Ok(found) => found,
+                    Err(why) => {
+                        disagree(&fact.id, why);
+                        continue;
+                    }
+                };
+                let found = pattern.captures(line).and_then(|c| c.get(1)).map(|m| m.as_str().parse::<i64>());
+                match found {
+                    Some(Ok(got)) if got == *value => was_moved(&fact.id, &fact.section, fact.line, number),
+                    Some(Ok(got)) => {
+                        disagree(&fact.id, format!("spec line {number} says {got}; this repository says {value}"))
+                    }
+                    _ => disagree(&fact.id, format!("spec line {number} holds a non-integer value")),
                 }
             }
         }
     }
 
     for relation in &facts.relations {
-        let left = match read_operand(&relation.src, spec) {
-            Ok(v) => v,
-            Err(why) => {
-                disagreements.push(Disagreement { fact_id: relation.id.clone(), detail: why });
-                continue;
-            }
+        let mut read = |operand: &Operand| -> Result<Vec<(String, i64)>, String> {
+            let (number, values) = read_operand_in(operand, &lines)?;
+            was_moved(&relation.id, &operand.section, operand.line, number);
+            Ok(values)
         };
-        let right = match read_operand(&relation.dst, spec) {
-            Ok(v) => v,
-            Err(why) => {
-                disagreements.push(Disagreement { fact_id: relation.id.clone(), detail: why });
-                continue;
-            }
-        };
-        if let Err(why) = evaluate(&relation.expression, &left, &right) {
-            disagreements.push(Disagreement { fact_id: relation.id.clone(), detail: why });
+        let both = read(&relation.src).and_then(|left| Ok((left, read(&relation.dst)?)));
+        let checked = both.and_then(|(left, right)| evaluate(&relation.expression, &left, &right));
+        if let Err(why) = checked {
+            disagree(&relation.id, why);
         }
     }
 
@@ -237,9 +305,10 @@ pub fn assert_facts(spec: &str, facts: &Facts, observed: Option<&str>) -> Verdic
             pinned: facts.pin.version.to_string(),
             sha256: sha256_hex(spec.as_bytes()),
             lines: line_count(spec),
+            moved,
         }
     } else {
-        Verdict::Failed { version: None, disagreements }
+        Verdict::Failed { version: None, disagreements, moved }
     }
 }
 

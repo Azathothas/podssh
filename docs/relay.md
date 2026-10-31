@@ -27,6 +27,26 @@ each fact that the relay changed, and exit 1. `--document FILE` checks a
 copy instead. `scripts/check-relay-spec.py` checks the same facts, and CI
 asks both for one verdict (`scripts/relay-spec-agree.py`).
 
+Each fact names its line of the document as a hint, and the heading that it
+stands under (T-338). A fact is read at its line first, then on each line of
+its section: a line that the relay inserts above a fact moves the fact
+within its section, and it holds, with a `note` line that names the old line
+and the new one, for the hint to be moved by hand; a fact that left its
+section, or changed, fails. The checks exit 0 when each fact holds, 1 when
+one changed, and 2 (69 for `podssh relay spec`) when the relay could not be
+read; CI tries a relay that cannot be read twice more, 60 s apart, and a
+changed fact fails at once.
+
+`.github/workflows/relay-watch.yml` runs the check each day, and by hand,
+with no push: a fact that changed opens one issue, titled with the pin and
+the facts that failed; a document that could not be read in three runs in a
+row, one. The same run reads the expiry of the relay's domain from its RDAP
+record (`scripts/check-domain.py`: the registry's server by IANA's
+bootstrap, then rdap.org): exit 1, and an issue, when it is less than 90
+days ahead; 2, never a pass, when no record was read. A run by hand takes
+`dry_run`, which opens no issue, and `plant` (`moved-section`, `unreadable`)
+to prove each path.
+
 ## How podssh selects relay hosts
 
 The code is in `crates/podssh-relay/`.

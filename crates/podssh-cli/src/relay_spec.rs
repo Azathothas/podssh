@@ -5,13 +5,15 @@
 //! the same facts file, and CI asks both for the same verdict.
 //!
 //! stdout carries the verdict: one `ok` line, or one `FAIL` line for each
-//! fact that disagrees. A relay that could not be read is neither: it is a
-//! check that did not run, and exits as an unreachable relay does.
+//! fact that disagrees, then one `note` line for each fact found at another
+//! line of its section than the facts file names, which holds (T-338). A
+//! relay that could not be read is neither: it is a check that did not run,
+//! and exits as an unreachable relay does.
 
 use std::io::Write;
 
 use podssh_probe::facts::Facts;
-use podssh_probe::relay_facts::{verdict_from, Observed, Verdict};
+use podssh_probe::relay_facts::{verdict_from, Moved, Observed, Verdict};
 use podssh_relay::relay;
 use podssh_ws::client::https_get;
 use podssh_ws::dial::ProxyChoice;
@@ -107,7 +109,7 @@ fn live(args: &RelayArgs, err: &mut dyn Write) -> Result<Observed, Refusal> {
 fn report(verdict: &Verdict, facts: &Facts, out: &mut dyn Write, err: &mut dyn Write) -> i32 {
     let checked = facts.facts.len() + facts.relations.len();
     match verdict {
-        Verdict::Ok { version, pinned, sha256, lines } => {
+        Verdict::Ok { version, pinned, sha256, lines, moved } => {
             let served = version.as_deref().unwrap_or("not read (a document from a file)");
             let _ = writeln!(
                 out,
@@ -115,6 +117,7 @@ fn report(verdict: &Verdict, facts: &Facts, out: &mut dyn Write, err: &mut dyn W
                  version {served}, pinned {pinned}",
                 &sha256[..16]
             );
+            note_moved(moved, out);
             if verdict.version_moved() {
                 let _ = writeln!(
                     err,
@@ -124,10 +127,11 @@ fn report(verdict: &Verdict, facts: &Facts, out: &mut dyn Write, err: &mut dyn W
             }
             0
         }
-        Verdict::Failed { disagreements, .. } => {
+        Verdict::Failed { disagreements, moved, .. } => {
             for d in disagreements {
                 let _ = writeln!(out, "FAIL {d}");
             }
+            note_moved(moved, out);
             let _ = writeln!(
                 err,
                 "podssh relay spec: {} of the {checked} facts disagree with the relay's document: the relay changed \
@@ -140,5 +144,13 @@ fn report(verdict: &Verdict, facts: &Facts, out: &mut dyn Write, err: &mut dyn W
             let _ = writeln!(err, "podssh relay spec: the check did not run: {why}");
             Fault::RelayUnreachable.code()
         }
+    }
+}
+
+/// A line for each fact that holds away from its line: the relay's document
+/// moved, and the facts file's hint is old.
+fn note_moved(moved: &[Moved], out: &mut dyn Write) {
+    for m in moved {
+        let _ = writeln!(out, "note {m}");
     }
 }

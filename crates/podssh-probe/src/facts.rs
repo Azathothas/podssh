@@ -61,8 +61,12 @@ pub struct Pin {
 #[serde(rename_all = "kebab-case")]
 pub struct Fact {
     pub id: String,
-    /// A line of the peer's published document, 1-based.
+    /// A line of the peer's published document, 1-based: where the fact is
+    /// read first, a hint (T-338).
     pub line: usize,
+    /// The heading of the document that the fact stands under, by its first
+    /// words: each of its lines is read when the hint is not the fact's.
+    pub section: String,
     #[serde(flatten)]
     pub expect: Expect,
     pub why: String,
@@ -100,7 +104,10 @@ pub struct Relation {
 #[derive(Debug, Clone, PartialEq, Eq, Deserialize)]
 #[serde(rename_all = "kebab-case")]
 pub struct Operand {
+    /// Where the operand is read first, as a fact's `line`.
     pub line: usize,
+    /// The heading that the operand stands under, as a fact's `section`.
+    pub section: String,
     pub pattern: String,
     /// The name of capture group 1, then of group 2, and so on. The count
     /// here is what the arithmetic is allowed to refer to.

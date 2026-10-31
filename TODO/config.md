@@ -461,7 +461,7 @@ result, `Resolved` (lines 27-41 at `22c3b88`), holds the settings in effect, the
    (`crates/podssh-cli/src/ssh/keywords.rs:25-82`), and `host`, `hostname`, `user`, `port`,
    `identityfile` and `proxyjump`. Spell each value as `ssh -G` does (`true` or `yes`).
 5. Keep a list in the test of the values that differ on purpose, each with its reason:
-   `serveraliveinterval 60` (the relay's idle cut, `docs/relay.md:165`) and `connecttimeout 60`.
+   `serveraliveinterval 60` (the relay's idle cut, `docs/relay.md:185`) and `connecttimeout 60`.
 6. It does not wait for T-043: with no file, `-G` shows the effect of `-o`. After T-043 and
    T-044, `-v` names the files that were read, on stderr.
 7. Change the `ssh` notes (`crates/podssh-cli/src/man/notes_ssh.rs:4-287`) and `docs/cli.md:48-412`
@@ -702,7 +702,7 @@ configuration directory first; the operator corrected it on 2026-10-08 (`docs/de
 5. No keyword for a token: a token in a file is a stored credential (question Q5, T-034).
 6. podssh never writes the file: csshw creates one, but podssh changes nothing unasked.
 7. `doctor` and `status` (T-051) name the file in use. Change in the same commit: VARIABLES and
-   FILES (`crates/podssh-cli/src/man/facts.rs:45-260`, 98-142), `docs/relay.md:30-81` and
+   FILES (`crates/podssh-cli/src/man/facts.rs:45-260`, 98-142), `docs/relay.md:50-101` and
    `docs/cli.md`. The cache directory is the work of T-243.
 
 ## Decision

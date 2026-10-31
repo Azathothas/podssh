@@ -139,7 +139,7 @@ Read:
   (`crates/podssh-ssh/src/handler.rs` lines 31-59 at `80f20bf`), and the
   default of russh 0.64.1 drops the reason.
 - The relay's contract gives no close codes for the forward path;
-  `docs/relay.md:219-231` lists them, read from the relay's source.
+  `docs/relay.md:239-251` lists them, read from the relay's source.
   `1011 write failed: ...` means that the relay could not write to the
   target. The KTM report saw it with 0 bytes, on a target that the relay
   could dial but not use (read in the report, not verified here).
@@ -147,8 +147,8 @@ Read:
   MiB queued". That row is in the contract's table of reverse close codes
   (`crates/podssh-probe/tests/spec/relay-spec-2026-10-03-r2.txt:160-166`, row
   `crates/podssh-probe/tests/spec/relay-spec-2026-10-03-r2.txt:185`). On the
-  forward path, backpressure closes with `1013` at 2 MiB (`docs/relay.md:230`,
-  `docs/relay.md:241-253`). The comment on the SSH window
+  forward path, backpressure closes with `1013` at 2 MiB (`docs/relay.md:250`,
+  `docs/relay.md:261-273`). The comment on the SSH window
   (`crates/podssh-ssh/src/run.rs` lines 25-29 at `80f20bf`) also cites the
   reverse row.
 
@@ -157,7 +157,7 @@ Read:
 1. Classify a forward-path close in one place, next to
    `close_code_and_reason` (`crates/podssh-ws/src/session.rs:380-388`), which
    `podssh ssh` and `podssh proxy` both use. Map the code and the reason of
-   `docs/relay.md:224-231` to a hop. Relay to target: `1011` with
+   `docs/relay.md:244-251` to a hop. Relay to target: `1011` with
    `connect failed`, `write failed`, `target closed before sending anything`
    or `wrong target banner`, and `1013 target write backlog`. Client to
    relay: `1011` with `client send failed` or `client error`,
@@ -194,7 +194,7 @@ cargo test -p podssh-ssh -- first_line
 sh scripts/dev.sh check
 ```
 
-The first test has one case for each row of `docs/relay.md:224-231`, and one
+The first test has one case for each row of `docs/relay.md:244-251`, and one
 for an unknown code. The second builds the first line from each kind of
 `RelayEnd`, from a server disconnect, and from a bare russh error. In the
 gate, a new stand-in relay in `scripts/interop-faults.sh` (mode
@@ -2034,7 +2034,7 @@ Read, at `9fefff2`:
   limit (`wait_recv_reply`), and keepalives start only after the
   authentication succeeds. So nothing ends the wait on the direct road.
 - On the relay road, nothing moves while podssh waits, so the relay closes
-  the session after 180 s with no payload (`docs/relay.md:165`). The relay's
+  the session after 180 s with no payload (`docs/relay.md:185`). The relay's
   own keepalive frames keep the ping watcher content meanwhile.
 - A prompt has its own limit when nobody watches the terminal (60 s, T-005;
   `docs/cli.md:2518-2521`). A person who types slowly must not meet a limit
@@ -2151,7 +2151,7 @@ Read:
   reads it. Then it queues the data and ignores a failed send. The default
   callback drops its `Channel`, so such data is read and thrown away, and the
   window never closes. Each byte crosses the relay and counts toward its
-  64 MiB (`docs/relay.md:167`).
+  64 MiB (`docs/relay.md:187`).
 - A channel that podssh keeps and does not read is worse: its queue fills
   (`channel_buffer_size`), and then the whole session stops reading.
 - Nothing connects such a channel to a local service today, so no data

@@ -1,0 +1,117 @@
+name: relay watch
+
+# Each day, and by hand: the relay's published document against the facts of
+# podssh, and the expiry of the relay's domain (T-338). Pushes grow rare after
+# v1.0.0, so the gate alone would leave a change of the relay unseen. A fact
+# that changed opens one issue, titled with the pin and the facts that failed;
+# a document that could not be read in three runs in a row, one; a domain that
+# expires within 90 days, one, and its expiry unread three runs in a row, one;
+# each unless an open issue has its title (scripts/relay_watch.py). The run is
+# red while a check fails. It mints no token.
+
+on:
+  schedule:
+    # Each day at 05:43 UTC, off the hour.
+    - cron: "43 5 * * *"
+  workflow_dispatch:
+    inputs:
+      dry_run:
+        description: "Print the issues that the run would open, and open none"
+        type: boolean
+        default: false
+      plant:
+        description: "A planted fault, to prove a path: a fact out of its section, or a relay that cannot be read"
+        type: choice
+        default: none
+        options: [none, moved-section, unreadable]
+
+permissions:
+  contents: read
+
+jobs:
+  watch:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 30
+    permissions:
+      contents: read
+      issues: write
+      # The results of the runs before, for "three runs in a row".
+      actions: read
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+      # A relay that cannot be read (exit 2) is tried twice more, 60 s apart;
+      # a fact that changed (exit 1) is final at once.
+      - name: the relay's structural facts
+        id: facts
+        env:
+          PLANT: ${{ inputs.plant }}
+        run: |
+          mkdir -p watch
+          case "${PLANT:-none}" in
+            moved-section) args=--plant-moved-section ;;
+            unreadable) args="--url https://relay.invalid" ;;
+            *) args= ;;
+          esac
+          try=1
+          while :; do
+            rc=0
+            python3 scripts/check-relay-spec.py --json $args > watch/facts.json || rc=$?
+            if [ "$rc" -ne 2 ] || [ "$try" -ge 3 ]; then break; fi
+            echo "the relay could not be read (try $try of 3); again in 60 s"
+            try=$((try + 1))
+            sleep 60
+          done
+          cat watch/facts.json
+          echo "check-relay-spec.py: exit $rc"
+          echo "rc=$rc" >> "$GITHUB_OUTPUT"
+      - name: the expiry of the relay's domain
+        id: domain
+        run: |
+          rc=0
+          python3 scripts/check-domain.py > watch/domain.txt 2>&1 || rc=$?
+          cat watch/domain.txt
+          echo "check-domain.py: exit $rc"
+          echo "rc=$rc" >> "$GITHUB_OUTPUT"
+      - name: the results of the runs before
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          set -eu
+          mkdir -p watch/previous
+          ids=$(gh run list --repo "$GITHUB_REPOSITORY" --workflow relay-watch.yml --status completed --limit 2 \
+            --json databaseId -q '.[].databaseId')
+          for id in $ids; do
+            gh run download "$id" --repo "$GITHUB_REPOSITORY" -n relay-watch -D "watch/previous/$id" \
+              || echo "run $id kept no result"
+          done
+          find watch/previous -name result.json -exec sh -c 'echo "$1: $(cat "$1")"' _ {} \;
+      - name: the result of this run
+        env:
+          FACTS: ${{ steps.facts.outputs.rc }}
+          DOMAIN: ${{ steps.domain.outputs.rc }}
+        run: |
+          printf '{"facts": %s, "domain": %s}\n' "$FACTS" "$DOMAIN" | tee watch/result.json
+      # A planted run's result is no day's: it is not kept for the next runs.
+      - if: inputs.plant == '' || inputs.plant == 'none'
+        uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
+        with:
+          name: relay-watch
+          path: watch/result.json
+          retention-days: 10
+      - name: the issues
+        env:
+          GH_TOKEN: ${{ github.token }}
+          DRY_RUN: ${{ inputs.dry_run }}
+        run: |
+          if [ "$DRY_RUN" = true ]; then
+            python3 scripts/relay_watch.py watch --dry-run
+          else
+            python3 scripts/relay_watch.py watch
+          fi
+      - name: the verdict
+        env:
+          FACTS: ${{ steps.facts.outputs.rc }}
+          DOMAIN: ${{ steps.domain.outputs.rc }}
+        run: |
+          echo "the relay's facts: exit $FACTS; the domain's expiry: exit $DOMAIN"
+          [ "$FACTS" = 0 ] && [ "$DOMAIN" = 0 ]

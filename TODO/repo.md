@@ -458,7 +458,7 @@ Read:
 3. On a run by hand, make the list of the commits since the last tag as an
    artifact, so that it can be read before a tag.
 4. Link each "Fixes #N" of a commit to its issue in the list.
-5. docs/development.md, "Release builds" (`docs/development.md:652-749`): the
+5. docs/development.md, "Release builds" (`docs/development.md:655-752`): the
    body is the notes file and the generated list.
 
 No new shell script: each step is a step of the workflow.
@@ -2025,7 +2025,7 @@ Read, in the tree as it is now:
   compiles one C++ file with the `cc` crate. With both variables set, the
   build must fail at `/nonexistent`; the control, with `CC` alone, must not
   stop there.
-- `docs/development.md:247-249` states the rule with `CXX`, and
+- `docs/development.md:250-252` states the rule with `CXX`, and
   `docs/STATUS.md:633` records the measurement. Rule 4 of
   `docs/architecture.md` named `CC=/nonexistent` only; it was repaired in the
   same change as the record.
@@ -2111,7 +2111,7 @@ Read:
 3. A plant in the same script: a mode `--plant-empty` runs the checks on an
    empty temporary directory and must exit 1. The control is the real tree,
    which must exit 0. CI runs both, as it does for the relay check
-   (`.github/workflows/build.yml:196-208`).
+   (`.github/workflows/build.yml:196-221`).
 4. With T-207: the size check also reads `scripts/`, with its own floor.
 5. The checker of `TODO/` gets its own floor in its own change; this entry
    does not plan it.
@@ -2321,7 +2321,7 @@ Read, wrong facts:
   `crates/podssh-probe/tests/spec/relay-spec-2026-10-03-r2.txt`).
 - crates/podssh-transport/src/backpressure/mod.rs lines 4-22 at `e8bbd4d` gives the reverse
   path's backpressure (1011, 1 MiB, the frame dropped: line 185 of that copy)
-  as the forward path's. For the forward path, `docs/relay.md:241-253` says
+  as the forward path's. For the forward path, `docs/relay.md:261-273` says
   1013 at 2 MiB, with no frame dropped. The comment on the SSH window said
   the same as `backpressure/mod.rs` (`crates/podssh-ssh/src/run.rs` lines
   25-28 at `80f20bf`); T-024 corrected it.

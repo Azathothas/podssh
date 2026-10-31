@@ -196,16 +196,31 @@ jobs:
       - name: the relay's structural facts, live
         run: |
           set -eu
-          "$PY" scripts/check-relay-spec.py
-          for plant in --plant-bad-path --plant-bad-timeout --plant-bad-cap; do
+          # A relay that cannot be read (exit 2) is tried twice more, 60 s
+          # apart; a fact that changed (exit 1) fails at once (T-338).
+          live() {
+            try=1
+            while :; do
+              rc=0
+              "$PY" scripts/check-relay-spec.py "$@" || rc=$?
+              if [ "$rc" -ne 2 ] || [ "$try" -ge 3 ]; then return "$rc"; fi
+              echo "the relay could not be read (try $try of 3); again in 60 s"
+              try=$((try + 1))
+              sleep 60
+            done
+          }
+          live
+          for plant in --plant-bad-path --plant-bad-timeout --plant-bad-cap --plant-moved-section; do
             rc=0
-            "$PY" scripts/check-relay-spec.py $plant || rc=$?
+            live $plant || rc=$?
             if [ "$rc" -ne 1 ]; then
               echo "the fact check is vacuous: $plant exited $rc, not 1"
               exit 1
             fi
             echo "$plant exited 1, as it must"
           done
+          # Each fact one line down, within its section: each holds, noted.
+          live --plant-moved-line
 
   # Windows is a released platform: each default test runs on it here, as the
   # gate runs them in Linux. The console code of Windows and the branches of

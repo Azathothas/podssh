@@ -38,6 +38,10 @@ Usage:
                                             document, to prove the gate fires
     check-relay-spec.py --plant-bad-timeout corrupt the open timeout
     check-relay-spec.py --plant-bad-cap     corrupt the node frame cap
+    check-relay-spec.py --plant-moved-line  a line inserted at the top: each
+                                            fact holds, with a note (T-338)
+    check-relay-spec.py --plant-moved-section the node path out of its
+                                            section: it must fail
     check-relay-spec.py --url URL           a different origin, for a fork
     check-relay-spec.py --json              machine-readable
 """
@@ -55,6 +59,9 @@ from pathlib import Path
 
 ROOT = Path(__file__).resolve().parent.parent
 FACTS_FILE = ROOT / "crates" / "podssh-probe" / "facts" / "relay-facts.toml"
+# The module beside this script, also under `python -I`.
+sys.path.insert(0, str(Path(__file__).resolve().parent))
+from relay_sections import locate, plant_moved_line, plant_moved_section  # noqa: E402
 
 # Bounded. An unbounded read on a host whose egress hangs is a gate that hangs,
 # and a gate that hangs is a gate whose verdict nobody reads.
@@ -123,7 +130,7 @@ def load_facts(path: Path) -> dict:
                 raise FactsFileError(f"{where}: malformed array-of-tables header")
             section = line[2:-2].strip()
             if section == "facts":
-                relation = {"id": None, "line": None, "contains": None,
+                relation = {"id": None, "line": None, "section": None, "contains": None,
                             "pattern": None, "value": None}
                 facts["facts"].append(relation)
                 table = relation
@@ -151,7 +158,7 @@ def load_facts(path: Path) -> dict:
                 if relation is None:
                     raise FactsFileError(f"{where}: [{header}] outside a [[relations]]")
                 operand_side = side
-                table = relation[side] = {"line": None, "pattern": None, "names": []}
+                table = relation[side] = {"line": None, "section": None, "pattern": None, "names": []}
             else:
                 raise FactsFileError(f"{where}: unknown section [{header}]")
             continue
@@ -166,6 +173,8 @@ def load_facts(path: Path) -> dict:
             match key:
                 case "line":
                     table["line"] = int(unquote(value))
+                case "section":
+                    table["section"] = unquote(value)
                 case "pattern":
                     table["pattern"] = unquote(value)
                 case "names":
@@ -198,6 +207,8 @@ def load_facts(path: Path) -> dict:
                         table["id"] = unquote(value)
                     case "line":
                         table["line"] = int(unquote(value))
+                    case "section":
+                        table["section"] = unquote(value)
                     case "contains":
                         table["contains"] = unquote(value)
                     case "pattern":
@@ -230,8 +241,8 @@ def validate(facts: dict) -> None:
         raise FactsFileError("there are no structural facts at all; a gate "
                              "with no facts asserts nothing")
     for fact in facts["facts"]:
-        if not fact.get("id") or not fact.get("line"):
-            raise FactsFileError(f"fact {fact.get('id')!r} has no id or line")
+        if not fact.get("id") or not fact.get("line") or not fact.get("section"):
+            raise FactsFileError(f"fact {fact.get('id')!r} has no id, line or section")
         if fact.get("contains") is None and fact.get("pattern") is None:
             raise FactsFileError(f"fact {fact['id']} has neither `contains` nor "
                                  f"`pattern`")
@@ -242,7 +253,7 @@ def validate(facts: dict) -> None:
             raise FactsFileError(f"relation {relation.get('id')!r} has no expression")
         for side in ("src", "dst"):
             operand = relation.get(side)
-            if not operand or not operand.get("line") or not operand.get("pattern"):
+            if not operand or not operand.get("line") or not operand.get("pattern") or not operand.get("section"):
                 raise FactsFileError(f"relation {relation.get('id')} has no "
                                      f"readable {side} operand")
             if not operand.get("names"):
@@ -273,49 +284,54 @@ def read_version(health: bytes) -> str:
     return version
 
 
-def read_operands(relation: dict, spec_lines: list[str]) -> dict[str, int]:
+def read_operands(relation: dict, spec_lines: list[str], moved: list[dict]) -> dict[str, int]:
     values: dict[str, int] = {}
     for side in ("src", "dst"):
         operand = relation[side]
-        line = int(operand["line"])
-        if not 1 <= line <= len(spec_lines):
-            raise ValueError(f"spec line {line} does not exist; the document has "
-                             f"{len(spec_lines)} lines")
-        found = re.search(operand["pattern"], spec_lines[line - 1])
-        if not found:
-            raise ValueError(f"spec line {line} carries no number for {side}: "
-                             f"{spec_lines[line - 1].strip()[:120]}")
+        pattern = re.compile(operand["pattern"])
+        line = locate(spec_lines, int(operand["line"]), operand["section"],
+                      lambda text: pattern.search(text) is not None, f"a number for {side}")
+        note(moved, relation["id"], operand["section"], int(operand["line"]), line)
+        found = pattern.search(spec_lines[line - 1])
         for name, group in zip(operand["names"], range(1, found.lastindex + 1)):
             values[name] = int(found.group(group))
     return values
 
 
-def check(facts: dict, spec_lines: list[str]) -> list[str]:
+def note(moved: list[dict], fact_id: str, section: str, hint: int, line: int) -> None:
+    """A fact that holds away from its line, once: the hint is old."""
+    entry = {"fact": fact_id, "section": section, "from": hint, "to": line}
+    if hint != line and entry not in moved:
+        moved.append(entry)
+
+
+def check(facts: dict, spec_lines: list[str]) -> tuple[list[str], list[dict]]:
     problems: list[str] = []
+    moved: list[dict] = []
 
     for fact in facts["facts"]:
-        line = int(fact["line"])
-        if not 1 <= line <= len(spec_lines):
-            problems.append(f"{fact['id']}: spec line {line} does not exist; the "
-                            f"document has {len(spec_lines)} lines")
-            continue
-        text = spec_lines[line - 1]
-        if fact.get("contains") is not None:
-            if fact["contains"] not in text:
-                problems.append(f"{fact['id']}: spec line {line} does not carry "
-                                f"{fact['contains']!r}. It reads: {text.strip()[:120]}")
-        elif fact.get("pattern") is not None:
-            found = re.search(fact["pattern"], text)
-            if not found:
-                problems.append(f"{fact['id']}: spec line {line} carries no value")
-            elif int(found.group(1)) != fact["value"]:
-                problems.append(f"{fact['id']}: spec line {line} says "
-                                f"{found.group(1)}; this repository says "
-                                f"{fact['value']}")
+        hint, section = int(fact["line"]), fact["section"]
+        try:
+            if fact.get("contains") is not None:
+                needle = fact["contains"]
+                note(moved, fact["id"], section, hint,
+                     locate(spec_lines, hint, section, lambda text: needle in text, repr(needle)))
+            elif fact.get("pattern") is not None:
+                pattern = re.compile(fact["pattern"])
+                line = locate(spec_lines, hint, section, lambda text: pattern.search(text) is not None,
+                              "a value for this fact")
+                got = pattern.search(spec_lines[line - 1]).group(1)
+                if int(got) != fact["value"]:
+                    problems.append(f"{fact['id']}: spec line {line} says {got}; this repository says "
+                                    f"{fact['value']}")
+                else:
+                    note(moved, fact["id"], section, hint, line)
+        except ValueError as exc:
+            problems.append(f"{fact['id']}: {exc}")
 
     for relation in facts["relations"]:
         try:
-            values = read_operands(relation, spec_lines)
+            values = read_operands(relation, spec_lines, moved)
         except ValueError as exc:
             problems.append(f"{relation['id']}: {exc}")
             continue
@@ -332,7 +348,14 @@ def check(facts: dict, spec_lines: list[str]) -> list[str]:
             problems.append(f"{relation['id']}: no evaluator for {expression!r}; a "
                             f"relation this gate does not understand must fail "
                             f"loudly rather than pass")
-    return problems
+    return problems, moved
+
+
+def note_line(entry: dict) -> str:
+    """A note as `podssh relay spec` prints it."""
+    section = json.dumps(entry["section"], ensure_ascii=False)
+    return (f"note {entry['fact']}: at line {entry['to']} of its section {section}, not at line "
+            f"{entry['from']}: move the line in the facts file")
 
 
 PLANTS = {
@@ -352,6 +375,8 @@ def main() -> int:
     parser.add_argument("--json", action="store_true", dest="as_json")
     for flag in PLANTS:
         parser.add_argument("--" + flag.replace("_", "-"), action="store_true")
+    parser.add_argument("--plant-moved-line", action="store_true")
+    parser.add_argument("--plant-moved-section", action="store_true")
     args = parser.parse_args()
 
     try:
@@ -398,7 +423,17 @@ def main() -> int:
                   file=sys.stderr)
             return 2
 
-    problems = check(facts, lines)
+    try:
+        if args.plant_moved_line:
+            lines = plant_moved_line(lines)
+        if args.plant_moved_section:
+            planted = "reverse-node-path"
+            lines = plant_moved_section(lines, facts)
+    except ValueError as exc:
+        print(f"check-relay-spec: {exc}", file=sys.stderr)
+        return 2
+
+    problems, moved = check(facts, lines)
 
     pin_version = facts["pin"]["version"]
     version_moved = version != pin_version
@@ -407,6 +442,15 @@ def main() -> int:
         print("check-relay-spec: THE GATE IS VACUOUS. A planted defect did not "
               "fail it.", file=sys.stderr)
         return 1
+    # Each fact moved by one line within its section: each must hold, with a
+    # note; a fact read at its line alone fails here (T-338).
+    if args.plant_moved_line:
+        unmoved = {f["id"] for f in facts["facts"]} | {r["id"] for r in facts["relations"]}
+        unmoved -= {entry["fact"] for entry in moved if entry["to"] == entry["from"] + 1}
+        if problems or unmoved:
+            print("check-relay-spec: a line inserted at the top did not move each fact within its section: "
+                  f"{sorted(unmoved)}", file=sys.stderr)
+            problems = problems or [f"{fact}: not found one line down" for fact in sorted(unmoved)]
 
     verdict = {
         "source": source,
@@ -418,6 +462,7 @@ def main() -> int:
         "facts_checked": len(facts["facts"]) + len(facts["relations"]),
         "planted": planted,
         "problems": problems,
+        "moved": moved,
     }
 
     if args.as_json:
@@ -430,6 +475,8 @@ def main() -> int:
         print(f"facts:   {verdict['facts_checked']} structural facts asserted")
         for problem in problems:
             print(f"  FAIL {problem}")
+        for entry in moved:
+            print(f"  {note_line(entry)}")
 
     if problems:
         print(f"\ncheck-relay-spec: {len(problems)} structural fact(s) disagree with "

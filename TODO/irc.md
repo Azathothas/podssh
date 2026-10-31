@@ -3,7 +3,7 @@ to I8 of the former defects page (`git show 3ee70dc:docs/defects.md`), and the r
 decides how `podssh chat` works (T-099). No command uses the client, and `podssh chat` exits 70.
 The client is sans-IO, so its unit tests need no network. The live probe
 `crates/podssh-cli/examples/live_irc.rs` reaches real servers through the relay, with a token from
-the environment, the cache or a mint, never printed (`docs/development.md:603-610`). Each defect was read
+the environment, the cache or a mint, never printed (`docs/development.md:606-613`). Each defect was read
 again on `3ee70dc`.
 
 # T-091: I1: `CAP END` is sent only after 001
@@ -162,7 +162,7 @@ cargo test -p podssh-core --no-fail-fast
 The new file crates/podssh-core/tests/cap_list.rs holds `only_listed_capabilities_are_requested`,
 `a_value_is_never_sent_back`, `a_list_on_several_lines_gives_one_request` and
 `the_continuation_marker_is_not_a_capability`. Its input is a `CAP LS 302` reply captured from a
-real server, kept byte for byte with the server, version and date (`docs/development.md:616-617`).
+real server, kept byte for byte with the server, version and date (`docs/development.md:619-620`).
 Plant: remove the list filter; the first test must fail with `sasl=PLAIN` in the `REQ`. Then repeat
 the live runs of T-091; the probe prints the offered and enabled capabilities.
 
@@ -769,7 +769,7 @@ with the text `\u{200b}podssh/N` (`crates/podssh-core/src/irc/reap.rs`, lines 53
 
 Read: the module says that IRC `PONG` lines cannot keep a session open
 (`crates/podssh-core/src/irc/reap.rs:5-15`). The relay's rule is about its own keepalives, the
-empty frames every 25 s (`docs/relay.md:107-108`, `docs/relay.md:165`). An IRC `PING` and its `PONG`
+empty frames every 25 s (`docs/relay.md:127-128`, `docs/relay.md:185`). An IRC `PING` and its `PONG`
 are bytes of the stream, so they are payload.
 
 Measured on SSH, not on IRC: payload keepalives every 60 s kept a relay session for 602 s; with
@@ -804,7 +804,7 @@ The new file crates/podssh-core/tests/keepalive.rs holds `the_keepalive_is_a_pin
 and `a_matching_pong_counts_as_a_reception`. Plant: return the `PRIVMSG` heartbeat; the first test
 must fail. Live: give the probe an idle mode. An idle session on undernet must stay open for 10 min
 with no channel message. With the keepalive off (the control), the relay must close it at about
-180 s with `1001 idle timeout` (`docs/relay.md:227`).
+180 s with `1001 idle timeout` (`docs/relay.md:247`).
 
 ## Correction
 
