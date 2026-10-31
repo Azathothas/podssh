@@ -5,8 +5,8 @@ target sandbox, and release it.
 
 ## Requirements
 
-- Rust 1.89 or later for the binary. The library crates build with Rust
-  1.85, podbox's minimum. The `ts` feature needs Rust 1.92, and the `iroh`
+- Rust 1.89 or later for the binary and the library crates, which keep no
+  older minimum (the operator's ruling of Q48). The `ts` feature needs Rust 1.92, and the `iroh`
   feature 1.91. The gate checks each crate on the version that its manifest
   declares.
 - A C compiler for the binary. The SSH client uses aws-lc (`aws-lc-sys`,
@@ -236,8 +236,8 @@ sh scripts/dev.sh run -- 'sh /work/scripts/gate.sh ssh'
 
 `lint` checks the format and clippy's lints (see "Checks"). `msrv`,
 `msrv_ssh`, `msrv_ts` and `msrv_iroh` check each crate with `cargo check
---locked --all-targets` on the minimum Rust that its manifest declares: 1.85
-for the library crates and `podssh-todo` (with no C compiler), 1.89 for
+--locked --all-targets` on the minimum Rust that its manifest declares: 1.89
+for the library crates and `podssh-todo` (with no C compiler), and for
 `podssh-ssh` and `podssh-cli`, 1.92 for `podssh-ts` and the CLI with the
 feature `ts`, 1.91 for `podssh-iroh` and the CLI with the feature `iroh`.
 rustup fetches each toolchain into the build image, so the C toolchain is

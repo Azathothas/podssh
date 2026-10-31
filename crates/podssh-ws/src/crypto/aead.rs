@@ -92,13 +92,13 @@ impl Aead {
         self.id
     }
 
-    /// The nonce is a `GenericArray` of 12 bytes, and the length is fixed
-    /// by `NONCE_LEN` above. The size is named explicitly rather than inferred,
+    /// The nonce is an `Array` of 12 bytes, and the length is fixed by
+    /// `NONCE_LEN` above. The size is named explicitly rather than inferred,
     /// because `aes_gcm::Nonce` takes it as a type parameter and a wrong one
     /// would be a different nonce length rather than a compile error at the
     /// call site that uses it.
     fn nonce(n: &[u8; NONCE_LEN]) -> aes_gcm::Nonce<aes_gcm::aead::consts::U12> {
-        *aes_gcm::Nonce::from_slice(n)
+        (*n).into()
     }
 
     pub fn seal_in_place(&self, nonce: &[u8; NONCE_LEN], aad: &[u8], buffer: &mut Vec<u8>) -> Option<()> {
@@ -107,8 +107,7 @@ impl Aead {
             Inner::Aes128(k) => k.encrypt(&Self::nonce(nonce), payload).ok()?,
             Inner::Aes256(k) => k.encrypt(&Self::nonce(nonce), payload).ok()?,
             Inner::ChaCha(k) => {
-                chacha20poly1305::ChaCha20Poly1305::encrypt(k, chacha20poly1305::Nonce::from_slice(nonce), payload)
-                    .ok()?
+                chacha20poly1305::ChaCha20Poly1305::encrypt(k, &chacha20poly1305::Nonce::from(*nonce), payload).ok()?
             }
         };
         *buffer = sealed;
@@ -126,8 +125,7 @@ impl Aead {
             Inner::Aes128(k) => k.decrypt(&Self::nonce(nonce), payload).ok()?,
             Inner::Aes256(k) => k.decrypt(&Self::nonce(nonce), payload).ok()?,
             Inner::ChaCha(k) => {
-                chacha20poly1305::ChaCha20Poly1305::decrypt(k, chacha20poly1305::Nonce::from_slice(nonce), payload)
-                    .ok()?
+                chacha20poly1305::ChaCha20Poly1305::decrypt(k, &chacha20poly1305::Nonce::from(*nonce), payload).ok()?
             }
         };
         // The AEAD crates return a `Vec` that may be a fresh allocation, so

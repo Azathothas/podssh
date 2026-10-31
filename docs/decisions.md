@@ -57,6 +57,7 @@ The newest decision is first in each section.
 
 | Date | Decision |
 | --- | --- |
+| 2026-10-31 | **Agents search and read the web through `web.pkgforge.dev`** (the operator). A session's agent that needs the web uses the services listed at <https://web.pkgforge.dev/llms.txt>: it reads that page first, then the chosen service's own `llms.txt` (search, read, fetch, forge and the others), and no other way of searching. |
 | 2026-10-31 | **No immutable releases for `v1.0.0`** (the operator). GitHub's setting stays off; a tag never moves in any case. |
 | 2026-10-31 | **T-328 is a known gap** (the operator). The import of FinalShell and Termius waits for an export that each program wrote and that is published under a license this repository can hold (Q41); `v1.0.0` does not wait for it, and its notes name the gap. |
 | 2026-10-31 | **The live checks that need the operator's hosts: a study of local stand-ins first** (the operator; Q42, T-062, T-157, T-251). Before any secret is added, a session studies whether local servers or stand-ins can run them: the throughput host of `PODSSH_THROUGHPUT_SSH`, the tailnet and its auth key in `.env/`. |

@@ -1901,7 +1901,7 @@ leaves armv7 out of the Decision; the plan below takes Alpine's own toolchain fo
   container. Plan B, which the Decision rejected, for native speed: `ghcr.io/cross-rs/armv7-unknown-
   linux-musleabihf:main`, or `cargo-zigbuild` (its CI covers x86_64, aarch64 and Apple, not armv7).
   The release profile is `opt-level = "z"`, `lto = true`, `codegen-units = 1`
-  (`Cargo.toml:198` says "opt-level"; the profile is at the lines around it): the link on a 32-bit
+  (`Cargo.toml:197` says "opt-level"; the profile is at the lines around it): the link on a 32-bit
   rustc may run out of address space, and under QEMU it is slow. Measure first.
 - `riscv64gc-unknown-linux-musl`: Rust tier 2 with host tools. Plan A: `runs-on: ubuntu-24.04`,
   `docker/setup-qemu-action` with `platforms: riscv64`, `docker run --platform linux/riscv64
@@ -3962,7 +3962,7 @@ identities (x25519-dalek, `podssh-ws` and `podssh-relay`), and its AEAD
   moves with its `hmac`, where the two meet (the hashed names of
   `known_hosts`): Inferred.
 - Read: the root `Cargo.toml:142` asks for `aes-gcm` 0.10 and
-  `Cargo.toml:147` for `x25519-dalek` 2;
+  `Cargo.toml:146` for `x25519-dalek` 2;
   `crates/podssh-ws/src/crypto/aead.rs` and `crates/podssh-ws/src/crypto/kx.rs`
   hold the calls, with `crates/podssh-relay/src/identity/mod.rs` and
   `crates/podssh-relay/src/session/secret.rs`, and
@@ -4097,7 +4097,7 @@ T-330's second Correction (2026-10-30): the gate's step `msrv` refuses it.
 **Milestone:** none
 **Priority:** P3
 **Effort:** S
-**Status:** blocked
+**Status:** done
 
 ## Problem
 
@@ -4137,7 +4137,39 @@ sh scripts/gate.sh msrv
 Each vector holds, and the library crates check on their declared minimum.
 Planted: one byte of a key of the vectors; its test fails.
 
-## Blocker
+## Correction
 
-The operator (Q48, `TODO/PROGRESS.md`): the library crates keep podbox's
-Rust 1.85 until the operator says that they may need 1.89.
+2026-10-31. The blocker cleared: the operator ruled on Q48 that podssh is a
+client first, and that no legacy constraint, such as podbox's older minimum
+Rust, holds a dependency back (`docs/decisions.md`). The library crates
+declare Rust 1.89.
+
+## Done
+
+2026-10-31.
+
+- The root `Cargo.toml`: `rust-version` 1.89 for the library crates and
+  podssh-todo, its comment the ruling's reason; aes-gcm 0.11 and
+  chacha20poly1305 0.11 (`aead` 0.6). `crates/podssh-ws/src/crypto/aead.rs`
+  as T-330's first step had it: the nonce an `Array` from its 12 bytes.
+  `Cargo.lock` and `fuzz/Cargo.lock` take chacha20poly1305 0.11.0 again,
+  and podssh-ws the line of 0.11 that russh already brought.
+- The lints of Rust 1.89 that clippy now applies to the library crates:
+  `is_multiple_of` in the bundle's and the IRC transfer's base64, and
+  `as_chunks` in the bundle's decoder and the SHA-1 of the WebSocket
+  handshake; the same behaviour, each length checked first.
+- `docs/design.md`, `docs/development.md`: the library crates' minimum is
+  Rust 1.89, with the ruling.
+- `cargo test -p podssh-ws --test crypto_vectors`: 18 passed (planted, one
+  byte of RFC 7748's key: its test failed). `PODSSH_TEST_OPENSSL=1 cargo
+  test -p podssh-ws -p podssh-relay --features podssh-relay/quick`: 437
+  passed, the TLS 1.2 suites against OpenSSL's `s_server` among them;
+  planted, a constant nonce for AES-GCM: 6 of the 9 suites against
+  OpenSSL failed, as the round trip cannot see it. `cargo test -p
+  podssh-ws -p podssh-core`: 354 passed; the CLI's lib 414. The gate's
+  `msrv` as it runs: `cargo +1.89 check --locked` of the library crates
+  and podssh-todo, `--all-targets`, with no C compiler: it passed.
+  `cargo deny check`: advisories, bans, licenses and sources ok. clippy
+  `-D warnings` over the gate's packages and with the features `ts` and
+  `iroh-test`: clean.
+- Dependabot closes Azathothas/podssh#47 once `main` holds aes-gcm 0.11.1.

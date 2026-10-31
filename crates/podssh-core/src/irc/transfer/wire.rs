@@ -44,7 +44,7 @@ pub mod b64 {
     /// errors, because a lenient decoder silently drops the offending byte
     /// and the file that arrives is short by one with no word to anyone.
     pub fn decode(input: &str) -> Result<Vec<u8>, String> {
-        if input.len() % 4 != 0 {
+        if !input.len().is_multiple_of(4) {
             return Err(format!("base64 payload is {} bytes, which is not a multiple of four", input.len()));
         }
         let bytes = input.as_bytes();

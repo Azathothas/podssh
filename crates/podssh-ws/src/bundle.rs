@@ -120,11 +120,11 @@ fn strip_whitespace(input: &str) -> String {
 /// that is not a trust bundle.
 fn base64_decode(input: &str) -> Result<Vec<u8>, String> {
     const INVALID: &str = "not valid base64";
-    if input.len() % 4 != 0 {
+    if !input.len().is_multiple_of(4) {
         return Err(INVALID.into());
     }
     let mut out = Vec::with_capacity(input.len() / 4 * 3);
-    for chunk in input.as_bytes().chunks_exact(4) {
+    for chunk in input.as_bytes().as_chunks::<4>().0 {
         let hi = base64_value(chunk[0]).ok_or(INVALID)?;
         let mid = base64_value(chunk[1]).ok_or(INVALID)?;
 

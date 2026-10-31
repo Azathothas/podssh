@@ -114,6 +114,10 @@ the next entries.
   session ends, push each draft branch as `draft/<branch>` (never to
   `main`): on 2026-10-30 a cloud session could not see the drafts of the
   operator's machine.
+- **An agent that searches or reads the web** uses the services of
+  <https://web.pkgforge.dev/llms.txt> (the operator, 2026-10-31): it reads
+  that page first, then the chosen service's own `llms.txt`. Say so in each
+  brief.
 - **An agent that stops** (a session limit, a crash): commit what it left
   on its branch as "WIP T-NNN: ...", write its state in the table, and
   later resume it, or start a new agent on that branch.

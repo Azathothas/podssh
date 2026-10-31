@@ -449,10 +449,10 @@ and output; and opens a forward session as a `Read + Write` stream. Two
 threads carry each session, so a blocking read stalls no other session. A
 call from a thread that runs a tokio runtime is refused, and nothing panics.
 Its offline tests run against a stand-in relay over plain `ws://` (feature
-`plain-ws`), as podbox's can. The library crates declare Rust 1.85,
-podbox's minimum: they pass `cargo check --locked --all-targets` on 1.85.0
-(measured 2026-10-09), and the gate checks them on it, so podbox needs no
-newer Rust.
+`plain-ws`), as podbox's can. The library crates declare Rust 1.89, the
+minimum of their dependencies: by the operator's ruling of Q48
+(2026-10-31), no older minimum of an embedder holds a dependency back, so
+podbox builds them with Rust 1.89 or later. The gate checks them on it.
 
 **What podbox needs (milestone M4), and what of it exists:**
 
