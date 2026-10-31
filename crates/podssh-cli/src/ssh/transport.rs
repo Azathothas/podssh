@@ -202,7 +202,11 @@ pub async fn reach_skipping(resolved: &Resolved, skip: usize, log: &Arc<Log>) ->
                     Ok(Reached { stream: Box::new(stream), relay: Some(status), direct_proxy: None, layer: None })
                 }
                 Err(failure) => {
-                    Err(NotReached { lines: failure.lines(&target), code: crate::proxy::sysexit(failure.last()) })
+                    let failed = NotReached { lines: failure.lines(&target), code: crate::proxy::sysexit(failure.last()) };
+                    // Each relay host failed: the forwarders that the binary
+                    // names, where the relay was podssh's choice (T-370).
+                    let (host, port) = (&first.host, first.port);
+                    crate::forwarder::fallback::after_relay(failed, relays, *family, trust, host, port, log).await
                 }
             }
         }

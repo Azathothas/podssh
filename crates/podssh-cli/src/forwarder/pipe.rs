@@ -34,11 +34,17 @@ pub fn beside(args: &ProxyArgs) -> Result<(), Refusal> {
 }
 
 /// The forwarders of `podssh proxy`, chosen as `podssh ssh` chooses them;
-/// none when the relay is the road.
+/// none when the relay is the road, whose fallback's word is then checked
+/// (T-370).
 pub fn chosen(args: &ProxyArgs) -> Result<Option<Vec<Forwarder>>, Refusal> {
     let named = super::other_road(args.relay_host.is_some(), args.relay_failover.is_some());
     let relay_env = std::env::var(podssh_relay::relay::RELAY_ENV).ok().is_some_and(|v| !v.trim().is_empty());
-    super::choose(args.forwarder.as_deref(), named, super::env_value(), relay_env, crate::settings::here())
+    let file = crate::settings::here();
+    let chosen = super::choose(args.forwarder.as_deref(), named, super::env_value(), relay_env, file)?;
+    if chosen.is_none() {
+        super::fallback::on_from(super::fallback::env_value(), file)?;
+    }
+    Ok(chosen)
 }
 
 /// The pipe to `host:port` through `forwarders`: its exit code.
@@ -64,7 +70,7 @@ async fn session(forwarders: &[Forwarder], host: &str, port: u16, trust: &Trust,
     })
     .await;
     match opened {
-        Ok(end) => carry(end, err).await,
+        Ok((end, _)) => carry(end, err).await,
         Err(code) => code,
     }
 }
@@ -77,15 +83,16 @@ pub async fn carry(end: End, err: &mut dyn Write) -> i32 {
     crate::pipe::report(pumped, "podssh", err).await
 }
 
-/// The pipe's end at the first of `forwarders` that carries `host:port`, or
-/// the exit code once `say` has the line of each failure.
+/// The pipe's end at the first of `forwarders` that carries `host:port`,
+/// with that forwarder's name, or the exit code once `say` has the line of
+/// each failure.
 pub async fn open(
     forwarders: &[Forwarder],
     host: &str,
     port: u16,
     trust: &Trust,
     say: &mut dyn FnMut(&str),
-) -> Result<End, i32> {
+) -> Result<(End, String), i32> {
     if podssh_relay::open::offline() {
         say(&format!("{} is set, so podssh does not connect anywhere", podssh_relay::open::OFFLINE_ENV));
         return Err(EX_UNAVAILABLE);
@@ -101,7 +108,7 @@ pub async fn open(
             note: Arc::new(|_: &str| {}),
         };
         match podssh_ws::forwarder::open(&forwarder.template, host, port, &dial).await {
-            Ok(carried) => return Ok(end(carried, forwarder.name.clone())),
+            Ok(carried) => return Ok((end(carried, forwarder.name.clone()), forwarder.name.clone())),
             Err(e) => {
                 say(&e.line(&forwarder.name));
                 code = super::reach::exit_code(&e);

@@ -167,9 +167,10 @@ async fn network(report: &mut Report<'_>, checks: &Checks<'_>) {
     quick::udp_out(report, full).await;
     report.section("relay");
     relay_checks::check(report, relays, trust, failover, full).await;
-    if !forwarders.is_empty() {
-        report.section("forwarders");
-        forwarder::check(report, forwarders, trust).await;
+    report.section("forwarders");
+    match forwarders.is_empty() {
+        true => forwarder::fallback_line(report, relays),
+        false => forwarder::check(report, forwarders, trust).await,
     }
     #[cfg(feature = "iroh")]
     {

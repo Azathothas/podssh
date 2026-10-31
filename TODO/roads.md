@@ -4486,6 +4486,36 @@ As the operator's ruling on Q56 allows (2026-10-31, `docs/decisions.md`):
   Cloudflare's platform.
 - The fallback comes after the relay hosts, not before: the relay's contract, limits and close
   codes are known (`docs/relay.md`), and a forwarder publishes none.
+- The drafting agent's calls (2026-10-31):
+  1. The words and the order: `mudlet`, `ssheasy`, `mudix`. A second provider before a second
+     copy of the first: `mudix` runs Mudlet's code on the same runtime, whose refusals (port 25,
+     private and Cloudflare's addresses) it shares, where ssheasy's Go proxy is another provider.
+     Lost: #59's order (Mudlet, mudix, ssheasy), which tries the same runtime twice first.
+  2. The table is in `podssh-ws` (`forwarder/builtin.rs`), data alone, so the live watch builds that
+     crate alone; the words are the CLI's, through it.
+  3. The fallback follows only a relay of podssh's own choice, as T-363 keeps a relay that the
+     user names its own road: not `--relay-host`, `PODSSH_RELAY` or `RelayHost` (`explicit`), not
+     `-4` or `-6`, and only a failure that a forwarder may not share (69 or 77, as `proxy` exits);
+     a bad setting (78) or a target that cannot go (64) ends the run as before. A user's own
+     `--forwarder` list gets no fallback: it is the user's road. Lost: a fallback after any
+     failure, which would send the target to another product's service where the user chose the
+     relay.
+  4. On by default, as Q56 allows, and turned off by `PODSSH_FORWARDER_FALLBACK=no` or
+     `ForwarderFallback no`, as T-363 turns its own off; a word that is neither is refused (78) in
+     the resolve, before anything connects, as the fallback is read again when it runs. Lost: off
+     by default, which keeps the second road from each user who does not know of it.
+  5. Said on stderr: one line before the first dial, naming the words, each failure with its
+     forwarder, and the forwarder that carries the session or the pipe; the code of a run that
+     none carries stays the relay's. `doctor` says whether the fallback is on, with no dial: Q56
+     allows trying them when the relay fails, not on each check; `doctor --forwarder WORDS` asks
+     them.
+  6. The watch (Approach 3): `.github/workflows/forwarder-live.yml`, each day and by hand, runs
+     `crates/podssh-ws/tests/live_forwarder.rs`: one connection to each, one at a time, and the
+     first line of `github.com:22`, GitHub's version line (Q56: Actions only, short). Its plant
+     names a host under `.invalid` for each, and must fail. Lost: a daily run of `podssh doctor
+     --forwarder`, which builds the binary and asks the relay too.
+  7. With T-363, its direct road comes before the forwarders: the user's own network before
+     another product's service (`docs/design.md`, the road table).
 
 ## Prove
 
@@ -4496,6 +4526,35 @@ cargo test -p podssh-cli --test forwarder_cli -- builtin
 
 Each built-in template passes the stand-ins of T-369 in its form; a fallback runs only after each
 relay host failed. Live, as Q56 allows: GitHub's banner through each, in GitHub Actions.
+
+## Correction
+
+2026-10-31 (the drafting agent): two citations of the Premise, read at `a3f948d`. The question of
+Cloudflare's terms is item 15 of the relay operator's list, `docs/relay-operator.md:315-322`;
+`docs/relay-operator.md:83-87` is item 1's word on the drops of reverse sockets. The test targets
+of `AGENTS.md:226-241` name the three forwarders now, from GitHub Actions only, with short runs
+(Q56, the same day); the Premise read them before that ruling.
+
+## Done
+
+2026-10-31: drafted (branch `draft-forwarder`); built, tested and measured at the merge.
+
+- The table of the three (`crates/podssh-ws/src/forwarder/builtin.rs`), the words in each list of
+  forwarders (`crates/podssh-cli/src/forwarder/mod.rs`), and the fallback
+  (`crates/podssh-cli/src/forwarder/fallback.rs`): after each relay host failed, in the relay's
+  arm of `crates/podssh-cli/src/ssh/transport.rs` and in `podssh proxy`; `PODSSH_FORWARDER_FALLBACK`
+  and `ForwarderFallback`; the line `fallback` of `doctor`.
+- The manual (the words in the help and a note of `ssh`, the variable, the settings, an example),
+  `docs/cli.md`, `docs/carriers.md`, the road table of `docs/design.md`, `docs/relay-operator.md`
+  and `docs/STATUS.md`; the watch, `.github/workflows/forwarder-live.yml`.
+- UNVERIFIED: `cargo test -p podssh-cli --test forwarder_cli -- builtin` (each word in its form;
+  the fallback after each relay host, in order, each named; none for `--relay-host` nor when off;
+  78 for another word; `proxy`'s fallback), and `cargo test -p podssh-cli --lib forwarder`,
+  `--lib settings`, `--lib man`; `cargo test -p podssh-ws --lib forwarder::builtin`.
+- UNVERIFIED, planted: the check of `explicit` removed from `fallback::not_after`; the case of
+  `--relay-host` in `builtin_fallback_is_not_for_the_user_s_relay_nor_when_turned_off` fails.
+- UNVERIFIED, live (GitHub Actions only, Q56): `forwarder-live.yml` run by hand, GitHub's version
+  line through `mudlet`, `ssheasy` and `mudix`; its planted step fails each.
 
 # T-371: A `-J` hop on port 443 through the proxy, measured, and a `doctor` line for a hop
 

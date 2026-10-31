@@ -1,0 +1,47 @@
+name: forwarder live
+
+# The public forwarders of other products that the binary names (T-370),
+# live from GitHub's network, by the operator's ruling Q56: from GitHub
+# Actions only, and short: one connection to each, one at a time, and the
+# first line of github.com port 22 through it, GitHub's version line. Each
+# day, as the watch of their life, since they publish no limit and give no
+# notice; and by hand. A planted run names a host under .invalid for each,
+# and must fail. No relay token goes to a forwarder; nothing is published.
+
+on:
+  schedule:
+    # Each day at 04:17 UTC, off the hour.
+    - cron: "17 4 * * *"
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: forwarder-live
+  cancel-in-progress: false
+
+jobs:
+  live:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 30
+    env:
+      CARGO_BUILD_JOBS: "4"
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+      - name: build the test
+        run: cargo test --locked -p podssh-ws --test live_forwarder --no-run
+      - name: GitHub's version line through each forwarder
+        run: timeout 300 cargo test --locked -p podssh-ws --test live_forwarder -- --ignored --nocapture --test-threads=1
+      # The check must see a forwarder that is gone: each planted host fails it.
+      - name: a planted host fails it
+        env:
+          PODSSH_TEST_FORWARDER_PLANT: "1"
+        run: |
+          rc=0
+          timeout 300 cargo test --locked -p podssh-ws --test live_forwarder -- --ignored --test-threads=1 || rc=$?
+          if [ "$rc" -eq 0 ]; then
+            echo "the check is vacuous: the planted hosts passed"
+            exit 1
+          fi
+          echo "the planted hosts failed (exit $rc), as they must"

@@ -39,6 +39,7 @@ struct World {
 
 fn world(name: &str) -> World {
     let dir = scratch(&format!("forwarder-{name}"));
+    std::fs::create_dir_all(dir.join("tmp")).unwrap();
     let key = dir.join("host_key");
     let made = Command::new(env!("CARGO_BIN_EXE_podssh"))
         .args(["keygen", "-q", "-t", "ed25519", "-N", "", "-f"])
@@ -70,7 +71,8 @@ fn podssh(w: &World, args: &[String], set: &[(&str, &str)]) -> Command {
     ] {
         cmd.env_remove(name);
     }
-    cmd.env("PODSSH_SETTINGS", "none").env("PODSSH_CACHE_DIR", w.dir.join("cache"));
+    // Each file of the run in the scratch directory, which goes at the end.
+    cmd.env("PODSSH_SETTINGS", "none").env("PODSSH_CACHE_DIR", w.dir.join("cache")).env("TMPDIR", w.dir.join("tmp"));
     for (name, value) in set {
         cmd.env(name, value);
     }
@@ -133,12 +135,17 @@ fn mebibyte() -> Vec<u8> {
     (0..MIB as u32).map(|i| (i.wrapping_mul(2_654_435_761) >> 13) as u8).collect()
 }
 
-/// No stand-in saw a token, and no relay host was asked through the proxy.
-fn no_token_and_no_relay(w: &World) {
+/// No stand-in saw a token.
+fn no_token(w: &World) {
     for seen in w.stands.seen.lock().unwrap().iter() {
         let names: Vec<&str> = seen.headers.iter().map(|(n, _)| n.as_str()).collect();
         assert!(!names.contains(&"x-relay-token") && !names.contains(&"authorization"), "{names:?}");
     }
+}
+
+/// No stand-in saw a token, and no relay host was asked through the proxy.
+fn no_token_and_no_relay(w: &World) {
+    no_token(w);
     let connects = w.proxy.connects.lock().unwrap().clone();
     assert!(connects.iter().all(|c| !c.contains("relay.ajam.dev")), "{connects:?}");
 }
@@ -165,7 +172,7 @@ fn each_form_carries_a_session_a_mebibyte_each_way() {
 fn a_forwarder_that_closes_gives_way_to_the_next_and_is_named() {
     let w = world("closes");
     let list = format!("wss://fwd-close.test/?host={{host}}&port={{port}},{QUERY}");
-    let (code, out, err) = run(podssh(&w, &ssh(&w, &["--forwarder", &list], "greet"), &[]), Vec::new());
+    let (code, out, err) = run(podssh(&w, &ssh(&w, &["--forwarder", list.as_str()], "greet"), &[]), Vec::new());
     assert_eq!(code, Some(0), "{err}");
     assert_eq!(String::from_utf8_lossy(&out), ssh_harness::GREETING);
     let said = format!(
@@ -185,7 +192,7 @@ fn each_road_and_each_template_that_cannot_go_is_refused_before_anything_connect
         (vec!["--forwarder", "wss://f.test/?host={host}"], vec![], 64, "--forwarder: a forwarder's template has"),
         (vec!["--forwarder", "wss://f.test/{port}?h={host}&p={port}"], vec![], 64, "{port} 2 times"),
         (vec!["--forwarder", QUERY, "--direct"], vec![], 64, "--forwarder cannot go with --direct"),
-        (vec!["--forwarder", QUERY, "--relay-host", "r.test"], vec![], 64, "--forwarder and --relay-host name two roads"),
+        (vec!["--forwarder", QUERY, "--relay-host", "r.test"], vec![], 64, "--forwarder and --relay-host name"),
         (vec!["--forwarder", QUERY, "-4"], vec![], 64, "-4 and -6 choose the family"),
         (vec![], vec![("PODSSH_FORWARDER", "nope")], 78, "PODSSH_FORWARDER: "),
         (vec![], vec![("PODSSH_FORWARDER", QUERY), ("PODSSH_RELAY", "r.test")], 78, "name two roads"),
@@ -204,31 +211,42 @@ fn each_road_and_each_template_that_cannot_go_is_refused_before_anything_connect
     assert!(w.proxy.connects.lock().unwrap().is_empty(), "nothing was dialed");
 }
 
-#[test]
-fn proxy_carries_the_pipe_and_refuses_a_target_that_cannot_go() {
-    let w = world("proxy");
-    let ca = w.proxy.ca_file.display().to_string();
-    let args: Vec<String> =
-        ["proxy", "--forwarder", QUERY, "--ca-file", &ca, "127.0.0.1", &w.sshd.to_string()].map(String::from).to_vec();
-    let mut cmd = podssh(&w, &args, &[]);
-    let mut child = cmd.stdin(Stdio::piped()).stdout(Stdio::piped()).stderr(Stdio::null()).spawn().unwrap();
+/// The first line that `podssh proxy` gives on stdout, its stdin held
+/// open, then its stderr once it is stopped: the SSH server's banner when
+/// the pipe reached it.
+fn banner(mut cmd: Command) -> (String, String) {
+    let mut child = cmd.stdin(Stdio::piped()).stdout(Stdio::piped()).stderr(Stdio::piped()).spawn().unwrap();
     let mut stdout = child.stdout.take().unwrap();
-    let banner = std::thread::spawn(move || {
+    let mut stderr = child.stderr.take().unwrap();
+    let line = std::thread::spawn(move || {
         let mut line = Vec::new();
         let mut byte = [0u8; 1];
         while !line.ends_with(b"\r\n") && stdout.read(&mut byte).unwrap_or(0) == 1 {
             line.push(byte[0]);
         }
-        line
+        String::from_utf8_lossy(&line).into_owned()
+    });
+    let err = std::thread::spawn(move || {
+        let mut all = String::new();
+        let _ = stderr.read_to_string(&mut all);
+        all
     });
     let started = Instant::now();
-    while !banner.is_finished() && started.elapsed() < LIMIT {
+    while !line.is_finished() && started.elapsed() < LIMIT {
         std::thread::sleep(Duration::from_millis(20));
     }
     let _ = child.kill();
     let _ = child.wait();
-    let line = banner.join().unwrap();
-    assert!(line.starts_with(b"SSH-2.0-"), "the server's banner through the forwarder: {line:?}");
+    (line.join().unwrap(), err.join().unwrap())
+}
+
+#[test]
+fn proxy_carries_the_pipe_and_refuses_a_target_that_cannot_go() {
+    let w = world("proxy");
+    let (ca, port) = (w.proxy.ca_file.display().to_string(), w.sshd.to_string());
+    let args = ["proxy", "--forwarder", QUERY, "--ca-file", ca.as_str(), "127.0.0.1", port.as_str()];
+    let (line, err) = banner(podssh(&w, &args.map(String::from), &[]));
+    assert!(line.starts_with("SSH-2.0-"), "the server's banner through the forwarder: {line:?} {err}");
     for (target, says) in [("a&b", "not a host name"), ("cf://h", "--forwarder cannot go with cf://")] {
         let args: Vec<String> = ["proxy", "--forwarder", QUERY, target, "22"].map(String::from).to_vec();
         let (code, _, err) = run(podssh(&w, &args, &[]), Vec::new());
@@ -272,7 +290,7 @@ fn through_websockify_the_session_s_bytes_pass() {
     }
     let template = format!("ws://127.0.0.1:{port}/?host={{host}}&port={{port}}");
     let data = mebibyte();
-    let (code, out, err) = run(podssh(&w, &ssh(&w, &["--forwarder", &template], "echo"), &[]), data.clone());
+    let (code, out, err) = run(podssh(&w, &ssh(&w, &["--forwarder", template.as_str()], "echo"), &[]), data.clone());
     assert_eq!(code, Some(0), "{err}");
     assert_eq!(digest(&out), digest(&data), "equal digests through websockify");
 }
@@ -284,7 +302,7 @@ fn through_websockify_the_session_s_bytes_pass() {
 fn doctor_checks_each_forwarder_through_github_s_port() {
     let w = world("doctor");
     let ca = w.proxy.ca_file.display().to_string();
-    let args: Vec<String> = ["doctor", "--forwarder", QUERY, "--ca-file", &ca].map(String::from).to_vec();
+    let args = ["doctor", "--forwarder", QUERY, "--ca-file", ca.as_str()].map(String::from);
     let (code, out, err) = run(podssh(&w, &args, &[]), Vec::new());
     let text = String::from_utf8_lossy(&out);
     assert_eq!(code, Some(1), "{text}{err}");
@@ -294,4 +312,90 @@ fn doctor_checks_each_forwarder_through_github_s_port() {
     assert!(line.starts_with("  FAIL  forwarder") && line.contains("not in podssh's list of GitHub's keys"), "{line}");
     let seen = w.stands.seen.lock().unwrap().clone();
     assert_eq!(seen[0].target, ("github.com".to_string(), 22), "the stand-in was asked for GitHub's port");
+}
+
+/// T-370: each word reaches the stand-in of its name, in its form; a word
+/// that is none is refused and lists the words.
+#[test]
+fn builtin_words_reach_their_forwarders_each_in_its_form() {
+    let w = world("words");
+    for word in ["mudlet", "ssheasy", "mudix"] {
+        let (code, out, err) = run(podssh(&w, &ssh(&w, &["--forwarder", word], "greet"), &[]), Vec::new());
+        assert_eq!(code, Some(0), "{word}: {err}");
+        assert_eq!(String::from_utf8_lossy(&out), ssh_harness::GREETING, "{word}");
+    }
+    let seen = w.stands.seen.lock().unwrap().clone();
+    let at: Vec<(&str, &str)> = seen.iter().map(|s| (s.host.as_str(), s.path.as_str())).collect();
+    let query = format!("/?host=127.0.0.1&port={}", w.sshd);
+    let want = [
+        ("web-proxy.mudlet.org", query.as_str()),
+        ("ssheasy.com", "/p"),
+        ("mudix.delwing.workers.dev", query.as_str()),
+    ];
+    assert_eq!(at, want);
+    assert!(seen[1].first_frame.is_some(), "ssheasy's form: {seen:?}");
+    let (code, _, err) = run(podssh(&w, &ssh(&w, &["--forwarder", "mudlett"], "greet"), &[]), Vec::new());
+    assert_eq!(code, Some(64), "{err}");
+    assert!(err.contains("one of the words mudlet, ssheasy, mudix"), "{err}");
+    no_token_and_no_relay(&w);
+}
+
+/// T-370: with no road named, the relay's hosts come first; once each
+/// failed (the proxy answers each with 503), the forwarders that podssh
+/// names carry the session, in order, each named.
+#[test]
+fn builtin_fallback_runs_only_after_each_relay_host_failed() {
+    let w = world("fallback");
+    let (code, out, err) = run(podssh(&w, &ssh(&w, &[], "greet"), &[]), Vec::new());
+    assert_eq!(code, Some(0), "{err}");
+    assert_eq!(String::from_utf8_lossy(&out), ssh_harness::GREETING);
+    assert!(err.contains("each relay host failed: podssh tries the public forwarders"), "{err}");
+    assert!(err.contains("the forwarder mudlet (wss://web-proxy.mudlet.org/) carries the session"), "{err}");
+    let connects = w.proxy.connects.lock().unwrap().clone();
+    let first = connects.iter().position(|c| c.starts_with("web-proxy.mudlet.org")).expect("the fallback");
+    let relays: Vec<usize> = (0..connects.len()).filter(|i| connects[*i].contains("relay.ajam.dev")).collect();
+    assert!(!relays.is_empty() && relays.iter().all(|i| *i < first), "the relay first: {connects:?}");
+    assert!(!connects.iter().any(|c| c.starts_with("ssheasy.com")), "the first carried it: {connects:?}");
+    // In order: the first closes, and the second carries.
+    w.stands.closing.lock().unwrap().insert("web-proxy.mudlet.org".into());
+    let (code, _, err) = run(podssh(&w, &ssh(&w, &[], "greet"), &[]), Vec::new());
+    assert_eq!(code, Some(0), "{err}");
+    assert!(err.contains("the forwarder mudlet (wss://web-proxy.mudlet.org/) closed the WebSocket"), "{err}");
+    assert!(err.contains("the forwarder ssheasy (wss://ssheasy.com/p) carries the session"), "{err}");
+    assert_eq!(w.stands.hosts(), ["web-proxy.mudlet.org", "web-proxy.mudlet.org", "ssheasy.com"]);
+    no_token(&w);
+}
+
+/// T-370: no fallback for relay hosts that the user names, nor once it is
+/// turned off; a word that is neither yes nor no is refused before anything
+/// connects.
+#[test]
+fn builtin_fallback_is_not_for_the_user_s_relay_nor_when_turned_off() {
+    let w = world("no-fallback");
+    let cases: [(&[&str], &[(&str, &str)]); 2] =
+        [(&["--relay-host", "tcp.ssh.relay.ajam.dev"], &[]), (&[], &[("PODSSH_FORWARDER_FALLBACK", "no")])];
+    for (road, set) in cases {
+        let (code, _, err) = run(podssh(&w, &ssh(&w, road, "greet"), set), Vec::new());
+        assert_eq!(code, Some(255), "{road:?} {set:?}: {err}");
+        assert!(!err.contains("podssh tries the public forwarders"), "{err}");
+    }
+    assert!(w.stands.seen.lock().unwrap().is_empty(), "no forwarder was asked");
+    let before = w.proxy.connects.lock().unwrap().len();
+    let set = [("PODSSH_FORWARDER_FALLBACK", "maybe")];
+    let (code, _, err) = run(podssh(&w, &ssh(&w, &[], "greet"), &set), Vec::new());
+    assert_eq!(code, Some(78), "{err}");
+    assert!(err.contains("PODSSH_FORWARDER_FALLBACK=maybe: yes or no"), "{err}");
+    assert_eq!(w.proxy.connects.lock().unwrap().len(), before, "nothing connected");
+}
+
+/// T-370: `podssh proxy` falls back as `podssh ssh` does.
+#[test]
+fn builtin_fallback_carries_the_pipe_of_proxy() {
+    let w = world("proxy-fallback");
+    let (ca, port) = (w.proxy.ca_file.display().to_string(), w.sshd.to_string());
+    let args = ["proxy", "--ca-file", ca.as_str(), "127.0.0.1", port.as_str()].map(String::from);
+    let (line, err) = banner(podssh(&w, &args, &[]));
+    assert!(line.starts_with("SSH-2.0-"), "the server's banner through the fallback: {line:?} {err}");
+    assert!(err.contains("the forwarder mudlet (wss://web-proxy.mudlet.org/) carries the pipe"), "{err}");
+    no_token(&w);
 }

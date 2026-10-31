@@ -48,7 +48,7 @@ races them. [carriers.md](carriers.md) studies the carriers that need no relay o
 | Far end | First | Then | Last |
 | --- | --- | --- | --- |
 | A podssh node or peer (a name or a ticket) | The iroh road (direct when UDP works, else through a relay) | The reverse road with the resumable layer | None |
-| A standard sshd, public | The forward road, with failover across relay hosts | The direct road (`--direct`, or when a probe shows it works; the probe is T-363) | None |
+| A standard sshd, public | The forward road, with failover across relay hosts; or the forwarders of `--forwarder` (T-369) | The direct road (`--direct`, or when a probe shows it works; the probe is T-363) | The public forwarders that the binary names, after each relay host of podssh's choice failed (T-370, Q56) |
 | A standard sshd behind a podssh `roost` (`podssh node NAME --sshd`) | The iroh or reverse road to the roost | The forward road | None |
 | A tailnet node | The tailscale road (feature `ts`) | None | None |
 | A service that `cloudflared` publishes (`cf://HOST`) | The WebSocket of the tunnel, as `cloudflared access tcp` opens it, through `HTTPS_PROXY` | None | None |

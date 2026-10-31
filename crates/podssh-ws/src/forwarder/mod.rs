@@ -9,6 +9,8 @@
 //! proxy of the environment, and no token: a relay token goes only to the
 //! deployment that minted it, and a forwarder is another product's.
 
+// The public forwarders of other products that the binary names (T-370).
+pub mod builtin;
 mod carry;
 mod template;
 
