@@ -1585,7 +1585,7 @@ port 443 (Cloudflare's edge serves TLS there).
 **Milestone:** backlog
 **Priority:** P2
 **Effort:** M
-**Status:** partial
+**Status:** done
 
 ## Problem
 
@@ -1679,20 +1679,29 @@ the machine's too, where `CertOpenSystemStoreW` opens the user's only; and CI ad
 machine's `ROOT`, which the user's view of `ROOT` holds too, as an addition to the user's asks its
 user in a dialog that a runner cannot answer (Inferred). Approach item 3's experiment is a step
 of the same test: on the runner it asserts that no bundle of `SYSTEM_BUNDLES`, `/etc/ssl/cert.pem`
-among them, holds the root that the keychain trusts.
+among them, holds the root that the keychain trusts. On GitHub's macOS runners no root can be put in
+either domain of trust settings: `security add-trusted-cert -d` asks for the right
+`com.apple.trust-settings.admin` in a dialog that no one answers, and granting the right fails as
+root too, `security authorizationdb write com.apple.trust-settings.admin allow` giving "NO
+(-60005)", errAuthorizationDenied (build runs 41176904479 and 41177809365, `macos-15`). The macOS
+step reads both domains with no root of the test in them; the run with a root in a domain needs a
+Mac whose administrator answers the dialog, and is not made (Done).
 
 ## Done
 
-2026-10-31, partial. Done here, items 1, 2, 3 and 4. Windows in CI at `eee611a` (build run 41171716387, the
+2026-10-31: done. Done here, items 1, 2, 3 and 4. Windows in CI at `eee611a` (build run 41171716387, the
 job `windows`): with the root out of the store, the server that it signs was refused with
 `UnknownIssuer`; with the root in the machine's `ROOT` store (`Import-Certificate`), the same
 server passed with the default trust, the root coming from the user's view of `ROOT` (340 roots,
 339 before; 225 passed over as no root for TLS), no bundle file holding it; doctor said "trust
 store 458 anchors: 118 compiled-in roots (webpki-roots 1.0.11 of 2026-10-23) + 340 from the
-current user's ROOT store" and named both stores. macOS waits: the first run's `security
-add-trusted-cert` waited on the dialog of the right `com.apple.trust-settings.admin` until the
-job's limit; the step now grants the right for its run, puts it back after, and gives each call
-60 s:
+current user's ROOT store" and named both stores. macOS in CI at `7b402d0` and `1a9aefe` (the job
+`macos`, `macos-15`): podssh read both domains of trust settings, "the user's trust settings: 0
+root(s); the administrator's trust settings: 0 root(s)", and a server that the test's root signs
+was refused; the root could not be put in a domain (the Correction), so the step that wanted it
+is now `the system's trust settings, read`: the same control and doctor's line, with no root
+added. Not measured: podssh's read of a domain that holds a root, on macOS; the logic that sorts
+a store's certificates is the unit test's below, the same on each system:
 
 - `podssh_ws::tls::handshake_hint` and `handshake_failure`: rustls's
   `CertificateError::UnknownIssuer`, found in the `io::Error` by its type and

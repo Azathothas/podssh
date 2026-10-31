@@ -62,15 +62,15 @@ repository and CI).
 
 ## Counts
 
-**373 entries: 43 open, 4 partial, 29 blocked, 297 done.**
+**373 entries: 43 open, 2 partial, 29 blocked, 299 done.**
 
 | Priority | open | partial | blocked | done | total |
 | --- | --- | --- | --- | --- | --- |
 | P0 | 0 | 0 | 0 | 1 | 1 |
-| P1 | 2 | 1 | 0 | 28 | 31 |
-| P2 | 10 | 3 | 20 | 152 | 185 |
+| P1 | 2 | 0 | 0 | 29 | 31 |
+| P2 | 10 | 2 | 20 | 153 | 185 |
 | P3 | 31 | 0 | 9 | 116 | 156 |
-| **All** | 43 | 4 | 29 | 297 | 373 |
+| **All** | 43 | 2 | 29 | 299 | 373 |
 
 ## Entries
 
@@ -412,7 +412,7 @@ repository and CI).
 | [T-337](repo.md) | P1 | M | none | defect | done | The publish job runs actions by tags that can move, before it attests the binaries |
 | [T-338](relay.md) | P2 | M | none | chore | done | The relay's facts are read by their line, and only a push checks the live relay |
 | [T-339](roads.md) | P2 | M | backlog | chore | done | Nothing watches the quick tunnel's pin of cloudflared, and its edge names are fixed |
-| [T-340](ws.md) | P2 | M | backlog | defect | partial | On Windows and macOS podssh reads no store of the system, and `UnknownIssuer` comes with no hint |
+| [T-340](ws.md) | P2 | M | backlog | defect | done | On Windows and macOS podssh reads no store of the system, and `UnknownIssuer` comes with no hint |
 | [T-341](repo.md) | P2 | M | none | chore | done | Nothing watches the upstreams of the vendored crates |
 | [T-342](relay.md) | P2 | M | backlog | defect | done | The relay's limits are compiled in, and nothing compares them with `/relays.json` |
 | [T-343](repo.md) | P3 | S | none | chore | open | The release takes Zig from one site, builds armv7 with an unchecked rust, and runs an unpinned schema check |
@@ -428,7 +428,7 @@ repository and CI).
 | [T-353](roads.md) | P3 | L | backlog | feature | open | Tor through Arti, in a feature crate |
 | [T-354](resume.md) | P2 | S | backlog | defect | done | A session that closes while it moves can say a loss that was none |
 | [T-355](repo.md) | P2 | M | none | chore | partial | Dependabot's updates of 2026-10-30 and 2026-10-31, and the curves' 0.14 |
-| [T-356](ssh.md) | P1 | M | none | defect | partial | russh 0.65.0 fixes six advisories, three of them in the client, and gives the session binding |
+| [T-356](ssh.md) | P1 | M | none | defect | done | russh 0.65.0 fixes six advisories, three of them in the client, and gives the session binding |
 | [T-357](cli.md) | P1 | S | backlog | defect | done | `doctor` names `pipe` alone as a listener, and its module says that it alone calls `bind()` |
 | [T-358](cli.md) | P1 | S | backlog | defect | done | `doctor` measures a bind and never a listen, so a host that refuses `listen()` reads as one that listens |
 | [T-359](roads.md) | P2 | M | backlog | defect | open | The iroh road takes UDP on a bind alone, and `doctor` says that it may go direct with nothing sent |

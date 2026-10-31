@@ -2714,7 +2714,7 @@ newest russh is 0.65.0, of 2026-10-25, where vendor/russh holds 0.64.1.
 **Milestone:** none
 **Priority:** P1
 **Effort:** M
-**Status:** partial
+**Status:** done
 
 ## Problem
 
@@ -2788,8 +2788,11 @@ against 0.64.1 first: podssh's code now takes 0.65.0's type. The test's assertio
 
 ## Done
 
-2026-10-31, partial: done here; the gate's interop suites and the jobs of Windows and macOS wait
-for CI on the push.
+2026-10-31: done. CI at `1a9aefe` (build run 41177809365, which carries the change of `3504c1a`):
+each step of the gate passed, among them `ssh` with the interop suites against OpenSSH and Dropbear,
+`m6`, `release` and `lint`; the job `windows` passed, its console checks against MSYS2's sshd
+among them; the job `macos` passed its default tests (its other step, T-340's trust settings,
+failed on the runner's authorization, which this entry does not touch).
 
 - podssh-ssh, podssh-cli's tests and the fuzz workspace take crates.io's russh 0.65.0 with its
   checksum; `[patch.crates-io]` keeps iroh-relay alone, and vendor/russh with its patch is gone

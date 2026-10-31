@@ -107,7 +107,7 @@ and `CARGO_BUILD_JOBS=4`:
 
 ## Counts
 
-`TODO/INDEX.md` holds 373 entries: 43 open, 4 partial, 29 blocked, 297 done.
+`TODO/INDEX.md` holds 373 entries: 43 open, 2 partial, 29 blocked, 299 done.
 
 Open includes parked work. `cargo todo check` verifies this line.
 
@@ -126,12 +126,13 @@ the surface for agents: done.
 `f7f97a5`, with the provenance of each binary and the signature of
 `SHA256SUMS`, each proven on the published files (`docs/STATUS.md`). The next
 beta follows the next batch of repairs that the testers should test again,
-at most one a day: russh 0.65.0's security fixes (T-356) make that batch, so
-`v1.0.0-beta.3` comes from 2026-11-01 00:12 UTC, once the gate is green on its
-commit.
+at most one a day: russh 0.65.0's security fixes (done), the AEAD keys'
+zeroize and the curves' 0.14 make that batch, so `v1.0.0-beta.3` comes from
+2026-11-01 00:12 UTC, once the gate is green on its commit.
 
 **Now:** the entries of the audit, the study and the issues of 2026-10-31 (GitHub #59 to #63 and
-#69 to #76), the highest priority first: T-356 (russh 0.65.0's security fixes, P1), then the P2 entries T-340, whose runs in CI wait, T-347, T-359 (the iroh road's probe of UDP) and
+#69 to #76), the highest priority first: the P2 entries T-347, whose live run waits in CI, T-359
+(the iroh road's probe of UDP) and
 T-365 (the forms of `-R` that OpenSSH carries, GitHub #73), then T-355 (Dependabot's updates, and
 the curves' 0.14 that ends an ignore of `deny.toml`) and the record's own checks T-360 and T-361,
 then the P2 entries that the operator's rulings of 2026-10-31 opened: T-375 (`podssh update`),
