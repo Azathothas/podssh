@@ -121,7 +121,7 @@ proptest = { version = "1.11", default-features = false, features = ["std"] }
 serde_json = "1"
 # The relay's facts file (podssh-probe). Pure Rust, and it must stay so: the build image
 # has no C compiler, so a TOML parser that wanted `cc` would fail the gate.
-toml = { version = "0.9", default-features = false, features = ["parse", "serde"] }
+toml = { version = "1.1", default-features = false, features = ["parse", "serde"] }
 # The structural facts are asserted with patterns, not with prose parsing.
 # `regex` is pure Rust; `fancy-regex` is not, and neither is a C toolchain.
 #
