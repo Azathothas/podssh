@@ -370,7 +370,7 @@ pub fn resolve_or_refuse(args: &SshArgs, env: &Env) -> Result<Resolved, Refusal>
     };
     let notes: Vec<String> = settings.ignored.iter().map(|k| format!("-o {k} has no effect in podssh")).collect();
     let mut warnings: Vec<String> = agents.warning.clone().into_iter().collect();
-    let idle = relay::RELAY_IDLE_SECS;
+    let idle = relay::idle_secs(&podssh_relay::pool::in_use());
     if resumable {
         if keepalive_interval.is_some() {
             warnings.push(

@@ -26,15 +26,15 @@ acceptance on rare input stays hidden. The release build aborts on a panic
 ## Premise
 
 Read, the parsers that take input from a peer or a file: WebSocket frames
-(`crates/podssh-ws/src/frame.rs:121`); HTTP heads and chunked bodies
+(`crates/podssh-ws/src/frame.rs:134`); HTTP heads and chunked bodies
 (`crates/podssh-ws/src/http.rs:110`, line 183 at `e892b0f`); the upgrade answer
 (`crates/podssh-ws/src/handshake.rs:175`); proxy URLs
 (`crates/podssh-ws/src/proxy.rs:82`), `NO_PROXY` and the CONNECT status
 (`crates/podssh-ws/src/dial.rs`, lines 178 and 334 at `22c3b88`); since T-070 (2026-10-11), a
 SOCKS5 proxy's answers (`crates/podssh-ws/src/socks5.rs:156`); close
-reasons (`crates/podssh-ws/src/session.rs:381`); PEM bundles
+reasons (`crates/podssh-ws/src/close.rs:20`); PEM bundles
 (`crates/podssh-ws/src/bundle.rs:72`); relay lists and the pool document
-(`crates/podssh-relay/src/relay.rs:107`, `crates/podssh-relay/src/pool.rs:95`);
+(`crates/podssh-relay/src/relay.rs:131`, `crates/podssh-relay/src/pool.rs:152`);
 `known_hosts` lines, in a private function
 (`crates/podssh-ssh/src/known_hosts.rs:250`); the escape filter
 (`crates/podssh-ssh/src/escape.rs:94`); IRC lines and frames
@@ -107,7 +107,7 @@ sh scripts/dev.sh check                                   # the gate does not ch
 
 The list names each target, and each run ends with no crash (`ws_frame`
 after T-063). Planted defect: remove the length guard of
-`close_code_and_reason` (`crates/podssh-ws/src/session.rs:382-384`);
+`close_code_and_reason` (`crates/podssh-ws/src/close.rs:21-23`);
 `close_reason` must crash within its 120 s.
 
 ## Done
@@ -586,15 +586,15 @@ Each command exits 0. Planted defect: set `WINDOW`
 channel (`channel_buffer_size`, `crates/podssh-ssh/src/run_config.rs:60-70`) to
 2^20 messages; the slow-reader check must fail. The window alone is not
 enough: the queue is a second bound (Correction). A second plant: remove the
-check at `crates/podssh-ws/src/session.rs:346-348`; the fragment test must
+check at `crates/podssh-ws/src/session.rs:356-358`; the fragment test must
 fail.
 
 ## Correction
 
 2026-10-11, read against the Premise; each holds at the cited lines:
 
-- The frame's bound refuses a 64-bit length (`crates/podssh-ws/src/frame.rs:193-195`). The check
-  after it (`crates/podssh-ws/src/frame.rs:201-205`) cannot fire: a shorter length is at most 65535.
+- The frame's bound refuses a 64-bit length (`crates/podssh-ws/src/frame.rs:211-213`). The check
+  after it (`crates/podssh-ws/src/frame.rs:219-221`) cannot fire: a shorter length is at most 65535.
 - The upgrade that podssh sends is `client::upgrade`, whose bound was a literal; it is
   `UPGRADE_HEAD` now (`crates/podssh-ws/src/client.rs:38`). `MAX_HANDSHAKE_RESPONSE`
   (`crates/podssh-ws/src/handshake.rs:124`) bounds `handshake::handshake`, which no command calls.
@@ -606,7 +606,7 @@ fail.
 - `known_hosts` was read whole a second time, under the lock of a record (`append`); the bound
   covers both reads.
 - A pool body past its bound, and a file of the cache past its bound, are dropped with no word:
-  the refresh's error goes nowhere (`crates/podssh-relay/src/open.rs:345`), and the cache reads a
+  the refresh's error goes nowhere (`crates/podssh-relay/src/open.rs:351`), and the cache reads a
   file that it cannot use as none (`crates/podssh-relay/src/cache.rs:299-301`). Each is made again,
   so the table says so, and nothing is added.
 - `PODSSH_REPLAY_BUFFER` above 16 MiB gives 4 MiB, the default, not 16 MiB
@@ -643,7 +643,7 @@ whose output nobody reads; `scripts/interop-baseline.txt` has its two ids.
 - `cargo test -p podssh-ssh --test known_hosts`: 17 passed. A file of 16 MiB is read; one byte
   more is unreadable, with its reason, and a record into it is refused, the file unchanged.
 - Planted, natively: without the check of fragments
-  (`crates/podssh-ws/src/session.rs:346-348`), a message of 16777217 bytes came through, and the
+  (`crates/podssh-ws/src/session.rs:356-358`), a message of 16777217 bytes came through, and the
   test failed; without the bound of `known_hosts`, the larger file was read, and the test failed.
 - In the build image, `scripts/interop-limits.sh` alone with the Prove's plants: as the code is, a
   reader that took each byte peaked at 6884 KiB, and one that took nothing for 30 s at 7460 KiB,
@@ -675,12 +675,12 @@ split of the input only is not found.
 
 Read: the candidates, each a pure function or a state machine with no I/O.
 
-- WebSocket frames: `encode` and `decode` (`crates/podssh-ws/src/frame.rs:75`,
-  `crates/podssh-ws/src/frame.rs:121`).
-- The joining of fragments (`crates/podssh-ws/src/session.rs:340-364`). It is
-  private, but `RelaySession::new` (`crates/podssh-ws/src/session.rs:85`) takes
+- WebSocket frames: `encode` and `decode` (`crates/podssh-ws/src/frame.rs:88`,
+  `crates/podssh-ws/src/frame.rs:134`).
+- The joining of fragments (`crates/podssh-ws/src/session.rs:350-374`). It is
+  private, but `RelaySession::new` (`crates/podssh-ws/src/session.rs:88`) takes
   any stream, so a test can drive it.
-- Relay lists and paths (`crates/podssh-relay/src/relay.rs:107-183`, `crates/podssh-ws/src/names.rs:8-57`).
+- Relay lists and paths (`crates/podssh-relay/src/relay.rs:131-207`, `crates/podssh-ws/src/names.rs:8-57`).
 - `known_hosts` patterns (`crates/podssh-ssh/src/known_hosts.rs:277-333`).
 - The escape filter, which keeps its state from one read to the next
   (`crates/podssh-ssh/src/escape.rs:94-138`).
@@ -759,7 +759,7 @@ sh scripts/dev.sh check     # proptest builds under CC=/nonexistent and CXX=/non
 ```
 
 Each command exits 0. Planted defect: in `encode`, mask with
-`masking_key[(i + 1) % 4]` (`crates/podssh-ws/src/frame.rs:108`); the round
+`masking_key[(i + 1) % 4]` (`crates/podssh-ws/src/frame.rs:121`); the round
 trip of frames must fail and print the smallest frame that fails.
 
 ## Done

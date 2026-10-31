@@ -162,8 +162,8 @@ no `hello` comes (crates/podssh-transport/src/control.rs lines 111-137 at `e8bbd
 T-075 and T-076 (each repaired 2026-10-09).
 
 Read: `RelaySession` has text, binary, Ping and Close writes and a liveness watcher
-(`crates/podssh-ws/src/session.rs:130-240`); `podssh_relay::open::backoff` has a jitter
-(`crates/podssh-relay/src/open.rs:349-363`). Not measured: whether the relay answers a Ping on a reverse socket
+(`crates/podssh-ws/src/session.rs:140-250`); `podssh_relay::open::backoff` has a jitter
+(`crates/podssh-relay/src/open.rs:355-369`). Not measured: whether the relay answers a Ping on a reverse socket
 (`docs/relay.md:143-145` is the forward path), and its idle cut there (`docs/relay.md` lines 191-192 at `cd75137`, T-061). A node
 that connects again ends each operator session on it (`docs/design.md:558-561`).
 
@@ -190,7 +190,7 @@ verified here).
 5. Liveness: measure whether the relay answers a Ping on a node socket; if it does, use `watch_liveness`. Never
    send an empty binary frame: under 32 bytes is `1009 bad multiplex frame` (`:182` of the contract).
    Pitfall: no idle read limit while no probe exists; the forward opener sets 90 s
-   (`crates/podssh-relay/src/open.rs:315`), and a quiet socket would reconnect.
+   (`crates/podssh-relay/src/open.rs:321`), and a quiet socket would reconnect.
 6. Close actions, by code and reason (`docs/reverse.md:198-200`): `409`, exit, no retry;
    `1001 operator stopped reverse relay`, exit and delete the pair; `1001 pair expired`, or a `403` after the
    stored expiry, a re-pair hook that is off by default; `1003` and `1009`, exit with the reason, never a loop;
@@ -230,7 +230,7 @@ cargo test -p podssh-relay --features pair --test reverse_live -- --ignored node
 ```
 
 Offline: the runner runs over an in-memory stream, against a scripted relay that writes real WebSocket frames
-(`RelaySession::new` takes any stream: `crates/podssh-ws/src/session.rs:81-85`). The cases: two mixed sessions
+(`RelaySession::new` takes any stream: `crates/podssh-ws/src/session.rs:84-88`). The cases: two mixed sessions
 with exact bytes; late bytes after `close` dropped, the socket kept; no data before `ready`; one exit on `409`;
 the hook on `1001 pair expired`; exit and a deleted pair on `1001 operator stopped reverse relay`. Plant: send
 `ready` before the handler returns; that test must fail. Live: pair (T-078), run an echo node, open two
@@ -595,7 +595,7 @@ and a test reads that copy to check them (crates/podssh-transport/src/closes.rs 
    each file at 500 lines or fewer (`AGENTS.md:261-262`).
 3. Delete, do not move: the backpressure module (T-074), the `Transport` trait and `backoff.rs`
    (T-077), and `RelayConfig` (`podssh-relay` has `Relay` and `RelayList`,
-   `crates/podssh-relay/src/relay.rs:56-78`).
+   `crates/podssh-relay/src/relay.rs:80-102`).
 4. Rewrite the comments of the moved code to `AGENTS.md:263-264`: why, in few words; no markers, no
    history, no line numbers. Keep the check of the close rows against the pinned copy as a test
    (T-060 decides where the copy lives).
@@ -629,7 +629,7 @@ types and two retry tables for one protocol, which is how `403` and `503` alread
 3. The relay paths of the reverse legs are `relay::node_path` and `relay::operator_path`, beside the
    forward path, with the name checks of `podssh_ws::names` (T-076).
 4. The rules of T-075 hold where the answers are read. The forward opener mints a new token once for
-   a refused cached one, and never after a policy refusal (`crates/podssh-relay/src/open.rs:319-330`).
+   a refused cached one, and never after a policy refusal (`crates/podssh-relay/src/open.rs:325-336`).
    A node exits on a `409`, pairs again on a `403` after the expiry, and stops on a `403` before it
    (crates/podssh-relay/src/reverse/node.rs, lines 148-151 at `fb228e9`; T-261 later made a `409`
    after a loss a wait). A node connects again after a `503`, as

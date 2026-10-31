@@ -62,15 +62,15 @@ repository and CI).
 
 ## Counts
 
-**353 entries: 23 open, 2 partial, 35 blocked, 293 done.**
+**353 entries: 22 open, 3 partial, 35 blocked, 293 done.**
 
 | Priority | open | partial | blocked | done | total |
 | --- | --- | --- | --- | --- | --- |
 | P0 | 0 | 0 | 0 | 1 | 1 |
 | P1 | 2 | 1 | 0 | 25 | 28 |
-| P2 | 5 | 1 | 23 | 151 | 180 |
+| P2 | 4 | 2 | 23 | 151 | 180 |
 | P3 | 16 | 0 | 12 | 116 | 144 |
-| **All** | 23 | 2 | 35 | 293 | 353 |
+| **All** | 22 | 3 | 35 | 293 | 353 |
 
 ## Entries
 
@@ -414,7 +414,7 @@ repository and CI).
 | [T-339](roads.md) | P2 | M | backlog | chore | done | Nothing watches the quick tunnel's pin of cloudflared, and its edge names are fixed |
 | [T-340](ws.md) | P2 | M | backlog | defect | partial | On Windows and macOS podssh reads no store of the system, and `UnknownIssuer` comes with no hint |
 | [T-341](repo.md) | P2 | M | none | chore | done | Nothing watches the upstreams of the vendored crates |
-| [T-342](relay.md) | P2 | M | backlog | defect | open | The relay's limits are compiled in, and nothing compares them with `/relays.json` |
+| [T-342](relay.md) | P2 | M | backlog | defect | partial | The relay's limits are compiled in, and nothing compares them with `/relays.json` |
 | [T-343](repo.md) | P3 | S | none | chore | open | The release takes Zig from one site, builds armv7 with an unchecked rust, and runs an unpinned schema check |
 | [T-344](ws.md) | P3 | M | backlog | feature | open | DNS over HTTPS: two operators, one encoding, and no memory of the addresses that worked |
 | [T-345](ws.md) | P3 | S | backlog | defect | open | Only `doctor` names the clock when a certificate has expired or is not valid yet |

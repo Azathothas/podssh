@@ -155,7 +155,7 @@ Read:
 ## Approach
 
 1. Classify a forward-path close in one place, next to
-   `close_code_and_reason` (`crates/podssh-ws/src/session.rs:380-388`), which
+   `close_code_and_reason` (`crates/podssh-ws/src/close.rs:19-27`), which
    `podssh ssh` and `podssh proxy` both use. Map the code and the reason of
    `docs/relay.md:244-251` to a hop. Relay to target: `1011` with
    `connect failed`, `write failed`, `target closed before sending anything`
@@ -256,7 +256,7 @@ after it.
 Read:
 
 - `podssh_relay::open` fails over and repeats rounds only until the
-  WebSocket upgrade succeeds (`crates/podssh-relay/src/open.rs:188-247`).
+  WebSocket upgrade succeeds (`crates/podssh-relay/src/open.rs:188-253`).
   After the upgrade, a relay close ends the run
   (`crates/podssh-ssh/src/run.rs`, lines 38-47 at `981b8fc`).
 - Both reported drops printed `HOST: the connection closed unexpectedly`,
@@ -288,7 +288,7 @@ Read:
    link from the relay to the target: try once more, then stop. Never retry
    `1001`, `1009` or `1013`.
 4. Wait with the jittered backoff that exists
-   (`crates/podssh-relay/src/open.rs:349-363`). Bound the whole by the rounds
+   (`crates/podssh-relay/src/open.rs:355-369`). Bound the whole by the rounds
    of `ConnectionAttempts` (`crates/podssh-cli/src/ssh/resolve.rs:448`) and
    the deadline of each host.
 5. Never prompt again without a person: under `BatchMode`, or with no
@@ -1509,9 +1509,9 @@ Read:
 - The relay leg limits each write: `WRITE_TIMEOUT` is 60 s
   (`crates/podssh-ws/src/client.rs:34-35`, given to the session at
   `crates/podssh-ws/src/client.rs:181`), and `write` applies it
-  (`crates/podssh-ws/src/session.rs:323-333`). Then the copy task stops
+  (`crates/podssh-ws/src/session.rs:333-343`). Then the copy task stops
   (`crates/podssh-ssh/src/relay_stream.rs:203-219`), the next ping meets the
-  same limit and ends the read task (`crates/podssh-ws/src/session.rs:235-238`,
+  same limit and ends the read task (`crates/podssh-ws/src/session.rs:245-248`,
   `crates/podssh-ssh/src/relay_stream.rs:225-236`), and russh's next write
   fails. So the relay road ends a stuck write in about 60 to 130 s.
 - The direct road gives russh the TCP stream with only `nodelay` set

@@ -42,10 +42,34 @@ pub const SESSION_BUDGET_ENV: &str = "PODSSH_SESSION_BUDGET";
 
 /// The byte budget, with `env` (the value of [`SESSION_BUDGET_ENV`]) lowering
 /// it: a whole number of bytes, at least 1 MiB. Any other value is ignored.
+/// Under the limits of the relay that the run uses ([`byte_budget_under`]).
 pub fn byte_budget(env: Option<&str>) -> u64 {
-    env.and_then(|v| v.trim().parse::<u64>().ok())
-        .filter(|n| *n >= 1 << 20)
-        .map_or(SESSION_BYTE_BUDGET, |n| n.min(SESSION_BYTE_BUDGET))
+    byte_budget_under(env, &crate::pool::in_use())
+}
+
+/// The byte budget under a relay's `limits` (T-342): the compiled-in one, or
+/// less with the same margin when the relay's `max_session_bytes` is
+/// smaller; a larger one never raises it. Then `env` lowers it.
+pub fn byte_budget_under(env: Option<&str>, limits: &crate::pool::Limits) -> u64 {
+    let margin = SESSION_BYTE_CAP - SESSION_BYTE_BUDGET;
+    let under = limits.max_session_bytes.and_then(|cap| cap.checked_sub(margin)).filter(|n| *n >= 1 << 20);
+    let budget = under.map_or(SESSION_BYTE_BUDGET, |n| n.min(SESSION_BYTE_BUDGET));
+    env.and_then(|v| v.trim().parse::<u64>().ok()).filter(|n| *n >= 1 << 20).map_or(budget, |n| n.min(budget))
+}
+
+/// The time budget under a relay's `limits` (T-342): the compiled-in one, or
+/// half an hour under a smaller `max_session_ms`.
+pub fn time_budget(limits: &crate::pool::Limits) -> std::time::Duration {
+    let margin = SESSION_TIME_CAP - SESSION_TIME_BUDGET;
+    let under = limits.max_session_ms.map(std::time::Duration::from_millis).and_then(|cap| cap.checked_sub(margin));
+    under.filter(|d| !d.is_zero()).map_or(SESSION_TIME_BUDGET, |d| d.min(SESSION_TIME_BUDGET))
+}
+
+/// The relay's idle cut under its `limits` (T-342): the compiled-in one, or
+/// a smaller `idle_timeout_ms`.
+pub fn idle_secs(limits: &crate::pool::Limits) -> u64 {
+    let given = limits.idle_timeout_ms.map(|ms| ms / 1000).filter(|s| *s > 0);
+    given.map_or(RELAY_IDLE_SECS, |s| s.min(RELAY_IDLE_SECS))
 }
 
 /// How many pool hosts follow the default host when no list is given. Each

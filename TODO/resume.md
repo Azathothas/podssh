@@ -315,7 +315,7 @@ GitHub #19 reports. Some closes mean "do not come back".
 ## Premise
 
 Read: the failover across relay hosts serves the first connection only
-(`crates/podssh-relay/src/open.rs:188-247`). `classify` maps each reverse close
+(`crates/podssh-relay/src/open.rs:188-253`). `classify` maps each reverse close
 to a retry class (crates/podssh-transport/src/closes.rs lines 154-229 at `e8bbd4d`), with
 `relay backpressure` as `Retry::Never`
 (crates/podssh-transport/src/closes.rs line 202 at `e8bbd4d`); a received Close lost its code
@@ -329,9 +329,9 @@ the node then exits (docs/reverse.md, line 19 at `fb228e9`).
 
 1. The client drives the resume. On a loss with no `CLOSE` record, it tries
    the roads of T-164 and each host of the `RelayList`
-   (`crates/podssh-relay/src/relay.rs:64-78`), each within `HOST_DEADLINE`
+   (`crates/podssh-relay/src/relay.rs:88-102`), each within `HOST_DEADLINE`
    (`crates/podssh-relay/src/open.rs:32-34`), with `open::backoff` between
-   rounds (`crates/podssh-relay/src/open.rs:349-363`). Do not fork it (T-077).
+   rounds (`crates/podssh-relay/src/open.rs:355-369`). Do not fork it (T-077).
 2. A `CLOSE` record never reconnects; each other loss reconnects first
    (ssh-obi's rule, read in GitHub #19, not verified here). Print one stderr
    line for each loss and each resume, and never a secret or a token.
@@ -813,9 +813,9 @@ keepalives must not end a session that the layer would resume.
 ## Premise
 
 Read: a read waits 90 s at most (`crates/podssh-ws/src/client.rs:23-25`, set at
-`crates/podssh-relay/src/open.rs:315`), a limit that counts on the relay's
+`crates/podssh-relay/src/open.rs:321`), a limit that counts on the relay's
 frame each 25 s. The ping watcher acts only after a first Pong
-(`crates/podssh-ws/src/session.rs:203-240`); Pongs and the idle cut on reverse
+(`crates/podssh-ws/src/session.rs:213-250`); Pongs and the idle cut on reverse
 sockets are not measured (T-061). russh sends a keepalive each 60 s and ends
 the session after 3 with no answer (`crates/podssh-ssh/src/options.rs:354-394`).
 Measured on `3ee70dc`, offline (`PODSSH_OFFLINE=1`, a `.invalid` host):
@@ -828,7 +828,7 @@ Measured on `3ee70dc`, offline (`PODSSH_OFFLINE=1`, a `.invalid` host):
    answers `PONG`. A record is payload, so it resets the relay's idle cut on
    each road.
 2. Any record counts as life, as for the ping watcher
-   (`crates/podssh-ws/src/session.rs:203-212`). After 3 silent intervals the
+   (`crates/podssh-ws/src/session.rs:213-222`). After 3 silent intervals the
    link is dead, and T-153 resumes: 30 to 40 s. Both ends send, so the read
    limit of 90 s also holds on reverse sockets.
 3. Carry the `ACK` of T-152 in each `PONG`. The cost is about 20 bytes each

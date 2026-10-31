@@ -309,7 +309,7 @@ the configuration on each call (`crates/podssh-ws/src/client.rs` lines 187-207 a
 (`client.rs` lines 47-61 at `723d90b`). The same `Trust` goes through `podssh-relay`: `Request`
 (`crates/podssh-relay/src/open.rs:135-147`), `MintContext`
 (`crates/podssh-relay/src/token.rs:94-99`), the pool refresh
-(`crates/podssh-relay/src/pool.rs:120-128`), and the `https_*` functions (`client.rs` lines
+(`crates/podssh-relay/src/pool.rs:177-185`), and the `https_*` functions (`client.rs` lines
 261-287). podssh's configuration offers no ALPN (`tls.rs` lines 174-177 at `723d90b`), because the upgrade is
 HTTP/1.1 only (`docs/relay.md:274`). The `tls12` feature of `rustls` is on in the workspace
 (`[workspace.dependencies]` of `Cargo.toml`).
@@ -816,24 +816,24 @@ peer that sends one breaks the protocol, and podssh reads the frame as valid.
 ## Premise
 
 Read on `3ee70dc`, the defect holds. `frame::decode` reads the 16-bit length with no lower
-bound (`crates/podssh-ws/src/frame.rs:157-172`). It reads the 64-bit length and checks only the
+bound (`crates/podssh-ws/src/frame.rs:175-190`). It reads the 64-bit length and checks only the
 size of the platform and the forward cap of 262144 bytes (lines 166-186 at `22c3b88`); that cap also refuses
 a value with its top bit set, which section 5.2 forbids too. `frame::encode` writes the minimal
-form (`:88-96`). The tests check the encoder at the boundaries 125, 126, 65535 and 65536
+form (`:101-109`). The tests check the encoder at the boundaries 125, 126, 65535 and 65536
 (`crates/podssh-ws/tests/rfc6455.rs:92-117`), and no test decodes a length that is not
 minimal. The only caller in the code is `next_event`, for the frames of the relay
-(`crates/podssh-ws/src/client.rs:422-431`). The stand-in relay writes the minimal form
+(`crates/podssh-ws/src/client.rs:422-436`). The stand-in relay writes the minimal form
 (`scripts/fake_ws.py:21-29`); the frames of the real relay were not checked for it.
 
 ## Approach
 
 1. In `frame::decode`, refuse a 16-bit length below 126 and a 64-bit length below 65536 with a
-   `WsError::Frame` that names the rule (`crates/podssh-ws/src/frame.rs:157-197`), before the
+   `WsError::Frame` that names the rule (`crates/podssh-ws/src/frame.rs:175-215`), before the
    payload is copied.
 2. A client that receives such a frame fails the WebSocket connection (RFC 6455 section 7.1.7):
    it sends a Close with 1002, a protocol error (section 7.4.1), and then closes the TCP
    connection. Since T-063 the session sends that Close for each error of the decoder
-   (`crates/podssh-ws/src/session.rs:314-321`), so this entry needs no new path.
+   (`crates/podssh-ws/src/session.rs:324-331`), so this entry needs no new path.
 3. The rule holds in both directions (`Role::Client` and `Role::Server`), so a stand-in relay in
    Rust (T-068) checks podssh's own frames with it too.
 4. `crates/podssh-ws/tests/rfc6455.rs` has 486 lines: put the tests in a new file,
@@ -1755,7 +1755,7 @@ of that form, leaves `--relay-addr` alone. podssh keeps no address that carried 
 - Read: the resolvers are Cloudflare's and Google's, by IP literal, each with its JSON path
   (`crates/podssh-ws/src/resolve.rs:28-32`); each query dials port 443 directly (`:144-163`),
   with `Accept: application/dns-json` (`:156`), for A and then AAAA (`:125`).
-- Read: the relay's pool is cached on disk at a mint (`crates/podssh-relay/src/pool.rs:118-137`);
+- Read: the relay's pool is cached on disk at a mint (`crates/podssh-relay/src/pool.rs:175-194`);
   nothing caches an address.
 - Inferred: RFC 8484 defines the wire form, `application/dns-message`, and no standard defines the
   JSON form; firewalls that block the known addresses of public resolvers are common.
@@ -1824,7 +1824,7 @@ and each other command print rustls's words alone. An error should tell what to 
   yet") holds for both.
 - Read: the expiry of a cached token is read against the local clock, and a token that the relay
   refuses is minted again once (`crates/podssh-relay/src/cache.rs:84`;
-  `crates/podssh-relay/src/open.rs:319-330`): that case needs no hint.
+  `crates/podssh-relay/src/open.rs:325-336`): that case needs no hint.
 
 ## Approach
 

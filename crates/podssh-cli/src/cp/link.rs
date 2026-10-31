@@ -4,7 +4,7 @@
 
 use std::sync::Arc;
 
-use podssh_relay::relay::{byte_budget, SESSION_BUDGET_ENV, SESSION_TIME_BUDGET};
+use podssh_relay::relay::{byte_budget, time_budget, SESSION_BUDGET_ENV};
 use podssh_ssh::run::HopError;
 use podssh_ssh::sftp::{Limits, Sftp, SftpError};
 use podssh_ssh::{Connection, Log, RelayStatus};
@@ -57,7 +57,7 @@ impl Meter {
     pub fn left(&self) -> u64 {
         match &self.relay {
             None => u64::MAX,
-            Some(status) if status.age() >= SESSION_TIME_BUDGET => 0,
+            Some(status) if status.age() >= time_budget(&podssh_relay::pool::in_use()) => 0,
             Some(status) => self.budget.saturating_sub(status.bytes()),
         }
     }

@@ -38,9 +38,9 @@ Read: `parse_hop` already removes the brackets
 (`crates/podssh-cli/src/ssh/hop.rs:30-78`). The refusal is `check_host`
 (`crates/podssh-ws/src/names.rs:8-24`, re-exported by `podssh_relay::relay`), called at
 `crates/podssh-cli/src/ssh/resolve.rs:342`, `crates/podssh-cli/src/proxy.rs:211`
-and in `forward_path` (`crates/podssh-relay/src/relay.rs:139-152`); since this
+and in `forward_path` (`crates/podssh-relay/src/relay.rs:163-176`); since this
 entry, each calls `check_target` there. Tests assert the refusal:
-`crates/podssh-relay/src/relay.rs:255`, and `crates/podssh-cli/tests/proxy.rs`
+`crates/podssh-relay/src/relay.rs:279`, and `crates/podssh-cli/tests/proxy.rs`
 (lines 49-50 at `eaf9822`).
 
 Not known: how `/connect/<host>/<port>` takes a literal. The contract does not
@@ -58,9 +58,9 @@ GitHub #2, not verified here: the relay's `/trace` dials `[V6]:8079`.
    section 4). Write the answers in `docs/relay.md`.
 2. A target check beside `check_host`: a name that `check_host` accepts, or
    text that `std::net::Ipv6Addr` parses. A zone id does not parse, so the rule
-   of `crates/podssh-relay/src/relay.rs:139-145` holds. Keep `check_host` for
-   relay hosts, which are TLS names (`crates/podssh-relay/src/relay.rs:124-137`,
-   `crates/podssh-relay/src/pool.rs:90`).
+   of `crates/podssh-relay/src/relay.rs:163-169` holds. Keep `check_host` for
+   relay hosts, which are TLS names (`crates/podssh-relay/src/relay.rs:148-161`,
+   `crates/podssh-relay/src/pool.rs:147`).
 3. `forward_path` writes the literal in the measured form. `podssh ssh` uses
    the new check at `crates/podssh-cli/src/ssh/resolve.rs:342`, and refuses
    `-4` with an IPv6 literal (64).
@@ -1777,7 +1777,7 @@ Measured offline (`PODSSH_OFFLINE=1`):
 - Control: `podssh proxy --relay-host 'bad host!' example.org 22` is 64, and
   that is correct: there the fault is in the command line.
 
-Read: `select_relays` (`crates/podssh-relay/src/relay.rs:83-101`) and
+Read: `select_relays` (`crates/podssh-relay/src/relay.rs:107-125`) and
 `pins::apply` (`crates/podssh-cli/src/pins.rs` lines 10-20 at `cd3fea5`) give
 one error for the flag and for the variable. Each caller maps it to 64, at
 `cd3fea5`: `crates/podssh-cli/src/proxy.rs` lines 60-71,

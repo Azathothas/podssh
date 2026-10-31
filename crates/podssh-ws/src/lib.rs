@@ -13,6 +13,7 @@
 
 pub mod bundle;
 pub mod client;
+mod close;
 pub mod cloudflare;
 pub mod crypto;
 pub mod dial;

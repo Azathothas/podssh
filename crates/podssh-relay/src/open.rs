@@ -237,6 +237,12 @@ pub async fn open(req: &Request<'_>, notes: &mut dyn FnMut(&str)) -> Result<Open
         }
         attempts.extend(raced.failed.into_iter().map(|(i, e)| (hosts[i].host.clone(), e)));
         if let Some((i, session)) = raced.kept {
+            // The relay's own limits, as its pool's cache keeps them: the
+            // run's budgets go under them, and the session takes in frames
+            // up to its cap (T-342).
+            let limits = crate::pool::cached_limits(&shared.primary);
+            crate::pool::set_in_use(limits);
+            session.set_receive_cap(podssh_ws::frame::receive_cap(limits.max_frame_bytes));
             return Ok(Opened { session, relay: hosts[i].clone() });
         }
         if raced.stopped {

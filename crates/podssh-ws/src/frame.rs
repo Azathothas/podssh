@@ -30,6 +30,19 @@ pub const OPCODE_PONG: u8 = 0xa;
 pub const FORWARD_MAX_FRAME: usize = 262_144;
 pub const NODE_MAX_FRAME: usize = 65_568;
 
+/// The most that a received frame may carry, whatever the relay's
+/// `/relays.json` says: a whole message, [`crate::session::MAX_MESSAGE`].
+pub const MAX_RECEIVE_CAP: usize = 16 * 1024 * 1024;
+
+/// The cap on a received frame for a relay whose `/relays.json` gives
+/// `max_frame_bytes` (T-342): never under [`FORWARD_MAX_FRAME`], so a cached
+/// value can only widen what podssh takes in, and never over
+/// [`MAX_RECEIVE_CAP`].
+pub fn receive_cap(max_frame_bytes: Option<u64>) -> usize {
+    let Some(given) = max_frame_bytes else { return FORWARD_MAX_FRAME };
+    usize::try_from(given).unwrap_or(usize::MAX).clamp(FORWARD_MAX_FRAME, MAX_RECEIVE_CAP)
+}
+
 /// The largest payload that podssh sends in one forward frame, far under the
 /// relay's cap. The relay writes what it takes to a socket of a Worker's
 /// `connect()`, and workerd issue 7074 reports that one write of more than
@@ -119,6 +132,11 @@ pub fn encode(frame: &Frame, role: Role, masking_key: [u8; 4]) -> Vec<u8> {
 /// that is *malformed* is `Err`, and that is the distinction the third plant
 /// of `tests/rfc6455.rs` turns on.
 pub fn decode(input: &[u8], role: Role) -> Result<Option<(Frame, usize)>, WsError> {
+    decode_capped(input, role, FORWARD_MAX_FRAME)
+}
+
+/// [`decode`], with `cap` in the place of the forward cap (T-342).
+pub fn decode_capped(input: &[u8], role: Role, cap: usize) -> Result<Option<(Frame, usize)>, WsError> {
     if input.len() < 2 {
         return Ok(None);
     }
@@ -190,18 +208,16 @@ pub fn decode(input: &[u8], role: Role) -> Result<Option<(Frame, usize)>, WsErro
             if v > usize::MAX as u64 {
                 return Err(WsError::Frame(format!("frame length {v} exceeds this platform")));
             }
-            if v > FORWARD_MAX_FRAME as u64 {
-                return Err(WsError::Frame(format!("frame length {v} exceeds the forward cap of {FORWARD_MAX_FRAME}")));
+            if v > cap as u64 {
+                return Err(WsError::Frame(format!("frame length {v} exceeds the forward cap of {cap}")));
             }
             v as usize
         }
         other => other,
     };
 
-    if payload_len > FORWARD_MAX_FRAME {
-        return Err(WsError::Frame(format!(
-            "frame length {payload_len} exceeds the forward cap of {FORWARD_MAX_FRAME}"
-        )));
+    if payload_len > cap {
+        return Err(WsError::Frame(format!("frame length {payload_len} exceeds the forward cap of {cap}")));
     }
 
     // Checked as soon as the length is known, before the payload arrives.
@@ -255,5 +271,37 @@ pub fn decode(input: &[u8], role: Role) -> Result<Option<(Frame, usize)>, WsErro
 pub fn apply_mask(data: &mut [u8], key: [u8; 4]) {
     for (i, byte) in data.iter_mut().enumerate() {
         *byte ^= key[i % 4];
+    }
+}
+
+#[cfg(test)]
+mod cap_tests {
+    use super::*;
+
+    /// A server's frame header, unmasked, for a binary payload of `len`
+    /// bytes in the 64-bit form.
+    fn header(len: u64) -> Vec<u8> {
+        let mut out = vec![0x80 | OPCODE_BINARY, LENGTH_64_MARKER];
+        out.extend_from_slice(&len.to_be_bytes());
+        out
+    }
+
+    /// T-342: a relay's wider `max_frame_bytes` lets its frames in, a
+    /// smaller one narrows nothing, and no value takes in more than a
+    /// message.
+    #[test]
+    fn a_relays_wider_frame_cap_lets_its_frames_in_and_never_more_than_a_message() {
+        assert_eq!(receive_cap(None), FORWARD_MAX_FRAME);
+        assert_eq!(receive_cap(Some(1024)), FORWARD_MAX_FRAME, "a smaller value never narrows");
+        assert_eq!(receive_cap(Some(524_288)), 524_288);
+        assert_eq!(receive_cap(Some(32 << 20)), MAX_RECEIVE_CAP);
+        let mut frame = header(524_288);
+        frame.extend(vec![0x5a; 524_288]);
+        assert!(decode(&frame, Role::Server).is_err(), "the forward cap refuses it");
+        let (got, used) = decode_capped(&frame, Role::Server, receive_cap(Some(524_288))).unwrap().unwrap();
+        assert_eq!((got.payload.len(), used), (524_288, frame.len()));
+        // One byte over a message is refused from its header alone.
+        let over = header(MAX_RECEIVE_CAP as u64 + 1);
+        assert!(decode_capped(&over, Role::Server, receive_cap(Some(32 << 20))).is_err());
     }
 }

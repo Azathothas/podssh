@@ -352,7 +352,7 @@ sandbox can block what iroh needs, so the fallback is necessary
 (`docs/design.md:1105-1111`). The user must select iroh (`docs/decisions.md`,
 2026-10-08). Each road has one attempt for each host, with a time limit
 (`docs/design.md:56-63`). The relay opener tries one host at a time
-(`crates/podssh-relay/src/open.rs:188-247`), and no code races two roads.
+(`crates/podssh-relay/src/open.rs:188-253`), and no code races two roads.
 
 ## Approach
 
@@ -501,7 +501,7 @@ in iroh's source at the pinned version.
    of one line, with its measurement (T-157).
 2. `--iroh-relay URL[,URL...]` and `PODSSH_IROH_RELAY` replace the table, as
    `--relay-host` and `PODSSH_RELAY` replace the relay list
-   (`crates/podssh-relay/src/relay.rs:80-101`). The flag wins.
+   (`crates/podssh-relay/src/relay.rs:104-125`). The flag wins.
 3. Accept `https://` URLs only, with a host that passes `check_host`
    (`crates/podssh-ws/src/names.rs:8-24`), and with no user information
    and no query.
@@ -2425,7 +2425,7 @@ The part of podssh, when the start condition holds:
    URL or in output (`docs/relay.md:173-175`).
 4. A resume must reach the same Durable Object, so only hosts of one
    deployment can resume a session (the rule of the pool:
-   `crates/podssh-relay/src/pool.rs:82-91`).
+   `crates/podssh-relay/src/pool.rs:139-148`).
 5. Test against the relay's implementation, live, and against the stand-in
    relay with the same state machine.
 6. When the relay's version changes, update the pinned contract and
@@ -2683,7 +2683,7 @@ Read and verified at the cited lines (2026-10-30):
   it, and `crates/podssh-ws/src/handshake.rs:185` says "status != 101".
 - A relay session is generic over its stream
   (`crates/podssh-ws/src/session.rs:33` says "RelaySession<S = RelayStream>",
-  and `:81`). RFC 8441 section 5 runs the frames of RFC 6455 on the HTTP/2
+  and `:84`). RFC 8441 section 5 runs the frames of RFC 6455 on the HTTP/2
   stream "as if it were the TCP connection", and drops `Sec-WebSocket-Key`
   and `Sec-WebSocket-Accept`.
 - `docs/design.md:282` says "0.4.19 is in": `h2` comes through hyper. Its

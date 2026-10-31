@@ -107,7 +107,7 @@ and `CARGO_BUILD_JOBS=4`:
 
 ## Counts
 
-`TODO/INDEX.md` holds 353 entries: 23 open, 2 partial, 35 blocked, 293 done.
+`TODO/INDEX.md` holds 353 entries: 22 open, 3 partial, 35 blocked, 293 done.
 
 Open includes parked work. `cargo todo check` verifies this line.
 
@@ -221,7 +221,7 @@ Q49 (2026-10-31, blocks T-346): the audit of hardcoded assumptions of
 reaches one relay deployment, on Cloudflare, under one domain: the default
 host and the six seeds of the pool are names under `ssh.relay.ajam.dev`,
 and a host of `/relays.json` outside that domain is dropped
-(`crates/podssh-relay/src/pool.rs:82-95`). A binary copied into a cage is
+(`crates/podssh-relay/src/pool.rs:139-152`). A binary copied into a cage is
 not updated (Q48), so no binary in the field can move to another
 deployment if the domain lapses or Cloudflare stops. The question: may a
 binary take relay hosts outside `ssh.relay.ajam.dev` from a `/relays.json`

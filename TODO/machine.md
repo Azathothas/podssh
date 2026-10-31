@@ -217,8 +217,8 @@ Measured: `podssh status` exits 70 with "'status' is not implemented yet; nothin
 Read, at `c6f09a8`: the verb has no flags (`crates/podssh-cli/src/flags.rs` lines 409-410), an
 owner row (line 429) and no arguments (`crates/podssh-cli/src/positionals.rs` line 50). Each fact
 has a local source that
-opens no connection: the relay list (`crates/podssh-relay/src/relay.rs:83-101`,
-`crates/podssh-relay/src/pool.rs:51-64`); the token cache
+opens no connection: the relay list (`crates/podssh-relay/src/relay.rs:107-125`,
+`crates/podssh-relay/src/pool.rs:108-121`); the token cache
 (`crates/podssh-relay/src/cache.rs:72-91`, which returns the token itself in `Cached`, lines
 29-33); a host key (`crates/podssh-ssh/src/known_hosts.rs:90-96`, 90-98); the attachment
 (`crates/podssh-cli/src/non_interactive.rs:68-70`); the proxy, shown with no credentials
@@ -410,7 +410,7 @@ Measured: `podssh ping example.org` exits 64 ("unknown subcommand 'ping'. No clo
 so none is guessed.").
 
 Read: the session pings the relay every 10 s and counts the pongs, but it measures no round
-trip (`crates/podssh-ws/src/session.rs:212-239`; the payload is a counter, `:236`). `doctor`
+trip (`crates/podssh-ws/src/session.rs:222-249`; the payload is a counter, `:246`). `doctor`
 prints the milliseconds of each `/health` request
 (`crates/podssh-cli/src/doctor/relay_checks.rs`, lines 130-132 at `24f3e2a`). The relay counts both directions
 against 64 MiB for each session (`docs/relay.md:187`). The stand-in relay answers pings

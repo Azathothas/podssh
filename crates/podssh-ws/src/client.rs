@@ -420,7 +420,12 @@ pub enum Event {
 /// Decode at most one frame from the front of `buf`, leaving exactly the bytes
 /// not yet consumed (one read can carry several frames).
 pub fn next_event(buf: &mut Vec<u8>) -> Result<Option<Event>, WsError> {
-    let Some((frame, used)) = frame::decode(buf, frame::Role::Server)? else {
+    next_event_capped(buf, frame::FORWARD_MAX_FRAME)
+}
+
+/// [`next_event`], with `cap` on a received frame (T-342).
+pub fn next_event_capped(buf: &mut Vec<u8>, cap: usize) -> Result<Option<Event>, WsError> {
+    let Some((frame, used)) = frame::decode_capped(buf, frame::Role::Server, cap)? else {
         return Ok(None);
     };
     buf.drain(..used);
