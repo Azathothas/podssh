@@ -10,6 +10,7 @@
 
 pub mod check;
 pub mod diff;
+pub mod github;
 pub mod interop;
 pub mod model;
 pub mod numbers;

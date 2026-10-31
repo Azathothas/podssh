@@ -107,7 +107,7 @@ and `CARGO_BUILD_JOBS=4`:
 
 ## Counts
 
-`TODO/INDEX.md` holds 374 entries: 41 open, 0 partial, 29 blocked, 304 done.
+`TODO/INDEX.md` holds 374 entries: 40 open, 0 partial, 29 blocked, 305 done.
 
 Open includes parked work. `cargo todo check` verifies this line.
 
@@ -131,8 +131,7 @@ zeroize and the curves' 0.14 make that batch, so `v1.0.0-beta.3` comes from
 2026-11-01 00:12 UTC, once the gate is green on its commit.
 
 **Now:** the entries of the audit, the study and the issues of 2026-10-31 (GitHub #59 to #63 and
-#69 to #76), the highest priority first: the record's own checks T-360
-and T-361,
+#69 to #76), the highest priority first: the record's own check T-361,
 then the P2 entries that the operator's rulings of 2026-10-31 opened: T-375 (`podssh update`),
 T-348 and T-349 (the iroh road in the release binaries, and the public relays as a fallback, Q50)
 and T-346 (relays outside the default domain, Q49); then the P3 entries T-343, T-344, T-362

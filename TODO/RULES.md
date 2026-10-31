@@ -102,6 +102,14 @@ entry that large is two entries.
   when its other entries are done; the comment names the entries that wait.
   Comment only after the work is done (the operator, 2026-10-08). Write in
   `TODO/issues.md` that the issue is closed, with the commit.
+- `TODO/github.txt` lists each number of the repository, an issue or a pull
+  request, with its state (T-360). `cargo todo check` holds `TODO/issues.md`
+  to it: each issue has one place in the map (the first cell of a row, or the
+  bold head `**#N, ...**` of a paragraph), each pull request is in the map's
+  line of them, and the State of a row begins with its issue's state. When
+  you map an issue, close one, or a pull request comes, move the list in the
+  same commit. `.github/workflows/record-issues.yml` holds the list to GitHub
+  each day, and is red until a session moves it.
 
 ### Citations move with their documents
 

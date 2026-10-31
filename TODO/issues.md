@@ -153,7 +153,7 @@ root lock), made on `main` and closed with a comment.
 | #75 | An HTTP CONNECT listener | open | T-367 |
 | #76 | `ws:` and `ws-listen:` as addresses of `pipe` | open | T-368, with the reader of requests of T-367 |
 
-**#59, the survey of 2026-10-31.** It extends #18 and the study of
+**The survey of #59, of 2026-10-31.** It extends #18 and the study of
 carriers of the same day (`docs/carriers.md`, whose forward road is T-347,
 T-351, T-352 and T-353). Its ranking, road by road: 1, a forwarder that
 takes its target from the URL: T-369, and T-370 for the forwarders in the
@@ -180,7 +180,7 @@ that need a TUN device, domain fronting) need what a cage does not give
 (UDP, a TUN device, a port other than 443, 80 and 8443), or do not exist (a
 public front to any target), as #59 says.
 
-**#63, its two options.** Its prerequisite for both, a TCP/IP stack in the
+**The two options of #63.** Its prerequisite for both, a TCP/IP stack in the
 process, holds for T-352 and T-374; Arti gives a stream for each target, so
 T-353 needs none (Inferred).
 ## The reports on other projects (in #18 to #25, and in #29 to #36)

@@ -62,15 +62,15 @@ repository and CI).
 
 ## Counts
 
-**374 entries: 41 open, 0 partial, 29 blocked, 304 done.**
+**374 entries: 40 open, 0 partial, 29 blocked, 305 done.**
 
 | Priority | open | partial | blocked | done | total |
 | --- | --- | --- | --- | --- | --- |
 | P0 | 0 | 0 | 0 | 1 | 1 |
 | P1 | 2 | 0 | 0 | 29 | 31 |
-| P2 | 8 | 0 | 20 | 157 | 185 |
+| P2 | 7 | 0 | 20 | 158 | 185 |
 | P3 | 31 | 0 | 9 | 117 | 157 |
-| **All** | 41 | 0 | 29 | 304 | 374 |
+| **All** | 40 | 0 | 29 | 305 | 374 |
 
 ## Entries
 
@@ -432,7 +432,7 @@ repository and CI).
 | [T-357](cli.md) | P1 | S | backlog | defect | done | `doctor` names `pipe` alone as a listener, and its module says that it alone calls `bind()` |
 | [T-358](cli.md) | P1 | S | backlog | defect | done | `doctor` measures a bind and never a listen, so a host that refuses `listen()` reads as one that listens |
 | [T-359](roads.md) | P2 | M | backlog | defect | done | The iroh road takes UDP on a bind alone, and `doctor` says that it may go direct with nothing sent |
-| [T-360](repo.md) | P2 | M | none | defect | open | Nothing reads `TODO/issues.md`: issues #59 to #63 have no row, and no check compares the map with GitHub |
+| [T-360](repo.md) | P2 | M | none | defect | done | Nothing reads `TODO/issues.md`: issues #59 to #63 have no row, and no check compares the map with GitHub |
 | [T-361](repo.md) | P2 | S | none | defect | open | A Prove may name a test target or a script that no longer exists, and the record's check passes |
 | [T-362](repo.md) | P3 | S | none | chore | open | A claim that something is not built yet carries no date or entry, and a status beside an id is not checked |
 | [T-363](roads.md) | P3 | M | backlog | feature | open | The direct road is never tried after the relay hosts fail, though the road table says that a probe chooses it |

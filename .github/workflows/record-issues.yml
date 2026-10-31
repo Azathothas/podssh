@@ -1,0 +1,44 @@
+name: record issues
+
+# T-360: TODO/github.txt, the list of the repository's numbers that `cargo
+# todo check` holds TODO/issues.md to, against GitHub itself, each day and by
+# hand (scripts/check-github-numbers.py). Red when an issue or a pull request
+# came, or changed its state, and no session mapped it (TODO/RULES.md). The
+# gate has no network, so the list is the record's own copy, as the watch of
+# the vendored crates keeps its copies (T-341).
+
+on:
+  schedule:
+    # Each day at 05:43 UTC, off the hour.
+    - cron: "43 5 * * *"
+  workflow_dispatch:
+
+permissions:
+  contents: read
+  issues: read
+  pull-requests: read
+
+jobs:
+  numbers:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+      - name: TODO/github.txt against GitHub
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: python3 scripts/check-github-numbers.py
+      # The check must see a number that the list lost: a planted drop fails it.
+      - name: a planted drop fails it
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          rc=0
+          python3 scripts/check-github-numbers.py --plant-drop 1 || rc=$?
+          if [ "$rc" -ne 1 ]; then
+            echo "the check is vacuous: the planted drop exited $rc, not 1"
+            exit 1
+          fi
+          echo "the planted drop exited 1, as it must"

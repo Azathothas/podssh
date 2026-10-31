@@ -115,6 +115,8 @@ pub fn check_with(root: &Path, changed: Option<Vec<String>>, head: &crate::remap
     }
     check_counts(&record, &mut problems);
     crate::refs::check(root, &record, &mut problems);
+    // GitHub's numbers in the map (T-360).
+    crate::github::check(root, &mut problems);
     if let Some(files) = changed.filter(|f| !f.is_empty()) {
         unmoved(root, &files, head, rev, &mut problems);
     }

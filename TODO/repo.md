@@ -4650,7 +4650,7 @@ Approach item 1.
 **Milestone:** none
 **Priority:** P2
 **Effort:** M
-**Status:** open
+**Status:** done
 
 ## Problem
 
@@ -4710,6 +4710,36 @@ Planted: an issue's row removed from `TODO/issues.md`; the check names its numbe
 named twice; the check names it. A closed issue whose row says open; the check names it. In the
 job: a number removed from the list; the run fails and names it.
 
+## Correction
+
+2026-10-31: #59 to #63 have rows in the map since the triage of this day (task "the triagers'
+entries"), so Approach item 5 was done when this entry was taken: the first run of the check
+found each of the five in its place. It found instead two issues with two places, #59 and #63,
+a row each and the bold head of a paragraph of detail; the two heads now begin with words, and
+the row is the place.
+
+## Done
+
+2026-10-31: `TODO/github.txt` lists each of GitHub's 77 numbers (53 issues, 24 pull requests)
+with its state, made from GitHub's own lists of the day; `cargo todo check` holds the map to it
+(`crates/podssh-todo/src/github.rs`): each issue in one place, a row of a table or the bold head
+of a paragraph; each pull request in the map's line of them, its ranges read; the State of a row
+beginning with the issue's state; and no number that the list does not hold.
+
+- Tests: on the record's own files, the map agrees with the list; planted, a row removed ("issue
+  #70 has no place in the map"), a row twice ("has 2 places"), a closed issue's row saying open
+  ("is closed on GitHub, and its row says \"open\""), #77 out of the line of pull requests, and
+  #70 out of the list ("the map names #70, which TODO/github.txt does not hold"): each named.
+  `cargo test -p podssh-todo`, 93 passed; clippy `-D warnings` clean.
+- The daily job `.github/workflows/record-issues.yml` runs `scripts/check-github-numbers.py`,
+  which compares the list with `gh issue list` and `gh pr list` (a merged pull request is
+  closed), and its plant: a number dropped, which must exit 1. Here, with GitHub's lists of the
+  day as files: exit 0 ("holds GitHub's 77 numbers"); with #1 dropped, exit 1, naming it; with an
+  issue #78 that the list does not hold, exit 1, naming it. Its first run on GitHub is the next
+  push's or the next day's.
+- `TODO/RULES.md` says to move the list with each mapping, closing and pull request.
+
+
 # T-361: A Prove may name a test target or a script that no longer exists, and the record's check passes
 
 **Source:** GitHub #71 (Nemo-010, 2026-10-31), its second rule that nothing enforces, and its
@@ -4730,7 +4760,7 @@ that does not exist today.
 ## Premise
 
 - Read: the check of a Prove is that its body holds a backtick
-  (`crates/podssh-todo/src/check.rs:296-300`); a line in a fenced block is no citation
+  (`crates/podssh-todo/src/check.rs:298-302`); a line in a fenced block is no citation
   (`crates/podssh-todo/src/refs.rs:96-99`), and the commands of a Prove are in one.
 - Measured on 2026-10-31, with a script of this triage over the `## Prove` of each entry: each
   `cargo test -p CRATE --test NAME` against the crate's `tests/` and its `[[test]]` targets, and
@@ -4828,7 +4858,7 @@ of GitHub #69 to #72 corrected these; nothing finds the next.
    get their entry or a date, or are corrected, in the same change.
 3. A status written beside an id in those documents (`T-NNN, partial`, `(T-NNN, open)`) agrees
    with the index, unless its paragraph reads at a date or at a commit, as the record's readings
-   do (`TODO/RULES.md:127-132`): "T-099, partial" of 2026-10-10 is such a reading
+   do (`TODO/RULES.md:135-140`): "T-099, partial" of 2026-10-10 is such a reading
    (`docs/STATUS.md:606`).
 4. `TODO/RULES.md` says it, beside the rules of citations.
 

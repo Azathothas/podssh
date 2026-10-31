@@ -1,0 +1,85 @@
+# The numbers of Azathothas/podssh on GitHub, each an issue or a pull request
+# with its state, as `gh issue list` and `gh pr list` give them (T-360).
+# `cargo todo check` holds TODO/issues.md to it: each issue has one place in
+# the map, each pull request is in its line of them, and the State of a row
+# begins with its issue's state. .github/workflows/record-issues.yml holds
+# it to GitHub each day (scripts/check-github-numbers.py). A session that
+# maps an issue, or closes one, moves this file in the same commit.
+
+1 issue closed
+2 issue closed
+3 issue closed
+4 issue closed
+5 issue closed
+6 issue closed
+7 issue closed
+8 issue closed
+9 issue closed
+10 issue closed
+11 issue closed
+12 issue closed
+13 issue closed
+14 issue closed
+15 issue closed
+16 issue closed
+17 issue closed
+18 issue open
+19 issue open
+20 issue open
+21 issue closed
+22 issue open
+23 issue closed
+24 issue open
+25 issue open
+26 issue closed
+27 issue open
+28 issue closed
+29 issue closed
+30 issue closed
+31 issue closed
+32 issue open
+33 issue closed
+34 issue closed
+35 issue open
+36 issue closed
+37 pull closed
+38 pull closed
+39 pull closed
+40 pull closed
+41 pull closed
+42 pull closed
+43 pull closed
+44 pull closed
+45 pull closed
+46 pull closed
+47 pull closed
+48 pull closed
+49 pull closed
+50 pull closed
+51 issue open
+52 pull closed
+53 pull closed
+54 issue closed
+55 issue open
+56 issue open
+57 pull closed
+58 pull closed
+59 issue open
+60 issue open
+61 issue open
+62 issue open
+63 issue open
+64 pull closed
+65 pull closed
+66 pull closed
+67 pull closed
+68 pull closed
+69 issue closed
+70 issue closed
+71 issue open
+72 issue open
+73 issue closed
+74 issue open
+75 issue open
+76 issue open
+77 pull closed
