@@ -98,7 +98,9 @@ pub(super) const NODE: &[&str] = &[
      --iroh-ephemeral are --key and --ephemeral-key by their earlier names. When it starts, the node \
      prints its key's \
      fingerprint and its ticket (iroh:...) on stderr, and a new ticket when its home \
-     relay changes; a client dials the ticket with podssh ssh iroh:TICKET. When the pair NAME is stored \
+     relay changes; a client dials the ticket with podssh ssh iroh:TICKET. On n0's relays, the node \
+     also keeps a record of its home relay at n0's server of pkarr, where a client with an older \
+     ticket finds it (see iroh record in THE RELAY). When the pair NAME is stored \
      and good, or --pair-file gives one, the node serves the pair's road too, with one keeper of \
      sessions for both: a session resumes on either road, and podssh ssh node://NAME --iroh-ticket \
      TICKET races them. When the pair's road ends, the node says why, and the iroh road goes on.",

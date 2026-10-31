@@ -48,7 +48,9 @@ pub const SSH: &[&str] = &[
      the name iroh:KEY, the node's key, which stays when the ticket changes. A node has no port, and -J, \
      -W and --direct cannot go with it yet. The session runs the resumable layer: a lost link is \
      replaced by a new one, for 10 minutes. podssh asks the ticket's relay first, then those of \
-     --iroh-relay (see THE RELAY).",
+     --iroh-relay (see THE RELAY). When the ticket's relay does not reach the node, podssh asks for the \
+     node's record of pkarr, dials the relay that it names, and says the node's ticket there (see iroh \
+     record in THE RELAY).",
     "cf://[user@]HOST reaches a service that Cloudflare's cloudflared publishes under HOST, the name of \
      a tunnel's ssh:// or tcp:// rule: over the WebSocket that cloudflared access tcp opens, through \
      HTTPS_PROXY when one is set, with no relay and no program of Cloudflare's. A name behind Cloudflare \

@@ -3559,16 +3559,129 @@ podssh's own, which makes it M.
 
 The operator's ruling of 2026-10-31 (Q50, `docs/decisions.md`): n0's server of pkarr may be a default, as n0's relays are a fallback.
 
+2026-10-31, the draft (each call with the alternatives that lost):
+
+- Who keeps a record unasked (item 4, which waited for Q50): a node whose relays are n0's keeps
+  it at n0's server; a node on other relays keeps none unless `PODSSH_IROH_PKARR` names a server;
+  `off` keeps none. Lost: a record only when the user asks, which an operator who does not know
+  of it never asks, so a node started again while n0's first relay did not answer strands each
+  client of its old ticket, the case the record is for; and n0's server for each node, which
+  would tell n0 of a relay of the user's own, and which the tests on loopback relays would reach.
+- The setting is a variable alone, `PODSSH_IROH_PKARR` (a server's URL, or `off`), read by both
+  ends, as `PODSSH_IROH_UDP` is a variable alone; a bad value is a configuration error (78)
+  before anything connects. Lost: a flag on `node`, `ssh`, `pipe` and `chat`, four commands'
+  arguments and tables for a setting that the default fits.
+- The client of pkarr is podssh's own, over podssh-ws, as `/ping` goes
+  (`crates/podssh-iroh/src/pkarr.rs`, beside `crates/podssh-iroh/src/relays.rs`), with
+  iroh-dns's `SignedPacket` and `EndpointInfo` for the record. Lost: iroh's own `PkarrPublisher`
+  and `PkarrResolver` in the endpoint's builder. They take the endpoint's proxy (the Correction),
+  but its one proxy, chosen for the first relay, so `NO_PROXY` is not read for the server's host;
+  iroh asks the resolver at each dial that has no chosen path, beside the ticket's relay
+  (`trigger_address_lookup`, `n0-computer/iroh:iroh/src/socket/remote_map/remote_state.rs`), one
+  more connection to n0 for each session that works, where item 2 asks only when the ticket's
+  relay fails; iroh says why a lookup failed to its traces alone (`debug!`), so a client could
+  not say why the fallback found nothing; and the Prove's planted defect needs a check of
+  podssh's own to plant. Lost too: iroh's `PkarrRelayClient`, whose public `new` takes no proxy
+  (`with_proxy` is `pub(crate)`); and an `AddressLookup` of podssh's own in the builder, which
+  iroh would also ask at each dial.
+- The record is iroh's own: the `_iroh` TXT `relay=URL`, signed with the node's key by iroh-dns
+  1.4.1, which iroh already builds, so the lock adds no crate; iroh's tools and n0's DNS read it.
+  It names the relay alone, as iroh's default filter `AddrFilter::relay_only` does: no address
+  of the host goes to a public server. Lost: a form of podssh's own, which no other reader takes.
+- Its life: names with a TTL of 30 s, put again each 5 minutes and when the home relay changes,
+  as iroh's own publisher does (`DEFAULT_PKARR_TTL`, `DEFAULT_REPUBLISH_INTERVAL`; a unit test
+  holds the values to iroh's, as it holds `N0` to `N0_DNS_PKARR_RELAY_PROD`). A failure is tried
+  again after 5 s, then twice as long each time up to 5 minutes, and said once. Lost: one record
+  at the start, which a server that evicts old records forgets; a shorter interval, more
+  requests to n0's free server for a record that does not change.
+- When a client asks: only when the ticket's relay does not reach the node, after 10 s with no
+  connection (`FIND_AFTER`, `crates/podssh-iroh/src/client.rs`), or before the first dial when
+  each of the ticket's relays missed its `/ping`. It then dials an address with the ticket's
+  relay and the record's, and iroh sends to each relay of an address until a path is chosen
+  (`handle_msg_send_datagram`, `n0-computer/iroh:iroh/src/socket/remote_map/remote_state.rs`), so
+  a stale record costs nothing. The dial keeps its 30 s (10 s, then 20 s), with the lookup's 10 s
+  at most between. Lost: a lookup at each dial, a request to n0 for each session; the full 30 s
+  first, which a client with a stale ticket waits each time; 5 s, which a relay that holds the
+  node but answers slowly through a proxy can pass.
+- What is taken of a record: a relay that `crates/podssh-iroh/src/relays.rs` takes
+  (`https://HOST[:PORT]`), from a record whose signature is the node's key's. The QUIC handshake
+  and the end-to-end channel (T-088) check the node's key either way, so a record that names
+  another relay fails the session, and no more. Its age refuses nothing: a stale record names a
+  relay where the node is not, which the dial finds.
+- After a session that the record's relay carried, `podssh ssh` says the node's ticket there, at
+  the default level, as the user's ticket is stale. Lost: `-v` alone, which that user does not
+  see. `pipe` and `chat` say the lookups at `-v` only: stdout is the pipe's data, and chat's lines
+  are its conversation.
+- The race of `podssh ssh node://NAME --iroh-ticket` (T-164) keeps its dial: the pair's road is
+  its fallback, and its leg borrows a log that a lookup's lines cannot keep. Lost: the record in
+  the race too, a third fallback in a race of two.
+- The tests: a stand-in server of pkarr in `podssh-iroh` (`crates/podssh-iroh/src/test_pkarr.rs`,
+  feature `test-relay`), HTTPS on the loopback with a self-signed certificate, which reads each
+  `PUT` with iroh-dns's check, as iroh's own test server does; and iroh 1.4.1's own
+  `PkarrRelayClient` against it, so podssh's record is read by software that podssh did not
+  write, and podssh reads iroh's. Lost: iroh's `DnsPkarrServer` of `test-utils`, plain HTTP with
+  `PUT` alone, which podssh's client (HTTPS only) cannot reach and which answers no `GET`; plain
+  HTTP in podssh's client for a test, a road that podssh speaks nowhere else.
+
 ## Prove
 
 ```sh
 export CARGO_BUILD_JOBS=4
 cargo test -p podssh-iroh --features test-relay --test pkarr_lookup
+cargo test -p podssh-iroh --lib pkarr
+cargo test -p podssh-cli --features iroh-test --test pipe_iroh_record
 ```
 
 Two relays and a server of pkarr on the loopback: the node moves to the second relay, and a
 client with the first ticket finds it and connects; a record signed by another key is refused.
-Planted: the check of the signature skipped; the test of the other key fails.
+Planted: the check of the signature skipped; the test of the other key fails. iroh's own client
+of pkarr reads podssh's record, and podssh reads iroh's; `podssh pipe` with the first ticket of a
+node that moved gets its echo.
+
+## Correction
+
+2026-10-31, read in iroh 1.4.1 (`n0-computer/iroh:iroh/src/address_lookup/pkarr.rs`): the fourth
+premise is wrong. iroh's publisher and resolver of pkarr, once in an endpoint's builder, take the
+endpoint's proxy URL, its TLS configuration (of `ca_tls_config`) and its resolver
+(`into_address_lookup` of `PkarrPublisherBuilder` and of `PkarrResolverBuilder`), and iroh's own
+test `resolver_uses_endpoint_proxy` sees `CONNECT pkarr.test:443` at the proxy. Item 3's
+condition holds, then; the Decision takes podssh's own client over podssh-ws for the reasons that
+it names, and item 3 is that client.
+
+## Done
+
+2026-10-31, drafted (branch `draft-pkarr`); nothing built or run:
+
+- `crates/podssh-iroh/src/pkarr.rs`: the server (`Server`, n0's `N0`), the variable
+  `PODSSH_IROH_PKARR` (`Choice`, `choose`: n0's server for n0's relays alone), the record
+  (`Record`, `read`, which checks the signature), `publish` and `lookup` over podssh-ws, the
+  node's `keep`, and the client's `Finder`; its tests with no network in
+  `crates/podssh-iroh/src/pkarr_tests.rs`.
+- `crates/podssh-iroh/src/client.rs`: `Dialer::finding`, the first 10 s at the ticket's
+  address, the lookup, the dial with the record's relay too, and `Dialer::moved`.
+- `crates/podssh-iroh/src/test_pkarr.rs`: the stand-in server (feature `test-relay`, with
+  `tokio-rustls` of the workspace); `iroh-dns` 1.4.1 a dependency. Both were in the lock, whose
+  entry of `podssh-iroh` gained the two names by hand.
+- The command line: `crates/podssh-cli/src/node_iroh.rs` keeps the node's record and says where;
+  `crates/podssh-cli/src/ssh/iroh/dial.rs` gives a client its finder and says the new ticket;
+  `crates/podssh-cli/src/ssh/iroh.rs` reads the variable before anything connects; the dial of
+  `pipe` and `chat` shares its log.
+- The manual: `PODSSH_IROH_PKARR` in ENVIRONMENT and `iroh record` in THE RELAY, the iroh road's
+  facts moved to `crates/podssh-cli/src/man/facts/iroh_road.rs` (`facts.rs` was at 500 lines);
+  a sentence in the notes of `node` and of `ssh`. `docs/design.md` (section 7) and
+  `docs/STATUS.md` name it.
+- The tests: `crates/podssh-iroh/tests/pkarr_lookup.rs` (a client with the first ticket, a
+  ticket whose relay does not answer, a record that another key signed and the planted reader,
+  iroh's own client); `crates/podssh-cli/tests/pipe_iroh_record.rs` (`podssh node` twice and
+  `podssh pipe`, from end to end); the variable removed from the environment of the command
+  line's iroh tests.
+
+Results: the build, clippy and the format: UNVERIFIED. `--lib pkarr`: UNVERIFIED.
+`--test pkarr_lookup`: UNVERIFIED (the client with the first ticket; the one whose relay does not
+answer, within 10 s; the record that another key signed; the planted reader caught; iroh's own
+client). `--test pipe_iroh_record`: UNVERIFIED. Planted in `read` (iroh-dns's unchecked reading in
+place of the checked one): UNVERIFIED. The whole step `iroh` of the gate, with the sweep of the
+manual's variables: UNVERIFIED.
 
 
 # T-351: Roads through a cloud's own tunnel: GCP IAP TCP forwarding, then EC2 Instance Connect Endpoint

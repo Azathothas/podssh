@@ -55,6 +55,7 @@ fn command(home: &Path, args: &[&str]) -> Command {
         "NO_PROXY",
         "no_proxy",
         "PODSSH_IROH_UDP",
+        "PODSSH_IROH_PKARR",
     ] {
         cmd.env_remove(name);
     }

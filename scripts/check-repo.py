@@ -91,11 +91,14 @@ LISTENERS = {
     # directory: test modules of src/ that reach the crate's own login. And
     # -L and -D of `podssh ssh` (T-038), which the user asks for: the bind and
     # the listen, before anything connects, are the probe, and PODSSH_LISTEN
-    # turns them off.
+    # turns them off. And the stand-in server of pkarr on the loopback
+    # (T-350), beside iroh's test relay: the tests' own, behind the feature
+    # test-relay, which no release builds.
     "TcpListener": [
         "crates/podssh-cli/src/pipe/listen.rs",
         "crates/podssh-ssh/src/remote_tests.rs",
         "crates/podssh-cli/src/ssh/local_bind.rs",
+        "crates/podssh-iroh/src/test_pkarr.rs",
     ],
     # The control socket of `podssh ssh -M` (T-039), which the user asks for:
     # pipe/listen.rs makes it before anything connects (the probe), and the
@@ -136,8 +139,10 @@ LISTENERS = {
     # `podssh session start` and `serve` (T-186), which the user asks for:
     # it binds through the same listener, after PODSSH_LISTEN, before it
     # connects, and the bind is its probe. And the quick tunnel over QUIC
-    # (T-301), and the tests of the iroh road's probe (T-359), as above.
+    # (T-301), the tests of the iroh road's probe (T-359), and the stand-in
+    # server of pkarr (T-350), as above.
     "bind(": [
+        "crates/podssh-iroh/src/test_pkarr.rs",
         "crates/podssh-iroh/src/endpoint_udp_tests.rs",
         "crates/podssh-relay/src/udp/flow.rs",
         "crates/podssh-relay/src/quick/quic.rs",

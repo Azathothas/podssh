@@ -2,9 +2,11 @@
 //! service TARGET, over the iroh road. Its key is its identity, kept in a
 //! private file and shown by its public half; its ticket (`iroh:...`),
 //! printed when it starts and again when its home relay changes, is its
-//! address. A client gets in only when its key is in the file of
-//! `--iroh-allow`, read again for each connection. With the pair NAME, or
-//! the one of `--pair-file`, the node serves the pair's road too, with one
+//! address; a record of its home relay at a server of pkarr lets a client
+//! with an older ticket find it (T-350). A client gets in only when its key
+//! is in the file of `--iroh-allow`, read again for each connection. With
+//! the pair NAME, or the one of `--pair-file`, the node serves the pair's
+//! road too, with one
 //! keeper of sessions for both, so that a session resumes on either road
 //! (T-164). Each session runs the resumable layer, and reaches TARGET only
 //! after its handshake. stdout stays empty: the lines are on stderr. The
@@ -78,6 +80,8 @@ pub(crate) struct Ready {
     pub pair: Result<(Pair, bool), String>,
     /// The end-to-end channel on both roads (T-088); off with `--no-e2e`.
     pub e2e: bool,
+    /// The server of pkarr that keeps the record of the home relay (T-350).
+    pub pkarr: Option<podssh_iroh::pkarr::Server>,
 }
 
 /// The flags of a node of both roads, as its command gives them.
@@ -120,6 +124,8 @@ pub(crate) fn ready(flags: Flags<'_>) -> Result<Ready, Refusal> {
         Err(why) if flags.iroh_relay.is_some() => return Err(Refusal::usage(why)),
         Err(why) => return Err(Refusal::config(why)),
     };
+    // The record's server: n0's for n0's relays, else the variable's (T-350).
+    let pkarr = podssh_iroh::pkarr::choose(&relays).map_err(Refusal::config)?;
     crate::pins::apply(flags.relay_addr)?;
     // A pair that `--pair-file` names must be good; a stored one may be
     // missing or expired, and the node then serves the iroh road alone.
@@ -137,6 +143,7 @@ pub(crate) fn ready(flags: Flags<'_>) -> Result<Ready, Refusal> {
         trust,
         pair,
         e2e: flags.e2e,
+        pkarr,
     })
 }
 
@@ -192,7 +199,7 @@ where
     F: Future<Output = Result<A, String>> + Send + 'static,
     A: AsyncRead + AsyncWrite + Unpin + Send + 'static,
 {
-    let Ready { label, place, allow, relays, trust, pair, e2e } = ready;
+    let Ready { label, place, allow, relays, trust, pair, e2e, pkarr } = ready;
     let Roads { verb, serving, after, handler, open: target, routes } = roads;
     // The pair's road needs these after the iroh road has taken its own.
     let (label_text, trust_pair) = (label.clone(), trust.clone());
@@ -295,6 +302,17 @@ where
         let say = say.clone();
         move |ticket| say(format!("the home relay changed; the ticket is now {ticket}"))
     }));
+    // A client with an older ticket finds the home relay in the record,
+    // which the node keeps at the server of pkarr (T-350).
+    let record = pkarr.map(|server| {
+        let off = podssh_iroh::pkarr::ENV;
+        let _ = writeln!(
+            err,
+            "podssh {verb}: {label}: the record of its home relay goes to {server} ({off}=off sends none)"
+        );
+        let (trust, proxy) = (asked_trust.clone(), asked_proxy.clone());
+        tokio::spawn(podssh_iroh::pkarr::keep(endpoint.clone(), server, trust, proxy, say.clone()))
+    });
     let admit = {
         let say = say.clone();
         move |key: &PublicKey| admits(allow.as_deref(), key, &say)
@@ -358,6 +376,9 @@ where
         }
     }
     follow.abort();
+    if let Some(record) = record {
+        record.abort();
+    }
     let _ = tokio::time::timeout(CLOSE_LIMIT, endpoint.close()).await;
     say("stopped".into());
     0

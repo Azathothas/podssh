@@ -13,17 +13,23 @@
 //! the client keys of its allowlist ([`allow`]); [`client`] dials a node by
 //! its ticket ([`ticket`]). Each end has its key in a private file
 //! ([`keys`]), and its home relay is the first of its list that answers
-//! ([`relays`]).
+//! ([`relays`]). A node keeps a record of its home relay at a server of
+//! pkarr, and a client whose ticket's relay does not reach the node asks it
+//! ([`pkarr`], T-350).
 
 pub mod allow;
 pub mod client;
 pub mod endpoint;
 pub mod far;
 pub mod keys;
+pub mod pkarr;
 pub mod probe;
 pub mod relays;
 pub mod resolve;
 pub mod stream;
+// A server of pkarr on the loopback, beside the test relay (T-350).
+#[cfg(feature = "test-relay")]
+pub mod test_pkarr;
 #[cfg(feature = "test-relay")]
 pub mod test_relay;
 pub mod ticket;
@@ -33,6 +39,7 @@ pub mod version;
 pub use allow::Allowlist;
 pub use client::{carry, Dialer, Failure};
 pub use endpoint::{bind, BindError, Options, Udp};
+pub use pkarr::Finder;
 pub use stream::{accept_session, open_session, Stream};
 
 /// The ALPN of podssh's sessions over iroh: a connection with another one

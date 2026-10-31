@@ -140,14 +140,17 @@ pub(super) fn race(args: &super::args::SshArgs) -> Result<Option<Race>, Refusal>
 
 /// The relays of `--iroh-relay`, else of the variable, else of the table: a
 /// bad flag is a usage error (64), a bad variable a configuration error
-/// (78), as the relay's own flag and variable are.
+/// (78), as the relay's own flag and variable are. The variable of the
+/// node's record (T-350) is read here too, before anything connects.
 #[cfg(feature = "iroh")]
 pub(crate) fn relays(flag: Option<&str>) -> Result<Vec<String>, Refusal> {
-    match podssh_iroh::relays::from_environment(flag) {
-        Ok((list, _)) => Ok(list.iter().map(ToString::to_string).collect()),
-        Err(why) if flag.is_some() => Err(Refusal::usage(why)),
-        Err(why) => Err(Refusal::config(why)),
-    }
+    let list: Vec<String> = match podssh_iroh::relays::from_environment(flag) {
+        Ok((list, _)) => list.iter().map(ToString::to_string).collect(),
+        Err(why) if flag.is_some() => return Err(Refusal::usage(why)),
+        Err(why) => return Err(Refusal::config(why)),
+    };
+    podssh_iroh::pkarr::choice_from_environment().map_err(Refusal::config)?;
+    Ok(list)
 }
 
 #[cfg(not(feature = "iroh"))]
