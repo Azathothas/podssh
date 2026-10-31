@@ -62,15 +62,15 @@ repository and CI).
 
 ## Counts
 
-**374 entries: 36 open, 2 partial, 29 blocked, 307 done.**
+**374 entries: 35 open, 2 partial, 30 blocked, 307 done.**
 
 | Priority | open | partial | blocked | done | total |
 | --- | --- | --- | --- | --- | --- |
 | P0 | 0 | 0 | 0 | 1 | 1 |
 | P1 | 2 | 0 | 0 | 29 | 31 |
-| P2 | 4 | 1 | 20 | 160 | 185 |
+| P2 | 3 | 1 | 21 | 160 | 185 |
 | P3 | 30 | 1 | 9 | 117 | 157 |
-| **All** | 36 | 2 | 29 | 307 | 374 |
+| **All** | 35 | 2 | 30 | 307 | 374 |
 
 ## Entries
 
@@ -418,7 +418,7 @@ repository and CI).
 | [T-343](repo.md) | P3 | S | none | chore | partial | The release takes Zig from one site, builds armv7 with an unchecked rust, and runs an unpinned schema check |
 | [T-344](ws.md) | P3 | M | backlog | feature | open | DNS over HTTPS: two operators, one encoding, and no memory of the addresses that worked |
 | [T-345](ws.md) | P3 | S | backlog | defect | done | Only `doctor` names the clock when a certificate has expired or is not valid yet |
-| [T-346](relay.md) | P2 | M | backlog | feature | open | Relay hosts outside the default domain from a signed `/relays.json`, and a list of deployments |
+| [T-346](relay.md) | P2 | M | backlog | feature | blocked | Relay hosts outside the default domain from a signed `/relays.json`, and a list of deployments |
 | [T-347](roads.md) | P2 | S | backlog | feature | done | `-J cf://HOST`: a Cloudflare tunnel as the first hop of a jump chain |
 | [T-348](roads.md) | P2 | M | backlog | feature | partial | The iroh road in the release binaries, and a notice when n0 refuses an old iroh |
 | [T-349](roads.md) | P2 | L | backlog | feature | open | A DERP link through Tailscale's tailcat relays, a second carrier of the reverse road |

@@ -295,9 +295,12 @@ relay's endpoints are in the contract.
     Optional: do it if the relay's operator wants it. podssh's operator
     ruled on Q49 on 2026-10-31: a binary may use a relay outside
     `ssh.relay.ajam.dev` that speaks this contract, and it sends a token
-    only to the deployment that minted it. podssh's side of T-346 is open.
-    Relays that users bring (item 12, and the relay template of #60) and a
-    coming `podssh update` (T-375) make a signed list of deployments less pressing.
+    only to the deployment that minted it. podssh's side of T-346 waits
+    for your choice: the form of the signed document and the public keys,
+    or a word that no signed list comes. Relays that users bring (item 12,
+    and the relay template of #60) and `podssh update` (T-375, which a
+    binary has from `v1.0.0-beta.3` on) make a signed list of deployments
+    less pressing.
     Today a binary in the field knows relay hosts under
     `ssh.relay.ajam.dev` only, unless its user names another, so a lapse of
     `ajam.dev` (RDAP gives its expiry as 2028-01-19) or an outage of

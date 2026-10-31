@@ -1699,7 +1699,7 @@ a signed `/relays.json`, and a default of several deployments).
 **Milestone:** backlog
 **Priority:** P2
 **Effort:** M
-**Status:** open
+**Status:** blocked
 
 ## Problem
 
@@ -1772,4 +1772,15 @@ With a test key: a signed document's host outside the domain is used; one change
 `not_after`, a lower `serial` or an unknown id of a key keeps the parent domain alone. Planted:
 the check of the signature skipped; the tests of the changed byte and of the unknown key fail.
 Live, once the relay signs: `podssh relay status` names the second deployment.
+
+## Blocker
+
+The relay's operator (`docs/relay-operator.md`, item 14, which is optional for them): the form of
+the signed document (where the signature goes, its fields) and the public keys to compile in, or a
+word that no signed list comes. Read again against its Decision on 2026-10-31: `podssh update`
+(T-375, done) lets a binary in the field move to a release that names a new deployment wherever
+GitHub is reached, and a binary copied into a cage is copied again by its user; relays that
+their users bring are T-169's, which waits for the relay's operator too. podssh's side is then the
+check of item 3 and the list of item 4, against the form that the operator chose; written before
+that choice, it would follow a form that may not come.
 

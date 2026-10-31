@@ -107,7 +107,7 @@ and `CARGO_BUILD_JOBS=4`:
 
 ## Counts
 
-`TODO/INDEX.md` holds 374 entries: 36 open, 2 partial, 29 blocked, 307 done.
+`TODO/INDEX.md` holds 374 entries: 35 open, 2 partial, 30 blocked, 307 done.
 
 Open includes parked work. `cargo todo check` verifies this line.
 
@@ -133,8 +133,8 @@ zeroize and the curves' 0.14 make that batch, so `v1.0.0-beta.3` comes from
 **Now:** the entries of the audit, the study and the issues of 2026-10-31 (GitHub #59 to #63 and
 #69 to #76), the highest priority first: the P2 entries that the operator's rulings of 2026-10-31
 opened,
-T-348 and T-349 (the iroh road in the release binaries, and the public relays as a fallback, Q50)
-and T-346 (relays outside the default domain, Q49); then the P3 entries T-343, T-344, T-362
+T-348 and T-349 (the iroh road in the release binaries, and the public relays as a fallback,
+Q50); then the P3 entries T-343, T-344, T-362
 and T-363 (the direct road after the relay hosts fail), then those of the same rulings: T-350
 (Q50), T-351 (Q51, against stand-ins), T-352 and T-353 (Q52), and T-374 after T-352; then those of
 GitHub #59 to #63 and #73 to #76: T-366; T-367, T-368 and T-369 in that order, as each writes what
@@ -149,7 +149,7 @@ entries: the `none` entries, the highest priority first.
 
 **Skip** the entries that wait for the relay's operator (status
 `blocked`): T-086, T-106, T-169, T-173, T-180, T-226, T-253, T-255,
-T-319, T-321, T-325, T-326 and T-336; and the entries that the operator holds (status
+T-319, T-321, T-325, T-326, T-336 and T-346 (the form and the keys of a signed list of relays); and the entries that the operator holds (status
 `blocked`, Q32):
 T-085, T-107 to T-113, T-117, T-118, T-213, T-222, T-245 and T-248; and the work
 parked behind them (T-114, T-115, T-116, T-119, T-120, T-122, T-123,
