@@ -3094,7 +3094,7 @@ HTTP/2. Here:
 **Milestone:** backlog
 **Priority:** P2
 **Effort:** S
-**Status:** partial
+**Status:** done
 
 ## Problem
 
@@ -3174,7 +3174,7 @@ relay and a plain first hop does.
 
 ## Done
 
-2026-10-31, partial: done here; the live run waits for `quick-tunnel-live.yml` on the push.
+2026-10-31: done. The live run passed at `cb30f1e` (`quick-tunnel-live.yml`, run 41180727325).
 
 - `jump::hops` reads `cf://[user@]HOST` as the first hop of the command's own chain (not of a
   hop's `ProxyJump`), its user and HOST, and keeps HOST as the chain's tunnel; a `cf://` hop after
@@ -3194,7 +3194,11 @@ relay and a plain first hop does.
   first hop was no podssh end. It now runs after it, and counts that hop. Tests: `--client-key`
   with `-J cf://me@HOST` reaches its road offline (255), with a plain first hop it is refused
   (64), naming the first hop of `-J`; planted, the hop not counted, the test failed;
-  `cloudflare_cli` 4 passed, `iroh_cli` 4, `ssh_args` 26; clippy clean. The live run again waits.
+  `cloudflare_cli` 4 passed, `iroh_cli` 4, `ssh_args` 26; clippy clean. Run 41180727325 at
+  `cb30f1e`: "ok podssh ssh -J cf://NAME: the tunnel's sshd the first hop, the second through its
+  channel", the first hop authenticated through the node's real quick tunnel and the second, the
+  same sshd at `127.0.0.1:4022`, through its direct-tcpip channel; each other step of the run
+  passed, the direct and the proxied `cf://NAME` and the node over HTTP/2 with UDP to 7844 dropped.
 
 
 # T-348: The iroh road in the release binaries, and a notice when n0 refuses an old iroh
