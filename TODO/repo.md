@@ -4572,8 +4572,8 @@ provider refuses it on 0.14 as on 0.13.
 
 ## Done
 
-2026-10-31, partial: #64 (19e30fb), #66 and #65 done; #67, #68 with p256, and #57 follow, one
-at a time.
+2026-10-31, partial: #64 (19e30fb), #66 and #65 (1a9aefe), and #68 with p256 done; #67 and #57
+follow.
 
 - #64, the lock alone: unicode-width 0.2.2 to 0.2.3, proptest 1.11.0 to 1.12.0, h2 0.4.19 to
   0.4.20 and rcgen 0.14.7 to 0.14.10, applied onto russh 0.65.0's lock. `cargo test --locked`:
@@ -4591,6 +4591,19 @@ at a time.
   1006 passed in 117; podssh-ts, 54 passed. `cargo deny --locked check advisories licenses bans
   sources`: exit 0. base64 0.22.1 stays for pem 3, which tokio-rustls-acme takes under the
   feature `iroh`.
+- #68 with p256: p256 0.14.0 and p384 0.14.0 together in podssh-ws's provider. The lock drops the
+  curves' whole 0.13 line, crypto-bigint 0.5.5 with it (and elliptic-curve 0.13.8, ecdsa 0.16.9,
+  sec1 0.7.3 and six more), as does `fuzz/Cargo.lock`; `cargo tree -i crypto-bigint@0.5.5`
+  matches no package, and `deny.toml`'s ignore of RUSTSEC-2026-0387 is gone: `cargo deny
+  --locked check advisories licenses bans sources`, exit 0, and with `--features iroh` and
+  `--features ts`. The code: the key exchange's public point through `ToSec1Point`
+  (`to_sec1_point`, which 0.14 names in place of `to_encoded_point`); the tests draw their keys
+  through p256's own `Generate`, with its feature `getrandom` in the dev-dependencies only, and
+  build a key from a slice with `from_slice`. podssh-ws, 228 passed in 33 binaries, among them the
+  live handshakes with the relay, whose chain holds a P-384 intermediate; podssh-relay's QUIC
+  edge, 3 passed; podssh-cli, 1006 passed in 117 binaries. The test of P-384 now refuses a
+  signature with one byte of `s` changed too; planted, a P-384 check that accepts each signature:
+  two tests failed.
 
 # T-360: Nothing reads `TODO/issues.md`: issues #59 to #63 have no row, and no check compares the map with GitHub
 

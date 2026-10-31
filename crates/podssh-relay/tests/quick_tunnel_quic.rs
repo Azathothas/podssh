@@ -39,8 +39,9 @@ struct Key {
 
 impl Key {
     fn new() -> Key {
-        let signing = p256::ecdsa::SigningKey::random(&mut rand::rngs::OsRng);
-        let public = signing.verifying_key().to_encoded_point(false).as_bytes().to_vec();
+        use p256::elliptic_curve::Generate;
+        let signing = p256::ecdsa::SigningKey::generate();
+        let public = signing.verifying_key().to_sec1_point(false).as_bytes().to_vec();
         Key { signing: Arc::new(signing), public }
     }
 }

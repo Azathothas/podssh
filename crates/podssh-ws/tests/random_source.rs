@@ -5,7 +5,8 @@
 use std::path::{Path, PathBuf};
 use std::sync::atomic::{AtomicUsize, Ordering};
 
-use p256::elliptic_curve::sec1::ToEncodedPoint;
+use p256::elliptic_curve::sec1::ToSec1Point;
+use p256::elliptic_curve::Generate;
 use podssh_ws::crypto::kx::start_with;
 use podssh_ws::crypto::random::{fill_from, OsRandom};
 use podssh_ws::handshake::{generate_key_from, masking_key_from};
@@ -110,8 +111,8 @@ fn p256_draws_again_when_a_draw_is_out_of_range() {
 /// podssh did not write, on the shared secret.
 #[test]
 fn p256_agrees_with_an_exchange_that_podssh_did_not_write() {
-    let theirs = p256::ecdh::EphemeralSecret::random(&mut rand::rngs::OsRng);
-    let their_public = theirs.public_key().to_encoded_point(false);
+    let theirs = p256::ecdh::EphemeralSecret::generate();
+    let their_public = theirs.public_key().to_sec1_point(false);
     let ours = start_with(NamedGroup::secp256r1, &OsRandom).unwrap();
     let our_public = p256::PublicKey::from_sec1_bytes(ours.pub_key()).expect("an uncompressed point");
     let shared = ours.complete(their_public.as_bytes()).expect("a valid share");

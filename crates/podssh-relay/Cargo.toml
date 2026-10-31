@@ -81,6 +81,8 @@ tokio = { workspace = true, features = ["macros", "rt", "test-util"] }
 proptest = { workspace = true }
 # The stand-in edge of the quick tunnel over QUIC (tests/quick_tunnel_quic.rs,
 # T-301): its certificate, made by rcgen with no crypto feature and signed by
-# a P-256 key of p256, so that the test builds with no C compiler.
+# a P-256 key of p256, so that the test builds with no C compiler; its
+# `getrandom` (the OS's source, no C) draws that key through p256's own
+# `Generate`.
 rcgen = { version = "0.14", default-features = false }
-p256 = { workspace = true }
+p256 = { workspace = true, features = ["getrandom"] }

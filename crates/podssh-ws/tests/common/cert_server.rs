@@ -103,9 +103,9 @@ pub fn server_for(
 fn key_for(leaf: &TestCert) -> Result<rustls_pki_types::PrivateKeyDer<'static>, String> {
     use super::encoding::{oid, seq, tlv};
 
-    let signing = SigningKey::from_bytes((&leaf.key_der[..]).into())
+    let signing = SigningKey::from_slice(&leaf.key_der[..])
         .map_err(|_| "the test key is not a valid P-256 scalar".to_string())?;
-    let point = signing.verifying_key().to_encoded_point(false);
+    let point = signing.verifying_key().to_sec1_point(false);
     let point = point.as_bytes();
 
     // RFC 5915 ECPrivateKey ::= SEQUENCE { version, privateKey, [0] parameters,

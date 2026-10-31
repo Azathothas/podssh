@@ -148,7 +148,7 @@ pub(crate) fn self_signed_inner(dns_name: &str, is_ca: bool) -> TestCert {
     let own = SigningKey::from_bytes(&sha256(&role_seed(dns_name, is_ca)).into())
         .expect("a P-256 scalar");
 
-    let spki = own.verifying_key().to_encoded_point(false);
+    let spki = own.verifying_key().to_sec1_point(false);
     let point = spki.as_bytes();
     eprintln!(
         "PUBLISHED-POINT {} head {}",

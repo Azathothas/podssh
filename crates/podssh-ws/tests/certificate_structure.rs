@@ -61,7 +61,7 @@ fn each_certificate_verifies_under_the_key_that_signed_it() {
         // The key the builder used: for an anchor, its own; for a leaf, the
         // anchor's, which is `key_scalar("{name}-anchor", true)`.
         let signer = if is_ca { role_key(name, true) } else { role_key(&format!("{name}-anchor"), true) };
-        let point = signer.verifying_key().to_encoded_point(false);
+        let point = signer.verifying_key().to_sec1_point(false);
         let spki_published = &spki_point(&cert.der)[1..];
         eprintln!(
             "KEYCHECK {name}: spki={} signer={} equal={}",
@@ -104,7 +104,7 @@ fn podsshs_ecdsa_verifier_accepts_a_directly_made_signature() {
     let key = SigningKey::from_bytes(&[0x77u8; 32].into()).expect("a scalar");
     let message = b"a plain message, not a certificate";
     let sig: Signature = key.sign(message);
-    let point = key.verifying_key().to_encoded_point(false);
+    let point = key.verifying_key().to_sec1_point(false);
 
     let der = sig.to_der();
     assert!(
@@ -175,7 +175,7 @@ fn signing_the_tbs_as_a_message_verifies_and_prehashing_it_does_not() {
 fn the_anchor_spkis_own_key_is_the_key_that_signed_it() {
     for name in ["right.example", "wrong.example"] {
         let anchor = cert::encoding::self_signed_inner(&format!("{name}-anchor"), true);
-        let expected = role_key(&format!("{name}-anchor"), true).verifying_key().to_encoded_point(false);
+        let expected = role_key(&format!("{name}-anchor"), true).verifying_key().to_sec1_point(false);
         assert_eq!(
             hex(&spki_point(&anchor.der)[1..]),
             hex(expected.as_bytes()),
@@ -198,12 +198,12 @@ fn the_leaf_publishes_its_own_key_while_its_issuer_signs_it() {
 
         assert_eq!(
             hex(&spki_point(&leaf.der)[1..]),
-            hex(role_key(name, false).verifying_key().to_encoded_point(false).as_bytes()),
+            hex(role_key(name, false).verifying_key().to_sec1_point(false).as_bytes()),
             "{name}: the leaf's SPKI is not the leaf's own key"
         );
         assert_ne!(
             hex(&spki_point(&leaf.der)[1..]),
-            hex(issuer.verifying_key().to_encoded_point(false).as_bytes()),
+            hex(issuer.verifying_key().to_sec1_point(false).as_bytes()),
             "{name}: the leaf's SPKI is the issuer's key, so the two roles \
              have collapsed into one and the chain proves nothing"
         );

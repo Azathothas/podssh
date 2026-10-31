@@ -6,7 +6,7 @@
 
 use std::fmt;
 
-use p256::elliptic_curve::sec1::ToEncodedPoint;
+use p256::elliptic_curve::sec1::ToSec1Point;
 use p256::PublicKey;
 use rustls::crypto::{ActiveKeyExchange, GetRandomFailed, SecureRandom, SharedSecret, SupportedKxGroup};
 use rustls::{Error, NamedGroup, PeerMisbehaved};
@@ -75,7 +75,7 @@ pub fn start_with(group: NamedGroup, random: &dyn SecureRandom) -> Result<Box<dy
         }
         NamedGroup::secp256r1 => {
             let secret = p256_secret(random)?;
-            let public = secret.public_key().to_encoded_point(false).as_bytes().to_vec();
+            let public = secret.public_key().to_sec1_point(false).as_bytes().to_vec();
             Ok(Box::new(P256Exchange { secret, public }))
         }
         // Unreachable: the only two values of this type are the statics

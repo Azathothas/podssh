@@ -62,8 +62,10 @@ rustls-pki-types = { workspace = true }
 # The signature tests mint real signatures on real curves, so they need the
 # same crates the provider uses. `p256` and `p384` are `default-features =
 # false` here for the same reason they are in `[dependencies]`: nothing may
-# pull in a C toolchain.
-p256 = { workspace = true }
+# pull in a C toolchain. `getrandom` (the OS's source, no C) gives the tests a
+# secret of p256's own `Generate`, which the curves' 0.14 take in place of a
+# rand 0.8 generator; the library draws from rustls's source alone.
+p256 = { workspace = true, features = ["getrandom"] }
 p384 = { workspace = true }
 ed25519-dalek = { workspace = true }
 # The terminal oracle (T-200): a model terminal shows the text that the

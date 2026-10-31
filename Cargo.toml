@@ -156,7 +156,7 @@ ed25519-dalek = { version = "2", default-features = false, features = ["std"] }
 # it: `p256` and `elliptic-curve` are pure Rust, and `arithmetic` alone does
 # NOT expose `p256::ecdh::EphemeralSecret` — the error is
 # "could not find `ecdh` in `p256` ... found an item that was configured out".
-p256 = { version = "0.13", default-features = false, features = ["ecdsa", "arithmetic", "ecdh"] }
+p256 = { version = "0.14", default-features = false, features = ["ecdsa", "arithmetic", "ecdh"] }
 # `p384` is here because the live TLS handshake FAILED without it, and the
 # failure named the algorithm exactly.
 # **MEASURED 2026-10-02, in `rust:1-alpine`, against the live relay:** the
@@ -169,7 +169,7 @@ p256 = { version = "0.13", default-features = false, features = ["ecdsa", "arith
 # and that OID is `ecdsa-with-SHA384` (1.2.840.10045.4.3.3). A provider that
 # offers only P-256/SHA-256 cannot verify the chain the relay actually
 # presents, so it is not a provider.
-p384 = { version = "0.13", default-features = false, features = ["ecdsa", "arithmetic"] }
+p384 = { version = "0.14", default-features = false, features = ["ecdsa", "arithmetic"] }
 # RSA signature verification in podssh's TLS provider (public keys only).
 rsa = { version = "0.9", default-features = false, features = ["std"] }
 

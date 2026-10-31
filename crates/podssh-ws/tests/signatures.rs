@@ -28,7 +28,7 @@ fn ecdsa_p256_sha256_verifies_a_real_signature_and_rejects_a_tampered_one() {
     let message = b"the bytes rustls signs in a TLS 1.3 CertificateVerify";
     let signature: Signature = signing_key.sign(message);
 
-    let spki_point = verifying_key.to_encoded_point(false);
+    let spki_point = verifying_key.to_sec1_point(false);
     let raw = spki_point.as_bytes();
     assert_eq!(raw[0], 0x04, "webpki is handed the raw point, uncompressed");
 
@@ -49,7 +49,7 @@ fn ecdsa_p256_sha256_verifies_a_real_signature_and_rejects_a_tampered_one() {
     assert!(
         ECDSA_P256_SHA256
             .verify_signature(
-                other.verifying_key().to_encoded_point(false).as_bytes(),
+                other.verifying_key().to_sec1_point(false).as_bytes(),
                 message,
                 signature.to_der().as_bytes()
             )
@@ -122,7 +122,7 @@ fn ecdsa_p384_sha384_verifies_and_rejects_the_same_three_ways() {
     let verifying_key = signing_key.verifying_key();
     let message = b"a transcript hash signed over P-384";
     let signature: Signature = signing_key.sign(message);
-    let point = verifying_key.to_encoded_point(false);
+    let point = verifying_key.to_sec1_point(false);
     let raw = point.as_bytes();
     let der = signature.to_der();
 
@@ -138,7 +138,7 @@ fn ecdsa_p384_sha384_verifies_and_rejects_the_same_three_ways() {
         "P-384 verified a signature over the wrong message"
     );
     let other = SigningKey::from_bytes(&[0x52u8; 48].into()).expect("a scalar");
-    let other_point = other.verifying_key().to_encoded_point(false);
+    let other_point = other.verifying_key().to_sec1_point(false);
     assert!(
         ECDSA_P384_SHA384.verify_signature(other_point.as_bytes(), message, der.as_bytes()).is_err(),
         "P-384 verified under the wrong key"
@@ -146,6 +146,15 @@ fn ecdsa_p384_sha384_verifies_and_rejects_the_same_three_ways() {
     assert!(
         ECDSA_P384_SHA384.verify_signature(raw, message, &der.as_bytes()[..der.len() - 1]).is_err(),
         "P-384 accepted a truncated signature"
+    );
+    // One byte of `s` changed, the DER still well formed: the check of the
+    // curve itself must refuse it, not the parser (T-355, the curves' 0.14).
+    let mut changed = der.as_bytes().to_vec();
+    let last = changed.len() - 1;
+    changed[last] ^= 0x01;
+    assert!(
+        ECDSA_P384_SHA384.verify_signature(raw, message, &changed).is_err(),
+        "P-384 accepted a signature with one byte changed"
     );
 }
 
@@ -161,7 +170,7 @@ fn a_p256_signature_does_not_verify_as_p384() {
     let key = P256Signing::from_bytes(&[0x61u8; 32].into()).expect("a scalar");
     let message = b"cross-curve";
     let sig: p256::ecdsa::Signature = key.sign(message);
-    let point = key.verifying_key().to_encoded_point(false);
+    let point = key.verifying_key().to_sec1_point(false);
 
     // A 65-byte point cannot be a P-384 key: the length is 97.
     assert!(ECDSA_P384_SHA384.verify_signature(point.as_bytes(), message, sig.to_der().as_bytes()).is_err());
@@ -178,14 +187,14 @@ fn ecdsa_with_the_other_hash_verifies_only_under_its_own_algorithm() {
     let message = b"a TLS 1.2 key exchange";
     let p256_key = p256::ecdsa::SigningKey::from_bytes(&[0x71u8; 32].into()).expect("a scalar");
     let sig: p256::ecdsa::Signature = p256_key.sign_prehash(&sha2::Sha384::digest(message)).expect("a signature");
-    let (point, der) = (p256_key.verifying_key().to_encoded_point(false), sig.to_der());
+    let (point, der) = (p256_key.verifying_key().to_sec1_point(false), sig.to_der());
     assert!(ECDSA_P256_SHA384.verify_signature(point.as_bytes(), message, der.as_bytes()).is_ok());
     assert!(ECDSA_P256_SHA384.verify_signature(point.as_bytes(), b"another", der.as_bytes()).is_err());
     assert!(ECDSA_P256_SHA256.verify_signature(point.as_bytes(), message, der.as_bytes()).is_err());
 
     let p384_key = p384::ecdsa::SigningKey::from_bytes(&[0x72u8; 48].into()).expect("a scalar");
     let sig: p384::ecdsa::Signature = p384_key.sign_prehash(&sha2::Sha256::digest(message)).expect("a signature");
-    let (point, der) = (p384_key.verifying_key().to_encoded_point(false), sig.to_der());
+    let (point, der) = (p384_key.verifying_key().to_sec1_point(false), sig.to_der());
     assert!(ECDSA_P384_SHA256.verify_signature(point.as_bytes(), message, der.as_bytes()).is_ok());
     assert!(ECDSA_P384_SHA256.verify_signature(point.as_bytes(), b"another", der.as_bytes()).is_err());
     assert!(ECDSA_P384_SHA384.verify_signature(point.as_bytes(), message, der.as_bytes()).is_err());
