@@ -40,6 +40,7 @@ pub const HEALTH_FLAGS: &[FlagRow] = &[
     row(None, "direct", None, FlagKind::Supported,
         "connect without the relay: TCP, through HTTPS_PROXY when one is set", None),
     super::forwarder::FORWARDER,
+    super::shadowsocks::SHADOWSOCKS,
     row(None, "json", None, FlagKind::Supported,
         "the facts as one JSON object on stdout, also after a failure", None),
 ];

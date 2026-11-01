@@ -67,7 +67,7 @@
 59 issue open
 60 issue closed
 61 issue closed
-62 issue open
+62 issue closed
 63 issue open
 64 pull closed
 65 pull closed

@@ -309,8 +309,14 @@ step_ssh() {
     # stunnel in front of the test's SSH server, for ssh+tls:// (T-372), and
     # openssl for its certificates; named, so that a missing one fails.
     run "stunnel and openssl, for the tests of ssh+tls://" retry3 apk add --no-cache stunnel openssl
+    # ssserver and sslocal of shadowsocks-rust, Alpine's community packages,
+    # for the tests of --shadowsocks (T-373); named, so that a missing one
+    # fails.
+    run "ssserver and sslocal, for the tests of --shadowsocks" \
+        retry3 apk add --no-cache shadowsocks-rust-ssserver shadowsocks-rust-sslocal
     tests "the SSH client and the CLI (need cc): tests" \
         env PODSSH_TEST_SFTP_SERVER=/usr/lib/ssh/sftp-server PODSSH_TEST_STUNNEL=/usr/bin/stunnel \
+        PODSSH_TEST_SSSERVER=/usr/bin/ssserver PODSSH_TEST_SSLOCAL=/usr/bin/sslocal \
         cargo test --locked --no-fail-fast -p podssh-ssh -p podssh-cli
     # The road of warp:// in the CLI, with its feature (T-352): its own tests
     # and those of the manual, whose variables the feature's crate joins.

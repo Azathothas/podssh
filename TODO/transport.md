@@ -703,7 +703,7 @@ crates/podssh-transport/tests/closes.rs lines 354-391 at `e8bbd4d`.
 Read: a node connects again "with a jittered backoff" (`docs/reverse.md:34-42`,
 `docs/ROADMAP.md:150-158`). `podssh_relay::open::backoff` doubles from 1 s to 30 s and multiplies
 by a random factor from 0.5 to 1.5 (`crates/podssh-relay/src/open.rs:379-393`); `podssh ssh` uses
-it (`crates/podssh-cli/src/ssh/transport.rs:268-274`).
+it (`crates/podssh-cli/src/ssh/transport.rs:272-278`).
 
 ## Approach
 

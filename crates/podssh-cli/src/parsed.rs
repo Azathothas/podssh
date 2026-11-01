@@ -79,6 +79,8 @@ pub enum Parsed {
         ca_file: Option<String>,
         /// `--forwarder` (T-369).
         forwarder: Option<String>,
+        /// `--shadowsocks` (T-373).
+        shadowsocks: Option<String>,
         refused: Vec<(String, &'static str, &'static str)>,
     },
     /// `podssh status`: the relay settings in effect, and the destination
@@ -136,6 +138,8 @@ pub enum Parsed {
         hop: Option<String>,
         /// `--forwarder`: the forwarders to check too (T-369).
         forwarder: Option<String>,
+        /// `--shadowsocks`: the file whose first server is checked too (T-373).
+        shadowsocks: Option<String>,
         refused: Vec<(String, &'static str, &'static str)>,
     },
     /// **`podssh ts`, and it is its own variant because it carries behaviour

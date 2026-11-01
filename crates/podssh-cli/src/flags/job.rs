@@ -44,4 +44,5 @@ pub const JOB_FLAGS: &[FlagRow] = &[
     row(None, "direct", None, FlagKind::Supported,
         "connect without the relay: TCP, through HTTPS_PROXY when one is set", None),
     super::forwarder::FORWARDER,
+    super::shadowsocks::SHADOWSOCKS,
 ];

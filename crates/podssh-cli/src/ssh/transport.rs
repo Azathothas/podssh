@@ -251,6 +251,10 @@ pub async fn reach_skipping(resolved: &Resolved, skip: usize, log: &Arc<Log>) ->
         Transport::Forwarder { forwarders, trust } => {
             crate::forwarder::reach::reach(forwarders, trust, &first.host, first.port, log).await
         }
+        // The Shadowsocks servers of a file, in order (T-373).
+        Transport::Shadowsocks { servers, trust } => {
+            crate::shadowsocks::reach::reach(servers, trust, &first.host, first.port, log).await
+        }
         Transport::Direct => {
             if podssh_relay::open::offline() {
                 return Err(NotReached {

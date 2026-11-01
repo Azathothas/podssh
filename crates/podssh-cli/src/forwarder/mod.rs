@@ -123,9 +123,10 @@ fn env_value() -> Option<String> {
     std::env::var(FORWARDER_ENV).ok()
 }
 
-/// The flag of another road on the command line, if one is given.
-fn other_road(relay_host: bool, relay_failover: bool) -> Option<&'static str> {
-    let flags = [("--relay-host", relay_host), ("--relay-failover", relay_failover)];
+/// The flag of another road on the command line, if one is given:
+/// `--shadowsocks` too (T-373), whose servers take the relay's place.
+fn other_road(relay_host: bool, relay_failover: bool, shadowsocks: bool) -> Option<&'static str> {
+    let flags = [("--relay-host", relay_host), ("--relay-failover", relay_failover), ("--shadowsocks", shadowsocks)];
     flags.into_iter().find(|(_, given)| *given).map(|(flag, _)| flag)
 }
 
@@ -140,7 +141,7 @@ pub fn or_relay(args: &SshArgs, env: &Env, relay: Transport) -> Result<Transport
         }
         other => return Ok(other),
     };
-    let named = other_road(args.relay_host.is_some(), args.relay_failover.is_some());
+    let named = other_road(args.relay_host.is_some(), args.relay_failover.is_some(), args.shadowsocks.is_some());
     let chosen = choose(args.forwarder.as_deref(), named, env_value(), env.relay.is_some(), &env.settings)?;
     let Some(forwarders) = chosen else {
         // The relay's road: a bad word of its fallback is refused now, before
@@ -171,6 +172,7 @@ pub fn check(args: &SshArgs, resolved: &Resolved) -> Result<(), Refusal> {
         Transport::Cloudflare { .. } => "a cf://HOST destination or first hop",
         Transport::Cloud { .. } => "an iap://, eice:// or warp:// destination or first hop",
         Transport::Derp { .. } => "a derp: destination",
+        Transport::Shadowsocks { .. } => "--shadowsocks",
     };
     Err(Refusal::usage(format!("--forwarder cannot go with {other}, which is a road of its own; a run has one road")))
 }

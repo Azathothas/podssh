@@ -116,6 +116,8 @@ pub mod run_cmd;
 pub mod session_log;
 pub mod settings;
 pub mod sftp;
+// `--shadowsocks FILE`: Shadowsocks servers in place of the relay (T-373).
+pub mod shadowsocks;
 // Commands of the settings file, shown and asked before they run (T-187).
 pub mod snippets;
 pub mod ssh;

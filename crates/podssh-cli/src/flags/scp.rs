@@ -61,6 +61,7 @@ pub const SCP_FLAGS: &[FlagRow] = &[
     row(None, "direct", None, FlagKind::Supported,
         "connect without the relay: TCP, through HTTPS_PROXY when one is set", None),
     super::forwarder::FORWARDER,
+    super::shadowsocks::SHADOWSOCKS,
     // A node of a pair (T-296), with the flags of `ssh node://`.
     row(None, "pair-file", Some("FILE"), FlagKind::Supported,
         "node://NAME: the pair in FILE, or its operator's part, not the one stored under NAME", None),
@@ -129,6 +130,7 @@ pub const SFTP_FLAGS: &[FlagRow] = &[
     row(None, "direct", None, FlagKind::Supported,
         "connect without the relay: TCP, through HTTPS_PROXY when one is set", None),
     super::forwarder::FORWARDER,
+    super::shadowsocks::SHADOWSOCKS,
     // A node of a pair (T-296), with the flags of `ssh node://`.
     row(None, "pair-file", Some("FILE"), FlagKind::Supported,
         "node://NAME: the pair in FILE, or its operator's part, not the one stored under NAME", None),

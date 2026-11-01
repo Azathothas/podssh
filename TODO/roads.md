@@ -56,7 +56,7 @@ unknown flag (exit 64), and `Cargo.lock` has no iroh crate.
 5. `doctor`, with the feature: a UDP line, and the `/ping` of the home relay
    through the proxy (`crates/podssh-cli/src/doctor/host.rs:10-25`).
 6. `availability()` knows `ts` as the only build feature
-   (`crates/podssh-cli/src/flags.rs:464-472`): extend it. With no feature, an
+   (`crates/podssh-cli/src/flags.rs:466-474`): extend it. With no feature, an
    iroh destination refuses before it connects and names `--features iroh`,
    as `crates/podssh-cli/tests/ts_not_built.rs:1-4` shows for `ts`.
 7. Docs: the "Outbound only" item of `README.md`, "Nothing listens" in
@@ -163,7 +163,7 @@ access is by an allowlist of keys or a relay token (`docs/design.md:1129-1130`).
 Read in the reports, not verified here: iroh-ssh warns when a server's key is
 ephemeral (`rustonbsd/iroh-ssh:src/ssh.rs`); zuko hands over a ticket out of
 band (`adonm/zuko:docs/protocol.md`). Read: `podssh ts` keeps its node key in
-the file that `--ts-state` names (`crates/podssh-cli/src/flags.rs:350-351`,
+the file that `--ts-state` names (`crates/podssh-cli/src/flags.rs:352-353`,
 `crates/podssh-cli/src/ts.rs:166`). Credentials never go on argv
 (`AGENTS.md`, section 4).
 
@@ -186,7 +186,7 @@ the file that `--ts-state` names (`crates/podssh-cli/src/flags.rs:350-351`,
 5. The node prints its ticket and its fingerprint on stderr when it starts.
    `podssh ssh iroh:TICKET` dials it (the address of `docs/design.md:916`).
 6. Add the key files to FILES in the manual
-   (`crates/podssh-cli/src/man/data.rs:146-321`), and each new variable to
+   (`crates/podssh-cli/src/man/data.rs:146-336`), and each new variable to
    `VARIABLES` (`crates/podssh-cli/src/man/facts.rs:45-260`).
 
 ## Decision
@@ -373,7 +373,7 @@ sandbox can block what iroh needs, so the fallback is necessary
 6. With `-v`, print the road that won and its time.
 7. Each resume of T-153 runs the same race.
 8. Docs: the rule of the race in `docs/design.md` section 2, and the notes of
-   `ssh` in the manual (`crates/podssh-cli/src/man/notes_ssh.rs:4-419`).
+   `ssh` in the manual (`crates/podssh-cli/src/man/notes_ssh.rs:4-439`).
 
 ## Decision
 
@@ -3130,7 +3130,7 @@ allows podssh as a client of Cloudflare (`docs/decisions.md:30`).
   `crates/podssh-cli/src/ssh/cloudflare.rs:73` says "a Cloudflare tunnel cannot be reached
   through a -J hop yet", and `docs/cli.md:129-130` says so too.
 - Read: the road of a run is chosen for the first hop's host
-  (`crates/podssh-cli/src/ssh/resolve.rs:293`), and each later hop runs in a `direct-tcpip`
+  (`crates/podssh-cli/src/ssh/resolve.rs:295`), and each later hop runs in a `direct-tcpip`
   channel of the session before it (`crates/podssh-ssh/src/run.rs:160-167`;
   `crates/podssh-ssh/src/forward.rs:14-22`).
 - Read: the `cf://` road opens the WebSocket of `cloudflared access tcp` through `HTTPS_PROXY`,
@@ -4315,7 +4315,7 @@ code that no command of the default build uses is P2 at most".
 - Read: doctor's two answers are `ok`: "the iroh road may go direct" after a bind, and "the iroh
   road then uses its relay alone" after a refusal (`crates/podssh-cli/src/doctor/iroh.rs` lines
   12-18 at `925c94b`), in a build with the feature only
-  (`crates/podssh-cli/src/doctor/mod.rs:136-137`). The refusal's
+  (`crates/podssh-cli/src/doctor/mod.rs:144-145`). The refusal's
   `ok` is doctor's rule, as the relay alone is a road that works; the bind's "may go direct" is
   not measured.
 - Read, in iroh 1.4.1 (the local cargo registry, `src/net_report/report.rs`): iroh's report of
@@ -4505,9 +4505,9 @@ does not depend on them.
 - Read: `Transport::Direct` comes from `--direct` alone
   (`crates/podssh-cli/src/ssh/resolve.rs`, lines 340-346 at `4e2010e`), and else the relay (lines 348-371 at `4e2010e`); its other
   uses are a label (`crates/podssh-cli/src/ssh/mod.rs:234`), the dial
-  (`crates/podssh-cli/src/ssh/transport.rs:256-300`) and a check of `--upgrade`
+  (`crates/podssh-cli/src/ssh/transport.rs:260-304`) and a check of `--upgrade`
   (`crates/podssh-cli/src/ssh/upgrade.rs:59`). The issue's citation of
-  the arm began two lines early; it is at `crates/podssh-cli/src/ssh/resolve.rs:331-337`.
+  the arm began two lines early; it is at `crates/podssh-cli/src/ssh/resolve.rs:333-339`.
 - Read: `docs/design.md:45` says "podssh tries the roads in this order"; for a public sshd, the
   forward road comes first, then the direct road (`docs/design.md:51`), which at `8554930` said
   "`--direct`, or when a probe shows it works"; the triage of GitHub #69 to #72 named this entry
@@ -4516,7 +4516,7 @@ does not depend on them.
   and for the split HTTP road (`AGENTS.md:252-260`); a race of the forward and the direct road is
   neither.
 - Read: the direct dial goes through `HTTPS_PROXY` when it is set, with the relay's step limit of
-  20 s (`crates/podssh-cli/src/ssh/transport.rs:316-330`, `crates/podssh-relay/src/open.rs:30`),
+  20 s (`crates/podssh-cli/src/ssh/transport.rs:320-334`, `crates/podssh-relay/src/open.rs:30`),
   and names a proxy that takes the CONNECT and sends nothing back (T-317). doctor reads the
   server's version line on port 22, straight out or through the proxy, to say whether plain ssh
   can leave (`crates/podssh-cli/src/doctor/net.rs:184-191`, `:193-274`).
@@ -4679,7 +4679,7 @@ relay's path and token.
   nothing of other clients.
 - Read: a relay is a host and a port (`crates/podssh-relay/src/relay.rs:56-62`), and its forward
   path is `/connect/<host>/<port>` (`:139-152`); a run has one road, of five kinds
-  (`crates/podssh-cli/src/ssh/resolve.rs:23-64`).
+  (`crates/podssh-cli/src/ssh/resolve.rs:23-66`).
 - Read: `validate` refuses a query other than the relay's knobs, and `connect` always sends a token
   (`crates/podssh-ws/src/client.rs:66-105`, `:159-182`); a token goes only to the deployment that
   minted it (`docs/decisions.md:58`).
@@ -4997,8 +4997,8 @@ a hop. `doctor` has no line for a hop, so a user cannot see whether one is reach
 
 - Read: a hop is `[user@]host[:port]` or `ssh://[user@]host[:port]`
   (`crates/podssh-cli/src/ssh/hop.rs:30-57`), and `-J` refuses a node only (`:68-74`). The road is
-  chosen for the first hop's host (`crates/podssh-cli/src/ssh/resolve.rs:293`); with `--direct` it
-  is TCP through `HTTPS_PROXY` (`crates/podssh-cli/src/ssh/resolve.rs:331-337`; `crates/podssh-cli/src/ssh/transport.rs:1-2`).
+  chosen for the first hop's host (`crates/podssh-cli/src/ssh/resolve.rs:295`); with `--direct` it
+  is TCP through `HTTPS_PROXY` (`crates/podssh-cli/src/ssh/resolve.rs:333-339`; `crates/podssh-cli/src/ssh/transport.rs:1-2`).
 - Read: a prompt goes to the terminal, or to the program of `SSH_ASKPASS`, chosen as OpenSSH
   chooses it (`crates/podssh-ssh/src/prompt.rs:1-12`).
 - Read: through the agent proxy of a cloud container, a CONNECT to `ssh.github.com:443` got `200`,
@@ -5126,7 +5126,7 @@ TCP, and podssh runs no `ProxyCommand` that could add TLS.
 
 - Read: a hop is `[user@]host[:port]` or `ssh://[user@]host[:port]`
   (`crates/podssh-cli/src/ssh/hop.rs:30-57`); a destination can also name a road by its scheme,
-  `cf://`, `node://` or `iroh:` (`crates/podssh-cli/src/ssh/resolve.rs:23-64`).
+  `cf://`, `node://` or `iroh:` (`crates/podssh-cli/src/ssh/resolve.rs:23-66`).
 - Read: podssh runs no `ProxyCommand` (`crates/podssh-cli/src/ssh/options.rs:221-226`).
 - Read: podssh-ws opens TCP through the proxy, then a TLS handshake checked for a name
   (`crates/podssh-ws/src/client.rs:184-199`), with no ALPN and no client certificate
@@ -5203,7 +5203,7 @@ Planted: the certificate's name not checked; the test of another name fails.
 **Milestone:** backlog
 **Priority:** P3
 **Effort:** M
-**Status:** open
+**Status:** done
 
 ## Problem
 
@@ -5266,6 +5266,37 @@ cannot make it a road.
   target of the operator's (`AGENTS.md:227-244`).
 - Shadowsocks 2022 (SIP022) is refused by name in this entry; a later entry can take it.
 
+The draft's calls, 2026-11-01:
+
+1. MD5 and SHA-1, which the key's derivation needs and podssh-ws had not: the crate `md5` 0.8 and
+   RustCrypto's `sha1` 0.10, both pure Rust and both in the lock already (`md5` 0.8.1 through
+   podssh-ssh, `sha1` 0.10.7 through tungstenite), `sha1` 0.10 for the digest 0.10 that `hkdf`
+   0.12 takes; no `asm` feature. Lost: RustCrypto's `md-5`, which the lock has not; MD5 written
+   here, which is code that a crate already proves.
+2. The AEAD is podssh-ws's own wrapper of its TLS (`crypto/aead.rs`), so the road brings no
+   cipher of its own; the stream is two tasks over a pipe in memory, as the forwarders' road is
+   (T-369), not a hand-written `AsyncRead`, whose partial writes are where a stream sealer goes
+   wrong. The end of this side's bytes is TCP's half-close, which the server passes on.
+3. The answer: `ssh` waits 10 s for the server's salt and first chunk, as T-363 waits for a
+   version line, since a server is silent to a key that it cannot open and the SSH server behind
+   it speaks first; a silent server gives way to the next. `proxy`, whose client may speak first,
+   takes a server that is silent for 3 s, as a forwarder's query form is taken after its early
+   wait. Lost: no wait, which would never move past a wrong key.
+4. Exit codes: a file that is not private, or a line that cannot be read (a plugin, Shadowsocks
+   2022, a method that podssh does not speak), is a configuration error, 78, as a settings file's
+   bad line is; a second road on the command line is 64, as for `--forwarder`; a server that
+   carried nothing exits as `proxy` exits. No variable and no keyword of the settings file: the
+   entry asks for the flag, and a file of keys is named once.
+5. A subscription's list: lines of `ss://`, the same in base64, or SIP008's JSON; at most 1 MiB;
+   redirects to another `https://` URL followed three times; kept as JSON with the time it came,
+   under a hash of the URL, at most 60 KiB of lines, as the cache reads 64 KiB; read for a day.
+   Its first 16 servers that were not tried are tried, as a list can hold hundreds and each
+   silent one costs 10 s. A list older than a day is fetched first, and is the fallback when the
+   fetch fails.
+6. The commands of `--forwarder` take the flag (`cp`, `mv`, `scp`, `sftp`, `edit`, `each`, `run`,
+   `job`, `session`, `containers`, `health`, `proxy`), and `doctor --shadowsocks FILE` checks the
+   first server of the file, a subscription's first when the file starts with one.
+
 ## Prove
 
 ```sh
@@ -5279,6 +5310,64 @@ session through it to a test sshd, 1 MiB each way with equal digests; a wrong pa
 first chunk, with the server named; a kept list whose nodes changed is fetched again from a
 stand-in subscription. Bytes that `sslocal` of shadowsocks-rust sent decode. Planted: the nonce not
 incremented after the chunk of the length; the session through `ssserver` fails.
+
+## Correction
+
+Read at `60c2414` on 2026-11-01.
+
+- podssh-ws had the AEADs and HKDF of the first item of the Premise, and neither MD5 nor SHA-1,
+  which `EVP_BytesToKey` and HKDF-SHA1 need: the Decision, item 1, adds them.
+- The tester's reading of the AEAD form holds against shadowsocks.org's `aead.html`, read through
+  the web reader of the operator's services on 2026-11-01: the length is capped at 0x3FFF with its
+  two high bits zero, and `aes-128-gcm` has a key and a salt of 16 bytes.
+- shadowsocks-rust is in Alpine's community repository, as `shadowsocks-rust-ssserver` and
+  `shadowsocks-rust-sslocal` (`/usr/bin/ssserver`, `/usr/bin/sslocal`; 1.23.4 in 3.22, read on
+  pkgs.alpinelinux.org on 2026-11-01); its default outbound rule allows each address, so its tests
+  reach the test's SSH server on the loopback.
+
+## Done
+
+2026-11-01, done: drafted in a worktree (`1be3e28`), merged and measured here.
+
+- podssh-ws, `crates/podssh-ws/src/shadowsocks/`: the methods and the keys (`mod.rs`), the codec
+  of a stream with the address header (`codec.rs`), SIP002's URI and its older form (`uri.rs`), a
+  subscription's list in three forms (`list.rs`), `open` with its wait for the first chunk and the
+  lines of its failures (`open.rs`), and the carry of a stream (`carry.rs`).
+  `cargo test -p podssh-ws --test shadowsocks`, 8 passed: the master key against its definition
+  and Python's hashlib; a stream's key and each method's first chunk against the `cryptography`
+  package's OpenSSL; podssh and a codec of the specification written in the test open each
+  other's streams across chunks of the largest size, and a nonce used twice does not open; `open`
+  against a stand-in of that codec, and a wrong password's silence that names the server and not
+  the password; SIP002's examples, the refusals with no password in their text, SIP008 and a list
+  in base64. The whole crate with `CC=/nonexistent` and `CXX=/nonexistent`, 330 passed, after a
+  repair: the codec's salt read `OsRng` itself, which the crate's test of its random source
+  refuses outside `crypto/random.rs` (`only_the_random_module_reads_the_os_and_nothing_can_panic`
+  failed); it takes `OsRandom`, as the handshake does. `cargo +1.89 check --locked -p podssh-ws
+  --all-targets`: exit 0.
+- podssh-cli, `crates/podssh-cli/src/shadowsocks/`: the file and the road's choice (`mod.rs`), a
+  subscription's fetch and its kept list (`subscription.rs`), the order of the servers
+  (`order.rs`), the road of `ssh` (`reach.rs`) and of `proxy` (`pipe.rs`); `Transport::Shadowsocks`
+  in the resolver; doctor's section `shadowsocks`; the flag in each table of `--forwarder`; the
+  manual (notes of `ssh`, `proxy` and `doctor`, two rows of FILES), `docs/cli.md` (a section) and
+  `docs/carriers.md` (item 8). `cargo test -p podssh-cli --lib`, 500 passed; `--test man_page`,
+  `--test flag_table`, `--test proxy` and `--test man_flag_parity`, each passed.
+- `cargo test -p podssh-cli --test shadowsocks_cli`, 7 passed, against `ssserver` and `sslocal` of
+  shadowsocks-rust 1.25.0, software that podssh did not write, built here from crates.io (`cargo
+  install --locked shadowsocks-rust` into `.work/`), as this session's proxy refused GitHub's
+  download of its release (403): each method with 1 MiB each way and equal digests; a wrong
+  password fails with the server named, and the next line carries the session; a plugin,
+  Shadowsocks 2022, a line that cannot be read, a file that others can read and a second road
+  refused before anything connects; a kept list whose server went fetched again from a stand-in
+  subscription, then read with no fetch, its file of mode 0600; the server through a CONNECT
+  proxy, and a proxy that carries nothing named; `doctor --shadowsocks` with a line that names the
+  first server and GitHub's port; the bytes of `sslocal` opened by podssh's decoder, and its client
+  hearing podssh's answer. No test skipped (none printed "did not run").
+- Planted, the chunk of the length sealed without a step of the nonce (`codec.rs`, the encoder):
+  5 of the 7 failed against `ssserver`, among them each method's session, and 3 of the 8 of
+  podssh-ws.
+- The gate's `ssh` step installs `shadowsocks-rust-ssserver` and `shadowsocks-rust-sslocal` and
+  names them (`PODSSH_TEST_SSSERVER`, `PODSSH_TEST_SSLOCAL`). clippy `-D warnings` of podssh-ws and
+  podssh-cli, rustfmt, cargo-deny (bans, licenses, sources): clean.
 
 # T-374: The quick tunnel's edge through WARP's tunnel, for a node whose cage reaches port 443 only
 
@@ -5520,7 +5609,7 @@ ask, and nothing does so.
   (`crates/podssh-cli/src/node_iroh.rs:339-340`), and `podssh node` sends `--iroh` there
   (`crates/podssh-cli/src/node.rs:92-94`).
 - Read: `podssh ssh` resolves its destination into an enum of transports
-  (`crates/podssh-cli/src/ssh/resolve.rs:24-64`), in a file of 488 of its 500 lines.
+  (`crates/podssh-cli/src/ssh/resolve.rs:24-66`), in a file of 488 of its 500 lines.
 - Read: the race of T-164 orders two roads (`crates/podssh-relay/src/session/race.rs:59-61`), and
   the race of the command line is in a build with the feature `iroh` only
   (`crates/podssh-cli/src/ssh/iroh.rs:8-11`).

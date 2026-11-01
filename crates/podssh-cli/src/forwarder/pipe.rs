@@ -37,7 +37,7 @@ pub fn beside(args: &ProxyArgs) -> Result<(), Refusal> {
 /// none when the relay is the road, whose fallback's word is then checked
 /// (T-370).
 pub fn chosen(args: &ProxyArgs) -> Result<Option<Vec<Forwarder>>, Refusal> {
-    let named = super::other_road(args.relay_host.is_some(), args.relay_failover.is_some());
+    let named = super::other_road(args.relay_host.is_some(), args.relay_failover.is_some(), args.shadowsocks.is_some());
     let relay_env = std::env::var(podssh_relay::relay::RELAY_ENV).ok().is_some_and(|v| !v.trim().is_empty());
     let file = crate::settings::here();
     let chosen = super::choose(args.forwarder.as_deref(), named, super::env_value(), relay_env, file)?;

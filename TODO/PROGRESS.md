@@ -68,7 +68,8 @@ entry keeps its proof in the entry; this page keeps no history (git does).
   cloud session's git proxy would not delete.
 
   Drafts being written (2026-11-01, by agents of this cloud session, each in
-  its own worktree): T-373 (Shadowsocks) and T-334 (the headscale stand-in);
+  its own worktree): T-334 (the headscale stand-in); T-373's (`1be3e28`) is
+  merged;
   their branches go to GitHub as `draft/<branch>` before the session ends,
   as AGENTS.md asks, if they are not merged by then.
 
@@ -115,7 +116,7 @@ and `CARGO_BUILD_JOBS=4`:
 
 ## Counts
 
-`TODO/INDEX.md` holds 379 entries: 18 open, 1 partial, 31 blocked, 329 done.
+`TODO/INDEX.md` holds 379 entries: 17 open, 1 partial, 31 blocked, 330 done.
 
 Open includes parked work. `cargo todo check` verifies this line.
 
@@ -142,8 +143,8 @@ the terminal, and both are measured on Windows and macOS in Actions (2026-11-01)
 Q61.
 
 **Now:** the entries of the audit, the study and the issues of 2026-10-31 (GitHub #59 to #63 and
-#69 to #76), the highest priority first: those of the rulings of 2026-10-31: T-353 (Q52); then those of
-GitHub #59 to #63 and #73 to #76: T-373.
+#69 to #76): T-353 (Q52), whose live run waits for Q60; the others are done, Shadowsocks the last
+on 2026-11-01.
 Each other `backlog` entry is done, but for those on hold, those of the relay's operator and the
 parked ones.
 

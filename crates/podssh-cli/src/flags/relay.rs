@@ -38,6 +38,7 @@ pub const PROXY_FLAGS: &[FlagRow] = &[
     row(None, "ca-file", Some("FILE"), FlagKind::Supported,
         "trust only the CA certificates in FILE (default: env SSL_CERT_FILE, else system and built-in roots)", None),
     super::forwarder::PROXY_FORWARDER,
+    super::shadowsocks::PROXY_SHADOWSOCKS,
 ];
 
 /// `doctor` checks the relay path `ssh` and `proxy` would take, so it takes
@@ -61,6 +62,7 @@ pub const DOCTOR_FLAGS: &[FlagRow] = &[
         "check only this host and a first hop of -J as --direct reaches it: the connection through HTTPS_PROXY with the \
          server's banner, its host key, and the methods that it offers to a key made for the check", None),
     super::forwarder::DOCTOR_FORWARDER,
+    super::shadowsocks::DOCTOR_SHADOWSOCKS,
 ];
 
 /// `status`: the relay settings that it reports, as `doctor` takes them.

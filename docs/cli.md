@@ -813,6 +813,61 @@ destination or as any hop of `-J`:
 Tested against stunnel in front of the test's SSH server
 (`crates/podssh-cli/tests/ssh_tls_hop.rs`).
 
+## Shadowsocks servers: `--shadowsocks FILE`
+
+T-373, GitHub #62: a Shadowsocks server takes a target in an address header
+and dials it, as the relay's forward path does, with a key in place of a
+token. `--shadowsocks FILE` makes the servers of FILE the road, in place of
+the relay, for `ssh`, each command that reaches its server as `ssh` does,
+and `proxy`:
+
+- FILE is private, as a pair file is: a regular file of the user that
+  others cannot read (78 otherwise). Each line is an `ss://` URI of SIP002
+  (`ss://USERINFO@HOST:PORT#TAG`, USERINFO `method:password` in base64url or
+  percent-encoded; the older form, all of it in base64, is read too), or
+  `subscription https://URL`; `#` starts a comment. A line that cannot be
+  read is refused by its number, never its text, as it holds a password. The
+  URI comes from a file and never from the command line, where argv would
+  show the password.
+- The AEAD form alone: `chacha20-ietf-poly1305`, `aes-256-gcm` and
+  `aes-128-gcm`, written in podssh-ws with the ciphers of podssh's own TLS
+  (`crates/podssh-ws/src/shadowsocks/`): a salt, then chunks, each the
+  payload's length sealed on its own and the sealed payload; the master key
+  by `EVP_BytesToKey` with MD5, each stream's key by HKDF-SHA1 with
+  `ss-subkey`; the nonce a counter of 12 bytes, little-endian, that each seal
+  and each open takes. Shadowsocks 2022 (`2022-blake3-...`) and a key that
+  names a plugin, another program, are refused by name (78).
+- The servers are tried in the order of the file, as the relay hosts are:
+  TCP to the server, through `HTTPS_PROXY` when one is set, then the salt and
+  the target's address in the first chunk. `ssh` waits 10 s for the server's
+  salt and first chunk, as the SSH server behind it speaks first; a server
+  that is silent, closes, or whose chunk does not open gives way to the
+  next. Silence names the proxy as the likely cause when one carried the TCP
+  (T-317's wording), else the password or the method. `proxy` takes a server
+  that says nothing for 3 s, as a pipe's client may speak first.
+- A subscription is fetched through the proxy over TLS, with podssh's trust,
+  at most 1 MiB: lines of `ss://`, the same in base64, or SIP008's JSON;
+  other schemes are counted and passed over. Its list is kept in the cache as
+  `shadowsocks-HASH.json` (mode 0600, under a hash of the URL), read for a
+  day, and fetched again when each kept server failed. At most 16 servers of
+  a list are tried. A line shows a subscription by its host alone, as its
+  path may hold the provider's token.
+- A run has one road: `--relay-host`, `--relay-failover`, `--direct`,
+  `--forwarder`, `-4`, `-6` and a destination with a road of its own are
+  refused beside it (64). The host key of SSH protects the session, as on
+  each road.
+- `podssh doctor --shadowsocks FILE` gives a line for the first server: the
+  TCP, the salt and the first chunk with their time, then GitHub's published
+  host key on `github.com:22` through it.
+- A published key is shared with strangers, has no operator who answers for
+  it, and changes: podssh names no server and no list, and its tests use
+  servers that podssh did not write on the loopback, never a public one.
+
+Tested against `ssserver` and `sslocal` of shadowsocks-rust
+(`crates/podssh-cli/tests/shadowsocks_cli.rs`), and against a codec written
+from the specification with known answers that OpenSSL computed
+(`crates/podssh-ws/tests/shadowsocks.rs`).
+
 ## Going to the background: `--detach` and `-f`
 
 T-380, after the study of `docs/detach.md`: a run that must outlive its

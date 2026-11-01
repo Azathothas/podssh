@@ -238,6 +238,7 @@ fn road(transport: &Transport) -> &'static str {
         Transport::Cloud { road, .. } => road.word(),
         Transport::Derp { .. } => "derp",
         Transport::Forwarder { .. } => "forwarder",
+        Transport::Shadowsocks { .. } => "shadowsocks",
     }
 }
 

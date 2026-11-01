@@ -705,7 +705,7 @@ socks5:// is not supported; podssh speaks HTTP CONNECT to an http:// proxy"
 `HTTPS_PROXY`, `all_proxy` and `ALL_PROXY` (lines 163 and 184), and parses the first that is set
 (line 192). `dial` makes the error `DialError::BadProxy` (line 232), which stops the failover at
 once (`crates/podssh-relay/src/open.rs:70`) and gives exit 78 in `podssh proxy`
-(`crates/podssh-cli/src/proxy.rs:301`). `doctor` reports it as `FAIL`
+(`crates/podssh-cli/src/proxy.rs:310`). `doctor` reports it as `FAIL`
 (`crates/podssh-cli/src/doctor/net.rs`, lines 101-107). Two tests assert the refusal:
 `crates/podssh-cli/tests/doctor.rs`, lines 144-153, and `crates/podssh-ws/tests/dial.rs`, lines
 50-58.
@@ -724,7 +724,7 @@ once (`crates/podssh-relay/src/open.rs:70`) and gives exit 78 in `podssh proxy`
    order (pinned, system, DNS over HTTPS), and try once with the address.
 4. Map each answer to the HTTP case that `another_host_may_help`
    (`crates/podssh-relay/src/open.rs:62-84`) and the exit codes of `podssh proxy`
-   (`crates/podssh-cli/src/proxy.rs:297-310`) already treat: a refused user or password as 407
+   (`crates/podssh-cli/src/proxy.rs:306-319`) already treat: a refused user or password as 407
    (the same for each host: stop); 0x02 (not allowed) as 403; 0x03, 0x04 and 0x05 as 502.
 5. Credentials never in output: `Display` shows the host and port only (now
    `crates/podssh-ws/src/proxy.rs:70-75`).

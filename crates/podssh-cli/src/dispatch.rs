@@ -83,7 +83,17 @@ pub fn run_with(p: &Parsed, s: &mut Streams<'_>, tty: Tty) -> i32 {
                 crate::man::Request { section: section.as_deref(), no_pager: *no_pager, roff: *roff, json: *json };
             crate::man::run(&request, tty, &mut keys, s.out, s.err)
         }
-        Parsed::Proxy { target, port, relay_host, relay_failover, relay_addr, ca_file, forwarder, refused } => {
+        Parsed::Proxy {
+            target,
+            port,
+            relay_host,
+            relay_failover,
+            relay_addr,
+            ca_file,
+            forwarder,
+            shadowsocks,
+            refused,
+        } => {
             if refusals("proxy", refused, s.err) {
                 return EXIT_USAGE;
             }
@@ -96,6 +106,7 @@ pub fn run_with(p: &Parsed, s: &mut Streams<'_>, tty: Tty) -> i32 {
                     relay_addr: relay_addr.clone(),
                     ca_file: ca_file.clone(),
                     forwarder: forwarder.clone(),
+                    shadowsocks: shadowsocks.clone(),
                 },
                 s.err,
             )
@@ -155,7 +166,18 @@ pub fn run_with(p: &Parsed, s: &mut Streams<'_>, tty: Tty) -> i32 {
             };
             crate::status::run_status(&args, tty, s.out, s.err)
         }
-        Parsed::Doctor { relay_host, relay_failover, relay_addr, ca_file, json, full, hop, forwarder, refused } => {
+        Parsed::Doctor {
+            relay_host,
+            relay_failover,
+            relay_addr,
+            ca_file,
+            json,
+            full,
+            hop,
+            forwarder,
+            shadowsocks,
+            refused,
+        } => {
             if refusals("doctor", refused, s.err) {
                 return EXIT_USAGE;
             }
@@ -169,6 +191,7 @@ pub fn run_with(p: &Parsed, s: &mut Streams<'_>, tty: Tty) -> i32 {
                     full: *full,
                     hop: hop.clone(),
                     forwarder: forwarder.clone(),
+                    shadowsocks: shadowsocks.clone(),
                 },
                 s.out,
                 s.err,

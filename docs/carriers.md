@@ -156,6 +156,16 @@ The candidates, ranked:
    `--forwarder` (T-369), with no relay token; by the operator's ruling
    Q56 the binary names the three by a word, and tries them when each relay
    host failed (T-370).
+8. **Shadowsocks servers that the user names** (class A in shape: the
+   server dials the target that its address header names). Read in GitHub
+   #62 (a tester's report of 2026-10-31, not measured here): such servers
+   run on port 443, with keys that their operators give out, some on public
+   pages; a key that VPNBook published took the salt and the header and gave
+   no byte back. The AEAD form is small, and podssh-ws has its ciphers: the
+   road is `--shadowsocks FILE` (T-373), of `ss://` lines and subscriptions,
+   with no plugin and no Shadowsocks 2022. A proxy that waits for TLS on
+   port 443 carries no Shadowsocks (Inferred, as for SSH, T-317), and a
+   public key has no operator who answers for it, so podssh names none.
 
 Ruled out:
 

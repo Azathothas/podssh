@@ -142,7 +142,7 @@ root lock), made on `main` and closed with a comment.
 | #59 | The forward road without the operator's relay: ways with no account to reach a `host:port` (research) | open | Each road of its ranking, in the paragraph below |
 | #60 | A relay template: a WebSocket forwarder that takes the destination from the URL | closed 2026-11-01, each entry done | T-369 (a forwarder that the user names); T-370 (the public forwarders in the binary, and a fallback to them, by the operator's ruling Q56) |
 | #61 | SSH on port 443 as a hop | closed 2026-11-01, each entry done | T-371 (the hop measured, and a `doctor` line for a hop, b666713), T-372 (a hop or a destination whose SSH is wrapped in TLS, `ssh+tls://`, 60c2414) |
-| #62 | A Shadowsocks road with a refreshable subscription | open | T-373 |
+| #62 | A Shadowsocks road with a refreshable subscription | closed 2026-11-01, each entry done | T-373 (`--shadowsocks FILE`, tested against shadowsocks-rust's `ssserver` and `sslocal`) |
 | #63 | Anonymous exits with no TUN device: WARP over HTTP/2, and Arti | open | T-352 (Option 1, WARP; its first comment's measurements are in the Premise), T-353 (Option 2, Arti), T-374 (its second comment: the quick tunnel's edge through WARP); each waits for the operator's ruling Q52 |
 | #69 | `doctor` reports a bind as if it had measured a listener | closed | T-357 and T-358 (the commit "T-357 and T-358: done. podssh doctor listens once on each socket that it binds", 12fc719: the lines `listen AF_INET` and `listen AF_UNIX`, by the operator's ruling on Q53). `-L` exits 255 on a refused listener, not 77 as the issue says |
 | #70 | The UDP probe measures a local bind, not egress | closed | T-359 (done, 2026-10-31); the quick tunnel's QUIC has its own probe, its handshake (T-301), not this one, so one bind does not decide two roads |
@@ -162,7 +162,7 @@ template of T-369 can name it, podssh ships no forwarder (the relay stays a
 separate project, `docs/decisions.md`, Q4 and Q9; a relay of the user's own
 is T-169, which waits for the relay's operator), and a recipe for it is
 part of Q56; 3, SSH on port 443 as a hop: T-371 and T-372 (#61, both done); 4,
-Shadowsocks: T-373 (#62); 5 and 6, WARP and Arti: T-352 and T-353 (#63,
+Shadowsocks: T-373 (#62, done); 5 and 6, WARP and Arti: T-352 and T-353 (#63,
 Q52, settled); 7, n0's iroh relays: a road already (T-162, done), and T-348 for the
 release binaries (Q50, settled on 2026-10-31). The comment's corrections of the
 study: the three forwarders are T-369 and T-370; the 60 s of EICE's

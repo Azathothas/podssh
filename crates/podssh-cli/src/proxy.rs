@@ -42,6 +42,9 @@ pub struct ProxyArgs {
     pub ca_file: Option<String>,
     /// `--forwarder`: the forwarders in place of the relay (T-369).
     pub forwarder: Option<String>,
+    /// `--shadowsocks`: the file of Shadowsocks servers in place of the
+    /// relay (T-373).
+    pub shadowsocks: Option<String>,
 }
 
 /// Run the verb; returns the process exit code. A run that named its
@@ -63,8 +66,9 @@ pub fn run_proxy(args: &ProxyArgs, err: &mut dyn Write) -> i32 {
 }
 
 fn proxy(args: &ProxyArgs, err: &mut dyn Write) -> i32 {
-    // A road of its own takes no forwarder (T-369).
-    if let Err(refusal) = crate::forwarder::pipe::beside(args) {
+    // A road of its own takes no forwarder (T-369), and no Shadowsocks
+    // server (T-373).
+    if let Err(refusal) = crate::forwarder::pipe::beside(args).and_then(|()| crate::shadowsocks::pipe::beside(args)) {
         return refusal.report("proxy", err);
     }
     // iap:// and eice://, a cloud's own tunnel (T-351).
@@ -93,7 +97,8 @@ fn proxy(args: &ProxyArgs, err: &mut dyn Write) -> i32 {
                 || args.relay_failover.is_some()
                 || args.relay_addr.is_some()
                 || args.ca_file.is_some()
-                || args.forwarder.is_some();
+                || args.forwarder.is_some()
+                || args.shadowsocks.is_some();
             if flags && (args.target.is_none() || args.port.is_none()) {
                 let _ = writeln!(err, "podssh proxy: a HOST that starts with - is read as a flag; put -- before it");
             }
@@ -108,8 +113,12 @@ fn proxy(args: &ProxyArgs, err: &mut dyn Write) -> i32 {
     if let Err(refusal) = crate::pins::apply(args.relay_addr.as_deref()) {
         return refusal.report("proxy", err);
     }
-    // The forwarders, when the command line or the environment names them
-    // (T-369): then the relay is not asked.
+    // The Shadowsocks servers of a file (T-373), then the forwarders, when
+    // the command line or the environment names them (T-369): then the relay
+    // is not asked.
+    if let Some(path) = args.shadowsocks.as_deref() {
+        return crate::shadowsocks::pipe::run(path, &host, port, args.ca_file.as_deref(), err);
+    }
     match crate::forwarder::pipe::chosen(args) {
         Ok(Some(forwarders)) => {
             return crate::forwarder::pipe::run(&forwarders, &host, port, args.ca_file.as_deref(), err)

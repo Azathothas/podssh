@@ -4,7 +4,9 @@
 //! A WebSocket that the user names is dialed with no token (`url`), and a
 //! server's side of the handshake answers a client of `podssh pipe
 //! ws-listen:` (`server`, T-368). A forwarder of another product carries a
-//! target that a template names, over the same dial (`forwarder`, T-369).
+//! target that a template names, over the same dial (`forwarder`, T-369),
+//! and a Shadowsocks server one that its address header names, over TCP
+//! (`shadowsocks`, T-373).
 //!
 //! Why a crypto provider of its own: rustls 0.23 ships none in pure Rust, and
 //! `ring` and `aws-lc-sys` both need a C compiler, which podssh's default build
@@ -43,6 +45,8 @@ mod race;
 pub mod resolve;
 pub mod server;
 pub mod session;
+// A Shadowsocks server of the user's, in its AEAD form (T-373).
+pub mod shadowsocks;
 mod socks5;
 pub mod stores;
 pub mod text;

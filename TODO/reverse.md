@@ -425,7 +425,7 @@ through `curl` (`docs/design.md:516-517`).
 
 Read: `podssh-relay` declares the workspace minimum, Rust 1.88 (`crates/podssh-relay/Cargo.toml:5-6`,
 `Cargo.toml` lines 45-48 at `0d92eef`), above podbox's 1.85. `podssh proxy` already runs async code from sync code with
-a current-thread runtime and `shutdown_background` (`crates/podssh-cli/src/proxy.rs:143-156`).
+a current-thread runtime and `shutdown_background` (`crates/podssh-cli/src/proxy.rs:152-165`).
 
 Read: podbox keeps `ring` and TLS 1.2 through a `rustls::ClientConfig` that it supplies
 (`docs/design.md:509-513`); that is T-066, not this entry.
@@ -750,7 +750,7 @@ So a local TCP TARGET exists only where the host allows it; `podssh serve` (M5) 
    FILE, and prints only the label and the expiry. `podssh relay revoke NAME` stops the pair and deletes the
    local copies. `podssh relay status NAME` gives presence; agree on the form with T-058, whose `relay status`
    has no NAME.
-4. Exit codes as `podssh proxy` (`docs/cli.md:2937`): 64 usage; 69 the relay or TARGET cannot be reached; 77 a
+4. Exit codes as `podssh proxy` (`docs/cli.md:2992`): 64 usage; 69 the relay or TARGET cannot be reached; 77 a
    refused pair (`403`); 78 no usable pair; 0 after a stop by a signal. Add the rows to
    `crates/podssh-cli/src/man/facts.rs:438`.
 5. `doctor`: one line for each stored pair, with its expiry and its presence, as in
@@ -882,13 +882,13 @@ Measured on `3ee70dc`, offline: `podssh operator mynode` gives exit 70;
 `PODSSH_OFFLINE`); `podssh ssh -T node://lab true` gives `"//lab" is not a port` and exit 64.
 
 Read: `parse_hop` strips `ssh://` and reads `host:PORT` (`crates/podssh-cli/src/ssh/hop.rs:30-78`).
-`Transport` is `Relay` or `Direct` (`crates/podssh-cli/src/ssh/resolve.rs:23-64`, chosen at `:293-367`).
+`Transport` is `Relay` or `Direct` (`crates/podssh-cli/src/ssh/resolve.rs:23-66`, chosen at `:295-371`).
 `connect_and_run` gives `relay_stream::spawn` to russh (`crates/podssh-cli/src/ssh/mod.rs` lines 73-116 at `6483366`), and
 `relay_stream` closes with 1002 on a text frame (`crates/podssh-ssh/src/relay_stream.rs:259-265`); the
 operator leg receives text frames (`docs/relay.md:340-343`). A host key is recorded under the target
 host, never the relay's name (`SECURITY.md:118-128`); `HostKeyAlias` exists
-(`crates/podssh-cli/src/ssh/resolve.rs:410`). `podssh ssh` uses the exit codes of OpenSSH, and
-`podssh proxy` sysexits (`docs/cli.md:2933-2937`).
+(`crates/podssh-cli/src/ssh/resolve.rs:414`). `podssh ssh` uses the exit codes of OpenSSH, and
+`podssh proxy` sysexits (`docs/cli.md:2988-2992`).
 
 ## Approach
 
@@ -896,14 +896,14 @@ host, never the relay's name (`SECURITY.md:118-128`); `HostKeyAlias` exists
    `operator::run` (T-080) on stdin and stdout: a byte pipe as `podssh proxy`
    (`crates/podssh-cli/src/pipe/relay.rs:104-230`). stdout carries data only; never 0 without `ready`.
 2. `podssh ssh node://[user@]NAME`: `parse_hop` reads `node://` as it reads `ssh://`; add
-   `Transport::Node` (`crates/podssh-cli/src/ssh/resolve.rs:23-64`).
+   `Transport::Node` (`crates/podssh-cli/src/ssh/resolve.rs:23-66`).
 3. For a node, `connect_and_run` opens the operator leg and waits for `ready` (T-080), then gives
    russh the raw stream. Do not give the leg to `relay_stream::spawn` as it is: reuse its pump after
    `ready`, with text frames read as control.
 4. Host keys: record and check the node's key under the name `node://NAME`, which no DNS name can be;
    `-o HostKeyAlias` still wins.
 5. Refuse by name a node as a `-J` hop, and `-W` through a node; record them for later.
-6. Flags: `--pair-file FILE` for `operator` and `ssh` (`crates/podssh-cli/src/flags.rs:112-287`,
+6. Flags: `--pair-file FILE` for `operator` and `ssh` (`crates/podssh-cli/src/flags.rs:112-288`,
    lines 418-419 at `3cbf215`). Update the manual's examples and notes, `docs/cli.md` (lines 62-75 at `3cbf215`) and `docs/reverse.md`.
 
 ## Decision

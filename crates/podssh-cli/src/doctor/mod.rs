@@ -42,6 +42,8 @@ mod pairs;
 mod quick;
 mod relay_checks;
 mod samples;
+// The first server of --shadowsocks (T-373).
+mod shadowsocks;
 #[cfg(feature = "tor")]
 mod tor;
 #[cfg(unix)]
@@ -68,6 +70,8 @@ pub struct DoctorArgs {
     pub hop: Option<String>,
     /// `--forwarder`: forwarders to check after the relay (T-369).
     pub forwarder: Option<String>,
+    /// `--shadowsocks`: the file whose first server is checked (T-373).
+    pub shadowsocks: Option<String>,
 }
 
 /// Run every check; returns the exit code. The report goes to `out`; only a
@@ -94,6 +98,10 @@ pub fn run_doctor(args: &DoctorArgs, out: &mut dyn Write, err: &mut dyn Write) -
     };
     let forwarders = match crate::forwarder::for_doctor(args.forwarder.as_deref()) {
         Ok(forwarders) => forwarders,
+        Err(refusal) => return refusal.report("doctor", err),
+    };
+    let servers = match crate::shadowsocks::for_doctor(args.shadowsocks.as_deref()) {
+        Ok(servers) => servers,
         Err(refusal) => return refusal.report("doctor", err),
     };
     let cert_env = std::env::var("SSL_CERT_FILE").ok().filter(|v| !v.trim().is_empty());
@@ -147,6 +155,9 @@ pub fn run_doctor(args: &DoctorArgs, out: &mut dyn Write, err: &mut dyn Write) -
         if !forwarders.is_empty() {
             report.unknown("forwarder", "not attempted: PODSSH_OFFLINE is set");
         }
+        if servers.is_some() {
+            report.unknown("shadowsocks", "not attempted: PODSSH_OFFLINE is set");
+        }
         report.section("pairs");
         let stored = pairs::stored(&mut report);
         pairs::not_asked(&mut report, &stored, "not asked: PODSSH_OFFLINE is set");
@@ -154,7 +165,14 @@ pub fn run_doctor(args: &DoctorArgs, out: &mut dyn Write, err: &mut dyn Write) -
     }
     match tokio::runtime::Builder::new_current_thread().enable_all().build() {
         Ok(runtime) => {
-            let checks = Checks { relays: &relays, trust: &trust, failover, full: args.full, forwarders: &forwarders };
+            let checks = Checks {
+                relays: &relays,
+                trust: &trust,
+                failover,
+                full: args.full,
+                forwarders: &forwarders,
+                servers: servers.as_ref(),
+            };
             runtime.block_on(network(&mut report, &checks));
             // A probe may have left a task behind (a relay leg still closing);
             // the report is done, so none is waited for.
@@ -172,10 +190,12 @@ struct Checks<'a> {
     failover: Mode,
     full: bool,
     forwarders: &'a [crate::forwarder::Forwarder],
+    /// The servers of `--shadowsocks`, when it names a file.
+    servers: Option<&'a crate::shadowsocks::Servers>,
 }
 
 async fn network(report: &mut Report<'_>, checks: &Checks<'_>) {
-    let Checks { relays, trust, failover, full, forwarders } = *checks;
+    let Checks { relays, trust, failover, full, forwarders, servers } = *checks;
     net::check_network(report, relays, trust).await;
     // Whether UDP reaches the quick tunnel's edge, Cloudflare's, with --full
     // alone (T-359).
@@ -188,6 +208,10 @@ async fn network(report: &mut Report<'_>, checks: &Checks<'_>) {
     match forwarders.is_empty() {
         true => forwarder::fallback_line(report, relays),
         false => forwarder::check(report, forwarders, trust).await,
+    }
+    if let Some(servers) = servers {
+        report.section("shadowsocks");
+        shadowsocks::check(report, servers, trust).await;
     }
     #[cfg(feature = "iroh")]
     {

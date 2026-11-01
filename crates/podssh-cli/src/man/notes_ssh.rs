@@ -177,6 +177,26 @@ pub const SSH: &[&str] = &[
      forwarder would share, as a bad setting, ends the run as before. No relay token goes to them. \
      PODSSH_FORWARDER_FALLBACK set to no, or ForwarderFallback no in the settings file, turns this off; \
      podssh doctor says whether it is on, and podssh doctor --forwarder mudlet,ssheasy,mudix asks them.",
+    "--shadowsocks FILE reaches the first hop through Shadowsocks servers, in place of the relay: a server \
+     that takes the target in an address header and dials it, with a key in place of a token. FILE must be \
+     yours and closed to others (chmod 600), as a pair file is: each line is an ss:// URI of SIP002, \
+     ss://USERINFO@HOST:PORT#TAG, its USERINFO method:password in base64url or percent-encoded (the older \
+     form, all of it in base64, is read too); or subscription https://URL, a list that a provider serves; # \
+     starts a comment. The methods are the AEAD ones, chacha20-ietf-poly1305, aes-256-gcm and aes-128-gcm; \
+     Shadowsocks 2022 (2022-blake3-...) and a key that names a plugin, another program, are refused (78), \
+     and so is a line that cannot be read, by its number and never its text. The servers are tried in the \
+     order of the file: TCP to the server, through HTTPS_PROXY when one is set, then the salt and the \
+     target; a server that does not answer with its salt and its first chunk within 10 s, that closes, \
+     or whose chunk does not open gives way to the next. Silence names the proxy as the likely cause when \
+     one carried the TCP: a proxy that waits for TLS on port 443 carries no Shadowsocks. A subscription is \
+     fetched over TLS, checked with podssh's trust (--ca-file), at most 1 MiB, as lines of ss://, the same \
+     lines in base64, or SIP008's JSON; its list is kept in the cache (see FILES), read for a day, and \
+     fetched again when each kept server failed; at most 16 servers of a list are tried. The password \
+     goes into the key and nowhere else, and a line shows a subscription by its host alone. The host key \
+     of SSH protects the session, as on each road: the server sees the target's name and SSH's encrypted \
+     bytes. A published key is shared with strangers, has no operator who answers for it, and changes: \
+     podssh names no server and no list. A run has one road: --relay-host, --relay-failover, --direct, \
+     --forwarder, -4, -6, and a destination with a road of its own cannot go with it (64).",
     "node://NAME with --iroh-ticket TICKET races the two roads to the node: the iroh road starts first, \
      the pair's road 250 ms later, or at once when the iroh road fails, and the first far end that \
      speaks carries the session; the other link ends before it sends anything, so it opens nothing at \

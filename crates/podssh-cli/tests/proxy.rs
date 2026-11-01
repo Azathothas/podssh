@@ -40,6 +40,7 @@ fn the_positionals_and_options_reach_the_verb() {
             relay_addr: None,
             ca_file: Some("ca.pem".into()),
             forwarder: None,
+            shadowsocks: None,
             refused: vec![],
         }
     );

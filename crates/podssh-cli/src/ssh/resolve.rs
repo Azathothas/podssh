@@ -61,6 +61,8 @@ pub enum Transport {
     },
     /// Through other products' WebSocket forwarders, in order (T-369).
     Forwarder { forwarders: Vec<crate::forwarder::Forwarder>, trust: Trust },
+    /// Through the Shadowsocks servers of a file, in order (T-373).
+    Shadowsocks { servers: crate::shadowsocks::Servers, trust: Trust },
 }
 
 /// A command line, resolved.
@@ -360,10 +362,12 @@ pub fn resolve_or_refuse(args: &SshArgs, env: &Env) -> Result<Resolved, Refusal>
         };
         // The direct road after the relay hosts (T-363): not with a relay
         // that the user named, nor with -4 or -6, which the direct road
-        // cannot keep. Forwarders, when named, take the relay's place (T-369).
+        // cannot keep. Forwarders (T-369) or Shadowsocks servers (T-373),
+        // when named, take the relay's place.
         let direct = crate::relay_settings::direct_from(env.direct.clone(), &env.settings)?;
         let then_direct = direct && !relays.explicit && family.is_none();
-        crate::forwarder::or_relay(args, env, Transport::Relay { relays, trust, family, failover, then_direct })?
+        let relay = Transport::Relay { relays, trust, family, failover, then_direct };
+        crate::shadowsocks::or_relay(args, crate::forwarder::or_relay(args, env, relay)?)?
     };
 
     // A node runs the resumable layer, whose heartbeat finds a dead link and
@@ -472,6 +476,7 @@ pub fn resolve_or_refuse(args: &SshArgs, env: &Env) -> Result<Resolved, Refusal>
     };
     super::persist::check(args, &mut resolved)?;
     crate::forwarder::check(args, &resolved)?;
+    crate::shadowsocks::check(args, &resolved)?;
     super::upgrade::check(args, env, &mut resolved)?;
     super::elevate::check(args, &mut resolved)?;
     super::recording::check(args, &mut resolved)?;

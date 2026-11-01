@@ -184,6 +184,11 @@ const PROXY: &[&str] = &[
      order, with no relay, as podssh ssh does (see its notes); PODSSH_FORWARDER gives them too. The end of \
      stdin sends no Close, as a Close is no half-close: the target's bytes come until it closes. When each \
      relay host failed, the forwarders that podssh names follow, as for podssh ssh.",
+    "podssh proxy --shadowsocks FILE carries the pipe through the Shadowsocks servers of FILE, in order, \
+     with no relay, as podssh ssh does (see its notes). A pipe's client may speak first, so a server that \
+     says nothing for 3 s is taken; one that closes, resets or answers with a chunk that does not open \
+     within them gives way to the next. The end of stdin is TCP's half-close, which the server passes on: \
+     the target's bytes come until it closes.",
 ];
 
 const DOCTOR: &[&str] = &[
@@ -234,6 +239,12 @@ const DOCTOR: &[&str] = &[
      before GitHub's bytes says its code and its reason. With none named, its line fallback says whether a \
      run whose relay hosts all failed tries the forwarders that podssh names (see podssh ssh), and asks \
      none of them.",
+    "With --shadowsocks FILE, the section shadowsocks gives a line for the first server of FILE, a \
+     subscription's first when the file starts with one (its list fetched or kept, as a run takes it): \
+     the TCP through HTTPS_PROXY when one is set, the server's salt and first chunk with their time, then a \
+     session to github.com port 22 through it, whose host key must be one that GitHub publishes. A server \
+     that stays silent names the proxy as the likely cause when one carried the TCP, else the password \
+     or the method.",
     "With --json, the report is one JSON object on stdout when every check has run: schema (1), podssh, \
      os, arch, checks (each with section, check, status and detail; status is ok, FAIL or unknown) and \
      counts (ok, fail, unknown). A check tried several times adds samples: tries, connected, best_ms, \

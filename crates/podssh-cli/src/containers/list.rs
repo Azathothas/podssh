@@ -260,6 +260,7 @@ pub fn flags(ssh: &SshArgs) -> Vec<String> {
         ("--relay-addr", &ssh.relay_addr),
         ("--ca-file", &ssh.ca_file),
         ("--forwarder", &ssh.forwarder),
+        ("--shadowsocks", &ssh.shadowsocks),
     ];
     for (flag, value) in named {
         if let Some(value) = value {

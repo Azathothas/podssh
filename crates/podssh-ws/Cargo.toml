@@ -35,6 +35,13 @@ http = "1.5"
 bytes = "1.12"
 # DNS-over-HTTPS answers are JSON (resolve.rs).
 serde_json = { workspace = true }
+# Shadowsocks (T-373): its master key is OpenSSL's EVP_BytesToKey with MD5,
+# and each stream's key HKDF-SHA1 of it, with the HKDF above. Both pure
+# Rust, and both in the lock already: md5 0.8 through podssh-ssh, sha1 0.10
+# (digest 0.10, as hkdf 0.12 takes it) through tungstenite. No `asm` of
+# sha1, which would compile assembly.
+md5 = { version = "0.8", default-features = false }
+sha1 = { version = "0.10", default-features = false }
 
 # The socket of Multipath TCP (T-172), which Linux alone makes: the socket
 # call with IPPROTO_MPTCP, and getsockopt. libc compiles no C.
