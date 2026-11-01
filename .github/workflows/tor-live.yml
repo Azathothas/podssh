@@ -30,3 +30,24 @@ jobs:
         run: cargo test --locked -p podssh-cli --features tor --test tor_live --no-run
       - name: GitHub's banner through Tor's public network
         run: timeout 900 cargo test --locked -p podssh-cli --features tor --test tor_live -- --ignored --nocapture
+      # The Prove's case of a cage: each first hop through the box's proxy,
+      # which takes ports 443, 80 and 8443 alone; podssh holds Arti's first
+      # hops to 443 through a proxy (PODSSH_TOR_PORTS), and the stream to
+      # github.com:22 leaves Tor at an exit, never through the proxy.
+      - name: the same through the box's proxy of a cage's ports
+        run: |
+          python3 scripts/box/proxy.py --listen 127.0.0.1:3129 >"$RUNNER_TEMP/proxy.log" 2>&1 &
+          echo $! >"$RUNNER_TEMP/proxy.pid"
+          for _ in $(seq 1 20); do grep -q listening "$RUNNER_TEMP/proxy.log" && break; sleep 0.5; done
+          rc=0
+          HTTPS_PROXY=http://127.0.0.1:3129 timeout 900 cargo test --locked -p podssh-cli --features tor \
+            --test tor_live -- --ignored --nocapture || rc=$?
+          kill "$(cat "$RUNNER_TEMP/proxy.pid")" 2>/dev/null || true
+          sed 's/^/proxy: /' "$RUNNER_TEMP/proxy.log" | head -40
+          taken=$(grep -c '^200 CONNECT ' "$RUNNER_TEMP/proxy.log" || true)
+          other=$(grep '^200 CONNECT ' "$RUNNER_TEMP/proxy.log" | grep -vc ':443 HTTP' || true)
+          echo "first hops through the proxy: $taken, on another port than 443: $other"
+          [ "$taken" -gt 0 ] || { echo "FAIL no first hop went through the proxy"; rc=1; }
+          [ "$other" -eq 0 ] || { echo "FAIL a first hop on another port than 443"; rc=1; }
+          ! grep -q 'github.com:22' "$RUNNER_TEMP/proxy.log" || { echo "FAIL the stream went through the proxy, not Tor"; rc=1; }
+          exit "$rc"

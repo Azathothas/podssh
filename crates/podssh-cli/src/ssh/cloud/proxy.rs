@@ -77,7 +77,17 @@ pub fn run(args: &ProxyArgs, err: &mut dyn Write) -> Option<i32> {
         return Some(EX_UNAVAILABLE);
     }
     let trust = crate::settings::ca_file(args.ca_file.as_deref()).map_or(Trust::Default, |f| Trust::File(f.into()));
-    let runtime = match tokio::runtime::Builder::new_current_thread().enable_all().build() {
+    let one = || tokio::runtime::Builder::new_current_thread().enable_all().build();
+    // Arti's circuits do their cryptography in tasks of their own: on a
+    // second thread they keep pace with the pump, where one thread carried
+    // a Tor stream down at about two thirds of the pace.
+    let built = match road {
+        Road::Tor(_) => {
+            tokio::runtime::Builder::new_multi_thread().worker_threads(2).enable_all().build().or_else(|_| one())
+        }
+        _ => one(),
+    };
+    let runtime = match built {
         Ok(rt) => rt,
         Err(e) => {
             let _ = writeln!(err, "podssh proxy: could not start the async runtime: {e}");

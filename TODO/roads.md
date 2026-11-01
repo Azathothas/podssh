@@ -4157,6 +4157,14 @@ Arti brings C, as the features `ts` and `iroh` do.
 
 The operator's ruling of 2026-10-31 (Q52, `docs/decisions.md`): Tor through Arti, as a feature crate `podssh-tor` with the C of `arti-client`, as `podssh-iroh` is one.
 
+2026-11-01, step 4's throughput: measured through chutney's private network, against C tor's own
+client of it. Q60 lets a test reach Tor's public network for one bootstrap and one stream to
+`github.com:22`, which takes no bytes of a test, so its figure is the time to the first byte
+(10.8 s from nothing, 5.9 s from the cached directory); a public throughput would need a target of
+the test behind an exit, which the ruling does not cover, and would measure the circuits that the
+network chose more than podssh. Lost: asking the operator for a public run (Tor's volunteers carry
+it, and its figure would not repeat).
+
 ## Prove
 
 ```sh
@@ -4178,6 +4186,13 @@ own, T-385, after a study of Arti 0.47's hooks and of the two protocols
 (`docs/tor-transports.md`): about 1,300 lines and a harness of a bridge in chutney, more than a
 step. This entry keeps the road, its tests against a private network, doctor's line, and the
 live run and the measurement, which wait for Q60.
+
+2026-11-01, after Q60: the Prove's live test is `--test tor_live`, not `--test tor_road`, which
+was never written: `podssh proxy tor://github.com:22` on Tor's public network by `tor-live.yml`,
+directly, then through `scripts/box/proxy.py`, the box's proxy of a cage's ports (443, 80 and
+8443): each first hop through it on 443, and the stream to `github.com:22` never through it. The
+planted case of the Prove (the first hops not held to the proxy's ports) is the private network's
+(`tor_private`, the dial made direct), as a public run planted to fail is no short run.
 
 ## Done
 
@@ -4255,7 +4270,28 @@ Built and tested here (2026-11-01), the live run waiting for Q60:
   first byte. From this cloud session the bootstrap did not end within 180 s: its egress re-signs
   TLS, which Tor's links cannot pass. meek and WebTunnel (step 2) are T-385's, done.
 
-Waits: step 4's throughput.
+- Step 4's throughput (2026-11-01), `crates/podssh-cli/tests/tor_throughput.rs` (ignored): 16 MiB
+  each way, three runs, the median, through `podssh proxy tor://` to a service of the test, from the
+  service's first line to the last byte; then the same through the SOCKS port of chutney's own
+  client of C tor, the figure without podssh. Built as a user builds the feature (`--release`,
+  opt-level `z`; here with no LTO), through chutney's network `basic` on this host:
+
+  | | up p50 | down p50 |
+  | --- | --- | --- |
+  | before (a debug build, for the record) | 0.91 MiB/s | 0.76 MiB/s |
+  | before, release | 6.94 | 2.93 |
+  | the pump writes what is ready at once together | 6.94 | 5.15 |
+  | and two threads for the Tor road | 6.03 | 7.81 |
+  | C tor's own client, the same runs | 7.5 to 8.9 | 12.0 to 15.3 |
+
+  Two defects were found by it and repaired: `pipe::pump::copy` wrote and flushed each read, and a
+  Tor stream reads one cell (498 bytes) at a time, so each 498 bytes cost a handoff to tokio's
+  thread of stdout: it now gathers what more is ready at once, up to 32 KiB, before it writes
+  (`small_reads_that_are_ready_are_written_together`: 256 KiB of cells in at most 9 writes;
+  planted, no gathering: 527 writes, it failed). And `podssh proxy` ran Arti's circuits and the
+  pump on one thread: the Tor road takes two, else one. The rest of the gap down to C tor's client
+  is not located.
+
 
 
 # T-385: meek and WebTunnel inside the Tor road's process, for a cage that reaches no Tor relay

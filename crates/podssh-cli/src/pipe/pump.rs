@@ -1,7 +1,8 @@
 //! The copy of `podssh pipe` between two ends (T-174), the one path of a
 //! byte pipe: T-175 moves `podssh proxy` onto it.
 //!
-//! Each direction reads up to 32 KiB at a time. When one side's input ends,
+//! Each direction reads up to 32 KiB at a time, with what more is ready at
+//! once, before it writes. When one side's input ends,
 //! the other side's write half is shut down, and the other direction goes
 //! on: a reply on its way still comes back (an end's write half closes only
 //! itself, as a TCP half-close does). A writer whose reader is gone ends the
@@ -82,12 +83,13 @@ pub async fn copy(mut from: Reader, mut to: Writer, count: &AtomicU64) -> Flow {
     let mut buf = vec![0u8; CHUNK];
     loop {
         // A read that fails is an end of input, as `podssh proxy` reads stdin.
-        let n = from.read(&mut buf).await.unwrap_or(0);
+        let mut n = from.read(&mut buf).await.unwrap_or(0);
         if n == 0 {
             drop(from);
             let _ = to.shutdown().await;
             return Flow::Ended;
         }
+        n += ready_now(&mut from, &mut buf[n..]);
         if to.write_all(&buf[..n]).await.is_err() || to.flush().await.is_err() {
             return Flow::Gone;
         }
@@ -131,6 +133,22 @@ pub async fn pump(a: End, b: End) -> Pumped {
     }
     let carried = (counts[0].load(Ordering::Relaxed), counts[1].load(Ordering::Relaxed));
     Pumped { a: Left { child: a_child, ending: a_ending }, b: Left { child: b_child, ending: b_ending }, carried }
+}
+
+/// The bytes that `from` has ready at once, into `buf`, waiting for none: a
+/// source of small reads (a Tor stream gives one cell, 498 bytes, at each)
+/// is then written in few writes, as each write to stdout is a handoff to a
+/// thread of tokio's. An end or an error is left for the next read.
+fn ready_now(from: &mut Reader, buf: &mut [u8]) -> usize {
+    use futures_util::FutureExt as _;
+    let mut n = 0;
+    while n < buf.len() {
+        match from.read(&mut buf[n..]).now_or_never() {
+            Some(Ok(m)) if m > 0 => n += m,
+            _ => break,
+        }
+    }
+    n
 }
 
 /// When a side whose output ended has said all that it will: at once when
@@ -178,6 +196,61 @@ mod tests {
         a_far.read_to_end(&mut back).await.unwrap();
         assert_eq!(back, b"answer");
         tokio::time::timeout(Duration::from_secs(5), pumped).await.expect("the pump ends").unwrap();
+    }
+
+    /// A source that gives a cell at a time, each ready at once.
+    struct Cells {
+        left: usize,
+    }
+
+    impl AsyncRead for Cells {
+        fn poll_read(
+            mut self: Pin<&mut Self>,
+            _: &mut std::task::Context<'_>,
+            buf: &mut tokio::io::ReadBuf<'_>,
+        ) -> std::task::Poll<std::io::Result<()>> {
+            let n = self.left.min(498).min(buf.remaining());
+            buf.put_slice(&vec![7u8; n]);
+            self.left -= n;
+            std::task::Poll::Ready(Ok(()))
+        }
+    }
+
+    /// A writer that keeps the size of each write.
+    #[derive(Default)]
+    struct Writes(std::sync::Arc<std::sync::Mutex<Vec<usize>>>);
+
+    impl AsyncWrite for Writes {
+        fn poll_write(
+            self: Pin<&mut Self>,
+            _: &mut std::task::Context<'_>,
+            buf: &[u8],
+        ) -> std::task::Poll<std::io::Result<usize>> {
+            self.0.lock().unwrap().push(buf.len());
+            std::task::Poll::Ready(Ok(buf.len()))
+        }
+        fn poll_flush(self: Pin<&mut Self>, _: &mut std::task::Context<'_>) -> std::task::Poll<std::io::Result<()>> {
+            std::task::Poll::Ready(Ok(()))
+        }
+        fn poll_shutdown(self: Pin<&mut Self>, _: &mut std::task::Context<'_>) -> std::task::Poll<std::io::Result<()>> {
+            std::task::Poll::Ready(Ok(()))
+        }
+    }
+
+    /// Small reads that are ready at once leave in writes of the chunk's
+    /// size, not one write for each read.
+    #[tokio::test]
+    async fn small_reads_that_are_ready_are_written_together() {
+        let writes = Writes::default();
+        let sizes = writes.0.clone();
+        let total = 256 * 1024;
+        let count = AtomicU64::new(0);
+        let flow = copy(Box::new(Cells { left: total }), Box::new(writes), &count).await;
+        assert_eq!(flow, Flow::Ended);
+        assert_eq!(count.load(Ordering::Relaxed), total as u64);
+        let sizes = sizes.lock().unwrap().clone();
+        assert_eq!(sizes.iter().sum::<usize>(), total);
+        assert!(sizes.len() <= total / CHUNK + 1, "{} writes for {} reads of 498 bytes", sizes.len(), total / 498);
     }
 
     /// A side whose reader left ends the pipe, though the other input goes on.
