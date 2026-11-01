@@ -62,15 +62,15 @@ repository and CI).
 
 ## Counts
 
-**408 entries: 21 open, 2 partial, 31 blocked, 354 done.**
+**408 entries: 20 open, 2 partial, 31 blocked, 355 done.**
 
 | Priority | open | partial | blocked | done | total |
 | --- | --- | --- | --- | --- | --- |
 | P0 | 0 | 0 | 0 | 1 | 1 |
 | P1 | 1 | 1 | 0 | 37 | 39 |
-| P2 | 3 | 0 | 21 | 175 | 199 |
+| P2 | 2 | 0 | 21 | 176 | 199 |
 | P3 | 17 | 1 | 10 | 141 | 169 |
-| **All** | 21 | 2 | 31 | 354 | 408 |
+| **All** | 20 | 2 | 31 | 355 | 408 |
 
 ## Entries
 
@@ -465,7 +465,7 @@ repository and CI).
 | [T-391](ssh.md) | P1 | S | none | feature | done | `--persist` that never gives up, for a tunnel of `-N` |
 | [T-392](cli.md) | P2 | M | none | feature | done | A lock for each detached run, with its list, its status and its stop |
 | [T-393](serve.md) | P1 | M | none | feature | done | `--install` that always restarts: systemd without a start limit, a cron watchdog, a LaunchAgent; and `ssh -N -R --persist` |
-| [T-394](cli.md) | P2 | M | none | feature | open | A heartbeat of the detached run, which its supervisor watches |
+| [T-394](cli.md) | P2 | M | none | feature | done | A heartbeat of the detached run, which its supervisor watches |
 | [T-395](reverse.md) | P2 | M | none | feature | done | A pair's expiry ends a node for good: warn before it, and pair again where the relay allows |
 | [T-396](release.md) | P2 | S | none | feature | done | `podssh update` keeps the binary before it, and runs the new one once before it takes its place |
 | [T-397](cli.md) | P3 | S | none | defect | open | `--detach`'s smaller gaps: no `/dev/null`, a rotation that loses lines, old files, the working directory |

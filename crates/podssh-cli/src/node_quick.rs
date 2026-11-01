@@ -66,6 +66,8 @@ pub fn run(args: &NodeArgs, err: &mut dyn Write) -> i32 {
             return Fault::SessionFault.code();
         }
     };
+    // A run of --restart beats from this runtime, while it polls (T-394).
+    crate::detach::beat::keep(runtime.handle());
     let code = runtime.block_on(Box::pin(serve_quick(ready, err)));
     runtime.shutdown_background();
     code

@@ -18,6 +18,7 @@ use std::process::{Command, Stdio};
 use std::sync::atomic::{AtomicBool, Ordering};
 use std::sync::OnceLock;
 
+pub mod beat;
 mod child;
 pub mod control;
 mod hazards;

@@ -118,6 +118,11 @@ service manager (UNVERIFIED).
   it connects. `podssh detached list`, `status` and `stop` try the locks
   shared, and signal a pid only while its lock is held. A lock that cannot
   be had lets the run go on, with a line.
+- A heartbeat of each run of `--restart` (T-394, the study's sixth finding):
+  the run sets the time of `detached/NAME.alive` each 10 s from its runtime,
+  and the supervisor ends and starts again a run that beat, then gave no
+  beat for 90 s; it compares the file's times, never its clock, and never
+  ends a run that never beat.
 - A line that fails to write is dropped, never the run's end: after ready
   stderr is the log, and its disk may fill or, under systemd, the journal
   go away. `eprintln!` panics on such a failure and the release aborts on a
@@ -140,6 +145,10 @@ Each fails on the defect planted against it:
 - a node whose stderr fails (a pipe with no reader, `/dev/full`) goes on
   serving two logins (`tests/node_detach.rs`; an `eprintln!` in the node's
   lines);
+- a node of `--restart` stopped with SIGSTOP is ended for its silent
+  heartbeat and started again, and a client logs in through the new one
+  within 150 s (`tests/node_detach.rs`; a supervisor that reads no
+  heartbeat);
 - a second start of a name that runs refuses with 75 and names its pid, two
   runs with no name both start, and a stopped name starts again; `detached
   status` and `stop` read the lock, so a record of a living pid that holds

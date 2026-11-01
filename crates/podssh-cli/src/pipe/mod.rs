@@ -105,6 +105,8 @@ pub fn run_pipe(args: &PipeArgs, err: &mut dyn Write) -> i32 {
             return EXIT_SOFTWARE;
         }
     };
+    // A run of --restart beats from this runtime, while it polls (T-394).
+    crate::detach::beat::keep(runtime.handle());
     let code = if listening {
         let (listening, other, listener_is_a) = if a.listens() { (&a, &b, true) } else { (&b, &a, false) };
         let quiet = args.ssh.quiet > 0;

@@ -117,7 +117,7 @@ and `CARGO_BUILD_JOBS=4`:
 
 ## Counts
 
-`TODO/INDEX.md` holds 408 entries: 21 open, 2 partial, 31 blocked, 354 done.
+`TODO/INDEX.md` holds 408 entries: 20 open, 2 partial, 31 blocked, 355 done.
 
 Open includes parked work. `cargo todo check` verifies this line.
 
@@ -145,10 +145,10 @@ Q61.
 
 **Now (2026-11-01):** the operator's request of 2026-11-01, two studies: of Nemo-010/d-mon, a
 daemonizer, for a `--detach` that must never leave a server locked out, and of Azathothas/cfrs, its
-code and its issues. Their findings, in order: T-394 and T-397 (a
+code and its issues. Their findings, in order: T-397 (a
 line that fails to write no longer aborts a detached node, `--persist-forever` never gives up,
 `--restart` starts a detached run again, a node goes on with the next pair at its pair's expiry,
-and a lock names each detached run); then T-400,
+a lock names each detached run, and a hung run is started again); then T-400,
 T-402, T-408 and T-411. Before them, a bulk session through a node and its moves on
 the live relay are repaired, and the entries of the audit, the study and the issues
 of 2026-10-31 (GitHub #59 to #63 and #69 to #76): T-353 (Q52), whose live run waits for Q60; the

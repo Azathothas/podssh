@@ -779,7 +779,7 @@ no `GREETING`, and that the default node greets.
 as they are, with no resumable layer: the node's handler is then the TCP
 handler alone, which dials TARGET at `open`
 (`crates/podssh-cli/src/node.rs`, lines 152-163 at `8e31960`). The node's first line names its
-mode (`crates/podssh-cli/src/node.rs:324`). `--plain` with `--iroh` is
+mode (`crates/podssh-cli/src/node.rs:326`). `--plain` with `--iroh` is
 refused with 64 (`crates/podssh-cli/src/node.rs:86-89`): the iroh road
 always runs the layer. The flag's row, the manual's note of `node`,
 `docs/reverse.md` and `docs/cli.md`.
@@ -838,7 +838,7 @@ Measured on `3ee70dc`, offline (`PODSSH_OFFLINE=1`, a `.invalid` host):
 5. In the same commit: "Liveness" and "Idle limit" in the manual
    (`crates/podssh-cli/src/man/facts.rs:383-398`,
    `crates/podssh-cli/src/man/facts.rs:418-427`), the note at
-   `crates/podssh-cli/src/man/notes_ssh.rs:429`, `docs/relay.md`, `README.md`.
+   `crates/podssh-cli/src/man/notes_ssh.rs:432`, `docs/relay.md`, `README.md`.
 
 ## Decision
 

@@ -968,6 +968,20 @@ and a restart before the first ready. After 5 runs in a row that end within
 `podssh.prev` (T-396), where it runs here. Without `--detach` it is refused
 (64).
 
+**The heartbeat** (T-394): a run that hangs (a deadlock, a stopped process,
+a runtime that no longer polls) stays alive to each check, and serves
+nothing. Each run that a supervisor starts sets the time of
+`detached/NAME.alive` each 10 s, from a task of its own runtime, which runs
+only while the runtime polls; the supervisor reads it each 10 s, and ends a
+run whose file has not changed for 90 s (SIGTERM and SIGCONT, as a stopped
+process acts on SIGTERM only once it goes on; SIGKILL after 10 s), with a
+line, then starts it again. It compares the file's times with each other,
+never with its clock, so a clock that jumps ends no run; and it watches a
+run only once it has seen it beat, so a run that cannot set the time (no
+cache) is never ended for it, with a line: a run ended each 90 s would lock
+its server out. It sets the file's time, not its bytes, which a full disk
+still takes. `podssh detached status` shows the age of the last beat.
+
 **`--detach-name NAME` and `podssh detached`** (T-392, from the same
 study): a run in the background holds the lock of its name,
 `detached/NAME.lock` in the cache, from before its connection to its end;

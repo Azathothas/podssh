@@ -186,7 +186,7 @@ the file that `--ts-state` names (`crates/podssh-cli/src/flags.rs:356-357`,
 5. The node prints its ticket and its fingerprint on stderr when it starts.
    `podssh ssh iroh:TICKET` dials it (the address of `docs/design.md:971`).
 6. Add the key files to FILES in the manual
-   (`crates/podssh-cli/src/man/data.rs:150-364`), and each new variable to
+   (`crates/podssh-cli/src/man/data.rs:150-365`), and each new variable to
    `VARIABLES` (`crates/podssh-cli/src/man/facts.rs:45-278`).
 
 ## Decision
@@ -373,7 +373,7 @@ sandbox can block what iroh needs, so the fallback is necessary
 6. With `-v`, print the road that won and its time.
 7. Each resume of T-153 runs the same race.
 8. Docs: the rule of the race in `docs/design.md` section 2, and the notes of
-   `ssh` in the manual (`crates/podssh-cli/src/man/notes_ssh.rs:4-470`).
+   `ssh` in the manual (`crates/podssh-cli/src/man/notes_ssh.rs:4-473`).
 
 ## Decision
 
@@ -2975,7 +2975,7 @@ roots must be exactly three, and a refusal of the edge does not say which releas
 - Read: two fixed regions, port 7844 and the TLS name `h2.cftunnel.com`
   (`crates/podssh-relay/src/quick/edge.rs:22-29`); the roots must give 3 anchors and no invalid
   one (`:40-44`); the API's host is fixed (`crates/podssh-relay/src/quick/api.rs:28`). The node
-  registers as `podssh` and the package's version (`crates/podssh-cli/src/node_quick.rs:186-187`),
+  registers as `podssh` and the package's version (`crates/podssh-cli/src/node_quick.rs:188-189`),
   `1.0.0-beta.2` today (`Cargo.toml:50`).
 - Read: the three roots end on 2029-08-15, 2029-08-15 and 2029-11-01
   (`crates/podssh-relay/src/quick/cloudflare-roots.pem:6`, `:25`, `:52`).
@@ -4523,8 +4523,8 @@ code that no command of the default build uses is P2 at most".
   roads" is wrong. T-301's Approach item 1 said "After a UDP probe (the iroh road's)"
   (`TODO/roads.md:2020`); its Decision took QUIC only where no proxy is set, on the connection's
   own socket (`TODO/roads.md:2052-2059`), and the QUIC handshake, bounded at 5 s, is its probe:
-  QUIC that fails gives way to HTTP/2 for the run (`crates/podssh-cli/src/node_quick.rs:189-191`,
-  `:298-317`; `crates/podssh-relay/src/quick/quic.rs:32`). Its cost on a host that drops UDP is
+  QUIC that fails gives way to HTTP/2 for the run (`crates/podssh-cli/src/node_quick.rs:191-193`,
+  `:300-319`; `crates/podssh-relay/src/quick/quic.rs:32`). Its cost on a host that drops UDP is
   one handshake a run, as its Decision item 5 chose (`TODO/roads.md:2060-2064`). doctor says
   nothing of it in the default build, where the quick tunnel is.
 - Read: the measured cage refuses UDP (`docs/target-environment.md:23`), and the box does too
@@ -4698,7 +4698,7 @@ does not depend on them.
 
 - Read: `Transport::Direct` comes from `--direct` alone
   (`crates/podssh-cli/src/ssh/resolve.rs`, lines 340-346 at `4e2010e`), and else the relay (lines 348-371 at `4e2010e`); its other
-  uses are a label (`crates/podssh-cli/src/ssh/mod.rs:247`), the dial
+  uses are a label (`crates/podssh-cli/src/ssh/mod.rs:249`), the dial
   (`crates/podssh-cli/src/ssh/transport.rs:260-304`) and a check of `--upgrade`
   (`crates/podssh-cli/src/ssh/upgrade.rs:59`). The issue's citation of
   the arm began two lines early; it is at `crates/podssh-cli/src/ssh/resolve.rs:335-341`.
@@ -5801,7 +5801,7 @@ ask, and nothing does so.
 ## Premise
 
 - Read: the node of the iroh road serves the pair's road beside it, with one keeper for both
-  (`crates/podssh-cli/src/node_iroh.rs:339-340`), and `podssh node` sends `--iroh` there
+  (`crates/podssh-cli/src/node_iroh.rs:341-342`), and `podssh node` sends `--iroh` there
   (`crates/podssh-cli/src/node.rs:96-98`).
 - Read: `podssh ssh` resolves its destination into an enum of transports
   (`crates/podssh-cli/src/ssh/resolve.rs:24-66`), in a file of 488 of its 500 lines.
@@ -6236,7 +6236,7 @@ start and at each reconnect, and a client meets that wait as a refusal.
 
 ## Premise
 
-- Read: the order in `link` (`crates/podssh-cli/src/node_quick.rs:316`); QUIC's limit
+- Read: the order in `link` (`crates/podssh-cli/src/node_quick.rs:318`); QUIC's limit
   (`crates/podssh-relay/src/quick/quic.rs:32`) and the edge's dial limit
   (`crates/podssh-relay/src/quick/edge.rs:31`).
 - Read: podssh already races relay hosts with a stagger (`crates/podssh-ws/src/race.rs`).
@@ -6385,7 +6385,7 @@ server is such a gap.
 ## Premise
 
 - Read: GOAWAY ends the connection (`crates/podssh-relay/src/quick/serve.rs:235`); the node
-  registers `conn_index` 0 only (`crates/podssh-cli/src/node_quick.rs:225`).
+  registers `conn_index` 0 only (`crates/podssh-cli/src/node_quick.rs:227`).
 - Read in cfrs's issues: the edge accepted 1, 2 and 4 connections of one quick tunnel (cfrs #54).
 
 ## Approach

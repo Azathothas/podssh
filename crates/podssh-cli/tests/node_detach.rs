@@ -365,3 +365,101 @@ fn restart_without_detach_is_a_usage_error() {
     assert_eq!(out.status.code(), Some(64), "{}", String::from_utf8_lossy(&out.stderr));
     assert!(String::from_utf8_lossy(&out.stderr).contains("give --detach too"));
 }
+
+/// One login through the node, ended after `limit`: a stopped node never
+/// answers, and an attempt must not hold the test.
+fn logs_in_once(cmd: &mut std::process::Command, limit: std::time::Duration) -> bool {
+    let Ok(mut child) = cmd.stdin(Stdio::null()).stdout(Stdio::piped()).stderr(Stdio::null()).spawn() else {
+        return false;
+    };
+    let deadline = std::time::Instant::now() + limit;
+    while child.try_wait().unwrap().is_none() {
+        if std::time::Instant::now() > deadline {
+            let _ = child.kill();
+            let _ = child.wait();
+            return false;
+        }
+        std::thread::sleep(std::time::Duration::from_millis(100));
+    }
+    let out = child.wait_with_output().unwrap();
+    out.status.code() == Some(0) && String::from_utf8_lossy(&out.stdout) == ssh_harness::GREETING
+}
+
+/// A node of `--restart` that hangs is ended by its supervisor and started
+/// again (T-394): stopped with SIGSTOP, as a process whose runtime polls no
+/// more, it gives no heartbeat, and a client logs in through the new node
+/// within 150 s of the stop.
+#[test]
+fn a_stopped_node_is_restarted_by_its_heartbeat() {
+    use std::time::{Duration, Instant};
+    let session = Session::start("heartbeat");
+    let cell = match Cell::fake_relay_mode(&session, "normal", "the stand-in relay") {
+        Ok(cell) => cell,
+        Err((_, why)) => {
+            eprintln!("did not run: {why}");
+            return;
+        }
+    };
+    let at = |flag: &str| cell.args.iter().position(|a| a == flag).map(|i| cell.args[i + 1].clone()).unwrap();
+    let (relay, ca) = (at("--relay-host"), at("--ca-file"));
+    let pins = ["--relay-addr".to_string(), "relay-a.test=127.0.0.1".to_string()];
+    let command = |args: &[String]| session.stand_in(args, &ca);
+    let mut args = vec!["relay".to_string(), "pair".into(), "lab".into(), "--relay-host".into(), relay];
+    args.extend(pins.iter().cloned());
+    assert!(command(&args).stdin(Stdio::null()).output().unwrap().status.success());
+    let mut args = vec!["node".to_string(), "lab".into(), format!("127.0.0.1:{}", session.port)];
+    args.extend(["--detach", "--restart", "--detach-name", "lab"].map(String::from));
+    args.extend(pins.iter().cloned());
+    let out = within(command(&args).stdin(Stdio::null()).stdout(Stdio::piped()).stderr(Stdio::piped()));
+    let err = String::from_utf8_lossy(&out.stderr).into_owned();
+    assert_eq!(out.status.code(), Some(0), "{err}");
+    let supervisor = number_after(&err, "in the background, pid ").expect("the parent names the supervisor");
+    let first = number_after(&err, "which restarts the run of pid ").expect("and the run");
+    let log = err.split("its log ").nth(1).and_then(|l| l.lines().next()).map(|l| std::path::PathBuf::from(l.trim()));
+    let log = log.expect("the parent names the log");
+    struct Ends(Vec<i32>);
+    impl Drop for Ends {
+        fn drop(&mut self) {
+            for pid in &self.0 {
+                // SAFETY: a signal to the test's own detached processes.
+                unsafe { libc::kill(*pid, libc::SIGKILL) };
+            }
+        }
+    }
+    let mut ends = Ends(vec![supervisor, first]);
+    let mut login = vec!["ssh".to_string()];
+    login.extend(session.common());
+    login.extend(pins.iter().cloned());
+    login.extend(["node://tester@lab".to_string(), "greet".into()]);
+    let logs_in = |within: Duration| {
+        let deadline = Instant::now() + within;
+        while Instant::now() < deadline {
+            if logs_in_once(&mut command(&login), Duration::from_secs(15)) {
+                return true;
+            }
+            std::thread::sleep(Duration::from_millis(500));
+        }
+        false
+    };
+    assert!(logs_in(Duration::from_secs(20)), "no login through the first node");
+    // The supervisor watches a run once it has seen it beat, reading each
+    // 10 s; the run beats each 10 s, beside the log.
+    std::thread::sleep(Duration::from_secs(30));
+    let heartbeat = log.parent().expect("the log's directory").join("lab.alive");
+    assert!(heartbeat.exists(), "no heartbeat: {}", heartbeat.display());
+    // SAFETY: a signal to the test's own detached node.
+    unsafe { libc::kill(first, libc::SIGSTOP) };
+    assert!(logs_in(Duration::from_secs(150)), "no login through a new node within 150 s of the stop");
+    let text = std::fs::read_to_string(&log).unwrap_or_default();
+    assert!(text.contains(&format!("the run of pid {first} gave no heartbeat for 90 s")), "{text}");
+    let second = number_after(&text, "run 2 started, pid ").expect("the log names the new run");
+    ends.0.push(second);
+    assert!(!alive(first), "the stopped run was not ended");
+    // SAFETY: as above.
+    unsafe { libc::kill(supervisor, libc::SIGTERM) };
+    let deadline = Instant::now() + Duration::from_secs(20);
+    while alive(second) || alive(supervisor) {
+        assert!(Instant::now() < deadline, "a stopped supervisor ends its run within 20 s");
+        std::thread::sleep(Duration::from_millis(100));
+    }
+}

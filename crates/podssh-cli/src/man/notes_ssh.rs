@@ -153,7 +153,10 @@ pub const SSH: &[&str] = &[
      pid printed is its own): once the run is ready, it starts the run again whenever it ends (a crash, a \
      kill, an abort), after the relay's backoff, but after 64, 77 or 78, which a new start would repeat, \
      and after its own SIGTERM, which it passes on; a run that lasted 30 s starts the count again, and it \
-     never gives up. It holds no connection, and killed, it leaves the run going. node and pipe take it too. \
+     never gives up. It holds no connection, and killed, it leaves the run going. Each run beats each 10 s \
+     from its runtime (the time of detached/NAME.alive); one that beat, then gave no beat for 90 s (a hang, \
+     a stopped process), is ended (SIGTERM, then SIGKILL after 10 s) and started again, with a line in the \
+     log; one that never beat is not ended for it. node and pipe take it too. \
      --detach-name NAME names the run (else its verb and its pid): a second start of a name that runs refuses \
      (75), and podssh detached lists the runs, says the state of one and stops it.",
     "--forwarder TEMPLATES reaches the first hop through WebSocket forwarders of other products, in place \

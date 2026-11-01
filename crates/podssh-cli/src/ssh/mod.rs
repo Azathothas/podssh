@@ -231,6 +231,8 @@ fn run(args: &SshArgs, tty: Tty, err: &mut dyn Write) -> i32 {
             return EXIT_FAILURE;
         }
     };
+    // A run of --restart beats from this runtime, while it polls (T-394).
+    crate::detach::beat::keep(runtime.handle());
     // On the heap: the future of each road is large, and Windows gives the
     // main thread 1 MiB of stack.
     let code = runtime.block_on(transport::settled(Box::pin(connect_and_run(resolved, log))));

@@ -18,7 +18,7 @@ use std::process::{Child, Command, Stdio};
 use std::sync::atomic::{AtomicBool, Ordering};
 use std::time::{Duration, Instant};
 
-use super::{binaries, child, code_of, lock, CHILD_FLAG, READY};
+use super::{beat, binaries, child, code_of, lock, CHILD_FLAG, READY};
 
 /// The first word of a supervisor's command line, which podssh alone
 /// writes, in the child's place.
@@ -194,8 +194,13 @@ fn keep(args: &[OsString], verb: &str, mut child: Child, mut began: Instant, log
     // The binary that started this run, before an update could replace it.
     let exe = std::env::current_exe().ok();
     let (mut failed_starts, mut fallback) = (0u32, None::<PathBuf>);
+    // The heartbeat of each run (T-394).
+    let mut watch = beat::Watch::new(lock::name());
+    if !watch.watches() {
+        podssh_ssh::err_line!("podssh {verb}: --restart: no directory of the runs: a run that hangs is not seen");
+    }
     loop {
-        let status = match wait_or_stop(&mut child) {
+        let status = match wait_or_stop(&mut child, &mut watch, verb) {
             Ok(status) => status,
             Err(code) => return code,
         };
@@ -257,9 +262,10 @@ fn ended(status: std::process::ExitStatus) -> String {
     format!("signal {}", code_of(status) - 128)
 }
 
-/// The child's end; or, on a stop, the child stopped and `Err` with the
-/// supervisor's code.
-fn wait_or_stop(child: &mut Child) -> Result<std::process::ExitStatus, i32> {
+/// The child's end, or its end once its heartbeat stopped (T-394); or, on a
+/// stop, the child stopped and `Err` with the supervisor's code.
+fn wait_or_stop(child: &mut Child, watch: &mut beat::Watch, verb: &str) -> Result<std::process::ExitStatus, i32> {
+    watch.reset();
     loop {
         match child.try_wait() {
             Ok(Some(status)) => return Ok(status),
@@ -270,6 +276,25 @@ fn wait_or_stop(child: &mut Child) -> Result<std::process::ExitStatus, i32> {
         if STOP.load(Ordering::SeqCst) {
             stop(child);
             return Err(0);
+        }
+        match watch.check() {
+            beat::Verdict::Hung => {
+                podssh_ssh::err_line!(
+                    "podssh {verb}: --restart: the run of pid {} gave no heartbeat for {} s: it is ended, to start it \
+                     again",
+                    child.id(),
+                    beat::HUNG.as_secs()
+                );
+                stop(child);
+                return Ok(child.wait().unwrap_or_else(|_| fake_end()));
+            }
+            beat::Verdict::Never => podssh_ssh::err_line!(
+                "podssh {verb}: --restart: the run of pid {} gave no heartbeat within {} s of its start: a hang of it \
+                 is not seen",
+                child.id(),
+                beat::HUNG.as_secs()
+            ),
+            beat::Verdict::Fine => {}
         }
         std::thread::sleep(TICK);
     }
@@ -302,13 +327,17 @@ fn sleep_or_stop(wait: Duration) -> bool {
 }
 
 /// The child stopped: SIGTERM, then SIGKILL after [`STOP_GRACE`]; on
-/// Windows at once.
+/// Windows at once. SIGCONT after SIGTERM, as a stopped process acts on
+/// SIGTERM only once it goes on.
 fn stop(child: &mut Child) {
     #[cfg(unix)]
     {
         // SAFETY: a signal to this process's own child, which it has not
         // waited for yet, so its pid is not reused.
-        unsafe { libc::kill(child.id() as libc::pid_t, libc::SIGTERM) };
+        unsafe {
+            libc::kill(child.id() as libc::pid_t, libc::SIGTERM);
+            libc::kill(child.id() as libc::pid_t, libc::SIGCONT);
+        }
         let until = Instant::now() + STOP_GRACE;
         while Instant::now() < until {
             if let Ok(Some(_)) = child.try_wait() {

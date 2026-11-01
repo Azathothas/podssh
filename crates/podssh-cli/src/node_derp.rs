@@ -228,6 +228,8 @@ pub fn run(args: &NodeArgs, unasked: Option<String>, err: &mut dyn Write) -> i32
             return Fault::SessionFault.code();
         }
     };
+    // A run of --restart beats from this runtime, while it polls (T-394).
+    crate::detach::beat::keep(runtime.handle());
     // On the heap: Windows gives the main thread 1 MiB of stack.
     let code = runtime.block_on(Box::pin(serve(ready, err)));
     // A session may still be closing; the node has ended, so none is waited for.

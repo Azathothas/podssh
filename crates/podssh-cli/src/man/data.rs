@@ -244,7 +244,8 @@ pub fn files() -> Vec<(Vec<String>, String)> {
              of --restart) holds for its life, with its pid in it, and NAME.run.lock, which a supervisor's run \
              holds: a second start of the name refuses while either is held, and podssh detached reads them. \
              NAME.json, the run's record: its pid, the pid of a supervisor's run, its words, its log and its \
-             start. podssh removes none: a log tells what a run in the background did."
+             start. NAME.alive, whose time each run of --restart sets each 10 s, and which its supervisor reads \
+             (T-394). podssh removes none: a log tells what a run in the background did."
                 .to_string(),
         ),
         (

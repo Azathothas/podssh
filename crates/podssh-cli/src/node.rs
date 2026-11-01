@@ -110,6 +110,8 @@ pub fn run_node(args: &NodeArgs, err: &mut dyn Write) -> i32 {
             return Fault::SessionFault.code();
         }
     };
+    // A run of --restart beats from this runtime, while it polls (T-394).
+    crate::detach::beat::keep(runtime.handle());
     let code = runtime.block_on(serve(ready, err));
     // A session may still be closing; the node has ended, so none is waited for.
     runtime.shutdown_background();

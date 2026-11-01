@@ -173,6 +173,11 @@ fn status(dir: &Path, name: &str, out: &mut dyn Write, err: &mut dyn Write) -> i
     let _ = writeln!(out, "log: {}", seen.text("log"));
     let started = seen.record.as_ref().and_then(|r| r.get("started")).and_then(Value::as_i64);
     let _ = writeln!(out, "started: {}", started.map_or_else(|| "-".to_string(), crate::doctor::clock::format_utc));
+    // The last beat of a supervisor's run (T-394), for a person to read.
+    let beat = std::fs::metadata(super::beat::alive_path(dir, name)).and_then(|m| m.modified()).ok();
+    if let Some(ago) = beat.and_then(|at| std::time::SystemTime::now().duration_since(at).ok()) {
+        let _ = writeln!(out, "heartbeat: {} s ago", ago.as_secs());
+    }
     if seen.running() {
         0
     } else {

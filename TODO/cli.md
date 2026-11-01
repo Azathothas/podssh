@@ -187,7 +187,7 @@ measured: the debug binary has no `ts`).
 1. In the `Parsed::Command` arm, refuse a verb of `VERB_OWNER`
    (`crates/podssh-cli/src/flags.rs`, line 453 at `7aa955a`) before the gate. Keep one usage
    error first: a `--timeout` value that was given and does not parse is 64
-   (`docs/cli.md:3153-3154`).
+   (`docs/cli.md:3167-3168`).
 2. Give `require_timeout` the verb's name. The message names that verb, gives
    one true reason, and shows an example for that verb only. Replace
    `({attachment:?})` with words: "stdin or stdout is not a terminal", or
@@ -197,7 +197,7 @@ measured: the debug binary has no `ts`).
    (`crates/podssh-cli/src/dispatch.rs`, lines 424-477 at `7aa955a`,
    `crates/podssh-cli/tests/non_interactive.rs` lines 252-284 at `37ace00`). `ts` is the only verb
    that runs the gate today (`crates/podssh-cli/tests/ts_behave.rs:220-226`).
-5. Same commit: `docs/STATUS.md`. `docs/cli.md:3196` needs no change.
+5. Same commit: `docs/STATUS.md`. `docs/cli.md:3210` needs no change.
 
 ## Decision
 
@@ -491,7 +491,7 @@ Read, at `61e55d1`: no option made podssh start a program: `ProxyCommand` is ref
    `[OPTIONS] [--] [user@]host [COMMAND...]` for `ssh` and
    `[OPTIONS] [--] HOST PORT` for `proxy`; `--help` and the synopsis of the
    manual (`crates/podssh-cli/src/man/model.rs:186-190`) read it.
-2. A note for `ssh` and `proxy` (`crates/podssh-cli/src/man/notes_ssh.rs:4-470` and `crates/podssh-cli/src/man/notes.rs:63-194`)
+2. A note for `ssh` and `proxy` (`crates/podssh-cli/src/man/notes_ssh.rs:4-473` and `crates/podssh-cli/src/man/notes.rs:63-194`)
    and an example (`crates/podssh-cli/src/man/examples.rs:8-240`). Pitfall: the
    notes test reads a bare `--` as a flag that does not exist
    (`crates/podssh-cli/src/man/notes.rs:390-406`); teach `flag_exists`
@@ -604,7 +604,7 @@ variable matters when `cp`, `mv` and `relay` exist. `ssh` and `proxy` have no
    which `each_variable_in_the_source_is_documented` requires
    (`crates/podssh-cli/src/man/facts/tests.rs:65-78`); "default: env
    PODSSH_TIMEOUT" in the help of each `--timeout` row, as `--relay-host` says
-   it (`crates/podssh-cli/src/flags.rs:171-172`); `docs/cli.md:3272-3274`;
+   it (`crates/podssh-cli/src/flags.rs:171-172`); `docs/cli.md:3286-3288`;
    `docs/STATUS.md`.
 5. Do this after T-008, so that a verb that does nothing still exits 70 first.
 
@@ -990,7 +990,7 @@ Read then: each value flag but `-i` and `-o` was `ArgAction::Set`.
    (`crates/podssh-cli/src/ssh/args.rs:151-198`, called at
    `crates/podssh-cli/src/tree.rs:464-468`).
 4. `docs/cli.md:631-636` and a note of the manual
-   (`crates/podssh-cli/src/man/notes_ssh.rs:426-428`) state the rule.
+   (`crates/podssh-cli/src/man/notes_ssh.rs:429-431`) state the rule.
 
 ## Prove
 
@@ -1035,7 +1035,7 @@ read in the report, not verified here.
 
 A host with no working `ssh-keygen` cannot change the passphrase or the
 comment of a key: the `ssh-keygen` of OpenSSH does not run without a user
-database entry (`docs/cli.md:1957-1958`). `podssh keygen -p` and `-c` exit 64
+database entry (`docs/cli.md:1971-1972`). `podssh keygen -p` and `-c` exit 64
 with "unknown flag", not a refusal by name. podssh's own message for a PEM key
 names `ssh-keygen -p -f FILE` as the remedy
 (`crates/podssh-ssh/src/keygen.rs`, lines 163-166 at `bdbe658`), a program that may not run there.
@@ -1067,13 +1067,13 @@ on argv (`crates/podssh-cli/src/keygen.rs:129-136`).
 3. `-p`: ask for the new passphrase twice (or take `-N ''`), and encrypt with
    `keygen::protect`. `-c`: take `-C` or ask; refuse a control character, as
    `crates/podssh-cli/src/keygen.rs:289-292` does. Write the OpenSSH format.
-4. A new invariant beside "never over an existing file" (`docs/cli.md:1959`):
+4. A new invariant beside "never over an existing file" (`docs/cli.md:1973`):
    write a new file in the same directory (`create_new`, mode 0600), read it
    back, decrypt it with the new passphrase, compare its public key with the
    original, then rename it over the original. Never write a different key
    over the file. For `-c`, write `FILE.pub` again.
 5. Same commit: the PEM message at `crates/podssh-ssh/src/keygen.rs` (lines 184-187 at `8290fe1`)
-   names `podssh keygen -p`; `docs/cli.md:1953-2056`, the notes of `keygen`
+   names `podssh keygen -p`; `docs/cli.md:1967-2070`, the notes of `keygen`
    (`crates/podssh-cli/src/man/notes_keygen.rs:4-50`), `docs/STATUS.md`.
 
 ## Decision
@@ -1192,7 +1192,7 @@ The default files are the ones of `podssh ssh`
    it, and say so.
 4. `-H`: a random salt of 20 bytes and the HMAC-SHA1 of `hashed_matches`, so
    podssh and OpenSSH both find the result.
-5. Same commit: `docs/cli.md:1953-2056`, the notes of `keygen`, `docs/STATUS.md`.
+5. Same commit: `docs/cli.md:1967-2070`, the notes of `keygen`, `docs/STATUS.md`.
 
 Pitfall: a rewrite can lose a key that `podssh ssh` appends at the same moment
 (T-029). Read the file again just before the rename, and refuse if it changed.
@@ -1314,7 +1314,7 @@ that crate as `russh::keys::ssh_key` (`crates/podssh-ssh/src/keygen.rs:11-13`).
    matcher of `known_hosts` (`crates/podssh-ssh/src/known_hosts.rs:311-333`).
    Print the lines and the exit codes of OpenSSH.
 4. Refuse `-r` (a key revocation list) by name until podssh reads one.
-5. Same commit: `docs/cli.md:1953-2056`, the notes of `keygen`, `docs/STATUS.md`.
+5. Same commit: `docs/cli.md:1967-2070`, the notes of `keygen`, `docs/STATUS.md`.
 
 Pitfalls: read the signed file as bytes, never as text. A namespace that does
 not match is a failure, never a warning.
@@ -1437,7 +1437,7 @@ as plain keys (`docs/STATUS.md`, section "Components"). T-027 covers that side.
    `force-command=`, `source-address=`, and the `no-` and `permit-` options;
    refuse the others by name.
 5. `-L`: print the certificate as `ssh-keygen -L` does.
-6. Same commit: `docs/cli.md:1953-2056`, the notes of `keygen`, `docs/STATUS.md`.
+6. Same commit: `docs/cli.md:1967-2070`, the notes of `keygen`, `docs/STATUS.md`.
 
 ## Decision
 
@@ -1565,7 +1565,7 @@ keys/format/mod.rs, read in the local cargo registry).
    public key in that format, and write the OpenSSH line to stdout.
 4. `-m` with a new key and with `-p` (T-018): write the private key in that
    format; use `encode_pkcs8_pem_encrypted` when there is a passphrase.
-5. Same commit: `docs/cli.md:1953-2056`, the notes of `keygen`, `docs/STATUS.md`.
+5. Same commit: `docs/cli.md:1967-2070`, the notes of `keygen`, `docs/STATUS.md`.
 
 Pitfalls: no new C dependency. A format that a key type does not have (PEM
 for Ed25519) is refused by name.
@@ -1762,7 +1762,7 @@ file); measured here on `3ee70dc`.
 A `PODSSH_RELAY` or `PODSSH_RELAY_ADDR` that cannot be used makes
 `podssh proxy`, `podssh ssh` and `podssh doctor` exit 64, the code of a usage
 error. The command line is correct; a setting of the environment is not.
-`docs/cli.md:3153-3154` and `docs/decisions.md` ("Exit codes") give 78
+`docs/cli.md:3167-3168` and `docs/decisions.md` ("Exit codes") give 78
 (`EX_CONFIG`) for a configuration error. A script that reads 64 looks for the
 fault in its arguments.
 
@@ -1877,7 +1877,7 @@ flag (`crates/podssh-cli/tests/non_interactive.rs`, line 185 at `8c05b5e`).
 The real gate is `can_ask` (`crates/podssh-ssh/src/prompt.rs:82`), called at
 `crates/podssh-ssh/src/auth.rs:189`, `crates/podssh-ssh/src/auth.rs:306`,
 `crates/podssh-ssh/src/keys.rs:321` and `crates/podssh-cli/src/keygen.rs:382`.
-Its refusals name the real remedies (`docs/cli.md:3234-3236`). Commands use
+Its refusals name the real remedies (`docs/cli.md:3248-3250`). Commands use
 these parts of the module, which stay: `Attachment`, `resolve`, `resolve_tty`,
 `parse_timeout`, `require_timeout` (`crates/podssh-cli/src/dispatch.rs:281-299`,
 `crates/podssh-cli/src/ts.rs:56-65`) and `refuse_jsonl_in_proxy`
@@ -2485,7 +2485,7 @@ nothing.
   (`crates/podssh-cli/src/man/notes_pipe.rs:6`, where `pipe`'s notes moved from `notes.rs`).
 - Read: doctor's rule: a condition that podssh is built for, no listener among them, is a fact,
   reported `ok`, and `FAIL` is kept for what stops podssh or one of its fallbacks
-  (`crates/podssh-cli/src/doctor/mod.rs:6-9`); `docs/cli.md:1744-1750` says the same.
+  (`crates/podssh-cli/src/doctor/mod.rs:6-9`); `docs/cli.md:1758-1764` says the same.
 
 ## Approach
 
@@ -2510,7 +2510,7 @@ A refused bind stays `ok`, with the features named. `FAIL` lost: the hosts that 
 for refuse the bind (sandbox A for AF_INET, `docs/STATUS.md:297`; the measured cage by the
 operator's report, `docs/target-environment.md:25`), and doctor exits 1 on a `FAIL`, so each run
 there would fail where each road works (`crates/podssh-cli/src/doctor/mod.rs:6-9`). A fourth
-status lost: the report and its JSON have three (`docs/cli.md:1781-1784`). The issue's grade by a
+status lost: the report and its JSON have three (`docs/cli.md:1795-1798`). The issue's grade by a
 run for a listener feature lost: doctor is given no feature to check, and each feature refuses on
 its own, with the system's words.
 
@@ -3033,8 +3033,8 @@ node at its next line, often "online again" after a reconnect. A server then has
 ## Premise
 
 - Read: `panic = "abort"` in the release profile (`Cargo.toml:220`).
-- Read: the node's lines are `eprintln!` (`crates/podssh-cli/src/node.rs:331`,
-  `crates/podssh-cli/src/node_derp.rs:248`, `crates/podssh-cli/src/node_iroh.rs:299`), as are 40
+- Read: the node's lines are `eprintln!` (`crates/podssh-cli/src/node.rs:333`,
+  `crates/podssh-cli/src/node_derp.rs:250`, `crates/podssh-cli/src/node_iroh.rs:301`), as are 40
   more sites in `crates/podssh-cli/src` and 4 in `crates/podssh-ssh/src` (2026-11-01, a search for
   `eprintln!`, `println!`, `eprint!` and `print!`).
 - Read: after ready a detached child's stderr is its log (`crates/podssh-cli/src/detach/child.rs:262`).
@@ -3107,7 +3107,7 @@ not a run of `ssh -f`.
 ## Premise
 
 - Read: T-380's parent returns once the child said ready, and nothing watches the child after that
-  (`crates/podssh-cli/src/detach/mod.rs:174`).
+  (`crates/podssh-cli/src/detach/mod.rs:175`).
 - Read: the node retries its relay for ever within its process (`crates/podssh-relay/src/open.rs:387`,
   its backoff); what ends the process ends the tunnel.
 - Read in d-mon's code: a supervisor of one `poll` loop that restarts its program, with a cap that
@@ -3191,7 +3191,7 @@ or stop it, but by `kill` of a pid that may have been reused.
 ## Premise
 
 - Read: T-380's files are in `detached/` of the state directory; there is no lock
-  (`crates/podssh-cli/src/detach/mod.rs:75`).
+  (`crates/podssh-cli/src/detach/mod.rs:76`).
 - Read: `session start` probes its socket before it binds, and two starts can pass the probe
   (`crates/podssh-cli/src/session/daemon.rs:171`).
 - Read in d-mon's code: a `flock` on the pid file, which `status` and `stop` test by taking it
@@ -3320,7 +3320,7 @@ finding.
 **Milestone:** none
 **Priority:** P2
 **Effort:** M
-**Status:** open
+**Status:** done
 
 ## Problem
 
@@ -3338,11 +3338,36 @@ A detached child under `--restart` touches `detached/NAME.alive` each 10 s from 
 is up (for a node: online, or retrying). The supervisor of T-390 reads it each 10 s; a file older
 than 90 s ends the child (SIGTERM, then SIGKILL) and restarts it, with a line in the log.
 
+## Decision
+
+The draft's calls, 2026-11-01:
+
+1. The beat is a task of the run's own runtime, spawned where `ssh`, `pipe` and each road of `node`
+   (the pair's, DERP, iroh, the quick tunnel) build theirs (`crate::detach::beat::keep`), so it
+   beats only while that runtime polls. Lost: a thread of its own, which beats on while the runtime
+   is deadlocked; a beat at the node's lines alone, which a node that serves for hours never says.
+2. The run sets the file's time, not its bytes: a full disk still takes a new time (T-389's case).
+   Lost: a counter written in the file, which a full disk refuses.
+3. The supervisor compares the file's times with each other, by its own monotonic clock: a run is
+   hung when the time it read has not changed for 90 s. Lost: the age of the file by the wall
+   clock, which a clock that steps would turn into the end of a healthy run.
+4. A run is watched only once the supervisor has seen its file change after the run started; a
+   run that never beats is said once in the log and never ended for it. Lost: the end of a run
+   with no beat within 90 s of its start, which ends each run each 90 s where the file cannot be
+   written (no cache, a directory gone), and so locks the server out. With no directory of the runs
+   at all, the supervisor says once that a hang is not seen.
+5. A hung run gets SIGTERM and SIGCONT (a stopped process acts on SIGTERM only once it goes on),
+   then SIGKILL after 10 s, as a stop of the supervisor; then it is started again as after any end
+   (its count of restarts reset, as it ran past 30 s). On Windows, `TerminateProcess` at once.
+6. Only a run of `--restart` beats: without a supervisor nobody reads the file. 10 s and 90 s are
+   the Approach's: nine beats missed.
+
 ## Prove
 
 ```sh
 export CARGO_BUILD_JOBS=4
 cargo test -p podssh-cli --test node_detach a_stopped_node_is_restarted_by_its_heartbeat
+cargo test -p podssh-cli --lib detach::beat
 ```
 
 The test stops the child with SIGSTOP; a client logs in through a new child within 150 s.
@@ -3350,6 +3375,35 @@ The test stops the child with SIGSTOP; a client logs in through a new child with
 ## Start condition
 
 T-390 is done: a supervisor exists.
+
+## Correction
+
+Read on 2026-11-01: the line that the Premise cites in `crates/podssh-cli/src/node_install/text.rs`
+is the unit's `ExecStart`; its `Restart=always`, which restarts only a process that ended, is at
+`crates/podssh-cli/src/node_install/text.rs:132`, and the unit has no `WatchdogSec`. The Premise
+holds.
+
+## Done
+
+2026-11-01: drafted by a drafting agent on T-392's draft (the run's name names its file), merged,
+built and run the same day.
+
+- `crates/podssh-cli/src/detach/beat.rs`: `keep`, the run's task, which sets the time of
+  `detached/NAME.alive` each 10 s (a run that `PODSSH_DETACH_SUPERVISOR` names alone); `Watch`, the
+  supervisor's reading each 10 s, armed at the first change after a run's start, hung after 90 s with
+  no change. `supervise.rs`: the watch in its wait, a line and the end of a hung run (SIGTERM and
+  SIGCONT, SIGKILL after 10 s), then the restart. The six runtimes of `ssh`, `pipe` and `node` spawn
+  the beat. `podssh detached status` shows the age of the last beat.
+- The manual (the note of `--restart` in `ssh`'s, `detached`'s, FILES), `docs/cli.md`,
+  `docs/detach.md`.
+- Tests: `--test node_detach a_stopped_node_is_restarted_by_its_heartbeat` (a node of
+  `--restart --detach-name lab`, SIGSTOP 30 s after its first login; a login through the new node
+  within 150 s; the log names the hung pid and run 2; SIGTERM to the supervisor ends both);
+  `--lib detach::beat` 2 (the verdicts; a touch arms the watch after its reset, and nothing before).
+  `--test node_detach`: 8 passed in 126 s; `--lib detach::`: 14 passed; clippy `-D warnings` here
+  and for `x86_64-pc-windows-gnu`: clean.
+- Planted, a supervisor that reads no heartbeat (`Watch::check` always fine): the test failed, "no
+  login through a new node within 150 s of the stop".
 
 # T-397: `--detach`'s smaller gaps: no `/dev/null`, a rotation that loses lines, old files, the working directory
 

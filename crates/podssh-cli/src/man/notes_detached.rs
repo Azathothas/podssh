@@ -15,7 +15,8 @@ pub const DETACHED: &[&str] = &[
      leaves no name taken. With PODSSH_CACHE_DIR set to none there is no lock: a line says so, and the run goes \
      on, as a run that never starts locks its server out.",
     "status NAME writes the run's name, state, pid (with --restart, its supervisor's, and its run's on a line of \
-     its own), verb, words, log and start, one to a line; it exits 0 when the run runs, 69 when it does not. \
+     its own), verb, words, log and start, one to a line, and the age of the last heartbeat of a run of \
+     --restart (see podssh ssh); it exits 0 when the run runs, 69 when it does not. \
      stop NAME sends SIGTERM to the holder of the name (a supervisor passes it to its run), then after 10 s \
      SIGKILL to each holder still there, the supervisor first; on Windows it ends each at once \
      (TerminateProcess), the supervisor first. It exits 0 once each lock of the name is free, 69 when nothing of \
