@@ -70,13 +70,25 @@ where
     S: AsyncRead + AsyncWrite + Unpin + Send + 'static,
 {
     let (client, connection) = h2::client::handshake(stream).await.map_err(|e| format!("HTTP/2: {e}"))?;
-    let driver = tokio::spawn(async move {
+    let mut driver = tokio::spawn(async move {
         let _ = connection.await;
     });
     let answer = ask(client, name, target, accept, max).await;
-    driver.abort();
+    // With the request's handles gone, h2 ends the connection itself: GOAWAY,
+    // then TLS's close_notify, which a resolver reads as an end and not as a
+    // torn socket. In the background, so that the answer waits for nothing
+    // and no caller's bound can lose it; bounded, for a server that takes
+    // no more bytes, and dropped with the runtime at worst.
+    tokio::spawn(async move {
+        if tokio::time::timeout(CLOSE, &mut driver).await.is_err() {
+            driver.abort();
+        }
+    });
     answer
 }
+
+/// The bound of the connection's own end, after the answer.
+const CLOSE: Duration = Duration::from_secs(2);
 
 async fn ask(
     client: h2::client::SendRequest<bytes::Bytes>,

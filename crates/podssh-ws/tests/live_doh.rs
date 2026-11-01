@@ -21,13 +21,25 @@ async fn every_fallback_resolver_answers_through_verified_tls() {
     let found = doh_lookup("github.com", Instant::now() + Duration::from_secs(20)).await;
     eprintln!("github.com via the resolver list: {found:?}");
     assert!(found.as_ref().is_ok_and(|ips| !ips.is_empty()), "{found:?}");
-    // Each one alone, so a fallback that can never work is noticed.
+    // Each one alone, so a fallback that can never work is noticed; twice
+    // at most, as alone it has no next resolver to cover a lost SYN.
     for resolver in DOH_RESOLVERS {
-        let one = doh_lookup_with(&[*resolver], "github.com", Instant::now() + Duration::from_secs(10)).await;
-        eprintln!("resolver {} alone: {one:?}", resolver.ip);
+        let mut one = Err(String::new());
+        for attempt in 1..=TRIES {
+            one = doh_lookup_with(&[*resolver], "github.com", Instant::now() + Duration::from_secs(10)).await;
+            eprintln!("resolver {} alone, attempt {attempt}: {one:?}", resolver.ip);
+            if one.as_ref().is_ok_and(|ips| !ips.is_empty()) {
+                break;
+            }
+        }
         assert!(one.as_ref().is_ok_and(|ips| !ips.is_empty()), "{}: {one:?}", resolver.ip);
     }
 }
+
+/// The asks of one resolver alone. A connection lost once (a SYN with no
+/// answer for 3 s) is the network's; a resolver that fails each time is the
+/// fallback that never works.
+const TRIES: u32 = 2;
 
 /// Each resolver answers in RFC 8484's wire form too, by its address, which
 /// its certificate names (T-344): the fallback of the JSON form, and Quad9's
@@ -37,8 +49,14 @@ async fn every_fallback_resolver_answers_through_verified_tls() {
 async fn every_resolver_answers_in_the_wire_form() {
     for resolver in DOH_RESOLVERS {
         let wire_only = Doh { json: None, ..*resolver };
-        let answered = doh_ask(&wire_only, "github.com", Instant::now() + Duration::from_secs(10)).await;
-        eprintln!("resolver {} in the wire form: {answered:?}", resolver.ip);
+        let mut answered = Err(String::new());
+        for attempt in 1..=TRIES {
+            answered = doh_ask(&wire_only, "github.com", Instant::now() + Duration::from_secs(10)).await;
+            eprintln!("resolver {} in the wire form, attempt {attempt}: {answered:?}", resolver.ip);
+            if answered.is_ok() {
+                break;
+            }
+        }
         let (ips, form) = answered.unwrap_or_else(|e| panic!("{}: {e}", resolver.ip));
         assert!(!ips.is_empty() && form == Form::Wire, "{}: {ips:?} {form:?}", resolver.ip);
     }

@@ -3,10 +3,14 @@
 //! server is h2's own, which podssh did not write, behind TLS that offers
 //! `h2`; its answer is the one that Quad9 sent (`tests/fixtures/doh/`).
 
+use std::pin::Pin;
+use std::sync::atomic::{AtomicBool, Ordering};
 use std::sync::Arc;
+use std::task::{Context, Poll};
 use std::time::Duration;
 
 use podssh_ws::resolve::{h2 as doh_h2, wire};
+use tokio::io::{AsyncRead, AsyncWrite, ReadBuf};
 use tokio::net::{TcpListener, TcpStream};
 
 #[allow(dead_code)]
@@ -37,6 +41,40 @@ fn client(roots: rustls::RootCertStore) -> Arc<rustls::ClientConfig> {
 struct Served {
     asked: tokio::sync::oneshot::Receiver<(String, String)>,
     ended: tokio::task::JoinHandle<Option<bool>>,
+    /// A read of the server's failed: the client tore its socket, with no
+    /// GOAWAY before it.
+    torn: Arc<AtomicBool>,
+}
+
+/// The server's TLS stream, which notes a read that fails. A client that
+/// ends its connection sends GOAWAY, and the server stops there or reads the
+/// end at close_notify; rustls gives an error for a socket closed without
+/// one, and the socket gives one for a reset.
+struct Watched<S> {
+    inner: S,
+    torn: Arc<AtomicBool>,
+}
+
+impl<S: AsyncRead + Unpin> AsyncRead for Watched<S> {
+    fn poll_read(mut self: Pin<&mut Self>, cx: &mut Context<'_>, buf: &mut ReadBuf<'_>) -> Poll<std::io::Result<()>> {
+        let polled = Pin::new(&mut self.inner).poll_read(cx, buf);
+        if matches!(polled, Poll::Ready(Err(_))) {
+            self.torn.store(true, Ordering::SeqCst);
+        }
+        polled
+    }
+}
+
+impl<S: AsyncWrite + Unpin> AsyncWrite for Watched<S> {
+    fn poll_write(mut self: Pin<&mut Self>, cx: &mut Context<'_>, buf: &[u8]) -> Poll<std::io::Result<usize>> {
+        Pin::new(&mut self.inner).poll_write(cx, buf)
+    }
+    fn poll_flush(mut self: Pin<&mut Self>, cx: &mut Context<'_>) -> Poll<std::io::Result<()>> {
+        Pin::new(&mut self.inner).poll_flush(cx)
+    }
+    fn poll_shutdown(mut self: Pin<&mut Self>, cx: &mut Context<'_>) -> Poll<std::io::Result<()>> {
+        Pin::new(&mut self.inner).poll_shutdown(cx)
+    }
 }
 
 /// A server for one connection that offers `alpn` and answers each GET
@@ -49,9 +87,12 @@ async fn server(alpn: Vec<Vec<u8>>, body: Vec<u8>) -> (u16, Arc<rustls::RootCert
     let listener = TcpListener::bind("127.0.0.1:0").await.unwrap();
     let port = listener.local_addr().unwrap().port();
     let (said, asked) = tokio::sync::oneshot::channel();
+    let torn = Arc::new(AtomicBool::new(false));
+    let seen = torn.clone();
     let ended = tokio::spawn(async move {
         let (tcp, _) = listener.accept().await.ok()?;
         let tls = acceptor.accept(tcp).await.ok()?;
+        let tls = Watched { inner: tls, torn: seen };
         let mut connection = h2::server::handshake(tls).await.ok()?;
         let (request, mut respond) = connection.accept().await?.ok()?;
         let asked = (
@@ -65,10 +106,13 @@ async fn server(alpn: Vec<Vec<u8>>, body: Vec<u8>) -> (u16, Arc<rustls::RootCert
         let _ = said.send(asked);
         // The connection is driven until the client goes, which it does once
         // it has its answer; its own bound, so that no other wait races it.
-        let gone = tokio::time::timeout(LIMIT, async { while connection.accept().await.is_some() {} }).await;
+        // An error ends it too: once the socket is gone, h2's server can give
+        // the same error at each call (its own shutdown on a socket that the
+        // client reset), and a loop on `is_some` spins on it to the bound.
+        let gone = tokio::time::timeout(LIMIT, async { while let Some(Ok(_)) = connection.accept().await {} }).await;
         Some(gone.is_ok())
     });
-    (port, Arc::new(roots), Served { asked, ended })
+    (port, Arc::new(roots), Served { asked, ended, torn })
 }
 
 /// Quad9's answer comes through h2's server whole, and decodes to its
@@ -95,6 +139,9 @@ async fn an_answer_comes_over_http2() {
     // The server's own bound decides; this one only holds a server that hangs.
     let ended = tokio::time::timeout(LIMIT * 2, served.ended).await.expect("the server's bound").unwrap();
     assert_eq!(ended, Some(true), "the client left its HTTP/2 connection open {} s after its answer", LIMIT.as_secs());
+    // Its end was HTTP/2's own: a socket torn instead reaches a server as an
+    // error, a reset or an end with no close_notify, not as the end.
+    assert!(!served.torn.load(Ordering::SeqCst), "the client tore its socket, with no GOAWAY");
 }
 
 /// A server that does not take `h2` is refused at TLS, before any request.

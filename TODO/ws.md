@@ -2273,6 +2273,82 @@ cargo test -p podssh-ws --test doh_h2
   connection open 10 s after its answer". The gate's next runs say whether CI's case was the
   client's.
 
+# T-418: The test of DoH over HTTP/2 spun on h2's repeated error, and the client tore its socket
+
+**Source:** CI's job `gate (libs)` at `7855981` (run 41329018777, 2026-11-01), the commit of
+`v1.0.0-beta.4`'s version, which changed nothing of podssh-ws: `an_answer_comes_over_http2` failed,
+"the client left its HTTP/2 connection open 10 s after its answer"; T-413's repair did not hold.
+With it, `doh-live.yml` at the same commit (run 41329049296): 9.9.9.9 alone gave "no connection
+within 3 s" a moment after the same address answered in the wire form.
+**Category:** defect
+**Milestone:** none
+**Priority:** P1
+**Effort:** S
+**Status:** partial
+
+## Problem
+
+A test that fails at random keeps the gate red at the commit of a beta, which may not be tagged
+until the gate is green on it; and a live check that fails on one lost connection says nothing of
+the resolver.
+
+## Premise
+
+- Read: the test's server drives its connection after its answer with
+  `while connection.accept().await.is_some() {}` (`crates/podssh-ws/tests/doh_h2.rs`, at
+  `7855981`). h2's server (0.4.20, `src/proto/connection.rs`, `handle_poll2_result`) ends the
+  connection at a read's `UnexpectedEof` only when its own buffer is empty; any other error of the
+  socket, a reset among them, it returns, and returns again at the next call, as it does an error of
+  its own shutdown on a socket that the client closed. The loop spins on `Some(Err(_))` until its
+  bound.
+- Read: the client aborts the task that drives its connection once it has its answer
+  (`get` in `crates/podssh-ws/src/resolve/h2.rs`), so its socket closes with no GOAWAY and no TLS
+  close_notify: a reset, where data waited unread, or an end that rustls calls an error.
+- Measured here: 60 runs alone and 120 under 24 at once, all passed; with the client changed to end
+  its connection itself and the old loop, 8 of 40 failed as CI's run did. With a trace of the
+  server's reads: the client's GOAWAY came (17 bytes), then `accept` gave `None` or
+  `Some(Err("broken pipe"))`, the server's own close on the client's gone socket.
+- Read: `doh_lookup_with` with one resolver has no next one, and `get_direct` connects within 3 s
+  (`DOH_CONNECT`, `crates/podssh-ws/src/resolve.rs`); `live_doh.rs` asked each resolver alone once.
+
+## Approach
+
+1. The client lets h2 end its connection: once the request's handles are gone, h2 sends GOAWAY and
+   shuts TLS down with close_notify. The end runs in the background, bounded by 2 s, then aborted,
+   so that the answer waits for nothing and no caller's bound can lose it.
+2. The test's server stops at an error as at the end, and its TLS stream notes a read that failed:
+   the test fails when the client tore its socket, with no GOAWAY before it, which the old abort
+   always does, and not at random.
+3. `live_doh.rs` asks a resolver alone twice at most: a resolver that fails each time is still the
+   fallback that never works.
+
+## Prove
+
+```sh
+export CARGO_BUILD_JOBS=4
+cargo test -p podssh-ws --test doh_h2
+cargo test -p podssh-ws
+cargo clippy -p podssh-ws --all-targets -- -D warnings
+```
+
+The test 40 times alone and 144 times 24 at once; planted, the old abort; `doh-live.yml`.
+
+## Done
+
+2026-11-01, here (the live run follows the push):
+
+- `crates/podssh-ws/src/resolve/h2.rs`: `get` no longer aborts its connection's task; a task of its
+  own waits for h2's end (GOAWAY, then close_notify) for 2 s (`CLOSE`), then aborts it.
+- `crates/podssh-ws/tests/doh_h2.rs`: the server stops at `Some(Err(_))`; `Watched` wraps its TLS
+  stream and notes a read that failed; the test fails by name, "the client tore its socket, with no
+  GOAWAY".
+- `crates/podssh-ws/tests/live_doh.rs`: each resolver alone, and each in the wire form, is asked
+  twice at most (`TRIES`), each attempt printed.
+- `cargo test -p podssh-ws --test doh_h2`: 3 passed; `an_answer_comes_over_http2` 40 times alone
+  and 144 times 24 at once: none failed. Planted, the old abort at once: 48 of 48 failed, "the
+  client tore its socket, with no GOAWAY". `cargo test -p podssh-ws`: each passed; clippy
+  `-D warnings` and rustfmt clean.
+
 # T-405: DoH asks by an address, which a proxy that refuses addresses refuses
 
 **Source:** the operator, 2026-11-01: the study of Azathothas/cfrs (T-398's Source); its finding
