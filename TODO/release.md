@@ -339,6 +339,12 @@ no whole run yet, as the tag's commit does not exist:
   job named while it still ran. The run of each ACTIONS row at the tag's commit is the run before
   the tag.
 
+The merge left `scripts/interop-ptyrun.sh`, a part of `scripts/interop.sh` that printed
+`ssh.pty.driver`, out of `scripts/interop-baseline.txt`, and the gate failed at `fff2252` on
+`cargo test -p podssh-todo --test interop` (run 41323161424: record, release, Windows and macOS),
+which the merge did not run here; each interop row of the release step passed. The part now only
+runs the driver, a `support` file, and `interop.sh` prints the driver's line again.
+
 The box runs on GitHub's runner since T-415: `box.yml` at `bb46515` (run 41314911742), default,
 nolisten, tt and chat each passed; `plants.yml` at `bb46515` (run 41315851930): each of the 16
 groups passed, so each plant was caught, host-box and host-nolisten among them.

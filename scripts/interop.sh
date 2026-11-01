@@ -484,6 +484,8 @@ part interop-each.sh
 
 # shellcheck source=scripts/interop-ptyrun.sh
 part interop-ptyrun.sh
+{ [ "$rc" -eq 0 ] || [ "$(grep -c '^FAIL' "$W/pty.log")" -gt 0 ]; } && ok ssh.pty.driver "the pty driver ran (exit $rc)" \
+    || bad ssh.pty.driver "the pty driver exited $rc with no result line"
 
 for f in "$W"/sshd-*.pid "$W/dropbear.pid"; do
     [ -f "$f" ] && kill "$(cat "$f")" 2>/dev/null
