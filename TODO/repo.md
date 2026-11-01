@@ -4962,3 +4962,72 @@ each named with its line, and each passing once right. Planted on the real tree:
 statements of GitHub #71 put back and "T-252, partial", each named, and the check passed once they
 were removed; with the check disconnected, three of the four tests failed. `TODO/RULES.md` says
 the rule.
+
+# T-386: Dependabot's updates of 2026-11-01: the digest 0.11 line, rand 0.10 and Tailscale 1.104
+
+**Source:** Azathothas/podssh#78 (the stand-in tailnet's tailscale image v1.98.10 to v1.104.4),
+#79 (aws-lc-rs 1.19, aws-lc-sys 0.47, toml 1.1.8 and the rest of the minor and patch group),
+#80 (rand 0.8 to 0.10), #81 (sha2 0.10 to 0.11) and #82 (hmac 0.12 to 0.13), Dependabot,
+2026-11-01; the operator's ruling of 2026-10-30 (`docs/decisions.md`): a session repairs what an
+update breaks, and commits the update with the repair.
+**Category:** chore
+**Milestone:** none
+**Priority:** P2
+**Effort:** M
+**Status:** partial
+
+## Problem
+
+Five updates wait. Three move the workspace's crypto crates to the line that russh, the curves'
+0.14 and podssh-ssh's own `hmac` already take (digest 0.11, rand_core 0.10), and each of the three
+pull requests alone cannot build: `hmac` 0.13 needs a hash of digest 0.11, `sha2` 0.11 needs an
+`hmac` and an `hkdf` of digest 0.11, and rand 0.10 renamed the generator of the operating system.
+The image's pull request moves the stand-in tailnet past the newest client version that its
+headscale names.
+
+## Premise
+
+- Read: the root `Cargo.toml` asks for `sha2` 0.10, `hmac` 0.12, `hkdf` 0.12 and `rand` 0.8
+  (features `std` and `std_rng`); podssh-ssh and podssh-cli ask for `hmac` 0.13, `sha1` 0.11 and
+  `rand` 0.10 on their own, with a comment that the workspace's line stays for ed25519-dalek 2
+  and snow. Each new version is in `Cargo.lock` already, for russh or the curves.
+- Read: podssh-ws's RSA verifier takes `rsa` 0.9, whose `Pkcs1v15Sign::new` and `Pss::new` take a
+  hash of digest 0.10 (`crates/podssh-ws/src/crypto/rsa_sig.rs`).
+- Read: `images/tailscale/Dockerfile` pins v1.98.10, "the newest release whose capability version
+  headscale 0.29.7 names in its table of client versions".
+- Inferred: each pull request is closed by Dependabot once `main` holds its version, as T-355's
+  were.
+
+## Approach
+
+1. #79, the lock alone: build, the tests of the crates that it reaches (aws-lc-rs for russh's
+   keys, toml for the facts and Arti's configuration).
+2. #81 with #82 and `hkdf` 0.13 together, in one step: each crate that hashes, MACs or derives;
+   the RSA verifier keeps a hash of rsa 0.9's digest line under a name of its own until `rsa`
+   0.10 is stable. The known answers of `crates/podssh-ws/tests/crypto_vectors.rs`, the TLS of
+   the live relay, the DERP keys and the resumable layer's secrets.
+3. #80: the workspace's `rand` 0.10 with the features that give the generator of the operating
+   system and the thread's generator, one version for each crate.
+4. #78: the harness `scripts/ts-headscale.sh` in Actions on the new image; taken if each run
+   passes with headscale 0.29.7, else the pull request is answered with the run.
+5. `cargo deny --locked check`; `docs/STATUS.md` records each version.
+
+## Prove
+
+```sh
+export CARGO_BUILD_JOBS=4
+cargo test -p podssh-ws -p podssh-relay -p podssh-ssh -p podssh-core -p podssh-probe
+cargo test -p podssh-cli
+cargo deny --locked check advisories licenses bans sources
+```
+
+Each test passes, the known answers among them. Planted: one byte of an HMAC-SHA-256 key changed
+in the known-answer test fails it on the new line.
+
+## Done
+
+2026-11-01, partial: #79, the lock alone (aws-lc-rs 1.18.2 to 1.19.0, aws-lc-sys 0.46.0 to 0.47.0,
+toml 1.1.6 to 1.1.8 with serde_spanned 1.1.2, toml_parser 1.1.5 and toml_writer 1.1.3, and
+itertools 0.15 for one proc-macro crate). `cargo test --locked -p podssh-ssh -p podssh-probe`
+(russh's keys on aws-lc-rs, and the facts files on toml): 323 passed and 1 ignored in 14
+binaries. The digest 0.11 line (#81, #82), rand 0.10 (#80) and the image (#78) wait.
