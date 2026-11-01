@@ -167,7 +167,8 @@ pub(super) const NODE: &[&str] = &[
      each road that gave way. A client in a cage \
      reaches the name on port 443. The name is public, so --allow FILE is needed: only an operator \
      whose key is a line of FILE reaches TARGET, through the end-to-end channel above the resumable \
-     layer. The node keeps one connection to the edge. On the edge's GOAWAY its visitors go on for up \
+     layer. The node keeps two connections to the edge, each to its own region first, so that one stays \
+     while the other is made again. On the edge's GOAWAY its visitors go on for up \
      to 90 s while a new connection, at once, takes the new ones. A \
      connection to the edge that is lost is made again, with the same name; at Ctrl-C the node \
      unregisters each. --iroh, --derp, --plain, --no-e2e, --pair-file, a route and a udp: TARGET are \

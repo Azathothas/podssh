@@ -42,12 +42,12 @@ use crate::relay_settings::Refusal;
 /// Bound on each dial of TARGET.
 const DIAL_LIMIT: Duration = Duration::from_secs(8);
 /// The connections that the node keeps to the edge at once, each to its own
-/// region first. One until the operator rules on a second that stays
-/// (Q62): rule 2 of AGENTS.md allows one outbound connection, and its
-/// exceptions name no second edge connection. The drain of T-402 holds
-/// with one: the old connection serves its streams while the next one
-/// registers, for 90 s at most.
-const CONNECTIONS: u8 = 1;
+/// region first: with two, a region in trouble or a GOAWAY leaves one
+/// standing while the other registers again (T-414). Rule 2 of AGENTS.md
+/// allows this second connection for the quick tunnel's node alone (Q62,
+/// 2026-11-01). The drain of T-402 holds on each: an old connection serves
+/// its streams while the next one registers, for 90 s at most.
+const CONNECTIONS: u8 = 2;
 
 /// Each check that needs no network, done.
 struct Ready {

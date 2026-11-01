@@ -2355,7 +2355,7 @@ commands. The rules behind them:
   registration names the road and its race's time; each visitor's WebSocket is
   one link of the resumable layer. The name is public, so `--allow FILE` is
   needed: only an operator whose key is in FILE reaches TARGET, through
-  the end-to-end channel. It keeps one connection to the edge (a second that stays waits for the operator's ruling, Q62, T-414); on the edge's GOAWAY its visitors go on for up to 90 s while a new connection takes the new ones (T-402). A lost connection is made again with
+  the end-to-end channel. It keeps two connections to the edge, each to its own region first, so that one stays while the other is made again (T-414; rule 2's exception of Q62); on the edge's GOAWAY its visitors go on for up to 90 s while a new connection takes the new ones (T-402). A lost connection is made again with
   the same name, and Ctrl-C unregisters each. `--iroh`, `--plain`,
   `--no-e2e`, `--pair-file`, a route and a UDP TARGET are refused with it
   (64). The client is `podssh ssh cf://NAME.trycloudflare.com`, or `cp`,

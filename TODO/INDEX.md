@@ -62,15 +62,15 @@ repository and CI).
 
 ## Counts
 
-**413 entries: 17 open, 2 partial, 30 blocked, 364 done.**
+**413 entries: 16 open, 3 partial, 30 blocked, 364 done.**
 
 | Priority | open | partial | blocked | done | total |
 | --- | --- | --- | --- | --- | --- |
 | P0 | 0 | 0 | 0 | 1 | 1 |
 | P1 | 1 | 1 | 0 | 39 | 41 |
 | P2 | 1 | 0 | 21 | 179 | 201 |
-| P3 | 15 | 1 | 9 | 145 | 170 |
-| **All** | 17 | 2 | 30 | 364 | 413 |
+| P3 | 14 | 2 | 9 | 145 | 170 |
+| **All** | 16 | 3 | 30 | 364 | 413 |
 
 ## Entries
 
@@ -485,7 +485,7 @@ repository and CI).
 | [T-411](roads.md) | P3 | M | none | defect | done | The quick tunnel over QUIC resets a push of configuration |
 | [T-412](reverse.md) | P2 | S | none | defect | done | The stand-in relay drops a frame of an unknown session, which the live relay answers with 1003 |
 | [T-413](ws.md) | P1 | S | none | defect | done | The test of DoH over HTTP/2 failed in CI: two equal bounds raced |
-| [T-414](roads.md) | P3 | S | none | feature | open | The quick tunnel keeps a second connection to the edge, to its other region |
+| [T-414](roads.md) | P3 | S | none | feature | partial | The quick tunnel keeps a second connection to the edge, to its other region |
 | [T-415](release.md) | P2 | S | none | defect | done | On GitHub's runner the box's /dev/tty probe waits 40 minutes, so box.yml measures nothing |
 | [T-416](reverse.md) | P1 | S | none | defect | done | A node that starts right after the pair's last node ended meets 409 and exits |
 | [T-417](copy.md) | P2 | M | none | defect | done | `cp` spends some 14 round trips on each small file, so a tree of small files crawls through the relay |
