@@ -49,3 +49,37 @@ pub async fn print(mut events: broadcast::Receiver<LinkEvent>) {
         }
     }
 }
+
+/// The control server's last refusal of this node, in its own words: a registration that it did
+/// not authorize, as headscale answers a pre-auth key that it does not know (T-334). The fork
+/// says it as a drop of the control connection, then fails with no reason of its own.
+pub type Refusal = std::sync::Arc<std::sync::Mutex<Option<String>>>;
+
+/// Keep the control server's refusals that `events` gives, until the node ends.
+pub fn watch_refusal(mut events: broadcast::Receiver<LinkEvent>) -> (Refusal, tokio::task::JoinHandle<()>) {
+    let refusal: Refusal = std::sync::Arc::default();
+    let kept = refusal.clone();
+    let task = tokio::spawn(async move {
+        loop {
+            match events.recv().await {
+                Ok(LinkEvent { link: LinkKind::Control, change: LinkChange::Dropped { reason, .. }, .. })
+                    if is_refusal(&reason) =>
+                {
+                    if let Ok(mut kept) = kept.lock() {
+                        *kept = Some(reason);
+                    }
+                }
+                Ok(_) | Err(RecvError::Lagged(_)) => {}
+                Err(RecvError::Closed) => return,
+            }
+        }
+    });
+    (refusal, task)
+}
+
+/// Whether a drop of the control connection is the server's refusal of the node, in the words
+/// of the fork's registration.
+pub fn is_refusal(reason: &str) -> bool {
+    let reason = reason.to_ascii_lowercase();
+    reason.contains("not authorized") || reason.contains("registration failed")
+}

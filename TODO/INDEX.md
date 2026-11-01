@@ -62,15 +62,15 @@ repository and CI).
 
 ## Counts
 
-**379 entries: 17 open, 1 partial, 31 blocked, 330 done.**
+**380 entries: 17 open, 2 partial, 31 blocked, 330 done.**
 
 | Priority | open | partial | blocked | done | total |
 | --- | --- | --- | --- | --- | --- |
 | P0 | 0 | 0 | 0 | 1 | 1 |
 | P1 | 2 | 0 | 0 | 29 | 31 |
-| P2 | 2 | 0 | 21 | 166 | 189 |
-| P3 | 13 | 1 | 10 | 134 | 158 |
-| **All** | 17 | 1 | 31 | 330 | 379 |
+| P2 | 1 | 1 | 21 | 166 | 189 |
+| P3 | 14 | 1 | 10 | 134 | 159 |
+| **All** | 17 | 2 | 31 | 330 | 380 |
 
 ## Entries
 
@@ -406,7 +406,7 @@ repository and CI).
 | [T-331](roads.md) | P3 | S | backlog | defect | done | The layer's `CLOSE` before the exit of `job`, `pipe`, `health`, `containers` and `--upgrade` on `cf://` |
 | [T-332](resume.md) | P3 | M | backlog | feature | done | A notice of silence with `--direct` |
 | [T-333](repo.md) | P3 | S | none | chore | done | aes-gcm 0.11 and chacha20poly1305 0.11 in `podssh-ws` |
-| [T-334](ts.md) | P2 | M | M9 | measurement | open | A headscale stand-in for the live runs of `podssh ts` |
+| [T-334](ts.md) | P2 | M | M9 | measurement | partial | A headscale stand-in for the live runs of `podssh ts` |
 | [T-335](resume.md) | P2 | S | M9 | defect | done | The iroh cells of the throughput run may not cross a relay |
 | [T-336](relay.md) | P2 | M | backlog | defect | blocked | The relay holds a slow client's bytes with no bound, and closes nothing |
 | [T-337](repo.md) | P1 | M | none | defect | done | The publish job runs actions by tags that can move, before it attests the binaries |
@@ -455,3 +455,4 @@ repository and CI).
 | [T-381](cli.md) | P3 | M | backlog | feature | blocked | `--detach` on Linux leaves the session's scope of systemd, as tmux does |
 | [T-382](cli.md) | P2 | M | backlog | defect | done | `podssh session start` asks no prompt, and on Windows stays in the caller's job |
 | [T-383](cli.md) | P2 | S | backlog | measurement | done | `--detach` on Windows and macOS, measured in GitHub Actions |
+| [T-384](ts.md) | P3 | S | backlog | defect | open | A panic of kameo 0.21.1 in the fork's dialer when the control server refuses the node |

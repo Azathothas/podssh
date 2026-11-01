@@ -329,6 +329,12 @@ const TS: &[&str] = &[
     "A node key that the relay refuses ends the run with exit 77, and the line says what the key \
      needs: at once, or at the end of --ts-wait-allowlist. In relay mode, the status line and -W wait, \
      within the same limit, for the relay's DERP link to come up.",
+    "--ts-control-url https://HOST[:PORT] names another control server, such as headscale; plain http, \
+     a path and a password are refused (64). The check of tcp then asks that server for its key, as the \
+     node does first, and for its DERP map when it publishes one; headscale publishes none, and its \
+     node reads its DERP servers after it registers. --ts-relay HOST:PORT pins relay mode to a DERP \
+     server on another port. A test's control server of its own CA sets PODSSH_TS_TEST_CA_FILE, which \
+     the node adds to its roots; podssh ts says when it is set.",
 ];
 
 #[cfg(test)]

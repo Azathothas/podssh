@@ -20,3 +20,7 @@ directly, or [`native-tls`].
 a root-of-trust. These are the same root certificates trusted by Mozilla. This crate currently
 **does not** check Certificate Revocation Lists (CRLs) to determine if any of the root
 certificates have been revoked.
+
+podssh's patch 0027: when the variable `PODSSH_TS_TEST_CA_FILE` names a PEM file, its
+certificates join those roots, for a test's stand-in control server of a CA of its own. Only a
+test sets it; each certificate is still checked, against the roots and these.

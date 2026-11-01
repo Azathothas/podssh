@@ -391,16 +391,21 @@ impl ControlRunner {
             return;
         };
 
-        self.with_map_request(false, async |req| {
-            send_map_request(
-                req,
-                &self.params.config.server_url.join("machine/map").unwrap(),
-                conn,
-            )
-            .await
-        })
-        .await
-        .unwrap();
+        // podssh's patch 0028: a control server that answers with an error, or
+        // goes, fails this update; the actor goes on, where an unwrap panicked.
+        let sent = self
+            .with_map_request(false, async |req| {
+                send_map_request(
+                    req,
+                    &self.params.config.server_url.join("machine/map").unwrap(),
+                    conn,
+                )
+                .await
+            })
+            .await;
+        if let Err(error) = sent {
+            tracing::warn!(?error, "the update of the map request failed");
+        }
     }
 }
 

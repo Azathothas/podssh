@@ -5072,6 +5072,7 @@ dependencies = [
  "podssh-ws",
  "tailscale",
  "tokio",
+ "ts_capabilityversion",
  "ts_derp",
  "ts_http_util",
  "ts_runtime",

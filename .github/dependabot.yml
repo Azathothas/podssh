@@ -40,5 +40,8 @@ updates:
       - /images/trufflehog
       - /images/armv7
       - /images/binfmt
+      # The stand-in tailnet of scripts/ts-headscale.sh (T-334).
+      - /images/headscale
+      - /images/tailscale
     schedule:
       interval: weekly

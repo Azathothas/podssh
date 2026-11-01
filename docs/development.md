@@ -635,6 +635,31 @@ cargo run -p podssh-relay --example live_forward          # github.com:22: its S
 cargo run -p podssh-cli --example live_irc                 # an IRC registration through the relay
 ```
 
+### The stand-in tailnet (T-334)
+
+`scripts/ts-headscale.sh` runs the live parts of `podssh ts` against
+headscale and two nodes of tailscaled in Podman, else Docker, in place of the
+operator's tailnet (`docs/tailscale.md` gives its parts and its runs). Run it
+on a Linux host with an engine, not in the gate's container, one build at a
+time:
+
+```sh
+sh scripts/ts-headscale.sh                           # builds podssh --features ts first
+sh scripts/ts-headscale.sh target/debug/podssh       # a build with the feature ts
+TS_HS_PLANT=unknown-key sh scripts/ts-headscale.sh target/debug/podssh   # must exit 1
+```
+
+It needs podman or docker, openssl, curl, python3, OpenSSH's `ssh`,
+`timeout` and `sha256sum`, and the ports 45380 to 45385 of the loopback
+(`PODSSH_HS_PORT` moves them); `PODSSH_ENGINE` names the engine. It pulls
+`images/headscale/Dockerfile` and `images/tailscale/Dockerfile` through
+`scripts/pull-image.sh` (`PULL_ENGINE=podman` for Podman). Each line is a
+result of `scripts/interop-lib.sh`; the exit is 0 when each run passed, 1
+when one failed, and 3 when none failed but this host has no route to the
+live relay, which three runs reach (`env`; GitHub Actions has one). The CA,
+the pre-auth keys and the containers live for the run alone, and no key is
+printed.
+
 ## Line endings
 
 - `.gitattributes` stores the sources with LF.
@@ -647,8 +672,9 @@ cargo run -p podssh-cli --example live_irc                 # an IRC registration
 ## Updates
 
 Dependabot (`.github/dependabot.yml`) looks each week at the crates of the
-workspace's `Cargo.lock`, the actions of the workflows, and the four pinned
-images of `images/`. The images are not under `.github/`: there, Dependabot's
+workspace's `Cargo.lock`, the actions of the workflows, and the pinned
+images of `images/` that it lists, the stand-in tailnet's two among them
+(T-334). The images are not under `.github/`: there, Dependabot's
 service refused each pull request of the docker ecosystem with a 400, "The
 request contains invalid or unauthorized changes" (T-308). Minor and patch
 updates of the crates come in one

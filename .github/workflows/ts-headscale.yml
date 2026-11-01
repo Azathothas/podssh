@@ -1,0 +1,49 @@
+name: ts headscale
+
+# The live runs of `podssh ts` against a stand-in tailnet (T-334):
+# scripts/ts-headscale.sh, headscale and two nodes of tailscaled in Docker
+# on the runner, with a CA of the run. Three of its runs ask the live relay
+# (the operator's own) through a proxy and through the peer's SOCKS5; a
+# cloud session's egress shows the relay with a certificate of its own
+# issuer, which the fork's roots do not hold, so they run here, where the
+# relay's own certificate comes. Started by hand only; it publishes nothing,
+# and its pre-auth keys are made by headscale in the run and go with the
+# runner.
+
+on:
+  workflow_dispatch:
+    inputs:
+      plant:
+        description: "unknown-key: a pre-auth key that headscale does not know, which must fail the run"
+        required: false
+        default: ""
+
+permissions:
+  contents: read
+
+jobs:
+  live:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 60
+    env:
+      CARGO_BUILD_JOBS: "4"
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+      - name: podssh with the feature ts
+        run: cargo build --locked -p podssh-cli --features ts
+      - name: the stand-in tailnet and its runs
+        env:
+          TS_HS_PLANT: ${{ inputs.plant }}
+          PODSSH_ENGINE: docker
+        run: |
+          set -u
+          # Each exit code is read directly; the shell's -e would stop at it.
+          rc=0
+          sh scripts/ts-headscale.sh "$GITHUB_WORKSPACE/target/debug/podssh" || rc=$?
+          if [ -n "$TS_HS_PLANT" ]; then
+            # The plant must fail the run, and only as a failure (1).
+            [ "$rc" = 1 ] || { echo "the planted run exited $rc, not 1"; exit 1; }
+            echo "ok   the planted key failed the run"
+            exit 0
+          fi
+          [ "$rc" = 0 ] || { echo "the harness exited $rc"; exit 1; }

@@ -19,8 +19,11 @@ pub const TS_FLAGS: &[FlagRow] = &[
         "node key-state file, created when missing", None),
     row(None, "ts-ephemeral", None, FlagKind::Supported,
         "register an ephemeral node, logged out at the end of the run", None),
-    row(None, "ts-relay", Some("HOST"), FlagKind::Supported,
-        "DERP-over-WebSocket relay for relay mode", None),
+    row(None, "ts-relay", Some("HOST[:PORT]"), FlagKind::Supported,
+        "DERP-over-WebSocket relay for relay mode; port 443 when none is given", None),
+    row(None, "ts-control-url", Some("URL"), FlagKind::Supported,
+        "the tailnet's control server, https://HOST[:PORT]; tcp's check asks it for its key \
+         (default: Tailscale's)", None),
     row(None, "ts-wait-allowlist", Some("DURATION"), FlagKind::Supported,
         "wait this long for relay admission; default fail-fast", None),
     row(Some('W'), "stdio-forward", Some("HOST:PORT"), FlagKind::Supported,

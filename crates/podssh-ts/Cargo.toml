@@ -16,6 +16,10 @@ zeroize.workspace = true
 tailscale = { path = "../../vendor/tailscale-rs" }
 ts_runtime = { path = "../../vendor/tailscale-rs/ts_runtime" }
 ts_http_util = { path = "../../vendor/tailscale-rs/ts_http_util" }
+# The capability version that the fork's node sends to the control server,
+# so that the check of `--ts-control-url` asks for `/key` as the node does
+# (T-334); the fork builds it already.
+ts_capabilityversion = { path = "../../vendor/tailscale-rs/ts_capabilityversion" }
 
 [dev-dependencies]
 # `test-util` gives the tests a paused clock: a wait for a network map that

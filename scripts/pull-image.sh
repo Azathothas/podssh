@@ -17,9 +17,19 @@
 # PULL_PLATFORM=linux/riscv64 pulls that platform of the index, for a run
 # with the same --platform (T-218): a digest that holds the host's platform
 # cannot take another's ("cannot overwrite digest").
+# PULL_ENGINE=podman pulls into Podman, for a harness that runs there
+# (scripts/ts-headscale.sh, T-334); Docker by default.
 set -u
 
 ref=${1:-}
+engine=${PULL_ENGINE:-docker}
+case "$engine" in
+    docker | podman) ;;
+    *)
+        echo "pull-image.sh: PULL_ENGINE is docker or podman (got '$engine')" >&2
+        exit 64
+        ;;
+esac
 case "$ref" in
     *@sha256:*) ;;
     *)
@@ -62,7 +72,7 @@ err=$(mktemp)
 trap 'rm -f "$err"' EXIT
 for round in 1 2; do
     for try in $tries; do
-        if timeout 900 docker pull -q ${PULL_PLATFORM:+--platform "$PULL_PLATFORM"} "$try" >/dev/null 2>"$err"; then
+        if timeout 900 "$engine" pull -q ${PULL_PLATFORM:+--platform "$PULL_PLATFORM"} "$try" >/dev/null 2>"$err"; then
             [ "$try" = "$registry/$path@$digest" ] || echo "pull-image.sh: $try served $ref" >&2
             echo "$try"
             exit 0

@@ -22,8 +22,8 @@ read" (or `deny.toml`'s ignores) with the day and the reason.
   `.git/`, which was dropped; the **shipped tree** is that import plus the
   patch set below and `LOCAL-PATCHES.md`. The patch set applied to an export
   of the pristine commit gives the shipped tree, and `diff -r` then names
-  `LOCAL-PATCHES.md` alone (measured on 2026-10-31 with the 26 patches,
-  T-355).
+  `LOCAL-PATCHES.md` alone (measured on 2026-11-01 with the 28 patches,
+  T-334).
 - **License**: BSD-3-Clause, with the patent grant (`LICENSE`, `PATENTS`
   retained). CI files and the upstream `AGENTS.md` are retained for fidelity.
 - **Local patch set**: `patches/*.patch`, described patch by patch in
@@ -81,7 +81,9 @@ proxy for each connection of the node, to the control server and to DERP,
 over the WebSocket too, by host name, with a `no_proxy` list and a bound on
 each dial;
 the runtime options that gate UDP off and pin the relay; the tailnet auth key
-in memory that is cleared; and a logout.
+in memory that is cleared; a logout; and a test's CA beside the roots, from
+`PODSSH_TS_TEST_CA_FILE`, for the stand-in control server of
+`scripts/ts-headscale.sh` (0027, T-334).
 
 Not done here: the home-region override, and connecting again after a drop
 (T-104).

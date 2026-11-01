@@ -262,7 +262,7 @@ fn a_slow_proxy_and_a_silent_server_fail_each_check_within_its_bound() {
     let rt = tokio::runtime::Builder::new_current_thread().enable_all().build().unwrap();
     for mode in [TsMode::Tcp, TsMode::default_relay()] {
         let started = std::time::Instant::now();
-        let verdict = rt.block_on(reach(&mode, &proxy, Deadline::after(Some(std::time::Duration::from_secs(2)))));
+        let verdict = rt.block_on(reach(&mode, None, &proxy, Deadline::after(Some(std::time::Duration::from_secs(2)))));
         let took = started.elapsed();
         assert!(matches!(verdict, Verdict::Fail(_)), "{mode:?}: {verdict:?}");
         // 2 s, with room; each step bounded alone would take 3.8 s.
@@ -283,7 +283,7 @@ fn both_checks_pass_from_this_machine() {
     let rt = tokio::runtime::Builder::new_current_thread().enable_all().build().unwrap();
     for mode in [TsMode::Tcp, TsMode::default_relay()] {
         let started = std::time::Instant::now();
-        let verdict = rt.block_on(reach(&mode, &ProxyChoice::FromEnvironment, Deadline::after(None)));
+        let verdict = rt.block_on(reach(&mode, None, &ProxyChoice::FromEnvironment, Deadline::after(None)));
         eprintln!("{mode:?}: {verdict:?} in {} ms", started.elapsed().as_millis());
         assert_eq!(verdict, Verdict::Ok, "{mode:?}");
     }

@@ -57,6 +57,7 @@ harness pty interop 17 scripts/interop-pty.py
 harness man man 7 scripts/interop-man.sh
 harness conpty conpty 14 scripts/interop-conpty.py
 harness derp derp 3 scripts/interop-derp.sh
+harness ts ts-headscale 11 scripts/ts-headscale.sh
 
 # scripts/interop.sh
 ssh.exit.dropbear.0 pass
@@ -753,3 +754,19 @@ run.again pass
 derp.transfer pass
 derp.absent pass
 derp.layer pass
+
+# scripts/ts-headscale.sh
+ts.tcp.status pass
+ts.tcp.jsonl pass
+ts.tcp.banner pass
+ts.tcp.ssh pass
+ts.relay.status pass
+ts.relay.ssh pass
+ts.bound pass
+ts.ephemeral pass
+ts.exit7 pass
+ts.relay.drop pass
+ts.key pass
+ts.live.refused env-allowed a route from this host to the live relay tcp.ts.relay.ajam.dev:443 (T-334)
+ts.live.proxy env-allowed a route from this host to the live relay tcp.ts.relay.ajam.dev:443 (T-334)
+ts.live.socks5 env-allowed a route from this host to the live relay tcp.ts.relay.ajam.dev:443 (T-334)

@@ -105,7 +105,9 @@ fn ts_flags_ride_along_verbatim() {
         "s.json",
         "--ts-ephemeral",
         "--ts-relay",
-        "r.example",
+        "r.example:8443",
+        "--ts-control-url",
+        "https://control.example:8443",
         "--ts-wait-allowlist",
         "30s",
         "--ts-proxy",
@@ -118,11 +120,23 @@ fn ts_flags_ride_along_verbatim() {
     .map(|s| s.to_string())
     .collect();
     match parse(owned) {
-        Parsed::Ts { auth_key_file, state, ephemeral, relay, wait_allowlist, proxy, timeout, jsonl, .. } => {
+        Parsed::Ts {
+            auth_key_file,
+            state,
+            ephemeral,
+            relay,
+            control_url,
+            wait_allowlist,
+            proxy,
+            timeout,
+            jsonl,
+            ..
+        } => {
             assert_eq!(auth_key_file.as_deref(), Some("k.key"));
             assert_eq!(state.as_deref(), Some("s.json"));
             assert!(ephemeral);
-            assert_eq!(relay.as_deref(), Some("r.example"));
+            assert_eq!(relay.as_deref(), Some("r.example:8443"));
+            assert_eq!(control_url.as_deref(), Some("https://control.example:8443"));
             assert_eq!(wait_allowlist.as_deref(), Some("30s"));
             assert_eq!(proxy.as_deref(), Some("http://127.0.0.1:3128"));
             assert_eq!(timeout.as_deref(), Some("30s"));

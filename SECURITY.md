@@ -59,7 +59,10 @@ Each rule is implemented.
   forced down to 1.2. There is no option that skips the verification, and no
   crate carries a verifier that accepts each certificate: a test scans the
   source of each one (T-065). The verifier that prints a chain for a
-  diagnosis lives in an example of `podssh-ws`, outside each library.
+  diagnosis lives in an example of `podssh-ws`, outside each library. The
+  node of `podssh ts` adds the CA file of `PODSSH_TS_TEST_CA_FILE` to its
+  roots, for a test's stand-in control server (T-334): a root more, never a
+  check less, and `podssh ts` says when it is set.
 - **An update is checked before it is written** (T-375). `podssh update`
   runs only when asked, and no other command looks for a release. Before it
   writes a byte, it checks the release's `SHA256SUMS` against the signature

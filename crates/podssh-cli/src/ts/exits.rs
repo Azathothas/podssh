@@ -74,3 +74,56 @@ pub fn no_map(err: &mut dyn Write) -> i32 {
     );
     Fault::Capability.code()
 }
+
+/// `code`, or 77 when the control server refused the node during the run and the run ended as of
+/// an engine that failed (70) or of no network map (78): a key that the server does not know, or
+/// that expired, is said as such, with the server's words (T-334).
+pub fn refused_instead(code: i32, refusal: &super::links::Refusal, err: &mut dyn Write) -> i32 {
+    let words = refusal.lock().ok().and_then(|r| r.clone());
+    match words {
+        Some(words) if code == EXIT_NOT_IMPLEMENTED || code == Fault::Capability.code() => {
+            let _ = writeln!(
+                err,
+                "podssh ts: the control server refused this node ({}).\nCheck the key of --ts-auth-key-file: \
+                 one that the server does not know, or that expired, is refused.",
+                safe(&words)
+            );
+            Fault::Auth.code()
+        }
+        _ => code,
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    fn kept(words: Option<&str>) -> super::super::links::Refusal {
+        std::sync::Arc::new(std::sync::Mutex::new(words.map(str::to_string)))
+    }
+
+    /// headscale's refusal of an unknown pre-auth key, as the fork says it: an engine that failed
+    /// (70) or no map (78) becomes 77 with the server's words; another code stays.
+    #[test]
+    fn a_refusal_of_the_control_server_is_77_with_its_words() {
+        let words = Some("registration failed: machine was not authorized by control to join tailnet");
+        for code in [EXIT_NOT_IMPLEMENTED, Fault::Capability.code()] {
+            let mut err = Vec::new();
+            assert_eq!(refused_instead(code, &kept(words), &mut err), Fault::Auth.code());
+            let text = String::from_utf8(err).unwrap();
+            assert!(text.contains("not authorized by control") && text.contains("--ts-auth-key-file"), "{text}");
+        }
+        let mut err = Vec::new();
+        assert_eq!(refused_instead(0, &kept(words), &mut err), 0);
+        assert_eq!(refused_instead(EXIT_NOT_IMPLEMENTED, &kept(None), &mut err), EXIT_NOT_IMPLEMENTED);
+        assert!(err.is_empty());
+    }
+
+    #[test]
+    fn only_a_registration_that_was_refused_is_a_refusal() {
+        use super::super::links::is_refusal;
+        assert!(is_refusal("registration failed: machine was not authorized by control to join tailnet"));
+        assert!(!is_refusal("connection reset by peer"));
+        assert!(!is_refusal("timed out"));
+    }
+}

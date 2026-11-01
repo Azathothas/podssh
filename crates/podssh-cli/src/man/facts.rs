@@ -171,6 +171,12 @@ pub const VARIABLES: &[(&[&str], &str)] = &[
     ),
     (&["SSL_CERT_FILE"], "Trust only the CA certificates in this file, as --ca-file. The flag wins."),
     (
+        &["PODSSH_TS_TEST_CA_FILE"],
+        "For tests only: a PEM file of CA certificates that the node of podssh ts adds to its roots, so that \
+      a test's control server of its own CA is reached with TLS checked. podssh ts says when it is set. \
+      Its checks before the start trust podssh's own roots, which take a podssh-ca.pem beside the binary.",
+    ),
+    (
         &["SSH_AUTH_SOCK"],
         "The SSH agent's socket. On Windows, a named pipe; with none set, podssh tries the pipe of the \
       OpenSSH agent, then Pageant when its window is there.",

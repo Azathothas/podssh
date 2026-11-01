@@ -164,8 +164,10 @@ pub enum Parsed {
         state: Option<String>,
         /// `--ts-ephemeral`.
         ephemeral: bool,
-        /// `--ts-relay` host override.
+        /// `--ts-relay` host override, `HOST[:PORT]`, verbatim.
         relay: Option<String>,
+        /// `--ts-control-url` URL, verbatim (T-334).
+        control_url: Option<String>,
         /// `--ts-wait-allowlist` duration, verbatim.
         wait_allowlist: Option<String>,
         refused: Vec<(String, &'static str, &'static str)>,

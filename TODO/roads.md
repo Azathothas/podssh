@@ -60,7 +60,7 @@ unknown flag (exit 64), and `Cargo.lock` has no iroh crate.
    iroh destination refuses before it connects and names `--features iroh`,
    as `crates/podssh-cli/tests/ts_not_built.rs:1-4` shows for `ts`.
 7. Docs: the "Outbound only" item of `README.md`, "Nothing listens" in
-   `SECURITY.md:129-156`, `docs/architecture.md` (rule 3, the crates),
+   `SECURITY.md:132-159`, `docs/architecture.md` (rule 3, the crates),
    `docs/design.md` section 7, and `AGENTS.md` (sections 3 and 7).
 
 ## Decision
@@ -164,7 +164,7 @@ Read in the reports, not verified here: iroh-ssh warns when a server's key is
 ephemeral (`rustonbsd/iroh-ssh:src/ssh.rs`); zuko hands over a ticket out of
 band (`adonm/zuko:docs/protocol.md`). Read: `podssh ts` keeps its node key in
 the file that `--ts-state` names (`crates/podssh-cli/src/flags.rs:352-353`,
-`crates/podssh-cli/src/ts.rs:166`). Credentials never go on argv
+`crates/podssh-cli/src/ts.rs:181`). Credentials never go on argv
 (`AGENTS.md`, section 4).
 
 ## Approach
@@ -187,7 +187,7 @@ the file that `--ts-state` names (`crates/podssh-cli/src/flags.rs:352-353`,
    `podssh ssh iroh:TICKET` dials it (the address of `docs/design.md:916`).
 6. Add the key files to FILES in the manual
    (`crates/podssh-cli/src/man/data.rs:146-336`), and each new variable to
-   `VARIABLES` (`crates/podssh-cli/src/man/facts.rs:45-260`).
+   `VARIABLES` (`crates/podssh-cli/src/man/facts.rs:45-266`).
 
 ## Decision
 
@@ -511,9 +511,9 @@ in iroh's source at the pinned version.
    not in the list.
 6. `doctor`, with the feature, reports the `/ping` of each relay and the home
    relay.
-7. Add the variable to `VARIABLES` (`crates/podssh-cli/src/man/facts.rs:45-260`),
+7. Add the variable to `VARIABLES` (`crates/podssh-cli/src/man/facts.rs:45-266`),
    the flag to the flag table, and the default to the relay section of the
-   manual (`crates/podssh-cli/src/man/facts.rs:279-435`). The tests compare
+   manual (`crates/podssh-cli/src/man/facts.rs:285-441`). The tests compare
    `VARIABLES` with the source in both directions
    (`crates/podssh-cli/src/man/facts.rs:43-44`), so a variable that only the
    feature reads is in the manual only with the feature.
@@ -5004,7 +5004,7 @@ a hop. `doctor` has no line for a hop, so a user cannot see whether one is reach
 - Read: through the agent proxy of a cloud container, a CONNECT to `ssh.github.com:443` got `200`,
   and then a reset: `TODO/ws.md:1160` says "gets 200, then a reset". A proxy that waits for TLS
   carries no SSH on port 443; T-372 wraps SSH in TLS for it. Through the relay, GitHub's SSH on
-  port 443 answers (`docs/STATUS.md:110`).
+  port 443 answers (`docs/STATUS.md:111`).
 - Read: `doctor` asks the proxy for the relay and for `github.com` only
   (`crates/podssh-cli/src/doctor/net.rs:193-243`).
 - Read in GitHub #61 (a tester's measurement of 2026-10-31, from a host with direct egress; not
@@ -5366,8 +5366,9 @@ Read at `60c2414` on 2026-11-01.
   5 of the 7 failed against `ssserver`, among them each method's session, and 3 of the 8 of
   podssh-ws.
 - The gate's `ssh` step installs `shadowsocks-rust-ssserver` and `shadowsocks-rust-sslocal` and
-  names them (`PODSSH_TEST_SSSERVER`, `PODSSH_TEST_SSLOCAL`). clippy `-D warnings` of podssh-ws and
-  podssh-cli, rustfmt, cargo-deny (bans, licenses, sources): clean.
+  names them (`PODSSH_TEST_SSSERVER`, `PODSSH_TEST_SSLOCAL`); at `8ff4b0a` (run 41274675053) it
+  passed, Alpine's packages installed. clippy `-D warnings` of podssh-ws and podssh-cli, rustfmt,
+  cargo-deny (bans, licenses, sources): clean.
 
 # T-374: The quick tunnel's edge through WARP's tunnel, for a node whose cage reaches port 443 only
 

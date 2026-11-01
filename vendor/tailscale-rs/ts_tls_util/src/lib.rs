@@ -16,11 +16,46 @@ mod insecure;
 #[cfg(feature = "insecure")]
 pub use insecure::connect_insecure;
 
+/// The variable that names a test's CA file (podssh's patch 0027): a PEM file whose certificates
+/// join [`webpki_roots::TLS_SERVER_ROOTS`], so that a stand-in control server and its DERP server,
+/// of a CA of the test's own, are reached with TLS checked as before. Only a test sets it.
+pub const TEST_CA_VAR: &str = "PODSSH_TS_TEST_CA_FILE";
+
 static ROOT_CERT_STORE: LazyLock<Arc<RootCertStore>> = LazyLock::new(|| {
-    Arc::new(RootCertStore {
+    let mut roots = RootCertStore {
         roots: webpki_roots::TLS_SERVER_ROOTS.into(),
-    })
+    };
+    if let Some(path) = std::env::var_os(TEST_CA_VAR).filter(|path| !path.is_empty()) {
+        add_test_ca(&mut roots, std::path::Path::new(&path));
+    }
+    Arc::new(roots)
 });
+
+/// Add each certificate of the PEM file at `path` to `roots`. A file that cannot be read, or that
+/// holds no certificate, adds none and says so in the log: the handshakes with the test's servers
+/// then fail as of an unknown issuer, and none passes unchecked.
+fn add_test_ca(roots: &mut RootCertStore, path: &std::path::Path) {
+    use tokio_rustls::rustls::pki_types::{CertificateDer, pem::PemObject};
+
+    let pem = match std::fs::read(path) {
+        Ok(pem) => pem,
+        Err(e) => {
+            tracing::error!(path = %path.display(), error = %e, "the test CA file is not read");
+            return;
+        }
+    };
+    let mut certs: Vec<CertificateDer<'static>> = Vec::new();
+    for cert in CertificateDer::pem_slice_iter(&pem) {
+        match cert {
+            Ok(cert) => certs.push(cert),
+            Err(e) => {
+                tracing::error!(path = %path.display(), error = %e, "a test CA certificate is not read");
+            }
+        }
+    }
+    let (added, ignored) = roots.add_parsable_certificates(certs);
+    tracing::warn!(path = %path.display(), added, ignored, "test CA certificates added to the roots");
+}
 
 /// The crypto provider of each TLS config here, named rather than taken from the process default
 /// (podssh's patch 0018): rustls has no default when its build holds two providers, as a build

@@ -67,11 +67,9 @@ entry keeps its proof in the entry; this page keeps no history (git does).
   `draft/draft-warp`, `draft/draft-roads-cli` and `draft/draft-forwarder`, which this
   cloud session's git proxy would not delete.
 
-  Drafts being written (2026-11-01, by agents of this cloud session, each in
-  its own worktree): T-334 (the headscale stand-in); T-373's (`1be3e28`) is
-  merged;
-  their branches go to GitHub as `draft/<branch>` before the session ends,
-  as AGENTS.md asks, if they are not merged by then.
+  No draft waits (2026-11-01): T-373's (`1be3e28`) and T-334's (`4bddbb5`),
+  drafted by agents of this cloud session, are merged, and their worktrees
+  and branches are gone.
 
   CI: the gate passed at
   `24b9f6e` (run 38331509229), and its step `release` at `cad2885` (478
@@ -116,7 +114,7 @@ and `CARGO_BUILD_JOBS=4`:
 
 ## Counts
 
-`TODO/INDEX.md` holds 379 entries: 17 open, 1 partial, 31 blocked, 330 done.
+`TODO/INDEX.md` holds 380 entries: 17 open, 2 partial, 31 blocked, 330 done.
 
 Open includes parked work. `cargo todo check` verifies this line.
 

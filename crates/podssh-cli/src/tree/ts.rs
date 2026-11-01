@@ -21,6 +21,7 @@ pub(super) fn parsed(matches: &ArgMatches, refused: Vec<(String, &'static str, &
         state: get("ts-state"),
         ephemeral: matches.get_flag("ts-ephemeral"),
         relay: get("ts-relay"),
+        control_url: get("ts-control-url"),
         wait_allowlist: get("ts-wait-allowlist"),
         refused,
         timeout: get("timeout"),

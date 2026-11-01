@@ -4,6 +4,11 @@
 //! for each step as `podssh doctor` does. The chain reads the verdicts, and a
 //! mode that was not checked is not ready: starting in `tcp` and again in
 //! `relay` would register twice, and wait for a failure that has no limit.
+//! With `--ts-control-url`, `tcp` asks that server instead (T-334,
+//! [`super::control::reach`]).
+//!
+//! Each handshake is checked against podssh's own store, which takes a
+//! `podssh-ca.pem` beside the binary: a test's stand-in puts its CA there.
 
 use std::io::Write;
 use std::time::Duration;
@@ -15,6 +20,8 @@ use podssh_ws::client::open_tls;
 use podssh_ws::dial::authority;
 use podssh_ws::{ConnectError, ProxyChoice, Trust};
 
+use super::control::Server;
+
 /// The bound on each step, as on each probe of `podssh doctor`.
 pub const STEP: Duration = Duration::from_secs(8);
 
@@ -24,7 +31,7 @@ pub const DERP_MAP_HOST: &str = "login.tailscale.com";
 pub const DERP_MAP_PATH: &str = "/derpmap/default";
 
 /// The largest map read. The map of 2026-10-10 is 15 KB.
-const MAP_MAX: usize = 1024 * 1024;
+pub(crate) const MAP_MAX: usize = 1024 * 1024;
 
 /// DERP servers tried, each of another region, before `tcp` fails: one
 /// server that is down does not make the stock tailnet unreachable.
@@ -42,10 +49,13 @@ pub fn proxy_choice(proxy: Option<&TsProxy>) -> ProxyChoice {
 }
 
 /// Check the modes in chain order until one is ready, and return it; a
-/// later mode is not checked. With none ready, each verdict goes to `err`,
-/// and the result is the exit: 78, for a route that this host lacks.
+/// later mode is not checked. `control` is the server of
+/// `--ts-control-url`, or `None` for Tailscale's. With none ready, each
+/// verdict goes to `err`, and the result is the exit: 78, for a route that
+/// this host lacks.
 pub async fn select(
     modes: &[TsMode],
+    control: Option<&Server>,
     proxy: &ProxyChoice,
     deadline: Deadline,
     err: &mut dyn Write,
@@ -53,7 +63,7 @@ pub async fn select(
     // The key's presence was checked before: a missing flag is 77, not this.
     let mut inputs = ChainInputs { addrs: vec![], socks_endpoint: None, has_key: true, reach: Vec::new() };
     for mode in modes {
-        let verdict = reach(mode, proxy, deadline).await;
+        let verdict = reach(mode, control, proxy, deadline).await;
         inputs.reach.push((mode.clone(), verdict));
         if let Some(selected) = select_chain(modes, &inputs) {
             // A mode passed over is said once: the run then differs from
@@ -91,14 +101,18 @@ fn shown(verdict: &Verdict) -> String {
 }
 
 /// The network check of `mode` through `proxy`, each step in [`STEP`] and
-/// never past `deadline`. A failure says why; the mode's name says where.
-pub async fn reach(mode: &TsMode, proxy: &ProxyChoice, deadline: Deadline) -> Verdict {
-    match mode {
-        TsMode::Tcp => stock_derp(proxy, deadline).await,
-        TsMode::Relay { host, port } => match handshake(host, *port, proxy, deadline.limit(STEP)).await {
-            Ok(()) => Verdict::Ok,
-            Err(why) => Verdict::Fail(why),
-        },
+/// never past `deadline`; `tcp` asks `control` when there is one. A failure
+/// says why; the mode's name says where.
+pub async fn reach(mode: &TsMode, control: Option<&Server>, proxy: &ProxyChoice, deadline: Deadline) -> Verdict {
+    match (mode, control) {
+        (TsMode::Tcp, None) => stock_derp(proxy, deadline).await,
+        (TsMode::Tcp, Some(server)) => super::control::reach(server, &Trust::Default, proxy, deadline).await,
+        (TsMode::Relay { host, port }, _) => {
+            match handshake(host, *port, &Trust::Default, proxy, deadline.limit(STEP)).await {
+                Ok(()) => Verdict::Ok,
+                Err(why) => Verdict::Fail(why),
+            }
+        }
     }
 }
 
@@ -123,7 +137,20 @@ async fn stock_derp(proxy: &ProxyChoice, deadline: Deadline) -> Verdict {
         Ok(Err(e)) => return Verdict::Fail(format!("{from}: {}", connect_error(&e))),
         Err(_) => return Verdict::Fail(format!("{from}: no answer within {}", seconds(limit))),
     };
-    let servers = derp_servers(&map, DERP_TRIES);
+    try_servers(&from, "stock DERP server", &map, &Trust::Default, proxy, deadline).await
+}
+
+/// A handshake with up to [`DERP_TRIES`] DERP servers of `map`, read from
+/// `from`, in one step, until one answers; `what` names them when none does.
+pub(crate) async fn try_servers(
+    from: &str,
+    what: &str,
+    map: &[u8],
+    trust: &Trust,
+    proxy: &ProxyChoice,
+    deadline: Deadline,
+) -> Verdict {
+    let servers = derp_servers(map, DERP_TRIES);
     if servers.is_empty() {
         return Verdict::Fail(format!("{from} names no DERP server"));
     }
@@ -131,21 +158,22 @@ async fn stock_derp(proxy: &ProxyChoice, deadline: Deadline) -> Verdict {
     let mut reasons = Vec::new();
     for (host, port) in &servers {
         let left = until.saturating_duration_since(tokio::time::Instant::now());
-        match handshake(host, *port, proxy, left).await {
+        match handshake(host, *port, trust, proxy, left).await {
             Ok(()) => return Verdict::Ok,
             Err(why) => reasons.push(format!("{}: {why}", authority(host, *port))),
         }
     }
-    Verdict::Fail(format!("no stock DERP server answered: {}", reasons.join("; ")))
+    Verdict::Fail(format!("no {what} answered: {}", reasons.join("; ")))
 }
 
-/// TCP through the proxy and a verified TLS handshake, all in `limit`.
-async fn handshake(host: &str, port: u16, proxy: &ProxyChoice, limit: Duration) -> Result<(), String> {
+/// TCP through the proxy and a TLS handshake checked against `trust`, all
+/// in `limit`.
+async fn handshake(host: &str, port: u16, trust: &Trust, proxy: &ProxyChoice, limit: Duration) -> Result<(), String> {
     if limit.is_zero() {
         return Err("not tried, the bound had passed".to_string());
     }
     // `open_tls` bounds its dial and its handshake each; the step bounds both.
-    match tokio::time::timeout(limit, open_tls(host, port, host, &Trust::Default, proxy, limit)).await {
+    match tokio::time::timeout(limit, open_tls(host, port, host, trust, proxy, limit)).await {
         Ok(Ok(_stream)) => Ok(()),
         Ok(Err(e)) => Err(connect_error(&e)),
         Err(_) => Err(format!("no TLS handshake within {}", seconds(limit))),
@@ -153,12 +181,12 @@ async fn handshake(host: &str, port: u16, proxy: &ProxyChoice, limit: Duration) 
 }
 
 /// A limit as the messages say it, in whole seconds rounded up.
-fn seconds(limit: Duration) -> String {
+pub(crate) fn seconds(limit: Duration) -> String {
     format!("{} s", limit.as_secs_f32().ceil())
 }
 
 /// A connect error, said for any server: its own text names the relay.
-fn connect_error(e: &ConnectError) -> String {
+pub(crate) fn connect_error(e: &ConnectError) -> String {
     match e {
         ConnectError::Tls(why) => format!("TLS: {why}"),
         other => other.to_string(),

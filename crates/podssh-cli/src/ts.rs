@@ -25,6 +25,7 @@ use podssh_ts::wait::{Deadline, FIRST_MAP_WAIT};
 use crate::exit_codes::{EXIT_NOT_IMPLEMENTED, EXIT_USAGE};
 use crate::pager::Tty;
 
+pub mod control;
 pub mod exits;
 pub mod links;
 pub mod probe;
@@ -42,6 +43,7 @@ pub struct TsArgs {
     pub state: Option<String>,
     pub ephemeral: bool,
     pub relay: Option<String>,
+    pub control_url: Option<String>,
     pub wait_allowlist: Option<String>,
     pub timeout: Option<String>,
     pub jsonl: bool,
@@ -102,12 +104,25 @@ async fn ts_async(
         );
         return EXIT_NOT_IMPLEMENTED;
     }
+    // The relay and the control server, read before the network as the key
+    // and the proxy are (T-334); a refusal names the part, never the URL.
+    let relay = match control::host_port(a.relay.as_deref().unwrap_or("tcp.ts.relay.ajam.dev"), 443) {
+        Ok(r) => r,
+        Err(why) => {
+            let _ = writeln!(err, "podssh ts: --ts-relay: {why}.");
+            return EXIT_USAGE;
+        }
+    };
+    let control_server = match a.control_url.as_deref().map(control::control_url).transpose() {
+        Ok(c) => c,
+        Err(why) => {
+            let _ = writeln!(err, "podssh ts: --ts-control-url: {why}.");
+            return EXIT_USAGE;
+        }
+    };
     // Mode → selection. `tun`/`socks` parse (closed values) but their daemon
     // mechanisms do not exist yet: capability, not usage — the flag was fine.
-    let relay_mode = podssh_ts::config::TsMode::Relay {
-        host: a.relay.clone().unwrap_or_else(|| "tcp.ts.relay.ajam.dev".to_string()),
-        port: 443,
-    };
+    let relay_mode = podssh_ts::config::TsMode::Relay { host: relay.host, port: relay.port };
     let forced = match a.mode.as_str() {
         "auto" => None,
         "tcp" => Some(podssh_ts::config::TsMode::Tcp),
@@ -198,17 +213,23 @@ async fn ts_async(
         Some(m) => vec![m.clone()],
         None => podssh_ts::chain::default_chain(relay_mode),
     };
-    let selected = match probe::select(&modes, &probe::proxy_choice(proxy.as_ref()), deadline, err).await {
+    // A test's CA beside the node's roots is an extra trust anchor: said.
+    if let Some(line) = control::test_ca_notice(|n| std::env::var(n).ok()) {
+        let _ = writeln!(err, "{line}");
+    }
+    let choice = probe::proxy_choice(proxy.as_ref());
+    let selected = match probe::select(&modes, control_server.as_ref(), &choice, deadline, err).await {
         Ok(m) => m,
         Err(code) => return code,
     };
     // A drop of a link, and its return, are said on stderr while the node runs, from its start
     // on: a start that waits says why (T-104).
     let (link_events, changes) = tokio::sync::broadcast::channel(64);
+    let (refusal, watcher) = links::watch_refusal(link_events.subscribe());
     let printer = tokio::spawn(links::print(changes));
     let cfg = podssh_ts::config::TsConfig {
         state_file: state_path.into(),
-        control_url: None,
+        control_url: control_server.as_ref().map(control::url_of),
         hostname: None,
         ephemeral: a.ephemeral,
         mode: selected,
@@ -238,7 +259,11 @@ async fn ts_async(
     key.expire();
     let node = match started {
         Ok(n) => n,
-        Err(e) => return node_error_exit(&e, err),
+        Err(e) => {
+            let code = node_error_exit(&e, err);
+            watcher.abort();
+            return exits::refused_instead(code, &refusal, err);
+        }
     };
     // The first network map may never come: each wait for it gets the
     // allowlist's window, else `FIRST_MAP_WAIT`, and never more than remains.
@@ -246,12 +271,13 @@ async fn ts_async(
     let code = if let Some(target) = a.w_target.as_deref() {
         pipe_form(&node, target, err, deadline, window).await
     } else {
-        status_form(&node, out, err, deadline, window, wait.is_some(), a.jsonl).await
+        status_form(&node, out, err, deadline, window, a.jsonl).await
     };
     // Each form ends here, after an error too (T-102).
     printer.abort();
+    watcher.abort();
     end(node, err).await;
-    code
+    exits::refused_instead(code, &refusal, err)
 }
 
 /// How long the fork's actors get to stop at the end of a run.
@@ -297,16 +323,17 @@ fn trim_key(raw: &mut Vec<u8>) {
 }
 
 /// Bare `podssh ts`: one machine-readable line on stdout. The first network
-/// map is awaited for `window`, never past the deadline; with
-/// `--ts-wait-allowlist` (`poll`), a map with no home region yet is polled
-/// until the window ends, and with none the first answer decides.
+/// map is awaited for `window` (`--ts-wait-allowlist`, else
+/// `FIRST_MAP_WAIT`), never past the deadline, and a map with no home region
+/// yet is polled until the window ends: a control server sets the region
+/// once the node reports its DERP home, in a later map (headscale does,
+/// T-334), so the first answer may come too early.
 async fn status_form(
     node: &podssh_ts::node::TsNode,
     out: &mut dyn Write,
     err: &mut dyn Write,
     deadline: Deadline,
     window: Duration,
-    poll: bool,
     jsonl: bool,
 ) -> i32 {
     let until = tokio::time::Instant::now() + deadline.limit(window);
@@ -325,7 +352,7 @@ async fn status_form(
             }
             Err(podssh_ts::node::NodeError::NetmapPending) => {
                 let left = until.saturating_duration_since(tokio::time::Instant::now());
-                if !poll || left.is_zero() {
+                if left.is_zero() {
                     return no_map(err);
                 }
                 // 2 s poll cadence: a v1 design constant, not a measurement —

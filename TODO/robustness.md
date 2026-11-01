@@ -55,7 +55,7 @@ compiler.
    consumes at most its input, and a control frame has FIN and 125 bytes or
    fewer (fails until T-063); `forward_path` after `parse_relay_list` has the
    form `/connect/HOST/PORT`; `one_line` leaves no control character
-   (`SECURITY.md:114-117`); `Reassembler::push` stays under a stated limit
+   (`SECURITY.md:117-120`); `Reassembler::push` stays under a stated limit
    (fails until T-096); the command line target calls `parse`, never the
    dispatch, so no target reaches the network.
 3. Reach a private parser through a wrapper under `#[cfg(fuzzing)]`, which
@@ -335,7 +335,7 @@ Read:
   through it. The raw state is a global (`raw_active`), so a test cannot set
   it from outside.
 - `crates/podssh-ws/src/text.rs:12-51` is the one sanitizer for text from a
-  peer (`SECURITY.md:114-117`).
+  peer (`SECURITY.md:117-120`).
 - docs/terminal.md gives the redraw sequence and the refusals of the line
   discipline (`docs/terminal.md:169-265`). T-127 (the cursor counts bytes) and
   T-129 (Home and End do not move the screen's cursor) are screen defects.
@@ -843,7 +843,7 @@ Read:
   names and answers a status (`scripts/fake-proxy.py:1-27`). Neither shapes
   the traffic.
 - `scripts/interop-faults.sh:35-44` starts one stand-in for each fault; its
-  checks are at lines 73-182 at `8d668b7` (`docs/STATUS.md:532-552`, 14 of 14 since T-236).
+  checks are at lines 73-182 at `8d668b7` (`docs/STATUS.md:533-553`, 14 of 14 since T-236).
 - The time limits that latency meets today: the SSH handshake, 60 s
   (`crates/podssh-ssh/src/options.rs:379`, enforced at
   `crates/podssh-ssh/src/run.rs:392-398`); a reply, 30 s
@@ -977,7 +977,7 @@ Read, each claim of GitHub #34 at the lines as they are now:
 - `crates/podssh-ssh/src/io/msg.rs:35-42`, with `crates/podssh-ssh/src/io.rs:64-66`,
   maps an exit status that does not fit
   (the -1 of `railway.new`) to 255, and an exit signal to 128 plus its number
-  (`docs/STATUS.md:91`, `docs/STATUS.md:96`).
+  (`docs/STATUS.md:92`, `docs/STATUS.md:97`).
 - A correction to the framing of #34: for a signal, podssh differs from
   OpenSSH on purpose. `docs/cli.md:2990-2991` says 128 plus the signal's number,
   and that OpenSSH gives 255. `crates/podssh-ssh/src/lib.rs:16` says that the

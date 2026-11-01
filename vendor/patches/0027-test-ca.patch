@@ -1,0 +1,66 @@
+diff --git a/ts_tls_util/README.md b/ts_tls_util/README.md
+index a016944..e7d05e8 100644
+--- a/ts_tls_util/README.md
++++ b/ts_tls_util/README.md
+@@ -20,3 +20,7 @@ directly, or [`native-tls`].
+ a root-of-trust. These are the same root certificates trusted by Mozilla. This crate currently
+ **does not** check Certificate Revocation Lists (CRLs) to determine if any of the root
+ certificates have been revoked.
++
++podssh's patch 0027: when the variable `PODSSH_TS_TEST_CA_FILE` names a PEM file, its
++certificates join those roots, for a test's stand-in control server of a CA of its own. Only a
++test sets it; each certificate is still checked, against the roots and these.
+diff --git a/ts_tls_util/src/lib.rs b/ts_tls_util/src/lib.rs
+index 0a4dea4..fa579aa 100644
+--- a/ts_tls_util/src/lib.rs
++++ b/ts_tls_util/src/lib.rs
+@@ -16,12 +16,47 @@ mod insecure;
+ #[cfg(feature = "insecure")]
+ pub use insecure::connect_insecure;
+ 
++/// The variable that names a test's CA file (podssh's patch 0027): a PEM file whose certificates
++/// join [`webpki_roots::TLS_SERVER_ROOTS`], so that a stand-in control server and its DERP server,
++/// of a CA of the test's own, are reached with TLS checked as before. Only a test sets it.
++pub const TEST_CA_VAR: &str = "PODSSH_TS_TEST_CA_FILE";
++
+ static ROOT_CERT_STORE: LazyLock<Arc<RootCertStore>> = LazyLock::new(|| {
+-    Arc::new(RootCertStore {
++    let mut roots = RootCertStore {
+         roots: webpki_roots::TLS_SERVER_ROOTS.into(),
+-    })
++    };
++    if let Some(path) = std::env::var_os(TEST_CA_VAR).filter(|path| !path.is_empty()) {
++        add_test_ca(&mut roots, std::path::Path::new(&path));
++    }
++    Arc::new(roots)
+ });
+ 
++/// Add each certificate of the PEM file at `path` to `roots`. A file that cannot be read, or that
++/// holds no certificate, adds none and says so in the log: the handshakes with the test's servers
++/// then fail as of an unknown issuer, and none passes unchecked.
++fn add_test_ca(roots: &mut RootCertStore, path: &std::path::Path) {
++    use tokio_rustls::rustls::pki_types::{CertificateDer, pem::PemObject};
++
++    let pem = match std::fs::read(path) {
++        Ok(pem) => pem,
++        Err(e) => {
++            tracing::error!(path = %path.display(), error = %e, "the test CA file is not read");
++            return;
++        }
++    };
++    let mut certs: Vec<CertificateDer<'static>> = Vec::new();
++    for cert in CertificateDer::pem_slice_iter(&pem) {
++        match cert {
++            Ok(cert) => certs.push(cert),
++            Err(e) => {
++                tracing::error!(path = %path.display(), error = %e, "a test CA certificate is not read");
++            }
++        }
++    }
++    let (added, ignored) = roots.add_parsable_certificates(certs);
++    tracing::warn!(path = %path.display(), added, ignored, "test CA certificates added to the roots");
++}
++
+ /// The crypto provider of each TLS config here, named rather than taken from the process default
+ /// (podssh's patch 0018): rustls has no default when its build holds two providers, as a build
+ /// beside a crate that turns on `ring` does, and each config built without one then panics.
