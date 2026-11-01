@@ -62,15 +62,15 @@ repository and CI).
 
 ## Counts
 
-**407 entries: 24 open, 2 partial, 31 blocked, 350 done.**
+**407 entries: 23 open, 2 partial, 31 blocked, 351 done.**
 
 | Priority | open | partial | blocked | done | total |
 | --- | --- | --- | --- | --- | --- |
 | P0 | 0 | 0 | 0 | 1 | 1 |
 | P1 | 1 | 1 | 0 | 37 | 39 |
 | P2 | 5 | 0 | 21 | 172 | 198 |
-| P3 | 18 | 1 | 10 | 140 | 169 |
-| **All** | 24 | 2 | 31 | 350 | 407 |
+| P3 | 17 | 1 | 10 | 141 | 169 |
+| **All** | 23 | 2 | 31 | 351 | 407 |
 
 ## Entries
 
@@ -477,7 +477,7 @@ repository and CI).
 | [T-403](robustness.md) | P3 | S | none | defect | done | The Cap'n Proto reader allocates for each element of a list before it reads one; fuzz targets for the quick tunnel's parsers |
 | [T-404](roads.md) | P3 | S | none | chore | done | The quick tunnel's registration: the features of cloudflared 2026.10.7, and an answer to a push of configuration |
 | [T-405](ws.md) | P3 | S | none | defect | done | DoH asks by an address, which a proxy that refuses addresses refuses |
-| [T-406](roads.md) | P3 | S | none | docs | open | The edge's facts that cfrs's testers measured, in the design as a third party's |
+| [T-406](roads.md) | P3 | S | none | docs | done | The edge's facts that cfrs's testers measured, in the design as a third party's |
 | [T-407](relay.md) | P3 | S | none | defect | done | A relay's Retry-After reaches a line as it came, with its terminal controls |
 | [T-408](roads.md) | P3 | S | none | defect | open | The quick tunnel's server keeps h2's own budget of small frames |
 | [T-409](reverse.md) | P1 | S | none | defect | done | A node that the relay closes for a fault (1003, 1009) ends for good |

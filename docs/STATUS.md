@@ -736,6 +736,7 @@ box's proxy stands for the measured cage's policy.
 | cloudflared with no `--protocol` | QUIC, registered at `ord07` in 4 s; the page at 7 s; nothing through the proxy; each precheck passed |
 | The relay (`podssh relay trace`, then TLS over `podssh proxy`) to 7844 | The VPC road dialed each address; TLS 1.3 verified in 525 to 617 ms, then the edge's client preface |
 | Not run | QUIC from a client of podssh's own, a WebSocket through the name, the bytes of a registration (they hold the tunnel's secret: T-300), and a cage |
+| A third party's measurements, not podssh's (T-406, read 2026-11-01) | Eight facts of the edge that cfrs's testers measured on 2026-10-31 and 2026-11-01 (the API's 429 with a Retry-After of up to 2994 s, the Version Negotiation of 27 bytes, several connections of one tunnel, cfrs's list of features, 1.1.1.1's certificate for the API's name, the Worker's 500, a new name's first seconds, 413 over 512 MiB), each with its issue and the entry that acts on it: [design.md](design.md), "Measured by cfrs's testers" |
 
 ## The relay
 

@@ -226,7 +226,7 @@ an account; an account-less quick tunnel falls under the Online Services
 Terms, which cloudflared's notice names (INFERRED). No clause that the
 research read names another client. Whether a connector of podssh's own is a
 forbidden means is the operator's call (Q43). A limit on how often a tunnel can be made: not documented, not
-verified. cloudflared makes one connection for a quick tunnel, where a named
+verified by podssh; cfrs's testers met one ("Measured by cfrs's testers", below). cloudflared makes one connection for a quick tunnel, where a named
 tunnel makes four (`quick_tunnel.go:221-223`, `cmd.go:781-785`). The
 protocol below is not a published contract: cloudflared is its only
 documented client, so podssh would pin it, as it pins the relay's.
@@ -488,6 +488,25 @@ podssh does not choose the road.
 cage has no UDP. A WebSocket through the name: T-300's tests carry one. The
 bytes of a registration: they hold the tunnel's secret, so their capture
 waits for the operator's machine (item 5 of T-299's Approach).
+
+**Measured by cfrs's testers, not by podssh** (read on 2026-11-01 in the
+issues of GitHub `Azathothas/cfrs`, a connector of Cloudflare's tunnels in
+Rust, T-406). These facts of Cloudflare's edge are a third party's: its
+testers measured them with cfrs, on their hosts and in cfrs's runs of
+GitHub Actions, and podssh did not repeat them. Each row names the issue,
+the day of the measurement, and the entry of podssh's code that acts on
+it, where one does.
+
+| Fact | cfrs's issue | Day | podssh |
+| --- | --- | --- | --- |
+| `api.trycloudflare.com` limits a host that made a few tunnels: after about eight quick tunnels in 20 minutes, through a CONNECT proxy, it answered 429 with the body `error code: 1015` and `retry-after: 2994` (about 50 minutes), captured with curl at 15:17 UTC. With no proxy, after about 25 tunnels in 80 minutes from one address, each request got the same 429 for about 35 minutes. Another 429 asked 1542 s; another came once, and the next request got a tunnel | #42 (the report and a comment), #57, #48 (a comment) | 2026-10-31, 2026-11-01 | T-401: a 429 or a 5xx is asked again for 5 minutes, after its `Retry-After`; a longer wait ends the node with 75 |
+| UDP to the edge's port 7844 answers a QUIC packet of a reserved version (`0x1a2a3a4a`, padded to 1200 bytes) with a Version Negotiation of 27 bytes, in one round trip | #12 (comments), #14 (run 41268348982) | 2026-11-01 | T-400: a probe of UDP before QUIC |
+| The edge takes 1, 2 and 4 connections of one quick tunnel (cfrs's `--ha-connections`), over QUIC; one stream's rate and that of 12 clients at once were the same with each (4 to 8 MB/s, 5.3 to 5.6 MB/s). cloudflared makes one (above) | #54 | 2026-11-01 | T-402: a second connection, to another region |
+| The edge registers a connection whose list of features is `support_datagram_v2` alone, cfrs's list. cloudflared 2026.10.7 names none by default (T-404, read in its `features/selector.go`) | #14 (runs 41268348982 and 41270032709) | 2026-11-01 | T-404: podssh names the five of its pin's release |
+| 1.1.1.1 serves a certificate valid for `api.trycloudflare.com`: a check of TLS at that address with that name passed, so an address of Cloudflare's own does not show a wrong pin of an address to that name; cfrs's test took 8.8.8.8 instead | #52 (run 41258345707) | 2026-11-01 | None: podssh checks the name, which any address of Cloudflare's passes (INFERRED) |
+| An origin that closed in the middle of a response: the visitor got HTTP/2 500 in 0.156 s, with the body `Error: Network connection lost.` and the stack of a Worker, the quick tunnel's own (`at async handleRequest (index.js:1402:18)` and two more lines), not the connector's | #47 (a comment) | 2026-11-01 | None: a visitor of podssh's node is a WebSocket, and the body of a refused upgrade reaches a line through `one_line`, cut at 200 characters, in podssh-ws's client (`crates/podssh-ws/src/client.rs`) |
+| A new name does not resolve for a few seconds after the tunnel is made: curl said "Could not resolve host" twice, then got 200 seconds later; through a CONNECT proxy, the proxy answered 502 ("the name did not resolve"), and the name resolved about two minutes later | #48 (the report and a comment) | 2026-10-31, 2026-11-01 | None. T-299's two runs of cloudflared reached the page at the 4th and the 2nd try, 12 and 7 s after the start (above) |
+| A request whose body is over 512 MiB gets 413 "Payload Too Large" from the edge, before cfrs's own check of the size: an upload of 536,870,913 bytes got it after 1,212,064 bytes were sent, its first byte 0.081 s after the start | #58 | 2026-11-01 | None: a visitor's WebSocket carries no request body after its upgrade (INFERRED: the limit is of a request's body) |
 
 ## 3. The core as a library for podbox
 
