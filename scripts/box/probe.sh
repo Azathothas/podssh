@@ -57,9 +57,15 @@ dd if=/dev/tty of=/dev/null bs=1 count=1 >"$out" 2>&1 &
 ddpid=$!
 sleep 5
 if kill -0 "$ddpid" 2>/dev/null; then
-    kill -KILL "$ddpid" 2>/dev/null
-    wait "$ddpid" 2>/dev/null
-    rc=124
+    # A kill that the host refuses (an AppArmor profile did on GitHub's
+    # runner) is said, never waited on: the read would last as long as the
+    # pty's holder.
+    if kill -KILL "$ddpid" 2>/dev/null; then
+        wait "$ddpid" 2>/dev/null
+        rc=124
+    else
+        rc=refused
+    fi
 else
     wait "$ddpid"
     rc=$?
@@ -74,6 +80,8 @@ case $rc in
             differs /dev/tty "the controlling terminal (tty_nr $ctty)" "no controlling terminal"
         fi
         ;;
+    refused) differs /dev/tty "the box may not signal its own read of it (a security profile of the host)" \
+        "opens, and no byte within 10 s" ;;
     *) differs /dev/tty "$(printf '%s' "${tty:-exit $rc}" | head -n 1)" "opens, and no byte within 10 s" ;;
 esac
 

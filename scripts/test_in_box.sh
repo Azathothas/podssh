@@ -241,9 +241,19 @@ echo "== in the box"
 # The host's proxy reads TLS, so podssh in the box trusts its CA too: a
 # difference from the sandbox, said here.
 set --
+# Podman's default AppArmor profile, with no-new-privileges and no
+# capabilities, refused the box's own kill of its child on GitHub's runner
+# (Ubuntu's kernel 7.0, measured 2026-11-01: "can't kill pid 2: Permission
+# denied"), so a read of the dead /dev/tty outlived its bound and the box
+# waited for the pty's holder (T-415). The sandbox's record names no such
+# profile, and no property that the box stands for depends on it.
+if [ "$(timeout 60 podman info --format '{{.Host.Security.AppArmorEnabled}}' 2>/dev/null)" = true ]; then
+    echo "AppArmor is on here: the box runs with no AppArmor profile, so that it can signal its own processes"
+    set -- --security-opt apparmor=unconfined
+fi
 if [ -n "$HOST_CA" ]; then
     echo "podssh in the box trusts the CA of the host's proxy too (SSL_CERT_FILE)"
-    set -- --mount "type=bind,source=$(hostpath "$HOST_CA"),target=/etc/podssh-host-ca.crt,readonly" \
+    set -- "$@" --mount "type=bind,source=$(hostpath "$HOST_CA"),target=/etc/podssh-host-ca.crt,readonly" \
         -e SSL_CERT_FILE=/etc/podssh-host-ca.crt
 fi
 timeout 1800 podman run --rm --name "$BOX" --network "$NET" "$@" \
