@@ -91,7 +91,8 @@ impl server::Handler for Far {
         self.late = user.starts_with("late-");
         self.su = user.starts_with("su-");
         self.nopass = user.starts_with("sudo-nopass-");
-        self.pty = user.starts_with("pty-");
+        // `pass-pty-...` is both: a password, then a pty (T-382).
+        self.pty = user.trim_start_matches("pass-").starts_with("pty-");
         self.evil = user.starts_with("evil-");
         self.containers = user.starts_with("containers-").then(|| user.to_string());
         self.nofwd = pass::refuses_forwarding(user);

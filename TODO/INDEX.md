@@ -62,15 +62,15 @@ repository and CI).
 
 ## Counts
 
-**379 entries: 21 open, 1 partial, 31 blocked, 326 done.**
+**379 entries: 20 open, 1 partial, 31 blocked, 327 done.**
 
 | Priority | open | partial | blocked | done | total |
 | --- | --- | --- | --- | --- | --- |
 | P0 | 0 | 0 | 0 | 1 | 1 |
 | P1 | 2 | 0 | 0 | 29 | 31 |
-| P2 | 4 | 0 | 21 | 164 | 189 |
+| P2 | 3 | 0 | 21 | 165 | 189 |
 | P3 | 15 | 1 | 10 | 132 | 158 |
-| **All** | 21 | 1 | 31 | 326 | 379 |
+| **All** | 20 | 1 | 31 | 327 | 379 |
 
 ## Entries
 
@@ -453,5 +453,5 @@ repository and CI).
 | [T-379](roads.md) | P2 | L | backlog | feature | done | The DERP road in the command line, in the race of T-164, and as the fallback that Q50 allows |
 | [T-380](cli.md) | P2 | L | backlog | feature | done | `--detach`: a run of podssh sent into the background by podssh itself |
 | [T-381](cli.md) | P3 | M | backlog | feature | blocked | `--detach` on Linux leaves the session's scope of systemd, as tmux does |
-| [T-382](cli.md) | P2 | M | backlog | defect | open | `podssh session start` asks no prompt, and on Windows stays in the caller's job |
+| [T-382](cli.md) | P2 | M | backlog | defect | done | `podssh session start` asks no prompt, and on Windows stays in the caller's job |
 | [T-383](cli.md) | P2 | S | backlog | measurement | open | `--detach` on Windows and macOS, measured in GitHub Actions |

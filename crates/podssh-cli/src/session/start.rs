@@ -127,20 +127,13 @@ async fn pass_on(said: &mut Lines<BufReader<ChildStderr>>, err: &mut dyn Write, 
     let _ = tokio::time::timeout(limit, copy).await;
 }
 
-/// The child leaves this process's session: a new session has no
-/// controlling terminal, so the terminal's hangup and its signals do not
-/// reach the daemon, and no prompt opens `/dev/tty`.
+/// The child stays in this process's session until it is ready (T-382):
+/// a password, a passphrase or a host key is asked on this terminal, as
+/// `podssh ssh` asks them, and Ctrl-C before ready reaches it too. It leaves
+/// the session at ready ([`leave`]), so the terminal's hangup and its
+/// signals then reach it no more.
 #[cfg(unix)]
-fn detach_child(cmd: &mut tokio::process::Command) {
-    // SAFETY: setsid is async-signal-safe and touches no memory, as
-    // pre_exec asks.
-    unsafe {
-        cmd.pre_exec(|| {
-            libc::setsid();
-            Ok(())
-        });
-    }
-}
+fn detach_child(_: &mut tokio::process::Command) {}
 
 /// A process with no console, in a group of its own: the console's Ctrl-C
 /// and its close do not reach the daemon, and no prompt opens `CONIN$`.
@@ -176,7 +169,9 @@ fn keep_own_handles() {}
 
 /// After its line of ready, a daemon that `start` runs writes nothing more
 /// on stdout and stderr: `start` has gone, and a program that reads them to
-/// their end would wait for the daemon. Both go to the null device.
+/// their end would wait for the daemon. Both go to the null device. Then it
+/// leaves the starter's session and terminal (T-382): `setsid`, and SIGHUP
+/// ignored, as a session's leader that a terminal would still reach.
 #[cfg(unix)]
 pub(super) fn leave() {
     use std::os::fd::AsRawFd;
@@ -185,6 +180,12 @@ pub(super) fn leave() {
         // SAFETY: dup2 of an open file onto a standard descriptor of this
         // process; a failure leaves that descriptor as it was.
         unsafe { libc::dup2(null.as_raw_fd(), fd) };
+    }
+    // SAFETY: setsid has no precondition (a group's leader, which this
+    // child is not, would only see it fail); the action of one signal.
+    unsafe {
+        libc::setsid();
+        libc::signal(libc::SIGHUP, libc::SIG_IGN);
     }
 }
 

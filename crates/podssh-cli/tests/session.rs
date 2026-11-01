@@ -12,6 +12,8 @@
 //! (`scripts/interop-session.sh`).
 
 mod cleanup;
+#[cfg(target_os = "linux")]
+mod pty_harness;
 mod ssh_harness;
 
 use std::path::{Path, PathBuf};
@@ -236,4 +238,64 @@ fn a_start_that_cannot_connect_exits_255_and_leaves_no_socket() {
     assert!(err.contains("podssh: "), "the session's podssh said why: {err}");
     assert!(!home.join("cache").join("sessions").join("c.sock").exists(), "a socket stayed");
     assert_eq!(session(&home, &["list"]).1, "");
+}
+
+/// T-382: a login that asks a password on the terminal starts a session:
+/// the child keeps the starter's terminal until it is ready, and leaves its
+/// session then, so a hangup of that terminal reaches it no more.
+#[cfg(target_os = "linux")]
+#[test]
+fn start_asks_a_password_on_the_terminal_then_leaves_it() {
+    use std::os::unix::process::CommandExt;
+    let home = scratch("prompt");
+    let (_runtime, port, _) = server(&home);
+    let destination = format!("pass-pty-u@127.0.0.1:{port}");
+    let known = format!("UserKnownHostsFile={}", home.join("known_hosts").display());
+    let accept = "StrictHostKeyChecking=accept-new";
+    let mut cmd =
+        podssh(&home, &["session", "start", "p", "--direct", "-o", &known, "-o", accept, &destination, "cat"]);
+    // The pty is the starter's controlling terminal, as a terminal's window
+    // makes it.
+    // SAFETY: setsid and an ioctl on stdin, both async-signal-safe.
+    unsafe {
+        cmd.pre_exec(|| {
+            libc::setsid();
+            libc::ioctl(0, libc::TIOCSCTTY, 0);
+            Ok(())
+        });
+    }
+    let mut pty = pty_harness::Pty::start(cmd, 24, 80);
+    let _stopped = Stopped(&home, "p");
+    assert!(pty.expect("password:", LIMIT), "no prompt on the terminal: {}", pty.text());
+    pty.send(format!("{}\r", ssh_harness::pass::PASSWORD).as_bytes());
+    assert_eq!(pty.wait(LIMIT), Some(0), "{}", pty.text());
+    let (code, out, err) = session(&home, &["list"]);
+    assert_eq!(code, 0, "{err}");
+    assert!(out.contains('p'), "{out}");
+    // The daemon left the starter's session: its own session now.
+    let pid = daemon_pid(&home, "p");
+    // SAFETY: reads of session ids.
+    let (daemon, starter) = unsafe { (libc::getsid(pid), libc::getsid(0)) };
+    assert_eq!(daemon, pid, "the daemon leads no session of its own");
+    assert_ne!(daemon, starter);
+}
+
+/// The pid of the podssh that serves session `name`, from the processes'
+/// command lines.
+#[cfg(target_os = "linux")]
+fn daemon_pid(home: &Path, name: &str) -> i32 {
+    let want = home.join("cache").display().to_string();
+    for entry in std::fs::read_dir("/proc").unwrap().flatten() {
+        let Ok(pid) = entry.file_name().to_string_lossy().parse::<i32>() else { continue };
+        let Ok(cmdline) = std::fs::read(format!("/proc/{pid}/cmdline")) else { continue };
+        let words: Vec<String> = cmdline.split(|b| *b == 0).map(|w| String::from_utf8_lossy(w).into_owned()).collect();
+        let serving = words.iter().any(|w| w == "serve") && words.iter().any(|w| w == name);
+        let ours = std::fs::read(format!("/proc/{pid}/environ"))
+            .map(|e| String::from_utf8_lossy(&e).contains(&want))
+            .unwrap_or(false);
+        if serving && ours {
+            return pid;
+        }
+    }
+    panic!("no daemon of {name}");
 }

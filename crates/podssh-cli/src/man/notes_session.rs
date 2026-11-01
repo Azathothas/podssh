@@ -7,8 +7,11 @@ pub const SESSION: &[&str] = &[
      session with a pty: the login shell, or COMMAND. start returns once the session is ready, with the path of \
      its socket on stdout; what the session's podssh says until then comes on stderr, and its exit code is \
      start's when it ends first (255 for a connection or a login that failed). The pty's size is that of \
-     COLUMNS and LINES, else 80 by 24. A prompt opens no terminal: a key's passphrase comes from podssh agent or \
-     SSH_ASKPASS, and a new host key needs StrictHostKeyChecking=accept-new or a known_hosts that has it.",
+     COLUMNS and LINES, else 80 by 24. Until it is ready, the session's podssh keeps start's terminal: a \
+     password, a key's passphrase and a new host key are asked there, as podssh ssh asks them (within \
+     --timeout), and Ctrl-C reaches it; then it leaves that terminal and its session. With no terminal, they \
+     come from podssh agent or SSH_ASKPASS, and a new host key needs StrictHostKeyChecking=accept-new or a \
+     known_hosts that has it.",
     "send NAME TEXT types TEXT and Enter (a carriage return; --no-enter leaves it out). In TEXT, \\r, \\n, \\t, \
      \\e (Escape), \\xNN (\\x03 is Ctrl-C) and \\\\ give the bytes they name; each other \\ is refused. send NAME \
      with no TEXT types stdin as it is: a password goes so, never in a command line, which each process can \

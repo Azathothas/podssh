@@ -6,6 +6,8 @@
 #![cfg(unix)]
 
 mod cleanup;
+#[cfg(target_os = "linux")]
+mod pty_harness;
 mod ssh_harness;
 
 use std::io::Read;
@@ -239,4 +241,46 @@ fn a_failure_before_ready_is_the_parent_s_code_and_f_needs_work() {
     let err = String::from_utf8_lossy(&out.stderr).into_owned();
     assert_eq!(out.status.code(), Some(64), "{err}");
     assert!(err.contains("with a command or -N"), "{err}");
+}
+
+/// `-f` asks a password on the terminal before it goes to the background,
+/// as OpenSSH's does after its login: the child keeps the caller's terminal
+/// until it is ready.
+#[cfg(target_os = "linux")]
+#[test]
+fn f_asks_a_password_on_the_terminal_before_it_detaches() {
+    let _one = ONE_AT_A_TIME.lock().unwrap_or_else(|e| e.into_inner());
+    let s = setup("prompt");
+    let port = free_port();
+    let forward = format!("{port}:{}", s.target);
+    let known = format!("UserKnownHostsFile={}", s.home.join("known_hosts").display());
+    let mut cmd = Command::new(env!("CARGO_BIN_EXE_podssh"));
+    cmd.args(["ssh", "--direct", "-p", &s.port.to_string(), "-o", "StrictHostKeyChecking=accept-new", "-o"])
+        .arg(&known)
+        .args(["-f", "-N", "-L", &forward, "pass-u@127.0.0.1"])
+        .env("HOME", &s.home)
+        .env("PODSSH_CACHE_DIR", s.home.join("cache"))
+        .env("PODSSH_SSH_CONFIG", "none");
+    for name in
+        ["PODSSH_OFFLINE", "HTTPS_PROXY", "https_proxy", "ALL_PROXY", "all_proxy", "SSH_AUTH_SOCK", "SSH_ASKPASS"]
+    {
+        cmd.env_remove(name);
+    }
+    // The pty is the caller's controlling terminal, as a terminal's window
+    // makes it.
+    // SAFETY: setsid and an ioctl on stdin, both async-signal-safe.
+    unsafe {
+        cmd.pre_exec(|| {
+            libc::setsid();
+            libc::ioctl(0, libc::TIOCSCTTY, 0);
+            Ok(())
+        });
+    }
+    let mut pty = pty_harness::Pty::start(cmd, 24, 80);
+    assert!(pty.expect("password:", LIMIT), "no prompt on the terminal: {}", pty.text());
+    pty.send(format!("{}\r", ssh_harness::pass::PASSWORD).as_bytes());
+    assert_eq!(pty.wait(LIMIT), Some(0), "{}", pty.text());
+    let child = Detached(pid_of(&pty.text()));
+    assert!(alive(child.0));
+    assert_eq!(greeting(port), "target says hi\n");
 }

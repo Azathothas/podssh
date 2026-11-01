@@ -2636,10 +2636,13 @@ output stops, and reads its screen, each with a call of its own.
   that this host refuses. When the session is not ready within `--timeout`
   (60 s), it is stopped, and `start` exits 75. A name that runs already is
   refused (69).
-- The session's podssh reads no terminal. A prompt has none: a key's
-  passphrase comes from `podssh agent` or `SSH_ASKPASS`, and a new host
-  key needs `StrictHostKeyChecking=accept-new` or a `known_hosts` that has
-  it. The pty's size is that of `COLUMNS` and `LINES`, else 80 by 24. No
+- Until it is ready, the session's podssh keeps `start`'s terminal and
+  session (T-382): a password, a key's passphrase and a new host key are
+  asked there as `podssh ssh` asks them, within `--timeout`, and Ctrl-C
+  reaches it; at ready it leaves them (`setsid`, SIGHUP ignored). With no
+  terminal, a passphrase comes from `podssh agent` or `SSH_ASKPASS`, and a
+  new host key needs `StrictHostKeyChecking=accept-new` or a `known_hosts`
+  that has it. The pty's size is that of `COLUMNS` and `LINES`, else 80 by 24. No
   forward, no X11 and no control socket of ssh_config is used (said with
   `-v`).
 - `send NAME TEXT` types TEXT, then Enter (a carriage return), which

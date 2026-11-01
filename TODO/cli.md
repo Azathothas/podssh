@@ -187,7 +187,7 @@ measured: the debug binary has no `ts`).
 1. In the `Parsed::Command` arm, refuse a verb of `VERB_OWNER`
    (`crates/podssh-cli/src/flags.rs`, line 453 at `7aa955a`) before the gate. Keep one usage
    error first: a `--timeout` value that was given and does not parse is 64
-   (`docs/cli.md:2874-2875`).
+   (`docs/cli.md:2877-2878`).
 2. Give `require_timeout` the verb's name. The message names that verb, gives
    one true reason, and shows an example for that verb only. Replace
    `({attachment:?})` with words: "stdin or stdout is not a terminal", or
@@ -197,7 +197,7 @@ measured: the debug binary has no `ts`).
    (`crates/podssh-cli/src/dispatch.rs`, lines 424-477 at `7aa955a`,
    `crates/podssh-cli/tests/non_interactive.rs` lines 252-284 at `37ace00`). `ts` is the only verb
    that runs the gate today (`crates/podssh-cli/tests/ts_behave.rs:220-226`).
-5. Same commit: `docs/STATUS.md`. `docs/cli.md:2917` needs no change.
+5. Same commit: `docs/STATUS.md`. `docs/cli.md:2920` needs no change.
 
 ## Decision
 
@@ -604,7 +604,7 @@ variable matters when `cp`, `mv` and `relay` exist. `ssh` and `proxy` have no
    which `each_variable_in_the_source_is_documented` requires
    (`crates/podssh-cli/src/man/facts/tests.rs:65-78`); "default: env
    PODSSH_TIMEOUT" in the help of each `--timeout` row, as `--relay-host` says
-   it (`crates/podssh-cli/src/flags.rs:171-172`); `docs/cli.md:2993-2995`;
+   it (`crates/podssh-cli/src/flags.rs:171-172`); `docs/cli.md:2996-2998`;
    `docs/STATUS.md`.
 5. Do this after T-008, so that a verb that does nothing still exits 70 first.
 
@@ -1762,7 +1762,7 @@ file); measured here on `3ee70dc`.
 A `PODSSH_RELAY` or `PODSSH_RELAY_ADDR` that cannot be used makes
 `podssh proxy`, `podssh ssh` and `podssh doctor` exit 64, the code of a usage
 error. The command line is correct; a setting of the environment is not.
-`docs/cli.md:2874-2875` and `docs/decisions.md` ("Exit codes") give 78
+`docs/cli.md:2877-2878` and `docs/decisions.md` ("Exit codes") give 78
 (`EX_CONFIG`) for a configuration error. A script that reads 64 looks for the
 fault in its arguments.
 
@@ -1877,7 +1877,7 @@ flag (`crates/podssh-cli/tests/non_interactive.rs`, line 185 at `8c05b5e`).
 The real gate is `can_ask` (`crates/podssh-ssh/src/prompt.rs:82`), called at
 `crates/podssh-ssh/src/auth.rs:189`, `crates/podssh-ssh/src/auth.rs:306`,
 `crates/podssh-ssh/src/keys.rs:321` and `crates/podssh-cli/src/keygen.rs:382`.
-Its refusals name the real remedies (`docs/cli.md:2955-2957`). Commands use
+Its refusals name the real remedies (`docs/cli.md:2958-2960`). Commands use
 these parts of the module, which stay: `Attachment`, `resolve`, `resolve_tty`,
 `parse_timeout`, `require_timeout` (`crates/podssh-cli/src/dispatch.rs:254-272`,
 `crates/podssh-cli/src/ts.rs:54-63`) and `refuse_jsonl_in_proxy`
@@ -2507,7 +2507,7 @@ nothing.
 ## Decision
 
 A refused bind stays `ok`, with the features named. `FAIL` lost: the hosts that podssh is built
-for refuse the bind (sandbox A for AF_INET, `docs/STATUS.md:287`; the measured cage by the
+for refuse the bind (sandbox A for AF_INET, `docs/STATUS.md:288`; the measured cage by the
 operator's report, `docs/target-environment.md:25`), and doctor exits 1 on a `FAIL`, so each run
 there would fail where each road works (`crates/podssh-cli/src/doctor/mod.rs:6-9`). A fourth
 status lost: the report and its JSON have three (`docs/cli.md:1602-1605`). The issue's grade by a
@@ -2583,7 +2583,7 @@ alone measures less than they use, so it cannot answer what a user asks it.
   for, so it waits for a ruling: Q53.
 - Read: the measured cage's listening was not measured, and stands on the operator's report
   (`docs/target-environment.md:25`); sandbox A's AF_UNIX bind was doctor's bind
-  (`docs/STATUS.md:287`), so whether it listens is not known. The box refuses each bind
+  (`docs/STATUS.md:288`), so whether it listens is not known. The box refuses each bind
   (`scripts/box/seccomp.json:5-10`): it has no case of a bind allowed and a listen refused.
 - Read, in the issue (measured by its reporter on a development host, not with podssh): a bind
   of an AF_INET stream socket refused, where an AF_INET datagram socket and an AF_UNIX socket
@@ -2844,7 +2844,7 @@ a scope of its own.
 **Milestone:** backlog
 **Priority:** P2
 **Effort:** M
-**Status:** open
+**Status:** done
 
 ## Problem
 
@@ -2884,6 +2884,29 @@ through the terminal of a pty harness, start a session; on Windows in GitHub Act
 outlives a job that kills on close and allows breakaway. Planted: the child's `setsid` at its
 start again; the prompt's test fails.
 
+## Done
+
+2026-11-01: the Unix part built and tested here; the Windows part (breakaway from the caller's
+job, `CREATE_NO_WINDOW`) goes with T-383, which measures Windows in GitHub Actions.
+
+- `crates/podssh-cli/src/session/start.rs`: the child is no longer made with `setsid` at its
+  start; it keeps `start`'s terminal and session until its line of ready, and `leave()` then
+  calls `setsid()` and ignores SIGHUP after stdout and stderr went to the null device. Its prompts
+  are `podssh ssh`'s, on the controlling terminal (`crates/podssh-ssh/src/terminal/ctty.rs`).
+  With T-380, the child releases each inherited descriptor and is started by T-380's ways.
+- The test server's `pass-pty-...` user asks a password and gives a pty
+  (`crates/podssh-cli/tests/ssh_harness/mod.rs`).
+- The manual's note of `session start` and `docs/cli.md` say it.
+- `cargo test -p podssh-cli --test session` (Linux, 2026-11-01): 5 passed; the new
+  `start_asks_a_password_on_the_terminal_then_leaves_it` runs `session start` on a pty that is
+  its controlling terminal, answers `password:` there, sees `start` exit 0 and `list` name the
+  session, and the daemon leading a session of its own. And `--test detach`: 5 passed, with
+  `f_asks_a_password_on_the_terminal_before_it_detaches` (`ssh -f -N -L` asks on the terminal,
+  then detaches, and the forward works).
+- Planted (2026-11-01): the child's `setsid` at its start again: no prompt came, the test failed
+  at its limit; no `setsid` in `leave()`: "the daemon leads no session of its own"; T-380's child
+  leaving its session at its start: the prompt test of `-f` failed. Each restored by `cp`.
+
 # T-383: `--detach` on Windows and macOS, measured in GitHub Actions
 
 **Source:** T-380's Done: its tests run on Unix hosts that this session has; Windows' jobs and
@@ -2913,7 +2936,10 @@ A test for Windows, run in the gate's Windows job: `podssh pipe --detach tcp-lis
 in a job of the test's with `KILL_ON_JOB_CLOSE` and `BREAKAWAY_OK`, the job closed after ready,
 and the listener still answers; the same in a job without `BREAKAWAY_OK`: the line of the retry,
 and the listener ends with the job. A ConPTY closed after ready (`scripts/interop-conpty.py`)
-leaves the child.
+leaves the child. From T-382: `podssh session start`'s child on Windows the same way, with
+`CREATE_BREAKAWAY_FROM_JOB` retried without it, and `CREATE_NO_WINDOW` in place of
+`DETACHED_PROCESS` once it freed its console, as each console program that a process of
+`DETACHED_PROCESS` starts opens a window.
 
 ## Prove
 
