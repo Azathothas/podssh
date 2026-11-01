@@ -77,24 +77,37 @@ pub(super) const NODE: &[&str] = &[
      the iroh road's, once its ticket is said), as podssh ssh -f does (see its notes): this program again, \
      its log detached/node-PID.log in the cache. For a node that must outlive a logout or a reboot, \
      --install; --detach goes with no --install, --uninstall or --temporary (64).",
-    "--install makes the node a service of this user, with no privilege, by the first way that a probe \
-     finds: a user unit of systemd (podssh-node-NAME.service, enabled and started) when systemctl answers \
-     for this user, else an @reboot line of the crontab when crontab answers; on Windows a task at the \
-     user's logon (schtasks), never a Windows service. The service runs this binary by its absolute \
-     path with the node's own TARGET and flags, each file by its absolute path, and --env-file: the \
-     variables that the node reads (the proxy's, SSL_CERT_FILE, PODSSH_RELAY and the places of podssh's \
-     files) go into node-NAME.env, a private file beside the pair, as a service has none of the shell's. \
-     No token goes in it, nor on a command line: PODSSH_RELAY_TOKEN and the secrets of Cloudflare Access \
-     are not carried, and the pair's tokens stay in the pair's file. A user unit runs while the user has \
-     a session unless lingering is on, which podssh says and never changes. With no way, the command to \
-     run at login is printed on stdout, and the exit is 69. With --temporary, --ephemeral-key or \
-     --iroh-ephemeral, --install is refused (64), as is a pair that is not stored with neither --iroh \
-     nor --derp, which serve with none (78). --uninstall \
-     removes what --install wrote for NAME (the unit, stopped first, or the line of the crontab, or the \
-     task, and the file of variables), and nothing else.",
+    "--install makes the node a service of this user, with no privilege, which starts it again whenever \
+     it ends, by the first way that a probe finds. A user unit of systemd (podssh-node-NAME.service, \
+     enabled and started) when systemctl answers for this user: it restarts 5 s after each end with no \
+     limit of starts, but not after 64 or 78, a refused command line or setting; 77, an expired pair, is \
+     started again, so that a new pair is taken at the next start. Else a LaunchAgent \
+     (~/Library/LaunchAgents/dev.podssh.node.NAME.plist, with KeepAlive and RunAtLoad), loaded with \
+     launchctl bootstrap in the user's login session, when launchctl has one: it starts now, at each \
+     login and 5 s after each end, and its lines go to node-NAME.log in the cache. Else two lines of the \
+     crontab when crontab answers: one at boot, and one each 5 minutes that starts the node when it is \
+     not running. On Windows a task (schtasks) at the user's logon and each 5 minutes while the user is \
+     logged on, which also starts again a minute after a failure; never a Windows service, and no task \
+     at boot, which need an administrator: after a reboot the task waits for the logon. The service runs \
+     this binary by its absolute path with the node's own TARGET and flags, each file by its absolute \
+     path, and --env-file: the variables that the node reads (the proxy's, SSL_CERT_FILE, PODSSH_RELAY \
+     and the places of podssh's files) go into node-NAME.env, a private file beside the pair, as a \
+     service has none of the shell's. No token goes in it, nor on a command line: PODSSH_RELAY_TOKEN and \
+     the secrets of Cloudflare Access are not carried, and the pair's tokens stay in the pair's file. A \
+     user unit runs while the user has a session unless lingering is on, which podssh says and never \
+     changes. With no way, the command to run at login is printed on stdout, and the exit is 69. With \
+     --temporary, --ephemeral-key or --iroh-ephemeral, --install is refused (64), as is a pair that is \
+     not stored with neither --iroh nor --derp, which serve with none (78). A new --install replaces \
+     what an earlier one made for NAME, by any way, so that two never start the node. --uninstall \
+     removes what --install wrote for NAME (the unit, stopped first, the LaunchAgent, booted out first, \
+     the lines of the crontab, or the task, and the files of its variables, its lock and its log), and \
+     nothing else; a node that the crontab started goes on until it ends.",
     "--env-file FILE sets the variables of FILE before anything else: lines of the form name=value, and \
      # comments, each name a variable that podssh reads. FILE must be a private file of the user; a \
-     token in it is refused (78), with its line.",
+     token in it is refused (78), with its line. The run then holds a lock on FILE.lock, with its pid in \
+     it, for as long as it runs: a second run with the same FILE (the crontab's each 5 minutes, or a \
+     person's) ends at once with 0, and says so only on a terminal. A lock that this file system cannot \
+     take is said, and the run goes on without one.",
     "With --iroh, in a build with the feature iroh, as each release binary is, the node serves TARGET over the \
      iroh road, with no \
      pair: QUIC between keys, through an iroh relay and HTTPS_PROXY, and directly when UDP works. The \

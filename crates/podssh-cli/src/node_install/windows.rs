@@ -1,13 +1,14 @@
-//! The service of a Windows user (T-121): a task of the Task Scheduler at
-//! this user's logon, made from XML by `schtasks /Create /XML`, as a logon
-//! trigger for a user with no privilege must name that user and run with
-//! its own token. A Windows service needs an administrator, and is never
-//! made.
+//! The service of a Windows user (T-121, T-393): a task of the Task
+//! Scheduler at this user's logon, and each 5 minutes while the user is
+//! logged on, made from XML by `schtasks /Create /XML`, as a logon trigger
+//! for a user with no privilege must name that user and run with its own
+//! token. A Windows service, or a task at boot, needs an administrator, and
+//! is never made: the line says so.
 
 use std::path::{Path, PathBuf};
 use std::process::Command;
 
-use super::{run, said, text, Made, Spec};
+use super::{run, said, text, Kind, Made, Spec};
 use crate::exitmap::sysexits::EX_UNAVAILABLE;
 use crate::relay_settings::Refusal;
 
@@ -15,8 +16,9 @@ fn schtasks_program() -> Option<PathBuf> {
     crate::pager::find_program("schtasks.exe", std::env::var_os("PATH"))
 }
 
-fn task_name(name: &str) -> String {
-    format!("podssh-node-{name}")
+/// `podssh-node-NAME`, `podssh-ssh-NAME`.
+fn task_name(kind: Kind, name: &str) -> String {
+    format!("podssh-{}", kind.stem(name))
 }
 
 /// `DOMAIN\USER`, as the logon trigger names this user.
@@ -44,11 +46,12 @@ pub(super) fn schtasks(spec: &Spec) -> Made {
     let xml = text::task_xml(spec, &user);
     // schtasks reads a task's XML in UTF-16, as the Task Scheduler writes it.
     let bytes: Vec<u8> = [0xFFu8, 0xFE].into_iter().chain(xml.encode_utf16().flat_map(u16::to_le_bytes)).collect();
-    let file = match podssh_relay::cache::store_file(&format!("node-{}.task.xml", spec.name), &bytes) {
+    let stem = spec.kind.stem(&spec.name);
+    let file = match podssh_relay::cache::store_file(&format!("{stem}.task.xml"), &bytes) {
         Ok(file) => file,
         Err(why) => return Made::Failed(Refusal::config(format!("the task's XML: {why}"))),
     };
-    let name = task_name(&spec.name);
+    let name = task_name(spec.kind, &spec.name);
     let shown = file.display().to_string();
     let made = step(&program, &["/Create", "/TN", &name, "/XML", &shown, "/F"]);
     let _ = std::fs::remove_file(&file);
@@ -61,13 +64,22 @@ pub(super) fn schtasks(spec: &Spec) -> Made {
         Ok(()) => "started now".to_string(),
         Err(why) => format!("not started now ({why}): it starts at the next logon"),
     };
-    Made::Done(vec![format!("a task at the logon of {user}, {name}, {started}")])
+    Made::Done(vec![
+        format!("a task at the logon of {user}, {name}, {started}"),
+        "it starts again a minute after a failure, and each 5 minutes when it is not running, while this user is \
+         logged on"
+            .into(),
+        format!(
+            "after a reboot it waits for the logon of {user}: a task at boot, before any logon, needs an \
+             administrator (schtasks /Create /SC ONSTART /RU SYSTEM)"
+        ),
+    ])
 }
 
-/// Remove the task of NAME, ended first.
-pub(super) fn remove(name: &str) -> Vec<String> {
+/// Remove the task of `kind`'s NAME, ended first.
+pub(super) fn remove(kind: Kind, name: &str) -> Vec<String> {
     let Some(program) = schtasks_program() else { return Vec::new() };
-    let task = task_name(name);
+    let task = task_name(kind, name);
     if step(&program, &["/Query", "/TN", &task]).is_err() {
         return Vec::new();
     }

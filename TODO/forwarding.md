@@ -1584,7 +1584,7 @@ a session with a pty:
 - `crates/podssh-cli/src/ssh/local_bind.rs`: the TCP listener and the
   socket of `-L` and `-D` can be closed (`crates/podssh-cli/src/ssh/local_bind.rs:137`
   and `crates/podssh-cli/src/ssh/local_bind.rs:184`), and the `Forwarder`
-  of `podssh ssh`, which `crates/podssh-cli/src/ssh/mod.rs:293` gives to
+  of `podssh ssh`, which `crates/podssh-cli/src/ssh/mod.rs:301` gives to
   each session.
 - The manual: the note of the terminal names `~C`, and a note of its own
   (`crates/podssh-cli/src/man/notes_ssh.rs:359`); `docs/cli.md` ("`~C`
@@ -1633,7 +1633,7 @@ server (`remote_socket:host:hostport`), a socket on this host as the target
 (`[bind_address:]port:local_socket`, `remote_socket:local_socket`), and a SOCKS proxy that the
 server listens for and the client serves (`[bind_address:]port`). podssh refuses each by name, so
 a command line of OpenSSH fails with podssh. A server whose host refuses an AF_INET bind and
-allows an AF_UNIX one, as sandbox A does (`docs/STATUS.md:295`), can listen on a socket only; and
+allows an AF_UNIX one, as sandbox A does (`docs/STATUS.md:296`), can listen on a socket only; and
 the SOCKS form gives a server whose egress is closed a way out through the client.
 
 ## Premise

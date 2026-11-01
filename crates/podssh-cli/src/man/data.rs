@@ -242,6 +242,16 @@ pub fn files() -> Vec<(Vec<String>, String)> {
                 .to_string(),
         ),
         (
+            vec!["node-NAME.env".to_string(), "ssh-NAME.env".to_string(), "node-NAME.env.lock".to_string()],
+            "The service of podssh node NAME --install, or of podssh ssh --install NAME (T-121, T-393), in the \
+             cache: the private file of the variables that it reads (the file of --env-file), with no token; \
+             FILE.lock beside it, which its run holds with its pid in it, so that a second start of the service \
+             ends at once; and a LaunchAgent's log, node-NAME.log, made with mode 0600 before launchd opens it. \
+             --uninstall removes them, with the unit, the LaunchAgent \
+             (~/Library/LaunchAgents/dev.podssh.VERB.NAME.plist), the lines of the crontab or the task."
+                .to_string(),
+        ),
+        (
             vec![format!("{}/", crate::ssh::cloud::tor::DIR_NAME)],
             "The Tor road's directory (tor://, in a build with the feature tor), in the cache, mode 0700: \
              Arti's state (its guards, which Tor asks a client to keep) in state/, and its copy of Tor's \

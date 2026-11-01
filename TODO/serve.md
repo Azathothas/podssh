@@ -490,10 +490,10 @@ out with matching digests.
   T-079), and the operator connects through the relay (T-084).
 - Read: `vi`, `less` and `top` need a real pty (`docs/terminal.md:248-252`).
   The measured sandboxes have no `/dev/ptmx` (`docs/target-environment.md:26`,
-  `docs/STATUS.md:295`). With no pty device, no podssh code can give the child
+  `docs/STATUS.md:296`). With no pty device, no podssh code can give the child
   a tty: shims are excluded (`docs/decisions.md:60`).
 - Read: one relay session carries 64 MiB, both directions together
-  (`docs/relay.md:261`; measured: `docs/STATUS.md:303`). 200 MiB each way
+  (`docs/relay.md:261`; measured: `docs/STATUS.md:304`). 200 MiB each way
   needs the new sessions of T-137.
 - Read: the box matches the sandbox, except the `EACCES` on loopback
   `connect()` (`scripts/test_in_box.sh:24-31`).
@@ -1348,7 +1348,7 @@ no reason (`docs/target-environment.md:73-74`).
   the report are older; the content is at the lines given here.
 - Read: the report says that `docs/cli.md` records why podssh does not call
   `getpwuid`. It does not; that record is `docs/target-environment.md:37-44`.
-- Read: a sandbox mounts `/tmp` and `$HOME` noexec (`docs/STATUS.md:295`):
+- Read: a sandbox mounts `/tmp` and `$HOME` noexec (`docs/STATUS.md:296`):
   the mode bits pass there, the exec fails, and `access(X_OK)` fails. doctor
   runs a real copy, as "only a real attempt tells them apart"
   (`crates/podssh-cli/src/doctor/host.rs:174-176`).
@@ -1399,7 +1399,7 @@ crates/podssh-ssh/tests/serve_shell.rs gives the function a directory `sh`,
 a data file `dash` (mode 0644), a data file with mode 0755 (the spawn fails),
 a link to a missing file and a good shell: each failure is named, and the
 good shell wins. A planted `exists()` test fails the directory case. In the
-gate, a copy of `/bin/sh` in `/dev/shm` (noexec: `docs/STATUS.md:262`) is
+gate, a copy of `/bin/sh` in `/dev/shm` (noexec: `docs/STATUS.md:263`) is
 refused as `--shell`. The static binary (`$BIN`) refuses a missing named shell.
 
 ## Blocker
@@ -1431,10 +1431,10 @@ criterion of M5 (T-113) needs them.
 
 - Read: `podssh doctor` asks for a pty with `posix_openpt`
   (`crates/podssh-cli/src/doctor/unix.rs:83-98`). Both real sandboxes have no
-  `/dev/ptmx` (`docs/STATUS.md:295`), and the target has no `/dev/pts`
+  `/dev/ptmx` (`docs/STATUS.md:296`), and the target has no `/dev/pts`
   (`docs/target-environment.md:26`).
 - Read: the box and the sandboxes run with `NoNewPrivs=1` and a seccomp
-  filter (`docs/STATUS.md:274`). With `NoNewPrivs=1`, a process can add a
+  filter (`docs/STATUS.md:275`). With `NoNewPrivs=1`, a process can add a
   filter of its own; a filter is inherited by each child.
 - Read, not measured here: for a program, a tty is the success of the tty
   `ioctl` calls on its descriptors. musl's `isatty` calls `TIOCGWINSZ`;
@@ -1510,7 +1510,7 @@ finding.
 **Milestone:** none
 **Priority:** P1
 **Effort:** M
-**Status:** open
+**Status:** done
 
 ## Problem
 
@@ -1523,10 +1523,10 @@ logon after a reboot; and a reverse tunnel of `podssh ssh -N -R --persist` canno
 ## Premise
 
 - Read: `Restart=on-failure`, `RestartSec=10`, no `StartLimitIntervalSec`
-  (`crates/podssh-cli/src/node_install/text.rs:98`).
-- Read: the cron line is `@reboot` alone (`crates/podssh-cli/src/node_install/unix.rs:128`).
+  (`crates/podssh-cli/src/node_install/text.rs:130`).
+- Read: the cron line is `@reboot` alone (`crates/podssh-cli/src/node_install/unix.rs:137`).
 - Read: the Windows task restarts each minute, 999 times, at a logon
-  (`crates/podssh-cli/src/node_install/text.rs:210`).
+  (`crates/podssh-cli/src/node_install/text.rs:275`).
 
 ## Approach
 
@@ -1537,13 +1537,114 @@ the user with `KeepAlive` and `RunAtLoad`, loaded by `launchctl bootstrap gui/UI
 task's line says that it waits for a logon, and names the task of `schtasks /ru SYSTEM` that an
 administrator may make. `podssh ssh --install NAME -N -R ... --persist` writes the same units.
 
+## Decision
+
+- **The watchdog's test of "not running": a lock of the service's own.** A run with `--env-file
+  FILE` holds an exclusive lock on `FILE.lock` (`File::try_lock`: `flock` on Unix, `LockFileEx` on
+  Windows) for its life, with its pid in the file (`crates/podssh-cli/src/node_install/lock.rs`).
+  Each service runs with the `--env-file` that `--install` wrote, so each way gets one run at a
+  time, and the crontab's line each 5 minutes is the same command as the line at boot. T-392's
+  `detached/NAME.lock` is not there yet, and is a lock of `--detach --name`; when it comes, it can
+  take this one's place, which is taken in one function (`lock::enter`). Lost: a file of the pid
+  and `kill -0` in the cron line (a pid is reused, and a stale file keeps a dead service down until
+  the next boot); `pgrep` or `ps` (a tool that the host may lack, rule 1 of `AGENTS.md`, and a name
+  that another program matches); `flock(1)` in the line (util-linux's, absent from busybox and
+  macOS); the relay's 409 for a second node of a pair (a node retries a 409 for 10 minutes before
+  it ends, so a copy each 5 minutes would run beside the first, and a tunnel of ssh has no such
+  refusal, only a port in use on the server).
+- **A held lock ends the second run with 0, and says so only on a terminal.** cron mails each
+  output, which would be a mail each 5 minutes while the service runs; the code changes nothing for
+  systemd or launchd, which start it again either way, and 0 keeps the Windows task from its
+  restart after a failure. Lost: a line always; 75, T-392's code for its own lock.
+- **A lock that cannot be taken lets the run go on**, with a line: a service that never starts
+  locks its server out, and two runs are the lesser fault.
+- **One way for each install, as T-121; a new install removes what another way made for the same
+  NAME.** Lost: the crontab beside systemd or launchd as a second supervisor: a person's
+  `systemctl --user stop` would be undone within 5 minutes by cron, and the two would start runs
+  that the lock ends, each 5 s.
+- **macOS: a LaunchAgent where `launchctl print gui/UID` answers, else the crontab.** The probe's
+  order on each Unix is systemd, launchd, cron: a Linux host has no `launchctl`, and a Mac no
+  `systemctl`. Lost: the background domain `user/UID` with no login session: an agent there is not
+  loaded again after a reboot either, and its session types are its own (UNVERIFIED), where the
+  crontab's line at boot needs no login.
+- **`RestartPreventExitStatus=64 78`, as the Approach says.** 77 starts again, so that a pair made
+  again is taken at the next start with no new `--install`. Lost: a start after each code, which
+  would fill the journal each 5 s with a refusal that no start changes. `StartLimitInterval=0` in
+  `[Service]` too, where a systemd older than 230 reads the limit.
+- **`ssh --install`: the typed words but `--install NAME`, in the directory where they were
+  typed**, after `-o BatchMode=yes`, `-o ForkAfterAuthentication=no`, `-o ControlPath=none`,
+  `-o ExitOnForwardFailure=yes` and `--env-file` (`crates/podssh-cli/src/node_install/ssh.rs`).
+  Lost: the words built again from the parsed flags, as a node's are: ssh has some 80 flags and
+  keywords, and a list built from them drops each flag that a later entry adds. `-N` and
+  `--persist` are asked for, not added, so that the service runs what the user can run in the
+  foreground; `--persist` connects again within the process, sooner than a new start. T-391's
+  `--persist=always`, when it comes, goes into the service as typed.
+- **Windows: a time trigger each 5 minutes** (`IgnoreNew` for a running instance) is the task's
+  watchdog, as its restart after a failure ends after 999, about 16 hours; a task at boot needs an
+  administrator, and its line says so.
+
 ## Prove
 
 ```sh
 export CARGO_BUILD_JOBS=4
 cargo test -p podssh-cli --lib node_install::
 cargo test -p podssh-cli --test serve_install
+cargo test -p podssh-cli --lib man::notes
 ```
 
 The units are checked by `systemd-analyze verify` where it exists, and the plist by `plutil -lint`
 on macOS in CI.
+
+## Correction
+
+The Premise holds. The cron line is made by `cron_line`, in
+`crates/podssh-cli/src/node_install/text.rs` (line 128 at `ea2bd4f`), and given to crontab by
+`cron`, at the line that the Premise cites. The lock of T-392 that the Approach names does not
+exist (T-392 is open): the watchdog takes a lock of the service's own (Decision).
+
+## Done
+
+2026-11-01: drafted (`worktree-agent-aac2458476d4808b9`), merged, built and run the same day. At the
+merge the tunnel's service gained `--persist-forever` (T-391, done meanwhile) after `--env-file`,
+unless the words hold it, so that an outage never ends it between two starts; and a sentence of the
+note of `ssh --install` that named -W and -R together, which the manual's test of the note of -R
+refuses, became two.
+
+- systemd: `Restart=always`, `RestartSec=5`, `RestartPreventExitStatus=64 78`, and
+  `StartLimitIntervalSec=0` in `[Unit]` (with `StartLimitInterval=0` in `[Service]`); a tunnel's
+  unit has `WorkingDirectory=-DIR` (`unit` in `crates/podssh-cli/src/node_install/text.rs`).
+- cron: two lines under one mark, `@reboot` and `*/5 * * * *`, the same command; the mark of T-121
+  above its one line is still found, and a line of the user's after it stays (`cron_lines`,
+  `cron_table`).
+- A LaunchAgent, `~/Library/LaunchAgents/dev.podssh.VERB.NAME.plist`, with `RunAtLoad`,
+  `KeepAlive`, `ThrottleInterval` 5 and its stderr in `VERB-NAME.log`, loaded by `launchctl
+  bootstrap gui/UID` after a `bootout` and an `enable`, removed by `bootout`
+  (`crates/podssh-cli/src/node_install/launchd.rs`).
+- Windows: a time trigger each 5 minutes beside the logon; the line names the task at boot that
+  only an administrator can make (`crates/podssh-cli/src/node_install/windows.rs`).
+- The lock of a service's run, and `podssh ssh --install NAME`, `--uninstall NAME` and
+  `--env-file FILE` (`crates/podssh-cli/src/flags/node.rs`, `crates/podssh-cli/src/ssh/args.rs`);
+  the manual's notes of `node` and `ssh` and its FILES; `docs/cli.md`; `docs/STATUS.md`.
+- `cargo test -p podssh-cli --lib node_install::`: 12 passed (7 of them new:
+  `a_unit_restarts_after_each_end_with_no_limit_of_starts`,
+  `a_tunnel_s_unit_runs_in_its_directory_and_names_its_own_removal`,
+  `the_line_of_an_earlier_install_is_replaced_and_the_user_s_next_line_stays`,
+  `a_tunnel_s_lines_change_to_its_directory_first`,
+  `the_launch_agent_reads_back_as_its_program_and_keeps_it_alive`,
+  `a_tunnel_s_words_are_the_typed_ones_but_install`,
+  `a_second_try_of_a_lock_is_refused_until_the_first_lets_it_go`).
+- `cargo test -p podssh-cli --test serve_install`: 9 passed (4 of them new:
+  `a_launch_agent_where_launchctl_has_a_login_session`,
+  `a_tunnel_of_ssh_becomes_a_user_unit_of_its_typed_words`,
+  `what_cannot_be_a_tunnel_s_service_is_refused_and_nothing_is_written`,
+  `a_second_start_of_a_service_ends_at_once_while_its_lock_is_held`; the crontab's test asks for
+  the watchdog's line).
+- `cargo test -p podssh-cli --lib man::`: 36 passed (each flag, keyword and variable that the
+  new notes name exists). Clippy `-D warnings`, here and for `x86_64-pc-windows-gnu`: clean.
+- Planted, each failed its test: `Restart=on-failure` back in the unit (the unit's test); the
+  watchdog's line dropped (three tests of the crontab); a lock that takes nothing (the lock's
+  test); `SERVICE_OPTIONS` empty (the words' test).
+- `systemd-analyze verify` (systemd 255 here) of the unit that `podssh ssh --install bastion -N -R
+  2222:127.0.0.1:22 --persist me@example.org` wrote, with a stand-in `systemctl`: no finding.
+- Not measured here: `plutil -lint` of the plist and a real `launchctl bootstrap` (macOS), a real
+  cron's watchdog after a kill, and the task of Windows; the record of each is T-251's.

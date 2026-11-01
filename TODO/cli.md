@@ -187,7 +187,7 @@ measured: the debug binary has no `ts`).
 1. In the `Parsed::Command` arm, refuse a verb of `VERB_OWNER`
    (`crates/podssh-cli/src/flags.rs`, line 453 at `7aa955a`) before the gate. Keep one usage
    error first: a `--timeout` value that was given and does not parse is 64
-   (`docs/cli.md:3032-3033`).
+   (`docs/cli.md:3083-3084`).
 2. Give `require_timeout` the verb's name. The message names that verb, gives
    one true reason, and shows an example for that verb only. Replace
    `({attachment:?})` with words: "stdin or stdout is not a terminal", or
@@ -197,7 +197,7 @@ measured: the debug binary has no `ts`).
    (`crates/podssh-cli/src/dispatch.rs`, lines 424-477 at `7aa955a`,
    `crates/podssh-cli/tests/non_interactive.rs` lines 252-284 at `37ace00`). `ts` is the only verb
    that runs the gate today (`crates/podssh-cli/tests/ts_behave.rs:220-226`).
-5. Same commit: `docs/STATUS.md`. `docs/cli.md:3075` needs no change.
+5. Same commit: `docs/STATUS.md`. `docs/cli.md:3126` needs no change.
 
 ## Decision
 
@@ -491,7 +491,7 @@ Read, at `61e55d1`: no option made podssh start a program: `ProxyCommand` is ref
    `[OPTIONS] [--] [user@]host [COMMAND...]` for `ssh` and
    `[OPTIONS] [--] HOST PORT` for `proxy`; `--help` and the synopsis of the
    manual (`crates/podssh-cli/src/man/model.rs:186-190`) read it.
-2. A note for `ssh` and `proxy` (`crates/podssh-cli/src/man/notes_ssh.rs:4-448` and `crates/podssh-cli/src/man/notes.rs:61-192`)
+2. A note for `ssh` and `proxy` (`crates/podssh-cli/src/man/notes_ssh.rs:4-465` and `crates/podssh-cli/src/man/notes.rs:61-192`)
    and an example (`crates/podssh-cli/src/man/examples.rs:8-232`). Pitfall: the
    notes test reads a bare `--` as a flag that does not exist
    (`crates/podssh-cli/src/man/notes.rs:386-402`); teach `flag_exists`
@@ -604,7 +604,7 @@ variable matters when `cp`, `mv` and `relay` exist. `ssh` and `proxy` have no
    which `each_variable_in_the_source_is_documented` requires
    (`crates/podssh-cli/src/man/facts/tests.rs:65-78`); "default: env
    PODSSH_TIMEOUT" in the help of each `--timeout` row, as `--relay-host` says
-   it (`crates/podssh-cli/src/flags.rs:171-172`); `docs/cli.md:3151-3153`;
+   it (`crates/podssh-cli/src/flags.rs:171-172`); `docs/cli.md:3202-3204`;
    `docs/STATUS.md`.
 5. Do this after T-008, so that a verb that does nothing still exits 70 first.
 
@@ -984,10 +984,10 @@ Read then: each value flag but `-i` and `-o` was `ArgAction::Set`.
    `crates/podssh-cli/src/tree.rs:68-78`).
 2. `SshArgs::from_matches` picks the value as OpenSSH does: the first `-p` and
    `-l`, the last `-e`, `-E` and `-F`, and the first value of each `-o`
-   keyword (`crates/podssh-cli/src/ssh/args.rs:191-314`).
+   keyword (`crates/podssh-cli/src/ssh/args.rs:199-325`).
 3. `ONCE` and `repeated` refuse a second `-J`, `-W`, `--relay-host`,
    `--relay-addr` or `--ca-file` with exit 64 before anything connects
-   (`crates/podssh-cli/src/ssh/args.rs:143-186`, called at
+   (`crates/podssh-cli/src/ssh/args.rs:148-194`, called at
    `crates/podssh-cli/src/tree.rs:458-462`).
 4. `docs/cli.md:626-631` and a note of the manual
    (`crates/podssh-cli/src/man/notes_ssh.rs:421-423`) state the rule.
@@ -1762,7 +1762,7 @@ file); measured here on `3ee70dc`.
 A `PODSSH_RELAY` or `PODSSH_RELAY_ADDR` that cannot be used makes
 `podssh proxy`, `podssh ssh` and `podssh doctor` exit 64, the code of a usage
 error. The command line is correct; a setting of the environment is not.
-`docs/cli.md:3032-3033` and `docs/decisions.md` ("Exit codes") give 78
+`docs/cli.md:3083-3084` and `docs/decisions.md` ("Exit codes") give 78
 (`EX_CONFIG`) for a configuration error. A script that reads 64 looks for the
 fault in its arguments.
 
@@ -1877,7 +1877,7 @@ flag (`crates/podssh-cli/tests/non_interactive.rs`, line 185 at `8c05b5e`).
 The real gate is `can_ask` (`crates/podssh-ssh/src/prompt.rs:82`), called at
 `crates/podssh-ssh/src/auth.rs:189`, `crates/podssh-ssh/src/auth.rs:306`,
 `crates/podssh-ssh/src/keys.rs:321` and `crates/podssh-cli/src/keygen.rs:382`.
-Its refusals name the real remedies (`docs/cli.md:3113-3115`). Commands use
+Its refusals name the real remedies (`docs/cli.md:3164-3166`). Commands use
 these parts of the module, which stay: `Attachment`, `resolve`, `resolve_tty`,
 `parse_timeout`, `require_timeout` (`crates/podssh-cli/src/dispatch.rs:279-297`,
 `crates/podssh-cli/src/ts.rs:56-65`) and `refuse_jsonl_in_proxy`
@@ -2507,7 +2507,7 @@ nothing.
 ## Decision
 
 A refused bind stays `ok`, with the features named. `FAIL` lost: the hosts that podssh is built
-for refuse the bind (sandbox A for AF_INET, `docs/STATUS.md:295`; the measured cage by the
+for refuse the bind (sandbox A for AF_INET, `docs/STATUS.md:296`; the measured cage by the
 operator's report, `docs/target-environment.md:25`), and doctor exits 1 on a `FAIL`, so each run
 there would fail where each road works (`crates/podssh-cli/src/doctor/mod.rs:6-9`). A fourth
 status lost: the report and its JSON have three (`docs/cli.md:1743-1746`). The issue's grade by a
@@ -2583,7 +2583,7 @@ alone measures less than they use, so it cannot answer what a user asks it.
   for, so it waits for a ruling: Q53.
 - Read: the measured cage's listening was not measured, and stands on the operator's report
   (`docs/target-environment.md:25`); sandbox A's AF_UNIX bind was doctor's bind
-  (`docs/STATUS.md:295`), so whether it listens is not known. The box refuses each bind
+  (`docs/STATUS.md:296`), so whether it listens is not known. The box refuses each bind
   (`scripts/box/seccomp.json:5-10`): it has no case of a bind allowed and a listen refused.
 - Read, in the issue (measured by its reporter on a development host, not with podssh): a bind
   of an AF_INET stream socket refused, where an AF_INET datagram socket and an AF_UNIX socket
@@ -3225,7 +3225,7 @@ each check of T-390 and T-392, and serves nothing.
 ## Premise
 
 - Read: neither T-380 nor a unit of T-121 has a watchdog; a unit restarts only a process that ended
-  (`crates/podssh-cli/src/node_install/text.rs:98`).
+  (`crates/podssh-cli/src/node_install/text.rs:130`).
 
 ## Approach
 

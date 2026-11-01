@@ -750,7 +750,7 @@ So a local TCP TARGET exists only where the host allows it; `podssh serve` (M5) 
    FILE, and prints only the label and the expiry. `podssh relay revoke NAME` stops the pair and deletes the
    local copies. `podssh relay status NAME` gives presence; agree on the form with T-058, whose `relay status`
    has no NAME.
-4. Exit codes as `podssh proxy` (`docs/cli.md:3042`): 64 usage; 69 the relay or TARGET cannot be reached; 77 a
+4. Exit codes as `podssh proxy` (`docs/cli.md:3093`): 64 usage; 69 the relay or TARGET cannot be reached; 77 a
    refused pair (`403`); 78 no usable pair; 0 after a stop by a signal. Add the rows to
    `crates/podssh-cli/src/man/facts.rs:449`.
 5. `doctor`: one line for each stored pair, with its expiry and its presence, as in
@@ -888,7 +888,7 @@ Read: `parse_hop` strips `ssh://` and reads `host:PORT` (`crates/podssh-cli/src/
 operator leg receives text frames (`docs/relay.md:340-343`). A host key is recorded under the target
 host, never the relay's name (`SECURITY.md:121-131`); `HostKeyAlias` exists
 (`crates/podssh-cli/src/ssh/resolve.rs:416`). `podssh ssh` uses the exit codes of OpenSSH, and
-`podssh proxy` sysexits (`docs/cli.md:3038-3042`).
+`podssh proxy` sysexits (`docs/cli.md:3089-3093`).
 
 ## Approach
 
@@ -1917,8 +1917,8 @@ podssh knew in advance, and said nowhere.
 
 ## Premise
 
-- Read: a unit of T-121 does not restart after 77 (`crates/podssh-cli/src/node_install/text.rs:101`).
-- Read: the node's hook for a new pair is unset (`crates/podssh-cli/src/node.rs:343`, `repair:
+- Read, at `ea2bd4f`: a unit of T-121 does not restart after 77 (`crates/podssh-cli/src/node_install/text.rs:101`).
+- Read: the node's hook for a new pair is unset (`crates/podssh-cli/src/node.rs:339`, `repair:
   None`).
 
 ## Approach
@@ -1934,6 +1934,13 @@ renews it by hand.
 export CARGO_BUILD_JOBS=4
 cargo test -p podssh-cli --test node a_node_says_its_pairs_expiry_before_it
 ```
+
+## Correction
+
+Since T-393 the unit starts the node again after 77 too, each 5 s, as do the LaunchAgent, the
+crontab's line each 5 minutes and the Windows task: a pair made again with `podssh relay pair
+NAME` is taken at the next start, with no new `--install`. The expiry still stops the service
+until somebody makes that pair, and says nothing before it: the Problem stands.
 
 # T-409: A node that the relay closes for a fault (1003, 1009) ends for good
 

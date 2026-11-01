@@ -66,6 +66,10 @@ use resolve::{Env, Resolved, Transport};
 /// the run's result is written at its end, on each path (T-054). `tty` says
 /// whether stdin and stdout are terminals, for the host picker (T-188).
 pub fn run_ssh(args: &SshArgs, tty: Tty, err: &mut dyn Write) -> i32 {
+    // A service of this run, or the variables of one, before anything reads them (T-393).
+    if let Some(code) = crate::node_install::ssh::first(args, err) {
+        return code;
+    }
     let (started, start_ms) = (std::time::Instant::now(), crate::pairs::now_ms());
     if args.result_file.as_deref() == Some("-") {
         let _ = writeln!(err, "podssh ssh: --result-file -: stdout carries the command's output; name a file");
@@ -188,6 +192,10 @@ fn run(args: &SshArgs, tty: Tty, err: &mut dyn Write) -> i32 {
         // As OpenSSH's -f: a command reads no stdin (-n).
         resolved.options.stdin_null = true;
         crate::detach::when_requested("ssh");
+    }
+    // One run of an installed service at a time; the parent of -f held none.
+    if let Some(code) = crate::node_install::lock::enter("ssh", args.env_file.as_deref(), err) {
+        return code;
     }
     // LocalCommand's shell, before anything connects (T-191).
     if let Err(refusal) = local_command::shell(&mut resolved.options) {

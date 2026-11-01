@@ -135,6 +135,11 @@ pub struct SshArgs {
     /// (T-191).
     pub expect: Vec<(bool, String)>,
     pub expect_timeout: Option<String>,
+    /// `--install NAME`, `--uninstall NAME` and `--env-file FILE`: the run
+    /// as a service of this user, and the run of that service (T-393).
+    pub install: Option<String>,
+    pub uninstall: Option<String>,
+    pub env_file: Option<String>,
 }
 
 /// The long-only rows that are spellings of `-o NAME=VALUE`.
@@ -169,6 +174,9 @@ pub const ONCE: &[(&str, &str)] = &[
     ("control-command", "give one command, as OpenSSH asks"),
     ("snippet", "give one snippet"),
     ("expect-timeout", "give one time"),
+    ("install", "give one name"),
+    ("uninstall", "give one name"),
+    ("env-file", "give one file"),
 ];
 
 /// The refusal for a flag of [`ONCE`] given more than once, if there is one.
@@ -310,6 +318,9 @@ impl SshArgs {
             yes: flag("yes"),
             expect: expect.into_iter().map(|(_, is_expect, v)| (is_expect, v)).collect(),
             expect_timeout: one("expect-timeout"),
+            install: one("install"),
+            uninstall: one("uninstall"),
+            env_file: one("env-file"),
         }
     }
 }

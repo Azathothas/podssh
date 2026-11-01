@@ -445,4 +445,21 @@ pub const SSH: &[&str] = &[
      which ends it before it reads the others, nor when a signal kills podssh: only a session on a terminal \
      ends at SIGTERM or SIGHUP, as terminated, and one with no pty at Ctrl-C, by the command's end or as \
      interrupted.",
+    "--install NAME, with -N, --persist and a forward, makes the tunnel a service of this user, which \
+     starts it again whenever it ends, as podssh node --install makes a node's, by the same ways: a user \
+     unit of systemd (podssh-ssh-NAME.service), a LaunchAgent (dev.podssh.ssh.NAME), two lines of the \
+     crontab, or a task of Windows. A server that only the tunnel reaches is locked out while it is down. \
+     The service runs this program with the words of this command line but --install NAME, in this \
+     directory, so that each relative path means what it meant; after ssh come BatchMode=yes, \
+     ForkAfterAuthentication=no, ControlPath=none and ExitOnForwardFailure=yes, each after -o, which win \
+     over the rest and over ssh_config, as nobody answers a prompt there, a run in the background or \
+     through a master would leave the service, and a refused forward serves nothing until a new start; \
+     then --env-file with ssh-NAME.env, the private file of the variables that it reads, with no token, \
+     and --persist-forever, so that an outage of the relay never ends the tunnel between two starts. \
+     The login needs a key with no passphrase, and the host key in known_hosts: run the same command \
+     once in the foreground first. The command line is resolved first: a shell, a command, -W, -f, -G, \
+     -O, --attach, --upgrade or --snippet is refused (64). So is a tunnel without --persist, or with no \
+     forward. --uninstall NAME removes what --install NAME wrote, and nothing else. --env-file FILE \
+     sets the variables of FILE first and holds FILE.lock while the run lasts, as for podssh node: a \
+     second start of the same service ends at once with 0.",
 ];

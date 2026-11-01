@@ -545,7 +545,7 @@ at `crates/podssh-cli/src/ssh/transport.rs:206`, and the relay's close reason is
    (`crates/podssh-ssh/src/io.rs:151-161`, and `write_out` at `crates/podssh-ssh/src/io/msg.rs:77-94`). T-055 needs the same change.
 3. stdout and stderr stay byte for byte as now; the command's output never goes into the JSON.
 4. Write the file on each path, also after a failure before the session: at the end of
-   `run_ssh` (`crates/podssh-cli/src/ssh/mod.rs:227-231`). Mode 0600. Refuse `-`: stdout is data.
+   `run_ssh` (`crates/podssh-cli/src/ssh/mod.rs:235-239`). Mode 0600. Refuse `-`: stdout is data.
 5. Add the row to `SSH_FLAGS` (`crates/podssh-cli/src/flags.rs:112-292`; the set of short flags
    does not change), and change the `ssh` notes and `docs/cli.md` in the same commit.
 
@@ -625,9 +625,9 @@ failure at `crates/podssh-ssh/src/run.rs:135-145` and
 `crates/podssh-cli/src/ssh/result.rs:15-46`, the channel's verdict at
 `crates/podssh-cli/src/ssh/result.rs:48-58`, the file at
 `crates/podssh-cli/src/ssh/result.rs:60-74`, written at the end of
-`run_ssh` (`crates/podssh-cli/src/ssh/mod.rs:65-95`); the relay host at
+`run_ssh` (`crates/podssh-cli/src/ssh/mod.rs:65-99`); the relay host at
 `crates/podssh-cli/src/ssh/transport.rs:207` and its close at
-`crates/podssh-cli/src/ssh/mod.rs:320`. The flag in `SSH_FLAGS`
+`crates/podssh-cli/src/ssh/mod.rs:328`. The flag in `SSH_FLAGS`
 (`crates/podssh-cli/src/flags.rs:205`), its note at
 `crates/podssh-cli/src/man/notes_ssh.rs:435-447`, and `docs/cli.md`.
 
@@ -674,7 +674,7 @@ stdin and stdout gives typed tools, with no shell quoting.
 
 Measured: `podssh mcp` exits 64 (unknown subcommand).
 
-Read: a prompt goes to the controlling terminal or to `SSH_ASKPASS` (`docs/cli.md:3100-3125`),
+Read: a prompt goes to the controlling terminal or to `SSH_ASKPASS` (`docs/cli.md:3151-3176`),
 and the terminal of an agent can be the user's own. The session output goes straight to the
 process's stdout (`crates/podssh-ssh/src/io/msg.rs:77-94`), which an MCP server over stdio uses for
 its protocol. podssh never listens (`docs/architecture.md:147-162`), and stdio needs no listener.
@@ -901,8 +901,8 @@ at `crates/podssh-cli/src/session_log.rs:97-118`, the lines of `ssh` and
 checks and its move aside at `crates/podssh-cli/src/session_log.rs:171-240`,
 and its last line at `crates/podssh-cli/src/session_log.rs:243-260`. The
 line of `podssh ssh` at the end of `run_ssh`, from its result
-(`crates/podssh-cli/src/ssh/mod.rs:68-95`), and its destination at
-`crates/podssh-cli/src/ssh/mod.rs:199`; that of `podssh proxy` at
+(`crates/podssh-cli/src/ssh/mod.rs:68-99`), and its destination at
+`crates/podssh-cli/src/ssh/mod.rs:207`; that of `podssh proxy` at
 `crates/podssh-cli/src/proxy.rs:52-66`, its destination at
 `crates/podssh-cli/src/proxy.rs:112` and `crates/podssh-cli/src/proxy.rs:183`,
 its session at `crates/podssh-cli/src/proxy.rs:287-290`; the bytes of the

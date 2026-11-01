@@ -117,7 +117,7 @@ and `CARGO_BUILD_JOBS=4`:
 
 ## Counts
 
-`TODO/INDEX.md` holds 406 entries: 30 open, 2 partial, 31 blocked, 343 done.
+`TODO/INDEX.md` holds 406 entries: 29 open, 2 partial, 31 blocked, 344 done.
 
 Open includes parked work. `cargo todo check` verifies this line.
 
@@ -147,7 +147,7 @@ Q61.
 daemonizer, for a `--detach` that must never leave a server locked out, and of Azathothas/cfrs, its
 code and its issues. First T-410 (from GitHub's network the first move through a node still
 meets a frame for an id that the relay forgot; a node so closed now comes back). Their findings, in
-order: T-393, T-392, T-394, T-395, T-396 and T-397 (a
+order: T-392, T-394, T-395, T-396 and T-397 (a
 line that fails to write no longer aborts a detached node, `--persist-forever` never gives up, and
 `--restart` starts a detached run again); then T-399, T-400,
 T-402, T-403, T-404, T-405, T-406 and T-408. Before them, a bulk session through a node and its moves on

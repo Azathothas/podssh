@@ -191,5 +191,11 @@ fn code_of(status: std::process::ExitStatus) -> i32 {
     podssh_ssh::EXIT_FAILURE
 }
 
+/// The words of this run after the binary, as typed and kept at its start:
+/// what a service of `podssh ssh --install` runs again (T-393).
+pub(crate) fn run_words() -> Option<&'static Vec<OsString>> {
+    ARGS.get()
+}
+
 #[cfg(test)]
 mod tests;

@@ -9,6 +9,14 @@
 
 use super::{row, FlagKind, FlagRow};
 
+/// `ssh`'s flags of a service (T-393), beside the node's of this table.
+pub const SSH_INSTALL: FlagRow = row(None, "install", Some("NAME"), FlagKind::Supported,
+    "make this tunnel, with -N and --persist, a service of this user named NAME, which starts it again whenever it ends: the ways of podssh node --install, with these words but --install NAME", None);
+pub const SSH_UNINSTALL: FlagRow = row(None, "uninstall", Some("NAME"), FlagKind::Supported,
+    "remove the service that --install NAME made, its file of variables and its lock, and nothing else", None);
+pub const SSH_ENV_FILE: FlagRow = row(None, "env-file", Some("FILE"), FlagKind::Supported,
+    "read the variables of FILE, a private file of NAME=VALUE lines, before anything else, and hold FILE.lock while it runs, so that a second start ends at once: the file that --install writes", None);
+
 /// A client's own resume deadline (T-306), of `ssh` and `operator`.
 pub const OWN_DEADLINE: FlagRow = row(None, "resume-deadline", Some("TIME"), FlagKind::Supported,
     "node://NAME and iroh:TICKET: wait at most TIME for a new link after a loss, though the node keeps the session longer: 90s, 30m, 8h or 3d, from 1 minute to 72 h (default: as long as the node keeps it)", None);
@@ -56,11 +64,11 @@ pub const NODE_FLAGS: &[FlagRow] = &[
     row(None, "restart", None, FlagKind::Supported,
         "with --detach: a small process in the background starts the run again whenever it ends, but after 64, 77 or 78 or a stop of that process; it never gives up (T-390)", None),
     row(None, "install", None, FlagKind::Supported,
-        "make this node a service of this user, as a probe finds one: a user unit of systemd, else an @reboot line of the crontab; on Windows a task at logon; no privilege is asked for, and no token is written into it", None),
+        "make this node a service of this user, which starts it again whenever it ends, as a probe finds one: a user unit of systemd, else a LaunchAgent, else a line of the crontab at boot and one each 5 minutes; on Windows a task at logon; no privilege is asked for, and no token is written into it", None),
     row(None, "uninstall", None, FlagKind::Supported,
-        "remove the service that --install made for NAME, and its file of variables, and nothing else", None),
+        "remove the service that --install made for NAME, its file of variables and its lock, and nothing else", None),
     row(None, "env-file", Some("FILE"), FlagKind::Supported,
-        "read the node's variables from FILE, a private file of NAME=VALUE lines, before anything else: the file that --install writes beside the pair", None),
+        "read the node's variables from FILE, a private file of NAME=VALUE lines, before anything else, and hold FILE.lock while it runs, so that a second start ends at once: the file that --install writes beside the pair", None),
     row(None, "iroh-relay", Some("URLS"), FlagKind::Supported,
         "with --iroh: the relays, https://HOST[:PORT][,...]; the first that answers is the home relay (default: env PODSSH_IROH_RELAY, else n0's)", None),
     super::derp::NODE_DERP_SERVER,

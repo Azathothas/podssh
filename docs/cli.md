@@ -2095,9 +2095,10 @@ commands. The rules behind them:
   host, the relay's `/relays.json` as it came, or its view of the target.
 - **A node as a service, with no privilege (T-121).** `node NAME TARGET
   --install` probes for a way that this user may use: a user unit of
-  systemd when `systemctl --user` answers, else an `@reboot` line of the
-  crontab when `crontab -l` answers, and on Windows a task at the user's
-  logon, made from XML by `schtasks`, as a logon trigger of a user with no
+  systemd when `systemctl --user` answers, else a LaunchAgent when
+  `launchctl` has the user's login session, else two lines of the crontab
+  when `crontab -l` answers, and on Windows a task at the user's logon,
+  made from XML by `schtasks`, as a logon trigger of a user with no
   privilege must name that user and run with its token; never a Windows
   service. With none, the command to run at login, and 69. The service runs
   the binary by its absolute path with the node's TARGET and flags, and
@@ -2107,14 +2108,64 @@ commands. The rules behind them:
   No token goes into it or on a command line: the pair's tokens stay in
   `pair-NAME.json`, and `PODSSH_RELAY_TOKEN` and the secrets of Cloudflare
   Access are not carried (a proxy's password is, in the private file, as a
-  proxy that asks for one is not reached without it). The unit restarts
-  10 s after a failure, but not after 64, 77 or 78, which no restart
-  changes; an expired pair is one of them. podssh says whether lingering is
-  on, and never runs `loginctl`. `--uninstall` removes the unit (stopped
-  first), the line of the crontab with its mark, or the task, and the file
-  of variables: what `--install` wrote, and nothing else. `podssh serve` has
-  no command yet (T-107; the operator holds it, Q32); it takes the same module
-  when it comes.
+  proxy that asks for one is not reached without it). podssh says whether
+  lingering is on, and never runs `loginctl`. `--uninstall` removes the
+  unit (stopped first), the LaunchAgent (booted out first), the lines of
+  the crontab with their mark, or the task, and the files of variables, of
+  the lock and of the log: what `--install` and its runs wrote, and nothing
+  else. `podssh serve` has no command yet (T-107; the operator holds it,
+  Q32); it takes the same module when it comes.
+- **A service that always starts again (T-393).** A server that only the
+  tunnel reaches is locked out while the tunnel is down, so each way starts
+  the run again whenever it ends, with no limit of starts. The unit has
+  `Restart=always`, `RestartSec=5` and `StartLimitIntervalSec=0` (in
+  `[Unit]`, and `StartLimitInterval=0` in `[Service]` for a systemd older
+  than 230), and `RestartPreventExitStatus=64 78`: a refused command line or
+  setting stays down, as no start changes it, but 77 (an expired pair, a
+  refusal of the relay) starts again, so that a pair made again with `relay
+  pair NAME` is taken at the next start with no new `--install`. The
+  LaunchAgent (`~/Library/LaunchAgents/dev.podssh.node.NAME.plist`) has
+  `RunAtLoad`, `KeepAlive` and a `ThrottleInterval` of 5 s, and is loaded
+  by `launchctl bootstrap gui/UID`, removed by `bootout`; its stderr goes
+  to `node-NAME.log` beside the variables, as launchd keeps no journal.
+  With no login session at the screen (a Mac reached over SSH alone) the
+  crontab's way is taken, whose line at boot needs no login. The crontab
+  gets a line each 5 minutes beside `@reboot`, which starts the run when it
+  is not running. The Windows task also starts each 5 minutes while the
+  user is logged on (a time trigger, with `IgnoreNew` for a running one),
+  and a minute after a failure; after a reboot it waits for the logon, and
+  its line names the task at boot that only an administrator can make.
+  A new `--install` removes what an earlier one made by another way, so
+  that two ways never start the same service.
+- **One run of a service at a time (T-393).** A run with `--env-file FILE`
+  holds an exclusive lock on `FILE.lock` (`flock`, `LockFileEx`) for its
+  life, with its pid in the file. A second run with the same FILE (the
+  crontab's each 5 minutes, a person, a way that an earlier install left)
+  ends at once with 0, and says so only on a terminal, so that cron mails
+  nothing; a second node would meet the first at the relay, and a second
+  tunnel would ask the server for a port that the first holds. The kernel
+  lets the lock go when the run ends, however it ends, so no stale file
+  keeps a service down, as a file of a pid can. A file system that takes
+  no lock is said, and the run goes on without one: a service that does
+  not start is worse than two.
+- **A tunnel of `podssh ssh` as a service (T-393).** `podssh ssh --install
+  NAME -N -R ... --persist DEST` makes the same service of a reverse
+  tunnel to a standard sshd (`podssh-ssh-NAME.service`,
+  `dev.podssh.ssh.NAME`, the crontab's lines, or the task
+  `podssh-ssh-NAME`). It runs the words that the user typed but
+  `--install NAME`, in the directory where they were typed, so that each
+  flag and each relative path means what it meant, with no second list of
+  ssh's flags to keep in step; after the verb come `-o BatchMode=yes`,
+  `-o ForkAfterAuthentication=no`, `-o ControlPath=none` and
+  `-o ExitOnForwardFailure=yes`, which win over the user's words and over
+  ssh_config, as OpenSSH keeps the first value, then `--env-file` with
+  `ssh-NAME.env`, and `--persist-forever` (T-391) unless the words hold it,
+  so that an outage of the relay never ends the tunnel between two starts.
+  The command line is resolved before anything is written,
+  so that a service is never made of one that each start would refuse; a
+  shell, a command, `-W`, `-f`, `-G`, `-O`, `--attach`, `--upgrade`,
+  `--snippet`, no `--persist`, or no forward is refused (64). `podssh ssh
+  --uninstall NAME` removes it.
 - **No token in the output.** `relay pair` prints the label and the expiry.
   The operator's part, the connect token alone, goes to the new private
   file of `--operator-file`; the node's token and the stop token stay in

@@ -1,13 +1,14 @@
-//! The node's variables for its service (T-121): what `--install` carries
-//! into a private file beside the pair, and what `--env-file` reads back
-//! before anything else. A service starts with none of the user's shell:
-//! with no proxy variable, a node behind a proxy cannot reach the relay. No
-//! token of the environment is carried: the node's credentials are its
-//! pair's, and `PODSSH_CF_ACCESS_TOKEN_FILE` names a file for Cloudflare
-//! Access.
+//! The variables of a node's or a tunnel's service (T-121, T-393): what
+//! `--install` carries into a private file beside the pair, and what
+//! `--env-file` reads back before anything else. A service starts with none
+//! of the user's shell: with no proxy variable, a node behind a proxy cannot
+//! reach the relay. No token of the environment is carried: the node's
+//! credentials are its pair's, a tunnel's its keys', and
+//! `PODSSH_CF_ACCESS_TOKEN_FILE` names a file for Cloudflare Access.
 
 use std::path::{Path, PathBuf};
 
+use super::Kind;
 use crate::relay_settings::Refusal;
 
 /// The variables of other programs that the node reads and that a service
@@ -41,9 +42,17 @@ fn readable(name: &str) -> bool {
     CARRIED.contains(&name) || name.starts_with(OWN) && !SECRET.contains(&name)
 }
 
-/// The file of a node's variables in podssh's cache, beside its pair.
-pub(super) fn file_name(label: &str) -> String {
-    format!("node-{label}.env")
+/// The file of a service's variables in podssh's cache, beside a node's
+/// pair: `node-NAME.env`, `ssh-NAME.env`.
+pub(super) fn file_name(kind: Kind, label: &str) -> String {
+    format!("{}.env", kind.stem(label))
+}
+
+/// The log of a LaunchAgent, beside the file of its variables, as launchd
+/// keeps no journal: `node-NAME.log`.
+#[cfg_attr(not(unix), allow(dead_code))]
+pub(super) fn log_name(kind: Kind, label: &str) -> String {
+    format!("{}.log", kind.stem(label))
 }
 
 /// The file's text from this process's variables, and the secrets that are
@@ -58,7 +67,7 @@ pub(super) fn body() -> (String, Vec<String>) {
 pub(super) fn body_of(vars: impl Iterator<Item = (String, String)>) -> (String, Vec<String>) {
     let mut vars: Vec<(String, String)> = vars.filter(|(_, v)| !v.is_empty()).collect();
     vars.sort();
-    let mut text = String::from("# The variables of a podssh node's service: podssh node NAME --install wrote them.\n");
+    let mut text = String::from("# The variables of a service of podssh: podssh --install wrote them.\n");
     let mut left = Vec::new();
     for (name, value) in vars {
         if SECRET.contains(&name.as_str()) {
@@ -108,11 +117,15 @@ pub(super) fn apply(path: &Path) -> Result<(), Refusal> {
 }
 
 /// Remove the file of `label`'s variables from each directory of the cache
-/// where it is ours: the first one removed, if any.
-pub(super) fn remove(label: &str) -> Option<PathBuf> {
-    let name = file_name(label);
+/// where it is ours: the first one removed, if any. The lock of its runs
+/// and a LaunchAgent's log go with it.
+pub(super) fn remove(kind: Kind, label: &str) -> Option<PathBuf> {
+    let name = file_name(kind, label);
     let dirs = podssh_relay::cache::candidate_dirs();
     let found = dirs.iter().map(|dir| dir.join(&name)).find(|path| path.is_file());
+    for beside in [super::lock::file_name(&name), log_name(kind, label)] {
+        podssh_relay::cache::remove_named_from(&dirs, &beside);
+    }
     podssh_relay::cache::remove_named_from(&dirs, &name);
     found.filter(|path| !path.exists())
 }
