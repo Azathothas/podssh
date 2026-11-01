@@ -23,7 +23,9 @@ pub const CONFIGURATION_PARAMS: (u16, u16) = (0, 1);
 
 /// The features that cloudflared 2026.10.6 names when it registers: those of
 /// the registration that T-299 measured, over HTTP/2, at the edge. Since
-/// cloudflared's commit 77a79bf the edge treats each of them as given.
+/// cloudflared's commit 77a79bf the edge treats each of them as given, and
+/// 2026.10.7 names none of them; podssh names those of the pin's release,
+/// which the edge takes from each release that it supports (T-404).
 pub const FEATURES: &[&str] =
     &["allow_remote_config", "serialized_headers", "support_datagram_v2", "support_quic_eof", "management_logs"];
 

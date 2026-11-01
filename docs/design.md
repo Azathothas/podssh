@@ -356,7 +356,14 @@ since a quick tunnel has none.
   `--no-prechecks`) use the name `probe.cftunnel.com`, which the edge took,
   and log the table "CONNECTIVITY PRE-CHECKS" (measured, below). The edge's
   requests include the kind `update-configuration`, and a hidden flag,
-  `--cacert`, replaces the roots of the edge's connection (READ).
+  `--cacert`, replaces the roots of the edge's connection (READ). Over
+  HTTP/2, podssh answers a push of configuration as cloudflared does when
+  it took one, `{"lastAppliedVersion":N,"err":null}`, and keeps nothing of
+  it (T-404): its node serves the one TARGET of its command line. Over QUIC
+  a push is a call of Cap'n Proto on a stream of the RPC
+  (`tunnelrpc/quic/cloudflared_server.go`), which the node resets; the edge
+  pushes the rules of a tunnel that is managed remotely, and a quick tunnel
+  has none in an account (INFERRED).
 - QUIC: only after a UDP probe, as on the iroh road (section 7). A QUIC
   connection binds a UDP socket (`connection/quic.go:24-95`).
 - The egress to port 7844: direct TCP where a probe allows it; through a

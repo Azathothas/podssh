@@ -12,6 +12,8 @@
 //!   capability: bootstrap, call, finish, and the answers;
 //! - [`register`]: `registerConnection`, its parameters and its answer;
 //! - [`control`]: the control stream, sans-IO: the registration and its end;
+//! - [`configuration`]: the answer to a push of configuration, of which
+//!   nothing is kept (T-404);
 //! - [`headers`]: the one header in which an answer of HTTP/2 carries the
 //!   origin's headers;
 //! - [`api`]: the request for a tunnel, and its reply;
@@ -28,6 +30,7 @@
 
 pub mod api;
 pub mod capnp;
+pub mod configuration;
 pub mod connect;
 pub mod control;
 #[cfg(feature = "quick")]

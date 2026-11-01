@@ -3,8 +3,9 @@
 //! cloudflared (`connection/http2.go`; measured, T-299: the edge sends the
 //! client's preface). The edge's first request is the control stream, on
 //! which podssh registers the connection; each later request with the
-//! upgrade `websocket` is a visitor, whose WebSocket goes to `visit`; any
-//! other request gets 404 with no body, as podssh serves nothing else.
+//! upgrade `websocket` is a visitor, whose WebSocket goes to `visit`; a push
+//! of configuration gets cloudflared's answer and is kept nowhere (T-404);
+//! any other request gets 404 with no body, as podssh serves nothing else.
 //!
 //! Nothing listens: the connection is the one that podssh dialed. The
 //! WebSocket's frames pass the edge unchanged, so podssh is the WebSocket's
@@ -22,6 +23,7 @@ use tokio::io::{AsyncRead, AsyncReadExt, AsyncWrite, AsyncWriteExt, DuplexStream
 use tokio::sync::{mpsc, watch};
 use tokio::time::Instant;
 
+use super::configuration;
 use super::control::{Control, Event, Failure};
 use super::goaway;
 use super::headers::{self, Kind};
@@ -173,7 +175,10 @@ where
                             tokio::spawn(visit(websocket(request.into_body(), send)));
                         }
                     }
-                    Kind::Http | Kind::Configuration | Kind::Tcp => refuse(respond, StatusCode::NOT_FOUND),
+                    Kind::Configuration => {
+                        tokio::spawn(answer_push(request.into_body(), respond));
+                    }
+                    Kind::Http | Kind::Tcp => refuse(respond, StatusCode::NOT_FOUND),
                 },
                 // The end was asked for: the edge's close, or a pipe that
                 // breaks under it, is that end.
@@ -286,6 +291,36 @@ fn respond_200(mut respond: SendResponse<Bytes>, pairs: &[(&str, &str)]) -> Resu
 fn refuse(mut respond: SendResponse<Bytes>, status: StatusCode) {
     let answer = Response::builder().status(status).body(()).expect("a valid answer");
     let _ = respond.send_response(answer, true);
+}
+
+/// A push of configuration: its body, within its limits, answered as
+/// cloudflared answers it, and nothing of it kept (`configuration`); a body
+/// that does not read gets 502 from the connector, as cloudflared's does.
+async fn answer_push(mut body: RecvStream, mut respond: SendResponse<Bytes>) {
+    let mut push = Vec::new();
+    let read = async {
+        while let Some(chunk) = body.data().await {
+            let chunk = chunk.ok()?;
+            let _ = body.flow_control().release_capacity(chunk.len());
+            if push.len() + chunk.len() > configuration::MAX_PUSH {
+                return None;
+            }
+            push.extend_from_slice(&chunk);
+        }
+        Some(())
+    };
+    let read = tokio::time::timeout(configuration::PUSH_WAIT, read).await.ok().flatten();
+    let Some(answer) = read.and_then(|()| configuration::answer(&push)) else {
+        let failed =
+            Response::builder().status(StatusCode::BAD_GATEWAY).header(headers::RESPONSE_META, headers::META_CONNECTOR);
+        let _ = respond.send_response(failed.body(()).expect("a valid answer"), true);
+        return;
+    };
+    if let Ok(mut send) = respond_200(respond, &[]) {
+        if send_all(&mut send, answer.as_bytes()).await.is_ok() {
+            let _ = send.send_data(Bytes::new(), true);
+        }
+    }
 }
 
 /// The control stream: the registration's bytes out, the edge's in, each

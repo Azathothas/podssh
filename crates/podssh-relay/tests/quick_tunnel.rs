@@ -95,13 +95,47 @@ async fn any_other_request_gets_404_with_no_body() {
     let (_steps, stop, served) = node(node_io);
     let (mut edge, conn) = h2::client::handshake(edge_io).await.unwrap();
     tokio::spawn(conn);
-    for kind in [None, Some(headers::CONFIGURATION_UPDATE)] {
-        let (answer, _) = edge.send_request(request(kind).body(()).unwrap(), true).unwrap();
+    for other in [request(None), request(None).header(headers::TCP_SOURCE, "203.0.113.7")] {
+        let (answer, _) = edge.send_request(other.body(()).unwrap(), true).unwrap();
         let answer = tokio::time::timeout(LIMIT, answer).await.unwrap().unwrap();
         assert_eq!(answer.status(), 404);
         assert!(answer.into_body().is_end_stream(), "no body");
     }
     // An end with no control stream closes at once; the edge stays until then.
+    stop.send(()).unwrap();
+    tokio::time::timeout(LIMIT, served).await.unwrap().unwrap().expect("the end was asked for");
+    drop(edge);
+}
+
+/// A push of configuration gets cloudflared's answer, the push's version
+/// taken, as the test of cloudflared 2026.10.6 expects of its own
+/// (`connection/http2_test.go`, `TestHTTP2ConfigurationSet`, its body byte
+/// for byte); a body that does not read gets 502 from the connector, as
+/// cloudflared answers it (T-404). A node that answers 404 to a push,
+/// planted, fails here.
+#[tokio::test]
+async fn a_push_of_configuration_is_answered_with_its_version() {
+    const PUSH: &[u8] = br#"{
+"version": 2,
+"config": {"warp-routing": {"enabled": true},  "originRequest" : {"connectTimeout": 10}, "ingress" : [ {"hostname": "test", "service": "https://localhost:8000" } , {"service": "http_status:404"} ]}}
+"#;
+    let (node_io, edge_io) = tokio::io::duplex(1 << 20);
+    let (_steps, stop, served) = node(node_io);
+    let (mut edge, conn) = h2::client::handshake(edge_io).await.unwrap();
+    tokio::spawn(conn);
+    let mut push = |body: &'static [u8]| {
+        let put = request(Some(headers::CONFIGURATION_UPDATE)).method("PUT").body(()).unwrap();
+        let (answer, mut to_node) = edge.send_request(put, false).unwrap();
+        to_node.send_data(Bytes::from_static(body), true).unwrap();
+        answer
+    };
+    let answer = tokio::time::timeout(LIMIT, push(PUSH)).await.unwrap().unwrap();
+    assert_eq!(answer.status(), 200);
+    let expected = br#"{"lastAppliedVersion":2,"err":null}"#;
+    assert_eq!(read_exactly(&mut answer.into_body(), expected.len()).await, expected);
+    let answer = tokio::time::timeout(LIMIT, push(b"not the JSON of a push")).await.unwrap().unwrap();
+    assert_eq!(answer.status(), 502);
+    assert_eq!(answer.headers().get(RESPONSE_META).unwrap(), headers::META_CONNECTOR);
     stop.send(()).unwrap();
     tokio::time::timeout(LIMIT, served).await.unwrap().unwrap().expect("the end was asked for");
     drop(edge);
