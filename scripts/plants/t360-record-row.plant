@@ -1,0 +1,7 @@
+# T-360: the record's map of GitHub numbers (TODO/github.txt) loses a row;
+# `cargo todo check` must name the number that has no row.
+ENTRY=T-360
+GROUP=record
+EXPECT='problems? in the record'
+RUN='cargo run --locked -q -p podssh-todo -- check'
+LIMIT=900

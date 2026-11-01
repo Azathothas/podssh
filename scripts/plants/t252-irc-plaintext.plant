@@ -1,0 +1,9 @@
+# T-252: each chat run skips its TLS (the harness's switch); the chat test
+# must fail at the handshake. irc-in-image.sh exits 0 when it did, so the run
+# turns that into a failure that names the plant.
+ENTRY=T-252
+GROUP=irc
+ENV='IRC_PLANT=plaintext'
+EXPECT='^the plant: exit [1-9][0-9]* \(wanted a failure\)'
+RUN='sh scripts/irc-in-image.sh && exit 3'
+LIMIT=2400

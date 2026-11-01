@@ -488,7 +488,11 @@ wrong: the tests built their input with the same assumptions as the code.
    OpenSSH or Dropbear server, a real IRC server, the live relay, or bytes
    captured from one.
 2. Trust a new check only after it fails on a planted defect and passes on
-   correct input.
+   correct input. A plant that must run again (before a release, T-251) is a
+   file of `scripts/plants/`: the defect as a patch, or a switch of its
+   harness, and the line that the failed check prints.
+   `sh scripts/plant-each.sh --here ID` runs one here; the workflow
+   `plants.yml` runs each group in the build image.
 3. Run the real binary with stdout and stderr on different pipes. A stray
    `println!` passes every test that runs in memory.
 4. In a live test that expects a failure, send nothing after the trigger.

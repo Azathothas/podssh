@@ -328,6 +328,6 @@ These rules come from [docs/decisions.md](docs/decisions.md).
 | `scripts/dev.sh` (with `scripts/dev-wsl.sh` on Windows, `scripts/dev-native.sh` on Linux), `scripts/cloud-setup.sh`, `scripts/gate.sh` | Container runs, a Linux host or a cloud session made ready, and the build gate that CI also runs |
 | `scripts/interop*.sh`, `scripts/interop-pty.py`, `scripts/interop-conpty.py` | Tests against OpenSSH and Dropbear, faults, groff and mandoc (`interop-man.sh`), and terminals on Linux and Windows |
 | `scripts/test_in_box.sh`, `scripts/box/`, `scripts/sandbox-check.sh` | The Podman box like the target sandbox, and the measurement for a sandbox |
-| `scripts/check-*.py`, `scripts/plant.sh` | Repository checks, and the planted-defect check of the gate |
+| `scripts/check-*.py`, `scripts/plant.sh`, `scripts/plant-each.sh` with `scripts/plants/` | Repository checks, the planted-defect check of the gate, and the planted defect of each check (T-251) |
 | `docs/` | The documents: STATUS, ROADMAP, decisions and topic pages |
 | `TODO/` | The work record: the progress record with the work order, the index, the entries by area, the map of GitHub issues, the rules |

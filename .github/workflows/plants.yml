@@ -1,0 +1,95 @@
+name: plants
+
+# The planted defects of the checks (T-251, scripts/plant-each.sh): each
+# plant of scripts/plants/ is applied, its check runs, and the run passes only
+# when each check failed on its plant, with the failure that it names. A group
+# whose name begins with `host` runs on the runner itself (it starts
+# containers of its own: the box, a server image); each other group runs in
+# the build image with the tree at /work. Started by hand; it publishes
+# nothing.
+
+on:
+  workflow_dispatch:
+    inputs:
+      group:
+        description: "One group to run (empty: each group)"
+        required: false
+        default: ""
+
+permissions:
+  contents: read
+
+jobs:
+  plan:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 5
+    outputs:
+      image: ${{ steps.image.outputs.image }}
+      groups: ${{ steps.groups.outputs.groups }}
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+      - name: the build image
+        id: image
+        run: |
+          set -eu
+          ref=$(tr -d '\r' < images/build/Dockerfile | sed -n 's/^FROM[[:space:]]\{1,\}\([^[:space:]]\{1,\}\).*/\1/p')
+          case "$ref" in
+            *@sha256:*) echo "image=$ref" >> "$GITHUB_OUTPUT" ;;
+            *) echo "images/build/Dockerfile names no image pinned to a digest" >&2; exit 1 ;;
+          esac
+      # An empty list fails here rather than as a matrix of no job, which
+      # would pass.
+      - name: the groups
+        id: groups
+        env:
+          GROUP: ${{ inputs.group }}
+        run: |
+          set -eu
+          sh scripts/plant-each.sh --here --list > "$RUNNER_TEMP/plants.txt"
+          cat "$RUNNER_TEMP/plants.txt"
+          if [ -n "$GROUP" ]; then
+            grep -q "^$GROUP	" "$RUNNER_TEMP/plants.txt" || { echo "no plant in group $GROUP" >&2; exit 1; }
+            list=$GROUP
+          else
+            list=$(cut -f1 "$RUNNER_TEMP/plants.txt" | sort -u)
+          fi
+          [ -n "$list" ] || { echo "no plant" >&2; exit 1; }
+          json=$(printf '%s\n' "$list" | jq -R . | jq -cs .)
+          echo "groups=$json" >> "$GITHUB_OUTPUT"
+
+  plant:
+    name: plants (${{ matrix.group }})
+    needs: plan
+    runs-on: ubuntu-24.04
+    timeout-minutes: 120
+    strategy:
+      fail-fast: false
+      matrix:
+        group: ${{ fromJSON(needs.plan.outputs.groups) }}
+    env:
+      CARGO_BUILD_JOBS: "4"
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+      - name: the plants of ${{ matrix.group }}
+        env:
+          BUILD_IMAGE: ${{ needs.plan.outputs.image }}
+          GROUP: ${{ matrix.group }}
+        run: |
+          set -u
+          # Each exit code is read directly; the shell's -e would stop at it.
+          rc=0
+          case "$GROUP" in
+            host*)
+              sh scripts/plant-each.sh --here --group "$GROUP" || rc=$?
+              ;;
+            *)
+              image=$(sh scripts/pull-image.sh "$BUILD_IMAGE")
+              docker run --rm \
+                -v "$PWD:/work" -w /work \
+                -e PODSSH_TARGET=x86_64-unknown-linux-musl \
+                -e CARGO_BUILD_JOBS \
+                "$image" \
+                sh -c 'apk add --no-cache git >/dev/null && git config --global --add safe.directory /work && sh scripts/plant-each.sh --group "$0"' "$GROUP" || rc=$?
+              ;;
+          esac
+          [ "$rc" = 0 ] || { echo "plant-each exited $rc"; exit 1; }

@@ -75,7 +75,7 @@ tag.
 **Milestone:** M9
 **Priority:** P1
 **Effort:** M
-**Status:** open
+**Status:** partial
 
 ## Problem
 
@@ -131,6 +131,18 @@ The box models the target sandbox (`scripts/test_in_box.sh`).
 4. Record each result, with its source and the date, in `docs/STATUS.md`
    (a section "The release check").
 
+## Decision
+
+2026-11-01: the planted runs that the entries left to this check become files, one for each
+plant: a file `ID.plant` in `scripts/plants/` (its entry, its group, the command of the check,
+and the line that the failed run must print) with `ID.patch` beside it (the defect, a diff that
+`git apply` takes) or a switch of its harness (`ENV`). `scripts/plant-each.sh` applies each, runs
+its check with a time limit, reverts it, and passes only when each check failed and printed its
+line; `.github/workflows/plants.yml` runs the groups in the build image (or, for a group named
+`host...`, on the runner, for the box and the server images). Lost: the planted runs by hand,
+edited and reverted in a session, which T-250 could not run again after the tag and which a
+session's end loses half done; and a switch for each plant in the code, which would ship.
+
 ## Prove
 
 ```sh
@@ -176,6 +188,15 @@ Windows host is not:
   100 MiB a direction, as a lower bound, and the direct cell is named as not
   run; T-335's repair comes first, so that the relay cells cross a relay;
 - T-062 runs with the loop.
+
+## Done
+
+2026-11-01, partial: begun. `scripts/plant-each.sh` and `.github/workflows/plants.yml`, and the
+first plants: `t360-record-row` (T-360, a row of `TODO/github.txt` removed: `cargo todo check`
+names #62; caught here, `sh scripts/plant-each.sh --here t360-record-row`) and
+`t252-irc-plaintext` (T-252, the harness's switch). The runner's own plants, here: a check that
+passes with its plant is MISSED, a patch that no longer applies is STALE, a failure without the
+named line is MISSED, and the runner then exits 1.
 
 # T-309: Publish the rolling betas `v1.0.0-beta.N`
 
