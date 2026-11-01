@@ -182,9 +182,16 @@ where
             if last == Finish::Close {
                 outbox.closed.store(true, Ordering::SeqCst);
             }
+            // After `CLOSE` this side is done with the link; after
+            // `RETIRE` the pump decides who ends it (`Watch::ends_links`).
+            let closes = last == Finish::Close;
             let written = async {
                 put(link, &bytes_of(&record), outbox, watch).await?;
-                link.shutdown().await
+                if closes {
+                    link.shutdown().await
+                } else {
+                    link.flush().await
+                }
             };
             return match written.await {
                 Ok(()) => Written::Finished,

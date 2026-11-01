@@ -279,7 +279,7 @@ where
         let Accepted { link, decoder, established, settings, .. } = self;
         let mut carry = Carry::new(settings.link(&established));
         let mut app = app;
-        let ended = pump::run(&mut app, link, decoder, &mut carry, &pump::Watch::default()).await;
+        let ended = pump::run(&mut app, link, decoder, &mut carry, &pump::Watch::far_end()).await;
         // The target learns that no more bytes come.
         let _ = app.shutdown().await;
         let mut sessions = sessions.lock().unwrap_or_else(|e| e.into_inner());

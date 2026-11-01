@@ -30,7 +30,7 @@ use std::sync::atomic::{AtomicBool, AtomicU64, Ordering};
 use std::sync::{Arc, Mutex};
 use std::time::Duration;
 
-use tokio::io::{AsyncRead, AsyncReadExt, AsyncWrite, ReadHalf, WriteHalf};
+use tokio::io::{AsyncRead, AsyncReadExt, AsyncWrite, AsyncWriteExt, ReadHalf, WriteHalf};
 use tokio::sync::{mpsc, Notify};
 use tokio::time::Instant;
 
@@ -198,9 +198,22 @@ pub struct Watch {
     /// Set when this side's application ended its bytes on this link: the
     /// session is closing, and a move would only delay its `CLOSE`.
     pub app_ended: AtomicBool,
+    /// Whether this side ends a retired link (the far end, a node's): after
+    /// its last bytes it closes its side, and on a node's road the node's
+    /// `close` then follows its data. The client never does: an end of its
+    /// side is the operator leg's end, whose Close would cross the node's
+    /// bytes still on their way, and the relay ends the node's whole socket
+    /// for a frame of an id that it forgot (T-410).
+    pub ends_links: bool,
 }
 
 impl Watch {
+    /// The far end's watch: it ends the links that it retires or that are
+    /// retired under it.
+    pub fn far_end() -> Watch {
+        Watch { ends_links: true, ..Watch::default() }
+    }
+
     /// A watch that tells `due` when the link passes `move_at` bytes.
     pub fn moving_at(move_at: u64) -> Watch {
         let watch = Watch::default();
@@ -337,15 +350,19 @@ where
     // The far end's own `RETIRE` is followed by its end of the link the same
     // way, once its last bytes are out.
     if retired || matches!(end, End::Retired) {
-        tokio::spawn(linger(link_r, link_w));
+        tokio::spawn(linger(link_r, link_w, watch.ends_links));
     }
     let state = lock(state);
     Ended { end, received: state.received(), sent: state.sent() }
 }
 
-/// Hold a retired link until its far end ends it, or [`LINGER_RETIRED`]
-/// passes, reading and dropping what still comes on it.
-async fn linger<L: AsyncRead + AsyncWrite>(mut read: ReadHalf<L>, write: WriteHalf<L>) {
+/// Hold a retired link until the other side ends it, or [`LINGER_RETIRED`]
+/// passes, reading and dropping what still comes on it; the side that
+/// `ends` it first closes its own (`Watch::ends_links`).
+async fn linger<L: AsyncRead + AsyncWrite>(mut read: ReadHalf<L>, mut write: WriteHalf<L>, ends: bool) {
+    if ends {
+        let _ = tokio::time::timeout(FINISH, write.shutdown()).await;
+    }
     let mut buf = vec![0u8; 64 * 1024];
     let _ = tokio::time::timeout(LINGER_RETIRED, async {
         while let Ok(n) = read.read(&mut buf).await {

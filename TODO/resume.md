@@ -2872,7 +2872,7 @@ for a new link, and the test that asks for no loss fails at random.
 - Not reproduced here: 40 runs of the test alone, and 80 runs eight at a
   time, passed (a Claude Code cloud container, 2026-10-31).
 - Read: `End::Closing` comes from the pump's wait for the answer to its
-  `CLOSE` (`crates/podssh-relay/src/session/pump.rs:297-304`): a reader that
+  `CLOSE` (`crates/podssh-relay/src/session/pump.rs:310-317`): a reader that
   ended with anything but the peer's `CLOSE`, the 10 s of `LINGER` (not
   reached in a run of 2.9 s), or a stop. A loss with no `Resumed` after it is
   a resume that found the session forgotten while this side's application
@@ -3173,7 +3173,7 @@ after T-388's repair passed here with 7 moves.
 **Milestone:** none
 **Priority:** P1
 **Effort:** M
-**Status:** partial
+**Status:** done
 
 ## Problem
 
@@ -3210,27 +3210,36 @@ From GitHub's network: `relay-live.yml` with `node_live`, 6 moves or more, no fa
 
 ## Done
 
-2026-11-01, partial: two repairs, each with a test; the move test passes live, and the first move's
-fault still comes.
+2026-11-01: three repairs; the move test passes live with no fault of the node.
 
-- The node's writer has two queues (`crates/podssh-relay/src/reverse/serve.rs`, `Outbox`): control
-  (`ready`, `reject`, the relay's close of a session, the node's close of a stalled one, the stop)
-  goes first; a session's bytes and the `close` after its last ones keep their order. Before, one
-  queue of 256 frames of up to 64 KiB, some 16 MiB, held a `ready` behind a busy session's bytes,
-  past the relay's 15 s for an answer. `cargo test -p podssh-relay --features pair --test
-  reverse_node`, `a_ready_does_not_wait_behind_another_session_s_bytes`: passed; planted, one queue
-  again: 8.7 MB of the busy session came before the `ready`.
-- A relay close `1003 unknown session id` resumes the layer (`resumes` in
-  `crates/podssh-relay/src/reverse/closes.rs`): the relay ends each session of a node's socket with
-  it, the node connects again (T-409), and a new session is the reopening that the table's row
-  asks for. `--test session_policy`'s row now expects a resume.
-- Live here, `move_200mib_each_way_through_a_node` with the node's lines: 200 MiB each way in 158 s,
-  7 moves; at the first move the node still got `1003 unknown session id`, then came online again,
-  and the session resumed after 1.3 s. Before these repairs the same run ended there (here and from
-  GitHub's network). The moves after the first met no fault.
-- Open: why the first move alone meets a frame for a forgotten id. On a move the client opens the
-  new leg with no wait for the old one (`connect` in `crates/podssh-cli/src/layered.rs`), the old
-  link is read until its far end closes it (T-388), and the legs of `next_leg` wait for the node's
-  close; the first leg is started elsewhere (`ssh/node.rs`, `operator.rs`, `pipe/node.rs`), with
-  the plain operator's limits, which is the next lead.
-
+- The cause, from a trace of each control frame of the node and the operator (a local patch, not
+  kept), live: 40 ms after the move's new leg had its `ready`, the old leg's input ended, and the
+  first leg, which has the plain operator's limits, sent its Close at once; the relay forgot the
+  old id while the node still sent its bulk for it, and the next of them closed the node's socket
+  with `1003 unknown session id`. The input ended because the client's pump shut its side of the
+  link after `RETIRE` (`crates/podssh-relay/src/session/pump/outbox.rs`), which T-388's linger
+  could not undo; the legs of `next_leg` hid it, as they wait for the node's close.
+- Repaired: after `RETIRE` the writer flushes and leaves the link open; only the far end ends a
+  retired link (`Watch::ends_links`, set by `Watch::far_end()` in `far.rs` and `keep.rs`): it shuts
+  its side after its last bytes, so that the node's `close` follows its data and the relay then
+  ends the operator's leg; the client holds the link until then (`linger` in
+  `crates/podssh-relay/src/session/pump.rs`). Live with the trace: at each of the 7 moves the node
+  closed the old session first, then the relay closed the old leg with 1000, and no 1003.
+- Also repaired: the node's writer has two queues (`Outbox` in
+  `crates/podssh-relay/src/reverse/serve.rs`): control first (`ready`, `reject`, the relay's close
+  of a session, the node's close of a stalled one, the stop); a session's bytes and the `close`
+  after its last ones keep their order. One queue of 256 frames of up to 64 KiB held a `ready`
+  behind some 16 MiB of a busy session's bytes. `--test reverse_node`,
+  `a_ready_does_not_wait_behind_another_session_s_bytes`: passed; planted, one queue: 8.7 MB came
+  before the `ready`.
+- And: a relay close `1003 unknown session id` resumes the layer (`resumes` in
+  `crates/podssh-relay/src/reverse/closes.rs`), as the node comes back (T-409) and a new session is
+  the reopening that the table's row asks for.
+- Tests: `cargo test -p podssh-relay --test session_retire`,
+  `the_far_end_ends_a_moved_link_before_the_client_does` (a stand-in relay notes which side ends
+  each link while a session moves each 256 KiB through an echo): passed 6 runs of 6; planted, the
+  client's half-close after `RETIRE` back: failed 3 of 3. `cargo test -p podssh-relay --features
+  pair`: 334 passed, 0 failed; the CLI's node tests and the session tests of moves, resumes and
+  spares: passed; clippy `-D warnings`: clean.
+- Live here, `move_200mib_each_way_through_a_node`: 200 MiB each way in 157 s, 7 moves, no line of a
+  node's fault. From GitHub's network: `relay-live.yml` after the push (`docs/STATUS.md`).
