@@ -4106,7 +4106,7 @@ Read at `a3f948d` on 2026-10-31.
 **Milestone:** backlog
 **Priority:** P3
 **Effort:** L
-**Status:** partial
+**Status:** done
 
 ## Problem
 
@@ -4291,6 +4291,10 @@ Built and tested here (2026-11-01), the live run waiting for Q60:
   planted, no gathering: 527 writes, it failed). And `podssh proxy` ran Arti's circuits and the
   pump on one thread: the Tor road takes two, else one. The rest of the gap down to C tor's client
   is not located.
+- Through the box's proxy of a cage's ports (`tor-live.yml` at `a94718a`, run 41337008863):
+  GitHub's banner in 8.3 s from nothing and in 5.0 s from the cached directory; the proxy took 6
+  CONNECTs, each to a relay's address on 443, and none to `github.com:22`. Directly in the same
+  run: 9.1 s and 25.7 s.
 
 
 

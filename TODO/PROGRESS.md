@@ -120,7 +120,7 @@ and `CARGO_BUILD_JOBS=4`:
 
 ## Counts
 
-`TODO/INDEX.md` holds 415 entries: 15 open, 2 partial, 30 blocked, 368 done.
+`TODO/INDEX.md` holds 415 entries: 15 open, 1 partial, 30 blocked, 369 done.
 
 Open includes parked work. `cargo todo check` verifies this line.
 
@@ -155,12 +155,11 @@ started again, the smaller gaps of `--detach` are closed; the quick tunnel races
 a connection on the edge's GOAWAY, keeps its window in small frames and answers a push of
 configuration over QUIC, and keeps two connections to the edge since Q62). Before them, a bulk session through a node and its moves on
 the live relay are repaired, and the entries of the audit, the study and the issues
-of 2026-10-31 (GitHub #59 to #63 and #69 to #76): T-353 (Q52), whose live run Q60 allows now; the
-others are done. Each other `backlog` entry is done, but for those on hold, those of the relay's
+of 2026-10-31 (GitHub #59 to #63 and #69 to #76), each done. Each other `backlog` entry is done, but for those on hold, those of the relay's
 operator and the parked ones.
 
-**Next (2026-11-01, the operator's rulings of Q60 to Q62):** T-353's live run through the box's
-proxy on the public Tor network. The rehearsal of T-251 at `7855981`
+**Next (2026-11-01):** each entry that the operator's rulings of Q60 to Q62 opened is done. The
+rehearsal of T-251 at `7855981`
 found two checks that fail at random, the test of DoH over HTTP/2 in the gate and WARP's road in
 `quick-tunnel-live.yml`, both repaired, so `v1.0.0-beta.4` comes after 2026-11-02 01:44 UTC
 from the first commit after their repairs where the gate and each ACTIONS row of the release check
