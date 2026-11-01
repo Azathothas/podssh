@@ -1,0 +1,13 @@
+--- a/crates/podssh-relay/src/failures.rs
++++ b/crates/podssh-relay/src/failures.rs
+@@ -99,8 +99,8 @@
+             _ => first.push(i),
+         }
+     }
+-    first.extend(last);
+-    (first, notes)
++    let _ = (first, last, notes);
++    ((0..hosts.len()).collect(), Vec::new())
+ }
+ 
+ /// The hosts that a run tries last now: each name, the seconds since its

@@ -307,7 +307,7 @@ login attempt through the relay.
 - The banner is `SSH-2.0-podssh_1.0.0_beta.1`
   (`crates/podssh-ssh/src/run_config.rs:62`). `cargo test -p podssh-ssh --lib
   run::tests`: 6 passed, and the new test of the banner failed planted (the
-  `-` kept: `SSH-2.0-podssh_1.0.0-beta.1`). `scripts/sandbox-check.sh:113`
+  `-` kept: `SSH-2.0-podssh_1.0.0-beta.1`). `scripts/sandbox-check.sh:115`
   sent a `-` in its software version too: `podssh_sandbox_check` now.
 - `cliff.toml`: each subject cut to 200 characters; after the cut, a name
   after `@` becomes code (the subjects hold `@NAME`, `@GROUP` and

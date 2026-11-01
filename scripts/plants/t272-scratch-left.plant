@@ -1,0 +1,8 @@
+# T-272: podssh-todo's scratch Tree no longer removes its directory when it is
+# dropped; the gate's check of the temporary directory (tests() in
+# scripts/gate.sh) must name what the step `record` left there.
+ENTRY=T-272
+GROUP=record
+EXPECT='^FAIL +the tests left in the temporary directory'
+RUN='sh scripts/gate.sh record'
+LIMIT=1800

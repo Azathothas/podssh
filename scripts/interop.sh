@@ -128,7 +128,7 @@ done
 grep -q "killed by signal TERM" "$W/err" && ok ssh.exit.signal_named "a remote signal is named on stderr" \
     || bad ssh.exit.signal_named "no signal message" "$W/err"
 
-. "$HERE/interop-status.sh"
+part interop-status.sh
 
 echo
 echo "== streams"
@@ -154,7 +154,7 @@ for size in 262144 262145 5000000; do
 done
 # The memory of a session whose output nobody reads (T-201).
 # shellcheck source=scripts/interop-limits.sh
-. "$HERE/interop-limits.sh"
+part interop-limits.sh
 
 echo
 echo "== authentication"
@@ -265,7 +265,7 @@ cmp -s "$W/kh_ca" "$W/kh_ca.before" && ok ssh.hostkey.cert_unrecorded "T-027: no
     || bad ssh.hostkey.cert_unrecorded "T-027: known_hosts changed" "$W/kh_ca"
 kill "$(cat "$W/sshd-2211.pid")" 2>/dev/null
 # shellcheck source=scripts/interop-reference.sh
-. "$HERE/interop-reference.sh"
+part interop-reference.sh
 
 echo
 echo "== % tokens, against OpenSSH's own expansion (ssh -G)"
@@ -359,7 +359,7 @@ head -c 16 "$W/out" | grep -q "SSH-2.0-dropbear" && ok ssh.forward.w_banner "-W 
 p 2203 $K -o BatchMode=yes -J "$T:2201" "$T" 'exit 5' </dev/null >"$W/out" 2>"$W/err"
 expect_rc ssh.forward.jump "-J through OpenSSH to Dropbear" 5 $? "$W/err"
 # shellcheck source=scripts/interop-hostkeys.sh
-. "$HERE/interop-hostkeys.sh"
+part interop-hostkeys.sh
 printf '\000\000\000\005\001\000\000\000\003' >"$W/fxp_init"
 # stdin stays open a moment: OpenSSH's sftp-server exits on end of input
 # without flushing its reply (measured 2026-10-08 on a Debian host, without
@@ -415,7 +415,7 @@ rc=$?
     && ok ssh.forward.remote_refused "-R to a port that OpenSSH refuses, with ExitOnForwardFailure: exit 255, named" \
     || bad ssh.forward.remote_refused "-R refused: exit $rc" "$W/err"
 # shellcheck source=scripts/interop-remote.sh
-. "$HERE/interop-remote.sh"
+part interop-remote.sh
 
 echo
 echo "== pseudo-terminals without a local terminal (pipes only, as on a host with no /dev/ptmx)"
@@ -448,49 +448,42 @@ saved=$(p 2201 $K -o BatchMode=yes "$T" 'cat /tmp/pipe-vi' </dev/null 2>/dev/nul
     || bad ssh.pty.vi "vi through pipes: exit $rc, file holds '$saved'" "$W/out"
 
 # shellcheck source=scripts/interop-keygen.sh
-. "$HERE/interop-keygen.sh"
+part interop-keygen.sh
 # shellcheck source=scripts/interop-agent.sh
-. "$HERE/interop-agent.sh"
+part interop-agent.sh
 # shellcheck source=scripts/interop-local.sh
-. "$HERE/interop-local.sh"
+part interop-local.sh
 # shellcheck source=scripts/interop-control.sh
-. "$HERE/interop-control.sh"
+part interop-control.sh
 # shellcheck source=scripts/interop-faults.sh
-. "$HERE/interop-faults.sh"
+part interop-faults.sh
 # shellcheck source=scripts/interop-cp.sh
-. "$HERE/interop-cp.sh"
+part interop-cp.sh
 # shellcheck source=scripts/interop-pipe.sh
-. "$HERE/interop-pipe.sh"
+part interop-pipe.sh
 # shellcheck source=scripts/interop-desktop.sh
-. "$HERE/interop-desktop.sh"
+part interop-desktop.sh
 # shellcheck source=scripts/interop-usbip.sh
-. "$HERE/interop-usbip.sh"
+part interop-usbip.sh
 # shellcheck source=scripts/interop-sudo.sh
-. "$HERE/interop-sudo.sh"
+part interop-sudo.sh
 # shellcheck source=scripts/interop-recording.sh
-. "$HERE/interop-recording.sh"
+part interop-recording.sh
 # shellcheck source=scripts/interop-x11.sh
-. "$HERE/interop-x11.sh"
+part interop-x11.sh
 # shellcheck source=scripts/interop-stdio.sh
-. "$HERE/interop-stdio.sh"
+part interop-stdio.sh
 # shellcheck source=scripts/interop-match.sh
-. "$HERE/interop-match.sh"
+part interop-match.sh
 # shellcheck source=scripts/interop-result.sh
-. "$HERE/interop-result.sh"
+part interop-result.sh
 # shellcheck source=scripts/interop-mcp.sh
-. "$HERE/interop-mcp.sh"
+part interop-mcp.sh
 # shellcheck source=scripts/interop-each.sh
-. "$HERE/interop-each.sh"
+part interop-each.sh
 
-echo
-echo "== an interactive terminal (a local pty, driven by scripts/interop-pty.py)"
-env -u SSH_AUTH_SOCK HOME="$W" python3 "$HERE/interop-pty.py" "$BIN" "$KH" "$W/id_ed25519" >"$W/pty.log" 2>&1
-rc=$?
-cat "$W/pty.log"
-pass=$((pass + $(grep -c '^ok ' "$W/pty.log")))
-fail=$((fail + $(grep -c '^FAIL' "$W/pty.log")))
-{ [ "$rc" -eq 0 ] || [ "$(grep -c '^FAIL' "$W/pty.log")" -gt 0 ]; } && ok ssh.pty.driver "the pty driver ran (exit $rc)" \
-    || bad ssh.pty.driver "the pty driver exited $rc with no result line"
+# shellcheck source=scripts/interop-ptyrun.sh
+part interop-ptyrun.sh
 
 for f in "$W"/sshd-*.pid "$W/dropbear.pid"; do
     [ -f "$f" ] && kill "$(cat "$f")" 2>/dev/null

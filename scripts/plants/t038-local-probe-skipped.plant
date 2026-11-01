@@ -1,0 +1,9 @@
+# T-038: a listener of -L that could not be made is skipped, and the run goes
+# on (the Prove's plant); the box's step "a listener of -L" must fail (it
+# comes with box-steps.diff).
+ENTRY=T-038
+GROUP=host-box
+EXPECT='^FAIL +a listener of -L: exit [0-9]+, and neither'
+SETUP='sh scripts/box/build-podssh.sh'
+RUN='sh scripts/test_in_box.sh "$BIN"'
+LIMIT=2400

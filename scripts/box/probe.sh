@@ -84,10 +84,13 @@ case $udp in
 esac
 
 # No listener: bind refused. (The report has no bind probe; the operator
-# reports that binding is not allowed there.)
+# reports that binding is not allowed there.) With BOX_SECCOMP=nolisten the
+# bind works and listen is refused with EPERM (T-358), on purpose.
 bind=$(timeout 3 nc -l -p 18080 </dev/null 2>&1)
-case $bind in
-    *"ermission denied"*) match bind "refused: Permission denied" ;;
+case ${BOX_SECCOMP:-}/$bind in
+    nolisten/*"not permitted"*) match bind "bound, and listen refused: Operation not permitted (nolisten)" ;;
+    nolisten/*) differs bind "${bind:-no error within 3 s}" "listen refused with EPERM (nolisten)" ;;
+    /*"ermission denied"*) match bind "refused: Permission denied" ;;
     *) differs bind "${bind:-no error within 3 s}" "refused" ;;
 esac
 

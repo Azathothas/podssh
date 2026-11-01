@@ -1,0 +1,8 @@
+# T-167: a client of --upgrade that starts a temporary node with no probe
+# of `podssh --version`; with no podssh on the server, its one note is no
+# longer "no podssh answers there", and the upgrade test must fail.
+ENTRY=T-167
+GROUP=resume-cli
+EXPECT='test with_no_podssh_on_the_server_the_session_stays_with_one_note \.\.\. FAILED'
+RUN='cargo test --locked -p podssh-cli --test upgrade -- with_no_podssh_on_the_server_the_session_stays_with_one_note'
+LIMIT=2700

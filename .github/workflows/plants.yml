@@ -80,7 +80,8 @@ jobs:
           rc=0
           case "$GROUP" in
             host*)
-              sh scripts/plant-each.sh --here --group "$GROUP" || rc=$?
+              # Rootful Podman for the box, as box.yml runs it.
+              sudo -E env "PATH=$PATH" sh scripts/plant-each.sh --here --group "$GROUP" || rc=$?
               ;;
             *)
               image=$(sh scripts/pull-image.sh "$BUILD_IMAGE")

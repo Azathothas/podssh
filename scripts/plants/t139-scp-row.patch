@@ -1,0 +1,11 @@
+--- a/crates/podssh-cli/src/flags/scp.rs
++++ b/crates/podssh-cli/src/flags/scp.rs
+@@ -29,8 +29,6 @@
+     row(Some('r'), "recursive", None, FlagKind::Supported,
+         "copy a directory and what it holds; links are followed, as OpenSSH's scp does, and a loop is refused", None),
+     row(Some('s'), "sftp-protocol", None, FlagKind::Accepted, "the SFTP protocol; podssh uses it already", None),
+-    row(Some('T'), "no-name-check", None, FlagKind::Accepted,
+-        "no check of the names that a server sends; podssh names each file itself", None),
+     row(Some('v'), "verbose", None, FlagKind::Supported, "raise log level; repeatable", None),
+     row(Some('c'), "cipher", Some("CIPHERS"), FlagKind::Refused,
+         "podssh negotiates its own modern ciphers", Some("no flag")),

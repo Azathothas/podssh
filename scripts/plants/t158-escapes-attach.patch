@@ -1,0 +1,11 @@
+--- a/crates/podssh-ssh/src/escape.rs
++++ b/crates/podssh-ssh/src/escape.rs
+@@ -81,7 +81,7 @@
+     /// Whether `command` is an escape of this session.
+     fn offers(&self, command: Command) -> bool {
+         match command {
+-            Command::Detach => self.detach,
++            Command::Detach => true,
+             Command::CommandLine => self.command_line,
+             _ => true,
+         }

@@ -1,0 +1,12 @@
+--- a/crates/podssh-relay/src/session/offset.rs
++++ b/crates/podssh-relay/src/session/offset.rs
+@@ -64,7 +64,8 @@
+         let len = bytes.len() as u64;
+         let end = offset.checked_add(len).ok_or(OffsetError::Overflow { offset, len })?;
+         if offset > self.next {
+-            return Err(OffsetError::Gap { expected: self.next, got: offset });
++            self.next = end;
++            return Ok(bytes);
+         }
+         if end <= self.next {
+             return Ok(&[]);

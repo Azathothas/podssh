@@ -1,0 +1,9 @@
+# T-137: the relay stream counts the bytes from the relay only, not those it
+# sends; an upload under PODSSH_SESSION_BUDGET then meets the stand-in's 1009
+# and breaks, so resume.budget.up must fail.
+ENTRY=T-137
+GROUP=copy
+EXPECT='^FAIL +resume\.budget\.up '
+SETUP='for p in sshd sshd-session sshd.pam dropbear python3 podssh tmux ssh-agent Xvfb Xvnc x0vncserver; do pkill -x "$p"; done; true'
+RUN='RUSTFLAGS=-Ctarget-feature=+crt-static CARGO_PROFILE_RELEASE_LTO=false CARGO_PROFILE_RELEASE_CODEGEN_UNITS=16 cargo build --locked --release --target "$TARGET" -p podssh-cli && INTEROP_ONLY="faults cp" sh scripts/interop.sh "$BIN"'
+LIMIT=3600

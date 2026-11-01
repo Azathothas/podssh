@@ -1,0 +1,8 @@
+# T-177: podssh pipe exits 69 (out of reach) where the host refuses its bind,
+# not 77; the box's step "a listener" (unix-listen exit=77) must fail.
+ENTRY=T-177
+GROUP=host-box
+EXPECT='^FAIL +a listener: exit 69 '
+SETUP='sh scripts/box/build-podssh.sh'
+RUN='sh scripts/test_in_box.sh "$BIN"'
+LIMIT=2400

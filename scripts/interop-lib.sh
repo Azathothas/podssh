@@ -124,3 +124,16 @@ direct_ref() {
     stock_raw "$@"
     env -u SSH_AUTH_SOCK HOME="$W" "$BIN" ssh --direct "$@"
 }
+
+# INTEROP_ONLY="faults cp" sources only those parts of interop.sh (the name
+# after `interop-`), once its servers run: a planted defect of T-251 runs the
+# part that holds its check (scripts/plants/). Unset, each part runs.
+part() {
+    _part=${1#interop-}
+    _part=${_part%.sh}
+    case " ${INTEROP_ONLY:-$_part} " in
+        # shellcheck disable=SC1090  # the part is named by its caller
+        *" $_part "*) . "$HERE/$1" ;;
+        *) echo "== $1: not run (INTEROP_ONLY=$INTEROP_ONLY)" ;;
+    esac
+}

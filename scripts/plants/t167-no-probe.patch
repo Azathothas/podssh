@@ -1,0 +1,17 @@
+--- a/crates/podssh-cli/src/ssh/upgrade.rs
++++ b/crates/podssh-cli/src/ssh/upgrade.rs
+@@ -132,13 +132,7 @@
+ async fn offer(handle: &Connection, client_key: Option<&str>, host: &str, log: &Log) -> Result<Found, String> {
+     // A line `podssh VERSION`: a login's own lines may come before it.
+     let answers = |out: &Captured| out.stdout.split(|b| *b == b'\n').any(|line| line.starts_with(b"podssh "));
+-    match exec::capture(handle, "podssh --version", PROBE_LIMIT, CAP).await {
+-        Ok(out) if out.status == Some(0) && answers(&out) => {
+-            log.verbose(&format!("{host}: a podssh answers there; it starts a temporary node"));
+-        }
+-        Ok(out) => return Err(format!("no podssh answers there (podssh --version: {})", said(&out))),
+-        Err(e) => return Err(format!("no podssh answers there (podssh --version: {e})")),
+-    }
++    let _ = (answers, PROBE_LIMIT);
+     let say = |line: String| log.info(&format!("{host}: {line}"));
+     let me = crate::channel::client_identity(client_key, &say)?;
+     let key = exec::shell_word(&me.public().fingerprint()).unwrap_or_default();

@@ -1,0 +1,9 @@
+# T-158: the same Escapes, end to end: a far end that keeps no shells never
+# gets `~d` as bytes, so its shell never says "~d: not found". Python and
+# openssl for the stand-in relay, else the test passes as "did not run".
+ENTRY=T-158
+GROUP=resume-cli
+EXPECT='test a_far_end_that_keeps_no_shells_refuses_attach_and_gets_tilde_d_as_bytes \.\.\. FAILED'
+SETUP='apk add --no-cache python3 openssl'
+RUN='cargo test --locked -p podssh-cli --test attach -- a_far_end_that_keeps_no_shells_refuses_attach_and_gets_tilde_d_as_bytes'
+LIMIT=2700

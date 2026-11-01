@@ -1,0 +1,9 @@
+# T-025: retry_phase tries again after the request too; the drop 3 s after the
+# command started is then tried again, and the command runs twice.
+# SETUP stops what an earlier interop run of this container left running.
+ENTRY=T-025
+GROUP=ssh-faults
+EXPECT='^FAIL +faults\.drop\.after_start '
+RUN='RUSTFLAGS=-Ctarget-feature=+crt-static CARGO_PROFILE_RELEASE_LTO=false CARGO_PROFILE_RELEASE_CODEGEN_UNITS=16 cargo build --locked --release --target "$TARGET" -p podssh-cli && INTEROP_ONLY=faults sh scripts/interop.sh "$BIN"'
+SETUP='for p in sshd sshd-session sshd.pam dropbear python3 podssh tmux ssh-agent Xvfb Xvnc x0vncserver; do pkill -x "$p"; done; true'
+LIMIT=3600

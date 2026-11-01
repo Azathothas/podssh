@@ -1,0 +1,6 @@
+# T-154: the heartbeat's interval is 200 s, not 10 s; on the paused clock an
+# idle link then dies at 30 s, and the test of a record each 10 s must fail.
+ENTRY=T-154
+GROUP=resume
+EXPECT='test an_idle_session_carries_a_record_each_way_each_10_s \.\.\. FAILED'
+RUN='cargo test --locked -p podssh-relay --test session_heartbeat -- an_idle_session_carries_a_record_each_way_each_10_s'

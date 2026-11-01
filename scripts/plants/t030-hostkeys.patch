@@ -1,0 +1,11 @@
+--- a/crates/podssh-ssh/src/run.rs
++++ b/crates/podssh-ssh/src/run.rs
+@@ -157,7 +157,7 @@
+         .jump
+         .iter()
+         .enumerate()
+-        .map(|(i, hop)| (hop, hop_options(opts, i)))
++        .map(|(i, _)| (&opts.destination, hop_options(opts, i)))
+         .chain(std::iter::once((&opts.destination, Cow::Borrowed(opts))))
+         .collect();
+     let last = hops.len() - 1;

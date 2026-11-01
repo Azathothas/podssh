@@ -1,0 +1,11 @@
+--- a/crates/podssh-ssh/src/io.rs
++++ b/crates/podssh-ssh/src/io.rs
+@@ -279,7 +279,7 @@
+                         STATUS_WAIT.as_secs()
+                     ));
+                 }
+-                return end_with(status);
++                return status.map(End::Status).unwrap_or(End::Status(0));
+             }
+             missed = expecting(through.expect.as_ref()) => {
+                 log.error(&missed);

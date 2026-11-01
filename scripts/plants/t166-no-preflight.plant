@@ -1,0 +1,8 @@
+# T-166: a roost with no preflight of sshd (probe asked as for a plain
+# node): in front of an HTTP server it registers at the counting relay
+# instead of exiting 78, and the roost test must fail.
+ENTRY=T-166
+GROUP=resume-cli
+EXPECT='test a_roost_in_front_of_another_service_exits_with_its_first_line \.\.\. FAILED'
+RUN='cargo test --locked -p podssh-cli --test roost -- a_roost_in_front_of_another_service_exits_with_its_first_line'
+LIMIT=2700

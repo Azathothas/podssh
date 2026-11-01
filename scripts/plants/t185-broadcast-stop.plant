@@ -1,0 +1,9 @@
+# T-185: the broadcast ignores its stop key (SIGQUIT, Ctrl-\); the line after
+# kill -QUIT still reaches a shell and makes its file, so broadcast.stop must
+# fail.
+ENTRY=T-185
+GROUP=each-a
+EXPECT='^FAIL +broadcast\.stop '
+SETUP='for p in sshd sshd-session sshd.pam dropbear python3 podssh tmux ssh-agent Xvfb Xvnc x0vncserver; do pkill -x "$p"; done; true'
+RUN='RUSTFLAGS=-Ctarget-feature=+crt-static CARGO_PROFILE_RELEASE_LTO=false CARGO_PROFILE_RELEASE_CODEGEN_UNITS=16 cargo build --locked --release --target "$TARGET" -p podssh-cli && INTEROP_ONLY=each sh scripts/interop.sh "$BIN"'
+LIMIT=3600

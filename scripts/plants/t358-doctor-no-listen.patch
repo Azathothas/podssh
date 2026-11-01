@@ -1,0 +1,11 @@
+--- a/crates/podssh-cli/src/doctor/unix.rs
++++ b/crates/podssh-cli/src/doctor/unix.rs
+@@ -179,7 +179,7 @@
+         return Probe::NotTried;
+     }
+     // SAFETY: `fd` is a bound stream socket that the caller closes.
+-    if unsafe { libc::listen(fd, 1) } == 0 {
++    if fd >= 0 {
+         Probe::Listened
+     } else {
+         Probe::ListenRefused(io::Error::last_os_error())

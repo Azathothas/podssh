@@ -1,0 +1,10 @@
+--- a/crates/podssh-ssh/src/relay_stream.rs
++++ b/crates/podssh-ssh/src/relay_stream.rs
+@@ -210,7 +210,6 @@
+                         up_failed_tx.notify_one();
+                         break;
+                     }
+-                    up_status.count(n);
+                     // A question that the relay answers at once (T-307);
+                     // a send that fails is the next write's to find.
+                     if up_status.ask(tokio::time::Instant::now()) {

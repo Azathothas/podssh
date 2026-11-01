@@ -1,0 +1,9 @@
+# T-358: doctor's probe leaves out the listen and says that 127.0.0.1 can
+# listen; in the box that refuses listen (BOX_SECCOMP=nolisten) the step
+# "doctor listen AF_INET" must fail (it comes with box-steps.diff).
+ENTRY=T-358
+GROUP=host-nolisten
+EXPECT='^FAIL +doctor listen AF_INET: the listener was refused'
+SETUP='sh scripts/box/build-podssh.sh'
+RUN='BOX_SECCOMP=nolisten sh scripts/test_in_box.sh "$BIN"'
+LIMIT=2400

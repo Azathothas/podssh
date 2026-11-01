@@ -1,0 +1,18 @@
+--- a/crates/podssh-cli/src/each/broadcast/mod.rs
++++ b/crates/podssh-cli/src/each/broadcast/mod.rs
+@@ -170,14 +170,7 @@
+                 }
+             },
+             key = keys.next() => match key {
+-                Key::Stop => {
+-                    // What was read before the key and not yet acted on goes too.
+-                    let mut unread = 0;
+-                    while let Ok(bytes) = typed.try_recv() {
+-                        unread += bytes.len();
+-                    }
+-                    say(&to, &hub.stop(unread)).await;
+-                }
++                Key::Stop => {}
+                 Key::Interrupt if reading => say(&to, &hub.ctrl_c()).await,
+                 Key::Interrupt => {
+                     let still = running.len();
