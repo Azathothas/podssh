@@ -134,7 +134,7 @@ async fn up(
     // other names here, by its device and inode (T-146).
     let mut linked = Linked::new();
     // --parallel K: the files wait, then go K at once (T-297).
-    let (batching, mut batch) = (conn.batches(shape), Waiting::new());
+    let (batching, mut batch) = (conn.batches(shape, &items, log), Waiting::new());
     for item in &items {
         match item {
             Item::Dir { rel, stamp } => {
@@ -318,7 +318,7 @@ async fn down(
     let mut dirs = Vec::new();
     let mut clean = true;
     // --parallel K: the files wait, then go K at once (T-297).
-    let (batching, mut batch) = (conn.batches(shape), Waiting::new());
+    let (batching, mut batch) = (conn.batches(shape, &items, log), Waiting::new());
     for item in &items {
         match item {
             Item::Dir { rel, stamp } => {

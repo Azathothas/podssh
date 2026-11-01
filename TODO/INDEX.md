@@ -62,15 +62,15 @@ repository and CI).
 
 ## Counts
 
-**413 entries: 16 open, 2 partial, 32 blocked, 363 done.**
+**413 entries: 15 open, 2 partial, 32 blocked, 364 done.**
 
 | Priority | open | partial | blocked | done | total |
 | --- | --- | --- | --- | --- | --- |
 | P0 | 0 | 0 | 0 | 1 | 1 |
 | P1 | 1 | 1 | 0 | 39 | 41 |
-| P2 | 2 | 0 | 21 | 178 | 201 |
+| P2 | 1 | 0 | 21 | 179 | 201 |
 | P3 | 13 | 1 | 11 | 145 | 170 |
-| **All** | 16 | 2 | 32 | 363 | 413 |
+| **All** | 15 | 2 | 32 | 364 | 413 |
 
 ## Entries
 
@@ -488,4 +488,4 @@ repository and CI).
 | [T-414](roads.md) | P3 | S | none | feature | blocked | The quick tunnel keeps a second connection to the edge, to its other region |
 | [T-415](release.md) | P2 | S | none | defect | done | On GitHub's runner the box's /dev/tty probe waits 40 minutes, so box.yml measures nothing |
 | [T-416](reverse.md) | P1 | S | none | defect | done | A node that starts right after the pair's last node ended meets 409 and exits |
-| [T-417](copy.md) | P2 | M | none | defect | open | `cp` spends some 14 round trips on each small file, so a tree of small files crawls through the relay |
+| [T-417](copy.md) | P2 | M | none | defect | done | `cp` spends some 14 round trips on each small file, so a tree of small files crawls through the relay |

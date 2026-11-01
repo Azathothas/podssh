@@ -87,7 +87,9 @@ const CP: &[&str] = &[
      connection, and so do the files of a tree with -r; a file of more than 8 MiB goes after them, alone, \
      as chunks, K at once. Each file keeps its own side file, so after a broken connection each goes on \
      where it was. The report keeps the order of the sources, and the exit code is that of the first \
-     failure in that order. The copy by exec goes one file at a time.",
+     failure in that order. The copy by exec goes one file at a time. Each file waits for its own round \
+     trips, so a tree of small files through the relay takes their sum: a tree of 50 files or more that \
+     go one at a time over SFTP says once that --parallel 8 copies 8 at once.",
     "A copy keeps the source's permission bits. -p keeps the access and the modification times too, \
      and with -r each directory's, set after its files; --owner keeps the owner and the group by number \
      where the side that writes may give a file away (root), and says where it could not. A block of 64 \

@@ -2178,16 +2178,16 @@ program writes on, such as a log, need not end at all.
 ## Premise
 
 Read at `a22e3ec`: the copy up over SFTP reads the source until a read
-gives no byte (`crates/podssh-cli/src/cp/bysftp.rs:160-186`), and each read
+gives no byte (`crates/podssh-cli/src/cp/bysftp.rs:161-187`), and each read
 waits for the server's answer to the write before it. The check's writer
 adds a byte to the source in a loop, so a read gives no byte only when the
 writer adds none for a whole round trip: when the runner does not schedule
 it. The check after the read gives 66 to a source whose size moved
-(`crates/podssh-cli/src/cp/bysftp.rs:263-266`), but only once the read
+(`crates/podssh-cli/src/cp/finish.rs:68-71`), but only once the read
 ends. The copy up by exec reads the same way
 (`crates/podssh-cli/src/cp/byexec/files.rs:119-144`); the copies down read
 the far file until it ends, over SFTP
-(`crates/podssh-cli/src/cp/bysftp.rs:408-447`) and with `cat`
+(`crates/podssh-cli/src/cp/bysftp.rs:344-383`) and with `cat`
 (`crates/podssh-cli/src/cp/byexec.rs:332-369`); and so do the far digests
 that read the file again (`crates/podssh-cli/src/cp/digest.rs:78-109`,
 `crates/podssh-cli/src/cp/byexec.rs:303-330`).
@@ -2223,7 +2223,7 @@ bound fails the native test.
 
 2026-10-10. Each road of the copy reads what the source held at the start,
 and stops with 66, "the file changed while it was read", at the first byte
-past it: up over SFTP (`crates/podssh-cli/src/cp/bysftp.rs:160-186`) and by
+past it: up over SFTP (`crates/podssh-cli/src/cp/bysftp.rs:161-187`) and by
 exec (`crates/podssh-cli/src/cp/byexec/files.rs:119-144`); down by exec
 past the size that `wc -c` gave; down over SFTP after a second look at the
 far size, so that a file of `/proc` goes on as before. The far digest by
@@ -2632,7 +2632,7 @@ throughput_live -- --ignored --nocapture cp_small_files_by_tasks`), which T-297 
 **Milestone:** none
 **Priority:** P2
 **Effort:** M
-**Status:** open
+**Status:** done
 
 ## Problem
 
@@ -2647,7 +2647,8 @@ waits minutes for what one archive would carry in seconds.
 - Read: a file up waits in turn for the target's stat, the temporary file's stat, its open, each
   write, `fsync`, its close, the far digest over an exec channel of its own (an open, an exec, a
   reply and a close), the times, the rename and the times again
-  (`crates/podssh-cli/src/cp/bysftp.rs:48-120` and `:241-292`).
+  (`crates/podssh-cli/src/cp/bysftp.rs:49-121` and the end of a copy up, now
+  `crates/podssh-cli/src/cp/finish.rs:32-96`).
 - Measured (this cloud session, 2026-11-01): through the stand-in relay with 50 ms each way, 0.7
   files a second each way with one task, about 14 round trips a file; 4.6 up and 3.2 down with 8.
   Through the live relay to a node: with one task, `cp --timeout 300s` passed before the 200 went
@@ -2662,10 +2663,56 @@ batch of the lane's files, in place of an exec channel for each; and more tasks 
 the sources hold many files (8 fit OpenSSH's 10 sessions a connection). Each change against the
 same measurement, and the suites of `cp`.
 
+## Decision
+
+2026-11-01, the calls made in the work:
+
+- **The far digest stays a check that the SFTP server does not answer.** A small file's digest
+  read back through the handle that wrote it would save its realpath and a command's channel, but
+  the planted subsystem of `scripts/interop-cp.sh`, which flips one byte of the first write and
+  of the first read, undoes its own flip on that read, and a corrupt file would pass. The
+  command's digest reads the disk through another program, so it stays first, and the read
+  again stays its fallback. Lost: the read back of a file of 256 KiB or less (written, and
+  removed before the commit).
+- **Its round trips overlap others instead.** The server acknowledged each write, so the far
+  digest's command reads the bytes as they stay: a copy up starts it beside `fsync` and the
+  close, and a copy down beside the close. After holes, or into the destination itself, the size
+  is set first, and the digest waits as before.
+- **The default of one task stays** (T-141's Decision: several channels are the user's choice,
+  after the operator's ruling of 2026-10-08 on several sessions). The lanes already give six
+  times the files a second with 8 (T-297); the manual says so.
+
 ## Prove
 
 ```sh
 export CARGO_BUILD_JOBS=4
 cargo test -p podssh-cli --test cp_parallel
+cargo test -p podssh-cli --test cp_meta --test cp_inplace
 cargo test -p podssh-cli --test throughput_live -- --ignored --nocapture cp_small_files_by_tasks
 ```
+
+## Correction
+
+2026-11-01: a new copy makes no stat of a temporary file: only one that goes on in a temporary file
+that its side file names looks at it (`crates/podssh-cli/src/cp/bysftp.rs:93-104`). The round trips
+of a file up, on a server with a digest command: the target's stat, the open, the write, `fsync`,
+the close, the realpath and the command's channel (some three), the mode, the rename. On the
+throughput run's server, which runs no command, the channel is refused and a second read follows
+(an open, a read, a close): the 14 measured.
+
+## Done
+
+2026-11-01: the far digest's command starts beside `fsync` and the close of a copy up, and beside
+the close of a copy down (`crates/podssh-cli/src/cp/finish.rs`, the end of a copy up moved out of
+`bysftp.rs`, which held 498 lines). A tree of 50 files or more that go one at a time over SFTP
+says once that `--parallel 8` copies 8 at once (`crates/podssh-cli/src/cp/tree_conn.rs`), and the
+manual says why. `tests/cp_tree.rs`, `a_tree_of_many_files_one_at_a_time_names_parallel` (60
+files: said once up and once down, not with `--parallel 4`, not for a few files): passed; planted,
+a threshold of 50,000: failed. Planted, the digest begun before the size is set in place: the
+test of `cp --inplace` failed. The suites of `cp` (`cp_parallel`, `copy_pipeline`, `cp_delta`,
+`cp_exec`, `cp_inplace`, `cp_meta`, `cp_progress`, `cp_tree`, `node_copy`, `cp_args`, and the unit
+tests of `cp::`) passed. The measurement again (`cp_small_files_by_tasks`): through the stand-in
+relay with 50 ms each way, 0.8 up and 0.7 down a second with one task (0.7 and 0.7 before), 5.3
+and 3.4 with 8 (4.6 and 3.2); to a node of the live relay with 8 tasks, 4.7 and 1.5 (4.6 and 1.6),
+and with one task the 200 files still outlast `cp`'s 300 s. Several tasks stay the lever, now
+named where it is wanted; the default stays one task (the Decision).

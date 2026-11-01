@@ -468,7 +468,13 @@ of 200 files of 16 KiB up and back down, in files a second by the wall
 clock: through the stand-in relay with 50 ms each way, 0.7 up and 0.7 down
 with one task, 4.6 and 3.2 with 8; through the live relay to a node, with
 one task the 200 did not go up within `cp`'s 300 s (exit 75), with 8, 4.6
-and 1.6. Some 14 round trips go to each file: T-417.
+and 1.6. Some 14 round trips go to each file. Since T-417 (2026-11-01) the
+far digest's command starts beside the sync and the close of each file,
+and a tree of 50 files or more that go one at a time says once that
+`--parallel 8` takes 8 at once (`cargo test -p podssh-cli --test cp_tree`:
+7 passed; planted, a threshold no tree reaches: failed); measured again,
+0.8 up and 0.7 down with one task through the stand-in, 5.3 and 3.4 with
+8; to a node, 4.7 and 1.5 with 8.
 
 `cp --delta` (T-142; the build image, 2026-10-12; `scripts/interop.sh`, the
 checks `cp.delta.up` and `cp.delta.down`, against OpenSSH and BusyBox's `dd`

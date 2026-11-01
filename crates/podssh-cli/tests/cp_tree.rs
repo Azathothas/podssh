@@ -301,3 +301,34 @@ fn delete_refuses_the_login_directory_and_needs_r() {
     assert_eq!(rc, 64, "{err}");
     assert!(err.contains("go with -r"), "{err}");
 }
+
+/// A tree of many files that go one at a time says once that `--parallel`
+/// takes several (T-417), up and down; a tree with `--parallel`, or of few
+/// files, says nothing of it.
+#[test]
+fn a_tree_of_many_files_one_at_a_time_names_parallel() {
+    need_server!();
+    let home = scratch("many");
+    let (_runtime, port) = server(&home);
+    let many = home.join("many");
+    std::fs::create_dir_all(&many).unwrap();
+    for i in 0..60 {
+        std::fs::write(many.join(format!("f{i:02}")), format!("file {i}\n")).unwrap();
+    }
+    let hint = "--parallel 8 copies 8 at once";
+    let (rc, _, err) = cp(&home, port, &["-r", "many", "u@127.0.0.1:up"]);
+    assert_eq!(rc, 0, "{err}");
+    assert_eq!(err.matches(hint).count(), 1, "said once, up: {err}");
+    assert!(err.contains("60 files go one at a time"), "{err}");
+    let (rc, _, err) = cp(&home, port, &["-r", "u@127.0.0.1:up", "down"]);
+    assert_eq!(rc, 0, "{err}");
+    assert_eq!(err.matches(hint).count(), 1, "said once, down: {err}");
+    assert_eq!(listing(&home.join("down")), listing(&many), "the tree down");
+    let (rc, _, err) = cp(&home, port, &["-r", "--parallel", "4", "many", "u@127.0.0.1:up4"]);
+    assert_eq!(rc, 0, "{err}");
+    assert!(!err.contains(hint), "with --parallel: {err}");
+    fixture(&home.join("few"));
+    let (rc, _, err) = cp(&home, port, &["-r", "few", "u@127.0.0.1:few-up"]);
+    assert_eq!(rc, 0, "{err}");
+    assert!(!err.contains(hint), "a few files: {err}");
+}

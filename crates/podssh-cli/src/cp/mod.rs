@@ -24,6 +24,7 @@ pub(crate) mod bysftp;
 pub(crate) mod chunks;
 pub mod delta;
 pub(crate) mod digest;
+mod finish;
 pub mod gauge;
 pub mod in_place;
 mod lanes;

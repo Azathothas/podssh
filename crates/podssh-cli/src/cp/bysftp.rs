@@ -15,9 +15,10 @@ use sha2::{Digest, Sha256};
 use super::chunks;
 use super::delta;
 use super::digest::{self, Sum};
+use super::finish::{finish_up, Ends};
 use super::in_place;
 use super::link::Meter;
-use super::meta::{self, Keep, Stamp};
+use super::meta::{self, Stamp};
 use super::pipe::Shape;
 use super::resume::{self, Progress};
 use super::transfer::{self, Cause, Done, Failed, Side};
@@ -222,71 +223,6 @@ pub async fn up(
     copied
 }
 
-/// How a copy up ended: its bytes, their digest, what it keeps, whether it
-/// left holes, and whether it wrote into the destination itself.
-struct Ends {
-    offset: u64,
-    sum: Sum,
-    keep: Keep,
-    holes: bool,
-    inplace: bool,
-    /// The far file's mode that `podssh edit` keeps (T-149).
-    mode: Option<u32>,
-}
-
-/// The end of a copy up: the temporary file synced and closed, its size set
-/// after holes, the source unchanged, the digests equal, what the copy keeps
-/// set, and the rename.
-#[allow(clippy::too_many_arguments)]
-async fn finish_up(
-    sftp: &Sftp,
-    handle: &Connection,
-    file: &podssh_ssh::sftp::FileHandle,
-    local: &Path,
-    source: &str,
-    temp: &str,
-    target: &str,
-    before: &std::fs::Metadata,
-    ends: Ends,
-    log: &Log,
-) -> Result<Done, Failed> {
-    let Ends { offset, sum, keep, holes, inplace, mode } = ends;
-    {
-        sftp.fsync(file).await.map_err(|e| transfer::from_sftp(e, Side::Destination))?;
-        sftp.close(file).await.map_err(|e| transfer::from_sftp(e, Side::Destination))?;
-        // After holes, and into the destination itself, whose old bytes past
-        // the new end go (T-147).
-        if holes || inplace {
-            let size = FileAttributes { size: Some(offset), ..FileAttributes::default() };
-            sftp.setstat(temp, size).await.map_err(|e| transfer::from_sftp(e, Side::Destination))?;
-        }
-        let after = std::fs::metadata(local).map_err(|e| failed(Fault::NoInput, format!("{source}: {e}")))?;
-        if after.len() != before.len() || after.modified().ok() != before.modified().ok() || after.len() != offset {
-            return Err(transfer::changed(source));
-        }
-        let (far, how) = transfer::far_digest(handle, sftp, temp, offset, Side::Destination).await?;
-        transfer::compare(&sum, &far, &how, source)?;
-        // The source's mode, or the far file's that `podssh edit` keeps.
-        let mut stamp = Stamp::of_local(before);
-        stamp.mode = mode.or(stamp.mode);
-        meta::set_far(sftp, temp, &stamp, keep, log).await?;
-        let mut not_atomic = false;
-        if !inplace {
-            not_atomic = transfer::rename_onto(sftp, temp, target, log).await?;
-            meta::times_after_rename(sftp, target, &stamp, keep).await;
-        }
-        Ok(Done {
-            source: source.into(),
-            destination: target.to_string(),
-            bytes: offset,
-            sum: Some(sum),
-            verified_by: how,
-            not_atomic,
-            removed: None,
-        })
-    }
-}
-
 /// Copy `source` on the server to the local `dest`, or write on in the copy
 /// that `progress` holds.
 #[allow(clippy::too_many_arguments)]
@@ -447,7 +383,15 @@ pub async fn down(
         };
         drop(reads);
         bar.finish();
-        let _ = sftp.close(&file).await;
+        // The far digest of what was read starts at once, beside the close
+        // (T-417): its command reads the file as the server holds it.
+        let far = async {
+            match &read {
+                Ok(()) => Some(transfer::far_digest(handle, sftp, source, offset, Side::Source).await),
+                Err(_) => None,
+            }
+        };
+        let (_, far) = tokio::join!(sftp.close(&file), far);
         if let (Some(f), Some(h)) = (out.as_mut(), holes.as_mut()) {
             // After a failure the file reaches the offset of its record, a
             // hole at its end included; else what is held is written too.
@@ -464,7 +408,10 @@ pub async fn down(
         let sum: Sum = hasher.finalize().into();
         let on_disk = digest::of_file(&temp).map_err(|e| failed(Fault::CantCreate, format!("{shown}: {e}")))?;
         transfer::compare(&sum, &on_disk, "this disk", &shown)?;
-        let (far, how) = transfer::far_digest(handle, sftp, source, offset, Side::Source).await?;
+        let (far, how) = match far {
+            Some(far) => far?,
+            None => transfer::far_digest(handle, sftp, source, offset, Side::Source).await?,
+        };
         transfer::compare(&sum, &far, &how, source)?;
         meta::set_local(&temp, &stamp, shape.keep, log)?;
         if !shape.inplace {
