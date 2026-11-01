@@ -4248,7 +4248,14 @@ Built and tested here (2026-11-01), the live run waiting for Q60:
   on any port in the network of .../arti.toml`. Planted, the section called as without `--full`:
   the test failed, "no line tor".
 
-Waits: the live run (Q60); meek and WebTunnel (Approach, step 2); the measurement (step 4).
+- The live run on Tor's public network (Q60, 2026-11-01): `crates/podssh-cli/tests/tor_live.rs`,
+  `podssh proxy tor://github.com:22` twice, by `.github/workflows/tor-live.yml` with
+  `confirm=Q60`; at `f40298c` (run 41332559016) GitHub's SSH banner came through Tor in 10.8 s
+  with a bootstrap from nothing, and in 5.9 s from the cached directory: step 4's time to the
+  first byte. From this cloud session the bootstrap did not end within 180 s: its egress re-signs
+  TLS, which Tor's links cannot pass. meek and WebTunnel (step 2) are T-385's, done.
+
+Waits: step 4's throughput.
 
 
 # T-385: meek and WebTunnel inside the Tor road's process, for a cage that reaches no Tor relay

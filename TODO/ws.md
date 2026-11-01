@@ -2284,7 +2284,7 @@ within 3 s" a moment after the same address answered in the wire form.
 **Milestone:** none
 **Priority:** P1
 **Effort:** S
-**Status:** partial
+**Status:** done
 
 ## Problem
 
@@ -2335,7 +2335,7 @@ The test 40 times alone and 144 times 24 at once; planted, the old abort; `doh-l
 
 ## Done
 
-2026-11-01, here (the live run follows the push):
+2026-11-01:
 
 - `crates/podssh-ws/src/resolve/h2.rs`: `get` no longer aborts its connection's task; a task of its
   own waits for h2's end (GOAWAY, then close_notify) for 2 s (`CLOSE`), then aborts it.
@@ -2348,6 +2348,7 @@ The test 40 times alone and 144 times 24 at once; planted, the old abort; `doh-l
   and 144 times 24 at once: none failed. Planted, the old abort at once: 48 of 48 failed, "the
   client tore its socket, with no GOAWAY". `cargo test -p podssh-ws`: each passed; clippy
   `-D warnings` and rustfmt clean.
+- `doh-live.yml` at `5ae713a` (run 41333616391): 4 passed, each resolver at its first attempt.
 
 # T-405: DoH asks by an address, which a proxy that refuses addresses refuses
 
