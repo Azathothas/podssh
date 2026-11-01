@@ -117,7 +117,7 @@ and `CARGO_BUILD_JOBS=4`:
 
 ## Counts
 
-`TODO/INDEX.md` holds 406 entries: 26 open, 2 partial, 31 blocked, 347 done.
+`TODO/INDEX.md` holds 406 entries: 25 open, 2 partial, 31 blocked, 348 done.
 
 Open includes parked work. `cargo todo check` verifies this line.
 
@@ -148,7 +148,7 @@ daemonizer, for a `--detach` that must never leave a server locked out, and of A
 code and its issues. Their findings, in order: T-392, T-394, T-395 and T-397 (a
 line that fails to write no longer aborts a detached node, `--persist-forever` never gives up, and
 `--restart` starts a detached run again); then T-400,
-T-402, T-403, T-404, T-405, T-406 and T-408. Before them, a bulk session through a node and its moves on
+T-402, T-404, T-405, T-406 and T-408. Before them, a bulk session through a node and its moves on
 the live relay are repaired, and the entries of the audit, the study and the issues
 of 2026-10-31 (GitHub #59 to #63 and #69 to #76): T-353 (Q52), whose live run waits for Q60; the
 others are done. Each other `backlog` entry is done, but for those on hold, those of the relay's

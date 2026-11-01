@@ -2,7 +2,7 @@
 //! (`scripts/quick-fixtures.sh`), whole and in pieces.
 
 use super::*;
-use crate::quick::capnp::tests::registration;
+use crate::quick::capnp::tests::{framed, registration};
 use crate::quick::capnp::Builder;
 
 const BOOTSTRAP_BYTES: &[u8] = include_bytes!("../../tests/fixtures/quick/rpc-bootstrap.bin");
@@ -76,6 +76,23 @@ fn an_exception_or_an_abort_ends_the_stream_with_its_reason() {
     assert_eq!(control.feed(ABORT).unwrap_err(), Failure::Aborted("the edge ends the connection".into()));
     let (mut control, _) = Control::register(&registration());
     assert!(matches!(control.feed(&[0xff, 0xff, 0, 0]), Err(Failure::Malformed(_))));
+}
+
+/// A message of the edge whose root alone is more words than the control
+/// stream's budget is refused, though capnp's own limit would read it
+/// (T-403).
+#[test]
+fn a_message_past_the_control_stream_s_budget_is_refused() {
+    // A root of 65,535 data words and two pointers: 65,537 words.
+    let mut words = vec![0u64; 1 + 65_537];
+    words[0] = (65_535 << 32) | (2 << 48);
+    // Its first two bytes: the member of the union, a Return.
+    words[1] = 3;
+    let frame = framed(&[&words]);
+    assert!(Message::read(&frame).unwrap().root().is_ok(), "within capnp's own limit");
+    let (mut control, _) = Control::register(&registration());
+    let refused = control.feed(&frame).unwrap_err();
+    assert_eq!(refused, Failure::Malformed(Malformed("more words read than the limit")));
 }
 
 #[test]

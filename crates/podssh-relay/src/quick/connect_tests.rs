@@ -45,3 +45,36 @@ fn a_request_cut_short_or_of_another_shape_is_malformed_not_a_panic() {
     let other = read_request(RESPONSE).expect("a struct");
     assert_eq!(other.kind, Kind::Http);
 }
+
+/// A request for a WebSocket whose metadata is a list of `count` pairs of no
+/// size, in five words.
+fn request_of_nothing(count: u64) -> Vec<u8> {
+    crate::quick::capnp::tests::framed(&[&[
+        // The root: a struct at the next word, of one data word and two
+        // pointers.
+        (1 << 32) | (2 << 48),
+        // Its data: the type, a WebSocket.
+        1,
+        // `dest`, not set.
+        0,
+        // `metadata`: a list of structs at the next word, of no words.
+        1 | (7 << 32),
+        // The tag: `count` pairs, each of no data and no pointers.
+        count << 2,
+    ]])
+}
+
+/// The pairs of a request are bounded by the control stream's budget, where
+/// capnp's let up to 2^23 - 4 pairs of no size be kept (T-403): 2^23 are
+/// refused, and the most within the budget read, each as an empty pair.
+#[test]
+fn a_request_of_more_pairs_than_the_budget_is_refused() {
+    assert_eq!(read_request(&request_of_nothing(1 << 23)), Err(Malformed("more words read than the limit")));
+    // The root's three words are spent first.
+    let most = CONTROL_BUDGET - 3;
+    let request = read_request(&request_of_nothing(most)).expect("within the budget");
+    assert_eq!((request.kind, request.metadata.len()), (Kind::WebSocket, most as usize));
+    assert!(request.metadata.iter().all(|(key, value)| key.is_empty() && value.is_empty()));
+    assert_eq!(request.header("upgrade"), None);
+    assert_eq!(read_request(&request_of_nothing(most + 1)), Err(Malformed("more words read than the limit")));
+}

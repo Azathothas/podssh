@@ -21,6 +21,10 @@ podssh-relay = { path = "../crates/podssh-relay" }
 podssh-ssh = { path = "../crates/podssh-ssh" }
 podssh-core = { path = "../crates/podssh-core" }
 podssh-cli = { path = "../crates/podssh-cli" }
+# WARP's capsules (T-403): a feature crate of podssh-cli's, which the default
+# build leaves out, so it is named here. Its smoltcp needs Rust 1.91, below
+# the pinned nightly of scripts/fuzz.sh.
+podssh-warp = { path = "../crates/podssh-warp" }
 
 # A crash names its line.
 [profile.release]
@@ -155,6 +159,34 @@ bench = false
 [[bin]]
 name = "dns_wire"
 path = "fuzz_targets/dns_wire.rs"
+test = false
+doc = false
+bench = false
+
+[[bin]]
+name = "capnp_message"
+path = "fuzz_targets/capnp_message.rs"
+test = false
+doc = false
+bench = false
+
+[[bin]]
+name = "quick_connect_request"
+path = "fuzz_targets/quick_connect_request.rs"
+test = false
+doc = false
+bench = false
+
+[[bin]]
+name = "quick_control"
+path = "fuzz_targets/quick_control.rs"
+test = false
+doc = false
+bench = false
+
+[[bin]]
+name = "warp_capsule"
+path = "fuzz_targets/warp_capsule.rs"
 test = false
 doc = false
 bench = false

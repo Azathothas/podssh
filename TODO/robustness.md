@@ -1269,7 +1269,7 @@ write that fails fails the test with its reason.
 **Milestone:** none
 **Priority:** P3
 **Effort:** S
-**Status:** open
+**Status:** done
 
 ## Problem
 
@@ -1279,8 +1279,8 @@ some hundreds of MB. No fuzz target reads Cap'n Proto, a ConnectRequest or WARP'
 
 ## Premise
 
-- Read: `BUDGET` is 8 Mi words (`crates/podssh-relay/src/quick/capnp.rs:12`); a list is charged
-  `words.max(count)` and collected at once (`crates/podssh-relay/src/quick/capnp.rs:458`).
+- Read: `BUDGET` is 8 Mi words (`crates/podssh-relay/src/quick/capnp.rs`, line 12 at `ea2bd4f`);
+  a list is charged `words.max(count)` and collected at once (line 458 at `ea2bd4f`).
 - Read: the fuzz targets (`fuzz/fuzz_targets/`) hold none of these parsers.
 
 ## Approach
@@ -1289,11 +1289,70 @@ A list is iterated, not collected, or its count is capped for a control message 
 none longer than a few hundred elements); a budget of words of its own for the control stream. Fuzz
 targets for the reader, the ConnectRequest and the capsules, run with `-malloc_limit_mb=64`.
 
+## Decision
+
+- **Both: the elements are made as they are asked for, and the control stream's messages and a
+  stream's request are read within 64 Ki words** (`CONTROL_BUDGET`). The first bounds the reader
+  at any budget; the second bounds what a caller keeps of a list, as a request keeps each pair,
+  and ends a loop of pointers sooner. A request is 64 KiB at most (`MAX_REQUEST` of the QUIC
+  road), so 64 Ki words is eight reads of each of its words; the edge's control messages are some
+  hundreds of bytes. Lost: a cap of each list's count alone, which the budget gives already, and
+  which would refuse a visitor's request of many headers at a number of no reason; cfrs's budget
+  of eight words read for each word of the message, which would change the limit of each message
+  of the reader where the stream's limit is what the edge needs.
+- **The tag of a list of structs must be a struct pointer**, as capnp reads it; and the sizes of
+  a list and of a frame are summed in 64 bits, as a usize of 32 bits would wrap them.
+- **`podssh-warp` in the fuzz workspace** for the capsules' target: a feature crate that the
+  default `podssh-cli` leaves out. Lost: a copy of the capsule reader in the fuzz crate, which would
+  fuzz a copy.
+- **A fourth target, `quick_control`**: the control stream's RPC, cut anywhere in two, is a
+  parser of the edge's bytes as the ConnectRequest is.
+
 ## Prove
 
 ```sh
 export CARGO_BUILD_JOBS=4
 cargo test -p podssh-relay --lib quick::capnp
+cargo test -p podssh-relay --lib quick::
 ```
 
-A unit test: a list of zero-size structs of count 2^23 is refused or read in bounded memory.
+A unit test: a list of zero-size structs of count 2^23 is refused or read in bounded memory. The
+fuzz targets, 120 s each under `-malloc_limit_mb=64`, with no crash:
+
+```sh
+sh scripts/fuzz.sh 120 capnp_message quick_connect_request quick_control warp_capsule
+```
+
+Planted: `get_struct_list` collecting each element into a vector again: `capnp_message` stops at
+its limit of 64 MiB.
+
+## Done
+
+2026-11-01: drafted in a worktree (branch `worktree-agent-a6aea62e1b3910649`), merged, built and
+run the same day.
+
+- `crates/podssh-relay/src/quick/capnp.rs`: `get_struct_list` gives a `StructList`
+  (`crates/podssh-relay/src/quick/capnp_list.rs`), `Copy`, whose elements are made as they are
+  asked for, its `nth` a jump; the count is charged as before; a tag that is no struct pointer is
+  refused; the list's and the frame's sizes are summed in u64. `Message::read_within` reads
+  within a budget of the caller's; `CONTROL_BUDGET` is 64 Ki words, which `Control::feed` and
+  `connect::read_request` use.
+- Tests: `a_list_of_structs_of_no_size_is_charged_a_word_each_and_holds_none` (2^23 structs of no
+  size in 32 bytes refused; 2^23 − 1 within capnp's limit read with no element made, the last
+  reached by `nth`; the same at the control budget),
+  `a_list_of_structs_must_hold_its_elements_and_a_struct_tag`,
+  `a_frame_of_segments_too_large_to_add_is_refused`; in `quick::connect`,
+  `a_request_of_more_pairs_than_the_budget_is_refused`; in `quick::control`,
+  `a_message_past_the_control_stream_s_budget_is_refused`.
+  `cargo test -p podssh-relay --features quick --lib quick::`: 49 passed. Planted, a list charged
+  its words alone (not its count): the first test failed.
+- Fuzz targets `capnp_message`, `quick_connect_request`, `quick_control` and `warp_capsule`
+  (`fuzz/Cargo.toml` names `podssh-warp`; `fuzz/Cargo.lock` takes podssh-warp, smoltcp and their own, at
+  the root lock's versions); `scripts/fuzz.sh` runs the four under `-malloc_limit_mb=64`, and
+  `scripts/fuzz-seeds.py` seeds them with the reference encoder's 17 messages
+  (`crates/podssh-relay/tests/fixtures/quick/`) and connect-ip-go's capsules (the seed script ran:
+  17 messages, 7 capsules). The targets compile (`RUSTFLAGS='--cfg fuzzing' cargo check
+  --manifest-path fuzz/Cargo.toml --bins`); their runs of 120 s, on the pinned nightly with
+  libFuzzer, are `fuzz.yml`'s, dispatched after the push (`docs/STATUS.md`).
+- `docs/development.md` ("Fuzzing", item 7) and `docs/STATUS.md` (the quick tunnel's row, the
+  row of fuzzing).

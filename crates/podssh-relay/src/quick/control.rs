@@ -6,7 +6,7 @@
 //! `unregisterConnection` on the same capability when it stops. The stream's
 //! bytes are frames of Cap'n Proto both ways; a frame may come in pieces.
 
-use super::capnp::{self, Malformed, Message, MAX_FRAME};
+use super::capnp::{self, Malformed, Message, CONTROL_BUDGET, MAX_FRAME};
 use super::register::{
     read_results, Registered, Registration, REGISTER_CONNECTION, REGISTER_PARAMS, REGISTRATION_SERVER,
     UNREGISTER_CONNECTION, UNREGISTER_PARAMS,
@@ -99,7 +99,9 @@ impl Control {
                 break;
             }
             let frame: Vec<u8> = self.inbox.drain(..len).collect();
-            let message = Message::read(&frame)?;
+            // The edge's messages here are some hundreds of bytes: a smaller
+            // budget than capnp's ends a hostile one sooner (T-403).
+            let message = Message::read_within(&frame, CONTROL_BUDGET)?;
             match rpc::read(&message)? {
                 Incoming::Return { answer, outcome } => {
                     if let Some(event) = answered(answer, outcome, &mut out)? {

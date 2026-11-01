@@ -122,8 +122,8 @@ fn a_frame_is_measured_from_its_table_before_it_is_whole() {
     assert_eq!(frame_len(&[0xff, 0xff, 0, 0]), Err(Malformed("too many segments")));
 }
 
-/// A message of two segments, `segs`, framed.
-fn framed(segs: &[&[u64]]) -> Vec<u8> {
+/// A message of the segments `segs`, framed.
+pub(crate) fn framed(segs: &[&[u64]]) -> Vec<u8> {
     let mut out = Vec::new();
     out.extend_from_slice(&(segs.len() as u32 - 1).to_le_bytes());
     for seg in segs {
@@ -216,4 +216,87 @@ fn a_double_far_pointer_to_a_missing_segment_is_malformed() {
     let message = Message::read(&frame).unwrap();
     let root = message.root().unwrap();
     assert_eq!(root.get_data(0).unwrap_err(), Malformed("a pointer to a segment that is not there"));
+}
+
+/// A message whose root has one pointer, to a list of structs whose tag
+/// counts `count` elements of no size: three words in all, as cfrs's fuzz
+/// target found one (its GitHub #5, 80 MiB from 96 bytes).
+pub(crate) fn list_of_nothing(count: u64) -> Vec<u8> {
+    framed(&[&[
+        // The root: a struct at the next word, with no data and one pointer.
+        1 << 48,
+        // Its pointer: a list of structs at the next word, of no words.
+        1 | (COMPOSITE << 32),
+        // The tag: `count` elements, each of no data and no pointers.
+        count << 2,
+    ]])
+}
+
+/// A list's value owns no memory: a `Copy` type cannot.
+fn owns_nothing<T: Copy>(_: &T) {}
+
+/// A list of 2^23 structs of no size: refused by the budget, as the root's
+/// word was spent first; one within the budget reads, and holds no element,
+/// each made when it is asked for (T-403).
+#[test]
+fn a_list_of_structs_of_no_size_is_charged_a_word_each_and_holds_none() {
+    let frame = list_of_nothing(1 << 23);
+    assert_eq!(frame.len(), 32, "a header and three words");
+    let message = Message::read(&frame).unwrap();
+    let refused = message.root().unwrap().get_struct_list(0).err();
+    assert_eq!(refused, Some(Malformed("more words read than the limit")));
+    let message = Message::read_within(&frame, CONTROL_BUDGET).unwrap();
+    assert!(message.root().unwrap().get_struct_list(0).is_err(), "nor within the control stream's budget");
+
+    // Capnp's own limit, less the root's word.
+    let count = BUDGET - 1;
+    let frame = list_of_nothing(count);
+    let message = Message::read(&frame).unwrap();
+    let list = message.root().unwrap().get_struct_list(0).unwrap();
+    owns_nothing(&list);
+    assert_eq!((list.len(), list.iter().len()), (count as usize, count as usize));
+    let last = list.iter().nth(count as usize - 1).expect("the last element, reached with no walk");
+    assert_eq!((last.u64(0), last.get_struct(0).unwrap().is_none()), (0, true));
+    assert!(list.get(count as usize).is_none(), "no element past the count");
+
+    // The control stream's budget, the same way.
+    let frame = list_of_nothing(CONTROL_BUDGET - 1);
+    let message = Message::read_within(&frame, CONTROL_BUDGET).unwrap();
+    assert_eq!(message.root().unwrap().get_struct_list(0).unwrap().len(), CONTROL_BUDGET as usize - 1);
+    let frame = list_of_nothing(CONTROL_BUDGET);
+    let message = Message::read_within(&frame, CONTROL_BUDGET).unwrap();
+    assert!(message.root().unwrap().get_struct_list(0).is_err());
+}
+
+/// A list whose elements need more words than it has, also where the product
+/// passes 32 bits, and a tag that is no struct pointer, are malformed.
+#[test]
+fn a_list_of_structs_must_hold_its_elements_and_a_struct_tag() {
+    // 2^16 elements of 2^16 words each (65,535 data words and one pointer):
+    // 2^32 words, which a usize of 32 bits would read as none.
+    let tag = (1u64 << 18) | (65_535 << 32) | (1 << 48);
+    let frame = framed(&[&[1 << 48, 1 | (COMPOSITE << 32), tag]]);
+    let message = Message::read(&frame).unwrap();
+    let refused = message.root().unwrap().get_struct_list(0).err();
+    assert_eq!(refused, Some(Malformed("a list of structs longer than its words")));
+    // A tag of the kind of a list pointer.
+    let frame = framed(&[&[1 << 48, 1 | (COMPOSITE << 32), (3 << 2) | 1]]);
+    let message = Message::read(&frame).unwrap();
+    let refused = message.root().unwrap().get_struct_list(0).err();
+    assert_eq!(refused, Some(Malformed("the tag of a list of structs is not a struct pointer")));
+    // Two elements of one data word each, as capnp lays them out, read each.
+    let frame = framed(&[&[1 << 48, 1 | (COMPOSITE << 32) | (2 << 35), (2 << 2) | (1 << 32), 7, 9]]);
+    let message = Message::read(&frame).unwrap();
+    let values: Vec<u64> = message.root().unwrap().get_struct_list(0).unwrap().iter().map(|s| s.u64(0)).collect();
+    assert_eq!(values, [7, 9]);
+}
+
+/// The length of a frame is summed so that no count of words wraps it.
+#[test]
+fn a_frame_of_segments_too_large_to_add_is_refused() {
+    let mut table = 511u32.to_le_bytes().to_vec();
+    for _ in 0..512 {
+        table.extend_from_slice(&u32::MAX.to_le_bytes());
+    }
+    assert_eq!(frame_len(&table), Err(Malformed("a frame larger than the limit")));
 }

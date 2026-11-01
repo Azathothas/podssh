@@ -577,11 +577,19 @@ gh workflow run fuzz.yml -f seconds=300                       # in CI
 5. `scripts/fuzz-seeds.py` seeds the targets with bytes that podssh did not
    make: the frames of RFC 6455, the IRC grammar fixture, the hosts of the
    relay's document, and the answers of DNS over HTTPS that Cloudflare,
-   Google and Quad9 sent in RFC 8484's wire form, for `dns_wire` (T-344).
+   Google and Quad9 sent in RFC 8484's wire form, for `dns_wire` (T-344);
+   the messages of Cap'n Proto that the reference encoder wrote for the
+   quick tunnel, and connect-ip-go's capsules (T-403).
 6. A private parser is reached through a function under `cfg(fuzzing)`,
    which cargo-fuzz sets: `podssh_ws::fuzz_exchange` and
    `podssh_ssh::known_hosts::fuzz_parse_line`. Their crates declare the cfg
    (`[lints.rust]`), so that clippy takes it.
+7. The readers of the quick tunnel's Cap'n Proto and of WARP's capsules
+   (`capnp_message`, `quick_connect_request`, `quick_control` and
+   `warp_capsule`, T-403) run under `-malloc_limit_mb=64`: one allocation
+   of 64 MiB from an input of some KiB is a defect, as a list of 2^23
+   structs of no size was. `fuzz/Cargo.toml` names `podssh-warp`, which
+   the default build of `podssh-cli` leaves out.
 
 ## Live tests
 

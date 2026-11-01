@@ -62,15 +62,15 @@ repository and CI).
 
 ## Counts
 
-**406 entries: 26 open, 2 partial, 31 blocked, 347 done.**
+**406 entries: 25 open, 2 partial, 31 blocked, 348 done.**
 
 | Priority | open | partial | blocked | done | total |
 | --- | --- | --- | --- | --- | --- |
 | P0 | 0 | 0 | 0 | 1 | 1 |
 | P1 | 1 | 1 | 0 | 37 | 39 |
 | P2 | 5 | 0 | 21 | 172 | 198 |
-| P3 | 20 | 1 | 10 | 137 | 168 |
-| **All** | 26 | 2 | 31 | 347 | 406 |
+| P3 | 19 | 1 | 10 | 138 | 168 |
+| **All** | 25 | 2 | 31 | 348 | 406 |
 
 ## Entries
 
@@ -474,7 +474,7 @@ repository and CI).
 | [T-400](roads.md) | P2 | M | none | feature | open | The quick tunnel's legs raced with a stagger, and a probe of UDP before QUIC |
 | [T-401](roads.md) | P2 | S | none | defect | done | The quick tunnel's provisioning: Retry-After honoured, and the edge's text cleaned before it is shown |
 | [T-402](roads.md) | P3 | M | none | feature | open | The quick tunnel on GOAWAY: the next connection at once, the old one drained, and a second connection |
-| [T-403](robustness.md) | P3 | S | none | defect | open | The Cap'n Proto reader allocates for each element of a list before it reads one; fuzz targets for the quick tunnel's parsers |
+| [T-403](robustness.md) | P3 | S | none | defect | done | The Cap'n Proto reader allocates for each element of a list before it reads one; fuzz targets for the quick tunnel's parsers |
 | [T-404](roads.md) | P3 | S | none | chore | open | The quick tunnel's registration: the features of cloudflared 2026.10.7, and an answer to a push of configuration |
 | [T-405](ws.md) | P3 | S | none | defect | open | DoH asks by an address, which a proxy that refuses addresses refuses |
 | [T-406](roads.md) | P3 | S | none | docs | open | The edge's facts that cfrs's testers measured, in the design as a third party's |

@@ -6,10 +6,16 @@
 //! The builder writes one segment, as a small message needs. The reader
 //! takes any number of segments and follows far pointers, as the edge's
 //! encoder may split a message; it counts the words that it reads, so that
-//! a message that points at itself in a loop ends in an error.
+//! a message that points at itself in a loop ends in an error. A list of
+//! structs is read as its elements are asked for ([`StructList`]): a few
+//! words can count 2^30 - 1 elements of no size (T-403).
 
 /// The most words that a reader reads in one message, as capnp's own limit.
 const BUDGET: u64 = 8 * 1024 * 1024;
+/// The most words read of a message of the control stream, or of a stream's
+/// request: the edge's are some hundreds of bytes, and a request is 64 KiB
+/// at most, so a list that counts more elements is refused (T-403).
+pub const CONTROL_BUDGET: u64 = 64 * 1024;
 /// The most segments of one message, and the most bytes of one frame.
 const MAX_SEGMENTS: usize = 512;
 pub const MAX_FRAME: usize = 64 * 1024 * 1024;
@@ -195,16 +201,17 @@ pub fn frame_len(bytes: &[u8]) -> Result<Option<usize>, Malformed> {
     if bytes.len() < 4 + 4 * count {
         return Ok(None);
     }
-    let mut words = 0usize;
+    // In u64: 512 segments of 2^32 words each pass a usize of 32 bits.
+    let mut words = 0u64;
     for k in 0..count {
         let at = 4 + 4 * k;
-        words += u32::from_le_bytes(bytes[at..at + 4].try_into().unwrap()) as usize;
+        words += u64::from(u32::from_le_bytes(bytes[at..at + 4].try_into().unwrap()));
     }
-    let len = table + words * 8;
-    if len > MAX_FRAME {
+    let len = table as u64 + words * 8;
+    if len > MAX_FRAME as u64 {
         return Err(Malformed("a frame larger than the limit"));
     }
-    Ok(Some(len))
+    Ok(Some(len as usize))
 }
 
 /// A message read from a whole frame.
@@ -214,8 +221,15 @@ pub struct Message<'a> {
 }
 
 impl<'a> Message<'a> {
-    /// The message of `frame`, which [`frame_len`] measured.
+    /// The message of `frame`, which [`frame_len`] measured, read within
+    /// capnp's own limit of words.
     pub fn read(frame: &'a [u8]) -> Result<Message<'a>, Malformed> {
+        Self::read_within(frame, BUDGET)
+    }
+
+    /// The message of `frame`, read within `budget` words: a list, a loop of
+    /// pointers or a struct that would read more ends in an error.
+    pub fn read_within(frame: &'a [u8], budget: u64) -> Result<Message<'a>, Malformed> {
         let len = frame_len(frame)?.ok_or(Malformed("a frame cut short"))?;
         if frame.len() < len {
             return Err(Malformed("a frame cut short"));
@@ -228,7 +242,7 @@ impl<'a> Message<'a> {
             segments.push(&frame[at..at + words * 8]);
             at += words * 8;
         }
-        Ok(Message { segments, budget: std::cell::Cell::new(BUDGET) })
+        Ok(Message { segments, budget: std::cell::Cell::new(budget) })
     }
 
     fn word(&self, seg: usize, at: usize) -> Result<u64, Malformed> {
@@ -439,31 +453,39 @@ impl<'a> Struct<'a> {
         }
     }
 
-    /// The structs of the list in pointer `i`.
-    pub fn get_struct_list(&self, i: u16) -> Result<Vec<Struct<'a>>, Malformed> {
-        let Some(slot) = self.slot(i) else { return Ok(Vec::new()) };
-        let Some((seg, tag, size, words)) = self.msg.list_at(self.seg, slot)? else { return Ok(Vec::new()) };
+    /// The list of structs in pointer `i`, whose elements are made as they
+    /// are asked for. It is charged its words, or a word for each element
+    /// where that is more, as capnp charges a list of elements of no size:
+    /// so its count is within the message's budget (T-403).
+    pub fn get_struct_list(&self, i: u16) -> Result<StructList<'a>, Malformed> {
+        let Some(slot) = self.slot(i) else { return Ok(StructList::none(self.msg)) };
+        let Some((seg, tag, size, words)) = self.msg.list_at(self.seg, slot)? else {
+            return Ok(StructList::none(self.msg));
+        };
         if size != COMPOSITE {
             return Err(Malformed("a list of structs was expected"));
         }
         self.msg.in_segment(seg, tag, 1 + words as usize)?;
         let head = self.msg.word(seg, tag)?;
-        let count = ((head as u32) >> 2) as usize;
+        if head & 3 != 0 {
+            return Err(Malformed("the tag of a list of structs is not a struct pointer"));
+        }
+        let count = u64::from((head as u32) >> 2);
         let data_words = (head >> 32) as u16;
         let ptr_count = (head >> 48) as u16;
-        let each = usize::from(data_words) + usize::from(ptr_count);
-        if each * count > words as usize {
+        // In u64: 2^30 elements of 2^17 words each pass a usize of 32 bits.
+        let each = u64::from(data_words) + u64::from(ptr_count);
+        if each * count > words {
             return Err(Malformed("a list of structs longer than its words"));
         }
-        self.msg.spend(words.max(count as u64))?;
-        Ok((0..count)
-            .map(|k| {
-                let data = tag + 1 + k * each;
-                Struct { msg: self.msg, seg, data, data_words, ptrs: data + usize::from(data_words), ptr_count }
-            })
-            .collect())
+        self.msg.spend(words.max(count))?;
+        Ok(StructList { msg: self.msg, seg, first: tag + 1, count: count as usize, data_words, ptr_count })
     }
 }
+
+#[path = "capnp_list.rs"]
+mod list;
+pub use list::{Elements, StructList};
 
 #[cfg(test)]
 #[path = "capnp_tests.rs"]

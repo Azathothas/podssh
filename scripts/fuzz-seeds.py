@@ -3,10 +3,13 @@
 Each seed is bytes that podssh did not make: the frames of RFC 6455's
 section 5.7, the IRC lines that crates/podssh-core/tests/fixtures/grammar.txt
 recorded from the RFCs and from real servers, the relay hosts that the
-relay's own document names, and the answers of DNS over HTTPS that three
-resolvers sent (crates/podssh-ws/tests/fixtures/doh/, T-344). They go into
-fuzz/corpus/TARGET/, which libFuzzer reads first and adds to. scripts/fuzz.sh
-runs this before each run.
+relay's own document names, the answers of DNS over HTTPS that three
+resolvers sent (crates/podssh-ws/tests/fixtures/doh/, T-344), the messages of
+Cap'n Proto that the reference encoder wrote for the quick tunnel
+(crates/podssh-relay/tests/fixtures/quick/, T-403), and the capsules and
+variable-length integers of connect-ip-go's tests and of RFC 9000. They go
+into fuzz/corpus/TARGET/, which libFuzzer reads first and adds to.
+scripts/fuzz.sh runs this before each run.
 """
 import hashlib
 import pathlib
@@ -29,6 +32,20 @@ FRAMES = [
     bytes([0x8A, 0x85]) + MASKED_HELLO,
     bytes([0x82, 0x7E, 0x01, 0x00]) + bytes(256),
     bytes([0x82, 0x7F, 0, 0, 0, 0, 0, 0x01, 0, 0]) + bytes(64),
+]
+
+# connect-ip-go's TestH2DatagramStreamSendDatagram (a capsule of type 0, the
+# packet 45 00 00 14) and TestH2DatagramStreamReceiveDatagram (a capsule of
+# type 7, "ignore", then a packet), and RFC 9000's examples of its
+# variable-length integers (Appendix A.1), as podssh-warp's tests hold them.
+CAPSULES = [
+    bytes([0x00, 0x04, 0x45, 0x00, 0x00, 0x14]),
+    bytes([0x07, 0x06]) + b"ignore" + bytes([0x00, 0x04, 0x60, 0x00, 0x00, 0x00]),
+    bytes([0xC2, 0x19, 0x7C, 0x5E, 0xFF, 0x14, 0xE8, 0x8C]),
+    bytes([0x9D, 0x7F, 0x3E, 0x7D]),
+    bytes([0x7B, 0xBD]),
+    bytes([0x25]),
+    bytes([0x40, 0x25]),
 ]
 
 
@@ -78,9 +95,24 @@ def main():
         sys.exit("fuzz-seeds.py: no answer of DNS over HTTPS in crates/podssh-ws/tests/fixtures/doh")
     for answer in answers:
         put("dns_wire", answer.read_bytes())
+    messages = sorted((ROOT / "crates/podssh-relay/tests/fixtures/quick").glob("*.bin"))
+    if not messages:
+        sys.exit("fuzz-seeds.py: no message of Cap'n Proto in crates/podssh-relay/tests/fixtures/quick")
+    for message in messages:
+        frame = message.read_bytes()
+        put("capnp_message", frame)
+        if message.name.startswith("quic-connect-"):
+            put("quick_connect_request", frame)
+        if message.name.startswith("rpc-"):
+            # The first byte of an input of quick_control is where it is cut.
+            put("quick_control", bytes([min(len(frame) // 2, 255)]) + frame)
+    # The first byte of an input of warp_capsule is where it is cut.
+    for capsule in CAPSULES:
+        put("warp_capsule", bytes([3]) + capsule)
+    put("warp_capsule", bytes([5]) + b"".join(CAPSULES[:2]))
     print(
         f"fuzz-seeds.py: {len(FRAMES)} frames, {len(lines)} IRC lines, {len(hosts)} relay hosts, "
-        f"{len(answers)} DNS answers"
+        f"{len(answers)} DNS answers, {len(messages)} messages of Cap'n Proto, {len(CAPSULES)} capsules"
     )
 
 

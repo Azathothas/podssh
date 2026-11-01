@@ -7,7 +7,7 @@
 //! in a request, `HttpStatus` and `HttpHeader:NAME` in an answer
 //! (`connection/quic_connection.go`).
 
-use super::capnp::{Builder, Malformed, Message};
+use super::capnp::{Builder, Malformed, Message, CONTROL_BUDGET};
 
 /// The signature of a data stream, and of an RPC stream of the edge.
 pub const DATA_STREAM: [u8; 6] = [0x0A, 0x36, 0xCD, 0x12, 0xA1, 0x3E];
@@ -65,9 +65,10 @@ impl ConnectRequest {
 }
 
 /// The request of a frame: `dest` (pointer 0), `type` (the data's first two
-/// bytes), `metadata` (pointer 1), each pair a `key` and a `val`.
+/// bytes), `metadata` (pointer 1), each pair a `key` and a `val`. Read within
+/// the control stream's budget, so the pairs are at most that many (T-403).
 pub fn read_request(frame: &[u8]) -> Result<ConnectRequest, Malformed> {
-    let message = Message::read(frame)?;
+    let message = Message::read_within(frame, CONTROL_BUDGET)?;
     let root = message.root()?;
     let dest = root.get_text(0)?.unwrap_or_default().to_string();
     let kind = match root.u16(0) {
@@ -76,6 +77,8 @@ pub fn read_request(frame: &[u8]) -> Result<ConnectRequest, Malformed> {
         2 => Kind::Tcp,
         n => Kind::Other(n),
     };
+    // No capacity from the count: it is the edge's word, which the budget
+    // bounds, and each pair is read before it is kept.
     let mut metadata = Vec::new();
     for pair in root.get_struct_list(1)? {
         let key = pair.get_text(0)?.unwrap_or_default().to_string();

@@ -90,8 +90,16 @@ failed=0
 for target in "$@"; do
     echo
     echo "== $target"
+    # The readers of the quick tunnel and of WARP's capsules (T-403): one
+    # allocation of 64 MiB from an input of some KiB is a defect, as a list
+    # of 2^23 elements of no size was. Each other target: the RSS limit's.
+    case $target in
+    capnp_message | quick_connect_request | quick_control | warp_capsule) malloc_limit=64 ;;
+    *) malloc_limit=512 ;;
+    esac
     timeout $((RUN_FOR + 300)) cargo +"$NIGHTLY" fuzz run -s "$SANITIZER" --target "$TARGET" "$target" -- \
-        -max_total_time="$RUN_FOR" -rss_limit_mb=512 -print_final_stats=1 >"fuzz/$target.log" 2>&1
+        -max_total_time="$RUN_FOR" -rss_limit_mb=512 -malloc_limit_mb="$malloc_limit" -print_final_stats=1 \
+        >"fuzz/$target.log" 2>&1
     rc=$?
     grep -E '^(Done|stat::number_of_executed_units|stat::new_units_added)' "fuzz/$target.log"
     if [ "$rc" -ne 0 ]; then
