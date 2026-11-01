@@ -22,16 +22,17 @@ use tokio::net::{TcpListener, TcpStream};
 const NETWORK_ENV: &str = "PODSSH_TEST_TOR_NETWORK";
 const LIMIT: Duration = Duration::from_secs(180);
 
-/// A proxy of HTTP CONNECT on the loopback that carries each connection
-/// and keeps the target of each CONNECT.
-async fn proxy() -> (u16, Arc<Mutex<Vec<String>>>) {
+/// A proxy of HTTP CONNECT on the loopback that keeps the target of each
+/// CONNECT, and carries each one, or only those whose target starts with
+/// `only` (403 for the others).
+async fn proxy(only: Option<String>) -> (u16, Arc<Mutex<Vec<String>>>) {
     let listener = TcpListener::bind("127.0.0.1:0").await.unwrap();
     let port = listener.local_addr().unwrap().port();
     let asked = Arc::new(Mutex::new(Vec::new()));
     let seen = asked.clone();
     tokio::spawn(async move {
         while let Ok((client, _)) = listener.accept().await {
-            let seen = seen.clone();
+            let (seen, only) = (seen.clone(), only.clone());
             tokio::spawn(async move {
                 let mut client = BufReader::new(client);
                 let mut line = String::new();
@@ -48,6 +49,10 @@ async fn proxy() -> (u16, Arc<Mutex<Vec<String>>>) {
                     }
                 }
                 seen.lock().unwrap().push(target.clone());
+                if only.as_ref().is_some_and(|only| !target.starts_with(only.as_str())) {
+                    let _ = client.get_mut().write_all(b"HTTP/1.1 403 Forbidden\r\n\r\n").await;
+                    return;
+                }
                 let Ok(mut far) = TcpStream::connect(&target).await else {
                     let _ = client.get_mut().write_all(b"HTTP/1.1 502 Bad Gateway\r\n\r\n").await;
                     return;
@@ -109,7 +114,7 @@ fn a_login_through_a_private_tor_network() {
     let _ = std::fs::remove_dir_all(&home);
     std::fs::create_dir_all(&home).unwrap();
     let runtime = tokio::runtime::Builder::new_multi_thread().worker_threads(2).enable_all().build().unwrap();
-    let (proxy_port, asked) = runtime.block_on(proxy());
+    let (proxy_port, asked) = runtime.block_on(proxy(None));
     let key = home.join("host_key");
     let made = Command::new(env!("CARGO_BIN_EXE_podssh"))
         .args(["keygen", "-q", "-t", "ed25519", "-N", "", "-f"])
@@ -139,5 +144,43 @@ fn a_login_through_a_private_tor_network() {
     assert!(!asked.contains(&server), "the server was reached through the proxy, not Tor: {asked:?}");
     let known_hosts = std::fs::read_to_string(home.join("known_hosts")).unwrap();
     assert!(known_hosts.contains("tor://127.0.0.1"), "the host key is not kept under tor://: {known_hosts}");
+    let _ = std::fs::remove_dir_all(&home);
+}
+
+/// `podssh doctor --full`: its line `tor` says that Arti bootstrapped, and
+/// in how long. The stand-in proxy carries the private network's relays
+/// alone, the relay and the DERP servers are ports of the loopback where
+/// nothing listens: nothing else of doctor's leaves this host.
+#[test]
+fn doctor_full_says_that_tor_bootstraps() {
+    let Some(network) = std::env::var_os(NETWORK_ENV).filter(|v| !v.is_empty()) else {
+        eprintln!("{NETWORK_ENV} is not set: no private Tor network, nothing to test (scripts/tor-net.sh)");
+        return;
+    };
+    let text = std::fs::read_to_string(&network).unwrap();
+    // chutney names each relay by the one address that the network listens on.
+    let address = text
+        .split('"')
+        .find_map(|word| word.parse::<std::net::SocketAddr>().ok())
+        .map(|at| format!("{}:", at.ip()))
+        .expect("no relay's address in the network's configuration");
+    let home = std::env::temp_dir().join(format!("podssh-tor-doctor-{}", std::process::id()));
+    let _ = std::fs::remove_dir_all(&home);
+    std::fs::create_dir_all(&home).unwrap();
+    let runtime = tokio::runtime::Builder::new_multi_thread().worker_threads(2).enable_all().build().unwrap();
+    let (proxy_port, asked) = runtime.block_on(proxy(Some(address.clone())));
+    let mut cmd = podssh(&home, &network, proxy_port, &["doctor", "--full", "--relay-host", "127.0.0.1:9"]);
+    cmd.env("PODSSH_DERP_SERVER", "127.0.0.1:9");
+    let (_, out, err) = ran(cmd);
+    let line =
+        out.lines().find(|l| l.contains("Arti bootstrapped in")).unwrap_or_else(|| panic!("no line tor: {out}{err}"));
+    eprintln!("{line}");
+    assert!(line.contains(" ok "), "{line}");
+    let network_shown = network.to_string_lossy().into_owned();
+    assert!(line.contains("in the network of") && line.contains(&network_shown), "{line}");
+    let asked = asked.lock().unwrap().clone();
+    let through = asked.iter().any(|t| t.starts_with(&address));
+    // podssh asks a proxy for no loopback address.
+    assert_eq!(through, !address.starts_with("127."), "the first hops and the proxy: {asked:?}");
     let _ = std::fs::remove_dir_all(&home);
 }

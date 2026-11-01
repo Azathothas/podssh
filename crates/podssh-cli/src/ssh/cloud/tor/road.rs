@@ -77,6 +77,22 @@ pub async fn open(
     verbose: &(dyn Fn(&str) + Sync),
 ) -> Result<TorStream, Failed> {
     let shown = target.shown();
+    let (tor, _) = bootstrap(&shown, say, verbose).await?;
+    verbose(&format!("{shown}: Tor bootstrapped; opening a stream to port {} through an exit", target.port));
+    tor.connect(&target.host, target.port, STREAM_WAIT)
+        .await
+        .map_err(|f| (format!("{shown}: Tor: {f}"), EX_UNAVAILABLE))
+}
+
+/// A client of Tor, bootstrapped as the road makes it, for `shown`, which
+/// each line names; and how it went: through the proxy or not, its first
+/// hops, and the network when it is not Tor's own. `podssh doctor --full`
+/// takes it too.
+pub async fn bootstrap(
+    shown: &str,
+    say: &(dyn Fn(&str) + Sync),
+    verbose: &(dyn Fn(&str) + Sync),
+) -> Result<(Tor, String), Failed> {
     // Arti's rustls takes the process's provider; podssh's own, as each
     // other road's. A second call finds it there already, which is as good.
     let _ = rustls::crypto::CryptoProvider::install_default(podssh_ws::crypto::provider());
@@ -106,6 +122,7 @@ pub async fn open(
     let via = if proxied { "through the proxy" } else { "directly" };
     let which = network.map_or_else(String::new, |(_, file)| format!(" in the network of {file}"));
     say(&format!("bootstrapping Tor (Arti){which} {via}, {held}: a first run fetches the directory"));
+    let how = format!("{via}, {held}{which}");
     let tor = match Tor::bootstrap(&options, BOOTSTRAP_WAIT).await {
         Ok(tor) => tor,
         // podssh made the directories private itself; Arti's check of each
@@ -119,8 +136,5 @@ pub async fn open(
         }
         Err(failure) => return Err((format!("{shown}: Tor: {failure}"), EX_UNAVAILABLE)),
     };
-    verbose(&format!("{shown}: Tor bootstrapped; opening a stream to port {} through an exit", target.port));
-    tor.connect(&target.host, target.port, STREAM_WAIT)
-        .await
-        .map_err(|f| (format!("{shown}: Tor: {f}"), EX_UNAVAILABLE))
+    Ok((tor, how))
 }

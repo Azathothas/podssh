@@ -224,7 +224,10 @@ const DOCTOR: &[&str] = &[
      handshake, the host key (the one that forward identified) and the authentication path work. No pty \
      is asked for: GitHub refuses the key before a channel opens. With no proxy set, --full also makes a \
      QUIC handshake with the quick tunnel's edge, Cloudflare's, as the node's first try makes one, and \
-     closes it at once with nothing registered: UDP out then says whether it answered, and in what time.",
+     closes it at once with nothing registered: UDP out then says whether it answered, and in what time. \
+     In a build with the feature tor, --full bootstraps Tor as a tor:// destination does (through the \
+     proxy, its first hops on the ports of PODSSH_TOR_PORTS, the network of PODSSH_TOR_NETWORK) and opens \
+     no stream: the line tor says how long it took, or why it failed.",
     "With --forwarder, PODSSH_FORWARDER or Forwarder of the settings file, the section forwarders gives a \
      line for each forwarder, in order: the upgrade, then a session to github.com port 22 through it, whose \
      host key must be one that GitHub publishes, as the relay's forward line asks; a forwarder that closes \

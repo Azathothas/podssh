@@ -126,7 +126,7 @@ pub(super) async fn reach(target: &Target, log: &Arc<Log>) -> Result<Reached, No
 }
 
 #[cfg(feature = "tor")]
-mod road;
+pub(crate) mod road;
 
 #[cfg(test)]
 mod tests {

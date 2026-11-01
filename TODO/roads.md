@@ -4228,8 +4228,16 @@ Built and tested here (2026-11-01), the live run waiting for Q60:
   network masked. `podssh-cli --lib` 497 with and without the feature; clippy with the feature
   clean.
 
-Waits: the live run (Q60); meek and WebTunnel (Approach, step 2); doctor's line of the bootstrap
-(step 3); the measurement (step 4).
+- Doctor's line `tor` (step 3, 2026-11-01): with `--full`, in a build with the feature, Arti
+  bootstraps as `tor://` makes it (`road::bootstrap`, which the road shares) and opens no stream;
+  without `--full` it tries none and says so, as a first bootstrap fetches Tor's directory.
+  `cargo test -p podssh-cli --features tor --test tor_private`, 2 passed against the private
+  network, the stand-in proxy carrying its relays alone and the relay and the DERP servers on
+  closed ports of the loopback: `ok tor Arti bootstrapped in 0.3 s, through the proxy, first hops
+  on any port in the network of .../arti.toml`. Planted, the section called as without `--full`:
+  the test failed, "no line tor".
+
+Waits: the live run (Q60); meek and WebTunnel (Approach, step 2); the measurement (step 4).
 
 # T-376: The live run of the roads through a cloud's own tunnel (T-351)
 
@@ -4306,7 +4314,7 @@ code that no command of the default build uses is P2 at most".
 - Read: doctor's two answers are `ok`: "the iroh road may go direct" after a bind, and "the iroh
   road then uses its relay alone" after a refusal (`crates/podssh-cli/src/doctor/iroh.rs` lines
   12-18 at `925c94b`), in a build with the feature only
-  (`crates/podssh-cli/src/doctor/mod.rs:134-135`). The refusal's
+  (`crates/podssh-cli/src/doctor/mod.rs:136-137`). The refusal's
   `ok` is doctor's rule, as the relay alone is a road that works; the bind's "may go direct" is
   not measured.
 - Read, in iroh 1.4.1 (the local cargo registry, `src/net_report/report.rs`): iroh's report of

@@ -1671,6 +1671,12 @@ and no `--timeout`: a person decides how long an edit takes.
   the feature `warp` and with a device of WARP kept in the cache, inside
   WARP's tunnel (`warp://`, above); doctor registers no device. TLS closes
   at once, with nothing registered. A run without `--full` says so.
+- `tor` (T-353), in a build with the feature `tor`, says with `--full`
+  whether Arti bootstraps here as a `tor://` destination makes it: through
+  the proxy, its first hops on the ports of `PODSSH_TOR_PORTS`, in the
+  network of `PODSSH_TOR_NETWORK` when one is named; and in how long. It
+  opens no stream. A first bootstrap fetches Tor's directory, a few MiB, so
+  a run without `--full` tries none, and says so.
 - The section `derp` (T-379) asks `/derp/probe` of each DERP server of the
   list (`PODSSH_DERP_SERVER`, else Tailscale's tailcat fleet), in order,
   through the proxy, 5 s at most each, as `node --derp` finds its home: a

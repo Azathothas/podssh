@@ -42,6 +42,8 @@ mod pairs;
 mod quick;
 mod relay_checks;
 mod samples;
+#[cfg(feature = "tor")]
+mod tor;
 #[cfg(unix)]
 mod unix;
 
@@ -191,6 +193,11 @@ async fn network(report: &mut Report<'_>, checks: &Checks<'_>) {
     {
         report.section("iroh");
         iroh::relay(report, trust).await;
+    }
+    #[cfg(feature = "tor")]
+    {
+        report.section("tor");
+        tor::check(report, full).await;
     }
     report.section("derp");
     derp::check(report, trust).await;

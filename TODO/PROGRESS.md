@@ -67,7 +67,10 @@ entry keeps its proof in the entry; this page keeps no history (git does).
   `draft/draft-warp`, `draft/draft-roads-cli` and `draft/draft-forwarder`, which this
   cloud session's git proxy would not delete.
 
-  No draft waits (2026-11-01): each is in `main`.
+  Drafts being written (2026-11-01, by agents of this cloud session, each in
+  its own worktree): T-373 (Shadowsocks) and T-334 (the headscale stand-in);
+  their branches go to GitHub as `draft/<branch>` before the session ends,
+  as AGENTS.md asks, if they are not merged by then.
 
   CI: the gate passed at
   `24b9f6e` (run 38331509229), and its step `release` at `cad2885` (478
