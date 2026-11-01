@@ -117,7 +117,7 @@ and `CARGO_BUILD_JOBS=4`:
 
 ## Counts
 
-`TODO/INDEX.md` holds 410 entries: 17 open, 2 partial, 32 blocked, 359 done.
+`TODO/INDEX.md` holds 410 entries: 16 open, 2 partial, 32 blocked, 360 done.
 
 Open includes parked work. `cargo todo check` verifies this line.
 
@@ -150,7 +150,7 @@ aborts a detached node, `--persist-forever` never gives up, `--restart` starts a
 again, a node goes on with the next pair at its pair's expiry, a lock names each detached run, a
 hung run is started again, and the smaller gaps are closed), and the quick tunnel races its roads
 too, and drains a connection on the edge's GOAWAY (its second connection waits for Q62, T-414);
-then T-408 and T-411. Before them, a bulk session through a node and its moves on
+and keeps its window in small frames; then T-411. Before them, a bulk session through a node and its moves on
 the live relay are repaired, and the entries of the audit, the study and the issues
 of 2026-10-31 (GitHub #59 to #63 and #69 to #76): T-353 (Q52), whose live run waits for Q60; the
 others are done. Each other `backlog` entry is done, but for those on hold, those of the relay's

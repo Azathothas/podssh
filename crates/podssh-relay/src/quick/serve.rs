@@ -28,16 +28,10 @@ use super::control::{Control, Event, Failure};
 use super::goaway;
 use super::headers::{self, Kind};
 use super::register::{Registered, Registration};
+use super::settings;
 
-/// The most streams at once: a quick tunnel takes 200 requests in flight.
-const MAX_STREAMS: u32 = 256;
 /// The buffer of each bridge between a stream and its user.
 const PIPE: usize = 64 * 1024;
-/// Each stream's window, and the connection's: as many as the streams, so
-/// that streams whose users read slowly never hold the window of the
-/// others, or of the control stream.
-const STREAM_WINDOW: u32 = 64 * 1024;
-const CONNECTION_WINDOW: u32 = MAX_STREAMS * STREAM_WINDOW;
 /// How long the edge has for HTTP/2's handshake.
 pub const HANDSHAKE_WAIT: Duration = Duration::from_secs(30);
 /// How often the node asks whether the edge is there (an HTTP/2 PING), and
@@ -121,6 +115,24 @@ impl std::fmt::Display for Ended {
 pub async fn serve<IO, V, F>(
     io: IO,
     registration: &Registration<'_>,
+    visit: V,
+    steps: mpsc::UnboundedSender<Step>,
+    stop: impl Future<Output = ()>,
+) -> Result<(), Ended>
+where
+    IO: AsyncRead + AsyncWrite + Unpin,
+    V: FnMut(DuplexStream) -> F,
+    F: Future<Output = ()> + Send + 'static,
+{
+    serve_with(settings::server_builder(), io, registration, visit, steps, stop).await
+}
+
+/// [`serve`] with the HTTP/2 of `builder`: a test's control, with h2's own
+/// budget of small frames, in place of the node's (T-408).
+pub async fn serve_with<IO, V, F>(
+    builder: h2::server::Builder,
+    io: IO,
+    registration: &Registration<'_>,
     mut visit: V,
     steps: mpsc::UnboundedSender<Step>,
     stop: impl Future<Output = ()>,
@@ -132,11 +144,7 @@ where
 {
     tokio::pin!(stop);
     let (io, mut going) = goaway::watched(io);
-    let handshake = h2::server::Builder::new()
-        .max_concurrent_streams(MAX_STREAMS)
-        .initial_window_size(STREAM_WINDOW)
-        .initial_connection_window_size(CONNECTION_WINDOW)
-        .handshake::<_, Bytes>(io);
+    let handshake = builder.handshake::<_, Bytes>(io);
     let mut conn = tokio::select! {
         shaken = tokio::time::timeout(HANDSHAKE_WAIT, handshake) => match shaken {
             Ok(shaken) => shaken.map_err(Ended::Http2)?,

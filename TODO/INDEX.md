@@ -62,15 +62,15 @@ repository and CI).
 
 ## Counts
 
-**410 entries: 17 open, 2 partial, 32 blocked, 359 done.**
+**410 entries: 16 open, 2 partial, 32 blocked, 360 done.**
 
 | Priority | open | partial | blocked | done | total |
 | --- | --- | --- | --- | --- | --- |
 | P0 | 0 | 0 | 0 | 1 | 1 |
 | P1 | 1 | 1 | 0 | 38 | 40 |
 | P2 | 1 | 0 | 21 | 177 | 199 |
-| P3 | 15 | 1 | 11 | 143 | 170 |
-| **All** | 17 | 2 | 32 | 359 | 410 |
+| P3 | 14 | 1 | 11 | 144 | 170 |
+| **All** | 16 | 2 | 32 | 360 | 410 |
 
 ## Entries
 
@@ -479,7 +479,7 @@ repository and CI).
 | [T-405](ws.md) | P3 | S | none | defect | done | DoH asks by an address, which a proxy that refuses addresses refuses |
 | [T-406](roads.md) | P3 | S | none | docs | done | The edge's facts that cfrs's testers measured, in the design as a third party's |
 | [T-407](relay.md) | P3 | S | none | defect | done | A relay's Retry-After reaches a line as it came, with its terminal controls |
-| [T-408](roads.md) | P3 | S | none | defect | open | The quick tunnel's server keeps h2's own budget of small frames |
+| [T-408](roads.md) | P3 | S | none | defect | done | The quick tunnel's server keeps h2's own budget of small frames |
 | [T-409](reverse.md) | P1 | S | none | defect | done | A node that the relay closes for a fault (1003, 1009) ends for good |
 | [T-410](resume.md) | P1 | M | none | defect | done | From GitHub's network, the first move through a node still meets a frame for a forgotten id |
 | [T-411](roads.md) | P3 | M | none | defect | open | The quick tunnel over QUIC resets a push of configuration |

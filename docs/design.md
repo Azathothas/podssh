@@ -334,7 +334,18 @@ since a quick tunnel has none.
 **What podssh needs, with no C:**
 
 - HTTP/2: `h2` 0.4.19 is in `Cargo.lock` already, through hyper (READ); it
-  serves a connection that its caller dialed, as cloudflared does.
+  serves a connection that its caller dialed, as cloudflared does. The node
+  grants the edge 256 streams of 64 KiB windows, and h2 ends a connection
+  whose DATA frames under 256 bytes wait unread past a budget
+  (ENHANCE_YOUR_CALM, "too_many_data_frames"), by default half the
+  connection's window: 8 MiB, some 42,800 frames of 60 bytes, which 40 to
+  60 visitors whose users read nothing hold, and every visitor's stream
+  ends with the connection. podssh's budget holds the whole window in the
+  smallest frame that a visitor's client writes, a WebSocket frame of no
+  payload, 6 bytes, so that the windows, which each visitor's reader
+  releases, stop the edge first; at worst h2 keeps some 700 MB of its
+  bookkeeping for them (T-408). MEASURED: UNVERIFIED (`cargo test -p
+  podssh-relay --features quick --test quick_small_frames`).
 - Cap'n Proto: the crates `capnp` and `capnp-rpc` (0.27, MIT,
   https://github.com/capnproto/capnproto-rust). Their code generator needs
   the `capnp` tool, which is C++ (docs.rs, capnpc 0.27.0), so the generated

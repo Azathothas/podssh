@@ -25,6 +25,8 @@
 //! - `goaway` (feature `quick`): the edge's GOAWAY, seen as it passes;
 //! - `serve` (feature `quick`): the connection to the edge, served over
 //!   HTTP/2: the control stream, and each visitor's WebSocket;
+//! - `settings` (feature `quick`): HTTP/2's streams and windows there, and
+//!   h2's budget of small frames (T-408);
 //! - `quic` and `quic_serve` (feature `quick`): the same over QUIC, where UDP
 //!   reaches the edge (T-301); `visitor`: a WebSocket on such a stream;
 //! - `probe` (feature `quick`): whether UDP reaches the edge, by one packet
@@ -59,6 +61,8 @@ pub mod roads;
 pub mod rpc;
 #[cfg(feature = "quick")]
 pub mod serve;
+#[cfg(feature = "quick")]
+pub mod settings;
 #[cfg(feature = "quick")]
 pub mod visitor;
 
