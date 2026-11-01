@@ -191,7 +191,7 @@ verified here).
    send an empty binary frame: under 32 bytes is `1009 bad multiplex frame` (`:182` of the contract).
    Pitfall: no idle read limit while no probe exists; the forward opener sets 90 s
    (`crates/podssh-relay/src/open.rs:345`), and a quiet socket would reconnect.
-6. Close actions, by code and reason (`docs/reverse.md:198-200`): `409`, exit, no retry;
+6. Close actions, by code and reason (`docs/reverse.md:200-202`): `409`, exit, no retry;
    `1001 operator stopped reverse relay`, exit and delete the pair; `1001 pair expired`, or a `403` after the
    stored expiry, a re-pair hook that is off by default; `1003` and `1009`, exit with the reason, never a loop;
    any other close, connect again with `open::backoff`.
@@ -271,7 +271,7 @@ sessions at once with T-080, compare the digests of 1 MiB each way, and stop the
 
 # T-080: The operator runner
 
-**Source:** ROADMAP M4 (`docs/ROADMAP.md:150-158`); `docs/design.md` lines 94-97 at `0d92eef`; `docs/reverse.md:79-200`.
+**Source:** ROADMAP M4 (`docs/ROADMAP.md:150-158`); `docs/design.md` lines 94-97 at `0d92eef`; `docs/reverse.md:81-202`.
 Read here on `3ee70dc`.
 **Category:** feature
 **Milestone:** M4
@@ -318,7 +318,7 @@ fails on each close but `1000` (`Azathothas/podbox:crates/podbox-ssh/src/mux.rs`
    a text `close` keeps its reason. Never send a text frame.
 5. Outcome: `NeverReady { code, reason }`, `Ended { code, reason }` or `LocalEnd`. Never ready is a
    failure; `1000` after `ready` is success; each other code after `ready` is a failure that names
-   the code and the reason (`docs/reverse.md:195-200`).
+   the code and the reason (`docs/reverse.md:197-202`).
 6. End of input: send a Close `1000`, and wait up to 10 s for the relay's answer, so the last bytes
    arrive.
 7. Liveness as in T-079: `watch_liveness` only if the relay answers a Ping on this leg; no idle read
@@ -1320,7 +1320,7 @@ Read: the library crates must build with no C compiler (`AGENTS.md:266-268`, `sc
    the gate before it is chosen; else RustCrypto parts with the IK handshake written here, and the
    test vectors of the Noise specification.
 3. Messages: each Noise message at most 65535 bytes, with a length prefix, inside the session's
-   bytes. The relay's frames on the operator leg stay bare (`docs/reverse.md:81`).
+   bytes. The relay's frames on the operator leg stay bare (`docs/reverse.md:83`).
 4. Layers with M6 (T-151, T-153): either Noise for each connection under the resumable layer (a
    resume makes a new handshake and proves the resume secret inside it), or above it. Decide in
    T-151, and record the choice in `docs/design.md` (section 5).
@@ -1451,7 +1451,7 @@ only `share PORT` opens a port.
 Read: one name holds one node socket
 (`crates/podssh-probe/tests/spec/relay-spec-2026-10-03-r2.txt:152-154`); tokens are scoped to a name
 and a role (`:128-129`). The operator leg has no framing, so a route cannot travel in the relay's
-frames (`docs/reverse.md:81`). Data needs `ready` first (`crates/podssh-probe/tests/spec/relay-spec-2026-10-03-r2.txt:180`), and `ready` comes
+frames (`docs/reverse.md:83`). Data needs `ready` first (`crates/podssh-probe/tests/spec/relay-spec-2026-10-03-r2.txt:180`), and `ready` comes
 after the local side accepts (`docs/reverse.md:16`). So a route that the operator names reaches the
 node only after `ready`.
 
@@ -1686,7 +1686,7 @@ upgrade, 72 h at most (`docs/relay.md:181-185`); `POST /v1/pair` gives the three
 (`docs/relay.md:323-326`). The contract scopes reverse tokens to a name and a role, and states no single use and
 no binding to a peer (`crates/podssh-probe/tests/spec/relay-spec-2026-10-03-r2.txt:128-129`). A new mint secret
 ends each token at once (`docs/relay.md:311-313`). A text frame from the operator closes its socket with
-`1003`, and the operator leg carries no framing (`docs/relay.md:340-343`, `docs/reverse.md:81`).
+`1003`, and the operator leg carries no framing (`docs/relay.md:340-343`, `docs/reverse.md:83`).
 
 Measured: `grep -rni sshsig crates scripts docs Cargo.toml` finds nothing (exit 1). The wider `sign(` hits are
 tests of primitives (`crates/podssh-ws/tests/crypto_vectors.rs:125-159`,
@@ -1934,3 +1934,55 @@ renews it by hand.
 export CARGO_BUILD_JOBS=4
 cargo test -p podssh-cli --test node a_node_says_its_pairs_expiry_before_it
 ```
+
+# T-409: A node that the relay closes for a fault (1003, 1009) ends for good
+
+**Source:** the run of `relay-live.yml` (`node_live`, run 41289022291 at `ea2bd4f`, 2026-11-01),
+from GitHub's network: after the first move of T-155's test the node was offline for the 600 s
+that the client tried, with the operator's lines "HTTP 503: reverse: node offline"; and the study
+of d-mon's theme, a podssh that ends in production locks a server out.
+**Category:** defect
+**Milestone:** none
+**Priority:** P1
+**Effort:** S
+**Status:** done
+
+## Problem
+
+A node exits when the relay closes its socket with `1003` or `1009`, a fault of the node's own
+bytes. One frame for an id that the relay forgot (T-388's race) then ends the node, and a server
+that only the node reaches is locked out until somebody starts it again.
+
+## Premise
+
+- Read: `after_close` gives `Next::Exit("fault")` for `1003` and `1009`
+  (`crates/podssh-relay/src/reverse/node.rs:124`), and `run` returned `Exit::Fault` for it.
+- Measured: the run of 41289022291: the node offline from the move on; the node's own lines were
+  not printed by the workflow.
+
+## Approach
+
+`run` takes a fault for a lost socket: a line that names the close, then a new socket with the
+jittered backoff; the layer resumes the socket's sessions on it. `Exit::Fault` goes. The stand-in
+relay gets a mode `fault1003`, whose first node socket of each pair gets `1003 unknown session
+id`; `relay-live.yml` prints the node's lines (`PODSSH_TEST_NODE_LINES=1`).
+
+## Prove
+
+```sh
+export CARGO_BUILD_JOBS=4
+cargo test -p podssh-cli --test node_detach a_node_closed_for_a_fault_comes_back
+cargo test -p podssh-relay --features pair --test reverse_node
+```
+
+## Done
+
+2026-11-01: a node closed for a fault connects again. `crates/podssh-relay/src/reverse/node.rs`:
+the fault of `after_close` is a line ("the relay closed the node for a fault of this node: 1003
+unknown session id; connecting again") and a reconnection; `Exit::Fault` and the CLI's words for it
+are gone. `scripts/fake_reverse.py`'s mode `fault1003`. `tests/node_detach.rs`,
+`a_node_closed_for_a_fault_comes_back`: the node said the close, came online again and served a
+login: passed; planted, the node's end at the fault: the test failed ("the node ended after the
+fault"). `docs/reverse.md` says the rule. The race that sends the frame (T-388's, still seen from
+GitHub's network) is T-410; `relay-live.yml` now prints the node's lines for it.
+

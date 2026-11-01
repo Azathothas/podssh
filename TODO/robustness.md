@@ -839,7 +839,7 @@ minutes, and no harness can test that yet.
 Read:
 
 - The modes of the stand-in relay: `normal`, `refuse`, `blackhole`, `silent`,
-  `stall` and `close` (`scripts/fake-relay.py:18-30`). The stand-in proxy maps
+  `stall` and `close` (`scripts/fake-relay.py:18-32`). The stand-in proxy maps
   names and answers a status (`scripts/fake-proxy.py:1-27`). Neither shapes
   the traffic.
 - `scripts/interop-faults.sh:35-44` starts one stand-in for each fault; its
@@ -913,7 +913,7 @@ fail when the resume layer is off.
 ## Correction
 
 Item 4 needs the reverse road in the stand-in relay, which serves the
-forward road only (`scripts/fake-relay.py:112-113`). T-156 builds it (its
+forward road only (`scripts/fake-relay.py:114-115`). T-156 builds it (its
 item 1) and makes those checks its measurement (its items 2 to 5). T-203
 gives T-156 the faults that those checks need: `pause:AFTER:FOR` for the
 stall that ends, `cut` for a host stopped mid-session, and `--move` for the

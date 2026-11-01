@@ -316,7 +316,7 @@ sh scripts/dev.sh check
 The unit test checks the rule: which phases and which closes allow a retry.
 In the gate, `scripts/fake-relay.py` gets a mode that drops only its first
 session during the handshake, beside the modes at
-`scripts/fake-relay.py:18-30`. Through it, `exit 5` still gives 5, with one
+`scripts/fake-relay.py:18-32`. Through it, `exit 5` still gives 5, with one
 retry note. A second case drops after the exec request: exit 255, and a file
 that the command appends to has one line. Planted defect: retry in each
 phase, and that file has two lines.
@@ -1521,7 +1521,7 @@ Read:
   stops reading makes the session idle, not stuck (GitHub #36). Only a stall
   below SSH causes the hang.
 - The stand-in relay's `stall:` mode reads the client's frames and drops them
-  (`scripts/fake-relay.py:339-343`), so no fault tests a stuck write today.
+  (`scripts/fake-relay.py:341-345`), so no fault tests a stuck write today.
   GitHub #36 cites it as scripts/box/fake-relay.py, which does not exist.
 - The reporter measured a zero-window stall outside podssh: after 2.0 MiB,
   the write stayed blocked (read in the issue, not verified here).

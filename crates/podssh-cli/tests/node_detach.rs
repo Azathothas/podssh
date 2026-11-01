@@ -292,6 +292,68 @@ fn a_killed_supervisor_leaves_its_node_serving() {
     assert_eq!(out.status.code(), Some(0), "{}", String::from_utf8_lossy(&out.stderr));
 }
 
+/// A node that the relay closes for a fault of its bytes (1003) connects
+/// again and serves (T-409): it ended for good before, and a server that
+/// only it reached was locked out.
+#[test]
+fn a_node_closed_for_a_fault_comes_back() {
+    let session = Session::start("fault");
+    let cell = match Cell::fake_relay_mode(&session, "fault1003", "the stand-in relay, a fault at the first socket") {
+        Ok(cell) => cell,
+        Err((_, why)) => {
+            eprintln!("did not run: {why}");
+            return;
+        }
+    };
+    let at = |flag: &str| cell.args.iter().position(|a| a == flag).map(|i| cell.args[i + 1].clone()).unwrap();
+    let (relay, ca) = (at("--relay-host"), at("--ca-file"));
+    let pins = ["--relay-addr".to_string(), "relay-a.test=127.0.0.1".to_string()];
+    let command = |args: &[String]| session.stand_in(args, &ca);
+    let mut args = vec!["relay".to_string(), "pair".into(), "lab".into(), "--relay-host".into(), relay];
+    args.extend(pins.iter().cloned());
+    assert!(command(&args).stdin(Stdio::null()).output().unwrap().status.success());
+    let mut args = vec!["node".to_string(), "lab".into(), format!("127.0.0.1:{}", session.port)];
+    args.extend(pins.iter().cloned());
+    let mut node = command(&args).stdin(Stdio::null()).stdout(Stdio::null()).stderr(Stdio::piped()).spawn().unwrap();
+    let err = std::sync::Arc::new(std::sync::Mutex::new(String::new()));
+    {
+        let (err, mut from) = (err.clone(), node.stderr.take().unwrap());
+        std::thread::spawn(move || {
+            use std::io::Read;
+            let mut buf = [0u8; 4096];
+            while let Ok(n) = from.read(&mut buf) {
+                if n == 0 {
+                    break;
+                }
+                err.lock().unwrap().push_str(&String::from_utf8_lossy(&buf[..n]));
+            }
+        });
+    }
+    struct Kill(std::process::Child);
+    impl Drop for Kill {
+        fn drop(&mut self) {
+            let _ = self.0.kill();
+            let _ = self.0.wait();
+        }
+    }
+    let mut node = Kill(node);
+    let deadline = std::time::Instant::now() + std::time::Duration::from_secs(30);
+    while !err.lock().unwrap().contains("online again") {
+        if let Some(status) = node.0.try_wait().unwrap() {
+            panic!("the node ended after the fault: {status:?}: {}", err.lock().unwrap());
+        }
+        assert!(std::time::Instant::now() < deadline, "not online again: {}", err.lock().unwrap());
+        std::thread::sleep(std::time::Duration::from_millis(100));
+    }
+    assert!(err.lock().unwrap().contains("1003 unknown session id; connecting again"), "{}", err.lock().unwrap());
+    let mut login = vec!["ssh".to_string()];
+    login.extend(session.common());
+    login.extend(pins.iter().cloned());
+    login.extend(["node://tester@lab".to_string(), "greet".into()]);
+    let out = command(&login).stdin(Stdio::null()).output().unwrap();
+    assert_eq!(out.status.code(), Some(0), "{}", String::from_utf8_lossy(&out.stderr));
+}
+
 #[test]
 fn restart_without_detach_is_a_usage_error() {
     let out = std::process::Command::new(env!("CARGO_BIN_EXE_podssh"))

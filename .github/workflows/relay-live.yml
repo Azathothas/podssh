@@ -48,6 +48,8 @@ jobs:
           TEST: ${{ inputs.test }}
         run: |
           case "$TEST" in
-            node_live) cargo test --locked -p podssh-cli --test node_live -- --ignored --nocapture --test-threads 1 ;;
+            # Each line of the node too, as a node's end is otherwise
+            # unseen (T-388, T-409).
+            node_live) PODSSH_TEST_NODE_LINES=1 cargo test --locked -p podssh-cli --test node_live -- --ignored --nocapture --test-threads 1 ;;
             *) cargo test --locked -p podssh-relay --features pair --test "$TEST" -- --ignored --nocapture ;;
           esac

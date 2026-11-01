@@ -24,6 +24,8 @@ Modes:
                    ALLOW list`, as the relay refuses a target of its policy,
                    and dial no target (T-367)
   blackhole        accept TCP and never start TLS
+  fault1003        behave, but close the first socket of each pair's node
+                   with 1003 "unknown session id" (T-409)
   silent           finish TLS, then never answer a request
   stall:SECONDS    SECONDS after the upgrade, stop: no frames, no Pongs
   close:BYTES:CODE after BYTES from the target, Close with CODE and the
@@ -424,6 +426,7 @@ async def main():
     parser.add_argument("--mode", default="normal")
     parser.add_argument("--keepalive", type=float, default=25.0)
     args = parser.parse_args()
+    fake_reverse.MODE = args.mode
     context = ssl.SSLContext(ssl.PROTOCOL_TLS_SERVER)
     if args.mode == "tls12":
         context.minimum_version = ssl.TLSVersion.TLSv1_2

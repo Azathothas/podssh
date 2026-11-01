@@ -59,8 +59,10 @@ open the local side. It acts on each end by its code and reason: `409`,
 exit, but after a loss connect again until the resume deadline, with a line
 on stderr for each `409` and the time left; `1001 operator stopped reverse relay`, exit and delete the stored pair;
 `1001 pair expired` (or a `403` after the expiry), a re-pair hook, off by
-default; `1003` and `1009`, exit; anything else, connect again with the
-jittered backoff. A node that cannot connect as it is set up (an unusable
+default; `1003` and `1009`, a fault of the node's own bytes, a line and a new
+socket, as one frame must not lock out a server that only the node reaches
+(T-409; the sessions of the socket resume on the next); anything else,
+connect again with the jittered backoff. A node that cannot connect as it is set up (an unusable
 proxy setting or trust store) exits too, as connecting again would repeat
 it. A stop closes each session with `close {id}`, then the socket with
 `1000`. Measured against the live relay on 2026-10-09: two

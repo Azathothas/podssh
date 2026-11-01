@@ -19,6 +19,10 @@ from fake_ws import close_frame, frame, read_frame, response, upgraded
 
 # name -> Pair
 PAIRS = {}
+# The stand-in relay's --mode. fault1003: the first socket of each pair's
+# node is closed with 1003 "unknown session id" half a second after its
+# hello, as the relay closes a node for a frame of an id that it forgot.
+MODE = "normal"
 # FAKE_RELAY_DEBUG=1: each frame of the reverse road, on stderr.
 DEBUG = bool(os.environ.get("FAKE_RELAY_DEBUG"))
 
@@ -64,6 +68,8 @@ class Pair:
             "".join(secrets.choice(ALPHABET) for _ in range(64)) for _ in range(3))
         self.expires = int(time.time() * 1000) + 72 * 3600 * 1000
         self.node = None
+        # Whether a socket of the node was closed for a fault (fault1003).
+        self.faulted = False
         # id -> (the operator's Socket, the Event of the node's ready, which
         # node() sends on to the operator)
         self.sessions = {}
@@ -116,6 +122,11 @@ async def handle(method, path, headers, reader, writer):
 async def node(pair, socket):
     pair.node = socket
     await socket.text({"type": "hello", "version": 1, "maxFrameBytes": 65536, "maxSessions": 64})
+    if MODE == "fault1003" and not pair.faulted:
+        pair.faulted = True
+        await asyncio.sleep(0.5)
+        await socket.close(1003, "unknown session id")
+        note("node closed for a fault: 1003 unknown session id")
     try:
         while True:
             opcode, data = await read_frame(socket.reader)

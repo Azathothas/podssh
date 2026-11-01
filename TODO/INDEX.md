@@ -62,15 +62,15 @@ repository and CI).
 
 ## Counts
 
-**404 entries: 29 open, 2 partial, 31 blocked, 342 done.**
+**406 entries: 30 open, 2 partial, 31 blocked, 343 done.**
 
 | Priority | open | partial | blocked | done | total |
 | --- | --- | --- | --- | --- | --- |
 | P0 | 0 | 0 | 0 | 1 | 1 |
-| P1 | 2 | 1 | 0 | 34 | 37 |
+| P1 | 3 | 1 | 0 | 35 | 39 |
 | P2 | 7 | 0 | 21 | 170 | 198 |
 | P3 | 20 | 1 | 10 | 137 | 168 |
-| **All** | 29 | 2 | 31 | 342 | 404 |
+| **All** | 30 | 2 | 31 | 343 | 406 |
 
 ## Entries
 
@@ -480,3 +480,5 @@ repository and CI).
 | [T-406](roads.md) | P3 | S | none | docs | open | The edge's facts that cfrs's testers measured, in the design as a third party's |
 | [T-407](relay.md) | P3 | S | none | defect | done | A relay's Retry-After reaches a line as it came, with its terminal controls |
 | [T-408](roads.md) | P3 | S | none | defect | open | The quick tunnel's server keeps h2's own budget of small frames |
+| [T-409](reverse.md) | P1 | S | none | defect | done | A node that the relay closes for a fault (1003, 1009) ends for good |
+| [T-410](resume.md) | P1 | M | none | defect | open | From GitHub's network, the first move through a node still meets a frame for a forgotten id |

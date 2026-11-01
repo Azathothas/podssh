@@ -98,8 +98,6 @@ pub enum Exit {
     PairExpired,
     /// A `403` before the expiry: a stopped pair or a wrong token.
     Forbidden,
-    /// `1003` or `1009`: a fault of this node that a reconnection would repeat.
-    Fault(RelayClose),
     /// The node cannot connect as it is set up: an unusable proxy setting or
     /// trust store, or a host that plain `ws://` refuses. A reconnection would
     /// repeat it.
@@ -187,7 +185,20 @@ where
                             }
                             return Exit::PairStopped;
                         }
-                        Next::Exit(_) => return Exit::Fault(close),
+                        // A fault of this node's bytes (1003, 1009) ends the
+                        // sessions of this socket, not the node: a server
+                        // that only this node reaches must not be locked out
+                        // by one frame, and the layer resumes its sessions on
+                        // the next socket (T-409).
+                        Next::Exit(_) => {
+                            if let Some(say) = config.say {
+                                say(format!(
+                                    "the relay closed the node for a fault of this node: {} {}; connecting again",
+                                    close.code, close.reason
+                                ));
+                            }
+                            Next::Reconnect
+                        }
                         next => next,
                     },
                 }

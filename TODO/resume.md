@@ -1052,8 +1052,8 @@ Measured in the gate (`docs/STATUS.md`, "Faults between podssh and the relay,
 measured"): a relay that stalls is declared dead at 50 s, and a relay host
 killed in a session gives exit 255 (`scripts/interop-faults.sh:265-283`).
 These checks stay, for the forward road, which has no resumption. Read: the
-stand-in relay serves the forward path only (`scripts/fake-relay.py:117-135`),
-and its `stall` mode never ends (`scripts/fake-relay.py:328-331`). The
+stand-in relay serves the forward path only (`scripts/fake-relay.py:119-137`),
+and its `stall` mode never ends (`scripts/fake-relay.py:330-333`). The
 harness cannot change an address or end a stall yet (T-203). The checks need
 T-151 to T-155, the iroh road (T-162 to T-165), the reverse runners (T-079,
 T-080) and a far end (`podssh serve`, T-107).
@@ -3164,3 +3164,47 @@ know of a Close that the relay has not yet passed on to it.
   From GitHub's network (`relay-live.yml`, `node_live`): run after the push, in `docs/STATUS.md`.
 - The planted defect (the operator's Close at once again, `node_ends: None` for the layer's legs) is
   the run before this repair: the 1003 at the first move. Its plant as a file waits for T-251.
+
+# T-410: From GitHub's network, the first move through a node still meets a frame for a forgotten id
+
+**Source:** the run of `relay-live.yml` (`node_live`, run 41289022291 at `ea2bd4f`, 2026-11-01),
+after T-388's repair passed here with 7 moves.
+**Category:** defect
+**Milestone:** none
+**Priority:** P1
+**Effort:** M
+**Status:** open
+
+## Problem
+
+From GitHub's network, T-155's move test met at its first move "a move to a new link failed (the
+link failed in the layer's handshake: unexpected end of file)", then "the link was replaced", and
+the node was gone: the relay had closed it (T-409 now brings it back). Here, with the same code,
+the first move failed the same way but the session resumed, and 7 moves passed. A frame for an id
+that the relay forgot still reaches it on some paths, and the first move's new link fails in its
+handshake each time, here and there.
+
+## Premise
+
+- Measured: the run's client lines (`relay-live.yml`, run 41289022291); the node's were not printed.
+- Read: T-388's repair waits for the node's close on a leg's end of input; it does not cover a
+  leg whose new link failed in its handshake, nor the node's own frames for a session that the
+  operator side never opened.
+
+## Approach
+
+1. The node's lines from GitHub's network (`relay-live.yml` prints them since T-409): which id,
+   which frame, and which leg.
+2. Why the first move's handshake meets an end of file, here too.
+3. Repair the side that sends the frame; T-155's test from GitHub's network makes its moves with
+   no line of a node's fault.
+
+## Prove
+
+```sh
+export CARGO_BUILD_JOBS=4
+cargo test -p podssh-cli --test node_live -- --ignored --exact move_200mib_each_way_through_a_node
+```
+
+From GitHub's network: `relay-live.yml` with `node_live`, 6 moves or more, no fault of the node.
+

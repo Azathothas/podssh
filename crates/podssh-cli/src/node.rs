@@ -435,10 +435,6 @@ pub(crate) fn ended(label: &str, exit: Exit) -> Option<(Fault, String)> {
         Exit::Forbidden => {
             (Fault::Auth, format!("the relay refused the pair (403): it was stopped, or its token is wrong; {remedy}"))
         }
-        Exit::Fault(close) => (
-            Fault::SessionFault,
-            format!("the relay closed the node for a fault of this node: {} {}", close.code, close.reason),
-        ),
         Exit::Unusable(why) => (Fault::Config, why),
     };
     Some((fault, why))
