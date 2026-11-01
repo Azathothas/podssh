@@ -4895,7 +4895,7 @@ dependencies = [
 
 [[package]]
 name = "podssh-cli"
-version = "1.0.0-beta.3"
+version = "1.0.0-beta.4"
 dependencies = [
  "aws-lc-rs",
  "base64 0.23.1",
@@ -4933,7 +4933,7 @@ dependencies = [
 
 [[package]]
 name = "podssh-core"
-version = "1.0.0-beta.3"
+version = "1.0.0-beta.4"
 dependencies = [
  "hex",
  "proptest",
@@ -4942,7 +4942,7 @@ dependencies = [
 
 [[package]]
 name = "podssh-iroh"
-version = "1.0.0-beta.3"
+version = "1.0.0-beta.4"
 dependencies = [
  "base64 0.23.1",
  "iroh",
@@ -4964,7 +4964,7 @@ dependencies = [
 
 [[package]]
 name = "podssh-probe"
-version = "1.0.0-beta.3"
+version = "1.0.0-beta.4"
 dependencies = [
  "regex",
  "serde",
@@ -4975,7 +4975,7 @@ dependencies = [
 
 [[package]]
 name = "podssh-relay"
-version = "1.0.0-beta.3"
+version = "1.0.0-beta.4"
 dependencies = [
  "base64 0.23.1",
  "bytes",
@@ -5007,7 +5007,7 @@ dependencies = [
 
 [[package]]
 name = "podssh-ssh"
-version = "1.0.0-beta.3"
+version = "1.0.0-beta.4"
 dependencies = [
  "aes 0.9.3",
  "aws-lc-rs",
@@ -5039,7 +5039,7 @@ dependencies = [
 
 [[package]]
 name = "podssh-terminal"
-version = "1.0.0-beta.3"
+version = "1.0.0-beta.4"
 dependencies = [
  "anstyle-parse",
  "proptest",
@@ -5049,11 +5049,11 @@ dependencies = [
 
 [[package]]
 name = "podssh-todo"
-version = "1.0.0-beta.3"
+version = "1.0.0-beta.4"
 
 [[package]]
 name = "podssh-tor"
-version = "1.0.0-beta.3"
+version = "1.0.0-beta.4"
 dependencies = [
  "arti-client",
  "async-trait",
@@ -5073,7 +5073,7 @@ dependencies = [
 
 [[package]]
 name = "podssh-ts"
-version = "1.0.0-beta.3"
+version = "1.0.0-beta.4"
 dependencies = [
  "podssh-ws",
  "tailscale",
@@ -5087,7 +5087,7 @@ dependencies = [
 
 [[package]]
 name = "podssh-warp"
-version = "1.0.0-beta.3"
+version = "1.0.0-beta.4"
 dependencies = [
  "base64 0.23.1",
  "bytes",
@@ -5109,7 +5109,7 @@ dependencies = [
 
 [[package]]
 name = "podssh-ws"
-version = "1.0.0-beta.3"
+version = "1.0.0-beta.4"
 dependencies = [
  "aes 0.9.3",
  "aes-gcm 0.11.1",

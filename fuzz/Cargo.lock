@@ -1945,7 +1945,7 @@ checksum = "f6b464fbc74e149a392436b17d523f769e057cb6877f6a5c4618bc6f11800548"
 
 [[package]]
 name = "podssh-cli"
-version = "1.0.0-beta.3"
+version = "1.0.0-beta.4"
 dependencies = [
  "aws-lc-rs",
  "base64",
@@ -1973,7 +1973,7 @@ dependencies = [
 
 [[package]]
 name = "podssh-core"
-version = "1.0.0-beta.3"
+version = "1.0.0-beta.4"
 dependencies = [
  "hex",
  "sha2 0.11.0",
@@ -1994,7 +1994,7 @@ dependencies = [
 
 [[package]]
 name = "podssh-probe"
-version = "1.0.0-beta.3"
+version = "1.0.0-beta.4"
 dependencies = [
  "regex",
  "serde",
@@ -2004,7 +2004,7 @@ dependencies = [
 
 [[package]]
 name = "podssh-relay"
-version = "1.0.0-beta.3"
+version = "1.0.0-beta.4"
 dependencies = [
  "base64",
  "bytes",
@@ -2031,7 +2031,7 @@ dependencies = [
 
 [[package]]
 name = "podssh-ssh"
-version = "1.0.0-beta.3"
+version = "1.0.0-beta.4"
 dependencies = [
  "aes 0.9.3",
  "aws-lc-rs",
@@ -2061,14 +2061,14 @@ dependencies = [
 
 [[package]]
 name = "podssh-terminal"
-version = "1.0.0-beta.3"
+version = "1.0.0-beta.4"
 dependencies = [
  "unicode-width",
 ]
 
 [[package]]
 name = "podssh-warp"
-version = "1.0.0-beta.3"
+version = "1.0.0-beta.4"
 dependencies = [
  "base64",
  "bytes",
@@ -2088,7 +2088,7 @@ dependencies = [
 
 [[package]]
 name = "podssh-ws"
-version = "1.0.0-beta.3"
+version = "1.0.0-beta.4"
 dependencies = [
  "aes 0.9.3",
  "aes-gcm 0.11.1",

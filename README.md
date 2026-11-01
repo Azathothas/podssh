@@ -65,7 +65,7 @@ podssh --TLS 1.3 + WebSocket, port 443--> relay --TCP--> sshd (or another TCP se
    against `SHA256SUMS`, and make it executable:
 
    ```sh
-   T=v1.0.0-beta.3; B=podssh-x86_64-unknown-linux-musl   # or podssh-aarch64-unknown-linux-musl
+   T=v1.0.0-beta.4; B=podssh-x86_64-unknown-linux-musl   # or podssh-aarch64-unknown-linux-musl
    curl -fsSLO "https://github.com/Azathothas/podssh/releases/download/$T/$B"
    curl -fsSLO "https://github.com/Azathothas/podssh/releases/download/$T/SHA256SUMS"
    grep " $B\$" SHA256SUMS | sha256sum -c - && chmod +x "$B"
