@@ -92,6 +92,8 @@ async fn a_stream_through_a_private_network_reaches_the_service() {
         first_hop_ports: None,
         trust_directories: true,
         network: Some(network),
+        bridges: Vec::new(),
+        trust: podssh_ws::Trust::Default,
     };
     let tor = Tor::bootstrap(&options, Duration::from_secs(120)).await.unwrap_or_else(|f| panic!("{f}"));
     let mut stream = tor.connect("127.0.0.1", service, Duration::from_secs(60)).await.unwrap_or_else(|f| panic!("{f}"));

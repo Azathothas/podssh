@@ -48,6 +48,11 @@ pub struct Options {
     /// (`arti.toml`), whose authorities, caches and rules of paths replace
     /// Tor's. The directories, the proxy and the first hops above still hold.
     pub network: Option<String>,
+    /// Bridges (T-385): with any, Arti's first hops are these alone,
+    /// through their transports, and `first_hop_ports` does not hold.
+    pub bridges: Vec<crate::bridges::Bridge>,
+    /// The roots that a bridge's transport checks its TLS with.
+    pub trust: podssh_ws::Trust,
 }
 
 /// Why the client could not be made, or a stream not opened.
@@ -93,10 +98,16 @@ impl Tor {
     /// a tokio runtime, with a default `CryptoProvider` of rustls installed.
     pub async fn bootstrap(options: &Options, wait: Duration) -> Result<Tor, Failure> {
         let base = TokioRustlsRuntime::current().map_err(|e| failure("the runtime", e))?;
-        let runtime: Runtime = base.with_tcp_provider(ProxiedTcp::new(options.proxy.clone(), CONNECT_WAIT));
+        let tcp = ProxiedTcp::new(options.proxy.clone(), CONNECT_WAIT).with_trust(options.trust.clone());
+        let said = tcp.said();
+        let runtime: Runtime = base.with_tcp_provider(tcp);
         let mut builder = match &options.network {
-            Some(text) => toml::from_str::<TorClientConfigBuilder>(text)
-                .map_err(|e| failure("the configuration", format!("the network's configuration: {e}")))?,
+            Some(text) => {
+                // A transport there could be a program that Arti starts.
+                crate::bridges::refuse_transports(text).map_err(|e| failure("the configuration", e))?;
+                toml::from_str::<TorClientConfigBuilder>(text)
+                    .map_err(|e| failure("the configuration", format!("the network's configuration: {e}")))?
+            }
             None => TorClientConfigBuilder::default(),
         };
         // podssh's directories, as `from_directories` sets them, whatever the
@@ -108,7 +119,9 @@ impl Tor {
         if options.trust_directories {
             builder.storage().permissions().dangerously_trust_everyone();
         }
-        if let Some(ports) = &options.first_hop_ports {
+        if !options.bridges.is_empty() {
+            crate::bridges::apply(&mut builder, &options.bridges).map_err(|e| failure("the configuration", e))?;
+        } else if let Some(ports) = &options.first_hop_ports {
             let list = builder.path_rules().reachable_addrs();
             list.clear();
             for pattern in reachable(ports).map_err(|e| failure("the configuration", e))? {
@@ -117,11 +130,18 @@ impl Tor {
         }
         let config = builder.build().map_err(|e| failure("the configuration", e))?;
         let builder = TorClient::with_runtime(runtime).config(config);
+        // Arti says that a channel failed; a bridge's transport says why.
+        let transport =
+            || said.last().map_or_else(String::new, |why| format!("; the last failure of a transport: {why}"));
         let client = match tokio::time::timeout(wait, builder.create_bootstrapped()).await {
             Ok(Ok(client)) => client,
-            Ok(Err(e)) => return Err(arti_failure("the bootstrap", &e)),
+            Ok(Err(e)) => {
+                let mut failed = arti_failure("the bootstrap", &e);
+                failed.detail.push_str(&transport());
+                return Err(failed);
+            }
             Err(_) => {
-                return Err(failure("the bootstrap", format!("not done within {} s", wait.as_secs())));
+                return Err(failure("the bootstrap", format!("not done within {} s{}", wait.as_secs(), transport())));
             }
         };
         Ok(Tor { client })

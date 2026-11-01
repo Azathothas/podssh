@@ -401,6 +401,27 @@ jobs:
       - name: the network stopped
         if: always()
         run: sh scripts/tor-net.sh stop "$RUNNER_TEMP/tor-net"
+      # T-385: the Tor road through a bridge of the same kind of network,
+      # whose transports are Tor's own meek-server and WebTunnel server,
+      # built with Go; after the network above stopped, as both take the
+      # same ports.
+      - uses: actions/setup-go@b7ad1dad31e06c5925ef5d2fc7ad053ef454303e # v7.0.0
+        with:
+          go-version: '1.24'
+          cache: false
+      - name: the private network with a bridge of meek and WebTunnel
+        run: |
+          set -eu
+          go version
+          address=$(hostname -I | awk '{print $1}')
+          bridges=$(sh scripts/tor-net.sh start-bridges "$RUNNER_TEMP/tor-net-bridges" "$address")
+          test -f "$bridges"
+          echo "PODSSH_TEST_TOR_BRIDGES=$bridges" >> "$GITHUB_ENV"
+      - name: the Tor road through the bridge's transports
+        run: cargo test --locked -p podssh-cli --features tor --test tor_bridges -- --nocapture
+      - name: the network with a bridge stopped
+        if: always()
+        run: sh scripts/tor-net.sh stop "$RUNNER_TEMP/tor-net-bridges"
 
   # The one status to require: each job above passed. A job that was
   # skipped or cancelled is not a pass.

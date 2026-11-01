@@ -5,10 +5,11 @@
 use std::path::PathBuf;
 use std::time::Duration;
 
-use podssh_tor::{Options, Tor, TorStream};
+use podssh_tor::{Bridge, Options, Tor, TorStream};
 use podssh_ws::dial::ProxyChoice;
+use podssh_ws::Trust;
 
-use super::{first_hop_ports, Failed, Target, DIR_NAME, NETWORK_ENV, PORTS_ENV};
+use super::{first_hop_ports, Failed, Target, BRIDGES_ENV, DIR_NAME, NETWORK_ENV, PORTS_ENV};
 use crate::exitmap::sysexits::{EX_CANTCREAT, EX_CONFIG, EX_UNAVAILABLE};
 
 /// How long a bootstrap may take: a first run fetches the directory, a few
@@ -54,30 +55,61 @@ fn directories(network: Option<&str>) -> Result<(PathBuf, PathBuf), Failed> {
 /// The longest configuration of another network that is read: chutney's of
 /// a few hundred relays fits many times.
 const MOST_NETWORK_BYTES: u64 = 1 << 20;
+/// The longest file of bridges that is read: a bridge line is a few hundred
+/// bytes.
+const MOST_BRIDGES_BYTES: u64 = 64 << 10;
+
+/// The text of the file that `var` names, at most `most` bytes, and that
+/// name; none when it is unset or empty.
+fn file_of(var: &str, most: u64) -> Result<Option<(String, String)>, String> {
+    use std::io::Read as _;
+    let Some(path) = std::env::var_os(var).filter(|v| !v.is_empty()) else { return Ok(None) };
+    let shown = PathBuf::from(&path).display().to_string();
+    let file = std::fs::File::open(&path).map_err(|e| format!("{var}={shown}: {e}"))?;
+    let mut text = String::new();
+    file.take(most + 1).read_to_string(&mut text).map_err(|e| format!("{var}={shown}: {e}"))?;
+    if text.len() as u64 > most {
+        return Err(format!("{var}={shown}: longer than {most} bytes"));
+    }
+    Ok(Some((text, shown)))
+}
 
 /// The configuration of another Tor network, from the file that
 /// [`NETWORK_ENV`] names, and that name; none when it is unset or empty.
 fn network() -> Result<Option<(String, String)>, String> {
-    use std::io::Read as _;
-    let Some(path) = std::env::var_os(NETWORK_ENV).filter(|v| !v.is_empty()) else { return Ok(None) };
-    let shown = PathBuf::from(&path).display().to_string();
-    let file = std::fs::File::open(&path).map_err(|e| format!("{NETWORK_ENV}={shown}: {e}"))?;
-    let mut text = String::new();
-    file.take(MOST_NETWORK_BYTES + 1).read_to_string(&mut text).map_err(|e| format!("{NETWORK_ENV}={shown}: {e}"))?;
-    if text.len() as u64 > MOST_NETWORK_BYTES {
-        return Err(format!("{NETWORK_ENV}={shown}: longer than {MOST_NETWORK_BYTES} bytes"));
+    file_of(NETWORK_ENV, MOST_NETWORK_BYTES)
+}
+
+/// The bridges of the file that [`BRIDGES_ENV`] names, a bridge line a
+/// line (`#` begins a comment), and that name; none when it is unset or
+/// empty. A line is named by its number alone: a bridge's line is not
+/// shown.
+fn bridges() -> Result<Option<(Vec<Bridge>, String)>, String> {
+    let Some((text, shown)) = file_of(BRIDGES_ENV, MOST_BRIDGES_BYTES)? else { return Ok(None) };
+    let mut list = Vec::new();
+    for (n, line) in text.lines().enumerate() {
+        let line = line.split('#').next().unwrap_or_default().trim();
+        if line.is_empty() {
+            continue;
+        }
+        let bridge = Bridge::parse(line).map_err(|why| format!("{BRIDGES_ENV}={shown}, line {}: {why}", n + 1))?;
+        list.push(bridge);
     }
-    Ok(Some((text, shown)))
+    if list.is_empty() {
+        return Err(format!("{BRIDGES_ENV}={shown}: no bridge line"));
+    }
+    Ok(Some((list, shown)))
 }
 
 /// The stream to `target` through Tor.
 pub async fn open(
     target: &Target,
+    trust: &Trust,
     say: &(dyn Fn(&str) + Sync),
     verbose: &(dyn Fn(&str) + Sync),
 ) -> Result<TorStream, Failed> {
     let shown = target.shown();
-    let (tor, _) = bootstrap(&shown, say, verbose).await?;
+    let (tor, _) = bootstrap(&shown, trust, say, verbose).await?;
     verbose(&format!("{shown}: Tor bootstrapped; opening a stream to port {} through an exit", target.port));
     tor.connect(&target.host, target.port, STREAM_WAIT)
         .await
@@ -86,10 +118,11 @@ pub async fn open(
 
 /// A client of Tor, bootstrapped as the road makes it, for `shown`, which
 /// each line names; and how it went: through the proxy or not, its first
-/// hops, and the network when it is not Tor's own. `podssh doctor --full`
-/// takes it too.
+/// hops or its bridges, and the network when it is not Tor's own. `podssh
+/// doctor --full` takes it too.
 pub async fn bootstrap(
     shown: &str,
+    trust: &Trust,
     say: &(dyn Fn(&str) + Sync),
     verbose: &(dyn Fn(&str) + Sync),
 ) -> Result<(Tor, String), Failed> {
@@ -102,22 +135,28 @@ pub async fn bootstrap(
     let ports = first_hop_ports(std::env::var(PORTS_ENV).ok().as_deref(), proxied)
         .map_err(|why| (format!("{shown}: {why}"), EX_CONFIG))?;
     let network = network().map_err(|why| (format!("{shown}: {why}"), EX_CONFIG))?;
+    let bridges = bridges().map_err(|why| (format!("{shown}: {why}"), EX_CONFIG))?;
     let (state_dir, cache_dir) = directories(network.as_ref().map(|(text, _)| text.as_str()))
         .map_err(|(line, code)| (format!("{shown}: {line}"), code))?;
+    let held = match (&bridges, &ports) {
+        // A bridge is the first hop, through its transport: the ports of a
+        // relay do not hold.
+        (Some((list, file)), _) => format!("{}, named in {file}", podssh_tor::bridges::summary(list)),
+        (None, Some(ports)) => {
+            let list: Vec<String> = ports.iter().map(u16::to_string).collect();
+            format!("first hops on port {} alone", list.join(", "))
+        }
+        (None, None) => "first hops on any port".to_string(),
+    };
     let mut options = Options {
         state_dir,
         cache_dir,
         proxy: ProxyChoice::FromEnvironment,
-        first_hop_ports: ports.clone(),
+        first_hop_ports: if bridges.is_some() { None } else { ports },
         trust_directories: false,
         network: network.as_ref().map(|(text, _)| text.clone()),
-    };
-    let held = match &ports {
-        Some(ports) => {
-            let list: Vec<String> = ports.iter().map(u16::to_string).collect();
-            format!("first hops on port {} alone", list.join(", "))
-        }
-        None => "first hops on any port".to_string(),
+        bridges: bridges.as_ref().map(|(list, _)| list.clone()).unwrap_or_default(),
+        trust: trust.clone(),
     };
     let via = if proxied { "through the proxy" } else { "directly" };
     let which = network.map_or_else(String::new, |(_, file)| format!(" in the network of {file}"));

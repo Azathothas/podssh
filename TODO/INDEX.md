@@ -62,15 +62,15 @@ repository and CI).
 
 ## Counts
 
-**382 entries: 16 open, 2 partial, 31 blocked, 333 done.**
+**382 entries: 15 open, 2 partial, 31 blocked, 334 done.**
 
 | Priority | open | partial | blocked | done | total |
 | --- | --- | --- | --- | --- | --- |
 | P0 | 0 | 0 | 0 | 1 | 1 |
 | P1 | 1 | 1 | 0 | 29 | 31 |
 | P2 | 1 | 0 | 21 | 168 | 190 |
-| P3 | 14 | 1 | 10 | 135 | 160 |
-| **All** | 16 | 2 | 31 | 333 | 382 |
+| P3 | 13 | 1 | 10 | 136 | 160 |
+| **All** | 15 | 2 | 31 | 334 | 382 |
 
 ## Entries
 
@@ -456,5 +456,5 @@ repository and CI).
 | [T-382](cli.md) | P2 | M | backlog | defect | done | `podssh session start` asks no prompt, and on Windows stays in the caller's job |
 | [T-383](cli.md) | P2 | S | backlog | measurement | done | `--detach` on Windows and macOS, measured in GitHub Actions |
 | [T-384](ts.md) | P3 | S | backlog | defect | done | A panic of kameo 0.21.1 in the fork's dialer when the control server refuses the node |
-| [T-385](roads.md) | P3 | L | backlog | feature | open | meek and WebTunnel inside the Tor road's process, for a cage that reaches no Tor relay |
+| [T-385](roads.md) | P3 | L | backlog | feature | done | meek and WebTunnel inside the Tor road's process, for a cage that reaches no Tor relay |
 | [T-386](repo.md) | P2 | M | none | chore | done | Dependabot's updates of 2026-11-01: the digest 0.11 line, rand 0.10 and Tailscale 1.104 |

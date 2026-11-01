@@ -232,7 +232,7 @@ pub(super) async fn reach(road: &Road, trust: &Trust, log: &Arc<Log>) -> Result<
         Road::Iap(target) => iap::reach(target, trust, log).await,
         Road::Eice { endpoint, target } => eice::reach(endpoint, target, trust, log).await,
         Road::Warp(target) => warp::reach(target, trust, log).await,
-        Road::Tor(target) => tor::reach(target, log).await,
+        Road::Tor(target) => tor::reach(target, trust, log).await,
     }
 }
 

@@ -9,10 +9,16 @@
 //! Arti keeps its guards and its copy of the directory in [`DIR_NAME`] of the
 //! cache (T-243), as Tor asks a client to keep its guards, and so that a
 //! later run starts sooner.
+//!
+//! With the bridges of [`BRIDGES_ENV`] (T-385), Arti's first hops are those
+//! alone, each plain or through meek_lite or WebTunnel, which podssh speaks
+//! in this process: they pass where HTTPS passes, where a relay's own TLS
+//! does not.
 
 use std::sync::Arc;
 
 use podssh_ssh::Log;
+use podssh_ws::Trust;
 
 use crate::ssh::transport::{Duplex, NotReached, Reached};
 
@@ -25,6 +31,8 @@ pub const DIR_NAME: &str = "tor";
 /// The file of arti-client's configuration of another Tor network, as
 /// chutney writes it: a private network of the user's, or of a test.
 pub const NETWORK_ENV: &str = "PODSSH_TOR_NETWORK";
+/// The file of the bridges: a bridge line a line, as Tor gives them.
+pub const BRIDGES_ENV: &str = "PODSSH_TOR_BRIDGES";
 
 /// A host and a port beyond an exit.
 #[derive(Debug, Clone, PartialEq, Eq)]
@@ -92,14 +100,16 @@ pub fn first_hop_ports(value: Option<&str>, proxied: bool) -> Result<Option<Vec<
 pub type Failed = (String, i32);
 
 /// The stream to `target` through Tor. `say` tells the user of the
-/// bootstrap, which can take a minute on a first run, and `verbose` the rest.
+/// bootstrap, which can take a minute on a first run, and `verbose` the rest;
+/// `trust` checks the TLS of a bridge's transport.
 #[cfg(feature = "tor")]
 pub async fn open(
     target: &Target,
+    trust: &Trust,
     say: &(dyn Fn(&str) + Sync),
     verbose: &(dyn Fn(&str) + Sync),
 ) -> Result<Box<dyn Duplex>, Failed> {
-    let stream = road::open(target, say, verbose).await?;
+    let stream = road::open(target, trust, say, verbose).await?;
     Ok(Box::new(stream))
 }
 
@@ -108,6 +118,7 @@ pub async fn open(
 #[cfg(not(feature = "tor"))]
 pub async fn open(
     target: &Target,
+    _trust: &Trust,
     _say: &(dyn Fn(&str) + Sync),
     _verbose: &(dyn Fn(&str) + Sync),
 ) -> Result<Box<dyn Duplex>, Failed> {
@@ -115,11 +126,11 @@ pub async fn open(
 }
 
 /// The stream to `target`, as `podssh ssh` reaches a first hop.
-pub(super) async fn reach(target: &Target, log: &Arc<Log>) -> Result<Reached, NotReached> {
+pub(super) async fn reach(target: &Target, trust: &Trust, log: &Arc<Log>) -> Result<Reached, NotReached> {
     let (info, more) = (log.clone(), log.clone());
     let say = move |line: &str| info.info(line);
     let verbose = move |line: &str| more.verbose(line);
-    match open(target, &say, &verbose).await {
+    match open(target, trust, &say, &verbose).await {
         Ok(stream) => Ok(Reached { stream, relay: None, direct_proxy: None, layer: None }),
         Err((line, code)) => Err(NotReached { lines: vec![line], code }),
     }

@@ -57,8 +57,22 @@ pub const VARIABLES: &[(&[&str], &str)] = &[
         &["PODSSH_TOR_PORTS"],
         "The ports that a first hop of a tor:// destination may have, which Arti reaches through the proxy: \
       a list such as 443,80, or any. Unset or empty: 443 alone when a proxy is set, as a cage's proxy allows \
-      little more, and any port when none is. Another value is a configuration error (78). A build with the \
-      feature tor.",
+      little more, and any port when none is. With PODSSH_TOR_BRIDGES it does not hold. Another value is a \
+      configuration error (78). A build with the feature tor.",
+    ),
+    (
+        &["PODSSH_TOR_BRIDGES"],
+        "The file of the bridges of a tor:// destination, a bridge line a line as Tor gives them out, with or \
+      without the word Bridge of a torrc; # begins a comment. Arti's first hops are then these bridges alone, \
+      and PODSSH_TOR_PORTS does not hold. A line is a plain bridge, ADDRESS:PORT FINGERPRINT, or one of \
+      meek_lite or webtunnel, which podssh speaks itself, in this process, through the proxy: meek_lite sends \
+      Tor's bytes in POSTs to its url=, TLS to its front= with the front's name and Host the URL's host; \
+      WebTunnel upgrades at its url=, then carries raw bytes. Each TLS is checked with podssh's trust \
+      (--ca-file, SSL_CERT_FILE, CaFile, else the system's), and WebTunnel's cert= after that check, never in \
+      its place. Arti asks each line for the bridge's fingerprint, so a line with none is refused, the \
+      meek_lite line of Tor Browser among them; so is another transport (obfs4, snowflake), which would be \
+      another program. A line that does not read, or a file that cannot be read, holds no bridge or is longer \
+      than 64 KiB, is a configuration error (78). A build with the feature tor.",
     ),
     (
         &["PODSSH_TOR_NETWORK"],

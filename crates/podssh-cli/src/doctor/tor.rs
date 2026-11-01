@@ -1,11 +1,14 @@
 //! The Tor road, in a build with the feature `tor` (T-353): whether Arti
 //! bootstraps here, as `tor://` makes it (through the proxy, its first
-//! hops held to the ports that the proxy allows), and in how long. A first
-//! bootstrap fetches Tor's directory, a few MiB, so it runs with `--full`
-//! alone; no stream is opened.
+//! hops held to the ports that the proxy allows, or the bridges of
+//! `PODSSH_TOR_BRIDGES` and their transports, T-385), and in how long. A
+//! first bootstrap fetches Tor's directory, a few MiB, so it runs with
+//! `--full` alone; no stream is opened.
 
 use std::sync::Mutex;
 use std::time::Instant;
+
+use podssh_ws::Trust;
 
 use super::Report;
 
@@ -13,7 +16,7 @@ use super::Report;
 const NOT_TRIED: &str =
     "not tried: a first bootstrap fetches Tor's directory, a few MiB; podssh doctor --full tries it";
 
-pub(super) async fn check(report: &mut Report<'_>, full: bool) {
+pub(super) async fn check(report: &mut Report<'_>, trust: &Trust, full: bool) {
     if !full {
         return report.unknown("tor", NOT_TRIED.to_string());
     }
@@ -26,7 +29,8 @@ pub(super) async fn check(report: &mut Report<'_>, full: bool) {
             *retried = true;
         }
     };
-    match crate::ssh::cloud::tor::road::bootstrap("tor", &say, &verbose).await {
+    // The line names the bridges and their transports when there are any.
+    match crate::ssh::cloud::tor::road::bootstrap("tor", trust, &say, &verbose).await {
         Ok((_tor, how)) => {
             let again = match retried.lock().map(|r| *r) {
                 Ok(true) => "; Arti refused the directories' modes, and its check was left out",

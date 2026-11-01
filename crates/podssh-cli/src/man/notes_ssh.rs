@@ -129,7 +129,9 @@ pub const SSH: &[&str] = &[
      one is set, and then to a relay on port 443 alone, or on the ports of PODSSH_TOR_PORTS. An exit \
      resolves HOST and connects to it; an exit's policy, or the host, may refuse Tor. The first run fetches \
      Tor's directory, which can take a minute; Arti keeps it and its guards in the cache (see FILES), and \
-     later runs start sooner. The host key is recorded under tor://HOST. -p and Port give the port; \
+     later runs start sooner. With PODSSH_TOR_BRIDGES, the first hops are the bridges of that file alone, \
+     plain or through meek_lite or WebTunnel, which podssh speaks in this process and which pass where \
+     HTTPS passes (see ENVIRONMENT). The host key is recorded under tor://HOST. -p and Port give the port; \
      --direct, -4, -6 and HostName cannot go with it, and -J with it first makes HOST the first hop of a \
      chain.",
     "-f, --detach and ForkAfterAuthentication yes send the run into the background once its request went \

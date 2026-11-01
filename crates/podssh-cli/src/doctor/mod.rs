@@ -221,7 +221,7 @@ async fn network(report: &mut Report<'_>, checks: &Checks<'_>) {
     #[cfg(feature = "tor")]
     {
         report.section("tor");
-        tor::check(report, full).await;
+        tor::check(report, trust, full).await;
     }
     report.section("derp");
     derp::check(report, trust).await;

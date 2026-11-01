@@ -265,6 +265,22 @@ sh scripts/tor-net.sh stop .work/tor-net
 The relays listen on the address given, as podssh sends no loopback address
 through a proxy; on the loopback, the CLI's test checks that no first hop
 went through the proxy instead.
+
+The road through a bridge (T-385) runs in the same job, after that network
+stopped: `scripts/tor-net.sh start-bridges` builds Tor's own meek-server
+and WebTunnel server with Go (from Go's module proxy), starts a network of
+podssh's own whose bridge runs both, and prints the path of the bridge's
+lines, one for each transport. By hand, with `go` installed too:
+
+```sh
+bridges=$(sh scripts/tor-net.sh start-bridges .work/tor-net-bridges "$(hostname -I | awk '{print $1}')")
+PODSSH_TEST_TOR_BRIDGES=$bridges cargo test -p podssh-cli --features tor --test tor_bridges
+sh scripts/tor-net.sh stop .work/tor-net-bridges
+```
+
+`cargo test -p podssh-tor --test transports` needs no network: Arti's own
+client of a transport reaches stand-ins of both servers through the
+sentinels.
 rustup fetches each toolchain into the build image, so the C toolchain is
 the gate's. `.cargo/config.toml` makes `cargo update` prefer the versions of
 dependencies that these minimums allow. The other steps make sure that:

@@ -17,8 +17,14 @@ publish.workspace = true
 # No default features: no native-tls (OpenSSL), and no compression of the
 # directory (zstd and xz are C); `rustls` takes the process's provider, which
 # podssh-cli makes podssh-ws's own. 0.x: a new minor version is a change of
-# API to read, so the range ends before 0.48.
-arti-client = { version = ">=0.47, <0.48", default-features = false, features = ["tokio", "rustls", "static-sqlite"] }
+# API to read, so the range ends before 0.48. `pt-client` (T-385): bridges,
+# and a transport that Arti does not manage, which this crate's runtime
+# answers in the process (`transport.rs`); it adds tor-ptmgr, Rust alone (its
+# manifest read at 0.47.0), whose launcher of programs runs only for a
+# transport with a `path`, which podssh never writes and refuses.
+arti-client = { version = ">=0.47, <0.48", default-features = false, features = [
+  "tokio", "rustls", "static-sqlite", "pt-client",
+] }
 # The runtime's parts: the TCP provider that dials through podssh-ws, in the
 # version that arti-client builds.
 tor-rtcompat = { version = ">=0.47, <0.48", default-features = false, features = ["tokio", "rustls"] }
@@ -37,3 +43,11 @@ toml = { workspace = true }
 
 [dev-dependencies]
 tokio = { workspace = true, features = ["macros", "rt-multi-thread"] }
+# Arti's own client of a transport that it does not manage (T-385), driven
+# against this crate's runtime in `tests/transports.rs`: the SOCKS5 handshake
+# and its encoding of a bridge's arguments are Arti's, not a copy of them.
+# The versions that arti-client builds.
+tor-chanmgr = { version = ">=0.47, <0.48", default-features = false, features = ["pt-client"] }
+tor-linkspec = { version = ">=0.47, <0.48", default-features = false, features = ["pt-client"] }
+tor-llcrypto = { version = ">=0.47, <0.48", default-features = false }
+tor-socksproto = { version = ">=0.47, <0.48", default-features = false }

@@ -63,7 +63,7 @@ chutney at the commit that `scripts/tor-net.sh` pins (c6b2c5fa).
 - **Read.** `ExternalProxyPlugin::connect` calls
   `runtime.connect(proxy_addr)`, which is podssh's provider. It then runs
   a SOCKS client handshake on the stream it gets back
-  (`REG/tor-chanmgr-0.47.0/src/transport/proxied.rs:80-105`, `:108-168`,
+  (`REG/tor-chanmgr-0.47.0/src/transport/proxied.rs:80-105`, `:119-188`,
   `:456-488`). The bridge's `k=v` settings are joined as `k=v;k=v` with
   backslash escapes (`:492-550`). They are carried in the SOCKS5 user
   name, up to 255 bytes, and the rest in the password, up to 510 bytes in

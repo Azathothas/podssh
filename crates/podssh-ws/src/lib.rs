@@ -6,7 +6,9 @@
 //! ws-listen:` (`server`, T-368). A forwarder of another product carries a
 //! target that a template names, over the same dial (`forwarder`, T-369),
 //! and a Shadowsocks server one that its address header names, over TCP
-//! (`shadowsocks`, T-373).
+//! (`shadowsocks`, T-373). Tor's two pluggable transports for a bridge,
+//! meek_lite and WebTunnel, are spoken here too (`meek`, `webtunnel`,
+//! T-385), so that the Tor road needs no other program.
 //!
 //! Why a crypto provider of its own: rustls 0.23 ships none in pure Rust, and
 //! `ring` and `aws-lc-sys` both need a C compiler, which podssh's default build
@@ -35,12 +37,17 @@ pub mod handshake;
 pub mod http;
 // The road of GCP's Identity-Aware Proxy for TCP (T-351).
 pub mod iap;
+// Tor's meek_lite, for a bridge of the Tor road (T-385).
+pub mod meek;
 pub mod mptcp;
 pub mod names;
 #[cfg(feature = "plain-ws")]
 pub mod plain;
 pub mod proxy;
 mod proxy_auth;
+// What meek_lite and WebTunnel share: a bridge's arguments, its URL, the
+// connection (T-385).
+pub mod pt;
 mod race;
 pub mod resolve;
 pub mod server;
@@ -53,6 +60,8 @@ pub mod text;
 pub mod tls;
 mod tls_wrap;
 pub mod url;
+// Tor's WebTunnel, for a bridge of the Tor road (T-385).
+pub mod webtunnel;
 mod wire;
 pub mod write_limit;
 

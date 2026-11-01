@@ -133,7 +133,19 @@ The candidates, ranked:
      Arti's TCP provider is podssh's dial, so each first hop goes through the
      proxy by its address, and its first hops are held to the ports of
      `PODSSH_TOR_PORTS` (443 alone through a proxy). The live run waits for
-     the operator (Q60); meek and WebTunnel wait.
+     the operator (Q60).
+   - Bridges (T-385, 2026-11-01; measured in a private network): `PODSSH_TOR_BRIDGES`,
+     a file of bridge lines, makes the bridges Arti's only first hops.
+     meek_lite and WebTunnel run in podssh's process, in podssh-ws, with no
+     other program: Arti dials each as a transport that it does not manage,
+     a SOCKS5 proxy at a sentinel address that podssh's TCP provider
+     answers with a pipe in memory (`crates/podssh-tor/src/transport.rs`).
+     Both pass where HTTPS passes, a proxy that re-terminates TLS included
+     when podssh trusts its CA; WebTunnel needs the upgrade, meek's POSTs do
+     not. Each line must carry the bridge's fingerprint, which Arti asks
+     for, so Tor Browser's meek_lite line through CDN77, which has none,
+     cannot serve; the user brings bridges. The study:
+     [tor-transports.md](tor-transports.md).
 6. **A Worker in the user's own Cloudflare account** (class C). It works as
    the relay does, and could serve the split road of T-319 too. The free
    plan gives 100,000 requests a day and 10 ms of CPU for each request

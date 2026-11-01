@@ -373,7 +373,7 @@ sandbox can block what iroh needs, so the fallback is necessary
 6. With `-v`, print the road that won and its time.
 7. Each resume of T-153 runs the same race.
 8. Docs: the rule of the race in `docs/design.md` section 2, and the notes of
-   `ssh` in the manual (`crates/podssh-cli/src/man/notes_ssh.rs:4-439`).
+   `ssh` in the manual (`crates/podssh-cli/src/man/notes_ssh.rs:4-441`).
 
 ## Decision
 
@@ -4258,7 +4258,7 @@ Waits: the live run (Q60); meek and WebTunnel (Approach, step 2); the measuremen
 **Milestone:** backlog
 **Priority:** P3
 **Effort:** L
-**Status:** open
+**Status:** done
 
 ## Problem
 
@@ -4309,13 +4309,33 @@ The smallest design of the study (section 5):
   such bridges.
 - No meek line of podssh's own: the user names each bridge, as a proxy (Inferred: the built-in
   line lacks the fingerprint that Arti asks for).
+- WebTunnel's `sni-imitation=` and `cert-domain=` are refused: each checks a name other than the
+  one that TLS sends, which podssh-ws's verifier does not do. Lost: a verifier of a second name,
+  which is the kind of change to the check that `crates/podssh-ws/src/tls.rs` keeps out.
+- meek_lite opens its connection to the first front that takes one before the SOCKS5 reply,
+  where lyrebird waits for its first POST: a front out of reach is then a failure that Arti
+  retries, and the bootstrap's failure names it. Lost: lyrebird's order, which says nothing until
+  a POST fails.
+- The requests are lyrebird's as Go writes them: meek's POST with no `User-Agent` and no
+  `Accept-Encoding` (the body is Tor's TLS, and no gzip is read), WebTunnel's GET with Go's agent,
+  so that a bridge sees the request of every client. Lost: podssh's own agent, which marks it.
+- With bridges, the first hops are the bridges alone: `reachable_addrs` is `*:*` (an empty list
+  would permit none) and `PODSSH_TOR_PORTS` does not hold. A plain bridge line is taken too, a
+  relay that the directory does not list. `utls=` is read and left.
+- The harness of the bridge is a form of `scripts/tor-net.sh` (`start-bridges`), not a script of
+  its own: the install of chutney is the same. The bridge's lines go in a file beside the
+  network's `arti.toml`, which the test reads from `PODSSH_TEST_TOR_BRIDGES`, as that network is
+  not `tor_private`'s and CI runs both in one job, one after the other.
 
 ## Prove
 
 ```sh
 export CARGO_BUILD_JOBS=4
 cargo test -p podssh-ws --test meek --test webtunnel
-PODSSH_TEST_TOR_NETWORK=... cargo test -p podssh-cli --features tor --test tor_bridges
+cargo test -p podssh-tor --test transports
+bridges=$(sh scripts/tor-net.sh start-bridges .work/tor-net-bridges "$(hostname -I | awk '{print $1}')")
+PODSSH_TEST_TOR_BRIDGES=$bridges cargo test -p podssh-cli --features tor --test tor_bridges
+sh scripts/tor-net.sh stop .work/tor-net-bridges
 ```
 
 Against chutney's private network with a bridge whose transports are meek-server and the
@@ -4323,6 +4343,96 @@ WebTunnel server (Tor's own, built from their sources), through a stand-in proxy
 bootstraps through each transport, and a `tor://` login reaches the test's SSH server. Planted:
 the sentinel dialled for real (no bootstrap); a POST with no `X-Session-Id` (meek-server answers
 400); a GET with no `Upgrade` (the WebTunnel server refuses).
+
+## Correction
+
+2026-11-01: the Prove named `PODSSH_TEST_TOR_NETWORK` for the CLI's test; the test reads
+`PODSSH_TEST_TOR_BRIDGES`, the file of the bridge's lines that `scripts/tor-net.sh
+start-bridges` writes beside its network's `arti.toml` (Decision, last item). The Prove adds
+`cargo test -p podssh-tor --test transports`, Arti's own client of a transport against the
+sentinels, which needs no network.
+
+## Done
+
+2026-11-01, done: the draft of 2026-11-01 (`450654d`, an agent's worktree) merged, built, run and
+measured by the main session, with three repairs at the merge (below).
+
+Read for the draft, none of it built:
+
+- tor-ptmgr 0.47.0, fetched from static.crates.io (it is in no registry here while
+  podssh-tor lacks `pt-client`): its dependencies are Arti's crates and crates already in the
+  lock (async-trait, cfg-if, derive-deftly, derive_builder_fork_arti, fs-mistrust, futures,
+  itertools 0.15, oneshot-fused-workaround, serde, thiserror, tracing, visibility,
+  web-time-compat), with tor-rtcompat's default features, which are none: no C. Of arti-client's
+  `pt-client`, tor-ptmgr is the one crate new to the lock; tor-guardmgr's and tor-dirmgr's
+  `bridge-client` add features alone. tor-ptmgr's default `managed-pts` compiles a launcher that
+  runs only for a transport with a `path`; arti-client with `pt-client` makes `pt_state` under
+  Arti's state directory at each start (its `client.rs`, read at 0.47.0).
+- Arti's encoding of a bridge's arguments (tor-chanmgr 0.47.0, `transport/proxied.rs`): `k=v`
+  joined by `;`, a backslash before `\`, `;` and a key's `=`; up to 255 bytes in the user name
+  with a password of one NUL, else the rest of 510 in the password. Its SOCKS5 client offers the
+  user and password and no authentication, and refuses bytes after the final reply.
+- chutney at `c6b2c5fa` (fetched): `init --net-from-script-path`, a node's `extra_raw_torrc`,
+  `sandbox` and `launch_phase`; a bridge node's line in `arti.toml` is plain, `ADDRESS:ORPORT
+  FINGERPRINT`; its ports start at 5100 (OR), 7100 (directory), 8000, 9000, 9500, 9900 and 10000.
+- lyrebird at `362a60bb4e3f`, meek 0.38.0 and webtunnel 0.0.7 (module zips): as the study reads
+  them; also lyrebird's `Host` of WebTunnel without the URL's port, its 101 checked by the whole
+  status `101 Switching Protocols`, and WebTunnel's `cert=` hash chained over the certificates
+  that the server sent.
+
+Drafted (`git show` of the draft's commit):
+
+- podssh-ws (no C, no new dependency): `src/pt.rs` (a bridge's arguments, its URL, the
+  connection: `dial` and `client::open_tls`, which is `tls_over`), `src/meek.rs` with
+  `src/meek/args.rs`, `exchange.rs` and `carry.rs` (fronts and `targets=`, the kept connection,
+  one POST at a time with lyrebird's retries, the worker with its poll schedule),
+  `src/webtunnel.rs` (the upgrade, its 101, `cert=` after the chain's check).
+- podssh-tor: `pt-client`; `src/bridges.rs` (a bridge line, the configuration, a network's
+  transports refused), `src/socks.rs` (the server's side of SOCKS5 and the arguments decoded),
+  `src/transport.rs` (the two sentinels, the far end of the pipe, the last failure kept for the
+  bootstrap's words), `src/runtime.rs` (a sentinel answered with a pipe in memory),
+  `Options::bridges` and `Options::trust`.
+- The CLI: `PODSSH_TOR_BRIDGES` (`crates/podssh-cli/src/ssh/cloud/tor/road.rs`), the trust of
+  the run passed to the road; doctor's line `tor` names the bridges' transports; the manual (the
+  note of `ssh` and of doctor, ENVIRONMENT); `docs/cli.md`, `docs/carriers.md`,
+  `docs/design.md`'s road table, `docs/development.md`.
+- The harness: `scripts/tor-net.sh start-bridges` (Go builds of both servers, podssh's network
+  script, the bridge's lines); CI's job `tor-net` runs `tor_bridges` after `tor_private`, with Go
+  1.24 from `actions/setup-go` v7.0.0.
+- Not in the draft: `Cargo.lock`, which the first build updates (tor-ptmgr, and podssh-tor's
+  new dev-dependencies, each in the lock already).
+
+Repairs at the merge: the draft drew random bytes through `rand::rngs::OsRng` in three places
+(meek's session id, the choice of a front, WebTunnel's choice of a name), which rand 0.10 no longer
+has (T-386) and which podssh-ws's scan refuses outside `crypto/random.rs`: each draws through
+`OsRandom`, as Shadowsocks does; an unused import in a test of `meek/carry.rs`; clippy 1.99's
+`std::slice::from_ref` in a test of `bridges.rs`. `Cargo.lock` takes tor-ptmgr 0.47.0.
+
+Results, 2026-11-01, in this cloud session:
+
+- `cargo test -p podssh-ws --test meek --test webtunnel`: 6 and 6 passed, against the stand-ins
+  and their controls; `--test random_source`, 7 passed; the whole crate, 359 passed, 0 failed,
+  9 ignored, in 40 binaries; `--lib`, 111 passed.
+- `cargo test -p podssh-tor`: 17 passed: the bridges' configuration built by Arti, the arguments
+  read back from Arti's own encoding, Arti's `ExternalProxyPlugin` through each sentinel to a
+  meek_lite and a WebTunnel stand-in, a transport that cannot open said, and the stand-in's
+  refusal of a POST with no session id.
+- Against chutney's network with a bridge whose transports are meek-server 0.38.0 and the
+  WebTunnel server 0.0.7, built here by Go 1.24.7 from their modules through Go's module proxy
+  (`sh scripts/tor-net.sh start-bridges .work/tor-net-bridges ADDRESS`, ADDRESS this host's
+  own): `PODSSH_TEST_TOR_BRIDGES=FILE cargo test -p podssh-cli --features tor --test
+  tor_bridges`, 3 passed in 9.6 s: a login through the meek_lite bridge, one through the
+  WebTunnel bridge, and `doctor --full` naming the bridge's transport.
+- Planted, each against that network: the sentinel dialled for real (`Kind::by_addr` never
+  matched): the 3 tests failed; a POST with no `X-Session-Id`: the meek login failed; a GET with
+  no `Upgrade: websocket`: the WebTunnel login failed.
+- `cargo test -p podssh-cli --features tor` with the bridges set: 1179 passed, 0 failed, 49
+  ignored, in 138 binaries; `cargo test -p podssh-cli --lib` without the feature: 500 passed.
+  clippy `-D warnings` of podssh-tor, podssh-ws and podssh-cli with `tor`, all targets: clean;
+  rustfmt: clean. `cargo deny --locked check advisories licenses bans sources`, plain and with
+  `--features tor`: ok.
+- Left to the gate of the push: the library crates with `CC=/nonexistent` (step `libs`), Rust
+  1.92 (`msrv_tor`), and CI's job `tor-net` with Go from `actions/setup-go`.
 
 # T-376: The live run of the roads through a cloud's own tunnel (T-351)
 

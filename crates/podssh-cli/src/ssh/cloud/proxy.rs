@@ -175,7 +175,7 @@ async fn pipe(road: &Road, trust: &Trust, err: &mut dyn Write) -> i32 {
         Road::Tor(target) => {
             let say = |line: &str| eprintln!("podssh: {line}");
             let quiet = |_: &str| {};
-            match super::tor::open(target, &say, &quiet).await {
+            match super::tor::open(target, trust, &say, &quiet).await {
                 Ok(stream) => {
                     let (read, write) = tokio::io::split(stream);
                     End { read: Box::new(read), write: Box::new(write), child: None, last_word: true, ending: None }

@@ -263,8 +263,23 @@ scripts. The facts about OpenSSH on this page were measured with OpenSSH
   refused (64), and `-J tor://HOST` makes HOST the first hop of a chain.
   `podssh proxy tor://HOST:PORT` is the same pipe. In a build without the
   feature, a `tor://` destination exits 70 before anything connects. Tor's
-  own TLS fails through a proxy that re-terminates TLS; meek and WebTunnel,
-  which would pass one, are not built yet (T-353).
+  own TLS fails through a proxy that re-terminates TLS, or that allows few
+  ports; bridges pass both (T-385). `PODSSH_TOR_BRIDGES` names a file of
+  bridge lines, as Tor gives them out (with or without `Bridge `); Arti's
+  first hops are then those bridges alone, and `PODSSH_TOR_PORTS` does not
+  hold. A line is a plain bridge, or one of meek_lite or WebTunnel, which
+  podssh speaks itself, in this process (`crates/podssh-ws/src/meek.rs`,
+  `crates/podssh-ws/src/webtunnel.rs`): Arti dials each transport as a
+  SOCKS5 proxy at a sentinel address, which podssh's TCP provider answers
+  with a pipe in memory (`crates/podssh-tor/src/transport.rs`), so nothing
+  listens and no program starts. meek_lite sends Tor's bytes in POSTs to
+  its `url=`, its TLS to `front=` with the front's name and `Host` the
+  URL's host; WebTunnel upgrades at its secret path, then carries raw
+  bytes. Each connects through the proxy, its TLS checked with podssh's
+  trust; WebTunnel's `cert=` is a second check after that one, never in its
+  place. Arti asks each line for the bridge's fingerprint, so a line with
+  none is refused, Tor Browser's meek_lite line among them, and so is
+  another transport (obfs4, snowflake), which would be another program.
 - **The direct road after the relay hosts** (T-363), as the road table of
   [design.md](design.md) gives it. When no relay host opened a session, and
   the user named no relay (`--relay-host`, `PODSSH_RELAY` or the settings
@@ -1728,7 +1743,8 @@ and no `--timeout`: a person decides how long an edit takes.
   at once, with nothing registered. A run without `--full` says so.
 - `tor` (T-353), in a build with the feature `tor`, says with `--full`
   whether Arti bootstraps here as a `tor://` destination makes it: through
-  the proxy, its first hops on the ports of `PODSSH_TOR_PORTS`, in the
+  the proxy, its first hops on the ports of `PODSSH_TOR_PORTS`, or the
+  bridges of `PODSSH_TOR_BRIDGES` and their transports (T-385), in the
   network of `PODSSH_TOR_NETWORK` when one is named; and in how long. It
   opens no stream. A first bootstrap fetches Tor's directory, a few MiB, so
   a run without `--full` tries none, and says so.
