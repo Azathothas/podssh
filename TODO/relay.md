@@ -1830,3 +1830,46 @@ podssh-ws --test http`: passed, with the new
 `a_header_shown_in_a_line_cannot_carry_terminal_controls` (ESC, BEL and a CSI out; the cut; an
 absent header). Planted, `header_text` that returns the header as it came: that test failed.
 
+# T-421: A client's lost link during a node's bulk closes the node's whole socket on the relay
+
+**Source:** T-420 (2026-11-01): the stand-in, as strict as the live relay (T-412), closed the node's
+socket with 1003 for a frame that was on its way when an operator's link was lost.
+**Category:** defect
+**Milestone:** backlog
+**Priority:** P3
+**Effort:** S
+**Status:** blocked
+
+## Problem
+
+When the link of one operator ends with no Close (a client's network lost, a proxy's RST) while
+the node sends that session's bytes, the frames that were on their way meet an id that the relay
+forgot, and the relay closes the node's whole socket with `1003 unknown session id`: each other
+session of the node is cut too, and resumes only where the layer carries it (T-409, T-410).
+
+## Premise
+
+- Measured on the live relay (T-410): a frame of the node for an id that the relay forgot closed
+  the node's socket with 1003, forwarded to each operator.
+- Read: the node learns of an operator's loss only from the relay's `close {id}`
+  (`crates/podssh-relay/src/reverse/serve.rs`), so it cannot hold such a frame back.
+
+## Approach
+
+The relay drops a frame of the node for an id that it closed in the last few seconds, as a frame
+in flight, and keeps 1003 for an id that it never gave or closed long before. podssh needs no
+change: its node already drops what comes for a closed session.
+
+## Prove
+
+```sh
+export CARGO_BUILD_JOBS=4
+cargo test -p podssh-cli --test node_live -- --ignored
+```
+
+From GitHub's network (`relay-live.yml` with `test=node_live`), a client's link cut during a bulk
+download through a node: the node's other session goes on, and no 1003 reaches it.
+
+## Blocker
+
+The relay's operator (`docs/relay-operator.md`, item 19): a change of the relay.

@@ -2078,6 +2078,65 @@ strict stand-in alone fails no test: the harness must look. And no suite before 
   reached by them (no session there has bytes after the relay's close), so it is not this entry's
   plant.
 
+# T-420: The strict stand-in failed the test of a stopped relay host at random: a frame in flight
+
+**Source:** CI's job `gate (m6)` at `a94718a` (run 41337008739, 2026-11-01), which changed nothing
+of the node: `the_layer_survives_a_stopped_relay_host` failed, "the node sent frames of ids that
+the stand-in relay did not know: [... unknown id 68b5d96e: 1003]"; T-412's check.
+**Category:** defect
+**Milestone:** none
+**Priority:** P1
+**Effort:** S
+**Status:** done
+
+## Problem
+
+A test that fails at random keeps the gate red at the commit of a beta, and hides the next real
+failure.
+
+## Premise
+
+- Measured here: 1 run of 6 failed so, and 1 of 6 again; the stand-in's logs of a failing run
+  (kept by a local patch) showed the proxy's RST of each tunnel, then the line of the unknown id.
+- Read: the fault ends the client's link and the node's with an RST, not at one instant
+  (`crates/podssh-cli/tests/m6_exit.rs`). When the operator's link of a session ends,
+  `scripts/fake_reverse.py` forgets the id at once and sends the node `close {id}`; a frame that
+  the node sent before that `close` reached it then meets an id that the stand-in forgot, and the
+  socket gets 1003. The node cannot know of the loss before the relay's `close`, so no repair of
+  the node removes such a frame; T-412's check means to catch a frame that the node could have
+  held back, as T-410's (the client's own early close of a link).
+
+## Approach
+
+The stand-in keeps when each session's operator link was lost (an error, not its Close frame), and
+a frame of the node for that id within 2 s of the loss is said apart, "in flight"; the socket still
+gets 1003, as on the live relay (T-421). The harness counts the other line alone: a frame after a
+clean close of the operator, or later than 2 s after a loss.
+
+## Prove
+
+```sh
+export CARGO_BUILD_JOBS=4
+cargo test -p podssh-cli --test m6_exit -- --ignored --exact the_layer_survives_a_stopped_relay_host
+cargo test -p podssh-cli --test node_moves
+```
+
+12 runs of the first; T-410's defect planted (the client's shutdown of a retired link) against the
+second.
+
+## Done
+
+2026-11-01: `scripts/fake_reverse.py`: `Pair.lost` and `IN_FLIGHT` (2 s); a frame of the node for an
+id whose operator's link was lost within them gives "a frame of the node for ID, whose operator's
+link was lost N ms before (in flight): 1003", the socket closed as before.
+
+- `the_layer_survives_a_stopped_relay_host`, 12 runs: none failed; one of them met the case, "lost
+  0 ms before (in flight)", which failed the test before.
+- T-410's defect planted (`closes = true` in `session/pump/outbox.rs`), `--test node_moves` 6 times:
+  3 failed, each with "a frame of the node for an unknown id ...", and the 3 that passed had no
+  frame of a forgotten id at all, neither kind: the new line hides none of that defect's frames,
+  which come after the client's clean close.
+
 # T-409: A node that the relay closes for a fault (1003, 1009) ends for good
 
 **Source:** the run of `relay-live.yml` (`node_live`, run 41289022291 at `ea2bd4f`, 2026-11-01),

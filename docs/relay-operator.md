@@ -349,6 +349,17 @@ relay's endpoints are in the contract.
     WebSocket upgrades too. Expiry and passwords are options of the relay;
     podssh passes them, and never prints a token.
 
+## A frame in flight
+
+19. **A frame of the node for a session that the relay just closed** (T-421, [TODO/relay.md](../TODO/relay.md)).
+    When an operator's link ends with no Close (its network lost), the node
+    learns of it only from your `close {id}`, and the session's frames
+    already on their way then meet an id that the relay forgot: today the
+    relay closes the node's whole socket with `1003 unknown session id`,
+    and each other session of that node is cut. Drop such a frame instead
+    when the id was closed in the last few seconds, and keep 1003 for an id
+    that the relay never gave.
+
 ## Questions about the contract
 
 18. **What podssh reads outside the contract** (no entry). podssh depends

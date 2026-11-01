@@ -62,15 +62,15 @@ repository and CI).
 
 ## Counts
 
-**415 entries: 15 open, 1 partial, 30 blocked, 369 done.**
+**417 entries: 15 open, 1 partial, 31 blocked, 370 done.**
 
 | Priority | open | partial | blocked | done | total |
 | --- | --- | --- | --- | --- | --- |
 | P0 | 0 | 0 | 0 | 1 | 1 |
-| P1 | 1 | 1 | 0 | 41 | 43 |
+| P1 | 1 | 1 | 0 | 42 | 44 |
 | P2 | 1 | 0 | 21 | 179 | 201 |
-| P3 | 13 | 0 | 9 | 148 | 170 |
-| **All** | 15 | 1 | 30 | 369 | 415 |
+| P3 | 13 | 0 | 10 | 148 | 171 |
+| **All** | 15 | 1 | 31 | 370 | 417 |
 
 ## Entries
 
@@ -491,3 +491,5 @@ repository and CI).
 | [T-417](copy.md) | P2 | M | none | defect | done | `cp` spends some 14 round trips on each small file, so a tree of small files crawls through the relay |
 | [T-418](ws.md) | P1 | S | none | defect | done | The test of DoH over HTTP/2 spun on h2's repeated error, and the client tore its socket |
 | [T-419](roads.md) | P1 | S | none | defect | done | WARP's front door showed another certificate once, and the road gave up at the first |
+| [T-420](reverse.md) | P1 | S | none | defect | done | The strict stand-in failed the test of a stopped relay host at random: a frame in flight |
+| [T-421](relay.md) | P3 | S | backlog | defect | blocked | A client's lost link during a node's bulk closes the node's whole socket on the relay |

@@ -32,6 +32,11 @@ MODE = "normal"
 # "unknown session id", as the live relay does.
 # Whether the short pair of expirefirst was made.
 SHORT = {"made": False}
+# Seconds after an operator's link was lost (an error, not its Close) in
+# which a frame of the node for that session was already on its way: the
+# node learns of the loss only from the relay's close, so such a frame is
+# said apart. The socket still gets 1003, as on the live relay.
+IN_FLIGHT = 2.0
 # FAKE_RELAY_DEBUG=1: each frame of the reverse road, on stderr.
 DEBUG = bool(os.environ.get("FAKE_RELAY_DEBUG"))
 
@@ -88,6 +93,8 @@ class Pair:
         # id -> (the operator's Socket, the Event of the node's ready, which
         # node() sends on to the operator)
         self.sessions = {}
+        # id -> when its operator's link was lost, for IN_FLIGHT.
+        self.lost = {}
 
 
 async def handle(method, path, headers, reader, writer):
@@ -183,7 +190,15 @@ async def node(pair, socket):
                 elif MODE != "lenient":
                     # As the live relay: a frame of an id that it forgot (a
                     # session that ended) closes the node's whole socket.
-                    print(f"reverse: a frame of the node for an unknown id {sid[:8]}: 1003", file=sys.stderr, flush=True)
+                    lost = pair.lost.get(sid)
+                    if lost is not None and time.monotonic() - lost < IN_FLIGHT:
+                        # On its way before the node could hear of the loss.
+                        ms = int((time.monotonic() - lost) * 1000)
+                        print(f"reverse: a frame of the node for {sid[:8]}, whose operator's link was lost {ms} ms "
+                              "before (in flight): 1003", file=sys.stderr, flush=True)
+                    else:
+                        print(f"reverse: a frame of the node for an unknown id {sid[:8]}: 1003", file=sys.stderr,
+                              flush=True)
                     await socket.close(1003, "unknown session id")
                     break
             elif opcode == 0x9:
@@ -207,6 +222,7 @@ async def operator(pair, socket):
     sid = secrets.token_hex(16)
     ready = asyncio.Event()
     pair.sessions[sid] = (socket, ready)
+    lost = False
     try:
         await pair.node.text({"type": "open", "id": sid})
         try:
@@ -231,8 +247,11 @@ async def operator(pair, socket):
                 await socket.close(1000, "")
                 return
     except (asyncio.IncompleteReadError, ConnectionError, OSError):
-        pass
+        # The link was lost, not closed: the node's frames may be on the way.
+        lost = True
     finally:
         pair.sessions.pop(sid, None)
+        if lost:
+            pair.lost[sid] = time.monotonic()
         if pair.node is not None:
             await pair.node.text({"type": "close", "id": sid})

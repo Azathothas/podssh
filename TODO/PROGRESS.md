@@ -120,7 +120,7 @@ and `CARGO_BUILD_JOBS=4`:
 
 ## Counts
 
-`TODO/INDEX.md` holds 415 entries: 15 open, 1 partial, 30 blocked, 369 done.
+`TODO/INDEX.md` holds 417 entries: 15 open, 1 partial, 31 blocked, 370 done.
 
 Open includes parked work. `cargo todo check` verifies this line.
 
@@ -172,7 +172,8 @@ entries: the `none` entries, the highest priority first.
 
 **Skip** the entries that wait for the relay's operator (status
 `blocked`): T-086, T-106, T-169, T-173, T-180, T-226, T-253, T-255,
-T-319, T-321, T-325, T-326, T-336 and T-346 (the form and the keys of a signed list of relays); and the entries that the operator holds (status
+T-319, T-321, T-325, T-326, T-336, T-346 (the form and the keys of a signed list of relays) and T-421 (a frame in flight
+after an operator's lost link); and the entries that the operator holds (status
 `blocked`, Q32):
 T-085, T-107 to T-113, T-117, T-118, T-213, T-222, T-245 and T-248; and the work
 parked behind them (T-114, T-115, T-116, T-119, T-120, T-122, T-123,
