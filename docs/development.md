@@ -901,6 +901,29 @@ release's, and the binary of the release before updates to it, each then
 naming the tag's commit; a binary from before T-375 is passed over, as it
 has no `podssh update`.
 
+The check of a release from end to end, with no human (T-251), is
+`scripts/release-check.sh`. Before the tag it takes the gate's static
+binary of the last push (the artifact of `build.yml`, which gh fetches with
+its login, `gh run download`) and a build of this host; after the tag
+it downloads the published files and checks `SHA256SUMS`, its signature and
+the provenance of each binary as the run above does, before any binary
+runs (a missing cosign or gh fails). Then each check that this host can run,
+each with a time limit, and a row for each run of GitHub Actions that the
+others need, whose conclusion it reads through the public API when the
+session names the run. `docs/STATUS.md` ("The release check") tells how a
+session runs it and records its table:
+
+```sh
+sh scripts/release-check.sh --list --local       # each row: its entry, where it runs, its limit
+gh run download RUN -R Azathothas/podssh -n podssh-x86_64-unknown-linux-musl -D .work/artifact
+sh scripts/release-check.sh --local --binary .work/artifact/podssh --actions-run build=RUN
+sh scripts/release-check.sh vX.Y.Z --actions-run release=RUN    # from a checkout of the tag
+```
+
+Its own plant, the one of T-251's Prove: a byte of a binary changed in a
+download of the release (`--dir DIR`), or after `--sums` before the tag,
+fails the row `sums.check`, and the run stops with "no check ran" and exit 1.
+
 `podssh update` from a build of a commit, on Linux, macOS and Windows, to a
 published release (the newest by default):
 
