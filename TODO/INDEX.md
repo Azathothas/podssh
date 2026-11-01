@@ -62,15 +62,15 @@ repository and CI).
 
 ## Counts
 
-**380 entries: 17 open, 2 partial, 31 blocked, 330 done.**
+**381 entries: 18 open, 2 partial, 31 blocked, 330 done.**
 
 | Priority | open | partial | blocked | done | total |
 | --- | --- | --- | --- | --- | --- |
 | P0 | 0 | 0 | 0 | 1 | 1 |
 | P1 | 2 | 0 | 0 | 29 | 31 |
 | P2 | 1 | 1 | 21 | 166 | 189 |
-| P3 | 14 | 1 | 10 | 134 | 159 |
-| **All** | 17 | 2 | 31 | 330 | 380 |
+| P3 | 15 | 1 | 10 | 134 | 160 |
+| **All** | 18 | 2 | 31 | 330 | 381 |
 
 ## Entries
 
@@ -456,3 +456,4 @@ repository and CI).
 | [T-382](cli.md) | P2 | M | backlog | defect | done | `podssh session start` asks no prompt, and on Windows stays in the caller's job |
 | [T-383](cli.md) | P2 | S | backlog | measurement | done | `--detach` on Windows and macOS, measured in GitHub Actions |
 | [T-384](ts.md) | P3 | S | backlog | defect | open | A panic of kameo 0.21.1 in the fork's dialer when the control server refuses the node |
+| [T-385](roads.md) | P3 | L | backlog | feature | open | meek and WebTunnel inside the Tor road's process, for a cage that reaches no Tor relay |

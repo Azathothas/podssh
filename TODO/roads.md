@@ -4169,6 +4169,16 @@ Through the box's proxy, which allows the cage's ports alone: Tor bootstraps, an
 through it gets GitHub's SSH banner. Planted: the first hops not held to the proxy's ports; the
 bootstrap through the box fails.
 
+## Correction
+
+2026-11-01: what is left waits for the operator, Q60 (`TODO/PROGRESS.md`): whether a test may
+reach Tor's own network, as the live run of the Prove and the measurement of step 4 do. Step 2 of
+the Approach, meek and WebTunnel inside the process, is an entry of its
+own, T-385, after a study of Arti 0.47's hooks and of the two protocols
+(`docs/tor-transports.md`): about 1,300 lines and a harness of a bridge in chutney, more than a
+step. This entry keeps the road, its tests against a private network, doctor's line, and the
+live run and the measurement, which wait for Q60.
+
 ## Done
 
 2026-11-01, partial: begun. Read in arti-client 0.47.0 and its crates (fetched, not built):
@@ -4239,6 +4249,80 @@ Built and tested here (2026-11-01), the live run waiting for Q60:
   the test failed, "no line tor".
 
 Waits: the live run (Q60); meek and WebTunnel (Approach, step 2); the measurement (step 4).
+
+
+# T-385: meek and WebTunnel inside the Tor road's process, for a cage that reaches no Tor relay
+
+**Source:** step 2 of T-353's Approach, and its study, `docs/tor-transports.md` (2026-11-01).
+**Category:** feature
+**Milestone:** backlog
+**Priority:** P3
+**Effort:** L
+**Status:** open
+
+## Problem
+
+Through a proxy that allows a few ports, or that re-terminates TLS, Tor's own handshake with a
+relay fails, and `tor://` (T-353) has no road. Tor's answer is a pluggable transport: meek, which
+carries Tor in HTTPS POSTs to a fronted CDN, and WebTunnel, an HTTPS upgrade to a stream at a
+secret path. Both pass where HTTPS passes. Arti runs a transport as another program, which podssh
+starts none of (`AGENTS.md`, section 5, rule 3).
+
+## Premise
+
+- Read (`docs/tor-transports.md`, section 1): arti-client 0.47 gives an embedder no stable hook
+  of its own for a transport's factory: `ChanMgr::set_pt_mgr` needs `experimental-api` and comes
+  after the bootstrap began. An unmanaged transport (`[[bridges.transports]]` with a
+  `proxy_addr` and no `path`) is dialled through the client's own runtime as a SOCKS5 proxy, so
+  podssh's TCP provider (`crates/podssh-tor/src/runtime.rs`) can answer that address in the
+  process.
+- Read (section 2 of the study): meek_lite's wire form: one POST at a time with `X-Session-Id`, a
+  body of 64 KiB at most, lyrebird's polls; the bridge line's `url=` and `front=`. Read (section
+  3): WebTunnel's: a GET with `Upgrade` at the secret path, a 101, then raw bytes.
+- Read: Arti refuses a bridge line with no fingerprint, and the meek line that Tor Browser ships
+  has none, so podssh can ship no meek default (section 5, Risks).
+- Read: `ptrs-gesher-webtunnel`, the one Rust client, takes `ring` (C); no Rust meek client
+  exists (section 5, Alternatives).
+
+## Approach
+
+The smallest design of the study (section 5):
+
+1. podssh-tor: `pt-client` on; bridges from the user's lines, each with a fingerprint; the two
+   transports as unmanaged ones at two sentinel addresses; a transport with a `path`, and any
+   transport in a network's file (`PODSSH_TOR_NETWORK`), refused; `reachable_addrs` cleared while
+   bridges are in use.
+2. `runtime.rs`: a dial of a sentinel gives one end of a pipe in memory, whose far end answers
+   Arti's SOCKS5 handshake, reads the bridge's arguments from it, and opens the transport.
+3. podssh-ws: `meek.rs`, through `dial` and `tls_over`, fronted (SNI the front, `Host` the real
+   host), checked as each road's TLS is; `webtunnel.rs`, its upgrade and its 101.
+4. The CLI: `PODSSH_TOR_BRIDGES`, a file of bridge lines; doctor's line `tor` names the
+   transport; the manual.
+
+## Decision
+
+- An unmanaged transport answered in the process, not `set_pt_mgr`: a stable configuration of
+  Arti's, where the other is an unstable API that races the bootstrap. Lost: a factory per name,
+  which is cleaner but not reachable.
+- WebTunnel's `cert=` is a second check after TLS's own, never in its place: podssh-ws allows no
+  bypass of a certificate's check, so a bridge with a self-signed certificate is refused. Lost:
+  such bridges.
+- No meek line of podssh's own: the user names each bridge, as a proxy (Inferred: the built-in
+  line lacks the fingerprint that Arti asks for).
+
+## Prove
+
+```sh
+export CARGO_BUILD_JOBS=4
+cargo test -p podssh-ws --test meek --test webtunnel
+PODSSH_TEST_TOR_NETWORK=... cargo test -p podssh-cli --features tor --test tor_bridges
+```
+
+Against chutney's private network with a bridge whose transports are meek-server and the
+WebTunnel server (Tor's own, built from their sources), through a stand-in proxy: Arti
+bootstraps through each transport, and a `tor://` login reaches the test's SSH server. Planted:
+the sentinel dialled for real (no bootstrap); a POST with no `X-Session-Id` (meek-server answers
+400); a GET with no `Upgrade` (the WebTunnel server refuses).
 
 # T-376: The live run of the roads through a cloud's own tunnel (T-351)
 
