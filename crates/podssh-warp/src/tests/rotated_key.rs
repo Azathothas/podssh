@@ -2,10 +2,11 @@
 //! as WARP's showed a new device until its record was read again (cfrs
 //! #32): the stand-in edge changes the key that it shows, and the stand-in
 //! API the record that it serves. The road reads the record again, keeps
-//! the API's new key and tries it, once more a second later; a key that the
-//! API never gave is never taken; a proxy's CA, for which the API gives the
-//! same key, stays an interception; and an API that is not reached leaves
-//! the refusal as it was.
+//! the API's new key and tries it, once more a second later; the record's
+//! key, which the API gives again, once more a second later too; a key that
+//! the API never gave is never taken; a proxy's CA, for which the API gives
+//! the same key, stays an interception; and an API that is not reached
+//! leaves the refusal as it was.
 
 use std::net::Ipv4Addr;
 use std::time::{Duration, Instant, SystemTime};
@@ -79,6 +80,23 @@ async fn the_api_s_key_is_tried_once_more_a_second_later() {
     assert!(start.elapsed() >= RETRY_AFTER, "{:?}", start.elapsed());
     assert_eq!((stand_in.asked("GET"), edge.hellos()), (1, 3));
     assert_eq!(device.endpoint_point, next.point());
+    echoes(&warp).await;
+}
+
+/// The front door shows another server's certificate once, as WARP's
+/// showed one of a public CA to a runner, and the API gives the same key:
+/// the record's key is tried once more a second later, and opens.
+#[tokio::test(flavor = "multi_thread", worker_threads = 2)]
+async fn the_record_s_key_is_tried_once_more_when_the_api_gives_it_again() {
+    let [first, stray] = keys();
+    let (stand_in, edge, mut device) = registered(&first).await;
+    edge.show(vec![stray, first.clone()]);
+    let start = Instant::now();
+    let warp = Warp::open_reading(&mut device, &stand_in.api, &ProxyChoice::Direct, LIMIT).await;
+    let warp = warp.expect("the tunnel opens at the second handshake");
+    assert!(start.elapsed() >= RETRY_AFTER, "{:?}", start.elapsed());
+    assert_eq!((stand_in.asked("GET"), edge.hellos(), edge.tunnels()), (1, 2, 1));
+    assert_eq!(device.endpoint_point, first.point(), "the record's key stays");
     echoes(&warp).await;
 }
 

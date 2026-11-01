@@ -171,10 +171,13 @@ impl Warp {
     /// WARP's front door showed a new device another key than its record's
     /// until the record was read again (cfrs #32). A key that the API gives
     /// in its place goes into `device`, whose file the caller writes, and is
-    /// tried, and once more after [`RETRY_AFTER`]. A key that the API never
-    /// gave is never taken: the certificate is then a proxy's that
-    /// re-terminates TLS, as it is when the API gives the same key, or
-    /// cannot be read.
+    /// tried, and once more after [`RETRY_AFTER`]. When the API gives the
+    /// same key, the record's key is tried once more after [`RETRY_AFTER`],
+    /// as a new connection may reach another server of the front door, with
+    /// no proxy on the way as with one. A key that the API
+    /// never gave is never taken: the certificate is then a proxy's that
+    /// re-terminates TLS, as it is when the API gives the same key on each
+    /// try, or cannot be read.
     pub async fn open_reading(
         device: &mut Device,
         api: &Api,
@@ -197,20 +200,31 @@ impl Warp {
             }
         };
         let point = given.as_deref().map(crate::device::endpoint_point);
-        let pem = match (given, point) {
-            (Some(pem), Some(Ok(point))) if point != device.endpoint_point => pem,
-            (_, Some(Ok(_))) => {
-                let note = "WARP's API, asked again, gives the same key";
-                return Err(intercepted_now(issuer, endpoint, proxied, Some(note)));
-            }
+        let new = match (given, point) {
+            (Some(pem), Some(Ok(point))) if point != device.endpoint_point => Some(pem),
+            // The record's own key: a new connection may still reach another
+            // server of the front door, which shows it.
+            (_, Some(Ok(_))) => None,
             _ => {
                 let note = "WARP's API, asked again, gives no endpoint key that podssh reads";
                 return Err(intercepted_now(issuer, endpoint, proxied, Some(note)));
             }
         };
-        device.rekey(&pem).map_err(Fault::Edge)?;
+        let (tries, note) = match new {
+            Some(pem) => {
+                device.rekey(&pem).map_err(Fault::Edge)?;
+                (0..2, "nor did it show, in two tries, the key that WARP's API gives now")
+            }
+            None => {
+                let note = concat!(
+                    "WARP's API, asked again, gives the same key, ",
+                    "which a new connection a second later did not show either"
+                );
+                (1..2, note)
+            }
+        };
         let mut shown = issuer;
-        for attempt in 0..2 {
+        for attempt in tries {
             if attempt > 0 {
                 tokio::time::sleep(RETRY_AFTER).await;
             }
@@ -220,7 +234,6 @@ impl Warp {
                 Err(opening) => return Err(fault(opening, endpoint, proxied.as_deref())),
             }
         }
-        let note = "nor did it show, in two tries, the key that WARP's API gives now";
         Err(intercepted_now(shown, endpoint, proxied, Some(note)))
     }
 

@@ -7026,7 +7026,7 @@ the same day.
 **Milestone:** none
 **Priority:** P3
 **Effort:** S
-**Status:** partial
+**Status:** done
 
 ## Problem
 
@@ -7060,4 +7060,73 @@ of `AGENTS.md` yet.
 export CARGO_BUILD_JOBS=4
 cargo test -p podssh-relay --features quick --test quick_resilience a_second_connection_registers_as_index_1_once_the_first_did
 ```
+
+## Done
+
+2026-11-01: `CONNECTIONS` is 2 (`crates/podssh-cli/src/node_quick.rs`, `e681aaf`); the manual
+(`notes_pair.rs`) and `docs/cli.md` say "two connections"; `quick-tunnel-live.yml` requires
+"connection 1: registered at".
+
+- `cargo test -p podssh-relay --features quick --test quick_resilience`: 12 passed.
+- `quick-tunnel-live.yml` at `e681aaf` (run 41330929110): the node registered at Cloudflare's lax08
+  over QUIC, and its connection 1 a second later at lax01, the other region, over QUIC; with UDP to
+  7844 dropped, each connection came back over HTTP/2 (lax11, and connection 1 at lax13), and the
+  visitors' transfers passed. The run failed at a later step, doctor's edge road inside WARP's
+  tunnel, which T-419 repairs; the run after it is in T-419's Done.
+
+# T-419: WARP's front door showed another certificate once, and the road gave up at the first
+
+**Source:** `quick-tunnel-live.yml` at `e681aaf` (run 41330929110, 2026-11-01): `podssh doctor
+--full` with 7844 dropped said "a proxy re-terminates TLS: the endpoint 162.159.198.2:443 showed a
+certificate of O=Let's Encrypt, CN=YE1, not of WARP's key, ...; WARP's API, asked again, gives the
+same key", with no proxy on the way, while the node of the same job had registered inside WARP's
+tunnel a minute before; the same step passed at `7855981` (run 41329042710).
+**Category:** defect
+**Milestone:** none
+**Priority:** P1
+**Effort:** S
+**Status:** done
+
+## Problem
+
+A connection that reaches a server of WARP's front door with another certificate ends WARP's road
+for the run, and doctor's line names a proxy that is not there: the road's check in the release
+fails at random.
+
+## Premise
+
+- Read: `Warp::open_reading` (`crates/podssh-warp/src/road.rs`) reads the device's record again
+  when the endpoint shows another key, and tries a new key twice, a second apart (T-399); when the
+  API gives the same key it gives up at once, though its own words say that a new connection may
+  reach another server of the front door.
+
+## Approach
+
+When the API gives the same key, the road tries the record's key once more after `RETRY_AFTER`;
+a second foreign certificate is still an interception, named as before, and the road is not tried
+again in the run. A test of the stand-in edge that shows a stray key once, then the record's.
+
+## Prove
+
+```sh
+export CARGO_BUILD_JOBS=4
+cargo test -p podssh-warp --features stand-in --lib tests::rotated_key
+cargo clippy -p podssh-warp --all-targets -- -D warnings
+```
+
+Planted, no retry for the same key; `quick-tunnel-live.yml` with Q43.
+
+## Done
+
+2026-11-01, here (the live run follows the push):
+
+- `crates/podssh-warp/src/road.rs`: the same key is tried once more a second later; its refusal
+  says "WARP's API, asked again, gives the same key, which a new connection a second later did not
+  show either".
+- `crates/podssh-warp/src/tests/rotated_key.rs`:
+  `the_record_s_key_is_tried_once_more_when_the_api_gives_it_again` (a stray key, then the
+  record's: the tunnel opens at the second handshake, after a second, one GET).
+- `cargo test -p podssh-warp --features stand-in --lib tests::rotated_key`: 6 passed (the proxy's
+  CA stays an interception); `cargo test -p podssh-warp`: 49 and 3 passed; clippy and rustfmt
+  clean. Planted, no try for the same key: the new test failed.
 

@@ -120,7 +120,7 @@ and `CARGO_BUILD_JOBS=4`:
 
 ## Counts
 
-`TODO/INDEX.md` holds 414 entries: 15 open, 5 partial, 30 blocked, 364 done.
+`TODO/INDEX.md` holds 415 entries: 15 open, 4 partial, 30 blocked, 366 done.
 
 Open includes parked work. `cargo todo check` verifies this line.
 
@@ -153,16 +153,18 @@ detached node, `--persist-forever` never gives up, `--restart` starts a detached
 goes on with the next pair at its pair's expiry, a lock names each detached run, a hung run is
 started again, the smaller gaps of `--detach` are closed; the quick tunnel races its roads, drains
 a connection on the edge's GOAWAY, keeps its window in small frames and answers a push of
-configuration over QUIC), but T-414, a second connection to the edge, open since Q62 (2026-11-01). Before them, a bulk session through a node and its moves on
+configuration over QUIC, and keeps two connections to the edge since Q62). Before them, a bulk session through a node and its moves on
 the live relay are repaired, and the entries of the audit, the study and the issues
 of 2026-10-31 (GitHub #59 to #63 and #69 to #76): T-353 (Q52), whose live run Q60 allows now; the
 others are done. Each other `backlog` entry is done, but for those on hold, those of the relay's
 operator and the parked ones.
 
-**Next (2026-11-01, the operator's rulings of Q60 to Q62):** T-414 (two connections of the quick
-tunnel), T-381 (a scope of systemd for a detached run) and T-353's live run on the public Tor
-network; `v1.0.0-beta.4` after 2026-11-02 01:44 UTC, from `7855981`, where each ACTIONS row of the
-release check ran (T-251's rehearsal).
+**Next (2026-11-01, the operator's rulings of Q60 to Q62):** T-381 (a scope of systemd for a
+detached run) and T-353's live run on the public Tor network. The rehearsal of T-251 at `7855981`
+found two checks that fail at random, T-418 (the test of DoH over HTTP/2, in the gate) and WARP's
+road in `quick-tunnel-live.yml` (repaired), so `v1.0.0-beta.4` comes after 2026-11-02 01:44 UTC
+from the first commit after their repairs where the gate and each ACTIONS row of the release check
+pass.
 
 **Then** M9: T-251 (the check, and its run before the tag), which runs the
 headscale harness of 2026-11-01, and last T-250 (the one release), unattended (the operator,

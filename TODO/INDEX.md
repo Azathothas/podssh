@@ -62,15 +62,15 @@ repository and CI).
 
 ## Counts
 
-**414 entries: 15 open, 5 partial, 30 blocked, 364 done.**
+**415 entries: 15 open, 4 partial, 30 blocked, 366 done.**
 
 | Priority | open | partial | blocked | done | total |
 | --- | --- | --- | --- | --- | --- |
 | P0 | 0 | 0 | 0 | 1 | 1 |
-| P1 | 1 | 2 | 0 | 39 | 42 |
+| P1 | 1 | 2 | 0 | 40 | 43 |
 | P2 | 1 | 0 | 21 | 179 | 201 |
-| P3 | 13 | 3 | 9 | 145 | 170 |
-| **All** | 15 | 5 | 30 | 364 | 414 |
+| P3 | 13 | 2 | 9 | 146 | 170 |
+| **All** | 15 | 4 | 30 | 366 | 415 |
 
 ## Entries
 
@@ -485,8 +485,9 @@ repository and CI).
 | [T-411](roads.md) | P3 | M | none | defect | done | The quick tunnel over QUIC resets a push of configuration |
 | [T-412](reverse.md) | P2 | S | none | defect | done | The stand-in relay drops a frame of an unknown session, which the live relay answers with 1003 |
 | [T-413](ws.md) | P1 | S | none | defect | done | The test of DoH over HTTP/2 failed in CI: two equal bounds raced |
-| [T-414](roads.md) | P3 | S | none | feature | partial | The quick tunnel keeps a second connection to the edge, to its other region |
+| [T-414](roads.md) | P3 | S | none | feature | done | The quick tunnel keeps a second connection to the edge, to its other region |
 | [T-415](release.md) | P2 | S | none | defect | done | On GitHub's runner the box's /dev/tty probe waits 40 minutes, so box.yml measures nothing |
 | [T-416](reverse.md) | P1 | S | none | defect | done | A node that starts right after the pair's last node ended meets 409 and exits |
 | [T-417](copy.md) | P2 | M | none | defect | done | `cp` spends some 14 round trips on each small file, so a tree of small files crawls through the relay |
 | [T-418](ws.md) | P1 | S | none | defect | partial | The test of DoH over HTTP/2 spun on h2's repeated error, and the client tore its socket |
+| [T-419](roads.md) | P1 | S | none | defect | done | WARP's front door showed another certificate once, and the road gave up at the first |
