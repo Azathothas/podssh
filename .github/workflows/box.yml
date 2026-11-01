@@ -60,10 +60,14 @@ jobs:
           set -u
           # Each exit code is read directly; the shell's -e would stop at it.
           rc=0
+          # Rootful Podman, as root runs it on a host like the operator's: the
+          # runner's rootless Podman left the box's /dev/tty its own, not the
+          # dead pty bound there, and the box then did not match the sandbox.
+          root() { sudo -E env "PATH=$PATH" "$@"; }
           case "$RUN" in
-            default) sh scripts/test_in_box.sh "$BIN" || rc=$? ;;
-            nolisten) BOX_SECCOMP=nolisten sh scripts/test_in_box.sh "$BIN" || rc=$? ;;
-            tt) BOX_RUN=tt sh scripts/test_in_box.sh "$BIN" || rc=$? ;;
-            chat) sh scripts/chat-in-boxes.sh "$BIN" || rc=$? ;;
+            default) root sh scripts/test_in_box.sh "$BIN" || rc=$? ;;
+            nolisten) root env BOX_SECCOMP=nolisten sh scripts/test_in_box.sh "$BIN" || rc=$? ;;
+            tt) root env BOX_RUN=tt sh scripts/test_in_box.sh "$BIN" || rc=$? ;;
+            chat) root sh scripts/chat-in-boxes.sh "$BIN" || rc=$? ;;
           esac
           [ "$rc" = 0 ] || { echo "the run $RUN exited $rc"; exit 1; }
