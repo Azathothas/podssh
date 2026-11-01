@@ -214,6 +214,10 @@ pub async fn reach_skipping(resolved: &Resolved, skip: usize, log: &Arc<Log>) ->
             lines: vec!["an iroh: destination is reached over the iroh road, not here".into()],
             code: sysexits::EX_USAGE,
         }),
+        Transport::Derp { .. } => Err(NotReached {
+            lines: vec!["a derp: destination is reached over the DERP road, not here".into()],
+            code: sysexits::EX_USAGE,
+        }),
         Transport::Cloudflare { host, trust, channel } => {
             super::cloudflare::reach(host, trust, channel, opts, log).await
         }

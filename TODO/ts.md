@@ -31,7 +31,7 @@ the rest is read. `bound` wraps only `TsNode::start` and `tcp_connect`
 (`crates/podssh-cli/src/ts.rs`, lines 207-221 at `4c3b456`, `crates/podssh-cli/src/ts.rs`, lines 353-363 at `4c3b456`), not `node.status()`
 or `node.peer_ip()` (`crates/podssh-cli/src/ts.rs`, line 289 at `4c3b456`, `crates/podssh-cli/src/ts.rs`, line 344 at `4c3b456`). The
 module comment says that the bound caps the whole operation (`crates/podssh-cli/src/ts.rs`, lines 9-14 at `4c3b456`),
-and `docs/cli.md:2821-2823` makes that a rule.
+and `docs/cli.md:2860-2862` makes that a rule.
 
 Read: `status()` calls `Device::self_node()` (`crates/podssh-ts/src/node.rs`, lines 76-79 at `4c3b456`), whose reply
 waits in a queue until a map with the self node arrives
@@ -399,7 +399,7 @@ Not measured: whether the proxy of a sandbox allows `tcp.ts.relay.ajam.dev:443` 
    print its credentials. The fork has one proxy for each process
    (`vendor/tailscale-rs/ts_http_util/src/proxy.rs:222-237`), so apply `NO_PROXY` for each host in
    the new function.
-4. Update `crates/podssh-cli/src/flags.rs:339-340`, `docs/tailscale.md:85-86` and
+4. Update `crates/podssh-cli/src/flags.rs:342-343`, `docs/tailscale.md:85-86` and
    `docs/STATUS.md:611` in the same commit.
 
 Added by T-102 (2026-10-10): the checks of each mode before the start already take `--ts-proxy`,
@@ -865,7 +865,7 @@ Read: the row is at `crates/podssh-cli/src/flags.rs`, lines 293-294 at `efee2fc`
 (`crates/podssh-cli/src/ts.rs`, lines 314-316 at `efee2fc`, `crates/podssh-ts/src/status.rs:17-21`), and `-W` writes the
 stream (`crates/podssh-cli/src/ts.rs`, lines 391-393 at `efee2fc`). `proxy --jsonl` is refused at parse, with the reason
 (`crates/podssh-cli/src/tree.rs`, lines 179-187 at `efee2fc`, `crates/podssh-cli/src/non_interactive.rs`, lines 309-320 at `efee2fc`).
-`serde_json` is already a dependency of the binary (`crates/podssh-cli/Cargo.toml:70`).
+`serde_json` is already a dependency of the binary (`crates/podssh-cli/Cargo.toml:72`).
 
 ## Approach
 

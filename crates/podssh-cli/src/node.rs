@@ -12,7 +12,9 @@
 //! version line first, at the start and on each session's connection. With
 //! `--temporary KEY`, it is the far end of `podssh ssh --upgrade` (T-167,
 //! `node_temp`). `udp:HOST:PORT` is a UDP TARGET: each session is one flow
-//! of datagrams from this host (T-168, `node_udp`).
+//! of datagrams from this host (T-168, `node_udp`). With `--derp`, or with
+//! no pair and an allowlist, the node serves the DERP road (T-379,
+//! `node_derp`).
 
 use std::io::Write;
 use std::path::PathBuf;
@@ -63,6 +65,15 @@ pub fn run_node(args: &NodeArgs, err: &mut dyn Write) -> i32 {
     if args.iroh_relay.is_some() && !args.iroh {
         return Refusal::usage("--iroh-relay is for the iroh road: add --iroh").report("node", err);
     }
+    // The DERP road (T-379): asked with --derp, or unasked by a node with no
+    // pair, by the operator's ruling Q50.
+    let unasked = match crate::node_derp::unasked(args) {
+        Ok(unasked) => unasked,
+        Err(refusal) => return refusal.report("node", err),
+    };
+    if args.derp_server.is_some() && !args.derp && unasked.is_none() {
+        return Refusal::usage("--derp-server is for the DERP road: add --derp").report("node", err);
+    }
     if args.plain && args.iroh {
         let why = "--plain is for the pair's road: the iroh road always runs the resumable layer";
         return Refusal::usage(why.to_string()).report("node", err);
@@ -75,6 +86,9 @@ pub fn run_node(args: &NodeArgs, err: &mut dyn Write) -> i32 {
     }
     if args.iroh {
         return iroh(args, err);
+    }
+    if args.derp || unasked.is_some() {
+        return crate::node_derp::run(args, unasked, err);
     }
     let ready = match prepare(args) {
         Ok(ready) => ready,

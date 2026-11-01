@@ -3,7 +3,10 @@
 //! node's own key, so that its address stays; and each link that a client
 //! opens there served by the resumable layer's far end, with the sessions
 //! kept by one keeper across links and connections, as on the iroh road. A
-//! new session reaches its target only after its handshake.
+//! new session reaches its target only after its handshake. A node of a list
+//! moves home when its home goes away (T-379): after a few failed
+//! connections in a row, the first other server of the list that takes one,
+//! in the list's order, which a client of the list tries after the ticket's.
 
 use std::future::Future;
 use std::sync::Arc;
@@ -23,6 +26,27 @@ use crate::session::{far, Settings};
 /// How often the sessions whose links are lost are checked for their
 /// deadline.
 const SWEEP_EVERY: Duration = Duration::from_secs(10);
+/// The failed connections to the home, in a row, after which a node of a
+/// list moves: a server that restarts, as a deploy does, costs one or two.
+pub const MOVE_AFTER: u32 = 3;
+
+/// What a node hears of a new home: the server. Its key there is the same,
+/// so its new ticket differs in the server alone.
+pub type Moved = Arc<dyn Fn(&Server) + Send + Sync>;
+
+/// Where a node may move when its home goes away, in the order that it
+/// tries them, and what it says of a move.
+pub struct Roam {
+    pub servers: Vec<Server>,
+    pub moved: Moved,
+}
+
+impl Roam {
+    /// No move: the node calls its home again, for ever.
+    pub fn stay() -> Roam {
+        Roam { servers: Vec::new(), moved: Arc::new(|_: &Server| {}) }
+    }
+}
 
 /// A node of the DERP road.
 pub struct Node {
@@ -36,9 +60,14 @@ pub struct Node {
 
 /// A connection to the node's home, under its key.
 pub async fn connect(node: &Node) -> Result<Conn, String> {
-    let io = (node.dial)(&node.server).await?;
+    connect_to(node, &node.server).await
+}
+
+/// A connection to `server`, under the node's key.
+pub async fn connect_to(node: &Node, server: &Server) -> Result<Conn, String> {
+    let io = (node.dial)(server).await?;
     let setup = Setup { secret: node.secret.clone(), serves: true, say: node.say.clone() };
-    Conn::start(node.server.clone(), io, setup).await
+    Conn::start(server.clone(), io, setup).await
 }
 
 /// Serve the sessions of each link of `node`, for ever, with a keeper of
@@ -79,6 +108,27 @@ pub async fn serve_from<A, O, F>(
     O: Fn() -> F + Clone + Send + Sync + 'static,
     F: Future<Output = Result<A, String>> + Send + 'static,
 {
+    serve_roaming(node, Roam::stay(), first, settings, budget, open, keeper).await
+}
+
+/// [`serve_from`], moving home as `roam` says when the home goes away: after
+/// [`MOVE_AFTER`] failed connections in a row, the first other server of
+/// `roam.servers` that takes a connection is the home, and `roam.moved`
+/// hears of it. The node stays there: a home that flaps would move each
+/// client again.
+pub async fn serve_roaming<A, O, F>(
+    mut node: Node,
+    roam: Roam,
+    first: Option<Conn>,
+    settings: Settings,
+    budget: usize,
+    open: O,
+    keeper: Arc<Keeper<A>>,
+) where
+    A: AsyncRead + AsyncWrite + Unpin + Send + 'static,
+    O: Fn() -> F + Clone + Send + Sync + 'static,
+    F: Future<Output = Result<A, String>> + Send + 'static,
+{
     // The sweep ends with the keeper, when the node and its sessions end.
     {
         let keeper = Arc::downgrade(&keeper);
@@ -90,7 +140,7 @@ pub async fn serve_from<A, O, F>(
             }
         });
     }
-    let mut retry: u32 = 0;
+    let (mut retry, mut failed): (u32, u32) = (0, 0);
     let mut next = first;
     loop {
         let conn = match next.take() {
@@ -99,7 +149,7 @@ pub async fn serve_from<A, O, F>(
         };
         match conn {
             Ok(conn) => {
-                retry = 0;
+                (retry, failed) = (0, 0);
                 (node.say)(format!("online at the DERP server {} as {}", node.server, conn.key()));
                 while let Some(link) = conn.accept().await {
                     let (keeper, open) = (keeper.clone(), open.clone());
@@ -110,11 +160,39 @@ pub async fn serve_from<A, O, F>(
                 let why = conn.why_ended().unwrap_or_else(|| "it closed".to_string());
                 (node.say)(format!("the connection to the DERP server {} ended: {why}", node.server));
             }
-            Err(why) => (node.say)(format!("no connection to the DERP server {}: {why}", node.server)),
+            Err(why) => {
+                failed = failed.saturating_add(1);
+                (node.say)(format!("no connection to the DERP server {}: {why}", node.server));
+            }
+        }
+        if failed >= MOVE_AFTER {
+            if let Some(conn) = move_home(&mut node, &roam).await {
+                (retry, failed) = (0, 0);
+                next = Some(conn);
+                continue;
+            }
         }
         retry = retry.saturating_add(1);
         let wait = crate::open::backoff(retry);
         (node.say)(format!("connecting again in {} ms", wait.as_millis()));
         tokio::time::sleep(wait).await;
     }
+}
+
+/// The first server of `roam`, from the top of its list, other than the
+/// node's home, that takes a connection: the node's home is then that
+/// server, and `roam.moved` hears of it.
+async fn move_home(node: &mut Node, roam: &Roam) -> Option<Conn> {
+    for server in roam.servers.iter().filter(|server| **server != node.server) {
+        match connect_to(node, server).await {
+            Ok(conn) => {
+                (node.say)(format!("the DERP server {} went away; {server} is the node's home now", node.server));
+                node.server = server.clone();
+                (roam.moved)(server);
+                return Some(conn);
+            }
+            Err(why) => (node.say)(format!("no connection to the DERP server {server}: {why}")),
+        }
+    }
+    None
 }

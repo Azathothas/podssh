@@ -100,7 +100,8 @@ fn prepare(args: &NodeArgs) -> Result<(Spec, Vec<String>), Refusal> {
     let mut notes = Vec::new();
     // A pair that is missing or has expired makes a service that fails at
     // each start: it is read now.
-    let pair = match (&args.pair_file, args.iroh) {
+    // The iroh road and the DERP road serve with no pair (T-379).
+    let pair = match (&args.pair_file, args.iroh || args.derp) {
         (_, true) => None,
         (Some(file), false) => Some(crate::pairs::from_file(file)?),
         (None, false) => Some(crate::pairs::stored(&name)?),

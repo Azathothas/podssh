@@ -44,7 +44,10 @@ fn scratch(name: &str) -> std::path::PathBuf {
 }
 
 /// The node's key and allowlist serve each road (T-087), so their flags of
-/// T-163 need no `--iroh`; the iroh road's relays still do.
+/// T-163 need no `--iroh`; the iroh road's relays still do. Past the flag,
+/// with no stored pair: a node with an allowlist serves the DERP road
+/// unasked (T-379, Q58), which PODSSH_OFFLINE stops (69); with none, no
+/// road could let anyone in, and the missing pair is the error (78).
 #[test]
 fn the_key_flags_serve_each_road_and_the_relays_need_iroh() {
     let cache = scratch("needs");
@@ -52,12 +55,19 @@ fn the_key_flags_serve_each_road_and_the_relays_need_iroh() {
     assert_eq!(rc, 64, "{err}");
     assert!(out.is_empty());
     assert!(err.contains("--iroh-relay") && err.contains("add --iroh"), "{err}");
-    for flag in [&["--iroh-key", "node.key"][..], &["--iroh-allow", "allow"][..], &["--iroh-ephemeral"][..]] {
+    let no_pair = "no pair is stored under \"lab\"";
+    let offline = "not attempted: PODSSH_OFFLINE is set";
+    for (flag, code, says) in [
+        (&["--iroh-key", "node.key"][..], 78, no_pair),
+        (&["--iroh-allow", "allow"][..], 69, offline),
+        (&["--iroh-ephemeral"][..], 78, no_pair),
+    ] {
         let mut args = vec!["node", "lab", "127.0.0.1:22"];
         args.extend_from_slice(flag);
         let (rc, _, err) = podssh(&args, &cache);
         assert!(!err.contains("add --iroh"), "{args:?}: {err}");
-        assert_eq!(rc, 78, "past the flag, no stored pair: {args:?}: {err}");
+        assert_eq!(rc, code, "past the flag, no stored pair: {args:?}: {err}");
+        assert!(err.contains(says), "{args:?}: {err}");
     }
 }
 
@@ -90,13 +100,14 @@ fn a_race_with_a_bad_ticket_is_refused_before_anything_connects() {
 }
 
 /// This client's key serves each destination of two podssh ends (T-087):
-/// node://NAME, iroh:TICKET, and cf://HOST, which may be a node's quick
-/// tunnel (T-300); a plain host has no use for it.
+/// node://NAME, iroh:TICKET, derp:TICKET (T-379), and cf://HOST, which may
+/// be a node's quick tunnel (T-300); a plain host has no use for it.
 #[test]
 fn iroh_key_needs_a_destination_of_two_podssh_ends() {
     let (rc, _, err) = podssh(&["ssh", "--iroh-key", "client.key", "user@example.org", "true"], &scratch("ssh-key"));
     assert_eq!(rc, 64, "{err}");
-    assert!(err.contains("--iroh-key is for a node://NAME, iroh:TICKET or cf://HOST destination"), "{err}");
+    let says = "--iroh-key is for a node://NAME, iroh:TICKET, derp:TICKET or cf://HOST destination";
+    assert!(err.contains(says), "{err}");
 }
 
 #[cfg(not(feature = "iroh"))]

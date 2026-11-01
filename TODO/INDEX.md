@@ -62,15 +62,15 @@ repository and CI).
 
 ## Counts
 
-**375 entries: 24 open, 0 partial, 30 blocked, 321 done.**
+**375 entries: 23 open, 0 partial, 30 blocked, 322 done.**
 
 | Priority | open | partial | blocked | done | total |
 | --- | --- | --- | --- | --- | --- |
 | P0 | 0 | 0 | 0 | 1 | 1 |
 | P1 | 2 | 0 | 0 | 29 | 31 |
-| P2 | 3 | 0 | 21 | 162 | 186 |
+| P2 | 2 | 0 | 21 | 163 | 186 |
 | P3 | 19 | 0 | 9 | 129 | 157 |
-| **All** | 24 | 0 | 30 | 321 | 375 |
+| **All** | 23 | 0 | 30 | 322 | 375 |
 
 ## Entries
 
@@ -450,4 +450,4 @@ repository and CI).
 | [T-376](roads.md) | P3 | S | backlog | chore | blocked | The live run of the roads through a cloud's own tunnel (T-351) |
 | [T-377](ws.md) | P1 | S | none | defect | done | The keys of podssh's own AEAD ciphers outlive their use, since chacha20poly1305 0.11 |
 | [T-378](roads.md) | P3 | S | backlog | defect | done | The quick tunnel's loop over HTTP/2 may read the connection's end as its control stream's |
-| [T-379](roads.md) | P2 | L | backlog | feature | open | The DERP road in the command line, in the race of T-164, and as the fallback that Q50 allows |
+| [T-379](roads.md) | P2 | L | backlog | feature | done | The DERP road in the command line, in the race of T-164, and as the fallback that Q50 allows |

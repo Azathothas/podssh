@@ -352,11 +352,17 @@ mod tests {
 
     fn problems_in(verb: &str, note: &str, variables: &[&str]) -> Vec<String> {
         let mut out = Vec::new();
-        for w in words(note) {
+        let words = words(note);
+        for (i, &w) in words.iter().enumerate() {
             let flag_shaped = w.starts_with('-')
                 && w.len() > 1
                 && w.chars().nth(1).is_some_and(|c| c.is_ascii_alphanumeric() || c == '-');
-            if flag_shaped && !w.contains('=') && !flag_exists(verb, w) {
+            // "podssh node --derp" names a flag of node, not of this verb.
+            let named = match (i.checked_sub(2).map(|j| words[j]), i.checked_sub(1).map(|j| words[j])) {
+                (Some("podssh"), Some(other)) if verb_for(other).is_some() => other,
+                _ => verb,
+            };
+            if flag_shaped && !w.contains('=') && !flag_exists(named, w) {
                 out.push(format!("{verb}: the flag {w} does not exist"));
             }
             // A variable given a value (NAME=yes) is a variable, not a keyword.
@@ -425,5 +431,9 @@ mod tests {
         assert!(
             problems_in("ssh", "use -W HOST:PORT, BatchMode=yes, SSH_ASKPASS=x and SSH_ASKPASS", &variables).is_empty()
         );
+        // Another verb's flag counts only after "podssh VERB", and as that verb's.
+        assert!(problems_in("ssh", "see podssh node --derp", &variables).is_empty());
+        assert_eq!(problems_in("ssh", "see --derp", &variables).len(), 1);
+        assert_eq!(problems_in("ssh", "see podssh node --no-such-flag", &variables).len(), 1);
     }
 }

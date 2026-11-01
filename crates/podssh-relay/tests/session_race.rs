@@ -10,7 +10,7 @@ use std::future::Future;
 use std::sync::{Arc, Mutex};
 use std::time::Duration;
 
-use podssh_relay::session::race::{race, Lost, Won, HEAD_START};
+use podssh_relay::session::race::{in_turn, race, Lost, Start, Won, HEAD_START};
 use podssh_relay::session::record::kind::GREETING;
 use tokio::io::{AsyncReadExt, AsyncWriteExt, DuplexStream};
 
@@ -135,4 +135,74 @@ async fn when_both_roads_fail_each_reason_is_said() {
         .err()
         .expect("no winner");
     assert_eq!(lost, Lost { first: "the iroh relay refused".into(), second: "the pair expired".into() });
+}
+
+/// A road of [`in_turn`], boxed, so that roads of each kind share a type.
+type Road = std::pin::Pin<Box<dyn Future<Output = Result<DuplexStream, String>>>>;
+
+fn boxed(road: impl Future<Output = Result<DuplexStream, String>> + 'static) -> Road {
+    Box::pin(road)
+}
+
+/// Three roads in turn (T-379): the third, 250 ms after the second, wins
+/// when the first two cannot run until their own limits.
+#[tokio::test(start_paused = true)]
+async fn in_turn_the_third_road_starts_after_the_second_s_wait_and_wins() {
+    let (third, seen) = road(30 * MS, 20 * MS);
+    let roads = vec![
+        (Start::After(HEAD_START), boxed(failing(Duration::from_secs(10), "no iroh relay"))),
+        (Start::After(HEAD_START), boxed(failing(Duration::from_secs(10), "no relay"))),
+        (Start::After(HEAD_START), boxed(third)),
+    ];
+    let Ok((won, took)) = in_turn(roads).await else { panic!("no road won") };
+    assert_eq!(won.at, 2);
+    assert_eq!(took, 2 * HEAD_START + 50 * MS, "the third started 500 ms in");
+    assert!(seen.lock().unwrap().is_some(), "the winner's far end has its link");
+}
+
+/// A fallback starts only when each road before it failed: while the first
+/// road works, it never starts; when both before it fail, it starts at once.
+#[tokio::test(start_paused = true)]
+async fn in_turn_a_fallback_starts_only_when_each_road_before_it_failed() {
+    let (first, _) = road(Duration::from_secs(2), 10 * MS);
+    let (fallback, fallback_seen) = road(10 * MS, 10 * MS);
+    let roads = vec![(Start::After(HEAD_START), boxed(first)), (Start::WhenAllFailed, boxed(fallback))];
+    let Ok((won, took)) = in_turn(roads).await else { panic!("no road won") };
+    assert_eq!((won.at, took), (0, Duration::from_secs(2) + 10 * MS));
+    assert!(fallback_seen.lock().unwrap().is_none(), "the fallback started while the first road ran");
+
+    let (fallback, _) = road(10 * MS, 10 * MS);
+    let roads = vec![
+        (Start::After(HEAD_START), boxed(failing(30 * MS, "refused"))),
+        (Start::After(HEAD_START), boxed(failing(40 * MS, "the pair expired"))),
+        (Start::WhenAllFailed, boxed(fallback)),
+    ];
+    let Ok((won, took)) = in_turn(roads).await else { panic!("no road won") };
+    assert_eq!(won.at, 2);
+    // The second started at 30 ms, as the first failed; it failed at 70 ms.
+    assert_eq!(took, 90 * MS, "the fallback started when the second failed");
+}
+
+/// The planted fallback, which starts with the others' wait: its far end
+/// gets a link while the first road still works, and the check above sees it.
+#[tokio::test(start_paused = true)]
+async fn in_turn_a_planted_fallback_that_starts_on_a_timer_is_seen() {
+    let (first, _) = road(Duration::from_secs(2), 10 * MS);
+    let (fallback, fallback_seen) = road(10 * MS, 10 * MS);
+    let roads = vec![(Start::After(HEAD_START), boxed(first)), (Start::After(HEAD_START), boxed(fallback))];
+    let Ok((won, _)) = in_turn(roads).await else { panic!("no road won") };
+    assert_eq!(won.at, 1, "the planted fallback won while the first road ran");
+    assert!(fallback_seen.lock().unwrap().is_some(), "the check of the fallback sees a road that started");
+}
+
+#[tokio::test(start_paused = true)]
+async fn in_turn_says_each_road_s_reason_in_the_order_of_the_list() {
+    let roads = vec![
+        (Start::After(HEAD_START), boxed(failing(50 * MS, "the iroh relay refused"))),
+        (Start::After(HEAD_START), boxed(failing(10 * MS, "the pair expired"))),
+        (Start::WhenAllFailed, boxed(failing(10 * MS, "no DERP server holds the node"))),
+    ];
+    let lost = in_turn(roads).await.err().expect("no winner");
+    assert_eq!(lost, ["the iroh relay refused", "the pair expired", "no DERP server holds the node"]);
+    assert_eq!(in_turn(Vec::<(Start, Road)>::new()).await.err(), Some(Vec::new()), "no road, no winner");
 }

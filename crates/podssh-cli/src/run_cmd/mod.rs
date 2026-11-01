@@ -173,10 +173,10 @@ pub fn run_run(args: &RunArgs, err: &mut dyn Write) -> i32 {
         Ok(resolved) => resolved,
         Err(refusal) => return refusal.report("run", err),
     };
-    if matches!(resolved.transport, Transport::Node { .. } | Transport::Iroh { .. }) {
+    if matches!(resolved.transport, Transport::Node { .. } | Transport::Iroh { .. } | Transport::Derp { .. }) {
         let why =
-            "podssh run reaches a host through the relay or with --direct; a node:// or iroh: destination is for \
-                   podssh ssh";
+            "podssh run reaches a host through the relay or with --direct; a node://, iroh: or derp: destination is \
+                   for podssh ssh";
         return Refusal::usage(why).report("run", err);
     }
     resolved.options.request = Request::Exec(plan.command.clone());

@@ -1497,6 +1497,12 @@ and no `--timeout`: a person decides how long an edit takes.
   the feature `warp` and with a device of WARP kept in the cache, inside
   WARP's tunnel (`warp://`, above); doctor registers no device. TLS closes
   at once, with nothing registered. A run without `--full` says so.
+- The section `derp` (T-379) asks `/derp/probe` of each DERP server of the
+  list (`PODSSH_DERP_SERVER`, else Tailscale's tailcat fleet), in order,
+  through the proxy, 5 s at most each, as `node --derp` finds its home: a
+  line for each server, `FAIL` for one that does not answer, as it is a
+  fallback that does not work here, and `DERP home server`, the first that
+  answered.
 - `--json` writes the same report as one JSON object, when every check has
   run (GitHub #9): `schema` (1), `podssh`, `os`, `arch`, `checks` (each
   with `section`, `check`, `status` and `detail`; `status` is `ok`, `FAIL`
@@ -1988,6 +1994,39 @@ commands. The rules behind them:
   first, the pair's road after 250 ms or when the iroh road fails, the first
   far end that speaks wins, again at each resume. `--iroh-ticket` with
   another destination is a usage error (64).
+- **`node --derp` serves the DERP road** (T-379), in each build: DERP over a
+  WebSocket through `HTTPS_PROXY` to Tailscale's servers for tailcat, or to
+  those of `--derp-server` or `PODSSH_DERP_SERVER`, under the resumable
+  layer ([design.md](design.md), section 8). The home is the first server
+  whose `/derp/probe` answers; the node's key there is derived from its
+  identity, so the ticket (`derp:...`, on stderr) stays while the home does.
+  After 3 failed connections in a row to its home, the node calls the next
+  server of its list home that takes one, and prints the new ticket. A DERP
+  server lets any key send, so `--derp` needs `--allow` and the end-to-end
+  channel: `--no-e2e`, `--plain` and a `udp:` TARGET are refused (64), and
+  so is `--derp` with `--quick-tunnel` or `--temporary`. With a pair, and
+  with `--iroh`, the node serves each road with one keeper.
+- **A node with no pair serves the DERP road unasked** (the operator's
+  ruling Q50, [decisions.md](decisions.md)): with no pair stored under NAME
+  (or an expired one), an allowlist, and no `--iroh`, `--plain` or
+  `--pair-file`, its first line says so. `PODSSH_DERP=no` turns that off,
+  and the node refuses as before (78).
+- **`ssh derp:TICKET`** dials the node of the ticket: its server first,
+  then the rest of the list (`--derp-server`, else `PODSSH_DERP_SERVER`,
+  else the fleet) when the list holds that server. This client's key on
+  the servers is new for each run; the node lets in the key that the
+  end-to-end channel proves (`client.key`, or `--client-key`), so
+  `--no-e2e` is refused (64). The host key is recorded under `derp:` and
+  the node's key in hex.
+- **`ssh node://NAME --derp-ticket TICKET`** races the DERP road third:
+  after the iroh road of `--iroh-ticket` and the pair's road, 250 ms after
+  the one before it, or at once when the roads before it failed. The two
+  tickets must name one node (64). The ticket is kept under NAME
+  (`derp-NAME.ticket` in the cache), and a later `ssh node://NAME` that
+  gives none dials it only once the roads before it failed, or alone when
+  no pair is stored: the fallback of Q50, which `PODSSH_DERP=no` turns off.
+  `--derp-ticket` with another destination, and `--derp-server` with a
+  destination that is no node, are usage errors (64).
 - **A link can drop.** The relay's side ends a socket of the reverse road
   at random, with no Close (T-255). `operator` and `ssh node://NAME` then
   say that the link ended with no Close, or that the node's link ended

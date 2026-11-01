@@ -750,7 +750,7 @@ So a local TCP TARGET exists only where the host allows it; `podssh serve` (M5) 
    FILE, and prints only the label and the expiry. `podssh relay revoke NAME` stops the pair and deletes the
    local copies. `podssh relay status NAME` gives presence; agree on the form with T-058, whose `relay status`
    has no NAME.
-4. Exit codes as `podssh proxy` (`docs/cli.md:2712`): 64 usage; 69 the relay or TARGET cannot be reached; 77 a
+4. Exit codes as `podssh proxy` (`docs/cli.md:2751`): 64 usage; 69 the relay or TARGET cannot be reached; 77 a
    refused pair (`403`); 78 no usable pair; 0 after a stop by a signal. Add the rows to
    `crates/podssh-cli/src/man/facts.rs:438`.
 5. `doctor`: one line for each stored pair, with its expiry and its presence, as in
@@ -882,13 +882,13 @@ Measured on `3ee70dc`, offline: `podssh operator mynode` gives exit 70;
 `PODSSH_OFFLINE`); `podssh ssh -T node://lab true` gives `"//lab" is not a port` and exit 64.
 
 Read: `parse_hop` strips `ssh://` and reads `host:PORT` (`crates/podssh-cli/src/ssh/hop.rs:30-78`).
-`Transport` is `Relay` or `Direct` (`crates/podssh-cli/src/ssh/resolve.rs:23-51`, chosen at `:318-379`).
+`Transport` is `Relay` or `Direct` (`crates/podssh-cli/src/ssh/resolve.rs:23-61`, chosen at `:279-348`).
 `connect_and_run` gives `relay_stream::spawn` to russh (`crates/podssh-cli/src/ssh/mod.rs` lines 73-116 at `6483366`), and
 `relay_stream` closes with 1002 on a text frame (`crates/podssh-ssh/src/relay_stream.rs:259-265`); the
 operator leg receives text frames (`docs/relay.md:332-335`). A host key is recorded under the target
 host, never the relay's name (`SECURITY.md:118-128`); `HostKeyAlias` exists
-(`crates/podssh-cli/src/ssh/resolve.rs:419`). `podssh ssh` uses the exit codes of OpenSSH, and
-`podssh proxy` sysexits (`docs/cli.md:2708-2712`).
+(`crates/podssh-cli/src/ssh/resolve.rs:390`). `podssh ssh` uses the exit codes of OpenSSH, and
+`podssh proxy` sysexits (`docs/cli.md:2747-2751`).
 
 ## Approach
 
@@ -896,14 +896,14 @@ host, never the relay's name (`SECURITY.md:118-128`); `HostKeyAlias` exists
    `operator::run` (T-080) on stdin and stdout: a byte pipe as `podssh proxy`
    (`crates/podssh-cli/src/pipe/relay.rs:104-230`). stdout carries data only; never 0 without `ready`.
 2. `podssh ssh node://[user@]NAME`: `parse_hop` reads `node://` as it reads `ssh://`; add
-   `Transport::Node` (`crates/podssh-cli/src/ssh/resolve.rs:23-51`).
+   `Transport::Node` (`crates/podssh-cli/src/ssh/resolve.rs:23-61`).
 3. For a node, `connect_and_run` opens the operator leg and waits for `ready` (T-080), then gives
    russh the raw stream. Do not give the leg to `relay_stream::spawn` as it is: reuse its pump after
    `ready`, with text frames read as control.
 4. Host keys: record and check the node's key under the name `node://NAME`, which no DNS name can be;
    `-o HostKeyAlias` still wins.
 5. Refuse by name a node as a `-J` hop, and `-W` through a node; record them for later.
-6. Flags: `--pair-file FILE` for `operator` and `ssh` (`crates/podssh-cli/src/flags.rs:112-282`,
+6. Flags: `--pair-file FILE` for `operator` and `ssh` (`crates/podssh-cli/src/flags.rs:112-284`,
    lines 418-419 at `3cbf215`). Update the manual's examples and notes, `docs/cli.md` (lines 62-75 at `3cbf215`) and `docs/reverse.md`.
 
 ## Decision
@@ -1283,7 +1283,7 @@ podbox has the same, on by default (`NodeChannel`, `OperatorChannel`). The manua
 # T-088: End-to-end encryption between two podssh ends
 
 **Source:** GitHub #18 (report on warren; read in the report, not verified here);
-`docs/design.md:1164-1170`, `:1264-1268`.
+`docs/design.md:1164-1170`, `:1287-1291`.
 **Category:** feature
 **Milestone:** backlog
 **Priority:** P2
@@ -1303,7 +1303,7 @@ connection; after the key exchange it sees only ciphertext (`SECURITY.md:21-31`)
 or add frames (`SECURITY.md:33-36`).
 
 Read: the road between two podssh ends carries SSH, `cp`, `pipe` and chat (`docs/design.md:1164-1170`);
-for chat, the operator chose the roads, end to end encrypted, after M6 (`docs/design.md:1267-1269`).
+for chat, the operator chose the roads, end to end encrypted, after M6 (`docs/design.md:1290-1292`).
 The resumable layer of M6 runs under SSH (`docs/design.md:593-605`).
 
 Read in the report (GitHub #18, not verified here): warren uses `Noise_IK_25519_ChaChaPoly_BLAKE2s`
@@ -1531,14 +1531,14 @@ operator's at `crates/podssh-relay/src/e2e/ends.rs:129-137`. The grants at
 `crates/podssh-relay/src/identity/allow.rs:33-64` and
 `crates/podssh-relay/src/identity/allow.rs:114-122`. The routes of a node,
 their check and their dial in `crates/podssh-relay/src/reverse/routes.rs:1-88`.
-The command line: the targets at `crates/podssh-cli/src/node.rs:162-197`,
-`NAME/ROUTE` at `crates/podssh-cli/src/node.rs:199-214`, the dial of each
-target at `crates/podssh-cli/src/node.rs:225-250`, the routes at
-`crates/podssh-cli/src/node.rs:262-270`; the channel's glue at
+The command line: the targets at `crates/podssh-cli/src/node.rs:176-211`,
+`NAME/ROUTE` at `crates/podssh-cli/src/node.rs:213-228`, the dial of each
+target at `crates/podssh-cli/src/node.rs:239-264`, the routes at
+`crates/podssh-cli/src/node.rs:276-284`; the channel's glue at
 `crates/podssh-cli/src/channel.rs:260-269` and
 `crates/podssh-cli/src/channel.rs:313-333`; `node://NAME/ROUTE` at
 `crates/podssh-cli/src/ssh/node.rs:32-60`, and `iroh:TICKET/ROUTE` at
-`crates/podssh-cli/src/ssh/iroh.rs:51-72`. The manual's notes of `node`
+`crates/podssh-cli/src/ssh/iroh.rs:54-75`. The manual's notes of `node`
 and `operator`, the file of `--allow`, `docs/cli.md` and
 `docs/reverse.md`.
 
@@ -1840,7 +1840,7 @@ session through a node loses a link that it need not lose.
 - Measured: CI's step `m6` at `a220c13` failed in that test with `relay close 1011: node
   unavailable`; the step had passed at each push since T-156.
 - Read: `podssh node` prints its `serving` line after its probe of TARGET, before its socket to
-  the relay opens (`crates/podssh-cli/src/node.rs:291-296`), and the tests waited for that line
+  the relay opens (`crates/podssh-cli/src/node.rs:305-310`), and the tests waited for that line
   (`crates/podssh-cli/tests/m6_exit.rs:99`, `crates/podssh-cli/tests/node_plain.rs:41`,
   `crates/podssh-cli/tests/pipe_remote.rs:194`).
 - Measured, native, 2026-10-10: on a host at 42 % of its CPU, the control lost a link in each of

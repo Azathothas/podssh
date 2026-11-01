@@ -60,6 +60,12 @@ pub struct SshArgs {
     pub iroh_relay: Option<String>,
     /// For `node://NAME`: the node's iroh ticket, to race with the pair.
     pub iroh_ticket: Option<String>,
+    /// For `node://NAME`: the node's DERP ticket, to race with the pair
+    /// (T-379).
+    pub derp_ticket: Option<String>,
+    /// For `derp:TICKET` and `node://NAME`: the DERP servers after the
+    /// ticket's, unparsed.
+    pub derp_server: Option<String>,
     /// `--persist`: tmux on the server, attached again after a lost link.
     pub persist: bool,
     /// The tmux session of `--persist`.
@@ -141,6 +147,8 @@ pub const ONCE: &[(&str, &str)] = &[
     ("host-key-fingerprint", "give the fingerprints as one comma list"),
     ("iroh-relay", "give the relays as one comma list"),
     ("iroh-ticket", "give one ticket"),
+    ("derp-ticket", "give one ticket"),
+    ("derp-server", "give the servers as one comma list"),
     ("persist-name", "give one name"),
     ("attach", "give one name"),
     ("resume-deadline", "give one time"),
@@ -254,6 +262,8 @@ impl SshArgs {
             no_e2e: flag("no-e2e"),
             iroh_relay: one("iroh-relay"),
             iroh_ticket: one("iroh-ticket"),
+            derp_ticket: one("derp-ticket"),
+            derp_server: one("derp-server"),
             persist: flag("persist"),
             persist_name: one("persist-name"),
             attach: one("attach"),

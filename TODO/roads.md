@@ -56,7 +56,7 @@ unknown flag (exit 64), and `Cargo.lock` has no iroh crate.
 5. `doctor`, with the feature: a UDP line, and the `/ping` of the home relay
    through the proxy (`crates/podssh-cli/src/doctor/host.rs:10-25`).
 6. `availability()` knows `ts` as the only build feature
-   (`crates/podssh-cli/src/flags.rs:457-465`): extend it. With no feature, an
+   (`crates/podssh-cli/src/flags.rs:460-468`): extend it. With no feature, an
    iroh destination refuses before it connects and names `--features iroh`,
    as `crates/podssh-cli/tests/ts_not_built.rs:1-4` shows for `ts`.
 7. Docs: the "Outbound only" item of `README.md`, "Nothing listens" in
@@ -163,7 +163,7 @@ access is by an allowlist of keys or a relay token (`docs/design.md:1127-1128`).
 Read in the reports, not verified here: iroh-ssh warns when a server's key is
 ephemeral (`rustonbsd/iroh-ssh:src/ssh.rs`); zuko hands over a ticket out of
 band (`adonm/zuko:docs/protocol.md`). Read: `podssh ts` keeps its node key in
-the file that `--ts-state` names (`crates/podssh-cli/src/flags.rs:343-344`,
+the file that `--ts-state` names (`crates/podssh-cli/src/flags.rs:346-347`,
 `crates/podssh-cli/src/ts.rs:166`). Credentials never go on argv
 (`AGENTS.md`, section 4).
 
@@ -373,7 +373,7 @@ sandbox can block what iroh needs, so the fallback is necessary
 6. With `-v`, print the road that won and its time.
 7. Each resume of T-153 runs the same race.
 8. Docs: the rule of the race in `docs/design.md` section 2, and the notes of
-   `ssh` in the manual (`crates/podssh-cli/src/man/notes_ssh.rs:4-332`).
+   `ssh` in the manual (`crates/podssh-cli/src/man/notes_ssh.rs:4-347`).
 
 ## Decision
 
@@ -2403,7 +2403,7 @@ The `grep` shows the recorded result.
 # T-173: Resumption in the relay for a standard sshd
 
 **Source:** ROADMAP M8 (not now; look at it again after M6);
-`docs/design.md:611-628` (layer 3) and `docs/design.md:1260-1263` (question 1 of
+`docs/design.md:611-628` (layer 3) and `docs/design.md:1283-1286` (question 1 of
 section 8).
 **Category:** feature
 **Milestone:** M8
@@ -2426,7 +2426,7 @@ a resume token in the `101` response, and offset framing as a protocol
 version that the client selects. It is a project of the relay's operator, and
 it costs Durable Object time for the whole session (`docs/design.md:624-628`).
 The recommendation is "not now; look at it again after M6"
-(`docs/design.md:1260-1263`). The relay is in another repository.
+(`docs/design.md:1283-1286`). The relay is in another repository.
 
 ## Approach
 
@@ -2975,7 +2975,7 @@ roots must be exactly three, and a refusal of the edge does not say which releas
 - Read: two fixed regions, port 7844 and the TLS name `h2.cftunnel.com`
   (`crates/podssh-relay/src/quick/edge.rs:22-29`); the roots must give 3 anchors and no invalid
   one (`:40-44`); the API's host is fixed (`crates/podssh-relay/src/quick/api.rs:18`). The node
-  registers as `podssh` and the package's version (`crates/podssh-cli/src/node_quick.rs:168-169`),
+  registers as `podssh` and the package's version (`crates/podssh-cli/src/node_quick.rs:170-171`),
   `1.0.0-beta.2` today (`Cargo.toml:49`).
 - Read: the three roots end on 2029-08-15, 2029-08-15 and 2029-11-01
   (`crates/podssh-relay/src/quick/cloudflare-roots.pem:6`, `:25`, `:52`).
@@ -3130,7 +3130,7 @@ allows podssh as a client of Cloudflare (`docs/decisions.md:30`).
   `crates/podssh-cli/src/ssh/cloudflare.rs:73` says "a Cloudflare tunnel cannot be reached
   through a -J hop yet", and `docs/cli.md:129-130` says so too.
 - Read: the road of a run is chosen for the first hop's host
-  (`crates/podssh-cli/src/ssh/resolve.rs:318`), and each later hop runs in a `direct-tcpip`
+  (`crates/podssh-cli/src/ssh/resolve.rs:279`), and each later hop runs in a `direct-tcpip`
   channel of the session before it (`crates/podssh-ssh/src/run.rs:160-167`;
   `crates/podssh-ssh/src/forward.rs:14-22`).
 - Read: the `cf://` road opens the WebSocket of `cloudflared access tcp` through `HTTPS_PROXY`,
@@ -4244,7 +4244,7 @@ code that no command of the default build uses is P2 at most".
 - Read: doctor's two answers are `ok`: "the iroh road may go direct" after a bind, and "the iroh
   road then uses its relay alone" after a refusal (`crates/podssh-cli/src/doctor/iroh.rs` lines
   12-18 at `925c94b`), in a build with the feature only
-  (`crates/podssh-cli/src/doctor/mod.rs:124-125`). The refusal's
+  (`crates/podssh-cli/src/doctor/mod.rs:126-127`). The refusal's
   `ok` is doctor's rule, as the relay alone is a road that works; the bind's "may go direct" is
   not measured.
 - Read, in iroh 1.4.1 (the local cargo registry, `src/net_report/report.rs`): iroh's report of
@@ -4258,8 +4258,8 @@ code that no command of the default build uses is P2 at most".
   roads" is wrong. T-301's Approach item 1 said "After a UDP probe (the iroh road's)"
   (`TODO/roads.md:2020`); its Decision took QUIC only where no proxy is set, on the connection's
   own socket (`TODO/roads.md:2052-2059`), and the QUIC handshake, bounded at 5 s, is its probe:
-  QUIC that fails gives way to HTTP/2 for the run (`crates/podssh-cli/src/node_quick.rs:171-173`,
-  `:276-295`; `crates/podssh-relay/src/quick/quic.rs:32`). Its cost on a host that drops UDP is
+  QUIC that fails gives way to HTTP/2 for the run (`crates/podssh-cli/src/node_quick.rs:173-175`,
+  `:278-297`; `crates/podssh-relay/src/quick/quic.rs:32`). Its cost on a host that drops UDP is
   one handshake a run, as its Decision item 5 chose (`TODO/roads.md:2060-2064`). doctor says
   nothing of it in the default build, where the quick tunnel is.
 - Read: the measured cage refuses UDP (`docs/target-environment.md:23`), and the box does too
@@ -4433,10 +4433,10 @@ does not depend on them.
 
 - Read: `Transport::Direct` comes from `--direct` alone
   (`crates/podssh-cli/src/ssh/resolve.rs`, lines 340-346 at `4e2010e`), and else the relay (lines 348-371 at `4e2010e`); its other
-  uses are a label (`crates/podssh-cli/src/ssh/mod.rs:203`), the dial
-  (`crates/podssh-cli/src/ssh/transport.rs:221-265`) and a check of `--upgrade`
+  uses are a label (`crates/podssh-cli/src/ssh/mod.rs:208`), the dial
+  (`crates/podssh-cli/src/ssh/transport.rs:225-269`) and a check of `--upgrade`
   (`crates/podssh-cli/src/ssh/upgrade.rs:59`). The issue's citation of
-  the arm began two lines early; it is at `crates/podssh-cli/src/ssh/resolve.rs:348-354`.
+  the arm began two lines early; it is at `crates/podssh-cli/src/ssh/resolve.rs:317-323`.
 - Read: `docs/design.md:45` says "podssh tries the roads in this order"; for a public sshd, the
   forward road comes first, then the direct road (`docs/design.md:51`), which at `8554930` said
   "`--direct`, or when a probe shows it works"; the triage of GitHub #69 to #72 named this entry
@@ -4445,7 +4445,7 @@ does not depend on them.
   and for the split HTTP road (`AGENTS.md:252-260`); a race of the forward and the direct road is
   neither.
 - Read: the direct dial goes through `HTTPS_PROXY` when it is set, with the relay's step limit of
-  20 s (`crates/podssh-cli/src/ssh/transport.rs:286-300`, `crates/podssh-relay/src/open.rs:30`),
+  20 s (`crates/podssh-cli/src/ssh/transport.rs:290-304`, `crates/podssh-relay/src/open.rs:30`),
   and names a proxy that takes the CONNECT and sends nothing back (T-317). doctor reads the
   server's version line on port 22, straight out or through the proxy, to say whether plain ssh
   can leave (`crates/podssh-cli/src/doctor/net.rs:184-199`, `:201-282`).
@@ -4545,7 +4545,7 @@ relay's path and token.
   nothing of other clients.
 - Read: a relay is a host and a port (`crates/podssh-relay/src/relay.rs:56-62`), and its forward
   path is `/connect/<host>/<port>` (`:139-152`); a run has one road, of five kinds
-  (`crates/podssh-cli/src/ssh/resolve.rs:23-51`).
+  (`crates/podssh-cli/src/ssh/resolve.rs:23-61`).
 - Read: `validate` refuses a query other than the relay's knobs, and `connect` always sends a token
   (`crates/podssh-ws/src/client.rs:66-105`, `:159-182`); a token goes only to the deployment that
   minted it (`docs/decisions.md:58`).
@@ -4688,8 +4688,8 @@ a hop. `doctor` has no line for a hop, so a user cannot see whether one is reach
 
 - Read: a hop is `[user@]host[:port]` or `ssh://[user@]host[:port]`
   (`crates/podssh-cli/src/ssh/hop.rs:30-57`), and `-J` refuses a node only (`:59-65`). The road is
-  chosen for the first hop's host (`crates/podssh-cli/src/ssh/resolve.rs:318`); with `--direct` it
-  is TCP through `HTTPS_PROXY` (`crates/podssh-cli/src/ssh/resolve.rs:348-354`; `crates/podssh-cli/src/ssh/transport.rs:1-2`).
+  chosen for the first hop's host (`crates/podssh-cli/src/ssh/resolve.rs:279`); with `--direct` it
+  is TCP through `HTTPS_PROXY` (`crates/podssh-cli/src/ssh/resolve.rs:317-323`; `crates/podssh-cli/src/ssh/transport.rs:1-2`).
 - Read: a prompt goes to the terminal, or to the program of `SSH_ASKPASS`, chosen as OpenSSH
   chooses it (`crates/podssh-ssh/src/prompt.rs:1-12`).
 - Read: through the agent proxy of a cloud container, a CONNECT to `ssh.github.com:443` got `200`,
@@ -4817,7 +4817,7 @@ TCP, and podssh runs no `ProxyCommand` that could add TLS.
 
 - Read: a hop is `[user@]host[:port]` or `ssh://[user@]host[:port]`
   (`crates/podssh-cli/src/ssh/hop.rs:30-57`); a destination can also name a road by its scheme,
-  `cf://`, `node://` or `iroh:` (`crates/podssh-cli/src/ssh/resolve.rs:23-51`).
+  `cf://`, `node://` or `iroh:` (`crates/podssh-cli/src/ssh/resolve.rs:23-61`).
 - Read: podssh runs no `ProxyCommand` (`crates/podssh-cli/src/ssh/options.rs:219-224`).
 - Read: podssh-ws opens TCP through the proxy, then a TLS handshake checked for a name
   (`crates/podssh-ws/src/client.rs:184-205`), with no ALPN and no client certificate
@@ -5168,7 +5168,7 @@ operator's ruling Q50.
 **Milestone:** backlog
 **Priority:** P2
 **Effort:** L
-**Status:** open
+**Status:** done
 
 ## Problem
 
@@ -5181,11 +5181,11 @@ ask, and nothing does so.
 ## Premise
 
 - Read: the node of the iroh road serves the pair's road beside it, with one keeper for both
-  (`crates/podssh-cli/src/node_iroh.rs:323-324`), and `podssh node` sends `--iroh` there
-  (`crates/podssh-cli/src/node.rs:76-78`).
+  (`crates/podssh-cli/src/node_iroh.rs:337-338`), and `podssh node` sends `--iroh` there
+  (`crates/podssh-cli/src/node.rs:87-89`).
 - Read: `podssh ssh` resolves its destination into an enum of transports
-  (`crates/podssh-cli/src/ssh/resolve.rs:24-51`), in a file of 488 of its 500 lines.
-- Read: the race of T-164 orders two roads (`crates/podssh-relay/src/session/race.rs:56-58`), and
+  (`crates/podssh-cli/src/ssh/resolve.rs:24-61`), in a file of 488 of its 500 lines.
+- Read: the race of T-164 orders two roads (`crates/podssh-relay/src/session/race.rs:59-61`), and
   the race of the command line is in a build with the feature `iroh` only
   (`crates/podssh-cli/src/ssh/iroh.rs:8-11`).
 - Read: T-349's node and dialer (`crates/podssh-relay/src/derp/far.rs`,
@@ -5213,6 +5213,68 @@ ask, and nothing does so.
 The operator's ruling of 2026-10-31 (Q50, `docs/decisions.md`): Tailscale's tailcat fleet is an
 automatic fallback of the reverse road, tried when the user did not ask.
 
+2026-10-31, the draft (each call with the alternatives that lost):
+
+- The road is in each build: podssh-cli turns podssh-relay's feature `derp` on, as it does `quick`.
+  Lost: a feature of the command line, as the iroh road has one: the road is pure Rust and small
+  (`crypto_box`, in the lock already), and Q50 makes it a fallback that a build without the feature
+  would lose with no word.
+- A node moves home after 3 failed connections in a row to its home (`far::MOVE_AFTER`): to the first
+  other server of its list, from the top, that takes a connection, and it stays there
+  (`crates/podssh-relay/src/derp/far.rs`). Lost: a move at the first failure, which a derper that
+  restarts would turn into a move of each node and a longer try of each client; a new probe of the
+  whole list, where a connection that completes DERP's handshake proves more than an empty GET; a
+  move back when the first server returns, which moves each client again with a home that flaps.
+- A client tries the ticket's server, then the rest of its own list (`--derp-server`, else
+  `PODSSH_DERP_SERVER`, else the fleet) when that list holds the ticket's server
+  (`servers::for_client_in`); T-349's `for_client` is the case of the fleet. Lost: the fleet after
+  each ticket, where a node of the user's own derper never moves to tailcat's; each server of the
+  list after any ticket, where a ticket of a server outside the list belongs to another list.
+- More than two roads race by `session::race::in_turn`: each road 250 ms after the one before it, or
+  at once when each road that started before it failed, as Happy Eyeballs staggers (RFC 8305), so
+  the DERP road starts 500 ms in behind the iroh road and the pair's. Lost: the two-road race nested,
+  whose inner race greets its winner before the outer one could start the third road.
+- The race leaves `crates/podssh-cli/src/ssh/iroh/race.rs` for `crates/podssh-cli/src/ssh/roads.rs`,
+  in each build, as a build with no iroh still races the pair's road and the DERP road; the iroh
+  road's part (`IrohRoad`) stays behind the feature, with an empty type in its place without it.
+  Lost: the race behind the feature `iroh`, which would refuse `--derp-ticket` in a build that has
+  the DERP road.
+- The fallback of a client (item 4): a ticket given with `--derp-ticket` is kept under NAME, in the
+  cache as the pins are (`derp-NAME.ticket`), and a later run that gives none dials it only when each
+  road before it failed (`Start::WhenAllFailed`), or alone when no pair is stored under NAME. Lost:
+  the kept ticket only when no pair is stored, which misses an outage of the relay, the case the
+  fallback is for (T-346); the kept ticket with the head start of a ticket given, which would load
+  tailcat's fleet on each run while the pair's road works.
+- The fallback of a node: a node with no pair (none stored, or one expired), an allowlist, and none of
+  `--iroh`, `--plain`, `--no-e2e`, `--pair-file` or a `udp:` TARGET serves the DERP road unasked, and
+  its first line says why. Lost: the road with no allowlist, which no client could pass, so the node
+  refuses as before; the DERP road unasked beside `--iroh`, a node that has a road with no relay of
+  the operator's already, which `--derp` adds when asked.
+- `PODSSH_DERP=no` turns both fallbacks off; `--derp`, `--derp-ticket` and `derp:` still take the
+  road. Lost: no switch, which leaves a user whose policy forbids a third party's relay with no way
+  out, where T-363 gives `PODSSH_DIRECT=no` for its fallback; a key of the settings file first, as a
+  node's service gets its variables from its file of `--env-file` and each end reads the variable
+  alike.
+- The road needs the end-to-end channel and `--allow`: a DERP server forwards packets from any key, so
+  the channel's allowlist is the node's only door, and a client's key on the servers is new for each
+  run (T-349's Decision). Lost: the allowlist's absence as "each client", as on the pair's road, where
+  the relay's connect token decided who reaches the node.
+- The node's name in the known hosts and the messages is `derp:` and its Ed25519 key in hex, as
+  `iroh:` names the iroh road's node; `derp:PORT`, all digits, stays the host `derp` and a port, as a
+  ticket starts with a letter (its version byte). Lost: the ticket, which changes with the home.
+- `podssh doctor` has a section `derp` in each build: `/derp/probe` of each server in order, `FAIL`
+  for each that does not answer, then the home, as `crates/podssh-cli/src/doctor/iroh.rs` does for
+  n0's relays. Lost: `????` for a server that does not answer, where doctor keeps `FAIL` for a
+  fallback that does not work here.
+- The resolver's split (item 2): its environment (`Env`, `ca_file`) moves to
+  `crates/podssh-cli/src/ssh/resolve_env.rs`, re-exported, so no caller changes, with each comment.
+  Lost: the transport's choice moved out, which changes more callers' paths.
+- The test: podssh-relay's own stand-in (`crates/podssh-relay/tests/derp_stand_in/mod.rs`, frames of
+  its own, now with `/derp/probe`) behind TLS of the test's own CA on the loopback
+  (`crates/podssh-cli/tests/derp_support/mod.rs`), as the command line is a process of its own. Lost:
+  Tailscale's derper, which `scripts/interop-derp.sh` runs for the library in Podman: the road's
+  interop is T-349's, and this test needs no container.
+
 ## Prove
 
 ```sh
@@ -5228,3 +5290,64 @@ fleet. Planted: a client that tries the ticket's server alone fails that last ch
 ## Start condition
 
 T-349 is done: the DERP link of `podssh-relay` is merged and measured.
+
+## Correction
+
+2026-10-31, read at `a3f948d`: the keeper of both roads of the iroh road's node is not at the cited
+lines, which make the sessions' pipe, but a block below them, at line 313 at `a3f948d` ("One keeper
+for both roads"). The resolver had 496 lines at `a3f948d`, not 488. The Approach stands: the split
+moves the resolver's environment to `crates/podssh-cli/src/ssh/resolve_env.rs`.
+
+## Done
+
+2026-10-31: drafted (branch `draft-roads-cli`, `48d1867`); merged into `main` on 2026-11-01, built,
+measured here and live from this session's host.
+
+- podssh-relay: `session::race::in_turn` and `Start`, a race of more than two roads of one link
+  (`crates/podssh-relay/src/session/race.rs`); a node that moves home, `far::serve_roaming`, `Roam`,
+  `MOVE_AFTER` and `connect_to` (`crates/podssh-relay/src/derp/far.rs`); a client of the user's own
+  list, `servers::for_client_in` and `Dialer::with_servers`; the stand-in answers `/derp/probe`.
+- podssh-cli: `podssh node --derp` and `--derp-server`, the DERP road alone, beside the pair's road,
+  or beside the iroh road and the pair's road, with one keeper (`crates/podssh-cli/src/node_derp.rs`,
+  `crates/podssh-cli/src/node_iroh.rs`), and a node with no pair that serves it unasked;
+  `--derp` refused with `--quick-tunnel` and `--temporary`; `--install` carries `--derp` and
+  `--derp-server` into the service, and asks for no pair with `--derp`, as with `--iroh`;
+  `podssh ssh derp:TICKET[/ROUTE]`
+  (`crates/podssh-cli/src/ssh/derp.rs`); `node://NAME --derp-ticket TICKET` and the kept ticket, in
+  the race of a node's roads (`crates/podssh-cli/src/ssh/roads.rs`); `PODSSH_DERP`; doctor's section
+  `derp` (`crates/podssh-cli/src/doctor/derp.rs`); the flags (`crates/podssh-cli/src/flags/derp.rs`),
+  the manual's notes of `ssh` and `node` and its ENVIRONMENT; `docs/cli.md`, `docs/design.md` (the
+  road table and section 8), `docs/STATUS.md`. `derp:`, like `iroh:`, is refused by `cp`, `each`,
+  `job`, `run`, `containers` and `--persist`.
+- The resolver's split: `crates/podssh-cli/src/ssh/resolve.rs` keeps 467 lines.
+- `cargo test -p podssh-cli --test derp_road`: 4 passed (2026-11-01): refused, then let in, with
+  the host key under `derp:`; the race with the pair's road blocked, then the kept ticket, then
+  `PODSSH_DERP=no`; a node with no pair, unasked, and `PODSSH_DERP=no`; the node that moved home and
+  the client of its old ticket.
+- `cargo test -p podssh-relay --features derp --test derp_link`: 5 passed, 3 ignored (those need a
+  derper, `scripts/interop-derp.sh`); `cargo test -p podssh-relay --test session_race`: 11 passed;
+  `cargo test -p podssh-relay --features derp --lib derp::servers`: 4 passed;
+  `cargo test -p podssh-cli --lib -- node_derp ssh::derp`: 2 passed.
+- Repairs at the merge: clippy refused `.ok().expect()` in four tests of `session_race`, which read
+  `let Ok(..) = .. else { panic!(..) }` now; `iroh_cli`'s test of the key flags expected 78 for each
+  of them, the code of a node with no pair, where a node with an allowlist and no pair now serves
+  the DERP road unasked (Q58) and `PODSSH_OFFLINE` stops it (69): the test expects each flag's own
+  code and words now; the check of the manual's notes read `podssh node --derp` in the note of `ssh`
+  as a flag of `ssh`: a flag right after `podssh VERB` is that verb's now, and the check's control
+  plants one that `node` does not have.
+- The workspace, `cargo test --locked --workspace --no-fail-fast` in a temporary directory of its
+  own, which it left empty: 2684 passed, 77 ignored; two failed, each repaired above or by this
+  commit's record (the manual's check, 55 passed after it; the record, which agrees after the
+  remap). `cargo test -p podssh-cli --features iroh-test --test iroh_road --test iroh_cli`: 2 and 6
+  passed (the race moved out of the iroh module). clippy `-D warnings` clean on each package, with
+  `iroh-test` and with WARP's features; rustfmt clean; Rust 1.89: the library crates with `derp`
+  and no C compiler, and podssh-cli: exit 0.
+- Planted, `for_client_in` that returns the ticket's server alone: `derp_road`'s test of the node
+  that moved home and `derp_link`'s move each failed, and nothing else.
+- Live (Q58), 2026-11-01, from this session's host through its proxy: `podssh node lab
+  127.0.0.1:PORT --derp --allow FILE` in front of a throwaway OpenSSH server took
+  `tc301a.ipn.dev` as its home, the first of tailcat's fleet whose probe answered, and went online
+  there; `podssh ssh derp:TICKET` was refused (255) and named its key; with that key in the
+  allowlist, the same command ran `echo` on the server (0). `podssh doctor`'s section `derp`:
+  tc301a to tc304a answered `/derp/probe` in 316 to 600 ms, with their certificates verified, and
+  the home was named. The keys were made for the run and removed with it.

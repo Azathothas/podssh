@@ -13,7 +13,8 @@
 //! roads serve any target: `podssh chat --listen NAME --iroh` serves its
 //! conversations on both (T-099). With `--sshd`, the node is a roost: its
 //! sshd's version line is checked at the start and on each road's sessions
-//! (T-166).
+//! (T-166). With `--derp`, it serves the DERP road too, with the same keeper
+//! and channel (T-379, `node_derp`).
 
 use std::future::Future;
 use std::io::Write;
@@ -82,6 +83,8 @@ pub(crate) struct Ready {
     pub e2e: bool,
     /// The server of pkarr that keeps the record of the home relay (T-350).
     pub pkarr: Option<podssh_iroh::pkarr::Server>,
+    /// The DERP road's servers, with `--derp` (T-379).
+    pub derp: Option<Vec<podssh_relay::derp::Server>>,
 }
 
 /// The flags of a node of both roads, as its command gives them.
@@ -103,7 +106,15 @@ fn prepare(args: &NodeArgs) -> Result<(Ready, Vec<Route>), Refusal> {
     // One key for both roads (T-087), by the flags' names of T-087 or T-163.
     let flags = crate::node::key_flags(args)?;
     let place: Place = crate::channel::node_place(&label, flags.key.as_deref(), flags.ephemeral)?;
-    let ready = ready(Flags {
+    // The DERP road beside the others (T-379), checked as `--derp` alone is.
+    let derp = match args.derp {
+        true => {
+            crate::node_derp::check(args)?;
+            Some(crate::ssh::derp::servers(args.derp_server.as_deref())?)
+        }
+        false => None,
+    };
+    let mut ready = ready(Flags {
         label: &label,
         place,
         allow: flags.allow,
@@ -113,6 +124,7 @@ fn prepare(args: &NodeArgs) -> Result<(Ready, Vec<Route>), Refusal> {
         ca_file: args.ca_file.as_deref(),
         e2e: !args.no_e2e,
     })?;
+    ready.derp = derp;
     Ok((ready, targets))
 }
 
@@ -144,6 +156,7 @@ pub(crate) fn ready(flags: Flags<'_>) -> Result<Ready, Refusal> {
         pair,
         e2e: flags.e2e,
         pkarr,
+        derp: None,
     })
 }
 
@@ -199,7 +212,7 @@ where
     F: Future<Output = Result<A, String>> + Send + 'static,
     A: AsyncRead + AsyncWrite + Unpin + Send + 'static,
 {
-    let Ready { label, place, allow, relays, trust, pair, e2e, pkarr } = ready;
+    let Ready { label, place, allow, relays, trust, pair, e2e, pkarr, derp } = ready;
     let Roads { verb, serving, after, handler, open: target, routes } = roads;
     // The pair's road needs these after the iroh road has taken its own.
     let (label_text, trust_pair) = (label.clone(), trust.clone());
@@ -270,6 +283,7 @@ where
         ),
         Err(why) => format!("the iroh road alone ({why})"),
     };
+    let roads = if derp.is_some() { format!("{roads}, with the DERP road") } else { roads };
     let _ = writeln!(err, "podssh {verb}: {label}: {serving} over {roads}{after}");
     let _ = writeln!(
         err,
@@ -334,6 +348,26 @@ where
     let until_stopped = |mut stopped: watch::Receiver<bool>| async move {
         let _ = stopped.wait_for(|stop| *stop).await;
     };
+    // The DERP road (T-379), with the same keeper and channel; a road that
+    // does not come online leaves the others.
+    let derp_road = {
+        let (open, keeper, channel, say) = (open.clone(), keeper.clone(), channel.clone(), say.clone());
+        let (trust, stopped) = (asked_trust.clone(), stopped.clone());
+        async move {
+            let (Some(servers), Some(channel)) = (derp, channel) else { return };
+            let said: podssh_relay::derp::Say = Arc::new(say.clone());
+            let road = match crate::node_derp::online(&channel.identity, &servers, &trust, said).await {
+                Ok(road) => road,
+                Err(refusal) => return say(format!("the DERP road: {}; the other roads go on", refusal.message)),
+            };
+            say(format!("home {}, the first DERP server whose probe answered", road.home()));
+            say(format!("ticket {}", road.ticket));
+            tokio::select! {
+                () = Box::pin(road.serve(crate::node_derp::settings(), budget, open, keeper)) => {}
+                () = until_stopped(stopped) => {}
+            }
+        }
+    };
     let iroh_road = async {
         tokio::select! {
             () = Box::pin(podssh_iroh::far::serve_kept(endpoint.clone(), settings, budget, open, admit, keeper.clone())) => {}
@@ -365,8 +399,8 @@ where
             say(format!("the pair's road ended: {why}; the iroh road goes on"));
         }
     };
-    // Until the caller's end, or until both roads ended by themselves.
-    let both = async { tokio::join!(iroh_road, pair_road) };
+    // Until the caller's end, or until each road ended by itself.
+    let both = async { tokio::join!(iroh_road, pair_road, derp_road) };
     tokio::pin!(both);
     tokio::select! {
         _ = &mut both => {}

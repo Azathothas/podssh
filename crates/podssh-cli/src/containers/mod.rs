@@ -112,9 +112,9 @@ fn resolved(args: &ContainersArgs, plan: &Plan, env: &Env) -> Result<Resolved, R
     let mut ssh = args.ssh.clone();
     ssh.command = vec![list::command(&plan.tools)];
     let mut resolved = resolve::resolve_or_refuse(&ssh, env)?;
-    if matches!(resolved.transport, Transport::Node { .. } | Transport::Iroh { .. }) {
+    if matches!(resolved.transport, Transport::Node { .. } | Transport::Iroh { .. } | Transport::Derp { .. }) {
         return Err(Refusal::usage(
-            "podssh containers reaches a host through the relay, with --direct or cf://; a node:// or iroh: \
+            "podssh containers reaches a host through the relay, with --direct or cf://; a node://, iroh: or derp: \
              destination is for podssh ssh",
         ));
     }

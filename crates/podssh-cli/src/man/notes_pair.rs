@@ -1,7 +1,7 @@
 //! The notes of the two ends of the reverse road, `node` and `operator`,
 //! apart from the others for the length of the file: the pair, the layer, a
-//! roost (T-166), the end-to-end channel and its keys (T-087, T-088), and
-//! the iroh road.
+//! roost (T-166), the end-to-end channel and its keys (T-087, T-088), the
+//! iroh road, and the DERP road (T-379).
 
 pub(super) const NODE: &[&str] = &[
     "podssh node serves TARGET, a TCP service, to the operators of the pair stored under NAME (see \
@@ -36,8 +36,8 @@ pub(super) const NODE: &[&str] = &[
      alone. Once the relay takes the pair's sessions, it writes one line to stdout, the pair's connect \
      token and its own key, and on Unix leaves that SSH session: SIGHUP is ignored, and stdin, stdout and \
      stderr become /dev/null. It ends with its last session, or 10 minutes after its start with none, and \
-     stops its pair. With it, --iroh, --pair-file, --plain, --no-e2e, the flags of the node's key, and \
-     a route are refused (exit 64).",
+     stops its pair. With it, --iroh, --derp, --pair-file, --plain, --no-e2e, the flags of the node's key, \
+     and a route are refused (exit 64).",
     "Each session runs the end-to-end channel above the layer (Noise XX): the relay sees ciphertext \
      only, and the operator's key and the node's prove themselves in it. The node's key is a private \
      file in the cache (node-NAME.key, or iroh-node-NAME.key of an earlier podssh), or the file of \
@@ -84,7 +84,8 @@ pub(super) const NODE: &[&str] = &[
      are not carried, and the pair's tokens stay in the pair's file. A user unit runs while the user has \
      a session unless lingering is on, which podssh says and never changes. With no way, the command to \
      run at login is printed on stdout, and the exit is 69. With --temporary, --ephemeral-key or \
-     --iroh-ephemeral, --install is refused (64), as is a pair that is not stored (78). --uninstall \
+     --iroh-ephemeral, --install is refused (64), as is a pair that is not stored with neither --iroh \
+     nor --derp, which serve with none (78). --uninstall \
      removes what --install wrote for NAME (the unit, stopped first, or the line of the crontab, or the \
      task, and the file of variables), and nothing else.",
     "--env-file FILE sets the variables of FILE before anything else: lines of the form name=value, and \
@@ -109,6 +110,24 @@ pub(super) const NODE: &[&str] = &[
      the node reads again for each connection, so a key added counts at once. With no such file, no \
      client gets in. Each refused key is said on stderr: it is the line to add. A session reaches TARGET \
      only after the layer's handshake, and resumes on a new link for 10 minutes, as on the relay.",
+    "With --derp, the node serves TARGET over the DERP road, in each build: DERP's packets over a \
+     WebSocket at wss://SERVER/derp, through HTTPS_PROXY, to Tailscale's free servers for tailcat \
+     (tc301a.ipn.dev to tc304a.ipn.dev, which need no account and are rate-limited), or to the servers of \
+     --derp-server or PODSSH_DERP_SERVER, under the resumable layer with an adapter that sends again what \
+     a server drops. The node's home is the first server whose /derp/probe answers within 5 s, and its \
+     key there is derived from the node's key, so its ticket (derp:...), which it prints on stderr, stays \
+     while its home does; after 3 failed connections in a row to its home, the node calls the next server \
+     of its list home that takes a connection, and prints the new ticket. A client dials the ticket with \
+     podssh ssh derp:TICKET, or races it with podssh ssh node://NAME --derp-ticket TICKET. A DERP server \
+     lets any key send, so the road needs --allow and the end-to-end channel: --no-e2e, --plain and a \
+     udp: TARGET are refused with it (64), and so is --derp with no --allow. With the pair NAME stored \
+     and good, or --pair-file, the node serves the pair's road too, and with --iroh the iroh road, with \
+     one keeper of sessions for each road. A server sees each end's key on it, the sizes and the times; \
+     the channel keeps the bytes from it.",
+    "A node with no pair stored under NAME (or one that expired), no --iroh and no --plain, and an \
+     allowlist, serves the DERP road unasked, by the operator's ruling Q50, and its first line says so; \
+     PODSSH_DERP=no turns that off, and the node refuses as before (78). With no --allow, it refuses as \
+     before too, as no client could come in.",
     "With --quick-tunnel, the node serves TARGET at https://NAME.trycloudflare.com, a quick tunnel of \
      Cloudflare's that podssh makes itself, with no pair, no account and no cloudflared. The name is new \
      each run, and is the one line on stdout. The node needs port 7844 of Cloudflare's edge: over QUIC \
@@ -121,8 +140,8 @@ pub(super) const NODE: &[&str] = &[
      reaches the name on port 443. The name is public, so --allow FILE is needed: only an operator \
      whose key is a line of FILE reaches TARGET, through the end-to-end channel above the resumable \
      layer. A connection to the edge that is lost is made again, with the same name; at Ctrl-C the node \
-     unregisters it. --iroh, --plain, --no-e2e, --pair-file, a route and a udp: TARGET are refused \
-     with it (64).",
+     unregisters it. --iroh, --derp, --plain, --no-e2e, --pair-file, a route and a udp: TARGET are \
+     refused with it (64).",
 ];
 
 pub(super) const OPERATOR: &[&str] = &[

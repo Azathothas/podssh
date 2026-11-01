@@ -59,7 +59,7 @@ entry keeps its proof in the entry; this page keeps no history (git does).
   UNVERIFIED and closes the entry (T-179 to T-184, T-200, T-202, T-221, T-225, T-232, T-235, T-242, T-279, T-280, T-229, T-281, T-289, T-291, T-293, T-187 to T-191, T-195, T-296, T-297 and T-298 so, T-185, merged in
   `d1c5bd1` and measured on 2026-10-30, and T-186, T-193, T-197, T-192,
   T-306, T-302 and T-305, merged on 2026-10-30; T-344, T-349, T-351, T-367, T-368 and T-350, merged on
-  2026-10-31, and T-352 and T-374, merged and closed on 2026-10-31). The operator pushed each branch to GitHub as
+  2026-10-31, and T-352 and T-374, merged and closed on 2026-10-31, and T-379 on 2026-11-01). The operator pushed each branch to GitHub as
   `draft/worktree-agent-*` on 2026-10-30; each draft of the four is in
   `main` now, so those branches and the worktrees on the operator's machine
   can go, as can `draft/draft-dns` and `draft/draft-derp` (merged on
@@ -73,8 +73,7 @@ entry keeps its proof in the entry; this page keeps no history (git does).
 
   | Entry | Branch on GitHub | Commit | State |
   | --- | --- | --- | --- |
-  | T-379 | `draft/draft-roads-cli` | `48d1867` | drafted, to merge |
-  | T-363 | `draft/draft-roads-cli` | `e8f7b52` | drafted, after T-379 |
+  | T-363 | `draft/draft-roads-cli` | `e8f7b52` | drafted, to merge |
   | T-369 | `draft/draft-forwarder` | `04ea77e` | drafted, to merge |
   | T-370 | `draft/draft-forwarder` | `f27fbe2` | drafted, after T-369 |
 
@@ -121,7 +120,7 @@ and `CARGO_BUILD_JOBS=4`:
 
 ## Counts
 
-`TODO/INDEX.md` holds 375 entries: 24 open, 0 partial, 30 blocked, 321 done.
+`TODO/INDEX.md` holds 375 entries: 23 open, 0 partial, 30 blocked, 322 done.
 
 Open includes parked work. `cargo todo check` verifies this line.
 
@@ -145,10 +144,7 @@ zeroize and the curves' 0.14 make that batch, so `v1.0.0-beta.3` comes from
 2026-11-01 00:12 UTC, once the gate is green on its commit.
 
 **Now:** the entries of the audit, the study and the issues of 2026-10-31 (GitHub #59 to #63 and
-#69 to #76), the highest priority first: the P2 entries that the operator's rulings of 2026-10-31
-opened,
-T-379 (the DERP road in the command line, and the fallback to tailcat's relays, Q50);
-then the P3 entry T-363 (the direct road after the relay hosts fail), then those of the
+#69 to #76), the highest priority first: the P3 entry T-363 (the direct road after the relay hosts fail), then those of the
 same rulings: T-353 (Q52); then those of
 GitHub #59 to #63 and #73 to #76: T-369, which uses the reader of requests and the dial with no
 token, and T-370 after T-369 (Q56);

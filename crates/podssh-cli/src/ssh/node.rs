@@ -73,7 +73,12 @@ pub(super) struct Ask<'a> {
     pub forward: bool,
 }
 
-pub(super) fn transport(r: &Ask<'_>, env: &Env, race: Option<super::iroh::Race>) -> Result<Transport, String> {
+pub(super) fn transport(
+    r: &Ask<'_>,
+    env: &Env,
+    race: Option<super::iroh::Race>,
+    derp: super::derp::Race,
+) -> Result<Transport, String> {
     let why = if r.args.direct {
         Some("--direct cannot reach a node: only the relay can")
     } else if r.jumps > 0 {
@@ -99,7 +104,16 @@ pub(super) fn transport(r: &Ask<'_>, env: &Env, race: Option<super::iroh::Race>)
     let channel = super::iroh::channel_ask(r.args)
         .and_then(|ask| ask.to_route(r.route))
         .map_err(|why| format!("{SCHEME}{}: {why}", r.label))?;
-    Ok(Transport::Node { label: r.label.to_string(), pair_file: r.args.pair_file.clone(), trust, race, channel })
+    // The DERP road's channel is the node's only door (T-379).
+    if channel.off && derp.ticket.is_some() {
+        return Err(format!(
+            "{SCHEME}{}: --no-e2e cannot go with --derp-ticket: the node of the DERP road lets in the key that the \
+             end-to-end channel proves",
+            r.label
+        ));
+    }
+    let (label, pair_file) = (r.label.to_string(), r.args.pair_file.clone());
+    Ok(Transport::Node { label, pair_file, trust, race, derp, channel })
 }
 
 /// SSH over the operator's leg to the node of the pair under `label`.

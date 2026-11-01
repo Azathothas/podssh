@@ -47,7 +47,7 @@ races them. [carriers.md](carriers.md) studies the carriers that need no relay o
 
 | Far end | First | Then | Last |
 | --- | --- | --- | --- |
-| A podssh node or peer (a name or a ticket) | The iroh road (direct when UDP works, else through a relay) | The reverse road with the resumable layer | None |
+| A podssh node or peer (a name or a ticket) | The iroh road (direct when UDP works, else through a relay) | The reverse road with the resumable layer | The DERP road through tailcat's fleet (T-379): 250 ms after the reverse road with `--derp-ticket`, or a ticket kept under the name once the roads before it failed |
 | A standard sshd, public | The forward road, with failover across relay hosts | The direct road (`--direct`, or when a probe shows it works; the probe is T-363) | None |
 | A standard sshd behind a podssh `roost` (`podssh node NAME --sshd`) | The iroh or reverse road to the roost | The forward road | None |
 | A tailnet node | The tailscale road (feature `ts`) | None | None |
@@ -1241,14 +1241,37 @@ the lock had already through the vendored fork).
   then the other servers of the fleet, where a node whose home went away
   calls the next one home; so this road needs no record of pkarr.
 
-MEASURED: UNVERIFIED, until the merge of T-349 runs
-`cargo test -p podssh-relay --features derp --test derp_link` (a stand-in
-server in memory, with 5 % of the packets dropped) and
-`sh scripts/interop-derp.sh` (Tailscale's derper in Podman).
+MEASURED at the merge of T-349 (2026-10-31): `cargo test -p podssh-relay
+--features derp --test derp_link` (a stand-in server in memory, with 5 % of
+the packets dropped) and `sh scripts/interop-derp.sh` (Tailscale's derper in
+Podman); T-349's Done gives each result.
 
-The command line (`podssh node --derp`, `podssh ssh derp:TICKET`), the race
-of T-164 with the other roads, and the fallback that Q50 allows come with
-T-379.
+**The command line (T-379, drafted 2026-10-31).** The road is in each build,
+as it is pure Rust.
+
+- `podssh node NAME TARGET --derp` serves the road, beside the pair's road
+  and the iroh road when the node has them, with one keeper of sessions for
+  each road, and the end-to-end channel with `--allow`, which a DERP server
+  makes the only door: any key may send to the node. The node prints its
+  ticket; after 3 failed connections in a row to its home, it calls the
+  next server of its list home, in the list's order, and prints the new
+  ticket. A client of the old ticket tries the ticket's server, then the
+  rest of the same list, so it finds the node there.
+- `podssh ssh derp:TICKET` dials the ticket with a key of this run's on the
+  servers, and the channel to the ticket's Ed25519 key; the host key is
+  recorded under `derp:` and that key.
+- `podssh ssh node://NAME --derp-ticket TICKET` races the DERP road third, in
+  the order of the table above: each road 250 ms after the one before it,
+  or at once when each road before it failed (`session::race::in_turn`).
+- The fallback that Q50 allows: a node with no pair and an allowlist serves
+  the road unasked, and says so; a client keeps the ticket that it was
+  given under the name, and a later run that gives none dials it only when
+  the roads before it failed, so tailcat's fleet carries nothing while the
+  pair's road works. `PODSSH_DERP=no` turns both off.
+
+MEASURED: UNVERIFIED, until the merge of T-379 runs
+`cargo test -p podssh-cli --test derp_road` (two stand-in DERP servers over
+TLS on the loopback, and the test's SSH server).
 
 ## 9. Questions for the operator
 

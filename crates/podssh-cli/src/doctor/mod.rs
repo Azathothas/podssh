@@ -28,6 +28,8 @@ mod address;
 mod agent;
 pub(crate) mod clock;
 mod hop;
+// The DERP road's servers and its home (T-379).
+mod derp;
 mod host;
 #[cfg(feature = "iroh")]
 mod iroh;
@@ -163,6 +165,8 @@ async fn network(report: &mut Report<'_>, relays: &RelayList, trust: &Trust, fai
         report.section("iroh");
         iroh::relay(report, trust).await;
     }
+    report.section("derp");
+    derp::check(report, trust).await;
     report.section("pairs");
     let stored = pairs::stored(report);
     pairs::presence(report, &stored, trust).await;

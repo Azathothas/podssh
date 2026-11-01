@@ -20,7 +20,9 @@ pub(super) const UNIT_MARK: &str = "# Written by podssh node ";
 pub(super) fn service_args(args: &NodeArgs, name: &str, env_file: &Path) -> Result<Vec<String>, Refusal> {
     let mut words = vec!["node".to_string(), name.to_string()];
     words.extend(args.targets.iter().cloned());
-    for (flag, value) in [("--relay-addr", &args.relay_addr), ("--iroh-relay", &args.iroh_relay)] {
+    let values =
+        [("--relay-addr", &args.relay_addr), ("--iroh-relay", &args.iroh_relay), ("--derp-server", &args.derp_server)];
+    for (flag, value) in values {
         if let Some(value) = value {
             words.extend([flag.to_string(), value.clone()]);
         }
@@ -39,8 +41,14 @@ pub(super) fn service_args(args: &NodeArgs, name: &str, env_file: &Path) -> Resu
             words.extend([flag.to_string(), path.display().to_string()]);
         }
     }
-    for (flag, on) in [("--plain", args.plain), ("--iroh", args.iroh), ("--no-e2e", args.no_e2e), ("--sshd", args.sshd)]
-    {
+    let switches = [
+        ("--plain", args.plain),
+        ("--iroh", args.iroh),
+        ("--derp", args.derp),
+        ("--no-e2e", args.no_e2e),
+        ("--sshd", args.sshd),
+    ];
+    for (flag, on) in switches {
         if on {
             words.push(flag.to_string());
         }

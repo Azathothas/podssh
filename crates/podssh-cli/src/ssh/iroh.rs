@@ -9,6 +9,9 @@
 pub(crate) mod dial;
 #[cfg(feature = "iroh")]
 mod race;
+// The iroh road of the race of a node's roads (T-164, `super::roads`).
+#[cfg(feature = "iroh")]
+pub(crate) use race::IrohRoad;
 
 use super::node::Ask;
 use super::resolve::Transport;
@@ -186,30 +189,67 @@ pub(super) async fn connect(
     podssh_ssh::EXIT_FAILURE
 }
 
-/// SSH to the node of a pair, raced with its iroh road (T-164).
+/// The DERP ticket of a race names the node that the iroh ticket names: a
+/// node has one key for each road (T-379).
 #[cfg(feature = "iroh")]
-pub(super) async fn race_connect(
-    label: &str,
-    pair_file: Option<&str>,
-    trust: &Trust,
-    race_road: &Race,
-    ask: &crate::channel::Ask,
-    opts: &podssh_ssh::options::Options,
-    log: std::sync::Arc<podssh_ssh::Log>,
-) -> i32 {
-    race::connect(label, pair_file, trust, race_road, ask, opts, log).await
+pub(super) fn same_node(iroh_ticket: &str, derp: &podssh_relay::derp::Ticket) -> Result<(), Refusal> {
+    let addr = podssh_iroh::ticket::parse(iroh_ticket).map_err(Refusal::usage)?;
+    let iroh = podssh_iroh::keys::identity_key(&addr.id);
+    if iroh == derp.node {
+        return Ok(());
+    }
+    Err(Refusal::usage(format!(
+        "--iroh-ticket names the node {iroh} and --derp-ticket the node {}: give the tickets of one node",
+        derp.node
+    )))
 }
 
 #[cfg(not(feature = "iroh"))]
-pub(super) async fn race_connect(
-    _: &str,
-    _: Option<&str>,
-    _: &Trust,
-    _: &Race,
-    _: &crate::channel::Ask,
-    _: &podssh_ssh::options::Options,
-    log: std::sync::Arc<podssh_ssh::Log>,
-) -> i32 {
-    log.error(&not_built("--iroh-ticket"));
-    podssh_ssh::EXIT_FAILURE
+pub(super) fn same_node(_: &str, _: &podssh_relay::derp::Ticket) -> Result<(), Refusal> {
+    Err(Refusal::usage(not_built("--iroh-ticket")))
+}
+
+/// The iroh road is not in this build: no value of this type is made, as
+/// `--iroh-ticket` is refused before anything connects.
+#[cfg(not(feature = "iroh"))]
+#[allow(dead_code)]
+pub(crate) enum IrohRoad<'a> {
+    Never(std::convert::Infallible, std::marker::PhantomData<&'a ()>),
+}
+
+#[cfg(not(feature = "iroh"))]
+impl<'a> IrohRoad<'a> {
+    pub(crate) fn new(_: &'a Race, _: &'a Trust, _: &'a podssh_ssh::Log) -> Result<IrohRoad<'a>, String> {
+        Err(not_built("--iroh-ticket"))
+    }
+
+    pub(crate) fn node_key(&self) -> podssh_relay::identity::PublicKey {
+        match self {
+            IrohRoad::Never(never, _) => match *never {},
+        }
+    }
+
+    pub(crate) async fn link(&self) -> Result<super::roads::Road, String> {
+        match self {
+            IrohRoad::Never(never, _) => match *never {},
+        }
+    }
+
+    pub(crate) async fn refused(&self) -> bool {
+        match self {
+            IrohRoad::Never(never, _) => match *never {},
+        }
+    }
+
+    pub(crate) fn path(&self) -> Option<&'static str> {
+        match self {
+            IrohRoad::Never(never, _) => match *never {},
+        }
+    }
+
+    pub(crate) async fn close(&self) {
+        match self {
+            IrohRoad::Never(never, _) => match *never {},
+        }
+    }
 }
