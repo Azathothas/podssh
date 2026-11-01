@@ -112,7 +112,7 @@ and `CARGO_BUILD_JOBS=4`:
 
 ## Counts
 
-`TODO/INDEX.md` holds 375 entries: 19 open, 1 partial, 30 blocked, 325 done.
+`TODO/INDEX.md` holds 377 entries: 19 open, 2 partial, 31 blocked, 325 done.
 
 Open includes parked work. `cargo todo check` verifies this line.
 
@@ -133,6 +133,8 @@ of `SHA256SUMS`, each proven on the published files (`docs/STATUS.md`). The
 next beta follows the next batch of repairs that the testers should test
 again, at most one a day, so not before 2026-11-02 01:44 UTC, and once the
 gate is green on its commit.
+
+**First, the operator's request of 2026-11-01:** T-380, `--detach` (T-381 waits for Q61).
 
 **Now:** the entries of the audit, the study and the issues of 2026-10-31 (GitHub #59 to #63 and
 #69 to #76), the highest priority first: those of the rulings of 2026-10-31: T-353 (Q52); then those of
@@ -188,6 +190,19 @@ unattended session (Q13 to Q28) on 2026-10-08; the rulings are in
 that it blocks (status `blocked`) and a recommendation; the session then
 takes the next entry. Nothing is closed as out of scope until the operator
 rules.
+
+**Q61 (open, 2026-11-01): two readings for `--detach` (T-380, T-381).**
+(1) T-380 starts this binary again to go to the background, as `podssh
+session start` does since T-186; T-039 read rule 3 of `AGENTS.md` as
+forbidding a podssh started again as a helper, and Q22 says the rule is about
+podssh's own shims. Recommendation: confirm that this binary started again
+at the user's request (`--detach`, `-f`, `session start`) is no helper, and
+say so in rule 3; T-380 goes on under T-186's reading meanwhile. (2) T-381,
+blocked on this: may a detached podssh on Linux ask the user's systemd, over
+its socket of this host, for a scope of its own, so that logind's
+`KillUserProcesses` at a logout does not end it, as tmux does?
+Recommendation: yes, at ready only, natively over D-Bus, a failure a line;
+`PODSSH_SYSTEMD=no` turns it off.
 
 **Q60 (open, 2026-11-01): may the Tor road's live test reach the public Tor
 network?** It waits for this alone: the live run of T-353, whose Prove

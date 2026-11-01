@@ -2655,3 +2655,141 @@ port, -D on a port and podssh pipe tcp-listen: can listen here".
   backlog of a socket that listens and is refused by one that does not, on each Unix;
   `SO_ACCEPTCONN` stays a second witness on Linux. Planted again, `Listened` with no listen
   made: refused, "the socket does not listen: ... Connection refused", at the connect's check.
+
+# T-380: `--detach`: a run of podssh sent into the background by podssh itself
+
+**Source:** the operator, 2026-11-01: "a native/built in `--detach/--daemonize` or similar,
+currently we use `&` or `nohup`, but this is fragile in the environments where podssh is supposed
+to work", after a study (`docs/detach.md`).
+**Category:** feature
+**Milestone:** backlog
+**Priority:** P2
+**Effort:** L
+**Status:** partial
+
+## Problem
+
+A tunnel that must outlive its call (`podssh ssh -N -L ...`, a `podssh pipe` that listens, a
+`podssh node`) goes to the background by `&` or `nohup`. Each fails somewhere podssh runs: a
+closed pty's SIGHUP ends `&`; a background job that reads the terminal stops (SIGTTIN); a caller
+that reads to the end of its pipes waits for the job that holds them, or kills its group; `nohup`
+needs a writable directory and a program that busybox may lack. A login that fails shows only
+later, in a file, and `ssh -f`, OpenSSH's way, is refused.
+
+## Premise
+
+- Read: `-f` is a refused row (`crates/podssh-cli/src/flags.rs:261`), and
+  `ForkAfterAuthentication` a refused keyword that says to use `&`
+  (`crates/podssh-cli/src/ssh/keywords.rs:107`).
+- Read: `podssh session start` (T-186) starts this binary again, its child in a session of its
+  own (`setsid` in `pre_exec`), and returns at the child's line of ready
+  (`crates/podssh-cli/src/session/start.rs:47-64`); its child cannot prompt, as it left the
+  terminal at its start.
+- Read: Rust's standard library hands each inherited descriptor without close-on-exec to a
+  child, as no `close_range` is in its spawn (`docs/detach.md`, section 1); measured there, a
+  caller's extra pipe never saw its end. `start.rs:155-156` says the opposite of Unix.
+- Read: a run of `podssh ssh` reaches `Phase::Requested` after its login, with `-L` and `-D`
+  bound before anything connects (`crates/podssh-ssh/src/retry.rs:16-26`,
+  `crates/podssh-ssh/src/run.rs:204-211`); `podssh pipe` binds its listener in one place
+  (`crates/podssh-cli/src/pipe/serve.rs:87`).
+- Measured in the study: the Claude Code Bash tool's TaskStop kills each descendant of a living
+  parent, a new session's included, and spares one that PID 1 adopted; Codex CLI kills a group
+  whose pipes stay open; GitHub Actions kills, at a job's end, each process with its
+  `RUNNER_TRACKING_ID`.
+
+## Approach
+
+As `docs/detach.md`, section 4:
+
+1. `--detach` on `ssh`, `pipe` and `node`; `-f` and `ForkAfterAuthentication yes` on `ssh`, with
+   a command or `-N`, as OpenSSH's.
+2. The parent: the refusals that need no network, PID 1 refused (69), the hazards said; then this
+   binary again (`/proc/self/exe`, else `current_exe()`, else `argv[0]`) with `--detach-child`,
+   its stdout a pipe to the parent, its stdin and stderr the caller's; then the child's line of
+   ready, or its code.
+3. The child: each descriptor from 3 up closed and its signals reset at its start; the command
+   as in the foreground, prompts included; at ready, stdin to the null device, stderr to its log,
+   `setsid()` and SIGHUP ignored (Unix) or `FreeConsole()` (Windows), the line of ready, and
+   stdout to the null device.
+4. Windows: a group of its own, out of the caller's job where the job allows it, else in it with
+   a line.
+5. The manual, `docs/cli.md`, `SECURITY.md` (no CI's tracking variable is touched).
+
+## Decision
+
+- Started again, not forked: a fork once tokio runs is unsafe, and Windows has none. The rule
+  against helper processes is about podssh's own shims (Q22, `docs/decisions.md`), and T-186
+  starts this binary again for `session start`; T-039's reading of rule 3 (no podssh started
+  again as a helper) came before T-186 and lost to it. Q61 asks the operator to confirm. Lost: a
+  fork before the runtime, which no prompt could precede.
+- The child keeps the caller's terminal until ready, so that a password, a passphrase and a host
+  key are asked as in the foreground, and Ctrl-C before ready reaches both; it leaves at ready.
+  Lost: T-186's leave at the start, which no prompt can follow.
+- The channel of ready is the child's stdout, a pipe to the parent, as T-186's: no descriptor's
+  number crosses the command line, and Windows needs no handle list for it. Lost: a pipe of its
+  own named by a flag.
+- No deadline of the parent's own: each wait of the child has its own (the connection's, the
+  login's), and a prompt waits for its user as in the foreground. Lost: a deadline (75), which
+  would end a prompt that the user is still answering.
+- `ssh -f HOST CMD`: the command's output goes to the log, not the caller's stdout, which the
+  parent releases. Lost: OpenSSH's, which keeps the caller's stdout and so its pipe.
+- A CI's tracking variable is never removed: the user asked to outlive the caller, not the job.
+- The move out of a session's scope of systemd (logind's `KillUserProcesses`) is T-381, as it
+  needs a ruling (Q61) on a connection to the user's systemd.
+
+## Prove
+
+```sh
+export CARGO_BUILD_JOBS=4
+cargo test -p podssh-cli --lib detach
+cargo test -p podssh-cli --test detach
+```
+
+The caller's pipes end at once, an extra descriptor included; the child outlives a kill of the
+parent's group and a closed pty, in a session of its own; a failure before ready is the parent's
+code; PID 1 refuses. Planted: no close of the descriptors, no `setsid`, the parent exiting 0 at
+the start; each fails its test.
+
+# T-381: `--detach` on Linux leaves the session's scope of systemd, as tmux does
+
+**Source:** the study of T-380 (`docs/detach.md`, section 2, item 7).
+**Category:** feature
+**Milestone:** backlog
+**Priority:** P3
+**Effort:** M
+**Status:** blocked
+
+## Problem
+
+Where logind kills a session's processes at logout (`KillUserProcesses=yes`, the default upstream,
+`logind.conf(5)`), a detached podssh in the session's scope ends with the logout, as tmux and
+screen did until they moved themselves into a scope of the user's systemd.
+
+## Premise
+
+- Read in the study: tmux asks the user's systemd for a transient scope that holds its own pid
+  (`tmux/tmux:compat/systemd.c`), over D-Bus; systemd's own clients reach the user's manager at
+  `$XDG_RUNTIME_DIR/systemd/private`.
+- Read: rule 2 of `AGENTS.md` allows one outbound connection, and no helper on the loopback; a
+  connection to the user's systemd over a socket of this host is neither, and no ruling names it.
+
+## Approach
+
+After Q61: at ready, when `/proc/self/cgroup` names a `session-N.scope`, a native D-Bus call
+`StartTransientUnit` with the child's pid, then `/proc/self/cgroup` read again as its proof; a
+failure is a line, never the run's end.
+
+## Prove
+
+```sh
+export CARGO_BUILD_JOBS=4
+cargo test -p podssh-cli --lib detach::scope
+```
+
+In a session of systemd with lingering off: the detached child's cgroup is its own scope after
+ready, and it outlives a `loginctl terminate-session`.
+
+## Blocker
+
+The operator: Q61 (`TODO/PROGRESS.md`), whether a detached podssh may ask the user's systemd for
+a scope of its own.

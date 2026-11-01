@@ -62,15 +62,15 @@ repository and CI).
 
 ## Counts
 
-**375 entries: 19 open, 1 partial, 30 blocked, 325 done.**
+**377 entries: 19 open, 2 partial, 31 blocked, 325 done.**
 
 | Priority | open | partial | blocked | done | total |
 | --- | --- | --- | --- | --- | --- |
 | P0 | 0 | 0 | 0 | 1 | 1 |
 | P1 | 2 | 0 | 0 | 29 | 31 |
-| P2 | 2 | 0 | 21 | 163 | 186 |
-| P3 | 15 | 1 | 9 | 132 | 157 |
-| **All** | 19 | 1 | 30 | 325 | 375 |
+| P2 | 2 | 1 | 21 | 163 | 187 |
+| P3 | 15 | 1 | 10 | 132 | 158 |
+| **All** | 19 | 2 | 31 | 325 | 377 |
 
 ## Entries
 
@@ -451,3 +451,5 @@ repository and CI).
 | [T-377](ws.md) | P1 | S | none | defect | done | The keys of podssh's own AEAD ciphers outlive their use, since chacha20poly1305 0.11 |
 | [T-378](roads.md) | P3 | S | backlog | defect | done | The quick tunnel's loop over HTTP/2 may read the connection's end as its control stream's |
 | [T-379](roads.md) | P2 | L | backlog | feature | done | The DERP road in the command line, in the race of T-164, and as the fallback that Q50 allows |
+| [T-380](cli.md) | P2 | L | backlog | feature | partial | `--detach`: a run of podssh sent into the background by podssh itself |
+| [T-381](cli.md) | P3 | M | backlog | feature | blocked | `--detach` on Linux leaves the session's scope of systemd, as tmux does |
