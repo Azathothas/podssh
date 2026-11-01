@@ -75,7 +75,8 @@ pub(super) const NODE: &[&str] = &[
      connection to the relay is made again, after a growing wait. After a loss the relay can still \
      hold the old connection, and answer 409: the node then connects again for the time that it keeps \
      a session (10 minutes, or --resume-deadline), with a line for each 409. A 409 at the start means that another node \
-     serves the pair. stdout stays empty; notes go to stderr.",
+     serves the pair, or that the relay still holds the connection of the node that ran just before: the node \
+     connects again for 30 s, with a line for each 409, then exits 69. stdout stays empty; notes go to stderr.",
     "With --pair-file, the pair comes from FILE, in the form of the store, and the store is not used. \
      FILE must be a regular file of the user that nobody else can read.",
     "--detach sends the node into the background once it is online (a quick tunnel's, once registered; \

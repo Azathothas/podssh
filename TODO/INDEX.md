@@ -62,15 +62,15 @@ repository and CI).
 
 ## Counts
 
-**410 entries: 15 open, 2 partial, 32 blocked, 361 done.**
+**411 entries: 15 open, 2 partial, 32 blocked, 362 done.**
 
 | Priority | open | partial | blocked | done | total |
 | --- | --- | --- | --- | --- | --- |
 | P0 | 0 | 0 | 0 | 1 | 1 |
-| P1 | 1 | 1 | 0 | 38 | 40 |
+| P1 | 1 | 1 | 0 | 39 | 41 |
 | P2 | 1 | 0 | 21 | 177 | 199 |
 | P3 | 13 | 1 | 11 | 145 | 170 |
-| **All** | 15 | 2 | 32 | 361 | 410 |
+| **All** | 15 | 2 | 32 | 362 | 411 |
 
 ## Entries
 
@@ -486,3 +486,4 @@ repository and CI).
 | [T-412](reverse.md) | P2 | S | none | defect | done | The stand-in relay drops a frame of an unknown session, which the live relay answers with 1003 |
 | [T-413](ws.md) | P1 | S | none | defect | done | The test of DoH over HTTP/2 failed in CI: two equal bounds raced |
 | [T-414](roads.md) | P3 | S | none | feature | blocked | The quick tunnel keeps a second connection to the edge, to its other region |
+| [T-416](reverse.md) | P1 | S | none | defect | done | A node that starts right after the pair's last node ended meets 409 and exits |

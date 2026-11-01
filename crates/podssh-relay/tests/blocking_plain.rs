@@ -334,17 +334,56 @@ fn conflict_after_a_loss_connects_again_and_serves() {
     assert!(matches!(exit, Ok(Exit::Stopped)), "{exit:?}");
 }
 
-/// A `409` at the first registration: another node has the name, and the
-/// node exits at once, as before T-261.
+/// A `409` at the first registration for longer than its grace (2 s here,
+/// 30 s by default): another node has the name, and the node exits, after
+/// the grace (T-416).
 #[test]
-fn conflict_at_the_first_registration_exits() {
+fn conflict_at_the_first_registration_exits_after_its_grace() {
     let (stand_in, relay) = StandIn::new();
     std::thread::spawn(move || loop {
         stand_in.refuse(409, "reverse: a node is connected under this name");
     });
-    let exit =
-        in_time(move || client().run_node(&mut test_pair(&relay, NAME, 0), echo, &plain_node(), &Stopper::new()));
+    let options = NodeOptions {
+        settings: Settings { first_conflict: Duration::from_secs(2), ..Settings::default() },
+        channel: NodeChannel::Off,
+        ..NodeOptions::default()
+    };
+    let started = Instant::now();
+    let exit = in_time_within(REJOIN_LIMIT, move || {
+        client().run_node(&mut test_pair(&relay, NAME, 0), echo, &options, &Stopper::new())
+    });
     assert!(matches!(exit, Ok(Exit::NameInUse)), "{exit:?}");
+    assert!(started.elapsed() >= Duration::from_secs(2), "the node tried again for its 2 s: {:?}", started.elapsed());
+}
+
+/// A `409` at the first registration, as when the relay still holds the
+/// socket of the node that ran just before this one: the node connects
+/// again, and serves once the relay takes it (T-416). A node that exited at
+/// the first `409` would fail here: its predecessor's end would lock the
+/// server out until somebody started it again.
+#[test]
+fn conflict_at_the_first_registration_connects_again_and_serves() {
+    let (stand_in, relay) = StandIn::new();
+    let stopper = Stopper::new();
+    let relay_stopper = stopper.clone();
+    std::thread::spawn(move || {
+        stand_in.refuse(409, "reverse: a node is connected under this name");
+        stand_in.refuse(409, "reverse: a node is connected under this name");
+        let (_, mut peer) = stand_in.accept();
+        peer.text(&open(ID1));
+        assert_eq!(peer.next_text(), ready(ID1));
+        relay_stopper.stop();
+        while let Some(f) = peer.next(LIMIT) {
+            if f.opcode == frame::OPCODE_CLOSE {
+                peer.close(1000, "");
+                break;
+            }
+        }
+    });
+    let exit = in_time_within(REJOIN_LIMIT, move || {
+        client().run_node(&mut test_pair(&relay, NAME, 0), echo, &plain_node(), &stopper)
+    });
+    assert!(matches!(exit, Ok(Exit::Stopped)), "{exit:?}");
 }
 
 /// After a loss, a relay that answers `409` for longer than the node's

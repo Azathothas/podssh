@@ -134,7 +134,7 @@ tokens, in one run that prints no token. The gate shows that the feature adds no
 
 # T-079: The node runner
 
-**Source:** ROADMAP M4 (`docs/ROADMAP.md:150-158`); `docs/design.md` lines 94-97 at `0d92eef`; `docs/reverse.md:8-46`; GitHub #19
+**Source:** ROADMAP M4 (`docs/ROADMAP.md:150-158`); `docs/design.md` lines 94-97 at `0d92eef`; `docs/reverse.md:8-49`; GitHub #19
 (a design input). Read here on `3ee70dc`.
 **Category:** feature
 **Milestone:** M4
@@ -191,7 +191,7 @@ verified here).
    send an empty binary frame: under 32 bytes is `1009 bad multiplex frame` (`:182` of the contract).
    Pitfall: no idle read limit while no probe exists; the forward opener sets 90 s
    (`crates/podssh-relay/src/open.rs:345`), and a quiet socket would reconnect.
-6. Close actions, by code and reason (`docs/reverse.md:201-203`): `409`, exit, no retry;
+6. Close actions, by code and reason (`docs/reverse.md:205-207`): `409`, exit, no retry;
    `1001 operator stopped reverse relay`, exit and delete the pair; `1001 pair expired`, or a `403` after the
    stored expiry, a re-pair hook that is off by default; `1003` and `1009`, exit with the reason, never a loop;
    any other close, connect again with `open::backoff`.
@@ -271,7 +271,7 @@ sessions at once with T-080, compare the digests of 1 MiB each way, and stop the
 
 # T-080: The operator runner
 
-**Source:** ROADMAP M4 (`docs/ROADMAP.md:150-158`); `docs/design.md` lines 94-97 at `0d92eef`; `docs/reverse.md:82-203`.
+**Source:** ROADMAP M4 (`docs/ROADMAP.md:150-158`); `docs/design.md` lines 94-97 at `0d92eef`; `docs/reverse.md:86-207`.
 Read here on `3ee70dc`.
 **Category:** feature
 **Milestone:** M4
@@ -295,7 +295,7 @@ and `1009` exit with a code that is not zero. Use the code and the reason.
 Read: data before `ready` closes the operator with `1008 wait for ready`, a text frame from the
 operator closes it with `1003`, a frame carries at most 65536 bytes, and a session at most 64 MiB
 (`crates/podssh-probe/tests/spec/relay-spec-2026-10-03-r2.txt:141-148`, `:178-184`, `:190`, `:192`).
-The relay sends no keepalives on reverse sockets (`docs/reverse.md:34-42`).
+The relay sends no keepalives on reverse sockets (`docs/reverse.md:37-45`).
 
 Read: the codecs: `encode_operator_frame` and `chunk_for_bare`
 (crates/podssh-transport/src/framing/legs.rs lines 60-76 at `e8bbd4d`, lines 125-133), and `parse_operator_control`
@@ -318,7 +318,7 @@ fails on each close but `1000` (`Azathothas/podbox:crates/podbox-ssh/src/mux.rs`
    a text `close` keeps its reason. Never send a text frame.
 5. Outcome: `NeverReady { code, reason }`, `Ended { code, reason }` or `LocalEnd`. Never ready is a
    failure; `1000` after `ready` is success; each other code after `ready` is a failure that names
-   the code and the reason (`docs/reverse.md:198-203`).
+   the code and the reason (`docs/reverse.md:202-207`).
 6. End of input: send a Close `1000`, and wait up to 10 s for the relay's answer, so the last bytes
    arrive.
 7. Liveness as in T-079: `watch_liveness` only if the relay answers a Ping on this leg; no idle read
@@ -736,7 +736,7 @@ Read: the relay names an agent-created pair; only an admitted name is chosen, by
 (`crates/podssh-probe/tests/spec/relay-spec-2026-10-03-r2.txt:90-91`, `:130-134`). In the measured sandbox
 nothing can listen, and `connect()` to loopback failed with `EACCES` (`docs/target-environment.md:22`, `:25`).
 So a local TCP TARGET exists only where the host allows it; `podssh serve` (M5) serves in the process
-(`docs/reverse.md:43-46`).
+(`docs/reverse.md:46-49`).
 
 ## Approach
 
@@ -1320,7 +1320,7 @@ Read: the library crates must build with no C compiler (`AGENTS.md:267-269`, `sc
    the gate before it is chosen; else RustCrypto parts with the IK handshake written here, and the
    test vectors of the Noise specification.
 3. Messages: each Noise message at most 65535 bytes, with a length prefix, inside the session's
-   bytes. The relay's frames on the operator leg stay bare (`docs/reverse.md:84`).
+   bytes. The relay's frames on the operator leg stay bare (`docs/reverse.md:88`).
 4. Layers with M6 (T-151, T-153): either Noise for each connection under the resumable layer (a
    resume makes a new handshake and proves the resume secret inside it), or above it. Decide in
    T-151, and record the choice in `docs/design.md` (section 5).
@@ -1451,7 +1451,7 @@ only `share PORT` opens a port.
 Read: one name holds one node socket
 (`crates/podssh-probe/tests/spec/relay-spec-2026-10-03-r2.txt:152-154`); tokens are scoped to a name
 and a role (`:128-129`). The operator leg has no framing, so a route cannot travel in the relay's
-frames (`docs/reverse.md:84`). Data needs `ready` first (`crates/podssh-probe/tests/spec/relay-spec-2026-10-03-r2.txt:180`), and `ready` comes
+frames (`docs/reverse.md:88`). Data needs `ready` first (`crates/podssh-probe/tests/spec/relay-spec-2026-10-03-r2.txt:180`), and `ready` comes
 after the local side accepts (`docs/reverse.md:16`). So a route that the operator names reaches the
 node only after `ready`.
 
@@ -1686,7 +1686,7 @@ upgrade, 72 h at most (`docs/relay.md:181-185`); `POST /v1/pair` gives the three
 (`docs/relay.md:326-329`). The contract scopes reverse tokens to a name and a role, and states no single use and
 no binding to a peer (`crates/podssh-probe/tests/spec/relay-spec-2026-10-03-r2.txt:128-129`). A new mint secret
 ends each token at once (`docs/relay.md:314-316`). A text frame from the operator closes its socket with
-`1003`, and the operator leg carries no framing (`docs/relay.md:343-346`, `docs/reverse.md:84`).
+`1003`, and the operator leg carries no framing (`docs/relay.md:343-346`, `docs/reverse.md:88`).
 
 Measured: `grep -rni sshsig crates scripts docs Cargo.toml` finds nothing (exit 1). The wider `sign(` hits are
 tests of primitives (`crates/podssh-ws/tests/crypto_vectors.rs:125-159`,
@@ -2129,3 +2129,62 @@ login: passed; planted, the node's end at the fault: the test failed ("the node 
 fault"). `docs/reverse.md` says the rule. The race that sends the frame (T-388's, still seen from
 GitHub's network) is T-410; `relay-live.yml` now prints the node's lines for it.
 
+
+# T-416: A node that starts right after the pair's last node ended meets 409 and exits
+
+**Source:** the run of `box.yml` (`run: chat`, job 124857212234 on `draft/t251-plants-2`,
+2026-11-01), from GitHub's runner: box B's second node (`b2`) started at once after the first
+(`b1`) quit, and printed "another node serves this pair (409), or the relay held this node's lost
+socket for too long"; "FAIL: box A exited 22".
+**Category:** defect
+**Milestone:** none
+**Priority:** P1
+**Effort:** S
+**Status:** done
+
+## Problem
+
+The relay holds a node's socket for a moment after the node ends. A node of the same pair that
+starts in that moment (a restart by a service manager, a script that starts the next node, a
+second `--detach` after a stop) meets `409` at its first registration, and exits. A server that
+only the node reaches is then locked out until somebody starts it again.
+
+## Premise
+
+- Read: the `409` arm of `run` gave `Exit::NameInUse` when the node had lost no socket
+  (`crates/podssh-relay/src/reverse/node.rs:219-237`); only after a loss did it connect again.
+- Measured: the run of job 124857212234: `b2` exited at its first `409`.
+
+## Approach
+
+`Settings::first_conflict` (30 s, `crates/podssh-relay/src/reverse/serve.rs`): a `409` at the
+first registration is taken as the old socket that the relay still holds, and the node connects
+again with the jittered backoff for that time from the first `409`, with a line for each, then
+exits as before. A node of the pair that really serves still keeps the name: the new one ends
+after 30 s. The rule of `docs/reverse.md` and the manual's notes of `podssh node` say it.
+
+## Decision
+
+30 s, not the 10 minutes of a lost socket: a second node of a pair that serves must still end
+soon with the words that say why, and the relay frees a closed node's name in well under a
+second. Lost: retry for ever (a second node would hang with no word), and no retry (the defect).
+
+## Prove
+
+```sh
+export CARGO_BUILD_JOBS=4
+cargo test -p podssh-cli --test node_restart
+cargo test -p podssh-relay --features blocking,plain-ws --test blocking_plain
+```
+
+## Done
+
+2026-11-01: a node connects again for 30 s after a `409` at its first registration.
+`crates/podssh-relay/src/reverse/node.rs`, the `409` arm; `serve.rs`, `Settings::first_conflict`
+and `FIRST_CONFLICT`. `tests/node_restart.rs`,
+`a_node_that_meets_409_at_its_start_connects_again_and_serves_once_the_old_socket_ends`: the
+second node said the `409`, stayed up, and served a login once the first was killed: passed;
+planted, `first_conflict` zero: the node exited 69 at the `409`, and the test failed.
+`blocking_plain.rs`: `conflict_at_the_first_registration_exits_after_its_grace` (2 s) and
+`conflict_at_the_first_registration_connects_again_and_serves` passed; the plant failed the
+second. box.yml's chat run on the runner waits for the merge of `draft/t251-plants-2` (T-251).

@@ -130,10 +130,12 @@ pub fn after_close(close: &RelayClose) -> Next {
 /// the node ended with: a new one after a re-pair.
 ///
 /// A `409` at the first registration means that another node has the name,
-/// and the node exits. After a loss it means that the relay still holds the
-/// old socket: the node connects again until `Settings::rejoin` after the
-/// loss, as the sessions that the resumable layer keeps wait that long
-/// (T-261; rule 6 of `docs/reverse.md`).
+/// or that the relay still holds the socket of the node that ran just before
+/// this one: the node connects again for `Settings::first_conflict`, then
+/// exits (T-416). After a loss it means that the relay still holds the old
+/// socket: the node connects again until `Settings::rejoin` after the loss,
+/// as the sessions that the resumable layer keeps wait that long (T-261;
+/// rule 6 of `docs/reverse.md`).
 pub async fn run<H, F>(config: &mut NodeConfig<'_>, handler: Arc<H>, stop: F) -> Exit
 where
     H: Handler,
@@ -143,6 +145,8 @@ where
     let mut retry: u32 = 0;
     // When the node last lost a socket that it held.
     let mut lost: Option<Instant> = None;
+    // When the relay first answered `409` to a node that had held no socket.
+    let mut first_conflict: Option<Instant> = None;
     loop {
         let path = match crate::relay::node_path(&config.pair.name) {
             Ok(path) => path,
@@ -213,19 +217,23 @@ where
                 | ConnectError::Dial(DialError::BadProxy(why) | DialError::InvalidTarget(why)),
             ) => return Exit::Unusable(why),
             Err(ConnectError::Refused { status: 409, .. }) => {
-                let left = lost.map(|at| config.settings.rejoin.saturating_sub(at.elapsed()));
-                match left {
-                    Some(left) if !left.is_zero() => {
-                        if let Some(say) = config.say {
-                            say(format!(
-                                "the relay still holds the node's lost socket (409); connecting again, for {} s more",
-                                left.as_secs()
-                            ));
-                        }
-                        Next::Reconnect
+                let (left, why) = match lost {
+                    Some(at) => (config.settings.rejoin.saturating_sub(at.elapsed()), "the node's lost socket"),
+                    None => {
+                        let since = *first_conflict.get_or_insert_with(Instant::now);
+                        (
+                            config.settings.first_conflict.saturating_sub(since.elapsed()),
+                            "another node's socket, or the socket of the node that ran before this one",
+                        )
                     }
-                    _ => return Exit::NameInUse,
+                };
+                if left.is_zero() {
+                    return Exit::NameInUse;
                 }
+                if let Some(say) = config.say {
+                    say(format!("the relay still holds {why} (409); connecting again, for {} s more", left.as_secs()));
+                }
+                Next::Reconnect
             }
             Err(ConnectError::Refused { status: 403, .. }) if expired(&config.pair) => Next::Repair,
             Err(ConnectError::Refused { status: 403, .. }) => return Exit::Forbidden,
