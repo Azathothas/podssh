@@ -20,6 +20,7 @@ use std::sync::OnceLock;
 
 mod child;
 mod hazards;
+pub mod supervise;
 
 pub use child::{keep_own_handles, prepare_process, ready};
 
@@ -30,6 +31,7 @@ pub const CHILD_FLAG: &str = "--detach-child";
 const READY: &str = "podssh-detached ready";
 
 static CHILD: AtomicBool = AtomicBool::new(false);
+static SUPERVISOR: AtomicBool = AtomicBool::new(false);
 static ARGS: OnceLock<Vec<OsString>> = OnceLock::new();
 
 /// Whether this process is a detached child, before its ready or after it.
@@ -37,24 +39,35 @@ pub fn is_child() -> bool {
     CHILD.load(Ordering::SeqCst)
 }
 
-/// `args` without [`CHILD_FLAG`], which makes this process a child; the
-/// words are kept, to start the run again.
+/// Whether this process is the supervisor of a run of `--restart` (T-390).
+pub fn is_supervisor() -> bool {
+    SUPERVISOR.load(Ordering::SeqCst)
+}
+
+/// `args` without [`CHILD_FLAG`], which makes this process a child, or
+/// [`supervise::SUPERVISE_FLAG`], which makes it a supervisor; the words are
+/// kept, to start the run again.
 pub fn take_child_flag(args: Vec<OsString>) -> Vec<OsString> {
-    let (child, args) = split_child_flag(args);
-    if child {
-        CHILD.store(true, Ordering::SeqCst);
-    }
+    let (supervisor, args) = split_flag(args, supervise::SUPERVISE_FLAG);
+    let (child, args) = if supervisor { (false, args) } else { split_child_flag(args) };
+    CHILD.store(child, Ordering::SeqCst);
+    SUPERVISOR.store(supervisor, Ordering::SeqCst);
     let _ = ARGS.set(args.clone());
     args
 }
 
 /// Whether `args` begin with [`CHILD_FLAG`], and the words after it.
-fn split_child_flag(mut args: Vec<OsString>) -> (bool, Vec<OsString>) {
-    let child = args.first().is_some_and(|a| a == CHILD_FLAG);
-    if child {
+fn split_child_flag(args: Vec<OsString>) -> (bool, Vec<OsString>) {
+    split_flag(args, CHILD_FLAG)
+}
+
+/// Whether `args` begin with `flag`, and the words after it.
+fn split_flag(mut args: Vec<OsString>, flag: &str) -> (bool, Vec<OsString>) {
+    let found = args.first().is_some_and(|a| a == flag);
+    if found {
         args.remove(0);
     }
-    (child, args)
+    (found, args)
 }
 
 /// In a detached child of `podssh ssh`: ready once the run's request went
@@ -102,10 +115,11 @@ pub(crate) fn binaries() -> Vec<PathBuf> {
 }
 
 /// Send the run of `verb` into the background: the parent's whole part.
-/// Its code: 0 once the child is ready; the child's own when it ended
-/// first; 69 where a detached run cannot outlive this one; 70 when this
-/// binary cannot start itself.
-pub fn start(verb: &str, err: &mut dyn Write) -> i32 {
+/// With `restart`, a supervisor goes between, which starts the run again
+/// whenever it ends (T-390). Its code: 0 once the child is ready; the
+/// child's own when it ended first; 69 where a detached run cannot outlive
+/// this one; 70 when this binary cannot start itself.
+pub fn start(verb: &str, restart: bool, err: &mut dyn Write) -> i32 {
     if let Some(why) = hazards::refusal() {
         let _ = writeln!(err, "podssh {verb}: --detach: {why}");
         return crate::exitmap::sysexits::EX_UNAVAILABLE;
@@ -121,7 +135,7 @@ pub fn start(verb: &str, err: &mut dyn Write) -> i32 {
     for program in binaries() {
         let mut cmd = Command::new(&program);
         child::name_it(&mut cmd);
-        cmd.arg(CHILD_FLAG).args(args);
+        cmd.arg(if restart { supervise::SUPERVISE_FLAG } else { CHILD_FLAG }).args(args);
         cmd.stdin(Stdio::inherit()).stdout(Stdio::piped()).stderr(Stdio::inherit());
         keep_own_handles();
         match child::spawn(&mut cmd, &mut |line| {

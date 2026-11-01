@@ -240,6 +240,11 @@ pub const VARIABLES: &[(&[&str], &str)] = &[
         "Where podssh man looks for less, podssh edit for vi, and podssh doctor for directories that run programs.",
     ),
     (
+        &["PODSSH_DETACH_LOG"],
+        "podssh's own, for the run that a supervisor of --restart starts: the log that each of its runs \
+      writes, the supervisor's. Set by podssh; a user has no need to set it.",
+    ),
+    (
         &["PODSSH_LISTEN"],
         "no: podssh pipe listens on nothing, and unix-listen:, tcp-listen:, http-listen: and ws-listen: exit 78 \
       before any bind; so do podssh session start and serve. Else they listen where the bind works.",

@@ -284,7 +284,7 @@ nothing, and a host that does not start TLS, each cost the 20 s limit before the
 4. Print one note for each moved host: "trying HOST last: it failed N s ago (REASON)".
 5. Ignore a record with a time in the future (a clock that moved).
 6. `doctor` and `status` (T-051) show the records. State the window in THE RELAY section of the
-   manual (`crates/podssh-cli/src/man/facts.rs:313-326`) and in `docs/relay.md:50-93`.
+   manual (`crates/podssh-cli/src/man/facts.rs:318-331`) and in `docs/relay.md:50-93`.
 7. This is retry policy across runs. T-220 shortens the wait inside one run; the two work
    together.
 
@@ -346,7 +346,7 @@ after each round at `crates/podssh-relay/src/open.rs:245-251`; the race
 gives the silent hosts at `crates/podssh-relay/src/failover.rs:245-248`.
 `podssh status` at `crates/podssh-cli/src/status.rs:95-99`, `podssh
 doctor` at `crates/podssh-cli/src/doctor/mod.rs:99-109`, THE RELAY in the
-manual at `crates/podssh-cli/src/man/facts.rs:344-354`, and
+manual at `crates/podssh-cli/src/man/facts.rs:349-359`, and
 `docs/relay.md` and `docs/cli.md`.
 
 The unit tests of `crates/podssh-relay/src/failures_tests.rs`, 5: a host
@@ -790,9 +790,9 @@ listener" (lines 86-88 at `22c3b88`), and the ruling on Q10 allows more than one
    (line 186 at `22c3b88`) stays a note of the run. `Failure` keeps each error; `Opened.relay` and the log
    name the host that was kept. tokio's `select!` and `JoinSet` need no new crate and no C.
 7. Add the flag to `SSH_FLAGS`, `PROXY_FLAGS` and `DOCTOR_FLAGS`
-   (`crates/podssh-cli/src/flags.rs:112-290`, 323-343) and to `ONCE`
-   (`crates/podssh-cli/src/ssh/args.rs:145-170`); the variable to VARIABLES and the modes to THE
-   RELAY (`crates/podssh-cli/src/man/facts.rs:45-266`, 170-183); both to `docs/relay.md:50-93`.
+   (`crates/podssh-cli/src/flags.rs:112-292`, 323-343) and to `ONCE`
+   (`crates/podssh-cli/src/ssh/args.rs:147-172`); the variable to VARIABLES and the modes to THE
+   RELAY (`crates/podssh-cli/src/man/facts.rs:45-271`, 170-183); both to `docs/relay.md:50-93`.
 8. T-059 orders the hosts across runs; this entry shortens the wait in one run. GitHub #25 asks
    for a circuit breaker: retry policy, not overlap.
 

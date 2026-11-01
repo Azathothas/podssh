@@ -38,6 +38,11 @@ fn free_port() -> u16 {
 /// `podssh pipe --detach` in `job`, to the target: its exit code and
 /// stderr, once it returned.
 fn detached_in(job: &Job, home: &std::path::Path, listen: u16, to: u16) -> (Option<i32>, String) {
+    detached_with(job, home, listen, to, "")
+}
+
+/// [`detached_in`], with `extra` words after `--detach`.
+fn detached_with(job: &Job, home: &std::path::Path, listen: u16, to: u16, extra: &str) -> (Option<i32>, String) {
     let podssh = env!("CARGO_BIN_EXE_podssh");
     let mut cmd = Command::new("cmd");
     cmd.env("PODSSH_CACHE_DIR", home.join("cache"))
@@ -48,7 +53,7 @@ fn detached_in(job: &Job, home: &std::path::Path, listen: u16, to: u16) -> (Opti
     for name in ["HTTPS_PROXY", "https_proxy", "ALL_PROXY", "all_proxy", "PODSSH_LISTEN"] {
         cmd.env_remove(name);
     }
-    let line = format!("\"{podssh}\" pipe --detach tcp-listen:127.0.0.1:{listen} tcp:127.0.0.1:{to}");
+    let line = format!("\"{podssh}\" pipe --detach {extra} tcp-listen:127.0.0.1:{listen} tcp:127.0.0.1:{to}");
     let mut child = job.run(cmd, &line);
     let deadline = Instant::now() + LIMIT;
     while child.try_wait().unwrap().is_none() {
@@ -173,5 +178,37 @@ fn a_job_that_allows_no_breakaway_is_said_and_ends_the_child() {
     drop(job);
     std::thread::sleep(Duration::from_millis(500));
     assert_eq!(greeting(listen), None, "the child outlived a job that allows no breakaway: {err}");
+    let _ = std::fs::remove_dir_all(&home);
+}
+
+/// `--restart` on Windows (T-390): the supervisor starts the pipe again
+/// after the run is killed, and the port serves again.
+#[test]
+fn a_restarted_run_comes_back_after_a_kill() {
+    let home = scratch("restart");
+    let (to, listen) = (target(), free_port());
+    let job = Job::new(true);
+    let (code, err) = detached_with(&job, &home, listen, to, "--restart");
+    let supervisor = Stopped::of(&err);
+    assert_eq!(code, Some(0), "{err}");
+    let run: u32 = err
+        .split("which restarts the run of pid ")
+        .nth(1)
+        .and_then(|rest| rest.split(|c: char| !c.is_ascii_digit()).next()?.parse().ok())
+        .unwrap_or_else(|| panic!("the parent names the run: {err}"));
+    assert_eq!(greeting(listen).as_deref(), Some("target says hi\n"), "{err}");
+    let killed = Command::new("taskkill").args(["/PID", &run.to_string(), "/F"]).output().unwrap();
+    assert!(killed.status.success(), "{}", String::from_utf8_lossy(&killed.stderr));
+    std::thread::sleep(Duration::from_millis(500));
+    let deadline = Instant::now() + LIMIT;
+    while greeting(listen).as_deref() != Some("target says hi\n") {
+        assert!(Instant::now() < deadline, "the run did not come back within {LIMIT:?}");
+        std::thread::sleep(Duration::from_millis(500));
+    }
+    // The supervisor and the runs that it started end together.
+    if let Some(pid) = supervisor.0 {
+        let _ = Command::new("taskkill").args(["/T", "/F", "/PID", &pid.to_string()]).output();
+    }
+    drop(job);
     let _ = std::fs::remove_dir_all(&home);
 }

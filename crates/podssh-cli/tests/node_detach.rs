@@ -156,3 +156,150 @@ fn a_node_whose_stderr_fails_goes_on_serving() {
         assert!(node.0.try_wait().unwrap().is_none(), "with stderr on {sink_name}, the node ended after two logins");
     }
 }
+
+/// Whether a process of this pid lives (a zombie counts until it is reaped).
+fn alive(pid: i32) -> bool {
+    // SAFETY: signal 0 checks for the process and sends nothing.
+    unsafe { libc::kill(pid, 0) == 0 }
+}
+
+/// The number after `word` in `text`.
+fn number_after(text: &str, word: &str) -> Option<i32> {
+    let at = text.find(word)? + word.len();
+    text[at..].split(|c: char| !c.is_ascii_digit()).next()?.parse().ok()
+}
+
+/// `--detach --restart` (T-390): a supervisor in the background starts the
+/// node again after a kill, and a client logs in through the new node; a
+/// SIGTERM to the supervisor ends both.
+#[test]
+fn a_restarted_node_comes_back_after_a_kill() {
+    let session = Session::start("restart");
+    let cell = match Cell::fake_relay_mode(&session, "normal", "the stand-in relay") {
+        Ok(cell) => cell,
+        Err((_, why)) => {
+            eprintln!("did not run: {why}");
+            return;
+        }
+    };
+    let at = |flag: &str| cell.args.iter().position(|a| a == flag).map(|i| cell.args[i + 1].clone()).unwrap();
+    let (relay, ca) = (at("--relay-host"), at("--ca-file"));
+    let pins = ["--relay-addr".to_string(), "relay-a.test=127.0.0.1".to_string()];
+    let command = |args: &[String]| session.stand_in(args, &ca);
+    let mut args = vec!["relay".to_string(), "pair".into(), "lab".into(), "--relay-host".into(), relay];
+    args.extend(pins.iter().cloned());
+    let out = command(&args).stdin(Stdio::null()).output().unwrap();
+    assert!(out.status.success(), "podssh relay pair: {}", String::from_utf8_lossy(&out.stderr));
+    let mut args = vec!["node".to_string(), "lab".into(), format!("127.0.0.1:{}", session.port)];
+    args.extend(["--detach".into(), "--restart".into()]);
+    args.extend(pins.iter().cloned());
+    let out = within(command(&args).stdin(Stdio::null()).stdout(Stdio::piped()).stderr(Stdio::piped()));
+    let err = String::from_utf8_lossy(&out.stderr).into_owned();
+    assert_eq!(out.status.code(), Some(0), "{err}");
+    let supervisor = number_after(&err, "in the background, pid ").expect("the parent names the supervisor");
+    let first = number_after(&err, "which restarts the run of pid ").expect("and the run");
+    let log = err.split("its log ").nth(1).map(|l| l.lines().next().unwrap_or("").trim().to_string());
+    struct Ends(Vec<i32>);
+    impl Drop for Ends {
+        fn drop(&mut self) {
+            for pid in &self.0 {
+                // SAFETY: a signal to the test's own detached processes.
+                unsafe { libc::kill(*pid, libc::SIGKILL) };
+            }
+        }
+    }
+    let mut ends = Ends(vec![supervisor, first]);
+    let mut login = vec!["ssh".to_string()];
+    login.extend(session.common());
+    login.extend(pins.iter().cloned());
+    login.extend(["node://tester@lab".to_string(), "greet".into()]);
+    let logs_in = |within: std::time::Duration| {
+        let deadline = std::time::Instant::now() + within;
+        loop {
+            let out = command(&login).stdin(Stdio::null()).output().unwrap();
+            if out.status.code() == Some(0) && String::from_utf8_lossy(&out.stdout) == ssh_harness::GREETING {
+                return;
+            }
+            assert!(std::time::Instant::now() < deadline, "no login: {}", String::from_utf8_lossy(&out.stderr));
+            std::thread::sleep(std::time::Duration::from_millis(500));
+        }
+    };
+    logs_in(std::time::Duration::from_secs(20));
+    // SAFETY: a signal to the test's own detached node.
+    unsafe { libc::kill(first, libc::SIGKILL) };
+    logs_in(std::time::Duration::from_secs(60));
+    assert!(alive(supervisor), "the supervisor goes on");
+    let text = log.as_deref().and_then(|l| std::fs::read_to_string(l).ok()).unwrap_or_default();
+    let second = number_after(&text, "run 2 started, pid ").expect("the log names the new run");
+    ends.0.push(second);
+    assert!(text.contains("the run ended (signal 9)"), "{text}");
+    // A stop of the supervisor ends the run too.
+    // SAFETY: as above.
+    unsafe { libc::kill(supervisor, libc::SIGTERM) };
+    let deadline = std::time::Instant::now() + std::time::Duration::from_secs(20);
+    while alive(second) || alive(supervisor) {
+        assert!(std::time::Instant::now() < deadline, "a stopped supervisor ends its run within 20 s");
+        std::thread::sleep(std::time::Duration::from_millis(100));
+    }
+}
+
+/// A supervisor that dies leaves its run serving: no PDEATHSIG, so the
+/// supervisor is never one more way to lose the tunnel (T-390).
+#[test]
+fn a_killed_supervisor_leaves_its_node_serving() {
+    let session = Session::start("orphan");
+    let cell = match Cell::fake_relay_mode(&session, "normal", "the stand-in relay") {
+        Ok(cell) => cell,
+        Err((_, why)) => {
+            eprintln!("did not run: {why}");
+            return;
+        }
+    };
+    let at = |flag: &str| cell.args.iter().position(|a| a == flag).map(|i| cell.args[i + 1].clone()).unwrap();
+    let (relay, ca) = (at("--relay-host"), at("--ca-file"));
+    let pins = ["--relay-addr".to_string(), "relay-a.test=127.0.0.1".to_string()];
+    let command = |args: &[String]| session.stand_in(args, &ca);
+    let mut args = vec!["relay".to_string(), "pair".into(), "lab".into(), "--relay-host".into(), relay];
+    args.extend(pins.iter().cloned());
+    assert!(command(&args).stdin(Stdio::null()).output().unwrap().status.success());
+    let mut args = vec!["node".to_string(), "lab".into(), format!("127.0.0.1:{}", session.port)];
+    args.extend(["--detach".into(), "--restart".into()]);
+    args.extend(pins.iter().cloned());
+    let out = within(command(&args).stdin(Stdio::null()).stdout(Stdio::piped()).stderr(Stdio::piped()));
+    let err = String::from_utf8_lossy(&out.stderr).into_owned();
+    assert_eq!(out.status.code(), Some(0), "{err}");
+    let supervisor = number_after(&err, "in the background, pid ").unwrap();
+    let run = number_after(&err, "which restarts the run of pid ").unwrap();
+    struct Ends([i32; 2]);
+    impl Drop for Ends {
+        fn drop(&mut self) {
+            for pid in self.0 {
+                // SAFETY: a signal to the test's own detached processes.
+                unsafe { libc::kill(pid, libc::SIGKILL) };
+            }
+        }
+    }
+    let _ends = Ends([supervisor, run]);
+    // SAFETY: as above.
+    unsafe { libc::kill(supervisor, libc::SIGKILL) };
+    std::thread::sleep(std::time::Duration::from_secs(1));
+    assert!(alive(run), "the run outlives its supervisor");
+    let mut login = vec!["ssh".to_string()];
+    login.extend(session.common());
+    login.extend(pins.iter().cloned());
+    login.extend(["node://tester@lab".to_string(), "greet".into()]);
+    let out = command(&login).stdin(Stdio::null()).output().unwrap();
+    assert_eq!(out.status.code(), Some(0), "{}", String::from_utf8_lossy(&out.stderr));
+}
+
+#[test]
+fn restart_without_detach_is_a_usage_error() {
+    let out = std::process::Command::new(env!("CARGO_BIN_EXE_podssh"))
+        .args(["node", "lab", "127.0.0.1:22", "--restart"])
+        .env("PODSSH_CACHE_DIR", "none")
+        .stdin(Stdio::null())
+        .output()
+        .unwrap();
+    assert_eq!(out.status.code(), Some(64), "{}", String::from_utf8_lossy(&out.stderr));
+    assert!(String::from_utf8_lossy(&out.stderr).contains("give --detach too"));
+}

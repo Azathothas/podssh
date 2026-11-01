@@ -941,6 +941,26 @@ already on the caller's stderr; Ctrl-C before ready reaches both.
   kills a session's processes at logout (T-381, which waits for the
   operator's ruling Q61).
 
+**`--restart`** (T-390, from the study of the daemonizer d-mon): a server
+that only a detached tunnel reaches is locked out when the run ends, by a
+crash, an abort or the OOM killer. With `--restart` beside `--detach` (or
+`-f`), the parent starts a small supervisor in the child's place
+(`--detach-supervise` first, a form that podssh alone writes), which starts
+the child, passes on its prompts, lines and ready, then leaves the terminal
+itself; the parent prints the supervisor's pid, the run's, and the log.
+The supervisor holds no runtime and no connection. Once the run was ready,
+it starts the run again after each end, with the relay's backoff (1 s
+doubling to 30 s, jittered), the count reset after a run of 30 s, and it
+never gives up; it does not restart after 64, 77 or 78, which a new start
+would repeat, nor after its own SIGTERM or SIGINT, which it passes to the
+run (SIGKILL after 10 s). A restarted run has no terminal: its stdin is the
+null device, and its lines go to the same log, each restart a line. A run
+that ends before its first ready ends the supervisor with its code, as
+without `--restart`. Not adopted from d-mon: PDEATHSIG (a supervisor that is
+killed leaves the run going), a cap of restarts over the run's whole life,
+and a restart before the first ready. Without `--detach` it is refused (64).
+On Windows the supervisor's end leaves the run; it has no signal to pass.
+
 ## `podssh each`
 
 `podssh each [OPTIONS] HOSTS [--] COMMAND...` runs one command on each host

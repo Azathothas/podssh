@@ -20,7 +20,7 @@ pub const LOG_CAP: u64 = 1 << 20;
 /// and the actions of INT, TERM and QUIT are reset, as a child inherits
 /// them. Elsewhere nothing.
 pub fn prepare_process(args: &[OsString]) {
-    if args.first().is_some_and(|a| a == super::CHILD_FLAG) {
+    if args.first().is_some_and(|a| a == super::CHILD_FLAG || a == super::supervise::SUPERVISE_FLAG) {
         #[cfg(unix)]
         unix::prepare();
     }
@@ -40,15 +40,7 @@ pub fn ready(verb: &str) {
     let shown = path.as_ref().map_or_else(|| "none".to_string(), |p| p.display().to_string());
     let line = format!("{} pid {}, its log {shown}\n", super::READY, std::process::id());
     let file = log.map(|(_, file)| file);
-    // What the run wrote on stdout before ready goes to the parent first.
-    let _ = std::io::stdout().flush();
-    #[cfg(unix)]
-    let said = unix::leave(file.as_ref(), line.as_bytes());
-    #[cfg(windows)]
-    let said = windows::leave(file.as_ref(), line.as_bytes());
-    #[cfg(not(any(unix, windows)))]
-    let said = std::io::stdout().write_all(line.as_bytes()).is_ok();
-    if !said {
+    if !leave(file.as_ref(), line.as_bytes()) {
         std::process::exit(crate::exitmap::sysexits::EX_TEMPFAIL);
     }
     if let (Some(path), Some(file)) = (path, file) {
@@ -56,10 +48,32 @@ pub fn ready(verb: &str) {
     }
 }
 
-/// `detached/VERB-PID.log` in the first of the cache's directories that can
-/// be made private, created with mode 0600; none with `PODSSH_CACHE_DIR=none`.
-fn log_file(verb: &str) -> Option<(PathBuf, std::fs::File)> {
+/// The step of ready: the caller's terminal and streams left (stdin to the
+/// null device, stdout and stderr to `log`), then `line` to the parent on
+/// the pipe that was stdout. Whether the line went.
+pub(super) fn leave(log: Option<&std::fs::File>, line: &[u8]) -> bool {
+    // What the run wrote on stdout before ready goes to the parent first.
+    let _ = std::io::stdout().flush();
+    #[cfg(unix)]
+    let said = unix::leave(log, line);
+    #[cfg(windows)]
+    let said = windows::leave(log, line);
+    #[cfg(not(any(unix, windows)))]
+    let said = std::io::stdout().write_all(line).is_ok();
+    said
+}
+
+/// The log of a supervisor's child: the supervisor's own (T-390), when it
+/// opens; else `detached/VERB-PID.log` in the first of the cache's
+/// directories that can be made private, created with mode 0600; none with
+/// `PODSSH_CACHE_DIR=none`.
+pub(super) fn log_file(verb: &str) -> Option<(PathBuf, std::fs::File)> {
     use podssh_relay::cache::{candidate_dirs, private_dir};
+    if let Some(path) = std::env::var_os(super::supervise::LOG_VARIABLE).map(PathBuf::from) {
+        if let Ok(file) = open_private(&path) {
+            return Some((path, file));
+        }
+    }
     for dir in candidate_dirs() {
         let dir = dir.join("detached");
         if private_dir(&dir).is_err() {

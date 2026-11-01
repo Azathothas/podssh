@@ -146,7 +146,11 @@ pub const SSH: &[&str] = &[
      code, its lines on stderr. As the first process of a namespace it refuses (69); a unit of systemd, \
      WSL and Termux, which may end it still, are named first. A CI's job ends it at the job's end: podssh \
      touches no variable by which a CI finds its processes. --persist keeps the forwards going across a \
-     lost relay.",
+     lost relay. With --restart a small process stays in the background between the parent and the run (the \
+     pid printed is its own): once the run is ready, it starts the run again whenever it ends (a crash, a \
+     kill, an abort), after the relay's backoff, but after 64, 77 or 78, which a new start would repeat, \
+     and after its own SIGTERM, which it passes on; a run that lasted 30 s starts the count again, and it \
+     never gives up. It holds no connection, and killed, it leaves the run going. node and pipe take it too.",
     "--forwarder TEMPLATES reaches the first hop through WebSocket forwarders of other products, in place \
      of the relay: services that dial the host and the port that a client names and carry its bytes, the \
      plumbing of a MUD client or of an SSH client in a browser. A template is a ws:// or wss:// URL with \

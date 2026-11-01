@@ -73,6 +73,8 @@ pub struct SshArgs {
     pub derp_server: Option<String>,
     /// `-f`, `--detach`: into the background once the request went (T-380).
     pub detach: bool,
+    /// `--restart`: the detached run started again whenever it ends (T-390).
+    pub restart: bool,
     /// `--persist`: tmux on the server, attached again after a lost link.
     pub persist: bool,
     /// The tmux session of `--persist`.
@@ -278,6 +280,7 @@ impl SshArgs {
             derp_ticket: one("derp-ticket"),
             derp_server: one("derp-server"),
             detach: flag("detach"),
+            restart: flag("restart"),
             persist: flag("persist"),
             persist_name: one("persist-name"),
             persist_forever: flag("persist-forever"),

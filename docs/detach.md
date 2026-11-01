@@ -106,6 +106,10 @@ service manager (UNVERIFIED).
   Ctrl-C before ready reaches it too, and freed before the line of ready;
   with no console window, `CREATE_NO_WINDOW` for each console program that
   it starts, as Windows would open a window for it (T-383).
+- `--restart` (T-390): a supervisor between the parent and the child,
+  which starts the child again after each end but 64, 77 and 78 and its
+  own stop, with the relay's backoff, never giving up; no PDEATHSIG, and no
+  restart before the first ready (`docs/cli.md`).
 - A line that fails to write is dropped, never the run's end: after ready
   stderr is the log, and its disk may fill or, under systemd, the journal
   go away. `eprintln!` panics on such a failure and the release aborts on a
@@ -122,6 +126,9 @@ service manager (UNVERIFIED).
 
 Each fails on the defect planted against it:
 
+- a node of `--restart` killed with SIGKILL comes back and serves a login,
+  and SIGTERM to its supervisor ends both (no restart); a supervisor killed
+  with SIGKILL leaves its node serving (`tests/node_detach.rs`);
 - a node whose stderr fails (a pipe with no reader, `/dev/full`) goes on
   serving two logins (`tests/node_detach.rs`; an `eprintln!` in the node's
   lines);

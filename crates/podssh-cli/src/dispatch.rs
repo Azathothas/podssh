@@ -354,6 +354,10 @@ where
     let argv: Vec<std::ffi::OsString> = args.into_iter().map(Into::into).collect();
     // A detached child's first word, which podssh alone writes (T-380).
     let argv = crate::detach::take_child_flag(argv);
+    // A supervisor of --restart runs no command of its own (T-390).
+    if crate::detach::is_supervisor() {
+        return crate::detach::supervise::run(&argv);
+    }
     // The binary that an update on Windows moved aside, which runs no more
     // (T-375); elsewhere nothing.
     crate::update::replace::remove_aside();

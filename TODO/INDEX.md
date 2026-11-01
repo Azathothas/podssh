@@ -62,15 +62,15 @@ repository and CI).
 
 ## Counts
 
-**402 entries: 31 open, 2 partial, 31 blocked, 338 done.**
+**402 entries: 30 open, 2 partial, 31 blocked, 339 done.**
 
 | Priority | open | partial | blocked | done | total |
 | --- | --- | --- | --- | --- | --- |
 | P0 | 0 | 0 | 0 | 1 | 1 |
-| P1 | 3 | 1 | 0 | 33 | 37 |
+| P1 | 2 | 1 | 0 | 34 | 37 |
 | P2 | 9 | 0 | 21 | 168 | 198 |
 | P3 | 19 | 1 | 10 | 136 | 166 |
-| **All** | 31 | 2 | 31 | 338 | 402 |
+| **All** | 30 | 2 | 31 | 339 | 402 |
 
 ## Entries
 
@@ -461,7 +461,7 @@ repository and CI).
 | [T-387](resume.md) | P1 | M | none | defect | done | A bulk session through a node loses its link each 35 s, and never moves |
 | [T-388](resume.md) | P1 | M | none | defect | done | A move through a node on the live relay ends the node's socket with 1003 |
 | [T-389](cli.md) | P1 | S | none | defect | done | A failed write of a line on stderr aborts podssh: a detached node ends when its log's disk is full |
-| [T-390](cli.md) | P1 | L | none | feature | open | `--detach --restart`: a resident supervisor that starts the detached run again when it ends |
+| [T-390](cli.md) | P1 | L | none | feature | done | `--detach --restart`: a resident supervisor that starts the detached run again when it ends |
 | [T-391](ssh.md) | P1 | S | none | feature | done | `--persist` that never gives up, for a tunnel of `-N` |
 | [T-392](cli.md) | P2 | M | none | feature | open | A lock for each detached run, with its list, its status and its stop |
 | [T-393](serve.md) | P1 | M | none | feature | open | `--install` that always restarts: systemd without a start limit, a cron watchdog, a LaunchAgent; and `ssh -N -R --persist` |

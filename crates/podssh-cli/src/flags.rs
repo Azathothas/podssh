@@ -264,6 +264,8 @@ pub const SSH_FLAGS: &[FlagRow] = &[
     // T-380: OpenSSH's -f, and --detach of each command that serves.
     row(Some('f'), "detach", None, FlagKind::Supported,
         "go to the background once logged in and the request went, with a command or -N (see --detach)", None),
+    row(None, "restart", None, FlagKind::Supported,
+        "with -f or --detach: a small process in the background starts the run again whenever it ends, but after 64, 77 or 78 or a stop of that process; it never gives up (T-390)", None),
     row(Some('G'), "print-config", None, FlagKind::Supported,
         "print the settings in effect, as ssh -G does, and connect to nothing", None),
     row(Some('I'), "pkcs11", Some("LIBRARY"), FlagKind::Refused,
