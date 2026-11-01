@@ -62,15 +62,15 @@ repository and CI).
 
 ## Counts
 
-**408 entries: 19 open, 2 partial, 31 blocked, 356 done.**
+**409 entries: 19 open, 2 partial, 31 blocked, 357 done.**
 
 | Priority | open | partial | blocked | done | total |
 | --- | --- | --- | --- | --- | --- |
 | P0 | 0 | 0 | 0 | 1 | 1 |
-| P1 | 1 | 1 | 0 | 37 | 39 |
+| P1 | 1 | 1 | 0 | 38 | 40 |
 | P2 | 2 | 0 | 21 | 176 | 199 |
 | P3 | 16 | 1 | 10 | 142 | 169 |
-| **All** | 19 | 2 | 31 | 356 | 408 |
+| **All** | 19 | 2 | 31 | 357 | 409 |
 
 ## Entries
 
@@ -484,3 +484,4 @@ repository and CI).
 | [T-410](resume.md) | P1 | M | none | defect | done | From GitHub's network, the first move through a node still meets a frame for a forgotten id |
 | [T-411](roads.md) | P3 | M | none | defect | open | The quick tunnel over QUIC resets a push of configuration |
 | [T-412](reverse.md) | P2 | S | none | defect | done | The stand-in relay drops a frame of an unknown session, which the live relay answers with 1003 |
+| [T-413](ws.md) | P1 | S | none | defect | done | The test of DoH over HTTP/2 failed in CI: two equal bounds raced |

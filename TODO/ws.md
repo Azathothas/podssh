@@ -2221,6 +2221,58 @@ the reason beside x25519-dalek's; the lock adds zeroize to chacha20poly1305's de
   handshakes with the relay (`--test live_handshake`), 6 passed; clippy `-D warnings` and rustfmt
   clean for podssh-ws.
 
+# T-413: The test of DoH over HTTP/2 failed in CI: two equal bounds raced
+
+**Source:** CI's job `gate (libs)` at `abf1322` (run 41300580735, 2026-11-01), which changed nothing
+of podssh-ws: `an_answer_comes_over_http2` failed with `Elapsed`, after 10.05 s.
+**Category:** defect
+**Milestone:** none
+**Priority:** P1
+**Effort:** S
+**Status:** done
+
+## Problem
+
+A test that fails at random keeps the gate red at commits that did not touch its code, and hides
+the next real failure.
+
+## Premise
+
+- Read: the test's server sent its answer, then drove the connection until the client went, for
+  10 s at most, and only then gave back what it was asked; the test waited for that with its own
+  bound of 10 s, which started later (`crates/podssh-ws/tests/doh_h2.rs`, at `abf1322`). When the
+  server does not see the client go, the two bounds race, and the test's lost by a hair in CI.
+- Measured here: 60 runs, and 30 more under four busy loops, each in about 0.1 s, none failed; the
+  client aborts its connection's task after its answer (`get` in
+  `crates/podssh-ws/src/resolve/h2.rs`), so the server sees its end at once here. Why it did not in
+  CI's run is not known.
+
+## Approach
+
+The server gives back what it was asked as soon as it answered, on a channel of its own; its wait
+for the client's end has its own bound and its own verdict, which the test reads with a bound twice
+as long, so that no two bounds race. A client that keeps its connection open fails the test by
+name.
+
+## Prove
+
+```sh
+export CARGO_BUILD_JOBS=4
+cargo test -p podssh-ws --test doh_h2
+```
+
+## Done
+
+2026-11-01: the test is deterministic, and names a client that does not end its connection.
+
+- `crates/podssh-ws/tests/doh_h2.rs`: `Served` gives `asked` (a oneshot, sent once the answer went)
+  and `ended` (whether the client ended the connection within 10 s of the answer); the test waits
+  for the second with a bound of 20 s, so the server's bound decides.
+- `cargo test -p podssh-ws --test doh_h2`: 3 passed, in 0.05 s. Planted, a client that keeps a
+  handle of its connection after its answer: the test failed, "the client left its HTTP/2
+  connection open 10 s after its answer". The gate's next runs say whether CI's case was the
+  client's.
+
 # T-405: DoH asks by an address, which a proxy that refuses addresses refuses
 
 **Source:** the operator, 2026-11-01: the study of Azathothas/cfrs (T-398's Source); its finding

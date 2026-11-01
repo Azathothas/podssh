@@ -31,19 +31,25 @@ fn client(roots: rustls::RootCertStore) -> Arc<rustls::ClientConfig> {
     .unwrap()
 }
 
+/// What the server saw: the path and the `accept` that it was asked, once
+/// it answered; then whether the client ended the connection within
+/// [`LIMIT`] of the answer.
+struct Served {
+    asked: tokio::sync::oneshot::Receiver<(String, String)>,
+    ended: tokio::task::JoinHandle<Option<bool>>,
+}
+
 /// A server for one connection that offers `alpn` and answers each GET
-/// with `body`, giving back the path and the `accept` that it was asked.
-async fn server(
-    alpn: Vec<Vec<u8>>,
-    body: Vec<u8>,
-) -> (u16, Arc<rustls::RootCertStore>, tokio::task::JoinHandle<Option<(String, String)>>) {
+/// with `body`.
+async fn server(alpn: Vec<Vec<u8>>, body: Vec<u8>) -> (u16, Arc<rustls::RootCertStore>, Served) {
     let (acceptor, roots) = cert::server_for(NAME).unwrap();
     let mut config = (**acceptor.config()).clone();
     config.alpn_protocols = alpn;
     let acceptor = tokio_rustls::TlsAcceptor::from(Arc::new(config));
     let listener = TcpListener::bind("127.0.0.1:0").await.unwrap();
     let port = listener.local_addr().unwrap().port();
-    let served = tokio::spawn(async move {
+    let (said, asked) = tokio::sync::oneshot::channel();
+    let ended = tokio::spawn(async move {
         let (tcp, _) = listener.accept().await.ok()?;
         let tls = acceptor.accept(tcp).await.ok()?;
         let mut connection = h2::server::handshake(tls).await.ok()?;
@@ -56,11 +62,13 @@ async fn server(
             http::Response::builder().status(200).header("content-type", "application/dns-message").body(()).ok()?;
         let mut send = respond.send_response(response, false).ok()?;
         send.send_data(body.into(), true).ok()?;
-        // The connection is driven until the client goes.
-        let _ = tokio::time::timeout(LIMIT, async { while connection.accept().await.is_some() {} }).await;
-        Some(asked)
+        let _ = said.send(asked);
+        // The connection is driven until the client goes, which it does once
+        // it has its answer; its own bound, so that no other wait races it.
+        let gone = tokio::time::timeout(LIMIT, async { while connection.accept().await.is_some() {} }).await;
+        Some(gone.is_ok())
     });
-    (port, Arc::new(roots), served)
+    (port, Arc::new(roots), Served { asked, ended })
 }
 
 /// Quad9's answer comes through h2's server whole, and decodes to its
@@ -82,8 +90,11 @@ async fn an_answer_comes_over_http2() {
     assert_eq!(got.body, answer, "the bytes as the server sent them");
     let ips = wire::addrs(&got.body, "tcp.ssh.relay.ajam.dev", 1).unwrap();
     assert_eq!(ips.len(), 2, "{ips:?}");
-    let asked = tokio::time::timeout(LIMIT, served).await.unwrap().unwrap().expect("the server was asked");
+    let asked = tokio::time::timeout(LIMIT, served.asked).await.unwrap().expect("the server was asked");
     assert_eq!(asked, (target.to_string(), "application/dns-message".to_string()));
+    // The server's own bound decides; this one only holds a server that hangs.
+    let ended = tokio::time::timeout(LIMIT * 2, served.ended).await.expect("the server's bound").unwrap();
+    assert_eq!(ended, Some(true), "the client left its HTTP/2 connection open {} s after its answer", LIMIT.as_secs());
 }
 
 /// A server that does not take `h2` is refused at TLS, before any request.
@@ -98,7 +109,11 @@ async fn a_server_of_http1_alone_is_refused() {
     .await
     .expect("in time");
     assert!(got.is_err(), "{got:?}");
-    assert_eq!(tokio::time::timeout(LIMIT, served).await.unwrap().unwrap(), None, "no request reached the server");
+    assert_eq!(
+        tokio::time::timeout(LIMIT, served.ended).await.unwrap().unwrap(),
+        None,
+        "no request reached the server"
+    );
 }
 
 /// An answer over the bound is refused, as over HTTP/1.1.
