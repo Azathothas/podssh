@@ -62,15 +62,15 @@ repository and CI).
 
 ## Counts
 
-**409 entries: 19 open, 2 partial, 31 blocked, 357 done.**
+**409 entries: 18 open, 2 partial, 31 blocked, 358 done.**
 
 | Priority | open | partial | blocked | done | total |
 | --- | --- | --- | --- | --- | --- |
 | P0 | 0 | 0 | 0 | 1 | 1 |
 | P1 | 1 | 1 | 0 | 38 | 40 |
-| P2 | 2 | 0 | 21 | 176 | 199 |
+| P2 | 1 | 0 | 21 | 177 | 199 |
 | P3 | 16 | 1 | 10 | 142 | 169 |
-| **All** | 19 | 2 | 31 | 357 | 409 |
+| **All** | 18 | 2 | 31 | 358 | 409 |
 
 ## Entries
 
@@ -471,7 +471,7 @@ repository and CI).
 | [T-397](cli.md) | P3 | S | none | defect | done | `--detach`'s smaller gaps: no `/dev/null`, a rotation that loses lines, old files, the working directory |
 | [T-398](roads.md) | P2 | M | none | defect | done | WARP's tunnel under volume: h2's budget of small frames, the inbound read while a packet waits, and a live copy of 16 MiB |
 | [T-399](roads.md) | P2 | M | none | defect | done | WARP: a front door's key that is not the device record's is taken for a proxy, for the whole run |
-| [T-400](roads.md) | P2 | M | none | feature | open | The quick tunnel's legs raced with a stagger, and a probe of UDP before QUIC |
+| [T-400](roads.md) | P2 | M | none | feature | done | The quick tunnel's legs raced with a stagger, and a probe of UDP before QUIC |
 | [T-401](roads.md) | P2 | S | none | defect | done | The quick tunnel's provisioning: Retry-After honoured, and the edge's text cleaned before it is shown |
 | [T-402](roads.md) | P3 | M | none | feature | open | The quick tunnel on GOAWAY: the next connection at once, the old one drained, and a second connection |
 | [T-403](robustness.md) | P3 | S | none | defect | done | The Cap'n Proto reader allocates for each element of a list before it reads one; fuzz targets for the quick tunnel's parsers |

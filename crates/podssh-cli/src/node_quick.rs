@@ -6,11 +6,13 @@
 //! link of the resumable layer, with the end-to-end channel above it: the
 //! name is public, so only an operator whose key is in the file of `--allow`
 //! reaches TARGET, which is dialled only after the layer's handshake. The
-//! node reaches port 7844 of Cloudflare's edge over QUIC where no proxy is
-//! set and UDP gets there, as cloudflared does (T-301), else over HTTP/2 on
-//! TCP, directly or through a proxy that allows it, else over HTTP/2 inside
-//! WARP's tunnel (T-374, `crate::node_warp`), first with `--warp`; a lost
-//! connection to the edge is made again, with the same name, until Ctrl-C.
+//! node races its roads to port 7844 of Cloudflare's edge (T-400): QUIC
+//! where no proxy is set and UDP answers a probe, as cloudflared does
+//! (T-301), HTTP/2 on TCP, directly or through a proxy that allows it, and
+//! HTTP/2 inside WARP's tunnel (T-374, `crate::node_warp`), first with
+//! `--warp`; each starts 2 s after the one before, or at once when it
+//! failed, and the first that registers is kept. A lost connection to the
+//! edge is made again, with the same name, until Ctrl-C.
 
 use std::io::Write;
 use std::path::PathBuf;
@@ -19,28 +21,24 @@ use std::sync::Arc;
 use std::time::Duration;
 
 use podssh_relay::identity::file;
-use podssh_relay::quick::register::{Registration, FEATURES};
-use podssh_relay::quick::serve::{self, Ended, Step};
-use podssh_relay::quick::{self, api, edge, quic};
+use podssh_relay::quick::keep::{self, Gone, Keep, Made, Plan, Roads, Say};
+use podssh_relay::quick::register::Connector;
+use podssh_relay::quick::roads::{self, Link, Road};
+use podssh_relay::quick::{api, edge};
 use podssh_relay::reverse::framing::SessionId;
 use podssh_relay::reverse::routes::Route;
 use podssh_relay::reverse::{self, E2e, Handler, Layered, TcpHandler};
 use podssh_ws::ProxyChoice;
-use tokio::io::{AsyncRead, AsyncWrite, DuplexStream};
-use tokio::sync::{mpsc, watch};
+use tokio::io::DuplexStream;
+use tokio::sync::{watch, Mutex};
 
 use crate::exitmap::{sysexits, Fault};
 use crate::node::NodeArgs;
 use crate::node_warp::WarpRoad;
 use crate::relay_settings::Refusal;
-use crate::ssh::transport::Duplex;
 
 /// Bound on each dial of TARGET.
 const DIAL_LIMIT: Duration = Duration::from_secs(8);
-/// The waits between connections to the edge after a loss: doubled from the
-/// first, to the most.
-const RETRY_FIRST: Duration = Duration::from_secs(1);
-const RETRY_MOST: Duration = Duration::from_secs(30);
 
 /// Each check that needs no network, done.
 struct Ready {
@@ -130,13 +128,15 @@ fn arch() -> String {
 
 async fn serve_quick(ready: Ready, err: &mut dyn Write) -> i32 {
     let Ready { label, targets, key, allow, sshd: roost, warp } = ready;
-    let mut warp = WarpRoad::new(warp);
     let target = match crate::node::probe(&targets, roost).await {
         Ok(versions) => crate::node::serving(&targets, &versions),
         Err(refusal) => return refusal.report("node", err),
     };
     let proxy = ProxyChoice::FromEnvironment;
-    let say = |line: String| podssh_ssh::err_line!("podssh node: {label}: {line}");
+    let say: Say = {
+        let label = label.clone();
+        Arc::new(move |line: String| podssh_ssh::err_line!("podssh node: {label}: {line}"))
+    };
     let (stop, stopped) = watch::channel(false);
     tokio::spawn(async move {
         crate::node::stop_signal().await;
@@ -146,7 +146,7 @@ async fn serve_quick(ready: Ready, err: &mut dyn Write) -> i32 {
     // Ctrl-C ends the wait, with nothing made to undo.
     let (trust, mut until) = (crate::pairs::trust(None), stopped.clone());
     let asked = tokio::select! {
-        asked = api::request(&trust, &proxy, &say) => asked,
+        asked = api::request(&trust, &proxy, &*say) => asked,
         _ = until.wait_for(|stop| *stop) => {
             say("stopped".into());
             return 0;
@@ -185,180 +185,78 @@ async fn serve_quick(ready: Ready, err: &mut dyn Write) -> i32 {
             let _ = tokio::io::copy_bidirectional(&mut stream, &mut session).await;
         }
     };
-    let (client_id, version, arch) =
-        (rand::random::<[u8; 16]>(), format!("podssh {}", env!("CARGO_PKG_VERSION")), arch());
-    let (mut wait, mut connected_once) = (RETRY_FIRST, false);
-    // QUIC first, as cloudflared's own default, where no proxy stands in its
-    // way: a proxy carries no UDP (T-301).
-    let mut over_quic = matches!(podssh_ws::dial::proxy_from_env(edge::REGIONS[0]), Ok(None));
-    // The fixed names of the edge are said once a run, as `podssh node` has
-    // no -v (T-339).
-    let mut said_fixed = false;
-    loop {
-        if *stopped.borrow() {
-            break;
+    // The tunnel's credentials, and this run's id, version and system, as
+    // each connection registers them.
+    let connector = Arc::new(Connector {
+        account_tag: tunnel.account_tag.clone(),
+        secret: tunnel.secret.clone(),
+        tunnel_id: tunnel.id,
+        client_id: rand::random::<[u8; 16]>(),
+        version: format!("podssh {}", env!("CARGO_PKG_VERSION")),
+        arch: arch(),
+    });
+    let roads = edge_roads(proxy, WarpRoad::new(warp), say.clone());
+    // Said first; then a detached node goes on (T-380).
+    let ready = Box::new(|| crate::detach::ready("node"));
+    let kept = keep::keep(Keep { connector, visit, roads, say: say.clone(), ready }, stopped).await;
+    let message = match kept {
+        Ok(()) => {
+            say("stopped".into());
+            return 0;
         }
-        let found = edge::find(&proxy).await;
-        if let Some(why) = found.fixed.as_ref().filter(|_| !said_fixed) {
-            say(format!("{why}; the two names of Cloudflare's documents, port {}", edge::PORT));
-            said_fixed = true;
-        }
-        let link = match link(&mut over_quic, &proxy, &found, &say, &mut warp).await {
-            Ok(link) => link,
-            // A host whose egress never reaches the edge cannot publish.
-            Err(why) if !connected_once => {
-                let message = format!(
-                    "{why}; a quick tunnel needs port 7844 of Cloudflare's edge: UDP for QUIC, TCP directly or \
-                     through a proxy that allows it, or TCP inside WARP's tunnel"
-                );
-                return Refusal { message, code: Fault::RelayUnreachable.code() }.report("node", err);
-            }
-            Err(why) => {
-                say(format!("{why}; trying again in {} s", wait.as_secs()));
-                pause(&mut wait, &stopped).await;
-                continue;
-            }
-        };
-        connected_once = true;
-        let registration = Registration {
-            account_tag: &tunnel.account_tag,
-            secret: &tunnel.secret,
-            tunnel_id: tunnel.id,
-            conn_index: 0,
-            client_id,
-            features: FEATURES,
-            version: &version,
-            arch: &arch,
-        };
-        let (steps, mut heard) = mpsc::unbounded_channel();
-        // A connection that registered was a good one: the next waits from
-        // the start again, not from the longest wait of the failures before.
-        let registered = Arc::new(AtomicBool::new(false));
-        let transport = link.transport();
-        let said = tokio::spawn({
-            let (label, registered) = (label.clone(), registered.clone());
-            async move {
-                while let Some(step) = heard.recv().await {
-                    let line = match step {
-                        Step::Registered { location } => {
-                            registered.store(true, Ordering::SeqCst);
-                            // Said first; then a detached node goes on (T-380).
-                            let line = format!("registered at Cloudflare's {location}, over {transport}");
-                            podssh_ssh::err_line!("podssh node: {label}: {line}");
-                            crate::detach::ready("node");
-                            continue;
-                        }
-                        Step::Visitor => continue,
-                        Step::Unregistered => "unregistered".to_string(),
-                    };
-                    podssh_ssh::err_line!("podssh node: {label}: {line}");
+        Err(Gone::Refused(message)) => return Refusal { message, code: Fault::Auth.code() }.report("node", err),
+        // A host whose egress never reaches the edge cannot publish.
+        Err(Gone::Unreached(why)) => format!(
+            "{why}; a quick tunnel needs port 7844 of Cloudflare's edge: UDP for QUIC, TCP directly or through a \
+             proxy that allows it, or TCP inside WARP's tunnel"
+        ),
+    };
+    Refusal { message, code: Fault::RelayUnreachable.code() }.report("node", err)
+}
+
+/// The roads to the edge for one race, as `plan` asks: QUIC where no proxy
+/// stands in its way, as a proxy carries no UDP (T-301), HTTP/2, then HTTP/2
+/// inside WARP's tunnel, WARP's first with `--warp`; the road that won the
+/// last race first. The edge is asked for at each race, and its fixed names
+/// are said once a run, as `podssh node` has no -v (T-339).
+fn edge_roads(proxy: ProxyChoice, warp: WarpRoad, say: Say) -> Roads {
+    let over_quic = matches!(podssh_ws::dial::proxy_from_env(edge::REGIONS[0]), Ok(None));
+    let warp_first = warp.first;
+    let warp = Arc::new(Mutex::new(warp));
+    let said_fixed = Arc::new(AtomicBool::new(false));
+    Arc::new(move |plan: Plan| -> Made {
+        let (proxy, warp, say, said_fixed) = (proxy.clone(), warp.clone(), say.clone(), said_fixed.clone());
+        Box::pin(async move {
+            let found = edge::find(&proxy).await;
+            if let Some(why) = &found.fixed {
+                if !said_fixed.swap(true, Ordering::SeqCst) {
+                    say(format!("{why}; the two names of Cloudflare's documents, port {}", edge::PORT));
                 }
             }
-        });
-        let mut until = stopped.clone();
-        let stop_asked = async move {
-            let _ = until.wait_for(|stop| *stop).await;
-        };
-        let served = match link {
-            Link::Quic(edge) => edge.serve(&registration, visit.clone(), steps, stop_asked).await,
-            Link::Http2(tls) => serve::serve(tls, &registration, visit.clone(), steps, stop_asked).await,
-            Link::Warp(io) => serve::serve(io, &registration, visit.clone(), steps, stop_asked).await,
-        };
-        let _ = said.await;
-        if registered.load(Ordering::SeqCst) {
-            wait = RETRY_FIRST;
-        }
-        // An end that a change of cloudflared would give names the release
-        // that podssh speaks (T-339).
-        let speaks = match &served {
-            Err(e) if e.may_be_the_protocol() => format!(" (podssh speaks {})", quick::SPEAKS),
-            _ => String::new(),
-        };
-        match served {
-            Ok(()) => break,
-            Err(Ended::Refused { cause, retry: false, .. }) => {
-                let message = format!("the edge refused the tunnel's connection: {cause}{speaks}");
-                return Refusal { message, code: Fault::Auth.code() }.report("node", err);
+            let mut list = Vec::new();
+            if over_quic {
+                list.push(roads::quic(found.clone()));
             }
-            Err(Ended::Refused { cause, after, .. }) => {
-                wait = after.clamp(RETRY_FIRST, RETRY_MOST);
-                let secs = wait.as_secs();
-                say(format!("the edge refused the connection for now ({cause}){speaks}; trying again in {secs} s"));
+            list.push(roads::http2(proxy, found.clone()));
+            let inside = warp_road(warp, found, say);
+            match warp_first {
+                true => list.insert(0, inside),
+                false => list.push(inside),
             }
-            Err(e) => say(format!("{e}{speaks}; connecting again in {} s", wait.as_secs())),
-        }
-        pause(&mut wait, &stopped).await;
-    }
-    say("stopped".into());
-    0
+            roads::first_of(&mut list, plan.first);
+            list
+        })
+    })
 }
 
-/// A connection to the edge, by the transport that answered: QUIC, HTTP/2
-/// over TCP, or HTTP/2 inside WARP's tunnel.
-enum Link<T> {
-    Quic(quic::EdgeConnection),
-    Http2(T),
-    Warp(Box<dyn Duplex>),
-}
-
-impl<T> Link<T> {
-    fn transport(&self) -> &'static str {
-        match self {
-            Link::Quic(_) => "QUIC",
-            Link::Http2(_) => "HTTP/2",
-            Link::Warp(_) => crate::node_warp::ROAD,
-        }
-    }
-}
-
-/// QUIC while `over_quic` holds, else HTTP/2 through `proxy`, else HTTP/2
-/// inside WARP's tunnel; with `--warp`, WARP's tunnel first. QUIC that fails
-/// says why and gives way to HTTP/2 for the rest of the run, as a network
-/// that drops UDP drops it again.
-async fn link(
-    over_quic: &mut bool,
-    proxy: &ProxyChoice,
-    found: &edge::Edge,
-    say: &dyn Fn(String),
-    warp: &mut WarpRoad,
-) -> Result<Link<impl AsyncRead + AsyncWrite + Unpin + Send>, String> {
-    if warp.first {
-        match warp.edge(found, say).await {
-            Ok(io) => return Ok(Link::Warp(io)),
-            Err(why) => say(format!("{why}; the edge's other roads now")),
-        }
-    }
-    if *over_quic {
-        match quic::connect_edge(found).await {
-            Ok(edge) => return Ok(Link::Quic(edge)),
-            Err(why) => {
-                *over_quic = false;
-                say(format!("{why}; over HTTP/2 from now on"));
-            }
-        }
-    }
-    let why = match edge::connect(proxy, found).await {
-        Ok(tls) => return Ok(Link::Http2(tls)),
-        Err(why) => why,
+/// HTTP/2 inside WARP's tunnel to `found`: the tunnel opens at its first use,
+/// one road at a time, and stays for the node's later connections.
+fn warp_road(warp: Arc<Mutex<WarpRoad>>, found: edge::Edge, say: Say) -> Road {
+    let dial = async move {
+        let io = warp.lock().await.edge(&found, &*say).await?;
+        Ok::<Link, String>(Link::Http2(Box::new(io)))
     };
-    if warp.first {
-        return Err(why);
-    }
-    // The cage's proxy may refuse port 7844 and take 443: WARP's tunnel.
-    match warp.edge(found, say).await {
-        Ok(io) => Ok(Link::Warp(io)),
-        Err(inside) => Err(format!("{why}; {inside}")),
-    }
-}
-
-/// Wait `wait`, unless the end comes first, and double it for the next time.
-async fn pause(wait: &mut Duration, stopped: &watch::Receiver<bool>) {
-    let mut until = stopped.clone();
-    tokio::select! {
-        () = tokio::time::sleep(*wait) => {}
-        _ = until.wait_for(|stop| *stop) => {}
-    }
-    *wait = (*wait * 2).min(RETRY_MOST);
+    Road { name: crate::node_warp::ROAD, dial: Box::pin(dial) }
 }
 
 #[cfg(test)]

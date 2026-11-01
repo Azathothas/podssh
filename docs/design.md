@@ -364,8 +364,8 @@ since a quick tunnel has none.
   (`tunnelrpc/quic/cloudflared_server.go`), which the node resets; the edge
   pushes the rules of a tunnel that is managed remotely, and a quick tunnel
   has none in an account (INFERRED).
-- QUIC: only after a UDP probe, as on the iroh road (section 7). A QUIC
-  connection binds a UDP socket (`connection/quic.go:24-95`).
+- QUIC: only after a UDP probe, one QUIC packet that the edge's Version
+  Negotiation answers within 300 ms (T-400, below); a QUIC connection binds a UDP socket (`connection/quic.go:24-95`).
 - The egress to port 7844: direct TCP where a probe allows it; through a
   proxy only where it allows `CONNECT` to 7844; through the relay's forward
   road, whose VPC road reached the edge's 7844 and carried its TLS (T-299,

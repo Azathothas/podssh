@@ -539,8 +539,8 @@ credential that a later commit removed, is not found.
 
 Read:
 
-- `scripts/check-repo.py:60-73` defines the shapes (a relay token, a Tailscale
-  key, a private key block); `scripts/check-repo.py:274-295` scans the tracked
+- `scripts/check-repo.py:62-75` defines the shapes (a relay token, a Tailscale
+  key, a private key block); `scripts/check-repo.py:170-191` scans the tracked
   files outside `vendor/`. It reads no history.
 - `docs/decisions.md` (the repository is public): its history was
   replaced by one commit on 2026-10-08, so a scan of the whole history is
@@ -1183,7 +1183,7 @@ Read:
 4. Pin the images of the box with the build image (T-206).
 5. Credentials: the box mints a token and never prints it
    (`scripts/sandbox-check.sh:2-4`). Before the job is required, scan its
-   first log with the token pattern of `scripts/check-repo.py:64`.
+   first log with the token pattern of `scripts/check-repo.py:66`.
 6. docs/STATUS.md (the box section) cites the CI run; docs/development.md says
    that CI runs the box.
 
@@ -2086,7 +2086,7 @@ repository (one `README.md`, no `crates/`) printed four `ok` lines and exited
 
 Read:
 
-- `scripts/check-repo.py:213`: the size check walks `crates/` with `rglob`; a
+- `scripts/check-repo.py:109`: the size check walks `crates/` with `rglob`; a
   missing directory yields nothing. (#33 cites line 56 at `22c3b88`; the walk is at 57
   now.)
 - `scripts/check-repo.py` lines 100-129, 132-153 and 156-161 at `e892b0f`: the links, the credentials and the line
@@ -4216,7 +4216,7 @@ two jobs of the release run an image of Docker Hub by the tag `latest`, with no 
   (https://github.com/docker/setup-qemu-action/blob/v4/action.yml): the action's `image` defaults
   to `docker.io/tonistiigi/binfmt:latest`. The riscv64 job runs it each time, and the armv7 job
   when the runner does not run 32-bit ARM (`.github/workflows/release.yml` lines 166-177 at `1a3e7b6`). No file of
-  `images/` names the image, so the check of images (`scripts/check-repo.py:308-333`) does not
+  `images/` names the image, so the check of images (`scripts/check-repo.py:204-229`) does not
   see it, and its pull gets none of the mirrors of `scripts/pull-image.sh:9-13`.
 - Read: T-210 found the commit of each action, and `TODO/repo.md:786-787` says "whether to pin
   them by commit is a choice of this entry's session"; no entry took it. `setup-nasm` declares

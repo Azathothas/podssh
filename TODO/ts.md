@@ -549,7 +549,7 @@ checks allowed (`crates/podssh-ws/src/client.rs:31-32`, `docs/relay.md:157-159`)
 4. Ping every 10 s; three silent intervals mean a dead link, after the relay answered one ping.
 5. Restart `ControlRunner` with the same backoff and no count limit. podssh-cli prints one stderr
    line for each drop and each new connection. Add the patch and its row, and update
-   `docs/tailscale.md`, `docs/STATUS.md:626` and `crates/podssh-cli/src/man/notes.rs:311-343`.
+   `docs/tailscale.md`, `docs/STATUS.md:626` and `crates/podssh-cli/src/man/notes.rs:313-345`.
 
 ## Decision
 
@@ -801,7 +801,7 @@ Not measured: whether the proxy of a sandbox allows `tcp.ts.relay.ajam.dev:443` 
 5. Repair the ignored test: the key and state paths come from variables that only the test reads,
    and the state stays. Name M8 in its reason.
 6. Record each result with its date in `docs/STATUS.md:85`, `docs/tailscale.md:8-24` and
-   `crates/podssh-cli/src/man/notes.rs:311-343`.
+   `crates/podssh-cli/src/man/notes.rs:313-345`.
 
 ## Prove
 

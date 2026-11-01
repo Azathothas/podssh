@@ -97,7 +97,7 @@ pub fn trust() -> Result<Trust, String> {
 
 /// A TLS connection to `edge`: each region in turn, through `proxy` when
 /// there is one; the failure of each when none answers.
-pub async fn connect(proxy: &ProxyChoice, edge: &Edge) -> Result<impl AsyncRead + AsyncWrite + Unpin + Send, String> {
+pub async fn connect(proxy: &ProxyChoice, edge: &Edge) -> Result<Box<dyn EdgeIo>, String> {
     let trust = trust()?;
     let (mut failed, port) = (Vec::new(), edge.port);
     for region in &edge.regions {
@@ -109,12 +109,19 @@ pub async fn connect(proxy: &ProxyChoice, edge: &Edge) -> Result<impl AsyncRead 
             }
         };
         match podssh_ws::tls::connect_over(tcp, SERVER_NAME, &trust, DIAL_LIMIT).await {
-            Ok(tls) => return Ok(tls),
+            Ok(tls) => return Ok(Box::new(tls)),
             Err(e) => failed.push(format!("{region}:{port}: {e}")),
         }
     }
     Err(format!("no region of the edge answered: {}", failed.join("; ")))
 }
+
+/// The edge's TLS on a road of HTTP/2, as the node serves it: boxed, so that
+/// each road gives one type, and owned, so that a task of its own serves it
+/// (T-400).
+pub trait EdgeIo: AsyncRead + AsyncWrite + Unpin + Send {}
+
+impl<T: AsyncRead + AsyncWrite + Unpin + Send> EdgeIo for T {}
 
 #[cfg(test)]
 mod tests {

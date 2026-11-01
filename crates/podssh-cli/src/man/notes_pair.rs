@@ -154,13 +154,16 @@ pub(super) const NODE: &[&str] = &[
      before too, as no client could come in.",
     "With --quick-tunnel, the node serves TARGET at https://NAME.trycloudflare.com, a quick tunnel of \
      Cloudflare's that podssh makes itself, with no pair, no account and no cloudflared. The name is new \
-     each run, and is the one line on stdout. The node needs port 7844 of Cloudflare's edge: over QUIC \
-     where no proxy is set and UDP gets there, as cloudflared does, else over HTTP/2 on TCP, directly or \
-     through a proxy that allows it, else over HTTP/2 inside WARP's tunnel, in a build with the feature \
-     warp (see warp:// in the notes of ssh: its device, and PODSSH_WARP_ACCEPT_TERMS), as a cage whose \
-     proxy allows port 443 alone reaches the edge so; --warp tries WARP's tunnel first. QUIC that fails \
-     gives way to HTTP/2 for the run, and the node exits 69 when it reaches none. Its line of the \
-     registration names the transport and the road. A client in a cage \
+     each run, and is the one line on stdout. The node needs port 7844 of Cloudflare's edge, and races \
+     its roads there: QUIC where no proxy is set, as cloudflared does, after a probe of UDP (one QUIC \
+     packet, whose answer it waits 300 ms for); HTTP/2 on TCP, directly or through a proxy that allows \
+     it; and HTTP/2 inside WARP's tunnel, in a build with the feature warp (see warp:// in the notes of \
+     ssh: its device, and PODSSH_WARP_ACCEPT_TERMS), as a cage whose proxy allows port 443 alone reaches \
+     the edge so; --warp puts WARP's tunnel first. Each road starts 2 s after the one before, or at once \
+     when that one failed; the first that the edge registers is kept, and the others are closed. The \
+     road that won goes first at the next connection, and the node exits 69 when no road reaches the \
+     edge. Its line of the registration names the road and how long the race took, after a line for \
+     each road that gave way. A client in a cage \
      reaches the name on port 443. The name is public, so --allow FILE is needed: only an operator \
      whose key is a line of FILE reaches TARGET, through the end-to-end channel above the resumable \
      layer. A connection to the edge that is lost is made again, with the same name; at Ctrl-C the node \

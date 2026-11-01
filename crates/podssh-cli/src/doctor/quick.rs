@@ -3,14 +3,15 @@
 //! podssh's own for the edge. A binary keeps the roots that it was built
 //! with, as it keeps its compiled-in roots (`net.rs`): the day is said, not
 //! failed, as podssh works until it comes. And whether UDP reaches the edge,
-//! as the node takes QUIC (T-359), and which road over TCP reaches it, as
-//! the node takes HTTP/2: directly or through the proxy, else inside WARP's
-//! tunnel (T-374).
+//! as the node takes QUIC (T-359): first the node's probe of UDP, one
+//! packet that the edge's Version Negotiation answers (T-400), then QUIC's
+//! handshake; and which road over TCP reaches it, as the node takes HTTP/2:
+//! directly or through the proxy, else inside WARP's tunnel (T-374).
 
 use std::net::SocketAddr;
 use std::time::Duration;
 
-use podssh_relay::quick::{edge, quic};
+use podssh_relay::quick::{edge, probe, quic};
 use podssh_ws::ProxyChoice;
 
 use super::Report;
@@ -31,16 +32,26 @@ fn handshake_words(answer: &Result<(SocketAddr, Duration), String>) -> String {
     }
 }
 
+/// The words of the probe of UDP, as the node reads its answer (T-400): the
+/// address that answered and its round trip, before the handshake's words;
+/// or why none did, and that the node then gives QUIC up.
+fn probe_words(answer: &Result<(SocketAddr, Duration), String>) -> Result<String, String> {
+    match answer {
+        Ok((addr, took)) => Ok(format!("UDP to {addr} answered a QUIC packet in {} ms; ", took.as_millis())),
+        Err(why) => Err(format!("{why}, so podssh node --quick-tunnel skips QUIC and takes HTTP/2")),
+    }
+}
+
 /// What a run without `--full` says where no proxy is set: the edge is
 /// Cloudflare's, a server that doctor reaches only when asked.
-const NOT_PROBED: &str = "not probed: podssh doctor --full makes a QUIC handshake with the quick tunnel's edge, as \
-                          podssh node --quick-tunnel tries first where no proxy is set";
+const NOT_PROBED: &str = "not probed: podssh doctor --full probes UDP to the quick tunnel's edge and makes a QUIC \
+                          handshake with it, as podssh node --quick-tunnel does first where no proxy is set";
 
 /// Whether UDP reaches the quick tunnel's edge: with a proxy set, nothing is
-/// sent, as the node then takes HTTP/2; else, with `full`, a QUIC handshake
-/// with the edge, as the node's first try makes one, closed at once with
-/// nothing registered. Each answer is `ok`, as the node's HTTP/2 is a road
-/// that works.
+/// sent, as the node then takes HTTP/2; else, with `full`, the node's probe
+/// of UDP, and when it is answered a QUIC handshake with the edge, as the
+/// node's QUIC makes one, closed at once with nothing registered. Each
+/// answer is `ok`, as the node's HTTP/2 is a road that works.
 pub(super) async fn udp_out(report: &mut Report<'_>, full: bool) {
     match podssh_ws::dial::proxy_from_env(edge::REGIONS[0]) {
         Ok(Some(_)) => report.ok("UDP out", BEHIND_A_PROXY.to_string()),
@@ -52,7 +63,11 @@ pub(super) async fn udp_out(report: &mut Report<'_>, full: bool) {
                 Err(why) => return report.unknown("UDP out", format!("the edge's roots: {why}")),
             };
             let found = edge::find(&ProxyChoice::FromEnvironment).await;
-            report.ok("UDP out", handshake_words(&quic::handshake(&found, tls).await));
+            let answered = match probe_words(&probe::edge(&found, probe::WAIT).await) {
+                Ok(answered) => answered,
+                Err(skipped) => return report.ok("UDP out", skipped),
+            };
+            report.ok("UDP out", format!("{answered}{}", handshake_words(&quic::handshake(&found, tls).await)));
         }
     }
 }
@@ -190,7 +205,14 @@ mod tests {
         let silent = handshake_words(&Err("no region of the edge answered over QUIC: r1 no answer".into()));
         assert!(silent.starts_with("no region") && silent.ends_with("takes HTTP/2"), "{silent}");
         assert!(BEHIND_A_PROXY.contains("HTTP/2") && BEHIND_A_PROXY.contains("sends no UDP"));
-        assert!(NOT_PROBED.contains("--full"), "{NOT_PROBED}");
+        assert!(NOT_PROBED.contains("--full") && NOT_PROBED.contains("probes UDP"), "{NOT_PROBED}");
+        // The probe (T-400): its answer comes before the handshake's words;
+        // with none, the node skips QUIC, and no handshake is made.
+        let probed = probe_words(&Ok(("198.41.192.7:7844".parse().unwrap(), Duration::from_millis(12)))).unwrap();
+        assert_eq!(probed, "UDP to 198.41.192.7:7844 answered a QUIC packet in 12 ms; ");
+        let why = "UDP to the edge got no answer to a QUIC packet: 198.41.192.7:7844 said nothing within 300 ms";
+        let skipped = probe_words(&Err(why.into())).unwrap_err();
+        assert!(skipped.starts_with(why) && skipped.ends_with("skips QUIC and takes HTTP/2"), "{skipped}");
         assert!(EDGE_NOT_PROBED.contains("--full") && EDGE_NOT_PROBED.contains("WARP"), "{EDGE_NOT_PROBED}");
     }
 }

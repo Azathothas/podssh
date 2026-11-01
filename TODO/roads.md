@@ -4523,8 +4523,8 @@ code that no command of the default build uses is P2 at most".
   roads" is wrong. T-301's Approach item 1 said "After a UDP probe (the iroh road's)"
   (`TODO/roads.md:2020`); its Decision took QUIC only where no proxy is set, on the connection's
   own socket (`TODO/roads.md:2052-2059`), and the QUIC handshake, bounded at 5 s, is its probe:
-  QUIC that fails gives way to HTTP/2 for the run (`crates/podssh-cli/src/node_quick.rs:191-193`,
-  `:300-319`; `crates/podssh-relay/src/quick/quic.rs:32`). Its cost on a host that drops UDP is
+  QUIC that fails gave way to HTTP/2 for the run (`crates/podssh-cli/src/node_quick.rs`, its `link`,
+  read at `a09f40e`, which T-400 replaced by a race; `crates/podssh-relay/src/quick/quic.rs:32`). Its cost on a host that drops UDP is
   one handshake a run, as its Decision item 5 chose (`TODO/roads.md:2060-2064`). doctor says
   nothing of it in the default build, where the quick tunnel is.
 - Read: the measured cage refuses UDP (`docs/target-environment.md:23`), and the box does too
@@ -6226,7 +6226,7 @@ with UDP and TCP 7844 dropped).
 **Milestone:** none
 **Priority:** P2
 **Effort:** M
-**Status:** open
+**Status:** done
 
 ## Problem
 
@@ -6236,8 +6236,8 @@ start and at each reconnect, and a client meets that wait as a refusal.
 
 ## Premise
 
-- Read: the order in `link` (`crates/podssh-cli/src/node_quick.rs:318`); QUIC's limit
-  (`crates/podssh-relay/src/quick/quic.rs:32`) and the edge's dial limit
+- Read: the order in `link` (`crates/podssh-cli/src/node_quick.rs`, line 316 at `a09f40e`);
+  QUIC's limit (`crates/podssh-relay/src/quick/quic.rs:32`) and the edge's dial limit
   (`crates/podssh-relay/src/quick/edge.rs:31`).
 - Read: podssh already races relay hosts with a stagger (`crates/podssh-ws/src/race.rs`).
 - Read in cfrs's issues: the edge answers a QUIC packet of a reserved version with a Version
@@ -6249,12 +6249,113 @@ Probe UDP first with the reserved version's packet (300 ms; skip QUIC when nothi
 Then race the roads with a stagger of 2 s, in the order QUIC, HTTP/2, WARP, through the race of
 podssh-ws; the first that registers wins, and the others are closed.
 
+## Decision
+
+The draft's calls, 2026-11-01:
+
+1. The race is the relay hosts' (`crates/podssh-relay/src/failover.rs`, `failover::race` in
+   `Mode::Staggered`, whose `STAGGER` is 2 s, cfrs's too), not podssh-ws's, which races the
+   addresses of one name over TCP (the Correction). Each attempt is a whole registration
+   (`crates/podssh-relay/src/quick/roads.rs`): the road's dial and its connection run in a task of
+   their own, and the attempt opens at the edge's registration, so that a road that connects and
+   is refused is no road. A road still dialing when another registers is dropped; one that
+   registered in the same turn is stopped, so it unregisters and closes. Lost: racing the dials
+   alone and registering the winner, which never makes a second registration, but keeps a road
+   whose connection the edge refuses.
+2. The probe is the first step of QUIC's road (`roads::quic`), not a step before the race: its
+   failure is the road's, which starts HTTP/2 at once. Where UDP is dropped the race goes on
+   after 300 ms; where the edge answers, QUIC starts one round trip later. Lost: a probe before
+   the race that leaves QUIC out of it: the same effect, and one more step in the node.
+3. The probe (`crates/podssh-relay/src/quick/probe.rs`) sends one Initial of the version
+   `0x1a2a3a4a` with a Destination Connection ID of 8 random bytes and no Source, padded to 1200
+   bytes, from a socket connected to the first address of each family of the first region that
+   resolves, all at once. An answer is a Version Negotiation of that packet: the long form,
+   version 0, no Destination, the packet's 8 bytes as its Source, one version or more and not the
+   reserved one (RFC 9000, sections 6.2 and 17.2.1); any other datagram is not. No answer in
+   300 ms, the system's refusal (ICMP) or no socket skips QUIC, as the Approach says. Lost:
+   cfrs's rule, which keeps QUIC when nothing came back and skips it on a refusal alone; a lost
+   packet costs QUIC for one connection here, and the next race probes again.
+4. Each race probes again, and the road that won the last race starts the next one
+   (`roads::first_of`): a node on HTTP/2 connects again over HTTP/2 at once, and QUIC 2 s later.
+   This replaces T-301's Decision, item 5 ("QUIC that fails once gives way to HTTP/2 for the rest
+   of the run"): a network that changes gets QUIC back, for 300 ms a race where it drops UDP.
+5. The node's loop moves to `crates/podssh-relay/src/quick/keep.rs`, so that the race and the
+   loop run against the stand-in edge; the node gives its roads for each race (WARP's is the
+   node's, `crates/podssh-cli/src/node_warp.rs`, whose tunnel is shared by a lock) and its lines.
+   `edge::connect` returns the TLS boxed as `EdgeIo` (moved from `edge_warp.rs`), as a task holds
+   it.
+6. The lines: before the registration's, one for each road that gave way ("QUIC gave way: UDP to
+   the edge got no answer to a QUIC packet: …") and for each road that was still silent; the
+   registration's names the road and how long its race took, the edge's lookup in it ("registered
+   at Cloudflare's dfw13, over HTTP/2 (its race took 0.4 s)"). A race in which no road
+   connected ends the node with 69 at its first race, as before, and is tried again later; a road
+   that connected and ended unregistered reached the edge, and the node goes on, as before when
+   the link was made. A refusal for good ends the race (failover's `stops`), as each road gets it.
+7. Rule 2 of `AGENTS.md`: a race opens at most three connections to the edge for the stagger and
+   the losers' close, as the race of relay hosts does (the decision of 2026-10-08), and the probe
+   one UDP socket of each family for 300 ms, in the allowance of `scripts/check-repo.py` beside
+   QUIC's. Read as inside the rule's race; the merger checks that reading.
+8. `podssh doctor --full`'s `UDP out` sends the probe first: no answer says that the node skips
+   QUIC and takes HTTP/2, with no handshake; an answer, then QUIC's handshake as before.
+
 ## Prove
 
 ```sh
 export CARGO_BUILD_JOBS=4
-cargo test -p podssh-relay --test quick_resilience a_silent_edge_gives_way_to_the_next_road_within_seconds
+cargo test -p podssh-relay --features quick --test quick_resilience a_silent_edge_gives_way_to_the_next_road_within_seconds
+cargo test -p podssh-relay --features quick --test quick_resilience --test quick_probe
+cargo test -p podssh-relay --features quick --lib quick::
+cargo test -p podssh-relay --features quick --test quick_tunnel --test quick_tunnel_quic
+cargo test -p podssh-cli --lib doctor
+cargo test -p podssh-cli --test man_page --test man_json --test node
 ```
+
+Live: `quick-tunnel-live.yml` on the commit, with UDP to 7844 dropped, then TCP too.
+
+## Correction
+
+Read on 2026-11-01: `crates/podssh-ws/src/race.rs` races the addresses of one name over TCP (RFC
+8305), and returns a `TcpStream`; the staggered race of relay hosts, generic over its attempts, is
+`crates/podssh-relay/src/failover.rs` (`failover::race`, `STAGGER` of 2 s). The work reuses that
+one (the Decision, item 1).
+
+The Prove's first line named no feature, and `quick_resilience` is behind the feature `quick`:
+it ran no test. It names the feature now.
+
+## Done
+
+2026-11-01: drafted by a drafting agent (`worktree-agent-a43f1f66f785b3295`), merged, built and run
+the same day.
+
+- `crates/podssh-relay/src/quick/probe.rs`: the packet and the reading of its answer, with their
+  tests (the packet's bytes; a Version Negotiation of 27 bytes laid out as RFC 9000's figure 14
+  answers, and each of ten others does not). `cargo test -p podssh-relay --features quick --lib
+  quick::`: 55 passed.
+- `crates/podssh-relay/src/quick/roads.rs` and `keep.rs`: the race, its roads and the node's loop.
+  `crates/podssh-relay/tests/quick_resilience.rs`: the new
+  `a_silent_edge_gives_way_to_the_next_road_within_seconds` (a road that never answers, then the
+  stand-in edge's road: dialed 2 s after the start, kept, the silent one dropped, a visitor's
+  message back) and `quic_whose_probe_gets_no_answer_gives_way_at_once` (QUIC's road to a
+  loopback port that answers nothing: HTTP/2 dialed after 300 ms and before 1.5 s, the probe's
+  1200 bytes at the port); `crates/podssh-relay/tests/quick_probe.rs`: a stand-in that answers
+  with a Version Negotiation of 27 bytes is taken, one of another id is not, and a closed port is
+  said at once on Linux. `cargo test -p podssh-relay --features quick --test quick_resilience
+  --test quick_probe`: 9 and 2 passed. The harness's `register` now reads the edge's side through
+  `register_edge`: `--test quick_tunnel --test quick_tunnel_quic`, 8 and 6 passed, and
+  `--features warp-stand-in --test quick_edge_warp`, 2 passed.
+- `crates/podssh-cli/src/node_quick.rs`: the roads for each race and `keep`;
+  `crates/podssh-cli/src/doctor/quick.rs`: the probe in `UDP out`. `cargo test -p podssh-cli --lib
+  doctor`: 38 passed; `--features warp --lib`: 530 passed; `--test man_page --test man_json
+  --test node`: 10, 4 and 16 passed. clippy `-D warnings` of podssh-relay (with `quick`, `pair`,
+  `warp-stand-in`) and podssh-cli (with and without `warp`): clean, so `WarpRoad::edge`'s future
+  is `Send`, as a road's dial runs in a task.
+- `rustfmt --check --edition 2021` on each changed Rust file, in the draft: exit 0.
+- Planted, each failed its test: `Mode::Serial` in `roads::race` (the silent road held the race:
+  "a road in time: Elapsed"); `probe::answers` that takes any datagram ("an answer to another
+  packet"); QUIC's road with no probe (HTTP/2 came after 2.0 s, past the bound of 1.5 s).
+- Live: `quick-tunnel-live.yml` greps "QUIC gave way" with UDP to 7844 dropped and asks the race
+  to HTTP/2 within 5 s, and the race to WARP's tunnel with TCP dropped too within 20 s, and checks
+  doctor's `UDP out` with the probe: its run after the push is in `docs/STATUS.md`.
 
 # T-401: The quick tunnel's provisioning: Retry-After honoured, and the edge's text cleaned before it is shown
 

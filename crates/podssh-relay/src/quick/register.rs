@@ -65,6 +65,34 @@ impl Registration<'_> {
     }
 }
 
+/// What a connector names at each registration of one run, owned, so that
+/// the task of each connection holds its own (T-400): the tunnel's
+/// credentials, this connector's id, its version and its system.
+pub struct Connector {
+    pub account_tag: String,
+    pub secret: zeroize::Zeroizing<Vec<u8>>,
+    pub tunnel_id: [u8; 16],
+    pub client_id: [u8; 16],
+    pub version: String,
+    pub arch: String,
+}
+
+impl Connector {
+    /// The registration of the connection `conn_index`, with [`FEATURES`].
+    pub fn registration(&self, conn_index: u8) -> Registration<'_> {
+        Registration {
+            account_tag: &self.account_tag,
+            secret: self.secret.as_slice(),
+            tunnel_id: self.tunnel_id,
+            conn_index,
+            client_id: self.client_id,
+            features: FEATURES,
+            version: &self.version,
+            arch: &self.arch,
+        }
+    }
+}
+
 /// Write the parameters of `updateLocalConfiguration`, the ingress rules as
 /// JSON, into `params`, a struct of [`CONFIGURATION_PARAMS`].
 pub fn write_configuration(b: &mut Builder, params: At, config: &[u8]) {

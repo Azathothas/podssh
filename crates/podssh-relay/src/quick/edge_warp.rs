@@ -8,17 +8,13 @@
 //! through the proxy.
 
 use podssh_ws::Trust;
-use tokio::io::{AsyncRead, AsyncWrite};
 
+// The edge's TLS on either road, as the node serves it: one trait for both.
+pub use super::edge::EdgeIo;
 use super::edge::{Edge, DIAL_LIMIT, SERVER_NAME};
 
 /// The road's words, as the node says how it registered.
 pub const ROAD: &str = "HTTP/2 inside WARP's tunnel";
-
-/// The edge's TLS on either road, as the node serves it.
-pub trait EdgeIo: AsyncRead + AsyncWrite + Unpin + Send {}
-
-impl<T: AsyncRead + AsyncWrite + Unpin + Send> EdgeIo for T {}
 
 /// A TLS connection to `edge` inside `warp`'s tunnel, trusted as `trust`
 /// says (the node's: [`super::edge::trust`]): each region in turn; the

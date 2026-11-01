@@ -1827,9 +1827,9 @@ and no `--timeout`: a person decides how long an edit takes.
   never from the command line. A value that does not read is 64.
 - `UDP out` (T-359) says whether `podssh node --quick-tunnel` takes QUIC:
   with a proxy set, nothing is sent, as the node then takes HTTP/2; with
-  none, `--full` makes a QUIC handshake with the quick tunnel's edge,
-  Cloudflare's, as the node's first try makes one, each region at once,
-  and closes it with nothing registered. A run without `--full` reaches no
+  none, `--full` sends the node's probe of UDP (T-400), then, answered,
+  a QUIC handshake with the quick tunnel's edge (Cloudflare's), each region
+  at once, closed with nothing registered. A run without `--full` reaches no
   server of Cloudflare's, and says so. In a build with the feature `iroh`,
   `iroh UDP out` gives the iroh road's own answer: whether a QUIC address
   discovery to its home relay came back.
@@ -2338,21 +2338,21 @@ commands. The rules behind them:
   Cloudflare's that podssh makes itself: no pair, no account and no
   `cloudflared`. The name is new each run, and the one line on stdout. The
   node asks `api.trycloudflare.com` for the tunnel (through `HTTPS_PROXY`
-  when it is set), then reaches the edge on port 7844: over QUIC where no
-  proxy is set and UDP gets there, as cloudflared does (T-301), else over
-  HTTP/2 on TCP, directly or through a proxy that allows it, else, in a
-  build with the feature `warp` (T-374), over HTTP/2 inside WARP's tunnel,
-  as a cage whose proxy allows port 443 alone reaches the edge so: the
-  device of `warp://` (above), the edge's name asked inside the tunnel, and
-  the edge's own TLS over the stream; `--warp` tries WARP's tunnel first,
-  and without the feature it exits 70. QUIC that fails gives way to HTTP/2
-  for the rest of the run, and the node exits 69 when it reaches none. The
+  when it is set), then races its roads to the edge's port 7844 (T-400),
+  each 2 s after the one before or at once when it failed, and keeps the
+  first that the edge registers: QUIC where no proxy is set and a probe of
+  UDP (one QUIC packet) got its answer within 300 ms, as cloudflared does
+  (T-301); HTTP/2 on TCP, directly or through a proxy that allows it; and,
+  with the feature `warp` (T-374), HTTP/2 inside WARP's tunnel with the
+  device of `warp://` (above), as a cage whose proxy allows port 443 alone
+  reaches the edge so. `--warp` puts WARP's tunnel first (70 without the
+  feature); the node exits 69 when no road reaches the edge. The
   API's refusal for now (429, or a 5xx) is asked again for up to 5 minutes,
   after its `Retry-After` or a growing wait (T-401); a wait past them ends
   the node with 75, and its line names the wait and its end; each text of
   the API and of the edge is shown on one line, with no control character.
-  It registers its connection on the first stream, and its
-  line of the registration names the transport; each visitor's WebSocket is
+  It registers its connection on the first stream; its line of the
+  registration names the road and its race's time; each visitor's WebSocket is
   one link of the resumable layer. The name is public, so `--allow FILE` is
   needed: only an operator whose key is in FILE reaches TARGET, through
   the end-to-end channel. A lost connection to the edge is made again with

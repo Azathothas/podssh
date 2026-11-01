@@ -230,9 +230,11 @@ const DOCTOR: &[&str] = &[
     "With --full, the relay section adds login: podssh logs in to github.com through the relay as git, \
      with an Ed25519 key made for the check and never written, and GitHub refuses it. That shows that the \
      handshake, the host key (the one that forward identified) and the authentication path work. No pty \
-     is asked for: GitHub refuses the key before a channel opens. With no proxy set, --full also makes a \
-     QUIC handshake with the quick tunnel's edge, Cloudflare's, as the node's first try makes one, and \
-     closes it at once with nothing registered: UDP out then says whether it answered, and in what time. \
+     is asked for: GitHub refuses the key before a channel opens. With no proxy set, --full also sends \
+     the node's probe of UDP to the quick tunnel's edge, Cloudflare's, one QUIC packet that the edge \
+     answers with a Version Negotiation, waited for 300 ms; when it is answered, a QUIC handshake with the \
+     edge, as the node's QUIC makes one, closed at once with nothing registered: UDP out then says what \
+     answered, and in what time, or that the node skips QUIC and takes HTTP/2. \
      In a build with the feature tor, --full bootstraps Tor as a tor:// destination does (through the \
      proxy, its first hops on the ports of PODSSH_TOR_PORTS or the bridges of PODSSH_TOR_BRIDGES, the \
      network of PODSSH_TOR_NETWORK) and opens no stream: the line tor says how long it took, through which \

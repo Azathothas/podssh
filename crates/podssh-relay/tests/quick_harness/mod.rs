@@ -15,7 +15,8 @@ use h2::{RecvStream, SendStream};
 use http::Request;
 use podssh_relay::quick::capnp::Builder;
 use podssh_relay::quick::headers;
-use podssh_relay::quick::register::{Registration, FEATURES};
+use podssh_relay::quick::register::{Connector, Registration, FEATURES};
+use podssh_relay::quick::roads::{Link, Road};
 use podssh_relay::quick::serve::{serve, Ended, Step};
 use podssh_ws::frame::{self, Frame, Role};
 use tokio::io::{AsyncRead, AsyncWrite, DuplexStream, ReadBuf};
@@ -46,6 +47,31 @@ pub fn registration() -> Registration<'static> {
         version: "podssh 1.0.0-beta.2",
         arch: "linux_amd64",
     }
+}
+
+/// The values of [`registration`], owned, as a node's races hold them
+/// (T-400).
+pub fn connector() -> Connector {
+    let values = registration();
+    Connector {
+        account_tag: values.account_tag.to_string(),
+        secret: zeroize::Zeroizing::new(values.secret.to_vec()),
+        tunnel_id: values.tunnel_id,
+        client_id: values.client_id,
+        version: values.version.to_string(),
+        arch: values.arch.to_string(),
+    }
+}
+
+/// A road whose dial gives the node's end of a pipe at once, and the edge's
+/// end to the test, which plays the edge on it (T-400).
+pub fn stand_in(name: &'static str, edges: mpsc::UnboundedSender<DuplexStream>) -> Road {
+    let dial = async move {
+        let (node_io, edge_io) = tokio::io::duplex(1 << 20);
+        edges.send(edge_io).map_err(|_| "the test is gone".to_string())?;
+        Ok::<Link, String>(Link::Http2(Box::new(node_io)))
+    };
+    Road { name, dial: Box::pin(dial) }
 }
 
 /// The edge's `Return` of `answer` whose results' content is not set: a
@@ -128,14 +154,36 @@ pub async fn register(
     edge: &mut h2::client::SendRequest<Bytes>,
     steps: &mut mpsc::UnboundedReceiver<Step>,
 ) -> (SendStream<Bytes>, RecvStream) {
+    let (to_node, from_node, _) = register_edge(edge).await;
+    assert_eq!(steps.recv().await, Some(Step::Registered { location: "msp01".into() }));
+    (to_node, from_node)
+}
+
+/// The edge's side of [`register`], for a node whose steps the test does not
+/// read (a race's): the edge's ends of the control stream, and the node's
+/// bootstrap and call of `registerConnection`, as they came.
+pub async fn register_edge(edge: &mut h2::client::SendRequest<Bytes>) -> (SendStream<Bytes>, RecvStream, Vec<u8>) {
     let control = request(Some(headers::CONTROL_STREAM)).body(()).unwrap();
     let (answer, mut to_node) = edge.send_request(control, false).unwrap();
     let mut from_node = tokio::time::timeout(LIMIT, answer).await.unwrap().unwrap().into_body();
-    read_exactly(&mut from_node, BOOTSTRAP.len() + CALL_REGISTER.len()).await;
+    let sent = read_exactly(&mut from_node, BOOTSTRAP.len() + CALL_REGISTER.len()).await;
     to_node.send_data(Bytes::from([empty_return(0), RETURN_DETAILS.to_vec()].concat()), false).unwrap();
-    assert_eq!(steps.recv().await, Some(Step::Registered { location: "msp01".into() }));
     read_exactly(&mut from_node, FINISH.len()).await;
-    (to_node, from_node)
+    (to_node, from_node, sent)
+}
+
+/// The index of the connection that `sent`, a registration's first bytes,
+/// names: the fixtures name 0, and a registration of the test's values
+/// differs from them in that one byte alone (T-402).
+pub fn conn_index_of(sent: &[u8]) -> u8 {
+    let fixture = [BOOTSTRAP, CALL_REGISTER].concat();
+    assert_eq!(sent.len(), fixture.len(), "a registration of another size");
+    let differ: Vec<usize> = (0..sent.len()).filter(|&at| sent[at] != fixture[at]).collect();
+    match differ[..] {
+        [] => 0,
+        [at] if fixture[at] == 0 => sent[at],
+        _ => panic!("the registration differs from the fixture's at {differ:?}"),
+    }
 }
 
 /// A visitor's WebSocket, answered: the edge's ends of its stream.

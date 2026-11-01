@@ -58,16 +58,17 @@ jobs:
           timeout 1200 cargo build -p podssh-cli --locked
           target/debug/podssh --version
 
-      # T-359: doctor's UDP out makes the node's first QUIC handshake with the
-      # edge, closed at once with nothing registered; here UDP reaches it.
+      # T-359, T-400: doctor's UDP out sends the node's probe of UDP, then
+      # makes its QUIC handshake with the edge, closed at once with nothing
+      # registered; here UDP reaches it.
       - name: doctor's UDP out, with UDP to the edge
         run: |
           timeout 120 target/debug/podssh doctor --full >"$RUNNER_TEMP/doctor.txt" 2>&1 || true
           line=$(grep -E '^ +[^ ]+ +UDP out ' "$RUNNER_TEMP/doctor.txt" | head -n 1)
           echo "doctor: $line"
           case $line in
-            *ok*"answered in "*"takes QUIC"*) echo "ok    doctor's UDP out: QUIC to the edge answered" ;;
-            *) echo "FAIL doctor's UDP out did not say that QUIC answered"; exit 1 ;;
+            *ok*"answered a QUIC packet in "*"answered in "*"takes QUIC"*) echo "ok    doctor's UDP out: the probe and QUIC answered" ;;
+            *) echo "FAIL doctor's UDP out did not say that the probe and QUIC answered"; exit 1 ;;
           esac
 
       - name: an OpenSSH server on the loopback, the node's TARGET
@@ -203,18 +204,20 @@ jobs:
           echo "ok    a --node-key that is not the node's is refused (exit 255)"
           sed 's/^/proxy: /' "$RUNNER_TEMP/proxy.log" | tail -n 20
 
-      # T-301: with UDP to the edge's 7844 dropped, QUIC fails, the node says
-      # so and registers over HTTP/2; a visitor of that second name gets in.
+      # T-301, T-400: with UDP to the edge's 7844 dropped, the probe of UDP
+      # gets no answer, QUIC gives way at once, the node says so and
+      # registers over HTTP/2, its race within 5 s (cfrs's testers saw 2.44
+      # s); a visitor of that second name gets in.
       - name: a second node, with UDP to 7844 dropped
         run: |
           sudo iptables -I OUTPUT -p udp --dport 7844 -j DROP
-          # T-359: doctor's UDP out finds no answer, and says HTTP/2.
+          # T-359, T-400: doctor's probe finds no answer, and says HTTP/2.
           timeout 120 target/debug/podssh doctor --full >"$RUNNER_TEMP/doctor2.txt" 2>&1 || true
           line=$(grep -E '^ +[^ ]+ +UDP out ' "$RUNNER_TEMP/doctor2.txt" | head -n 1)
           echo "doctor: $line"
           case $line in
-            *ok*"no region of the edge answered over QUIC"*"takes HTTP/2"*) echo "ok    doctor's UDP out: no answer, HTTP/2" ;;
-            *) echo "FAIL doctor's UDP out did not say that QUIC found no answer"; exit 1 ;;
+            *ok*"said nothing within 300 ms"*"skips QUIC and takes HTTP/2"*) echo "ok    doctor's UDP out: no answer, HTTP/2" ;;
+            *) echo "FAIL doctor's UDP out did not say that the probe found no answer"; exit 1 ;;
           esac
           : > "$RUNNER_TEMP/allow2"
           target/debug/podssh node fallback 127.0.0.1:4022 --quick-tunnel --allow "$RUNNER_TEMP/allow2" \
@@ -224,8 +227,11 @@ jobs:
           host2=$(sed -n 's#^https://##p' "$RUNNER_TEMP/url2" | head -n 1)
           [ -n "$host2" ] && echo "::add-mask::$host2"
           sed 's/^/node2: /' "$RUNNER_TEMP/node2.log"
-          grep -q "over HTTP/2 from now on" "$RUNNER_TEMP/node2.log" || { echo "FAIL QUIC's failure was not said"; exit 1; }
+          grep -q "QUIC gave way: UDP to the edge got no answer" "$RUNNER_TEMP/node2.log" || { echo "FAIL QUIC's failure was not said"; exit 1; }
           grep -q "registered at .*, over HTTP/2" "$RUNNER_TEMP/node2.log" || { echo "FAIL not over HTTP/2"; exit 1; }
+          took=$(sed -n 's/.*, over HTTP\/2 (its race took \([0-9.]*\) s).*/\1/p' "$RUNNER_TEMP/node2.log" | head -n 1)
+          echo "the race to HTTP/2 took ${took:-?} s"
+          awk -v t="${took:-99}" 'BEGIN { exit !(t < 5) }' || { echo "FAIL the race to HTTP/2 took 5 s or more (T-400)"; exit 1; }
           timeout 120 python3 scripts/quick-tunnel-probe.py --limit 60 "$host2"
           echo "ok    with UDP to 7844 dropped, the node said so and served over HTTP/2"
           kill -TERM "$(cat "$RUNNER_TEMP/node2.pid")" 2>/dev/null || true
@@ -255,6 +261,11 @@ jobs:
           grep -q "WARP's tunnel opened" "$RUNNER_TEMP/node3.log" || { echo "FAIL WARP's tunnel was not said"; exit 1; }
           grep -q "registered at .*, over HTTP/2 inside WARP's tunnel" "$RUNNER_TEMP/node3.log" \
             || { echo "FAIL not registered inside WARP's tunnel"; exit 1; }
+          # T-400: WARP starts 2 s after HTTP/2, which waits for TCP; cfrs's
+          # testers saw the race won there at 6.74 s.
+          took=$(sed -n "s/.*, over HTTP\/2 inside WARP's tunnel (its race took \([0-9.]*\) s).*/\1/p" "$RUNNER_TEMP/node3.log" | head -n 1)
+          echo "the race to WARP's tunnel took ${took:-?} s"
+          awk -v t="${took:-99}" 'BEGIN { exit !(t < 20) }' || { echo "FAIL the race to WARP's tunnel took 20 s or more (T-400)"; exit 1; }
           timeout 120 python3 scripts/quick-tunnel-probe.py --limit 60 "$host3"
           echo "ok    with 7844 dropped, the node registered inside WARP's tunnel and served a visitor"
           # T-398: 16 MiB each way through this node, whose road to the edge

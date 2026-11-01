@@ -26,7 +26,12 @@
 //! - `serve` (feature `quick`): the connection to the edge, served over
 //!   HTTP/2: the control stream, and each visitor's WebSocket;
 //! - `quic` and `quic_serve` (feature `quick`): the same over QUIC, where UDP
-//!   reaches the edge (T-301); `visitor`: a WebSocket on such a stream.
+//!   reaches the edge (T-301); `visitor`: a WebSocket on such a stream;
+//! - `probe` (feature `quick`): whether UDP reaches the edge, by one packet
+//!   that its Version Negotiation answers, before QUIC (T-400);
+//! - `roads` and `keep` (feature `quick`): the roads to the edge raced with
+//!   a stagger, the first that registers kept, and the node's connection
+//!   kept by a new race after each loss (T-400).
 
 pub mod api;
 pub mod capnp;
@@ -41,10 +46,16 @@ pub mod edge_warp;
 pub mod goaway;
 pub mod headers;
 #[cfg(feature = "quick")]
+pub mod keep;
+#[cfg(feature = "quick")]
+pub mod probe;
+#[cfg(feature = "quick")]
 pub mod quic;
 #[cfg(feature = "quick")]
 pub mod quic_serve;
 pub mod register;
+#[cfg(feature = "quick")]
+pub mod roads;
 pub mod rpc;
 #[cfg(feature = "quick")]
 pub mod serve;

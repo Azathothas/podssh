@@ -31,9 +31,10 @@ impl WarpRoad {
     }
 
     /// A TLS connection to `found` inside the tunnel, which opens first when
-    /// it is not open; `say` tells of its opening.
+    /// it is not open; `say` tells of its opening. `say` is `Sync`, as the
+    /// node's race runs each road in a task of its own (T-400).
     #[cfg(feature = "warp")]
-    pub async fn edge(&mut self, found: &edge::Edge, say: &dyn Fn(String)) -> Result<Box<dyn Duplex>, String> {
+    pub async fn edge(&mut self, found: &edge::Edge, say: &(dyn Fn(String) + Sync)) -> Result<Box<dyn Duplex>, String> {
         if self.warp.as_ref().is_some_and(|warp| warp.ended().is_some()) {
             self.warp = None;
         }
@@ -58,7 +59,11 @@ impl WarpRoad {
 
     /// In a build without the feature, the road is not there, and says so.
     #[cfg(not(feature = "warp"))]
-    pub async fn edge(&mut self, _found: &edge::Edge, _say: &dyn Fn(String)) -> Result<Box<dyn Duplex>, String> {
+    pub async fn edge(
+        &mut self,
+        _found: &edge::Edge,
+        _say: &(dyn Fn(String) + Sync),
+    ) -> Result<Box<dyn Duplex>, String> {
         Err("a build with the feature warp reaches the edge inside WARP's tunnel too".into())
     }
 }

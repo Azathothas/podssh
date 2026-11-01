@@ -4,23 +4,33 @@
 //! the end of its control stream, and an edge that answers no PING each
 //! end the connection, so that the node connects again; a visitor whose
 //! user reads nothing holds no other stream; and pings sent while the
-//! node's writer waits for the edge's window get one pong, the latest.
+//! node's writer waits for the edge's window get one pong, the latest. And
+//! the race of the roads to the edge (T-400): a silent road gives way to the
+//! next after the stagger, and QUIC whose probe of UDP gets no answer gives
+//! way at the probe's end.
 
 #![cfg(feature = "quick")]
 
 mod quick_harness;
 
-use std::sync::atomic::{AtomicUsize, Ordering};
+use std::net::Ipv4Addr;
+use std::sync::atomic::{AtomicBool, AtomicUsize, Ordering};
 use std::sync::Arc;
 use std::time::Duration;
 
 use bytes::Bytes;
 use h2::RecvStream;
+use podssh_relay::failover::STAGGER;
 use podssh_relay::quick::control::Failure;
+use podssh_relay::quick::edge::Edge;
+use podssh_relay::quick::probe;
+use podssh_relay::quick::roads::{self, Link, Road};
 use podssh_relay::quick::serve::{Ended, PING_EVERY, PONG_WAIT};
 use podssh_ws::frame::{self, Frame, Role};
 use quick_harness::*;
 use tokio::io::{AsyncReadExt, AsyncWriteExt, DuplexStream};
+use tokio::sync::{mpsc, watch};
+use tokio::time::{timeout, Instant};
 
 /// A frame of a visitor, masked as a client writes it.
 fn masked(opcode: u8, payload: &[u8]) -> Bytes {
@@ -187,4 +197,99 @@ async fn an_edge_that_never_shakes_hands_is_gone_and_a_stop_ends_the_wait() {
     let (_steps, stop, served) = node(node_io);
     stop.send(()).unwrap();
     tokio::time::timeout(LIMIT, served).await.expect("the end in time").unwrap().expect("a stop is no failure");
+}
+
+/// A road that never answers, as an edge whose port takes packets and says
+/// nothing: its dial waits for ever, and `dropped` turns when the race lets
+/// it go.
+fn silent(dropped: Arc<AtomicBool>) -> Road {
+    struct Dropped(Arc<AtomicBool>);
+    impl Drop for Dropped {
+        fn drop(&mut self) {
+            self.0.store(true, Ordering::SeqCst);
+        }
+    }
+    let dial = async move {
+        let _dropped = Dropped(dropped);
+        std::future::pending::<Result<Link, String>>().await
+    };
+    Road { name: roads::QUIC, dial: Box::pin(dial) }
+}
+
+/// The edge's side of a race of `stand_in` roads: the end of the road that
+/// the node dialed, when it came after `started`, HTTP/2's handshake and the
+/// registration; the edge's client, and its ends of the control stream.
+type EdgeSide = (h2::client::SendRequest<Bytes>, (h2::SendStream<Bytes>, RecvStream, Vec<u8>), Duration);
+
+type Edges = mpsc::UnboundedReceiver<DuplexStream>;
+
+fn edge_side(mut at_edge: Edges, started: Instant) -> tokio::task::JoinHandle<EdgeSide> {
+    tokio::spawn(async move {
+        let io = timeout(LIMIT, at_edge.recv()).await.expect("a road in time").expect("a road");
+        let dialed = started.elapsed();
+        let (mut client, connection) = h2::client::handshake(io).await.unwrap();
+        tokio::spawn(connection);
+        let control = register_edge(&mut client).await;
+        (client, control, dialed)
+    })
+}
+
+#[tokio::test(flavor = "multi_thread", worker_threads = 2)]
+async fn a_silent_edge_gives_way_to_the_next_road_within_seconds() {
+    let (edges, at_edge) = mpsc::unbounded_channel();
+    let dropped = Arc::new(AtomicBool::new(false));
+    let ways = vec![silent(dropped.clone()), stand_in(roads::HTTP2, edges)];
+    let (_stop, all) = watch::channel(false);
+    let started = Instant::now();
+    let edge = edge_side(at_edge, started);
+    let race = timeout(LIMIT, roads::race(ways, Arc::new(connector()), 0, echo, all)).await.expect("in time");
+    let took = started.elapsed();
+    let (mut client, _control, dialed) = edge.await.unwrap();
+    // The second road started once the silent one had had its stagger.
+    assert!(dialed >= STAGGER - Duration::from_millis(50) && dialed < STAGGER + Duration::from_secs(1), "{dialed:?}");
+    assert!(took < STAGGER + Duration::from_secs(3), "the race took {took:?}");
+    let serving = race.kept.expect("the second road registered");
+    assert_eq!((serving.road, serving.location.as_str()), (roads::HTTP2, "msp01"));
+    assert_eq!(race.silent, [roads::QUIC]);
+    assert!(race.failed.is_empty() && race.dismissed.is_empty());
+    // The silent road was let go: its dial is dropped.
+    let gone = async {
+        while !dropped.load(Ordering::SeqCst) {
+            tokio::time::sleep(Duration::from_millis(10)).await;
+        }
+    };
+    timeout(LIMIT, gone).await.expect("the silent road dropped");
+    // The connection kept serves: a visitor's message comes back.
+    let (mut out, mut back) = visitor(&mut client).await;
+    out.send_data(masked(0x2, b"through the road that won"), false).unwrap();
+    assert_eq!(read_frame(&mut back).await.payload, b"through the road that won");
+    drop(serving);
+}
+
+#[tokio::test(flavor = "multi_thread", worker_threads = 2)]
+async fn quic_whose_probe_gets_no_answer_gives_way_at_once() {
+    // A port that takes each datagram and answers none, as a network that
+    // drops UDP further on.
+    let dropping = std::net::UdpSocket::bind((Ipv4Addr::LOCALHOST, 0)).unwrap();
+    let port = dropping.local_addr().unwrap().port();
+    let found = Edge { regions: vec!["127.0.0.1".into()], port, fixed: None };
+    let (edges, at_edge) = mpsc::unbounded_channel();
+    let ways = vec![roads::quic(found), stand_in(roads::HTTP2, edges)];
+    let (_stop, all) = watch::channel(false);
+    let started = Instant::now();
+    let edge = edge_side(at_edge, started);
+    let race = timeout(LIMIT, roads::race(ways, Arc::new(connector()), 0, echo, all)).await.expect("in time");
+    let (_client, _control, dialed) = edge.await.unwrap();
+    // HTTP/2 started at the probe's end, long before the stagger.
+    let early = probe::WAIT - Duration::from_millis(50);
+    assert!(dialed >= early && dialed < STAGGER - Duration::from_millis(500), "{dialed:?}");
+    assert_eq!(race.kept.as_ref().map(|serving| serving.road), Some(roads::HTTP2));
+    let [(road, why)] = &race.failed[..] else { panic!("{} roads failed", race.failed.len()) };
+    assert_eq!(*road, roads::QUIC);
+    assert!(why.to_string().contains("said nothing within 300 ms"), "{why}");
+    // The probe's packet reached the port: 1200 bytes, the reserved version.
+    dropping.set_nonblocking(true).unwrap();
+    let mut packet = [0u8; 1500];
+    let n = dropping.recv(&mut packet).expect("the probe's packet");
+    assert_eq!((n, &packet[1..5]), (probe::PADDED, &probe::RESERVED[..]));
 }
