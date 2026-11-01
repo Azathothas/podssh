@@ -69,7 +69,9 @@ entry keeps its proof in the entry; this page keeps no history (git does).
 
   T-373's (`1be3e28`) and T-334's (`4bddbb5`), drafted by agents of this
   cloud session, are merged, and their worktrees and branches are gone. Being
-  written (2026-11-01): T-385 (meek and WebTunnel), in an agent's worktree.
+  written (2026-11-01): T-385 (meek and WebTunnel), and T-251's planted defects as files of
+  `scripts/plants/` (four drafts: ssh, faults and multi; copy, pipe and cli; resume and roads; the
+  box), each in an agent's worktree.
 
   CI: the gate passed at
   `24b9f6e` (run 38331509229), and its step `release` at `cad2885` (478
