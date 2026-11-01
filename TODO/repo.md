@@ -1503,7 +1503,7 @@ warning, and the gate checks the format and the lints".
 # T-216: Advisories and licenses of the dependencies, checked in CI
 
 **Source:** the triage of GitHub #27 (2026-10-08); the advisories of iroh
-(`docs/design.md:970-972`) show that a dependency can get one.
+(`docs/design.md:972-974`) show that a dependency can get one.
 **Category:** chore
 **Milestone:** none
 **Priority:** P2
@@ -4116,7 +4116,7 @@ as `crates/podssh-ws/src/crypto/aead.rs` calls both through one set of
   the last of each line on Rust 1.85; ctutils before 0.4.7 has
   RUSTSEC-2026-0385 (T-312), so no lock of podssh takes an older one.
 - Read: the library crates declare Rust 1.85, podbox's minimum
-  (`docs/design.md:488-491`).
+  (`docs/design.md:490-493`).
 
 ## Approach
 
@@ -4900,7 +4900,7 @@ of GitHub #69 to #72 corrected these; nothing finds the next.
 - Read, by `grep -w yet` over `docs/`, `README.md`, `AGENTS.md` and `SECURITY.md` on 2026-10-31,
   after the corrections: 19 lines with no date and no id on them. Most are true today, as of the
   work that the operator holds (Q32); some state nothing of podssh, as "not whole yet"
-  (`docs/cli.md:1220`) and "did not act on yet" (`docs/cli.md:946`).
+  (`docs/cli.md:1240`) and "did not act on yet" (`docs/cli.md:966`).
 - Read: the checker reads the ids of these documents and the citations of `TODO/` alone
   (`crates/podssh-todo/src/refs.rs:22-35`); it reads no sentence of a document.
 - Read: the fifth statement of GitHub #71, the comment of the facts file that the relay's frame

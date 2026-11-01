@@ -54,6 +54,8 @@ races them. [carriers.md](carriers.md) studies the carriers that need no relay o
 | A service that `cloudflared` publishes (`cf://HOST`) | The WebSocket of the tunnel, as `cloudflared access tcp` opens it, through `HTTPS_PROXY` | None | None |
 | A VM of the user's on GCP (`iap://PROJECT/ZONE/INSTANCE`) | IAP's WebSocket for TCP, as `gcloud compute start-iap-tunnel` opens it, through `HTTPS_PROXY` | None | None |
 | An EC2 instance of the user's (`eice://ENDPOINT/ADDRESS`) | The WebSocket of an EC2 Instance Connect Endpoint, its URL presigned as aws-cli presigns it, through `HTTPS_PROXY` | None | None |
+| A port of any host, through WARP's network (`warp://HOST`, feature `warp`) | WARP's MASQUE over HTTP/2 to Cloudflare's endpoint by its address, through `HTTPS_PROXY`, with TCP inside in this process (T-352) | None | None |
+| A port of any host, through the Tor network (`tor://HOST`, feature `tor`) | Arti in this process, each first hop through `HTTPS_PROXY` on the ports that it allows (T-353) | None | None |
 
 Each road has the same rules:
 

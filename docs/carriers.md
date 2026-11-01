@@ -127,6 +127,13 @@ The candidates, ranked:
      are other programs [F14]. ptrs-gesher-webtunnel takes rustls with ring,
      which holds C [F18].
    - Effort: L. Risks: slow, C, and an API that moves. T-353, after Q52.
+   - Built (T-353, 2026-11-01, partial): `tor://HOST[:PORT]`, in a feature
+     crate (`crates/podssh-tor/src/lib.rs`), arti-client 0.47 with the
+     features `tokio`, `rustls` and `static-sqlite`: its only C is SQLite.
+     Arti's TCP provider is podssh's dial, so each first hop goes through the
+     proxy by its address, and its first hops are held to the ports of
+     `PODSSH_TOR_PORTS` (443 alone through a proxy). The live run waits for
+     the operator (Q60); meek and WebTunnel wait.
 6. **A Worker in the user's own Cloudflare account** (class C). It works as
    the relay does, and could serve the split road of T-319 too. The free
    plan gives 100,000 requests a day and 10 ms of CPU for each request

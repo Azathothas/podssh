@@ -245,6 +245,26 @@ scripts. The facts about OpenSSH on this page were measured with OpenSSH
   makes HOST the first hop of a chain. `podssh proxy warp://HOST:PORT` is
   the same pipe. In a build without the feature, a `warp://` destination
   exits 70 before anything connects.
+- **`tor://[user@]HOST[:PORT]` is a port of any host through the Tor
+  network (T-353), in a build with the feature `tor`.** Arti runs in this
+  process (`crates/podssh-tor/src/client.rs`), with no relay, no account and
+  no program besides. Each of its connections to a Tor relay is podssh's own
+  dial (`crates/podssh-tor/src/runtime.rs`): through `HTTPS_PROXY` when one
+  is set, to the relay's address and port, and Arti listens on nothing.
+  Through a proxy, Arti takes as first hops only the relays on port 443, or
+  on the ports of `PODSSH_TOR_PORTS` (a list, or `any`; any port with no
+  proxy), as a cage allows only a few. An exit resolves HOST and connects to
+  it; an exit's policy, or the host, may refuse Tor. The first run fetches
+  Tor's directory, which can take a minute; Arti keeps it and its guards in
+  the cache's `tor/` (mode 0700), and later runs start sooner. Arti's TLS is
+  podssh-ws's own rustls provider, installed as the process's, and its only
+  C is SQLite, of its state. The host key is recorded under `tor://HOST`;
+  `-p` and `Port` give the port; `--direct`, `-4`, `-6` and `HostName` are
+  refused (64), and `-J tor://HOST` makes HOST the first hop of a chain.
+  `podssh proxy tor://HOST:PORT` is the same pipe. In a build without the
+  feature, a `tor://` destination exits 70 before anything connects. Tor's
+  own TLS fails through a proxy that re-terminates TLS; meek and WebTunnel,
+  which would pass one, are not built yet (T-353).
 - **The direct road after the relay hosts** (T-363), as the road table of
   [design.md](design.md) gives it. When no relay host opened a session, and
   the user named no relay (`--relay-host`, `PODSSH_RELAY` or the settings
