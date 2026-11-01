@@ -415,6 +415,9 @@ Planted, an sshd without the test's key: `ssh_to_a_node` fails.
   'exit 3' (127.0.0.1:PORT): exit 3", and the SSH banner through `podssh operator`; passed in 6 s.
   Planted, the server's authorized keys not the test's: it failed, "the remote status through the
   node".
+- `sh scripts/release-check.sh --local --binary ... --build ... --only railway` at `74974dd`: `SKIP
+  railway`, "railway.new refused this anonymous visitor, its limit (its words withheld): -tt: exit
+  13; -T: exit 1; an outside refusal (T-422)"; the run's verdict INCOMPLETE, as `--only` gives.
 
 # T-415: On GitHub's runner the box's /dev/tty probe waits 40 minutes, so box.yml measures nothing
 
