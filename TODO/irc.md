@@ -49,7 +49,7 @@ used `--no-cap` (`crates/podssh-cli/examples/live_irc.rs:72-74`). The claim is n
 4. Correct the comments at `crates/podssh-core/src/irc/cap.rs`, lines 9-28 at `9460b4e` and
    `crates/podssh-core/src/irc/session.rs`, lines 22-24 at `9460b4e`, and remove the test at
    `crates/podssh-core/tests/session.rs`, lines 200-223 at `9460b4e`. Record the new network results in
-   `docs/irc.md:99-121`, and update `docs/STATUS.md:621`, in the same commit.
+   `docs/irc.md:99-128`, and update `docs/STATUS.md:621`, in the same commit.
 
 ## Prove
 
@@ -512,7 +512,7 @@ cargo run -q -p podssh-cli --example live_irc -- --target irc.undernet.org --pai
 The new file crates/podssh-core/tests/own_nick.rs has one test for each rule above, such as
 `a_part_by_another_user_keeps_the_channel`; its `005` case uses the lines captured in T-094. Plant:
 remove the prefix check on `PART`; that test must fail. The last command is live: run it with
-`--role send` and the same ID in a second shell, as two separate clients (`docs/irc.md:119-121`).
+`--role send` and the same ID in a second shell, as two separate clients (`docs/irc.md:126-128`).
 Both must print `LIVE-IRC-OK`, so the reset does not break registration.
 
 ## Correction
@@ -845,7 +845,7 @@ hosts chat and share files (`docs/decisions.md:62`).
 Two users on constrained hosts must chat and share files. `podssh chat` does
 not exist: it exits 70. The IRC client sends plain text that the relay and
 the IRC server read, and most public networks refused the relay
-(`docs/irc.md:99-121`).
+(`docs/irc.md:99-128`).
 
 ## Premise
 
@@ -1026,14 +1026,14 @@ run podssh, or who wants a public channel, has no chat.
 
 Read: the client is sans-IO, and T-091 to T-098 repair its defects. Measured
 on 2026-10-05: of seven public networks, only `irc.undernet.org:6667`
-accepted the relay's addresses (`docs/irc.md:99-121`). On port 6667 the relay
+accepted the relay's addresses (`docs/irc.md:99-128`). On port 6667 the relay
 and each server read the text (`SECURITY.md:246-250`).
 
 ## Approach
 
 1. After T-091 and T-092: measure the networks again through the relay, on
    port 6667, and on 6697 with TLS inside the relay stream. Record each
-   answer with its date in `docs/irc.md:99-121`.
+   answer with its date in `docs/irc.md:99-128`.
 2. `podssh chat --irc SERVER[:PORT] CHANNEL`: TLS inside the relay stream by
    default (port 6697). Plain text on 6667 only with a flag that names the
    risk, and one line about it on stderr. The nick comes from a flag or a

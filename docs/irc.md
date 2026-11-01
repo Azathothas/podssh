@@ -117,6 +117,13 @@ relay, one short run each with a throwaway nick and channel (Q39):
 | `irc.undernet.org:6697`, TLS | The TLS handshake ended with no answer (`tls handshake eof`), in 5 s. |
 | `irc.undernet.org:6667`, plain text | **Works.** Joined; a run just before got the server's `ERROR` at each try, likely its throttle after the TLS try and new tries each 5 s, which an `ERROR` before the channel now ends. |
 
+Measured again on 2026-11-01, through the live relay (T-251): undernet on
+6667 registered once, then answered `465` to the next connections, its
+throttle of one address; libera answered `465` on 6667 and K-lined the
+relay's address on 6697 ("Closing Link: ... (K-Lined)"); OFTC on 6697 joined
+and sent, and lost the link on 6667 before `001`. Which networks take the
+relay's address changes with the networks' lists, not with podssh.
+
 Undernet has no IRCv3: `CAP LS` gives `421`, and a message to yourself gives
 `401`. The server drops channel messages from a second connection of the
 same user, so a live test needs two separate clients. These runs came before

@@ -207,6 +207,20 @@ ended after about 40 s ("the link ended with no word from the far end"), 20 time
 within 1 s, so no link came near the relay's 64 MiB. The run from GitHub's network decides it:
 `relay-live.yml` takes `node_live` now.
 
+T-154's live run here after the repair: `an_idle_session_through_a_node_lives_10_minutes` passed in
+604 s, a session idle 600 s through a node and echoed after the wait, with 2 lines of loss and
+resume.
+
+The IRC runs through the live relay here (T-091 to T-098; Q39, short runs, a throwaway nick and
+channel each): `live_irc --target irc.undernet.org` registered (no IRCv3, so no echo to prove a
+message: exit 70, as `docs/irc.md` says of undernet); libera answered 465 on 6667 after its MOTD,
+and K-lined the relay's address on 6697 (`podssh chat --irc`, "Closing Link: ... (K-Lined)"),
+where it worked on 2026-10-10; OFTC on 6697 joined a throwaway channel and sent (no
+`echo-message`, as before), and lost the link on 6667 before `001`. The live pair of T-095 then
+got 465 from undernet for both of its clients, its throttle of one address. The pair, 1 MiB on
+undernet (T-097) and the idle session of T-098 wait for a route whose address these networks
+take.
+
 # T-309: Publish the rolling betas `v1.0.0-beta.N`
 
 **Source:** the operator, 2026-10-30 (`docs/decisions.md`, "Betas before
