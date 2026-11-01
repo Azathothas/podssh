@@ -187,10 +187,13 @@ fn ssh_to_a_node() {
     // running the command; the login through the node then worked, and the
     // check cannot be made.
     // Its words change: on 2026-10-10 it refused anonymous trials as
-    // "temporarily disabled", in JSON with the status "refused".
-    let words = out.to_ascii_lowercase();
+    // "temporarily disabled", in JSON with the status "refused"; on
+    // 2026-11-01, on stderr, "temporarily unavailable" with "error".
+    let words = format!("{out}{err}").to_ascii_lowercase();
+    let refusals =
+        ["limit", "temporarily disabled", "temporarily unavailable", "\"status\":\"refused\"", "\"status\":\"error\""];
     assert!(
-        !["limit", "temporarily disabled", "\"status\":\"refused\""].iter().any(|w| words.contains(w)),
+        !refusals.iter().any(|w| words.contains(w)),
         "railway.new limited this anonymous visitor (its exit {rc}): the login through the node worked, but \
          `exit 3` did not run; try again later"
     );

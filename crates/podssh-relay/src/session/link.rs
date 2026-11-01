@@ -85,8 +85,13 @@ pub struct Link {
     replay: Option<Replay>,
     /// Whether to acknowledge: the peer keeps a replay buffer.
     acks: bool,
-    /// The received offset of the last acknowledgement sent.
+    /// The offset of the last acknowledgement sent.
     acked: u64,
+    /// Bytes received and not yet written to the application, as the pump
+    /// says them: an acknowledgement covers the bytes written, so that the
+    /// peer's replay window bounds what this side holds while the link is
+    /// read on (T-387). A caller that writes each byte as it comes says none.
+    held: u64,
     /// Whether each end pings when idle: both named `heartbeat.v1`.
     heartbeat: bool,
     /// Whether the client moves the session to a new link before the
@@ -106,6 +111,7 @@ impl Link {
             replay: None,
             acks: false,
             acked: received,
+            held: 0,
             heartbeat: false,
             moves: false,
             failed: None,
@@ -153,6 +159,17 @@ impl Link {
 
     pub fn received(&self) -> u64 {
         self.inbound.received()
+    }
+
+    /// The offset up to which the application has each byte: what an
+    /// acknowledgement says (T-387).
+    fn delivered(&self) -> u64 {
+        self.inbound.received() - self.held
+    }
+
+    /// `n` bytes received are held, not yet written to the application.
+    pub fn holding(&mut self, n: u64) {
+        self.held = n.min(self.inbound.received());
     }
 
     pub fn sent(&self) -> u64 {
@@ -212,8 +229,8 @@ impl Link {
                 Ok(Event::Nothing)
             }
             Record::Ping { value } => {
-                // A `PONG` acknowledges too.
-                let offset = self.inbound.received();
+                // A `PONG` acknowledges too, the bytes written.
+                let offset = self.delivered().max(self.acked);
                 self.acked = offset;
                 Ok(Event::Reply(Record::Pong { value, offset }))
             }
@@ -251,21 +268,21 @@ impl Link {
         Ok(())
     }
 
-    /// Whether [`ACK_EVERY`] bytes or more came since the last
-    /// acknowledgement: one goes out at once.
+    /// Whether [`ACK_EVERY`] bytes or more reached the application since
+    /// the last acknowledgement: one goes out at once.
     pub fn ack_due(&self) -> bool {
-        self.acks && self.inbound.received() - self.acked >= ACK_EVERY
+        self.acks && self.delivered().saturating_sub(self.acked) >= ACK_EVERY
     }
 
-    /// Whether bytes came that are not acknowledged yet: one goes out after
-    /// a short wait (the pump's 200 ms).
+    /// Whether bytes reached the application that are not acknowledged yet:
+    /// one goes out after a short wait (the pump's 200 ms).
     pub fn ack_pending(&self) -> bool {
-        self.acks && self.inbound.received() > self.acked
+        self.acks && self.delivered() > self.acked
     }
 
-    /// An `ACK` of each byte received so far.
+    /// An `ACK` of each byte written to the application so far.
     pub fn ack(&mut self) -> Record {
-        self.acked = self.inbound.received();
+        self.acked = self.delivered().max(self.acked);
         Record::Ack { offset: self.acked }
     }
 

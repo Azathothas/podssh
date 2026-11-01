@@ -62,15 +62,15 @@ repository and CI).
 
 ## Counts
 
-**382 entries: 15 open, 2 partial, 31 blocked, 334 done.**
+**384 entries: 16 open, 3 partial, 31 blocked, 334 done.**
 
 | Priority | open | partial | blocked | done | total |
 | --- | --- | --- | --- | --- | --- |
 | P0 | 0 | 0 | 0 | 1 | 1 |
-| P1 | 1 | 1 | 0 | 29 | 31 |
+| P1 | 2 | 2 | 0 | 29 | 33 |
 | P2 | 1 | 0 | 21 | 168 | 190 |
 | P3 | 13 | 1 | 10 | 136 | 160 |
-| **All** | 15 | 2 | 31 | 334 | 382 |
+| **All** | 16 | 3 | 31 | 334 | 384 |
 
 ## Entries
 
@@ -458,3 +458,5 @@ repository and CI).
 | [T-384](ts.md) | P3 | S | backlog | defect | done | A panic of kameo 0.21.1 in the fork's dialer when the control server refuses the node |
 | [T-385](roads.md) | P3 | L | backlog | feature | done | meek and WebTunnel inside the Tor road's process, for a cage that reaches no Tor relay |
 | [T-386](repo.md) | P2 | M | none | chore | done | Dependabot's updates of 2026-11-01: the digest 0.11 line, rand 0.10 and Tailscale 1.104 |
+| [T-387](resume.md) | P1 | M | none | defect | partial | A bulk session through a node loses its link each 35 s, and never moves |
+| [T-388](resume.md) | P1 | M | none | defect | open | A move through a node on the live relay ends the node's socket with 1003 |

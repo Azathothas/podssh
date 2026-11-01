@@ -117,7 +117,7 @@ and `CARGO_BUILD_JOBS=4`:
 
 ## Counts
 
-`TODO/INDEX.md` holds 382 entries: 15 open, 2 partial, 31 blocked, 334 done.
+`TODO/INDEX.md` holds 384 entries: 16 open, 3 partial, 31 blocked, 334 done.
 
 Open includes parked work. `cargo todo check` verifies this line.
 
@@ -143,7 +143,9 @@ gate is green on its commit.
 the terminal, and both are measured on Windows and macOS in Actions (2026-11-01); T-381 waits for
 Q61.
 
-**Now:** the entries of the audit, the study and the issues of 2026-10-31 (GitHub #59 to #63 and
+**Now:** T-387 and T-388, the defects that T-251's live runs of 2026-11-01 found: a bulk session
+through a node stalled until its link was taken for dead, and the move that follows ends the node's
+socket. Before them, the entries of the audit, the study and the issues of 2026-10-31 (GitHub #59 to #63 and
 #69 to #76): T-353 (Q52), whose live run waits for Q60; the others are done, Shadowsocks the last
 on 2026-11-01, and meek and WebTunnel in the Tor road the same day.
 Each other `backlog` entry is done, but for those on hold, those of the relay's operator and the

@@ -2990,3 +2990,132 @@ Approach item 2 is done as the Decision says.
   the new test on one CPU, 1500 sessions, none failed, where the code before
   failed 1 run in 10. `cargo test -p podssh-relay`: 220 passed; with
   `--all-features`: 340 passed.
+
+# T-387: A bulk session through a node loses its link each 35 s, and never moves
+
+**Source:** T-251's live runs of 2026-11-01: `move_200mib_each_way_through_a_node` (T-155), here
+and from GitHub's network (`relay-live.yml`, run 41282827634).
+**Category:** defect
+**Milestone:** none
+**Priority:** P1
+**Effort:** M
+**Status:** partial
+
+## Problem
+
+200 MiB each way through a node in front of an echo server came back whole, but slowly: in 720 s
+here and 1256 s from GitHub's network, where the client met each link's end about 35 s after it
+began ("the link ended with no word from the far end"), resumed, and sent its whole replay buffer,
+4 MiB, again. No link lived to the 48 MiB at which the client moves, so the test's 6 moves were 0.
+A session that carries bytes both ways at once at full speed (a copy into a shell, an echo, a
+tunnel of a busy protocol) crawls, and each resume costs 4 MiB again.
+
+## Premise
+
+- Measured: the same in both places, so not this host's egress (`TODO/release.md`, T-251's Done).
+- Read: the reader of the link awaits the write of each delivered record to the application before
+  it reads the next (`crates/podssh-relay/src/session/pump/down.rs`, before this entry). While the
+  application is slow, nothing on the link is read: not the far end's `ACK` and `PONG`, which free
+  this side's replay buffer, and not its data, which a relay then holds for a slow receiver. The
+  node's application, an echo, waits for the node's own sends, which wait for the client's `ACK`.
+- Read: `ACK` and `PONG` carry the received offset (`crates/podssh-relay/src/session/link.rs`);
+  the far end may send a replay window past it.
+- Inferred, not yet shown: the link ends from the relay's side or the node's watchdog (30 s with
+  nothing heard), within the 35 s seen.
+
+## Approach
+
+1. The reader reads the link while it writes to the application: both in one `select!`, the
+   application's write first, so bytes wait only while it is slow; a `CLOSE` or a broken record
+   still reaches the application after each byte before it.
+2. An acknowledgement covers the bytes written to the application, not those received: the far
+   end then sends at most its window past what this side wrote, which bounds what this side holds
+   (twice the largest window, once more after a resume). The pump says the bytes it holds to the
+   link's state under the lock of the record, so that no `ACK` in between covers them.
+3. A test of an echo through a far end, 32 MiB with small pipes, no link lost; the live test of
+   T-155 here and from GitHub's network, with its 6 moves.
+
+## Prove
+
+```sh
+export CARGO_BUILD_JOBS=4
+cargo test -p podssh-relay --features pair
+cargo test -p podssh-relay --features pair --test session_echo
+cargo test -p podssh-cli --test node_live -- --ignored --exact move_200mib_each_way_through_a_node
+```
+
+The live test makes 6 moves or more and loses no link; the relay's tests pass.
+
+## Done
+
+2026-11-01, partial: the repair is in, and measured live; its mechanism on the node's road is not
+yet shown by a test.
+
+- The reader (`crates/podssh-relay/src/session/pump/down.rs`) writes to the application and reads
+  the link in one `select!`, the application first; a `CLOSE` or a broken record still waits for
+  each byte before it to reach the application (the gap test of `session_link`, which failed at
+  first with the bytes held, passes so). `ACK` and `PONG` cover the bytes written: the pump says
+  the bytes it holds to the link's state (`Link::holding`) under the lock of the record; a caller
+  that writes each byte as it comes says none, and its acknowledgements are as before.
+- Live, here, `move_200mib_each_way_through_a_node` with the repair on both ends: the link carried
+  the session to the 48 MiB of a move in 20 s, with no loss, where before each link ended after
+  about 35 s and 11 MiB. The move then failed: T-388.
+- `crates/podssh-relay/tests/session_echo.rs`: 32 MiB through a far end that echoes, through a
+  stand-in relay with a round trip of 100 ms and 1 MiB held each way: 3.5 s, no link lost. It
+  passes on the code before the repair too (3.6 s), so it does not show the defect: on a link of
+  its own the old reader stalled nothing. The live link of a node is a session of the reverse
+  road, framed with others on the node's one socket; the stand-in that shows the stall must be of
+  that road (with T-388's).
+- `cargo test -p podssh-relay --features pair`: 320 passed, 0 failed, 15 ignored, in 52 binaries;
+  `cargo test -p podssh-cli`: 1178 passed, 0 failed, 49 ignored, in 138; clippy `-D warnings` of
+  podssh-relay with `pair`, all targets: clean.
+
+# T-388: A move through a node on the live relay ends the node's socket with 1003
+
+**Source:** T-387's live run of 2026-11-01 (`move_200mib_each_way_through_a_node`, here), the first
+whose link lived to the move: no link had before (T-387).
+**Category:** defect
+**Milestone:** none
+**Priority:** P1
+**Effort:** M
+**Status:** open
+
+## Problem
+
+At 48 MiB the client moved, as T-155 designed: "a move to a new link failed (the link failed in
+the layer's handshake: unexpected end of file); the link goes on", then at once "the link was
+replaced; resuming the session", and the session ended: "the relay ended the session (relay close
+1003): unknown session id". A session through a node cannot carry more than the relay's 64 MiB, the
+limit that the move exists for.
+
+## Premise
+
+- Read: the relay closes the whole node socket, and each session on it, when the node sends data
+  or `ready` for a session id that it never opened or already closed: `1003 unknown session id`
+  (`crates/podssh-relay/src/reverse/sessions.rs`, its head; `docs/reverse.md`, "Node"); the node's
+  writer is to refuse such frames before the wire.
+- Read: the operator keeps one leg at a time (`next_leg`, `crates/podssh-cli/src/layered.rs`), and
+  a move opens the new one while the old still carries the session.
+- Inferred: the new leg's session id closed (the relay or the node ended it, and the client's
+  handshake met its end), then the node wrote a frame for it, or for the old leg's id after its
+  retirement, and the relay closed the node's socket.
+- The stand-in relay of the tests (`scripts/fake-relay.py`, the reverse road's stand-ins) did not
+  catch it: their moves are of the client road's links, in process (T-155).
+
+## Approach
+
+1. Reproduce against a stand-in of the relay's node socket that answers a frame for a closed id
+   with 1003, as the relay does, with a move of a busy session through a node.
+2. Find the frame and its race (the retirement of the old leg, the close of the new one); the
+   node's writer refuses each frame for an id that is not open, and says it.
+3. The live run of T-155, here and from GitHub's network: 6 moves or more, no link lost.
+
+## Prove
+
+```sh
+export CARGO_BUILD_JOBS=4
+cargo test -p podssh-relay --features pair
+cargo test -p podssh-cli --test node_live -- --ignored --exact move_200mib_each_way_through_a_node
+```
+
+The live test makes 6 moves or more and loses no link.
