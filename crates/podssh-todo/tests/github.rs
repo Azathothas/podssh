@@ -45,7 +45,9 @@ fn each_planted_disagreement_is_named() {
     let found = problems(&list, &open);
     assert!(names(&found, "issue #70 is closed on GitHub, and its row says \"open\""), "{found:#?}");
 
-    let out = map.replacen(" and #77 are pull requests", " are pull requests", 1);
+    // #77 leaves the line of pull requests, whatever words stand around it.
+    let line = map.lines().find(|l| l.contains("are pull requests")).expect("the line of pull requests");
+    let out = map.replacen(line, &line.replacen("#77", "#76", 1), 1);
     assert_ne!(out, map, "the plant of the line of pull requests applies");
     let found = problems(&list, &out);
     assert!(names(&found, "pull request #77 is not in the line of pull requests"), "{found:#?}");
