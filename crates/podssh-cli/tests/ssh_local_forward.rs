@@ -154,7 +154,7 @@ fn reach(port: u16, running: &mut Running) -> TcpStream {
 fn line(stream: &mut impl Read) -> String {
     let mut out = Vec::new();
     let mut byte = [0u8; 1];
-    while stream.read(&mut byte).unwrap() == 1 && byte[0] != b'\n' {
+    while read_some(stream, &mut byte).unwrap() == 1 && byte[0] != b'\n' {
         out.push(byte[0]);
     }
     String::from_utf8(out).unwrap()
@@ -250,4 +250,15 @@ fn stdio_forward_clears_the_forwards_as_openssh_does() {
     let mut stdout = running.0.stdout.take().unwrap();
     assert_eq!(line(&mut stdout), "target says hi", "-W carries the stream");
     assert!(TcpStream::connect(("127.0.0.1", port)).is_err(), "-W made -L listen");
+}
+
+/// One read, again while a signal interrupts it: `Read::read` does not
+/// retry by itself, and a test's children send it SIGCHLD.
+fn read_some(stream: &mut impl Read, buf: &mut [u8]) -> std::io::Result<usize> {
+    loop {
+        match stream.read(buf) {
+            Err(e) if e.kind() == std::io::ErrorKind::Interrupted => continue,
+            other => return other,
+        }
+    }
 }

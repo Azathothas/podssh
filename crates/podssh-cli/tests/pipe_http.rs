@@ -196,7 +196,7 @@ fn a_connect_through_ssh_gets_the_banner_of_the_sshd_s_own_port() {
     write!(stream, "CONNECT 127.0.0.1:{port} HTTP/1.1\r\nHost: 127.0.0.1:{port}\r\n\r\n").unwrap();
     let (mut got, mut buf) = (Vec::new(), [0u8; 1024]);
     while !String::from_utf8_lossy(&got).contains("SSH-2.0-") {
-        let n = stream.read(&mut buf).expect("the answer within the limit");
+        let n = read_some(&mut stream, &mut buf).expect("the answer within the limit");
         assert!(n > 0, "the tunnel ended: {:?}", String::from_utf8_lossy(&got));
         got.extend_from_slice(&buf[..n]);
     }
@@ -326,4 +326,15 @@ fn live_git_ls_remote_through_the_proxy_and_the_live_relay() {
     let said = String::from_utf8_lossy(&out.stdout);
     assert!(out.status.success(), "{said} {}", String::from_utf8_lossy(&out.stderr));
     assert!(said.contains("\tHEAD"), "{said}");
+}
+
+/// One read, again while a signal interrupts it: `Read::read` does not
+/// retry by itself, and a test's children send it SIGCHLD.
+fn read_some(stream: &mut impl Read, buf: &mut [u8]) -> std::io::Result<usize> {
+    loop {
+        match stream.read(buf) {
+            Err(e) if e.kind() == std::io::ErrorKind::Interrupted => continue,
+            other => return other,
+        }
+    }
 }

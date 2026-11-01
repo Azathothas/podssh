@@ -1461,6 +1461,11 @@ The rest reads as cited. Nothing in the Approach changes.
   repository's HEAD through the proxy and the live relay, from this cloud session's host through
   its own proxy, passed.
 - clippy named an explicit deref in `pipe/address.rs`; clean after it.
+- 2026-11-01: the gate's step `ssh` at `5c51647` failed once in `pipe_http`'s test of a CONNECT
+  through `ssh:`: its read of the answer got `Interrupted system call`, a signal of the test's
+  children, which `Read::read` does not retry. That test, `pipe_ws` (T-368) and
+  `ssh_local_forward` read again on `Interrupted` now, as `read_exact` does; the three passed
+  (16 tests). EINTR cannot be planted at will, so the repair has no planted run.
 
 # T-368: `ws:`, `wss:` and `ws-listen:` as addresses of `podssh pipe`
 

@@ -126,7 +126,7 @@ fn websocat_here() -> bool {
 /// A request's answer, read to the end of its head, byte by byte.
 fn read_head(stream: &mut TcpStream) -> String {
     let (mut head, mut byte) = (Vec::new(), [0u8; 1]);
-    while !head.ends_with(b"\r\n\r\n") && stream.read(&mut byte).expect("an answer within the limit") == 1 {
+    while !head.ends_with(b"\r\n\r\n") && read_some(stream, &mut byte).expect("an answer within the limit") == 1 {
         head.push(byte[0]);
     }
     String::from_utf8_lossy(&head).into_owned()
@@ -161,7 +161,7 @@ fn server_frame(stream: &mut TcpStream, buf: &mut Vec<u8>) -> Frame {
             continue;
         }
         let mut chunk = [0u8; 4096];
-        let n = stream.read(&mut chunk).expect("a frame within the limit");
+        let n = read_some(stream, &mut chunk).expect("a frame within the limit");
         assert!(n > 0, "the connection ended before a frame");
         buf.extend_from_slice(&chunk[..n]);
     }
@@ -361,5 +361,16 @@ fn a_server_s_frames_come_as_bytes_and_its_close_ends_the_pipe_with_its_code() {
         assert!(head.starts_with("GET /q?secret=SECRET HTTP/1.1\r\n"), "{head}");
         let lower = head.to_ascii_lowercase();
         assert!(!lower.contains("x-relay-token") && !lower.contains("origin:"), "{head}");
+    }
+}
+
+/// One read, again while a signal interrupts it: `Read::read` does not
+/// retry by itself, and a test's children send it SIGCHLD.
+fn read_some(stream: &mut impl Read, buf: &mut [u8]) -> std::io::Result<usize> {
+    loop {
+        match stream.read(buf) {
+            Err(e) if e.kind() == std::io::ErrorKind::Interrupted => continue,
+            other => return other,
+        }
     }
 }
