@@ -2,6 +2,8 @@
 //! reach a far end, set up for the session, or the reason that it cannot be.
 
 use std::process::{Command, Stdio};
+use std::sync::atomic::AtomicUsize;
+use std::sync::Arc;
 use std::time::{Duration, Instant};
 
 use super::{found, lines_of, scripts, wait_for, Far, Session};
@@ -16,6 +18,9 @@ pub struct Cell {
     /// A line that each run must say, else its figure is not the cell's:
     /// the iroh cells must say that the relay carried each byte (T-335).
     pub must_say: Option<String>,
+    /// The connections that the cell's own proxy carried: each run must add
+    /// one, else its figure is not the cell's (the relay's loop).
+    pub through: Option<Arc<AtomicUsize>>,
 }
 
 /// A cell that is not set up: its name, and why.
@@ -33,6 +38,7 @@ impl Cell {
             far: Far::Test,
             env: Vec::new(),
             must_say: None,
+            through: None,
         }
     }
 
@@ -111,14 +117,45 @@ impl Cell {
             s.port.to_string(),
             "tester@127.0.0.1".to_string(),
         ]);
-        Ok(Cell { name, args, far: Far::Test, env: Vec::new(), must_say: None })
+        Ok(Cell { name, args, far: Far::Test, env: Vec::new(), must_say: None, through: None })
     }
 
     /// The reverse road through the live relay, with the resumable layer: a
     /// pair, and `podssh node` in front of the test's server.
     pub fn reverse(s: &Session) -> Result<Cell, Skipped> {
         let name = "reverse road, the live relay, with the layer".to_string();
-        let label = format!("tp{}", std::process::id());
+        let label = Cell::node(s, &name, &format!("tp{}", std::process::id()))?;
+        let mut args = vec!["ssh".to_string()];
+        args.extend(s.common());
+        args.push(format!("node://tester@{label}"));
+        Ok(Cell { name, args, far: Far::Test, env: Vec::new(), must_say: None, through: None })
+    }
+
+    /// The forward road through the live relay's own loop (the operator,
+    /// 2026-10-31): the reverse road's client, whose connections to the relay
+    /// each go through a forward session to the relay's own host and port
+    /// 443, so each byte crosses the relay twice; a lower bound of the
+    /// forward road, with a node of its own in front of the test's server.
+    pub fn relay_loop(s: &Session) -> Result<Cell, Skipped> {
+        let name = "forward road through the live relay's own loop, to a node (a lower bound)".to_string();
+        let label = Cell::node(s, &name, &format!("tpl{}", std::process::id()))?;
+        let (port, through) =
+            super::relay_loop::start(s.home.clone()).map_err(|e| (name.clone(), format!("the loop's proxy: {e}")))?;
+        let mut args = vec!["ssh".to_string()];
+        args.extend(s.common());
+        args.push(format!("node://tester@{label}"));
+        let proxy = format!("http://127.0.0.1:{port}");
+        // The loop's proxy alone, whatever the machine's variables name.
+        let mut env: Vec<(String, String)> =
+            ["HTTPS_PROXY", "https_proxy", "ALL_PROXY", "all_proxy"].map(|v| (v.to_string(), proxy.clone())).into();
+        env.extend(["NO_PROXY", "no_proxy"].map(|v| (v.to_string(), String::new())));
+        Ok(Cell { name, args, far: Far::Test, env, must_say: None, through: Some(through) })
+    }
+
+    /// A pair of the live relay under `label`, and its node in front of the
+    /// test's server, serving; the pair is stopped when the session ends.
+    fn node(s: &Session, name: &str, label: &str) -> Result<String, Skipped> {
+        let (name, label) = (name.to_string(), label.to_string());
         let out = s
             .command(&["relay".into(), "pair".into(), label.clone()])
             .stdin(Stdio::null())
@@ -138,10 +175,7 @@ impl Cell {
         let lines = lines_of(&mut node);
         s.keep(node);
         wait_for(&lines, "serving").map_err(|why| (name.clone(), format!("the node: {why}")))?;
-        let mut args = vec!["ssh".to_string()];
-        args.extend(s.common());
-        args.push(format!("node://tester@{label}"));
-        Ok(Cell { name, args, far: Far::Test, env: Vec::new(), must_say: None })
+        Ok(label)
     }
 
     /// The cells whose target a variable names (Q38): none when it is not
@@ -170,7 +204,14 @@ impl Cell {
                 }
                 _ => args.push(target.clone()),
             }
-            cells.push(Ok(Cell { name: name.to_string(), args, far: Far::Posix, env: Vec::new(), must_say: None }));
+            cells.push(Ok(Cell {
+                name: name.to_string(),
+                args,
+                far: Far::Posix,
+                env: Vec::new(),
+                must_say: None,
+                through: None,
+            }));
         }
         cells.push(iroh_named(s));
         cells
@@ -349,7 +390,7 @@ mod iroh {
         args.push(format!("tester@{ticket}"));
         let env = vec![(podssh_iroh::endpoint::UDP_ENV.to_string(), "off".to_string())];
         let must_say = Some(podssh_iroh::client::RELAY_ONLY.to_string());
-        Ok(Cell { name, args, far: Far::Test, env, must_say })
+        Ok(Cell { name, args, far: Far::Test, env, must_say, through: None })
     }
 }
 

@@ -114,8 +114,9 @@ control, which the reader releases, stops the edge first; and the stack's
 driver reads the tunnel while a packet of its own waits for room in it. The
 queue out holds 64 packets while HTTP/2's window is closed, and the packets
 in wait behind it, 1,024 at most, past which they are dropped as a full link
-drops them, and TCP sends them again. MEASURED: UNVERIFIED (`cargo test -p
-podssh-warp --test small_frames`; live, 16 MiB each way in `warp-live.yml`).
+drops them, and TCP sends them again. MEASURED 2026-11-01 (T-398): `cargo test -p
+podssh-warp --test small_frames`, 3 passed, 40,000 frames of 60 bytes each in order;
+live, 16 MiB each way with equal digests in `warp-live.yml` (run 41292620979).
 A certificate of another key than the pinned one is a proxy's that
 re-terminates TLS, or the front door's own new key: cfrs met a new device
 whose front door showed another key than its record's until the record was
@@ -124,8 +125,8 @@ no chain tells the two apart; WARP's API does. podssh reads the device's
 record again (`GET /reg/ID` with its token), keeps a new key that it gives,
 and tries it, once more a second later; a key that the API never gave is
 never taken, and a certificate for which the API gives the same key stays a
-proxy's for the run. MEASURED: UNVERIFIED (`cargo test -p podssh-warp --lib
-tests::rotated_key`).
+proxy's for the run. MEASURED 2026-11-01 (T-399): `cargo test -p podssh-warp
+--features stand-in --lib tests::rotated_key`, 5 passed.
 
 **The race (T-164, built 2026-10-10).** `podssh ssh node://NAME
 --iroh-ticket TICKET` races the iroh road to the node's ticket and the
@@ -344,8 +345,10 @@ since a quick tunnel has none.
   smallest frame that a visitor's client writes, a WebSocket frame of no
   payload, 6 bytes, so that the windows, which each visitor's reader
   releases, stop the edge first; at worst h2 keeps some 700 MB of its
-  bookkeeping for them (T-408). MEASURED: UNVERIFIED (`cargo test -p
-  podssh-relay --features quick --test quick_small_frames`).
+  bookkeeping for them (T-408). MEASURED 2026-11-01: `cargo test -p
+  podssh-relay --features quick --test quick_small_frames` passed, 64 visitors
+  that read nothing and a 65th served; h2's own budget ended the connection
+  with ENHANCE_YOUR_CALM.
 - Cap'n Proto: the crates `capnp` and `capnp-rpc` (0.27, MIT,
   https://github.com/capnproto/capnproto-rust). Their code generator needs
   the `capnp` tool, which is C++ (docs.rs, capnpc 0.27.0), so the generated
@@ -377,8 +380,9 @@ since a quick tunnel has none.
   `cloudflared_server.go`); the node exports that one capability there, and
   answers the push the same way, an `UpdateConfigurationResponse` of the
   push's version with no `err`, and each other call, of UDP sessions, with
-  an exception (T-411). MEASURED: UNVERIFIED (`cargo test -p podssh-relay
-  --features quick --lib quick::` and `--test quick_tunnel_quic`). The edge
+  an exception (T-411). MEASURED 2026-11-01: `cargo test -p podssh-relay
+  --features quick --lib quick::` and `--test quick_tunnel_quic` passed, each
+  answer the bytes of `capnp encode`'s fixtures. The edge
   pushes the rules of a tunnel that is managed remotely, and a quick tunnel
   has none in an account (INFERRED).
 - QUIC: only after a UDP probe, one QUIC packet that the edge's Version
@@ -1183,8 +1187,9 @@ address lookup of iroh's still: iroh 1.4.1's would take the endpoint's one
 proxy (READ: `address_lookup/pkarr.rs`), but it asks at each dial, beside the
 ticket's relay, and says why it failed to its traces alone.
 
-MEASURED offline (`cargo test -p podssh-iroh --features test-relay --test
-pkarr_lookup`): UNVERIFIED.
+MEASURED offline 2026-10-31 (T-350; `cargo test -p podssh-iroh --features
+test-relay --test pkarr_lookup`): 4 passed, among them iroh 1.4.1's own
+`PkarrRelayClient` reading podssh's record and podssh reading iroh's.
 
 MEASURED on the loopback (T-157, the debug build, 2026-10-10): SSH through
 iroh's relay server, p50 34.6 MiB/s up and 25.6 MiB/s down, where `--direct`
@@ -1343,9 +1348,10 @@ as it is pure Rust.
   the roads before it failed, so tailcat's fleet carries nothing while the
   pair's road works. `PODSSH_DERP=no` turns both off.
 
-MEASURED: UNVERIFIED, until the merge of T-379 runs
-`cargo test -p podssh-cli --test derp_road` (two stand-in DERP servers over
-TLS on the loopback, and the test's SSH server).
+MEASURED 2026-11-01 (T-379): `cargo test -p podssh-cli --test derp_road`
+(two stand-in DERP servers over TLS on the loopback, and the test's SSH
+server), 4 passed; live, home at `tc301a.ipn.dev`, the first of the fleet
+whose probe answered.
 
 ## 9. Questions for the operator
 

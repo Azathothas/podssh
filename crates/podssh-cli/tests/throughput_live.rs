@@ -19,7 +19,10 @@
 //! test's server: podssh's own limit), the forward road through
 //! `scripts/fake-relay.py` on the loopback when Python and `openssl` are
 //! found (the control of the relay), the reverse road through the live relay
-//! (a pair, and `podssh node` in front of the test's server), and with
+//! (a pair, and `podssh node` in front of the test's server), the forward
+//! road through the live relay's own loop to a node of its own (each byte
+//! crosses the relay twice: a lower bound, the operator's decision of
+//! 2026-10-31), and with
 //! `iroh-test` the iroh road through iroh's relay server on the loopback.
 //! `PODSSH_THROUGHPUT_MIB` sets the MiB of each run in each direction (20
 //! by default); the live run of T-251 takes 100, 500 MiB a direction in a
@@ -35,7 +38,7 @@ mod ssh_harness;
 mod throughput_harness;
 
 use podssh_ssh::sftp::Pipeline;
-use throughput_harness::{cp_run, measure, sftp_run, Cell, Far, Session};
+use throughput_harness::{cp_run, cp_tree_run, measure, sftp_run, Cell, Far, Session};
 
 const MIB: u64 = 1 << 20;
 /// Each run's MiB in each direction, when `PODSSH_THROUGHPUT_MIB` sets none.
@@ -139,7 +142,8 @@ fn table(session: &Session, cells: Vec<Result<Cell, (String, String)>>) -> Strin
         let cell = match cell {
             Ok(cell) => cell,
             Err((name, why)) => {
-                let skipped = Cell { name, args: Vec::new(), far: Far::Test, env: Vec::new(), must_say: None };
+                let skipped =
+                    Cell { name, args: Vec::new(), far: Far::Test, env: Vec::new(), must_say: None, through: None };
                 table.push_str(&report(&skipped, &[], &[], Some(&why)));
                 continue;
             }
@@ -179,8 +183,18 @@ fn throughput_on_each_road() {
     let session = Session::start("throughput");
     let mut cells = loopback_cells(&session);
     cells.push(Cell::reverse(&session));
+    cells.push(Cell::relay_loop(&session));
     cells.extend(Cell::named(&session));
     println!("\n{}", table(&session, cells));
+}
+
+/// The forward road through the live relay's own loop alone (the operator's
+/// decision of 2026-10-31), as `throughput_on_each_road` measures it.
+#[test]
+#[ignore = "network: the forward road through the live relay's own loop, to a node"]
+fn throughput_through_the_relay_s_own_loop() {
+    let session = Session::start("loop");
+    println!("\n{}", table(&session, vec![Cell::relay_loop(&session)]));
 }
 
 /// The pipelines of the SFTP cells (T-140): requests in flight, and the
@@ -256,6 +270,40 @@ fn cp_throughput_by_tasks() {
         for tasks in [1, 2, 4] {
             match cp_run(&session, &cell, tasks, bytes) {
                 Ok((up, down)) => println!("| {} | {tasks} | {up:.2} | {down:.2} |", cell.name),
+                Err(why) => println!("| {} | {tasks} | failed: {why} | |", cell.name),
+            }
+        }
+    }
+}
+
+/// Many small files through the relay (T-297, by T-157's method; T-251):
+/// `cp -r --parallel K` of 200 files of 16 KiB up and back down, with 1 and
+/// 8 tasks, through the stand-in relay with 50 ms each way and through the
+/// live relay to a node in front of the test's server; files a second, the
+/// connection's setup counted.
+#[test]
+#[ignore = "network: cp of many small files through the stand-in relay with a delay, and to a node on the live relay"]
+fn cp_small_files_by_tasks() {
+    if ssh_harness::sftp::server_path().is_none() {
+        println!("did not run: no sftp-server here; PODSSH_TEST_SFTP_SERVER names one");
+        return;
+    }
+    let session = Session::start("cp-small");
+    println!("\n200 files of 16 KiB a copy\n");
+    println!("| Cell | Tasks | Up files/s | Down files/s |");
+    println!("| --- | --- | --- | --- |");
+    let delayed = Cell::fake_relay_mode(&session, "delay:50", "forward road, the stand-in relay, 50 ms each way");
+    for cell in [delayed, Cell::reverse(&session)] {
+        let cell = match cell {
+            Ok(cell) => cell,
+            Err((name, why)) => {
+                println!("| {name} | skipped: {why} | | |");
+                continue;
+            }
+        };
+        for tasks in [1, 8] {
+            match cp_tree_run(&session, &cell, tasks, 200, 16 * 1024) {
+                Ok((up, down)) => println!("| {} | {tasks} | {up:.1} | {down:.1} |", cell.name),
                 Err(why) => println!("| {} | {tasks} | failed: {why} | |", cell.name),
             }
         }

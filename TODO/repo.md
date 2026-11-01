@@ -1503,7 +1503,7 @@ warning, and the gate checks the format and the lints".
 # T-216: Advisories and licenses of the dependencies, checked in CI
 
 **Source:** the triage of GitHub #27 (2026-10-08); the advisories of iroh
-(`docs/design.md:1044-1046`) show that a dependency can get one.
+(`docs/design.md:1048-1050`) show that a dependency can get one.
 **Category:** chore
 **Milestone:** none
 **Priority:** P2
@@ -2026,7 +2026,7 @@ Read, in the tree as it is now:
   build must fail at `/nonexistent`; the control, with `CC` alone, must not
   stop there.
 - `docs/development.md:289-291` states the rule with `CXX`, and
-  `docs/STATUS.md:656` records the measurement. Rule 4 of
+  `docs/STATUS.md:701` records the measurement. Rule 4 of
   `docs/architecture.md` named `CC=/nonexistent` only; it was repaired in the
   same change as the record.
 - `.github/workflows/build.yml:103-111` runs the plant on each push.
@@ -2057,7 +2057,7 @@ the same script in its step "the no-C rule is load-bearing".
 (CXX=/nonexistent)"). Measured with `sh scripts/dev.sh plant` in
 `rust:1-alpine`: the C plant failed twice for the right reason, the C++ plant
 failed at `CXX=/nonexistent`, the control with `CC` alone was not stopped
-there, and the clean tree built (`docs/STATUS.md:656`). The CI run of
+there, and the clean tree built (`docs/STATUS.md:701`). The CI run of
 `eacd94e`, which contains `a378863`, passed, with its step "the no-C rule is
 load-bearing".
 
@@ -4116,7 +4116,7 @@ as `crates/podssh-ws/src/crypto/aead.rs` calls both through one set of
   the last of each line on Rust 1.85; ctutils before 0.4.7 has
   RUSTSEC-2026-0385 (T-312), so no lock of podssh takes an older one.
 - Read: the library crates declare Rust 1.85, podbox's minimum
-  (`docs/design.md:562-565`).
+  (`docs/design.md:566-569`).
 
 ## Approach
 
@@ -4920,7 +4920,7 @@ of GitHub #69 to #72 corrected these; nothing finds the next.
 3. A status written beside an id in those documents (`T-NNN, partial`, `(T-NNN, open)`) agrees
    with the index, unless its paragraph reads at a date or at a commit, as the record's readings
    do (`TODO/RULES.md:142-147`): "T-099, partial" of 2026-10-10 is such a reading
-   (`docs/STATUS.md:624`).
+   (`docs/STATUS.md:669`).
 4. `TODO/RULES.md` says it, beside the rules of citations.
 
 ## Decision

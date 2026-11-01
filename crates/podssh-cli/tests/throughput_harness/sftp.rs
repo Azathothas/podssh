@@ -128,6 +128,45 @@ pub fn cp_run(s: &Session, cell: &Cell, tasks: usize, bytes: u64) -> Result<(f64
     Ok((up_rate, down_rate))
 }
 
+/// Many small files (T-297, by T-157's method; T-251): `cp -r --parallel
+/// TASKS` of a tree of `files` files of `size` bytes up, then back down, in
+/// `cell`: files a second each way by the wall clock of each command, its
+/// connection's setup in it, or why not. Each file must come back whole.
+pub fn cp_tree_run(s: &Session, cell: &Cell, tasks: usize, files: usize, size: usize) -> Result<(f64, f64), String> {
+    let tree = s.home.join("tp-small");
+    if !tree.is_dir() {
+        std::fs::create_dir_all(&tree).map_err(|e| e.to_string())?;
+        for i in 0..files {
+            let data: Vec<u8> = (0..size).map(|j| (i * 31 + j * 7) as u8).collect();
+            std::fs::write(tree.join(format!("f{i:04}")), data).map_err(|e| e.to_string())?;
+        }
+    }
+    let (dest, middle) = cell.args.split_last().ok_or("a cell with no destination")?;
+    let mut common = vec!["cp".to_string(), "--timeout".into(), "300s".into(), "-r".into()];
+    common.extend(["--parallel".to_string(), tasks.to_string()]);
+    common.extend(middle.iter().skip(1).map(|a| if a == "-p" { "-P".to_string() } else { a.clone() }));
+    let (far, back) = (format!("tp-small-{tasks}"), format!("tp-small-back-{tasks}"));
+    let mut up = common.clone();
+    up.extend(["tp-small".to_string(), format!("{dest}:{far}")]);
+    let started = Instant::now();
+    run_args(s, &up)?;
+    let up_rate = files as f64 / started.elapsed().as_secs_f64();
+    let mut down = common;
+    down.extend([format!("{dest}:{far}"), back.clone()]);
+    let started = Instant::now();
+    run_args(s, &down)?;
+    let down_rate = files as f64 / started.elapsed().as_secs_f64();
+    let whole = std::fs::read_dir(s.home.join(&back))
+        .map_err(|e| format!("{back}: {e}"))?
+        .filter_map(Result::ok)
+        .filter(|e| e.metadata().is_ok_and(|m| m.len() == size as u64))
+        .count();
+    if whole != files {
+        return Err(format!("{whole} of {files} files came back whole"));
+    }
+    Ok((up_rate, down_rate))
+}
+
 #[cfg(test)]
 mod tests {
     use super::said_rate;

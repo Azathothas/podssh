@@ -6,7 +6,7 @@ step and each open of a session has a time limit.
 
 # T-133: An SFTP client in the process, the base of `cp`
 
-**Source:** ROADMAP M5 ("SFTP in the process"), `docs/design.md:625-629`;
+**Source:** ROADMAP M5 ("SFTP in the process"), `docs/design.md:629-633`;
 GitHub #20 (Nemo-010, 2026-10-08: "Bound every SFTP/PTY wait", after tty7's
 issue 1126).
 **Category:** feature
@@ -57,7 +57,7 @@ ever (tty7's issue 1126, read in GitHub #20; GitHub #15 was this class).
    for SFTP.
 4. Invariant: no request and no step of the open waits without a limit.
    Three named constants, shown by the manual: 30 s for a metadata reply (as
-   `REPLY_WAIT`), 60 s with no data acknowledged (`docs/design.md:649`),
+   `REPLY_WAIT`), 60 s with no data acknowledged (`docs/design.md:653`),
    and the `--timeout` deadline over all, authentication included. Wrap a
    call in `tokio::time::timeout` where the crate has no limit.
 5. Size the requests from `limits@openssh.com`, else 32 KiB. Keep the
@@ -150,7 +150,7 @@ each step".
 
 # T-134: `podssh cp` over SFTP: a temporary name, the digest, then a rename
 
-**Source:** ROADMAP M5 (`podssh cp` and `podssh mv`), `docs/design.md:625-629`;
+**Source:** ROADMAP M5 (`podssh cp` and `podssh mv`), `docs/design.md:629-633`;
 GitHub #21 (Nemo-010, 2026-10-08: agent-ssh-cli verifies, then renames;
 syq's integrity checks and atomic replacement; read in the issue).
 **Category:** feature
@@ -314,7 +314,7 @@ SHA-256 before they take the destination's name".
 
 **Source:** ROADMAP M5 ("an exec transfer as the fallback for minimal
 servers"; "Do not assume POSIX tools or an interactive shell"),
-`docs/design.md:625-629`; GitHub #18 (zuko's file server, read in the issue).
+`docs/design.md:629-633`; GitHub #18 (zuko's file server, read in the issue).
 **Category:** feature
 **Milestone:** M5
 **Priority:** P2
@@ -372,7 +372,7 @@ never reaches this road. A far `cat` can still run after a drop (T-136).
 ## Decision
 
 Recommendation: raw `cat` over a channel with no pty, and `base64` only
-when step 5 fails. `docs/design.md:626` names both tools; raw bytes are
+when step 5 fails. `docs/design.md:630` names both tools; raw bytes are
 measured clean, and `base64` adds a third to the bytes that count against
 the relay's 64 MiB and needs a tool that not each host has. `base64` for
 each copy lost on both counts.
@@ -466,7 +466,7 @@ SFTP, raw through cat or through base64".
 # T-136: `podssh cp` continues from an offset after a drop
 
 **Source:** ROADMAP M5 ("Continue from an offset after a drop"),
-`docs/design.md:627-628`; GitHub #21 (agent-ssh-cli's `.part` and
+`docs/design.md:631-632`; GitHub #21 (agent-ssh-cli's `.part` and
 `.part.meta`, parsync's resume, syq's partial file; read in the issue);
 GitHub #17 (talaria0101, 2026-10-08: drops that repeat on one target).
 **Category:** feature
@@ -485,7 +485,7 @@ GitHub #17 measured one drop (`1011`) in 180 short sessions from one edge
 ## Premise
 
 - Read: today a drop ends the session with the relay's reason, and nothing
-  continues (`docs/design.md:645-653`).
+  continues (`docs/design.md:649-657`).
 - Read: SFTP reads and writes name their offset, so a copy can continue at
   any offset. The far file's size is no proof: with requests in flight
   (T-140), a later write can land while an earlier one fails.
@@ -493,7 +493,7 @@ GitHub #17 measured one drop (`1011`) in 180 short sessions from one edge
   (`crates/podssh-relay/src/cache.rs`, lines 62-76 at `4dd52f8`,
   `crates/podssh-relay/src/cache.rs:129-173`).
 - Read: after a drop, the relay closes the target's TCP connection within
-  15 s (`docs/design.md:655-658`), so a far `cat` can write for a while.
+  15 s (`docs/design.md:659-662`), so a far `cat` can write for a while.
 
 ## Approach
 
@@ -1177,7 +1177,7 @@ stream.
 - Read: `AGENTS.md` rule 2 allows one outbound connection. Several channels
   in one SSH connection keep the rule; several relay sessions at once do
   not. The operator accepted more than one outbound connection for the iroh
-  road (`docs/design.md:1233-1236`), and on 2026-10-08 for one copy when the
+  road (`docs/design.md:1238-1241`), and on 2026-10-08 for one copy when the
   user asks (`docs/decisions.md`).
 - Read: the cap of 64 MiB is for each session (`docs/relay.md:200`).
 - Not measured: whether one relay session, or the path itself, limits the
@@ -2094,7 +2094,7 @@ defect wait for T-251.
 **Source:** GitHub #18 (zuko's `files` server, `adonm/zuko:src/files.rs`)
 and GitHub #21 (parsync's internal helper,
 `AlpinDale/parsync:src/remote_helper.rs`), read in the issues;
-`docs/design.md:1238-1244`.
+`docs/design.md:1243-1249`.
 **Category:** feature
 **Milestone:** backlog
 **Priority:** P3
@@ -2115,7 +2115,7 @@ can do better.
   request; it names its own requests `NAME@openssh.com`.
 - Read: `podssh serve` will have an SFTP server in the process (T-112).
 - Read: both roads between podssh ends carry the same `cp`
-  (`docs/design.md:1238-1244`).
+  (`docs/design.md:1243-1249`).
 
 ## Approach
 
@@ -2530,8 +2530,10 @@ files into one temporary name; a digest check fails.
   (`crates/podssh-cli/src/cp/bysftp.rs`), so the next attempt goes on in
   it or removes it; the test passed 20 runs in a row, and
   `cargo test -p podssh-cli` 788.
-- Waits for T-251: the rate of many small files through the relay by
-  T-157's method. The Prove names no interop harness.
+- The rate of many small files through the relay by T-157's method, which
+  waited for T-251: measured 2026-11-01 (`throughput_live`,
+  `cp_small_files_by_tasks`; `docs/STATUS.md`): with one task under a file
+  a second through the relay, T-417. The Prove names no interop harness.
 # T-298: `sftp`'s `-r`: `get -r` and `put -r` of a directory
 
 **Source:** T-143: `podssh cp -r` copies trees; `sftp -r` and the `-r` of
@@ -2621,3 +2623,49 @@ test failed, as the first batch exited 66; restored, it passed. `cargo test -p p
 refused three dereferences that Rust does itself in `crates/podssh-cli/src/cp/tree_conn.rs`;
 they are gone. Nothing of the Prove
 waits for T-251.
+
+# T-417: `cp` spends some 14 round trips on each small file, so a tree of small files crawls through the relay
+
+**Source:** T-251's measurement of many small files, 2026-11-01 (`cargo test -p podssh-cli --test
+throughput_live -- --ignored --nocapture cp_small_files_by_tasks`), which T-297 left to it.
+**Category:** defect
+**Milestone:** none
+**Priority:** P2
+**Effort:** M
+**Status:** open
+
+## Problem
+
+`cp -r` of a tree of small files goes at under a file a second through the relay with the default
+of one task: 200 files of 16 KiB did not go up to a node of the live relay within `cp`'s 300 s.
+Each file waits for each of its steps in turn, so its round trips, not its bytes, set the time.
+A user who copies a source tree, a directory of configuration or a mailbox through the relay
+waits minutes for what one archive would carry in seconds.
+
+## Premise
+
+- Read: a file up waits in turn for the target's stat, the temporary file's stat, its open, each
+  write, `fsync`, its close, the far digest over an exec channel of its own (an open, an exec, a
+  reply and a close), the times, the rename and the times again
+  (`crates/podssh-cli/src/cp/bysftp.rs:48-120` and `:241-292`).
+- Measured (this cloud session, 2026-11-01): through the stand-in relay with 50 ms each way, 0.7
+  files a second each way with one task, about 14 round trips a file; 4.6 up and 3.2 down with 8.
+  Through the live relay to a node: with one task, `cp --timeout 300s` passed before the 200 went
+  up (exit 75); with 8, 4.6 up and 1.6 down.
+
+## Approach
+
+Measure each step's round trips first, with `-v` and a count of the SFTP requests of a file. Then,
+for a file that one write carries: no stat of a temporary file that no side file names; the far
+digest of a small file by a read back in the same SFTP session, or one exec of `sha256sum` for a
+batch of the lane's files, in place of an exec channel for each; and more tasks by default when
+the sources hold many files (8 fit OpenSSH's 10 sessions a connection). Each change against the
+same measurement, and the suites of `cp`.
+
+## Prove
+
+```sh
+export CARGO_BUILD_JOBS=4
+cargo test -p podssh-cli --test cp_parallel
+cargo test -p podssh-cli --test throughput_live -- --ignored --nocapture cp_small_files_by_tasks
+```

@@ -8,6 +8,7 @@
 #![allow(dead_code)]
 
 mod cells;
+mod relay_loop;
 mod sftp;
 
 use std::io::{BufRead, BufReader, Read, Write};
@@ -19,7 +20,7 @@ use std::time::{Duration, Instant};
 
 pub use cells::Cell;
 #[allow(unused_imports)]
-pub use sftp::{cp_run, sftp_run};
+pub use sftp::{cp_run, cp_tree_run, sftp_run};
 
 const MIB: f64 = 1_048_576.0;
 const BLOCK: usize = 64 * 1024;
@@ -107,16 +108,7 @@ impl Session {
     /// The proxy of the machine stays: it is part of the place measured. A
     /// run against the stand-in relay takes [`Session::stand_in`] instead.
     pub fn command(&self, args: &[String]) -> Command {
-        let mut cmd = Command::new(env!("CARGO_BIN_EXE_podssh"));
-        cmd.args(args);
-        // The ssh_config of the machine that runs the test must not change it.
-        cmd.env("PODSSH_SSH_CONFIG", "none");
-        for name in ["PODSSH_OFFLINE", "PODSSH_IROH_RELAY", "PODSSH_IROH_PKARR", "PODSSH_TIMEOUT", "SSH_AUTH_SOCK"] {
-            cmd.env_remove(name);
-        }
-        cmd.env("HOME", &self.home).env("USERPROFILE", &self.home);
-        cmd.env("XDG_CACHE_HOME", self.home.join("cache")).env("LOCALAPPDATA", self.home.join("cache"));
-        cmd
+        command_in(&self.home, args)
     }
 
     /// [`Session::command`] for a run against the stand-in relay: its CA
@@ -198,11 +190,28 @@ pub fn measure(s: &Session, cell: &Cell, runs: usize, bytes: u64) -> Result<(Vec
     Ok((ups, downs))
 }
 
+/// `podssh ARGS` with HOME and the cache under `home`, as
+/// [`Session::command`] makes it; a thread of the harness that holds no
+/// session makes its own.
+pub fn command_in(home: &Path, args: &[String]) -> Command {
+    let mut cmd = Command::new(env!("CARGO_BIN_EXE_podssh"));
+    cmd.args(args);
+    // The ssh_config of the machine that runs the test must not change it.
+    cmd.env("PODSSH_SSH_CONFIG", "none");
+    for name in ["PODSSH_OFFLINE", "PODSSH_IROH_RELAY", "PODSSH_IROH_PKARR", "PODSSH_TIMEOUT", "SSH_AUTH_SOCK"] {
+        cmd.env_remove(name);
+    }
+    cmd.env("HOME", home).env("USERPROFILE", home);
+    cmd.env("XDG_CACHE_HOME", home.join("cache")).env("LOCALAPPDATA", home.join("cache"));
+    cmd
+}
+
 /// One run, a new process: `bytes` into the far end's sink (`up`), or its
 /// source read to the end; MiB/s, or why not.
 pub fn run(s: &Session, cell: &Cell, up: bool, bytes: u64) -> Result<f64, String> {
     let mut args = cell.args.clone();
     args.push(cell.far.command(up, bytes));
+    let through_before = cell.through.as_ref().map(|count| count.load(Ordering::SeqCst));
     let mut child = s
         .command(&args)
         .envs(cell.env.iter().map(|(name, value)| (name, value)))
@@ -248,6 +257,16 @@ pub fn run(s: &Session, cell: &Cell, up: bool, bytes: u64) -> Result<f64, String
     let _ = watchdog.join();
     let said = said.join().unwrap_or_default();
     let last = said.lines().rev().find(|l| !l.trim().is_empty()).unwrap_or("no message").to_string();
+    // A cell through the relay's loop names what its forward sessions said.
+    let last = match &cell.through {
+        Some(_) => format!("{last}; the loop's forward sessions: {}", relay_loop::words(&s.home)),
+        None => last,
+    };
+    if let (Ok(_), Some(count), Some(before)) = (&carried, &cell.through, through_before) {
+        if count.load(Ordering::SeqCst) == before {
+            return Err(format!("not this cell's figure: no connection went through the cell's proxy; {last}"));
+        }
+    }
     if let (Ok(_), Some(line)) = (&carried, &cell.must_say) {
         if status.success() && !said.contains(line.as_str()) {
             return Err(format!("not this cell's figure: podssh did not say \"{line}\"; {last}"));
