@@ -65,7 +65,7 @@
 57 pull closed
 58 pull closed
 59 issue open
-60 issue open
+60 issue closed
 61 issue open
 62 issue open
 63 issue open
@@ -77,7 +77,7 @@
 69 issue closed
 70 issue closed
 71 issue closed
-72 issue open
+72 issue closed
 73 issue closed
 74 issue closed
 75 issue closed

@@ -4761,7 +4761,7 @@ built-in presets"; GitHub #60, a template "one the build knows".
 **Milestone:** backlog
 **Priority:** P3
 **Effort:** S
-**Status:** partial
+**Status:** done
 
 ## Problem
 
@@ -4868,8 +4868,8 @@ of `AGENTS.md:226-241` name the three forwarders now, from GitHub Actions only, 
 
 ## Done
 
-2026-10-31: drafted (branch `draft-forwarder`, `f27fbe2`); merged into `main` on 2026-11-01, built
-and tested here. Partial: the live run waits for this commit on GitHub.
+2026-10-31: drafted (branch `draft-forwarder`, `f27fbe2`); merged into `main` on 2026-11-01 at
+`5fa6f81`, built and tested here; closed the same day once its live run passed in GitHub Actions.
 
 - The table of the three (`crates/podssh-ws/src/forwarder/builtin.rs`), the words in each list of
   forwarders (`crates/podssh-cli/src/forwarder/mod.rs`), and the fallback
@@ -4901,9 +4901,10 @@ and tested here. Partial: the live run waits for this commit on GitHub.
 - Planted (2026-11-01), the check of `explicit` removed from `fallback::not_after`: the case of
   `--relay-host` in `builtin_fallback_is_not_for_the_user_s_relay_nor_when_turned_off` failed, and
   only it.
-- Live (GitHub Actions only, Q56): `forwarder-live.yml` run by hand, GitHub's version line through
-  `mudlet`, `ssheasy` and `mudix`, and its planted step failing each: waits for this commit on
-  GitHub.
+- Live (GitHub Actions only, Q56), `forwarder-live.yml` run by hand at `5fa6f81` (run
+  41261220166, 2026-11-01): GitHub's version line (`SSH-2.0-a09ebb4f`) through `mudix`,
+  `mudlet` and `ssheasy`, 3 passed in 1.77 s; its planted step, each forwarder under
+  `podssh-plant.invalid`, failed each of the three (exit 101), as it must.
 
 # T-371: A `-J` hop on port 443 through the proxy, measured, and a `doctor` line for a hop
 

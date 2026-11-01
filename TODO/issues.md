@@ -140,14 +140,14 @@ root lock), made on `main` and closed with a comment.
 | #55 | The split road's wire protocol | open | T-319 (its Approach holds the protocol; the operator allowed its second connection, Q44, and it waits for the relay's operator) |
 | #56 | A cleartext road on port 443, probed | open | T-326 (the operator allowed it with a token for one session, Q45, and it waits for the relay's operator) |
 | #59 | The forward road without the operator's relay: ways with no account to reach a `host:port` (research) | open | Each road of its ranking, in the paragraph below |
-| #60 | A relay template: a WebSocket forwarder that takes the destination from the URL | open | T-369 (a forwarder that the user names); T-370 (templates of the public forwarders in the binary, and a fallback to them) waits for the operator's ruling Q56 |
+| #60 | A relay template: a WebSocket forwarder that takes the destination from the URL | closed 2026-11-01, each entry done | T-369 (a forwarder that the user names); T-370 (the public forwarders in the binary, and a fallback to them, by the operator's ruling Q56) |
 | #61 | SSH on port 443 as a hop | open | T-371 (the hop measured, and a `doctor` line for a hop), T-372 (a hop whose SSH is wrapped in TLS) |
 | #62 | A Shadowsocks road with a refreshable subscription | open | T-373 |
 | #63 | Anonymous exits with no TUN device: WARP over HTTP/2, and Arti | open | T-352 (Option 1, WARP; its first comment's measurements are in the Premise), T-353 (Option 2, Arti), T-374 (its second comment: the quick tunnel's edge through WARP); each waits for the operator's ruling Q52 |
 | #69 | `doctor` reports a bind as if it had measured a listener | closed | T-357 and T-358 (the commit "T-357 and T-358: done. podssh doctor listens once on each socket that it binds", 12fc719: the lines `listen AF_INET` and `listen AF_UNIX`, by the operator's ruling on Q53). `-L` exits 255 on a refused listener, not 77 as the issue says |
 | #70 | The UDP probe measures a local bind, not egress | closed | T-359 (done, 2026-10-31); the quick tunnel's QUIC has its own probe, its handshake (T-301), not this one, so one bind does not decide two roads |
 | #71 | The record checks its citations, not its sentences | closed 2026-10-31, each entry done | T-360 (the map of issues against GitHub), T-361 (the targets of a Prove), T-362 (claims of "yet", and a status beside an id). Its five statements: four corrected in place in the commit of the triage (`docs/architecture.md`, `docs/design.md`, `docs/irc.md`), and the fifth, the facts file's comment, is T-342's (its Approach item 5). The reporter withdrew its item on `UNVERIFIED`. #59 to #63, which it found with no row, wait for their triage (T-360, item 5) |
-| #72 | The direct road has no automatic selection | open | T-363 (after the relay hosts fail, in the order of the road table, not before them as the issue asks) |
+| #72 | The direct road has no automatic selection | closed 2026-11-01, its entry done | T-363 (after the relay hosts fail, in the order of the road table, not before them as the issue asks) |
 | #73 | `-R` refuses the socket forms that `-L` and `-D` carry | closed | T-365 (done, 2026-10-31), which takes the remote SOCKS form (`-R [bind_address:]port`) too: #73 reads its refusal as parity, but OpenSSH carries it (measured with OpenSSH 9.6p1's `ssh -G`) |
 | #74 | `doctor` never tells a name allowlist from an address allowlist | closed 2026-10-31, its entry done | T-366 |
 | #75 | An HTTP CONNECT listener | closed 2026-10-31, its entry done | T-367 |
@@ -157,7 +157,7 @@ root lock), made on `main` and closed with a comment.
 carriers of the same day (`docs/carriers.md`, whose forward road is T-347,
 T-351, T-352 and T-353). Its ranking, road by road: 1, a forwarder that
 takes its target from the URL: T-369, and T-370 for the forwarders in the
-binary (Q56); 2, the same Worker in the user's own Cloudflare account: a
+binary (Q56), both done on 2026-11-01; 2, the same Worker in the user's own Cloudflare account: a
 template of T-369 can name it, podssh ships no forwarder (the relay stays a
 separate project, `docs/decisions.md`, Q4 and Q9; a relay of the user's own
 is T-169, which waits for the relay's operator), and a recipe for it is

@@ -59,21 +59,15 @@ entry keeps its proof in the entry; this page keeps no history (git does).
   UNVERIFIED and closes the entry (T-179 to T-184, T-200, T-202, T-221, T-225, T-232, T-235, T-242, T-279, T-280, T-229, T-281, T-289, T-291, T-293, T-187 to T-191, T-195, T-296, T-297 and T-298 so, T-185, merged in
   `d1c5bd1` and measured on 2026-10-30, and T-186, T-193, T-197, T-192,
   T-306, T-302 and T-305, merged on 2026-10-30; T-344, T-349, T-351, T-367, T-368 and T-350, merged on
-  2026-10-31, and T-352 and T-374, merged and closed on 2026-10-31, and T-379, T-363 and T-369 on 2026-11-01). The operator pushed each branch to GitHub as
+  2026-10-31, and T-352 and T-374, merged and closed on 2026-10-31, and T-379, T-363, T-369 and T-370 on 2026-11-01). The operator pushed each branch to GitHub as
   `draft/worktree-agent-*` on 2026-10-30; each draft of the four is in
   `main` now, so those branches and the worktrees on the operator's machine
   can go, as can `draft/draft-dns` and `draft/draft-derp` (merged on
   2026-10-31), and `draft/draft-cloud`, `draft/draft-pipe`, `draft/draft-pkarr`,
-  `draft/draft-warp` and `draft/draft-roads-cli`, which this
+  `draft/draft-warp`, `draft/draft-roads-cli` and `draft/draft-forwarder`, which this
   cloud session's git proxy would not delete.
 
-  The drafts that wait (2026-10-31), in the order they merge: the index's,
-  but T-379 before T-363, whose draft builds on T-379's split of
-  `ssh/resolve.rs`.
-
-  | Entry | Branch on GitHub | Commit | State |
-  | --- | --- | --- | --- |
-  | T-370 | `draft/draft-forwarder` | `f27fbe2` | drafted, to merge |
+  No draft waits (2026-11-01): each is in `main`.
 
   CI: the gate passed at
   `24b9f6e` (run 38331509229), and its step `release` at `cad2885` (478
@@ -118,7 +112,7 @@ and `CARGO_BUILD_JOBS=4`:
 
 ## Counts
 
-`TODO/INDEX.md` holds 375 entries: 20 open, 1 partial, 30 blocked, 324 done.
+`TODO/INDEX.md` holds 375 entries: 20 open, 0 partial, 30 blocked, 325 done.
 
 Open includes parked work. `cargo todo check` verifies this line.
 
@@ -143,8 +137,7 @@ zeroize and the curves' 0.14 make that batch, so `v1.0.0-beta.3` comes from
 
 **Now:** the entries of the audit, the study and the issues of 2026-10-31 (GitHub #59 to #63 and
 #69 to #76), the highest priority first: those of the rulings of 2026-10-31: T-353 (Q52); then those of
-GitHub #59 to #63 and #73 to #76: T-370, the public forwarders of #59 by a word, and a fallback to them (Q56);
-T-372; and T-373.
+GitHub #59 to #63 and #73 to #76: T-372; and T-373.
 Each other `backlog` entry is done, but for those on hold, those of the relay's operator and the
 parked ones.
 
