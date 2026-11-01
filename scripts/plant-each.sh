@@ -60,7 +60,7 @@ export BIN
 
 # Read one plant's file in a subshell's scope: its variables, and nothing else.
 read_plant() {
-    ENTRY= GROUP= EXPECT= RUN= SETUP= LIMIT=1800 ENV=
+    ENTRY='' GROUP='' EXPECT='' RUN='' SETUP='' LIMIT=1800 ENV=''
     # shellcheck disable=SC1090  # each plant file is the repository's own
     . "$dir/$1.plant"
 }
@@ -116,6 +116,7 @@ for id in $ids; do
             echo "MISSED $id: neither $patch nor ENV"
             exit 1
         fi
+        # shellcheck disable=SC2317  # called by the EXIT trap
         revert() {
             if [ "$applied" -eq 1 ]; then
                 git apply -R "$patch" || echo "plant-each: the patch of $id did not revert" >&2
