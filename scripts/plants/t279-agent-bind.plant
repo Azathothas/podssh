@@ -4,6 +4,6 @@
 ENTRY=T-279
 GROUP=ssh-keys
 EXPECT='^FAIL +agent\.openssh\.bound_key '
-RUN='RUSTFLAGS=-Ctarget-feature=+crt-static CARGO_PROFILE_RELEASE_LTO=false CARGO_PROFILE_RELEASE_CODEGEN_UNITS=16 cargo build --locked --release --target "$TARGET" -p podssh-cli && INTEROP_ONLY=agent sh scripts/interop.sh "$BIN"'
+RUN='RUSTFLAGS=-Ctarget-feature=+crt-static CARGO_PROFILE_RELEASE_LTO=false CARGO_PROFILE_RELEASE_CODEGEN_UNITS=16 cargo build --locked --release --target "$TARGET" -p podssh-cli && INTEROP_ONLY="keygen agent" sh scripts/interop.sh "$BIN"'
 SETUP='for p in sshd sshd-session sshd.pam dropbear python3 podssh tmux ssh-agent Xvfb Xvnc x0vncserver; do pkill -x "$p"; done; true'
 LIMIT=3600

@@ -4,5 +4,6 @@
 ENTRY=T-178
 GROUP=ssh-faults
 EXPECT='^FAIL +faults\.persist\.reattach '
+SETUP='for p in sshd sshd-session sshd.pam dropbear python3 podssh tmux ssh-agent Xvfb Xvnc x0vncserver; do pkill -x "$p"; done; true'
 RUN='RUSTFLAGS=-Ctarget-feature=+crt-static CARGO_PROFILE_RELEASE_LTO=false CARGO_PROFILE_RELEASE_CODEGEN_UNITS=16 cargo build --locked --release --target "$TARGET" -p podssh-cli && INTEROP_ONLY=faults sh scripts/interop.sh "$BIN"'
 LIMIT=3600

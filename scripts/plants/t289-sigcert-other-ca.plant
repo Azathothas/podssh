@@ -5,5 +5,6 @@
 ENTRY=T-289
 GROUP=ssh-pty
 EXPECT='^FAIL +keygen\.sigcert\.both_refuse_other_ca '
+SETUP='for p in sshd sshd-session sshd.pam dropbear python3 podssh tmux ssh-agent Xvfb Xvnc x0vncserver; do pkill -x "$p"; done; true'
 RUN='RUSTFLAGS=-Ctarget-feature=+crt-static CARGO_PROFILE_RELEASE_LTO=false CARGO_PROFILE_RELEASE_CODEGEN_UNITS=16 cargo build --locked --release --target "$TARGET" -p podssh-cli && INTEROP_ONLY=keygen sh scripts/interop.sh "$BIN"'
 LIMIT=3600
