@@ -1,0 +1,32 @@
+name: tor live
+
+# T-353: the Tor road on Tor's public network, by the operator's leave
+# (Q60, 2026-11-01): short runs, one bootstrap of Arti and one stream to
+# github.com:22, twice. Started by hand only; it publishes nothing.
+
+on:
+  workflow_dispatch:
+    inputs:
+      confirm:
+        description: "Type Q60 to reach Tor's public network"
+        required: true
+
+permissions:
+  contents: read
+
+jobs:
+  live:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 45
+    env:
+      CARGO_BUILD_JOBS: "4"
+    steps:
+      - name: the operator's leave
+        env:
+          CONFIRM: ${{ inputs.confirm }}
+        run: '[ "$CONFIRM" = Q60 ] || { echo "confirm must be Q60"; exit 1; }'
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+      - name: build with the feature tor
+        run: cargo test --locked -p podssh-cli --features tor --test tor_live --no-run
+      - name: GitHub's banner through Tor's public network
+        run: timeout 900 cargo test --locked -p podssh-cli --features tor --test tor_live -- --ignored --nocapture
