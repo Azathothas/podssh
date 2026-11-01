@@ -58,8 +58,18 @@ fn detached_in(job: &Job, home: &std::path::Path, listen: u16, to: u16) -> (Opti
         }
         std::thread::sleep(Duration::from_millis(50));
     }
-    let mut err = String::new();
-    child.stderr.take().unwrap().read_to_string(&mut err).unwrap();
+    // The caller's stderr ends with the parent: a child that kept it open
+    // would hold a caller that reads it to its end, as a CI's step does.
+    let mut stderr = child.stderr.take().unwrap();
+    let (sent, got) = std::sync::mpsc::channel();
+    std::thread::spawn(move || {
+        let mut err = String::new();
+        let _ = stderr.read_to_string(&mut err);
+        let _ = sent.send(err);
+    });
+    let err = got
+        .recv_timeout(Duration::from_secs(10))
+        .unwrap_or_else(|_| panic!("the caller's stderr did not end with the parent: the detached child kept it open"));
     (child.wait().unwrap().code(), err)
 }
 

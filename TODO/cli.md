@@ -2994,3 +2994,13 @@ on the push.
   Windows, now of Unix alone.
 - macOS (CI's job `macos`, `macos-15`, run 41267591529 at `adb0cfe`): `--test detach` 4 passed,
   `--test node_detach` 2 passed, `--test session` 4 passed.
+- A defect of T-380 on Windows: CI's job `windows` at `cd56f64` (run 41270810947) held its tests
+  past twice their usual 14 min. Read in the code: the child got the caller's stderr
+  (`Stdio::inherit`, which Rust duplicates as inheritable), and at ready `SetStdHandle` pointed
+  the standard handle at the log but closed none, so the caller's pipe stayed open as long as the
+  child lived; a caller that reads it to its end (the test, a CI's step, `$(...)`) waits for the
+  child. On Unix `dup2` closes the descriptor it replaces. Repaired: at ready the child closes
+  each standard handle that it replaced, and the parent's own standard handles are not
+  inheritable before the spawn (`keep_own_handles`, now shared with `session start`). The test
+  reads the caller's stderr within 10 s, so a child that keeps it fails instead of holding the
+  job.

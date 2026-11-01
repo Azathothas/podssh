@@ -21,7 +21,7 @@ use std::sync::OnceLock;
 mod child;
 mod hazards;
 
-pub use child::{prepare_process, ready};
+pub use child::{keep_own_handles, prepare_process, ready};
 
 /// The first word of a detached child's command line, which podssh alone
 /// writes: the child is the run that the user typed, after it.
@@ -123,6 +123,7 @@ pub fn start(verb: &str, err: &mut dyn Write) -> i32 {
         child::name_it(&mut cmd);
         cmd.arg(CHILD_FLAG).args(args);
         cmd.stdin(Stdio::inherit()).stdout(Stdio::piped()).stderr(Stdio::inherit());
+        keep_own_handles();
         match child::spawn(&mut cmd, &mut |line| {
             let _ = writeln!(err, "podssh {verb}: --detach: note: {line}");
         }) {

@@ -113,6 +113,28 @@ pub fn name_it(cmd: &mut Command) {
     let _ = cmd;
 }
 
+/// This process's own standard handles stay out of a child that outlives
+/// it: a program that reads them to their end, as an agent or a CI's step
+/// reads a command's, would wait for the child too. Windows hands each
+/// handle that may be inherited to a child, besides the standard handles
+/// that the child is given, which the child closes at ready; on Unix the
+/// child's 0, 1 and 2 are its own, and the child closes each other
+/// descriptor at its start (T-380).
+#[cfg(windows)]
+pub fn keep_own_handles() {
+    use std::os::windows::io::AsRawHandle;
+    use windows_sys::Win32::Foundation::{SetHandleInformation, HANDLE_FLAG_INHERIT};
+    let (stdin, stdout, stderr) = (std::io::stdin(), std::io::stdout(), std::io::stderr());
+    for handle in [stdin.as_raw_handle(), stdout.as_raw_handle(), stderr.as_raw_handle()] {
+        // SAFETY: a standard handle of this process, or none; the call
+        // changes only whether a child inherits it.
+        unsafe { SetHandleInformation(handle, HANDLE_FLAG_INHERIT, 0) };
+    }
+}
+
+#[cfg(not(windows))]
+pub fn keep_own_handles() {}
+
 /// Start the child. On Windows out of the caller's job where the job allows
 /// it; where it does not, again in the job, said by `note`, as the run then
 /// ends with the job. It shares the caller's console until ready, so that
@@ -245,13 +267,25 @@ mod unix {
 mod windows {
     use std::io::Write;
     use std::os::windows::io::IntoRawHandle;
+    use windows_sys::Win32::Foundation::{CloseHandle, HANDLE, INVALID_HANDLE_VALUE};
     use windows_sys::Win32::System::Console::{
-        FreeConsole, SetStdHandle, STD_ERROR_HANDLE, STD_INPUT_HANDLE, STD_OUTPUT_HANDLE,
+        FreeConsole, GetStdHandle, SetStdHandle, STD_ERROR_HANDLE, STD_INPUT_HANDLE, STD_OUTPUT_HANDLE,
     };
 
+    /// The standard handle `which` as it is now: the caller's, before ready.
+    fn standard(which: u32) -> Option<HANDLE> {
+        // SAFETY: GetStdHandle has no precondition.
+        let handle = unsafe { GetStdHandle(which) };
+        (!handle.is_null() && handle != INVALID_HANDLE_VALUE).then_some(handle)
+    }
+
     /// Stdin to NUL and stderr to the log; the console freed; the line to
-    /// the parent; stdout to the log.
+    /// the parent; stdout to the log. Then each handle that it replaced is
+    /// closed: SetStdHandle closes none, and the caller's pipe, which the
+    /// child was given, would stay open as long as the child lives, so that
+    /// a caller that reads it to its end would wait for the child.
     pub(super) fn leave(log: Option<&std::fs::File>, line: &[u8]) -> bool {
+        let given = [STD_INPUT_HANDLE, STD_ERROR_HANDLE, STD_OUTPUT_HANDLE].map(standard);
         let sink = || -> Option<std::fs::File> {
             match log {
                 Some(file) => file.try_clone().ok(),
@@ -275,6 +309,15 @@ mod windows {
         unsafe {
             if let Some(file) = sink() {
                 SetStdHandle(STD_OUTPUT_HANDLE, file.into_raw_handle());
+            }
+        }
+        for (handle, which) in given.into_iter().zip([STD_INPUT_HANDLE, STD_ERROR_HANDLE, STD_OUTPUT_HANDLE]) {
+            // Only a handle that is no longer the standard one: where a
+            // replacement failed, the old one is still in use.
+            if let Some(handle) = handle.filter(|h| standard(which) != Some(*h)) {
+                // SAFETY: a handle that this process was given and no longer
+                // names as a standard handle; nothing else of podssh holds it.
+                unsafe { CloseHandle(handle) };
             }
         }
         said

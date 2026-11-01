@@ -55,7 +55,7 @@ async fn start(args: &SessionArgs, timeout: Duration, out: &mut dyn Write, err: 
         cmd.arg(crate::detach::CHILD_FLAG).args(["session", "serve", "--detach"]).args(args.argv.iter().skip(1));
         cmd.stdin(Stdio::null()).stdout(Stdio::piped()).stderr(Stdio::piped());
         detach_child(&mut cmd);
-        keep_own_handles();
+        crate::detach::keep_own_handles();
         match spawn(&mut cmd, err) {
             Ok(child) => {
                 started = Some(child);
@@ -169,27 +169,6 @@ fn spawn(cmd: &mut tokio::process::Command, err: &mut dyn Write) -> std::io::Res
         other => other,
     }
 }
-
-/// This process's own standard handles stay out of the child: a program
-/// that reads them to their end, as an agent reads a command's, would wait
-/// for the daemon too. Windows hands each handle that may be inherited to
-/// a child; on Unix the child's 0, 1 and 2 are its own, and the child closes
-/// each other descriptor at its start, as podssh's own close on exec but one
-/// that podssh inherited does not (T-380).
-#[cfg(windows)]
-fn keep_own_handles() {
-    use std::os::windows::io::AsRawHandle;
-    use windows_sys::Win32::Foundation::{SetHandleInformation, HANDLE_FLAG_INHERIT};
-    let (stdin, stdout, stderr) = (std::io::stdin(), std::io::stdout(), std::io::stderr());
-    for handle in [stdin.as_raw_handle(), stdout.as_raw_handle(), stderr.as_raw_handle()] {
-        // SAFETY: a standard handle of this process, or none; the call
-        // changes only whether a child inherits it.
-        unsafe { SetHandleInformation(handle, HANDLE_FLAG_INHERIT, 0) };
-    }
-}
-
-#[cfg(not(windows))]
-fn keep_own_handles() {}
 
 /// Just before its line of ready, a daemon that `start` runs leaves the
 /// starter's session and terminal (T-382): `setsid`, and SIGHUP ignored, as
