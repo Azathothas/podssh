@@ -181,6 +181,7 @@ pub const SSH_FLAGS: &[FlagRow] = &[
         "connect without the relay: TCP, through HTTPS_PROXY when one is set; a proxy that takes the CONNECT \
          and sends nothing back is named as the cause; with no relay named, this road is tried once after each \
          relay host failed (env PODSSH_DIRECT=no turns that off)", None),
+    forwarder::FORWARDER,
     row(None, "pair-file", Some("FILE"), FlagKind::Supported,
         "node://NAME: the pair in FILE, or its operator's part, not the one stored under NAME", None),
     row(None, "client-key", Some("FILE"), FlagKind::Supported,
@@ -295,6 +296,7 @@ mod derp;
 mod each;
 mod edit;
 mod expect;
+mod forwarder;
 mod health;
 mod job;
 mod keygen;

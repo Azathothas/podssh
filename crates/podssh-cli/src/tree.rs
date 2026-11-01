@@ -108,6 +108,9 @@ pub fn verb_command(verb: &'static Verb) -> Command {
 
 pub use crate::parsed::Parsed;
 
+// The parse of `podssh ts`, apart for the length of this file.
+mod ts;
+
 /// Parse a whole `argv` **after** the program name.
 ///
 /// **The two-stage no-subcommand handler lives here and nowhere else**, and
@@ -278,6 +281,7 @@ pub fn parse_verb(verb: &'static Verb, rest: &[std::ffi::OsString]) -> Parsed {
             relay_failover: get("relay-failover"),
             relay_addr: get("relay-addr"),
             ca_file: get("ca-file"),
+            forwarder: get("forwarder"),
             refused,
         };
     }
@@ -432,31 +436,14 @@ pub fn parse_verb(verb: &'static Verb, rest: &[std::ffi::OsString]) -> Parsed {
             json: matches.get_flag("json"),
             full: matches.get_flag("full"),
             hop: get("hop"),
+            forwarder: get("forwarder"),
             refused,
         };
     }
 
-    // **`ts` carries its behaviour inputs** (Tailscale): every flag value the
-    // dispatch needs, read here where `clap` owns them. `--ts-mode` was
-    // validated above, so absence here means `auto` — the default, not a
-    // guess. Only rows `TS_FLAGS` declares are read.
+    // `ts` carries its behaviour inputs (Tailscale): `ts::parsed`.
     if verb.name == "ts" {
-        let get = |id: &str| matches.get_one::<String>(id).cloned();
-        return Parsed::Ts {
-            destination: get("destination"),
-            args: matches.get_many::<String>("args").map(|v| v.cloned().collect()).unwrap_or_default(),
-            w_target: get("stdio-forward"),
-            mode: get("ts-mode").unwrap_or_else(|| "auto".to_string()),
-            proxy: get("ts-proxy"),
-            auth_key_file: get("ts-auth-key-file"),
-            state: get("ts-state"),
-            ephemeral: matches.get_flag("ts-ephemeral"),
-            relay: get("ts-relay"),
-            wait_allowlist: get("ts-wait-allowlist"),
-            refused,
-            timeout: get("timeout"),
-            jsonl: matches.get_flag("jsonl"),
-        };
+        return ts::parsed(&matches, refused);
     }
 
     // The carried `--timeout` and `--jsonl`: only rows the verb's table declares are read,

@@ -43,6 +43,8 @@ pub struct SshArgs {
     pub relay_addr: Option<String>,
     pub ca_file: Option<String>,
     pub direct: bool,
+    /// `--forwarder`: the forwarders in place of the relay (T-369).
+    pub forwarder: Option<String>,
     /// For `node://NAME`: a pair, or its operator's part, in a file.
     pub pair_file: Option<String>,
     /// For `iroh:TICKET`: this client's key file, by its earlier name.
@@ -140,6 +142,7 @@ pub const ONCE: &[(&str, &str)] = &[
     ("relay-failover", "give one mode"),
     ("relay-addr", "give the addresses as one comma list"),
     ("ca-file", "give one file"),
+    ("forwarder", "give the forwarders as one comma list"),
     ("pair-file", "give one file"),
     ("iroh-key", "give one file"),
     ("client-key", "give one file"),
@@ -254,6 +257,7 @@ impl SshArgs {
             relay_addr: one("relay-addr"),
             ca_file: one("ca-file"),
             direct: flag("direct"),
+            forwarder: one("forwarder"),
             pair_file: one("pair-file"),
             iroh_key: one("iroh-key"),
             client_key: one("client-key"),

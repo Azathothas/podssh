@@ -213,6 +213,7 @@ fn road(transport: &Transport) -> &'static str {
         Transport::Cloudflare { .. } => "cloudflare",
         Transport::Cloud { road, .. } => road.word(),
         Transport::Derp { .. } => "derp",
+        Transport::Forwarder { .. } => "forwarder",
     }
 }
 

@@ -39,6 +39,7 @@ fn the_positionals_and_options_reach_the_verb() {
             relay_failover: Some("serial".into()),
             relay_addr: None,
             ca_file: Some("ca.pem".into()),
+            forwarder: None,
             refused: vec![],
         }
     );

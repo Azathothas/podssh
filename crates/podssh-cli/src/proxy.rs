@@ -40,6 +40,8 @@ pub struct ProxyArgs {
     pub relay_addr: Option<String>,
     /// `--ca-file`.
     pub ca_file: Option<String>,
+    /// `--forwarder`: the forwarders in place of the relay (T-369).
+    pub forwarder: Option<String>,
 }
 
 /// Run the verb; returns the process exit code. A run that named its
@@ -61,6 +63,10 @@ pub fn run_proxy(args: &ProxyArgs, err: &mut dyn Write) -> i32 {
 }
 
 fn proxy(args: &ProxyArgs, err: &mut dyn Write) -> i32 {
+    // A road of its own takes no forwarder (T-369).
+    if let Err(refusal) = crate::forwarder::pipe::beside(args) {
+        return refusal.report("proxy", err);
+    }
     // iap:// and eice://, a cloud's own tunnel (T-351).
     if let Some(code) = crate::ssh::cloud::proxy::run(args, err) {
         return code;
@@ -86,7 +92,8 @@ fn proxy(args: &ProxyArgs, err: &mut dyn Write) -> i32 {
             let flags = args.relay_host.is_some()
                 || args.relay_failover.is_some()
                 || args.relay_addr.is_some()
-                || args.ca_file.is_some();
+                || args.ca_file.is_some()
+                || args.forwarder.is_some();
             if flags && (args.target.is_none() || args.port.is_none()) {
                 let _ = writeln!(err, "podssh proxy: a HOST that starts with - is read as a flag; put -- before it");
             }
@@ -100,6 +107,15 @@ fn proxy(args: &ProxyArgs, err: &mut dyn Write) -> i32 {
     crate::session_log::target(&host, Some(port), "relay");
     if let Err(refusal) = crate::pins::apply(args.relay_addr.as_deref()) {
         return refusal.report("proxy", err);
+    }
+    // The forwarders, when the command line or the environment names them
+    // (T-369): then the relay is not asked.
+    match crate::forwarder::pipe::chosen(args) {
+        Ok(Some(forwarders)) => {
+            return crate::forwarder::pipe::run(&forwarders, &host, port, args.ca_file.as_deref(), err)
+        }
+        Ok(None) => {}
+        Err(refusal) => return refusal.report("proxy", err),
     }
     let relays = match crate::relay_settings::relays(args.relay_host.as_deref(), std::env::var(relay::RELAY_ENV).ok()) {
         Ok(r) => r,

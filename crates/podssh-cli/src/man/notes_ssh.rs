@@ -116,6 +116,24 @@ pub const SSH: &[&str] = &[
      inside the tunnel is smoltcp's, in this process, with no TUN device. The host key is recorded under \
      warp://HOST. -p and Port give the port; --direct, -4, -6 and HostName cannot go with it, and -J with \
      it first makes HOST the first hop of a chain.",
+    "--forwarder TEMPLATES reaches the first hop through WebSocket forwarders of other products, in place \
+     of the relay: services that dial the host and the port that a client names and carry its bytes, the \
+     plumbing of a MUD client or of an SSH client in a browser. A template is a ws:// or wss:// URL with \
+     {host} and {port} once each, in its path or its query, which podssh fills with the target, checked as \
+     each target of the relay is and then percent-encoded, as in \
+     wss://web-proxy.mudlet.org/?host={host}&port={port}; or a URL with neither, and then podssh sends the \
+     target in a first text frame, {\"Host\":HOST,\"Port\":PORT}, and takes the forwarder's answer \
+     {\"status\":\"ok\"} before the target's bytes, as ssheasy's proxy does. A list, separated by commas, \
+     is tried in order: a forwarder that refuses the upgrade, closes within 3 s of it, or answers with a \
+     failure gives way to the next. The dial is that of a WebSocket by its URL: TLS checked for the \
+     forwarder's name, through HTTPS_PROXY when one is set, and no relay token, no mint and no pool. \
+     Binary frames carry the bytes; a forwarder's text frames are its own words, shown with -v and never \
+     written into the session, and a close other than 1000 names the forwarder, its code and its reason. \
+     A forwarder is another product's endpoint: it publishes no limit and can stop at any time, so name \
+     more than one; podssh names none. PODSSH_FORWARDER and Forwarder of the settings file give the list \
+     too, below the flag. A run has one road: --relay-host, --relay-failover, --direct, PODSSH_RELAY \
+     beside PODSSH_FORWARDER, -4, -6, and a destination with a road of its own (node://, iroh:, cf://, \
+     iap://, eice://) cannot go with it.",
     "node://NAME with --iroh-ticket TICKET races the two roads to the node: the iroh road starts first, \
      the pair's road 250 ms later, or at once when the iroh road fails, and the first far end that \
      speaks carries the session; the other link ends before it sends anything, so it opens nothing at \

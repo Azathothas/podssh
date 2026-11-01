@@ -22,13 +22,14 @@ use super::Report;
 const MEASURED_VERSION: &str = "2026-10-03-r2";
 
 /// Bound on each request and handshake here.
-const TIMEOUT: Duration = Duration::from_secs(10);
+pub(super) const TIMEOUT: Duration = Duration::from_secs(10);
 
 /// The forward session's target, and the SHA-256 fingerprints of the host
 /// keys GitHub publishes for it (Ed25519, ECDSA, RSA; equal to
-/// `api.github.com/meta` on 2026-10-08).
-const FORWARD_HOST: &str = "github.com";
-const GITHUB_KEYS: [&str; 3] = [
+/// `api.github.com/meta` on 2026-10-08). The forwarders' check reads them
+/// too (T-369).
+pub(super) const FORWARD_HOST: &str = "github.com";
+pub(super) const GITHUB_KEYS: [&str; 3] = [
     "SHA256:+DiY3wvvV6TuJJhbpZisF/zLDA0zPMSvHdkr4UvCOqU",
     "SHA256:p2QAMXNIC1TJYWeIOttrVc98/R1BUFWu3/LiyKgUfQM",
     "SHA256:uNiVztksCsDhcc0u9e8BujQXVUpKZIDTMczCvj3tD2s",
@@ -272,7 +273,7 @@ fn judge_login(shown: &str, outcome: Result<Login, String>, relay: Option<String
 /// The verdict on a key that is not in [`GITHUB_KEYS`], given what
 /// `api.github.com/meta` says now: equality with a published fingerprint,
 /// never anything about the server's banner.
-fn judge_unlisted(shown: &str, fingerprint: &str, current: Result<Vec<String>, String>) -> Verdict {
+pub(super) fn judge_unlisted(shown: &str, fingerprint: &str, current: Result<Vec<String>, String>) -> Verdict {
     match current {
         Ok(current) if current.iter().any(|c| c == fingerprint) => Verdict::Ok {
             detail: format!(
@@ -292,7 +293,7 @@ fn judge_unlisted(shown: &str, fingerprint: &str, current: Result<Vec<String>, S
 }
 
 /// The fingerprints `api.github.com/meta` publishes now.
-async fn github_keys(trust: &Trust) -> Result<Vec<String>, String> {
+pub(super) async fn github_keys(trust: &Trust) -> Result<Vec<String>, String> {
     let response = podssh_ws::https_get(
         "api.github.com",
         443,

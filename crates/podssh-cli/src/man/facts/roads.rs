@@ -1,6 +1,6 @@
 //! The variables of the roads that are read apart from `facts.rs`, for the
-//! length of that file: the DERP road (T-349, T-379), and the direct road
-//! after the relay hosts (T-363).
+//! length of that file: the DERP road (T-349, T-379), the direct road after
+//! the relay hosts (T-363), and the forwarders of other products (T-369).
 
 /// Each one: its names, and what it does.
 pub(super) const VARIABLES: &[(&[&str], &str)] = &[
@@ -26,5 +26,12 @@ pub(super) const VARIABLES: &[(&[&str], &str)] = &[
           PODSSH_RELAY or RelayHost) and no -4 or -6, the direct road is tried once, as --direct dials it, \
           through HTTPS_PROXY when one is set, and the server's version line must come within 10 s. The \
           settings file's Direct says the same, below the variable; another word is a configuration error (78).",
+    ),
+    (
+        &["PODSSH_FORWARDER"],
+        "The forwarders of podssh ssh, of each command that reaches its server as podssh ssh does, and of podssh \
+      proxy, as --forwarder: other products' WebSocket forwarders, in order, in place of the relay. The flag \
+      wins, and so do --relay-host and --relay-failover; beside PODSSH_RELAY, or with a bad template, it is a \
+      configuration error (78). An empty value is no value.",
     ),
 ];

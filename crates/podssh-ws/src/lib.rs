@@ -3,7 +3,8 @@
 //! With `--direct` on Linux, TCP can be Multipath TCP on request (`mptcp`).
 //! A WebSocket that the user names is dialed with no token (`url`), and a
 //! server's side of the handshake answers a client of `podssh pipe
-//! ws-listen:` (`server`, T-368).
+//! ws-listen:` (`server`, T-368). A forwarder of another product carries a
+//! target that a template names, over the same dial (`forwarder`, T-369).
 //!
 //! Why a crypto provider of its own: rustls 0.23 ships none in pure Rust, and
 //! `ring` and `aws-lc-sys` both need a C compiler, which podssh's default build
@@ -24,6 +25,9 @@ pub mod dial;
 // The road of AWS's EC2 Instance Connect Endpoint (T-351).
 pub mod eice;
 pub mod error;
+// A forwarder of another product, which takes its target from the client
+// (T-369).
+pub mod forwarder;
 pub mod frame;
 pub mod handshake;
 pub mod http;

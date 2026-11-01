@@ -39,6 +39,7 @@ pub const HEALTH_FLAGS: &[FlagRow] = &[
         "trust only the CA certificates in FILE for the relay (default: env SSL_CERT_FILE, else system and built-in roots)", None),
     row(None, "direct", None, FlagKind::Supported,
         "connect without the relay: TCP, through HTTPS_PROXY when one is set", None),
+    super::forwarder::FORWARDER,
     row(None, "json", None, FlagKind::Supported,
         "the facts as one JSON object on stdout, also after a failure", None),
 ];

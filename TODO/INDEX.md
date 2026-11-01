@@ -62,15 +62,15 @@ repository and CI).
 
 ## Counts
 
-**375 entries: 22 open, 0 partial, 30 blocked, 323 done.**
+**375 entries: 21 open, 0 partial, 30 blocked, 324 done.**
 
 | Priority | open | partial | blocked | done | total |
 | --- | --- | --- | --- | --- | --- |
 | P0 | 0 | 0 | 0 | 1 | 1 |
 | P1 | 2 | 0 | 0 | 29 | 31 |
 | P2 | 2 | 0 | 21 | 163 | 186 |
-| P3 | 18 | 0 | 9 | 130 | 157 |
-| **All** | 22 | 0 | 30 | 323 | 375 |
+| P3 | 17 | 0 | 9 | 131 | 157 |
+| **All** | 21 | 0 | 30 | 324 | 375 |
 
 ## Entries
 
@@ -440,7 +440,7 @@ repository and CI).
 | [T-366](ws.md) | P3 | S | backlog | feature | done | `doctor` asks the proxy for an address as well as for names, and says which of the two it takes |
 | [T-367](pipe.md) | P3 | M | backlog | feature | done | `http-listen:`: `podssh pipe` as an HTTP CONNECT proxy, for programs that know only `HTTPS_PROXY` |
 | [T-368](pipe.md) | P3 | M | backlog | feature | done | `ws:`, `wss:` and `ws-listen:` as addresses of `podssh pipe` |
-| [T-369](roads.md) | P3 | M | backlog | feature | open | `--forwarder TEMPLATE`: a road through a WebSocket forwarder that takes the target from its URL |
+| [T-369](roads.md) | P3 | M | backlog | feature | done | `--forwarder TEMPLATE`: a road through a WebSocket forwarder that takes the target from its URL |
 | [T-370](roads.md) | P3 | S | backlog | feature | open | Built-in templates of other products' public forwarders, and a fallback to them |
 | [T-371](roads.md) | P3 | M | backlog | measurement | done | A `-J` hop on port 443 through the proxy, measured, and a `doctor` line for a hop |
 | [T-372](roads.md) | P3 | M | backlog | feature | open | A hop or a destination whose SSH is wrapped in TLS: `ssh+tls://` |
