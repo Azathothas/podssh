@@ -26,7 +26,7 @@ the verb, the address grammar, the copy loop, and the local addresses `-`,
 
 - Measured: `PODSSH_OFFLINE=1 podssh pipe stdio relay:example.org:80` exits
   64 with `podssh: unknown subcommand 'pipe'.` The verb table has no `pipe`
-  row (`crates/podssh-cli/src/flags.rs:356-415`).
+  row (`crates/podssh-cli/src/flags.rs:357-416`).
 - Read: the only pump is `crates/podssh-cli/src/pipe/relay.rs:104-230`. At the end
   of input it stops sending and keeps receiving
   (`crates/podssh-cli/src/proxy.rs:8-11`). T-101 is the opposite defect in
@@ -37,7 +37,7 @@ the verb, the address grammar, the copy loop, and the local addresses `-`,
 
 ## Approach
 
-1. The verb: a `pipe` row in `crates/podssh-cli/src/flags.rs:356-415`, two
+1. The verb: a `pipe` row in `crates/podssh-cli/src/flags.rs:357-416`, two
    required positionals (`crates/podssh-cli/src/positionals.rs:7-237`), a
    `Parsed::Pipe` variant (`crates/podssh-cli/src/parsed.rs:8-169`), a
    dispatch arm, and `pipe` in `DISPATCHED`
@@ -159,7 +159,7 @@ local program to a target, and `podssh proxy` stays a second pump.
   (`crates/podssh-cli/src/proxy.rs:47-142`).
 - Read: `crates/podssh-ssh/src/relay_stream.rs:198-201` sends Close 1000 when
   its write side ends. That is right for SSH and wrong for a pipe: the relay
-  has no half-close (`docs/relay.md:129-135`), so a Close cuts a reply on its
+  has no half-close (`docs/relay.md:137-143`), so a Close cuts a reply on its
   way. Measured live for proxy: the full reply after stdin closed
   (`docs/STATUS.md:210`).
 - Read: `-W` opens its stream with `crates/podssh-ssh/src/forward.rs:14-22`
@@ -187,7 +187,7 @@ local program to a target, and `podssh proxy` stays a second pump.
    `crates/podssh-cli/src/pipe/relay.rs:200-230`).
 4. `ssh:[USER@]HOP[,HOP...],HOST:PORT`: the last item is the target, each
    other item a hop, read as `-J` reads it
-   (`crates/podssh-cli/src/ssh/resolve.rs:192-196`,
+   (`crates/podssh-cli/src/ssh/resolve.rs:193-197`,
    `crates/podssh-cli/src/ssh/hop.rs:30-78`). Make
    `crates/podssh-ssh/src/run.rs:156-169` a public `connect_chain` that `-W`
    and the pipe both use; keep each handle alive until the pipe ends. The
@@ -198,7 +198,7 @@ local program to a target, and `podssh proxy` stays a second pump.
 5. `node:NAME` after T-084, and `iroh:TICKET` after T-163: one adapter and
    one test each. If T-163 makes a ticket a credential, read it from a file
    (`iroh:@FILE`), never from argv.
-6. Exit codes: sysexits, as `podssh proxy` (`docs/cli.md:2751`): 69; 77 for a
+6. Exit codes: sysexits, as `podssh proxy` (`docs/cli.md:2774`): 69; 77 for a
    refusal (the relay, the proxy, a host key, the authentication); 78. Give
    `crates/podssh-ssh/src/run.rs:332-412` a typed error, so that 77 is not
    guessed from a message.
@@ -586,14 +586,14 @@ running on the server (`docs/design.md:614-618`).
   (`crates/podssh-ssh/src/session.rs:39-41`). Raw mode is entered once for
   each session (`crates/podssh-ssh/src/session.rs:149-208`).
 - Read: the relay ends a session at 64 MiB (1009) or 12 h (1001)
-  (`docs/relay.md:249-255`). Sandbox A measured the cap at 67,107,943 bytes,
+  (`docs/relay.md:257-263`). Sandbox A measured the cap at 67,107,943 bytes,
   and one close `1011` in 180 short sessions (`docs/STATUS.md:290-291`).
 - Read: tmux is never assumed (`docs/target-environment.md:101-103`).
 
 ## Approach
 
 1. Flags `--persist` and `--persist-name NAME` (default `podssh`; letters,
-   digits, `_` and `-`, 32 at most) in `crates/podssh-cli/src/flags.rs:112-284`.
+   digits, `_` and `-`, 32 at most) in `crates/podssh-cli/src/flags.rs:112-285`.
    With a command, `-W`, `-N`, `-s` or `RemoteCommand`, exit 64.
 2. The probe, after the login: one exec runs `command -v tmux`. No tmux:
    exit 255 with "the server has no tmux on PATH; --persist needs it". T-193
@@ -610,9 +610,9 @@ running on the server (`docs/design.md:614-618`).
    Keys typed meanwhile wait in a queue of 64 KiB, and go after the attach.
 6. Each attempt checks the host key with the same policy, and uses the
    cached token. A prompt with no terminal ends the loop
-   (`docs/cli.md:2822-2824`). After the attach, send the window size again.
+   (`docs/cli.md:2845-2847`). After the attach, send the window size again.
 7. In the same commit: `docs/cli.md`, the notes of ssh
-   (`crates/podssh-cli/src/man/notes_ssh.rs:4-347`), `docs/design.md:614-618`,
+   (`crates/podssh-cli/src/man/notes_ssh.rs:4-358`), `docs/design.md:614-618`,
    `docs/STATUS.md`, and tmux in the interop image
    (`scripts/interop.sh:24-25`). T-025 shares the classes of close codes;
    T-153 replaces this loop when both ends run podssh.
@@ -728,8 +728,8 @@ no listener, or that the relay ends a desktop stream after 64 MiB.
   `connect()` itself needs a listener (`docs/design.md:951-954`), which
   T-177 adds where a probe allows it.
 - Read: 64 MiB for each session, both directions together
-  (`docs/relay.md:192`), then Close 1009 (`docs/relay.md:253`); public
-  targets only (`docs/relay.md:194`). Through the proxy of sandbox A: 0.5 to
+  (`docs/relay.md:200`), then Close 1009 (`docs/relay.md:261`); public
+  targets only (`docs/relay.md:202`). Through the proxy of sandbox A: 0.5 to
   0.7 MB/s (`docs/STATUS.md:289`).
 - Not measured: no RDP, VNC or Telnet client ran through podssh. Each claim
   about a client below is to verify.
@@ -775,7 +775,7 @@ the examples must refuse it.
 ## Correction
 
 2026-10-12: the Prove's plant no longer fails. T-038 made `-L` a flag of
-`podssh ssh` (`crates/podssh-cli/src/flags.rs:242` says "forward-local"),
+`podssh ssh` (`crates/podssh-cli/src/flags.rs:243` says "forward-local"),
 so an example with `podssh ssh -L 5901:127.0.0.1:5901 user@host` parses. The
 plant that the test of the examples must refuse gives `-L` to the
 ProxyCommand's `podssh proxy`, which has no such flag:
@@ -899,14 +899,14 @@ and sandhole. Read in the reports, not verified here.
 
 A developer in a sandbox runs a web application and wants a URL for it. The
 relay carries TCP to public targets and reverse sessions to named nodes
-(`docs/relay.md:307-349`). It has no endpoint that takes public HTTPS for a
+(`docs/relay.md:315-357`). It has no endpoint that takes public HTTPS for a
 name, and podssh alone cannot add one.
 
 ## Premise
 
 - Read: the relay is the operator's Cloudflare Worker, another project, and
   its document is the contract (`docs/relay.md:3-16`). It has no publish
-  endpoint (`docs/relay.md:113-150`, `docs/relay.md:307-371`).
+  endpoint (`docs/relay.md:121-158`, `docs/relay.md:315-379`).
 - Read: on the measured sandbox, `connect()` to loopback fails with EACCES
   (`docs/target-environment.md:22`). A node there cannot reach a server on
   127.0.0.1; it can reach a Unix socket (T-176) or a program (`exec:`,
@@ -922,7 +922,7 @@ When the relay's operator adds the endpoint:
 
 1. The relay's operator publishes it in the contract first: a name, a public
    host name, and each incoming connection as a reverse session
-   (`open {id}`, `ready {id}`; `docs/relay.md:315-335`).
+   (`open {id}`, `ready {id}`; `docs/relay.md:323-343`).
 2. podssh uses the node runner (T-079) and `podssh node` (T-083):
    `podssh node NAME TARGET --publish`, TARGET each address of T-174 to
    T-176. podssh parses no HTTP: the bytes pass, WebSocket upgrades too.
@@ -1099,7 +1099,7 @@ and with which limits.
   SSH exec channel, and says that USB/IP needs kernel modules on the server.
 - Read: an exec channel carries binary data with equal digests
   (`docs/STATUS.md:90`), and `pipe` carries a TCP stream (T-174, T-175).
-- Read: through the relay, a session ends at 64 MiB (`docs/relay.md:192`);
+- Read: through the relay, a session ends at 64 MiB (`docs/relay.md:200`);
   the traffic of a USB disk reaches that in seconds.
 - Read: podssh cannot load a module or attach a device, and never assumes a
   privilege (`AGENTS.md:250-251`). The recipe uses the user's own `usbip` and
@@ -1306,7 +1306,7 @@ the request's target, would be the proxy that such a program points at.
   gate's scan of listeners allows the listener of `pipe` (`scripts/check-repo.py:79-103`).
 - Read: the SOCKS side of `-D` answers once the server's channel opened, so that a client learns
   whether its target was reached (`crates/podssh-ssh/src/socks.rs:1-5`). The relay refuses a target
-  of its policy with a `403` that names it, `not in the ALLOW list` (`docs/relay.md:176-178`).
+  of its policy with a `403` that names it, `not in the ALLOW list` (`docs/relay.md:184-186`).
 - Read: a secret of the resumable layer is compared in constant time
   (`crates/podssh-relay/src/session/secret.rs:247-251`).
 
@@ -1411,7 +1411,7 @@ live relay behind it.
 2026-10-31: three citations of the Premise name other lines, as they did when the entry was
 written (read at `8207d29`). The ruling on a listener that the user asks for is
 `docs/decisions.md:41`; `docs/decisions.md:36` is the ruling on `exec:`. The relay's `403` of its
-policy is `docs/relay.md:181-183`; `docs/relay.md:176-178` is the form of a token and its header.
+policy is `docs/relay.md:189-191`; `docs/relay.md:184-186` is the form of a token and its header.
 The rest reads as cited. Nothing in the Approach changes.
 
 ## Done

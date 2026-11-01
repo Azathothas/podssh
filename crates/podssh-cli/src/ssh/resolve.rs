@@ -24,8 +24,9 @@ pub use super::hop::parse_hop;
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub enum Transport {
     /// Through the relay hosts, in order; `family` is 4 or 6 when one was
-    /// asked for.
-    Relay { relays: RelayList, trust: Trust, family: Option<u8>, failover: Mode },
+    /// asked for. With `then_direct`, the direct road once each host failed
+    /// (T-363): no relay was named, and `PODSSH_DIRECT` is not `no`.
+    Relay { relays: RelayList, trust: Trust, family: Option<u8>, failover: Mode, then_direct: bool },
     /// A TCP connection, through `HTTPS_PROXY` when one is set (`--direct`).
     Direct,
     /// The node of a pair, through the operator's leg of the reverse road
@@ -344,7 +345,12 @@ pub fn resolve_or_refuse(args: &SshArgs, env: &Env) -> Result<Resolved, Refusal>
             Some(file) => Trust::File(file.into()),
             None => Trust::Default,
         };
-        Transport::Relay { relays, trust, family, failover }
+        // The direct road after the relay hosts (T-363): not with a relay
+        // that the user named, nor with -4 or -6, which the direct road
+        // cannot keep.
+        let direct = crate::relay_settings::direct_from(env.direct.clone(), &env.settings)?;
+        let then_direct = direct && !relays.explicit && family.is_none();
+        Transport::Relay { relays, trust, family, failover, then_direct }
     };
 
     // A node runs the resumable layer, whose heartbeat finds a dead link and

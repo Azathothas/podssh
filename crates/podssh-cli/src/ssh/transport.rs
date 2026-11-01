@@ -1,13 +1,17 @@
 //! The stream to the first hop: through the relay, with failover, or over
 //! TCP with `--direct`. `ssh` runs a session on it, and `cp` an SFTP session.
+//! When the user named no relay and each relay host failed, the direct road
+//! once, as the road table gives it (T-363): the dial of `--direct`, then
+//! the server's version line, which goes to the SSH client first.
 
 use std::pin::Pin;
 use std::sync::atomic::{AtomicBool, Ordering};
 use std::sync::Arc;
 use std::task::{Context, Poll};
+use std::time::Duration;
 
-use podssh_relay::open::Request;
-use podssh_ssh::{Log, RelayStatus};
+use podssh_relay::open::{OpenError, Request};
+use podssh_ssh::{Hop, Log, RelayStatus};
 use podssh_ws::ProxyChoice;
 use tokio::io::{AsyncRead, AsyncWrite, ReadBuf};
 
@@ -164,7 +168,7 @@ pub async fn reach_skipping(resolved: &Resolved, skip: usize, log: &Arc<Log>) ->
     let first = opts.jump.first().unwrap_or(&opts.destination);
     let target = podssh_ws::dial::authority(&first.host, first.port);
     match &resolved.transport {
-        Transport::Relay { relays, trust, family, failover } => {
+        Transport::Relay { relays, trust, family, failover, then_direct } => {
             let turned;
             let relays = if skip == 0 {
                 relays
@@ -191,6 +195,7 @@ pub async fn reach_skipping(resolved: &Resolved, skip: usize, log: &Arc<Log>) ->
                 failover: *failover,
             };
             let note_log = log.clone();
+            let started = tokio::time::Instant::now();
             match podssh_relay::open(&request, &mut |note: &str| note_log.info(note)).await {
                 Ok(opened) => {
                     log.verbose(&format!("the relay host {} opened the session", opened.relay.host));
@@ -202,7 +207,12 @@ pub async fn reach_skipping(resolved: &Resolved, skip: usize, log: &Arc<Log>) ->
                     Ok(Reached { stream: Box::new(stream), relay: Some(status), direct_proxy: None, layer: None })
                 }
                 Err(failure) => {
-                    Err(NotReached { lines: failure.lines(&target), code: crate::proxy::sysexit(failure.last()) })
+                    let not = NotReached { lines: failure.lines(&target), code: crate::proxy::sysexit(failure.last()) };
+                    // Offline, the direct road may not connect either.
+                    if !*then_direct || matches!(failure.last(), OpenError::Offline) {
+                        return Err(not);
+                    }
+                    Box::pin(after_relay(first, &target, not, started.elapsed(), log)).await
                 }
             }
         }
@@ -303,11 +313,123 @@ async fn direct(
     Ok(tcp)
 }
 
+/// How long the direct road after the relay hosts waits for the server's
+/// version line (T-363): an SSH server sends it at once, and a proxy that
+/// takes the CONNECT and carries no SSH sends nothing.
+pub const VERSION_WAIT: Duration = Duration::from_secs(10);
+
+/// The direct road once each relay host failed (T-363): one dial of
+/// `first`, as `--direct` makes it, then the server's version line within
+/// [`VERSION_WAIT`], whose bytes go to the SSH client first. When it fails
+/// too, the relay's lines, then one that names both roads with their times;
+/// the exit stays the relay's.
+async fn after_relay(
+    first: &Hop,
+    target: &str,
+    relay: NotReached,
+    relay_took: Duration,
+    log: &Log,
+) -> Result<Reached, NotReached> {
+    let proxy = podssh_ws::dial::proxy_from_env(&first.host).ok().flatten().map(|p| p.to_string());
+    log.info(&announce(relay_took, target, proxy.as_deref()));
+    for line in &relay.lines {
+        log.verbose(line);
+    }
+    let started = tokio::time::Instant::now();
+    let failed = |why: String| {
+        let mut lines = relay.lines.clone();
+        lines.push(both_failed(relay_took, target, started.elapsed(), &why));
+        NotReached { lines, code: relay.code }
+    };
+    // A bad PODSSH_MPTCP asks for nothing here: the one dial is a plain one.
+    let multipath = multipath_asked(std::env::var(MPTCP_ENV).ok().as_deref()).unwrap_or(false);
+    let tcp = match direct(&first.host, first.port, multipath, target, log).await {
+        Ok(tcp) => tcp,
+        Err(e) => return Err(failed(e.to_string())),
+    };
+    let _ = tcp.set_nodelay(true);
+    let mut stream = podssh_ws::write_limit::WriteLimit::new(tcp, podssh_ws::client::WRITE_TIMEOUT);
+    match super::banner::read(&mut stream, VERSION_WAIT).await {
+        Ok(read) => {
+            log.verbose(&format!("the direct road carried the session to {target}"));
+            let stream = Box::new(super::banner::Prefixed::new(read, stream));
+            Ok(Reached { stream, relay: None, direct_proxy: None, layer: None })
+        }
+        // A proxy that takes the CONNECT and carries no SSH is no road (T-317).
+        Err(why) => Err(failed(match &proxy {
+            Some(proxy) => format!(
+                "the proxy {proxy} took the CONNECT, then {why}: no byte of an SSH server came back, as from a \
+                 proxy that expects TLS and carries no SSH"
+            ),
+            None => format!("the connection opened, then {why}"),
+        })),
+    }
+}
+
+/// The line before the direct road's dial: through a proxy, its CONNECT
+/// names the target, which the relay's does not.
+fn announce(relay_took: Duration, target: &str, proxy: Option<&str>) -> String {
+    let via = proxy.map(|p| format!(", through the proxy {p}, whose CONNECT names it")).unwrap_or_default();
+    format!(
+        "each relay host failed, after {:.1} s; podssh tries {target} directly{via} (PODSSH_DIRECT=no turns this \
+         off; -v gives the relay's lines)",
+        relay_took.as_secs_f32()
+    )
+}
+
+/// The line of both roads, each with its time, when both failed.
+fn both_failed(relay_took: Duration, target: &str, direct_took: Duration, why: &str) -> String {
+    format!(
+        "the relay road failed after {:.1} s, and the direct road to {target} after {:.1} s: {why}",
+        relay_took.as_secs_f32(),
+        direct_took.as_secs_f32()
+    )
+}
+
 #[cfg(test)]
 mod tests {
     use std::time::Duration;
 
-    use super::{keep, multipath_asked, running, settled, CARRIAGE_WAIT};
+    use super::{announce, both_failed, keep, multipath_asked, running, settled, CARRIAGE_WAIT, VERSION_WAIT};
+    use crate::ssh::banner::{self, Prefixed};
+
+    /// The line before the direct road names the target and the proxy, and
+    /// the switch; the line of a double failure names both roads and their
+    /// times (T-363).
+    #[test]
+    fn the_lines_of_the_direct_road_name_the_target_the_proxy_and_both_times() {
+        let said = announce(Duration::from_millis(2300), "ssh.example:22", Some("127.0.0.1:3128"));
+        let starts = "each relay host failed, after 2.3 s; podssh tries ssh.example:22 directly";
+        assert!(said.starts_with(starts), "{said}");
+        assert!(said.contains("through the proxy 127.0.0.1:3128") && said.contains("PODSSH_DIRECT=no"), "{said}");
+        assert!(!announce(Duration::ZERO, "h:22", None).contains("proxy"), "no proxy, none named");
+        let both = both_failed(Duration::from_millis(1500), "h:2222", Duration::from_millis(40), "refused");
+        assert_eq!(both, "the relay road failed after 1.5 s, and the direct road to h:2222 after 0.0 s: refused");
+    }
+
+    /// The version line is read, and given back to the client first; a
+    /// silent server and one that is no SSH server are named (T-363).
+    #[tokio::test(start_paused = true)]
+    async fn the_version_line_is_given_back_and_a_silence_is_named_at_its_limit() {
+        use tokio::io::{AsyncReadExt, AsyncWriteExt};
+        let (mut ours, mut theirs) = tokio::io::duplex(1024);
+        theirs.write_all(b"a line first\r\nSSH-2.0-test\r\n").await.unwrap();
+        let read = banner::read(&mut ours, VERSION_WAIT).await.expect("a version line");
+        let mut again = Prefixed::new(read, ours);
+        theirs.write_all(b"more").await.unwrap();
+        drop(theirs);
+        let mut all = Vec::new();
+        again.read_to_end(&mut all).await.unwrap();
+        assert_eq!(all, b"a line first\r\nSSH-2.0-test\r\nmore");
+        let (mut silent, _held) = tokio::io::duplex(1024);
+        let started = tokio::time::Instant::now();
+        let why = banner::read(&mut silent, VERSION_WAIT).await.unwrap_err();
+        assert_eq!(started.elapsed(), VERSION_WAIT);
+        assert_eq!(why, "nothing came in 10 s");
+        let (mut tls, mut proxy) = tokio::io::duplex(1024);
+        proxy.write_all(&[0x15, 0x03, 0x03, 0x00, 0x02, 0x02, 0x50]).await.unwrap();
+        assert_eq!(banner::read(&mut tls, VERSION_WAIT).await.unwrap_err(), "what came was not an SSH banner");
+    }
 
     /// A command that hands its connection on waits, at its end, for the
     /// layer's task that it kept: its `CLOSE` and its last line (T-331);

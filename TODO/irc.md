@@ -769,7 +769,7 @@ with the text `\u{200b}podssh/N` (`crates/podssh-core/src/irc/reap.rs`, lines 53
 
 Read: the module says that IRC `PONG` lines cannot keep a session open
 (`crates/podssh-core/src/irc/reap.rs:5-15`). The relay's rule is about its own keepalives, the
-empty frames every 25 s (`docs/relay.md:127-128`, `docs/relay.md:190`). An IRC `PING` and its `PONG`
+empty frames every 25 s (`docs/relay.md:135-136`, `docs/relay.md:198`). An IRC `PING` and its `PONG`
 are bytes of the stream, so they are payload.
 
 Measured on SSH, not on IRC: payload keepalives every 60 s kept a relay session for 602 s; with
@@ -804,7 +804,7 @@ The new file crates/podssh-core/tests/keepalive.rs holds `the_keepalive_is_a_pin
 and `a_matching_pong_counts_as_a_reception`. Plant: return the `PRIVMSG` heartbeat; the first test
 must fail. Live: give the probe an idle mode. An idle session on undernet must stay open for 10 min
 with no channel message. With the keepalive off (the control), the relay must close it at about
-180 s with `1001 idle timeout` (`docs/relay.md:252`).
+180 s with `1001 idle timeout` (`docs/relay.md:260`).
 
 ## Correction
 

@@ -29,6 +29,8 @@ fn env() -> Env {
         user: Some("envuser".into()),
         relay: None,
         relay_failover: None,
+        // No PODSSH_DIRECT: the direct road follows the relay hosts (T-363).
+        direct: None,
         ssl_cert_file: None,
         local_host: Some("box.example.org".into()),
         uid: Some(1000),

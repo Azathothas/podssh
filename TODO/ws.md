@@ -311,7 +311,7 @@ the configuration on each call (`crates/podssh-ws/src/client.rs` lines 187-207 a
 (`crates/podssh-relay/src/token.rs:94-99`), the pool refresh
 (`crates/podssh-relay/src/pool.rs:177-185`), and the `https_*` functions (`client.rs` lines
 261-287). podssh's configuration offers no ALPN (`tls.rs` lines 174-177 at `723d90b`), because the upgrade is
-HTTP/1.1 only (`docs/relay.md:279`). The `tls12` feature of `rustls` is on in the workspace
+HTTP/1.1 only (`docs/relay.md:287`). The `tls12` feature of `rustls` is on in the workspace
 (`[workspace.dependencies]` of `Cargo.toml`).
 
 ## Approach
@@ -729,7 +729,7 @@ once (`crates/podssh-relay/src/open.rs:70`) and gives exit 78 in `podssh proxy`
 5. Credentials never in output: `Display` shows the host and port only (now
    `crates/podssh-ws/src/proxy.rs:70-75`).
 6. `doctor` names the SOCKS5 proxy, and its proxy checks
-   (`crates/podssh-cli/src/doctor/net.rs:201-243`) work for both forms. The two tests above
+   (`crates/podssh-cli/src/doctor/net.rs:193-235`) work for both forms. The two tests above
    plant `ftp://` and `socks4://` instead; `socks4` and `socks4a` are refused by name.
 7. Change the proxy variables in VARIABLES (`crates/podssh-cli/src/man/facts.rs:46-55`),
    `docs/architecture.md` and `docs/cli.md` in the same commit.
@@ -2072,7 +2072,7 @@ host has.
 ## Premise
 
 - Read: through a proxy, `doctor` asks for the relay's host and for `github.com` on ports 443 and
-  22, each by name (`crates/podssh-cli/src/doctor/net.rs:18-20`, `:201-251`), and
+  22, each by name (`crates/podssh-cli/src/doctor/net.rs:18-20`, `:193-243`), and
   `crates/podssh-cli/src/doctor/net.rs:146` says "podssh asks it to CONNECT by name, so no DNS is
   needed".
 - Read: the dialer gives a proxy the relay's name and never an address, and a pin of the relay's
@@ -2081,7 +2081,7 @@ host has.
   (`:255-264`). So no road of the release binaries asks a proxy for an address, but `--direct`,
   `pipe tcp:` and a target of `-R`, each to an address that the user gives.
 - Read: with no proxy, `doctor` reaches addresses already: DNS over HTTPS to the resolvers'
-  address literals (`crates/podssh-cli/src/doctor/net.rs:294-365`;
+  address literals (`crates/podssh-cli/src/doctor/net.rs:286-357`;
   `crates/podssh-ws/src/resolve.rs:28-32`), each checked by TLS for its address
   (`crates/podssh-ws/src/resolve.rs:148-158`).
 - Read: the proxy of the measured sandbox gave `200` for public names on ports 443, 80 and 8443,

@@ -1,5 +1,6 @@
 //! The variables of the roads that are read apart from `facts.rs`, for the
-//! length of that file: the DERP road (T-349, T-379).
+//! length of that file: the DERP road (T-349, T-379), and the direct road
+//! after the relay hosts (T-363).
 
 /// Each one: its names, and what it does.
 pub(super) const VARIABLES: &[(&[&str], &str)] = &[
@@ -16,5 +17,14 @@ pub(super) const VARIABLES: &[(&[&str], &str)] = &[
           with no pair refuses as before, and podssh ssh node://NAME dials no ticket that it kept under NAME. \
           --derp, --derp-ticket and derp:TICKET still take the road. Unset, empty or yes: the fallback is on; \
           another word is a configuration error (78).",
+    ),
+    (
+        &["PODSSH_DIRECT"],
+        "no: when each relay host failed, podssh ssh and each command that reaches a server as it does (cp, \
+          each, job, health, containers, ping, pipe ssh:) end with the relay's failure, as with --relay-host, \
+          and do not try the direct road. Unset, empty or yes: with no relay named (no --relay-host, \
+          PODSSH_RELAY or RelayHost) and no -4 or -6, the direct road is tried once, as --direct dials it, \
+          through HTTPS_PROXY when one is set, and the server's version line must come within 10 s. The \
+          settings file's Direct says the same, below the variable; another word is a configuration error (78).",
     ),
 ];

@@ -62,15 +62,15 @@ repository and CI).
 
 ## Counts
 
-**375 entries: 23 open, 0 partial, 30 blocked, 322 done.**
+**375 entries: 22 open, 0 partial, 30 blocked, 323 done.**
 
 | Priority | open | partial | blocked | done | total |
 | --- | --- | --- | --- | --- | --- |
 | P0 | 0 | 0 | 0 | 1 | 1 |
 | P1 | 2 | 0 | 0 | 29 | 31 |
 | P2 | 2 | 0 | 21 | 163 | 186 |
-| P3 | 19 | 0 | 9 | 129 | 157 |
-| **All** | 23 | 0 | 30 | 322 | 375 |
+| P3 | 18 | 0 | 9 | 130 | 157 |
+| **All** | 22 | 0 | 30 | 323 | 375 |
 
 ## Entries
 
@@ -435,7 +435,7 @@ repository and CI).
 | [T-360](repo.md) | P2 | M | none | defect | done | Nothing reads `TODO/issues.md`: issues #59 to #63 have no row, and no check compares the map with GitHub |
 | [T-361](repo.md) | P2 | S | none | defect | done | A Prove may name a test target or a script that no longer exists, and the record's check passes |
 | [T-362](repo.md) | P3 | S | none | chore | done | A claim that something is not built yet carries no date or entry, and a status beside an id is not checked |
-| [T-363](roads.md) | P3 | M | backlog | feature | open | The direct road is never tried after the relay hosts fail, though the road table says that a probe chooses it |
+| [T-363](roads.md) | P3 | M | backlog | feature | done | The direct road is never tried after the relay hosts fail, though the road table says that a probe chooses it |
 | [T-365](forwarding.md) | P2 | M | backlog | feature | done | `-R` with a socket path on either side, and the remote SOCKS form, as OpenSSH carries them |
 | [T-366](ws.md) | P3 | S | backlog | feature | done | `doctor` asks the proxy for an address as well as for names, and says which of the two it takes |
 | [T-367](pipe.md) | P3 | M | backlog | feature | done | `http-listen:`: `podssh pipe` as an HTTP CONNECT proxy, for programs that know only `HTTPS_PROXY` |

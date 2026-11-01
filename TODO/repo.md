@@ -2321,7 +2321,7 @@ Read, wrong facts:
   `crates/podssh-probe/tests/spec/relay-spec-2026-10-03-r2.txt`).
 - crates/podssh-transport/src/backpressure/mod.rs lines 4-22 at `e8bbd4d` gives the reverse
   path's backpressure (1011, 1 MiB, the frame dropped: line 185 of that copy)
-  as the forward path's. For the forward path, `docs/relay.md:266-278` says
+  as the forward path's. For the forward path, `docs/relay.md:274-286` says
   1013 at 2 MiB, with no frame dropped. The comment on the SSH window said
   the same as `backpressure/mod.rs` (`crates/podssh-ssh/src/run.rs` lines
   25-28 at `80f20bf`); T-024 corrected it.
@@ -2632,7 +2632,7 @@ Measured with grep over the `src`, `tests` and `examples` of `podssh-cli`:
 
 Read: `libc` (line 44) is used only in code under `cfg(unix)`
 (`crates/podssh-cli/src/ssh/tokens.rs:237`, `crates/podssh-cli/src/ssh/tokens.rs:254`,
-`crates/podssh-cli/src/ssh/resolve.rs:142`,
+`crates/podssh-cli/src/ssh/resolve.rs:143`,
 the module of `crates/podssh-cli/src/doctor/unix.rs`). T-060 decides whether a
 command uses `podssh-probe`.
 
@@ -4900,7 +4900,7 @@ of GitHub #69 to #72 corrected these; nothing finds the next.
 - Read, by `grep -w yet` over `docs/`, `README.md`, `AGENTS.md` and `SECURITY.md` on 2026-10-31,
   after the corrections: 19 lines with no date and no id on them. Most are true today, as of the
   work that the operator holds (Q32); some state nothing of podssh, as "not whole yet"
-  (`docs/cli.md:1066`) and "did not act on yet" (`docs/cli.md:792`).
+  (`docs/cli.md:1088`) and "did not act on yet" (`docs/cli.md:814`).
 - Read: the checker reads the ids of these documents and the citations of `TODO/` alone
   (`crates/podssh-todo/src/refs.rs:22-35`); it reads no sentence of a document.
 - Read: the fifth statement of GitHub #71, the comment of the facts file that the relay's frame

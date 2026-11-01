@@ -31,7 +31,7 @@ the rest is read. `bound` wraps only `TsNode::start` and `tcp_connect`
 (`crates/podssh-cli/src/ts.rs`, lines 207-221 at `4c3b456`, `crates/podssh-cli/src/ts.rs`, lines 353-363 at `4c3b456`), not `node.status()`
 or `node.peer_ip()` (`crates/podssh-cli/src/ts.rs`, line 289 at `4c3b456`, `crates/podssh-cli/src/ts.rs`, line 344 at `4c3b456`). The
 module comment says that the bound caps the whole operation (`crates/podssh-cli/src/ts.rs`, lines 9-14 at `4c3b456`),
-and `docs/cli.md:2860-2862` makes that a rule.
+and `docs/cli.md:2883-2885` makes that a rule.
 
 Read: `status()` calls `Device::self_node()` (`crates/podssh-ts/src/node.rs`, lines 76-79 at `4c3b456`), whose reply
 waits in a queue until a map with the self node arrives
@@ -145,7 +145,7 @@ Read: `podssh proxy` keeps receiving after the end of stdin (`crates/podssh-cli/
 and a closed stdout is a clean end there (`crates/podssh-cli/src/pipe/relay.rs:222-226`) and in the rules
 (`docs/cli.md`, line 610 at `8cf2587`). `podssh ts -W` exits 70 on each copy error (`crates/podssh-cli/src/ts.rs`, lines 404-407 at `1ee321d`).
 The relay closes a half-closed forward session after 15 s with no bytes from the target
-(`docs/relay.md:251`). An earlier version of the pipe waited with no limit, and hung
+(`docs/relay.md:259`). An earlier version of the pipe waited with no limit, and hung
 (`crates/podssh-ts/src/pipe.rs`, lines 77-81 at `1ee321d`).
 
 ## Approach
@@ -399,7 +399,7 @@ Not measured: whether the proxy of a sandbox allows `tcp.ts.relay.ajam.dev:443` 
    print its credentials. The fork has one proxy for each process
    (`vendor/tailscale-rs/ts_http_util/src/proxy.rs:222-237`), so apply `NO_PROXY` for each host in
    the new function.
-4. Update `crates/podssh-cli/src/flags.rs:342-343`, `docs/tailscale.md:85-86` and
+4. Update `crates/podssh-cli/src/flags.rs:343-344`, `docs/tailscale.md:85-86` and
    `docs/STATUS.md:611` in the same commit.
 
 Added by T-102 (2026-10-10): the checks of each mode before the start already take `--ts-proxy`,
@@ -533,7 +533,7 @@ supervision (`vendor/tailscale-rs/ts_runtime/src/lib.rs` lines 161-170): five re
 most, with no wait
 (`tqwewe/kameo:src/supervision.rs`). podssh's relay client has the rules to copy: a capped backoff
 with jitter (`crates/podssh-relay/src/open.rs:379-393`), and a ping every 10 s with three silent
-checks allowed (`crates/podssh-ws/src/client.rs:31-32`, `docs/relay.md:149-151`).
+checks allowed (`crates/podssh-ws/src/client.rs:31-32`, `docs/relay.md:157-159`).
 
 ## Approach
 

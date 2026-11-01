@@ -29,7 +29,7 @@ in a `session` module of `podssh-relay` (`docs/design.md:496-505`), a crate
 with no C. Measured: `grep -ril resum crates` finds only the IRC client.
 Today russh's bytes go through a pipe to the relay session
 (`crates/podssh-ssh/src/relay_stream.rs:169-279`). Frame boundaries mean nothing
-on the relay (`docs/relay.md:120-123`), and the relay reads each record and can
+on the relay (`docs/relay.md:128-131`), and the relay reads each record and can
 drop or add frames (`SECURITY.md:33-36`).
 
 ## Approach
@@ -806,7 +806,7 @@ always runs the layer. The flag's row, the manual's note of `node`,
 ## Problem
 
 The relay cuts a connection after 180 s with no payload, and its empty
-keepalive frames do not count (`docs/relay.md:127-128`, `docs/relay.md:190`). A
+keepalive frames do not count (`docs/relay.md:135-136`, `docs/relay.md:198`). A
 reverse socket gets no keepalive at all (`docs/reverse.md:34-42`). SSH's own
 keepalives must not end a session that the layer would resume.
 
@@ -820,7 +820,7 @@ sockets are not measured (T-061). russh sends a keepalive each 60 s and ends
 the session after 3 with no answer (`crates/podssh-ssh/src/options.rs:332-372`).
 Measured on `3ee70dc`, offline (`PODSSH_OFFLINE=1`, a `.invalid` host):
 `-o ServerAliveInterval=0` prints the warning of
-`crates/podssh-cli/src/ssh/resolve.rs:361-375` (the `warnings` of keepalives), and `podssh ssh` exits 255.
+`crates/podssh-cli/src/ssh/resolve.rs:367-381` (the `warnings` of keepalives), and `podssh ssh` exits 255.
 
 ## Approach
 
@@ -834,11 +834,11 @@ Measured on `3ee70dc`, offline (`PODSSH_OFFLINE=1`, a `.invalid` host):
 3. Carry the `ACK` of T-152 in each `PONG`. The cost is about 20 bytes each
    way each 10 s: under 0.2 MiB in 12 h.
 4. On the resumable road, do not print the warning of
-   `crates/podssh-cli/src/ssh/resolve.rs:361-375` (the `warnings` of keepalives).
+   `crates/podssh-cli/src/ssh/resolve.rs:367-381` (the `warnings` of keepalives).
 5. In the same commit: "Liveness" and "Idle limit" in the manual
    (`crates/podssh-cli/src/man/facts.rs:365-380`,
    `crates/podssh-cli/src/man/facts.rs:400-409`), the note at
-   `crates/podssh-cli/src/man/notes_ssh.rs:323`, `docs/relay.md`, `README.md`.
+   `crates/podssh-cli/src/man/notes_ssh.rs:334`, `docs/relay.md`, `README.md`.
 
 ## Decision
 
@@ -925,7 +925,7 @@ close at the volume cap).
 ## Problem
 
 The relay ends a WebSocket session after 64 MiB, both directions together, or
-after 12 h (`docs/relay.md:191-192`). A long or large session on the layer
+after 12 h (`docs/relay.md:199-200`). A long or large session on the layer
 meets these limits, and an end at a limit costs a resume and its delay.
 
 ## Premise
@@ -1189,7 +1189,7 @@ proxy (4 runs). Read in the report, not verified here: the script's target
 `/trace` showed that the relay could not reach it.
 Read: no iroh figure exists for a relay through a CONNECT proxy
 (`docs/design.md:1132-1152`). A session carries 64 MiB at most, both directions
-together (`docs/relay.md:192`).
+together (`docs/relay.md:200`).
 
 ## Approach
 
@@ -1204,7 +1204,7 @@ together (`docs/relay.md:192`).
    cells; 20 MiB up and 20 MiB down in separate sessions; 300 s at most each.
 4. The targets: a far podssh node that sends and drains bytes. For the
    forward road, two public targets, each checked first with `/trace`, which
-   needs a token (`docs/relay.md:242-243`; `docs/relay.md`, lines 296-302 at `24f3e2a`). Skip a
+   needs a token (`docs/relay.md:250-251`; `docs/relay.md`, lines 296-302 at `24f3e2a`). Skip a
    target that fails the check, with its reason; never count it as 0.
 5. A control: the same runs through the stand-in relay on loopback
    (`scripts/fake-relay.py`), which shows podssh's own limit.
@@ -1320,7 +1320,7 @@ new SSH login to a far end that kept the shell (T-159). Read: podssh knows
 the escapes `~.`, `~R`, `~?` and `~~`, and another character after `~` goes
 to the server with the `~` (`crates/podssh-ssh/src/escape.rs:1-9`,
 `crates/podssh-ssh/src/escape.rs:90-138`). The flag table has 469 lines, near
-the limit of 500 (the table of `ssh`: `crates/podssh-cli/src/flags.rs:112-284`).
+the limit of 500 (the table of `ssh`: `crates/podssh-cli/src/flags.rs:112-285`).
 
 ## Approach
 

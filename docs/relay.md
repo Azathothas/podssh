@@ -91,6 +91,14 @@ The code is in `crates/podssh-relay/`.
    once.
 6. `ConnectionAttempts` repeats the whole list, with a backoff of 1 s that
    doubles up to 30 s, scaled by a random factor from 0.5 to 1.5.
+7. When no host opened a session, and the user named no relay (step 1) and
+   no `-4` or `-6`, `podssh ssh` tries the direct road once (T-363): the
+   dial of `--direct`, through `HTTPS_PROXY` when one is set, and the
+   server's version line within 10 s. One line says so before the dial;
+   when both roads fail, a line names both with their times, and the exit is
+   the relay's. A list that the user named is the relay alone, and
+   `PODSSH_DIRECT=no` or the settings file's `Direct no` turns the fallback
+   off ([cli.md](cli.md), "Options of `podssh ssh`").
 
 A token is cached for its relay deployment, with the host that minted it.
 The hosts of the default deployment share one token: a pool host accepts the

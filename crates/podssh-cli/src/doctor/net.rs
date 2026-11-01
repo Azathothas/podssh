@@ -184,18 +184,10 @@ const BANNER_WAIT: Duration = Duration::from_secs(5);
 /// Why a connection to port 22 that opened carries no SSH, or `None` when
 /// the server's banner came. A `200` to CONNECT proves that the proxy took
 /// the request, not that the tunnel carries bytes as they are: a proxy that
-/// intercepts TLS waits for a ClientHello, and sends nothing or resets.
+/// intercepts TLS waits for a ClientHello, and sends nothing or resets. The
+/// check is the direct road's too, after the relay hosts (T-363).
 pub(super) async fn no_ssh_banner<S: tokio::io::AsyncRead + Unpin>(mut stream: S) -> Option<String> {
-    use tokio::io::AsyncReadExt;
-    let mut first = [0u8; 256];
-    match tokio::time::timeout(BANNER_WAIT, stream.read(&mut first)).await {
-        Err(_) => Some(format!("nothing came in {} s", BANNER_WAIT.as_secs())),
-        Ok(Ok(0)) => Some("it was closed with nothing sent".into()),
-        // RFC 4253 lets a server send other lines before its version line.
-        Ok(Ok(n)) if String::from_utf8_lossy(&first[..n]).lines().any(|l| l.starts_with("SSH-")) => None,
-        Ok(Ok(_)) => Some("what came was not an SSH banner".into()),
-        Ok(Err(e)) => Some(format!("it broke with nothing sent ({e})")),
-    }
+    crate::ssh::banner::read(&mut stream, BANNER_WAIT).await.err()
 }
 
 /// What the proxy lets through: the relay, and for comparison GitHub on 443

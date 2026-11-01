@@ -56,7 +56,7 @@ unknown flag (exit 64), and `Cargo.lock` has no iroh crate.
 5. `doctor`, with the feature: a UDP line, and the `/ping` of the home relay
    through the proxy (`crates/podssh-cli/src/doctor/host.rs:10-25`).
 6. `availability()` knows `ts` as the only build feature
-   (`crates/podssh-cli/src/flags.rs:460-468`): extend it. With no feature, an
+   (`crates/podssh-cli/src/flags.rs:461-469`): extend it. With no feature, an
    iroh destination refuses before it connects and names `--features iroh`,
    as `crates/podssh-cli/tests/ts_not_built.rs:1-4` shows for `ts`.
 7. Docs: the "Outbound only" item of `README.md`, "Nothing listens" in
@@ -163,7 +163,7 @@ access is by an allowlist of keys or a relay token (`docs/design.md:1127-1128`).
 Read in the reports, not verified here: iroh-ssh warns when a server's key is
 ephemeral (`rustonbsd/iroh-ssh:src/ssh.rs`); zuko hands over a ticket out of
 band (`adonm/zuko:docs/protocol.md`). Read: `podssh ts` keeps its node key in
-the file that `--ts-state` names (`crates/podssh-cli/src/flags.rs:346-347`,
+the file that `--ts-state` names (`crates/podssh-cli/src/flags.rs:347-348`,
 `crates/podssh-cli/src/ts.rs:166`). Credentials never go on argv
 (`AGENTS.md`, section 4).
 
@@ -373,7 +373,7 @@ sandbox can block what iroh needs, so the fallback is necessary
 6. With `-v`, print the road that won and its time.
 7. Each resume of T-153 runs the same race.
 8. Docs: the rule of the race in `docs/design.md` section 2, and the notes of
-   `ssh` in the manual (`crates/podssh-cli/src/man/notes_ssh.rs:4-347`).
+   `ssh` in the manual (`crates/podssh-cli/src/man/notes_ssh.rs:4-358`).
 
 ## Decision
 
@@ -1156,13 +1156,13 @@ the part of podssh:
    server of their own, on port 443.
 2. The forward path: `/connect/<host>/<port>`, the token header, `/v1/mint`,
    an empty frame each 25 s, the limits (180 s idle, 12 h, 64 MiB, frames of
-   262144 bytes), the close codes of `docs/relay.md:244-265`, and `/health`
+   262144 bytes), the close codes of `docs/relay.md:252-273`, and `/health`
    with the service name that `doctor` checks
    (`crates/podssh-relay/src/health.rs:13-15`).
 3. The reverse path: `/v1/pair`, `/v1/node/<name>`, `/v1/connect/<name>`,
    `/v1/stop/<name>`, the text control frames, the 32-character ids, `409` for
    a second node, and the reverse close table.
-4. The targets: public addresses only, the ranges of `docs/relay.md:194`,
+4. The targets: public addresses only, the ranges of `docs/relay.md:202`,
    checked after the name resolves. TLS with a certificate that the relay's
    owner gives. Rate limits and quotas for each address and each token.
 5. The part of podssh: no change in the client, because the contract is the
@@ -2438,7 +2438,7 @@ The part of podssh, when the start condition holds:
 2. The client uses it only when the relay says that it offers it (a field of
    `/relays.json` or `/health`, read at run time). Never assume it.
 3. Keep the resume token in memory only. Send it back in a header, never in a
-   URL or in output (`docs/relay.md:178-180`).
+   URL or in output (`docs/relay.md:186-188`).
 4. A resume must reach the same Durable Object, so only hosts of one
    deployment can resume a session (the rule of the pool:
    `crates/podssh-relay/src/pool.rs:139-148`).
@@ -3130,7 +3130,7 @@ allows podssh as a client of Cloudflare (`docs/decisions.md:30`).
   `crates/podssh-cli/src/ssh/cloudflare.rs:73` says "a Cloudflare tunnel cannot be reached
   through a -J hop yet", and `docs/cli.md:129-130` says so too.
 - Read: the road of a run is chosen for the first hop's host
-  (`crates/podssh-cli/src/ssh/resolve.rs:279`), and each later hop runs in a `direct-tcpip`
+  (`crates/podssh-cli/src/ssh/resolve.rs:280`), and each later hop runs in a `direct-tcpip`
   channel of the session before it (`crates/podssh-ssh/src/run.rs:160-167`;
   `crates/podssh-ssh/src/forward.rs:14-22`).
 - Read: the `cf://` road opens the WebSocket of `cloudflared access tcp` through `HTTPS_PROXY`,
@@ -3728,7 +3728,7 @@ Endpoint puts a credential in its URL.
 - Read: the `cf://` road uses podssh-ws's WebSocket client through the proxy
   (`crates/podssh-cli/src/ssh/cloudflare.rs:237`); an RSA key signs through aws-lc-rs in the
   binary (`deny.toml`, the reason of RUSTSEC-2023-0071); `podssh cp` opens a new session before
-  the relay's caps (`docs/relay.md:205-211`), as an hour of EICE would need.
+  the relay's caps (`docs/relay.md:213-219`), as an hour of EICE would need.
 - Inferred: a proxy that re-terminates TLS passes either road where it passes a WebSocket.
 
 ## Approach
@@ -4419,7 +4419,7 @@ against Cloudflare's edge.
 **Milestone:** backlog
 **Priority:** P3
 **Effort:** M
-**Status:** open
+**Status:** done
 
 ## Problem
 
@@ -4433,10 +4433,10 @@ does not depend on them.
 
 - Read: `Transport::Direct` comes from `--direct` alone
   (`crates/podssh-cli/src/ssh/resolve.rs`, lines 340-346 at `4e2010e`), and else the relay (lines 348-371 at `4e2010e`); its other
-  uses are a label (`crates/podssh-cli/src/ssh/mod.rs:208`), the dial
-  (`crates/podssh-cli/src/ssh/transport.rs:225-269`) and a check of `--upgrade`
+  uses are a label (`crates/podssh-cli/src/ssh/mod.rs:210`), the dial
+  (`crates/podssh-cli/src/ssh/transport.rs:235-279`) and a check of `--upgrade`
   (`crates/podssh-cli/src/ssh/upgrade.rs:59`). The issue's citation of
-  the arm began two lines early; it is at `crates/podssh-cli/src/ssh/resolve.rs:317-323`.
+  the arm began two lines early; it is at `crates/podssh-cli/src/ssh/resolve.rs:318-324`.
 - Read: `docs/design.md:45` says "podssh tries the roads in this order"; for a public sshd, the
   forward road comes first, then the direct road (`docs/design.md:51`), which at `8554930` said
   "`--direct`, or when a probe shows it works"; the triage of GitHub #69 to #72 named this entry
@@ -4445,13 +4445,13 @@ does not depend on them.
   and for the split HTTP road (`AGENTS.md:252-260`); a race of the forward and the direct road is
   neither.
 - Read: the direct dial goes through `HTTPS_PROXY` when it is set, with the relay's step limit of
-  20 s (`crates/podssh-cli/src/ssh/transport.rs:290-304`, `crates/podssh-relay/src/open.rs:30`),
+  20 s (`crates/podssh-cli/src/ssh/transport.rs:300-314`, `crates/podssh-relay/src/open.rs:30`),
   and names a proxy that takes the CONNECT and sends nothing back (T-317). doctor reads the
   server's version line on port 22, straight out or through the proxy, to say whether plain ssh
-  can leave (`crates/podssh-cli/src/doctor/net.rs:184-199`, `:201-282`).
+  can leave (`crates/podssh-cli/src/doctor/net.rs:184-191`, `:193-274`).
 - Read: `cp`, `each`, `job`, `health`, `containers`, `ping` and the `ssh:` address of `pipe` reach
   their server through the same function as `podssh ssh`
-  (`crates/podssh-cli/src/ssh/transport.rs:154-158`; `crates/podssh-cli/src/cp/link.rs`,
+  (`crates/podssh-cli/src/ssh/transport.rs:158-162`; `crates/podssh-cli/src/cp/link.rs`,
   `crates/podssh-cli/src/each/host.rs`).
 - Read: on the hosts that podssh is built for, the proxy refuses port 22 and a direct dial is
   dropped with no answer (`docs/target-environment.md:21-22`); a cloud container's proxy takes
@@ -4496,6 +4496,30 @@ does not depend on them.
    `PODSSH_DIRECT=no` prevents it. Lost: off by default, which keeps the road of the table from
    each user who does not know of it.
 
+2026-10-31, the draft (each call with the alternatives that lost):
+
+5. The fallback is in the one function that reaches a first hop (`reach_skipping` of
+   `crates/podssh-cli/src/ssh/transport.rs`), after the relay's opener failed, so that each command
+   of the Premise has it with no change of its own. Lost: a fallback in `podssh ssh`'s own run,
+   which `cp`, `each` and the others would not have.
+6. With `-4` or `-6` the relay alone: the direct road cannot keep the family that the user asked
+   for. Offline (`PODSSH_OFFLINE`), the relay alone too. `--relay-addr` names no relay: it gives
+   an address of the built-in one, which falls back as before. Lost: a fallback that drops the
+   family with a note, which runs a road that the user's flag ruled out.
+7. The version line is read on the dial within 10 s, by doctor's check, now shared
+   (`crates/podssh-cli/src/ssh/banner.rs`): one read of up to 4 KiB, whose bytes go to russh first
+   (`Prefixed`). Lost: a peek that leaves the bytes in the socket, which a proxy's stream through
+   podssh-ws does not offer, and russh's own banner wait, which gives no word of a proxy that
+   intercepts TLS before its own limit.
+8. The words: one line before the dial (the relay's time, the target, the proxy whose CONNECT names
+   it, and the switch); with `-v`, the relay's own lines too, and the road that carried the session.
+   When both fail, the relay's lines as before, then one line of both roads with their times; the
+   exit is the relay's. Lost: the relay's lines as errors before a dial that then works, which reads
+   as a failed run.
+9. The switch has a key of the settings file, `Direct yes|no`, below the variable, checked when the
+   file is read (78), as `RelayFailover` is. The fallback's one dial is plain TCP when
+   `PODSSH_MPTCP` holds a bad word, as the relay's road never reads it.
+
 ## Prove
 
 ```sh
@@ -4510,6 +4534,45 @@ Through a stand-in relay that refuses each host, and a stand-in SSH server on th
 with `PODSSH_DIRECT=no`, a failing relay ends the run; when both fail, the lines name both roads
 and their times. A proxy of the test that takes the CONNECT and sends nothing: the fallback ends
 with the proxy named. Planted: the fallback removed; the first test fails.
+
+## Correction
+
+2026-10-31, read at `a3f948d`: a stand-in relay of the Prove cannot be named, as a relay that the
+user names is the relay alone (item 2). The test pins the built-in relay host, and each host of
+the seed pool that a fresh cache tries after it (`crates/podssh-relay/src/pool.rs`, `SEED`), to
+127.0.0.1 with `PODSSH_RELAY_ADDR`, where port 443 takes no connection: each relay host fails at
+once, as one that refuses. A host where something takes 127.0.0.1:443 says that the test did not
+run. The Approach stands.
+
+## Done
+
+2026-10-31: drafted (branch `draft-roads-cli`, `e8f7b52`, after T-379); merged into `main` on
+2026-11-01, built and measured here.
+
+- `Transport::Relay` carries `then_direct`: no relay named (`RelayList::explicit`), no `-4` or `-6`,
+  and `PODSSH_DIRECT`, else the settings file's `Direct`, not `no` (`relay_settings::direct_from`).
+  After the opener failed, `after_relay` dials the first hop as `--direct` does, reads the version
+  line within `VERSION_WAIT` (10 s), and gives the session its bytes first; the lines of
+  `announce` and `both_failed`. doctor's `no_ssh_banner` calls the shared check.
+- The manual: the help of `--direct`, a note of `podssh ssh`, `PODSSH_DIRECT` in ENVIRONMENT, and
+  the settings file's `Direct`; `docs/cli.md`, `docs/relay.md` (step 7), the row of a public sshd in
+  `docs/design.md`, `docs/STATUS.md`.
+- `cargo test -p podssh-cli --test direct_fallback`: 4 passed (2026-11-01): the fallback logs in
+  and says so; `--direct`, `--relay-host` and `PODSSH_DIRECT=no` do not fall back, and a bad
+  `PODSSH_DIRECT` is 78; both fail, with both roads and their times; a proxy that takes the
+  CONNECT and sends nothing is named.
+- `cargo test -p podssh-cli --lib ssh::transport`: 5 passed; `--lib -- relay_settings man::`: 37
+  passed; `--test doctor`, `--test direct_proxy` and `--test doctor_hop` (the shared check of the
+  version line): 3, 13 (2 ignored) and 3 passed.
+- At the merge: T-371 had made doctor's `no_ssh_banner` visible to its hop's check; it keeps that,
+  with the draft's body, the shared `ssh::banner::read`, whose words are the same. The draft had
+  not given `tests/ssh_args.rs` the new field `direct` of `Env`, so that test did not build;
+  it has `direct: None` now.
+- clippy `-D warnings` on podssh-cli's targets: clean; rustfmt clean; Rust 1.89, `cargo +1.89
+  check --all-targets -p podssh-cli`: exit 0. podssh-cli's whole suite on a fresh build: 1122 passed, 49 ignored, in a temporary directory of its own, which it left empty.
+- Planted, the fallback removed (`then_direct` read as false where the relay's failure is
+  handled): 3 of `direct_fallback`'s 4 failed, the first among them; the test of `--direct` and
+  of a named relay, which never fall back, passed.
 
 # T-369: `--forwarder TEMPLATE`: a road through a WebSocket forwarder that takes the target from its URL
 
@@ -4545,7 +4608,7 @@ relay's path and token.
   nothing of other clients.
 - Read: a relay is a host and a port (`crates/podssh-relay/src/relay.rs:56-62`), and its forward
   path is `/connect/<host>/<port>` (`:139-152`); a run has one road, of five kinds
-  (`crates/podssh-cli/src/ssh/resolve.rs:23-61`).
+  (`crates/podssh-cli/src/ssh/resolve.rs:23-62`).
 - Read: `validate` refuses a query other than the relay's knobs, and `connect` always sends a token
   (`crates/podssh-ws/src/client.rs:66-105`, `:159-182`); a token goes only to the deployment that
   minted it (`docs/decisions.md:58`).
@@ -4688,8 +4751,8 @@ a hop. `doctor` has no line for a hop, so a user cannot see whether one is reach
 
 - Read: a hop is `[user@]host[:port]` or `ssh://[user@]host[:port]`
   (`crates/podssh-cli/src/ssh/hop.rs:30-57`), and `-J` refuses a node only (`:59-65`). The road is
-  chosen for the first hop's host (`crates/podssh-cli/src/ssh/resolve.rs:279`); with `--direct` it
-  is TCP through `HTTPS_PROXY` (`crates/podssh-cli/src/ssh/resolve.rs:317-323`; `crates/podssh-cli/src/ssh/transport.rs:1-2`).
+  chosen for the first hop's host (`crates/podssh-cli/src/ssh/resolve.rs:280`); with `--direct` it
+  is TCP through `HTTPS_PROXY` (`crates/podssh-cli/src/ssh/resolve.rs:318-324`; `crates/podssh-cli/src/ssh/transport.rs:1-2`).
 - Read: a prompt goes to the terminal, or to the program of `SSH_ASKPASS`, chosen as OpenSSH
   chooses it (`crates/podssh-ssh/src/prompt.rs:1-12`).
 - Read: through the agent proxy of a cloud container, a CONNECT to `ssh.github.com:443` got `200`,
@@ -4697,7 +4760,7 @@ a hop. `doctor` has no line for a hop, so a user cannot see whether one is reach
   carries no SSH on port 443; T-372 wraps SSH in TLS for it. Through the relay, GitHub's SSH on
   port 443 answers (`docs/STATUS.md:109`).
 - Read: `doctor` asks the proxy for the relay and for `github.com` only
-  (`crates/podssh-cli/src/doctor/net.rs:201-251`).
+  (`crates/podssh-cli/src/doctor/net.rs:193-243`).
 - Read in GitHub #61 (a tester's measurement of 2026-10-31, from a host with direct egress; not
   measured here): SSH banners on port 443 at `bg2.vpnjantit.com` (Dropbear 2017.75, an account with
   a password that a form makes), `ssh.tilde.club` and `ssh.blinkenshell.org` (OpenSSH); whether
@@ -4817,7 +4880,7 @@ TCP, and podssh runs no `ProxyCommand` that could add TLS.
 
 - Read: a hop is `[user@]host[:port]` or `ssh://[user@]host[:port]`
   (`crates/podssh-cli/src/ssh/hop.rs:30-57`); a destination can also name a road by its scheme,
-  `cf://`, `node://` or `iroh:` (`crates/podssh-cli/src/ssh/resolve.rs:23-61`).
+  `cf://`, `node://` or `iroh:` (`crates/podssh-cli/src/ssh/resolve.rs:23-62`).
 - Read: podssh runs no `ProxyCommand` (`crates/podssh-cli/src/ssh/options.rs:219-224`).
 - Read: podssh-ws opens TCP through the proxy, then a TLS handshake checked for a name
   (`crates/podssh-ws/src/client.rs:184-205`), with no ALPN and no client certificate
@@ -5184,7 +5247,7 @@ ask, and nothing does so.
   (`crates/podssh-cli/src/node_iroh.rs:337-338`), and `podssh node` sends `--iroh` there
   (`crates/podssh-cli/src/node.rs:87-89`).
 - Read: `podssh ssh` resolves its destination into an enum of transports
-  (`crates/podssh-cli/src/ssh/resolve.rs:24-61`), in a file of 488 of its 500 lines.
+  (`crates/podssh-cli/src/ssh/resolve.rs:24-62`), in a file of 488 of its 500 lines.
 - Read: the race of T-164 orders two roads (`crates/podssh-relay/src/session/race.rs:59-61`), and
   the race of the command line is in a build with the feature `iroh` only
   (`crates/podssh-cli/src/ssh/iroh.rs:8-11`).
