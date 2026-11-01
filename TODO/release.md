@@ -246,7 +246,7 @@ status 7, vi, less, top and Ctrl-C. The plants of the groups host-box and host-n
 **Milestone:** none
 **Priority:** P2
 **Effort:** S
-**Status:** open
+**Status:** done
 
 ## Problem
 
@@ -281,6 +281,27 @@ and `timeout`'s own exit; then a probe that does not depend on it (the shell's o
 # on GitHub's runner, from the workflow
 gh workflow run box.yml -f run=default
 ```
+
+## Correction
+
+2026-11-01: busybox `timeout`'s watcher was not at fault, nor the shell's sleep. The probe that
+killed `dd` itself (`b76a986`, run 41309639232) waited the same 40 minutes, and a diagnosis on
+the runner (`71b183e`, run 41314338093: Ubuntu's kernel 7.0.0-1017-azure, rootful Podman 4.9.3)
+showed why: inside the box, `kill -KILL` of its own `dd` failed with "Permission denied", and
+`/proc/PID/wchan` read 0. Podman's default AppArmor profile does it, with no-new-privileges and no
+capabilities: the same box with `--security-opt apparmor=unconfined` killed `dd` at once, as did a
+plain container. This host has no AppArmor, so it never showed.
+
+## Done
+
+2026-11-01: `scripts/test_in_box.sh` and `scripts/chat-in-boxes.sh` run the box with
+`--security-opt apparmor=unconfined` where `podman info` says that AppArmor is on, and say so; the
+sandbox's record names no such profile, and no property that the box stands for depends on it.
+`scripts/box/probe.sh` says a kill that the host refuses as a difference at once, and never waits
+on it. `box.yml` on GitHub's runner at `bb46515` (run 41314911742): default (the box matched the
+sandbox on every property; `doctor --full` 44 ok, 0 FAIL; `sandbox-check.sh` 14 ok, 0 FAIL, 1
+skip), nolisten, tt and chat each passed, each in 5 to 8 minutes, where each ran out of its time
+before. The chat run needed T-416 too.
 
 # T-309: Publish the rolling betas `v1.0.0-beta.N`
 

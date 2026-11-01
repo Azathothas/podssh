@@ -117,7 +117,7 @@ and `CARGO_BUILD_JOBS=4`:
 
 ## Counts
 
-`TODO/INDEX.md` holds 412 entries: 16 open, 2 partial, 32 blocked, 362 done.
+`TODO/INDEX.md` holds 412 entries: 15 open, 2 partial, 32 blocked, 363 done.
 
 Open includes parked work. `cargo todo check` verifies this line.
 
@@ -157,8 +157,7 @@ others are done. Each other `backlog` entry is done, but for those on hold, thos
 operator and the parked ones.
 
 **Then** M9: T-251 (the check, and its run before the tag), which runs the
-headscale harness of 2026-11-01, with T-415 (the box on GitHub's runner,
-found by it), and last T-250 (the one release). Between
+headscale harness of 2026-11-01, and last T-250 (the one release). Between
 entries: the `none` entries, the highest priority first.
 
 **Skip** the entries that wait for the relay's operator (status
