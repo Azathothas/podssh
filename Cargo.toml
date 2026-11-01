@@ -139,9 +139,16 @@ regex = { version = "1", default-features = false, features = ["unicode-perl"] }
 
 # Pure-Rust crypto. Every one of these was MEASURED OK under CC=/nonexistent on
 # 2026-10-01, individually and together, on this host.
-sha2 = { version = "0.10", default-features = false, features = ["oid"] }
-hmac = { version = "0.12", default-features = false }
-hkdf = { version = "0.12", default-features = false }
+# The digest 0.11 line, which russh and the curves' 0.14 take too (T-386).
+# `zeroize`: a hash's state is wiped when it is dropped, and with it the
+# keyed inner and outer states of each HMAC, which hold what the key gave.
+sha2 = { version = "0.11", default-features = false, features = ["oid", "zeroize"] }
+hmac = { version = "0.13", default-features = false, features = ["zeroize"] }
+hkdf = { version = "0.13", default-features = false }
+# rsa 0.9 takes a hash of the digest 0.10 line: SHA-2 of that line under a
+# name of its own, for podssh-ws's RSA verifier alone, until rsa 0.10 is
+# stable. ed25519-dalek 2 and snow keep it in the tree anyway.
+sha2-rsa = { package = "sha2", version = "0.10", default-features = false, features = ["oid"] }
 # `zeroize` on each AEAD and on the block cipher: their key, or its schedule,
 # is wiped when a cipher is dropped. chacha20poly1305 0.10 did so with no
 # feature, 0.11 only with it, and AES-GCM and AES never without it (T-377).
@@ -177,10 +184,12 @@ p384 = { version = "0.14", default-features = false, features = ["ecdsa", "arith
 # RSA signature verification in podssh's TLS provider (public keys only).
 rsa = { version = "0.9", default-features = false, features = ["std"] }
 
-# rand's default `getrandom` backend reads the OS, not a C library. `small_rng`
-# is deliberately off: podssh's protocol randomness is OS-sourced on every
-# platform, and a deterministic RNG in a protocol path is a defect.
-rand = { version = "0.8", default-features = false, features = ["std", "std_rng"] }
+# rand's `sys_rng` backend (getrandom) reads the OS, not a C library.
+# `small_rng` is deliberately off: podssh's protocol randomness is OS-sourced
+# on every platform, and a deterministic RNG in a protocol path is a defect.
+# `thread_rng` (with `std_rng` and `sys_rng`) is the generator of russh and of
+# podssh-ssh's keys, so one rand serves each crate (0.10 since T-386).
+rand = { version = "0.10", default-features = false, features = ["std", "thread_rng"] }
 
 # podssh's own. No crates.io equivalent is acceptable for these.
 # No default features: 0.23's `simd-unsafe` adds unsafe SIMD engines for input

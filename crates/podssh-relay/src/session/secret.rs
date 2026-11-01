@@ -10,7 +10,7 @@
 use std::fmt;
 
 use hkdf::Hkdf;
-use hmac::{Hmac, Mac};
+use hmac::{Hmac, KeyInit, Mac};
 use sha2::Sha256;
 use x25519_dalek::{PublicKey, StaticSecret};
 use zeroize::{Zeroize, Zeroizing};
@@ -50,8 +50,8 @@ pub struct OsEntropy;
 
 impl Entropy for OsEntropy {
     fn fill(&mut self, buf: &mut [u8]) -> Result<(), NoRandom> {
-        use rand::RngCore;
-        rand::rngs::OsRng.try_fill_bytes(buf).map_err(|_| NoRandom)
+        use rand::TryRng;
+        rand::rngs::SysRng.try_fill_bytes(buf).map_err(|_| NoRandom)
     }
 }
 

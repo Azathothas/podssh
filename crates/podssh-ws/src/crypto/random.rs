@@ -1,4 +1,4 @@
-//! The OS random source. `rand::rngs::OsRng` and nothing else.
+//! The OS random source. `rand::rngs::SysRng` and nothing else.
 //!
 //! **No `small_rng`, no `StdRng::from_entropy`, no seeded fallback.** A
 //! deterministic RNG anywhere in a protocol path is a key-recovery bug, and the
@@ -12,17 +12,17 @@ pub struct OsRandom;
 
 impl rustls::crypto::SecureRandom for OsRandom {
     fn fill(&self, buf: &mut [u8]) -> Result<(), GetRandomFailed> {
-        fill_from(&mut rand::rngs::OsRng, buf)
+        fill_from(&mut rand::rngs::SysRng, buf)
     }
 }
 
 /// Fill `buf` from `source`, or report that it gave no bytes. Reading the OS
 /// can fail (no `getrandom`, a seccomp filter, an exhausted descriptor
-/// table), and `fill_bytes` of `rand_core` 0.6 then panics, which ends the
-/// whole process where an error ends one session; `try_fill_bytes` returns
-/// the error. There is still no degraded path: a failure is reported, never
-/// answered with weaker bytes. The source is a parameter so that a test can
-/// plant one that fails.
-pub fn fill_from(source: &mut impl rand::RngCore, buf: &mut [u8]) -> Result<(), GetRandomFailed> {
+/// table); a panic there would end the whole process where an error ends one
+/// session, so the source is a fallible one of rand 0.10 (`TryRng`, a
+/// `TryCryptoRng`), whose `try_fill_bytes` returns the error. There is still
+/// no degraded path: a failure is reported, never answered with weaker bytes.
+/// The source is a parameter so that a test can plant one that fails.
+pub fn fill_from(source: &mut impl rand::TryCryptoRng, buf: &mut [u8]) -> Result<(), GetRandomFailed> {
     source.try_fill_bytes(buf).map_err(|_| GetRandomFailed)
 }

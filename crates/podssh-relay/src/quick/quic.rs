@@ -12,7 +12,7 @@ use std::net::{Ipv4Addr, Ipv6Addr, SocketAddr, UdpSocket};
 use std::sync::Arc;
 use std::time::Duration;
 
-use hmac::{Hmac, Mac};
+use hmac::{Hmac, KeyInit, Mac};
 use noq::crypto::rustls::QuicClientConfig;
 use noq::crypto::{CryptoError, HmacKey};
 use noq::{
@@ -77,9 +77,9 @@ struct ResetKey(Hmac<Sha256>);
 
 impl ResetKey {
     fn random() -> Result<ResetKey, String> {
-        use rand::RngCore;
+        use rand::TryRng;
         let mut key = [0u8; 32];
-        rand::rngs::OsRng.try_fill_bytes(&mut key).map_err(|e| format!("no randomness for QUIC: {e}"))?;
+        rand::rngs::SysRng.try_fill_bytes(&mut key).map_err(|e| format!("no randomness for QUIC: {e}"))?;
         Hmac::new_from_slice(&key).map(ResetKey).map_err(|e| e.to_string())
     }
 }

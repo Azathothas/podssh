@@ -11,7 +11,9 @@ use rsa::pkcs1::DecodeRsaPublicKey;
 use rsa::traits::PublicKeyParts;
 use rsa::{Pkcs1v15Sign, Pss, RsaPublicKey};
 use rustls_pki_types::{alg_id, AlgorithmIdentifier, InvalidSignature, SignatureVerificationAlgorithm};
-use sha2::{Digest, Sha256, Sha384, Sha512};
+// rsa 0.9 takes a hash of the digest 0.10 line, so SHA-2 comes from that
+// line here (`sha2-rsa`); the rest of the provider is on digest 0.11.
+use sha2_rsa::{Digest, Sha256, Sha384, Sha512};
 
 #[derive(Debug, Clone, Copy)]
 enum Hash {

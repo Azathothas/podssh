@@ -22,15 +22,14 @@ podssh-ws = { path = "../podssh-ws" }
 tokio = { workspace = true, features = ["signal", "process", "fs"] }
 zeroize = { workspace = true }
 base64 = { workspace = true }
-# The hashed names of known_hosts, HMAC-SHA1: sha1 0.11 with hmac 0.13, the
-# line of digest 0.11 that russh builds on (T-330); the workspace's hmac
-# 0.12 stays with sha2 0.10, which ed25519-dalek 2 and snow still take.
-hmac = { version = "0.13", default-features = false }
+# The hashed names of known_hosts, HMAC-SHA1: sha1 0.11 with the workspace's
+# hmac 0.13, the line of digest 0.11 that russh builds on (T-330, T-386).
+hmac = { workspace = true }
 sha1 = { version = "0.11", default-features = false }
 # Key generation (`podssh keygen`): the thread generator russh itself uses for
-# keys, seeded from the operating system; the same version and features as
-# russh's own, so nothing new is compiled.
-rand = { version = "0.10", features = ["thread_rng"] }
+# keys, seeded from the operating system; the workspace's rand is russh's
+# version, so nothing new is compiled.
+rand = { workspace = true }
 # SFTP version 3 (T-133): pure Rust, Apache-2.0, a limit on each request, and
 # requests in flight together. Its one optional feature (async-trait) is off.
 russh-sftp = { version = "3.0.1", default-features = false }

@@ -2,7 +2,7 @@
 
 use std::fmt;
 
-use hmac::{Hmac, Mac};
+use hmac::{Hmac, KeyInit, Mac};
 use rustls::crypto::hmac::{Key, Tag};
 use sha2::{Sha256, Sha384};
 

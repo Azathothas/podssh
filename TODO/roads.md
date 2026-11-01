@@ -3367,7 +3367,7 @@ adapter under the layer and the tests against derper make it L.
   client's packets when its queue of 32 is full (tailscale/tailscale:cmd/derper/derper.go,
   tailscale/tailscale:derp/derp.go, tailscale/tailscale:derp/derpserver/derpserver.go). Who else
   may use the fleet is not stated, and Tailscale's terms were not read.
-- Read: `noq` 1.4.0, the QUIC of iroh, is in the lock (`Cargo.lock:3241-3242`).
+- Read: `noq` 1.4.0, the QUIC of iroh, is in the lock (`Cargo.lock:3242-3243`).
 
 ## Approach
 

@@ -1901,7 +1901,7 @@ leaves armv7 out of the Decision; the plan below takes Alpine's own toolchain fo
   container. Plan B, which the Decision rejected, for native speed: `ghcr.io/cross-rs/armv7-unknown-
   linux-musleabihf:main`, or `cargo-zigbuild` (its CI covers x86_64, aarch64 and Apple, not armv7).
   The release profile is `opt-level = "z"`, `lto = true`, `codegen-units = 1`
-  (`Cargo.toml:208` says "opt-level"; the profile is at the lines around it): the link on a 32-bit
+  (`Cargo.toml:217` says "opt-level"; the profile is at the lines around it): the link on a 32-bit
   rustc may run out of address space, and under QEMU it is slow. Measure first.
 - `riscv64gc-unknown-linux-musl`: Rust tier 2 with host tools. Plan A: `runs-on: ubuntu-24.04`,
   `docker/setup-qemu-action` with `platforms: riscv64`, `docker run --platform linux/riscv64
@@ -3961,8 +3961,8 @@ identities (x25519-dalek, `podssh-ws` and `podssh-relay`), and its AEAD
   builds on the newer line, so the binary holds both lines today. podssh's `sha1`
   moves with its `hmac`, where the two meet (the hashed names of
   `known_hosts`): Inferred.
-- Read: the root `Cargo.toml:145` asks for `aes-gcm` 0.10 and
-  `Cargo.toml:154` for `x25519-dalek` 2;
+- Read: the root `Cargo.toml:152` asks for `aes-gcm` 0.10 and
+  `Cargo.toml:161` for `x25519-dalek` 2;
   `crates/podssh-ws/src/crypto/aead.rs` and `crates/podssh-ws/src/crypto/kx.rs`
   hold the calls, with `crates/podssh-relay/src/identity/mod.rs` and
   `crates/podssh-relay/src/session/secret.rs`, and
@@ -4974,7 +4974,7 @@ update breaks, and commits the update with the repair.
 **Milestone:** none
 **Priority:** P2
 **Effort:** M
-**Status:** partial
+**Status:** done
 
 ## Problem
 
@@ -5012,6 +5012,27 @@ headscale names.
    passes with headscale 0.29.7, else the pull request is answered with the run.
 5. `cargo deny --locked check`; `docs/STATUS.md` records each version.
 
+## Decision
+
+The three crates of the digest line move together in one change (#81, #82 and `hkdf` 0.13,
+with podssh-ws's `sha1` 0.11 for Shadowsocks' HKDF-SHA1), since none of them builds alone. Lost:
+one commit for each pull request, as T-355 made; each pull request alone fails to compile.
+
+rsa 0.9 keeps SHA-2 of its own digest line, `sha2-rsa` (`package = "sha2"`, 0.10), in podssh-ws's
+RSA verifier alone. Lost: rsa 0.10, still a release candidate (0.10.0-rc.18 in the lock, for
+another crate), which a verifier of each TLS handshake should not take; and the PKCS #1 prefix
+and PSS by hand around a hash of 0.11, which would trade the crate's checked padding for code of
+podssh's own. sha2 0.10 stays in the tree anyway, for ed25519-dalek 2 and snow.
+
+`zeroize` on `sha2` and `hmac`, new to podssh: a hash's state, and so each HMAC's keyed inner
+and outer states, is wiped when it is dropped, as T-377 asked of each cipher's key. Lost:
+nothing measurable; the wipe is a write of a few hundred bytes for each dropped state.
+
+rand 0.10 is one version for each crate, the workspace's, with `std` and `thread_rng` (which
+brings `std_rng` and `sys_rng`), the set that podssh-ssh and podssh-cli took on their own.
+Lost: `rand::RngCore` as the bound of podssh-ws's `fill_from`: it takes a `TryCryptoRng` now, a
+fallible source that says it is fit for keys, which a planted source must declare too.
+
 ## Prove
 
 ```sh
@@ -5026,8 +5047,36 @@ in the known-answer test fails it on the new line.
 
 ## Done
 
-2026-11-01, partial: #79, the lock alone (aws-lc-rs 1.18.2 to 1.19.0, aws-lc-sys 0.46.0 to 0.47.0,
-toml 1.1.6 to 1.1.8 with serde_spanned 1.1.2, toml_parser 1.1.5 and toml_writer 1.1.3, and
-itertools 0.15 for one proc-macro crate). `cargo test --locked -p podssh-ssh -p podssh-probe`
-(russh's keys on aws-lc-rs, and the facts files on toml): 323 passed and 1 ignored in 14
-binaries. The digest 0.11 line (#81, #82), rand 0.10 (#80) and the image (#78) wait.
+2026-11-01: done. #79 (cfa2a64); #78, #80, #81 and #82 in the commit of this Done, each pull
+request closed with a comment.
+
+- #79, the lock alone: aws-lc-rs 1.18.2 to 1.19.0, aws-lc-sys 0.46.0 to 0.47.0, toml 1.1.6 to
+  1.1.8 with serde_spanned 1.1.2, toml_parser 1.1.5 and toml_writer 1.1.3, and itertools 0.15 for
+  one proc-macro crate. `cargo test --locked -p podssh-ssh -p podssh-probe` (russh's keys on
+  aws-lc-rs, the facts files on toml): 323 passed, 1 ignored, in 14 binaries. `fuzz/Cargo.lock`
+  takes the same versions.
+- #81, #82 and #80 together (the Decision): the workspace's `sha2` 0.11 and `hmac` 0.13, each with
+  `zeroize`, `hkdf` 0.13, and `rand` 0.10 with `std` and `thread_rng`; podssh-ssh and podssh-cli
+  take the workspace's `hmac` and `rand` in place of their own; podssh-ws's Shadowsocks HKDF-SHA1
+  takes `sha1` 0.11, and its RSA verifier SHA-2 of rsa 0.9's line as `sha2-rsa`. The code: rand
+  0.10's `SysRng` and `TryRng` in place of `OsRng` and `RngCore` (podssh-ws's random source,
+  the resumable layer's entropy, the QUIC reset key), `rand::rng().random_range` for the backoff's
+  jitter, and `KeyInit` in scope for `Hmac::new_from_slice`. podssh-ws's `fill_from` takes a
+  `TryCryptoRng`. The lock moves 11 dependency lines and drops no package: rand 0.8, hkdf 0.12 and
+  sha2 0.10 stay for other crates; `fuzz/Cargo.lock` drops hmac 0.12 and hkdf 0.12.
+- Found at the merge: podssh-ws's scan of its sources (`tests/random_source.rs`) refused `OsRng`
+  outside `crypto/random.rs`, a name that rand 0.10 no longer has, so it would have passed a read
+  of the OS anywhere. It refuses `OsRng`, `SysRng`, `rand::rng(`, `thread_rng` and `ThreadRng`
+  now; planted, a `SysRng` in `crypto/hash.rs` failed it by name.
+- Tests: `cargo test --locked -p podssh-ws -p podssh-relay -p podssh-ssh -p podssh-core -p
+  podssh-probe`, 1026 passed, 0 failed, 14 ignored, in 123 binaries (the RSA verifier against
+  OpenSSL's signatures among them); `cargo test --locked -p podssh-cli`, 1178 passed, 0 failed,
+  49 ignored, in 137 binaries. `cargo check` and clippy `-D warnings` of the workspace, and of
+  podssh-cli with `iroh`, `warp`, `tor` and `ts`: clean; rustfmt: clean. `cargo deny --locked
+  check advisories licenses bans sources`, plain and with each of `iroh`, `ts`, `tor` and `warp`:
+  ok. Planted, an HMAC key with its first byte changed in podssh-ws's HMAC: 2 of the 18 known
+  answers of `crypto_vectors` failed (RFC 4231).
+- #78, the stand-in tailnet's tailscale image v1.104.4 (`images/tailscale/Dockerfile`, by the pull
+  request's digest): `ts-headscale.yml` on the pull request's branch (run 41279767562), 14
+  passed, 0 failed, 0 not run, the live relay's three runs among them, against headscale 0.29.7,
+  whose table of client versions ends at an older release.

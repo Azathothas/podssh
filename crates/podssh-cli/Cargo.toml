@@ -84,9 +84,9 @@ sha1 = { version = "0.11", default-features = false }
 # `cp` compares the SHA-256 of both ends (T-134); the version the workspace
 # already builds.
 sha2 = { workspace = true }
-# The random part of `cp`'s temporary names: the same version and features as
+# The random part of `cp`'s temporary names: the workspace's rand, as
 # podssh-ssh's, so nothing new is compiled.
-rand = { version = "0.10", features = ["thread_rng"] }
+rand = { workspace = true }
 # The copy by exec carries bytes as base64 where a channel changes them
 # (T-135); the version podssh-ssh already builds.
 base64 = { workspace = true }

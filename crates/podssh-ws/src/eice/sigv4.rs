@@ -9,7 +9,7 @@
 //! signature goes last, as `X-Amz-Signature`. No I/O, and no clock: the time
 //! is the caller's.
 
-use hmac::{Hmac, Mac};
+use hmac::{Hmac, KeyInit, Mac};
 use sha2::{Digest, Sha256};
 use zeroize::Zeroizing;
 

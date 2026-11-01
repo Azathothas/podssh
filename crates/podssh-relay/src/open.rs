@@ -18,7 +18,7 @@ use std::time::Duration;
 
 use podssh_ws::dial::DialError;
 use podssh_ws::{connect, ConnectError, Endpoint, ProxyChoice, RelaySession, Trust, WsClientConfig};
-use rand::Rng;
+use rand::RngExt;
 
 use crate::failover::{self, Attempt, MintGate, Mode, SERIAL_STEP, STAGGER};
 use crate::failures::{self, Records};
@@ -388,7 +388,7 @@ pub fn backoff(retry: u32) -> Duration {
     let first = BACKOFF_FIRST.as_millis() as u64;
     let max = BACKOFF_MAX.as_millis() as u64;
     let base = first.saturating_mul(1u64 << retry.saturating_sub(1).min(5)).min(max);
-    let factor: f64 = rand::thread_rng().gen_range(0.5..1.5);
+    let factor: f64 = rand::rng().random_range(0.5..1.5);
     Duration::from_millis((base as f64 * factor) as u64)
 }
 

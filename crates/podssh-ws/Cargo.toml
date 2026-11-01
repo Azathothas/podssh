@@ -24,6 +24,8 @@ ed25519-dalek = { workspace = true }
 p256 = { workspace = true }
 p384 = { workspace = true }
 rsa = { workspace = true }
+# SHA-2 of rsa 0.9's digest line, for the RSA verifier alone (the root `Cargo.toml`).
+sha2-rsa = { workspace = true }
 rand = { workspace = true }
 base64 = { workspace = true }
 zeroize = { workspace = true }
@@ -37,11 +39,11 @@ bytes = "1.12"
 serde_json = { workspace = true }
 # Shadowsocks (T-373): its master key is OpenSSL's EVP_BytesToKey with MD5,
 # and each stream's key HKDF-SHA1 of it, with the HKDF above. Both pure
-# Rust, and both in the lock already: md5 0.8 through podssh-ssh, sha1 0.10
-# (digest 0.10, as hkdf 0.12 takes it) through tungstenite. No `asm` of
-# sha1, which would compile assembly.
+# Rust, and both in the lock already: md5 0.8 through podssh-ssh, sha1 0.11
+# (digest 0.11, as hkdf 0.13 takes it, T-386) through podssh-ssh and russh.
+# No `asm` of sha1, which would compile assembly.
 md5 = { version = "0.8", default-features = false }
-sha1 = { version = "0.10", default-features = false }
+sha1 = { version = "0.11", default-features = false }
 
 # The socket of Multipath TCP (T-172), which Linux alone makes: the socket
 # call with IPPROTO_MPTCP, and getsockopt. libc compiles no C.
@@ -77,7 +79,7 @@ rustls-pki-types = { workspace = true }
 # false` here for the same reason they are in `[dependencies]`: nothing may
 # pull in a C toolchain. `getrandom` (the OS's source, no C) gives the tests a
 # secret of p256's own `Generate`, which the curves' 0.14 take in place of a
-# rand 0.8 generator; the library draws from rustls's source alone.
+# rand generator; the library draws from rustls's source alone.
 p256 = { workspace = true, features = ["getrandom"] }
 p384 = { workspace = true }
 ed25519-dalek = { workspace = true }

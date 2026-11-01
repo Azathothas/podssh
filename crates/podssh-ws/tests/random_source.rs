@@ -14,24 +14,25 @@ use podssh_ws::WsError;
 use rustls::crypto::{GetRandomFailed, SecureRandom};
 use rustls::NamedGroup;
 
-/// A source of `rand` that gives no bytes. Its `fill_bytes` panics, as that
-/// of `OsRng` does, so a caller that still uses it fails the test.
+/// A source of `rand` that gives no bytes, as the OS's can fail. Each draw of
+/// a number panics, so a caller that draws other than by `try_fill_bytes`
+/// fails the test.
 struct NoBytes;
 
-impl rand::RngCore for NoBytes {
-    fn next_u32(&mut self) -> u32 {
-        panic!("next_u32 was called")
+impl rand::TryRng for NoBytes {
+    type Error = std::io::Error;
+    fn try_next_u32(&mut self) -> Result<u32, Self::Error> {
+        panic!("try_next_u32 was called")
     }
-    fn next_u64(&mut self) -> u64 {
-        panic!("next_u64 was called")
+    fn try_next_u64(&mut self) -> Result<u64, Self::Error> {
+        panic!("try_next_u64 was called")
     }
-    fn fill_bytes(&mut self, _: &mut [u8]) {
-        panic!("fill_bytes was called: it panics when the OS gives no bytes")
-    }
-    fn try_fill_bytes(&mut self, _: &mut [u8]) -> Result<(), rand::Error> {
-        Err(rand::Error::new(std::io::Error::other("no entropy")))
+    fn try_fill_bytes(&mut self, _: &mut [u8]) -> Result<(), Self::Error> {
+        Err(std::io::Error::other("no entropy"))
     }
 }
+
+impl rand::TryCryptoRng for NoBytes {}
 
 /// A source of rustls that gives no bytes.
 #[derive(Debug)]
@@ -75,7 +76,7 @@ impl SecureRandom for BadFirst {
 fn a_source_that_gives_no_bytes_is_an_error() {
     assert!(fill_from(&mut NoBytes, &mut [0u8; 8]).is_err());
     let mut buf = [0u8; 32];
-    fill_from(&mut rand::rngs::OsRng, &mut buf).expect("the OS gives bytes here");
+    fill_from(&mut rand::rngs::SysRng, &mut buf).expect("the OS gives bytes here");
     assert_ne!(buf, [0u8; 32]);
 }
 
@@ -140,7 +141,9 @@ fn rust_files(dir: &Path, out: &mut Vec<PathBuf>) {
 
 /// No path of the library draws in a way that can panic: no `fill_bytes(`
 /// (only `try_fill_bytes(`), no generator that takes an RNG
-/// (`::random(&mut`), and `OsRng` only in `crypto/random.rs`.
+/// (`::random(&mut`), and the OS's source only in `crypto/random.rs`, by
+/// each name that rand has given it: `OsRng` up to 0.9, `SysRng` since 0.10,
+/// and the thread's generator, which reseeds from it and panics if it fails.
 #[test]
 fn only_the_random_module_reads_the_os_and_nothing_can_panic() {
     let src = Path::new(env!("CARGO_MANIFEST_DIR")).join("src");
@@ -158,8 +161,10 @@ fn only_the_random_module_reads_the_os_and_nothing_can_panic() {
         if text.contains("::random(&mut") {
             found.push(format!("{name}: a generator that takes an RNG"));
         }
-        if text.contains("OsRng") && name != "crypto/random.rs" {
-            found.push(format!("{name}: OsRng"));
+        for source in ["OsRng", "SysRng", "rand::rng(", "thread_rng", "ThreadRng"] {
+            if text.contains(source) && name != "crypto/random.rs" {
+                found.push(format!("{name}: {source}"));
+            }
         }
     }
     assert!(found.is_empty(), "{found:#?}");
