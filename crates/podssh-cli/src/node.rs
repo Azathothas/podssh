@@ -435,8 +435,8 @@ pub(crate) fn ended(label: &str, exit: Exit) -> Option<(Fault, String)> {
         Exit::Stopped => return None,
         Exit::NameInUse => (
             Fault::RelayUnreachable,
-            "another node serves this pair (409), or the relay held this node's lost socket for too long; a pair \
-             has one node at a time"
+            "another node serves this pair (409), or the relay held this node's lost socket, or the socket of \
+             the node before it, for too long; a pair has one node at a time"
                 .to_string(),
         ),
         Exit::PairStopped => (Fault::Revoked, format!("the pair was stopped on the relay; {remedy}")),

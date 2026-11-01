@@ -22,7 +22,10 @@ come from dropssh, a sibling project that implemented both sides.
 5. Route by id, never by the order of arrival. Validate the hex before you
    look up the id.
 6. On `409` (a second socket for the same name) at the first registration,
-   exit: another node has the name. Do not retry. After a loss, the relay
+   another node has the name, or the relay still holds the socket of the
+   node that ran just before this one (a restart, or a box's script that
+   starts the next node at once): connect again with the jittered backoff
+   for 30 s, with a line for each `409`, then exit (T-416). After a loss, the relay
    can still hold the old socket for a time: connect again with the jittered
    backoff until the resume deadline after the loss (10 minutes, or the
    time of `--resume-deadline`: the time that the resumable layer keeps a
@@ -56,8 +59,9 @@ sends with no acknowledgement, so that a slow local side is not taken for a
 stopped one (T-271). The node says `online` once the relay has its socket. A
 session over the limit gets `reject` at once, and the handler has 10 s to
 open the local side. It acts on each end by its code and reason: `409`,
-exit, but after a loss connect again until the resume deadline, with a line
-on stderr for each `409` and the time left; `1001 operator stopped reverse relay`, exit and delete the stored pair;
+connect again for 30 s at the first registration (T-416), and after a loss
+until the resume deadline, with a line on stderr for each `409` and the time
+left, then exit; `1001 operator stopped reverse relay`, exit and delete the stored pair;
 `1001 pair expired` (or a `403` after the expiry), the repair hook: the
 CLI's takes the pair stored under the node's label since, if it expires
 later, else the node exits (T-395); `1003` and `1009`, a fault of the node's own bytes, a line and a new

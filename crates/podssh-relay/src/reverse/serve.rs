@@ -55,7 +55,15 @@ pub struct Settings {
     /// answers `409`: the relay can still hold the old socket, and the
     /// sessions that the resumable layer keeps wait as long (T-261).
     pub rejoin: Duration,
+    /// How long a node connects again when the relay answers `409` at its
+    /// first registration: the relay can still hold the socket of the node
+    /// that ran just before this one, as at a restart (T-416). Zero exits at
+    /// the first `409`.
+    pub first_conflict: Duration,
 }
+
+/// The default of [`Settings::first_conflict`].
+pub const FIRST_CONFLICT: Duration = Duration::from_secs(30);
 
 impl Default for Settings {
     fn default() -> Self {
@@ -64,6 +72,7 @@ impl Default for Settings {
             ping_every: podssh_ws::LIVENESS_EVERY,
             pings_allowed: podssh_ws::LIVENESS_ALLOWED,
             rejoin: crate::session::resume::RESUME_DEADLINE,
+            first_conflict: FIRST_CONFLICT,
         }
     }
 }

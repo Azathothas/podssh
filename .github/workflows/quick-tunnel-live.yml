@@ -221,7 +221,9 @@ jobs:
           line=$(grep -E '^ +[^ ]+ +UDP out ' "$RUNNER_TEMP/doctor2.txt" | head -n 1)
           echo "doctor: $line"
           case $line in
-            *ok*"said nothing within 300 ms"*"skips QUIC and takes HTTP/2"*) echo "ok    doctor's UDP out: no answer, HTTP/2" ;;
+            # Silence (a drop past the host) or the send's own error (a
+            # drop on this host's OUTPUT, as here): no answer either way.
+            *ok*"got no answer to a QUIC packet"*"skips QUIC and takes HTTP/2"*) echo "ok    doctor's UDP out: no answer, HTTP/2" ;;
             *) echo "FAIL doctor's UDP out did not say that the probe found no answer"; exit 1 ;;
           esac
           : > "$RUNNER_TEMP/allow2"

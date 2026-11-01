@@ -246,7 +246,7 @@ fails it, and so does one that drops its oldest bytes when it is full.
 
 The bound of the Decision counts 16 sessions on a node, but the node takes
 the relay's limit from its `hello`: 64 sessions, measured 2026-10-09
-(`docs/reverse.md:30-33`). With each session's 4 MiB kept, a node can hold
+(`docs/reverse.md:33-36`). With each session's 4 MiB kept, a node can hold
 256 MiB; T-153, which makes the node a far end that keeps sessions, bounds
 the whole node (its step 6). Step 7's `-v` line belongs to the resume loop
 of T-153: no resume runs before it, and `Link::resume` gives the count of
@@ -807,7 +807,7 @@ always runs the layer. The flag's row, the manual's note of `node`,
 
 The relay cuts a connection after 180 s with no payload, and its empty
 keepalive frames do not count (`docs/relay.md:135-136`, `docs/relay.md:198`). A
-reverse socket gets no keepalive at all (`docs/reverse.md:34-42`). SSH's own
+reverse socket gets no keepalive at all (`docs/reverse.md:37-45`). SSH's own
 keepalives must not end a session that the layer would resume.
 
 ## Premise
