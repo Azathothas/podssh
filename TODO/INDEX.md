@@ -62,15 +62,15 @@ repository and CI).
 
 ## Counts
 
-**421 entries: 15 open, 1 partial, 31 blocked, 374 done.**
+**421 entries: 14 open, 2 partial, 31 blocked, 374 done.**
 
 | Priority | open | partial | blocked | done | total |
 | --- | --- | --- | --- | --- | --- |
 | P0 | 0 | 0 | 0 | 1 | 1 |
-| P1 | 1 | 1 | 0 | 46 | 48 |
+| P1 | 0 | 2 | 0 | 46 | 48 |
 | P2 | 1 | 0 | 21 | 179 | 201 |
 | P3 | 13 | 0 | 10 | 148 | 171 |
-| **All** | 15 | 1 | 31 | 374 | 421 |
+| **All** | 14 | 2 | 31 | 374 | 421 |
 
 ## Entries
 
@@ -322,7 +322,7 @@ repository and CI).
 | [T-247](repo.md) | P3 | S | none | chore | done | `podssh-cli` declares dependencies that it does not use |
 | [T-248](serve.md) | P2 | M | M5 | research | blocked | A tty for `podssh serve` where `/dev/ptmx` is missing: a new devpts instance, or a tty in user space |
 | [T-249](repo.md) | P2 | M | none | chore | done | A cited line that moved still exists, so the checker does not see a stale citation |
-| [T-250](release.md) | P1 | M | M9 | release | open | Publish v1.0.0, the first stable release |
+| [T-250](release.md) | P1 | M | M9 | release | partial | Publish v1.0.0, the first stable release |
 | [T-251](release.md) | P1 | M | M9 | measurement | partial | The check of a release from end to end, with no human |
 | [T-252](irc.md) | P2 | M | M8 | feature | done | `podssh chat --irc`: IRC as a second transport for chat |
 | [T-253](relay.md) | P2 | M | backlog | defect | blocked | The relay's egress reaches no IPv6 host |

@@ -10,7 +10,7 @@ release between entries, and one tag, checked before and after.
 **Milestone:** M9
 **Priority:** P1
 **Effort:** M
-**Status:** open
+**Status:** partial
 
 ## Problem
 
@@ -66,6 +66,17 @@ Each entry of `TODO/` is done, except the entries that wait for the relay's
 operator, the entries that the operator holds (Q32) and the work parked
 behind them (`TODO/PROGRESS.md`), and the check of T-251 passed before the
 tag.
+
+## Done
+
+2026-11-01, partial: step 2. The version 1.0.0 in `Cargo.toml` and both lock files, the README's
+`T=v1.0.0`, and `docs/releases/v1.0.0.md`: the files, how to check a download, the sizes of the
+dry run of `4e79a1f` (the code of `v1.0.0-beta.4` but for the version), what works, how it was
+checked, and what is not in it (the relay's operator's items, Q32's holds, T-328 and T-376, the
+outside refusals of railway.new and the IRC networks, the platforms' signatures). `podssh
+--version`: `podssh 1.0.0`; the CLI's tests of update, binary_streams and doctor: 7, 13 and 16
+passed; the banner's test passed. The tag waits for `v1.0.0-beta.4` (after 2026-11-02 01:44 UTC)
+and for the whole release check at this commit (T-251).
 
 # T-251: The check of a release from end to end, with no human
 

@@ -47,7 +47,7 @@ exclude = ["vendor/tailscale-rs", "vendor/iroh-relay", "fuzz"]
 # Versions below were resolved on 2026-10-01, not recalled. Before loosening a
 # range, re-run the no-C build of the library crates (see scripts/gate.sh).
 [workspace.package]
-version = "1.0.0-beta.4"
+version = "1.0.0"
 edition = "2021"
 # The library crates and podssh-todo need what their dependencies need, and no
 # older minimum holds a dependency back (the operator's ruling of Q48,
