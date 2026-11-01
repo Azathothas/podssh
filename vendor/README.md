@@ -22,8 +22,8 @@ read" (or `deny.toml`'s ignores) with the day and the reason.
   `.git/`, which was dropped; the **shipped tree** is that import plus the
   patch set below and `LOCAL-PATCHES.md`. The patch set applied to an export
   of the pristine commit gives the shipped tree, and `diff -r` then names
-  `LOCAL-PATCHES.md` alone (measured on 2026-11-01 with the 28 patches,
-  T-334).
+  `LOCAL-PATCHES.md` alone (measured on 2026-11-01 with the 29 patches,
+  T-384).
 - **License**: BSD-3-Clause, with the patent grant (`LICENSE`, `PATENTS`
   retained). CI files and the upstream `AGENTS.md` are retained for fidelity.
 - **Local patch set**: `patches/*.patch`, described patch by patch in

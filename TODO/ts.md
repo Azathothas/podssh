@@ -1366,7 +1366,7 @@ at the path that the fork dials (`vendor/tailscale-rs/ts_derp/src/ws.rs:95`).
 **Milestone:** backlog
 **Priority:** P3
 **Effort:** S
-**Status:** open
+**Status:** done
 
 ## Problem
 
@@ -1407,3 +1407,31 @@ TS_HS_PLANT=unknown-key sh scripts/ts-headscale.sh; echo "exit=$?"
 
 The planted run exits 1 with podssh's 77 and the control server's words, and no `panicked` in
 `tcp-status.err`. Planted: the old kameo; the line `panicked` comes back.
+
+## Correction
+
+2026-11-01: item 1 of the Approach cannot repair it, as kameo 0.22.2 has the same unwraps
+(Premise). The panic is reached through the fork's registry: its `Forward` calls kameo's
+`Context::try_forward` for any actor whose weak reference still upgrades
+(`vendor/tailscale-rs/ts_runtime/src/registry.rs:394-430`), and an actor that stops closes its
+mailbox first, so the send fails and kameo's conversion of its error panics. Item 2 is taken in
+the registry, where each forward passes.
+
+## Done
+
+2026-11-01, done:
+
+- The fork's patch `0029-forward-to-a-stopping-actor.patch`: an actor whose mailbox is closed
+  (`ActorRef::is_alive`) is dead to a forward, as one dropped is; its row in
+  `vendor/tailscale-rs/LOCAL-PATCHES.md`. The chain of the 29 patches on an export of pristine
+  `f4781c4` gives the vendored tree, `LOCAL-PATCHES.md` aside.
+- `TS_HS_PLANT=unknown-key sh scripts/ts-headscale.sh target/debug/podssh` here, three times:
+  each exit 1, podssh's 77 with "the control server refused this node (registration failed:
+  machine was not authorized by control to join tailnet)", and no `panicked` in its stderr;
+  before the patch the same run had `panicked at .../kameo-0.21.1/src/error.rs:308:75`. The
+  harness's plant now fails (2) on a `panicked` line too.
+- The whole harness after it: 11 passed, 0 failed, 3 not run here (the live relay, as before).
+  `cargo test -p podssh-ts`, 54 passed; clippy `-D warnings` of podssh-ts and podssh-cli with
+  `ts`: clean.
+- A race remains in kameo itself: an actor that closes its mailbox between the check and the
+  send. The planted runs did not meet it.

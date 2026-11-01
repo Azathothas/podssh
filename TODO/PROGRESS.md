@@ -67,9 +67,9 @@ entry keeps its proof in the entry; this page keeps no history (git does).
   `draft/draft-warp`, `draft/draft-roads-cli` and `draft/draft-forwarder`, which this
   cloud session's git proxy would not delete.
 
-  No draft waits (2026-11-01): T-373's (`1be3e28`) and T-334's (`4bddbb5`),
-  drafted by agents of this cloud session, are merged, and their worktrees
-  and branches are gone.
+  T-373's (`1be3e28`) and T-334's (`4bddbb5`), drafted by agents of this
+  cloud session, are merged, and their worktrees and branches are gone. Being
+  written (2026-11-01): T-385 (meek and WebTunnel), in an agent's worktree.
 
   CI: the gate passed at
   `24b9f6e` (run 38331509229), and its step `release` at `cad2885` (478
@@ -114,7 +114,7 @@ and `CARGO_BUILD_JOBS=4`:
 
 ## Counts
 
-`TODO/INDEX.md` holds 381 entries: 18 open, 1 partial, 31 blocked, 331 done.
+`TODO/INDEX.md` holds 381 entries: 17 open, 1 partial, 31 blocked, 332 done.
 
 Open includes parked work. `cargo todo check` verifies this line.
 
@@ -142,8 +142,8 @@ Q61.
 
 **Now:** the entries of the audit, the study and the issues of 2026-10-31 (GitHub #59 to #63 and
 #69 to #76): T-353 (Q52), whose live run waits for Q60; the others are done, Shadowsocks the last
-on 2026-11-01. Then the entries of 2026-11-01: T-384 (a panic of kameo in the fork's dialer) and
-T-385 (meek and WebTunnel in the Tor road).
+on 2026-11-01. Then the entry of 2026-11-01 that is open: T-385 (meek and WebTunnel in the Tor
+road).
 Each other `backlog` entry is done, but for those on hold, those of the relay's operator and the
 parked ones.
 

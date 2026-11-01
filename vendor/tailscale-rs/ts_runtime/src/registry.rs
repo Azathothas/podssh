@@ -415,6 +415,15 @@ where
             return RegistryForward::ActorDead(msg.message);
         };
 
+        // podssh's patch 0029: an actor that stops has its mailbox closed before its last
+        // reference goes, and kameo's `try_forward` to a closed mailbox panics as it converts
+        // its error (it downcasts the signal to the message and its reply sender together,
+        // kameo 0.21.1 `error.rs:308`). Such an actor is dead to a forward, as one dropped is.
+        if !aref.is_alive() {
+            tracing::trace!("actor stopping");
+            return RegistryForward::ActorDead(msg.message);
+        }
+
         let result = ctx.try_forward(&aref, msg.message);
 
         RegistryForward::Forwarded(result)

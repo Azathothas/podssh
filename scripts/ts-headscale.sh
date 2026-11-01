@@ -201,10 +201,12 @@ fi
 if [ -n "$PLANT" ]; then
     # The registration fails, and podssh says so: 77 with the control server's refusal. Another
     # failure is 2, which the plant's caller tells apart from the 1 it wants.
-    if [ "$rc" = 77 ] && grep -q 'the control server refused this node' "$W/out/tcp-status.err"; then
+    # No panic either: a thread of the fork's actors panicked as it shut down (T-384).
+    if [ "$rc" = 77 ] && grep -q 'the control server refused this node' "$W/out/tcp-status.err" &&
+        ! grep -q 'panicked' "$W/out/tcp-status.err"; then
         echo "planted: the registration was refused (exit 77, said): ts.tcp.status failed, as it must"
     else
-        echo "planted: podssh exited $rc, not 77 with the control server's refusal"
+        echo "planted: podssh exited $rc, not 77 with the control server's refusal and no panic"
         exit 2
     fi
     echo "ts-headscale: $pass passed, $fail failed (planted)"
