@@ -60,7 +60,7 @@ pool host accepted the token of the default host: `docs/STATUS.md`, "`podssh pro
 live"), and no token goes to another deployment. The exact minting host lost: each pool host
 would mint its own token, against the brake of 120 attempts a minute (`docs/relay.md:201`).
 The decision said "one machine has one cached token"; on 2026-10-08 the operator ruled
-"one for each relay deployment" (`docs/decisions.md:63`).
+"one for each relay deployment" (`docs/decisions.md:67`).
 
 The session that did it (2026-10-08) made one call stricter than step 3: an old entry, with
 no minting host, is not used at all, also under the default key. An old list that put the
@@ -1447,7 +1447,7 @@ Nothing watches the expiry of the relay's domain, on which each road but `--dire
   live relay (`scripts/release-short.sh:109-115`, run at `.github/workflows/release.yml:144`, `:207`,
   `:279`, `:318` and `:412`; three of these run in a matrix of two). The audit counted seven
   jobs; the matrices give eight.
-- Read: a beta needs the job `all` of the gate (`docs/decisions.md:28`). Citations of an older
+- Read: a beta needs the job `all` of the gate (`docs/decisions.md:32`). Citations of an older
   document of the relay were once off by 35 (`TODO/repo.md:2318-2321`).
 - Read: no workflow checks the relay on a schedule: `relay-live.yml` runs by hand
   (`.github/workflows/relay-live.yml:8-17`), and `build.yml` on a push, a pull request or by hand
@@ -1723,8 +1723,8 @@ relay's operator has no way to move the binaries in the field to another deploym
   (`crates/podssh-relay/src/pair.rs:1-4`; `docs/relay.md:347-352`). The audit cited
   `docs/relay.md:339-344`; the fact is at `:347-352`.
 - Read: a release binary is uploaded or copied into its host, which cannot build it or download
-  it (Q48, `docs/decisions.md:24`); a machine keeps one token for each deployment, and podssh
-  "never sends a token to a deployment that did not mint it" (`docs/decisions.md:63`).
+  it (Q48, `docs/decisions.md:28`); a machine keeps one token for each deployment, and podssh
+  "never sends a token to a deployment that did not mint it" (`docs/decisions.md:67`).
 - Read, by the audit through web.pkgforge.dev on 2026-10-31
   (https://pubapi.registry.google/rdap/domain/ajam.dev): Cloudflare's name servers, no DNSSEC, an
   expiry on 2028-01-19.
@@ -1748,7 +1748,7 @@ podssh's side:
    still meets TLS on its own name.
 4. The default becomes a list of deployments: today's first, then those that the signed document
    names. A token is minted at each deployment and sent to no other (T-057), and the hosts are
-   tried in the ways of Q10 (`docs/decisions.md:42`).
+   tried in the ways of Q10 (`docs/decisions.md:46`).
 5. The cache keeps the signed document and its signature, so that a binary keeps the other
    deployments when the old domain is gone.
 6. `podssh relay status` and doctor name each deployment, and whether its pool was signed.

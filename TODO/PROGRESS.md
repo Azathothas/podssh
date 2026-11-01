@@ -120,7 +120,7 @@ and `CARGO_BUILD_JOBS=4`:
 
 ## Counts
 
-`TODO/INDEX.md` holds 413 entries: 15 open, 2 partial, 32 blocked, 364 done.
+`TODO/INDEX.md` holds 413 entries: 17 open, 2 partial, 30 blocked, 364 done.
 
 Open includes parked work. `cargo todo check` verifies this line.
 
@@ -143,8 +143,8 @@ again, at most one a day, so not before 2026-11-02 01:44 UTC, and once the
 gate is green on its commit.
 
 **The operator's request of 2026-11-01:** `--detach` is in, `session start` asks its prompts on
-the terminal, and both are measured on Windows and macOS in Actions (2026-11-01); T-381 waits for
-Q61.
+the terminal, and both are measured on Windows and macOS in Actions (2026-11-01); T-381, a scope of
+systemd for a detached run, follows from Q61 (settled 2026-11-01).
 
 **Now (2026-11-01):** the operator's request of 2026-11-01, two studies: of Nemo-010/d-mon, a
 daemonizer, for a `--detach` that must never leave a server locked out, and of Azathothas/cfrs, its
@@ -153,14 +153,20 @@ detached node, `--persist-forever` never gives up, `--restart` starts a detached
 goes on with the next pair at its pair's expiry, a lock names each detached run, a hung run is
 started again, the smaller gaps of `--detach` are closed; the quick tunnel races its roads, drains
 a connection on the edge's GOAWAY, keeps its window in small frames and answers a push of
-configuration over QUIC), but T-414, a second connection to the edge, which waits for Q62. Before them, a bulk session through a node and its moves on
+configuration over QUIC), but T-414, a second connection to the edge, open since Q62 (2026-11-01). Before them, a bulk session through a node and its moves on
 the live relay are repaired, and the entries of the audit, the study and the issues
-of 2026-10-31 (GitHub #59 to #63 and #69 to #76): T-353 (Q52), whose live run waits for Q60; the
+of 2026-10-31 (GitHub #59 to #63 and #69 to #76): T-353 (Q52), whose live run Q60 allows now; the
 others are done. Each other `backlog` entry is done, but for those on hold, those of the relay's
 operator and the parked ones.
 
+**Next (2026-11-01, the operator's rulings of Q60 to Q62):** T-414 (two connections of the quick
+tunnel), T-381 (a scope of systemd for a detached run) and T-353's live run on the public Tor
+network; `v1.0.0-beta.4` after 2026-11-02 01:44 UTC, from `7855981`, where each ACTIONS row of the
+release check ran (T-251's rehearsal).
+
 **Then** M9: T-251 (the check, and its run before the tag), which runs the
-headscale harness of 2026-11-01, and last T-250 (the one release). Between
+headscale harness of 2026-11-01, and last T-250 (the one release), unattended (the operator,
+2026-11-01). Between
 entries: the `none` entries, the highest priority first.
 
 **Skip** the entries that wait for the relay's operator (status
@@ -173,8 +179,8 @@ T-124, T-150, T-159, T-160, T-161, T-303 and T-304, "Parked open work"),
 which waits as they wait; and the entries that wait for the operator:
 T-328 (an export of FinalShell and of Termius: a known gap, which
 `v1.0.0` does not wait for) and T-376 (the operator's throwaway cloud
-accounts for the live run of the roads of iap:// and eice://), and T-414 (Q62: a second connection
-of the quick tunnel to the edge).
+accounts for the live run of the roads of iap:// and eice://), each a known gap that `v1.0.0`
+names and does not wait for (the operator, 2026-11-01).
 
 ## Parked open work
 
@@ -209,45 +215,13 @@ that it blocks (status `blocked`) and a recommendation; the session then
 takes the next entry. Nothing is closed as out of scope until the operator
 rules.
 
-**Q62 (open, 2026-11-01): may `podssh node --quick-tunnel` keep a second
-connection to Cloudflare's edge (T-414)?** Rule 2 of `AGENTS.md` allows one
-outbound connection and names three exceptions; a second connection that stays,
-of the index 1, to the edge's other region first, is none of them. cfrs's
-testers found that the edge takes 1, 2 and 4 connections of one quick tunnel
-(cfrs #54), and cloudflared keeps four for a named tunnel: with two, a region
-in trouble or a GOAWAY leaves one connection standing. The code is in
-(`crates/podssh-relay/src/quick/keep.rs`, tested with two); the node keeps one
-(`CONNECTIONS` in `crates/podssh-cli/src/node_quick.rs`). T-402's drain, where
-the old connection serves its visitors for up to 90 s while the next one
-registers, is taken as the short overlap of rule 2's race of relay hosts (Q10).
-Recommendation: yes, as a fourth exception of rule 2, for the quick tunnel's
-node alone: the edge's own redundancy, with no new host and no listener; the
-node then keeps two.
-
-**Q61 (open, 2026-11-01): two readings for `--detach` (T-380, T-381).**
-(1) T-380 starts this binary again to go to the background, as `podssh
-session start` does since T-186; T-039 read rule 3 of `AGENTS.md` as
-forbidding a podssh started again as a helper, and Q22 says the rule is about
-podssh's own shims. Recommendation: confirm that this binary started again
-at the user's request (`--detach`, `-f`, `session start`) is no helper, and
-say so in rule 3; T-380 goes on under T-186's reading meanwhile. (2) T-381,
-blocked on this: may a detached podssh on Linux ask the user's systemd, over
-its socket of this host, for a scope of its own, so that logind's
-`KillUserProcesses` at a logout does not end it, as tmux does?
-Recommendation: yes, at ready only, natively over D-Bus, a failure a line;
-`PODSSH_SYSTEMD=no` turns it off.
-
-**Q60 (open, 2026-11-01): may the Tor road's live test reach the public Tor
-network?** It waits for this alone: the live run of T-353, whose Prove
-bootstraps Arti and gets GitHub's banner through an exit. The test targets of
-`AGENTS.md` name no Tor network; Q52 allowed the crate, not its live run.
-Recommendation: yes, from GitHub Actions and from a session's own host, with
-short runs (one bootstrap, a few MiB of directory, then one stream to
-`github.com:22`), as Q52 allowed for WARP: Tor's relays serve the public by
-design. The alternative that the work would add in any case: a private Tor
-network on the loopback (chutney with the C `tor` program), which tests Arti's
-road against software that podssh did not write, but not the public network
-nor a proxy that allows port 443 alone.
+The operator settled Q60 to Q62 on 2026-11-01 (`docs/decisions.md`), each as recommended: the
+Tor road's live test may reach the public Tor network, with short runs, from GitHub Actions and a
+session's own host (T-353); this binary started again at the user's request is no helper (rule 3
+of `AGENTS.md`), and a detached run may ask the user's systemd for a scope (T-381); the quick
+tunnel's node keeps a second connection to the edge, a fourth exception of rule 2 (T-414). The
+operator also allowed `v1.0.0-beta.4` and then `v1.0.0` unattended, once the whole release check
+passes.
 
 The operator settled Q31 to Q37 on 2026-10-09.
 

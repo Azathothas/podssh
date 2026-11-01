@@ -314,7 +314,7 @@ hold"). A session skips this entry until the operator lifts the hold.
 # T-111: `podssh serve` with no `/dev/ptmx`: the line discipline, and Ctrl-C to the child's process group
 
 **Source:** `docs/ROADMAP.md:183-188`, `docs/design.md:624-628`,
-`docs/decisions.md:61`; GitHub #20 (fux line-discipline notes).
+`docs/decisions.md:65`; GitHub #20 (fux line-discipline notes).
 **Category:** feature
 **Milestone:** M5
 **Priority:** P2
@@ -491,7 +491,7 @@ out with matching digests.
 - Read: `vi`, `less` and `top` need a real pty (`docs/terminal.md:248-252`).
   The measured sandboxes have no `/dev/ptmx` (`docs/target-environment.md:26`,
   `docs/STATUS.md:297`). With no pty device, no podssh code can give the child
-  a tty: shims are excluded (`docs/decisions.md:60`).
+  a tty: shims are excluded (`docs/decisions.md:64`).
 - Read: one relay session carries 64 MiB, both directions together
   (`docs/relay.md:264`; measured: `docs/STATUS.md:305`). 200 MiB each way
   needs the new sessions of T-137.
@@ -543,7 +543,7 @@ hold"). A session skips this entry until the operator lifts the hold.
 The premise that no podssh code can give the child a tty where `/dev/ptmx` is
 missing is too strong. The operator allows two routes, each after a probe at
 run time (Q11, 2026-10-08), and T-248 studies them. The ban on `LD_PRELOAD`
-stays (`docs/decisions.md:60`).
+stays (`docs/decisions.md:64`).
 
 # T-114: `podssh serve`: access rules for each key and command
 
@@ -1011,7 +1011,7 @@ with no privileges needs a way that the host allows, found by a probe.
 ## Premise
 
 - Read: podssh never assumes a tool or a privilege; it starts a program only
-  when a probe found it (`AGENTS.md:251-266`).
+  when a probe found it (`AGENTS.md:253-272`).
 - Read: a credential never goes on argv or into output (`AGENTS.md:215-220`).
   The command line of a unit file is argv, so it must hold no token.
 - Read in the reports of GitHub #20 and #18, not verified here: tty7, zuko
@@ -1147,7 +1147,7 @@ own scope; serve does nothing like it.
 ## Premise
 
 - Read: podssh must not assume systemd, and starts a program only when a probe
-  found it (`AGENTS.md:251-266`, `docs/target-environment.md:101-103`).
+  found it (`AGENTS.md:253-272`, `docs/target-environment.md:101-103`).
 - Read: T-110 and T-111 start each child with `setsid`, in serve's cgroup.
 - Read in the report of GitHub #19, not verified here: ssh-obi moves its pty
   children into a transient scope when systemd is there, and works without
@@ -1275,7 +1275,7 @@ a VM with no sshd, or on a network that lets only port 443 in. Without
   when the user asks for it and a probe at run time allows the bind. The
   default is loopback and AF_UNIX; the user can set the address and can turn
   listening off. The rules still say that podssh never listens
-  (`AGENTS.md:253-259`, `docs/architecture.md:147-162`).
+  (`AGENTS.md:255-261`, `docs/architecture.md:147-162`).
 - Read: russh has the listener: `Server::run_on_socket` and `run_on_address`
   (`Eugeny/russh:russh/src/server/mod.rs`, lines 900-1010 at `22c3b88`). doctor binds a
   TCP and an AF_UNIX socket to test the host, listens once on each, and closes them at once
@@ -1301,7 +1301,7 @@ a VM with no sshd, or on a network that lets only port 443 in. Without
 5. Later step: SSH and TLS on one port. Read the first bytes: `SSH-2.0-` goes
    to SSH; a TLS ClientHello (0x16) is refused.
 6. Same commit: the flags, the manual, `docs/cli.md`, and the rules in
-   `AGENTS.md:253-259` and `docs/architecture.md:147-162`, which then name this
+   `AGENTS.md:255-261` and `docs/architecture.md:147-162`, which then name this
    exception and the ruling.
 
 ## Prove

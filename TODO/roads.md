@@ -3119,7 +3119,7 @@ account (`podssh node NAME --sshd --quick-tunnel`), and reach it from a cage wit
 `podssh ssh cf://NAME`. That host cannot yet be a jump host: `-J cf://HOST` is refused, so the
 targets that it can reach still need the relay. With it, the forward road has a carrier that is not the operator's
 relay, for each user with such a host. Cloudflare documents SSH through a tunnel, and the operator
-allows podssh as a client of Cloudflare (`docs/decisions.md:30`).
+allows podssh as a client of Cloudflare (`docs/decisions.md:34`).
 
 ## Premise
 
@@ -3723,7 +3723,7 @@ Endpoint puts a credential in its URL.
   Endpoint takes a presigned SigV4 `wss://` URL, valid for 60 s, then raw binary frames; AWS's
   client honours `HTTPS_PROXY`; a connection lasts an hour at most, and 20 run at once.
 - Read: credentials never go in URLs (`docs/architecture.md:177-182`; `docs/design.md:66`), and
-  `docs/decisions.md:46` says "in a header or a 0600 file and never in a URL" of the relay's
+  `docs/decisions.md:50` says "in a header or a 0600 file and never in a URL" of the relay's
   tokens. The presigned URL carries an access key id and a signature in its query.
 - Read: the `cf://` road uses podssh-ws's WebSocket client through the proxy
   (`crates/podssh-cli/src/ssh/cloudflare.rs:237`); an RSA key signs through aws-lc-rs in the
@@ -4452,7 +4452,7 @@ tunnel until a run against the clouds.
 ## Premise
 
 - Read: the operator allowed both roads and asked for stand-ins first, the live run to wait for
-  accounts (`docs/decisions.md:16`).
+  accounts (`docs/decisions.md:20`).
 
 ## Approach
 
@@ -4707,7 +4707,7 @@ does not depend on them.
   "`--direct`, or when a probe shows it works"; the triage of GitHub #69 to #72 named this entry
   there.
 - Read: rule 2 of `AGENTS.md` allows a second connection at once for a race between relay hosts,
-  and for the split HTTP road (`AGENTS.md:253-261`); a race of the forward and the direct road is
+  and for the split HTTP road (`AGENTS.md:255-265`); a race of the forward and the direct road is
   neither.
 - Read: the direct dial goes through `HTTPS_PROXY` when it is set, with the relay's step limit of
   20 s (`crates/podssh-cli/src/ssh/transport.rs:320-334`, `crates/podssh-relay/src/open.rs:30`),
@@ -4876,7 +4876,7 @@ relay's path and token.
   (`crates/podssh-cli/src/ssh/resolve.rs:23-66`).
 - Read: `validate` refuses a query other than the relay's knobs, and `connect` always sends a token
   (`crates/podssh-ws/src/client.rs:66-105`, `:159-182`); a token goes only to the deployment that
-  minted it (`docs/decisions.md:58`).
+  minted it (`docs/decisions.md:62`).
 - Read: a SOCKS5 proxy that the user names in `ALL_PROXY` carries each road already (T-070;
   `crates/podssh-ws/src/socks5.rs:1-7`): podssh takes a third party's proxy that the user chooses.
 
@@ -4910,7 +4910,7 @@ relay's path and token.
   step.
 - A forwarder of the user's own, #59's road 2 (the same Worker in the user's own Cloudflare
   account), is a template as any other; podssh ships no forwarder, as the relay stays a separate
-  project (`docs/decisions.md:41`; T-169).
+  project (`docs/decisions.md:45`; T-169).
 - The drafting agent's calls (2026-10-31):
   1. The template, the dial and the stream are in `podssh-ws` (`forwarder/`), pure Rust, so a
      live check of a forwarder builds that crate alone (T-370); `podssh-cli` chooses a run's road
@@ -4966,7 +4966,7 @@ are). Planted: the host put in with no check; the test of `&` fails.
 `a3f948d`. A relay is a host and a port at `crates/podssh-relay/src/relay.rs:80-86`, and its
 forward path is built at `crates/podssh-relay/src/relay.rs:163-176`; `:56-62` and `:139-152` hold
 the byte budget and the parser of a relay list. A token goes only to the deployment that minted it
-at `docs/decisions.md:60` (T-057), and at Q49's row, `docs/decisions.md:14`; `docs/decisions.md:55`
+at `docs/decisions.md:64` (T-057), and at Q49's row, `docs/decisions.md:18`; `docs/decisions.md:59`
 holds the exit codes. `Transport` in `crates/podssh-cli/src/ssh/resolve.rs` had six kinds, not five
 (the relay, `--direct`, `node://`, `iroh:`, `cf://`, and the clouds' roads of T-351); this entry
 adds the seventh. Two facts of #59 that the Premise did not hold, read in the forwarders' sources:
@@ -5049,7 +5049,7 @@ and no notice.
 - Read: whether Cloudflare's terms, which forbid using its services "to provide a virtual private
   network or other similar proxy services", hold for the relay is a question for the relay's
   operator (`docs/relay-operator.md:83-87`).
-- Read: the test targets of a session are the operator's list (`AGENTS.md:228-245`), which names
+- Read: the test targets of a session are the operator's list (`AGENTS.md:228-247`), which names
   none of the three.
 
 ## Approach
@@ -5128,7 +5128,7 @@ relay host failed. Live, as Q56 allows: GitHub's banner through each, in GitHub 
 2026-10-31 (the drafting agent): two citations of the Premise, read at `a3f948d`. The question of
 Cloudflare's terms is item 15 of the relay operator's list, `docs/relay-operator.md:315-322`;
 `docs/relay-operator.md:83-87` is item 1's word on the drops of reverse sockets. The test targets
-of `AGENTS.md:227-242` name the three forwarders now, from GitHub Actions only, with short runs
+of `AGENTS.md:227-244` name the three forwarders now, from GitHub Actions only, with short runs
 (Q56, the same day); the Premise read them before that ruling.
 
 ## Done
@@ -5205,7 +5205,7 @@ a hop. `doctor` has no line for a hop, so a user cannot see whether one is reach
   measured here): SSH banners on port 443 at `bg2.vpnjantit.com` (Dropbear 2017.75, an account with
   a password that a form makes), `ssh.tilde.club` and `ssh.blinkenshell.org` (OpenSSH); whether
   they allow `direct-tcpip` was not measured.
-- Read: GitHub's SSH endpoint is a test target, and those three are not (`AGENTS.md:228-245`). The
+- Read: GitHub's SSH endpoint is a test target, and those three are not (`AGENTS.md:228-247`). The
   box's proxy allows ports 443, 80 and 8443, and lets one test target through by its name
   (`scripts/box/proxy.py:6-16`).
 
@@ -5457,7 +5457,7 @@ cannot make it a road.
   `--via ss://...`, which puts the password in argv.
 - The user names each server and each list, as a proxy of `ALL_PROXY` (T-070); podssh names none.
   Its tests use servers that podssh did not write, never a public one: no public server is a test
-  target of the operator's (`AGENTS.md:228-245`).
+  target of the operator's (`AGENTS.md:228-247`).
 - Shadowsocks 2022 (SIP022) is refused by name in this entry; a later entry can take it.
 
 The draft's calls, 2026-11-01:
@@ -5593,7 +5593,7 @@ edge still needs the operator's relay. WARP's tunnel (T-352) carries any port ov
   tunnel's name answered `200`, after a closed port and an address with no route had failed first.
   It carried QUIC through its stack; the edge's HTTP/2 on TCP 7844, over smoltcp's TCP, would reuse
   the client of T-300.
-- Read: the quick tunnel's live tests run in GitHub Actions only (`docs/decisions.md:15`).
+- Read: the quick tunnel's live tests run in GitHub Actions only (`docs/decisions.md:19`).
 
 ## Approach
 
@@ -5665,7 +5665,7 @@ Read at `a3f948d` on 2026-10-31.
   the VPC road carried TLS to 7844 when T-299 measured it by hand through `podssh proxy`. Step 1
   of the Approach therefore reads: after QUIC and the TCP dial failed.
 - The ruling of the quick tunnel's live tests in GitHub Actions alone is Q47's row (and Q43's),
-  `docs/decisions.md:22`; the Premise's `docs/decisions.md:15` names the row of Q50 since rows
+  `docs/decisions.md:26`; the Premise's `docs/decisions.md:19` names the row of Q50 since rows
   came above it.
 - The Prove names its test with no feature; the test needs the stand-in of WARP's edge, a
   feature of podssh-relay (the Decision, item 5).
@@ -7026,7 +7026,7 @@ the same day.
 **Milestone:** none
 **Priority:** P3
 **Effort:** S
-**Status:** blocked
+**Status:** open
 
 ## Problem
 
@@ -7048,6 +7048,12 @@ registers.
 With the operator's leave (Q62), `CONNECTIONS` becomes 2, the manual and `docs/cli.md` say so, and
 `quick-tunnel-live.yml` checks the registration of the index 1 over QUIC.
 
+## Decision
+
+2026-11-01: the operator ruled Q62 as recommended (`docs/decisions.md`); the entry is open
+again. What it waited for: The operator: Q62 in `TODO/PROGRESS.md`, as a second connection that stays is no exception of rule 2
+of `AGENTS.md` yet.
+
 ## Prove
 
 ```sh
@@ -7055,7 +7061,3 @@ export CARGO_BUILD_JOBS=4
 cargo test -p podssh-relay --features quick --test quick_resilience a_second_connection_registers_as_index_1_once_the_first_did
 ```
 
-## Blocker
-
-The operator: Q62 in `TODO/PROGRESS.md`, as a second connection that stays is no exception of rule 2
-of `AGENTS.md` yet.

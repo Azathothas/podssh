@@ -2579,7 +2579,7 @@ alone measures less than they use, so it cannot answer what a user asks it.
 - Read: `AGENTS.md` lines 248-250 at `48a8744` says "closes it without listening" of doctor's bind in rule 2;
   `SECURITY.md` lines 112-113 at `48a8744`, `docs/architecture.md` lines 133-134 at `48a8744` and `docs/cli.md` lines 1346-1347 at `48a8744` say the same.
   The ruling of 2026-10-08 lets a listener open when the user asks for it and a probe at run time
-  allows the bind (`docs/decisions.md:36`). A listen of doctor's is no listener that the user asks
+  allows the bind (`docs/decisions.md:40`). A listen of doctor's is no listener that the user asks
   for, so it waits for a ruling: Q53.
 - Read: the measured cage's listening was not measured, and stands on the operator's report
   (`docs/target-environment.md:25`); sandbox A's AF_UNIX bind was doctor's bind
@@ -2800,7 +2800,7 @@ the start; each fails its test.
 **Milestone:** backlog
 **Priority:** P3
 **Effort:** M
-**Status:** blocked
+**Status:** open
 
 ## Problem
 
@@ -2822,6 +2822,12 @@ After Q61: at ready, when `/proc/self/cgroup` names a `session-N.scope`, a nativ
 `StartTransientUnit` with the child's pid, then `/proc/self/cgroup` read again as its proof; a
 failure is a line, never the run's end.
 
+## Decision
+
+2026-11-01: the operator ruled Q61 as recommended (`docs/decisions.md`); the entry is open
+again. What it waited for: The operator: Q61 (`TODO/PROGRESS.md`), whether a detached podssh may ask the user's systemd for
+a scope of its own.
+
 ## Prove
 
 ```sh
@@ -2832,10 +2838,6 @@ cargo test -p podssh-cli --lib detach::scope
 In a session of systemd with lingering off: the detached child's cgroup is its own scope after
 ready, and it outlives a `loginctl terminate-session`.
 
-## Blocker
-
-The operator: Q61 (`TODO/PROGRESS.md`), whether a detached podssh may ask the user's systemd for
-a scope of its own.
 
 # T-382: `podssh session start` asks no prompt, and on Windows stays in the caller's job
 

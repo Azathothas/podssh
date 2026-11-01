@@ -239,7 +239,9 @@ WARP's network, from GitHub Actions and the session's own host (Q52), with
 a throwaway WARP device (Q59); the three public WebSocket forwarders of
 GitHub #59, from GitHub Actions only, with short runs (Q56); and Tailscale's
 tailcat DERP fleet, with short runs, from GitHub Actions and the session's
-own host (Q58). Use throwaway keys, and
+own host (Q58). Since 2026-11-01: the public Tor network, with short runs
+(one bootstrap and one stream), from GitHub Actions and the session's own
+host (Q60). Use throwaway keys, and
 delete them after the test. Keep keys and scratch files in `.work/`, which
 git ignores, or outside the repository. Never print the claim URL of
 railway.new.
@@ -253,17 +255,21 @@ These rules come from [docs/decisions.md](docs/decisions.md).
 2. Make one outbound connection, through `HTTPS_PROXY` when it is set. Do
    not bind, listen, or use loopback helpers. (`podssh doctor` binds a
    socket to test the host, listens once with a backlog of 1, accepts
-   nothing, and closes it at once; never with `PODSSH_LISTEN=no`, Q53.) Three
+   nothing, and closes it at once; never with `PODSSH_LISTEN=no`, Q53.) Four
    exceptions: by the decisions of 2026-10-08, a listener that the user asks
    for, when a probe at run time allows the bind, and a race between relay
    hosts, which can open a second connection for a short time; by the
    decision of 2026-10-30 (Q44), the split HTTP road, which carries a
-   session on two connections where a probe found the upgrade refused.
+   session on two connections where a probe found the upgrade refused; by
+   the decision of 2026-11-01 (Q62), the quick tunnel's node, which keeps a
+   second connection to Cloudflare's edge, to its other region.
 3. Do not use `LD_PRELOAD` or shims in other processes. Start another
    program only when the user names it (`SSH_ASKPASS`, `PAGER`) or a probe
    found it (`less` for `podssh man` on a terminal). A tty in user space for
    a child of `podssh serve` is not a shim: podssh answers the child's tty
-   system calls from its own process (decision of 2026-10-08, T-248).
+   system calls from its own process (decision of 2026-10-08, T-248). This
+   binary started again at the user's request (`--detach`, `ssh -f`,
+   `session start`) is no helper (decision of 2026-11-01, Q61).
 4. Do not put C code in the library crates: `podssh-ws`, `podssh-relay`,
    `podssh-core`, `podssh-terminal` and `podssh-probe`.
    The binary links aws-lc for SSH (`russh`).
