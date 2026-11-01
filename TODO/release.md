@@ -221,6 +221,67 @@ got 465 from undernet for both of its clients, its throttle of one address. The 
 undernet (T-097) and the idle session of T-098 wait for a route whose address these networks
 take.
 
+2026-11-01, later, from a cloud session: the plants of `draft/t251-plants` carried onto `main` at
+`da543fd` (`draft/t251-plants-2`), the plant of T-153 made again against `closes.rs` (T-410 moved
+`ReopenSession`). `plants.yml` on it (run 41305692603): the groups each-a, each-b, cli-tests,
+record, ssh-keys, ssh-pty, ts, resume, resume-cli, irc and host-chat passed on GitHub's runners,
+each plant caught.
+
+The box like the target sandbox does not run on GitHub's runner: its probe of `/dev/tty` waited 40
+minutes there, so it never measured podssh (T-415, with a diagnosis). It runs in this session
+instead, as the Correction of 2026-10-31 allows: the session's only way out is a TLS-reading
+proxy on its loopback, so `scripts/test_in_box.sh` now builds the images on the host's network with
+that proxy's CA, the box's proxy carries each CONNECT that its policy takes on to it
+(`scripts/box/proxy.py --upstream`, through `scripts/box/forward.py` on the podman bridge), and
+podssh in the box trusts that CA, which the run says; `scripts/box/build-podssh.sh` passes the
+proxy and its CA into the build image. Then the box matched the sandbox on every property, and
+each run passed here: default and nolisten, `sandbox-check: 14 ok, 0 FAIL, 1 skip`; tt, the exit
+status 7, vi, less, top and Ctrl-C. The plants of the groups host-box and host-nolisten run here.
+
+# T-415: On GitHub's runner the box's /dev/tty probe waits 40 minutes, so box.yml measures nothing
+
+**Source:** the runs of `box.yml` and of `plants.yml`'s host groups for T-251, 2026-11-01
+(runs 41285485857 and 41306712198).
+**Category:** defect
+**Milestone:** none
+**Priority:** P2
+**Effort:** S
+**Status:** open
+
+## Problem
+
+On GitHub's ubuntu runner the box's probe of `/dev/tty` waits until the holder of the dead pty
+ends, 40 minutes later, then reads an I/O error; the box then differs from the sandbox and
+podssh is never measured in it. Each box run of `box.yml` and each plant of the groups `host-box`
+and `host-nolisten` runs out of its time there, so the box can run only on a host like a cloud
+session's (T-251).
+
+## Premise
+
+- Measured in `box.yml` at `2bc46dc` (run 41285485857): `DIFFERS /dev/tty box: dd: /dev/tty: I/O
+  error`, 40 minutes after the box started.
+- Measured by a diagnosis on the runner at `ed12dfd` (run 41306712198): rootful Podman, the box's
+  seccomp profile, the dead pty bound at `/dev/tty` in `alpine:3`; after 3 s `dd` and busybox
+  `timeout`'s watcher (in a session of its own) both sleep, nothing pending or blocked, SIGINT and
+  SIGQUIT ignored; `dd` then waited until the holder ended at 120 s ("dd: /dev/tty: I/O error").
+  Rootless Podman: `dd` exited 1 at once.
+- Measured here (a cloud session, Linux 6.18, Podman 4.9.3, rootful), the same image, profile and
+  command: `timeout 5` ended `dd` after 5 s (143), and the probe matched.
+
+## Approach
+
+Find why busybox `timeout`'s watcher never signals `dd` on the runner (its sleep, its `kill`, or
+the pid it watches), from a diagnosis that prints the watcher's `/proc/PID/wchan`, its syscall
+and `timeout`'s own exit; then a probe that does not depend on it (the shell's own background
+`dd`, killed by the shell after 5 s), measured on the runner and here.
+
+## Prove
+
+```sh
+# on GitHub's runner, from the workflow
+gh workflow run box.yml -f run=default
+```
+
 # T-309: Publish the rolling betas `v1.0.0-beta.N`
 
 **Source:** the operator, 2026-10-30 (`docs/decisions.md`, "Betas before

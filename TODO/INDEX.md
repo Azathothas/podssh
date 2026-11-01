@@ -62,15 +62,15 @@ repository and CI).
 
 ## Counts
 
-**410 entries: 15 open, 2 partial, 32 blocked, 361 done.**
+**411 entries: 16 open, 2 partial, 32 blocked, 361 done.**
 
 | Priority | open | partial | blocked | done | total |
 | --- | --- | --- | --- | --- | --- |
 | P0 | 0 | 0 | 0 | 1 | 1 |
 | P1 | 1 | 1 | 0 | 38 | 40 |
-| P2 | 1 | 0 | 21 | 177 | 199 |
+| P2 | 2 | 0 | 21 | 177 | 200 |
 | P3 | 13 | 1 | 11 | 145 | 170 |
-| **All** | 15 | 2 | 32 | 361 | 410 |
+| **All** | 16 | 2 | 32 | 361 | 411 |
 
 ## Entries
 
@@ -486,3 +486,4 @@ repository and CI).
 | [T-412](reverse.md) | P2 | S | none | defect | done | The stand-in relay drops a frame of an unknown session, which the live relay answers with 1003 |
 | [T-413](ws.md) | P1 | S | none | defect | done | The test of DoH over HTTP/2 failed in CI: two equal bounds raced |
 | [T-414](roads.md) | P3 | S | none | feature | blocked | The quick tunnel keeps a second connection to the edge, to its other region |
+| [T-415](release.md) | P2 | S | none | defect | open | On GitHub's runner the box's /dev/tty probe waits 40 minutes, so box.yml measures nothing |
