@@ -38,7 +38,12 @@ pub fn ready(verb: &str) {
     let log = log_file(verb);
     let path = log.as_ref().map(|(path, _)| path.clone());
     let shown = path.as_ref().map_or_else(|| "none".to_string(), |p| p.display().to_string());
-    let line = format!("{} pid {}, its log {shown}\n", super::READY, std::process::id());
+    if let Some(path) = &path {
+        super::lock::logged(path);
+    }
+    // The log last: a reader takes the rest of the line for its path.
+    let named = super::lock::name().map_or_else(String::new, |name| format!(", named {name}"));
+    let line = format!("{} pid {}{named}, its log {shown}\n", super::READY, std::process::id());
     let file = log.map(|(_, file)| file);
     if !leave(file.as_ref(), line.as_bytes()) {
         std::process::exit(crate::exitmap::sysexits::EX_TEMPFAIL);

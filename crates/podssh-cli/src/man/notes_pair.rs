@@ -81,7 +81,9 @@ pub(super) const NODE: &[&str] = &[
     "--detach sends the node into the background once it is online (a quick tunnel's, once registered; \
      the iroh road's, once its ticket is said), as podssh ssh -f does (see its notes): this program again, \
      its log detached/node-PID.log in the cache. For a node that must outlive a logout or a reboot, \
-     --install; --detach goes with no --install, --uninstall or --temporary (64).",
+     --install; --detach goes with no --install, --uninstall or --temporary (64). --detach-name NAME names \
+     the run, and a second start of a name that runs refuses (75), where a second node of the pair would \
+     meet the relay's 409; see podssh detached.",
     "--install makes the node a service of this user, with no privilege, which starts it again whenever \
      it ends, by the first way that a probe finds. A user unit of systemd (podssh-node-NAME.service, \
      enabled and started) when systemctl answers for this user: it restarts 5 s after each end with no \

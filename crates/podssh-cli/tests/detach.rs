@@ -91,6 +91,19 @@ impl Setup {
         }
         cmd
     }
+
+    /// `podssh detached WORDS`, with the cache of the runs of [`Setup::podssh`].
+    fn detached(&self, words: &[&str]) -> Command {
+        let mut cmd = Command::new(env!("CARGO_BIN_EXE_podssh"));
+        cmd.arg("detached")
+            .args(words)
+            .env("HOME", &self.home)
+            .env("PODSSH_CACHE_DIR", self.home.join("cache"))
+            .stdin(Stdio::null())
+            .stdout(Stdio::piped())
+            .stderr(Stdio::piped());
+        cmd
+    }
 }
 
 fn free_port() -> u16 {
@@ -283,4 +296,98 @@ fn f_asks_a_password_on_the_terminal_before_it_detaches() {
     let child = Detached(pid_of(&pty.text()));
     assert!(alive(child.0));
     assert_eq!(greeting(port), "target says hi\n");
+}
+
+/// The directory of the runs, from the parent's line that names the log.
+fn runs_dir(stderr: &str) -> PathBuf {
+    let log = stderr.split("its log ").nth(1).and_then(|rest| rest.lines().next()).expect("the log is named");
+    PathBuf::from(log.trim()).parent().expect("the log's directory").to_path_buf()
+}
+
+/// Wait until `pid` is gone, within `LIMIT`.
+fn gone(pid: i32) {
+    let deadline = Instant::now() + LIMIT;
+    while alive(pid) {
+        assert!(Instant::now() < deadline, "pid {pid} is still there");
+        std::thread::sleep(Duration::from_millis(50));
+    }
+}
+
+/// A name runs once (T-392): a second start of it refuses with 75 and names
+/// the pid that runs, before it connects; two runs with no name both start,
+/// each under its verb and its pid; once the first is stopped, its name
+/// starts again.
+#[test]
+fn a_second_start_of_a_name_refuses_while_the_first_runs() {
+    let _one = ONE_AT_A_TIME.lock().unwrap_or_else(|e| e.into_inner());
+    let s = setup("named");
+    let forward = |port: u16| format!("{port}:{}", s.target);
+    let out = ran(s.podssh(&["-f", "-N", "--detach-name", "web", "-L", &forward(free_port())]));
+    let err = String::from_utf8_lossy(&out.stderr).into_owned();
+    assert_eq!(out.status.code(), Some(0), "{err}");
+    let first = Detached(pid_of(&err));
+    assert!(err.contains("named web"), "{err}");
+    let out = ran(s.podssh(&["-f", "-N", "--detach-name", "web", "-L", &forward(free_port())]));
+    let again = String::from_utf8_lossy(&out.stderr).into_owned();
+    assert_eq!(out.status.code(), Some(75), "{again}");
+    assert!(again.contains(&format!("pid {}", first.0)) && again.contains("runs already"), "{again}");
+    assert!(!again.contains("in the background"), "{again}");
+    assert!(alive(first.0), "the refused start touched the first run");
+    let mut unnamed = Vec::new();
+    for _ in 0..2 {
+        let out = ran(s.podssh(&["-f", "-N", "-L", &forward(free_port())]));
+        let err = String::from_utf8_lossy(&out.stderr).into_owned();
+        assert_eq!(out.status.code(), Some(0), "a run with no name was refused: {err}");
+        let pid = pid_of(&err);
+        assert!(err.contains(&format!("named ssh-{pid}")), "{err}");
+        unnamed.push(Detached(pid));
+    }
+    let out = ran(s.detached(&["stop", "web"]));
+    assert_eq!(out.status.code(), Some(0), "{}", String::from_utf8_lossy(&out.stderr));
+    gone(first.0);
+    std::mem::forget(first);
+    let out = ran(s.podssh(&["-f", "-N", "--detach-name", "web", "-L", &forward(free_port())]));
+    let err = String::from_utf8_lossy(&out.stderr).into_owned();
+    assert_eq!(out.status.code(), Some(0), "the name stayed taken after its stop: {err}");
+    let _second = Detached(pid_of(&err));
+}
+
+/// `podssh detached` reads the lock, never a pid alone (T-392): a run says
+/// its pid and stops; a record whose pid lives but holds no lock (here, the
+/// test's own pid, as a reused pid would) reads as ended, and its stop sends
+/// no signal, or this test would end.
+#[test]
+fn status_and_stop_read_the_lock_not_the_pid() {
+    let _one = ONE_AT_A_TIME.lock().unwrap_or_else(|e| e.into_inner());
+    let s = setup("status");
+    let forward = format!("{}:{}", free_port(), s.target);
+    let out = ran(s.podssh(&["-f", "-N", "--detach-name", "web", "-L", &forward]));
+    let err = String::from_utf8_lossy(&out.stderr).into_owned();
+    assert_eq!(out.status.code(), Some(0), "{err}");
+    let child = Detached(pid_of(&err));
+    let out = ran(s.detached(&["status", "web"]));
+    let text = String::from_utf8_lossy(&out.stdout).into_owned();
+    assert_eq!(out.status.code(), Some(0), "{text}{}", String::from_utf8_lossy(&out.stderr));
+    assert!(text.contains("state: running") && text.contains(&format!("pid: {}", child.0)), "{text}");
+    assert!(text.contains("verb: ssh") && text.contains("--detach-name web"), "{text}");
+    let out = ran(s.detached(&["list"]));
+    let list = String::from_utf8_lossy(&out.stdout).into_owned();
+    assert!(list.lines().any(|l| l.starts_with(&format!("web\trunning\t{}\t", child.0))), "{list}");
+    let dir = runs_dir(&err);
+    let me = std::process::id();
+    std::fs::write(dir.join("ghost.json"), format!("{{\"name\":\"ghost\",\"verb\":\"ssh\",\"pid\":{me}}}\n")).unwrap();
+    std::fs::write(dir.join("ghost.lock"), format!("{me}\n")).unwrap();
+    let out = ran(s.detached(&["status", "ghost"]));
+    let text = String::from_utf8_lossy(&out.stdout).into_owned();
+    assert_eq!(out.status.code(), Some(69), "{text}");
+    assert!(text.contains("state: ended"), "{text}");
+    let out = ran(s.detached(&["stop", "ghost"]));
+    assert_eq!(out.status.code(), Some(69), "{}", String::from_utf8_lossy(&out.stderr));
+    let out = ran(s.detached(&["stop", "web"]));
+    assert_eq!(out.status.code(), Some(0), "{}", String::from_utf8_lossy(&out.stderr));
+    gone(child.0);
+    std::mem::forget(child);
+    let out = ran(s.detached(&["status", "web"]));
+    assert_eq!(out.status.code(), Some(69));
+    assert!(String::from_utf8_lossy(&out.stdout).contains("state: ended"));
 }

@@ -206,6 +206,14 @@ fn examples() -> Vec<(&'static str, String)> {
         ),
         ("whether the node is online; then stop the pair", "podssh relay status lab && podssh relay revoke lab".into()),
         (
+            "the node in the background under a name, started again whenever it ends; a second start of the name refuses",
+            "podssh node lab --sshd --detach --restart --detach-name lab".into(),
+        ),
+        (
+            "the runs in the background, then the state of one, and its stop: each read from the run's lock, never a pid",
+            "podssh detached list && podssh detached status lab && podssh detached stop lab".into(),
+        ),
+        (
             "log in, then move the session to a node that the server's own podssh starts: it resumes after a lost link",
             "podssh ssh --upgrade user@example.org".into(),
         ),
@@ -369,6 +377,7 @@ mod tests {
                     Parsed::Config(_) => "config",
                     Parsed::Mcp(_) => "mcp",
                     Parsed::Session(_) => "session",
+                    Parsed::Detached(_) => "detached",
                     Parsed::Man { .. } => "man",
                     Parsed::Node(_) => "node",
                     Parsed::Relay(_) => "relay",

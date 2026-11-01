@@ -54,12 +54,12 @@ pub fn run_node(args: &NodeArgs, err: &mut dyn Write) -> i32 {
     }
     // --detach (T-380): the node goes on in this binary started again, which
     // says when it is online.
-    if args.restart && !args.detach {
-        return Refusal::usage("--restart starts a detached node again; give --detach too".to_string())
-            .report("node", err);
+    if (args.restart || args.detach_name.is_some()) && !args.detach {
+        let why = "--restart and --detach-name are for a detached node; give --detach too";
+        return Refusal::usage(why.to_string()).report("node", err);
     }
     if args.detach && !crate::detach::is_child() {
-        return crate::detach::start("node", args.restart, err);
+        return crate::detach::start("node", args.restart, args.detach_name.as_deref(), err);
     }
     if args.warp && !args.quick_tunnel {
         let why = "--warp is for --quick-tunnel, whose node then reaches Cloudflare's edge inside WARP's tunnel";

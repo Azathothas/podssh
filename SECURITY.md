@@ -237,6 +237,9 @@ Each rule is implemented.
   (`RUNNER_TRACKING_ID`, `BUILD_ID`, `JENKINS_NODE_COOKIE`): a tunnel that
   outlived a shared runner's job would be a way back into another's
   network, and the user asked to outlive the caller, not the job.
+  `podssh detached stop` (T-392) sends a signal only to the pid that the
+  holder of a run's lock wrote, while the lock is held: a record of a run
+  that ended names a pid that the system may have given to another process.
 
 ## Known gaps
 

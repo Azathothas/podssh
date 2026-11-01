@@ -59,7 +59,8 @@ pub fn exit_codes() -> Vec<(Code, String)> {
              answers at SSH_AUTH_SOCK, or the agent keeps no passwords. podssh containers: the host has \
              none of docker, podman and kubectl, one of them failed, or --exec names no container that a \
              list has. podssh session: no session of that name answers, or its session ended (and the \
-             status that it ended with is said).",
+             status that it ended with is said). podssh detached status and stop: no run of that name \
+             runs.",
         ),
         row(
             crate::exit_codes::EXIT_NOT_IMPLEMENTED,
@@ -86,7 +87,8 @@ pub fn exit_codes() -> Vec<(Code, String)> {
              before the job ended, which runs on; podssh job fetch: the job is queued or running, so its \
              output is not whole yet. podssh node --quick-tunnel: api.trycloudflare.com refused for now \
              (429 or a 5xx) and asked for a wait past 5 minutes, which the line names, or refused for 5 \
-             minutes; a later run can work.",
+             minutes; a later run can work. --detach and -f: a run of the same --detach-name runs, and its \
+             pid is said. podssh detached stop: the run still holds its lock after it was killed.",
         ),
         row(
             sysexits::EX_NOPERM,
@@ -236,10 +238,13 @@ pub fn files() -> Vec<(Vec<String>, String)> {
         ),
         (
             vec!["detached/".to_string()],
-            "The logs of the runs that --detach and -f sent into the background (T-380), in the cache, mode \
-             0700: VERB-PID.log, mode 0600, which takes the run's stdout and stderr once it is ready; past 1 \
-             MiB its earlier part goes to VERB-PID.log.1. podssh removes none: a log tells what a run in the \
-             background did."
+            "The runs that --detach and -f sent into the background (T-380, T-392), in the cache, mode 0700: \
+             VERB-PID.log, mode 0600, which takes the run's stdout and stderr once it is ready; past 1 MiB its \
+             earlier part goes to VERB-PID.log.1. NAME.lock, which the run of the name NAME (or its supervisor \
+             of --restart) holds for its life, with its pid in it, and NAME.run.lock, which a supervisor's run \
+             holds: a second start of the name refuses while either is held, and podssh detached reads them. \
+             NAME.json, the run's record: its pid, the pid of a supervisor's run, its words, its log and its \
+             start. podssh removes none: a log tells what a run in the background did."
                 .to_string(),
         ),
         (
@@ -330,7 +335,9 @@ pub fn files() -> Vec<(Vec<String>, String)> {
             vec![format!("sessions{}NAME.sock", std::path::MAIN_SEPARATOR)],
             "The socket of each session of podssh session, in the cache: the directory sessions has mode 0700, \
              and each socket mode 0600 (on Windows, the access list of the cache); it goes when its session's \
-             podssh ends. A socket that nobody serves is replaced by the next start of its name."
+             podssh ends. A socket that nobody serves is replaced by the next start of its name. Beside a \
+             socket's file, NAME.sock.lock, which its podssh holds for its life, so that a second one of the \
+             name is refused (69) and never removes the first one's socket."
                 .to_string(),
         ),
         (

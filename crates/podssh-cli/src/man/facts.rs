@@ -245,6 +245,13 @@ pub const VARIABLES: &[(&[&str], &str)] = &[
       writes, the supervisor's. Set by podssh; a user has no need to set it.",
     ),
     (
+        &["PODSSH_DETACH_NAME", "PODSSH_DETACH_SUPERVISOR"],
+        "podssh's own, for a run in the background (see podssh detached): its name, which --detach-name gives, \
+      and in each run that a supervisor of --restart starts, the supervisor's pid, so that the run holds its \
+      own lock beside the name's. Set by podssh, and removed from a run that --detach starts; a user has no \
+      need to set them.",
+    ),
+    (
         &["PODSSH_LISTEN"],
         "no: podssh pipe listens on nothing, and unix-listen:, tcp-listen:, http-listen: and ws-listen: exit 78 \
       before any bind; so do podssh session start and serve. Else they listen where the bind works.",

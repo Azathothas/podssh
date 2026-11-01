@@ -19,7 +19,9 @@ use std::sync::atomic::{AtomicBool, Ordering};
 use std::sync::OnceLock;
 
 mod child;
+pub mod control;
 mod hazards;
+pub mod lock;
 pub mod supervise;
 
 pub use child::{keep_own_handles, prepare_process, ready};
@@ -116,10 +118,17 @@ pub(crate) fn binaries() -> Vec<PathBuf> {
 
 /// Send the run of `verb` into the background: the parent's whole part.
 /// With `restart`, a supervisor goes between, which starts the run again
-/// whenever it ends (T-390). Its code: 0 once the child is ready; the
-/// child's own when it ended first; 69 where a detached run cannot outlive
-/// this one; 70 when this binary cannot start itself.
-pub fn start(verb: &str, restart: bool, err: &mut dyn Write) -> i32 {
+/// whenever it ends (T-390). `name` is `--detach-name` (T-392), which the
+/// run's holder takes; with none it takes its verb and its pid. Its code: 0
+/// once the child is ready; the child's own when it ended first (75 when
+/// its name runs already); 64 for a name that names no file; 69 where a
+/// detached run cannot outlive this one; 70 when this binary cannot start
+/// itself.
+pub fn start(verb: &str, restart: bool, name: Option<&str>, err: &mut dyn Write) -> i32 {
+    if let Some(Err(why)) = name.map(lock::check_name) {
+        let _ = writeln!(err, "podssh {verb}: --detach-name {why}");
+        return crate::exit_codes::EXIT_USAGE;
+    }
     if let Some(why) = hazards::refusal() {
         let _ = writeln!(err, "podssh {verb}: --detach: {why}");
         return crate::exitmap::sysexits::EX_UNAVAILABLE;
@@ -137,6 +146,14 @@ pub fn start(verb: &str, restart: bool, err: &mut dyn Write) -> i32 {
         child::name_it(&mut cmd);
         cmd.arg(if restart { supervise::SUPERVISE_FLAG } else { CHILD_FLAG }).args(args);
         cmd.stdin(Stdio::inherit()).stdout(Stdio::piped()).stderr(Stdio::inherit());
+        // The run's name, and nothing of a run that started this one: a
+        // supervisor's variables would make the child take itself for one
+        // of its runs.
+        match name {
+            Some(name) => cmd.env(lock::NAME_VARIABLE, name),
+            None => cmd.env_remove(lock::NAME_VARIABLE),
+        };
+        cmd.env_remove(lock::SUPERVISOR_VARIABLE).env_remove(supervise::LOG_VARIABLE);
         keep_own_handles();
         match child::spawn(&mut cmd, &mut |line| {
             let _ = writeln!(err, "podssh {verb}: --detach: note: {line}");

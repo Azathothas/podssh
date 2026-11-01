@@ -169,3 +169,23 @@ fn the_socket_goes_in_the_first_directory_that_fits() {
     assert!(why.contains("too long for the address of a socket") && why.contains("--socket"), "{why}");
     let _ = std::fs::remove_dir_all(&root);
 }
+
+/// One daemon for a socket's file (T-392): two starts of a name could both
+/// find its path free, and the second, whose bind failed, removed the
+/// first's socket. A second holder of its lock is refused while the first
+/// lives; an abstract name has no file to lock, as its bind alone decides.
+#[test]
+fn a_second_daemon_of_a_socket_is_refused_while_the_first_holds_it() {
+    let dir = std::env::temp_dir().join(format!("podssh-session-lock-{}", std::process::id()));
+    let _ = std::fs::remove_dir_all(&dir);
+    std::fs::create_dir_all(&dir).unwrap();
+    let path = dir.join("w.sock").display().to_string();
+    let first = daemon::socket_lock(&path).unwrap();
+    assert!(first.is_some());
+    let second = daemon::socket_lock(&path).unwrap_err();
+    assert!(second.contains("another podssh session serves it"), "{second}");
+    drop(first);
+    assert!(daemon::socket_lock(&path).unwrap().is_some());
+    assert!(daemon::socket_lock("@w").unwrap().is_none());
+    let _ = std::fs::remove_dir_all(&dir);
+}

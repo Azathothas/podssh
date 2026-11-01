@@ -52,6 +52,8 @@ pub struct NodeArgs {
     pub detach: bool,
     /// `--restart`: the detached node started again whenever it ends (T-390).
     pub restart: bool,
+    /// `--detach-name NAME`: the detached node's name (T-392).
+    pub detach_name: Option<String>,
     /// `--install`: the node as a service of this user (T-121).
     pub install: bool,
     /// `--uninstall`: remove the service that `--install` made.
@@ -92,6 +94,7 @@ impl NodeArgs {
             temporary: get("temporary"),
             detach: matches.get_flag("detach"),
             restart: matches.get_flag("restart"),
+            detach_name: get("detach-name"),
             install: matches.get_flag("install"),
             uninstall: matches.get_flag("uninstall"),
             env_file: get("env-file"),

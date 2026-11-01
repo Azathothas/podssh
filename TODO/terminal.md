@@ -55,7 +55,7 @@ a local echo to the echo of the remote pty, so each key shows two times.
    `docs/terminal.md` ("Select a mode"), `docs/STATUS.md:624`, and the module notes
    (`crates/podssh-terminal/src/session.rs:1-46`,
    `crates/podssh-terminal/src/lib.rs:18-34`). Remove the warning markers
-   from the lines that you change (`AGENTS.md:271-272`).
+   from the lines that you change (`AGENTS.md:272-273`).
 
 ## Decision
 
@@ -688,7 +688,7 @@ passes a sequence, a user can expect podssh to act on it. No page lists both.
    pty, serve with the line discipline), list the bytes that podssh acts on,
    the bytes that it refuses, and say that each other byte passes unchanged.
 2. Put the same list in the manual's notes for `ssh`
-   (`crates/podssh-cli/src/man/notes.rs:25-59`), and for `serve` when it
+   (`crates/podssh-cli/src/man/notes.rs:26-61`), and for `serve` when it
    exists.
 3. A drift test: each escape command of `crates/podssh-ssh/src/escape.rs:12-25`
    is in the note, and the note names no other.
@@ -723,7 +723,7 @@ fails. The binary (`$BIN`) prints the note in its manual.
 2026-10-12. The table at `crates/podssh-ssh/src/escape.rs:27-40`, read by
 the input at `crates/podssh-ssh/src/escape.rs:94` and by `~?` at
 `crates/podssh-ssh/src/escape.rs:140-150`; the note at
-`crates/podssh-cli/src/man/notes_ssh.rs:249-259`, and the section "What
+`crates/podssh-cli/src/man/notes_ssh.rs:251-261`, and the section "What
 podssh reads from the terminal" of `docs/terminal.md`. The tests:
 `the_terminal_note_names_each_escape` (`crates/podssh-cli/src/man/notes.rs`)
 finds the escapes `~.`, `~R`, `~#`, `~?` and `~~` in the note, and no other;

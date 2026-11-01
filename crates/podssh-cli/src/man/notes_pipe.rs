@@ -25,7 +25,8 @@ pub const PIPE: &[&str] = &[
      answers is another program's (69). PODSSH_LISTEN set to no turns listening off (78).",
     "--detach sends a listening pipe into the background once it listens, as podssh ssh -f does (see its \
      notes): this program again, its log detached/pipe-PID.log in the cache; its other side may not be \
-     stdio (64), as the background has neither stdin nor stdout.",
+     stdio (64), as the background has neither stdin nor stdout. --detach-name NAME names it, and a second \
+     start of a name that runs refuses (75); see podssh detached.",
     "http-listen:[ADDR:]PORT, as tcp-listen: takes it, or http-listen:PATH, a socket by the names of \
      unix-listen:, is an HTTP CONNECT proxy, for a program that knows only HTTPS_PROXY: set it to \
      http://127.0.0.1:PORT. Each CONNECT HOST:PORT opens the other side with that target, which the other \

@@ -261,11 +261,9 @@ pub const SSH_FLAGS: &[FlagRow] = &[
         "podssh negotiates its own modern ciphers", Some("no flag")),
     row(Some('m'), "mac", Some("MACS"), FlagKind::Refused,
         "podssh negotiates its own modern MACs", Some("no flag")),
-    // T-380: OpenSSH's -f, and --detach of each command that serves.
-    row(Some('f'), "detach", None, FlagKind::Supported,
-        "go to the background once logged in and the request went, with a command or -N (see --detach)", None),
-    row(None, "restart", None, FlagKind::Supported,
-        "with -f or --detach: a small process in the background starts the run again whenever it ends, but after 64, 77 or 78 or a stop of that process; it never gives up (T-390)", None),
+    // T-380: OpenSSH's -f, and --detach of each command that serves; its
+    // supervisor (T-390) and its name (T-392).
+    detach::SSH_DETACH, detach::SSH_RESTART, detach::DETACH_NAME,
     row(Some('G'), "print-config", None, FlagKind::Supported,
         "print the settings in effect, as ssh -G does, and connect to nothing", None),
     row(Some('I'), "pkcs11", Some("LIBRARY"), FlagKind::Refused,
@@ -299,6 +297,7 @@ mod config;
 mod containers;
 mod copy;
 mod derp;
+mod detach;
 mod each;
 mod edit;
 mod expect;
@@ -327,6 +326,7 @@ pub use chat::CHAT_FLAGS;
 pub use config::CONFIG_FLAGS;
 pub use containers::CONTAINERS_FLAGS;
 pub use copy::CP_FLAGS;
+pub use detach::DETACHED_FLAGS;
 pub use each::EACH_FLAGS;
 pub use edit::EDIT_FLAGS;
 pub use health::HEALTH_FLAGS;
@@ -420,6 +420,8 @@ pub const VERBS: &[Verb] = &[
         about: "the commands as tools for an agent: a Model Context Protocol server on stdin and stdout" },
     Verb { name: "session", aliases: &["session"], flags: SESSION_FLAGS,
         about: "a session that outlives each call, for an agent: start it, send keys, wait until the output stops, read the screen" },
+    Verb { name: "detached", aliases: &["detached"], flags: DETACHED_FLAGS,
+        about: "the runs that --detach and -f sent into the background, by their names: list them, the state of one, stop one" },
     Verb { name: "update", aliases: &["update"], flags: UPDATE_FLAGS,
         about: "this binary from the newest release, its signature and its sum checked first; only when asked" },
 ];
@@ -435,6 +437,7 @@ pub const GROUPS: &[(&str, &[&str])] = &[
     ("Keys", &["keygen", "agent"]),
     ("Check this host and the path", &["doctor", "status", "ping", "health"]),
     ("The reverse road", &["node", "operator"]),
+    ("Runs in the background", &["detached"]),
     ("Messages", &["chat"]),
     ("Recordings", &["play"]),
     ("Settings", &["config"]),

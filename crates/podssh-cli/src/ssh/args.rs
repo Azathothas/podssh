@@ -75,6 +75,9 @@ pub struct SshArgs {
     pub detach: bool,
     /// `--restart`: the detached run started again whenever it ends (T-390).
     pub restart: bool,
+    /// `--detach-name NAME`: the detached run's name, which its lock holds
+    /// (T-392).
+    pub detach_name: Option<String>,
     /// `--persist`: tmux on the server, attached again after a lost link.
     pub persist: bool,
     /// The tmux session of `--persist`.
@@ -177,6 +180,7 @@ pub const ONCE: &[(&str, &str)] = &[
     ("install", "give one name"),
     ("uninstall", "give one name"),
     ("env-file", "give one file"),
+    ("detach-name", "give one name"),
 ];
 
 /// The refusal for a flag of [`ONCE`] given more than once, if there is one.
@@ -289,6 +293,7 @@ impl SshArgs {
             derp_server: one("derp-server"),
             detach: flag("detach"),
             restart: flag("restart"),
+            detach_name: one("detach-name"),
             persist: flag("persist"),
             persist_name: one("persist-name"),
             persist_forever: flag("persist-forever"),

@@ -967,6 +967,36 @@ and a restart before the first ready. After 5 runs in a row that end within
 10 s of their start, it starts the binary that `podssh update` kept,
 `podssh.prev` (T-396), where it runs here. Without `--detach` it is refused
 (64).
+
+**`--detach-name NAME` and `podssh detached`** (T-392, from the same
+study): a run in the background holds the lock of its name,
+`detached/NAME.lock` in the cache, from before its connection to its end;
+with `--restart` its supervisor holds it, so that each restart keeps it,
+and each run that the supervisor starts holds `NAME.run.lock`, so that a
+run whose supervisor died still holds its name. A second start of a name
+that runs (a cron line, a unit, a person) refuses with 75 before it
+connects, and names the pid that runs, where it would start a second copy
+that the relay refuses for a node of the same pair (409) and that a `-R`
+forward meets as a port in use. With no `--detach-name`, the name is the
+verb and the holder's pid (`ssh-4242`), which no other running run has, so
+a run with no name is never refused. The kernel lets a lock go when its
+process ends, however it ends (`flock`, or `LockFileEx` on Windows, as
+`File::try_lock` takes them), so no stale file keeps a name taken; with no
+cache (`PODSSH_CACHE_DIR=none`) there is no lock, a line says so, and the
+run goes on. Beside the lock, `NAME.json` records the run: its pid, the pid
+of a supervisor's run, its words, its log and its start.
+`podssh detached list` writes a line for each run (its name, its state, its
+pid, its words); `status NAME` its fields, with 0 when it runs and 69 when
+it does not; `stop NAME` sends SIGTERM to the holder of the name, then
+SIGKILL after 10 s to each holder still there, the supervisor first (on
+Windows `TerminateProcess` at once, the supervisor first), and exits 0 once
+each lock is free. Each trusts the locks, never a pid alone: a record stays
+after its run ended, and the system gives its pid to another process; a pid
+is signalled only while its run's lock is held, and it is the pid that the
+holder wrote. The same lock now guards the socket of `podssh session`: two
+starts of one name could both find its path free, and the second, whose
+bind failed, removed the first's socket; its daemon holds `NAME.sock.lock`
+for its life, and a second one is refused (69).
 On Windows the supervisor's end leaves the run; it has no signal to pass.
 
 ## `podssh each`

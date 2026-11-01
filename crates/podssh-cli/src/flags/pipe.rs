@@ -43,6 +43,7 @@ pub const PIPE_FLAGS: &[FlagRow] = &[
         "a listening side: go to the background once it listens, as podssh itself (T-380); the other side may not be stdio", None),
     row(None, "restart", None, FlagKind::Supported,
         "with --detach: a small process in the background starts the run again whenever it ends, but after 64, 77 or 78 or a stop of that process; it never gives up (T-390)", None),
+    super::detach::DETACH_NAME,
     row(None, "proxy-auth-file", Some("FILE"), FlagKind::Supported,
         "http-listen: each client gives a USER:PASSWORD of FILE, a private file, one a line, in Proxy-Authorization; needed off loopback", None),
 ];

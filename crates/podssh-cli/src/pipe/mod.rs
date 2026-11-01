@@ -91,12 +91,12 @@ pub fn run_pipe(args: &PipeArgs, err: &mut dyn Write) -> i32 {
         Ok(settings) => settings,
         Err(refusal) => return refusal.report("pipe", err),
     };
-    if args.ssh.restart && !args.ssh.detach {
-        let why = "--restart starts a detached run again; give --detach too".to_string();
+    if (args.ssh.restart || args.ssh.detach_name.is_some()) && !args.ssh.detach {
+        let why = "--restart and --detach-name are for a detached run; give --detach too".to_string();
         return crate::relay_settings::Refusal::usage(why).report("pipe", err);
     }
     if args.ssh.detach && !crate::detach::is_child() {
-        return crate::detach::start("pipe", args.ssh.restart, err);
+        return crate::detach::start("pipe", args.ssh.restart, args.ssh.detach_name.as_deref(), err);
     }
     let runtime = match tokio::runtime::Builder::new_current_thread().enable_all().build() {
         Ok(rt) => rt,

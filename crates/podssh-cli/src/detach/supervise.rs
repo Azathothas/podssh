@@ -18,7 +18,7 @@ use std::process::{Child, Command, Stdio};
 use std::sync::atomic::{AtomicBool, Ordering};
 use std::time::{Duration, Instant};
 
-use super::{binaries, child, code_of, CHILD_FLAG, READY};
+use super::{binaries, child, code_of, lock, CHILD_FLAG, READY};
 
 /// The first word of a supervisor's command line, which podssh alone
 /// writes, in the child's place.
@@ -52,9 +52,18 @@ pub fn is_final(code: i32) -> bool {
 /// flag. Its code: the first child's before ready; after it, 0 on a stop,
 /// or the code of a child that ended for good.
 pub fn run(args: &[OsString]) -> i32 {
-    let verb = args.first().and_then(|w| w.to_str()).unwrap_or("podssh").to_string();
+    let word = args.first().and_then(|w| w.to_str()).unwrap_or("podssh");
+    let verb = crate::flags::canonical_name(word).unwrap_or(word).to_string();
+    // The lock of the run's name, held for the supervisor's life, so that
+    // its restarts keep it (T-392); a name that runs already ends here.
+    if let Some(code) = lock::enter(&verb, true, args, &mut std::io::stderr()) {
+        return code;
+    }
     let log = child::log_file(&verb);
     let log_path = log.as_ref().map(|(path, _)| path.clone());
+    if let Some(path) = &log_path {
+        lock::logged(path);
+    }
     let started = Instant::now();
     let mut first = match start(args, true, log_path.as_ref()) {
         Ok(first) => first,
@@ -70,8 +79,12 @@ pub fn run(args: &[OsString]) -> i32 {
         return first.wait().map(code_of).unwrap_or(podssh_ssh::EXIT_FAILURE);
     }
     let shown = log.as_ref().map_or_else(|| "none".to_string(), |(p, _)| p.display().to_string());
-    let line =
-        format!("{READY} pid {}, which restarts the run of pid {}, its log {shown}\n", std::process::id(), first.id());
+    let named = lock::own_name(&verb);
+    let line = format!(
+        "{READY} pid {}, which restarts the run of pid {}, named {named}, its log {shown}\n",
+        std::process::id(),
+        first.id()
+    );
     if !child::leave(log.as_ref().map(|(_, f)| f), line.as_bytes()) {
         let _ = first.kill();
         return crate::exitmap::sysexits::EX_TEMPFAIL;
@@ -109,6 +122,12 @@ fn start_with(
         if let Some(path) = log {
             cmd.env(LOG_VARIABLE, path);
         }
+        // The run's name, and this supervisor: the run holds its own lock
+        // beside the name's, which this process holds (T-392).
+        if let Some(name) = lock::name() {
+            cmd.env(lock::NAME_VARIABLE, name);
+        }
+        cmd.env(lock::SUPERVISOR_VARIABLE, std::process::id().to_string());
         if first {
             cmd.stdin(Stdio::inherit()).stderr(Stdio::inherit());
         } else {
@@ -117,7 +136,10 @@ fn start_with(
             cmd.stderr(err.map_or_else(Stdio::null, Stdio::from));
         }
         match child::spawn(&mut cmd, &mut |line| podssh_ssh::err_line!("podssh: --restart: note: {line}")) {
-            Ok(started) => return Ok(started),
+            Ok(started) => {
+                lock::ran(started.id());
+                return Ok(started);
+            }
             Err(e) => tried.push(format!("{}: {e}", program.display())),
         }
     }

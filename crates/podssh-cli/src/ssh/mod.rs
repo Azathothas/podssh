@@ -171,8 +171,9 @@ fn run(args: &SshArgs, tty: Tty, err: &mut dyn Write) -> i32 {
         }
         return 0;
     }
-    if args.restart && !resolved.detach {
-        let _ = writeln!(err, "podssh ssh: --restart starts a detached run again; give -f or --detach too");
+    if (args.restart || args.detach_name.is_some()) && !resolved.detach {
+        let _ =
+            writeln!(err, "podssh ssh: --restart and --detach-name are for a detached run; give -f or --detach too");
         return EXIT_USAGE;
     }
     // -f, --detach and ForkAfterAuthentication (T-380): the run goes on in
@@ -187,7 +188,7 @@ fn run(args: &SshArgs, tty: Tty, err: &mut dyn Write) -> i32 {
             return EXIT_USAGE;
         }
         if !crate::detach::is_child() {
-            return crate::detach::start("ssh", args.restart, err);
+            return crate::detach::start("ssh", args.restart, args.detach_name.as_deref(), err);
         }
         // As OpenSSH's -f: a command reads no stdin (-n).
         resolved.options.stdin_null = true;

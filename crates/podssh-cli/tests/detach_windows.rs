@@ -214,3 +214,34 @@ fn a_restarted_run_comes_back_after_a_kill() {
     drop(job);
     let _ = std::fs::remove_dir_all(&home);
 }
+
+/// A name runs once, and `podssh detached stop` ends it (T-392): a second
+/// start of the name is refused with 75 while a run of `--restart` holds
+/// it; the stop ends the supervisor first, then its run, so that nothing
+/// starts the run again, and the port serves no more.
+#[test]
+fn a_named_run_refuses_a_second_start_and_stops_by_its_name() {
+    let home = scratch("named");
+    let (to, listen) = (target(), free_port());
+    let job = Job::new(true);
+    let (code, err) = detached_with(&job, &home, listen, to, "--restart --detach-name w");
+    let _supervisor = Stopped::of(&err);
+    assert_eq!(code, Some(0), "{err}");
+    assert!(err.contains("named w"), "{err}");
+    assert_eq!(greeting(listen).as_deref(), Some("target says hi\n"), "{err}");
+    let (code, again) = detached_with(&job, &home, free_port(), to, "--detach-name w");
+    assert_eq!(code, Some(75), "{again}");
+    assert!(again.contains("runs already"), "{again}");
+    let out = Command::new(env!("CARGO_BIN_EXE_podssh"))
+        .args(["detached", "stop", "w"])
+        .env("PODSSH_CACHE_DIR", home.join("cache"))
+        .env("USERPROFILE", &home)
+        .stdin(Stdio::null())
+        .output()
+        .unwrap();
+    assert_eq!(out.status.code(), Some(0), "{}", String::from_utf8_lossy(&out.stderr));
+    std::thread::sleep(Duration::from_millis(500));
+    assert_eq!(greeting(listen), None, "the run serves after its stop: {err}");
+    drop(job);
+    let _ = std::fs::remove_dir_all(&home);
+}

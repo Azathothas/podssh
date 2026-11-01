@@ -110,6 +110,14 @@ service manager (UNVERIFIED).
   which starts the child again after each end but 64, 77 and 78 and its
   own stop, with the relay's backoff, never giving up; no PDEATHSIG, and no
   restart before the first ready (`docs/cli.md`).
+- A name for each run (T-392, from the study of d-mon, whose `status` and
+  `stop` take its pid file's `flock` themselves): `--detach-name`, else the
+  verb and the holder's pid. The holder (the child, or the supervisor of
+  `--restart`) holds `detached/NAME.lock` for its life, and a supervisor's
+  run `NAME.run.lock`; a second start of a held name refuses with 75 before
+  it connects. `podssh detached list`, `status` and `stop` try the locks
+  shared, and signal a pid only while its lock is held. A lock that cannot
+  be had lets the run go on, with a line.
 - A line that fails to write is dropped, never the run's end: after ready
   stderr is the log, and its disk may fill or, under systemd, the journal
   go away. `eprintln!` panics on such a failure and the release aborts on a
@@ -132,6 +140,11 @@ Each fails on the defect planted against it:
 - a node whose stderr fails (a pipe with no reader, `/dev/full`) goes on
   serving two logins (`tests/node_detach.rs`; an `eprintln!` in the node's
   lines);
+- a second start of a name that runs refuses with 75 and names its pid, two
+  runs with no name both start, and a stopped name starts again; `detached
+  status` and `stop` read the lock, so a record of a living pid that holds
+  no lock reads as ended and is sent nothing (`tests/detach.rs`; on Windows,
+  `tests/detach_windows.rs`);
 
 - the caller sees the end of its pipes at once, an extra descriptor
   included (the close of descriptors from 3 up removed);

@@ -146,6 +146,14 @@ pub fn add(cmd: Command, name: &str) -> Command {
                     .allow_hyphen_values(true)
                     .help("start and serve: the command to run on the host with a pty, in place of the login shell; send: more words of the text, joined with spaces"),
             ),
+        "detached" => cmd
+            .arg(Arg::new("subcommand").value_name("SUBCOMMAND").help("list, status or stop"))
+            .arg(
+                Arg::new("args")
+                    .value_name("NAME")
+                    .num_args(0..)
+                    .help("the run's name: its --detach-name, else its verb and its pid, as podssh detached list shows it"),
+            ),
         "relay" => cmd
             .arg(
                 Arg::new("subcommand")

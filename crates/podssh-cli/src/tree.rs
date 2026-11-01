@@ -405,6 +405,12 @@ pub fn parse_verb(verb: &'static Verb, rest: &[std::ffi::OsString]) -> Parsed {
         return Parsed::Session(Box::new(crate::session::SessionArgs::from_matches(&matches, rest, refused)));
     }
 
+    if verb.name == "detached" {
+        let subcommand = matches.get_one::<String>("subcommand").cloned();
+        let args = matches.get_many::<String>("args").map(|v| v.cloned().collect()).unwrap_or_default();
+        return Parsed::Detached(Box::new(crate::detach::control::DetachedArgs { subcommand, args, refused }));
+    }
+
     if verb.name == "run" {
         return Parsed::Run(Box::new(crate::run_cmd::RunArgs::from_matches(&matches, refused)));
     }

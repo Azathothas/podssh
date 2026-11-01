@@ -158,6 +158,14 @@ impl Shared {
 
 async fn serve(args: &SessionArgs, plan: Plan, out: &mut dyn Write, err: &mut dyn Write) -> i32 {
     let Plan { mut resolved, log, path } = plan;
+    // Held until the daemon ends, before the probe of the socket.
+    let _lock = match socket_lock(&path) {
+        Ok(lock) => lock,
+        Err(line) => {
+            let _ = writeln!(err, "podssh session: {line}");
+            return EX_UNAVAILABLE;
+        }
+    };
     // A client of another user that was closed is said; the others with -v.
     let mut say = |line: &str| if line.starts_with("closed") { log.info(line) } else { log.verbose(line) };
     let mut listener = match Listener::bind(&Address::UnixListen(path.clone()), &mut say).await {
@@ -395,5 +403,28 @@ async fn wait_for(shared: &Shared, wait: Wait) -> String {
             _ = changes.changed() => {}
             () = tokio::time::sleep_until(tokio::time::Instant::from_std(next)) => {}
         }
+    }
+}
+
+/// The lock of a socket's file, `PATH.lock`, which the daemon holds for its
+/// life (T-392): two starts of one name could both find the path free, and
+/// the second, whose bind failed, would remove the first's socket, so that
+/// its session answered nobody. Another daemon's lock is a refusal (69); a
+/// lock that cannot be had lets the daemon go on as before. An abstract
+/// name of Linux and a named pipe of Windows have no file: their bind
+/// alone decides.
+pub(super) fn socket_lock(path: &str) -> Result<Option<std::fs::File>, String> {
+    if path.starts_with('@') || path.starts_with(r"\\.\pipe\") {
+        return Ok(None);
+    }
+    let lock = std::path::PathBuf::from(format!("{path}.lock"));
+    match crate::node_install::lock::try_hold(&lock) {
+        Ok(crate::node_install::lock::Tried::Held(file)) => Ok(Some(file)),
+        Ok(crate::node_install::lock::Tried::Taken(pid)) => Err(format!(
+            "{path}: another podssh session serves it{}, as it holds {}",
+            pid.map_or_else(String::new, |pid| format!(" (pid {pid})")),
+            lock.display()
+        )),
+        Err(_) => Ok(None),
     }
 }

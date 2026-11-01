@@ -153,6 +153,8 @@ pub fn run_with(p: &Parsed, s: &mut Streams<'_>, tty: Tty) -> i32 {
         Parsed::Mcp(args) => crate::mcp::run(args, s.err),
         Parsed::Session(args) if refusals("session", &args.refused, s.err) => EXIT_USAGE,
         Parsed::Session(args) => crate::session::run(args, s.out, s.err),
+        Parsed::Detached(args) if refusals("detached", &args.refused, s.err) => EXIT_USAGE,
+        Parsed::Detached(args) => crate::detach::control::run(args, s.out, s.err),
         Parsed::Agent(args) if refusals("agent", &args.refused, s.err) => EXIT_USAGE,
         Parsed::Agent(args) => crate::agent::run(args, s.out, s.err),
         Parsed::Status { relay_host, relay_addr, destination, refused } => {
@@ -357,6 +359,10 @@ where
     // A supervisor of --restart runs no command of its own (T-390).
     if crate::detach::is_supervisor() {
         return crate::detach::supervise::run(&argv);
+    }
+    // A detached run holds the lock of its name before anything (T-392).
+    if let Some(code) = crate::detach::lock::enter_child(&argv) {
+        return code;
     }
     // The binary that an update on Windows moved aside, which runs no more
     // (T-375); elsewhere nothing.

@@ -56,7 +56,7 @@ unknown flag (exit 64), and `Cargo.lock` has no iroh crate.
 5. `doctor`, with the feature: a UDP line, and the `/ping` of the home relay
    through the proxy (`crates/podssh-cli/src/doctor/host.rs:10-25`).
 6. `availability()` knows `ts` as the only build feature
-   (`crates/podssh-cli/src/flags.rs:470-478`): extend it. With no feature, an
+   (`crates/podssh-cli/src/flags.rs:473-481`): extend it. With no feature, an
    iroh destination refuses before it connects and names `--features iroh`,
    as `crates/podssh-cli/tests/ts_not_built.rs:1-4` shows for `ts`.
 7. Docs: the "Outbound only" item of `README.md`, "Nothing listens" in
@@ -186,8 +186,8 @@ the file that `--ts-state` names (`crates/podssh-cli/src/flags.rs:356-357`,
 5. The node prints its ticket and its fingerprint on stderr when it starts.
    `podssh ssh iroh:TICKET` dials it (the address of `docs/design.md:971`).
 6. Add the key files to FILES in the manual
-   (`crates/podssh-cli/src/man/data.rs:148-357`), and each new variable to
-   `VARIABLES` (`crates/podssh-cli/src/man/facts.rs:45-271`).
+   (`crates/podssh-cli/src/man/data.rs:150-364`), and each new variable to
+   `VARIABLES` (`crates/podssh-cli/src/man/facts.rs:45-278`).
 
 ## Decision
 
@@ -373,7 +373,7 @@ sandbox can block what iroh needs, so the fallback is necessary
 6. With `-v`, print the road that won and its time.
 7. Each resume of T-153 runs the same race.
 8. Docs: the rule of the race in `docs/design.md` section 2, and the notes of
-   `ssh` in the manual (`crates/podssh-cli/src/man/notes_ssh.rs:4-468`).
+   `ssh` in the manual (`crates/podssh-cli/src/man/notes_ssh.rs:4-470`).
 
 ## Decision
 
@@ -511,9 +511,9 @@ in iroh's source at the pinned version.
    not in the list.
 6. `doctor`, with the feature, reports the `/ping` of each relay and the home
    relay.
-7. Add the variable to `VARIABLES` (`crates/podssh-cli/src/man/facts.rs:45-271`),
+7. Add the variable to `VARIABLES` (`crates/podssh-cli/src/man/facts.rs:45-278`),
    the flag to the flag table, and the default to the relay section of the
-   manual (`crates/podssh-cli/src/man/facts.rs:290-446`). The tests compare
+   manual (`crates/podssh-cli/src/man/facts.rs:297-453`). The tests compare
    `VARIABLES` with the source in both directions
    (`crates/podssh-cli/src/man/facts.rs:43-44`), so a variable that only the
    feature reads is in the manual only with the feature.
@@ -1135,7 +1135,7 @@ their own server, and the gate tests faults against a stand-in in Python.
 ## Premise
 
 Read: the relay is a Cloudflare Worker, and its own document is the contract
-(`docs/relay.md:1-21`, `README.md:34-37`). The stand-in serves the forward
+(`docs/relay.md:1-21`, `README.md:35-38`). The stand-in serves the forward
 path, `/v1/mint` and `/health` only (`scripts/fake-relay.py:119-137`). The
 pinned contract gives the forward path and the tokens
 (`crates/podssh-probe/tests/spec/relay-spec-2026-10-03-r2.txt:73-104`), the
@@ -3245,7 +3245,7 @@ that says why.
   public relays its default until the operator runs one. The row says nothing of the release
   binaries: "off in the release" is the default of `Cargo.toml` and the build of the workflow,
   which the study reads as the operator's policy. In a build without the feature, the iroh road
-  refuses with exit code 70 (`AGENTS.md:20-21`).
+  refuses with exit code 70 (`AGENTS.md:21-22`).
 - Read in the study (https://docs.iroh.computer/iroh-services/relays/public): the public relays
   are "suitable for development and hobby use only", they rate-limit, and "Only the latest stable
   release of iroh is officially supported".
@@ -4698,7 +4698,7 @@ does not depend on them.
 
 - Read: `Transport::Direct` comes from `--direct` alone
   (`crates/podssh-cli/src/ssh/resolve.rs`, lines 340-346 at `4e2010e`), and else the relay (lines 348-371 at `4e2010e`); its other
-  uses are a label (`crates/podssh-cli/src/ssh/mod.rs:246`), the dial
+  uses are a label (`crates/podssh-cli/src/ssh/mod.rs:247`), the dial
   (`crates/podssh-cli/src/ssh/transport.rs:260-304`) and a check of `--upgrade`
   (`crates/podssh-cli/src/ssh/upgrade.rs:59`). The issue's citation of
   the arm began two lines early; it is at `crates/podssh-cli/src/ssh/resolve.rs:335-341`.
@@ -4707,7 +4707,7 @@ does not depend on them.
   "`--direct`, or when a probe shows it works"; the triage of GitHub #69 to #72 named this entry
   there.
 - Read: rule 2 of `AGENTS.md` allows a second connection at once for a race between relay hosts,
-  and for the split HTTP road (`AGENTS.md:252-260`); a race of the forward and the direct road is
+  and for the split HTTP road (`AGENTS.md:253-261`); a race of the forward and the direct road is
   neither.
 - Read: the direct dial goes through `HTTPS_PROXY` when it is set, with the relay's step limit of
   20 s (`crates/podssh-cli/src/ssh/transport.rs:320-334`, `crates/podssh-relay/src/open.rs:30`),
@@ -5049,7 +5049,7 @@ and no notice.
 - Read: whether Cloudflare's terms, which forbid using its services "to provide a virtual private
   network or other similar proxy services", hold for the relay is a question for the relay's
   operator (`docs/relay-operator.md:83-87`).
-- Read: the test targets of a session are the operator's list (`AGENTS.md:227-244`), which names
+- Read: the test targets of a session are the operator's list (`AGENTS.md:228-245`), which names
   none of the three.
 
 ## Approach
@@ -5128,7 +5128,7 @@ relay host failed. Live, as Q56 allows: GitHub's banner through each, in GitHub 
 2026-10-31 (the drafting agent): two citations of the Premise, read at `a3f948d`. The question of
 Cloudflare's terms is item 15 of the relay operator's list, `docs/relay-operator.md:315-322`;
 `docs/relay-operator.md:83-87` is item 1's word on the drops of reverse sockets. The test targets
-of `AGENTS.md:226-241` name the three forwarders now, from GitHub Actions only, with short runs
+of `AGENTS.md:227-242` name the three forwarders now, from GitHub Actions only, with short runs
 (Q56, the same day); the Premise read them before that ruling.
 
 ## Done
@@ -5205,7 +5205,7 @@ a hop. `doctor` has no line for a hop, so a user cannot see whether one is reach
   measured here): SSH banners on port 443 at `bg2.vpnjantit.com` (Dropbear 2017.75, an account with
   a password that a form makes), `ssh.tilde.club` and `ssh.blinkenshell.org` (OpenSSH); whether
   they allow `direct-tcpip` was not measured.
-- Read: GitHub's SSH endpoint is a test target, and those three are not (`AGENTS.md:227-244`). The
+- Read: GitHub's SSH endpoint is a test target, and those three are not (`AGENTS.md:228-245`). The
   box's proxy allows ports 443, 80 and 8443, and lets one test target through by its name
   (`scripts/box/proxy.py:6-16`).
 
@@ -5457,7 +5457,7 @@ cannot make it a road.
   `--via ss://...`, which puts the password in argv.
 - The user names each server and each list, as a proxy of `ALL_PROXY` (T-070); podssh names none.
   Its tests use servers that podssh did not write, never a public one: no public server is a test
-  target of the operator's (`AGENTS.md:227-244`).
+  target of the operator's (`AGENTS.md:228-245`).
 - Shadowsocks 2022 (SIP022) is refused by name in this entry; a later entry can take it.
 
 The draft's calls, 2026-11-01:
@@ -6087,8 +6087,9 @@ the same day; the live copies run in Actions after the push (`docs/STATUS.md`).
   after 30 s, as the control does.
 - Live: `warp-live.yml` at `66044bd` (run 41292620979, `confirm=Q52`): "16 MiB up inside WARP's
   tunnel, the digests equal" and down the same, each CONNECT of the client carried inside the
-  tunnel, no line of h2's guard. The third node of `quick-tunnel-live.yml`: its run is in
-  `docs/STATUS.md`.
+  tunnel, no line of h2's guard. The third node of `quick-tunnel-live.yml` at `abf1322` (run
+  41300665749): with 7844 dropped it registered inside WARP's tunnel, and 16 MiB went each way
+  through it with equal digests.
 - Not changed here, for the main session: podssh-relay's quick tunnel server keeps h2's own budget
   (`crates/podssh-relay/src/quick/serve.rs`): 8 MiB there, half its window of 256 streams of
   64 KiB, which 42,800 unread frames of 60 bytes across its streams reach, so 40 streams whose

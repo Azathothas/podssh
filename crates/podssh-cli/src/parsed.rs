@@ -124,6 +124,8 @@ pub enum Parsed {
     Mcp(Box<crate::mcp::McpArgs>),
     /// `podssh session SUBCOMMAND NAME ...` (T-186).
     Session(Box<crate::session::SessionArgs>),
+    /// `podssh detached SUBCOMMAND [NAME]` (T-392).
+    Detached(Box<crate::detach::control::DetachedArgs>),
     /// `podssh doctor`: the relay settings to check, as `proxy` takes them.
     Doctor {
         relay_host: Option<String>,
@@ -208,6 +210,7 @@ impl Parsed {
             Parsed::Config(args) => !args.refused.is_empty(),
             Parsed::Mcp(args) => !args.refused.is_empty(),
             Parsed::Session(args) => !args.refused.is_empty(),
+            Parsed::Detached(args) => !args.refused.is_empty(),
             Parsed::Node(args) => !args.refused.is_empty(),
             Parsed::Operator(args) => !args.refused.is_empty(),
             Parsed::Pipe(args) => !args.refused.is_empty(),
