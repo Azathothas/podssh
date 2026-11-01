@@ -38,14 +38,15 @@ impl WarpRoad {
             self.warp = None;
         }
         if self.warp.is_none() {
+            use crate::ssh::cloud::warp::road;
             let trust = crate::pairs::trust(None);
             let told = |line: &str| podssh_ssh::err_line!("podssh node: {line}");
-            let device = crate::ssh::cloud::warp::road::device(&trust, &told, &|_: &str| {})
+            let mut device = road::device(&trust, &told, &|_: &str| {})
                 .await
                 .map_err(|(line, _)| format!("WARP's tunnel: {line}"))?;
-            let limit = podssh_relay::open::CONNECT_TIMEOUT;
-            let proxy = podssh_ws::ProxyChoice::FromEnvironment;
-            let opened = podssh_warp::Warp::open(&device, &proxy, limit).await;
+            // A new key of the endpoint, which WARP's API gives, is kept in
+            // the device's record (T-399).
+            let opened = road::tunnel(&mut device, &trust, &|_: &str| {}).await;
             let warp = opened.map_err(|f| format!("WARP's tunnel: {f}"))?;
             say(format!("WARP's tunnel opened, to {}", warp.via()));
             self.warp = Some(warp);

@@ -171,6 +171,15 @@ impl Device {
         self.endpoint = endpoint;
         self
     }
+
+    /// The endpoint's key that WARP's API gives now, PEM, in place of the
+    /// one that the handshake pinned (T-399). A key that does not read
+    /// leaves the device as it was; its file is the caller's to write.
+    pub fn rekey(&mut self, endpoint_pem: &str) -> Result<(), String> {
+        self.endpoint_point = endpoint_point(endpoint_pem)?;
+        self.endpoint_pem = endpoint_pem.to_string();
+        Ok(())
+    }
 }
 
 fn parse_opt<T: std::str::FromStr>(text: Option<&str>, field: &str) -> Result<Option<T>, String> {
@@ -239,6 +248,19 @@ mod tests {
         let bad = json.replace(key, "!!!not base64!!!");
         let why = Device::from_json(&bad).unwrap_err();
         assert!(!why.contains("a-token") && !why.contains("!!!"), "{why}");
+    }
+
+    /// A new key of the endpoint replaces the pinned one, and its record
+    /// keeps it; a key that does not read changes nothing.
+    #[test]
+    fn a_new_key_of_the_endpoint_is_pinned_and_kept() {
+        let mut device = device();
+        let next = DeviceKey::generate().unwrap();
+        device.rekey(&crate::der::pem(&next.spki(), "PUBLIC KEY")).unwrap();
+        assert_eq!(device.endpoint_point, next.point());
+        assert_eq!(Device::from_json(&device.to_json()).unwrap().endpoint_point, next.point());
+        assert!(device.rekey("not a key").is_err());
+        assert_eq!(device.endpoint_point, next.point());
     }
 
     /// Another version, a key of another curve and no address are refused.

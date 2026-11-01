@@ -52,8 +52,9 @@ const PING_WAIT: Duration = Duration::from_secs(20);
 pub enum Opening {
     /// The TCP connection, or the proxy's CONNECT to the address.
     Dial(DialError),
-    /// A certificate of another key than the endpoint's: a proxy that
-    /// re-terminates TLS, whose issuer is named.
+    /// A certificate of another key than the pinned one: a proxy that
+    /// re-terminates TLS, whose issuer is named, or the front door's new
+    /// key, which only WARP's API can tell (T-399).
     Intercepted { issuer: String },
     /// The edge took no certificate of this device: not enrolled, or gone.
     NotEnrolled(String),

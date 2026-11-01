@@ -5,7 +5,9 @@
 //! verified; its key is, as usque pins it (`api/masque.go`,
 //! `PrepareTlsConfig`). A certificate of another key is what a proxy that
 //! re-terminates TLS shows, and the verifier keeps its issuer, so that the
-//! road names that proxy.
+//! road names that proxy; the front door's own new key shows so too, which
+//! the road tells from a proxy's by WARP's API alone (`crate::road`, T-399),
+//! as no chain does.
 
 use std::sync::{Arc, Mutex, PoisonError};
 

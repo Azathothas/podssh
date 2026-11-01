@@ -247,6 +247,23 @@ pub async fn register(api: &Api, team: Option<&str>, now: SystemTime) -> Result<
     Device::new(made.id, token.to_string(), key, &pem, endpoint, v4, v6, tos, team.is_some()).map_err(Fault::Answer)
 }
 
+/// The device's record as WARP's API holds it now: `GET /reg/ID` with the
+/// device's token, as cfrs reads a device again (T-399). The answer must be
+/// of the same device.
+pub async fn read_record(api: &Api, device: &Device) -> Result<Answer, Fault> {
+    // The id goes into a path: a UUID's characters only, as a registration
+    // takes it.
+    if device.id.is_empty() || !device.id.bytes().all(|b| b.is_ascii_alphanumeric() || b == b'-') {
+        return Err(Fault::Answer("the device's id in its record is not one that a path can hold".into()));
+    }
+    let path = format!("/{API_VERSION}/reg/{}", device.id);
+    let answer = exchange(api, "GET", &path, Some(device.token()), None, "").await?;
+    if answer.id != device.id {
+        return Err(Fault::Answer("its answer is of another device".into()));
+    }
+    Ok(answer)
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;

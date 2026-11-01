@@ -81,10 +81,11 @@ pub async fn open(
 ) -> Result<Box<dyn Duplex>, Failed> {
     use crate::exitmap::sysexits::EX_UNAVAILABLE;
     let shown = target.shown();
-    let device = road::device(trust, say, verbose).await.map_err(|(line, code)| (format!("{shown}: {line}"), code))?;
+    let mut device =
+        road::device(trust, say, verbose).await.map_err(|(line, code)| (format!("{shown}: {line}"), code))?;
     let limit = podssh_relay::open::CONNECT_TIMEOUT;
     verbose(&format!("connecting to {shown}, port {}, inside WARP's tunnel ({})", target.port, device.endpoint));
-    let warp = podssh_warp::Warp::open(&device, &podssh_ws::ProxyChoice::FromEnvironment, limit)
+    let warp = road::tunnel(&mut device, trust, verbose)
         .await
         .map_err(|fault| (format!("{shown}: {fault}"), road::code(&fault)))?;
     verbose(&format!("{shown}: the tunnel opened, to {}", warp.via()));

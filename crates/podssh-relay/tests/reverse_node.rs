@@ -356,3 +356,40 @@ fn each_close_has_its_action() {
     assert_eq!(after_close(&close(1011, "socket error")), Next::Reconnect);
     assert_eq!(after_close(&close(1006, "")), Next::Reconnect);
 }
+
+/// A `ready` goes out before the bytes that wait for another session
+/// (T-410): the relay ends a session that the node does not answer within
+/// 15 s, and a `ready` that waited behind megabytes of a busy session's
+/// bytes then ended the whole socket with `1003 unknown session id`, as a
+/// move through a node met on the live relay.
+#[tokio::test]
+async fn a_ready_does_not_wait_behind_another_session_s_bytes() {
+    let (mut relay, _stop, _task, ends) = start(Local { queue: Some(64 << 20), ..Local::default() });
+    relay.text(HELLO).await;
+    relay.text(&open(A)).await;
+    assert!(text_of(&relay.expect().await).contains(A));
+    let mut a = local(&ends, A).await;
+    // A's local side writes far more than the socket takes while the relay
+    // reads nothing: the node's queue of A's bytes fills.
+    tokio::spawn(async move {
+        let chunk = vec![7u8; 64 * 1024];
+        for _ in 0..512 {
+            if a.write_all(&chunk).await.is_err() {
+                return;
+            }
+        }
+    });
+    tokio::time::sleep(Duration::from_millis(500)).await;
+    relay.text(&open(B)).await;
+    // The relay reads again: B's `ready` comes before most of A's queue.
+    let mut before = 0usize;
+    loop {
+        let f = relay.next(Duration::from_secs(10)).await.expect("B's ready in time");
+        if f.opcode == frame::OPCODE_TEXT {
+            assert!(text_of(&f).contains(&format!(r#""type":"ready","id":"{B}""#)), "{f:?}");
+            break;
+        }
+        before += f.payload.len();
+    }
+    assert!(before < 2 << 20, "{before} bytes of A came before B's ready");
+}

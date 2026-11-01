@@ -86,6 +86,28 @@ enum Out {
 /// Why a node ends a session whose local side reads no more.
 const STALLED: &str = "the node's local side does not read";
 
+/// The writer's two queues. Control goes first: a `ready`, a refusal, or
+/// the relay's close of a session never waits behind megabytes of another
+/// session's bytes, as the relay ends a session that the node does not
+/// answer within 15 s, and a `ready` that comes later ends the whole socket
+/// with `1003 unknown session id` (T-410); the relay's close drops the
+/// session's queued bytes before they go out for an id that it forgot. A
+/// session's bytes, and the `close` after its last ones, keep their order.
+#[derive(Clone)]
+struct Outbox {
+    control: mpsc::Sender<Out>,
+    data: mpsc::Sender<Out>,
+}
+
+impl Outbox {
+    async fn send(&self, out: Out) -> Result<(), ()> {
+        match out {
+            Out::Data(..) | Out::LocalEnd(_) => self.data.send(out).await.map_err(|_| ()),
+            other => self.control.send(other).await.map_err(|_| ()),
+        }
+    }
+}
+
 /// The local side of a session: where its data goes, the bytes that wait for
 /// it and how many may, and its two copies, which stop at once when it
 /// stalls.
@@ -107,8 +129,9 @@ where
     F: Future<Output = ()> + Unpin,
 {
     let session = Arc::new(session);
-    let (tx, rx) = mpsc::channel(256);
-    let writer = tokio::spawn(write(session.clone(), rx));
+    let ((control, control_rx), (data, data_rx)) = (mpsc::channel(1024), mpsc::channel(256));
+    let tx = Outbox { control, data };
+    let writer = tokio::spawn(write(session.clone(), control_rx, data_rx));
     let routes: Routes = Arc::default();
     let opening = Arc::new(AtomicUsize::new(0));
     let mut limits = NodeLimits::conservative();
@@ -211,7 +234,7 @@ async fn open<H: Handler>(
     id: SessionId,
     handler: Arc<H>,
     limit: Duration,
-    tx: mpsc::Sender<Out>,
+    tx: Outbox,
     routes: Routes,
     opening: Arc<AtomicUsize>,
 ) {
@@ -281,12 +304,23 @@ async fn open<H: Handler>(
 /// The writer: the one task that writes to the socket. It owns the state of
 /// each session, so a frame for an id that is not readied, or is closed,
 /// never goes out: it is dropped here.
-async fn write<S>(session: Arc<RelaySession<S>>, mut rx: mpsc::Receiver<Out>) -> Result<(), SessionError>
+async fn write<S>(
+    session: Arc<RelaySession<S>>,
+    mut control: mpsc::Receiver<Out>,
+    mut data: mpsc::Receiver<Out>,
+) -> Result<(), SessionError>
 where
     S: AsyncRead + AsyncWrite + Send + 'static,
 {
     let mut sessions = Sessions::new();
-    while let Some(out) = rx.recv().await {
+    loop {
+        // Control first (`Outbox`); the loop ends once both queues closed.
+        let out = tokio::select! {
+            biased;
+            Some(out) = control.recv() => out,
+            Some(out) = data.recv() => out,
+            else => break,
+        };
         match out {
             Out::Opened(id) => sessions.opened(id),
             Out::Ready(id) => {

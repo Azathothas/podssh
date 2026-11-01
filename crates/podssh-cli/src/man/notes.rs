@@ -223,7 +223,8 @@ const DOCTOR: &[&str] = &[
      QUIC: with a proxy set it takes HTTP/2, as no proxy carries UDP, and nothing is sent. Its line edge \
      road says, with --full, which road over TCP reaches the edge, as the node tries them: port 7844 \
      directly or through the proxy, else, in a build with the feature warp and with a device of WARP kept, \
-     inside WARP's tunnel; doctor registers no device.",
+     inside WARP's tunnel; doctor registers no device, and keeps a new key of WARP's endpoint, read from \
+     WARP's API, as a run of warp:// keeps it.",
     "With --full, the relay section adds login: podssh logs in to github.com through the relay as git, \
      with an Ed25519 key made for the check and never written, and GitHub refuses it. That shows that the \
      handshake, the host key (the one that forward identified) and the authentication path work. No pty \

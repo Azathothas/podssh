@@ -2,7 +2,8 @@
 //! podssh-ws's HTTPS with a CA of the test: the two requests as usque sends
 //! them, the device that the answers give, a team's token, a refusal; and
 //! the device then through the stand-in edge, which takes the key that the
-//! API enrolled.
+//! API enrolled. The stand-in serves the device's record again too, with an
+//! endpoint's key that a test changes (T-399).
 
 use std::net::Ipv4Addr;
 use std::sync::{Arc, Mutex, PoisonError};
@@ -26,22 +27,38 @@ const TOKEN: &str = "stand-in-token-0123";
 /// A request that the stand-in took: its head and its body.
 type Asked = (podssh_ws::http::Request, Vec<u8>);
 
-/// The stand-in API: its address, the trust of its CA, and what it took.
-struct ApiStandIn {
-    api: Api,
+/// The stand-in API: its address, the trust of its CA, what it took, and
+/// the endpoint's key of the record that it serves.
+pub(super) struct ApiStandIn {
+    pub(super) api: Api,
     asked: Arc<Mutex<Vec<Asked>>>,
+    pem: Arc<Mutex<String>>,
+}
+
+impl ApiStandIn {
+    /// The endpoint's key that the device's record holds from now on.
+    pub(super) fn serve_key(&self, key: &DeviceKey) {
+        *self.pem.lock().unwrap_or_else(PoisonError::into_inner) = crate::der::pem(&key.spki(), "PUBLIC KEY");
+    }
+
+    /// The requests of `method` that it took.
+    pub(super) fn asked(&self, method: &str) -> usize {
+        let asked = self.asked.lock().unwrap_or_else(PoisonError::into_inner);
+        asked.iter().filter(|(request, _)| request.method == method).count()
+    }
 }
 
 /// A stand-in that answers as the API: the device at `POST /reg`, its key
-/// of MASQUE at `PATCH /reg/ID` with the device's token, with `endpoint`'s
-/// key; `status` in place of the answer of `POST`, when one is given.
-async fn api(endpoint: &DeviceKey, status: Option<u16>) -> ApiStandIn {
+/// of MASQUE at `PATCH /reg/ID` and its record at `GET /reg/ID`, each with
+/// the device's token, with `endpoint`'s key until a test serves another;
+/// `status` in place of the answer of `POST`, when one is given.
+pub(super) async fn api(endpoint: &DeviceKey, status: Option<u16>) -> ApiStandIn {
     let (acceptor, roots) = tls_server("podssh-test-api-ca", &["127.0.0.1"]);
     let listener = TcpListener::bind((Ipv4Addr::LOCALHOST, 0)).await.unwrap();
     let addr = listener.local_addr().unwrap();
     let asked: Arc<Mutex<Vec<Asked>>> = Arc::default();
-    let pem = crate::der::pem(&endpoint.spki(), "PUBLIC KEY");
-    let took = asked.clone();
+    let pem = Arc::new(Mutex::new(crate::der::pem(&endpoint.spki(), "PUBLIC KEY")));
+    let (took, served) = (asked.clone(), pem.clone());
     tokio::spawn(async move {
         while let Ok((tcp, _)) = listener.accept().await {
             let Ok(mut tls) = acceptor.accept(tcp).await else { continue };
@@ -54,7 +71,8 @@ async fn api(endpoint: &DeviceKey, status: Option<u16>) -> ApiStandIn {
                     Ok(n) => body.extend_from_slice(&chunk[..n]),
                 }
             }
-            let (code, answer) = answer(&request, &pem, status);
+            let now = served.lock().unwrap_or_else(PoisonError::into_inner).clone();
+            let (code, answer) = answer(&request, &now, status);
             took.lock().unwrap_or_else(PoisonError::into_inner).push((request, body));
             let head = format!(
                 "HTTP/1.1 {code} OK\r\nContent-Type: application/json\r\nContent-Length: {}\r\n\
@@ -70,7 +88,18 @@ async fn api(endpoint: &DeviceKey, status: Option<u16>) -> ApiStandIn {
             .unwrap();
     let trust = Trust::caller(config).unwrap();
     let api = Api { host: "127.0.0.1".into(), port: addr.port(), trust, proxy: ProxyChoice::Direct, limit: LIMIT };
-    ApiStandIn { api, asked }
+    ApiStandIn { api, asked, pem }
+}
+
+/// The device's record with its key of MASQUE, as `PATCH` and `GET` answer.
+fn record(pem: &str) -> String {
+    serde_json::json!({
+        "id": ID, "key_type": "secp256r1", "tunnel_type": "masque",
+        "config": {"peers": [{"public_key": pem,
+            "endpoint": {"v4": "162.159.198.1:0", "v6": "[2606:4700:103::]:0"}}],
+            "interface": {"addresses": {"v4": "172.16.0.2", "v6": "2606:4700:110:8a36::2"}}}
+    })
+    .to_string()
 }
 
 /// The API's answer to `request`, in the form of usque's `AccountData`.
@@ -92,16 +121,9 @@ fn answer(request: &podssh_ws::http::Request, pem: &str, status: Option<u16>) ->
                 .to_string(),
             ),
         },
-        ("PATCH", target) if target == device && request.header("authorization") == bearer => (
-            200,
-            serde_json::json!({
-                "id": ID, "key_type": "secp256r1", "tunnel_type": "masque",
-                "config": {"peers": [{"public_key": pem,
-                    "endpoint": {"v4": "162.159.198.1:0", "v6": "[2606:4700:103::]:0"}}],
-                    "interface": {"addresses": {"v4": "172.16.0.2", "v6": "2606:4700:110:8a36::2"}}}
-            })
-            .to_string(),
-        ),
+        ("PATCH" | "GET", target) if target == device && request.header("authorization") == bearer => {
+            (200, record(pem))
+        }
         _ => (403, r#"{"success":false}"#.into()),
     }
 }

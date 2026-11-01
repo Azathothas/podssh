@@ -20,7 +20,9 @@
 //! - [`stack`] and [`stream`]: TCP inside, on smoltcp, in this process;
 //!   [`dns`]: names asked of Cloudflare's resolver inside the tunnel.
 //! - [`road`]: all of it, as one call that opens the tunnel and one that
-//!   opens a stream to `HOST:PORT`.
+//!   opens a stream to `HOST:PORT`; a front door that shows another key
+//!   than the pinned one sends it to the API for the device's record again
+//!   (T-399).
 //!
 //! Its rules are podssh's: one outbound connection, through `HTTPS_PROXY`
 //! when one is set; no listener and no TUN device; no credential in output.

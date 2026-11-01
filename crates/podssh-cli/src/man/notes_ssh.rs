@@ -111,8 +111,11 @@ pub const SSH: &[&str] = &[
      first run registers a device with WARP's API, once PODSSH_WARP_ACCEPT_TERMS=yes accepts Cloudflare's \
      Terms, and keeps its record in the cache (see FILES); each run then reads it. The proxy must take a \
      CONNECT to that address: one that allows listed names alone refuses it, and podssh doctor's line \
-     egress takes names the case; a proxy that re-terminates TLS shows a certificate of another key than \
-     the endpoint's pinned one, is named by its issuer, and the road is not tried again in the run. TCP \
+     egress takes names the case. A certificate of another key than the endpoint's pinned one sends podssh \
+     to WARP's API for the device's record again: a new key that the API gives is kept in the record and \
+     tried, and once more a second later; a key that the API never gave is never taken. Else the \
+     certificate is a proxy's that re-terminates TLS: it is named by its issuer, and the road is not \
+     tried again in the run. TCP \
      inside the tunnel is smoltcp's, in this process, with no TUN device. The host key is recorded under \
      warp://HOST. -p and Port give the port; --direct, -4, -6 and HostName cannot go with it, and -J with \
      it first makes HOST the first hop of a chain.",

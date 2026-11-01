@@ -1,11 +1,13 @@
 //! The device of WARP's road, in a build with the feature `warp`: read from
 //! its record in the cache, else registered once, with the user's
-//! acceptance of the Terms, and kept; and the exit code of each fault.
+//! acceptance of the Terms, and kept; its tunnel, with a new key of the
+//! endpoint that WARP's API gives kept in the record (T-399); and the exit
+//! code of each fault.
 
 use std::time::SystemTime;
 
 use podssh_warp::register::{self, Api};
-use podssh_warp::{Device, Fault};
+use podssh_warp::{Device, Fault, Warp};
 use podssh_ws::{ProxyChoice, Trust};
 
 use super::{accepted, ACCEPT_TERMS_ENV, DEVICE_FILE, ENDPOINT_ENV, TEAM_TOKEN_FILE_ENV};
@@ -112,4 +114,37 @@ pub async fn device(
         Some(at) => device.at(at),
         None => device,
     })
+}
+
+/// The tunnel of `device` through the environment's proxy (T-399): a
+/// certificate of another key than the record's sends the road to WARP's
+/// API for the device's record again, through the same proxy and with
+/// `trust`, and a new key that the API gives is kept in the record of the
+/// cache, as the front door shows it.
+pub async fn tunnel(device: &mut Device, trust: &Trust, verbose: &(dyn Fn(&str) + Sync)) -> Result<Warp, Fault> {
+    let limit = podssh_relay::open::CONNECT_TIMEOUT;
+    let proxy = ProxyChoice::FromEnvironment;
+    let api = Api::cloudflare(trust.clone(), proxy.clone(), limit);
+    let pinned = device.endpoint_point.clone();
+    let opened = Warp::open_reading(device, &api, &proxy, limit).await;
+    if device.endpoint_point != pinned {
+        keep_key(device, verbose);
+    }
+    opened
+}
+
+/// The record in the cache with the endpoint's key that WARP's API gave
+/// `device`; the rest of the record stays, its endpoint too, as
+/// `PODSSH_WARP_ENDPOINT` changes a run, not the record.
+fn keep_key(device: &Device, verbose: &(dyn Fn(&str) + Sync)) {
+    let Some(text) = podssh_relay::cache::load_file(DEVICE_FILE) else { return };
+    let text = zeroize::Zeroizing::new(text);
+    let Ok(mut record) = Device::from_json(&text) else { return };
+    if record.id != device.id || record.rekey(&device.endpoint_pem).is_err() {
+        return;
+    }
+    match podssh_relay::cache::store_file(DEVICE_FILE, record.to_json().as_bytes()) {
+        Ok(_) => verbose("WARP's API gave its endpoint a new key, which the device's record keeps"),
+        Err(why) => verbose(&format!("the endpoint's new key was not kept ({why}): the next run asks the API again")),
+    }
 }

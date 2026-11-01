@@ -7,8 +7,11 @@
 //! it. Inside, a smoltcp stack of its own answers at each route's address
 //! and port, and carries each connection to a service of the loopback, as
 //! Cloudflare's network carries one to its target. It counts what it saw,
-//! so that a test can tell that a stream went through it.
+//! so that a test can tell that a stream went through it. A test can change
+//! the key that it shows, as WARP's front door showed a new device another
+//! key than its record's (T-399).
 
+use std::collections::VecDeque;
 use std::net::{IpAddr, Ipv4Addr, SocketAddr};
 use std::sync::atomic::{AtomicUsize, Ordering};
 use std::sync::{Arc, Mutex, PoisonError};
@@ -16,6 +19,8 @@ use std::sync::{Arc, Mutex, PoisonError};
 use bytes::Bytes;
 use rustls::crypto::WebPkiSupportedAlgorithms;
 use rustls::server::danger::{ClientCertVerified, ClientCertVerifier};
+use rustls::server::{ClientHello, ResolvesServerCert};
+use rustls::sign::CertifiedKey;
 use rustls::{CertificateError, DigitallySignedStruct, DistinguishedName, Error, SignatureScheme};
 use rustls_pki_types::{CertificateDer, UnixTime};
 use tokio::net::{TcpListener, TcpStream};
@@ -69,9 +74,46 @@ impl Default for Seen {
 /// The stand-in, which serves until it is dropped.
 pub struct StandIn {
     pub addr: SocketAddr,
-    key: DeviceKey,
+    shown: Arc<Shown>,
     pub seen: Arc<Seen>,
     task: AbortHandle,
+}
+
+/// The keys that the stand-in shows, one for each TLS handshake in turn,
+/// the last one kept for each after it.
+#[derive(Debug)]
+struct Shown {
+    keys: Mutex<VecDeque<(DeviceKey, Arc<CertifiedKey>)>>,
+    hellos: AtomicUsize,
+}
+
+impl Shown {
+    /// `keys` in turn, each with its certificate of a minute ago.
+    fn set(&self, keys: Vec<DeviceKey>) {
+        let now = std::time::SystemTime::now().duration_since(std::time::UNIX_EPOCH).unwrap_or_default().as_secs();
+        let certified = keys.into_iter().map(|key| {
+            let certified = Arc::new(key.certified(now as i64 - 60));
+            (key, certified)
+        });
+        *self.keys.lock().unwrap_or_else(PoisonError::into_inner) = certified.collect();
+    }
+
+    /// The key that stays once the others were shown.
+    fn last(&self) -> Option<DeviceKey> {
+        self.keys.lock().unwrap_or_else(PoisonError::into_inner).back().map(|(key, _)| key.clone())
+    }
+}
+
+impl ResolvesServerCert for Shown {
+    fn resolve(&self, _hello: ClientHello<'_>) -> Option<Arc<CertifiedKey>> {
+        self.hellos.fetch_add(1, Ordering::SeqCst);
+        let mut keys = self.keys.lock().unwrap_or_else(PoisonError::into_inner);
+        if keys.len() > 1 {
+            keys.pop_front().map(|(_, certified)| certified)
+        } else {
+            keys.front().map(|(_, certified)| certified.clone())
+        }
+    }
 }
 
 impl Drop for StandIn {
@@ -142,13 +184,13 @@ impl StandIn {
     pub async fn start_with(key: DeviceKey, enrolled: Vec<Vec<u8>>, routes: Vec<Route>) -> std::io::Result<StandIn> {
         let provider = Arc::new(podssh_ws::crypto::provider());
         let verifier = Arc::new(Enrolled { points: enrolled, algorithms: provider.signature_verification_algorithms });
-        let now = std::time::SystemTime::now().duration_since(std::time::UNIX_EPOCH).unwrap_or_default().as_secs();
-        let certified = key.certified(now as i64 - 60);
+        let shown = Arc::new(Shown { keys: Mutex::new(VecDeque::new()), hellos: AtomicUsize::new(0) });
+        shown.set(vec![key]);
         let mut config = rustls::ServerConfig::builder_with_provider(provider)
             .with_protocol_versions(&[&rustls::version::TLS13])
             .map_err(std::io::Error::other)?
             .with_client_cert_verifier(verifier)
-            .with_cert_resolver(Arc::new(rustls::sign::SingleCertAndKey::from(certified)));
+            .with_cert_resolver(shown.clone());
         config.alpn_protocols = vec![crate::tls::ALPN.to_vec()];
         let acceptor = tokio_rustls::TlsAcceptor::from(Arc::new(config));
         let listener = TcpListener::bind((Ipv4Addr::LOCALHOST, 0)).await?;
@@ -160,17 +202,37 @@ impl StandIn {
                 tokio::spawn(serve(tcp, acceptor.clone(), routes.clone(), counted.clone()));
             }
         });
-        Ok(StandIn { addr, key, seen, task: task.abort_handle() })
+        Ok(StandIn { addr, shown, seen, task: task.abort_handle() })
+    }
+
+    /// The key that the stand-in shows, which a device pins: the last of
+    /// [`StandIn::show`]'s.
+    fn key(&self) -> DeviceKey {
+        self.shown.last().expect("the stand-in shows a key")
     }
 
     /// The point of the stand-in's key, which a device pins.
     pub fn point(&self) -> Vec<u8> {
-        self.key.point()
+        self.key().point()
+    }
+
+    /// Show `keys` from now on, one for each TLS handshake in turn, the last
+    /// one for each after it, as WARP's front door changes its key; none
+    /// leaves the keys as they were.
+    pub fn show(&self, keys: Vec<DeviceKey>) {
+        if !keys.is_empty() {
+            self.shown.set(keys);
+        }
+    }
+
+    /// The TLS handshakes that asked for the stand-in's certificate.
+    pub fn hellos(&self) -> usize {
+        self.shown.hellos.load(Ordering::SeqCst)
     }
 
     /// A device of `key` whose endpoint is this stand-in.
     pub fn device(&self, key: DeviceKey) -> Device {
-        let pem = crate::der::pem(&self.key.spki(), "PUBLIC KEY");
+        let pem = crate::der::pem(&self.key().spki(), "PUBLIC KEY");
         let registered = "2026-10-31T00:00:00.000+00:00".to_string();
         let (id, token) = ("stand-in".to_string(), "stand-in".to_string());
         Device::new(id, token, key, &pem, self.addr, Some(CLIENT_V4), None, registered, false)

@@ -19,7 +19,7 @@ use crate::stand_in::{Route, StandIn};
 
 /// What a stand-in proxy does with a CONNECT.
 #[derive(Clone)]
-enum Mode {
+pub(super) enum Mode {
     /// Carries the bytes to the target, as a proxy that allows addresses.
     Pass,
     /// Refuses a target that is an address, with 403.
@@ -28,7 +28,7 @@ enum Mode {
     Reterminate(tokio_rustls::TlsAcceptor),
 }
 
-async fn proxy(mode: Mode) -> ProxyChoice {
+pub(super) async fn proxy(mode: Mode) -> ProxyChoice {
     let listener = TcpListener::bind((Ipv4Addr::LOCALHOST, 0)).await.unwrap();
     let addr = listener.local_addr().unwrap();
     tokio::spawn(async move {

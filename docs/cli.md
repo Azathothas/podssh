@@ -236,11 +236,16 @@ scripts. The facts about OpenSSH on this page were measured with OpenSSH
   Cloudflare One organization, in the private file of
   `PODSSH_WARP_TEAM_TOKEN_FILE`, enrols the device there. A proxy that
   refuses the CONNECT to the address, or cuts the TLS after it, is named,
-  with `podssh doctor`'s line `egress takes` for the case (69); a proxy that
-  re-terminates TLS shows a certificate of another key, is named by its
-  issuer (69), and the road is not tried again with it in the run; a key
-  that the edge does not know exits 77. The host key is recorded under
-  `warp://HOST`; `-p` and `Port` give the port; `--direct`, `-4`, `-6`,
+  with `podssh doctor`'s line `egress takes` for the case (69). A certificate
+  of another key than the pinned one sends podssh to WARP's API for the
+  device's record again (`GET /reg/ID` with its token, through the proxy,
+  T-399): a new key that the API gives is kept in the record and tried, and
+  once more a second later, as WARP's front door showed a new device another
+  key than its record's (cfrs #32); a key that the API never gave is never
+  taken. Else the certificate is a proxy's that re-terminates TLS: it is
+  named by its issuer (69), and the road is not tried again with it in the
+  run. A key that the edge does not know exits 77. The host key is recorded
+  under `warp://HOST`; `-p` and `Port` give the port; `--direct`, `-4`, `-6`,
   `HostName` and a `-J` hop before it are refused (64), and `-J warp://HOST`
   makes HOST the first hop of a chain. `podssh proxy warp://HOST:PORT` is
   the same pipe. In a build without the feature, a `warp://` destination

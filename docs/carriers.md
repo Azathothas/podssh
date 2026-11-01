@@ -114,6 +114,12 @@ The candidates, ranked:
      sets the budget to a stream's window of the smallest frames, and its
      stack reads the tunnel while a packet waits to go out
      ([design.md](design.md), section 2, "WARP's road").
+   - A front door's new key (T-399, drafted 2026-11-01): cfrs met a new
+     device whose front door showed another key than its record's until the
+     record was read again (cfrs #32). On a certificate of another key,
+     podssh reads the record again from the API and tries a new key that it
+     gives; a key that the API never gave is never taken, so a proxy that
+     re-terminates TLS still breaks the road.
 5. **Tor through Arti** (class A).
    - Who, and the account: volunteers [F17]; no account.
    - Through a proxy: Arti 2.2.0 and later dials through an HTTP CONNECT

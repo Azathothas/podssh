@@ -62,15 +62,15 @@ repository and CI).
 
 ## Counts
 
-**406 entries: 28 open, 2 partial, 31 blocked, 345 done.**
+**406 entries: 26 open, 3 partial, 31 blocked, 346 done.**
 
 | Priority | open | partial | blocked | done | total |
 | --- | --- | --- | --- | --- | --- |
 | P0 | 0 | 0 | 0 | 1 | 1 |
-| P1 | 2 | 1 | 0 | 36 | 39 |
-| P2 | 6 | 0 | 21 | 171 | 198 |
+| P1 | 1 | 2 | 0 | 36 | 39 |
+| P2 | 5 | 0 | 21 | 172 | 198 |
 | P3 | 20 | 1 | 10 | 137 | 168 |
-| **All** | 28 | 2 | 31 | 345 | 406 |
+| **All** | 26 | 3 | 31 | 346 | 406 |
 
 ## Entries
 
@@ -470,7 +470,7 @@ repository and CI).
 | [T-396](release.md) | P2 | S | none | feature | done | `podssh update` keeps the binary before it, and runs the new one once before it takes its place |
 | [T-397](cli.md) | P3 | S | none | defect | open | `--detach`'s smaller gaps: no `/dev/null`, a rotation that loses lines, old files, the working directory |
 | [T-398](roads.md) | P2 | M | none | defect | done | WARP's tunnel under volume: h2's budget of small frames, the inbound read while a packet waits, and a live copy of 16 MiB |
-| [T-399](roads.md) | P2 | M | none | defect | open | WARP: a front door's key that is not the device record's is taken for a proxy, for the whole run |
+| [T-399](roads.md) | P2 | M | none | defect | done | WARP: a front door's key that is not the device record's is taken for a proxy, for the whole run |
 | [T-400](roads.md) | P2 | M | none | feature | open | The quick tunnel's legs raced with a stagger, and a probe of UDP before QUIC |
 | [T-401](roads.md) | P2 | S | none | defect | done | The quick tunnel's provisioning: Retry-After honoured, and the edge's text cleaned before it is shown |
 | [T-402](roads.md) | P3 | M | none | feature | open | The quick tunnel on GOAWAY: the next connection at once, the old one drained, and a second connection |
@@ -481,4 +481,4 @@ repository and CI).
 | [T-407](relay.md) | P3 | S | none | defect | done | A relay's Retry-After reaches a line as it came, with its terminal controls |
 | [T-408](roads.md) | P3 | S | none | defect | open | The quick tunnel's server keeps h2's own budget of small frames |
 | [T-409](reverse.md) | P1 | S | none | defect | done | A node that the relay closes for a fault (1003, 1009) ends for good |
-| [T-410](resume.md) | P1 | M | none | defect | open | From GitHub's network, the first move through a node still meets a frame for a forgotten id |
+| [T-410](resume.md) | P1 | M | none | defect | partial | From GitHub's network, the first move through a node still meets a frame for a forgotten id |

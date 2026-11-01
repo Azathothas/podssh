@@ -290,7 +290,6 @@ pub fn resumes(close: &RelayClose) -> bool {
     match classify(close).session {
         SessionAction::Stop
         | SessionAction::MintNewPair
-        | SessionAction::ReopenSession
         | SessionAction::FixCodec
         | SessionAction::AnswerReadyFirst
         | SessionAction::DoNotSendText
@@ -298,7 +297,11 @@ pub fn resumes(close: &RelayClose) -> bool {
         | SessionAction::ShrinkControl
         | SessionAction::AlwaysPrefixFullId
         | SessionAction::ChunkTo64K => false,
-        SessionAction::Reconnect
+        // A stale id closed the node's socket, and the relay ended each of
+        // its sessions with it: the node connects again (T-409), and a new
+        // session is the resume that the row asks for (T-410).
+        SessionAction::ReopenSession
+        | SessionAction::Reconnect
         | SessionAction::OpenNewSession
         | SessionAction::SlowDown
         | SessionAction::RetryOpen

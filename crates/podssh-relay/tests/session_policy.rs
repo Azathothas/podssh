@@ -15,7 +15,7 @@ fn close(code: u16, reason: &str) -> RelayClose {
 const EXPECTED: &[(u16, &str, bool)] = &[
     (1001, "operator stopped reverse relay", false),
     (1001, "pair expired", false),
-    (1003, "unknown session id", false),
+    (1003, "unknown session id", true),
     (1003, "invalid control json", false),
     (1003, "invalid session id", false),
     (1003, "unknown control type", false),

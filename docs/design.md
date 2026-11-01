@@ -98,7 +98,8 @@ gcloud's, IAP Desktop's and aws-cli's sources say, with bytes that gcloud's
 own client wrote and URLs that aws-cli's own signer made; the live run
 waits for the operator's throwaway accounts (T-376).
 
-**WARP's road (T-352), under volume (T-398, drafted 2026-11-01).** `podssh
+**WARP's road (T-352), under volume (T-398), and a front door's new key
+(T-399), drafted 2026-11-01.** `podssh
 ssh warp://HOST` carries TCP inside WARP's MASQUE tunnel: one CONNECT of
 HTTP/2 to Cloudflare's endpoint, whose bodies carry IP packets in capsules,
 and TCP on smoltcp in this process ([carriers.md](carriers.md), item 4).
@@ -115,6 +116,16 @@ queue out holds 64 packets while HTTP/2's window is closed, and the packets
 in wait behind it, 1,024 at most, past which they are dropped as a full link
 drops them, and TCP sends them again. MEASURED: UNVERIFIED (`cargo test -p
 podssh-warp --test small_frames`; live, 16 MiB each way in `warp-live.yml`).
+A certificate of another key than the pinned one is a proxy's that
+re-terminates TLS, or the front door's own new key: cfrs met a new device
+whose front door showed another key than its record's until the record was
+read again (cfrs #32). No public root signs the front door's certificate, so
+no chain tells the two apart; WARP's API does. podssh reads the device's
+record again (`GET /reg/ID` with its token), keeps a new key that it gives,
+and tries it, once more a second later; a key that the API never gave is
+never taken, and a certificate for which the API gives the same key stays a
+proxy's for the run. MEASURED: UNVERIFIED (`cargo test -p podssh-warp --lib
+tests::rotated_key`).
 
 **The race (T-164, built 2026-10-10).** `podssh ssh node://NAME
 --iroh-ticket TICKET` races the iroh road to the node's ticket and the

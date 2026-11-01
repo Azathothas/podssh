@@ -1,12 +1,14 @@
 //! The road from end to end on the loopback: the client against the
 //! stand-in edge, whose TLS is rustls's server, whose HTTP/2 is h2's
 //! server, and whose far end is smoltcp, software that podssh did not
-//! write; the registration against a stand-in of the API; and the proxies
-//! of a cage, each as a test of its own. Nothing here writes a file.
+//! write; the registration against a stand-in of the API; the proxies of a
+//! cage, each as a test of its own; and a front door that changes its key
+//! (T-399). Nothing here writes a file.
 
 mod api;
 mod edge;
 mod proxies;
+mod rotated_key;
 
 use std::net::{Ipv4Addr, SocketAddr};
 use std::time::Duration;

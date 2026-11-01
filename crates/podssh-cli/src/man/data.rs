@@ -229,8 +229,9 @@ pub fn files() -> Vec<(Vec<String>, String)> {
             "The device of WARP's road (warp://, in a build with the feature warp), in the cache, as JSON: its id \
              and its token at WARP's API, its P-256 key, the endpoint's key that the road pins, and its \
              addresses inside the tunnel. Written once, as the device registers, with mode 0600, and read at \
-             each run; a record that cannot be read is a configuration error (78), never a new registration: \
-             remove it to register again."
+             each run; written again when the endpoint shows a new key that WARP's API gives, read from the \
+             API with the device's token. A record that cannot be read is a configuration error (78), never a \
+             new registration: remove it to register again."
                 .to_string(),
         ),
         (

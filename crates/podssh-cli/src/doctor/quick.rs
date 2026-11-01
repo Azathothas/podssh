@@ -93,7 +93,7 @@ pub(super) async fn edge_road(report: &mut Report<'_>, full: bool) {
 #[cfg(feature = "warp")]
 async fn inside_warp(found: &edge::Edge, why: String) -> String {
     use crate::ssh::cloud::warp::{road, ACCEPT_TERMS_ENV};
-    let device = match road::kept() {
+    let mut device = match road::kept() {
         Ok(Some(device)) => device,
         Ok(None) => {
             return format!(
@@ -103,8 +103,9 @@ async fn inside_warp(found: &edge::Edge, why: String) -> String {
         }
         Err((line, _)) => return format!("{why}; {line}"),
     };
-    let limit = podssh_relay::open::CONNECT_TIMEOUT;
-    let warp = match podssh_warp::Warp::open(&device, &ProxyChoice::FromEnvironment, limit).await {
+    // A front door's new key is read from WARP's API and kept, as a run of
+    // the road keeps it (T-399), so that doctor does not take it for a proxy.
+    let warp = match road::tunnel(&mut device, &crate::pairs::trust(None), &|_: &str| {}).await {
         Ok(warp) => warp,
         Err(fault) => return format!("{why}; WARP's tunnel: {fault}"),
     };
