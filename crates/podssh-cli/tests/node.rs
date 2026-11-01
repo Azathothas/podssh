@@ -192,6 +192,54 @@ fn a_stored_pair_reaches_the_network_and_no_token_is_shown() {
     assert!(err.contains("podssh relay revoke lab"), "a pair is not replaced while it lives: {err}");
 }
 
+/// The next pair of a label is made in the last day of its pair (T-395),
+/// whose node takes it at the expiry; before that day, it is refused, as a
+/// second pair would leave the first with no holder for days.
+#[test]
+fn the_next_pair_may_be_made_in_the_last_day_only() {
+    let home = scratch("next");
+    store(&home, "lab", 0);
+    let (rc, _, err) = podssh(&home, &["relay", "pair", "lab"], &[]);
+    assert_eq!(rc, 78, "72 h left: {err}");
+    assert!(err.contains("podssh relay revoke lab") && err.contains("last 24 hours"), "{err}");
+    let stored = store(&home, "lab", 49 * 3600 * 1000);
+    let kept = std::fs::read(&stored).unwrap();
+    let (rc, _, err) = podssh(&home, &["relay", "pair", "lab"], &[]);
+    assert_eq!(rc, 69, "23 h left: the store lets it pass, and only the network stops it: {err}");
+    assert!(err.contains("the next one takes its place in the store"), "{err}");
+    assert_eq!(std::fs::read(&stored).unwrap(), kept, "a next pair that was not made leaves the pair as it was");
+    no_token(&err);
+}
+
+/// `podssh status` names each stored pair and its expiry (T-395), and
+/// whether its next pair can be made now; never a token.
+#[test]
+fn status_names_each_stored_pair_and_its_expiry() {
+    let home = scratch("status");
+    store(&home, "lab", 0);
+    store(&home, "late", 49 * 3600 * 1000);
+    store(&home, "old", EXPIRED);
+    let (rc, out, err) = podssh(&home, &["status"], &[]);
+    assert_eq!(rc, 0, "{err}");
+    no_token(&out);
+    let line: serde_json::Value = serde_json::from_str(out.trim()).unwrap();
+    let pair = |label: &str| {
+        line["pairs"].as_array().unwrap().iter().find(|p| p["label"] == label).cloned().unwrap_or_default()
+    };
+    assert_eq!(
+        (pair("lab")["expired"].clone(), pair("lab")["next_now"].clone()),
+        (false.into(), false.into()),
+        "{out}"
+    );
+    assert_eq!(
+        (pair("late")["expired"].clone(), pair("late")["next_now"].clone()),
+        (false.into(), true.into()),
+        "{out}"
+    );
+    assert_eq!(pair("old")["expired"], true, "{out}");
+    assert!(pair("lab")["expires_ms"].as_i64().unwrap() > pair("late")["expires_ms"].as_i64().unwrap(), "{out}");
+}
+
 #[test]
 fn relay_pair_refuses_an_operator_file_that_exists_before_any_request() {
     let home = scratch("opfile");

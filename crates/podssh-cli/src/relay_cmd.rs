@@ -105,12 +105,29 @@ fn make(args: &RelayArgs, label: &str, out: &mut dyn Write, err: &mut dyn Write)
             return Err(Refusal::usage(format!("--operator-file {file} exists; podssh never replaces it")));
         }
     }
+    // The next pair in the last 24 h of a pair's life, which its node takes
+    // at the expiry (T-395); before them, a second pair would leave the first
+    // with no holder for days.
+    let renew_from = old_enough();
+    // The pair that the next one replaces while it lives, kept again if the
+    // next one cannot be.
+    let mut living = None;
     match pair::load(label) {
-        Ok(Some(old)) if old.expires_ms > pairs::now_ms() => {
+        Ok(Some(old)) if old.expires_ms > renew_from => {
             return Err(Refusal::config(format!(
-                "a pair is stored under {label:?} until {}; stop it first with `podssh relay revoke {label}`",
+                "a pair is stored under {label:?} until {}; stop it first with `podssh relay revoke {label}`, or \
+                 make the next one in its last 24 hours",
                 pairs::utc(old.expires_ms)
             )))
+        }
+        Ok(Some(old)) if old.expires_ms > pairs::now_ms() => {
+            let _ = writeln!(
+                err,
+                "podssh relay: the pair under {label:?} expires at {}: the next one takes its place in the store, and \
+                 its node takes it at that expiry; the old one cannot be stopped now, and ends then",
+                pairs::utc(old.expires_ms)
+            );
+            living = Some(old);
         }
         Ok(Some(_)) => {
             let _ = writeln!(err, "podssh relay: the pair under {label:?} had expired; it is replaced");
@@ -128,7 +145,10 @@ fn make(args: &RelayArgs, label: &str, out: &mut dyn Write, err: &mut dyn Write)
     if let Err(why) = keep(label, &made, args.operator_file.as_deref()) {
         // A pair that nobody holds would keep its name for 72 hours.
         let _ = block_on(pair::stop(&ctx, &made));
-        let _ = pair::remove(label);
+        let _ = match &living {
+            Some(old) => pair::store(label, old).map(|_| ()),
+            None => pair::remove(label),
+        };
         return Err(Refusal::config(format!("{why}; the new pair was stopped")));
     }
     if let Some(file) = &args.operator_file {
@@ -136,6 +156,14 @@ fn make(args: &RelayArgs, label: &str, out: &mut dyn Write, err: &mut dyn Write)
     }
     let _ = writeln!(out, "{label}: expires {}", pairs::utc(made.expires_ms));
     Ok(())
+}
+
+/// The expiry after which a stored pair may have its next one: the last
+/// part of its life, in which its node says the expiry
+/// (`node_expiry::RENEW_WINDOW`).
+fn old_enough() -> i64 {
+    let window = i64::try_from(crate::node_expiry::RENEW_WINDOW.as_millis()).unwrap_or(i64::MAX);
+    pairs::now_ms().saturating_add(window)
 }
 
 /// Store `pair` under `label`, then write its operator's part.

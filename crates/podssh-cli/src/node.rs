@@ -327,10 +327,15 @@ async fn serve(ready: Ready, err: &mut dyn Write) -> i32 {
     };
     // As the operator's lines, written from inside the node as they come.
     // The line first, on the caller's stderr; then a detached node goes on.
-    let say = |line: String| {
-        podssh_ssh::err_line!("podssh node: {label}: {line}");
-        crate::detach::on_line("node", &line);
-    };
+    let say: crate::node_expiry::Say = Arc::new({
+        let label = label.clone();
+        move |line: String| {
+            podssh_ssh::err_line!("podssh node: {label}: {line}");
+            crate::detach::on_line("node", &line);
+        }
+    });
+    // Its expiry said before it comes, and the next pair taken at it (T-395).
+    let (repair, expiry) = crate::node_expiry::watch(&label, &pair, stored, say.clone());
     let mut config = NodeConfig {
         pair,
         label: stored.then(|| label.clone()),
@@ -340,9 +345,9 @@ async fn serve(ready: Ready, err: &mut dyn Write) -> i32 {
         // A lost socket is taken again for as long as the layer keeps a
         // session (T-261).
         settings: Settings { rejoin: crate::layered::settings().resume_deadline, ..Settings::default() },
-        repair: None,
+        repair,
         wire: Wire::Tls,
-        say: Some(&say),
+        say: Some(&*say),
     };
     let first = &targets[0];
     // A flow of UDP for each session (T-168); a flow that did not end
@@ -353,6 +358,7 @@ async fn serve(ready: Ready, err: &mut dyn Write) -> i32 {
             Arc::new(move |line: String| podssh_ssh::err_line!("podssh node: {flow_label}: {line}"));
         let handler = crate::node_udp::handler(first, DIAL_LIMIT, flow_say);
         let exit = with_handler(&mut config, handler, plain, channel).await;
+        expiry.abort();
         return finish(&label, exit, err);
     }
     let tcp = TcpHandler { host: first.host.clone(), port: first.port, timeout: DIAL_LIMIT, sshd: roost };
@@ -385,6 +391,7 @@ async fn serve(ready: Ready, err: &mut dyn Write) -> i32 {
             Box::pin(reverse::run(&mut config, handler, stop_signal())).await
         }
     };
+    expiry.abort();
     finish(&label, exit, err)
 }
 

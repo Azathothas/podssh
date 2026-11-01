@@ -66,7 +66,12 @@ pub(super) const NODE: &[&str] = &[
      the iroh road. A datagram of the target over 65,507 bytes is dropped, and the node says how \
      many when the flow ends.",
     "The node runs until Ctrl-C or SIGTERM (exit 0), or until the relay ends the pair: stopped, \
-     expired, refused, or served by another node; each has its code in EXIT STATUS. A broken \
+     expired, refused, or served by another node; each has its code in EXIT STATUS. A pair lives 72 \
+     hours at most: the node says its expiry 24 hours, 6 hours and 1 hour before it, with the command \
+     that makes the next pair (podssh relay pair NAME, see podssh relay), and at the expiry it goes \
+     on with the pair stored under NAME since, if one expires later; else it exits 77. A node of \
+     --pair-file needs a new FILE and a new start. A stopped node deletes the stored pair only while it \
+     is the node's own. A broken \
      connection to the relay is made again, after a growing wait. After a loss the relay can still \
      hold the old connection, and answer 409: the node then connects again for the time that it keeps \
      a session (10 minutes, or --resume-deadline), with a line for each 409. A 409 at the start means that another node \

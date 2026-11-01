@@ -198,7 +198,7 @@ local program to a target, and `podssh proxy` stays a second pump.
 5. `node:NAME` after T-084, and `iroh:TICKET` after T-163: one adapter and
    one test each. If T-163 makes a ticket a credential, read it from a file
    (`iroh:@FILE`), never from argv.
-6. Exit codes: sysexits, as `podssh proxy` (`docs/cli.md:3123`): 69; 77 for a
+6. Exit codes: sysexits, as `podssh proxy` (`docs/cli.md:3133`): 69; 77 for a
    refusal (the relay, the proxy, a host key, the authentication); 78. Give
    `crates/podssh-ssh/src/run.rs:334-435` a typed error, so that 77 is not
    guessed from a message.
@@ -586,7 +586,7 @@ running on the server (`docs/design.md:671-675`).
   (`crates/podssh-ssh/src/session.rs:39-41`). Raw mode is entered once for
   each session (`crates/podssh-ssh/src/session.rs:149-208`).
 - Read: the relay ends a session at 64 MiB (1009) or 12 h (1001)
-  (`docs/relay.md:257-263`). Sandbox A measured the cap at 67,107,943 bytes,
+  (`docs/relay.md:260-266`). Sandbox A measured the cap at 67,107,943 bytes,
   and one close `1011` in 180 short sessions (`docs/STATUS.md:305-306`).
 - Read: tmux is never assumed (`docs/target-environment.md:101-103`).
 
@@ -610,7 +610,7 @@ running on the server (`docs/design.md:671-675`).
    Keys typed meanwhile wait in a queue of 64 KiB, and go after the attach.
 6. Each attempt checks the host key with the same policy, and uses the
    cached token. A prompt with no terminal ends the loop
-   (`docs/cli.md:3194-3196`). After the attach, send the window size again.
+   (`docs/cli.md:3204-3206`). After the attach, send the window size again.
 7. In the same commit: `docs/cli.md`, the notes of ssh
    (`crates/podssh-cli/src/man/notes_ssh.rs:4-468`), `docs/design.md:671-675`,
    `docs/STATUS.md`, and tmux in the interop image
@@ -728,7 +728,7 @@ no listener, or that the relay ends a desktop stream after 64 MiB.
   `connect()` itself needs a listener (`docs/design.md:1008-1011`), which
   T-177 adds where a probe allows it.
 - Read: 64 MiB for each session, both directions together
-  (`docs/relay.md:200`), then Close 1009 (`docs/relay.md:261`); public
+  (`docs/relay.md:200`), then Close 1009 (`docs/relay.md:264`); public
   targets only (`docs/relay.md:202`). Through the proxy of sandbox A: 0.5 to
   0.7 MB/s (`docs/STATUS.md:304`).
 - Not measured: no RDP, VNC or Telnet client ran through podssh. Each claim
@@ -899,14 +899,14 @@ and sandhole. Read in the reports, not verified here.
 
 A developer in a sandbox runs a web application and wants a URL for it. The
 relay carries TCP to public targets and reverse sessions to named nodes
-(`docs/relay.md:315-357`). It has no endpoint that takes public HTTPS for a
+(`docs/relay.md:318-360`). It has no endpoint that takes public HTTPS for a
 name, and podssh alone cannot add one.
 
 ## Premise
 
 - Read: the relay is the operator's Cloudflare Worker, another project, and
   its document is the contract (`docs/relay.md:3-16`). It has no publish
-  endpoint (`docs/relay.md:121-158`, `docs/relay.md:315-379`).
+  endpoint (`docs/relay.md:121-158`, `docs/relay.md:318-382`).
 - Read: on the measured sandbox, `connect()` to loopback fails with EACCES
   (`docs/target-environment.md:22`). A node there cannot reach a server on
   127.0.0.1; it can reach a Unix socket (T-176) or a program (`exec:`,
@@ -922,7 +922,7 @@ When the relay's operator adds the endpoint:
 
 1. The relay's operator publishes it in the contract first: a name, a public
    host name, and each incoming connection as a reverse session
-   (`open {id}`, `ready {id}`; `docs/relay.md:323-343`).
+   (`open {id}`, `ready {id}`; `docs/relay.md:326-346`).
 2. podssh uses the node runner (T-079) and `podssh node` (T-083):
    `podssh node NAME TARGET --publish`, TARGET each address of T-174 to
    T-176. podssh parses no HTTP: the bytes pass, WebSocket upgrades too.

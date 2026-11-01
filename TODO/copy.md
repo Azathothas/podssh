@@ -678,7 +678,7 @@ old writer can race the new one.
 
 Recommendation: a budget of 60 MiB counted by podssh, as `podssh-core`
 uses for IRC: the relay counts bytes that podssh has not yet received, and
-can hold 2 MiB queued (`docs/relay.md:263`). Waiting for `1009` (T-136
+can hold 2 MiB queued (`docs/relay.md:266`). Waiting for `1009` (T-136
 alone) lost: each cut breaks a request in flight. Credentials stay in
 memory for the run, never on disk; asking again lost: a 200 MiB copy would
 ask four times, and with no terminal it could not ask at all.
@@ -958,7 +958,7 @@ Where podssh must replace them, OpenSSH's own `scp` and `sftp` cannot run
 
 Recommendation: `scp` and `sftp` get no `--timeout` row, as in OpenSSH, so
 the gate of `crates/podssh-cli/src/dispatch.rs:279-297` skips them; T-133's
-limits keep each wait finite. Usage errors stay 64 (`docs/cli.md:3113-3116`)
+limits keep each wait finite. Usage errors stay 64 (`docs/cli.md:3123-3126`)
 where OpenSSH gives 1; a script that tests for "not zero" works with both.
 `--timeout` required with no terminal, as for `cp`, lost: each script that
 runs `scp` in a pipe would exit 64 under `podssh scp`.
@@ -1062,7 +1062,7 @@ trip is long, so such a copy uses a small part of what the path carries.
   (1 MiB queued, `1011`, a dropped frame;
   `crates/podssh-probe/tests/spec/relay-spec-2026-10-03-r2.txt:185`). T-024
   corrected it to the forward path's rule
-  (`crates/podssh-ssh/src/run.rs:25-28`): `docs/relay.md:274-286` gives
+  (`crates/podssh-ssh/src/run.rs:25-28`): `docs/relay.md:277-289` gives
   2 MiB, `1013` and no drop. The window can grow only after that is
   settled; T-062 measures the `1013`.
 - Measured in two sandboxes (`docs/STATUS.md:304`): 20 MiB through the

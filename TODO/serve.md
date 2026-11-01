@@ -41,7 +41,7 @@ core: the handshake, a host key that does not change, and key authentication.
    waits (podssh: 30 s, `crates/podssh-ssh/src/session.rs:19-22`).
 2. russh settings: `publickey` only (the default also offers `password`);
    the 512 KiB window of `crates/podssh-ssh/src/run.rs:25-29`; no inactivity
-   cut (russh: 600 s); a keepalive every 60 s (`docs/relay.md:260`).
+   cut (russh: 600 s); a keepalive every 60 s (`docs/relay.md:263`).
 3. Host key: `--host-key FILE`, else a file in the first usable directory of
    the cache chain, made with `keygen::generate` and `keygen::write_pair`.
    Invariant: never overwritten; the loser of a `create_new` race reads the
@@ -493,7 +493,7 @@ out with matching digests.
   `docs/STATUS.md:297`). With no pty device, no podssh code can give the child
   a tty: shims are excluded (`docs/decisions.md:60`).
 - Read: one relay session carries 64 MiB, both directions together
-  (`docs/relay.md:261`; measured: `docs/STATUS.md:305`). 200 MiB each way
+  (`docs/relay.md:264`; measured: `docs/STATUS.md:305`). 200 MiB each way
   needs the new sessions of T-137.
 - Read: the box matches the sandbox, except the `EACCES` on loopback
   `connect()` (`scripts/test_in_box.sh:24-31`).
@@ -571,7 +571,7 @@ so a key with limits cannot be used at all.
 - Read: the patterns of `from=` are those of `known_hosts`, which
   `crates/podssh-ssh/src/known_hosts.rs:274-297` matches (negation included).
 - Read: on the reverse road, serve does not know the client's address: the
-  stream comes from the relay (`docs/relay.md:315-339`).
+  stream comes from the relay (`docs/relay.md:318-342`).
 - Read in the reports of GitHub #21 and #18, not verified here: agent-ssh-cli
   checks regex lists before exec; sandhole limits local forwarding.
 
@@ -837,7 +837,7 @@ must slow the child down, and a client that is gone must end the session.
   buffer of 100 messages (T-108).
 - Read: the comment on the SSH window said that the relay drops a frame
   past 1 MiB with 1011 (`crates/podssh-ssh/src/run.rs` lines 25-29 at
-  `80f20bf`); `docs/relay.md:274-286` says that it closes with 1013 at
+  `80f20bf`); `docs/relay.md:277-289` says that it closes with 1013 at
   2 MiB. T-024 corrected the comment; T-062 measures whether the relay's
   check operates.
 
@@ -1212,7 +1212,7 @@ default of russh refuses each `tcpip-forward` with no reason.
   allows a listener only when the user asks and a probe allows the bind.
 - Read: `docs/design.md:1005-1007` allows a listener on the far side. The relay
   is a listener that podssh does not run: a node name takes operator
-  sessions (`docs/relay.md:315-339`).
+  sessions (`docs/relay.md:318-342`).
 - Read in the report of GitHub #18, not verified here: sandhole publishes
   services through a stock `ssh -R`.
 

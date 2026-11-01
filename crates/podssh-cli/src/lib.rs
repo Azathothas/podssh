@@ -71,6 +71,8 @@ pub mod man;
 pub mod mcp;
 pub mod node;
 pub mod node_args;
+// A pair's expiry said before it comes, and the next pair taken at it (T-395).
+pub mod node_expiry;
 // `podssh node --install`: the node as a service of this user (T-121).
 pub mod node_install;
 // The flags of `podssh node` that each road reads: the keys, the resume

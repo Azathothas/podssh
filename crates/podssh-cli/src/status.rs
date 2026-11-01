@@ -84,10 +84,29 @@ pub fn run_status(args: &StatusArgs, tty: Tty, out: &mut dyn Write, err: &mut dy
         "host": host,
         "session_log": session_log,
         "relay_failures": relay_failures(),
+        "pairs": pairs_state(),
     });
     let _ = writeln!(out, "{line}");
     let _ = out.flush();
     0
+}
+
+/// The pairs in the store, by label: when each expires, and whether
+/// `podssh relay pair LABEL` makes its next one now, in its last 24 hours
+/// (T-395). Never a token.
+fn pairs_state() -> Value {
+    let now = crate::pairs::now_ms();
+    let window = i64::try_from(crate::node_expiry::RENEW_WINDOW.as_millis()).unwrap_or(i64::MAX);
+    let each = podssh_relay::pair::labels().into_iter().filter_map(|label| {
+        let pair = podssh_relay::pair::load(&label).ok().flatten()?;
+        Some(json!({
+            "label": label,
+            "expires_ms": pair.expires_ms,
+            "expired": pair.expires_ms <= now,
+            "next_now": pair.expires_ms <= now.saturating_add(window),
+        }))
+    });
+    each.collect()
 }
 
 /// The relay hosts that each run tries last now (T-059), with the seconds

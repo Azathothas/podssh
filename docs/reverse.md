@@ -58,8 +58,9 @@ session over the limit gets `reject` at once, and the handler has 10 s to
 open the local side. It acts on each end by its code and reason: `409`,
 exit, but after a loss connect again until the resume deadline, with a line
 on stderr for each `409` and the time left; `1001 operator stopped reverse relay`, exit and delete the stored pair;
-`1001 pair expired` (or a `403` after the expiry), a re-pair hook, off by
-default; `1003` and `1009`, a fault of the node's own bytes, a line and a new
+`1001 pair expired` (or a `403` after the expiry), the repair hook: the
+CLI's takes the pair stored under the node's label since, if it expires
+later, else the node exits (T-395); `1003` and `1009`, a fault of the node's own bytes, a line and a new
 socket, as one frame must not lock out a server that only the node reaches
 (T-409; the sessions of the socket resume on the next); anything else,
 connect again with the jittered backoff. A node that cannot connect as it is set up (an unusable

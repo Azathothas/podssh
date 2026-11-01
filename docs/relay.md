@@ -225,10 +225,13 @@ while the old link carries the session. Then the old link stops at a record
 boundary and says `RETIRE`, and the new one resumes from the offsets of its
 own handshake. A move that fails is no fault: at the cap the relay closes
 the link with `1009`, and the layer resumes the session. `-v` prints one
-line for each move. A pair lives 72 h at most: `podssh ssh node://` and
-`podssh operator` warn an hour before it expires, and at the expiry the
-relay ends each session of the pair (`1001 pair expired`), which the layer
-does not resume.
+line for each move. A pair lives 72 h at most, and the relay renews none:
+`podssh ssh node://` and `podssh operator` warn an hour before it expires,
+and at the expiry the relay ends each session of the pair (`1001 pair
+expired`), which the layer does not resume. The node says the expiry 24 h,
+6 h and 1 h before it, with the command that makes the next pair;
+`podssh relay pair NAME` makes it in the last 24 h of the old one, and the
+node takes it at the expiry with no new start (T-395).
 
 ### Connect options (query string)
 

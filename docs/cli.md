@@ -1831,7 +1831,9 @@ before anything else; `podssh doctor` is the report that measures.
   and `host` for a destination (its name in `known_hosts`, whether a key is
   recorded, the key types); `session_log` (T-056) and `relay_failures`, the
   relay hosts that each run tries last now, with `ago_s` and the `reason`
-  (T-059).
+  (T-059); `pairs`, each stored pair's `label`, `expires_ms`, whether it
+  `expired`, and `next_now`, whether `relay pair LABEL` makes its next pair
+  now, in its last 24 hours (T-395).
 - It never holds a token: it reads the cache entry without its token field
   (`cache::peek`). It shows no proxy credentials, opens no connection, asks
   no DNS and writes nothing.
@@ -2077,6 +2079,14 @@ commands. The rules behind them:
   `relay pair NAME` makes and keeps one; `node NAME TARGET` serves it;
   `relay status NAME` asks whether its node is online; `relay revoke NAME`
   stops it and forgets it.
+- **A pair expires, and its node goes on (T-395).** A pair lives 72 h at
+  most and the relay renews none. The node says the expiry 24 h, 6 h and
+  1 h before it, with the command that makes the next pair. `relay pair
+  NAME` refuses a pair with more than 24 h left, and in the last 24 h makes
+  the next one, which takes the label's place in the store; the node takes
+  it at the expiry, with no new start, and exits 77 when none was made. A
+  node stopped on the relay deletes the stored pair only while it is its
+  own.
 - **`relay spec` checks the relay, not a pair.** It reads the relay's
   `/health` and `/llms-full.txt`, or the file of `--document`, and checks
   the document against the facts that podssh was built with: exit 0 when

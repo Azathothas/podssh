@@ -8,10 +8,13 @@ pub const RELAY: &[&str] = &[
      never a token. With --operator-file, the operator's part of the pair, its connect token alone, \
      goes to FILE, a new file that only its owner can read: give it to the operator by a channel that \
      you trust.",
-    "A pair under NAME that has not expired is not replaced: stop it first with podssh relay revoke \
-     NAME. revoke stops the pair on the relay and deletes the stored copy; when the relay cannot be \
-     reached, the copy is kept, because its stop token is the one way to stop the pair before it \
-     expires.",
+    "A pair under NAME with more than 24 hours left is not replaced: stop it first with podssh relay \
+     revoke NAME. In its last 24 hours, the next pair is made and takes its place in the store, and a \
+     node of NAME that runs takes it at the expiry, with no new start (see podssh node); the old pair \
+     can no longer be stopped, and ends at its expiry. The relay renews no pair, so each node of a pair \
+     needs the next one every 72 hours. revoke stops the pair on the relay and deletes the stored copy; \
+     when the relay cannot be reached, the copy is kept, because its stop token is the one way to stop \
+     the pair before it expires.",
     "podssh relay status NAME says whether the pair's node is online, and its sessions.",
     "podssh relay spec reads the relay's /health and its published document, /llms-full.txt, and checks \
      the document against the facts that podssh was built with (see RELAY FACTS). It prints ok, with the \

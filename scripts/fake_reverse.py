@@ -22,7 +22,13 @@ PAIRS = {}
 # The stand-in relay's --mode. fault1003: the first socket of each pair's
 # node is closed with 1003 "unknown session id" half a second after its
 # hello, as the relay closes a node for a frame of an id that it forgot.
+# expirefirst:SECONDS: the run's first pair says that it expires in 23 h,
+# within the last day in which its next pair may be made, and the relay
+# ends it after SECONDS as at its expiry: each socket of the pair gets 1001
+# "pair expired", and its tokens a 403 after.
 MODE = "normal"
+# Whether the short pair of expirefirst was made.
+SHORT = {"made": False}
 # FAKE_RELAY_DEBUG=1: each frame of the reverse road, on stderr.
 DEBUG = bool(os.environ.get("FAKE_RELAY_DEBUG"))
 
@@ -67,6 +73,12 @@ class Pair:
         self.node_token, self.connect_token, self.stop_token = (
             "".join(secrets.choice(ALPHABET) for _ in range(64)) for _ in range(3))
         self.expires = int(time.time() * 1000) + 72 * 3600 * 1000
+        # Seconds until the relay ends the pair, for expirefirst.
+        self.ends_in = None
+        if MODE.startswith("expirefirst:") and not SHORT["made"]:
+            SHORT["made"] = True
+            self.expires = int(time.time() * 1000) + 23 * 3600 * 1000
+            self.ends_in = float(MODE.split(":")[1])
         self.node = None
         # Whether a socket of the node was closed for a fault (fault1003).
         self.faulted = False
@@ -81,6 +93,8 @@ async def handle(method, path, headers, reader, writer):
         await reader.readexactly(int(headers.get("content-length", "0")))
         pair = Pair()
         PAIRS[pair.name] = pair
+        if pair.ends_in is not None:
+            asyncio.ensure_future(expire(pair))
         body = {"name": pair.name, "node_token": pair.node_token, "connect_token": pair.connect_token,
                 "stop_token": pair.stop_token, "expires": pair.expires}
         writer.write(response(200, "OK", json.dumps(body).encode(), JSON))
@@ -117,6 +131,17 @@ async def handle(method, path, headers, reader, writer):
         await writer.drain()
         await operator(pair, Socket(reader, writer))
     return True
+
+
+async def expire(pair):
+    """End the pair as the relay ends one at its expiry."""
+    await asyncio.sleep(pair.ends_in)
+    PAIRS.pop(pair.name, None)
+    note(f"pair {pair.name} expired")
+    for operator_socket, _ in list(pair.sessions.values()):
+        await operator_socket.close(1001, "pair expired")
+    if pair.node is not None:
+        await pair.node.close(1001, "pair expired")
 
 
 async def node(pair, socket):

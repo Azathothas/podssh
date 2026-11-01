@@ -317,6 +317,7 @@ async fn serve(ready: Ready, err: &mut dyn Write) -> i32 {
         let Ok((pair, stored)) = pair else { return };
         let say_pair = |line: String| (channel.say)(line);
         let proxy = ProxyChoice::FromEnvironment;
+        let (repair, expiry) = crate::node_expiry::watch(&label, &pair, stored, channel.say.clone());
         let mut config = NodeConfig {
             pair,
             label: stored.then(|| label.clone()),
@@ -327,13 +328,14 @@ async fn serve(ready: Ready, err: &mut dyn Write) -> i32 {
                 rejoin: crate::layered::settings().resume_deadline,
                 ..reverse::Settings::default()
             },
-            repair: None,
+            repair,
             wire: Wire::Tls,
             say: Some(&say_pair),
         };
         let piped = crate::channel::Piped { inner: Arc::new(handler), channel: Some(channel.clone()), routes };
         let layered = Layered::with_keeper(piped, crate::layered::settings(), budget, keeper.clone());
         let exit = Box::pin(reverse::run(&mut config, Arc::new(layered), until_stopped(stopped.clone()))).await;
+        expiry.abort();
         if let Some((_, why)) = crate::node::ended(&label, exit) {
             (channel.say)(format!("the pair's road ended: {why}; the DERP road goes on"));
         }

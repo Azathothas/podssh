@@ -66,14 +66,15 @@ pub type RepairHook = Arc<dyn Fn() -> Pin<Box<dyn Future<Output = Option<Pair>> 
 pub struct NodeConfig<'a> {
     pub pair: Pair,
     /// The label that the pair is stored under, deleted when the relay says
-    /// that the pair was stopped.
+    /// that the pair was stopped, while it holds that pair.
     pub label: Option<String>,
     pub trust: &'a Trust,
     pub proxy: &'a ProxyChoice,
     /// Bound on connecting.
     pub timeout: Duration,
     pub settings: Settings,
-    /// Off by default: an expired pair ends the node.
+    /// Asked at the expiry for the next pair; none, and an expired pair
+    /// ends the node.
     pub repair: Option<RepairHook>,
     /// TLS, except in the tests of an embedder.
     pub wire: Wire,
@@ -180,8 +181,12 @@ where
                     End::Failed(_) => Next::Reconnect,
                     End::Closed(close) => match after_close(&close) {
                         Next::Exit("stopped") => {
+                            // This node's pair only: one stored under the
+                            // label since is the next pair (T-395).
                             if let Some(label) = &config.label {
-                                let _ = crate::pair::remove(label);
+                                if matches!(crate::pair::load(label), Ok(Some(kept)) if kept.name == config.pair.name) {
+                                    let _ = crate::pair::remove(label);
+                                }
                             }
                             return Exit::PairStopped;
                         }
