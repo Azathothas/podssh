@@ -35,7 +35,7 @@ pub struct Registration<'a> {
     pub account_tag: &'a str,
     pub secret: &'a [u8],
     pub tunnel_id: [u8; 16],
-    /// Which connection of the tunnel this is: 0, as a quick tunnel has one.
+    /// Which connection of the tunnel this is: 0 or 1, and 2 or 3 in their place after a GOAWAY (T-402).
     pub conn_index: u8,
     /// This connector's own id, new each run.
     pub client_id: [u8; 16],

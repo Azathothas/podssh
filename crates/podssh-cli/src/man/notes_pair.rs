@@ -166,8 +166,10 @@ pub(super) const NODE: &[&str] = &[
      each road that gave way. A client in a cage \
      reaches the name on port 443. The name is public, so --allow FILE is needed: only an operator \
      whose key is a line of FILE reaches TARGET, through the end-to-end channel above the resumable \
-     layer. A connection to the edge that is lost is made again, with the same name; at Ctrl-C the node \
-     unregisters it. --iroh, --derp, --plain, --no-e2e, --pair-file, a route and a udp: TARGET are \
+     layer. The node keeps one connection to the edge. On the edge's GOAWAY its visitors go on for up \
+     to 90 s while a new connection, at once, takes the new ones. A \
+     connection to the edge that is lost is made again, with the same name; at Ctrl-C the node \
+     unregisters each. --iroh, --derp, --plain, --no-e2e, --pair-file, a route and a udp: TARGET are \
      refused with it (64).",
     "The name is asked of api.trycloudflare.com, which limits a host that made a few tunnels: when it \
      refuses for now (429, or a 5xx), the node asks again for up to 5 minutes, after its Retry-After \

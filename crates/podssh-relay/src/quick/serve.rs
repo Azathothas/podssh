@@ -49,6 +49,9 @@ pub const PONG_WAIT: Duration = Duration::from_secs(30);
 pub const UNREGISTER_WAIT: Duration = Duration::from_secs(5);
 /// How long the streams still open may take, once the connection closes.
 pub const CLOSE_GRACE: Duration = Duration::from_secs(2);
+/// How long the visitors of a connection go on after the edge's GOAWAY,
+/// while the node's next connection takes the new ones (T-402).
+pub const DRAIN: Duration = Duration::from_secs(90);
 
 /// What happens on the connection, as it happens.
 #[derive(Debug, Clone, PartialEq, Eq)]
@@ -59,6 +62,9 @@ pub enum Step {
     Visitor,
     /// The edge took the end of the connection.
     Unregistered,
+    /// The edge sent GOAWAY: no new visitor comes on this connection, and
+    /// those on it go on until they end, for [`DRAIN`] at most.
+    GoingAway,
 }
 
 /// Why a connection ended before its end was asked for.
@@ -151,7 +157,8 @@ where
     // Whether the end was asked for, and the deadline of its phase: the
     // unregistration, then the close.
     let (mut stopping, mut deadline) = (false, None);
-    let mut closing = false;
+    // Whether the connection closes, and when its drain ends after a GOAWAY.
+    let (mut closing, mut draining) = (false, None::<Instant>);
     loop {
         tokio::select! {
             accepted = conn.accept() => match accepted {
@@ -183,6 +190,8 @@ where
                 // The end was asked for: the edge's close, or a pipe that
                 // breaks under it, is that end.
                 Some(Err(_)) | None if stopping => return Ok(()),
+                // The edge's close after its GOAWAY is the drain's end.
+                Some(Err(_)) | None if draining.is_some() => return Err(Ended::GoingAway),
                 Some(Err(e)) => return Err(Ended::Http2(e)),
                 None => return Err(Ended::Closed),
             },
@@ -199,6 +208,8 @@ where
                 }
                 // A control stream that fails in the end: close anyway.
                 Err(_) if stopping => close(&mut conn, &mut closing, &mut deadline),
+                // The edge that went away may end it first: the drain goes on.
+                Err(_) if draining.is_some() => {}
                 Err(e) => return Err(Ended::Control(e)),
             },
             () = &mut stop, if !stopping => {
@@ -230,9 +241,14 @@ where
                     return Err(Ended::Silent);
                 }
             },
-            // Once the edge went away, a new connection takes the visitors;
-            // the sessions on this one resume there.
-            Ok(_) = going.wait_for(|went| *went), if !stopping => return Err(Ended::GoingAway),
+            // Once the edge went away, the node's next connection takes the
+            // new visitors, and those here go on for the drain; a session cut
+            // at its end resumes there (T-402).
+            Ok(_) = going.wait_for(|went| *went), if !stopping && draining.is_none() => {
+                let _ = steps.send(Step::GoingAway);
+                draining = Some(Instant::now() + DRAIN);
+            },
+            () = sleep_until(draining), if draining.is_some() && !stopping => return Err(Ended::GoingAway),
             () = sleep_until(deadline), if deadline.is_some() => {
                 // The edge did not take the end in time, or streams stay
                 // open past the grace: close, then end.

@@ -123,6 +123,21 @@ pub trait EdgeIo: AsyncRead + AsyncWrite + Unpin + Send {}
 
 impl<T: AsyncRead + AsyncWrite + Unpin + Send> EdgeIo for T {}
 
+impl Edge {
+    /// The edge as the connection `conn_index` dials it: its regions turned
+    /// by the index, so that the node's second connection (1, and 3 after a
+    /// GOAWAY) starts at the second region, and a region in trouble leaves
+    /// one connection standing (T-402); the other region stays, in turn.
+    pub fn for_connection(&self, conn_index: u8) -> Edge {
+        let mut regions = self.regions.clone();
+        let count = regions.len();
+        if count > 0 {
+            regions.rotate_left(usize::from(conn_index) % count);
+        }
+        Edge { regions, ..self.clone() }
+    }
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;
@@ -212,5 +227,20 @@ mod tests {
         }
         let fixed = Edge::fixed("why".into());
         assert_eq!((fixed.regions.len(), fixed.port, fixed.fixed.as_deref()), (2, PORT, Some("why")));
+    }
+
+    #[test]
+    fn each_connection_starts_at_its_own_region() {
+        let found = Edge::fixed("why".into());
+        assert_eq!(found.for_connection(0).regions, [REGIONS[0], REGIONS[1]]);
+        assert_eq!(found.for_connection(1).regions, [REGIONS[1], REGIONS[0]]);
+        // The connections that replace them after a GOAWAY, 2 and 3.
+        assert_eq!(found.for_connection(2), found.for_connection(0));
+        assert_eq!(found.for_connection(3), found.for_connection(1));
+        assert_eq!((found.for_connection(1).port, found.for_connection(1).fixed), (PORT, Some("why".into())));
+        let one = Edge { regions: vec!["only.argotunnel.com".into()], port: PORT, fixed: None };
+        assert_eq!(one.for_connection(1).regions, ["only.argotunnel.com"]);
+        let none = Edge { regions: Vec::new(), port: PORT, fixed: None };
+        assert!(none.for_connection(1).regions.is_empty());
     }
 }

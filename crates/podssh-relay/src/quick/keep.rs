@@ -1,13 +1,18 @@
-//! The node's connection to the quick tunnel's edge, kept (T-400): a race of
-//! the roads that the node gives for each connection ([`super::roads`]), the
-//! line of each registration, and a new race after each loss, its wait
-//! doubled from 1 s to 30 s, or the edge's own after a refusal for now. A
-//! refusal for good, and a first race in which no road reached the edge,
-//! end the node; at the stop, the connection unregisters.
+//! The node's connections to the quick tunnel's edge, kept (T-400, T-402): a
+//! race of the roads that the node gives for each connection
+//! ([`super::roads`]), the line of each registration, and a new race after
+//! each loss, its wait doubled from 1 s to 30 s, or the edge's own after a
+//! refusal for now. A second connection, of the index 1, starts once the
+//! first registered, the road that won first at the head of its race. On the
+//! edge's GOAWAY a connection's next race starts at once, under the other
+//! index of its pair (0 and 2, 1 and 3), while the old connection keeps its
+//! visitors for the drain. A refusal for good of the first connection, and a
+//! first race in which no road reached the edge, end the node; the second
+//! connection's end is its own. At the stop, each connection unregisters.
 
 use std::future::Future;
 use std::pin::Pin;
-use std::sync::Arc;
+use std::sync::{Arc, Mutex};
 use std::time::Duration;
 
 use tokio::io::DuplexStream;
@@ -16,12 +21,16 @@ use tokio::time::Instant;
 
 use super::register::Connector;
 use super::roads::{self, Failed, Road, Serving};
-use super::serve::{Ended, Step};
+use super::serve::{Ended, Step, CLOSE_GRACE, DRAIN, UNREGISTER_WAIT};
 
 /// The waits between races after a loss: doubled from the first, to the
 /// most.
 pub const RETRY_FIRST: Duration = Duration::from_secs(1);
 pub const RETRY_MOST: Duration = Duration::from_secs(30);
+/// How long the end, or the next race of its index, waits for a connection
+/// that drains to unregister and close: the unregistration's wait, the
+/// close's grace, and a second.
+const END_WAIT: Duration = Duration::from_secs(UNREGISTER_WAIT.as_secs() + CLOSE_GRACE.as_secs() + 1);
 
 /// What one race asks of the node's roads: the index of the connection, and
 /// the road that won the last race, to start with.
@@ -39,7 +48,7 @@ pub type Made = Pin<Box<dyn Future<Output = Vec<Road>> + Send>>;
 /// Where the node's lines go.
 pub type Say = Arc<dyn Fn(String) + Send + Sync>;
 
-/// What the node gives to keep its connection.
+/// What the node gives to keep its connections.
 pub struct Keep<V> {
     pub connector: Arc<Connector>,
     pub visit: V,
@@ -48,6 +57,8 @@ pub struct Keep<V> {
     /// Called once, after the line of the first registration: a detached
     /// node goes on then.
     pub ready: Box<dyn FnOnce() + Send>,
+    /// How many connections the node keeps at once: 1, or 2 (T-402).
+    pub connections: u8,
 }
 
 /// Why the node ends with no stop asked.
@@ -57,6 +68,28 @@ pub enum Gone {
     Unreached(String),
     /// The edge refused the tunnel's connection for good: its line.
     Refused(String),
+}
+
+/// What the connections of one node share.
+struct Shared<V> {
+    connector: Arc<Connector>,
+    visit: V,
+    roads: Roads,
+    say: Say,
+    ready: Mutex<Option<Box<dyn FnOnce() + Send>>>,
+    /// The road that won the latest race of any connection: each next race
+    /// starts with it, and the second connection waits for it.
+    won: watch::Sender<Option<&'static str>>,
+}
+
+impl<V> Shared<V> {
+    /// A line of the connection `conn_index`; the first's lines name none.
+    fn tell(&self, conn_index: u8, line: String) {
+        match conn_index {
+            0 => (self.say)(line),
+            n => (self.say)(format!("connection {n}: {line}")),
+        }
+    }
 }
 
 /// " (podssh speaks ...)" after an end that a change of cloudflared would
@@ -98,51 +131,67 @@ fn after(ended: &Ended, wait: &mut Duration) -> Result<String, Gone> {
     }
 }
 
-/// Wait `wait`, unless the stop comes first, and double it for the next time.
-async fn pause(wait: &mut Duration, stop: &mut watch::Receiver<bool>) {
+/// Wait `wait`, unless the end comes first, and double it for the next time.
+async fn pause(wait: &mut Duration, end: &mut watch::Receiver<bool>) {
     tokio::select! {
         () = tokio::time::sleep(*wait) => {}
-        _ = stop.wait_for(|stop| *stop) => {}
+        _ = end.wait_for(|end| *end) => {}
     }
     *wait = (*wait * 2).min(RETRY_MOST);
 }
 
-/// Until `serving` ends, its lines said; its end, which `stop` asks for
-/// through the race.
-async fn served(serving: &mut Serving, say: &Say) -> Result<(), Ended> {
+/// How a connection that registered went.
+enum Served {
+    /// The edge sent GOAWAY: the connection drains in its task.
+    GoingAway,
+    /// It ended, at the end asked for or before it.
+    Ended(Result<(), Ended>),
+}
+
+/// Until `serving` ends or the edge sends its GOAWAY, its lines said.
+async fn served<V>(shared: &Shared<V>, serving: &mut Serving, conn_index: u8) -> Served {
     let mut open = true;
     loop {
         tokio::select! {
+            // A GOAWAY and the close that follows it at once: the GOAWAY.
+            biased;
             step = serving.steps.recv(), if open => match step {
-                Some(Step::Unregistered) => say("unregistered".into()),
+                Some(Step::GoingAway) => return Served::GoingAway,
+                Some(Step::Unregistered) => shared.tell(conn_index, "unregistered".into()),
                 Some(_) => {}
                 None => open = false,
             },
-            ended = roads::ended(&mut serving.served) => return ended,
+            ended = roads::ended(&mut serving.served) => return Served::Ended(ended),
         }
     }
 }
 
-/// Keep the node's connection to the edge until `stop`, or until the node
-/// must end.
-pub async fn keep<V, F>(keep: Keep<V>, mut stop: watch::Receiver<bool>) -> Result<(), Gone>
+/// The other index of the pair of `conn_index`: 0 and 2, 1 and 3, as the
+/// edge took four connections of one quick tunnel (cfrs #54).
+fn paired(conn_index: u8) -> u8 {
+    conn_index ^ 2
+}
+
+/// One connection, the index `base` and its pair's, kept until `end`.
+async fn connection<V, F>(shared: &Shared<V>, base: u8, mut end: watch::Receiver<bool>) -> Result<(), Gone>
 where
     V: FnMut(DuplexStream) -> F + Clone + Send + 'static,
     F: Future<Output = ()> + Send + 'static,
 {
-    let Keep { connector, visit, roads, say, ready } = keep;
-    let mut ready = Some(ready);
-    let (mut wait, mut reached, mut first) = (RETRY_FIRST, false, None);
-    loop {
-        if *stop.borrow() {
-            return Ok(());
+    let (mut wait, mut reached, mut index) = (RETRY_FIRST, false, base);
+    // The connection that drains after a GOAWAY, while the next one serves.
+    let mut draining: Option<Serving> = None;
+    let kept = loop {
+        if *end.borrow() {
+            break Ok(());
         }
-        let (began, plan) = (Instant::now(), Plan { conn_index: 0, first });
-        let (made, ours, visitor, all) = ((*roads)(plan), connector.clone(), visit.clone(), stop.clone());
-        let race = async move { roads::race(made.await, ours, 0, visitor, all).await };
+        let (began, plan) = (Instant::now(), Plan { conn_index: index, first: *shared.won.borrow() });
+        let (made, ours, visitor, all) =
+            ((*shared.roads)(plan), shared.connector.clone(), shared.visit.clone(), end.clone());
+        let race = async move { roads::race(made.await, ours, index, visitor, all).await };
         let race = tokio::select! {
             race = race => race,
-            _ = stop.wait_for(|stop| *stop) => return Ok(()),
+            _ = end.wait_for(|end| *end) => break Ok(()),
         };
         // Each connection that registered too is let go.
         for dismissed in &race.dismissed {
@@ -156,32 +205,103 @@ where
                 Failed::Ended(e @ Ended::Refused { .. }) => Some(e),
                 _ => None,
             });
-            let line = match refused {
-                Some(refused) => after(refused, &mut wait)?,
-                None if !reached => return Err(Gone::Unreached(lost(&race.failed))),
+            let line = match refused.map(|refused| after(refused, &mut wait)) {
+                Some(Ok(line)) => line,
+                Some(Err(gone)) => break Err(gone),
+                None if !reached && base == 0 => break Err(Gone::Unreached(lost(&race.failed))),
                 None => format!("{}; trying again in {} s", lost(&race.failed), wait.as_secs()),
             };
-            say(line);
-            pause(&mut wait, &mut stop).await;
+            shared.tell(index, line);
+            pause(&mut wait, &mut end).await;
             continue;
         };
-        (reached, wait, first) = (true, RETRY_FIRST, Some(serving.road));
+        (reached, wait) = (true, RETRY_FIRST);
+        shared.won.send_replace(Some(serving.road));
         for (road, why) in &race.failed {
-            say(format!("{road} gave way: {why}"));
+            shared.tell(index, format!("{road} gave way: {why}"));
         }
         for road in &race.silent {
-            say(format!("{road} gave way: it had not registered when {} did", serving.road));
+            shared.tell(index, format!("{road} gave way: it had not registered when {} did", serving.road));
         }
         let (took, road, location) = (began.elapsed().as_secs_f64(), serving.road, &serving.location);
-        say(format!("registered at Cloudflare's {location}, over {road} (its race took {took:.1} s)"));
-        if let Some(ready) = ready.take() {
+        shared.tell(index, format!("registered at Cloudflare's {location}, over {road} (its race took {took:.1} s)"));
+        let ready = shared.ready.lock().unwrap_or_else(|e| e.into_inner()).take();
+        if let Some(ready) = ready {
             ready();
         }
-        let line = match served(&mut serving, &say).await {
-            Ok(()) => return Ok(()),
-            Err(e) => after(&e, &mut wait)?,
+        let ended = match served(shared, &mut serving, index).await {
+            Served::GoingAway => {
+                let drain = DRAIN.as_secs();
+                let line = format!("the edge sent GOAWAY: a new connection now; its visitors stay up to {drain} s");
+                shared.tell(index, line);
+                // A drain that still runs holds the index that comes next:
+                // it ends first.
+                if let Some(mut older) = draining.replace(serving) {
+                    older.stop();
+                    let _ = tokio::time::timeout(END_WAIT, older.finished()).await;
+                }
+                index = paired(index);
+                continue;
+            }
+            Served::Ended(ended) => ended,
         };
-        say(line);
-        pause(&mut wait, &mut stop).await;
+        let line = match ended.map_err(|e| after(&e, &mut wait)) {
+            Ok(()) => break Ok(()),
+            Err(Ok(line)) => line,
+            Err(Err(gone)) => break Err(gone),
+        };
+        shared.tell(index, line);
+        pause(&mut wait, &mut end).await;
+    };
+    // The connection that drains ends with the others: `end` asked for it,
+    // or this asks.
+    if let Some(mut old) = draining {
+        old.stop();
+        let _ = tokio::time::timeout(END_WAIT, old.finished()).await;
     }
+    kept
+}
+
+/// Keep the node's connections to the edge until `stop`, or until the node
+/// must end.
+pub async fn keep<V, F>(keep: Keep<V>, stop: watch::Receiver<bool>) -> Result<(), Gone>
+where
+    V: FnMut(DuplexStream) -> F + Clone + Send + 'static,
+    F: Future<Output = ()> + Send + 'static,
+{
+    let Keep { connector, visit, roads, say, ready, connections } = keep;
+    let won = watch::channel(None).0;
+    let shared = Shared { connector, visit, roads, say, ready: Mutex::new(Some(ready)), won };
+    // Each connection's end: the stop, or the node's end that the first
+    // connection's end is. A stop whose sender is gone is a stop.
+    let (ending, end) = watch::channel(false);
+    let ending = Arc::new(ending);
+    tokio::spawn({
+        let (ending, mut stop) = (ending.clone(), stop);
+        async move {
+            let _ = stop.wait_for(|stop| *stop).await;
+            ending.send_replace(true);
+        }
+    });
+    let first = async {
+        let kept = connection(&shared, 0, end.clone()).await;
+        ending.send_replace(true);
+        kept
+    };
+    let second = async {
+        let (mut won, mut until) = (shared.won.subscribe(), end.clone());
+        if connections < 2 {
+            return;
+        }
+        tokio::select! {
+            _ = won.wait_for(|road| road.is_some()) => {}
+            _ = until.wait_for(|end| *end) => return,
+        }
+        // The second connection's end leaves the first serving.
+        if let Err(Gone::Refused(line) | Gone::Unreached(line)) = connection(&shared, 1, end.clone()).await {
+            shared.tell(1, format!("{line}; the node keeps one connection"));
+        }
+    };
+    let (kept, ()) = tokio::join!(first, second);
+    kept
 }

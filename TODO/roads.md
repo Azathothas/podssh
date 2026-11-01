@@ -2975,7 +2975,7 @@ roots must be exactly three, and a refusal of the edge does not say which releas
 - Read: two fixed regions, port 7844 and the TLS name `h2.cftunnel.com`
   (`crates/podssh-relay/src/quick/edge.rs:22-29`); the roots must give 3 anchors and no invalid
   one (`:40-44`); the API's host is fixed (`crates/podssh-relay/src/quick/api.rs:28`). The node
-  registers as `podssh` and the package's version (`crates/podssh-cli/src/node_quick.rs:188-189`),
+  registers as `podssh` and the package's version (`crates/podssh-cli/src/node_quick.rs:197-198`),
   `1.0.0-beta.2` today (`Cargo.toml:50`).
 - Read: the three roots end on 2029-08-15, 2029-08-15 and 2029-11-01
   (`crates/podssh-relay/src/quick/cloudflare-roots.pem:6`, `:25`, `:52`).
@@ -5735,9 +5735,9 @@ line. P3: the node connects again either way, and only its words differ.
 ## Premise
 
 - Read: the loop over HTTP/2 returns `Ended::Http2` or `Ended::Closed` from the connection's
-  accept (`crates/podssh-relay/src/quick/serve.rs:186-187`), and `Ended::Control` from the control
-  stream's failure (`crates/podssh-relay/src/quick/serve.rs:202`), in one `tokio::select!`
-  (`crates/podssh-relay/src/quick/serve.rs:189`).
+  accept (`crates/podssh-relay/src/quick/serve.rs:195-196`), and `Ended::Control` from the control
+  stream's failure (`crates/podssh-relay/src/quick/serve.rs:213`), in one `tokio::select!`
+  (`crates/podssh-relay/src/quick/serve.rs:198`).
 - Read: the loop over QUIC had the same two arms, and a close or a silence read as the control
   stream's end one run in six, until the control stream's failure took the connection's reason
   (T-301's Done, 2026-10-31).
@@ -6475,7 +6475,7 @@ same day; the draft's one `eprintln!` (the node's lines) is `err_line!` since T-
 **Milestone:** none
 **Priority:** P3
 **Effort:** M
-**Status:** open
+**Status:** done
 
 ## Problem
 
@@ -6485,8 +6485,8 @@ server is such a gap.
 
 ## Premise
 
-- Read: GOAWAY ends the connection (`crates/podssh-relay/src/quick/serve.rs:235`); the node
-  registers `conn_index` 0 only (`crates/podssh-cli/src/node_quick.rs:227`).
+- Read: GOAWAY ends the connection (`crates/podssh-relay/src/quick/serve.rs`, line 235 at `a09f40e`); the node
+  registers `conn_index` 0 only (`crates/podssh-cli/src/node_quick.rs`, line 225 at `a09f40e`).
 - Read in cfrs's issues: the edge accepted 1, 2 and 4 connections of one quick tunnel (cfrs #54).
 
 ## Approach
@@ -6495,12 +6495,103 @@ On GOAWAY, start the next connection at once, and keep the old one's streams up 
 second connection (`conn_index` 1) to another region where the edge names two, so that one
 connection always serves.
 
+## Decision
+
+The draft's calls, 2026-11-01:
+
+1. The drain is the connection's own (`crates/podssh-relay/src/quick/serve.rs`): at the edge's
+   GOAWAY it says `Step::GoingAway` at once, and serves its streams until the edge closes it or
+   `serve::DRAIN` (90 s) passes, then ends as `Ended::GoingAway`; a control stream that the edge
+   ends meanwhile does not end the drain. Nothing is unregistered then: the edge that sent the
+   GOAWAY takes the connection down itself. Lost: cfrs's drop of its control at the GOAWAY, which
+   could take the registration from visitors still on the connection.
+2. The node's next race starts at once at `Step::GoingAway`, with no wait
+   (`crates/podssh-relay/src/quick/keep.rs`), and registers the other index of the pair: 0 and 2,
+   1 and 3, so that no index is held by two connections while one drains; the edge took four
+   connections of one quick tunnel (cfrs #54). Lost: the same index with `replaceExisting` (cfrs's
+   reconnection), whose effect on a connection that still serves visitors is not read.
+3. A second GOAWAY while the pair's other connection still drains stops that drain first (its
+   unregistration and close, 8 s at most), then races its index. Lost: a fifth index, past what
+   the edge was seen to take.
+4. The second connection, of the index 1, starts once the first registered, with the road that
+   won the latest race at the head of its own; the roads of each race go to the edge's regions
+   turned by the index (`Edge::for_connection` in `crates/podssh-relay/src/quick/edge.rs`), so
+   that it dials `region2` first and `region1` after. Its failures are its own: it races again
+   after its wait, a refusal for good ends it alone with a line ("…; the node keeps one
+   connection"), and it never ends the node. Its lines, and those of the indexes 2 and 3, begin
+   with "connection N: ". Lost: a race of its own from the start, which would double the probes
+   and the dials of each start.
+5. The node keeps two connections (`CONNECTIONS` in `crates/podssh-cli/src/node_quick.rs`), where
+   cloudflared keeps one for a quick tunnel and four for a named one (`docs/design.md`).
+6. Rule 2 of `AGENTS.md` names three exceptions, and a second connection that stays is none of
+   them; a node already holds a connection for each road that it serves at once (the pair's,
+   iroh's, DERP's), and the work order and the brief of this draft ask for it. The merger checks
+   whether this needs the operator's ruling: if it does, a question "May `podssh node
+   --quick-tunnel` keep a second connection to the edge, of the index 1, and a draining one beside
+   its successor for up to 90 s after a GOAWAY?", recommended yes as a fourth exception (the
+   edge's own redundancy, which cloudflared's named tunnels use), blocks the entry, and
+   `CONNECTIONS` at 1 keeps the drain alone meanwhile.
+7. At the merge: it does. Q44 shows that a second connection at once is the operator's to allow,
+   so the second connection that stays is Q62 and T-414 (blocked), and `CONNECTIONS` is 1. The
+   drain goes on here: its overlap, the old connection's visitors for up to 90 s while the next
+   one registers, is the short second connection of rule 2's race of relay hosts (Q10), which
+   ends by itself, and Q62 names it so that the operator can rule on both. Lost: blocking all of
+   T-402, which would leave each GOAWAY ending every visitor of the node, the defect of cfrs #57.
+
 ## Prove
 
 ```sh
 export CARGO_BUILD_JOBS=4
-cargo test -p podssh-relay --test quick_resilience a_visitor_echoes_across_a_goaway
+cargo test -p podssh-relay --features quick --test quick_resilience a_visitor_echoes_across_a_goaway
+cargo test -p podssh-relay --features quick --test quick_resilience
+cargo test -p podssh-relay --features quick --lib quick::edge
+cargo test -p podssh-cli --lib node_quick
+cargo test -p podssh-cli --test man_page --test man_json
 ```
+
+Live: `quick-tunnel-live.yml` on the commit: the second connection's registration.
+
+## Correction
+
+The Prove's first line named no feature, and `quick_resilience` is behind the feature `quick`:
+it ran no test. It names the feature now.
+
+## Done
+
+2026-11-01: drafted by a drafting agent on T-400's draft, merged, built and run the same day. The
+node keeps one connection until Q62 (Decision, item 6): the second is T-414.
+
+- `crates/podssh-relay/src/quick/serve.rs`: `DRAIN`, `Step::GoingAway`, and the drain in the loop;
+  the h2 server's builder is untouched (T-408's). `crates/podssh-relay/tests/quick_resilience.rs`:
+  `the_edge_s_goaway_ends_the_connection_at_once` is now
+  `the_edge_s_goaway_is_said_at_once_and_its_close_ends_the_drain`, and the new
+  `after_a_goaway_a_visitor_goes_on_for_the_drain_at_most` (a paused clock: the visitor echoes a
+  minute after the GOAWAY, the end at 90 s): passed.
+- `crates/podssh-relay/src/quick/keep.rs`: the two connections and the races at a GOAWAY. The new
+  `a_visitor_echoes_across_a_goaway` (the first connection, of the index 0, and its visitor; the
+  edge's GOAWAY; the next connection, of the index 2, registered while the first is open; the
+  visitor's echo across the GOAWAY, a new visitor on the second; both unregistered at the stop)
+  and `a_second_connection_registers_as_index_1_once_the_first_did`: `cargo test -p podssh-relay
+  --features quick --test quick_resilience`: 12 passed (the second connection asked of the keeper
+  directly). The index of a registration is read
+  against the fixture's bytes (`conn_index_of` in the harness).
+- `crates/podssh-relay/src/quick/edge.rs`: `Edge::for_connection`, and
+  `each_connection_starts_at_its_own_region`: `cargo test -p podssh-relay --features quick --lib
+  quick::edge`: passed, in `quick::`'s 56; the draft's rotation of the regions, which borrowed
+  the list twice and did not build, was repaired at the merge.
+- `crates/podssh-cli/src/node_quick.rs`: one connection (`CONNECTIONS`, the draft's 2 held for
+  Q62), the regions turned by the index. The manual's note of `node --quick-tunnel` says one;
+  `cargo test -p podssh-cli --lib node_quick`, `--test man_page --test man_json --test node`:
+  passed. clippy `-D warnings` of podssh-relay with `quick`, `pair` and `warp-stand-in` (a type
+  of the test's named, which clippy asked for) and of podssh-cli: clean.
+- `rustfmt --check --edition 2021` on each changed Rust file, in the draft: exit 0.
+  `python scripts/check-repo.py`: ok.
+- Planted, each failed its test: the GOAWAY that ends the connection at once again (three tests
+  failed: "the first connection closed before the second registered", "the connection drains");
+  `paired` that gives the same index (the index 2 asserted in `a_visitor_echoes_across_a_goaway`).
+- Live: `quick-tunnel-live.yml` checks that no connection of the index 1 starts while Q62 waits;
+  its run after the push is in `docs/STATUS.md`. A GOAWAY of the live edge cannot be asked for:
+  the drain is measured against the stand-in alone.
 
 # T-404: The quick tunnel's registration: the features of cloudflared 2026.10.7, and an answer to a push of configuration
 
@@ -6750,3 +6841,43 @@ export CARGO_BUILD_JOBS=4
 cargo test -p podssh-relay --features quick --lib quick::
 ```
 
+# T-414: The quick tunnel keeps a second connection to the edge, to its other region
+
+**Source:** the merge of T-402 (2026-11-01), whose draft kept two connections; cfrs #54.
+**Category:** feature
+**Milestone:** none
+**Priority:** P3
+**Effort:** S
+**Status:** blocked
+
+## Problem
+
+A quick tunnel's node keeps one connection to the edge. A region in trouble, or a GOAWAY whose
+next connection fails to register, leaves the name serving nothing until a new connection
+registers.
+
+## Premise
+
+- Read: `CONNECTIONS` is 1 in `crates/podssh-cli/src/node_quick.rs`; `crates/podssh-relay/src/quick/keep.rs`
+  keeps two when asked, the second of the index 1 once the first registered, to the edge's other
+  region first (`Edge::for_connection`), tested by
+  `a_second_connection_registers_as_index_1_once_the_first_did`.
+- Read in cfrs's issue #54 (`docs/design.md`, "Measured by cfrs's testers"): the edge took 1, 2
+  and 4 connections of one quick tunnel.
+
+## Approach
+
+With the operator's leave (Q62), `CONNECTIONS` becomes 2, the manual and `docs/cli.md` say so, and
+`quick-tunnel-live.yml` checks the registration of the index 1 over QUIC.
+
+## Prove
+
+```sh
+export CARGO_BUILD_JOBS=4
+cargo test -p podssh-relay --features quick --test quick_resilience a_second_connection_registers_as_index_1_once_the_first_did
+```
+
+## Blocker
+
+The operator: Q62 in `TODO/PROGRESS.md`, as a second connection that stays is no exception of rule 2
+of `AGENTS.md` yet.

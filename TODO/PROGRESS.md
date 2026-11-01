@@ -117,7 +117,7 @@ and `CARGO_BUILD_JOBS=4`:
 
 ## Counts
 
-`TODO/INDEX.md` holds 409 entries: 18 open, 2 partial, 31 blocked, 358 done.
+`TODO/INDEX.md` holds 410 entries: 17 open, 2 partial, 32 blocked, 359 done.
 
 Open includes parked work. `cargo todo check` verifies this line.
 
@@ -149,7 +149,8 @@ code and its issues. Their findings on `--detach` are done (a line that fails to
 aborts a detached node, `--persist-forever` never gives up, `--restart` starts a detached run
 again, a node goes on with the next pair at its pair's expiry, a lock names each detached run, a
 hung run is started again, and the smaller gaps are closed), and the quick tunnel races its roads
-too; then T-402, T-408 and T-411. Before them, a bulk session through a node and its moves on
+too, and drains a connection on the edge's GOAWAY (its second connection waits for Q62, T-414);
+then T-408 and T-411. Before them, a bulk session through a node and its moves on
 the live relay are repaired, and the entries of the audit, the study and the issues
 of 2026-10-31 (GitHub #59 to #63 and #69 to #76): T-353 (Q52), whose live run waits for Q60; the
 others are done. Each other `backlog` entry is done, but for those on hold, those of the relay's
@@ -169,7 +170,8 @@ T-124, T-150, T-159, T-160, T-161, T-303 and T-304, "Parked open work"),
 which waits as they wait; and the entries that wait for the operator:
 T-328 (an export of FinalShell and of Termius: a known gap, which
 `v1.0.0` does not wait for) and T-376 (the operator's throwaway cloud
-accounts for the live run of the roads of iap:// and eice://).
+accounts for the live run of the roads of iap:// and eice://), and T-414 (Q62: a second connection
+of the quick tunnel to the edge).
 
 ## Parked open work
 
@@ -203,6 +205,21 @@ unattended session (Q13 to Q28) on 2026-10-08; the rulings are in
 that it blocks (status `blocked`) and a recommendation; the session then
 takes the next entry. Nothing is closed as out of scope until the operator
 rules.
+
+**Q62 (open, 2026-11-01): may `podssh node --quick-tunnel` keep a second
+connection to Cloudflare's edge (T-414)?** Rule 2 of `AGENTS.md` allows one
+outbound connection and names three exceptions; a second connection that stays,
+of the index 1, to the edge's other region first, is none of them. cfrs's
+testers found that the edge takes 1, 2 and 4 connections of one quick tunnel
+(cfrs #54), and cloudflared keeps four for a named tunnel: with two, a region
+in trouble or a GOAWAY leaves one connection standing. The code is in
+(`crates/podssh-relay/src/quick/keep.rs`, tested with two); the node keeps one
+(`CONNECTIONS` in `crates/podssh-cli/src/node_quick.rs`). T-402's drain, where
+the old connection serves its visitors for up to 90 s while the next one
+registers, is taken as the short overlap of rule 2's race of relay hosts (Q10).
+Recommendation: yes, as a fourth exception of rule 2, for the quick tunnel's
+node alone: the edge's own redundancy, with no new host and no listener; the
+node then keeps two.
 
 **Q61 (open, 2026-11-01): two readings for `--detach` (T-380, T-381).**
 (1) T-380 starts this binary again to go to the background, as `podssh

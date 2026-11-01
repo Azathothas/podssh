@@ -107,6 +107,11 @@ jobs:
           if grep -q "the edge's SRV record" "$RUNNER_TEMP/node.log"; then echo "FAIL the SRV record did not name the edge"; exit 1; fi
           echo "ok    the edge's two regions came from its SRV record"
           echo "ok    registered over QUIC; the name is $(echo "$host" | grep -c '\.trycloudflare\.com$') name under trycloudflare.com"
+          # T-402: one connection until the operator rules on a second (Q62,
+          # T-414); none of the index 1 starts meanwhile.
+          sleep 5
+          if grep -q "connection 1: " "$RUNNER_TEMP/node.log"; then echo "FAIL a second connection started before Q62 (T-414)"; exit 1; fi
+          echo "ok    one connection to the edge, as rule 2 holds until Q62"
 
       - name: a visitor, directly
         run: timeout 120 python3 scripts/quick-tunnel-probe.py --limit 90 "$QUICK_HOST"

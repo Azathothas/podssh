@@ -11,8 +11,10 @@
 //! (T-301), HTTP/2 on TCP, directly or through a proxy that allows it, and
 //! HTTP/2 inside WARP's tunnel (T-374, `crate::node_warp`), first with
 //! `--warp`; each starts 2 s after the one before, or at once when it
-//! failed, and the first that registers is kept. A lost connection to the
-//! edge is made again, with the same name, until Ctrl-C.
+//! failed, and the first that registers is kept. It keeps two connections,
+//! the second to the edge's other region first, and on the edge's GOAWAY it
+//! connects again at once while the old connection drains (T-402). A lost
+//! connection to the edge is made again, with the same name, until Ctrl-C.
 
 use std::io::Write;
 use std::path::PathBuf;
@@ -39,6 +41,13 @@ use crate::relay_settings::Refusal;
 
 /// Bound on each dial of TARGET.
 const DIAL_LIMIT: Duration = Duration::from_secs(8);
+/// The connections that the node keeps to the edge at once, each to its own
+/// region first. One until the operator rules on a second that stays
+/// (Q62): rule 2 of AGENTS.md allows one outbound connection, and its
+/// exceptions name no second edge connection. The drain of T-402 holds
+/// with one: the old connection serves its streams while the next one
+/// registers, for 90 s at most.
+const CONNECTIONS: u8 = 1;
 
 /// Each check that needs no network, done.
 struct Ready {
@@ -198,7 +207,8 @@ async fn serve_quick(ready: Ready, err: &mut dyn Write) -> i32 {
     let roads = edge_roads(proxy, WarpRoad::new(warp), say.clone());
     // Said first; then a detached node goes on (T-380).
     let ready = Box::new(|| crate::detach::ready("node"));
-    let kept = keep::keep(Keep { connector, visit, roads, say: say.clone(), ready }, stopped).await;
+    let keep = Keep { connector, visit, roads, say: say.clone(), ready, connections: CONNECTIONS };
+    let kept = keep::keep(keep, stopped).await;
     let message = match kept {
         Ok(()) => {
             say("stopped".into());
@@ -217,8 +227,9 @@ async fn serve_quick(ready: Ready, err: &mut dyn Write) -> i32 {
 /// The roads to the edge for one race, as `plan` asks: QUIC where no proxy
 /// stands in its way, as a proxy carries no UDP (T-301), HTTP/2, then HTTP/2
 /// inside WARP's tunnel, WARP's first with `--warp`; the road that won the
-/// last race first. The edge is asked for at each race, and its fixed names
-/// are said once a run, as `podssh node` has no -v (T-339).
+/// last race first; each to the edge's regions in the order of the
+/// connection's index (T-402). The edge is asked for at each race, and its
+/// fixed names are said once a run, as `podssh node` has no -v (T-339).
 fn edge_roads(proxy: ProxyChoice, warp: WarpRoad, say: Say) -> Roads {
     let over_quic = matches!(podssh_ws::dial::proxy_from_env(edge::REGIONS[0]), Ok(None));
     let warp_first = warp.first;
@@ -233,6 +244,7 @@ fn edge_roads(proxy: ProxyChoice, warp: WarpRoad, say: Say) -> Roads {
                     say(format!("{why}; the two names of Cloudflare's documents, port {}", edge::PORT));
                 }
             }
+            let found = found.for_connection(plan.conn_index);
             let mut list = Vec::new();
             if over_quic {
                 list.push(roads::quic(found.clone()));

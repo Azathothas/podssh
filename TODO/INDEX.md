@@ -62,15 +62,15 @@ repository and CI).
 
 ## Counts
 
-**409 entries: 18 open, 2 partial, 31 blocked, 358 done.**
+**410 entries: 17 open, 2 partial, 32 blocked, 359 done.**
 
 | Priority | open | partial | blocked | done | total |
 | --- | --- | --- | --- | --- | --- |
 | P0 | 0 | 0 | 0 | 1 | 1 |
 | P1 | 1 | 1 | 0 | 38 | 40 |
 | P2 | 1 | 0 | 21 | 177 | 199 |
-| P3 | 16 | 1 | 10 | 142 | 169 |
-| **All** | 18 | 2 | 31 | 358 | 409 |
+| P3 | 15 | 1 | 11 | 143 | 170 |
+| **All** | 17 | 2 | 32 | 359 | 410 |
 
 ## Entries
 
@@ -473,7 +473,7 @@ repository and CI).
 | [T-399](roads.md) | P2 | M | none | defect | done | WARP: a front door's key that is not the device record's is taken for a proxy, for the whole run |
 | [T-400](roads.md) | P2 | M | none | feature | done | The quick tunnel's legs raced with a stagger, and a probe of UDP before QUIC |
 | [T-401](roads.md) | P2 | S | none | defect | done | The quick tunnel's provisioning: Retry-After honoured, and the edge's text cleaned before it is shown |
-| [T-402](roads.md) | P3 | M | none | feature | open | The quick tunnel on GOAWAY: the next connection at once, the old one drained, and a second connection |
+| [T-402](roads.md) | P3 | M | none | feature | done | The quick tunnel on GOAWAY: the next connection at once, the old one drained, and a second connection |
 | [T-403](robustness.md) | P3 | S | none | defect | done | The Cap'n Proto reader allocates for each element of a list before it reads one; fuzz targets for the quick tunnel's parsers |
 | [T-404](roads.md) | P3 | S | none | chore | done | The quick tunnel's registration: the features of cloudflared 2026.10.7, and an answer to a push of configuration |
 | [T-405](ws.md) | P3 | S | none | defect | done | DoH asks by an address, which a proxy that refuses addresses refuses |
@@ -485,3 +485,4 @@ repository and CI).
 | [T-411](roads.md) | P3 | M | none | defect | open | The quick tunnel over QUIC resets a push of configuration |
 | [T-412](reverse.md) | P2 | S | none | defect | done | The stand-in relay drops a frame of an unknown session, which the live relay answers with 1003 |
 | [T-413](ws.md) | P1 | S | none | defect | done | The test of DoH over HTTP/2 failed in CI: two equal bounds raced |
+| [T-414](roads.md) | P3 | S | none | feature | blocked | The quick tunnel keeps a second connection to the edge, to its other region |
