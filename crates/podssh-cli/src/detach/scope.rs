@@ -126,9 +126,7 @@ fn moved(unit: &str, before: &str) -> String {
     loop {
         let now = cgroup().unwrap_or_default();
         if now.ends_with(&format!("/{unit}")) {
-            return format!(
-                "the run left {before} for the scope {unit} of the user's systemd: a logout does not end it"
-            );
+            return moved_line(unit, before, lingering());
         }
         if Instant::now() >= end {
             return format!("the user's systemd took the scope {unit}, but the run's cgroup is still {now}");
@@ -137,9 +135,56 @@ fn moved(unit: &str, before: &str) -> String {
     }
 }
 
+/// What a run in its scope can count on: the user's systemd, and its
+/// scopes, stay after the user's last logout only with lingering on.
+fn moved_line(unit: &str, before: &str, lingering: Option<bool>) -> String {
+    let left = format!("the run left {before} for the scope {unit} of the user's systemd");
+    match lingering {
+        Some(false) => format!(
+            "{left}: a logout does not end it while another session of the user stays; lingering is off, so the \
+             user's last logout ends the user's systemd and the run with it (loginctl enable-linger keeps them)"
+        ),
+        _ => format!("{left}: a logout does not end it"),
+    }
+}
+
+/// Whether logind keeps this user's systemd with no session
+/// (`/var/lib/systemd/linger/NAME`); `None` where that is not known.
+fn lingering() -> Option<bool> {
+    let dir = std::path::Path::new("/var/lib/systemd/linger");
+    if !dir.is_dir() {
+        return None;
+    }
+    // SAFETY: passwd is plain data, for which all zeros is a value.
+    let mut record: libc::passwd = unsafe { std::mem::zeroed() };
+    let mut text = vec![0 as libc::c_char; 4096];
+    let mut found: *mut libc::passwd = std::ptr::null_mut();
+    // SAFETY: getpwuid_r writes into `record` and `text`, which outlive the
+    // call, and sets `found` to `record` or to null.
+    let rc = unsafe { libc::getpwuid_r(libc::getuid(), &mut record, text.as_mut_ptr(), text.len(), &mut found) };
+    if rc != 0 || found.is_null() {
+        return None;
+    }
+    // SAFETY: pw_name points into `text`, a NUL-terminated string.
+    let name = unsafe { std::ffi::CStr::from_ptr(record.pw_name) }.to_str().ok()?.to_string();
+    Some(dir.join(name).exists())
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;
+
+    /// With lingering off, the line says that the user's last logout still
+    /// ends the run; on, or not known, that a logout does not.
+    #[test]
+    fn the_line_says_what_lingering_off_leaves() {
+        let off = moved_line("u.scope", "/s/session-1.scope", Some(false));
+        assert!(off.contains("lingering is off") && off.contains("loginctl enable-linger"), "{off}");
+        for on in [Some(true), None] {
+            let line = moved_line("u.scope", "/s/session-1.scope", on);
+            assert!(line.ends_with("a logout does not end it"), "{line}");
+        }
+    }
 
     #[test]
     fn a_session_scope_is_known_by_its_leaf() {

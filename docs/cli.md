@@ -959,9 +959,13 @@ already on the caller's stderr; Ctrl-C before ready reaches both.
 - A CI's job ends the run at the job's end: podssh touches no variable by
   which a CI finds its processes (`RUNNER_TRACKING_ID`, `BUILD_ID`,
   `JENKINS_NODE_COOKIE`).
-- Not yet: the move out of a session's scope of systemd, where logind
-  kills a session's processes at logout (T-381, which waits for the
-  operator's ruling Q61).
+- A login session's scope of systemd, where logind kills a session's
+  processes at logout: at ready the run asks the user's systemd, over
+  D-Bus, for a scope of its own, `podssh-detached-PID.scope`, as tmux
+  does (T-381, Q61); `PODSSH_SYSTEMD=no` asks nothing, `yes` asks outside a
+  session too. The user's last logout still ends it where lingering is
+  off, as it ends the user's systemd (`loginctl enable-linger`), and its
+  log says so.
 
 **`--restart`** (T-390, from the study of the daemonizer d-mon): a server
 that only a detached tunnel reaches is locked out when the run ends, by a

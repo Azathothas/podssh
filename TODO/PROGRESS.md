@@ -120,7 +120,7 @@ and `CARGO_BUILD_JOBS=4`:
 
 ## Counts
 
-`TODO/INDEX.md` holds 415 entries: 15 open, 3 partial, 30 blocked, 367 done.
+`TODO/INDEX.md` holds 415 entries: 15 open, 2 partial, 30 blocked, 368 done.
 
 Open includes parked work. `cargo todo check` verifies this line.
 
@@ -143,8 +143,8 @@ again, at most one a day, so not before 2026-11-02 01:44 UTC, and once the
 gate is green on its commit.
 
 **The operator's request of 2026-11-01:** `--detach` is in, `session start` asks its prompts on
-the terminal, and both are measured on Windows and macOS in Actions (2026-11-01); T-381, a scope of
-systemd for a detached run, follows from Q61 (settled 2026-11-01).
+the terminal, and both are measured on Windows and macOS in Actions (2026-11-01); since Q61 a
+detached run leaves a login session's scope of systemd for one of its own.
 
 **Now (2026-11-01):** the operator's request of 2026-11-01, two studies: of Nemo-010/d-mon, a
 daemonizer, for a `--detach` that must never leave a server locked out, and of Azathothas/cfrs, its
@@ -159,8 +159,8 @@ of 2026-10-31 (GitHub #59 to #63 and #69 to #76): T-353 (Q52), whose live run Q6
 others are done. Each other `backlog` entry is done, but for those on hold, those of the relay's
 operator and the parked ones.
 
-**Next (2026-11-01, the operator's rulings of Q60 to Q62):** T-381 (a scope of systemd for a
-detached run) and T-353's live run on the public Tor network. The rehearsal of T-251 at `7855981`
+**Next (2026-11-01, the operator's rulings of Q60 to Q62):** T-353's live run through the box's
+proxy on the public Tor network. The rehearsal of T-251 at `7855981`
 found two checks that fail at random, the test of DoH over HTTP/2 in the gate and WARP's road in
 `quick-tunnel-live.yml`, both repaired, so `v1.0.0-beta.4` comes after 2026-11-02 01:44 UTC
 from the first commit after their repairs where the gate and each ACTIONS row of the release check
