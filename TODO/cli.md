@@ -491,7 +491,7 @@ Read, at `61e55d1`: no option made podssh start a program: `ProxyCommand` is ref
    `[OPTIONS] [--] [user@]host [COMMAND...]` for `ssh` and
    `[OPTIONS] [--] HOST PORT` for `proxy`; `--help` and the synopsis of the
    manual (`crates/podssh-cli/src/man/model.rs:186-190`) read it.
-2. A note for `ssh` and `proxy` (`crates/podssh-cli/src/man/notes_ssh.rs:4-475` and `crates/podssh-cli/src/man/notes.rs:63-196`)
+2. A note for `ssh` and `proxy` (`crates/podssh-cli/src/man/notes_ssh.rs:4-478` and `crates/podssh-cli/src/man/notes.rs:63-196`)
    and an example (`crates/podssh-cli/src/man/examples.rs:8-240`). Pitfall: the
    notes test reads a bare `--` as a flag that does not exist
    (`crates/podssh-cli/src/man/notes.rs:394-410`); teach `flag_exists`
@@ -600,7 +600,7 @@ variable matters when `cp`, `mv` and `relay` exist. `ssh` and `proxy` have no
 3. A malformed value names its source: `--timeout` (exit 64), or
    `PODSSH_TIMEOUT` (exit 78, see Decision). The variable never bounds `ssh`
    or `proxy`.
-4. Same commit: a row in `VARIABLES` (`crates/podssh-cli/src/man/facts.rs:45-282`),
+4. Same commit: a row in `VARIABLES` (`crates/podssh-cli/src/man/facts.rs:45-290`),
    which `each_variable_in_the_source_is_documented` requires
    (`crates/podssh-cli/src/man/facts/tests.rs:65-78`); "default: env
    PODSSH_TIMEOUT" in the help of each `--timeout` row, as `--relay-host` says
@@ -990,7 +990,7 @@ Read then: each value flag but `-i` and `-o` was `ArgAction::Set`.
    (`crates/podssh-cli/src/ssh/args.rs:151-198`, called at
    `crates/podssh-cli/src/tree.rs:464-468`).
 4. `docs/cli.md:631-636` and a note of the manual
-   (`crates/podssh-cli/src/man/notes_ssh.rs:431-433`) state the rule.
+   (`crates/podssh-cli/src/man/notes_ssh.rs:434-436`) state the rule.
 
 ## Prove
 
@@ -2800,7 +2800,7 @@ the start; each fails its test.
 **Milestone:** backlog
 **Priority:** P3
 **Effort:** M
-**Status:** open
+**Status:** partial
 
 ## Problem
 
@@ -2824,9 +2824,20 @@ failure is a line, never the run's end.
 
 ## Decision
 
-2026-11-01: the operator ruled Q61 as recommended (`docs/decisions.md`); the entry is open
-again. What it waited for: The operator: Q61 (`TODO/PROGRESS.md`), whether a detached podssh may ask the user's systemd for
-a scope of its own.
+2026-11-01: the operator ruled Q61 as recommended (`docs/decisions.md`), and the entry was open
+again. The calls made in the work:
+
+- **A client of D-Bus of podssh's own**, the login EXTERNAL, `Hello` and one call, about 270
+  lines with its tests (`crates/podssh-cli/src/detach/dbus.rs`), in place of a crate: zbus would
+  bring an async runtime of its own and some 40 crates for one call.
+- **Where it asks:** the user's bus of `DBUS_SESSION_BUS_ADDRESS` (`unix:path=`), else
+  `XDG_RUNTIME_DIR/bus` (or `/run/user/UID/bus`), else systemd's own socket there
+  (`systemd/private`, a peer with no `Hello`). Each try a line's worth of reason when it fails.
+- **When:** at ready, on a thread of its own so that no client waits, and only from a login
+  session's scope (`session-N.scope` in `/proc/self/cgroup`), the case that a logout ends;
+  `PODSSH_SYSTEMD=yes` asks anywhere (the live check of the runner, whose processes are in no
+  session), `no` never. With `--restart` the supervisor's pid goes into the scope too, so that
+  each run it starts again is there.
 
 ## Prove
 
@@ -3039,7 +3050,7 @@ node at its next line, often "online again" after a reconnect. A server then has
   `crates/podssh-cli/src/node_derp.rs:250`, `crates/podssh-cli/src/node_iroh.rs:301`), as are 40
   more sites in `crates/podssh-cli/src` and 4 in `crates/podssh-ssh/src` (2026-11-01, a search for
   `eprintln!`, `println!`, `eprint!` and `print!`).
-- Read: after ready a detached child's stderr is its log (`crates/podssh-cli/src/detach/child.rs:228`).
+- Read: after ready a detached child's stderr is its log (`crates/podssh-cli/src/detach/child.rs:242`).
 - Read in Rust's documentation: `eprintln!` "panics if writing to io::stderr fails"; only EBADF is
   ignored.
 - Read: `crates/podssh-ssh/src/log.rs:95` already writes its lines and ignores a failure.
@@ -3109,7 +3120,7 @@ not a run of `ssh -f`.
 ## Premise
 
 - Read: T-380's parent returns once the child said ready, and nothing watches the child after that
-  (`crates/podssh-cli/src/detach/mod.rs:180`).
+  (`crates/podssh-cli/src/detach/mod.rs:184`).
 - Read: the node retries its relay for ever within its process (`crates/podssh-relay/src/open.rs:387`,
   its backoff); what ends the process ends the tunnel.
 - Read in d-mon's code: a supervisor of one `poll` loop that restarts its program, with a cap that
@@ -3193,7 +3204,7 @@ or stop it, but by `kill` of a pid that may have been reused.
 ## Premise
 
 - Read: T-380's files are in `detached/` of the state directory; there is no lock
-  (`crates/podssh-cli/src/detach/mod.rs:79`).
+  (`crates/podssh-cli/src/detach/mod.rs:83`).
 - Read: `session start` probes its socket before it binds, and two starts can pass the probe
   (`crates/podssh-cli/src/session/daemon.rs:171`).
 - Read in d-mon's code: a `flock` on the pid file, which `status` and `stop` test by taking it
@@ -3427,8 +3438,8 @@ working directory, which an unmount then refuses.
 ## Premise
 
 - Read: `leave` returns false when `/dev/null` does not open, and the child then ends with 75
-  (`crates/podssh-cli/src/detach/child.rs:250`).
-- Read: the rotation is `fs::copy` and then `set_len(0)` (`crates/podssh-cli/src/detach/child.rs:101`).
+  (`crates/podssh-cli/src/detach/child.rs:264`).
+- Read: the rotation is `fs::copy` and then `set_len(0)` (`crates/podssh-cli/src/detach/child.rs:115`).
 - Read: no code removes a file of `detached/` (2026-11-01, a search of `crates/podssh-cli/src/detach`).
 
 ## Approach

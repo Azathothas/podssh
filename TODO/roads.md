@@ -187,7 +187,7 @@ the file that `--ts-state` names (`crates/podssh-cli/src/flags.rs:356-357`,
    `podssh ssh iroh:TICKET` dials it (the address of `docs/design.md:992`).
 6. Add the key files to FILES in the manual
    (`crates/podssh-cli/src/man/data.rs:150-367`), and each new variable to
-   `VARIABLES` (`crates/podssh-cli/src/man/facts.rs:45-282`).
+   `VARIABLES` (`crates/podssh-cli/src/man/facts.rs:45-290`).
 
 ## Decision
 
@@ -373,7 +373,7 @@ sandbox can block what iroh needs, so the fallback is necessary
 6. With `-v`, print the road that won and its time.
 7. Each resume of T-153 runs the same race.
 8. Docs: the rule of the race in `docs/design.md` section 2, and the notes of
-   `ssh` in the manual (`crates/podssh-cli/src/man/notes_ssh.rs:4-475`).
+   `ssh` in the manual (`crates/podssh-cli/src/man/notes_ssh.rs:4-478`).
 
 ## Decision
 
@@ -511,9 +511,9 @@ in iroh's source at the pinned version.
    not in the list.
 6. `doctor`, with the feature, reports the `/ping` of each relay and the home
    relay.
-7. Add the variable to `VARIABLES` (`crates/podssh-cli/src/man/facts.rs:45-282`),
+7. Add the variable to `VARIABLES` (`crates/podssh-cli/src/man/facts.rs:45-290`),
    the flag to the flag table, and the default to the relay section of the
-   manual (`crates/podssh-cli/src/man/facts.rs:301-457`). The tests compare
+   manual (`crates/podssh-cli/src/man/facts.rs:309-465`). The tests compare
    `VARIABLES` with the source in both directions
    (`crates/podssh-cli/src/man/facts.rs:43-44`), so a variable that only the
    feature reads is in the manual only with the feature.

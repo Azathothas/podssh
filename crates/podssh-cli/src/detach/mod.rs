@@ -22,9 +22,13 @@ pub mod beat;
 mod child;
 pub mod control;
 mod cwd;
+#[cfg(target_os = "linux")]
+mod dbus;
 mod hazards;
 pub mod lock;
 mod log;
+#[cfg(target_os = "linux")]
+pub mod scope;
 pub mod supervise;
 
 pub use child::{keep_own_handles, prepare_process, ready};

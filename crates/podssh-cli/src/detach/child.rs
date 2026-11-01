@@ -59,6 +59,20 @@ pub fn ready(verb: &str) {
     if leaves {
         super::cwd::to_root();
     }
+    // Out of the login session's scope, beside the run (T-381): with its
+    // supervisor when it has one, whose runs then start there.
+    #[cfg(target_os = "linux")]
+    {
+        let mut pids = vec![std::process::id()];
+        if supervised {
+            pids.push(std::os::unix::process::parent_id());
+        }
+        let _ = std::thread::Builder::new().name("detach-scope".into()).spawn(move || {
+            if let Some(line) = super::scope::leave_session(&pids) {
+                let _ = writeln!(std::io::stderr(), "podssh: {line}");
+            }
+        });
+    }
 }
 
 /// The step of ready: the caller's terminal and streams left (stdin to the

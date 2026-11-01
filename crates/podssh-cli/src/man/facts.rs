@@ -249,6 +249,14 @@ pub const VARIABLES: &[(&[&str], &str)] = &[
       writes, the supervisor's. Set by podssh; a user has no need to set it.",
     ),
     (
+        &["PODSSH_SYSTEMD", "DBUS_SESSION_BUS_ADDRESS"],
+        "On Linux, whether a run in the background asks the user's systemd for a scope of its own once it \
+      is ready, so that a logout does not end it: no asks nothing; yes asks outside a login session's \
+      scope too; unset asks only from a login session's scope. It asks on the user's bus that \
+      DBUS_SESSION_BUS_ADDRESS names (unix:path= only), else on XDG_RUNTIME_DIR/bus, else on systemd's \
+      own socket there.",
+    ),
+    (
         &["PODSSH_DETACH_NAME", "PODSSH_DETACH_SUPERVISOR"],
         "podssh's own, for a run in the background (see podssh detached): its name, which --detach-name gives, \
       and in each run that a supervisor of --restart starts, the supervisor's pid, so that the run holds its \

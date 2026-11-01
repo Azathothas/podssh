@@ -75,3 +75,32 @@ jobs:
           echo "uninstall: exit $urc; anything left: $left"
           "$bin" relay revoke "$label" || true
           [ "$rc" = 0 ] && [ "$online" = yes ] && [ "$leaked" = 0 ] && [ "$urc" = 0 ] && [ "$left" = no ]
+
+      # T-381 (Q61): a detached run asks the user's systemd for a scope of
+      # its own. The runner's processes are in no session's scope, so
+      # PODSSH_SYSTEMD=yes asks; the run's cgroup must then be its scope.
+      - name: a detached run in a scope of its own
+        run: |
+          set -u
+          bin="$PWD/target/debug/podssh"
+          XDG_RUNTIME_DIR="/run/user/$(id -u)"
+          export XDG_RUNTIME_DIR
+          for _ in $(seq 1 30); do [ -S "$XDG_RUNTIME_DIR/bus" ] && break; sleep 1; done
+          out=$(PODSSH_SYSTEMD=yes timeout 30 "$bin" pipe --detach --keep-listening tcp-listen:127.0.0.1:8766 exec:cat 2>&1)
+          echo "$out"
+          pid=$(printf '%s' "$out" | sed -n 's/.*pid \([0-9]*\).*/\1/p' | head -1)
+          log=$(printf '%s' "$out" | sed -n 's/.*its log //p' | head -1)
+          [ -n "$pid" ] || { echo "FAIL no pid"; exit 1; }
+          for _ in $(seq 1 50); do grep -q "scope\|stays in" "$log" 2>/dev/null && break; sleep 0.1; done
+          sed 's/^/log: /' "$log"
+          cg=$(sed -n 's/^0:://p' "/proc/$pid/cgroup")
+          echo "the run's cgroup: $cg"
+          systemctl --user status "podssh-detached-$pid.scope" --no-pager | head -5 || true
+          rc=0
+          case $cg in
+            */podssh-detached-"$pid".scope) echo "ok    the run is in its own scope of the user's systemd" ;;
+            *) echo "FAIL the run's cgroup is $cg"; rc=1 ;;
+          esac
+          grep -q "a logout does not end it" "$log" || { echo "FAIL the log does not say the scope"; rc=1; }
+          kill "$pid" 2>/dev/null || true
+          exit "$rc"

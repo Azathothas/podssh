@@ -146,7 +146,10 @@ pub const SSH: &[&str] = &[
      console, and the caller's job where the job allows it), with no descriptor that it inherited, so that \
      a caller that reads its pipes to their end ends with the parent. The parent prints the child's pid \
      and its log (detached/ssh-PID.log in the cache; see FILES) and exits 0; a failure before then is its \
-     code, its lines on stderr. At ready the run leaves the caller's working directory for the root, unless a \
+     code, its lines on stderr. On Linux, from a login session's scope, the run then asks the user's \
+     systemd, over D-Bus on this host, for a scope of its own (podssh-detached-PID.scope), so that a \
+     logout does not end it where logind ends a session's processes, and says the outcome in its log; \
+     PODSSH_SYSTEMD=no asks nothing. At ready the run leaves the caller's working directory for the root, unless a \
      word of it is a relative path or a command that runs here (exec: of pipe, ProxyCommand, LocalCommand). \
      Where the sandbox has no /dev/null, its stdin is a pipe that is closed. As the first process of a namespace it refuses (69); a unit of systemd, \
      WSL and Termux, which may end it still, are named first. A CI's job ends it at the job's end: podssh \
