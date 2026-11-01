@@ -371,8 +371,14 @@ since a quick tunnel has none.
   HTTP/2, podssh answers a push of configuration as cloudflared does when
   it took one, `{"lastAppliedVersion":N,"err":null}`, and keeps nothing of
   it (T-404): its node serves the one TARGET of its command line. Over QUIC
-  a push is a call of Cap'n Proto on a stream of the RPC
-  (`tunnelrpc/quic/cloudflared_server.go`), which the node resets; the edge
+  the edge opens a stream for a push, writes the six bytes of an RPC stream
+  and no version, asks for that stream's bootstrap capability and calls
+  `updateConfiguration` on it (`tunnelrpc/quic/cloudflared_client.go`,
+  `cloudflared_server.go`); the node exports that one capability there, and
+  answers the push the same way, an `UpdateConfigurationResponse` of the
+  push's version with no `err`, and each other call, of UDP sessions, with
+  an exception (T-411). MEASURED: UNVERIFIED (`cargo test -p podssh-relay
+  --features quick --lib quick::` and `--test quick_tunnel_quic`). The edge
   pushes the rules of a tunnel that is managed remotely, and a quick tunnel
   has none in an account (INFERRED).
 - QUIC: only after a UDP probe, one QUIC packet that the edge's Version

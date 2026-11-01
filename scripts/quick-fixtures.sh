@@ -45,6 +45,13 @@ struct UpdateLocalConfigurationParams {
 }
 struct UnregisterConnectionParams {
 }
+struct UpdateConfigurationParams {
+  version @0 :Int32;
+  config @1 :Data;
+}
+struct UpdateConfigurationResults {
+  result @0 :T.UpdateConfigurationResponse;
+}
 EOF
 rpc="$work/go-capnproto2/std/capnp/rpc.capnp"
 grep -q '^  content @0 :AnyPointer;' "$rpc" || { echo "quick-fixtures: rpc.capnp changed" >&2; exit 1; }
@@ -58,6 +65,13 @@ sed -e 's/^@0xb312981b2552a250;/@0xd5c2a4f1b3e79a03;/' -e 's/^using Cxx = import
 sed -e 's/^@0xb312981b2552a250;/@0xd5c2a4f1b3e79a04;/' -e 's/^using Cxx = import.*//' -e 's/^\$Cxx.*//' -e 's/^\$Go.*//' \
     -e 's/^using Go = import.*//' \
     -e 's/^  content @0 :AnyPointer;/  content @0 :import "params.capnp".UnregisterConnectionParams;/' "$rpc" >"$proto/rpc-unregister.capnp"
+# The edge's push of configuration over QUIC, and the node's answer (T-411).
+sed -e 's/^@0xb312981b2552a250;/@0xd5c2a4f1b3e79a05;/' -e 's/^using Cxx = import.*//' -e 's/^\$Cxx.*//' -e 's/^\$Go.*//' \
+    -e 's/^using Go = import.*//' \
+    -e 's/^  content @0 :AnyPointer;/  content @0 :import "params.capnp".UpdateConfigurationParams;/' "$rpc" >"$proto/rpc-configuration.capnp"
+sed -e 's/^@0xb312981b2552a250;/@0xd5c2a4f1b3e79a06;/' -e 's/^using Cxx = import.*//' -e 's/^\$Cxx.*//' -e 's/^\$Go.*//' \
+    -e 's/^using Go = import.*//' \
+    -e 's/^  content @0 :AnyPointer;/  content @0 :import "params.capnp".UpdateConfigurationResults;/' "$rpc" >"$proto/rpc-configured.capnp"
 enc() { # schema type name
     (cd "$proto" && capnp encode "$1" "$2" <"$out/$3.txt" >"$out/$3.bin")
     echo "quick-fixtures: $3.bin, $(wc -c <"$out/$3.bin") bytes"
@@ -80,3 +94,14 @@ enc quic_metadata_protocol.capnp ConnectRequest quic-connect-request
 enc quic_metadata_protocol.capnp ConnectRequest quic-connect-http
 enc quic_metadata_protocol.capnp ConnectResponse quic-connect-response
 enc quic_metadata_protocol.capnp ConnectResponse quic-connect-refusal
+# An RPC stream of the edge over QUIC (T-411): its push, as cloudflared's own
+# test sends one, on the bootstrap's promise and on the capability; a call of
+# another method; a release; and the node's answers. A capability cannot be
+# written in the text form: rpc-return-capability leaves the content unset,
+# and its tests set that one word to capability 0 (`rpc_stream_tests.rs`).
+enc rpc-configuration.capnp Message rpc-call-update-configuration
+enc rpc-configuration.capnp Message rpc-call-update-configuration-imported
+enc rpc-unregister.capnp Message rpc-call-unregister-udp-session
+enc rpc-configured.capnp Message rpc-return-update-configuration
+enc rpc-call.capnp Message rpc-return-capability
+enc rpc-call.capnp Message rpc-release

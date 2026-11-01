@@ -5,6 +5,10 @@
 //! first), a `Finish` once an answer is read; and, from the other end,
 //! `Return` (results or an exception) and `Abort`. Each message is one frame
 //! of the stream, as cloudflared's `rpc.StreamTransport` writes it.
+//!
+//! And for a server of one capability, on an RPC stream of the edge over
+//! QUIC (T-411): the other end's `Bootstrap`, `Call` and `Finish` read, and
+//! a `Return` that holds the capability, or a method's results.
 
 use super::capnp::{At, Builder, Malformed, Message, Struct};
 
@@ -18,8 +22,12 @@ const PAYLOAD: (u16, u16) = (0, 2);
 const FINISH: (u16, u16) = (1, 0);
 const RETURN: (u16, u16) = (2, 1);
 const EXCEPTION: (u16, u16) = (1, 1);
+const CAP_DESCRIPTOR: (u16, u16) = (1, 1);
 /// The kind of an exception for a method that is not there.
 const UNIMPLEMENTED: u16 = 3;
+/// The member of `CapDescriptor`'s union for a capability that the sender
+/// of the message hosts: its id of export.
+const SENDER_HOSTED: u16 = 1;
 
 /// The members of the union of `Message`.
 const IS_ABORT: u16 = 1;
@@ -88,18 +96,69 @@ pub fn unimplemented(question: u32, reason: &str) -> Vec<u8> {
     b.frame()
 }
 
+/// The answer to the other end's bootstrap, `answer`: results whose content
+/// is the capability that this end exports as `export`, the one entry of
+/// their table, as capnproto2's server writes it (T-411).
+pub fn capability(answer: u32, export: u32) -> Vec<u8> {
+    let (mut b, ret) = message(IS_RETURN, RETURN);
+    b.set_u32(ret, 0, answer);
+    let payload = b.init_struct(ret, 0, PAYLOAD.0, PAYLOAD.1);
+    b.set_capability(payload, 0, 0);
+    let table = b.init_struct_list(payload, 1, 1, CAP_DESCRIPTOR.0, CAP_DESCRIPTOR.1);
+    b.set_u16(table[0], 0, SENDER_HOSTED);
+    b.set_u32(table[0], 4, export);
+    b.frame()
+}
+
+/// The answer to the other end's call, `answer`: results whose content is
+/// a struct of `size`, which `fill` writes (T-411).
+pub fn results(answer: u32, size: (u16, u16), fill: impl FnOnce(&mut Builder, At)) -> Vec<u8> {
+    let (mut b, ret) = message(IS_RETURN, RETURN);
+    b.set_u32(ret, 0, answer);
+    let payload = b.init_struct(ret, 0, PAYLOAD.0, PAYLOAD.1);
+    let content = b.init_struct(payload, 0, size.0, size.1);
+    fill(&mut b, content);
+    b.frame()
+}
+
 /// A message of the other end.
 pub enum Incoming<'a> {
     /// The answer to `answer`, one of this end's questions.
     Return { answer: u32, outcome: Outcome<'a> },
     /// The other end ends the connection, with its reason.
     Abort(String),
-    /// The other end asks this end for its bootstrap capability, or calls
-    /// one: its question.
-    Asked(u32),
-    /// A kind of message that a client of one capability neither needs nor
-    /// answers: its member of the union.
+    /// The other end asks this end for its bootstrap capability: its
+    /// question.
+    Bootstrap(u32),
+    /// The other end calls a capability of this end's.
+    Call(Call<'a>),
+    /// The other end is done with the answer to its question.
+    Finish(u32),
+    /// A kind of message that neither end here answers, a release among
+    /// them: its member of the union.
     Other(u16),
+}
+
+/// A call of the other end's.
+pub struct Call<'a> {
+    pub question: u32,
+    pub target: Target,
+    pub interface: u64,
+    pub method: u16,
+    /// The parameters: the content of the call's payload, if it is set.
+    pub params: Option<Struct<'a>>,
+}
+
+/// Which capability of this end's a call is on.
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub enum Target {
+    /// The one that this end exported with this id.
+    Imported(u32),
+    /// The one that the answer to this question of the other end's holds,
+    /// whole: a bootstrap's, before its answer came or was finished.
+    Promised(u32),
+    /// A part of an answer, or a kind of target that this end does not read.
+    Other,
 }
 
 /// How a question was answered.
@@ -134,12 +193,38 @@ pub fn read<'a>(message: &'a Message<'a>) -> Result<Incoming<'a>, Malformed> {
             Ok(Incoming::Return { answer, outcome })
         }
         IS_ABORT => Ok(Incoming::Abort(reason(root.get_struct(0)?))),
-        IS_BOOTSTRAP | IS_CALL => {
-            let asked = root.get_struct(0)?.ok_or(Malformed("a question with no body"))?;
-            Ok(Incoming::Asked(asked.u32(0)))
-        }
+        IS_BOOTSTRAP => Ok(Incoming::Bootstrap(body(root)?.u32(0))),
+        IS_CALL => Ok(Incoming::Call(read_call(body(root)?))),
+        IS_FINISH => Ok(Incoming::Finish(body(root)?.u32(0))),
         other => Ok(Incoming::Other(other)),
     }
+}
+
+/// The body of a message: its member of the union, a struct.
+fn body(root: Struct<'_>) -> Result<Struct<'_>, Malformed> {
+    root.get_struct(0)?.ok_or(Malformed("a message with no body"))
+}
+
+/// A `Call`: its question (data bytes 0 to 3), method (4 and 5) and
+/// interface (8 to 15); its target (pointer 0), whose union says at bytes 4
+/// and 5 which of an import (bytes 0 to 3) or a promised answer (pointer 0)
+/// it is; its payload (pointer 1). A target or parameters that do not read
+/// are none: the call is still answered, with an exception if it is no push.
+fn read_call(call: Struct<'_>) -> Call<'_> {
+    let target = match call.get_struct(0).ok().flatten() {
+        Some(target) if target.u16(4) == 0 => Target::Imported(target.u32(0)),
+        Some(target) if target.u16(4) == 1 => match target.get_struct(0).ok().flatten() {
+            // A transform reaches into the answer: only its whole is a
+            // capability of this end's. capnproto2 writes an empty list.
+            Some(promised) if promised.get_struct_list(0).is_ok_and(|ops| ops.is_empty()) => {
+                Target::Promised(promised.u32(0))
+            }
+            _ => Target::Other,
+        },
+        _ => Target::Other,
+    };
+    let params = call.get_struct(1).ok().flatten().and_then(|payload| payload.get_struct(0).ok().flatten());
+    Call { question: call.u32(0), target, interface: call.u64(8), method: call.u16(4), params }
 }
 
 /// The content of a payload, read as a struct: a method's results.

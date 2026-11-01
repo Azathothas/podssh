@@ -109,12 +109,14 @@ impl Control {
                     }
                 }
                 Incoming::Abort(why) => return Err(Failure::Aborted(why)),
-                Incoming::Asked(question) => {
+                // The edge's own questions here: cloudflared's end of the
+                // control stream is a client that exports nothing either.
+                Incoming::Bootstrap(question) | Incoming::Call(rpc::Call { question, .. }) => {
                     out.extend(rpc::unimplemented(question, "podssh exports no capability"));
                 }
-                // A release, a resolve or another kind that a client of one
-                // capability neither needs nor answers.
-                Incoming::Other(_) => {}
+                // A finish, a release, a resolve or another kind that a
+                // client of one capability neither needs nor answers.
+                Incoming::Finish(_) | Incoming::Other(_) => {}
             }
         }
         Ok((events, out))

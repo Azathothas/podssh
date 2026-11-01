@@ -16,7 +16,7 @@ use noq::crypto::rustls::QuicServerConfig;
 use noq::crypto::{CryptoError, HandshakeTokenKey};
 use noq::{Connection, Endpoint, ServerConfig, TokioRuntime};
 use podssh_relay::quick::serve::{Ended, Step};
-use podssh_relay::quick::{connect, quic, quic_serve};
+use podssh_relay::quick::{connect, quic, quic_serve, rpc};
 use podssh_ws::frame::{self, Frame, Role};
 use podssh_ws::tls::TlsRoots;
 use quick_harness::{echo, empty_return, registration, BOOTSTRAP, CALL_REGISTER, CALL_UNREGISTER, FINISH, LIMIT};
@@ -30,6 +30,9 @@ const REQUEST: &[u8] = include_bytes!("fixtures/quick/quic-connect-request.bin")
 const RESPONSE: &[u8] = include_bytes!("fixtures/quick/quic-connect-response.bin");
 const HTTP: &[u8] = include_bytes!("fixtures/quick/quic-connect-http.bin");
 const REFUSAL: &[u8] = include_bytes!("fixtures/quick/quic-connect-refusal.bin");
+const PUSH: &[u8] = include_bytes!("fixtures/quick/rpc-call-update-configuration.bin");
+const PUSHED: &[u8] = include_bytes!("fixtures/quick/rpc-return-update-configuration.bin");
+const CAPABILITY: &[u8] = include_bytes!("fixtures/quick/rpc-return-capability.bin");
 
 /// A P-256 key, for rcgen's certificates and for rustls's handshake.
 struct Key {
@@ -288,11 +291,12 @@ async fn a_visitor_s_websocket_crosses_quic_whole_and_the_end_unregisters() {
     let refused = timeout(LIMIT, recv.read_to_end(4096)).await.unwrap().unwrap();
     assert_eq!(refused, [&connect::preamble()[..], REFUSAL].concat());
 
-    // An RPC stream of the edge: refused, with nothing written.
+    // A stream of no kind that cloudflared names: refused, with nothing
+    // written.
     let (mut send, mut recv) = at_edge.open_bi().await.unwrap();
-    send.write_all(&[&connect::RPC_STREAM[..], &connect::VERSION[..]].concat()).await.unwrap();
+    send.write_all(&[0x52, 0xBB, 0x82, 0x5C, 0xDB, 0x66, b'0', b'1']).await.unwrap();
     let read = timeout(LIMIT, recv.read(&mut chunk)).await.unwrap();
-    assert!(read.is_err(), "the node resets an RPC stream: {read:?}");
+    assert!(read.is_err(), "the node resets a stream of another kind: {read:?}");
 
     // The end: the unregistration on the control stream, then Ok.
     steps.stop.take().unwrap().send(()).unwrap();
@@ -303,6 +307,37 @@ async fn a_visitor_s_websocket_crosses_quic_whole_and_the_end_unregisters() {
     assert_eq!(steps.next().await, Some(Step::Unregistered));
     let served = timeout(LIMIT, served).await.unwrap().unwrap();
     assert!(served.is_ok(), "{served:?}");
+}
+
+/// A push of configuration over QUIC (T-411): an RPC stream of the edge,
+/// its six bytes and no version, then the bootstrap and the call of
+/// `updateConfiguration` on its promise, as cloudflared's own test pushes
+/// (`tunnelrpc/quic/request_server_stream_test.go`, `TestManageConfiguration`).
+/// The node answers with its capability, then the push's version, taken,
+/// each as the reference encoder wrote it; once the edge ends its side, the
+/// node ends its own, and the connection goes on.
+#[tokio::test(flavor = "multi_thread", worker_threads = 2)]
+async fn a_push_of_configuration_over_quic_is_answered_with_its_version() {
+    let (edge, addr, roots) = edge();
+    let (at_edge, served, mut steps) = node(&edge, addr, &roots).await;
+    let _control = register(&at_edge, RETURN_DETAILS).await;
+    assert_eq!(steps.next().await, Some(Step::Registered { location: "msp01".into() }));
+    let (mut send, mut recv) = at_edge.open_bi().await.unwrap();
+    send.write_all(&[&connect::RPC_STREAM[..], BOOTSTRAP, PUSH].concat()).await.unwrap();
+    // The capability: the reference's bytes, with the content that its text
+    // form cannot write, capability 0 of the table (word 6 of the segment).
+    let mut capability = CAPABILITY.to_vec();
+    capability[56..64].copy_from_slice(&3u64.to_le_bytes());
+    let expected = [capability, PUSHED.to_vec()].concat();
+    let mut answers = vec![0u8; expected.len()];
+    timeout(LIMIT, recv.read_exact(&mut answers)).await.unwrap().unwrap();
+    assert_eq!(answers, expected);
+    // The edge is done with both answers, and ends its side.
+    send.write_all(&[&rpc::finish(0)[..], FINISH].concat()).await.unwrap();
+    send.finish().unwrap();
+    let rest = timeout(LIMIT, recv.read_to_end(4096)).await.unwrap().unwrap();
+    assert!(rest.is_empty(), "nothing after the answers: {rest:?}");
+    assert!(!served.is_finished(), "the connection is still served");
 }
 
 #[tokio::test(flavor = "multi_thread", worker_threads = 2)]

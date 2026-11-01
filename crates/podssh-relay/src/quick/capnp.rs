@@ -1,7 +1,7 @@
 //! The few shapes of Cap'n Proto that a quick tunnel's registration needs
 //! (T-300), written by hand as libcfd writes them, with no code generator
-//! and no C: a message of structs, lists, texts and data, and the framing of
-//! a stream (a table of segments, then the segments).
+//! and no C: a message of structs, lists, texts, data and capabilities, and
+//! the framing of a stream (a table of segments, then the segments).
 //!
 //! The builder writes one segment, as a small message needs. The reader
 //! takes any number of segments and follows far pointers, as the edge's
@@ -441,18 +441,6 @@ impl<'a> Struct<'a> {
         (0..count as usize).map(|k| Ok(self.msg.text_at(seg, start + k)?.unwrap_or_default())).collect()
     }
 
-    /// The index in the table of capabilities of the capability in
-    /// pointer `i`.
-    pub fn get_capability(&self, i: u16) -> Result<Option<u32>, Malformed> {
-        let Some(slot) = self.slot(i) else { return Ok(None) };
-        let word = self.msg.word(self.seg, slot)?;
-        match word {
-            0 => Ok(None),
-            w if w & 3 == 3 && (w as u32) == 3 => Ok(Some((w >> 32) as u32)),
-            _ => Err(Malformed("a capability was expected")),
-        }
-    }
-
     /// The list of structs in pointer `i`, whose elements are made as they
     /// are asked for. It is charged its words, or a word for each element
     /// where that is more, as capnp charges a list of elements of no size:
@@ -486,6 +474,10 @@ impl<'a> Struct<'a> {
 #[path = "capnp_list.rs"]
 mod list;
 pub use list::{Elements, StructList};
+
+// A capability's pointer, written and read (T-411).
+#[path = "capnp_cap.rs"]
+mod cap;
 
 #[cfg(test)]
 #[path = "capnp_tests.rs"]

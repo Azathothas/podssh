@@ -62,15 +62,15 @@ repository and CI).
 
 ## Counts
 
-**410 entries: 16 open, 2 partial, 32 blocked, 360 done.**
+**410 entries: 15 open, 2 partial, 32 blocked, 361 done.**
 
 | Priority | open | partial | blocked | done | total |
 | --- | --- | --- | --- | --- | --- |
 | P0 | 0 | 0 | 0 | 1 | 1 |
 | P1 | 1 | 1 | 0 | 38 | 40 |
 | P2 | 1 | 0 | 21 | 177 | 199 |
-| P3 | 14 | 1 | 11 | 144 | 170 |
-| **All** | 16 | 2 | 32 | 360 | 410 |
+| P3 | 13 | 1 | 11 | 145 | 170 |
+| **All** | 15 | 2 | 32 | 361 | 410 |
 
 ## Entries
 
@@ -482,7 +482,7 @@ repository and CI).
 | [T-408](roads.md) | P3 | S | none | defect | done | The quick tunnel's server keeps h2's own budget of small frames |
 | [T-409](reverse.md) | P1 | S | none | defect | done | A node that the relay closes for a fault (1003, 1009) ends for good |
 | [T-410](resume.md) | P1 | M | none | defect | done | From GitHub's network, the first move through a node still meets a frame for a forgotten id |
-| [T-411](roads.md) | P3 | M | none | defect | open | The quick tunnel over QUIC resets a push of configuration |
+| [T-411](roads.md) | P3 | M | none | defect | done | The quick tunnel over QUIC resets a push of configuration |
 | [T-412](reverse.md) | P2 | S | none | defect | done | The stand-in relay drops a frame of an unknown session, which the live relay answers with 1003 |
 | [T-413](ws.md) | P1 | S | none | defect | done | The test of DoH over HTTP/2 failed in CI: two equal bounds raced |
 | [T-414](roads.md) | P3 | S | none | feature | blocked | The quick tunnel keeps a second connection to the edge, to its other region |

@@ -3,7 +3,8 @@
 //! and on it the node registers as over HTTP/2. Each stream that the edge
 //! opens is a request, whose first bytes say what it is (`connect.rs`): a
 //! visitor's WebSocket goes to `visit`; any other request gets 404; an RPC
-//! stream of the edge is refused, as podssh takes no configuration from it.
+//! stream of the edge, a push of configuration, gets cloudflared's answer,
+//! and nothing of it is kept (T-411, `rpc_stream`).
 
 use std::future::Future;
 use std::io::Cursor;
@@ -19,6 +20,7 @@ use super::connect::{self, Kind, Stream};
 use super::control::{Control, Event, Failure};
 use super::register::Registered;
 use super::register::Registration;
+use super::rpc_stream::{RpcStream, RPC_WAIT};
 use super::serve::{Ended, Step, CLOSE_GRACE, UNREGISTER_WAIT};
 use super::visitor;
 
@@ -190,16 +192,28 @@ async fn run_control(
     }
 }
 
+/// What a stream of the edge opens with.
+enum Opened {
+    /// A data stream's request, and the bytes read past it.
+    Request(connect::ConnectRequest, Vec<u8>),
+    /// An RPC stream's six bytes (T-411).
+    Rpc,
+}
+
 /// One stream of the edge: its preamble and its request, then the answer. A
 /// visitor's WebSocket goes to `visitors`, with the bytes that came after
-/// its request.
+/// its request; an RPC stream is served as one.
 async fn request(mut send: SendStream, mut recv: RecvStream, visitors: mpsc::UnboundedSender<DuplexStream>) {
     let read = tokio::time::timeout(REQUEST_WAIT, read_request(&mut recv)).await;
-    let Ok(Some((request, rest))) = read else {
-        // An RPC stream, another signature, or a request that does not read.
-        let _ = recv.stop(VarInt::from_u32(0));
-        let _ = send.reset(VarInt::from_u32(0));
-        return;
+    let (request, rest) = match read {
+        Ok(Some(Opened::Request(request, rest))) => (request, rest),
+        Ok(Some(Opened::Rpc)) => return serve_rpc(send, recv).await,
+        // Another signature, or a request that does not read.
+        _ => {
+            let _ = recv.stop(VarInt::from_u32(0));
+            let _ = send.reset(VarInt::from_u32(0));
+            return;
+        }
     };
     let key = request.header("sec-websocket-key").map(str::to_string);
     match (request.kind, key) {
@@ -221,13 +235,21 @@ async fn request(mut send: SendStream, mut recv: RecvStream, visitors: mpsc::Unb
     }
 }
 
-/// The preamble of a data stream, then its request: the request, and the
-/// bytes read past it. Nothing for any other stream.
-async fn read_request(recv: &mut RecvStream) -> Option<(connect::ConnectRequest, Vec<u8>)> {
-    let mut preamble = [0u8; connect::PREAMBLE];
-    recv.read_exact(&mut preamble).await.ok()?;
-    let signature: [u8; 6] = preamble[..6].try_into().ok()?;
-    if connect::stream(&signature) != Stream::Data || preamble[6..] != connect::VERSION {
+/// The six bytes of a stream's kind: an RPC stream's, which no version
+/// follows (`tunnelrpc/quic/cloudflared_client.go`); or a data stream's, its
+/// version, then its request, and the bytes read past it. Nothing for any
+/// other stream.
+async fn read_request(recv: &mut RecvStream) -> Option<Opened> {
+    let mut signature = [0u8; 6];
+    recv.read_exact(&mut signature).await.ok()?;
+    match connect::stream(&signature) {
+        Stream::Rpc => return Some(Opened::Rpc),
+        Stream::Data => {}
+        Stream::Unknown => return None,
+    }
+    let mut version = [0u8; 2];
+    recv.read_exact(&mut version).await.ok()?;
+    if version != connect::VERSION {
         return None;
     }
     let (mut message, mut chunk) = (Vec::new(), vec![0u8; 4096]);
@@ -247,5 +269,25 @@ async fn read_request(recv: &mut RecvStream) -> Option<(connect::ConnectRequest,
         message.extend_from_slice(&chunk[..n]);
     };
     let request = connect::read_request(&message[..len]).ok()?;
-    Some((request, message[len..].to_vec()))
+    Some(Opened::Request(request, message[len..].to_vec()))
+}
+
+/// An RPC stream of the edge (T-411): each of its questions answered until
+/// the edge ends its side, within cloudflared's own bound; then this side
+/// ends. A message that does not read, or an abort, ends it as well, as
+/// cloudflared lets its RPC's errors go.
+async fn serve_rpc(mut send: SendStream, mut recv: RecvStream) {
+    let mut stream = RpcStream::default();
+    let mut chunk = vec![0u8; 16 * 1024];
+    let served = async {
+        while let Ok(Some(n)) = recv.read(&mut chunk).await {
+            let Ok(out) = stream.feed(&chunk[..n]) else { return };
+            if !out.is_empty() && send.write_all(&out).await.is_err() {
+                return;
+            }
+        }
+    };
+    let _ = tokio::time::timeout(RPC_WAIT, served).await;
+    let _ = send.finish();
+    let _ = recv.stop(VarInt::from_u32(0));
 }

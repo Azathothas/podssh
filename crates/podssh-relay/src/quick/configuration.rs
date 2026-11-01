@@ -8,16 +8,32 @@
 //! command line, so it keeps nothing of a push, and answers as cloudflared
 //! does when it took one: a refusal could read as a connector that failed,
 //! at a later change of the edge.
+//!
+//! Over QUIC the same push is a call of `updateConfiguration`, with the
+//! version and the rules as its parameters, on an RPC stream of the edge
+//! (T-411, `rpc_stream`): its results say the same, in Cap'n Proto
+//! (`tunnelrpc/proto/tunnelrpc.capnp`, the interface `ConfigurationManager`;
+//! `tunnelrpc/pogs/configuration_manager.go`).
 
 use std::time::Duration;
 
 use serde_json::{Map, Value};
+
+use super::capnp::{At, Builder, Struct};
 
 /// The most bytes of a push that the node reads: a quick tunnel's rules are
 /// no one's to push, so a larger body is not taken for one.
 pub const MAX_PUSH: usize = 1024 * 1024;
 /// How long the edge has to send a push's body.
 pub const PUSH_WAIT: Duration = Duration::from_secs(10);
+
+/// `ConfigurationManager`, and its one method (T-411).
+pub const CONFIGURATION_MANAGER: u64 = 0xb48e_dfbd_aa25_db04;
+pub const UPDATE_CONFIGURATION: u16 = 0;
+/// The sizes of its results, `result`, and of that `UpdateConfigurationResponse`:
+/// `latestAppliedVersion` (data bytes 0 to 3) and `err` (pointer 0).
+pub const RESULTS: (u16, u16) = (0, 1);
+const RESPONSE: (u16, u16) = (1, 1);
 
 /// The answer to a push whose body is `body`: its version, taken, as
 /// cloudflared's answer reads; `None` for a body that does not read as Go's
@@ -31,6 +47,17 @@ pub fn answer(body: &[u8]) -> Option<String> {
         Some(number) => i32::try_from(number.as_i64()?).ok()?,
     };
     Some(format!(r#"{{"lastAppliedVersion":{version},"err":null}}"#))
+}
+
+/// The results of a push over QUIC whose parameters are `params` (T-411),
+/// written in `at`, a struct of [`RESULTS`]: as [`answer`] over HTTP/2, the
+/// push's version (`version`, data bytes 0 to 3, an Int32), taken, and no
+/// `err`, as cloudflared writes a push that it took. Parameters that are
+/// not set read as Go's zero; the rules, `config`, are not looked at.
+pub fn results(params: Option<Struct<'_>>, b: &mut Builder, at: At) {
+    let version = params.map_or(0, |params| params.u32(0));
+    let response = b.init_struct(at, 0, RESPONSE.0, RESPONSE.1);
+    b.set_u32(response, 0, version);
 }
 
 #[cfg(test)]

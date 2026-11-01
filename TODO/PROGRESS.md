@@ -117,7 +117,7 @@ and `CARGO_BUILD_JOBS=4`:
 
 ## Counts
 
-`TODO/INDEX.md` holds 410 entries: 16 open, 2 partial, 32 blocked, 360 done.
+`TODO/INDEX.md` holds 410 entries: 15 open, 2 partial, 32 blocked, 361 done.
 
 Open includes parked work. `cargo todo check` verifies this line.
 
@@ -145,12 +145,12 @@ Q61.
 
 **Now (2026-11-01):** the operator's request of 2026-11-01, two studies: of Nemo-010/d-mon, a
 daemonizer, for a `--detach` that must never leave a server locked out, and of Azathothas/cfrs, its
-code and its issues. Their findings on `--detach` are done (a line that fails to write no longer
-aborts a detached node, `--persist-forever` never gives up, `--restart` starts a detached run
-again, a node goes on with the next pair at its pair's expiry, a lock names each detached run, a
-hung run is started again, and the smaller gaps are closed), and the quick tunnel races its roads
-too, and drains a connection on the edge's GOAWAY (its second connection waits for Q62, T-414);
-and keeps its window in small frames; then T-411. Before them, a bulk session through a node and its moves on
+code and its issues. Each of their findings is done (a line that fails to write no longer aborts a
+detached node, `--persist-forever` never gives up, `--restart` starts a detached run again, a node
+goes on with the next pair at its pair's expiry, a lock names each detached run, a hung run is
+started again, the smaller gaps of `--detach` are closed; the quick tunnel races its roads, drains
+a connection on the edge's GOAWAY, keeps its window in small frames and answers a push of
+configuration over QUIC), but T-414, a second connection to the edge, which waits for Q62. Before them, a bulk session through a node and its moves on
 the live relay are repaired, and the entries of the audit, the study and the issues
 of 2026-10-31 (GitHub #59 to #63 and #69 to #76): T-353 (Q52), whose live run waits for Q60; the
 others are done. Each other `backlog` entry is done, but for those on hold, those of the relay's

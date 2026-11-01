@@ -9,7 +9,10 @@
 //! - [`capnp`]: the few shapes of Cap'n Proto that the registration needs,
 //!   by hand, with no code generator and no C;
 //! - [`rpc`]: the messages of Cap'n Proto's RPC for a client of one
-//!   capability: bootstrap, call, finish, and the answers;
+//!   capability: bootstrap, call, finish, and the answers; and for a server
+//!   of one, the other end's questions and their answers (T-411);
+//! - [`rpc_stream`]: an RPC stream of the edge over QUIC, sans-IO: a push of
+//!   configuration answered as over HTTP/2, and nothing of it kept (T-411);
 //! - [`register`]: `registerConnection`, its parameters and its answer;
 //! - [`control`]: the control stream, sans-IO: the registration and its end;
 //! - [`configuration`]: the answer to a push of configuration, of which
@@ -59,6 +62,7 @@ pub mod register;
 #[cfg(feature = "quick")]
 pub mod roads;
 pub mod rpc;
+pub mod rpc_stream;
 #[cfg(feature = "quick")]
 pub mod serve;
 #[cfg(feature = "quick")]
