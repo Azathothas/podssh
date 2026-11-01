@@ -374,6 +374,12 @@ again at `4e79a1f` (run 41346815789's binary and a build here): 16 passed, `sand
 `container.sandbox` 14 ok, `cp.200mib` 200 MiB up in 53 s and down in 76 s with equal digests;
 `irc.live` failed (T-425's repair came after it); `railway` a SKIP (T-422).
 
+The runs at `e3f90ca`, the commit of 1.0.0 (2026-11-01): in Actions each passed but
+`update-live.yml` (T-426); the local check, stopped once T-426 was found, had `irc.live` failing
+on libera's stalled TLS (T-425) and `headscale` failing as `scripts/ts-headscale.sh` took its build
+from `target/` while the run set `CARGO_TARGET_DIR` (the check runs from a worktree, and shares the
+main build directory so as not to fill the disk): it takes the build from `CARGO_TARGET_DIR` now.
+
 # T-422: railway.new refuses anonymous visitors for hours, and two checks of the release fail on it
 
 **Source:** the runs at `889fda2` (2026-11-01): `relay-live.yml` with `test=node_live` (run
@@ -595,6 +601,54 @@ a refusal; with each try refused, `SKIP irc.live`.
   exit 77; irc.undernet.org:6667 exit 77".
 - Planted, each try to a closed port (`127.0.0.1:9`, in a scratch worktree, never pushed): FAIL,
   "no network took the run: 127.0.0.1:9 exit 77; ...", as an end without a network's refusal is.
+- At `e3f90ca` libera's TLS handshake through the relay did not end within its 30 s, where it had
+  K-lined: a handshake that never ends is the network's silence, and counts as its refusal too;
+  `irc.image` checks podssh's TLS against ngircd.
+
+# T-426: `podssh update` of a build of a release, before the first release, says that it found no list
+
+**Source:** `update-live.yml` at `e3f90ca` (run 41350697308, 2026-11-01), the commit of version
+1.0.0 before its tag: on Linux, macOS and Windows, `podssh update --check` gave "no list of the
+releases: GitHub's API lists no release of a version; the releases' feed lists no release of a
+version" and 69.
+**Category:** defect
+**Milestone:** none
+**Priority:** P1
+**Effort:** S
+**Status:** done
+
+## Problem
+
+A build of a release follows releases alone (T-375). Before the first release the lists hold
+prereleases only, and `update` called that a list it could not have, exit 69: a check that
+fails while nothing is wrong, and words that send a user to look at the network.
+
+## Premise
+
+- Read: `newest` in `crates/podssh-cli/src/update/mod.rs` gave `Unavailable` when each list was
+  read but held no release that this build follows, as when no list was read at all.
+
+## Approach
+
+A list read with no release for this build to follow is nothing to do: the line says so, with
+`--version TAG`, and the exit is 0. No list read stays 69.
+
+## Prove
+
+```sh
+export CARGO_BUILD_JOBS=4
+cargo test -p podssh-cli --test update
+```
+
+Planted, the old failure for a list read: the test fails.
+
+## Done
+
+2026-11-01: `newest` gives `None` for a list read with nothing to follow, and `update` says "the
+list of releases holds no release (not a prerelease) newer than this build, 1.0.0: nothing to do
+(--version TAG installs one)". `cargo test -p podssh-cli --test update`: 16 passed (a stable build
+with prereleases listed: nothing to do, no file asked; no list served: "no list of the releases");
+`--lib update::`: 21 passed. Planted, the old `Unavailable` for a list read: it failed.
 
 # T-415: On GitHub's runner the box's /dev/tty probe waits 40 minutes, so box.yml measures nothing
 

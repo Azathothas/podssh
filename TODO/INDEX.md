@@ -62,15 +62,15 @@ repository and CI).
 
 ## Counts
 
-**421 entries: 14 open, 2 partial, 31 blocked, 374 done.**
+**422 entries: 14 open, 2 partial, 31 blocked, 375 done.**
 
 | Priority | open | partial | blocked | done | total |
 | --- | --- | --- | --- | --- | --- |
 | P0 | 0 | 0 | 0 | 1 | 1 |
-| P1 | 0 | 2 | 0 | 46 | 48 |
+| P1 | 0 | 2 | 0 | 47 | 49 |
 | P2 | 1 | 0 | 21 | 179 | 201 |
 | P3 | 13 | 0 | 10 | 148 | 171 |
-| **All** | 14 | 2 | 31 | 374 | 421 |
+| **All** | 14 | 2 | 31 | 375 | 422 |
 
 ## Entries
 
@@ -497,3 +497,4 @@ repository and CI).
 | [T-423](release.md) | P1 | S | none | defect | done | The test of a session's lock found it still held on macOS just after its holder went |
 | [T-424](release.md) | P1 | S | none | defect | done | `-M` leaves its control socket when its connection fails before the master serves |
 | [T-425](release.md) | P1 | S | M9 | defect | done | The public IRC networks turn the relay's address away, and the release check's row irc.live fails on it |
+| [T-426](release.md) | P1 | S | none | defect | done | `podssh update` of a build of a release, before the first release, says that it found no list |

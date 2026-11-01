@@ -348,13 +348,20 @@ async fn this_build_s_release_or_a_newer_build_is_nothing_to_do_and_an_old_one_i
     );
     assert!(!stand.server.was_asked(&format!("/{REPO}/releases/download/{TAG}/SHA256SUMS")));
     stand.assert_untouched();
-    // A stable build takes no prerelease.
-    let (result, _) = run(&stand.options("1.0.0"), false, None).await;
+    // A stable build takes no prerelease: before the first release it finds
+    // none to follow, which is nothing to do, not a list that failed.
+    let (result, out) = run(&stand.options("1.0.0"), false, None).await;
     assert!(
-        matches!(&result, Err(Failure::Unavailable(why)) if why.contains("lists no release of a version")),
-        "{result:?}"
+        result.is_ok()
+            && out.contains("holds no release (not a prerelease) newer than this build, 1.0.0: nothing to do"),
+        "{result:?}\n{out}"
     );
+    assert!(!stand.server.was_asked(&format!("/{REPO}/releases/download/{TAG}/SHA256SUMS")));
     stand.assert_untouched();
+    // No list read at all stays a failure.
+    let bare = Stand::new("no-list").await;
+    let (result, _) = run(&bare.options("1.0.0"), false, None).await;
+    assert!(matches!(&result, Err(Failure::Unavailable(why)) if why.contains("no list of the releases")), "{result:?}");
     // An older release, named.
     let (result, out) = run(&stand.options("1.0.0-beta.4"), false, Some(TAG)).await;
     assert!(result.is_ok(), "{result:?}\n{out}");

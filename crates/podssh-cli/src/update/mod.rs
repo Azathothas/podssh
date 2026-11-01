@@ -196,10 +196,13 @@ async fn get(opts: &Options, url: &str, max: usize, limit: Duration) -> Result<V
 /// A reader of the tags of a list of releases.
 type ReadTags = fn(&[u8]) -> Result<Vec<String>, String>;
 
-/// The newest release, and where its tag was read.
-async fn newest(opts: &Options) -> Result<(Version, &'static str), Failure> {
+/// The newest release that this build follows, and where its tag was read;
+/// `None` when a list was read and holds none (a build of a release, before
+/// the first release, finds prereleases alone).
+async fn newest(opts: &Options) -> Result<Option<(Version, &'static str)>, Failure> {
     let pre = opts.current.is_prerelease();
     let mut why = Vec::new();
+    let mut read_one = None;
     let api = format!("{}/repos/{}/releases?per_page=20", opts.api, opts.repo);
     let feed = format!("{}/{}/releases.atom", opts.web, opts.repo);
     let sources: [(&str, &str, &str, ReadTags); 2] = [
@@ -209,14 +212,20 @@ async fn newest(opts: &Options) -> Result<(Version, &'static str), Failure> {
     for (url, accept, name, read) in sources {
         match opts.fetcher.get(url, accept, MAX_LIST, SMALL_LIMIT).await {
             Ok(body) => match read(&body).map(|tags| release::newest(&tags, pre)) {
-                Ok(Some(version)) => return Ok((version, name)),
-                Ok(None) => why.push(format!("{name} lists no release of a version")),
+                Ok(Some(version)) => return Ok(Some((version, name))),
+                Ok(None) => {
+                    why.push(format!("{name} lists no release of a version"));
+                    read_one.get_or_insert(name);
+                }
                 Err(e) => why.push(format!("{name}: {e}")),
             },
             Err(FetchError::NotFound(e) | FetchError::Failed(e)) => why.push(e),
         }
     }
-    Err(Failure::Unavailable(format!("no list of the releases: {}", why.join("; "))))
+    match read_one {
+        Some(_) => Ok(None),
+        None => Err(Failure::Unavailable(format!("no list of the releases: {}", why.join("; ")))),
+    }
 }
 
 /// The update: the release that `asked` names, else the newest one; its
@@ -227,7 +236,16 @@ pub async fn update(opts: &Options, check: bool, asked: Option<&Version>, out: &
     let version = match asked {
         Some(version) => version.clone(),
         None => {
-            let (newest, from) = newest(opts).await?;
+            let Some((newest, from)) = newest(opts).await? else {
+                let which = if opts.current.is_prerelease() { "release" } else { "release (not a prerelease)" };
+                let _ = writeln!(
+                    out,
+                    "the list of releases holds no {which} newer than this build, {}: nothing to do (--version TAG \
+                     installs one)",
+                    opts.current
+                );
+                return Ok(());
+            };
             let which = if opts.current.is_prerelease() {
                 "the newest release, a prerelease too"
             } else {

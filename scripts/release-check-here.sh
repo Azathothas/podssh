@@ -201,9 +201,10 @@ c_irc_live() {
             return
         fi
         _tried="$_tried $_net $(why);"
-        # Turned away before the welcome, in the network's own words: the
-        # relay's addresses are on its list (docs/irc.md).
-        grep -qE 'K-Lined|G-lined|DNSBL|[Bb]anned|tls handshake eof' "$LOGS/irc.${_net%%:*}.log" || _other=1
+        # Turned away before the welcome, in the network's own words, or in
+        # its silence through a TLS handshake: the relay's addresses are on
+        # its list (docs/irc.md).
+        grep -qE 'K-Lined|G-lined|DNSBL|[Bb]anned|tls handshake eof|TLS handshake with [^ ]+ did not end' "$LOGS/irc.${_net%%:*}.log" || _other=1
     done
     if [ -z "${_other:-}" ]; then
         row SKIP irc.live "$PRIMARY" "$_secs" "each network turned the relay's address away before its welcome:$_tried an outside refusal (docs/irc.md); a deployment on another provider is T-346's; IRC is irc.image's, against ngircd"

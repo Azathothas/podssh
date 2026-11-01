@@ -96,7 +96,8 @@ if [ -n "${1:-}" ]; then
 else
     (cd "$REPO" && timeout 1800 cargo build -q -p podssh-cli --features ts) >"$W/cargo.log" 2>&1 ||
         { tail -40 "$W/cargo.log"; die "podssh did not build with the feature ts"; }
-    cp "$REPO/target/debug/podssh" "$W/bin/podssh" || die "no target/debug/podssh after the build"
+    # Where cargo put it: CARGO_TARGET_DIR when the caller set one.
+    cp "${CARGO_TARGET_DIR:-$REPO/target}/debug/podssh" "$W/bin/podssh" || die "no debug/podssh after the build"
 fi
 BIN=$W/bin/podssh
 timeout 30 "$BIN" ts --timeout 5s </dev/null >/dev/null 2>"$W/feature.err"
