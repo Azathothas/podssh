@@ -352,6 +352,17 @@ The box runs on GitHub's runner since T-415: `box.yml` at `bb46515` (run 4131491
 nolisten, tt and chat each passed; `plants.yml` at `bb46515` (run 41315851930): each of the 16
 groups passed, so each plant was caught, host-box and host-nolisten among them.
 
+2026-11-01, the runs before `v1.0.0-beta.4`'s tag: the ACTIONS rows at `889fda2` (the product code
+of `1bafa9d`): update, service, doh, hop, forwarders, quick tunnel, WARP, relay's backpressure,
+headscale and release passed; node_live failed on railway.new's limit (T-422). The local run at
+`74974dd` (the dry run's static binary, run 41341493345, and a release build here): 17 passed, among
+them throughput and its loop cell (p50 1.96 MiB/s), headscale (exit 3 as the row wants), irc.image,
+reverse.two and iroh.n0; failed: `sandbox` and `container.sandbox` (T-424, a real defect, repaired),
+`irc.live` (T-425), `cp.200mib` (this host's disk filled: "No space left on device"). The rows
+again at `4e79a1f` (run 41346815789's binary and a build here): 16 passed, `sandbox` 15 ok and
+`container.sandbox` 14 ok, `cp.200mib` 200 MiB up in 53 s and down in 76 s with equal digests;
+`irc.live` failed (T-425's repair came after it); `railway` a SKIP (T-422).
+
 # T-422: railway.new refuses anonymous visitors for hours, and two checks of the release fail on it
 
 **Source:** the runs at `889fda2` (2026-11-01): `relay-live.yml` with `test=node_live` (run
@@ -520,6 +531,53 @@ Planted, no guard: the new test fails.
 `a_master_whose_connection_fails_leaves_no_socket` (a closed port: exit 255, "ControlMaster:
 listening on", and no file left). Planted, the guard taken out: it failed, "the socket of a master
 that never served is still there".
+
+# T-425: The public IRC networks turn the relay's address away, and the release check's row irc.live fails on it
+
+**Source:** the release check at `74974dd` and `4e79a1f` (2026-11-01): `irc.live` failed, "no
+network took the run": OFTC ended TLS with no word (three tries at `4e79a1f`), libera K-lines the
+relay's address, undernet G-lines it (DNSBL); OFTC took a run at 18:45 UTC the same day.
+**Category:** defect
+**Milestone:** M9
+**Priority:** P1
+**Effort:** S
+**Status:** partial
+
+## Problem
+
+The release check passes only when each row does, and `irc.live` waits on the lists of three
+networks that podssh does not keep: `v1.0.0` would wait on them.
+
+## Premise
+
+- Read: `docs/irc.md` says that libera, OFTC and tilde close before the welcome for the relay's
+  addresses, and that "the relay's address changes with the networks' lists, not with podssh".
+- Read: `irc.image` checks podssh's IRC client against ngircd over plain text and TLS
+  (`scripts/irc-in-image.sh`), and passed at `74974dd`.
+
+## Approach
+
+When each try of `irc.live` ended before the welcome in the network's own words of a refusal
+(`K-Lined`, `G-lined`, `DNSBL`, `banned`, or TLS ended before any line), the row is a SKIP that
+says so and names `irc.image` and T-346 (a deployment on another provider, whose address the
+networks may take); any other end of a try leaves a FAIL.
+
+## Decision
+
+2026-11-01: a SKIP on the networks' own refusal of the relay's address, as for railway.new's limit
+(T-422): the client is checked against ngircd, and the networks' lists are theirs. Lost: a FAIL
+that waits for three networks to change their lists.
+
+## Prove
+
+```sh
+sh scripts/release-check.sh --local --binary BINARY --build BUILD --only irc.live
+```
+
+## Done
+
+2026-11-01: `scripts/release-check-here.sh` (`c_irc_live`): each try's log is read for the words of
+a refusal; with each try refused, `SKIP irc.live`. Run after the commit: below.
 
 # T-415: On GitHub's runner the box's /dev/tty probe waits 40 minutes, so box.yml measures nothing
 

@@ -184,7 +184,7 @@ c_containers() {
 # a throwaway nick and channel; the first network that takes it passes.
 # Which networks take the relay's address is theirs to say (docs/irc.md).
 c_irc_live() {
-    _h=$(rand_hex 3) _tried= _secs=0
+    _h=$(rand_hex 3) _tried= _secs=0 _other=
     # OFTC three times: its name gives one server of several each time, and
     # one of them ended TLS with no word where another took the run (T-422);
     # libera and undernet bar the relay's address (docs/irc.md).
@@ -201,7 +201,14 @@ c_irc_live() {
             return
         fi
         _tried="$_tried $_net $(why);"
+        # Turned away before the welcome, in the network's own words: the
+        # relay's addresses are on its list (docs/irc.md).
+        grep -qE 'K-Lined|G-lined|DNSBL|[Bb]anned|tls handshake eof' "$LOGS/irc.${_net%%:*}.log" || _other=1
     done
+    if [ -z "${_other:-}" ]; then
+        row SKIP irc.live "$PRIMARY" "$_secs" "each network turned the relay's address away before its welcome:$_tried an outside refusal (docs/irc.md); a deployment on another provider is T-346's; IRC is irc.image's, against ngircd"
+        return
+    fi
     row FAIL irc.live "$PRIMARY" "$_secs" "no network took the run:$_tried"
 }
 

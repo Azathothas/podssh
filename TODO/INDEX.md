@@ -62,15 +62,15 @@ repository and CI).
 
 ## Counts
 
-**420 entries: 15 open, 1 partial, 31 blocked, 373 done.**
+**421 entries: 15 open, 2 partial, 31 blocked, 373 done.**
 
 | Priority | open | partial | blocked | done | total |
 | --- | --- | --- | --- | --- | --- |
 | P0 | 0 | 0 | 0 | 1 | 1 |
-| P1 | 1 | 1 | 0 | 45 | 47 |
+| P1 | 1 | 2 | 0 | 45 | 48 |
 | P2 | 1 | 0 | 21 | 179 | 201 |
 | P3 | 13 | 0 | 10 | 148 | 171 |
-| **All** | 15 | 1 | 31 | 373 | 420 |
+| **All** | 15 | 2 | 31 | 373 | 421 |
 
 ## Entries
 
@@ -496,3 +496,4 @@ repository and CI).
 | [T-422](release.md) | P1 | S | M9 | defect | done | railway.new refuses anonymous visitors for hours, and two checks of the release fail on it |
 | [T-423](release.md) | P1 | S | none | defect | done | The test of a session's lock found it still held on macOS just after its holder went |
 | [T-424](release.md) | P1 | S | none | defect | done | `-M` leaves its control socket when its connection fails before the master serves |
+| [T-425](release.md) | P1 | S | M9 | defect | partial | The public IRC networks turn the relay's address away, and the release check's row irc.live fails on it |
