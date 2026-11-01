@@ -180,7 +180,7 @@ rsa = { version = "0.9", default-features = false, features = ["std"] }
 # rand's default `getrandom` backend reads the OS, not a C library. `small_rng`
 # is deliberately off: podssh's protocol randomness is OS-sourced on every
 # platform, and a deterministic RNG in a protocol path is a defect.
-rand = { version = "0.8", default-features = false, features = ["std", "std_rng"] }
+rand = { version = "0.10", default-features = false, features = ["std", "std_rng"] }
 
 # podssh's own. No crates.io equivalent is acceptable for these.
 # No default features: 0.23's `simd-unsafe` adds unsafe SIMD engines for input
