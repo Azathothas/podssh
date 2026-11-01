@@ -541,7 +541,7 @@ relay's address, undernet G-lines it (DNSBL); OFTC took a run at 18:45 UTC the s
 **Milestone:** M9
 **Priority:** P1
 **Effort:** S
-**Status:** partial
+**Status:** done
 
 ## Problem
 
@@ -577,7 +577,13 @@ sh scripts/release-check.sh --local --binary BINARY --build BUILD --only irc.liv
 ## Done
 
 2026-11-01: `scripts/release-check-here.sh` (`c_irc_live`): each try's log is read for the words of
-a refusal; with each try refused, `SKIP irc.live`. Run after the commit: below.
+a refusal; with each try refused, `SKIP irc.live`.
+
+- `--only irc.live` at `e3db9db` with `4e79a1f`'s binary: SKIP, "each network turned the relay's
+  address away before its welcome: irc.oftc.net:6697 exit 69 (three times); irc.libera.chat:6697
+  exit 77; irc.undernet.org:6667 exit 77".
+- Planted, each try to a closed port (`127.0.0.1:9`, in a scratch worktree, never pushed): FAIL,
+  "no network took the run: 127.0.0.1:9 exit 77; ...", as an end without a network's refusal is.
 
 # T-415: On GitHub's runner the box's /dev/tty probe waits 40 minutes, so box.yml measures nothing
 

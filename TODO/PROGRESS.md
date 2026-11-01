@@ -120,7 +120,7 @@ and `CARGO_BUILD_JOBS=4`:
 
 ## Counts
 
-`TODO/INDEX.md` holds 421 entries: 15 open, 2 partial, 31 blocked, 373 done.
+`TODO/INDEX.md` holds 421 entries: 15 open, 1 partial, 31 blocked, 374 done.
 
 Open includes parked work. `cargo todo check` verifies this line.
 
@@ -159,11 +159,10 @@ of 2026-10-31 (GitHub #59 to #63 and #69 to #76), each done. Each other `backlog
 operator and the parked ones.
 
 **Next (2026-11-01):** each entry that the operator's rulings of Q60 to Q62 opened is done. The
-rehearsal of T-251 at `7855981`
-found two checks that fail at random, the test of DoH over HTTP/2 in the gate and WARP's road in
-`quick-tunnel-live.yml`, both repaired, so `v1.0.0-beta.4` comes after 2026-11-02 01:44 UTC
-from the first commit after their repairs where the gate and each ACTIONS row of the release check
-pass.
+rehearsals of T-251 found checks that fail at random, a stale socket of `-M` and the outside
+refusals of railway.new and the IRC networks, each repaired; `v1.0.0-beta.4` comes after
+2026-11-02 01:44 UTC from `4e79a1f`, where the release's dry run and the local rows passed, once
+its gate is green.
 
 **Then** M9: T-251 (the check, and its run before the tag), which runs the
 headscale harness of 2026-11-01, and last T-250 (the one release), unattended (the operator,
