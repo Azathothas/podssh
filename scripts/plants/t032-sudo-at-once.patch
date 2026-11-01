@@ -1,0 +1,17 @@
+--- a/crates/podssh-ssh/src/elevate.rs
++++ b/crates/podssh-ssh/src/elevate.rs
+@@ -195,12 +195,13 @@
+ 
+ impl Elevated {
+     pub fn new(how: Elevate, markers: Markers, question: String, may_ask: bool) -> Self {
++        let asked = question.clone();
+         Elevated {
+             filter: Filter::new(how, markers),
+             question,
+             may_ask,
+             events: Vec::new(),
+-            asking: None,
++            asking: may_ask.then(|| tokio::task::spawn_blocking(move || prompt::ask(&asked, false))),
+             deadline: Some(tokio::time::Instant::now() + WAIT),
+         }
+     }

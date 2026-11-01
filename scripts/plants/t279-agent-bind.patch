@@ -1,0 +1,11 @@
+--- a/crates/podssh-ssh/src/agent_forward.rs
++++ b/crates/podssh-ssh/src/agent_forward.rs
+@@ -56,7 +56,7 @@
+ 
+     /// Keep the binding of the first key exchange; a second changes nothing.
+     pub fn set_binding(&self, binding: &AgentSessionBinding) {
+-        let _ = self.binding.set(SessionBinding::from(binding));
++        let _ = binding;
+     }
+ 
+     /// The binding kept, if any.

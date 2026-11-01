@@ -1,0 +1,11 @@
+--- a/crates/podssh-cli/src/ssh/picker.rs
++++ b/crates/podssh-cli/src/ssh/picker.rs
+@@ -39,7 +39,7 @@
+ /// Whether the picker is shown: no destination, and stdin and stdout both
+ /// terminals, as a person is there to read the list and to answer it.
+ pub fn wanted(args: &SshArgs, tty: Tty) -> bool {
+-    args.destination.is_none() && tty.stdin && tty.stdout
++    args.destination.is_none() && tty.stdout
+ }
+ 
+ /// The literal `Host` names of the ssh_config files of `args` and `env`:

@@ -1,0 +1,6 @@
+# T-151: Inbound::accept delivers the bytes of a record past a gap and moves
+# its offset on; the codec's and the link's tests of a gap must fail.
+ENTRY=T-151
+GROUP=resume
+EXPECT='test a_gap_delivers_nothing_and_the_offset_stays \.\.\. FAILED'
+RUN='cargo test --locked --no-fail-fast -p podssh-relay --test session_codec --test session_link -- a_gap'

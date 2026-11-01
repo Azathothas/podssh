@@ -1,0 +1,12 @@
+--- a/crates/podssh-cli/src/keygen_sign.rs
++++ b/crates/podssh-cli/src/keygen_sign.rs
+@@ -182,7 +182,8 @@
+ fn signer(path: &Path, agent_only: bool) -> Result<(Signing, Option<Certificate>), String> {
+     let shown = path.display();
+     let text = std::fs::read_to_string(path).map_err(|e| format!("{shown}: {e}"))?;
+-    if let Some(certificate) = certificate_line(&text) {
++    let beside = std::fs::read_to_string(format!("{shown}-cert.pub")).ok();
++    if let Some(certificate) = beside.as_deref().and_then(certificate_line).or_else(|| certificate_line(&text)) {
+         return certified(path, &certificate, agent_only).map(|signing| (signing, Some(certificate)));
+     }
+     let public = public_key(path, &text);

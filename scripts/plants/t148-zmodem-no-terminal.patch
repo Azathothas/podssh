@@ -1,0 +1,14 @@
+--- a/crates/podssh-ssh/src/zmodem/session.rs
++++ b/crates/podssh-ssh/src/zmodem/session.rs
+@@ -86,9 +86,9 @@
+     /// The watcher of a session: only when it has a pty and a local
+     /// terminal, and `PODSSH_ZMODEM` is not `off`. With no terminal nothing
+     /// is watched, so nothing is ever received.
+-    pub fn for_session(terminal: bool) -> Option<Zmodem> {
++    pub fn for_session(_terminal: bool) -> Option<Zmodem> {
+         let off = std::env::var("PODSSH_ZMODEM").is_ok_and(|v| v.trim().eq_ignore_ascii_case("off"));
+-        (terminal && !off).then(Zmodem::new)
++        (!off).then(Zmodem::new)
+     }
+ 
+     /// A watcher, whatever the session: [`Zmodem::for_session`] decides

@@ -1,0 +1,9 @@
+# T-030: each hop of -J is checked under the destination's name; the jump's key
+# is filed as [127.0.0.1]:2203, and Dropbear's key then reads as changed (255).
+# SETUP stops what an earlier interop run of this container left running.
+ENTRY=T-030
+GROUP=ssh-keys
+EXPECT='^FAIL +hostkeys\.jump_names '
+RUN='RUSTFLAGS=-Ctarget-feature=+crt-static CARGO_PROFILE_RELEASE_LTO=false CARGO_PROFILE_RELEASE_CODEGEN_UNITS=16 cargo build --locked --release --target "$TARGET" -p podssh-cli && INTEROP_ONLY=hostkeys sh scripts/interop.sh "$BIN"'
+SETUP='for p in sshd sshd-session sshd.pam dropbear python3 podssh tmux ssh-agent Xvfb Xvnc x0vncserver; do pkill -x "$p"; done; true'
+LIMIT=3600

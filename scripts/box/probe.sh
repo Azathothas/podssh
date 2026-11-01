@@ -49,8 +49,29 @@ fi
 # rather than refused"). A prompt that trusted the open waited for ever
 # there (GitHub #15). busybox timeout exits 143, GNU timeout 124.
 ctty=$(awk '{ print $7 }' /proc/self/stat)
-tty=$(timeout 5 dd if=/dev/tty of=/dev/null bs=1 count=1 2>&1)
-rc=$?
+# The shell ends the read itself after 5 s, with SIGKILL: on GitHub's runner
+# busybox timeout's watcher never signalled it, and the probe waited for the
+# pty's holder to end (T-415). The shell's own sleep ends there.
+out=/tmp/podssh-probe-tty.$$
+dd if=/dev/tty of=/dev/null bs=1 count=1 >"$out" 2>&1 &
+ddpid=$!
+sleep 5
+if kill -0 "$ddpid" 2>/dev/null; then
+    # A kill that the host refuses (an AppArmor profile did on GitHub's
+    # runner) is said, never waited on: the read would last as long as the
+    # pty's holder.
+    if kill -KILL "$ddpid" 2>/dev/null; then
+        wait "$ddpid" 2>/dev/null
+        rc=124
+    else
+        rc=refused
+    fi
+else
+    wait "$ddpid"
+    rc=$?
+fi
+tty=$(cat "$out" 2>/dev/null)
+rm -f "$out"
 case $rc in
     124 | 143)
         if [ "$ctty" = 0 ]; then
@@ -59,6 +80,8 @@ case $rc in
             differs /dev/tty "the controlling terminal (tty_nr $ctty)" "no controlling terminal"
         fi
         ;;
+    refused) differs /dev/tty "the box may not signal its own read of it (a security profile of the host)" \
+        "opens, and no byte within 10 s" ;;
     *) differs /dev/tty "$(printf '%s' "${tty:-exit $rc}" | head -n 1)" "opens, and no byte within 10 s" ;;
 esac
 
@@ -84,10 +107,13 @@ case $udp in
 esac
 
 # No listener: bind refused. (The report has no bind probe; the operator
-# reports that binding is not allowed there.)
+# reports that binding is not allowed there.) With BOX_SECCOMP=nolisten the
+# bind works and listen is refused with EPERM (T-358), on purpose.
 bind=$(timeout 3 nc -l -p 18080 </dev/null 2>&1)
-case $bind in
-    *"ermission denied"*) match bind "refused: Permission denied" ;;
+case ${BOX_SECCOMP:-}/$bind in
+    nolisten/*"not permitted"*) match bind "bound, and listen refused: Operation not permitted (nolisten)" ;;
+    nolisten/*) differs bind "${bind:-no error within 3 s}" "listen refused with EPERM (nolisten)" ;;
+    /*"ermission denied"*) match bind "refused: Permission denied" ;;
     *) differs bind "${bind:-no error within 3 s}" "refused" ;;
 esac
 

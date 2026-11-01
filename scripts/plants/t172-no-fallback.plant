@@ -1,0 +1,6 @@
+# T-172: a refused socket of Multipath TCP returns the error instead of
+# falling back to plain TCP; the test of the planted refusal must fail.
+ENTRY=T-172
+GROUP=resume
+EXPECT='test a_refused_mptcp_socket_gives_plain_tcp_with_the_same_bytes \.\.\. FAILED'
+RUN='cargo test --locked -p podssh-ws --test mptcp -- a_refused_mptcp_socket_gives_plain_tcp_with_the_same_bytes'

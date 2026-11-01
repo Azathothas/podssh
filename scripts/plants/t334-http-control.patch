@@ -1,0 +1,11 @@
+--- a/crates/podssh-cli/src/ts/control.rs
++++ b/crates/podssh-cli/src/ts/control.rs
+@@ -50,7 +50,7 @@
+     let Some((scheme, rest)) = text.trim().split_once("://") else {
+         return Err("it is not a URL; give https://HOST[:PORT]".to_string());
+     };
+-    if !scheme.eq_ignore_ascii_case("https") {
++    if !scheme.eq_ignore_ascii_case("https") && !scheme.eq_ignore_ascii_case("http") {
+         return Err("the scheme is not https://; the control key comes over checked TLS alone".to_string());
+     }
+     let end = rest.find(['/', '?', '#']).unwrap_or(rest.len());

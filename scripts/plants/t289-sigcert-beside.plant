@@ -1,0 +1,9 @@
+# T-289: keygen -Y sign -f KEY signs with KEY-cert.pub when it is there (the
+# reading that the entry's Correction undid); OpenSSH then names an
+# ED25519-CERT key, so keygen.sigcert.key_beside_signs_plain must fail.
+ENTRY=T-289
+GROUP=ssh-pty
+EXPECT='^FAIL +keygen\.sigcert\.key_beside_signs_plain '
+SETUP='for p in sshd sshd-session sshd.pam dropbear python3 podssh tmux ssh-agent Xvfb Xvnc x0vncserver; do pkill -x "$p"; done; true'
+RUN='RUSTFLAGS=-Ctarget-feature=+crt-static CARGO_PROFILE_RELEASE_LTO=false CARGO_PROFILE_RELEASE_CODEGEN_UNITS=16 cargo build --locked --release --target "$TARGET" -p podssh-cli && INTEROP_ONLY=keygen sh scripts/interop.sh "$BIN"'
+LIMIT=3600

@@ -1,0 +1,8 @@
+# T-034: podssh agent, its bind refused in the box, leaves out the probe's
+# error; the box's step "an agent" must fail (it comes with box-steps.diff).
+ENTRY=T-034
+GROUP=host-box
+EXPECT='^FAIL +an agent: refused'
+SETUP='sh scripts/box/build-podssh.sh'
+RUN='sh scripts/test_in_box.sh "$BIN"'
+LIMIT=2400

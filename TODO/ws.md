@@ -2088,7 +2088,7 @@ host has.
   and `403 not a public host` for private and metadata addresses
   (`docs/target-environment.md:21`); no public address literal was asked. The box's proxy
   resolves each name and checks its addresses, so it takes a public literal as it takes a name
-  (`scripts/box/proxy.py:147-155`).
+  (`scripts/box/proxy.py:181-189`).
 - Read: the study of carriers takes it as Inferred that a proxy which allows listed names only
   refuses WARP's address literal (`docs/carriers.md:81-89`).
 - Read: a test of `doctor` counts the lines whose check is `CONNECT`, and wants three
@@ -2337,7 +2337,7 @@ refused it.
 ## Correction
 
 - Read: the box's proxy has the mode already: `--take names` refuses an address literal with
-  `403 not on the allowlist` (T-366; `scripts/box/proxy.py:18-21`, `:100-102`). This entry uses
+  `403 not on the allowlist` (T-366; `scripts/box/proxy.py:18-21`, `:106-108`). This entry uses
   it, and adds none.
 - Read: no other lookup of DNS over HTTPS goes through a proxy. `doh_lookup` dials each
   resolver's address directly (`crates/podssh-ws/src/resolve.rs:317`), as the source of the

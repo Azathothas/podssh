@@ -1,0 +1,20 @@
+diff --git a/crates/podssh-relay/src/reverse/closes.rs b/crates/podssh-relay/src/reverse/closes.rs
+index 11f8f89..5434167 100644
+--- a/crates/podssh-relay/src/reverse/closes.rs
++++ b/crates/podssh-relay/src/reverse/closes.rs
+@@ -289,7 +289,6 @@ pub fn classify(close: &RelayClose) -> Classified {
+ pub fn resumes(close: &RelayClose) -> bool {
+     match classify(close).session {
+         SessionAction::Stop
+-        | SessionAction::MintNewPair
+         | SessionAction::FixCodec
+         | SessionAction::AnswerReadyFirst
+         | SessionAction::DoNotSendText
+@@ -301,6 +300,7 @@ pub fn resumes(close: &RelayClose) -> bool {
+         // its sessions with it: the node connects again (T-409), and a new
+         // session is the resume that the row asks for (T-410).
+         SessionAction::ReopenSession
++        | SessionAction::MintNewPair
+         | SessionAction::Reconnect
+         | SessionAction::OpenNewSession
+         | SessionAction::SlowDown

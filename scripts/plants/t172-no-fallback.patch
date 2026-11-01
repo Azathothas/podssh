@@ -1,0 +1,14 @@
+--- a/crates/podssh-ws/src/mptcp.rs
++++ b/crates/podssh-ws/src/mptcp.rs
+@@ -87,10 +87,7 @@
+         // sandbox's seccomp, that refuses the protocol. Any other error of
+         // the call goes the same way: a plain socket gives it again when its
+         // cause is not MPTCP (no descriptor left, say).
+-        Err(e) => {
+-            let stream = TcpStream::connect(addr).await?;
+-            Ok((stream, Multipath::Plain(format!("the kernel refused a socket of Multipath TCP: {e}"))))
+-        }
++        Err(e) => Err(e),
+     }
+ }
+ 

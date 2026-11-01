@@ -1,0 +1,11 @@
+--- a/crates/podssh-cli/src/ssh/control_unix.rs
++++ b/crates/podssh-cli/src/ssh/control_unix.rs
+@@ -55,7 +55,7 @@
+             }
+         }
+     }
+-    let required = matches!(plan.mode, Mode::Yes | Mode::Ask);
++    let required = matches!(plan.mode, Mode::Ask);
+     match be_master(resolved, &plan, &path, log) {
+         Ok(()) => Start::Go,
+         Err((code, line)) if required => {

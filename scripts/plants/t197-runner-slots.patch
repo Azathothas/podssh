@@ -1,0 +1,11 @@
+--- a/crates/podssh-cli/src/job/far.sh
++++ b/crates/podssh-cli/src/job/far.sh
+@@ -179,7 +179,7 @@
+     # slots; end when nothing is queued and nothing runs.
+     while :; do
+         scan
+-        if [ -n "$next" ] && [ "$busy" -lt "$k" ]; then
++        if [ -n "$next" ]; then
+             launch "$next" || unstarted "$next"
+             continue
+         fi

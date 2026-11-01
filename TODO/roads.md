@@ -1454,7 +1454,7 @@ the tests of T-300 need.
   cloudflared asks for a tunnel, and dials the edge, with no proxy (`docs/design.md:194-211`,
   `docs/design.md:258-272`).
 - Read: the box's proxy, as the measured one, allows `CONNECT` to ports 443, 80 and 8443 only
-  (`scripts/box/proxy.py:40`, `docs/target-environment.md:21`), and lets one more target through
+  (`scripts/box/proxy.py:44`, `docs/target-environment.md:21`), and lets one more target through
   by its name with `--allow` (`scripts/box/proxy.py:14-16`).
 - Read: the relay's direct road refuses Cloudflare's address ranges; on its VPC road the platform
   does not (`crates/podssh-probe/tests/spec/relay-spec-2026-10-03-r2.txt:224-227`).

@@ -1,0 +1,9 @@
+# T-039: -M whose control socket the box refuses connects alone, as
+# ControlMaster auto would; the box's step "the control socket of -M" must
+# fail (it comes with box-steps.diff).
+ENTRY=T-039
+GROUP=host-box
+EXPECT='^FAIL +the control socket of -M: exit [0-9]+: its socket was refused'
+SETUP='sh scripts/box/build-podssh.sh'
+RUN='sh scripts/test_in_box.sh "$BIN"'
+LIMIT=2400

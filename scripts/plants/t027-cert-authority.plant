@@ -1,0 +1,9 @@
+# T-027: the @cert-authority lookup compares the host key, not the CA; OpenSSH's
+# host certificate on port 2211 is then refused under StrictHostKeyChecking=yes.
+# SETUP stops what an earlier interop run of this container left running.
+ENTRY=T-027
+GROUP=ssh-keys
+EXPECT='^FAIL +ssh\.hostkey\.cert_accepted '
+RUN='RUSTFLAGS=-Ctarget-feature=+crt-static CARGO_PROFILE_RELEASE_LTO=false CARGO_PROFILE_RELEASE_CODEGEN_UNITS=16 cargo build --locked --release --target "$TARGET" -p podssh-cli && INTEROP_ONLY=reference sh scripts/interop.sh "$BIN"'
+SETUP='for p in sshd sshd-session sshd.pam dropbear python3 podssh tmux ssh-agent Xvfb Xvnc x0vncserver; do pkill -x "$p"; done; true'
+LIMIT=3600

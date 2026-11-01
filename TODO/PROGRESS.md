@@ -70,9 +70,12 @@ entry keeps its proof in the entry; this page keeps no history (git does).
   T-373's (`1be3e28`), T-334's (`4bddbb5`) and T-385's (`450654d`), drafted by
   agents of this cloud session, are merged, and their worktrees and branches
   are gone. T-251's planted defects, four drafts of agents (ssh, faults and
-  multi; copy, pipe and cli; resume and roads; the box), are joined on the
-  branch `draft/t251-plants` (`e622607`), which `plants.yml` and `box.yml`
-  run before it joins `main`.
+  multi; copy, pipe and cli; resume and roads; the box), joined on the
+  branch `draft/t251-plants` (`e622607`), then carried onto `main` at
+  `da543fd` as `draft/t251-plants-2`, and the release check of an agent
+  (`draft/t251-release-check`, `54d172c`), are merged on 2026-11-01, after
+  `plants.yml` and `box.yml` passed on that branch at `bb46515`; those three
+  branches can go, as this session's git proxy would not delete them.
 
   CI: the gate passed at
   `24b9f6e` (run 38331509229), and its step `release` at `cad2885` (478
@@ -117,7 +120,7 @@ and `CARGO_BUILD_JOBS=4`:
 
 ## Counts
 
-`TODO/INDEX.md` holds 412 entries: 16 open, 2 partial, 32 blocked, 362 done.
+`TODO/INDEX.md` holds 413 entries: 16 open, 2 partial, 32 blocked, 363 done.
 
 Open includes parked work. `cargo todo check` verifies this line.
 

@@ -1,0 +1,13 @@
+--- a/crates/podssh-cli/src/ssh/local_bind.rs
++++ b/crates/podssh-cli/src/ssh/local_bind.rs
+@@ -87,9 +87,7 @@
+         }
+     }
+     if listeners.is_empty() {
+-        let (address, e) = failed.into_iter().next().expect("one address at least");
+-        let instead = if e.kind() == io::ErrorKind::PermissionDenied { "; this host refuses the listener" } else { "" };
+-        return Err((EXIT_FAILURE, format!("{}: cannot listen on {address}: {e}{instead}; {INSTEAD}", spec.shown)));
++        return Ok(listeners);
+     }
+     for (address, e) in failed {
+         log.verbose(&format!("{}: not on {address}: {e}", spec.shown));

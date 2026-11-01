@@ -1,0 +1,11 @@
+--- a/crates/podssh-cli/src/each/fan.rs
++++ b/crates/podssh-cli/src/each/fan.rs
+@@ -40,7 +40,7 @@
+ /// each host gave 0, and 255 when one could not connect or log in, whatever
+ /// the order in which they ended.
+ pub fn exit_status(ends: &[Ended]) -> i32 {
+-    ends.iter().filter_map(Ended::code).max().unwrap_or(0)
++    ends.iter().filter_map(Ended::code).next().unwrap_or(0)
+ }
+ 
+ /// Run `start(i)` for each `i` below `count`, `parallel` at once, each to its

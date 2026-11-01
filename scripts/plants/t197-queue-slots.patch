@@ -1,0 +1,11 @@
+--- a/crates/podssh-cli/src/job/far.sh
++++ b/crates/podssh-cli/src/job/far.sh
+@@ -152,7 +152,7 @@
+         exit 0
+     }
+     if [ "$a" = submit ]; then
+-        printf 'queued\n' >"$1/state"
++        launch "$1"
+         [ "$2" = - ] || printf '%s\n' "$2" >slots
+         runner_up
+         say "queued ${1#*-}"

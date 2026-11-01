@@ -1,0 +1,11 @@
+--- a/crates/podssh-relay/src/session/replay.rs
++++ b/crates/podssh-relay/src/session/replay.rs
+@@ -104,7 +104,7 @@
+ 
+     /// The bytes that still fit.
+     pub fn room(&self) -> usize {
+-        self.capacity.saturating_sub(self.bytes.len())
++        usize::MAX
+     }
+ 
+     /// The offset of the first byte kept.

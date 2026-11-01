@@ -1,0 +1,6 @@
+# T-158: an Escapes that takes `~d` as a detach with no offer of the far
+# end; the escape test must fail where `~d` should be two bytes.
+ENTRY=T-158
+GROUP=resume
+EXPECT='test escape::tests::tilde_d_detaches_only_when_the_far_end_keeps_shells \.\.\. FAILED'
+RUN='cargo test --locked -p podssh-ssh --lib -- escape::tests::tilde_d_detaches_only_when_the_far_end_keeps_shells'

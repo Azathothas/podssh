@@ -1,0 +1,11 @@
+--- a/crates/podssh-ssh/src/persist.rs
++++ b/crates/podssh-ssh/src/persist.rs
+@@ -39,7 +39,7 @@
+ 
+ /// The session's command: attach NAME, or start it when it is not there.
+ pub fn command(name: &str) -> String {
+-    format!("tmux new-session -A -s {name}")
++    format!("tmux new-session -s {name}")
+ }
+ 
+ /// Whether a session that ended with no status lost its link, which a new

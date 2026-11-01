@@ -1,0 +1,8 @@
+# T-148: a session gets a ZMODEM watcher with no terminal too. The gate's
+# pty.zmodem.no_terminal says env in the build image (no lrzsz in Alpine),
+# so the test of the same rule must fail instead.
+ENTRY=T-148
+GROUP=cli-tests
+EXPECT='test zmodem_session::with_no_terminal_there_is_no_watcher \.\.\. FAILED'
+RUN='cargo test --locked -p podssh-ssh --test zmodem -- with_no_terminal_there_is_no_watcher'
+LIMIT=2400

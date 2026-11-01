@@ -1,0 +1,9 @@
+# T-183: podssh each exits with the first host's status, not the largest; the
+# order 0, 3 then exits 0.
+# SETUP stops what an earlier interop run of this container left running.
+ENTRY=T-183
+GROUP=each-a
+EXPECT='^FAIL +each\.order\.0_3 '
+RUN='RUSTFLAGS=-Ctarget-feature=+crt-static CARGO_PROFILE_RELEASE_LTO=false CARGO_PROFILE_RELEASE_CODEGEN_UNITS=16 cargo build --locked --release --target "$TARGET" -p podssh-cli && INTEROP_ONLY=each sh scripts/interop.sh "$BIN"'
+SETUP='for p in sshd sshd-session sshd.pam dropbear python3 podssh tmux ssh-agent Xvfb Xvnc x0vncserver; do pkill -x "$p"; done; true'
+LIMIT=3600

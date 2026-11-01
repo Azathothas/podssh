@@ -143,6 +143,74 @@ line; `.github/workflows/plants.yml` runs the groups in the build image (or, for
 edited and reverted in a session, which T-250 could not run again after the tag and which a
 session's end loses half done; and a switch for each plant in the code, which would ship.
 
+2026-11-01: the script of item 1, `scripts/release-check.sh`, with its catalog
+(`scripts/release-check-catalog.sh`), its parts (`scripts/release-check-sources.sh`,
+`scripts/release-check-here.sh`, `scripts/release-check-node.sh`, `scripts/release-check-actions.sh`)
+and its reader of GitHub's public API (`scripts/release-check-api.py`):
+
+- The sources. `--local --binary PATH`: the gate's static binary of the last push (the artifact
+  `podssh-x86_64-unknown-linux-musl` of `.github/workflows/build.yml`; `gh run download` needs a
+  login, so the script takes the file and fetches nothing), and a build of this host (`--build`
+  PATH, else `cargo build --release` with the `RELEASE_FEATURES` of `.github/workflows/release.yml`);
+  the tree is clean at the artifact's commit. `TAG`: the files of the release, from GitHub's
+  download URLs as `README.md` fetches them (or `--dir DIR`, a copy). Then, before any binary runs:
+  `SHA256SUMS` names the 8 binaries of the release once each; cosign checks its signature
+  (`release.yml` at the tag); `sha256sum -c`; `gh attestation verify` of each binary with the
+  bundle (`release.yml` at the tag, the tag's commit), as `.github/workflows/release-proofs.yml`
+  does; the tag's commit from the API and from git agree; each Linux binary is static and of its
+  machine. A missing cosign, gh or readelf is a FAIL. A row of the sources that fails stops the
+  run: it prints "no check ran" and exits 1. That is the Prove's plant: a byte changed in a binary
+  of `--dir` fails `sums.check`. Before the tag no `SHA256SUMS` exists: `sums.check` is a SKIP that
+  records the artifact's digest and names T-250, unless `--sums FILE` gives one (the plant of
+  `--local`). Lost: the digest of the artifact's zip from the API, which needs the zip, and so a
+  login, and proves the zip, not the binary.
+- One catalog of rows: the ID, the modes, the entry, the place, the limit and what makes it pass.
+  A row that the run owed and did not make fails, so a check cannot drop out unseen, as the gate's
+  steps cannot (`scripts/check-scripts.py`); `--list` prints the catalog. The states: PASS, FAIL,
+  SKIP (only a row that the catalog marks, its reason naming the entry or question that holds it:
+  T-248 and T-085, held by the operator, Q32; the operator's tailnet, Q40, where headscale stands
+  in; the throughput run's direct cell, Q38), and ACTIONS.
+- The ACTIONS rows: what GitHub's runners make (Windows and macOS, the box and the chat between
+  boxes, WARP, Cloudflare's edge, the forwarders of GitHub #59, the live relay from GitHub's
+  network, the planted defects, the 8 targets of the release, the proofs and `podssh update`). The
+  script starts no run. A row with no `--actions-run NAME=ID` stays ACTIONS and says the command
+  that starts its run. With one, the API's run and jobs, read with no token (gh's login only where
+  the API refuses the address): the row passes only for a run of its workflow, completed, at the
+  commit under check, whose named jobs each passed; a run of a tag's checks started on main counts
+  once the release was published. Lost: starting the runs from the script, which needs a token
+  that may start workflows and holds one process for up to an hour a run; and `gh run view`, which
+  needs a login that a host may not have.
+- The exit: 0 only when no row failed and each ACTIONS row was read; 1 when a row failed; 3 when
+  none failed, but an ACTIONS row was not read or `--only` ran a part. Lost: 0 with ACTIONS rows
+  listed, which a run that read no Windows result would pass.
+- On this host, for each binary: `scripts/release-short.sh --net`, `scripts/sandbox-check.sh`
+  (`doctor --full`, `proxy github.com 22`, `ssh -T` and `-tt` to GitHub's refusal, the prompts,
+  OpenSSH with podssh as its ProxyCommand) and README's first steps. On the binary that ships (the
+  artifact, or the published binary of this host's machine): `pipe` with `exec:cat` and with
+  `unix-connect:` to a server of Python's; a pty and an exec to railway.new through the relay; a
+  node of the live relay in front of this host's sshd, one session and then two at once, and `cp`
+  of 200 MiB each way through it (the reverse road on one host: T-085's two boxes are held); a node
+  of the iroh road through n0's relays (Q50); the same static binary in a fresh container of the
+  box's Alpine on this host's network; `podssh update --check` after the tag; `podssh chat --irc`
+  on OFTC, else libera, else undernet (Q39), where one network that takes the relay's address
+  passes, as which networks take it is theirs to say (`docs/irc.md`); `scripts/irc-in-image.sh`
+  in the build image; `scripts/ts-headscale.sh`, where exit 3 (only the live relay's three runs
+  left to `actions.headscale`) passes; and T-157's throughput run at 100 MiB a run with n0's
+  relay. The build of this host runs the first three: the live runs, each of minutes and of
+  hundreds of MiB through the relay, run once, on the binary that ships. Lost: each run on each
+  binary, twice the time and the relay's bytes for a build that ships nowhere.
+- The runs that wait for undernet's route (T-095's pair, T-097's 1 MiB, T-098's idle session) run
+  against ngircd in the build image, a server that podssh did not write; the public networks get
+  the binary's one short run (Q39). undernet throttles the relay's one address (465, measured on
+  2026-11-01).
+- railway.new: its output holds a claim URL, so no line of it is shown or kept. Its refusal of an
+  anonymous visitor fails the row, with that reason: a check that did not run is no pass.
+- The forward cell of the throughput run through the relay's loop is a row of its own, which
+  fails while `crates/podssh-cli/tests/throughput_live.rs` has no such cell.
+- Each podssh of a check has a home and a cache of the run: its relay token is minted, used and
+  removed with the scratch directory, and a pair is revoked at the end, also at an early exit. The
+  table holds no path of the host: each path of the command line is PATH.
+
 ## Prove
 
 ```sh
@@ -220,6 +288,125 @@ where it worked on 2026-10-10; OFTC on 6697 joined a throwaway channel and sent 
 got 465 from undernet for both of its clients, its throttle of one address. The pair, 1 MiB on
 undernet (T-097) and the idle session of T-098 wait for a route whose address these networks
 take.
+
+2026-11-01, later, from a cloud session: the plants of `draft/t251-plants` carried onto `main` at
+`da543fd` (`draft/t251-plants-2`), the plant of T-153 made again against `closes.rs` (T-410 moved
+`ReopenSession`). `plants.yml` on it (run 41305692603): the groups each-a, each-b, cli-tests,
+record, ssh-keys, ssh-pty, ts, resume, resume-cli, irc and host-chat passed on GitHub's runners,
+each plant caught.
+
+The box like the target sandbox does not run on GitHub's runner: its probe of `/dev/tty` waited 40
+minutes there, so it never measured podssh (T-415, with a diagnosis). It runs in this session
+instead, as the Correction of 2026-10-31 allows: the session's only way out is a TLS-reading
+proxy on its loopback, so `scripts/test_in_box.sh` now builds the images on the host's network with
+that proxy's CA, the box's proxy carries each CONNECT that its policy takes on to it
+(`scripts/box/proxy.py --upstream`, through `scripts/box/forward.py` on the podman bridge), and
+podssh in the box trusts that CA, which the run says; `scripts/box/build-podssh.sh` passes the
+proxy and its CA into the build image. Then the box matched the sandbox on every property, and
+each run passed here: default and nolisten, `sandbox-check: 14 ok, 0 FAIL, 1 skip`; tt, the exit
+status 7, vi, less, top and Ctrl-C. The plants of the groups host-box and host-nolisten run here.
+
+2026-11-01: `scripts/release-check.sh` and its parts (the Decision of 2026-11-01), merged from
+`draft/t251-release-check`, the section "The release check" of `docs/STATUS.md`, and its run in
+`docs/development.md` ("Release builds"). Measured in this cloud session, each part on its own;
+no whole run yet, as the tag's commit does not exist:
+
+- `--list`, `--list --local` and `--list v1.0.0-beta.3`: each row of the catalog, with the NAME of
+  each ACTIONS row and the command that starts its run.
+- The sources after a tag, on `v1.0.0-beta.3` with cosign v3.1.4 and gh: each of the 12 files,
+  the release's kind (a prerelease, as the tag's form wants), the tag's commit `54d89a0` as git
+  says, `sums.names`, the signature of `SHA256SUMS` by `release.yml` at the tag, 8 binaries against
+  `SHA256SUMS`, the provenance of 8 of 8, and 4 of 4 Linux binaries static, each of its machine;
+  then `update.check`: "podssh update would replace ... with podssh-x86_64-unknown-linux-musl of
+  v1.0.0-beta.3". The plant, one byte of a binary changed: `sums.check` FAIL, "no check ran",
+  exit 1.
+- Before the tag, with `main`'s static binary built with release.yml's features (`iroh,warp`):
+  `short`, `sandbox`, `readme`, `pipe`, `reverse.two`, `iroh.n0`, `container.short`,
+  `container.sandbox` and `cp.200mib` passed. `railway` failed: railway.new refuses an anonymous
+  visitor for now (not podssh's). `irc.live` failed: the relay's exit address is K-lined at libera,
+  G-lined at undernet, and OFTC's TLS ended (not podssh's; T-252's harness in the build image is
+  the IRC check). `irc.image`: `scripts/dev.sh run -- sh /work/scripts/irc-in-image.sh` passed,
+  ngircd over plain text and TLS, 4 tests, in 4 min 47 s. `throughput` and `throughput.loop`: the
+  run at 100 MiB with n0's `use1-1` passed in 3,087 s, the cell through the relay's own loop with
+  its figures (`docs/STATUS.md`, "Throughput, measured"); the row now wants the cell's figures, not
+  its name. `headscale` waits for a run here (the ts build).
+- A run with no `--build` began `cargo build --release` in its own worktree, beside a measurement
+  and on a nearly full disk; it was stopped. The release check's run passes `--build` or has the
+  disk and the time of a release build.
+- The ACTIONS rows against real runs: `box.yml` (run 41314911742) and `plants.yml` (run
+  41315851930) at `bb46515` were read through the public API with their jobs' names (`box (tt)`,
+  `plants (copy)`), and refused for a check at `d123501` ("it ran at bb46515, not d123501"), one
+  job named while it still ran. The run of each ACTIONS row at the tag's commit is the run before
+  the tag.
+
+The box runs on GitHub's runner since T-415: `box.yml` at `bb46515` (run 41314911742), default,
+nolisten, tt and chat each passed; `plants.yml` at `bb46515` (run 41315851930): each of the 16
+groups passed, so each plant was caught, host-box and host-nolisten among them.
+
+# T-415: On GitHub's runner the box's /dev/tty probe waits 40 minutes, so box.yml measures nothing
+
+**Source:** the runs of `box.yml` and of `plants.yml`'s host groups for T-251, 2026-11-01
+(runs 41285485857 and 41306712198).
+**Category:** defect
+**Milestone:** none
+**Priority:** P2
+**Effort:** S
+**Status:** done
+
+## Problem
+
+On GitHub's ubuntu runner the box's probe of `/dev/tty` waits until the holder of the dead pty
+ends, 40 minutes later, then reads an I/O error; the box then differs from the sandbox and
+podssh is never measured in it. Each box run of `box.yml` and each plant of the groups `host-box`
+and `host-nolisten` runs out of its time there, so the box can run only on a host like a cloud
+session's (T-251).
+
+## Premise
+
+- Measured in `box.yml` at `2bc46dc` (run 41285485857): `DIFFERS /dev/tty box: dd: /dev/tty: I/O
+  error`, 40 minutes after the box started.
+- Measured by a diagnosis on the runner at `ed12dfd` (run 41306712198): rootful Podman, the box's
+  seccomp profile, the dead pty bound at `/dev/tty` in `alpine:3`; after 3 s `dd` and busybox
+  `timeout`'s watcher (in a session of its own) both sleep, nothing pending or blocked, SIGINT and
+  SIGQUIT ignored; `dd` then waited until the holder ended at 120 s ("dd: /dev/tty: I/O error").
+  Rootless Podman: `dd` exited 1 at once.
+- Measured here (a cloud session, Linux 6.18, Podman 4.9.3, rootful), the same image, profile and
+  command: `timeout 5` ended `dd` after 5 s (143), and the probe matched.
+
+## Approach
+
+Find why busybox `timeout`'s watcher never signals `dd` on the runner (its sleep, its `kill`, or
+the pid it watches), from a diagnosis that prints the watcher's `/proc/PID/wchan`, its syscall
+and `timeout`'s own exit; then a probe that does not depend on it (the shell's own background
+`dd`, killed by the shell after 5 s), measured on the runner and here.
+
+## Prove
+
+```sh
+# on GitHub's runner, from the workflow
+gh workflow run box.yml -f run=default
+```
+
+## Correction
+
+2026-11-01: busybox `timeout`'s watcher was not at fault, nor the shell's sleep. The probe that
+killed `dd` itself (`b76a986`, run 41309639232) waited the same 40 minutes, and a diagnosis on
+the runner (`71b183e`, run 41314338093: Ubuntu's kernel 7.0.0-1017-azure, rootful Podman 4.9.3)
+showed why: inside the box, `kill -KILL` of its own `dd` failed with "Permission denied", and
+`/proc/PID/wchan` read 0. Podman's default AppArmor profile does it, with no-new-privileges and no
+capabilities: the same box with `--security-opt apparmor=unconfined` killed `dd` at once, as did a
+plain container. This host has no AppArmor, so it never showed.
+
+## Done
+
+2026-11-01: `scripts/test_in_box.sh` and `scripts/chat-in-boxes.sh` run the box with
+`--security-opt apparmor=unconfined` where `podman info` says that AppArmor is on, and say so; the
+sandbox's record names no such profile, and no property that the box stands for depends on it.
+`scripts/box/probe.sh` says a kill that the host refuses as a difference at once, and never waits
+on it. `box.yml` on GitHub's runner at `bb46515` (run 41314911742): default (the box matched the
+sandbox on every property; `doctor --full` 44 ok, 0 FAIL; `sandbox-check.sh` 14 ok, 0 FAIL, 1
+skip), nolisten, tt and chat each passed, each in 5 to 8 minutes, where each ran out of its time
+before. The chat run needed T-416 too.
 
 # T-309: Publish the rolling betas `v1.0.0-beta.N`
 
@@ -307,7 +494,7 @@ login attempt through the relay.
 - The banner is `SSH-2.0-podssh_1.0.0_beta.1`
   (`crates/podssh-ssh/src/run_config.rs:62`). `cargo test -p podssh-ssh --lib
   run::tests`: 6 passed, and the new test of the banner failed planted (the
-  `-` kept: `SSH-2.0-podssh_1.0.0-beta.1`). `scripts/sandbox-check.sh:113`
+  `-` kept: `SSH-2.0-podssh_1.0.0-beta.1`). `scripts/sandbox-check.sh:115`
   sent a `-` in its software version too: `podssh_sandbox_check` now.
 - `cliff.toml`: each subject cut to 200 characters; after the cut, a name
   after `@` becomes code (the subjects hold `@NAME`, `@GROUP` and

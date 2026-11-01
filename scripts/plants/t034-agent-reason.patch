@@ -1,0 +1,11 @@
+--- a/crates/podssh-cli/src/agent/serve.rs
++++ b/crates/podssh-cli/src/agent/serve.rs
+@@ -42,7 +42,7 @@
+     let listener = match bound {
+         Ok(listener) => listener,
+         Err((code, line)) => {
+-            let _ = writeln!(err, "podssh agent: {line}");
++            let _ = line;
+             let _ = writeln!(
+                 err,
+                 "podssh agent: with no agent, podssh ssh takes key files with -i, and an encrypted key asks its \

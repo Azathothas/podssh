@@ -1,0 +1,10 @@
+--- a/crates/podssh-todo/tests/common/mod.rs
++++ b/crates/podssh-todo/tests/common/mod.rs
+@@ -196,6 +196,6 @@
+ 
+ impl Drop for Tree {
+     fn drop(&mut self) {
+-        let _ = fs::remove_dir_all(&self.root);
++        let _ = &self.root;
+     }
+ }

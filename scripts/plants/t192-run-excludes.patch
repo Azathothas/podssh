@@ -1,0 +1,11 @@
+--- a/crates/podssh-cli/src/run_cmd/mod.rs
++++ b/crates/podssh-cli/src/run_cmd/mod.rs
+@@ -29,7 +29,7 @@
+ 
+ /// What is never copied, at any depth: the output of a build, the packages
+ /// of node, and the history of git.
+-pub const DEFAULT_EXCLUDES: &[&str] = &["target/", "node_modules/", ".git/"];
++pub const DEFAULT_EXCLUDES: &[&str] = &[];
+ /// The project's own ignore file, read when it is there.
+ pub const IGNORE_FILE: &str = ".podsshignore";
+ /// The far directory of the projects, under the home directory, when the

@@ -1,0 +1,11 @@
+--- a/crates/podssh-cli/src/edit/far.rs
++++ b/crates/podssh-cli/src/edit/far.rs
+@@ -78,7 +78,7 @@
+     log: &Arc<Log>,
+ ) -> Result<Done, Failed> {
+     let first = link::connect(resolved, log).await?;
+-    if let Err(why) = unchanged(&first, &far.path, record).await {
++    if let Err(why) = unchanged(&first, &far.path, record).await.or(Ok::<(), String>(())) {
+         first.close().await;
+         let message = format!("{} changed on the server since it was fetched ({why}), so nothing was sent", far.path);
+         return Err(Failed::new(Fault::CantCreate, message));

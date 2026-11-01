@@ -151,12 +151,20 @@ touch /share/a2.done
 exit $fail
 EOF
 
+# Podman's default AppArmor profile refuses a box's own signals on
+# GitHub's runner (with no-new-privileges and no capabilities; T-415), so a
+# box runs with none there, as test_in_box.sh does.
+UNCONFINED=
+if [ "$(timeout 60 podman info --format '{{.Host.Security.AppArmorEnabled}}' 2>/dev/null)" = true ]; then
+    UNCONFINED=apparmor=unconfined
+fi
+
 box() {
     _name=$1
     shift
     podman run --name "$_name" --network "$NET" \
         --dns 1.1.1.1 --dns-option timeout:1 --dns-option attempts:2 \
-        --cap-drop all --security-opt no-new-privileges \
+        --cap-drop all --security-opt no-new-privileges ${UNCONFINED:+--security-opt "$UNCONFINED"} \
         --security-opt "seccomp=$(hostpath "$HERE/box/seccomp.json")" \
         --mount "type=bind,source=$(hostpath "$WORK/empty"),target=/etc/passwd,readonly" \
         --mount "type=bind,source=$(hostpath "$WORK/empty"),target=/etc/group,readonly" \

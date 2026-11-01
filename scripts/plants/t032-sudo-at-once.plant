@@ -1,0 +1,9 @@
+# T-032: --sudo asks for the password at once, before sudo's prompt (the
+# Prove's plant); with a NOPASSWD rule the askpass program runs anyway, and
+# sudo.nopass of interop-sudo.sh (sshd and sudo in the build image) must fail.
+ENTRY=T-032
+GROUP=ssh-pty
+EXPECT='^FAIL +sudo\.nopass '
+SETUP='CARGO_PROFILE_RELEASE_LTO=false CARGO_PROFILE_RELEASE_CODEGEN_UNITS=16 cargo build --locked --release --target "$TARGET" -p podssh-cli'
+RUN='INTEROP_ONLY=sudo sh scripts/interop.sh "$BIN"'
+LIMIT=2400

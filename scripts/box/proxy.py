@@ -25,9 +25,13 @@ process of COMMAND, its last word with HOST:PORT appended, whose stdin
 and stdout are the stream: `--carry 'podssh proxy warp://'` puts each one
 inside WARP's tunnel, for a live test of a client that honours HTTPS_PROXY
 (T-398). The process resolves the name, so the proxy does not.
+`--upstream HOST:PORT` sends each CONNECT that the policy takes on to
+another HTTP proxy, for a host whose only way out is a proxy itself, as a
+cloud session's (T-251); an address literal must still be public, and a
+name is the upstream proxy's to resolve.
 
 Usage: proxy.py [--listen HOST:PORT] [--allow NAME:PORT=HOST:PORT ...] [--take names|addresses|both]
-                [--carry COMMAND]
+                [--carry COMMAND] [--upstream HOST:PORT]
 """
 
 import argparse
@@ -44,6 +48,8 @@ TARGETS = {}
 TAKE = {"mode": "both"}
 # The words of --carry's command, or none.
 CARRY = {"argv": None}
+# The proxy of --upstream, (HOST, PORT), or none.
+UPSTREAM = {"at": None}
 
 
 def is_literal(host):
@@ -106,6 +112,31 @@ async def carried(reader, writer, host, port, request_line):
         pass
 
 
+async def upstream(reader, writer, host, port, request_line):
+    """The CONNECT to HOST:PORT through the proxy of --upstream; its answer,
+    when it refuses, is this proxy's."""
+    if is_literal(host) and not ipaddress.ip_address(host.split("%")[0]).is_global:
+        await answer(writer, 403, "not a public host", request_line)
+        return
+    shown = f"[{host}]" if ":" in host else host
+    try:
+        up_reader, up_writer = await asyncio.wait_for(asyncio.open_connection(*UPSTREAM["at"]), 15)
+        up_writer.write(f"CONNECT {shown}:{port} HTTP/1.1\r\nHost: {shown}:{port}\r\n\r\n".encode())
+        await up_writer.drain()
+        head = await asyncio.wait_for(up_reader.readuntil(b"\r\n\r\n"), 30)
+    except (OSError, asyncio.TimeoutError, asyncio.IncompleteReadError, asyncio.LimitOverrunError):
+        await answer(writer, 502, "Bad Gateway", request_line)
+        return
+    if head.split(b" ", 2)[1:2] != [b"200"]:
+        await answer(writer, 502, "Bad Gateway", request_line)
+        up_writer.close()
+        return
+    log(f"200 {request_line} (upstream)")
+    writer.write(b"HTTP/1.1 200 Connection Established\r\n\r\n")
+    await writer.drain()
+    await asyncio.gather(pipe(reader, up_writer), pipe(up_reader, writer))
+
+
 async def handle(reader, writer):
     try:
         head = await asyncio.wait_for(reader.readuntil(b"\r\n\r\n"), 30)
@@ -144,6 +175,9 @@ async def handle(reader, writer):
     if CARRY["argv"]:
         await carried(reader, writer, host, port, request_line)
         return
+    if UPSTREAM["at"]:
+        await upstream(reader, writer, host, port, request_line)
+        return
     try:
         infos = await asyncio.get_running_loop().getaddrinfo(host, port, type=socket.SOCK_STREAM)
     except OSError:
@@ -170,7 +204,11 @@ async def main():
     parser.add_argument("--allow", action="append", default=[])
     parser.add_argument("--take", choices=["names", "addresses", "both"], default="both")
     parser.add_argument("--carry", default=None)
+    parser.add_argument("--upstream", default=None)
     args = parser.parse_args()
+    if args.upstream:
+        up_host, up_port = args.upstream.rsplit(":", 1)
+        UPSTREAM["at"] = (up_host, int(up_port))
     TAKE["mode"] = args.take
     if args.carry:
         CARRY["argv"] = shlex.split(args.carry)

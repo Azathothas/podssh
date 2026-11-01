@@ -1,0 +1,11 @@
+--- a/crates/podssh-cli/src/pipe/listen.rs
++++ b/crates/podssh-cli/src/pipe/listen.rs
+@@ -254,7 +254,7 @@
+             loop {
+                 let (stream, _) = self.listener.accept().await?;
+                 match stream.peer_cred() {
+-                    Ok(cred) if cred.uid() == self.uid => {
++                    Ok(_) => {
+                         say("a client connected");
+                         let (read, write) = stream.into_split();
+                         return Ok(End::plain(Box::new(read), Box::new(write)));
