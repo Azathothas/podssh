@@ -123,6 +123,13 @@ service manager (UNVERIFIED).
   and the supervisor ends and starts again a run that beat, then gave no
   beat for 90 s; it compares the file's times, never its clock, and never
   ends a run that never beat.
+- The study's tenth finding (T-397): with no `/dev/null`, stdin is a pipe
+  whose writer is closed; the log is cut by a rename and a new file put in
+  place of the standard descriptors, so no line is lost, the supervisor
+  alone cutting the log that its runs share; each start removes the files
+  of `detached/` older than 30 days whose run runs no more; and at ready the
+  run goes to the root unless a word of it is a relative path or a command
+  that runs here.
 - A line that fails to write is dropped, never the run's end: after ready
   stderr is the log, and its disk may fill or, under systemd, the journal
   go away. `eprintln!` panics on such a failure and the release aborts on a
@@ -149,6 +156,12 @@ Each fails on the defect planted against it:
   heartbeat and started again, and a client logs in through the new one
   within 150 s (`tests/node_detach.rs`; a supervisor that reads no
   heartbeat);
+- a cut of the log renames it and loses no line, and a follower sees that
+  the path names another file; the old files of a run and of a log are
+  known by their names; a run of hosts and absolute paths leaves the
+  working directory, one with a relative path or a command here keeps it
+  (`cargo test -p podssh-cli --lib detach::`; the copy and the cut of
+  before);
 - a second start of a name that runs refuses with 75 and names its pid, two
   runs with no name both start, and a stopped name starts again; `detached
   status` and `stop` read the lock, so a record of a living pid that holds

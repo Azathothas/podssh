@@ -67,12 +67,19 @@ pub fn check_name(name: &str) -> Result<(), String> {
 
 /// The directory of the runs: `detached` in the first directory of the
 /// cache that can be made private (mode 0700), as the logs choose it; none
-/// with `PODSSH_CACHE_DIR=none`.
+/// with `PODSSH_CACHE_DIR=none`. Found once: the last directory of the
+/// cache is in the working directory, which a run leaves at ready (T-397),
+/// and its files must not move.
 pub fn dir() -> Option<PathBuf> {
-    podssh_relay::cache::candidate_dirs()
-        .into_iter()
-        .map(|dir| dir.join(DIR))
-        .find(|dir| podssh_relay::cache::private_dir(dir).is_ok())
+    static FOUND: OnceLock<Option<PathBuf>> = OnceLock::new();
+    FOUND
+        .get_or_init(|| {
+            podssh_relay::cache::candidate_dirs()
+                .into_iter()
+                .map(|dir| dir.join(DIR))
+                .find(|dir| podssh_relay::cache::private_dir(dir).is_ok())
+        })
+        .clone()
 }
 
 /// The files of the run `name` in `dir`.
@@ -166,7 +173,8 @@ fn still_named(file: &File, path: &Path) -> bool {
     }
     #[cfg(not(unix))]
     {
-        // Windows removes no file that a process holds open; it waits.
+        // On Windows a file removed while a process holds it open keeps
+        // its name until it closes, so the name still names it.
         let _ = (file, path);
         true
     }

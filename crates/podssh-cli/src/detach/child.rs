@@ -5,14 +5,12 @@
 
 use std::ffi::OsString;
 use std::io::Write;
-use std::path::{Path, PathBuf};
 use std::process::Command;
 use std::sync::atomic::{AtomicBool, Ordering};
 
-static SENT: AtomicBool = AtomicBool::new(false);
+use super::log::log_file;
 
-/// The size past which the log is cut back, its last part kept beside it.
-pub const LOG_CAP: u64 = 1 << 20;
+static SENT: AtomicBool = AtomicBool::new(false);
 
 /// At the start of the process, before any thread: when `args` begin with
 /// the child's flag, each descriptor from 3 up is closed, as a caller's
@@ -41,15 +39,25 @@ pub fn ready(verb: &str) {
     if let Some(path) = &path {
         super::lock::logged(path);
     }
+    let supervised = std::env::var_os(super::lock::SUPERVISOR_VARIABLE).is_some();
+    // The caller's working directory, left unless the run needs it (T-397);
+    // a supervisor learns it from the line.
+    let leaves = super::run_words().is_some_and(|words| super::cwd::leaves(words));
+    let left = if leaves && supervised { super::cwd::LEFT } else { "" };
     // The log last: a reader takes the rest of the line for its path.
     let named = super::lock::name().map_or_else(String::new, |name| format!(", named {name}"));
-    let line = format!("{} pid {}{named}, its log {shown}\n", super::READY, std::process::id());
+    let line = format!("{} pid {}{named}{left}, its log {shown}\n", super::READY, std::process::id());
     let file = log.map(|(_, file)| file);
     if !leave(file.as_ref(), line.as_bytes()) {
         std::process::exit(crate::exitmap::sysexits::EX_TEMPFAIL);
     }
+    // A run of a supervisor writes the supervisor's log, which the
+    // supervisor alone cuts (T-397).
     if let (Some(path), Some(file)) = (path, file) {
-        cap(path, file);
+        super::log::keep(path, file, !supervised);
+    }
+    if leaves {
+        super::cwd::to_root();
     }
 }
 
@@ -66,58 +74,6 @@ pub(super) fn leave(log: Option<&std::fs::File>, line: &[u8]) -> bool {
     #[cfg(not(any(unix, windows)))]
     let said = std::io::stdout().write_all(line).is_ok();
     said
-}
-
-/// The log of a supervisor's child: the supervisor's own (T-390), when it
-/// opens; else `detached/VERB-PID.log` in the first of the cache's
-/// directories that can be made private, created with mode 0600; none with
-/// `PODSSH_CACHE_DIR=none`.
-pub(super) fn log_file(verb: &str) -> Option<(PathBuf, std::fs::File)> {
-    use podssh_relay::cache::{candidate_dirs, private_dir};
-    if let Some(path) = std::env::var_os(super::supervise::LOG_VARIABLE).map(PathBuf::from) {
-        if let Ok(file) = open_private(&path) {
-            return Some((path, file));
-        }
-    }
-    for dir in candidate_dirs() {
-        let dir = dir.join("detached");
-        if private_dir(&dir).is_err() {
-            continue;
-        }
-        let path = dir.join(format!("{verb}-{}.log", std::process::id()));
-        if let Ok(file) = open_private(&path) {
-            return Some((path, file));
-        }
-    }
-    None
-}
-
-fn open_private(path: &Path) -> std::io::Result<std::fs::File> {
-    let mut options = std::fs::OpenOptions::new();
-    options.create(true).append(true);
-    #[cfg(unix)]
-    {
-        use std::os::unix::fs::OpenOptionsExt;
-        options.mode(0o600);
-    }
-    options.open(path)
-}
-
-/// Past [`LOG_CAP`], the log is copied beside itself (`.1`) and cut, at
-/// most once a minute: two of them at most.
-fn cap(path: PathBuf, file: std::fs::File) {
-    let _ = std::thread::Builder::new().name("detach-log".into()).spawn(move || loop {
-        std::thread::sleep(std::time::Duration::from_secs(60));
-        let Ok(meta) = file.metadata() else { return };
-        if meta.len() > LOG_CAP {
-            let mut aside = path.clone().into_os_string();
-            aside.push(".1");
-            let _ = std::fs::copy(&path, &aside);
-            if file.set_len(0).is_ok() {
-                let _ = (&file).write_all(b"podssh: the log passed 1 MiB; its earlier part is in .log.1\n");
-            }
-        }
-    });
 }
 
 /// The child's name in a list of processes: the name that started podssh,
@@ -249,16 +205,26 @@ mod unix {
     }
 
     /// Stdin to the null device, stderr to the log; `setsid()` and SIGHUP
-    /// ignored; the line to the parent; stdout to the log. Whether the line
-    /// went.
+    /// ignored; the line to the parent; stdout to the log. A sandbox may
+    /// have no `/dev/null` (T-397), which ended a run that had logged in:
+    /// stdin is then a pipe whose writer is closed, which reads as its end,
+    /// and with no log either, the outputs a pipe whose reader is closed,
+    /// whose writes fail and are dropped. Whether the line went.
     pub(super) fn leave(log: Option<&std::fs::File>, line: &[u8]) -> bool {
-        let Ok(null) = std::fs::OpenOptions::new().read(true).write(true).open("/dev/null") else { return false };
-        let sink = log.map_or(null.as_raw_fd(), |f| f.as_raw_fd());
+        let null = std::fs::OpenOptions::new().read(true).write(true).open("/dev/null").ok();
+        let empty = if null.is_none() { pipe().map(|(read, _closed)| read) } else { None };
+        let deaf = if null.is_none() && log.is_none() { pipe().map(|(_closed, write)| write) } else { None };
+        let input = null.as_ref().map(|f| f.as_raw_fd()).or_else(|| empty.as_ref().map(|f| f.as_raw_fd()));
+        let sink = log
+            .map(|f| f.as_raw_fd())
+            .or_else(|| null.as_ref().map(|f| f.as_raw_fd()))
+            .or_else(|| deaf.as_ref().map(|f| f.as_raw_fd()));
+        let (Some(input), Some(sink)) = (input, sink) else { return false };
         // SAFETY: dup2 of open files onto this process's standard
         // descriptors; setsid has no precondition, and a group's leader,
         // which a child is not, would only see it fail; SIGHUP's action.
         unsafe {
-            libc::dup2(null.as_raw_fd(), libc::STDIN_FILENO);
+            libc::dup2(input, libc::STDIN_FILENO);
             libc::dup2(sink, libc::STDERR_FILENO);
             libc::setsid();
             libc::signal(libc::SIGHUP, libc::SIG_IGN);
@@ -267,6 +233,18 @@ mod unix {
         // SAFETY: as above.
         unsafe { libc::dup2(sink, libc::STDOUT_FILENO) };
         said
+    }
+
+    /// A pipe: its reading end and its writing end.
+    fn pipe() -> Option<(std::os::fd::OwnedFd, std::os::fd::OwnedFd)> {
+        use std::os::fd::{FromRawFd, OwnedFd};
+        let mut fds = [0; 2];
+        // SAFETY: pipe() fills two descriptors that this process then owns.
+        if unsafe { libc::pipe(fds.as_mut_ptr()) } != 0 {
+            return None;
+        }
+        // SAFETY: each is open, and owned by nothing else.
+        Some(unsafe { (OwnedFd::from_raw_fd(fds[0]), OwnedFd::from_raw_fd(fds[1])) })
     }
 
     fn write_all(fd: i32, mut bytes: &[u8]) -> bool {

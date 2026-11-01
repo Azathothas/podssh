@@ -187,9 +187,9 @@ fn status(dir: &Path, name: &str, out: &mut dyn Write, err: &mut dyn Write) -> i
 
 /// Stop the run `name`: SIGTERM to the holder of its name (a supervisor
 /// passes it to its run), else to a run whose supervisor is gone; after
-/// [`STOP_GRACE`], SIGKILL to each holder still there, the supervisor
-/// first. On Windows, each is ended at once, the supervisor first, as it
-/// would start its run again.
+/// 10 s, SIGKILL to each holder still there, the supervisor first. On
+/// Windows, each is ended at once, the supervisor first, as it would start
+/// its run again.
 fn stop(dir: &Path, name: &str, err: &mut dyn Write) -> i32 {
     let seen = Seen::of(dir, name);
     if !seen.running() {

@@ -21,11 +21,14 @@ use std::sync::OnceLock;
 pub mod beat;
 mod child;
 pub mod control;
+mod cwd;
 mod hazards;
 pub mod lock;
+mod log;
 pub mod supervise;
 
 pub use child::{keep_own_handles, prepare_process, ready};
+pub use cwd::stay_here;
 
 /// The first word of a detached child's command line, which podssh alone
 /// writes: the child is the run that the user typed, after it.
@@ -137,6 +140,8 @@ pub fn start(verb: &str, restart: bool, name: Option<&str>, err: &mut dyn Write)
     for line in hazards::lines() {
         let _ = writeln!(err, "podssh {verb}: --detach: note: {line}");
     }
+    // The old files of runs that ended, which nothing else removes (T-397).
+    log::sweep();
     let Some(args) = ARGS.get() else {
         let _ = writeln!(err, "podssh {verb}: --detach: the words of this run were not kept");
         return crate::exit_codes::EXIT_NOT_IMPLEMENTED;

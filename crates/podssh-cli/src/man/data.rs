@@ -239,13 +239,15 @@ pub fn files() -> Vec<(Vec<String>, String)> {
         (
             vec!["detached/".to_string()],
             "The runs that --detach and -f sent into the background (T-380, T-392), in the cache, mode 0700: \
-             VERB-PID.log, mode 0600, which takes the run's stdout and stderr once it is ready; past 1 MiB its \
-             earlier part goes to VERB-PID.log.1. NAME.lock, which the run of the name NAME (or its supervisor \
+             VERB-PID.log, mode 0600, which takes the run's stdout and stderr once it is ready; past 1 MiB it is \
+             renamed VERB-PID.log.1, which takes the lines written until the run writes the new one, so none is \
+             lost. NAME.lock, which the run of the name NAME (or its supervisor \
              of --restart) holds for its life, with its pid in it, and NAME.run.lock, which a supervisor's run \
              holds: a second start of the name refuses while either is held, and podssh detached reads them. \
              NAME.json, the run's record: its pid, the pid of a supervisor's run, its words, its log and its \
              start. NAME.alive, whose time each run of --restart sets each 10 s, and which its supervisor reads \
-             (T-394). podssh removes none: a log tells what a run in the background did."
+             (T-394). Each start of --detach or -f removes each of them older than 30 days whose run runs no \
+             more: no lock of its name is held, and the process of a log's PID is gone (T-397)."
                 .to_string(),
         ),
         (

@@ -193,6 +193,13 @@ fn run(args: &SshArgs, tty: Tty, err: &mut dyn Write) -> i32 {
         // As OpenSSH's -f: a command reads no stdin (-n).
         resolved.options.stdin_null = true;
         crate::detach::when_requested("ssh");
+        // A relative path that the run reads again (a key at a reconnect, a
+        // known_hosts that takes a new key), as ssh_config may write it,
+        // keeps the caller's directory at ready (T-397).
+        let o = &resolved.options;
+        if o.identity_files.iter().chain(&o.user_known_hosts).chain(&o.global_known_hosts).any(|p| p.is_relative()) {
+            crate::detach::stay_here();
+        }
     }
     // One run of an installed service at a time; the parent of -f held none.
     if let Some(code) = crate::node_install::lock::enter("ssh", args.env_file.as_deref(), err) {

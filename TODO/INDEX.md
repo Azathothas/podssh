@@ -62,15 +62,15 @@ repository and CI).
 
 ## Counts
 
-**408 entries: 20 open, 2 partial, 31 blocked, 355 done.**
+**408 entries: 19 open, 2 partial, 31 blocked, 356 done.**
 
 | Priority | open | partial | blocked | done | total |
 | --- | --- | --- | --- | --- | --- |
 | P0 | 0 | 0 | 0 | 1 | 1 |
 | P1 | 1 | 1 | 0 | 37 | 39 |
 | P2 | 2 | 0 | 21 | 176 | 199 |
-| P3 | 17 | 1 | 10 | 141 | 169 |
-| **All** | 20 | 2 | 31 | 355 | 408 |
+| P3 | 16 | 1 | 10 | 142 | 169 |
+| **All** | 19 | 2 | 31 | 356 | 408 |
 
 ## Entries
 
@@ -468,7 +468,7 @@ repository and CI).
 | [T-394](cli.md) | P2 | M | none | feature | done | A heartbeat of the detached run, which its supervisor watches |
 | [T-395](reverse.md) | P2 | M | none | feature | done | A pair's expiry ends a node for good: warn before it, and pair again where the relay allows |
 | [T-396](release.md) | P2 | S | none | feature | done | `podssh update` keeps the binary before it, and runs the new one once before it takes its place |
-| [T-397](cli.md) | P3 | S | none | defect | open | `--detach`'s smaller gaps: no `/dev/null`, a rotation that loses lines, old files, the working directory |
+| [T-397](cli.md) | P3 | S | none | defect | done | `--detach`'s smaller gaps: no `/dev/null`, a rotation that loses lines, old files, the working directory |
 | [T-398](roads.md) | P2 | M | none | defect | done | WARP's tunnel under volume: h2's budget of small frames, the inbound read while a packet waits, and a live copy of 16 MiB |
 | [T-399](roads.md) | P2 | M | none | defect | done | WARP: a front door's key that is not the device record's is taken for a proxy, for the whole run |
 | [T-400](roads.md) | P2 | M | none | feature | open | The quick tunnel's legs raced with a stagger, and a probe of UDP before QUIC |

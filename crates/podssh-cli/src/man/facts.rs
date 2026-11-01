@@ -223,6 +223,10 @@ pub const VARIABLES: &[(&[&str], &str)] = &[
     ),
     (&["COMPUTERNAME"], "On Windows, the host name in the default comment of podssh keygen."),
     (&["ProgramData"], "On Windows, the directory of the system known_hosts file."),
+    (
+        &["SystemDrive"],
+        "On Windows, the drive whose root a detached run takes as its working directory (see podssh ssh -f).",
+    ),
     (&["PAGER"], "The pager of podssh man on a terminal. Empty, or cat, writes the manual with no pager."),
     (
         &["SHELL"],

@@ -186,8 +186,8 @@ the file that `--ts-state` names (`crates/podssh-cli/src/flags.rs:356-357`,
 5. The node prints its ticket and its fingerprint on stderr when it starts.
    `podssh ssh iroh:TICKET` dials it (the address of `docs/design.md:971`).
 6. Add the key files to FILES in the manual
-   (`crates/podssh-cli/src/man/data.rs:150-365`), and each new variable to
-   `VARIABLES` (`crates/podssh-cli/src/man/facts.rs:45-278`).
+   (`crates/podssh-cli/src/man/data.rs:150-367`), and each new variable to
+   `VARIABLES` (`crates/podssh-cli/src/man/facts.rs:45-282`).
 
 ## Decision
 
@@ -373,7 +373,7 @@ sandbox can block what iroh needs, so the fallback is necessary
 6. With `-v`, print the road that won and its time.
 7. Each resume of T-153 runs the same race.
 8. Docs: the rule of the race in `docs/design.md` section 2, and the notes of
-   `ssh` in the manual (`crates/podssh-cli/src/man/notes_ssh.rs:4-473`).
+   `ssh` in the manual (`crates/podssh-cli/src/man/notes_ssh.rs:4-475`).
 
 ## Decision
 
@@ -511,9 +511,9 @@ in iroh's source at the pinned version.
    not in the list.
 6. `doctor`, with the feature, reports the `/ping` of each relay and the home
    relay.
-7. Add the variable to `VARIABLES` (`crates/podssh-cli/src/man/facts.rs:45-278`),
+7. Add the variable to `VARIABLES` (`crates/podssh-cli/src/man/facts.rs:45-282`),
    the flag to the flag table, and the default to the relay section of the
-   manual (`crates/podssh-cli/src/man/facts.rs:297-453`). The tests compare
+   manual (`crates/podssh-cli/src/man/facts.rs:301-457`). The tests compare
    `VARIABLES` with the source in both directions
    (`crates/podssh-cli/src/man/facts.rs:43-44`), so a variable that only the
    feature reads is in the manual only with the feature.
@@ -4698,7 +4698,7 @@ does not depend on them.
 
 - Read: `Transport::Direct` comes from `--direct` alone
   (`crates/podssh-cli/src/ssh/resolve.rs`, lines 340-346 at `4e2010e`), and else the relay (lines 348-371 at `4e2010e`); its other
-  uses are a label (`crates/podssh-cli/src/ssh/mod.rs:249`), the dial
+  uses are a label (`crates/podssh-cli/src/ssh/mod.rs:256`), the dial
   (`crates/podssh-cli/src/ssh/transport.rs:260-304`) and a check of `--upgrade`
   (`crates/podssh-cli/src/ssh/upgrade.rs:59`). The issue's citation of
   the arm began two lines early; it is at `crates/podssh-cli/src/ssh/resolve.rs:335-341`.

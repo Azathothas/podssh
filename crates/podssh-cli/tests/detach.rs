@@ -298,6 +298,61 @@ fn f_asks_a_password_on_the_terminal_before_it_detaches() {
     assert_eq!(greeting(port), "target says hi\n");
 }
 
+/// A start removes the old files of runs that ended, and keeps a young one,
+/// the log of a process that lives and a file of no run's form; the run
+/// leaves the caller's working directory for the root, as none of its words
+/// is a relative path (T-397).
+#[test]
+fn a_start_sweeps_old_files_and_the_child_leaves_the_working_directory() {
+    let _one = ONE_AT_A_TIME.lock().unwrap_or_else(|e| e.into_inner());
+    let s = setup("sweep");
+    let dir = s.home.join("cache").join("detached");
+    std::fs::create_dir_all(&dir).unwrap();
+    let mut ended = Command::new(env!("CARGO_BIN_EXE_podssh")).arg("--version").stdout(Stdio::null()).spawn().unwrap();
+    let dead = ended.id();
+    ended.wait().unwrap();
+    let month = std::time::SystemTime::now() - Duration::from_secs(31 * 86_400);
+    let old = |name: &str| {
+        let path = dir.join(name);
+        std::fs::write(&path, "x").unwrap();
+        std::fs::File::options().write(true).open(&path).unwrap().set_modified(month).unwrap();
+        path
+    };
+    let swept = [
+        old("ghost.json"),
+        old("ghost.lock"),
+        old("ghost.alive"),
+        old(&format!("ssh-{dead}.log")),
+        old(&format!("ssh-{dead}.log.1")),
+    ];
+    let kept = [old(&format!("ssh-{}.log", std::process::id())), old("notes.txt"), {
+        let young = dir.join("young.json");
+        std::fs::write(&young, "{}").unwrap();
+        young
+    }];
+    let work = s.home.join("work");
+    std::fs::create_dir_all(&work).unwrap();
+    let forward = format!("{}:{}", free_port(), s.target);
+    let mut cmd = s.podssh(&["-f", "-N", "-L", &forward]);
+    cmd.current_dir(&work);
+    let out = ran(cmd);
+    let err = String::from_utf8_lossy(&out.stderr).into_owned();
+    assert_eq!(out.status.code(), Some(0), "{err}");
+    let child = Detached(pid_of(&err));
+    for path in &swept {
+        assert!(!path.exists(), "{} stayed", path.display());
+    }
+    for path in &kept {
+        assert!(path.exists(), "{} went", path.display());
+    }
+    #[cfg(target_os = "linux")]
+    {
+        let cwd = std::fs::read_link(format!("/proc/{}/cwd", child.0)).unwrap();
+        assert_eq!(cwd, PathBuf::from("/"), "the child holds {}", cwd.display());
+    }
+    assert!(alive(child.0));
+}
+
 /// The directory of the runs, from the parent's line that names the log.
 fn runs_dir(stderr: &str) -> PathBuf {
     let log = stderr.split("its log ").nth(1).and_then(|rest| rest.lines().next()).expect("the log is named");

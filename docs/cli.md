@@ -934,7 +934,24 @@ already on the caller's stderr; Ctrl-C before ready reaches both.
 
 - The log: `detached/VERB-PID.log` in the cache (mode 0600, in a directory
   of mode 0700), cut back past 1 MiB, its earlier part in `.log.1`; none
-  with `PODSSH_CACHE_DIR=none`.
+  with `PODSSH_CACHE_DIR=none`. The cut renames the log and puts a new file
+  in place of stdout and stderr (`dup2`; on Windows `SetStdHandle`), so the
+  lines written meanwhile go to `.log.1`, where a copy and a cut lost them
+  (T-397); a supervisor of `--restart` alone cuts the log that its runs
+  share, and each run takes the new file within a minute. Where the rename
+  fails, the copy and the cut of before.
+- Each start of `--detach` or `-f` removes the files of `detached/` older
+  than 30 days whose run runs no more: no lock of the name is held, and the
+  process of a log's pid is gone (T-397).
+- At ready the run leaves the caller's working directory, which an unmount
+  would refuse, for the root (on Windows the system drive's), unless a word
+  of the run may still need it: a relative path of this host (a separator,
+  a leading `.`, a name of a file there, or the value of a flag that takes a
+  file), or a command that runs here (`exec:` of `pipe`, `ProxyCommand`,
+  `LocalCommand`, `KnownHostsCommand`). In doubt it stays (T-397).
+- Where a sandbox has no `/dev/null`, the run's stdin is a pipe whose writer
+  is closed, and with no log its outputs a pipe whose reader is closed; it
+  ended with 75 before (T-397). A supervisor's runs take the same.
 - Refused as the first process of a namespace (69), which ends with it.
   Named first, as they may still end the run: a unit of systemd
   (`INVOCATION_ID`), WSL (`WSL_DISTRO_NAME`), Termux (`TERMUX_VERSION`), and

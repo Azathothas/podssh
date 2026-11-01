@@ -59,7 +59,7 @@ pub fn run(args: &[OsString]) -> i32 {
     if let Some(code) = lock::enter(&verb, true, args, &mut std::io::stderr()) {
         return code;
     }
-    let log = child::log_file(&verb);
+    let log = super::log::log_file(&verb);
     let log_path = log.as_ref().map(|(path, _)| path.clone());
     if let Some(path) = &log_path {
         lock::logged(path);
@@ -74,10 +74,10 @@ pub fn run(args: &[OsString]) -> i32 {
     };
     // The child's own words after its ready name its pid and the same log,
     // which the supervisor's line says too.
-    if pass_until_ready(&mut first).is_none() {
+    let Some(ready) = pass_until_ready(&mut first) else {
         // The first run ended before ready: its code, as without --restart.
         return first.wait().map(code_of).unwrap_or(podssh_ssh::EXIT_FAILURE);
-    }
+    };
     let shown = log.as_ref().map_or_else(|| "none".to_string(), |(p, _)| p.display().to_string());
     let named = lock::own_name(&verb);
     let line = format!(
@@ -88,6 +88,15 @@ pub fn run(args: &[OsString]) -> i32 {
     if !child::leave(log.as_ref().map(|(_, f)| f), line.as_bytes()) {
         let _ = first.kill();
         return crate::exitmap::sysexits::EX_TEMPFAIL;
+    }
+    // The supervisor, the one writer that lives as long as the log, cuts
+    // it; its runs follow (T-397). It leaves the caller's directory where
+    // its run did, as each restart starts in the supervisor's.
+    if let Some((path, file)) = log {
+        super::log::keep(path, file, true);
+    }
+    if ready.contains(super::cwd::LEFT) {
+        super::cwd::to_root();
     }
     drain(&mut first, None);
     catch_stop();
@@ -131,12 +140,22 @@ fn start_with(
         if first {
             cmd.stdin(Stdio::inherit()).stderr(Stdio::inherit());
         } else {
-            cmd.stdin(Stdio::null());
-            let err = log.and_then(|p| std::fs::OpenOptions::new().append(true).open(p).ok());
-            cmd.stderr(err.map_or_else(Stdio::null, Stdio::from));
+            // Some sandboxes have no /dev/null, whose open fails each start
+            // (T-397): stdin is a pipe closed at once, which the run reads
+            // as its end; stderr the log, else the null device, else a pipe
+            // read to its end.
+            cmd.stdin(Stdio::piped());
+            let err = log.and_then(|p| std::fs::OpenOptions::new().append(true).open(p).ok()).or_else(null_device);
+            cmd.stderr(err.map_or_else(Stdio::piped, Stdio::from));
         }
         match child::spawn(&mut cmd, &mut |line| podssh_ssh::err_line!("podssh: --restart: note: {line}")) {
-            Ok(started) => {
+            Ok(mut started) => {
+                drop(started.stdin.take());
+                if let Some(mut stderr) = started.stderr.take() {
+                    let _ = std::thread::Builder::new()
+                        .name("restart-stderr".into())
+                        .spawn(move || std::io::copy(&mut stderr, &mut std::io::sink()));
+                }
                 lock::ran(started.id());
                 return Ok(started);
             }
@@ -147,6 +166,11 @@ fn start_with(
         tried.push("no path of this program was found".into());
     }
     Err(format!("this program could not start itself again: {}", tried.join("; ")))
+}
+
+/// The null device to write, where there is one.
+fn null_device() -> Option<std::fs::File> {
+    std::fs::OpenOptions::new().write(true).open(if cfg!(windows) { "NUL" } else { "/dev/null" }).ok()
 }
 
 /// The first child's lines to this process's stdout, the parent's pipe,
