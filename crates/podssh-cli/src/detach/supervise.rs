@@ -80,6 +80,11 @@ pub fn run(args: &[OsString]) -> i32 {
 /// first takes the caller's stdin and stderr, for its prompts and lines; a
 /// restart takes none, its lines going to the log.
 fn start(args: &[OsString], first: bool, log: Option<&PathBuf>) -> Result<Child, String> {
+    // The supervisor's own standard handles stay out of the run: Windows
+    // hands a child each handle that may be inherited, and a copy of the
+    // caller's pipe in the run would hold a caller that reads it to its end
+    // (T-383's defect, met again by the supervisor in CI's Windows job).
+    child::keep_own_handles();
     let mut tried = Vec::new();
     for program in binaries() {
         let mut cmd = Command::new(&program);

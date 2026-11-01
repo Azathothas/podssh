@@ -3158,8 +3158,11 @@ SIGTERM to the supervisor ends both. The planted defect: no restart, and the sec
   detach::supervise`, 2 passed; `--lib man::`, 36 passed; clippy `-D warnings` here and for
   `x86_64-pc-windows-gnu` (with Zig as aws-lc's C compiler): clean.
 - Windows: `tests/detach_windows.rs` gains `a_restarted_run_comes_back_after_a_kill` (`pipe
-  --detach --restart`, the run killed by `taskkill /F`, the port serving again); it runs in CI's job
-  `windows`, after the push (`docs/STATUS.md`).
+  --detach --restart`, the run killed by `taskkill /F`, the port serving again). CI's job `windows`
+  at `4cddf05` (run 41291523831) failed it: "the caller's stderr did not end with the parent": the
+  supervisor started the run with its own standard handles still inheritable, so the run held a
+  copy of the caller's pipe, T-383's defect. Repaired: the supervisor calls `keep_own_handles`
+  before each start; the job's run after the push is in `docs/STATUS.md`.
 - The heartbeat that ends a hung run is T-394; a lock that refuses a second copy, T-392.
 
 # T-392: A lock for each detached run, with its list, its status and its stop
