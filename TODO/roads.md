@@ -6363,7 +6363,7 @@ the same day.
   iptables drop on OUTPUT fails the send at once: the step failed there, before the race. The
   workflow now takes either form of no answer. At `dd4fb65` (run 41306869936) each check passed:
   QUIC first, its race 0.3 to 0.4 s; with UDP to 7844 dropped, doctor said no answer and HTTP/2,
-  and the node served over HTTP/2, its race 0.4 s (cfrs's testers: 2.44 s); with TCP to 7844
+  and the node served over HTTP/2, its race 0.3 s (cfrs's testers: 2.44 s); with TCP to 7844
   dropped too, the node registered inside WARP's tunnel in 4.5 s (cfrs: 6.74 s) and carried 16 MiB
   each way with equal digests.
 
