@@ -1162,7 +1162,7 @@ against a local headscale in place of the operator's tailnet.
 **Milestone:** M9
 **Priority:** P2
 **Effort:** M
-**Status:** partial
+**Status:** done
 
 ## Problem
 
@@ -1289,8 +1289,15 @@ at the path that the fork dials (`vendor/tailscale-rs/ts_derp/src/ws.rs:95`).
 
 ## Done
 
-2026-11-01, partial: drafted in a worktree (`4bddbb5`), merged and measured here; the three
-runs of the live relay wait for the workflow `ts-headscale.yml` in Actions.
+2026-11-01, done: drafted in a worktree (`4bddbb5`), merged and measured here and in Actions.
+
+- In Actions, the workflow `ts-headscale.yml` by hand at `15c83ba` (run 41277932712, Docker on
+  `ubuntu-24.04`): 14 passed, 0 failed, 0 not run here, exit 0; among them `ts.live.refused`
+  (registered with headscale, refused by the live relay with 1008, exit 77), `ts.live.proxy`
+  (the check and the node's own DERP dial, each a CONNECT through `scripts/fake-proxy.py`) and
+  `ts.live.socks5` (through tailscaled's SOCKS5, refused with 1008, exit 77). Planted, the same
+  workflow with `plant=unknown-key` (run 41277934435): the harness exited 1, as the workflow
+  asks.
 
 - `podssh ts --ts-control-url https://HOST[:PORT]`
   (`crates/podssh-cli/src/ts/control.rs`, `crates/podssh-cli/src/ts.rs`, the
@@ -1375,6 +1382,11 @@ server's words (T-334), but the panic's lines and its backtrace reach the user's
   (`~/.cargo/registry/src/*/kameo-0.21.1/src/error.rs:300-311`); a signal that holds no message
   of type `M` gives `None`.
 - Read: the fork and podssh lock kameo 0.21.1 (`Cargo.lock`, `vendor/tailscale-rs/Cargo.lock`).
+- Read (2026-11-01, the crate from static.crates.io): kameo 0.22.2, the newest, has the same two
+  unwraps (its `src/error.rs:318-327`), so a newer release alone does not repair it.
+- Read: the fork's `Env::ask` forwards each message through its registry's `Forward`
+  (`vendor/tailscale-rs/ts_runtime/src/env.rs:213-254`), and the dialer is asked for
+  `DialNext` so (`vendor/tailscale-rs/ts_runtime/src/control_runner.rs:136-144`).
 - Measured: the panic comes after the line "the connection to the control server dropped
   (registration failed: machine was not authorized by control to join tailnet)", in the planted
   run of T-334.

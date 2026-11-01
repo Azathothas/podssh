@@ -114,7 +114,7 @@ and `CARGO_BUILD_JOBS=4`:
 
 ## Counts
 
-`TODO/INDEX.md` holds 381 entries: 18 open, 2 partial, 31 blocked, 330 done.
+`TODO/INDEX.md` holds 381 entries: 18 open, 1 partial, 31 blocked, 331 done.
 
 Open includes parked work. `cargo todo check` verifies this line.
 
@@ -142,13 +142,13 @@ Q61.
 
 **Now:** the entries of the audit, the study and the issues of 2026-10-31 (GitHub #59 to #63 and
 #69 to #76): T-353 (Q52), whose live run waits for Q60; the others are done, Shadowsocks the last
-on 2026-11-01. Then the entries of 2026-11-01: T-334's live runs in Actions, T-384 (a panic of
-kameo in the fork's dialer) and T-385 (meek and WebTunnel in the Tor road).
+on 2026-11-01. Then the entries of 2026-11-01: T-384 (a panic of kameo in the fork's dialer) and
+T-385 (meek and WebTunnel in the Tor road).
 Each other `backlog` entry is done, but for those on hold, those of the relay's operator and the
 parked ones.
 
-**Then** M9: T-334, which T-251 runs, then T-251 (the check, and its run
-before the tag), and last T-250 (the one release). Between
+**Then** M9: T-251 (the check, and its run before the tag), which runs the
+headscale harness of 2026-11-01, and last T-250 (the one release). Between
 entries: the `none` entries, the highest priority first.
 
 **Skip** the entries that wait for the relay's operator (status

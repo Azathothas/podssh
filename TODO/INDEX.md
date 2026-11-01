@@ -62,15 +62,15 @@ repository and CI).
 
 ## Counts
 
-**381 entries: 18 open, 2 partial, 31 blocked, 330 done.**
+**381 entries: 18 open, 1 partial, 31 blocked, 331 done.**
 
 | Priority | open | partial | blocked | done | total |
 | --- | --- | --- | --- | --- | --- |
 | P0 | 0 | 0 | 0 | 1 | 1 |
 | P1 | 2 | 0 | 0 | 29 | 31 |
-| P2 | 1 | 1 | 21 | 166 | 189 |
+| P2 | 1 | 0 | 21 | 167 | 189 |
 | P3 | 15 | 1 | 10 | 134 | 160 |
-| **All** | 18 | 2 | 31 | 330 | 381 |
+| **All** | 18 | 1 | 31 | 331 | 381 |
 
 ## Entries
 
@@ -406,7 +406,7 @@ repository and CI).
 | [T-331](roads.md) | P3 | S | backlog | defect | done | The layer's `CLOSE` before the exit of `job`, `pipe`, `health`, `containers` and `--upgrade` on `cf://` |
 | [T-332](resume.md) | P3 | M | backlog | feature | done | A notice of silence with `--direct` |
 | [T-333](repo.md) | P3 | S | none | chore | done | aes-gcm 0.11 and chacha20poly1305 0.11 in `podssh-ws` |
-| [T-334](ts.md) | P2 | M | M9 | measurement | partial | A headscale stand-in for the live runs of `podssh ts` |
+| [T-334](ts.md) | P2 | M | M9 | measurement | done | A headscale stand-in for the live runs of `podssh ts` |
 | [T-335](resume.md) | P2 | S | M9 | defect | done | The iroh cells of the throughput run may not cross a relay |
 | [T-336](relay.md) | P2 | M | backlog | defect | blocked | The relay holds a slow client's bytes with no bound, and closes nothing |
 | [T-337](repo.md) | P1 | M | none | defect | done | The publish job runs actions by tags that can move, before it attests the binaries |
