@@ -5,8 +5,11 @@
 //! another tag, issuer or time, and a release with no binary of this target
 //! are each refused, the old binary left as it was; the API's refusal sends
 //! the update to the feed; `--check` writes nothing; and the newest release
-//! of this build is nothing to do.
+//! of this build is nothing to do. The new binary runs once before it takes
+//! the old one's place, and the old one is kept, which `--rollback` puts
+//! back (T-396, `update_keep`).
 
+mod update_keep;
 mod update_support;
 
 use std::path::{Path, PathBuf};
@@ -14,7 +17,7 @@ use std::time::Duration;
 
 use podssh_cli::update::fetch::Fetcher;
 use podssh_cli::update::release::Version;
-use podssh_cli::update::{asset, update, Failure, Options};
+use podssh_cli::update::{asset, trial, update, Failure, Options};
 use podssh_ws::{ProxyChoice, Trust};
 use sha2::{Digest, Sha256};
 use update_support::{hex, Answer, Leaf, Server, Sigstore, REPO};
@@ -60,6 +63,7 @@ impl Stand {
             exe: self.exe.clone(),
             target: podssh_cli::update::target().unwrap().into(),
             current: Version::parse(current).unwrap(),
+            trial: if cfg!(windows) { says_its_version } else { trial::by_version },
         }
     }
 
@@ -121,17 +125,36 @@ fn refused(result: Result<(), Failure>) -> String {
     }
 }
 
-/// A small file that runs, and what it prints: on Unix a script, padded
-/// to 1 MiB so that it crosses many records of TLS (the shell stops at its
-/// `exit`); on Windows the system's `whoami.exe`. A release's own binary
-/// replaced and ran in the live run of T-375 (`docs/STATUS.md`); here, in
-/// a debug build, its 100 MB cross the stand-in's TLS in a minute.
+/// The trial of the new binary on Windows, where no small program of the
+/// test's own runs: it says the release's version. The real trial runs on
+/// each system in `update_keep`, on the podssh of this build.
+fn says_its_version(_: &Path, want: &Version) -> Result<String, String> {
+    Ok(format!("podssh {want}"))
+}
+
+/// A release's binary that passes the trial of TAG: on Unix a script that
+/// answers `--version` as podssh does; on Windows, where the trial is
+/// `says_its_version`, any bytes.
+fn release_binary() -> Vec<u8> {
+    if cfg!(windows) {
+        b"a binary of the release".to_vec()
+    } else {
+        update_keep::script("1.0.0-beta.3", "podssh stand-in")
+    }
+}
+
+/// A small file that runs, and what it prints: on Unix a script that
+/// answers `--version` as the release's binary would, padded to 1 MiB so
+/// that it crosses many records of TLS (the shell stops at its `exit`); on
+/// Windows the system's `whoami.exe`. A release's own binary replaced and
+/// ran in the live run of T-375 (`docs/STATUS.md`); here, in a debug build,
+/// its 100 MB cross the stand-in's TLS in a minute.
 fn runnable() -> (Vec<u8>, &'static str) {
     if cfg!(windows) {
         let root = std::env::var("SystemRoot").unwrap_or_else(|_| r"C:\Windows".into());
         (std::fs::read(Path::new(&root).join("System32").join("whoami.exe")).unwrap(), "\\")
     } else {
-        let mut script = b"#!/bin/sh\necho 'podssh stand-in'\nexit 0\n".to_vec();
+        let mut script = update_keep::script("1.0.0-beta.3", "podssh stand-in");
         while script.len() < 1 << 20 {
             script.extend_from_slice(b"# a line of the release that the shell never reads\n");
         }
@@ -163,6 +186,9 @@ async fn the_newest_release_replaces_the_binary_which_then_runs() {
     assert!(out.contains("the newest release, a prerelease too: v1.0.0-beta.3 (from GitHub's API)"), "{out}");
     assert!(out.contains("logged by Rekor at"), "{out}");
     assert!(out.contains("replaced; it is podssh 1.0.0-beta.3 now"), "{out}");
+    // T-396: it ran first, and the binary before it is kept.
+    assert!(out.contains("it ran here, and said podssh 1.0.0-beta.3"), "{out}");
+    assert!(out.contains("podssh update --rollback puts it back"), "{out}");
     assert!(!out.contains("s3cret"), "a signed URL's query is shown: {out}");
     assert!(stand.binary_asked());
     assert!(std::fs::read(&stand.exe).unwrap() == binary, "the file is not the release's binary");
@@ -172,7 +198,9 @@ async fn the_newest_release_replaces_the_binary_which_then_runs() {
         assert_eq!(std::fs::metadata(&stand.exe).unwrap().permissions().mode() & 0o777, 0o755);
     }
     let left = std::fs::read_dir(stand.exe.parent().unwrap()).unwrap().count();
-    assert_eq!(left, if cfg!(windows) { 2 } else { 1 }, "only the binary, and on Windows the old one aside");
+    assert_eq!(left, 2, "only the binary, and the one before it");
+    let prev = podssh_cli::update::keep::prev_of(&stand.exe);
+    assert_eq!(std::fs::read(&prev).unwrap(), OLD, "{}", prev.display());
     let printed = output_of(&stand.exe);
     assert!(printed.contains(prints), "{printed:?}");
 }
@@ -273,7 +301,7 @@ async fn a_release_with_no_binary_of_this_target_is_refused() {
 #[tokio::test]
 async fn the_feed_answers_when_the_api_refuses() {
     let stand = Stand::new("feed").await;
-    let binary = b"a binary of the release".to_vec();
+    let binary = release_binary();
     stand.release(TAG, &binary, stand.sums_of(&binary), &Leaf::of_tag(TAG));
     stand.server.route(&format!("/repos/{REPO}/releases?per_page=20"), Answer::Status(403));
     let feed = format!(
@@ -308,7 +336,7 @@ async fn check_checks_the_signature_and_writes_nothing() {
 #[tokio::test]
 async fn this_build_s_release_or_a_newer_build_is_nothing_to_do_and_an_old_one_is_asked_for() {
     let stand = Stand::new("nothing").await;
-    let binary = b"a binary of the release".to_vec();
+    let binary = release_binary();
     stand.release(TAG, &binary, stand.sums_of(&binary), &Leaf::of_tag(TAG));
     stand.list(&[TAG, "v1.0.0-beta.2"]);
     let (result, out) = run(&stand.options("1.0.0-beta.3"), false, None).await;

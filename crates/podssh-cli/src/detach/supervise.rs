@@ -33,6 +33,11 @@ pub const STEADY: Duration = Duration::from_secs(30);
 const STOP_GRACE: Duration = Duration::from_secs(10);
 /// How often the supervisor looks at its child and its stop.
 const TICK: Duration = Duration::from_millis(200);
+/// A run that ends this soon after its start failed to start.
+const QUICK: Duration = Duration::from_secs(10);
+/// Failed starts in a row after which the binary of before an update, which
+/// `podssh update` kept, is started in this one's place (T-396).
+const FAILED_STARTS: u32 = 5;
 
 static STOP: AtomicBool = AtomicBool::new(false);
 
@@ -80,13 +85,24 @@ pub fn run(args: &[OsString]) -> i32 {
 /// first takes the caller's stdin and stderr, for its prompts and lines; a
 /// restart takes none, its lines going to the log.
 fn start(args: &[OsString], first: bool, log: Option<&PathBuf>) -> Result<Child, String> {
+    start_with(args, first, log, None)
+}
+
+/// [`start`], with `program` tried first: the binary of before an update.
+fn start_with(
+    args: &[OsString],
+    first: bool,
+    log: Option<&PathBuf>,
+    program: Option<&PathBuf>,
+) -> Result<Child, String> {
     // The supervisor's own standard handles stay out of the run: Windows
     // hands a child each handle that may be inherited, and a copy of the
     // caller's pipe in the run would hold a caller that reads it to its end
     // (T-383's defect, met again by the supervisor in CI's Windows job).
     child::keep_own_handles();
     let mut tried = Vec::new();
-    for program in binaries() {
+    let programs = program.cloned().into_iter().chain(binaries());
+    for program in programs {
         let mut cmd = Command::new(&program);
         child::name_it(&mut cmd);
         cmd.arg(CHILD_FLAG).args(args).stdout(Stdio::piped());
@@ -153,6 +169,9 @@ fn drain(child: &mut Child, tag: Option<u32>) {
 fn keep(args: &[OsString], verb: &str, mut child: Child, mut began: Instant, log: Option<PathBuf>) -> i32 {
     let mut tries = 0u32;
     let mut runs = 1u32;
+    // The binary that started this run, before an update could replace it.
+    let exe = std::env::current_exe().ok();
+    let (mut failed_starts, mut fallback) = (0u32, None::<PathBuf>);
     loop {
         let status = match wait_or_stop(&mut child) {
             Ok(status) => status,
@@ -168,6 +187,17 @@ fn keep(args: &[OsString], verb: &str, mut child: Child, mut began: Instant, log
         if began.elapsed() >= STEADY {
             tries = 0;
         }
+        failed_starts = if began.elapsed() < QUICK { failed_starts.saturating_add(1) } else { 0 };
+        if fallback.is_none() && falls_back(failed_starts) {
+            fallback = exe.as_deref().and_then(crate::update::keep::fallback);
+            if let Some(prev) = &fallback {
+                podssh_ssh::err_line!(
+                    "podssh {verb}: --restart: the run failed to start {failed_starts} times in a row; the binary of \
+                     before the update, {}, starts it from now on",
+                    prev.display()
+                );
+            }
+        }
         loop {
             tries = tries.saturating_add(1);
             let wait = podssh_relay::open::backoff(tries);
@@ -181,7 +211,7 @@ fn keep(args: &[OsString], verb: &str, mut child: Child, mut began: Instant, log
                 return 0;
             }
             runs = runs.saturating_add(1);
-            match start(args, false, log.as_ref()) {
+            match start_with(args, false, log.as_ref(), fallback.as_ref()) {
                 Ok(mut next) => {
                     podssh_ssh::err_line!("podssh {verb}: --restart: run {runs} started, pid {}", next.id());
                     drain(&mut next, Some(runs));
@@ -286,9 +316,20 @@ fn catch_stop() {
     }
 }
 
+/// Whether `failed_starts` in a row call for the binary of before.
+fn falls_back(failed_starts: u32) -> bool {
+    failed_starts >= FAILED_STARTS
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;
+
+    #[test]
+    fn five_failed_starts_in_a_row_call_for_the_binary_of_before() {
+        assert!(!falls_back(0) && !falls_back(FAILED_STARTS - 1));
+        assert!(falls_back(FAILED_STARTS) && falls_back(u32::MAX));
+    }
 
     #[test]
     fn a_usage_error_a_refusal_and_a_setting_are_final() {

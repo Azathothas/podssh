@@ -497,7 +497,7 @@ finding.
 **Milestone:** none
 **Priority:** P2
 **Effort:** S
-**Status:** open
+**Status:** done
 
 ## Problem
 
@@ -507,7 +507,7 @@ to go back to.
 
 ## Premise
 
-- Read: on Unix the new file is renamed over the old, and no copy of the old stays
+- Read, at `ea2bd4f`: on Unix the new file is renamed over the old, and no copy of the old stays
   (`crates/podssh-cli/src/update/replace.rs:95`).
 
 ## Approach
@@ -517,9 +517,75 @@ another version. Keep the old one as `podssh.prev` beside it. `podssh update --r
 back. The supervisor of T-390 starts `podssh.prev` after 5 failed starts of the new binary in a
 row within 2 minutes, with a line.
 
+## Decision
+
+- **The trial is `--version` of the new file, where it will run**, beside the old one, before
+  anything of the old one moves (`crates/podssh-cli/src/update/trial.rs`): it starts the binary,
+  its loader and libc, and its first line, `podssh VERSION`, must name the release asked for.
+  Lost: a run of `podssh doctor` or of a node (each needs a network, and minutes); no run at all
+  (the entry's Problem).
+- **`podssh.prev` on Unix is a hard link to the old file, else a copy**, made before the rename
+  that unlinks it (`crates/podssh-cli/src/update/keep.rs`): a link costs no space and no write. On
+  Windows the running file, which only a rename may move, becomes `podssh.prev.exe`, the name with
+  the extension that Windows runs; when that name is held by a running binary (a supervisor's
+  fallback), the file goes to `podssh.exe.old` as before T-396, and the line says that nothing is
+  kept. A copy that cannot be kept stops no update: the new binary ran here, and the line says that
+  `--rollback` has none.
+- **`--rollback` swaps the two**: the kept file over this binary in one rename, once it answered
+  `--version` here, and this one kept in its place, so that nothing is lost and a second rollback
+  goes forward. Lost: a rollback that deletes the newer binary. With nothing kept, 69; with a kept
+  file that does not run, 65 and nothing changes.
+- **The supervisor's half waits for T-390.** `update::keep::fallback(EXE)` gives `podssh.prev`
+  when it is there and answers `--version`, and changes no file: the supervisor of T-390, after 5
+  failed starts of the new binary in a row within 2 minutes, starts it with the same words and a
+  line. T-390's Approach says so; this entry gives the function, and `replace::running` reads the
+  path of a binary that an update replaced while it ran (`PATH (deleted)` on Linux), which the
+  supervisor will be.
+- **The tests on Windows**, where no small program of the test's own runs, give the stand-in
+  release a trial that says the release's version (`Options::trial`); the real trial runs on each
+  system on the podssh of this build, and on a file that is no program.
+
 ## Prove
 
 ```sh
 export CARGO_BUILD_JOBS=4
 cargo test -p podssh-cli --test update
+cargo test -p podssh-cli --lib update::replace
+cargo test -p podssh-cli --lib man::notes
 ```
+
+## Done
+
+2026-11-01: drafted (`worktree-agent-aac2458476d4808b9`), merged, built and run the same day; at the
+merge the supervisor of T-390 took `keep::fallback` (below).
+
+- The new file runs once as `podssh --version`, with no input, within 10 s, its exit code read
+  directly, again for 5 s while another thread holds it open (ETXTBSY); a file that does not start,
+  ends with another code, or names another version is removed and refused, 65
+  (`crates/podssh-cli/src/update/trial.rs`, `crates/podssh-cli/src/update/replace.rs`).
+- The old one is kept as `podssh.prev` (`podssh.prev.exe`), `podssh update --rollback` puts it back
+  and keeps the other (`crates/podssh-cli/src/update/keep.rs`, `crates/podssh-cli/src/flags/update.rs`),
+  `keep::fallback` names it for T-390; the manual's notes of `update` and its FILES; `docs/cli.md`;
+  `docs/STATUS.md`.
+- `cargo test -p podssh-cli --test update`: 16 passed (7 of them new, in
+  `crates/podssh-cli/tests/update_keep/mod.rs`:
+  `a_new_binary_that_does_not_run_here_is_refused_and_the_old_one_stays`,
+  `a_new_binary_that_fails_or_names_another_version_is_refused`,
+  `the_trial_reads_the_version_of_this_build`, `a_trial_that_does_not_end_is_killed_at_its_bound`,
+  `rollback_puts_the_kept_binary_back_and_keeps_the_other`,
+  `the_command_rolls_back_the_binary_that_runs_it`,
+  `the_binary_before_an_update_is_kept_beside_it`; the release's stand-in binary answers
+  `--version` now, and `the_newest_release_replaces_the_binary_which_then_runs` finds the kept one).
+- `cargo test -p podssh-cli --lib update::`: 21 passed (`update::replace`'s 6, 2 of them new:
+  `a_new_file_that_its_trial_refuses_leaves_the_old_binary_alone`,
+  `the_kept_and_the_temporary_names_keep_the_extension`).
+- Planted, each failed its tests: the trial skipped in `replace` (3 tests); the version not
+  compared (2 tests); no `keep::keep` (2 tests). Clippy `-D warnings` here and for
+  `x86_64-pc-windows-gnu`: clean.
+- The supervisor of `--restart` (T-390): after 5 runs in a row that ended within 10 s of their
+  start, it starts the binary that `keep::fallback` names, with a line
+  (`crates/podssh-cli/src/detach/supervise.rs`, `falls_back`, its unit test passed). On Linux it
+  starts its own image (`/proc/self/exe`) first, which an update does not replace; elsewhere the
+  file at its path, which it does.
+- Not measured: an update of a release's binary to the next one on each system (T-251's checks of
+  a release), and the Windows half of the swap on a runner.

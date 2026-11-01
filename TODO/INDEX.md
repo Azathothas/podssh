@@ -62,15 +62,15 @@ repository and CI).
 
 ## Counts
 
-**406 entries: 29 open, 2 partial, 31 blocked, 344 done.**
+**406 entries: 28 open, 2 partial, 31 blocked, 345 done.**
 
 | Priority | open | partial | blocked | done | total |
 | --- | --- | --- | --- | --- | --- |
 | P0 | 0 | 0 | 0 | 1 | 1 |
 | P1 | 2 | 1 | 0 | 36 | 39 |
-| P2 | 7 | 0 | 21 | 170 | 198 |
+| P2 | 6 | 0 | 21 | 171 | 198 |
 | P3 | 20 | 1 | 10 | 137 | 168 |
-| **All** | 29 | 2 | 31 | 344 | 406 |
+| **All** | 28 | 2 | 31 | 345 | 406 |
 
 ## Entries
 
@@ -467,7 +467,7 @@ repository and CI).
 | [T-393](serve.md) | P1 | M | none | feature | done | `--install` that always restarts: systemd without a start limit, a cron watchdog, a LaunchAgent; and `ssh -N -R --persist` |
 | [T-394](cli.md) | P2 | M | none | feature | open | A heartbeat of the detached run, which its supervisor watches |
 | [T-395](reverse.md) | P2 | M | none | feature | open | A pair's expiry ends a node for good: warn before it, and pair again where the relay allows |
-| [T-396](release.md) | P2 | S | none | feature | open | `podssh update` keeps the binary before it, and runs the new one once before it takes its place |
+| [T-396](release.md) | P2 | S | none | feature | done | `podssh update` keeps the binary before it, and runs the new one once before it takes its place |
 | [T-397](cli.md) | P3 | S | none | defect | open | `--detach`'s smaller gaps: no `/dev/null`, a rotation that loses lines, old files, the working directory |
 | [T-398](roads.md) | P2 | M | none | defect | done | WARP's tunnel under volume: h2's budget of small frames, the inbound read while a packet waits, and a live copy of 16 MiB |
 | [T-399](roads.md) | P2 | M | none | defect | open | WARP: a front door's key that is not the device record's is taken for a proxy, for the whole run |

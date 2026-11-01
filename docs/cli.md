@@ -958,7 +958,10 @@ null device, and its lines go to the same log, each restart a line. A run
 that ends before its first ready ends the supervisor with its code, as
 without `--restart`. Not adopted from d-mon: PDEATHSIG (a supervisor that is
 killed leaves the run going), a cap of restarts over the run's whole life,
-and a restart before the first ready. Without `--detach` it is refused (64).
+and a restart before the first ready. After 5 runs in a row that end within
+10 s of their start, it starts the binary that `podssh update` kept,
+`podssh.prev` (T-396), where it runs here. Without `--detach` it is refused
+(64).
 On Windows the supervisor's end leaves the run; it has no signal to pass.
 
 ## `podssh each`
@@ -2926,7 +2929,8 @@ socket; 255 the connection or the login of `start` failed.
 
 `podssh update [--check] [--version TAG] [--ca-file FILE]` (T-375) replaces
 this binary with the binary of a release for its own target, and only when
-asked: no other command looks for a release.
+asked: no other command looks for a release. `podssh update --rollback`
+(T-396) puts back the binary before the last update.
 
 - **Which release.** `--version TAG` takes that one, an older one too.
   Without it, the newest one, from GitHub's API, else from the releases'
@@ -2952,9 +2956,30 @@ asked: no other command looks for a release.
   directory, with its mode, and then over it in one rename, so that a
   running podssh keeps running from the old file. Windows refuses to write
   over a running program and allows its rename: there the running file is
-  renamed `podssh.exe.old` first, and the next run of podssh removes it. A
-  failure at any step leaves the old binary as it was (exit 73 when it
-  cannot be written, as in a directory that this user cannot write).
+  renamed `podssh.prev.exe` first (else `podssh.exe.old`, which the next
+  run of podssh removes). A failure at any step leaves the old binary as it
+  was (exit 73 when it cannot be written, as in a directory that this user
+  cannot write).
+- **A run before the replacement (T-396).** An installed node that ends
+  starts again from the new file, and one that does not start on this host
+  (a libc, a CPU feature, a defect) would lock out the server that only the
+  node reaches. So the new file, written beside the old one, runs there
+  once as `podssh --version`, with no input, for 10 s at most; its exit
+  code is read directly, and its first line must be `podssh VERSION` of
+  the release asked for. Else it is removed and refused (65), and the old
+  binary stays. Its signature and its sum were checked first, so the run
+  trusts nothing new.
+- **The binary before, kept (T-396).** On Unix the old file is kept as
+  `podssh.prev` beside the new one before the rename (a hard link, which
+  costs no space, else a copy); on Windows it is the file renamed aside.
+  `podssh update --rollback`, with no network, runs `podssh.prev
+  --version`, then puts it over this binary in one rename and keeps this
+  one as `podssh.prev`, so that a second rollback goes forward again; 69
+  when none is kept, 65 when it does not run here. A run that started
+  before goes on with its own binary until it starts again. A supervisor of
+  a detached run (T-390) can start `podssh.prev` after the new binary
+  failed to start again and again: `update::keep::fallback` names it, and
+  changes no file.
 - **Through the proxy.** Each connection goes through `HTTPS_PROXY` when it
   is set, one after another: the list, then each file, through the redirect
   that GitHub gives an asset, whose query is a credential of the moment and

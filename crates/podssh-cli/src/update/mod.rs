@@ -1,13 +1,17 @@
 //! `podssh update` (T-375): the release for this binary's own target,
 //! fetched through the proxy, its `SHA256SUMS` checked against the
 //! signature that the release workflow made (`sigstore`), and its binary
-//! against that file, then in place of the running one (`replace`). It runs
-//! only when asked: no other command looks for a release.
+//! against that file, then run once here (`trial`) and in place of the
+//! running one (`replace`), the one before it kept beside it (`keep`), which
+//! `--rollback` puts back (T-396). It runs only when asked: no other command
+//! looks for a release.
 
 pub mod fetch;
+pub mod keep;
 pub mod release;
 pub mod replace;
 pub mod sigstore;
+pub mod trial;
 
 use std::cmp::Ordering;
 use std::io::Write;
@@ -40,13 +44,16 @@ pub struct UpdateArgs {
     pub check: bool,
     pub version: Option<String>,
     pub ca_file: Option<String>,
+    /// `--rollback`: the binary that the last update kept, back (T-396).
+    pub rollback: bool,
     pub refused: Vec<(String, &'static str, &'static str)>,
 }
 
 impl UpdateArgs {
     pub fn from_matches(matches: &clap::ArgMatches, refused: Vec<(String, &'static str, &'static str)>) -> UpdateArgs {
         let get = |id: &str| matches.get_one::<String>(id).cloned();
-        UpdateArgs { check: matches.get_flag("check"), version: get("version"), ca_file: get("ca-file"), refused }
+        let (check, rollback) = (matches.get_flag("check"), matches.get_flag("rollback"));
+        UpdateArgs { check, version: get("version"), ca_file: get("ca-file"), rollback, refused }
     }
 }
 
@@ -67,6 +74,9 @@ pub struct Options {
     pub target: String,
     /// This build's version.
     pub current: Version,
+    /// How the new binary runs once here before it takes the old one's
+    /// place (T-396).
+    pub trial: trial::Check,
 }
 
 /// Why an update stopped, each with its exit code.
@@ -173,6 +183,7 @@ impl Options {
             exe: replace::running().map_err(Failure::Config)?,
             target: target.to_string(),
             current,
+            trial: trial::by_version,
         })
     }
 }
@@ -277,9 +288,22 @@ pub async fn update(opts: &Options, check: bool, asked: Option<&Version>, out: &
         )));
     }
     let _ = writeln!(out, "{name}: {}, its SHA-256 is the one of SHA256SUMS", mib(binary.len()));
-    replace::replace(&opts.exe, &binary)
-        .map_err(|why| Failure::CantWrite(format!("{why}; {} is as it was", replace::shown(&opts.exe))))?;
-    let _ = writeln!(out, "{}: replaced; it is podssh {version} now", replace::shown(&opts.exe));
+    let exe = replace::shown(&opts.exe);
+    let trial = |file: &std::path::Path| (opts.trial)(file, &version);
+    let replaced = replace::replace(&opts.exe, &binary, &trial).map_err(|stopped| match stopped {
+        replace::Stopped::Trial(why) => {
+            Failure::Refused(format!("{name} of {tag} did not run here: {why}; nothing was replaced"))
+        }
+        replace::Stopped::Disk(why) => Failure::CantWrite(format!("{why}; {exe} is as it was")),
+    })?;
+    let _ = writeln!(out, "{name}: it ran here, and said {}", replaced.said);
+    let _ = writeln!(out, "{exe}: replaced; it is podssh {version} now");
+    let _ = match &replaced.prev {
+        Ok(prev) => {
+            writeln!(out, "the binary before it is {}: podssh update --rollback puts it back", replace::shown(prev))
+        }
+        Err(why) => writeln!(out, "the binary before it is not kept ({why}): podssh update --rollback has none"),
+    };
     Ok(())
 }
 
@@ -296,6 +320,9 @@ fn trust(args: &UpdateArgs) -> Trust {
 }
 
 pub fn run(args: &UpdateArgs, out: &mut dyn Write, err: &mut dyn Write) -> i32 {
+    if args.rollback {
+        return rollback(args, out, err);
+    }
     let asked = match args.version.as_deref() {
         None => None,
         Some(text) => match Version::parse(text.strip_prefix('v').unwrap_or(text)) {
@@ -321,6 +348,28 @@ pub fn run(args: &UpdateArgs, out: &mut dyn Write, err: &mut dyn Write) -> i32 {
     match runtime.block_on(update(&opts, args.check, asked.as_ref(), out)) {
         Ok(()) => 0,
         Err(failure) => fail(failure, err),
+    }
+}
+
+/// `podssh update --rollback` (T-396): no network, only the file that the
+/// last update kept beside this binary.
+fn rollback(args: &UpdateArgs, out: &mut dyn Write, err: &mut dyn Write) -> i32 {
+    if args.check || args.version.is_some() {
+        let why = "--rollback puts back the binary that the last update kept: it goes with no --check or --version";
+        let _ = writeln!(err, "podssh update: {why}");
+        return EXIT_USAGE;
+    }
+    match replace::running().map_err(Failure::Config).and_then(|exe| keep::rollback(&exe)) {
+        Ok(lines) => {
+            for line in lines {
+                let _ = writeln!(out, "{line}");
+            }
+            0
+        }
+        Err(failure) => {
+            let _ = writeln!(err, "podssh update: {}", failure.why());
+            failure.code()
+        }
     }
 }
 

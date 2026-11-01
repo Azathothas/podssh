@@ -1,5 +1,5 @@
-//! The flag rows of `update` (T-375): only a check, a release named, and
-//! the trust of TLS to GitHub.
+//! The flag rows of `update` (T-375): only a check, a release named, the
+//! trust of TLS to GitHub, and the way back to the binary before (T-396).
 
 use super::{row, FlagKind, FlagRow};
 
@@ -13,4 +13,6 @@ pub const UPDATE_FLAGS: &[FlagRow] = &[
         "this release, as v1.0.0-beta.3, older than this build too; default: the newest, a prerelease only if this build is one", None),
     row(None, "ca-file", Some("FILE"), FlagKind::Supported,
         "trust only the CAs in this PEM file for TLS to GitHub (default: SSL_CERT_FILE, else CaFile, else the system's)", None),
+    row(None, "rollback", None, FlagKind::Supported,
+        "put back the binary that the last update kept beside this one (podssh.prev), once it ran here, and keep this one in its place; no network", None),
 ];
