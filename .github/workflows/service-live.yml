@@ -107,9 +107,10 @@ jobs:
 
       # T-381's Prove: a run detached in a login session of logind (an SSH
       # login, whose PAM asks logind for session-N.scope) leaves it, and
-      # outlives the session's end (loginctl terminate-session ends every
-      # process of the scope); with PODSSH_SYSTEMD=no, the planted case, the
-      # run stays in the scope and ends with it.
+      # outlives the session's end (loginctl terminate-session of a session
+      # still open ends every process of its scope, as logind does at a
+      # logout with KillUserProcesses=yes); with PODSSH_SYSTEMD=no, the
+      # planted case, the run stays in the scope and ends with it.
       - name: a detached run outlives the end of its login session
         run: |
           set -u
@@ -127,10 +128,16 @@ jobs:
           echo "the user's $(loginctl show-user "$(id -u)" -p Linger 2>&1)"
           # One detached run in a login session over SSH, PODSSH_SYSTEMD=$1
           # when $1 is set; its words, then the session's id and the run's pid.
+          # The login stays (a sleep after the run): logind's terminate-session
+          # does nothing to a session that is already closing.
           detach_in_session() {
-            out=$(timeout 60 ssh -o BatchMode=yes -o StrictHostKeyChecking=no -o UserKnownHostsFile=/dev/null \
+            said="$RUNNER_TEMP/session-$2.out"
+            timeout 120 ssh -n -o BatchMode=yes -o StrictHostKeyChecking=no -o UserKnownHostsFile=/dev/null \
               -i "$RUNNER_TEMP/user_ed25519" -p 4022 "$(whoami)@127.0.0.1" \
-              "sed -n 's/^0:://p' /proc/self/cgroup; ${1:+PODSSH_SYSTEMD=$1} $bin pipe --detach --keep-listening tcp-listen:127.0.0.1:$2 exec:cat 2>&1")
+              "sed -n 's/^0:://p' /proc/self/cgroup; ${1:+PODSSH_SYSTEMD=$1} $bin pipe --detach --keep-listening tcp-listen:127.0.0.1:$2 exec:cat 2>&1; sleep 90" \
+              >"$said" 2>&1 &
+            for _ in $(seq 1 150); do grep -q "in the background\|ended with\|error" "$said" 2>/dev/null && break; sleep 0.2; done
+            out=$(cat "$said")
             printf '%s\n' "$out" | sed 's/^/  /' >&2
             session=$(printf '%s' "$out" | sed -n 's|.*/session-\([0-9]*\)\.scope$|\1|p' | head -1)
             pid=$(printf '%s' "$out" | sed -n 's/.*pid \([0-9]*\).*/\1/p' | head -1)
@@ -145,8 +152,7 @@ jobs:
           EOF2
           [ -n "$session" ] && [ -n "$pid" ] || { echo "FAIL no login session or no pid ($session, $pid)"; exit 1; }
           echo "the run's cgroup: $(sed -n 's/^0:://p' "/proc/$pid/cgroup")"
-          # A session whose last process left may have ended already.
-          sudo loginctl terminate-session "$session" || echo "note: session $session had ended"
+          sudo loginctl terminate-session "$session"
           sleep 15
           if kill -0 "$pid" 2>/dev/null; then
             echo "ok    the run outlived the end of session $session, 15 s later: $(sed -n 's/^0:://p' "/proc/$pid/cgroup")"
@@ -159,7 +165,7 @@ jobs:
           EOF2
           [ -n "$session" ] && [ -n "$pid" ] || { echo "FAIL no login session or no pid ($session, $pid)"; exit 1; }
           echo "the run's cgroup with PODSSH_SYSTEMD=no: $(sed -n 's/^0:://p' "/proc/$pid/cgroup")"
-          sudo loginctl terminate-session "$session" || echo "note: session $session had ended"
+          sudo loginctl terminate-session "$session"
           for _ in $(seq 1 30); do kill -0 "$pid" 2>/dev/null || break; sleep 0.5; done
           if kill -0 "$pid" 2>/dev/null; then
             echo "FAIL with PODSSH_SYSTEMD=no the run outlived session $session: the check proves nothing"; rc=1
