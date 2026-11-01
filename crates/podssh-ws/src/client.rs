@@ -190,18 +190,12 @@ pub async fn open_tls(
     proxy: &ProxyChoice,
     timeout: Duration,
 ) -> Result<RelayStream, ConnectError> {
-    let tls_config = tls::config_for(trust).map_err(|e| ConnectError::Config(e.to_string()))?;
-    let name = rustls_pki_types::ServerName::try_from(server_name.to_string())
+    // The configuration and the name are checked before anything connects.
+    tls::config_for(trust).map_err(|e| ConnectError::Config(e.to_string()))?;
+    rustls_pki_types::ServerName::try_from(server_name.to_string())
         .map_err(|e| ConnectError::Config(format!("{server_name:?} is not a valid server name: {e}")))?;
     let tcp = dial::dial(host, port, proxy, timeout).await.map_err(ConnectError::Dial)?;
-    // The connector gets its config explicitly, never a process default.
-    let connector = tokio_rustls::TlsConnector::from(tls_config);
-    tokio::time::timeout(timeout, connector.connect(name, tcp))
-        .await
-        .map_err(|_| ConnectError::Timeout { step: "the TLS handshake", after: timeout })?
-        // rustls's text distinguishes an unknown issuer from a name mismatch,
-        // and an unknown issuer gets what to do (T-340).
-        .map_err(|e| ConnectError::Tls(crate::tls::handshake_failure(&e)))
+    crate::tls_wrap::tls_over(tcp, server_name, trust, timeout).await
 }
 
 /// Send the upgrade request and read the answer. On `101`, returns the stream

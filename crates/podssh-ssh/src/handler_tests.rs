@@ -81,7 +81,7 @@ async fn unrequested_channels_are_refused() {
         let dir = std::env::temp_dir().join(format!("podssh-channels-{}", std::process::id()));
         std::fs::create_dir_all(&dir).expect("a temporary directory");
         let log_file = dir.join("log");
-        let hop = Hop { user: Some("podtest".into()), host: "opener.test".into(), port: 22 };
+        let hop = Hop { user: Some("podtest".into()), host: "opener.test".into(), port: 22, tls: false };
         let mut opts = Options::new(hop.clone(), "podtest".into());
         opts.connect_timeout = Duration::from_secs(10);
         opts.strict_host_key_checking = StrictHostKeyChecking::No;

@@ -133,12 +133,12 @@ impl Chain<'_> {
                 }
                 (Some((user, host)), _) => {
                     self.tunnel = Some(Tunnel::Cloudflare(host.clone()));
-                    Hop { user, host, port: 22 }
+                    Hop { user, host, port: 22, tls: false }
                 }
                 // The VM's name matches the blocks of ssh_config, and its
                 // port is the hop's, as the destination's is.
                 (None, Some((user, road))) => {
-                    let hop = Hop { user, host: road.host(), port: road.port() };
+                    let hop = Hop { user, host: road.host(), port: road.port(), tls: false };
                     self.tunnel = Some(Tunnel::Cloud(road));
                     hop
                 }
@@ -234,8 +234,10 @@ impl Chain<'_> {
         };
         tokens.remote_user = user.clone();
         let login = super::login::login(&self.args.identity_files, &settings, &tokens, env)?;
-        let hop = Hop { user: Some(user.clone()), host, port };
+        let hop = Hop { user: Some(user.clone()), host, port, tls: target.tls };
         let mut options = Options::new(hop.clone(), user);
+        // An `ssh+tls://` hop's TLS takes the run's trust (T-372).
+        options.tls_trust = super::resolve::tls_trust(self.args, env);
         options.host_key_alias = settings.host_key_alias.as_deref().map(str::to_ascii_lowercase);
         login.apply(&mut options, &settings);
         let expand = |setting: &str, p: &str| tokens.expand(setting, p);

@@ -47,6 +47,7 @@ mod socks5;
 pub mod stores;
 pub mod text;
 pub mod tls;
+mod tls_wrap;
 pub mod url;
 mod wire;
 pub mod write_limit;
@@ -62,3 +63,4 @@ pub use session::RelaySession;
 #[cfg(fuzzing)]
 pub use socks5::fuzz_exchange;
 pub use tls::Trust;
+pub use tls_wrap::tls_over;

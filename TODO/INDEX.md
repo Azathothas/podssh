@@ -62,15 +62,15 @@ repository and CI).
 
 ## Counts
 
-**379 entries: 20 open, 1 partial, 31 blocked, 327 done.**
+**379 entries: 19 open, 1 partial, 31 blocked, 328 done.**
 
 | Priority | open | partial | blocked | done | total |
 | --- | --- | --- | --- | --- | --- |
 | P0 | 0 | 0 | 0 | 1 | 1 |
 | P1 | 2 | 0 | 0 | 29 | 31 |
 | P2 | 3 | 0 | 21 | 165 | 189 |
-| P3 | 15 | 1 | 10 | 132 | 158 |
-| **All** | 20 | 1 | 31 | 327 | 379 |
+| P3 | 14 | 1 | 10 | 133 | 158 |
+| **All** | 19 | 1 | 31 | 328 | 379 |
 
 ## Entries
 
@@ -443,7 +443,7 @@ repository and CI).
 | [T-369](roads.md) | P3 | M | backlog | feature | done | `--forwarder TEMPLATE`: a road through a WebSocket forwarder that takes the target from its URL |
 | [T-370](roads.md) | P3 | S | backlog | feature | done | Built-in templates of other products' public forwarders, and a fallback to them |
 | [T-371](roads.md) | P3 | M | backlog | measurement | done | A `-J` hop on port 443 through the proxy, measured, and a `doctor` line for a hop |
-| [T-372](roads.md) | P3 | M | backlog | feature | open | A hop or a destination whose SSH is wrapped in TLS: `ssh+tls://` |
+| [T-372](roads.md) | P3 | M | backlog | feature | done | A hop or a destination whose SSH is wrapped in TLS: `ssh+tls://` |
 | [T-373](roads.md) | P3 | M | backlog | feature | open | A Shadowsocks road, from a file of `ss://` lines that a subscription can refresh |
 | [T-374](roads.md) | P3 | M | backlog | feature | done | The quick tunnel's edge through WARP's tunnel, for a node whose cage reaches port 443 only |
 | [T-375](release.md) | P2 | M | none | feature | done | `podssh update`: the release for its own target, checked, in place of the binary |

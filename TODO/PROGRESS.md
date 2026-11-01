@@ -112,7 +112,7 @@ and `CARGO_BUILD_JOBS=4`:
 
 ## Counts
 
-`TODO/INDEX.md` holds 379 entries: 20 open, 1 partial, 31 blocked, 327 done.
+`TODO/INDEX.md` holds 379 entries: 19 open, 1 partial, 31 blocked, 328 done.
 
 Open includes parked work. `cargo todo check` verifies this line.
 
@@ -140,7 +140,7 @@ Actions, with `session start`'s Windows job); T-381 waits for Q61.
 
 **Now:** the entries of the audit, the study and the issues of 2026-10-31 (GitHub #59 to #63 and
 #69 to #76), the highest priority first: those of the rulings of 2026-10-31: T-353 (Q52); then those of
-GitHub #59 to #63 and #73 to #76: T-372; and T-373.
+GitHub #59 to #63 and #73 to #76: T-373.
 Each other `backlog` entry is done, but for those on hold, those of the relay's operator and the
 parked ones.
 

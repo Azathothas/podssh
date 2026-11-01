@@ -181,12 +181,15 @@ impl StdioTarget {
 }
 
 /// One `-J` hop, or the final destination.
-#[derive(Debug, Clone, PartialEq, Eq)]
+#[derive(Debug, Clone, PartialEq, Eq, Default)]
 pub struct Hop {
     /// The login name; `None` means the connection's default user.
     pub user: Option<String>,
     pub host: String,
     pub port: u16,
+    /// `ssh+tls://` (T-372): SSH inside TLS checked for `host`, as stunnel
+    /// serves it on port 443, over the stream that reaches the hop.
+    pub tls: bool,
 }
 
 /// A whole connection.
@@ -312,6 +315,9 @@ pub struct Options {
     pub local_command: Option<crate::local_command::LocalCommand>,
     /// `--expect` and `--send` (T-191): the rules of a session with a pty.
     pub expect: Option<crate::expect::Rules>,
+    /// The trust of the TLS of an `ssh+tls://` hop (T-372): `--ca-file`,
+    /// else podssh's default stores.
+    pub tls_trust: podssh_ws::Trust,
 }
 
 /// How a forward of `-R` that the server refused is asked again after a
@@ -390,6 +396,7 @@ impl Options {
             host_key_pin: None,
             host_key_fingerprints: Vec::new(),
             remembered: None,
+            tls_trust: podssh_ws::Trust::Default,
             local_command: None,
             expect: None,
         }
@@ -440,7 +447,7 @@ mod tests {
 
     #[test]
     fn keepalives_are_on_by_default_and_below_the_relay_idle_cut() {
-        let o = Options::new(Hop { user: None, host: "h".into(), port: 22 }, "u".into());
+        let o = Options::new(Hop { user: None, host: "h".into(), port: 22, tls: false }, "u".into());
         let every = o.keepalive_interval.expect("keepalives on by default");
         assert!(every.as_secs() < 180, "the relay cuts idle connections at 180 s");
     }

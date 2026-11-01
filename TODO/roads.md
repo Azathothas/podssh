@@ -373,7 +373,7 @@ sandbox can block what iroh needs, so the fallback is necessary
 6. With `-v`, print the road that won and its time.
 7. Each resume of T-153 runs the same race.
 8. Docs: the rule of the race in `docs/design.md` section 2, and the notes of
-   `ssh` in the manual (`crates/podssh-cli/src/man/notes_ssh.rs:4-412`).
+   `ssh` in the manual (`crates/podssh-cli/src/man/notes_ssh.rs:4-419`).
 
 ## Decision
 
@@ -669,7 +669,7 @@ not verified here: iroh-ssh checks that a local sshd answers before it accepts
 Recommendation: the client records the host key of sshd under the name that
 the user gives to `podssh ssh` (the roost's name), as OpenSSH does for a host
 with a `ProxyCommand`. `podssh ssh` names a host this way today
-(`crates/podssh-ssh/src/run.rs:342-352`). The alternative, the address of sshd
+(`crates/podssh-ssh/src/run.rs:365-375`). The alternative, the address of sshd
 behind the roost (`127.0.0.1`), lost: each roost would share one name, and one
 key would replace another.
 
@@ -3125,12 +3125,12 @@ allows podssh as a client of Cloudflare (`docs/decisions.md:30`).
 
 - Read: a `-J` hop is read by `parse_hop`; `cf://HOST` holds one colon, so it is read as the host
   `cf` with the port `//HOST`, which is refused as a port
-  (`crates/podssh-cli/src/ssh/hop.rs:49-51`); `jump_hop` refuses a node only (`:59-65`).
+  (`crates/podssh-cli/src/ssh/hop.rs:58-60`); `jump_hop` refuses a node only (`:68-74`).
 - Read: a `cf://` destination refuses `-J`:
   `crates/podssh-cli/src/ssh/cloudflare.rs:73` says "a Cloudflare tunnel cannot be reached
   through a -J hop yet", and `docs/cli.md:129-130` says so too.
 - Read: the road of a run is chosen for the first hop's host
-  (`crates/podssh-cli/src/ssh/resolve.rs:284`), and each later hop runs in a `direct-tcpip`
+  (`crates/podssh-cli/src/ssh/resolve.rs:293`), and each later hop runs in a `direct-tcpip`
   channel of the session before it (`crates/podssh-ssh/src/run.rs:160-167`;
   `crates/podssh-ssh/src/forward.rs:14-22`).
 - Read: the `cf://` road opens the WebSocket of `cloudflared access tcp` through `HTTPS_PROXY`,
@@ -4478,7 +4478,7 @@ does not depend on them.
   uses are a label (`crates/podssh-cli/src/ssh/mod.rs:234`), the dial
   (`crates/podssh-cli/src/ssh/transport.rs:256-300`) and a check of `--upgrade`
   (`crates/podssh-cli/src/ssh/upgrade.rs:59`). The issue's citation of
-  the arm began two lines early; it is at `crates/podssh-cli/src/ssh/resolve.rs:322-328`.
+  the arm began two lines early; it is at `crates/podssh-cli/src/ssh/resolve.rs:331-337`.
 - Read: `docs/design.md:45` says "podssh tries the roads in this order"; for a public sshd, the
   forward road comes first, then the direct road (`docs/design.md:51`), which at `8554930` said
   "`--direct`, or when a probe shows it works"; the triage of GitHub #69 to #72 named this entry
@@ -4967,9 +4967,9 @@ a hop. `doctor` has no line for a hop, so a user cannot see whether one is reach
 ## Premise
 
 - Read: a hop is `[user@]host[:port]` or `ssh://[user@]host[:port]`
-  (`crates/podssh-cli/src/ssh/hop.rs:30-57`), and `-J` refuses a node only (`:59-65`). The road is
-  chosen for the first hop's host (`crates/podssh-cli/src/ssh/resolve.rs:284`); with `--direct` it
-  is TCP through `HTTPS_PROXY` (`crates/podssh-cli/src/ssh/resolve.rs:322-328`; `crates/podssh-cli/src/ssh/transport.rs:1-2`).
+  (`crates/podssh-cli/src/ssh/hop.rs:30-57`), and `-J` refuses a node only (`:68-74`). The road is
+  chosen for the first hop's host (`crates/podssh-cli/src/ssh/resolve.rs:293`); with `--direct` it
+  is TCP through `HTTPS_PROXY` (`crates/podssh-cli/src/ssh/resolve.rs:331-337`; `crates/podssh-cli/src/ssh/transport.rs:1-2`).
 - Read: a prompt goes to the terminal, or to the program of `SSH_ASKPASS`, chosen as OpenSSH
   chooses it (`crates/podssh-ssh/src/prompt.rs:1-12`).
 - Read: through the agent proxy of a cloud container, a CONNECT to `ssh.github.com:443` got `200`,
@@ -5085,7 +5085,7 @@ SSH inside TLS, which `hop.rs` cannot write.
 **Milestone:** backlog
 **Priority:** P3
 **Effort:** M
-**Status:** open
+**Status:** done
 
 ## Problem
 
@@ -5100,7 +5100,7 @@ TCP, and podssh runs no `ProxyCommand` that could add TLS.
   `cf://`, `node://` or `iroh:` (`crates/podssh-cli/src/ssh/resolve.rs:23-64`).
 - Read: podssh runs no `ProxyCommand` (`crates/podssh-cli/src/ssh/options.rs:221-226`).
 - Read: podssh-ws opens TCP through the proxy, then a TLS handshake checked for a name
-  (`crates/podssh-ws/src/client.rs:184-205`), with no ALPN and no client certificate
+  (`crates/podssh-ws/src/client.rs:184-199`), with no ALPN and no client certificate
   (`crates/podssh-ws/src/tls.rs:315-318`).
 - Read: the agent proxy of a cloud container re-terminates TLS for some names, with its CA in
   `SSL_CERT_FILE` (`docs/target-environment.md:57-66`), and reset SSH on port 443
@@ -5139,6 +5139,33 @@ sshd: `podssh ssh -J ssh+tls://user@hop:443 target` reaches the target, and so d
 the destination; a certificate for another name is refused at the TLS step; through a stand-in
 proxy that waits for TLS and resets plain SSH, the hop of TLS passes and a plain one fails.
 Planted: the certificate's name not checked; the test of another name fails.
+
+## Done
+
+2026-11-01: built and tested here, against stunnel 5.72.
+
+- `podssh_ssh::Hop` has `tls`; `run::connect` runs an `ssh+tls://` hop's SSH inside TLS checked
+  for its host (`podssh_ws::tls_over`, the TLS of `open_tls` now shared), over the stream that
+  reached it: the relay's, `--direct`'s, or the channel of the hop before it. `Options` carries
+  the trust (`tls_trust`: `--ca-file`, `SSL_CERT_FILE`, `CaFile`, else the default stores), set for
+  the destination and for each hop of `-J`. A TLS failure is the hop's: `HOST: TLS: ...` (255), an
+  unknown issuer with T-340's words. Messages name the hop `ssh+tls://HOST:PORT`.
+- `parse_hop` reads `ssh+tls://[user@]host[:port]`, port 443 by default, for the destination and
+  each hop of `-J`; `doctor --hop ssh+tls://...` runs its three probes inside TLS, and its failure
+  for a plain hop that met a proxy that waits for TLS names `ssh+tls://` (it named this entry).
+- The manual (a note of `ssh`, `-J`'s help), `docs/cli.md` (a section); the gate's `ssh` step
+  installs stunnel and openssl and names stunnel (`PODSSH_TEST_STUNNEL`).
+- `cargo test -p podssh-cli --test ssh_tls_hop` (2026-11-01): 5 passed, stunnel in front of the
+  test's SSH server, through a stand-in CONNECT proxy that maps names to the loopback: the
+  destination and the first hop of `-J` inside TLS, the proxy asked for `tls-hop.test` alone; a hop
+  of TLS after a plain one, inside its channel; a certificate for another name refused at the TLS
+  step (255); through a proxy that closes each stream whose first byte is not TLS's, the hop of TLS
+  passes and a plain one fails; `doctor --hop ssh+tls://...` ok with the banner and the host key.
+  `--lib ssh::hop`: 1 passed (the scheme, its port, `ssh://` and a bare host still plain).
+  `--test doctor_hop`: 3 passed.
+- Planted (2026-11-01): the hop of TLS taken as plain: three tests failed; the certificate
+  checked for a fixed name: the test of another name failed. Restored by `cp`, 5 passed.
+
 
 # T-373: A Shadowsocks road, from a file of `ss://` lines that a subscription can refresh
 

@@ -68,7 +68,7 @@ async fn log_in(stall: Stall, key_file: Option<std::path::PathBuf>) -> String {
             let _ = session.await;
         }
     });
-    let hop = Hop { user: Some("podtest".into()), host: "stall.test".into(), port: 22 };
+    let hop = Hop { user: Some("podtest".into()), host: "stall.test".into(), port: 22, tls: false };
     let mut opts = Options::new(hop.clone(), "podtest".into());
     opts.connect_timeout = Duration::from_secs(2);
     opts.strict_host_key_checking = StrictHostKeyChecking::No;
@@ -280,7 +280,7 @@ async fn write_through(size: u32) -> Result<(), String> {
             let _ = session.await;
         }
     });
-    let hop = Hop { user: Some("podtest".into()), host: "packet.test".into(), port: 22 };
+    let hop = Hop { user: Some("podtest".into()), host: "packet.test".into(), port: 22, tls: false };
     let mut opts = Options::new(hop.clone(), "podtest".into());
     opts.connect_timeout = Duration::from_secs(5);
     opts.strict_host_key_checking = StrictHostKeyChecking::No;

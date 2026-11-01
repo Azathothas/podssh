@@ -118,7 +118,7 @@ async fn login(refuse: Option<ChannelOpenFailure>) -> (Handle<Client>, Opened, A
             let _ = session.await;
         }
     });
-    let hop = Hop { user: Some("podtest".into()), host: "forward.test".into(), port: 22 };
+    let hop = Hop { user: Some("podtest".into()), host: "forward.test".into(), port: 22, tls: false };
     let mut opts = Options::new(hop.clone(), "podtest".into());
     opts.connect_timeout = Duration::from_secs(10);
     opts.strict_host_key_checking = StrictHostKeyChecking::No;

@@ -306,8 +306,11 @@ step_record() {
 # missing server fails rather than skips.
 step_ssh() {
     run "OpenSSH's sftp-server, for the SFTP client's tests" retry3 apk add --no-cache openssh-sftp-server
+    # stunnel in front of the test's SSH server, for ssh+tls:// (T-372), and
+    # openssl for its certificates; named, so that a missing one fails.
+    run "stunnel and openssl, for the tests of ssh+tls://" retry3 apk add --no-cache stunnel openssl
     tests "the SSH client and the CLI (need cc): tests" \
-        env PODSSH_TEST_SFTP_SERVER=/usr/lib/ssh/sftp-server \
+        env PODSSH_TEST_SFTP_SERVER=/usr/lib/ssh/sftp-server PODSSH_TEST_STUNNEL=/usr/bin/stunnel \
         cargo test --locked --no-fail-fast -p podssh-ssh -p podssh-cli
     # The road of warp:// in the CLI, with its feature (T-352): its own tests
     # and those of the manual, whose variables the feature's crate joins.

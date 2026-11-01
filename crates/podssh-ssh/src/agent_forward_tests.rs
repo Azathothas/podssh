@@ -270,7 +270,7 @@ async fn start(forward: Agent, destination: bool, scratch: &Scratch) -> Run {
             let _ = session.await;
         }
     });
-    let hop = Hop { user: Some("podtest".into()), host: "agent.test".into(), port: 22 };
+    let hop = Hop { user: Some("podtest".into()), host: "agent.test".into(), port: 22, tls: false };
     let mut opts = Options::new(hop.clone(), "podtest".into());
     opts.connect_timeout = Duration::from_secs(10);
     opts.strict_host_key_checking = StrictHostKeyChecking::No;

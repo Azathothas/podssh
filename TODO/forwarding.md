@@ -845,7 +845,7 @@ Read:
 
 - `request` parses the value of `-W` with `parse_hop`
   (`crates/podssh-cli/src/ssh/hop.rs`, lines 81-91 at `f6af943`), which reads a value with
-  no `:` as a host on port 22 (`crates/podssh-cli/src/ssh/hop.rs:41-54`).
+  no `:` as a host on port 22 (`crates/podssh-cli/src/ssh/hop.rs:50-63`).
 - russh 0.64.1 has `Handle::channel_open_direct_streamlocal` (the channel
   `direct-streamlocal@openssh.com`). podssh opens only `direct-tcpip`
   (`crates/podssh-ssh/src/forward.rs:13-22`).
@@ -901,7 +901,7 @@ as a TCP host again, and the gate's check fails with the server's error.
 (`crates/podssh-ssh/src/forward.rs:24-37`); through a control master
 (`crates/podssh-ssh/src/mux/client.rs:177-192`,
 `crates/podssh-ssh/src/mux/msession.rs:253-260`). The command line reads a
-path at `crates/podssh-cli/src/ssh/hop.rs:86-89`, and the row of `-W` says so
+path at `crates/podssh-cli/src/ssh/hop.rs:95-98`, and the row of `-W` says so
 (`crates/podssh-cli/src/flags.rs:139-140`).
 - `cargo test -p podssh-cli --test ssh_stdio_socket`: 2 passed. The test of
   the Prove, `stdio_forward_socket_or_host_and_port`, is in this file, as
@@ -1142,7 +1142,7 @@ link: the mode at `crates/podssh-cli/src/ssh/persist.rs:38-45` and
 serves `-L` and `-D`, and tells a loss from an end
 (`crates/podssh-ssh/src/persist.rs:57-62`); a refused `-R` asked again in
 `crates/podssh-ssh/src/remote.rs:50-179`, as `Options::forwards_again` says
-(`crates/podssh-ssh/src/options.rs:317-326`), which the loop sets after the
+(`crates/podssh-ssh/src/options.rs:323-332`), which the loop sets after the
 first loss (`crates/podssh-cli/src/ssh/persist.rs:164-173`); the rule of
 `STEADY` at `crates/podssh-cli/src/ssh/persist.rs:143-149`.
 - `cargo test -p podssh-cli --test persist`: 5 passed. The new test runs
@@ -1223,7 +1223,7 @@ at the connection step (exit 255), after the parse:
 Read: `request` parses the value with `parse_hop`
 (`crates/podssh-cli/src/ssh/resolve.rs`, lines 472-482 at `97146aa`), which reads a value with no
 `:` as a host on port 22, and splits a value at its one `:`
-(`crates/podssh-cli/src/ssh/hop.rs:41-54`). `forward::open` opens
+(`crates/podssh-cli/src/ssh/hop.rs:50-63`). `forward::open` opens
 `direct-tcpip` only (`crates/podssh-ssh/src/forward.rs:13-22`).
 
 ## Approach
@@ -1587,7 +1587,7 @@ a session with a pty:
   of `podssh ssh`, which `crates/podssh-cli/src/ssh/mod.rs:288` gives to
   each session.
 - The manual: the note of the terminal names `~C`, and a note of its own
-  (`crates/podssh-cli/src/man/notes_ssh.rs:323`); `docs/cli.md` ("`~C`
+  (`crates/podssh-cli/src/man/notes_ssh.rs:330`); `docs/cli.md` ("`~C`
   adds and stops forwards") and `docs/terminal.md` ("What podssh reads
   from the terminal").
 - Tests, `cargo test -p podssh-ssh -- escape_command` (8): the commands of
@@ -1633,7 +1633,7 @@ server (`remote_socket:host:hostport`), a socket on this host as the target
 (`[bind_address:]port:local_socket`, `remote_socket:local_socket`), and a SOCKS proxy that the
 server listens for and the client serves (`[bind_address:]port`). podssh refuses each by name, so
 a command line of OpenSSH fails with podssh. A server whose host refuses an AF_INET bind and
-allows an AF_UNIX one, as sandbox A does (`docs/STATUS.md:288`), can listen on a socket only; and
+allows an AF_UNIX one, as sandbox A does (`docs/STATUS.md:289`), can listen on a socket only; and
 the SOCKS form gives a server whose egress is closed a way out through the client.
 
 ## Premise
@@ -1641,7 +1641,7 @@ the SOCKS form gives a server whose egress is closed a way out through the clien
 - Read: `crates/podssh-cli/src/ssh/forward.rs` line 43 at `6f6eda2` says "a Unix socket is not
   carried yet", and its line 49 says "the server's SOCKS proxy (-R [bind_address:]port) is not
   carried yet", for a spec of one or two fields (its lines 45-54); `docs/cli.md:653-654` and
-  `crates/podssh-cli/src/man/notes_ssh.rs:316-317` say so too. `TODO/forwarding.md:52-54` says
+  `crates/podssh-cli/src/man/notes_ssh.rs:323-324` say so too. `TODO/forwarding.md:52-54` says
   "until a later step" of both, in T-035.
 - Read: `RemoteForward` holds a port and a `host:host_port` only
   (`crates/podssh-ssh/src/options.rs` lines 328-339 at `6f6eda2`). podssh asks for it with `tcpip_forward`

@@ -117,7 +117,7 @@ pub const SSH_FLAGS: &[FlagRow] = &[
     row(Some('i'), "identity-file", Some("FILE"), FlagKind::Supported,
         "identity file, repeatable; also -oIdentityFile=", None),
     row(Some('J'), "jump-host", Some("HOSTS"), FlagKind::Supported,
-        "log in through these hosts first: [user@]host[:port][,...]", None),
+        "log in through these hosts first: [user@]host[:port][,...]; ssh+tls://[user@]host[:port] is SSH inside TLS", None),
     row(Some('N'), "no-remote-command", None, FlagKind::Supported,
         "run nothing; stay connected until the server closes", None),
     row(Some('n'), "stdin-null", None, FlagKind::Supported,

@@ -328,8 +328,31 @@ pub(crate) fn hop_key_name(hop: &Hop, is_destination: bool, opts: &Options) -> S
     }
 }
 
-/// The SSH handshake and login for one hop.
+/// The SSH handshake and login for one hop; for an `ssh+tls://` hop
+/// (T-372), over TLS checked for its host first, on the stream that reached
+/// it: TCP, or a channel of the hop before it.
 pub(crate) async fn connect<S>(
+    stream: S,
+    hop: &Hop,
+    is_destination: bool,
+    opts: &Options,
+    log: &Arc<Log>,
+) -> Result<Handle<Client>, HopError>
+where
+    S: AsyncRead + AsyncWrite + Unpin + Send + 'static,
+{
+    if !hop.tls {
+        return login(stream, hop, is_destination, opts, log).await;
+    }
+    let label = display(hop);
+    log.verbose(&format!("TLS with {label}, its certificate checked for {}", hop.host));
+    match podssh_ws::tls_over(stream, &hop.host, &opts.tls_trust, opts.connect_timeout).await {
+        Ok(tls) => login(tls, hop, is_destination, opts, log).await,
+        Err(e) => Err(HopError::Unreachable(format!("{label}: TLS: {e}"))),
+    }
+}
+
+async fn login<S>(
     stream: S,
     hop: &Hop,
     is_destination: bool,
@@ -412,9 +435,11 @@ where
 }
 
 /// `host`, or `host:port` when the port is not 22 (`[v6]:port` for an
-/// IPv6 address).
+/// IPv6 address); a hop of TLS by its scheme, `ssh+tls://host:port`.
 pub(crate) fn display(hop: &Hop) -> String {
-    if hop.port == 22 {
+    if hop.tls {
+        format!("ssh+tls://{}", podssh_ws::dial::authority(&hop.host, hop.port))
+    } else if hop.port == 22 {
         hop.host.clone()
     } else {
         podssh_ws::dial::authority(&hop.host, hop.port)

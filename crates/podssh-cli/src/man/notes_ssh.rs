@@ -116,6 +116,13 @@ pub const SSH: &[&str] = &[
      inside the tunnel is smoltcp's, in this process, with no TUN device. The host key is recorded under \
      warp://HOST. -p and Port give the port; --direct, -4, -6 and HostName cannot go with it, and -J with \
      it first makes HOST the first hop of a chain.",
+    "ssh+tls://[user@]HOST[:PORT], as the destination or as any hop of -J, is SSH inside TLS, as stunnel \
+     serves it, port 443 by default: TLS over the stream that reaches the hop (the relay's, --direct's \
+     through HTTPS_PROXY, or the channel of the hop before it), its certificate checked for HOST with \
+     podssh's trust (--ca-file, SSL_CERT_FILE, CaFile, else the system's), then SSH inside it, the host key \
+     checked as for each hop and recorded under [HOST]:PORT. A proxy that waits for TLS on port 443 carries \
+     it where it ends plain SSH. A failure names its step: the connection, TLS (an unknown issuer, or a \
+     certificate for another name), or SSH. podssh doctor --hop ssh+tls://... probes it inside TLS.",
     "tor://[user@]HOST[:PORT] reaches a port of any host, 22 by default (an IPv6 address in brackets), \
      through the Tor network, in a build with the feature tor: Arti in this process, with no relay and no \
      account, and no program besides; each of its connections to a Tor relay goes through HTTPS_PROXY when \

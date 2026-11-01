@@ -102,6 +102,15 @@ pub struct Resolved {
 
 // The environment, in its own file for the length of this one (T-379).
 pub(super) use super::resolve_env::ca_file;
+
+/// The trust of an `ssh+tls://` hop's TLS (T-372): `--ca-file`, else
+/// `SSL_CERT_FILE` or `CaFile`, else podssh's default stores.
+pub(super) fn tls_trust(args: &SshArgs, env: &Env) -> podssh_ws::Trust {
+    match ca_file(args, env) {
+        Some(file) => podssh_ws::Trust::File(file.into()),
+        None => podssh_ws::Trust::Default,
+    }
+}
 pub use super::resolve_env::Env;
 
 /// Resolve `args`; `Err` is the message of a refusal.
@@ -126,12 +135,12 @@ pub fn resolve_or_refuse(args: &SshArgs, env: &Env) -> Result<Resolved, Refusal>
     let cloud = super::cloud::destination(destination)?;
     let derp = super::derp::destination(destination)?;
     let target = match (&node, &iroh, &tunnel) {
-        (Some((user, label, _)), ..) => Hop { user: user.clone(), host: label.clone(), port: 22 },
-        (None, Some(dest), _) => Hop { user: dest.user.clone(), host: dest.shown.clone(), port: 22 },
-        (None, None, Some((user, host))) => Hop { user: user.clone(), host: host.clone(), port: 22 },
+        (Some((user, label, _)), ..) => Hop { user: user.clone(), host: label.clone(), port: 22, tls: false },
+        (None, Some(dest), _) => Hop { user: dest.user.clone(), host: dest.shown.clone(), port: 22, tls: false },
+        (None, None, Some((user, host))) => Hop { user: user.clone(), host: host.clone(), port: 22, tls: false },
         (None, None, None) => match (&cloud, &derp) {
-            (Some((user, road)), _) => Hop { user: user.clone(), host: road.host(), port: road.port() },
-            (None, Some(dest)) => Hop { user: dest.user.clone(), host: dest.shown.clone(), port: 22 },
+            (Some((user, road)), _) => Hop { user: user.clone(), host: road.host(), port: road.port(), tls: false },
+            (None, Some(dest)) => Hop { user: dest.user.clone(), host: dest.shown.clone(), port: 22, tls: false },
             (None, None) => parse_hop(destination)?,
         },
     };
@@ -395,7 +404,8 @@ pub fn resolve_or_refuse(args: &SshArgs, env: &Env) -> Result<Resolved, Refusal>
         (None, None, Some(dest)) => dest.shown.clone(),
         (None, None, None) => cloud.as_ref().map_or_else(|| host.clone(), |(_, road)| road.shown()),
     };
-    let mut options = Options::new(Hop { user: None, host: shown, port }, user.clone());
+    let mut options = Options::new(Hop { user: None, host: shown, port, tls: target.tls }, user.clone());
+    options.tls_trust = tls_trust(args, env);
     // OpenSSH looks a host key up, and records it, under the alias in lowercase.
     options.host_key_alias = settings.host_key_alias.as_deref().map(str::to_ascii_lowercase);
     options.jump = jump;

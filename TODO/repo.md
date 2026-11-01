@@ -329,7 +329,7 @@ Read:
   members with `CC=/nonexistent`, and the release too (lines 339-342). The
   gate builds the library crates with `CC` and `CXX` set to `/nonexistent`,
   and the release with neither (`scripts/gate.sh:159-173`,
-  `scripts/gate.sh:350-352`). The help omits the work record, interop, the man
+  `scripts/gate.sh:353-355`). The help omits the work record, interop, the man
   page, the C++ plant, and the subcommand `gate` (line 602 at `912acd0`).
 - Stale comments, at `912acd0`: `scripts/dev.sh` lines 69-73 ("the default
   build"), lines 397-404 ("links the fork since 4b", "steps 4-5") and line
@@ -349,7 +349,7 @@ Read:
    comment. Invariant: the text of the bridge does not change by one byte;
    compare the old and the new text with `cmp`.
 3. Correct the help and the stale comments to the gate as it is
-   (`scripts/gate.sh:135-404`).
+   (`scripts/gate.sh:135-407`).
 4. Extend the size check of `scripts/check-repo.py` to the shell and Python
    files under `scripts/`, with a floor (T-223).
 5. Drop the sentence on the exception from `docs/decisions.md`, and move it
@@ -1154,14 +1154,14 @@ sees it.
 
 Read:
 
-- `docs/STATUS.md:260-274`: the box, measured by hand on 2026-10-08.
+- `docs/STATUS.md:261-275`: the box, measured by hand on 2026-10-08.
 - `scripts/test_in_box.sh:202-205`: the box runs `probe.sh`, then
   `sandbox-check.sh` (or, with `BOX_RUN=tt`, the session of T-004), and the
   script exits with the code of the second.
   `scripts/sandbox-check.sh:85-242` prints the exit code of each step and does
   not fail on it (T-006). So today the box exits 0 when podssh fails in it.
 - `scripts/box/probe.sh:122-127` exits 1 when the box differs from the sandbox
-  in a required property (17 properties, `docs/STATUS.md:267`).
+  in a required property (17 properties, `docs/STATUS.md:268`).
 - The box needs a static binary; CI uploads one
   (`.github/workflows/build.yml:88-93`).
 - The box uses `--disable-dns` (`scripts/test_in_box.sh:122`) and a mask on
@@ -1188,7 +1188,7 @@ Read:
    that CI runs the box.
 
 Pitfall: the live path can drop a session (179 of 180 short sessions,
-`docs/STATUS.md:297`). Run a failure again by hand and record it. Never retry
+`docs/STATUS.md:298`). Run a failure again by hand and record it. Never retry
 inside the job.
 
 ## Decision
@@ -1206,7 +1206,7 @@ test "$(grep -c '^match ' box.log)" -eq 17                  # the box was faithf
 
 The run passed, with the job `box`, and its log has 17 `match` lines.
 Planted defect: run the job by hand with the seccomp option removed (an input
-of `workflow_dispatch`); the probe must exit 1, as in `docs/STATUS.md:268`,
+of `workflow_dispatch`); the probe must exit 1, as in `docs/STATUS.md:269`,
 and the job must fail.
 
 ## Blocker
@@ -1372,7 +1372,7 @@ Read:
 
 - `scripts/gate.sh` lines 55-166 at `528bb64` have no step for rustfmt or clippy. There is no
   rustfmt.toml and no clippy.toml.
-- One `allow` for clippy exists (`crates/podssh-ws/src/client.rs:338`).
+- One `allow` for clippy exists (`crates/podssh-ws/src/client.rs:332`).
 - Files near 500 lines: `crates/podssh-cli/src/flags.rs` (469),
   crates/podssh-transport/src/socket.rs at `e8bbd4d` (458),
   `crates/podssh-cli/src/tree.rs` (454). Formatting can make a file longer.
@@ -2026,7 +2026,7 @@ Read, in the tree as it is now:
   build must fail at `/nonexistent`; the control, with `CC` alone, must not
   stop there.
 - `docs/development.md:256-258` states the rule with `CXX`, and
-  `docs/STATUS.md:647` records the measurement. Rule 4 of
+  `docs/STATUS.md:648` records the measurement. Rule 4 of
   `docs/architecture.md` named `CC=/nonexistent` only; it was repaired in the
   same change as the record.
 - `.github/workflows/build.yml:103-111` runs the plant on each push.
@@ -2057,7 +2057,7 @@ the same script in its step "the no-C rule is load-bearing".
 (CXX=/nonexistent)"). Measured with `sh scripts/dev.sh plant` in
 `rust:1-alpine`: the C plant failed twice for the right reason, the C++ plant
 failed at `CXX=/nonexistent`, the control with `CC` alone was not stopped
-there, and the clean tree built (`docs/STATUS.md:647`). The CI run of
+there, and the clean tree built (`docs/STATUS.md:648`). The CI run of
 `eacd94e`, which contains `a378863`, passed, with its step "the no-C rule is
 load-bearing".
 
@@ -2450,7 +2450,7 @@ Read:
 
 - `scripts/box/seccomp.json:5-10`: `bind` fails with EACCES for each socket,
   whatever its family.
-- `docs/STATUS.md:288`: in sandbox A, `bind` is refused for AF_INET and
+- `docs/STATUS.md:289`: in sandbox A, `bind` is refused for AF_INET and
   allowed for AF_UNIX. In the KTM report (read there), `doctor` printed
   `Permission denied (os error 13)` for AF_INET, and "bound" for an AF_UNIX
   path and for the abstract namespace.
@@ -2632,7 +2632,7 @@ Measured with grep over the `src`, `tests` and `examples` of `podssh-cli`:
 
 Read: `libc` (line 44) is used only in code under `cfg(unix)`
 (`crates/podssh-cli/src/ssh/tokens.rs:237`, `crates/podssh-cli/src/ssh/tokens.rs:254`,
-`crates/podssh-cli/src/ssh/resolve.rs:147`,
+`crates/podssh-cli/src/ssh/resolve.rs:156`,
 the module of `crates/podssh-cli/src/doctor/unix.rs`). T-060 decides whether a
 command uses `podssh-probe`.
 
@@ -4893,14 +4893,14 @@ of GitHub #69 to #72 corrected these; nothing finds the next.
   and said that "the real sandbox is not run yet"; `docs/irc.md` said "No command uses the IRC
   client yet", with T-097 and T-098 as its known defects; `docs/STATUS.md` said "Over IRC too
   (T-252, partial)". Each part is built: the reverse road (`docs/STATUS.md:65`, `:70`), two runs
-  in real sandboxes (T-001; `docs/STATUS.md:279-288`), and `podssh chat --irc` (T-252, done, as
+  in real sandboxes (T-001; `docs/STATUS.md:280-289`), and `podssh chat --irc` (T-252, done, as
   T-097 and T-098 are). Of the same kind: `docs/design.md`'s summary and the head of its section
   4, and the row of `podssh-terminal` in `docs/architecture.md`. The triage's commit corrected
   each in place.
 - Read, by `grep -w yet` over `docs/`, `README.md`, `AGENTS.md` and `SECURITY.md` on 2026-10-31,
   after the corrections: 19 lines with no date and no id on them. Most are true today, as of the
   work that the operator holds (Q32); some state nothing of podssh, as "not whole yet"
-  (`docs/cli.md:1198`) and "did not act on yet" (`docs/cli.md:924`).
+  (`docs/cli.md:1219`) and "did not act on yet" (`docs/cli.md:945`).
 - Read: the checker reads the ids of these documents and the citations of `TODO/` alone
   (`crates/podssh-todo/src/refs.rs:22-35`); it reads no sentence of a document.
 - Read: the fifth statement of GitHub #71, the comment of the facts file that the relay's frame
@@ -4920,7 +4920,7 @@ of GitHub #69 to #72 corrected these; nothing finds the next.
 3. A status written beside an id in those documents (`T-NNN, partial`, `(T-NNN, open)`) agrees
    with the index, unless its paragraph reads at a date or at a commit, as the record's readings
    do (`TODO/RULES.md:142-147`): "T-099, partial" of 2026-10-10 is such a reading
-   (`docs/STATUS.md:615`).
+   (`docs/STATUS.md:616`).
 4. `TODO/RULES.md` says it, beside the rules of citations.
 
 ## Decision

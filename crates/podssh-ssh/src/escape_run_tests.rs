@@ -229,7 +229,7 @@ async fn escape_command_r_asks_the_server_and_kr_lets_it_go() {
 
         // A new connection of `--persist` asks for the forwards of the
         // command line, but not for one that `-KR` stopped.
-        let hop = Hop { user: Some("podtest".into()), host: "escape.test".into(), port: 22 };
+        let hop = Hop { user: Some("podtest".into()), host: "escape.test".into(), port: 22, tls: false };
         let mut opts = Options::new(hop, "podtest".into());
         opts.remote_forwards = vec![RemoteForward::tcp(None, 0, "escape-r.test", 9)];
         crate::remote::request(&run.handle, &run.table, &opts, &run.log).await.expect("no refusal");

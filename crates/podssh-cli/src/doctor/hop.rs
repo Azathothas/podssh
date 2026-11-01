@@ -3,13 +3,16 @@
 //! when it is set. Three probes: the connection with the server's banner,
 //! as T-317 reads it, sampled as the other probes are; the server's host
 //! key; and a login with a key made for the check and never written,
-//! whose refusal names the methods that the server still offers.
+//! whose refusal names the methods that the server still offers. An
+//! `ssh+tls://` hop (T-372) gets each probe inside TLS checked for its host,
+//! with doctor's trust.
 
 use std::time::Duration;
 
 use podssh_ssh::probe::Login;
 use podssh_ws::dial::{self, ProxyChoice};
-use podssh_ws::Verdict;
+use podssh_ws::{Trust, Verdict};
+use tokio::net::TcpStream;
 
 use super::net::{no_ssh_banner, PROBE};
 use super::samples::{sample, Tried};
@@ -32,7 +35,7 @@ fn road(host: &str) -> Result<(ProxyChoice, String), String> {
 
 /// `--hop`: the hop's section alone, after this host's, so that a user who
 /// asks about a hop waits for no probe of the relay.
-pub(super) fn only(mut report: Report<'_>, text: &str) -> i32 {
+pub(super) fn only(mut report: Report<'_>, text: &str, trust: &Trust) -> i32 {
     report.section("hop");
     if podssh_relay::open::offline() {
         report.unknown("hop", "not attempted: PODSSH_OFFLINE is set");
@@ -40,7 +43,7 @@ pub(super) fn only(mut report: Report<'_>, text: &str) -> i32 {
     }
     match tokio::runtime::Builder::new_current_thread().enable_all().build() {
         Ok(runtime) => {
-            runtime.block_on(check(&mut report, text));
+            runtime.block_on(check(&mut report, text, trust));
             runtime.shutdown_background();
         }
         Err(e) => report.fail("hop", format!("could not start the async runtime: {e}")),
@@ -50,7 +53,7 @@ pub(super) fn only(mut report: Report<'_>, text: &str) -> i32 {
 
 /// Each line of the hop: `hop`, then `hop key` and `hop login` once a
 /// server's banner came.
-pub(super) async fn check(report: &mut Report<'_>, text: &str) {
+pub(super) async fn check(report: &mut Report<'_>, text: &str, trust: &Trust) {
     let hop = match crate::ssh::hop::parse_hop(text) {
         Ok(hop) => hop,
         Err(why) => return report.fail("hop", format!("--hop {why}")),
@@ -62,6 +65,8 @@ pub(super) async fn check(report: &mut Report<'_>, text: &str) {
         Err(why) => return report.fail("hop", format!("{target}: {why}")),
     };
     let choice = &choice;
+    let tls = hop.tls.then_some(trust);
+    let target = if hop.tls { format!("{}{target}", crate::ssh::hop::TLS_SCHEME) } else { target };
     let Tried { samples, first, error } = sample(PROBE, |bound| dial::dial(&host, port, choice, bound)).await;
     let summary = samples.summary();
     let Some(stream) = first else {
@@ -69,17 +74,27 @@ pub(super) async fn check(report: &mut Report<'_>, text: &str) {
         let detail = format!("{target} {via}: {why}; {summary}; -J cannot reach this hop from here with --direct");
         return report.sampled("hop", Verdict::Failed { detail }, &samples);
     };
+    let stream = match wrapped(stream, &host, tls).await {
+        Ok(stream) => stream,
+        Err(why) => {
+            let detail = format!("{target} {via}: the connection opened, then TLS: {why}; {summary}");
+            return report.sampled("hop", Verdict::Failed { detail }, &samples);
+        }
+    };
     if let Some(why) = no_ssh_banner(stream).await {
-        let detail = format!(
-            "{target} {via}: the connection opened, then {why}: no SSH server answered. A proxy that waits for \
-             TLS carries no SSH; a hop whose SSH is wrapped in TLS needs a road that podssh does not have yet \
-             (T-372), and without --direct the relay carries SSH over HTTPS; {summary}"
-        );
+        let instead = if hop.tls {
+            " inside TLS; a hop of plain SSH is written without ssh+tls://"
+        } else {
+            ". A proxy that waits for TLS carries no SSH: a hop whose SSH is inside TLS, as stunnel serves it, is \
+             written ssh+tls://HOST (T-372), and without --direct the relay carries SSH over HTTPS"
+        };
+        let detail =
+            format!("{target} {via}: the connection opened, then {why}: no SSH server answered{instead}; {summary}");
         return report.sampled("hop", Verdict::Failed { detail }, &samples);
     }
     let detail = format!("{target} {via}: an SSH server answered with its banner; {summary}");
     report.sampled("hop", Verdict::Ok { detail }, &samples);
-    let fingerprint = match key(&host, port, choice).await {
+    let fingerprint = match key(&host, port, choice, tls).await {
         Ok(fingerprint) => {
             report.ok("hop key", format!("{target} presents the host key {fingerprint}"));
             fingerprint
@@ -87,22 +102,49 @@ pub(super) async fn check(report: &mut Report<'_>, text: &str) {
         Err(why) => return report.fail("hop key", format!("{target}: {why}")),
     };
     let user = hop.user.as_deref().unwrap_or(PROBE_USER);
-    report.line("hop login", login(&host, port, choice, user, &fingerprint).await);
+    report.line("hop login", login(&host, port, choice, tls, user, &fingerprint).await);
 }
 
+/// A probe's stream: the TCP connection, inside TLS for `host` with
+/// `tls`'s trust when the hop is an `ssh+tls://` one.
+async fn wrapped(stream: TcpStream, host: &str, tls: Option<&Trust>) -> Result<Probe, String> {
+    match tls {
+        None => Ok(Box::new(stream)),
+        Some(trust) => match podssh_ws::tls_over(stream, host, trust, PROBE).await {
+            Ok(tls) => Ok(Box::new(tls)),
+            Err(e) => Err(e.to_string()),
+        },
+    }
+}
+
+/// The stream of a probe, TCP or TLS.
+type Probe = Box<dyn crate::ssh::transport::Duplex>;
+
 /// The fingerprint of the host key that the hop presents.
-async fn key(host: &str, port: u16, choice: &ProxyChoice) -> Result<String, String> {
+async fn key(host: &str, port: u16, choice: &ProxyChoice, tls: Option<&Trust>) -> Result<String, String> {
     let stream = dial::dial(host, port, choice, PROBE).await.map_err(|e| e.to_string())?;
+    let stream = wrapped(stream, host, tls).await?;
     let key = podssh_ssh::probe::host_key(stream, PROBE).await?;
     Ok(podssh_ssh::known_hosts::fingerprint(&key))
 }
 
 /// A login as `user` with a key made for the check, which the hop is
 /// expected to refuse, naming the methods that it still offers.
-async fn login(host: &str, port: u16, choice: &ProxyChoice, user: &str, fingerprint: &str) -> Verdict {
+async fn login(
+    host: &str,
+    port: u16,
+    choice: &ProxyChoice,
+    tls: Option<&Trust>,
+    user: &str,
+    fingerprint: &str,
+) -> Verdict {
     let stream = match dial::dial(host, port, choice, PROBE).await {
         Ok(stream) => stream,
         Err(e) => return Verdict::Failed { detail: format!("a second connection failed: {e}") },
+    };
+    let stream = match wrapped(stream, host, tls).await {
+        Ok(stream) => stream,
+        Err(why) => return Verdict::Failed { detail: format!("a second connection's TLS: {why}") },
     };
     let outcome =
         podssh_ssh::probe::login(stream, user, &[fingerprint.to_string()], PROBE * 2 + Duration::from_secs(1)).await;

@@ -829,7 +829,7 @@ a value with its top bit set, which section 5.2 forbids too. `frame::encode` wri
 form (`:111-119`). The tests check the encoder at the boundaries 125, 126, 65535 and 65536
 (`crates/podssh-ws/tests/rfc6455.rs:92-117`), and no test decodes a length that is not
 minimal. The only caller in the code is `next_event`, for the frames of the relay
-(`crates/podssh-ws/src/client.rs:422-430`). The stand-in relay writes the minimal form
+(`crates/podssh-ws/src/client.rs:416-424`). The stand-in relay writes the minimal form
 (`scripts/fake_ws.py:21-29`); the frames of the real relay were not checked for it.
 
 ## Approach
@@ -1631,7 +1631,7 @@ command says what to do. Four of the eight release binaries are for Windows and 
    `CertificateError::UnknownIssuer`, and its text as the fallback): the issuer is not trusted
    here; a proxy that re-signs TLS needs its CA, in `--ca-file FILE` or `SSL_CERT_FILE` (which
    replace the store) or in `podssh-ca.pem` next to the binary (which adds to it). Each command
-   gets it with the error's text (`crates/podssh-ws/src/client.rs:204`,
+   gets it with the error's text (`crates/podssh-ws/src/client.rs:222`,
    `crates/podssh-ws/src/tls.rs:151`), and doctor too. T-345 adds the clock's errors to the same
    function.
 2. Windows: the stores `ROOT` and `CA` of the current user and of the machine, read through
@@ -1976,7 +1976,7 @@ and each other command print rustls's words alone. An error should tell what to 
    failed with one of the four time errors (their text as the fallback) gets the clock's hint,
    with this host's clock in UTC, in doctor's words.
 2. Each place where podssh-ws makes the text of a TLS error uses it: `ConnectError::Tls`
-   (`crates/podssh-ws/src/client.rs:204`), `tls::connect_over` (`crates/podssh-ws/src/tls.rs:151`)
+   (`crates/podssh-ws/src/client.rs:222`), `tls::connect_over` (`crates/podssh-ws/src/tls.rs:151`)
    and the query of DNS over HTTPS (`crates/podssh-ws/src/resolve.rs:155-158`). doctor's `clock_hint`
    calls it, so that the words are the same.
 3. Tests through a stand-in relay with an expired certificate: `podssh ssh`, `podssh proxy` and

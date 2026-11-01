@@ -48,7 +48,7 @@ pub fn wanted(args: &SshArgs, tty: Tty) -> bool {
 pub fn names(args: &SshArgs, env: &Env) -> Result<Vec<String>, String> {
     let source = super::config::file(args.config.as_deref(), env.ssh_config.as_deref(), env.home.as_deref());
     // No host is known yet: `%h` and `%n` of an `Include` are empty.
-    let target = Hop { user: None, host: String::new(), port: 22 };
+    let target = Hop { user: None, host: String::new(), port: 22, tls: false };
     let cli = Settings::default();
     let tokens = |file: &Settings| super::tokens::include_tokens(args, &cli, &target, env, file);
     let ctx = Context {

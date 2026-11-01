@@ -304,7 +304,7 @@ async fn measure_stand_in(acts: bool, waits: Waits) -> (String, Measured) {
             let _ = session.await;
         }
     });
-    let hop = Hop { user: Some("podtest".into()), host: "stand-in.test".into(), port: 22 };
+    let hop = Hop { user: Some("podtest".into()), host: "stand-in.test".into(), port: 22, tls: false };
     let opts = options(hop, None, None);
     let (id, mut readings) =
         tokio::time::timeout(Duration::from_secs(30), measure_over(client_end, &opts, &COMMANDS[..1], waits))
@@ -324,7 +324,7 @@ fn hop_of(dest: &str) -> Hop {
         Some((host, port)) => (host, port.parse().expect("a port of 1 to 65535")),
         None => (host_port, 22),
     };
-    Hop { user, host: host.to_string(), port }
+    Hop { user, host: host.to_string(), port, tls: false }
 }
 
 #[tokio::test]

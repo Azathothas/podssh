@@ -772,6 +772,27 @@ keywords have no effect.
   `bool` of `PROTOCOL.mux` is a `uint32`, and the port of a stdio forward
   a `uint32`, not the string that the document says.
 
+## SSH inside TLS: `ssh+tls://`
+
+T-372, GitHub #61: some SSH servers on port 443 sit behind TLS, as stunnel
+serves them, and a proxy that waits for TLS on port 443 resets plain SSH.
+`ssh+tls://[user@]HOST[:PORT]` (port 443 by default) is such a hop, as the
+destination or as any hop of `-J`:
+
+- TLS over the stream that reaches the hop: the relay's, `--direct`'s
+  through `HTTPS_PROXY`, or the `direct-tcpip` channel of the hop before it;
+  its certificate checked for `HOST` with podssh's trust (`--ca-file`,
+  `SSL_CERT_FILE`, `CaFile`, else the system's stores and the compiled-in
+  roots), as each of podssh's TLS is.
+- SSH inside it, the host key checked as for each hop and recorded under
+  `[HOST]:PORT`.
+- A failure names its step: the connection, TLS (an unknown issuer with
+  what to do, T-340, or a certificate for another name), or SSH.
+- `podssh doctor --hop ssh+tls://...` runs its three probes inside TLS.
+
+Tested against stunnel in front of the test's SSH server
+(`crates/podssh-cli/tests/ssh_tls_hop.rs`).
+
 ## Going to the background: `--detach` and `-f`
 
 T-380, after the study of `docs/detach.md`: a run that must outlive its

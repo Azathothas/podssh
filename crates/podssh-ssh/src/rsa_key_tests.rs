@@ -177,7 +177,7 @@ async fn log_in_with(key: &PrivateKey, algorithms: Vec<russh::keys::Algorithm>, 
             let _ = session.await;
         }
     });
-    let hop = Hop { user: Some("podtest".into()), host: "rsa.test".into(), port: 22 };
+    let hop = Hop { user: Some("podtest".into()), host: "rsa.test".into(), port: 22, tls: false };
     let mut opts = Options::new(hop.clone(), "podtest".into());
     opts.connect_timeout = Duration::from_secs(10);
     opts.strict_host_key_checking = StrictHostKeyChecking::No;

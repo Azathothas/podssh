@@ -37,7 +37,7 @@ fn first_line_names_the_hop_that_broke() {
 /// (T-030).
 #[test]
 fn hop_key_name_is_each_hops_own() {
-    let hop = |host: &str, port| Hop { user: None, host: host.into(), port };
+    let hop = |host: &str, port| Hop { user: None, host: host.into(), port, tls: false };
     let mut opts = Options::new(hop("dest.example", 2203), "u".into());
     let dest = opts.destination.clone();
     assert_eq!(hop_key_name(&hop("jump.example", 22), false, &opts), "jump.example");
@@ -59,7 +59,7 @@ fn hop_key_name_is_each_hops_own() {
 /// the software version, and a beta's version holds one.
 #[test]
 fn the_banner_has_no_minus_sign_in_its_software_version() {
-    let opts = Options::new(Hop { user: None, host: "dest.example".into(), port: 22 }, "u".into());
+    let opts = Options::new(Hop { user: None, host: "dest.example".into(), port: 22, tls: false }, "u".into());
     let policy = Policy {
         name: "dest.example".into(),
         strict: crate::options::StrictHostKeyChecking::No,
@@ -81,7 +81,7 @@ fn the_banner_has_no_minus_sign_in_its_software_version() {
 /// run's memory of its logins; else the connection's (T-290).
 #[test]
 fn a_hop_takes_its_own_options_and_the_runs_memory() {
-    let hop = |host: &str| Hop { user: Some("u".into()), host: host.into(), port: 22 };
+    let hop = |host: &str| Hop { user: Some("u".into()), host: host.into(), port: 22, tls: false };
     let mut opts = Options::new(hop("dest.example"), "u".into());
     opts.jump = vec![hop("a.example"), hop("b.example")];
     opts.remembered = Some(Default::default());

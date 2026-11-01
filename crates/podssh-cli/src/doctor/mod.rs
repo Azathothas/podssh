@@ -113,7 +113,7 @@ pub fn run_doctor(args: &DoctorArgs, out: &mut dyn Write, err: &mut dyn Write) -
     report.section("this host");
     host::check(&mut report);
     if let Some(text) = &args.hop {
-        return hop::only(report, text);
+        return hop::only(report, text, &trust);
     }
     match &settings.path {
         Some(path) => report.ok("settings", format!("podssh's settings are read from {}", path.display())),
