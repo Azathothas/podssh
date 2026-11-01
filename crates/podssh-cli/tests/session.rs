@@ -12,9 +12,13 @@
 //! (`scripts/interop-session.sh`).
 
 mod cleanup;
+#[cfg(windows)]
+mod conpty_harness;
 #[cfg(target_os = "linux")]
 mod pty_harness;
 mod ssh_harness;
+#[cfg(windows)]
+mod win_job;
 
 use std::path::{Path, PathBuf};
 use std::process::{Command, Output, Stdio};
@@ -34,8 +38,14 @@ fn scratch(name: &str) -> PathBuf {
 /// `home`, and a pty of 80 by 24.
 fn podssh(home: &Path, args: &[&str]) -> Command {
     let mut cmd = Command::new(env!("CARGO_BIN_EXE_podssh"));
-    cmd.args(args)
-        .current_dir(home)
+    cmd.args(args);
+    clean(&mut cmd, home);
+    cmd
+}
+
+/// The environment of [`podssh`], on another command that starts podssh.
+fn clean(cmd: &mut Command, home: &Path) {
+    cmd.current_dir(home)
         .env("HOME", home)
         .env("USERPROFILE", home)
         .env("PODSSH_SSH_CONFIG", "none")
@@ -55,7 +65,6 @@ fn podssh(home: &Path, args: &[&str]) -> Command {
     ] {
         cmd.env_remove(name);
     }
-    cmd
 }
 
 /// Run to the end, within the limit.
@@ -298,4 +307,89 @@ fn daemon_pid(home: &Path, name: &str) -> i32 {
         }
     }
     panic!("no daemon of {name}");
+}
+
+/// T-383: on Windows, `start` in a job of Win32-OpenSSH's kind (it kills its
+/// processes when it closes): where the job allows breakaway, the session's
+/// podssh leaves it and serves after the job closed; where it does not,
+/// `start` says so, and the session ends with the job.
+#[cfg(windows)]
+#[test]
+fn on_windows_the_session_leaves_a_job_that_allows_it() {
+    for breakaway in [true, false] {
+        let home = scratch(if breakaway { "job-out" } else { "job-in" });
+        let (_runtime, port, _) = server(&home);
+        let known = format!("UserKnownHostsFile={}", home.join("known_hosts").display());
+        let line = format!(
+            "\"{}\" session start j --direct -o \"{known}\" -o StrictHostKeyChecking=accept-new pty-u@127.0.0.1:{port} cat",
+            env!("CARGO_BIN_EXE_podssh")
+        );
+        let mut cmd = Command::new("cmd");
+        clean(&mut cmd, &home);
+        cmd.stdin(Stdio::null()).stdout(Stdio::piped()).stderr(Stdio::piped());
+        let job = win_job::Job::new(breakaway);
+        let mut child = job.run(cmd, &line);
+        let _stopped = Stopped(&home, "j");
+        let deadline = Instant::now() + LIMIT;
+        // Its few lines fit in the pipes: they are read once it ended.
+        while child.try_wait().unwrap().is_none() {
+            if Instant::now() > deadline {
+                let _ = child.kill();
+                panic!("session start did not return within {LIMIT:?}");
+            }
+            std::thread::sleep(Duration::from_millis(50));
+        }
+        let out = child.wait_with_output().unwrap();
+        let err = String::from_utf8_lossy(&out.stderr).into_owned();
+        assert_eq!(out.status.code(), Some(0), "{err}");
+        assert_eq!(err.contains("allows no process to leave it"), !breakaway, "{err}");
+        drop(job);
+        std::thread::sleep(Duration::from_millis(500));
+        let (code, _, said) = session(&home, &["capture", "j"]);
+        if breakaway {
+            assert_eq!(code, 0, "the session ended with the job: {said}");
+        } else {
+            assert_ne!(code, 0, "the session outlived a job that allows no breakaway");
+        }
+    }
+}
+
+/// T-383, as T-382 on Linux: in a pseudo console, `start` asks a password
+/// there, as the session's podssh shares the console until it is ready; it
+/// frees the console then, and the session outlives the console's close.
+#[cfg(windows)]
+#[test]
+fn on_windows_start_asks_a_password_in_the_console_then_frees_it() {
+    let home = scratch("console");
+    let (_runtime, port, _) = server(&home);
+    let known = format!("UserKnownHostsFile={}", home.join("known_hosts").display());
+    let line = format!(
+        "\"{}\" session start c --direct -o \"{known}\" -o StrictHostKeyChecking=accept-new pass-pty-u@127.0.0.1:{port} cat",
+        env!("CARGO_BIN_EXE_podssh")
+    );
+    let (home_text, cache) = (home.display().to_string(), home.join("cache").display().to_string());
+    let changes = [
+        ("HOME", Some(home_text.as_str())),
+        ("USERPROFILE", Some(home_text.as_str())),
+        ("PODSSH_SSH_CONFIG", Some("none")),
+        ("PODSSH_SETTINGS", Some("none")),
+        ("PODSSH_CACHE_DIR", Some(cache.as_str())),
+        ("PODSSH_OFFLINE", None),
+        ("PODSSH_LISTEN", None),
+        ("HTTPS_PROXY", None),
+        ("https_proxy", None),
+        ("ALL_PROXY", None),
+        ("all_proxy", None),
+        ("SSH_AUTH_SOCK", None),
+        ("SSH_ASKPASS", None),
+    ];
+    let mut console = conpty_harness::Console::start(&line, &changes, 24, 80);
+    let _stopped = Stopped(&home, "c");
+    assert!(console.expect("password:", LIMIT), "no prompt in the console: {}", console.text());
+    console.send(format!("{}\r", ssh_harness::pass::PASSWORD).as_bytes());
+    assert_eq!(console.wait(LIMIT), Some(0), "{}", console.text());
+    drop(console);
+    std::thread::sleep(Duration::from_millis(500));
+    let (code, _, err) = session(&home, &["capture", "c"]);
+    assert_eq!(code, 0, "the session ended with the console: {err}");
 }

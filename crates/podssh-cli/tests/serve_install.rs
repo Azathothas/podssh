@@ -61,6 +61,8 @@ fn run(home: &Path, args: &[&str], vars: &[(String, String)]) -> (i32, String, S
 }
 
 /// The binary as the service names it: `current_exe`, which resolves links.
+/// The units and the crontab that name it are of Unix.
+#[cfg(unix)]
 fn exe() -> String {
     std::fs::canonicalize(env!("CARGO_BIN_EXE_podssh")).unwrap().display().to_string()
 }

@@ -197,3 +197,22 @@ pub fn read_line(prompt: &str, echo: bool) -> std::io::Result<Zeroizing<String>>
     let text = String::from_utf16_lossy(&units);
     Ok(Zeroizing::new(text.trim_end_matches(['\r', '\n']).to_string()))
 }
+
+/// `CREATE_NO_WINDOW`, of `Win32_System_Threading`, which this crate does
+/// not otherwise build.
+const CREATE_NO_WINDOW: u32 = 0x0800_0000;
+
+/// The creation flags of a console program that this process starts: with
+/// no console window, as a run that `--detach` or `session start` sent into
+/// the background after it freed its console, `CREATE_NO_WINDOW`, as Windows
+/// would open a new window for the program (T-383); else none, and the
+/// program shares this console.
+pub fn child_console_flags() -> u32 {
+    // SAFETY: no arguments; a null window is an answer, not an error.
+    let window = unsafe { windows_sys::Win32::System::Console::GetConsoleWindow() };
+    if window.is_null() {
+        CREATE_NO_WINDOW
+    } else {
+        0
+    }
+}

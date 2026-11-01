@@ -113,22 +113,26 @@ pub fn name_it(cmd: &mut Command) {
     let _ = cmd;
 }
 
-/// Start the child. On Windows in a group of its own, so that the caller's
-/// console's Ctrl-C after ready reaches it not, and out of the caller's job
-/// where the job allows it; where it does not, again in the job, said by
-/// `note`, as the run then ends with the job.
+/// Start the child. On Windows out of the caller's job where the job allows
+/// it; where it does not, again in the job, said by `note`, as the run then
+/// ends with the job. It shares the caller's console until ready, so that
+/// Ctrl-C before ready reaches it too, and a prompt it asks gets an answer;
+/// it frees the console before its line of ready (T-383). With no console
+/// window here, it gets none either, as Windows would open one.
 pub fn spawn(cmd: &mut Command, note: &mut dyn FnMut(&str)) -> std::io::Result<std::process::Child> {
     #[cfg(windows)]
     {
         use std::os::windows::process::CommandExt;
-        use windows_sys::Win32::System::Threading::{CREATE_BREAKAWAY_FROM_JOB, CREATE_NEW_PROCESS_GROUP};
-        cmd.creation_flags(CREATE_NEW_PROCESS_GROUP | CREATE_BREAKAWAY_FROM_JOB);
+        use windows_sys::Win32::System::Threading::CREATE_BREAKAWAY_FROM_JOB;
+        let console = podssh_ssh::terminal::child_console_flags();
+        cmd.creation_flags(CREATE_BREAKAWAY_FROM_JOB | console);
         match cmd.spawn() {
             // ERROR_ACCESS_DENIED: the job allows no breakaway.
             Err(e) if e.raw_os_error() == Some(5) => {
+                cmd.creation_flags(console);
+                let child = cmd.spawn()?;
                 note("the caller's job of Windows allows no process to leave it: the run ends with that job");
-                cmd.creation_flags(CREATE_NEW_PROCESS_GROUP);
-                cmd.spawn()
+                Ok(child)
             }
             other => other,
         }

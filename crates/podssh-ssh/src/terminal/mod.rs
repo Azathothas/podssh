@@ -25,6 +25,8 @@ pub(crate) mod termination;
 pub(crate) mod text;
 pub(crate) mod watch;
 
+#[cfg(windows)]
+pub use platform::child_console_flags;
 pub use platform::{pty_modes, read_line, RawMode};
 #[cfg(unix)]
 pub use platform::{pty_modes_of, size_of_fd};

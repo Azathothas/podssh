@@ -101,8 +101,11 @@ service manager (UNVERIFIED).
   128+N for a signal before ready, which reached the child too.
 - The log: `detached/VERB-PID.log` in the cache (mode 0600), cut back to its
   last part past 1 MiB; none with `PODSSH_CACHE_DIR=none`.
-- Windows: the child in a group of its own, and out of the caller's job when
-  the job allows it, else in it, with a line; the console freed at ready.
+- Windows: the child out of the caller's job when the job allows it, else
+  in it, with a line; the caller's console shared until ready, so that
+  Ctrl-C before ready reaches it too, and freed before the line of ready;
+  with no console window, `CREATE_NO_WINDOW` for each console program that
+  it starts, as Windows would open a window for it (T-383).
 - Never: another program (`nohup`, `setsid(1)`, `systemd-run`, `tmux`); a
   CI's tracking variable removed (`RUNNER_TRACKING_ID`, `BUILD_ID`,
   `JENKINS_NODE_COOKIE`): the user asked to outlive the caller, not the job,

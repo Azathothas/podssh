@@ -56,7 +56,7 @@ async fn start(args: &SessionArgs, timeout: Duration, out: &mut dyn Write, err: 
         cmd.stdin(Stdio::null()).stdout(Stdio::piped()).stderr(Stdio::piped());
         detach_child(&mut cmd);
         keep_own_handles();
-        match cmd.spawn() {
+        match spawn(&mut cmd, err) {
             Ok(child) => {
                 started = Some(child);
                 break;
@@ -130,21 +130,45 @@ async fn pass_on(said: &mut Lines<BufReader<ChildStderr>>, err: &mut dyn Write, 
 /// The child stays in this process's session until it is ready (T-382):
 /// a password, a passphrase or a host key is asked on this terminal, as
 /// `podssh ssh` asks them, and Ctrl-C before ready reaches it too. It leaves
-/// the session at ready ([`leave`]), so the terminal's hangup and its
-/// signals then reach it no more.
+/// the session at ready ([`leave_terminal`]), so the terminal's hangup and
+/// its signals then reach it no more.
 #[cfg(unix)]
 fn detach_child(_: &mut tokio::process::Command) {}
 
-/// A process with no console, in a group of its own: the console's Ctrl-C
-/// and its close do not reach the daemon, and no prompt opens `CONIN$`.
+/// The same on Windows (T-383): the child shares this console until it is
+/// ready, and frees it then. It leaves the caller's job, as a job of
+/// Win32-OpenSSH's session that ends would end it; with no console window
+/// here, it gets none either, as Windows would open one.
 #[cfg(windows)]
 fn detach_child(cmd: &mut tokio::process::Command) {
-    use windows_sys::Win32::System::Threading::{CREATE_NEW_PROCESS_GROUP, DETACHED_PROCESS};
-    cmd.creation_flags(DETACHED_PROCESS | CREATE_NEW_PROCESS_GROUP);
+    use windows_sys::Win32::System::Threading::CREATE_BREAKAWAY_FROM_JOB;
+    cmd.creation_flags(CREATE_BREAKAWAY_FROM_JOB | podssh_ssh::terminal::child_console_flags());
 }
 
 #[cfg(not(any(unix, windows)))]
 fn detach_child(_: &mut tokio::process::Command) {}
+
+/// Start the child. A job of Windows that allows no breakaway refuses it
+/// with `ERROR_ACCESS_DENIED`: the child starts again in the job, and the
+/// user is told that the session ends with that job.
+fn spawn(cmd: &mut tokio::process::Command, err: &mut dyn Write) -> std::io::Result<tokio::process::Child> {
+    #[cfg(not(windows))]
+    let _ = err;
+    match cmd.spawn() {
+        #[cfg(windows)]
+        Err(e) if e.raw_os_error() == Some(5) => {
+            cmd.creation_flags(podssh_ssh::terminal::child_console_flags());
+            let child = cmd.spawn()?;
+            let _ = writeln!(
+                err,
+                "podssh session: the caller's job of Windows allows no process to leave it: the session ends with \
+                 that job"
+            );
+            Ok(child)
+        }
+        other => other,
+    }
+}
 
 /// This process's own standard handles stay out of the child: a program
 /// that reads them to their end, as an agent reads a command's, would wait
@@ -167,11 +191,34 @@ fn keep_own_handles() {
 #[cfg(not(windows))]
 fn keep_own_handles() {}
 
+/// Just before its line of ready, a daemon that `start` runs leaves the
+/// starter's session and terminal (T-382): `setsid`, and SIGHUP ignored, as
+/// a session's leader that a terminal would still reach. Before the line,
+/// so that no signal of the terminal reaches it once `start` has gone.
+#[cfg(unix)]
+pub(super) fn leave_terminal() {
+    // SAFETY: setsid has no precondition (a group's leader, which this
+    // child is not, would only see it fail); the action of one signal.
+    unsafe {
+        libc::setsid();
+        libc::signal(libc::SIGHUP, libc::SIG_IGN);
+    }
+}
+
+/// On Windows it frees the console that it shared (T-383): the console's
+/// Ctrl-C and its close reach it no more.
+#[cfg(windows)]
+pub(super) fn leave_terminal() {
+    // SAFETY: FreeConsole only detaches this process from its console.
+    unsafe { windows_sys::Win32::System::Console::FreeConsole() };
+}
+
+#[cfg(not(any(unix, windows)))]
+pub(super) fn leave_terminal() {}
+
 /// After its line of ready, a daemon that `start` runs writes nothing more
 /// on stdout and stderr: `start` has gone, and a program that reads them to
-/// their end would wait for the daemon. Both go to the null device. Then it
-/// leaves the starter's session and terminal (T-382): `setsid`, and SIGHUP
-/// ignored, as a session's leader that a terminal would still reach.
+/// their end would wait for the daemon. Both go to the null device.
 #[cfg(unix)]
 pub(super) fn leave() {
     use std::os::fd::AsRawFd;
@@ -180,12 +227,6 @@ pub(super) fn leave() {
         // SAFETY: dup2 of an open file onto a standard descriptor of this
         // process; a failure leaves that descriptor as it was.
         unsafe { libc::dup2(null.as_raw_fd(), fd) };
-    }
-    // SAFETY: setsid has no precondition (a group's leader, which this
-    // child is not, would only see it fail); the action of one signal.
-    unsafe {
-        libc::setsid();
-        libc::signal(libc::SIGHUP, libc::SIG_IGN);
     }
 }
 

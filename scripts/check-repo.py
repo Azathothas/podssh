@@ -194,6 +194,7 @@ CODE_TEXT_ALLOWED = {
     "crates/podssh-todo/": "the record's checker: Markdown locations are its data",
     "crates/podssh-probe/tests/relay_facts.rs": "it checks that an old copy of the facts stays gone",
     "scripts/check-repo.py": "the check names what it refuses",
+    ".github/secrets-allow.txt": "each finding by FILE:LINE as the scanner names it, a document's among them",
 }
 
 # The least files that each scan must read: a scan of fewer read too little

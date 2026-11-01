@@ -187,7 +187,7 @@ measured: the debug binary has no `ts`).
 1. In the `Parsed::Command` arm, refuse a verb of `VERB_OWNER`
    (`crates/podssh-cli/src/flags.rs`, line 453 at `7aa955a`) before the gate. Keep one usage
    error first: a `--timeout` value that was given and does not parse is 64
-   (`docs/cli.md:2898-2899`).
+   (`docs/cli.md:2901-2902`).
 2. Give `require_timeout` the verb's name. The message names that verb, gives
    one true reason, and shows an example for that verb only. Replace
    `({attachment:?})` with words: "stdin or stdout is not a terminal", or
@@ -197,7 +197,7 @@ measured: the debug binary has no `ts`).
    (`crates/podssh-cli/src/dispatch.rs`, lines 424-477 at `7aa955a`,
    `crates/podssh-cli/tests/non_interactive.rs` lines 252-284 at `37ace00`). `ts` is the only verb
    that runs the gate today (`crates/podssh-cli/tests/ts_behave.rs:220-226`).
-5. Same commit: `docs/STATUS.md`. `docs/cli.md:2941` needs no change.
+5. Same commit: `docs/STATUS.md`. `docs/cli.md:2944` needs no change.
 
 ## Decision
 
@@ -604,7 +604,7 @@ variable matters when `cp`, `mv` and `relay` exist. `ssh` and `proxy` have no
    which `each_variable_in_the_source_is_documented` requires
    (`crates/podssh-cli/src/man/facts/tests.rs:65-78`); "default: env
    PODSSH_TIMEOUT" in the help of each `--timeout` row, as `--relay-host` says
-   it (`crates/podssh-cli/src/flags.rs:171-172`); `docs/cli.md:3017-3019`;
+   it (`crates/podssh-cli/src/flags.rs:171-172`); `docs/cli.md:3020-3022`;
    `docs/STATUS.md`.
 5. Do this after T-008, so that a verb that does nothing still exits 70 first.
 
@@ -1035,7 +1035,7 @@ read in the report, not verified here.
 
 A host with no working `ssh-keygen` cannot change the passphrase or the
 comment of a key: the `ssh-keygen` of OpenSSH does not run without a user
-database entry (`docs/cli.md:1790-1791`). `podssh keygen -p` and `-c` exit 64
+database entry (`docs/cli.md:1791-1792`). `podssh keygen -p` and `-c` exit 64
 with "unknown flag", not a refusal by name. podssh's own message for a PEM key
 names `ssh-keygen -p -f FILE` as the remedy
 (`crates/podssh-ssh/src/keygen.rs`, lines 163-166 at `bdbe658`), a program that may not run there.
@@ -1067,13 +1067,13 @@ on argv (`crates/podssh-cli/src/keygen.rs:129-136`).
 3. `-p`: ask for the new passphrase twice (or take `-N ''`), and encrypt with
    `keygen::protect`. `-c`: take `-C` or ask; refuse a control character, as
    `crates/podssh-cli/src/keygen.rs:289-292` does. Write the OpenSSH format.
-4. A new invariant beside "never over an existing file" (`docs/cli.md:1792`):
+4. A new invariant beside "never over an existing file" (`docs/cli.md:1793`):
    write a new file in the same directory (`create_new`, mode 0600), read it
    back, decrypt it with the new passphrase, compare its public key with the
    original, then rename it over the original. Never write a different key
    over the file. For `-c`, write `FILE.pub` again.
 5. Same commit: the PEM message at `crates/podssh-ssh/src/keygen.rs` (lines 184-187 at `8290fe1`)
-   names `podssh keygen -p`; `docs/cli.md:1786-1889`, the notes of `keygen`
+   names `podssh keygen -p`; `docs/cli.md:1787-1890`, the notes of `keygen`
    (`crates/podssh-cli/src/man/notes_keygen.rs:4-50`), `docs/STATUS.md`.
 
 ## Decision
@@ -1192,7 +1192,7 @@ The default files are the ones of `podssh ssh`
    it, and say so.
 4. `-H`: a random salt of 20 bytes and the HMAC-SHA1 of `hashed_matches`, so
    podssh and OpenSSH both find the result.
-5. Same commit: `docs/cli.md:1786-1889`, the notes of `keygen`, `docs/STATUS.md`.
+5. Same commit: `docs/cli.md:1787-1890`, the notes of `keygen`, `docs/STATUS.md`.
 
 Pitfall: a rewrite can lose a key that `podssh ssh` appends at the same moment
 (T-029). Read the file again just before the rename, and refuse if it changed.
@@ -1314,7 +1314,7 @@ that crate as `russh::keys::ssh_key` (`crates/podssh-ssh/src/keygen.rs:11-13`).
    matcher of `known_hosts` (`crates/podssh-ssh/src/known_hosts.rs:311-333`).
    Print the lines and the exit codes of OpenSSH.
 4. Refuse `-r` (a key revocation list) by name until podssh reads one.
-5. Same commit: `docs/cli.md:1786-1889`, the notes of `keygen`, `docs/STATUS.md`.
+5. Same commit: `docs/cli.md:1787-1890`, the notes of `keygen`, `docs/STATUS.md`.
 
 Pitfalls: read the signed file as bytes, never as text. A namespace that does
 not match is a failure, never a warning.
@@ -1437,7 +1437,7 @@ as plain keys (`docs/STATUS.md`, section "Components"). T-027 covers that side.
    `force-command=`, `source-address=`, and the `no-` and `permit-` options;
    refuse the others by name.
 5. `-L`: print the certificate as `ssh-keygen -L` does.
-6. Same commit: `docs/cli.md:1786-1889`, the notes of `keygen`, `docs/STATUS.md`.
+6. Same commit: `docs/cli.md:1787-1890`, the notes of `keygen`, `docs/STATUS.md`.
 
 ## Decision
 
@@ -1565,7 +1565,7 @@ keys/format/mod.rs, read in the local cargo registry).
    public key in that format, and write the OpenSSH line to stdout.
 4. `-m` with a new key and with `-p` (T-018): write the private key in that
    format; use `encode_pkcs8_pem_encrypted` when there is a passphrase.
-5. Same commit: `docs/cli.md:1786-1889`, the notes of `keygen`, `docs/STATUS.md`.
+5. Same commit: `docs/cli.md:1787-1890`, the notes of `keygen`, `docs/STATUS.md`.
 
 Pitfalls: no new C dependency. A format that a key type does not have (PEM
 for Ed25519) is refused by name.
@@ -1762,7 +1762,7 @@ file); measured here on `3ee70dc`.
 A `PODSSH_RELAY` or `PODSSH_RELAY_ADDR` that cannot be used makes
 `podssh proxy`, `podssh ssh` and `podssh doctor` exit 64, the code of a usage
 error. The command line is correct; a setting of the environment is not.
-`docs/cli.md:2898-2899` and `docs/decisions.md` ("Exit codes") give 78
+`docs/cli.md:2901-2902` and `docs/decisions.md` ("Exit codes") give 78
 (`EX_CONFIG`) for a configuration error. A script that reads 64 looks for the
 fault in its arguments.
 
@@ -1877,7 +1877,7 @@ flag (`crates/podssh-cli/tests/non_interactive.rs`, line 185 at `8c05b5e`).
 The real gate is `can_ask` (`crates/podssh-ssh/src/prompt.rs:82`), called at
 `crates/podssh-ssh/src/auth.rs:189`, `crates/podssh-ssh/src/auth.rs:306`,
 `crates/podssh-ssh/src/keys.rs:321` and `crates/podssh-cli/src/keygen.rs:382`.
-Its refusals name the real remedies (`docs/cli.md:2979-2981`). Commands use
+Its refusals name the real remedies (`docs/cli.md:2982-2984`). Commands use
 these parts of the module, which stay: `Attachment`, `resolve`, `resolve_tty`,
 `parse_timeout`, `require_timeout` (`crates/podssh-cli/src/dispatch.rs:254-272`,
 `crates/podssh-cli/src/ts.rs:54-63`) and `refuse_jsonl_in_proxy`
@@ -2485,7 +2485,7 @@ nothing.
   (`crates/podssh-cli/src/man/notes_pipe.rs:6`, where `pipe`'s notes moved from `notes.rs`).
 - Read: doctor's rule: a condition that podssh is built for, no listener among them, is a fact,
   reported `ok`, and `FAIL` is kept for what stops podssh or one of its fallbacks
-  (`crates/podssh-cli/src/doctor/mod.rs:6-9`); `docs/cli.md:1586-1592` says the same.
+  (`crates/podssh-cli/src/doctor/mod.rs:6-9`); `docs/cli.md:1587-1593` says the same.
 
 ## Approach
 
@@ -2507,10 +2507,10 @@ nothing.
 ## Decision
 
 A refused bind stays `ok`, with the features named. `FAIL` lost: the hosts that podssh is built
-for refuse the bind (sandbox A for AF_INET, `docs/STATUS.md:289`; the measured cage by the
+for refuse the bind (sandbox A for AF_INET, `docs/STATUS.md:290`; the measured cage by the
 operator's report, `docs/target-environment.md:25`), and doctor exits 1 on a `FAIL`, so each run
 there would fail where each road works (`crates/podssh-cli/src/doctor/mod.rs:6-9`). A fourth
-status lost: the report and its JSON have three (`docs/cli.md:1623-1626`). The issue's grade by a
+status lost: the report and its JSON have three (`docs/cli.md:1624-1627`). The issue's grade by a
 run for a listener feature lost: doctor is given no feature to check, and each feature refuses on
 its own, with the system's words.
 
@@ -2583,7 +2583,7 @@ alone measures less than they use, so it cannot answer what a user asks it.
   for, so it waits for a ruling: Q53.
 - Read: the measured cage's listening was not measured, and stands on the operator's report
   (`docs/target-environment.md:25`); sandbox A's AF_UNIX bind was doctor's bind
-  (`docs/STATUS.md:289`), so whether it listens is not known. The box refuses each bind
+  (`docs/STATUS.md:290`), so whether it listens is not known. The box refuses each bind
   (`scripts/box/seccomp.json:5-10`): it has no case of a bind allowed and a listen refused.
 - Read, in the issue (measured by its reporter on a development host, not with podssh): a bind
   of an AF_INET stream socket refused, where an AF_INET datagram socket and an AF_UNIX socket
@@ -2915,7 +2915,7 @@ consoles, and macOS, are measured on GitHub's runners (`docs/detach.md`, section
 **Milestone:** backlog
 **Priority:** P2
 **Effort:** S
-**Status:** open
+**Status:** partial
 
 ## Problem
 
@@ -2946,8 +2946,51 @@ leaves the child. From T-382: `podssh session start`'s child on Windows the same
 ```sh
 export CARGO_BUILD_JOBS=4
 cargo test -p podssh-cli --test detach
+cargo test -p podssh-cli --test detach_windows
+cargo test -p podssh-cli --test session
 ```
 
 On `windows-latest`: the child outlives a closed job that allows breakaway; in one that does
 not, the retry's line, and the end with the job. On `macos-latest`: the four tests of Unix pass.
 Planted: no `CREATE_BREAKAWAY_FROM_JOB`; the first fails.
+
+## Correction
+
+2026-11-01: the check of a console closed after ready runs in a pseudo console of the test's own
+(`crates/podssh-cli/tests/conpty_harness/mod.rs`), not in `scripts/interop-conpty.py`, which
+needs a server with a shell. `session start`'s child on Windows keeps the caller's console until
+it is ready, as T-382's keeps the terminal on Unix: no `DETACHED_PROCESS` and no group of its own,
+so that a prompt before ready is asked in the console and Ctrl-C there reaches it; it frees the
+console just before its line of ready. `CREATE_NO_WINDOW` goes only where this process has no
+console window: to the child, and to each console program that a run in the background starts
+later (`SSH_ASKPASS`). T-380's child drops its group of its own for the same reason: with the
+group, Ctrl-C before ready ended the parent and left the child reading the console's input. A
+line of ready that `start` can no longer read ends the session (75), as nobody would know of it.
+
+## Done
+
+2026-11-01, partial: the code and the tests are in; the Windows run waits for CI's job `windows`
+on the push.
+
+- `podssh session start`'s child on Windows (`crates/podssh-cli/src/session/start.rs`):
+  `CREATE_BREAKAWAY_FROM_JOB`, retried in the job on `ERROR_ACCESS_DENIED` with the line "the
+  caller's job of Windows allows no process to leave it: the session ends with that job"; no
+  `DETACHED_PROCESS` and no group of its own, so it shares the console until ready. Just before its
+  line of ready the daemon leaves the terminal (`leave_terminal`: `setsid` and SIGHUP ignored on
+  Unix, `FreeConsole` on Windows), then sends stdout and stderr to the null device; a line that
+  `start` can no longer read ends it with 75.
+- T-380's child (`crates/podssh-cli/src/detach/child.rs`): no group of its own; the line of the
+  job said only once the child started in it.
+- `podssh_ssh::terminal::child_console_flags()`: `CREATE_NO_WINDOW` where this process has no
+  console window, for those two children and for `SSH_ASKPASS` (`crates/podssh-ssh/src/prompt.rs`).
+- Tests for Windows: `tests/detach_windows.rs` (3: a job that allows breakaway, one that does not,
+  a pseudo console closed after ready), and in `tests/session.rs` 2 (`start` in each kind of job; a
+  password asked in a pseudo console, then the console closed). The jobs come from
+  `tests/win_job/mod.rs`, whose `cmd /d /s /c` takes the line as it is (`raw_arg`), as `cmd`
+  reads no `\"` of the C runtime's quoting.
+- Here, for Windows: `cargo clippy --target x86_64-pc-windows-gnu -p podssh-ssh -p podssh-cli
+  --all-targets -- -D warnings`, clean, with the release's Zig 0.16.0 as the C compiler of aws-lc
+  (`scripts/fetch-zig.sh`, its pinned sum). It found `tests/serve_install.rs`'s `exe()` unused on
+  Windows, now of Unix alone.
+- macOS (CI's job `macos`, `macos-15`, run 41267591529 at `adb0cfe`): `--test detach` 4 passed,
+  `--test node_detach` 2 passed, `--test session` 4 passed.

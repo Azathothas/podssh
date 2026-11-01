@@ -102,13 +102,13 @@ fn controlling_terminal_exists() -> bool {
 /// Run the askpass program with the prompt as its argument; its first line of
 /// output is the answer.
 fn run_askpass(program: &OsString, prompt: &str) -> Result<Zeroizing<String>, PromptError> {
-    let output = Command::new(program)
-        .arg(prompt)
-        .stdin(Stdio::null())
-        .stdout(Stdio::piped())
-        .stderr(Stdio::inherit())
-        .output()
-        .map_err(|e| PromptError::Failed(format!("{}: {e}", program.to_string_lossy())))?;
+    let mut command = Command::new(program);
+    command.arg(prompt).stdin(Stdio::null()).stdout(Stdio::piped()).stderr(Stdio::inherit());
+    // A run in the background has no console: a console program opens no
+    // window of its own (T-383).
+    #[cfg(windows)]
+    std::os::windows::process::CommandExt::creation_flags(&mut command, crate::terminal::child_console_flags());
+    let output = command.output().map_err(|e| PromptError::Failed(format!("{}: {e}", program.to_string_lossy())))?;
     let stdout = Zeroizing::new(output.stdout);
     if !output.status.success() {
         return Err(PromptError::Cancelled);

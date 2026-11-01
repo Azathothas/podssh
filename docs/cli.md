@@ -821,9 +821,10 @@ caller's. The child closes each descriptor from 3 up and resets its signals
 at its start, then runs the command as in the foreground: its prompts (a
 password, a passphrase, a host key) use the caller's terminal. At ready it
 sends stdin to the null device and stdout and stderr to its log, leaves the
-terminal and its session (`setsid`, SIGHUP ignored; on Windows it frees its
-console, in a group of its own and out of the caller's job where the job
-allows it), and says so to the parent, which prints the child's pid and log
+terminal and its session (`setsid`, SIGHUP ignored; on Windows it frees the
+console that it shared, out of the caller's job where the job allows it,
+and a console program that it starts later opens no window), and says so to
+the parent, which prints the child's pid and log
 and exits 0. A child that ends first gives the parent its code, its lines
 already on the caller's stderr; Ctrl-C before ready reaches both.
 
@@ -2646,7 +2647,8 @@ output stops, and reads its screen, each with a call of its own.
 
 - `podssh session start NAME [OPTIONS] HOST [COMMAND]` runs `podssh session
   serve` in the background: this binary again, which leaves the session of
-  its starter (`setsid`; on Windows a process with no console), logs in as
+  its starter at ready (`setsid`; on Windows it frees the console and is out
+  of the caller's job where the job allows it), logs in as
   `podssh ssh` does, with its connection flags and the `Host` blocks of
   ssh_config, and holds a session with a pty: the login shell, or COMMAND.
   It is the one SSH client of podssh, on each of its roads. `start` returns
@@ -2660,7 +2662,8 @@ output stops, and reads its screen, each with a call of its own.
 - Until it is ready, the session's podssh keeps `start`'s terminal and
   session (T-382): a password, a key's passphrase and a new host key are
   asked there as `podssh ssh` asks them, within `--timeout`, and Ctrl-C
-  reaches it; at ready it leaves them (`setsid`, SIGHUP ignored). With no
+  reaches it; at ready it leaves them (`setsid`, SIGHUP ignored; on Windows
+  it frees the console, T-383). With no
   terminal, a passphrase comes from `podssh agent` or `SSH_ASKPASS`, and a
   new host key needs `StrictHostKeyChecking=accept-new` or a `known_hosts`
   that has it. The pty's size is that of `COLUMNS` and `LINES`, else 80 by 24. No

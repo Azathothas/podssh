@@ -173,6 +173,9 @@ tokio-rustls = { workspace = true }
 crypto_box = { version = "0.9", default-features = false, features = ["alloc", "salsa20"] }
 
 # The pseudo console of `tests/console.rs` (T-132): the version above, with
-# the console's functions, which podssh-ssh builds too.
+# the console's functions, which podssh-ssh builds too; and the job objects of
+# `tests/detach_windows.rs` (T-383).
 [target.'cfg(windows)'.dev-dependencies]
-windows-sys = { version = "0.61", features = ["Win32_System_Console"] }
+windows-sys = { version = "0.61", features = [
+    "Win32_Foundation", "Win32_Security", "Win32_System_Console", "Win32_System_JobObjects",
+] }

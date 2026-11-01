@@ -213,16 +213,18 @@ async fn serve(args: &SessionArgs, plan: Plan, out: &mut dyn Write, err: &mut dy
                 }
                 // The last output reaches the model before the end is told.
                 let _ = tokio::time::timeout(Duration::from_secs(1), &mut draining).await;
-                if !ready {
-                    announce(&shared.name, &path, args.detach, out);
-                    ready = true;
+                if !ready && !announce(&shared.name, &path, args.detach, out) {
+                    return EX_TEMPFAIL;
                 }
+                ready = true;
                 log.verbose(&format!("the session ended with {code}; its screen is kept {} s more", GRACE.as_secs()));
                 shared.end(code);
             }
             _ = tick.tick(), if !ready => {
                 if podssh_ssh::retry::phase() >= Phase::Requested {
-                    announce(&shared.name, &path, args.detach, out);
+                    if !announce(&shared.name, &path, args.detach, out) {
+                        return EX_TEMPFAIL;
+                    }
                     ready = true;
                 }
             }
@@ -261,14 +263,19 @@ fn size() -> (u16, u16) {
     (fit(size.rows), fit(size.cols))
 }
 
-/// The line of ready on stdout; then, for `start`, stdout and stderr go to
-/// the null device.
-fn announce(name: &str, path: &str, detach: bool, out: &mut dyn Write) {
-    let _ = writeln!(out, "{}", wire::ready(name, path, std::process::id()));
-    let _ = out.flush();
+/// The line of ready on stdout, out of the starter's terminal first; then,
+/// for `start`, stdout and stderr go to the null device. Whether the line
+/// was written: `start` that has gone before it reads none, and nobody
+/// would know of the session.
+fn announce(name: &str, path: &str, detach: bool, out: &mut dyn Write) -> bool {
+    if detach {
+        super::start::leave_terminal();
+    }
+    let said = writeln!(out, "{}", wire::ready(name, path, std::process::id())).and_then(|()| out.flush()).is_ok();
     if detach {
         super::start::leave();
     }
+    said || !detach
 }
 
 /// The session's output into the model, as it comes; each piece wakes the
