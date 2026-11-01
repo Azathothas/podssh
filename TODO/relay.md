@@ -915,7 +915,7 @@ the module comment repeats it (`crates/podssh-relay/src/cache.rs`, lines 4-8 at 
    it; the settings file of T-048 can set it. The session log (T-056) and the failure records
    (T-059) use the same chain.
 6. Change in the same commit: VARIABLES and FILES (`crates/podssh-cli/src/man/facts.rs:202-216`,
-   `crates/podssh-cli/src/man/data.rs:153-160`), the test of lines 365-377 at `22c3b88`, the comment
+   `crates/podssh-cli/src/man/data.rs:155-162`), the test of lines 365-377 at `22c3b88`, the comment
    of `cache.rs`, and the `doctor`
    notes (`crates/podssh-cli/src/man/notes.rs:194-255`).
 
@@ -1783,4 +1783,50 @@ GitHub is reached, and a binary copied into a cage is copied again by its user; 
 their users bring are T-169's, which waits for the relay's operator too. podssh's side is then the
 check of item 3 and the list of item 4, against the form that the operator chose; written before
 that choice, it would follow a form that may not come.
+
+# T-407: A relay's Retry-After reaches a line as it came, with its terminal controls
+
+**Source:** the draft of T-401 (2026-11-01), which made the quick tunnel's API text one line and
+found the relay's own header of 429 not so.
+**Category:** defect
+**Milestone:** none
+**Priority:** P3
+**Effort:** S
+**Status:** done
+
+## Problem
+
+A relay that answers a mint or a pair with 429 gives a Retry-After, which podssh prints in its
+line of the refusal as the header came: ESC, BEL and the rest of a terminal's controls included,
+and of any length. A relay, or a proxy on the way, can so write to the user's terminal.
+
+## Premise
+
+- Read: `crates/podssh-relay/src/token.rs:209` and `crates/podssh-relay/src/pair.rs:279` took
+  `response.header("retry-after")` as it was, and the lines of `TokenError::RateLimited` and
+  `PairError::RateLimited` print it.
+- Read: the body of a refusal goes through `Response::body_text`, which `one_line` makes safe
+  (`crates/podssh-ws/src/http.rs`).
+
+## Approach
+
+`Response::header_text(name, max)`, a header made safe and cut as `body_text` makes the body;
+the two 429s take it, 64 characters at most.
+
+## Prove
+
+```sh
+export CARGO_BUILD_JOBS=4
+cargo test -p podssh-ws --test http
+cargo test -p podssh-relay
+```
+
+## Done
+
+2026-11-01: `podssh_ws::http::Response::header_text` makes a header one line, with no control
+character, cut to its length with an ellipsis; `body_text` shares its cut. The relay's 429 of a
+mint (`token.rs`) and of a pair (`pair.rs`) take it, 64 characters at most. `cargo test -p
+podssh-ws --test http`: passed, with the new
+`a_header_shown_in_a_line_cannot_carry_terminal_controls` (ESC, BEL and a CSI out; the cut; an
+absent header). Planted, `header_text` that returns the header as it came: that test failed.
 

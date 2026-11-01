@@ -113,9 +113,10 @@ pub enum Outcome<'a> {
     Other(u16),
 }
 
-/// The reason of an `Exception`, its first pointer.
+/// The reason of an `Exception`, its first pointer: the other end's text,
+/// which reaches a line, so one line with no control character.
 fn reason(exception: Option<Struct<'_>>) -> String {
-    exception.and_then(|e| e.get_text(0).ok().flatten()).unwrap_or("no reason given").to_string()
+    podssh_ws::text::one_line(exception.and_then(|e| e.get_text(0).ok().flatten()).unwrap_or("no reason given"))
 }
 
 /// Read the message of one frame.

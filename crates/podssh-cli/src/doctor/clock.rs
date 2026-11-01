@@ -2,30 +2,12 @@
 //! compare this host's clock with the relay's `Date` header. Certificates
 //! and cached tokens are checked against this host's clock.
 
-// The writing of a date and its calendar are podssh-ws's, whose TLS errors
-// give this host's clock in the same words (T-345).
-use podssh_ws::clock::civil_from_days;
+// The reading and writing of a date and its calendar are podssh-ws's, whose
+// TLS errors give this host's clock in the same words (T-345), and whose
+// reading the quick tunnel's Retry-After shares (T-401).
 pub(super) use podssh_ws::clock::http_date as format_http_date;
-
-const MONTHS: [&str; 12] = ["Jan", "Feb", "Mar", "Apr", "May", "Jun", "Jul", "Aug", "Sep", "Oct", "Nov", "Dec"];
-
-/// Seconds since the Unix epoch for an IMF-fixdate, or `None` for anything
-/// else (the obsolete formats are not sent by the relay).
-pub(super) fn parse_http_date(text: &str) -> Option<i64> {
-    let parts: Vec<&str> = text.split_whitespace().collect();
-    let [_, day, month, year, time, "GMT"] = parts.as_slice() else {
-        return None;
-    };
-    let day: i64 = day.parse().ok().filter(|d| (1..=31).contains(d))?;
-    let month = MONTHS.iter().position(|m| m == month)? as i64 + 1;
-    let year: i64 = year.parse().ok().filter(|y| *y >= 1970)?;
-    let mut hms = time.split(':').map(|n| n.parse::<i64>().ok());
-    let (h, m, s) = (hms.next()??, hms.next()??, hms.next()??);
-    if hms.next().is_some() || h > 23 || m > 59 || s > 60 {
-        return None;
-    }
-    Some(days_from_civil(year, month, day) * 86_400 + h * 3600 + m * 60 + s)
-}
+pub(super) use podssh_ws::clock::parse_http_date;
+use podssh_ws::clock::{civil_from_days, days_from_civil};
 
 /// Days since the Unix epoch for a day written `YYYY-MM-DD`.
 pub(super) fn parse_day(text: &str) -> Option<i64> {
@@ -43,18 +25,6 @@ pub(crate) fn format_utc(secs: i64) -> String {
     let (y, m, d) = civil_from_days(secs.div_euclid(86_400));
     let rest = secs.rem_euclid(86_400);
     format!("{y:04}-{m:02}-{d:02}T{:02}:{:02}:{:02}Z", rest / 3600, rest % 3600 / 60, rest % 60)
-}
-
-/// Days since 1970-01-01 for a proleptic Gregorian date (Howard Hinnant's
-/// algorithm).
-fn days_from_civil(y: i64, m: i64, d: i64) -> i64 {
-    let y = if m <= 2 { y - 1 } else { y };
-    let era = y.div_euclid(400);
-    let yoe = y - era * 400;
-    let mp = (m + 9) % 12;
-    let doy = (153 * mp + 2) / 5 + d - 1;
-    let doe = yoe * 365 + yoe / 4 - yoe / 100 + doy;
-    era * 146_097 + doe - 719_468
 }
 
 #[cfg(test)]

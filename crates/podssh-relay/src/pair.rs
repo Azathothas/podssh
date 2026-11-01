@@ -276,7 +276,7 @@ async fn with_token(
 fn refused(status: u16, response: &podssh_ws::http::Response) -> PairError {
     match status {
         403 => PairError::Forbidden,
-        429 => PairError::RateLimited { retry_after: response.header("retry-after").map(str::to_string) },
+        429 => PairError::RateLimited { retry_after: response.header_text("retry-after", 64) },
         503 => {
             let body = response.body_text(200);
             PairError::NotIssued { detail: if body.is_empty() { String::new() } else { format!(": {body}") } }

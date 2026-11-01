@@ -32,11 +32,21 @@ impl Response {
     /// The body as text, for error messages: lossy UTF-8 made safe for a
     /// terminal (see [`crate::text::one_line`]), cut to `max` characters.
     pub fn body_text(&self, max: usize) -> String {
-        let text = crate::text::one_line(&String::from_utf8_lossy(&self.body));
-        match text.char_indices().nth(max) {
-            Some((cut, _)) => format!("{}…", &text[..cut]),
-            None => text.to_string(),
-        }
+        cut(crate::text::one_line(&String::from_utf8_lossy(&self.body)), max)
+    }
+
+    /// A header's first value as text for a line, as [`Self::body_text`]
+    /// makes the body: a peer's header reaches the terminal too (T-407).
+    pub fn header_text(&self, name: &str, max: usize) -> Option<String> {
+        self.header(name).map(|value| cut(crate::text::one_line(value), max))
+    }
+}
+
+/// `text` cut to `max` characters, with an ellipsis where it was cut.
+fn cut(text: String, max: usize) -> String {
+    match text.char_indices().nth(max) {
+        Some((at, _)) => format!("{}…", &text[..at]),
+        None => text,
     }
 }
 

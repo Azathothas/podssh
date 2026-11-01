@@ -29,7 +29,7 @@ use podssh_ws::ProxyChoice;
 use tokio::io::{AsyncRead, AsyncWrite, DuplexStream};
 use tokio::sync::{mpsc, watch};
 
-use crate::exitmap::Fault;
+use crate::exitmap::{sysexits, Fault};
 use crate::node::NodeArgs;
 use crate::node_warp::WarpRoad;
 use crate::relay_settings::Refusal;
@@ -134,9 +134,31 @@ async fn serve_quick(ready: Ready, err: &mut dyn Write) -> i32 {
         Err(refusal) => return refusal.report("node", err),
     };
     let proxy = ProxyChoice::FromEnvironment;
-    let tunnel = match api::request(&crate::pairs::trust(None), &proxy).await {
+    let say = |line: String| podssh_ssh::err_line!("podssh node: {label}: {line}");
+    let (stop, stopped) = watch::channel(false);
+    tokio::spawn(async move {
+        crate::node::stop_signal().await;
+        let _ = stop.send(true);
+    });
+    // The API is asked again for minutes after a refusal for now (T-401):
+    // Ctrl-C ends the wait, with nothing made to undo.
+    let (trust, mut until) = (crate::pairs::trust(None), stopped.clone());
+    let asked = tokio::select! {
+        asked = api::request(&trust, &proxy, &say) => asked,
+        _ = until.wait_for(|stop| *stop) => {
+            say("stopped".into());
+            return 0;
+        }
+    };
+    let tunnel = match asked {
         Ok(tunnel) => tunnel,
-        Err(why) => return Refusal { message: why, code: Fault::RelayUnreachable.code() }.report("node", err),
+        // A refusal for now past the budget: a later run can work (75).
+        Err(api::Failed::ForNow(why)) => {
+            return Refusal { message: why, code: sysexits::EX_TEMPFAIL }.report("node", err)
+        }
+        Err(api::Failed::Refused(why)) => {
+            return Refusal { message: why, code: Fault::RelayUnreachable.code() }.report("node", err)
+        }
     };
     let url = format!("https://{}", tunnel.hostname);
     let mode = crate::node_flags::layer_mode();
@@ -161,12 +183,6 @@ async fn serve_quick(ready: Ready, err: &mut dyn Write) -> i32 {
             let _ = tokio::io::copy_bidirectional(&mut stream, &mut session).await;
         }
     };
-    let (stop, stopped) = watch::channel(false);
-    tokio::spawn(async move {
-        crate::node::stop_signal().await;
-        let _ = stop.send(true);
-    });
-    let say = |line: String| podssh_ssh::err_line!("podssh node: {label}: {line}");
     let (client_id, version, arch) =
         (rand::random::<[u8; 16]>(), format!("podssh {}", env!("CARGO_PKG_VERSION")), arch());
     let (mut wait, mut connected_once) = (RETRY_FIRST, false);

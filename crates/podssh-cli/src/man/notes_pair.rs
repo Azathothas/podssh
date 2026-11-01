@@ -146,6 +146,12 @@ pub(super) const NODE: &[&str] = &[
      layer. A connection to the edge that is lost is made again, with the same name; at Ctrl-C the node \
      unregisters it. --iroh, --derp, --plain, --no-e2e, --pair-file, a route and a udp: TARGET are \
      refused with it (64).",
+    "The name is asked of api.trycloudflare.com, which limits a host that made a few tunnels: when it \
+     refuses for now (429, or a 5xx), the node asks again for up to 5 minutes, after its Retry-After \
+     (seconds, or a date) or a growing wait, with a line for each wait, and Ctrl-C ends the wait (0). A \
+     Retry-After past those 5 minutes, or a refusal that lasts them, ends the node at once with exit 75, \
+     and the line says until when the API asks to wait; any other refusal exits 69. A text of \
+     Cloudflare's API or edge is shown on one line, with no control character.",
 ];
 
 pub(super) const OPERATOR: &[&str] = &[

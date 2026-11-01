@@ -6,12 +6,22 @@
 //! was not cloudflared's). The reply names the tunnel and gives its
 //! credentials; the secret stays in memory that is wiped, and is never
 //! shown, as a token is not.
+//!
+//! A refusal for now, 429 or a 5xx, is asked again for up to [`BUDGET`],
+//! after the API's `Retry-After` or the relay's backoff (T-401), where
+//! cloudflared asks once: the API limits a host that made a few tunnels
+//! (429, "error code: 1015", and a Retry-After of 1542 to 2994 s, which
+//! cfrs's testers met: Azathothas/cfrs GitHub #42 and #57). A wait past the
+//! budget ends the request at once, and says until when. Each text of the
+//! API reaches a line through `one_line`, with no control character.
 
 use std::borrow::Cow;
-use std::time::Duration;
+use std::future::Future;
+use std::time::{Duration, SystemTime, UNIX_EPOCH};
 
 use base64::engine::general_purpose::STANDARD;
 use base64::Engine;
+use podssh_ws::text::one_line;
 use serde::Deserialize;
 use zeroize::Zeroizing;
 
@@ -19,6 +29,13 @@ pub const HOST: &str = "api.trycloudflare.com";
 pub const PATH: &str = "/tunnel";
 /// cloudflared waits 15 s for the reply.
 pub const TIMEOUT: Duration = Duration::from_secs(15);
+/// How long refusals for now are asked again: past it, a later run does
+/// better than a node that waits and serves nothing.
+pub const BUDGET: Duration = Duration::from_secs(300);
+/// The shortest wait between two requests, whatever the API asks.
+pub const LEAST_WAIT: Duration = Duration::from_secs(1);
+/// The most characters of the API's text that a line shows.
+const SHOWN: usize = 200;
 
 /// A quick tunnel: its name and its credentials.
 pub struct Tunnel {
@@ -46,12 +63,37 @@ pub enum Refused {
     Malformed(&'static str),
 }
 
+impl Refused {
+    /// Whether a later request may get a tunnel: 429 (RFC 6585, section 4)
+    /// and each 5xx say "not now"; any other answer says "not so".
+    pub fn for_now(&self) -> bool {
+        matches!(self, Refused::Status { status, .. } if *status == 429 || (500..600).contains(status))
+    }
+}
+
 impl std::fmt::Display for Refused {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         match self {
             Refused::Status { status, detail } => write!(f, "{HOST} answered {status}{detail}"),
             Refused::Errors(errors) => write!(f, "{HOST} made no tunnel: {errors}"),
             Refused::Malformed(why) => write!(f, "{HOST} gave a reply that is not a tunnel: {why}"),
+        }
+    }
+}
+
+/// Why the requests gave no tunnel, by what a later run can do.
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub enum Failed {
+    /// The API refuses for now, past the budget: a later run can get one.
+    ForNow(String),
+    /// A later request gets the same: the API's answer, or no way to it.
+    Refused(String),
+}
+
+impl std::fmt::Display for Failed {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        match self {
+            Failed::ForNow(why) | Failed::Refused(why) => f.write_str(why),
         }
     }
 }
@@ -86,12 +128,16 @@ struct Created<'a> {
     secret: Cow<'a, str>,
 }
 
+/// The API's text as a line shows it: no control character, one line, cut.
+fn shown(text: &str) -> String {
+    one_line(text).chars().take(SHOWN).collect()
+}
+
 /// The tunnel in the reply of `status` with `body`. The body of a reply
 /// that succeeded is never quoted: it holds the secret.
 pub fn read_reply(status: u16, body: &[u8]) -> Result<Tunnel, Refused> {
     if !(200..300).contains(&status) {
-        let text = String::from_utf8_lossy(body);
-        let text: String = text.split_whitespace().collect::<Vec<_>>().join(" ").chars().take(200).collect();
+        let text = shown(&String::from_utf8_lossy(body));
         return Err(Refused::Status {
             status,
             detail: if text.is_empty() { String::new() } else { format!(": {text}") },
@@ -99,8 +145,9 @@ pub fn read_reply(status: u16, body: &[u8]) -> Result<Tunnel, Refused> {
     }
     let reply: Reply<'_> = serde_json::from_slice(body).map_err(|_| Refused::Malformed("not the expected JSON"))?;
     if !reply.errors.is_empty() {
-        let errors: Vec<String> = reply.errors.iter().map(|e| format!("[{}] {}", e.code, e.message)).collect();
-        return Err(Refused::Errors(errors.join("; ")));
+        let errors: Vec<String> =
+            reply.errors.iter().map(|e| format!("[{}] {}", e.code, one_line(&e.message))).collect();
+        return Err(Refused::Errors(shown(&errors.join("; "))));
     }
     let created = match (reply.success, reply.result) {
         (true, Some(created)) => created,
@@ -135,63 +182,105 @@ pub fn uuid_bytes(text: &str) -> Option<[u8; 16]> {
     Some(out)
 }
 
-/// Ask for a tunnel, through `proxy` when there is one, with `trust`.
-pub async fn request(trust: &podssh_ws::Trust, proxy: &podssh_ws::ProxyChoice) -> Result<Tunnel, String> {
-    let response = podssh_ws::client::https_post_json(HOST, 443, PATH, b"", trust, proxy, TIMEOUT)
-        .await
-        .map_err(|e| format!("the request for a quick tunnel to {HOST} failed: {e}"))?;
-    // The reply holds the secret: its bytes are wiped once read.
-    let body = Zeroizing::new(response.body);
-    read_reply(response.status, &body).map_err(|e| e.to_string())
+/// The wait that a `Retry-After` of `value` asks for, with the clock at
+/// `now` (seconds since the Unix epoch): seconds, or an HTTP date (RFC 9110,
+/// section 10.2.3). `None` for a value that is neither: the backoff then
+/// stands for it.
+pub fn retry_after(value: &str, now: i64) -> Option<Duration> {
+    let value = value.trim();
+    if !value.is_empty() && value.bytes().all(|b| b.is_ascii_digit()) {
+        // More seconds than a u64 holds is a wait past any budget.
+        return Some(Duration::from_secs(value.parse().unwrap_or(u64::MAX)));
+    }
+    let at = podssh_ws::clock::parse_http_date(value)?;
+    Some(Duration::from_secs(at.saturating_sub(now).max(0) as u64))
+}
+
+/// What follows a refusal.
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub enum Then {
+    /// Ask again after this wait.
+    Again(Duration),
+    /// Stop, for this reason.
+    Stop(Failed),
+}
+
+/// After `refused`, whose `Retry-After` was `retry`, at the `attempt`-th
+/// request (the first is 1), with `left` of the budget and the clock at
+/// `now`: ask again, or stop.
+pub fn then(refused: &Refused, retry: Option<&str>, attempt: u32, left: Duration, now: i64) -> Then {
+    if !refused.for_now() {
+        return Then::Stop(Failed::Refused(refused.to_string()));
+    }
+    let asked = retry.and_then(|value| retry_after(value, now));
+    if let Some(wait) = asked.filter(|wait| *wait > left) {
+        let secs = wait.as_secs();
+        let until = podssh_ws::clock::http_date(now.saturating_add(i64::try_from(secs).unwrap_or(i64::MAX)));
+        let why = format!("{refused}; it asks to wait {secs} s, until {until}");
+        let why = format!("{why}, past the {} s that podssh asks again for: run again then", BUDGET.as_secs());
+        return Then::Stop(Failed::ForNow(why));
+    }
+    if left.is_zero() {
+        let why = format!("{refused}; still refused after {} s of requests: run again later", BUDGET.as_secs());
+        return Then::Stop(Failed::ForNow(why));
+    }
+    let wait = asked.unwrap_or_else(|| crate::open::backoff(attempt).min(left));
+    Then::Again(wait.max(LEAST_WAIT))
+}
+
+/// Ask for a tunnel with `post`, one request a call; after a refusal for
+/// now, ask again as [`then`] says, with a line to `say` before each wait.
+/// `now` reads the clock, in seconds since the Unix epoch, for a
+/// Retry-After that is a date. A request that fails before an answer is
+/// not asked again: a proxy's refusal or a TLS failure comes again.
+pub async fn ask<P, F>(mut post: P, say: &dyn Fn(String), now: impl Fn() -> i64) -> Result<Tunnel, Failed>
+where
+    P: FnMut() -> F,
+    F: Future<Output = Result<podssh_ws::http::Response, String>>,
+{
+    let started = tokio::time::Instant::now();
+    let mut attempt = 0u32;
+    loop {
+        attempt = attempt.saturating_add(1);
+        let response = post().await.map_err(Failed::Refused)?;
+        let retry = response.header("retry-after").map(one_line);
+        let status = response.status;
+        // The reply holds the secret: its bytes are wiped once read.
+        let body = Zeroizing::new(response.body);
+        let refused = match read_reply(status, &body) {
+            Ok(tunnel) => return Ok(tunnel),
+            Err(refused) => refused,
+        };
+        let left = BUDGET.saturating_sub(started.elapsed());
+        match then(&refused, retry.as_deref(), attempt, left, now()) {
+            Then::Again(wait) => {
+                say(format!("{refused}; asking again in {} s", wait.as_secs().max(1)));
+                tokio::time::sleep(wait).await;
+            }
+            Then::Stop(failed) => return Err(failed),
+        }
+    }
+}
+
+/// Ask for a tunnel, through `proxy` when there is one, with `trust`, as
+/// [`ask`] does, with this host's clock.
+pub async fn request(
+    trust: &podssh_ws::Trust,
+    proxy: &podssh_ws::ProxyChoice,
+    say: &dyn Fn(String),
+) -> Result<Tunnel, Failed> {
+    let post = move || async move {
+        podssh_ws::client::https_post_json(HOST, 443, PATH, b"", trust, proxy, TIMEOUT)
+            .await
+            .map_err(|e| format!("the request for a quick tunnel to {HOST} failed: {e}"))
+    };
+    ask(post, say, unix_now).await
+}
+
+fn unix_now() -> i64 {
+    SystemTime::now().duration_since(UNIX_EPOCH).map(|d| d.as_secs() as i64).unwrap_or(0)
 }
 
 #[cfg(test)]
-mod tests {
-    use super::*;
-
-    /// A reply of the shape that T-299 measured: 36 characters of id, 32 of
-    /// account tag, and the base64 of 32 bytes of secret (made up here).
-    fn reply(hostname: &str) -> String {
-        let secret = STANDARD.encode([7u8; 32]);
-        format!(
-            r#"{{"success":true,"errors":[],"result":{{"id":"8e9d2f0c-4b1a-4f6e-9c3d-5a7b2e1f0d4c","name":"qt-x","hostname":"{hostname}","account_tag":"0123456789abcdef0123456789abcdef","secret":"{secret}"}}}}"#
-        )
-    }
-
-    #[test]
-    fn a_reply_gives_the_tunnel_s_name_and_credentials() {
-        let tunnel = read_reply(200, reply("four-words-in-a.trycloudflare.com").as_bytes()).unwrap();
-        assert_eq!(tunnel.hostname, "four-words-in-a.trycloudflare.com");
-        assert_eq!(
-            tunnel.id,
-            [0x8e, 0x9d, 0x2f, 0x0c, 0x4b, 0x1a, 0x4f, 0x6e, 0x9c, 0x3d, 0x5a, 0x7b, 0x2e, 0x1f, 0x0d, 0x4c]
-        );
-        assert_eq!(tunnel.secret.as_slice(), [7u8; 32]);
-        assert!(!format!("{tunnel:?}").contains("BwcH"), "the secret is never shown");
-    }
-
-    #[test]
-    fn a_refusal_names_its_errors_and_never_quotes_a_reply_that_succeeded() {
-        let errors = r#"{"success":false,"errors":[{"code":1003,"message":"too many tunnels"}],"result":null}"#;
-        assert_eq!(read_reply(200, errors.as_bytes()).unwrap_err(), Refused::Errors("[1003] too many tunnels".into()));
-        let status = read_reply(429, b"Too Many Requests\n").unwrap_err();
-        assert_eq!(status.to_string(), "api.trycloudflare.com answered 429: Too Many Requests");
-        let bad = read_reply(200, b"{\"success\":true,\"result\":{\"secret\":\"s3cr3t\"}}").unwrap_err();
-        assert!(!bad.to_string().contains("s3cr3t"), "{bad}");
-        assert_eq!(
-            read_reply(200, reply("x.example.com").as_bytes()).unwrap_err(),
-            Refused::Malformed("a name not under trycloudflare.com")
-        );
-        assert_eq!(
-            read_reply(200, reply("a.b.trycloudflare.com").as_bytes()).unwrap_err(),
-            Refused::Malformed("a name that is not one label")
-        );
-    }
-
-    #[test]
-    fn a_uuid_reads_as_its_16_bytes() {
-        assert_eq!(uuid_bytes("00000000-0000-0000-0000-0000000000ff").unwrap()[15], 0xff);
-        assert_eq!(uuid_bytes("00000000000000000000000000000000"), None, "no hyphens");
-        assert_eq!(uuid_bytes("zz000000-0000-0000-0000-000000000000"), None);
-    }
-}
+#[path = "api_tests.rs"]
+mod tests;

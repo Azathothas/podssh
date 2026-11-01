@@ -84,7 +84,9 @@ pub fn exit_codes() -> Vec<(Code, String)> {
              chat: the --timeout passed, or the peer talks with another peer; a later try can work. podssh \
              session start and wait: the --timeout passed first. podssh job wait: the --timeout passed \
              before the job ended, which runs on; podssh job fetch: the job is queued or running, so its \
-             output is not whole yet.",
+             output is not whole yet. podssh node --quick-tunnel: api.trycloudflare.com refused for now \
+             (429 or a 5xx) and asked for a wait past 5 minutes, which the line names, or refused for 5 \
+             minutes; a later run can work.",
         ),
         row(
             sysexits::EX_NOPERM,

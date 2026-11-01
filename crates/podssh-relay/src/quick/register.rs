@@ -6,6 +6,8 @@
 
 use std::time::Duration;
 
+use podssh_ws::text::one_line;
+
 use super::capnp::{At, Builder, Malformed, Struct};
 
 /// `RegistrationServer`, and its methods.
@@ -79,6 +81,8 @@ pub enum Registered {
 
 /// The answer in `results`, the results of `registerConnection`: one
 /// pointer, to a `ConnectionResponse`, whose union is at its first bytes.
+/// The edge's texts, the cause and the place, reach a line, so they are
+/// made one line with no control character here, where they are read.
 pub fn read_results(results: Struct<'_>) -> Result<Registered, Malformed> {
     let response = results.get_struct(0)?.ok_or(Malformed("a registration's answer with no result"))?;
     match response.u16(0) {
@@ -86,7 +90,7 @@ pub fn read_results(results: Struct<'_>) -> Result<Registered, Malformed> {
             let error = response.get_struct(0)?.ok_or(Malformed("a refusal with no error"))?;
             let nanos = error.u64(0) as i64;
             Ok(Registered::Refused {
-                cause: error.get_text(0)?.unwrap_or_default().to_string(),
+                cause: one_line(error.get_text(0)?.unwrap_or_default()),
                 retry: error.bit(64),
                 after: Duration::from_nanos(nanos.max(0) as u64),
             })
@@ -95,7 +99,7 @@ pub fn read_results(results: Struct<'_>) -> Result<Registered, Malformed> {
             let details = response.get_struct(0)?.ok_or(Malformed("a registration with no details"))?;
             Ok(Registered::Details {
                 uuid: details.get_data(0)?.unwrap_or_default().to_vec(),
-                location: details.get_text(1)?.unwrap_or_default().to_string(),
+                location: one_line(details.get_text(1)?.unwrap_or_default()),
                 remotely_managed: details.bit(0),
             })
         }

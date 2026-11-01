@@ -198,7 +198,7 @@ local program to a target, and `podssh proxy` stays a second pump.
 5. `node:NAME` after T-084, and `iroh:TICKET` after T-163: one adapter and
    one test each. If T-163 makes a ticket a credential, read it from a file
    (`iroh:@FILE`), never from argv.
-6. Exit codes: sysexits, as `podssh proxy` (`docs/cli.md:3037`): 69; 77 for a
+6. Exit codes: sysexits, as `podssh proxy` (`docs/cli.md:3042`): 69; 77 for a
    refusal (the relay, the proxy, a host key, the authentication); 78. Give
    `crates/podssh-ssh/src/run.rs:334-435` a typed error, so that 77 is not
    guessed from a message.
@@ -610,7 +610,7 @@ running on the server (`docs/design.md:616-620`).
    Keys typed meanwhile wait in a queue of 64 KiB, and go after the attach.
 6. Each attempt checks the host key with the same policy, and uses the
    cached token. A prompt with no terminal ends the loop
-   (`docs/cli.md:3108-3110`). After the attach, send the window size again.
+   (`docs/cli.md:3113-3115`). After the attach, send the window size again.
 7. In the same commit: `docs/cli.md`, the notes of ssh
    (`crates/podssh-cli/src/man/notes_ssh.rs:4-448`), `docs/design.md:616-620`,
    `docs/STATUS.md`, and tmux in the interop image
@@ -1293,7 +1293,7 @@ the request's target, would be the proxy that such a program points at.
 
 - Read: podssh-ws reads HTTP responses only: one request of its own and the response to it
   (`crates/podssh-ws/src/http.rs:1-3`), with `read_response` and `parse_head`, which reads a
-  status line (`:80-125`). Nothing reads a request.
+  status line (`:90-135`). Nothing reads a request.
 - Read: no kind of `pipe` answers HTTP (`crates/podssh-cli/src/pipe/address.rs:75-97`); two kinds
   listen, and one side at most (`:59-73`, `:121-123`).
 - Read: a listener of `pipe` binds only an address that the user gives, never with

@@ -73,6 +73,41 @@ fn a_registration_s_answer_reads_as_details_or_a_refusal() {
     assert_eq!(refused, Registered::Refused { cause: "the tunnel is not known".into(), retry: true, after });
 }
 
+/// The edge's texts of a refusal and of a place, with ESC, BEL and a CR,
+/// read as one line with none of them (T-401).
+#[test]
+fn the_edge_s_cause_and_place_read_with_no_control_character() {
+    let answer = |kind: u16, fill: &dyn Fn(&mut Builder, At)| {
+        let (mut b, results) = Builder::new(0, 1);
+        let response = b.init_struct(results, 0, 1, 1);
+        b.set_u16(response, 0, kind);
+        fill(&mut b, response);
+        b.frame()
+    };
+    let refused = answer(0, &|b, response| {
+        let error = b.init_struct(response, 0, 2, 1);
+        b.set_text(error, 0, "no\x1b[31m such\x07 tunnel\r\nhere");
+        b.set_u64(error, 0, 5_000_000_000);
+        b.set_bit(error, 64, true);
+    });
+    let message = Message::read(&refused).unwrap();
+    let after = std::time::Duration::from_secs(5);
+    assert_eq!(
+        read_results(message.root().unwrap()).unwrap(),
+        Registered::Refused { cause: "no[31m such tunnel here".into(), retry: true, after }
+    );
+    let details = answer(1, &|b, response| {
+        let details = b.init_struct(response, 0, 1, 2);
+        b.set_data(details, 0, &[1u8; 16]);
+        b.set_text(details, 1, "msp01\x1b]0;title\x07");
+    });
+    let message = Message::read(&details).unwrap();
+    let Registered::Details { location, .. } = read_results(message.root().unwrap()).unwrap() else {
+        panic!("not details")
+    };
+    assert_eq!(location, "msp01]0;title");
+}
+
 #[test]
 fn a_frame_is_measured_from_its_table_before_it_is_whole() {
     assert_eq!(frame_len(&PARAMS[..3]), Ok(None), "no table yet");

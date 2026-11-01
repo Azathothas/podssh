@@ -49,3 +49,15 @@ fn an_exception_and_an_abort_give_their_reasons() {
     // Another kind of message is named, not read.
     assert!(matches!(read(&Message::read(&finish(3)).unwrap()).unwrap(), Incoming::Other(4)));
 }
+
+/// The other end's reason, with ESC, BEL and a CR, reads as one line with
+/// none of them (T-401).
+#[test]
+fn a_reason_reads_with_no_control_character() {
+    let frame = unimplemented(7, "gone\x1b]0;x\x07\r\nnow");
+    let message = Message::read(&frame).unwrap();
+    let Incoming::Return { answer: 7, outcome: Outcome::Exception(why) } = read(&message).unwrap() else {
+        panic!("not an exception")
+    };
+    assert_eq!(why, "gone]0;x now");
+}

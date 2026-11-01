@@ -206,7 +206,7 @@ async fn mint(ctx: &MintContext<'_>) -> Result<(String, i64), TokenError> {
             }
             Ok((parsed.token, parsed.expires))
         }
-        429 => Err(TokenError::RateLimited { retry_after: response.header("retry-after").map(str::to_string) }),
+        429 => Err(TokenError::RateLimited { retry_after: response.header_text("retry-after", 64) }),
         503 => Err(TokenError::NotIssued),
         status => {
             let body = response.body_text(200);

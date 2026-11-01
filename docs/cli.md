@@ -2216,8 +2216,12 @@ commands. The rules behind them:
   device of `warp://` (above), the edge's name asked inside the tunnel, and
   the edge's own TLS over the stream; `--warp` tries WARP's tunnel first,
   and without the feature it exits 70. QUIC that fails gives way to HTTP/2
-  for the rest of the run, and the node exits 69 when it reaches none. It
-  registers its connection on the first stream, and its
+  for the rest of the run, and the node exits 69 when it reaches none. The
+  API's refusal for now (429, or a 5xx) is asked again for up to 5 minutes,
+  after its `Retry-After` or a growing wait (T-401); a wait past them ends
+  the node with 75, and its line names the wait and its end; each text of
+  the API and of the edge is shown on one line, with no control character.
+  It registers its connection on the first stream, and its
   line of the registration names the transport; each visitor's WebSocket is
   one link of the resumable layer. The name is public, so `--allow FILE` is
   needed: only an operator whose key is in FILE reaches TARGET, through
@@ -2236,7 +2240,8 @@ commands. The rules behind them:
   for no stored pair, a node that cannot connect as it is set up, or a
   roost whose TARGET is another service; 70 for
   a fault of the node that the relay closed (`1003`, `1009`), or a failure
-  of the end-to-end channel.
+  of the end-to-end channel; 75 for a quick tunnel's API that refuses for
+  now past 5 minutes.
 - **Each session runs the end-to-end channel** (T-088): Noise XX above the
   resumable layer, on both roads, in which each end proves its key
   (T-087). The node's key is `node-NAME.key` in the cache, or the file of

@@ -186,7 +186,7 @@ the file that `--ts-state` names (`crates/podssh-cli/src/flags.rs:356-357`,
 5. The node prints its ticket and its fingerprint on stderr when it starts.
    `podssh ssh iroh:TICKET` dials it (the address of `docs/design.md:916`).
 6. Add the key files to FILES in the manual
-   (`crates/podssh-cli/src/man/data.rs:146-336`), and each new variable to
+   (`crates/podssh-cli/src/man/data.rs:148-338`), and each new variable to
    `VARIABLES` (`crates/podssh-cli/src/man/facts.rs:45-271`).
 
 ## Decision
@@ -2969,13 +2969,13 @@ roots must be exactly three, and a refusal of the edge does not say which releas
 
 - Read: the module pins cloudflared 2026.10.6 at commit 35b379a
   (`crates/podssh-relay/src/quick/mod.rs:4-7`); the registration names that release's features
-  (`crates/podssh-relay/src/quick/register.rs:22-26`); cloudflared's main deprecates and filters
+  (`crates/podssh-relay/src/quick/register.rs:24-28`); cloudflared's main deprecates and filters
   them since its commit 77a79bf, in no release when it was read (`docs/design.md:273-281`; the
   audit cited `:275-281`).
 - Read: two fixed regions, port 7844 and the TLS name `h2.cftunnel.com`
   (`crates/podssh-relay/src/quick/edge.rs:22-29`); the roots must give 3 anchors and no invalid
-  one (`:40-44`); the API's host is fixed (`crates/podssh-relay/src/quick/api.rs:18`). The node
-  registers as `podssh` and the package's version (`crates/podssh-cli/src/node_quick.rs:170-171`),
+  one (`:40-44`); the API's host is fixed (`crates/podssh-relay/src/quick/api.rs:28`). The node
+  registers as `podssh` and the package's version (`crates/podssh-cli/src/node_quick.rs:186-187`),
   `1.0.0-beta.2` today (`Cargo.toml:50`).
 - Read: the three roots end on 2029-08-15, 2029-08-15 and 2029-11-01
   (`crates/podssh-relay/src/quick/cloudflare-roots.pem:6`, `:25`, `:52`).
@@ -4523,8 +4523,8 @@ code that no command of the default build uses is P2 at most".
   roads" is wrong. T-301's Approach item 1 said "After a UDP probe (the iroh road's)"
   (`TODO/roads.md:2020`); its Decision took QUIC only where no proxy is set, on the connection's
   own socket (`TODO/roads.md:2052-2059`), and the QUIC handshake, bounded at 5 s, is its probe:
-  QUIC that fails gives way to HTTP/2 for the run (`crates/podssh-cli/src/node_quick.rs:173-175`,
-  `:282-301`; `crates/podssh-relay/src/quick/quic.rs:32`). Its cost on a host that drops UDP is
+  QUIC that fails gives way to HTTP/2 for the run (`crates/podssh-cli/src/node_quick.rs:189-191`,
+  `:298-317`; `crates/podssh-relay/src/quick/quic.rs:32`). Its cost on a host that drops UDP is
   one handshake a run, as its Decision item 5 chose (`TODO/roads.md:2060-2064`). doctor says
   nothing of it in the default build, where the quick tunnel is.
 - Read: the measured cage refuses UDP (`docs/target-environment.md:23`), and the box does too
@@ -6079,7 +6079,7 @@ start and at each reconnect, and a client meets that wait as a refusal.
 
 ## Premise
 
-- Read: the order in `link` (`crates/podssh-cli/src/node_quick.rs:300`); QUIC's limit
+- Read: the order in `link` (`crates/podssh-cli/src/node_quick.rs:316`); QUIC's limit
   (`crates/podssh-relay/src/quick/quic.rs:32`) and the edge's dial limit
   (`crates/podssh-relay/src/quick/edge.rs:31`).
 - Read: podssh already races relay hosts with a stagger (`crates/podssh-ws/src/race.rs`).
@@ -6107,7 +6107,7 @@ cargo test -p podssh-relay --test quick_resilience a_silent_edge_gives_way_to_th
 **Milestone:** none
 **Priority:** P2
 **Effort:** S
-**Status:** open
+**Status:** done
 
 ## Problem
 
@@ -6117,8 +6117,9 @@ reach the terminal; a 429 or a 5xx is not retried, and its Retry-After is not re
 ## Premise
 
 - Read: the body of a refusal is split on white space only
-  (`crates/podssh-relay/src/quick/api.rs:94`), and the edge's cause of a refused registration is
-  kept as it came (`crates/podssh-relay/src/quick/register.rs:89`).
+  (`crates/podssh-relay/src/quick/api.rs`, line 94 at `ea2bd4f`), and the edge's cause of a refused
+  registration is kept as it came (`crates/podssh-relay/src/quick/register.rs`, line 89 at
+  `ea2bd4f`).
 - Read: podssh's rule for a peer's text on the terminal is `text::one_line`.
 
 ## Approach
@@ -6127,15 +6128,86 @@ Each text from the edge goes through `one_line` before a line. A 429 or a 5xx is
 minutes, after the Retry-After (seconds or an HTTP date, at most the budget's end) or the backoff;
 a Retry-After past the budget is said with its time, and the node ends with 75.
 
+## Decision
+
+The draft's calls, 2026-11-01:
+
+1. The budget, `api::BUDGET`, is 5 minutes from the first request, the requests' own time
+   included. A Retry-After that ends within it is waited as it is (1 s at least); one that ends
+   past it stops the requests at once, and the line names the wait and the time that it ends, an
+   HTTP date: `api.trycloudflare.com answered 429: error code: 1015; it asks to wait 2994 s, until
+   Sat, 31 Oct 2026 16:06:54 GMT, past the 300 s that podssh asks again for: run again then`.
+   Lost: waiting up to the budget's end and asking once more, a request that the API said it
+   would refuse, against a limit that cfrs's testers saw last 35 minutes and more.
+2. With no Retry-After, or one that reads as neither seconds nor a date, the backoff of the
+   relay's failover, `open::backoff` (1 s doubled to 30 s, each times a random factor from 0.5 to
+   1.5), cut at the budget's end; past it, the node ends with 75. Lost: a table of the API's own
+   (cfrs's 2, 4, 8 and 16 s), a second backoff to keep.
+3. A request that fails before an answer (DNS, the proxy, TLS, the 15 s of the reply) is not asked
+   again, and ends the node with 69, as before. Lost: asking again after it, as cfrs does for a
+   failure of the transport: a proxy's refusal or a TLS failure comes again, and the Approach
+   names 429 and 5xx.
+4. The texts are made one line where they are read: the API's body and the messages of its JSON
+   (`api::read_reply`, cut at 200 characters), the edge's cause and place of a registration
+   (`register::read_results`) and the reason of an exception or an abort of the RPC
+   (`rpc::reason`), so that each later use is clean. Lost: a cleaning at each line that shows one,
+   which a new line could forget.
+5. Ctrl-C while the requests wait ends the node with "stopped" and 0, as its own end does; no
+   tunnel exists yet, so nothing is unregistered.
+6. The reader of an HTTP date moves from `doctor` to podssh-ws's clock, beside its writer, so that
+   the relay's `Date` and the API's Retry-After are read by one function.
+
 ## Prove
 
 ```sh
 export CARGO_BUILD_JOBS=4
 cargo test -p podssh-relay --lib quick::api
+cargo test -p podssh-relay --lib quick::
+cargo test -p podssh-ws --lib clock
+cargo test -p podssh-cli --lib doctor
+cargo test -p podssh-cli --test man_page --test man_json
 ```
 
 The bytes of cfrs #42's answer (429, `retry-after: 2994`, `error code: 1015`) and a body with ESC
 and BEL are the fixtures.
+
+## Done
+
+2026-11-01: drafted in a worktree (`worktree-agent-a69420480baff742c`), merged, built and run the
+same day; the draft's one `eprintln!` (the node's lines) is `err_line!` since T-389.
+
+- `crates/podssh-relay/src/quick/api.rs`: `Refused::for_now` (429 and 5xx), `retry_after`
+  (seconds, or an HTTP date read by `podssh_ws::clock::parse_http_date`), `then` (ask again, or
+  stop as `Failed::ForNow` or `Failed::Refused`), and `ask`, the requests, generic over the one
+  that posts, so that the tests script the API's answers on a paused clock; `request` is `ask`
+  through `https_post_json`. Its tests, in `crates/podssh-relay/src/quick/api_tests.rs`: cfrs
+  #42's answer read by `podssh_ws::http::read_response` ends after one request and names its
+  wait and its end; a Retry-After of 7 s is waited and the tunnel comes; 500, 502 and 503 are
+  asked again and 403 is not; a 429 with no Retry-After ends at the budget's end, after 5 to 40
+  requests; a request with no answer is not asked again; ESC, BEL and CR of a body and of a
+  message never reach a line. `cargo test -p podssh-relay --features quick --lib quick::`: 44
+  passed.
+- The edge's texts: `cargo test -p podssh-relay --lib quick::` (the new
+  `capnp::tests::the_edge_s_cause_and_place_read_with_no_control_character` and
+  `rpc::tests::a_reason_reads_with_no_control_character` among them): passed, with the above;
+  `--features quick --test quick_tunnel --test quick_resilience`: 7 and 7 passed.
+- The HTTP date's reader in podssh-ws: `cargo test -p podssh-ws --lib clock`, and doctor's reading
+  of the relay's `Date` through it, `cargo test -p podssh-cli --lib doctor`: 6 and 38 passed. Found on
+  the way and repaired: the reader took a year of any length, and a peer's year of 17 digits
+  overflowed the count of seconds (a panic in a debug build); a year has four digits now, as RFC
+  9110 writes it, and `clock::tests::anything_but_an_imf_fixdate_is_refused` holds two longer
+  ones: passed.
+- `crates/podssh-cli/src/node_quick.rs`: `Failed::ForNow` exits 75 (`EX_TEMPFAIL`),
+  `Failed::Refused` 69; the lines of the waits go to stderr; Ctrl-C during them gives 0. The
+  manual: the note of `node --quick-tunnel` and the row 75 of EXIT STATUS;
+  `cargo test -p podssh-cli --test man_page --test man_json`: 10 and 4 passed. Clippy `-D
+  warnings` of podssh-relay (with `quick` and `pair`), podssh-ws and podssh-cli, all targets: clean.
+- Planted: `then` that takes a Retry-After past the budget as a wait: the test of cfrs #42's answer
+  and the test of the budget failed; the API's text cut on white space alone, as before: the test
+  of ESC and BEL failed.
+- Not run: the API live. A 429 cannot be asked for, and an answer of 200 is the request of each
+  live run of `quick-tunnel-live.yml`, whose node registers as before: dispatched on the commit
+  (`docs/STATUS.md`).
 
 # T-402: The quick tunnel on GOAWAY: the next connection at once, the old one drained, and a second connection
 
@@ -6156,7 +6228,7 @@ server is such a gap.
 ## Premise
 
 - Read: GOAWAY ends the connection (`crates/podssh-relay/src/quick/serve.rs:230`); the node
-  registers `conn_index` 0 only (`crates/podssh-cli/src/node_quick.rs:209`).
+  registers `conn_index` 0 only (`crates/podssh-cli/src/node_quick.rs:225`).
 - Read in cfrs's issues: the edge accepted 1, 2 and 4 connections of one quick tunnel (cfrs #54).
 
 ## Approach
@@ -6190,7 +6262,7 @@ failed, at a later change of the edge.
 
 ## Premise
 
-- Read: `FEATURES` (`crates/podssh-relay/src/quick/register.rs:25`); a configuration's stream gets
+- Read: `FEATURES` (`crates/podssh-relay/src/quick/register.rs:27`); a configuration's stream gets
   404 (`crates/podssh-relay/src/quick/serve.rs:176`).
 - Read in cfrs's issues: cloudflared 2026.10.7 names `support_datagram_v2` alone, and both forms
   register on the live edge (cfrs #6, #14).

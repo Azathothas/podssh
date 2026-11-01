@@ -62,15 +62,15 @@ repository and CI).
 
 ## Counts
 
-**402 entries: 30 open, 2 partial, 31 blocked, 339 done.**
+**403 entries: 29 open, 2 partial, 31 blocked, 341 done.**
 
 | Priority | open | partial | blocked | done | total |
 | --- | --- | --- | --- | --- | --- |
 | P0 | 0 | 0 | 0 | 1 | 1 |
 | P1 | 2 | 1 | 0 | 34 | 37 |
-| P2 | 9 | 0 | 21 | 168 | 198 |
-| P3 | 19 | 1 | 10 | 136 | 166 |
-| **All** | 30 | 2 | 31 | 339 | 402 |
+| P2 | 8 | 0 | 21 | 169 | 198 |
+| P3 | 19 | 1 | 10 | 137 | 167 |
+| **All** | 29 | 2 | 31 | 341 | 403 |
 
 ## Entries
 
@@ -472,9 +472,10 @@ repository and CI).
 | [T-398](roads.md) | P2 | M | none | defect | open | WARP's tunnel under volume: h2's budget of small frames, the inbound read while a packet waits, and a live copy of 16 MiB |
 | [T-399](roads.md) | P2 | M | none | defect | open | WARP: a front door's key that is not the device record's is taken for a proxy, for the whole run |
 | [T-400](roads.md) | P2 | M | none | feature | open | The quick tunnel's legs raced with a stagger, and a probe of UDP before QUIC |
-| [T-401](roads.md) | P2 | S | none | defect | open | The quick tunnel's provisioning: Retry-After honoured, and the edge's text cleaned before it is shown |
+| [T-401](roads.md) | P2 | S | none | defect | done | The quick tunnel's provisioning: Retry-After honoured, and the edge's text cleaned before it is shown |
 | [T-402](roads.md) | P3 | M | none | feature | open | The quick tunnel on GOAWAY: the next connection at once, the old one drained, and a second connection |
 | [T-403](robustness.md) | P3 | S | none | defect | open | The Cap'n Proto reader allocates for each element of a list before it reads one; fuzz targets for the quick tunnel's parsers |
 | [T-404](roads.md) | P3 | S | none | chore | open | The quick tunnel's registration: the features of cloudflared 2026.10.7, and an answer to a push of configuration |
 | [T-405](ws.md) | P3 | S | none | defect | open | DoH asks by an address, which a proxy that refuses addresses refuses |
 | [T-406](roads.md) | P3 | S | none | docs | open | The edge's facts that cfrs's testers measured, in the design as a third party's |
+| [T-407](relay.md) | P3 | S | none | defect | done | A relay's Retry-After reaches a line as it came, with its terminal controls |
