@@ -63,6 +63,25 @@ BASE_IMAGE=$(image_of "$REPO/images/box/Dockerfile") || exit 78
 PROXY_IMAGE=$(image_of "$REPO/images/box-proxy/Dockerfile") || exit 78
 PORT=45331
 
+# A host whose only way out is a proxy on its own loopback, as a cloud
+# session's (T-251): the images build on the host's network, the box's proxy
+# carries each CONNECT that its policy takes on to that proxy, through
+# scripts/box/forward.py on the host, and the proxy's CA (SSL_CERT_FILE) is
+# trusted in the images and by podssh in the box. BOX_UPSTREAM=none turns it
+# off; BOX_UPSTREAM=http://HOST:PORT names another proxy.
+UPSTREAM=
+case ${BOX_UPSTREAM-${HTTPS_PROXY:-${https_proxy:-}}} in
+    none) ;;
+    *://127.*|*://localhost*|*://\[::1\]*)
+        UPSTREAM=$(printf '%s' "${BOX_UPSTREAM-${HTTPS_PROXY:-${https_proxy:-}}}" | sed 's#^[a-z]*://##; s#^.*@##; s#/.*$##') ;;
+esac
+HOST_CA=
+if [ -n "$UPSTREAM" ] && [ -n "${SSL_CERT_FILE:-}" ] && [ -r "${SSL_CERT_FILE:-}" ]; then
+    HOST_CA=$SSL_CERT_FILE
+fi
+FWD_PORT=45332
+FWD_PID=
+
 die() {
     echo "test_in_box: $*" >&2
     exit 1
@@ -102,6 +121,7 @@ TTYFILE=/tmp/podssh-box-tty.$$
 TTY_STARTED=0
 
 remove() {
+    [ -z "$FWD_PID" ] || kill "$FWD_PID" 2>/dev/null
     podman rm -f "$BOX" "$PROXY" "$TARGET" >/dev/null 2>&1
     podman network rm -f "$NET" >/dev/null 2>&1
     # The holder stops within a second after its path file goes.
@@ -111,8 +131,22 @@ trap 'remove; cd /; rm -rf "$WORK"' EXIT
 remove
 
 echo "== the box image: Alpine with OpenSSH's client (the sandbox had one) and curl (for the probe)"
-printf 'FROM %s\nRUN apk add --no-cache openssh-client curl\n' "$BASE_IMAGE" >"$WORK/Containerfile"
-timeout 900 podman build -q -t "$IMAGE" -f "$(hostpath "$WORK/Containerfile")" "$(hostpath "$WORK")" >"$WORK/build.log" 2>&1
+# With a proxy of the host's own (above): its network for apk, and its CA.
+BUILD_NET=
+TRUST=
+if [ -n "$UPSTREAM" ]; then
+    BUILD_NET="--network host"
+    echo "the host's way out is the proxy at $UPSTREAM: the images build on the host's network"
+fi
+if [ -n "$HOST_CA" ]; then
+    cp "$HOST_CA" "$WORK/host-ca.crt" || die "cannot copy the host's CA $HOST_CA"
+    TRUST='COPY host-ca.crt /etc/ssl/certs/podssh-host-ca.crt
+RUN cat /etc/ssl/certs/podssh-host-ca.crt >>/etc/ssl/certs/ca-certificates.crt
+'
+fi
+printf 'FROM %s\n%sRUN apk add --no-cache openssh-client curl\n' "$BASE_IMAGE" "$TRUST" >"$WORK/Containerfile"
+# shellcheck disable=SC2086  # $BUILD_NET is one flag and its value, or none
+timeout 900 podman build $BUILD_NET -q -t "$IMAGE" -f "$(hostpath "$WORK/Containerfile")" "$(hostpath "$WORK")" >"$WORK/build.log" 2>&1
 rc=$?
 [ "$rc" = 0 ] || { cat "$WORK/build.log"; die "the box image did not build (exit $rc)"; }
 
@@ -125,8 +159,9 @@ ALLOW=
 mkdir -p "$WORK/tt"
 if [ "$RUN" = tt ]; then
     echo "== the SSH server for the session: OpenSSH with less and procps, on the box's network only"
-    printf 'FROM %s\nRUN apk add --no-cache openssh-server less procps\n' "$BASE_IMAGE" >"$WORK/Containerfile.target"
-    timeout 900 podman build -q -t localhost/podssh-box-target:1 -f "$(hostpath "$WORK/Containerfile.target")" \
+    printf 'FROM %s\n%sRUN apk add --no-cache openssh-server less procps\n' "$BASE_IMAGE" "$TRUST" >"$WORK/Containerfile.target"
+    # shellcheck disable=SC2086  # as above
+    timeout 900 podman build $BUILD_NET -q -t localhost/podssh-box-target:1 -f "$(hostpath "$WORK/Containerfile.target")" \
         "$(hostpath "$WORK")" >"$WORK/build-target.log" 2>&1 || { cat "$WORK/build-target.log"; die "the server image did not build"; }
     # A throwaway key pair for this run only; the box copies the private key
     # with mode 600, and the work directory goes at the end.
@@ -145,6 +180,14 @@ if [ "$RUN" = tt ]; then
 fi
 
 echo "== the proxy: the only way out"
+if [ -n "$UPSTREAM" ]; then
+    # The host's side of the bridge that the proxy's container is on: it
+    # reaches the host there, and forward.py carries it to the host's proxy.
+    GW=$(podman network inspect podman --format '{{range .Subnets}}{{.Gateway}}{{end}}' 2>/dev/null)
+    [ -n "$GW" ] || die "the network podman has no gateway, for the way to the host's proxy"
+    ALLOW="$ALLOW --upstream $GW:$FWD_PORT"
+    echo "the box's proxy carries each CONNECT that it takes on to $UPSTREAM, through $GW:$FWD_PORT"
+fi
 # shellcheck disable=SC2086
 timeout 600 podman run -d --name "$PROXY" --network podman --network "$NET"     --dns 1.1.1.1 --dns 8.8.8.8 \
     --mount "type=bind,source=$(hostpath "$HERE/box"),target=/box,readonly" \
@@ -155,6 +198,18 @@ until podman logs "$PROXY" 2>&1 | grep -q '^listening'; do
     [ "$tries" -lt 30 ] || { podman logs "$PROXY"; die "the proxy did not listen within 30 s"; }
     sleep 1
 done
+# The forwarder binds the bridge's address, which exists once a container
+# is on the bridge: after the proxy's start.
+if [ -n "$UPSTREAM" ]; then
+    python3 "$HERE/box/forward.py" "$GW:$FWD_PORT" "$UPSTREAM" 2400 >"$WORK/forward.log" 2>&1 &
+    FWD_PID=$!
+    tries=0
+    until grep -q '^forwarding' "$WORK/forward.log" 2>/dev/null; do
+        tries=$((tries + 1))
+        [ "$tries" -lt 15 ] || { cat "$WORK/forward.log"; die "scripts/box/forward.py did not listen on $GW:$FWD_PORT"; }
+        sleep 1
+    done
+fi
 PIP=$(podman inspect -f "{{(index .NetworkSettings.Networks \"$NET\").IPAddress}}" "$PROXY")
 [ -n "$PIP" ] || die "the proxy has no address on $NET"
 echo "proxy at $PIP:$PORT"
@@ -183,7 +238,15 @@ case $SLAVE in
 esac
 
 echo "== in the box"
-timeout 1800 podman run --rm --name "$BOX" --network "$NET" \
+# The host's proxy reads TLS, so podssh in the box trusts its CA too: a
+# difference from the sandbox, said here.
+set --
+if [ -n "$HOST_CA" ]; then
+    echo "podssh in the box trusts the CA of the host's proxy too (SSL_CERT_FILE)"
+    set -- --mount "type=bind,source=$(hostpath "$HOST_CA"),target=/etc/podssh-host-ca.crt,readonly" \
+        -e SSL_CERT_FILE=/etc/podssh-host-ca.crt
+fi
+timeout 1800 podman run --rm --name "$BOX" --network "$NET" "$@" \
     --dns 1.1.1.1 --dns 8.8.8.8 --dns 9.9.9.9 --dns-option timeout:1 --dns-option attempts:2 \
     --cap-drop all --security-opt no-new-privileges \
     --security-opt "seccomp=$(hostpath "$HERE/box/$SECCOMP")" \

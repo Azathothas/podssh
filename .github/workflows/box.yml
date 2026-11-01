@@ -51,23 +51,6 @@ jobs:
       BIN: target/x86_64-unknown-linux-musl/release/podssh
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
-      - name: diagnose the dead tty (temporary, T-251)
-        if: matrix.run == 'default'
-        run: |
-          set -u
-          for who in user root; do
-            T=$RUNNER_TEMP/dt-$who
-            if [ $who = root ]; then pre="sudo -E env PATH=$PATH"; else pre=; fi
-            $pre sh -c "(setsid nohup python3 scripts/box/deadtty.py 120 $T >/dev/null 2>&1 </dev/null &)"
-            sleep 2; S=$($pre cat $T); echo "== $who: slave $S"; ls -l "$S"
-            start=$(date +%s)
-            $pre timeout 60 podman run --rm --cap-drop all --security-opt no-new-privileges \
-              --security-opt "seccomp=$PWD/scripts/box/seccomp.json" --security-opt mask=/dev/pts \
-              --mount "type=bind,source=$S,target=/dev/tty" docker.io/library/alpine:3 \
-              sh -c '(timeout 5 dd if=/dev/tty of=/dev/null bs=1 count=1; echo "dd rc=$?") & sleep 3; for p in /proc/[0-9]*; do c=$(cat $p/comm 2>/dev/null); case $c in dd|timeout) echo "$c pid ${p#/proc/} $(grep -E "^(State|SigPnd|ShdPnd|SigBlk|SigIgn)" $p/status | tr "\n" " ") wchan=$(cat $p/wchan 2>/dev/null)";; esac; done; ps -o pid,pgid,sid,stat,comm 2>/dev/null; wait; echo end'
-            echo "== $who: podman exited $? after $(( $(date +%s) - start )) s"
-            $pre rm -f $T
-          done
       - name: podssh, static, in the build image
         run: sh scripts/box/build-podssh.sh
       - name: the run ${{ matrix.run }}
