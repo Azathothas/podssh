@@ -6085,9 +6085,10 @@ the same day; the live copies run in Actions after the push (`docs/STATUS.md`).
   !waiting`): `the_stack_reads_the_tunnel_while_a_packet_waits_to_go_out` failed; `client_builder`
   with no `data_frame_budget`: `small_frames_that_wait_for_a_paused_reader_keep_the_tunnel` failed
   after 30 s, as the control does.
-- Live: `warp-live.yml` dispatched on the commit with `confirm=Q52` (16 MiB up and 16 MiB down,
-  the digests equal, a CONNECT carried inside the tunnel, no line of h2's guard), and the third
-  node of `quick-tunnel-live.yml`: their runs are in `docs/STATUS.md`.
+- Live: `warp-live.yml` at `66044bd` (run 41292620979, `confirm=Q52`): "16 MiB up inside WARP's
+  tunnel, the digests equal" and down the same, each CONNECT of the client carried inside the
+  tunnel, no line of h2's guard. The third node of `quick-tunnel-live.yml`: its run is in
+  `docs/STATUS.md`.
 - Not changed here, for the main session: podssh-relay's quick tunnel server keeps h2's own budget
   (`crates/podssh-relay/src/quick/serve.rs`): 8 MiB there, half its window of 256 streams of
   64 KiB, which 42,800 unread frames of 60 bytes across its streams reach, so 40 streams whose

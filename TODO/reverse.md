@@ -2012,6 +2012,72 @@ whose tests run offline.
   and manual suites: passed; `--features pair --test reverse_node`: 9 passed; clippy `-D warnings`
   with and without `iroh`: clean.
 
+# T-412: The stand-in relay drops a frame of an unknown session, which the live relay answers with 1003
+
+**Source:** the session of 2026-11-01, after T-410: the races of the node's road showed only on the
+live relay, from GitHub's network, as the stand-in relay forgives what the live one does not.
+**Category:** defect
+**Milestone:** none
+**Priority:** P2
+**Effort:** S
+**Status:** done
+
+## Problem
+
+The offline tests of the node's road run against the stand-in relay, which drops a binary frame of
+the node whose session id it does not know. The live relay closes the node's whole socket with
+`1003 unknown session id` for it (T-410's trace), which ends each session of the socket. A race of
+that kind passes each offline test and shows only on the live relay.
+
+## Premise
+
+- Read: the stand-in passes a frame on only when the id is known, and drops it silently otherwise
+  (`node` in `scripts/fake_reverse.py`, at `abf1322`).
+- Measured on the live relay (T-410): a frame of the node for an id that the relay forgot closed
+  the node's socket with `1003 unknown session id`, forwarded to each operator.
+- Read: the stand-in already ends a session whose node gives no `ready` within 15 s (`1013 node
+  open timeout`), as the live relay does.
+
+## Approach
+
+The stand-in closes the node's socket with `1003 unknown session id` for a frame of an unknown id,
+in each mode but a new `lenient`, and says so on its stderr. Each suite that runs the stand-in's
+reverse road must pass with it; a failure is a race of podssh, repaired before this entry closes.
+
+## Prove
+
+```sh
+export CARGO_BUILD_JOBS=4
+cargo test -p podssh-cli --test node_moves
+cargo test -p podssh-cli --test node_detach --test node_expiry --test node_copy --test node_plain \
+  --test node_routes --test pipe_remote --test pipe_udp --test roost --test upgrade --test attach
+```
+
+## Correction
+
+A node closed with `1003` connects again since T-409, and its layered sessions resume, so the
+strict stand-in alone fails no test: the harness must look. And no suite before this entry put
+48 MiB through a node offline, so none moved a session, where T-410's race was.
+
+## Done
+
+2026-11-01: the stand-in relay is as strict as the live one, and the offline tests see it.
+
+- `scripts/fake_reverse.py`: a binary frame of the node for an id that the stand-in does not know
+  closes the node's socket with `1003 unknown session id` and a line on its stderr, in each mode
+  but the new `lenient`.
+- `crates/podssh-cli/tests/throughput_harness/mod.rs`: when a test's session ends, a line of that
+  kind in the stand-in's logs fails the test, with the lines.
+- `crates/podssh-cli/tests/node_moves.rs` (new):
+  `a_bulk_session_through_a_node_moves_with_no_frame_of_a_forgotten_id` puts 100 MiB down from the
+  test's server through a node, `ssh -v`, which moves at 48 MiB: passed in 52 s. Planted, T-410's
+  defect back (the client's half-close of a retired link): failed 2 of 2, "the node sent frames of
+  ids that the stand-in relay did not know: [... unknown id 316a3e72: 1003]".
+- Each suite of the Prove with the strict stand-in, three rounds: passed, and no frame of an
+  unknown id in any of them. A node's check of a closed session taken out of its writer was not
+  reached by them (no session there has bytes after the relay's close), so it is not this entry's
+  plant.
+
 # T-409: A node that the relay closes for a fault (1003, 1009) ends for good
 
 **Source:** the run of `relay-live.yml` (`node_live`, run 41289022291 at `ea2bd4f`, 2026-11-01),

@@ -159,8 +159,24 @@ impl Drop for Session {
             let args = ["relay".to_string(), "revoke".to_string(), name];
             let _ = self.command(&args).stdin(Stdio::null()).output();
         }
+        let faults = unknown_ids(&self.home);
         let _ = std::fs::remove_dir_all(&self.home);
+        // A frame of the node for an id that the relay forgot ends the
+        // node's socket on the live relay; a test whose node sent one hides
+        // a race that only the live relay would show (T-412).
+        if !faults.is_empty() && !std::thread::panicking() {
+            panic!("the node sent frames of ids that the stand-in relay did not know: {faults:?}");
+        }
     }
+}
+
+/// The stand-in relay's lines, in the logs under `home`, of a frame of the
+/// node for an unknown id.
+fn unknown_ids(home: &std::path::Path) -> Vec<String> {
+    let Ok(entries) = std::fs::read_dir(home) else { return Vec::new() };
+    let logs = entries.flatten().filter(|e| e.file_name().to_string_lossy().starts_with("fake-relay-"));
+    let text = logs.filter_map(|e| std::fs::read_to_string(e.path()).ok()).collect::<Vec<_>>().join("\n");
+    text.lines().filter(|l| l.contains("for an unknown id")).map(str::to_string).collect()
 }
 
 /// A fresh, empty scratch directory unique to one test.

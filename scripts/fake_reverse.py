@@ -27,6 +27,9 @@ PAIRS = {}
 # ends it after SECONDS as at its expiry: each socket of the pair gets 1001
 # "pair expired", and its tokens a 403 after.
 MODE = "normal"
+# lenient: a frame of the node for an id that the relay does not know is
+# dropped; in each other mode it closes the node's socket with 1003
+# "unknown session id", as the live relay does.
 # Whether the short pair of expirefirst was made.
 SHORT = {"made": False}
 # FAKE_RELAY_DEBUG=1: each frame of the reverse road, on stderr.
@@ -173,9 +176,16 @@ async def node(pair, socket):
                 elif message.get("type") == "close":
                     await operator_socket.close(1000, "node closed the session")
             elif opcode in (0x0, 0x2):
-                session = pair.sessions.get(data[:32].decode("ascii", "replace"))
+                sid = data[:32].decode("ascii", "replace")
+                session = pair.sessions.get(sid)
                 if session is not None:
                     await session[0].send(frame(0x2, data[32:]))
+                elif MODE != "lenient":
+                    # As the live relay: a frame of an id that it forgot (a
+                    # session that ended) closes the node's whole socket.
+                    print(f"reverse: a frame of the node for an unknown id {sid[:8]}: 1003", file=sys.stderr, flush=True)
+                    await socket.close(1003, "unknown session id")
+                    break
             elif opcode == 0x9:
                 await socket.send(frame(0xA, data))
             elif opcode == 0x8:

@@ -2316,6 +2316,8 @@ run the same day; at the merge a test's temporaries are bound before the lookup 
   both failed. `cargo test -p podssh-ws`: 366 passed; clippy `-D warnings`: clean.
 - Live: `the_edge_s_record_comes_through_a_proxy_of_names_alone` in
   `crates/podssh-ws/tests/live_doh.rs`, which `.github/workflows/doh-live.yml` runs through
-  `scripts/box/proxy.py --take names`, with the check that the proxy took a resolver's name:
-  dispatched after the push (`docs/STATUS.md`).
+  `scripts/box/proxy.py --take names`, with the check that the proxy took a resolver's name: at
+  `87645d1` (run 41298470792), the edge's SRV record (`region1` and `region2.v2.argotunnel.com`,
+  port 7844) came through the proxy of names alone, which logged `200 CONNECT
+  cloudflare-dns.com:443`; the job's three other live tests of DoH passed too.
 - `docs/design.md` (the edge's SRV record) and `docs/STATUS.md` (the row of DNS over HTTPS).

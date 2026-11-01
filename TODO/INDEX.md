@@ -62,15 +62,15 @@ repository and CI).
 
 ## Counts
 
-**407 entries: 22 open, 2 partial, 31 blocked, 352 done.**
+**408 entries: 22 open, 2 partial, 31 blocked, 353 done.**
 
 | Priority | open | partial | blocked | done | total |
 | --- | --- | --- | --- | --- | --- |
 | P0 | 0 | 0 | 0 | 1 | 1 |
 | P1 | 1 | 1 | 0 | 37 | 39 |
-| P2 | 4 | 0 | 21 | 173 | 198 |
+| P2 | 4 | 0 | 21 | 174 | 199 |
 | P3 | 17 | 1 | 10 | 141 | 169 |
-| **All** | 22 | 2 | 31 | 352 | 407 |
+| **All** | 22 | 2 | 31 | 353 | 408 |
 
 ## Entries
 
@@ -483,3 +483,4 @@ repository and CI).
 | [T-409](reverse.md) | P1 | S | none | defect | done | A node that the relay closes for a fault (1003, 1009) ends for good |
 | [T-410](resume.md) | P1 | M | none | defect | done | From GitHub's network, the first move through a node still meets a frame for a forgotten id |
 | [T-411](roads.md) | P3 | M | none | defect | open | The quick tunnel over QUIC resets a push of configuration |
+| [T-412](reverse.md) | P2 | S | none | defect | done | The stand-in relay drops a frame of an unknown session, which the live relay answers with 1003 |
