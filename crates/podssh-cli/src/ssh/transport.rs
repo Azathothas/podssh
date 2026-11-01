@@ -20,8 +20,6 @@ use super::resolve::{Resolved, Transport};
 mod after;
 use crate::exitmap::sysexits;
 use after::after_relay;
-#[cfg(test)]
-use after::{announce, both_failed, VERSION_WAIT};
 
 /// A stream of either transport.
 pub trait Duplex: AsyncRead + AsyncWrite + Unpin + Send {}
@@ -338,7 +336,11 @@ async fn direct(
 mod tests {
     use std::time::Duration;
 
-    use super::{announce, both_failed, keep, multipath_asked, running, settled, CARRIAGE_WAIT, VERSION_WAIT};
+    // From `after` here, not by a test-only import at the top of this file:
+    // the manual's check of variables reads each file up to its first
+    // test-only line.
+    use super::after::{announce, both_failed, VERSION_WAIT};
+    use super::{keep, multipath_asked, running, settled, CARRIAGE_WAIT};
     use crate::ssh::banner::{self, Prefixed};
 
     /// The line before the direct road names the target and the proxy, and

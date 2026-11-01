@@ -32,12 +32,67 @@ fn sources() -> Vec<(PathBuf, String)> {
                 dirs.push(path);
             } else if path.extension().is_some_and(|e| e == "rs") {
                 let text = std::fs::read_to_string(&path).unwrap();
-                let code = text.split("#[cfg(test)]").next().unwrap_or("").to_string();
-                out.push((path, code));
+                out.push((path, non_test(&text)));
             }
         }
     }
     out
+}
+
+/// `text` without its test-only items: each `#[cfg(test)]` drops the item
+/// that follows it, a line such as `use ...;` or `mod tests;`, or a block
+/// such as `mod tests { ... }`, and nothing more. A cut at the first
+/// `#[cfg(test)]` hid the rest of a file behind a test-only import at its
+/// top, and so a variable that the file reads.
+fn non_test(text: &str) -> String {
+    const MARK: &str = "#[cfg(test)]";
+    let mut out = String::new();
+    let mut rest = text;
+    while let Some(at) = rest.find(MARK) {
+        out.push_str(&rest[..at]);
+        let item = &rest[at + MARK.len()..];
+        let (semi, brace) = (item.find(';'), item.find('{'));
+        let end = match (semi, brace) {
+            (Some(s), Some(b)) if s < b => Some(s + 1),
+            (Some(s), None) => Some(s + 1),
+            (_, Some(b)) => block_end(item, b),
+            (None, None) => None,
+        };
+        // An item with no end hides the rest, as the old cut did.
+        let Some(end) = end else { return out };
+        rest = &item[end..];
+    }
+    out.push_str(rest);
+    out
+}
+
+/// The offset just after the brace that closes the one at `open`.
+fn block_end(text: &str, open: usize) -> Option<usize> {
+    let mut depth = 0usize;
+    for (i, c) in text[open..].char_indices() {
+        match c {
+            '{' => depth += 1,
+            '}' => {
+                depth -= 1;
+                if depth == 0 {
+                    return Some(open + i + 1);
+                }
+            }
+            _ => {}
+        }
+    }
+    None
+}
+
+/// The control of [`non_test`]: a read after a test-only import counts, a
+/// read inside a test-only block does not.
+#[test]
+fn a_test_only_item_hides_itself_alone() {
+    let text = "use a;\n#[cfg(test)]\nuse b::{c, d};\nconst X: &str = \"READ_AFTER\";\n\
+        #[cfg(test)]\nmod tests {\n    fn f() { let _ = \"IN_TESTS\"; }\n}\nconst Y: &str = \"READ_LAST\";\n";
+    let kept = non_test(text);
+    assert_eq!(variables_read(&kept), vec!["READ_AFTER", "READ_LAST"], "{kept}");
+    assert!(kept.contains("use a;") && !kept.contains("use b::"), "{kept}");
 }
 
 fn documented() -> Vec<&'static str> {
