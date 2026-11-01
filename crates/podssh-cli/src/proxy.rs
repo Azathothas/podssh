@@ -148,9 +148,8 @@ fn proxy(args: &ProxyArgs, err: &mut dyn Write) -> i32 {
         }
     };
     let v6 = relay::is_ipv6_literal(&host);
-    let target = podssh_ws::dial::authority(&host, port);
     let road = Road { relays: &relays, trust: &trust, failover };
-    let code = runtime.block_on(session(&road, &path, &target, v6, err));
+    let code = runtime.block_on(session(&road, &path, (&host, port), v6, err));
     // A read on stdin may still be blocked in a helper thread; do not wait
     // for it, or podssh would hang after the session has ended.
     runtime.shutdown_background();
@@ -267,7 +266,8 @@ struct Road<'a> {
     failover: Mode,
 }
 
-async fn session(road: &Road<'_>, path: &str, target: &str, v6: bool, err: &mut dyn Write) -> i32 {
+async fn session(road: &Road<'_>, path: &str, (host, port): (&str, u16), v6: bool, err: &mut dyn Write) -> i32 {
+    let target = &podssh_ws::dial::authority(host, port);
     let request = Request { relays: road.relays, path, trust: road.trust, target, rounds: 1, failover: road.failover };
     let opened = podssh_relay::open(&request, &mut |note: &str| {
         let _ = writeln!(err, "podssh: {note}");
@@ -285,7 +285,10 @@ async fn session(road: &Road<'_>, path: &str, target: &str, v6: bool, err: &mut 
             for line in failure.lines(target) {
                 let _ = writeln!(err, "podssh: {line}");
             }
-            sysexit(failure.last())
+            // Each relay host failed: the forwarders that the binary names,
+            // where the relay was podssh's choice (T-370).
+            let code = sysexit(failure.last());
+            crate::forwarder::fallback::after_relay_pipe(code, road.relays, host, port, road.trust, err).await
         }
     }
 }

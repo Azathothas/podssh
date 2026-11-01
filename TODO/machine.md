@@ -48,7 +48,7 @@ failed (lines 156-168). The sections are "this host", "egress" and "relay" (line
    keep the additions small, or split first.
 5. The JSON carries the same detail strings as the text, which hide proxy credentials and
    tokens today (`crates/podssh-cli/tests/doctor.rs:142-167`).
-6. Change the `doctor` notes (`crates/podssh-cli/src/man/notes.rs:186-235`) and
+6. Change the `doctor` notes (`crates/podssh-cli/src/man/notes.rs:187-238`) and
    `docs/cli.md` lines 1329-1347 at `48a8744` in the same commit.
 
 ## Decision
@@ -335,7 +335,7 @@ and `crates/podssh-ssh/src/keys.rs:99-131` offers a key to the server.
 5. The line joins the JSON of T-049. The script can call `doctor --full` and keep its OpenSSH
    step.
 6. Change `DOCTOR_FLAGS` (`crates/podssh-cli/src/flags/relay.rs:46-64`), the `doctor` notes
-   (`crates/podssh-cli/src/man/notes.rs:186-235`) and `docs/cli.md` lines 1329-1347 at `48a8744` in the same commit.
+   (`crates/podssh-cli/src/man/notes.rs:187-238`) and `docs/cli.md` lines 1329-1347 at `48a8744` in the same commit.
 
 ## Decision
 
@@ -530,7 +530,7 @@ Read: a session ends as `io::End` (`crates/podssh-ssh/src/io.rs:35-52`). The exi
 signal are read in `handle_msg` (`crates/podssh-ssh/src/io/msg.rs:35-53`). The output goes straight to the process's
 stdout and stderr in `write_out` (`:77-94`), so nothing counts bytes. `session::run` maps
 the end to the exit code (`crates/podssh-ssh/src/session.rs:39-47`). The relay host is known
-at `crates/podssh-cli/src/ssh/transport.rs:201`, and the relay's close reason is in `RelayStatus`
+at `crates/podssh-cli/src/ssh/transport.rs:206`, and the relay's close reason is in `RelayStatus`
 (`crates/podssh-ssh/src/relay_stream.rs:69-163`).
 
 ## Approach
@@ -626,10 +626,10 @@ failure at `crates/podssh-ssh/src/run.rs:135-145` and
 `crates/podssh-cli/src/ssh/result.rs:48-58`, the file at
 `crates/podssh-cli/src/ssh/result.rs:60-74`, written at the end of
 `run_ssh` (`crates/podssh-cli/src/ssh/mod.rs:65-95`); the relay host at
-`crates/podssh-cli/src/ssh/transport.rs:202` and its close at
+`crates/podssh-cli/src/ssh/transport.rs:207` and its close at
 `crates/podssh-cli/src/ssh/mod.rs:291`. The flag in `SSH_FLAGS`
 (`crates/podssh-cli/src/flags.rs:204`), its note at
-`crates/podssh-cli/src/man/notes_ssh.rs:363-375`, and `docs/cli.md`.
+`crates/podssh-cli/src/man/notes_ssh.rs:377-389`, and `docs/cli.md`.
 
 The test `crates/podssh-cli/tests/ssh_result.rs`, against the test server,
 whose `exit N` and `kill NAME` are in
@@ -674,7 +674,7 @@ stdin and stdout gives typed tools, with no shell quoting.
 
 Measured: `podssh mcp` exits 64 (unknown subcommand).
 
-Read: a prompt goes to the controlling terminal or to `SSH_ASKPASS` (`docs/cli.md:2868-2893`),
+Read: a prompt goes to the controlling terminal or to `SSH_ASKPASS` (`docs/cli.md:2894-2919`),
 and the terminal of an agent can be the user's own. The session output goes straight to the
 process's stdout (`crates/podssh-ssh/src/io/msg.rs:77-94`), which an MCP server over stdio uses for
 its protocol. podssh never listens (`docs/architecture.md:147-162`), and stdio needs no listener.
@@ -904,12 +904,12 @@ line of `podssh ssh` at the end of `run_ssh`, from its result
 (`crates/podssh-cli/src/ssh/mod.rs:68-95`), and its destination at
 `crates/podssh-cli/src/ssh/mod.rs:171`; that of `podssh proxy` at
 `crates/podssh-cli/src/proxy.rs:49-63`, its destination at
-`crates/podssh-cli/src/proxy.rs:107` and `crates/podssh-cli/src/proxy.rs:175`,
+`crates/podssh-cli/src/proxy.rs:107` and `crates/podssh-cli/src/proxy.rs:174`,
 its session at `crates/podssh-cli/src/proxy.rs:278-281`; the bytes of the
 pump at `crates/podssh-cli/src/pipe/pump.rs:94` and
 `crates/podssh-cli/src/pipe/pump.rs:104-132`, and the relay's close at
 `crates/podssh-cli/src/pipe/relay.rs:205`. `SessionLog` at
-`crates/podssh-cli/src/settings.rs:252-255`, and `podssh status` at
+`crates/podssh-cli/src/settings.rs:255-258`, and `podssh status` at
 `crates/podssh-cli/src/status.rs:103-114`. The variable in VARIABLES, the
 two files in FILES, and `docs/cli.md`.
 

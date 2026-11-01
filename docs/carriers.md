@@ -146,7 +146,9 @@ The candidates, ranked:
    speed, then 100 KiB/s; one connection a second from each address). No
    account, no token; they serve their own products' users and publish no
    limit. podssh's road to a forwarder that the user names is
-   `--forwarder` (T-369), with no relay token.
+   `--forwarder` (T-369), with no relay token; by the operator's ruling
+   Q56 the binary names the three by a word, and tries them when each relay
+   host failed (T-370).
 
 Ruled out:
 

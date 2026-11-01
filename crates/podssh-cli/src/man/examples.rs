@@ -143,6 +143,10 @@ fn examples() -> Vec<(&'static str, String)> {
         ),
         ("try these relay hosts, in this order", format!("podssh ssh --relay-host {relay},{other} user@example.org")),
         (
+            "no relay: other products' public forwarders, in this order; they publish no limit",
+            "podssh ssh --forwarder mudlet,ssheasy user@example.org".into(),
+        ),
+        (
             "use the OpenSSH client, with podssh as its way out",
             "ssh -o ProxyCommand='podssh proxy %h %p' -o ServerAliveInterval=60 user@example.org".into(),
         ),

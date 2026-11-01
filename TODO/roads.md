@@ -373,7 +373,7 @@ sandbox can block what iroh needs, so the fallback is necessary
 6. With `-v`, print the road that won and its time.
 7. Each resume of T-153 runs the same race.
 8. Docs: the rule of the race in `docs/design.md` section 2, and the notes of
-   `ssh` in the manual (`crates/podssh-cli/src/man/notes_ssh.rs:4-376`).
+   `ssh` in the manual (`crates/podssh-cli/src/man/notes_ssh.rs:4-390`).
 
 ## Decision
 
@@ -4434,7 +4434,7 @@ does not depend on them.
 - Read: `Transport::Direct` comes from `--direct` alone
   (`crates/podssh-cli/src/ssh/resolve.rs`, lines 340-346 at `4e2010e`), and else the relay (lines 348-371 at `4e2010e`); its other
   uses are a label (`crates/podssh-cli/src/ssh/mod.rs:210`), the dial
-  (`crates/podssh-cli/src/ssh/transport.rs:239-283`) and a check of `--upgrade`
+  (`crates/podssh-cli/src/ssh/transport.rs:256-300`) and a check of `--upgrade`
   (`crates/podssh-cli/src/ssh/upgrade.rs:59`). The issue's citation of
   the arm began two lines early; it is at `crates/podssh-cli/src/ssh/resolve.rs:320-326`.
 - Read: `docs/design.md:45` says "podssh tries the roads in this order"; for a public sshd, the
@@ -4445,13 +4445,13 @@ does not depend on them.
   and for the split HTTP road (`AGENTS.md:252-260`); a race of the forward and the direct road is
   neither.
 - Read: the direct dial goes through `HTTPS_PROXY` when it is set, with the relay's step limit of
-  20 s (`crates/podssh-cli/src/ssh/transport.rs:304-318`, `crates/podssh-relay/src/open.rs:30`),
+  20 s (`crates/podssh-cli/src/ssh/transport.rs:316-330`, `crates/podssh-relay/src/open.rs:30`),
   and names a proxy that takes the CONNECT and sends nothing back (T-317). doctor reads the
   server's version line on port 22, straight out or through the proxy, to say whether plain ssh
   can leave (`crates/podssh-cli/src/doctor/net.rs:184-191`, `:193-274`).
 - Read: `cp`, `each`, `job`, `health`, `containers`, `ping` and the `ssh:` address of `pipe` reach
   their server through the same function as `podssh ssh`
-  (`crates/podssh-cli/src/ssh/transport.rs:158-162`; `crates/podssh-cli/src/cp/link.rs`,
+  (`crates/podssh-cli/src/ssh/transport.rs:163-167`; `crates/podssh-cli/src/cp/link.rs`,
   `crates/podssh-cli/src/each/host.rs`).
 - Read: on the hosts that podssh is built for, the proxy refuses port 22 and a direct dial is
   dropped with no answer (`docs/target-environment.md:21-22`); a cloud container's proxy takes
@@ -4761,7 +4761,7 @@ built-in presets"; GitHub #60, a template "one the build knows".
 **Milestone:** backlog
 **Priority:** P3
 **Effort:** S
-**Status:** open
+**Status:** partial
 
 ## Problem
 
@@ -4810,6 +4810,43 @@ As the operator's ruling on Q56 allows (2026-10-31, `docs/decisions.md`):
   Cloudflare's platform.
 - The fallback comes after the relay hosts, not before: the relay's contract, limits and close
   codes are known (`docs/relay.md`), and a forwarder publishes none.
+- The merge's call (2026-11-01), as T-363's direct road came to `main` first: once each relay
+  host failed, the direct road (T-363) is tried before the public forwarders, and they after it,
+  before the run ends. The direct road sends the target to no one else, where a forwarder is
+  another product's service that sees it; `podssh proxy`, which has no direct road, tries them at
+  once. Lost: the forwarders first, which would spare a host that drops a direct dial up to the 10
+  s of T-363's wait, at the cost of the target in a third party's hands where the direct road
+  would have served. A test (`the_direct_road_comes_before_the_public_forwarders`) holds the order.
+- The drafting agent's calls (2026-10-31):
+  1. The words and the order: `mudlet`, `ssheasy`, `mudix`. A second provider before a second
+     copy of the first: `mudix` runs Mudlet's code on the same runtime, whose refusals (port 25,
+     private and Cloudflare's addresses) it shares, where ssheasy's Go proxy is another provider.
+     Lost: #59's order (Mudlet, mudix, ssheasy), which tries the same runtime twice first.
+  2. The table is in `podssh-ws` (`forwarder/builtin.rs`), data alone, so the live watch builds that
+     crate alone; the words are the CLI's, through it.
+  3. The fallback follows only a relay of podssh's own choice, as T-363 keeps a relay that the
+     user names its own road: not `--relay-host`, `PODSSH_RELAY` or `RelayHost` (`explicit`), not
+     `-4` or `-6`, and only a failure that a forwarder may not share (69 or 77, as `proxy` exits);
+     a bad setting (78) or a target that cannot go (64) ends the run as before. A user's own
+     `--forwarder` list gets no fallback: it is the user's road. Lost: a fallback after any
+     failure, which would send the target to another product's service where the user chose the
+     relay.
+  4. On by default, as Q56 allows, and turned off by `PODSSH_FORWARDER_FALLBACK=no` or
+     `ForwarderFallback no`, as T-363 turns its own off; a word that is neither is refused (78) in
+     the resolve, before anything connects, as the fallback is read again when it runs. Lost: off
+     by default, which keeps the second road from each user who does not know of it.
+  5. Said on stderr: one line before the first dial, naming the words, each failure with its
+     forwarder, and the forwarder that carries the session or the pipe; the code of a run that
+     none carries stays the relay's. `doctor` says whether the fallback is on, with no dial: Q56
+     allows trying them when the relay fails, not on each check; `doctor --forwarder WORDS` asks
+     them.
+  6. The watch (Approach 3): `.github/workflows/forwarder-live.yml`, each day and by hand, runs
+     `crates/podssh-ws/tests/live_forwarder.rs`: one connection to each, one at a time, and the
+     first line of `github.com:22`, GitHub's version line (Q56: Actions only, short). Its plant
+     names a host under `.invalid` for each, and must fail. Lost: a daily run of `podssh doctor
+     --forwarder`, which builds the binary and asks the relay too.
+  7. With T-363, its direct road comes before the forwarders: the user's own network before
+     another product's service (`docs/design.md`, the road table).
 
 ## Prove
 
@@ -4820,6 +4857,53 @@ cargo test -p podssh-cli --test forwarder_cli -- builtin
 
 Each built-in template passes the stand-ins of T-369 in its form; a fallback runs only after each
 relay host failed. Live, as Q56 allows: GitHub's banner through each, in GitHub Actions.
+
+## Correction
+
+2026-10-31 (the drafting agent): two citations of the Premise, read at `a3f948d`. The question of
+Cloudflare's terms is item 15 of the relay operator's list, `docs/relay-operator.md:315-322`;
+`docs/relay-operator.md:83-87` is item 1's word on the drops of reverse sockets. The test targets
+of `AGENTS.md:226-241` name the three forwarders now, from GitHub Actions only, with short runs
+(Q56, the same day); the Premise read them before that ruling.
+
+## Done
+
+2026-10-31: drafted (branch `draft-forwarder`, `f27fbe2`); merged into `main` on 2026-11-01, built
+and tested here. Partial: the live run waits for this commit on GitHub.
+
+- The table of the three (`crates/podssh-ws/src/forwarder/builtin.rs`), the words in each list of
+  forwarders (`crates/podssh-cli/src/forwarder/mod.rs`), and the fallback
+  (`crates/podssh-cli/src/forwarder/fallback.rs`): after each relay host failed, in the relay's
+  arm of `crates/podssh-cli/src/ssh/transport.rs` and in `podssh proxy`; `PODSSH_FORWARDER_FALLBACK`
+  and `ForwarderFallback`; the line `fallback` of `doctor`.
+- The manual (the words in the help and a note of `ssh`, the variable, the settings, an example),
+  `docs/cli.md`, `docs/carriers.md`, the road table of `docs/design.md`, `docs/relay-operator.md`
+  and `docs/STATUS.md`; the watch, `.github/workflows/forwarder-live.yml`.
+- `cargo test -p podssh-cli --test forwarder_cli`: 11 passed (2026-11-01), the draft's of the
+  fallback among them (each word in its form; the fallback after each relay host, in order, each
+  named; none for `--relay-host` nor when off; 78 for another word; `proxy`'s fallback);
+  `cargo test -p podssh-ws --lib forwarder`: 10 passed; `cargo test -p podssh-cli --lib man`: 55
+  passed.
+- The merge (Decision, the merge's call): the direct road before the forwarders. The draft's two
+  tests of the fallback run with `PODSSH_DIRECT=no`, as the direct road would take their
+  server; a new test, `the_direct_road_comes_before_the_public_forwarders`, holds the order; the
+  note of `ssh` and `docs/cli.md` say it. T-363's `direct_fallback` runs with
+  `PODSSH_FORWARDER_FALLBACK=no`: without it, two of its tests went on to the public forwarders
+  through the test's proxy, one past its 60 s, and no test asks another product's live service.
+  clippy named a type too complex in `forwarder_cli`; it has a name. `ssh/transport.rs` grew to
+  504 lines with both fallbacks: T-363's direct road after the relay went to
+  `crates/podssh-cli/src/ssh/transport/after.rs`, its comments with it.
+- podssh-cli's and podssh-ws's whole suites: 1455 passed, 58 ignored, and the two of
+  `direct_fallback` above, which passed (4) once repaired, with `forwarder_cli` (11); in a
+  temporary directory of their own, which they left empty. clippy `-D warnings` on each package
+  and with `iroh-test`: clean; rustfmt clean; Rust 1.89, the library crates with no C compiler and
+  podssh-cli: exit 0.
+- Planted (2026-11-01), the check of `explicit` removed from `fallback::not_after`: the case of
+  `--relay-host` in `builtin_fallback_is_not_for_the_user_s_relay_nor_when_turned_off` failed, and
+  only it.
+- Live (GitHub Actions only, Q56): `forwarder-live.yml` run by hand, GitHub's version line through
+  `mudlet`, `ssheasy` and `mudix`, and its planted step failing each: waits for this commit on
+  GitHub.
 
 # T-371: A `-J` hop on port 443 through the proxy, measured, and a `doctor` line for a hop
 

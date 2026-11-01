@@ -5,11 +5,15 @@
 //! hosts are. They come from `--forwarder`, else `PODSSH_FORWARDER`, else
 //! `Forwarder` of the settings file (T-048), each only where nothing at its
 //! level or above names another road: a run has one road. No token goes on
-//! this road, and no `/v1/mint`, `/relays.json` or pool is asked.
+//! this road, and no `/v1/mint`, `/relays.json` or pool is asked. A word
+//! names a forwarder that the binary carries (`mudlet`, T-370), and those
+//! are the fallback when each relay host failed ([`fallback`]).
 
+pub mod fallback;
 pub mod pipe;
 pub mod reach;
 
+use podssh_ws::forwarder::builtin::{self, Builtin};
 use podssh_ws::forwarder::Template;
 
 use crate::relay_settings::Refusal;
@@ -32,15 +36,40 @@ impl Forwarder {
         let name = template.shown().to_string();
         Forwarder { template, name }
     }
+
+    /// A forwarder that the binary names, by its word and its URL.
+    fn named(b: &Builtin) -> Result<Forwarder, String> {
+        let template = Template::parse(b.template)?;
+        let name = format!("{} ({})", b.word, template.shown());
+        Ok(Forwarder { template, name })
+    }
+
+    /// A template, or the word of a forwarder that the binary names. A
+    /// word that is none is not shown: it may be a mistyped URL whose query
+    /// holds a secret.
+    fn parse(item: &str) -> Result<Forwarder, String> {
+        if item.contains("://") {
+            return Template::parse(item).map(Forwarder::of);
+        }
+        let words = builtin::words();
+        let b = builtin::lookup(item)
+            .ok_or_else(|| format!("a forwarder is a ws:// or wss:// template, or one of the words {words}"))?;
+        Forwarder::named(b)
+    }
 }
 
-/// A list of forwarders: templates separated by commas, in order, each
-/// once; a comma inside a template is written %2C. An empty list is
-/// refused.
+/// The forwarders that the binary names, in the order of the fallback.
+pub fn builtins() -> Vec<Forwarder> {
+    builtin::BUILTIN.iter().filter_map(|b| Forwarder::named(b).ok()).collect()
+}
+
+/// A list of forwarders: templates and words separated by commas, in
+/// order, each once; a comma inside a template is written %2C. An empty
+/// list is refused.
 pub fn parse_list(text: &str) -> Result<Vec<Forwarder>, String> {
     let mut out: Vec<Forwarder> = Vec::new();
     for item in text.split(',').map(str::trim).filter(|s| !s.is_empty()) {
-        let forwarder = Forwarder::of(Template::parse(item)?);
+        let forwarder = Forwarder::parse(item)?;
         if !out.contains(&forwarder) {
             out.push(forwarder);
         }
@@ -114,6 +143,9 @@ pub fn or_relay(args: &SshArgs, env: &Env, relay: Transport) -> Result<Transport
     let named = other_road(args.relay_host.is_some(), args.relay_failover.is_some());
     let chosen = choose(args.forwarder.as_deref(), named, env_value(), env.relay.is_some(), &env.settings)?;
     let Some(forwarders) = chosen else {
+        // The relay's road: a bad word of its fallback is refused now, before
+        // anything connects (T-370).
+        fallback::on_from(fallback::env_value(), &env.settings)?;
         return Ok(Transport::Relay { relays, trust, family, failover, then_direct });
     };
     if family.is_some() {
@@ -171,6 +203,26 @@ mod tests {
         assert_eq!(names, ["wss://web-proxy.mudlet.org/", "wss://ssheasy.com/p"]);
         assert!(parse_list(" , ").is_err());
         assert!(parse_list("wss://f.example/?host={host}").is_err());
+    }
+
+    #[test]
+    fn a_word_names_a_forwarder_of_the_binary_and_another_is_refused_unshown() {
+        let list = parse_list("mudlet, SSHEASY,mudix,mudlet").unwrap();
+        let names: Vec<&str> = list.iter().map(|f| f.name.as_str()).collect();
+        let want = [
+            "mudlet (wss://web-proxy.mudlet.org/)",
+            "ssheasy (wss://ssheasy.com/p)",
+            "mudix (wss://mudix.delwing.workers.dev/)",
+        ];
+        assert_eq!(names, want);
+        assert_eq!(builtins(), list, "the fallback's order");
+        let refused = parse_list("f.example/?key=SECRET").unwrap_err();
+        assert!(refused.contains("mudlet, ssheasy, mudix") && !refused.contains("SECRET"), "{refused}");
+        // The help names each word that the binary takes.
+        let row = crate::flags::SSH_FLAGS.iter().find(|r| r.long == "forwarder").expect("the row");
+        for b in builtin::BUILTIN {
+            assert!(row.help.contains(b.word), "{}: {}", b.word, row.help);
+        }
     }
 
     #[test]

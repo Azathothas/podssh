@@ -302,7 +302,33 @@ scripts. The facts about OpenSSH on this page were measured with OpenSSH
   --forwarder` checks each one: the upgrade, then GitHub's published host key
   on `github.com:22` through it. A forwarder is another product's endpoint,
   which publishes no limit and can stop at any time, so a user names more
-  than one; podssh names none.
+  than one. A template may name a forwarder that the user runs.
+- **Three words name other products' public forwarders, which the binary
+  carries, and they follow the relay when each relay host failed** (T-370,
+  the operator's ruling Q56): `mudlet` (`wss://web-proxy.mudlet.org/`, the
+  Worker of Mudlet's web client), `ssheasy` (`wss://ssheasy.com/p`, the
+  frame form) and `mudix` (`wss://mudix.delwing.workers.dev/`, an older copy
+  of Mudlet's Worker), the three that GitHub #59 measured; `--forwarder
+  mudlet,ssheasy` takes them as templates are taken, and an unknown word is
+  refused (64) with the list, its text not shown. When each relay host
+  failed with a failure that a forwarder may not share (69 or 77 as `proxy`
+  exits: not a bad setting, not a target that cannot go), and the relay was
+  podssh's own choice (no `--relay-host`, `PODSSH_RELAY` or `RelayHost`, and
+  no `-4` or `-6`), `ssh`, each command of its road and `proxy` try them in
+  that order before the run ends, after the direct road where that one is
+  tried (T-363, `PODSSH_DIRECT`), as the direct road sends the target to no
+  one else; `proxy`, which has no direct road, tries them at once: one line says so, each failure names its
+  forwarder, and the forwarder that carries the session is named; when none
+  does, the run ends with the relay's code. The order puts a second
+  provider before a second copy of the first. `PODSSH_FORWARDER_FALLBACK=no`,
+  or `ForwarderFallback no` in the settings file, turns it off; another word
+  is refused (78) before anything connects. `doctor` says whether it is on,
+  and asks none of them unless `--forwarder` names them. They serve their own
+  products' users and publish no limit: ssheasy's code slows a connection to
+  100 KiB/s after 1 GiB and takes one connection a second from each address;
+  Mudlet's Worker shares its plan's requests with each user of Mudlet's web
+  client. `.github/workflows/forwarder-live.yml` checks each one from GitHub
+  Actions each day, as Q56 allows: GitHub's version line through it.
 - **`PODSSH_MPTCP=yes` asks for Multipath TCP on the direct road** (T-172),
   on Linux, and only on request. With `--direct` and no proxy, each attempt
   asks the kernel for a socket of `IPPROTO_MPTCP`: where the server speaks

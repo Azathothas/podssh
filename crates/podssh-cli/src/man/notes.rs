@@ -180,7 +180,8 @@ const PROXY: &[&str] = &[
      as podssh ssh does (see its notes): ssh -o ProxyCommand='podssh proxy warp://%h:%p' user@host.",
     "podssh proxy --forwarder TEMPLATES carries the pipe through other products' WebSocket forwarders, in \
      order, with no relay, as podssh ssh does (see its notes); PODSSH_FORWARDER gives them too. The end of \
-     stdin sends no Close, as a Close is no half-close: the target's bytes come until it closes.",
+     stdin sends no Close, as a Close is no half-close: the target's bytes come until it closes. When each \
+     relay host failed, the forwarders that podssh names follow, as for podssh ssh.",
 ];
 
 const DOCTOR: &[&str] = &[
@@ -225,7 +226,9 @@ const DOCTOR: &[&str] = &[
     "With --forwarder, PODSSH_FORWARDER or Forwarder of the settings file, the section forwarders gives a \
      line for each forwarder, in order: the upgrade, then a session to github.com port 22 through it, whose \
      host key must be one that GitHub publishes, as the relay's forward line asks; a forwarder that closes \
-     before GitHub's bytes says its code and its reason.",
+     before GitHub's bytes says its code and its reason. With none named, its line fallback says whether a \
+     run whose relay hosts all failed tries the forwarders that podssh names (see podssh ssh), and asks \
+     none of them.",
     "With --json, the report is one JSON object on stdout when every check has run: schema (1), podssh, \
      os, arch, checks (each with section, check, status and detail; status is ok, FAIL or unknown) and \
      counts (ok, fail, unknown). A check tried several times adds samples: tries, connected, best_ms, \

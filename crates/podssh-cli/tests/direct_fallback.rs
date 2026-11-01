@@ -64,6 +64,9 @@ fn ssh(home: &Path, args: &[&str], set: &[(&str, &str)]) -> (i32, String, String
     cmd.args(["ssh", "-o", "BatchMode=yes", "-o", "StrictHostKeyChecking=accept-new", "-o", &known]);
     cmd.args(args);
     cmd.env("PODSSH_SSH_CONFIG", "none").env("PODSSH_SETTINGS", "none").env("PODSSH_RELAY_ADDR", pins());
+    // The direct road alone (T-363): the public forwarders that follow it
+    // (T-370) are other products' live services, which no test asks.
+    cmd.env("PODSSH_FORWARDER_FALLBACK", "no");
     for name in [
         "PODSSH_OFFLINE",
         "PODSSH_RELAY",

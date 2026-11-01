@@ -64,12 +64,15 @@ impl Stands {
     }
 
     async fn serve(&self, host: String, mut tls: Stream) {
+        // The request first, read whole, so that the answer is not lost to
+        // a reset of unread bytes.
+        let Ok((head, pending)) = podssh_ws::http::read_request(&mut tls, Vec::new()).await else { return };
         let query = QUERY_HOSTS.contains(&host.as_str()) || host == CLOSE_HOST;
         if !query && !FRAME_HOSTS.contains(&host.as_str()) {
             let _ = tls.write_all(b"HTTP/1.1 503 Service Unavailable\r\nContent-Length: 0\r\n\r\n").await;
+            let _ = tls.shutdown().await;
             return;
         }
-        let Ok((head, pending)) = podssh_ws::http::read_request(&mut tls, Vec::new()).await else { return };
         let Ok(key) = podssh_ws::server::check_upgrade(&head) else {
             let _ = tls.write_all(b"HTTP/1.1 400 Bad Request\r\nContent-Length: 0\r\n\r\n").await;
             return;
@@ -84,15 +87,16 @@ impl Stands {
             let Ok(first) = session.read_frame().await else { return };
             let text = String::from_utf8_lossy(&first.payload).into_owned();
             let doc: serde_json::Value = serde_json::from_str(&text).unwrap_or_default();
-            let target =
-                (doc["Host"].as_str().unwrap_or_default().to_string(), doc["Port"].as_u64().unwrap_or(0) as u16);
-            (target, Some(text))
+            let host = doc["Host"].as_str().unwrap_or_default().to_string();
+            ((host, doc["Port"].as_u64().unwrap_or(0) as u16), Some(text))
         };
         let path = head.target.clone();
         let seen =
             Seen { host: host.clone(), path, headers: head.headers.clone(), target: target.clone(), first_frame };
         self.seen.lock().unwrap().push(seen);
-        if host == CLOSE_HOST || self.closing.lock().unwrap().contains(&host) {
+        // The guard ends with the statement: none is held across an await.
+        let closing = host == CLOSE_HOST || self.closing.lock().unwrap().contains(&host);
+        if closing {
             let reason = format!("Proxy: connect to {}:{} failed: refused", target.0, target.1);
             let _ = session.send_close(1011, &reason).await;
             let _ = session.read_frame().await;

@@ -25,6 +25,19 @@ pub async fn reach(
     port: u16,
     log: &Arc<Log>,
 ) -> Result<Reached, NotReached> {
+    carry(forwarders, trust, host, port, log, false).await
+}
+
+/// [`reach`]; with `said`, the forwarder that carries the session is named
+/// without -v, as the fallback names it (T-370).
+pub async fn carry(
+    forwarders: &[Forwarder],
+    trust: &Trust,
+    host: &str,
+    port: u16,
+    log: &Arc<Log>,
+    said: bool,
+) -> Result<Reached, NotReached> {
     if podssh_relay::open::offline() {
         let line = format!("{} is set, so podssh does not connect anywhere", podssh_relay::open::OFFLINE_ENV);
         return Err(NotReached { lines: vec![line], code: EX_UNAVAILABLE });
@@ -42,7 +55,12 @@ pub async fn reach(
         };
         match podssh_ws::forwarder::open(&forwarder.template, host, port, &dial).await {
             Ok(carried) => {
-                log.verbose(&format!("the forwarder {} carries the session to {target}", forwarder.name));
+                let line = format!("the forwarder {} carries the session to {target}", forwarder.name);
+                if said {
+                    log.info(&format!("{line}, in place of the relay"));
+                } else {
+                    log.verbose(&line);
+                }
                 let status = carried.status.clone();
                 let name = forwarder.name.clone();
                 let why = move || status.get().and_then(|end| ended(&name, &end));

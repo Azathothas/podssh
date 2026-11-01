@@ -130,10 +130,24 @@ pub const SSH: &[&str] = &[
      Binary frames carry the bytes; a forwarder's text frames are its own words, shown with -v and never \
      written into the session, and a close other than 1000 names the forwarder, its code and its reason. \
      A forwarder is another product's endpoint: it publishes no limit and can stop at any time, so name \
-     more than one; podssh names none. PODSSH_FORWARDER and Forwarder of the settings file give the list \
-     too, below the flag. A run has one road: --relay-host, --relay-failover, --direct, PODSSH_RELAY \
-     beside PODSSH_FORWARDER, -4, -6, and a destination with a road of its own (node://, iroh:, cf://, \
-     iap://, eice://) cannot go with it.",
+     more than one. PODSSH_FORWARDER and Forwarder of the settings file give the list too, below the \
+     flag. A run has one road: --relay-host, --relay-failover, --direct, PODSSH_RELAY beside \
+     PODSSH_FORWARDER, -4, -6, and a destination with a road of its own (node://, iroh:, cf://, iap://, \
+     eice://) cannot go with it. A template may name a forwarder that you run yourself.",
+    "Three words name the public forwarders that GitHub's issue 59 measured, which the binary carries by \
+     the operator's ruling: mudlet, the Worker of Mudlet's web client, wss://web-proxy.mudlet.org/, on \
+     Cloudflare, whose runtime refuses port 25, private addresses and Cloudflare's own; ssheasy, the proxy \
+     of ssheasy's SSH client in a browser, wss://ssheasy.com/p, which takes the target in a first frame, \
+     slows a connection to 100 KiB/s after 1 GiB and takes one connection a second from each address; and \
+     mudix, an older copy of Mudlet's Worker, wss://mudix.delwing.workers.dev/, on one person's name. They \
+     serve their own products' users. When each relay host failed, and the relay was podssh's own choice \
+     (no --relay-host, PODSSH_RELAY or RelayHost of the settings file, and no -4 or -6), podssh tries them \
+     in that order before the run ends, after the direct road when that one is tried (PODSSH_DIRECT), as \
+     the direct road sends the target to no one else; podssh proxy, which has no direct road, tries them \
+     at once. It says so on stderr with the name of each; a failure that a \
+     forwarder would share, as a bad setting, ends the run as before. No relay token goes to them. \
+     PODSSH_FORWARDER_FALLBACK set to no, or ForwarderFallback no in the settings file, turns this off; \
+     podssh doctor says whether it is on, and podssh doctor --forwarder mudlet,ssheasy,mudix asks them.",
     "node://NAME with --iroh-ticket TICKET races the two roads to the node: the iroh road starts first, \
      the pair's road 250 ms later, or at once when the iroh road fails, and the first far end that \
      speaks carries the session; the other link ends before it sends anything, so it opens nothing at \

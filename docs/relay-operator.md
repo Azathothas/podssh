@@ -277,8 +277,8 @@ relay's endpoints are in the contract.
     through a forwarder that the user names, which takes the target from its
     URL or from a first frame of JSON, and gets no relay token. podssh ships
     no forwarder of its own; by the operator's ruling on Q56 (2026-10-31),
-    the binary will name the three of #59 and try them when each relay host
-    fails (T-370). Item 15 holds for such a Worker too.
+    the binary names the three of #59 by a word and tries them when each
+    relay host fails (T-370). Item 15 holds for such a Worker too.
 13. **An iroh relay of the operator's** (no entry; optional). podssh's iroh
     road (behind the cargo feature `iroh`, in each release binary since
     T-348) uses n0's public relays

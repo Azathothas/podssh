@@ -23,8 +23,11 @@ fn a_file_gives_each_setting_and_the_first_value_wins_but_for_relay_addr() {
     assert_eq!(d.relay_failover.unwrap().text, "serial");
     assert_eq!(d.ca_file.unwrap().text, Path::new("/home/u").join("ca.pem").display().to_string());
     // The forwarders of T-369, a list as --forwarder takes it.
-    let d = read("Forwarder wss://f.example/?host={host}&port={port}, wss://g.example/p\n");
+    let d = read("Forwarder wss://f.example/?host={host}&port={port}, wss://g.example/p\nForwarderFallback no\n");
     assert_eq!(d.forwarder.unwrap().text, "wss://f.example/?host={host}&port={port}, wss://g.example/p");
+    assert_eq!(d.forwarder_fallback.unwrap().text, "no");
+    // A word of T-370 is a forwarder of the list too.
+    assert_eq!(read("Forwarder mudlet,ssheasy\n").forwarder.unwrap().text, "mudlet,ssheasy");
 }
 
 #[test]
@@ -65,6 +68,7 @@ fn a_bad_value_of_the_file_names_its_line() {
         ("RelayAddr a.example=x\n", "f:1: RelayAddr a.example=x: "),
         ("CaFile /c.pem\nRelayFailover sideways\n", "f:2: RelayFailover \"sideways\" is not a mode"),
         ("Forwarder wss://f.example/?host={host}\n", "f:1: Forwarder a forwarder's template has {host} and {port}"),
+        ("ForwarderFallback maybe\n", "f:1: ForwarderFallback \"maybe\": yes or no"),
     ] {
         let err = parse(text, "f", None).unwrap_err();
         assert!(err.starts_with(says), "{text:?}: {err}");
