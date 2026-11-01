@@ -362,7 +362,7 @@ from this cloud session, through the relay, the same, as at each try since 2026-
 **Milestone:** M9
 **Priority:** P1
 **Effort:** S
-**Status:** partial
+**Status:** done
 
 ## Problem
 
@@ -415,9 +415,111 @@ Planted, an sshd without the test's key: `ssh_to_a_node` fails.
   'exit 3' (127.0.0.1:PORT): exit 3", and the SSH banner through `podssh operator`; passed in 6 s.
   Planted, the server's authorized keys not the test's: it failed, "the remote status through the
   node".
+- `relay-live.yml` with `test=node_live` at `74974dd` (run 41341464543), from GitHub's network: 4
+  passed; "podssh ssh node://runner@lab 'exit 3' (127.0.0.1:35735): exit 3", the banner through
+  `podssh operator`, and 200 MiB each way through a node in 115 s with 8 moves.
+- `irc.live` at `74974dd`: OFTC's TLS ended with no word ("tls handshake eof"), where a run at
+  18:45 UTC was taken; libera K-lines and undernet G-lines the relay's address. The row tries OFTC
+  three times, as its name gives one of several servers each time
+  (`scripts/release-check-here.sh`).
 - `sh scripts/release-check.sh --local --binary ... --build ... --only railway` at `74974dd`: `SKIP
   railway`, "railway.new refused this anonymous visitor, its limit (its words withheld): -tt: exit
   13; -T: exit 1; an outside refusal (T-422)"; the run's verdict INCOMPLETE, as `--only` gives.
+
+# T-423: The test of a session's lock found it still held on macOS just after its holder went
+
+**Source:** CI's job `macos` at `74974dd` (run 41341460569, 2026-11-01):
+`session::tests::a_second_daemon_of_a_socket_is_refused_while_the_first_holds_it` failed at the
+lock taken again after the first holder's drop: "another podssh session serves it (pid 20985)",
+this process's own pid.
+**Category:** defect
+**Milestone:** none
+**Priority:** P1
+**Effort:** S
+**Status:** done
+
+## Problem
+
+A test that fails at random keeps the gate red at the commit of a beta.
+
+## Premise
+
+- Read: the lock is `File::try_lock`, a `flock` on `w.sock.lock`
+  (`crates/podssh-cli/src/node_install/lock.rs`); the test drops the first holder's `File`, then
+  takes the lock again at once (`crates/podssh-cli/src/session/tests.rs`). The run on macOS found
+  it held by this process; it passed at `0054e03` on macOS, and here 14 times of 14.
+- Not located: no test of the library forks between an open and an exec (each spawn is a
+  `posix_spawn` there), and the doctor's raw descriptors are each closed once.
+
+## Approach
+
+The test takes the lock again within 2 s of the drop, and fails with the holder's words after
+them: a lock that stays held still fails it.
+
+## Prove
+
+```sh
+export CARGO_BUILD_JOBS=4
+cargo test -p podssh-cli --lib session::
+```
+
+Planted, the first holder kept: the test fails after 2 s.
+
+## Done
+
+2026-11-01: `cargo test -p podssh-cli --lib session::`: 14 passed. Planted, the first holder kept
+alive (`let _kept = first`): it failed, "still held after its holder went: ... (pid ...)", in 2.1 s.
+The cause on macOS is not located; the gate's job `macos` at the next push says whether it comes
+again.
+
+# T-424: `-M` leaves its control socket when its connection fails before the master serves
+
+**Source:** the release check at `74974dd` (2026-11-01), its row `sandbox` and
+`container.sandbox`: "FAIL the control socket of -M: it listened; the closed port gave 255 (want
+255), and its socket went", a check that came with T-251's merge (`fff2252`).
+**Category:** defect
+**Milestone:** none
+**Priority:** P1
+**Effort:** S
+**Status:** done
+
+## Problem
+
+`podssh ssh -M -S PATH HOST` whose connection fails leaves the socket file at PATH: the next master
+on that path meets a stale file, and OpenSSH, which makes its socket only after the login, leaves
+none.
+
+## Premise
+
+- Measured: `podssh ssh -v --direct -p 9 -N -M -S T/ctl 127.0.0.1`: exit 255, and `T/ctl` still
+  there, with the builds of `7855981` and `74974dd`.
+- Read: the socket is made before anything connects (`be_master`,
+  `crates/podssh-cli/src/ssh/control_unix.rs`), as `-L` binds first; the master's loop removes it
+  (`crates/podssh-ssh/src/mux/master.rs`), and runs only once connected, so a run that fails first
+  never removes it.
+
+## Approach
+
+A guard made after the start of connection sharing (`control::Unserved`): when the run ends with
+its control still in the slot, never taken by a master, the socket's file goes.
+
+## Prove
+
+```sh
+export CARGO_BUILD_JOBS=4
+cargo test -p podssh-cli --test ssh_control
+sh scripts/sandbox-check.sh BINARY
+```
+
+Planted, no guard: the new test fails.
+
+## Done
+
+2026-11-01: `crates/podssh-cli/src/ssh/control_unix.rs` (`Unserved`) and its guard in
+`crates/podssh-cli/src/ssh/mod.rs`. `cargo test -p podssh-cli --test ssh_control`: 4 passed, with
+`a_master_whose_connection_fails_leaves_no_socket` (a closed port: exit 255, "ControlMaster:
+listening on", and no file left). Planted, the guard taken out: it failed, "the socket of a master
+that never served is still there".
 
 # T-415: On GitHub's runner the box's /dev/tty probe waits 40 minutes, so box.yml measures nothing
 

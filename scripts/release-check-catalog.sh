@@ -30,7 +30,7 @@ iroh.n0|both|T-163|here|600|node --iroh through n0's relays (Q50): a client key 
 container.short|both|T-218|a fresh container|600|the static binary in the box's Alpine image, on this host's network: release-short.sh --net exits 0
 container.sandbox|both|T-006|a fresh container|900|the same container: sandbox-check.sh exits 0
 update.check|tag|T-375|here|300|podssh update --check --version TAG exits 0: the binary checks its own release's signature
-irc.live|both|T-252|here|400|chat --irc --send to a throwaway channel with a throwaway nick (Q39): OFTC, else libera, else undernet, exit 0
+irc.live|both|T-252|here|700|chat --irc --send to a throwaway channel with a throwaway nick (Q39): OFTC (three tries), else libera, else undernet, exit 0
 irc.image|both|T-252|the build image|3600|scripts/irc-in-image.sh exits 0: ngircd, plain text and TLS (scripts/dev.sh run)
 headscale|both|T-334|here|5400|scripts/ts-headscale.sh exits 0, or 3 when only the live relay's runs are left to actions.headscale (T-026's exit 7 is one of its runs)
 throughput|both|T-157|here|7200|throughput_live with PODSSH_THROUGHPUT_MIB=100 and n0's relay use1-1 (Q38) exits 0

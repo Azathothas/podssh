@@ -185,7 +185,10 @@ c_containers() {
 # Which networks take the relay's address is theirs to say (docs/irc.md).
 c_irc_live() {
     _h=$(rand_hex 3) _tried= _secs=0
-    for _net in irc.oftc.net:6697 irc.libera.chat:6697 irc.undernet.org:6667; do
+    # OFTC three times: its name gives one server of several each time, and
+    # one of them ended TLS with no word where another took the run (T-422);
+    # libera and undernet bar the relay's address (docs/irc.md).
+    for _net in irc.oftc.net:6697 irc.oftc.net:6697 irc.oftc.net:6697 irc.libera.chat:6697 irc.undernet.org:6667; do
         _plain=
         case $_net in *:6667) _plain=--irc-plaintext ;; esac
         # shellcheck disable=SC2086  # one flag or none

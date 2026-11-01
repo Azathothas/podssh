@@ -183,6 +183,33 @@ fn with_no_master_a_run_connects_alone_or_becomes_one_with_auto() {
     assert!(!Path::new(&ctl).exists(), "the master's socket went with it");
 }
 
+/// A master whose connection fails first leaves no socket behind, as
+/// OpenSSH, which makes its socket after the login, leaves none; a stale
+/// file would stand in the next master's way.
+#[cfg(unix)]
+#[test]
+fn a_master_whose_connection_fails_leaves_no_socket() {
+    let home = scratch("failed");
+    let ctl = home.join("ctl");
+    let closed = std::net::TcpListener::bind("127.0.0.1:0").unwrap().local_addr().unwrap().port();
+    let mut cmd = Command::new(env!("CARGO_BIN_EXE_podssh"));
+    cmd.args(["ssh", "-v", "--direct", "-p", &closed.to_string(), "-N", "-o", "BatchMode=yes", "-M", "-S"])
+        .arg(&ctl)
+        .arg("127.0.0.1")
+        .env("HOME", &home)
+        .env("PODSSH_SSH_CONFIG", "none")
+        .env_remove("PODSSH_LISTEN")
+        .env_remove("PODSSH_OFFLINE")
+        .stdin(Stdio::null())
+        .stdout(Stdio::piped())
+        .stderr(Stdio::piped());
+    let out = ran(cmd);
+    let err = text(&out.stderr);
+    assert_eq!(out.status.code(), Some(255), "{err}");
+    assert!(err.contains("ControlMaster: listening on"), "the socket was made first: {err}");
+    assert!(!ctl.exists(), "the socket of a master that never served is still there");
+}
+
 #[cfg(unix)]
 #[test]
 fn o_check_with_no_master_fails_as_openssh_does() {

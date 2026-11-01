@@ -69,6 +69,26 @@ pub async fn start(resolved: &mut Resolved, log: &Arc<Log>) -> Start {
     }
 }
 
+/// A master's socket that the run never served, as it ended before its
+/// connection did: removed when the run ends, as OpenSSH, which makes its
+/// socket only after the login, leaves none; else the next `-M` finds a
+/// stale file. A master that served removes its own.
+pub struct Unserved(Option<ControlSlot>);
+
+impl Unserved {
+    pub fn of(resolved: &Resolved) -> Unserved {
+        Unserved(resolved.options.control.clone())
+    }
+}
+
+impl Drop for Unserved {
+    fn drop(&mut self) {
+        if let Some(control) = self.0.as_ref().and_then(ControlSlot::take) {
+            let _ = std::fs::remove_file(&control.path);
+        }
+    }
+}
+
 /// Make the socket and give it to the run, which serves it once connected.
 fn be_master(resolved: &mut Resolved, plan: &Plan, path: &Path, log: &Arc<Log>) -> Result<(), (i32, String)> {
     if let Err(refusal) = crate::pipe::listen::allowed() {

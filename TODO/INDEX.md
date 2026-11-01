@@ -62,15 +62,15 @@ repository and CI).
 
 ## Counts
 
-**418 entries: 15 open, 2 partial, 31 blocked, 370 done.**
+**420 entries: 15 open, 1 partial, 31 blocked, 373 done.**
 
 | Priority | open | partial | blocked | done | total |
 | --- | --- | --- | --- | --- | --- |
 | P0 | 0 | 0 | 0 | 1 | 1 |
-| P1 | 1 | 2 | 0 | 42 | 45 |
+| P1 | 1 | 1 | 0 | 45 | 47 |
 | P2 | 1 | 0 | 21 | 179 | 201 |
 | P3 | 13 | 0 | 10 | 148 | 171 |
-| **All** | 15 | 2 | 31 | 370 | 418 |
+| **All** | 15 | 1 | 31 | 373 | 420 |
 
 ## Entries
 
@@ -493,4 +493,6 @@ repository and CI).
 | [T-419](roads.md) | P1 | S | none | defect | done | WARP's front door showed another certificate once, and the road gave up at the first |
 | [T-420](reverse.md) | P1 | S | none | defect | done | The strict stand-in failed the test of a stopped relay host at random: a frame in flight |
 | [T-421](relay.md) | P3 | S | backlog | defect | blocked | A client's lost link during a node's bulk closes the node's whole socket on the relay |
-| [T-422](release.md) | P1 | S | M9 | defect | partial | railway.new refuses anonymous visitors for hours, and two checks of the release fail on it |
+| [T-422](release.md) | P1 | S | M9 | defect | done | railway.new refuses anonymous visitors for hours, and two checks of the release fail on it |
+| [T-423](release.md) | P1 | S | none | defect | done | The test of a session's lock found it still held on macOS just after its holder went |
+| [T-424](release.md) | P1 | S | none | defect | done | `-M` leaves its control socket when its connection fails before the master serves |

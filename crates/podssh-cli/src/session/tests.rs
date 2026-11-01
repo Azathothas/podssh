@@ -185,7 +185,17 @@ fn a_second_daemon_of_a_socket_is_refused_while_the_first_holds_it() {
     let second = daemon::socket_lock(&path).unwrap_err();
     assert!(second.contains("another podssh session serves it"), "{second}");
     drop(first);
-    assert!(daemon::socket_lock(&path).unwrap().is_some());
+    // Free once its holder is gone; within 2 s, as one run on macOS found it
+    // still held by this process just after the close (T-423).
+    let deadline = std::time::Instant::now() + std::time::Duration::from_secs(2);
+    let again = loop {
+        match daemon::socket_lock(&path) {
+            Ok(Some(file)) => break file,
+            other if std::time::Instant::now() > deadline => panic!("still held after its holder went: {other:?}"),
+            _ => std::thread::sleep(std::time::Duration::from_millis(20)),
+        }
+    };
+    drop(again);
     assert!(daemon::socket_lock("@w").unwrap().is_none());
     let _ = std::fs::remove_dir_all(&dir);
 }

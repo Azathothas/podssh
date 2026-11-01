@@ -293,6 +293,8 @@ pub(crate) async fn connect_and_run(mut resolved: Resolved, log: Arc<Log>) -> i3
     if let control::Start::Exit(code) = control::start(&mut resolved, &log).await {
         return code;
     }
+    #[cfg(unix)]
+    let _unserved = control::Unserved::of(&resolved);
     #[cfg(not(unix))]
     if resolved.control.path.is_some() {
         log.verbose("ControlPath has no effect on Windows: each run is one connection");
