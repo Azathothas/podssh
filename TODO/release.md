@@ -329,7 +329,10 @@ no whole run yet, as the tag's commit does not exist:
   ngircd over plain text and TLS, 4 tests, in 4 min 47 s. `throughput` and `throughput.loop`: the
   run at 100 MiB with n0's `use1-1` passed in 3,087 s, the cell through the relay's own loop with
   its figures (`docs/STATUS.md`, "Throughput, measured"); the row now wants the cell's figures, not
-  its name. `headscale` waits for a run here (the ts build).
+  its name. `headscale`: `scripts/ts-headscale.sh` exited 3, as the row passes it, in 7 min: 11 passed
+  (tcp and relay mode, 1 MiB each way, the bound, an ephemeral node, exit 7, a DERP link dropped and
+  back, no key in any output), and the live relay's 3 left to `actions.headscale`, as this host's
+  egress shows the relay with a certificate of its own CA, which the fork's roots do not hold.
 - A run with no `--build` began `cargo build --release` in its own worktree, beside a measurement
   and on a nearly full disk; it was stopped. The release check's run passes `--build` or has the
   disk and the time of a release build.
