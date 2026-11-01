@@ -186,7 +186,7 @@ the file that `--ts-state` names (`crates/podssh-cli/src/flags.rs:350-351`,
 5. The node prints its ticket and its fingerprint on stderr when it starts.
    `podssh ssh iroh:TICKET` dials it (the address of `docs/design.md:916`).
 6. Add the key files to FILES in the manual
-   (`crates/podssh-cli/src/man/data.rs:146-320`), and each new variable to
+   (`crates/podssh-cli/src/man/data.rs:146-321`), and each new variable to
    `VARIABLES` (`crates/podssh-cli/src/man/facts.rs:45-260`).
 
 ## Decision
@@ -4211,9 +4211,25 @@ Built and tested here (2026-11-01), the live run waiting for Q60:
 - The documents (2026-11-01): the paragraph of `tor://` in `docs/cli.md` (its options of `ssh`), its
   state in `docs/carriers.md`, and its row in the road table of `docs/design.md`, with WARP's.
 
-Waits: the live run (Q60); a private Tor network on the loopback (chutney) as a test against
-software that podssh did not write; meek and WebTunnel (Approach, step 2); doctor's line of the
-bootstrap (step 3); the measurement (step 4).
+- A Tor network of C tor on this host (2026-11-01), software that podssh did not write: chutney's
+  network `basic` (four authorities, five exits; `scripts/tor-net.sh`, chutney at commit
+  `c6b2c5fa`, tor 0.4.9.11 of Ubuntu), which reaches nothing of Tor's own. `Options.network` and
+  `PODSSH_TOR_NETWORK` give Arti another network's configuration, as chutney writes it
+  (`arti.toml`), its state apart under the cache's `tor/networks/`. `cargo test -p podssh-tor
+  --test private_network`, 1 passed: Arti bootstrapped from the authorities with each first hop
+  through a stand-in proxy, by its IP literal, and a stream through an exit reached a service.
+  `cargo test -p podssh-cli --features tor --test tor_private`, 1 passed: `podssh ssh
+  tor://u@HOST:PORT greet` logged in to the test's SSH server through the network and got its
+  greeting, the host key kept under `[tor://HOST]:PORT`, each first hop through `HTTPS_PROXY`.
+  With the relays on the loopback, the same login worked and no first hop went through the proxy,
+  which podssh never asks for a loopback address (`crates/podssh-ws/src/dial.rs`). Planted, the
+  TCP provider's dial made direct: both tests failed, "no first hop went through the proxy". CI's
+  job `tor-net` runs both on the runner, its address the relays', with Ubuntu's daemon of Tor's
+  network masked. `podssh-cli --lib` 497 with and without the feature; clippy with the feature
+  clean.
+
+Waits: the live run (Q60); meek and WebTunnel (Approach, step 2); doctor's line of the bootstrap
+(step 3); the measurement (step 4).
 
 # T-376: The live run of the roads through a cloud's own tunnel (T-351)
 

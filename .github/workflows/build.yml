@@ -361,12 +361,53 @@ jobs:
           grep -Eq "system stores +the user's trust settings: [0-9]+ root.*; the administrator's trust settings: [0-9]+ root" \
             "$RUNNER_TEMP/doctor.out" || { echo "FAIL doctor named no trust settings"; exit 1; }
 
+  # T-353: the Tor road against a Tor network of C tor on the loopback,
+  # chutney's, whose relays know no other network. On the runner, not in
+  # the build image: chutney's Python packages have wheels for glibc alone.
+  # Tor's own network waits for the operator (Q60), so the daemon that
+  # Ubuntu's package would start for it is masked before the install.
+  tor-net:
+    name: tor-net
+    runs-on: ubuntu-24.04
+    timeout-minutes: 60
+    env:
+      CARGO_BUILD_JOBS: 4
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+      - name: tor, with no daemon of Tor's network
+        run: |
+          set -eu
+          sudo systemctl mask tor.service tor@default.service
+          for try in 1 2 3; do
+            if sudo apt-get update -q && sudo apt-get install -y -q --no-install-recommends tor; then break; fi
+            [ "$try" = 3 ] && exit 1
+            sleep 10
+          done
+          if pgrep -x tor; then echo "FAIL a daemon of Tor's network runs"; exit 1; fi
+      - name: the private network
+        run: |
+          set -eu
+          # Not the loopback, which podssh sends through no proxy: the
+          # runner's own address, so that each first hop crosses the proxy.
+          address=$(hostname -I | awk '{print $1}')
+          toml=$(sh scripts/tor-net.sh start "$RUNNER_TEMP/tor-net" "$address")
+          test -f "$toml"
+          echo "PODSSH_TEST_TOR_NETWORK=$toml" >> "$GITHUB_ENV"
+      - name: the Tor road through it
+        run: |
+          set -eu
+          cargo test --locked -p podssh-tor --test private_network
+          cargo test --locked -p podssh-cli --features tor --test tor_private
+      - name: the network stopped
+        if: always()
+        run: sh scripts/tor-net.sh stop "$RUNNER_TEMP/tor-net"
+
   # The one status to require: each job above passed. A job that was
   # skipped or cancelled is not a pass.
   all:
     name: all
     if: always()
-    needs: [plan, gate, plant, checks, windows, macos]
+    needs: [plan, gate, plant, checks, windows, macos, tor-net]
     runs-on: ubuntu-24.04
     timeout-minutes: 5
     steps:

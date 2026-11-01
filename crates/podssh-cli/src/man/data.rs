@@ -245,8 +245,9 @@ pub fn files() -> Vec<(Vec<String>, String)> {
              Arti's state (its guards, which Tor asks a client to keep) in state/, and its copy of Tor's \
              directory in cache/, which a later run reads to start sooner. Arti checks that no other user \
              can write them; where a sandbox's mounts fail that check on a directory above, podssh made \
-             these private itself and tries once more without it. Removing it costs the next run a new \
-             bootstrap."
+             these private itself and tries once more without it. The same pair for another network of \
+             PODSSH_TOR_NETWORK goes in networks/, by a digest of its file. Removing it costs the next run a \
+             new bootstrap."
                 .to_string(),
         ),
         (

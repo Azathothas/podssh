@@ -8,7 +8,7 @@ use std::time::Duration;
 use podssh_tor::{Options, Tor, TorStream};
 use podssh_ws::dial::ProxyChoice;
 
-use super::{first_hop_ports, Failed, Target, DIR_NAME, PORTS_ENV};
+use super::{first_hop_ports, Failed, Target, DIR_NAME, NETWORK_ENV, PORTS_ENV};
 use crate::exitmap::sysexits::{EX_CANTCREAT, EX_CONFIG, EX_UNAVAILABLE};
 
 /// How long a bootstrap may take: a first run fetches the directory, a few
@@ -18,8 +18,9 @@ pub const BOOTSTRAP_WAIT: Duration = Duration::from_secs(180);
 pub const STREAM_WAIT: Duration = Duration::from_secs(60);
 
 /// Arti's state and cache under the first of the cache's directories that
-/// can be made private (T-243).
-fn directories() -> Result<(PathBuf, PathBuf), Failed> {
+/// can be made private (T-243). Another network's go under `networks/`, by
+/// a digest of its configuration: its guards and directory are not Tor's.
+fn directories(network: Option<&str>) -> Result<(PathBuf, PathBuf), Failed> {
     use podssh_relay::cache::{candidate_dirs, chosen, private_dir, Chosen, DIR_ENV};
     if chosen() == Chosen::Nothing {
         let line = format!(
@@ -31,14 +32,42 @@ fn directories() -> Result<(PathBuf, PathBuf), Failed> {
     }
     let mut tried = Vec::new();
     for dir in candidate_dirs() {
-        let base = dir.join(DIR_NAME);
+        let mut base = dir.join(DIR_NAME);
+        let mut made = vec![base.clone()];
+        if let Some(text) = network {
+            use sha2::Digest as _;
+            let digest = sha2::Sha256::digest(text.as_bytes());
+            let name: String = digest[..8].iter().map(|b| format!("{b:02x}")).collect();
+            base = base.join("networks").join(name);
+            made.extend([base.parent().map(PathBuf::from).unwrap_or_default(), base.clone()]);
+        }
         let (state, cache) = (base.join("state"), base.join("cache"));
-        match private_dir(&base).and_then(|()| private_dir(&state)).and_then(|()| private_dir(&cache)) {
+        made.extend([state.clone(), cache.clone()]);
+        match made.iter().try_for_each(|d| private_dir(d)) {
             Ok(()) => return Ok((state, cache)),
             Err(e) => tried.push(format!("{}: {e}", base.display())),
         }
     }
     Err((format!("no private directory for Arti's state: {}", tried.join("; ")), EX_CANTCREAT))
+}
+
+/// The longest configuration of another network that is read: chutney's of
+/// a few hundred relays fits many times.
+const MOST_NETWORK_BYTES: u64 = 1 << 20;
+
+/// The configuration of another Tor network, from the file that
+/// [`NETWORK_ENV`] names, and that name; none when it is unset or empty.
+fn network() -> Result<Option<(String, String)>, String> {
+    use std::io::Read as _;
+    let Some(path) = std::env::var_os(NETWORK_ENV).filter(|v| !v.is_empty()) else { return Ok(None) };
+    let shown = PathBuf::from(&path).display().to_string();
+    let file = std::fs::File::open(&path).map_err(|e| format!("{NETWORK_ENV}={shown}: {e}"))?;
+    let mut text = String::new();
+    file.take(MOST_NETWORK_BYTES + 1).read_to_string(&mut text).map_err(|e| format!("{NETWORK_ENV}={shown}: {e}"))?;
+    if text.len() as u64 > MOST_NETWORK_BYTES {
+        return Err(format!("{NETWORK_ENV}={shown}: longer than {MOST_NETWORK_BYTES} bytes"));
+    }
+    Ok(Some((text, shown)))
 }
 
 /// The stream to `target` through Tor.
@@ -56,13 +85,16 @@ pub async fn open(
         .is_some();
     let ports = first_hop_ports(std::env::var(PORTS_ENV).ok().as_deref(), proxied)
         .map_err(|why| (format!("{shown}: {why}"), EX_CONFIG))?;
-    let (state_dir, cache_dir) = directories().map_err(|(line, code)| (format!("{shown}: {line}"), code))?;
+    let network = network().map_err(|why| (format!("{shown}: {why}"), EX_CONFIG))?;
+    let (state_dir, cache_dir) = directories(network.as_ref().map(|(text, _)| text.as_str()))
+        .map_err(|(line, code)| (format!("{shown}: {line}"), code))?;
     let mut options = Options {
         state_dir,
         cache_dir,
         proxy: ProxyChoice::FromEnvironment,
         first_hop_ports: ports.clone(),
         trust_directories: false,
+        network: network.as_ref().map(|(text, _)| text.clone()),
     };
     let held = match &ports {
         Some(ports) => {
@@ -72,7 +104,8 @@ pub async fn open(
         None => "first hops on any port".to_string(),
     };
     let via = if proxied { "through the proxy" } else { "directly" };
-    say(&format!("bootstrapping Tor (Arti) {via}, {held}: a first run fetches the directory"));
+    let which = network.map_or_else(String::new, |(_, file)| format!(" in the network of {file}"));
+    say(&format!("bootstrapping Tor (Arti){which} {via}, {held}: a first run fetches the directory"));
     let tor = match Tor::bootstrap(&options, BOOTSTRAP_WAIT).await {
         Ok(tor) => tor,
         // podssh made the directories private itself; Arti's check of each

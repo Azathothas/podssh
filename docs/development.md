@@ -249,6 +249,22 @@ feature `ts`, 1.91 for `podssh-iroh` and the CLI with the feature `iroh`, and
 1.91 for `podssh-warp`, the CLI with the feature `warp` and podssh-relay with
 its feature `warp`, and 1.92 for `podssh-tor` and the CLI with the feature
 `tor`, whose step then runs their tests.
+
+The Tor road's tests against a Tor network of C tor (T-353) run in CI's job
+`tor-net`, on the runner: `scripts/tor-net.sh` starts chutney's network
+`basic` there, chutney at a pinned commit, with no daemon of Tor's own
+network (Q60). By hand, with `tor` and `tor-gencert` installed:
+
+```sh
+toml=$(sh scripts/tor-net.sh start .work/tor-net "$(hostname -I | awk '{print $1}')")
+PODSSH_TEST_TOR_NETWORK=$toml cargo test -p podssh-tor --test private_network
+PODSSH_TEST_TOR_NETWORK=$toml cargo test -p podssh-cli --features tor --test tor_private
+sh scripts/tor-net.sh stop .work/tor-net
+```
+
+The relays listen on the address given, as podssh sends no loopback address
+through a proxy; on the loopback, the CLI's test checks that no first hop
+went through the proxy instead.
 rustup fetches each toolchain into the build image, so the C toolchain is
 the gate's. `.cargo/config.toml` makes `cargo update` prefer the versions of
 dependencies that these minimums allow. The other steps make sure that:

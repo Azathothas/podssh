@@ -31,6 +31,9 @@ futures = { version = "0.3", default-features = false, features = ["std"] }
 tokio = { workspace = true }
 tokio-util = { version = "0.7", default-features = false, features = ["compat"] }
 podssh-ws = { path = "../podssh-ws" }
+# Another Tor network's configuration, as chutney writes it, read into
+# Arti's builder (its tests run against a private network of C tor).
+toml = { workspace = true }
 
 [dev-dependencies]
 tokio = { workspace = true, features = ["macros", "rt-multi-thread"] }

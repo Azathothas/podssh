@@ -8,7 +8,7 @@ use std::path::PathBuf;
 use std::sync::Arc;
 use std::time::Duration;
 
-use arti_client::config::TorClientConfigBuilder;
+use arti_client::config::{CfgPath, TorClientConfigBuilder};
 use arti_client::{DataStream, TorClient};
 use podssh_ws::dial::ProxyChoice;
 use tor_netdoc::types::policy::AddrPortPattern;
@@ -43,6 +43,11 @@ pub struct Options {
     /// Whether Arti may skip its check of the directories' owners and modes,
     /// which a sandbox's mounts can fail although only this user writes them.
     pub trust_directories: bool,
+    /// Another Tor network than Tor's own: the TOML of arti-client's
+    /// configuration, as chutney writes it for a network of its own
+    /// (`arti.toml`), whose authorities, caches and rules of paths replace
+    /// Tor's. The directories, the proxy and the first hops above still hold.
+    pub network: Option<String>,
 }
 
 /// Why the client could not be made, or a stream not opened.
@@ -89,7 +94,17 @@ impl Tor {
     pub async fn bootstrap(options: &Options, wait: Duration) -> Result<Tor, Failure> {
         let base = TokioRustlsRuntime::current().map_err(|e| failure("the runtime", e))?;
         let runtime: Runtime = base.with_tcp_provider(ProxiedTcp::new(options.proxy.clone(), CONNECT_WAIT));
-        let mut builder = TorClientConfigBuilder::from_directories(&options.state_dir, &options.cache_dir);
+        let mut builder = match &options.network {
+            Some(text) => toml::from_str::<TorClientConfigBuilder>(text)
+                .map_err(|e| failure("the configuration", format!("the network's configuration: {e}")))?,
+            None => TorClientConfigBuilder::default(),
+        };
+        // podssh's directories, as `from_directories` sets them, whatever the
+        // network's configuration names.
+        builder
+            .storage()
+            .cache_dir(CfgPath::new_literal(&options.cache_dir))
+            .state_dir(CfgPath::new_literal(&options.state_dir));
         if options.trust_directories {
             builder.storage().permissions().dangerously_trust_everyone();
         }

@@ -61,6 +61,14 @@ pub const VARIABLES: &[(&[&str], &str)] = &[
       feature tor.",
     ),
     (
+        &["PODSSH_TOR_NETWORK"],
+        "The file of arti-client's configuration of another Tor network than Tor's own, as chutney writes it \
+      (arti.toml): a private network, whose authorities, caches and rules of paths replace Tor's; the cache's \
+      directories, the proxy and PODSSH_TOR_PORTS still hold. Its guards and its directory go apart from Tor's, \
+      under the cache's tor/networks/ by a digest of the file. Unset or empty: Tor's network. A file that cannot be \
+      read, or longer than 1 MiB, is a configuration error (78). A build with the feature tor.",
+    ),
+    (
         &["PODSSH_EICE_MAX_TUNNEL_DURATION"],
         "The longest life of an eice:// tunnel, aws-cli's maximum tunnel duration: whole seconds from 1 to \
       3600, which an IAM policy may require; unset, the endpoint's own hour. podssh cp goes on in a new \

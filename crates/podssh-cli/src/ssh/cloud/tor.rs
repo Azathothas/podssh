@@ -22,6 +22,9 @@ pub const SCHEME: &str = "tor://";
 pub const PORTS_ENV: &str = "PODSSH_TOR_PORTS";
 /// Arti's directory in the cache: `state` and `cache` under it.
 pub const DIR_NAME: &str = "tor";
+/// The file of arti-client's configuration of another Tor network, as
+/// chutney writes it: a private network of the user's, or of a test.
+pub const NETWORK_ENV: &str = "PODSSH_TOR_NETWORK";
 
 /// A host and a port beyond an exit.
 #[derive(Debug, Clone, PartialEq, Eq)]
