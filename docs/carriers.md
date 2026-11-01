@@ -108,6 +108,12 @@ The candidates, ranked:
      `User-Agent`. A device is registered once, with the user's acceptance of
      the Terms, and kept in the cache. The live run waits for GitHub Actions
      (Q52).
+   - Under volume (T-398, drafted 2026-11-01): the edge sends a DATA frame of
+     HTTP/2 for each packet, and h2 ends a connection whose small frames wait
+     unread past its budget, which ended cfrs's WARP road (cfrs #32). podssh
+     sets the budget to a stream's window of the smallest frames, and its
+     stack reads the tunnel while a packet waits to go out
+     ([design.md](design.md), section 2, "WARP's road").
 5. **Tor through Arti** (class A).
    - Who, and the account: volunteers [F17]; no account.
    - Through a proxy: Arti 2.2.0 and later dials through an HTTP CONNECT

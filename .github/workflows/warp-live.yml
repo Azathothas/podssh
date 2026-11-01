@@ -11,7 +11,12 @@ name: warp live
 # port 22 is reached only inside WARP's tunnel; OpenSSH's ssh to GitHub
 # with podssh proxy as its ProxyCommand, to the refusal of a client with no
 # key; and the box's proxy with names alone, which refuses the endpoint's
-# address and is named. Started by hand only, with confirm=Q52; a few
+# address and is named. Then 16 MiB each way inside the tunnel (T-398), with
+# their digests: a node of the live relay in front of an OpenSSH server on
+# the loopback, and podssh ssh to it through the box's proxy, which carries
+# each CONNECT through podssh proxy warp:// (--carry), so the client's bytes
+# cross WARP's tunnel both ways; the pair's tokens are minted, used and
+# discarded in that one step. Started by hand only, with confirm=Q52; a few
 # minutes. The device's id, token and key stay in its record, a private
 # file that is removed at the end; no line prints them.
 
@@ -39,7 +44,7 @@ jobs:
   live:
     if: inputs.confirm == 'Q52'
     runs-on: ubuntu-24.04
-    timeout-minutes: 30
+    timeout-minutes: 45
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
         with:
@@ -144,8 +149,84 @@ jobs:
           grep -q "refused CONNECT 162.159.198.2:443" "$RUNNER_TEMP/names-podssh.log" || { echo "FAIL the refusal was not named"; exit 1; }
           echo "ok    a proxy of names alone: exit 69, the refusal of the address named"
 
+      # T-398: the edge sends one small frame of HTTP/2 for each packet, its
+      # acknowledgements too, and h2 ends a connection whose small frames
+      # wait unread past its budget. 16 MiB up and 16 MiB down, each with its
+      # digest, through WARP's tunnel: under 100 MiB, so it runs with the
+      # entry. The node's own road to the relay is direct; the client's goes
+      # through the box's proxy, which carries it inside the tunnel.
+      - name: 16 MiB each way inside WARP's tunnel, to a node of the live relay
+        run: |
+          command -v /usr/sbin/sshd >/dev/null || { sudo apt-get update -q && sudo apt-get install -y -q openssh-server; }
+          sudo mkdir -p /run/sshd
+          ssh-keygen -q -t ed25519 -N '' -C warp-live -f "$RUNNER_TEMP/user_ed25519"
+          sudo ssh-keygen -q -t ed25519 -N '' -C warp-live-host -f "$RUNNER_TEMP/host_ed25519"
+          cp "$RUNNER_TEMP/user_ed25519.pub" "$RUNNER_TEMP/authorized_keys"
+          sudo /usr/sbin/sshd -f /dev/null -E "$RUNNER_TEMP/sshd.log" -o ListenAddress=127.0.0.1:4022 \
+            -o HostKey="$RUNNER_TEMP/host_ed25519" -o PidFile="$RUNNER_TEMP/sshd.pid" \
+            -o AuthorizedKeysFile="$RUNNER_TEMP/authorized_keys" -o StrictModes=no -o UsePAM=yes \
+            -o PasswordAuthentication=no -o KbdInteractiveAuthentication=no
+          for _ in $(seq 1 20); do (exec 3<>/dev/tcp/127.0.0.1/4022) 2>/dev/null && break; sleep 0.5; done
+          who="$(whoami)"
+          op="$RUNNER_TEMP/warplab-operator.json"
+          # The pair's tokens live in this shell alone: revoked and removed
+          # at its end, whatever the end.
+          cleanup() {
+            kill "$(cat "$RUNNER_TEMP/warpnode.pid" 2>/dev/null)" 2>/dev/null || true
+            target/debug/podssh relay revoke warplab >/dev/null 2>&1 || true
+            rm -f "$op" "$RUNNER_TEMP/blob16" "$RUNNER_TEMP/back16"
+          }
+          trap cleanup EXIT
+          set +e
+          timeout 120 target/debug/podssh relay pair warplab --operator-file "$op" >/dev/null 2>&1
+          rc=$?
+          set -e
+          [ "$rc" = 0 ] || { echo "FAIL podssh relay pair exited $rc"; exit 1; }
+          target/debug/podssh node warplab 127.0.0.1:4022 </dev/null >/dev/null 2>"$RUNNER_TEMP/warpnode.log" &
+          echo $! >"$RUNNER_TEMP/warpnode.pid"
+          for _ in $(seq 1 60); do grep -q "serving 127.0.0.1:4022" "$RUNNER_TEMP/warpnode.log" && break; sleep 1; done
+          if ! grep -q "serving 127.0.0.1:4022" "$RUNNER_TEMP/warpnode.log"; then
+            sed 's/^/node: /' "$RUNNER_TEMP/warpnode.log"; echo "FAIL the node does not serve"; exit 1
+          fi
+          sleep 2
+          python3 scripts/box/proxy.py --listen 127.0.0.1:3130 --carry "$PWD/target/debug/podssh proxy warp://" \
+            >"$RUNNER_TEMP/carry.log" 2>&1 &
+          sleep 1
+          head -c 16777216 /dev/urandom >"$RUNNER_TEMP/blob16"
+          want=$(sha256sum <"$RUNNER_TEMP/blob16" | cut -d' ' -f1)
+          ssh_opts=(-T -i "$RUNNER_TEMP/user_ed25519" -o IdentitiesOnly=yes -o StrictHostKeyChecking=accept-new
+            -o UserKnownHostsFile="$RUNNER_TEMP/known_hosts_node" -o BatchMode=yes --pair-file "$op")
+          set +e
+          up=$(HTTPS_PROXY=http://127.0.0.1:3130 timeout 300 target/debug/podssh ssh "${ssh_opts[@]}" \
+            "node://$who@warplab" 'sha256sum | cut -d" " -f1' <"$RUNNER_TEMP/blob16" 2>"$RUNNER_TEMP/up.log")
+          rc=$?
+          set -e
+          sed 's/^/client (up): /' "$RUNNER_TEMP/up.log" | tail -n 20
+          [ "$rc" = 0 ] || { echo "FAIL 16 MiB up inside WARP's tunnel: exit $rc"; exit 1; }
+          [ "$up" = "$want" ] || { echo "FAIL the far end's digest of 16 MiB is not this end's"; exit 1; }
+          echo "ok    16 MiB up inside WARP's tunnel, the digests equal"
+          set +e
+          HTTPS_PROXY=http://127.0.0.1:3130 timeout 300 target/debug/podssh ssh "${ssh_opts[@]}" \
+            "node://$who@warplab" "cat '$RUNNER_TEMP/blob16'" </dev/null >"$RUNNER_TEMP/back16" 2>"$RUNNER_TEMP/down.log"
+          rc=$?
+          set -e
+          sed 's/^/client (down): /' "$RUNNER_TEMP/down.log" | tail -n 20
+          [ "$rc" = 0 ] || { echo "FAIL 16 MiB down inside WARP's tunnel: exit $rc"; exit 1; }
+          got=$(sha256sum <"$RUNNER_TEMP/back16" | cut -d' ' -f1)
+          size=$(stat -c %s "$RUNNER_TEMP/back16")
+          [ "$got" = "$want" ] || { echo "FAIL the 16 MiB down are not the far end's ($size bytes)"; exit 1; }
+          echo "ok    16 MiB down inside WARP's tunnel, the digests equal"
+          sed 's/^/proxy: /' "$RUNNER_TEMP/carry.log"
+          grep -q "(carried)" "$RUNNER_TEMP/carry.log" || { echo "FAIL no CONNECT went inside WARP's tunnel"; exit 1; }
+          if grep -q "too_many_data_frames\|excessive load" "$RUNNER_TEMP/up.log" "$RUNNER_TEMP/down.log"; then
+            echo "FAIL h2's guard of small frames ended WARP's tunnel"; exit 1
+          fi
+
       - name: the end
         if: always()
         run: |
           pkill -f scripts/box/proxy.py || true
+          sudo kill "$(cat "$RUNNER_TEMP/sshd.pid" 2>/dev/null)" 2>/dev/null || true
+          rm -f "$RUNNER_TEMP"/user_ed25519* "$RUNNER_TEMP/blob16" "$RUNNER_TEMP/back16"
+          sudo rm -f "$RUNNER_TEMP"/host_ed25519*
           rm -rf "$PODSSH_CACHE_DIR"

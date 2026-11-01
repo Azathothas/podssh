@@ -15,7 +15,8 @@ name: quick tunnel live
 # hand only, with confirm=Q43. A third node, built with the feature warp,
 # with TCP and UDP to 7844 dropped as in a cage whose proxy allows port 443
 # alone, reaches the edge inside WARP's tunnel (T-374; WARP's live run is
-# allowed in Actions by Q52), and its device is one of this run. Three
+# allowed in Actions by Q52), and its device is one of this run; podssh ssh
+# cf://NAME carries 16 MiB each way through it, with their digests (T-398). Three
 # tunnels, each alive for a few minutes at most. The logs of this public
 # repository are public: the tunnel's name is masked, its secret never
 # leaves the node's memory, and the keys are throwaway ones of this run.
@@ -42,7 +43,7 @@ jobs:
   live:
     if: inputs.confirm == 'Q43'
     runs-on: ubuntu-24.04
-    timeout-minutes: 30
+    timeout-minutes: 45
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
         with:
@@ -242,7 +243,8 @@ jobs:
           timeout 1200 cargo build -p podssh-cli --locked --features warp --target-dir target/warp
           sudo iptables -I OUTPUT -p udp --dport 7844 -j DROP
           sudo iptables -I OUTPUT -p tcp --dport 7844 -j DROP
-          : > "$RUNNER_TEMP/allow3"
+          # The client's keys of the first node's list, for the copy below.
+          cp "$RUNNER_TEMP/allow" "$RUNNER_TEMP/allow3"
           target/warp/debug/podssh node inside 127.0.0.1:4022 --quick-tunnel --allow "$RUNNER_TEMP/allow3" \
             --ephemeral-key >"$RUNNER_TEMP/url3" 2>"$RUNNER_TEMP/node3.log" &
           echo $! >"$RUNNER_TEMP/node3.pid"
@@ -255,6 +257,38 @@ jobs:
             || { echo "FAIL not registered inside WARP's tunnel"; exit 1; }
           timeout 120 python3 scripts/quick-tunnel-probe.py --limit 60 "$host3"
           echo "ok    with 7844 dropped, the node registered inside WARP's tunnel and served a visitor"
+          # T-398: 16 MiB each way through this node, whose road to the edge
+          # is inside WARP's tunnel: up, the edge's packets come in; down, the
+          # node's go out while the edge's acknowledgements, small frames of
+          # HTTP/2, come in.
+          who="$(whoami)"
+          export PODSSH_SSH_CONFIG="$RUNNER_TEMP/ssh_config"
+          node3_key=$(sed -n 's/^podssh node: inside: key \([^ ]*\) (.*/\1/p' "$RUNNER_TEMP/node3.log" | head -n 1)
+          [ -n "$node3_key" ] || { echo "FAIL the third node's key was not said"; exit 1; }
+          head -c 16777216 /dev/urandom >"$RUNNER_TEMP/blob16"
+          want=$(sha256sum <"$RUNNER_TEMP/blob16" | cut -d' ' -f1)
+          set +e
+          got=$(timeout 300 target/debug/podssh ssh --client-key "$RUNNER_TEMP/client.key" --node-key "$node3_key" \
+            "cf://$who@$host3" 'sha256sum | cut -d" " -f1' <"$RUNNER_TEMP/blob16" 2>"$RUNNER_TEMP/up3.log")
+          rc=$?
+          set -e
+          sed 's/^/client (up): /' "$RUNNER_TEMP/up3.log" | tail -n 20
+          [ "$rc" = 0 ] || { echo "FAIL 16 MiB up through the node inside WARP: exit $rc"; exit 1; }
+          [ "$got" = "$want" ] || { echo "FAIL the far end's digest of 16 MiB up is not this end's"; exit 1; }
+          echo "ok    16 MiB up through the node inside WARP's tunnel, the digests equal"
+          set +e
+          timeout 300 target/debug/podssh ssh --client-key "$RUNNER_TEMP/client.key" --node-key "$node3_key" \
+            "cf://$who@$host3" "cat '$RUNNER_TEMP/blob16'" </dev/null >"$RUNNER_TEMP/back16" 2>"$RUNNER_TEMP/down3.log"
+          rc=$?
+          set -e
+          sed 's/^/client (down): /' "$RUNNER_TEMP/down3.log" | tail -n 20
+          [ "$rc" = 0 ] || { echo "FAIL 16 MiB down through the node inside WARP: exit $rc"; exit 1; }
+          got=$(sha256sum <"$RUNNER_TEMP/back16" | cut -d' ' -f1)
+          [ "$got" = "$want" ] || { echo "FAIL the 16 MiB down are not the far end's"; exit 1; }
+          echo "ok    16 MiB down through the node inside WARP's tunnel, the digests equal"
+          if grep -q "too_many_data_frames\|excessive load" "$RUNNER_TEMP/node3.log"; then
+            echo "FAIL h2's guard of small frames ended WARP's tunnel"; exit 1
+          fi
           timeout 180 target/warp/debug/podssh doctor --full >"$RUNNER_TEMP/doctor3.txt" 2>&1 || true
           line=$(grep -E '^ +[^ ]+ +edge road ' "$RUNNER_TEMP/doctor3.txt" | head -n 1)
           echo "doctor: $line"
@@ -280,6 +314,6 @@ jobs:
           grep -q "unregistered" "$RUNNER_TEMP/node.log" && echo "ok    the node unregistered at its end" || echo "note: no unregistration seen"
           pkill -f scripts/box/proxy.py || true
           sudo kill "$(cat "$RUNNER_TEMP/sshd.pid" 2>/dev/null)" 2>/dev/null || true
-          rm -f "$RUNNER_TEMP"/user_ed25519* "$RUNNER_TEMP"/client.key* "$RUNNER_TEMP/blob"
+          rm -f "$RUNNER_TEMP"/user_ed25519* "$RUNNER_TEMP"/client.key* "$RUNNER_TEMP/blob" "$RUNNER_TEMP"/blob16 "$RUNNER_TEMP"/back16
           rm -rf "$PODSSH_CACHE_DIR"
           sudo rm -f "$RUNNER_TEMP"/host_ed25519*

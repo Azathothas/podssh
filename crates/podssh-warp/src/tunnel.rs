@@ -24,6 +24,21 @@ use crate::stack::{Link, Why};
 /// fast link, so that a copy is not held to HTTP/2's 64 KiB.
 pub const STREAM_WINDOW: u32 = 4 << 20;
 pub const CONNECTION_WINDOW: u32 = 8 << 20;
+/// The smallest DATA frame that the edge sends, as it sends one for each
+/// packet: the capsule of an IPv4 TCP segment with no option and no data, 40
+/// bytes, after a type and a length of one byte each.
+pub const SMALLEST_FRAME: usize = 42;
+/// h2's budget of small DATA frames that wait unread (T-398). h2 counts,
+/// for each frame under 256 bytes, 256 bytes less its size until the reader
+/// takes it, and past the budget ends the connection with ENHANCE_YOUR_CALM
+/// ("too_many_data_frames"). Its own budget, half the connection's window,
+/// is 4 MiB here: 21,400 unread frames of 60 bytes, a third of what the
+/// stream's window lets the edge send, and cfrs's WARP road died of it. This
+/// one holds the stream's whole window in the smallest frames, so that the
+/// window, which the reader releases, stops the edge first.
+pub const FRAME_BUDGET: usize = STREAM_WINDOW as usize / SMALLEST_FRAME * (256 - SMALLEST_FRAME);
+// It holds a window of the 60 bytes of cfrs's test, as h2's own does not.
+const _: () = assert!(FRAME_BUDGET >= STREAM_WINDOW as usize / 60 * (256 - 60));
 /// Packets that wait between the stack and the tunnel's tasks.
 const PACKETS: usize = 256;
 /// The most bytes of capsules sent in one DATA frame's worth.
@@ -65,6 +80,17 @@ pub fn request() -> Result<http::Request<()>, String> {
         .map_err(|e| e.to_string())
 }
 
+/// HTTP/2's client as the tunnel speaks it: the windows and the budget of
+/// small frames above.
+pub fn client_builder() -> h2::client::Builder {
+    let mut builder = h2::client::Builder::new();
+    builder
+        .initial_window_size(STREAM_WINDOW)
+        .initial_connection_window_size(CONNECTION_WINDOW)
+        .data_frame_budget(FRAME_BUDGET);
+    builder
+}
+
 /// Open the tunnel of `device`, through `proxy`, each step within `limit`.
 pub async fn open(device: &Device, proxy: &ProxyChoice, limit: Duration) -> Result<Link, Opening> {
     let (ip, port) = (device.endpoint.ip().to_string(), device.endpoint.port());
@@ -92,10 +118,7 @@ pub async fn open(device: &Device, proxy: &ProxyChoice, limit: Duration) -> Resu
     if tls.get_ref().1.alpn_protocol() != Some(crate::tls::ALPN) {
         return Err(Opening::Tls("the endpoint did not take HTTP/2 (ALPN h2)".into()));
     }
-    let handshake = h2::client::Builder::new()
-        .initial_window_size(STREAM_WINDOW)
-        .initial_connection_window_size(CONNECTION_WINDOW)
-        .handshake::<_, Bytes>(tls);
+    let handshake = client_builder().handshake::<_, Bytes>(tls);
     let (client, mut connection) = tokio::time::timeout(limit, handshake)
         .await
         .map_err(|_| Opening::Timeout("HTTP/2's handshake with WARP's endpoint"))?

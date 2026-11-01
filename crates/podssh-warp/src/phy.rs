@@ -9,7 +9,8 @@ use smoltcp::phy::{Device, DeviceCapabilities, Medium, RxToken, TxToken};
 use smoltcp::time::Instant;
 
 /// Packets that wait to go out: smoltcp waits when more are queued, as at a
-/// full link, until the driver has sent them.
+/// full link, until the driver has sent them. While the tunnel takes none
+/// (HTTP/2's window is closed), they stay here.
 pub const MAX_OUT: usize = 64;
 /// Packets that wait to be read: a packet past them is dropped, as a full
 /// link drops one, and TCP sends it again.
@@ -19,7 +20,8 @@ pub const MAX_IN: usize = 1024;
 #[derive(Debug)]
 pub struct Queue {
     pub inbound: VecDeque<Vec<u8>>,
-    pub outbound: Vec<Vec<u8>>,
+    /// Oldest first, as the tunnel takes them.
+    pub outbound: VecDeque<Vec<u8>>,
     mtu: usize,
     /// Packets dropped as the queue in was full.
     pub dropped: u64,
@@ -27,7 +29,7 @@ pub struct Queue {
 
 impl Queue {
     pub fn new(mtu: usize) -> Queue {
-        Queue { inbound: VecDeque::new(), outbound: Vec::new(), mtu, dropped: 0 }
+        Queue { inbound: VecDeque::new(), outbound: VecDeque::new(), mtu, dropped: 0 }
     }
 
     /// A packet from the tunnel.
@@ -42,7 +44,7 @@ impl Queue {
 
 pub struct Rx(Vec<u8>);
 
-pub struct Tx<'a>(&'a mut Vec<Vec<u8>>);
+pub struct Tx<'a>(&'a mut VecDeque<Vec<u8>>);
 
 impl RxToken for Rx {
     fn consume<R, F>(self, f: F) -> R
@@ -60,7 +62,7 @@ impl TxToken for Tx<'_> {
     {
         let mut packet = vec![0u8; len];
         let out = f(&mut packet);
-        self.0.push(packet);
+        self.0.push_back(packet);
         out
     }
 }
@@ -76,6 +78,12 @@ impl Device for Queue {
         Self: 'a;
 
     fn receive(&mut self, _timestamp: Instant) -> Option<(Self::RxToken<'_>, Self::TxToken<'_>)> {
+        // A packet in may take an answer out: with the queue out full, the
+        // packets in wait, and past MAX_IN are dropped, so that nothing grows
+        // while the tunnel takes nothing (T-398).
+        if self.outbound.len() >= MAX_OUT {
+            return None;
+        }
         let packet = self.inbound.pop_front()?;
         Some((Rx(packet), Tx(&mut self.outbound)))
     }
@@ -105,5 +113,21 @@ mod tests {
         assert_eq!((queue.inbound.len(), queue.dropped), (MAX_IN, 3));
         let caps = queue.capabilities();
         assert_eq!((caps.medium, caps.max_transmission_unit), (Medium::Ip, crate::MTU));
+    }
+
+    /// With the queue out full, a packet in waits, kept, and nothing more
+    /// goes out; once one has gone, it is read.
+    #[test]
+    fn a_full_queue_out_holds_the_packets_in() {
+        let mut queue = Queue::new(crate::MTU);
+        queue.outbound.extend((0..MAX_OUT).map(|_| vec![0x45]));
+        queue.arrive(vec![0x60]);
+        let now = Instant::from_micros(0);
+        assert!(queue.receive(now).is_none());
+        assert!(queue.transmit(now).is_none());
+        assert_eq!((queue.inbound.len(), queue.dropped), (1, 0));
+        queue.outbound.pop_front();
+        let (rx, _) = queue.receive(now).expect("the packet in, once one went out");
+        assert_eq!(rx.consume(|packet| packet.to_vec()), vec![0x60]);
     }
 }

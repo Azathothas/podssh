@@ -494,7 +494,7 @@ AF_UNIX.
 - Read: `AGENTS.md:252-258` (no bind, no listen),
   `docs/target-environment.md:84-88` (rule 3), `SECURITY.md:132-159` ("Nothing
   listens") and `README.md:42-51` state the rule from before the ruling.
-  `docs/design.md:950-952` already allows a local listener for `pipe` after
+  `docs/design.md:968-970` already allows a local listener for `pipe` after
   a probe.
 - Read: the Podman box refuses each `bind` (`scripts/box/seccomp.json:5-10`),
   so it tests the refusal.
@@ -1059,7 +1059,7 @@ Read: a drop ends the run with 255 (`crates/podssh-ssh/src/run.rs:61-77`,
 backs off with jitter, but only before a session exists
 (`crates/podssh-relay/src/open.rs:200-277`,
 `crates/podssh-relay/src/open.rs:379-393`). With `-N`, no command runs, so a
-new connection has no side effect on the server. `docs/design.md:613-620`
+new connection has no side effect on the server. `docs/design.md:631-638`
 puts a new connection with a new login in layer 3, for a standard sshd.
 T-153 (M6) resumes a session when both ends run podssh.
 
@@ -1633,7 +1633,7 @@ server (`remote_socket:host:hostport`), a socket on this host as the target
 (`[bind_address:]port:local_socket`, `remote_socket:local_socket`), and a SOCKS proxy that the
 server listens for and the client serves (`[bind_address:]port`). podssh refuses each by name, so
 a command line of OpenSSH fails with podssh. A server whose host refuses an AF_INET bind and
-allows an AF_UNIX one, as sandbox A does (`docs/STATUS.md:294`), can listen on a socket only; and
+allows an AF_UNIX one, as sandbox A does (`docs/STATUS.md:295`), can listen on a socket only; and
 the SOCKS form gives a server whose egress is closed a way out through the client.
 
 ## Premise

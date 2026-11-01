@@ -20,12 +20,20 @@ as a proxy that allows listed names only does; `--take addresses` refuses
 a name with 403 names are not allowed; `--take both`, the default, takes
 each (T-366).
 
+`--carry COMMAND` carries each CONNECT that the policy takes through a
+process of COMMAND, its last word with HOST:PORT appended, whose stdin
+and stdout are the stream: `--carry 'podssh proxy warp://'` puts each one
+inside WARP's tunnel, for a live test of a client that honours HTTPS_PROXY
+(T-398). The process resolves the name, so the proxy does not.
+
 Usage: proxy.py [--listen HOST:PORT] [--allow NAME:PORT=HOST:PORT ...] [--take names|addresses|both]
+                [--carry COMMAND]
 """
 
 import argparse
 import asyncio
 import ipaddress
+import shlex
 import socket
 import sys
 
@@ -34,6 +42,8 @@ ALLOWED_PORTS = {443, 80, 8443}
 TARGETS = {}
 # What a CONNECT may name: names, addresses, or both (--take).
 TAKE = {"mode": "both"}
+# The words of --carry's command, or none.
+CARRY = {"argv": None}
 
 
 def is_literal(host):
@@ -67,6 +77,33 @@ async def answer(writer, status, reason, request_line):
     writer.write(f"HTTP/1.1 {status} {reason}\r\nContent-Length: 0\r\n\r\n".encode())
     await writer.drain()
     writer.close()
+
+
+async def carried(reader, writer, host, port, request_line):
+    """The CONNECT to HOST:PORT through a process of --carry's command."""
+    argv = list(CARRY["argv"])
+    shown = f"[{host}]" if ":" in host else host
+    argv[-1] = f"{argv[-1]}{shown}:{port}"
+    try:
+        child = await asyncio.create_subprocess_exec(
+            *argv, stdin=asyncio.subprocess.PIPE, stdout=asyncio.subprocess.PIPE
+        )
+    except OSError:
+        await answer(writer, 502, "Bad Gateway", request_line)
+        return
+    log(f"200 {request_line} (carried)")
+    writer.write(b"HTTP/1.1 200 Connection Established\r\n\r\n")
+    await writer.drain()
+    await asyncio.gather(pipe(reader, child.stdin), pipe(child.stdout, writer))
+    try:
+        child.terminate()
+    except ProcessLookupError:
+        pass
+    # Bounded: a process that does not end at its signal is left.
+    try:
+        await asyncio.wait_for(child.wait(), 10)
+    except asyncio.TimeoutError:
+        pass
 
 
 async def handle(reader, writer):
@@ -104,6 +141,9 @@ async def handle(reader, writer):
         await answer(writer, 403, "names are not allowed", request_line)
         return
     port = int(port_text)
+    if CARRY["argv"]:
+        await carried(reader, writer, host, port, request_line)
+        return
     try:
         infos = await asyncio.get_running_loop().getaddrinfo(host, port, type=socket.SOCK_STREAM)
     except OSError:
@@ -129,8 +169,11 @@ async def main():
     parser.add_argument("--listen", default="0.0.0.0:45331")
     parser.add_argument("--allow", action="append", default=[])
     parser.add_argument("--take", choices=["names", "addresses", "both"], default="both")
+    parser.add_argument("--carry", default=None)
     args = parser.parse_args()
     TAKE["mode"] = args.take
+    if args.carry:
+        CARRY["argv"] = shlex.split(args.carry)
     for item in args.allow:
         name, target = item.split("=", 1)
         target_host, target_port = target.rsplit(":", 1)

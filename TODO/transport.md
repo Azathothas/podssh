@@ -187,7 +187,7 @@ The first test feeds the double a Close with code 1001 and `pair expired`. It as
 `TransportError::Closed` with that code and reason, and `retry() == Retry::NewPair`; with
 `operator stopped reverse relay` it asserts `Retry::Never`. Add one Close payload captured from
 the live relay (for example `1000 target closed` through `podssh proxy`) as a fixture, so the
-parser also meets bytes that podssh did not make (`docs/development.md:503-505`). The second test
+parser also meets bytes that podssh did not make (`docs/development.md:504-506`). The second test
 asserts that an unmatched `4000 x` and a node's `1011 connection refused` both show their own code
 and reason. Plant: delete the new 0x8 arm; the first test must fail with `Unexpected`.
 
@@ -592,7 +592,7 @@ Read: the commands already check the forward path. `podssh_relay::relay::forward
 (`crates/podssh-relay/src/relay.rs` lines 158-174 at `3b60753`), with a test of bad hosts (lines 218-226 at `3b60753`).
 Nothing checks a node name.
 
-Read in a local copy of podbox at `5bd8cb0` (`docs/design.md:458` names `452d792`): `validate_name`
+Read in a local copy of podbox at `5bd8cb0` (`docs/design.md:476` names `452d792`): `validate_name`
 accepts 1 to 128 characters of `[A-Za-z0-9._-]` and refuses anything else, with no encoding
 (`Azathothas/podbox:crates/podbox-ssh/src/mux.rs`). The contract does not give the form of a pair
 name (`crates/podssh-probe/tests/spec/relay-spec-2026-10-03-r2.txt:130-134`). To measure: the name

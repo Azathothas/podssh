@@ -210,9 +210,12 @@ async fn serve(tcp: TcpStream, acceptor: tokio_rustls::TlsAcceptor, routes: Arc<
         Err((_, tcp)) => return drain(tcp).await,
     };
     seen.connections.fetch_add(1, Ordering::SeqCst);
+    // The client's budget of small frames too: a test's volume never ends
+    // the stand-in's side as h2's own budget would (T-398).
     let handshake = h2::server::Builder::new()
         .initial_window_size(crate::tunnel::STREAM_WINDOW)
         .initial_connection_window_size(crate::tunnel::CONNECTION_WINDOW)
+        .data_frame_budget(crate::tunnel::FRAME_BUDGET)
         .handshake::<_, Bytes>(tls);
     let Ok(mut connection) = handshake.await else { return };
     let mut cut = seen.cut.subscribe();

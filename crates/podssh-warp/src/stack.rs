@@ -11,6 +11,7 @@
 //! with the stand-in alone): sockets of smoltcp in this process, never one
 //! of the system.
 
+use std::collections::VecDeque;
 use std::net::{IpAddr, SocketAddr};
 use std::sync::{Arc, Mutex, MutexGuard, PoisonError};
 use std::time::Duration;
@@ -19,6 +20,7 @@ use rustls::crypto::SecureRandom as _;
 use smoltcp::iface::{Config, Interface, SocketHandle, SocketSet};
 use smoltcp::socket::tcp;
 use smoltcp::wire::{HardwareAddress, IpAddress, IpCidr};
+use tokio::sync::mpsc::error::TrySendError;
 use tokio::sync::{mpsc, Notify};
 use tokio::task::AbortHandle;
 
@@ -34,6 +36,8 @@ const KEEP_ALIVE: u64 = 25;
 const TIMEOUT: u64 = 120;
 /// The longest the driver sleeps with nothing to do.
 const IDLE: Duration = Duration::from_secs(60);
+/// The shortest it sleeps while a packet waits for room in the tunnel.
+const BLOCKED: Duration = Duration::from_millis(50);
 /// The ports of this end of a connection: the dynamic range (RFC 6335).
 const PORTS: std::ops::RangeInclusive<u16> = 49_152..=65_535;
 
@@ -296,28 +300,42 @@ impl Stack {
     }
 }
 
-/// The driver: smoltcp polled, its packets out to the tunnel, the tunnel's
-/// packets in, and a sleep until the next timer of TCP, a packet, or a
-/// stream's word; until the tunnel ends.
+/// The driver: smoltcp polled, its packets out to the tunnel as it takes
+/// them, the tunnel's packets in, and a sleep until the next timer of TCP,
+/// room in the tunnel, a packet, or a stream's word; until the tunnel ends.
+///
+/// The packets in are read while one out waits for room (T-398): an upload
+/// waits on HTTP/2's window, and a reader that stopped then would leave the
+/// edge's small frames, its acknowledgements, to pile up in h2 until h2
+/// ends the connection.
 async fn drive(shared: Arc<Shared>, mut inbound: mpsc::Receiver<Vec<u8>>, out: mpsc::Sender<Vec<u8>>, why: Why) {
     loop {
-        let (sent, wait) = {
+        let (handed, wait) = {
             let mut guard = shared.lock();
             let now = guard.now();
             let inner = &mut *guard;
             inner.iface.poll(now, &mut inner.phy, &mut inner.sockets);
             let wait = inner.iface.poll_delay(now, &inner.sockets).map(Duration::from).unwrap_or(IDLE);
             inner.reap();
-            (std::mem::take(&mut inner.phy.outbound), wait)
+            (hand_over(&mut inner.phy.outbound, &out), wait)
         };
-        for packet in sent {
-            if out.send(packet).await.is_err() {
-                why.set("the tunnel stopped taking packets");
-                shared.end(why.get().unwrap_or_default());
-                return;
-            }
-        }
+        let waiting = match handed {
+            Handed::All => false,
+            Handed::Waiting => true,
+            Handed::Closed => return stop(&shared, &why, "the tunnel stopped taking packets"),
+        };
+        // What TCP's timers would send cannot go while a packet waits, and a
+        // timer that is due at once would spin.
+        let wait = if waiting { wait.max(BLOCKED) } else { wait };
         tokio::select! {
+            room = out.reserve(), if waiting => match room {
+                Ok(permit) => {
+                    if let Some(packet) = shared.lock().phy.outbound.pop_front() {
+                        permit.send(packet);
+                    }
+                }
+                Err(_) => return stop(&shared, &why, "the tunnel stopped taking packets"),
+            },
             packet = inbound.recv() => match packet {
                 Some(packet) => {
                     let mut inner = shared.lock();
@@ -326,14 +344,42 @@ async fn drive(shared: Arc<Shared>, mut inbound: mpsc::Receiver<Vec<u8>>, out: m
                         inner.phy.arrive(more);
                     }
                 }
-                None => {
-                    why.set("the tunnel ended");
-                    shared.end(why.get().unwrap_or_default());
-                    return;
-                }
+                None => return stop(&shared, &why, "the tunnel ended"),
             },
             () = shared.wake.notified() => {}
             () = tokio::time::sleep(wait) => {}
         }
     }
+}
+
+/// What [`hand_over`] did with the queue out.
+enum Handed {
+    /// The tunnel took each packet.
+    All,
+    /// A packet waits for room, and those after it.
+    Waiting,
+    /// The tunnel takes packets no more.
+    Closed,
+}
+
+/// The packets of `queue` that the tunnel takes now, oldest first, with no
+/// wait: the rest stay in the queue, where smoltcp sees a full link.
+fn hand_over(queue: &mut VecDeque<Vec<u8>>, out: &mpsc::Sender<Vec<u8>>) -> Handed {
+    while let Some(packet) = queue.pop_front() {
+        match out.try_send(packet) {
+            Ok(()) => {}
+            Err(TrySendError::Full(packet)) => {
+                queue.push_front(packet);
+                return Handed::Waiting;
+            }
+            Err(TrySendError::Closed(_)) => return Handed::Closed,
+        }
+    }
+    Handed::All
+}
+
+/// The end of the tunnel, said once.
+fn stop(shared: &Shared, why: &Why, line: &str) {
+    why.set(line);
+    shared.end(why.get().unwrap_or_default());
 }

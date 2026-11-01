@@ -98,6 +98,24 @@ gcloud's, IAP Desktop's and aws-cli's sources say, with bytes that gcloud's
 own client wrote and URLs that aws-cli's own signer made; the live run
 waits for the operator's throwaway accounts (T-376).
 
+**WARP's road (T-352), under volume (T-398, drafted 2026-11-01).** `podssh
+ssh warp://HOST` carries TCP inside WARP's MASQUE tunnel: one CONNECT of
+HTTP/2 to Cloudflare's endpoint, whose bodies carry IP packets in capsules,
+and TCP on smoltcp in this process ([carriers.md](carriers.md), item 4).
+The edge sends one DATA frame for each packet, so the acknowledgements of an
+upload come as frames of about 60 bytes, and h2 ends a connection whose small
+frames wait unread past a budget (ENHANCE_YOUR_CALM, "too_many_data_frames"),
+by default half the connection's window: 21,400 such frames at podssh's
+8 MiB, a third of what the stream's 4 MiB window lets the edge send. cfrs's
+WARP road died of it (cfrs #32). podssh's budget holds the stream's whole
+window in the smallest frame that carries a packet, 42 bytes, so that flow
+control, which the reader releases, stops the edge first; and the stack's
+driver reads the tunnel while a packet of its own waits for room in it. The
+queue out holds 64 packets while HTTP/2's window is closed, and the packets
+in wait behind it, 1,024 at most, past which they are dropped as a full link
+drops them, and TCP sends them again. MEASURED: UNVERIFIED (`cargo test -p
+podssh-warp --test small_frames`; live, 16 MiB each way in `warp-live.yml`).
+
 **The race (T-164, built 2026-10-10).** `podssh ssh node://NAME
 --iroh-ticket TICKET` races the iroh road to the node's ticket and the
 reverse road of its pair. The iroh road starts first; the pair's road after
