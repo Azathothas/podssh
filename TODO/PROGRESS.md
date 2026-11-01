@@ -115,7 +115,7 @@ and `CARGO_BUILD_JOBS=4`:
 
 ## Counts
 
-`TODO/INDEX.md` holds 379 entries: 18 open, 2 partial, 31 blocked, 328 done.
+`TODO/INDEX.md` holds 379 entries: 18 open, 1 partial, 31 blocked, 329 done.
 
 Open includes parked work. `cargo todo check` verifies this line.
 
@@ -137,9 +137,9 @@ next beta follows the next batch of repairs that the testers should test
 again, at most one a day, so not before 2026-11-02 01:44 UTC, and once the
 gate is green on its commit.
 
-**First, the operator's request of 2026-11-01:** `--detach` is in (2026-11-01), and `session
-start` asks its prompts on the terminal; what follows: T-383 (Windows and macOS measured in
-Actions, with `session start`'s Windows job); T-381 waits for Q61.
+**The operator's request of 2026-11-01:** `--detach` is in, `session start` asks its prompts on
+the terminal, and both are measured on Windows and macOS in Actions (2026-11-01); T-381 waits for
+Q61.
 
 **Now:** the entries of the audit, the study and the issues of 2026-10-31 (GitHub #59 to #63 and
 #69 to #76), the highest priority first: those of the rulings of 2026-10-31: T-353 (Q52); then those of

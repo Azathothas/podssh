@@ -2915,7 +2915,7 @@ consoles, and macOS, are measured on GitHub's runners (`docs/detach.md`, section
 **Milestone:** backlog
 **Priority:** P2
 **Effort:** S
-**Status:** partial
+**Status:** done
 
 ## Problem
 
@@ -2969,8 +2969,15 @@ line of ready that `start` can no longer read ends the session (75), as nobody w
 
 ## Done
 
-2026-11-01, partial: the code and the tests are in; the Windows run waits for CI's job `windows`
-on the push.
+2026-11-01, done; the planted runs on Windows wait for T-251 (no Windows host here):
+
+- Windows (CI's job `windows`, `windows-2025`, run 41272359849 at `ec2252b`): `--test
+  detach_windows` 3 passed (`the_child_leaves_a_job_that_allows_it_and_outlives_its_close`,
+  `a_job_that_allows_no_breakaway_is_said_and_ends_the_child`,
+  `a_console_closed_after_ready_leaves_the_child`), and `--test session` 6 passed, among them
+  `on_windows_the_session_leaves_a_job_that_allows_it` and
+  `on_windows_start_asks_a_password_in_the_console_then_frees_it`. The Unix `--test detach` has
+  no test there, as it should.
 
 - `podssh session start`'s child on Windows (`crates/podssh-cli/src/session/start.rs`):
   `CREATE_BREAKAWAY_FROM_JOB`, retried in the job on `ERROR_ACCESS_DENIED` with the line "the

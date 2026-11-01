@@ -62,15 +62,15 @@ repository and CI).
 
 ## Counts
 
-**379 entries: 18 open, 2 partial, 31 blocked, 328 done.**
+**379 entries: 18 open, 1 partial, 31 blocked, 329 done.**
 
 | Priority | open | partial | blocked | done | total |
 | --- | --- | --- | --- | --- | --- |
 | P0 | 0 | 0 | 0 | 1 | 1 |
 | P1 | 2 | 0 | 0 | 29 | 31 |
-| P2 | 2 | 1 | 21 | 165 | 189 |
+| P2 | 2 | 0 | 21 | 166 | 189 |
 | P3 | 14 | 1 | 10 | 133 | 158 |
-| **All** | 18 | 2 | 31 | 328 | 379 |
+| **All** | 18 | 1 | 31 | 329 | 379 |
 
 ## Entries
 
@@ -454,4 +454,4 @@ repository and CI).
 | [T-380](cli.md) | P2 | L | backlog | feature | done | `--detach`: a run of podssh sent into the background by podssh itself |
 | [T-381](cli.md) | P3 | M | backlog | feature | blocked | `--detach` on Linux leaves the session's scope of systemd, as tmux does |
 | [T-382](cli.md) | P2 | M | backlog | defect | done | `podssh session start` asks no prompt, and on Windows stays in the caller's job |
-| [T-383](cli.md) | P2 | S | backlog | measurement | partial | `--detach` on Windows and macOS, measured in GitHub Actions |
+| [T-383](cli.md) | P2 | S | backlog | measurement | done | `--detach` on Windows and macOS, measured in GitHub Actions |

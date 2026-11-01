@@ -4225,7 +4225,8 @@ Built and tested here (2026-11-01), the live run waiting for Q60:
   which podssh never asks for a loopback address (`crates/podssh-ws/src/dial.rs`). Planted, the
   TCP provider's dial made direct: both tests failed, "no first hop went through the proxy". CI's
   job `tor-net` runs both on the runner, its address the relays', with Ubuntu's daemon of Tor's
-  network masked. `podssh-cli --lib` 497 with and without the feature; clippy with the feature
+  network masked: at `ec2252b` (run 41272359849) it passed, the network up in 74 s and both
+  tests in 3 min 10 s, the build included. `podssh-cli --lib` 497 with and without the feature; clippy with the feature
   clean.
 
 - Doctor's line `tor` (step 3, 2026-11-01): with `--full`, in a build with the feature, Arti
