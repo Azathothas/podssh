@@ -4951,7 +4951,7 @@ incremented after the chunk of the length; the session through `ssserver` fails.
 **Milestone:** backlog
 **Priority:** P3
 **Effort:** M
-**Status:** partial
+**Status:** done
 
 ## Problem
 
@@ -5053,8 +5053,8 @@ Read at `a3f948d` on 2026-10-31.
 ## Done
 
 2026-10-31: drafted in the worktree `warp` (branch `draft-warp`, `8dd3c18`), on the draft of
-T-352; merged into `main` the same day, built and measured here. Partial: the live run waits for
-this commit on GitHub.
+T-352; merged into `main` (`17b9153`) the same day, built and measured here, and live in GitHub
+Actions.
 
 - podssh-relay: `crates/podssh-relay/src/quick/edge_warp.rs` (feature `warp`), and the test
   `crates/podssh-relay/tests/quick_edge_warp.rs` (feature `warp-stand-in`): the node's TLS with
@@ -5083,10 +5083,15 @@ this commit on GitHub.
 - Planted (2026-10-31): `edge_warp::connect` that dials the region with `podssh_ws::dial::dial`,
   past the tunnel: the test of the node's registration through WARP's tunnel failed, as
   198.51.100.7 answers nowhere and the stand-in of WARP's edge carried nothing; the other passed.
-- Live, in `.github/workflows/quick-tunnel-live.yml` (Q43, Q52): a third node built with the
-  feature `warp`, with TCP and UDP to 7844 dropped, registers over HTTP/2 inside WARP's tunnel, a
-  visitor reaches it, and doctor's `edge road` names WARP's tunnel: waits for this commit on
-  GitHub.
+- Live, in `.github/workflows/quick-tunnel-live.yml` (Q43, Q52), run 41221488202 at `17b9153`
+  (2026-10-31), passed: the third node, built with the feature `warp`, with TCP and UDP to 7844
+  dropped on the runner, found no region over QUIC, registered a device of WARP, opened WARP's
+  tunnel to 162.159.198.2:443 and registered at Cloudflare's msp01 "over HTTP/2 inside WARP's
+  tunnel"; a visitor got its 101 with the layer's GREETING at the first try; `podssh doctor
+  --full`'s line `edge road` was ok: both regions timed out on 7844, and "inside WARP's tunnel
+  (WARP's endpoint 162.159.198.2:443) the edge answered TLS". The run's first node, a build
+  without the feature that was still up when 7844 was dropped, fell back to HTTP/2 and then said
+  that a build with the feature `warp` reaches the edge inside WARP's tunnel too.
 
 # T-378: The quick tunnel's loop over HTTP/2 may read the connection's end as its control stream's
 

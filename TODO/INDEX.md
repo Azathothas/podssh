@@ -62,15 +62,15 @@ repository and CI).
 
 ## Counts
 
-**375 entries: 24 open, 1 partial, 30 blocked, 320 done.**
+**375 entries: 24 open, 0 partial, 30 blocked, 321 done.**
 
 | Priority | open | partial | blocked | done | total |
 | --- | --- | --- | --- | --- | --- |
 | P0 | 0 | 0 | 0 | 1 | 1 |
 | P1 | 2 | 0 | 0 | 29 | 31 |
 | P2 | 3 | 0 | 21 | 162 | 186 |
-| P3 | 19 | 1 | 9 | 128 | 157 |
-| **All** | 24 | 1 | 30 | 320 | 375 |
+| P3 | 19 | 0 | 9 | 129 | 157 |
+| **All** | 24 | 0 | 30 | 321 | 375 |
 
 ## Entries
 
@@ -445,7 +445,7 @@ repository and CI).
 | [T-371](roads.md) | P3 | M | backlog | measurement | done | A `-J` hop on port 443 through the proxy, measured, and a `doctor` line for a hop |
 | [T-372](roads.md) | P3 | M | backlog | feature | open | A hop or a destination whose SSH is wrapped in TLS: `ssh+tls://` |
 | [T-373](roads.md) | P3 | M | backlog | feature | open | A Shadowsocks road, from a file of `ss://` lines that a subscription can refresh |
-| [T-374](roads.md) | P3 | M | backlog | feature | partial | The quick tunnel's edge through WARP's tunnel, for a node whose cage reaches port 443 only |
+| [T-374](roads.md) | P3 | M | backlog | feature | done | The quick tunnel's edge through WARP's tunnel, for a node whose cage reaches port 443 only |
 | [T-375](release.md) | P2 | M | none | feature | done | `podssh update`: the release for its own target, checked, in place of the binary |
 | [T-376](roads.md) | P3 | S | backlog | chore | blocked | The live run of the roads through a cloud's own tunnel (T-351) |
 | [T-377](ws.md) | P1 | S | none | defect | done | The keys of podssh's own AEAD ciphers outlive their use, since chacha20poly1305 0.11 |
