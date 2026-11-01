@@ -6355,7 +6355,13 @@ the same day.
   packet"); QUIC's road with no probe (HTTP/2 came after 2.0 s, past the bound of 1.5 s).
 - Live: `quick-tunnel-live.yml` greps "QUIC gave way" with UDP to 7844 dropped and asks the race
   to HTTP/2 within 5 s, and the race to WARP's tunnel with TCP dropped too within 20 s, and checks
-  doctor's `UDP out` with the probe: its run after the push is in `docs/STATUS.md`.
+  doctor's `UDP out` with the probe. At `da543fd` (run 41305513564): the first node registered over
+  QUIC, its race 0.3 s, and doctor said that the probe and QUIC answered; with UDP to 7844
+  dropped, doctor said "UDP to the edge got no answer to a QUIC packet: ...: Operation not
+  permitted (os error 1), so podssh node --quick-tunnel skips QUIC and takes HTTP/2", right, but
+  the workflow asked for the words of silence ("said nothing within 300 ms"), where the runner's
+  iptables drop on OUTPUT fails the send at once: the step failed there, before the race. The
+  workflow now takes either form of no answer; its run after that repair is in `docs/STATUS.md`.
 
 # T-401: The quick tunnel's provisioning: Retry-After honoured, and the edge's text cleaned before it is shown
 
