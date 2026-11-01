@@ -33,7 +33,7 @@ jobs:
           set -eu
           case "$RUN" in
             "") echo 'runs=["default","nolisten","tt","chat"]' >> "$GITHUB_OUTPUT" ;;
-            default | nolisten | tt | chat) echo "runs=[\"$RUN\"]" >> "$GITHUB_OUTPUT" ;;
+            default | nolisten | tt | chat | diag) echo "runs=[\"$RUN\"]" >> "$GITHUB_OUTPUT" ;;
             *) echo "no run named $RUN" >&2; exit 1 ;;
           esac
 
@@ -51,9 +51,14 @@ jobs:
       BIN: target/x86_64-unknown-linux-musl/release/podssh
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+      - name: the diagnosis of the dead tty (TEMPORARY, T-415)
+        if: matrix.run == 'diag'
+        run: sudo sh scripts/box/diag-tty.sh
       - name: podssh, static, in the build image
+        if: matrix.run != 'diag'
         run: sh scripts/box/build-podssh.sh
       - name: the run ${{ matrix.run }}
+        if: matrix.run != 'diag'
         env:
           RUN: ${{ matrix.run }}
         run: |
