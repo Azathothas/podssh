@@ -762,15 +762,63 @@ keywords have no effect.
   `-O proxy` is refused. `ControlMaster ask` confirms each request that
   changes something on the terminal or through `SSH_ASKPASS`.
 - `ControlPersist yes|TIME` keeps a `-N` master for that long with no
-  client (`0` is forever, as in OpenSSH). podssh does not go to the
-  background, so a master with its own session ends with it, once its
-  clients' sessions have ended: start a lasting master with
-  `podssh ssh -M -N -S PATH HOST &`. `--persist` does not take part.
+  client (`0` is forever, as in OpenSSH). A master with its own session
+  ends with it, once its clients' sessions have ended: start a lasting
+  master in the background with `podssh ssh -f -M -N -S PATH HOST` (T-380).
+  `--persist` does not take part.
 - Every client shares the master's one relay session, and its limits
   (`docs/relay.md`); a drop of the master ends each client's session.
 - Read from OpenSSH 10.3p1's own bytes (`scripts/mux-capture.py`): each
   `bool` of `PROTOCOL.mux` is a `uint32`, and the port of a stdio forward
   a `uint32`, not the string that the document says.
+
+## Going to the background: `--detach` and `-f`
+
+T-380, after the study of `docs/detach.md`: a run that must outlive its
+call goes to the background by podssh itself, where `&` and `nohup` fail
+(a closed pty's SIGHUP, a background job's read of the terminal, a caller
+that reads its pipes to their end or kills their holder's group, a busybox
+with no `nohup`).
+
+- `podssh ssh -f` (`--detach`, or `ForkAfterAuthentication yes`), with a
+  command or `-N`, as OpenSSH's `-f`; a shell or `-W` is refused (64). Ready
+  once the request went: after the login, with `-L`, `-D` and a control
+  socket bound before it. A command reads no stdin (`-n`), and its output
+  goes to the log.
+- `podssh pipe --detach`, with a listening side whose other side is not
+  stdio: ready once it listens.
+- `podssh node --detach`: ready once the node is online (a quick tunnel's,
+  once registered; the iroh road's, once its ticket is said); with no
+  `--install`, `--uninstall` or `--temporary`. For a node that must
+  outlive a logout or a reboot, `--install`.
+
+How: the parent starts this program again (`/proc/self/exe`, which runs
+this image even when `podssh update` replaced its file, else the path that
+the system gives, else the name that started it), with the word
+`--detach-child` first, its stdout a pipe back, and its stdin and stderr the
+caller's. The child closes each descriptor from 3 up and resets its signals
+at its start, then runs the command as in the foreground: its prompts (a
+password, a passphrase, a host key) use the caller's terminal. At ready it
+sends stdin to the null device and stdout and stderr to its log, leaves the
+terminal and its session (`setsid`, SIGHUP ignored; on Windows it frees its
+console, in a group of its own and out of the caller's job where the job
+allows it), and says so to the parent, which prints the child's pid and log
+and exits 0. A child that ends first gives the parent its code, its lines
+already on the caller's stderr; Ctrl-C before ready reaches both.
+
+- The log: `detached/VERB-PID.log` in the cache (mode 0600, in a directory
+  of mode 0700), cut back past 1 MiB, its earlier part in `.log.1`; none
+  with `PODSSH_CACHE_DIR=none`.
+- Refused as the first process of a namespace (69), which ends with it.
+  Named first, as they may still end the run: a unit of systemd
+  (`INVOCATION_ID`), WSL (`WSL_DISTRO_NAME`), Termux (`TERMUX_VERSION`), and
+  a namespace whose first process is `bwrap`.
+- A CI's job ends the run at the job's end: podssh touches no variable by
+  which a CI finds its processes (`RUNNER_TRACKING_ID`, `BUILD_ID`,
+  `JENKINS_NODE_COOKIE`).
+- Not yet: the move out of a session's scope of systemd, where logind
+  kills a session's processes at logout (T-381, which waits for the
+  operator's ruling Q61).
 
 ## `podssh each`
 

@@ -73,6 +73,10 @@ pub(super) const NODE: &[&str] = &[
      serves the pair. stdout stays empty; notes go to stderr.",
     "With --pair-file, the pair comes from FILE, in the form of the store, and the store is not used. \
      FILE must be a regular file of the user that nobody else can read.",
+    "--detach sends the node into the background once it is online (a quick tunnel's, once registered; \
+     the iroh road's, once its ticket is said), as podssh ssh -f does (see its notes): this program again, \
+     its log detached/node-PID.log in the cache. For a node that must outlive a logout or a reboot, \
+     --install; --detach goes with no --install, --uninstall or --temporary (64).",
     "--install makes the node a service of this user, with no privilege, by the first way that a probe \
      finds: a user unit of systemd (podssh-node-NAME.service, enabled and started) when systemctl answers \
      for this user, else an @reboot line of the crontab when crontab answers; on Windows a task at the \

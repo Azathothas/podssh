@@ -52,6 +52,11 @@ pub fn run_node(args: &NodeArgs, err: &mut dyn Write) -> i32 {
     if let Some(key) = &args.temporary {
         return crate::node_temp::run(args, key, err);
     }
+    // --detach (T-380): the node goes on in this binary started again, which
+    // says when it is online.
+    if args.detach && !crate::detach::is_child() {
+        return crate::detach::start("node", err);
+    }
     if args.warp && !args.quick_tunnel {
         let why = "--warp is for --quick-tunnel, whose node then reaches Cloudflare's edge inside WARP's tunnel";
         return Refusal::usage(why.to_string()).report("node", err);
@@ -317,7 +322,11 @@ async fn serve(ready: Ready, err: &mut dyn Write) -> i32 {
         }
     };
     // As the operator's lines, written from inside the node as they come.
-    let say = |line: String| eprintln!("podssh node: {label}: {line}");
+    // The line first, on the caller's stderr; then a detached node goes on.
+    let say = |line: String| {
+        eprintln!("podssh node: {label}: {line}");
+        crate::detach::on_line("node", &line);
+    };
     let mut config = NodeConfig {
         pair,
         label: stored.then(|| label.clone()),

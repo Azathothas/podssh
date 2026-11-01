@@ -44,25 +44,29 @@ async fn start(args: &SessionArgs, timeout: Duration, out: &mut dyn Write, err: 
             return EX_UNAVAILABLE;
         }
     }
-    let binary = match std::env::current_exe() {
-        Ok(binary) => binary,
-        Err(e) => {
-            let _ = writeln!(err, "podssh session: the path of this program: {e}");
-            return EX_SOFTWARE;
+    // Each way to start this binary again, `/proc/self/exe` first (T-380).
+    let mut tried = Vec::new();
+    let mut started = None;
+    for binary in crate::detach::binaries() {
+        let mut cmd = tokio::process::Command::new(&binary);
+        // The child's first word (T-380): it releases each descriptor that it
+        // inherited, as a caller's pipe that it kept would never end. The
+        // words after start's own: the subcommand came first (`check`).
+        cmd.arg(crate::detach::CHILD_FLAG).args(["session", "serve", "--detach"]).args(args.argv.iter().skip(1));
+        cmd.stdin(Stdio::null()).stdout(Stdio::piped()).stderr(Stdio::piped());
+        detach_child(&mut cmd);
+        keep_own_handles();
+        match cmd.spawn() {
+            Ok(child) => {
+                started = Some(child);
+                break;
+            }
+            Err(e) => tried.push(format!("{}: {e}", binary.display())),
         }
-    };
-    let mut cmd = tokio::process::Command::new(binary);
-    // The words after start's own: the subcommand came first (`check`).
-    cmd.args(["session", "serve", "--detach"]).args(args.argv.iter().skip(1));
-    cmd.stdin(Stdio::null()).stdout(Stdio::piped()).stderr(Stdio::piped());
-    detach_child(&mut cmd);
-    keep_own_handles();
-    let mut child = match cmd.spawn() {
-        Ok(child) => child,
-        Err(e) => {
-            let _ = writeln!(err, "podssh session: the session's podssh did not start: {e}");
-            return EX_SOFTWARE;
-        }
+    }
+    let Some(mut child) = started else {
+        let _ = writeln!(err, "podssh session: the session's podssh did not start: {}", tried.join("; "));
+        return EX_SOFTWARE;
     };
     let (Some(stdout), Some(stderr)) = (child.stdout.take(), child.stderr.take()) else {
         let _ = child.start_kill();
@@ -152,8 +156,9 @@ fn detach_child(_: &mut tokio::process::Command) {}
 /// This process's own standard handles stay out of the child: a program
 /// that reads them to their end, as an agent reads a command's, would wait
 /// for the daemon too. Windows hands each handle that may be inherited to
-/// a child; on Unix the child's 0, 1 and 2 are its own, and each other
-/// descriptor of podssh closes on exec.
+/// a child; on Unix the child's 0, 1 and 2 are its own, and the child closes
+/// each other descriptor at its start, as podssh's own close on exec but one
+/// that podssh inherited does not (T-380).
 #[cfg(windows)]
 fn keep_own_handles() {
     use std::os::windows::io::AsRawHandle;

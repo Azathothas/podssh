@@ -96,6 +96,8 @@ pub struct Resolved {
     /// No `ServerAliveInterval` was given: a far end that the road finds
     /// to run the resumable layer turns SSH's keepalives off (T-300).
     pub alive_default: bool,
+    /// `-f`, `--detach` or `ForkAfterAuthentication` (T-380).
+    pub detach: bool,
 }
 
 // The environment, in its own file for the length of this one (T-379).
@@ -456,6 +458,7 @@ pub fn resolve_or_refuse(args: &SshArgs, env: &Env) -> Result<Resolved, Refusal>
         x11: None,
         upgrade: None,
         alive_default: settings.alive_interval.is_none(),
+        detach: args.detach || settings.fork_after_authentication.unwrap_or(false),
     };
     super::persist::check(args, &mut resolved)?;
     crate::forwarder::check(args, &resolved)?;

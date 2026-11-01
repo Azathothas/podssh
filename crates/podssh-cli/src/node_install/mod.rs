@@ -63,6 +63,10 @@ pub fn dispatch(args: &NodeArgs, out: &mut dyn Write, err: &mut dyn Write) -> i3
             return refusal.report("node", err);
         }
     }
+    if args.detach && (args.install || args.uninstall || args.temporary.is_some()) {
+        let why = "--detach sends this run into the background: it goes with no --install, --uninstall or --temporary";
+        return Refusal::usage(why).report("node", err);
+    }
     match (args.install, args.uninstall) {
         (true, true) => Refusal::usage("--install and --uninstall: give one").report("node", err),
         (true, false) => match prepare(args) {

@@ -68,6 +68,8 @@ pub struct SshArgs {
     /// For `derp:TICKET` and `node://NAME`: the DERP servers after the
     /// ticket's, unparsed.
     pub derp_server: Option<String>,
+    /// `-f`, `--detach`: into the background once the request went (T-380).
+    pub detach: bool,
     /// `--persist`: tmux on the server, attached again after a lost link.
     pub persist: bool,
     /// The tmux session of `--persist`.
@@ -268,6 +270,7 @@ impl SshArgs {
             iroh_ticket: one("iroh-ticket"),
             derp_ticket: one("derp-ticket"),
             derp_server: one("derp-server"),
+            detach: flag("detach"),
             persist: flag("persist"),
             persist_name: one("persist-name"),
             attach: one("attach"),

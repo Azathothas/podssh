@@ -92,6 +92,8 @@ pub async fn run(serve: Serve<'_>, settings: &remote::Settings, err: &mut dyn Wr
             }
         }
     };
+    // It listens: a detached run goes on in the background (T-380).
+    crate::detach::ready("pipe");
     if let (Address::HttpListen(at), false) = (serve.listening, quiet) {
         let line = super::http_listen::reach_line(&listener, at, serve.credentials.as_ref());
         let _ = writeln!(err, "podssh pipe: {line}");

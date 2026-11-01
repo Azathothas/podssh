@@ -39,6 +39,8 @@ pub const PIPE_FLAGS: &[FlagRow] = &[
         "iroh: the relays, https://HOST[:PORT][,...], after the ticket's (default: env PODSSH_IROH_RELAY, else n0's)", None),
     row(None, "keep-listening", None, FlagKind::Supported,
         "unix-listen:, tcp-listen:, ws-listen: take each client in turn, 8 at once, each with a new instance of the other side, until SIGINT or SIGTERM; http-listen: always does, 32 at once", None),
+    row(None, "detach", None, FlagKind::Supported,
+        "a listening side: go to the background once it listens, as podssh itself (T-380); the other side may not be stdio", None),
     row(None, "proxy-auth-file", Some("FILE"), FlagKind::Supported,
         "http-listen: each client gives a USER:PASSWORD of FILE, a private file, one a line, in Proxy-Authorization; needed off loopback", None),
 ];

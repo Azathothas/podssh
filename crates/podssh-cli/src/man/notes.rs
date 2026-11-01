@@ -374,7 +374,9 @@ mod tests {
                 (Some("podssh"), Some(other)) if verb_for(other).is_some() => other,
                 _ => verb,
             };
-            if flag_shaped && !w.contains('=') && !flag_exists(named, w) {
+            // The first word of a detached child (T-380) follows podssh, before any verb.
+            let child = w == crate::detach::CHILD_FLAG && i.checked_sub(1).map(|j| words[j]) == Some("podssh");
+            if flag_shaped && !w.contains('=') && !child && !flag_exists(named, w) {
                 out.push(format!("{verb}: the flag {w} does not exist"));
             }
             // A variable given a value (NAME=yes) is a variable, not a keyword.
@@ -447,5 +449,8 @@ mod tests {
         assert!(problems_in("ssh", "see podssh node --derp", &variables).is_empty());
         assert_eq!(problems_in("ssh", "see --derp", &variables).len(), 1);
         assert_eq!(problems_in("ssh", "see podssh node --no-such-flag", &variables).len(), 1);
+        // A detached child's first word, after podssh alone (T-380).
+        assert!(problems_in("ssh", "as podssh --detach-child ssh", &variables).is_empty());
+        assert_eq!(problems_in("ssh", "as --detach-child", &variables).len(), 1);
     }
 }

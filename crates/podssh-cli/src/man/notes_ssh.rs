@@ -125,6 +125,19 @@ pub const SSH: &[&str] = &[
      later runs start sooner. The host key is recorded under tor://HOST. -p and Port give the port; \
      --direct, -4, -6 and HostName cannot go with it, and -J with it first makes HOST the first hop of a \
      chain.",
+    "-f, --detach and ForkAfterAuthentication yes send the run into the background once its request went \
+     (after the login; -L and -D are bound before it), with a command or -N, as OpenSSH's -f; a shell or -W \
+     is refused (64). A command then reads no stdin (-n), and its output goes to the log. podssh does it \
+     itself, with no other program: it starts this program again (as podssh --detach-child ..., a form \
+     that podssh alone writes), whose prompts (a password, a passphrase, a host key) use this terminal \
+     until it is ready; then it leaves this terminal and its session (setsid, SIGHUP ignored; on Windows its \
+     console, and the caller's job where the job allows it), with no descriptor that it inherited, so that \
+     a caller that reads its pipes to their end ends with the parent. The parent prints the child's pid \
+     and its log (detached/ssh-PID.log in the cache; see FILES) and exits 0; a failure before then is its \
+     code, its lines on stderr. As the first process of a namespace it refuses (69); a unit of systemd, \
+     WSL and Termux, which may end it still, are named first. A CI's job ends it at the job's end: podssh \
+     touches no variable by which a CI finds its processes. --persist keeps the forwards going across a \
+     lost relay.",
     "--forwarder TEMPLATES reaches the first hop through WebSocket forwarders of other products, in place \
      of the relay: services that dial the host and the port that a client names and carry its bytes, the \
      plumbing of a MUD client or of an SSH client in a browser. A template is a ws:// or wss:// URL with \

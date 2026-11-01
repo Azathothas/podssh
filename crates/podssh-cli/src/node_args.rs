@@ -48,6 +48,8 @@ pub struct NodeArgs {
     /// The temporary node of `podssh ssh --upgrade`, for this client key
     /// (T-167).
     pub temporary: Option<String>,
+    /// `--detach`: into the background once online (T-380).
+    pub detach: bool,
     /// `--install`: the node as a service of this user (T-121).
     pub install: bool,
     /// `--uninstall`: remove the service that `--install` made.
@@ -86,6 +88,7 @@ impl NodeArgs {
             iroh_relay: get("iroh-relay"),
             sshd: matches.get_flag("sshd"),
             temporary: get("temporary"),
+            detach: matches.get_flag("detach"),
             install: matches.get_flag("install"),
             uninstall: matches.get_flag("uninstall"),
             env_file: get("env-file"),

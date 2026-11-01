@@ -71,6 +71,8 @@ pub struct Settings {
     /// `ClearAllForwardings`: no `-L`, `-D` or `-R`, from any place.
     pub clear_all_forwardings: Option<bool>,
     pub exit_on_forward_failure: Option<bool>,
+    /// `ForkAfterAuthentication`: `-f` (T-380).
+    pub fork_after_authentication: Option<bool>,
     /// `ControlMaster`, `ControlPath` and `ControlPersist` (T-039).
     pub control_master: Option<super::control::Mode>,
     pub control_path: Option<String>,
@@ -241,10 +243,9 @@ impl Settings {
             "exitonforwardfailure" => {
                 set(&mut self.exit_on_forward_failure, yes_no(value).ok_or_else(|| bad("expected yes or no"))?)
             }
-            "forkafterauthentication" if yes_no(value) == Some(true) => {
-                return Err(format!("-o {name}: going to the background is not supported; run podssh with `&`"))
+            "forkafterauthentication" => {
+                set(&mut self.fork_after_authentication, yes_no(value).ok_or_else(|| bad("expected yes or no"))?)
             }
-            "forkafterauthentication" => {}
             "revokedhostkeys" | "knownhostscommand" => {
                 return Err(format!(
                     "-o {name}: not supported; mark keys @revoked, or list them, in a known_hosts file instead"
@@ -361,6 +362,7 @@ impl Settings {
             gateway_ports: self.gateway_ports.or(file.gateway_ports),
             clear_all_forwardings: self.clear_all_forwardings.or(file.clear_all_forwardings),
             exit_on_forward_failure: self.exit_on_forward_failure.or(file.exit_on_forward_failure),
+            fork_after_authentication: self.fork_after_authentication.or(file.fork_after_authentication),
             control_master: self.control_master.or(file.control_master),
             control_path: self.control_path.or(file.control_path),
             control_persist: self.control_persist.or(file.control_persist),

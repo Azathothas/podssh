@@ -258,8 +258,9 @@ pub const SSH_FLAGS: &[FlagRow] = &[
         "podssh negotiates its own modern ciphers", Some("no flag")),
     row(Some('m'), "mac", Some("MACS"), FlagKind::Refused,
         "podssh negotiates its own modern MACs", Some("no flag")),
-    row(Some('f'), "background", None, FlagKind::Refused,
-        "going to the background after authentication is not supported", Some("& in the shell")),
+    // T-380: OpenSSH's -f, and --detach of each command that serves.
+    row(Some('f'), "detach", None, FlagKind::Supported,
+        "go to the background once logged in and the request went, with a command or -N (see --detach)", None),
     row(Some('G'), "print-config", None, FlagKind::Supported,
         "print the settings in effect, as ssh -G does, and connect to nothing", None),
     row(Some('I'), "pkcs11", Some("LIBRARY"), FlagKind::Refused,

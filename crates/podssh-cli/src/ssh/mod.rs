@@ -167,6 +167,24 @@ fn run(args: &SshArgs, tty: Tty, err: &mut dyn Write) -> i32 {
         }
         return 0;
     }
+    // -f, --detach and ForkAfterAuthentication (T-380): the run goes on in
+    // this binary started again, which says when its request went.
+    if resolved.detach && resolved.control.command.is_none() {
+        if matches!(resolved.options.request, podssh_ssh::Request::Shell | podssh_ssh::Request::StdioForward(_)) {
+            let _ = writeln!(
+                err,
+                "podssh ssh: -f goes to the background with a command or -N, as OpenSSH's: a shell or -W needs this \
+                 terminal"
+            );
+            return EXIT_USAGE;
+        }
+        if !crate::detach::is_child() {
+            return crate::detach::start("ssh", err);
+        }
+        // As OpenSSH's -f: a command reads no stdin (-n).
+        resolved.options.stdin_null = true;
+        crate::detach::when_requested("ssh");
+    }
     // LocalCommand's shell, before anything connects (T-191).
     if let Err(refusal) = local_command::shell(&mut resolved.options) {
         return refusal.report("ssh", err);

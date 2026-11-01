@@ -51,6 +51,8 @@ pub const NODE_FLAGS: &[FlagRow] = &[
         "the same as --allow, by its earlier name", None),
     row(None, "iroh-ephemeral", None, FlagKind::Supported,
         "the same as --ephemeral-key, by its earlier name; with --iroh, the ticket lasts as long as the run", None),
+    row(None, "detach", None, FlagKind::Supported,
+        "go to the background once the node is online, as podssh itself (T-380); for a node that must outlive a logout, --install", None),
     row(None, "install", None, FlagKind::Supported,
         "make this node a service of this user, as a probe finds one: a user unit of systemd, else an @reboot line of the crontab; on Windows a task at logon; no privilege is asked for, and no token is written into it", None),
     row(None, "uninstall", None, FlagKind::Supported,

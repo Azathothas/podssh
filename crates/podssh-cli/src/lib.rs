@@ -28,6 +28,7 @@ pub mod config_import;
 // `podssh containers`: the containers of a host, and --exec (T-190).
 pub mod containers;
 pub mod cp;
+pub mod detach;
 pub mod dispatch;
 pub mod doctor;
 // `podssh each`: one command on many hosts at once (T-183).

@@ -244,7 +244,10 @@ async fn serve(ready: Ready, err: &mut dyn Write) -> i32 {
     };
     let say: derp::Say = {
         let label = label.clone();
-        Arc::new(move |line: String| eprintln!("podssh node: {label}: {line}"))
+        Arc::new(move |line: String| {
+            eprintln!("podssh node: {label}: {line}");
+            crate::detach::on_line("node", &line);
+        })
     };
     let kept = match (&key.path, key.made) {
         (None, _) => "a key for this run only: the ticket lasts as long as the run".to_string(),

@@ -69,6 +69,15 @@ pub fn run_pipe(args: &PipeArgs, err: &mut dyn Write) -> i32 {
         );
         return refusal.report("pipe", err);
     }
+    // --detach (T-380): a listening side, and no stdio, which the
+    // background takes from the run.
+    if args.ssh.detach && (!listening || a == address::Address::Stdio || b == address::Address::Stdio) {
+        let refusal = crate::relay_settings::Refusal::usage(
+            "--detach is for a listening side whose other side is not stdio: the run in the background has no stdin \
+             or stdout",
+        );
+        return refusal.report("pipe", err);
+    }
     let credentials = match http_listen::credentials([&a, &b], args.proxy_auth_file.as_deref()) {
         Ok(credentials) => credentials,
         Err(refusal) => return refusal.report("pipe", err),
@@ -82,6 +91,9 @@ pub fn run_pipe(args: &PipeArgs, err: &mut dyn Write) -> i32 {
         Ok(settings) => settings,
         Err(refusal) => return refusal.report("pipe", err),
     };
+    if args.ssh.detach && !crate::detach::is_child() {
+        return crate::detach::start("pipe", err);
+    }
     let runtime = match tokio::runtime::Builder::new_current_thread().enable_all().build() {
         Ok(rt) => rt,
         Err(e) => {

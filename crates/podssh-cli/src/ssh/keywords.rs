@@ -39,6 +39,8 @@ pub const HONOURED: &[Keyword] = &[
     kw("DynamicForward", "[BIND:]PORT|PATH", "the same as -D; repeatable", "1080"),
     kw("EscapeChar", "CHAR|^X|none", "the same as -e", "~"),
     kw("ExitOnForwardFailure", "yes|no", "yes: a forward of -R that the server refuses ends the run with 255", "yes"),
+    kw("ForkAfterAuthentication", "yes|no", "yes is -f: the run goes to the background once its request went, with a \
+        command or -N (T-380)", "yes"),
     kw("ForwardAgent", "yes|no|PATH|$NAME", "yes is -A: while the session lasts, the server may use the agent that \
         podssh logs in with; PATH, or the variable NAME, names another agent (default no)", "yes"),
     kw("ForwardX11", "yes|no", "yes is -X: the server may open X11 channels to DISPLAY (default no)", "yes"),
@@ -104,7 +106,6 @@ pub const IGNORED: &[&str] = &[
 #[rustfmt::skip]
 pub const REFUSED: &[(&str, &str)] = &[
     ("ProxyCommand", "podssh ssh reaches the host through the relay itself (none, and podssh proxy %h %p, are accepted); to use OpenSSH, give it ProxyCommand='podssh proxy %h %p'"),
-    ("ForkAfterAuthentication", "going to the background is not supported (=no is accepted); start podssh with &"),
     ("RevokedHostKeys", "mark the keys @revoked in a known_hosts file"),
     ("KnownHostsCommand", "list the keys in a known_hosts file"),
     ("Include", "a keyword of ssh_config files, not an option"),

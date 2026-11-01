@@ -291,6 +291,8 @@ where
         keys::name(&key.public())
     );
     let _ = writeln!(err, "podssh {verb}: {label}: ticket {}", ticket::of(&endpoint, &relay));
+    // The endpoint is up with its home relay: a detached node goes on (T-380).
+    crate::detach::ready("node");
     let _ = writeln!(err, "podssh {verb}: {label}: {}", who_may(allow.as_deref()));
     let say = {
         let label = label.clone();

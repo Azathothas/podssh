@@ -224,7 +224,11 @@ async fn serve_quick(ready: Ready, err: &mut dyn Write) -> i32 {
                     let line = match step {
                         Step::Registered { location } => {
                             registered.store(true, Ordering::SeqCst);
-                            format!("registered at Cloudflare's {location}, over {transport}")
+                            // Said first; then a detached node goes on (T-380).
+                            let line = format!("registered at Cloudflare's {location}, over {transport}");
+                            eprintln!("podssh node: {label}: {line}");
+                            crate::detach::ready("node");
+                            continue;
                         }
                         Step::Visitor => continue,
                         Step::Unregistered => "unregistered".to_string(),

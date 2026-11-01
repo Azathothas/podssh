@@ -232,6 +232,14 @@ pub fn files() -> Vec<(Vec<String>, String)> {
                 .to_string(),
         ),
         (
+            vec!["detached/".to_string()],
+            "The logs of the runs that --detach and -f sent into the background (T-380), in the cache, mode \
+             0700: VERB-PID.log, mode 0600, which takes the run's stdout and stderr once it is ready; past 1 \
+             MiB its earlier part goes to VERB-PID.log.1. podssh removes none: a log tells what a run in the \
+             background did."
+                .to_string(),
+        ),
+        (
             vec![format!("{}/", crate::ssh::cloud::tor::DIR_NAME)],
             "The Tor road's directory (tor://, in a build with the feature tor), in the cache, mode 0700: \
              Arti's state (its guards, which Tor asks a client to keep) in state/, and its copy of Tor's \

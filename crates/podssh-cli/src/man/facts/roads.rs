@@ -42,4 +42,10 @@ pub(super) const VARIABLES: &[(&[&str], &str)] = &[
       mudix); yes, the default, tries them, where the relay was podssh's own choice. Over ForwarderFallback \
       of the settings file; another word is a configuration error (78).",
     ),
+    (
+        &["INVOCATION_ID", "WSL_DISTRO_NAME", "TERMUX_VERSION"],
+        "Read, never set, by --detach and -f (T-380), each to say before the run goes to the background what may \
+      end it there: a unit of systemd that started it, whose stop ends it too; WSL, whose machine may stop when no \
+      terminal of it is open; Termux, whose processes in the background Android may end.",
+    ),
 ];

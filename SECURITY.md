@@ -226,6 +226,15 @@ Each rule is implemented.
   real one never leaves this host, and replaces the spoofed one in the first
   packet of each X11 channel (T-037).
 
+- A run that `--detach` or `-f` sends to the background (T-380) is this
+  program started again, with no other program: it closes each descriptor
+  that it inherited, keeps the caller's terminal only until it is ready,
+  and writes its log in the cache (mode 0600, in a directory of mode
+  0700). It touches no variable by which a CI finds a job's processes
+  (`RUNNER_TRACKING_ID`, `BUILD_ID`, `JENKINS_NODE_COOKIE`): a tunnel that
+  outlived a shared runner's job would be a way back into another's
+  network, and the user asked to outlive the caller, not the job.
+
 ## Known gaps
 
 The open defects are entries in [TODO/INDEX.md](TODO/INDEX.md). These affect
