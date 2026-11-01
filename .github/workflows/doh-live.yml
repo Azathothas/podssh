@@ -4,8 +4,9 @@ name: doh live
 # six resolvers that podssh falls back to, by its address through verified
 # TLS, in each form that it serves. A host behind a proxy of names, as a
 # cloud session's, cannot reach a resolver by its address, which is what the
-# dialer asks with no proxy. Started by hand only; it reads public DNS and
-# publishes nothing.
+# dialer asks with no proxy. Through the box's proxy of names alone, the
+# edge's SRV record comes by a resolver's name (T-405). Started by hand only;
+# it reads public DNS and publishes nothing.
 
 on:
   workflow_dispatch:
@@ -24,4 +25,18 @@ jobs:
       - name: build the test
         run: cargo test --locked -p podssh-ws --test live_doh --no-run
       - name: the live test
-        run: timeout 300 cargo test --locked -p podssh-ws --test live_doh -- --ignored --nocapture
+        run: |
+          python3 scripts/box/proxy.py --listen 127.0.0.1:3129 --take names >"$RUNNER_TEMP/names.log" 2>&1 &
+          sleep 1
+          set +e
+          PODSSH_DOH_NAMES_PROXY=http://127.0.0.1:3129 \
+            timeout 300 cargo test --locked -p podssh-ws --test live_doh -- --ignored --nocapture
+          rc=$?
+          set -e
+          sed 's/^/proxy: /' "$RUNNER_TEMP/names.log"
+          pkill -f scripts/box/proxy.py || true
+          # The proxy took a resolver's name: the way that the records came.
+          resolvers='(cloudflare-dns\.com|dns\.google|dns\.google\.com|dns\.quad9\.net|dns9\.quad9\.net)'
+          grep -Eq "^200 CONNECT $resolvers:443 " "$RUNNER_TEMP/names.log" ||
+            { echo "FAIL the proxy took no resolver's name"; exit 1; }
+          exit $rc

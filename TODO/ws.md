@@ -1977,7 +1977,7 @@ and each other command print rustls's words alone. An error should tell what to 
    with this host's clock in UTC, in doctor's words.
 2. Each place where podssh-ws makes the text of a TLS error uses it: `ConnectError::Tls`
    (`crates/podssh-ws/src/client.rs:222`), `tls::connect_over` (`crates/podssh-ws/src/tls.rs:151`)
-   and the query of DNS over HTTPS (`crates/podssh-ws/src/resolve.rs:155-158`). doctor's `clock_hint`
+   and the query of DNS over HTTPS (`crates/podssh-ws/src/resolve.rs:179-182`). doctor's `clock_hint`
    calls it, so that the words are the same.
 3. Tests through a stand-in relay with an expired certificate: `podssh ssh`, `podssh proxy` and
    `podssh cp` each name the clock and its reading.
@@ -2083,7 +2083,7 @@ host has.
 - Read: with no proxy, `doctor` reaches addresses already: DNS over HTTPS to the resolvers'
   address literals (`crates/podssh-cli/src/doctor/net.rs:286-357`;
   `crates/podssh-ws/src/resolve.rs:28-32`), each checked by TLS for its address
-  (`crates/podssh-ws/src/resolve.rs:148-158`).
+  (`crates/podssh-ws/src/resolve.rs:172-182`).
 - Read: the proxy of the measured sandbox gave `200` for public names on ports 443, 80 and 8443,
   and `403 not a public host` for private and metadata addresses
   (`docs/target-environment.md:21`); no public address literal was asked. The box's proxy
@@ -2229,7 +2229,7 @@ C11 (cfrs's GitHub #9 and #21: a sandbox's proxy refuses CONNECT to an IP litera
 **Milestone:** none
 **Priority:** P3
 **Effort:** S
-**Status:** open
+**Status:** done
 
 ## Problem
 
@@ -2239,16 +2239,83 @@ falls back to the edge's fixed names after a wasted attempt; other lookups of Do
 ## Premise
 
 - Read: `doh_srv` dials each resolver by its address through the proxy
-  (`crates/podssh-ws/src/resolve.rs:372`).
+  (`crates/podssh-ws/src/resolve.rs:397`).
 
 ## Approach
 
 Through a proxy, ask each resolver by its name first (`cloudflare-dns.com`, `dns.google`), then by
 its address. A mode of `scripts/box/proxy.py` that refuses an IP literal tests it.
 
+## Decision
+
+- **The names**, read on 2026-11-01 through domain.web.pkgforge.dev (`/tls/HOST`, the handshake
+  and the chain, and `/certs/` of Certificate Transparency): `dns.google` and `dns.google.com`
+  are both in the certificate that each presented (with `*.dns.google.com`, `8888.google`), and
+  `dns.google.com/resolve` answered the JSON form; `dns.quad9.net` and `dns9.quad9.net` are both
+  in Quad9's certificate (serial `0cc33029e45df0257de872a8fccf1731`, the one that T-344 read for
+  its addresses); `cloudflare-dns.com` is in Cloudflare's logged certificates, and
+  `https://cloudflare-dns.com/dns-query` answered the SRV question in the JSON form. Cloudflare's
+  two addresses share `cloudflare-dns.com`. Lost: `one.one.one.one` for 1.0.0.1, which the
+  service could not read (it refuses a host that Cloudflare fronts), so it is not proven.
+- **Each name once a lookup**: Cloudflare's second address does not ask its name again. Lost: a
+  name of its own for each address, which no read proves for Cloudflare.
+- **The address after the name, for a failure of the way** (the proxy refused, TLS, a status of
+  429 or 5xx): a proxy that takes addresses alone refuses the name at once, and the address
+  passes; **the next resolver for the resolver's own status** (SERVFAIL), which it gives by
+  either. Lost: the next resolver after a failed name, which would never ask an address through
+  a proxy of addresses alone.
+- **The name only through a proxy**, by the dialer's own choice (`no_proxy` too): with none, a
+  name would need the resolver that DNS over HTTPS stands in for. Lost: the name everywhere.
+- **The box's mode exists** (see the Correction): the tests in podssh-ws use a stand-in of it in
+  Rust, a proxy that refuses an address literal with its words; the live run uses the box's.
+
 ## Prove
 
 ```sh
 export CARGO_BUILD_JOBS=4
 cargo test -p podssh-ws --lib resolve::
+cargo test -p podssh-ws --test doh_names
 ```
+
+Live, in GitHub Actions (`.github/workflows/doh-live.yml`, by hand): the edge's SRV record through
+`scripts/box/proxy.py --take names`, whose log shows a resolver's name taken. Planted: `hosts`
+that gives the address alone: `doh_names` fails, the proxy having been asked the address and
+refused it.
+
+## Correction
+
+- Read: the box's proxy has the mode already: `--take names` refuses an address literal with
+  `403 not on the allowlist` (T-366; `scripts/box/proxy.py:18-21`, `:100-102`). This entry uses
+  it, and adds none.
+- Read: no other lookup of DNS over HTTPS goes through a proxy. `doh_lookup` dials each
+  resolver's address directly (`crates/podssh-ws/src/resolve.rs:317`), as the source of the
+  resolver's order (`crates/podssh-ws/src/resolve/order.rs:124`), which the dialer runs only
+  with no proxy (`crates/podssh-ws/src/dial.rs:235`, `:239`; `crates/podssh-ws/src/race.rs:50`);
+  doctor's line asks `doh_ask`, the same direct way
+  (`crates/podssh-cli/src/doctor/names.rs:101`). So "other lookups of DoH fail the same way" does
+  not hold: the change is `doh_srv`'s alone.
+
+## Done
+
+2026-11-01: drafted in a worktree (branch `worktree-agent-a6aea62e1b3910649`), merged, built and
+run the same day; at the merge a test's temporaries are bound before the lookup that borrows them.
+
+- `crates/podssh-ws/src/resolve.rs`: `Doh` has the `name` of each resolver; `doh_srv` asks, for
+  each resolver, the hosts of `Doh::hosts`: through a proxy its name first, then its address,
+  each name once a lookup; with none, its address alone, as before. A failure of the way goes to
+  the address, the resolver's own status to the next resolver. `doh_srv_with` takes the
+  resolvers and the trust, for the tests; `h2::get_via` asks the proxy for a name too.
+- `resolve::tests::through_a_proxy_a_resolver_is_asked_by_its_name_first`: the order of the
+  eleven hosts, the address alone with no proxy, each name a name for TLS.
+  `cargo test -p podssh-ws --lib resolve::`: 17 passed.
+- `crates/podssh-ws/tests/doh_names.rs`, against a stand-in proxy of names alone (403 to an
+  address literal, as the box's `--take names`) and h2's server with Quad9's SRV answer:
+  `a_proxy_of_names_alone_carries_the_question_by_the_resolver_s_name` (the records, the proxy
+  asked the name alone) and `the_address_follows_a_name_refused_and_a_name_is_asked_once`.
+  `cargo test -p podssh-ws --test doh_names`: 2 passed. Planted, `hosts` of the address alone:
+  both failed. `cargo test -p podssh-ws`: 366 passed; clippy `-D warnings`: clean.
+- Live: `the_edge_s_record_comes_through_a_proxy_of_names_alone` in
+  `crates/podssh-ws/tests/live_doh.rs`, which `.github/workflows/doh-live.yml` runs through
+  `scripts/box/proxy.py --take names`, with the check that the proxy took a resolver's name:
+  dispatched after the push (`docs/STATUS.md`).
+- `docs/design.md` (the edge's SRV record) and `docs/STATUS.md` (the row of DNS over HTTPS).

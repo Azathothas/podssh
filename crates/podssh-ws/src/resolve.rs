@@ -45,6 +45,9 @@ pub use order::{resolve, resolve_from, Found, Source, ORDER, SOURCE_WAIT};
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub struct Doh {
     pub ip: &'static str,
+    /// Its name, which its certificate names too: through a proxy it is asked
+    /// by it first, as a proxy that takes names alone refuses an address.
+    pub name: &'static str,
     /// The path of its JSON API (`?name=...&type=...`), where it serves one.
     pub json: Option<&'static str>,
     /// The path of RFC 8484's wire form (`?dns=...`).
@@ -57,14 +60,15 @@ pub struct Doh {
 /// The resolvers, in order: Cloudflare's and Google's, two addresses each,
 /// the operators taking turns, then Quad9's two, which serve the wire form
 /// alone (Quad9 answered the JSON API's query with 400, 2026-10-31), over
-/// HTTP/2 alone (505 to HTTP/1.1, the same day).
+/// HTTP/2 alone (505 to HTTP/1.1, the same day). Each name is one that the
+/// operator's certificate names, read on 2026-11-01 (T-405).
 pub const DOH_RESOLVERS: &[Doh] = &[
-    Doh { ip: "1.1.1.1", json: Some("/dns-query"), wire: "/dns-query", http2: false },
-    Doh { ip: "8.8.8.8", json: Some("/resolve"), wire: "/dns-query", http2: false },
-    Doh { ip: "1.0.0.1", json: Some("/dns-query"), wire: "/dns-query", http2: false },
-    Doh { ip: "8.8.4.4", json: Some("/resolve"), wire: "/dns-query", http2: false },
-    Doh { ip: "9.9.9.9", json: None, wire: "/dns-query", http2: true },
-    Doh { ip: "149.112.112.112", json: None, wire: "/dns-query", http2: true },
+    Doh { ip: "1.1.1.1", name: "cloudflare-dns.com", json: Some("/dns-query"), wire: "/dns-query", http2: false },
+    Doh { ip: "8.8.8.8", name: "dns.google", json: Some("/resolve"), wire: "/dns-query", http2: false },
+    Doh { ip: "1.0.0.1", name: "cloudflare-dns.com", json: Some("/dns-query"), wire: "/dns-query", http2: false },
+    Doh { ip: "8.8.4.4", name: "dns.google.com", json: Some("/resolve"), wire: "/dns-query", http2: false },
+    Doh { ip: "9.9.9.9", name: "dns.quad9.net", json: None, wire: "/dns-query", http2: true },
+    Doh { ip: "149.112.112.112", name: "dns9.quad9.net", json: None, wire: "/dns-query", http2: true },
 ];
 
 /// The bound on one resolver's answers, inside the caller's overall deadline.
@@ -124,6 +128,26 @@ impl Doh {
                 Ok(format!("{}?dns={}", self.wire, wire::query_param(name, code)?))
             }
         }
+    }
+
+    /// Where it is asked, in order. Through a proxy, by its name first: a
+    /// proxy that takes names alone refuses an address (T-405), and one that
+    /// takes addresses alone refuses the name at once. With none, by its
+    /// address alone: a name would need the resolver that this stands in
+    /// for. A name already in `asked`, which two addresses of an operator
+    /// share, is not asked again.
+    fn hosts(&self, proxy: &ProxyChoice, asked: &[&str]) -> Vec<&'static str> {
+        let by_name = proxied(self.name, proxy) && !asked.contains(&self.name);
+        by_name.then_some(self.name).into_iter().chain([self.ip]).collect()
+    }
+}
+
+/// Whether the dialer takes `proxy` to `host`, `no_proxy` read as it reads it.
+fn proxied(host: &str, proxy: &ProxyChoice) -> bool {
+    match proxy {
+        ProxyChoice::Direct => false,
+        ProxyChoice::Via(_) => true,
+        ProxyChoice::FromEnvironment => matches!(crate::dial::proxy_from_env(host), Ok(Some(_))),
     }
 }
 
@@ -368,56 +392,81 @@ pub fn parse_srv(body: &[u8]) -> Result<Vec<Srv>, String> {
 /// The SRV records of `name`, from the [`DOH_RESOLVERS`] in turn, through
 /// `proxy` when one is set, as podssh reaches anything else (T-339), each in
 /// the first of its forms that answers in its form (T-344): the first
-/// resolver that answers wins.
+/// resolver that answers wins. Through a proxy, each is asked by its name,
+/// then by its address (T-405).
 pub async fn doh_srv(name: &str, proxy: &ProxyChoice, deadline: Instant) -> Result<Vec<Srv>, String> {
+    doh_srv_with(DOH_RESOLVERS, name, &Trust::Default, proxy, deadline).await
+}
+
+/// [`doh_srv`] over a given list of resolvers, whose certificates `trust`
+/// verifies: a stand-in's, in a test.
+pub async fn doh_srv_with(
+    resolvers: &[Doh],
+    name: &str,
+    trust: &Trust,
+    proxy: &ProxyChoice,
+    deadline: Instant,
+) -> Result<Vec<Srv>, String> {
     if !dns_safe(name) {
         return Err(format!("{name:?} is not a name to ask a resolver for"));
     }
     let mut reasons = Vec::new();
-    for resolver in DOH_RESOLVERS {
-        let ip = resolver.ip;
-        for form in resolver.forms() {
-            let left = deadline.saturating_duration_since(Instant::now()).min(DOH_EACH);
-            if left.is_zero() {
-                reasons.push("out of time".to_string());
-                return Err(reasons.join("; "));
-            }
-            let target = resolver.target(form, name, "SRV")?;
-            let answer = if resolver.http2 {
-                let config = crate::tls::config_for(&Trust::Default).map_err(|e| e.to_string())?;
-                h2::get_via(&config, ip, &target, form.accept(), MAX_ANSWER, proxy, left).await.map_err(Miss::Way)
-            } else {
-                crate::client::https_get_accepting(
-                    ip,
-                    443,
-                    &target,
-                    form.accept(),
-                    MAX_ANSWER,
-                    &Trust::Default,
-                    proxy,
-                    left,
-                )
-                .await
-                .map_err(|e| Miss::Way(e.to_string()))
-            };
-            let records = answer.and_then(|response| {
-                read(&response, |body| match form {
-                    Form::Json => parse_srv(body),
-                    Form::Wire => wire::srv(body, name),
-                })
-            });
-            match records {
-                Ok(records) => return Ok(records),
-                Err(Miss::Said(e)) if e == NXDOMAIN => return Err(format!("{ip}: {e}")),
-                Err(Miss::Form(e)) => reasons.push(format!("{ip} ({}): {e}", form.words())),
-                Err(Miss::Said(e) | Miss::Way(e)) => {
-                    reasons.push(format!("{ip}: {e}"));
-                    break;
+    let mut asked: Vec<&str> = Vec::new();
+    for resolver in resolvers {
+        'hosts: for host in resolver.hosts(proxy, &asked) {
+            asked.push(host);
+            for form in resolver.forms() {
+                let left = deadline.saturating_duration_since(Instant::now()).min(DOH_EACH);
+                if left.is_zero() {
+                    reasons.push("out of time".to_string());
+                    return Err(reasons.join("; "));
+                }
+                match srv_at(resolver, host, form, name, trust, proxy, left).await {
+                    Ok(records) => return Ok(records),
+                    Err(Miss::Said(e)) if e == NXDOMAIN => return Err(format!("{host}: {e}")),
+                    Err(Miss::Form(e)) => reasons.push(format!("{host} ({}): {e}", form.words())),
+                    // The way to this host failed: its address may pass
+                    // where its name did not, as the proxy decides.
+                    Err(Miss::Way(e)) => {
+                        reasons.push(format!("{host}: {e}"));
+                        continue 'hosts;
+                    }
+                    // The resolver's own status, which it gives by either.
+                    Err(Miss::Said(e)) => {
+                        reasons.push(format!("{host}: {e}"));
+                        break 'hosts;
+                    }
                 }
             }
         }
     }
     Err(if reasons.is_empty() { "no resolver answered".into() } else { reasons.join("; ") })
+}
+
+/// One question for the SRV records of `name` in `form`, to `host`, the
+/// resolver's name or address, through `proxy` when one is set.
+async fn srv_at(
+    resolver: &Doh,
+    host: &str,
+    form: Form,
+    name: &str,
+    trust: &Trust,
+    proxy: &ProxyChoice,
+    left: Duration,
+) -> Result<Vec<Srv>, Miss> {
+    let target = resolver.target(form, name, "SRV").map_err(Miss::Way)?;
+    let answer = if resolver.http2 {
+        let config = tls::config_for(trust).map_err(|e| Miss::Way(e.to_string()))?;
+        h2::get_via(&config, host, &target, form.accept(), MAX_ANSWER, proxy, left).await
+    } else {
+        crate::client::https_get_accepting(host, 443, &target, form.accept(), MAX_ANSWER, trust, proxy, left)
+            .await
+            .map_err(|e| e.to_string())
+    };
+    read(&answer.map_err(Miss::Way)?, |body| match form {
+        Form::Json => parse_srv(body),
+        Form::Wire => wire::srv(body, name),
+    })
 }
 
 /// Letters, digits, `.`, `-` and `_` only: safe in a query string and in DNS.

@@ -90,6 +90,39 @@ fn each_resolver_is_asked_in_its_forms() {
     assert!(cloudflare.target(Form::Wire, "bad name", "A").is_err());
 }
 
+/// Through a proxy each resolver is asked by its name, then by its address,
+/// and a name that two addresses share once; with none, by its address alone
+/// (T-405). Each name is a name, which TLS checks as it checks a name.
+#[test]
+fn through_a_proxy_a_resolver_is_asked_by_its_name_first() {
+    let proxy = ProxyChoice::Via(crate::dial::Proxy::parse("http://192.0.2.1:3128").unwrap());
+    let mut asked: Vec<&str> = Vec::new();
+    for resolver in DOH_RESOLVERS {
+        let hosts = resolver.hosts(&proxy, &asked);
+        asked.extend(hosts);
+    }
+    let want = [
+        "cloudflare-dns.com",
+        "1.1.1.1",
+        "dns.google",
+        "8.8.8.8",
+        "1.0.0.1",
+        "dns.google.com",
+        "8.8.4.4",
+        "dns.quad9.net",
+        "9.9.9.9",
+        "dns9.quad9.net",
+        "149.112.112.112",
+    ];
+    assert_eq!(asked, want);
+    for resolver in DOH_RESOLVERS {
+        assert_eq!(resolver.hosts(&ProxyChoice::Direct, &[]), [resolver.ip], "no proxy: no name");
+        let name = resolver.name;
+        assert!(dns_safe(name) && name.parse::<IpAddr>().is_err() && name == name.to_ascii_lowercase(), "{name}");
+        assert!(rustls_pki_types::ServerName::try_from(name).is_ok(), "{name}");
+    }
+}
+
 fn answer(status: u16, body: &[u8]) -> http::Response {
     http::Response { status, reason: String::new(), headers: Vec::new(), body: body.to_vec() }
 }

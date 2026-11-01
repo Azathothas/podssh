@@ -249,10 +249,10 @@ environment (`cmd.go:668-673`, `supervisor/supervisor.go:56-64`). podssh's
 DNS over HTTPS asked for A and AAAA records only before T-339; the
 connector needs SRV, or the two documented names. Since T-339, the node of
 `podssh node --quick-tunnel` asks for the SRV record over DNS over HTTPS,
-through the proxy when one is set (`podssh_ws::resolve::doh_srv`, in RFC
-8484's wire form too since T-344), and takes its two targets and port when
-the record names two regions under `argotunnel.com` on one port; else
-the two documented names and port 7844, and the node says why once a run.
+through the proxy when one is set (`podssh_ws::resolve::doh_srv`, in RFC 8484's wire form
+too since T-344; through a proxy, each resolver by its name first, then by its address, which a
+proxy of names alone refuses, T-405), and takes its two targets and port when the record names two
+regions under `argotunnel.com` on one port; else the two documented names and port 7844, and the node says why once a run.
 
 **No proxy.** cloudflared dials the edge with a plain dialer, never through a
 proxy (`edgediscovery/dial.go:13-42`; measured: a proxy in `HTTPS_PROXY` saw

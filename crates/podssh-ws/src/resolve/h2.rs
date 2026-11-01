@@ -21,8 +21,8 @@ pub fn config_h2(config: &Arc<ClientConfig>) -> Arc<ClientConfig> {
     Arc::new(config)
 }
 
-/// TLS for `name` (a resolver's address, as each is asked) with ALPN `h2`
-/// over `stream`, then one GET of `target`.
+/// TLS for `name` (a resolver's address, or its name through a proxy) with
+/// ALPN `h2` over `stream`, then one GET of `target`.
 pub async fn get_over<S>(
     config: &Arc<ClientConfig>,
     stream: S,
@@ -45,11 +45,11 @@ where
     get(tls, name, target, accept, max).await
 }
 
-/// The same through `proxy` when one is set: the proxy is asked for the
-/// address, as for each resolver.
+/// The same through `proxy` when one is set: the proxy is asked for `host`,
+/// the resolver's name or its address (T-405), and TLS checks the same.
 pub(super) async fn get_via(
     config: &Arc<ClientConfig>,
-    ip: &str,
+    host: &str,
     target: &str,
     accept: &str,
     max: usize,
@@ -57,8 +57,8 @@ pub(super) async fn get_via(
     limit: Duration,
 ) -> Result<Response, String> {
     let ask = async {
-        let stream = dial::dial(ip, 443, proxy, limit).await.map_err(|e| e.to_string())?;
-        get_over(config, stream, ip, target, accept, max).await
+        let stream = dial::dial(host, 443, proxy, limit).await.map_err(|e| e.to_string())?;
+        get_over(config, stream, host, target, accept, max).await
     };
     tokio::time::timeout(limit, ask).await.map_err(|_| format!("no answer within {} s", limit.as_secs()))?
 }

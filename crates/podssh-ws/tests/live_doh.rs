@@ -2,12 +2,15 @@
 //! by default: it needs the network.
 //!
 //! ```sh
-//! cargo test -p podssh-ws --test live_doh -- --ignored --nocapture
+//! python3 scripts/box/proxy.py --listen 127.0.0.1:3129 --take names &
+//! PODSSH_DOH_NAMES_PROXY=http://127.0.0.1:3129 \
+//!     cargo test -p podssh-ws --test live_doh -- --ignored --nocapture
 //! ```
 
 use std::time::Duration;
 
-use podssh_ws::resolve::{doh_ask, doh_lookup, doh_lookup_with, Doh, Form, DOH_RESOLVERS, NXDOMAIN};
+use podssh_ws::resolve::{doh_ask, doh_lookup, doh_lookup_with, doh_srv, Doh, Form, DOH_RESOLVERS, NXDOMAIN};
+use podssh_ws::{HttpProxy, ProxyChoice};
 use tokio::time::Instant;
 
 /// Each resolver's certificate must verify against its IP address with
@@ -50,4 +53,20 @@ async fn a_name_that_does_not_exist_stops_at_the_first_answer() {
     eprintln!("a reserved, nonexistent name: {missing:?}");
     let why = missing.expect_err("an .invalid name never resolves");
     assert_eq!(why, format!("{}: {NXDOMAIN}", DOH_RESOLVERS[0].ip));
+}
+
+/// The edge's SRV record through a proxy that takes names alone (T-405):
+/// `PODSSH_DOH_NAMES_PROXY` names one, as `doh-live.yml` starts
+/// `scripts/box/proxy.py --take names`. It refuses each resolver's address,
+/// so the records come by a resolver's name.
+#[tokio::test]
+#[ignore = "network: public DNS-over-HTTPS resolvers, through a local proxy of names alone"]
+async fn the_edge_s_record_comes_through_a_proxy_of_names_alone() {
+    let url = std::env::var("PODSSH_DOH_NAMES_PROXY").expect("PODSSH_DOH_NAMES_PROXY names the proxy");
+    let proxy = ProxyChoice::Via(HttpProxy::parse(&url).expect("a proxy URL"));
+    let deadline = Instant::now() + Duration::from_secs(30);
+    let found = doh_srv("_v2-origintunneld._tcp.argotunnel.com", &proxy, deadline).await;
+    eprintln!("the edge's SRV record through {url}: {found:?}");
+    let records = found.expect("the records, by a resolver's name");
+    assert!(!records.is_empty() && records.iter().all(|r| r.port == 7844), "{records:?}");
 }
