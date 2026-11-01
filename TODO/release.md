@@ -352,6 +352,70 @@ The box runs on GitHub's runner since T-415: `box.yml` at `bb46515` (run 4131491
 nolisten, tt and chat each passed; `plants.yml` at `bb46515` (run 41315851930): each of the 16
 groups passed, so each plant was caught, host-box and host-nolisten among them.
 
+# T-422: railway.new refuses anonymous visitors for hours, and two checks of the release fail on it
+
+**Source:** the runs at `889fda2` (2026-11-01): `relay-live.yml` with `test=node_live` (run
+41339253020), `ssh_to_a_node` failed, "railway.new limited this anonymous visitor (its exit 1)",
+while the node dialled railway.new from GitHub's runner; and the release check's row `railway`
+from this cloud session, through the relay, the same, as at each try since 2026-11-01 morning.
+**Category:** defect
+**Milestone:** M9
+**Priority:** P1
+**Effort:** S
+**Status:** partial
+
+## Problem
+
+The release check (T-251) passes only when each row does, and two of them wait on an outside
+service's limit for anonymous visitors, which podssh cannot change: `v1.0.0` would wait on it.
+
+## Premise
+
+- Measured: `podssh ssh -T ... release-check@railway.new 'exit 3'` through the relay, from this
+  session, exit 1 with railway.new's words of its limit (2026-11-01, 19:00 UTC); the node of
+  `node_live` on GitHub's runner met the same, from another address.
+- Read: `ssh_to_a_node` needs a server that runs `exit 3` for a key of the test behind the node,
+  which OpenSSH's server on the node's own loopback is, as the release check's `reverse.two` row
+  already uses (`scripts/release-check-node.sh`); the row `railway` needs a public server that runs
+  a command for any key, through the forward road, which railway.new alone was.
+
+## Approach
+
+1. `ssh_to_a_node`: the node serves OpenSSH's server that the test starts on its loopback for this
+   user and the throwaway key (`tests/live_harness/sshd.rs`); railway.new where no sshd is found.
+   `relay-live.yml` installs `openssh-server` where the runner has none.
+2. The row `railway`: railway.new's own words of its limit make the row a SKIP that says so and
+   names where the exit status through the relay is checked (`reverse.two`, `actions.node`); any
+   other failure stays a FAIL.
+
+## Decision
+
+2026-11-01: the row `railway` skips on railway.new's limit rather than waiting for it, since the
+limit is an outside service's and comes back for hours; its two checks of the forward road's exit
+status are not lost: `reverse.two` runs `exit 3` with a pty and without one through the live relay
+against OpenSSH, and `actions.node` the same through a node from GitHub's network. Lost: a public
+server of the operator's for the forward road (the SSH host of `PODSSH_THROUGHPUT_SSH` is allowed
+for the throughput run alone, Q38), and a FAIL that waits for railway.new.
+
+## Prove
+
+```sh
+export CARGO_BUILD_JOBS=4
+cargo test -p podssh-cli --test node_live ssh_to_a_node -- --ignored --nocapture
+sh scripts/release-check.sh --local --binary BINARY --build BUILD --only railway
+```
+
+Planted, an sshd without the test's key: `ssh_to_a_node` fails.
+
+## Done
+
+2026-11-01, here:
+
+- `ssh_to_a_node` through the live relay against this host's OpenSSH: "podssh ssh node://root@lab
+  'exit 3' (127.0.0.1:PORT): exit 3", and the SSH banner through `podssh operator`; passed in 6 s.
+  Planted, the server's authorized keys not the test's: it failed, "the remote status through the
+  node".
+
 # T-415: On GitHub's runner the box's /dev/tty probe waits 40 minutes, so box.yml measures nothing
 
 **Source:** the runs of `box.yml` and of `plants.yml`'s host groups for T-251, 2026-11-01

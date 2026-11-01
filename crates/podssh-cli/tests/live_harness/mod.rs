@@ -6,6 +6,8 @@
 // Each test binary uses a part of it.
 #![allow(dead_code)]
 
+pub mod sshd;
+
 use std::io::{BufRead, BufReader};
 use std::path::{Path, PathBuf};
 use std::process::{Child, Command, Stdio};

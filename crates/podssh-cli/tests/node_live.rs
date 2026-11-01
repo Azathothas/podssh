@@ -132,9 +132,11 @@ fn node_command_serves_a_tcp_target() {
 }
 
 /// `podssh ssh node://NAME` and `podssh operator NAME` (T-084) through a node
-/// in front of railway.new's SSH service, which takes any key: a throwaway
-/// one, deleted with the scratch directory. No output of the session is
-/// printed: railway.new's holds a claim URL.
+/// in front of OpenSSH's server on this machine's loopback, which takes the
+/// test's throwaway key (T-422); where no sshd runs here, in front of
+/// railway.new's SSH service, which takes any key, and whose output is
+/// never printed, as it holds a claim URL. The key goes with the scratch
+/// directory.
 #[test]
 #[ignore = "the live relay: run with --ignored"]
 fn ssh_to_a_node() {
@@ -144,7 +146,19 @@ fn ssh_to_a_node() {
     let (rc, _, err) = run(&home, &["relay", "pair", "lab", "--operator-file", op]);
     assert_eq!(rc, 0, "{err}");
     let mut cleanup = Cleanup { home: &home, node: None };
-    let mut node = command(&home, &["node", "lab", "railway.new:22"])
+    let key = home.join("throwaway_key");
+    let (rc, _, err) = run(&home, &["keygen", "-t", "ed25519", "-N", "", "-f", key.to_str().unwrap()]);
+    assert_eq!(rc, 0, "{err}");
+    // railway.new limits anonymous visitors for hours at a time (T-422).
+    let local = live_harness::sshd::start(&home, &key.with_extension("pub"));
+    let (target, user) = match &local {
+        Ok(server) => (format!("127.0.0.1:{}", server.port), this_user()),
+        Err(why) => {
+            eprintln!("no sshd of this machine ({why}): the node serves railway.new:22");
+            ("railway.new:22".to_string(), "test".to_string())
+        }
+    };
+    let mut node = command(&home, &["node", "lab", &target])
         .stdin(Stdio::null())
         .stdout(Stdio::null())
         .stderr(Stdio::piped())
@@ -153,12 +167,10 @@ fn ssh_to_a_node() {
     let lines = lines_of(&mut node);
     cleanup.node = Some(node);
     let first = lines.recv_timeout(LIMIT).expect("the node says what it serves");
-    assert!(first.contains("serving railway.new:22"), "{first}");
+    assert!(first.contains(&format!("serving {target}")), "{first}");
     std::thread::sleep(Duration::from_secs(2));
 
-    let key = home.join("throwaway_key");
-    let (rc, _, err) = run(&home, &["keygen", "-t", "ed25519", "-N", "", "-f", key.to_str().unwrap()]);
-    assert_eq!(rc, 0, "{err}");
+    let destination = format!("node://{user}@lab");
     let known = home.join("known_hosts");
     let known_option = format!("UserKnownHostsFile={}", known.display());
     let (rc, out, err) = run(
@@ -178,7 +190,7 @@ fn ssh_to_a_node() {
             "BatchMode=yes",
             "--pair-file",
             op,
-            "node://test@lab",
+            &destination,
             "exit 3",
         ],
     );
@@ -200,7 +212,7 @@ fn ssh_to_a_node() {
     assert_eq!(rc, 3, "the remote status through the node ({} bytes out, {} bytes err)", out.len(), err.len());
     let recorded = std::fs::read_to_string(&known).expect("a host key recorded");
     assert!(recorded.starts_with("node://lab "), "the host key is recorded under node://lab");
-    eprintln!("podssh ssh node://test@lab 'exit 3': exit {rc}; the host key is recorded under node://lab");
+    eprintln!("podssh ssh {destination} 'exit 3' ({target}): exit {rc}; the host key is recorded under node://lab");
 
     let mut pipe = command(&home, &["operator", "lab", "--pair-file", op])
         .stdin(Stdio::piped())
@@ -219,7 +231,7 @@ fn ssh_to_a_node() {
         let _ = tx.send(got);
     });
     let banner = rx.recv_timeout(LIMIT).expect("the node's TARGET answers through the pipe");
-    assert!(banner.starts_with(b"SSH-2.0-"), "the banner of railway.new's SSH server");
+    assert!(banner.starts_with(b"SSH-2.0-"), "the banner of the node's SSH server");
     drop(pipe.stdin.take());
     let deadline = Instant::now() + LIMIT;
     let status = loop {
@@ -473,4 +485,15 @@ fn move_200mib_each_way_through_a_node() {
     let _ = node.wait();
     let (rc, _, err) = run(&home, &["relay", "revoke", "lab"]);
     assert_eq!(rc, 0, "{err}");
+}
+
+/// This user's name, for a login to this machine's own sshd.
+fn this_user() -> String {
+    let id = std::process::Command::new("id").arg("-un").output().ok();
+    let name = id.map(|o| String::from_utf8_lossy(&o.stdout).trim().to_string()).unwrap_or_default();
+    if name.is_empty() {
+        std::env::var("USER").unwrap_or_else(|_| "root".into())
+    } else {
+        name
+    }
 }

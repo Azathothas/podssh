@@ -23,7 +23,7 @@ short|both|T-218|here|300|scripts/release-short.sh BINARY --net exits 0 (the tag
 sandbox|both|T-006|here|900|scripts/sandbox-check.sh BINARY exits 0: doctor --full, ping, proxy github.com 22, ssh -T and -tt to GitHub's refusal, the prompts, a listener, OpenSSH with podssh as its ProxyCommand
 readme|both|T-251|here|240|README's first steps: man ssh, keygen -t ed25519 -N '', keygen -l, and status, each exit 0 with its output
 pipe|both|T-176|here|240|pipe stdio exec:cat, and stdio unix-connect: to a server of Python's, each carry 5,000,000 bytes back with an equal SHA-256
-railway|both|T-084|here|240|ssh -tt and ssh -T to railway.new through the relay, a throwaway key: exit 3 of 'exit 3' each; no output is shown
+railway|both|T-084|here|240|ssh -tt and ssh -T to railway.new through the relay, a throwaway key: exit 3 of 'exit 3' each; no output is shown; SKIP on railway.new's own limit for an anonymous visitor (T-422)
 reverse.two|both|T-083|here|300|a node of the live relay in front of this host's sshd: one session, then two at once, exit 3 of 'exit 3' each
 cp.200mib|both|T-155|here|3600|cp of 200 MiB up and down through that node: exit 0 each, and three equal SHA-256
 iroh.n0|both|T-163|here|600|node --iroh through n0's relays (Q50): a client key refused and named, then let in, and exit 3 of 'exit 3'

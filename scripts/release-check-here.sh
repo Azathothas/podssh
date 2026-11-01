@@ -110,7 +110,10 @@ c_railway() {
         grep -qiE 'limit|temporarily (disabled|unavailable)|"status": *"(refused|error)"' "$_d/$_m.log" && _refused=1
     done
     if [ -n "$_refused" ]; then
-        row FAIL railway "$PRIMARY" "$_secs" "railway.new refused this anonymous visitor (its words withheld):$_got run it again later"
+        # Its own limit for an anonymous visitor, not podssh's (T-422): the
+        # exit status through the relay is the rows reverse.two and
+        # actions.node, against OpenSSH. Any other failure stays a FAIL.
+        row SKIP railway "$PRIMARY" "$_secs" "railway.new refused this anonymous visitor, its limit (its words withheld):$_got an outside refusal (T-422); the exit status through the relay is reverse.two's and actions.node's"
     elif [ -n "$_missed" ]; then
         row FAIL railway "$PRIMARY" "$_secs" "wanted exit 3 each:$_got its output withheld"
     else
