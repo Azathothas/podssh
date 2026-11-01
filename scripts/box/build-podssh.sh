@@ -5,6 +5,8 @@
 # binary, and its rebuild then takes minutes rather than ten or more.
 #
 #   sh scripts/box/build-podssh.sh        (box.yml, and the SETUP of a box plant)
+#   FEATURES=iroh,warp sh scripts/box/build-podssh.sh   (the release's features,
+#                                         for scripts/release-check.sh --binary)
 
 set -u
 cd "$(dirname "$0")/../.." || exit 71
@@ -35,7 +37,7 @@ timeout 3000 docker run --rm -v "$PWD:/work" -w /work "$@" \
     -v "$PWD/.work/plant-cargo:/usr/local/cargo/registry" \
     -e CARGO_BUILD_JOBS="${CARGO_BUILD_JOBS:-4}" -e RUSTFLAGS=-Ctarget-feature=+crt-static \
     -e CARGO_PROFILE_RELEASE_LTO=false -e CARGO_PROFILE_RELEASE_CODEGEN_UNITS=16 \
-    "$image" cargo build --locked --release --target "$TARGET" -p podssh-cli
+    "$image" cargo build --locked --release --target "$TARGET" -p podssh-cli ${FEATURES:+--features "$FEATURES"}
 rc=$?
 [ "$rc" = 0 ] || { echo "box-build: cargo build exited $rc" >&2; exit 1; }
 [ -f "target/$TARGET/release/podssh" ] || { echo "box-build: no target/$TARGET/release/podssh" >&2; exit 1; }
