@@ -807,6 +807,46 @@ while the node had given the relay each of 48 MiB within 15 s: 48.9 MB that
 the client had not read waited in the relay or its edge, on both networks.
 T-336 waits for the relay's operator.
 
+## The release check
+
+`scripts/release-check.sh` checks a release from end to end with no human
+(T-251): before the tag, `--local` with the gate's static binary of the last
+push and a build of this host; after it, `TAG` with the published files,
+whose `SHA256SUMS`, its signature and the provenance of each binary it
+checks before any binary runs. Each check is a row with its entry, where it
+runs, its limit and its result; `--list` prints each row and what makes it
+pass. A row ACTIONS is a check that GitHub's runners make (Windows, macOS,
+the box, WARP, Cloudflare's edge, the planted defects and others): the
+script reads the run that the session names, and starts none.
+
+A session fills this section from a run:
+
+1. Start the runs that the ACTIONS rows name, at the commit under check
+   (`sh scripts/release-check.sh --list --local`, or `--list TAG`, gives the
+   command of each), and wait for their end.
+2. Run the script with each run and a file for its table. After the tag,
+   run it from a checkout of the tag, with cosign and gh on the host:
+
+   ```sh
+   sh scripts/release-check.sh --local --binary .work/artifact/podssh \
+     --actions-run build=RUN --actions-run release=RUN --table .work/release-check.md
+   sh scripts/release-check.sh vX.Y.Z --actions-run release=RUN --actions-run proofs=RUN \
+     --table .work/release-check.md
+   ```
+
+3. Put the first lines of the table file (the source, the commit, the date,
+   the command and the SHA-256 of each binary) and its table below, in place
+   of the table of the last run of the same source. The run before the tag
+   and the run after it each keep their table. The log of each check stays
+   in `.work/release-check/`: the numbers of the throughput run are there.
+
+The script exits 0 only when no row failed and each ACTIONS row was read; a
+SKIP names the entry or the question of the operator that holds it.
+
+| Check | Entry | Where | Binary | Limit | Time | Result | Detail |
+| --- | --- | --- | --- | --- | --- | --- | --- |
+| No run is recorded | T-251 | - | - | - | - | UNVERIFIED | The script is drafted (2026-11-01); its first run fills this table |
+
 ## Measure again
 
 CAUTION: On a machine with less than 32 GB of memory, set
@@ -827,4 +867,5 @@ cargo todo check                                          # the work record in T
 python scripts/check-relay-spec.py                        # the live relay
 ssh -o ProxyCommand='target/debug/podssh proxy %h %p' -T git@github.com
 sh scripts/dev.sh check                                   # the Linux gate and the static binary
+sh scripts/release-check.sh --list                        # the release check (T-251): each row
 ```
