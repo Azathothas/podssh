@@ -127,13 +127,12 @@ the surface for agents: done.
 
 **M4:** T-085 (the exit measurement) is on hold (Q32).
 
-**First (2026-10-31):** `v1.0.0-beta.2` is published, a prerelease at
-`f7f97a5`, with the provenance of each binary and the signature of
-`SHA256SUMS`, each proven on the published files (`docs/STATUS.md`). The next
-beta follows the next batch of repairs that the testers should test again,
-at most one a day: russh 0.65.0's security fixes (done), the AEAD keys'
-zeroize and the curves' 0.14 make that batch, so `v1.0.0-beta.3` comes from
-2026-11-01 00:12 UTC, once the gate is green on its commit.
+**First (2026-11-01):** `v1.0.0-beta.3` is published, a prerelease at
+`54d89a0` (01:44 UTC), with the provenance of each binary and the signature
+of `SHA256SUMS`, each proven on the published files (`docs/STATUS.md`). The
+next beta follows the next batch of repairs that the testers should test
+again, at most one a day, so not before 2026-11-02 01:44 UTC, and once the
+gate is green on its commit.
 
 **Now:** the entries of the audit, the study and the issues of 2026-10-31 (GitHub #59 to #63 and
 #69 to #76), the highest priority first: those of the rulings of 2026-10-31: T-353 (Q52); then those of

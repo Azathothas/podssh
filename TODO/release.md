@@ -320,6 +320,26 @@ held newer commits by then, so the run by hand with `publish` ran on a branch at
 (`beta/v1.0.0-beta.2`): the job `tag` tags the commit of its run, whatever its branch. Its
 files pass the Prove, and the proofs of `.github/workflows/release-proofs.yml` (`docs/STATUS.md`).
 
+2026-11-01: `v1.0.0-beta.3` is published, a prerelease at `54d89a0`
+(https://github.com/Azathothas/podssh/releases/tag/v1.0.0-beta.3), by the run by hand with
+`publish` on `main` (41261205053), whose job `tag` made the tag, and the tag's run (41261215707,
+01:28 to 01:44 UTC), after the gate (run 41259529444), the dry run (41259544441) and the local
+checks of its binary (`scripts/release-short.sh --net`) passed on that commit. Newer commits went
+to `main` only once the dispatch was taken. Eight binaries, their provenance and the signature of
+`SHA256SUMS`; iroh's road and WARP's in each (T-348, Q59). Its files pass the Prove. Here, by their
+public URLs: the sums of the three that this host fetched; the x86_64 binary names `54d89a0`, is
+static-pie, writes its manual (4850 lines), passes `doctor` (47 ok, 0 FAIL; the edge road waits for
+`--full`), carries GitHub's banner through `podssh proxy` and the relay, and a login with a
+throwaway key is refused (publickey, 255). Its `podssh update --check` names it the newest release,
+and `podssh update --version v1.0.0-beta.2` on a copy checked beta.2's signed `SHA256SUMS` (the
+workflow at the tag, Rekor's entry) and replaced the copy with beta.2's binary, byte for byte.
+The proofs of `.github/workflows/release-proofs.yml` on a fresh runner (run 41262486970): `SHA256SUMS`
+against each of the eight binaries; the provenance of each binary, and a changed copy refused
+through the API and with `provenance.sigstore.json`; `SHA256SUMS` signed by the release workflow
+at `refs/tags/v1.0.0-beta.3` (cosign 3.1.4 and 2.6.5; Rekor entry 3617465347), a changed copy and a
+branch's identity refused; the short form on the published x86_64 binary; and that binary's
+`podssh update` to its own release, which replaced it with its download.
+
 # T-375: `podssh update`: the release for its own target, checked, in place of the binary
 
 **Source:** the operator, 2026-10-31: "we will add self update soon", as an explicit command.

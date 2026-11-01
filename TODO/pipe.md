@@ -33,7 +33,7 @@ the verb, the address grammar, the copy loop, and the local addresses `-`,
   `crates/podssh-ts/src/pipe.rs`; the new pump must not repeat it.
 - Read: `exec:` starts the user's own program. The operator accepted it on
   2026-10-08 (`docs/decisions.md`). On sandbox A, `/tmp` and `$HOME`
-  do not run programs (`docs/STATUS.md:284`).
+  do not run programs (`docs/STATUS.md:285`).
 
 ## Approach
 
@@ -161,12 +161,12 @@ local program to a target, and `podssh proxy` stays a second pump.
   its write side ends. That is right for SSH and wrong for a pipe: the relay
   has no half-close (`docs/relay.md:137-143`), so a Close cuts a reply on its
   way. Measured live for proxy: the full reply after stdin closed
-  (`docs/STATUS.md:212`).
+  (`docs/STATUS.md:213`).
 - Read: `-W` opens its stream with `crates/podssh-ssh/src/forward.rs:14-22`
   after the hops of `crates/podssh-ssh/src/run.rs:156-169`, but that code is
   private and gives only an exit code.
 - Read: `TODO/issues.md` (#26) says that a binary protocol through `-W` is
-  measured. Only exec is measured with digests (`docs/STATUS.md:90`); `-W`
+  measured. Only exec is measured with digests (`docs/STATUS.md:91`); `-W`
   was checked with a banner of 16 bytes (`scripts/interop.sh:355-357`).
 - Read: `node:` needs T-084 (M4) and `iroh:` needs T-163 (M6); both are done
   before M7 starts.
@@ -315,7 +315,7 @@ not a listener, so `docs/target-environment.md:84-88` allows it.
 - Read: `sun_path` holds 104 to 108 bytes, and doctor refuses a longer name
   before the call (`crates/podssh-cli/src/doctor/unix.rs:204-213`,
   `crates/podssh-cli/src/doctor/unix.rs:227-232`).
-- Read: sandbox A allows an AF_UNIX bind (`docs/STATUS.md:284`); a connect
+- Read: sandbox A allows an AF_UNIX bind (`docs/STATUS.md:285`); a connect
   was not measured. The attempt is the probe, and its errno is the message.
 
 ## Approach
@@ -415,7 +415,7 @@ shows that an AF_UNIX or loopback bind works (`docs/design.md:948-950`).
   `AGENTS.md:252-258`, `docs/architecture.md:147-162`,
   `docs/target-environment.md:84-88`, `SECURITY.md:129-156`, `README.md:42-51`.
 - Read: sandbox A refuses an AF_INET bind and allows an AF_UNIX bind
-  (`docs/STATUS.md:284`). The box refuses each `bind`, AF_UNIX too
+  (`docs/STATUS.md:285`). The box refuses each `bind`, AF_UNIX too
   (`scripts/box/seccomp.json:5-10`), so it gives the refused case.
 - Read: doctor binds, closes, and never listens
   (`crates/podssh-cli/src/doctor/unix.rs` lines 137-231 at `48a8744`). A bind that works does
@@ -587,7 +587,7 @@ running on the server (`docs/design.md:614-618`).
   each session (`crates/podssh-ssh/src/session.rs:149-208`).
 - Read: the relay ends a session at 64 MiB (1009) or 12 h (1001)
   (`docs/relay.md:257-263`). Sandbox A measured the cap at 67,107,943 bytes,
-  and one close `1011` in 180 short sessions (`docs/STATUS.md:292-293`).
+  and one close `1011` in 180 short sessions (`docs/STATUS.md:293-294`).
 - Read: tmux is never assumed (`docs/target-environment.md:101-103`).
 
 ## Approach
@@ -730,7 +730,7 @@ no listener, or that the relay ends a desktop stream after 64 MiB.
 - Read: 64 MiB for each session, both directions together
   (`docs/relay.md:200`), then Close 1009 (`docs/relay.md:261`); public
   targets only (`docs/relay.md:202`). Through the proxy of sandbox A: 0.5 to
-  0.7 MB/s (`docs/STATUS.md:291`).
+  0.7 MB/s (`docs/STATUS.md:292`).
 - Not measured: no RDP, VNC or Telnet client ran through podssh. Each claim
   about a client below is to verify.
 
@@ -787,8 +787,8 @@ were found by their manuals (read on 2026-10-12, not run here): SSVNC's
 TigerVNC's `vncviewer` takes a Unix socket's path (its synopsis,
 `vncviewer [options] [unix socket]`). The second still needs a listener,
 but an AF_UNIX one, which sandbox A allows where it refuses AF_INET
-(`docs/STATUS.md:281`); there OpenSSH's form a fails before it binds, as
-`ssh` finds no entry for the user (`docs/STATUS.md:286`).
+(`docs/STATUS.md:282`); there OpenSSH's form a fails before it binds, as
+`ssh` finds no entry for the user (`docs/STATUS.md:287`).
 
 ## Done
 
@@ -1098,7 +1098,7 @@ and with which limits.
 - Read in the report (not verified here): USBoverSSH carries USB/IP over an
   SSH exec channel, and says that USB/IP needs kernel modules on the server.
 - Read: an exec channel carries binary data with equal digests
-  (`docs/STATUS.md:90`), and `pipe` carries a TCP stream (T-174, T-175).
+  (`docs/STATUS.md:91`), and `pipe` carries a TCP stream (T-174, T-175).
 - Read: through the relay, a session ends at 64 MiB (`docs/relay.md:200`);
   the traffic of a USB disk reaches that in seconds.
 - Read: podssh cannot load a module or attach a device, and never assumes a
@@ -1177,10 +1177,10 @@ The calls made where the Approach left a choice:
   `torvalds/linux:tools/usb/usbip/src/usbip_attach.c`), so the device's
   traffic passes podssh for as long as the pipe's session lasts; the
   README says so. `usbip` dials TCP only, so a host that refuses an
-  AF_INET bind, as sandbox A does (`docs/STATUS.md:281`), cannot run the
+  AF_INET bind, as sandbox A does (`docs/STATUS.md:282`), cannot run the
   recipe, nor can one without the modules.
 - The row states the limit by the throughput measured through sandbox A's
-  proxy (`docs/STATUS.md:288`): 64 MiB is about 2 minutes of reads at
+  proxy (`docs/STATUS.md:289`): 64 MiB is about 2 minutes of reads at
   0.5 to 0.7 MB/s.
 
 What waits:
