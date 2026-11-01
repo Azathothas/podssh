@@ -3012,3 +3012,221 @@ line of ready that `start` can no longer read ends the session (75), as nobody w
   inheritable before the spawn (`keep_own_handles`, now shared with `session start`). The test
   reads the caller's stderr within 10 s, so a child that keeps it fails instead of holding the
   job.
+
+# T-389: A failed write of a line on stderr aborts podssh: a detached node ends when its log's disk is full
+
+**Source:** the operator, 2026-11-01: a study of Nemo-010/d-mon, a daemonizer ("our daemonizer must
+be most redundant as a failed podssh in prod means locked out of a server"); its first finding.
+**Category:** defect
+**Milestone:** none
+**Priority:** P1
+**Effort:** S
+**Status:** open
+
+## Problem
+
+A node, a pipe, a chat or an agent that runs for days says its lines with `eprintln!`, which panics
+when the write fails, and the release build aborts on a panic. A detached node writes its stderr to
+its log: a disk that fills, an I/O error, or a journal that went away (EPIPE under systemd) ends the
+node at its next line, often "online again" after a reconnect. A server then has no tunnel.
+
+## Premise
+
+- Read: `panic = "abort"` in the release profile (`Cargo.toml:220`).
+- Read: the node's lines are `eprintln!` (`crates/podssh-cli/src/node.rs:327`,
+  `crates/podssh-cli/src/node_derp.rs:248`, `crates/podssh-cli/src/node_iroh.rs:299`), as are 40
+  more sites in `crates/podssh-cli/src` and 4 in `crates/podssh-ssh/src` (2026-11-01, a search for
+  `eprintln!`, `println!`, `eprint!` and `print!`).
+- Read: after ready a detached child's stderr is its log (`crates/podssh-cli/src/detach/child.rs:243`).
+- Read in Rust's documentation: `eprintln!` "panics if writing to io::stderr fails"; only EBADF is
+  ignored.
+- Read: `crates/podssh-ssh/src/log.rs:95` already writes its lines and ignores a failure.
+
+## Approach
+
+One writer of a line that ignores a failure, in `podssh-ssh` (`err_line`, `out_line`, and their
+macros), used by each site of the two crates. A check of `scripts/check-repo.py` refuses
+`eprintln!`, `println!`, `eprint!`, `print!` and `dbg!` in the sources of each crate outside their
+tests, with a plant of its own.
+
+## Prove
+
+```sh
+export CARGO_BUILD_JOBS=4
+cargo test -p podssh-ssh --lib log::
+cargo test -p podssh-cli --test node_detach a_node_whose_stderr_fails_goes_on_serving
+python scripts/check-repo.py
+```
+
+The node's test runs `podssh node` with stderr on `/dev/full` through the stand-in relay, and a
+client logs in through it twice. The planted defect: one `eprintln!` back in the node's lines, and
+the node ends with SIGABRT.
+
+# T-390: `--detach --restart`: a resident supervisor that starts the detached run again when it ends
+
+**Source:** the operator, 2026-11-01: the study of Nemo-010/d-mon (T-389's Source); its second
+finding.
+**Category:** feature
+**Milestone:** none
+**Priority:** P1
+**Effort:** L
+**Status:** open
+
+## Problem
+
+A detached run (`ssh -f -N -R`, `node --detach`, `pipe --detach`) that ends, by a crash, an abort, a
+kill of the OOM killer, or a failure that the run took for final, stays ended. A server that only
+that tunnel reaches is then locked out until somebody starts it again by hand, and nobody can reach
+it to do so. A unit of `--install` restarts it (T-121), but only where the user installed one, and
+not a run of `ssh -f`.
+
+## Premise
+
+- Read: T-380's parent returns once the child said ready, and nothing watches the child after that
+  (`crates/podssh-cli/src/detach/mod.rs:143`).
+- Read: the node retries its relay for ever within its process (`crates/podssh-relay/src/open.rs:387`,
+  its backoff); what ends the process ends the tunnel.
+- Read in d-mon's code: a supervisor of one `poll` loop that restarts its program, with a cap that
+  counts the program's whole life (its supervisor, of d-mon at d64d6ec, read in the
+  study), and `PR_SET_PDEATHSIG`, so that a supervisor that dies takes its program with it.
+
+## Approach
+
+With `--restart` (and `-o Restart=yes`), the detached process becomes a small supervisor at ready:
+it holds no runtime and no connection, and starts this binary again with `--detach-child` and the
+same arguments. It restarts each end but a usage error (64), a refusal of the relay that a restart
+cannot change (77, 78) and its own SIGTERM, which it passes to the child, with `open::backoff`
+(1 to 30 s with jitter), reset after 30 s that the child ran. It never gives up. No PDEATHSIG: a
+supervisor that dies leaves its child running. Each restart is a line of the log. Unix first;
+Windows by the same plan (a job object that the supervisor holds).
+
+## Prove
+
+```sh
+export CARGO_BUILD_JOBS=4
+cargo test -p podssh-cli --test node_detach a_restarted_node_comes_back_after_a_kill
+cargo test -p podssh-cli --lib detach::supervise
+```
+
+The node's test SIGKILLs the child, and a client logs in again through the new child within 40 s;
+SIGTERM to the supervisor ends both. The planted defect: no restart, and the second login fails.
+
+# T-392: A lock for each detached run, with its list, its status and its stop
+
+**Source:** the operator, 2026-11-01: the study of Nemo-010/d-mon (T-389's Source); its fourth
+finding.
+**Category:** feature
+**Milestone:** none
+**Priority:** P2
+**Effort:** M
+**Status:** open
+
+## Problem
+
+A detached run tells its pid and its log, and nothing else knows it is running: a second start (a
+cron line, a unit, a person) starts a second copy, which the relay refuses for a node of the same
+pair (409) and which a `-R` forward meets as a port in use. Nobody can ask whether a run is alive,
+or stop it, but by `kill` of a pid that may have been reused.
+
+## Premise
+
+- Read: T-380's files are in `detached/` of the state directory; there is no lock
+  (`crates/podssh-cli/src/detach/mod.rs:60`).
+- Read: `session start` probes its socket before it binds, and two starts can pass the probe
+  (`crates/podssh-cli/src/session/daemon.rs:163`).
+- Read in d-mon's code: a `flock` on the pid file, which `status` and `stop` test by taking it
+  themselves, never trusting the pid in the file (src/ctl.rs of d-mon, read in the study).
+
+## Approach
+
+With `--detach` and `--name NAME` (the default: the command's words), the run holds
+`detached/NAME.lock` (`flock`, or `LockFileEx` on Windows) for its life, beside a record of its pid
+and its arguments. A start whose lock is held refuses with 75 and names the running pid.
+`podssh detached list`, `status NAME` and `stop NAME` read the lock, not the pid alone; `stop` sends
+SIGTERM, then SIGKILL after 10 s. The supervisor of T-390 holds the lock, so its restarts keep it.
+
+## Prove
+
+```sh
+export CARGO_BUILD_JOBS=4
+cargo test -p podssh-cli --test detach a_second_start_of_a_name_refuses_while_the_first_runs
+cargo test -p podssh-cli --test detach status_and_stop_read_the_lock_not_the_pid
+```
+
+# T-394: A heartbeat of the detached run, which its supervisor watches
+
+**Source:** the operator, 2026-11-01: the study of Nemo-010/d-mon (T-389's Source); its sixth
+finding.
+**Category:** feature
+**Milestone:** none
+**Priority:** P2
+**Effort:** M
+**Status:** open
+
+## Problem
+
+A run that hangs (a deadlock, a stopped process, a runtime that no longer polls) stays alive to
+each check of T-390 and T-392, and serves nothing.
+
+## Premise
+
+- Read: neither T-380 nor a unit of T-121 has a watchdog; a unit restarts only a process that ended
+  (`crates/podssh-cli/src/node_install/text.rs:98`).
+
+## Approach
+
+A detached child under `--restart` touches `detached/NAME.alive` each 10 s from its runtime while it
+is up (for a node: online, or retrying). The supervisor of T-390 reads it each 10 s; a file older
+than 90 s ends the child (SIGTERM, then SIGKILL) and restarts it, with a line in the log.
+
+## Prove
+
+```sh
+export CARGO_BUILD_JOBS=4
+cargo test -p podssh-cli --test node_detach a_stopped_node_is_restarted_by_its_heartbeat
+```
+
+The test stops the child with SIGSTOP; a client logs in through a new child within 150 s.
+
+## Start condition
+
+T-390 is done: a supervisor exists.
+
+# T-397: `--detach`'s smaller gaps: no `/dev/null`, a rotation that loses lines, old files, the working directory
+
+**Source:** the operator, 2026-11-01: the study of Nemo-010/d-mon (T-389's Source); its tenth
+finding.
+**Category:** defect
+**Milestone:** none
+**Priority:** P3
+**Effort:** S
+**Status:** open
+
+## Problem
+
+Four small ways for a detached run to fail or to lose what it said: a sandbox with no `/dev/null`
+ends a child that logged in well; the log's rotation copies, then truncates, and loses the lines
+written between the two; the files of `detached/` stay for ever; and the run holds the caller's
+working directory, which an unmount then refuses.
+
+## Premise
+
+- Read: `leave` returns false when `/dev/null` does not open, and the child then ends with 75
+  (`crates/podssh-cli/src/detach/child.rs:236`).
+- Read: the rotation is `fs::copy` and then `set_len(0)` (`crates/podssh-cli/src/detach/child.rs:87`).
+- Read: no code removes a file of `detached/` (2026-11-01, a search of `crates/podssh-cli/src/detach`).
+
+## Approach
+
+Without `/dev/null`, stdin is a pipe whose writer is closed, and the outputs go to the log. The log
+rotates by a rename and a new file put in place of the standard descriptors (`dup2`). At each start,
+files of `detached/` older than 30 days and of no running pid go. After the arguments were made
+absolute, the child goes to `/` (or the root of its drive).
+
+## Prove
+
+```sh
+export CARGO_BUILD_JOBS=4
+cargo test -p podssh-cli --lib detach::
+cargo test -p podssh-cli --test detach
+```

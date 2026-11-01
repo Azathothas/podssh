@@ -117,7 +117,7 @@ and `CARGO_BUILD_JOBS=4`:
 
 ## Counts
 
-`TODO/INDEX.md` holds 384 entries: 16 open, 3 partial, 31 blocked, 334 done.
+`TODO/INDEX.md` holds 402 entries: 33 open, 2 partial, 31 blocked, 336 done.
 
 Open includes parked work. `cargo todo check` verifies this line.
 
@@ -143,13 +143,15 @@ gate is green on its commit.
 the terminal, and both are measured on Windows and macOS in Actions (2026-11-01); T-381 waits for
 Q61.
 
-**Now:** T-387 and T-388, the defects that T-251's live runs of 2026-11-01 found: a bulk session
-through a node stalled until its link was taken for dead, and the move that follows ends the node's
-socket. Before them, the entries of the audit, the study and the issues of 2026-10-31 (GitHub #59 to #63 and
-#69 to #76): T-353 (Q52), whose live run waits for Q60; the others are done, Shadowsocks the last
-on 2026-11-01, and meek and WebTunnel in the Tor road the same day.
-Each other `backlog` entry is done, but for those on hold, those of the relay's operator and the
-parked ones.
+**Now (2026-11-01):** the operator's request of 2026-11-01, two studies: of Nemo-010/d-mon, a
+daemonizer, for a `--detach` that must never leave a server locked out, and of Azathothas/cfrs, its
+code and its issues. Their findings, in order: T-389 (a failed write of a line aborts a detached
+node), T-391, T-390, T-393, T-392, T-394, T-395, T-396 and T-397; then T-401, T-398, T-399, T-400,
+T-402, T-403, T-404, T-405 and T-406. Before them, a bulk session through a node and its moves on
+the live relay are repaired, and the entries of the audit, the study and the issues
+of 2026-10-31 (GitHub #59 to #63 and #69 to #76): T-353 (Q52), whose live run waits for Q60; the
+others are done. Each other `backlog` entry is done, but for those on hold, those of the relay's
+operator and the parked ones.
 
 **Then** M9: T-251 (the check, and its run before the tag), which runs the
 headscale harness of 2026-11-01, and last T-250 (the one release). Between

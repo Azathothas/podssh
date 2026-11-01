@@ -5971,3 +5971,275 @@ measured here and live from this session's host.
   allowlist, the same command ran `echo` on the server (0). `podssh doctor`'s section `derp`:
   tc301a to tc304a answered `/derp/probe` in 316 to 600 ms, with their certificates verified, and
   the home was named. The keys were made for the run and removed with it.
+
+# T-398: WARP's tunnel under volume: h2's budget of small frames, the inbound read while a packet waits, and a live copy of 16 MiB
+
+**Source:** the operator, 2026-11-01: a study of Azathothas/cfrs, its code and its 68 issues and
+pull requests; its findings C1 and C12 (cfrs's GitHub #32).
+**Category:** defect
+**Milestone:** none
+**Priority:** P2
+**Effort:** M
+**Status:** open
+
+## Problem
+
+cfrs's WARP road died on transfers of 1 to 64 MiB (cfrs #32): h2 0.4.20 ends a connection with
+ENHANCE_YOUR_CALM ("too_many_data_frames") when a peer sends more small DATA frames than its
+budget, and WARP's front door sends one DATA frame for each packet. podssh's road uses the same h2,
+and no live test of podssh sends more than a banner through WARP, so the same end would show only
+in use.
+
+## Premise
+
+- Read: the client's windows are 4 and 8 MiB (`crates/podssh-warp/src/tunnel.rs:25`), with no
+  explicit budget of frames; the study read h2 0.4.20's automatic budget as half the connection's
+  window, 4 MiB, which a front door's frames of 60 bytes reach after about 70,000 frames (inferred,
+  not measured).
+- Read: the stack's task sends each outbound packet with `out.send(...).await` before it reads the
+  next inbound one (`crates/podssh-warp/src/stack.rs:314`): while an upload waits for the window,
+  nothing inbound is read, and small frames pile up inside h2.
+- Read: WARP's live test reads a banner of 64 bytes (`.github/workflows/warp-live.yml`).
+
+## Approach
+
+Read inbound packets while an outbound one waits (a `select!` over both, the outbound queue bounded
+as it is). Set h2's budget of frames where the crate allows it, or else answer with a window that
+keeps it from being reached; a test with an h2 front door that sends 40,000 frames of 60 bytes to a
+reader that pauses 300 ms. Live: 16 MiB each way with their digests through WARP's node of
+`quick-tunnel-live.yml` and in `warp-live.yml` (under 100 MiB, so it runs with the entry).
+
+## Prove
+
+```sh
+export CARGO_BUILD_JOBS=4
+cargo test -p podssh-warp --test small_frames
+```
+
+Live: `warp-live.yml` dispatched on the commit; 16 MiB each way, the digests equal.
+
+# T-399: WARP: a front door's key that is not the device record's is taken for a proxy, for the whole run
+
+**Source:** the operator, 2026-11-01: the study of Azathothas/cfrs (T-398's Source); its finding C4
+(cfrs's GitHub #32, its fourth cause).
+**Category:** defect
+**Milestone:** none
+**Priority:** P2
+**Effort:** M
+**Status:** open
+
+## Problem
+
+cfrs measured a new device whose front door showed a key other than the one in its record, until
+the record was read again. podssh takes any key but the record's for a proxy that re-terminates
+TLS, and refuses WARP's road for the rest of the run: a node that falls back to WARP in a cage then
+has no road.
+
+## Premise
+
+- Read: a key other than the pinned one is a refusal that names the issuer
+  (`crates/podssh-warp/src/tls.rs:57`), reported as interception (`crates/podssh-warp/src/road.rs:74`)
+  and remembered for the run (`crates/podssh-warp/src/road.rs:130`).
+- Read: the device's record is read once, at registration; no request reads it again
+  (`crates/podssh-warp/src/register.rs`, 2026-11-01).
+
+## Approach
+
+On a refused key whose certificate chains to a public root (the front door's own, not a proxy's
+CA), read the device's record again (`GET /reg/{id}` with its token), keep the new endpoint key
+when it differs, and try once more after 1 s. A key that the API never gave is never accepted. A
+certificate of an issuer that is not public stays a proxy's.
+
+## Prove
+
+```sh
+export CARGO_BUILD_JOBS=4
+cargo test -p podssh-warp --test rotated_key
+```
+
+The stand-in front door changes its key, and the record it serves; the road reads it again and
+opens. The planted defect: no new read, and the road is refused.
+
+# T-400: The quick tunnel's legs raced with a stagger, and a probe of UDP before QUIC
+
+**Source:** the operator, 2026-11-01: the study of Azathothas/cfrs (T-398's Source); its finding C5
+(cfrs's GitHub #7 and #18: the race won on HTTP/2 at 2.44 s with UDP dropped, on WARP at 6.74 s
+with UDP and TCP 7844 dropped).
+**Category:** feature
+**Milestone:** none
+**Priority:** P2
+**Effort:** M
+**Status:** open
+
+## Problem
+
+The quick tunnel tries its roads one after another: QUIC, at 5 s an address, then HTTP/2 at 10 s a
+region, then WARP. Where only WARP passes, the node waits about 30 s before it starts WARP, at each
+start and at each reconnect, and a client meets that wait as a refusal.
+
+## Premise
+
+- Read: the order in `link` (`crates/podssh-cli/src/node_quick.rs:300`); QUIC's limit
+  (`crates/podssh-relay/src/quick/quic.rs:32`) and the edge's dial limit
+  (`crates/podssh-relay/src/quick/edge.rs:31`).
+- Read: podssh already races relay hosts with a stagger (`crates/podssh-ws/src/race.rs`).
+- Read in cfrs's issues: the edge answers a QUIC packet of a reserved version with a Version
+  Negotiation of 27 bytes (cfrs #11, #12), a probe that takes one round trip.
+
+## Approach
+
+Probe UDP first with the reserved version's packet (300 ms; skip QUIC when nothing comes back).
+Then race the roads with a stagger of 2 s, in the order QUIC, HTTP/2, WARP, through the race of
+podssh-ws; the first that registers wins, and the others are closed.
+
+## Prove
+
+```sh
+export CARGO_BUILD_JOBS=4
+cargo test -p podssh-relay --test quick_resilience a_silent_edge_gives_way_to_the_next_road_within_seconds
+```
+
+# T-401: The quick tunnel's provisioning: Retry-After honoured, and the edge's text cleaned before it is shown
+
+**Source:** the operator, 2026-11-01: the study of Azathothas/cfrs (T-398's Source); its finding C7
+(cfrs's GitHub #42 and #57: 429 with "error code: 1015" and Retry-After of 1542 to 2994 s).
+**Category:** defect
+**Milestone:** none
+**Priority:** P2
+**Effort:** S
+**Status:** open
+
+## Problem
+
+A refused request for a quick tunnel ends the node with the edge's text, ESC and BEL included, which
+reach the terminal; a 429 or a 5xx is not retried, and its Retry-After is not read.
+
+## Premise
+
+- Read: the body of a refusal is split on white space only
+  (`crates/podssh-relay/src/quick/api.rs:94`), and the edge's cause of a refused registration is
+  kept as it came (`crates/podssh-relay/src/quick/register.rs:89`).
+- Read: podssh's rule for a peer's text on the terminal is `text::one_line`.
+
+## Approach
+
+Each text from the edge goes through `one_line` before a line. A 429 or a 5xx is retried within 5
+minutes, after the Retry-After (seconds or an HTTP date, at most the budget's end) or the backoff;
+a Retry-After past the budget is said with its time, and the node ends with 75.
+
+## Prove
+
+```sh
+export CARGO_BUILD_JOBS=4
+cargo test -p podssh-relay --lib quick::api
+```
+
+The bytes of cfrs #42's answer (429, `retry-after: 2994`, `error code: 1015`) and a body with ESC
+and BEL are the fixtures.
+
+# T-402: The quick tunnel on GOAWAY: the next connection at once, the old one drained, and a second connection
+
+**Source:** the operator, 2026-11-01: the study of Azathothas/cfrs (T-398's Source); its finding C6
+(cfrs's GitHub #8 and #54).
+**Category:** feature
+**Milestone:** none
+**Priority:** P3
+**Effort:** M
+**Status:** open
+
+## Problem
+
+On the edge's GOAWAY the node drops its connection, waits at least 1 s and connects again: new
+visitors meet an error in the gap. The node keeps one connection, so each restart of an edge
+server is such a gap.
+
+## Premise
+
+- Read: GOAWAY ends the connection (`crates/podssh-relay/src/quick/serve.rs:230`); the node
+  registers `conn_index` 0 only (`crates/podssh-cli/src/node_quick.rs:209`).
+- Read in cfrs's issues: the edge accepted 1, 2 and 4 connections of one quick tunnel (cfrs #54).
+
+## Approach
+
+On GOAWAY, start the next connection at once, and keep the old one's streams up to 90 s. Register a
+second connection (`conn_index` 1) to another region where the edge names two, so that one
+connection always serves.
+
+## Prove
+
+```sh
+export CARGO_BUILD_JOBS=4
+cargo test -p podssh-relay --test quick_resilience a_visitor_echoes_across_a_goaway
+```
+
+# T-404: The quick tunnel's registration: the features of cloudflared 2026.10.7, and an answer to a push of configuration
+
+**Source:** the operator, 2026-11-01: the study of Azathothas/cfrs (T-398's Source); its finding C9
+(cfrs's GitHub #6 and #14).
+**Category:** chore
+**Milestone:** none
+**Priority:** P3
+**Effort:** S
+**Status:** open
+
+## Problem
+
+The node names five features of cloudflared 2026.10.6, `allow_remote_config` among them, and
+answers a push of configuration with 404: the edge may take the refusal for a connector that
+failed, at a later change of the edge.
+
+## Premise
+
+- Read: `FEATURES` (`crates/podssh-relay/src/quick/register.rs:25`); a configuration's stream gets
+  404 (`crates/podssh-relay/src/quick/serve.rs:176`).
+- Read in cfrs's issues: cloudflared 2026.10.7 names `support_datagram_v2` alone, and both forms
+  register on the live edge (cfrs #6, #14).
+
+## Approach
+
+Answer a push of configuration with `{"lastAppliedVersion":N,"err":null}` and keep nothing of it;
+name the features of the release that the pin of T-339 follows, after a live registration in
+`quick-tunnel-live.yml` with each.
+
+## Prove
+
+```sh
+export CARGO_BUILD_JOBS=4
+cargo test -p podssh-relay --lib quick::
+```
+
+Live: `quick-tunnel-live.yml` on the commit.
+
+# T-406: The edge's facts that cfrs's testers measured, in the design as a third party's
+
+**Source:** the operator, 2026-11-01: the study of Azathothas/cfrs (T-398's Source); its ninth
+recommendation.
+**Category:** docs
+**Milestone:** none
+**Priority:** P3
+**Effort:** S
+**Status:** open
+
+## Problem
+
+cfrs's testers measured facts of Cloudflare's edge that podssh's quick tunnel meets and its
+documents do not hold: the rate limit of trycloudflare (429 "error code: 1015", Retry-After up to
+2994 s, after about 8 tunnels in 20 minutes), the Version Negotiation of 27 bytes, several
+connections for one tunnel, 1.1.1.1's certificate for `api.trycloudflare.com`, the edge's 500 with
+a Worker's stack when an origin cuts a response, a few seconds before a new name resolves, and 413
+for a body over 512 MiB.
+
+## Premise
+
+- Read: `docs/design.md` has a section of the edge's facts that podssh measured (T-299).
+
+## Approach
+
+A part of that section with each fact, its cfrs issue, its date, and "measured by cfrs's testers,
+not by podssh"; each one that podssh's code acts on names its entry.
+
+## Prove
+
+```sh
+python scripts/check-repo.py
+```

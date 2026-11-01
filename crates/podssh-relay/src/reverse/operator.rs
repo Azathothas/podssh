@@ -39,6 +39,15 @@ pub struct OperatorLimits {
     /// intervals.
     pub ping_every: Duration,
     pub pings_allowed: u32,
+    /// With the resumable layer, the node ends each session itself: after a
+    /// `RETIRE`, a `CLOSE` or a handshake that failed, within the far end's
+    /// 30 s. Then the end of the input waits so long for the node's close,
+    /// which follows the node's last bytes, and sends this side's Close only
+    /// after it: a Close of this side's crosses the node's bytes still on
+    /// their way, and the relay ends the node's whole socket for a frame of
+    /// an id that it forgot (`1003 unknown session id`, T-388). `None`: the
+    /// Close goes at once, as a plain session's must.
+    pub node_ends: Option<Duration>,
 }
 
 impl Default for OperatorLimits {
@@ -48,6 +57,7 @@ impl Default for OperatorLimits {
             close_limit: Duration::from_secs(10),
             ping_every: podssh_ws::LIVENESS_EVERY,
             pings_allowed: podssh_ws::LIVENESS_ALLOWED,
+            node_ends: None,
         }
     }
 }
@@ -214,9 +224,11 @@ where
     }
     drop(queue);
     let mut closing: Option<Instant> = None;
+    // Bytes of the node's that nobody takes: the input ended, and the node
+    // ends the session (`node_ends`).
+    let mut draining = false;
     if !input_open {
-        let _ = session.send_close(1000, "").await;
-        closing = Some(Instant::now() + limits.close_limit);
+        closing = Some(end_of_input(session, limits, &mut draining).await);
     }
     let mut text_reason: Option<String> = None;
     loop {
@@ -225,10 +237,10 @@ where
             frame = frames.recv() => match frame {
                 Some(Ok(f)) if f.opcode == frame::OPCODE_BINARY => {
                     // An empty frame carries nothing.
-                    if !f.payload.is_empty() && local_write.write_all(&f.payload).await.is_err() {
+                    if !draining && !f.payload.is_empty() && local_write.write_all(&f.payload).await.is_err() {
                         // The local side is gone: there is nobody to give bytes to.
-                        let _ = session.send_close(1000, "").await;
-                        closing.get_or_insert(Instant::now() + limits.close_limit);
+                        let deadline = end_of_input(session, limits, &mut draining).await;
+                        closing.get_or_insert(deadline);
                     }
                 }
                 Some(Ok(f)) if f.opcode == frame::OPCODE_TEXT => {
@@ -255,15 +267,36 @@ where
                         return Outcome::Ended { code: 1006, reason: "the relay connection broke".into() };
                     }
                 }
-                None => {
+                None => closing = Some(end_of_input(session, limits, &mut draining).await),
+            },
+            () = tokio::time::sleep_until(close_deadline), if closing.is_some() => {
+                // The node did not end the session in its time: this side's
+                // Close, and its answer.
+                if std::mem::take(&mut draining) {
                     let _ = session.send_close(1000, "").await;
                     closing = Some(Instant::now() + limits.close_limit);
+                    continue;
                 }
-            },
-            () = tokio::time::sleep_until(close_deadline), if closing.is_some() => return Outcome::LocalEnd,
+                return Outcome::LocalEnd;
+            }
             dead = &mut liveness => return Outcome::Ended { code: 1006, reason: dead.to_string() },
         }
     }
+}
+
+/// The input ended: with the layer, the node's close is awaited until the
+/// result (`draining` set); else this side's Close goes now, and its answer
+/// is awaited until the result.
+async fn end_of_input<S>(session: &RelaySession<S>, limits: OperatorLimits, draining: &mut bool) -> Instant
+where
+    S: AsyncRead + AsyncWrite + Send + 'static,
+{
+    if let Some(wait) = limits.node_ends {
+        *draining = true;
+        return Instant::now() + wait;
+    }
+    let _ = session.send_close(1000, "").await;
+    Instant::now() + limits.close_limit
 }
 
 /// Send `bytes` in frames of at most 64 KiB, bare: the operator adds no id.

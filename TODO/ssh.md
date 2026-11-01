@@ -2825,3 +2825,39 @@ failed on the runner's authorization, which this entry does not touch).
   commit of the history, which keeps the copy. The 13 lines are back, with that reason. Measured:
   `scripts/secrets-report.py` over those findings, exit 1 without the lines and 0 with them.
 
+
+# T-391: `--persist` that never gives up, for a tunnel of `-N`
+
+**Source:** the operator, 2026-11-01: the study of Nemo-010/d-mon (T-389's Source); its third
+finding.
+**Category:** feature
+**Milestone:** none
+**Priority:** P1
+**Effort:** S
+**Status:** open
+
+## Problem
+
+`podssh ssh --persist -N -R ...` keeps a reverse tunnel across lost links, but gives up after 10
+attempts within 300 s of a loss: an outage of the relay or of the server's network of more than 5
+minutes ends the tunnel for good, and the server is locked out.
+
+## Premise
+
+- Read: `ATTEMPTS` is 10 and `WITHIN` 300 s (`crates/podssh-cli/src/ssh/persist.rs:25`), and a
+  connection of less than 30 s counts in the round of the loss before it.
+
+## Approach
+
+`--persist=always` (and `-o Persist=always`): no limit of attempts, with the backoff of the relay
+(1 to 30 s with jitter, at most 5 minutes apart after an hour of failures), and a line for each
+attempt, then one each 10 attempts. A refusal that cannot change (an unknown host key, a refused
+authentication: 255 with its cause) still ends the run. The default stays as it is.
+
+## Prove
+
+```sh
+export CARGO_BUILD_JOBS=4
+cargo test -p podssh-cli --lib ssh::persist
+cargo test -p podssh-cli --test persist an_always_persist_outlasts_ten_failed_attempts
+```

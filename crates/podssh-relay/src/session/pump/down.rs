@@ -75,7 +75,7 @@ enum Next {
 #[allow(clippy::too_many_arguments)]
 pub(super) async fn run<W, R>(
     app: &mut W,
-    mut link: R,
+    link: &mut R,
     mut decoder: Decoder,
     outbox: &Outbox,
     state: &Mutex<Link>,

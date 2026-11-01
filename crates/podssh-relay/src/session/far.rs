@@ -179,7 +179,7 @@ pub(super) async fn last_word<L: AsyncRead + AsyncWrite + Unpin>(link: &mut L, r
 /// reached, ends at once with the reason (T-153).
 pub async fn serve<L, A, O, F>(link: L, role: Role, settings: Settings, keeper: &Keeper<A>, budget: usize, open: O)
 where
-    L: AsyncRead + AsyncWrite + Unpin + Send,
+    L: AsyncRead + AsyncWrite + Unpin + Send + 'static,
     A: AsyncRead + AsyncWrite + Unpin + Send,
     O: FnOnce() -> F,
     F: Future<Output = Result<A, String>>,
@@ -200,7 +200,7 @@ pub async fn serve_admitted<L, A, O, F>(
     open: O,
     admitted: Admitted,
 ) where
-    L: AsyncRead + AsyncWrite + Unpin + Send,
+    L: AsyncRead + AsyncWrite + Unpin + Send + 'static,
     A: AsyncRead + AsyncWrite + Unpin + Send,
     O: FnOnce() -> F,
     F: Future<Output = Result<A, String>>,
@@ -242,7 +242,7 @@ pub async fn serve_admitted<L, A, O, F>(
 
 impl<L> Accepted<L>
 where
-    L: AsyncRead + AsyncWrite + Unpin + Send,
+    L: AsyncRead + AsyncWrite + Unpin + Send + 'static,
 {
     /// The session that the link carries. Its secret is never for a message.
     pub fn established(&self) -> &Established {

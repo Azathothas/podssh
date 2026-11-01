@@ -330,7 +330,7 @@ pub enum Outcome {
 
 impl<L> Client<L>
 where
-    L: AsyncRead + AsyncWrite + Unpin + Send,
+    L: AsyncRead + AsyncWrite + Unpin + Send + 'static,
 {
     pub fn found(&self) -> &Found {
         &self.found

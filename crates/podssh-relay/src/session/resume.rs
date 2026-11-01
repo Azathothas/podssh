@@ -148,7 +148,7 @@ pub async fn run<L, A, C, F, N>(
     entropy: &mut (dyn Entropy + Send),
 ) -> Outcome
 where
-    L: AsyncRead + AsyncWrite + Unpin + Send,
+    L: AsyncRead + AsyncWrite + Unpin + Send + 'static,
     A: AsyncRead + AsyncWrite + Unpin + Send,
     C: FnMut(&Ended) -> F,
     F: Future<Output = Next<L>>,
@@ -321,7 +321,7 @@ async fn resume_loop<L, C, F, N>(
     entropy: &mut (dyn Entropy + Send),
 ) -> Resumed<L>
 where
-    L: AsyncRead + AsyncWrite + Unpin + Send,
+    L: AsyncRead + AsyncWrite + Unpin + Send + 'static,
     C: FnMut(&Ended) -> F,
     F: Future<Output = Next<L>>,
     N: FnMut(Note),

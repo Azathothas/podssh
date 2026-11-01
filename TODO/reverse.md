@@ -1899,3 +1899,38 @@ handler's window fails the new test.
 - Linux, in the build image: clippy with no warning, `podssh-relay` with each feature; the node
   tests. T-177's checks of the gate ran there too, with a user `podtest`: both passed.
 - CI at `9460b4e` (run 38019504447): the step `m6` passed, 11 of 11 in 671 s, the control with them.
+
+# T-395: A pair's expiry ends a node for good: warn before it, and pair again where the relay allows
+
+**Source:** the operator, 2026-11-01: the study of Nemo-010/d-mon (T-389's Source); its seventh
+finding.
+**Category:** feature
+**Milestone:** none
+**Priority:** P2
+**Effort:** M
+**Status:** open
+
+## Problem
+
+A node whose pair expires exits 77, which its unit does not restart: a lockout on a date that
+podssh knew in advance, and said nowhere.
+
+## Premise
+
+- Read: a unit of T-121 does not restart after 77 (`crates/podssh-cli/src/node_install/text.rs:101`).
+- Read: the node's hook for a new pair is unset (`crates/podssh-cli/src/node.rs:339`, `repair:
+  None`).
+
+## Approach
+
+Read the pair's expiry from its record; a line at start and each day once fewer than 14 days
+remain, and `podssh status` names it. Where the relay renews a pair (`docs/relay.md`), the node
+renews it 7 days before the expiry, and keeps the new record; else the line says the command that
+renews it by hand.
+
+## Prove
+
+```sh
+export CARGO_BUILD_JOBS=4
+cargo test -p podssh-cli --test node a_node_says_its_pairs_expiry_before_it
+```

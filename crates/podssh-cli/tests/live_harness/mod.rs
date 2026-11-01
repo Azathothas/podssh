@@ -76,8 +76,14 @@ impl Drop for Cleanup<'_> {
 pub fn lines_of(node: &mut Child) -> mpsc::Receiver<String> {
     let stderr = node.stderr.take().unwrap();
     let (tx, rx) = mpsc::channel();
+    // PODSSH_TEST_NODE_LINES=1 shows each line as it comes, for a live run
+    // that fails at the node's end.
+    let show = std::env::var_os("PODSSH_TEST_NODE_LINES").is_some();
     std::thread::spawn(move || {
         for line in BufReader::new(stderr).lines().map_while(Result::ok) {
+            if show {
+                eprintln!("node: {line}");
+            }
             let _ = tx.send(line);
         }
     });

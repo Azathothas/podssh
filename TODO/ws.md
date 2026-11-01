@@ -2220,3 +2220,35 @@ the reason beside x25519-dalek's; the lock adds zeroize to chacha20poly1305's de
 - `cargo test --locked -p podssh-ws -p podssh-relay`, 452 passed in 81 binaries; the live
   handshakes with the relay (`--test live_handshake`), 6 passed; clippy `-D warnings` and rustfmt
   clean for podssh-ws.
+
+# T-405: DoH asks by an address, which a proxy that refuses addresses refuses
+
+**Source:** the operator, 2026-11-01: the study of Azathothas/cfrs (T-398's Source); its finding
+C11 (cfrs's GitHub #9 and #21: a sandbox's proxy refuses CONNECT to an IP literal).
+**Category:** defect
+**Milestone:** none
+**Priority:** P3
+**Effort:** S
+**Status:** open
+
+## Problem
+
+Through a proxy that allows names alone, each DoH request of podssh fails, and the quick tunnel
+falls back to the edge's fixed names after a wasted attempt; other lookups of DoH fail the same way.
+
+## Premise
+
+- Read: `doh_srv` dials each resolver by its address through the proxy
+  (`crates/podssh-ws/src/resolve.rs:372`).
+
+## Approach
+
+Through a proxy, ask each resolver by its name first (`cloudflare-dns.com`, `dns.google`), then by
+its address. A mode of `scripts/box/proxy.py` that refuses an IP literal tests it.
+
+## Prove
+
+```sh
+export CARGO_BUILD_JOBS=4
+cargo test -p podssh-ws --lib resolve::
+```

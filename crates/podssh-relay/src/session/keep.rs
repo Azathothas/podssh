@@ -152,7 +152,7 @@ where
     /// Carry a new session's first link, with `app`, its target.
     pub async fn run_new<L>(&self, accepted: Accepted<L>, app: A) -> Ended
     where
-        L: AsyncRead + AsyncWrite + Unpin + Send,
+        L: AsyncRead + AsyncWrite + Unpin + Send + 'static,
     {
         self.run_new_admitted(accepted, app, admitted_at_once()).await
     }
@@ -161,7 +161,7 @@ where
     /// layer later, when `admitted` is set.
     pub async fn run_new_admitted<L>(&self, accepted: Accepted<L>, app: A, admitted: Admitted) -> Ended
     where
-        L: AsyncRead + AsyncWrite + Unpin + Send,
+        L: AsyncRead + AsyncWrite + Unpin + Send + 'static,
     {
         let (link, decoder, established, settings) = accepted.into_parts();
         let carry = Carry::new(settings.link(&established));
@@ -183,7 +183,7 @@ where
     /// bytes that this side no longer has; the session then ends.
     pub async fn run_resumed<L>(&self, accepted: Accepted<L>) -> Result<Ended, String>
     where
-        L: AsyncRead + AsyncWrite + Unpin + Send,
+        L: AsyncRead + AsyncWrite + Unpin + Send + 'static,
     {
         let number = accepted.resume();
         let (mut link, decoder, established, _) = accepted.into_parts();
@@ -274,7 +274,7 @@ where
         admitted: Admitted,
     ) -> Ended
     where
-        L: AsyncRead + AsyncWrite + Unpin + Send,
+        L: AsyncRead + AsyncWrite + Unpin + Send + 'static,
     {
         let ended = pump::run(&mut app, link, decoder, &mut carry, watch).await;
         if ended.end.resumable() {

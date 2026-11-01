@@ -30,7 +30,7 @@ use std::sync::atomic::{AtomicBool, AtomicU64, Ordering};
 use std::sync::{Arc, Mutex};
 use std::time::Duration;
 
-use tokio::io::{AsyncRead, AsyncReadExt, AsyncWrite};
+use tokio::io::{AsyncRead, AsyncReadExt, AsyncWrite, ReadHalf, WriteHalf};
 use tokio::sync::{mpsc, Notify};
 use tokio::time::Instant;
 
@@ -58,6 +58,9 @@ pub const PING_EVERY: Duration = Duration::from_secs(10);
 /// A link that carried nothing from the far end for three intervals is
 /// dead, and a resume replaces it.
 pub const DEAD_AFTER: Duration = Duration::from_secs(30);
+/// How long a retired link is held for its far end to end it: more than the
+/// far end's 30 s for a handshake, after which it drops each link (T-388).
+const LINGER_RETIRED: Duration = Duration::from_secs(35);
 
 /// How a link of the session ended.
 #[derive(Debug)]
@@ -227,10 +230,10 @@ fn lock<T>(mutex: &Mutex<T>) -> std::sync::MutexGuard<'_, T> {
 pub async fn run<A, L>(app: &mut A, link: L, decoder: Decoder, carry: &mut Carry, watch: &Watch) -> Ended
 where
     A: AsyncRead + AsyncWrite + Unpin + Send,
-    L: AsyncRead + AsyncWrite + Send,
+    L: AsyncRead + AsyncWrite + Send + 'static,
 {
     let (mut app_r, mut app_w) = tokio::io::split(app);
-    let (link_r, mut link_w) = tokio::io::split(link);
+    let (mut link_r, mut link_w) = tokio::io::split(link);
     let Carry { state, undelivered, again, app_ended: app_ended_before, hearing } = carry;
     let hearing: &Hearing = hearing;
     let again = std::mem::take(again);
@@ -241,9 +244,11 @@ where
     // One batch of `DATA` waits while the writer sends the one before.
     let (data_tx, mut data_rx) = mpsc::channel(1);
 
+    let mut retired = false;
     let end = {
         let up = up(&mut app_r, again, data_tx, state, &room);
-        let down = down::run(&mut app_w, link_r, decoder, &outbox, state, &room, undelivered, &heard, hearing, watch);
+        let down =
+            down::run(&mut app_w, &mut link_r, decoder, &outbox, state, &room, undelivered, &heard, hearing, watch);
         let writer = outbox::write(&mut link_w, &mut data_rx, &outbox, state, watch, hearing);
         let beat = async {
             if heartbeat {
@@ -315,6 +320,7 @@ where
                     // far end does not wait for it.
                     if watch.retire.load(Ordering::SeqCst) {
                         finish(&outbox, Finish::Retire, writer.as_mut()).await;
+                        retired = true;
                     }
                     break End::Stopped;
                 }
@@ -322,8 +328,34 @@ where
             }
         }
     };
+    // The far end ends a retired link itself, after the last of its bytes
+    // on it: a node's road then closes the leg after its data, where a leg
+    // that this side dropped first would be closed under the node's data
+    // still on its way, and the relay ends the node's whole socket for a
+    // frame of an id it forgot (T-388). Its bytes are no longer the
+    // session's: the new link carries them again.
+    // The far end's own `RETIRE` is followed by its end of the link the same
+    // way, once its last bytes are out.
+    if retired || matches!(end, End::Retired) {
+        tokio::spawn(linger(link_r, link_w));
+    }
     let state = lock(state);
     Ended { end, received: state.received(), sent: state.sent() }
+}
+
+/// Hold a retired link until its far end ends it, or [`LINGER_RETIRED`]
+/// passes, reading and dropping what still comes on it.
+async fn linger<L: AsyncRead + AsyncWrite>(mut read: ReadHalf<L>, write: WriteHalf<L>) {
+    let mut buf = vec![0u8; 64 * 1024];
+    let _ = tokio::time::timeout(LINGER_RETIRED, async {
+        while let Ok(n) = read.read(&mut buf).await {
+            if n == 0 {
+                break;
+            }
+        }
+    })
+    .await;
+    drop(write);
 }
 
 /// Ask the writer to stop at its next record boundary with `last`, and wait

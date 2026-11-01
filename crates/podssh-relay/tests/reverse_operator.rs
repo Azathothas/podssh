@@ -64,6 +64,7 @@ fn limits() -> OperatorLimits {
         close_limit: Duration::from_secs(2),
         ping_every: Duration::from_secs(60),
         pings_allowed: 3,
+        node_ends: None,
     }
 }
 
@@ -201,4 +202,39 @@ async fn a_close_that_crosses_the_end_of_input_with_another_code_is_a_failure() 
     let outcome = outcome(task).await;
     assert_eq!(outcome, Outcome::Ended { code: 1011, reason: "write failed".into() });
     assert!(!outcome.is_success());
+}
+
+/// A leg of the resumable layer (T-388): when the input ends, the operator
+/// sends no Close of its own, takes and drops the node's bytes still on
+/// their way, and ends with the node's close; a Close of its own would cross
+/// those bytes, and the relay ends the node's socket for a frame of an id it
+/// forgot.
+#[tokio::test]
+async fn with_the_layer_the_end_of_the_input_waits_for_the_node_to_close() {
+    let limits = OperatorLimits { node_ends: Some(Duration::from_secs(3)), ..limits() };
+    let (mut relay, local, task) = start(limits);
+    relay.send(frame::OPCODE_TEXT, ready().as_bytes()).await;
+    drop(local);
+    relay.send(frame::OPCODE_BINARY, b"the node's last bytes").await;
+    assert!(
+        relay.next(Duration::from_millis(800)).await.is_none(),
+        "no Close of the operator's while the node may send"
+    );
+    relay.close(1000, "").await;
+    assert_eq!(outcome(task).await, Outcome::LocalEnd);
+}
+
+/// A node that does not end the session in the time gets the operator's
+/// Close after it, and its answer ends the session.
+#[tokio::test]
+async fn with_the_layer_a_node_that_does_not_close_gets_a_close_after_the_wait() {
+    let limits = OperatorLimits { node_ends: Some(Duration::from_millis(500)), ..limits() };
+    let (mut relay, local, task) = start(limits);
+    relay.send(frame::OPCODE_TEXT, ready().as_bytes()).await;
+    drop(local);
+    assert!(relay.next(Duration::from_millis(300)).await.is_none(), "no Close before the wait");
+    let close = relay.next(LIMIT).await.expect("the Close after the wait");
+    assert_eq!(close.opcode, frame::OPCODE_CLOSE);
+    relay.close(1000, "").await;
+    assert_eq!(outcome(task).await, Outcome::LocalEnd);
 }

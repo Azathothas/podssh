@@ -9,7 +9,7 @@ use std::sync::{Arc, Mutex};
 use std::time::Duration;
 
 use podssh_relay::reverse::closes::resumes;
-use podssh_relay::reverse::{operator, OperatorConfig, Outcome as LegOutcome, RelayClose};
+use podssh_relay::reverse::{operator, OperatorConfig, OperatorLimits, Outcome as LegOutcome, RelayClose};
 use podssh_relay::session::client::{self, Found, Outcome};
 use podssh_relay::session::resume::{self, Next, Note};
 use podssh_relay::session::{
@@ -30,6 +30,9 @@ pub(crate) const LEG_WAIT: Duration = Duration::from_secs(5);
 /// How long the last leg may take to end after the session: its Close and
 /// the relay's answer.
 const LEG_END: Duration = Duration::from_secs(12);
+/// How long a leg of the layer waits, once the layer let it go, for the node
+/// to end it: more than the far end's 30 s for a handshake (T-388).
+const NODE_ENDS: Duration = Duration::from_secs(35);
 /// How long before the pair's expiry the user hears of it: at the expiry
 /// the relay ends each session of the pair (`1001 pair expired`), and no
 /// resume can carry one on (T-155).
@@ -154,7 +157,7 @@ pub struct Shell<'a> {
 /// silent while a question waits (T-302).
 pub fn heard<L>(client: client::Client<L>, silence: &Silence) -> client::Client<L>
 where
-    L: AsyncRead + AsyncWrite + Unpin + Send,
+    L: AsyncRead + AsyncWrite + Unpin + Send + 'static,
 {
     let shared = Arc::new(Hearing::default());
     let read = shared.clone();
@@ -373,7 +376,9 @@ async fn next_leg(
         }
     }
     let (link, leg_end) = tokio::io::duplex(PIPE);
-    match operator::start(config, leg_end).await {
+    // A leg of the layer: the node ends it (T-388).
+    let config = OperatorConfig { limits: OperatorLimits { node_ends: Some(NODE_ENDS), ..config.limits }, ..*config };
+    match operator::start(&config, leg_end).await {
         Ok(handle) => {
             *lock(legs) = Some(handle);
             Next::Link(link)

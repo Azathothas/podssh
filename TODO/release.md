@@ -488,3 +488,38 @@ running `podssh.exe` was renamed aside to `podssh.exe.old`; 6.2 MiB on macOS), w
 `timeout(1)`, and the build's first run at `5877a00` that a Windows checkout turned the fixture's
 LF into CRLF; each is repaired in `1a46970`. The beta-to-beta form runs in `release-proofs.yml`
 from the release after `v1.0.0-beta.3` (the Correction).
+
+# T-396: `podssh update` keeps the binary before it, and runs the new one once before it takes its place
+
+**Source:** the operator, 2026-11-01: the study of Nemo-010/d-mon (T-389's Source); its eighth
+finding.
+**Category:** feature
+**Milestone:** none
+**Priority:** P2
+**Effort:** S
+**Status:** open
+
+## Problem
+
+An update replaces the binary that the installed node runs; a new binary that does not start on
+this host (a libc, a CPU feature, a defect) ends the node at its next restart, and nothing is left
+to go back to.
+
+## Premise
+
+- Read: on Unix the new file is renamed over the old, and no copy of the old stays
+  (`crates/podssh-cli/src/update/replace.rs:95`).
+
+## Approach
+
+Before the rename: run the new file with `--version` (10 s), and refuse it when it fails or names
+another version. Keep the old one as `podssh.prev` beside it. `podssh update --rollback` puts it
+back. The supervisor of T-390 starts `podssh.prev` after 5 failed starts of the new binary in a
+row within 2 minutes, with a line.
+
+## Prove
+
+```sh
+export CARGO_BUILD_JOBS=4
+cargo test -p podssh-cli --test update
+```

@@ -1260,3 +1260,40 @@ write that fails fails the test with its reason.
 - Planted: the renderer's output never read: the test failed at its limit
   with "groff did not finish within 120 s" (150 s with the build), and did
   not wait for ever.
+
+# T-403: The Cap'n Proto reader allocates for each element of a list before it reads one; fuzz targets for the quick tunnel's parsers
+
+**Source:** the operator, 2026-11-01: the study of Azathothas/cfrs (T-398's Source); its finding C8
+(cfrs's GitHub #5: a list of zero-size structs of count 2^24 made 80 MiB from 96 bytes).
+**Category:** defect
+**Milestone:** none
+**Priority:** P3
+**Effort:** S
+**Status:** open
+
+## Problem
+
+podssh's reader charges a list of structs its count of words, against a budget of 8 Mi words, and
+builds a vector of each element at once: a list of zero-size structs of a few words can allocate
+some hundreds of MB. No fuzz target reads Cap'n Proto, a ConnectRequest or WARP's capsules.
+
+## Premise
+
+- Read: `BUDGET` is 8 Mi words (`crates/podssh-relay/src/quick/capnp.rs:12`); a list is charged
+  `words.max(count)` and collected at once (`crates/podssh-relay/src/quick/capnp.rs:458`).
+- Read: the fuzz targets (`fuzz/fuzz_targets/`) hold none of these parsers.
+
+## Approach
+
+A list is iterated, not collected, or its count is capped for a control message (the edge sends
+none longer than a few hundred elements); a budget of words of its own for the control stream. Fuzz
+targets for the reader, the ConnectRequest and the capsules, run with `-malloc_limit_mb=64`.
+
+## Prove
+
+```sh
+export CARGO_BUILD_JOBS=4
+cargo test -p podssh-relay --lib quick::capnp
+```
+
+A unit test: a list of zero-size structs of count 2^23 is refused or read in bounded memory.

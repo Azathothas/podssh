@@ -1888,8 +1888,8 @@ a full-screen program is written into its screen.
 
 ## Premise
 
-- Read: the layer's lines, written always: a loss (`crates/podssh-cli/src/layered.rs:364`) and a
-  resume (`crates/podssh-cli/src/layered.rs:375`). The heartbeat each 10 s, and a link dead after
+- Read: the layer's lines, written always: a loss (`crates/podssh-cli/src/layered.rs:367`) and a
+  resume (`crates/podssh-cli/src/layered.rs:378`). The heartbeat each 10 s, and a link dead after
   30 s with nothing from the far end (`crates/podssh-relay/src/session/pump.rs:57`,
   `crates/podssh-relay/src/session/pump.rs:60`). The forward road's checks
   (`docs/design.md:576`).
@@ -1998,8 +1998,8 @@ that gives `Line` to a terminal in raw mode; in the model, the control
 ## Correction
 
 The first item of the Premise cites the layer's lines at lines of `next_leg`, which opens a new
-leg. The lines are in `line_of`: a loss (`crates/podssh-cli/src/layered.rs:407`) and a resume
-(`crates/podssh-cli/src/layered.rs:418`). What the item says of them holds.
+leg. The lines are in `line_of`: a loss (`crates/podssh-cli/src/layered.rs:412`) and a resume
+(`crates/podssh-cli/src/layered.rs:423`). What the item says of them holds.
 
 ## Done
 
@@ -2872,7 +2872,7 @@ for a new link, and the test that asks for no loss fails at random.
 - Not reproduced here: 40 runs of the test alone, and 80 runs eight at a
   time, passed (a Claude Code cloud container, 2026-10-31).
 - Read: `End::Closing` comes from the pump's wait for the answer to its
-  `CLOSE` (`crates/podssh-relay/src/session/pump.rs:292-299`): a reader that
+  `CLOSE` (`crates/podssh-relay/src/session/pump.rs:297-304`): a reader that
   ended with anything but the peer's `CLOSE`, the 10 s of `LINGER` (not
   reached in a run of 2.9 s), or a stop. A loss with no `Resumed` after it is
   a resume that found the session forgotten while this side's application
@@ -2999,7 +2999,7 @@ and from GitHub's network (`relay-live.yml`, run 41282827634).
 **Milestone:** none
 **Priority:** P1
 **Effort:** M
-**Status:** partial
+**Status:** done
 
 ## Problem
 
@@ -3048,8 +3048,9 @@ The live test makes 6 moves or more and loses no link; the relay's tests pass.
 
 ## Done
 
-2026-11-01, partial: the repair is in, and measured live; its mechanism on the node's road is not
-yet shown by a test.
+2026-11-01, done with T-388: a session through a node carried 200 MiB each way on the live relay in
+156 s with 7 moves and no link lost, where it took 720 s and lost a link each 35 s before; first
+partial, then closed with T-388's repair, which the move needed.
 
 - The reader (`crates/podssh-relay/src/session/pump/down.rs`) writes to the application and reads
   the link in one `select!`, the application first; a `CLOSE` or a broken record still waits for
@@ -3069,6 +3070,10 @@ yet shown by a test.
 - `cargo test -p podssh-relay --features pair`: 320 passed, 0 failed, 15 ignored, in 52 binaries;
   `cargo test -p podssh-cli`: 1178 passed, 0 failed, 49 ignored, in 138; clippy `-D warnings` of
   podssh-relay with `pair`, all targets: clean.
+- Closed with T-388 (its Done): the live test passed with both repairs, 7 moves and no link lost
+  ("200 MiB each way through the node in 156 s: 7 moves"). The echo test stays as a guard of the
+  reader's order; the stall of a node's road is shown by the live test, which T-251 runs before the
+  tag.
 
 # T-388: A move through a node on the live relay ends the node's socket with 1003
 
@@ -3078,7 +3083,7 @@ whose link lived to the move: no link had before (T-387).
 **Milestone:** none
 **Priority:** P1
 **Effort:** M
-**Status:** open
+**Status:** done
 
 ## Problem
 
@@ -3119,3 +3124,43 @@ cargo test -p podssh-cli --test node_live -- --ignored --exact move_200mib_each_
 ```
 
 The live test makes 6 moves or more and loses no link.
+
+## Correction
+
+The Premise's inference is right about the frame and wrong about its side. The node's log, with
+`PODSSH_TEST_NODE_LINES=1`, said "the relay closed the node for a fault of this node: 1003 unknown
+session id" just after a move. The node's writer refuses no frame it should: the frame was for the
+old leg's id, which the node still held as open. On a move the client retires the old leg, and the
+operator's leg of that link, at the end of its input, sent its Close to the relay at once. The
+relay then forgot the id while the node's last bytes and its acknowledgements for that leg were
+still on their way, and the next of them closed the node's whole socket. A guard in the node cannot
+know of a Close that the relay has not yet passed on to it.
+
+## Done
+
+2026-11-01: two repairs, each needed, and measured live.
+
+- The operator's leg of a layer's link waits for the node to end the session
+  (`crates/podssh-relay/src/reverse/operator.rs`, `OperatorLimits::node_ends`): at the end of its
+  input it takes no more of the node's bytes and sends no Close for up to 35 s (`NODE_ENDS` in
+  `crates/podssh-cli/src/layered.rs`, more than the far end's 30 s for a handshake). The node ends
+  each retired or closed session itself, after its last bytes; then the relay's close ends the leg.
+  Only a node that does not end it in time gets this side's Close, and the answer is awaited as
+  before. A plain operator (`podssh operator`) keeps its Close at once (`None`).
+- A retired link is still read until its far end closes it, 35 s at most
+  (`crates/podssh-relay/src/session/pump.rs`, `linger`): the pump splits the link, and after a
+  `RETIRE` of either side a task drains its reading half, so that the far end's last records are
+  taken and its writes never block.
+- Tests: `cargo test -p podssh-relay --features pair --test reverse_operator`, 10 passed, two new:
+  the end of the input waits for the node's close and sends no Close; a node that does not close
+  gets the Close after the wait. `cargo test -p podssh-relay --features pair`: 322 passed, 0
+  failed, 15 ignored, in 52 binaries; `cargo test -p podssh-cli`: 1178 passed, 0 failed, 49
+  ignored, in 138; clippy `-D warnings` of podssh-relay (with `pair`) and podssh-cli, all targets:
+  clean.
+- Live, here, through the agent's proxy:
+  `cargo test --locked -p podssh-cli --test node_live -- --ignored --exact move_200mib_each_way_through_a_node`,
+  "200 MiB each way through the node in 156 s: 7 moves", 1 passed in 159.9 s. Before the linger
+  alone (the operator's Close at once), the same run ended at the first move with the 1003 above.
+  From GitHub's network (`relay-live.yml`, `node_live`): run after the push, in `docs/STATUS.md`.
+- The planted defect (the operator's Close at once again, `node_ends: None` for the layer's legs) is
+  the run before this repair: the 1003 at the first move. Its plant as a file waits for T-251.

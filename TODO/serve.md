@@ -1501,3 +1501,49 @@ test fails.
 
 The operator: on hold since 2026-10-09 (`docs/decisions.md`, "Entries on
 hold"). A session skips this entry until the operator lifts the hold.
+
+# T-393: `--install` that always restarts: systemd without a start limit, a cron watchdog, a LaunchAgent; and `ssh -N -R --persist`
+
+**Source:** the operator, 2026-11-01: the study of Nemo-010/d-mon (T-389's Source); its fifth
+finding.
+**Category:** feature
+**Milestone:** none
+**Priority:** P1
+**Effort:** M
+**Status:** open
+
+## Problem
+
+An installed node is the tunnel that a server keeps across reboots, and each way it stays down
+locks the server out: systemd's unit restarts only `on-failure` and gives up after 5 starts in 10 s
+(its default start limit); the cron line runs only `@reboot`, so a node that ends is not started
+again before the next boot; macOS has no way of `--install`; a Windows task of logon waits for a
+logon after a reboot; and a reverse tunnel of `podssh ssh -N -R --persist` cannot be installed.
+
+## Premise
+
+- Read: `Restart=on-failure`, `RestartSec=10`, no `StartLimitIntervalSec`
+  (`crates/podssh-cli/src/node_install/text.rs:98`).
+- Read: the cron line is `@reboot` alone (`crates/podssh-cli/src/node_install/unix.rs:128`).
+- Read: the Windows task restarts each minute, 999 times, at a logon
+  (`crates/podssh-cli/src/node_install/text.rs:210`).
+
+## Approach
+
+systemd: `Restart=always`, `RestartSec=5`, `StartLimitIntervalSec=0`, with
+`RestartPreventExitStatus=64 78` (77 stays a refusal that the user must see). cron: beside
+`@reboot`, a `*/5` line that starts the node when its lock (T-392) is free. macOS: a LaunchAgent of
+the user with `KeepAlive` and `RunAtLoad`, loaded by `launchctl bootstrap gui/UID`. Windows: the
+task's line says that it waits for a logon, and names the task of `schtasks /ru SYSTEM` that an
+administrator may make. `podssh ssh --install NAME -N -R ... --persist` writes the same units.
+
+## Prove
+
+```sh
+export CARGO_BUILD_JOBS=4
+cargo test -p podssh-cli --lib node_install::
+cargo test -p podssh-cli --test serve_install
+```
+
+The units are checked by `systemd-analyze verify` where it exists, and the plist by `plutil -lint`
+on macOS in CI.
