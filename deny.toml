@@ -64,6 +64,13 @@ allow = [
 # source stays with the crate, and its notice ships with the release.
 exceptions = [
   { allow = ["MPL-2.0"], crate = "dyn-eq" },
+  # The Tor road's crates (feature tor, T-353), in no release binary: copyleft
+  # for each file, the crates unchanged (priority-queue offers MPL-2.0 or
+  # LGPL-3.0, and MPL-2.0 is taken), and two dedications to the public domain.
+  { allow = ["MPL-2.0"], crate = "option-ext" },
+  { allow = ["MPL-2.0"], crate = "priority-queue" },
+  { allow = ["Unlicense"], crate = "async_executors" },
+  { allow = ["CC0-1.0"], crate = "notify" },
 ]
 
 [bans]

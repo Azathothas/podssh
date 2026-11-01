@@ -54,6 +54,13 @@ pub const VARIABLES: &[(&[&str], &str)] = &[
       stays its own. Another value is a configuration error (78).",
     ),
     (
+        &["PODSSH_TOR_PORTS"],
+        "The ports that a first hop of a tor:// destination may have, which Arti reaches through the proxy: \
+      a list such as 443,80, or any. Unset or empty: 443 alone when a proxy is set, as a cage's proxy allows \
+      little more, and any port when none is. Another value is a configuration error (78). A build with the \
+      feature tor.",
+    ),
+    (
         &["PODSSH_EICE_MAX_TUNNEL_DURATION"],
         "The longest life of an eice:// tunnel, aws-cli's maximum tunnel duration: whole seconds from 1 to \
       3600, which an IAM policy may require; unset, the endpoint's own hour. podssh cp goes on in a new \

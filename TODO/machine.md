@@ -2,7 +2,7 @@ This file holds the work that makes podssh usable by programs and agents: JSON f
 `man` and the result of `ssh`, `podssh status`, the end-to-end check in the binary, `podssh
 ping`, an MCP server, and a log of sessions. stdout carries the answer and nothing else
 (`docs/architecture.md:183-184`). `serde` and `serde_json` are already dependencies of the binary
-(`crates/podssh-cli/Cargo.toml:72`), so no entry here needs a new crate for JSON.
+(`crates/podssh-cli/Cargo.toml:78`), so no entry here needs a new crate for JSON.
 
 # T-049: `podssh doctor --json` (GitHub #9)
 
@@ -48,7 +48,7 @@ failed (lines 156-168). The sections are "this host", "egress" and "relay" (line
    keep the additions small, or split first.
 5. The JSON carries the same detail strings as the text, which hide proxy credentials and
    tokens today (`crates/podssh-cli/tests/doctor.rs:142-167`).
-6. Change the `doctor` notes (`crates/podssh-cli/src/man/notes.rs:187-238`) and
+6. Change the `doctor` notes (`crates/podssh-cli/src/man/notes.rs:189-240`) and
    `docs/cli.md` lines 1329-1347 at `48a8744` in the same commit.
 
 ## Decision
@@ -335,7 +335,7 @@ and `crates/podssh-ssh/src/keys.rs:99-131` offers a key to the server.
 5. The line joins the JSON of T-049. The script can call `doctor --full` and keep its OpenSSH
    step.
 6. Change `DOCTOR_FLAGS` (`crates/podssh-cli/src/flags/relay.rs:46-64`), the `doctor` notes
-   (`crates/podssh-cli/src/man/notes.rs:187-238`) and `docs/cli.md` lines 1329-1347 at `48a8744` in the same commit.
+   (`crates/podssh-cli/src/man/notes.rs:189-240`) and `docs/cli.md` lines 1329-1347 at `48a8744` in the same commit.
 
 ## Decision
 
@@ -545,7 +545,7 @@ at `crates/podssh-cli/src/ssh/transport.rs:206`, and the relay's close reason is
    (`crates/podssh-ssh/src/io.rs:151-161`, and `write_out` at `crates/podssh-ssh/src/io/msg.rs:77-94`). T-055 needs the same change.
 3. stdout and stderr stay byte for byte as now; the command's output never goes into the JSON.
 4. Write the file on each path, also after a failure before the session: at the end of
-   `run_ssh` (`crates/podssh-cli/src/ssh/mod.rs:199-203`). Mode 0600. Refuse `-`: stdout is data.
+   `run_ssh` (`crates/podssh-cli/src/ssh/mod.rs:205-209`). Mode 0600. Refuse `-`: stdout is data.
 5. Add the row to `SSH_FLAGS` (`crates/podssh-cli/src/flags.rs:112-286`; the set of short flags
    does not change), and change the `ssh` notes and `docs/cli.md` in the same commit.
 
@@ -627,9 +627,9 @@ failure at `crates/podssh-ssh/src/run.rs:135-145` and
 `crates/podssh-cli/src/ssh/result.rs:60-74`, written at the end of
 `run_ssh` (`crates/podssh-cli/src/ssh/mod.rs:65-95`); the relay host at
 `crates/podssh-cli/src/ssh/transport.rs:207` and its close at
-`crates/podssh-cli/src/ssh/mod.rs:291`. The flag in `SSH_FLAGS`
+`crates/podssh-cli/src/ssh/mod.rs:297`. The flag in `SSH_FLAGS`
 (`crates/podssh-cli/src/flags.rs:204`), its note at
-`crates/podssh-cli/src/man/notes_ssh.rs:377-389`, and `docs/cli.md`.
+`crates/podssh-cli/src/man/notes_ssh.rs:386-398`, and `docs/cli.md`.
 
 The test `crates/podssh-cli/tests/ssh_result.rs`, against the test server,
 whose `exit N` and `kill NAME` are in
@@ -902,7 +902,7 @@ checks and its move aside at `crates/podssh-cli/src/session_log.rs:171-240`,
 and its last line at `crates/podssh-cli/src/session_log.rs:243-260`. The
 line of `podssh ssh` at the end of `run_ssh`, from its result
 (`crates/podssh-cli/src/ssh/mod.rs:68-95`), and its destination at
-`crates/podssh-cli/src/ssh/mod.rs:171`; that of `podssh proxy` at
+`crates/podssh-cli/src/ssh/mod.rs:177`; that of `podssh proxy` at
 `crates/podssh-cli/src/proxy.rs:49-63`, its destination at
 `crates/podssh-cli/src/proxy.rs:107` and `crates/podssh-cli/src/proxy.rs:174`,
 its session at `crates/podssh-cli/src/proxy.rs:278-281`; the bytes of the

@@ -112,7 +112,7 @@ and `CARGO_BUILD_JOBS=4`:
 
 ## Counts
 
-`TODO/INDEX.md` holds 375 entries: 20 open, 0 partial, 30 blocked, 325 done.
+`TODO/INDEX.md` holds 375 entries: 19 open, 1 partial, 30 blocked, 325 done.
 
 Open includes parked work. `cargo todo check` verifies this line.
 
@@ -188,6 +188,18 @@ unattended session (Q13 to Q28) on 2026-10-08; the rulings are in
 that it blocks (status `blocked`) and a recommendation; the session then
 takes the next entry. Nothing is closed as out of scope until the operator
 rules.
+
+**Q60 (open, 2026-11-01): may the Tor road's live test reach the public Tor
+network?** It waits for this alone: the live run of T-353, whose Prove
+bootstraps Arti and gets GitHub's banner through an exit. The test targets of
+`AGENTS.md` name no Tor network; Q52 allowed the crate, not its live run.
+Recommendation: yes, from GitHub Actions and from a session's own host, with
+short runs (one bootstrap, a few MiB of directory, then one stream to
+`github.com:22`), as Q52 allowed for WARP: Tor's relays serve the public by
+design. The alternative that the work would add in any case: a private Tor
+network on the loopback (chutney with the C `tor` program), which tests Arti's
+road against software that podssh did not write, but not the public network
+nor a proxy that allows port 443 alone.
 
 The operator settled Q31 to Q37 on 2026-10-09.
 

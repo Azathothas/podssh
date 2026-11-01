@@ -1,0 +1,36 @@
+[package]
+name = "podssh-tor"
+description = "Tor through Arti: a stream to a host and port through the Tor network, each first hop through podssh's own dial and proxy."
+version.workspace = true
+edition.workspace = true
+# arti-client 0.47.0 declares 1.92 (read from its Cargo.toml).
+rust-version = "1.92"
+license.workspace = true
+publish.workspace = true
+
+# A crate of its own, outside the crates with no C, as podssh-iroh is (the
+# operator's ruling Q52): Arti keeps its directory in SQLite, which is C
+# (`static-sqlite` builds it in, so the binary needs no libsqlite3). Not a
+# default member: a build without the feature `tor` of podssh-cli does not
+# compile it.
+[dependencies]
+# No default features: no native-tls (OpenSSL), and no compression of the
+# directory (zstd and xz are C); `rustls` takes the process's provider, which
+# podssh-cli makes podssh-ws's own. 0.x: a new minor version is a change of
+# API to read, so the range ends before 0.48.
+arti-client = { version = ">=0.47, <0.48", default-features = false, features = ["tokio", "rustls", "static-sqlite"] }
+# The runtime's parts: the TCP provider that dials through podssh-ws, in the
+# version that arti-client builds.
+tor-rtcompat = { version = ">=0.47, <0.48", default-features = false, features = ["tokio", "rustls"] }
+# The pattern of an address and a port that a first hop may have, and the
+# kind of Arti's errors: the versions that arti-client builds.
+tor-netdoc = { version = ">=0.47, <0.48", default-features = false }
+tor-error = { version = ">=0.47, <0.48", default-features = false }
+async-trait = "0.1"
+futures = { version = "0.3", default-features = false, features = ["std"] }
+tokio = { workspace = true }
+tokio-util = { version = "0.7", default-features = false, features = ["compat"] }
+podssh-ws = { path = "../podssh-ws" }
+
+[dev-dependencies]
+tokio = { workspace = true, features = ["macros", "rt-multi-thread"] }

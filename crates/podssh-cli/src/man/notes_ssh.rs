@@ -116,6 +116,15 @@ pub const SSH: &[&str] = &[
      inside the tunnel is smoltcp's, in this process, with no TUN device. The host key is recorded under \
      warp://HOST. -p and Port give the port; --direct, -4, -6 and HostName cannot go with it, and -J with \
      it first makes HOST the first hop of a chain.",
+    "tor://[user@]HOST[:PORT] reaches a port of any host, 22 by default (an IPv6 address in brackets), \
+     through the Tor network, in a build with the feature tor: Arti in this process, with no relay and no \
+     account, and no program besides; each of its connections to a Tor relay goes through HTTPS_PROXY when \
+     one is set, and then to a relay on port 443 alone, or on the ports of PODSSH_TOR_PORTS. An exit \
+     resolves HOST and connects to it; an exit's policy, or the host, may refuse Tor. The first run fetches \
+     Tor's directory, which can take a minute; Arti keeps it and its guards in the cache (see FILES), and \
+     later runs start sooner. The host key is recorded under tor://HOST. -p and Port give the port; \
+     --direct, -4, -6 and HostName cannot go with it, and -J with it first makes HOST the first hop of a \
+     chain.",
     "--forwarder TEMPLATES reaches the first hop through WebSocket forwarders of other products, in place \
      of the relay: services that dial the host and the port that a client names and carry its bytes, the \
      plumbing of a MUD client or of an SSH client in a browser. A template is a ws:// or wss:// URL with \

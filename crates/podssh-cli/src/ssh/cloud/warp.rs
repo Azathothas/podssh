@@ -49,32 +49,8 @@ impl Target {
 /// `warp://[user@]HOST[:PORT]` as its user and target; `None` for another
 /// destination. An IPv6 address goes in brackets.
 pub fn destination(text: &str) -> Result<Option<(Option<String>, Target)>, String> {
-    let Some(rest) = text.strip_prefix(SCHEME) else { return Ok(None) };
-    let (user, rest) = super::user_of(text, rest.trim_end_matches('/'))?;
-    let (host, port) = match rest.strip_prefix('[') {
-        Some(inner) => {
-            let (v6, after) = inner.split_once(']').ok_or_else(|| format!("{text:?}: no ] after the address"))?;
-            let port = match after.strip_prefix(':') {
-                Some(_) => super::port_of(text, after)?.1,
-                None if after.is_empty() => 22,
-                None => return Err(format!("{text:?}: {after:?} after the address")),
-            };
-            v6.parse::<std::net::Ipv6Addr>().map_err(|_| format!("{text:?}: {v6:?} is not an IPv6 address"))?;
-            (v6.to_string(), port)
-        }
-        None if rest.matches(':').count() > 1 => {
-            return Err(format!("{text:?}: an IPv6 address goes in brackets, as {SCHEME}[ADDRESS]:PORT"))
-        }
-        None => {
-            let (name, port) = super::port_of(text, rest)?;
-            (name.to_string(), port)
-        }
-    };
-    let usable = !host.is_empty() && host.bytes().all(|b| b.is_ascii_alphanumeric() || b"-._:".contains(&b));
-    if !usable {
-        return Err(format!("{text:?}: give it as {SCHEME}[user@]HOST[:PORT]"));
-    }
-    Ok(Some((user, Target { host, port })))
+    let found = super::host_destination(text, SCHEME)?;
+    Ok(found.map(|(user, host, port)| (user, Target { host, port })))
 }
 
 /// Why this build has no WARP road, for `what` that needs it.

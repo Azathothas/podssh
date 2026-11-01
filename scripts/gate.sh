@@ -18,7 +18,7 @@ set -u
 
 # The steps, in the order of a full run. A step that is not in this list runs
 # nowhere: not here, and not in CI.
-STEPS="lint libs msrv msrv_ssh msrv_ts msrv_iroh msrv_warp record ssh ts iroh m6 release"
+STEPS="lint libs msrv msrv_ssh msrv_ts msrv_iroh msrv_warp msrv_tor record ssh ts iroh m6 release"
 
 if [ "$#" -eq 1 ] && [ "$1" = --list ]; then
     for _s in $STEPS; do
@@ -153,6 +153,9 @@ step_lint() {
     run "clippy: no warning with the WARP feature" \
         cargo clippy --locked --all-targets -p podssh-cli -p podssh-warp -p podssh-relay \
             --features podssh-cli/warp,podssh-warp/stand-in,podssh-relay/warp-stand-in -- -D warnings
+    # The Tor road (T-353): the crate and the CLI's road with its feature.
+    run "clippy: no warning with the Tor feature" \
+        cargo clippy --locked --all-targets -p podssh-cli -p podssh-tor --features podssh-cli/tor -- -D warnings
 }
 
 # The feature `blocking` of podssh-relay (the facade for podbox, T-081) brings
@@ -266,6 +269,23 @@ step_msrv_warp() {
     run "podssh-warp and podssh-cli with the feature warp: check on Rust $WARP_RUST" \
         cargo "+$WARP_RUST" check --locked --all-targets -p podssh-warp -p podssh-cli -p podssh-relay \
             --features podssh-cli/warp,podssh-warp/stand-in,podssh-relay/warp-stand-in
+}
+
+# The Tor road (T-353): Arti declares Rust 1.92, so podssh-tor and the CLI
+# with the feature are checked on that minimum; then their tests, on the
+# toolchain of the gate: the crate's (its TCP provider through a stand-in
+# proxy) and the CLI's own with the feature. Arti's SQLite is C, as the
+# Tailscale and iroh features' C is.
+step_msrv_tor() {
+    rust_version crates/podssh-tor/Cargo.toml
+    TOR_RUST=$RV
+    run "Rust $TOR_RUST, the declared minimum of podssh-tor: install" \
+        retry3 rustup toolchain install "$TOR_RUST" --profile minimal
+    run "podssh-tor and podssh-cli with the feature tor: check on Rust $TOR_RUST" \
+        cargo "+$TOR_RUST" check --locked --all-targets -p podssh-tor -p podssh-cli --features podssh-cli/tor
+    tests "podssh-tor: its tests" cargo test --locked --no-fail-fast -p podssh-tor
+    tests "podssh-cli with the feature tor: its library's tests" \
+        cargo test --locked --no-fail-fast -p podssh-cli --features tor --lib
 }
 
 # The work record (TODO/): the checker's own tests, where each planted

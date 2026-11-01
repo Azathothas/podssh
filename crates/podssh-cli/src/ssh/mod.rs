@@ -126,6 +126,12 @@ fn run(args: &SshArgs, tty: Tty, err: &mut dyn Write) -> i32 {
         let _ = writeln!(err, "podssh ssh: {}", cloud::warp::not_built(destination));
         return EXIT_NOT_IMPLEMENTED;
     }
+    // The Tor road is in a build with the feature `tor` alone (T-353).
+    let unbuilt = |d: &&str| cloud::tor::is_tor(d) && !cfg!(feature = "tor");
+    if let Some(destination) = args.destination.as_deref().filter(unbuilt) {
+        let _ = writeln!(err, "podssh ssh: {}", cloud::tor::not_built(destination));
+        return EXIT_NOT_IMPLEMENTED;
+    }
     if let Err(refusal) = crate::pins::apply(args.relay_addr.as_deref()) {
         return refusal.report("ssh", err);
     }

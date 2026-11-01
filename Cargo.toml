@@ -12,6 +12,7 @@ members = [
   "crates/podssh-ssh",
   "crates/podssh-todo",
   "crates/podssh-warp",
+  "crates/podssh-tor",
 ]
 
 # What a bare `cargo build` / `cargo test` at the root compiles: everything

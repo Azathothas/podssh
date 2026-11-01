@@ -186,7 +186,7 @@ the file that `--ts-state` names (`crates/podssh-cli/src/flags.rs:349-350`,
 5. The node prints its ticket and its fingerprint on stderr when it starts.
    `podssh ssh iroh:TICKET` dials it (the address of `docs/design.md:914`).
 6. Add the key files to FILES in the manual
-   (`crates/podssh-cli/src/man/data.rs:146-302`), and each new variable to
+   (`crates/podssh-cli/src/man/data.rs:146-312`), and each new variable to
    `VARIABLES` (`crates/podssh-cli/src/man/facts.rs:45-260`).
 
 ## Decision
@@ -373,7 +373,7 @@ sandbox can block what iroh needs, so the fallback is necessary
 6. With `-v`, print the road that won and its time.
 7. Each resume of T-153 runs the same race.
 8. Docs: the rule of the race in `docs/design.md` section 2, and the notes of
-   `ssh` in the manual (`crates/podssh-cli/src/man/notes_ssh.rs:4-390`).
+   `ssh` in the manual (`crates/podssh-cli/src/man/notes_ssh.rs:4-399`).
 
 ## Decision
 
@@ -2976,7 +2976,7 @@ roots must be exactly three, and a refusal of the edge does not say which releas
   (`crates/podssh-relay/src/quick/edge.rs:22-29`); the roots must give 3 anchors and no invalid
   one (`:40-44`); the API's host is fixed (`crates/podssh-relay/src/quick/api.rs:18`). The node
   registers as `podssh` and the package's version (`crates/podssh-cli/src/node_quick.rs:170-171`),
-  `1.0.0-beta.2` today (`Cargo.toml:49`).
+  `1.0.0-beta.2` today (`Cargo.toml:50`).
 - Read: the three roots end on 2029-08-15, 2029-08-15 and 2029-11-01
   (`crates/podssh-relay/src/quick/cloudflare-roots.pem:6`, `:25`, `:52`).
 - Read: cloudflared's README says "Cloudflare currently supports versions of cloudflared that are
@@ -4106,7 +4106,7 @@ Read at `a3f948d` on 2026-10-31.
 **Milestone:** backlog
 **Priority:** P3
 **Effort:** L
-**Status:** open
+**Status:** partial
 
 ## Problem
 
@@ -4168,6 +4168,48 @@ cargo test -p podssh-cli --features tor --test tor_road -- --ignored   # live, t
 Through the box's proxy, which allows the cage's ports alone: Tor bootstraps, and a session
 through it gets GitHub's SSH banner. Planted: the first hops not held to the proxy's ports; the
 bootstrap through the box fails.
+
+## Done
+
+2026-11-01, partial: begun. Read in arti-client 0.47.0 and its crates (fetched, not built):
+`rust-version = "1.92"`; with `default-features = false` and the features `tokio`, `rustls` and
+`static-sqlite`, its only C is SQLite (`libsqlite3-sys`), no ring and no aws-lc. Its rustls layer
+(`tor-rtcompat`, `impls/rustls.rs`) takes the process's default `CryptoProvider` and checks the
+handshake's signatures alone, so the binary can install podssh-ws's own provider. Its channels
+take an outbound proxy (`tor-chanmgr`, `ProxyProtocol::HttpConnect`, an address that is a
+`SocketAddr`), and `path_rules.reachable_addrs` holds the first hops to ports; `RuntimeSubstExt`
+swaps the TCP provider, so each first hop can go through podssh-ws's own `dial` and proxy code.
+
+Built and tested here (2026-11-01), the live run waiting for Q60:
+
+- `crates/podssh-tor` (not a default member): `runtime.rs`, Arti's TCP provider as podssh-ws's
+  `dial` through the environment's proxy, each relay by its IP literal and port, listening on
+  nothing; `client.rs`, the configuration (state and cache directories, `reachable_addrs` from the
+  first hop's ports, Arti's check of the directories or not), the bootstrap within a time limit,
+  and a stream that keeps its client (`TorStream`).
+- The CLI's road `tor://[user@]HOST[:PORT]` (`ssh/cloud/tor.rs`, `tor/road.rs`), as `warp://`:
+  `podssh ssh` and `podssh proxy`; the feature `tor`; without it, exit 70 before anything
+  connects (`tests/tor_not_built.rs`). `PODSSH_TOR_PORTS` (443 alone through a proxy, any port
+  without one, a list, or `any`); Arti's directories in the cache's `tor/`, made private by
+  podssh, and a retry without Arti's own check of them where it refuses them; podssh-ws's rustls
+  provider installed as the process's, which Arti's rustls takes. The parser of `HOST[:PORT]` is
+  WARP's, now shared (`cloud::host_destination`).
+- The manual: the note of `ssh` and of `proxy`, `PODSSH_TOR_PORTS`, the directory in FILES.
+- The gate: `msrv_tor` (Rust 1.92: podssh-tor and the CLI with the feature; then podssh-tor's
+  tests and the CLI's library tests with the feature), and clippy with the feature in `lint`.
+  `deny.toml`: four exceptions for the crates of the feature alone (`option-ext` and
+  `priority-queue` under MPL-2.0, `async_executors` under the Unlicense, `notify` under CC0-1.0).
+- `cargo test -p podssh-tor`: 4 passed (the first hop's ports as patterns; through a stand-in
+  proxy, a relay asked by its address and the bytes both ways, a 403 as the connection's error, no
+  listener). `cargo test -p podssh-cli --lib`: 490 passed, and 490 with `--features tor`;
+  `--test tor_not_built`: 4 passed. clippy `-D warnings` with the feature: clean. Rust 1.92,
+  `cargo +1.92 check --locked --all-targets -p podssh-tor -p podssh-cli --features
+  podssh-cli/tor`: exit 0. `cargo deny check` (advisories, licenses, bans, sources, and licenses
+  with all features): ok. Planted, the provider's dial made direct, past the proxy: the two tests
+  of the stand-in proxy failed, and the test of the listener passed.
+
+Waits: the live run (Q60), a private Tor network on the loopback (chutney) as a test against
+software that podssh did not write, `docs/cli.md`, `docs/carriers.md` and the road table.
 
 # T-376: The live run of the roads through a cloud's own tunnel (T-351)
 
@@ -4433,7 +4475,7 @@ does not depend on them.
 
 - Read: `Transport::Direct` comes from `--direct` alone
   (`crates/podssh-cli/src/ssh/resolve.rs`, lines 340-346 at `4e2010e`), and else the relay (lines 348-371 at `4e2010e`); its other
-  uses are a label (`crates/podssh-cli/src/ssh/mod.rs:210`), the dial
+  uses are a label (`crates/podssh-cli/src/ssh/mod.rs:216`), the dial
   (`crates/podssh-cli/src/ssh/transport.rs:256-300`) and a check of `--upgrade`
   (`crates/podssh-cli/src/ssh/upgrade.rs:59`). The issue's citation of
   the arm began two lines early; it is at `crates/podssh-cli/src/ssh/resolve.rs:320-326`.

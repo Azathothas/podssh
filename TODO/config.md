@@ -206,7 +206,7 @@ No glob code exists in podssh. `known_hosts::wildcard`
    stands, and `Match final all` applies after the last line and fills only unset values, as
    measured. Each other `Match` stays refused by name until T-045.
 6. Check each included file as T-043 checks the user file: its owner and its mode.
-7. Change `docs/cli.md:2960-3065`, FILES (`crates/podssh-cli/src/man/data.rs:146-302`) and the
+7. Change `docs/cli.md:2960-3065`, FILES (`crates/podssh-cli/src/man/data.rs:146-312`) and the
    `ssh` notes in the same commit.
 
 ## Prove
@@ -454,7 +454,7 @@ result, `Resolved` (lines 27-41 at `22c3b88`), holds the settings in effect, the
 
 1. Make the `-G` row Supported, with no `instead`; `crates/podssh-cli/tests/flag_table.rs:60-80`
    requires that pair. The reviewed set of short flags does not change.
-2. In `run_ssh` (`crates/podssh-cli/src/ssh/mod.rs:68-204`), after `resolve` (lines 36-42 at `e8bbd4d`): with
+2. In `run_ssh` (`crates/podssh-cli/src/ssh/mod.rs:68-210`), after `resolve` (lines 36-42 at `e8bbd4d`): with
    `-G`, print the settings and exit 0. Open nothing: no relay, no token, no pool refresh.
 3. Print from `Resolved` and its `Options`, not from `Settings`, so the defaults are shown.
 4. Print only keywords of OpenSSH that podssh applies
@@ -464,7 +464,7 @@ result, `Resolved` (lines 27-41 at `22c3b88`), holds the settings in effect, the
    `serveraliveinterval 60` (the relay's idle cut, `docs/relay.md:198`) and `connecttimeout 60`.
 6. It does not wait for T-043: with no file, `-G` shows the effect of `-o`. After T-043 and
    T-044, `-v` names the files that were read, on stderr.
-7. Change the `ssh` notes (`crates/podssh-cli/src/man/notes_ssh.rs:4-390`) and `docs/cli.md:48-592`
+7. Change the `ssh` notes (`crates/podssh-cli/src/man/notes_ssh.rs:4-399`) and `docs/cli.md:48-592`
    in the same commit.
 
 ## Decision
@@ -542,7 +542,7 @@ work.
 ## Premise
 
 Read: podssh has no import and no `config` command (`crates/podssh-cli/src/flags.rs:359-418`).
-`serde_json` is a dependency of the binary (`crates/podssh-cli/Cargo.toml:72`), so a JSON
+`serde_json` is a dependency of the binary (`crates/podssh-cli/Cargo.toml:78`), so a JSON
 export needs no new crate. XML and YAML need a parser that the binary does not have. The export
 formats of the other clients were not read here. Each step below starts from a real export of
 that client: bytes captured from the real program (`AGENTS.md`, section 6, rule 2).

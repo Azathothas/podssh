@@ -491,11 +491,11 @@ Read, at `61e55d1`: no option made podssh start a program: `ProxyCommand` is ref
    `[OPTIONS] [--] [user@]host [COMMAND...]` for `ssh` and
    `[OPTIONS] [--] HOST PORT` for `proxy`; `--help` and the synopsis of the
    manual (`crates/podssh-cli/src/man/model.rs:186-190`) read it.
-2. A note for `ssh` and `proxy` (`crates/podssh-cli/src/man/notes_ssh.rs:4-390` and `crates/podssh-cli/src/man/notes.rs:61-185`)
+2. A note for `ssh` and `proxy` (`crates/podssh-cli/src/man/notes_ssh.rs:4-399` and `crates/podssh-cli/src/man/notes.rs:61-187`)
    and an example (`crates/podssh-cli/src/man/examples.rs:8-232`). Pitfall: the
    notes test reads a bare `--` as a flag that does not exist
-   (`crates/podssh-cli/src/man/notes.rs:363-377`); teach `flag_exists`
-   (`crates/podssh-cli/src/man/notes.rs:330-346`) that `--` ends the options.
+   (`crates/podssh-cli/src/man/notes.rs:365-379`); teach `flag_exists`
+   (`crates/podssh-cli/src/man/notes.rs:332-348`) that `--` ends the options.
 3. `podssh proxy` (`crates/podssh-cli/src/proxy.rs:222-227`): when HOST or PORT
    is missing and a relay or trust flag was given, add one line: a HOST that
    starts with `-` is read as a flag; put `--` before it.
@@ -602,7 +602,7 @@ variable matters when `cp`, `mv` and `relay` exist. `ssh` and `proxy` have no
    or `proxy`.
 4. Same commit: a row in `VARIABLES` (`crates/podssh-cli/src/man/facts.rs:45-260`),
    which `each_variable_in_the_source_is_documented` requires
-   (`crates/podssh-cli/src/man/facts/tests.rs:61-74`); "default: env
+   (`crates/podssh-cli/src/man/facts/tests.rs:65-78`); "default: env
    PODSSH_TIMEOUT" in the help of each `--timeout` row, as `--relay-host` says
    it (`crates/podssh-cli/src/flags.rs:171-172`); `docs/cli.md:2945-2947`;
    `docs/STATUS.md`.
@@ -990,7 +990,7 @@ Read then: each value flag but `-i` and `-o` was `ArgAction::Set`.
    (`crates/podssh-cli/src/ssh/args.rs:134-176`, called at
    `crates/podssh-cli/src/tree.rs:456-460`).
 4. `docs/cli.md:582-587` and a note of the manual
-   (`crates/podssh-cli/src/man/notes_ssh.rs:363-365`) state the rule.
+   (`crates/podssh-cli/src/man/notes_ssh.rs:372-374`) state the rule.
 
 ## Prove
 
@@ -2507,7 +2507,7 @@ nothing.
 ## Decision
 
 A refused bind stays `ok`, with the features named. `FAIL` lost: the hosts that podssh is built
-for refuse the bind (sandbox A for AF_INET, `docs/STATUS.md:285`; the measured cage by the
+for refuse the bind (sandbox A for AF_INET, `docs/STATUS.md:286`; the measured cage by the
 operator's report, `docs/target-environment.md:25`), and doctor exits 1 on a `FAIL`, so each run
 there would fail where each road works (`crates/podssh-cli/src/doctor/mod.rs:6-9`). A fourth
 status lost: the report and its JSON have three (`docs/cli.md:1554-1557`). The issue's grade by a
@@ -2583,7 +2583,7 @@ alone measures less than they use, so it cannot answer what a user asks it.
   for, so it waits for a ruling: Q53.
 - Read: the measured cage's listening was not measured, and stands on the operator's report
   (`docs/target-environment.md:25`); sandbox A's AF_UNIX bind was doctor's bind
-  (`docs/STATUS.md:285`), so whether it listens is not known. The box refuses each bind
+  (`docs/STATUS.md:286`), so whether it listens is not known. The box refuses each bind
   (`scripts/box/seccomp.json:5-10`): it has no case of a bind allowed and a listen refused.
 - Read, in the issue (measured by its reporter on a development host, not with podssh): a bind
   of an AF_INET stream socket refused, where an AF_INET datagram socket and an AF_UNIX socket

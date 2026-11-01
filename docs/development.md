@@ -241,13 +241,14 @@ sh scripts/dev.sh run -- 'sh /work/scripts/gate.sh ssh'
 ```
 
 `lint` checks the format and clippy's lints (see "Checks"). `msrv`,
-`msrv_ssh`, `msrv_ts`, `msrv_iroh` and `msrv_warp` check each crate with `cargo check
+`msrv_ssh`, `msrv_ts`, `msrv_iroh`, `msrv_warp` and `msrv_tor` check each crate with `cargo check
 --locked --all-targets` on the minimum Rust that its manifest declares: 1.89
 for the library crates and `podssh-todo` (with no C compiler), and for
 `podssh-ssh` and `podssh-cli`, 1.92 for `podssh-ts` and the CLI with the
 feature `ts`, 1.91 for `podssh-iroh` and the CLI with the feature `iroh`, and
 1.91 for `podssh-warp`, the CLI with the feature `warp` and podssh-relay with
-its feature `warp`.
+its feature `warp`, and 1.92 for `podssh-tor` and the CLI with the feature
+`tor`, whose step then runs their tests.
 rustup fetches each toolchain into the build image, so the C toolchain is
 the gate's. `.cargo/config.toml` makes `cargo update` prefer the versions of
 dependencies that these minimums allow. The other steps make sure that:

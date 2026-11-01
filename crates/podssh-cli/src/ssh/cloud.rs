@@ -9,7 +9,8 @@
 //!
 //! `podssh ssh warp://...` (T-352) is a road of the same kind, a provider's
 //! own tunnel from this host: WARP's, whose network reaches any host
-//! ([`warp`]), in a build with the feature `warp`.
+//! ([`warp`]), in a build with the feature `warp`. So is `tor://...`
+//! (T-353), through the Tor network ([`tor`]), with the feature `tor`.
 
 mod aws;
 mod eice;
@@ -18,6 +19,7 @@ mod iap;
 pub mod proxy;
 // The forwarders' road says its end the same way (T-369).
 pub(crate) mod told;
+pub mod tor;
 pub mod warp;
 
 use std::sync::Arc;
@@ -42,6 +44,8 @@ pub enum Road {
     Eice { endpoint: podssh_ws::eice::Endpoint, target: podssh_ws::eice::Target },
     /// WARP: any host and port, inside Cloudflare's tunnel (T-352).
     Warp(warp::Target),
+    /// Tor: any host and port, through an exit (T-353).
+    Tor(tor::Target),
 }
 
 /// `iap://[user@]PROJECT/ZONE/INSTANCE[:PORT]` or
@@ -56,6 +60,9 @@ pub fn destination(text: &str) -> Result<Option<(Option<String>, Road)>, String>
     }
     if let Some((user, target)) = warp::destination(text)? {
         return Ok(Some((user, Road::Warp(target))));
+    }
+    if let Some((user, target)) = tor::destination(text)? {
+        return Ok(Some((user, Road::Tor(target))));
     }
     Ok(None)
 }
@@ -82,6 +89,38 @@ fn port_of<'a>(text: &str, part: &'a str) -> Result<(&'a str, u16), String> {
     }
 }
 
+/// `SCHEME[user@]HOST[:PORT]` as its user, host and port (22 when none is
+/// given); `None` for another destination. An IPv6 address goes in
+/// brackets. The form of `warp://` and of `tor://`.
+fn host_destination(text: &str, scheme: &str) -> Result<Option<(Option<String>, String, u16)>, String> {
+    let Some(rest) = text.strip_prefix(scheme) else { return Ok(None) };
+    let (user, rest) = user_of(text, rest.trim_end_matches('/'))?;
+    let (host, port) = match rest.strip_prefix('[') {
+        Some(inner) => {
+            let (v6, after) = inner.split_once(']').ok_or_else(|| format!("{text:?}: no ] after the address"))?;
+            let port = match after.strip_prefix(':') {
+                Some(_) => port_of(text, after)?.1,
+                None if after.is_empty() => 22,
+                None => return Err(format!("{text:?}: {after:?} after the address")),
+            };
+            v6.parse::<std::net::Ipv6Addr>().map_err(|_| format!("{text:?}: {v6:?} is not an IPv6 address"))?;
+            (v6.to_string(), port)
+        }
+        None if rest.matches(':').count() > 1 => {
+            return Err(format!("{text:?}: an IPv6 address goes in brackets, as {scheme}[ADDRESS]:PORT"))
+        }
+        None => {
+            let (name, port) = port_of(text, rest)?;
+            (name.to_string(), port)
+        }
+    };
+    let usable = !host.is_empty() && host.bytes().all(|b| b.is_ascii_alphanumeric() || b"-._:".contains(&b));
+    if !usable {
+        return Err(format!("{text:?}: give it as {scheme}[user@]HOST[:PORT]"));
+    }
+    Ok(Some((user, host, port)))
+}
+
 impl Road {
     /// The VM's name in the messages and in the known hosts: `iap://` with
     /// its project, zone and name, or `eice://` with the endpoint's id and
@@ -94,6 +133,7 @@ impl Road {
                 v4 => format!("{}{}/{v4}", eice::SCHEME, endpoint.id),
             },
             Road::Warp(target) => target.shown(),
+            Road::Tor(target) => target.shown(),
         }
     }
 
@@ -104,6 +144,7 @@ impl Road {
             Road::Iap(t) => t.instance.clone(),
             Road::Eice { target, .. } => target.address.to_string(),
             Road::Warp(target) => target.host.clone(),
+            Road::Tor(target) => target.host.clone(),
         }
     }
 
@@ -112,6 +153,7 @@ impl Road {
             Road::Iap(t) => t.port,
             Road::Eice { target, .. } => target.port,
             Road::Warp(target) => target.port,
+            Road::Tor(target) => target.port,
         }
     }
 
@@ -121,6 +163,7 @@ impl Road {
             Road::Iap(_) => "iap",
             Road::Eice { .. } => "eice",
             Road::Warp(_) => "warp",
+            Road::Tor(_) => "tor",
         }
     }
 
@@ -167,6 +210,10 @@ pub(super) fn transport(road: &Road, r: &super::node::Ask<'_>, env: &Env, port: 
             target.port = port;
             Road::Warp(target)
         }
+        Road::Tor(mut target) => {
+            target.port = port;
+            Road::Tor(target)
+        }
     };
     let trust = match super::resolve::ca_file(r.args, env) {
         Some(file) => Trust::File(file.into()),
@@ -185,6 +232,7 @@ pub(super) async fn reach(road: &Road, trust: &Trust, log: &Arc<Log>) -> Result<
         Road::Iap(target) => iap::reach(target, trust, log).await,
         Road::Eice { endpoint, target } => eice::reach(endpoint, target, trust, log).await,
         Road::Warp(target) => warp::reach(target, trust, log).await,
+        Road::Tor(target) => tor::reach(target, log).await,
     }
 }
 

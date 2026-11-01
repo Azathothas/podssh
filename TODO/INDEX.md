@@ -62,15 +62,15 @@ repository and CI).
 
 ## Counts
 
-**375 entries: 20 open, 0 partial, 30 blocked, 325 done.**
+**375 entries: 19 open, 1 partial, 30 blocked, 325 done.**
 
 | Priority | open | partial | blocked | done | total |
 | --- | --- | --- | --- | --- | --- |
 | P0 | 0 | 0 | 0 | 1 | 1 |
 | P1 | 2 | 0 | 0 | 29 | 31 |
 | P2 | 2 | 0 | 21 | 163 | 186 |
-| P3 | 16 | 0 | 9 | 132 | 157 |
-| **All** | 20 | 0 | 30 | 325 | 375 |
+| P3 | 15 | 1 | 9 | 132 | 157 |
+| **All** | 19 | 1 | 30 | 325 | 375 |
 
 ## Entries
 
@@ -425,7 +425,7 @@ repository and CI).
 | [T-350](roads.md) | P3 | M | backlog | feature | done | A pkarr record that finds a node whose home relay changed |
 | [T-351](roads.md) | P3 | L | backlog | feature | done | Roads through a cloud's own tunnel: GCP IAP TCP forwarding, then EC2 Instance Connect Endpoint |
 | [T-352](roads.md) | P3 | L | backlog | feature | done | WARP's MASQUE road over HTTP/2 |
-| [T-353](roads.md) | P3 | L | backlog | feature | open | Tor through Arti, in a feature crate |
+| [T-353](roads.md) | P3 | L | backlog | feature | partial | Tor through Arti, in a feature crate |
 | [T-354](resume.md) | P2 | S | backlog | defect | done | A session that closes while it moves can say a loss that was none |
 | [T-355](repo.md) | P2 | M | none | chore | done | Dependabot's updates of 2026-10-30 and 2026-10-31, and the curves' 0.14 |
 | [T-356](ssh.md) | P1 | M | none | defect | done | russh 0.65.0 fixes six advisories, three of them in the client, and gives the session binding |

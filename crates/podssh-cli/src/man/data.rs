@@ -232,6 +232,16 @@ pub fn files() -> Vec<(Vec<String>, String)> {
                 .to_string(),
         ),
         (
+            vec![format!("{}/", crate::ssh::cloud::tor::DIR_NAME)],
+            "The Tor road's directory (tor://, in a build with the feature tor), in the cache, mode 0700: \
+             Arti's state (its guards, which Tor asks a client to keep) in state/, and its copy of Tor's \
+             directory in cache/, which a later run reads to start sooner. Arti checks that no other user \
+             can write them; where a sandbox's mounts fail that check on a directory above, podssh made \
+             these private itself and tries once more without it. Removing it costs the next run a new \
+             bootstrap."
+                .to_string(),
+        ),
+        (
             vec![podssh_relay::identity::pins::FILE.to_string()],
             "The node keys that an operator has met, in the cache: one line for each key of a label, LABEL \
              KEY, the key as its fingerprint (SHA256:...) or itself. The first sight of a label's node \

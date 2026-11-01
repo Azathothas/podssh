@@ -170,11 +170,15 @@ LISTENERS = {
     # And the stand-in of WARP's edge, as above, whose far end waits for
     # connections inside its tunnel: sockets of smoltcp in the process, no
     # socket of the system (T-352).
+    # And the Tor road's TCP provider (T-353): Arti's trait asks each
+    # provider for a listen method, and podssh's refuses each call with an
+    # error, binding nothing.
     "listen(": [
         "crates/podssh-cli/src/pipe/listen_win.rs",
         "crates/podssh-cli/src/doctor/unix.rs",
         "crates/podssh-warp/src/stand_in.rs",
         "crates/podssh-warp/src/inside.rs",
+        "crates/podssh-tor/src/runtime.rs",
     ],
     "socket2": [],
 }
