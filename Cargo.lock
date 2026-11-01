@@ -1456,7 +1456,7 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "c54e03a951783e8b327515db3f2a2fd0e3bed362a96b066f341ce66ed49b4ead"
 dependencies = [
  "data-encoding",
- "syn 3.0.6",
+ "syn 1.0.109",
 ]
 
 [[package]]
@@ -4920,7 +4920,7 @@ dependencies = [
  "rustls",
  "serde_json",
  "sha1 0.11.0",
- "sha2 0.10.9",
+ "sha2 0.11.0",
  "tokio",
  "tokio-rustls",
  "vt100",
@@ -4935,7 +4935,7 @@ version = "1.0.0-beta.3"
 dependencies = [
  "hex",
  "proptest",
- "sha2 0.10.9",
+ "sha2 0.11.0",
 ]
 
 [[package]]
@@ -4954,7 +4954,7 @@ dependencies = [
  "podssh-ws",
  "rcgen",
  "rustls",
- "sha2 0.10.9",
+ "sha2 0.11.0",
  "tokio",
  "tokio-rustls",
  "url",
@@ -4966,7 +4966,7 @@ version = "1.0.0-beta.3"
 dependencies = [
  "regex",
  "serde",
- "sha2 0.10.9",
+ "sha2 0.11.0",
  "tokio",
  "toml 1.1.8+spec-1.1.0",
 ]
@@ -4994,7 +4994,7 @@ dependencies = [
  "rustls",
  "serde",
  "serde_json",
- "sha2 0.10.9",
+ "sha2 0.11.0",
  "snow",
  "tokio",
  "tokio-rustls",
@@ -5027,7 +5027,7 @@ dependencies = [
  "russh",
  "russh-sftp",
  "sha1 0.11.0",
- "sha2 0.10.9",
+ "sha2 0.11.0",
  "signature 3.0.0",
  "tokio",
  "vt100",
@@ -5127,7 +5127,7 @@ dependencies = [
  "security-framework",
  "serde_json",
  "sha1 0.10.7",
- "sha2 0.10.9",
+ "sha2 0.11.0",
  "tokio",
  "tokio-rustls",
  "unicode-width",

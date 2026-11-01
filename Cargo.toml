@@ -139,7 +139,7 @@ regex = { version = "1", default-features = false, features = ["unicode-perl"] }
 
 # Pure-Rust crypto. Every one of these was MEASURED OK under CC=/nonexistent on
 # 2026-10-01, individually and together, on this host.
-sha2 = { version = "0.10", default-features = false, features = ["oid"] }
+sha2 = { version = "0.11", default-features = false, features = ["oid"] }
 hmac = { version = "0.12", default-features = false }
 hkdf = { version = "0.12", default-features = false }
 # `zeroize` on each AEAD and on the block cipher: their key, or its schedule,
