@@ -49,8 +49,23 @@ fi
 # rather than refused"). A prompt that trusted the open waited for ever
 # there (GitHub #15). busybox timeout exits 143, GNU timeout 124.
 ctty=$(awk '{ print $7 }' /proc/self/stat)
-tty=$(timeout 5 dd if=/dev/tty of=/dev/null bs=1 count=1 2>&1)
-rc=$?
+# The shell ends the read itself after 5 s, with SIGKILL: on GitHub's runner
+# busybox timeout's watcher never signalled it, and the probe waited for the
+# pty's holder to end (T-415). The shell's own sleep ends there.
+out=/tmp/podssh-probe-tty.$$
+dd if=/dev/tty of=/dev/null bs=1 count=1 >"$out" 2>&1 &
+ddpid=$!
+sleep 5
+if kill -0 "$ddpid" 2>/dev/null; then
+    kill -KILL "$ddpid" 2>/dev/null
+    wait "$ddpid" 2>/dev/null
+    rc=124
+else
+    wait "$ddpid"
+    rc=$?
+fi
+tty=$(cat "$out" 2>/dev/null)
+rm -f "$out"
 case $rc in
     124 | 143)
         if [ "$ctty" = 0 ]; then
