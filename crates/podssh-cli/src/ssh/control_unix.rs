@@ -184,7 +184,7 @@ async fn command_run(resolved: &Resolved, plan: &Plan, command: Command, log: &A
             let opts = &resolved.options;
             for fwd in resolved.local.iter().map(fwd_of).chain(opts.remote_forwards.iter().map(remote_fwd)) {
                 match mux.forward(fwd, cancel).await {
-                    Ok(Some(port)) => println!("{port}"),
+                    Ok(Some(port)) => podssh_ssh::out_line!("{port}"),
                     Ok(None) => {}
                     Err(why) => {
                         let what = if cancel { "cancel forwarding" } else { "forwarding" };

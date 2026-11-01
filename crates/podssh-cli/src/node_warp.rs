@@ -39,7 +39,7 @@ impl WarpRoad {
         }
         if self.warp.is_none() {
             let trust = crate::pairs::trust(None);
-            let told = |line: &str| eprintln!("podssh node: {line}");
+            let told = |line: &str| podssh_ssh::err_line!("podssh node: {line}");
             let device = crate::ssh::cloud::warp::road::device(&trust, &told, &|_: &str| {})
                 .await
                 .map_err(|(line, _)| format!("WARP's tunnel: {line}"))?;

@@ -299,3 +299,74 @@ fn a_lost_link_asks_for_the_remote_forward_again() {
     let tmux = tmux.lock().unwrap();
     assert_eq!((tmux.connections, tmux.forward_requests, tmux.attaches), (2, 3, 0), "{err}");
 }
+
+/// A port of this host where nothing listens.
+fn closed_port() -> u16 {
+    std::net::TcpListener::bind("127.0.0.1:0").unwrap().local_addr().unwrap().port()
+}
+
+/// `podssh ssh --direct --persist -N -R` to a server that is not there, with
+/// `extra`: the child and its stderr as it comes.
+fn tunnel_to_nothing(home: &std::path::Path, extra: &[&str]) -> (Child, Arc<Mutex<String>>) {
+    std::fs::create_dir_all(home).unwrap();
+    let known = format!("UserKnownHostsFile={}", home.join("known_hosts").display());
+    let mut child = podssh(home)
+        .args(["ssh", "--direct", "--persist", "-N", "-R", "0:127.0.0.1:9", "-o", "BatchMode=yes", "-o", &known])
+        .args(["-p", &closed_port().to_string()])
+        .args(extra)
+        .arg("tester@127.0.0.1")
+        .stdin(Stdio::null())
+        .stdout(Stdio::null())
+        .stderr(Stdio::piped())
+        .spawn()
+        .expect("podssh ssh runs");
+    let err = Arc::new(Mutex::new(String::new()));
+    collect(child.stderr.take().unwrap(), err.clone());
+    (child, err)
+}
+
+/// With `--persist-forever` (T-391), a server that is not there yet is a
+/// loss, not the end: a tunnel started at a boot before the network keeps
+/// trying, where `--persist` alone ends at its first failure.
+#[test]
+fn persist_forever_keeps_trying_a_server_that_is_not_there() {
+    let home = std::env::temp_dir().join(format!("podssh-persist-forever-{}", std::process::id()));
+    let _ = std::fs::remove_dir_all(&home);
+    let (mut once, err) = tunnel_to_nothing(&home, &[]);
+    let started = Instant::now();
+    let code = loop {
+        if let Some(status) = once.try_wait().unwrap() {
+            break status.code();
+        }
+        assert!(started.elapsed() < LIMIT, "--persist alone did not end at its first failure");
+        std::thread::sleep(Duration::from_millis(50));
+    };
+    assert_eq!(code, Some(255), "{}", err.lock().unwrap());
+    let (mut forever, err) = tunnel_to_nothing(&home, &["--persist-forever"]);
+    let started = Instant::now();
+    while !err.lock().unwrap().contains("(attempt 3, with no limit; Ctrl-C stops)") {
+        if let Some(status) = forever.try_wait().unwrap() {
+            panic!("--persist-forever ended: {status:?}: {}", err.lock().unwrap());
+        }
+        assert!(started.elapsed() < LIMIT, "no third attempt within {LIMIT:?}: {}", err.lock().unwrap());
+        std::thread::sleep(Duration::from_millis(50));
+    }
+    assert!(forever.try_wait().unwrap().is_none(), "still trying: {}", err.lock().unwrap());
+    let _ = forever.kill();
+    let _ = forever.wait();
+    let _ = std::fs::remove_dir_all(&home);
+}
+
+#[test]
+fn persist_forever_without_persist_is_a_usage_error() {
+    let home = std::env::temp_dir().join(format!("podssh-persist-alone-{}", std::process::id()));
+    std::fs::create_dir_all(&home).unwrap();
+    let out = podssh(&home)
+        .args(["ssh", "--direct", "--persist-forever", "-N", "-R", "0:127.0.0.1:9", "tester@127.0.0.1"])
+        .stdin(Stdio::null())
+        .output()
+        .unwrap();
+    let _ = std::fs::remove_dir_all(&home);
+    assert_eq!(out.status.code(), Some(64), "{}", String::from_utf8_lossy(&out.stderr));
+    assert!(String::from_utf8_lossy(&out.stderr).contains("give --persist too"));
+}

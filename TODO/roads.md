@@ -56,7 +56,7 @@ unknown flag (exit 64), and `Cargo.lock` has no iroh crate.
 5. `doctor`, with the feature: a UDP line, and the `/ping` of the home relay
    through the proxy (`crates/podssh-cli/src/doctor/host.rs:10-25`).
 6. `availability()` knows `ts` as the only build feature
-   (`crates/podssh-cli/src/flags.rs:466-474`): extend it. With no feature, an
+   (`crates/podssh-cli/src/flags.rs:468-476`): extend it. With no feature, an
    iroh destination refuses before it connects and names `--features iroh`,
    as `crates/podssh-cli/tests/ts_not_built.rs:1-4` shows for `ts`.
 7. Docs: the "Outbound only" item of `README.md`, "Nothing listens" in
@@ -163,7 +163,7 @@ access is by an allowlist of keys or a relay token (`docs/design.md:1129-1130`).
 Read in the reports, not verified here: iroh-ssh warns when a server's key is
 ephemeral (`rustonbsd/iroh-ssh:src/ssh.rs`); zuko hands over a ticket out of
 band (`adonm/zuko:docs/protocol.md`). Read: `podssh ts` keeps its node key in
-the file that `--ts-state` names (`crates/podssh-cli/src/flags.rs:352-353`,
+the file that `--ts-state` names (`crates/podssh-cli/src/flags.rs:354-355`,
 `crates/podssh-cli/src/ts.rs:181`). Credentials never go on argv
 (`AGENTS.md`, section 4).
 
@@ -373,7 +373,7 @@ sandbox can block what iroh needs, so the fallback is necessary
 6. With `-v`, print the road that won and its time.
 7. Each resume of T-153 runs the same race.
 8. Docs: the rule of the race in `docs/design.md` section 2, and the notes of
-   `ssh` in the manual (`crates/podssh-cli/src/man/notes_ssh.rs:4-441`).
+   `ssh` in the manual (`crates/podssh-cli/src/man/notes_ssh.rs:4-444`).
 
 ## Decision
 
@@ -3130,7 +3130,7 @@ allows podssh as a client of Cloudflare (`docs/decisions.md:30`).
   `crates/podssh-cli/src/ssh/cloudflare.rs:73` says "a Cloudflare tunnel cannot be reached
   through a -J hop yet", and `docs/cli.md:129-130` says so too.
 - Read: the road of a run is chosen for the first hop's host
-  (`crates/podssh-cli/src/ssh/resolve.rs:295`), and each later hop runs in a `direct-tcpip`
+  (`crates/podssh-cli/src/ssh/resolve.rs:297`), and each later hop runs in a `direct-tcpip`
   channel of the session before it (`crates/podssh-ssh/src/run.rs:160-167`;
   `crates/podssh-ssh/src/forward.rs:14-22`).
 - Read: the `cf://` road opens the WebSocket of `cloudflared access tcp` through `HTTPS_PROXY`,
@@ -4701,7 +4701,7 @@ does not depend on them.
   uses are a label (`crates/podssh-cli/src/ssh/mod.rs:234`), the dial
   (`crates/podssh-cli/src/ssh/transport.rs:260-304`) and a check of `--upgrade`
   (`crates/podssh-cli/src/ssh/upgrade.rs:59`). The issue's citation of
-  the arm began two lines early; it is at `crates/podssh-cli/src/ssh/resolve.rs:333-339`.
+  the arm began two lines early; it is at `crates/podssh-cli/src/ssh/resolve.rs:335-341`.
 - Read: `docs/design.md:45` says "podssh tries the roads in this order"; for a public sshd, the
   forward road comes first, then the direct road (`docs/design.md:51`), which at `8554930` said
   "`--direct`, or when a probe shows it works"; the triage of GitHub #69 to #72 named this entry
@@ -5191,8 +5191,8 @@ a hop. `doctor` has no line for a hop, so a user cannot see whether one is reach
 
 - Read: a hop is `[user@]host[:port]` or `ssh://[user@]host[:port]`
   (`crates/podssh-cli/src/ssh/hop.rs:30-57`), and `-J` refuses a node only (`:68-74`). The road is
-  chosen for the first hop's host (`crates/podssh-cli/src/ssh/resolve.rs:295`); with `--direct` it
-  is TCP through `HTTPS_PROXY` (`crates/podssh-cli/src/ssh/resolve.rs:333-339`; `crates/podssh-cli/src/ssh/transport.rs:1-2`).
+  chosen for the first hop's host (`crates/podssh-cli/src/ssh/resolve.rs:297`); with `--direct` it
+  is TCP through `HTTPS_PROXY` (`crates/podssh-cli/src/ssh/resolve.rs:335-341`; `crates/podssh-cli/src/ssh/transport.rs:1-2`).
 - Read: a prompt goes to the terminal, or to the program of `SSH_ASKPASS`, chosen as OpenSSH
   chooses it (`crates/podssh-ssh/src/prompt.rs:1-12`).
 - Read: through the agent proxy of a cloud container, a CONNECT to `ssh.github.com:443` got `200`,

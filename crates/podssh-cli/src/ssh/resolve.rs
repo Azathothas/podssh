@@ -81,6 +81,8 @@ pub struct Resolved {
     pub warnings: Vec<String>,
     /// `--persist`: what a new connection after a loss keeps (T-178, T-042).
     pub persist: Option<super::persist::Kept>,
+    /// `--persist-forever`: no limit of attempts after a loss (T-391).
+    pub persist_forever: bool,
     /// What `-G` prints as it was given.
     pub shown: super::dump::Shown,
     /// `-L` and `-D` (T-038), bound before anything connects, and whether
@@ -464,6 +466,7 @@ pub fn resolve_or_refuse(args: &SshArgs, env: &Env) -> Result<Resolved, Refusal>
         notes,
         warnings,
         persist: None,
+        persist_forever: false,
         shown,
         local: forwards.local,
         gateway_ports: args.gateway_ports || settings.gateway_ports.unwrap_or(false),

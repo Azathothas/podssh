@@ -87,12 +87,12 @@ pub(in crate::chat) async fn run<W: AsyncWrite + Unpin>(
         // The channel of T-088, to the node that the ticket names.
         let channel = ask.with(identity.clone(), Expect::Ticket(node));
         let shown = label.clone();
-        let pin_say = move |line: String| eprintln!("podssh chat: {shown}: {line}");
+        let pin_say = move |line: String| podssh_ssh::err_line!("podssh chat: {shown}: {line}");
         let (layer_app, session) = crate::channel::around(app, channel, pin_say);
         let shown = label.clone();
         let note = move |note: Note| {
             if let Line::Always(text) = crate::layered::line_of(note) {
-                eprintln!("podssh chat: {shown}: {text}");
+                podssh_ssh::err_line!("podssh chat: {shown}: {text}");
             }
         };
         let road = async {

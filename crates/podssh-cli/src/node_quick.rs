@@ -143,7 +143,7 @@ async fn serve_quick(ready: Ready, err: &mut dyn Write) -> i32 {
     let _ = writeln!(err, "podssh node: {label}: serving {target} at {url}, a quick tunnel, {mode} until Ctrl-C");
     let channel = crate::channel::node(&label, key, Some(allow), err);
     // The name is the node's answer: the one line on stdout.
-    println!("{url}");
+    podssh_ssh::out_line!("{url}");
     let first = &targets[0];
     let tcp = TcpHandler { host: first.host.clone(), port: first.port, timeout: DIAL_LIMIT, sshd: roost };
     let (settings, budget) = (crate::layered::settings(), reverse::layered::NODE_BUDGET);
@@ -166,7 +166,7 @@ async fn serve_quick(ready: Ready, err: &mut dyn Write) -> i32 {
         crate::node::stop_signal().await;
         let _ = stop.send(true);
     });
-    let say = |line: String| eprintln!("podssh node: {label}: {line}");
+    let say = |line: String| podssh_ssh::err_line!("podssh node: {label}: {line}");
     let (client_id, version, arch) =
         (rand::random::<[u8; 16]>(), format!("podssh {}", env!("CARGO_PKG_VERSION")), arch());
     let (mut wait, mut connected_once) = (RETRY_FIRST, false);
@@ -226,14 +226,14 @@ async fn serve_quick(ready: Ready, err: &mut dyn Write) -> i32 {
                             registered.store(true, Ordering::SeqCst);
                             // Said first; then a detached node goes on (T-380).
                             let line = format!("registered at Cloudflare's {location}, over {transport}");
-                            eprintln!("podssh node: {label}: {line}");
+                            podssh_ssh::err_line!("podssh node: {label}: {line}");
                             crate::detach::ready("node");
                             continue;
                         }
                         Step::Visitor => continue,
                         Step::Unregistered => "unregistered".to_string(),
                     };
-                    eprintln!("podssh node: {label}: {line}");
+                    podssh_ssh::err_line!("podssh node: {label}: {line}");
                 }
             }
         });

@@ -74,9 +74,12 @@ pub fn sign(key: &PrivateKey, namespace: &str, hash: HashAlg, prehash: &[u8]) ->
         let data = SshSig::signed_data_for_prehash(namespace, hash, prehash).map_err(|e| e.to_string())?;
         let shown = crate::known_hosts::fingerprint(key.public_key());
         if security.touch() {
-            eprintln!("Confirm user presence for key {} {shown}", crate::known_hosts::key_type(key.public_key()));
+            crate::err_line!(
+                "Confirm user presence for key {} {shown}",
+                crate::known_hosts::key_type(key.public_key())
+            );
         }
-        let say = |line: &str| eprintln!("{line}");
+        let say = |line: &str| crate::err_line!("{line}");
         let blob = crate::sk::sign_blob(&security, &data, &say, true)?;
         let signature = Signature::try_from(&blob[..]).map_err(|e| format!("the device's signature: {e}"))?;
         return SshSig::new(key.public_key().key_data().clone(), namespace, hash, signature).map_err(|e| e.to_string());

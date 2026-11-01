@@ -72,12 +72,12 @@ mod built {
             // The pipe's own bytes are on stdout: each line goes to stderr.
             let note = |note: Note| {
                 if let Line::Always(text) = crate::layered::line_of(note) {
-                    eprintln!("podssh pipe: {shown}: {text}");
+                    podssh_ssh::err_line!("podssh pipe: {shown}: {text}");
                 }
             };
             let settings = crate::layered::iroh_settings(podssh_iroh::FEATURES);
             let pin_shown = shown.clone();
-            let pin_say = move |line: String| eprintln!("podssh pipe: {pin_shown}: {line}");
+            let pin_say = move |line: String| podssh_ssh::err_line!("podssh pipe: {pin_shown}: {line}");
             let (layer_app, session) = crate::channel::around(theirs, channel, pin_say);
             let session = async move {
                 match session {

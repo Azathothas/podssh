@@ -104,7 +104,7 @@ async fn drive(
 ) -> i32 {
     let label = ready.label().to_string();
     let shown = label.clone();
-    let say = move |line: String| eprintln!("podssh chat: {shown}: {line}");
+    let say = move |line: String| podssh_ssh::err_line!("podssh chat: {shown}: {line}");
     let read = match input {
         Input::Stdin => Lines::read(std::io::stdin(), say.clone()),
         Input::File(file) => Lines::read(file, say.clone()),

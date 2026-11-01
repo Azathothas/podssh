@@ -250,7 +250,7 @@ async fn datagrams(
     };
     if dropped > 0 {
         let most = podssh_relay::udp::MAX_DATAGRAM;
-        eprintln!("podssh pipe: exec:{program}: {dropped} datagrams over {most} bytes were dropped");
+        podssh_ssh::err_line!("podssh pipe: exec:{program}: {dropped} datagrams over {most} bytes were dropped");
     }
     match status {
         Ok(status) => super::local::code_of(status),

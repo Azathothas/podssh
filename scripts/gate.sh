@@ -122,7 +122,7 @@ echo "steps: $*"
 
 # Each package of the workspace, by name: `cargo fmt --all` would also format
 # the fork in vendor/, which keeps its own format and its patches.
-PKGS="-p podssh-cli -p podssh-ssh -p podssh-relay -p podssh-ws -p podssh-core -p podssh-terminal -p podssh-probe -p podssh-ts -p podssh-iroh -p podssh-todo -p podssh-warp"
+PKGS="-p podssh-cli -p podssh-ssh -p podssh-relay -p podssh-ws -p podssh-core -p podssh-terminal -p podssh-probe -p podssh-ts -p podssh-iroh -p podssh-todo -p podssh-warp -p podssh-tor"
 
 # The library crates must build with no C compiler. The image ships a working
 # `cc`, so `CC=/nonexistent` is what enforces the rule, and `CXX=/nonexistent`

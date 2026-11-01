@@ -26,7 +26,7 @@ the verb, the address grammar, the copy loop, and the local addresses `-`,
 
 - Measured: `PODSSH_OFFLINE=1 podssh pipe stdio relay:example.org:80` exits
   64 with `podssh: unknown subcommand 'pipe'.` The verb table has no `pipe`
-  row (`crates/podssh-cli/src/flags.rs:362-421`).
+  row (`crates/podssh-cli/src/flags.rs:364-423`).
 - Read: the only pump is `crates/podssh-cli/src/pipe/relay.rs:104-230`. At the end
   of input it stops sending and keeps receiving
   (`crates/podssh-cli/src/proxy.rs:8-11`). T-101 is the opposite defect in
@@ -37,7 +37,7 @@ the verb, the address grammar, the copy loop, and the local addresses `-`,
 
 ## Approach
 
-1. The verb: a `pipe` row in `crates/podssh-cli/src/flags.rs:362-421`, two
+1. The verb: a `pipe` row in `crates/podssh-cli/src/flags.rs:364-423`, two
    required positionals (`crates/podssh-cli/src/positionals.rs:7-237`), a
    `Parsed::Pipe` variant (`crates/podssh-cli/src/parsed.rs:8-179`), a
    dispatch arm, and `pipe` in `DISPATCHED`
@@ -187,7 +187,7 @@ local program to a target, and `podssh proxy` stays a second pump.
    `crates/podssh-cli/src/pipe/relay.rs:200-230`).
 4. `ssh:[USER@]HOP[,HOP...],HOST:PORT`: the last item is the target, each
    other item a hop, read as `-J` reads it
-   (`crates/podssh-cli/src/ssh/resolve.rs:208-212`,
+   (`crates/podssh-cli/src/ssh/resolve.rs:210-214`,
    `crates/podssh-cli/src/ssh/hop.rs:30-78`). Make
    `crates/podssh-ssh/src/run.rs:156-169` a public `connect_chain` that `-W`
    and the pipe both use; keep each handle alive until the pipe ends. The
@@ -198,7 +198,7 @@ local program to a target, and `podssh proxy` stays a second pump.
 5. `node:NAME` after T-084, and `iroh:TICKET` after T-163: one adapter and
    one test each. If T-163 makes a ticket a credential, read it from a file
    (`iroh:@FILE`), never from argv.
-6. Exit codes: sysexits, as `podssh proxy` (`docs/cli.md:3008`): 69; 77 for a
+6. Exit codes: sysexits, as `podssh proxy` (`docs/cli.md:3017`): 69; 77 for a
    refusal (the relay, the proxy, a host key, the authentication); 78. Give
    `crates/podssh-ssh/src/run.rs:334-435` a typed error, so that 77 is not
    guessed from a message.
@@ -593,7 +593,7 @@ running on the server (`docs/design.md:616-620`).
 ## Approach
 
 1. Flags `--persist` and `--persist-name NAME` (default `podssh`; letters,
-   digits, `_` and `-`, 32 at most) in `crates/podssh-cli/src/flags.rs:112-288`.
+   digits, `_` and `-`, 32 at most) in `crates/podssh-cli/src/flags.rs:112-290`.
    With a command, `-W`, `-N`, `-s` or `RemoteCommand`, exit 64.
 2. The probe, after the login: one exec runs `command -v tmux`. No tmux:
    exit 255 with "the server has no tmux on PATH; --persist needs it". T-193
@@ -610,9 +610,9 @@ running on the server (`docs/design.md:616-620`).
    Keys typed meanwhile wait in a queue of 64 KiB, and go after the attach.
 6. Each attempt checks the host key with the same policy, and uses the
    cached token. A prompt with no terminal ends the loop
-   (`docs/cli.md:3079-3081`). After the attach, send the window size again.
+   (`docs/cli.md:3088-3090`). After the attach, send the window size again.
 7. In the same commit: `docs/cli.md`, the notes of ssh
-   (`crates/podssh-cli/src/man/notes_ssh.rs:4-441`), `docs/design.md:616-620`,
+   (`crates/podssh-cli/src/man/notes_ssh.rs:4-444`), `docs/design.md:616-620`,
    `docs/STATUS.md`, and tmux in the interop image
    (`scripts/interop.sh:24-25`). T-025 shares the classes of close codes;
    T-153 replaces this loop when both ends run podssh.
@@ -775,7 +775,7 @@ the examples must refuse it.
 ## Correction
 
 2026-10-12: the Prove's plant no longer fails. T-038 made `-L` a flag of
-`podssh ssh` (`crates/podssh-cli/src/flags.rs:245` says "forward-local"),
+`podssh ssh` (`crates/podssh-cli/src/flags.rs:247` says "forward-local"),
 so an example with `podssh ssh -L 5901:127.0.0.1:5901 user@host` parses. The
 plant that the test of the examples must refuse gives `-L` to the
 ProxyCommand's `podssh proxy`, which has no such flag:
@@ -1303,7 +1303,7 @@ the request's target, would be the proxy that such a program points at.
   each joined to a new instance of the other side (`crates/podssh-cli/src/pipe/serve.rs:1-11`).
 - Read: the operator allows a listener that the user asks for, when a probe allows the bind, on
   loopback or AF_UNIX by default (`docs/decisions.md:36`; `docs/architecture.md:147-154`); the
-  gate's scan of listeners allows the listener of `pipe` (`scripts/check-repo.py:79-103`).
+  gate's scan of listeners allows the listener of `pipe` (`scripts/check-repo.py:81-105`).
 - Read: the SOCKS side of `-D` answers once the server's channel opened, so that a client learns
   whether its target was reached (`crates/podssh-ssh/src/socks.rs:1-5`). The relay refuses a target
   of its policy with a `403` that names it, `not in the ALLOW list` (`docs/relay.md:184-186`).

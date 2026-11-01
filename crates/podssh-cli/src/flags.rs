@@ -206,6 +206,8 @@ pub const SSH_FLAGS: &[FlagRow] = &[
         "at the end, one JSON object in FILE: the exit, the remote status or signal, the end, the failure, the bytes and the relay", None),
     row(None, "persist-name", Some("NAME"), FlagKind::Supported,
         "the tmux session of --persist: letters, digits, _ and -, 32 at most (default podssh)", None),
+    row(None, "persist-forever", None, FlagKind::Supported,
+        "with --persist: connect again after each loss, and after a first connection that failed, with no limit of attempts or of time", None),
     attach::ATTACH,
     attach::TAKE,
     expect::EXPECT,

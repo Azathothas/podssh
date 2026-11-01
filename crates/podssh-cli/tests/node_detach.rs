@@ -76,3 +76,83 @@ fn a_detached_node_returns_once_online_and_serves_in_the_background() {
     assert_eq!(out.status.code(), Some(0), "{}", String::from_utf8_lossy(&out.stderr));
     assert_eq!(text, ssh_harness::GREETING);
 }
+
+/// Where a node's stderr goes when its every write fails: a pipe whose
+/// reader is closed (EPIPE, as a journal that went away), and on Linux
+/// `/dev/full` (ENOSPC, as a full disk).
+fn failing_sinks() -> Vec<(&'static str, Stdio)> {
+    use std::os::fd::{FromRawFd, OwnedFd};
+    let mut fds = [0; 2];
+    // SAFETY: pipe() fills two descriptors that this test then owns.
+    assert_eq!(unsafe { libc::pipe(fds.as_mut_ptr()) }, 0);
+    // SAFETY: each descriptor is open and owned by nothing else.
+    let (reader, writer) = unsafe { (OwnedFd::from_raw_fd(fds[0]), OwnedFd::from_raw_fd(fds[1])) };
+    drop(reader);
+    let mut sinks = vec![("a pipe whose reader is closed", Stdio::from(writer))];
+    if let Ok(full) = std::fs::OpenOptions::new().write(true).open("/dev/full") {
+        sinks.push(("/dev/full", Stdio::from(full)));
+    }
+    sinks
+}
+
+/// A node whose every line fails to write goes on serving (T-389): a failed
+/// write of `eprintln!` panics, and the release build aborts on a panic, so
+/// such a node ended at its first line ("online").
+#[test]
+fn a_node_whose_stderr_fails_goes_on_serving() {
+    let session = Session::start("stderr");
+    let cell = match Cell::fake_relay_mode(&session, "normal", "the stand-in relay") {
+        Ok(cell) => cell,
+        Err((_, why)) => {
+            eprintln!("did not run: {why}");
+            return;
+        }
+    };
+    let at = |flag: &str| cell.args.iter().position(|a| a == flag).map(|i| cell.args[i + 1].clone()).unwrap();
+    let (relay, ca) = (at("--relay-host"), at("--ca-file"));
+    let pins = ["--relay-addr".to_string(), "relay-a.test=127.0.0.1".to_string()];
+    let command = |args: &[String]| session.stand_in(args, &ca);
+    let mut args = vec!["relay".to_string(), "pair".into(), "lab".into(), "--relay-host".into(), relay];
+    args.extend(pins.iter().cloned());
+    let out = command(&args).stdin(Stdio::null()).output().unwrap();
+    assert!(out.status.success(), "podssh relay pair: {}", String::from_utf8_lossy(&out.stderr));
+    let mut login = vec!["ssh".to_string()];
+    login.extend(session.common());
+    login.extend(pins.iter().cloned());
+    login.extend(["node://tester@lab".to_string(), "greet".into()]);
+    for (sink_name, sink) in failing_sinks() {
+        let mut args = vec!["node".to_string(), "lab".into(), format!("127.0.0.1:{}", session.port)];
+        args.extend(pins.iter().cloned());
+        let mut node = command(&args).stdin(Stdio::null()).stdout(Stdio::null()).stderr(sink).spawn().unwrap();
+        struct Kill<'a>(&'a mut std::process::Child);
+        impl Drop for Kill<'_> {
+            fn drop(&mut self) {
+                let _ = self.0.kill();
+                let _ = self.0.wait();
+            }
+        }
+        let node = Kill(&mut node);
+        // Two logins: the first once the node is online, the second after
+        // the lines of the first session.
+        for nth in 1..=2 {
+            let deadline = std::time::Instant::now() + std::time::Duration::from_secs(40);
+            loop {
+                if let Some(status) = node.0.try_wait().unwrap() {
+                    panic!("with stderr on {sink_name}, the node ended before login {nth}: {status:?}");
+                }
+                let out = command(&login).stdin(Stdio::null()).output().unwrap();
+                if out.status.code() == Some(0) {
+                    assert_eq!(String::from_utf8_lossy(&out.stdout), ssh_harness::GREETING);
+                    break;
+                }
+                assert!(
+                    std::time::Instant::now() < deadline,
+                    "with stderr on {sink_name}, login {nth} did not pass within 40 s: {}",
+                    String::from_utf8_lossy(&out.stderr)
+                );
+                std::thread::sleep(std::time::Duration::from_millis(500));
+            }
+        }
+        assert!(node.0.try_wait().unwrap().is_none(), "with stderr on {sink_name}, the node ended after two logins");
+    }
+}

@@ -166,7 +166,7 @@ async fn keep_listening(
             let (mut clients, mut failed) = (0u64, 0u32);
             let mut say = |line: &str| {
                 if !quiet {
-                    eprintln!("podssh pipe: {line}");
+                    podssh_ssh::err_line!("podssh pipe: {line}");
                 }
             };
             loop {
@@ -180,7 +180,7 @@ async fn keep_listening(
                         }
                         Err(e) => {
                             failed += 1;
-                            eprintln!("podssh pipe: an accept failed: {e}");
+                            podssh_ssh::err_line!("podssh pipe: an accept failed: {e}");
                             if failed >= FAILED_ACCEPTS {
                                 return EX_UNAVAILABLE;
                             }

@@ -243,7 +243,7 @@ pub fn node(label: &str, key: file::Key, allow: Option<PathBuf>, err: &mut dyn W
 /// stderr under `label`.
 pub fn node_end(label: &str, identity: Identity, admit: Arc<ends::Admit>) -> ends::Node {
     let shown = label.to_string();
-    let say = Arc::new(move |line: String| eprintln!("podssh node: {shown}: {line}"));
+    let say = Arc::new(move |line: String| podssh_ssh::err_line!("podssh node: {shown}: {line}"));
     ends::Node { identity: Arc::new(identity), admit, say }
 }
 

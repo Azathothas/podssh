@@ -84,14 +84,14 @@ pub(super) async fn run<W: AsyncWrite + Unpin>(
     let node = ends::Node {
         identity: Arc::new(key.identity),
         admit: crate::channel::admit_of(allow),
-        say: Arc::new(move |line: String| eprintln!("podssh chat: {shown}: {line}")),
+        say: Arc::new(move |line: String| podssh_ssh::err_line!("podssh chat: {shown}: {line}")),
     };
     let (door, mut peers) = Door::new();
     let layer = crate::layered::settings();
     let rejoin = layer.resume_deadline;
     let handler = Arc::new(Layered::new(E2e::new(door.clone(), node), layer, reverse::layered::NODE_BUDGET));
     let shown = label.clone();
-    let say = move |line: String| eprintln!("podssh chat: {shown}: {line}");
+    let say = move |line: String| podssh_ssh::err_line!("podssh chat: {shown}: {line}");
     let proxy = ProxyChoice::FromEnvironment;
     let mut config = NodeConfig {
         pair,
@@ -194,7 +194,7 @@ pub(super) async fn flipped(mut flag: watch::Receiver<bool>) {
 
 /// Another peer, while one talks: told that the chat is busy, then its end.
 pub(super) fn busy(mut stream: DuplexStream, label: &str) {
-    eprintln!("podssh chat: {label}: another peer came, and was told that the chat is busy");
+    podssh_ssh::err_line!("podssh chat: {label}: another peer came, and was told that the chat is busy");
     tokio::spawn(async move {
         let _ = stream.write_all(&Record::Busy.encode()).await;
         let _ = stream.shutdown().await;

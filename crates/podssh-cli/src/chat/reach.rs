@@ -46,7 +46,7 @@ pub(super) fn prepare(label: String, ask: &Ask, args: &ChatArgs) -> Result<Ready
     crate::pairs::online()?;
     let trust = crate::pairs::trust(args.ca_file.as_deref());
     let shown = label.clone();
-    let say = move |line: String| eprintln!("podssh chat: {shown}: {line}");
+    let say = move |line: String| podssh_ssh::err_line!("podssh chat: {shown}: {line}");
     let channel = ask.operator(Expect::Pinned(label.clone()), &say).map_err(Refusal::config)?;
     let Some(Operator { identity, expect, .. }) = channel else {
         return Err(Refusal::usage("chat always runs the end-to-end channel"));
@@ -93,11 +93,11 @@ pub(super) async fn run<W: AsyncWrite + Unpin>(
         let shown = label.clone();
         let say = move |line: Line| {
             if let Line::Always(text) = line {
-                eprintln!("podssh chat: {shown}: {text}");
+                podssh_ssh::err_line!("podssh chat: {shown}: {text}");
             }
         };
         let shown = label.clone();
-        let pin_say = move |line: String| eprintln!("podssh chat: {shown}: {line}");
+        let pin_say = move |line: String| podssh_ssh::err_line!("podssh chat: {shown}: {line}");
         let carried =
             crate::layered::carry_through(&config, link, first, app, Some(part.expires_ms), &say, channel, pin_say);
         let conversation = converse_until(chat, lines, out, opts.clone(), until.wait());

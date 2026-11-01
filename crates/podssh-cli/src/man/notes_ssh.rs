@@ -318,7 +318,10 @@ pub const SSH: &[&str] = &[
      run. The logins after the first ask nothing (as BatchMode=yes); a key that a passphrase opened \
      and a password that the server took are kept for the run. Keys typed meanwhile go to the \
      session after the attach. With a command, -W, -s, -T, node:// or iroh:, --persist is refused \
-     (exit 64).",
+     (exit 64). --persist-forever lifts the limit, for a tunnel that must not end: podssh connects \
+     again for as long as it takes, about 30 s apart at most, and a first connection that failed is a loss \
+     too; it says each of the first 10 attempts, then one in 10. A refused host key or login still \
+     ends the run. Without --persist it is refused (exit 64).",
     "--upgrade logs in as each run does, then asks the server for podssh --version. When a podssh \
      answers, it runs a temporary podssh node there in the same SSH session, with this client's key \
      (client.key in the cache, or --client-key): a node in front of the sshd of that session, with a pair \

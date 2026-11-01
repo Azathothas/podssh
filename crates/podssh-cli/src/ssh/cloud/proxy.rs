@@ -107,7 +107,7 @@ async fn pipe(road: &Road, trust: &Trust, err: &mut dyn Write) -> i32 {
             // A lost link and its new one, as on podssh ssh; the rest is -v's.
             let say: Say = Arc::new(move |line: Line| {
                 if let Line::Info(text) = line {
-                    eprintln!("podssh: {said}: {text}");
+                    podssh_ssh::err_line!("podssh: {said}: {text}");
                 }
             });
             match carry::open(iap::dial(target, Arc::new(tokens), trust), say).await {
@@ -158,7 +158,7 @@ async fn pipe(road: &Road, trust: &Trust, err: &mut dyn Write) -> i32 {
         // WARP's tunnel (T-352): the stream's end is the end of the pipe,
         // and a lost tunnel ends its read with the tunnel's words.
         Road::Warp(target) => {
-            let say = |line: &str| eprintln!("podssh: {line}");
+            let say = |line: &str| podssh_ssh::err_line!("podssh: {line}");
             let quiet = |_: &str| {};
             match super::warp::open(target, trust, &say, &quiet).await {
                 Ok(stream) => {
@@ -173,7 +173,7 @@ async fn pipe(road: &Road, trust: &Trust, err: &mut dyn Write) -> i32 {
         }
         // Tor (T-353): the stream's end is the end of the pipe.
         Road::Tor(target) => {
-            let say = |line: &str| eprintln!("podssh: {line}");
+            let say = |line: &str| podssh_ssh::err_line!("podssh: {line}");
             let quiet = |_: &str| {};
             match super::tor::open(target, trust, &say, &quiet).await {
                 Ok(stream) => {

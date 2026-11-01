@@ -428,6 +428,15 @@ scripts. The facts about OpenSSH on this page were measured with OpenSSH
   nothing (as `BatchMode=yes`), unless `SSH_ASKPASS_REQUIRE=force` names a
   program of `SSH_ASKPASS` to ask. With `-N` and no forward, or with
   `--persist-name`, it is a usage error (64).
+- **`--persist-forever` never gives up** (T-391), for a tunnel that a
+  server must keep, as a reverse tunnel that is the only way into it: with
+  `--persist`, podssh connects again after each loss for as long as it
+  takes, after the relay's jittered wait, about 30 s at most, as a node retries
+  its relay; a first connection that failed (the relay or the network not
+  up, as at a boot) is a loss too, after its lines. It says each of
+  the first 10 attempts and then one in 10. A refused host key or login
+  still ends the run (255), as does Ctrl-C during the wait. Without
+  `--persist`, it is a usage error (64).
 - **`--attach NAME DEST` joins a shell that the far end keeps** (T-158),
   from a new podssh process or from another host; `--attach DEST` with no
   other word lists the kept shells, one on each line, and exits 0. Only a

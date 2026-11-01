@@ -324,7 +324,7 @@ async fn serve(ready: Ready, err: &mut dyn Write) -> i32 {
     // As the operator's lines, written from inside the node as they come.
     // The line first, on the caller's stderr; then a detached node goes on.
     let say = |line: String| {
-        eprintln!("podssh node: {label}: {line}");
+        podssh_ssh::err_line!("podssh node: {label}: {line}");
         crate::detach::on_line("node", &line);
     };
     let mut config = NodeConfig {
@@ -346,7 +346,7 @@ async fn serve(ready: Ready, err: &mut dyn Write) -> i32 {
     if udp {
         let flow_label = label.clone();
         let flow_say: Arc<dyn Fn(String) + Send + Sync> =
-            Arc::new(move |line: String| eprintln!("podssh node: {flow_label}: {line}"));
+            Arc::new(move |line: String| podssh_ssh::err_line!("podssh node: {flow_label}: {line}"));
         let handler = crate::node_udp::handler(first, DIAL_LIMIT, flow_say);
         let exit = with_handler(&mut config, handler, plain, channel).await;
         return finish(&label, exit, err);

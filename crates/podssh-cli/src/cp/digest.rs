@@ -185,7 +185,7 @@ mod tests {
     #[tokio::test]
     async fn the_digest_by_reading_stops_one_byte_past_the_copy() {
         let Some(server) = sftp_server() else {
-            eprintln!("did not run: no sftp-server here; PODSSH_TEST_SFTP_SERVER names one");
+            podssh_ssh::err_line!("did not run: no sftp-server here; PODSSH_TEST_SFTP_SERVER names one");
             return;
         };
         let dir = std::env::temp_dir().join(format!("podssh-digest-{:016x}", rand::random::<u64>()));

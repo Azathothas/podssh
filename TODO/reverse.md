@@ -750,7 +750,7 @@ So a local TCP TARGET exists only where the host allows it; `podssh serve` (M5) 
    FILE, and prints only the label and the expiry. `podssh relay revoke NAME` stops the pair and deletes the
    local copies. `podssh relay status NAME` gives presence; agree on the form with T-058, whose `relay status`
    has no NAME.
-4. Exit codes as `podssh proxy` (`docs/cli.md:3008`): 64 usage; 69 the relay or TARGET cannot be reached; 77 a
+4. Exit codes as `podssh proxy` (`docs/cli.md:3017`): 64 usage; 69 the relay or TARGET cannot be reached; 77 a
    refused pair (`403`); 78 no usable pair; 0 after a stop by a signal. Add the rows to
    `crates/podssh-cli/src/man/facts.rs:444`.
 5. `doctor`: one line for each stored pair, with its expiry and its presence, as in
@@ -882,13 +882,13 @@ Measured on `3ee70dc`, offline: `podssh operator mynode` gives exit 70;
 `PODSSH_OFFLINE`); `podssh ssh -T node://lab true` gives `"//lab" is not a port` and exit 64.
 
 Read: `parse_hop` strips `ssh://` and reads `host:PORT` (`crates/podssh-cli/src/ssh/hop.rs:30-78`).
-`Transport` is `Relay` or `Direct` (`crates/podssh-cli/src/ssh/resolve.rs:23-66`, chosen at `:295-371`).
+`Transport` is `Relay` or `Direct` (`crates/podssh-cli/src/ssh/resolve.rs:23-66`, chosen at `:297-373`).
 `connect_and_run` gives `relay_stream::spawn` to russh (`crates/podssh-cli/src/ssh/mod.rs` lines 73-116 at `6483366`), and
 `relay_stream` closes with 1002 on a text frame (`crates/podssh-ssh/src/relay_stream.rs:259-265`); the
 operator leg receives text frames (`docs/relay.md:340-343`). A host key is recorded under the target
 host, never the relay's name (`SECURITY.md:121-131`); `HostKeyAlias` exists
-(`crates/podssh-cli/src/ssh/resolve.rs:414`). `podssh ssh` uses the exit codes of OpenSSH, and
-`podssh proxy` sysexits (`docs/cli.md:3004-3008`).
+(`crates/podssh-cli/src/ssh/resolve.rs:416`). `podssh ssh` uses the exit codes of OpenSSH, and
+`podssh proxy` sysexits (`docs/cli.md:3013-3017`).
 
 ## Approach
 
@@ -903,7 +903,7 @@ host, never the relay's name (`SECURITY.md:121-131`); `HostKeyAlias` exists
 4. Host keys: record and check the node's key under the name `node://NAME`, which no DNS name can be;
    `-o HostKeyAlias` still wins.
 5. Refuse by name a node as a `-J` hop, and `-W` through a node; record them for later.
-6. Flags: `--pair-file FILE` for `operator` and `ssh` (`crates/podssh-cli/src/flags.rs:112-288`,
+6. Flags: `--pair-file FILE` for `operator` and `ssh` (`crates/podssh-cli/src/flags.rs:112-290`,
    lines 418-419 at `3cbf215`). Update the manual's examples and notes, `docs/cli.md` (lines 62-75 at `3cbf215`) and `docs/reverse.md`.
 
 ## Decision

@@ -54,6 +54,7 @@ pub mod keys;
 pub mod known_hosts;
 pub mod local;
 // `LocalCommand` after the login (T-191).
+pub mod line;
 pub mod local_command;
 pub mod log;
 pub mod mux;

@@ -245,7 +245,7 @@ async fn serve(ready: Ready, err: &mut dyn Write) -> i32 {
     let say: derp::Say = {
         let label = label.clone();
         Arc::new(move |line: String| {
-            eprintln!("podssh node: {label}: {line}");
+            podssh_ssh::err_line!("podssh node: {label}: {line}");
             crate::detach::on_line("node", &line);
         })
     };

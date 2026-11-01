@@ -106,6 +106,12 @@ service manager (UNVERIFIED).
   Ctrl-C before ready reaches it too, and freed before the line of ready;
   with no console window, `CREATE_NO_WINDOW` for each console program that
   it starts, as Windows would open a window for it (T-383).
+- A line that fails to write is dropped, never the run's end: after ready
+  stderr is the log, and its disk may fill or, under systemd, the journal
+  go away. `eprintln!` panics on such a failure and the release aborts on a
+  panic, so podssh's lines go through `podssh_ssh::err_line!`, and
+  `scripts/check-repo.py` refuses the print macros of std in the sources
+  (T-389, from the study of a daemonizer, d-mon, on 2026-11-01).
 - Never: another program (`nohup`, `setsid(1)`, `systemd-run`, `tmux`); a
   CI's tracking variable removed (`RUNNER_TRACKING_ID`, `BUILD_ID`,
   `JENKINS_NODE_COOKIE`): the user asked to outlive the caller, not the job,
@@ -115,6 +121,10 @@ service manager (UNVERIFIED).
 ## 5. Tests
 
 Each fails on the defect planted against it:
+
+- a node whose stderr fails (a pipe with no reader, `/dev/full`) goes on
+  serving two logins (`tests/node_detach.rs`; an `eprintln!` in the node's
+  lines);
 
 - the caller sees the end of its pipes at once, an extra descriptor
   included (the close of descriptors from 3 up removed);

@@ -46,7 +46,7 @@ pub fn run_operator(args: &OperatorArgs, err: &mut dyn Write) -> i32 {
     };
     // The channel of T-088: this operator's key, and the node's by the pins
     // of the label or by --node-key.
-    let say_line = |line: String| eprintln!("podssh operator: {label}: {line}");
+    let say_line = |line: String| podssh_ssh::err_line!("podssh operator: {label}: {line}");
     let channel = match ask.operator(crate::channel::Expect::Pinned(label.clone()), &say_line) {
         Ok(channel) => channel,
         Err(why) => return Refusal::config(why).report("operator", err),
@@ -74,7 +74,7 @@ pub fn run_operator(args: &OperatorArgs, err: &mut dyn Write) -> i32 {
     // stdout carries the session's bytes alone: each line goes to stderr.
     let say = |line: Line| {
         if let Line::Always(text) = line {
-            eprintln!("podssh operator: {label}: {text}");
+            podssh_ssh::err_line!("podssh operator: {label}: {text}");
         }
     };
     // stdin and stdout <-> the resumable layer <-> the operator's leg, a new
@@ -83,7 +83,7 @@ pub fn run_operator(args: &OperatorArgs, err: &mut dyn Write) -> i32 {
         let (link, leg_end) = tokio::io::duplex(PIPE);
         let first = operator::start(&config, leg_end).await?;
         let shown = label.clone();
-        let pin_say = move |line: String| eprintln!("podssh operator: {shown}: {line}");
+        let pin_say = move |line: String| podssh_ssh::err_line!("podssh operator: {shown}: {line}");
         let carried =
             crate::layered::carry_through(&config, link, first, io, Some(part.expires_ms), &say, channel, pin_say);
         Ok::<_, ConnectError>(carried.await)

@@ -205,7 +205,7 @@ fn entry(body: &[u8], constrained: bool) -> Option<Entry> {
 async fn sign(key: SkKey, public: PublicKey, data: Vec<u8>) -> Zeroizing<Vec<u8>> {
     let shown = format!("{} {}", crate::known_hosts::key_type(&public), crate::known_hosts::fingerprint(&public));
     let signed = tokio::task::spawn_blocking(move || {
-        let say = |line: &str| eprintln!("podssh agent: {line}");
+        let say = |line: &str| crate::err_line!("podssh agent: {line}");
         if key.touch() {
             say(&format!("Confirm user presence for key {shown}"));
         }
@@ -219,7 +219,7 @@ async fn sign(key: SkKey, public: PublicKey, data: Vec<u8>) -> Zeroizing<Vec<u8>
             out
         }
         Ok(Err(why)) => {
-            eprintln!("podssh agent: the security key did not sign: {why}");
+            crate::err_line!("podssh agent: the security key did not sign: {why}");
             reply(FAILURE)
         }
         Err(_) => reply(FAILURE),

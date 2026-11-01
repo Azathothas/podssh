@@ -48,6 +48,10 @@ pub enum Kept {
 /// connects, and set its session: `tmux new-session -A -s NAME` with a pty,
 /// as `-tt` asks for one; with `-N`, none.
 pub fn check(args: &SshArgs, resolved: &mut Resolved) -> Result<(), Refusal> {
+    if args.persist_forever && !args.persist {
+        return Err("--persist-forever lifts the limit of --persist; give --persist too".into());
+    }
+    resolved.persist_forever = args.persist_forever;
     let name = match (args.persist, args.persist_name.as_deref()) {
         (false, None) => return Ok(()),
         (false, Some(_)) => return Err("--persist-name names the tmux session of --persist; give --persist too".into()),
@@ -151,21 +155,23 @@ async fn keep(resolved: &Resolved, kept: &Kept, log: &Arc<Log>) -> i32 {
         };
         let (since, tries) = &mut round;
         let spent = since.elapsed();
-        if *tries >= ATTEMPTS || spent >= WITHIN {
+        let Some(wait) = next_wait(resolved.persist_forever, *tries, spent) else {
             log.error(&format!("{why}; gave up after {tries} new connections in {} s", spent.as_secs()));
             return EXIT_FAILURE;
+        };
+        *tries = tries.saturating_add(1);
+        if let Some(of) = attempt_words(resolved.persist_forever, *tries) {
+            log.info(&format!(
+                "{why}; connecting again in {:.1} s (attempt {tries}{of}; Ctrl-C stops)",
+                wait.as_secs_f64()
+            ));
         }
-        *tries += 1;
-        let wait = podssh_relay::open::backoff(*tries).min(WITHIN - spent);
-        log.info(&format!(
-            "{why}; connecting again in {:.1} s (attempt {tries} of {ATTEMPTS}; Ctrl-C stops)",
-            wait.as_secs_f64()
-        ));
         // The input belongs to the session from the first attach on: a
         // prompt that read the terminal would race the task that reads it.
         // No person waits at forwards (T-042): the program of SSH_ASKPASS
-        // alone may ask there, with SSH_ASKPASS_REQUIRE=force.
-        if matches!(kept, Kept::Tmux(_)) || !podssh_ssh::prompt::askpass_only() {
+        // alone may ask there, with SSH_ASKPASS_REQUIRE=force. Before the
+        // first login (`--persist-forever`) its prompts may still come.
+        if attached && (matches!(kept, Kept::Tmux(_)) || !podssh_ssh::prompt::askpass_only()) {
             opts.set_batch_mode();
         }
         if *kept == Kept::Forwards {
@@ -187,9 +193,35 @@ async fn keep(resolved: &Resolved, kept: &Kept, log: &Arc<Log>) -> i32 {
     }
 }
 
+/// The wait before attempt `tries + 1`, `spent` after the loss; `None`:
+/// give up. With `forever`, never: the relay's backoff, 30 s at most, as a
+/// node retries its relay (T-391); a server that only this tunnel reaches
+/// is otherwise locked out after an outage of 5 minutes.
+pub fn next_wait(forever: bool, tries: u32, spent: Duration) -> Option<Duration> {
+    let next = tries.saturating_add(1);
+    if forever {
+        return Some(podssh_relay::open::backoff(next));
+    }
+    if tries >= ATTEMPTS || spent >= WITHIN {
+        return None;
+    }
+    Some(podssh_relay::open::backoff(next).min(WITHIN - spent))
+}
+
+/// The words after the number of an attempt, or `None` for an attempt that
+/// is not said: with no limit, each of the first 10 and then one in 10, so
+/// that a long outage does not fill the log.
+pub fn attempt_words(forever: bool, tries: u32) -> Option<String> {
+    match forever {
+        false => Some(format!(" of {ATTEMPTS}")),
+        true if tries <= ATTEMPTS || tries.is_multiple_of(10) => Some(", with no limit".into()),
+        true => None,
+    }
+}
+
 /// One connection: the road, then the attempt. Before the first attach, a
 /// failure is final, with the lines that `podssh ssh` gives without
-/// `--persist`.
+/// `--persist`; with `--persist-forever`, those lines, and it is a loss.
 async fn one(
     resolved: &Resolved,
     opts: &Options,
@@ -205,6 +237,10 @@ async fn one(
         Err(failure) if first => {
             for line in &failure.lines {
                 log.error(line);
+            }
+            if resolved.persist_forever {
+                let why = failure.lines.first().cloned().unwrap_or_else(|| format!("could not connect to {target}"));
+                return Attempt::Lost { attached: false, why };
             }
             return Attempt::Failed;
         }
@@ -224,6 +260,9 @@ async fn one(
         Attempt::Lost { attached: false, why } if first => {
             for line in podssh_ssh::run::failure_lines(&why, relay.and_then(|r| r.get()).as_ref(), &target) {
                 log.error(&line);
+            }
+            if resolved.persist_forever {
+                return Attempt::Lost { attached: false, why };
             }
             Attempt::Failed
         }
@@ -257,5 +296,36 @@ impl Interrupt {
             }
         }
         std::future::pending::<()>().await
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn the_limit_gives_up_after_ten_attempts_or_five_minutes() {
+        assert!(next_wait(false, 9, Duration::from_secs(10)).is_some());
+        assert_eq!(next_wait(false, ATTEMPTS, Duration::from_secs(10)), None);
+        assert_eq!(next_wait(false, 1, WITHIN), None);
+        let last = next_wait(false, 1, WITHIN - Duration::from_millis(100)).unwrap();
+        assert!(last <= Duration::from_millis(100), "the wait ends within the limit: {last:?}");
+    }
+
+    #[test]
+    fn forever_outlasts_the_limit_and_waits_at_most_the_relays_backoff() {
+        for tries in [ATTEMPTS, ATTEMPTS + 1, 1000, u32::MAX] {
+            for spent in [WITHIN, Duration::from_secs(86_400)] {
+                let wait = next_wait(true, tries, spent).expect("forever never gives up");
+                assert!(wait <= Duration::from_secs(45), "{tries} {spent:?}: {wait:?}");
+            }
+        }
+    }
+
+    #[test]
+    fn forever_says_the_first_ten_attempts_then_one_in_ten() {
+        assert_eq!(attempt_words(false, 3).as_deref(), Some(" of 10"));
+        let said: Vec<u32> = (1..=40).filter(|&n| attempt_words(true, n).is_some()).collect();
+        assert_eq!(said, [1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 20, 30, 40]);
     }
 }

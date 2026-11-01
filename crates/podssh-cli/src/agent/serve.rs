@@ -59,7 +59,7 @@ pub async fn serve(args: &AgentArgs, out: &mut dyn Write, err: &mut dyn Write) -
     let connections = Box::pin(futures_util::stream::unfold(listener, move |mut listener| {
         let store = store.clone();
         async move {
-            let mut said = |line: &str| eprintln!("podssh agent: {line}");
+            let mut said = |line: &str| podssh_ssh::err_line!("podssh agent: {line}");
             let next = listener.accept(&mut said).await.map(|end| front(end, store));
             Some((next, listener))
         }
@@ -173,7 +173,9 @@ struct Keys;
 
 impl Agent for Keys {
     fn confirm(self, _key: Arc<PrivateKey>) -> Box<dyn Future<Output = (Self, bool)> + Unpin + Send> {
-        eprintln!("podssh agent: refused a key added for a confirmation of each use (ssh-add -c): nobody can confirm");
+        podssh_ssh::err_line!(
+            "podssh agent: refused a key added for a confirmation of each use (ssh-add -c): nobody can confirm"
+        );
         Box::new(std::future::ready((self, false)))
     }
 }

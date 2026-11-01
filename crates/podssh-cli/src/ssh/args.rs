@@ -77,6 +77,8 @@ pub struct SshArgs {
     pub persist: bool,
     /// The tmux session of `--persist`.
     pub persist_name: Option<String>,
+    /// `--persist-forever`: connect again with no limit (T-391).
+    pub persist_forever: bool,
     /// `--attach NAME`: the kept shell to join (T-158).
     pub attach: Option<String>,
     /// `--attach DEST` with no other word: list the kept shells there; set
@@ -278,6 +280,7 @@ impl SshArgs {
             detach: flag("detach"),
             persist: flag("persist"),
             persist_name: one("persist-name"),
+            persist_forever: flag("persist-forever"),
             attach: one("attach"),
             attach_list: false,
             take: flag("take"),

@@ -156,17 +156,18 @@ async fn connect(ready: &Ready) -> Result<Box<dyn Bytes>, Unreached> {
             rounds: 1,
             failover: ready.failover,
         };
-        let opened = podssh_relay::open(&request, &mut |note: &str| eprintln!("podssh chat: {target}: {note}"))
-            .await
-            .map_err(|failure| {
-            let code = crate::proxy::sysexit(failure.last());
-            let why = failure.lines(target).join("; ");
-            if code == EX_UNAVAILABLE {
-                Unreached::Again(why)
-            } else {
-                Unreached::Final(code, why)
-            }
-        })?;
+        let opened =
+            podssh_relay::open(&request, &mut |note: &str| podssh_ssh::err_line!("podssh chat: {target}: {note}"))
+                .await
+                .map_err(|failure| {
+                    let code = crate::proxy::sysexit(failure.last());
+                    let why = failure.lines(target).join("; ");
+                    if code == EX_UNAVAILABLE {
+                        Unreached::Again(why)
+                    } else {
+                        Unreached::Final(code, why)
+                    }
+                })?;
         Box::new(podssh_ssh::relay_stream::spawn(opened.session).0)
     };
     if !ready.plan.tls {

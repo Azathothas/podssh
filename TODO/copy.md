@@ -183,12 +183,12 @@ leave a short or wrong file under the destination's name.
 ## Approach
 
 1. `CpArgs` in a new module crates/podssh-cli/src/cp/, read as `SshArgs` is
-   (`crates/podssh-cli/src/ssh/args.rs:187-308`). An operand is remote when a
+   (`crates/podssh-cli/src/ssh/args.rs:189-311`). An operand is remote when a
    `:` comes before any `/`; on Windows, `C:\x` is local. Fewer than two
    operands, or none remote, exit 64.
 2. Build an `SshArgs` (host, `-P` as the port, `-i`, `-o`) for
    `crate::ssh::resolve::resolve`
-   (`crates/podssh-cli/src/ssh/resolve.rs:118-494`), so `-F` follows the rule
+   (`crates/podssh-cli/src/ssh/resolve.rs:120-497`), so `-F` follows the rule
    of `ssh`. Add `-o`, `-J`, `-v`, `-q` and the relay rows of `ssh`
    (`--relay-host`, `--relay-addr`, `--ca-file`, `--direct`) to `CP_FLAGS`.
 3. Split `crates/podssh-cli/src/ssh/mod.rs` lines 73-151 at `6483366` so that the relay (with
@@ -755,7 +755,7 @@ relay's limits, and logs in as the first session did".
 
 **Source:** ROADMAP M5 ("Across hosts, `mv` is copy, verify, delete; podssh
 says first that it is not atomic"); the description of `mv` in
-`crates/podssh-cli/src/flags.rs:389-390`.
+`crates/podssh-cli/src/flags.rs:391-392`.
 **Category:** feature
 **Milestone:** M5
 **Priority:** P2
@@ -773,7 +773,7 @@ user must know this before the move starts.
 
 - Measured on `3ee70dc`, offline: `podssh mv --timeout 30s a b` exits 70
   (`'mv' is not implemented yet; nothing was done.`).
-- Read: `mv` shares `CP_FLAGS` (`crates/podssh-cli/src/flags.rs:389-390`),
+- Read: `mv` shares `CP_FLAGS` (`crates/podssh-cli/src/flags.rs:391-392`),
   so the operands and options of T-134 apply.
 - Measured (T-133's offline probe): `posix-rename@openssh.com` replaces in
   one step; `SSH_FXP_RENAME` refuses an existing target.
@@ -958,7 +958,7 @@ Where podssh must replace them, OpenSSH's own `scp` and `sftp` cannot run
 
 Recommendation: `scp` and `sftp` get no `--timeout` row, as in OpenSSH, so
 the gate of `crates/podssh-cli/src/dispatch.rs:279-297` skips them; T-133's
-limits keep each wait finite. Usage errors stay 64 (`docs/cli.md:2998-3001`)
+limits keep each wait finite. Usage errors stay 64 (`docs/cli.md:3007-3010`)
 where OpenSSH gives 1; a script that tests for "not zero" works with both.
 `--timeout` required with no terminal, as for `cp`, lost: each script that
 runs `scp` in a pipe would exit 64 under `podssh scp`.
@@ -2010,7 +2010,7 @@ host, and the copy back then destroys that change with no word.
 
 ## Approach
 
-1. A new verb `edit` in `VERBS` (`crates/podssh-cli/src/flags.rs:362-421`),
+1. A new verb `edit` in `VERBS` (`crates/podssh-cli/src/flags.rs:364-423`),
    with the connection flags that T-134 gives `cp`. It needs a terminal on
    stdin and stdout; else exit 64.
 2. Download with T-134 into a new directory of mode 0700 in the cache

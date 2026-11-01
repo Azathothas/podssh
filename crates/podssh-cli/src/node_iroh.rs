@@ -296,7 +296,7 @@ where
     let _ = writeln!(err, "podssh {verb}: {label}: {}", who_may(allow.as_deref()));
     let say = {
         let label = label.clone();
-        move |line: String| eprintln!("podssh {verb}: {label}: {line}")
+        move |line: String| podssh_ssh::err_line!("podssh {verb}: {label}: {line}")
     };
     // The channel of T-088 on both roads, with this node's key: a session
     // made on one road may resume on the other, so each session has it. On

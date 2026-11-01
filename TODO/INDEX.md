@@ -62,15 +62,15 @@ repository and CI).
 
 ## Counts
 
-**402 entries: 33 open, 2 partial, 31 blocked, 336 done.**
+**402 entries: 31 open, 2 partial, 31 blocked, 338 done.**
 
 | Priority | open | partial | blocked | done | total |
 | --- | --- | --- | --- | --- | --- |
 | P0 | 0 | 0 | 0 | 1 | 1 |
-| P1 | 5 | 1 | 0 | 31 | 37 |
+| P1 | 3 | 1 | 0 | 33 | 37 |
 | P2 | 9 | 0 | 21 | 168 | 198 |
 | P3 | 19 | 1 | 10 | 136 | 166 |
-| **All** | 33 | 2 | 31 | 336 | 402 |
+| **All** | 31 | 2 | 31 | 338 | 402 |
 
 ## Entries
 
@@ -460,9 +460,9 @@ repository and CI).
 | [T-386](repo.md) | P2 | M | none | chore | done | Dependabot's updates of 2026-11-01: the digest 0.11 line, rand 0.10 and Tailscale 1.104 |
 | [T-387](resume.md) | P1 | M | none | defect | done | A bulk session through a node loses its link each 35 s, and never moves |
 | [T-388](resume.md) | P1 | M | none | defect | done | A move through a node on the live relay ends the node's socket with 1003 |
-| [T-389](cli.md) | P1 | S | none | defect | open | A failed write of a line on stderr aborts podssh: a detached node ends when its log's disk is full |
+| [T-389](cli.md) | P1 | S | none | defect | done | A failed write of a line on stderr aborts podssh: a detached node ends when its log's disk is full |
 | [T-390](cli.md) | P1 | L | none | feature | open | `--detach --restart`: a resident supervisor that starts the detached run again when it ends |
-| [T-391](ssh.md) | P1 | S | none | feature | open | `--persist` that never gives up, for a tunnel of `-N` |
+| [T-391](ssh.md) | P1 | S | none | feature | done | `--persist` that never gives up, for a tunnel of `-N` |
 | [T-392](cli.md) | P2 | M | none | feature | open | A lock for each detached run, with its list, its status and its stop |
 | [T-393](serve.md) | P1 | M | none | feature | open | `--install` that always restarts: systemd without a start limit, a cron watchdog, a LaunchAgent; and `ssh -N -R --persist` |
 | [T-394](cli.md) | P2 | M | none | feature | open | A heartbeat of the detached run, which its supervisor watches |

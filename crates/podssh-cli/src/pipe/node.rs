@@ -48,7 +48,7 @@ pub async fn open(label: &str, args: &SshArgs, say: &mut dyn FnMut(&str)) -> Res
         Err(refusal) => return Err(refused(say, refusal)),
     };
     let trust = crate::pairs::trust(args.ca_file.as_deref());
-    let say_line = |line: String| eprintln!("podssh pipe: {shown}: {line}");
+    let say_line = |line: String| podssh_ssh::err_line!("podssh pipe: {shown}: {line}");
     let channel = match ask.operator(crate::channel::Expect::Pinned(label.to_string()), &say_line) {
         Ok(channel) => channel,
         Err(why) => return Err(refused(say, Refusal::config(why))),
@@ -82,11 +82,11 @@ pub async fn open(label: &str, args: &SshArgs, say: &mut dyn FnMut(&str)) -> Res
         // The pipe's own bytes are on stdout: each line goes to stderr.
         let say = |line: Line| {
             if let Line::Always(text) = line {
-                eprintln!("podssh pipe: {task_shown}: {text}");
+                podssh_ssh::err_line!("podssh pipe: {task_shown}: {text}");
             }
         };
         let pin_shown = task_shown.clone();
-        let pin_say = move |line: String| eprintln!("podssh pipe: {pin_shown}: {line}");
+        let pin_say = move |line: String| podssh_ssh::err_line!("podssh pipe: {pin_shown}: {line}");
         let carried =
             crate::layered::carry_through(&config, link, leg, theirs, Some(part.expires_ms), &say, channel, pin_say);
         Some(carried.await)
