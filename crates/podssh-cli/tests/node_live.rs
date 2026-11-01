@@ -13,7 +13,7 @@ use std::sync::mpsc::Receiver;
 use std::sync::Arc;
 use std::time::{Duration, Instant};
 
-use live_harness::{command, echo_server, lines_of, run, scratch, Cleanup, LIMIT};
+use live_harness::{command, echo_server, lines_of, on_the_binarys_stack, run, scratch, Cleanup, LIMIT};
 use podssh_cli::channel::{Expect, Operator};
 use podssh_relay::identity::{Identity, KeyName};
 use podssh_relay::relay::parse_relay;
@@ -65,38 +65,48 @@ fn node_command_serves_a_tcp_target() {
     let runtime = tokio::runtime::Builder::new_current_thread().enable_all().build().unwrap();
     // The node greets with the resumable layer (T-153): its client goes
     // between the reader and the operator's leg, as in `podssh operator`.
-    let (banner, carried) = runtime.block_on(async {
-        let (app, mut user) = tokio::io::duplex(64 * 1024);
-        let (link, leg_end) = tokio::io::duplex(64 * 1024);
-        let config = OperatorConfig {
-            relay: &relay,
-            name: &name,
-            connect_token: &token,
-            trust: &Trust::Default,
-            proxy: &ProxyChoice::FromEnvironment,
-            timeout: Duration::from_secs(30),
-            limits: OperatorLimits::default(),
-            wire: Wire::Tls,
-        };
-        let first = operator::start(&config, leg_end).await.expect("the operator's socket");
-        let read = async move {
-            let mut got = Vec::new();
-            let mut byte = [0u8; 1];
-            while !got.ends_with(b"\r\n") && got.len() < 256 {
-                if user.read_exact(&mut byte).await.is_err() {
-                    break;
+    let (banner, carried) = on_the_binarys_stack(|| {
+        runtime.block_on(async {
+            let (app, mut user) = tokio::io::duplex(64 * 1024);
+            let (link, leg_end) = tokio::io::duplex(64 * 1024);
+            let config = OperatorConfig {
+                relay: &relay,
+                name: &name,
+                connect_token: &token,
+                trust: &Trust::Default,
+                proxy: &ProxyChoice::FromEnvironment,
+                timeout: Duration::from_secs(30),
+                limits: OperatorLimits::default(),
+                wire: Wire::Tls,
+            };
+            let first = operator::start(&config, leg_end).await.expect("the operator's socket");
+            let read = async move {
+                let mut got = Vec::new();
+                let mut byte = [0u8; 1];
+                while !got.ends_with(b"\r\n") && got.len() < 256 {
+                    if user.read_exact(&mut byte).await.is_err() {
+                        break;
+                    }
+                    got.push(byte[0]);
                 }
-                got.push(byte[0]);
-            }
-            // The end of the input ends the session.
-            let _ = user.shutdown().await;
-            got
-        };
-        let say = |_: podssh_cli::layered::Line| {};
-        let carry =
-            podssh_cli::layered::carry_through(&config, link, first, app, None, &say, Some(channel), |_: String| {});
-        let (carried, banner) = tokio::join!(tokio::time::timeout(LIMIT, carry), read);
-        (banner, carried)
+                // The end of the input ends the session.
+                let _ = user.shutdown().await;
+                got
+            };
+            let say = |_: podssh_cli::layered::Line| {};
+            let carry = podssh_cli::layered::carry_through(
+                &config,
+                link,
+                first,
+                app,
+                None,
+                &say,
+                Some(channel),
+                |_: String| {},
+            );
+            let (carried, banner) = tokio::join!(tokio::time::timeout(LIMIT, carry), read);
+            (banner, carried)
+        })
     });
     let carried = carried.expect("the session in time");
     let outcome = carried.leg.expect("the leg's end");
@@ -265,42 +275,52 @@ fn an_idle_session_through_a_node_lives_10_minutes() {
     let token = part["connect_token"].as_str().unwrap().to_string();
     let notes = std::sync::Mutex::new(Vec::new());
     let runtime = tokio::runtime::Builder::new_multi_thread().worker_threads(2).enable_all().build().unwrap();
-    let carried = runtime.block_on(async {
-        let (app, mut user) = tokio::io::duplex(64 * 1024);
-        let (link, leg_end) = tokio::io::duplex(64 * 1024);
-        let config = OperatorConfig {
-            relay: &relay,
-            name: &name,
-            connect_token: &token,
-            trust: &Trust::Default,
-            proxy: &ProxyChoice::FromEnvironment,
-            timeout: Duration::from_secs(30),
-            limits: OperatorLimits::default(),
-            wire: Wire::Tls,
-        };
-        let first = operator::start(&config, leg_end).await.expect("the operator's socket");
-        let say = |line: podssh_cli::layered::Line| {
-            if let podssh_cli::layered::Line::Always(text) = line {
-                eprintln!("{text}");
-                notes.lock().unwrap().push(text);
-            }
-        };
-        let user_side = async move {
-            for word in [&b"before the wait\n"[..], &b"after the wait\n"[..]] {
-                user.write_all(word).await.unwrap();
-                let mut back = vec![0u8; word.len()];
-                tokio::time::timeout(LIMIT, user.read_exact(&mut back)).await.expect("the echo in time").unwrap();
-                assert_eq!(back, word);
-                if word.starts_with(b"before") {
-                    tokio::time::sleep(IDLE).await;
+    let carried = on_the_binarys_stack(|| {
+        runtime.block_on(async {
+            let (app, mut user) = tokio::io::duplex(64 * 1024);
+            let (link, leg_end) = tokio::io::duplex(64 * 1024);
+            let config = OperatorConfig {
+                relay: &relay,
+                name: &name,
+                connect_token: &token,
+                trust: &Trust::Default,
+                proxy: &ProxyChoice::FromEnvironment,
+                timeout: Duration::from_secs(30),
+                limits: OperatorLimits::default(),
+                wire: Wire::Tls,
+            };
+            let first = operator::start(&config, leg_end).await.expect("the operator's socket");
+            let say = |line: podssh_cli::layered::Line| {
+                if let podssh_cli::layered::Line::Always(text) = line {
+                    eprintln!("{text}");
+                    notes.lock().unwrap().push(text);
                 }
-            }
-            let _ = user.shutdown().await;
-        };
-        let carry =
-            podssh_cli::layered::carry_through(&config, link, first, app, None, &say, Some(channel), |_: String| {});
-        let (carried, ()) = tokio::join!(carry, user_side);
-        carried
+            };
+            let user_side = async move {
+                for word in [&b"before the wait\n"[..], &b"after the wait\n"[..]] {
+                    user.write_all(word).await.unwrap();
+                    let mut back = vec![0u8; word.len()];
+                    tokio::time::timeout(LIMIT, user.read_exact(&mut back)).await.expect("the echo in time").unwrap();
+                    assert_eq!(back, word);
+                    if word.starts_with(b"before") {
+                        tokio::time::sleep(IDLE).await;
+                    }
+                }
+                let _ = user.shutdown().await;
+            };
+            let carry = podssh_cli::layered::carry_through(
+                &config,
+                link,
+                first,
+                app,
+                None,
+                &say,
+                Some(channel),
+                |_: String| {},
+            );
+            let (carried, ()) = tokio::join!(carry, user_side);
+            carried
+        })
     });
     assert_eq!(carried.why, None);
     let notes = notes.lock().unwrap();
@@ -369,64 +389,74 @@ fn move_200mib_each_way_through_a_node() {
     let lines_said = std::sync::Mutex::new(Vec::new());
     let started = Instant::now();
     let runtime = tokio::runtime::Builder::new_multi_thread().worker_threads(2).enable_all().build().unwrap();
-    let (carried, sent, received) = runtime.block_on(async {
-        let (app, user) = tokio::io::duplex(256 * 1024);
-        let (link, leg_end) = tokio::io::duplex(256 * 1024);
-        let config = OperatorConfig {
-            relay: &relay,
-            name: &name,
-            connect_token: &token,
-            trust: &Trust::Default,
-            proxy: &ProxyChoice::FromEnvironment,
-            timeout: Duration::from_secs(30),
-            limits: OperatorLimits::default(),
-            wire: Wire::Tls,
-        };
-        let first = operator::start(&config, leg_end).await.expect("the operator's socket");
-        let say = |line: podssh_cli::layered::Line| {
-            let text = match line {
-                podssh_cli::layered::Line::Always(text) | podssh_cli::layered::Line::Verbose(text) => text,
+    let (carried, sent, received) = on_the_binarys_stack(|| {
+        runtime.block_on(async {
+            let (app, user) = tokio::io::duplex(256 * 1024);
+            let (link, leg_end) = tokio::io::duplex(256 * 1024);
+            let config = OperatorConfig {
+                relay: &relay,
+                name: &name,
+                connect_token: &token,
+                trust: &Trust::Default,
+                proxy: &ProxyChoice::FromEnvironment,
+                timeout: Duration::from_secs(30),
+                limits: OperatorLimits::default(),
+                wire: Wire::Tls,
             };
-            eprintln!("{:.0} s: {text}", started.elapsed().as_secs_f64());
-            lines_said.lock().unwrap().push(text);
-        };
-        let (mut user_r, mut user_w) = tokio::io::split(user);
-        let write = async move {
-            let (mut bytes, mut digest) = (Xorshift(0x5eed_0155), Sha256::new());
-            let mut block = vec![0u8; 64 * 1024];
-            for _ in 0..MOVED / block.len() {
-                bytes.fill(&mut block);
-                digest.update(&block);
-                user_w.write_all(&block).await.expect("the session takes each byte");
-            }
-            digest.finalize()
-        };
-        let read = async move {
-            let mut digest = Sha256::new();
-            let mut block = vec![0u8; 64 * 1024];
-            let mut left = MOVED;
-            while left > 0 {
-                let n = user_r.read(&mut block).await.expect("the session gives each byte");
-                assert!(n > 0, "the session ended {left} bytes early");
-                digest.update(&block[..n]);
-                left -= n;
-            }
-            digest.finalize()
-        };
-        let user_side = async move {
-            let (sent, received) = tokio::join!(write, read);
-            (sent, received)
-        };
-        let carry =
-            podssh_cli::layered::carry_through(&config, link, first, app, None, &say, Some(channel), |_: String| {});
-        tokio::pin!(carry);
-        // The user's side ends its bytes once each came back, and the session
-        // then ends.
-        let (sent, received) = tokio::select! {
-            sides = user_side => sides,
-            carried = &mut carry => panic!("the session ended before its bytes: {:?}", carried.why),
-        };
-        (carry.await, sent, received)
+            let first = operator::start(&config, leg_end).await.expect("the operator's socket");
+            let say = |line: podssh_cli::layered::Line| {
+                let text = match line {
+                    podssh_cli::layered::Line::Always(text) | podssh_cli::layered::Line::Verbose(text) => text,
+                };
+                eprintln!("{:.0} s: {text}", started.elapsed().as_secs_f64());
+                lines_said.lock().unwrap().push(text);
+            };
+            let (mut user_r, mut user_w) = tokio::io::split(user);
+            let write = async move {
+                let (mut bytes, mut digest) = (Xorshift(0x5eed_0155), Sha256::new());
+                let mut block = vec![0u8; 64 * 1024];
+                for _ in 0..MOVED / block.len() {
+                    bytes.fill(&mut block);
+                    digest.update(&block);
+                    user_w.write_all(&block).await.expect("the session takes each byte");
+                }
+                digest.finalize()
+            };
+            let read = async move {
+                let mut digest = Sha256::new();
+                let mut block = vec![0u8; 64 * 1024];
+                let mut left = MOVED;
+                while left > 0 {
+                    let n = user_r.read(&mut block).await.expect("the session gives each byte");
+                    assert!(n > 0, "the session ended {left} bytes early");
+                    digest.update(&block[..n]);
+                    left -= n;
+                }
+                digest.finalize()
+            };
+            let user_side = async move {
+                let (sent, received) = tokio::join!(write, read);
+                (sent, received)
+            };
+            let carry = podssh_cli::layered::carry_through(
+                &config,
+                link,
+                first,
+                app,
+                None,
+                &say,
+                Some(channel),
+                |_: String| {},
+            );
+            tokio::pin!(carry);
+            // The user's side ends its bytes once each came back, and the session
+            // then ends.
+            let (sent, received) = tokio::select! {
+                sides = user_side => sides,
+                carried = &mut carry => panic!("the session ended before its bytes: {:?}", carried.why),
+            };
+            (carry.await, sent, received)
+        })
     });
     assert_eq!(sent, received, "200 MiB came back whole");
     assert_eq!(carried.why, None);

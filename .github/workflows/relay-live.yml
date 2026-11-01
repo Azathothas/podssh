@@ -1,7 +1,9 @@
 name: relay live
 
 # The live tests of the relay that need no secret, from GitHub's network,
-# where no egress proxy stands between the client and the relay (T-062).
+# where no egress proxy stands between the client and the relay (T-062), and
+# the CLI's tests of a node on the live relay (node_live: T-083, T-154's idle
+# session of 10 minutes, T-155's 200 MiB each way; T-251).
 # Started by hand only. Each test mints its own tokens and pairs on the live
 # relay, stops its pairs at the end, and prints no token.
 
@@ -15,6 +17,7 @@ on:
         options:
           - live_backpressure
           - reverse_live
+          - node_live
 
 permissions:
   contents: read
@@ -22,7 +25,7 @@ permissions:
 jobs:
   live:
     runs-on: ubuntu-24.04
-    timeout-minutes: 40
+    timeout-minutes: 60
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
 
@@ -34,13 +37,17 @@ jobs:
           TEST: ${{ inputs.test }}
         run: |
           case "$TEST" in
-            live_backpressure|reverse_live) ;;
+            live_backpressure|reverse_live) cargo test --locked -p podssh-relay --features pair --test "$TEST" --no-run ;;
+            node_live) cargo test --locked -p podssh-cli --test node_live --no-run ;;
             *) echo "not a live test of the list: $TEST" >&2; exit 2 ;;
           esac
-          cargo test --locked -p podssh-relay --features pair --test "$TEST" --no-run
 
       - name: the live test
         env:
           CARGO_BUILD_JOBS: "4"
           TEST: ${{ inputs.test }}
-        run: cargo test --locked -p podssh-relay --features pair --test "$TEST" -- --ignored --nocapture
+        run: |
+          case "$TEST" in
+            node_live) cargo test --locked -p podssh-cli --test node_live -- --ignored --nocapture --test-threads 1 ;;
+            *) cargo test --locked -p podssh-relay --features pair --test "$TEST" -- --ignored --nocapture ;;
+          esac

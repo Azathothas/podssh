@@ -100,3 +100,19 @@ pub fn echo_server() -> u16 {
     });
     port
 }
+
+/// The stack of the binary's own thread (`src/main.rs`). The resumable layer's
+/// resume runs deep, and in a debug build past a test thread's 2 MiB: a test
+/// that drives the layer in its process gives it the stack that podssh gives it.
+const STACK: usize = 16 << 20;
+
+/// Run `f` on a thread with the binary's stack, and give its result.
+pub fn on_the_binarys_stack<R: Send>(f: impl FnOnce() -> R + Send) -> R {
+    std::thread::scope(|scope| {
+        let thread = std::thread::Builder::new().stack_size(STACK).spawn_scoped(scope, f).expect("a thread");
+        match thread.join() {
+            Ok(value) => value,
+            Err(panic) => std::panic::resume_unwind(panic),
+        }
+    })
+}

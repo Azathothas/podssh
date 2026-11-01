@@ -198,6 +198,15 @@ names #62; caught here, `sh scripts/plant-each.sh --here t360-record-row`) and
 passes with its plant is MISSED, a patch that no longer applies is STALE, a failure without the
 named line is MISSED, and the runner then exits 1.
 
+The live runs of T-154 and T-155 here (`cargo test -p podssh-cli --test node_live -- --ignored`,
+2026-11-01): each overflowed its test thread's stack, 2 MiB, as the layer resumed; the binary runs
+its dispatch on a thread of 16 MiB (`crates/podssh-cli/src/main.rs`), and the tests now run the
+layer on a thread of that size (`on_the_binarys_stack`). Then T-155's run carried 200 MiB each way
+whole in 720 s, but with 0 moves where the test wants 6: through this host's egress each link
+ended after about 40 s ("the link ended with no word from the far end"), 20 times, each resumed
+within 1 s, so no link came near the relay's 64 MiB. The run from GitHub's network decides it:
+`relay-live.yml` takes `node_live` now.
+
 # T-309: Publish the rolling betas `v1.0.0-beta.N`
 
 **Source:** the operator, 2026-10-30 (`docs/decisions.md`, "Betas before
