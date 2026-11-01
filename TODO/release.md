@@ -86,7 +86,7 @@ and for the whole release check at this commit (T-251).
 **Milestone:** M9
 **Priority:** P1
 **Effort:** M
-**Status:** partial
+**Status:** done
 
 ## Problem
 
@@ -379,6 +379,17 @@ The runs at `e3f90ca`, the commit of 1.0.0 (2026-11-01): in Actions each passed 
 on libera's stalled TLS (T-425) and `headscale` failing as `scripts/ts-headscale.sh` took its build
 from `target/` while the run set `CARGO_TARGET_DIR` (the check runs from a worktree, and shares the
 main build directory so as not to fill the disk): it takes the build from `CARGO_TARGET_DIR` now.
+
+The whole run before the tag of `v1.0.0`, at `35a0d19` (2026-11-01, from a worktree of that commit,
+the build directory shared): the release's dry run (run 41355870015, its static binary and its
+`SHA256SUMS`) and a release build here, with each ACTIONS row's run at that commit:
+`release-check: 40 passed, 5 skipped (each named above). PASSED.`, exit 0. The five SKIPs: railway
+(railway.new's limit, T-422), the direct throughput cell (Q38), `serve.box` and `reverse.boxes`
+(Q32), the tailnet (Q40, headscale stands in). Among the rows: throughput with its loop cell (p50
+2.16 MiB/s), `cp.200mib` (up 55 s, down 79 s, equal digests), reverse.two, iroh.n0, headscale,
+irc.image and irc.live (OFTC took it), and each of the 19 ACTIONS rows. The table is in
+`docs/STATUS.md`, "The release check". The plant of the Prove, one byte of the artifact changed:
+`sums.check` FAIL, "no check ran", exit 1. The run after the tag is T-250's.
 
 # T-422: railway.new refuses anonymous visitors for hours, and two checks of the release fail on it
 

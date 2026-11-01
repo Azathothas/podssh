@@ -654,7 +654,7 @@ usable shell through `podssh serve`.
 | The relay's idle cut | Keepalives every 60 s keep the session (MEASURED: 602 s with keepalives; cut at 184 s without). To a node, the layer's records each 10 s keep it, and SSH sends no keepalive unless asked (T-154) |
 | The relay's limits (12 h, 64 MiB) | The session ends, with the reason. To a node, the session moves to a new link before them, at 48 MiB or 11 h (T-155) |
 | A dropped connection | On the forward road, the session ends; `ssh` prints the relay's reason and exits 255; with `--persist`, it connects again and attaches the same tmux session on the server (T-178), and with `--persist -N` it connects again and asks for the forwards again (T-042). `cp` and `mv` go on over a new connection, at the offset of the copy, 5 times in a row at most with no new byte (T-136). To a node (`ssh node://`, `operator`), the resumable layer carries the session onto a new link, for 10 minutes (T-153) |
-| A changed client address | The session is lost. With `--direct`, `PODSSH_MPTCP=yes` asks Linux for Multipath TCP (T-172): where the server speaks it and the host's path manager has an endpoint on each network, the connection can go on over the other network when one goes; elsewhere, and through a proxy, the connection is plain TCP, and `-v` says which. Not measured yet, and waiting for T-251 and two networks of the operator's: a session to such a server with one of two networks taken down, and whether Cloudflare's edge, so the relay's road, takes MPTCP (`cargo test -p podssh-ws --test mptcp -- --ignored`). Recommendation: on request and on `--direct` only, until both are measured; where both ends run podssh, the resumable layer carries a session to a new address on any road (T-153) |
+| A changed client address | The session is lost. With `--direct`, `PODSSH_MPTCP=yes` asks Linux for Multipath TCP (T-172): where the server speaks it and the host's path manager has an endpoint on each network, the connection can go on over the other network when one goes; elsewhere, and through a proxy, the connection is plain TCP, and `-v` says which. Not measured, as it needs two networks of the operator's, which no check has: a session to such a server with one of two networks taken down, and whether Cloudflare's edge, so the relay's road, takes MPTCP (`cargo test -p podssh-ws --test mptcp -- --ignored`). Recommendation: on request and on `--direct` only, until both are measured; where both ends run podssh, the resumable layer carries a session to a new address on any road (T-153) |
 
 The relay has no resumption on either path (READ, in the relay's source and
 contract). When the WebSocket closes, the relay closes the TCP connection to
@@ -1110,8 +1110,8 @@ MEASURED offline: 20 MiB each way through a stand-in CONNECT proxy and a
 relay on the loopback, under a name that only the proxy resolves, with equal
 digests; podssh's trust store refuses the test relay's self-signed
 certificate. `podssh doctor`, with the feature, reached n0's first relay
-with `/ping` in 576 ms. Not measured yet: a real sandbox, and the
-throughput by the method of T-157, which T-251 runs (T-348).
+with `/ping` in 576 ms. Not measured: a real sandbox (T-348); the
+throughput by the method of T-157 is the release check's (T-251, `docs/STATUS.md`).
 
 **Built (T-163, 2026-10-10):** keys, tickets and the allowlist.
 `podssh node NAME TARGET --iroh` serves TARGET over the iroh road with no

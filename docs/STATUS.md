@@ -897,9 +897,59 @@ A session fills this section from a run:
 The script exits 0 only when no row failed and each ACTIONS row was read; a
 SKIP names the entry or the question of the operator that holds it.
 
+The release check of the local sources at `35a0d19`, 2026-11-01T22:32:13Z, on Linux x86_64 (`sh scripts/release-check.sh --local --binary PATH --sums PATH --build PATH --actions-run build=41355865458 --actions-run deny=41355865505 --actions-run release=41355870015 --actions-run plants=41355872516 --actions-run box=41355875375 --actions-run headscale=41355877780 --actions-run relay-node=41355880238 --actions-run relay-backpressure=41355882960 --actions-run warp=41355885655 --actions-run quick=41355888590 --actions-run forwarders=41355891172 --actions-run hop=41355893574 --actions-run doh=41355896323 --actions-run service=41355898738 --actions-run update=41355901067 --table PATH --logs PATH`).
+The artifact: sha256 `e268d403a3071bf1826e85f3315dcc651c0eea46567109551ba790d23c20453f`. The build of this host: sha256 `287b775a9178b37d10ad17ccd34358b4c9d37233d44a113b2bc5b586bbdbd7bf`.
+
 | Check | Entry | Where | Binary | Limit | Time | Result | Detail |
 | --- | --- | --- | --- | --- | --- | --- | --- |
-| No whole run yet | T-251 | - | - | - | - | - | Its parts ran on 2026-11-01 (T-251's Done): the sources of `v1.0.0-beta.3` and `update.check` passed, and the plant of one byte stopped the run; before a tag, 9 rows passed with `main`'s binary, `railway` and `irc.live` failed for reasons outside podssh, `irc.image`, `throughput` (with the loop's cell) and `headscale` (11 passed, the live relay's 3 left to Actions) passed; the ACTIONS rows read real runs and refused those of another commit. The run before the tag fills this table |
+| `src.checkout` | T-251 | here | - | 10 s | - | PASS | clean at 35a0d19, version 1.0.0 |
+| `sums.check` | T-211 | here | artifact | 120 s | - | PASS | sha256 e268d403a3071bf1826e85f3315dcc651c0eea46567109551ba790d23c20453f |
+| `static` | T-218 | here | - | 60 s | - | PASS | 1 of 1: static, each of its machine |
+| `build.local` | T-251 | here | build | 3600 s | - | PASS | given by --build: podssh 1.0.0 |
+| `short` | T-218 | here | artifact | 300 s | 40 s | PASS | 6 ok lines |
+| `sandbox` | T-006 | here | artifact | 900 s | 63 s | PASS | sandbox-check: 15 ok, 0 FAIL, 0 skip |
+| `readme` | T-251 | here | artifact | 240 s | - | PASS | man ssh 1105 lines; 256 SHA256:U2OCLWnNe5R35CoQupMsVKUJj4IhhY2WOeHHQM02JfU; status JSON |
+| `short` | T-218 | here | build | 300 s | 12 s | PASS | 6 ok lines |
+| `sandbox` | T-006 | here | build | 900 s | 61 s | PASS | sandbox-check: 15 ok, 0 FAIL, 0 skip |
+| `readme` | T-251 | here | build | 240 s | - | PASS | man ssh 1105 lines; 256 SHA256:2n+VOJjW+TxSTdvdePEFAAySI3d/jawjSurc430lB94; status JSON |
+| `pipe` | T-176 | here | artifact | 240 s | - | PASS | exec:cat and unix-connect: each gave 5,000,000 bytes back, sha256 equal |
+| `railway` | T-084 | here | artifact | 240 s | 2 s | SKIP | railway.new refused this anonymous visitor, its limit (its words withheld): -tt: exit 13; -T: exit 1; an outside refusal (T-422); the exit status through the relay is reverse.two's and actions.node's |
+| `container.short` | T-218 | a fresh container | artifact | 600 s | 40 s | PASS | podman, ok   proxy github.com 22: SSH-2.0-a09ebb4f |
+| `container.sandbox` | T-006 | a fresh container | artifact | 900 s | 63 s | PASS | podman, sandbox-check: 14 ok, 0 FAIL, 1 skip |
+| `irc.live` | T-252 | here | artifact | 700 s | 12 s | PASS | irc.oftc.net:6697 took a message of #podssh-rc-3a6a16 |
+| `irc.image` | T-252 | the build image | build | 3600 s | 248 s | PASS | ngircd: plain text and TLS |
+| `headscale` | T-334 | here | build (ts) | 5400 s | 472 s | PASS | each run here passed; the live relay's three are actions.headscale's (exit 3) |
+| `throughput` | T-157 | here | build | 7200 s | 3068 s | PASS | the cells and their MiB/s are in its log |
+| `throughput.loop` | T-157 | here | build | - | - | PASS | the cell through the relay's loop: min 2.06, p50 2.16, p95 2.23, max 2.23 MiB/s (5 runs) |
+| `reverse.two` | T-083 | here | artifact | 300 s | 4 s | PASS | exit 3 alone, then 3 and 3 at once, through the node of rce19f5941 |
+| `cp.200mib` | T-155 | here | artifact | 3600 s | 134 s | PASS | 200 MiB up in 55 s, down in 79 s, sha256 equal at both ends |
+| `iroh.n0` | T-163 | here | artifact | 600 s | 18 s | PASS | refused (255) and named, then let in: exit 3 |
+| `actions.gate` | T-251 | GitHub Actions | - | - | - | PASS | run 41355865458 of build.yml at 35a0d19: all:1 passed |
+| `actions.resume` | T-156 | GitHub Actions | - | - | - | PASS | run 41355865458 of build.yml at 35a0d19: gate (m6):1 passed |
+| `actions.windows` | T-218 | GitHub Actions | - | - | - | PASS | run 41355865458 of build.yml at 35a0d19: windows:1 passed |
+| `actions.macos` | T-218 | GitHub Actions | - | - | - | PASS | run 41355865458 of build.yml at 35a0d19: macos:1 passed |
+| `actions.plants` | T-251 | GitHub Actions | - | - | - | PASS | run 41355872516 of plants.yml at 35a0d19: *:all passed |
+| `actions.release` | T-218 | GitHub Actions | - | - | - | PASS | run 41355870015 of release.yml at 35a0d19: linux *:4 macos *:2 windows *:2 notes:1 publish:1 passed |
+| `actions.update` | T-375 | GitHub Actions | - | - | - | PASS | run 41355901067 of update-live.yml at 35a0d19: update (*):3 passed |
+| `actions.box` | T-006 | GitHub Actions | - | - | - | PASS | run 41355875375 of box.yml at 35a0d19: box (default):1 box (nolisten):1 box (tt):1 passed |
+| `actions.chat` | T-099 | GitHub Actions | - | - | - | PASS | run 41355875375 of box.yml at 35a0d19: box (chat):1 passed |
+| `actions.headscale` | T-334 | GitHub Actions | - | - | - | PASS | run 41355877780 of ts-headscale.yml at 35a0d19: live:1 passed |
+| `actions.node` | T-155 | GitHub Actions | - | - | - | PASS | run 41355880238 of relay-live.yml at 35a0d19: live:1 passed |
+| `actions.backpressure` | T-062 | GitHub Actions | - | - | - | PASS | run 41355882960 of relay-live.yml at 35a0d19: live:1 passed |
+| `actions.warp` | T-352 | GitHub Actions | - | - | - | PASS | run 41355885655 of warp-live.yml at 35a0d19: live:1 passed |
+| `actions.quick` | T-300 | GitHub Actions | - | - | - | PASS | run 41355888590 of quick-tunnel-live.yml at 35a0d19: live:1 passed |
+| `actions.forwarders` | T-370 | GitHub Actions | - | - | - | PASS | run 41355891172 of forwarder-live.yml at 35a0d19: live:1 passed |
+| `actions.hop` | T-371 | GitHub Actions | - | - | - | PASS | run 41355893574 of hop-live.yml at 35a0d19: live:1 passed |
+| `actions.doh` | T-344 | GitHub Actions | - | - | - | PASS | run 41355896323 of doh-live.yml at 35a0d19: live:1 passed |
+| `actions.service` | T-121 | GitHub Actions | - | - | - | PASS | run 41355898738 of service-live.yml at 35a0d19: unit:1 passed |
+| `actions.deny` | T-341 | GitHub Actions | - | - | - | PASS | run 41355865505 of deny.yml at 35a0d19: deny:1 passed |
+| `throughput.direct` | T-157 | none | - | - | - | SKIP | the direct cell needs the operator's SSH host (Q38; the decision of 2026-10-31 names it as not run) |
+| `serve.box` | T-248 | none | - | - | - | SKIP | podssh serve with vi, less and Ctrl-C in the box: T-248 is held by the operator (Q32) |
+| `reverse.boxes` | T-085 | none | - | - | - | SKIP | two sessions from one box to a node in another box: T-085 is held by the operator (Q32) |
+| `tailnet` | T-334 | none | - | - | - | SKIP | the operator's tailnet and the key of .env/ (Q40): headscale stands in (the decision of 2026-10-31) |
+
+The plant of the Prove, the same day: one byte of the artifact changed at offset 4096, with the
+same `--sums`: `sums.check` FAIL, "a source did not verify: no check ran. FAILED.", exit 1.
 
 ## Measure again
 

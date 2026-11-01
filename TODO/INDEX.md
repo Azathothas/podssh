@@ -62,15 +62,15 @@ repository and CI).
 
 ## Counts
 
-**422 entries: 14 open, 2 partial, 31 blocked, 375 done.**
+**422 entries: 14 open, 1 partial, 31 blocked, 376 done.**
 
 | Priority | open | partial | blocked | done | total |
 | --- | --- | --- | --- | --- | --- |
 | P0 | 0 | 0 | 0 | 1 | 1 |
-| P1 | 0 | 2 | 0 | 47 | 49 |
+| P1 | 0 | 1 | 0 | 48 | 49 |
 | P2 | 1 | 0 | 21 | 179 | 201 |
 | P3 | 13 | 0 | 10 | 148 | 171 |
-| **All** | 14 | 2 | 31 | 375 | 422 |
+| **All** | 14 | 1 | 31 | 376 | 422 |
 
 ## Entries
 
@@ -323,7 +323,7 @@ repository and CI).
 | [T-248](serve.md) | P2 | M | M5 | research | blocked | A tty for `podssh serve` where `/dev/ptmx` is missing: a new devpts instance, or a tty in user space |
 | [T-249](repo.md) | P2 | M | none | chore | done | A cited line that moved still exists, so the checker does not see a stale citation |
 | [T-250](release.md) | P1 | M | M9 | release | partial | Publish v1.0.0, the first stable release |
-| [T-251](release.md) | P1 | M | M9 | measurement | partial | The check of a release from end to end, with no human |
+| [T-251](release.md) | P1 | M | M9 | measurement | done | The check of a release from end to end, with no human |
 | [T-252](irc.md) | P2 | M | M8 | feature | done | `podssh chat --irc`: IRC as a second transport for chat |
 | [T-253](relay.md) | P2 | M | backlog | defect | blocked | The relay's egress reaches no IPv6 host |
 | [T-254](repo.md) | P2 | S | none | defect | done | `cargo todo check` passes when a cited file was edited and `remap` was not run |

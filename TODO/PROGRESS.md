@@ -120,7 +120,7 @@ and `CARGO_BUILD_JOBS=4`:
 
 ## Counts
 
-`TODO/INDEX.md` holds 422 entries: 14 open, 2 partial, 31 blocked, 375 done.
+`TODO/INDEX.md` holds 422 entries: 14 open, 1 partial, 31 blocked, 376 done.
 
 Open includes parked work. `cargo todo check` verifies this line.
 
@@ -159,13 +159,13 @@ of 2026-10-31 (GitHub #59 to #63 and #69 to #76), each done. Each other `backlog
 operator and the parked ones.
 
 **Next (2026-11-01):** each entry that the operator's rulings of Q60 to Q62 opened is done. The
-rehearsals of T-251 found checks that fail at random, a stale socket of `-M` and the outside
+rehearsals of the release check found checks that fail at random, a stale socket of `-M` and the outside
 refusals of railway.new and the IRC networks, each repaired; `v1.0.0-beta.4` comes after
 2026-11-02 01:44 UTC from `4e79a1f`, where the release's dry run and the local rows passed, once
 its gate is green.
 
-**Then** M9: T-251 (the check, and its run before the tag), which runs the
-headscale harness of 2026-11-01, and last T-250 (the one release), unattended (the operator,
+**Then** M9: the release check's whole run before the tag passed at `35a0d19` (2026-11-01), and
+last T-250 (the one release) from that commit, after `v1.0.0-beta.4`, unattended (the operator,
 2026-11-01). Between
 entries: the `none` entries, the highest priority first.
 
