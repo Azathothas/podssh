@@ -4087,6 +4087,14 @@ Read at `a3f948d` on 2026-10-31.
   each check passed; planted, a build with `iroh` alone: refused with 70, and the check failed.
   `sh scripts/check-rustc.sh iroh,warp`: rustc 1.99.0, at least 1.91. The release workflow's run
   by hand waits for the next beta (T-309).
+- The gate at `cadf9d5` failed in its step `libs` and on macOS and Windows, which the merge had
+  not run: podssh-ws's `no_permissive_verifier` scans each crate for a `ServerCertVerifier`, and
+  WARP's pin is one. The scan allows that one file while it still compares the pinned key, and
+  says so when the file is gone; planted, the comparison removed and a verifier in another crate:
+  each failed. On Windows alone, the test of a device that the edge does not know got a reset in
+  place of the alert `access_denied`: the stand-in dropped the refused connection with the client's
+  HTTP/2 unread, which Windows answers with a reset. The stand-in now reads until the client
+  closes. The gate's `libs` tests here: exit 0; podssh-warp: 41 passed, and that test 15 times.
 - Waits: the throughput and a session's life beside the forward road (Approach, step 4, T-157's
   method), with the checks of the release (T-251).
 

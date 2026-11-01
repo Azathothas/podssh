@@ -191,9 +191,24 @@ impl StandIn {
     }
 }
 
+/// A connection whose handshake was refused, after its alert went out. In
+/// TLS 1.3 a client's certificate is judged after the client's Finished,
+/// so the client's HTTP/2 is already here, unread; a socket closed with
+/// unread bytes is reset on Windows, and the reset can reach the client
+/// before the alert that names the refusal. The client's end ends it.
+async fn drain(mut tcp: TcpStream) {
+    use tokio::io::AsyncReadExt as _;
+    let mut buf = [0u8; 4096];
+    let read_all = async { while matches!(tcp.read(&mut buf).await, Ok(n) if n > 0) {} };
+    let _ = tokio::time::timeout(std::time::Duration::from_secs(5), read_all).await;
+}
+
 /// One connection of a client: TLS, HTTP/2, and each CONNECT that it asks.
 async fn serve(tcp: TcpStream, acceptor: tokio_rustls::TlsAcceptor, routes: Arc<Vec<Route>>, seen: Arc<Seen>) {
-    let Ok(tls) = acceptor.accept(tcp).await else { return };
+    let tls = match acceptor.accept(tcp).into_fallible().await {
+        Ok(tls) => tls,
+        Err((_, tcp)) => return drain(tcp).await,
+    };
     seen.connections.fetch_add(1, Ordering::SeqCst);
     let handshake = h2::server::Builder::new()
         .initial_window_size(crate::tunnel::STREAM_WINDOW)
