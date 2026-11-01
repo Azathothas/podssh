@@ -1,0 +1,8 @@
+# T-136: a copy up over SFTP that goes on after a break writes on one byte
+# late; the digest must fail it, after its one start from the first byte, and
+# so resume.cut.up.sftp (a relay that cuts each 1.5 MB) must fail.
+ENTRY=T-136
+GROUP=copy
+EXPECT='^FAIL +resume\.cut\.up\.sftp '
+RUN='RUSTFLAGS=-Ctarget-feature=+crt-static CARGO_PROFILE_RELEASE_LTO=false CARGO_PROFILE_RELEASE_CODEGEN_UNITS=16 cargo build --locked --release --target "$TARGET" -p podssh-cli && INTEROP_ONLY=cp sh scripts/interop.sh "$BIN"'
+LIMIT=3600

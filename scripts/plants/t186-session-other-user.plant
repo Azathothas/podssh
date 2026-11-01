@@ -1,0 +1,8 @@
+# T-186: the listener of podssh session serves a client of any uid; another
+# user's capture at an abstract name is then answered, so session.other_user
+# must fail.
+ENTRY=T-186
+GROUP=each-a
+EXPECT='^FAIL +session\.other_user '
+RUN='RUSTFLAGS=-Ctarget-feature=+crt-static CARGO_PROFILE_RELEASE_LTO=false CARGO_PROFILE_RELEASE_CODEGEN_UNITS=16 cargo build --locked --release --target "$TARGET" -p podssh-cli && INTEROP_ONLY=each sh scripts/interop.sh "$BIN"'
+LIMIT=3600

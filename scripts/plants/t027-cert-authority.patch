@@ -1,0 +1,11 @@
+--- a/crates/podssh-ssh/src/hostcert.rs
++++ b/crates/podssh-ssh/src/hostcert.rs
+@@ -52,7 +52,7 @@
+     if revoked(ca) {
+         return refused("comes from a CA that is marked @revoked".into());
+     }
+-    if !entries.iter().any(|e| e.marker == Some(Marker::CertAuthority) && e.key.key_data() == ca) {
++    if !entries.iter().any(|e| e.marker == Some(Marker::CertAuthority) && e.key.key_data() == cert.public_key()) {
+         return CertCheck::NoAuthority(format!(
+             "the CA {ca_fp} of the host certificate of '{name}' is in no @cert-authority line for it, so its key \
+              {host_fp} is checked as a plain key"

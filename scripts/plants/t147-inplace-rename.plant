@@ -1,0 +1,8 @@
+# T-147: cp --inplace up over SFTP writes a temporary name and renames it, as
+# a copy without the flag does; the far file gets a new inode, so
+# inplace.up.sftp must fail.
+ENTRY=T-147
+GROUP=copy
+EXPECT='^FAIL +inplace\.up\.sftp '
+RUN='RUSTFLAGS=-Ctarget-feature=+crt-static CARGO_PROFILE_RELEASE_LTO=false CARGO_PROFILE_RELEASE_CODEGEN_UNITS=16 cargo build --locked --release --target "$TARGET" -p podssh-cli && INTEROP_ONLY=cp sh scripts/interop.sh "$BIN"'
+LIMIT=3600

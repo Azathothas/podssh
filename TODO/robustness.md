@@ -972,7 +972,7 @@ Read, each claim of GitHub #34 at the lines as they are now:
   more, for `podssh keygen`.
 - `scripts/interop.sh` (lines 31-32 at `5c7a1ad`) installed `openssh-server`,
   `openssh-keygen` and others, but no client package. No harness ran the stock `ssh`; only
-  `scripts/sandbox-check.sh:228-241` does, in a sandbox. Nobody knows whether
+  `scripts/sandbox-check.sh:318-331` does, in a sandbox. Nobody knows whether
   the gate's image has `/usr/bin/ssh`.
 - `crates/podssh-ssh/src/io/msg.rs:35-42`, with `crates/podssh-ssh/src/io.rs:64-66`,
   maps an exit status that does not fit

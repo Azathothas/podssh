@@ -1,0 +1,8 @@
+# T-197: a submit starts its job at once, past the queue and its one slot;
+# right after three submits more than one runs and none waits, so
+# job.queue.slots must fail.
+ENTRY=T-197
+GROUP=each-b
+EXPECT='^FAIL +job\.queue\.slots '
+RUN='RUSTFLAGS=-Ctarget-feature=+crt-static CARGO_PROFILE_RELEASE_LTO=false CARGO_PROFILE_RELEASE_CODEGEN_UNITS=16 cargo build --locked --release --target "$TARGET" -p podssh-cli && INTEROP_ONLY=each sh scripts/interop.sh "$BIN"'
+LIMIT=3600

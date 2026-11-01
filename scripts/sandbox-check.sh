@@ -93,8 +93,10 @@ fi
 say "podssh doctor --full"
 # --full adds the check login: GitHub refuses a key made for the check, which
 # shows that the handshake, the host key and the authentication path work.
-timeout 300 "$B" doctor --full
+# Its lines are kept for the step of its line listen AF_INET below.
+timeout 300 "$B" doctor --full >"$T/doctor.out"
 rc=$?
+cat "$T/doctor.out"
 if [ "$rc" = 0 ]; then ok=yes; else ok=no; fi
 verdict doctor "$ok" "exit $rc (want 0: no check failed)"
 
@@ -224,6 +226,94 @@ case $rc in
         ;;
     *) verdict "a session's socket" no "exit $rc (want 77 where the host refuses the bind, else 255 for the closed port)" ;;
 esac
+
+say "doctor's line listen AF_INET, against a listener of podssh pipe (tcp-listen:), within 5 s"
+# doctor binds and listens once on 127.0.0.1 (T-358): its verdict must be
+# what a listener meets here, also where the bind works and the listen is
+# refused (BOX_SECCOMP=nolisten), which a bind alone does not tell.
+timeout 5 "$B" pipe tcp-listen:0 stdio </dev/null >"$T/tcp.out" 2>"$T/tcp.err"
+rc=$?
+line=$(grep -m 1 'listen AF_INET' "$T/doctor.out")
+echo "tcp-listen exit=$rc"
+echo "${line:-doctor wrote no line listen AF_INET}"
+ok=no
+case $rc in
+    77)
+        case $line in *"cannot listen here"*) ok=yes ;; esac
+        verdict "doctor listen AF_INET" "$ok" "the listener was refused (77): the line must say cannot listen here"
+        ;;
+    124 | 143)
+        case $line in *"cannot listen here"*) ;; *"can listen here"*) ok=yes ;; esac
+        verdict "doctor listen AF_INET" "$ok" "the listener listened until SIGTERM: the line must say can listen here"
+        ;;
+    *) verdict "doctor listen AF_INET" no "tcp-listen exit $rc (want 77 where the host refuses the listener, else a listener that SIGTERM ends)" ;;
+esac
+
+say "podssh agent (T-034), within 10 s"
+# Its bind and listen are its probe: where the host refuses them, 77 with
+# the probe's error and the ways with no agent, no SSH_AUTH_SOCK and no
+# directory left; where it listens, SIGTERM ends it and removes both.
+mkdir -p "$T/agent"
+timeout 10 env -u XDG_RUNTIME_DIR TMPDIR="$T/agent" "$B" agent </dev/null >"$T/agent.out" 2>"$T/agent.err"
+rc=$?
+left=$(ls -A "$T/agent")
+echo "agent exit=$rc"
+head -n 2 "$T/agent.err"
+ok=no
+case $rc in
+    77)
+        [ ! -s "$T/agent.out" ] && [ -z "$left" ] && has 'refuses the listener' "$T/agent.err" &&
+            has 'key files with -i' "$T/agent.err" && ok=yes
+        verdict "an agent" "$ok" "refused: exit 77, the probe's error and the ways with no agent named, nothing left"
+        ;;
+    124 | 143)
+        has 'SSH_AUTH_SOCK=' "$T/agent.out" && [ -z "$left" ] && ok=yes
+        verdict "an agent" "$ok" "served until SIGTERM, which removed its socket and its directory"
+        ;;
+    *) verdict "an agent" no "exit $rc (want 77 where the host refuses the listener, else an agent that SIGTERM ends)" ;;
+esac
+
+say "-L on 127.0.0.1 (T-038), within 15 s"
+# -L binds and listens before anything connects: a refusal ends the run
+# with 255, the system's error and -W; a listener goes on to the closed
+# port. -v names where it listens; with neither line, a failure was skipped.
+timeout 15 "$B" ssh -v --direct -p 9 -N -o BatchMode=yes -L 127.0.0.1:2280:127.0.0.1:22 127.0.0.1 </dev/null \
+    >"$T/lfwd.out" 2>"$T/lfwd.err"
+rc=$?
+echo "the -L run: exit=$rc"
+grep -m 2 -e 'cannot listen' -e 'listening on' "$T/lfwd.err"
+ok=no
+if has 'cannot listen on 127.0.0.1:2280' "$T/lfwd.err"; then
+    [ "$rc" = 255 ] && has 'refuses the listener' "$T/lfwd.err" && has '-W HOST:PORT' "$T/lfwd.err" && ok=yes
+    verdict "a listener of -L" "$ok" "refused before anything connects: exit $rc (want 255), the error and -W named"
+elif has 'listening on 127.0.0.1:2280' "$T/lfwd.err"; then
+    [ "$rc" = 255 ] && ok=yes
+    verdict "a listener of -L" "$ok" "it listened; the closed port gave $rc (want 255)"
+else
+    verdict "a listener of -L" no "exit $rc, and neither the refusal nor a listener named"
+fi
+
+say "-M and its control socket (T-039), within 15 s"
+# -M asks for a master: where the host refuses its socket, the run ends
+# with 255 and the probe's error before anything connects, never alone;
+# where it listens, the closed port ends the run and its socket goes.
+timeout 15 "$B" ssh -v --direct -p 9 -N -o BatchMode=yes -M -S "$T/ctl" 127.0.0.1 </dev/null \
+    >"$T/mux.out" 2>"$T/mux.err"
+rc=$?
+echo "the -M run: exit=$rc"
+grep -m 2 'ControlMaster' "$T/mux.err"
+ok=no
+if has 'connects alone' "$T/mux.err"; then
+    verdict "the control socket of -M" no "exit $rc: its socket was refused and the run connected alone"
+elif has 'refuses the listener' "$T/mux.err"; then
+    [ "$rc" = 255 ] && [ ! -e "$T/ctl" ] && ok=yes
+    verdict "the control socket of -M" "$ok" "refused before anything connects: exit $rc (want 255), no socket left"
+elif has 'ControlMaster: listening on' "$T/mux.err"; then
+    [ "$rc" = 255 ] && [ ! -e "$T/ctl" ] && ok=yes
+    verdict "the control socket of -M" "$ok" "it listened; the closed port gave $rc (want 255), and its socket went"
+else
+    verdict "the control socket of -M" no "exit $rc, and neither the refusal nor a listening master named"
+fi
 
 say "OpenSSH with podssh as its ProxyCommand"
 if ! command -v ssh >/dev/null; then

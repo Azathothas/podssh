@@ -1,0 +1,9 @@
+# T-059: the order of the relay hosts ignores the record of failures; the second
+# run through a silent first host waits for it again, with no note.
+# SETUP stops what an earlier interop run of this container left running.
+ENTRY=T-059
+GROUP=ssh-faults
+EXPECT='^FAIL +faults\.recorded\.reorder '
+RUN='RUSTFLAGS=-Ctarget-feature=+crt-static CARGO_PROFILE_RELEASE_LTO=false CARGO_PROFILE_RELEASE_CODEGEN_UNITS=16 cargo build --locked --release --target "$TARGET" -p podssh-cli && INTEROP_ONLY=faults sh scripts/interop.sh "$BIN"'
+SETUP='for p in sshd sshd-session sshd.pam dropbear python3 podssh tmux ssh-agent Xvfb Xvnc x0vncserver; do pkill -x "$p"; done; true'
+LIMIT=3600

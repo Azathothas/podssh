@@ -1,0 +1,11 @@
+--- a/crates/podssh-cli/src/node.rs
++++ b/crates/podssh-cli/src/node.rs
+@@ -300,7 +300,7 @@
+             Err(refusal) => return refusal.report("node", err),
+         }
+     } else {
+-        match probe(&targets, roost).await {
++        match probe(&targets, false).await {
+             Ok(versions) => serving(&targets, &versions),
+             Err(refusal) => return refusal.report("node", err),
+         }

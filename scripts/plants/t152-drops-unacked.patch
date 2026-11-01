@@ -1,0 +1,11 @@
+--- a/crates/podssh-relay/src/session/replay.rs
++++ b/crates/podssh-relay/src/session/replay.rs
+@@ -136,7 +136,7 @@
+         }
+         if offset > self.start {
+             let n = (offset - self.start) as usize;
+-            self.bytes.drain(..n);
++            self.bytes.drain(..=n);
+             self.start = offset;
+         }
+         // An empty buffer gives its memory back, so an idle session holds none.

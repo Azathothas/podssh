@@ -1158,9 +1158,9 @@ Read:
 - `scripts/test_in_box.sh:202-205`: the box runs `probe.sh`, then
   `sandbox-check.sh` (or, with `BOX_RUN=tt`, the session of T-004), and the
   script exits with the code of the second.
-  `scripts/sandbox-check.sh:85-242` prints the exit code of each step and does
+  `scripts/sandbox-check.sh:85-332` prints the exit code of each step and does
   not fail on it (T-006). So today the box exits 0 when podssh fails in it.
-- `scripts/box/probe.sh:122-127` exits 1 when the box differs from the sandbox
+- `scripts/box/probe.sh:125-130` exits 1 when the box differs from the sandbox
   in a required property (17 properties, `docs/STATUS.md:272`).
 - The box needs a static binary; CI uploads one
   (`.github/workflows/build.yml:88-93`).
@@ -2456,7 +2456,7 @@ Read:
   path and for the abstract namespace.
 - `docs/target-environment.md:25`: for listening, "The probe did not measure
   it".
-- `scripts/box/probe.sh:86-92` checks an AF_INET listen only, and expects the
+- `scripts/box/probe.sh:86-95` checks an AF_INET listen only, and expects the
   refusal. `doctor` probes both families
   (`crates/podssh-cli/src/doctor/host.rs:20-21`).
 - A seccomp filter compares the arguments of a call as numbers. It cannot read

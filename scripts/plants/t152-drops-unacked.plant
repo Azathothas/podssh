@@ -1,0 +1,7 @@
+# T-152: Replay::release frees one byte past the acknowledged offset, so a
+# byte that is not acknowledged is lost; the model of GitHub #31 and the
+# resume after a lost frame must fail.
+ENTRY=T-152
+GROUP=resume
+EXPECT='test the_buffer_never_drops_a_byte_that_is_not_acknowledged \.\.\. FAILED'
+RUN='cargo test --locked --no-fail-fast -p podssh-relay --test session_replay -- the_buffer_never_drops_a_byte_that_is_not_acknowledged a_resume_sends_exactly_the_missing_bytes_after_a_lost_frame'

@@ -1,0 +1,8 @@
+# T-149: podssh edit skips its check of the far file before the send; a far
+# change made meanwhile through podssh ssh is then written over, so
+# edit.far_changed must fail.
+ENTRY=T-149
+GROUP=copy
+EXPECT='^FAIL +edit\.far_changed '
+RUN='RUSTFLAGS=-Ctarget-feature=+crt-static CARGO_PROFILE_RELEASE_LTO=false CARGO_PROFILE_RELEASE_CODEGEN_UNITS=16 cargo build --locked --release --target "$TARGET" -p podssh-cli && INTEROP_ONLY=cp sh scripts/interop.sh "$BIN"'
+LIMIT=3600

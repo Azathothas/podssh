@@ -1,0 +1,8 @@
+# T-334: --ts-control-url takes http:// as well as https://, so a control
+# key could come over TLS that nobody checks; the URL test must fail.
+# Feature ts: the vendored fork's build, hence the longer limit.
+ENTRY=T-334
+GROUP=ts
+EXPECT='test a_control_url_is_https_with_a_host_and_a_port_at_most \.\.\. FAILED'
+RUN='cargo test --locked -p podssh-cli --features podssh-cli/ts --test ts_control -- a_control_url_is_https_with_a_host_and_a_port_at_most'
+LIMIT=3600

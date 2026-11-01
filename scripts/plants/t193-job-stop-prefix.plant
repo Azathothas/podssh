@@ -1,0 +1,7 @@
+# T-193: a job's stop also ends each tmux session named podssh-job-*; the
+# other job no longer runs, so job.openssh.stop must fail.
+ENTRY=T-193
+GROUP=each-b
+EXPECT='^FAIL +job\.openssh\.stop '
+RUN='RUSTFLAGS=-Ctarget-feature=+crt-static CARGO_PROFILE_RELEASE_LTO=false CARGO_PROFILE_RELEASE_CODEGEN_UNITS=16 cargo build --locked --release --target "$TARGET" -p podssh-cli && INTEROP_ONLY=each sh scripts/interop.sh "$BIN"'
+LIMIT=3600

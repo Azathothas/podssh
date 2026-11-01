@@ -1,0 +1,14 @@
+--- a/crates/podssh-cli/src/pipe/serve.rs
++++ b/crates/podssh-cli/src/pipe/serve.rs
+@@ -86,9 +86,9 @@
+         };
+         match Listener::bind(serve.listening.bound(), &mut say).await {
+             Ok(listener) => listener,
+-            Err((code, line)) => {
++            Err((_, line)) => {
+                 let _ = writeln!(err, "podssh pipe: {line}");
+-                return code;
++                return EX_UNAVAILABLE;
+             }
+         }
+     };

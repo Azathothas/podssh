@@ -1,0 +1,17 @@
+--- a/crates/podssh-cli/src/help.rs
++++ b/crates/podssh-cli/src/help.rs
+@@ -96,12 +96,13 @@
+ /// `--help`. It stays the last line, with no blank line before it: the parity
+ /// gate reads a block up to its first blank line.
+ fn options_lines(flags: &[crate::flags::FlagRow]) -> String {
+-    let rows = block_rows(flags);
++    let rows = flags.to_vec();
+     let column = flag_column(&rows);
+     let mut s = String::new();
+     for row in &rows {
+         s.push_str(&format!("    {}\n", flag_line(row, column)));
+     }
++    s.push_str(&format!("{:<12}{}\n", "    --help", help_text(&crate::flags::HELP_FLAG)));
+     s
+ }
+ 

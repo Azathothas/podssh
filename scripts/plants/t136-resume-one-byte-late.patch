@@ -1,0 +1,11 @@
+--- a/crates/podssh-cli/src/cp/bysftp.rs
++++ b/crates/podssh-cli/src/cp/bysftp.rs
+@@ -149,7 +149,7 @@
+             .map_err(|e| failed(Fault::NoInput, format!("{source}: {e}")))?;
+         let mut offset = progress.offset;
+         let started = (std::time::Instant::now(), offset);
+-        let mut writes = Writes::new(sftp, &file, offset, rate::shaped(pipe, sftp.write_len()));
++        let mut writes = Writes::new(sftp, &file, offset + u64::from(offset > 0), rate::shaped(pipe, sftp.write_len()));
+         log.verbose(&format!("{source}: writes of {} bytes, {} in flight", writes.block(), writes.depth()));
+         let mut bar = gauge::Gauge::new(source, before.len(), offset);
+         let block = writes.block() as usize;

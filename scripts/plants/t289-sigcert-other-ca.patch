@@ -1,0 +1,25 @@
+--- a/crates/podssh-ssh/src/sshsig.rs
++++ b/crates/podssh-ssh/src/sshsig.rs
+@@ -359,7 +359,7 @@
+ pub fn names_key(signer: &Signer, signed: &Signed) -> bool {
+     match &signed.certificate {
+         None => !signer.cert_authority && signer.key.key_data() == signed.signature.public_key(),
+-        Some(certificate) => signer.cert_authority && signer.key.key_data() == certificate.signature_key(),
++        Some(_) => signer.cert_authority,
+     }
+ }
+ 
+--- a/crates/podssh-ssh/src/sshsig_cert.rs
++++ b/crates/podssh-ssh/src/sshsig_cert.rs
+@@ -166,7 +166,10 @@
+     }
+     // The CA's signature and its key again, through the check that ssh-key
+     // documents: the line that named the CA is the one that trusts it.
+-    if certificate.validate_at(now, [&ca.fingerprint(HashAlg::Sha256)]).is_err() {
++    if certificate
++        .validate_at(now, [&ca.fingerprint(HashAlg::Sha256), &certificate.signature_key().fingerprint(HashAlg::Sha256)])
++        .is_err()
++    {
+         return Some("Certificate invalid: not signed by the CA of the line");
+     }
+     None

@@ -1,0 +1,13 @@
+--- a/crates/podssh-ssh/src/retry.rs
++++ b/crates/podssh-ssh/src/retry.rs
+@@ -64,9 +64,7 @@
+ /// drop of the relay (a refusal of the server, a host key, a login is no
+ /// drop); never at the relay's limits or for a backlog (1001, 1009, 1013).
+ pub fn retry_phase(phase: Phase, end: Option<&RelayEnd>) -> Option<Retry> {
+-    if phase >= Phase::Requested {
+-        return None;
+-    }
++    let _ = phase;
+     match end? {
+         // A frame that broke RFC 6455 is a defect, not a drop.
+         RelayEnd::Failed(SessionError::Protocol(_) | SessionError::TooLarge(_)) => None,

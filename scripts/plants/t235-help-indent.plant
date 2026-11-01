@@ -1,0 +1,7 @@
+# T-235: --help goes back to its own line, {:<12} four spaces in, out of the
+# rows of the block; the test of the columns of --help must fail.
+ENTRY=T-235
+GROUP=cli-tests
+EXPECT='test help_starts_in_the_columns_of_the_other_options \.\.\. FAILED'
+RUN='cargo test --locked -p podssh-cli --test man_flag_parity -- help_starts_in_the_columns_of_the_other_options'
+LIMIT=2400

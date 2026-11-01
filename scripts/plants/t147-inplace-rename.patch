@@ -1,0 +1,10 @@
+--- a/crates/podssh-cli/src/cp/bysftp.rs
++++ b/crates/podssh-cli/src/cp/bysftp.rs
+@@ -75,6 +75,7 @@
+     if shape.inplace {
+         in_place::check_far(sftp, &target).await?;
+     }
++    let shape = Shape { inplace: false, ..shape };
+     // Over an older version, only the blocks that changed (T-142); a copy
+     // that broke goes on where it was instead.
+     if shape.delta && progress.temp.is_none() {

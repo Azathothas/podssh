@@ -1,0 +1,12 @@
+--- a/crates/podssh-cli/src/job/far.sh
++++ b/crates/podssh-cli/src/job/far.sh
+@@ -264,6 +264,9 @@
+     if command -v tmux >/dev/null 2>&1 && tmux kill-session -t "=$(sess "$d")" 2>/dev/null; then
+         w=stopped
+     fi
++    for s in $(tmux list-sessions -F '#{session_name}' 2>/dev/null); do
++        case $s in podssh-job-*) tmux kill-session -t "=$s" ;; esac
++    done
+     rm -rf "$d" || {
+         say "failed to remove $q/$d"
+         exit 0

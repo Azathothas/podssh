@@ -1,0 +1,9 @@
+# T-099: the side with no accept takes the file anyway (the harness's switch
+# CHAT_PLANT=accept); chat-in-boxes.sh, through the live relay, must find it.
+ENTRY=T-099
+GROUP=host-chat
+ENV='CHAT_PLANT=accept'
+EXPECT='^FAIL: a file was written with no accept'
+SETUP='sh scripts/box/build-podssh.sh'
+RUN='sh scripts/chat-in-boxes.sh "$BIN"'
+LIMIT=2400

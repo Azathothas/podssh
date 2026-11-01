@@ -1,0 +1,13 @@
+--- a/crates/podssh-relay/src/udp/codec.rs
++++ b/crates/podssh-relay/src/udp/codec.rs
+@@ -89,8 +89,8 @@
+         if self.buf.len() < LENGTH + len {
+             return Ok(None);
+         }
+-        let datagram = self.buf[LENGTH..LENGTH + len].to_vec();
+-        self.buf.drain(..LENGTH + len);
++        let datagram = self.buf[LENGTH..].to_vec();
++        self.buf.clear();
+         Ok(Some(datagram))
+     }
+ 

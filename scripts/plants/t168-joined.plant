@@ -1,0 +1,6 @@
+# T-168: a UDP decoder that takes the rest of the buffer as the datagram,
+# so two datagrams in one read come out joined; the framing tests must fail.
+ENTRY=T-168
+GROUP=resume
+EXPECT='test two_datagrams_in_one_read_stay_two \.\.\. FAILED'
+RUN='cargo test --locked -p podssh-relay --test udp_framing -- two_datagrams_in_one_read_stay_two each_datagram_stays_whole_across_split_reads'

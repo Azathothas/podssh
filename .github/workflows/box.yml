@@ -1,0 +1,69 @@
+name: box
+
+# The box like the target sandbox (scripts/test_in_box.sh) and the chat
+# between two boxes (scripts/chat-in-boxes.sh), on a runner, for the release
+# check (T-251): the runs that the entries left to it, each unplanted, which
+# the plants of the group host-box (plants.yml) then must fail. The box's
+# proxy reaches the internet from the runner; the chat uses the live relay
+# (the operator's). Started by hand; it publishes nothing.
+
+on:
+  workflow_dispatch:
+    inputs:
+      run:
+        description: "One run (default, nolisten, tt, chat; empty: each)"
+        required: false
+        default: ""
+
+permissions:
+  contents: read
+
+jobs:
+  plan:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 5
+    outputs:
+      runs: ${{ steps.runs.outputs.runs }}
+    steps:
+      - name: the runs
+        id: runs
+        env:
+          RUN: ${{ inputs.run }}
+        run: |
+          set -eu
+          case "$RUN" in
+            "") echo 'runs=["default","nolisten","tt","chat"]' >> "$GITHUB_OUTPUT" ;;
+            default | nolisten | tt | chat) echo "runs=[\"$RUN\"]" >> "$GITHUB_OUTPUT" ;;
+            *) echo "no run named $RUN" >&2; exit 1 ;;
+          esac
+
+  box:
+    name: box (${{ matrix.run }})
+    needs: plan
+    runs-on: ubuntu-24.04
+    timeout-minutes: 90
+    strategy:
+      fail-fast: false
+      matrix:
+        run: ${{ fromJSON(needs.plan.outputs.runs) }}
+    env:
+      CARGO_BUILD_JOBS: "4"
+      BIN: target/x86_64-unknown-linux-musl/release/podssh
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+      - name: podssh, static, in the build image
+        run: sh scripts/box/build-podssh.sh
+      - name: the run ${{ matrix.run }}
+        env:
+          RUN: ${{ matrix.run }}
+        run: |
+          set -u
+          # Each exit code is read directly; the shell's -e would stop at it.
+          rc=0
+          case "$RUN" in
+            default) sh scripts/test_in_box.sh "$BIN" || rc=$? ;;
+            nolisten) BOX_SECCOMP=nolisten sh scripts/test_in_box.sh "$BIN" || rc=$? ;;
+            tt) BOX_RUN=tt sh scripts/test_in_box.sh "$BIN" || rc=$? ;;
+            chat) sh scripts/chat-in-boxes.sh "$BIN" || rc=$? ;;
+          esac
+          [ "$rc" = 0 ] || { echo "the run $RUN exited $rc"; exit 1; }

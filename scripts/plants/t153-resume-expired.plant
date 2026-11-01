@@ -1,0 +1,6 @@
+# T-153: the layer's policy resumes after `1001 pair expired` (MintNewPair
+# moved to the rows that resume); the policy tests must fail.
+ENTRY=T-153
+GROUP=resume
+EXPECT='test an_expired_pair_and_a_stop_are_never_resumed \.\.\. FAILED'
+RUN='cargo test --locked -p podssh-relay --features pair --test session_policy'

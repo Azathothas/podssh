@@ -1,0 +1,6 @@
+# T-152: the replay buffer with no capacity (Replay::room has no bound), so
+# neither keep nor the writer stops at 4 MiB; the bound's tests must fail.
+ENTRY=T-152
+GROUP=resume
+EXPECT='test the_buffer_never_grows_past_its_capacity \.\.\. FAILED'
+RUN='cargo test --locked -p podssh-relay --test session_replay -- the_buffer_never_grows_past_its_capacity a_full_buffer_makes_the_writer_wait_until_an_ack'

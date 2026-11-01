@@ -1,0 +1,7 @@
+# T-139: the row of scp's -T goes from SCP_FLAGS; the test of the reviewed
+# sets of scp and sftp letters must fail.
+ENTRY=T-139
+GROUP=cli-tests
+EXPECT='test the_scp_and_sftp_short_flags_are_exactly_the_reviewed_sets \.\.\. FAILED'
+RUN='cargo test --locked -p podssh-cli --test flag_table -- the_scp_and_sftp_short_flags_are_exactly_the_reviewed_sets'
+LIMIT=2400

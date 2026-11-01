@@ -198,7 +198,7 @@ timeout 1800 podman run --rm --name "$BOX" --network "$NET" \
     -e HOME=/state/home -e TERM=xterm \
     -e HTTPS_PROXY="http://$PIP:$PORT" -e https_proxy="http://$PIP:$PORT" \
     -e NO_PROXY="$PIP" -e no_proxy="$PIP" \
-    -e BOX_RUN="$RUN" \
+    -e BOX_RUN="$RUN" -e BOX_SECCOMP="${BOX_SECCOMP:-}" \
     "$IMAGE" sh -c 'install -m 755 /in/podssh /usr/local/bin/podssh && sh /scripts/box/probe.sh &&
         if [ "$BOX_RUN" = tt ]; then sh /scripts/box/tt-session.sh /usr/local/bin/podssh;
         else sh /scripts/sandbox-check.sh /usr/local/bin/podssh; fi'

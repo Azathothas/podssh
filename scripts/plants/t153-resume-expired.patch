@@ -1,0 +1,18 @@
+--- a/crates/podssh-relay/src/reverse/closes.rs
++++ b/crates/podssh-relay/src/reverse/closes.rs
+@@ -289,7 +289,6 @@
+ pub fn resumes(close: &RelayClose) -> bool {
+     match classify(close).session {
+         SessionAction::Stop
+-        | SessionAction::MintNewPair
+         | SessionAction::ReopenSession
+         | SessionAction::FixCodec
+         | SessionAction::AnswerReadyFirst
+@@ -299,6 +298,7 @@
+         | SessionAction::AlwaysPrefixFullId
+         | SessionAction::ChunkTo64K => false,
+         SessionAction::Reconnect
++        | SessionAction::MintNewPair
+         | SessionAction::OpenNewSession
+         | SessionAction::SlowDown
+         | SessionAction::RetryOpen
