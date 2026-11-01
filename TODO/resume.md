@@ -3242,4 +3242,9 @@ From GitHub's network: `relay-live.yml` with `node_live`, 6 moves or more, no fa
   pair`: 334 passed, 0 failed; the CLI's node tests and the session tests of moves, resumes and
   spares: passed; clippy `-D warnings`: clean.
 - Live here, `move_200mib_each_way_through_a_node`: 200 MiB each way in 157 s, 7 moves, no line of a
-  node's fault. From GitHub's network: `relay-live.yml` after the push (`docs/STATUS.md`).
+  node's fault. From GitHub's network, `relay-live.yml` at `0c4bc78` (run 41297719584, the node's
+  lines printed): "200 MiB each way through the node in 210 s: 8 moves", no `1003` and no line of a
+  fault; `an_idle_session_through_a_node_lives_10_minutes` and `node_command_serves_a_tcp_target`
+  passed too. `ssh_to_a_node` failed on its far target: railway.new limited the run's anonymous
+  visitor after the login through the node had worked, as it timed out at `c54b7b4`; an outage of
+  that service, not of podssh.

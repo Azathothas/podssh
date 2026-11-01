@@ -3162,7 +3162,13 @@ SIGTERM to the supervisor ends both. The planted defect: no restart, and the sec
   at `4cddf05` (run 41291523831) failed it: "the caller's stderr did not end with the parent": the
   supervisor started the run with its own standard handles still inheritable, so the run held a
   copy of the caller's pipe, T-383's defect. Repaired: the supervisor calls `keep_own_handles`
-  before each start; the job's run after the push is in `docs/STATUS.md`.
+  before each start. The job then failed the test at each push from `f3ceca1` to `0c4bc78` (runs
+  41293260843 to 41297715078): `taskkill` found no process of the run's pid. A defect of the
+  test: `pipe tcp-listen:` takes one client and ends with it, so the test's first greeting ended
+  the run, and the supervisor had started it again, as it should, before the kill. Shown here on
+  Linux with the same words: the run ended after one client; with `--keep-listening` it lived on,
+  came back after `kill -9` and greeted again. The test now gives `--keep-listening`; the job's run
+  after the push is in `docs/STATUS.md`.
 - The heartbeat that ends a hung run is T-394; a lock that refuses a second copy, T-392.
 
 # T-392: A lock for each detached run, with its list, its status and its stop

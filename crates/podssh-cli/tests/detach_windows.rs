@@ -188,7 +188,9 @@ fn a_restarted_run_comes_back_after_a_kill() {
     let home = scratch("restart");
     let (to, listen) = (target(), free_port());
     let job = Job::new(true);
-    let (code, err) = detached_with(&job, &home, listen, to, "--restart");
+    // --keep-listening: a pipe that listens takes one client, and ends
+    // with it, which the supervisor would start again before the kill.
+    let (code, err) = detached_with(&job, &home, listen, to, "--restart --keep-listening");
     let supervisor = Stopped::of(&err);
     assert_eq!(code, Some(0), "{err}");
     let run: u32 = err
