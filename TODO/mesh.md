@@ -748,6 +748,14 @@ here.
   waited alone and the test failed, as it must. The first three runs, before them, met nobody
   within 20 s; their cause is not found, and the test now names both ends' results: T-450.
   `transit-live.yml` runs them each week and by hand.
+- 2026-11-02, after (the merge of T-427): the live run of the relay role on a runner
+  (`relay-live.yml`, 41407047641) showed the node dialing Least Authority's relay with the pair
+  relay's own trust, so a pair whose relay has a private CA could never reach the public transit
+  relay (`UnknownIssuer`). Repaired: Least Authority's relay takes the host's trust
+  (`SSL_CERT_FILE`, `CaFile`, else the default stores), never `--ca-file`; a relay that
+  `PODSSH_TRANSIT` names keeps the pair's (`crates/podssh-cli/src/node_transit.rs`, `trust_for`,
+  with its unit test). In that run `SSL_CERT_FILE` itself named the private CA, which replaces
+  each root by design, so its transit road still could not pass there.
 
 # T-437: Piping Server, a road for a proxy that refuses the WebSocket upgrade
 
