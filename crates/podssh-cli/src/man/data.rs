@@ -183,7 +183,11 @@ pub fn files() -> Vec<(Vec<String>, String)> {
              is read as OpenSSH 10.3p1 reads it, but Match exec and Match localnetwork, which are refused by \
              name, with the file and the line, where they would decide, and run nothing. Each hop of \
              -J reads the blocks of its own name, as OpenSSH's jump host does, and logs in as its user@, its \
-             User, else the local user."
+             User, else the local user. The first ProxyCommand holds, as in OpenSSH: none, or podssh proxy %h \
+             %p, on the command line or in an earlier block, goes past a later block's command, so -o \
+             ProxyCommand=none goes past a Host * that names a jump host for OpenSSH and keeps the file's \
+             other settings, and a later ProxyJump is not read, as OpenSSH does not read it then; a \
+             command with no value before it is refused with its file and line (exit 78)."
                 .to_string(),
         ),
         (

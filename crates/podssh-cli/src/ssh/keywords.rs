@@ -105,7 +105,7 @@ pub const IGNORED: &[&str] = &[
 /// Keywords refused by name, and why. `options.rs` gives the same reasons.
 #[rustfmt::skip]
 pub const REFUSED: &[(&str, &str)] = &[
-    ("ProxyCommand", "podssh ssh reaches the host through the relay itself (none, and podssh proxy %h %p, are accepted); to use OpenSSH, give it ProxyCommand='podssh proxy %h %p'"),
+    ("ProxyCommand", "podssh ssh reaches the host through the relay itself: none, and podssh proxy %h %p, are accepted, and the first value holds, as in OpenSSH, so -o ProxyCommand=none goes past a file's; a command of a file is refused (exit 78), and its line names that flag; to use OpenSSH, give it ProxyCommand='podssh proxy %h %p'"),
     ("RevokedHostKeys", "mark the keys @revoked in a known_hosts file"),
     ("KnownHostsCommand", "list the keys in a known_hosts file"),
     ("Include", "a keyword of ssh_config files, not an option"),

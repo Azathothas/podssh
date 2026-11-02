@@ -1,0 +1,8 @@
+# T-502: ProxyCommand none sets nothing again, as before the entry, so a
+# file's Host * with a command for OpenSSH is refused past the command
+# line's -o ProxyCommand=none; the test of the report's file must fail.
+ENTRY=T-502
+GROUP=cli-tests
+EXPECT='test proxy_command::the_command_lines_none_beats_a_files_proxy_command_for_each_host \.\.\. FAILED'
+RUN='cargo test --locked -p podssh-cli --test ssh_config_file -- proxy_command::the_command_lines_none_beats_a_files_proxy_command_for_each_host'
+LIMIT=2400

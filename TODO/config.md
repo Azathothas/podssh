@@ -1442,7 +1442,7 @@ destination. Related: GitHub #22. Read at `01e371e`.
 **Milestone:** none
 **Priority:** P2
 **Effort:** S
-**Status:** open
+**Status:** partial
 
 ## Problem
 
@@ -1510,6 +1510,60 @@ cargo test -p podssh-cli --test ssh_config_file -- proxy_command
 ```
 
 Planted: `none` sets nothing again: the test of `-o ProxyCommand=none` fails with 78.
+
+## Correction
+
+2026-11-02, read in OpenSSH 10.3p1's `readconf.c` and `ssh.c` (tag `V_10_3_P1` of
+openssh-portable, through `fetch.web.pkgforge.dev`): the Premise holds at its lines, but it misses
+how OpenSSH ties `ProxyJump` to `ProxyCommand`. `parse_jump` reads a `ProxyJump` only while
+`proxy_command == NULL && jump_host == NULL` (`readconf.c:3484`), and `oProxyCommand` sets a value
+only while none is set (`readconf.c:1529-1541`); `ssh.c:1316-1318` then refuses a `ProxyCommand`
+other than `none` beside a jump ("inconsistent options: ProxyCommand+ProxyJump"). In 10.3p1 `-J`
+sets no `ProxyCommand none`, and refuses a `ProxyCommand` given before it (`ssh.c:878-889`). So, once a `ProxyCommand` holds (`-o
+ProxyCommand=none`, or the `ProxyCommand none` of an earlier block), OpenSSH reads no later
+`ProxyJump`; podssh read it, and would have jumped where OpenSSH goes straight. Approach, added:
+1b. A `ProxyJump` after the `ProxyCommand` that holds is not read; one given before it keeps its
+hops. `-J` keeps its own place (podssh does not refuse it beside `-o ProxyCommand=none`, where
+OpenSSH refuses the pair in one order of the two), and the `ProxyCommand` of the command line
+holds for each hop of `-J` too, as the settings of host keys do (T-290): a hop's own `ProxyJump`
+is then not read either.
+
+## Done
+
+Drafted 2026-11-02 by a drafting agent, not built; the main session builds it, runs it and fills
+each UNVERIFIED.
+- `crates/podssh-cli/src/ssh/options.rs`: the first `ProxyCommand` that podssh takes as its own
+  road (`none`, `podssh proxy %h %p`) is kept with its place (`proxy_command`), and each later
+  `ProxyCommand` and each later `ProxyJump` are not read; a command with no value before it is
+  refused (`proxy_refused`), and the refusal of a file's line names `-o ProxyCommand=none` (Q70).
+  The values of the keywords went to `crates/podssh-cli/src/ssh/options_values.rs`, for the length
+  of the file.
+- `crates/podssh-cli/src/ssh/given.rs`: the place of a value (`-o`, or `FILE:LINE` and whether it
+  is the system's file), which `crates/podssh-cli/src/ssh/config.rs` gives each line it applies.
+- The reading of a file starts from what the command line gives it (`Settings::for_files`: its
+  `IgnoreUnknown` and its `ProxyCommand`), for the destination
+  (`crates/podssh-cli/src/ssh/resolve.rs`) and for each hop of `-J`
+  (`crates/podssh-cli/src/ssh/jump.rs`), so a file's command after the command line's `none` is
+  never read; `cp`, `mv`, `scp`, `sftp`, `run`, `each`, `health` and the others take it through
+  `resolve_or_refuse`.
+- `-v` names the place of a `ProxyCommand podssh proxy %h %p` that podssh does not run
+  (`crates/podssh-cli/src/ssh/noted.rs`).
+- The manual's `~/.ssh/config` (`crates/podssh-cli/src/man/data.rs`), the refusal's row of
+  `ProxyCommand` (`crates/podssh-cli/src/ssh/keywords.rs`) and `docs/cli.md`, section
+  "`ssh_config`", say the same.
+- Tests, UNVERIFIED: `cargo test -p podssh-cli --lib ssh::options` (the first value holds; a later
+  `ProxyJump` is not read; the refusal names its way out) and `--lib ssh::given`, `--lib
+  ssh::noted`; `cargo test -p podssh-cli --test ssh_config_file -- proxy_command` (5 tests: the
+  report's file with `-o ProxyCommand=none`, `NONE` and `podssh proxy %h %p`, and with `-J`; a
+  `Host x` block's `none` before `Host *`; a later `ProxyJump`; `cp`, `mv`, `scp` and `sftp`
+  offline, 69 with `none` and 78 without; a login to the test's server with `--direct` at the
+  file's `Port`).
+- Planted, UNVERIFIED: `scripts/plants/t502-none-sets-nothing.plant` (`none` sets nothing again);
+  the test of the report's file must fail.
+- The main session runs `cargo todo remap` on `crates/podssh-cli/src/ssh/options.rs`,
+  `crates/podssh-cli/src/ssh/config.rs`, `crates/podssh-cli/src/ssh/resolve.rs`,
+  `crates/podssh-cli/src/ssh/jump.rs`, `crates/podssh-cli/src/ssh/keywords.rs`,
+  `crates/podssh-cli/src/man/data.rs` and `docs/cli.md`.
 
 # T-505: Keywords that restrict a connection (`Ciphers`, `HostKeyAlgorithms`, `RequiredRSASize` and others) are accepted with no effect and no word, and the manual says that they change nothing
 

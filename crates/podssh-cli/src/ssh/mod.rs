@@ -26,6 +26,8 @@ pub mod exit_road;
 // `--expect` and `--send` (T-191).
 pub mod expect;
 pub mod forward;
+// Where a keyword's value was given, for its notes and refusals (T-502).
+pub mod given;
 pub(crate) mod hop;
 pub mod iroh;
 mod jump;
@@ -36,6 +38,8 @@ pub mod local_command;
 pub mod local_spec;
 mod login;
 pub mod node;
+// The notes of what podssh accepts and does not use (T-502, T-505).
+mod noted;
 pub mod options;
 pub mod persist;
 pub mod picker;

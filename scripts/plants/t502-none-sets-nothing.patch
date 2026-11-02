@@ -1,0 +1,12 @@
+--- a/crates/podssh-cli/src/ssh/options.rs
++++ b/crates/podssh-cli/src/ssh/options.rs
+@@ -234,7 +234,8 @@
+             "proxycommand" if self.proxy_command.is_some() => {}
+             // `none`, and the ssh_config of OpenSSH users that names podssh
+             // itself: podssh ssh takes that road anyway, so neither stops it.
+-            "proxycommand" if value.eq_ignore_ascii_case("none") || runs_podssh_proxy(value) == Some(true) => {
++            "proxycommand" if value.eq_ignore_ascii_case("none") => {}
++            "proxycommand" if runs_podssh_proxy(value) == Some(true) => {
+                 self.proxy_command = Some(Given::new(name, value, place))
+             }
+             "proxycommand" => return Err(proxy_refused(name, value, runs_podssh_proxy(value).is_some(), place)),

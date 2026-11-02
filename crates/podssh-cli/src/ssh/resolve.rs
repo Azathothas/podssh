@@ -196,7 +196,7 @@ pub fn resolve_or_refuse(args: &SshArgs, env: &Env) -> Result<Resolved, Refusal>
             },
         },
     };
-    let filed = super::config::read(&source, &ctx, settings.ignore_unknown.clone()).map_err(Refusal::config)?;
+    let filed = super::config::read(&source, &ctx, settings.for_files()).map_err(Refusal::config)?;
     let (file_user, file_port) = (filed.user.clone(), filed.port);
     // Each hop of -J reads its own blocks, under these (T-290).
     let cli = settings.clone();
@@ -386,7 +386,7 @@ pub fn resolve_or_refuse(args: &SshArgs, env: &Env) -> Result<Resolved, Refusal>
         None if resumable => None,
         None => Some(Duration::from_secs(60)),
     };
-    let notes: Vec<String> = settings.ignored.iter().map(|k| format!("-o {k} has no effect in podssh")).collect();
+    let notes: Vec<String> = super::noted::of(&settings);
     let mut warnings: Vec<String> = agents.warning.clone().into_iter().collect();
     let idle = relay::idle_secs(&podssh_relay::pool::in_use());
     if resumable {
