@@ -74,3 +74,24 @@ pub const NODE_FLAGS: &[FlagRow] = &[
         "with --iroh: the relays, https://HOST[:PORT][,...]; the first that answers is the home relay (default: env PODSSH_IROH_RELAY, else n0's)", None),
     super::derp::NODE_DERP_SERVER,
 ];
+
+/// **`net`** (T-429): the net of a user's own nodes, a list of their names
+/// and keys that the owner's key signs. Its subcommands and their words are
+/// its arguments; beside the node's table, as the net names the nodes.
+#[rustfmt::skip]
+pub const NET_FLAGS: &[FlagRow] = &[
+    row(None, "owner-key", Some("FILE"), FlagKind::Supported,
+        "init, add, rm and renew: the owner's key that signs, a private key or a public one that the agent holds (default: the agent's key or the key of ~/.ssh that owns the net; for init, ~/.ssh/id_ed25519)", None),
+    row(None, "roles", Some("LIST"), FlagKind::Supported,
+        "add: what the member offers the net, of node, exit, relay and share, separated by commas (default node)", None),
+    row(None, "iroh-ticket", Some("TICKET"), FlagKind::Supported,
+        "add: the member's iroh ticket, which a client races for node://NAME when it names none", None),
+    row(None, "derp-ticket", Some("TICKET"), FlagKind::Supported,
+        "add: the member's DERP ticket, which a client dials for node://NAME when each road before it failed", None),
+    row(None, "days", Some("N"), FlagKind::Supported,
+        "init, add, rm and renew: the days that the signed document lasts, 1 to 3650 (default 365); no end takes it after", None),
+    row(None, "owner", Some("KEY"), FlagKind::Supported,
+        "take: the owner that a first document must have, its fingerprint SHA256:... or its public key; later ones must have the owner held", None),
+    row(None, "signature", None, FlagKind::Supported,
+        "show: the owner's signature, as ssh-keygen -Y sign writes it, in place of the document", None),
+];

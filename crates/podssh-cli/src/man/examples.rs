@@ -93,6 +93,12 @@ fn examples() -> Vec<(&'static str, String)> {
             "podssh ssh -tt --record top.cast user@example.org top && podssh play --speed 2 top.cast".into(),
         ),
         (
+            "a net of your own: sign it with your key, name a node in it, then reach the node by its name alone",
+            "podssh net init home --owner-key ~/.ssh/id_ed25519 && \
+             podssh net add lab SHA256:JfDOvc6FaJOB34ANs+ou385/Kh+mMQhnUx0gHXVAfUI && podssh ssh user@lab"
+                .into(),
+        ),
+        (
             "say what an update would do, its signature checked, then replace this binary with the newest release",
             "podssh update --check && podssh update".into(),
         ),
@@ -378,6 +384,7 @@ mod tests {
                     Parsed::Mcp(_) => "mcp",
                     Parsed::Session(_) => "session",
                     Parsed::Detached(_) => "detached",
+                    Parsed::Net(_) => "net",
                     Parsed::Man { .. } => "man",
                     Parsed::Node(_) => "node",
                     Parsed::Relay(_) => "relay",

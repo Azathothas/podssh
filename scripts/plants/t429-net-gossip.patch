@@ -1,0 +1,11 @@
+--- a/crates/podssh-relay/src/e2e/handshake.rs
++++ b/crates/podssh-relay/src/e2e/handshake.rs
+@@ -231,7 +231,7 @@
+     pub async fn admit(mut self) -> Result<Channel<T>, Error> {
+         self.channel.send_verdict(&Ok(())).await?;
+         if let Some(talk) = self.net {
+-            if let Some(bytes) = talk.gift(&self.peer) {
++            if let Some(bytes) = talk.gift(&self.peer).filter(|_| false) {
+                 self.channel.send_net(&bytes).await?;
+             }
+             self.channel.set_net(talk.docs, self.peer);

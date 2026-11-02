@@ -161,7 +161,7 @@ token header (`crates/podssh-ws/src/client.rs:279-290`); `https_request` takes h
 
 Recommendation: remove the `--timeout` and `--jsonl` rows of `relay`
 (`crates/podssh-cli/src/flags/relay.rs:9-36`), and bound each request in the code, as `doctor`
-does. With the row, the gate of `crates/podssh-cli/src/dispatch.rs:285-303` stops
+does. With the row, the gate of `crates/podssh-cli/src/dispatch.rs:287-305` stops
 `podssh relay status` in each script that leaves `--timeout` out. Keeping the gate lost for that
 reason: the command is bounded anyway.
 
@@ -522,7 +522,7 @@ relay sends no keepalives on reverse sockets, and a quiet socket becomes dormant
    reason of the close, or "open at 240 s".
 3. At 240 s, send one byte each way: a hibernated socket can stay open and not deliver.
 4. Stop the pair at the end (`POST /v1/stop/NAME`). Tokens go only in headers; never print one,
-   and above all not the `stop_token` (`docs/reverse.md:250-259`).
+   and above all not the `stop_token` (`docs/reverse.md:262-271`).
 5. Answer the question in `docs/relay.md` lines 189-195 at `cd75137`, record the result in `docs/STATUS.md` with
    the date and the command, and correct `docs/reverse.md` lines 24-29 at `cd75137` if the result differs.
 
@@ -790,7 +790,7 @@ listener" (lines 86-88 at `22c3b88`), and the ruling on Q10 allows more than one
    (line 186 at `22c3b88`) stays a note of the run. `Failure` keeps each error; `Opened.relay` and the log
    name the host that was kept. tokio's `select!` and `JoinSet` need no new crate and no C.
 7. Add the flag to `SSH_FLAGS`, `PROXY_FLAGS` and `DOCTOR_FLAGS`
-   (`crates/podssh-cli/src/flags.rs:112-289`, 323-343) and to `ONCE`
+   (`crates/podssh-cli/src/flags.rs:112-287`, 323-343) and to `ONCE`
    (`crates/podssh-cli/src/ssh/args.rs:159-190`); the variable to VARIABLES and the modes to THE
    RELAY (`crates/podssh-cli/src/man/facts.rs:45-290`, 170-183); both to `docs/relay.md:75-118`.
 8. T-059 orders the hosts across runs; this entry shortens the wait in one run. GitHub #25 asks
@@ -917,7 +917,7 @@ the module comment repeats it (`crates/podssh-relay/src/cache.rs`, lines 4-8 at 
 6. Change in the same commit: VARIABLES and FILES (`crates/podssh-cli/src/man/facts.rs:202-216`,
    `crates/podssh-cli/src/man/data.rs:157-164`), the test of lines 365-377 at `22c3b88`, the comment
    of `cache.rs`, and the `doctor`
-   notes (`crates/podssh-cli/src/man/notes.rs:202-270`).
+   notes (`crates/podssh-cli/src/man/notes.rs:204-272`).
 
 ## Decision
 
@@ -1138,7 +1138,7 @@ with no reason. Each drop read as the end of the TCP stream with no Close frame
 had drops, so the traffic does not cause them.
 
 Read: on the forward path, keepalives every 60 s kept one session for 602 s
-(`docs/STATUS.md:232`). That is one run, before 2026-10-09.
+(`docs/STATUS.md:233`). That is one run, before 2026-10-09.
 
 ## Approach
 

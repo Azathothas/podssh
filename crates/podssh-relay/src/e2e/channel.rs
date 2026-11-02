@@ -8,12 +8,20 @@
 //! one side's bytes end, so a shut at the first `END` would end the session
 //! before the other direction's last bytes. A session over the channel thus
 //! has the half-close of TCP, and a stream that ends with no `END` is a cut.
+//!
+//! Between two ends that said they read the net's document (T-429), a
+//! message `NET` carries one; it goes to the binary's [`Docs`], never to
+//! the session's bytes.
+
+use std::sync::Arc;
 
 use snow::StatelessTransportState;
 use tokio::io::{AsyncRead, AsyncReadExt, AsyncWrite, AsyncWriteExt};
 
-use super::frame::{self, DATA, END, VERDICT};
+use super::frame::{self, DATA, END, NET, VERDICT};
+use super::net::Docs;
 use super::{Error, Refusal, MAX_DATA, MAX_MESSAGE, TAG};
+use crate::identity::PublicKey;
 
 /// The channel over `transport`, after its handshake.
 pub struct Channel<T> {
@@ -23,11 +31,37 @@ pub struct Channel<T> {
     sent: u64,
     /// The nonce of the next message in.
     received: u64,
+    /// Where a document of the net from the peer goes, and the peer's key,
+    /// when both ends read them.
+    net: Option<(Arc<dyn Docs>, PublicKey)>,
 }
 
 impl<T: AsyncRead + AsyncWrite + Unpin> Channel<T> {
     pub(super) fn new(transport: T, state: StatelessTransportState) -> Self {
-        Channel { transport, state, sent: 0, received: 0 }
+        Channel { transport, state, sent: 0, received: 0, net: None }
+    }
+
+    /// Both ends read the net's documents: one from the peer goes to `docs`.
+    pub(super) fn set_net(&mut self, docs: Arc<dyn Docs>, peer: PublicKey) {
+        self.net = Some((docs, peer));
+    }
+
+    /// Send this end's document of the net, of [`MAX_DATA`] bytes at most.
+    pub(super) async fn send_net(&mut self, bytes: &[u8]) -> Result<(), Error> {
+        if bytes.len() > MAX_DATA {
+            return Err(Error::Malformed(format!("a document of the net of {} bytes", bytes.len())));
+        }
+        send(&self.state, &mut self.sent, &mut self.transport, NET, bytes).await
+    }
+
+    /// The peer's document of the net, which its proof said would follow.
+    pub(super) async fn read_net(&mut self) -> Result<Vec<u8>, Error> {
+        let (mut cipher, mut plain) = (Vec::new(), vec![0u8; MAX_MESSAGE]);
+        match receive(&self.state, &mut self.received, &mut self.transport, &mut cipher, &mut plain).await? {
+            None => Err(Error::Cut),
+            Some((NET, n)) => Ok(plain[1..n].to_vec()),
+            Some((kind, _)) => Err(Error::Malformed(format!("a message of type {kind} where the net's document was"))),
+        }
     }
 
     pub(super) async fn send_verdict(&mut self, answer: &Result<(), Refusal>) -> Result<(), Error> {
@@ -56,7 +90,7 @@ impl<T: AsyncRead + AsyncWrite + Unpin> Channel<T> {
     /// goes to `app`, whose writing side is shut at the peer's `END`. An
     /// error of either direction ends both.
     pub async fn carry<A: AsyncRead + AsyncWrite + Unpin>(self, app: A) -> Result<(), Error> {
-        let Channel { transport, state, mut sent, mut received } = self;
+        let Channel { transport, state, mut sent, mut received, net } = self;
         let (mut from_peer, mut to_peer) = tokio::io::split(transport);
         let (mut from_app, mut to_app) = tokio::io::split(app);
         let state = &state;
@@ -83,6 +117,13 @@ impl<T: AsyncRead + AsyncWrite + Unpin> Channel<T> {
                     Some((END, _)) => {
                         let _ = to_app.shutdown().await;
                         return Ok(());
+                    }
+                    // The binary says what it did with the document; the
+                    // session goes on either way.
+                    Some((NET, n)) if net.is_some() => {
+                        if let Some((docs, peer)) = &net {
+                            let _ = docs.take(peer, &plain[1..n]);
+                        }
                     }
                     Some((kind, _)) => return Err(Error::Malformed(format!("a message of type {kind} in a session"))),
                 }

@@ -276,7 +276,15 @@ pub fn files() -> Vec<(Vec<String>, String)> {
             "The node keys that an operator has met, in the cache: one line for each key of a label, LABEL \
              KEY, the key as its fingerprint (SHA256:...) or itself. The first sight of a label's node \
              writes its line; a node whose key matches no line of its label is refused, and no line is ever \
-             replaced: remove one, or add one for a new key. A file of the user that others cannot change."
+             replaced: remove one, or add one for a new key. A file of the user that others cannot change. A \
+             member of the net is checked by the key that the net names, and its line is not written."
+                .to_string(),
+        ),
+        (
+            vec![crate::net::store::FILE.to_string()],
+            "The net's document (podssh net, T-429), in the cache, or the file of PODSSH_NET: one line of JSON, \
+             then the owner's signature as ssh-keygen -Y sign writes it, replaced whole by each document taken. \
+             A file of the user that others cannot change; a node of the net reads it again for each session."
                 .to_string(),
         ),
         (

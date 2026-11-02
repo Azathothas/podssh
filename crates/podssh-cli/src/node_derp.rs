@@ -287,14 +287,17 @@ async fn serve(ready: Ready, err: &mut dyn Write) -> i32 {
     let _ = writeln!(err, "podssh node: {label}: home {}, the first DERP server whose probe answered", road.home());
     let _ = writeln!(err, "podssh node: {label}: ticket {}", road.ticket);
     let _ = writeln!(err, "podssh node: {label}: {}", crate::channel::who_may(Some(allow.as_path())));
+    if let Some(line) = crate::net::admit::line(&public) {
+        let _ = writeln!(err, "podssh node: {label}: {line}");
+    }
     // The channel of T-088 on both roads, with this node's key and its
     // allowlist: a session made on one road may resume on the other.
     let channel = ends::Node {
         identity: identity.clone(),
-        admit: crate::channel::admit_of(Some(allow.clone())),
+        admit: crate::net::admit::admit(Some(allow.clone()), public),
         say: say.clone(),
     };
-    let routes = crate::node::routes_of(&targets, Some(allow), roost);
+    let routes = crate::node::routes_of(&targets, crate::net::admit::grant(Some(allow), Some(public)), roost);
     let (host, port) = (targets[0].host.clone(), targets[0].port);
     let handler = TcpHandler { host: host.clone(), port, timeout: DIAL_LIMIT, sshd: roost };
     let target = move || {

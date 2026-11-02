@@ -293,7 +293,7 @@ pub const VARIABLES: &[(&[&str], &str)] = &[
 /// roads (T-351), and those of its features: the iroh road's in a build
 /// with it (`iroh_road`, T-165, T-350).
 pub fn variables() -> impl Iterator<Item = &'static (&'static [&'static str], &'static str)> {
-    VARIABLES.iter().chain(cloud::VARIABLES).chain(iroh_road::VARIABLES).chain(roads::VARIABLES)
+    VARIABLES.iter().chain(cloud::VARIABLES).chain(iroh_road::VARIABLES).chain(roads::VARIABLES).chain(net::VARIABLES)
 }
 
 fn environment() -> Vec<Block> {
@@ -480,6 +480,7 @@ fn exit_status() -> Vec<Block> {
 
 mod cloud;
 mod iroh_road;
+mod net;
 mod roads;
 #[cfg(test)]
 mod tests;

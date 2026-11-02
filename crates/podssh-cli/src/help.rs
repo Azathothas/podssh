@@ -286,6 +286,7 @@ pub fn usage_tail(verb: &Verb) -> &'static str {
         "config" => "import FORMAT FILE",
         "session" => "SUBCOMMAND [OPTIONS] [NAME] [HOST [COMMAND...] | TEXT]",
         "detached" => "SUBCOMMAND [NAME]",
+        "net" => "[OPTIONS] SUBCOMMAND [NAME [KEY] | FILE]",
         _ => "[OPTIONS]",
     }
 }

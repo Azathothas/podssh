@@ -62,15 +62,15 @@ repository and CI).
 
 ## Counts
 
-**447 entries: 47 open, 1 partial, 16 blocked, 383 done.**
+**449 entries: 48 open, 1 partial, 16 blocked, 384 done.**
 
 | Priority | open | partial | blocked | done | total |
 | --- | --- | --- | --- | --- | --- |
 | P0 | 0 | 0 | 0 | 1 | 1 |
-| P1 | 4 | 1 | 0 | 48 | 53 |
+| P1 | 3 | 1 | 0 | 49 | 53 |
 | P2 | 20 | 0 | 14 | 183 | 217 |
-| P3 | 23 | 0 | 2 | 151 | 176 |
-| **All** | 47 | 1 | 16 | 383 | 447 |
+| P3 | 25 | 0 | 2 | 151 | 178 |
+| **All** | 48 | 1 | 16 | 384 | 449 |
 
 ## Entries
 
@@ -500,7 +500,7 @@ repository and CI).
 | [T-426](release.md) | P1 | S | none | defect | done | `podssh update` of a build of a release, before the first release, says that it found no list |
 | [T-427](mesh.md) | P1 | L | M10 | feature | open | The relay's reverse road in podssh's relay role |
 | [T-428](mesh.md) | P1 | M | M10 | feature | open | The relay role behind a node's quick tunnel, with no listener |
-| [T-429](mesh.md) | P1 | L | M10 | feature | open | The net: an owner's signed list of its nodes, and their names |
+| [T-429](mesh.md) | P1 | L | M10 | feature | done | The net: an owner's signed list of its nodes, and their names |
 | [T-430](mesh.md) | P2 | M | M10 | feature | open | The net's policy: who may reach which node, share and exit |
 | [T-431](mesh.md) | P1 | L | M10 | feature | open | Exit mode: a node's egress for its owner's forward road |
 | [T-432](mesh.md) | P2 | M | M10 | feature | open | Routes: a node reaches its private networks for the net |
@@ -523,3 +523,5 @@ repository and CI).
 | [T-449](mesh.md) | P2 | S | M10 | defect | open | A test of the podssh-relay suite failed once in 11 runs, unnamed |
 | [T-450](mesh.md) | P3 | S | M10 | defect | open | Three live runs of the transit road met nobody within 20 s |
 | [T-451](mesh.md) | P2 | M | M10 | measurement | open | The Piping Server road from end to end: `podssh node` and `ssh node://` behind a proxy that refuses the upgrade |
+| [T-452](mesh.md) | P3 | S | M10 | feature | open | A node of the DERP road whose key is a member of the net starts with no `--allow` |
+| [T-453](mesh.md) | P3 | S | M10 | feature | open | `podssh cp` and `podssh sftp` reach a member of the net by its name alone |

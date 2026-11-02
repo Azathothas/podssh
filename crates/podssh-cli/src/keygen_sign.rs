@@ -100,8 +100,9 @@ fn now() -> i64 {
     std::time::SystemTime::now().duration_since(std::time::UNIX_EPOCH).map(|d| d.as_secs() as i64).unwrap_or(0)
 }
 
-/// What signs: the agent with a key, or a private key.
-enum Signing {
+/// What signs: the agent with a key, or a private key; `podssh net` signs
+/// so too (T-429).
+pub(crate) enum Signing {
     Agent(PublicKey),
     Key(Box<PrivateKey>),
 }
@@ -179,7 +180,7 @@ fn sign(args: &KeygenArgs, options: &Options, out: &mut dyn Write, err: &mut dyn
 /// The key that signs for `-f KEY`: the agent when it holds the public key
 /// of KEY (and only the agent with `-U`), else the private key in KEY. A
 /// certificate in `-f` is the key of the signature (T-289).
-fn signer(path: &Path, agent_only: bool) -> Result<(Signing, Option<Certificate>), String> {
+pub(crate) fn signer(path: &Path, agent_only: bool) -> Result<(Signing, Option<Certificate>), String> {
     let shown = path.display();
     let text = std::fs::read_to_string(path).map_err(|e| format!("{shown}: {e}"))?;
     if let Some(certificate) = certificate_line(&text) {
@@ -272,7 +273,7 @@ pub(crate) fn open_private(path: &Path, text: &str) -> Result<PrivateKey, String
 }
 
 /// Whether the agent of the environment holds `public`.
-fn agent_has(public: &PublicKey) -> bool {
+pub(crate) fn agent_has(public: &PublicKey) -> bool {
     block_on(async {
         match podssh_ssh::keys::agent_keys(&Agent::FromEnvironment).await {
             Ok(keys) => keys.iter().any(|k| k.key_data() == public.key_data()),
@@ -281,7 +282,7 @@ fn agent_has(public: &PublicKey) -> bool {
     })
 }
 
-fn with_agent(public: &PublicKey, namespace: &str, hash: HashAlg, prehash: &[u8]) -> Result<SshSig, String> {
+pub(crate) fn with_agent(public: &PublicKey, namespace: &str, hash: HashAlg, prehash: &[u8]) -> Result<SshSig, String> {
     block_on(sshsig::sign_with_agent(&Agent::FromEnvironment, public, namespace, hash, prehash))
 }
 

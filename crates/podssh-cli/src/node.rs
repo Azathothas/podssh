@@ -24,7 +24,7 @@ use std::time::Duration;
 
 use podssh_relay::e2e::ends::Node;
 use podssh_relay::pair::Pair;
-use podssh_relay::reverse::routes::{Route, Routed, Routes};
+use podssh_relay::reverse::routes::{Grant, Route, Routed, Routes};
 use podssh_relay::reverse::{self, E2e, Exit, Handler, Layered, NodeConfig, Settings, TcpHandler, Wire};
 use podssh_ws::dial::ProxyChoice;
 use podssh_ws::Trust;
@@ -255,11 +255,11 @@ pub(crate) fn shown(targets: &[Route]) -> String {
     each.collect::<Vec<_>>().join(", ")
 }
 
-/// The routes of a node, when it has one, with who may use each.
-pub(crate) fn routes_of(targets: &[Route], allow: Option<PathBuf>, roost: bool) -> Option<Routes> {
+/// The routes of a node, when it has one, with who may use each (T-429).
+pub(crate) fn routes_of(targets: &[Route], grant: Arc<Grant>, roost: bool) -> Option<Routes> {
     targets.iter().any(|t| t.name.is_some()).then(|| Routes {
         routes: Arc::new(targets.to_vec()),
-        grant: crate::channel::grant_of(allow),
+        grant,
         timeout: DIAL_LIMIT,
         sshd: roost,
     })
@@ -292,7 +292,8 @@ async fn serve(ready: Ready, err: &mut dyn Write) -> i32 {
             return Box::pin(crate::node_piping::serve(ready, server, Some(why), Some(target), err)).await;
         }
     }
-    let routes = routes_of(&targets, allow.clone(), roost);
+    let me = key.as_ref().map(|key| key.identity.public());
+    let routes = routes_of(&targets, crate::net::admit::grant(allow.clone(), me), roost);
     let mode = if plain { "in plain mode, with no resumable layer".into() } else { crate::node_flags::layer_mode() };
     let _ = writeln!(
         err,

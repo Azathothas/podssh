@@ -13,18 +13,20 @@
 //! A stream that ends with no such end is a cut, never a clean end, as the
 //! relay can drop the last frames; and a message that fails its check
 //! (changed, dropped, repeated or out of order) ends the session, as nothing
-//! may be skipped.
+//! may be skipped. Two ends that hold the net's document give each other
+//! the newer one inside the channel (T-429, [`net`]).
 
 mod channel;
 pub mod ends;
 mod frame;
 mod handshake;
+pub mod net;
 
 use std::fmt;
 use std::time::Duration;
 
 pub use channel::Channel;
-pub use handshake::{initiate, respond, Asked, Offered};
+pub use handshake::{initiate, initiate_with, respond, respond_with, Asked, Offered};
 
 /// What each end sends first: the channel and its version, so that an end
 /// with no channel is told apart at once, before any byte of a session.

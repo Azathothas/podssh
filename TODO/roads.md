@@ -60,7 +60,7 @@ unknown flag (exit 64), and `Cargo.lock` has no iroh crate.
    iroh destination refuses before it connects and names `--features iroh`,
    as `crates/podssh-cli/tests/ts_not_built.rs:1-4` shows for `ts`.
 7. Docs: the "Outbound only" item of `README.md`, "Nothing listens" in
-   `SECURITY.md:132-159`, `docs/architecture.md` (rule 3, the crates),
+   `SECURITY.md:144-171`, `docs/architecture.md` (rule 3, the crates),
    `docs/design.md` section 7, and `AGENTS.md` (sections 3 and 7).
 
 ## Decision
@@ -163,7 +163,7 @@ access is by an allowlist of keys or a relay token (`docs/design.md:1206-1207`).
 Read in the reports, not verified here: iroh-ssh warns when a server's key is
 ephemeral (`rustonbsd/iroh-ssh:src/ssh.rs`); zuko hands over a ticket out of
 band (`adonm/zuko:docs/protocol.md`). Read: `podssh ts` keeps its node key in
-the file that `--ts-state` names (`crates/podssh-cli/src/flags.rs:356-357`,
+the file that `--ts-state` names (`crates/podssh-cli/src/flags.rs:354-355`,
 `crates/podssh-cli/src/ts.rs:181`). Credentials never go on argv
 (`AGENTS.md`, section 4).
 
@@ -186,7 +186,7 @@ the file that `--ts-state` names (`crates/podssh-cli/src/flags.rs:356-357`,
 5. The node prints its ticket and its fingerprint on stderr when it starts.
    `podssh ssh iroh:TICKET` dials it (the address of `docs/design.md:992`).
 6. Add the key files to FILES in the manual
-   (`crates/podssh-cli/src/man/data.rs:150-375`), and each new variable to
+   (`crates/podssh-cli/src/man/data.rs:150-383`), and each new variable to
    `VARIABLES` (`crates/podssh-cli/src/man/facts.rs:45-290`).
 
 ## Decision
@@ -3630,7 +3630,7 @@ adapter under the layer and the tests against derper make it L.
 - Read: a carrier of the reverse road gives a meeting point and bytes in order, and no more: the
   end-to-end channel (Noise XX, each end's Ed25519 key, a verdict before the node dials) ends the
   session on a message that is changed, dropped, repeated or reordered
-  (`crates/podssh-relay/src/e2e/mod.rs:1-16`; `crates/podssh-relay/src/e2e/channel.rs:1-4`), and
+  (`crates/podssh-relay/src/e2e/mod.rs:1-17`; `crates/podssh-relay/src/e2e/channel.rs:1-4`), and
   the layer resumes on any link that reads and writes
   (`crates/podssh-relay/src/session/resume.rs:143-156`).
 - Read: a gap of the layer's offsets ends a link (`docs/design.md:821-824`): a carrier of packets
@@ -3815,7 +3815,7 @@ podssh's own, which makes it M.
   (`crates/podssh-iroh/src/endpoint.rs:4-7`, `:305-306`), as the design chose for a host with no
   DNS (`docs/design.md:1063`, `:1073`).
 - Read: the node's key is Ed25519 and stays across its pairs, and the operator pins it by label
-  (`docs/reverse.md:224-228`).
+  (`docs/reverse.md:231-235`).
 - Read in the study (https://docs.iroh.computer/connecting/dns-address-lookup): an endpoint
   publishes a signed packet to a DNS/Pkarr server over HTTP; n0's servers are free, rate-limited,
   with no guaranteed uptime, and "You're more than welcome to run production systems" on them,
@@ -5035,7 +5035,7 @@ does not depend on them.
   "`--direct`, or when a probe shows it works"; the triage of GitHub #69 to #72 named this entry
   there.
 - Read: rule 2 of `AGENTS.md` allows a second connection at once for a race between relay hosts,
-  and for the split HTTP road (`AGENTS.md:260-270`); a race of the forward and the direct road is
+  and for the split HTTP road (`AGENTS.md:261-271`); a race of the forward and the direct road is
   neither.
 - Read: the direct dial goes through `HTTPS_PROXY` when it is set, with the relay's step limit of
   20 s (`crates/podssh-cli/src/ssh/transport.rs:324-338`, `crates/podssh-relay/src/open.rs:30`),
@@ -5377,7 +5377,7 @@ and no notice.
 - Read: whether Cloudflare's terms, which forbid using its services "to provide a virtual private
   network or other similar proxy services", hold for the relay is a question for the relay's
   operator (`docs/relay-operator.md:92-96`).
-- Read: the test targets of a session are the operator's list (`AGENTS.md:233-252`), which names
+- Read: the test targets of a session are the operator's list (`AGENTS.md:234-253`), which names
   none of the three.
 
 ## Approach
@@ -5456,7 +5456,7 @@ relay host failed. Live, as Q56 allows: GitHub's banner through each, in GitHub 
 2026-10-31 (the drafting agent): two citations of the Premise, read at `a3f948d`. The question of
 Cloudflare's terms is item 15 of the relay operator's list, `docs/relay-operator.md`, lines 315-322 at `80a6407`;
 `docs/relay-operator.md:92-96` is item 1's word on the drops of reverse sockets. The test targets
-of `AGENTS.md:232-249` name the three forwarders now, from GitHub Actions only, with short runs
+of `AGENTS.md:233-250` name the three forwarders now, from GitHub Actions only, with short runs
 (Q56, the same day); the Premise read them before that ruling.
 
 ## Done
@@ -5526,14 +5526,14 @@ a hop. `doctor` has no line for a hop, so a user cannot see whether one is reach
 - Read: through the agent proxy of a cloud container, a CONNECT to `ssh.github.com:443` got `200`,
   and then a reset: `TODO/ws.md:1160` says "gets 200, then a reset". A proxy that waits for TLS
   carries no SSH on port 443; T-372 wraps SSH in TLS for it. Through the relay, GitHub's SSH on
-  port 443 answers (`docs/STATUS.md:112`).
+  port 443 answers (`docs/STATUS.md:113`).
 - Read: `doctor` asks the proxy for the relay and for `github.com` only
   (`crates/podssh-cli/src/doctor/net.rs:193-243`).
 - Read in GitHub #61 (a tester's measurement of 2026-10-31, from a host with direct egress; not
   measured here): SSH banners on port 443 at `bg2.vpnjantit.com` (Dropbear 2017.75, an account with
   a password that a form makes), `ssh.tilde.club` and `ssh.blinkenshell.org` (OpenSSH); whether
   they allow `direct-tcpip` was not measured.
-- Read: GitHub's SSH endpoint is a test target, and those three are not (`AGENTS.md:233-252`). The
+- Read: GitHub's SSH endpoint is a test target, and those three are not (`AGENTS.md:234-253`). The
   box's proxy allows ports 443, 80 and 8443, and lets one test target through by its name
   (`scripts/box/proxy.py:6-16`).
 
@@ -5785,7 +5785,7 @@ cannot make it a road.
   `--via ss://...`, which puts the password in argv.
 - The user names each server and each list, as a proxy of `ALL_PROXY` (T-070); podssh names none.
   Its tests use servers that podssh did not write, never a public one: no public server is a test
-  target of the operator's (`AGENTS.md:233-252`).
+  target of the operator's (`AGENTS.md:234-253`).
 - Shadowsocks 2022 (SIP022) is refused by name in this entry; a later entry can take it.
 
 The draft's calls, 2026-11-01:
@@ -6129,7 +6129,7 @@ ask, and nothing does so.
 ## Premise
 
 - Read: the node of the iroh road serves the pair's road beside it, with one keeper for both
-  (`crates/podssh-cli/src/node_iroh.rs:341-342`), and `podssh node` sends `--iroh` there
+  (`crates/podssh-cli/src/node_iroh.rs:349-350`), and `podssh node` sends `--iroh` there
   (`crates/podssh-cli/src/node.rs:98-100`).
 - Read: `podssh ssh` resolves its destination into an enum of transports
   (`crates/podssh-cli/src/ssh/resolve.rs:24-68`), in a file of 488 of its 500 lines.

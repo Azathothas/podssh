@@ -148,11 +148,12 @@ pub struct Road {
 
 impl Race {
     /// The road of a run to the node of `label`: the ticket given, else the
-    /// one kept under the label when the fallback is on; else none.
+    /// one that the net names for the member (T-429), else the one kept
+    /// under the label, when the fallback is on; else none.
     pub(crate) fn road(&self, label: &str) -> Option<Road> {
         let (ticket, asked) = match &self.ticket {
             Some(ticket) => (ticket.clone(), true),
-            None if self.fallback => (kept(label)?, false),
+            None if self.fallback => (crate::net::lookup::derp_ticket(label).or_else(|| kept(label))?, false),
             None => return None,
         };
         let servers = servers::for_client_in(&ticket.server, &self.servers);

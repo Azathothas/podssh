@@ -43,6 +43,18 @@ delay, repeat or change a frame, but each such fault ends the session: it
 cannot read a byte, or change one unseen. `--no-e2e`, given at both ends,
 turns the channel off.
 
+A net of the user's own nodes (`podssh net`, T-429) is a document that the
+owner's OpenSSH key signs (SSHSIG, namespace `podssh-net`). An end trusts
+the owner of the first document that its user takes, and then takes only
+documents of that owner with a higher serial and an end still to come; no
+server and no relay vouches for one. Two ends of the net pass the newer
+document inside the channel, to a member only, so the relay sees no more
+than a word in clear that both ends read documents. A node of the net lets
+in each member that the document held names: whoever holds the owner's
+private key decides who reaches the user's nodes, so that key is kept as a
+login key is; a removed member is refused by each node that holds the newer
+document, and a document that ended lets nobody in by the net.
+
 The host-key check makes a relay in the middle safe:
 
 - podssh refuses an unknown host key unless you accept it;
