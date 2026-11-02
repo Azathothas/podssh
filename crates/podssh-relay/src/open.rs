@@ -204,9 +204,9 @@ pub async fn open(req: &Request<'_>, notes: &mut dyn FnMut(&str)) -> Result<Open
     }
     // The addresses that carried a session, for a resolver that fails (T-344).
     crate::addresses::install();
-    // A host that failed lately goes last (T-059).
+    // A host that failed lately goes last (T-059), and one that opened first (T-563).
     let mut records = Records::load();
-    let (order, moved) = failures::order(&req.relays.hosts, &records, crate::pool::now_ms());
+    let (order, moved) = failures::order(failures::WEBSOCKET, &req.relays.hosts, &records, crate::pool::now_ms());
     for note in moved {
         notes(&note);
     }
@@ -246,7 +246,7 @@ pub async fn open(req: &Request<'_>, notes: &mut dyn FnMut(&str)) -> Result<Open
         let silent = raced.silent.iter().map(|i| (hosts[*i].host.clone(), failures::SILENT.to_string()));
         let failed: Vec<(String, String)> = reasons.chain(silent).collect();
         let opened = raced.kept.as_ref().map(|(i, _)| hosts[*i].host.as_str());
-        if records.update(&failed, opened, crate::pool::now_ms()) {
+        if records.update(failures::WEBSOCKET, &failed, opened, crate::pool::now_ms()) {
             records.store();
         }
         // A host that failed after its connection opened, as the relay itself

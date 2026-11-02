@@ -15,8 +15,10 @@
 use std::future::Future;
 use std::pin::Pin;
 use std::sync::{Arc, Mutex};
+use std::time::Instant;
 
 use podssh_relay::failover::Mode;
+use podssh_relay::failures;
 use podssh_relay::open::{Failure, Request};
 use podssh_relay::relay::RelayList;
 use podssh_ws::session::close_code_and_reason;
@@ -94,14 +96,15 @@ pub async fn session(
     let request =
         Request { relays: road.relays, path, trust: road.trust, target: &target, rounds: 1, failover: road.failover };
     let opened = podssh_relay::open(&request, &mut |note: &str| say(note)).await?;
-    Ok(carry(opened.session, target, podssh_relay::relay::is_ipv6_literal(host), false))
+    Ok(carry_opened(opened, target, podssh_relay::relay::is_ipv6_literal(host)))
 }
 
 /// The end of an open session to `target` (`host:port`); `v6` for the note
 /// on an IPv6 target that closes at once. With `quiet_end`, the end of the
 /// stream with no Close is the end of the session, as on the road of
-/// `cloudflared`, where neither side sends a Close (T-264).
-pub fn carry(session: RelaySession, target: String, v6: bool, quiet_end: bool) -> End {
+/// `cloudflared`, where neither side sends a Close (T-264). With `host`, the
+/// relay host that opened it, its end goes into the record of the hosts.
+fn carry_for(session: RelaySession, host: Option<String>, target: String, v6: bool, quiet_end: bool) -> End {
     let session = Arc::new(session);
     let status = Arc::new(Status::default());
     let up_failed = Arc::new(Notify::new());
@@ -185,7 +188,7 @@ pub fn carry(session: RelaySession, target: String, v6: bool, quiet_end: bool) -
         write: Box::new(write),
         child: None,
         last_word: true,
-        ending: Some(Box::new(RelayEnding { session, status, down, target, v6 })),
+        ending: Some(Box::new(RelayEnding { session, status, down, target, v6, host, started: Instant::now() })),
     }
 }
 
@@ -195,12 +198,18 @@ struct RelayEnding {
     down: JoinHandle<()>,
     target: String,
     v6: bool,
+    /// The relay host that opened it, and when (T-563).
+    host: Option<String>,
+    started: Instant,
 }
 
 impl Ending for RelayEnding {
     fn finish(self: Box<Self>) -> Pin<Box<dyn Future<Output = Verdict> + Send>> {
         Box::pin(async move {
-            let RelayEnding { session, status, down, target, v6 } = *self;
+            let RelayEnding { session, status, down, target, v6, host, started } = *self;
+            if let Some(host) = host {
+                failures::ended(failures::WEBSOCKET, &host, started.elapsed(), cut(status.get().as_ref()));
+            }
             if let Some(Ended::Closed { code, .. }) = status.get() {
                 crate::session_log::closed(code);
             }
@@ -226,5 +235,28 @@ impl Ending for RelayEnding {
                 }
             }
         })
+    }
+}
+
+/// [`carry_for`] of a session that no relay host's record follows: the road
+/// of `cloudflared`, a forwarder's.
+pub fn carry(session: RelaySession, target: String, v6: bool, quiet_end: bool) -> End {
+    carry_for(session, None, target, v6, quiet_end)
+}
+
+/// [`carry_for`] of a session that `open` opened: its end goes into the
+/// record of the host that opened it (T-563).
+pub fn carry_opened(opened: podssh_relay::open::Opened, target: String, v6: bool) -> End {
+    carry_for(opened.session, Some(opened.relay.host), target, v6, false)
+}
+
+/// Whether the host's side ended the session (T-563): a link that failed, or
+/// the relay's Close for its link to podssh. A Close with no code is a normal
+/// end here, as the verdict above reads it.
+fn cut(ended: Option<&Ended>) -> bool {
+    match ended {
+        Some(Ended::Failed(_)) => true,
+        Some(Ended::Closed { code: Some(code), reason }) => crate::relay_ends::cut_by(Some(*code), reason),
+        Some(Ended::Closed { code: None, .. }) | None => false,
     }
 }

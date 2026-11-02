@@ -360,7 +360,7 @@ async fn session(road: &Road<'_>, path: &str, (host, port): (&str, u16), v6: boo
     match opened {
         Ok(opened) => {
             crate::session_log::opened(Some(&opened.relay.host));
-            let relayed = crate::pipe::relay::carry(opened.session, target.to_string(), v6, false);
+            let relayed = crate::pipe::relay::carry_opened(opened, target.to_string(), v6);
             let pumped = crate::pipe::pump::pump(crate::pipe::local::stdio(), relayed).await;
             crate::session_log::carried(pumped.carried.0, pumped.carried.1);
             crate::pipe::report(pumped, "podssh", err).await

@@ -84,6 +84,7 @@ pub fn run_status(args: &StatusArgs, tty: Tty, out: &mut dyn Write, err: &mut dy
         "host": host,
         "session_log": session_log,
         "relay_failures": relay_failures(),
+        "relay_opened": relay_opened(),
         "pairs": pairs_state(),
     });
     let _ = writeln!(out, "{line}");
@@ -110,11 +111,11 @@ fn pairs_state() -> Value {
 }
 
 /// The relay hosts that each run tries last now (T-059), with the seconds
-/// since each failed and why.
+/// since each failed or was cut, why, and the road (T-563).
 fn relay_failures() -> Value {
-    let records = podssh_relay::failures::Records::load();
-    let recent = podssh_relay::failures::recent(&records, crate::pairs::now_ms());
-    recent.into_iter().map(|(host, ago_s, reason)| json!({ "host": host, "ago_s": ago_s, "reason": reason })).collect()
+    let seen = podssh_relay::failures::recent(&podssh_relay::failures::Records::load(), crate::pairs::now_ms());
+    let last = seen.iter().filter_map(|s| s.last.as_ref().map(|(ago_s, why)| (s, ago_s, why)));
+    last.map(|(s, ago_s, why)| json!({ "road": s.road, "host": s.host, "ago_s": ago_s, "reason": why })).collect()
 }
 
 /// The session log (T-056): its file, and its last line in short form; null
@@ -205,4 +206,13 @@ fn destination(text: &str) -> Result<Value, String> {
     let algorithms = podssh_ssh::known_hosts::recorded_algorithms(&files, &name);
     let types: Vec<&str> = algorithms.iter().map(|a| a.as_str()).collect();
     Ok(json!({ "name": name, "known": !types.is_empty(), "key_types": types }))
+}
+
+/// The relay hosts that opened lately (T-563), which a run tries first while
+/// their last session was not cut: the seconds since, and the opens that
+/// the record counts.
+fn relay_opened() -> Value {
+    let seen = podssh_relay::failures::recent(&podssh_relay::failures::Records::load(), crate::pairs::now_ms());
+    let opened = seen.iter().filter_map(|s| s.opened.map(|(ago_s, opens)| (s, ago_s, opens)));
+    opened.map(|(s, ago_s, opens)| json!({ "road": s.road, "host": s.host, "ago_s": ago_s, "opens": opens })).collect()
 }
