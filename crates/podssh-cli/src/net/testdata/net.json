@@ -1,0 +1,13 @@
+{
+  "podssh-net": 1,
+  "name": "home",
+  "serial": 3,
+  "issued": 1793577600,
+  "expires": 4102444800,
+  "owner": "ssh-ed25519 AAAAC3NzaC1lZDI1NTE5AAAAIK256HKqRevusutQtpYlDW6gGC1nJ6RZeBYo/4lr3vRM",
+  "members": [
+    {"name": "lab", "key": "234deeb26e8a29bd13840df700d365c16474b10682636b98100529a3babca2d1", "roles": ["node"], "tickets": {}},
+    {"name": "laptop", "key": "SHA256:grmeJfm5Lp2LikAvP5iuE4WrzrdiLMqvoYnYrkZgoyc", "roles": ["node", "exit"]}
+  ],
+  "requires": []
+}

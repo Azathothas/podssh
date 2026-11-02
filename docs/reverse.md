@@ -172,6 +172,13 @@ session's bytes.
 6. The operator's proof of its key may name a route of the node (T-089),
    encrypted with it: the relay never sees which. The node refuses a route
    that it does not have, or that the key may not use, before it dials.
+7. Two ends that hold the net's document (T-429) say so: the operator's
+   first message carries `podssh-net/1` in clear, which an end of before
+   sets aside; only then do the proofs take the net's form (version 3),
+   which names the route, the owner and the serial held, and whether a
+   document follows. The operator's newer document is a message of its own
+   before the verdict; the node's, after a verdict that let the operator in.
+   Each goes to a member of it only.
 
 ## The transit road
 
@@ -229,6 +236,11 @@ by a name of the user's own, and by its key, and asks no directory
 - **A new pair reaches its operators** in the operator's part that `podssh
   relay pair --operator-file` writes, which the user hands on. Its delivery
   through the relay waits for the relay's operator (T-086).
+- **A member of the net** (T-429): a name that the user's own net names
+  is looked up there first, with the key that the channel then checks in
+  place of the pins, and the tickets that race beside the pair kept under
+  the name; `podssh ssh NAME` alone reaches a member with the role `node`
+  ([cli.md](cli.md), "`podssh net`").
 - **No directory, and no mDNS.** A directory in the relay would give it a
   list of each node and when it is online, and needs its operator; mDNS
   would announce a node to its network, and the sandboxes that podssh

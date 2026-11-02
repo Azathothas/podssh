@@ -12,6 +12,8 @@ pub const VERDICT: u8 = 1;
 pub const DATA: u8 = 2;
 /// The clean end of one direction.
 pub const END: u8 = 3;
+/// The net's document (T-429), between two ends that said they read it.
+pub const NET: u8 = 4;
 
 /// The verdicts: let in, or why not.
 const LET_IN: u8 = 0;

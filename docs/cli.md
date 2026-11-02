@@ -2503,6 +2503,69 @@ commands. The rules behind them:
   (`1011 node disconnected`), and that a new session may work: the node
   connects again by itself. `operator` exits 69.
 
+## `podssh net`
+
+`podssh net` (T-429, milestone M10, [mesh.md](mesh.md)) keeps a net of the
+user's own nodes, as a tailnet does with no server to trust: one document
+that the owner's key signs, and that each end keeps.
+
+- **The document** is one JSON object: `podssh-net` (its form, 1), `name`,
+  `serial`, `issued` and `expires` (seconds since 1970), `owner` (the
+  owner's OpenSSH public key, `TYPE BASE64`), `members` (each with `name`,
+  `key`, `roles` and `tickets`) and `requires`. A member's name has letters,
+  digits, `-` and `_`, 63 at most, and no dot; its key is the Ed25519 key
+  that a node says as it starts, as 64 hex digits, iroh's base32 or its
+  fingerprint `SHA256:...`; its roles are `node`, `exit`, `relay` and
+  `share`; its tickets are `iroh` and `derp`, checked to name its key. A
+  field that this podssh does not know stays as it is when the owner signs a
+  change; a document whose `requires` names a part that it does not read is
+  refused (the policy of T-430 takes its own part).
+- **The signature** is OpenSSH's SSHSIG over the document's bytes, in the
+  namespace `podssh-net`, with SHA-512: `ssh-keygen -Y verify -f ALLOWED -I
+  owner -n podssh-net -s FILE.sig < FILE` checks it, and a document that
+  `ssh-keygen -Y sign -n podssh-net` signed is taken. The key that signed
+  must be the document's owner. podssh writes the document on one line with
+  its keys in order, then the armoured signature, in one file (`net.doc` of
+  the cache, or the file of `PODSSH_NET`), replaced whole.
+- **The owner's subcommands** each sign a document with a serial one higher
+  and a new end (`--days N`, 365 by default, at most 3650): `init NAME`,
+  with `--owner-key FILE` or `~/.ssh/id_ed25519`; `add NAME KEY` with
+  `--roles`, `--iroh-ticket` and `--derp-ticket`, which also replaces a
+  member; `rm NAME`; `renew`. A change finds the owner's key in
+  `--owner-key`, else in the agent, else in `~/.ssh/id_*` by its public
+  half; a passphrase is asked once.
+- **Each end's subcommands**: `ls` (a line for each member on stdout:
+  name, roles, fingerprint, kinds of tickets, apart by tabs; the net in one
+  line on stderr), `show` (the document's bytes as signed; `--signature`,
+  the armour), `take FILE` (a signed file, or `FILE` with `FILE.sig`).
+- **The rule of a new document**: the owner's signature, an end still to
+  come, and, when a document is held, the same owner and a higher serial;
+  the same document again is no change (0). The first document is the one
+  that the user takes, and `--owner KEY` checks its owner. Each refusal
+  exits 65 with its reason; a host with no net, 78.
+- **Two ends of the net** that meet on any road give each other the newer
+  document inside the end-to-end channel, only to a key that is a member of
+  it: the operator's before the node's verdict, so that it holds for that
+  session, the node's after it. A node says each document that it takes.
+- **A node whose key is a member** lets in each member of the document
+  held, read again for each session, beside the keys of `--allow`; with no
+  `--allow`, only the members. A member removed by a newer document is
+  refused at its next session. A document that ended, or one that fails its
+  check, lets nobody in by the net. A node of no net keeps its door as
+  before. The node's first lines say its net.
+- **A member's name** is a destination: `podssh ssh node://NAME`, and
+  `podssh ssh NAME` alone when NAME is a member with the role `node`. The
+  net names the member's key, which the channel checks in place of the pins
+  of `known-nodes`, and its tickets, which race beside the pair kept under
+  NAME when the command line names none: the iroh ticket first, as
+  `--iroh-ticket`; the DERP ticket after the roads before it failed, as a
+  ticket kept under NAME. A `Host` block that sets `HostName` for a
+  member's name is refused, as for `node://NAME`.
+- `PODSSH_NET=no` turns the net off: no name, no door, no document of the
+  channel. Exit codes: 64 for the command line, 65 for a document refused,
+  73 for a document that could not be kept, 78 for a host with no net, an
+  owner's key that is not found, or a bad `PODSSH_NET`.
+
 ## `podssh pipe`
 
 `podssh man pipe` gives the command (T-174). The rules behind it:

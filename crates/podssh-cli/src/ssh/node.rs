@@ -35,7 +35,10 @@ pub type Named = (Option<String>, String, Option<String>);
 /// each other destination. `node:NAME`, with no slashes, is a host named
 /// `node`.
 pub fn destination(text: &str) -> Result<Option<Named>, String> {
-    let Some(rest) = text.strip_prefix(SCHEME) else { return Ok(None) };
+    // A member of the net by its name alone, as MagicDNS names one (T-429).
+    let Some(rest) = text.strip_prefix(SCHEME) else {
+        return Ok(crate::net::lookup::bare(text).map(|(u, n)| (u, n, None)));
+    };
     let rest = rest.trim_end_matches('/');
     let (user, name) = match rest.rsplit_once('@') {
         Some((user, name)) if !user.is_empty() => (Some(user.to_string()), name),

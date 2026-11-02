@@ -1,0 +1,7 @@
+# T-429: the check that the key of the signature is the document's owner is
+# removed, so a document that another key signed is taken; the test of
+# OpenSSH's signature by another key must fail.
+ENTRY=T-429
+GROUP=cli-tests
+EXPECT='another_key_another_namespace_and_a_changed_byte_are_refused \.\.\. FAILED'
+RUN='cargo test --locked -p podssh-cli --lib -- net::tests::another_key_another_namespace_and_a_changed_byte_are_refused'

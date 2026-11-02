@@ -27,6 +27,7 @@ use podssh_iroh::keys::{self, Place};
 use podssh_iroh::version::Offline;
 use podssh_iroh::{ticket, Allowlist, Options, Udp};
 use podssh_relay::e2e::ends;
+use podssh_relay::identity::PublicKey as IdentityKey;
 use podssh_relay::pair::Pair;
 use podssh_relay::reverse::routes::{Route, Routes};
 use podssh_relay::reverse::{self, Handler, Layered, NodeConfig, TcpHandler, Wire};
@@ -172,7 +173,8 @@ async fn serve_tcp(ready: Ready, targets: Vec<Route>, roost: bool, err: &mut dyn
         Ok(versions) => crate::node::serving(&targets, &versions),
         Err(refusal) => return refusal.report("node", err),
     };
-    let routes = crate::node::routes_of(&targets, ready.allow.clone(), roost);
+    // Each route as the allowlist grants it; `serve` adds the net's, with the key.
+    let routes = crate::node::routes_of(&targets, crate::channel::grant_of(ready.allow.clone()), roost);
     let (host, port) = (targets[0].host.clone(), targets[0].port);
     let handler = TcpHandler { host: host.clone(), port, timeout: DIAL_LIMIT, sshd: roost };
     let open = move || {
@@ -223,6 +225,9 @@ where
         Ok(key) => key,
         Err(why) => return Refusal::config(format!("the node's key: {why}")).report(verb, err),
     };
+    // A member of the net lets in its members on both roads (T-429).
+    let me = key.identity.public();
+    let routes = routes.map(|r| Routes { grant: crate::net::admit::grant(allow.clone(), Some(me)), ..r });
     // The first relay of the list that answers `/ping` is the home relay,
     // and the ticket names it for the run (T-165).
     let (home, missed) = podssh_iroh::relays::home(&relays, &trust, &proxy).await;
@@ -296,6 +301,9 @@ where
     // The endpoint is up with its home relay: a detached node goes on (T-380).
     crate::detach::ready("node");
     let _ = writeln!(err, "podssh {verb}: {label}: {}", who_may(allow.as_deref()));
+    if let Some(line) = crate::net::admit::line(&me) {
+        let _ = writeln!(err, "podssh {verb}: {label}: {line}");
+    }
     let say = {
         let label = label.clone();
         move |line: String| podssh_ssh::err_line!("podssh {verb}: {label}: {line}")
@@ -307,7 +315,7 @@ where
     let channel = match e2e {
         true => Some(ends::Node {
             identity: Arc::new(podssh_relay::identity::Identity::from_seed(&key.identity.seed())),
-            admit: crate::channel::admit_of(allow.clone()),
+            admit: crate::net::admit::admit(allow.clone(), me),
             say: Arc::new(say.clone()),
         }),
         false => {
@@ -333,7 +341,7 @@ where
     });
     let admit = {
         let say = say.clone();
-        move |key: &PublicKey| admits(allow.as_deref(), key, &say)
+        move |key: &PublicKey| admits(allow.as_deref(), &me, key, &say)
     };
     // Each session of either road is a pipe (T-164): with the channel, the
     // target is reached once the operator's key is let in.
@@ -446,8 +454,12 @@ fn who_may(allow: Option<&std::path::Path>) -> String {
 /// Whether the client `key` may connect: the allowlist is read again for
 /// each connection, so a key added counts at once. A refusal is said with
 /// the key, which is the line to add.
-fn admits(allow: Option<&std::path::Path>, key: &PublicKey, say: &impl Fn(String)) -> bool {
+fn admits(allow: Option<&std::path::Path>, me: &IdentityKey, key: &PublicKey, say: &impl Fn(String)) -> bool {
     let shown = keys::fingerprint(key);
+    if crate::net::admit::lets_in(me, &keys::identity_key(key)) {
+        say(format!("the client key {shown} connected, a member of the net"));
+        return true;
+    }
     let Some(path) = allow else {
         say(format!("refused the client key {shown}: no --allow file"));
         return false;

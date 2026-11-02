@@ -132,13 +132,22 @@ pub struct Race {
 }
 
 /// `--iroh-ticket` of a `node://NAME` destination, checked before anything
-/// connects.
-pub(super) fn race(args: &super::args::SshArgs) -> Result<Option<Race>, Refusal> {
-    let Some(ticket) = &args.iroh_ticket else { return Ok(None) };
-    shown(ticket).map_err(Refusal::usage)?;
+/// connects; with none, the iroh ticket that the net names for the member
+/// NAME (T-429), when this build reads it.
+pub(super) fn race(args: &super::args::SshArgs, label: &str) -> Result<Option<Race>, Refusal> {
+    let ticket = match &args.iroh_ticket {
+        Some(ticket) => {
+            shown(ticket).map_err(Refusal::usage)?;
+            ticket.clone()
+        }
+        None => match crate::net::lookup::ticket(label, "iroh").filter(|t| shown(t).is_ok()) {
+            Some(ticket) => ticket,
+            None => return Ok(None),
+        },
+    };
     let relays = relays(args.iroh_relay.as_deref())?;
     let key = args.client_key.clone().or_else(|| args.iroh_key.clone());
-    Ok(Some(Race { ticket: ticket.clone(), key, relays }))
+    Ok(Some(Race { ticket, key, relays }))
 }
 
 /// The relays of `--iroh-relay`, else of the variable, else of the table: a

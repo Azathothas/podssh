@@ -265,6 +265,8 @@ pub(super) async fn connect(
     // The channel of T-088, to the node that a ticket names, on whichever
     // road wins: the node has one key for each road.
     let expect = match (&iroh, &raced.derp) {
+        // A member of the net: the key that the net names, on each road (T-429).
+        _ if crate::net::lookup::member(label).is_some() => crate::channel::Expect::Pinned(label.to_string()),
         (Some(iroh), _) => crate::channel::Expect::Ticket(iroh.node_key()),
         (None, Some(road)) => crate::channel::Expect::Ticket(road.ticket.node),
         (None, None) => crate::channel::Expect::Pinned(label.to_string()),

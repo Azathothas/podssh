@@ -28,3 +28,32 @@ pub(super) fn parsed(matches: &ArgMatches, refused: Vec<(String, &'static str, &
         jsonl: matches.get_flag("jsonl"),
     }
 }
+
+/// `--ts-mode` values are closed: auto tun socks tcp relay. Anything else
+/// is usage 64 now, not a fallthrough to auto later. Both spellings
+/// (`--ts-mode bogus` and `--ts-mode=bogus`); a `--ts-mode` with no usable
+/// value falls through to clap, which reports the missing value itself.
+/// Apart from `tree.rs` for its length.
+pub(super) fn bad_mode(rest: &[std::ffi::OsString]) -> Option<Parsed> {
+    let mut mode_value: Option<String> = None;
+    let mut rest_iter = rest.iter().peekable();
+    while let Some(a) = rest_iter.next() {
+        let Some(s) = a.to_str() else { continue };
+        if let Some(v) = s.strip_prefix("--ts-mode=") {
+            mode_value = Some(v.to_string());
+        } else if s == "--ts-mode" {
+            if let Some(next) = rest_iter.peek() {
+                if let Some(ns) = next.to_str() {
+                    if !ns.starts_with('-') {
+                        mode_value = Some(ns.to_string());
+                    }
+                }
+            }
+        }
+    }
+    let m = mode_value?;
+    if matches!(m.as_str(), "auto" | "tun" | "socks" | "tcp" | "relay") {
+        return None;
+    }
+    Some(Parsed::Usage(format!("podssh ts: --ts-mode {m} is not a mode. Use one of: auto, tun, socks, tcp, relay.")))
+}

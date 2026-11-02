@@ -13,6 +13,7 @@ use super::notes_health::HEALTH;
 use super::notes_job::JOB;
 use super::notes_keygen::KEYGEN;
 use super::notes_mcp::MCP;
+use super::notes_net::NET;
 use super::notes_pair::{NODE, OPERATOR};
 use super::notes_ping::PING;
 use super::notes_pipe::PIPE;
@@ -40,6 +41,7 @@ pub fn for_verb(name: &str) -> &'static [&'static str] {
         "pipe" => PIPE,
         "node" => NODE,
         "operator" => OPERATOR,
+        "net" => NET,
         "chat" => CHAT,
         "relay" => RELAY,
         "doctor" => DOCTOR,

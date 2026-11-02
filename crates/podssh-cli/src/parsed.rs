@@ -128,6 +128,8 @@ pub enum Parsed {
     Session(Box<crate::session::SessionArgs>),
     /// `podssh detached SUBCOMMAND [NAME]` (T-392).
     Detached(Box<crate::detach::control::DetachedArgs>),
+    /// `podssh net SUBCOMMAND ...` (T-429).
+    Net(Box<crate::net::NetArgs>),
     /// `podssh doctor`: the relay settings to check, as `proxy` takes them.
     Doctor {
         relay_host: Option<String>,
@@ -215,6 +217,7 @@ impl Parsed {
             Parsed::Mcp(args) => !args.refused.is_empty(),
             Parsed::Session(args) => !args.refused.is_empty(),
             Parsed::Detached(args) => !args.refused.is_empty(),
+            Parsed::Net(args) => !args.refused.is_empty(),
             Parsed::Node(args) => !args.refused.is_empty(),
             Parsed::Operator(args) => !args.refused.is_empty(),
             Parsed::Pipe(args) => !args.refused.is_empty(),

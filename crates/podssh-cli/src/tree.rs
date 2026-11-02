@@ -204,34 +204,9 @@ pub fn parse_verb(verb: &'static Verb, rest: &[std::ffi::OsString]) -> Parsed {
         return Parsed::Usage(crate::non_interactive::refuse_jsonl_with_ts_w().message);
     }
 
-    // `--ts-mode` values are closed: auto tun socks tcp relay. Anything else
-    // is usage 64 now, not a fallthrough to auto later. Both spellings
-    // (`--ts-mode bogus` and `--ts-mode=bogus`); a `--ts-mode` with no usable
-    // value falls through to clap, which reports the missing value itself.
-    if verb.name == "ts" {
-        let mut mode_value: Option<String> = None;
-        let mut rest_iter = rest.iter().peekable();
-        while let Some(a) = rest_iter.next() {
-            let Some(s) = a.to_str() else { continue };
-            if let Some(v) = s.strip_prefix("--ts-mode=") {
-                mode_value = Some(v.to_string());
-            } else if s == "--ts-mode" {
-                if let Some(next) = rest_iter.peek() {
-                    if let Some(ns) = next.to_str() {
-                        if !ns.starts_with('-') {
-                            mode_value = Some(ns.to_string());
-                        }
-                    }
-                }
-            }
-        }
-        if let Some(m) = mode_value {
-            if !matches!(m.as_str(), "auto" | "tun" | "socks" | "tcp" | "relay") {
-                return Parsed::Usage(format!(
-                    "podssh ts: --ts-mode {m} is not a mode. Use one of: auto, tun, socks, tcp, relay."
-                ));
-            }
-        }
+    // `--ts-mode` values are closed (`ts::bad_mode`), refused before clap.
+    if let Some(refusal) = (verb.name == "ts").then(|| ts::bad_mode(rest)).flatten() {
+        return refusal;
     }
 
     let matches = match verb_command(verb)
@@ -415,6 +390,10 @@ pub fn parse_verb(verb: &'static Verb, rest: &[std::ffi::OsString]) -> Parsed {
 
     if verb.name == "run" {
         return Parsed::Run(Box::new(crate::run_cmd::RunArgs::from_matches(&matches, refused)));
+    }
+
+    if verb.name == "net" {
+        return Parsed::Net(Box::new(crate::net::NetArgs::from_matches(&matches, refused)));
     }
 
     // The command of `job start` must follow `--` (T-193).

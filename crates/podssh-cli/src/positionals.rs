@@ -154,6 +154,18 @@ pub fn add(cmd: Command, name: &str) -> Command {
                     .num_args(0..)
                     .help("the run's name: its --detach-name, else its verb and its pid, as podssh detached list shows it"),
             ),
+        "net" => cmd
+            .arg(
+                Arg::new("subcommand")
+                    .value_name("SUBCOMMAND")
+                    .help("init, add, rm and renew, the owner's, each signing a new document; ls, show and take, each end's"),
+            )
+            .arg(
+                Arg::new("args")
+                    .value_name("NAME|KEY|FILE")
+                    .num_args(0..)
+                    .help("init NAME, the net's; add NAME KEY, a member and its key or fingerprint; rm NAME; take FILE, a document that its owner signed"),
+            ),
         "relay" => cmd
             .arg(
                 Arg::new("subcommand")

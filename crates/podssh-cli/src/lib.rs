@@ -69,6 +69,8 @@ pub mod layered;
 pub mod man;
 // `podssh mcp`: the commands as tools for an agent (T-055).
 pub mod mcp;
+// `podssh net`: a user's own nodes as one net, signed by its owner (T-429).
+pub mod net;
 pub mod node;
 pub mod node_args;
 // A pair's expiry said before it comes, and the next pair taken at it (T-395).

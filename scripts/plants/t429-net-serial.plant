@@ -1,0 +1,7 @@
+# T-429: the serial's check of a document offered is removed, so an end takes
+# an older document of its net in place of a newer one; the test of an older
+# serial must fail with its words.
+ENTRY=T-429
+GROUP=cli-tests
+EXPECT='an older serial was taken'
+RUN='cargo test --locked -p podssh-cli --test net -- an_older_serial_another_owner_another_key_and_an_end_are_refused'
