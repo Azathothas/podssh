@@ -1676,6 +1676,19 @@ cargo test -p podssh-relay --features pair,quick,derp,serve
 The named test passes 50 runs in a row, here and on the runner, and its cause planted again
 fails it.
 
+## Correction
+
+2026-11-02, the gate's libs step at `0b6fcdb` (41406146247) named a test of the relay suite that
+fails at random: `derp_link`'s `a_node_whose_home_went_away_moves_and_a_client_of_the_old_ticket_finds_it`
+waited its whole 180 s for a move, and the same commit's next push passed it. The cause, confirmed:
+the DERP stand-in (`crates/podssh-relay/tests/derp_stand_in/mod.rs`) answered a client before it
+registered the client's key, so the test's cut of that key, right after the client had its answer,
+found no client and did nothing; planted, a delay of 200 ms between the answer and the
+registration failed the test the same way at its 180 s. Repaired: the stand-in registers first;
+with the same delay after its answer the test passes, and 15 runs in a row passed. Its time fits
+the failure that this entry counted, which is not proven to be the same test: the loop of the
+Approach still runs.
+
 # T-450: Three live runs of the transit road met nobody within 20 s
 
 **Source:** the merge of T-436 (2026-11-02).

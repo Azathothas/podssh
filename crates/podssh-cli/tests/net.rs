@@ -32,11 +32,32 @@ fn net(home: &Path, doc: &Path, args: &[&str]) -> (i32, String, String) {
     ran(cmd.env("PODSSH_NET", doc))
 }
 
-/// A private directory of the test, as the files of keys and nets need.
-fn private(tag: &str) -> PathBuf {
-    let dir = scratch(tag).join("private");
+/// A private directory of the test, as the files of keys and nets need;
+/// its scratch directory goes when the test ends, pass or fail, as the gate
+/// fails on a test that leaves one in the temporary directory.
+struct Private {
+    dir: PathBuf,
+    root: PathBuf,
+}
+
+impl std::ops::Deref for Private {
+    type Target = PathBuf;
+    fn deref(&self) -> &PathBuf {
+        &self.dir
+    }
+}
+
+impl Drop for Private {
+    fn drop(&mut self) {
+        let _ = std::fs::remove_dir_all(&self.root);
+    }
+}
+
+fn private(tag: &str) -> Private {
+    let root = scratch(tag);
+    let dir = root.join("private");
     podssh_relay::cache::private_dir(&dir).unwrap();
-    dir
+    Private { dir, root }
 }
 
 /// An owner's key, made by podssh keygen: its file, and its public line.

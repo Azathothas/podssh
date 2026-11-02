@@ -164,15 +164,22 @@ impl StandIn {
         if !String::from_utf8_lossy(&json).contains("\"version\":2") {
             return;
         }
-        let answer = [9u8; 24];
-        let sealed = opener.encrypt(&crypto_box::Nonce::from(answer), &b"{\"version\":2}"[..]).expect("a box");
-        if message(&mut writer, &derp(0x03, &[&answer[..], &sealed[..]].concat())).await.is_err() {
-            return;
-        }
-        self.logins.fetch_add(1, Ordering::SeqCst);
+        // Registered before the answer: a client that has it is known here,
+        // so a test may cut it at once (a cut of a key not yet known did
+        // nothing, and the client was never cut).
         let queue = Arc::new(Queue::default());
         let cut = Arc::new(Notify::new());
         lock(&self.clients).insert(key, Client { queue: queue.clone(), cut: cut.clone() });
+        let answer = [9u8; 24];
+        let sealed = opener.encrypt(&crypto_box::Nonce::from(answer), &b"{\"version\":2}"[..]).expect("a box");
+        if message(&mut writer, &derp(0x03, &[&answer[..], &sealed[..]].concat())).await.is_err() {
+            let mut clients = lock(&self.clients);
+            if clients.get(&key).is_some_and(|c| Arc::ptr_eq(&c.queue, &queue)) {
+                clients.remove(&key);
+            }
+            return;
+        }
+        self.logins.fetch_add(1, Ordering::SeqCst);
         let writing = tokio::spawn({
             let queue = queue.clone();
             async move {
