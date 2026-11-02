@@ -1,0 +1,7 @@
+# T-471: the same defect as t471-ls-owner-left-out (the owner left out of
+# the line made as OpenSSH's ls_file), against the unit tests of that line,
+# which hold OpenSSH's columns: the test of a file and a directory must fail.
+ENTRY=T-471
+GROUP=cli-tests
+EXPECT='test sftp::long::tests::a_file_and_a_directory_have_openssh_s_columns \.\.\. FAILED'
+RUN='cargo test --locked -p podssh-ssh --lib -- sftp::long::'

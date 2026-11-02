@@ -1,0 +1,11 @@
+--- a/crates/podssh-ssh/src/sftp/long.rs
++++ b/crates/podssh-ssh/src/sftp/long.rs
+@@ -138,7 +138,7 @@
+     let size = attrs.size.unwrap_or(0);
+     let size = if si { scaled(size) } else { size.to_string() };
+     let mode = mode_text(attrs.permissions.unwrap_or(0));
+-    let user = padded(user, user.len().max(8));
++    let user = padded("", 8);
+     let group = padded(group, group.len().max(8));
+     // `%s %3s`: strmode's eleventh character is a space, where an ACL would
+     // be marked, then the link count `?`, three wide.

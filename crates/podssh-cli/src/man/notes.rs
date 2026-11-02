@@ -146,12 +146,20 @@ const SFTP: &[&str] = &[
      fetches that file and ends; one with a directory starts there. The destination can be the node of a \
      pair, node://[user@]NAME[/ROUTE][:path], or a member of the net by its name alone, as for podssh cp.",
     "The commands: get and put (with reget and reput, which are the same), rename, rm (with * and ? in \
-     the last name), mkdir [-p], rmdir, ls [-la], cd, lcd, pwd, lpwd, chmod, df [-hi], help, version, and \
-     bye, exit or quit. get and put copy as podssh cp does; get -p and put -p, or each of them after \
+     the last name), mkdir [-p], rmdir, ls [-1afhlnrSt], cd, lcd, pwd, lpwd, chmod, df [-hi], help, version, \
+     and bye, exit or quit. get and put copy as podssh cp does; get -p and put -p, or each of them after \
      sftp -p, keep the times. get -r and put -r (or -R), or each of them after sftp -r, copy a directory \
      and what it holds as podssh cp -r does, each link as a link; an item that fails is said, the rest \
      goes on, and the command fails at its end. The exit code is that of the first command \
      that ends the batch, as for podssh cp; a usage error is 64 where OpenSSH gives 1.",
+    "ls lists as OpenSSH's sftp does, with its switches [-1afhlnrSt]. With neither l nor 1 the names go \
+     in columns of the terminal's width, else 80; 1 puts one name a line. l gives OpenSSH's long form: the \
+     mode, ? for the link count, the owner and the group, the size, the time of change in the local zone \
+     (the hour within half a year, else the year), then the name; for a directory, the server's own line \
+     of each entry, unless the server names owners by number (users-groups-by-id@openssh.com), when \
+     podssh makes the line with their names. n shows the numbers, h the sizes in K, M and G; t sorts the \
+     newest first, S the largest first, r turns the order round, f keeps the server's, and a shows the \
+     names that start with a dot.",
 ];
 
 const MV: &[&str] = &[

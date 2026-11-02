@@ -19,9 +19,12 @@
 //! place of each bad byte, so such a name can be listed but not named back.
 
 mod error;
+pub mod long;
+mod names;
 mod pipeline;
 
 pub use error::{sentence, SftpError};
+pub use names::{Names, USERS_GROUPS};
 pub use pipeline::{Pipeline, Reads, Writes, DEFAULT_REQUESTS, IN_FLIGHT, MAX_REQUESTS};
 pub use russh_sftp::protocol::{FileAttributes, OpenFlags};
 
@@ -73,6 +76,9 @@ pub struct FileHandle(String);
 pub struct Entry {
     /// The name in the directory, `.` and `..` included.
     pub name: String,
+    /// The line of `ls -l` that the server wrote for it, which OpenSSH's sftp
+    /// prints (T-471); empty when the server sent none.
+    pub longname: String,
     /// What the server told of it.
     pub attrs: FileAttributes,
 }
@@ -433,7 +439,11 @@ impl Sftp {
         let mut out = Vec::new();
         let listed = loop {
             match within(self.limits.metadata, &what, self.raw.readdir(dir.as_str())).await {
-                Ok(name) => out.extend(name.files.into_iter().map(|f| Entry { name: f.filename, attrs: f.attrs })),
+                Ok(name) => out.extend(name.files.into_iter().map(|f| Entry {
+                    name: f.filename,
+                    longname: f.longname,
+                    attrs: f.attrs,
+                })),
                 Err(SftpError::Status { code, .. }) if code == StatusCode::Eof as u32 => break Ok(out),
                 Err(e) => break Err(e),
             }

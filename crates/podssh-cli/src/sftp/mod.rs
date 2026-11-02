@@ -9,6 +9,7 @@
 //! of the first command that fails a batch.
 
 mod commands;
+mod listing;
 mod run;
 
 use std::io::{BufRead, Write};

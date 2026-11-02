@@ -1,0 +1,9 @@
+# T-471: the line that podssh makes as OpenSSH's ls_file leaves the owner
+# out (eight spaces in its place), so the columns of sftp's ls -l move; the
+# comparison with OpenSSH's own sftp must fail.
+ENTRY=T-471
+GROUP=copy
+EXPECT='^FAIL +sftp\.ls\.same_as_openssh '
+SETUP='for p in sshd sshd-session sshd.pam dropbear python3 podssh tmux ssh-agent Xvfb Xvnc x0vncserver; do pkill -x "$p"; done; true'
+RUN='RUSTFLAGS=-Ctarget-feature=+crt-static CARGO_PROFILE_RELEASE_LTO=false CARGO_PROFILE_RELEASE_CODEGEN_UNITS=16 cargo build --locked --release --target "$TARGET" -p podssh-cli && INTEROP_ONLY="faults cp" sh scripts/interop.sh "$BIN"'
+LIMIT=3600

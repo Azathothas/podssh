@@ -62,15 +62,15 @@ repository and CI).
 
 ## Counts
 
-**547 entries: 126 open, 3 partial, 16 blocked, 402 done.**
+**547 entries: 125 open, 3 partial, 16 blocked, 403 done.**
 
 | Priority | open | partial | blocked | done | total |
 | --- | --- | --- | --- | --- | --- |
 | P0 | 0 | 0 | 0 | 1 | 1 |
-| P1 | 4 | 3 | 0 | 53 | 60 |
+| P1 | 3 | 3 | 0 | 54 | 60 |
 | P2 | 39 | 0 | 14 | 193 | 246 |
 | P3 | 83 | 0 | 2 | 155 | 240 |
-| **All** | 126 | 3 | 16 | 402 | 547 |
+| **All** | 125 | 3 | 16 | 403 | 547 |
 
 ## Entries
 
@@ -538,7 +538,7 @@ repository and CI).
 | [T-464](ssh.md) | P2 | S | none | defect | done | A connection that ends right after the login reads as a refused session, or as a loss with no cause |
 | [T-465](robustness.md) | P1 | S | none | defect | partial | `pipe`'s test of `unix-connect` waited past its 10 s once on macOS |
 | [T-470](copy.md) | P2 | S | none | defect | open | `cp --delta` sends the whole file with no word when the server cannot take a delta |
-| [T-471](copy.md) | P1 | M | none | defect | open | `sftp`'s `ls -l` is not OpenSSH's long form, and five switches of its `ls` do nothing |
+| [T-471](copy.md) | P1 | M | none | defect | done | `sftp`'s `ls -l` is not OpenSSH's long form, and five switches of its `ls` do nothing |
 | [T-472](copy.md) | P2 | M | none | feature | open | `cp`, `mv` and `run` say nothing of what they did without `-v`, and nothing in a pipe while a copy runs |
 | [T-473](copy.md) | P3 | M | none | feature | open | `cp` and `mv` have no `--no-clobber`, `--update` or `--backup` |
 | [T-474](copy.md) | P2 | S | none | feature | open | `cp` copies many small files one at a time unless `--parallel` is given |

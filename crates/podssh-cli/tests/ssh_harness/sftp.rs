@@ -4,7 +4,10 @@
 //! the server's host key, with its pipes joined to the channel. With no
 //! `sftp-server` here, the subsystem is refused, as a server with none
 //! refuses it. For a user `evil-...`, each listing names `../escape` too, as
-//! a server that wants a file written outside the target would (T-143).
+//! a server that wants a file written outside the target would (T-143). For
+//! a user `noids-...`, the version reply names no
+//! `users-groups-by-id@openssh.com`, as a server older than OpenSSH 9.1, or
+//! another's, names none (T-471).
 
 use std::path::{Path, PathBuf};
 use std::process::Stdio;
@@ -12,6 +15,29 @@ use std::process::Stdio;
 use russh::server::Session;
 use russh::ChannelId;
 use tokio::io::{AsyncReadExt, AsyncWriteExt};
+
+/// What a user's name asks of the packets of its `sftp-server`.
+#[derive(Debug, Clone, Copy, Default, PartialEq, Eq)]
+pub struct Mangle {
+    /// `evil-...`: each listing names `../escape` too.
+    pub evil: bool,
+    /// The extensions that the version reply leaves out.
+    pub hidden: &'static [&'static str],
+}
+
+impl Mangle {
+    /// What the user `user` asks.
+    pub fn of(user: &str) -> Mangle {
+        let hidden: &'static [&'static str] =
+            if user.starts_with("noids-") { &["users-groups-by-id@openssh.com"] } else { &[] };
+        Mangle { evil: user.starts_with("evil-"), hidden }
+    }
+
+    /// Whether the packets are read one by one, to change one.
+    fn any(self) -> bool {
+        self.evil || !self.hidden.is_empty()
+    }
+}
 
 const USUAL: &[&str] = &[
     "/usr/lib/ssh/sftp-server",
@@ -34,7 +60,7 @@ pub fn server_path() -> Option<PathBuf> {
 pub(super) fn start(
     name: &str,
     root: Option<&Path>,
-    evil: bool,
+    mangle: Mangle,
     channel: ChannelId,
     session: &mut Session,
 ) -> Result<Option<tokio::process::ChildStdin>, russh::Error> {
@@ -58,11 +84,13 @@ pub(super) fn start(
     let mut stdout = child.stdout.take().expect("the server's stdout");
     let handle = session.handle();
     tokio::spawn(async move {
-        if evil {
+        if mangle.any() {
             // Packet by packet: a listing (SSH_FXP_NAME of READDIR) gains a
-            // name that is not one component.
+            // name that is not one component, or the version reply loses
+            // extensions.
             while let Some(packet) = packet(&mut stdout).await {
-                if handle.data(channel, with_escape(packet)).await.is_err() {
+                let packet = if mangle.evil { with_escape(packet) } else { packet };
+                if handle.data(channel, without(packet, mangle.hidden)).await.is_err() {
                     break;
                 }
             }
@@ -121,4 +149,42 @@ fn with_escape(packet: Vec<u8>) -> Vec<u8> {
     let mut out = (body.len() as u32).to_be_bytes().to_vec();
     out.extend(body);
     out
+}
+
+/// The version reply (SSH_FXP_VERSION) with no pair of the extensions
+/// `hidden`; each other packet, and one that is not of its form, as it was.
+fn without(packet: Vec<u8>, hidden: &[&str]) -> Vec<u8> {
+    const FXP_VERSION: u8 = 2;
+    if hidden.is_empty() || packet.len() < 9 || packet[4] != FXP_VERSION {
+        return packet;
+    }
+    rebuilt(&packet, hidden).unwrap_or(packet)
+}
+
+/// The type and version of `packet`, then each pair of name and data that
+/// `hidden` does not name.
+fn rebuilt(packet: &[u8], hidden: &[&str]) -> Option<Vec<u8>> {
+    let mut body = packet[4..9].to_vec();
+    let mut at = 9;
+    while at < packet.len() {
+        let name = text(packet, &mut at)?;
+        let data = text(packet, &mut at)?;
+        if !hidden.iter().any(|h| h.as_bytes() == name) {
+            for part in [name, data] {
+                body.extend_from_slice(&(part.len() as u32).to_be_bytes());
+                body.extend_from_slice(part);
+            }
+        }
+    }
+    let mut out = (body.len() as u32).to_be_bytes().to_vec();
+    out.extend(body);
+    Some(out)
+}
+
+/// One SSH string of `packet` at `at`, which moves past it.
+fn text<'a>(packet: &'a [u8], at: &mut usize) -> Option<&'a [u8]> {
+    let len = u32::from_be_bytes(packet.get(*at..*at + 4)?.try_into().ok()?) as usize;
+    let part = packet.get(*at + 4..*at + 4 + len)?;
+    *at += 4 + len;
+    Some(part)
 }

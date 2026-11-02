@@ -3,8 +3,9 @@
 //! OpenSSH's `sftp-server` (`ssh_harness::sftp`): a file goes there and back
 //! with each byte, by `cp` and by `sftp`'s put and get, and `-v` says the size
 //! of each request, how many are in flight, and the rate of each copy; a tree
-//! goes there and back by `sftp`'s `put -r` and `get -r` (T-298). With no
-//! `sftp-server` on this machine, each test says that it did not run.
+//! goes there and back by `sftp`'s `put -r` and `get -r` (T-298); `sftp`'s
+//! `ls` prints OpenSSH's long form and orders (T-471). With no `sftp-server`
+//! on this machine, each test says that it did not run.
 
 mod cleanup;
 mod ssh_harness;
@@ -180,4 +181,128 @@ fn sftp_puts_and_gets_a_tree_with_r() {
     let (rc, err) = sftp(&[], "put dir again\n");
     assert_eq!(rc, 66, "{err}");
     assert!(err.contains("-r copies it") && !home.join("again").exists(), "{err}");
+}
+
+/// `podssh sftp -b batch` as `user`, in UTC: its code, each command's lines
+/// of stdout under the command's echo, and stderr.
+#[cfg(unix)]
+fn sftp_batch(home: &Path, port: u16, user: &str, batch: &str) -> (i32, BTreeMap<String, Vec<String>>, String) {
+    std::fs::write(home.join("batch"), batch).unwrap();
+    let mut cmd = Command::new(env!("CARGO_BIN_EXE_podssh"));
+    cmd.args(["sftp", "-P", &port.to_string(), "-b", "batch"]).args(options(home)).arg(format!("{user}@127.0.0.1"));
+    cmd.current_dir(home).stdin(Stdio::null()).stdout(Stdio::piped()).stderr(Stdio::piped());
+    cmd.env("PODSSH_SSH_CONFIG", "none").env("HOME", home).env("TZ", "UTC");
+    for name in ["PODSSH_OFFLINE", "HTTPS_PROXY", "https_proxy", "ALL_PROXY", "all_proxy", "SSH_AUTH_SOCK"] {
+        cmd.env_remove(name);
+    }
+    let out = cmd.output().unwrap();
+    let mut each: BTreeMap<String, Vec<String>> = BTreeMap::new();
+    let mut at = String::new();
+    for line in String::from_utf8_lossy(&out.stdout).lines() {
+        match line.strip_prefix("sftp> ") {
+            Some(command) => at = command.to_string(),
+            None => each.entry(at.clone()).or_default().push(line.to_string()),
+        }
+    }
+    (out.status.code().unwrap_or(-1), each, String::from_utf8_lossy(&out.stderr).into_owned())
+}
+
+/// The name of the user `uid` in `/etc/passwd`, where it is there.
+#[cfg(unix)]
+fn user_name(uid: u32) -> Option<String> {
+    let text = std::fs::read_to_string("/etc/passwd").ok()?;
+    text.lines().find_map(|l| {
+        let f: Vec<&str> = l.split(':').collect();
+        (f.len() > 2 && f[2] == uid.to_string()).then(|| f[0].to_string())
+    })
+}
+
+/// The last word of each line: the names, in the order shown.
+#[cfg(unix)]
+fn names(lines: &[String]) -> Vec<String> {
+    lines.iter().filter_map(|l| l.split_whitespace().last().map(str::to_string)).collect()
+}
+
+/// `sftp`'s `ls` against OpenSSH's `sftp-server` (T-471): `-l` of a
+/// directory and of a file gives OpenSSH's seven columns (the time of three
+/// words), `?` for the link count, each kind's letter, the owner by name; `-n`
+/// by number; `-t`, `-S` and `-r` their orders; `-1` one name a line. With
+/// `users-groups-by-id@openssh.com` hidden from the version reply, `ls -l`
+/// of a directory prints the server's own long names, with their link counts.
+#[cfg(unix)]
+#[test]
+fn sftp_ls_gives_openssh_s_long_form_and_orders() {
+    use std::os::unix::fs::MetadataExt;
+    use std::time::{Duration, SystemTime};
+    need_server!();
+    let home = scratch("ls");
+    let (_runtime, port) = server(&home);
+    let dir = home.join("lsdir");
+    std::fs::create_dir_all(dir.join("sub")).unwrap();
+    // Three files of their own sizes and times: c the newest, b the largest.
+    let day = Duration::from_secs(86_400);
+    for (name, size, days) in [("a.txt", 10usize, 400u32), ("b.bin", 3000, 20), ("c", 200, 2)] {
+        std::fs::write(dir.join(name), vec![b'x'; size]).unwrap();
+        let file = std::fs::File::options().write(true).open(dir.join(name)).unwrap();
+        file.set_modified(SystemTime::now() - day * days).unwrap();
+    }
+    std::fs::write(dir.join(".hidden"), b"h").unwrap();
+    std::os::unix::fs::symlink("a.txt", dir.join("link")).unwrap();
+    let fifo = std::ffi::CString::new(dir.join("fifo").into_os_string().into_encoded_bytes()).unwrap();
+    // SAFETY: a path with no NUL, and a mode.
+    assert_eq!(unsafe { libc::mkfifo(fifo.as_ptr(), 0o644) }, 0, "mkfifo");
+    let uid = std::fs::metadata(dir.join("c")).unwrap().uid();
+    let batch = concat!(
+        "ls -l lsdir\nls -l lsdir/c\nls -ln lsdir\nls -lt lsdir\n",
+        "ls -lS lsdir\nls -lr lsdir\nls -1 lsdir\nls -la lsdir\n"
+    );
+    let (rc, each, err) = sftp_batch(&home, port, "u", batch);
+    assert_eq!(rc, 0, "{err}");
+    let long = &each["ls -l lsdir"];
+    assert_eq!(long.len(), 6, "a.txt, b.bin, c, fifo, link and sub, no dot name: {long:?}");
+    for line in long {
+        let words: Vec<&str> = line.split_whitespace().collect();
+        assert_eq!(words.len(), 9, "seven columns, the time of three words: {line}");
+        assert_eq!(words[1], "?", "SFTP gives no link count: {line}");
+        assert!(words[8].starts_with("lsdir/"), "the path as given, then the name: {line}");
+        if let Some(name) = user_name(uid) {
+            assert_eq!(words[2], name, "the owner by name: {line}");
+        }
+    }
+    let kind = |name: &str| long.iter().find(|l| l.ends_with(&format!(" lsdir/{name}"))).map(|l| &l[..1]);
+    assert_eq!(
+        (kind("a.txt"), kind("sub"), kind("link"), kind("fifo")),
+        (Some("-"), Some("d"), Some("l"), Some("p")),
+        "{long:?}"
+    );
+    let one = &each["ls -l lsdir/c"];
+    assert!(one.len() == 1 && one[0].starts_with("-rw") && one[0].ends_with(" lsdir/c"), "{one:?}");
+    assert_eq!(one[0].split_whitespace().nth(4), Some("200"), "the size: {one:?}");
+    for line in &each["ls -ln lsdir"] {
+        assert_eq!(line.split_whitespace().nth(2), Some(uid.to_string().as_str()), "-n: the number: {line}");
+    }
+    // The order of the three files in each listing.
+    let files = |command: &str| -> Vec<String> {
+        let shown = names(&each[command]);
+        shown.into_iter().filter(|n| ["lsdir/a.txt", "lsdir/b.bin", "lsdir/c"].contains(&n.as_str())).collect()
+    };
+    assert_eq!(files("ls -l lsdir"), ["lsdir/a.txt", "lsdir/b.bin", "lsdir/c"], "by name");
+    assert_eq!(files("ls -lt lsdir"), ["lsdir/c", "lsdir/b.bin", "lsdir/a.txt"], "the newest first");
+    assert_eq!(files("ls -lS lsdir"), ["lsdir/b.bin", "lsdir/c", "lsdir/a.txt"], "the largest first");
+    assert_eq!(files("ls -lr lsdir"), ["lsdir/c", "lsdir/b.bin", "lsdir/a.txt"], "by name, turned round");
+    assert_eq!(each["ls -1 lsdir"], ["lsdir/a.txt", "lsdir/b.bin", "lsdir/c", "lsdir/fifo", "lsdir/link", "lsdir/sub"]);
+    // The old year form for a time of more than half a year ago.
+    let a = long.iter().find(|l| l.ends_with(" lsdir/a.txt")).unwrap();
+    assert!(a.split_whitespace().nth(7).is_some_and(|y| y.len() == 4 && !y.contains(':')), "{a}");
+    assert!(names(&each["ls -la lsdir"]).contains(&"lsdir/.hidden".to_string()), "-a");
+    // No names by number from the server: its own long names.
+    let (rc, each, err) = sftp_batch(&home, port, "noids-u", "ls -l lsdir\n");
+    assert_eq!(rc, 0, "{err}");
+    let own = &each["ls -l lsdir"];
+    assert_eq!(own.len(), 6, "{own:?}");
+    for line in own {
+        let words: Vec<&str> = line.split_whitespace().collect();
+        assert!(words[1].parse::<u64>().is_ok(), "the server's line has a link count: {line}");
+        assert!(!words[words.len() - 1].contains('/'), "the server's line names the entry alone: {line}");
+    }
 }

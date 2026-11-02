@@ -50,9 +50,9 @@ pub(super) struct Far {
     pub(super) watches: Vec<ChannelId>,
     /// Where `sftp-server` runs, and the stdin of each that runs (T-140).
     pub(super) sftp_root: Option<PathBuf>,
-    /// The user `evil-...`: each listing of its `sftp-server` names
-    /// `../escape` too (T-143).
-    pub(super) evil: bool,
+    /// What the user's name asks of the packets of its `sftp-server`: the
+    /// `../escape` of `evil-...` (T-143), or extensions hidden (T-471).
+    pub(super) mangle: super::sftp::Mangle,
     /// A server of `watch::start_watched` (T-297): what it counts, and the
     /// bytes of SFTP input left before this connection's cut (`cut-N-...`).
     pub(super) watch: Option<Arc<super::watch::Watch>>,

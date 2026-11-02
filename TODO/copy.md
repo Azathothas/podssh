@@ -958,7 +958,7 @@ Where podssh must replace them, OpenSSH's own `scp` and `sftp` cannot run
 
 Recommendation: `scp` and `sftp` get no `--timeout` row, as in OpenSSH, so
 the gate of `crates/podssh-cli/src/dispatch.rs:300-318` skips them; T-133's
-limits keep each wait finite. Usage errors stay 64 (`docs/cli.md:3656-3659`)
+limits keep each wait finite. Usage errors stay 64 (`docs/cli.md:3678-3681`)
 where OpenSSH gives 1; a script that tests for "not zero" works with both.
 `--timeout` required with no terminal, as for `cp`, lost: each script that
 runs `scp` in a pipe would exit 64 under `podssh scp`.
@@ -2818,7 +2818,7 @@ is made. Planted defect: the note back at `-v`; the test with no `-v` fails.
 **Milestone:** none
 **Priority:** P1
 **Effort:** M
-**Status:** open
+**Status:** done
 
 ## Problem
 
@@ -2831,17 +2831,17 @@ the names, with no word.
 ## Premise
 
 - Read: a long line is the type, the nine bits of the mode, the size and the name
-  (`crates/podssh-cli/src/sftp/run.rs:294-310`). The type is `d`, `-`, or else `?`, so a link, a
-  FIFO, a device and a socket each show `?`, and the set-id and sticky bits are not shown. Its
-  unit test holds that form (`:343-346`). The file has 352 lines.
+  (`crates/podssh-cli/src/sftp/run.rs`, lines 294-310 at `582b1bf`). The type is `d`, `-`, or
+  else `?`, so a link, a FIFO, a device and a socket each show `?`, and the set-id and sticky bits
+  are not shown. Its unit test holds that form (lines 343-346 there). The file has 352 lines.
 - Read: `ls` takes `-1afhlnrSt` and keeps `l`, `n` and `a` alone
-  (`crates/podssh-cli/src/sftp/commands.rs:201-205`): `-n` is `-l`, and `-f`, `-h`, `-r`, `-S`
-  and `-t` do nothing. `docs/cli.md:1964` names `ls [-la]`.
+  (`crates/podssh-cli/src/sftp/commands.rs`, lines 201-205 at `582b1bf`): `-n` is `-l`, and `-f`,
+  `-h`, `-r`, `-S` and `-t` do nothing. `docs/cli.md` (line 1916 at `582b1bf`) names `ls [-la]`.
 - Read: the about of `sftp` says "as OpenSSH's sftp" (`crates/podssh-cli/src/flags.rs:397`); the
   issue names it the README's.
 - Read: `Sftp::read_dir` keeps the name and the attributes of each entry, and drops the long name
-  that the server sends with each (`crates/podssh-ssh/src/sftp/mod.rs:71-78`, `:430-445`);
-  russh-sftp 3.0.1's `File` holds it as `longname`.
+  that the server sends with each (`crates/podssh-ssh/src/sftp/mod.rs`, lines 71-78 and 426-441
+  at `582b1bf`); russh-sftp 3.0.1's `File` holds it as `longname`.
 - Read, in OpenSSH 10.2p1 (`openssh/openssh-portable:sftp.c` and
   `openssh/openssh-portable:sftp-common.c`, at the tag `V_10_2_P1`, the functions `do_ls_dir`,
   `do_globbed_ls` and `ls_file`): `ls -l` of a directory prints the long name of each entry as the
@@ -2876,10 +2876,34 @@ the names, with no word.
    well under 500 lines. The `help` of `sftp`'s commands, the manual, `docs/cli.md:1961-1967` and
    `docs/STATUS.md`.
 
+## Decision
+
+The calls of the draft (2026-11-02), each for the operator to confirm (Q86):
+
+- `-n` shows the numbers also where the server could name them, as OpenSSH 10.4p1 to 10.6p1 do
+  (`openssh/openssh-portable` commit a9cb2e30d3 of 2026-06-29, "fix 'ls -n', which was still
+  displaying user/group names"). Lost: the names of 10.2p1 and 10.3p1, which upstream calls a
+  defect and which a script that asks for numbers cannot read. So the gate does not set `ls -ln`
+  beside the image's OpenSSH, which may be 10.3p1; it checks the numbers alone.
+- An entry that came with no long name gets the line that podssh makes. Lost: the empty line that
+  OpenSSH prints for it (`do_ls_dir` prints `longname` as it is), which a reader of columns cannot
+  use.
+- The width of the columns is that of the terminal on stdin, as OpenSSH asks it (`TIOCGWINSZ` of
+  `fileno(stdin)`). Lost: podssh's own order (stdout, stdin, stderr) of `terminal::size`, which
+  gives another width where stdout is a different terminal.
+- A pattern is read in the last name only, as the other commands of the session read one (T-139),
+  with one matcher for all. Lost: OpenSSH's glob in each name and its braces (`GLOB_BRACE`), which
+  no command of `podssh sftp` takes today; a pattern in a middle name is a path that is not there,
+  and fails with 66.
+- A reply of `users-groups-by-id@openssh.com` that is a status, or that is not of its form, shows
+  the numbers with no word, where OpenSSH logs one error line. Lost: a failed `ls` for a listing
+  that is still right with the numbers.
+
 ## Prove
 
 ```sh
 export CARGO_BUILD_JOBS=4
+cargo test -p podssh-ssh --lib sftp::
 cargo test -p podssh-cli --lib sftp::
 cargo test -p podssh-cli --test copy_pipeline -- sftp_ls
 sh scripts/dev.sh check   # interop-sftp.sh: podssh's ls lines beside OpenSSH's sftp's
@@ -2897,6 +2921,74 @@ one), `ls -l` of a directory gives the server's long names. In the gate,
 against one server, with `TZ=UTC` for both, and the lines must be equal. Planted defect: the owner
 left out of a line that the form of `ls_file` makes; the comparison fails.
 
+## Correction
+
+2026-11-02, read in `openssh/openssh-portable` at `V_10_2_P1`, `V_10_3_P1` to `V_10_6_P1` and
+`master` (through web.pkgforge.dev's fetch and forge services):
+- In 10.2p1 and 10.3p1, `ls -n` still shows the names on a server that offers
+  `users-groups-by-id@openssh.com`: `do_ls_dir` and `do_globbed_ls` of `sftp.c` give `ls_file`
+  `ruser_name` and `rgroup_name` whatever the switch, and the names that the extension fetched
+  come back (`sftp-usergroup.c`). Commit a9cb2e30d3 (2026-06-29) passes no name with `-n`; 10.4p1 to
+  10.6p1 hold it. The Premise's "else or with `-n` by number" holds from 10.4p1 on.
+- `ls_file` and the code of `ls` are the same from 10.2p1 to 10.6p1 but for `path_strip`, which
+  10.6p1 lets return the path whole for an empty strip. `master` (`sftp-common.c` 1.38,
+  2026-10-30) writes `error` for a size that `fmt_scaled` cannot write; the releases print what
+  their buffer holds.
+- OpenSSH sorts with `qsort`. musl's, in the gate's Alpine, is not stable, so two entries of one
+  time or one size come in an order that no stable sort copies; the gate's comparison sorts by time
+  and by size only in a directory whose files differ in both.
+- `get_remote_user_groups_from_dirents` asks the server for the names before each listing, also
+  with no `-l`; podssh asks only for a long line that it makes, with the same output.
+
+## Done
+
+Drafted 2026-11-02 by an agent, which built nothing; merged and measured by the main session the
+same day.
+
+- `Sftp::read_dir` keeps each entry's long name (`Entry::longname`; empty when the server sent
+  none), in `crates/podssh-ssh/src/sftp/mod.rs`.
+- `crates/podssh-ssh/src/sftp/long.rs` (new): the line of `ls_file`, with `strmode`'s letter of
+  each kind and its set-id and sticky bits, `?`, the owner and the group padded to 8 bytes as
+  printf pads, the size as `%8llu` or, with `-h`, as `fmt_scaled` (ported with its rounding), and
+  the time as `%b %e %H:%M` within half a year and not ahead, else `%b %e  %Y`, in the local zone
+  (chrono). Its unit tests: a file and a directory against lines written by hand from `ls_file`'s
+  format, each kind's letter and the special bits, the times on both sides of the half year and
+  one ahead, an owner longer than 8, a name of two bytes, and `-h` from `0B` to `8.0E`.
+- `crates/podssh-ssh/src/sftp/names.rs` (new): `users-groups-by-id@openssh.com` at version `1`,
+  as OpenSSH's client takes it: one request for the ids of a listing, an empty name read as
+  none (the number shows), a status read as no names. Its unit tests: the request's bytes and the
+  reply's form, also cut short.
+- `crates/podssh-cli/src/sftp/listing.rs` (new; `ls` and its line left
+  `crates/podssh-cli/src/sftp/run.rs`, now 309 lines): the switches in their order as
+  `parse_ls_flags` reads them; a directory as `do_ls_dir` (the server's lines unless the extension,
+  `-n` or `-h`); a path or a pattern as `do_globbed_ls` (one directory lists what it holds, else
+  each match gets the made line; each path cut as `path_strip` cuts it; a directory marked with
+  `/`; a leading dot matched only by a dot, `.` and `..` too); the orders; the columns as OpenSSH
+  counts them. `Command::Ls` holds the switches (`crates/podssh-cli/src/sftp/commands.rs`), and
+  its `help` line names them.
+- The notes of `sftp` (`crates/podssh-cli/src/man/notes.rs`), `docs/cli.md` (the paragraph after
+  the commands) and the row of `podssh sftp` in `docs/STATUS.md`.
+- `crates/podssh-cli/tests/copy_pipeline.rs`, `sftp_ls_gives_openssh_s_long_form_and_orders`
+  (Unix): against OpenSSH's `sftp-server`, the batch of the Prove's paragraph above, as the user
+  `u`, then as `noids-u`, whose version reply loses `users-groups-by-id@openssh.com`
+  (`crates/podssh-cli/tests/ssh_harness/sftp.rs`, `Mangle`, beside the `../escape` of `evil-`).
+- `scripts/interop-sftp.sh`: `sftp.ls.same_as_openssh` (one batch of 17 lines through OpenSSH's
+  `sftp` and `podssh sftp`, `cmp` of their stdout, in UTC) and `sftp.ls.numeric`; the harness
+  `sftp` has 7 checks and a floor of 7 (`scripts/interop-baseline.txt`).
+- Planted defects: `scripts/plants/t471-ls-owner-left-out.plant` (group `copy`: the interop's
+  comparison must fail) and `scripts/plants/t471-ls-owner-unit.plant` (group `cli-tests`: the
+  unit test of a file's line must fail), one patch: the owner made 8 spaces.
+- The merge: `cargo test -p podssh-ssh --lib sftp::`, 9 passed; `cargo test -p podssh-cli --lib
+  sftp::`, 9 passed; `cargo test -p podssh-cli --test copy_pipeline` (Unix) against this host's
+  OpenSSH 9.6p1 `sftp-server`, 4 passed, `sftp_ls_gives_openssh_s_long_form_and_orders` among
+  them. `sh scripts/plant-each.sh --here t471-ls-owner-unit`: caught, the test of a file and a
+  directory failed. rustfmt of `podssh-ssh` (one closure of `sftp/mod.rs` wrapped) and clippy of
+  `podssh-ssh` and `podssh-cli` with `-D warnings`, all targets: clean. `cargo todo remap` from
+  the tree before the draft of each file that it changed, in place of its moves by hand.
+- Waits for the build image, which this host's Docker did not run: `scripts/interop-sftp.sh`'s
+  `sftp.ls.same_as_openssh` and `sftp.ls.numeric` beside OpenSSH's own `sftp`, in the gate's step
+  `release` of CI at each push, and the plant `t471-ls-owner-left-out` (group `copy`), through
+  `plants.yml` on a runner.
 # T-472: `cp`, `mv` and `run` say nothing of what they did without `-v`, and nothing in a pipe while a copy runs
 
 **Source:** GitHub #90 (Nemo-010, 2026-11-02, measured with `podssh 1.0.0 (35a0d19d)` at about 2
@@ -3002,9 +3094,9 @@ destination too.
   Read: `CP_FLAGS` has no such row (`crates/podssh-cli/src/flags/copy.rs:10-82`), and each copy
   ends with a rename over its destination (`crates/podssh-cli/src/cp/transfer.rs:196-215`), by
   `posix-rename@openssh.com` where the server has it
-  (`crates/podssh-ssh/src/sftp/mod.rs:408-417`).
+  (`crates/podssh-ssh/src/sftp/mod.rs:414-423`).
 - Read: `hardlink@openssh.com` gives a file a second name
-  (`crates/podssh-ssh/src/sftp/mod.rs:335-345`, which T-146 uses in
+  (`crates/podssh-ssh/src/sftp/mod.rs:341-351`, which T-146 uses in
   `crates/podssh-cli/src/cp/meta.rs:372-388`). A hard link is never made over a name that is there
   (POSIX `link()`; Inferred for each server), so it can put a verified file at a name that must
   not be replaced, also when that name came during the copy. Not read here: what each server does

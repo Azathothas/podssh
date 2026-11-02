@@ -1961,10 +1961,32 @@ renamed.
 - The commands: `get` and `put` (`reget` and `reput` are the same: a copy
   that broke goes on by itself; `-p` keeps the times, as `sftp -p` does
   for each), `rename`, `rm` (with `*` and `?` in the
-  last name), `mkdir [-p]`, `rmdir`, `ls [-la]`, `cd`, `lcd`, `pwd`,
+  last name), `mkdir [-p]`, `rmdir`, `ls [-1afhlnrSt]`, `cd`, `lcd`, `pwd`,
   `lpwd`, `chmod`, `df [-hi]` (`statvfs@openssh.com`), `help`, `version`,
   and `bye`. The local commands (`lls`, `lmkdir`, `!command`) and `ln`,
   `chown`, `chgrp` are refused by name.
+- **`ls` lists as OpenSSH's sftp does** (T-471,
+  `crates/podssh-cli/src/sftp/listing.rs`; `do_ls_dir`, `do_globbed_ls` and
+  `ls_file` of OpenSSH 10.2p1 to 10.6p1). Without `-l` or `-1` the names go
+  in columns of the width of the terminal on stdin, else 80; `-1` puts one
+  a line. `-l` gives OpenSSH's long form, seven columns: the mode with the
+  type letter of each kind (`-`, `d`, `l`, `p`, `s`, `c`, `b`) and the
+  set-id and sticky bits, `?` for the link count (SFTP version 3 carries
+  none), the owner and the group 8 wide at least, the size 8 wide, the time
+  of change in the local zone (the hour within half a year, else the year),
+  then the name as typed. For a directory, each entry is the line that the
+  server wrote (its long name), as OpenSSH prints it, unless the server
+  names owners by number (`users-groups-by-id@openssh.com`, asked once for
+  a listing) or `-n` or `-h` is given; then podssh makes the line, and also
+  for an entry that came with no long name. A file or a pattern always gets
+  the line made here. `-n` gives the numbers, as OpenSSH 10.4p1 and later
+  do (10.2p1 and 10.3p1 still named them), `-h` the sizes as `fmt_scaled`
+  (`512B`, `1.5K`, `5.0M`). `-t` sorts the newest first, `-S` the largest
+  first, `-r` turns the order round, `-f` keeps the server's (and `-r` does
+  nothing with it); `-a` shows the names that start with a dot. A path is
+  shown before each name (`ls dir` gives `dir/a`); a pattern, in the last
+  name, matches a name that starts with a dot only when it starts with one,
+  `.` and `..` too, as OpenSSH's glob does.
 - **`get -r` and `put -r`** (or `-R`; each `get` and `put` after `sftp
   -r`) copy a directory with T-143's walk, its checks of names and its copy
   of each file (`crates/podssh-cli/src/cp/tree_conn.rs`): each link as a

@@ -2,6 +2,8 @@
 //! optional `-` (an error does not end the batch) and `@` (the line is not
 //! echoed), then the words of a command, with quotes and backslashes.
 
+use super::listing::Flags;
+
 /// One line that names a command.
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub struct Line {
@@ -39,10 +41,10 @@ pub enum Command {
         parents: bool,
     },
     Rmdir(String),
+    /// `flags`: each switch of `-1afhlnrSt`, as OpenSSH reads them (T-471).
     Ls {
         path: Option<String>,
-        long: bool,
-        all: bool,
+        flags: Flags,
     },
     Cd(Option<String>),
     Lcd(Option<String>),
@@ -75,7 +77,7 @@ pub const HELP: &[(&str, &str)] = &[
     ("rm path", "remove a file; * and ? match in the last name"),
     ("mkdir [-p] path", "make a directory"),
     ("rmdir path", "remove an empty directory"),
-    ("ls [-la] [path]", "list a directory"),
+    ("ls [-1afhlnrSt] [path]", "list; -l OpenSSH's long form, -n numbers, -h sizes, -t -S -r -f orders, -a, -1"),
     ("cd [path], lcd [path]", "change the directory there, or here"),
     ("pwd, lpwd", "print the directory there, or here"),
     ("chmod mode path", "set the permission bits, in octal"),
@@ -201,7 +203,7 @@ fn command(name: &str, args: &[String]) -> Result<Command, String> {
         "ls" | "dir" => {
             let (seen, rest) = switches(name, args, "1afhlnrSt")?;
             arity(0..=1, rest, "ls [-1afhlnrSt] [path]")?;
-            Command::Ls { path: opt(rest, 0), long: seen.contains('l') || seen.contains('n'), all: seen.contains('a') }
+            Command::Ls { path: opt(rest, 0), flags: Flags::parse(&seen) }
         }
         "cd" | "chdir" => {
             arity(0..=1, args, "cd [path]")?;
@@ -297,7 +299,10 @@ mod tests {
     #[test]
     fn each_command_takes_its_form_and_refuses_another() {
         assert_eq!(line("mkdir -p a/b").command, Command::Mkdir { path: "a/b".into(), parents: true });
-        assert_eq!(line("ls -la").command, Command::Ls { path: None, long: true, all: true });
+        assert_eq!(line("ls -la").command, Command::Ls { path: None, flags: Flags::parse("la") });
+        // Each switch of OpenSSH's ls (T-471), in one word or apart.
+        assert_eq!(line("ls -l -t -r d").command, Command::Ls { path: Some("d".into()), flags: Flags::parse("ltr") });
+        assert_eq!(line("dir -1aSfhn").command, Command::Ls { path: None, flags: Flags::parse("1aSfhn") });
         assert_eq!(line("chmod 640 f").command, Command::Chmod { mode: 0o640, path: "f".into() });
         assert_eq!(
             line("reget a b").command,

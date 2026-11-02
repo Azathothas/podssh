@@ -100,7 +100,7 @@ impl server::Handler for Far {
         self.nopass = user.starts_with("sudo-nopass-");
         // `pass-pty-...` is both: a password, then a pty (T-382).
         self.pty = user.trim_start_matches("pass-").starts_with("pty-");
-        self.evil = user.starts_with("evil-");
+        self.mangle = sftp::Mangle::of(user);
         self.containers = user.starts_with("containers-").then(|| user.to_string());
         self.nofwd = pass::refuses_forwarding(user);
         self.mute = pass::mutes_forwarding(user);
@@ -193,7 +193,7 @@ impl server::Handler for Far {
         name: &str,
         session: &mut Session,
     ) -> Result<(), Self::Error> {
-        if let Some(stdin) = sftp::start(name, self.sftp_root.as_deref(), self.evil, channel, session)? {
+        if let Some(stdin) = sftp::start(name, self.sftp_root.as_deref(), self.mangle, channel, session)? {
             self.sftps.insert(channel, stdin);
             watch::saw(self.watch.as_deref(), self.sftps.len());
         }

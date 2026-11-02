@@ -1,7 +1,8 @@
 //! Each command of `podssh sftp` against one SFTP session. `get` and `put`
 //! copy as `podssh cp` does (a temporary name, the digests, a rename), and
-//! with `-r` a directory as `cp -r` does (T-298); the others are one SFTP
-//! request each, on paths that the session's directories complete.
+//! with `-r` a directory as `cp -r` does (T-298); `ls` lists as OpenSSH's
+//! sftp does ([`super::listing`], T-471); the others are one SFTP request
+//! each, on paths that the session's directories complete.
 
 use std::io::Write;
 use std::path::{Path, PathBuf};
@@ -11,6 +12,7 @@ use podssh_ssh::sftp::{FileAttributes, Sftp};
 use podssh_ssh::Log;
 
 use super::commands::{self, Command};
+use super::listing;
 use crate::cp::bysftp;
 use crate::cp::link::{Link, Road};
 use crate::cp::pipe::Shape;
@@ -162,7 +164,7 @@ impl<'a> State<'a> {
                 let path = self.there(path);
                 sftp.rmdir(&path).await.map_err(gone)?;
             }
-            Command::Ls { path, long, all } => self.ls(path.as_deref(), *long, *all, out).await?,
+            Command::Ls { path, flags } => listing::ls(sftp, &self.cwd, path.as_deref(), *flags, out).await?,
             Command::Cd(path) => {
                 let target = path.as_deref().map_or_else(|| self.home.clone(), |p| self.there(p));
                 let real = sftp.realpath(&target).await.map_err(|e| transfer::from_sftp(e, Side::Source))?;
@@ -230,31 +232,6 @@ impl<'a> State<'a> {
         Ok(())
     }
 
-    async fn ls(&self, path: Option<&str>, long: bool, all: bool, out: &mut dyn Write) -> Result<(), Failed> {
-        let full = path.map_or_else(|| self.cwd.clone(), |p| self.there(p));
-        let (dir, pattern) = if commands::is_pattern(&full) {
-            let (d, p) = transfer::split_remote(&full);
-            (d.to_string(), Some(p.to_string()))
-        } else if self.is_dir(&full).await? {
-            (full.clone(), None)
-        } else {
-            let attrs = self.sftp.stat(&full).await.map_err(|e| transfer::from_sftp(e, Side::Source))?;
-            let _ = writeln!(out, "{}", entry_line(&full, &attrs, long));
-            return Ok(());
-        };
-        let listed = self.sftp.read_dir(&dir).await.map_err(|e| transfer::from_sftp(e, Side::Source))?;
-        let mut names: Vec<_> = listed
-            .into_iter()
-            .filter(|e| all || !e.name.starts_with('.'))
-            .filter(|e| pattern.as_deref().is_none_or(|p| commands::matches(p, &e.name)))
-            .collect();
-        names.sort_by(|a, b| a.name.cmp(&b.name));
-        for e in names {
-            let _ = writeln!(out, "{}", entry_line(&e.name, &e.attrs, long));
-        }
-        Ok(())
-    }
-
     async fn df(&self, path: Option<&str>, human: bool, inodes: bool, out: &mut dyn Write) -> Result<(), Failed> {
         let full = path.map_or_else(|| self.cwd.clone(), |p| self.there(p));
         let fs = self.sftp.statvfs(&full).await.map_err(|e| transfer::from_sftp(e, Side::Source))?;
@@ -291,24 +268,6 @@ impl<'a> State<'a> {
     }
 }
 
-/// One line of `ls`: the name, or with `-l` the type and mode, the size and
-/// the name.
-fn entry_line(name: &str, attrs: &FileAttributes, long: bool) -> String {
-    if !long {
-        return name.to_string();
-    }
-    let mode = attrs.permissions.unwrap_or(0);
-    let kind = if attrs.is_dir() {
-        'd'
-    } else if attrs.is_regular() {
-        '-'
-    } else {
-        '?'
-    };
-    let bits: String = (0..9).rev().map(|i| if mode & (1 << i) != 0 { ['x', 'w', 'r'][i % 3] } else { '-' }).collect();
-    format!("{kind}{bits} {:>12} {name}", attrs.size.unwrap_or(0))
-}
-
 fn percent(part: u64, whole: u64) -> u64 {
     part.saturating_mul(100).checked_div(whole).unwrap_or(0)
 }
@@ -340,10 +299,7 @@ mod tests {
     use super::*;
 
     #[test]
-    fn a_long_line_shows_the_type_the_bits_and_the_size() {
-        let attrs = FileAttributes { size: Some(42), permissions: Some(0o100_644), ..FileAttributes::default() };
-        assert_eq!(entry_line("f", &attrs, true), format!("-rw-r--r-- {:>12} f", 42));
-        assert_eq!(entry_line("f", &attrs, false), "f");
+    fn df_s_sizes_and_shares() {
         assert_eq!(human_size(512), "512B");
         assert_eq!(human_size(1536), "1.5K");
         assert_eq!(percent(1, 4), 25);
