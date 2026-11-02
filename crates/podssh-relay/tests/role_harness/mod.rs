@@ -1,5 +1,5 @@
 //! podssh's relay role (T-427) on the loopback, over plain TCP, as the tests
-//! of its reverse road run it: `serve_connection` for each connection, which
+//! of its reverse road run it: `serve_from` for each connection, which
 //! `podssh relay serve` runs behind TLS, and a pair of the role's as podssh's
 //! client reads one. The clients reach it with the plain `ws://` of the
 //! feature `plain-ws`; each event of the role is kept for a test to read.
@@ -47,12 +47,14 @@ impl Role {
             limits: Limits::default(),
             pairs: Default::default(),
             answered: Default::default(),
+            brake: Default::default(),
             events: Some(say),
         });
         let served = cfg.clone();
         tokio::spawn(async move {
-            while let Ok((tcp, _)) = listener.accept().await {
-                tokio::spawn(serve::serve_connection(tcp, served.clone()));
+            while let Ok((tcp, peer)) = listener.accept().await {
+                // The peer, as `podssh relay serve` gives it, for the brake.
+                tokio::spawn(serve::serve_from(tcp, served.clone(), None, Some(peer.ip())));
             }
         });
         Role { relay: Relay { host: "127.0.0.1".into(), port }, cfg, events }

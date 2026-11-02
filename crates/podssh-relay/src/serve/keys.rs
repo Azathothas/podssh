@@ -139,6 +139,7 @@ mod tests {
             limits: Default::default(),
             pairs: Default::default(),
             answered: Default::default(),
+            brake: Default::default(),
             events: None,
         }
     }

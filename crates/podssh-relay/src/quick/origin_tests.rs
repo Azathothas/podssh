@@ -12,7 +12,7 @@ impl Origin for Paths {
         path.starts_with("/relay/")
     }
 
-    fn connect(&self) -> DuplexStream {
+    fn connect(&self, _: Option<std::net::IpAddr>) -> DuplexStream {
         tokio::io::duplex(16).0
     }
 }
@@ -130,4 +130,18 @@ fn the_origin_takes_its_paths_alone() {
     assert!(Visit::origin(&visit).is_none(), "a closure has no origin");
     let visitors = Visitors { visit, origin };
     assert!(visitors.origin().is_some());
+}
+
+/// The visitor that the edge names, one address of any case of the field's
+/// name; a field that holds no single address names nobody.
+#[test]
+fn the_visitor_is_the_one_address_of_cf_connecting_ip() {
+    let fields = [("Host", "n.example"), ("CF-Connecting-IP", " 192.0.2.9 ")];
+    assert_eq!(visitor_of(fields.into_iter()), Some("192.0.2.9".parse().unwrap()));
+    let v6 = [("cf-connecting-ip", "2001:db8::1")];
+    assert_eq!(visitor_of(v6.into_iter()), Some("2001:db8::1".parse().unwrap()));
+    for bad in ["192.0.2.9, 198.51.100.1", "", "n.example"] {
+        assert_eq!(visitor_of([("cf-connecting-ip", bad)].into_iter()), None, "{bad}");
+    }
+    assert_eq!(visitor_of([("x-forwarded-for", "192.0.2.9")].into_iter()), None);
 }

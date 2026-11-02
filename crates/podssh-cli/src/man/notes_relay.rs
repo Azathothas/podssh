@@ -87,4 +87,11 @@ pub const RELAY: &[&str] = &[
      after 5 minutes, then twice as long each time up to 6 hours, and the certificate of before stays. \
      When no certificate is kept and the first order fails, the role stops with the CA's reason (69). \
      SIGHUP reads the file kept again.",
+    "The relay brakes /v1/mint and /v1/pair for each address, as the default relay does: 120 requests \
+     of one address within a minute, the two together, and then 429 with Retry-After, the seconds \
+     until the oldest of them is a minute old, which podssh says. The address is the connection's own, \
+     never a header that a client sends; an IPv6 address counts by its first 64 bits. The relay counts \
+     4096 addresses at most, and forgets the one heard from least lately first. /health, the documents \
+     and the sockets of both roads are not braked, and the first refusal of an address is a line on \
+     stdout.",
 ];

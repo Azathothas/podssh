@@ -1,0 +1,11 @@
+--- a/crates/podssh-relay/src/serve/behind.rs
++++ b/crates/podssh-relay/src/serve/behind.rs
+@@ -36,7 +36,7 @@ impl Origin for Behind {
+     /// TCP peer here is the edge itself.
+     fn connect(&self, visitor: Option<std::net::IpAddr>) -> DuplexStream {
+         let (ours, theirs) = tokio::io::duplex(PIPE);
+-        tokio::spawn(super::serve_from(theirs, self.cfg.clone(), Some(self.name.clone()), visitor));
++        tokio::spawn(super::serve_from(theirs, self.cfg.clone(), Some(self.name.clone()), None));
+         ours
+     }
+ }

@@ -40,9 +40,18 @@ const MAX_HEAD: usize = 16 * 1024;
 pub trait Origin: Send + Sync {
     /// Whether the request for `path`, with no query, is the origin's.
     fn serves(&self, path: &str) -> bool;
-    /// A new connection to the origin. It must be called in a runtime: the
-    /// origin serves it in a task of its own.
-    fn connect(&self) -> DuplexStream;
+    /// A new connection to the origin, for the visitor whose address the
+    /// edge named (`CF-Connecting-IP`), if it named one. It must be called
+    /// in a runtime: the origin serves it in a task of its own.
+    fn connect(&self, visitor: Option<std::net::IpAddr>) -> DuplexStream;
+}
+
+/// The visitor's address that the edge names in `CF-Connecting-IP`, one
+/// address and nothing else. The edge sets it on each request; it only says
+/// whom the relay role's brake counts a request for, never who may mint.
+pub fn visitor_of<'a>(mut fields: impl Iterator<Item = (&'a str, &'a str)>) -> Option<std::net::IpAddr> {
+    let (_, value) = fields.find(|(name, _)| name.eq_ignore_ascii_case("cf-connecting-ip"))?;
+    value.trim().parse().ok()
 }
 
 /// What a node gives each visitor's WebSocket, and the origin of the paths

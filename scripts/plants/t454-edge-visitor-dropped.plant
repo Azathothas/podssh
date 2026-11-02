@@ -1,0 +1,7 @@
+# T-454 with T-428: the role behind a quick tunnel drops the visitor that
+# the edge names, so each visitor shares one count with each other: the
+# test that two visitors count apart must fail.
+ENTRY=T-454
+GROUP=resume
+EXPECT='test serve::behind::tests::the_brake_counts_each_visitor_that_the_edge_names \.\.\. FAILED'
+RUN='cargo test --locked -p podssh-relay --features quick,serve --lib serve::behind'

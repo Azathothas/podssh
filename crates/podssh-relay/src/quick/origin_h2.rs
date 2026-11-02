@@ -40,7 +40,8 @@ pub async fn serve(
         },
     };
     let Ok(head) = asked.head(body.len()) else { return refuse(respond, StatusCode::BAD_REQUEST) };
-    let mut conn = server.connect();
+    let visitor = origin::visitor_of(asked.headers.iter().map(|(n, v)| (n.as_str(), v.as_str())));
+    let mut conn = server.connect(visitor);
     let answered = async {
         conn.write_all(&head).await.map_err(|e| e.to_string())?;
         conn.write_all(&body).await.map_err(|e| e.to_string())?;

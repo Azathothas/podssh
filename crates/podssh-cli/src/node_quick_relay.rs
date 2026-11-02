@@ -73,6 +73,7 @@ pub(crate) fn role(args: &NodeArgs, label: &str, allow: &std::path::Path) -> Res
         pairs,
         answered: Default::default(),
         events: Some(events),
+        brake: Default::default(),
     };
     let who = if args.allow_private { format!("{who}, private targets too") } else { who };
     Ok(Some(Role { cfg: Arc::new(cfg), who, kept }))

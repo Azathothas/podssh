@@ -72,6 +72,7 @@ impl Tunnel {
             pairs: Default::default(),
             answered: Default::default(),
             events: Some(say),
+            brake: Default::default(),
         });
         let origin: Arc<dyn Origin> = Arc::new(Behind::new(cfg.clone(), NAME, every));
         let visitors = Visitors { visit: echo, origin: Some(origin) };

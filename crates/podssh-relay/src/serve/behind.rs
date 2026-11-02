@@ -32,9 +32,11 @@ impl Origin for Behind {
         self.every || super::serves(path)
     }
 
-    fn connect(&self) -> DuplexStream {
+    /// The visitor that the edge named is whom the brake counts (T-454): the
+    /// TCP peer here is the edge itself.
+    fn connect(&self, visitor: Option<std::net::IpAddr>) -> DuplexStream {
         let (ours, theirs) = tokio::io::duplex(PIPE);
-        tokio::spawn(super::serve_named(theirs, self.cfg.clone(), Some(self.name.clone())));
+        tokio::spawn(super::serve_from(theirs, self.cfg.clone(), Some(self.name.clone()), visitor));
         ours
     }
 }
@@ -54,6 +56,7 @@ mod tests {
             pairs: Default::default(),
             answered: Default::default(),
             events: None,
+            brake: Default::default(),
         })
     }
 
@@ -80,12 +83,36 @@ mod tests {
     /// A request on a pipe gets the role's answer: its `/health`.
     #[tokio::test]
     async fn a_pipe_to_the_role_gets_its_answer() {
-        let mut pipe = Behind::new(cfg(), "n.example", false).connect();
+        let mut pipe = Behind::new(cfg(), "n.example", false).connect(None);
         pipe.write_all(b"GET /health HTTP/1.1\r\nHost: n.example\r\n\r\n").await.unwrap();
         let mut answer = Vec::new();
         let read = tokio::time::timeout(std::time::Duration::from_secs(20), pipe.read_to_end(&mut answer));
         read.await.expect("an answer in time").unwrap();
         let answer = String::from_utf8_lossy(&answer);
         assert!(answer.starts_with("HTTP/1.1 200 ") && answer.contains("\"contract\""), "{answer}");
+    }
+
+    /// The status of a mint on a pipe for `visitor`.
+    async fn mint(behind: &Behind, visitor: &str) -> String {
+        let mut pipe = behind.connect(Some(visitor.parse().unwrap()));
+        let ask = b"POST /v1/mint HTTP/1.1\r\nHost: n.example\r\nContent-Length: 2\r\n\r\n{}";
+        pipe.write_all(ask).await.unwrap();
+        let mut answer = Vec::new();
+        let read = tokio::time::timeout(std::time::Duration::from_secs(20), pipe.read_to_end(&mut answer));
+        read.await.expect("an answer in time").unwrap();
+        String::from_utf8_lossy(&answer).split(' ').nth(1).unwrap_or_default().to_string()
+    }
+
+    /// Behind the tunnel the peer is the edge: the brake counts the visitor
+    /// that the edge names, so one visitor's mints do not spend another's.
+    #[tokio::test]
+    async fn the_brake_counts_each_visitor_that_the_edge_names() {
+        let mut cfg = Arc::into_inner(cfg()).unwrap();
+        cfg.brake = super::super::brake::Brake::new(2, 60_000, 16, super::super::brake::monotonic());
+        let behind = Behind::new(Arc::new(cfg), "n.example", false);
+        assert_eq!(mint(&behind, "192.0.2.1").await, "200");
+        assert_eq!(mint(&behind, "192.0.2.1").await, "200");
+        assert_eq!(mint(&behind, "192.0.2.1").await, "429", "the third of one visitor");
+        assert_eq!(mint(&behind, "198.51.100.7").await, "200", "another visitor's first");
     }
 }

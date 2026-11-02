@@ -1,0 +1,7 @@
+# T-454: the role answers /v1/mint and /v1/pair with no look at its brake,
+# so the 121st mint of an address within a minute gets a token; the test of
+# the brake through the role must fail.
+ENTRY=T-454
+GROUP=resume
+EXPECT='test serve::brake::tests::a_mint_past_120_of_an_address_in_a_minute_is_a_429_until_the_minute_passes \.\.\. FAILED'
+RUN='cargo test --locked -p podssh-relay --features serve --lib serve::brake'
