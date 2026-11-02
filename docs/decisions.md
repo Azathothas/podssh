@@ -76,6 +76,7 @@ The newest decision is first in each section.
 
 | Date | Decision |
 | --- | --- |
+| 2026-11-02 | **The testers' entries wait for the operator's go-ahead** (the operator). The entries filed from the issues of the testers of `v1.0.0` (GitHub #83 to #106, T-460 to T-464, T-470 to T-476 and T-480 to T-489) and from the testers' bundle and relay sweep of 2026-11-02 are not implemented yet: a session first settles each open question with the operator, then makes each item a proper entry, and does them only after the operator says go. M10's own entries go on. |
 | 2026-10-31 | **The live relay is the operator's own: use it as much as the work needs** (the operator). A live test of the relay (`tcp.ssh.relay.ajam.dev`, its pool and its loop) runs with its entry, as often and as large as the entry needs, here or in GitHub Actions; the bounds of Q42 and Q35 do not hold for it. Tokens are still minted and discarded in one shell, and no line prints one. |
 | 2026-10-31 | **Agents search and read the web through `web.pkgforge.dev`** (the operator). A session's agent that needs the web uses the services listed at <https://web.pkgforge.dev/llms.txt>: it reads that page first, then the chosen service's own `llms.txt` (search, read, fetch, forge and the others), and no other way of searching. |
 | 2026-10-31 | **No immutable releases for `v1.0.0`** (the operator). GitHub's setting stays off; a tag never moves in any case. |

@@ -195,11 +195,17 @@ this order:
    protocols of Q66 are done), then T-442.
 5. T-446: betas `v1.1.0-beta.N` after batches, and `v1.1.0` at the end.
 
-Between entries: the `none` entries, the highest priority first. The issues of a tester of
-`v1.0.0` (GitHub #83 to #105, 2026-11-02) are such entries (T-460 to T-464, T-470 to T-476 and
-T-480 to T-489): its defects first, the P1 ones before any other (T-460, T-461, T-471), then the
-P2 defects (T-462, T-464, T-470, T-476, T-480), each a repair that goes into `v1.0.1`, from
-`main` with the checks of a release, once they are done; then its features by priority.
+Between entries: the `none` entries, the highest priority first, but for the testers' entries.
+
+**The testers' entries wait for the operator's go-ahead** (the operator, 2026-11-02;
+`docs/decisions.md`): those of the issues of the testers of `v1.0.0` (GitHub #83 to #106: T-460
+to T-464, T-470 to T-476 and T-480 to T-489), and those of the testers' bundle and relay sweep of
+2026-11-02 as they are filed. A session settles their open questions with the operator first and
+makes each item a proper entry; it does none of them until the operator says go. Once they may
+go, their defects come first, the P1 ones before any other (T-460, T-461, T-471), then the P2
+defects (T-462, T-464, T-470, T-476, T-480), each a repair that goes into `v1.0.1`, from `main`
+with the checks of a release; then their features by priority. The draft of T-460
+(`draft/worktree-agent-t460-ssh`, unbuilt) waits with them.
 
 **Skip** the entries that the operator holds (status
 `blocked`, Q32):
