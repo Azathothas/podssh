@@ -843,7 +843,7 @@ Read:
   names and answers a status (`scripts/fake-proxy.py:1-27`). Neither shapes
   the traffic.
 - `scripts/interop-faults.sh:35-44` starts one stand-in for each fault; its
-  checks are at lines 73-182 at `8d668b7` (`docs/STATUS.md:597-617`, 14 of 14 since T-236).
+  checks are at lines 73-182 at `8d668b7` (`docs/STATUS.md:598-618`, 14 of 14 since T-236).
 - The time limits that latency meets today: the SSH handshake, 60 s
   (`crates/podssh-ssh/src/options.rs:379`, enforced at
   `crates/podssh-ssh/src/run.rs:392-398`); a reply, 30 s
@@ -1365,7 +1365,7 @@ run the same day.
 **Milestone:** none
 **Priority:** P1
 **Effort:** S
-**Status:** open
+**Status:** partial
 
 ## Problem
 
@@ -1376,9 +1376,9 @@ that fails at random hides a defect, or teaches the reader to rerun.
 
 ## Premise
 
-- The test (`crates/podssh-cli/tests/pipe.rs:179`) gives the bytes to podssh's stdin from a
+- The test (`crates/podssh-cli/tests/pipe.rs:181`) gives the bytes to podssh's stdin from a
   thread and waits 10 s for podssh to end; its server answers the digest once its input ends
-  (`crates/podssh-cli/tests/pipe.rs:132`).
+  (`crates/podssh-cli/tests/pipe.rs:134`).
 - The pump shuts the other side's write half down when its input ends
   (`crates/podssh-cli/src/pipe/pump.rs:82`), and reads more of the input that is ready at once
   without waiting (`crates/podssh-cli/src/pipe/pump.rs:139`).
@@ -1398,3 +1398,13 @@ cargo test -p podssh-cli --test pipe
 ```
 
 50 runs in a row on macOS (`suite-repeat.yml`), and the cause planted again fails it.
+
+## Done
+
+Partial, 2026-11-02: step 1 ran. `suite-repeat.yml` with `runner=macos-15`, `package=podssh-cli`,
+`test=pipe`, 50 runs (run 41440982404): 50 of 50 passed, so the failure did not come again; the
+job was red only because the summary's `grep` found no failure under `pipefail`, which the
+workflow now allows. The test now says podssh's stderr when its 10 s pass, so that the next
+failure names where podssh waited. The cause is not named yet: the entry stays partial for the next
+failure's words, or for more runs.
+

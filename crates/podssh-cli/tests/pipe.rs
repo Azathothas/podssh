@@ -108,7 +108,9 @@ fn through(address: &str, input: Vec<u8>) -> (i32, String, String) {
     while child.try_wait().unwrap().is_none() {
         if Instant::now() > deadline {
             let _ = child.kill();
-            panic!("{address}: no end within 10 s: the server waits for the end of its input");
+            // What podssh said before its limit names where it waited.
+            let said = child.wait_with_output().map(|o| String::from_utf8_lossy(&o.stderr).into_owned());
+            panic!("{address}: no end within 10 s: the server waits for the end of its input; podssh said: {said:?}");
         }
         std::thread::sleep(Duration::from_millis(20));
     }

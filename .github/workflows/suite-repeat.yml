@@ -110,12 +110,13 @@ jobs:
             else
               failed=$((failed + 1))
               echo "run $i of $RUNS failed (exit $rc):"
-              grep -E '^test .* FAILED$|^---- .* stdout ----$|panicked at' ".work/repeat/run-$i.log" | head -20
+              grep -E '^test .* FAILED$|^---- .* stdout ----$|panicked at' ".work/repeat/run-$i.log" | head -20 || true
             fi
             i=$((i + 1))
           done
           echo "the tests that failed, by the count of runs:"
-          cat .work/repeat/run-*.log | grep -E '^test .* FAILED$' | sort | uniq -c | sort -rn
+          # With no failure the grep finds nothing; that is no failure of the step.
+          { cat .work/repeat/run-*.log | grep -E '^test .* FAILED$' | sort | uniq -c | sort -rn; } || true
           echo "$failed of $RUNS runs failed"
           [ "$failed" = 0 ]
       - uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
