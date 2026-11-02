@@ -69,8 +69,8 @@ refusal. Each write waits for the reader on the other side, so no queue of a
 session grows without a bound (T-336 asks the same of the default relay).
 The key is a P-256 key in PEM, signed in pure Rust as podssh's other TLS is;
 a token is the contract's form under a secret of the run, so a restart ends
-each token. The role's reverse road is T-427, and the role behind a node's
-quick tunnel, with no listener, is T-428.
+each token. Its reverse road (T-427) is in "The relay role's reverse road",
+below; the role behind a node's quick tunnel, with no listener, is T-428.
 
 ## How podssh selects relay hosts
 
@@ -405,3 +405,40 @@ are `podssh relay`, `podssh node`, `podssh operator` and
   and `banner`, or with `error` alone for a target that the relay will not
   dial; on the VPC road, a closed port gives `ok: true` and the verdict
   `silent-or-unreachable`.
+
+## The relay role's reverse road (T-427)
+
+`podssh relay serve` serves the reverse path of the contract too, so that
+`podssh relay pair --relay-host`, `podssh node`, `podssh operator` and
+`podssh ssh node://` work through it with no other relay, as they work
+through the default one:
+
+- `POST /v1/pair` makes a pair for whom the role mints tokens (`--mint`):
+  a name of 34 characters of `[-0-9a-z]`, three tokens of 64 characters of
+  `[0-9a-z]`, 72 h of life, as the default relay's (measured 2026-10-09).
+  A name in use gets `409`; past 4096 pairs, `429`; a body that is not `{}`
+  or nothing, `400`. `--pairs FILE` keeps the pairs in FILE, of mode 0600,
+  so that they outlive a restart; it holds the SHA-256 of each token, never
+  a token, and the role compares a token by its digest.
+- `/v1/node/<name>`, `/v1/connect/<name>`, `GET /v1/status/<name>` and
+  `POST /v1/stop/<name>`, each with its own token, from `X-Relay-Token` or
+  `?token=`; a wrong one gets `403 reverse: forbidden`, a second node `409`
+  before the upgrade, and a socket's path with no upgrade `426`.
+- The node gets `hello` (`maxSessions` 64, `maxFrameBytes` 65536), `open
+  {id}` and `close {id}`; the operator gets `ready` before the session's
+  first byte, and a `reject` with its whole reason before a Close whose
+  reason is cut to 123 bytes. Each fault of a node's bytes closes its socket
+  with its row of the close table, and each of its operators hears that
+  cause; else a node that leaves gives them `1011 node disconnected`.
+- What the default deployment does not do. At most 1 MiB waits for a slow
+  operator: past it, the frame is dropped, the session ends with `1011
+  relay backpressure`, and the node's other sessions go on (T-336). The
+  role reads an operator only while the node's queue has room, so a slow
+  node slows its operators and loses nothing. A frame of the node for a
+  session that ended in the last 2 s was on its way, and is dropped; one for
+  an id never given, or closed long before, closes the node's socket with
+  `1003 unknown session id` (T-421). A planned stop (Ctrl-C, SIGTERM)
+  closes each reverse socket with `1012 relay restarting` first, which a
+  client tells apart from a lost link (T-255).
+- The role pings each reverse socket every 20 s, and drops one that answers
+  nothing for 60 s, so that a dead node's socket does not hold its name.

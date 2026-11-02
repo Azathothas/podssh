@@ -88,7 +88,7 @@ entry keeps its proof in the entry; this page keeps no history (git does).
   two servers, its live run through ppng.io; nwtgck's server answers a sender only once a byte
   came, so the mark now goes with the POST's head; the command-level run is T-451); T-438's is merged
   and closed (against wisp-server-python, and live through the demo server); T-429's is merged and
-  closed. The drafts of T-427 with T-448, of T-440 and of T-441 wait in worktrees of
+  closed. T-427's is merged and closed. The drafts of T-448, of T-440 and of T-441 wait in worktrees of
   `.claude/worktrees/`, and on GitHub as `draft/draft-t427-t448`,
   `draft/worktree-agent-t440-vless` and `draft/worktree-agent-t441-wstunnel`; T-429's
   `draft/worktree-agent-t429-net` can go. The branch `draft/m10-merge-437` of the T-437 merge can go,
@@ -137,7 +137,7 @@ and `CARGO_BUILD_JOBS=4`:
 
 ## Counts
 
-`TODO/INDEX.md` holds 449 entries: 48 open, 1 partial, 16 blocked, 384 done.
+`TODO/INDEX.md` holds 450 entries: 48 open, 1 partial, 16 blocked, 385 done.
 
 Open includes parked work. `cargo todo check` verifies this line.
 
@@ -178,7 +178,7 @@ this order:
 
 0. The test of the relay suite that failed once, unnamed (T-449), as a test that fails at random
    comes first.
-1. The relay role: its reverse road (T-427), behind a node's quick tunnel (T-428), then ACME (T-447) and tokens for keys (T-448); then what the role serves: T-336, T-255,
+1. The relay role: behind a node's quick tunnel (T-428), then ACME (T-447), tokens for keys (T-448) and a brake of mint and pair (T-454); then what the role serves: T-336, T-255,
    T-421, T-253, T-325, T-326, T-319, T-321 and T-173.
 2. The net: T-430, T-445, T-452, T-453, T-086, T-226, T-346 and T-106.
 3. Exit, routes, share and funnel: T-431, T-432, T-433, T-180, then T-434 and T-435.

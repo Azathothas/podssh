@@ -68,8 +68,8 @@ impl Cell {
 
     fn fake_relay_cert(s: &Session, mode: &str, name: &str, cert: &str) -> Result<Cell, Skipped> {
         // PODSSH_RELAY_UNDER_TEST=podssh: podssh's own relay role in place of
-        // the stand-in where it behaves (T-169); the fault modes stay the
-        // stand-in's.
+        // the stand-in where it behaves (T-169), the reverse road too
+        // (T-427); the fault modes stay the stand-in's.
         let role = mode == "normal" && std::env::var("PODSSH_RELAY_UNDER_TEST").as_deref() == Ok("podssh");
         Cell::relay_process(s, mode, name, cert, role.then_some(&["--allow-private"][..]))
     }
@@ -100,6 +100,13 @@ impl Cell {
             c.arg(scripts().join("fake-relay.py")).arg("--mode").arg(mode);
             c
         };
+        // The role's events, among them each node it closed for a fault
+        // (`reverse node closed 1003 ...`), which the session's end reads
+        // as the stand-in's log (T-427).
+        let events = match role {
+            Some(_) => log(&s.home.join(format!("fake-relay-{}-events.log", mode.replace(':', "-")))),
+            None => Stdio::null(),
+        };
         let child = command
             .arg("--cert")
             .arg(dir.join(cert))
@@ -108,7 +115,7 @@ impl Cell {
             .arg("--port-file")
             .arg(&port_file)
             .stdin(Stdio::null())
-            .stdout(Stdio::null())
+            .stdout(events)
             // Its errors, and with FAKE_RELAY_DEBUG each frame, for a test
             // that fails to show.
             .stderr(log(&s.home.join(format!("fake-relay-{}{which}.log", mode.replace(':', "-")))))

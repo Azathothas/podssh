@@ -69,6 +69,18 @@ fn keys_now(label: &str, pair: &Pair, stored: bool) -> far::KeysNow {
     })
 }
 
+/// The trust of the transit relay at `url`: Least Authority's, a public
+/// server, takes the host's trust (`SSL_CERT_FILE`, `CaFile`, else the
+/// default stores), never the pair relay's `--ca-file`, which names that
+/// relay's own CA; a relay that `PODSSH_TRANSIT` names takes the pair's, as
+/// it may be the user's own, under the same CA.
+fn trust_for(url: &WsUrl, pair: &Trust, host: Trust) -> Trust {
+    match WsUrl::parse(transit::DEFAULT_URL) {
+        Ok(least) if least == *url => host,
+        _ => pair.clone(),
+    }
+}
+
 /// The node of the transit road for the pair `pair`, at `url`, with a side
 /// of this run's, and the line that says so; none when this host gives no
 /// random side, which the line says.
@@ -86,7 +98,8 @@ pub(crate) fn road(label: &str, pair: &Pair, stored: bool, trust: &Trust, url: W
         transit::ENV
     ));
     let keys = keys_now(label, pair, stored);
-    Some(far::Node { url, keys, side, trust: trust.clone(), proxy: ProxyChoice::FromEnvironment, say })
+    let trust = trust_for(&url, trust, crate::pairs::trust(None));
+    Some(far::Node { url, keys, side, trust, proxy: ProxyChoice::FromEnvironment, say })
 }
 
 /// `pair_road` with the transit road `road` beside it, under `keeper`,
@@ -163,11 +176,28 @@ pub(crate) fn dialer(url: WsUrl, part: &OperatorPart, trust: &Trust, log: &Arc<L
         Arc::new(move |line: String| log.verbose(&format!("{shown}: {line}")))
     };
     let keys = Keys::of_pair(&part.name, part.connect_token());
-    match Dialer::new(url, keys, trust.clone(), ProxyChoice::FromEnvironment, say) {
+    let trust = trust_for(&url, trust, crate::pairs::trust(None));
+    match Dialer::new(url, keys, trust, ProxyChoice::FromEnvironment, say) {
         Ok(dialer) => Some(dialer),
         Err(e) => {
             log.verbose(&format!("{shown}: no transit road: {e}"));
             None
         }
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn least_authority_s_relay_takes_the_host_s_trust_and_a_named_relay_the_pair_s() {
+        let pair = Trust::File("/the/pair/relay/ca.pem".into());
+        let least = WsUrl::parse(transit::DEFAULT_URL).unwrap();
+        assert!(matches!(trust_for(&least, &pair, Trust::Default), Trust::Default));
+        let own = WsUrl::parse("wss://transit.example.test/").unwrap();
+        assert!(
+            matches!(trust_for(&own, &pair, Trust::Default), Trust::File(ref f) if f == std::path::Path::new("/the/pair/relay/ca.pem"))
+        );
     }
 }

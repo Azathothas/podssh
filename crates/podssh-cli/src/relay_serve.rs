@@ -1,8 +1,10 @@
 //! `podssh relay serve` (T-169, the operator's ruling Q63): the relay's
-//! forward road, served by this binary on a listener that the user asks for
-//! (Q1), with TLS from a certificate and a P-256 key in PEM files. The routes
-//! are `podssh_relay::serve`'s; this file owns the listener, TLS, the port
-//! file of a harness, and the end on Ctrl-C or SIGTERM.
+//! forward road and its reverse road (T-427), served by this binary on a
+//! listener that the user asks for (Q1), with TLS from a certificate and a
+//! P-256 key in PEM files. The routes are `podssh_relay::serve`'s; this file
+//! owns the listener, TLS, the port file of a harness, the file of the pairs,
+//! and the end on Ctrl-C or SIGTERM, which closes each reverse socket with
+//! `1012` first (T-255).
 
 use std::io::Write;
 use std::sync::Arc;
@@ -16,6 +18,8 @@ use crate::relay_settings::Refusal;
 
 /// How long a client has to finish TLS.
 const HANDSHAKE_WAIT: Duration = Duration::from_secs(30);
+/// How long a planned stop waits for each reverse socket's Close to go out.
+const STOP_WAIT: Duration = Duration::from_secs(3);
 
 /// The flags of `serve`.
 #[derive(Debug, Clone, Default, PartialEq, Eq)]
@@ -27,6 +31,8 @@ pub struct ServeArgs {
     pub mint: Option<String>,
     pub allow_private: bool,
     pub keepalive: Option<String>,
+    /// The file that keeps the pairs of the reverse road across a restart.
+    pub pairs: Option<String>,
 }
 
 impl ServeArgs {
@@ -40,6 +46,7 @@ impl ServeArgs {
             mint: get("mint"),
             allow_private: matches.try_get_one::<bool>("allow-private").ok().flatten().copied().unwrap_or(false),
             keepalive: get("keepalive"),
+            pairs: get("pairs"),
         }
     }
 
@@ -95,6 +102,11 @@ fn prepare(s: &ServeArgs) -> Result<Prepared, Refusal> {
     let acceptor = podssh_ws::tls_server::acceptor(&read(cert)?, &read(key)?, &[podssh_ws::tls_server::HTTP1])
         .map_err(|e| Refusal::config(format!("{cert} and {key}: {e}")))?;
     let tokens = serve::tokens::Tokens::random().map_err(Refusal::config)?;
+    let pairs = serve::reverse::Pairs::open(s.pairs.as_deref().map(Into::into)).map_err(Refusal::config)?;
+    let kept = match (s.pairs.as_deref(), pairs.len()) {
+        (Some(file), n) => format!(", its pairs kept in {file} ({n} now)"),
+        (None, _) => String::new(),
+    };
     let listener = std::net::TcpListener::bind(listen)
         .map_err(|e| Refusal { message: format!("cannot listen on {listen}: {e}"), code: EX_UNAVAILABLE })?;
     let bound = listener.local_addr().map_err(|e| Refusal::config(e.to_string()))?;
@@ -112,12 +124,15 @@ fn prepare(s: &ServeArgs) -> Result<Prepared, Refusal> {
         tokens,
         policy: serve::policy::Policy { private: s.allow_private, ..Default::default() },
         limits: Limits { keepalive, ..Limits::default() },
+        pairs,
         events: Some(events),
     };
     let who = if mint == Mint::Anyone { "anyone" } else { "no one" };
     let inside = if s.allow_private { ", private targets too" } else { "" };
-    let shown =
-        format!("the relay's forward road (contract {}) at {bound}, minting tokens for {who}{inside}", serve::CONTRACT);
+    let shown = format!(
+        "the relay's forward and reverse roads (contract {}) at {bound}, minting for {who}{inside}{kept}",
+        serve::CONTRACT
+    );
     Ok((listener, acceptor, Arc::new(cfg), shown))
 }
 
@@ -150,7 +165,12 @@ fn serve_until_stopped(
                         }
                     });
                 }
-                _ = stopped() => return Ok(()),
+                _ = stopped() => {
+                    // A planned stop: each reverse socket hears 1012, which
+                    // its client tells apart from a lost link (T-255).
+                    cfg.pairs.restart(STOP_WAIT).await;
+                    return Ok(());
+                }
             }
         }
     });

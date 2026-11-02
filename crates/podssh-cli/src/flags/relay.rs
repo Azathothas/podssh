@@ -20,7 +20,7 @@ pub const RELAY_FLAGS: &[FlagRow] = &[
     row(None, "json", None, FlagKind::Supported,
         "status with no NAME, info and trace: the answer as one JSON object on stdout, when the run ends", None),
     row(None, "listen", Some("ADDR:PORT"), FlagKind::Supported,
-        "serve: serve the relay's forward road on ADDR:PORT, a listener that you ask for (127.0.0.1:0 takes a free port); PODSSH_LISTEN=no refuses it", None),
+        "serve: serve the relay's forward and reverse roads on ADDR:PORT, a listener that you ask for (127.0.0.1:0 takes a free port); PODSSH_LISTEN=no refuses it", None),
     row(None, "cert", Some("FILE"), FlagKind::Supported,
         "serve: the certificate chain that the relay presents, in PEM", None),
     row(None, "key", Some("FILE"), FlagKind::Supported,
@@ -28,11 +28,13 @@ pub const RELAY_FLAGS: &[FlagRow] = &[
     row(None, "port-file", Some("FILE"), FlagKind::Supported,
         "serve: write the port that it listens on to FILE, for --listen ADDR:0", None),
     row(None, "mint", Some("WHO"), FlagKind::Supported,
-        "serve: who may mint a token at /v1/mint: anyone, or nobody (the default: 503, and tokens are given another way)", None),
+        "serve: who may mint a token at /v1/mint and make a pair at /v1/pair: anyone, or nobody (the default: 503, and tokens are given another way)", None),
     row(None, "allow-private", None, FlagKind::Supported,
         "serve: dial private, loopback and other non-public addresses too (by default only public targets, as the default relay)", None),
     row(None, "keepalive", Some("SECONDS"), FlagKind::Supported,
         "serve: send each client an empty frame every SECONDS (default 25)", None),
+    row(None, "pairs", Some("FILE"), FlagKind::Supported,
+        "serve: keep the pairs of the reverse road in FILE, of mode 0600, so that they outlive a restart (the digests of their tokens, never a token)", None),
 ];
 
 /// **`proxy`.** It is **not an SSH client** (`podssh man proxy`), so not an alias of `ssh`,

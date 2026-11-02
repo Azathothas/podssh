@@ -62,15 +62,15 @@ repository and CI).
 
 ## Counts
 
-**449 entries: 48 open, 1 partial, 16 blocked, 384 done.**
+**450 entries: 48 open, 1 partial, 16 blocked, 385 done.**
 
 | Priority | open | partial | blocked | done | total |
 | --- | --- | --- | --- | --- | --- |
 | P0 | 0 | 0 | 0 | 1 | 1 |
-| P1 | 3 | 1 | 0 | 49 | 53 |
-| P2 | 20 | 0 | 14 | 183 | 217 |
+| P1 | 2 | 1 | 0 | 50 | 53 |
+| P2 | 21 | 0 | 14 | 183 | 218 |
 | P3 | 25 | 0 | 2 | 151 | 178 |
-| **All** | 48 | 1 | 16 | 384 | 449 |
+| **All** | 48 | 1 | 16 | 385 | 450 |
 
 ## Entries
 
@@ -498,7 +498,7 @@ repository and CI).
 | [T-424](release.md) | P1 | S | none | defect | done | `-M` leaves its control socket when its connection fails before the master serves |
 | [T-425](release.md) | P1 | S | M9 | defect | done | The public IRC networks turn the relay's address away, and the release check's row irc.live fails on it |
 | [T-426](release.md) | P1 | S | none | defect | done | `podssh update` of a build of a release, before the first release, says that it found no list |
-| [T-427](mesh.md) | P1 | L | M10 | feature | open | The relay's reverse road in podssh's relay role |
+| [T-427](mesh.md) | P1 | L | M10 | feature | done | The relay's reverse road in podssh's relay role |
 | [T-428](mesh.md) | P1 | M | M10 | feature | open | The relay role behind a node's quick tunnel, with no listener |
 | [T-429](mesh.md) | P1 | L | M10 | feature | done | The net: an owner's signed list of its nodes, and their names |
 | [T-430](mesh.md) | P2 | M | M10 | feature | open | The net's policy: who may reach which node, share and exit |
@@ -525,3 +525,4 @@ repository and CI).
 | [T-451](mesh.md) | P2 | M | M10 | measurement | open | The Piping Server road from end to end: `podssh node` and `ssh node://` behind a proxy that refuses the upgrade |
 | [T-452](mesh.md) | P3 | S | M10 | feature | open | A node of the DERP road whose key is a member of the net starts with no `--allow` |
 | [T-453](mesh.md) | P3 | S | M10 | feature | open | `podssh cp` and `podssh sftp` reach a member of the net by its name alone |
+| [T-454](mesh.md) | P2 | S | M10 | feature | open | The relay role brakes `/v1/mint` and `/v1/pair` for each address |

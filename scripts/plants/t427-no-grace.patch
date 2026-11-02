@@ -1,0 +1,11 @@
+--- a/crates/podssh-relay/src/serve/reverse/pairs.rs
++++ b/crates/podssh-relay/src/serve/reverse/pairs.rs
+@@ -122,7 +122,7 @@
+     /// for a line that says so once.
+     pub fn in_flight(&mut self, id: &SessionId) -> Option<bool> {
+         let (at, said) = self.closed.get_mut(id)?;
+-        if at.elapsed() >= IN_FLIGHT {
++        if at.elapsed() >= Duration::ZERO {
+             return None;
+         }
+         Some(!std::mem::replace(said, true))

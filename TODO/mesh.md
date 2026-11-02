@@ -10,7 +10,7 @@ waited for the relay's operator carry their Corrections in their own files.
 **Milestone:** M10
 **Priority:** P1
 **Effort:** L
-**Status:** open
+**Status:** done
 
 ## Problem
 
@@ -51,6 +51,58 @@ The role reuses the node's codecs (`crates/podssh-relay/src/reverse/wire.rs`) fo
 that it reads and writes, so that the two sides cannot drift apart; the Python stand-in stays
 the second reading of the contract, which podssh did not write in Rust.
 
+The draft's calls, 2026-11-02:
+
+1. Where: `crates/podssh-relay/src/serve/reverse/` (the routes, the pairs, one writer for each
+   socket, the node's socket, the operator's), behind the feature `serve`, which now brings
+   `pair` for the codecs. Lost: a feature of its own, with which a role could serve half the
+   contract.
+2. The bound, toward an operator: what waits for its socket is counted, and a frame that would
+   put more than 1 MiB in it is dropped; the operator gets `1011 relay backpressure` before what
+   waits, and the node `close {id}` with that reason; the node's socket goes on. Toward the
+   node, the role reads an operator's next frame only once the node's queue has room for it
+   (1 MiB of bytes in all), so that queue never passes the bound and no session is cut for a
+   slow node. Lost: `1011` on the node's socket, which would cut each of its sessions for one
+   operator's bytes (T-443, its Decision 7); and reading the node only while each operator has
+   room, where one slow operator would stall each other session of the node.
+3. The grace (T-421): 2 s after the role forgets a session, for any reason (the operator's
+   Close, its lost link, a `reject`, a `close`, the role's own ends), a frame or a `ready` of
+   the node for it is dropped, and said once on stdout (`reverse in flight`); after it, or for
+   an id never given, `1003 unknown session id`. Lost: the grace for a lost link alone, as the
+   stand-in keeps it: an operator's clean Close crosses the node's frames too (T-388).
+4. The tokens: 64 characters of `[0-9a-z]` from the system's randomness, kept as their
+   SHA-256 and compared in constant time; `--pairs FILE` holds the digests, written through a
+   private temporary file and a rename, and read back only when it is private. Lost: tokens as
+   MACs under the run's secret, which a restart would end, as the file is there to prevent; and
+   the tokens in the file, whose copy would be each credential.
+5. Who may make a pair: whom the role mints for (`--mint`): anyone, or no one (`503`); T-448
+   adds the keys of a list. Lost: pairs for anyone always, so that a role that mints for no one
+   would still keep the pairs of strangers.
+6. Liveness: the role pings each reverse socket every 20 s and drops one that answers nothing
+   for 3 intervals. The default relay sends no keepalive but answers a Ping; without one, a
+   node whose connection died with no FIN would hold its name, and the node that comes back
+   would meet `409` for as long. Lost: an idle cut, which the contract does not have (T-061).
+7. A planned stop: Ctrl-C or SIGTERM sends `1012 relay restarting` to each reverse socket
+   before what waits for it, and waits up to 3 s for the Closes; the pairs stay, in the file
+   too. podssh's node connects again on a code that is not `1001`, `1003` or `1009`, and the
+   resumable layer resumes on a code that no row of the table names outside `1001` to `1003`
+   and `1007` to `1010` (`crates/podssh-relay/src/reverse/closes.rs`). Lost: `1001`, whose two
+   rows in the contract are a stop and an expiry, which each end takes as the pair's end.
+8. The limits: 64 sessions a node, as `hello` says (`1011 node unavailable` past them), 4096
+   pairs a role (`429`), and the contract's 64 MiB a session (`1009 session byte cap`), 65536
+   bytes an operator's frame (`1009 frame byte cap`) and 15 s for a `ready` (`1013 node open
+   timeout`).
+9. The tests: raw sockets, written from the contract's table as the stand-in was, and podssh's
+   own node and operator, against the role on plain ws:// in podssh-relay; the binary against
+   the role over TLS with OpenSSH at both ends in podssh-cli; and the CLI's node tests of the
+   stand-in against the role by `PODSSH_RELAY_UNDER_TEST=podssh`. The role's events go to the
+   harness's log, so that a `1003` for an id that the role does not know fails a test there as
+   the stand-in's line does (T-412).
+10. The live run: `relay-live.yml` with `relay_serve_reverse` runs the role on the runner,
+    `node_live`'s two short tests against it (`PODSSH_LIVE_RELAY`), and the `podssh operator`
+    of `v1.0.0`'s binary through a node of the role's pair to GitHub's SSH port. The long tests
+    of `node_live` (10 minutes, 200 MiB) stay with the release check (T-446).
+
 ## Prove
 
 ```sh
@@ -63,6 +115,71 @@ The reverse road's offline tests run against the role as against the stand-in; o
 runner, `node_live` runs against `podssh relay serve` on the runner's loopback, and a client of
 `v1.0.0` reaches a node through it. Planted: no bound for a slow receiver, and the test of
 T-336 fails; no grace for a frame in flight, and the test of T-421 fails.
+
+## Correction
+
+2026-11-02 (the drafting agent). The Decision above names
+`crates/podssh-relay/src/reverse/wire.rs` as the node's codecs; that file is the client's wire
+(TLS, or plain ws:// to the loopback). The codecs that the role reuses are
+`crates/podssh-relay/src/reverse/framing.rs` (the id and the caps),
+`crates/podssh-relay/src/reverse/framing/legs.rs` (the frames of each leg) and
+`crates/podssh-relay/src/reverse/control.rs` (the text controls). The Prove's first command
+builds no test of the role, which needs the features `serve` and `plain-ws`. The Prove that
+runs, in place of the one above:
+
+```sh
+export CARGO_BUILD_JOBS=4
+cargo test -p podssh-relay --features serve,plain-ws --test relay_serve_contract --test relay_serve_reverse
+cargo test -p podssh-relay --features serve --lib serve::
+cargo test -p podssh-relay --features pair
+cargo test -p podssh-cli --test relay_serve_node --test relay_serve
+PODSSH_RELAY_UNDER_TEST=podssh cargo test -p podssh-cli --test node_copy --test node_moves --test node_plain --test node_restart --test node_routes --test roost --test attach
+sh scripts/plant-each.sh --here t427-no-bound t427-no-grace
+```
+
+Live, by hand (`relay-live.yml`, `test=relay_serve_reverse`): the role on the runner's loopback,
+`node_live`'s `node_command_serves_a_tcp_target` and `ssh_to_a_node` against it, and the client of
+`v1.0.0` reads GitHub's banner through a node of the role's pair.
+
+## Done
+
+2026-11-02: drafted by an agent of this session in a worktree, then merged, built and measured
+here.
+
+- The role's reverse road, `crates/podssh-relay/src/serve/reverse/`: `mod.rs` (the routes,
+  `/v1/pair`, `/v1/status`, `/v1/stop`, the token from `X-Relay-Token` or `?token=`),
+  `pairs.rs` (the pairs, their digests, the grace, the file, the planned stop), `outbox.rs`
+  (one writer for each socket, the bound), `node.rs` and `operator.rs` (each socket, each row of
+  the close table that it sends). `/health` says `"reverse": {"enabled": true}`.
+- `podssh relay serve --pairs FILE` (`crates/podssh-cli/src/relay_serve.rs`), the flag's row,
+  the manual's note (`crates/podssh-cli/src/man/notes_relay.rs`), and `1012` at Ctrl-C or
+  SIGTERM; `docs/relay.md` ("The relay role's reverse road") and docs/mesh.md, section 4.
+- `cargo test -p podssh-relay --features serve --lib serve::`: 16 passed (the pairs' shapes and
+  tokens, the grace, the file of digests, the paths, the token's places, the frames that podssh's
+  node reads, the bound of a writer).
+- `cargo test -p podssh-relay --features serve,plain-ws --test relay_serve_contract`: 10 passed
+  (the statuses, `ready` first, a `reject` whole, `1003 binary frames required`, the seven faults
+  of a node and the control cap, the frame in flight, `1013` at 15 s, `1011 node unavailable`,
+  `1012` and the pair after it); `--test relay_serve_reverse`: 3 passed (two sessions of 2 MiB each
+  way; a slow operator meets `1011 relay backpressure` while a second session goes on; the node
+  joins again after `1012`).
+- `cargo test -p podssh-cli --test relay_serve_node`: 3 passed (pair, status and `ssh node://`
+  against the role; OpenSSH's ssh through `podssh operator` and `podssh node` to OpenSSH's sshd,
+  with equal digests); `--test relay_serve`: 7 passed, unchanged.
+- `PODSSH_RELAY_UNDER_TEST=podssh`, the node suites against the role in place of the Python
+  stand-in: `node_copy` 6, `node_moves` 3, `node_plain` 2, `node_restart` 3, `node_routes` 2,
+  `roost` 8 and `attach` 2 passed.
+- Planted, `sh scripts/plant-each.sh --here t427-no-bound t427-no-grace`: 2 caught (the slow
+  operator's test and the frame in flight's test failed).
+- Clippy with `-D warnings` on podssh-relay and podssh-cli, and on podssh-relay with
+  `serve,plain-ws` (the gate's new step): clean; `cargo fmt --check`: clean.
+- `cargo test --no-fail-fast -p podssh-cli`: 1285 passed, 0 failed; `cargo test --no-fail-fast -p
+  podssh-relay --features pair,quick,derp,serve,piping`: 488 passed, 0 failed.
+- Live on a runner from the merge's branch (`relay-live.yml`): `relay_serve_reverse`
+  (41407047641): `node_live`'s two short tests through a node of the role, and the client of
+  `v1.0.0` (35a0d19) read GitHub's version line through a node of the role; `relay_serve`
+  (41407050852): the forward road as before. The first run showed the transit road taking the
+  pair relay's CA, a defect of T-436 repaired here (its Done says how).
 
 # T-428: The relay role behind a node's quick tunnel, with no listener
 
@@ -636,6 +753,14 @@ here.
   waited alone and the test failed, as it must. The first three runs, before them, met nobody
   within 20 s; their cause is not found, and the test now names both ends' results: T-450.
   `transit-live.yml` runs them each week and by hand.
+- 2026-11-02, after (the merge of T-427): the live run of the relay role on a runner
+  (`relay-live.yml`, 41407047641) showed the node dialing Least Authority's relay with the pair
+  relay's own trust, so a pair whose relay has a private CA could never reach the public transit
+  relay (`UnknownIssuer`). Repaired: Least Authority's relay takes the host's trust
+  (`SSL_CERT_FILE`, `CaFile`, else the default stores), never `--ca-file`; a relay that
+  `PODSSH_TRANSIT` names keeps the pair's (`crates/podssh-cli/src/node_transit.rs`, `trust_for`,
+  with its unit test). In that run `SSL_CERT_FILE` itself named the private CA, which replaces
+  each root by design, so its transit road still could not pass there.
 
 # T-437: Piping Server, a road for a proxy that refuses the WebSocket upgrade
 
@@ -1701,3 +1826,40 @@ cargo test -p podssh-cli --test net
 
 `podssh cp FILE lab:/tmp/` and `podssh sftp lab` reach the member `lab` through the stand-in
 relay. Planted, the net's lookup skipped, and the test fails.
+
+# T-454: The relay role brakes `/v1/mint` and `/v1/pair` for each address
+
+**Source:** the merge of T-427 (2026-11-02); T-169's Approach, which promised it.
+**Category:** feature
+**Milestone:** M10
+**Priority:** P2
+**Effort:** S
+**Status:** open
+
+## Problem
+
+`podssh relay serve` mints a token, and makes a pair, for each request that its `--mint` allows,
+as fast as they come. T-169's Approach named a brake of 120 requests a minute for each address,
+which neither T-169 nor T-427 built, so one client can fill the role's table of pairs or spend
+its CPU on tokens.
+
+## Premise
+
+- `crates/podssh-relay/src/serve/mod.rs` answers `/v1/mint` and `/v1/pair` with no count of the
+  requests of an address.
+
+## Approach
+
+1. A count for each address over a sliding minute, kept small (the oldest addresses dropped
+   first); past 120, `429` with `Retry-After`, as the contract's client reads it.
+2. The same for the reverse road's `/v1/pair`; `/health` and the forward road unbraked.
+
+## Prove
+
+```sh
+export CARGO_BUILD_JOBS=4
+cargo test -p podssh-relay --features serve --lib serve::
+```
+
+The 121st mint of an address within a minute is a `429`, another address's is not, and the
+first after the minute passes. Planted, the brake removed, and the test fails.

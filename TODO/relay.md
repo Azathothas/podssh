@@ -160,7 +160,7 @@ token header (`crates/podssh-ws/src/client.rs:279-290`); `https_request` takes h
 ## Decision
 
 Recommendation: remove the `--timeout` and `--jsonl` rows of `relay`
-(`crates/podssh-cli/src/flags/relay.rs:9-36`), and bound each request in the code, as `doctor`
+(`crates/podssh-cli/src/flags/relay.rs:9-38`), and bound each request in the code, as `doctor`
 does. With the row, the gate of `crates/podssh-cli/src/dispatch.rs:287-305` stops
 `podssh relay status` in each script that leaves `--timeout` out. Keeping the gate lost for that
 reason: the command is bounded anyway.
@@ -396,7 +396,7 @@ declares `libc` (`crates/podssh-probe/Cargo.toml` line 11 at `f8a94ca`), which n
 `crates/podssh-probe/src/facts.rs` lines 3-6 at `f8a94ca` name a "startup assertion" that no command runs;
 `crates/podssh-probe/src/relay_facts.rs` lines 261-289 at `f8a94ca` are that unused startup part. CI runs
 `scripts/check-relay-spec.py` live, with three plants (`.github/workflows/build.yml:192-222`).
-The gate runs the crate's tests with no C compiler (`scripts/gate.sh:159-173`). The build image
+The gate runs the crate's tests with no C compiler (`scripts/gate.sh:163-177`). The build image
 has no Python (`crates/podssh-probe/src/facts.rs:14-19`), so the crate is the only form of the
 check that the container gate can run.
 
@@ -1608,7 +1608,7 @@ Nothing watches the expiry of the relay's domain, on which each road but `--dire
 - Read: a beta needs the job `all` of the gate (`docs/decisions.md:37`). Citations of an older
   document of the relay were once off by 35 (`TODO/repo.md:2318-2321`).
 - Read: no workflow checks the relay on a schedule: `relay-live.yml` runs by hand
-  (`.github/workflows/relay-live.yml:10-19`), and `build.yml` on a push, a pull request or by hand
+  (`.github/workflows/relay-live.yml:11-20`), and `build.yml` on a push, a pull request or by hand
   (`.github/workflows/build.yml:9-13`).
 - Read, by the audit through web.pkgforge.dev on 2026-10-31 (the registry's RDAP,
   https://pubapi.registry.google/rdap/domain/ajam.dev): `ajam.dev` expires on 2028-01-19, under
