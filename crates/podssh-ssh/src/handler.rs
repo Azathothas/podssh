@@ -33,6 +33,14 @@ pub fn take_last_error() -> Option<String> {
     LAST_ERROR.lock().unwrap_or_else(|e| e.into_inner()).take()
 }
 
+/// Whether a server's words or an error are kept, untaken: russh tells the
+/// handler after it closed the queue of requests, so an open can fail first
+/// (T-464).
+pub fn cause_kept() -> bool {
+    LAST_DISCONNECT.lock().unwrap_or_else(|e| e.into_inner()).is_some()
+        || LAST_ERROR.lock().unwrap_or_else(|e| e.into_inner()).is_some()
+}
+
 pub struct Client {
     policy: Arc<Policy>,
     log: Arc<Log>,

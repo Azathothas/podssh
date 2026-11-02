@@ -167,7 +167,11 @@ impl Sftp {
         let what = "open a session channel for SFTP";
         let mut channel = match tokio::time::timeout(limits.metadata, handle.channel_open_session()).await {
             Err(_) => return Err(SftpError::Timeout { what: what.into(), limit: limits.metadata }),
-            Ok(Err(e)) => return Err(SftpError::Closed(format!("{what}: {e}"))),
+            // A refusal told from a connection that ended first (T-464).
+            Ok(Err(e)) => {
+                let read = crate::unopened::read(&e, handle).await;
+                return Err(SftpError::Closed(read.words("a session channel for SFTP", false)));
+            }
             Ok(Ok(channel)) => channel,
         };
         let asked = tokio::time::timeout(limits.metadata, channel.request_subsystem(true, name)).await;

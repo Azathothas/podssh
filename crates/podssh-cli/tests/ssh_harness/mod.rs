@@ -41,6 +41,8 @@
 //! On one of `start_shell`, each command runs in `sh` (T-193, `shell.rs`).
 //! `cut N` and `cut-eof N` give the status 0 and N bytes, then cut the
 //! connection with no word, with no EOF or after it (T-461, `cut.rs`).
+//! For `gone-...` users the server ends the connection right after the
+//! login, and `nosession-...` refuses each session (T-464, `gone.rs`).
 
 // Each test binary uses a part of it.
 #![allow(dead_code)]
@@ -59,6 +61,7 @@ mod ends;
 mod eof;
 mod far;
 mod forward;
+mod gone;
 mod health;
 mod interrupt;
 pub mod pass;
@@ -101,6 +104,7 @@ impl server::Handler for Far {
         self.containers = user.starts_with("containers-").then(|| user.to_string());
         self.nofwd = pass::refuses_forwarding(user);
         self.mute = pass::mutes_forwarding(user);
+        self.gone = gone::of(user);
         if let Some(auth) = pass::none(user) {
             return Ok(auth);
         }
@@ -198,12 +202,20 @@ impl server::Handler for Far {
 
     async fn channel_open_session(
         &mut self,
-        _channel: Channel<Msg>,
+        channel: Channel<Msg>,
         reply: server::ChannelOpenHandle,
-        _session: &mut Session,
+        session: &mut Session,
     ) -> Result<(), Self::Error> {
-        reply.accept().await;
-        Ok(())
+        gone::open_session(self.gone, &self.link, channel, reply, session).await
+    }
+
+    async fn tcpip_forward(
+        &mut self,
+        _address: &str,
+        _port: &mut u32,
+        session: &mut Session,
+    ) -> Result<bool, Self::Error> {
+        gone::forward(self.gone, session)
     }
 
     async fn pty_request(

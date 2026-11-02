@@ -67,8 +67,7 @@ pub async fn attach(
 ) -> Result<io::End, String> {
     // `--attach` needs a far end that keeps shells (T-158).
     opts.keep.check(host)?;
-    let mut channel =
-        handle.channel_open_session().await.map_err(|e| format!("the server refused to open a session: {e}"))?;
+    let mut channel = open_session(handle, opts.connect_timeout).await?;
     for (name, value) in environment(opts) {
         // No reply asked for: servers refuse unlisted variables silently.
         let _ = channel.set_env(false, name, value).await;
@@ -221,6 +220,18 @@ pub async fn attach(
         log.info(&format!("Connection to {host} closed."));
     }
     Ok(end)
+}
+
+/// A session channel, within `limit` (ConnectTimeout), as the exec's and
+/// SFTP's opens have theirs: a refusal in the server's reason, and a
+/// connection that ended first in its cause, never read as a refusal
+/// (T-464, GitHub #104).
+async fn open_session(handle: &Handle<Client>, limit: Duration) -> Result<Channel<Msg>, String> {
+    match tokio::time::timeout(limit, handle.channel_open_session()).await {
+        Err(_) => Err(format!("the server did not answer the open of a session within {} s", limit.as_secs())),
+        Ok(Err(e)) => Err(crate::unopened::read(&e, handle).await.words("a session", true)),
+        Ok(Ok(channel)) => Ok(channel),
+    }
 }
 
 /// The question for the password of `--sudo` or `--su` (T-032).

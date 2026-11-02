@@ -184,7 +184,7 @@ is not a shell. A set of hosts has no name.
   (`crates/podssh-cli/src/ssh/hop.rs:30-78`,
   `crates/podssh-ws/src/names.rs:10-24`).
 - Read: the `Host` lines of ssh_config are patterns, not lists
-  (`docs/cli.md:3787-3880`); they cannot define a group.
+  (`docs/cli.md:3798-3891`); they cannot define a group.
 
 ## Approach
 
@@ -1029,7 +1029,7 @@ that can be missing. `podssh doctor` checks only this host.
 ## Premise
 
 - Read: an exec request runs one command through the shell of the server
-  (`crates/podssh-ssh/src/session.rs:131-144`), and its output goes to stdout
+  (`crates/podssh-ssh/src/session.rs:130-143`), and its output goes to stdout
   (`crates/podssh-ssh/src/io/msg.rs:65-83`); podssh cannot read it.
 - Read: on Linux, `/proc/loadavg`, `/proc/meminfo`, `/proc/uptime` and
   `/proc/net/dev` hold the facts, and a POSIX shell reads them with `read`,
@@ -1057,7 +1057,7 @@ that can be missing. `podssh doctor` checks only this host.
 ## Decision
 
 2026-10-13, the draft. The answer is read with `exec::capture`
-(`crates/podssh-ssh/src/exec.rs:58-78`), as `podssh ping` reads its
+(`crates/podssh-ssh/src/exec.rs:59-79`), as `podssh ping` reads its
 measures and the copy by exec its steps: one command with no pty and no
 input, its own limit (30 s) and cap (1 MiB), its status and its stderr.
 The sink of T-183 lost: it carries a session of `podssh_ssh::run` with the
@@ -1112,7 +1112,7 @@ Plant: read `MemFree` in place of `MemAvailable`; the comparison must fail.
 ## Correction
 
 The first premise is wrong in its last words: podssh reads the output of a
-command with `exec::capture` (`crates/podssh-ssh/src/exec.rs:58-78`), as
+command with `exec::capture` (`crates/podssh-ssh/src/exec.rs:59-79`), as
 `podssh ping` does for its measures (`crates/podssh-cli/src/ping/far.rs`),
 and since T-183 a session's output can go to a sink (`io::Sink` in
 `crates/podssh-ssh/src/io.rs`). The Approach takes the capture
@@ -2017,7 +2017,7 @@ queue, no wait for a result, and no way to get the output back.
    gives one object.
 4. `job wait HOST ID [--timeout D]` reads `state` every 5 s until it is
    `done`, and exits with the job's status. When the limit passes first, it
-   exits 75; add the code to `crates/podssh-cli/src/man/data.rs:19-143`.
+   exits 75; add the code to `crates/podssh-cli/src/man/data.rs:19-144`.
 5. `job fetch HOST ID [DIR]` copies `out`, and the files that `--files GLOB`
    names, with the engine of T-134; DIR is `./podssh-job-ID` by default.
 6. With a list of hosts (T-184), `submit` picks the host with the fewest
@@ -2086,7 +2086,7 @@ one running and two queued must fail.
 ## Correction
 
 2026-10-09 (T-134): 75 (`EX_TEMPFAIL`) is in the table of exit codes
-already (`crates/podssh-cli/src/man/data.rs:19-143`), for a `--timeout` of
+already (`crates/podssh-cli/src/man/data.rs:19-144`), for a `--timeout` of
 `cp` that passed; this entry adds its sentence for `job wait`.
 
 2026-10-13 (the draft of T-197): T-193 runs a job under tmux only; the
@@ -2575,7 +2575,7 @@ relay reaches; nothing reports the far side.
 - Read: `podssh health` resolves the host as `ssh` does, logs in on the same road, and runs one
   exec (`crates/podssh-cli/src/health/mod.rs:125-143`).
 - Read: what a preflight asks is in podssh already: the SFTP server's extensions
-  (`crates/podssh-ssh/src/sftp/mod.rs:224-227`), the request of a remote forward
+  (`crates/podssh-ssh/src/sftp/mod.rs:228-231`), the request of a remote forward
   (`crates/podssh-ssh/src/remote.rs:121-135`), a channel `direct-tcpip`
   (`crates/podssh-ssh/src/local.rs:79`), keepalives each 60 s by default
   (`crates/podssh-ssh/src/options.rs:377-378`), and the relay's cap on a session

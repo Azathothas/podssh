@@ -10,6 +10,7 @@ use russh::client::{Handle, Msg};
 use russh::{Channel, ChannelMsg};
 
 use crate::handler::Client;
+use crate::unopened::Unopened;
 
 /// What a command wrote, and how it ended.
 #[derive(Debug, Clone, Default, PartialEq, Eq)]
@@ -81,7 +82,14 @@ pub async fn capture(
 async fn open(handle: &Handle<Client>, command: &str, limit: Duration) -> Result<Channel<Msg>, ExecError> {
     let channel = match tokio::time::timeout(limit, handle.channel_open_session()).await {
         Err(_) => return Err(ExecError::Timeout(limit)),
-        Ok(Err(e)) => return Err(ExecError::Refused(format!("no session channel: {e}"))),
+        // A connection that ended is no refusal: a copy or a job reads a
+        // refusal as a server that runs no command (T-464).
+        Ok(Err(e)) => {
+            return Err(match crate::unopened::read(&e, handle).await {
+                Unopened::Refused(reason) => ExecError::Refused(format!("no session channel: open failed: {reason}")),
+                other => ExecError::Lost(other.words("a session channel", false)),
+            });
+        }
         Ok(Ok(channel)) => channel,
     };
     match tokio::time::timeout(limit, channel.exec(true, command.as_bytes())).await {

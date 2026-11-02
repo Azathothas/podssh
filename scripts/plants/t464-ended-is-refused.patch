@@ -1,0 +1,11 @@
+--- a/crates/podssh-ssh/src/session.rs
++++ b/crates/podssh-ssh/src/session.rs
+@@ -229,7 +229,7 @@
+ async fn open_session(handle: &Handle<Client>, limit: Duration) -> Result<Channel<Msg>, String> {
+     match tokio::time::timeout(limit, handle.channel_open_session()).await {
+         Err(_) => Err(format!("the server did not answer the open of a session within {} s", limit.as_secs())),
+-        Ok(Err(e)) => Err(crate::unopened::read(&e, handle).await.words("a session", true)),
++        Ok(Err(e)) => Err(format!("the server refused to open a session: {e}")),
+         Ok(Ok(channel)) => Ok(channel),
+     }
+ }

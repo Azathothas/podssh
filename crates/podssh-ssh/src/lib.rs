@@ -86,6 +86,8 @@ pub mod sshsig;
 pub mod sshsig_cert;
 pub mod tally;
 pub mod terminal;
+// One reading of a channel that did not open after the login (T-464).
+pub mod unopened;
 pub mod upgrade;
 pub mod x11;
 pub mod zmodem;

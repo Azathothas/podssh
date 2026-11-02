@@ -54,7 +54,7 @@ Read:
 4. Give the note about skipped encrypted keys
    (`crates/podssh-ssh/src/keys.rs:152-158`) the same condition as step 1.
 5. Keep `PublicKeys::new` for each login (`crates/podssh-ssh/src/auth.rs:106`),
-   so that only the notes change. No document changes: `docs/cli.md:3719-3774`
+   so that only the notes change. No document changes: `docs/cli.md:3730-3785`
    already says that a refusal names the remedy.
 
 ## Prove
@@ -166,7 +166,7 @@ Read:
 2. Keep the server's SSH_MSG_DISCONNECT: implement `Handler::disconnected` in
    `crates/podssh-ssh/src/handler.rs`. Store the reason code and the text,
    made safe with `podssh_ws::text::one_line`, as the handler stores
-   `refusal` (`crates/podssh-ssh/src/handler.rs:39-41`).
+   `refusal` (`crates/podssh-ssh/src/handler.rs:47-49`).
 3. In `run` (`crates/podssh-ssh/src/run.rs` lines 34-48 at `80f20bf`), write one first line from
    three sources, in this order: a relay close other than 1000, the server's
    disconnect, then `describe`. Example: "railway.new: the relay lost its
@@ -181,7 +181,7 @@ Read:
    `scripts/interop-faults.sh:261` looks for `1009 session byte cap`.
 6. Correct the comment on the window (`crates/podssh-ssh/src/run.rs` lines
    25-29 at `80f20bf`). The window of 512 KiB stays: it is below both limits.
-7. Update `docs/relay.md` (lines 155-158 at `80f20bf`) and `docs/STATUS.md:619`. T-025 uses the
+7. Update `docs/relay.md` (lines 155-158 at `80f20bf`) and `docs/STATUS.md:620`. T-025 uses the
    classification for its retry rule. T-227 is a different path
    (`--direct`).
 
@@ -263,7 +263,7 @@ Read:
   which only the SSH handshake prints (`crates/podssh-ssh/src/run.rs:395-417`).
   At that point no request has reached the server.
 - The command starts with the exec, shell or subsystem request
-  (`crates/podssh-ssh/src/session.rs:126-153`). `-W` reads stdin only after its
+  (`crates/podssh-ssh/src/session.rs:125-152`). `-W` reads stdin only after its
   channel opens (`crates/podssh-ssh/src/forward.rs:39-70`). `-N` never reads
   stdin (`crates/podssh-ssh/src/run.rs:212-254`).
 - Measured by the reporter (read in the reports, not verified here): on one
@@ -555,7 +555,7 @@ back to the plain key only when no CA line matches.
    the `@revoked` arm (`crates/podssh-ssh/src/known_hosts.rs:113-115`). Match CA
    lines with the name `host` or `[host]:port`
    (`crates/podssh-ssh/src/known_hosts.rs:89-96`).
-3. In `check_server_key` (`crates/podssh-ssh/src/handler.rs:124-146`), branch on
+3. In `check_server_key` (`crates/podssh-ssh/src/handler.rs:132-154`), branch on
    `PublicKeyOrCertificate`. For a certificate: `validate_at` with the clock
    and the fingerprints of the matching CA keys; the type must be `host`; a
    principal must equal the host name or `HostKeyAlias`, with no port;
@@ -704,7 +704,7 @@ Not measured here: each case needs a server.
    (`HOME` is not set, `UserKnownHostsFile none`, or the write error); the
    next run cannot detect a changed key.
 4. Check the file type before the open: a FIFO blocks an open for reading.
-5. Update `docs/cli.md:3719-3774` (one line) and the manual's note on host keys
+5. Update `docs/cli.md:3730-3785` (one line) and the manual's note on host keys
    (`crates/podssh-cli/src/man/notes.rs`, lines 60-66 at `33c9a31`).
 
 ## Decision
@@ -1103,7 +1103,7 @@ acceptable.
 - Read: podssh asks for passwords on the terminal or through `SSH_ASKPASS`
   (`crates/podssh-ssh/src/prompt.rs:47-70`), and refuses when nobody can
   answer (`crates/podssh-ssh/src/prompt.rs:80-90`). A remote command is one
-  string for the remote shell (`crates/podssh-ssh/src/session.rs:131-144`).
+  string for the remote shell (`crates/podssh-ssh/src/session.rs:130-143`).
   Local stdin goes to the channel only after the exec request
   (`crates/podssh-ssh/src/io.rs`, lines 148-157 at `3e42773`).
 - Measured, offline: `podssh ssh --sudo example.invalid id` gives
@@ -1172,8 +1172,8 @@ M1, and the NOPASSWD check fails.
 
 2026-10-11. The markers, the command and the filter in
 `crates/podssh-ssh/src/elevate.rs:1-290`. The session wraps the command
-(`crates/podssh-ssh/src/session.rs:131-144`, the question at
-`crates/podssh-ssh/src/session.rs:226-235`), and the pump filters the output,
+(`crates/podssh-ssh/src/session.rs:130-143`, the question at
+`crates/podssh-ssh/src/session.rs:237-246`), and the pump filters the output,
 asks, and holds its input until the start (`crates/podssh-ssh/src/io.rs:178-192`,
 `crates/podssh-ssh/src/io.rs:406-413`). The flags at
 `crates/podssh-cli/src/flags.rs:216-221`, and their check in
@@ -1281,7 +1281,7 @@ byte boundary, and the UTF-8 test fails.
 
 2026-10-11. The recorder in `crates/podssh-ssh/src/record.rs:1-153`, which a
 session starts with the size of its start
-(`crates/podssh-ssh/src/session.rs:177-184`) and its output passes through
+(`crates/podssh-ssh/src/session.rs:176-183`) and its output passes through
 (`crates/podssh-ssh/src/io.rs:113-168`). The flag at
 `crates/podssh-cli/src/flags.rs:218-219`, its check and its file in
 `crates/podssh-cli/src/ssh/recording.rs:1-42`; the verb in
@@ -2037,7 +2037,7 @@ Read, at `9fefff2`:
   the session after 180 s with no payload (`docs/relay.md:232`). The relay's
   own keepalive frames keep the ping watcher content meanwhile.
 - A prompt has its own limit when nobody watches the terminal (60 s, T-005;
-  `docs/cli.md:3742-3745`). A person who types slowly must not meet a limit
+  `docs/cli.md:3753-3756`). A person who types slowly must not meet a limit
   of the server.
 
 Not measured: it needs a server that stalls.
@@ -2061,7 +2061,7 @@ Not measured: it needs a server that stalls.
 5. Make the comment and the manual (`crates/podssh-cli/src/ssh/keywords.rs:36-37`,
    `crates/podssh-cli/src/flags.rs:169-170`) say the same: the handshake, and
    each answer during the authentication.
-   `docs/cli.md:3772-3774` asks for a limit on the whole operation.
+   `docs/cli.md:3783-3785` asks for a limit on the whole operation.
 
 ## Decision
 
@@ -2945,7 +2945,7 @@ registers none (`openssh/openssh-portable:clientloop.c`, `client_global_request_
   (`crates/podssh-cli/src/ssh/resolve.rs:400-403`) that #83's comment reads. T-332's question on
   `--direct` sends russh's ping (`crates/podssh-ssh/src/io.rs:239`), which the same reply ends.
 - Read: the handler keeps russh's error in podssh's words, and a lost session names it
-  (`crates/podssh-ssh/src/handler.rs:167`, `crates/podssh-ssh/src/session.rs:30-33`); a decode
+  (`crates/podssh-ssh/src/handler.rs:175`, `crates/podssh-ssh/src/session.rs:30-33`); a decode
   error has no words of podssh's (`crates/podssh-ssh/src/run.rs:474`), so #83 read russh's.
 - Read: a forward that the server refuses is a warning, and the run goes on
   (`crates/podssh-ssh/src/remote.rs:90-95`); a refusal with the connection gone ends the run as
@@ -3480,7 +3480,7 @@ names no cause. Read at `f8d15bf`.
 **Milestone:** none
 **Priority:** P2
 **Effort:** S
-**Status:** open
+**Status:** done
 
 ## Problem
 
@@ -3498,20 +3498,20 @@ Read in russh 0.65.0, the version of the lock (cargo's registry), its `src/clien
 as the server's are russh's.
 
 - Read: each error of the session's open gives "the server refused to open a session", with
-  russh's words after (`crates/podssh-ssh/src/session.rs:70-71`), and that open has no limit,
-  where the exec's and SFTP's have one (`crates/podssh-ssh/src/exec.rs:82`,
+  russh's words after (`crates/podssh-ssh/src/session.rs`, lines 62-63 at `582b1bf`), and that
+  open has no limit, where the exec's and SFTP's have one (`crates/podssh-ssh/src/exec.rs:83`,
   `crates/podssh-ssh/src/sftp/mod.rs:168`). `describe` reads `Disconnect` and `SendError` as a
   connection that closed (`crates/podssh-ssh/src/run.rs:457-459`); the session's open does not
-  call it. The other opens give one line for each error alike
-  (`crates/podssh-ssh/src/exec.rs:84`, `crates/podssh-ssh/src/mux/msession.rs:65`,
-  `crates/podssh-ssh/src/sftp/mod.rs:170`, `crates/podssh-cli/src/ping/far.rs:51`).
+  call it. The other opens give one line for each error alike (read at `582b1bf`:
+  `crates/podssh-ssh/src/exec.rs` line 84, `crates/podssh-ssh/src/mux/msession.rs` line 65,
+  `crates/podssh-ssh/src/sftp/mod.rs` line 170, `crates/podssh-cli/src/ping/far.rs` line 51).
 - Read: the handler keeps the server's DISCONNECT in words, and russh's error
-  (`crates/podssh-ssh/src/handler.rs:162`, `crates/podssh-ssh/src/handler.rs:167`); the open reads
+  (`crates/podssh-ssh/src/handler.rs:170`, `crates/podssh-ssh/src/handler.rs:175`); the open reads
   neither. The relay's close with 1000 comes as a line after the message
   (`crates/podssh-ssh/src/run.rs:93-96`).
 - Read: the lost connection of `-R`'s requests names no cause
-  (`crates/podssh-ssh/src/remote.rs:87-88`), where a lost session names russh's
-  (`crates/podssh-ssh/src/session.rs:30-33`).
+  (`crates/podssh-ssh/src/remote.rs`, lines 87-88 at `582b1bf`), where a lost session names
+  russh's (`crates/podssh-ssh/src/session.rs:30-33`).
 
 ## Approach
 
@@ -3537,16 +3537,89 @@ product's name: a sandbox is #104's case, not each server's. Lost: #104's own se
 sandbox may be stopped, the token expired"). The cause comes first and the reading second, so a
 script that reads the first line gets the fact.
 
+- The line of what it may mean is the message's second line, indented by two spaces, as the
+  lines of a host key's refusal follow their first: one message, so the relay's close and the
+  result file's class come after it as for each failure. Lost: a line of its own at INFO, which
+  `-q` would hide while the error stays, and which would come before the cause.
+- A refusal's words are OpenSSH's `reason2txt` (`openssh/openssh-portable:channels.c`, read
+  through fetch.web.pkgforge.dev on 2026-11-02: "administratively prohibited", "connect failed",
+  "unknown channel type", "resource shortage", else "unknown reason") after "open failed: ", as
+  its client says "channel N: open failed: REASON"; a reason that russh does not know gives the
+  server's words, made safe. A control master keeps its "Session open refused by peer" for a
+  refusal, OpenSSH's words of a master.
+- An exec whose connection ended is `ExecError::Lost`, no longer `Refused`: `podssh job` read a
+  refusal as "runs no command for podssh job: it needs a shell", and `cp` as an answer of the
+  server, where a link that broke is the fault (`crates/podssh-cli/src/job/far.rs:174`,
+  `crates/podssh-cli/src/cp/byexec.rs:67-68`); `--persist`'s probe then connects again.
+- The tests' server ends the connection in two ways: a DISCONNECT with words (`gone-said-...`,
+  #104's gateway as a server that says why) and a cut with no word (`gone-...`, through T-461's
+  stream), each at the open, whose reply it holds unanswered, as a drop of it would refuse.
+
 ## Prove
 
 ```sh
 export CARGO_BUILD_JOBS=4
-cargo test -p podssh-ssh --lib -- session::tests
+cargo test -p podssh-ssh --lib -- unopened::tests
 cargo test -p podssh-cli --test ssh_exit_status -- after_login
 ```
 
 Planted: the refusal's words for each error, as now: the test of the user whose server ends the
 connection fails.
+
+## Correction
+
+Read with T-460's draft in the tree, 2026-11-02:
+
+- The lost connection of `-R`'s requests names its cause there already: the server's words of a
+  DISCONNECT, else russh's error (`lost_while_asked`, `crates/podssh-ssh/src/remote.rs:99-109`),
+  as T-460's Approach item 4 took this entry's reading. Here `-R` keeps that line, and gets the
+  test of Approach item 3.
+- The lock's russh is `vendor/russh` there, crates.io's 0.65.0 with T-460's patch, which adds 5
+  lines to `src/client/mod.rs` above that code: the code that the Premise reads in cargo's copy is
+  at `vendor/russh/src/client/mod.rs:854-857` (`SendError`), `vendor/russh/src/client/mod.rs:773-776`
+  (`Disconnect`) and `vendor/russh/src/client/mod.rs:770-771` (`ChannelOpenFailure`).
+- russh closes the queue of the connection's requests before it calls the handler's
+  `disconnected` (`vendor/russh/src/client/mod.rs:1364-1371`): an open that fails with
+  `SendError` can come before the handler kept the cause. The reading waits for the cause, half a
+  second at most.
+- `ChannelOpenFailure::Other` keeps the server's words of a reason that russh does not know
+  (`vendor/russh/src/lib_inner.rs:416`); the known ones keep none.
+
+## Done
+
+Drafted 2026-11-02 by an agent, which built nothing; merged and measured by the main session the
+same day.
+
+- `crates/podssh-ssh/src/unopened.rs`: `read` gives `Refused` (russh's `ChannelOpenFailure`, in
+  OpenSSH's words of its reason), `Ended` (`Disconnect`, `SendError`, `HUP`, `RecvError`, an
+  unexpected EOF, or a closed handle; with the server's words of its DISCONNECT, else russh's
+  cause, after a wait of 500 ms at most for the handler to keep one, `handler::cause_kept`) or
+  `Other`; `words` says "the server refused to open WHAT: open failed: REASON", or "the server
+  ended the connection right after the login, before WHAT opened: CAUSE", then "  the far host
+  may be stopped, the login may no longer be valid, or the server takes no more sessions". Its 3
+  tests. `cargo test -p podssh-ssh --lib -- unopened::tests`: 3 passed.
+- The session's open (`session.rs`, `open_session`) within ConnectTimeout, with those words; the
+  exec's (`exec.rs`: a refusal stays `Refused`, an ended connection is `Lost`), SFTP's
+  (`sftp/mod.rs`), a control master's session (`mux/msession.rs`) and `podssh ping`'s
+  (`crates/podssh-cli/src/ping/far.rs`) read the same way. `-R` keeps T-460's line.
+- The tests' server (`crates/podssh-cli/tests/ssh_harness/gone.rs`): `gone-said-...` (a
+  DISCONNECT at the session's open), `gone-...` (a cut at it, with no word), `gone-fwd-...` (a
+  DISCONNECT at `tcpip-forward`) and `nosession-...` (administratively prohibited); each other
+  user's session opens, and its `tcpip-forward` is refused, as before. Four tests in
+  `crates/podssh-cli/tests/ssh_exit_status.rs` (`..._after_login_...`): 255 and the order of the
+  events with no "refused"; 255 with no words; the refusal's reason, with no line of what it may
+  mean; and `-N -R` with the server's words. `cargo test -p podssh-cli --test ssh_exit_status`
+  (Unix): 9 passed, the four among them; each test of the server's other users, as each session's
+  open and each `tcpip-forward` now pass `gone.rs`: the whole suite below.
+- The plant `t464-ended-is-refused` (the session's open says the refusal's words for each error
+  again; group `cli-tests`). `sh scripts/plant-each.sh --here t464-ended-is-refused`: caught, 3 of the 4 tests failed.
+- The manual's row of 255, `docs/cli.md` (a bullet beside T-461's), `docs/STATUS.md`.
+- The merge: rustfmt and clippy of `podssh-ssh` and `podssh-cli` with `-D warnings`, all targets:
+  clean; the tests of `cp`, `job` and `--persist` whose server ends a connection at an exec, which
+  now read `Lost` where they read `Refused`, and the whole suite of `podssh-cli`: SUITE_RESULT;
+  `cargo todo remap` from the tree before the draft of each file that it changed and an entry
+  cites, in place of the draft's moves by hand. Waits: a live run against a far host that stops
+  behind a gateway, as #104's, which no test target gives.
 
 # T-500: A destination with no user name is refused when `USER`, `LOGNAME` and `USERNAME` are unset, where OpenSSH reads the user database
 

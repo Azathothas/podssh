@@ -336,7 +336,7 @@ a script expects, and its login shell may not be a POSIX shell.
   5 MB down through the relay (`docs/STATUS.md:99`).
 - Read: a command goes as one string, never as a shell request
   (`crates/podssh-ssh/src/options.rs:63-64`), with no pty when stdin is not
-  a terminal (`crates/podssh-ssh/src/session.rs:78-88`).
+  a terminal (`crates/podssh-ssh/src/session.rs:77-87`).
 - Read: the gate's Dropbear has no SFTP setting (`scripts/interop.sh:83-85`);
   whether it finds an `sftp-server` is not measured.
 - Not measured: the login shell runs the command, so a start-up file that
@@ -480,7 +480,7 @@ GitHub #17 (talaria0101, 2026-10-08: drops that repeat on one target).
 A dropped relay session ends a copy, and a new run sends the whole file
 again. On a link that drops every few minutes, a large file never arrives.
 GitHub #17 measured one drop (`1011`) in 180 short sessions from one edge
-(`docs/STATUS.md:321`), and drops that came back 3 times of 3 on one target.
+(`docs/STATUS.md:322`), and drops that came back 3 times of 3 on one target.
 
 ## Premise
 
@@ -503,7 +503,7 @@ GitHub #17 measured one drop (`1011`) in 180 short sessions from one edge
 2. Within a run: after a relay close, a lost connection or a failed
    request, open a new session (T-137's path) and continue at the offset.
    Check first that the host key is the one of the first session (pin it in
-   memory, `crates/podssh-ssh/src/handler.rs:124-146`), and that the source's
+   memory, `crates/podssh-ssh/src/handler.rs:132-154`), and that the source's
    size and mtime are the same; else start over and say so.
 3. Invariant: the attempts are bounded. At most 5 in a row with no new
    acknowledged byte, with `podssh_relay::open::backoff`
@@ -637,7 +637,7 @@ old writer can race the new one.
 
 - Read: the pinned contract gives the same caps
   (`crates/podssh-probe/tests/spec/relay-spec-2026-10-03-r2.txt:233-235`).
-- Measured in the KTM sandbox (`docs/STATUS.md:320`; the 99 s are in the
+- Measured in the KTM sandbox (`docs/STATUS.md:321`; the 99 s are in the
   report): `podssh proxy` received 67,107,943 bytes, then the relay closed
   with `1009 session byte cap`, 921 bytes short of 64 MiB on that side.
 - Read: `podssh-relay` has a constant for the idle cut only
@@ -1065,7 +1065,7 @@ trip is long, so such a copy uses a small part of what the path carries.
   (`crates/podssh-ssh/src/run.rs:25-28`): `docs/relay.md:311-323` gives
   2 MiB, `1013` and no drop. The window can grow only after that is
   settled; T-062 measures the `1013`.
-- Measured in two sandboxes (`docs/STATUS.md:319`): 20 MiB through the
+- Measured in two sandboxes (`docs/STATUS.md:320`): 20 MiB through the
   relay with `podssh proxy` (no SSH window in the path) at 0.5 to 0.7 MB/s
   through a CONNECT proxy, and 1.8 to 6.9 MiB/s with no proxy. SFTP through
   the relay is not measured.
@@ -1273,7 +1273,7 @@ differ", and the destination was not changed. The measurement:
 
 A copy over an older version of the same file sends each byte again.
 Through the relay that costs a new session for each 60 MiB (T-137), at 0.5
-to 0.7 MB/s in the KTM sandbox (`docs/STATUS.md:319`).
+to 0.7 MB/s in the KTM sandbox (`docs/STATUS.md:320`).
 
 ## Premise
 
@@ -1546,7 +1546,7 @@ in the issues; the `-l limit` of OpenSSH's `scp` and `sftp` (T-139).
 ## Problem
 
 A copy through the relay can take minutes (0.5 to 0.7 MB/s in the KTM
-sandbox, `docs/STATUS.md:319`). podssh would show no progress, a Ctrl-C
+sandbox, `docs/STATUS.md:320`). podssh would show no progress, a Ctrl-C
 would leave a temporary file with no word, and one copy can take the whole
 uplink of a shared host.
 
@@ -2840,7 +2840,7 @@ the names, with no word.
 - Read: the about of `sftp` says "as OpenSSH's sftp" (`crates/podssh-cli/src/flags.rs:395`); the
   issue names it the README's.
 - Read: `Sftp::read_dir` keeps the name and the attributes of each entry, and drops the long name
-  that the server sends with each (`crates/podssh-ssh/src/sftp/mod.rs:71-78`, `:426-441`);
+  that the server sends with each (`crates/podssh-ssh/src/sftp/mod.rs:71-78`, `:430-445`);
   russh-sftp 3.0.1's `File` holds it as `longname`.
 - Read, in OpenSSH 10.2p1 (`openssh/openssh-portable:sftp.c` and
   `openssh/openssh-portable:sftp-common.c`, at the tag `V_10_2_P1`, the functions `do_ls_dir`,
@@ -3002,9 +3002,9 @@ destination too.
   Read: `CP_FLAGS` has no such row (`crates/podssh-cli/src/flags/copy.rs:10-82`), and each copy
   ends with a rename over its destination (`crates/podssh-cli/src/cp/transfer.rs:196-215`), by
   `posix-rename@openssh.com` where the server has it
-  (`crates/podssh-ssh/src/sftp/mod.rs:404-413`).
+  (`crates/podssh-ssh/src/sftp/mod.rs:408-417`).
 - Read: `hardlink@openssh.com` gives a file a second name
-  (`crates/podssh-ssh/src/sftp/mod.rs:331-341`, which T-146 uses in
+  (`crates/podssh-ssh/src/sftp/mod.rs:335-345`, which T-146 uses in
   `crates/podssh-cli/src/cp/meta.rs:372-388`). A hard link is never made over a name that is there
   (POSIX `link()`; Inferred for each server), so it can put a verified file at a name that must
   not be replaced, also when that name came during the copy. Not read here: what each server does

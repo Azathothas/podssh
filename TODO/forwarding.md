@@ -209,7 +209,7 @@ remote host that must use the key, such as `git` on a build host.
    (`crates/podssh-cli/src/ssh/keywords.rs:25-103`). Change the help of `-a`
    (`crates/podssh-cli/src/flags.rs:229-230`, the row `no-agent-forwarding`).
 2. On the destination's session channel, send `auth-agent-req@openssh.com`
-   before the shell or exec request (`crates/podssh-ssh/src/session.rs:126-150`).
+   before the shell or exec request (`crates/podssh-ssh/src/session.rs:125-149`).
    Never to a jump hop.
 3. In the handler, accept `auth-agent@openssh.com` only when `-A` was given
    for this connection. For each such channel, connect to the agent with the
@@ -427,9 +427,9 @@ it (`SECURITY.md`, "Design rules").
 
 2026-10-11. The display, the authority file, the probe, the request and the
 swap of the cookie in `crates/podssh-ssh/src/x11.rs:1-339`; the session asks
-(`crates/podssh-ssh/src/session.rs:115-117`) and the handler joins an `x11`
+(`crates/podssh-ssh/src/session.rs:114-116`) and the handler joins an `x11`
 channel when the destination's run asked
-(`crates/podssh-ssh/src/handler.rs:263-276`). The plan and the probe of the
+(`crates/podssh-ssh/src/handler.rs:271-284`). The plan and the probe of the
 command line in `crates/podssh-cli/src/ssh/x11.rs:1-153`, the flags at
 `crates/podssh-cli/src/flags.rs:280-283`, and the keywords, honoured now, at
 `crates/podssh-cli/src/ssh/keywords.rs:46-48` and
@@ -900,7 +900,7 @@ as a TCP host again, and the gate's check fails with the server's error.
 (`crates/podssh-ssh/src/options.rs:164-181`), opened by `open_target`
 (`crates/podssh-ssh/src/forward.rs:24-37`); through a control master
 (`crates/podssh-ssh/src/mux/client.rs:177-192`,
-`crates/podssh-ssh/src/mux/msession.rs:263-270`). The command line reads a
+`crates/podssh-ssh/src/mux/msession.rs:271-278`). The command line reads a
 path at `crates/podssh-cli/src/ssh/hop.rs:95-98`, and the row of `-W` says so
 (`crates/podssh-cli/src/flags.rs:139-140`).
 - `cargo test -p podssh-cli --test ssh_stdio_socket`: 2 passed. The test of
@@ -1024,7 +1024,7 @@ and the lines of `-v` at `crates/podssh-ssh/src/run.rs:263`.
   repair: the session of a client of a control master lists the master's
   forwards with `~#`, as OpenSSH's `~#` lists the master's connections, and
   its `~?` names it (`crates/podssh-ssh/src/mux/msession.rs:32-34` and
-  `crates/podssh-ssh/src/mux/msession.rs:165-170`). In the build image
+  `crates/podssh-ssh/src/mux/msession.rs:173-178`). In the build image
   (`sh scripts/dev.sh run`), `cargo clippy --all-targets -p podssh-ssh -p
   podssh-cli -- -D warnings` passed.
 - Correction: at `f80e7f3` the gate failed both checks of this entry, each
@@ -1497,7 +1497,7 @@ ssh(1), ESCAPE CHARACTERS: `~C` opens a command line that takes `-L`, `-R`,
 - `~C` is an escape only where the caller gives a `Forwarder`
   (`podssh ssh`), and not in a session that a control master carries, as
   OpenSSH offers no `~C` to a client of its master: there `~C` goes to the
-  server as typed (`crates/podssh-ssh/src/mux/msession.rs:176`). Lost: a
+  server as typed (`crates/podssh-ssh/src/mux/msession.rs:184`). Lost: a
   `~C` of a client sent as `-O forward` to the master, which OpenSSH does
   not do.
 - `-R` and `-KR` wait for the server's answer, 20 s at most
@@ -1633,7 +1633,7 @@ server (`remote_socket:host:hostport`), a socket on this host as the target
 (`[bind_address:]port:local_socket`, `remote_socket:local_socket`), and a SOCKS proxy that the
 server listens for and the client serves (`[bind_address:]port`). podssh refuses each by name, so
 a command line of OpenSSH fails with podssh. A server whose host refuses an AF_INET bind and
-allows an AF_UNIX one, as sandbox A does (`docs/STATUS.md:312`), can listen on a socket only; and
+allows an AF_UNIX one, as sandbox A does (`docs/STATUS.md:313`), can listen on a socket only; and
 the SOCKS form gives a server whose egress is closed a way out through the client.
 
 ## Premise
@@ -1650,9 +1650,9 @@ the SOCKS form gives a server whose egress is closed a way out through the clien
   (`crates/podssh-cli/src/ssh/dump.rs:111-123`), and `~C -R` reads it with the same parser
   (`crates/podssh-cli/src/ssh/local_bind.rs:264-266`).
 - Read: the handler joins a `forwarded-tcpip` channel that podssh asked for
-  (`crates/podssh-ssh/src/handler.rs:173-193`), and refuses each
-  `forwarded-streamlocal@openssh.com` channel as one that podssh did not ask for (`:195-212`,
-  through `unasked`, `:103-118`). The target of a `-R` is dialed from this host, through
+  (`crates/podssh-ssh/src/handler.rs:181-201`), and refuses each
+  `forwarded-streamlocal@openssh.com` channel as one that podssh did not ask for (`:203-220`,
+  through `unasked`, `:111-126`). The target of a `-R` is dialed from this host, through
   `HTTPS_PROXY` when it is set (`crates/podssh-ssh/src/remote.rs` lines 170-190 at `6f6eda2`).
 - Read: `-L` and `-D` read a socket path on either side with OpenSSH's field reader
   (`crates/podssh-cli/src/ssh/local_spec.rs:135-173`); `-L` opens `direct-streamlocal@openssh.com`

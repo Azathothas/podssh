@@ -70,4 +70,7 @@ pub(super) struct Far {
     pub(super) shell: Option<super::shell::Shell>,
     /// The switch that cuts this connection with no word (T-461).
     pub(super) link: super::cut::Cut,
+    /// The users `gone-...` and `nosession-...`: how the server ends after
+    /// the login (T-464).
+    pub(super) gone: super::gone::Gone,
 }

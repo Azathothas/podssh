@@ -3715,6 +3715,17 @@ with the report (`docs/decisions.md`, 2026-10-08).
   the relay, once a session has carried 60 MiB (the relay's budget, or
   `PODSSH_SESSION_BUDGET`), podssh says once that the relay ends it at
   64 MiB and that `podssh cp` copies more on new sessions (not with `-q`).
+- A session that does not open after the login says why (T-464, GitHub
+  #104), and its open has `ConnectTimeout`: a refusal of the server in
+  OpenSSH's words of its reason ("the server refused to open a session:
+  open failed: administratively prohibited"); a connection that ended
+  first is none: "the server ended the connection right after the login,
+  before a session opened", then the server's words of its DISCONNECT, or
+  the cause that russh gave, and a line of what it may mean (the far host
+  may be stopped, the login may no longer be valid, or the server takes no
+  more sessions). The copy by exec, SFTP, a control master's session and
+  `podssh ping` read an open the same way, so a copy or a job never reads
+  a connection that ended as a server that runs no command.
 
 ## Prompts and time limits
 

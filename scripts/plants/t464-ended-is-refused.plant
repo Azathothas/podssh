@@ -1,0 +1,9 @@
+# T-464: each error of a session's open reads as the server's refusal again,
+# in russh's words, as before GitHub #104; the test of the user whose server
+# ends the connection when the session is asked for, which wants the order
+# of the events and no refusal, must fail.
+ENTRY=T-464
+GROUP=cli-tests
+EXPECT='test the_server_ending_after_login_is_no_refused_session \.\.\. FAILED'
+RUN='cargo test --locked -p podssh-cli --test ssh_exit_status -- after_login'
+LIMIT=2400

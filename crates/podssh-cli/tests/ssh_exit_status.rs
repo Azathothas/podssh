@@ -170,3 +170,60 @@ fn a_cut_after_the_status_and_the_output_end_keeps_the_status() {
     assert_eq!((code, out.len()), (Some(0), 1_000_000), "{err}");
     assert!(!err.contains("was lost"), "{err}");
 }
+
+/// What a connection that ended before its session may mean (T-464).
+const MEANING: &str =
+    "the far host may be stopped, the login may no longer be valid, or the server takes no more sessions";
+
+/// GitHub #104: the server logs in, then ends the connection with its words
+/// when the session is asked for. No refusal is said: the order of the
+/// events, the server's words, then what it may mean.
+#[test]
+fn the_server_ending_after_login_is_no_refused_session() {
+    let home = scratch("gone-said");
+    let (_runtime, port) = server(&home);
+    let (code, _, err) = finished(ssh(&home, port, &["gone-said-tester@127.0.0.1", "echo", "hi"]));
+    assert_eq!(code, Some(255), "{err}");
+    let line = "the server ended the connection right after the login, before a session opened: the server said: \
+                the far host stopped (ByApplication)";
+    assert!(err.contains(line), "{err}");
+    assert!(err.contains(MEANING), "{err}");
+    assert!(!err.contains("refused"), "no refusal: {err}");
+}
+
+/// The same with a connection cut with no word: still no refusal.
+#[test]
+fn a_cut_after_login_is_no_refused_session() {
+    let home = scratch("gone-cut");
+    let (_runtime, port) = server(&home);
+    let (code, _, err) = finished(ssh(&home, port, &["gone-tester@127.0.0.1", "echo", "hi"]));
+    assert_eq!(code, Some(255), "{err}");
+    assert!(err.contains("the server ended the connection right after the login, before a session opened"), "{err}");
+    assert!(err.contains(MEANING), "{err}");
+    assert!(!err.contains("refused"), "no refusal: {err}");
+}
+
+/// A server that refuses the session: its reason, in OpenSSH's words.
+#[test]
+fn a_session_refused_after_login_names_its_reason() {
+    let home = scratch("nosession");
+    let (_runtime, port) = server(&home);
+    let (code, _, err) = finished(ssh(&home, port, &["nosession-tester@127.0.0.1", "echo", "hi"]));
+    assert_eq!(code, Some(255), "{err}");
+    assert!(err.contains("the server refused to open a session: open failed: administratively prohibited"), "{err}");
+    assert!(!err.contains(MEANING), "a refusal is no ended connection: {err}");
+}
+
+/// GitHub #85: the connection ends at `-R`'s `tcpip-forward`, and the line
+/// names the cause, the server's words.
+#[test]
+fn a_forward_ended_after_login_names_the_cause() {
+    let home = scratch("gone-fwd");
+    let (_runtime, port) = server(&home);
+    let args = ["-N", "-R", "12345:127.0.0.1:9", "gone-fwd-tester@127.0.0.1"];
+    let (code, _, err) = finished(ssh(&home, port, &args));
+    assert_eq!(code, Some(255), "{err}");
+    let line = "the connection was lost while the forwards were asked for: the server said: the far host stopped \
+                (ByApplication)";
+    assert!(err.contains(line), "{err}");
+}

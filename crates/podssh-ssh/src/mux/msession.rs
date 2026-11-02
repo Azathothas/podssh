@@ -62,7 +62,15 @@ pub async fn session(
     };
     let mut channel = match handle.channel_open_session().await {
         Ok(channel) => channel,
-        Err(e) => return failure(stream, rid, format!("Session open refused by peer: {e}")).await,
+        // OpenSSH's master's words for a refusal; a connection that ended is
+        // none (T-464).
+        Err(e) => {
+            let why = match crate::unopened::read(&e, handle).await {
+                crate::unopened::Unopened::Refused(reason) => format!("Session open refused by peer: {reason}"),
+                other => other.words("a session", false),
+            };
+            return failure(stream, rid, why).await;
+        }
     };
     for entry in &asked.env {
         if let Some((name, value)) = entry.split_once('=') {
