@@ -7,6 +7,7 @@
 
 pub mod docs;
 pub mod forward;
+pub mod keys;
 pub mod policy;
 pub mod reverse;
 pub mod tokens;
@@ -50,14 +51,27 @@ impl Default for Limits {
     }
 }
 
-/// Who may mint a token.
-#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+/// Who may mint a token, and make a pair.
+#[derive(Debug, Clone, PartialEq, Eq)]
 pub enum Mint {
     /// Anyone, as the default relay mints.
     Anyone,
     /// No one: `503`, which a client reads as "do not retry"; tokens come
     /// another way.
     Nobody,
+    /// The keys of this list, each by its signature of a challenge (T-448).
+    Keys(std::path::PathBuf),
+}
+
+impl Mint {
+    /// Its word in `/health`.
+    pub fn word(&self) -> &'static str {
+        match self {
+            Mint::Anyone => "anyone",
+            Mint::Nobody => "nobody",
+            Mint::Keys(_) => "keys",
+        }
+    }
 }
 
 /// Where a role says each mint, upgrade and client's Close.
@@ -73,6 +87,8 @@ pub struct Config {
     pub limits: Limits,
     /// The pairs of the reverse road, and their sockets.
     pub pairs: reverse::Pairs,
+    /// The challenges that a key answered (T-448).
+    pub answered: keys::Answered,
     /// Each mint, upgrade and client's Close as a line (`mint`, `upgrade`,
     /// `close CODE`), and each step of the reverse road (`reverse ...`), as
     /// the stand-in relay prints them for a harness.
@@ -89,7 +105,16 @@ impl Config {
 
 /// Serve the one request of `stream`, which closes after it as each request
 /// of the contract is one connection's.
-pub async fn serve_connection<S>(mut stream: S, cfg: Arc<Config>)
+pub async fn serve_connection<S>(stream: S, cfg: Arc<Config>)
+where
+    S: AsyncRead + AsyncWrite + Unpin + Send + 'static,
+{
+    serve_named(stream, cfg, None).await
+}
+
+/// [`serve_connection`] for a stream whose TLS asked for the name `sni`: a
+/// key's signed request must name it (T-448).
+pub async fn serve_named<S>(mut stream: S, cfg: Arc<Config>, sni: Option<String>)
 where
     S: AsyncRead + AsyncWrite + Unpin + Send + 'static,
 {
@@ -104,7 +129,7 @@ where
     let path = head.target.split('?').next().unwrap_or_default().to_string();
     match (head.method.as_str(), path.as_str()) {
         ("GET", p) if p.starts_with("/connect/") => forward::connect(stream, head, pending, cfg).await,
-        ("POST", "/v1/mint") => mint(&mut stream, &head, pending, &cfg).await,
+        ("POST", "/v1/mint") => mint(&mut stream, &head, pending, &cfg, sni.as_deref()).await,
         ("GET", "/health") => answer(&mut stream, docs::json(&docs::health(&cfg))).await,
         ("GET", "/relays.json") => answer(&mut stream, docs::json(&docs::relays(&cfg, &head))).await,
         ("GET", "/trace") => {
@@ -112,27 +137,50 @@ where
             answer(&mut stream, reply).await
         }
         ("GET", "/llms-full.txt") => answer(&mut stream, docs::text(docs::SPEC)).await,
-        (_, p) if reverse::serves(p) => reverse::request(stream, head, pending, cfg).await,
+        (_, p) if reverse::serves(p) => reverse::request(stream, head, pending, cfg, sni).await,
         (_, p) => answer(&mut stream, request::refusal(404, &format!("{p}: not found"), &[])).await,
     }
 }
 
 /// `POST /v1/mint`: `{token, expires, scope}`.
-async fn mint<S>(stream: &mut S, head: &request::Request, pending: Vec<u8>, cfg: &Config)
+async fn mint<S>(stream: &mut S, head: &request::Request, pending: Vec<u8>, cfg: &Config, sni: Option<&str>)
 where
     S: AsyncRead + AsyncWrite + Unpin,
 {
+    // The body first: a byte left unread would make the end of the
+    // connection a reset, which can lose the answer.
+    let sent = match body(stream, head, pending, MINT_BODY, "/v1/mint").await {
+        Ok(sent) => sent,
+        Err(refusal) => return answer(stream, refusal).await,
+    };
     if cfg.mint == Mint::Nobody {
         let why = "/v1/mint: this relay mints no token; its owner gives them";
         return answer(stream, request::refusal(503, why, &[])).await;
     }
-    if let Err(refusal) = body(stream, head, pending, MINT_BODY, "/v1/mint").await {
+    if let Err(refusal) = proven(cfg, head, sni, "/v1/mint", &sent) {
         return answer(stream, refusal).await;
     }
     cfg.event("mint");
     let (token, expires) = cfg.tokens.mint(tokens::now_ms(), tokens::LIFETIME_MS);
     let body = serde_json::json!({ "token": token, "expires": expires, "scope": "forward" });
     answer(stream, docs::json(&body)).await;
+}
+
+/// Whether a mint or a pair of `body` may go on, by whom the role mints for:
+/// `Err` holds the answer, a `401` that asks for a key or a `403`.
+fn proven(cfg: &Config, head: &request::Request, sni: Option<&str>, path: &str, body: &[u8]) -> Result<(), Vec<u8>> {
+    let Mint::Keys(file) = &cfg.mint else { return Ok(()) };
+    match keys::prove(cfg, file, head, sni, path, body, tokens::now_ms()) {
+        keys::Proof::Key(key) => {
+            cfg.event(&format!("{path}: the key {}", key.fingerprint()));
+            Ok(())
+        }
+        keys::Proof::Ask(challenge, ends) => Err(keys::ask(&challenge, ends)),
+        keys::Proof::Refused(why) => {
+            cfg.event(&format!("{path}: refused, {why}"));
+            Err(request::refusal(403, &format!("{path}: {why}"), &[]))
+        }
+    }
 }
 
 /// The body of a request, `max` bytes at most; `Err` holds the refusal to

@@ -55,7 +55,7 @@ pub fn serves(path: &str) -> bool {
 }
 
 /// Serve one request of the reverse road on `stream`.
-pub async fn request<S>(mut stream: S, head: Request, pending: Vec<u8>, cfg: Arc<Config>)
+pub async fn request<S>(mut stream: S, head: Request, pending: Vec<u8>, cfg: Arc<Config>, sni: Option<String>)
 where
     S: AsyncRead + AsyncWrite + Unpin + Send + 'static,
 {
@@ -72,7 +72,7 @@ where
         }
     };
     if path == "/v1/pair" {
-        return pair(&mut stream, &head, &sent, &cfg).await;
+        return pair(&mut stream, &head, &sent, &cfg, sni.as_deref()).await;
     }
     let mut parts = path.trim_start_matches('/').splitn(3, '/');
     let (Some("v1"), Some(kind), Some(name)) = (parts.next(), parts.next(), parts.next()) else {
@@ -117,7 +117,7 @@ where
 
 /// `POST /v1/pair`: `{name, node_token, connect_token, stop_token, expires}`,
 /// for whom the role mints tokens.
-async fn pair<S>(stream: &mut S, head: &Request, body: &[u8], cfg: &Config)
+async fn pair<S>(stream: &mut S, head: &Request, body: &[u8], cfg: &Config, sni: Option<&str>)
 where
     S: AsyncRead + AsyncWrite + Unpin,
 {
@@ -132,6 +132,10 @@ where
     let empty = body.iter().all(u8::is_ascii_whitespace);
     if !empty && !serde_json::from_slice::<serde_json::Value>(body).is_ok_and(|v| v.is_object()) {
         return answer(stream, request::refusal(400, "/v1/pair: the body is {} or nothing", &[])).await;
+    }
+    // For the keys of a list, as the mint (T-448).
+    if let Err(refusal) = super::proven(cfg, head, sni, "/v1/pair", body) {
+        return answer(stream, refusal).await;
     }
     let made = match cfg.pairs.make(super::tokens::now_ms()) {
         Ok(made) => made,

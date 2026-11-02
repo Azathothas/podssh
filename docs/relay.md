@@ -442,3 +442,20 @@ through the default one:
   client tells apart from a lost link (T-255).
 - The role pings each reverse socket every 20 s, and drops one that answers
   nothing for 60 s, so that a dead node's socket does not hold its name.
+
+## Tokens for the keys of a list (T-448)
+
+`podssh relay serve --mint keys:FILE` mints tokens, and makes pairs, for
+the keys of FILE alone, a list in the format of `podssh node --allow`,
+read again for each request. The contract's request, `{}`, gets `401` with
+a challenge of the role's (`c1.<end-ms>.<nonce>.<mac>`, a minute of life,
+under the role's secret). podssh then sends the request once more, with
+the key of this client (`client.key` in the cache, the key that a node's
+allowlist lets in), the challenge, and the key's Ed25519 signature of
+`podssh relay key, version 1`, the `Host` that the request sends, the path
+and the challenge (`crates/podssh-relay/src/keyed.rs`). The role answers
+`403` for a key that is not on the list, a signature that does not verify,
+a challenge that is not its own, that ended or that was answered before,
+and a request whose `Host` is not the name that its TLS asked for; the
+`403` names the key's fingerprint, for the owner's list. A relay of the
+contract never answers `401`, so a client asks nothing more of it.
