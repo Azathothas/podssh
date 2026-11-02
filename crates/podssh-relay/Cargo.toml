@@ -46,6 +46,10 @@ rustls = { workspace = true, optional = true }
 # Rust, RustCrypto's, in the lock already through the vendored tailscale-rs;
 # no `getrandom`: a nonce comes from podssh's own source.
 crypto_box = { version = "0.9", default-features = false, features = ["alloc", "salsa20"], optional = true }
+# The Piping Server road (src/piping/, T-437): TLS that offers HTTP/2 and
+# HTTP/1.1 by ALPN, on podssh-ws's provider and trust store; the async
+# wrapper of rustls that podssh-ws builds, with no provider of its own.
+tokio-rustls = { workspace = true, optional = true }
 # The quick tunnel's edge inside WARP's tunnel (src/quick/edge_warp.rs,
 # T-374): a TCP stream to the edge's port 7844 on podssh-warp's road (T-352),
 # pure Rust, which needs Rust 1.91 (smoltcp's) where this crate declares
@@ -67,6 +71,10 @@ quick = ["dep:h2", "dep:http", "dep:bytes", "dep:noq", "dep:rustls"]
 # user's own, under the resumable layer, with an adapter that sends again
 # what a server drops. No C either; the gate builds it.
 derp = ["dep:crypto_box"]
+# The Piping Server road (T-437): a POST and a GET of a Piping Server for each
+# way of a link, over HTTP/2 or HTTP/1.1, under the resumable layer, for a
+# proxy that refuses the WebSocket upgrade. No C either; the gate builds it.
+piping = ["dep:h2", "dep:http", "dep:bytes", "dep:rustls", "dep:tokio-rustls"]
 # The quick tunnel's edge inside WARP's tunnel (T-374), for a node whose cage
 # reaches TCP port 7844 only through it. No C either; Rust 1.91.
 warp = ["quick", "dep:podssh-warp"]

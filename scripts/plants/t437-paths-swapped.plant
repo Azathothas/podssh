@@ -1,0 +1,7 @@
+# T-437: the client of the Piping Server road takes the node's two ways, so
+# both ends POST to one path and GET the other; the test of the ends' paths
+# must fail, and so must each session through a Piping Server where one runs.
+ENTRY=T-437
+GROUP=resume
+EXPECT='test piping::paths::tests::the_client_sends_where_the_node_reads_and_reads_where_the_node_sends \.\.\. FAILED'
+RUN='cargo test --locked --no-fail-fast -p podssh-relay --features piping --lib --test piping -- the_client_sends_where_the_node_reads a_session_carries'

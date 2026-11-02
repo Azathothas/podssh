@@ -1,0 +1,74 @@
+name: piping
+
+# The Piping Server road (T-437): its tests against nwtgck's two servers on
+# the loopback (piping-server 1.12.9 from npm, the server of ppng.io; and
+# piping-server-rust v0.18.0's binary, by the SHA-256 that its release
+# publishes in sha256sums.txt), where no test may say that it did not run;
+# then a short live session through https://ppng.io, as the operator's
+# ruling Q65 allows: once directly, once through the box's proxy of names
+# (scripts/box/proxy.py), which carries CONNECT to port 443 alone. Started
+# by hand; it publishes nothing.
+
+on:
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  piping:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 45
+    env:
+      CARGO_BUILD_JOBS: "4"
+      RUST_SERVER: https://github.com/nwtgck/piping-server-rust/releases/download/v0.18.0/piping-server-x86_64-unknown-linux-musl.tar.gz
+      RUST_SERVER_SHA256: 4a17e197829c3f56e47316cc9e02d72113f266671561f285c853e36fbbc60863
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+      - name: nwtgck's two servers
+        run: |
+          set -eu
+          npm install -g piping-server@1.12.9
+          mkdir -p "$RUNNER_TEMP/rust"
+          curl -fsSL --retry 3 --max-time 120 -o "$RUNNER_TEMP/rust.tar.gz" "$RUST_SERVER"
+          echo "$RUST_SERVER_SHA256  $RUNNER_TEMP/rust.tar.gz" > "$RUNNER_TEMP/rust.sha256"
+          sha256sum -c "$RUNNER_TEMP/rust.sha256"
+          tar -xzf "$RUNNER_TEMP/rust.tar.gz" -C "$RUNNER_TEMP/rust"
+          bin=$(find "$RUNNER_TEMP/rust" -type f -name piping-server | head -n 1)
+          [ -n "$bin" ] || { echo "FAIL no piping-server in the release's archive"; exit 1; }
+          chmod +x "$bin"
+          echo "PODSSH_TEST_PIPING_RUST=$bin" >> "$GITHUB_ENV"
+          echo "PODSSH_TEST_PIPING_JS=$(command -v piping-server)" >> "$GITHUB_ENV"
+      - name: build the tests
+        run: cargo test --locked -p podssh-relay --features piping --test piping --test piping_live --no-run
+      - name: the tests on the loopback
+        run: |
+          set +e
+          timeout 900 cargo test --locked -p podssh-relay --features piping --test piping -- --nocapture \
+            >"$RUNNER_TEMP/loopback.log" 2>&1
+          rc=$?
+          set -e
+          cat "$RUNNER_TEMP/loopback.log"
+          # Each server was here, so each test ran.
+          if grep -q "did not run" "$RUNNER_TEMP/loopback.log"; then
+            echo "FAIL a test did not run"
+            exit 1
+          fi
+          exit $rc
+      - name: a session through ppng.io
+        run: timeout 300 cargo test --locked -p podssh-relay --features piping --test piping_live -- --ignored --nocapture
+      - name: a session through ppng.io, through the box's proxy of names
+        run: |
+          python3 scripts/box/proxy.py --listen 127.0.0.1:3129 --take names >"$RUNNER_TEMP/names.log" 2>&1 &
+          sleep 1
+          set +e
+          HTTPS_PROXY=http://127.0.0.1:3129 \
+            timeout 300 cargo test --locked -p podssh-relay --features piping --test piping_live -- --ignored --nocapture
+          rc=$?
+          set -e
+          sed 's/^/proxy: /' "$RUNNER_TEMP/names.log"
+          pkill -f scripts/box/proxy.py || true
+          # The proxy carried the road: the way that the session came.
+          grep -q "^200 CONNECT ppng.io:443 " "$RUNNER_TEMP/names.log" ||
+            { echo "FAIL the proxy carried no CONNECT to ppng.io"; exit 1; }
+          exit $rc

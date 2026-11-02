@@ -603,6 +603,20 @@ cargo test -p podssh-relay --test live -- --ignored       # the relay answers pi
 cargo test -p podssh-relay --features pair --test pair_live -- --ignored     # a pair, made and stopped
 cargo test -p podssh-relay --features pair --test reverse_live -- --ignored  # a node and its operators
 cargo test -p podssh-relay --features blocking --test blocking_live -- --ignored  # the same, and a forward session, through the facade
+cargo test -p podssh-relay --features piping --test piping_live -- --ignored     # a session through ppng.io (Q65)
+```
+
+The Piping Server road's tests on the loopback (T-437) start nwtgck's two
+servers by the commands of `PODSSH_TEST_PIPING_JS` (nwtgck/piping-server,
+from `npm install -g piping-server@1.12.9`) and `PODSSH_TEST_PIPING_RUST`
+(piping-server-rust's binary); each test whose server is not named says that
+it did not run. The workflow `piping.yml` installs both, runs them, and then
+the live test, directly and through the box's proxy of names:
+
+```sh
+PODSSH_TEST_PIPING_JS=piping-server PODSSH_TEST_PIPING_RUST=.work/piping-server \
+    cargo test -p podssh-relay --features piping --test piping
+gh workflow run piping.yml --ref REF
 ```
 
 For interactive use on Windows, `scripts/interop-conpty.py` runs

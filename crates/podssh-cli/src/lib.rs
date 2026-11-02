@@ -89,6 +89,9 @@ pub mod node_transit;
 // `podssh node --iroh`: the iroh road, with the feature `iroh` only.
 #[cfg(feature = "iroh")]
 pub mod node_iroh;
+// The Piping Server road of a node of a pair (T-437): asked by PODSSH_PIPING,
+// or unasked where the WebSocket upgrade is refused on the way (Q65).
+pub mod node_piping;
 // `podssh node --quick-tunnel`: a quick tunnel of Cloudflare's, which podssh
 // makes itself (T-300).
 pub mod node_quick;
@@ -105,6 +108,9 @@ pub mod parsed;
 pub mod ping;
 pub mod pins;
 pub mod pipe;
+// PODSSH_PIPING, and the Piping Server road's dialer of `podssh ssh node://`
+// (T-437).
+pub mod piping_road;
 pub mod play;
 pub mod positionals;
 pub mod proxy;

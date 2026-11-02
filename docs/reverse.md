@@ -257,3 +257,55 @@ tokens in URLs. podssh does not do that.
   each token and for a second stop).
 - `/v1/status` accepts `connect_token` only; `node_token` and `stop_token`
   get `403` (measured 2026-10-09, T-078).
+
+## The Piping Server road
+
+A proxy that refuses the WebSocket upgrade stops the pair's road at both
+ends, as each relay and each carrier but one needs the upgrade. A Piping
+Server needs none: it streams the body of a `POST /PATH` into the answer to
+a `GET /PATH`, over plain HTTPS ([carriers.md](carriers.md), item 5 of the
+reverse road). podssh's road through one (T-437, drafted 2026-11-02;
+`crates/podssh-relay/src/piping/`) keeps these rules:
+
+1. A path is the only meeting point, so each comes from the pair's secret:
+   the HMAC of the connect token over the pair's name, which both ends hold
+   and no path shows. The node waits at its door, a GET of one such path,
+   asked again after each hello, after each loss and each 4 minutes.
+2. A client posts a hello at the door: the mode of its link, a random id,
+   and a tag of the secret, so that the node opens no link for a stranger.
+   A whole POST ends once the node's GET took it, so a node that is not
+   there is told in 20 s; a door that another client holds for a moment is
+   knocked at again.
+3. Each link has two paths of its id, one for each way. Each end POSTs its
+   way and GETs the other's; each way begins with a mark of the link and
+   the way, which the receiver checks before the resumable layer reads a
+   byte, so an end that took the wrong path ends the link there.
+4. Over HTTP/2, where the server's TLS takes `h2` (`ppng.io` does), the door
+   and each link are streams of one connection, with a PING each 25 s. Over
+   HTTP/1.1, each streamed way has a connection of its own: a node holds its
+   door's and two for each link, a client two (see T-437's Decision on Q44).
+5. A streamed POST that gets no answer within 15 s is held on the way: the
+   client asks for numbered pieces from then on, a whole POST to `PATH-N`
+   for each piece of at most 64 KiB, one after another, and the far end
+   GETs them in turn. A failed POST ends the link, and the layer sends again
+   what the far end did not acknowledge.
+6. The layer and the end-to-end channel run above each link, as on each
+   road between two podssh ends: the server sees the paths, the sizes and
+   the times, and a change that it makes ends the session.
+
+`podssh node NAME TARGET` probes at its start: one upgrade of its socket's
+path at the relay with no token, which the relay refuses with its own word
+(`403 reverse: forbidden`). A refusal of 400, 403, 405 or 501 in words that
+are not the relay's, or a `426` (the request came with its `Upgrade` taken
+off), is a refusal on the way: the node then serves the Piping Server road
+alone, unasked (Q65), until the pair expires, as the pair's road could not
+pass and a proxy's `403` must not read as a stopped pair. A connection that
+ends with no answer, or a gateway's `5xx`, is no such sign, as a relay that
+went away looks the same. `podssh ssh
+node://NAME` takes the road when the pair's leg finds the same, and races
+the roads again at each resume. `PODSSH_PIPING=yes`, or a server's
+`https://` URL, asks for the road: the node serves it beside the pair's
+road, with one keeper of sessions for both, and the client races it 250 ms
+after the pair's road; `PODSSH_PIPING=no` turns it off. Measured: UNVERIFIED
+(`cargo test -p podssh-relay --features piping --test piping`, against
+nwtgck's two servers on the loopback).

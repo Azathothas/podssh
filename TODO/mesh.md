@@ -545,7 +545,7 @@ carriers).
 **Milestone:** M10
 **Priority:** P2
 **Effort:** M
-**Status:** open
+**Status:** partial
 
 ## Problem
 
@@ -575,6 +575,136 @@ cargo test -p podssh-relay --test piping
 Against nwtgck's `piping-server` and `piping-server-rust` in containers: a session carries
 1 MiB each way, through the box's proxy that refuses the upgrade. Live, short (Q65): one
 session through `ppng.io`. Planted: the paths swapped, and the session fails.
+
+## Decision
+
+2026-11-02 (the drafting agent), each a defensible call by `AGENTS.md`, section 2:
+
+1. **The meeting point is the pair's secret.** The key is the HMAC of the connect token over the
+   pair's name (`crates/podssh-relay/src/piping/paths.rs`): both ends hold the token (the node the
+   whole pair, an operator its part), and no path shows it. The node waits at a door, a GET of one
+   path of the key; a client's hello there names a random link id, with a tag of the key, and the
+   link's two ways have paths of that id, each beginning with a mark that the receiver checks.
+   Lost: two fixed paths, as go-piping-duplex has (one link at a time, and the link of a resume or
+   a second client would meet the first on its paths); the node's identity, as the DERP road's
+   ticket (the client of `node://NAME` holds the pair, not a ticket; a ticket of this road can
+   come with the node's record, T-445).
+2. **Unasked, the road follows a probe.** A node probes once at its start: an upgrade of its
+   socket's path at the relay with no token, which the relay refuses with its own word
+   (`403 reverse: forbidden`, docs/relay.md); a refusal of 400, 403, 405 or 501 in words that are
+   not the relay's, or a `426`, is a refusal on the way (`crates/podssh-relay/src/piping/probe.rs`).
+   Then the node serves the road alone, until the pair expires (77). A connection that ends with no
+   answer, or a gateway's `5xx`, is no cue: a relay that went away, as in the CLI's tests of a
+   stand-in relay, looks the same, and the road would then reach `ppng.io` from a test. A client takes the road when its pair's leg finds the
+   same, and races it after the pair's road when `PODSSH_PIPING` asks. Lost: a door at `ppng.io`
+   for each node always (a load on a server that one person runs, and Q65 names the road for a
+   proxy that refuses the upgrade); the pair's road's own failures as the cue at the node (a
+   proxy's `403` reads there as a stopped pair, and a node deletes a stored pair on it).
+3. **Numbered pieces after a streamed POST with no answer.** A Piping Server answers a sender at
+   once (nwtgck/piping-server:src/piping.ts), so a streamed POST with no answer within 15 s is
+   held on the way; the client asks for numbered pieces from then on, and the node follows the
+   hello's mode. A failed POST of a piece ends the link, as the piece may have gone or not; the
+   layer sends again what was not acknowledged. Lost: an acknowledgement of each piece in the
+   link, which the layer already gives.
+4. **Q44 and the connections.** Over HTTP/2, which `ppng.io` takes, each end has one connection:
+   the node's door and each link are streams of it, within rule 2 of `AGENTS.md`. Over HTTP/1.1,
+   which a server or a proxy may impose, a link holds a connection for each way: the shape and the
+   condition of Q44 (a probe found the upgrade refused; the numbered form is the fallback), which
+   Q44 names for the split HTTP road (T-319) and Q65 names Piping Server for, so the road falls
+   under Q44. The draft left a question for the merge: the node's door on HTTP/1.1 is one more
+   connection while a session runs, which no ruling names. Decided at the merge (2026-11-02, the
+   main session), within Q44 and with no question to the operator: over HTTP/1.1 the node closes
+   its door while a link runs (`crates/podssh-relay/src/piping/far.rs`, one link at a time), and a
+   streamed way ends each idle kept connection before it dials
+   (`crates/podssh-relay/src/piping/exchange.rs`), so each end holds two connections at most.
+   Lost: the door kept open on HTTP/1.1 while a session runs (a third connection, beyond Q44; a
+   second client waits for the first link's end instead); one HTTP/1.1 connection for the door and
+   each way in turn (a link that waits for the door's next answer).
+5. **Two fallbacks in the race (the merge).** The transit relay's road (T-436) and this road are
+   both last in `podssh ssh node://`'s race when unasked. A proxy that refuses the upgrade refuses
+   the transit relay's WebSocket too, so the unasked Piping Server road comes after it; asked, it
+   comes 250 ms after the pair's road, before the transit relay's, whose start waits for each road
+   before it to fail. The node of an asked Piping Server road waits at the transit relay too,
+   beside the pair's road, as the node of the pair's road does. Lost: the Piping Server road before
+   the transit relay's when unasked (a load on `ppng.io` where a WebSocket passes).
+
+## Correction
+
+2026-11-02 (the drafting agent). The Premise holds, read in the source of both servers
+(docs/carriers.md, item 5 of the reverse road, [N25] and [N26]): one sender meets `?n=` receivers
+(1 by default) on a path, a second gets `400`, and a sender's answer comes at once and ends once
+its receiver took the body. nwtgck's server speaks HTTP/2 on its TLS port alone; the Rust server
+speaks it on its plain port too, by prior knowledge.
+
+The Prove above names no feature, and the road is behind the feature `piping`. Its servers run
+as processes, named by `PODSSH_TEST_PIPING_JS` and `PODSSH_TEST_PIPING_RUST`, not in containers:
+no image of either is pinned under `images/`, and `.github/workflows/piping.yml` installs both,
+the Rust one by the SHA-256 that its release publishes. The box's proxy (`scripts/box/proxy.py`)
+carries CONNECT and never sees an upgrade, as it does not end TLS: the harness's stand-in proxy
+refuses the upgrade and holds each request's body, and the live run goes through the box's proxy
+of names to show the road on `HTTPS_PROXY`. The new Prove, in place of the one above:
+
+```sh
+export CARGO_BUILD_JOBS=4
+cargo test -p podssh-relay --features piping --lib piping
+PODSSH_TEST_PIPING_JS=piping-server PODSSH_TEST_PIPING_RUST=/path/of/piping-server \
+    cargo test -p podssh-relay --features piping --test piping
+cargo test -p podssh-cli --lib piping
+cargo test -p podssh-relay --features piping --test piping_live -- --ignored
+```
+
+A session of the layer carries 1 MiB each way through an echo over HTTP/1.1 through nwtgck's
+server, over HTTP/2 and HTTP/1.1 through the Rust server, and in numbered pieces through the
+stand-in proxy that holds bodies; a client of another pair finds no node; the stand-in's refusal
+of the upgrade is the road's cue. Live, short (Q65): 64 KiB each way through `ppng.io`, directly
+and through the box's proxy of names (`piping.yml`). Planted: the client's two ways swapped
+(`scripts/plants/t437-paths-swapped.plant`), and the test of the ends' paths and each session
+fail.
+
+## Done
+
+2026-11-02: drafted by an agent of this session in a worktree, then merged, built and measured
+here.
+
+- The road in `crates/podssh-relay/src/piping/` (feature `piping`, which podssh-cli enables): the
+  server's URL, the paths and the hello, TLS with ALPN `h2` and `http/1.1`, HTTP/1.1's framing,
+  HTTP/2 on one connection with PINGs, the exchanges with a kept HTTP/1.1 connection, the
+  streamed and the numbered links, the client and its `carry`, the node at its door, and the
+  probe of the upgrade. The CLI: `crates/podssh-cli/src/piping_road.rs`,
+  `crates/podssh-cli/src/node_piping.rs`, the dispatch in `crates/podssh-cli/src/node.rs`, and
+  `node://NAME` in `crates/podssh-cli/src/ssh/`; the manual, docs/reverse.md, docs/carriers.md,
+  docs/development.md; the feature in the gate's library steps; `.github/workflows/piping.yml`.
+- Four defects found and repaired at the merge, each by a test against nwtgck's servers:
+  nwtgck's piping-server (the server of `ppng.io`) answers neither a sender nor its receiver
+  before the sender's first byte, so both ends waited for their POST's answer before sending
+  their mark and fell to numbered pieces after 15 s: the mark now goes with the POST's head
+  (`Http::post_stream`'s first bytes, on HTTP/1.1 and HTTP/2); piping-server-rust 0.18.0 says
+  "halfway disconnected" to a sender whose receiver took the whole hello, so the client knocked
+  again and the node opened one link twice ("Another receiver has been connected"): the client
+  takes that answer to a hello as its delivery, and the node opens a link's id once in 120 s; the
+  layer's future overflowed a test thread's stack in a debug build (`carry` holds it on the heap
+  now, as does the transit road's); and the merge with T-436 put the transit relay's road and
+  this one in one race (Decision 5), and the node of an asked Piping Server road waits at the
+  transit relay too.
+- Decision 4, decided at the merge within Q44: over HTTP/1.1 the node closes its door while a link
+  runs, and a streamed way ends each idle kept connection first, so each end holds two
+  connections at most.
+- `cargo test -p podssh-relay --features piping --lib piping`: 18 passed.
+- `cargo test -p podssh-relay --features piping --test piping`, with `PODSSH_TEST_PIPING_JS`
+  (nwtgck/piping-server 1.12.9 from npm) and `PODSSH_TEST_PIPING_RUST` (piping-server-rust v0.18.0,
+  its archive's SHA-256 equal to its release's `sha256sums.txt`): 6 passed: a session of the
+  layer carries 1 MiB each way through an echo over HTTP/1.1 through nwtgck's server, over HTTP/2
+  and over HTTP/1.1 through the Rust server, and in numbered pieces through a stand-in proxy that
+  holds each body; a client of another pair finds no node; a proxy's refusal of the upgrade is
+  told from the relay's own word.
+- Live, short (Q65), from this cloud session's host through its proxy:
+  `cargo test -p podssh-relay --features piping --test piping_live -- --ignored`, three runs: a
+  session through `ppng.io` carried 64 KiB each way each time (about 4 s).
+- SUITE_RESULT
+- PLANT_RESULT
+- Left, as entries: the commands from end to end through a proxy that refuses the upgrade, and
+  the box (T-451); `doctor`'s line of the road (T-435); a row of `piping.yml` in the release
+  check's catalog (T-446).
 
 # T-438: Wisp: the demo server as a forwarder, and the Wisp protocol
 
@@ -694,12 +824,16 @@ Caddy. Planted: the credential left out, and the `407` is said with its words.
 
 ## Done
 
-2026-11-02, partial: drafted by an agent in a worktree of its own, and merged, built and
-measured here; the run against Caddy and squid in containers closes it, in GitHub Actions
-(`.github/workflows/via-interop.yml`, on the push of the merge): this host's containers reach
-Go's module proxy only through the session's own proxy, whose CA they do not hold, so
-`scripts/interop-via.sh` said exit 71 here ("Caddy did not listen"), as it should for a host
-that lacks what the run needs.
+2026-11-02: drafted by an agent in a worktree of its own, and merged, built and measured here;
+the run against Caddy and squid in containers ran in GitHub Actions
+(`.github/workflows/via-interop.yml`, run 41389960690 at `5b62f4e`): 12 passed, 0 failed:
+sshd's banner, a session over HTTP/2's CONNECT, one over HTTP/1.1's (`PODSSH_VIA_HTTP=1.1`) and
+two sessions of `podssh each` on one HTTP/2 connection through Caddy 2.11.7 with forwardproxy;
+the banner and a session over HTTP/1.1 through squid's `https_port`; each proxy's `407` said
+with its words when the credential is left out (exit 77); the host's own squid carrying the TLS
+to each proxy by its name; `podssh doctor --via` naming Caddy and HTTP/2; and no output holding
+the proxies' password. This host's containers reach Go's module proxy and Alpine's packages only
+through the session's own proxy, so the whole run is the runner's.
 
 - podssh-ws, `crates/podssh-ws/src/via/`: the URL and its credentials, the versions offered, the
   client that keeps HTTP/2's connection and falls back to HTTP/1.1, and a refusal's words
@@ -1276,3 +1410,45 @@ cargo test -p podssh-relay --test transit -- --ignored
 ```
 
 Twenty runs in a row meet, from GitHub Actions and this host; the cause, planted, fails one.
+
+# T-451: The Piping Server road from end to end: `podssh node` and `ssh node://` behind a proxy that refuses the upgrade
+
+**Source:** the merge of T-437 (2026-11-02).
+**Category:** test
+**Milestone:** M10
+**Priority:** P2
+**Effort:** M
+**Status:** open
+
+## Problem
+
+T-437's tests run the road's node and client as library calls against nwtgck's two servers, and
+the live run against `ppng.io`. No test runs the commands: `podssh node`'s probe of the upgrade at
+its start, its fallback to the road alone, and `podssh ssh node://NAME`'s cue from a refused
+upgrade, together, through a proxy that refuses the WebSocket upgrade, nor the box like the
+target sandbox with such a proxy.
+
+## Premise
+
+- `crates/podssh-cli/src/node_piping.rs` probes the relay's socket with no token, and serves the
+  road alone where a refusal comes in words that are not the relay's; `crates/podssh-cli/src/ssh/roads.rs`
+  cues the road from the pair's leg's refusal.
+
+## Approach
+
+1. A stand-in proxy of the tests (the one of `crates/podssh-cli/tests/stand_harness/`) that
+   refuses each upgrade with a 403 of its own words, a stand-in relay behind it, and nwtgck's
+   piping-server on the loopback named by `PODSSH_PIPING`.
+2. `podssh node` says the road alone; `podssh ssh node://NAME 'echo ok'` runs through it; a
+   resume after the Piping Server's restart.
+3. The box (`scripts/test_in_box.sh`) with a proxy that ends TLS and refuses the upgrade.
+
+## Prove
+
+```sh
+export CARGO_BUILD_JOBS=4
+cargo test -p podssh-cli --test node_piping
+```
+
+The session runs; planted, the node's probe that reads the relay's own refusal as a proxy's, and
+the node serves the pair's road alone, so the test fails.

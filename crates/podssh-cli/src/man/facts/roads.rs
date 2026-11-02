@@ -1,7 +1,8 @@
 //! The variables of the roads that are read apart from `facts.rs`, for the
-//! length of that file: the DERP road (T-349, T-379), the direct road after
-//! the relay hosts (T-363), the forwarders of other products (T-369) and
-//! their fallback (T-370), and the forward proxy over TLS of --via (T-439).
+//! length of that file: the DERP road (T-349, T-379), the Piping Server road
+//! (T-437), the direct road after the relay hosts (T-363), the forwarders of
+//! other products (T-369) and their fallback (T-370), and the forward proxy
+//! over TLS of --via (T-439).
 
 /// Each one: its names, and what it does.
 pub(super) const VARIABLES: &[(&[&str], &str)] = &[
@@ -28,6 +29,18 @@ pub(super) const VARIABLES: &[(&[&str], &str)] = &[
           the pair come from the pair's connect token; the relay sees ciphertext. no: no transit road; a ws:// or \
           wss:// URL: that relay in place of Least Authority's; unset, empty or yes: the default; another word \
           is a configuration error (78), which does not echo the value.",
+    ),
+    (
+        &["PODSSH_PIPING"],
+        "The Piping Server road of a pair (podssh node NAME, podssh ssh node://NAME), for a proxy that refuses \
+          the WebSocket upgrade: a POST and a GET of plain HTTPS for each way of a link, on paths that the pair's \
+          secret gives, under the resumable layer and the end-to-end channel. Unset or empty: the fallback that \
+          the operator's ruling Q65 allows, through https://ppng.io: a node serves it alone once a probe at its \
+          start finds the upgrade to the relay refused on the way, and a client tries it once the pair's road \
+          found the same. no: no such road. yes, or https://HOST[:PORT][/PREFIX] of another Piping Server: the \
+          road as asked, which a node serves beside the pair's road and a client races 250 ms after it; with \
+          --plain, --no-e2e or a udp: TARGET the node refuses it (64). Another word is a configuration error \
+          (78).",
     ),
     (
         &["PODSSH_DIRECT"],

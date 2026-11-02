@@ -100,6 +100,11 @@ pub fn run_node(args: &NodeArgs, err: &mut dyn Write) -> i32 {
     if args.derp || unasked.is_some() {
         return crate::node_derp::run(args, unasked, err);
     }
+    // The Piping Server road (T-437): asked by PODSSH_PIPING, or unasked when
+    // a probe finds the upgrade refused on the way (Q65); else the pair's.
+    if let Some(code) = crate::node_piping::run(args, err) {
+        return code;
+    }
     let ready = match prepare(args) {
         Ok(ready) => ready,
         Err(refusal) => return refusal.report("node", err),

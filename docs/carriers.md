@@ -403,6 +403,34 @@ The candidates, ranked:
    - Limits: not published, and not determined. Rust and C: nothing new,
      podssh-ws's HTTP client; its servers, nwtgck's and
      `piping-server-rust`, run in Podman for the tests. Effort: M.
+   - Read in the source on 2026-11-02 [N25] [N26]: a sender and its
+     receivers meet on a path, `?n=` receivers for one sender (1 by
+     default; the Rust server refuses more), in either order, each waiting
+     with no limit of the server's (Node's server sets `requestTimeout`
+     to 0); a second sender, or a receiver past `n`, gets `400`, and so
+     does each request on a path whose transfer runs, until it ends
+     (Node's; the Rust server frees the path once the transfer starts). A
+     sender's answer comes at once (`[INFO] Waiting for 1 receiver(s)...`)
+     and ends once its receiver took the body, with words of its own when
+     the receiver went away halfway; a receiver's answer carries the
+     sender's `Content-Length` when it had one. A receiver that goes away
+     ends its sender, and the other way round. `/`, `/noscript`,
+     `/version`, `/help`, `/favicon.ico` and `/robots.txt` are the
+     server's own. Node's server speaks HTTP/2 on its TLS port alone, with
+     HTTP/1.1 beside it; the Rust server speaks both on its plain port too,
+     HTTP/2 by prior knowledge.
+   - Built (T-437, drafted 2026-11-02; `crates/podssh-relay/src/piping/`):
+     the node waits at a door whose path comes from the pair's secret; a
+     client's hello there names a random link, whose two ways have paths of
+     their own and begin with a mark that the receiver checks. Each end
+     POSTs its way and GETs the other's: over HTTP/2 on one connection
+     where the server's ALPN takes `h2`, else over HTTP/1.1, through
+     `HTTPS_PROXY`. A streamed POST that gets no answer within 15 s makes
+     the client ask for numbered pieces, a whole POST to `PATH-N` for each.
+     A node serves the road unasked once a probe finds the upgrade to the
+     relay refused on the way, and a client once its pair's road found the
+     same (Q65); `PODSSH_PIPING` names another server, or `no`
+     ([reverse.md](reverse.md), "The Piping Server road").
 6. **Microsoft Dev Tunnels**: a preview, for "adhoc testing and
    development" [R11]. The host logs in with Microsoft or GitHub; a client
    can be anonymous, or use a token of 24 h [R12]. The host opens a
@@ -675,3 +703,9 @@ public data file), not a run of podssh.
   https://github.com/ekzhang/bore (202); https://www.saashub.com/bore-pub-status
   (a third party)
 - [N24] https://www.metered.ca/tools/openrelay/; https://www.metered.ca/pricing
+- [N25] https://github.com/nwtgck/piping-server: `src/piping.ts`,
+  `src/index.ts` and `src/reserved-paths.ts` of its main branch, and its
+  `package.json` (1.12.9, the version that `ppng.io` showed)
+- [N26] https://github.com/nwtgck/piping-server-rust: `src/piping_server.rs`
+  and `src/main.rs` of its main branch, and `src/main.rs` and `Cargo.toml`
+  at v0.18.0 (hyper 1.2, hyper-util's server of both protocols)
