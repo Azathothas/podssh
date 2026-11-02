@@ -25,11 +25,11 @@ Triage of 2026-10-08: issues #1 to #36.
 | #12 | `PODSSH_TIMEOUT` | closed | T-012 (the commit "PODSSH_TIMEOUT gives the default of --timeout") |
 | #13 | `podssh doctor --full` | closed | T-052 (the commit "podssh doctor --full logs in to GitHub with a key made for the check") |
 | #14 | `ssh_config`, `-F` and `-G` | closed (2026-10-30, with a comment that names the entries and commits; in `v1.0.0-beta.1`) | T-043, T-044, T-045, T-046 |
-| #15 | `keygen` waits for ever on a dead `/dev/tty` | closed | T-005 (repaired in `eacd94e`; measured in the box in the commit "The box has the sandbox's dead /dev/tty; T-005 measured there") |
-| #16 | A repeated flag keeps the last value | closed | T-017 |
-| #17 | Relay drops (1011): a generic message, no retry | closed | T-024 (the commit "A dropped session names the hop that broke"), T-025 (33c9a31), T-062 (the backpressure close: f93e4a2, b1f75c9); T-336 is M10's, in podssh's own relay role (Q63) |
+| #15 | `keygen` waits for ever on a dead `/dev/tty` | deleted on GitHub by 2026-11-02 (it was closed) | T-005 (repaired in `eacd94e`; measured in the box in the commit "The box has the sandbox's dead /dev/tty; T-005 measured there") |
+| #16 | A repeated flag keeps the last value | deleted on GitHub by 2026-11-02 (it was closed) | T-017 |
+| #17 | Relay drops (1011): a generic message, no retry | deleted on GitHub by 2026-11-02 (it was closed) | T-024 (the commit "A dropped session names the hop that broke"), T-025 (33c9a31), T-062 (the backpressure close: f93e4a2, b1f75c9); T-336 is M10's, in podssh's own relay role (Q63) |
 | #27 | Repository health | open | T-205, T-206, T-207, T-208, T-209, T-210, T-211, T-212, T-213, T-214, T-215, T-216, T-217, T-218 |
-| #28 | `sandbox-check.sh` exits 0 on failure | closed | T-006 (the commit "sandbox-check.sh: each step has a verdict, and a failed step fails the run") |
+| #28 | `sandbox-check.sh` exits 0 on failure | deleted on GitHub by 2026-11-02 (it was closed) | T-006 (the commit "sandbox-check.sh: each step has a verdict, and a failed step fails the run") |
 
 ## Feature requests with reports (#18 to #26)
 
@@ -116,14 +116,14 @@ corrects a claim that the code does not support.
 
 | Issue | Subject | State | Entries |
 | --- | --- | --- | --- |
-| #29 | Host certificates are dropped, not verified | closed (`a1d32e0`, 2026-10-11) | T-027 |
-| #30 | The relay hosts are tried one at a time | closed (`4cfbd5f`, 2026-10-11) | T-220 |
-| #31 | Where the replayed output may begin | closed | T-221 (`61e55d1`); the invariant of T-152 (no byte that is not acknowledged is dropped, `d70f88f`) |
-| #32 | `podssh serve` finds a shell with no passwd entry | open | T-222 |
-| #33 | `check-repo.py` passes with nothing to check; no scan for a listener | closed | T-223 (the commit "Each repository check has a floor, and fails on an empty tree"), T-224 (the commit "The repository check finds a listener outside its allowance"); the floors of `cargo todo check` are in T-204 (done). Closed on 2026-10-09 with a comment that names them |
-| #34 | The expected exit codes, from stock OpenSSH | closed | T-225 (`e8bec97`) |
-| #35 | Signed pairing grants that are used once | open | T-226 (M10, in podssh's own relay role since Q63) |
-| #36 | `--direct` has no limit on a stuck write | closed (`f502fba`, 2026-10-11) | T-227 |
+| #29 | Host certificates are dropped, not verified | deleted on GitHub by 2026-11-02 (it was closed (`a1d32e0`, 2026-10-11)) | T-027 |
+| #30 | The relay hosts are tried one at a time | deleted on GitHub by 2026-11-02 (it was closed (`4cfbd5f`, 2026-10-11)) | T-220 |
+| #31 | Where the replayed output may begin | deleted on GitHub by 2026-11-02 (it was closed) | T-221 (`61e55d1`); the invariant of T-152 (no byte that is not acknowledged is dropped, `d70f88f`) |
+| #32 | `podssh serve` finds a shell with no passwd entry | deleted on GitHub by 2026-11-02 (it was open) | T-222 |
+| #33 | `check-repo.py` passes with nothing to check; no scan for a listener | deleted on GitHub by 2026-11-02 (it was closed) | T-223 (the commit "Each repository check has a floor, and fails on an empty tree"), T-224 (the commit "The repository check finds a listener outside its allowance"); the floors of `cargo todo check` are in T-204 (done). Closed on 2026-10-09 with a comment that names them |
+| #34 | The expected exit codes, from stock OpenSSH | deleted on GitHub by 2026-11-02 (it was closed) | T-225 (`e8bec97`) |
+| #35 | Signed pairing grants that are used once | deleted on GitHub by 2026-11-02 (it was open) | T-226 (M10, in podssh's own relay role since Q63) |
+| #36 | `--direct` has no limit on a stuck write | deleted on GitHub by 2026-11-02 (it was closed (`f502fba`, 2026-10-11)) | T-227 |
 
 ## Requests after the triage (#51 on)
 

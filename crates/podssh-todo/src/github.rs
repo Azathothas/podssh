@@ -24,11 +24,13 @@ pub enum Kind {
     Pull,
 }
 
-/// One number of the list: what it is, whether it is open, and its line.
+/// One number of the list: what it is, whether it is open, whether GitHub
+/// no longer has it (an issue that its owner deleted), and its line.
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub struct Number {
     pub kind: Kind,
     pub open: bool,
+    pub deleted: bool,
     pub line: usize,
 }
 
@@ -48,7 +50,8 @@ pub struct Map {
     pub pulls: Option<(usize, Vec<u32>)>,
 }
 
-/// The list: `NUMBER issue|pull open|closed` on each line, `#` a comment.
+/// The list: `NUMBER issue|pull open|closed` on each line, or `NUMBER issue
+/// deleted` for an issue that GitHub no longer has; `#` a comment.
 pub fn read_list(text: &str, p: &mut Vec<Problem>) -> BTreeMap<u32, Number> {
     let mut list = BTreeMap::new();
     for (i, raw) in text.lines().enumerate() {
@@ -60,17 +63,23 @@ pub fn read_list(text: &str, p: &mut Vec<Problem>) -> BTreeMap<u32, Number> {
         let parsed = match words.as_slice() {
             [n, kind, state] => match (n.parse::<u32>(), *kind, *state) {
                 (Ok(n), "issue" | "pull", "open" | "closed") => {
-                    Some((n, if *kind == "issue" { Kind::Issue } else { Kind::Pull }, *state == "open"))
+                    Some((n, if *kind == "issue" { Kind::Issue } else { Kind::Pull }, *state == "open", false))
                 }
+                // Only an issue can be deleted on GitHub; a pull request stays.
+                (Ok(n), "issue", "deleted") => Some((n, Kind::Issue, false, true)),
                 _ => None,
             },
             _ => None,
         };
-        let Some((n, kind, open)) = parsed else {
-            p.push(Problem::new(LIST, i + 1, format!("not NUMBER issue|pull open|closed: {line:?}")));
+        let Some((n, kind, open, deleted)) = parsed else {
+            p.push(Problem::new(
+                LIST,
+                i + 1,
+                format!("not NUMBER issue|pull open|closed, or NUMBER issue deleted: {line:?}"),
+            ));
             continue;
         };
-        if list.insert(n, Number { kind, open, line: i + 1 }).is_some() {
+        if list.insert(n, Number { kind, open, deleted, line: i + 1 }).is_some() {
             p.push(Problem::new(LIST, i + 1, format!("#{n} is listed twice")));
         }
     }
@@ -155,7 +164,11 @@ pub fn agree(list: &BTreeMap<u32, Number>, map: &Map, p: &mut Vec<Problem>) {
             Kind::Issue => match map.issues.get(n).map(Vec::as_slice) {
                 None | Some([]) => p.push(Problem::new(MAP, 0, format!("issue #{n} has no place in the map"))),
                 Some([one]) => {
-                    let want = if number.open { "open" } else { "closed" };
+                    let want = match (number.deleted, number.open) {
+                        (true, _) => "deleted",
+                        (false, true) => "open",
+                        (false, false) => "closed",
+                    };
                     if let Some(state) = one.state.as_deref().filter(|s| !s.starts_with(want)) {
                         p.push(Problem::new(
                             MAP,
@@ -239,5 +252,26 @@ mod tests {
         let list = read_list("# a comment\n1 issue open\n2 pull closed\nthree issue open\n1 issue closed\n", &mut p);
         assert_eq!(list.len(), 2);
         assert_eq!(p.len(), 2, "{p:?}");
+    }
+
+    /// An issue that GitHub no longer has is `deleted`, and its row says so;
+    /// a pull request cannot be.
+    #[test]
+    fn a_deleted_issue_is_listed_and_its_row_must_say_so() {
+        let mut p = Vec::new();
+        let list = read_list("15 issue deleted\n16 pull deleted\n", &mut p);
+        assert_eq!(list.len(), 1, "{p:?}");
+        assert!(list[&15].deleted && !list[&15].open);
+        assert_eq!(p.len(), 1, "a deleted pull request is no form: {p:?}");
+        let map = |state: &str| {
+            read_map(&format!(
+                "| Issue | Subject | State | Entries |\n| --- | --- | --- | --- |\n| #15 | a | {state} | T-1 |\n"
+            ))
+        };
+        let mut p = Vec::new();
+        agree(&list, &map("deleted (closed before)"), &mut p);
+        assert!(p.is_empty(), "{p:?}");
+        agree(&list, &map("closed"), &mut p);
+        assert_eq!(p.len(), 1, "a row that still says closed: {p:?}");
     }
 }

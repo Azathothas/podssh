@@ -109,7 +109,10 @@ entry that large is two entries.
   line of them, and the State of a row begins with its issue's state. When
   you map an issue, close one, or a pull request comes, move the list in the
   same commit. `.github/workflows/record-issues.yml` holds the list to GitHub
-  each day, and is red until a session moves it.
+  each day, and is red until a session moves it. An issue that GitHub no
+  longer has (its owner deleted it) stays in the list as `NUMBER issue
+  deleted`, and its row's State begins with `deleted`; its entries stay, and
+  when they are done no comment goes to it.
 - `cargo todo check` reads the Prove of each done entry (T-361): each `-p
   CRATE` and `--test NAME` of its `cargo test` commands, and each `scripts/`
   path, must exist. A change that renames or moves a test target, a crate or

@@ -4919,7 +4919,7 @@ of GitHub #69 to #72 corrected these; nothing finds the next.
    get their entry or a date, or are corrected, in the same change.
 3. A status written beside an id in those documents (`T-NNN, partial`, `(T-NNN, open)`) agrees
    with the index, unless its paragraph reads at a date or at a commit, as the record's readings
-   do (`TODO/RULES.md:142-147`): "T-099, partial" of 2026-10-10 is such a reading
+   do (`TODO/RULES.md:145-150`): "T-099, partial" of 2026-10-10 is such a reading
    (`docs/STATUS.md:687`).
 4. `TODO/RULES.md` says it, beside the rules of citations.
 

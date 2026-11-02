@@ -4,6 +4,8 @@ repository, an issue or a pull request, with its state, as `gh issue list`
 and `gh pr list` give them. A difference names each number and exits 1; the
 session that reads the run maps the issue (TODO/RULES.md) and moves the
 list. `cargo todo check` holds TODO/issues.md to the list, with no network.
+An issue that GitHub no longer has (its owner deleted it) is listed as
+`NUMBER issue deleted`, and agrees with its absence.
 
   --plant-drop N     drop N from the list first: the run must then exit 1
   --issues FILE      `gh issue list --json number,state` read from FILE
@@ -75,6 +77,9 @@ def main():
     for number in sorted(set(mine) | set(theirs)):
         here, there = mine.get(number), theirs.get(number)
         if here == there:
+            continue
+        # A deleted issue agrees with its absence from GitHub, and only then.
+        if there is None and here is not None and here[1] == "deleted":
             continue
         if here is None:
             differences.append(f"#{number} on GitHub, {there[0]} {there[1]}, has no line in TODO/github.txt")
