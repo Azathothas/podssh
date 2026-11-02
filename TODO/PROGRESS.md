@@ -93,8 +93,8 @@ entry keeps its proof in the entry; this page keeps no history (git does).
   interop's first run found that Xray-core blackholes a private target unless a final rule allows
   it, then 15 of 15). T-441's is merged onto it and closed (each list of roads took both, and
   `--vless` and `--wstunnel` refuse each other; 12 of 12 against wstunnel's own server). T-430's is merged and closed (the synopsis of `podssh
-  net` was wider than the page). T-428's is merged (its live run through Cloudflare's edge waits
-  in the entry), T-447's is merged and closed (8 of 8 against Pebble), and T-454's is merged and
+  net` was wider than the page). T-428's is merged and closed (live through Cloudflare's edge, run
+  41440851652), T-447's is merged and closed (8 of 8 against Pebble), and T-454's is merged and
   closed (the merge gave the role behind a quick tunnel the visitor that the edge names, so that
   each visitor counts apart). `draft/worktree-agent-t430-net-policy`,
   `draft/worktree-agent-t428-quick-relay`, `-t447-acme` and `-t454-brake` can go. These branches can go, as this
@@ -146,7 +146,7 @@ and `CARGO_BUILD_JOBS=4`:
 
 ## Counts
 
-`TODO/INDEX.md` holds 476 entries: 64 open, 3 partial, 17 blocked, 392 done.
+`TODO/INDEX.md` holds 476 entries: 64 open, 2 partial, 17 blocked, 393 done.
 
 Open includes parked work. `cargo todo check` verifies this line.
 
@@ -187,7 +187,7 @@ this order:
 
 0. A test that fails at random comes first: the relay suite's, named and repaired (done, 50 runs
    in a row here and on a runner).
-1. The relay role (its certificate from ACME and its brake of mint and pair are done): behind a node's quick tunnel (T-428), the net's members' mint (T-455) and the role's dial through `HTTPS_PROXY` (T-457); then what the role serves: T-336, T-255,
+1. The relay role (its certificate from ACME, its brake of mint and pair, and the role behind a node's quick tunnel are done): the net's members' mint (T-455) and the role's dial through `HTTPS_PROXY` (T-457); then what the role serves: T-336, T-255,
    T-421, T-253, T-325, T-326, T-319, T-321 and T-173.
 2. The net (its policy is done): T-445, T-452, T-453, T-086, T-226, T-346 and T-106.
 3. Exit, routes, share and funnel: T-431, T-432, T-433, T-180, then T-434 and T-435.

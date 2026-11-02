@@ -189,7 +189,7 @@ here.
 **Milestone:** M10
 **Priority:** P1
 **Effort:** M
-**Status:** partial
+**Status:** done
 
 ## Problem
 
@@ -375,8 +375,12 @@ the main session the same day.
   (22 ignored). Each run of `quick_relay` left its list's scratch directory in the temporary
   directory, which the gate's step would count: the list is a guard now, which goes when the test
   ends, pass or fail, and none is left.
-- Live (`quick-tunnel-live.yml`, Q43): dispatched after the merge; this entry stays `partial`
-  until it passes.
+- Live (`quick-tunnel-live.yml`, Q43, from GitHub Actions): the first run after the merge failed
+  before the role was asked anything, as the client of `v1.0.0` looked up the tunnel's new name
+  before Cloudflare's DNS had it (NXDOMAIN); the step now waits up to 120 s for the role's
+  `/health` at the name (`da323a3`). Then run 41440851652 passed: the client of `v1.0.0` read
+  `SSH-2.0-` through the role behind the quick tunnel, and `podssh relay status` read the role's
+  `/health` through the tunnel.
 - Not done here: the role dials its targets from the node's host directly, so behind a quick
   tunnel on a host whose way out is only `HTTPS_PROXY` its forward road answers `502`, while its
   reverse road works: T-457.
