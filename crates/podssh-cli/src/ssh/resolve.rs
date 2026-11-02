@@ -387,7 +387,7 @@ pub fn resolve_or_refuse(args: &SshArgs, env: &Env) -> Result<Resolved, Refusal>
         None => Some(Duration::from_secs(60)),
     };
     let notes: Vec<String> = super::noted::of(&settings);
-    let mut warnings: Vec<String> = agents.warning.clone().into_iter().collect();
+    let mut warnings: Vec<String> = agents.warning.clone().into_iter().chain(super::noted::said(&settings)).collect();
     let idle = relay::idle_secs(&podssh_relay::pool::in_use());
     if resumable {
         if keepalive_interval.is_some() {

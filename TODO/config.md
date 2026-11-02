@@ -1578,7 +1578,7 @@ restriction. `-G` prints 40 lines where OpenSSH prints 91 (L-09); `-v` names `Ha
 **Milestone:** none
 **Priority:** P2
 **Effort:** M
-**Status:** open
+**Status:** partial
 
 ## Problem
 
@@ -1654,6 +1654,34 @@ the relay road has no local address to choose.
 
 **Ruled, Q71 (2026-11-02):** as recommended: the lists apply.
 
+Calls of the draft (2026-11-02, Q86), with what lost:
+- **For the operator to confirm:** the host key algorithms that `known_hosts` records for the host
+  go first within each list, also one that replaces podssh's own or one with `^`. OpenSSH 10.3p1
+  keeps such a list's own order (`sshconnect2.c:239-251`: the order of `known_hosts` for no list,
+  or one with `+` or `-`, alone). Lost, OpenSSH's rule: Fedora's crypto policy gives an explicit
+  `HostKeyAlgorithms` in each run, ECDSA first, and podssh, which records one key of a host (no
+  `UpdateHostKeys`), would ask a host that it knows by its Ed25519 key for an ECDSA key that it
+  does not know: a question, or a refusal under `StrictHostKeyChecking yes`, where nothing changed.
+- **For the operator to confirm:** podssh's own lists, which a list with `+`, `-` or `^` starts
+  from and `-G` prints, are what it offered before (russh's), not OpenSSH's defaults; `ssh-rsa`
+  (SHA-1) stays in its own `PubkeyAcceptedAlgorithms` (for an agent's key, when the server lists
+  nothing better, T-257) and `CASignatureAlgorithms`, where OpenSSH 8.2 and 8.8 dropped it. Lost,
+  OpenSSH's defaults: they would change what podssh offers and takes when no keyword is given,
+  which Q71 did not ask; to drop SHA-1 RSA from podssh's own lists is a call of its own.
+- A name that podssh does not speak is left out, with a note at `-v`, where OpenSSH refuses a
+  name that OpenSSH does not know (`ciphers_valid`, `mac_valid`, `kex_names_valid` and
+  `sshkey_names_valid2`, `readconf.c:1589-1660`) and leaves out one that it knows and lacks
+  (`kex_assemble_names`, `kex-names.c:243-336`). Lost, a refusal: podssh cannot know each name of
+  each release of OpenSSH, and a name of a newer one, as a distribution's policy writes it, would
+  stop each run. A pattern is taken in each form, where OpenSSH takes one in a list of `-` alone
+  for `Ciphers`, `MACs` and `KexAlgorithms`; a `!` outside a list of `-` is refused, as OpenSSH
+  refuses it.
+- The lists of the command line hold for each hop of `-J`, as its settings of host keys do
+  (T-290), where OpenSSH's jump process gets no `-o`. Lost: the hop's own file alone, which would
+  let a hop take what the command line forbids.
+- `-c` and `-m` stay refused, and name `-o Ciphers=LIST` and `-o MACs=LIST`; `-Q` names `-G`. Lost:
+  `-c` and `-m` as flags of `ssh`, `scp` and `sftp`, new flags that the entry does not ask for.
+
 ## Prove
 
 ```sh
@@ -1663,3 +1691,92 @@ cargo test -p podssh-cli --test ssh_config_file -- algorithms
 ```
 
 Planted: a list read and not applied: the test of `-G` fails.
+
+## Correction
+
+2026-11-02, read in OpenSSH 10.3p1 (tag `V_10_3_P1` of openssh-portable, through
+`fetch.web.pkgforge.dev`), `ssh_config(5)`, and this tree. The Premise holds at its lines; three
+facts change the Approach:
+- Its inference about Fedora is read now: T-044's fixture of Fedora 42's crypto policy
+  (`crates/podssh-cli/tests/ssh_config_include.rs:189-196`, as its packages write it) sets
+  `Ciphers`, `MACs`, `KexAlgorithms`, `PubkeyAcceptedAlgorithms`, `CASignatureAlgorithms` and
+  `RequiredRSASize`, in the final pass of a `Match final all` block of the system's file. Each of
+  its names is one that podssh speaks, so the policy applies, with no note.
+- OpenSSH holds a certificate to `RequiredRSASize` by the RSA key of its CA too ("A certificate is
+  no stronger than the CA key that signed it", `sshkey_check_rsa_length`, `sshkey.c:1455-1475`),
+  and takes no RSA key under 1024 whatever the keyword says (`SSH_RSA_MINIMUM_MODULUS_SIZE`); its
+  `-G` prints the value as given (`readconf.c:3800`). Approach, step 1, added: so does podssh.
+- `CASignatureAlgorithms` holds for a host certificate whose CA a `@cert-authority` line names
+  (`sshkey_cert_check_host`, `sshconnect.c:1078-1086`); another's certificate is checked as its
+  plain key, as T-027 falls back. An RSA key of the user signs with the first of RSA's algorithms
+  of `PubkeyAcceptedAlgorithms` that the server lists (`key_sig_algorithm`,
+  `sshconnect2.c:1159-1206`); russh tells the server's best alone, so podssh takes it when the list
+  does, else the list's first of RSA. `-G` prints `requiredrsasize` after `serveraliveinterval`,
+  and the lists among the strings, in OpenSSH's places (`dump_client_config`, `readconf.c:3728`).
+
+## Done
+
+Drafted 2026-11-02 by a drafting agent, not built; the main session builds it, runs it and fills
+each UNVERIFIED.
+- `crates/podssh-ssh/src/algorithms/`: the six lists, assembled as `kex_assemble_names` assembles
+  them over podssh's own (russh's) and what podssh speaks (russh's, but `none` and `clear`, and no
+  extension of the key exchange), with the names left out and the refusal of a list that leaves
+  nothing (`mod.rs`, `names.rs`); what they do (`apply.rs`): the handshake's ciphers, MACs, key
+  exchanges (russh's extensions kept) and host key algorithms (`run_config.rs`, then the order of
+  `known_hosts`), the certificates asked of a host of a `@cert-authority` line, a key of the user
+  that `PubkeyAcceptedAlgorithms` or `RequiredRSASize` leaves out, which `-v` names, and the hash of
+  RSA (`keys.rs`), and a host key, or the RSA key of a certificate's CA, under `RequiredRSASize`, or
+  a certificate of a named CA signed with an algorithm that `CASignatureAlgorithms` does not name,
+  refused with 255 before any question (`handler.rs`). `Options::algorithms` carries them.
+- `crates/podssh-cli/src/ssh/algorithms.rs`: each keyword read where it is given, the first value
+  holding (the command line's seed the reading of each file, T-502's `for_files`), a list that
+  leaves nothing refused with its place (64, or 78 with `-o KEYWORD=LIST` named as the way past
+  it); `crates/podssh-cli/src/ssh/login.rs` gives the lists to the destination's options and each
+  hop's, and `crates/podssh-cli/src/ssh/jump.rs` gives a hop the command line's.
+- `crates/podssh-cli/src/ssh/keywords.rs`: the eight keywords applied (`HONOURED`), the thirteen of
+  a restriction accepted with a note (`NOTED`, each with its reason), and the 29 inert ones
+  (`IGNORED`); `crates/podssh-cli/src/ssh/noted.rs`: the note of a restriction that the user gave,
+  at the default level, once (`Resolved::warnings`, which `-q` hides), and at `-v` the place of
+  each inert keyword ("FILE:LINE: NAME has no effect in podssh"), the names left out, and a
+  restriction of the system's file.
+- `-G` prints the six lists and `requiredrsasize` (`crates/podssh-cli/src/ssh/dump.rs`).
+- The manual splits its list in three (`crates/podssh-cli/src/man/model.rs`), with a note of the
+  lists (`crates/podssh-cli/src/man/notes_ssh_more.rs`) and `noted` in `podssh man --json`
+  (`crates/podssh-cli/src/man/json.rs`); `-c`, `-m` and `-Q` name what to use
+  (`crates/podssh-cli/src/flags.rs`, `crates/podssh-cli/src/flags/scp.rs`, and the context of
+  `scripts/plants/t139-scp-row.patch`); `docs/cli.md` says the same, in "Options of `podssh ssh`"
+  and "`ssh_config`".
+- Tests, UNVERIFIED: `cargo test -p podssh-ssh --lib algorithms` (5: the forms, a name left out
+  and a list of none refused, the certificates and extensions, the keys left out and RSA's hash,
+  the RSA floor of a key and of a host key); `cargo test -p podssh-cli --lib ssh::keywords`,
+  `ssh::options`, `ssh::noted`, `ssh::algorithms`; `cargo test -p podssh-cli --test
+  ssh_config_file -- algorithms` (5: `-G` for each list and form, from `-o` and a file, and for a
+  hop; the refusals with 64 and 78, offline; `RequiredRSASize 4096` against the test's server with
+  an RSA host key of 2048 bits, 255 with its words, and a list of host key algorithms with none in
+  common; `PubkeyAcceptedAlgorithms` that leaves the Ed25519 key unoffered, 255, and `-v`'s line;
+  the note of `VerifyHostKeyDNS` once at the default level, at `-v` for the system's file, none
+  with `-q`); `--test ssh_config` and the fixture of `--test ssh_config_file` with OpenSSH's
+  `requiredrsasize 1024` and the lists apart; `--test ssh_config_include` (Fedora's policy
+  applies, with no note); `--test man_json`.
+- Interop, UNVERIFIED (the build image): `INTEROP_ONLY=algorithms sh scripts/interop.sh BIN`
+  (`scripts/interop-algorithms.sh`, ten checks, `algorithms.*` in
+  `scripts/interop-baseline.txt`): against an sshd limited to `Ciphers aes128-ctr` at `LogLevel
+  DEBUG2`, podssh's own list logs in, `-o Ciphers=aes128-ctr` too and its log names the cipher,
+  `-o Ciphers=aes256-ctr` finds none in common (255), `-o KexAlgorithms=curve25519-sha256` and
+  `-o HostKeyAlgorithms=rsa-sha2-512` are named in its log, `RequiredRSASize=4096` refuses its RSA
+  key of 3072 bits, `PubkeyAcceptedAlgorithms` leaves the Ed25519 key out and signs the RSA key
+  with `rsa-sha2-256` (the log's line of `userauth_pubkey` at DEBUG2 is to be read on the first
+  run), `-o Ciphers=3des-cbc` is 64 with nothing in its log, and `-G`'s `requiredrsasize` is
+  OpenSSH's. The checks of `ssh -G` in `scripts/interop.sh` leave the lists out, as podssh's own.
+- Planted, UNVERIFIED: `scripts/plants/t505-list-not-applied.plant` (the lists never reach the
+  options: the test of `-G` must fail), `t505-rsa-floor-unchecked.plant` (no RSA floor for a host
+  key), `t505-system-file-said.plant` (the system's file said at the default level), and
+  `t505-lists-not-offered.plant` (the lists never reach the handshake: the interop check of no
+  cipher in common must fail).
+- The main session runs `cargo todo remap` on each changed file that `TODO/` cites
+  (`crates/podssh-cli/src/ssh/options.rs`, `resolve.rs`, `keywords.rs`, `dump.rs`, `mod.rs`,
+  `jump.rs`, `login.rs`, `crates/podssh-cli/src/man/model.rs`, `notes.rs`, `notes_ssh_more.rs`,
+  `json.rs`, `crates/podssh-cli/src/flags.rs`, `crates/podssh-ssh/src/keys.rs`, `handler.rs`,
+  `run.rs`, `run_config.rs`, `options.rs`, `lib.rs`, `scripts/interop.sh`, `docs/cli.md`,
+  `docs/STATUS.md`), and adds the two calls above to "For the operator to confirm (Q86)" of
+  `TODO/PROGRESS.md`.

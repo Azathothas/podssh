@@ -1,0 +1,9 @@
+--- a/crates/podssh-cli/src/ssh/login.rs
++++ b/crates/podssh-cli/src/ssh/login.rs
+@@ -91,6 +91,5 @@
+         options.connect_timeout = Duration::from_secs(settings.connect_timeout.unwrap_or(60));
+         // The lists of the handshake and of the keys offered (T-505), for
+         // the destination and each hop alike.
+-        options.algorithms = settings.algorithms.chosen();
+     }
+ }

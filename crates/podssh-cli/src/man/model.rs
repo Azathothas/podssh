@@ -246,11 +246,28 @@ fn keyword_blocks() -> Vec<Block> {
     for k in keywords::HONOURED {
         blocks.push(Block::Item { term: vec![lit(k.name), text("="), var(k.value)], text: k.help.to_string() });
     }
+    blocks.push(para(
+        "A LIST of Ciphers, MACs, KexAlgorithms, HostKeyAlgorithms, PubkeyAcceptedAlgorithms or \
+         CASignatureAlgorithms is read as OpenSSH reads it: a comma list replaces podssh's own, one that \
+         starts with + adds to it, with - takes from it, and with ^ puts its names first; a name may be a \
+         pattern of * and ?. A name that podssh does not speak is left out, and -v says so; a list that \
+         leaves nothing is refused before anything connects (64; 78 in a file), and names what podssh \
+         speaks. -G prints each list as podssh will offer it.",
+    ));
     for (name, why) in keywords::REFUSED {
         blocks.push(Block::Item { term: vec![lit(*name)], text: format!("refused: {why}") });
     }
+    blocks.push(para(
+        "Accepted and not applied, with one note at the default level for a value that you gave, on the \
+         command line or in your own ssh_config (none for the system's file, which says it at -v, and \
+         none with -q):",
+    ));
+    for (name, why) in keywords::NOTED {
+        blocks.push(Block::Item { term: vec![lit(*name)], text: format!("not applied: {why}") });
+    }
     blocks.push(para(format!(
-        "Accepted and ignored, because they change nothing that podssh does: {}.",
+        "Accepted with no effect, because they change nothing that podssh does; -v names the place of \
+         each: {}.",
         keywords::IGNORED.join(", ")
     )));
     blocks
@@ -354,7 +371,7 @@ mod tests {
         for k in keywords::HONOURED {
             assert!(items.iter().any(|(t, _)| t == &format!("{}={}", k.name, k.value)), "{}", k.name);
         }
-        for (name, _) in keywords::REFUSED {
+        for (name, _) in keywords::REFUSED.iter().chain(keywords::NOTED) {
             assert!(items.iter().any(|(t, _)| t == name), "{name}");
         }
         let ignored = s.blocks.iter().any(|b| matches!(b, Block::Para(t) if t.contains("AddKeysToAgent")));

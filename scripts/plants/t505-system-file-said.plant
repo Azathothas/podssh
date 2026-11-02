@@ -1,0 +1,8 @@
+# T-505: a restriction of the system's file that podssh does not apply is
+# said at the default level too, as on Fedora each run would say its crypto
+# policy's; the test of the notes must fail at the system's line.
+ENTRY=T-505
+GROUP=cli-tests
+EXPECT='test algorithms::algorithms_a_restriction_that_podssh_does_not_apply_is_said_once_for_the_users_own \.\.\. FAILED'
+RUN='cargo test --locked -p podssh-cli --test ssh_config_file -- algorithms::algorithms_a_restriction_that_podssh_does_not_apply_is_said_once_for_the_users_own'
+LIMIT=2400

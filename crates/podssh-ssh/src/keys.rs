@@ -55,6 +55,9 @@ pub(crate) struct PublicKeys {
     host: String,
     /// The keys that a passphrase opened earlier in this run.
     remembered: Option<Remembered>,
+    /// `PubkeyAcceptedAlgorithms` and `RequiredRSASize` (T-505): a key that
+    /// they refuse is not offered.
+    accepted: crate::algorithms::UserKeys,
 }
 
 impl PublicKeys {
@@ -75,6 +78,7 @@ impl PublicKeys {
             skipped_sk: Vec::new(),
             limit: opts.connect_timeout,
             host: host.to_string(),
+            accepted: crate::algorithms::UserKeys::of(&opts.algorithms),
         }
     }
 
@@ -87,6 +91,10 @@ impl PublicKeys {
             let Some(key) = self.load(&path).await else { continue };
             let public = key.public_key().clone();
             if self.offered.iter().any(|k| k.key_data() == public.key_data()) {
+                continue;
+            }
+            if let Some(why) = self.accepted.refuses(&public) {
+                self.log.verbose(&format!("skipped the key file {}: {why}", path.display()));
                 continue;
             }
             if let Some(security) = SkKey::of(key.key_data()) {
@@ -235,6 +243,10 @@ impl PublicKeys {
             if self.offered.iter().any(|k| k.key_data() == key.key_data()) {
                 continue;
             }
+            if let Some(why) = self.accepted.refuses(&key) {
+                self.log.verbose(&format!("skipped the agent key {}: {why}", crate::known_hosts::fingerprint(&key)));
+                continue;
+            }
             let hash = self.hash_for(handle, &key).await;
             let AgentState::Ready(agent, _) = &mut self.agent else { return Ok(None) };
             self.log.debug(&format!("offering agent key {}", crate::known_hosts::fingerprint(&key)));
@@ -266,7 +278,9 @@ impl PublicKeys {
 
     /// The hash for an RSA signature: the best the server lists, else
     /// SHA-512. `None`, SHA-1, only when the server lists nothing better: an
-    /// agent may sign with it, a key file never does (T-257).
+    /// agent may sign with it, a key file never does (T-257). A list of
+    /// `PubkeyAcceptedAlgorithms` that does not take it gives its own
+    /// (T-505).
     async fn hash_for(&mut self, handle: &Handle<Client>, key: &PublicKey) -> Option<HashAlg> {
         if !key.algorithm().is_rsa() {
             return None;
@@ -277,7 +291,7 @@ impl PublicKeys {
                 _ => Some(HashAlg::Sha512),
             });
         }
-        self.rsa_hash.flatten()
+        self.accepted.rsa_hash(self.rsa_hash.flatten())
     }
 
     async fn load(&mut self, path: &Path) -> Option<PrivateKey> {

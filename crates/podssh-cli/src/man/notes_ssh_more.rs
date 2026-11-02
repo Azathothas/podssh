@@ -28,8 +28,19 @@ pub(super) const MORE: &[&str] = &[
     "-G prints the settings in effect, as ssh -G does: a line of keyword and value for each keyword of \
      OpenSSH that podssh applies, defaults included, then exits 0 with nothing opened. The defaults \
      that differ from OpenSSH's do on purpose: ServerAliveInterval and ConnectTimeout are 60, and no \
-     identity file of a security key is tried. podssh's own settings, such as the relay hosts, print no \
-     line, as OpenSSH knows no keyword for them.",
+     identity file of a security key is tried; each list of algorithms is what podssh will offer, its own \
+     unless a keyword gave one. podssh's own settings, such as the relay hosts, print no line, as OpenSSH \
+     knows no keyword for them.",
+    "Ciphers, MACs, KexAlgorithms, HostKeyAlgorithms, PubkeyAcceptedAlgorithms and CASignatureAlgorithms \
+     filter what podssh offers, as OpenSSH reads them: a list replaces podssh's own, one that starts with + \
+     adds to it, with - takes from it, and with ^ puts its names first. A name that podssh does not speak \
+     is left out, and -v says so; a list that leaves nothing is refused before anything connects (exit 64, \
+     or 78 for a line of a file). The host key algorithms that known_hosts records for the host go first \
+     within the list. RequiredRSASize is the least RSA key: a smaller key of the user is not offered, and a \
+     smaller host key, or key of the CA of a host certificate, ends the connection (exit 255). The other \
+     keywords of a restriction, which podssh does not apply, such as VerifyHostKeyDNS and BindAddress, get \
+     one note when you give them, none for the system's ssh_config and none with -q; the keywords that \
+     change nothing get a note at -v that names their place.",
     "Paths in -i and in the IdentityFile, UserKnownHostsFile, GlobalKnownHostsFile, IdentityAgent and \
      ForwardAgent keywords take the tokens of OpenSSH: %% %C %d %h %i %j %k %L %l %n %p %r %u, with \
      OpenSSH's values. %u is the local user and %r the remote one. An unknown token is refused (exit 64). \

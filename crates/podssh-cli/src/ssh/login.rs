@@ -89,5 +89,8 @@ impl Login {
         options.password_prompts = settings.password_prompts.unwrap_or(3);
         options.keepalive_max = settings.alive_count.unwrap_or(3);
         options.connect_timeout = Duration::from_secs(settings.connect_timeout.unwrap_or(60));
+        // The lists of the handshake and of the keys offered (T-505), for
+        // the destination and each hop alike.
+        options.algorithms = settings.algorithms.chosen();
     }
 }

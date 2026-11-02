@@ -62,15 +62,15 @@ repository and CI).
 
 ## Counts
 
-**505 entries: 91 open, 4 partial, 16 blocked, 394 done.**
+**505 entries: 90 open, 5 partial, 16 blocked, 394 done.**
 
 | Priority | open | partial | blocked | done | total |
 | --- | --- | --- | --- | --- | --- |
 | P0 | 0 | 0 | 0 | 1 | 1 |
 | P1 | 6 | 3 | 0 | 51 | 60 |
-| P2 | 35 | 1 | 14 | 189 | 239 |
+| P2 | 34 | 2 | 14 | 189 | 239 |
 | P3 | 50 | 0 | 2 | 153 | 205 |
-| **All** | 91 | 4 | 16 | 394 | 505 |
+| **All** | 90 | 5 | 16 | 394 | 505 |
 
 ## Entries
 
@@ -569,7 +569,7 @@ repository and CI).
 | [T-502](config.md) | P2 | S | none | defect | partial | `-o ProxyCommand=none` does not beat a file's `ProxyCommand`, and the first `ProxyCommand` of a file does not hold |
 | [T-503](ssh.md) | P2 | S | none | defect | open | The direct road dials a host name that the relay road refuses, and refuses a blank only at the dial, with 255 |
 | [T-504](multi.md) | P1 | S | none | defect | open | `each` splits a host of the command line at a blank, and runs the command on hosts that nobody named |
-| [T-505](config.md) | P2 | M | none | defect | open | Keywords that restrict a connection (`Ciphers`, `HostKeyAlgorithms`, `RequiredRSASize` and others) are accepted with no effect and no word, and the manual says that they change nothing |
+| [T-505](config.md) | P2 | M | none | defect | partial | Keywords that restrict a connection (`Ciphers`, `HostKeyAlgorithms`, `RequiredRSASize` and others) are accepted with no effect and no word, and the manual says that they change nothing |
 | [T-506](multi.md) | P3 | S | none | defect | open | `session list` and `detached list` print nothing when there is nothing to list, and `session list` drops a session that does not answer |
 | [T-507](release.md) | P3 | S | none | defect | open | `update` to a release with no `--rollback` names `--rollback` as the way back |
 | [T-508](copy.md) | P3 | S | none | feature | open | `scp` and `sftp` take no `--timeout`, where `cp` and `mv` need one with no terminal, and no manual says why |

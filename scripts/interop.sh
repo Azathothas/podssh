@@ -287,8 +287,10 @@ got=$(ls -d "$TOK"/* 2>/dev/null)
     || bad ssh.config.tokens "% tokens: exit $rc; podssh wrote ${got:-nothing}; ssh -G gives ${want:-nothing}" "$W/err"
 
 # podssh ssh -G (T-046): each line that podssh prints is one of OpenSSH's,
-# but for the defaults that differ on purpose. HOME is the one that OpenSSH
-# reads from the user database.
+# but for the defaults that differ on purpose, and the lists of algorithms,
+# which are podssh's own (T-505). HOME is the one that OpenSSH reads from
+# the user database.
+LISTS='ciphers|macs|kexalgorithms|hostkeyalgorithms|pubkeyacceptedalgorithms|casignaturealgorithms'
 home=$(awk -F: -v u="$(id -un)" '$1 == u {print $6}' /etc/passwd)
 for spec in "short:-p 2222 -l alice example.org" \
         "long:-l alice -o ServerAliveInterval=30 -o ConnectTimeout=7 -o StrictHostKeyChecking=accept-new -o SendEnv=LANG -o LogLevel=VERBOSE -e % -4 -J u@b:2200,c -o RemoteCommand=uptime -o IdentityAgent=none EXAMPLE.org"; do
@@ -298,7 +300,7 @@ for spec in "short:-p 2222 -l alice example.org" \
     # shellcheck disable=SC2086
     env HOME="$home" PODSSH_OFFLINE=1 "$BIN" ssh -F none -G $args </dev/null >"$W/podssh-G" 2>"$W/err"
     rc=$?
-    extra=$(grep -v -E '^(serveraliveinterval|connecttimeout) ' "$W/podssh-G" | grep -vxF -f "$W/ssh-G" | tr '\n' ';')
+    extra=$(grep -v -E "^(serveraliveinterval|connecttimeout|$LISTS) " "$W/podssh-G" | grep -vxF -f "$W/ssh-G" | tr '\n' ';')
     [ "$rc" = 0 ] && [ -s "$W/podssh-G" ] && [ -z "$extra" ] && [ ! -s "$W/err" ] \
         && ok "ssh.config.g.${spec%%:*}" "ssh -G: each line that podssh prints is OpenSSH's ($args)" \
         || bad "ssh.config.g.${spec%%:*}" "ssh -G ($args): exit $rc; not OpenSSH's: ${extra:-nothing}" "$W/err"
@@ -317,7 +319,7 @@ for alias in openssh-alias dropbear-alias; do
     ssh -F "$W/ssh_config" -G "$alias" </dev/null >"$W/ssh-G" 2>/dev/null
     env HOME="$home" PODSSH_OFFLINE=1 "$BIN" ssh -F "$W/ssh_config" -G "$alias" </dev/null >"$W/podssh-G" 2>"$W/err"
     rc=$?
-    extra=$(grep -v -E '^(serveraliveinterval|connecttimeout) ' "$W/podssh-G" | grep -vxF -f "$W/ssh-G" | tr '\n' ';')
+    extra=$(grep -v -E "^(serveraliveinterval|connecttimeout|$LISTS) " "$W/podssh-G" | grep -vxF -f "$W/ssh-G" | tr '\n' ';')
     [ "$rc" = 0 ] && [ -s "$W/podssh-G" ] && [ -z "$extra" ] \
         && ok "ssh.config.g_file.${alias}" "ssh -G -F FILE: each line that podssh prints is OpenSSH's ($alias)" \
         || bad "ssh.config.g_file.${alias}" "ssh -G -F FILE ($alias): exit $rc; not OpenSSH's: ${extra:-nothing}" "$W/err"
@@ -343,7 +345,7 @@ printf 'Include %s/inc/d*/a.conf\nMatch final all\n  ConnectTimeout 9\n  User no
 ssh -F "$W/inc/main" -G inc-alias </dev/null >"$W/ssh-G" 2>/dev/null
 env HOME="$home" PODSSH_OFFLINE=1 "$BIN" ssh -F "$W/inc/main" -G inc-alias </dev/null >"$W/podssh-G" 2>"$W/err"
 rc=$?
-extra=$(grep -v -E '^serveraliveinterval ' "$W/podssh-G" | grep -vxF -f "$W/ssh-G" | tr '\n' ';')
+extra=$(grep -v -E "^(serveraliveinterval|$LISTS) " "$W/podssh-G" | grep -vxF -f "$W/ssh-G" | tr '\n' ';')
 [ "$rc" = 0 ] && [ -z "$extra" ] && grep -qx 'port 2401' "$W/podssh-G" && grep -qx 'user podtest' "$W/podssh-G" \
     && grep -qx 'connecttimeout 9' "$W/podssh-G" \
     && ok ssh.config.include "ssh -G with Include and Match final all: each line that podssh prints is OpenSSH's" \
@@ -360,6 +362,8 @@ p 2203 $K -o BatchMode=yes -J "$T:2201" "$T" 'exit 5' </dev/null >"$W/out" 2>"$W
 expect_rc ssh.forward.jump "-J through OpenSSH to Dropbear" 5 $? "$W/err"
 # shellcheck source=scripts/interop-hostkeys.sh
 part interop-hostkeys.sh
+# shellcheck source=scripts/interop-algorithms.sh
+part interop-algorithms.sh
 printf '\000\000\000\005\001\000\000\000\003' >"$W/fxp_init"
 # stdin stays open a moment: OpenSSH's sftp-server exits on end of input
 # without flushing its reply (measured 2026-10-08 on a Debian host, without

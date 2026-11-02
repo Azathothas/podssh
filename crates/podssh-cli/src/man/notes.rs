@@ -353,7 +353,9 @@ mod tests {
     }
 
     fn keyword_exists(name: &str) -> bool {
-        keywords::known_names().chain(keywords::IGNORED.iter().copied()).any(|k| k.eq_ignore_ascii_case(name))
+        let noted = keywords::NOTED.iter().map(|(k, _)| *k);
+        let mut known = keywords::known_names().chain(keywords::IGNORED.iter().copied()).chain(noted);
+        known.any(|k| k.eq_ignore_ascii_case(name))
     }
 
     fn problems() -> Vec<String> {

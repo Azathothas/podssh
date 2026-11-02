@@ -378,7 +378,10 @@ where
     // never a jump hop.
     let forwarded = if is_destination { opts.forward_agent.clone() } else { Agent::Off };
     let x11 = if is_destination { opts.forward_x11.clone() } else { None };
-    let client = Client::new(policy, log.clone()).forwarding_agent(forwarded).forwarding_x11(x11);
+    let client = Client::new(policy, log.clone())
+        .forwarding_agent(forwarded)
+        .forwarding_x11(x11)
+        .limiting(&opts.algorithms);
     let refusal = client.refusal();
     let disconnect = client.disconnect();
     let forwards = client.forwards();

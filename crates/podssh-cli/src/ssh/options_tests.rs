@@ -38,9 +38,30 @@ fn bad_values_and_refused_keywords_are_errors() {
 #[test]
 fn ignored_keywords_are_accepted_and_remembered() {
     let mut s = Settings::default();
-    s.apply("UpdateHostKeys=yes").unwrap();
+    s.apply("CheckHostIP=yes").unwrap();
     s.apply("HashKnownHosts=yes").unwrap();
-    assert_eq!(s.ignored, vec!["UpdateHostKeys", "HashKnownHosts"]);
+    s.apply("hashknownhosts=no").unwrap();
+    let names: Vec<&str> = s.ignored.iter().map(|g| g.name.as_str()).collect();
+    assert_eq!(names, ["CheckHostIP", "HashKnownHosts"], "the first of each, once");
+    // A restriction that podssh does not apply is kept apart, for its note
+    // at the default level (T-505).
+    s.apply("UpdateHostKeys=yes").unwrap();
+    assert_eq!(s.noted, [Given::new("UpdateHostKeys", "yes", &Place::CommandLine)]);
+    assert_eq!(s.ignored.len(), 2);
+}
+
+/// A list of a restriction is read with its place and applied (T-505): the
+/// first holds, and one that leaves nothing is refused where it is read.
+#[test]
+fn the_lists_of_a_restriction_are_read_where_they_are_given() {
+    let mut s = Settings::default();
+    s.apply("Ciphers=aes128-ctr").unwrap();
+    s.apply_at("Ciphers=3des-cbc", &Place::line("/f", 2, false)).unwrap();
+    assert_eq!(s.algorithms.chosen().ciphers, Some(vec!["aes128-ctr".to_string()]));
+    assert!(s.ignored.is_empty() && s.noted.is_empty());
+    let err = Settings::default().apply("KexAlgorithms=no-such-kex").unwrap_err();
+    assert!(err.starts_with("-o KexAlgorithms=no-such-kex: leaves no key exchange"), "{err}");
+    assert!(Settings::default().apply("Ciphers=").unwrap_err().contains("missing value"));
 }
 
 #[test]

@@ -51,6 +51,9 @@ pub struct Client {
     /// The display that this server may use (`-X`, `-Y`): an `x11` channel
     /// is accepted only then, for the destination alone (T-037).
     x11: Option<crate::x11::Forward>,
+    /// What the host key must meet before known_hosts is read:
+    /// `RequiredRSASize` and `CASignatureAlgorithms` (T-505).
+    limits: crate::algorithms::HostLimits,
 }
 
 impl Client {
@@ -63,7 +66,14 @@ impl Client {
             forwards: Arc::new(Mutex::new(Vec::new())),
             agent: Forward::new(Agent::Off),
             x11: None,
+            limits: crate::algorithms::HostLimits::default(),
         }
+    }
+
+    /// Hold the host key to the lists of `algorithms` (T-505): the hop's own.
+    pub fn limiting(mut self, algorithms: &crate::algorithms::Algorithms) -> Self {
+        self.limits = crate::algorithms::HostLimits::of(algorithms);
+        self
     }
 
     /// Let this server use `agent` (T-036): the destination's, with `-A`.
@@ -122,6 +132,13 @@ impl Handler for Client {
     type Error = russh::Error;
 
     async fn check_server_key(&mut self, key: &PublicKeyOrCertificate) -> Result<bool, Self::Error> {
+        // RequiredRSASize and CASignatureAlgorithms end the connection
+        // before any question, as in OpenSSH (T-505).
+        let files: Vec<_> = self.policy.user_files.iter().chain(&self.policy.global_files).cloned().collect();
+        if let Some(why) = self.limits.refuses(key, &files, &self.policy.name) {
+            *self.refusal.lock().unwrap_or_else(|e| e.into_inner()) = Some(why);
+            return Ok(false);
+        }
         // A host certificate is checked against the `@cert-authority` lines,
         // and as its plain key when no line names its CA, as OpenSSH falls
         // back (T-027).

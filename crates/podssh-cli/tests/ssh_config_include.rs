@@ -196,6 +196,21 @@ fn the_system_files_of_fedora_42_and_debian_13_are_read() {
          RequiredRSASize 2048\n",
     );
     assert_eq!(port(&["x"], &h.env_system()), 22);
+    // The crypto policy's lists apply, from its final pass, as they restrict
+    // OpenSSH, and with no note, as they come from the system (T-505).
+    let shown = lines(&["x"], &h.env_system());
+    for line in [
+        "ciphers aes256-gcm@openssh.com,chacha20-poly1305@openssh.com",
+        "macs hmac-sha2-256-etm@openssh.com",
+        "kexalgorithms curve25519-sha256",
+        "pubkeyacceptedalgorithms ssh-ed25519,rsa-sha2-256",
+        "casignaturealgorithms ssh-ed25519",
+        "requiredrsasize 2048",
+    ] {
+        assert!(shown.contains(&line.to_string()), "{line}: {shown:#?}");
+    }
+    let r = resolve(&ssh(&["x"]), &h.env_system()).unwrap_or_else(|e| panic!("{e}"));
+    assert!(r.warnings.iter().all(|w| !w.contains("is not applied")), "{:?}", r.warnings);
     // Debian 13.
     h.file(
         "etc/ssh_config",

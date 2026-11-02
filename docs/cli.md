@@ -60,6 +60,53 @@ scripts. The facts about OpenSSH on this page were measured with OpenSSH
   `Bad configuration option` for an unknown `-o` keyword, before it connects.
   `podssh --help COMMAND` prints the help of COMMAND; each other word after
   `--help` or `--version` is refused (exit 64).
+- **The keywords of a restriction apply** (T-505, Q71). `Ciphers`, `MACs`,
+  `KexAlgorithms`, `HostKeyAlgorithms`, `PubkeyAcceptedAlgorithms` (and its
+  old name `PubkeyAcceptedKeyTypes`) and `CASignatureAlgorithms` filter what
+  podssh offers, read as OpenSSH 10.3p1's `kex_assemble_names`
+  (`kex-names.c`) reads them: a list replaces podssh's own, one that starts
+  with `+` adds to it, with `-` takes from it (a pattern of `*` and `?`
+  too, and `!` there), and with `^` puts its names first. A name that
+  podssh does not speak (`3des-cbc`, `umac-64@openssh.com`,
+  `sntrup761x25519-sha512@openssh.com`) is left out, and `-v` says so, as
+  OpenSSH filters a list by what it speaks; a list that leaves nothing is
+  refused before anything connects, with what podssh speaks: 64 for `-o`,
+  78 for a line of a file, whose refusal names `-o KEYWORD=LIST`, which goes
+  past it. The first value of each keyword holds, on the command line or in
+  a file, and a later one is not read. The lists of the command line hold
+  for each hop of `-J` too. The host key algorithms that `known_hosts`
+  records for the host go first within the list, also for a list that
+  replaces podssh's own or one with `^`, where OpenSSH keeps the list's
+  order: a key that podssh knows is never passed over for one that it does
+  not (Decision of T-505). A certificate's name is asked for only of a host
+  that a `@cert-authority` line names (T-027). `RequiredRSASize` is the
+  least RSA key: a smaller key of the user (a file's, or an agent's) is not
+  offered, and `-v` says why, and a smaller host key, or RSA key of the CA
+  of a host certificate, ends the connection with 255 before any question;
+  under 1024 it changes nothing, as in OpenSSH. `CASignatureAlgorithms`
+  holds for a certificate of a CA that a `@cert-authority` line names for
+  the host: another is checked as its plain key, as OpenSSH falls back.
+  `-G` prints each list as podssh will offer it (`ciphers`, `macs`,
+  `kexalgorithms`, `hostkeyalgorithms`, `pubkeyacceptedalgorithms`,
+  `casignaturealgorithms`) and `requiredrsasize`, in OpenSSH's places;
+  podssh's own lists are russh's, and differ from OpenSSH's on purpose.
+  `-c` and `-m` are refused, and name `-o Ciphers=LIST` and `-o MACs=LIST`.
+- **The other keywords of a restriction are said** (T-505). `BindAddress`,
+  `BindInterface`, `CertificateFile`, `ChannelTimeout`, `IPQoS`,
+  `RekeyLimit`, `SecurityKeyProvider`, `TCPKeepAlive`, `Tunnel`,
+  `TunnelDevice`, `UpdateHostKeys`, `VerifyHostKeyDNS` and `WarnWeakCrypto`
+  are accepted and not applied; a value that the user gave, with `-o` or in
+  a file of the user's (`-F`, `PODSSH_SSH_CONFIG`, `~/.ssh/config` and what
+  they include), gets one line at the default level, once for each keyword
+  and run: `VerifyHostKeyDNS yes (/home/u/.ssh/config:4) is not applied:
+  podssh checks host keys against known_hosts alone`. A line of the
+  system's file gets it at `-v` alone, as a distribution writes that file
+  for each program, and `-q` shows none. The keywords that change nothing
+  that podssh does (`HashKnownHosts`, the GSSAPI ones and the others of the
+  manual) get a note at `-v` that names their place:
+  `/etc/ssh/ssh_config:22: HashKnownHosts has no effect in podssh`, or `-o
+  HashKnownHosts has no effect in podssh`. The manual's section of `ssh`
+  lists the three kinds apart.
 - **Destinations.** `node://[user@]NAME` is the node of the pair under the
   label NAME (T-084), reached through the relay, with its host key recorded
   under `node://NAME`, which no DNS name can be; `node:22` is still the host
@@ -649,7 +696,8 @@ scripts. The facts about OpenSSH on this page were measured with OpenSSH
   `false` where OpenSSH writes them), then exit 0 with nothing opened: no
   relay, no token. A script can compare the two line by line. The defaults
   that differ do on purpose: `serveraliveinterval 60` (the relay's idle
-  cut) and `connecttimeout 60`. podssh tries the `_sk` identity files too,
+  cut), `connecttimeout 60`, and the lists of algorithms, which are what
+  podssh will offer (T-505). podssh tries the `_sk` identity files too,
   as OpenSSH does: a key of a security key signs in its device (T-229).
   podssh's own settings (relay hosts, `--ca-file`)
   print no line, as OpenSSH knows no such keyword; `podssh status` shows
@@ -3761,7 +3809,12 @@ name with the file and the line (78), and run nothing, where they would
 decide the block: podssh runs no program for a configuration, and probes no
 interface. `Tag` and `-P` set the tag of `Match tagged`. The keywords of the GSSAPI patch of Debian and Fedora
 (`GSSAPIKexAlgorithms` in Fedora's crypto policy) are accepted with no
-effect, as podssh has no GSSAPI.
+effect, as podssh has no GSSAPI. The rest of Fedora's crypto policy
+applies (T-505): its `Ciphers`, `MACs`, `KexAlgorithms`,
+`HostKeyAlgorithms`, `PubkeyAcceptedAlgorithms`, `CASignatureAlgorithms`
+and `RequiredRSASize`, read in the final pass of its `Match final all`,
+restrict what podssh offers as they restrict OpenSSH, with no note, as
+they come from the system's file.
 
 Each hop of `-J` or `ProxyJump` reads the blocks of its own name, as
 OpenSSH's jump host does (T-290): its `HostName`, `Port`, `User`,

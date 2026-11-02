@@ -56,6 +56,7 @@ connectionattempts 3
 numberofpasswordprompts 2
 serveralivecountmax 5
 serveraliveinterval 30
+requiredrsasize 1024
 controlpath /tmp/podssh-ctl
 hostkeyalias al
 identityagent none
@@ -119,6 +120,7 @@ connectionattempts 1
 numberofpasswordprompts 3
 serveralivecountmax 3
 serveraliveinterval 0
+requiredrsasize 1024
 loglevel INFO
 identityfile ~/.ssh/id_rsa
 identityfile ~/.ssh/id_ecdsa
@@ -150,12 +152,20 @@ fn ssh(words: &[&str]) -> SshArgs {
     }
 }
 
+/// The lines of `-G`, but for the lists of algorithms: podssh's own, which
+/// differ from OpenSSH's on purpose (T-505), and which
+/// `tests/ssh_config_file/algorithms.rs` checks.
 fn printed(words: &[&str]) -> Vec<String> {
     let env = Env { home: Some(PathBuf::from("/home/u")), user: Some("envuser".into()), ..Env::default() };
     let args = ssh(words);
     assert!(args.print_config);
-    dump::lines(&resolve(&args, &env).unwrap_or_else(|e| panic!("{words:?}: {e}")))
+    let lines = dump::lines(&resolve(&args, &env).unwrap_or_else(|e| panic!("{words:?}: {e}")));
+    lines.into_iter().filter(|l| !LISTS.iter().any(|k| l.starts_with(&format!("{k} ")))).collect()
 }
+
+/// The keywords of `-G`'s lists of algorithms.
+const LISTS: [&str; 6] =
+    ["ciphers", "macs", "kexalgorithms", "hostkeyalgorithms", "pubkeyacceptedalgorithms", "casignaturealgorithms"];
 
 #[test]
 fn print_config_gives_openssh_s_line_for_each_setting_given() {

@@ -29,6 +29,8 @@
 //!   after a probe of the way to it ([`sk`]).
 
 mod agent_bind;
+// The lists of ssh_config's keywords of a restriction (T-505).
+pub mod algorithms;
 mod agent_forward;
 mod answer;
 pub mod auth;

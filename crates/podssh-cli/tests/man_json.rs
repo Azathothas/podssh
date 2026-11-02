@@ -86,6 +86,9 @@ fn each_keyword_variable_and_exit_code_is_in_the_json() {
     for (k, _) in podssh_cli::ssh::keywords::REFUSED {
         assert!(names(&keywords["refused"], "name").contains(&k.to_string()), "{k}");
     }
+    for (k, _) in podssh_cli::ssh::keywords::NOTED {
+        assert!(names(&keywords["noted"], "name").contains(&k.to_string()), "{k}");
+    }
     let variables: Vec<String> = doc["variables"]
         .as_array()
         .unwrap()

@@ -1,0 +1,8 @@
+# T-505: the host key's RSA size is never held to RequiredRSASize, so a
+# host key of 2048 bits is taken under RequiredRSASize 4096; the test of
+# the test's server with that key must fail.
+ENTRY=T-505
+GROUP=cli-tests
+EXPECT='test algorithms::algorithms_required_rsa_size_refuses_a_smaller_host_key_with_255 \.\.\. FAILED'
+RUN='cargo test --locked -p podssh-cli --test ssh_config_file -- algorithms::algorithms_required_rsa_size_refuses_a_smaller_host_key_with_255'
+LIMIT=2400

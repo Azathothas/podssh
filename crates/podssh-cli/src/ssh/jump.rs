@@ -61,7 +61,7 @@ impl Tunnel {
 }
 
 /// The settings of the command line that hold for each hop too (T-030):
-/// host keys, authentication, keys and time.
+/// host keys, authentication, keys and time, and the lists of algorithms.
 fn for_hop(cli: &Settings) -> Settings {
     Settings {
         identity_files: cli.identity_files.clone(),
@@ -83,6 +83,8 @@ fn for_hop(cli: &Settings) -> Settings {
         ignore_unknown: cli.ignore_unknown.clone(),
         // `-o ProxyCommand=none` goes past each hop's file too (T-502).
         proxy_command: cli.proxy_command.clone(),
+        // A restriction of the command line holds for each hop (T-505).
+        algorithms: cli.algorithms.clone(),
         ..Settings::default()
     }
 }
