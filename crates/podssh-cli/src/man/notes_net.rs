@@ -41,8 +41,10 @@ pub const NET: &[&str] = &[
      an address; on stdout allowed or refused, a tab and the rule or the reason, and 0 or 77. A document with a \
      policy requires it, so a podssh that cannot read the rules refuses the document and keeps the one before.",
     "A member's name is a destination: podssh ssh node://NAME, and podssh ssh NAME alone when NAME is a member \
-     with the role node, as MagicDNS names a host of its tailnet. A name has no dot, so no DNS name is a member's. \
-     The net names the member's key, which the end-to-end channel checks in place of the pins of known-nodes, and \
-     its tickets, which race beside the pair kept under NAME when the command line names none. PODSSH_NET=no \
+     with the role node, as MagicDNS names a host of its tailnet; so is [user@]NAME:path of podssh cp, mv, scp \
+     and edit, and NAME of podssh sftp, each read as podssh ssh reads it. A name has no dot, so no DNS name is \
+     a member's. The net names the member's key, which the end-to-end channel checks in place of the pins of \
+     known-nodes, and its tickets, which race beside the pair kept under NAME when the command line names none; \
+     a copy takes the pair's road alone. PODSSH_NET=no \
      turns the net off: no name, no door and no document of the channel comes from it.",
 ];

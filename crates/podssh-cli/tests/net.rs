@@ -6,10 +6,12 @@
 //! relay: two members reach a node by its name alone; the owner removes
 //! one, a member brings the new document to the node in the end-to-end
 //! channel, and the removed member is refused at its next session. The
-//! net's policy (T-430) is the module `net_policy`. A check that needs
-//! ssh-keygen, or Python and openssl for the stand-in, says that it did not
-//! run when this host has none.
+//! net's policy (T-430) is the module `net_policy`, and the copies to a
+//! member by its name alone (T-453) the module `net_copy`. A check that
+//! needs ssh-keygen, or Python and openssl for the stand-in, says that it
+//! did not run when this host has none.
 
+mod net_copy;
 mod net_policy;
 mod ssh_harness;
 mod throughput_harness;
