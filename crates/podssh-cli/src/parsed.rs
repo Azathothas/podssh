@@ -81,6 +81,8 @@ pub enum Parsed {
         forwarder: Option<String>,
         /// `--shadowsocks` (T-373).
         shadowsocks: Option<String>,
+        /// `--via` and `--via-auth-file` (T-439).
+        via: crate::via::Flags,
         refused: Vec<(String, &'static str, &'static str)>,
     },
     /// `podssh status`: the relay settings in effect, and the destination
@@ -142,6 +144,8 @@ pub enum Parsed {
         forwarder: Option<String>,
         /// `--shadowsocks`: the file whose first server is checked too (T-373).
         shadowsocks: Option<String>,
+        /// `--via`: the second proxy to check too (T-439).
+        via: crate::via::Flags,
         refused: Vec<(String, &'static str, &'static str)>,
     },
     /// **`podssh ts`, and it is its own variant because it carries behaviour

@@ -41,6 +41,7 @@ fn the_positionals_and_options_reach_the_verb() {
             ca_file: Some("ca.pem".into()),
             forwarder: None,
             shadowsocks: None,
+            via: Default::default(),
             refused: vec![],
         }
     );

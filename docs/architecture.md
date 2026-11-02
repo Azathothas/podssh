@@ -33,6 +33,30 @@ terminal <-> session loop <-> russh <-> byte pipe <-> relay session <-> relay <-
   `HTTPS_PROXY` when it is set).
 - `-J` runs each next hop in the `direct-tcpip` channel of the hop before
   it. `-W` connects stdin and stdout to such a channel.
+- `--via https://[USER@]HOST[:PORT]` (T-439, the operator's ruling Q66)
+  uses a forward proxy over TLS that the user runs in place of the relay:
+
+```
+russh <-> tunnel <-> TLS to the second proxy (ALPN h2, http/1.1) <-> CONNECT HOST:PORT <-> sshd
+                      |
+                      `- TCP to it, or to HTTPS_PROXY then CONNECT by its name
+```
+
+  `podssh-ws` (`crates/podssh-ws/src/via/`) dials the second proxy as it
+  dials the relay, through the host's own proxy when one is set, checks its
+  certificate for its name with the same trust store, and offers `h2` then
+  `http/1.1`. On HTTP/2 the tunnel is a stream of a CONNECT of RFC 9113,
+  section 8.5 (`:method` and `:authority` alone); a process keeps the
+  connection while it lasts, so that the sessions of one run (`podssh
+  each`) are streams of it, and a stream reset with `CONNECT_ERROR` is the
+  proxy's word that the target failed. A proxy that resets the CONNECT for
+  another reason gets HTTP/1.1 on a connection of its own. On HTTP/1.1 the
+  answer's head is read a byte at a time, as for the host's proxy, so that
+  the target's first bytes stay. Basic credentials come from a private file
+  (`--via-auth-file`), and a `407` names the schemes that the proxy asks
+  for. The cleartext path to the host's proxy, `crates/podssh-ws/src/proxy.rs`
+  with its two kinds, is unchanged: the second proxy is a road, not a kind
+  of the host's proxy.
 
 **The way to the relay.** `podssh-relay` gives an ordered list of relay
 hosts: the default host and up to three hosts of the pool, or the list that

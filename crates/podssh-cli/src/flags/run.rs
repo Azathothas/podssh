@@ -42,4 +42,5 @@ pub const RUN_FLAGS: &[FlagRow] = &[
         "connect without the relay: TCP, through HTTPS_PROXY when one is set", None),
     super::forwarder::FORWARDER,
     super::shadowsocks::SHADOWSOCKS,
+    super::via::VIA, super::via::VIA_AUTH_FILE,
 ];

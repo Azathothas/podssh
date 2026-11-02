@@ -217,6 +217,21 @@ pub const SSH: &[&str] = &[
      bytes. A published key is shared with strangers, has no operator who answers for it, and changes: \
      podssh names no server and no list. A run has one road: --relay-host, --relay-failover, --direct, \
      --forwarder, -4, -6, and a destination with a road of its own cannot go with it (64).",
+    "--via https://[USER@]HOST[:PORT] reaches the first hop through a forward proxy over TLS that you run \
+     (Caddy's forwardproxy, squid's https_port, h2o), in place of the relay; the port is 443 when none is \
+     named. podssh opens TLS to it, through HTTPS_PROXY when one is set, checked for HOST with podssh's \
+     trust (--ca-file), then sends CONNECT HOST:PORT of the first hop inside: HTTP/2's CONNECT when the \
+     proxy chooses h2 by ALPN, so that the sessions of one run (podssh each) are streams of one \
+     connection, else HTTP/1.1's; a proxy that resets the CONNECT on HTTP/2 gets HTTP/1.1 on a connection \
+     of its own, and -v says which carried it. PODSSH_VIA_HTTP=1.1 or 2 offers one version alone. Basic \
+     credentials come from --via-auth-file FILE (or PODSSH_VIA_AUTH_FILE), a file of yours that others \
+     cannot read: one line, USER:PASSWORD, or the password alone when the URL names USER. A URL that holds \
+     a password is refused (64), as argv would show it. A 407 says the schemes that the proxy asks for and \
+     whether credentials went (77, as a refusal of the proxy's, 403 too). PODSSH_VIA names the proxy where \
+     the command line names no other road; beside PODSSH_RELAY or PODSSH_FORWARDER it is refused (78). \
+     A run has one road: --relay-host, --relay-failover, --direct, --forwarder, --shadowsocks, -4, -6, and \
+     a destination with a road of its own cannot go with it (64). The host key of SSH protects the \
+     session, as on each road.",
     "node://NAME with --iroh-ticket TICKET races the two roads to the node: the iroh road starts first, \
      the pair's road 250 ms later, or at once when the iroh road fails, and the first far end that \
      speaks carries the session; the other link ends before it sends anything, so it opens nothing at \

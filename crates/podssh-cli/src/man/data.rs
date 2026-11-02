@@ -288,6 +288,14 @@ pub fn files() -> Vec<(Vec<String>, String)> {
                 .to_string(),
         ),
         (
+            vec!["the file of --via-auth-file".to_string()],
+            "The Basic credentials of the forward proxy of --via: one line, USER:PASSWORD, or the password alone \
+             when the URL names USER; # starts a comment. podssh reads it only as a regular file of yours that \
+             others cannot read (on Windows, as its access list says), as a pair file; else, and for a line that \
+             cannot be read, the run is refused (78), and no message shows the line. podssh never writes it."
+                .to_string(),
+        ),
+        (
             vec!["shadowsocks-HASH.json".to_string()],
             "The list of each subscription of --shadowsocks, in the cache, under a hash of its URL, which it \
              does not show: the time it came and its ss:// lines, which hold passwords; mode 0600. Read for a \

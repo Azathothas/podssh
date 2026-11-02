@@ -25,6 +25,8 @@ pub struct Settings {
     pub trust: Trust,
     /// What an SSH hop, a node and the iroh road read: `pipe`'s flags.
     pub ssh: crate::ssh::args::SshArgs,
+    /// `--via`: the second proxy that carries `tcp:` (T-439).
+    pub via: Option<crate::via::Road>,
 }
 
 /// Whether `address` leaves this host.
@@ -64,7 +66,13 @@ pub fn settings(args: &PipeArgs, addresses: [&Address; 2]) -> Result<Settings, R
     if addresses.iter().any(|a| matches!(a, Address::Ssh { .. } | Address::Template(Template::Ssh(_)))) {
         super::ssh::check_options(&args.ssh.options)?;
     }
-    Ok(Settings { relays, failover, trust, ssh: args.ssh.clone() })
+    // The flag alone: `tcp:` is TCP from this host, which PODSSH_VIA leaves.
+    let tcp = addresses.iter().any(|a| matches!(a, Address::Tcp { .. }));
+    let via = match args.ssh.via.is_some() && tcp {
+        true => crate::via::chosen(&crate::via::Flags::of(&args.ssh), trust.clone())?,
+        false => None,
+    };
+    Ok(Settings { relays, failover, trust, ssh: args.ssh.clone(), via })
 }
 
 /// Open a remote end: the end, or the exit code once its lines are written.
@@ -78,7 +86,10 @@ pub async fn open(address: &Address, settings: &Settings, err: &mut dyn Write) -
             let road = super::relay::Road { relays, trust: &settings.trust, failover: settings.failover };
             super::relay::open(&road, host, *port, &mut say).await
         }
-        Address::Tcp { host, port } => tcp(host, *port, &mut say).await,
+        Address::Tcp { host, port } => match &settings.via {
+            Some(road) => crate::via::pipe::open(road, host, *port, &mut say).await,
+            None => tcp(host, *port, &mut say).await,
+        },
         Address::Ssh { hops, host, port } => super::ssh::open(hops, host, *port, &settings.ssh, &mut say).await,
         Address::Node(label) => super::node::open(label, &settings.ssh, &mut say).await,
         Address::UdpNode(label) => super::datagram::open_node(label, &settings.ssh, &mut say).await,

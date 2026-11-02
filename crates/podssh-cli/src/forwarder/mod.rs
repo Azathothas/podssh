@@ -173,6 +173,7 @@ pub fn check(args: &SshArgs, resolved: &Resolved) -> Result<(), Refusal> {
         Transport::Cloud { .. } => "an iap://, eice:// or warp:// destination or first hop",
         Transport::Derp { .. } => "a derp: destination",
         Transport::Shadowsocks { .. } => "--shadowsocks",
+        Transport::Via { .. } => "--via",
     };
     Err(Refusal::usage(format!("--forwarder cannot go with {other}, which is a road of its own; a run has one road")))
 }

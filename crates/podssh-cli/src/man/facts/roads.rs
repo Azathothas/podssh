@@ -1,7 +1,7 @@
 //! The variables of the roads that are read apart from `facts.rs`, for the
 //! length of that file: the DERP road (T-349, T-379), the direct road after
-//! the relay hosts (T-363), and the forwarders of other products (T-369) and
-//! their fallback (T-370).
+//! the relay hosts (T-363), the forwarders of other products (T-369) and
+//! their fallback (T-370), and the forward proxy over TLS of --via (T-439).
 
 /// Each one: its names, and what it does.
 pub(super) const VARIABLES: &[(&[&str], &str)] = &[
@@ -41,6 +41,25 @@ pub(super) const VARIABLES: &[(&[&str], &str)] = &[
         "no: when each relay host failed, podssh does not try the forwarders that it names (mudlet, ssheasy, \
       mudix); yes, the default, tries them, where the relay was podssh's own choice. Over ForwarderFallback \
       of the settings file; another word is a configuration error (78).",
+    ),
+    (
+        &["PODSSH_VIA"],
+        "The forward proxy over TLS of podssh ssh, of each command that reaches its server as podssh ssh does, \
+      and of podssh proxy and podssh doctor, as --via: https://[USER@]HOST[:PORT], in place of the relay. The \
+      flag wins, and so do --relay-host, --relay-failover, --forwarder and --shadowsocks; beside PODSSH_RELAY or \
+      PODSSH_FORWARDER, or with a URL that cannot be read, it is a configuration error (78). An empty value is \
+      no value.",
+    ),
+    (
+        &["PODSSH_VIA_AUTH_FILE"],
+        "The credentials file of the proxy of --via or PODSSH_VIA, as --via-auth-file, which wins: a private \
+      file, one line, USER:PASSWORD, or the password alone when the URL names USER (see FILES).",
+    ),
+    (
+        &["PODSSH_VIA_HTTP"],
+        "1.1 or 2: the one version of HTTP that podssh offers the proxy of --via by ALPN; a proxy that does not \
+      take it is refused. Unset, empty or auto offers h2, then http/1.1, and the proxy chooses. Another word is \
+      a configuration error (78).",
     ),
     (
         &["INVOCATION_ID", "WSL_DISTRO_NAME", "TERMUX_VERSION"],

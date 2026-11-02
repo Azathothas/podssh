@@ -546,7 +546,7 @@ protocols).
 **Milestone:** M10
 **Priority:** P2
 **Effort:** M
-**Status:** open
+**Status:** partial
 
 ## Problem
 
@@ -566,6 +566,42 @@ use it as podssh's road: podssh speaks CONNECT and SOCKS5 to the host's own prox
    proxy offers `h2`; HTTP/1.1 otherwise.
 3. `doctor` names the second proxy and the version that it spoke.
 
+## Decision
+
+- **A road in place of the relay, as `--shadowsocks` is.** `--via` takes the relay's place for
+  `ssh`, each command of its road, `proxy`, `pipe` (`tcp:`, and `ssh:` through the resolver) and
+  `doctor`; beside `--relay-host`, `--relay-failover`, `--forwarder`, `--shadowsocks`,
+  `--direct`, `-4`, `-6` or a road of its own it is refused (64). Lost: a second proxy as a third
+  kind of `ProxyKind` for the host's proxy (a chain), which would change the cleartext path that
+  the brief keeps, and send the relay's WebSocket through it where Q66 asks for a road with no
+  relay.
+- **Credentials from a file, its one line `USER:PASSWORD`, or the password alone when the URL
+  names the user** (`--via-auth-file`, `PODSSH_VIA_AUTH_FILE`), read as `--shadowsocks` reads
+  its file (`podssh_relay::cache::read_private`). A URL with a password is refused, and a URL
+  with a user and no file too: an empty password sent silently would be a 407 with no cause.
+  Lost: the password in the URL (argv, `ps`), and a prompt (no terminal under `ProxyCommand`).
+- **`PODSSH_VIA`** names the road where the command line names no other, as `PODSSH_FORWARDER`
+  does, and is refused beside `PODSSH_RELAY` (78). `pipe`'s `tcp:` takes the flag alone: it is
+  TCP from this host, which the variable of a road in place of the relay does not reach.
+- **HTTP/2 kept for the process.** A client for each second proxy (`podssh_cli::via::client`)
+  keeps HTTP/2's connection while it lasts, and dials one connection at a time, so that the
+  sessions of `podssh each`, which start together, share it. Lost: a connection for each tunnel,
+  which loses the sharing that the Approach asks for.
+- **A fallback, as rule 7 asks:** a proxy that chose `h2` and reset the CONNECT for a reason other
+  than `CONNECT_ERROR` (the proxy's word that the target failed) gets HTTP/1.1 on a connection
+  of its own, and `-v` says why. `PODSSH_VIA_HTTP=1.1` or `2` offers one version alone, for a
+  proxy whose HTTP/2 misbehaves in another way, and for the run of Caddy over HTTP/1.1.
+- **The words of a `407`** are the host's proxy's (T-320, `proxy_auth::schemes`), with the flag
+  of the file in place of the URL's credentials; on HTTP/2 the head is rebuilt from the answer's
+  `Proxy-Authenticate` fields. `Proxy-Authorization` is sensitive on HTTP/2, so HPACK never
+  indexes it.
+- **The test against Caddy and squid is a harness of its own** (`scripts/interop-via.sh`, with
+  `.github/workflows/via-interop.yml`): Docker or Podman on a runner, Caddy built from
+  forwardproxy's commit 0aab84dad4fc (2026-03-21) in the Go image that `images/derper` pins, squid
+  from Alpine's packages, OpenSSH's sshd as the target (in place of a fixture of GitHub's banner:
+  the brief allows either), and a plain squid as the host's proxy in place of the box's. The
+  gate's build image has no Caddy with the plugin, so a test of the crate cannot run it.
+
 ## Prove
 
 ```sh
@@ -576,6 +612,37 @@ cargo test -p podssh-ws --test via
 Against Caddy with forwardproxy and squid over TLS in containers, through the box's proxy:
 GitHub's banner from a fixture through each, and two sessions on one HTTP/2 connection with
 Caddy. Planted: the credential left out, and the `407` is said with its words.
+
+## Done
+
+2026-11-02, partial: drafted by an agent in a worktree of its own, and merged, built and
+measured here; the run against Caddy and squid in containers closes it, in GitHub Actions
+(`.github/workflows/via-interop.yml`, on the push of the merge): this host's containers reach
+Go's module proxy only through the session's own proxy, whose CA they do not hold, so
+`scripts/interop-via.sh` said exit 71 here ("Caddy did not listen"), as it should for a host
+that lacks what the run needs.
+
+- podssh-ws, `crates/podssh-ws/src/via/`: the URL and its credentials, the versions offered, the
+  client that keeps HTTP/2's connection and falls back to HTTP/1.1, and a refusal's words
+  (`mod.rs`); HTTP/1.1's CONNECT (`http1.rs`); HTTP/2's CONNECT as `AsyncRead` and `AsyncWrite`
+  (`http2.rs`). podssh-cli, `crates/podssh-cli/src/via/`: the road of `ssh`, `proxy` and `pipe`'s
+  `tcp:`, the section `via` of `doctor`, `--via`, `--via-auth-file`, `PODSSH_VIA`,
+  `PODSSH_VIA_AUTH_FILE` and `PODSSH_VIA_HTTP`, the manual and `docs/cli.md`.
+- Two repairs at the merge. A proxy with no protocol in common ends TLS with the alert
+  `no_application_protocol` (rustls's and Go's servers do), where the draft expected a handshake
+  with none chosen; with HTTP/2 alone asked, that alert now says "it did not choose HTTP/2 by
+  ALPN (h2)". A note of the manual named HTTP/2's flag `END_STREAM`, which the manual's check
+  read as a variable of podssh; it says "the end of the stream" now.
+- `cargo test -p podssh-ws --test via`: 5 passed (the credential with each CONNECT and the `407`
+  with its words without it; two tunnels on one TLS connection; the host's proxy carrying the
+  TLS by the second proxy's name; HTTP/2's reset falling back to HTTP/1.1, and HTTP/2 alone
+  refused by a proxy of HTTP/1.1; a 403, a 502 and a certificate of another name).
+  `cargo test -p podssh-ws --lib via`: 9 passed. `cargo test -p podssh-cli --lib`: 542 passed;
+  `--test flag_table`, `man_flag_parity`, `man_page`, `man_json`, `leading_dash`, `doctor`,
+  `proxy` and `pipe_http` passed. Clippy (`-D warnings`, one needless borrow repaired) and
+  `cargo fmt --check` of the packages: clean.
+- Planted (`scripts/plants/t439-via-no-credential.plant`): the test of the credential failed
+  with "refused CONNECT 127.0.0.1:...: 407 Proxy Authentication Required; it asks for Basic".
 
 # T-440: VLESS over a WebSocket and over XHTTP
 

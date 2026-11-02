@@ -183,6 +183,7 @@ pub const SSH_FLAGS: &[FlagRow] = &[
          relay host failed (env PODSSH_DIRECT=no turns that off)", None),
     forwarder::FORWARDER,
     shadowsocks::SHADOWSOCKS,
+    via::VIA, via::VIA_AUTH_FILE,
     row(None, "pair-file", Some("FILE"), FlagKind::Supported,
         "node://NAME: the pair in FILE, or its operator's part, not the one stored under NAME", None),
     row(None, "client-key", Some("FILE"), FlagKind::Supported,
@@ -210,9 +211,7 @@ pub const SSH_FLAGS: &[FlagRow] = &[
         "with --persist: connect again after each loss, and after a first connection that failed, with no limit of attempts or of time", None),
     node::SSH_INSTALL, node::SSH_UNINSTALL, node::SSH_ENV_FILE, attach::ATTACH,
     attach::TAKE,
-    expect::EXPECT,
-    expect::SEND,
-    expect::EXPECT_TIMEOUT,
+    expect::EXPECT, expect::SEND, expect::EXPECT_TIMEOUT,
     row(None, "upgrade", None, FlagKind::Supported,
         "log in, then move the session to a temporary node that the server's podssh starts, which resumes after a lost link; with no podssh there, the session stays", None),
     signal::NO_SIGNAL,
@@ -321,6 +320,7 @@ mod signal;
 mod snippet;
 mod ts;
 mod update;
+mod via;
 pub use agent::AGENT_FLAGS;
 pub use chat::CHAT_FLAGS;
 pub use config::CONFIG_FLAGS;

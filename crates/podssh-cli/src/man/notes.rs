@@ -193,6 +193,9 @@ const PROXY: &[&str] = &[
      says nothing for 3 s is taken; one that closes, resets or answers with a chunk that does not open \
      within them gives way to the next. The end of stdin is TCP's half-close, which the server passes on: \
      the target's bytes come until it closes.",
+    "podssh proxy --via https://[USER@]HOST[:PORT] carries the pipe through a forward proxy over TLS, with \
+     no relay, as podssh ssh does (see its notes); PODSSH_VIA names it too. The end of stdin is the \
+     tunnel's half-close (the end of the stream, on HTTP/2): the target's bytes come until it closes.",
 ];
 
 const DOCTOR: &[&str] = &[
@@ -253,6 +256,10 @@ const DOCTOR: &[&str] = &[
      session to github.com port 22 through it, whose host key must be one that GitHub publishes. A server \
      that stays silent names the proxy as the likely cause when one carried the TCP, else the password \
      or the method.",
+    "With --via URL or PODSSH_VIA, the section via gives a line for that forward proxy over TLS: the \
+     proxy of HTTPS_PROXY that carried the TCP to it, if one did, the version of HTTP that it chose \
+     (HTTP/2 or HTTP/1.1) and the time of its CONNECT, then a session to github.com port 22 through it, \
+     whose host key must be one that GitHub publishes. A 407 says what the proxy asks for.",
     "With --json, the report is one JSON object on stdout when every check has run: schema (1), podssh, \
      os, arch, checks (each with section, check, status and detail; status is ok, FAIL or unknown) and \
      counts (ok, fail, unknown). A check tried several times adds samples: tries, connected, best_ms, \

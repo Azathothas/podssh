@@ -48,6 +48,10 @@ pub struct SshArgs {
     /// `--shadowsocks FILE`: Shadowsocks servers in place of the relay
     /// (T-373).
     pub shadowsocks: Option<String>,
+    /// `--via URL` and `--via-auth-file FILE`: a forward proxy over TLS in
+    /// place of the relay, and its credentials (T-439).
+    pub via: Option<String>,
+    pub via_auth_file: Option<String>,
     /// For `node://NAME`: a pair, or its operator's part, in a file.
     pub pair_file: Option<String>,
     /// For `iroh:TICKET`: this client's key file, by its earlier name.
@@ -161,6 +165,8 @@ pub const ONCE: &[(&str, &str)] = &[
     ("ca-file", "give one file"),
     ("forwarder", "give the forwarders as one comma list"),
     ("shadowsocks", "give one file, with a line for each server"),
+    ("via", "give one proxy"),
+    ("via-auth-file", "give one file"),
     ("pair-file", "give one file"),
     ("iroh-key", "give one file"),
     ("client-key", "give one file"),
@@ -281,6 +287,8 @@ impl SshArgs {
             direct: flag("direct"),
             forwarder: one("forwarder"),
             shadowsocks: one("shadowsocks"),
+            via: one("via"),
+            via_auth_file: one("via-auth-file"),
             pair_file: one("pair-file"),
             iroh_key: one("iroh-key"),
             client_key: one("client-key"),

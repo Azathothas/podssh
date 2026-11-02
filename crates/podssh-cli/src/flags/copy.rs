@@ -66,6 +66,7 @@ pub const CP_FLAGS: &[FlagRow] = &[
         "connect without the relay: TCP, through HTTPS_PROXY when one is set", None),
     super::forwarder::FORWARDER,
     super::shadowsocks::SHADOWSOCKS,
+    super::via::VIA, super::via::VIA_AUTH_FILE,
     // A node of a pair (T-296), with the flags of `ssh node://`.
     row(None, "pair-file", Some("FILE"), FlagKind::Supported,
         "node://NAME: the pair in FILE, or its operator's part, not the one stored under NAME", None),

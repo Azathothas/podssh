@@ -34,7 +34,7 @@ drop or add frames (`SECURITY.md:33-36`).
 
 ## Approach
 
-1. A sans-IO codec (`docs/architecture.md:139-143`) in a new module
+1. A sans-IO codec (`docs/architecture.md:163-167`) in a new module
    crates/podssh-relay/src/session/, with each file under 500 lines. A record
    is a type byte, a 32-bit length and a body of 64 KiB or less: `GREETING`
    and `ACCEPT` (far end), `OPEN` and `PROOF` (client), `REFUSE`, `DATA` (its
@@ -820,7 +820,7 @@ sockets are not measured (T-061). russh sends a keepalive each 60 s and ends
 the session after 3 with no answer (`crates/podssh-ssh/src/options.rs:338-378`).
 Measured on `3ee70dc`, offline (`PODSSH_OFFLINE=1`, a `.invalid` host):
 `-o ServerAliveInterval=0` prints the warning of
-`crates/podssh-cli/src/ssh/resolve.rs:386-400` (the `warnings` of keepalives), and `podssh ssh` exits 255.
+`crates/podssh-cli/src/ssh/resolve.rs:389-403` (the `warnings` of keepalives), and `podssh ssh` exits 255.
 
 ## Approach
 
@@ -834,11 +834,11 @@ Measured on `3ee70dc`, offline (`PODSSH_OFFLINE=1`, a `.invalid` host):
 3. Carry the `ACK` of T-152 in each `PONG`. The cost is about 20 bytes each
    way each 10 s: under 0.2 MiB in 12 h.
 4. On the resumable road, do not print the warning of
-   `crates/podssh-cli/src/ssh/resolve.rs:386-400` (the `warnings` of keepalives).
+   `crates/podssh-cli/src/ssh/resolve.rs:389-403` (the `warnings` of keepalives).
 5. In the same commit: "Liveness" and "Idle limit" in the manual
    (`crates/podssh-cli/src/man/facts.rs:395-410`,
    `crates/podssh-cli/src/man/facts.rs:430-439`), the note at
-   `crates/podssh-cli/src/man/notes_ssh.rs:438`, `docs/relay.md`, `README.md`.
+   `crates/podssh-cli/src/man/notes_ssh.rs:453`, `docs/relay.md`, `README.md`.
 
 ## Decision
 
@@ -1320,7 +1320,7 @@ new SSH login to a far end that kept the shell (T-159). Read: podssh knows
 the escapes `~.`, `~R`, `~?` and `~~`, and another character after `~` goes
 to the server with the `~` (`crates/podssh-ssh/src/escape.rs:1-9`,
 `crates/podssh-ssh/src/escape.rs:90-138`). The flag table has 469 lines, near
-the limit of 500 (the table of `ssh`: `crates/podssh-cli/src/flags.rs:112-290`).
+the limit of 500 (the table of `ssh`: `crates/podssh-cli/src/flags.rs:112-289`).
 
 ## Approach
 
@@ -1735,7 +1735,7 @@ that invariant. Bytes are dropped only where a client attaches after output
 that it never received: T-158, T-159 and T-161. The report puts the tracker
 in `podssh-transport`; it cannot work there. The layer runs under SSH and
 sees only ciphertext (`docs/design.md:671-672`), and the transport crates do
-not know the protocol that they carry (`docs/architecture.md:144-146`). The
+not know the protocol that they carry (`docs/architecture.md:168-170`). The
 plaintext of a pty exists only on the far end that keeps the shell. Read in
 the report, not verified here: tty7 drops bytes from its ring until a tracker
 says that it is at a boundary
