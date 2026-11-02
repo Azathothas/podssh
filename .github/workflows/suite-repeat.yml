@@ -4,8 +4,11 @@ name: suite repeat
 # that a test that fails at random is named (T-449): podssh-relay's suite
 # with the features of the gate's relay steps, by default. Each run goes on
 # after a failure, so that each failing test is counted; the job fails when
-# any run failed, and the logs are an artifact. Started by hand only:
+# any run failed, and the logs are an artifact. A runner of macOS, a test
+# target and a filter of its tests narrow it to a test that failed there
+# once, as pipe's unix-connect did at 1a38dfa. Started by hand only:
 #   gh workflow run suite-repeat.yml -f runs=20
+#   gh workflow run suite-repeat.yml -f runner=macos-15 -f package=podssh-cli -f features= -f test=pipe -f runs=50
 
 on:
   workflow_dispatch:
@@ -14,6 +17,14 @@ on:
         description: "How many runs in a row (1 to 50)"
         required: true
         default: "20"
+      runner:
+        description: "The runner"
+        required: true
+        default: "ubuntu-24.04"
+        type: choice
+        options:
+          - ubuntu-24.04
+          - macos-15
       package:
         description: "The package whose suite runs"
         required: true
@@ -22,13 +33,21 @@ on:
         description: "Its features, comma-separated"
         required: false
         default: "pair,quick,derp,serve,piping"
+      test:
+        description: "One test target (--test NAME), or empty for each"
+        required: false
+        default: ""
+      filter:
+        description: "A filter of test names, or empty for each"
+        required: false
+        default: ""
 
 permissions:
   contents: read
 
 jobs:
   repeat:
-    runs-on: ubuntu-24.04
+    runs-on: ${{ inputs.runner }}
     timeout-minutes: 300
     env:
       CARGO_BUILD_JOBS: 4
@@ -37,10 +56,13 @@ jobs:
       # The inputs reach the shell through the environment, never through
       # its text, and each is checked before it is used.
       - name: the inputs
+        shell: bash
         env:
           RUNS: ${{ inputs.runs }}
           PACKAGE: ${{ inputs.package }}
           FEATURES: ${{ inputs.features }}
+          TEST: ${{ inputs.test }}
+          FILTER: ${{ inputs.filter }}
         run: |
           set -u
           case $RUNS in ''|*[!0-9]*) echo "runs must be a number, not $RUNS"; exit 2 ;; esac
@@ -48,25 +70,39 @@ jobs:
           case $PACKAGE in podssh-*) ;; *) echo "not a package of podssh: $PACKAGE"; exit 2 ;; esac
           case $PACKAGE in *[!a-z0-9-]*) echo "not a package's name: $PACKAGE"; exit 2 ;; esac
           case $FEATURES in *[!a-z0-9,-]*) echo "not a list of features: $FEATURES"; exit 2 ;; esac
-          { echo "RUNS=$RUNS"; echo "PACKAGE=$PACKAGE"; echo "FEATURES=$FEATURES"; } >> "$GITHUB_ENV"
+          case $TEST in *[!a-z0-9_]*) echo "not a test target's name: $TEST"; exit 2 ;; esac
+          case $FILTER in *[!A-Za-z0-9_:]*) echo "not a filter of test names: $FILTER"; exit 2 ;; esac
+          {
+            echo "RUNS=$RUNS"; echo "PACKAGE=$PACKAGE"; echo "FEATURES=$FEATURES"
+            echo "TEST=$TEST"; echo "FILTER=$FILTER"
+          } >> "$GITHUB_ENV"
       - name: the build of the suite
+        shell: bash
         run: |
           set -u
           set -- --locked -p "$PACKAGE"
           [ -n "$FEATURES" ] && set -- "$@" --features "$FEATURES"
+          [ -n "$TEST" ] && set -- "$@" --test "$TEST"
           cargo test "$@" --no-run
       # Each exit code is read directly; the shell's -e would stop at it.
+      # macOS has no timeout(1): the job's own limit holds a run there.
       - name: the suite, run after run
+        shell: bash
         run: |
           set -u
           mkdir -p .work/repeat
           set -- --locked -p "$PACKAGE"
           [ -n "$FEATURES" ] && set -- "$@" --features "$FEATURES"
+          [ -n "$TEST" ] && set -- "$@" --test "$TEST"
+          set -- "$@" --no-fail-fast
+          [ -n "$FILTER" ] && set -- "$@" -- "$FILTER"
+          limit=""
+          command -v timeout > /dev/null 2>&1 && limit="timeout 3600"
           failed=0
           i=1
           while [ "$i" -le "$RUNS" ]; do
             rc=0
-            timeout 3600 cargo test "$@" --no-fail-fast > ".work/repeat/run-$i.log" 2>&1 || rc=$?
+            $limit cargo test "$@" > ".work/repeat/run-$i.log" 2>&1 || rc=$?
             if [ "$rc" = 0 ]; then
               echo "run $i of $RUNS passed"
             else

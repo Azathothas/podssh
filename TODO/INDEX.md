@@ -62,15 +62,15 @@ repository and CI).
 
 ## Counts
 
-**475 entries: 66 open, 2 partial, 17 blocked, 390 done.**
+**476 entries: 67 open, 2 partial, 17 blocked, 390 done.**
 
 | Priority | open | partial | blocked | done | total |
 | --- | --- | --- | --- | --- | --- |
 | P0 | 0 | 0 | 0 | 1 | 1 |
-| P1 | 4 | 2 | 0 | 50 | 56 |
+| P1 | 5 | 2 | 0 | 50 | 57 |
 | P2 | 29 | 0 | 14 | 187 | 230 |
 | P3 | 33 | 0 | 3 | 152 | 188 |
-| **All** | 66 | 2 | 17 | 390 | 475 |
+| **All** | 67 | 2 | 17 | 390 | 476 |
 
 ## Entries
 
@@ -534,6 +534,7 @@ repository and CI).
 | [T-462](ssh.md) | P2 | S | none | defect | open | A `-J` hop whose channel opens and then carries nothing ends in a bare handshake timeout, and the open has no limit |
 | [T-463](ssh.md) | P2 | M | none | feature | open | A warning before the relay's idle cut, while the user can still act |
 | [T-464](ssh.md) | P2 | S | none | defect | open | A connection that ends right after the login reads as a refused session, or as a loss with no cause |
+| [T-465](robustness.md) | P1 | S | none | defect | open | `pipe`'s test of `unix-connect` waited past its 10 s once on macOS |
 | [T-470](copy.md) | P2 | S | none | defect | open | `cp --delta` sends the whole file with no word when the server cannot take a delta |
 | [T-471](copy.md) | P1 | M | none | defect | open | `sftp`'s `ls -l` is not OpenSSH's long form, and five switches of its `ls` do nothing |
 | [T-472](copy.md) | P2 | M | none | feature | open | `cp`, `mv` and `run` say nothing of what they did without `-v`, and nothing in a pipe while a copy runs |

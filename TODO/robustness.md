@@ -1357,3 +1357,44 @@ run the same day.
   crash (`warp_capsule` 820,413 runs), and the 19 others too.
 - `docs/development.md` ("Fuzzing", item 7) and `docs/STATUS.md` (the quick tunnel's row, the
   row of fuzzing).
+
+# T-465: `pipe`'s test of `unix-connect` waited past its 10 s once on macOS
+
+**Source:** the gate's job `macos` at `1a38dfa` (2026-11-02, run 41435556148).
+**Category:** defect
+**Milestone:** none
+**Priority:** P1
+**Effort:** S
+**Status:** open
+
+## Problem
+
+`unix_connect_passes_the_end_of_input_on_and_the_answer_comes_back` of `podssh-cli`'s test
+`pipe` failed once on macOS: `podssh pipe stdio unix-connect:PATH`, with 1,000,000 bytes on its
+stdin, had not ended after 10 s, while the gates before it passed it on the same runner. A test
+that fails at random hides a defect, or teaches the reader to rerun.
+
+## Premise
+
+- The test (`crates/podssh-cli/tests/pipe.rs:179`) gives the bytes to podssh's stdin from a
+  thread and waits 10 s for podssh to end; its server answers the digest once its input ends
+  (`crates/podssh-cli/tests/pipe.rs:132`).
+- The pump shuts the other side's write half down when its input ends
+  (`crates/podssh-cli/src/pipe/pump.rs:82`), and reads more of the input that is ready at once
+  without waiting (`crates/podssh-cli/src/pipe/pump.rs:139`).
+
+## Approach
+
+1. Reproduce it on a runner of macOS: `suite-repeat.yml` with `runner=macos-15`, `package=
+   podssh-cli`, `test=pipe`, 50 runs; the test says podssh's stderr when its limit passes.
+2. Name the cause (the end of stdin lost, a half-close that macOS does not pass on, or a pump
+   that waits) and repair it, not the limit.
+
+## Prove
+
+```sh
+export CARGO_BUILD_JOBS=4
+cargo test -p podssh-cli --test pipe
+```
+
+50 runs in a row on macOS (`suite-repeat.yml`), and the cause planted again fails it.
