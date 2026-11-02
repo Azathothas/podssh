@@ -346,7 +346,7 @@ the node then exits (docs/reverse.md, line 19 at `fb228e9`).
    `/v1/connect/<name>`. If none does, "each relay host" means each address of
    the control host (pins, resolver, DNS over HTTPS). Write it in
    `docs/relay.md`, with `docs/reverse.md` and the manual's relay section
-   (`crates/podssh-cli/src/man/facts.rs:310-466`).
+   (`crates/podssh-cli/src/man/facts.rs:310-468`).
 6. A node keeps the replay buffer of each session (T-152): with the relay's
    limit of 64 sessions and 4 MiB each, 256 MiB. Bound the node's whole
    replay memory (a session past the bound gets `REFUSE` busy, code 6), and
@@ -957,7 +957,7 @@ node's side (`crates/podssh-probe/tests/spec/relay-spec-2026-10-03-r2.txt:133-13
 6. When the client knows the expiry of the pair (from the node's ticket,
    T-163), it warns 1 h before; at the expiry the session ends with the reason.
 7. `-v` prints one line for each move. Docs: `docs/relay.md` ("Limits that
-   users see") and the manual (`crates/podssh-cli/src/man/facts.rs:310-466`).
+   users see") and the manual (`crates/podssh-cli/src/man/facts.rs:310-468`).
 
 ## Decision
 
@@ -1383,7 +1383,7 @@ the shell on a detach fails it.
   `env` requests of podssh's own names and a subsystem, which the handler
   sees (`crates/podssh-ssh/src/keep.rs`).
 - An escape needs a pty and a terminal on stdin
-  (`crates/podssh-ssh/src/session.rs:163`), so a test cannot type `~d`
+  (`crates/podssh-ssh/src/session.rs:171`), so a test cannot type `~d`
   through a pipe: the attach test types it in a pseudo console on Windows
   (`crates/podssh-cli/tests/conpty_harness/mod.rs`) and in a pty on Linux
   (`crates/podssh-cli/tests/pty_harness/mod.rs`, new).

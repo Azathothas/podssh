@@ -9,6 +9,7 @@ use std::time::Duration;
 
 use russh::server;
 
+use super::cut::{Cut, Cuttable};
 use super::podssh::Podssh;
 use super::shell::Shell;
 use super::Far;
@@ -65,9 +66,11 @@ async fn start_far(
             counted.fetch_add(1, Ordering::SeqCst);
             let config = config.clone();
             let (sftp_root, podssh, shell) = (sftp_root.clone(), podssh.clone(), shell.clone());
-            let far = Far { sftp_root, podssh, shell, ..Far::default() };
+            // Each connection can be cut with no word (T-461).
+            let link = Cut::default();
+            let far = Far { sftp_root, podssh, shell, link: link.clone(), ..Far::default() };
             tokio::spawn(async move {
-                if let Ok(session) = server::run_stream(config, stream, far).await {
+                if let Ok(session) = server::run_stream(config, Cuttable::new(stream, link), far).await {
                     let _ = session.await;
                 }
             });

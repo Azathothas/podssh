@@ -67,8 +67,9 @@ pub(super) async fn handle_msg(
         }
         // The answer to `~d`, when one is awaited (T-158).
         reply @ (ChannelMsg::Success | ChannelMsg::Failure) => return through.detaching.answer(&reply, log),
-        // Eof: the server sends nothing more, but the exit status and the
-        // close are still to come.
+        // The server sends nothing more, but the exit status and the close
+        // may still come: a link lost after it cut no output (T-461).
+        ChannelMsg::Eof => out.eof = true,
         _ => {}
     }
     None

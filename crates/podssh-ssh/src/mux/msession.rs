@@ -115,7 +115,10 @@ pub async fn session(
     log.verbose(&format!("a shared session ended ({})", status.map_or("no status".into(), |c| format!("status {c}"))));
 }
 
-/// Copy until the channel closes; the status that came, if one did.
+/// Copy until the channel closes; the status that came, if one did. A link
+/// lost after the status and before the output's end (its EOF) gives none:
+/// the output after the cut is lost, and the client's run is no success
+/// (T-461).
 async fn pump(
     channel: Channel<Msg>,
     early: Vec<ChannelMsg>,
@@ -126,9 +129,9 @@ async fn pump(
     mut winch: Option<watch::Receiver<u64>>,
 ) -> Option<i32> {
     let (mut reader, writer) = channel.split();
-    let mut status = None;
+    let (mut status, mut eof) = (None, false);
     for msg in early {
-        if let Some(()) = take(msg, &mut status, out, err).await {
+        if let Some(()) = take(msg, &mut status, &mut eof, out, err).await {
             return status;
         }
     }
@@ -182,11 +185,11 @@ async fn pump(
             },
             msg = reader.wait() => match msg {
                 Some(msg) => {
-                    if let Some(()) = take(msg, &mut status, out, err).await {
+                    if let Some(()) = take(msg, &mut status, &mut eof, out, err).await {
                         return status;
                     }
                 }
-                None => return status,
+                None => return status.filter(|_| eof),
             },
             changed = changed(&mut winch) => match changed {
                 true => {
@@ -210,8 +213,14 @@ async fn changed(winch: &mut Option<watch::Receiver<u64>>) -> bool {
     }
 }
 
-/// One message of the channel: `Some` once it closed.
-async fn take(msg: ChannelMsg, status: &mut Option<i32>, out: &mut Passed, err: &mut Passed) -> Option<()> {
+/// One message of the channel: `Some` once it closed. `eof`: the output ended.
+async fn take(
+    msg: ChannelMsg,
+    status: &mut Option<i32>,
+    eof: &mut bool,
+    out: &mut Passed,
+    err: &mut Passed,
+) -> Option<()> {
     match msg {
         ChannelMsg::Data { data } => {
             let _ = out.write_all(&data).await;
@@ -224,6 +233,7 @@ async fn take(msg: ChannelMsg, status: &mut Option<i32>, out: &mut Passed, err: 
             *status = Some(crate::signals::number(&signal_name).map_or(255, |n| 128 + n));
         }
         ChannelMsg::Close => return Some(()),
+        ChannelMsg::Eof => *eof = true,
         _ => {}
     }
     None

@@ -1,0 +1,9 @@
+# T-461: a link that ends after the exit status and before the output's end
+# gives that status again, as before GitHub #84; the test of `cut`, whose
+# server sends the status 0, then the bytes, then cuts with no word, must
+# fail.
+ENTRY=T-461
+GROUP=cli-tests
+EXPECT='test a_cut_after_the_status_and_before_the_output_ends_is_255 \.\.\. FAILED'
+RUN='cargo test --locked -p podssh-cli --test ssh_exit_status -- cut'
+LIMIT=2400

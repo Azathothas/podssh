@@ -62,15 +62,15 @@ repository and CI).
 
 ## Counts
 
-**546 entries: 129 open, 3 partial, 16 blocked, 398 done.**
+**546 entries: 128 open, 3 partial, 16 blocked, 399 done.**
 
 | Priority | open | partial | blocked | done | total |
 | --- | --- | --- | --- | --- | --- |
 | P0 | 0 | 0 | 0 | 1 | 1 |
-| P1 | 5 | 3 | 0 | 52 | 60 |
+| P1 | 4 | 3 | 0 | 53 | 60 |
 | P2 | 42 | 0 | 14 | 190 | 246 |
 | P3 | 82 | 0 | 2 | 155 | 239 |
-| **All** | 129 | 3 | 16 | 398 | 546 |
+| **All** | 128 | 3 | 16 | 399 | 546 |
 
 ## Entries
 
@@ -532,7 +532,7 @@ repository and CI).
 | [T-458](mesh.md) | P2 | S | M10 | feature | open | `podssh doctor --exit NAME`: the exit, its verdict and the road that reached it |
 | [T-459](mesh.md) | P3 | S | M10 | feature | open | The quick tunnel's node lends its egress (`--exit` with `--quick-tunnel`) |
 | [T-460](ssh.md) | P1 | M | none | defect | partial | A reply to a global request that carries data ends the connection: a quiet minute with keepalives, and a refused `-R` |
-| [T-461](ssh.md) | P1 | S | none | defect | open | A link that ends after the exit status and before the output's end gives that status: output cut at the relay's 64 MiB exits 0 |
+| [T-461](ssh.md) | P1 | S | none | defect | done | A link that ends after the exit status and before the output's end gives that status: output cut at the relay's 64 MiB exits 0 |
 | [T-462](ssh.md) | P2 | S | none | defect | open | A `-J` hop whose channel opens and then carries nothing ends in a bare handshake timeout, and the open has no limit |
 | [T-463](ssh.md) | P2 | M | none | feature | open | A warning before the relay's idle cut, while the user can still act |
 | [T-464](ssh.md) | P2 | S | none | defect | open | A connection that ends right after the login reads as a refused session, or as a loss with no cause |

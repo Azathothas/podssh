@@ -209,7 +209,7 @@ remote host that must use the key, such as `git` on a build host.
    (`crates/podssh-cli/src/ssh/keywords.rs:25-103`). Change the help of `-a`
    (`crates/podssh-cli/src/flags.rs:229-230`, the row `no-agent-forwarding`).
 2. On the destination's session channel, send `auth-agent-req@openssh.com`
-   before the shell or exec request (`crates/podssh-ssh/src/session.rs:118-142`).
+   before the shell or exec request (`crates/podssh-ssh/src/session.rs:126-150`).
    Never to a jump hop.
 3. In the handler, accept `auth-agent@openssh.com` only when `-A` was given
    for this connection. For each such channel, connect to the agent with the
@@ -427,7 +427,7 @@ it (`SECURITY.md`, "Design rules").
 
 2026-10-11. The display, the authority file, the probe, the request and the
 swap of the cookie in `crates/podssh-ssh/src/x11.rs:1-339`; the session asks
-(`crates/podssh-ssh/src/session.rs:107-109`) and the handler joins an `x11`
+(`crates/podssh-ssh/src/session.rs:115-117`) and the handler joins an `x11`
 channel when the destination's run asked
 (`crates/podssh-ssh/src/handler.rs:263-276`). The plan and the probe of the
 command line in `crates/podssh-cli/src/ssh/x11.rs:1-153`, the flags at
@@ -458,7 +458,7 @@ command line in `crates/podssh-cli/src/ssh/x11.rs:1-153`, the flags at
   this Xvfb takes an untrusted cookie of `xauth` at all
   (`scripts/interop-x11.sh:37-51`): env when it does not, a failure when it
   does and podssh's `-X` fails.
-- `docs/cli.md:790-813`, a note of the manual and the variable `XAUTHORITY`
+- `docs/cli.md:792-815`, a note of the manual and the variable `XAUTHORITY`
   say what the flags do, and the risk of `-Y`.
 - `cargo test -p podssh-ssh`: 155 passed; `cargo test -p podssh-cli`:
   577 passed, 0 failed, 31 ignored; clippy; rustfmt.
@@ -900,7 +900,7 @@ as a TCP host again, and the gate's check fails with the server's error.
 (`crates/podssh-ssh/src/options.rs:164-181`), opened by `open_target`
 (`crates/podssh-ssh/src/forward.rs:24-37`); through a control master
 (`crates/podssh-ssh/src/mux/client.rs:177-192`,
-`crates/podssh-ssh/src/mux/msession.rs:253-260`). The command line reads a
+`crates/podssh-ssh/src/mux/msession.rs:263-270`). The command line reads a
 path at `crates/podssh-cli/src/ssh/hop.rs:95-98`, and the row of `-W` says so
 (`crates/podssh-cli/src/flags.rs:139-140`).
 - `cargo test -p podssh-cli --test ssh_stdio_socket`: 2 passed. The test of
@@ -999,7 +999,7 @@ count each chunk twice, and the unit test fails.
 and `crates/podssh-ssh/src/remote_join.rs:48`, `-W` at
 `crates/podssh-ssh/src/forward.rs:42` and
 `crates/podssh-ssh/src/forward.rs:53`; `~#` at
-`crates/podssh-ssh/src/escape.rs:98` and `crates/podssh-ssh/src/io.rs:240`,
+`crates/podssh-ssh/src/escape.rs:98` and `crates/podssh-ssh/src/io.rs:260`,
 and the lines of `-v` at `crates/podssh-ssh/src/run.rs:259`.
 - `cargo test -p podssh-ssh -- forward_counts`: 3 passed: 262144 bytes up and
   1000 down through a forward's copy, counted once, with one connection; one
@@ -1014,7 +1014,7 @@ and the lines of `-v` at `crates/podssh-ssh/src/run.rs:259`.
   -W` through OpenSSH's sshd to a TCP echo server, 262144 bytes each way) and
   `pty.forwards` (`scripts/interop-pty.py`, `~#` in a session with `-R
   0:127.0.0.1:2201`).
-- `docs/cli.md:605-612` and the manual's note of `-t` say what `~#` and `-v`
+- `docs/cli.md:607-614` and the manual's note of `-t` say what `~#` and `-v`
   print.
 - `cargo test -p podssh-ssh`: 158 passed; `cargo test -p podssh-cli`:
   578 passed, 0 failed, 31 ignored; clippy; rustfmt.
@@ -1024,7 +1024,7 @@ and the lines of `-v` at `crates/podssh-ssh/src/run.rs:259`.
   repair: the session of a client of a control master lists the master's
   forwards with `~#`, as OpenSSH's `~#` lists the master's connections, and
   its `~?` names it (`crates/podssh-ssh/src/mux/msession.rs:32-34` and
-  `crates/podssh-ssh/src/mux/msession.rs:162-167`). In the build image
+  `crates/podssh-ssh/src/mux/msession.rs:165-170`). In the build image
   (`sh scripts/dev.sh run`), `cargo clippy --all-targets -p podssh-ssh -p
   podssh-cli -- -D warnings` passed.
 - Correction: at `f80e7f3` the gate failed both checks of this entry, each
@@ -1497,7 +1497,7 @@ ssh(1), ESCAPE CHARACTERS: `~C` opens a command line that takes `-L`, `-R`,
 - `~C` is an escape only where the caller gives a `Forwarder`
   (`podssh ssh`), and not in a session that a control master carries, as
   OpenSSH offers no `~C` to a client of its master: there `~C` goes to the
-  server as typed (`crates/podssh-ssh/src/mux/msession.rs:173`). Lost: a
+  server as typed (`crates/podssh-ssh/src/mux/msession.rs:176`). Lost: a
   `~C` of a client sent as `-O forward` to the master, which OpenSSH does
   not do.
 - `-R` and `-KR` wait for the server's answer, 20 s at most
@@ -1584,7 +1584,7 @@ a session with a pty:
 - `crates/podssh-cli/src/ssh/local_bind.rs`: the TCP listener and the
   socket of `-L` and `-D` can be closed (`crates/podssh-cli/src/ssh/local_bind.rs:137`
   and `crates/podssh-cli/src/ssh/local_bind.rs:184`), and the `Forwarder`
-  of `podssh ssh`, which `crates/podssh-cli/src/ssh/mod.rs:321` gives to
+  of `podssh ssh`, which `crates/podssh-cli/src/ssh/mod.rs:323` gives to
   each session.
 - The manual: the note of the terminal names `~C`, and a note of its own
   (`crates/podssh-cli/src/man/notes_ssh.rs:434`); `docs/cli.md` ("`~C`
@@ -1633,14 +1633,14 @@ server (`remote_socket:host:hostport`), a socket on this host as the target
 (`[bind_address:]port:local_socket`, `remote_socket:local_socket`), and a SOCKS proxy that the
 server listens for and the client serves (`[bind_address:]port`). podssh refuses each by name, so
 a command line of OpenSSH fails with podssh. A server whose host refuses an AF_INET bind and
-allows an AF_UNIX one, as sandbox A does (`docs/STATUS.md:310`), can listen on a socket only; and
+allows an AF_UNIX one, as sandbox A does (`docs/STATUS.md:311`), can listen on a socket only; and
 the SOCKS form gives a server whose egress is closed a way out through the client.
 
 ## Premise
 
 - Read: `crates/podssh-cli/src/ssh/forward.rs` line 43 at `6f6eda2` says "a Unix socket is not
   carried yet", and its line 49 says "the server's SOCKS proxy (-R [bind_address:]port) is not
-  carried yet", for a spec of one or two fields (its lines 45-54); `docs/cli.md:728-729` and
+  carried yet", for a spec of one or two fields (its lines 45-54); `docs/cli.md:730-731` and
   `crates/podssh-cli/src/man/notes_ssh.rs:427-428` say so too. `TODO/forwarding.md:52-54` says
   "until a later step" of both, in T-035.
 - Read: `RemoteForward` holds a port and a `host:host_port` only

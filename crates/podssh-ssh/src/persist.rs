@@ -170,6 +170,18 @@ async fn attach(
             }
             Attempt::Failed
         }
+        // The shell ended, and the link went before its output did (T-461):
+        // nothing to attach again, and no success.
+        Ok(End::Cut(status)) => {
+            crate::outcome::ended(&End::Cut(status));
+            let end = relay.and_then(RelayStatus::get);
+            let hop = opts.jump.first().unwrap_or(&opts.destination);
+            let target = podssh_ws::dial::authority(&hop.host, hop.port);
+            for line in failure_lines(&session::cut(&host, status), end.as_ref(), &target) {
+                log.error(&line);
+            }
+            Attempt::Failed
+        }
         Ok(end) => Attempt::Ended(session::code(end, &host).unwrap_or(EXIT_FAILURE)),
         // A link that broke while the session was asked for.
         Err(why) if handle.is_closed() => Attempt::Lost { attached: false, why },

@@ -3,8 +3,8 @@
 //! the class of a failure and the bytes, in one JSON object, while stdout and
 //! stderr stay as they are. The server's `exit N` prints `out` and `err!`,
 //! `kill NAME` ends with a signal, `cat` echoes, the socket `/echo` of `-W`
-//! sends back what it gets, and a user `key-...` needs a key that the test
-//! does not have.
+//! sends back what it gets, a user `key-...` needs a key that the test
+//! does not have, and `cut N` cuts the link after the status (T-461).
 
 mod cleanup;
 mod ssh_harness;
@@ -92,6 +92,23 @@ fn the_result_holds_the_status_the_signal_and_the_bytes() {
     let (code, out, err, r) = run(&dir, port, &[], "u", &["cat"], &input);
     assert_eq!((code, out.len()), (Some(0), input.len()), "{err}");
     assert_eq!(r["bytes"], json!({ "stdin": 100_000, "stdout": 100_000, "stderr": 0 }));
+}
+
+/// A link cut after the remote status and before the output's end (T-461,
+/// GitHub #84, whose file held `"exit":0`): `lost` and 255, the status kept
+/// beside them for a reader; with the EOF before the cut, the status holds.
+#[test]
+fn a_cut_after_the_status_is_lost_with_the_status_kept() {
+    let (dir, port, _runtime) = server("cut");
+    let (code, out, err, r) = run(&dir, port, &[], "u", &["cut", "1000000"], b"");
+    assert_eq!(code, Some(255), "{err}");
+    assert!(out.len() <= 1_000_000, "{}", out.len());
+    let got = (&r["exit"], &r["status"], &r["end"], &r["failure"]);
+    assert_eq!(got, (&json!(255), &json!(0), &json!("lost"), &json!("session")), "{r}");
+    let (code, out, err, r) = run(&dir, port, &[], "u", &["cut-eof", "1000000"], b"");
+    assert_eq!((code, out.len()), (Some(0), 1_000_000), "{err}");
+    let got = (&r["exit"], &r["status"], &r["end"], &r["failure"]);
+    assert_eq!(got, (&json!(0), &json!(0), &json!("status"), &Value::Null), "{r}");
 }
 
 /// A failure before the session: its class, and the end `failed`.

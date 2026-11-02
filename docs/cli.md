@@ -531,7 +531,9 @@ scripts. The facts about OpenSSH on this page were measured with OpenSSH
   and `stderr`, as they passed), `duration_ms`, and `relay` (`host`,
   `close_code` and `reason`, or null with no relay). A signal ends with
   128 + its number, as in OpenSSH, and `status` is then null. `-N` ends
-  `lost` when the server or the network ends the connection. A run through
+  `lost` when the server or the network ends the connection. A link lost
+  after the remote exit status and before the end of the output ends
+  `lost` with `exit` 255, and `status` keeps the remote status (T-461). A run through
   a control master (T-039) ends `shared`: the master tells the exit code
   alone, a status or 128 + a signal, and carries the bytes, which are then
   null. stdout and stderr stay byte for byte as they are: the command's
@@ -3691,6 +3693,19 @@ with the report (`docs/decisions.md`, 2026-10-08).
   are the codes of OpenSSH's `ssh`, and the gate compares both clients
   (`scripts/interop-status.sh`). A status above 255 gives 255: OpenSSH passes the
   value to `exit()`, where 256 reads as 0.
+- A link lost after the exit status and before the end of the output (the
+  channel's EOF or its Close) is no success (T-461, GitHub #84): a server
+  may send the status while its last output still waits for the window,
+  and the relay's cap at 64 MiB can come between them. podssh exits 255
+  with "the connection to HOST was lost before the output ended (the remote
+  command had exited with N)", then the relay's close and its remedy; with
+  the EOF before the cut, the status holds. OpenSSH's client gives the
+  status there, but the bytes after the cut are lost, and a script reads
+  the code. The copy by exec and the probes take the same rule, and so does
+  a session through a control master, which then tells no status. Through
+  the relay, once a session has carried 60 MiB (the relay's budget, or
+  `PODSSH_SESSION_BUDGET`), podssh says once that the relay ends it at
+  64 MiB and that `podssh cp` copies more on new sessions (not with `-q`).
 
 ## Prompts and time limits
 

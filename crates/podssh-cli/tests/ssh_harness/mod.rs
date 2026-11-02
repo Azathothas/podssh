@@ -39,6 +39,8 @@
 //! a pty is granted (T-190, `containers.rs`). For a user `pty-...`, `prompt`
 //! is a shell's prompt, for the expect rules (T-191, `prompt.rs`).
 //! On one of `start_shell`, each command runs in `sh` (T-193, `shell.rs`).
+//! `cut N` and `cut-eof N` give the status 0 and N bytes, then cut the
+//! connection with no word, with no EOF or after it (T-461, `cut.rs`).
 
 // Each test binary uses a part of it.
 #![allow(dead_code)]
@@ -52,7 +54,9 @@ use russh::{Channel, ChannelId, Sig};
 
 mod console;
 mod containers;
+mod cut;
 mod ends;
+mod eof;
 mod far;
 mod forward;
 mod health;
@@ -298,6 +302,9 @@ impl server::Handler for Far {
         if let Some(ended) = ends::ended(&command, channel, session) {
             return ended;
         }
+        if let Some(cut) = cut::run(&command, &self.link, channel, session) {
+            return cut;
+        }
         if let Some(sent) = console::bytes(&command, channel, session) {
             return sent;
         }
@@ -460,40 +467,6 @@ impl server::Handler for Far {
     }
 
     async fn channel_eof(&mut self, channel: ChannelId, session: &mut Session) -> Result<(), Self::Error> {
-        // The server's stdin closes, and it ends.
-        if self.sftps.remove(&channel).is_some() {
-            return Ok(());
-        }
-        // sudo with no password to read: a refusal.
-        if self.elevated.remove(&channel).is_some() {
-            session.extended_data(channel, 1, b"sudo: 1 incorrect password attempt\n".to_vec())?;
-            session.exit_status_request(channel, 1)?;
-            session.eof(channel)?;
-            session.close(channel)?;
-            return Ok(());
-        }
-        if let Some((stop, status)) = self.spews.remove(&channel) {
-            stop.store(true, Ordering::SeqCst);
-            if status {
-                session.exit_status_request(channel, 7)?;
-            }
-            session.eof(channel)?;
-            session.close(channel)?;
-            return Ok(());
-        }
-        let echoed = self.echoes.iter().position(|c| *c == channel).map(|at| self.echoes.remove(at)).is_some();
-        let drained = self.drains.iter().position(|c| *c == channel).map(|at| self.drains.remove(at)).is_some();
-        if echoed || drained {
-            session.exit_status_request(channel, 0)?;
-            session.eof(channel)?;
-            session.close(channel)?;
-        }
-        if let Some(bytes) = self.sinks.remove(&channel) {
-            session.data(channel, format!("{bytes}\n").into_bytes())?;
-            session.exit_status_request(channel, 0)?;
-            session.eof(channel)?;
-            session.close(channel)?;
-        }
-        Ok(())
+        eof::ended(self, channel, session)
     }
 }

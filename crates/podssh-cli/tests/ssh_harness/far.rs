@@ -66,4 +66,6 @@ pub(super) struct Far {
     pub(super) waits: HashMap<ChannelId, super::interrupt::Wait>,
     /// A server of `start_shell`: each command runs in sh (T-193).
     pub(super) shell: Option<super::shell::Shell>,
+    /// The switch that cuts this connection with no word (T-461).
+    pub(super) link: super::cut::Cut,
 }

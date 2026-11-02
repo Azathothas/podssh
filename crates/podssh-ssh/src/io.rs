@@ -41,6 +41,10 @@ pub enum End {
     NoStatus,
     /// The connection went away under the session.
     Lost,
+    /// The connection went away after the exit status and before the end of
+    /// the output (the channel's EOF or Close): the bytes after the cut are
+    /// lost, so the status is no success of the run (GitHub #84).
+    Cut(i32),
     /// The user typed an escape that ends the session.
     Escaped(Command),
     /// podssh was told to stop (SIGTERM, SIGHUP).
@@ -71,6 +75,19 @@ pub fn end_with(status: Option<i32>) -> End {
     status.map(End::Status).unwrap_or(End::NoStatus)
 }
 
+/// How a session ends when its channel ends with the connection: a status
+/// with the output's end (`eof`, before or after it) is the command's end; a
+/// status alone is a cut, as a server may send it while the last output
+/// still waits for the window (RFC 4254 orders them in no way); none is a
+/// loss.
+pub fn link_ended(status: Option<i32>, eof: bool) -> End {
+    match status {
+        Some(code) if eof => End::Status(code),
+        Some(code) => End::Cut(code),
+        None => End::Lost,
+    }
+}
+
 /// Where a session's output goes in place of this process's stdout and
 /// stderr (T-183): each piece as it came, and whether it is stderr's. One
 /// process then runs several sessions, and the receiver says whose each
@@ -84,6 +101,9 @@ pub type Sink = tokio::sync::mpsc::Sender<(Vec<u8>, bool)>;
 struct Out {
     gone: Option<tokio::time::Instant>,
     told: bool,
+    /// The server's EOF came: its output ended, and a lost link after it
+    /// cuts nothing.
+    eof: bool,
     /// The text of stdout and of stderr for a Windows console (T-294).
     consoles: Consoles,
     /// The sink in place of the process's streams, when there is one.
@@ -270,7 +290,7 @@ pub async fn pump(
                         let _ = writer.eof().await;
                     }
                 }
-                None => return status.map(End::Status).unwrap_or(End::Lost),
+                None => return link_ended(status, out.eof),
             },
             () = sleep_until(out.gone.map(|at| at + STATUS_WAIT)), if out.gone.is_some() => {
                 if status.is_none() {
@@ -353,7 +373,7 @@ async fn send(
                         return Err(end);
                     }
                 }
-                None => return Err(status.map_or(End::Lost, End::Status)),
+                None => return Err(link_ended(*status, out.eof)),
             },
         }
     }

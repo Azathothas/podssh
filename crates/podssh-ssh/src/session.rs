@@ -40,11 +40,19 @@ pub fn code(end: io::End, host: &str) -> Result<i32, String> {
         io::End::Status(code) => Ok(code),
         io::End::NoStatus | io::End::Escaped(_) | io::End::Terminated => Ok(NO_STATUS),
         io::End::Lost => Err(format!("the connection to {host} was lost before the session ended")),
+        io::End::Cut(status) => Err(cut(host, status)),
         // The far end keeps the shell, as the user asked (T-158).
         io::End::Detached(_) => Ok(0),
         // Ctrl-C ended podssh before the command ended (T-293).
         io::End::Interrupted => Ok(terminal::interrupt::INTERRUPTED),
     }
+}
+
+/// The words of a session whose link went after the remote command's exit
+/// status and before the end of its output (T-461): the status is said, and
+/// is not the run's, as the output may be cut.
+pub fn cut(host: &str, status: i32) -> String {
+    format!("the connection to {host} was lost before the output ended (the remote command had exited with {status})")
 }
 
 /// `opts.request` on a new session channel with `input`, until the session
@@ -309,5 +317,19 @@ mod tests {
         assert_eq!(code(io::end_with(Some(0)), "h"), Ok(0));
         assert_eq!(code(io::end_with(Some(7)), "h"), Ok(7));
         assert_eq!(code(io::end_with(None), "h"), Ok(NO_STATUS));
+    }
+
+    /// A link that ends after the status and the output's end gives the
+    /// status; after the status alone it is a cut, never the status
+    /// (GitHub #84: 0 with 67010560 bytes of 70000000); with none, a loss.
+    #[test]
+    fn exit_code_of_end_when_the_link_ends_after_the_status() {
+        assert_eq!(code(io::link_ended(Some(0), true), "h"), Ok(0));
+        assert_eq!(code(io::link_ended(Some(3), true), "h"), Ok(3));
+        let cut = code(io::link_ended(Some(0), false), "h").unwrap_err();
+        assert_eq!(cut, "the connection to h was lost before the output ended (the remote command had exited with 0)");
+        assert!(code(io::link_ended(Some(7), false), "h").unwrap_err().contains("had exited with 7"));
+        assert!(code(io::link_ended(None, true), "h").unwrap_err().contains("was lost before the session ended"));
+        assert!(code(io::link_ended(None, false), "h").unwrap_err().contains("was lost before the session ended"));
     }
 }

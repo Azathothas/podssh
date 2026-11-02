@@ -1,0 +1,11 @@
+--- a/crates/podssh-ssh/src/io.rs
++++ b/crates/podssh-ssh/src/io.rs
+@@ -83,7 +83,7 @@
+ pub fn link_ended(status: Option<i32>, eof: bool) -> End {
+     match status {
+         Some(code) if eof => End::Status(code),
+-        Some(code) => End::Cut(code),
++        Some(code) => End::Status(code),
+         None => End::Lost,
+     }
+ }

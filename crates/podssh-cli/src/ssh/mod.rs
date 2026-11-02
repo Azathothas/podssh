@@ -35,6 +35,8 @@ mod local_bind;
 pub mod local_command;
 pub mod local_spec;
 mod login;
+// A line before the relay's cap ends the session (T-461).
+mod near_cap;
 pub mod node;
 pub mod options;
 pub mod persist;
@@ -426,7 +428,11 @@ async fn tries(resolved: &Resolved, log: &Arc<Log>) -> (i32, Option<podssh_ssh::
         if reached.layer.is_some() && resolved.alive_default && opts.keepalive_interval.take().is_some() {
             log.verbose("the far end runs the resumable layer, whose heartbeat finds a dead link: no SSH keepalives");
         }
+        let near = reached.relay.clone().map(|status| near_cap::spawn(status, log.clone()));
         let outcome = podssh_ssh::run::run_outcome(reached.stream, &opts, reached.relay, log.clone()).await;
+        if let Some(near) = near {
+            near.abort();
+        }
         // The layer's CLOSE, and the line of its failure, before the exit.
         transport::settle(reached.layer).await;
         let how = match outcome.retry {

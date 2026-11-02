@@ -93,7 +93,8 @@ pub fn ended(end: &End) {
         End::Status(_) if signalled => "signal",
         End::Status(_) => "status",
         End::NoStatus => "no-status",
-        End::Lost => "lost",
+        // The status stays in the record beside it (T-461).
+        End::Lost | End::Cut(_) => "lost",
         End::Escaped(_) => "escaped",
         End::Terminated => "terminated",
         End::Detached(_) => "detached",

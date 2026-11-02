@@ -116,8 +116,10 @@ pub fn exit_codes() -> Vec<(Code, String)> {
         row(
             podssh_ssh::EXIT_FAILURE,
             "podssh ssh: the connection, the host key, a node's key or the authentication failed, the \
-             session ended with no exit status (also when stdout closed and none came within 5 s), or the \
-             server ended a run of -N. OpenSSH uses the same code. podssh ping: the destination could \
+             session ended with no exit status (also when stdout closed and none came within 5 s), the \
+             connection was lost after the exit status and before the end of the output, which may be cut \
+             (the line says the status), or the server ended a run of -N. OpenSSH uses the same code, but \
+             for a cut, where it gives the status. podssh ping: the destination could \
              not be reached or logged in to, or a measure broke. podssh each: a host could not be reached \
              or logged in to, or its session ended with no exit status. podssh health: the host could not \
              be reached or logged in to, it has no sh, or its answer had none of the lines of the script. \

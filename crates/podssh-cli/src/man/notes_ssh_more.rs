@@ -42,7 +42,9 @@ pub(super) const MORE: &[&str] = &[
     "podssh sends keepalives (ServerAliveInterval), so the relay does not close an idle session. To a \
      node, the resumable layer keeps the link busy and finds a dead one, and SSH sends none unless \
      ServerAliveInterval is set: a keepalive with no answer would end a session that the layer carries \
-     onto a new link.",
+     onto a new link. Through the relay a session carries 64 MiB at most, both ways together: once it \
+     has carried 60 MiB (less under a relay's smaller limits, or PODSSH_SESSION_BUDGET), podssh says so \
+     once (with -q, nothing); podssh cp copies more on new sessions.",
     "podssh reads options before and after the host, as OpenSSH does, so a host that a script did not \
      write can be read as a flag. Put -- before it: podssh ssh -- \"$HOST\" uptime. A host, or a \
      -o HostName=VALUE, that starts with - is refused (exit 64), as OpenSSH refuses it.",
@@ -58,7 +60,9 @@ pub(super) const MORE: &[&str] = &[
      session, as with -W), failure (connect, host-key, auth, forward, relay, session, usage, config or \
      not-built, or null), bytes (stdin, stdout and stderr, as they passed; null through a control master, \
      which carries them), duration_ms, and relay (its host, close_code and reason, or null with no relay). \
-     stdout and stderr stay as they are; the command's output never goes into the file. A new file is made \
+     A link lost after the remote exit status and before the end of the output ends lost, with exit 255 \
+     and the status kept. stdout and stderr stay as they are; the command's output never goes into the \
+     file. A new file is made \
      for its owner alone; - is refused (exit 64). No file is written after a flag that podssh does not know, \
      which ends it before it reads the others, nor when a signal kills podssh: only a session on a terminal \
      ends at SIGTERM or SIGHUP, as terminated, and one with no pty at Ctrl-C, by the command's end or as \

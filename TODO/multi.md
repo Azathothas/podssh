@@ -28,7 +28,7 @@ succeeded. `podssh ssh` takes one destination, as OpenSSH does.
 - Measured: `podssh each a,b -- true` exits 64 (`unknown subcommand 'each'`),
   and `podssh ssh 'web1,web2' true` exits 64 (`',' is not allowed`).
 - Read: remote output goes straight to the stdout and stderr of the process
-  (`crates/podssh-ssh/src/io/msg.rs:77-94`), and podssh's own messages go to
+  (`crates/podssh-ssh/src/io/msg.rs:78-95`), and podssh's own messages go to
   stderr with one `podssh: ` prefix (`crates/podssh-ssh/src/log.rs:83-103`).
   Two hosts cannot be told apart.
 - Read: a host-key prompt waits for the user
@@ -47,9 +47,9 @@ succeeded. `podssh ssh` takes one destination, as OpenSSH does.
    flags), and `--parallel N` (default 8, 64 at most), `--fail-fast`,
    `--output-dir DIR`.
 2. One runtime, one task for each host, each on the existing path: the relay
-   open and `podssh_ssh::run` (`crates/podssh-cli/src/ssh/mod.rs:275-386`,
+   open and `podssh_ssh::run` (`crates/podssh-cli/src/ssh/mod.rs:277-388`,
    `crates/podssh-ssh/src/run.rs:34-79`). Invariant: no second SSH client.
-3. Sinks: give `crates/podssh-ssh/src/io.rs:151-446` (and `crates/podssh-ssh/src/io/msg.rs:11-94`) a sink for stdout and
+3. Sinks: give `crates/podssh-ssh/src/io.rs:171-466` (and `crates/podssh-ssh/src/io/msg.rs:11-95`) a sink for stdout and
    stderr in place of the streams of the process, and give `Log` a prefix
    (`crates/podssh-ssh/src/log.rs:12-18`). Each line gets `HOST: `. With
    `--output-dir`, the bytes go unchanged to `HOST.out` and `HOST.err`, and
@@ -72,7 +72,7 @@ succeeded. `podssh ssh` takes one destination, as OpenSSH does.
 ## Decision
 
 Recommendation: a new verb, because `podssh ssh` keeps the command line and
-the exit codes of OpenSSH for one host (`docs/cli.md:3635-3638`), and a list
+the exit codes of OpenSSH for one host (`docs/cli.md:3637-3640`), and a list
 of hosts changes both. The alternative, `podssh ssh --hosts LIST`, lost: one
 flag would change what the exit status means.
 
@@ -184,7 +184,7 @@ is not a shell. A set of hosts has no name.
   (`crates/podssh-cli/src/ssh/hop.rs:30-78`,
   `crates/podssh-ws/src/names.rs:10-24`).
 - Read: the `Host` lines of ssh_config are patterns, not lists
-  (`docs/cli.md:3763-3856`); they cannot define a group.
+  (`docs/cli.md:3778-3871`); they cannot define a group.
 
 ## Approach
 
@@ -291,7 +291,7 @@ a broadcast needs a stop that works at once.
 
 - Read: a session reads stdin on its own task and sends each chunk to one
   channel (`crates/podssh-ssh/src/io/input.rs:102-122`,
-  `crates/podssh-ssh/src/io.rs:198-257`).
+  `crates/podssh-ssh/src/io.rs:218-277`).
 - Read: escapes work only at the start of a line, and only with a pty
   (`crates/podssh-ssh/src/escape.rs:1-8`).
 - Read: each session can live in one process, so a broadcast needs no
@@ -1029,8 +1029,8 @@ that can be missing. `podssh doctor` checks only this host.
 ## Premise
 
 - Read: an exec request runs one command through the shell of the server
-  (`crates/podssh-ssh/src/session.rs:123-136`), and its output goes to stdout
-  (`crates/podssh-ssh/src/io/msg.rs:65-82`); podssh cannot read it.
+  (`crates/podssh-ssh/src/session.rs:131-144`), and its output goes to stdout
+  (`crates/podssh-ssh/src/io/msg.rs:65-83`); podssh cannot read it.
 - Read: on Linux, `/proc/loadavg`, `/proc/meminfo`, `/proc/uptime` and
   `/proc/net/dev` hold the facts, and a POSIX shell reads them with `read`,
   with no other tool.
@@ -1044,7 +1044,7 @@ that can be missing. `podssh doctor` checks only this host.
    built-ins of the shell, and `df -P` only when `command -v df` finds it.
    No text of the user goes into the script.
 3. Read the output with the sink of T-183
-   (`crates/podssh-ssh/src/io.rs:145-438`), parse it, and print one line for
+   (`crates/podssh-ssh/src/io.rs:165-458`), parse it, and print one line for
    each fact: load, memory and swap, uptime, network bytes (two samples,
    1 s apart), disk, processes. `--json` gives one object, in the shape of
    T-049.
@@ -1350,7 +1350,7 @@ expect rule.
   prints `-o LocalCommand has no effect in podssh`, and the same for
   `PermitLocalCommand` (`crates/podssh-cli/src/ssh/keywords.rs` lines 93-94 at `61e55d1`).
 - Read: remote output arrives at `crates/podssh-ssh/src/io/msg.rs:11-30`, and
-  input leaves at `crates/podssh-ssh/src/io.rs:198-248`. An expect rule goes
+  input leaves at `crates/podssh-ssh/src/io.rs:218-268`. An expect rule goes
   between them.
 - Read from memory, to verify against OpenSSH 10.3p1: OpenSSH runs
   `LocalCommand` after the connection, with the user's shell, only with
@@ -1547,7 +1547,7 @@ of the command.
    quoted for a POSIX shell (T-187). When the copy used most of the 64 MiB
    (`docs/relay.md:229`), run the exec on a new session (T-137).
 4. The exit status: the command's, with the rules of `podssh ssh`
-   (`docs/cli.md:3635-3638`). A failed copy exits 255 and runs nothing.
+   (`docs/cli.md:3637-3640`). A failed copy exits 255 and runs nothing.
 5. In the same commit: the rows, the notes, an example, `docs/cli.md`,
    `docs/STATUS.md`. This entry depends on T-134 and T-143.
 
@@ -1814,7 +1814,7 @@ a ticket, or a tool that asks an AI.
   (`crates/podssh-ssh/src/log.rs:83-103`). The exit code leaves through
   `crates/podssh-cli/src/dispatch.rs:368-409`.
 - Read: for `podssh ssh`, an exit that is not 0 can be the remote command's
-  status (`docs/cli.md:3635-3638`), which is not a failure of podssh.
+  status (`docs/cli.md:3637-3640`), which is not a failure of podssh.
 
 ## Approach
 
@@ -2017,7 +2017,7 @@ queue, no wait for a result, and no way to get the output back.
    gives one object.
 4. `job wait HOST ID [--timeout D]` reads `state` every 5 s until it is
    `done`, and exits with the job's status. When the limit passes first, it
-   exits 75; add the code to `crates/podssh-cli/src/man/data.rs:19-141`.
+   exits 75; add the code to `crates/podssh-cli/src/man/data.rs:19-143`.
 5. `job fetch HOST ID [DIR]` copies `out`, and the files that `--files GLOB`
    names, with the engine of T-134; DIR is `./podssh-job-ID` by default.
 6. With a list of hosts (T-184), `submit` picks the host with the fewest
@@ -2086,7 +2086,7 @@ one running and two queued must fail.
 ## Correction
 
 2026-10-09 (T-134): 75 (`EX_TEMPFAIL`) is in the table of exit codes
-already (`crates/podssh-cli/src/man/data.rs:19-141`), for a `--timeout` of
+already (`crates/podssh-cli/src/man/data.rs:19-143`), for a `--timeout` of
 `cp` that passed; this entry adds its sentence for `job wait`.
 
 2026-10-13 (the draft of T-197): T-193 runs a job under tmux only; the
@@ -2453,7 +2453,7 @@ not say that `job` and `--persist` need tmux on the far host.
   "HOST has no tmux on PATH; podssh job runs each job in the host's tmux, and starts none without
   it" (`crates/podssh-cli/src/job/far.rs:195-200`).
 - Read: `--persist` probes `command -v tmux`, and refuses with "the server has no tmux on PATH;
-  --persist needs it" (`crates/podssh-ssh/src/persist.rs:183-187`).
+  --persist needs it" (`crates/podssh-ssh/src/persist.rs:195-199`).
 - Read: tmux runs each job (`crates/podssh-cli/src/job/far.sh:97-102`) and the queue's runner
   (`:111-117`), and `stop` ends the job's tmux session by its exact name (`:256-272`).
 - Read: T-193's Decision chose tmux and set aside `nohup` with a file of the PID, as a `stop` by a

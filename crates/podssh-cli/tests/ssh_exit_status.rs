@@ -1,7 +1,8 @@
 //! The exit code of `podssh ssh` when a session does not end with its
 //! status on stdout (T-026), against the test's SSH server on the loopback:
 //! a closed stdout waits for the status, 5 s at most, and never reads as a
-//! success; `-N` that the server ends is 255, with the server's words.
+//! success; `-N` that the server ends is 255, with the server's words; a
+//! link cut after the status and before the output's end is 255 (T-461).
 
 mod cleanup;
 mod ssh_harness;
@@ -109,4 +110,63 @@ fn a_dash_n_session_that_the_server_ends_is_255_with_its_words() {
     let err = String::from_utf8_lossy(&out.stderr);
     assert_eq!(out.status.code(), Some(255), "{err}");
     assert!(err.contains("the server ended the connection") && err.contains("kicked by the test"), "{err}");
+}
+
+/// Run `cmd` with no stdin, its stdout and stderr read as they come, so that
+/// a large output never stops it, within the limit: its code, stdout and
+/// stderr.
+fn finished(mut cmd: Command) -> (Option<i32>, Vec<u8>, String) {
+    let mut child = cmd.stdin(Stdio::null()).stdout(Stdio::piped()).stderr(Stdio::piped()).spawn().unwrap();
+    let (mut stdout, mut stderr) = (child.stdout.take().unwrap(), child.stderr.take().unwrap());
+    let out = std::thread::spawn(move || {
+        let mut bytes = Vec::new();
+        let _ = stdout.read_to_end(&mut bytes);
+        bytes
+    });
+    let err = std::thread::spawn(move || {
+        let mut bytes = Vec::new();
+        let _ = stderr.read_to_end(&mut bytes);
+        bytes
+    });
+    let deadline = Instant::now() + LIMIT;
+    let status = loop {
+        if let Some(status) = child.try_wait().unwrap() {
+            break status;
+        }
+        if Instant::now() > deadline {
+            let _ = child.kill();
+            panic!("podssh did not end within {LIMIT:?}");
+        }
+        std::thread::sleep(Duration::from_millis(50));
+    };
+    let (out, err) = (out.join().unwrap(), err.join().unwrap());
+    (status.code(), out, String::from_utf8_lossy(&err).into_owned())
+}
+
+/// The status 0, then 1000000 bytes, then a link cut with no EOF and no
+/// Close (GitHub #84, where 0 came with 67010560 bytes of 70000000): no
+/// success, and the line says the status that came.
+#[test]
+fn a_cut_after_the_status_and_before_the_output_ends_is_255() {
+    let home = scratch("cut");
+    let (_runtime, port) = server(&home);
+    let started = Instant::now();
+    let (code, _, err) = finished(ssh(&home, port, &["tester@127.0.0.1", "cut", "1000000"]));
+    assert_eq!(code, Some(255), "{err}");
+    let line = format!(
+        "the connection to 127.0.0.1:{port} was lost before the output ended (the remote command had exited with 0)"
+    );
+    assert!(err.contains(&line), "{err}");
+    assert!(started.elapsed() < Duration::from_secs(10), "{:?}", started.elapsed());
+}
+
+/// The same with the EOF after the bytes, then the cut: the output ended,
+/// so the status holds, and each byte came.
+#[test]
+fn a_cut_after_the_status_and_the_output_end_keeps_the_status() {
+    let home = scratch("cut-eof");
+    let (_runtime, port) = server(&home);
+    let (code, out, err) = finished(ssh(&home, port, &["tester@127.0.0.1", "cut-eof", "1000000"]));
+    assert_eq!((code, out.len()), (Some(0), 1_000_000), "{err}");
+    assert!(!err.contains("was lost"), "{err}");
 }

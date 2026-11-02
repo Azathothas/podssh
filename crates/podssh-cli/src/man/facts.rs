@@ -444,7 +444,9 @@ fn relay() -> Vec<Block> {
                 "The relay ends a session after {cap} MiB, both ways together, or after {hours} hours. \
                  podssh cp and mv count each session's bytes and age, and before {budget} MiB or {minutes} \
                  minutes they open a new session and go on at the offset of the copy, with the host key and \
-                 the login of the first; PODSSH_SESSION_BUDGET lowers the bytes. To a node, the resumable \
+                 the login of the first; PODSSH_SESSION_BUDGET lowers the bytes. podssh ssh, whose \
+                 connection is one, says once that a session passed {budget} MiB, and a link that the cap \
+                 cuts after the remote exit status and before the output's end exits 255. To a node, the resumable \
                  layer moves the session to a new link at {moved} MiB of a link or after {move_hours} hours, \
                  and -v prints a line for each move. A pair expires after 72 hours at most: podssh ssh \
                  node:// and podssh operator warn {warning} minutes before, and then the relay ends each \
