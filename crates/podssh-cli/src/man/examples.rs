@@ -235,6 +235,15 @@ fn examples() -> Vec<(&'static str, String)> {
             "whether the relay reaches a target, and the first line that the target sends",
             "podssh relay trace github.com 22".into(),
         ),
+        (
+            "the relay itself on a host where nothing may listen: behind a quick tunnel, minting for the keys of \
+             owners.txt; its one line on stdout is the relay host",
+            "podssh node relay --quick-tunnel --relay --allow owners.txt".into(),
+        ),
+        (
+            "from anywhere, a session through that relay, with this client's key on its list",
+            "podssh ssh --relay-host https://NAME.trycloudflare.com user@example.org".into(),
+        ),
         ("make a key where ssh-keygen does not work", "podssh keygen -t ed25519 -f ~/.ssh/id_ed25519".into()),
         ("a key with no passphrase, for a script", "podssh keygen -N '' -f ./deploy_key".into()),
         ("the public key of a private key", "podssh keygen -y -f ~/.ssh/id_ed25519".into()),

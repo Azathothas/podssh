@@ -2,12 +2,15 @@
 //! is the first stream, which the node opens (`connection/quic_connection.go`),
 //! and on it the node registers as over HTTP/2. Each stream that the edge
 //! opens is a request, whose first bytes say what it is (`connect.rs`): a
-//! visitor's WebSocket goes to `visit`; any other request gets 404; an RPC
-//! stream of the edge, a push of configuration, gets cloudflared's answer,
-//! and nothing of it is kept (T-411, `rpc_stream`).
+//! visitor's WebSocket goes to `visit`, and a request of a path of the
+//! node's origin, the relay role, to that origin (T-428, `origin_quic`); any
+//! other request gets 404; an RPC stream of the edge, a push of
+//! configuration, gets cloudflared's answer, and nothing of it is kept
+//! (T-411, `rpc_stream`).
 
 use std::future::Future;
 use std::io::Cursor;
+use std::sync::Arc;
 use std::time::Duration;
 
 use noq::{Connection, ConnectionError, RecvStream, SendStream, VarInt};
@@ -18,6 +21,7 @@ use tokio::time::Instant;
 use super::capnp;
 use super::connect::{self, Kind, Stream};
 use super::control::{Control, Event, Failure};
+use super::origin::{self, Origin, Visit};
 use super::register::Registered;
 use super::register::Registration;
 use super::rpc_stream::{RpcStream, RPC_WAIT};
@@ -33,17 +37,15 @@ const REQUEST_WAIT: Duration = Duration::from_secs(10);
 /// each visitor's WebSocket to `visit`, and say each step to `steps`. When
 /// `stop` ends, unregister, close and return `Ok`; an end that comes first is
 /// an error, as over HTTP/2.
-pub async fn serve<V, F>(
+pub async fn serve<V: Visit>(
     connection: Connection,
     registration: &Registration<'_>,
     mut visit: V,
     steps: mpsc::UnboundedSender<Step>,
     stop: impl Future<Output = ()>,
-) -> Result<(), Ended>
-where
-    V: FnMut(DuplexStream) -> F,
-    F: Future<Output = ()> + Send + 'static,
-{
+) -> Result<(), Ended> {
+    // The relay role, for a node that is its owner's relay (T-428).
+    let relay = visit.origin();
     tokio::pin!(stop);
     let (send, recv) = tokio::select! {
         opened = connection.open_bi() => opened.map_err(ended)?,
@@ -62,14 +64,14 @@ where
         tokio::select! {
             accepted = connection.accept_bi() => match accepted {
                 Ok((send, recv)) => {
-                    tokio::spawn(request(send, recv, arrived.clone()));
+                    tokio::spawn(request(send, recv, arrived.clone(), relay.clone()));
                 }
                 Err(_) if stopping => return Ok(()),
                 Err(e) => return Err(ended(e)),
             },
             Some(stream) = visitors.recv() => {
                 let _ = steps.send(Step::Visitor);
-                tokio::spawn(visit(stream));
+                tokio::spawn(visit.visit(stream));
             },
             Some(event) = heard.recv() => match event {
                 Ok(Event::Registered(Registered::Details { location, .. })) => {
@@ -201,9 +203,15 @@ enum Opened {
 }
 
 /// One stream of the edge: its preamble and its request, then the answer. A
-/// visitor's WebSocket goes to `visitors`, with the bytes that came after
-/// its request; an RPC stream is served as one.
-async fn request(mut send: SendStream, mut recv: RecvStream, visitors: mpsc::UnboundedSender<DuplexStream>) {
+/// request of a path of `relay`'s goes to it, and a visitor's WebSocket to
+/// `visitors`, each with the bytes that came after its request; an RPC
+/// stream is served as one.
+async fn request(
+    mut send: SendStream,
+    mut recv: RecvStream,
+    visitors: mpsc::UnboundedSender<DuplexStream>,
+    relay: Option<Arc<dyn Origin>>,
+) {
     let read = tokio::time::timeout(REQUEST_WAIT, read_request(&mut recv)).await;
     let (request, rest) = match read {
         Ok(Some(Opened::Request(request, rest))) => (request, rest),
@@ -215,6 +223,11 @@ async fn request(mut send: SendStream, mut recv: RecvStream, visitors: mpsc::Unb
             return;
         }
     };
+    let taken = origin::taking(&relay, &super::origin_quic::target_of(&request.dest));
+    if let (Kind::Http | Kind::WebSocket, Some(origin)) = (request.kind, taken) {
+        let from_edge = AsyncReadExt::chain(Cursor::new(rest), recv);
+        return super::origin_quic::serve(origin, &request, from_edge, send).await;
+    }
     let key = request.header("sec-websocket-key").map(str::to_string);
     match (request.kind, key) {
         (Kind::WebSocket, Some(key)) => {

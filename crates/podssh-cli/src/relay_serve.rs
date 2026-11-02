@@ -19,7 +19,7 @@ use crate::relay_settings::Refusal;
 /// How long a client has to finish TLS.
 const HANDSHAKE_WAIT: Duration = Duration::from_secs(30);
 /// How long a planned stop waits for each reverse socket's Close to go out.
-const STOP_WAIT: Duration = Duration::from_secs(3);
+pub(crate) const STOP_WAIT: Duration = Duration::from_secs(3);
 
 /// The flags of `serve`.
 #[derive(Debug, Clone, Default, PartialEq, Eq)]
@@ -78,28 +78,8 @@ fn prepare(s: &ServeArgs) -> Result<Prepared, Refusal> {
             "serve needs --cert FILE and --key FILE: a certificate chain and its P-256 key, in PEM",
         ));
     };
-    let mint = match s.mint.as_deref().unwrap_or("nobody") {
-        "anyone" => Mint::Anyone,
-        "nobody" | "none" => Mint::Nobody,
-        word => match word.strip_prefix("keys:").filter(|file| !file.is_empty()) {
-            Some(file) => Mint::Keys(file.into()),
-            None => return Err(Refusal::usage(format!("--mint {word:?}: anyone, nobody or keys:FILE"))),
-        },
-    };
-    // The list is read again for each request; here, so that a list that
-    // cannot be read stops the start, and the keys that it holds are said.
-    let who = match &mint {
-        Mint::Anyone => "anyone".to_string(),
-        Mint::Nobody => "no one".to_string(),
-        Mint::Keys(file) => {
-            let list = podssh_relay::identity::allow::Allowlist::read(file).map_err(Refusal::config)?;
-            let bad = match list.bad_lines() {
-                [] => String::new(),
-                lines => format!("; lines {lines:?} hold no key, and let nobody in"),
-            };
-            format!("the {} keys of {}{bad}", list.len(), file.display())
-        }
-    };
+    let mint = mint_of(s.mint.as_deref().unwrap_or("nobody"))?;
+    let who = minting_for(&mint)?;
     let keepalive = match s.keepalive.as_deref() {
         None => Limits::default().keepalive,
         Some(text) => match text.parse::<u64>() {
@@ -151,6 +131,37 @@ fn prepare(s: &ServeArgs) -> Result<Prepared, Refusal> {
         serve::CONTRACT
     );
     Ok((listener, acceptor, Arc::new(cfg), shown))
+}
+
+/// Who `--mint WORD` mints for: anyone, nobody, or the keys of a list
+/// (T-448); the node behind a quick tunnel reads the same words (T-428).
+pub(crate) fn mint_of(word: &str) -> Result<Mint, Refusal> {
+    match word {
+        "anyone" => Ok(Mint::Anyone),
+        "nobody" | "none" => Ok(Mint::Nobody),
+        word => match word.strip_prefix("keys:").filter(|file| !file.is_empty()) {
+            Some(file) => Ok(Mint::Keys(file.into())),
+            None => Err(Refusal::usage(format!("--mint {word:?}: anyone, nobody or keys:FILE"))),
+        },
+    }
+}
+
+/// Whom `mint` mints for, in the words of the first line. The list is read
+/// again for each request; here, so that a list that cannot be read stops
+/// the start, and the keys that it holds are said.
+pub(crate) fn minting_for(mint: &Mint) -> Result<String, Refusal> {
+    Ok(match mint {
+        Mint::Anyone => "anyone".to_string(),
+        Mint::Nobody => "no one".to_string(),
+        Mint::Keys(file) => {
+            let list = podssh_relay::identity::allow::Allowlist::read(file).map_err(Refusal::config)?;
+            let bad = match list.bad_lines() {
+                [] => String::new(),
+                lines => format!("; lines {lines:?} hold no key, and let nobody in"),
+            };
+            format!("the {} keys of {}{bad}", list.len(), file.display())
+        }
+    })
 }
 
 fn serve_until_stopped(

@@ -27,6 +27,14 @@ pub struct NodeArgs {
     pub quick_tunnel: bool,
     /// Reach the quick tunnel's edge inside WARP's tunnel first (T-374).
     pub warp: bool,
+    /// The relay role behind the quick tunnel too (T-428).
+    pub relay: bool,
+    /// Whom the role mints for, unparsed: `relay serve`'s words.
+    pub mint: Option<String>,
+    /// The file that keeps the role's pairs across a restart.
+    pub pairs: Option<String>,
+    /// The role dials non-public targets too.
+    pub allow_private: bool,
     /// The node's key file, by its earlier name (T-163).
     pub iroh_key: Option<String>,
     /// The allowlist, by its earlier name (T-163).
@@ -82,6 +90,10 @@ impl NodeArgs {
             derp_server: get("derp-server"),
             quick_tunnel: matches.get_flag("quick-tunnel"),
             warp: matches.get_flag("warp"),
+            relay: matches.get_flag("relay"),
+            mint: get("mint"),
+            pairs: get("pairs"),
+            allow_private: matches.get_flag("allow-private"),
             iroh_key: get("iroh-key"),
             iroh_allow: get("iroh-allow"),
             iroh_ephemeral: matches.get_flag("iroh-ephemeral"),

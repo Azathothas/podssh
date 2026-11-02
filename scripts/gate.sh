@@ -154,9 +154,9 @@ step_lint() {
         cargo clippy --locked --all-targets -p podssh-cli -p podssh-warp -p podssh-relay \
             --features podssh-cli/warp,podssh-warp/stand-in,podssh-relay/warp-stand-in -- -D warnings
     # The relay role's tests on plain ws:// (T-427), which no other feature
-    # set builds.
+    # set builds, and behind a quick tunnel (T-428).
     run "clippy: no warning in the relay role's tests" \
-        cargo clippy --locked --all-targets -p podssh-relay --features serve,plain-ws -- -D warnings
+        cargo clippy --locked --all-targets -p podssh-relay --features serve,plain-ws,quick -- -D warnings
     # The Tor road (T-353): the crate and the CLI's road with its feature.
     run "clippy: no warning with the Tor feature" \
         cargo clippy --locked --all-targets -p podssh-cli -p podssh-tor --features podssh-cli/tor -- -D warnings
@@ -198,6 +198,14 @@ step_libs() {
     tests "the relay role's reverse road (features serve, plain-ws, no C compiler)" \
         env CC=/nonexistent CXX=/nonexistent cargo test --locked --no-fail-fast -p podssh-relay --features serve,plain-ws \
             --test relay_serve_contract --test relay_serve_reverse
+    # The relay role behind a quick tunnel (T-428): through the stand-in edge
+    # and its front over HTTP/2, and as the origin of a QUIC stream on pipes.
+    tests "the relay role behind a quick tunnel (features quick, serve, plain-ws, no C compiler)" \
+        env CC=/nonexistent CXX=/nonexistent cargo test --locked --no-fail-fast -p podssh-relay \
+            --features quick,serve,plain-ws --test quick_relay --test quick_relay_quic
+    tests "the relay role as a quick tunnel's origin (features quick, serve, no C compiler)" \
+        env CC=/nonexistent CXX=/nonexistent cargo test --locked --no-fail-fast -p podssh-relay --features quick,serve \
+            --lib serve::behind
     run "the binary does not enable plain-ws" sh scripts/no-plain-ws.sh
 }
 

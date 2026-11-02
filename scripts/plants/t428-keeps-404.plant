@@ -1,0 +1,8 @@
+# T-428: the node of a quick tunnel keeps its 404 for the relay's paths, as
+# before the role was its origin, so a client that takes the tunnel's name
+# for its relay host gets no challenge, no token and no session; the test of
+# that client through the stand-in edge must fail.
+ENTRY=T-428
+GROUP=resume
+EXPECT='test a_client_with_the_tunnel_s_name_reads_a_target_s_first_line_through_the_role \.\.\. FAILED'
+RUN='cargo test --locked -p podssh-relay --features quick,serve,plain-ws --test quick_relay -- a_client_with_the_tunnel_s_name_reads_a_target_s_first_line_through_the_role'

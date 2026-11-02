@@ -14,11 +14,11 @@ use std::pin::Pin;
 use std::sync::Arc;
 
 use podssh_ws::ProxyChoice;
-use tokio::io::DuplexStream;
 use tokio::sync::{mpsc, watch};
 use tokio::task::JoinHandle;
 
 use super::edge::{self, Edge, EdgeIo};
+use super::origin::Visit;
 use super::probe;
 use super::quic::{self, EdgeConnection};
 use super::register::{Connector, Registration};
@@ -37,17 +37,13 @@ pub enum Link {
 
 impl Link {
     /// Serve it as [`serve::serve`] does, over its transport.
-    pub async fn serve<V, F>(
+    pub async fn serve<V: Visit>(
         self,
         registration: &Registration<'_>,
         visit: V,
         steps: mpsc::UnboundedSender<Step>,
         stop: impl Future<Output = ()>,
-    ) -> Result<(), Ended>
-    where
-        V: FnMut(DuplexStream) -> F,
-        F: Future<Output = ()> + Send + 'static,
-    {
+    ) -> Result<(), Ended> {
         match self {
             Link::Quic(edge) => edge.serve(registration, visit, steps, stop).await,
             Link::Http2(io) => serve::serve(io, registration, visit, steps, stop).await,
@@ -165,7 +161,7 @@ async fn asked(mut own: watch::Receiver<bool>, mut all: watch::Receiver<bool>) {
 
 /// One road of a race: its dial and its connection in a task, which `all`
 /// or the race's stop ends; the attempt opens when the edge registered it.
-async fn attempt<V, F>(
+async fn attempt<V>(
     road: Road,
     connector: Arc<Connector>,
     conn_index: u8,
@@ -173,8 +169,7 @@ async fn attempt<V, F>(
     all: watch::Receiver<bool>,
 ) -> Attempt<Serving, Failed>
 where
-    V: FnMut(DuplexStream) -> F + Send + 'static,
-    F: Future<Output = ()> + Send + 'static,
+    V: Visit + Send + 'static,
 {
     let Road { name, dial } = road;
     let (tell, mut steps) = mpsc::unbounded_channel();
@@ -217,7 +212,7 @@ where
 /// Race `roads` for the connection `conn_index` of `connector`, each
 /// visitor to `visit`; `all` stops each connection of the race, the kept
 /// one too, whenever it says so.
-pub async fn race<V, F>(
+pub async fn race<V>(
     roads: Vec<Road>,
     connector: Arc<Connector>,
     conn_index: u8,
@@ -225,8 +220,7 @@ pub async fn race<V, F>(
     all: watch::Receiver<bool>,
 ) -> Race
 where
-    V: FnMut(DuplexStream) -> F + Clone + Send + 'static,
-    F: Future<Output = ()> + Send + 'static,
+    V: Visit + Clone + Send + 'static,
 {
     let names: Vec<&'static str> = roads.iter().map(|road| road.name).collect();
     let mut roads: Vec<Option<Road>> = roads.into_iter().map(Some).collect();

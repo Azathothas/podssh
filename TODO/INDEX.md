@@ -499,7 +499,7 @@ repository and CI).
 | [T-425](release.md) | P1 | S | M9 | defect | done | The public IRC networks turn the relay's address away, and the release check's row irc.live fails on it |
 | [T-426](release.md) | P1 | S | none | defect | done | `podssh update` of a build of a release, before the first release, says that it found no list |
 | [T-427](mesh.md) | P1 | L | M10 | feature | done | The relay's reverse road in podssh's relay role |
-| [T-428](mesh.md) | P1 | M | M10 | feature | open | The relay role behind a node's quick tunnel, with no listener |
+| [T-428](mesh.md) | P1 | M | M10 | feature | partial | The relay role behind a node's quick tunnel, with no listener |
 | [T-429](mesh.md) | P1 | L | M10 | feature | done | The net: an owner's signed list of its nodes, and their names |
 | [T-430](mesh.md) | P2 | M | M10 | feature | open | The net's policy: who may reach which node, share and exit |
 | [T-431](mesh.md) | P1 | L | M10 | feature | open | Exit mode: a node's egress for its owner's forward road |

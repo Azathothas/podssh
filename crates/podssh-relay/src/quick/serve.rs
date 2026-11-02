@@ -5,7 +5,9 @@
 //! which podssh registers the connection; each later request with the
 //! upgrade `websocket` is a visitor, whose WebSocket goes to `visit`; a push
 //! of configuration gets cloudflared's answer and is kept nowhere (T-404);
-//! any other request gets 404 with no body, as podssh serves nothing else.
+//! any other request gets 404 with no body, as podssh serves nothing else,
+//! but at a path of the node's origin, the relay role, which answers it in
+//! place of the 404 (T-428, `origin`).
 //!
 //! Nothing listens: the connection is the one that podssh dialed. The
 //! WebSocket's frames pass the edge unchanged, so podssh is the WebSocket's
@@ -18,20 +20,19 @@ use bytes::Bytes;
 use h2::server::SendResponse;
 use h2::{RecvStream, SendStream};
 use http::{Request, Response, StatusCode};
-use podssh_ws::frame::{self, Frame, Role};
-use tokio::io::{AsyncRead, AsyncReadExt, AsyncWrite, AsyncWriteExt, DuplexStream};
-use tokio::sync::{mpsc, watch};
+use tokio::io::{AsyncRead, AsyncWrite};
+use tokio::sync::mpsc;
 use tokio::time::Instant;
 
 use super::configuration;
 use super::control::{Control, Event, Failure};
 use super::goaway;
+use super::h2_stream::{send_all, websocket};
 use super::headers::{self, Kind};
+use super::origin::{self, Visit};
 use super::register::{Registered, Registration};
 use super::settings;
 
-/// The buffer of each bridge between a stream and its user.
-const PIPE: usize = 64 * 1024;
 /// How long the edge has for HTTP/2's handshake.
 pub const HANDSHAKE_WAIT: Duration = Duration::from_secs(30);
 /// How often the node asks whether the edge is there (an HTTP/2 PING), and
@@ -110,9 +111,10 @@ impl std::fmt::Display for Ended {
 
 /// Serve the connection `io` to the edge: register it with `registration`,
 /// give each visitor's WebSocket to `visit` as a stream of its bytes, and
-/// say each step to `steps`. When `stop` ends, unregister, close and return
-/// `Ok`; an end that comes first is an error.
-pub async fn serve<IO, V, F>(
+/// each request of a path of its origin to that origin, and say each step
+/// to `steps`. When `stop` ends, unregister, close and return `Ok`; an end
+/// that comes first is an error.
+pub async fn serve<IO, V>(
     io: IO,
     registration: &Registration<'_>,
     visit: V,
@@ -121,15 +123,14 @@ pub async fn serve<IO, V, F>(
 ) -> Result<(), Ended>
 where
     IO: AsyncRead + AsyncWrite + Unpin,
-    V: FnMut(DuplexStream) -> F,
-    F: Future<Output = ()> + Send + 'static,
+    V: Visit,
 {
     serve_with(settings::server_builder(), io, registration, visit, steps, stop).await
 }
 
 /// [`serve`] with the HTTP/2 of `builder`: a test's control, with h2's own
 /// budget of small frames, in place of the node's (T-408).
-pub async fn serve_with<IO, V, F>(
+pub async fn serve_with<IO, V>(
     builder: h2::server::Builder,
     io: IO,
     registration: &Registration<'_>,
@@ -139,9 +140,10 @@ pub async fn serve_with<IO, V, F>(
 ) -> Result<(), Ended>
 where
     IO: AsyncRead + AsyncWrite + Unpin,
-    V: FnMut(DuplexStream) -> F,
-    F: Future<Output = ()> + Send + 'static,
+    V: Visit,
 {
+    // The relay role, for a node that is its owner's relay (T-428).
+    let relay = visit.origin();
     tokio::pin!(stop);
     let (io, mut going) = goaway::watched(io);
     let handshake = builder.handshake::<_, Bytes>(io);
@@ -170,8 +172,11 @@ where
     loop {
         tokio::select! {
             accepted = conn.accept() => match accepted {
-                Some(Ok((request, respond))) => match headers::kind(|name| header(&request, name)) {
-                    Kind::Control => match (control.take(), asked.take()) {
+                Some(Ok((request, respond))) => match (
+                    headers::kind(|name| header(&request, name)),
+                    origin::taking(&relay, request.uri().path()),
+                ) {
+                    (Kind::Control, _) => match (control.take(), asked.take()) {
                         (Some((control, first)), Some(asked)) => {
                             let said = said.clone();
                             let (recv, send) = (request.into_body(), respond_200(respond, &[])?);
@@ -179,7 +184,11 @@ where
                         }
                         _ => refuse(respond, StatusCode::BAD_REQUEST),
                     },
-                    Kind::WebSocket => {
+                    // A path of the origin, a WebSocket or not (T-428).
+                    (kind @ (Kind::WebSocket | Kind::Http), Some(origin)) => {
+                        tokio::spawn(super::origin_h2::serve(origin, request, respond, kind == Kind::WebSocket));
+                    }
+                    (Kind::WebSocket, _) => {
                         let key = header(&request, "sec-websocket-key").unwrap_or_default().to_string();
                         let answer = headers::websocket_answer(&key);
                         let pairs = [(headers::RESPONSE_HEADERS, answer.as_str()), (headers::RESPONSE_META, headers::META_ORIGIN)];
@@ -187,13 +196,13 @@ where
                         // ends with its stream, not the connection.
                         if let Ok(send) = respond_200(respond, &pairs) {
                             let _ = steps.send(Step::Visitor);
-                            tokio::spawn(visit(websocket(request.into_body(), send)));
+                            tokio::spawn(visit.visit(websocket(request.into_body(), send)));
                         }
                     }
-                    Kind::Configuration => {
+                    (Kind::Configuration, _) => {
                         tokio::spawn(answer_push(request.into_body(), respond));
                     }
-                    Kind::Http | Kind::Tcp => refuse(respond, StatusCode::NOT_FOUND),
+                    (Kind::Http | Kind::Tcp, _) => refuse(respond, StatusCode::NOT_FOUND),
                 },
                 // The end was asked for: the edge's close, or a pipe that
                 // breaks under it, is that end.
@@ -401,100 +410,4 @@ async fn run_control(
             }
         }
     }
-}
-
-/// Send `bytes` on `send` as the edge's window lets them go.
-async fn send_all(send: &mut SendStream<Bytes>, mut bytes: &[u8]) -> Result<(), h2::Error> {
-    while !bytes.is_empty() {
-        send.reserve_capacity(bytes.len());
-        let room = match std::future::poll_fn(|cx| send.poll_capacity(cx)).await {
-            Some(Ok(room)) => room,
-            Some(Err(e)) => return Err(e),
-            None => return Err(h2::Error::from(h2::Reason::CANCEL)),
-        };
-        let take = room.min(bytes.len());
-        if take == 0 {
-            continue;
-        }
-        send.send_data(Bytes::copy_from_slice(&bytes[..take]), false)?;
-        bytes = &bytes[take..];
-    }
-    Ok(())
-}
-
-/// A visitor's WebSocket on a stream: the bytes of its messages, both ways,
-/// as one end of a pipe. Pings get their pongs; a close, or the end of the
-/// stream, ends the pipe.
-fn websocket(mut recv: RecvStream, mut send: SendStream<Bytes>) -> DuplexStream {
-    let (user, ours) = tokio::io::duplex(PIPE);
-    let (mut from_user, mut to_user) = tokio::io::split(ours);
-    // The latest ping's payload only: RFC 6455, section 5.5.3, lets an end
-    // answer the most recent of the pings that wait, so a visitor that
-    // pings while the writer waits for the edge's window holds one payload.
-    let (pongs, mut pongs_due) = watch::channel::<Option<Vec<u8>>>(None);
-    // The visitor's frames, masked as a client writes them, to the user.
-    tokio::spawn(async move {
-        let mut inbox = Vec::new();
-        while let Some(Ok(chunk)) = recv.data().await {
-            let _ = recv.flow_control().release_capacity(chunk.len());
-            inbox.extend_from_slice(&chunk);
-            loop {
-                match frame::decode(&inbox, Role::Client) {
-                    Ok(Some((frame, used))) => {
-                        inbox.drain(..used);
-                        match frame.opcode {
-                            // A continuation, a text or a binary message.
-                            0x0..=0x2 => {
-                                if to_user.write_all(&frame.payload).await.is_err() {
-                                    return;
-                                }
-                            }
-                            0x9 => {
-                                pongs.send_replace(Some(frame.payload));
-                            }
-                            0x8 => {
-                                let _ = to_user.shutdown().await;
-                                return;
-                            }
-                            _ => {}
-                        }
-                    }
-                    Ok(None) => break,
-                    Err(_) => return,
-                }
-            }
-        }
-        let _ = to_user.shutdown().await;
-    });
-    // The user's bytes, as binary messages unmasked, to the visitor.
-    tokio::spawn(async move {
-        let mut buf = vec![0u8; PIPE];
-        loop {
-            tokio::select! {
-                n = from_user.read(&mut buf) => {
-                    let n = match n {
-                        Ok(0) | Err(_) => {
-                            let close = Frame { fin: true, opcode: 0x8, payload: 1000u16.to_be_bytes().to_vec() };
-                            let _ = send_all(&mut send, &frame::encode(&close, Role::Server, [0; 4])).await;
-                            let _ = send.send_data(Bytes::new(), true);
-                            return;
-                        }
-                        Ok(n) => n,
-                    };
-                    let message = Frame { fin: true, opcode: 0x2, payload: buf[..n].to_vec() };
-                    if send_all(&mut send, &frame::encode(&message, Role::Server, [0; 4])).await.is_err() {
-                        return;
-                    }
-                }
-                Ok(()) = pongs_due.changed() => {
-                    let Some(payload) = pongs_due.borrow_and_update().clone() else { continue };
-                    let pong = Frame { fin: true, opcode: 0xA, payload };
-                    if send_all(&mut send, &frame::encode(&pong, Role::Server, [0; 4])).await.is_err() {
-                        return;
-                    }
-                }
-            }
-        }
-    });
-    user
 }

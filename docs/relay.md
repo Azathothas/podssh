@@ -70,7 +70,7 @@ session grows without a bound (T-336 asks the same of the default relay).
 The key is a P-256 key in PEM, signed in pure Rust as podssh's other TLS is;
 a token is the contract's form under a secret of the run, so a restart ends
 each token. Its reverse road (T-427) is in "The relay role's reverse road",
-below; the role behind a node's quick tunnel, with no listener, is T-428.
+below, and the role behind a quick tunnel, with no listener, at the end.
 
 ## How podssh selects relay hosts
 
@@ -459,3 +459,36 @@ a challenge that is not its own, that ended or that was answered before,
 and a request whose `Host` is not the name that its TLS asked for; the
 `403` names the key's fingerprint, for the owner's list. A relay of the
 contract never answers `401`, so a client asks nothing more of it.
+
+## The relay role behind a quick tunnel (T-428)
+
+Where nothing may listen, the node of a quick tunnel serves the role:
+
+```sh
+podssh node relay --quick-tunnel --relay --allow owners.txt
+podssh ssh --relay-host https://NAME.trycloudflare.com user@target
+```
+
+The node dials Cloudflare's edge as for any quick tunnel, and gives each
+request of a path of the relay (`/health`, `/v1/mint`, `/connect/HOST/PORT`,
+`/relays.json`, `/trace`, `/llms-full.txt`, and each path under `/v1/`) to
+the role in place of its 404, on a pipe in the process: the request as
+cloudflared's proxy sends one to an origin of HTTP/1.1 (the visitor's
+headers but those of one hop, and for a WebSocket the upgrade's three, as
+cloudflared sets them), and the role's answer back as cloudflared's writer
+sends an origin's, over HTTP/2 (a 101 as 200, the headers serialized) and
+over QUIC (a 101 as it is, each header in the metadata). A WebSocket's
+frames pass the edge unchanged, so after the upgrade each byte goes as it
+came, both ways. With a TARGET too, a visitor's WebSocket at another path
+still reaches TARGET; with none, each path is the role's.
+
+The tunnel's name, the one line on stdout, is the relay host. The role
+mints, and makes pairs, for the keys of the node's `--allow` by default,
+and a key's signed request must name the tunnel as its `Host`, as behind a
+listener it must name its TLS's name: the edge took the visitor's TLS for
+that name. `--mint`, `--pairs` and `--allow-private` are those of `podssh
+relay serve`. The name is new at each run, and a pair names its relay
+host, so a pair of the role's serves its node's run; `--pairs FILE` keeps
+the pairs all the same, as `relay serve`'s does. A planned stop closes each
+socket of the reverse road with `1012` first. The role dials its targets
+from the node's host directly, as on a listener.

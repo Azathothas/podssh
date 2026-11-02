@@ -2503,6 +2503,29 @@ commands. The rules behind them:
   `each` and the other commands of a destination on that road: it tells the
   node apart by the layer's greeting (`cf://[user@]HOST`, above). The node
   prints its key as it starts, for the client's `--node-key`.
+- **`node NAME [TARGET] --quick-tunnel --relay` is its owner's relay too,
+  with no listener** (T-428): behind its quick tunnel it serves the relay
+  role of `relay serve` (T-169, T-427), each request of the edge a pipe in
+  the process. The paths of the relay (`/health`, `/v1/mint`,
+  `/connect/HOST/PORT`, `/relays.json`, `/trace`, `/llms-full.txt` and each
+  path under `/v1/`) go to the role, over HTTP/2 and over QUIC, where a
+  request that is no visitor's WebSocket got 404; the request goes to it as
+  cloudflared sends one to an origin, and its answer back as cloudflared's.
+  The line on stdout is the relay host: `--relay-host
+  https://NAME.trycloudflare.com` reaches the relay as any other does. With
+  no TARGET the node is the relay alone, and each path is the role's, whose
+  404 answers the others. It mints, and makes pairs, for the keys of
+  `--allow` by default, each by its signature of the role's challenge
+  (T-448), and a signed request must name the tunnel, which stands for the
+  name that a TLS asks for; `--mint keys:FILE`, `anyone` and `nobody` are
+  `relay serve`'s words. `--pairs FILE` and `--allow-private` are `relay
+  serve`'s too, and its keepalive is the default, an empty frame each 25 s.
+  The role's events are lines on stderr, and Ctrl-C or SIGTERM
+  closes each socket of its reverse road with `1012` before the tunnel
+  unregisters. `--mint`, `--pairs` and `--allow-private` without `--relay`,
+  and `--relay` without `--quick-tunnel`, are usage errors (64); a list of
+  `--mint keys:FILE` that cannot be read stops the start (78). The role
+  dials each target from this host directly, as `relay serve` does.
 - **The exit codes follow the faults of E24**
   (`crates/podssh-cli/src/exitmap.rs`): 69 for a relay or TARGET out of
   reach, a stopped pair, or a pair that another node serves; 77 for a

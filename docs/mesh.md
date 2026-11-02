@@ -59,7 +59,8 @@ gave.
 - A node with no inbound port that serves visitors: the quick tunnel's node
   is the server of the visitors' WebSockets on the connection that podssh
   dialed, and gives 404 to each other request
-  (`crates/podssh-relay/src/quick/serve.rs:8`).
+  (`crates/podssh-relay/src/quick/serve.rs:8`), but those of the relay role
+  with `--relay` (T-428).
 - The server's side of the WebSocket handshake (`crates/podssh-ws/src/server.rs`).
 - The relay's contract, executable: `scripts/fake-relay.py` and
   `scripts/fake_reverse.py` serve the forward road, `/v1/mint`, `/health`,
@@ -127,8 +128,10 @@ which `--pairs FILE` keeps across a restart:
 
 - where it can listen: on an address that the user names (Q1), with a
   certificate from files or from ACME;
-- where it cannot: behind the node's own quick tunnel, whose node serves the
-  relay's routes to its visitors instead of 404, with no listener (T-428);
+- where it cannot: behind the node's own quick tunnel (`podssh node NAME
+  --quick-tunnel --relay`), whose node gives the relay's routes to the role
+  in place of its 404, over HTTP/2 and QUIC, with no listener, the tunnel's
+  name the relay host and the keys of `--allow` its own by default (T-428);
 - for the keys of a list, each by its signature of the role's challenge
   (`--mint keys:FILE`, T-448), and for the net's members by the net's list
   (T-429); for anyone, only when the user asks.

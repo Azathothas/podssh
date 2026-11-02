@@ -196,6 +196,18 @@ pub(super) const NODE: &[&str] = &[
      connection to the edge that is lost is made again, with the same name; at Ctrl-C the node \
      unregisters each. --iroh, --derp, --plain, --no-e2e, --pair-file, a route and a udp: TARGET are \
      refused with it (64).",
+    "With --quick-tunnel --relay, the node is its owner's relay too, with no listener: behind its tunnel \
+     it serves the relay's forward and reverse roads, those of podssh relay serve, where a request of \
+     another path than a visitor's would get 404: /health, /v1/mint, /connect/HOST/PORT, /relays.json, \
+     /trace, /llms-full.txt and each path under /v1/. Its one line on stdout is the relay host: a client \
+     reaches the relay with --relay-host https://NAME.trycloudflare.com, as it reaches another relay. With \
+     no TARGET, the node is the relay alone, and each path is the relay's. It mints tokens, and makes \
+     pairs, for the keys of --allow by default, each by its signature of the relay's challenge, and a \
+     signed request must name the tunnel; --mint keys:FILE names another list, --mint anyone mints for \
+     each client, and --mint nobody for none. --pairs FILE keeps its pairs across a restart, though the \
+     tunnel's name is new each run; --allow-private dials non-public targets too. The relay dials each \
+     target from this host, as podssh relay serve does. Each mint, upgrade and step of the reverse road \
+     is a line on stderr, and Ctrl-C or SIGTERM first closes each socket of the reverse road with 1012.",
     "The name is asked of api.trycloudflare.com, which limits a host that made a few tunnels: when it \
      refuses for now (429, or a 5xx), the node asks again for up to 5 minutes, after its Retry-After \
      (seconds, or a date) or a growing wait, with a line for each wait, and Ctrl-C ends the wait (0). A \
