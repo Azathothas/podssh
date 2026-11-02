@@ -26,6 +26,10 @@
   9. No source of crates/*/src, outside its tests, prints with a macro that
      panics when its write fails (`eprintln!` and its kin), as the release
      aborts on a panic (T-389). A planted one is found; one in tests is not.
+ 10. Each package of a `[patch.crates-io]` (the copies of vendor/) is built
+     from its path by its lock file: an update of the crate that did not
+     move the copy builds the release, with none of podssh's patch, and
+     cargo only warns (T-460). Two planted locks must be found.
 
 Each check counts the files that it read, and fails below a floor, so a
 scan that read nothing never passes. `--plant-empty` runs each check on an
@@ -42,11 +46,13 @@ import re
 import subprocess
 import sys
 import tempfile
+import tomllib
 from pathlib import Path
 
 # The scans that live beside this file (repo_scans.py), also under `python -I`.
 sys.path.insert(0, str(Path(__file__).resolve().parent))
 from repo_scans import PRINT_RULE, planted_prints_found, print_hits, unpinned_uses  # noqa: E402
+from repo_scans import PATCH_RULE, PATCHED, patch_misses  # noqa: E402
 # The allowance of the listener scan (check 6), beside this file too.
 from repo_listeners import LISTENER_RULE, LISTENERS  # noqa: E402
 
@@ -103,6 +109,7 @@ MIN_TRACKED_FILES = 150
 MIN_SHELL_SCRIPTS = 5
 MIN_SCRIPT_FILES = 15
 MIN_CODE_FILES = 100
+MIN_PATCHES = 2
 
 
 def too_few(what: str, count: int, floor: int) -> list[str]:
@@ -341,6 +348,33 @@ def check_print_macros() -> list[str]:
     return problems
 
 
+def check_patches_used() -> list[str]:
+    problems, read = [], 0
+    for manifest, lock in PATCHED:
+        try:
+            count, misses = patch_misses((ROOT / manifest).read_text(encoding="utf-8"),
+                                         (ROOT / lock).read_text(encoding="utf-8"))
+        except (OSError, tomllib.TOMLDecodeError) as exc:
+            problems.append(f"{manifest} and {lock} cannot be read: {exc}")
+            continue
+        read += count
+        problems += [f"{lock}: {miss}: {PATCH_RULE}" for miss in misses]
+    problems += too_few("packages of [patch.crates-io]", read, MIN_PATCHES)
+    # The plants: a lock that took the release, and one that left the patch
+    # unused, must be found; the control, a lock that took the path, not.
+    patch = '[patch.crates-io]\nrussh = { path = "vendor/russh" }\n'
+    release = '[[package]]\nname = "russh"\nversion = "0.66.0"\nsource = "registry+https://example.test"\n'
+    unused = '[[patch.unused]]\nname = "russh"\nversion = "0.65.0"\n'
+    path = '[[package]]\nname = "russh"\nversion = "0.65.0"\n'
+    for planted in (release, unused):
+        if not patch_misses(patch, planted)[1]:
+            problems.append(f"the scan of the patches is vacuous: it passed the lock {planted!r}")
+    if patch_misses(patch, path)[1]:
+        problems.append("the scan of the patches fails a lock that builds the copy")
+    check_patches_used.note = f"{read} packages of [patch.crates-io] read, each built from its path; 2 planted locks found"
+    return problems
+
+
 def main(argv: list[str]) -> int:
     global ROOT
     if argv == ["--plant-empty"]:
@@ -364,6 +398,7 @@ CHECKS = [
     ("no marker, document line or old path in the code", check_code_text),
     ("each action is pinned by its commit", check_actions_pinned),
     ("no print macro that panics in the sources", check_print_macros),
+    ("each patch of [patch.crates-io] is built", check_patches_used),
 ]
 
 

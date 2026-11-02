@@ -6,6 +6,7 @@ check-repo.py so that each file stays within 500 lines.
 from __future__ import annotations
 
 import re
+import tomllib
 from pathlib import Path
 
 # A step's action, and the forms that pin it: a commit of 40 hexadecimal
@@ -96,3 +97,26 @@ def planted_prints_found(root: Path) -> set[str]:
     (src / "planted.rs").write_text('fn planted() { eprintln!("x"); }\n', encoding="utf-8")
     (src / "tested.rs").write_text('#[cfg(test)]\nmod tests {\n    fn t() { println!("x"); }\n}\n', encoding="utf-8")
     return {rel for rel, _, _ in print_hits(root)[1]}
+
+
+# The manifests whose `[patch.crates-io]` puts a copy of vendor/ in the place
+# of a release (T-460), each with its lock file.
+PATCHED = [("Cargo.toml", "Cargo.lock"), ("fuzz/Cargo.toml", "fuzz/Cargo.lock")]
+PATCH_RULE = "the lock builds the release in place of the copy of vendor/: move the patch first (vendor/README.md)"
+
+
+def patch_misses(manifest: str, lock: str) -> tuple[int, list[str]]:
+    """Each package of the manifest's `[patch.crates-io]` that the lock does
+    not take from its path, and each `[[patch.unused]]` of the lock: an
+    update of the crate that did not move the copy builds the release, with
+    none of the patch, and cargo only warns. The count is of the patches read."""
+    patched = ((tomllib.loads(manifest).get("patch") or {}).get("crates-io") or {})
+    locked = tomllib.loads(lock)
+    misses = [f"[[patch.unused]] names {u.get('name')} {u.get('version')}"
+              for u in (locked.get("patch") or {}).get("unused", [])]
+    for name in sorted(patched):
+        found = [p for p in locked.get("package", []) if p.get("name") == name]
+        if not found:
+            misses.append(f"{name} is patched, and no package of the lock has that name")
+        misses.extend(f"{name} {p.get('version')} comes from {p['source']}" for p in found if "source" in p)
+    return len(patched), misses

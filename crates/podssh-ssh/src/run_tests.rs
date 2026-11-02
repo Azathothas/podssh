@@ -32,6 +32,18 @@ fn first_line_names_the_hop_that_broke() {
     assert_eq!(failure_lines(DROP, None, "railway.new:22"), vec![DROP.to_string()]);
 }
 
+/// A message of the server that does not decode names the server, then
+/// russh's words: #83 read "SshEncoding: unexpected trailing data at end of
+/// message (15 bytes)" alone (T-460).
+#[test]
+fn a_message_that_does_not_decode_names_the_server() {
+    let trailing = russh::keys::ssh_encoding::Error::TrailingData { remaining: 15 };
+    assert_eq!(
+        describe(&russh::Error::SshEncoding(trailing)),
+        "podssh could not read a message of the server: unexpected trailing data at end of message (15 bytes)"
+    );
+}
+
 /// Each hop files its key under its own name and port, and the destination
 /// alone takes `HostKeyAlias`, as it is, with no port, as OpenSSH files it
 /// (T-030).

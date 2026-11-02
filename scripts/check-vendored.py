@@ -1,10 +1,10 @@
 #!/usr/bin/env python3
 """The upstreams of the vendored crates against what vendor/README.md names (T-341).
 
-Dependabot moves no path package, so nothing else says that iroh-relay or
-the Tailscale fork released again (russh was one until T-356 took crates.io's
-0.65.0, which Dependabot and cargo-deny see). For each section of vendor/README.md
-that a copy under vendor/ still has, this reads the upstream's newest release
+Dependabot moves no path package, so nothing else says that russh (a copy
+again since T-460), iroh-relay or the Tailscale fork released again. For
+each section of vendor/README.md that a copy under vendor/ still has, this
+reads the upstream's newest release
 (crates.io's max_stable_version, or the repository's latest release on
 GitHub) and compares it with the version of the copy and with the section's
 line "- **Upstream read**: VERSION on DATE", the newest release that a session
@@ -44,6 +44,7 @@ README = ROOT / "vendor" / "README.md"
 # The section of vendor/README.md, where its upstream releases, and the
 # manifest of the copy with the keys of its version.
 WATCHES = [
+    ("russh", "crates.io", "russh", "vendor/russh/Cargo.toml", ("package", "version")),
     ("iroh-relay", "crates.io", "iroh-relay", "vendor/iroh-relay/Cargo.toml", ("package", "version")),
     ("tailscale-rs", "github", "tailscale/tailscale-rs", "vendor/tailscale-rs/Cargo.toml",
      ("workspace", "package", "version")),
