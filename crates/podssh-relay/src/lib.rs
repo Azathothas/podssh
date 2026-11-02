@@ -54,6 +54,8 @@ pub mod quick;
 pub mod relay;
 #[cfg(feature = "pair")]
 pub mod reverse;
+#[cfg(feature = "serve")]
+pub mod serve;
 pub mod session;
 pub mod token;
 pub mod udp;

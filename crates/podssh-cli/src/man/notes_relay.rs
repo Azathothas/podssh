@@ -37,4 +37,15 @@ pub const RELAY: &[&str] = &[
     "With --json, status, info and trace write one JSON object on stdout when the run ends: schema (1), \
      podssh, and the answer: each host for status, the relay's /relays.json as it came for info, and \
      the relay's view of the target for trace. The exit codes are in EXIT STATUS.",
+    "podssh relay serve is the relay itself, as a role of podssh: it serves the relay's forward road, \
+     the contract that podssh speaks (version 2026-10-03-r2), on --listen ADDR:PORT, with TLS from \
+     --cert FILE and --key FILE (a P-256 key in PEM; ACME is not built in), so that each podssh reaches \
+     it with --relay-host and the CA that signed its certificate. It serves /health, /v1/mint, \
+     /connect/HOST/PORT, /relays.json, /trace and /llms-full.txt, dials a target only once its name \
+     resolves to public addresses (--allow-private dials the others too), refuses port 25, and keeps \
+     the default relay's limits: 180 s with no payload, 12 hours and 64 MiB a session. --mint anyone \
+     mints a token for each client; by default it mints for no one (503), as its tokens are given \
+     another way. A token lives until the relay stops. Each mint, upgrade and client's Close is a line \
+     on stdout. It listens because you ask it to, and PODSSH_LISTEN=no refuses it; Ctrl-C or SIGTERM \
+     stops it.",
 ];

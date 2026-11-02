@@ -158,7 +158,7 @@ pub fn add(cmd: Command, name: &str) -> Command {
             .arg(
                 Arg::new("subcommand")
                     .value_name("SUBCOMMAND")
-                    .help("pair, revoke, status, info, trace or spec"),
+                    .help("pair, revoke, status, info, trace, spec or serve"),
             )
             .arg(
                 Arg::new("args")
