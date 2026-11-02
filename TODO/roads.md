@@ -7561,7 +7561,7 @@ forwarder, and fails.
 **Milestone:** none
 **Priority:** P2
 **Effort:** S
-**Status:** open
+**Status:** partial
 
 ## Problem
 
@@ -7572,9 +7572,10 @@ never passed a byte.
 
 ## Premise
 
-- `crates/podssh-warp/src/road.rs:5` says "The probe (T-352's Approach, step 2) is the opening itself: the CONNECT".
-- `crates/podssh-warp/src/road.rs:158` says "pub async fn open(device: &Device, proxy: &ProxyChoice, limit: Duration) -> Result<Warp, Fault> {";
-  it returns once TLS and the stack are up, with no byte through the tunnel.
+- `crates/podssh-warp/src/road.rs`, line 5 at `1769d79`, said "The probe (T-352's Approach, step
+  2) is the opening itself: the CONNECT"; this entry's draft rewrote that comment.
+- `crates/podssh-warp/src/road.rs:184` says "pub async fn open(device: &Device, proxy: &ProxyChoice, limit: Duration) -> Result<Warp, Fault> {";
+  at `1769d79` it returned once TLS and the stack were up, with no byte through the tunnel.
 
 ## Approach
 
@@ -7596,6 +7597,26 @@ never passed a byte.
 - The variable is `PODSSH_WARP_PROBE=no` rather than the issue's `PODSSH_WARP_NO_PROBE=1`, as
   podssh's other switches of a road read `no` (`PODSSH_TRANSIT=no`, `PODSSH_PIPING=no`).
 
+The calls of the draft (2026-11-02), each for the operator to confirm (Q86):
+
+- A reset that comes back through the tunnel is an answer, as a SYN-ACK is: either is a packet
+  of the far side. Lost: a SYN-ACK alone, which would call a tunnel silent where Cloudflare's
+  resolver resets the probe.
+- A device of IPv6 alone probes IPv6's resolver, `[2606:4700:4700::1111]:443`. Lost: IPv4's
+  alone, which such a device cannot reach.
+- The probe's setting is the run's, on the device as `Device::probing` (as `Device::at` sets
+  `PODSSH_WARP_ENDPOINT`), never in its record. Lost: a parameter of `Warp::open`, which each
+  caller and test would pass; the library reading the variable, which a test cannot set without
+  a race between its threads.
+- Each try waits 3 s at most, within the opening's own limit; smoltcp sends its SYN again within
+  it. Lost: the opening's limit (20 s) for each try, which keeps a silent front door 40 s.
+- A tunnel that the edge ends while the probe waits is `Fault::Edge`, not `Silent`: the edge
+  said something. Its code and `Silent`'s are 69, as `Unreachable`'s.
+- The stand-in edge answers the probe at `1.1.1.1:443` in each tunnel, by a socket of its far
+  stack that is never carried to the loopback (`StandIn::probes` counts it), and
+  `StandIn::silence` makes it a front door that relays nothing. Lost: a route for the probe in
+  each test, which would count in `carried`.
+
 ## Prove
 
 ```sh
@@ -7606,6 +7627,43 @@ cargo test -p podssh-warp --features stand-in --test road
 The stand-in edge that takes TLS and then drops each packet gives `Fault::Silent` within the
 ceiling; the stand-in that carries gives a road. Planted: the probe skipped, and the silent edge's
 test fails.
+
+## Done
+
+2026-11-02, drafted by an agent that does not build: nothing below was compiled or run. Each result
+is UNVERIFIED until the main session runs the Prove.
+
+- `crates/podssh-warp/src/probe.rs` (new): the probe's targets (`1.1.1.1:443`, and IPv6's
+  resolver), its ceiling of 3 s for each try, two tries 700 ms apart, and its verdict: carried (a
+  connection or a reset), silent (why each try failed), or the tunnel's end. `Warp::over`
+  (`crates/podssh-warp/src/road.rs`) runs it before a road is returned; `Fault::Silent` and its
+  line, "the tunnel opened and carried nothing", which names the road, the target and the
+  tries; `Warp::probed`. A silent front door does not go into the run's memory of proxies that
+  re-terminate TLS, and the road writes no record of failed hosts (the relay's is
+  `crates/podssh-relay/src/failures.rs`), so step 2's "does not mark the host" holds.
+- `crates/podssh-warp/src/device.rs`: `Device::probe`, set from the device's addresses, and
+  `Device::probing`; the record holds neither. `crates/podssh-warp/src/stream.rs`: the words of a
+  reset, which the probe reads.
+- `crates/podssh-warp/src/stand_in.rs`: the far end answers the probe; `StandIn::silence` and
+  `StandIn::probes`.
+- The CLI (`crates/podssh-cli/src/ssh/cloud/warp.rs`, `crates/podssh-cli/src/ssh/cloud/warp/road.rs`):
+  `PODSSH_WARP_PROBE`, read before a record is read or a device registered (78 for another
+  word); `-v` says a skipped probe and an answered one; `Fault::Silent` exits 69.
+- The manual (the variable, and the note of `warp://`), `docs/cli.md`, `docs/carriers.md` (item
+  4), `docs/development.md`, the row of `docs/STATUS.md`; `warp-live.yml`'s first step asks for
+  the line of an answered probe.
+- `crates/podssh-warp/tests/road.rs` (new): a silent front door is named within the ceiling, after
+  two tries; one that carries gives a road whose probe was answered, which is no stream of the
+  user's; a reset is an answer; a run that skips the probe takes the silent tunnel and its first
+  stream meets the silence; a silent front door is tried again in the run.
+- Prove: `cargo test -p podssh-warp --features stand-in --test road`: UNVERIFIED.
+  `cargo test -p podssh-warp --features stand-in`, whose each opening now probes the stand-in:
+  UNVERIFIED. `cargo test -p podssh-relay --features warp-stand-in --test quick_edge_warp`:
+  UNVERIFIED. `cargo test -p podssh-cli --features warp --lib`, with the manual's variables:
+  UNVERIFIED. clippy with the WARP feature (the gate's lint): UNVERIFIED.
+- Planted (`scripts/plants/t560-probe-skipped.patch`): UNVERIFIED.
+- Live (Q52), `warp-live.yml` by hand: the probe answered inside WARP's tunnel, and each later
+  step with it: UNVERIFIED.
 
 # T-561: WARP's road dials one constant address, not the peers that WARP's API gave
 
