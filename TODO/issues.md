@@ -177,6 +177,11 @@ root lock), made on `main` and closed with a comment; Dependabot's #78 to #82 of
 | #104 | A target that ends the connection right after the login reads as a refused session | open | T-464 (the words "Disconnected" and "Channel send error" are russh's, not the server's) |
 | #105 | `cp -r` says a skip twice, and exits 66 for a skip | open | T-476 (the line said twice is the first failure of the tree, not the last skip) |
 | #106 | The fallback to other products' forwarders should be asked for: 20.8 s against 0.14 s on a dead target, and the target goes to three services | open | T-509 (the fallback follows the relay's answer about the target too, a 502 or a refusal by policy, which no forwarder mends; the default of off is the operator's to rule, as Q56 set it on) |
+| #107 | WARP's road opens on TLS to the edge, and proves no packet through the tunnel | open | T-560 |
+| #108 | WARP's road dials one constant address, not the API's peers | open | T-561 |
+| #109 | WARP's registration has one API name and no second route | open | T-562 (the second name goes in once a live run shows it is the same API) |
+| #110 | The relay's record forgets a host that opens, and keys each road's verdict by the host | open | T-563 |
+| #111 | podssh never raises its soft limit of open files | open | T-564 |
 
 **The survey of #59, of 2026-10-31.** It extends #18 and the study of
 carriers of the same day (`docs/carriers.md`, whose forward road is T-347,

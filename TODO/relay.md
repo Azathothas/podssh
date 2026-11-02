@@ -2132,3 +2132,51 @@ comes, and the other session's longest stall is under 3 s. Planted: the backoff 
 first connection again; the stall check fails. Live, from GitHub's network (`relay-live.yml`
 with `test=node_live`), against `podssh relay serve` on the runner: the node's other session goes
 on, and no 1003 reaches it.
+
+# T-563: The relay's record forgets a host that opens, and one road's failure moves the host on each road
+
+**Source:** GitHub #110 (a tester, 2026-11-02).
+**Category:** defect
+**Milestone:** none
+**Priority:** P2
+**Effort:** S
+**Status:** open
+
+## Problem
+
+A host that opens and dies within seconds is ordered as a host that has worked for a week, as
+the record keeps failures alone and forgets each success; and a failure on one road demotes the
+same host on each other road, as the record is keyed by the host alone.
+
+## Premise
+
+- `crates/podssh-relay/src/failures.rs:29` says "pub struct Records {", one map of hosts.
+- `crates/podssh-relay/src/failures.rs:35` says "pub struct Record {": a time and a reason, no success.
+- `crates/podssh-relay/src/failures.rs:82` says "self.hosts.remove(host);": an open forgets the host.
+
+## Approach
+
+1. `Record` keeps the time of the last open and a count of opens; an open clears the reason and
+   keeps the host. An open whose session lasted under 300 s is a strike, and two in a row rest the
+   host 300 s.
+2. The key is the road and the host, so that one road's verdict stays on that road.
+3. `order` puts a host that opened lately before one that merely did not fail; `recent` says
+   "opened 4 s ago" beside "failed 30 s ago".
+4. The cache file is the same, mode 0600; a file of an older podssh, with no new field, reads as
+   now (each field defaults).
+
+## Decision
+
+Fields with defaults in the one cache file, so an older podssh and a newer one share it. Lost: a
+second file, a new permission story for no gain.
+
+## Prove
+
+```sh
+export CARGO_BUILD_JOBS=4
+cargo test -p podssh-relay --lib failures
+```
+
+A host that opened is kept and ordered first; two short sessions rest it; a failure of the iroh
+road leaves the WebSocket road's order alone; an older file reads. Planted: the open that removes
+the host again, and the test of the order fails.

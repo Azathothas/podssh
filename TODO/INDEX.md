@@ -62,15 +62,15 @@ repository and CI).
 
 ## Counts
 
-**505 entries: 91 open, 3 partial, 16 blocked, 395 done.**
+**510 entries: 96 open, 3 partial, 16 blocked, 395 done.**
 
 | Priority | open | partial | blocked | done | total |
 | --- | --- | --- | --- | --- | --- |
 | P0 | 0 | 0 | 0 | 1 | 1 |
 | P1 | 6 | 3 | 0 | 51 | 60 |
-| P2 | 35 | 0 | 14 | 190 | 239 |
-| P3 | 50 | 0 | 2 | 153 | 205 |
-| **All** | 91 | 3 | 16 | 395 | 505 |
+| P2 | 38 | 0 | 14 | 190 | 242 |
+| P3 | 52 | 0 | 2 | 153 | 207 |
+| **All** | 96 | 3 | 16 | 395 | 510 |
 
 ## Entries
 
@@ -581,3 +581,8 @@ repository and CI).
 | [T-531](mesh.md) | P2 | M | M10 | feature | open | The OpenTunnel road in the command line: `podssh node --opentunnel` and `ssh node://` |
 | [T-532](mesh.md) | P3 | M | M10 | feature | open | `podssh funnel` through OpenTunnel, with TLS that ends at the node |
 | [T-533](mesh.md) | P3 | S | M10 | docs | open | The manual says which public services podssh tries last, and which it never names |
+| [T-560](roads.md) | P2 | S | none | defect | open | WARP's road opens on TLS to the front door, and never proves that the tunnel carries a packet |
+| [T-561](roads.md) | P2 | M | none | feature | open | WARP's road dials one constant address, not the peers that WARP's API gave |
+| [T-562](roads.md) | P3 | S | none | feature | open | WARP's registration dials one name of the API, with no second route |
+| [T-563](relay.md) | P2 | S | none | defect | open | The relay's record forgets a host that opens, and one road's failure moves the host on each road |
+| [T-564](robustness.md) | P3 | S | none | feature | open | podssh never raises its soft limit of open files, so a wide `cp --parallel` or `each` meets `EMFILE` |

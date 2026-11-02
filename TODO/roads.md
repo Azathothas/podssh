@@ -7554,3 +7554,148 @@ cargo test -p podssh-cli --test doctor -- fallback
 Planted: the fallback after each 69 and 77, as now: the test of the relay's 502 dials the stand-in
 forwarder, and fails.
 
+# T-560: WARP's road opens on TLS to the front door, and never proves that the tunnel carries a packet
+
+**Source:** GitHub #107 (a tester, 2026-11-02).
+**Category:** defect
+**Milestone:** none
+**Priority:** P2
+**Effort:** S
+**Status:** open
+
+## Problem
+
+A front door that completes the CONNECT and TLS and then relays nothing gives a road that is
+"open": the first symptom is a stream that connects and goes quiet, and each command above it
+(`node`, `proxy warp://`, `cp`) says its own timeout, where one line should say that the tunnel
+never passed a byte.
+
+## Premise
+
+- `crates/podssh-warp/src/road.rs:5` says "The probe (T-352's Approach, step 2) is the opening itself: the CONNECT".
+- `crates/podssh-warp/src/road.rs:158` says "pub async fn open(device: &Device, proxy: &ProxyChoice, limit: Duration) -> Result<Warp, Fault> {";
+  it returns once TLS and the stack are up, with no byte through the tunnel.
+
+## Approach
+
+1. After the opening and before `open` returns, one probe through the tunnel: a TCP connect to
+   `1.1.1.1:443` inside it (`Warp::connect`), within a short ceiling, tried twice 700 ms apart so
+   that one lost packet is no verdict.
+2. Its failure is a fault of its own, `Fault::Silent`, whose line names the road and the
+   endpoint ("the tunnel opened and carried nothing"), and it does not mark the host as
+   unreachable in the relay's record.
+3. `PODSSH_WARP_PROBE=no` skips it, for a host where that target is filtered, and `-v` says that
+   it was skipped.
+
+## Decision
+
+- The probe's target is Cloudflare's own resolver inside WARP's tunnel, on WARP's network that
+  Q52 allows; it is the cheapest packet that proves the tunnel, and it is inside the one
+  connection, so rule 2 holds. Lost: a name query inside the tunnel, which proves the resolver too
+  but fails where DNS inside is filtered; no probe, which is the defect.
+- The variable is `PODSSH_WARP_PROBE=no` rather than the issue's `PODSSH_WARP_NO_PROBE=1`, as
+  podssh's other switches of a road read `no` (`PODSSH_TRANSIT=no`, `PODSSH_PIPING=no`).
+
+## Prove
+
+```sh
+export CARGO_BUILD_JOBS=4
+cargo test -p podssh-warp --features stand-in --test road
+```
+
+The stand-in edge that takes TLS and then drops each packet gives `Fault::Silent` within the
+ceiling; the stand-in that carries gives a road. Planted: the probe skipped, and the silent edge's
+test fails.
+
+# T-561: WARP's road dials one constant address, not the peers that WARP's API gave
+
+**Source:** GitHub #108 (a tester, 2026-11-02).
+**Category:** feature
+**Milestone:** none
+**Priority:** P2
+**Effort:** M
+**Status:** open
+
+## Problem
+
+The road dials one address, a constant, whatever the API's answer said: where one prefix is
+blocked or blackholed, the road is gone while the account and the device are well, and the
+device's record shows an endpoint that podssh chose, not the service.
+
+## Premise
+
+- `crates/podssh-warp/src/lib.rs:59` says "pub const ENDPOINT_H2", the address 162.159.198.2:443.
+- `crates/podssh-warp/src/register.rs:187` says "[0];", the first peer of the answer alone.
+- `crates/podssh-warp/src/register.rs:244` says "let endpoint = crate::ENDPOINT_H2.parse()": the record takes the constant.
+- `crates/podssh-warp/src/device.rs:58` says "pub endpoint: SocketAddr,": one address.
+
+## Approach
+
+1. Read each peer of the answer, its `endpoint.v4` then `.v6`, the port `:0` read as 443.
+2. The addresses to try: `PODSSH_WARP_ENDPOINT` first when it is set, then the record's peers,
+   then `ENDPOINT_H2`; each with a ceiling of 3 s, one at a time, through the proxy as now; a
+   refusal of one goes on to the next.
+3. The one that reached TLS and HTTP/2 is kept beside the device's record (its file, mode 0600),
+   and tried first next time; a failure forgets it.
+4. The failure's line names each address tried and why each failed.
+
+## Decision
+
+One address at a time, never a race, so rule 2 holds. Lost: a race of the peers, which a proxy
+that counts CONNECTs sees as a burst; the constant alone, which is the defect.
+
+## Prove
+
+```sh
+export CARGO_BUILD_JOBS=4
+cargo test -p podssh-warp --features stand-in
+```
+
+A record of two peers whose first refuses reaches the second, and keeps it; the failure of all
+names each. Planted: the peers ignored for the constant, and the test of the second peer fails.
+Live (Q52), from GitHub Actions: the road opens on the API's own peer.
+
+# T-562: WARP's registration dials one name of the API, with no second route
+
+**Source:** GitHub #109 (a tester, 2026-11-02).
+**Category:** feature
+**Milestone:** none
+**Priority:** P3
+**Effort:** S
+**Status:** open
+
+## Problem
+
+Registration is the one step of WARP's road with no other way: where `api.cloudflareclient.com`
+does not resolve or is not allowed, there is no device and so no road, and the line says that
+the API did not answer, not which name failed.
+
+## Premise
+
+- `crates/podssh-warp/src/register.rs:25` says "pub const API_HOST", the one name `api.cloudflareclient.com`.
+
+## Approach
+
+1. A second name of the same API, tried after the first: `api.devices.cloudflare.com`, which the
+   issue reads as the same service, once a short live run shows that it takes the same
+   registration (Q52's network, from GitHub Actions and the session's host).
+2. `PODSSH_WARP_API=https://HOST` names another, first; it also makes both routes testable.
+3. The route that answered is kept in the device's record and tried first at the next
+   registration; the failure's line names each route.
+
+## Decision
+
+The second name goes in only after the live run shows it answers the same API with the same
+version; else the entry keeps the variable and the line, and its Done says why. Lost: the second
+name on the issue's word alone, as a name that answers another API would register nothing.
+
+## Prove
+
+```sh
+export CARGO_BUILD_JOBS=4
+cargo test -p podssh-warp --features stand-in
+```
+
+A stand-in API whose first name refuses registers through the second, and the record keeps it.
+Planted: the second route dropped, and that test fails. Live (Q52): one registration through
+the second name, with a throwaway device (Q59).

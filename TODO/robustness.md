@@ -1408,3 +1408,47 @@ workflow now allows. The test now says podssh's stderr when its 10 s pass, so th
 failure names where podssh waited. The cause is not named yet: the entry stays partial for the next
 failure's words, or for more runs.
 
+# T-564: podssh never raises its soft limit of open files, so a wide `cp --parallel` or `each` meets `EMFILE`
+
+**Source:** GitHub #111 (a tester, 2026-11-02).
+**Category:** feature
+**Milestone:** none
+**Priority:** P3
+**Effort:** S
+**Status:** open
+
+## Problem
+
+podssh runs under the soft limit of the shell that started it, 256 on macOS by default, while
+`cp --parallel`, `each`, `job`, `session` and `-L` hold a descriptor each; past it, one operation
+fails with `EMFILE` and nothing says that the limit was the reason.
+
+## Premise
+
+- `crates/podssh-cli/src/detach/child.rs:207` says "let max = if unsafe { libc::getrlimit(libc::RLIMIT_NOFILE, &mut limit) } == 0 {":
+  the limit is read there alone, and no `setrlimit` is called in `crates/`.
+
+## Approach
+
+1. At start, on Unix, the soft limit of `RLIMIT_NOFILE` goes up to the hard one, capped on macOS
+   at `OPEN_MAX` (macOS refuses more for `setrlimit`); a refusal is a note at `-v`, never an error.
+2. `-v` says it once: "open file limit: 256 -> 10240".
+3. `podssh status` gives both numbers, so that a report carries them.
+4. An `EMFILE` that still comes names the limit in its line.
+
+## Decision
+
+The process's own limit, raised within the hard limit that the host set: no privilege, and the
+call's answer is the probe (rule 1 of `AGENTS.md`). Lost: a flag to ask for it, which each tester
+would have to know; nothing on Windows, whose handles have no such soft limit.
+
+## Prove
+
+```sh
+export CARGO_BUILD_JOBS=4
+cargo test -p podssh-cli --test status
+```
+
+Under `ulimit -n 64` with a hard limit above it, `podssh status` shows the raised soft limit; with
+the hard limit at 64 it shows 64 and says so at `-v`. Planted: the raise skipped, and the test
+fails.
