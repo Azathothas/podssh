@@ -131,6 +131,13 @@ pub struct Stream {
     shut: bool,
 }
 
+impl Stream {
+    /// The body and the answer of another request, as XHTTP's (T-440).
+    pub(crate) fn from_parts(send: SendStream<Bytes>, recv: RecvStream) -> Stream {
+        Stream { send, recv, pending: Bytes::new(), shut: false }
+    }
+}
+
 impl AsyncRead for Stream {
     fn poll_read(mut self: Pin<&mut Self>, cx: &mut Context<'_>, buf: &mut ReadBuf<'_>) -> Poll<io::Result<()>> {
         let this = &mut *self;

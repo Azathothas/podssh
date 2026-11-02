@@ -1184,7 +1184,7 @@ protocols).
 **Milestone:** M10
 **Priority:** P2
 **Effort:** L
-**Status:** open
+**Status:** partial
 
 ## Problem
 
@@ -1205,6 +1205,60 @@ over plain HTTP requests where a proxy refuses the WebSocket upgrade (GitHub #55
 2. Its transports: a WebSocket, then XHTTP `stream-one` on HTTP/2, then `packet-up`.
 3. `--vless FILE` with the server's URL in the file; `doctor` names the transport that passed.
 
+## Decision
+
+- **A file of share links, as `--shadowsocks` reads its own.** `--vless FILE`, a private file
+  (`podssh_relay::cache::read_private`), a `vless://` link on each line, the form of XTLS/Xray-core
+  discussion 716 that panels and clients give out, its servers tried in order (rule 7). No message
+  shows a line or an ID; a refusal names the line's number. Lost: the link on the command line,
+  which argv shows; the server's URL in the flag and its ID in a second file, as `--via` does, where
+  a share link holds both; a variable `PODSSH_VLESS`, as `--shadowsocks` has none either.
+- **Each setting that changes the bytes and that podssh does not make is refused by its name**:
+  a flow (`xtls-rprx-vision`), REALITY (`security=reality`, `pbk`), VLESS's encryption,
+  `type=tcp`, and a key of XHTTP's `extra` that moves the padding, the session, the number or the
+  data. `extra`'s `headers`, `xPaddingBytes`, `noGRPCHeader`, `scMaxEachPostBytes` and `mode` are
+  followed; its keys that only pace or pool Xray-core's own client, or tune the server, are
+  passed over. Lost: ignoring them, as the server would then wait for bytes where podssh does not
+  put them and fail with no cause; reading Xray-core's JSON outbound, a whole client's
+  configuration for one server.
+- **XHTTP on HTTP/2 alone**: `h2` by ALPN over TLS, or HTTP/2 with prior knowledge with
+  `security=none`, which Xray-core's server takes (`hub.go`, `SetUnencryptedHTTP2`); each request
+  a stream of one connection. packet-up and stream-up over HTTP/1.1 need a second connection at
+  once (the streamed GET down while the POSTs go up), which rule 2 allows on the split road of
+  Q44 alone, and stream-one over HTTP/1.1 meets Go's server, which reads a request's whole body
+  before it answers there. A server that chooses HTTP/1.1 is refused with its words (78). Lost: the
+  second connection, which is the operator's (the question below).
+- **`mode=auto` is packet-up**, as Xray-core's client decides with TLS and no REALITY
+  (XTLS/Xray-core:transport/internet/splithttp/dialer.go), and `doctor` tries each of the three
+  modes of such a link and names each that carried a session. Lost: stream-one first and
+  packet-up after it, as a pipe has no answer to wait for, so a stream-one that a front end holds
+  cannot be told from a target that waits for its client.
+- **POSTs one at a time**, each after the 200 of the last, at most 1,000,000 bytes each, so they
+  come in order and the server's queue of 30 never fills; what waits meanwhile goes in the next.
+  Lost: several in flight, as Xray-core's client sends them, whose order the server restores
+  (shoes's README reports that Xray-core's own uploader on HTTP/1.1 loses pipelined requests).
+- **VLESS's answer is awaited, as `--shadowsocks` awaits its first chunk.** The server sends it
+  with the target's first bytes, and ends the session with none for an ID that it does not know
+  (`inbound.go`). An SSH session waits 10 s for it, so that a refused ID is said and the next
+  server tried; a pipe of `proxy` takes the stream after 3 s with no end, as its client may speak
+  first. Lost: the stream at once, where a refused ID would end SSH's handshake with no cause.
+- **The tests**: the crate's against stand-ins on the loopback, h2's own server for XHTTP, as
+  T-439's; Xray-core and shoes in a harness of their own (`scripts/interop-vless.sh`,
+  `.github/workflows/vless-interop.yml`), their projects' release binaries pinned by version and
+  SHA-256 (Xray-core v26.10.21, shoes v0.3.6, both read on 2026-11-02), fetched and checked
+  (`xray run -test`, `shoes --dry-run`) in steps whose failure prints the log, and each server
+  ready when it answers a TLS handshake with the run's CA while its container runs. The client is
+  in `podssh-ws`, with no new dependency (h2, http, sha1 and serde_json were there), and each
+  HTTP/2 stream is `--via`'s (`via::Stream`).
+
+A question for the operator (to be numbered in `TODO/PROGRESS.md`): **XHTTP over HTTP/1.1.**
+packet-up and stream-up over HTTP/1.1 need a second connection at once, the shape of the split
+road that Q44 allows on that road alone. Where a server, or a proxy on the client's side that
+re-terminates TLS, speaks HTTP/1.1 alone (squid's `ssl_bump` does), this road is refused.
+Recommendation: allow that second connection for XHTTP too, as another exception of rule 2,
+tried only after HTTP/2 was refused. Until a ruling the refusal stands (78), and the rest of this
+entry does not wait for it.
+
 ## Prove
 
 ```sh
@@ -1215,6 +1269,47 @@ cargo test -p podssh-ws --test vless
 Against Xray-core and shoes in containers: GitHub's banner from a fixture over each transport,
 and `packet-up` through the box's proxy that refuses the upgrade. Planted: a wrong UUID, and
 the server's refusal is said.
+
+## Correction
+
+2026-11-02 (the drafting agent). The Prove's "the box's proxy that refuses the upgrade": the
+box's proxy (`scripts/box/proxy.py`) takes CONNECT and carries a TLS that it does not open, so
+it refuses no upgrade. The run puts the refusal where a server that the user runs meets it, in a
+front end: nginx over TLS and HTTP/2 in front of Xray-core, which passes no `Upgrade` header to
+the WebSocket and streams XHTTP, with a plain squid as the host's proxy; sshd is the target in
+place of a fixture of GitHub's banner, as T-439's run has it. A proxy on the client's side that
+re-terminates TLS with HTTP/1.1 alone waits for the question of the Decision.
+
+The Premise holds, read at Xray-core v26.10.21 (XTLS/Xray-core:proxy/vless/encoding/encoding.go,
+XTLS/Xray-core:proxy/vless/inbound/inbound.go, and `hub.go`, `config.go`, `xpadding.go`,
+`dialer.go`, `client.go` and `upload_queue.go` of XTLS/Xray-core:transport/internet/splithttp),
+with two facts more: each XHTTP request carries a padding that the server checks, `Referer` with
+a query `x_padding=` of 100 to 1000 characters, and a 400 otherwise; and the server answers with
+the target's first bytes, and ends the session with no answer for an ID that it does not know.
+
+## Done
+
+2026-11-02: drafted by an agent in a worktree of its own (branch `worktree-agent-t440-vless`);
+nothing was built or run there. Each result below is UNVERIFIED, for the main session to measure.
+
+- podssh-ws, `crates/podssh-ws/src/vless/`: the share link and its ID (`link.rs`), `extra`
+  (`extra.rs`), VLESS's request and the reader of its answer (`header.rs`), the WebSocket
+  (`ws.rs`), XHTTP's connection, padding and streamed modes (`xhttp.rs`), packet-up
+  (`packet.rs`), the stream of two halves (`split.rs`), and the dial, the errors and the modes of
+  `doctor` (`mod.rs`); `via::Stream::from_parts` for XHTTP's streams. podssh-cli,
+  `crates/podssh-cli/src/vless/`: the file, the road of `ssh` in place of the relay and its
+  refusals beside another road, `proxy`'s pipe, and the section `vless` of `doctor`; `--vless` in
+  each table of `ssh`'s road, of `proxy` and of `doctor`, the manual (`man/notes_vless.rs`, FILES)
+  and docs/cli.md.
+- `cargo test -p podssh-ws --test vless`: UNVERIFIED (6 tests: each transport and mode, a wrong
+  ID, a refused upgrade with a wrong path and HTTP/1.1, a pipe's silence, the host's proxy).
+  `cargo test -p podssh-ws --lib vless`: UNVERIFIED. `cargo test -p podssh-cli --lib vless`, and
+  `--test flag_table`, `man_flag_parity`, `man_page`, `man_json`, `leading_dash`, `doctor` and
+  `proxy`, with the lib's tests of the manual's notes and facts: UNVERIFIED. Clippy (`-D
+  warnings`) and `cargo fmt --check` of both packages: UNVERIFIED.
+- Planted (`scripts/plants/t440-vless-refusal-unsaid.plant`): UNVERIFIED.
+- `scripts/interop-vless.sh` in `.github/workflows/vless-interop.yml`, against Xray-core
+  v26.10.21, shoes v0.3.6 and nginx in containers: UNVERIFIED (15 checks).
 
 # T-441: wstunnel's protocol
 

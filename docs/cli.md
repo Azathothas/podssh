@@ -974,6 +974,66 @@ Tested against stand-ins on the loopback, h2's own server for HTTP/2
 squid over TLS in containers, through a plain squid as the host's proxy
 (`scripts/interop-via.sh`, `.github/workflows/via-interop.yml`).
 
+## VLESS servers: `--vless FILE`
+
+T-440, the operator's ruling Q66: a VLESS server that the user runs
+(Xray-core, shoes, sing-box) takes the target from a short header and dials
+it, so it is a road with no relay. `--vless FILE` makes the servers of FILE
+the road, in place of the relay, for `ssh`, each command that reaches its
+server as `ssh` does, `proxy` and `doctor`, which checks each:
+
+- FILE is a regular file of the user that others cannot read (78
+  otherwise), as a pair file: a share link on each line, as panels and
+  Xray-core's clients give them,
+  `vless://ID@HOST:PORT?type=ws|xhttp&security=tls|none&sni=&host=&path=&mode=#TAG`;
+  `#` starts a comment. The ID is a UUID (the dashes optional), or a word of
+  1 to 30 bytes, which is UUIDv5 of it under the zero namespace, as
+  `XTLS/Xray-core:common/uuid/uuid.go` maps it. No message shows a line or an
+  ID: a refusal names the line's number.
+- VLESS's request (`crates/podssh-ws/src/vless/header.rs`): the version 0,
+  the ID's 16 bytes, no add-ons, the command TCP, the port, then the address
+  (a type byte: 1 IPv4, 2 a name, 3 IPv6). The server's answer is the
+  version and its add-ons, sent with the target's first bytes; a server that
+  refuses the ID, or cannot reach the target, ends the session with none.
+- `type=ws`: TLS to HOST:PORT through `HTTPS_PROXY` when one is set,
+  checked for `sni` (else `host`, else HOST), then the upgrade at `path` with
+  `host` in `Host`, and the stream in binary messages; the request rides the
+  first, with no early data in a header. A refused upgrade says that
+  `type=xhttp` passes where the upgrade does not.
+- `type=xhttp`: XHTTP on HTTP/2, `h2` chosen by ALPN (or HTTP/2 with no TLS
+  for `security=none`), each request with the padding that the server
+  checks, `Referer` with a query `x_padding=` of 100 to 1000 `X`.
+  `mode=packet-up` (and `auto`, as Xray-core's client takes it with TLS): a
+  streamed GET of `PATH/SESSION` down, and a POST of `PATH/SESSION/SEQ` for
+  each chunk up, one at a time, at most 1,000,000 bytes each; `stream-up`: the
+  same GET, and one streamed POST up; `stream-one`: one POST to the path,
+  its body up and its answer down. A streamed upload says
+  `Content-Type: application/grpc`. A server that chooses HTTP/1.1 is
+  refused (78): its split modes need a second connection, which this road
+  does not open (the operator's question in T-440).
+- The link's `extra` (JSON of `xhttpSettings`) gives `headers`,
+  `xPaddingBytes`, `noGRPCHeader`, `scMaxEachPostBytes` and `mode`; a key that
+  only paces or pools Xray-core's own client is passed over, and each other
+  key is refused by its name unless it holds its default.
+- A flow (`xtls-rprx-vision`), REALITY, VLESS's encryption and `type=tcp`
+  are refused (78) by their names.
+- The servers are tried in the order of the file. An SSH session waits up to
+  10 s for VLESS's answer, which comes with the server's version line; a
+  pipe of `proxy` takes the stream after 3 s of silence, as its client may
+  speak first. A run has one road: `--vless` beside `--relay-host`,
+  `--relay-failover`, `--forwarder`, `--shadowsocks`, `--via`, `--direct`,
+  `-4`, `-6` or a destination with a road of its own is refused (64).
+- `podssh doctor --vless FILE` gives a line in its section `vless` for each
+  server, and for each mode where a link says `auto`: the transport that
+  carried it and the time of VLESS's answer, then GitHub's published host
+  key on `github.com:22` through it.
+
+Tested against stand-ins on the loopback, h2's own server for XHTTP
+(`crates/podssh-ws/tests/vless.rs`), and against Xray-core and shoes in
+containers, through a plain squid as the host's proxy and behind nginx,
+which does not pass the upgrade (`scripts/interop-vless.sh`,
+`.github/workflows/vless-interop.yml`).
+
 ## Going to the background: `--detach` and `-f`
 
 T-380, after the study of `docs/detach.md`: a run that must outlive its

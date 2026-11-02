@@ -12,7 +12,8 @@
 //! that the user runs over TLS carries a target that CONNECT names, over
 //! HTTP/1.1 or HTTP/2 (`via`, T-439). A server of the Wisp protocol carries
 //! many TCP streams over one WebSocket (`wisp`, T-438), as a forwarder of
-//! `wisp+wss://` too.
+//! `wisp+wss://` too. A VLESS server of the user's carries a target that
+//! VLESS's header names, over a WebSocket or XHTTP (`vless`, T-440).
 //!
 //! Why a crypto provider of its own: rustls 0.23 ships none in pure Rust, and
 //! `ring` and `aws-lc-sys` both need a C compiler, which podssh's default build
@@ -67,6 +68,9 @@ mod tls_wrap;
 pub mod url;
 // A second proxy over TLS, HTTP/1.1's and HTTP/2's CONNECT (T-439).
 pub mod via;
+// VLESS over a WebSocket and over XHTTP, to a server that the user runs
+// (T-440).
+pub mod vless;
 // Tor's WebTunnel, for a bridge of the Tor road (T-385).
 pub mod webtunnel;
 mod wire;

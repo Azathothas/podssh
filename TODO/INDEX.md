@@ -511,7 +511,7 @@ repository and CI).
 | [T-437](mesh.md) | P2 | M | M10 | feature | done | Piping Server, a road for a proxy that refuses the WebSocket upgrade |
 | [T-438](mesh.md) | P3 | M | M10 | feature | done | Wisp: the demo server as a forwarder, and the Wisp protocol |
 | [T-439](mesh.md) | P2 | M | M10 | feature | done | HTTP CONNECT to a second proxy over TLS, HTTP/1.1 and HTTP/2 |
-| [T-440](mesh.md) | P2 | L | M10 | feature | open | VLESS over a WebSocket and over XHTTP |
+| [T-440](mesh.md) | P2 | L | M10 | feature | partial | VLESS over a WebSocket and over XHTTP |
 | [T-441](mesh.md) | P3 | M | M10 | feature | open | wstunnel's protocol |
 | [T-442](mesh.md) | P3 | M | M10 | research | open | More public services and standard protocols that fit |
 | [T-443](mesh.md) | P2 | S | M10 | defect | done | The resumable layer's window on the pair's road is above the relay's bound |

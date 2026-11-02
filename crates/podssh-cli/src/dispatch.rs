@@ -93,6 +93,7 @@ pub fn run_with(p: &Parsed, s: &mut Streams<'_>, tty: Tty) -> i32 {
             forwarder,
             shadowsocks,
             via,
+            vless,
             refused,
         } => {
             if refusals("proxy", refused, s.err) {
@@ -109,6 +110,7 @@ pub fn run_with(p: &Parsed, s: &mut Streams<'_>, tty: Tty) -> i32 {
                     forwarder: forwarder.clone(),
                     shadowsocks: shadowsocks.clone(),
                     via: via.clone(),
+                    vless: vless.clone(),
                 },
                 s.err,
             )
@@ -183,6 +185,7 @@ pub fn run_with(p: &Parsed, s: &mut Streams<'_>, tty: Tty) -> i32 {
             forwarder,
             shadowsocks,
             via,
+            vless,
             refused,
         } => {
             if refusals("doctor", refused, s.err) {
@@ -200,6 +203,7 @@ pub fn run_with(p: &Parsed, s: &mut Streams<'_>, tty: Tty) -> i32 {
                     forwarder: forwarder.clone(),
                     shadowsocks: shadowsocks.clone(),
                     via: via.clone(),
+                    vless: vless.clone(),
                 },
                 s.out,
                 s.err,
