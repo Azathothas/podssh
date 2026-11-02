@@ -7,6 +7,10 @@ name: forwarder live
 # day, as the watch of their life, since they publish no limit and give no
 # notice; and by hand. A planted run names a host under .invalid for each,
 # and must fail. No relay token goes to a forwarder; nothing is published.
+# The Wisp demo server is the fourth, by the operator's ruling Q65 (T-438);
+# before the live run, the Wisp client meets wisp-server-python, Mercury
+# Workshop's own server, on the runner's loopback, which the gate's image
+# does not carry.
 
 on:
   schedule:
@@ -30,8 +34,20 @@ jobs:
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
       - name: build the test
-        run: cargo test --locked -p podssh-ws --test live_forwarder --no-run
-      - name: GitHub's version line through each forwarder
+        run: cargo test --locked -p podssh-ws --test live_forwarder --test wisp --no-run
+      # Pinned, in a venv of its own: the release whose source was read, and
+      # the websockets whose legacy server it uses.
+      - name: wisp-server-python, the reference server of Wisp
+        run: |
+          python3 -m venv "$RUNNER_TEMP/wisp-venv"
+          "$RUNNER_TEMP/wisp-venv/bin/pip" install --quiet wisp-python==0.9.0 websockets==15.0.1
+      - name: the Wisp client against the reference server, on the loopback
+        env:
+          PODSSH_TEST_WISP_REQUIRED: "1"
+        run: |
+          export PODSSH_TEST_WISP_PYTHON="$RUNNER_TEMP/wisp-venv/bin/python"
+          timeout 600 cargo test --locked -p podssh-ws --test wisp -- --nocapture
+      - name: GitHub's version line through each forwarder, the Wisp demo server last
         run: timeout 300 cargo test --locked -p podssh-ws --test live_forwarder -- --ignored --nocapture --test-threads=1
       # The check must see a forwarder that is gone: each planted host fails it.
       - name: a planted host fails it

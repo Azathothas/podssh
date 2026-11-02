@@ -1,7 +1,28 @@
 //! The notes of `podssh ssh`, apart from the others so that each file stays
-//! short.
+//! short; the last of them are in `notes_ssh_more`.
 
-pub const SSH: &[&str] = &[
+use super::notes_ssh_more::MORE;
+
+/// The notes, in order: these, then those of `notes_ssh_more`.
+pub const SSH: &[&str] = &join::<{ FIRST.len() + MORE.len() }>(FIRST, MORE);
+
+/// Two lists of notes as one, in order, at compile time.
+const fn join<const N: usize>(a: &[&'static str], b: &[&'static str]) -> [&'static str; N] {
+    let mut out = [""; N];
+    let mut i = 0;
+    while i < a.len() {
+        out[i] = a[i];
+        i += 1;
+    }
+    let mut j = 0;
+    while j < b.len() {
+        out[a.len() + j] = b[j];
+        j += 1;
+    }
+    out
+}
+
+const FIRST: &[&str] = &[
     "podssh ssh reaches the host through the relay (see THE RELAY), or over TCP with --direct. It needs \
      no installed ssh, no pty and no user database entry.",
     "When no relay host opened a session, and the user named no relay (--relay-host, PODSSH_RELAY or \
@@ -183,20 +204,33 @@ pub const SSH: &[&str] = &[
      flag. A run has one road: --relay-host, --relay-failover, --direct, PODSSH_RELAY beside \
      PODSSH_FORWARDER, -4, -6, and a destination with a road of its own (node://, iroh:, cf://, iap://, \
      eice://) cannot go with it. A template may name a forwarder that you run yourself.",
-    "Three words name the public forwarders that GitHub's issue 59 measured, which the binary carries by \
-     the operator's ruling: mudlet, the Worker of Mudlet's web client, wss://web-proxy.mudlet.org/, on \
+    "wisp+wss://HOST/PATH/ (or wisp+ws://) names a server of the Wisp protocol, Mercury Workshop's, which \
+     carries TCP streams over one WebSocket and takes the target in a CONNECT packet of its own, so its URL \
+     has no {host} and no {port}, and its path ends with /. podssh opens one stream for each session: it \
+     offers version 2 of the protocol and speaks version 1 with a server that answers so; it sends no data \
+     past the credit that the server's CONTINUE gives; a stream that the server closes before its first \
+     bytes gives way to the next forwarder, with the server's reason (0x42, unreachable; 0x48, blocked; \
+     0x49, throttled; and the others of the protocol); the server's message of the day is shown with -v. \
+     A server that requires a password or a key is refused, as podssh sends neither.",
+    "Four words name public forwarders, which the binary carries by the operator's rulings: three that \
+     GitHub's issue 59 measured, mudlet, the Worker of Mudlet's web client, wss://web-proxy.mudlet.org/, on \
      Cloudflare, whose runtime refuses port 25, private addresses and Cloudflare's own; ssheasy, the proxy \
      of ssheasy's SSH client in a browser, wss://ssheasy.com/p, which takes the target in a first frame, \
      slows a connection to 100 KiB/s after 1 GiB and takes one connection a second from each address; and \
-     mudix, an older copy of Mudlet's Worker, wss://mudix.delwing.workers.dev/, on one person's name. They \
-     serve their own products' users. When each relay host failed, and the relay was podssh's own choice \
+     mudix, an older copy of Mudlet's Worker, wss://mudix.delwing.workers.dev/, on one person's name; then \
+     wisp, Mercury Workshop's demo server of the Wisp protocol, wisp+wss://wisp.mercurywork.shop/, which \
+     is for demo and testing, allows 500 kB/s for each address and resolves names through a resolver that \
+     blocks malware and adult names. They serve their own products' users. When each relay host failed, \
+     and the relay was podssh's own choice \
      (no --relay-host, PODSSH_RELAY or RelayHost of the settings file, and no -4 or -6), podssh tries them \
-     in that order before the run ends, after the direct road when that one is tried (PODSSH_DIRECT), as \
+     in that order before the run ends, wisp last and never first, after the direct road when that one is \
+     tried (PODSSH_DIRECT), as \
      the direct road sends the target to no one else; podssh proxy, which has no direct road, tries them \
      at once. It says so on stderr with the name of each; a failure that a \
      forwarder would share, as a bad setting, ends the run as before. No relay token goes to them. \
      PODSSH_FORWARDER_FALLBACK set to no, or ForwarderFallback no in the settings file, turns this off; \
-     podssh doctor says whether it is on, and podssh doctor --forwarder mudlet,ssheasy,mudix asks them.",
+     podssh doctor says whether it is on, and podssh doctor --forwarder mudlet,ssheasy,mudix,wisp asks \
+     them.",
     "--shadowsocks FILE reaches the first hop through Shadowsocks servers, in place of the relay: a server \
      that takes the target in an address header and dials it, with a key in place of a token. FILE must be \
      yours and closed to others (chmod 600), as a pair file is: each line is an ss:// URI of SIP002, \
@@ -418,82 +452,4 @@ pub const SSH: &[&str] = &[
      in each shell's environment, and podssh sends that value. A refusal of the far end comes as its \
      words on stderr and its exit status. Another destination, a command, -N, -W, -s, -T or --persist \
      with --attach is refused (exit 64). Against a standard sshd, --persist keeps the shell in tmux.",
-    "-A forwards the agent, off by default as in OpenSSH; -a turns it off, and the last of the two wins, \
-     over the keyword ForwardAgent. podssh asks for it on the session, never on a jump host, and joins each \
-     agent channel that the server opens to the agent that podssh logs in with (IdentityAgent, else \
-     SSH_AUTH_SOCK); ForwardAgent with a path or $NAME names another agent. While the session lasts, the \
-     server, and root on it, can use each key of the agent, though it cannot read one. podssh binds the \
-     agent to the server's host key first, as OpenSSH does (session-bind@openssh.com), so an OpenSSH agent \
-     keeps from the server each key that ssh-add limits to other hosts; an agent that refuses the bind \
-     serves unbound. An agent channel that a server opens with no -A is refused, with a warning.",
-    "-X and -Y forward X11 to the display of DISPLAY; -x turns it off, and the last of the three wins. The \
-     server is given a spoofed cookie, and podssh puts the real one in each X11 channel's first packet. -Y \
-     uses the cookie of XAUTHORITY or ~/.Xauthority, and gives the server's X clients full access; -X an \
-     untrusted cookie that xauth makes, for ForwardX11Timeout, and with no xauth it is refused. With no \
-     DISPLAY, no X server that answers, or no cookie that it takes, the run ends with 255 before anything \
-     connects.",
-    "-M with -S PATH (or ControlMaster and ControlPath) makes this run the control master, on Unix: other \
-     runs with -S PATH go through its one connection, as with OpenSSH, whose ssh -O check and clients \
-     work with it; a second -M asks before each request. -O check, forward, cancel, exit and stop speak to the \
-     master. With no master there, a run connects alone, and ControlMaster auto makes it the master. \
-     The socket is made mode 0600 before anything connects, and goes with the master. ControlPersist keeps \
-     a -N master with no client for that long; podssh does not go to the background. On Windows, -M, -S \
-     and -O are refused (exit 64).",
-    "-P on ssh is the Tag of OpenSSH, which Match tagged reads, not a port; a tag that is a number gets \
-     a note on stderr. On scp and sftp, -P is the port. Use -p for the port of ssh.",
-    "-G prints the settings in effect, as ssh -G does: a line of keyword and value for each keyword of \
-     OpenSSH that podssh applies, defaults included, then exits 0 with nothing opened. The defaults \
-     that differ from OpenSSH's do on purpose: ServerAliveInterval and ConnectTimeout are 60, and no \
-     identity file of a security key is tried. podssh's own settings, such as the relay hosts, print no \
-     line, as OpenSSH knows no keyword for them.",
-    "Paths in -i and in the IdentityFile, UserKnownHostsFile, GlobalKnownHostsFile, IdentityAgent and \
-     ForwardAgent keywords take the tokens of OpenSSH: %% %C %d %h %i %j %k %L %l %n %p %r %u, with \
-     OpenSSH's values. %u is the local user and %r the remote one. An unknown token is refused (exit 64). \
-     ${NAME} in them is the variable NAME, which must be set (exit 64); a whole $NAME as IdentityAgent or \
-     ForwardAgent is the variable that holds the path, and no agent when it is not set. -E FILE is opened \
-     as typed.",
-    "A repeated value follows OpenSSH: the first -p and -l, the last -e, -E and -F, and the first value \
-     of each -o keyword. A second -J or -W is refused, and so is a second --relay-host, --relay-addr or \
-     --ca-file: give several hops, hosts or addresses as one comma list.",
-    "podssh sends keepalives (ServerAliveInterval), so the relay does not close an idle session. To a \
-     node, the resumable layer keeps the link busy and finds a dead one, and SSH sends none unless \
-     ServerAliveInterval is set: a keepalive with no answer would end a session that the layer carries \
-     onto a new link.",
-    "podssh reads options before and after the host, as OpenSSH does, so a host that a script did not \
-     write can be read as a flag. Put -- before it: podssh ssh -- \"$HOST\" uptime. A host, or a \
-     -o HostName=VALUE, that starts with - is refused (exit 64), as OpenSSH refuses it.",
-    "An IPv6 address needs brackets only before a port: user@2001:db8::1 is port 22, and \
-     user@[2001:db8::1]:2222 or -p 2222 gives another port. -4 or -6 with an address of the other family \
-     is refused. The relay takes an IPv6 address, but when this version was measured, its way out \
-     reached no IPv6 host: such a session ends at once, and podssh says so. --direct needs no relay.",
-    "--result-file FILE writes one JSON object to FILE at the end of each run, also of one that failed \
-     before it connected: schema, exit (the code that podssh exits with), status (the remote exit status, \
-     or null), signal (its name and core_dumped, or null), end (status, signal, no-status, lost, escaped, \
-     terminated, detached, interrupted (Ctrl-C with no pty, and no end of the command), failed, or shared \
-     through a control master, which tells the exit code alone; null with no \
-     session, as with -W), failure (connect, host-key, auth, forward, relay, session, usage, config or \
-     not-built, or null), bytes (stdin, stdout and stderr, as they passed; null through a control master, \
-     which carries them), duration_ms, and relay (its host, close_code and reason, or null with no relay). \
-     stdout and stderr stay as they are; the command's output never goes into the file. A new file is made \
-     for its owner alone; - is refused (exit 64). No file is written after a flag that podssh does not know, \
-     which ends it before it reads the others, nor when a signal kills podssh: only a session on a terminal \
-     ends at SIGTERM or SIGHUP, as terminated, and one with no pty at Ctrl-C, by the command's end or as \
-     interrupted.",
-    "--install NAME, with -N, --persist and a forward, makes the tunnel a service of this user, which \
-     starts it again whenever it ends, as podssh node --install makes a node's, by the same ways: a user \
-     unit of systemd (podssh-ssh-NAME.service), a LaunchAgent (dev.podssh.ssh.NAME), two lines of the \
-     crontab, or a task of Windows. A server that only the tunnel reaches is locked out while it is down. \
-     The service runs this program with the words of this command line but --install NAME, in this \
-     directory, so that each relative path means what it meant; after ssh come BatchMode=yes, \
-     ForkAfterAuthentication=no, ControlPath=none and ExitOnForwardFailure=yes, each after -o, which win \
-     over the rest and over ssh_config, as nobody answers a prompt there, a run in the background or \
-     through a master would leave the service, and a refused forward serves nothing until a new start; \
-     then --env-file with ssh-NAME.env, the private file of the variables that it reads, with no token, \
-     and --persist-forever, so that an outage of the relay never ends the tunnel between two starts. \
-     The login needs a key with no passphrase, and the host key in known_hosts: run the same command \
-     once in the foreground first. The command line is resolved first: a shell, a command, -W, -f, -G, \
-     -O, --attach, --upgrade or --snippet is refused (64). So is a tunnel without --persist, or with no \
-     forward. --uninstall NAME removes what --install NAME wrote, and nothing else. --env-file FILE \
-     sets the variables of FILE first and holds FILE.lock while the run lasts, as for podssh node: a \
-     second start of the same service ends at once with 0.",
 ];

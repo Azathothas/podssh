@@ -343,12 +343,36 @@ scripts. The facts about OpenSSH on this page were measured with OpenSSH
   on `github.com:22` through it. A forwarder is another product's endpoint,
   which publishes no limit and can stop at any time, so a user names more
   than one. A template may name a forwarder that the user runs.
-- **Three words name other products' public forwarders, which the binary
-  carries, and they follow the relay when each relay host failed** (T-370,
-  the operator's ruling Q56): `mudlet` (`wss://web-proxy.mudlet.org/`, the
+- **`--forwarder wisp+wss://HOST/PATH/` names a server of the Wisp
+  protocol** (T-438, [carriers.md](carriers.md)): Mercury Workshop's
+  protocol, which carries TCP streams over one WebSocket, the target in a
+  `CONNECT` packet of its own, so the URL has no `{host}` or `{port}` (64)
+  and its path ends with `/` (64; without it a Wisp server reads the older
+  wsproxy's form). podssh-ws speaks it itself, from its document
+  (`crates/podssh-ws/src/wisp/`): the upgrade offers the protocol
+  `wisp-v2`; a server that sends its `INFO` speaks version 2, and podssh
+  answers with the version that both take and the extensions that both
+  list (the message of the day, shown with `-v`, and stream open
+  confirmation); a server that sends its `CONTINUE` first speaks version
+  1. Each session is one stream on a WebSocket of its own; no `DATA` goes
+  past the credit of the server's last `CONTINUE`; a `CLOSE` before the
+  target's first bytes (within 3 s, or before the confirmation) gives way
+  to the next forwarder with the server's reason (`0x42` unreachable,
+  `0x48` blocked, `0x49` throttled, and the others of the protocol); the
+  end of the caller's bytes sends a `CLOSE` with `ssh`, and none with
+  `proxy`, as Wisp has no half-close. A server that requires a password
+  or a key is refused, as podssh sends neither and no credential goes in
+  a URL. The same dial as each forwarder's: one connection, through
+  `HTTPS_PROXY`, TLS checked for the server's name, no relay token.
+- **Four words name public forwarders, which the binary carries, and they
+  follow the relay when each relay host failed** (T-370, the operator's
+  ruling Q56; T-438, Q65): `mudlet` (`wss://web-proxy.mudlet.org/`, the
   Worker of Mudlet's web client), `ssheasy` (`wss://ssheasy.com/p`, the
   frame form) and `mudix` (`wss://mudix.delwing.workers.dev/`, an older copy
-  of Mudlet's Worker), the three that GitHub #59 measured; `--forwarder
+  of Mudlet's Worker), the three that GitHub #59 measured; then `wisp`
+  (`wisp+wss://wisp.mercurywork.shop/`, Mercury Workshop's demo server of
+  the Wisp protocol, "primarily for demo and testing", 500 kB/s for each
+  address), last and never first, as Q65 rules; `--forwarder
   mudlet,ssheasy` takes them as templates are taken, and an unknown word is
   refused (64) with the list, its text not shown. When each relay host
   failed with a failure that a forwarder may not share (69 or 77 as `proxy`
@@ -368,7 +392,9 @@ scripts. The facts about OpenSSH on this page were measured with OpenSSH
   100 KiB/s after 1 GiB and takes one connection a second from each address;
   Mudlet's Worker shares its plan's requests with each user of Mudlet's web
   client. `.github/workflows/forwarder-live.yml` checks each one from GitHub
-  Actions each day, as Q56 allows: GitHub's version line through it.
+  Actions each day, as Q56 and Q65 allow: GitHub's version line through it;
+  it runs the Wisp client against wisp-server-python on the runner's
+  loopback first.
 - **`PODSSH_MPTCP=yes` asks for Multipath TCP on the direct road** (T-172),
   on Linux, and only on request. With `--direct` and no proxy, each attempt
   asks the kernel for a socket of `IPPROTO_MPTCP`: where the server speaks

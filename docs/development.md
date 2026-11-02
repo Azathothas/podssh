@@ -251,6 +251,19 @@ feature `ts`, 1.91 for `podssh-iroh` and the CLI with the feature `iroh`, and
 its feature `warp`, and 1.92 for `podssh-tor` and the CLI with the feature
 `tor`, whose step then runs their tests.
 
+The Wisp client's tests (T-438) run against a stand-in written from the
+protocol's document in each run, and against wisp-server-python, Mercury
+Workshop's own server, where a Python has it; each of those says that it did
+not run where none has it, and fails instead with `PODSSH_TEST_WISP_REQUIRED`
+set, as in `.github/workflows/forwarder-live.yml`, which installs it in a
+venv on the runner. By hand:
+
+```sh
+python3 -m venv .work/wisp-venv
+.work/wisp-venv/bin/pip install wisp-python==0.9.0 websockets==15.0.1
+PODSSH_TEST_WISP_PYTHON="$PWD/.work/wisp-venv/bin/python" cargo test -p podssh-ws --test wisp
+```
+
 The Tor road's tests against a Tor network of C tor (T-353) run in CI's job
 `tor-net`, on the runner: `scripts/tor-net.sh` starts chutney's network
 `basic` there, chutney at a pinned commit, with no daemon of Tor's own

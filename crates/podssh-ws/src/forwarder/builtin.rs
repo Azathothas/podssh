@@ -4,6 +4,9 @@
 //! products' users, publish no limit and give no notice, so the order puts
 //! a second provider before a second copy of the first: when Cloudflare's
 //! runtime refuses a target, the copy on the same runtime refuses it too.
+//! After them, and never first, by the operator's ruling Q65: the demo
+//! server of the Wisp protocol (T-438), whose operator says it is "primarily
+//! for demo and testing".
 
 /// A forwarder that the binary names.
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
@@ -34,6 +37,12 @@ pub const BUILTIN: &[Builtin] = &[
         template: "wss://mudix.delwing.workers.dev/?host={host}&port={port}",
         note: "an older copy of Mudlet's Worker, on one person's name under workers.dev",
     },
+    Builtin {
+        word: "wisp",
+        template: "wisp+wss://wisp.mercurywork.shop/",
+        note: "Mercury Workshop's demo server of the Wisp protocol, for demo and testing, 500 kB/s for each address, \
+               whose names resolve through a resolver that blocks malware and adult names; last, by the ruling Q65",
+    },
 ];
 
 /// The built-in forwarder of `word`, in any case.
@@ -41,7 +50,7 @@ pub fn lookup(word: &str) -> Option<&'static Builtin> {
     BUILTIN.iter().find(|b| b.word.eq_ignore_ascii_case(word.trim()))
 }
 
-/// The words, as a refusal lists them: `mudlet, ssheasy, mudix`.
+/// The words, as a refusal lists them: `mudlet, ssheasy, mudix, wisp`.
 pub fn words() -> String {
     BUILTIN.iter().map(|b| b.word).collect::<Vec<_>>().join(", ")
 }
@@ -57,12 +66,20 @@ mod tests {
     fn each_built_in_template_is_one_of_its_form() {
         let forms: Vec<(&str, Form)> =
             BUILTIN.iter().map(|b| (b.word, Template::parse(b.template).unwrap().form())).collect();
-        assert_eq!(forms, [("mudlet", Form::Query), ("ssheasy", Form::Frame), ("mudix", Form::Query)]);
+        let want = [("mudlet", Form::Query), ("ssheasy", Form::Frame), ("mudix", Form::Query), ("wisp", Form::Wisp)];
+        assert_eq!(forms, want);
         let shown = |b: &Builtin| Template::parse(b.template).unwrap().shown().to_string();
         let shown: Vec<String> = BUILTIN.iter().map(shown).collect();
-        assert_eq!(shown, ["wss://web-proxy.mudlet.org/", "wss://ssheasy.com/p", "wss://mudix.delwing.workers.dev/"]);
+        let want = [
+            "wss://web-proxy.mudlet.org/",
+            "wss://ssheasy.com/p",
+            "wss://mudix.delwing.workers.dev/",
+            "wisp+wss://wisp.mercurywork.shop/",
+        ];
+        assert_eq!(shown, want);
         assert_eq!(lookup(" MudLet ").map(|b| b.word), Some("mudlet"));
+        assert_eq!(lookup("WISP").map(|b| b.word), Some("wisp"));
         assert_eq!(lookup("mudlett"), None);
-        assert_eq!(words(), "mudlet, ssheasy, mudix");
+        assert_eq!(words(), "mudlet, ssheasy, mudix, wisp");
     }
 }

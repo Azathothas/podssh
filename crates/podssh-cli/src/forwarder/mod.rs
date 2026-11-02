@@ -6,8 +6,10 @@
 //! `Forwarder` of the settings file (T-048), each only where nothing at its
 //! level or above names another road: a run has one road. No token goes on
 //! this road, and no `/v1/mint`, `/relays.json` or pool is asked. A word
-//! names a forwarder that the binary carries (`mudlet`, T-370), and those
-//! are the fallback when each relay host failed ([`fallback`]).
+//! names a forwarder that the binary carries (`mudlet`, T-370; `wisp`,
+//! T-438), and those are the fallback when each relay host failed
+//! ([`fallback`]). A template `wisp+wss://HOST/PATH/` names a Wisp server,
+//! which takes the target in a packet of its protocol (T-438).
 
 pub mod fallback;
 pub mod pipe;
@@ -52,8 +54,8 @@ impl Forwarder {
             return Template::parse(item).map(Forwarder::of);
         }
         let words = builtin::words();
-        let b = builtin::lookup(item)
-            .ok_or_else(|| format!("a forwarder is a ws:// or wss:// template, or one of the words {words}"))?;
+        let refused = || format!("a forwarder is a ws://, wss:// or wisp+wss:// URL, or one of the words {words}");
+        let b = builtin::lookup(item).ok_or_else(refused)?;
         Forwarder::named(b)
     }
 }
@@ -210,22 +212,27 @@ mod tests {
 
     #[test]
     fn a_word_names_a_forwarder_of_the_binary_and_another_is_refused_unshown() {
-        let list = parse_list("mudlet, SSHEASY,mudix,mudlet").unwrap();
+        let list = parse_list("mudlet, SSHEASY,mudix,Wisp,mudlet").unwrap();
         let names: Vec<&str> = list.iter().map(|f| f.name.as_str()).collect();
         let want = [
             "mudlet (wss://web-proxy.mudlet.org/)",
             "ssheasy (wss://ssheasy.com/p)",
             "mudix (wss://mudix.delwing.workers.dev/)",
+            "wisp (wisp+wss://wisp.mercurywork.shop/)",
         ];
         assert_eq!(names, want);
-        assert_eq!(builtins(), list, "the fallback's order");
+        assert_eq!(builtins(), list, "the fallback's order: the Wisp demo server last (Q65)");
         let refused = parse_list("f.example/?key=SECRET").unwrap_err();
-        assert!(refused.contains("mudlet, ssheasy, mudix") && !refused.contains("SECRET"), "{refused}");
-        // The help names each word that the binary takes.
+        assert!(refused.contains("mudlet, ssheasy, mudix, wisp") && !refused.contains("SECRET"), "{refused}");
+        // A Wisp server that the user runs, by its URL.
+        let own = parse_list("wisp+wss://w.example/wisp/").unwrap();
+        assert_eq!(own[0].name, "wisp+wss://w.example/wisp/");
+        // The help names each word that the binary takes, and Wisp's form.
         let row = crate::flags::SSH_FLAGS.iter().find(|r| r.long == "forwarder").expect("the row");
         for b in builtin::BUILTIN {
             assert!(row.help.contains(b.word), "{}: {}", b.word, row.help);
         }
+        assert!(row.help.contains("wisp+wss://"), "{}", row.help);
     }
 
     #[test]

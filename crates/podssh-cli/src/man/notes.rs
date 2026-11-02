@@ -184,9 +184,10 @@ const PROXY: &[&str] = &[
      as podssh ssh does (see its notes): ssh -o ProxyCommand='podssh proxy warp://%h:%p' user@host.",
     "podssh proxy tor://HOST:PORT carries the pipe through the Tor network, in a build with the feature \
      tor, as podssh ssh does (see its notes): ssh -o ProxyCommand='podssh proxy tor://%h:%p' user@host.",
-    "podssh proxy --forwarder TEMPLATES carries the pipe through other products' WebSocket forwarders, in \
-     order, with no relay, as podssh ssh does (see its notes); PODSSH_FORWARDER gives them too. The end of \
-     stdin sends no Close, as a Close is no half-close: the target's bytes come until it closes. When each \
+    "podssh proxy --forwarder TEMPLATES carries the pipe through other products' WebSocket forwarders and \
+     Wisp servers, in order, with no relay, as podssh ssh does (see its notes); PODSSH_FORWARDER gives them \
+     too. The end of stdin sends no Close (nor Wisp's CLOSE), as a close is no half-close: the target's \
+     bytes come until it closes. When each \
      relay host failed, the forwarders that podssh names follow, as for podssh ssh.",
     "podssh proxy --shadowsocks FILE carries the pipe through the Shadowsocks servers of FILE, in order, \
      with no relay, as podssh ssh does (see its notes). A pipe's client may speak first, so a server that \

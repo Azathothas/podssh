@@ -317,12 +317,13 @@ fn doctor_checks_each_forwarder_through_github_s_port() {
     assert_eq!(seen[0].target, ("github.com".to_string(), 22), "the stand-in was asked for GitHub's port");
 }
 
-/// T-370: each word reaches the stand-in of its name, in its form; a word
-/// that is none is refused and lists the words.
+/// T-370: each word reaches the stand-in of its name, in its form (the Wisp
+/// demo server's, T-438, by its protocol); a word that is none is refused
+/// and lists the words.
 #[test]
 fn builtin_words_reach_their_forwarders_each_in_its_form() {
     let w = world("words");
-    for word in ["mudlet", "ssheasy", "mudix"] {
+    for word in ["mudlet", "ssheasy", "mudix", "wisp"] {
         let (code, out, err) = run(podssh(&w, &ssh(&w, &["--forwarder", word], "greet"), &[]), Vec::new());
         assert_eq!(code, Some(0), "{word}: {err}");
         assert_eq!(String::from_utf8_lossy(&out), ssh_harness::GREETING, "{word}");
@@ -334,13 +335,41 @@ fn builtin_words_reach_their_forwarders_each_in_its_form() {
         ("web-proxy.mudlet.org", query.as_str()),
         ("ssheasy.com", "/p"),
         ("mudix.delwing.workers.dev", query.as_str()),
+        ("wisp.mercurywork.shop", "/"),
     ];
     assert_eq!(at, want);
     assert!(seen[1].first_frame.is_some(), "ssheasy's form: {seen:?}");
+    assert_eq!(seen[3].target, ("127.0.0.1".to_string(), w.sshd), "Wisp's CONNECT: {seen:?}");
     let (code, _, err) = run(podssh(&w, &ssh(&w, &["--forwarder", "mudlett"], "greet"), &[]), Vec::new());
     assert_eq!(code, Some(64), "{err}");
-    assert!(err.contains("one of the words mudlet, ssheasy, mudix"), "{err}");
+    assert!(err.contains("one of the words mudlet, ssheasy, mudix, wisp"), "{err}");
     no_token_and_no_relay(&w);
+}
+
+/// T-438: the Wisp demo server comes after the three forwarders of Q56,
+/// never before (Q65): once each of them closed, it carries the session.
+#[test]
+fn the_wisp_demo_server_comes_last_in_the_fallback() {
+    let w = world("wisp-last");
+    for host in ["web-proxy.mudlet.org", "ssheasy.com", "mudix.delwing.workers.dev"] {
+        w.stands.closing.lock().unwrap().insert(host.into());
+    }
+    let no_direct = [("PODSSH_DIRECT", "no")];
+    let (code, out, err) = run(podssh(&w, &ssh(&w, &[], "greet"), &no_direct), Vec::new());
+    assert_eq!(code, Some(0), "{err}");
+    assert_eq!(String::from_utf8_lossy(&out), ssh_harness::GREETING);
+    assert!(err.contains("the forwarder mudix (wss://mudix.delwing.workers.dev/) closed the WebSocket"), "{err}");
+    let said = "the forwarder wisp (wisp+wss://wisp.mercurywork.shop/) carries the session";
+    assert!(err.contains(said), "{err}");
+    let want = ["web-proxy.mudlet.org", "ssheasy.com", "mudix.delwing.workers.dev", "wisp.mercurywork.shop"];
+    assert_eq!(w.stands.hosts(), want, "in order");
+    // Its own reason when it cannot reach the target, and the run ends.
+    w.stands.closing.lock().unwrap().insert("wisp.mercurywork.shop".into());
+    let (code, _, err) = run(podssh(&w, &ssh(&w, &[], "greet"), &no_direct), Vec::new());
+    assert_eq!(code, Some(255), "{err}");
+    let said = "the forwarder wisp (wisp+wss://wisp.mercurywork.shop/): the Wisp server closed the stream: 0x42";
+    assert!(err.contains(said), "{err}");
+    no_token(&w);
 }
 
 /// T-370: with no road named, the relay's hosts come first; once each

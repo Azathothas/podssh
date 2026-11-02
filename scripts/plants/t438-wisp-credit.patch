@@ -1,0 +1,24 @@
+--- a/crates/podssh-ws/src/wisp/mux.rs
++++ b/crates/podssh-ws/src/wisp/mux.rs
+@@ -262,20 +262,11 @@
+         if credit.has_changed().unwrap_or(false) {
+             left = *credit.borrow_and_update();
+         }
+-        while left == 0 {
+-            tokio::select! {
+-                changed = credit.changed() => match changed {
+-                    Ok(()) => left = *credit.borrow_and_update(),
+-                    Err(_) => return,
+-                },
+-                () = ended(&mut word) => return,
+-            }
+-        }
+         if let Err(e) = shared.session.send_binary(&packet::data(id, &buf[..n])).await {
+             shared.end_all(End::Failed(format!("sending to the Wisp server failed: {e}")));
+             return;
+         }
+-        left -= 1;
++        left = left.saturating_sub(1);
+     }
+ }
+ 

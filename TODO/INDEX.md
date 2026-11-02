@@ -62,15 +62,15 @@ repository and CI).
 
 ## Counts
 
-**447 entries: 48 open, 1 partial, 16 blocked, 382 done.**
+**447 entries: 47 open, 1 partial, 16 blocked, 383 done.**
 
 | Priority | open | partial | blocked | done | total |
 | --- | --- | --- | --- | --- | --- |
 | P0 | 0 | 0 | 0 | 1 | 1 |
 | P1 | 4 | 1 | 0 | 48 | 53 |
 | P2 | 20 | 0 | 14 | 183 | 217 |
-| P3 | 24 | 0 | 2 | 150 | 176 |
-| **All** | 48 | 1 | 16 | 382 | 447 |
+| P3 | 23 | 0 | 2 | 151 | 176 |
+| **All** | 47 | 1 | 16 | 383 | 447 |
 
 ## Entries
 
@@ -509,7 +509,7 @@ repository and CI).
 | [T-435](mesh.md) | P2 | M | M10 | feature | open | `status`, `ping` and `doctor` for the net |
 | [T-436](mesh.md) | P2 | M | M10 | feature | done | The magic-wormhole transit relay as a carrier of a pair's road |
 | [T-437](mesh.md) | P2 | M | M10 | feature | done | Piping Server, a road for a proxy that refuses the WebSocket upgrade |
-| [T-438](mesh.md) | P3 | M | M10 | feature | open | Wisp: the demo server as a forwarder, and the Wisp protocol |
+| [T-438](mesh.md) | P3 | M | M10 | feature | done | Wisp: the demo server as a forwarder, and the Wisp protocol |
 | [T-439](mesh.md) | P2 | M | M10 | feature | done | HTTP CONNECT to a second proxy over TLS, HTTP/1.1 and HTTP/2 |
 | [T-440](mesh.md) | P2 | L | M10 | feature | open | VLESS over a WebSocket and over XHTTP |
 | [T-441](mesh.md) | P3 | M | M10 | feature | open | wstunnel's protocol |

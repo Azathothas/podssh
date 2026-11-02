@@ -7,7 +7,9 @@
 //! before the target's bytes. The dial is that of a WebSocket by its URL
 //! ([`crate::url::dial`]): TLS checked for the forwarder's name, through the
 //! proxy of the environment, and no token: a relay token goes only to the
-//! deployment that minted it, and a forwarder is another product's.
+//! deployment that minted it, and a forwarder is another product's. A
+//! template `wisp+wss://HOST/PATH/` names a server of the Wisp protocol,
+//! which takes the target in a packet of its own ([`crate::wisp`], T-438).
 
 // The public forwarders of other products that the binary names (T-370).
 pub mod builtin;
@@ -24,7 +26,7 @@ use crate::dial::ProxyChoice;
 use crate::tls::Trust;
 
 pub use carry::{Carried, Ended, Status};
-pub use template::{Form, Template, HOST, PORT};
+pub use template::{Form, Template, HOST, PORT, WISP};
 
 /// Where each text frame of a forwarder goes, one safe line each.
 pub type Note = Arc<dyn Fn(&str) + Send + Sync>;
@@ -118,8 +120,12 @@ pub fn answer(payload: &[u8]) -> Result<(), String> {
 /// A session to `host:port` through the forwarder of `template`: the dial
 /// and the upgrade with no token, the first frame of the frame form and its
 /// answer, and the forwarder's first word in the query form, within
-/// [`EARLY_WAIT`].
+/// [`EARLY_WAIT`]. A Wisp server's template takes the road of
+/// [`crate::wisp`].
 pub async fn open(template: &Template, host: &str, port: u16, dial: &Dial<'_>) -> Result<Carried, ForwarderError> {
+    if template.form() == Form::Wisp {
+        return crate::wisp::forward::open(template, host, port, dial).await;
+    }
     let url = template.fill(host, port).map_err(ForwarderError::Target)?;
     let idle = Some(crate::client::DEFAULT_IDLE_TIMEOUT);
     let session = crate::url::dial(&url, dial.trust, dial.proxy, dial.timeout, idle)
