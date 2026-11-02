@@ -1,0 +1,11 @@
+--- a/crates/podssh-cli/src/net/admit.rs
++++ b/crates/podssh-cli/src/net/admit.rs
+@@ -212,7 +212,7 @@ pub fn members_only(me: PublicKey) -> (Arc<Admit>, Arc<Grant>) {
+ fn member_only(me: &PublicKey, peer: &PublicKey, asks: Asks<'_>) -> Result<(), String> {
+     match verdict(me, peer, asks) {
+         Verdict::Member(_) => Ok(()),
+-        Verdict::Refused(why) => Err(why),
++        Verdict::Refused(_) => Ok(()),
+         Verdict::Outside => Err("this node is in no net that it holds now, and it has no --allow".into()),
+     }
+ }

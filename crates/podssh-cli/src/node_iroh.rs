@@ -114,6 +114,7 @@ fn prepare(args: &NodeArgs) -> Result<(Ready, Vec<Route>), Refusal> {
     let derp = match args.derp {
         true => {
             crate::node_derp::check(args)?;
+            crate::node_derp::door(flags.allow.as_deref(), &place)?; // before the key is made (T-452)
             Some(crate::ssh::derp::servers(args.derp_server.as_deref())?)
         }
         false => None,
@@ -228,13 +229,15 @@ where
         Ok(key) => key,
         Err(why) => return Refusal::config(format!("the node's key: {why}")).report(verb, err),
     };
-    // A member of the net lets in its members on both roads (T-429).
+    // A member of the net lets in its members on both roads (T-429); with the
+    // DERP road and no --allow, them alone, on each road (T-452).
     let me = key.identity.public();
     if let Err(refusal) = crate::node_exit::ready(&label, &me) {
         return refusal.report(verb, err);
     }
     let exit = crate::node_exit::dial(me);
-    let routes = routes.map(|r| Routes { grant: crate::net::admit::grant(allow.clone(), Some(me)), exit, ..r });
+    let (door, grant) = crate::net::admit::doors(allow.clone(), me, derp.is_some());
+    let routes = routes.map(|r| Routes { grant, exit, ..r });
     // The first relay of the list that answers `/ping` is the home relay,
     // and the ticket names it for the run (T-165).
     let (home, missed) = podssh_iroh::relays::home(&relays, &trust, &proxy).await;
@@ -322,7 +325,7 @@ where
     let channel = match e2e {
         true => Some(ends::Node {
             identity: Arc::new(podssh_relay::identity::Identity::from_seed(&key.identity.seed())),
-            admit: crate::net::admit::admit(allow.clone(), me),
+            admit: door,
             say: Arc::new(say.clone()),
         }),
         false => {

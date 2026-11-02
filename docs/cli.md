@@ -2670,15 +2670,26 @@ commands. The rules behind them:
   identity, so the ticket (`derp:...`, on stderr) stays while the home does.
   After 3 failed connections in a row to its home, the node calls the next
   server of its list home that takes one, and prints the new ticket. A DERP
-  server lets any key send, so `--derp` needs `--allow` and the end-to-end
-  channel: `--no-e2e`, `--plain` and a `udp:` TARGET are refused (64), and
-  so is `--derp` with `--quick-tunnel` or `--temporary`. With a pair, and
-  with `--iroh`, the node serves each road with one keeper.
+  server lets any key send, so `--derp` needs the end-to-end channel and a
+  door for it: `--no-e2e`, `--plain` and a `udp:` TARGET are refused (64),
+  and so is `--derp` with `--quick-tunnel` or `--temporary`. With a pair,
+  and with `--iroh`, the node serves each road with one keeper.
+- **The DERP road's door** (T-452) is `--allow`, or, where the node's key,
+  as it is already kept, is a member of the net held here and in force, the
+  net's members alone, as its policy lets (`podssh net`): the first line
+  then ends `with no --allow, the members of the net NAME are its door`, no
+  line of an allowlist follows, and the admission of each road of the node
+  takes the members alone, so that a node that leaves its net, or whose
+  document goes, lets nobody in rather than each key
+  (`crates/podssh-cli/src/net/admit.rs`, `members_only`). A node with
+  neither is refused before its key is made (64), with the net's reason: no
+  key made, `PODSSH_NET=no`, no net held, a net that does not name the key,
+  or one that ended.
 - **A node with no pair serves the DERP road unasked** (the operator's
   ruling Q50, [decisions.md](decisions.md)): with no pair stored under NAME
-  (or an expired one), an allowlist, and no `--iroh`, `--plain` or
-  `--pair-file`, its first line says so. `PODSSH_DERP=no` turns that off,
-  and the node refuses as before (78).
+  (or an expired one), a door (an allowlist, or a net that names its key),
+  and no `--iroh`, `--plain` or `--pair-file`, its first line says so.
+  `PODSSH_DERP=no` turns that off, and the node refuses as before (78).
 - **`ssh derp:TICKET`** dials the node of the ticket: its server first,
   then the rest of the list (`--derp-server`, else `PODSSH_DERP_SERVER`,
   else the fleet) when the list holds that server. This client's key on
@@ -2750,7 +2761,9 @@ that the owner's key signs, and that each end keeps.
   `--allow`, only the members. A member removed by a newer document is
   refused at its next session. A document that ended, or one that fails its
   check, lets nobody in by the net. A node of no net keeps its door as
-  before. The node's first lines say its net.
+  before. The node's first lines say its net. A node of the DERP road needs
+  no `--allow` when its key is a member (T-452): the members are then its
+  whole door, on each of its roads.
 - **The policy** (T-430), as Tailscale's ACLs: who may reach which node,
   route, exit and range. With none, each member reaches each other; once
   the document has one, only what a rule allows. It is the field `policy`:

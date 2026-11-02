@@ -25,7 +25,9 @@ pub const NET: &[&str] = &[
     "A node whose key is a member lets in each member of the document held, read again for each session, beside \
      the keys of podssh node --allow; a member removed by a newer document is refused at its next session. A node \
      of no net keeps its door as before. A document that ended, or one that is there and fails its check, lets \
-     nobody in by the net, so a node that must not be locked out keeps an allowlist too.",
+     nobody in by the net, so a node that must not be locked out keeps an allowlist too. A node of the DERP road \
+     (podssh node --derp, or unasked with no pair) whose key is a member needs no podssh node --allow: the net's \
+     members are then its door alone, on each of its roads, as a DERP server lets any key send; its first line says so.",
     "The net's policy says who may reach what, as Tailscale's ACLs do; with none, each member reaches each other. \
      Its owner writes it as a file of JSON, {\"tags\": {\"dev\": [\"phone\"]}, \"rules\": [{\"from\": [\"laptop\", \
      \"tag:dev\"], \"to\": [\"lab/web\"], \"note\": \"...\"}]}, and signs it into the net with policy set FILE (policy \

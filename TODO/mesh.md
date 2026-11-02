@@ -2933,7 +2933,7 @@ the node serves the pair's road alone, so the test fails.
 **Milestone:** M10
 **Priority:** P3
 **Effort:** S
-**Status:** open
+**Status:** done
 
 ## Problem
 
@@ -2952,6 +2952,45 @@ without the file.
    door, and the node starts with no `--allow`, saying so on its first line.
 2. A node of no net and no `--allow` is refused as before.
 
+## Decision
+
+The calls of the draft (2026-11-02), each with what lost:
+
+- **The door is read before the key is made.** A key made now is in no net, so the node reads
+  the key where it is kept with no write (`existing` in `crates/podssh-relay/src/identity/file.rs`,
+  the search of `load_in` with nothing made), and asks the net whether its document names it
+  (`member_door` in `crates/podssh-cli/src/net/admit.rs`): a node with no key yet, a key for this
+  run only, `PODSSH_NET=no`, no net held, a document that fails its check, one that does not name
+  the key and one that ended are each refused as before (64, the words of before and then the
+  net's reason). Lost: loading the key first, which leaves a new key file behind each refused run,
+  against "the key is made only once each check passed"; making it and removing it again, which
+  races another run of the same node.
+- **With no `--allow`, the door fails closed** (`members_only`): a member that the policy lets
+  comes in; each other key is refused, also where the net says nothing because the node was
+  removed from it or its document went away while it ran. Lost: the admission of T-429 with no
+  allowlist, which lets each operator in where the net says nothing; that is right on the pair's
+  road, whose relay's connect token is a door, and wrong on the DERP road, where any key sends.
+- **One door for each road of the node.** The DERP node's pair's road, and the iroh node's
+  channel with `--iroh --derp`, take the same closed door, as one channel serves each road and a
+  session resumes on any (`doors`, with `any_key` for the DERP road). Lost: the closed door on
+  the DERP road alone, which would let a session that a key opened on the pair's road with no
+  check of the net resume onto the DERP road.
+- **`--iroh --derp` reads the door too** (`node_derp::door` from `node_iroh.rs`), as
+  `node_derp::check` no longer refuses a node with no `--allow`. Lost: keeping `--allow` needed
+  there, which would make a node of both roads the only DERP node that the net cannot open.
+- **The unasked road of Q50 takes the net as a door too**: a node with no pair, no `--allow`
+  and a key that the net names serves the DERP road unasked. Q58 says that a node with no pair
+  serves the road unasked; the allowlist was what the road needed for a door, and the net is now
+  one. Lost: `--derp` alone, which would leave a member with no pair refused for "no pair is
+  stored" when its net could let its members in.
+- **A document that ended is no door at the start**, with the owner's remedy (`podssh net
+  renew`). Lost: starting and letting nobody in until a member brings a newer document, which
+  hides the fault behind a node that seems to serve; a node that runs keeps T-429's behaviour.
+- **The first line says it**: the serving line ends `with no --allow, the members of the net
+  NAME are its door`, no line of an allowlist follows (`who_may` would speak of a pair's connect
+  token), and the net's line of T-429 follows the ticket. Lost: a line of its own, which a
+  reader of the first line would miss.
+
 ## Prove
 
 ```sh
@@ -2961,6 +3000,41 @@ cargo test -p podssh-cli --test derp_road
 
 A member reaches a DERP node of no `--allow` by its name; a stranger's key is refused. Planted, a
 door with no member check, and the stranger's test fails.
+
+## Done
+
+2026-11-02: drafted by an agent in a worktree (DRAFT T-452), which built nothing; merged and
+measured by the main session the same day.
+
+- `crates/podssh-cli/src/node_derp.rs`: `Door` and `door` (the keys of `--allow`, else the net
+  that names the kept key), read in `prepare` before the key is made; `check` keeps the flags'
+  refusals; `unasked` takes a node whose net names its key (`net_door`); `serve` says the door on
+  the serving line, and takes `doors(.., true)` for the channel and the routes of both roads.
+- `crates/podssh-cli/src/net/admit.rs`: `member_door`, `members_only` (the closed door) and
+  `doors`. `crates/podssh-cli/src/node_iroh.rs`: `--iroh --derp` reads the door, and its channel
+  and routes take `doors(.., derp)`. `crates/podssh-relay/src/identity/file.rs`: `existing` and
+  `existing_in`.
+- The manual (`crates/podssh-cli/src/flags/derp.rs`, `man/notes_pair.rs`, `man/notes_net.rs`),
+  `docs/cli.md`, `docs/mesh.md` (section 3) and `docs/STATUS.md`.
+- The merge: applied onto `94be1bb` beside T-431's exit and T-445's record, which had touched the
+  same lines: `members_only` now takes the channel's `Ask` of T-431 (so a member reaches an exit
+  through the closed door as the policy lets it), the DERP node keeps T-445's record and T-431's
+  exit check and `routes_of` with its fourth argument, `--iroh --derp` keeps the exit's dial; the
+  draft's moved citations of other entries were taken from `main` and remapped. The plant's patch
+  was made again for the new signature.
+- `cargo test -p podssh-cli --features iroh-test --test derp_road`: 6 passed, among them
+  `derp_net::a_member_reaches_a_derp_node_of_no_allow_by_its_name_and_a_stranger_is_refused` and
+  `derp_net::a_node_of_no_net_and_no_allow_is_refused_and_a_member_with_no_pair_serves_unasked`;
+  `cargo test -p podssh-relay --test identity_file`: 10 passed.
+- Planted, `sh scripts/plant-each.sh --here t452-derp-door` (the closed door lets in each key that
+  the net refuses): caught, "a key that the net does not name reached the node".
+- Clippy with `-D warnings`, all targets: podssh-cli, podssh-cli with `iroh-test`, podssh-relay
+  with `pair,serve,plain-ws,quick,derp`: clean; `cargo fmt -p` of both.
+- The whole suite, `cargo test --no-fail-fast -p podssh-cli`: 1345 passed and 1 failed, the
+  notes' check, as the note of `net` named `--allow` with no verb; it says `podssh node --allow`
+  now, and the 59 tests of `--lib -- man` passed, with `man_page` 10, `man_json` 4 and
+  `man_flag_parity` 6; the temporary directory held the same entries after it as before.
+- Filed: T-550, the quick tunnel's node with the net's members as its door, which the draft named.
 
 # T-453: `podssh cp` and `podssh sftp` reach a member of the net by its name alone
 
@@ -4096,3 +4170,43 @@ Planted: a DATA capsule's length read as a byte, and the session's first megabyt
 ## Start condition
 
 draft-ietf-httpbis-connect-tcp is an RFC, and a server over HTTP/2 or HTTP/1.1 implements it.
+
+# T-550: The quick tunnel's node takes its net's members as its door, with no `--allow`
+
+**Source:** the merge of T-452 (2026-11-02), its drafting agent's note.
+**Category:** feature
+**Milestone:** M10
+**Priority:** P3
+**Effort:** S
+**Status:** open
+
+## Problem
+
+A node of the DERP road whose key is a member of the net starts with no `--allow`, its net's
+members its whole door (T-452). The quick tunnel's node, whose name is public in the same way,
+still refuses to start with no `--allow`, so a member of a net must keep a list of keys beside
+the net that already names them.
+
+## Premise
+
+- `crates/podssh-cli/src/node_quick.rs:131` says "--quick-tunnel needs --allow FILE: its name is public, so only the operator keys in FILE come in".
+- `crates/podssh-cli/src/node_derp.rs:113` says "pub(crate) fn door(allow: Option<&Path>, place: &Place) -> Result<Door, Refusal>",
+  the door of T-452 that the quick tunnel's node can take too.
+
+## Approach
+
+1. The quick tunnel's node reads its door as the DERP road's does: `--allow`, else the net held
+   here that names its key; the channel takes `net::admit::doors(.., true)`, the members alone.
+2. Its serving line names the door; with neither, the refusal of now, naming the net too.
+3. The manual's note of `--quick-tunnel` and `docs/mesh.md` say it.
+
+## Prove
+
+```sh
+export CARGO_BUILD_JOBS=4
+cargo test -p podssh-cli --test node_quick_relay --test node
+```
+
+A quick tunnel's node of a member starts with no `--allow` through the stand-in edge, a member
+reaches it and a stranger's key is refused at the node; a node of no net and no `--allow` is
+refused as now. Planted: the closed door that lets each key in, and the stranger's test fails.

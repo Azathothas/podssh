@@ -112,6 +112,33 @@ pub fn load_in(dirs: &[PathBuf], place: &Place, entropy: &mut dyn Entropy) -> Re
     }
 }
 
+/// The key kept at `place`, read and never made: a node asks its net whether
+/// it names the key before anything is made (T-452), as a key made then is
+/// in no net. `None` where there is no file, and for an ephemeral key.
+pub fn existing(place: &Place) -> Result<Option<Identity>, String> {
+    existing_in(&cache::candidate_dirs(), place)
+}
+
+/// [`existing`], with `dirs` as the cache's directories (for tests). It
+/// searches as [`load_in`] does, and a file that is there and refused is
+/// the answer, as it stops that search.
+pub fn existing_in(dirs: &[PathBuf], place: &Place) -> Result<Option<Identity>, String> {
+    match place {
+        Place::Ephemeral => Ok(None),
+        Place::File(path) => read(path),
+        Place::Cache { name, old } => {
+            for name in std::iter::once(name).chain(old) {
+                for dir in dirs {
+                    if let Some(identity) = read(&dir.join(name))? {
+                        return Ok(Some(identity));
+                    }
+                }
+            }
+            Ok(None)
+        }
+    }
+}
+
 /// The key that was made, or, when another run made the file first, the one
 /// in the file.
 fn settled(path: PathBuf, identity: Identity, made: bool) -> Result<Key, String> {

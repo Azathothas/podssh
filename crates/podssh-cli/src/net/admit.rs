@@ -12,6 +12,8 @@
 //! route that the operator named. An exit (T-431) lets a member out only
 //! where the owner gave this node the role `exit`, and the policy lets it
 //! reach the node's egress, for a public address, or the address's range.
+//! A node of the DERP road with no `--allow` has the members alone for its
+//! door (T-452), as any key reaches it.
 
 use std::net::IpAddr;
 use std::path::PathBuf;
@@ -165,6 +167,64 @@ pub fn grant(allow: Option<PathBuf>, me: Option<PublicKey>) -> Arc<Grant> {
         Verdict::Refused(why) if allow.is_some() => file(peer, route).map_err(|also| format!("{why}, and {also}")),
         Verdict::Refused(why) => Err(why),
     })
+}
+
+/// The name of the net whose members are the door of the node `me` with no
+/// `--allow` (T-452): the document held here, in force, names `me`. Else
+/// why not, for the node's refusal.
+pub fn member_door(me: &PublicKey) -> Result<String, String> {
+    match store::place() {
+        Ok(store::Place::Off) => return Err(format!("{}=no turns the net off", store::ENV)),
+        Err(why) => return Err(why),
+        Ok(_) => {}
+    }
+    let held = store::held().map_err(|why| format!("the net's document cannot be trusted: {why}"))?;
+    let Some(held) = held else { return Err("this host holds no net".into()) };
+    let doc = &held.signed.doc;
+    if doc.member_of_key(me).is_none() {
+        return Err(format!("the net {} (serial {}) does not name the node's key {me}", doc.name, doc.serial));
+    }
+    if doc.expires <= super::now() {
+        let ended = crate::pairs::utc(doc.expires * 1000);
+        return Err(format!(
+            "the net {}'s document (serial {}) ended at {ended}; its owner renews it with podssh net renew",
+            doc.name, doc.serial
+        ));
+    }
+    Ok(doc.name.clone())
+}
+
+/// Who may reach the node `me` on a road that any key reaches, with no
+/// `--allow` (T-452): the members of its net that the policy lets, read
+/// again for each session, and nobody else. Where the net says nothing (the
+/// node left it, or its document went away) nobody comes in, never each
+/// operator as [`admit`] lets where a relay's token is the door.
+pub fn members_only(me: PublicKey) -> (Arc<Admit>, Arc<Grant>) {
+    install(true);
+    let admit: Arc<Admit> = Arc::new(move |peer: &PublicKey, ask: &Ask| member_only(&me, peer, Asks::of(ask)));
+    let grant: Arc<Grant> =
+        Arc::new(move |peer: &PublicKey, route: &str| member_only(&me, peer, Asks::Target(Some(route))));
+    (admit, grant)
+}
+
+/// The net's verdict at the node `me`, as a door that knows no other key;
+/// an exit's target is the policy's, as at each other door (T-431).
+fn member_only(me: &PublicKey, peer: &PublicKey, asks: Asks<'_>) -> Result<(), String> {
+    match verdict(me, peer, asks) {
+        Verdict::Member(_) => Ok(()),
+        Verdict::Refused(why) => Err(why),
+        Verdict::Outside => Err("this node is in no net that it holds now, and it has no --allow".into()),
+    }
+}
+
+/// The admission and the grant of the node `me`: with no `allow` on a road
+/// that any key reaches (`any_key`, the DERP road), [`members_only`]; else
+/// [`admit`] and [`grant`].
+pub fn doors(allow: Option<PathBuf>, me: PublicKey, any_key: bool) -> (Arc<Admit>, Arc<Grant>) {
+    match allow {
+        None if any_key => members_only(me),
+        allow => (admit(allow.clone(), me), grant(allow, Some(me))),
+    }
 }
 
 /// Whether the net lets `peer` in at the node `me`: the iroh road's door,

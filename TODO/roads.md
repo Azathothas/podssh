@@ -6129,7 +6129,7 @@ ask, and nothing does so.
 ## Premise
 
 - Read: the node of the iroh road serves the pair's road beside it, with one keeper for both
-  (`crates/podssh-cli/src/node_iroh.rs:352-353`), and `podssh node` sends `--iroh` there
+  (`crates/podssh-cli/src/node_iroh.rs:355-356`), and `podssh node` sends `--iroh` there
   (`crates/podssh-cli/src/node.rs:104-106`).
 - Read: `podssh ssh` resolves its destination into an enum of transports
   (`crates/podssh-cli/src/ssh/resolve.rs:24-72`), in a file of 488 of its 500 lines.

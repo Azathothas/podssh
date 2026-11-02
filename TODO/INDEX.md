@@ -62,15 +62,15 @@ repository and CI).
 
 ## Counts
 
-**510 entries: 96 open, 3 partial, 16 blocked, 395 done.**
+**511 entries: 96 open, 3 partial, 16 blocked, 396 done.**
 
 | Priority | open | partial | blocked | done | total |
 | --- | --- | --- | --- | --- | --- |
 | P0 | 0 | 0 | 0 | 1 | 1 |
 | P1 | 6 | 3 | 0 | 51 | 60 |
 | P2 | 38 | 0 | 14 | 190 | 242 |
-| P3 | 52 | 0 | 2 | 153 | 207 |
-| **All** | 96 | 3 | 16 | 395 | 510 |
+| P3 | 52 | 0 | 2 | 154 | 208 |
+| **All** | 96 | 3 | 16 | 396 | 511 |
 
 ## Entries
 
@@ -523,7 +523,7 @@ repository and CI).
 | [T-449](mesh.md) | P2 | S | M10 | defect | done | A test of the podssh-relay suite failed once in 11 runs, unnamed |
 | [T-450](mesh.md) | P3 | S | M10 | defect | open | Three live runs of the transit road met nobody within 20 s |
 | [T-451](mesh.md) | P2 | M | M10 | measurement | open | The Piping Server road from end to end: `podssh node` and `ssh node://` behind a proxy that refuses the upgrade |
-| [T-452](mesh.md) | P3 | S | M10 | feature | open | A node of the DERP road whose key is a member of the net starts with no `--allow` |
+| [T-452](mesh.md) | P3 | S | M10 | feature | done | A node of the DERP road whose key is a member of the net starts with no `--allow` |
 | [T-453](mesh.md) | P3 | S | M10 | feature | open | `podssh cp` and `podssh sftp` reach a member of the net by its name alone |
 | [T-454](mesh.md) | P2 | S | M10 | feature | done | The relay role brakes `/v1/mint` and `/v1/pair` for each address |
 | [T-455](mesh.md) | P2 | S | M10 | feature | open | The relay role mints for the members of the net |
@@ -581,6 +581,7 @@ repository and CI).
 | [T-531](mesh.md) | P2 | M | M10 | feature | open | The OpenTunnel road in the command line: `podssh node --opentunnel` and `ssh node://` |
 | [T-532](mesh.md) | P3 | M | M10 | feature | open | `podssh funnel` through OpenTunnel, with TLS that ends at the node |
 | [T-533](mesh.md) | P3 | S | M10 | docs | open | The manual says which public services podssh tries last, and which it never names |
+| [T-550](mesh.md) | P3 | S | M10 | feature | open | The quick tunnel's node takes its net's members as its door, with no `--allow` |
 | [T-560](roads.md) | P2 | S | none | defect | open | WARP's road opens on TLS to the front door, and never proves that the tunnel carries a packet |
 | [T-561](roads.md) | P2 | M | none | feature | open | WARP's road dials one constant address, not the peers that WARP's API gave |
 | [T-562](roads.md) | P3 | S | none | feature | open | WARP's registration dials one name of the API, with no second route |
