@@ -491,7 +491,7 @@ Read, at `61e55d1`: no option made podssh start a program: `ProxyCommand` is ref
    `[OPTIONS] [--] [user@]host [COMMAND...]` for `ssh` and
    `[OPTIONS] [--] HOST PORT` for `proxy`; `--help` and the synopsis of the
    manual (`crates/podssh-cli/src/man/model.rs:186-190`) read it.
-2. A note for `ssh` and `proxy` (`crates/podssh-cli/src/man/notes_ssh.rs:4-456` and `crates/podssh-cli/src/man/notes_ssh_more.rs:4-82` and `crates/podssh-cli/src/man/notes.rs:66-205`)
+2. A note for `ssh` and `proxy` (`crates/podssh-cli/src/man/notes_ssh.rs:4-462` and `crates/podssh-cli/src/man/notes_ssh_more.rs:4-82` and `crates/podssh-cli/src/man/notes.rs:66-205`)
    and an example (`crates/podssh-cli/src/man/examples.rs:8-250`). Pitfall: the
    notes test reads a bare `--` as a flag that does not exist
    (`crates/podssh-cli/src/man/notes.rs:408-424`); teach `flag_exists`
@@ -3081,7 +3081,7 @@ node at its next line, often "online again" after a reconnect. A server then has
 
 - Read: `panic = "abort"` in the release profile (`Cargo.toml:220`).
 - Read: the node's lines are `eprintln!` (`crates/podssh-cli/src/node.rs:315`,
-  `crates/podssh-cli/src/node_derp.rs:253`, `crates/podssh-cli/src/node_iroh.rs:309`), as are 40
+  `crates/podssh-cli/src/node_derp.rs:269`, `crates/podssh-cli/src/node_iroh.rs:310`), as are 40
   more sites in `crates/podssh-cli/src` and 4 in `crates/podssh-ssh/src` (2026-11-01, a search for
   `eprintln!`, `println!`, `eprint!` and `print!`).
 - Read: after ready a detached child's stderr is its log (`crates/podssh-cli/src/detach/child.rs:242`).

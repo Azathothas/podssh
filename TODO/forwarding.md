@@ -1587,7 +1587,7 @@ a session with a pty:
   of `podssh ssh`, which `crates/podssh-cli/src/ssh/mod.rs:319` gives to
   each session.
 - The manual: the note of the terminal names `~C`, and a note of its own
-  (`crates/podssh-cli/src/man/notes_ssh.rs:428`); `docs/cli.md` ("`~C`
+  (`crates/podssh-cli/src/man/notes_ssh.rs:434`); `docs/cli.md` ("`~C`
   adds and stops forwards") and `docs/terminal.md` ("What podssh reads
   from the terminal").
 - Tests, `cargo test -p podssh-ssh -- escape_command` (8): the commands of
@@ -1641,7 +1641,7 @@ the SOCKS form gives a server whose egress is closed a way out through the clien
 - Read: `crates/podssh-cli/src/ssh/forward.rs` line 43 at `6f6eda2` says "a Unix socket is not
   carried yet", and its line 49 says "the server's SOCKS proxy (-R [bind_address:]port) is not
   carried yet", for a spec of one or two fields (its lines 45-54); `docs/cli.md:728-729` and
-  `crates/podssh-cli/src/man/notes_ssh.rs:421-422` say so too. `TODO/forwarding.md:52-54` says
+  `crates/podssh-cli/src/man/notes_ssh.rs:427-428` say so too. `TODO/forwarding.md:52-54` says
   "until a later step" of both, in T-035.
 - Read: `RemoteForward` holds a port and a `host:host_port` only
   (`crates/podssh-ssh/src/options.rs` lines 328-339 at `6f6eda2`). podssh asks for it with `tcpip_forward`

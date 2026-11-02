@@ -62,15 +62,15 @@ repository and CI).
 
 ## Counts
 
-**452 entries: 44 open, 2 partial, 17 blocked, 389 done.**
+**452 entries: 43 open, 3 partial, 17 blocked, 389 done.**
 
 | Priority | open | partial | blocked | done | total |
 | --- | --- | --- | --- | --- | --- |
 | P0 | 0 | 0 | 0 | 1 | 1 |
 | P1 | 2 | 1 | 0 | 50 | 53 |
-| P2 | 18 | 1 | 14 | 186 | 219 |
+| P2 | 17 | 2 | 14 | 186 | 219 |
 | P3 | 24 | 0 | 3 | 152 | 179 |
-| **All** | 44 | 2 | 17 | 389 | 452 |
+| **All** | 43 | 3 | 17 | 389 | 452 |
 
 ## Entries
 
@@ -516,7 +516,7 @@ repository and CI).
 | [T-442](mesh.md) | P3 | M | M10 | research | open | More public services and standard protocols that fit |
 | [T-443](mesh.md) | P2 | S | M10 | defect | done | The resumable layer's window on the pair's road is above the relay's bound |
 | [T-444](mesh.md) | P3 | S | M10 | feature | done | One TLS configuration for each trust in a process, so that TLS resumes |
-| [T-445](mesh.md) | P2 | S | M10 | feature | open | A node's record names each of its roads |
+| [T-445](mesh.md) | P2 | S | M10 | feature | partial | A node's record names each of its roads |
 | [T-446](mesh.md) | P2 | M | M10 | release | open | The release of milestone M10: betas `v1.1.0-beta.N`, then `v1.1.0` |
 | [T-447](mesh.md) | P2 | M | M10 | feature | open | `podssh relay serve` takes its certificate from ACME, and reads it again on SIGHUP |
 | [T-448](mesh.md) | P2 | M | M10 | feature | done | The relay role mints tokens for the keys of an allowlist or of the net |

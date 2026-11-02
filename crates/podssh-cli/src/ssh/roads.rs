@@ -12,6 +12,8 @@
 //! Piping Server road of the pair (T-437) comes 250 ms after the pair's when
 //! PODSSH_PIPING asks for it; else, by the operator's ruling Q65, only when
 //! each road before it failed and one found the WebSocket upgrade refused.
+//! A member of the net races the roads of its record of pkarr too (T-445),
+//! after the roads of its tickets and before the transit relay's.
 
 use std::future::Future;
 use std::pin::Pin;
@@ -44,6 +46,8 @@ pub(super) struct Raced<'a> {
     pub derp: Option<super::derp::Road>,
     pub transit: Option<podssh_ws::url::WsUrl>,
     pub piping: Option<crate::piping_road::Race>,
+    /// The member's record, for the roads that no ticket gave (T-445).
+    pub record: Option<&'a super::iroh::RecordAsk>,
 }
 
 /// Which road a place of the race is.
@@ -54,11 +58,14 @@ enum Kind {
     Derp,
     Transit,
     Piping,
+    /// A road of the node's record, by its name.
+    Record(&'static str),
 }
 
 impl Kind {
     fn name(self) -> &'static str {
         match self {
+            Kind::Record(name) => name,
             Kind::Iroh => "the iroh road",
             Kind::Pair => "the pair's road",
             Kind::Derp => "the DERP road",
@@ -69,7 +76,7 @@ impl Kind {
 }
 
 /// A road's attempt at a link.
-type Going<'s> = Pin<Box<dyn Future<Output = Result<Road, String>> + 's>>;
+pub(crate) type Going<'s> = Pin<Box<dyn Future<Output = Result<Road, String>> + 's>>;
 
 /// The roads of one run, each made once: the iroh road's endpoint, the
 /// pair's legs, the DERP road's dialer.
@@ -82,6 +89,8 @@ struct Roads<'a> {
     transit: Option<podssh_relay::transit::Dialer>,
     /// The Piping Server road's dialer, and whether the user asked for it.
     piping: Option<(podssh_relay::piping::Dialer, bool)>,
+    /// The roads of the member's record (T-445).
+    record: Option<super::iroh::RecordRoads<'a>>,
     /// A road found the WebSocket upgrade refused on the way: the Piping
     /// Server road's cue, when the user did not ask for it (Q65).
     refused: AtomicBool,
@@ -119,6 +128,11 @@ impl<'a> Roads<'a> {
         if piping_asked {
             self.push_piping(&mut list, &mut kinds);
         }
+        // The record's roads, once each road with a ticket failed (T-445).
+        for (start, going, name) in self.record.iter().flat_map(|record| record.race()) {
+            list.push((start, going));
+            kinds.push(Kind::Record(name));
+        }
         if let Some(dialer) = &self.transit {
             // Q65's fallback: only when each road before it failed.
             list.push((Start::WhenAllFailed, Box::pin(transit_link(dialer))));
@@ -150,7 +164,7 @@ impl<'a> Roads<'a> {
     /// there, and there is no DERP road or Piping Server road, whose node
     /// may come back.
     async fn ended_for_good(&self) -> bool {
-        if self.derp.is_some() || self.piping_on() {
+        if self.derp.is_some() || self.piping_on() || self.record.is_some() {
             return false;
         }
         let pair_done = self.pair.is_none() || self.pair_final.load(Ordering::SeqCst);
@@ -170,6 +184,9 @@ impl<'a> Roads<'a> {
         }
         if let Some(iroh) = &self.iroh {
             iroh.close().await;
+        }
+        if let Some(record) = &self.record {
+            record.close().await;
         }
     }
 }
@@ -245,10 +262,10 @@ pub(super) async fn connect(
         return EXIT_FAILURE;
     }
     // The pair's road, when this host has the pair; a node that the DERP
-    // road reaches may have none here.
+    // road or its record reaches may have none here.
     let part = match crate::pairs::operator_part(label, pair_file) {
         Ok(part) => Some(part),
-        Err(refusal) if raced.derp.is_some() && pair_file.is_none() => {
+        Err(refusal) if (raced.derp.is_some() || raced.record.is_some()) && pair_file.is_none() => {
             log.verbose(&format!("{shown}: no pair's road: {}", refusal.message));
             None
         }
@@ -322,7 +339,8 @@ pub(super) async fn connect(
         _ => None,
     };
     let (legs, pair_final) = (Mutex::new(None), AtomicBool::new(false));
-    let roads = Roads { iroh, pair: config.as_ref(), derp, transit, piping, refused, label, legs, pair_final };
+    let record = raced.record.map(|ask| super::iroh::RecordRoads::new(ask, trust, &log, &shown));
+    let roads = Roads { iroh, pair: config.as_ref(), derp, transit, piping, record, refused, label, legs, pair_final };
     let (list, kinds) = roads.race(None);
     log.verbose(&format!("connecting to {shown}: {}", order(&kinds, &roads)));
     let first = match in_turn(list).await {
@@ -409,6 +427,11 @@ pub(super) async fn connect(
             log.verbose(&format!("{shown}: the DERP road's server: {server}"));
         }
     }
+    if let Some(carried) = roads.record.as_ref().map(|record| record.carried()) {
+        if let Some(line) = carried.await {
+            log.verbose(&format!("{shown}: {line}"));
+        }
+    }
     if let Some((dialer, proto)) = roads.piping.as_ref().and_then(|(dialer, _)| Some((dialer, dialer.proto()?))) {
         let form = if dialer.numbered() { "numbered pieces" } else { "streamed ways" };
         log.verbose(&format!("{shown}: the Piping Server road: {} over {proto}, in {form}", dialer.server()));
@@ -438,6 +461,9 @@ fn order(kinds: &[Kind], roads: &Roads<'_>) -> String {
                 "when each road before it failed (a kept ticket)".to_string()
             }
             (_, Kind::Transit) => "when each road before it failed (Q65)".to_string(),
+            (_, Kind::Record(_)) if !matches!(kinds[at - 1], Kind::Record(_)) => {
+                "when each road before it failed (the node's record of pkarr, T-445)".to_string()
+            }
             (_, Kind::Piping) if roads.piping.as_ref().is_some_and(|(_, asked)| !asked) => {
                 "when each road before it failed and one found the WebSocket upgrade refused (Q65)".to_string()
             }

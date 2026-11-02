@@ -3,7 +3,8 @@
 //! private file and shown by its public half; its ticket (`iroh:...`),
 //! printed when it starts and again when its home relay changes, is its
 //! address; a record of its home relay at a server of pkarr lets a client
-//! with an older ticket find it (T-350). A client gets in only when its key
+//! with an older ticket find it (T-350), and names its DERP home too
+//! (T-445, `node_record`). A client gets in only when its key
 //! is in the file of `--iroh-allow`, read again for each connection. With
 //! the pair NAME, or the one of `--pair-file`, the node serves the pair's
 //! road too, with one
@@ -329,16 +330,12 @@ where
         move |ticket| say(format!("the home relay changed; the ticket is now {ticket}"))
     }));
     // A client with an older ticket finds the home relay in the record,
-    // which the node keeps at the server of pkarr (T-350).
-    let record = pkarr.map(|server| {
-        let off = podssh_iroh::pkarr::ENV;
-        let _ = writeln!(
-            err,
-            "podssh {verb}: {label}: the record of its home relay goes to {server} ({off}=off sends none)"
-        );
-        let (trust, proxy) = (asked_trust.clone(), asked_proxy.clone());
-        tokio::spawn(podssh_iroh::pkarr::keep(endpoint.clone(), server, trust, proxy, say.clone()))
-    });
+    // which the node keeps at the server of pkarr (T-350), and a client with
+    // the node's key alone each road (T-445); it stops as the node ends.
+    let line = |words: String| {
+        let _ = writeln!(err, "podssh {verb}: {label}: {words}");
+    };
+    let (_record, tell) = crate::node_record::keep(&endpoint, pkarr, &asked_trust, &asked_proxy, say.clone(), line);
     let admit = {
         let say = say.clone();
         move |key: &PublicKey| admits(allow.as_deref(), &me, key, &say)
@@ -374,6 +371,8 @@ where
             };
             say(format!("home {}, the first DERP server whose probe answered", road.home()));
             say(format!("ticket {}", road.ticket));
+            // The record names the DERP home now, and again when it moves.
+            let road = road.telling(tell);
             tokio::select! {
                 () = Box::pin(road.serve(crate::node_derp::settings(), budget, open, keeper)) => {}
                 () = until_stopped(stopped) => {}
@@ -424,9 +423,6 @@ where
         }
     }
     follow.abort();
-    if let Some(record) = record {
-        record.abort();
-    }
     let _ = tokio::time::timeout(CLOSE_LIMIT, endpoint.close()).await;
     say("stopped".into());
     0

@@ -286,6 +286,12 @@ const FIRST: &[&str] = &[
      none dials it only once the roads before it failed, or as the only road when no pair is stored \
      under NAME: the fallback that the operator's ruling Q50 allows, which PODSSH_DERP=no turns off. -v \
      says the order of the roads, and which answered first.",
+    "node://NAME of a member of the net that the net names by its key, in a build with the iroh road, races \
+     the roads of the member's record of pkarr too, after the roads of its tickets: once each of them failed \
+     (at once, with none), the record is asked, and kept 30 s, then the iroh road at its home relay, the DERP \
+     road at its DERP home and its quick tunnel, each 250 ms after the one before, for each road that no \
+     ticket gave; never with --no-e2e, as the end-to-end channel checks the member's key on each (see iroh \
+     record in THE RELAY). -v says what the record named, and which road carried the session.",
     "node://NAME also races the transit road of its pair (T-436), last, and only once each road before \
      it failed: the magic-wormhole transit relay where the node waits, Least Authority's by default, by \
      the operator's ruling Q65. PODSSH_TRANSIT=no turns it off, a ws:// or wss:// URL there names another \

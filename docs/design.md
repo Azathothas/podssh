@@ -1191,6 +1191,20 @@ MEASURED offline 2026-10-31 (T-350; `cargo test -p podssh-iroh --features
 test-relay --test pkarr_lookup`): 4 passed, among them iroh 1.4.1's own
 `PkarrRelayClient` reading podssh's record and podssh reading iroh's.
 
+**Drafted (T-445, 2026-11-02):** the record names each of the node's roads.
+Beside iroh's `_iroh` TXT, the same signed packet holds podssh's `_podssh`
+TXT: `derp=TICKET`, the node's DERP home as its ticket, and
+`quick=NAME.trycloudflare.com`, its quick tunnel. iroh-dns 1.4.1 reads
+`_iroh` alone (`EndpointInfo::from_pkarr_signed_packet` asks
+`txt_records("_iroh")`), and refuses a key that it does not know there, so
+podssh's roads have a name of their own, which iroh's tools and n0's DNS
+pass by. A client takes a relay `https://HOST[:PORT]`, a DERP ticket that
+names the record's own key, and one label under `trycloudflare.com`; each
+other value is set aside, and the record keeps its other roads. A member of
+the net, whose key the net names, is found by that key alone: `podssh ssh
+node://NAME` races the record's roads once each road with a ticket failed
+([mesh.md](mesh.md), section 3). UNVERIFIED: its tests wait for the merge.
+
 MEASURED on the loopback (T-157, the debug build, 2026-10-10): SSH through
 iroh's relay server, p50 34.6 MiB/s up and 25.6 MiB/s down, where `--direct`
 to the same server gives 165.9 and 106.3: the iroh road's own limit on this
@@ -1318,7 +1332,9 @@ the lock had already through the vendored fork).
 - The ticket: `derp:` and one word of base32 that holds the node's Ed25519
   key, its DERP key and its home server. A client tries that server first,
   then the other servers of the fleet, where a node whose home went away
-  calls the next one home; so this road needs no record of pkarr.
+  calls the next one home; so this road needs no record of pkarr for a
+  client with its ticket. A client with the node's key alone finds the
+  ticket in the node's record (T-445).
 
 MEASURED at the merge of T-349 (2026-10-31): `cargo test -p podssh-relay
 --features derp --test derp_link` (a stand-in server in memory, with 5 % of

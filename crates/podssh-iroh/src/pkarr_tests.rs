@@ -102,7 +102,8 @@ fn a_record_reads_back_and_one_that_another_key_signed_is_refused() {
     // Bytes that are no record at all.
     let why = read(&node.public(), b"no record").unwrap_err();
     assert!(why.contains("not a signed record"), "{why}");
-    // A record whose relay podssh would not dial names no relay.
+    // A record whose relay podssh would not dial, and no other road, names
+    // no road (T-445).
     let why = read(&node.public(), &payload(&node, &[relay("http://relay.example")])).unwrap_err();
-    assert!(why.contains("names no https:// relay"), "{why}");
+    assert!(why.contains("names no road: no https:// relay"), "{why}");
 }

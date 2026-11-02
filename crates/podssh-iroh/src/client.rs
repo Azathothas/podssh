@@ -215,6 +215,8 @@ impl Dialer {
     async fn find(&self, finder: &Finder) -> Found {
         let host = finder.server.host().to_string();
         let found = match finder.find(&self.ticket.id).await {
+            // A record of the node's other roads alone (T-445).
+            Ok(Some(record)) if record.relays.is_empty() => Found::NoRelay(host.clone()),
             Ok(Some(record)) => {
                 let new: Vec<RelayUrl> =
                     record.relays.iter().filter(|r| !self.ticket.relay_urls().any(|t| t == *r)).cloned().collect();
@@ -244,6 +246,8 @@ enum Found {
     Moved(RelayUrl),
     /// The ticket's relay, at this server.
     Same(String),
+    /// No iroh relay, at this server: the node's other roads alone.
+    NoRelay(String),
     /// No record, at this server.
     Nothing(String),
     /// No answer, or one that was refused.
@@ -255,6 +259,7 @@ impl Found {
         match self {
             Found::Moved(relay) => format!("its record names the home relay {relay}"),
             Found::Same(host) => format!("its record at {host} names the ticket's relay"),
+            Found::NoRelay(host) => format!("its record at {host} names no iroh relay"),
             Found::Nothing(host) => format!("it has no record at {host}"),
             Found::Failed(why) => format!("its record: {why}"),
         }

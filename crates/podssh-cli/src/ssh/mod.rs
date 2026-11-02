@@ -326,6 +326,15 @@ pub(crate) async fn connect_and_run(mut resolved: Resolved, log: Arc<Log>) -> i3
     }
     let opts = &resolved.options;
     if let Transport::Node { label, pair_file, trust, race, derp, channel } = &resolved.transport {
+        // The member's record of pkarr, for each road that no ticket gave
+        // (T-445): a bad variable of it is said before anything connects.
+        let record = match iroh::record_ask(label, race.is_some(), derp, channel) {
+            Ok(record) => record,
+            Err(refusal) => {
+                log.error(&refusal.message);
+                return refusal.code;
+            }
+        };
         // The DERP road: the ticket given, else the one kept under the label
         // (Q50); never with --no-e2e, as its node's door is the channel.
         let derp = derp.road(label).filter(|_| !channel.off);
@@ -345,8 +354,8 @@ pub(crate) async fn connect_and_run(mut resolved: Resolved, log: Arc<Log>) -> i3
             }
         };
         let piping_asked = piping.as_ref().is_some_and(|road| road.asked);
-        if race.is_some() || derp.is_some() || transit.is_some() || piping_asked {
-            let raced = roads::Raced { iroh: race.as_ref(), derp, transit, piping };
+        if race.is_some() || derp.is_some() || transit.is_some() || piping_asked || record.is_some() {
+            let raced = roads::Raced { iroh: race.as_ref(), derp, transit, piping, record: record.as_ref() };
             return Box::pin(roads::connect(label, pair_file.as_deref(), trust, raced, channel, opts, log)).await;
         }
         let piping = piping.as_ref();

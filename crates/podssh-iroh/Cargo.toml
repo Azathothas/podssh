@@ -23,7 +23,9 @@ publish.workspace = true
 # API out of its semver, so the range ends before 1.5: a new minor version
 # comes as an update to read, not as a build that breaks.
 iroh = { version = ">=1.4.1, <1.5", default-features = false, features = ["tls-aws-lc-rs", "unstable-net-report"] }
-podssh-relay = { path = "../podssh-relay" }
+# With the DERP road's types (feature `derp`, pure Rust): a node's record
+# names its DERP home as its ticket, which a client reads back (T-445).
+podssh-relay = { path = "../podssh-relay", features = ["derp"] }
 podssh-ws = { path = "../podssh-ws" }
 tokio = { workspace = true }
 # The types of iroh's interfaces: the relay's certificate verifier (rustls),
@@ -44,6 +46,10 @@ iroh-tickets = "1"
 # (T-350): the iroh-dns that iroh builds, in iroh's range, so no crate is
 # added and the two move together.
 iroh-dns = { version = ">=1.4.1, <1.5", default-features = false }
+# The DNS packet of a record with podssh's `_podssh` names beside iroh's
+# `_iroh` (T-445), which iroh-dns builds for one name alone: the
+# simple-dns that iroh-dns builds and reads with, so no crate is added.
+simple-dns = "0.12"
 # The versions of iroh's relay protocol, which the question of a refused
 # version offers (T-348), and, with the feature `test-relay` only, iroh's
 # relay server: the iroh-relay that iroh builds, so no crate is added.
@@ -75,3 +81,7 @@ iroh = { version = ">=1.4.1, <1.5", default-features = false, features = ["tls-a
 podssh-iroh = { path = ".", features = ["test-relay"] }
 sha2 = { workspace = true }
 tokio = { workspace = true, features = ["macros", "rt-multi-thread"] }
+# podssh-relay's stand-in DERP server (`tests/derp_stand_in`), for the node
+# that a client finds by its record alone (`tests/record_roads.rs`, T-445):
+# the version and features that podssh-relay builds, so no crate is added.
+crypto_box = { version = "0.9", default-features = false, features = ["alloc", "salsa20"] }

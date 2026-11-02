@@ -15,6 +15,9 @@
 //! the second to the edge's other region first, and on the edge's GOAWAY it
 //! connects again at once while the old connection drains (T-402). A lost
 //! connection to the edge is made again, with the same name, until Ctrl-C.
+//! In a build with the iroh road, the node's record of pkarr names the
+//! tunnel, at a server that `PODSSH_IROH_PKARR` names, for a client with
+//! the node's key alone (T-445, `node_record`).
 
 use std::io::Write;
 use std::path::PathBuf;
@@ -58,6 +61,8 @@ struct Ready {
     sshd: bool,
     /// The edge inside WARP's tunnel first (`--warp`).
     warp: bool,
+    /// The server of its record, which PODSSH_IROH_PKARR names (T-445).
+    record: Option<crate::node_record::Named>,
 }
 
 /// Run the node; returns the process exit code.
@@ -116,8 +121,9 @@ fn prepare(args: &NodeArgs) -> Result<Ready, Refusal> {
     })?;
     let place = crate::channel::node_place(&label, flags.key.as_deref(), flags.ephemeral)?;
     crate::pairs::online()?;
+    let record = crate::node_record::named()?;
     let key = crate::channel::load_node_key(&place)?;
-    Ok(Ready { label, targets, key, allow, sshd: args.sshd, warp: args.warp })
+    Ok(Ready { label, targets, key, allow, sshd: args.sshd, warp: args.warp, record })
 }
 
 /// The system and the machine as cloudflared names them, Go's names.
@@ -136,7 +142,7 @@ fn arch() -> String {
 }
 
 async fn serve_quick(ready: Ready, err: &mut dyn Write) -> i32 {
-    let Ready { label, targets, key, allow, sshd: roost, warp } = ready;
+    let Ready { label, targets, key, allow, sshd: roost, warp, record } = ready;
     let target = match crate::node::probe(&targets, roost).await {
         Ok(versions) => crate::node::serving(&targets, &versions),
         Err(refusal) => return refusal.report("node", err),
@@ -174,6 +180,12 @@ async fn serve_quick(ready: Ready, err: &mut dyn Write) -> i32 {
     let url = format!("https://{}", tunnel.hostname);
     let mode = crate::node_flags::layer_mode();
     let _ = writeln!(err, "podssh node: {label}: serving {target} at {url}, a quick tunnel, {mode} until Ctrl-C");
+    // Its record names the tunnel, for as long as the node runs (T-445).
+    let line = |words: String| {
+        let _ = writeln!(err, "podssh node: {label}: {words}");
+    };
+    let (_record, tell) = crate::node_record::alone(record, &key.identity, &trust, say.clone(), line);
+    tell.quick(&tunnel.hostname);
     let channel = crate::channel::node(&label, key, Some(allow), err);
     // The name is the node's answer: the one line on stdout.
     podssh_ssh::out_line!("{url}");

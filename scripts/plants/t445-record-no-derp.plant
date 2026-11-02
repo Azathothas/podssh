@@ -1,0 +1,8 @@
+# T-445: the node's record leaves out its DERP home, so a client with the
+# node's key alone finds no road but the iroh relay that the way refuses:
+# the test of that client must fail, waiting for a record with a DERP home.
+ENTRY=T-445
+GROUP=resume
+EXPECT='no record that names its DERP home within 60 s'
+RUN='cargo test --locked -p podssh-iroh --features test-relay --test record_roads -- a_client_with_the_node_s_key_alone_reaches_it_over_derp_when_iroh_is_refused'
+LIMIT=1800

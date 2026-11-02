@@ -1883,7 +1883,7 @@ Q63 (2026-11-02).
 **Milestone:** M10
 **Priority:** P2
 **Effort:** S
-**Status:** open
+**Status:** partial
 
 ## Problem
 
@@ -1893,13 +1893,81 @@ name stay unknown.
 
 ## Premise
 
-- `crates/podssh-iroh/src/pkarr.rs:1` says "A node's record at a server of pkarr (T-350): its
-  home relay, signed with".
+- `crates/podssh-iroh/src/pkarr.rs:1` says "A node's record at a server of pkarr (T-350"; read at
+  `f8d15bf`, before this entry, the line went on "): its home relay, signed with", and
+  `Record::of` read iroh's `EndpointInfo` alone.
 
 ## Approach
 
 The record also names the node's DERP home and its quick tunnel's name, as records that iroh's
 tools ignore; a client races each road that it names.
+
+## Decision
+
+2026-11-02, the draft (each call with the alternatives that lost):
+
+- The names: podssh's roads go in a TXT of their own, `_podssh` in the node's zone, beside
+  iroh's `_iroh`, in the same signed packet; its values are RFC 1464's `KEY=VALUE`, as `_iroh`'s
+  are: `derp=TICKET` and `quick=NAME.trycloudflare.com`. iroh-dns 1.4.1 reads `_iroh` alone
+  (`TxtAttrs::from_pkarr_signed_packet` asks `txt_records(IROH_TXT_NAME)`), so iroh's tools and
+  n0's DNS pass `_podssh` by; n0's server keeps a whole packet whatever its names
+  (`n0-computer/iroh:iroh-dns-server/src/http/pkarr.rs`, read on `main` through
+  <https://web.pkgforge.dev/llms.txt>). Lost: more keys under `_iroh`, which iroh's reader refuses
+  whole (`AttrFromString` for a key that `IrohAttr` lacks), so iroh would read no relay of a
+  podssh record; iroh's `user-data=`, which iroh carries to each reader of the node as its own,
+  holds 245 bytes at most, and is the application's single slot, not a list of roads.
+- The DERP home is the node's DERP ticket, as the node prints it: it holds the node's DERP key
+  and its server, which a client needs, and the node's identity, which a client checks against
+  the record's key, so a ticket of another node is set aside. Lost: the server alone, from which
+  a client cannot send (the DERP key is derived from the node's secret seed); the DERP key and
+  the server in a form of their own, a second parser of what `Ticket::parse` reads.
+- The packet: iroh-dns builds one name a packet (`SignedPacket::from_txt_strings`), so podssh
+  builds it with simple-dns 0.12, the crate that iroh-dns builds and reads with (in the lock: no
+  crate is added), signs it as pkarr signs (BEP 44's `3:seqi..e1:v..:`, the same bytes as T-350's
+  forged-record test), and reads it back with iroh-dns's checked `SignedPacket::from_bytes`
+  before it is put, so a fault of the signature is never sent. The `_iroh` values are the words
+  that iroh-dns writes for the relay (taken from iroh's own packet), so iroh reads them as its
+  own. A ticket longer than a DNS string goes in pieces of 254 bytes, which a reader of TXT
+  joins again (simple-dns's `TXT::try_from(&str)` and `String::try_from(TXT)`). Lost: a DNS
+  packet written by hand, a second encoder of DNS in podssh.
+- What a client takes of a record: a relay that `relays::parse_url` takes, as before; a DERP
+  ticket that parses and names the record's key; one label of letters, digits and `-` under
+  `trycloudflare.com`, as `quick::api` takes the name from Cloudflare's API, so that a record
+  never sends a client to a host outside Cloudflare's edge. Each other value is set aside, with
+  its reason for `-v` and never its text, and the record keeps its other roads; a record with no
+  road that passes is refused. A key of a later podssh under `_podssh` passes by in silence.
+  Lost: a record refused whole for one bad value, which one bad road would cost the others.
+- Who keeps the roads: a node of `--iroh --derp` names its DERP home once its DERP road is online
+  and again at each move (`Online::telling`, beside `far::Roam`'s `moved`), in the record that
+  it keeps by T-350's rules. A node of `--quick-tunnel` or of the DERP road alone has no iroh
+  endpoint and no relay, so Q57, which gives n0's server to a node whose relays are n0's, gives
+  it none: it keeps its record only at the server that `PODSSH_IROH_PKARR` names, in a build
+  with the iroh road (`crates/podssh-cli/src/node_record.rs`). Lost: n0's server by default for
+  them too, a change of Q57 that belongs to the operator (a question, if wanted: may a node with
+  no iroh road put its record at n0's server unasked? Recommendation: yes, as the names are
+  public, the quick tunnel's and tailcat's); `--quick-tunnel` with `--iroh`, a node of two
+  runtimes that this entry does not need.
+- One loop keeps the record (`pkarr::keep_roads`), fed by a `watch` of the roads; `pkarr::keep`
+  follows the endpoint's home relay into it, and the node's other roads tell it through
+  `node_record::Tell`. The record goes again when a road changes, each 5 minutes, and after a
+  failure as T-350 said; its line names each road once. Lost: a second loop for a node with no
+  endpoint.
+- The client with the node's key alone is `podssh ssh node://NAME` of a member that the net names
+  by its key (T-429; a fingerprint alone is no key to ask by). Its roads race after the roads of
+  its tickets: the first once each of them failed, as T-350 asks the record only when the
+  ticket's relay fails, at once when there is none; each next 250 ms after; the iroh road of the
+  record only with no iroh ticket, its DERP road only with no DERP ticket given, of the net or
+  kept, and not with `PODSSH_DERP=no`; never with `--no-e2e`, as the channel checks the
+  member's key on each road. The record is kept 30 s, its names' life (`pkarr::TTL`), then asked
+  again at the next race, so a resume after a move finds the new home. The iroh road of a record
+  has the record's finder too (T-350), and a DERP home that a later record names gets a dialer
+  of its own while the older one stays. Lost: a lookup before the race, which would hold the
+  pair's road for up to 10 s; a lookup at each race, a request to n0's server for each resume;
+  the record of a key pinned under a label with no net, which no entry asks for; the record in
+  `podssh cp`, whose road to a node is the pair's alone (`crates/podssh-cli/src/ssh/node.rs`,
+  `reach`), as T-453 brings it a member's name.
+- The quick tunnel of a record is a link of the race (`Road::Tunnel`) on `cf://`'s own WebSocket
+  (`ssh::cloudflare::open`), with no credential of Access, as a quick tunnel has none.
 
 ## Prove
 
@@ -1910,6 +1978,48 @@ cargo test -p podssh-iroh
 
 A record with each road is read back whole; a client with the node's key alone reaches it over
 DERP when iroh is refused. Planted: the DERP record dropped, and the test fails.
+
+## Done
+
+2026-11-02: drafted by an agent in a worktree of its own (branch `worktree-agent-t445-record`),
+not built; each result below is UNVERIFIED until the merge.
+
+- `crates/podssh-iroh/src/pkarr_record.rs`: `Roads` (what a node puts), `Record` (moved from
+  `pkarr.rs`, with `derp`, `quick` and `set_aside`), `packet` and its signature, `quick_name`;
+  its tests with no network in `crates/podssh-iroh/src/pkarr_record_tests.rs`.
+- `crates/podssh-iroh/src/pkarr.rs`: `publish` takes `Roads`; `keep` takes the node's other roads
+  (`None` for the home relay alone), `keep_roads` for a node with no endpoint.
+  `crates/podssh-iroh/src/client.rs`: a record with no iroh relay is said so. podssh-iroh builds
+  podssh-relay with `derp` (pure Rust), and simple-dns; its tests take crypto_box for the stand-in
+  DERP server; the lock's entry of `podssh-iroh` gained the two names by hand.
+- `crates/podssh-iroh/tests/record_roads.rs`: a record with each road through the stand-in server
+  of pkarr, read back by podssh and by iroh's `PkarrRelayClient`; a node that keeps its record as
+  its DERP road comes online at podssh-relay's stand-in DERP server, and a client with its key
+  alone that races the record's iroh road (a relay where nothing listens) and DERP road, and
+  gets its echo over DERP. `tests/pkarr_lookup.rs` moved to the new signatures.
+- The command line: `crates/podssh-cli/src/node_record.rs` (`Tell`, `Kept`, `keep`, `alone`,
+  `named`); `node_iroh.rs` keeps the record through it and tells it of the DERP home;
+  `node_derp.rs` (`Online::telling`) and `node_quick.rs` keep theirs at a named server.
+  `crates/podssh-cli/src/ssh/iroh/record.rs` (`record_ask`, `RecordRoads`, with unit tests), a
+  stub of each in `ssh/iroh.rs` for a build with no iroh road; `ssh/roads.rs` races them
+  (`Kind::Record`), `ssh/road_link.rs` has `Road::Tunnel`, `ssh/mod.rs` asks before anything
+  connects; `ssh/iroh/race.rs`'s `IrohRoad` owns its race and takes a finder.
+- The manual: `iroh record` in THE RELAY and `PODSSH_IROH_PKARR`
+  (`crates/podssh-cli/src/man/facts/iroh_road.rs`); the notes of `node` (`--iroh`, `--derp`,
+  `--quick-tunnel`), of `ssh` (node://NAME of a member) and of `net`. `docs/mesh.md` (section 3),
+  `docs/design.md` (section 7) and `docs/STATUS.md` name it.
+- Planted: `scripts/plants/t445-record-no-derp.patch`, the DERP home left out of the packet; the
+  test of the client with the key alone must fail, waiting for it.
+- To measure at the merge (UNVERIFIED): `cargo test -p podssh-iroh` (the Prove, with `--lib pkarr`
+  and `--test record_roads --test pkarr_lookup` among it); `cargo test -p podssh-cli --features
+  iroh --lib ssh::iroh::record node_record`; `cargo test -p podssh-cli --lib node_record` with no
+  feature; `cargo test -p podssh-cli --features iroh-test --test pipe_iroh_record --test
+  iroh_road --test derp_road`, which the new signatures touch; `--lib man`; clippy with the
+  feature `iroh-test` and without; the plant (`sh scripts/plant-each.sh --here
+  t445-record-no-derp`); `cargo todo remap` of each file that this draft changed.
+- Not measured: `podssh ssh node://NAME` from end to end over a record's road, a test of the
+  command line with a net, the stand-ins and a node of `--iroh --derp` that this draft does not
+  write.
 
 # T-446: The release of milestone M10: betas `v1.1.0-beta.N`, then `v1.1.0`
 

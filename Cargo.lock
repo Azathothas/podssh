@@ -4945,6 +4945,7 @@ name = "podssh-iroh"
 version = "1.0.0"
 dependencies = [
  "base64 0.23.1",
+ "crypto_box",
  "iroh",
  "iroh-dns",
  "iroh-relay",
@@ -4957,6 +4958,7 @@ dependencies = [
  "rcgen",
  "rustls",
  "sha2 0.11.0",
+ "simple-dns",
  "tokio",
  "tokio-rustls",
  "url",
