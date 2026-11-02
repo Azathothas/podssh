@@ -10,7 +10,7 @@ use std::path::{Path, PathBuf};
 use std::pin::Pin;
 use std::sync::Arc;
 
-use podssh_relay::e2e::{self, ends, Refusal as NodeRefusal};
+use podssh_relay::e2e::{self, ends, Ask as Asking, Refusal as NodeRefusal};
 use podssh_relay::identity::{allow, file, pins, Identity, KeyName, PublicKey};
 use podssh_relay::reverse::routes::{Grant, Routes};
 use podssh_relay::reverse::{Handler, Opening, SessionId};
@@ -60,7 +60,8 @@ pub struct Ask {
     pub node_key: Option<KeyName>,
     /// `--no-e2e`.
     pub off: bool,
-    /// The route of the node, of `NAME/ROUTE` (T-089).
+    /// The route of the node, of `NAME/ROUTE` (T-089), or the word of an
+    /// exit's target, `HOST:PORT` (T-431, `crate::exit`).
     pub route: Option<String>,
 }
 
@@ -99,6 +100,16 @@ impl Ask {
             }
             self.route = Some(route.to_string());
         }
+        Ok(self)
+    }
+
+    /// This channel to an exit's target (T-431): its word goes in the place
+    /// of a route's, in the channel, which `--no-e2e` turns off.
+    pub fn to_exit(mut self, host: &str, port: u16) -> Result<Ask, String> {
+        if self.off {
+            return Err("--exit names its target in the end-to-end channel, which --no-e2e turns off".into());
+        }
+        self.route = Some(e2e::exit_word(host, port));
         Ok(self)
     }
 
@@ -261,13 +272,23 @@ pub fn node_end(label: &str, identity: Identity, admit: Arc<ends::Admit>) -> end
 
 /// Who may come in through the channel: the keys of the allowlist at
 /// `allow`, read again for each session; with none, each operator, as the
-/// relay's connect token decided who reaches the node.
+/// relay's connect token decided who reaches the node. Neither reaches an
+/// exit's target: the members of the net do, as its policy lets (T-431).
 pub fn admit_of(allow: Option<PathBuf>) -> Arc<ends::Admit> {
     match allow {
-        Some(path) => Arc::new(move |key: &PublicKey, _: Option<&str>| allow::admits(&path, key)),
-        None => Arc::new(|_: &PublicKey, _: Option<&str>| Ok(())),
+        Some(path) => Arc::new(move |key: &PublicKey, ask: &Asking| match ask {
+            Asking::Exit { .. } => Err(NO_KEY_EXIT.into()),
+            _ => allow::admits(&path, key),
+        }),
+        None => Arc::new(|_: &PublicKey, ask: &Asking| match ask {
+            Asking::Exit { .. } => Err(NO_KEY_EXIT.into()),
+            _ => Ok(()),
+        }),
     }
 }
+
+/// Why a key that the net does not let out asks an exit in vain.
+const NO_KEY_EXIT: &str = "an exit lets out the members of its net alone, as its policy lets, never a key of --allow";
 
 /// Which routes each operator may use (T-089): those that its line of the
 /// allowlist at `allow` grants, read again for each session; with no
@@ -337,9 +358,8 @@ where
     let (Some(node), Some(routes)) = (channel.clone(), routes) else { return piped(channel, open).await };
     let (ours, theirs) = tokio::io::duplex(PIPE);
     tokio::spawn(async move {
-        let open =
-            move |key: PublicKey, route: Option<String>| async move { routes.open(&key, route.as_deref()).await };
-        ends::serve_routed(theirs, &node, open).await
+        let open = move |key: PublicKey, ask: Asking| async move { routes.open(&key, &ask).await };
+        ends::serve_asked(theirs, &node, open).await
     });
     Ok(ours)
 }

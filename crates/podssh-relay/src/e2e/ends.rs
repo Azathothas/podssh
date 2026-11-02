@@ -1,7 +1,9 @@
 //! The two ends of the channel as a session runs them. A node answers each
 //! operator, checks its key, and only then reaches its target, so a refused
 //! operator costs the target no connection and gets none of its bytes. An
-//! operator checks the node's key before it proves its own.
+//! operator checks the node's key before it proves its own. What the
+//! operator asks ([`Ask`]) is a route, or of an exit node a target of its
+//! own (T-431), which a node that is no exit refuses.
 
 use std::future::Future;
 use std::sync::Arc;
@@ -9,7 +11,7 @@ use std::time::Duration;
 
 use tokio::io::{AsyncRead, AsyncWrite, DuplexStream};
 
-use super::{initiate, respond, Error, Refusal};
+use super::{initiate, respond, Ask, Error, Refusal};
 use crate::identity::{Identity, PublicKey};
 
 /// Each direction of the pipe between the channel and the stream under it.
@@ -18,9 +20,12 @@ const PIPE: usize = 256 * 1024;
 /// the verdict.
 pub const TARGET_WAIT: Duration = Duration::from_secs(20);
 
-/// Who may reach a node, and the route that it named (T-430): `Err` is why
-/// not, for the node's log; the operator learns only that it is not let in.
-pub type Admit = dyn Fn(&PublicKey, Option<&str>) -> Result<(), String> + Send + Sync;
+/// Who may reach a node, for what it asked (T-430, T-431): `Err` is why not,
+/// for the node's log; the operator learns only that it is not let in.
+pub type Admit = dyn Fn(&PublicKey, &Ask) -> Result<(), String> + Send + Sync;
+
+/// The refusal of an exit's target by a node that is no exit.
+pub const NO_EXIT: &str = "this node is no exit: it lends no egress (podssh node --exit)";
 
 /// A node's end: its key, who may come in, and where its lines go.
 #[derive(Clone)]
@@ -34,14 +39,15 @@ impl Node {
     /// A node that lets in each operator whose key proves itself: the relay's
     /// connect token decided who reaches it.
     pub fn open_to_all(identity: Arc<Identity>, say: Arc<dyn Fn(String) + Send + Sync>) -> Node {
-        Node { identity, admit: Arc::new(|_: &PublicKey, _: Option<&str>| Ok(())), say }
+        Node { identity, admit: Arc::new(|_: &PublicKey, _: &Ask| Ok(())), say }
     }
 }
 
 /// Serve one session's channel on `link`, the stream that the layer or the
 /// relay carries: the handshake, the operator's key against the node's
 /// admission, then the target from `open`, and the bytes between the two. A
-/// node served so has no routes: an operator that names one is refused.
+/// node served so has no routes and is no exit: an operator that names a
+/// route, or an exit's target, is refused.
 pub async fn serve_node<L, A, O, F>(link: L, node: &Node, open: O)
 where
     L: AsyncRead + AsyncWrite + Unpin,
@@ -61,12 +67,32 @@ where
 /// [`serve_node`] for a node with routes (T-089): once the operator's key is
 /// let in, `open` gets it and the route that it named, and gives the target
 /// of that route, or the refusal: a route that the key may not use is the
-/// node's refusal, not its target's.
+/// node's refusal, not its target's. Such a node is no exit (T-431).
 pub async fn serve_routed<L, A, O, F>(link: L, node: &Node, open: O)
 where
     L: AsyncRead + AsyncWrite + Unpin,
     A: AsyncRead + AsyncWrite + Unpin,
     O: FnOnce(PublicKey, Option<String>) -> F,
+    F: Future<Output = Result<A, Refusal>>,
+{
+    serve_asked(link, node, move |key, ask: Ask| async move {
+        match ask {
+            Ask::Exit { .. } => Err(Refusal::Other(NO_EXIT.into())),
+            Ask::Route(route) => open(key, Some(route)).await,
+            Ask::Target => open(key, None).await,
+        }
+    })
+    .await
+}
+
+/// [`serve_routed`] for each ask, an exit's target too (T-431): `open` gets
+/// the operator's key, once the admission let it in for what it asked, and
+/// the ask, and gives the target or the refusal.
+pub async fn serve_asked<L, A, O, F>(link: L, node: &Node, open: O)
+where
+    L: AsyncRead + AsyncWrite + Unpin,
+    A: AsyncRead + AsyncWrite + Unpin,
+    O: FnOnce(PublicKey, Ask) -> F,
     F: Future<Output = Result<A, Refusal>>,
 {
     let asked = match respond(link, &node.identity).await {
@@ -77,13 +103,14 @@ where
         }
     };
     let peer = asked.peer();
-    let to = asked.route().map(|r| format!(" to the route {r}")).unwrap_or_default();
-    if let Err(why) = (node.admit)(&peer, asked.route()) {
+    let ask = asked.ask().clone();
+    let to = ask.to_string();
+    if let Err(why) = (node.admit)(&peer, &ask) {
         (node.say)(format!("refused the operator key {peer}: {why}"));
         asked.refuse(Refusal::NotAllowed).await;
         return;
     }
-    let target = match tokio::time::timeout(TARGET_WAIT, open(peer, asked.route().map(str::to_string))).await {
+    let target = match tokio::time::timeout(TARGET_WAIT, open(peer, ask)).await {
         Ok(Ok(target)) => target,
         Ok(Err(refusal)) => {
             (node.say)(format!("the operator key {peer} came in{to}; refused: {refusal}"));
@@ -126,7 +153,8 @@ where
     operator_to(app, identity, check, None)
 }
 
-/// [`operator`] to `route` of the node, when one is named (T-089).
+/// [`operator`] to `route` of the node, when one is named (T-089): the word
+/// of a route, or of an exit's target (T-431, [`Ask::word`]).
 pub fn operator_to<A, C>(
     app: A,
     identity: Arc<Identity>,

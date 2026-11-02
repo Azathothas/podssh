@@ -55,6 +55,22 @@ private key decides who reaches the user's nodes, so that key is kept as a
 login key is; a removed member is refused by each node that holds the newer
 document, and a document that ended lets nobody in by the net.
 
+An exit node (`podssh node --exit`, T-431) lends its host's egress: it dials,
+from its own host, a target that a member of its net names inside the
+channel, so the relay sees neither the target nor a byte. It lets out only
+the members of a net that gives the node the role `exit`, as the net's
+policy lets each (`exit:NODE`, or an address of a range), never a key of
+`--allow` nor an operator of the pair's connect token alone. It resolves
+each name itself and dials the addresses that it checked, never the name
+again, so a name that resolves anew elsewhere (DNS rebinding) reaches
+nothing unchecked; a private, loopback, link-local or other non-public
+address, the ranges that the relay refuses, is dialled only inside a range
+of the node's `--routes`. A member that the policy lets out reaches each
+public address and port from the exit's host, as through a VPN, and the
+exit's owner answers for that traffic. `podssh exit --listen` serves the
+exit to the programs of the client's host on a loopback address alone, as
+its SOCKS takes no credentials.
+
 The host-key check makes a relay in the middle safe:
 
 - podssh refuses an unknown host key unless you accept it;

@@ -95,6 +95,7 @@ pub fn run_with(p: &Parsed, s: &mut Streams<'_>, tty: Tty) -> i32 {
             via,
             vless,
             wstunnel,
+            exit,
             refused,
         } => {
             if refusals("proxy", refused, s.err) {
@@ -113,6 +114,7 @@ pub fn run_with(p: &Parsed, s: &mut Streams<'_>, tty: Tty) -> i32 {
                     via: via.clone(),
                     vless: vless.clone(),
                     wstunnel: wstunnel.clone(),
+                    exit: exit.clone(),
                 },
                 s.err,
             )
@@ -163,6 +165,9 @@ pub fn run_with(p: &Parsed, s: &mut Streams<'_>, tty: Tty) -> i32 {
         Parsed::Detached(args) => crate::detach::control::run(args, s.out, s.err),
         Parsed::Net(args) if refusals("net", &args.refused, s.err) => EXIT_USAGE,
         Parsed::Net(args) => crate::net::run(args, s.out, s.err),
+        Parsed::Exit(args) if refusals("exit", &args.refused, s.err) => EXIT_USAGE,
+        // Its lines go to stderr; it has no answer for stdout.
+        Parsed::Exit(args) => crate::exit::run_exit(args, s.err),
         Parsed::Agent(args) if refusals("agent", &args.refused, s.err) => EXIT_USAGE,
         Parsed::Agent(args) => crate::agent::run(args, s.out, s.err),
         Parsed::Status { relay_host, relay_addr, destination, refused } => {

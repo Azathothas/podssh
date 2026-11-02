@@ -14,8 +14,11 @@
 //! relay can drop the last frames; and a message that fails its check
 //! (changed, dropped, repeated or out of order) ends the session, as nothing
 //! may be skipped. Two ends that hold the net's document give each other
-//! the newer one inside the channel (T-429, [`net`]).
+//! the newer one inside the channel (T-429, [`net`]). The operator's proof
+//! names what it asks of the node ([`Ask`]): a route, or the target of an
+//! exit (T-431).
 
+mod ask;
 mod channel;
 pub mod ends;
 mod frame;
@@ -25,6 +28,7 @@ pub mod net;
 use std::fmt;
 use std::time::Duration;
 
+pub use ask::{exit_word, Ask, MAX_WORD};
 pub use channel::Channel;
 pub use handshake::{initiate, initiate_with, respond, respond_with, Asked, Offered};
 

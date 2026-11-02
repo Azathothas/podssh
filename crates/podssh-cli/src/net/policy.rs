@@ -65,6 +65,9 @@ pub enum Want<'a> {
     AnyOf(&'a str),
     /// The node's egress (T-431).
     Exit(&'a str),
+    /// The node's egress or a range of its routes: an exit's door, before
+    /// the name of the target resolves (T-431); each address is asked after.
+    Egress(&'a str),
     /// An address of a range of routes (T-432).
     Addr(IpAddr),
 }
@@ -76,6 +79,7 @@ impl fmt::Display for Want<'_> {
             Want::Node { node, route: Some(route) } => write!(f, "{node}/{route}"),
             Want::AnyOf(node) => write!(f, "any service of {node}"),
             Want::Exit(node) => write!(f, "exit:{node}"),
+            Want::Egress(node) => write!(f, "exit:{node} or a range"),
             Want::Addr(addr) => write!(f, "{addr}"),
         }
     }

@@ -44,3 +44,23 @@ pub const NET: &[&str] = &[
      its tickets, which race beside the pair kept under NAME when the command line names none. PODSSH_NET=no \
      turns the net off: no name, no door and no document of the channel comes from it.",
 ];
+
+/// The notes of `podssh exit` (T-431), beside the net's, as an exit is a
+/// node of the net.
+pub const EXIT: &[&str] = &[
+    "podssh exit NAME --listen ADDR:PORT is a local proxy for the programs of this host, whose each connection \
+     starts at NAME, a node of your net that lends its egress (podssh node --exit), as a Tailscale exit node \
+     carries a device's traffic. One port takes SOCKS5, SOCKS4a and HTTP CONNECT: a program reaches it with \
+     ALL_PROXY=socks5h://ADDR:PORT, or HTTPS_PROXY=http://ADDR:PORT; through socks5h://, a program sends the name \
+     of its target, which the exit resolves. NAME is the label of the exit's pair here (or --pair-file), and a member \
+     of the net, whose key the end-to-end channel checks.",
+    "Each connection is one session to the exit, over its pair's road, in the resumable layer and the end-to-end \
+     channel, which carries the target: the relay sees neither the target nor a byte. A client hears its success \
+     only once the exit reached the target; a refusal of the exit, of its net's policy, or of an address that is \
+     not public, is the refusal of its protocol (SOCKS 2 or HTTP 403; a target out of reach, SOCKS 5 or HTTP 502) \
+     and one line on stderr. 32 connections go at once; -q says no line for each one.",
+    "The listener is one that you ask for, on a loopback address alone (127.0.0.1:0 takes a free port, which the \
+     first line names): SOCKS here takes no credentials, and each host that found the port would spend the exit's \
+     egress. PODSSH_LISTEN=no refuses it before anything binds (78), and a refused bind is 77. The proxy runs until \
+     Ctrl-C or SIGTERM (0).",
+];

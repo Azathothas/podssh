@@ -96,7 +96,8 @@ entry keeps its proof in the entry; this page keeps no history (git does).
   net` was wider than the page). The drafts of T-428, T-447 and T-454 wait in worktrees of
   `.claude/worktrees/` (`agent-t428-quick-relay`, `agent-t447-acme`, `agent-t454-brake`), from
   `33ccb11`, and on GitHub as `draft/worktree-agent-t428-quick-relay`, `-t447-acme` and
-  `-t454-brake`; `draft/worktree-agent-t430-net-policy` can go. These branches can go, as this
+  `-t454-brake`; T-431's, in `.claude/worktrees/agent-t431-exit` from `f8d15bf`, on the local branch
+  `worktree-agent-t431-exit`; `draft/worktree-agent-t430-net-policy` can go. These branches can go, as this
   session's git proxy would not delete them: `draft/worktree-agent-t429-net`,
   `draft/worktree-agent-t440-vless`, `draft/worktree-agent-t441-wstunnel`, `draft/draft-t427-t448`,
   and the merges' `draft/m10-merge-427`, `-429`, `-437`, `-438`, `-439`, `-440`, `-443-444` and
@@ -145,7 +146,7 @@ and `CARGO_BUILD_JOBS=4`:
 
 ## Counts
 
-`TODO/INDEX.md` holds 452 entries: 44 open, 2 partial, 17 blocked, 389 done.
+`TODO/INDEX.md` holds 454 entries: 45 open, 3 partial, 17 blocked, 389 done.
 
 Open includes parked work. `cargo todo check` verifies this line.
 
@@ -189,7 +190,8 @@ this order:
 1. The relay role: behind a node's quick tunnel (T-428), then ACME (T-447), a brake of mint and pair (T-454) and the net's members' mint (T-455); then what the role serves: T-336, T-255,
    T-421, T-253, T-325, T-326, T-319, T-321 and T-173.
 2. The net (its policy is done): T-445, T-452, T-453, T-086, T-226, T-346 and T-106.
-3. Exit, routes, share and funnel: T-431, T-432, T-433, T-180, then T-434 and T-435.
+3. Exit, routes, share and funnel: T-431 (drafted, `worktree-agent-t431-exit`), T-458, T-432, T-433,
+   T-180, then T-434, T-435 and T-459.
 4. The public carriers of Q65 (T-451, then T-450 from the runs of `transit-live.yml`; the
    protocols of Q66 are done), then T-442.
 5. T-446: betas `v1.1.0-beta.N` after batches, and `v1.1.0` at the end.

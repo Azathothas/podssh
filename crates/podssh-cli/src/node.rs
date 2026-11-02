@@ -16,6 +16,7 @@
 //! no pair and an allowlist, the node serves the DERP road (T-379,
 //! `node_derp`). A node of the layer and the channel also waits at the
 //! transit relay of Q65 for the pair's operators (T-436, `node_transit`).
+//! With `--exit`, it lends this host's egress to its net (T-431, `node_exit`).
 
 use std::io::Write;
 use std::path::PathBuf;
@@ -23,6 +24,7 @@ use std::sync::Arc;
 use std::time::Duration;
 
 use podssh_relay::e2e::ends::Node;
+use podssh_relay::identity::PublicKey;
 use podssh_relay::pair::Pair;
 use podssh_relay::reverse::routes::{Grant, Route, Routed, Routes};
 use podssh_relay::reverse::{self, E2e, Exit, Handler, Layered, NodeConfig, Settings, TcpHandler, Wire};
@@ -47,8 +49,8 @@ pub use crate::node_args::NodeArgs;
 
 /// Run the verb; returns the process exit code.
 pub fn run_node(args: &NodeArgs, err: &mut dyn Write) -> i32 {
-    // How long the node keeps a lost session, on each road (T-306).
-    if let Err(refusal) = crate::node_flags::deadline(args) {
+    // How long the node keeps a lost session, on each road (T-306); its exit (T-431).
+    if let Err(refusal) = crate::node_flags::deadline(args).and_then(|()| crate::node_exit::check(args)) {
         return refusal.report("node", err);
     }
     if let Some(key) = &args.temporary {
@@ -179,6 +181,10 @@ fn prepare(args: &NodeArgs) -> Result<Ready, Refusal> {
         Some(place) => Some(crate::channel::load_node_key(&place)?),
         None => None,
     };
+    // An exit says its net, or why it cannot be one, before it connects (T-431).
+    if let Some(key) = &key {
+        crate::node_exit::ready(&label, &key.identity.public())?;
+    }
     let sshd = args.sshd;
     Ok(Ready { label, pair, stored, targets, trust, plain: args.plain, key, allow: flags.allow, sshd, udp })
 }
@@ -197,7 +203,8 @@ pub(crate) fn words_of(args: &NodeArgs) -> Vec<String> {
 /// one with no route, each route once. A route travels in the end-to-end
 /// channel, so `--no-e2e` offers none.
 pub(crate) fn targets_of(words: &[String], no_e2e: bool) -> Result<Vec<Route>, Refusal> {
-    if words.is_empty() {
+    // An exit needs no target of its own (T-431).
+    if words.is_empty() && !crate::node_exit::asked() {
         return Err("missing TARGET: the HOST:PORT that each session reaches, or ROUTE=HOST:PORT".into());
     }
     let mut targets: Vec<Route> = Vec::new();
@@ -255,13 +262,16 @@ pub(crate) fn shown(targets: &[Route]) -> String {
     each.collect::<Vec<_>>().join(", ")
 }
 
-/// The routes of a node, when it has one, with who may use each (T-429).
-pub(crate) fn routes_of(targets: &[Route], grant: Arc<Grant>, roost: bool) -> Option<Routes> {
-    targets.iter().any(|t| t.name.is_some()).then(|| Routes {
+/// The routes of a node, when it has one or is an exit, with who may use
+/// each (T-429), and the exit of the node `me` (T-431).
+pub(crate) fn routes_of(targets: &[Route], grant: Arc<Grant>, roost: bool, me: Option<PublicKey>) -> Option<Routes> {
+    let exit = me.and_then(crate::node_exit::dial);
+    (targets.iter().any(|t| t.name.is_some()) || crate::node_exit::asked()).then(|| Routes {
         routes: Arc::new(targets.to_vec()),
         grant,
         timeout: DIAL_LIMIT,
         sshd: roost,
+        exit,
     })
 }
 
@@ -293,7 +303,7 @@ async fn serve(ready: Ready, err: &mut dyn Write) -> i32 {
         }
     }
     let me = key.as_ref().map(|key| key.identity.public());
-    let routes = routes_of(&targets, crate::net::admit::grant(allow.clone(), me), roost);
+    let routes = routes_of(&targets, crate::net::admit::grant(allow.clone(), me), roost, me);
     let mode = if plain { "in plain mode, with no resumable layer".into() } else { crate::node_flags::layer_mode() };
     let _ = writeln!(
         err,
@@ -333,7 +343,7 @@ async fn serve(ready: Ready, err: &mut dyn Write) -> i32 {
         wire: Wire::Tls,
         say: Some(&*say),
     };
-    let first = &targets[0];
+    let first = &crate::node_exit::first(&targets);
     // A flow of UDP for each session (T-168); a flow that did not end
     // plainly says so on the node's lines.
     if udp {

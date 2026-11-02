@@ -10,7 +10,7 @@ use std::sync::{Arc, Mutex};
 use std::time::Duration;
 
 use podssh_relay::e2e::ends::{self, Node};
-use podssh_relay::e2e::{Error, MAGIC};
+use podssh_relay::e2e::{Ask, Error, MAGIC};
 use podssh_relay::identity::{Identity, PublicKey};
 use tokio::io::{AsyncRead, AsyncReadExt, AsyncWrite, AsyncWriteExt, DuplexStream};
 use tokio::task::JoinHandle;
@@ -47,7 +47,7 @@ pub fn node(
     let lines = Arc::new(Mutex::new(Vec::new()));
     let kept = lines.clone();
     let say = Arc::new(move |line: String| kept.lock().unwrap().push(line));
-    (Node { identity: me, admit: Arc::new(move |key: &PublicKey, _: Option<&str>| admit(key)), say }, lines)
+    (Node { identity: me, admit: Arc::new(move |key: &PublicKey, _: &Ask| admit(key)), say }, lines)
 }
 
 /// A target that echoes each byte, and counts how often it is opened.

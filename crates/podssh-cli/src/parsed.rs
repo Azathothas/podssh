@@ -87,6 +87,9 @@ pub enum Parsed {
         vless: Option<String>,
         /// `--wstunnel` and `--wstunnel-secret-file` (T-441).
         wstunnel: crate::wstunnel::Flags,
+        /// `--exit NAME` and `--client-key FILE`: the pipe starts at this
+        /// exit of the net (T-431).
+        exit: crate::exit::Flags,
         refused: Vec<(String, &'static str, &'static str)>,
     },
     /// `podssh status`: the relay settings in effect, and the destination
@@ -134,6 +137,8 @@ pub enum Parsed {
     Detached(Box<crate::detach::control::DetachedArgs>),
     /// `podssh net SUBCOMMAND ...` (T-429).
     Net(Box<crate::net::NetArgs>),
+    /// `podssh exit NAME --listen ADDR:PORT` (T-431).
+    Exit(Box<crate::exit::ExitArgs>),
     /// `podssh doctor`: the relay settings to check, as `proxy` takes them.
     Doctor {
         relay_host: Option<String>,
@@ -224,6 +229,7 @@ impl Parsed {
             Parsed::Session(args) => !args.refused.is_empty(),
             Parsed::Detached(args) => !args.refused.is_empty(),
             Parsed::Net(args) => !args.refused.is_empty(),
+            Parsed::Exit(args) => !args.refused.is_empty(),
             Parsed::Node(args) => !args.refused.is_empty(),
             Parsed::Operator(args) => !args.refused.is_empty(),
             Parsed::Pipe(args) => !args.refused.is_empty(),

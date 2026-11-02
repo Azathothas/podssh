@@ -1,0 +1,99 @@
+name: exit live
+
+# T-431: an exit node of the net on the runner, from GitHub's network. A net
+# of throwaway keys, made here; a pair on the live relay; `podssh node gw
+# --exit`; then, through it, `podssh proxy --exit gw github.com 22` reads
+# GitHub's SSH banner, `podssh ssh --exit gw git@github.com` meets GitHub's
+# host key (its login is refused: no key of GitHub's is offered), and curl
+# through `podssh exit gw --listen` fetches a page of GitHub's by SOCKS5 with
+# the name sent and by HTTP CONNECT. Started by hand only. No secret is
+# printed or put on a command line: the keys and the pair's tokens stay in
+# private files, and the pair is stopped at the end.
+
+on:
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  exit:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 30
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+
+      - name: build podssh
+        env:
+          CARGO_BUILD_JOBS: "4"
+        run: cargo build --locked -p podssh-cli
+
+      # One step: the node, the proxy and their checks share its processes.
+      - name: an exit of the net
+        run: |
+          set -u
+          bin="$PWD/target/debug/podssh"
+          work="$RUNNER_TEMP/exit"
+          umask 077
+          mkdir -p "$work"
+          export PODSSH_NET="$work/net.doc"
+          # An end's key: 32 random bytes in hex, as podssh keeps one; and its
+          # Ed25519 public key, by OpenSSL from a PKCS#8 of the seed read from
+          # its file, so that no seed is on a command line.
+          seed() { head -c 32 /dev/urandom | od -An -tx1 | tr -d ' \n' > "$1"; printf '\n' >> "$1"; }
+          public() {
+            python3 -c 'import sys; sys.stdout.buffer.write(bytes.fromhex("302e020100300506032b657004220420" + open(sys.argv[1]).read().strip()))' "$1" \
+              | openssl pkey -inform DER -pubout -outform DER | tail -c 32 | od -An -tx1 | tr -d ' \n'
+          }
+          seed "$work/gw.key"
+          seed "$work/me.key"
+          "$bin" keygen -q -t ed25519 -N '' -f "$work/owner"
+          "$bin" net init home --owner-key "$work/owner"
+          "$bin" net add gw "$(public "$work/gw.key")" --roles node,exit --owner-key "$work/owner"
+          "$bin" net add me "$(public "$work/me.key")" --owner-key "$work/owner"
+          "$bin" net ls
+          "$bin" relay pair gw
+          "$bin" node gw --exit --key "$work/gw.key" 2> "$work/node.log" &
+          node=$!
+          online=no
+          for _ in $(seq 1 60); do grep -q ": online" "$work/node.log" && { online=yes; break; }; sleep 1; done
+          sed 's/^/node: /' "$work/node.log"
+          rc=0
+          [ "$online" = yes ] || { echo "FAIL the node did not come online"; rc=1; }
+          # GitHub's SSH banner, from the exit's host.
+          timeout 60 "$bin" proxy --exit gw --client-key "$work/me.key" github.com 22 < /dev/null > "$work/banner" 2> "$work/proxy.log" || true
+          sed 's/^/proxy: /' "$work/proxy.log"
+          if head -c 8 "$work/banner" | grep -q '^SSH-2.0-'; then echo "ok    GitHub's banner: $(head -1 "$work/banner")"
+          else echo "FAIL no banner of GitHub's"; rc=1; fi
+          # SSH to GitHub through the exit: its host key is met under its own
+          # name; the login is refused, as no key of GitHub's is offered.
+          src=0
+          timeout 60 "$bin" ssh --exit gw --client-key "$work/me.key" -o BatchMode=yes \
+            -o StrictHostKeyChecking=accept-new -o "UserKnownHostsFile=$work/known_hosts" git@github.com \
+            < /dev/null 2> "$work/ssh.log" || src=$?
+          sed 's/^/ssh: /' "$work/ssh.log"
+          if grep -q '^github.com ' "$work/known_hosts" 2>/dev/null; then echo "ok    GitHub's host key, through the exit (ssh exit $src)"
+          else echo "FAIL no host key of GitHub's"; rc=1; fi
+          # The local proxy, for curl, software that podssh did not write.
+          "$bin" exit gw --listen 127.0.0.1:0 --client-key "$work/me.key" 2> "$work/exit.log" &
+          proxy=$!
+          port=
+          for _ in $(seq 1 30); do
+            port=$(sed -n 's/.*proxy on 127\.0\.0\.1:\([0-9]*\),.*/\1/p' "$work/exit.log" | head -1)
+            [ -n "$port" ] && break
+            sleep 1
+          done
+          if [ -n "$port" ]; then
+            for via in "socks5h://127.0.0.1:$port" "http://127.0.0.1:$port"; do
+              code=$(curl -q -sS --max-time 60 --proxy "$via" -o "$work/page" -w '%{http_code}' https://api.github.com/zen || true)
+              if [ "$code" = 200 ] && [ -s "$work/page" ]; then echo "ok    a page through $via: $(head -c 80 "$work/page")"
+              else echo "FAIL $via: $code"; rc=1; fi
+            done
+          else
+            echo "FAIL the proxy said no port"; rc=1
+          fi
+          sed 's/^/exit: /' "$work/exit.log"
+          kill "$proxy" "$node" 2>/dev/null || true
+          "$bin" relay revoke gw || true
+          rm -rf "$work"
+          exit "$rc"

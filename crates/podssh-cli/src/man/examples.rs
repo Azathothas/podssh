@@ -103,6 +103,14 @@ fn examples() -> Vec<(&'static str, String)> {
             "podssh net policy set policy.json && podssh net policy check laptop lab/web".into(),
         ),
         (
+            "lend this host's egress to the members of its net, as an exit node: its owner gave it the role exit",
+            "podssh node gw --exit".into(),
+        ),
+        (
+            "SSH to a host from the exit gw, then a local SOCKS5 and HTTP proxy whose connections start there",
+            "podssh ssh --exit gw git@github.com && podssh exit gw --listen 127.0.0.1:1080".into(),
+        ),
+        (
             "say what an update would do, its signature checked, then replace this binary with the newest release",
             "podssh update --check && podssh update".into(),
         ),
@@ -389,6 +397,7 @@ mod tests {
                     Parsed::Session(_) => "session",
                     Parsed::Detached(_) => "detached",
                     Parsed::Net(_) => "net",
+                    Parsed::Exit(_) => "exit",
                     Parsed::Man { .. } => "man",
                     Parsed::Node(_) => "node",
                     Parsed::Relay(_) => "relay",

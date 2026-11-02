@@ -198,7 +198,7 @@ pub const SSH_FLAGS: &[FlagRow] = &[
     row(None, "iroh-ticket", Some("TICKET"), FlagKind::Supported,
         "node://NAME: race the iroh road to TICKET, first, with the pair's road; the first that answers carries the session; a build with the feature iroh", None),
     derp::DERP_TICKET,
-    derp::SSH_DERP_SERVER,
+    derp::SSH_DERP_SERVER, node::EXIT,
     row(None, "persist", None, FlagKind::Supported,
         "run the shell in the server's tmux, and after a lost link connect again and attach it again; tmux is probed", None),
     node::OWN_DEADLINE,
@@ -332,7 +332,7 @@ pub use job::JOB_FLAGS;
 pub use keygen::KEYGEN_FLAGS;
 pub use man::MAN_FLAGS;
 pub use mcp::MCP_FLAGS;
-pub use node::{NET_FLAGS, NODE_FLAGS};
+pub use node::{EXIT_FLAGS, NET_FLAGS, NODE_FLAGS};
 pub use operator::PAIR_FLAGS;
 pub use ping::PING_FLAGS;
 pub use pipe::PIPE_FLAGS;
@@ -382,6 +382,7 @@ pub const VERBS: &[Verb] = &[
         about: "reverse mode, operator side: raw bytes to a named node" },
     Verb { name: "net", aliases: &["net"], flags: NET_FLAGS,
         about: "your own nodes as one net: their names and keys, signed by your key, kept by each" },
+    Verb { name: "exit", aliases: &["exit"], flags: EXIT_FLAGS, about: "a SOCKS5 and HTTP CONNECT proxy here, whose connections start at an exit node of your net" },
     Verb { name: "chat", aliases: &["chat", "irc"], flags: CHAT_FLAGS,
         about: "messages and files with another podssh, end to end encrypted" },
     Verb { name: "cp", aliases: &["cp"], flags: CP_FLAGS,
@@ -436,7 +437,7 @@ pub const GROUPS: &[(&str, &[&str])] = &[
     ("Copy files", &["cp", "mv", "scp", "sftp", "edit"]),
     ("Keys", &["keygen", "agent"]),
     ("Check this host and the path", &["doctor", "status", "ping", "health"]),
-    ("The reverse road", &["node", "operator", "net"]),
+    ("The reverse road", &["node", "operator", "net", "exit"]),
     ("Runs in the background", &["detached"]),
     ("Messages", &["chat"]),
     ("Recordings", &["play"]),

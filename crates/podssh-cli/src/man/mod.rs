@@ -34,6 +34,7 @@ mod notes_pair;
 mod notes_ping;
 mod notes_pipe;
 mod notes_play;
+mod notes_proxy;
 mod notes_relay;
 // ssh's notes on the roads to a server of the user's (T-441).
 mod notes_roads;

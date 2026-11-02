@@ -62,15 +62,15 @@ repository and CI).
 
 ## Counts
 
-**452 entries: 44 open, 2 partial, 17 blocked, 389 done.**
+**454 entries: 45 open, 3 partial, 17 blocked, 389 done.**
 
 | Priority | open | partial | blocked | done | total |
 | --- | --- | --- | --- | --- | --- |
 | P0 | 0 | 0 | 0 | 1 | 1 |
-| P1 | 2 | 1 | 0 | 50 | 53 |
-| P2 | 18 | 1 | 14 | 186 | 219 |
-| P3 | 24 | 0 | 3 | 152 | 179 |
-| **All** | 44 | 2 | 17 | 389 | 452 |
+| P1 | 1 | 2 | 0 | 50 | 53 |
+| P2 | 19 | 1 | 14 | 186 | 220 |
+| P3 | 25 | 0 | 3 | 152 | 180 |
+| **All** | 45 | 3 | 17 | 389 | 454 |
 
 ## Entries
 
@@ -502,7 +502,7 @@ repository and CI).
 | [T-428](mesh.md) | P1 | M | M10 | feature | open | The relay role behind a node's quick tunnel, with no listener |
 | [T-429](mesh.md) | P1 | L | M10 | feature | done | The net: an owner's signed list of its nodes, and their names |
 | [T-430](mesh.md) | P2 | M | M10 | feature | done | The net's policy: who may reach which node, share and exit |
-| [T-431](mesh.md) | P1 | L | M10 | feature | open | Exit mode: a node's egress for its owner's forward road |
+| [T-431](mesh.md) | P1 | L | M10 | feature | partial | Exit mode: a node's egress for its owner's forward road |
 | [T-432](mesh.md) | P2 | M | M10 | feature | open | Routes: a node reaches its private networks for the net |
 | [T-433](mesh.md) | P2 | M | M10 | feature | open | `podssh share`: a node's local services by name, for the net |
 | [T-434](mesh.md) | P2 | M | M10 | feature | open | A member that relays between two other members |
@@ -528,3 +528,5 @@ repository and CI).
 | [T-454](mesh.md) | P2 | S | M10 | feature | open | The relay role brakes `/v1/mint` and `/v1/pair` for each address |
 | [T-455](mesh.md) | P2 | S | M10 | feature | open | The relay role mints for the members of the net |
 | [T-456](mesh.md) | P3 | M | M10 | feature | blocked | XHTTP over HTTP/1.1, on a second connection |
+| [T-458](mesh.md) | P2 | S | M10 | feature | open | `podssh doctor --exit NAME`: the exit, its verdict and the road that reached it |
+| [T-459](mesh.md) | P3 | S | M10 | feature | open | The quick tunnel's node lends its egress (`--exit` with `--quick-tunnel`) |

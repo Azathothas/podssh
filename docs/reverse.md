@@ -171,7 +171,12 @@ session's bytes.
    channel refuses a peer without it, by the first bytes that it sends.
 6. The operator's proof of its key may name a route of the node (T-089),
    encrypted with it: the relay never sees which. The node refuses a route
-   that it does not have, or that the key may not use, before it dials.
+   that it does not have, or that the key may not use, before it dials. The
+   same word may name a target of the operator's own, `HOST:PORT` (an IPv6
+   address in brackets), which its `:` tells from each route's name: an
+   exit node (T-431, `podssh node --exit`) resolves it, checks each address,
+   and dials the checked addresses alone; a node that is no exit refuses it,
+   and a node of before T-431 refuses the proof whole.
 7. Two ends that hold the net's document (T-429) say so: the operator's
    first message carries `podssh-net/1` in clear, which an end of before
    sets aside; only then do the proofs take the net's form (version 3),
@@ -180,7 +185,9 @@ session's bytes.
    before the verdict; the node's, after a verdict that let the operator in.
    Each goes to a member of it only. The node's verdict on a member follows
    the net's policy (T-430) for the route named, or for the target with no
-   route, with the document that it holds once the operator's came.
+   route, with the document that it holds once the operator's came; for an
+   exit's target, the policy's `exit:NODE` or a range, then each address
+   again once the name resolved (T-431).
 
 ## The transit road
 

@@ -202,6 +202,17 @@ pub(super) const NODE: &[&str] = &[
      Retry-After past those 5 minutes, or a refusal that lasts them, ends the node at once with exit 75, \
      and the line says until when the API asks to wait; any other refusal exits 69. A text of \
      Cloudflare's API or edge is shown on one line, with no control character.",
+    "podssh node NAME [TARGET] --exit lends this host's egress to the members of its net, as a Tailscale exit \
+     node does: an operator names a target of its own (podssh ssh --exit NAME, podssh proxy --exit NAME, podssh \
+     exit --listen), which travels in the end-to-end channel, and the node resolves its name here, checks \
+     each address, and dials those addresses alone, never the name again, so that a name that resolves anew \
+     elsewhere reaches nothing that was not checked. A public address needs a rule to exit:NAME (or exit:* or *) \
+     of the net's policy; a private one, loopback, link-local or another that the relay refuses needs one of \
+     podssh node --routes RANGES, ADDR/BITS or one address apart by commas, and a rule to its address. A name \
+     with one address that fails is refused whole. The net must give the node the role exit, signed by its \
+     owner, else the node does not start (78); a key of --allow, or an operator of the connect token alone, \
+     never reaches the exit. TARGET is then optional. It goes on the pair's, the iroh, the DERP, the transit and \
+     the Piping Server roads; --no-e2e, --quick-tunnel, --temporary and a udp: TARGET are refused with it (64).",
 ];
 
 pub(super) const OPERATOR: &[&str] = &[

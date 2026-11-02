@@ -21,7 +21,7 @@ mod edit;
 pub mod lookup;
 pub mod policy;
 mod policy_cmd;
-mod policy_words;
+pub(crate) mod policy_words;
 pub mod sign;
 pub mod store;
 

@@ -1,7 +1,8 @@
 //! The remote ends of `podssh pipe` (T-175): each opens its road and gives
 //! an end; the pump does not know the road (`docs/architecture.md`). The
 //! settings of the roads come from the flags of `pipe`, as `proxy` and
-//! `ssh` take them, and are read only when an address needs them.
+//! `ssh` take them, and are read only when an address needs them. With
+//! `--exit NAME`, `relay:` starts at that exit of the net (T-431).
 
 use std::io::Write;
 
@@ -49,6 +50,9 @@ pub fn settings(args: &PipeArgs, addresses: [&Address; 2]) -> Result<Settings, R
     crate::pins::apply(args.ssh.relay_addr.as_deref())?;
     // The template of a proxy's other side is the road of each request (T-367).
     let relay = |a: &&Address| matches!(a, Address::Relay { .. } | Address::Template(Template::Relay));
+    if args.ssh.exit.is_some() && !addresses.iter().any(relay) {
+        return Err(Refusal::usage("--exit NAME starts relay:HOST:PORT and relay:%h:%p at the exit: name one of them"));
+    }
     let relays = if addresses.iter().any(relay) {
         Some(crate::relay_settings::relays(args.ssh.relay_host.as_deref(), std::env::var(relay::RELAY_ENV).ok())?)
     } else {
@@ -81,6 +85,14 @@ pub async fn open(address: &Address, settings: &Settings, err: &mut dyn Write) -
         let _ = writeln!(err, "podssh pipe: {line}");
     };
     match address {
+        Address::Relay { host, port } if settings.ssh.exit.is_some() => {
+            let name = settings.ssh.exit.as_deref().unwrap_or_default();
+            let to = crate::exit::open::To::of_ssh(name, &settings.ssh);
+            crate::exit::open::open(&to, host, *port).await.map_err(|refused| {
+                say(&format!("relay:{}: --exit {name}: {}", podssh_ws::dial::authority(host, *port), refused.line));
+                refused.code
+            })
+        }
         Address::Relay { host, port } => {
             let relays = settings.relays.as_ref().expect("the relay hosts, read with the addresses");
             let road = super::relay::Road { relays, trust: &settings.trust, failover: settings.failover };

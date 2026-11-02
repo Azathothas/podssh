@@ -44,6 +44,7 @@ fn the_positionals_and_options_reach_the_verb() {
             via: Default::default(),
             vless: None,
             wstunnel: Default::default(),
+            exit: Default::default(),
             refused: vec![],
         }
     );

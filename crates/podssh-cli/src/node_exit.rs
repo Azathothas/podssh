@@ -1,0 +1,224 @@
+//! `podssh node NAME [TARGET] --exit` (T-431): the node lends this host's
+//! egress to the members of its net, as a Tailscale exit node does. An
+//! operator names a target of its own in the end-to-end channel, as the word
+//! of its proof (`podssh_relay::e2e::Ask`), and the node:
+//!
+//! 1. lets in a member that the net's policy lets reach its egress or a
+//!    range, and only where the owner gave this node the role `exit`
+//!    (`crate::net::admit`); never a key of `--allow`, nor an operator of
+//!    the pair's connect token alone;
+//! 2. resolves the name itself, with podssh's resolver;
+//! 3. checks each address: a public one, by the relay role's check of a
+//!    public address (`podssh_relay::serve::policy::public`), for a member
+//!    that the policy lets reach `exit:NODE`; another one only inside a
+//!    range of `--routes`, for a member that the policy lets reach that
+//!    address (T-432 builds on it); a name with one address that fails is
+//!    refused whole, as the relay refuses it;
+//! 4. dials those addresses alone, never the name again, so that a name
+//!    that resolves anew to another address (DNS rebinding) reaches nothing
+//!    that was not checked; through HTTPS_PROXY when one is set, as a node
+//!    dials each TARGET, with the address in place of the name.
+//!
+//! A process is one node, so the exit is the process's, as the net's
+//! documents are; each road's routes take its dial (`crate::node::routes_of`).
+
+use std::future::Future;
+use std::net::SocketAddr;
+use std::pin::Pin;
+use std::sync::{Arc, OnceLock};
+use std::time::Duration;
+
+use podssh_relay::e2e::Refusal as NodeRefusal;
+use podssh_relay::identity::PublicKey;
+use podssh_relay::reverse::routes::{ExitDial, Route};
+use podssh_ws::dial::ProxyChoice;
+use tokio::net::TcpStream;
+use tokio::time::Instant;
+
+use crate::net::admit::{verdict, Asks, Verdict};
+use crate::net::policy_words::Range;
+use crate::node::NodeArgs;
+use crate::relay_settings::Refusal;
+
+/// The bound on the resolution of a target's name, within the operator's
+/// wait for the node's verdict (`podssh_relay::e2e::ends::TARGET_WAIT`).
+const RESOLVE_LIMIT: Duration = Duration::from_secs(6);
+/// The bound on the dials of its addresses, after it.
+const DIAL_LIMIT: Duration = Duration::from_secs(8);
+
+/// What `--exit` asked: the private ranges that it dials too, each as given.
+#[derive(Debug, Clone)]
+pub(crate) struct Plan {
+    pub ranges: Vec<(String, Range)>,
+}
+
+static PLAN: OnceLock<Plan> = OnceLock::new();
+
+/// The flags of the exit, checked before anything is read: `--routes` goes
+/// with `--exit`, and `--exit` with a road that carries the channel and
+/// TCP. The plan is kept for the process.
+pub(crate) fn check(args: &NodeArgs) -> Result<(), Refusal> {
+    if !args.exit {
+        return match args.routes {
+            Some(_) => Err(Refusal::usage("--routes names the private ranges of an exit: give --exit too")),
+            None => Ok(()),
+        };
+    }
+    let udp = args.targets.iter().any(|t| t.starts_with("udp:") || t.contains("=udp:"));
+    let why = if args.no_e2e {
+        Some("--exit names each target in the end-to-end channel, which --no-e2e turns off")
+    } else if args.quick_tunnel {
+        Some("--exit lends its egress on the roads of a pair, iroh and DERP, not yet behind a quick tunnel")
+    } else if args.temporary.is_some() {
+        Some("--exit does not go with --temporary, the far end of podssh ssh --upgrade")
+    } else if udp {
+        Some("--exit carries TCP: a udp: TARGET goes on a node with no --exit")
+    } else {
+        None
+    };
+    if let Some(why) = why {
+        return Err(Refusal::usage(why));
+    }
+    let ranges = match args.routes.as_deref() {
+        Some(text) => ranges(text)?,
+        None => Vec::new(),
+    };
+    let _ = PLAN.set(Plan { ranges });
+    Ok(())
+}
+
+/// The ranges of `--routes`: `ADDR/BITS` or one address, separated by
+/// commas, as a rule of the net's policy names a range.
+fn ranges(text: &str) -> Result<Vec<(String, Range)>, Refusal> {
+    let range = |word: &str| match Range::parse(word) {
+        Some(range) => Ok((word.to_string(), range)),
+        None => Err(Refusal::usage(format!(
+            "--routes {text}: {word:?} is not a range: ADDR/BITS or one address, separated by commas"
+        ))),
+    };
+    text.split(',').map(str::trim).map(range).collect()
+}
+
+/// Whether this node is an exit (`--exit`).
+pub(crate) fn asked() -> bool {
+    PLAN.get().is_some()
+}
+
+/// The exit's line as the node `label` starts, once its key `me` is
+/// loaded, or why it cannot be one (78): a member of a net in force that
+/// gives it the role `exit`. Each road calls it.
+pub(crate) fn ready(label: &str, me: &PublicKey) -> Result<(), Refusal> {
+    let Some(plan) = PLAN.get() else { return Ok(()) };
+    let line = crate::net::admit::exit_ready(me).map_err(|why| Refusal::config(format!("--exit: {why}")))?;
+    let ranges: Vec<&str> = plan.ranges.iter().map(|(word, _)| word.as_str()).collect();
+    let inside = match ranges.is_empty() {
+        true => ", and to no private range (--routes names some)".to_string(),
+        false => format!(", and to the private ranges {}", ranges.join(", ")),
+    };
+    podssh_ssh::err_line!("podssh node: {label}: {line}{inside}; each name is resolved here, and each address checked");
+    Ok(())
+}
+
+/// What the node's first line says that it serves: its targets, and its
+/// exit; `none` when it has no target of its own.
+pub(crate) fn beside(served: String, none: bool) -> String {
+    match (asked(), none) {
+        (false, _) => served,
+        (true, true) => "an exit for its net, with no target of its own".into(),
+        (true, false) => format!("{served}, and an exit for its net"),
+    }
+}
+
+/// The first target, for a handler of the target with no route. An exit
+/// with no target has none: its routes then answer each session, and the
+/// stand-in, with no host, is never dialled.
+pub(crate) fn first(targets: &[Route]) -> Route {
+    targets.first().cloned().unwrap_or(Route { name: None, host: String::new(), port: 0 })
+}
+
+/// The dial of the exit at the node `me`, when it is one.
+pub(crate) fn dial(me: PublicKey) -> Option<Arc<ExitDial>> {
+    let plan = PLAN.get()?;
+    let ranges: Arc<Vec<Range>> = Arc::new(plan.ranges.iter().map(|(_, range)| *range).collect());
+    let dial: Arc<ExitDial> = Arc::new(move |peer: PublicKey, host: String, port: u16| {
+        let ranges = ranges.clone();
+        let opened: Pin<Box<dyn Future<Output = Result<TcpStream, NodeRefusal>> + Send>> =
+            Box::pin(async move { open(&me, &peer, &host, port, &ranges).await });
+        opened
+    });
+    Some(dial)
+}
+
+/// The exit's connection to `host:port` for the member `peer`: the name
+/// resolved here, each address checked, and only those dialled.
+async fn open(
+    me: &PublicKey,
+    peer: &PublicKey,
+    host: &str,
+    port: u16,
+    ranges: &[Range],
+) -> Result<TcpStream, NodeRefusal> {
+    let shown = podssh_ws::dial::authority(host, port);
+    let deadline = Instant::now() + RESOLVE_LIMIT;
+    let found = podssh_ws::resolve::resolve(host, port, deadline)
+        .await
+        .map_err(|why| NodeRefusal::NoTarget(format!("could not resolve {host}: {why}")))?;
+    let addresses = checked(&shown, found, ranges, &|addr, public| verdict(me, peer, Asks::Dial { addr, public }))?;
+    dial_each(&shown, addresses).await
+}
+
+/// The addresses of `shown` that the exit may dial, each checked: public,
+/// or inside one of `ranges`; and each one let by `net`, the net's verdict
+/// on the member for that address. `Err` names the first that fails, and
+/// none is dialled then.
+pub(crate) fn checked(
+    shown: &str,
+    found: Vec<SocketAddr>,
+    ranges: &[Range],
+    net: &dyn Fn(std::net::IpAddr, bool) -> Verdict,
+) -> Result<Vec<SocketAddr>, NodeRefusal> {
+    if found.is_empty() {
+        return Err(NodeRefusal::NoTarget(format!("{shown} has no address")));
+    }
+    for addr in &found {
+        let ip = addr.ip();
+        let public = podssh_relay::serve::policy::public(ip);
+        if !public && !ranges.iter().any(|range| range.contains(ip)) {
+            return Err(NodeRefusal::Other(format!(
+                "{shown} resolves to {ip}, which is not a public address, and no range of the exit's --routes holds it"
+            )));
+        }
+        match net(ip, public) {
+            Verdict::Member(_) => {}
+            Verdict::Refused(why) => return Err(NodeRefusal::Other(why)),
+            Verdict::Outside => {
+                return Err(NodeRefusal::Other("this node is in no net now, so its exit lets nobody out".into()))
+            }
+        }
+    }
+    Ok(found)
+}
+
+/// Each address in turn, IPv6 and IPv4 interleaved, within the dial's
+/// bound: an address, never the name again, so what was checked is what is
+/// dialled.
+async fn dial_each(shown: &str, addresses: Vec<SocketAddr>) -> Result<TcpStream, NodeRefusal> {
+    let deadline = Instant::now() + DIAL_LIMIT;
+    let mut last = String::from("no address was tried in time");
+    for addr in podssh_ws::dial::interleave(addresses) {
+        let left = deadline.saturating_duration_since(Instant::now());
+        if left.is_zero() {
+            break;
+        }
+        let ip = addr.ip().to_string();
+        match podssh_ws::dial::dial(&ip, addr.port(), &ProxyChoice::FromEnvironment, left).await {
+            Ok(stream) => return Ok(stream),
+            Err(e) => last = e.to_string(),
+        }
+    }
+    Err(NodeRefusal::NoTarget(format!("{shown}: {last}")))
+}
+
+#[cfg(test)]
+#[path = "node_exit_tests.rs"]
+mod tests;

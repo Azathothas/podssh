@@ -34,8 +34,13 @@ pub(super) const PLIST_MARK: &str = "<!-- Written by podssh";
 pub(super) fn service_args(args: &NodeArgs, name: &str, env_file: &Path) -> Result<Vec<String>, Refusal> {
     let mut words = vec!["node".to_string(), name.to_string()];
     words.extend(args.targets.iter().cloned());
-    let values =
-        [("--relay-addr", &args.relay_addr), ("--iroh-relay", &args.iroh_relay), ("--derp-server", &args.derp_server)];
+    let values = [
+        ("--relay-addr", &args.relay_addr),
+        ("--iroh-relay", &args.iroh_relay),
+        ("--derp-server", &args.derp_server),
+        // The exit's ranges (T-431).
+        ("--routes", &args.routes),
+    ];
     for (flag, value) in values {
         if let Some(value) = value {
             words.extend([flag.to_string(), value.clone()]);
@@ -61,6 +66,7 @@ pub(super) fn service_args(args: &NodeArgs, name: &str, env_file: &Path) -> Resu
         ("--derp", args.derp),
         ("--no-e2e", args.no_e2e),
         ("--sshd", args.sshd),
+        ("--exit", args.exit),
     ];
     for (flag, on) in switches {
         if on {

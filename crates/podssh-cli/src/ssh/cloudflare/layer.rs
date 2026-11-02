@@ -104,6 +104,7 @@ mod tests {
     use std::time::Duration;
 
     use podssh_relay::e2e::ends::Admit;
+    use podssh_relay::e2e::Ask;
     use podssh_relay::identity::{Identity, PublicKey};
     use podssh_relay::reverse::framing::SessionId;
     use podssh_relay::reverse::{self, E2e, Handler, Layered, Opening};
@@ -227,7 +228,7 @@ mod tests {
     async fn a_node_s_session_goes_both_ways_and_resumes_on_a_new_websocket() {
         let client = Identity::from_seed(&[1; 32]).public();
         let admit: Arc<Admit> =
-            Arc::new(move |k: &PublicKey, _: Option<&str>| if *k == client { Ok(()) } else { Err("unlisted".into()) });
+            Arc::new(move |k: &PublicKey, _: &Ask| if *k == client { Ok(()) } else { Err("unlisted".into()) });
         let (node, dials) = Node::new(admit);
         let (path, log) = log_file("resume");
         let (mut ssh, done) = session(&node, log).await;
@@ -246,7 +247,7 @@ mod tests {
 
     #[tokio::test(flavor = "multi_thread", worker_threads = 4)]
     async fn a_key_out_of_the_node_s_allowlist_is_refused_and_target_is_never_opened() {
-        let (node, dials) = Node::new(Arc::new(|_: &PublicKey, _: Option<&str>| Err("not in the list".to_string())));
+        let (node, dials) = Node::new(Arc::new(|_: &PublicKey, _: &Ask| Err("not in the list".to_string())));
         let (path, log) = log_file("refused");
         let (mut ssh, done) = session(&node, log).await;
         let mut buf = [0u8; 64];

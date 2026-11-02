@@ -133,8 +133,9 @@ What T-430 built ([cli.md](cli.md), "`podssh net`"):
   asked; a relay never sees which route.
 - `podssh net policy set FILE`, `clear`, `show` and `check FROM TO`, the
   last with no connection. The words of exits and ranges are read and
-  checked now; the node that uses them comes with T-431 and T-432, which
-  ask `crates/podssh-cli/src/net/policy.rs` for `exit:NODE` and an address.
+  checked now; the node that uses them came with T-431, which asks
+  `crates/podssh-cli/src/net/policy.rs` for `exit:NODE` and an address, and
+  T-432 builds the net's routes on it.
 
 ## 4. The relay as a role of podssh
 
@@ -172,6 +173,21 @@ carries sessions between two other members that no other road joins
   two. A local SOCKS5 and HTTP CONNECT proxy serves other programs when the
   user asks for its listener (Q1). The targets are public addresses, as on
   the relay, unless routes allow more.
+
+  What T-431 built ([cli.md](cli.md), "The exit of the net"): the
+  operator's word in the channel names the target, `HOST:PORT`, in place of
+  a route (`crates/podssh-relay/src/e2e/ask.rs`), so each road whose node
+  serves routes carries it: the pair's, the transit relay's, the Piping
+  Server's, the DERP and the iroh roads (`Routes::exit`). The node lets out
+  a member of a net that gives it the role `exit`, as the policy lets it
+  reach `exit:NODE` or a range; it resolves the name with podssh's
+  resolver, checks each address by the relay role's check of a public
+  address, dials a private one only inside `--routes`, and dials the
+  checked addresses alone (`crates/podssh-cli/src/node_exit.rs`). `podssh
+  ssh --exit NAME` races the node's roads as `node://NAME` does, with the
+  host's own key; `proxy`, `pipe`'s `relay:` and `podssh exit --listen`
+  take the pair's road, and answer a client once the node's verdict came.
+  T-432 adds the net's list of each node's routes and `--exit auto`.
 - **Routes** (T-432). `--routes CIDR,...` lets the net's members reach the
   private networks that the node reaches, within the policy.
 - **Share** (T-433). `podssh share` adds, removes and lists the services of

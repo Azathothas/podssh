@@ -39,9 +39,13 @@ pub(crate) async fn probe(targets: &[Route], roost: bool) -> Result<Vec<String>,
 }
 
 /// The targets as the node's first line says them: a roost's, each with the
-/// version line that its sshd sent.
+/// version line that its sshd sent; and an exit's egress (T-431).
 pub(crate) fn serving(targets: &[Route], versions: &[String]) -> String {
-    if versions.len() != targets.len() {
+    crate::node_exit::beside(served(targets, versions), targets.is_empty())
+}
+
+fn served(targets: &[Route], versions: &[String]) -> String {
+    if versions.len() != targets.len() || targets.is_empty() {
         return shown(targets);
     }
     let each = targets.iter().zip(versions).map(|(t, line)| format!("{} ({line})", shown(std::slice::from_ref(t))));

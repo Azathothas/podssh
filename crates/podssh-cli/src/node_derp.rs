@@ -214,6 +214,7 @@ fn prepare(args: &NodeArgs, unasked: Option<String>) -> Result<Ready, Refusal> {
     let trust = crate::pairs::trust(args.ca_file.as_deref());
     // The key is made only once each check passed.
     let key = crate::channel::load_node_key(&place)?;
+    crate::node_exit::ready(&label, &key.identity.public())?;
     Ok(Ready { label, targets, roost: args.sshd, key, allow, servers, trust, pair, unasked })
 }
 
@@ -297,8 +298,10 @@ async fn serve(ready: Ready, err: &mut dyn Write) -> i32 {
         admit: crate::net::admit::admit(Some(allow.clone()), public),
         say: say.clone(),
     };
-    let routes = crate::node::routes_of(&targets, crate::net::admit::grant(Some(allow), Some(public)), roost);
-    let (host, port) = (targets[0].host.clone(), targets[0].port);
+    let grant = crate::net::admit::grant(Some(allow), Some(public));
+    let routes = crate::node::routes_of(&targets, grant, roost, Some(public));
+    let first = crate::node_exit::first(&targets);
+    let (host, port) = (first.host, first.port);
     let handler = TcpHandler { host: host.clone(), port, timeout: DIAL_LIMIT, sshd: roost };
     let target = move || {
         let host = host.clone();

@@ -482,7 +482,7 @@ pub fn resolve_or_refuse(args: &SshArgs, env: &Env) -> Result<Resolved, Refusal>
         detach: args.detach || settings.fork_after_authentication.unwrap_or(false),
     };
     super::persist::check(args, &mut resolved)?;
-    super::servers::check(args, &resolved)?;
+    super::servers::check(args, &mut resolved)?;
     super::upgrade::check(args, env, &mut resolved)?;
     super::elevate::check(args, &mut resolved)?;
     super::recording::check(args, &mut resolved)?;
