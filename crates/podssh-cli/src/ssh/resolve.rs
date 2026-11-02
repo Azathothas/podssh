@@ -67,6 +67,8 @@ pub enum Transport {
     Via { road: crate::via::Road },
     /// Through the VLESS servers of a file, in order (`--vless`, T-440).
     Vless { servers: crate::vless::Servers, trust: Trust },
+    /// Through a wstunnel server that the user runs (`--wstunnel`, T-441).
+    Wstunnel { road: crate::wstunnel::Road },
 }
 
 /// A command line, resolved.
@@ -366,13 +368,12 @@ pub fn resolve_or_refuse(args: &SshArgs, env: &Env) -> Result<Resolved, Refusal>
         };
         // The direct road after the relay hosts (T-363): not with a relay
         // that the user named, nor with -4 or -6, which the direct road
-        // cannot keep. Forwarders (T-369), Shadowsocks servers (T-373) or a
-        // proxy over TLS (T-439) or VLESS (T-440), when named, take its place.
+        // cannot keep. Forwarders (T-369), Shadowsocks servers (T-373), a
+        // proxy over TLS (T-439), VLESS (T-440) or wstunnel (T-441) take its place.
         let direct = crate::relay_settings::direct_from(env.direct.clone(), &env.settings)?;
         let then_direct = direct && !relays.explicit && family.is_none();
         let relay = Transport::Relay { relays, trust, family, failover, then_direct };
-        let relay = crate::via::or_relay(args, env, crate::vless::or_relay(args, relay)?)?;
-        crate::shadowsocks::or_relay(args, crate::forwarder::or_relay(args, env, relay)?)?
+        super::servers::or_relay(args, env, relay)?
     };
 
     // A node runs the resumable layer, whose heartbeat finds a dead link and
@@ -481,8 +482,7 @@ pub fn resolve_or_refuse(args: &SshArgs, env: &Env) -> Result<Resolved, Refusal>
         detach: args.detach || settings.fork_after_authentication.unwrap_or(false),
     };
     super::persist::check(args, &mut resolved)?;
-    crate::forwarder::check(args, &resolved).and_then(|()| crate::shadowsocks::check(args, &resolved))?;
-    crate::via::check(args, &resolved).and_then(|()| crate::vless::check(args, &resolved))?;
+    super::servers::check(args, &resolved)?;
     super::upgrade::check(args, env, &mut resolved)?;
     super::elevate::check(args, &mut resolved)?;
     super::recording::check(args, &mut resolved)?;

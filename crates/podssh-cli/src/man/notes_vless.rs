@@ -21,7 +21,8 @@ pub const SSH_VLESS: &str = "--vless FILE reaches the first hop through VLESS se
      it has refused the ID or could not reach the target, and gives way to the next; -v says which transport \
      carried the session. The host key of SSH protects the session, as on each road: the server sees the \
      target's name and SSH's encrypted bytes. A run has one road: --relay-host, --relay-failover, --direct, \
-     --forwarder, --shadowsocks, --via, -4, -6, and a destination with a road of its own cannot go with it (64).";
+     --forwarder, --shadowsocks, --via, --wstunnel, -4, -6, and a destination with a road of its own cannot go \
+     with it (64).";
 
 pub const PROXY_VLESS: &str = "podssh proxy --vless FILE carries the pipe through the VLESS servers of FILE, in \
      order, with no relay, as podssh ssh does (see its notes). A pipe's client may speak first, so a server that \

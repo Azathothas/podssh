@@ -43,6 +43,7 @@ fn the_positionals_and_options_reach_the_verb() {
             shadowsocks: None,
             via: Default::default(),
             vless: None,
+            wstunnel: Default::default(),
             refused: vec![],
         }
     );

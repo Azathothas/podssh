@@ -63,6 +63,7 @@ fn other_road(args: &SshArgs) -> Option<&'static str> {
         ("--forwarder", args.forwarder.is_some()),
         ("--shadowsocks", args.shadowsocks.is_some()),
         ("--via", args.via.is_some()),
+        ("--wstunnel", args.wstunnel.is_some()),
     ];
     flags.into_iter().find(|(_, given)| *given).map(|(flag, _)| flag)
 }
@@ -102,6 +103,7 @@ pub fn check(args: &SshArgs, resolved: &Resolved) -> Result<(), Refusal> {
         Transport::Forwarder { .. } => "the forwarders",
         Transport::Shadowsocks { .. } => "--shadowsocks",
         Transport::Via { .. } => "--via",
+        Transport::Wstunnel { .. } => "--wstunnel",
         Transport::Node { .. } => "a node:// destination",
         Transport::Iroh { .. } => "an iroh: destination",
         Transport::Cloudflare { .. } => "a cf://HOST destination or first hop",

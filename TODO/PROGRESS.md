@@ -90,11 +90,15 @@ entry keeps its proof in the entry; this page keeps no history (git does).
   and closed (against wisp-server-python, and live through the demo server); T-429's is merged and
   closed. T-427's and T-448's are merged and closed. T-440's is merged (three compile repairs, and
   its XHTTP stand-in made the session for either request first, as Xray-core does); it stays
-  `partial` until `vless-interop.yml` runs on its push. The draft of T-441 waits in a worktree of
-  `.claude/worktrees/`, and on GitHub as `draft/worktree-agent-t441-wstunnel`. These branches can go, as
-  this session's git proxy would not delete them: `draft/worktree-agent-t429-net`,
-  `draft/worktree-agent-t440-vless`, `draft/draft-t427-t448`, and the merges' `draft/m10-merge-427`,
-  `-429`, `-437`, `-438`, `-439`, `-440`, `-443-444` and `-448`.
+  `partial` until `vless-interop.yml` runs on its push. T-441's is merged onto it (each list of
+  roads took both, and `--vless` and `--wstunnel` refuse each other); it stays `partial` until
+  `wstunnel-interop.yml` runs on its push. Agents of this session draft T-428, T-430, T-447 and
+  T-454 in worktrees of `.claude/worktrees/` (`agent-t428-quick-relay`, `agent-t430-net-policy`,
+  `agent-t447-acme`, `agent-t454-brake`), from `33ccb11`. These branches can go, as this
+  session's git proxy would not delete them: `draft/worktree-agent-t429-net`,
+  `draft/worktree-agent-t440-vless`, `draft/worktree-agent-t441-wstunnel`, `draft/draft-t427-t448`,
+  and the merges' `draft/m10-merge-427`, `-429`, `-437`, `-438`, `-439`, `-440`, `-443-444` and
+  `-448`.
 
   CI: the gate passed at
   `24b9f6e` (run 38331509229), and its step `release` at `cad2885` (478
@@ -139,7 +143,7 @@ and `CARGO_BUILD_JOBS=4`:
 
 ## Counts
 
-`TODO/INDEX.md` holds 452 entries: 47 open, 2 partial, 17 blocked, 386 done.
+`TODO/INDEX.md` holds 452 entries: 46 open, 3 partial, 17 blocked, 386 done.
 
 Open includes parked work. `cargo todo check` verifies this line.
 

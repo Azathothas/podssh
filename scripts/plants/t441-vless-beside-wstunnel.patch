@@ -1,0 +1,10 @@
+--- a/crates/podssh-cli/src/vless/mod.rs
++++ b/crates/podssh-cli/src/vless/mod.rs
+@@ -63,7 +63,6 @@
+         ("--forwarder", args.forwarder.is_some()),
+         ("--shadowsocks", args.shadowsocks.is_some()),
+         ("--via", args.via.is_some()),
+-        ("--wstunnel", args.wstunnel.is_some()),
+     ];
+     flags.into_iter().find(|(_, given)| *given).map(|(flag, _)| flag)
+ }

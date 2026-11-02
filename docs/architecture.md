@@ -76,6 +76,25 @@ russh <-> VLESS (request, answer) <-> a WebSocket, or XHTTP on HTTP/2 <-> TLS to
   front end that refuses the upgrade; on HTTP/1.1 it would need a second
   connection, which this road does not open.
 
+- `--wstunnel wss://HOST[:PORT]` (T-441, the operator's ruling Q66) uses a
+  server of erebe/wstunnel that the user runs in place of the relay:
+
+```
+russh <-> pipe <-> WebSocket GET /PREFIX/events, Sec-WebSocket-Protocol: v1, authorization.bearer.JWT <-> wstunnel <-> sshd
+                    |
+                    `- TCP and TLS as to the relay, through HTTPS_PROXY when one is set
+```
+
+  `podssh-ws` (`crates/podssh-ws/src/wstunnel/`) writes the upgrade as
+  wstunnel's client does: the path prefix and an `Authorization` of a
+  private file, and a JWT whose claims name the target, signed with
+  wstunnel's old public key so that servers of 9.1 to 11 read it. The 101
+  must name the subprotocol `v1`; a 400 is said in the words of the version
+  that sent it. The session is the forwarders' carry
+  (`crates/podssh-ws/src/forwarder/carry.rs`), its frames masked with a
+  key of zero, as wstunnel's server reads a payload without its mask by
+  default.
+
 **The way to the relay.** `podssh-relay` gives an ordered list of relay
 hosts: the default host and up to three hosts of the pool, or the list that
 the user gives. For each host, `podssh-ws` connects:

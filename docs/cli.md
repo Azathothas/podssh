@@ -1021,8 +1021,9 @@ server as `ssh` does, `proxy` and `doctor`, which checks each:
   10 s for VLESS's answer, which comes with the server's version line; a
   pipe of `proxy` takes the stream after 3 s of silence, as its client may
   speak first. A run has one road: `--vless` beside `--relay-host`,
-  `--relay-failover`, `--forwarder`, `--shadowsocks`, `--via`, `--direct`,
-  `-4`, `-6` or a destination with a road of its own is refused (64).
+  `--relay-failover`, `--forwarder`, `--shadowsocks`, `--via`, `--wstunnel`,
+  `--direct`, `-4`, `-6` or a destination with a road of its own is refused
+  (64).
 - `podssh doctor --vless FILE` gives a line in its section `vless` for each
   server, and for each mode where a link says `auto`: the transport that
   carried it and the time of VLESS's answer, then GitHub's published host
@@ -1033,6 +1034,72 @@ Tested against stand-ins on the loopback, h2's own server for XHTTP
 containers, through a plain squid as the host's proxy and behind nginx,
 which does not pass the upgrade (`scripts/interop-vless.sh`,
 `.github/workflows/vless-interop.yml`).
+
+## A wstunnel server: `--wstunnel URL`
+
+T-441, the operator's ruling Q66: a server of erebe/wstunnel that the user
+runs (`wstunnel server wss://[::]:443`), one static binary that takes the
+destination from its client, is a road with no relay.
+`--wstunnel wss://HOST[:PORT]` makes it the road, in place of the relay, for
+`ssh`, each command that reaches its server as `ssh` does, and `proxy`. The
+protocol is read in wstunnel's source at v11.1.0, and at v10.0.1 and v9.7.4
+for the versions before it (`crates/podssh-ws/src/wstunnel/`):
+
+- podssh dials the server as it dials the relay, through `HTTPS_PROXY` when
+  one is set, then TLS checked for HOST with podssh's trust (`--ca-file`,
+  `SSL_CERT_FILE`, the stores); `ws://` has no TLS. The URL takes no path,
+  no query and no user (64); `https://` and `wts://`, wstunnel's HTTP/2 and
+  WebTransport, are refused with the scheme that the same server takes,
+  as each server serves its WebSocket and its HTTP/2 on one port.
+- The upgrade is `GET /PREFIX/events`, with
+  `Sec-WebSocket-Protocol: v1, authorization.bearer.JWT`. The JWT's claims
+  are those of wstunnel's client: an id (a UUID of version 4), the protocol
+  `{"Tcp":{"proxy_protocol":false}}`, the host (an IPv6 one in brackets)
+  and the port. It is signed with HS256 and the key that wstunnel 9.1 to
+  10.0 check, a constant of its public source; 10.1 and later check no
+  signature, so the one token serves 9.1 to 11. A server of 9.0 or before
+  reads the protocol `Tcp` with no field, and cannot read it.
+- What the server checks of a client comes from `--wstunnel-secret-file
+  FILE` or `PODSSH_WSTUNNEL_SECRET_FILE`: a regular file of the user that
+  others cannot read (78 otherwise), with `path-prefix PREFIX` (the prefix
+  that the server's restriction holds as its secret), `credentials
+  USER[:PASSWORD]` (Basic, as wstunnel's own client encodes it) or
+  `authorization VALUE` (the header as it is), for a restrictions file that
+  matches `Authorization`; or one line, the prefix alone. With no file,
+  podssh is the client of wstunnel's defaults: the prefix `v1`. A secret
+  over `ws://` goes to this host alone (64). No message shows a line of the
+  file; one names it by its number.
+- The server dials the target before it answers. Its 101 names the
+  subprotocol `v1`; one that does not is no wstunnel server that podssh
+  speaks to, and is said so (69). Each refusal is a 400 whose body names no
+  cause: "Invalid request" from 10 on, "Invalid upgrade request" before.
+  podssh quotes it and says what it means in that version: a path prefix or
+  an `Authorization` that the server does not take, a target that its
+  restrictions do not allow, or one that it could not reach, and that its
+  log names which; or, from 9, a server too old for the token (77, as a
+  refusal of the server's; a 401 or 403 of a server in front of it too).
+- The bytes go in binary frames, each masked with a key of zero: wstunnel's
+  server takes a payload without its mask unless it runs with
+  `--websocket-mask-frame` (fastwebsockets 0.10 applies a mask on reads
+  only when told), so a fresh key would change each byte, and a key of
+  zero reads the same either way. The mask bit stays set, as RFC 6455 asks
+  of a client; the bytes are SSH's, or TLS's under `wss://`.
+- `PODSSH_WSTUNNEL` names the server where the command line names no other
+  road (`--relay-host`, `--relay-failover`, `--forwarder`, `--shadowsocks`,
+  `--via`, `--vless`); beside `PODSSH_RELAY`, `PODSSH_FORWARDER` or `PODSSH_VIA` it is
+  refused (78). A run has one road: `--wstunnel` beside one of those flags,
+  `--direct`, `-4`, `-6` or a destination with a road of its own is refused
+  (64).
+- `podssh proxy --wstunnel URL HOST PORT` carries the pipe; the end of stdin
+  sends no Close, as a Close is no half-close, and the server's Close ends
+  the pipe once the target closed.
+
+Not taken (T-441's Decision): wstunnel's HTTP/2 and WebTransport, a check
+of `doctor`, and `pipe`'s `tcp:`. Tested against stand-ins on the loopback
+that read a client as wstunnel's server does
+(`crates/podssh-ws/tests/wstunnel.rs`), and against wstunnel's own server
+of the pinned release in a container, with OpenSSH's sshd as the target
+(`scripts/interop-wstunnel.sh`, `.github/workflows/wstunnel-interop.yml`).
 
 ## Going to the background: `--detach` and `-f`
 

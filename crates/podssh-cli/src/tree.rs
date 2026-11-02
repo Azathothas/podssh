@@ -260,6 +260,7 @@ pub fn parse_verb(verb: &'static Verb, rest: &[std::ffi::OsString]) -> Parsed {
             shadowsocks: get("shadowsocks"),
             via: crate::via::Flags { url: get("via"), auth_file: get("via-auth-file") },
             vless: get("vless"),
+            wstunnel: crate::wstunnel::Flags { url: get("wstunnel"), secret_file: get("wstunnel-secret-file") },
             refused,
         };
     }

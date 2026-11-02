@@ -61,6 +61,7 @@ harness derp derp 3 scripts/interop-derp.sh
 harness ts ts-headscale 11 scripts/ts-headscale.sh
 harness via via 11 scripts/interop-via.sh
 harness vless vless 14 scripts/interop-vless.sh
+harness wstunnel wstunnel 12 scripts/interop-wstunnel.sh
 
 # scripts/interop.sh
 ssh.exit.dropbear.0 pass
@@ -802,3 +803,16 @@ vless.nginx.packet-up pass
 vless.hop pass
 vless.doctor env-allowed a route from the servers' containers to github.com:22 (T-440)
 vless.secret pass
+# scripts/interop-wstunnel.sh
+wstunnel.version pass
+wstunnel.banner pass
+wstunnel.session pass
+wstunnel.bulk pass
+wstunnel.mask pass
+wstunnel.tls.banner pass
+wstunnel.tls.session pass
+wstunnel.wrong pass
+wstunnel.none pass
+wstunnel.server-log pass
+wstunnel.hop pass
+wstunnel.secret pass

@@ -263,6 +263,10 @@ pub async fn reach_skipping(resolved: &Resolved, skip: usize, log: &Arc<Log>) ->
         Transport::Vless { servers, trust } => {
             crate::vless::reach::reach(servers, trust, &first.host, first.port, log).await
         }
+        // A wstunnel server that the user runs (T-441).
+        Transport::Wstunnel { road } => {
+            crate::wstunnel::reach::reach(road, &first.host, first.port, resolved.connection_attempts, log).await
+        }
         Transport::Direct => {
             if podssh_relay::open::offline() {
                 return Err(NotReached {

@@ -1310,8 +1310,10 @@ which built and ran nothing; merged and measured by the main session the same da
 - `cargo test -p podssh-ws --test vless`: 6 passed, three runs in a row (each transport and mode,
   a wrong ID, a refused upgrade with a wrong path and HTTP/1.1, a pipe's silence, the host's
   proxy). `cargo test -p podssh-ws --lib vless`: 11 passed; `--test via`: 5 passed.
-  `cargo test -p podssh-cli --lib`: 555 passed; `--test flag_table`, `man_flag_parity`,
-  `man_page`, `man_json`, `leading_dash`, `doctor` and `proxy`: 13, 9, 3, 6, 4, 10 and 9 passed.
+  `cargo test -p podssh-cli --lib`: 555 passed; `--test doctor`, `flag_table`, `leading_dash`,
+  `man_flag_parity`, `man_json`, `man_page` and `proxy`: 13 (2 ignored), 9, 3, 6, 4, 10 and 9
+  passed (cargo runs them by name, and the commit of the merge gave these counts in the order of
+  its command line, which was not theirs).
   Clippy (`-D warnings`, all targets) of both packages: clean; `cargo fmt -p` of both.
 - Planted (`sh scripts/plant-each.sh --here t440-vless-refusal-unsaid`): caught, exit 101, "the
   wrong ID was taken over Ws: no refusal said".
@@ -1334,7 +1336,7 @@ protocols).
 **Milestone:** M10
 **Priority:** P3
 **Effort:** M
-**Status:** open
+**Status:** partial
 
 ## Problem
 
@@ -1352,6 +1354,70 @@ the destination from its client; podssh cannot use it.
    test; `--wstunnel URL` with its secret in a file of mode 0600.
 2. A server of another major version is refused with the version's words.
 
+## Decision
+
+The drafting agent's calls (2026-11-02), from wstunnel's source at v11.1.0 (2026-10-19), and at
+v10.0.1 and v9.7.4 (read through the services of web.pkgforge.dev):
+
+- **A road in place of the relay, as `--via` is** (`crates/podssh-cli/src/wstunnel/`), for
+  `ssh`, each command of its road and `proxy`; beside `--relay-host`, `--relay-failover`,
+  `--forwarder`, `--shadowsocks`, `--via`, `--direct`, `-4`, `-6` or a road of its own it is
+  refused (64). Its resolution runs before `--via`'s, so that its flag wins over `PODSSH_VIA`, as
+  each road's flag wins over another's variable. Lost: a scheme of `--via`'s URL, which would mix
+  a forward proxy and a tunnel server under one flag.
+- **One token for 9.1 to 11.** wstunnel's client signs its JWT with a key of each process since
+  10.1 (its commit 1522882, 2024-08-26), and its server checks no signature since then; 9.1 to
+  10.0 sign and check with the key `champignonfrais` of their public source. podssh signs with
+  that key (`crates/podssh-ws/src/wstunnel/token.rs`), so that each server from 9.1 reads the
+  token. It is a constant that each of those clients sends, no credential. Lost: a random key, as
+  v11's client, which a server of 10.0 refuses with the same 400 as a wrong secret.
+- **The secret file** (`--wstunnel-secret-file`, `PODSSH_WSTUNNEL_SECRET_FILE`), read as
+  `--via-auth-file` is: `path-prefix PREFIX` (the server's `--restrict-http-upgrade-path-prefix`,
+  or a restrictions file's `!PathPrefix`, which wstunnel's own help calls the secret),
+  `credentials USER[:PASSWORD]` (Basic of the trimmed text, as `--http-upgrade-credentials`
+  encodes it) or `authorization VALUE` (a restrictions file's `!Authorization`, as a header file
+  of wstunnel's client gives it); or one line, the prefix alone. A prefix holds only the
+  characters that a path segment holds as they are, as the server compares the raw segment. The
+  URL takes no path: the prefix is the secret. With no file, wstunnel's defaults (`v1`). A secret
+  over `ws://` goes to the loopback alone. Lost: the prefix in the URL (argv, `ps`); a header file
+  of any headers, which no restriction of wstunnel's reads but `Authorization`.
+- **The WebSocket alone.** Each server serves its WebSocket and its HTTP/2 on one port, and
+  detects which; `https://` and `wts://` are refused with the scheme that the same server takes.
+  Lost for now: the HTTP/2 transport (a POST with a streamed body, the JWT in `Cookie`), which
+  passes only where a proxy re-terminates TLS and refuses the upgrade, as `--via`'s HTTP/2 and
+  Piping Server (T-437) already do; and WebTransport, which needs UDP.
+- **A key of zero for each frame's mask.** wstunnel's server calls fastwebsockets 0.10's
+  `set_auto_apply_mask(websocket_mask_frame)`, false by default, which covers reads
+  (`denoland/fastwebsockets:src/lib.rs`, `read_frame_inner`): a masked payload goes to the target
+  as it came. A key of zero reads the same whether the server applies masks or not, and keeps the
+  mask bit that RFC 6455 asks of a client
+  (`crates/podssh-ws/src/session.rs`, `with_zero_mask`); the bytes are SSH's, or TLS's under
+  `wss://`, which no intermediary reads. Lost: frames with no mask, as wstunnel's client sends by
+  default, which an intermediary that checks the bit refuses; a fresh key, which corrupts each
+  byte at a server of the defaults.
+- **The session is the forwarders' carry** (`crates/podssh-ws/src/forwarder/carry.rs`), with
+  the peer's name in its words, as a wstunnel server sends binary frames and Pings, and dials the
+  target before its 101. Lost: a copy of its two tasks.
+- **The version's words.** Each refusal is a 400 whose body names no cause: "Invalid request"
+  from 10 (`bad_request`), "Invalid upgrade request" before. podssh quotes it and says what it
+  can mean in that version, and that the server's log names which; exit 77, as a refusal of the
+  server's (a wrong secret is the common one, and a retry repeats it). A 101 without the
+  subprotocol `v1` is no wstunnel server that podssh speaks to (69), and the tries stop.
+- **No `doctor` line and no `pipe` `tcp:`** in this entry: neither is in its Approach, and both
+  would touch files that other drafts of M10 touch now. A user's `ProxyCommand` reaches the same
+  road through `podssh proxy --wstunnel`.
+- **The manual's note of `ssh`** goes in `crates/podssh-cli/src/man/notes_roads.rs`, joined
+  after `notes_ssh.rs`'s at build time, as that file holds 499 lines; the rows of the flags beside
+  `--via`'s (`crates/podssh-cli/src/flags/via.rs`), as `flags.rs` holds 499.
+- **The test against wstunnel's own server is a harness of its own**
+  (`scripts/interop-wstunnel.sh`, `.github/workflows/wstunnel-interop.yml`): the static binary
+  of v11.1.0's release, checked by the SHA-256 of its `checksums.txt`, on the box's Alpine; three
+  servers (the defaults on `ws://`, `--websocket-mask-frame`, and TLS with a restrictions file
+  that holds the prefix and the Basic, so that no secret goes in argv); OpenSSH's sshd as the
+  target in place of a fixture of GitHub's banner, as T-439's run does; and a plain squid as the
+  host's proxy. The crate's test runs stand-ins that read a client as v11.1.0's and 10.0.1's
+  servers do (`crates/podssh-ws/tests/wstunnel.rs`).
+
 ## Prove
 
 ```sh
@@ -1361,6 +1427,61 @@ cargo test -p podssh-ws --test wstunnel
 
 Against wstunnel's own server binary of the pinned version in a container: GitHub's banner from
 a fixture. Planted: the wrong secret, and the refusal is said.
+
+## Correction
+
+2026-11-02 (the drafting agent), read in wstunnel's source: the request of a client is the same
+from 9.1 to 11 but for the JWT's signature. 10.0.1 (2024-08-16) is the release that wstunnel calls
+breaking, for its reverse tunnels; 10.1 (2024-08-26) stopped checking the token's signature; 9.1
+gave the protocol `Tcp` its field `proxy_protocol`, which a server of 9.0 or before cannot read;
+v11.0.0 (2026-09-19) changed no wire ("not a breaking change release"). So Approach 2 reads: a
+server before 9.1 refuses the token in the words of 9 and before ("Invalid upgrade request"),
+which podssh names, and a server that is no wstunnel of 7 or later answers without the
+subprotocol `v1`, which podssh refuses with words of its own (69).
+
+## Done
+
+2026-11-02: drafted by an agent in a worktree of its own (branch `worktree-agent-t441-wstunnel`),
+which built and ran nothing; merged onto T-440 and measured by the main session the same day.
+
+- podssh-ws, `crates/podssh-ws/src/wstunnel/`: the server's URL, the secret file and its check,
+  the error and its lines, and `open` (`mod.rs`); the JWT, its claims and the UUID (`token.rs`);
+  the request and the answer in the words of its version (`upgrade.rs`); unit tests with vectors
+  of Python's hmac (`tests.rs`). `RelaySession::with_zero_mask` (`session.rs`, `wire.rs`); the
+  forwarders' carry names its peer (`forwarder/carry.rs`). podssh-cli,
+  `crates/podssh-cli/src/wstunnel/`: the road of `ssh` and `proxy`, `--wstunnel`,
+  `--wstunnel-secret-file`, `PODSSH_WSTUNNEL`, `PODSSH_WSTUNNEL_SECRET_FILE`; the manual (the
+  rows, a note of `ssh` and of `proxy`, the variables, the file), `docs/cli.md`,
+  `docs/architecture.md` and `docs/STATUS.md`.
+- The merge met T-440, drafted beside it with no sight of it: each list of roads took both
+  (the flags' tables, the transports, `proxy`'s order and the manual), the forwarders' carry kept
+  T-438's tasks with T-441's peer, and `--vless` and `--wstunnel` now refuse each other (64), on
+  `ssh` and on `proxy`, before a file is read; `PODSSH_WSTUNNEL` gives way to `--vless`. The
+  server roads' chain moved to `crates/podssh-cli/src/ssh/servers.rs` and the note of `proxy
+  --wstunnel` to `man/notes_roads.rs`, so that `ssh/resolve.rs` and `man/notes.rs` stay at 500
+  lines. A row of FILES lacked its close; four `.err().expect()` became `expect_err` (clippy).
+- `cargo test -p podssh-ws --test wstunnel`: 4 passed (the banner and 200 KiB back through a
+  server of 11, of 10.0 that checks the signature, and one that applies masks, each frame with a
+  key of zero; the prefix and the Basic sent, and a wrong secret, none, and the default each
+  refused in the words of 10; the words of 9, and a 101 with no `v1`; `wss://` checked for the
+  server's name). `--lib`: 158 passed; `--test forwarder`, `rfc6455` and `session`: 5, 27 and 16.
+- `cargo test -p podssh-cli --lib`: 561 passed; `--test doctor`, `flag_table`, `leading_dash`,
+  `man_flag_parity`, `man_json`, `man_page` and `proxy`: 13 (2 ignored), 9, 3, 6, 4, 10 and 9;
+  `--test one_road` (new: `--vless` beside `--wstunnel` on `ssh` and on `proxy`, either order, is
+  64 with no file read; `PODSSH_WSTUNNEL` gives way to `--vless`): 2 passed. Clippy (`-D
+  warnings`, all targets) of both packages: clean; `cargo fmt -p` of both. `cargo todo interop`:
+  676 ids of 50 harnesses meet the baseline.
+- Planted, `sh scripts/plant-each.sh --here t441-wstunnel-wrong-secret` (the prefix of the secret
+  left out of the request): caught, the 400 in the words of wstunnel 10 and later. Planted,
+  `t441-vless-beside-wstunnel` (`--vless` forgets `--wstunnel`): caught, `one_road` failed.
+- The pin of `scripts/interop-wstunnel.sh`: wstunnel 11.1.0's
+  `wstunnel_11.1.0_linux_amd64.tar.gz`, fetched on 2026-11-02, has the SHA-256 that the script
+  pins and that the release's `checksums.txt` lists.
+- The whole suites: `cargo test --no-fail-fast -p podssh-cli`, 1298 passed, none failed (51
+  ignored); `-p podssh-ws`, 435 passed, none failed (11 ignored).
+- `scripts/interop-wstunnel.sh` in `.github/workflows/wstunnel-interop.yml`, against wstunnel
+  11.1.0's own server (12 checks): runs on the push of the merge, as GitHub starts a new workflow
+  by hand only from the default branch; this entry stays `partial` until it passes.
 
 # T-442: More public services and standard protocols that fit
 

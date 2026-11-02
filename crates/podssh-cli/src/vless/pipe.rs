@@ -33,6 +33,7 @@ pub fn beside(args: &ProxyArgs) -> Result<(), Refusal> {
         ("--via", args.via.url.is_some()),
         ("--relay-host", args.relay_host.is_some()),
         ("--relay-failover", args.relay_failover.is_some()),
+        ("--wstunnel", args.wstunnel.url.is_some()),
     ];
     let other = match own {
         true => Some("a cf://, iap://, eice://, warp:// or tor:// target, which is a road of its own"),

@@ -122,6 +122,7 @@ pub fn check(args: &SshArgs, resolved: &Resolved) -> Result<(), Refusal> {
         Transport::Derp { .. } => "a derp: destination",
         Transport::Via { .. } => "--via",
         Transport::Vless { .. } => "--vless",
+        Transport::Wstunnel { .. } => "--wstunnel",
     };
     Err(Refusal::usage(format!("--shadowsocks cannot go with {other}, which is a road of its own; a run has one road")))
 }

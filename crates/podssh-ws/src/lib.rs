@@ -13,7 +13,8 @@
 //! HTTP/1.1 or HTTP/2 (`via`, T-439). A server of the Wisp protocol carries
 //! many TCP streams over one WebSocket (`wisp`, T-438), as a forwarder of
 //! `wisp+wss://` too. A VLESS server of the user's carries a target that
-//! VLESS's header names, over a WebSocket or XHTTP (`vless`, T-440).
+//! VLESS's header names, over a WebSocket or XHTTP (`vless`, T-440), and a
+//! wstunnel server one that its token names (`wstunnel`, T-441).
 //!
 //! Why a crypto provider of its own: rustls 0.23 ships none in pure Rust, and
 //! `ring` and `aws-lc-sys` both need a C compiler, which podssh's default build
@@ -77,6 +78,8 @@ mod wire;
 // Many TCP streams over one WebSocket, by the Wisp protocol (T-438).
 pub mod wisp;
 pub mod write_limit;
+// wstunnel's protocol, to a server that the user runs (T-441).
+pub mod wstunnel;
 
 pub use client::{
     connect, doctor, https_get, https_post_json, ConnectError, Endpoint, WsClientConfig, DEFAULT_IDLE_TIMEOUT,

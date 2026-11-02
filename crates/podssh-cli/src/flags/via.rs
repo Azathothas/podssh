@@ -1,7 +1,10 @@
 //! The rows of `--via` and `--via-auth-file` (T-439): a forward proxy over
 //! TLS that the user runs, in place of the relay, for `ssh` and each command
 //! that reaches its server as `ssh` does, for `proxy` and `pipe`, and for
-//! `doctor`, which checks it.
+//! `doctor`, which checks it. And those of `--wstunnel` and
+//! `--wstunnel-secret-file` (T-441), a wstunnel server that the user runs,
+//! for `ssh`, the commands of its road and `proxy`: both are roads of Q66 to
+//! a server of the user's own.
 
 use super::{row, FlagKind, FlagRow};
 
@@ -20,3 +23,15 @@ pub const VIA_AUTH_FILE: FlagRow = row(None, "via-auth-file", Some("FILE"), Flag
 pub const DOCTOR_VIA: FlagRow = row(None, "via", Some("https://[USER@]HOST[:PORT]"), FlagKind::Supported,
     "also check this forward proxy over TLS: TLS to it, the version of HTTP that it chose, then one of \
      GitHub's published host keys on github.com port 22 through its CONNECT (default: env PODSSH_VIA)", None);
+
+/// `ssh`, `cp`, `each`, `proxy` and the others of `ssh`'s road.
+pub const WSTUNNEL: FlagRow = row(None, "wstunnel", Some("wss://HOST[:PORT]"), FlagKind::Supported,
+    "reach the first hop through a wstunnel server that you run (wstunnel server wss://[::]:443), in place of \
+     the relay: the WebSocket to it, through HTTPS_PROXY when one is set, its token naming the target; ws:// \
+     has no TLS; also env PODSSH_WSTUNNEL", None);
+
+/// The same commands.
+pub const WSTUNNEL_SECRET_FILE: FlagRow = row(None, "wstunnel-secret-file", Some("FILE"), FlagKind::Supported,
+    "what the server of --wstunnel checks, in FILE, a private file: path-prefix PREFIX, credentials \
+     USER[:PASSWORD] or authorization VALUE, or the prefix alone; never in the URL; also env \
+     PODSSH_WSTUNNEL_SECRET_FILE", None);

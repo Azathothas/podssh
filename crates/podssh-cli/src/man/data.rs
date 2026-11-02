@@ -310,6 +310,17 @@ pub fn files() -> Vec<(Vec<String>, String)> {
              others cannot read (on Windows, as its access list says), as a pair file; else, and for a line that \
              cannot be read, the run is refused (78), by the line's number, never its text. podssh never writes \
              it."
+            .to_string(),
+        ),
+        (
+            vec!["the file of --wstunnel-secret-file".to_string()],
+            "What the wstunnel server of --wstunnel checks of a client: path-prefix PREFIX, the prefix that it \
+             restricts its clients to, as letters, digits and -._~!$&'()*+,;=:@; credentials USER[:PASSWORD], \
+             sent as Basic, or authorization VALUE, sent as it is, the Authorization that its restrictions match; \
+             each once, and one of the last two; or one line, the prefix alone. # starts a comment. podssh reads \
+             it only as a regular file of yours that others cannot read (on Windows, as its access list says), as \
+             a pair file; else, and for a line that cannot be read, the run is refused (78), by the line's number \
+             and never its text. podssh never writes it."
                 .to_string(),
         ),
         (

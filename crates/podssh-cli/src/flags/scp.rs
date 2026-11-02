@@ -63,7 +63,7 @@ pub const SCP_FLAGS: &[FlagRow] = &[
     super::forwarder::FORWARDER,
     super::shadowsocks::SHADOWSOCKS,
     super::vless::VLESS,
-    super::via::VIA, super::via::VIA_AUTH_FILE,
+    super::via::VIA, super::via::VIA_AUTH_FILE, super::via::WSTUNNEL, super::via::WSTUNNEL_SECRET_FILE,
     // A node of a pair (T-296), with the flags of `ssh node://`.
     row(None, "pair-file", Some("FILE"), FlagKind::Supported,
         "node://NAME: the pair in FILE, or its operator's part, not the one stored under NAME", None),
@@ -134,7 +134,7 @@ pub const SFTP_FLAGS: &[FlagRow] = &[
     super::forwarder::FORWARDER,
     super::shadowsocks::SHADOWSOCKS,
     super::vless::VLESS,
-    super::via::VIA, super::via::VIA_AUTH_FILE,
+    super::via::VIA, super::via::VIA_AUTH_FILE, super::via::WSTUNNEL, super::via::WSTUNNEL_SECRET_FILE,
     // A node of a pair (T-296), with the flags of `ssh node://`.
     row(None, "pair-file", Some("FILE"), FlagKind::Supported,
         "node://NAME: the pair in FILE, or its operator's part, not the one stored under NAME", None),

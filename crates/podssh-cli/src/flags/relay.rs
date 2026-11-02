@@ -56,7 +56,7 @@ pub const PROXY_FLAGS: &[FlagRow] = &[
     super::forwarder::PROXY_FORWARDER,
     super::shadowsocks::PROXY_SHADOWSOCKS,
     super::vless::PROXY_VLESS,
-    super::via::VIA, super::via::VIA_AUTH_FILE,
+    super::via::VIA, super::via::VIA_AUTH_FILE, super::via::WSTUNNEL, super::via::WSTUNNEL_SECRET_FILE,
 ];
 
 /// `doctor` checks the relay path `ssh` and `proxy` would take, so it takes

@@ -62,15 +62,15 @@ repository and CI).
 
 ## Counts
 
-**452 entries: 47 open, 2 partial, 17 blocked, 386 done.**
+**452 entries: 46 open, 3 partial, 17 blocked, 386 done.**
 
 | Priority | open | partial | blocked | done | total |
 | --- | --- | --- | --- | --- | --- |
 | P0 | 0 | 0 | 0 | 1 | 1 |
 | P1 | 2 | 1 | 0 | 50 | 53 |
 | P2 | 20 | 1 | 14 | 184 | 219 |
-| P3 | 25 | 0 | 3 | 151 | 179 |
-| **All** | 47 | 2 | 17 | 386 | 452 |
+| P3 | 24 | 1 | 3 | 151 | 179 |
+| **All** | 46 | 3 | 17 | 386 | 452 |
 
 ## Entries
 
@@ -512,7 +512,7 @@ repository and CI).
 | [T-438](mesh.md) | P3 | M | M10 | feature | done | Wisp: the demo server as a forwarder, and the Wisp protocol |
 | [T-439](mesh.md) | P2 | M | M10 | feature | done | HTTP CONNECT to a second proxy over TLS, HTTP/1.1 and HTTP/2 |
 | [T-440](mesh.md) | P2 | L | M10 | feature | partial | VLESS over a WebSocket and over XHTTP |
-| [T-441](mesh.md) | P3 | M | M10 | feature | open | wstunnel's protocol |
+| [T-441](mesh.md) | P3 | M | M10 | feature | partial | wstunnel's protocol |
 | [T-442](mesh.md) | P3 | M | M10 | research | open | More public services and standard protocols that fit |
 | [T-443](mesh.md) | P2 | S | M10 | defect | done | The resumable layer's window on the pair's road is above the relay's bound |
 | [T-444](mesh.md) | P3 | S | M10 | feature | done | One TLS configuration for each trust in a process, so that TLS resumes |

@@ -173,6 +173,7 @@ pub fn check(args: &SshArgs, resolved: &Resolved) -> Result<(), Refusal> {
         Transport::Cloud { .. } => "an iap://, eice://, warp:// or tor:// destination or first hop",
         Transport::Derp { .. } => "a derp: destination",
         Transport::Vless { .. } => "--vless",
+        Transport::Wstunnel { .. } => "--wstunnel",
     };
     if args.via.is_some() {
         let why = format!("--via cannot go with {other}, which is a road of its own; a run has one road");

@@ -59,6 +59,7 @@ actions.hop|both|T-371|GitHub Actions|0|hop-live.yml at the commit: a -J hop on 
 actions.doh|both|T-344|GitHub Actions|0|doh-live.yml at the commit: DNS over HTTPS by address and by name
 actions.service|both|T-121|GitHub Actions|0|service-live.yml at the commit: a node as a unit of systemd
 actions.via|both|T-439|GitHub Actions|0|via-interop.yml at the commit: --via through Caddy's forwardproxy and squid over TLS
+actions.wstunnel|both|T-441|GitHub Actions|0|wstunnel-interop.yml at the commit: --wstunnel through wstunnel 11.1.0's own server, ws:// and wss://
 actions.deny|both|T-341|GitHub Actions|0|deny.yml at the commit: advisories, licenses, sources
 EOF
 }
@@ -91,6 +92,7 @@ actions.hop|hop|hop-live.yml|live:1|commit|gh workflow run hop-live.yml --ref RE
 actions.doh|doh|doh-live.yml|live:1|commit|gh workflow run doh-live.yml --ref REF
 actions.service|service|service-live.yml|unit:1|commit|gh workflow run service-live.yml --ref REF
 actions.via|via|via-interop.yml|interop:1|commit|gh workflow run via-interop.yml --ref REF
+actions.wstunnel|wstunnel|wstunnel-interop.yml|interop:1|commit|gh workflow run wstunnel-interop.yml --ref REF
 actions.deny|deny|deny.yml|deny:1|commit|the push of the commit starts it: gh run list -w deny.yml -c COMMIT
 EOF
 }

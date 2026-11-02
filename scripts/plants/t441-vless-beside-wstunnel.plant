@@ -1,0 +1,7 @@
+# T-441 with T-440: --vless forgets --wstunnel among the other roads, so a
+# run with both reads the VLESS file and never says that it names two
+# roads: the test of one road must fail.
+ENTRY=T-441
+GROUP=cli-tests
+EXPECT='vless_and_wstunnel_name_two_roads_on_ssh_and_on_proxy'
+RUN='cargo test --locked -p podssh-cli --test one_road -- vless_and_wstunnel_name_two_roads_on_ssh_and_on_proxy'

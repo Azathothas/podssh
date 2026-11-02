@@ -44,6 +44,8 @@ pub mod result;
 // The race of a node's roads: iroh, the pair's, DERP (T-164, T-379).
 pub(crate) mod road_link;
 pub(crate) mod roads;
+// The roads of servers that take the relay's place (T-369 to T-441).
+mod servers;
 pub mod tokens;
 pub mod transport;
 mod upgrade;
@@ -264,6 +266,7 @@ fn road(transport: &Transport) -> &'static str {
         Transport::Shadowsocks { .. } => "shadowsocks",
         Transport::Via { .. } => "via",
         Transport::Vless { .. } => "vless",
+        Transport::Wstunnel { .. } => "wstunnel",
     }
 }
 

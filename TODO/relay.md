@@ -161,7 +161,7 @@ token header (`crates/podssh-ws/src/client.rs:279-290`); `https_request` takes h
 
 Recommendation: remove the `--timeout` and `--jsonl` rows of `relay`
 (`crates/podssh-cli/src/flags/relay.rs:9-38`), and bound each request in the code, as `doctor`
-does. With the row, the gate of `crates/podssh-cli/src/dispatch.rs:291-309` stops
+does. With the row, the gate of `crates/podssh-cli/src/dispatch.rs:293-311` stops
 `podssh relay status` in each script that leaves `--timeout` out. Keeping the gate lost for that
 reason: the command is bounded anyway.
 
@@ -515,7 +515,7 @@ relay sends no keepalives on reverse sockets, and a quiet socket becomes dormant
 1. A live test, ignored by default, in a new file crates/podssh-relay/tests/live_reverse.rs:
    `POST /v1/pair`; a node socket to `/v1/node/NAME`; an operator socket to `/v1/connect/NAME`;
    the node answers `open` with `ready`. Send `ready` with `RelaySession::send_text`
-   (`crates/podssh-ws/src/session.rs:189-193`), which sends a real text frame; since T-071,
+   (`crates/podssh-ws/src/session.rs:203-207`), which sends a real text frame; since T-071,
    `Leg::send_control` over `WsSocket` sends one too.
 2. Three runs of 240 s: (a) no payload and no pings; (b) WebSocket pings every 20 s from both
    ends; (c) one byte of payload every 60 s. For each socket, record the time, the code and the
@@ -791,7 +791,7 @@ listener" (lines 86-88 at `22c3b88`), and the ruling on Q10 allows more than one
    name the host that was kept. tokio's `select!` and `JoinSet` need no new crate and no C.
 7. Add the flag to `SSH_FLAGS`, `PROXY_FLAGS` and `DOCTOR_FLAGS`
    (`crates/podssh-cli/src/flags.rs:112-286`, 323-343) and to `ONCE`
-   (`crates/podssh-cli/src/ssh/args.rs:161-193`); the variable to VARIABLES and the modes to THE
+   (`crates/podssh-cli/src/ssh/args.rs:165-199`); the variable to VARIABLES and the modes to THE
    RELAY (`crates/podssh-cli/src/man/facts.rs:45-290`, 170-183); both to `docs/relay.md:75-118`.
 8. T-059 orders the hosts across runs; this entry shortens the wait in one run. GitHub #25 asks
    for a circuit breaker: retry policy, not overlap.
@@ -917,7 +917,7 @@ the module comment repeats it (`crates/podssh-relay/src/cache.rs`, lines 4-8 at 
 6. Change in the same commit: VARIABLES and FILES (`crates/podssh-cli/src/man/facts.rs:202-216`,
    `crates/podssh-cli/src/man/data.rs:157-164`), the test of lines 365-377 at `22c3b88`, the comment
    of `cache.rs`, and the `doctor`
-   notes (`crates/podssh-cli/src/man/notes.rs:205-274`).
+   notes (`crates/podssh-cli/src/man/notes.rs:207-276`).
 
 ## Decision
 
@@ -1138,7 +1138,7 @@ with no reason. Each drop read as the end of the TCP stream with no Close frame
 had drops, so the traffic does not cause them.
 
 Read: on the forward path, keepalives every 60 s kept one session for 602 s
-(`docs/STATUS.md:234`). That is one run, before 2026-10-09.
+(`docs/STATUS.md:235`). That is one run, before 2026-10-09.
 
 ## Approach
 
@@ -1752,7 +1752,7 @@ in; the code compiles it in, and the live check never reads `/relays.json`.
   `PODSSH_SESSION_BUDGET` lowers the byte budget and never raises it (`:39-73`).
 - Read: the frame decoder refuses a received frame over 262144 bytes
   (`crates/podssh-ws/src/frame.rs:30`, `:221-231`), and the session then ends with a Close 1002
-  (`crates/podssh-ws/src/session.rs:298`); a message is at most 16 MiB (`:32`).
+  (`crates/podssh-ws/src/session.rs:312`); a message is at most 16 MiB (`:32`).
 - Read: `crates/podssh-probe/facts/relay-facts.toml` line 14 at `deacafd` said "Read from /relays.json at startup,
   never compiled in" of that cap. `crates/podssh-ws/src/frame.rs:30` compiles it in, and
   `podssh-core` takes it from the facts file at compile time
