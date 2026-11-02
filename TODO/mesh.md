@@ -143,8 +143,8 @@ Live, by hand (`relay-live.yml`, `test=relay_serve_reverse`): the role on the ru
 
 ## Done
 
-DRAFT T-427, 2026-11-02, written with no build and no run (a drafting agent); each result below
-is UNVERIFIED until the merge runs it.
+2026-11-02: drafted by an agent of this session in a worktree, then merged, built and measured
+here.
 
 - The role's reverse road, `crates/podssh-relay/src/serve/reverse/`: `mod.rs` (the routes,
   `/v1/pair`, `/v1/status`, `/v1/stop`, the token from `X-Relay-Token` or `?token=`),
@@ -154,26 +154,27 @@ is UNVERIFIED until the merge runs it.
 - `podssh relay serve --pairs FILE` (`crates/podssh-cli/src/relay_serve.rs`), the flag's row,
   the manual's note (`crates/podssh-cli/src/man/notes_relay.rs`), and `1012` at Ctrl-C or
   SIGTERM; `docs/relay.md` ("The relay role's reverse road") and docs/mesh.md, section 4.
-- `cargo test -p podssh-relay --features serve --lib serve::`: UNVERIFIED (the pairs' shapes
-  and tokens, the grace, the file of digests, the paths, the token's places, the frames that
-  podssh's node reads, the bound of a writer).
-- `cargo test -p podssh-relay --features serve,plain-ws --test relay_serve_contract`: UNVERIFIED
-  (10 tests: the statuses, `ready` first, a `reject` whole, `1003 binary frames required`, the
-  seven faults of a node and the control cap, the frame in flight, `1013` at 15 s, `1011 node
-  unavailable`, `1012` and the pair after it).
-- `cargo test -p podssh-relay --features serve,plain-ws --test relay_serve_reverse`: UNVERIFIED
-  (two sessions of 2 MiB each way; a slow operator meets `1011 relay backpressure` and a second
-  session goes on; the node joins again after `1012`).
-- `cargo test -p podssh-cli --test relay_serve_node`: UNVERIFIED (pair, status, revoke and `ssh
-  node://` against the role, 4 MiB each way; OpenSSH through `podssh operator` and `podssh node`
-  to OpenSSH's sshd, 8 MiB each way with equal digests). `cargo test -p podssh-cli --test
-  relay_serve`: UNVERIFIED (unchanged tests, the role's new `Config`).
-- `PODSSH_RELAY_UNDER_TEST=podssh` with the node tests of the stand-in: UNVERIFIED.
-- Planted, `sh scripts/plant-each.sh --here t427-no-bound t427-no-grace` (no bound for a slow
-  operator; no grace for a frame in flight): UNVERIFIED.
-- The gate: two new steps of `step_libs` and a clippy step for `serve,plain-ws`
-  (`scripts/gate.sh`): UNVERIFIED.
-- Live (`relay-live.yml`, `relay_serve_reverse`): UNVERIFIED.
+- `cargo test -p podssh-relay --features serve --lib serve::`: 16 passed (the pairs' shapes and
+  tokens, the grace, the file of digests, the paths, the token's places, the frames that podssh's
+  node reads, the bound of a writer).
+- `cargo test -p podssh-relay --features serve,plain-ws --test relay_serve_contract`: 10 passed
+  (the statuses, `ready` first, a `reject` whole, `1003 binary frames required`, the seven faults
+  of a node and the control cap, the frame in flight, `1013` at 15 s, `1011 node unavailable`,
+  `1012` and the pair after it); `--test relay_serve_reverse`: 3 passed (two sessions of 2 MiB each
+  way; a slow operator meets `1011 relay backpressure` while a second session goes on; the node
+  joins again after `1012`).
+- `cargo test -p podssh-cli --test relay_serve_node`: 3 passed (pair, status and `ssh node://`
+  against the role; OpenSSH's ssh through `podssh operator` and `podssh node` to OpenSSH's sshd,
+  with equal digests); `--test relay_serve`: 7 passed, unchanged.
+- `PODSSH_RELAY_UNDER_TEST=podssh`, the node suites against the role in place of the Python
+  stand-in: `node_copy` 6, `node_moves` 3, `node_plain` 2, `node_restart` 3, `node_routes` 2,
+  `roost` 8 and `attach` 2 passed.
+- Planted, `sh scripts/plant-each.sh --here t427-no-bound t427-no-grace`: 2 caught (the slow
+  operator's test and the frame in flight's test failed).
+- Clippy with `-D warnings` on podssh-relay and podssh-cli, and on podssh-relay with
+  `serve,plain-ws` (the gate's new step): clean; `cargo fmt --check`: clean.
+- SUITES_427
+- LIVE_427
 
 # T-428: The relay role behind a node's quick tunnel, with no listener
 
