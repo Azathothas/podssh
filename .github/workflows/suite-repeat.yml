@@ -2,13 +2,13 @@ name: suite repeat
 
 # A suite of tests, run after run on one runner, each run's log kept, so
 # that a test that fails at random is named (T-449): podssh-relay's suite
-# with the features of the gate's relay steps, by default. Each run goes on
+# by default. Each run goes on
 # after a failure, so that each failing test is counted; the job fails when
 # any run failed, and the logs are an artifact. A runner of macOS, a test
 # target and a filter of its tests narrow it to a test that failed there
 # once, as pipe's unix-connect did at 1a38dfa. Started by hand only:
-#   gh workflow run suite-repeat.yml -f runs=20
-#   gh workflow run suite-repeat.yml -f runner=macos-15 -f package=podssh-cli -f features= -f test=pipe -f runs=50
+#   gh workflow run suite-repeat.yml -f runs=20 -f features=pair,quick,derp,serve,piping
+#   gh workflow run suite-repeat.yml -f runner=macos-15 -f package=podssh-cli -f test=pipe -f runs=50
 
 on:
   workflow_dispatch:
@@ -29,10 +29,12 @@ on:
         description: "The package whose suite runs"
         required: true
         default: "podssh-relay"
+      # An empty input takes its default, so the default is none: the
+      # relay's suite of the gate takes pair,quick,derp,serve,piping.
       features:
-        description: "Its features, comma-separated"
+        description: "Its features, comma-separated (podssh-relay in the gate: pair,quick,derp,serve,piping)"
         required: false
-        default: "pair,quick,derp,serve,piping"
+        default: ""
       test:
         description: "One test target (--test NAME), or empty for each"
         required: false
