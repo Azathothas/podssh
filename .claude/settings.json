@@ -3,6 +3,8 @@
   "permissions": {
     "allow": [
       "Bash",
+      "Bash(:*)",
+      "Bash(*)",
       "Read",
       "Edit",
       "Write",
