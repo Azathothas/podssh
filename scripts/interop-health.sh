@@ -2,12 +2,17 @@
 # 2203: the facts as one JSON object, whose available memory is within 5 %
 # of MemAvailable read over exec just after and nearer it than MemFree (the
 # planted defect, MemFree in its place, fails it), and one line for each
-# fact. Sourced by scripts/interop-each.sh, the harness of the commands on
-# other hosts, as scripts/interop.sh has no line to spare; uses ok, bad, p,
-# $BIN, $W, $K, $T and $KH.
+# fact. Its effective CPUs and memory (T-480) agree with what
+# scripts/cgroup-effective.py reads of the cgroup that a session of the
+# same server runs in, as cat /proc/self/cgroup names it there: the servers
+# run in the gate's own container, whose view of /sys/fs/cgroup this shell
+# shares; the limits of a container of their own are interop-cgroup.sh's.
+# Sourced by scripts/interop-each.sh, the harness of the commands on other
+# hosts, as scripts/interop.sh has no line to spare; uses ok, bad, p, $BIN,
+# $W, $K, $T and $KH.
 
 echo
-echo "== podssh health (T-189, OpenSSH, then Dropbear)"
+echo "== podssh health (T-189, T-480, OpenSSH, then Dropbear)"
 HW="$W/health"
 mkdir -p "$HW"
 # health_of PORT [podssh health arguments...]: podssh health as p() runs ssh.
@@ -37,9 +42,15 @@ sys.exit(0 if d["exit"] == 0 and not d["memory"]["available_estimated"] and near
         "$HW/facts.json" "$HW/meminfo" 2>>"$HW/err" \
         && ok "health.${srv%%:*}.memory" "port $port: --json, and the available memory is MemAvailable, not MemFree" \
         || bad "health.${srv%%:*}.memory" "port $port: exit $rc; $(head -c 300 "$HW/facts.json")" "$HW/err"
+    # shellcheck disable=SC2086
+    p "$port" $K -o BatchMode=yes "$T" 'cat /proc/self/cgroup' </dev/null >"$HW/self-cgroup" 2>>"$HW/err"
+    [ "$rc" = 0 ] && python3 "$HERE/cgroup-effective.py" "$HW/facts.json" "$HW/self-cgroup" 2>>"$HW/err" \
+        && ok "health.${srv%%:*}.effective" "port $port: the effective CPUs and memory are those of the session's cgroup" \
+        || bad "health.${srv%%:*}.effective" "port $port: exit $rc; $(head -c 300 "$HW/self-cgroup")" "$HW/err"
     health_of "$port" "$T" >"$HW/out" 2>"$HW/err"
     rc=$?
-    [ "$rc" = 0 ] && grep -q '^load .* CPUs$' "$HW/out" && grep -q '^memory .* available of ' "$HW/out" \
+    # A load line names the CPUs, and where a cgroup limits, whose they are.
+    [ "$rc" = 0 ] && grep -q '^load .* CPUs' "$HW/out" && grep -q '^memory .* available of ' "$HW/out" \
         && grep -q '^disk /: ' "$HW/out" && grep -q '^processes [0-9][0-9]*$' "$HW/out" \
         && ok "health.${srv%%:*}.lines" "port $port: one line for each fact, the root's disk among them" \
         || bad "health.${srv%%:*}.lines" "port $port: exit $rc" "$HW/out"

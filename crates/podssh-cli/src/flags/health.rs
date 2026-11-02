@@ -44,5 +44,5 @@ pub const HEALTH_FLAGS: &[FlagRow] = &[
     super::vless::VLESS,
     super::via::VIA, super::via::VIA_AUTH_FILE, super::via::WSTUNNEL, super::via::WSTUNNEL_SECRET_FILE,
     row(None, "json", None, FlagKind::Supported,
-        "the facts as one JSON object on stdout, also after a failure", None),
+        "the facts as one JSON object on stdout, also after a failure; effective holds the CPUs and the memory to plan from, a container's cgroup's where it limits them", None),
 ];

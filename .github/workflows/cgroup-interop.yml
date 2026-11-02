@@ -1,0 +1,39 @@
+name: cgroup interop
+
+# `podssh health` in containers that a cgroup limits (T-480, GitHub #88):
+# OpenSSH's sshd in images/box's Alpine, in containers of the runner's Docker
+# run with --cpus 1.5 --memory 1g, with a cpuset of one CPU, with no limit,
+# and in the host's cgroup namespace: scripts/interop-cgroup.sh. Started by
+# hand, and on a push that changes `health`; it publishes nothing.
+
+on:
+  workflow_dispatch:
+  push:
+    branches: [main]
+    paths:
+      - "crates/podssh-cli/src/health/**"
+      - "scripts/interop-cgroup.sh"
+      - ".github/workflows/cgroup-interop.yml"
+
+permissions:
+  contents: read
+
+jobs:
+  interop:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 30
+    env:
+      CARGO_BUILD_JOBS: "4"
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+      - name: the build
+        run: cargo build --locked -p podssh-cli
+      - name: the containers of the limits
+        run: |
+          set -u
+          # Each exit code is read directly; the shell's -e would stop at it.
+          rc=0
+          PODSSH_ENGINE=docker timeout 1500 sh scripts/interop-cgroup.sh "$GITHUB_WORKSPACE/target/debug/podssh" \
+            > cgroup.log 2>&1 || rc=$?
+          cat cgroup.log
+          [ "$rc" = 0 ] || { echo "interop-cgroup exited $rc"; exit 1; }

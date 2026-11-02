@@ -1,0 +1,8 @@
+# T-480: the effective CPUs from /proc/stat alone, as before the entry: a
+# container's quota and cpuset are left out, so its 4 CPUs read as the
+# host's 16; the reader's test of the answer of cgroup v2 must fail.
+ENTRY=T-480
+GROUP=cli-tests
+EXPECT='test health::cgroup::tests::a_container_on_cgroup_v2_gives_its_own_cpus_and_memory \.\.\. FAILED'
+RUN='cargo test --locked -p podssh-cli --lib -- health::cgroup::tests::a_container_on_cgroup_v2_gives_its_own_cpus_and_memory'
+LIMIT=2400

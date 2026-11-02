@@ -60,10 +60,21 @@ pub(super) struct Far {
     pub(super) podssh: Option<Arc<super::podssh::Podssh>>,
     /// The user `containers-...`: a host with docker and kubectl (T-190).
     pub(super) containers: Option<String>,
+    /// The user `health-...`: the answer of a container's cgroup (T-480).
+    pub(super) health: Option<&'static str>,
     /// The channels of `prompt`, each with the keys of its line (T-191).
     pub(super) prompts: HashMap<ChannelId, Vec<u8>>,
     /// The commands of `wait-signal` (T-293).
     pub(super) waits: HashMap<ChannelId, super::interrupt::Wait>,
     /// A server of `start_shell`: each command runs in sh (T-193).
     pub(super) shell: Option<super::shell::Shell>,
+}
+
+impl Far {
+    /// What the user's name says of the host for the far commands that
+    /// answer by it: here, so that the handler (`mod.rs`) keeps one line.
+    pub(super) fn named(&mut self, user: &str) {
+        self.containers = user.starts_with("containers-").then(|| user.to_string());
+        self.health = super::health::of_user(user);
+    }
 }

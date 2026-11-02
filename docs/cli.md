@@ -2160,7 +2160,8 @@ GitHub #23): the time of each step, the round trip, and the throughput.
 `podssh health [OPTIONS] [user@]host` gives the facts of the far host
 (T-189): its load and CPUs, the busy share of the CPUs, its memory and
 swap, its uptime, the bytes of each network interface, the use of its
-disks, and its processes. It only reads: it never stops or changes a
+disks, and its processes; in a container, the CPUs and the memory that its
+cgroup leaves it (T-480). It only reads: it never stops or changes a
 process.
 
 - The host is resolved, reached and logged in to as `podssh ssh` does it
@@ -2181,12 +2182,58 @@ process.
   mount, a file system) has the controls of a terminal taken out.
 - A host with no `/proc` gives the name that `uname -s` prints (when it has
   `uname`) and "no facts for this system", with exit 0.
+- The kernel gives `/proc/stat`, `/proc/meminfo` and `/proc/loadavg` for
+  the whole host, also inside a container (proc(5)), so a container of 4
+  CPUs and 4 GiB on a host of 48 CPUs read 48 there (GitHub #88). The
+  script also reads the cgroup of its own shell: `/proc/self/cgroup`, then
+  that cgroup's files under `/sys/fs/cgroup`, at the mount's root where a
+  cgroup namespace shows the container's own cgroup as `/`, and each
+  parent's limits up to that root. Of cgroup v2: `memory.max`,
+  `memory.current`, `memory.swap.max`, the `inactive_file` of
+  `memory.stat`, `cpu.max`, `cpuset.cpus.effective`, `cpu.stat` before and
+  after the second, `io.max`, `pids.max`, `pids.current`, `cpu.pressure`
+  and `memory.pressure`; of v1: `memory.limit_in_bytes`,
+  `memory.usage_in_bytes`, `total_inactive_file` and
+  `hierarchical_memory_limit` of `memory.stat`, `cpu.cfs_quota_us` and
+  `cpu.cfs_period_us`, `cpuset.effective_cpus`, `pids.max` and
+  `cpuacct.usage` before and after (the kernel's `cgroup-v2.rst`,
+  `cgroup-v1/memory.rst`, `cgroup-v1/cpusets.rst`, `sched-bwc.rst` and
+  `psi.rst`).
+- The effective facts: the CPUs are the least of the quota over its period
+  (`max` and -1 are none), the CPUs of the effective cpuset, and the
+  host's; the memory is the least limit below the host's memory, and the
+  available memory the limit less the working set (the use less the
+  inactive file cache, which the kernel takes back before its killer runs,
+  as `docker stats` counts it), at each level that limits, never more
+  than the host's `MemAvailable`. A limit at or above the host's memory
+  limits nothing: cgroup v1 writes its "none" as a huge number, and LXCFS
+  gives a container its own `/proc/meminfo`, so nothing is counted twice.
+  A host that hides `/sys/fs/cgroup` gives the host's facts, with the
+  source `host`: a fact that the answer lacks is absent, never a guess.
+- Where a cgroup limits the CPUs or the memory, the lines say so beside the
+  host's: `cpus 4 (cgroup v2 cpu.max), 48 on the host`; `memory 3.1 GiB
+  available of 4.0 GiB (78 %, cgroup v2 memory.max); the host: ...`; the
+  load line ends with "the whole host's"; the line of the CPUs adds the
+  cgroup's share of its CPUs over the second and the periods in which it
+  was throttled; the cgroup's pressure (PSI, the share of the last 10 s
+  that its tasks waited) is a line of its own, and so is each line of
+  `io.max` and a `pids.max` that is not `max`. With no limit the lines are
+  those of before.
 - One line for each fact on stdout; with `--json`, one JSON object, also
   after a failure, in the shape of `doctor --json`: `schema` (1),
   `podssh`, `destination`, `system`, `load`, `cpus`, `cpu_busy_percent`,
   `interval_s`, `memory` (in KiB, with `available_estimated`), `uptime_s`,
   `network` (each `interface` with `rx_bytes`, `tx_bytes`, `rx_per_s` and
-  `tx_per_s`), `disks`, `processes`, `error` and `exit`.
+  `tx_per_s`), `disks`, `processes`, `error` and `exit`. Each of these
+  keeps its meaning, the host's. `effective` holds the facts to plan from
+  on any host: `cpus` (4.0 or 1.5), `cpus_from` (`cgroup v2 cpu.max`,
+  `cgroup v2 cpu.max of a parent`, `cgroup v2 cpuset`, `cgroup v1
+  cfs_quota_us`, `cgroup v1 cpuset` or `host`), `memory_total_kib`,
+  `memory_available_kib`, `memory_from`, and the cgroup's `cpu_used`,
+  `cpu_busy_percent`, `throttled_periods` and `periods`. `cgroup`, where
+  one was read, holds its `version`, its `path`, each value as read in
+  `values`, and `cpu_usage_usec`, `pids_current`, `pids_max`, `io_max` and
+  the pressure's `avg10`s.
 - The exit codes of `podssh ssh`: 0 with the facts; 255 when the host
   cannot be reached or logged in to, has no `sh`, or gave none of the
   script's lines; 64 and 78 before anything connects. The script has 30 s,

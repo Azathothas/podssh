@@ -1,0 +1,91 @@
+A fixture of T-480: the answer of the script of podssh health in a container
+run with no --cpus and no --memory on cgroup v2, in its own cgroup namespace,
+on a host of 16 CPUs and 62.8 GiB; written by hand in the forms of the
+kernel's cgroup-v2.rst, not captured. The main session captures one with
+docker run or podman run in the build image (T-480's Done).
+podssh-health 1
+@ loadavg
+0.40 0.30 0.20 1/380 120
+@ uptime
+5000.00 70000.00
+@ meminfo
+MemTotal:       65842388 kB
+MemFree:        20000000 kB
+MemAvailable:   41234560 kB
+Buffers:          500000 kB
+Cached:         18000000 kB
+SwapCached:            0 kB
+SwapTotal:             0 kB
+SwapFree:              0 kB
+@ stat
+cpu  1000000 0 200000 7000000 10000 0 5000 0 0 0
+cpu0 62500 0 12500 437500 625 0 312 0 0 0
+cpu1 62500 0 12500 437500 625 0 312 0 0 0
+cpu2 62500 0 12500 437500 625 0 312 0 0 0
+cpu3 62500 0 12500 437500 625 0 312 0 0 0
+cpu4 62500 0 12500 437500 625 0 312 0 0 0
+cpu5 62500 0 12500 437500 625 0 312 0 0 0
+cpu6 62500 0 12500 437500 625 0 312 0 0 0
+cpu7 62500 0 12500 437500 625 0 312 0 0 0
+cpu8 62500 0 12500 437500 625 0 313 0 0 0
+cpu9 62500 0 12500 437500 625 0 313 0 0 0
+cpu10 62500 0 12500 437500 625 0 313 0 0 0
+cpu11 62500 0 12500 437500 625 0 313 0 0 0
+cpu12 62500 0 12500 437500 625 0 313 0 0 0
+cpu13 62500 0 12500 437500 625 0 313 0 0 0
+cpu14 62500 0 12500 437500 625 0 313 0 0 0
+cpu15 62500 0 12500 437500 625 0 313 0 0 0
+ctxt 81234567
+btime 1762000000
+processes 412345
+procs_running 1
+procs_blocked 0
+@ processes
+4
+@ cgroup
+self 0::/
+v2 /sys/fs/cgroup/
+memory.max max
+memory.current 52428800
+memory.swap.max max
+cpu.max max 100000
+cpuset.cpus.effective 0-15
+cpu.stat usage_usec 1234567
+cpu.stat user_usec 1000000
+cpu.stat system_usec 234567
+pids.max max
+pids.current 4
+memory.stat inactive_file 10485760
+@ stat 2
+cpu  1000300 0 200100 7001200 10000 0 5000 0 0 0
+cpu0 62519 0 12506 437575 625 0 312 0 0 0
+cpu1 62519 0 12506 437575 625 0 312 0 0 0
+cpu2 62519 0 12506 437575 625 0 312 0 0 0
+cpu3 62519 0 12506 437575 625 0 312 0 0 0
+cpu4 62519 0 12506 437575 625 0 312 0 0 0
+cpu5 62519 0 12506 437575 625 0 312 0 0 0
+cpu6 62519 0 12506 437575 625 0 312 0 0 0
+cpu7 62519 0 12506 437575 625 0 312 0 0 0
+cpu8 62519 0 12506 437575 625 0 313 0 0 0
+cpu9 62519 0 12506 437575 625 0 313 0 0 0
+cpu10 62519 0 12506 437575 625 0 313 0 0 0
+cpu11 62519 0 12506 437575 625 0 313 0 0 0
+cpu12 62519 0 12506 437575 625 0 313 0 0 0
+cpu13 62519 0 12506 437575 625 0 313 0 0 0
+cpu14 62519 0 12506 437575 625 0 313 0 0 0
+cpu15 62519 0 12506 437575 625 0 313 0 0 0
+ctxt 81236000
+btime 1762000000
+processes 412350
+procs_running 1
+procs_blocked 0
+@ uptime 2
+5001.00 70012.00
+@ cgroup 2
+cpu.stat usage_usec 1394567
+cpu.stat user_usec 1100000
+cpu.stat system_usec 294567
+@ df
+Filesystem     1024-blocks     Used Available Capacity Mounted on
+overlay          61255492 21386712  36727456      37% /
+@ end
