@@ -734,7 +734,7 @@ Measured at the merge, 2026-11-02:
 **Milestone:** M10
 **Priority:** P1
 **Effort:** L
-**Status:** open
+**Status:** partial
 
 ## Problem
 
@@ -759,6 +759,86 @@ its egress, as a Tailscale exit node gives its own.
    when the user asks for its listener and the probe allows the bind (Q1).
 4. `doctor` names the exit and the road that reached it.
 
+## Decision
+
+The calls of the draft (2026-11-02), each with what lost:
+
+- **The operator names its target in the word of its proof**, where a route's name goes (T-089):
+  `HOST:PORT`, an IPv6 address in brackets, which its `:` tells from each route's name, as no
+  route's name holds one (`crates/podssh-relay/src/e2e/ask.rs`). The library reads the word as a
+  typed `Ask` (the target with no route, a route, or an exit's target); the channel's admission
+  takes it (`Admit` of `crates/podssh-relay/src/e2e/ends.rs` gets `&Ask` in place of the route),
+  and `serve_asked` hands it to the node's opener, so the compiler makes each admission and each
+  opener say what it does with an exit's target; `serve_routed` and `serve_node` stay, and refuse
+  one. The word travels encrypted, so the relay sees neither the target nor a byte. A node of
+  before T-431 refuses a proof whose word it does not read, whole: its operator sees the session
+  end before a verdict. Lost: a request of its own after the verdict, a line in the channel's data,
+  which costs a round trip more and leaves the verdict unable to say that the target was refused;
+  a new version of the proof, one more form for each end, where the word's field already carries
+  255 bytes; a route reserved for the exit with the target in the data, which a user's route of
+  that name would take.
+- **Who may go out**: a member of a net that gives this node the role `exit`, which its owner
+  signs (T-430's Decision left the role to this entry), and that the policy lets reach the
+  egress. The node refuses to start without the role (78), and checks it again for each session,
+  so a newer document that takes it away lets nobody out. At the door, before the name resolves,
+  the policy's `Want::Egress` lets in a member that a rule lets reach `exit:NODE`, `exit:*`, `*`
+  or a range (`crates/podssh-cli/src/net/policy.rs`); for each address, `exit:NODE` for a public
+  one and the address itself (`Want::Addr`) for a private one. A key of `--allow`, and an operator
+  of the pair's connect token alone, never reach the exit (`admit_of` of
+  `crates/podssh-cli/src/channel.rs`), whatever they reach of the node. Lost: a word `exit` after
+  a key of the allowlist, as a comment of a line may already hold that word and an earlier podssh
+  reads it as one; an exit open to each operator of the connect token, an open proxy for whoever
+  holds the token, which a node of no `--allow` would be.
+- **The address that is checked is the address that is dialled** (DNS rebinding): the node
+  resolves the name once with podssh's resolver (`podssh_ws::resolve::resolve`: a literal, the
+  pins, the system resolver, the cache of addresses, DNS over HTTPS), checks each address, and
+  dials those addresses alone as IP literals, directly or by `CONNECT ADDRESS:PORT` through
+  `HTTPS_PROXY`, never the name again (`crates/podssh-cli/src/node_exit.rs`). Lost: the name
+  handed to the node's proxy, which would resolve it where the node cannot check it (a proxy of a
+  company reaches its own network); the system resolver alone, as the relay role's
+  `Policy::addresses` asks it, where podssh's fallbacks serve a host whose resolver is broken; a
+  refusal of each name when a proxy is set, which the sandboxes that podssh serves would meet.
+- **A public address is the relay role's** (`podssh_relay::serve::policy::public`, T-169): its
+  ranges are the relay's limits of `docs/relay.md`, and a name with one address that fails is
+  refused whole, as the relay refuses it. No port is refused: the relay's port 25 keeps strangers
+  from mail, and an exit's members are its owner's. Lost: `Policy::addresses` whole, for its port
+  25 and its resolver.
+- **`--routes RANGES` comes here in its first form**: the private ranges that the exit dials too,
+  `ADDR/BITS` or one address, as a rule of the policy names a range, each for a member that the
+  policy lets reach the address. The Prove's "unless a route allows it" needs it, and the offline
+  test's servers are on the loopback. T-432 keeps the rest: the net's document that lists each
+  node's routes, `--exit auto`, and the rule that the loopback and the node's own addresses go
+  through only when a range names them whole. Lost: a switch of the tests for the loopback,
+  which each build would carry as a door.
+- **The roads**: each road whose node serves routes (`Routes::exit` of
+  `crates/podssh-relay/src/reverse/routes.rs`, filled by `routes_of`): the pair's, the transit
+  relay's, the Piping Server's, the DERP and the iroh roads, so an exit with no TARGET of its own
+  serves each session by its routes. The quick tunnel's node serves no routes, and refuses
+  `--exit` (64): T-459. `--no-e2e`, `--temporary` and a `udp:` TARGET are refused with it too.
+- **`podssh ssh --exit NAME`** resolves to the node's own transport, `Transport::Node`, with the
+  exit's word for the first hop (the destination, or `-J`'s first, with its `HostName` and port;
+  `crates/podssh-cli/src/ssh/exit_road.rs`), so each runner of a node carries it: the roads raced
+  as for `node://NAME`, the resume, SSH's keepalives off under the layer; the host key is the
+  host's, under its own name. `cp`, `scp` and `sftp` take it through their node's path (the pair's
+  road). Lost: a transport of its own, a second copy of each runner of a node.
+- **`podssh proxy --exit`, `pipe`'s `relay:` with `--exit`, and `podssh exit --listen`** open
+  each connection over the pair's road, in the layer and the channel
+  (`crates/podssh-cli/src/exit/open.rs`), and learn the node's verdict before they answer: the
+  channel touches the plain side of a session only once the node let it in and reached the
+  target, so that first touch is the verdict, and SOCKS and CONNECT answer as `-D` does, success
+  only once the target was reached. Lost: racing the other roads there too, as `ssh::roads` runs
+  the SSH client inside and gives no stream yet; an answer at once, before the verdict.
+- **`podssh exit NAME --listen ADDR:PORT`** is a listener that the user asks for (rule 2 of
+  `AGENTS.md`, Q1), bound by `podssh pipe`'s listener, whose attempt is the probe, and refused by
+  `PODSSH_LISTEN=no` before any bind; on a loopback address alone; SOCKS5, SOCKS4a (as `-D` reads
+  them) and HTTP CONNECT (as `http-listen:` reads it) on one port, by the first byte. No question
+  for the operator: Q1 allows the listener, and the exit's dials are a node's dials of its
+  targets. Lost: an address of another host with credentials, as the SOCKS of `-D` takes none
+  (a later entry may add them, as `--proxy-auth-file` of `http-listen:`); two ports, one for each
+  protocol.
+- **`doctor` names the exit and the road** (item 4 of the Approach) moves to T-458: doctor opens
+  no session through a node today, and its line needs one, with the node's verdict.
+
 ## Prove
 
 ```sh
@@ -771,6 +851,92 @@ named by the operator; a private address is refused unless a route allows it. In
 Actions: a node on the runner with `--exit`, and `podssh ssh --exit NAME git@github.com` reaches
 GitHub's banner; `curl --proxy socks5h://...` through `podssh exit --listen` fetches a page.
 Planted: the check of a public address removed, and the private target's test fails.
+
+## Correction
+
+The Premise holds: rule 4 of `docs/reverse.md:16` dials TARGET after the layer's handshake, and
+`-D` serves SOCKS on a listener that the user asks for (T-038). Three reads that the Approach did
+not name: the relay's check of a public address is code since T-169
+(`crates/podssh-relay/src/serve/policy.rs`), which the exit takes; the Prove's offline part
+reaches only servers on the loopback, a private address, so the node's `--routes` comes here in
+its first form, and T-432 builds on it (the Decision); item 4, `doctor`, is T-458.
+
+## Done
+
+2026-11-02: drafted by an agent in a worktree, which built and ran nothing; merged and measured by
+the main session the same day.
+
+- The channel's word (`crates/podssh-relay/src/e2e/ask.rs`, `handshake.rs`, `ends.rs`): `Ask`,
+  the proof's word read as a route or an exit's target; `Admit` takes `&Ask`; `serve_asked`; a
+  node that is no exit refuses an exit's target (`NO_EXIT`). The node's routes take the exit's
+  dial (`crates/podssh-relay/src/reverse/routes.rs`: `ExitDial`, `Routes::exit`). Tests:
+  `ask.rs` (3), and `crates/podssh-relay/tests/routes.rs` (an exit's target reaches only a node
+  that serves each ask); the admissions of the tests take `&Ask`
+  (`crates/podssh-relay/tests/e2e_harness/mod.rs`, `crates/podssh-cli/src/ssh/cloudflare/layer.rs`).
+- The node (`crates/podssh-cli/src/node_exit.rs`, with `node_exit_tests.rs`): `--exit` and
+  `--routes`, checked first (`crates/podssh-cli/src/node.rs`), the start's line or its refusal
+  (78), the resolution, the check of each address and the dial of those alone; TARGET optional;
+  each road's routes (`node.rs`, `node_derp.rs`, `node_piping.rs`, `node_iroh.rs`), the first
+  line (`node_target.rs`), `--install` keeps both flags (`node_install/text.rs`). The net
+  (`crates/podssh-cli/src/net/admit.rs`): `Asks::Egress` and `Asks::Dial`, the role `exit`,
+  `exit_ready`; `Want::Egress` (`net/policy.rs`, `net/policy_words.rs`); `admit_of` refuses an
+  exit's target to the keys of `--allow` (`crates/podssh-cli/src/channel.rs`).
+- The clients: `ssh --exit` (`crates/podssh-cli/src/ssh/exit_road.rs`, `ssh/servers.rs`,
+  `ssh/args.rs`), `proxy --exit` and `--client-key` (`crates/podssh-cli/src/proxy.rs`), `pipe
+  --exit` (`crates/podssh-cli/src/pipe/remote.rs`, and `http-listen:`'s `relay:%h:%p` in
+  `pipe/gateway.rs`), the verb `exit` (`crates/podssh-cli/src/exit/`:
+  `mod.rs`, `open.rs`, `listen.rs`), `podssh_ssh::socks` public; the parse and the dispatch
+  (`parsed.rs`, `tree.rs`, `dispatch.rs`, `positionals.rs`, `help.rs`), doctor's list of
+  listeners (`doctor/listeners.rs`); the listener scan's allowance of `exit/listen.rs`
+  (`scripts/repo_listeners.py`).
+- The manual: the flags (`crates/podssh-cli/src/flags/node.rs`, `flags.rs`, `flags/copy.rs`,
+  `flags/scp.rs`, `flags/relay.rs`, `flags/pipe.rs`); the notes of `exit`
+  (`crates/podssh-cli/src/man/notes_net.rs`), of `node` (`notes_pair.rs`), of `ssh`
+  (`notes_roads.rs`), of `pipe` (`notes_pipe.rs`) and of `proxy`, moved to `notes_proxy.rs` for
+  the length of `notes.rs`; two examples (`man/examples.rs`). The documents: `docs/cli.md` ("The
+  exit of the net"), `docs/mesh.md` (section 5), `docs/reverse.md` ("The end-to-end channel"),
+  `SECURITY.md`, `docs/STATUS.md`.
+- Tests: `crates/podssh-cli/tests/exit.rs` (2: the refusals with no connection; on the stand-in
+  relay, an exit with `--routes 127.0.0.1/32` and two members, by `proxy --exit`, `ssh --exit`
+  and `exit --listen`, by SOCKS5 and CONNECT, and curl when found), the units of
+  `node_exit_tests.rs` (5), `exit/mod.rs` (1) and `ssh/exit_road.rs` (2).
+- Planted: `scripts/plants/t431-exit-public-check.plant` (each address taken for a public one).
+- GitHub Actions: `.github/workflows/exit-live.yml`, by hand: a node of the net on the runner,
+  GitHub's banner through `proxy --exit`, GitHub's host key through `ssh --exit`, and a page of
+  GitHub's through `podssh exit --listen` with curl, by SOCKS5 and CONNECT.
+- Filed: T-458 (`doctor --exit NAME`, item 4 of the Approach) and T-459 (the quick tunnel's node
+  as an exit).
+
+The merge (2026-11-02):
+
+- Applied onto `2ba9e5c` with four conflicts, each a union: the index and the work order, the
+  entries T-457 (from the merge of T-428) and T-458, T-459 (this draft) at the end of this file,
+  and TARGET's help, which names `--quick-tunnel --relay` and `--exit` both.
+- Three defects that the tests found, repaired: `ssh --exit NAME --client-key FILE` was refused,
+  as the check of the channel's flags did not count an exit as a road whose far end is podssh
+  (`crates/podssh-cli/src/ssh/resolve.rs`; its refusal names `--exit NAME` now); the test gave
+  curl `--proxy=URL`, which curl does not read; the manual's topic `exit-status` kept the alias
+  `exit`, which the command takes now, as `relay` took its own (`man/facts.rs`, and the test of a
+  section by its name); and the verb `exit` joined the dispatched verbs of `flag_table`.
+- `cargo build -p podssh-cli`: built. Clippy with `-D warnings`, all targets: podssh-relay with
+  `pair,serve,plain-ws,quick`, podssh-ssh, podssh-cli, and podssh-cli with `iroh`: clean;
+  `cargo fmt -p` of the three.
+- `cargo test -p podssh-relay --features pair --lib e2e`: 5 passed; `--test e2e` 10, `e2e_faults`
+  7, `e2e_layered` 4, `e2e_net` 4, `routes` 3 (among them `an_exit_s_target_reaches_only_a_node_that_serves_each_ask`), each passed.
+- `cargo test -p podssh-cli --test exit`: 3 passed (the refusals with no connection; the exit on
+  the stand-in relay with `--routes 127.0.0.1/32` and two members, by `proxy --exit`, `ssh
+  --exit` and `exit --listen` by SOCKS5 and CONNECT, and curl 8.5.0 by `socks5h://` and by
+  `--proxytunnel`). `--lib -- node_exit exit ssh::exit_road net doctor::listeners man`: 105
+  passed. `--test proxy` 9, `net` 8, `node_routes` 2, `channel_cli` 5, `flag_table` 9,
+  `man_flag_parity` 6, `man_json` 4, `man_page` 10, `leading_dash` 3, `pipe_http` 6 (1 ignored),
+  each passed.
+- Planted, `sh scripts/plant-each.sh --here t431-exit-public-check` (each address taken for a
+  public one): caught, "a private target was reached: 0 web".
+- The whole suites: `cargo test --no-fail-fast -p podssh-cli`, 1343 passed, none failed (51
+  ignored); `-p podssh-relay --features pair,quick,derp,serve,piping`, 520 passed, none failed (22
+  ignored); the temporary directory held the same entries after them as before.
+- Waits: `exit-live.yml` on GitHub Actions, which can be dispatched only once it is on `main`;
+  this entry stays `partial` until it passes.
 
 # T-432: Routes: a node reaches its private networks for the net
 
@@ -2927,3 +3093,84 @@ cargo test -p podssh-relay --features serve,plain-ws --test relay_serve_contract
 Through a stand-in proxy of the tests: the forward road's target is reached by a CONNECT, and the
 proxy's 403 is the role's 502 with its status. Planted: the proxy skipped, and the test of the
 CONNECT fails.
+
+# T-458: `podssh doctor --exit NAME`: the exit, its verdict and the road that reached it
+
+**Source:** T-431, item 4 of its Approach, filed at its draft (2026-11-02).
+**Category:** feature
+**Milestone:** M10
+**Priority:** P2
+**Effort:** S
+**Status:** open
+
+## Problem
+
+A user whose `--exit NAME` fails cannot tell from `podssh doctor` whether the pair, the road, the
+node's net or its policy refused, or what the exit's host reaches: doctor opens no session through
+a node today.
+
+## Premise
+
+- `podssh doctor` has a line for each road that a flag names (`--forwarder`, `--shadowsocks`,
+  `--via`, `--vless`), and none for a node or an exit (`crates/podssh-cli/src/flags/relay.rs`,
+  `DOCTOR_FLAGS`).
+- The client's side of an exit learns the node's verdict before it answers
+  (`crates/podssh-cli/src/exit/open.rs`).
+
+## Approach
+
+1. `podssh doctor --exit NAME`: the exit's line in the net held (a member, the role `exit`, what
+   the policy lets this client), the pair under NAME, and one session to a public target of the
+   exit (`github.com:22` by default, `--exit-target HOST:PORT`), with the node's verdict and the
+   road that carried it.
+2. A refusal says whose it is: the relay's, the channel's, the net's policy, or the exit's check
+   of an address.
+
+## Prove
+
+```sh
+export CARGO_BUILD_JOBS=4
+cargo test -p podssh-cli --test exit
+```
+
+On the stand-in relay: doctor's line of an exit that lets this client out is ok, with the road;
+a member that the policy refuses gets FAIL with the policy's words; a node with no `--exit` gets
+FAIL that names it.
+
+# T-459: The quick tunnel's node lends its egress (`--exit` with `--quick-tunnel`)
+
+**Source:** T-431, its Decision on the roads, filed at its draft (2026-11-02).
+**Category:** feature
+**Milestone:** M10
+**Priority:** P3
+**Effort:** S
+**Status:** open
+
+## Problem
+
+`podssh node NAME --exit` lends its egress on the pair's, the transit, the Piping Server, the DERP
+and the iroh roads, and refuses `--quick-tunnel` (64): the quick tunnel's node serves no routes, so
+no session of its visitors reaches the exit's dial.
+
+## Premise
+
+- The quick tunnel's node takes one TARGET with no route, and opens it by a `TcpHandler`
+  (`crates/podssh-cli/src/node_quick.rs`).
+- Each other road's node takes the exit's dial through its routes (`crate::node::routes_of`,
+  `Routes::exit` of `crates/podssh-relay/src/reverse/routes.rs`).
+
+## Approach
+
+1. The quick tunnel's node serves its sessions through `Routes` when `--exit` is given, with the
+   exit's dial, as the other roads do; its visitors' keys come in as the net's members.
+2. `podssh ssh --exit NAME` with a `cf://HOST` of the node, and `podssh exit` over it.
+
+## Prove
+
+```sh
+export CARGO_BUILD_JOBS=4
+cargo test -p podssh-cli --test exit
+```
+
+A node of the quick tunnel's stand-in edge with `--exit` carries a session to a target of the
+range that its `--routes` names, for a member; a private address of no range is refused.

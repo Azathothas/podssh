@@ -228,13 +228,13 @@ pub fn resolve_or_refuse(args: &SshArgs, env: &Env) -> Result<Resolved, Refusal>
     ];
     // A cf://HOST name may be a podssh node's quick tunnel (T-300), as the
     // destination or as the first hop of -J, whose node takes the same keys
-    // (T-347).
+    // (T-347); an exit's road ends at its node too (T-431).
     let cf_hop = matches!(jump_tunnel, Some(super::jump::Tunnel::Cloudflare(_)));
-    let podssh_ends = node.is_some() || iroh.is_some() || tunnel.is_some() || cf_hop || derp.is_some();
-    if let Some((flag, _)) = channel.iter().find(|(_, given)| *given).filter(|_| !podssh_ends) {
+    let ends = [node.is_some(), iroh.is_some(), tunnel.is_some(), cf_hop, derp.is_some(), args.exit.is_some()];
+    if let Some((flag, _)) = channel.iter().find(|(_, given)| *given).filter(|_| !ends.contains(&true)) {
         return Err(format!(
-            "{flag} is for a node://NAME, iroh:TICKET, derp:TICKET or cf://HOST destination, or a cf://HOST first \
-             hop of -J"
+            "{flag} is for a node://NAME, iroh:TICKET, derp:TICKET or cf://HOST destination, a cf://HOST first \
+             hop of -J, or --exit NAME"
         )
         .into());
     }
@@ -482,7 +482,7 @@ pub fn resolve_or_refuse(args: &SshArgs, env: &Env) -> Result<Resolved, Refusal>
         detach: args.detach || settings.fork_after_authentication.unwrap_or(false),
     };
     super::persist::check(args, &mut resolved)?;
-    super::servers::check(args, &resolved)?;
+    super::servers::check(args, &mut resolved)?;
     super::upgrade::check(args, env, &mut resolved)?;
     super::elevate::check(args, &mut resolved)?;
     super::recording::check(args, &mut resolved)?;

@@ -56,11 +56,11 @@ unknown flag (exit 64), and `Cargo.lock` has no iroh crate.
 5. `doctor`, with the feature: a UDP line, and the `/ping` of the home relay
    through the proxy (`crates/podssh-cli/src/doctor/host.rs:10-25`).
 6. `availability()` knows `ts` as the only build feature
-   (`crates/podssh-cli/src/flags.rs:473-481`): extend it. With no feature, an
+   (`crates/podssh-cli/src/flags.rs:474-482`): extend it. With no feature, an
    iroh destination refuses before it connects and names `--features iroh`,
    as `crates/podssh-cli/tests/ts_not_built.rs:1-4` shows for `ts`.
 7. Docs: the "Outbound only" item of `README.md`, "Nothing listens" in
-   `SECURITY.md:144-171`, `docs/architecture.md` (rule 3, the crates),
+   `SECURITY.md:160-187`, `docs/architecture.md` (rule 3, the crates),
    `docs/design.md` section 7, and `AGENTS.md` (sections 3 and 7).
 
 ## Decision
@@ -187,7 +187,7 @@ the file that `--ts-state` names (`crates/podssh-cli/src/flags.rs:354-355`,
    `podssh ssh iroh:TICKET` dials it (the address of `docs/design.md:992`).
 6. Add the key files to FILES in the manual
    (`crates/podssh-cli/src/man/data.rs:150-413`), and each new variable to
-   `VARIABLES` (`crates/podssh-cli/src/man/facts.rs:45-290`).
+   `VARIABLES` (`crates/podssh-cli/src/man/facts.rs:46-291`).
 
 ## Decision
 
@@ -511,11 +511,11 @@ in iroh's source at the pinned version.
    not in the list.
 6. `doctor`, with the feature, reports the `/ping` of each relay and the home
    relay.
-7. Add the variable to `VARIABLES` (`crates/podssh-cli/src/man/facts.rs:45-290`),
+7. Add the variable to `VARIABLES` (`crates/podssh-cli/src/man/facts.rs:46-291`),
    the flag to the flag table, and the default to the relay section of the
-   manual (`crates/podssh-cli/src/man/facts.rs:309-465`). The tests compare
+   manual (`crates/podssh-cli/src/man/facts.rs:310-466`). The tests compare
    `VARIABLES` with the source in both directions
-   (`crates/podssh-cli/src/man/facts.rs:43-44`), so a variable that only the
+   (`crates/podssh-cli/src/man/facts.rs:44-45`), so a variable that only the
    feature reads is in the manual only with the feature.
 8. A test of the command line from end to end, which T-163 left for this
    entry: `podssh node NAME TARGET --iroh` and `podssh ssh iroh:TICKET`,
@@ -2686,7 +2686,7 @@ proxy only, so podssh refuses the setting for the iroh road before anything bind
 2. Else carry a patch of `iroh-relay` that adds SOCKS5 to `dial_url_proxy`, as
    `vendor/tailscale-rs` is carried with its patches in `vendor/patches/`, or ask upstream
    (n0-computer/iroh) for it. Write the choice in `## Decision`.
-3. Remove the refusal; the manual's VARIABLES (`crates/podssh-cli/src/man/facts.rs:46-55`) and
+3. Remove the refusal; the manual's VARIABLES (`crates/podssh-cli/src/man/facts.rs:47-56`) and
    `docs/architecture.md` say that the iroh road takes SOCKS5 too.
 
 ## Decision
@@ -3815,7 +3815,7 @@ podssh's own, which makes it M.
   (`crates/podssh-iroh/src/endpoint.rs:4-7`, `:305-306`), as the design chose for a host with no
   DNS (`docs/design.md:1063`, `:1073`).
 - Read: the node's key is Ed25519 and stays across its pairs, and the operator pins it by label
-  (`docs/reverse.md:233-237`).
+  (`docs/reverse.md:240-244`).
 - Read in the study (https://docs.iroh.computer/connecting/dns-address-lookup): an endpoint
   publishes a signed packet to a DNS/Pkarr server over HTTP; n0's servers are free, rate-limited,
   with no guaranteed uptime, and "You're more than welcome to run production systems" on them,
@@ -5026,7 +5026,7 @@ does not depend on them.
 
 - Read: `Transport::Direct` comes from `--direct` alone
   (`crates/podssh-cli/src/ssh/resolve.rs`, lines 340-346 at `4e2010e`), and else the relay (lines 348-371 at `4e2010e`); its other
-  uses are a label (`crates/podssh-cli/src/ssh/mod.rs:259`), the dial
+  uses are a label (`crates/podssh-cli/src/ssh/mod.rs:261`), the dial
   (`crates/podssh-cli/src/ssh/transport.rs:272-316`) and a check of `--upgrade`
   (`crates/podssh-cli/src/ssh/upgrade.rs:59`). The issue's citation of
   the arm began two lines early; it is at `crates/podssh-cli/src/ssh/resolve.rs:339-345`.
@@ -5526,7 +5526,7 @@ a hop. `doctor` has no line for a hop, so a user cannot see whether one is reach
 - Read: through the agent proxy of a cloud container, a CONNECT to `ssh.github.com:443` got `200`,
   and then a reset: `TODO/ws.md:1160` says "gets 200, then a reset". A proxy that waits for TLS
   carries no SSH on port 443; T-372 wraps SSH in TLS for it. Through the relay, GitHub's SSH on
-  port 443 answers (`docs/STATUS.md:114`).
+  port 443 answers (`docs/STATUS.md:115`).
 - Read: `doctor` asks the proxy for the relay and for `github.com` only
   (`crates/podssh-cli/src/doctor/net.rs:193-243`).
 - Read in GitHub #61 (a tester's measurement of 2026-10-31, from a host with direct egress; not
@@ -6129,8 +6129,8 @@ ask, and nothing does so.
 ## Premise
 
 - Read: the node of the iroh road serves the pair's road beside it, with one keeper for both
-  (`crates/podssh-cli/src/node_iroh.rs:349-350`), and `podssh node` sends `--iroh` there
-  (`crates/podssh-cli/src/node.rs:102-104`).
+  (`crates/podssh-cli/src/node_iroh.rs:355-356`), and `podssh node` sends `--iroh` there
+  (`crates/podssh-cli/src/node.rs:104-106`).
 - Read: `podssh ssh` resolves its destination into an enum of transports
   (`crates/podssh-cli/src/ssh/resolve.rs:24-72`), in a file of 488 of its 500 lines.
 - Read: the race of T-164 orders two roads (`crates/podssh-relay/src/session/race.rs:59-61`), and

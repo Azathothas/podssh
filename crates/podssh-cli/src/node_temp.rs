@@ -13,7 +13,7 @@ use std::io::Write;
 use std::sync::Arc;
 use std::time::{Duration, Instant};
 
-use podssh_relay::e2e::ends;
+use podssh_relay::e2e::{ends, Ask};
 use podssh_relay::identity::{file, KeyName, PublicKey};
 use podssh_relay::pair;
 use podssh_relay::relay::{self, Relay};
@@ -164,7 +164,7 @@ async fn serve(ready: Ready, err: &mut dyn Write) -> i32 {
             let _ = writeln!(std::io::stderr(), "podssh node: {label}: {line}");
         })
     };
-    let admit = move |key: &PublicKey, _: Option<&str>| {
+    let admit = move |key: &PublicKey, _: &Ask| {
         if client.matches(key) {
             Ok(())
         } else {

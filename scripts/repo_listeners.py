@@ -79,8 +79,12 @@ LISTENERS = {
     # it binds through the same listener, after PODSSH_LISTEN, before it
     # connects, and the bind is its probe. And the quick tunnel over QUIC
     # (T-301) and its probe of UDP (T-400), the tests of the iroh road's
-    # probe (T-359), and the stand-in server of pkarr (T-350), as above.
+    # probe (T-359), and the stand-in server of pkarr (T-350), as above. And
+    # `podssh exit --listen` (T-431), which the user asks for: it binds
+    # through `podssh pipe`'s listener, after PODSSH_LISTEN, on a loopback
+    # address alone, and the bind is its probe.
     "bind(": [
+        "crates/podssh-cli/src/exit/listen.rs",
         "crates/podssh-cli/src/relay_serve.rs",
         "crates/podssh-iroh/src/test_pkarr.rs",
         "crates/podssh-iroh/src/endpoint_udp_tests.rs",

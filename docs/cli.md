@@ -2796,6 +2796,66 @@ that the owner's key signs, and that each end keeps.
   78 for a host with no net, an owner's key that is not found, or a bad
   `PODSSH_NET`.
 
+## The exit of the net
+
+`podssh node NAME [TARGET] --exit` (T-431, milestone M10,
+[mesh.md](mesh.md), section 5) lends the node's egress to the members of
+its net, as a Tailscale exit node does: an operator names a target of its
+own, and the forward road starts at the node.
+
+- **The node.** It needs a net that it is a member of, whose owner gave it
+  the role `exit` (`podssh net add NAME KEY --roles node,exit`); else it
+  does not start (78), and a newer document that takes the role away lets
+  nobody out at the next session. TARGET is optional: with none, the node
+  is an exit alone. `--routes RANGES` (`ADDR/BITS` or one address, apart by
+  commas) names the private ranges that it dials too. `--no-e2e`,
+  `--quick-tunnel`, `--temporary` and a `udp:` TARGET are refused with it
+  (64), as the target travels in the end-to-end channel; `--routes` with no
+  `--exit` is refused too. `--install` keeps both flags.
+- **Who.** A member that the net's policy (T-430) lets reach `exit:NODE`,
+  `exit:*` or `*`, for a public address; for an address of a range, a rule
+  that reaches that address (`ADDR/BITS`). With no policy, each member. A key
+  of `--allow`, or an operator of the pair's connect token alone, never
+  reaches the exit, whatever it reaches of the node.
+- **Which address.** The node resolves the name with podssh's resolver,
+  checks each address, and dials those addresses alone, through
+  `HTTPS_PROXY` when it is set, with the address in place of the name: a
+  name that resolves anew elsewhere reaches nothing that was not checked. A
+  public address is one that the relay role dials (`crates/podssh-relay/src/serve/policy.rs`):
+  private, loopback, link-local, CGNAT, unique-local, multicast,
+  documentation and NAT64 addresses are not; such an address needs a range
+  of `--routes`. A name with one address that fails is refused whole. No
+  port is refused: the members are the owner's.
+- **The words of a refusal** go to the operator in the channel, and on the
+  node's lines: `github.com:22 resolves to 10.0.0.1, which is not a public
+  address, and no range of the exit's --routes holds it`, or the policy's
+  `no rule of the net home's policy (serial 6) lets b reach exit:gw`.
+- **`--exit NAME`** of `podssh ssh`, `cp`, `scp` and `sftp`: the road to the
+  first hop (the destination, or the first host of `-J`, with its
+  `HostName` and port) starts at the exit NAME, a member of the net and the
+  label of its pair here. `ssh` races the node's roads as for `node://NAME`
+  and resumes on any; the copies take the pair's road. The host key is the
+  host's, under its own name. It goes with no `node://`, `iroh:`, `derp:`,
+  `cf://`, `iap://` or `eice://` destination, no `--direct`, `-4`, `-6` or
+  `--no-e2e`, and no road of another server (64).
+- **`podssh proxy --exit NAME HOST PORT`** carries the pipe from the exit,
+  with no relay host and no other server's road (64); stdout gets no byte
+  before the node reached the target. **`podssh pipe --exit NAME`** starts
+  each `relay:HOST:PORT`, and each `relay:%h:%p` of `http-listen:`, at the
+  exit; with no `relay:` address it is refused (64).
+- **`podssh exit NAME --listen ADDR:PORT`**: a local proxy, one port for
+  SOCKS5, SOCKS4a and HTTP CONNECT, told apart by the first byte; each
+  connection is one session to the exit over its pair's road, and a client
+  hears its success only once the node reached its target, else the
+  refusal of its protocol (SOCKS 2 or HTTP 403 for a refusal; SOCKS 5 or
+  HTTP 502 for a target out of reach; SOCKS 1 or HTTP 502 for a road that
+  failed). The listener is one that the user asks for (Q1): on a loopback
+  address alone, as its SOCKS takes no credentials; `PODSSH_LISTEN=no`
+  refuses it (78), a refused bind is 77. 32 connections at once; `-q`
+  drops the line of each. It runs until Ctrl-C or SIGTERM (0). `curl
+  --proxy socks5h://127.0.0.1:1080 URL` sends the name, which the exit
+  resolves.
+
 ## `podssh pipe`
 
 `podssh man pipe` gives the command (T-174). The rules behind it:

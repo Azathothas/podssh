@@ -100,4 +100,8 @@ pub const PIPE: &[&str] = &[
      and puts its settings back at the end, also at SIGINT and SIGTERM, which then exit 130 and 143. The \
      line has no end: the end of the other side's input leaves it open, and the pipe ends when the other \
      side ends it, at a signal, or when the device fails (69). On Windows, serial: is refused (64).",
+    "--exit NAME starts relay:HOST:PORT, and each relay:%h:%p of http-listen:, at NAME, a node of your net that \
+     lends its egress (see podssh node --exit and podssh exit), in place of the relay, over the pair kept under \
+     NAME: the node resolves HOST and dials it from its own host. A pipe with --exit and no relay: address is \
+     refused (64).",
 ];

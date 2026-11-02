@@ -161,7 +161,7 @@ token header (`crates/podssh-ws/src/client.rs:279-290`); `https_request` takes h
 
 Recommendation: remove the `--timeout` and `--jsonl` rows of `relay`
 (`crates/podssh-cli/src/flags/relay.rs:9-42`), and bound each request in the code, as `doctor`
-does. With the row, the gate of `crates/podssh-cli/src/dispatch.rs:293-311` stops
+does. With the row, the gate of `crates/podssh-cli/src/dispatch.rs:298-316` stops
 `podssh relay status` in each script that leaves `--timeout` out. Keeping the gate lost for that
 reason: the command is bounded anyway.
 
@@ -284,7 +284,7 @@ nothing, and a host that does not start TLS, each cost the 20 s limit before the
 4. Print one note for each moved host: "trying HOST last: it failed N s ago (REASON)".
 5. Ignore a record with a time in the future (a clock that moved).
 6. `doctor` and `status` (T-051) show the records. State the window in THE RELAY section of the
-   manual (`crates/podssh-cli/src/man/facts.rs:337-350`) and in `docs/relay.md:84-127`.
+   manual (`crates/podssh-cli/src/man/facts.rs:338-351`) and in `docs/relay.md:84-127`.
 7. This is retry policy across runs. T-220 shortens the wait inside one run; the two work
    together.
 
@@ -346,7 +346,7 @@ after each round at `crates/podssh-relay/src/open.rs:245-251`; the race
 gives the silent hosts at `crates/podssh-relay/src/failover.rs:245-248`.
 `podssh status` at `crates/podssh-cli/src/status.rs:114-118`, `podssh
 doctor` at `crates/podssh-cli/src/doctor/mod.rs:99-109`, THE RELAY in the
-manual at `crates/podssh-cli/src/man/facts.rs:368-378`, and
+manual at `crates/podssh-cli/src/man/facts.rs:369-379`, and
 `docs/relay.md` and `docs/cli.md`.
 
 The unit tests of `crates/podssh-relay/src/failures_tests.rs`, 5: a host
@@ -522,7 +522,7 @@ relay sends no keepalives on reverse sockets, and a quiet socket becomes dormant
    reason of the close, or "open at 240 s".
 3. At 240 s, send one byte each way: a hibernated socket can stay open and not deliver.
 4. Stop the pair at the end (`POST /v1/stop/NAME`). Tokens go only in headers; never print one,
-   and above all not the `stop_token` (`docs/reverse.md:264-273`).
+   and above all not the `stop_token` (`docs/reverse.md:271-280`).
 5. Answer the question in `docs/relay.md` lines 189-195 at `cd75137`, record the result in `docs/STATUS.md` with
    the date and the command, and correct `docs/reverse.md` lines 24-29 at `cd75137` if the result differs.
 
@@ -791,8 +791,8 @@ listener" (lines 86-88 at `22c3b88`), and the ruling on Q10 allows more than one
    name the host that was kept. tokio's `select!` and `JoinSet` need no new crate and no C.
 7. Add the flag to `SSH_FLAGS`, `PROXY_FLAGS` and `DOCTOR_FLAGS`
    (`crates/podssh-cli/src/flags.rs:112-286`, 323-343) and to `ONCE`
-   (`crates/podssh-cli/src/ssh/args.rs:165-199`); the variable to VARIABLES and the modes to THE
-   RELAY (`crates/podssh-cli/src/man/facts.rs:45-290`, 170-183); both to `docs/relay.md:84-127`.
+   (`crates/podssh-cli/src/ssh/args.rs:168-203`); the variable to VARIABLES and the modes to THE
+   RELAY (`crates/podssh-cli/src/man/facts.rs:46-291`, 170-183); both to `docs/relay.md:84-127`.
 8. T-059 orders the hosts across runs; this entry shortens the wait in one run. GitHub #25 asks
    for a circuit breaker: retry policy, not overlap.
 
@@ -914,10 +914,10 @@ the module comment repeats it (`crates/podssh-relay/src/cache.rs`, lines 4-8 at 
 5. `doctor` names the directory in use and the variable that chose it; `status` (T-051) shows
    it; the settings file of T-048 can set it. The session log (T-056) and the failure records
    (T-059) use the same chain.
-6. Change in the same commit: VARIABLES and FILES (`crates/podssh-cli/src/man/facts.rs:202-216`,
+6. Change in the same commit: VARIABLES and FILES (`crates/podssh-cli/src/man/facts.rs:203-217`,
    `crates/podssh-cli/src/man/data.rs:157-164`), the test of lines 365-377 at `22c3b88`, the comment
    of `cache.rs`, and the `doctor`
-   notes (`crates/podssh-cli/src/man/notes.rs:207-276`).
+   notes (`crates/podssh-cli/src/man/notes.rs:169-238`).
 
 ## Decision
 
@@ -1138,7 +1138,7 @@ with no reason. Each drop read as the end of the TCP stream with no Close frame
 had drops, so the traffic does not cause them.
 
 Read: on the forward path, keepalives every 60 s kept one session for 602 s
-(`docs/STATUS.md:238`). That is one run, before 2026-10-09.
+(`docs/STATUS.md:239`). That is one run, before 2026-10-09.
 
 ## Approach
 

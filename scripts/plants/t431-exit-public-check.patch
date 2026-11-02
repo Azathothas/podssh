@@ -1,0 +1,10 @@
+--- a/crates/podssh-cli/src/node_exit.rs
++++ b/crates/podssh-cli/src/node_exit.rs
+@@ -183,6 +183,6 @@
+     for addr in &found {
+         let ip = addr.ip();
+-        let public = podssh_relay::serve::policy::public(ip);
++        let public = !ip.is_unspecified();
+         if !public && !ranges.iter().any(|range| range.contains(ip)) {
+             return Err(NodeRefusal::Other(format!(
+                 "{shown} resolves to {ip}, which is not a public address, and no range of the exit's --routes holds it"

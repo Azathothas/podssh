@@ -137,6 +137,7 @@ fn every_verb_has_an_owner_so_no_verb_can_be_a_silent_stub() {
         "session",
         "detached",
         "net",
+        "exit",
         "job",
         "run",
     ];

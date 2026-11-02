@@ -1,0 +1,8 @@
+# T-431: the exit takes each address for a public one, as if its check of a
+# public address were removed, so a member whose policy lets it out to
+# public addresses alone reaches the loopback of the exit's host; the test
+# of the private target must fail with its words.
+ENTRY=T-431
+GROUP=cli-tests
+EXPECT='a private target was reached'
+RUN='cargo test --locked -p podssh-cli --test exit -- an_exit_carries_what_its_net_lets_out_and_dials_no_address_unchecked'

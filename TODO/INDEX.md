@@ -62,15 +62,15 @@ repository and CI).
 
 ## Counts
 
-**476 entries: 64 open, 2 partial, 17 blocked, 393 done.**
+**478 entries: 65 open, 3 partial, 17 blocked, 393 done.**
 
 | Priority | open | partial | blocked | done | total |
 | --- | --- | --- | --- | --- | --- |
 | P0 | 0 | 0 | 0 | 1 | 1 |
-| P1 | 4 | 2 | 0 | 51 | 57 |
-| P2 | 27 | 0 | 14 | 189 | 230 |
-| P3 | 33 | 0 | 3 | 152 | 188 |
-| **All** | 64 | 2 | 17 | 393 | 476 |
+| P1 | 3 | 3 | 0 | 51 | 57 |
+| P2 | 28 | 0 | 14 | 189 | 231 |
+| P3 | 34 | 0 | 3 | 152 | 189 |
+| **All** | 65 | 3 | 17 | 393 | 478 |
 
 ## Entries
 
@@ -502,7 +502,7 @@ repository and CI).
 | [T-428](mesh.md) | P1 | M | M10 | feature | done | The relay role behind a node's quick tunnel, with no listener |
 | [T-429](mesh.md) | P1 | L | M10 | feature | done | The net: an owner's signed list of its nodes, and their names |
 | [T-430](mesh.md) | P2 | M | M10 | feature | done | The net's policy: who may reach which node, share and exit |
-| [T-431](mesh.md) | P1 | L | M10 | feature | open | Exit mode: a node's egress for its owner's forward road |
+| [T-431](mesh.md) | P1 | L | M10 | feature | partial | Exit mode: a node's egress for its owner's forward road |
 | [T-432](mesh.md) | P2 | M | M10 | feature | open | Routes: a node reaches its private networks for the net |
 | [T-433](mesh.md) | P2 | M | M10 | feature | open | `podssh share`: a node's local services by name, for the net |
 | [T-434](mesh.md) | P2 | M | M10 | feature | open | A member that relays between two other members |
@@ -529,6 +529,8 @@ repository and CI).
 | [T-455](mesh.md) | P2 | S | M10 | feature | open | The relay role mints for the members of the net |
 | [T-456](mesh.md) | P3 | M | M10 | feature | blocked | XHTTP over HTTP/1.1, on a second connection |
 | [T-457](mesh.md) | P2 | M | M10 | feature | open | The relay role dials its targets through the host's `HTTPS_PROXY` |
+| [T-458](mesh.md) | P2 | S | M10 | feature | open | `podssh doctor --exit NAME`: the exit, its verdict and the road that reached it |
+| [T-459](mesh.md) | P3 | S | M10 | feature | open | The quick tunnel's node lends its egress (`--exit` with `--quick-tunnel`) |
 | [T-460](ssh.md) | P1 | M | none | defect | open | A reply to a global request that carries data ends the connection: a quiet minute with keepalives, and a refused `-R` |
 | [T-461](ssh.md) | P1 | S | none | defect | open | A link that ends after the exit status and before the output's end gives that status: output cut at the relay's 64 MiB exits 0 |
 | [T-462](ssh.md) | P2 | S | none | defect | open | A `-J` hop whose channel opens and then carries nothing ends in a bare handshake timeout, and the open has no limit |

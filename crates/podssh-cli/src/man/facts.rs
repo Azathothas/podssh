@@ -36,7 +36,8 @@ pub fn sections() -> Vec<Section> {
         // Not "relay": that is the command's name, and a name selects one
         // section.
         topic("relay-facts", vec![], "THE RELAY", relay()),
-        topic("exit-status", vec!["exit"], "EXIT STATUS", exit_status()),
+        // `exit` is the command (T-431); the codes keep their own key.
+        topic("exit-status", vec![], "EXIT STATUS", exit_status()),
     ]
 }
 

@@ -79,7 +79,7 @@ pub mod session;
 pub mod sftp;
 pub mod signals;
 pub mod sk;
-mod socks;
+pub mod socks;
 pub mod sshsig;
 pub mod sshsig_cert;
 pub mod tally;

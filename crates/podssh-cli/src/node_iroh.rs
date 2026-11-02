@@ -174,8 +174,10 @@ async fn serve_tcp(ready: Ready, targets: Vec<Route>, roost: bool, err: &mut dyn
         Err(refusal) => return refusal.report("node", err),
     };
     // Each route as the allowlist grants it; `serve` adds the net's, with the key.
-    let routes = crate::node::routes_of(&targets, crate::channel::grant_of(ready.allow.clone()), roost);
-    let (host, port) = (targets[0].host.clone(), targets[0].port);
+    // The exit's dial needs the node's key, which `serve` loads (T-431).
+    let routes = crate::node::routes_of(&targets, crate::channel::grant_of(ready.allow.clone()), roost, None);
+    let first = crate::node_exit::first(&targets);
+    let (host, port) = (first.host, first.port);
     let handler = TcpHandler { host: host.clone(), port, timeout: DIAL_LIMIT, sshd: roost };
     let open = move || {
         let host = host.clone();
@@ -227,7 +229,11 @@ where
     };
     // A member of the net lets in its members on both roads (T-429).
     let me = key.identity.public();
-    let routes = routes.map(|r| Routes { grant: crate::net::admit::grant(allow.clone(), Some(me)), ..r });
+    if let Err(refusal) = crate::node_exit::ready(&label, &me) {
+        return refusal.report(verb, err);
+    }
+    let exit = crate::node_exit::dial(me);
+    let routes = routes.map(|r| Routes { grant: crate::net::admit::grant(allow.clone(), Some(me)), exit, ..r });
     // The first relay of the list that answers `/ping` is the home relay,
     // and the ticket names it for the run (T-165).
     let (home, missed) = podssh_iroh::relays::home(&relays, &trust, &proxy).await;

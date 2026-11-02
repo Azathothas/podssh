@@ -346,7 +346,7 @@ the node then exits (docs/reverse.md, line 19 at `fb228e9`).
    `/v1/connect/<name>`. If none does, "each relay host" means each address of
    the control host (pins, resolver, DNS over HTTPS). Write it in
    `docs/relay.md`, with `docs/reverse.md` and the manual's relay section
-   (`crates/podssh-cli/src/man/facts.rs:309-465`).
+   (`crates/podssh-cli/src/man/facts.rs:310-466`).
 6. A node keeps the replay buffer of each session (T-152): with the relay's
    limit of 64 sessions and 4 MiB each, 256 MiB. Bound the node's whole
    replay memory (a session past the bound gets `REFUSE` busy, code 6), and
@@ -779,8 +779,8 @@ no `GREETING`, and that the default node greets.
 as they are, with no resumable layer: the node's handler is then the TCP
 handler alone, which dials TARGET at `open`
 (`crates/podssh-cli/src/node.rs`, lines 152-163 at `8e31960`). The node's first line names its
-mode (`crates/podssh-cli/src/node.rs:312`). `--plain` with `--iroh` is
-refused with 64 (`crates/podssh-cli/src/node.rs:92-95`): the iroh road
+mode (`crates/podssh-cli/src/node.rs:322`). `--plain` with `--iroh` is
+refused with 64 (`crates/podssh-cli/src/node.rs:94-97`): the iroh road
 always runs the layer. The flag's row, the manual's note of `node`,
 `docs/reverse.md` and `docs/cli.md`.
 - Native: `cargo test -p podssh-cli -- plain`, 3 passed. The argument test:
@@ -836,8 +836,8 @@ Measured on `3ee70dc`, offline (`PODSSH_OFFLINE=1`, a `.invalid` host):
 4. On the resumable road, do not print the warning of
    `crates/podssh-cli/src/ssh/resolve.rs:390-404` (the `warnings` of keepalives).
 5. In the same commit: "Liveness" and "Idle limit" in the manual
-   (`crates/podssh-cli/src/man/facts.rs:395-410`,
-   `crates/podssh-cli/src/man/facts.rs:430-439`), the note at
+   (`crates/podssh-cli/src/man/facts.rs:396-411`,
+   `crates/podssh-cli/src/man/facts.rs:431-440`), the note at
    `crates/podssh-cli/src/man/notes_ssh_more.rs:42`, `docs/relay.md`, `README.md`.
 
 ## Decision
@@ -957,7 +957,7 @@ node's side (`crates/podssh-probe/tests/spec/relay-spec-2026-10-03-r2.txt:133-13
 6. When the client knows the expiry of the pair (from the node's ticket,
    T-163), it warns 1 h before; at the expiry the session ends with the reason.
 7. `-v` prints one line for each move. Docs: `docs/relay.md` ("Limits that
-   users see") and the manual (`crates/podssh-cli/src/man/facts.rs:309-465`).
+   users see") and the manual (`crates/podssh-cli/src/man/facts.rs:310-466`).
 
 ## Decision
 

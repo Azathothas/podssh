@@ -71,6 +71,10 @@ pub struct NodeArgs {
     pub env_file: Option<String>,
     /// How long a lost session is kept, unparsed (T-306).
     pub resume_deadline: Option<String>,
+    /// `--exit`: lend this host's egress to the net's members (T-431).
+    pub exit: bool,
+    /// `--routes RANGES`: the private ranges that the exit dials too, unparsed.
+    pub routes: Option<String>,
     pub refused: Vec<(String, &'static str, &'static str)>,
 }
 
@@ -111,6 +115,8 @@ impl NodeArgs {
             uninstall: matches.get_flag("uninstall"),
             env_file: get("env-file"),
             resume_deadline: get("resume-deadline"),
+            exit: matches.get_flag("exit"),
+            routes: get("routes"),
             refused,
         }
     }

@@ -46,6 +46,9 @@ pub mod exit_codes;
 // Two modules because they answer different questions: `exit_codes.rs` is
 // "what does this crate emit today", `exitmap.rs` is "what the contract says".
 pub mod exitmap;
+// `podssh exit NAME --listen ADDR:PORT`, and the client's side of an exit of
+// the net: `--exit NAME` of proxy and pipe (T-431).
+pub mod exit;
 // Tables, one flag to a row: rustfmt would spread each row over many lines.
 #[rustfmt::skip]
 pub mod flags;
@@ -82,6 +85,8 @@ pub mod node_install;
 // The flags of `podssh node` that each road reads: the keys, the resume
 // deadline (T-306).
 pub mod node_flags;
+// `podssh node --exit`: the node lends its egress to its net (T-431).
+pub mod node_exit;
 // `podssh node NAME udp:HOST:PORT`: a UDP target, one flow for each session.
 pub mod node_udp;
 // `podssh node --derp`: the DERP road, and its fallback of a node with no

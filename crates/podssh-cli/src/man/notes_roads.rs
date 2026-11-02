@@ -8,8 +8,18 @@ use super::notes_ssh::SSH as OWN;
 /// The notes of `podssh ssh`.
 pub const SSH: &[&str] = &join::<{ OWN.len() + ROADS.len() }>(OWN, ROADS);
 
-const ROADS: &[&str] =
-    &["--wstunnel wss://HOST[:PORT] reaches the first hop through a server of erebe/wstunnel that you run \
+const ROADS: &[&str] = &[
+    "--exit NAME starts the road to the first hop (the destination, or the first host of -J) at NAME, a node of \
+     your net that lends its egress (see podssh node --exit), in place of the relay, as a Tailscale exit node \
+     carries a device's traffic: the node dials the host from its own, on each of its roads that answers, raced as \
+     for node://NAME, and the session resumes on any of them. The host travels in the end-to-end channel, so the \
+     relay sees neither the host nor a byte; the node resolves it, checks each address (a public one, or one of \
+     its ranges, as its net's policy lets this client) and dials those addresses alone. The host key is the \
+     host's, under its own name, as on the relay. NAME is a member of the net, whose key the channel checks, and \
+     the label of its pair here. A refusal of the node or of its net's policy says why, and ssh exits \
+     255. --exit goes with no node://, iroh:, derp:, cf://, iap:// or eice:// destination, no --direct, no -4 \
+     or -6, no --no-e2e and no road of another server (64). podssh cp, scp and sftp take it too.",
+    "--wstunnel wss://HOST[:PORT] reaches the first hop through a server of erebe/wstunnel that you run \
      (wstunnel server wss://[::]:443), in place of the relay: podssh opens the WebSocket to it, through \
      HTTPS_PROXY when one is set, checked for HOST with podssh's trust (--ca-file), and its token names the \
      first hop as wstunnel's own client names it; the server dials it and carries the bytes. podssh speaks \
@@ -27,7 +37,8 @@ const ROADS: &[&str] =
      the server where the command line names no other road; beside PODSSH_RELAY, PODSSH_FORWARDER or \
      PODSSH_VIA it is refused (78). A run has one road: --relay-host, --relay-failover, --direct, \
      --forwarder, --shadowsocks, --via, --vless, -4, -6, and a destination with a road of its own cannot go \
-     with it (64). The host key of SSH protects the session, as on each road."];
+     with it (64). The host key of SSH protects the session, as on each road.",
+];
 
 /// The note of `podssh proxy --wstunnel`.
 pub const PROXY_WSTUNNEL: &str =

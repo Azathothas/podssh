@@ -44,7 +44,7 @@ pub const PIPE_FLAGS: &[FlagRow] = &[
     row(None, "restart", None, FlagKind::Supported,
         "with --detach: a small process in the background starts the run again whenever it ends, but after 64, 77 or 78 or a stop of that process; it never gives up (T-390)", None),
     super::detach::DETACH_NAME,
-    super::via::VIA, super::via::VIA_AUTH_FILE,
+    super::via::VIA, super::via::VIA_AUTH_FILE, super::node::PIPE_EXIT,
     row(None, "proxy-auth-file", Some("FILE"), FlagKind::Supported,
         "http-listen: each client gives a USER:PASSWORD of FILE, a private file, one a line, in Proxy-Authorization; needed off loopback", None),
 ];

@@ -53,6 +53,9 @@ pub struct ProxyArgs {
     /// `--wstunnel` and `--wstunnel-secret-file`: a wstunnel server in place
     /// of the relay (T-441).
     pub wstunnel: crate::wstunnel::Flags,
+    /// `--exit NAME` and `--client-key FILE`: the pipe starts at this exit
+    /// of the net, in place of the relay (T-431).
+    pub exit: crate::exit::Flags,
 }
 
 /// Run the verb; returns the process exit code. A run that named its
@@ -82,7 +85,7 @@ fn proxy(args: &ProxyArgs, err: &mut dyn Write) -> i32 {
         .and_then(|()| crate::via::pipe::beside(args))
         .and_then(|()| crate::vless::pipe::beside(args))
         .and_then(|()| crate::wstunnel::pipe::beside(args));
-    if let Err(refusal) = beside {
+    if let Err(refusal) = beside.and_then(|()| key_alone(args)) {
         return refusal.report("proxy", err);
     }
     // iap:// and eice://, a cloud's own tunnel (T-351).
@@ -126,10 +129,17 @@ fn proxy(args: &ProxyArgs, err: &mut dyn Write) -> i32 {
             return EXIT_USAGE;
         }
     };
-    crate::session_log::target(&host, Some(port), "relay");
     if let Err(refusal) = crate::pins::apply(args.relay_addr.as_deref()) {
         return refusal.report("proxy", err);
     }
+    // The exit of the net (T-431): the pipe starts at the node, alone.
+    if let Some(name) = args.exit.name.as_deref() {
+        return match exit_alone(args) {
+            Ok(()) => crate::exit::open::run_proxy(&exit_to(name, args), &host, port, err),
+            Err(why) => crate::relay_settings::Refusal::usage(why).report("proxy", err),
+        };
+    }
+    crate::session_log::target(&host, Some(port), "relay");
     // The VLESS servers of a file (T-440), a wstunnel server (T-441), a forward
     // proxy over TLS (T-439), the Shadowsocks servers of a file (T-373), then
     // the forwarders, when the command line or the environment names them
@@ -255,6 +265,40 @@ fn run_cloudflare(host: &str, args: &ProxyArgs, err: &mut dyn Write) -> i32 {
     });
     runtime.shutdown_background();
     code
+}
+
+/// `--exit` takes the relay's place: no relay host, no server of another
+/// road, and no cf://HOST, iap:// or eice://, which have roads of their own.
+fn exit_alone(args: &ProxyArgs) -> Result<(), &'static str> {
+    let other = args.relay_host.is_some()
+        || args.relay_failover.is_some()
+        || args.forwarder.is_some()
+        || args.shadowsocks.is_some()
+        || args.vless.is_some()
+        || args.via != crate::via::Flags::default()
+        || args.wstunnel != crate::wstunnel::Flags::default();
+    match other {
+        true => Err("--exit takes the relay's place: it goes with no relay host and no server of another road"),
+        false => Ok(()),
+    }
+}
+
+/// `--client-key` is the exit's channel's alone.
+fn key_alone(args: &ProxyArgs) -> Result<(), crate::relay_settings::Refusal> {
+    match (&args.exit.name, &args.exit.client_key) {
+        (None, Some(_)) => {
+            let why = "--client-key is this client's key for --exit NAME: give --exit too";
+            Err(crate::relay_settings::Refusal::usage(why))
+        }
+        _ => Ok(()),
+    }
+}
+
+/// The exit of `--exit NAME`, with the trust of `--ca-file` for its pair's
+/// relay.
+fn exit_to(name: &str, args: &ProxyArgs) -> crate::exit::open::To {
+    let (name, client_key, ca_file) = (name.to_string(), args.exit.client_key.clone(), args.ca_file.clone());
+    crate::exit::open::To { name, client_key, ca_file, ..Default::default() }
 }
 
 /// `HOST PORT`, or one word: `HOST:PORT` or `[IPV6]:PORT`. HOST may be a

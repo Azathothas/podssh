@@ -140,6 +140,7 @@ fn prepare(args: &NodeArgs, label: String, pair: Pair, stored: bool, trust: Trus
     let place = crate::channel::node_place(&label, flags.key.as_deref(), flags.ephemeral)?;
     // The key is made only once each check passed.
     let key = crate::channel::load_node_key(&place)?;
+    crate::node_exit::ready(&label, &key.identity.public())?;
     Ok(Ready { label, pair, stored, targets, roost: args.sshd, key, allow: flags.allow, trust })
 }
 
@@ -196,8 +197,9 @@ pub(crate) async fn serve(
     // The net's members too (T-429), as on the other roads.
     let me = key.identity.public();
     let channel = crate::channel::node(&label, key, allow.clone(), err);
-    let routes = crate::node::routes_of(&targets, crate::net::admit::grant(allow, Some(me)), roost);
-    let (host, port) = (targets[0].host.clone(), targets[0].port);
+    let routes = crate::node::routes_of(&targets, crate::net::admit::grant(allow, Some(me)), roost, Some(me));
+    let first = crate::node_exit::first(&targets);
+    let (host, port) = (first.host, first.port);
     let handler = TcpHandler { host: host.clone(), port, timeout: DIAL_LIMIT, sshd: roost };
     let target = move || {
         let host = host.clone();

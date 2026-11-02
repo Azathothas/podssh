@@ -5,7 +5,8 @@
 //! which a build has with the feature `iroh` only; in another build,
 //! `--iroh` is refused with exit 70. The key's flags of T-163 keep their
 //! names beside the new ones. And the client's resume deadline, which
-//! `ssh` and `operator` name in their tables.
+//! `ssh` and `operator` name in their tables; the exit of the net (T-431):
+//! `node --exit`, `--exit NAME` of the clients, and the verb `exit`.
 
 use super::{row, FlagKind, FlagRow};
 
@@ -20,6 +21,39 @@ pub const SSH_ENV_FILE: FlagRow = row(None, "env-file", Some("FILE"), FlagKind::
 /// A client's own resume deadline (T-306), of `ssh` and `operator`.
 pub const OWN_DEADLINE: FlagRow = row(None, "resume-deadline", Some("TIME"), FlagKind::Supported,
     "node://NAME and iroh:TICKET: wait at most TIME for a new link after a loss, though the node keeps the session longer: 90s, 30m, 8h or 3d, from 1 minute to 72 h (default: as long as the node keeps it)", None);
+
+/// `--exit NAME` of `ssh`, `cp`, `scp` and `sftp` (T-431).
+pub const EXIT: FlagRow = row(None, "exit", Some("NAME"), FlagKind::Supported,
+    "start the road at NAME, a node of your net that lends its egress (podssh node --exit): it dials the destination, or the first hop of -J, from its own host, on each road between the two; the host key is the destination's", None);
+/// `--exit NAME` of `proxy`.
+pub const PROXY_EXIT: FlagRow = row(None, "exit", Some("NAME"), FlagKind::Supported,
+    "carry the pipe from NAME, a node of your net that lends its egress (podssh node --exit), in place of the relay: it dials HOST PORT from its own host", None);
+/// `--client-key FILE` of `proxy`, for its exit.
+pub const PROXY_CLIENT_KEY: FlagRow = row(None, "client-key", Some("FILE"), FlagKind::Supported,
+    "with --exit: this client's key in FILE, made when missing (default: client.key in the cache)", None);
+/// `--exit NAME` of `pipe`.
+pub const PIPE_EXIT: FlagRow = row(None, "exit", Some("NAME"), FlagKind::Supported,
+    "relay:HOST:PORT and relay:%h:%p start at NAME, a node of your net that lends its egress (podssh node --exit), in place of the relay", None);
+
+/// `exit NAME --listen ADDR:PORT` (T-431): a local proxy whose connections
+/// start at the exit NAME.
+#[rustfmt::skip]
+pub const EXIT_FLAGS: &[FlagRow] = &[
+    row(None, "listen", Some("ADDR:PORT"), FlagKind::Supported,
+        "serve SOCKS5, SOCKS4a and HTTP CONNECT on ADDR:PORT, a loopback address, a listener that you ask for (127.0.0.1:0 takes a free port); PODSSH_LISTEN=no refuses it", None),
+    row(None, "pair-file", Some("FILE"), FlagKind::Supported,
+        "the pair in FILE, or its operator's part, not the one stored under NAME", None),
+    row(None, "client-key", Some("FILE"), FlagKind::Supported,
+        "this client's key in FILE, made when missing (default: client.key in the cache)", None),
+    row(None, "node-key", Some("KEY"), FlagKind::Supported,
+        "the node's key, or its fingerprint SHA256:..., in place of the net's or the pins of known-nodes", None),
+    row(None, "relay-addr", Some("HOST=IP"), FlagKind::Supported,
+        "use IP for HOST instead of DNS, HOST=IP[,...]; also env PODSSH_RELAY_ADDR (for hosts with no DNS)", None),
+    row(None, "ca-file", Some("FILE"), FlagKind::Supported,
+        "trust only the CA certificates in FILE for the relay (default: env SSL_CERT_FILE, else system and built-in roots)", None),
+    row(Some('q'), "quiet", None, FlagKind::Supported,
+        "no line for each connection; errors still go to stderr", None),
+];
 
 /// `node` (T-083, T-163): the flags of a pair, and those of the iroh road,
 /// which a build has with the feature `iroh` only.
@@ -46,6 +80,10 @@ pub const NODE_FLAGS: &[FlagRow] = &[
         "the operator keys that may come in, on each road: one key or fingerprint on each line, read again for each session (default: on the pair's road, each operator with the connect token; on the iroh road, none)", None),
     row(None, "no-e2e", None, FlagKind::Supported,
         "carry each session's bytes with no end-to-end channel, to operators that run none either; the relay then sees them", None),
+    row(None, "exit", None, FlagKind::Supported,
+        "lend this host's egress to the members of its net: a session may name a target of its own, which the node resolves, then dials at a public address alone, or in a range of --routes; needs a net that gives this node the role exit; TARGET is then optional", None),
+    row(None, "routes", Some("RANGES"), FlagKind::Supported,
+        "with --exit: the private ranges that the exit dials too, ADDR/BITS or one address, separated by commas, each for the members that the net's policy lets reach the address", None),
     row(None, "iroh", None, FlagKind::Supported,
         "serve TARGET over the iroh road, with no pair: a client dials the ticket that the node prints; a build with the feature iroh", None),
     super::derp::NODE_DERP,

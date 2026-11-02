@@ -39,6 +39,16 @@ pub async fn reach(address: &Address, settings: &Settings, say: &mut dyn FnMut(&
 }
 
 async fn relay(host: &str, port: u16, settings: &Settings, say: &mut dyn FnMut(&str)) -> Result<End, Unreached> {
+    // An exit of the net takes the relay's place (T-431): its refusal is the
+    // node's or its net's policy's, 403; another failure, 502.
+    if let Some(name) = settings.ssh.exit.as_deref() {
+        let to = crate::exit::open::To::of_ssh(name, &settings.ssh);
+        return crate::exit::open::open(&to, host, port).await.map_err(|refused| {
+            say(&format!("--exit {name}: {}", refused.line));
+            let status = if refused.kind == crate::exit::open::Kind::NotAllowed { 403 } else { 502 };
+            Unreached { code: refused.code, status, reason: refused.line }
+        });
+    }
     let usage = |reason: String| Unreached { code: crate::exit_codes::EXIT_USAGE, status: 400, reason };
     let path = podssh_relay::relay::forward_path(host, port).map_err(usage)?;
     let Some(relays) = settings.relays.as_ref() else {

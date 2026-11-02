@@ -94,12 +94,12 @@ impl<'a> Dest<'a> {
             (Dest::Route(named, one), Want::Node { node, route: Some(route) }) => named == node && one == route,
             (Dest::Route(named, _), Want::AnyOf(node)) => named == node,
             (Dest::Tag(tag), Want::Node { node, .. } | Want::AnyOf(node)) => policy.tagged(tag, node),
-            (Dest::Exit(None), Want::Exit(_) | Want::AnyOf(_)) => true,
-            (Dest::Exit(Some(named)), Want::Exit(node) | Want::AnyOf(node)) => named == node,
+            (Dest::Exit(None), Want::Exit(_) | Want::AnyOf(_) | Want::Egress(_)) => true,
+            (Dest::Exit(Some(named)), Want::Exit(node) | Want::AnyOf(node) | Want::Egress(node)) => named == node,
             (Dest::Range(range), Want::Addr(addr)) => range.contains(addr),
             // Which node routes a range is T-432's: a road's door lets the
             // member come in to ask, and the channel checks the address.
-            (Dest::Range(_), Want::AnyOf(_)) => true,
+            (Dest::Range(_), Want::AnyOf(_) | Want::Egress(_)) => true,
             _ => false,
         }
     }

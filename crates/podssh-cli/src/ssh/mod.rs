@@ -20,7 +20,9 @@ pub mod control;
 // derp:TICKET, and the DERP road of node://NAME (T-379).
 pub mod derp;
 pub mod dump;
+// `--exit NAME`: the road starts at an exit of the user's net (T-431).
 mod elevate;
+pub mod exit_road;
 // `--expect` and `--send` (T-191).
 pub mod expect;
 pub mod forward;

@@ -2,9 +2,10 @@
 //! encrypted payloads of the second and third messages, then the node's
 //! verdict. The operator learns the node's key before it proves its own, so
 //! a node that it refuses learns nothing of it. The operator's proof may
-//! name a route of the node (T-089), encrypted with it, so that the relay
-//! never sees which. Two ends that hold the net's document say which, and
-//! the newer one travels (T-429, [`super::net`]).
+//! name a route of the node (T-089), or the target of an exit (T-431), as
+//! its word ([`super::Ask`]), encrypted with it, so that the relay never
+//! sees which. Two ends that hold the net's document say which, and the
+//! newer one travels (T-429, [`super::net`]).
 
 use std::future::Future;
 use std::sync::Arc;
@@ -16,7 +17,7 @@ use tokio::io::{AsyncRead, AsyncWrite, AsyncWriteExt};
 use super::channel::Channel;
 use super::frame::{read_frame, read_magic, write_frame};
 use super::net::{self, Docs, Held};
-use super::{Error, Refusal, HANDSHAKE_LIMIT, MAGIC, MAX_DATA, MAX_MESSAGE, PATTERN, PROLOGUE};
+use super::{Ask, Error, Refusal, HANDSHAKE_LIMIT, MAGIC, MAX_DATA, MAX_MESSAGE, PATTERN, PROLOGUE};
 use crate::identity::{Identity, PublicKey};
 
 /// The version of a proof of a key, its first byte.
@@ -61,19 +62,19 @@ pub struct Offered<T> {
 }
 
 /// The node's side after the operator's proof: the operator's key, which the
-/// node lets in or refuses, and the route that it named.
+/// node lets in or refuses, and what it asked: a route, or an exit's target.
 pub struct Asked<T> {
     channel: Channel<T>,
     peer: PublicKey,
-    route: Option<String>,
+    ask: Ask,
     net: Option<Talk>,
 }
 
-/// A proof, read: the key, the route that it names, and, in the net's form,
-/// what the sender holds and whether its document follows.
+/// A proof, read: the key, what its word asks, and, in the net's form, what
+/// the sender holds and whether its document follows.
 struct Proof {
     key: PublicKey,
-    route: Option<String>,
+    ask: Ask,
     net: Option<(Option<Held>, bool)>,
 }
 
@@ -121,9 +122,9 @@ impl<T: AsyncRead + AsyncWrite + Unpin> Offered<T> {
     }
 
     /// Prove this end's key, with `route` of the node when one is asked
-    /// (T-089), and this end's document of the net when it is the newer
-    /// one, then wait for the node's verdict: the channel, or why the node
-    /// refused.
+    /// (T-089), or the word of an exit's target (T-431, [`Ask::word`]), and
+    /// this end's document of the net when it is the newer one, then wait
+    /// for the node's verdict: the channel, or why the node refused.
     pub async fn accept(self, route: Option<&str>) -> Result<Channel<T>, Error> {
         let Offered { mut transport, mut state, peer, proof, net } = self;
         let gift = net.as_ref().and_then(|talk| talk.gift(&peer));
@@ -212,7 +213,7 @@ pub async fn respond_with<T: AsyncRead + AsyncWrite + Unpin>(
         }
         _ => None,
     };
-    Ok(Asked { channel, peer: read.key, route: read.route, net })
+    Ok(Asked { channel, peer: read.key, ask: read.ask, net })
 }
 
 impl<T: AsyncRead + AsyncWrite + Unpin> Asked<T> {
@@ -223,7 +224,13 @@ impl<T: AsyncRead + AsyncWrite + Unpin> Asked<T> {
 
     /// The route of this node that the operator named, if one (T-089).
     pub fn route(&self) -> Option<&str> {
-        self.route.as_deref()
+        self.ask.route()
+    }
+
+    /// What the operator asked: the target with no route, a route, or an
+    /// exit's target (T-431).
+    pub fn ask(&self) -> &Ask {
+        &self.ask
     }
 
     /// Let the operator in: the verdict, then this node's document of the
@@ -290,10 +297,11 @@ fn in_net_form(
     Ok(payload)
 }
 
-/// The length of a route's name, which must be one and fit one byte.
+/// The length of a word, a route's name or an exit's target, which fits one
+/// byte.
 fn route_len(route: &str) -> Result<u8, Error> {
-    let bad = || Error::Handshake(format!("the route {route:?} is not a route's name"));
-    podssh_ws::names::check_node_name(route).map_err(|_| bad())?;
+    let bad = || Error::Handshake(format!("{route:?} is neither a route's name nor an exit's target HOST:PORT"));
+    Ask::read(Some(route)).ok_or_else(bad)?;
     u8::try_from(route.len()).map_err(|_| bad())
 }
 
@@ -302,25 +310,20 @@ fn route_len(route: &str) -> Result<u8, Error> {
 /// end said that it reads it (`net_ok`), as an end of before would not.
 fn proof_of(payload: &[u8], remote_static: Option<&[u8]>, net_ok: bool) -> Result<Proof, Error> {
     let unread = || Error::Handshake("the peer's proof of its key is not one that this podssh reads".into());
-    let named = |bytes: &[u8]| {
-        std::str::from_utf8(bytes)
-            .ok()
-            .filter(|r| podssh_ws::names::check_node_name(r).is_ok())
-            .map(str::to_string)
-            .ok_or_else(unread)
-    };
-    let (route, net) = match payload.first() {
-        Some(&PROOF_VERSION) if payload.len() == PROOF_LEN => (None, None),
+    // A word is a route's name or an exit's target (T-431).
+    let named = |bytes: &[u8]| std::str::from_utf8(bytes).ok().and_then(|r| Ask::read(Some(r))).ok_or_else(unread);
+    let (ask, net) = match payload.first() {
+        Some(&PROOF_VERSION) if payload.len() == PROOF_LEN => (Ask::Target, None),
         Some(&ROUTED_PROOF) if payload.len() > PROOF_LEN + 1 => {
             let route = &payload[PROOF_LEN + 1..];
             if route.len() != usize::from(payload[PROOF_LEN]) {
                 return Err(unread());
             }
-            (Some(named(route)?), None)
+            (named(route)?, None)
         }
         Some(&NET_PROOF) if net_ok && payload.len() > PROOF_LEN => {
             let (route, held, follows) = net::decode(&payload[PROOF_LEN..]).ok_or_else(unread)?;
-            (route.map(named).transpose()?, Some((held, follows)))
+            (route.map(named).transpose()?.unwrap_or(Ask::Target), Some((held, follows)))
         }
         _ => return Err(unread()),
     };
@@ -332,7 +335,7 @@ fn proof_of(payload: &[u8], remote_static: Option<&[u8]>, net_ok: bool) -> Resul
     if !key.signed(&noise_key, &binding) {
         return Err(Error::Handshake(format!("the key {key} does not sign the peer's Noise key")));
     }
-    Ok(Proof { key, route, net })
+    Ok(Proof { key, ask, net })
 }
 
 /// A frame that must be there: the stream's end in its place is a cut.

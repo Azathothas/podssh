@@ -261,6 +261,7 @@ pub fn parse_verb(verb: &'static Verb, rest: &[std::ffi::OsString]) -> Parsed {
             via: crate::via::Flags { url: get("via"), auth_file: get("via-auth-file") },
             vless: get("vless"),
             wstunnel: crate::wstunnel::Flags { url: get("wstunnel"), secret_file: get("wstunnel-secret-file") },
+            exit: crate::exit::Flags { name: get("exit"), client_key: get("client-key") },
             refused,
         };
     }
@@ -396,6 +397,10 @@ pub fn parse_verb(verb: &'static Verb, rest: &[std::ffi::OsString]) -> Parsed {
 
     if verb.name == "net" {
         return Parsed::Net(Box::new(crate::net::NetArgs::from_matches(&matches, refused)));
+    }
+
+    if verb.name == "exit" {
+        return Parsed::Exit(Box::new(crate::exit::ExitArgs::from_matches(&matches, refused)));
     }
 
     // The command of `job start` must follow `--` (T-193).

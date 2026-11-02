@@ -1,6 +1,7 @@
 //! The routes of a node (T-089), over the end-to-end channel: the operator
 //! names a route in its proof, which the relay carries encrypted; the node
-//! gets it with the operator's key, and chooses the target, or refuses.
+//! gets it with the operator's key, and chooses the target, or refuses. An
+//! exit's target (T-431) reaches only a node that serves each ask.
 
 mod e2e_harness;
 
@@ -8,7 +9,7 @@ use std::sync::{Arc, Mutex};
 
 use e2e_harness::{identity, node, LIMIT, PIPE};
 use podssh_relay::e2e::ends;
-use podssh_relay::e2e::{Error, Refusal};
+use podssh_relay::e2e::{Ask, Error, Refusal};
 use tokio::io::{AsyncReadExt, AsyncWriteExt};
 
 /// One session to a node whose target names the route that it was asked
@@ -83,4 +84,35 @@ async fn a_route_that_the_node_refuses_reaches_no_target() {
     let (read, asked) = session(Some("../x"), true).await;
     assert!(matches!(read, Err(Error::Handshake(_))), "{read:?}");
     assert!(asked.is_empty());
+}
+
+#[tokio::test(flavor = "multi_thread", worker_threads = 4)]
+async fn an_exit_s_target_reaches_only_a_node_that_serves_each_ask() {
+    // A node of routes is no exit: it refuses the target, and opens nothing.
+    let (read, asked) = session(Some("github.com:22"), true).await;
+    match read {
+        Err(Error::Refused(Refusal::Other(why))) => assert!(why.contains("is no exit"), "{why}"),
+        other => panic!("{other:?}"),
+    }
+    assert!(asked.is_empty(), "a node of routes opened for an exit's target: {asked:?}");
+    // A node that serves each ask gets the target whole, after its admission.
+    let (node_end, _lines) = node(identity(2), |_| Ok(()));
+    let (app, app_end) = tokio::io::duplex(PIPE);
+    let (cipher, session) = ends::operator_to(app_end, identity(1), |_| Ok(()), Some("[2001:db8::1]:443".into()));
+    let (tx, rx) = std::sync::mpsc::channel();
+    tokio::spawn(async move {
+        ends::serve_asked(cipher, &node_end, move |_, ask: Ask| {
+            let _ = tx.send(ask);
+            async move { Err::<tokio::io::DuplexStream, _>(Refusal::Other("the test dials nothing".into())) }
+        })
+        .await
+    });
+    let session = tokio::spawn(session);
+    drop(app);
+    match tokio::time::timeout(LIMIT, session).await.unwrap().unwrap() {
+        Err(Error::Refused(Refusal::Other(why))) => assert!(why.contains("dials nothing"), "{why}"),
+        Err(e) => panic!("{e:?}"),
+        Ok(_) => panic!("the node let the operator in"),
+    }
+    assert_eq!(rx.recv_timeout(LIMIT).unwrap(), Ask::Exit { host: "2001:db8::1".into(), port: 443 });
 }
