@@ -147,8 +147,28 @@ mod tests {
         request::parse_request(b"POST /v1/mint HTTP/1.1\r\nHost: relay-a.test:8443\r\n\r\n").unwrap()
     }
 
+    /// A private scratch file of a list, and its directory, which goes when
+    /// the test ends, pass or fail: the gate counts what tests leave.
+    struct List {
+        dir: std::path::PathBuf,
+        path: std::path::PathBuf,
+    }
+
+    impl std::ops::Deref for List {
+        type Target = Path;
+        fn deref(&self) -> &Path {
+            &self.path
+        }
+    }
+
+    impl Drop for List {
+        fn drop(&mut self) {
+            let _ = std::fs::remove_dir_all(&self.dir);
+        }
+    }
+
     /// A list that holds the key of the seed 1, in a private scratch file.
-    fn list() -> std::path::PathBuf {
+    fn list() -> List {
         let dir =
             std::env::temp_dir().join(format!("podssh-keys-{}-{:?}", std::process::id(), std::thread::current().id()));
         crate::cache::private_dir(&dir).unwrap();
@@ -156,7 +176,7 @@ mod tests {
         let _ = std::fs::remove_file(&path);
         let line = format!("{} the test's key\n", Identity::from_seed(&[1; 32]).public().fingerprint());
         std::fs::write(&path, line).unwrap();
-        path
+        List { dir, path }
     }
 
     fn challenge(c: &Config, file: &Path) -> String {

@@ -1834,6 +1834,11 @@ here; the net's members are T-455 (Correction).
   `serve,plain-ws`: clean.
 - `cargo test --no-fail-fast -p podssh-cli`: 1288 passed, 0 failed; `cargo test --no-fail-fast -p
   podssh-relay --features pair,quick,derp,serve,piping`: 495 passed, 0 failed.
+- The gate's libs step at `b76548c` (41411781367) failed on two directories that the unit tests of
+  `serve/keys.rs` left in the temporary directory (`podssh-keys-PID-THREAD`), which the merge's
+  runs had not counted. Repaired the same day: the scratch list is a guard that removes its
+  directory when its test ends, pass or fail; `cargo test -p podssh-relay --features serve --lib
+  serve::`, 20 passed, and none left.
 
 # T-449: A test of the podssh-relay suite failed once in 11 runs, unnamed
 
