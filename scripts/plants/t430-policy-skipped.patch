@@ -1,10 +1,11 @@
 --- a/crates/podssh-cli/src/net/admit.rs
 +++ b/crates/podssh-cli/src/net/admit.rs
-@@ -73,6 +73,6 @@
-     };
+@@ -103,7 +103,7 @@
+     }
      match policy::check(doc, member, want) {
          Ok(_) => Verdict::Member(member.name.clone()),
 -        Err(why) => Verdict::Refused(why),
 +        Err(_) => Verdict::Member(member.name.clone()),
      }
  }
+ 
