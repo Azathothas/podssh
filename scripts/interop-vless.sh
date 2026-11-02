@@ -153,7 +153,11 @@ def inbound(port, network, security, settings, alpn=None):
         stream["tlsSettings"] = tls(alpn)
     return {"listen": "0.0.0.0", "port": port, "protocol": "vless",
             "settings": {"clients": [{"id": uid}], "decryption": "none"}, "streamSettings": stream}
-config = {"log": {"loglevel": "warning"}, "outbounds": [{"protocol": "freedom"}], "inbounds": [
+# Xray-core's freedom blackholes a private address for a VLESS inbound
+# unless a final rule allows it (proxy/freedom/freedom.go); sshd.test is one.
+private = ["10.0.0.0/8", "172.16.0.0/12", "192.168.0.0/16", "fc00::/7"]
+freedom = {"protocol": "freedom", "settings": {"finalRules": [{"action": "allow", "ip": private}]}}
+config = {"log": {"loglevel": "warning"}, "outbounds": [freedom], "inbounds": [
     inbound(8443, "ws", "tls", {"path": "/ws"}, ["http/1.1"]),
     inbound(8444, "xhttp", "tls", {"path": "/xh", "mode": "auto"}, ["h2", "http/1.1"]),
     inbound(8447, "xhttp", "tls", {"path": "/xh"}, ["http/1.1"]),
@@ -357,14 +361,16 @@ case $(head -c 8 "$W/banner.out") in SSH-2.0-) b=yes ;; *) b=no ;; esac
 
 session xray-other
 rc=$?
-[ "$rc" = 69 ] && grep -q "before VLESS's answer: it refused the ID" "$W/xray-other.err" &&
-    ok vless.xray.wrong-id "another ID: Xray-core's refusal is said (exit 69)" ||
+# ssh exits 255 for a first hop that it did not reach, as OpenSSH does; the
+# line says why.
+[ "$rc" = 255 ] && grep -q "before VLESS's answer: it refused the ID" "$W/xray-other.err" &&
+    ok vless.xray.wrong-id "another ID: Xray-core's refusal is said (exit 255)" ||
     bad vless.xray.wrong-id "another ID: exit $rc" "$W/xray-other.err"
 
 session xray-http1
 rc=$?
-[ "$rc" = 78 ] && grep -q 'did not choose HTTP/2 by ALPN' "$W/xray-http1.err" &&
-    ok vless.xray.http1 "a server of HTTP/1.1 alone is refused for XHTTP with its words (exit 78)" ||
+[ "$rc" = 255 ] && grep -q 'did not choose HTTP/2 by ALPN' "$W/xray-http1.err" &&
+    ok vless.xray.http1 "a server of HTTP/1.1 alone is refused for XHTTP with its words (exit 255)" ||
     bad vless.xray.http1 "a server of HTTP/1.1 alone: exit $rc" "$W/xray-http1.err"
 
 carried shoes-ws 'a WebSocket' && ok vless.shoes.ws "a session to shoes over a WebSocket" ||
@@ -378,8 +384,8 @@ carried shoes-stream-one 'XHTTP stream-one over HTTP/2' &&
 
 session nginx-ws
 rc=$?
-[ "$rc" = 69 ] && grep -q 'type=xhttp passes where the upgrade does not' "$W/nginx-ws.err" &&
-    ok vless.nginx.upgrade-refused "behind nginx, the refused upgrade names XHTTP as the way past it (exit 69)" ||
+[ "$rc" = 255 ] && grep -q 'type=xhttp passes where the upgrade does not' "$W/nginx-ws.err" &&
+    ok vless.nginx.upgrade-refused "behind nginx, the refused upgrade names XHTTP as the way past it (exit 255)" ||
     bad vless.nginx.upgrade-refused "the upgrade through nginx: exit $rc" "$W/nginx-ws.err"
 carried nginx-packet-up 'XHTTP packet-up over HTTP/2' &&
     ok vless.nginx.packet-up "behind nginx, which refuses the upgrade, a session over packet-up" ||

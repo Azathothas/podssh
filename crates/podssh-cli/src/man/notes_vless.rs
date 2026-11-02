@@ -13,13 +13,14 @@ pub const SSH_VLESS: &str = "--vless FILE reaches the first hop through VLESS se
      streamed POST up) or stream-one (one POST, its body up and its answer down). security=tls is TLS to \
      HOST:PORT, through HTTPS_PROXY when one is set, checked for sni (else host, else HOST) with podssh's trust \
      (--ca-file); host gives the request's Host; with security=none XHTTP speaks HTTP/2 with no TLS. A server \
-     that chooses HTTP/1.1 is refused for XHTTP (78), as its split modes need a second connection, which this \
-     road does not open. A flow (xtls-rprx-vision), REALITY, VLESS's encryption, type=tcp, and an extra setting \
+     that chooses HTTP/1.1 is refused for XHTTP (proxy exits 78; ssh 255, as for each first hop that it does \
+     not reach), as its split modes need a second connection, which this road does not open. A flow (xtls-rprx-vision), REALITY, VLESS's encryption, type=tcp, and an extra setting \
      of XHTTP that changes its requests are refused by their names (78), and so is a line that cannot be read, \
      by its number and never its text. The servers are tried in the order of the file, and each waits up to \
      10 s for VLESS's answer, which comes with the server's version line: a server that ends the session before \
      it has refused the ID or could not reach the target, and gives way to the next; -v says which transport \
-     carried the session. The host key of SSH protects the session, as on each road: the server sees the \
+     carried the session. Xray-core holds a session to a private address with no word, unless the finalRules \
+     of its freedom outbound allow it, and the wait ends with that said. The host key of SSH protects the session, as on each road: the server sees the \
      target's name and SSH's encrypted bytes. A run has one road: --relay-host, --relay-failover, --direct, \
      --forwarder, --shadowsocks, --via, --wstunnel, -4, -6, and a destination with a road of its own cannot go \
      with it (64).";

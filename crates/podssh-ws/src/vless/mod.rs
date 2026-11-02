@@ -85,8 +85,9 @@ impl VlessError {
             VlessError::Ended => format!("the VLESS server {shown}, for {target}: {ENDED}"),
             VlessError::NotVless(v) => format!("the VLESS server {shown}: {}", not_vless(*v)),
             VlessError::Silent(after) => format!(
-                "the VLESS server {shown} gave no answer for {target} within {} s: the target said nothing, or a \
-                 proxy or a front end between holds the bytes",
+                "the VLESS server {shown} gave no answer for {target} within {} s: the target said nothing, a \
+                 proxy or a front end between holds the bytes, or the server holds the session with no target; \
+                 Xray-core does so for a private address unless the finalRules of its freedom outbound allow it",
                 after.as_secs()
             ),
         }

@@ -1326,6 +1326,18 @@ which built and ran nothing; merged and measured by the main session the same da
   v26.10.21, shoes v0.3.6 and nginx in containers (15 checks): runs on the push of the merge, as
   GitHub starts a new workflow by hand only from the default branch; this entry stays `partial`
   until it passes.
+- Its first run (41414411915, at `33ccb11`): 5 passed, 10 failed. Each of shoes's three sessions
+  passed, and so did `doctor --vless` through Xray-core to `github.com:22`; each session through
+  Xray-core to `sshd.test`, in the run's private network, waited its 10 s with no answer.
+  Xray-core's `freedom` outbound blackholes a private address for a VLESS inbound unless a final
+  rule allows it (`getDefaultFinalRule`, `proxy/freedom/freedom.go` at v26.10.21). Shown on this
+  host: Xray-core on the loopback in front of a banner, through `podssh proxy --vless`, gave no
+  byte, and with `finalRules` allowing `127.0.0.0/8` gave the banner. The run's Xray-core now
+  allows the private ranges, which `xray run -test` takes (and refuses an unknown action). Three
+  other checks waited for 69 or 78 from `ssh`, which exits 255 for a first hop that it did not
+  reach, as OpenSSH does; their words were right, and they now wait for 255. The line of a silent
+  server names Xray-core's rule, as a user's own private target meets it too, and the manual and
+  `docs/cli.md` say so, and that `proxy` exits 78 for HTTP/1.1 where `ssh` exits 255.
 - The question of the Decision is Q67 (`TODO/PROGRESS.md`); its work is T-456, blocked on it.
 
 # T-441: wstunnel's protocol

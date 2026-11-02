@@ -1009,8 +1009,9 @@ server as `ssh` does, `proxy` and `doctor`, which checks each:
   same GET, and one streamed POST up; `stream-one`: one POST to the path,
   its body up and its answer down. A streamed upload says
   `Content-Type: application/grpc`. A server that chooses HTTP/1.1 is
-  refused (78): its split modes need a second connection, which this road
-  does not open (the operator's question in T-440).
+  refused (`proxy` exits 78, and `ssh` 255, as for each first hop that it
+  does not reach): its split modes need a second connection, which this road
+  does not open (Q67, T-456).
 - The link's `extra` (JSON of `xhttpSettings`) gives `headers`,
   `xPaddingBytes`, `noGRPCHeader`, `scMaxEachPostBytes` and `mode`; a key that
   only paces or pools Xray-core's own client is passed over, and each other
@@ -1020,7 +1021,9 @@ server as `ssh` does, `proxy` and `doctor`, which checks each:
 - The servers are tried in the order of the file. An SSH session waits up to
   10 s for VLESS's answer, which comes with the server's version line; a
   pipe of `proxy` takes the stream after 3 s of silence, as its client may
-  speak first. A run has one road: `--vless` beside `--relay-host`,
+  speak first. Xray-core holds a session to a private address with no word
+  for a VLESS inbound, unless the `finalRules` of its `freedom` outbound
+  allow it (`proxy/freedom/freedom.go`), and the line of the wait says so. A run has one road: `--vless` beside `--relay-host`,
   `--relay-failover`, `--forwarder`, `--shadowsocks`, `--via`, `--wstunnel`,
   `--direct`, `-4`, `-6` or a destination with a road of its own is refused
   (64).
