@@ -64,9 +64,10 @@ pub(super) const VARIABLES: &[(&[&str], &str)] = &[
     (
         &["PODSSH_FORWARDER_FALLBACK"],
         "no: when each relay host failed, podssh does not try the forwarders that it names (mudlet, ssheasy, \
-      mudix, then the Wisp demo server, wisp); yes, the default, tries them, where the relay was podssh's own \
-      choice. Over ForwarderFallback \
-      of the settings file; another word is a configuration error (78).",
+      mudix, then the Wisp demo server, wisp); yes, the default, tries them, 10 s at most each, where the relay \
+      was podssh's own choice and no relay host answered about the target (its 502, or its refusal of the \
+      target by policy, ends the run). Over ForwarderFallback of the settings file; another word is a \
+      configuration error (78).",
     ),
     (
         &["PODSSH_VIA"],

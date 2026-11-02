@@ -182,7 +182,7 @@ The candidates, ranked:
    own products' users and publish no limit. podssh's road to a forwarder
    that the user names is `--forwarder` (T-369), with no relay token; by
    the operator's ruling Q56 the binary names the three by a word, and
-   tries them when each relay host failed (T-370).
+   tries them when each relay host failed with no word about the target (T-370; Q69, T-509).
 
    **Wisp, and Mercury Workshop's demo server** (read on 2026-11-02;
    T-438). Wisp is a published protocol "for proxying multiple TCP/UDP

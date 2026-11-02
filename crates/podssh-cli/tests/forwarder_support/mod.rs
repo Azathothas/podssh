@@ -39,17 +39,26 @@ pub struct Seen {
     pub first_frame: Option<String>,
 }
 
-/// The stand-ins: where they dial, what they saw, and the names that close
-/// instead of carrying.
+/// The stand-ins: where they dial, what they saw, the names that close
+/// instead of carrying, and what a relay host answers to `/connect/`.
 pub struct Stands {
     sshd: u16,
     pub seen: Mutex<Vec<Seen>>,
     pub closing: Mutex<HashSet<String>>,
+    /// The status and the body of a relay host's answer to an upgrade at
+    /// `/connect/` (T-509): its 502 about the target, its refusal by policy
+    /// or of a token; none is 503, as for each other request.
+    pub relay: Mutex<Option<(u16, String)>>,
+}
+
+/// Whether `host` is a relay host of the default deployment.
+pub fn is_relay(host: &str) -> bool {
+    host.ends_with("relay.ajam.dev")
 }
 
 impl Stands {
     pub fn new(sshd: u16) -> Arc<Stands> {
-        Arc::new(Stands { sshd, seen: Mutex::default(), closing: Mutex::default() })
+        Arc::new(Stands { sshd, seen: Mutex::default(), closing: Mutex::default(), relay: Mutex::default() })
     }
 
     /// The handler of the proxy.
@@ -73,7 +82,17 @@ impl Stands {
         let query = QUERY_HOSTS.contains(&host.as_str()) || host == CLOSE_HOST;
         let speaks_wisp = host == wisp::HOST;
         if !query && !speaks_wisp && !FRAME_HOSTS.contains(&host.as_str()) {
-            let _ = tls.write_all(b"HTTP/1.1 503 Service Unavailable\r\nContent-Length: 0\r\n\r\n").await;
+            // The guard ends with the statement: none is held across an await.
+            let answer = self.relay.lock().unwrap().clone();
+            let reply = match answer.filter(|_| is_relay(&host) && head.target.starts_with("/connect/")) {
+                Some((status, body)) => format!(
+                    "HTTP/1.1 {status} Refused\r\nContent-Type: text/plain\r\nContent-Length: {}\r\n\
+                     Connection: close\r\n\r\n{body}",
+                    body.len()
+                ),
+                None => "HTTP/1.1 503 Service Unavailable\r\nContent-Length: 0\r\n\r\n".to_string(),
+            };
+            let _ = tls.write_all(reply.as_bytes()).await;
             let _ = tls.shutdown().await;
             return;
         }

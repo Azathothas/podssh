@@ -183,7 +183,7 @@ local program to a target, and `podssh proxy` stays a second pump.
    literals follow T-007.
 3. Move `podssh proxy` onto the pipe: `run_proxy`
    (`crates/podssh-cli/src/proxy.rs:63-207`) runs `stdio` and `relay:`. Keep
-   its exit codes and messages (`crates/podssh-cli/src/proxy.rs:381-394`,
+   its exit codes and messages (`crates/podssh-cli/src/proxy.rs:384-397`,
    `crates/podssh-cli/src/pipe/relay.rs:200-230`).
 4. `ssh:[USER@]HOP[,HOP...],HOST:PORT`: the last item is the target, each
    other item a hop, read as `-J` reads it

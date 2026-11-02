@@ -28,15 +28,17 @@ pub async fn reach(
     carry(forwarders, trust, host, port, log, false).await
 }
 
-/// [`reach`]; with `said`, the forwarder that carries the session is named
-/// without -v, as the fallback names it (T-370).
+/// [`reach`]; with `fallback`, as the fallback of T-370 tries them: the
+/// forwarder that carries the session is named without -v, each has
+/// [`super::fallback::EACH_WAIT`], and when none carries it one line names
+/// each one's reason (T-509), else each reason before the carrier's line.
 pub async fn carry(
     forwarders: &[Forwarder],
     trust: &Trust,
     host: &str,
     port: u16,
     log: &Arc<Log>,
-    said: bool,
+    fallback: bool,
 ) -> Result<Reached, NotReached> {
     if podssh_relay::open::offline() {
         let line = format!("{} is set, so podssh does not connect anywhere", podssh_relay::open::OFFLINE_ENV);
@@ -44,19 +46,28 @@ pub async fn carry(
     }
     let target = podssh_ws::dial::authority(host, port);
     let mut code = EX_UNAVAILABLE;
+    let mut failed = Vec::new();
     for forwarder in forwarders {
         log.verbose(&format!("connecting to {target} through the forwarder {}", forwarder.name));
+        let timeout = if fallback { super::fallback::EACH_WAIT } else { podssh_relay::open::CONNECT_TIMEOUT };
         let dial = Dial {
             trust,
             proxy: &ProxyChoice::FromEnvironment,
-            timeout: podssh_relay::open::CONNECT_TIMEOUT,
+            timeout,
             close_at_end: true,
             note: noted(log, &forwarder.name),
         };
-        match podssh_ws::forwarder::open(&forwarder.template, host, port, &dial).await {
+        let opened = match fallback {
+            true => super::fallback::bounded(&forwarder.template, host, port, &dial).await,
+            false => podssh_ws::forwarder::open(&forwarder.template, host, port, &dial).await,
+        };
+        match opened {
             Ok(carried) => {
                 let line = format!("the forwarder {} carries the session to {target}", forwarder.name);
-                if said {
+                if fallback {
+                    for before in &failed {
+                        log.error(before);
+                    }
                     log.info(&format!("{line}, in place of the relay"));
                 } else {
                     log.verbose(&line);
@@ -68,7 +79,12 @@ pub async fn carry(
                 return Ok(Reached { stream, relay: None, direct_proxy: None, layer: None });
             }
             Err(e) => {
-                log.error(&e.line(&forwarder.name));
+                // The fallback's reasons wait for its end: one line when
+                // none carries the session.
+                match fallback {
+                    true => failed.push(e.line(&forwarder.name)),
+                    false => log.error(&e.line(&forwarder.name)),
+                }
                 code = exit_code(&e);
                 // A target that no template takes: the next would refuse it too.
                 if code == EX_USAGE {
@@ -76,6 +92,9 @@ pub async fn carry(
                 }
             }
         }
+    }
+    if !failed.is_empty() {
+        log.error(&super::fallback::none_carried(&target, "session", &failed));
     }
     Err(NotReached { lines: Vec::new(), code })
 }

@@ -211,13 +211,15 @@ pub async fn reach_skipping(resolved: &Resolved, skip: usize, log: &Arc<Log>) ->
                 }
                 Err(failure) => {
                     let not = NotReached { lines: failure.lines(&target), code: crate::proxy::sysexit(failure.last()) };
+                    let answered = crate::forwarder::fallback::answered(&failure);
                     // Offline, neither the direct road nor a forwarder may connect.
                     if matches!(failure.last(), OpenError::Offline) {
                         return Err(not);
                     }
                     // The direct road first (T-363): it sends the target to no
                     // one else; then the forwarders that the binary names, where
-                    // the relay was podssh's choice (T-370), another product's.
+                    // the relay was podssh's choice (T-370), another product's,
+                    // unless a relay host answered about the target (T-509).
                     let not = if *then_direct {
                         match Box::pin(after_relay(first, &target, not, started.elapsed(), log)).await {
                             Ok(reached) => return Ok(reached),
@@ -226,8 +228,8 @@ pub async fn reach_skipping(resolved: &Resolved, skip: usize, log: &Arc<Log>) ->
                     } else {
                         not
                     };
-                    let (host, port) = (&first.host, first.port);
-                    crate::forwarder::fallback::after_relay(not, relays, *family, trust, host, port, log).await
+                    let to = (first.host.as_str(), first.port);
+                    crate::forwarder::fallback::after_relay(not, answered, relays, *family, trust, to, log).await
                 }
             }
         }

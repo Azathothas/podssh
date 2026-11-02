@@ -370,9 +370,12 @@ async fn session(road: &Road<'_>, path: &str, (host, port): (&str, u16), v6: boo
                 let _ = writeln!(err, "podssh: {line}");
             }
             // Each relay host failed: the forwarders that the binary names,
-            // where the relay was podssh's choice (T-370).
+            // where the relay was podssh's choice (T-370) and no relay host
+            // answered about the target (T-509).
             let code = sysexit(failure.last());
-            crate::forwarder::fallback::after_relay_pipe(code, road.relays, host, port, road.trust, err).await
+            let answered = crate::forwarder::fallback::answered(&failure);
+            let to = (host, port);
+            crate::forwarder::fallback::after_relay_pipe(code, answered, road.relays, to, road.trust, err).await
         }
     }
 }
