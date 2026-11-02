@@ -143,6 +143,7 @@ fn prepare(s: &ServeArgs) -> Result<Prepared, Refusal> {
         limits: Limits { keepalive, ..Limits::default() },
         pairs,
         answered: Default::default(),
+        brake: Default::default(),
         events: Some(events),
     };
     let inside = if s.allow_private { ", private targets too" } else { "" };
@@ -174,14 +175,16 @@ fn serve_until_stopped(
         loop {
             tokio::select! {
                 accepted = listener.accept() => {
-                    let Ok((tcp, _)) = accepted else { continue };
+                    let Ok((tcp, peer)) = accepted else { continue };
                     let (acceptor, cfg) = (acceptor.clone(), cfg.clone());
                     tokio::spawn(async move {
                         if let Ok(Ok(tls)) = tokio::time::timeout(HANDSHAKE_WAIT, acceptor.accept(tcp)).await {
                             // The name that the client asked for, which a
                             // key's signed mint must name (T-448).
                             let sni = tls.get_ref().1.server_name().map(str::to_string);
-                            serve::serve_named(tls, cfg, sni).await;
+                            // The TCP peer, by whom the brake of mints and
+                            // pairs counts (T-454): no header of a client's.
+                            serve::serve_from(tls, cfg, sni, Some(peer.ip())).await;
                         }
                     });
                 }

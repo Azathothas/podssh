@@ -3,8 +3,10 @@
 //! reverse road (T-427, [`reverse`]), served by podssh itself, so that each
 //! client of podssh and each test of both roads works against it unchanged
 //! (`docs/relay.md`, `docs/mesh.md`). The caller owns the listener and TLS
-//! (`podssh relay serve`); this serves one connection's request.
+//! (`podssh relay serve`); this serves one connection's request, and brakes
+//! the mints and pairs of each address ([`brake`], T-454).
 
+pub mod brake;
 pub mod docs;
 pub mod forward;
 pub mod keys;
@@ -12,6 +14,7 @@ pub mod policy;
 pub mod reverse;
 pub mod tokens;
 
+use std::net::IpAddr;
 use std::sync::Arc;
 use std::time::Duration;
 
@@ -89,6 +92,8 @@ pub struct Config {
     pub pairs: reverse::Pairs,
     /// The challenges that a key answered (T-448).
     pub answered: keys::Answered,
+    /// The counts of `/v1/mint` and `/v1/pair` for each address (T-454).
+    pub brake: brake::Brake,
     /// Each mint, upgrade and client's Close as a line (`mint`, `upgrade`,
     /// `close CODE`), and each step of the reverse road (`reverse ...`), as
     /// the stand-in relay prints them for a harness.
@@ -114,7 +119,18 @@ where
 
 /// [`serve_connection`] for a stream whose TLS asked for the name `sni`: a
 /// key's signed request must name it (T-448).
-pub async fn serve_named<S>(mut stream: S, cfg: Arc<Config>, sni: Option<String>)
+pub async fn serve_named<S>(stream: S, cfg: Arc<Config>, sni: Option<String>)
+where
+    S: AsyncRead + AsyncWrite + Unpin + Send + 'static,
+{
+    serve_from(stream, cfg, sni, None).await
+}
+
+/// [`serve_named`] for a client at `from`, by whom the brake counts (T-454):
+/// a listener's TCP peer; behind the quick tunnel, where the peer is
+/// Cloudflare's edge, the visitor that the edge names
+/// ([`brake::edge_visitor`]). Requests with none share one count.
+pub async fn serve_from<S>(mut stream: S, cfg: Arc<Config>, sni: Option<String>, from: Option<IpAddr>)
 where
     S: AsyncRead + AsyncWrite + Unpin + Send + 'static,
 {
@@ -127,6 +143,11 @@ where
         Err(_) => return,
     };
     let path = head.target.split('?').next().unwrap_or_default().to_string();
+    if brake::braked(&head.method, &path) {
+        if let Err(braked) = cfg.brake.take(brake::Who::of(from)) {
+            return slow_down(&mut stream, &head, pending, &path, braked, &cfg).await;
+        }
+    }
     match (head.method.as_str(), path.as_str()) {
         ("GET", p) if p.starts_with("/connect/") => forward::connect(stream, head, pending, cfg).await,
         ("POST", "/v1/mint") => mint(&mut stream, &head, pending, &cfg, sni.as_deref()).await,
@@ -164,6 +185,30 @@ where
     let (token, expires) = cfg.tokens.mint(tokens::now_ms(), tokens::LIFETIME_MS);
     let body = serde_json::json!({ "token": token, "expires": expires, "scope": "forward" });
     answer(stream, docs::json(&body)).await;
+}
+
+/// The brake's `429`, with the seconds to wait in `Retry-After`, which
+/// podssh's client says. The body is read first, as for each answer.
+async fn slow_down<S>(
+    stream: &mut S,
+    head: &request::Request,
+    pending: Vec<u8>,
+    path: &str,
+    braked: brake::Braked,
+    cfg: &Config,
+) where
+    S: AsyncRead + AsyncWrite + Unpin,
+{
+    let _ = body(stream, head, pending, MINT_BODY, path).await;
+    let limit = cfg.brake.limit();
+    // Once for each address that meets the brake, not for each request: the
+    // address itself is not said.
+    if braked.first {
+        cfg.event(&format!("{path}: braked, an address past {limit} requests in a minute"));
+    }
+    let wait = braked.wait_s.to_string();
+    let why = format!("{path}: {limit} requests of this address in a minute; ask again in {wait} s");
+    answer(stream, request::refusal(429, &why, &[("Retry-After", wait.as_str())])).await;
 }
 
 /// Whether a mint or a pair of `body` may go on, by whom the role mints for:

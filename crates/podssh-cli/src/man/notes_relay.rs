@@ -66,4 +66,11 @@ pub const RELAY: &[&str] = &[
      signature that does not verify, a challenge that ended or was answered before, and a request \
      whose Host is not the name that its TLS asked for each get 403, which names the key's \
      fingerprint for the owner's list. podssh caches the token as any other.",
+    "The relay brakes /v1/mint and /v1/pair for each address, as the default relay does: 120 requests \
+     of one address within a minute, the two together, and then 429 with Retry-After, the seconds \
+     until the oldest of them is a minute old, which podssh says. The address is the connection's own, \
+     never a header that a client sends; an IPv6 address counts by its first 64 bits. The relay counts \
+     4096 addresses at most, and forgets the one heard from least lately first. /health, the documents \
+     and the sockets of both roads are not braked, and the first refusal of an address is a line on \
+     stdout.",
 ];

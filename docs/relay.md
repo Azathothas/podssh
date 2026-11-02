@@ -459,3 +459,35 @@ a challenge that is not its own, that ended or that was answered before,
 and a request whose `Host` is not the name that its TLS asked for; the
 `403` names the key's fingerprint, for the owner's list. A relay of the
 contract never answers `401`, so a client asks nothing more of it.
+
+## The relay role's brake (T-454)
+
+`podssh relay serve` counts the requests to `/v1/mint` and to `/v1/pair` of
+each address over a sliding minute, the two paths together, as the default
+relay counts its attempts with no token ("Limits that users see"): the
+121st within a minute gets `429` with `Retry-After`, the seconds until the
+oldest of the 120 is a minute old, which podssh's client says ("retry in N
+s"). Only the requests let through count, so a client that asks again too
+soon is told the same end. A keyed mint (T-448) is two requests, its `401`
+and the signed one.
+
+- The address is the TCP peer that the listener accepted, never a header,
+  which a client could change at each request to count apart. An IPv6
+  address counts by its first 64 bits, an IPv4 address in IPv6's form as
+  the IPv4 one. Behind the quick tunnel (T-428), the peer is Cloudflare's
+  edge, so the node is to give the role the visitor that the edge names in
+  `CF-Connecting-IP` ("the client IP address connecting to Cloudflare",
+  Cloudflare's page of HTTP headers, read 2026-11-02), which `edge_visitor`
+  of `crates/podssh-relay/src/serve/brake.rs` reads as one address, and
+  `serve_from` takes. A request whose address the caller does not give
+  shares one count with each other such request.
+- The counts take 4096 addresses at most, each with the times of up to 120
+  requests: an address whose minute is over is forgotten first, then the
+  one heard from least lately.
+- `/health`, `/relays.json`, `/trace`, `/llms-full.txt` and the sockets of
+  both roads are not counted: a socket needs a token or a pair that the
+  brake let through, and the role checks it with a MAC or a digest alone.
+- The first refusal of an address is a line on stdout,
+  `/v1/mint: braked, an address past 120 requests in a minute`, which does
+  not name the address; the next ones until it is let through again say
+  nothing.

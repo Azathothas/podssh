@@ -2044,7 +2044,7 @@ relay. Planted, the net's lookup skipped, and the test fails.
 **Milestone:** M10
 **Priority:** P2
 **Effort:** S
-**Status:** open
+**Status:** partial
 
 ## Problem
 
@@ -2064,6 +2064,67 @@ its CPU on tokens.
    first); past 120, `429` with `Retry-After`, as the contract's client reads it.
 2. The same for the reverse road's `/v1/pair`; `/health` and the forward road unbraked.
 
+## Decision
+
+The draft's calls, 2026-11-02:
+
+1. The count: for each address, the times of the requests let through in the last minute, 120 at
+   most, so that `Retry-After` is the wait itself and the first request after it passes
+   (`crates/podssh-relay/src/serve/brake.rs:105`). Only a request let through adds a time: a
+   client that asks again too soon is told the same end, never a later one. Lost: a minute that
+   starts again (240 requests across its edge); two counts weighted by their overlap, three
+   numbers an address, whose wait is an estimate, so a client told 60 s could meet a second
+   `429`.
+2. `/v1/mint` and `/v1/pair` share one count, as on the default relay
+   (`crates/podssh-relay/src/pair.rs:91` says "the brake that pairs share with mints"; the
+   contract's limits, `docs/relay.md`, "Limits that users see": "mint, pair, upgrades with no
+   token"). Each request at the two paths counts, whatever its answer: a keyed mint's `401`
+   (T-448), a `403`, `--mint nobody`'s `503`. Lost: a count for each path, which lets one client
+   make 120 pairs and 120 tokens a minute.
+3. Not braked, as the Approach says: `/health`, `/relays.json`, `/trace`, `/llms-full.txt` and
+   each socket of both roads, which needs a token or a pair that the brake let through and is
+   checked with a MAC or a digest and no state. Lost: a brake of the upgrades with no token, as
+   the default relay counts them: the role's refusal of one costs less than the count.
+4. The address: the listener's TCP peer (`crates/podssh-cli/src/relay_serve.rs:178`), never a
+   header, which each client of a listener writes, and would make up anew for each request.
+   Behind the quick tunnel (T-428) the peer is Cloudflare's edge, so the hook for T-428 is
+   `serve::serve_from(stream, cfg, sni, from)` (`crates/podssh-relay/src/serve/mod.rs:133`),
+   with `from` read by `brake::edge_visitor` (`crates/podssh-relay/src/serve/brake.rs:52`) from
+   the `cf-connecting-ip` of the edge's own request, which reaches the node only on the
+   connection that podssh dialed to the edge. Lost: the role reading that header itself when a
+   switch of `Config` says it sits behind the tunnel, a switch that a listener could be given by
+   mistake; a flag `--trust-header NAME` for a role behind a reverse proxy of the owner's, which
+   trusts each client that reaches the listener around the proxy, for a deployment that the
+   record does not hold (the role ends TLS itself). Cloudflare's page of HTTP headers, read
+   2026-11-02, says that `CF-Connecting-IP` "provides the client IP address connecting to
+   Cloudflare to the origin web server", and not whether the edge replaces a value that the
+   visitor sent: T-428's run through the edge should show it.
+5. An IPv6 address counts by its first 64 bits, as a host is commonly given a /64; an IPv4
+   address in IPv6's form as the IPv4 one. Lost: each IPv6 address apart, which a host with a /64
+   escapes; a /48, which may hold many users of one site.
+6. A request whose caller gives no address (`serve_connection`, `serve_named`) shares one count
+   with each other such request: a road that loses the address is braked as a whole, never not
+   at all. Lost: no brake for them.
+7. The bound: 4096 addresses, the bound of the table of pairs, each with 120 times of 8 bytes at
+   most (under 4 MiB in all). A new address that meets a full table first forgets each address
+   whose minute is over, then the one whose last request let through is the oldest
+   (`crates/podssh-relay/src/serve/brake.rs:186`): a scan of 4096 counts at most, and only then.
+   Lost: a list kept in order, more code for no measured need.
+8. The clock: monotonic, the milliseconds since the role's start, and a `brake::Clock` that a test
+   sets by hand, so that no test waits a minute and a step of the wall clock neither frees an
+   address nor holds one. Lost: tokio's paused clock, which moves on to the next timer while the
+   test's request waits on the role, and would fire the role's own waits; the wall clock of the
+   tokens (`tokens::now_ms`).
+9. The answer: `429` with `Retry-After` in whole seconds, rounded up, 1 at least, the form that
+   podssh's client reads (`crates/podssh-relay/src/token.rs:210`, and `pair.rs` the same) and says
+   ("retry in N s"); its words name the path, the limit and the wait. The request's body is read
+   first, as for each answer of the role. The first refusal of an address since it was last let
+   through is one line of the role's events, which does not name the address. Lost: a line for
+   each refusal, a flood of stdout under a flood of requests; the address in the line, as the
+   owner's stdout is often a log.
+10. No flag: 120 is the contract's figure, which each client of the default relay meets; a
+    `Brake` takes other numbers for a test. Lost: `--brake N`, which nobody asked for.
+
 ## Prove
 
 ```sh
@@ -2073,6 +2134,53 @@ cargo test -p podssh-relay --features serve --lib serve::
 
 The 121st mint of an address within a minute is a `429`, another address's is not, and the
 first after the minute passes. Planted, the brake removed, and the test fails.
+
+## Correction
+
+2026-11-02 (the drafting agent). The Premise holds; the Approach needs two facts that it does not
+name. `/v1/pair` is answered in the reverse road, where `serve/mod.rs` routes it:
+`crates/podssh-relay/src/serve/reverse/mod.rs:120` says "async fn pair". And the role had no
+address to count by: at `33ccb11`,
+`podssh relay serve` dropped the peer of each connection that it accepted
+(`let Ok((tcp, _)) = accepted` in `crates/podssh-cli/src/relay_serve.rs`). So the brake stands in
+the role's dispatch, before both paths (`crates/podssh-relay/src/serve/mod.rs:146`), and
+`serve_from` takes the address, which the listener gives. The Prove that runs, in place of the
+one above:
+
+```sh
+export CARGO_BUILD_JOBS=4
+cargo test -p podssh-relay --features serve --lib serve::
+cargo test -p podssh-relay --features serve,plain-ws --test relay_serve_contract --test relay_serve_reverse
+cargo test -p podssh-cli --test relay_serve --test relay_serve_node
+sh scripts/plant-each.sh --here t454-no-brake
+```
+
+## Done
+
+2026-11-02: drafted by an agent in a worktree, with nothing built or run; each result below is
+UNVERIFIED until the merge runs it.
+
+- The brake: `crates/podssh-relay/src/serve/brake.rs` (the count of each address, its bound, the
+  clock, `edge_visitor` for T-428) and its tests, `crates/podssh-relay/src/serve/brake_tests.rs`;
+  in `crates/podssh-relay/src/serve/mod.rs`, `Config::brake`, `serve_from`, and the `429` before
+  `/v1/mint` and `/v1/pair`; `podssh relay serve` gives the TCP peer
+  (`crates/podssh-cli/src/relay_serve.rs`), and so does the harness of the role's tests
+  (`crates/podssh-relay/tests/role_harness/mod.rs`).
+- The manual's note of `podssh relay` (`crates/podssh-cli/src/man/notes_relay.rs`), `docs/relay.md`
+  ("The relay role's brake"), docs/mesh.md, section 4, and the row of `docs/STATUS.md`.
+- `cargo test -p podssh-relay --features serve --lib serve::`: UNVERIFIED (5 tests more: the
+  121st request of an address waits until its oldest is a minute old, sliding, and a refusal is
+  not counted; an IPv6 address by its /64, a mapped IPv4 one as IPv4, the requests with no
+  address in one count; the bound of addresses, the least lately heard forgotten first; the paths
+  braked and the edge's visitor; through the role and podssh's own HTTP client, the 121st mint of
+  an address is a `429` with `Retry-After: 60`, a pair of it too, another address's mint is a
+  `200`, `/health` and a `/connect/` with no token get their own answers, one line is said, and
+  the first mint and pair after the minute pass).
+- `cargo test -p podssh-relay --features serve,plain-ws --test relay_serve_contract --test
+  relay_serve_reverse`, and `cargo test -p podssh-cli --test relay_serve --test
+  relay_serve_node`: UNVERIFIED (unchanged tests, the role now given each peer).
+- Planted, `sh scripts/plant-each.sh --here t454-no-brake` (the brake skipped): UNVERIFIED.
+- Clippy with `-D warnings` on podssh-relay with `serve,plain-ws`, and on podssh-cli: UNVERIFIED.
 
 # T-455: The relay role mints for the members of the net
 
