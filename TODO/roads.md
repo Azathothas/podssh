@@ -3526,7 +3526,7 @@ that says why.
   public relays its default until the operator runs one. The row says nothing of the release
   binaries: "off in the release" is the default of `Cargo.toml` and the build of the workflow,
   which the study reads as the operator's policy. In a build without the feature, the iroh road
-  refuses with exit code 70 (`AGENTS.md:21-22`).
+  refuses with exit code 70 (`AGENTS.md:23-24`).
 - Read in the study (https://docs.iroh.computer/iroh-services/relays/public): the public relays
   are "suitable for development and hobby use only", they rate-limit, and "Only the latest stable
   release of iroh is officially supported".
