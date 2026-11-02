@@ -97,7 +97,7 @@ entry keeps its proof in the entry; this page keeps no history (git does).
   41440851652), T-447's is merged and closed (8 of 8 against Pebble), and T-454's is merged and
   closed (the merge gave the role behind a quick tunnel the visitor that the edge names, so that
   each visitor counts apart). `draft/worktree-agent-t430-net-policy`,
-  `draft/worktree-agent-t428-quick-relay`, `-t447-acme` and `-t454-brake` can go. T-431's draft is merged (its live run waits), and
+  `draft/worktree-agent-t428-quick-relay`, `-t447-acme` and `-t454-brake` can go. T-431, T-445 and T-452 are merged and closed, and
   `draft/worktree-agent-t431-exit` can go. These branches can go, as this
   session's git proxy would not delete them: `draft/worktree-agent-t429-net`,
   `draft/worktree-agent-t440-vless`, `draft/worktree-agent-t441-wstunnel`, `draft/draft-t427-t448`,
@@ -147,7 +147,7 @@ and `CARGO_BUILD_JOBS=4`:
 
 ## Counts
 
-`TODO/INDEX.md` holds 511 entries: 96 open, 3 partial, 16 blocked, 396 done.
+`TODO/INDEX.md` holds 511 entries: 96 open, 2 partial, 16 blocked, 397 done.
 
 Open includes parked work. `cargo todo check` verifies this line.
 
@@ -191,7 +191,7 @@ this order:
 1. The relay role (its certificate from ACME, its brake of mint and pair, and the role behind a node's quick tunnel are done): the net's members' mint (T-455) and the role's dial through `HTTPS_PROXY` (T-457); then what the role serves: T-336, T-255,
    T-421, T-253, T-325, T-326, T-319, T-321 and T-173.
 2. The net (its policy, the record of each road and the DERP node of a member are done): T-453, T-086, T-226, T-346, T-106 and T-550.
-3. Exit, routes, share and funnel: T-431 (merged; its live run, `exit-live.yml`, waits), T-458, T-432, T-433,
+3. Exit, routes, share and funnel (the exit is done): T-458, T-432, T-433,
    T-180, then T-434, T-435 and T-459.
 4. The public carriers of Q65 (T-451, then T-450 from the runs of `transit-live.yml`; the
    protocols of Q66 are done), XHTTP over HTTP/1.1 (T-456, Q67), then what the research of more services (done) filed: the protocols of

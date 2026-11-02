@@ -734,7 +734,7 @@ Measured at the merge, 2026-11-02:
 **Milestone:** M10
 **Priority:** P1
 **Effort:** L
-**Status:** partial
+**Status:** done
 
 ## Problem
 
@@ -935,8 +935,12 @@ The merge (2026-11-02):
 - The whole suites: `cargo test --no-fail-fast -p podssh-cli`, 1343 passed, none failed (51
   ignored); `-p podssh-relay --features pair,quick,derp,serve,piping`, 520 passed, none failed (22
   ignored); the temporary directory held the same entries after them as before.
-- Waits: `exit-live.yml` on GitHub Actions, which can be dispatched only once it is on `main`;
-  this entry stays `partial` until it passes.
+- Live (`exit-live.yml`, from GitHub Actions): the first run, at `23a40b4`, carried each leg
+  (GitHub's banner through `proxy --exit`, the SSH login through `ssh --exit` up to GitHub's
+  refusal of a key, and curl's pages by SOCKS5 and by CONNECT through `podssh exit --listen`),
+  and failed only its own check that GitHub's host key went into the test's file: the runner's
+  image knows that key in `/etc/ssh/ssh_known_hosts`, so podssh wrote nothing. The step now names
+  `GlobalKnownHostsFile=/dev/null` (`94be1bb`), and run 41479877820 passed each check.
 
 # T-432: Routes: a node reaches its private networks for the net
 
