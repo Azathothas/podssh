@@ -1,0 +1,19 @@
+--- a/crates/podssh-relay/tests/derp_stand_in/mod.rs
++++ b/crates/podssh-relay/tests/derp_stand_in/mod.rs
+@@ -169,7 +169,6 @@ impl StandIn {
+         // nothing, and the client was never cut).
+         let queue = Arc::new(Queue::default());
+         let cut = Arc::new(Notify::new());
+-        lock(&self.clients).insert(key, Client { queue: queue.clone(), cut: cut.clone() });
+         let answer = [9u8; 24];
+         let sealed = opener.encrypt(&crypto_box::Nonce::from(answer), &b"{\"version\":2}"[..]).expect("a box");
+         if message(&mut writer, &derp(0x03, &[&answer[..], &sealed[..]].concat())).await.is_err() {
+@@ -180,6 +179,8 @@ impl StandIn {
+             return;
+         }
+         self.logins.fetch_add(1, Ordering::SeqCst);
++        tokio::time::sleep(std::time::Duration::from_millis(200)).await;
++        lock(&self.clients).insert(key, Client { queue: queue.clone(), cut: cut.clone() });
+         let writing = tokio::spawn({
+             let queue = queue.clone();
+             async move {

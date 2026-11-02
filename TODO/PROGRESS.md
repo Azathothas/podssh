@@ -145,7 +145,7 @@ and `CARGO_BUILD_JOBS=4`:
 
 ## Counts
 
-`TODO/INDEX.md` holds 453 entries: 44 open, 3 partial, 17 blocked, 389 done.
+`TODO/INDEX.md` holds 453 entries: 44 open, 2 partial, 17 blocked, 390 done.
 
 Open includes parked work. `cargo todo check` verifies this line.
 
@@ -184,8 +184,8 @@ operator and the parked ones.
 **Next (2026-11-02): M10**, the mesh and the relay in podssh (Q63 to Q66, `docs/mesh.md`), in
 this order:
 
-0. The test of the relay suite that failed once, unnamed (T-449), as a test that fails at random
-   comes first.
+0. A test that fails at random comes first: the relay suite's, named and repaired (done, 50 runs
+   in a row here and on a runner).
 1. The relay role: behind a node's quick tunnel (T-428), then ACME (T-447), a brake of mint and pair (T-454), the net's members' mint (T-455) and the role's dial through `HTTPS_PROXY` (T-457); then what the role serves: T-336, T-255,
    T-421, T-253, T-325, T-326, T-319, T-321 and T-173.
 2. The net (its policy is done): T-445, T-452, T-453, T-086, T-226, T-346 and T-106.

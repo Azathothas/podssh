@@ -2285,7 +2285,7 @@ here; the net's members are T-455 (Correction).
 **Milestone:** M10
 **Priority:** P2
 **Effort:** S
-**Status:** partial
+**Status:** done
 
 ## Problem
 
@@ -2331,10 +2331,21 @@ Approach still runs.
 
 ## Done
 
-2026-11-02 (partial): `.github/workflows/suite-repeat.yml`, a suite run after run on one runner
-(1 to 50 runs, podssh-relay with `pair,quick,derp,serve,piping` by default), each run going on
-after a failure and each log kept as an artifact, with the count of each failed test by name; its
-inputs are checked before they reach a shell. Its runs and the local loop follow.
+2026-11-02: `.github/workflows/suite-repeat.yml`, a suite run after run on one runner (1 to 50
+runs, podssh-relay with `pair,quick,derp,serve,piping` by default), each run going on after a
+failure, each log kept as an artifact, with the count of each failed test by name; its inputs are
+checked before they reach a shell.
+
+- The test is named: the gate's libs step at `0b6fcdb` named `derp_link`'s
+  `a_node_whose_home_went_away_moves_and_a_client_of_the_old_ticket_finds_it`, its cause the
+  stand-in's registration after its answer, repaired in `a2c418e` (the Correction).
+- On a runner, after the repair: 20 runs of the whole suite (41418291280) and then 50
+  (41422747538), each run passed, no test failed.
+- Here, 2026-11-02: `cargo test -p podssh-relay --features pair,quick,derp,serve,piping --test
+  derp_link`, 50 runs in a row, each passed (383 s in all).
+- Planted, `sh scripts/plant-each.sh --here t449-derp-registered-late` (the stand-in registers
+  the key 200 ms after its answer, as before the repair): caught, the named test failed after
+  its 180 s.
 
 # T-450: Three live runs of the transit road met nobody within 20 s
 

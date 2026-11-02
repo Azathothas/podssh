@@ -1,0 +1,8 @@
+# T-449: the DERP stand-in answers a client 200 ms before it registers the
+# client's key, as it did before 2026-11-02, so a cut of that key right
+# after the answer finds no client: the node never moves, and the test of a
+# node whose home went away waits its whole 180 s and fails.
+ENTRY=T-449
+GROUP=resume
+EXPECT='test a_node_whose_home_went_away_moves_and_a_client_of_the_old_ticket_finds_it \.\.\. FAILED'
+RUN='cargo test --locked --no-fail-fast -p podssh-relay --features derp --test derp_link -- a_node_whose_home_went_away_moves_and_a_client_of_the_old_ticket_finds_it'
