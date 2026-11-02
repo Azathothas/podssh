@@ -68,9 +68,11 @@ pub const SHORTEST_DEADLINE: Duration = Duration::from_secs(60);
 /// `no`: a client opens no spare link beside a silent one (T-305).
 pub const SPARE_LINKS_ENV: &str = "PODSSH_SPARE_LINKS";
 
-/// The layer's settings, with the replay buffer of `PODSSH_REPLAY_BUFFER`
-/// and the deadlines of `--resume-deadline`; a client opens a spare link
-/// beside a silent one (T-305), unless `PODSSH_SPARE_LINKS` is `no`.
+/// The layer's settings on the pair's road, with the replay buffer of
+/// `PODSSH_REPLAY_BUFFER` and the deadlines of `--resume-deadline`; a client
+/// opens a spare link beside a silent one (T-305), unless
+/// `PODSSH_SPARE_LINKS` is `no`. A link carries less than the relay holds
+/// for a slow receiver (T-443): another road takes `off_the_pair`.
 pub fn settings() -> Settings {
     let capacity = replay::capacity(std::env::var(replay::CAPACITY_ENV).ok().as_deref());
     let defaults = Settings::default();
@@ -82,7 +84,7 @@ pub fn settings() -> Settings {
         resume_deadline: far.unwrap_or(defaults.resume_deadline),
         client_deadline: own,
         spare_links,
-        ..defaults
+        ..defaults.on_the_pair()
     }
 }
 
@@ -90,9 +92,10 @@ pub fn settings() -> Settings {
 /// link. QUIC carries a session across a new address of the client by
 /// itself, and a spare link there is a stream of the same connection, so
 /// it can only add a resume: 3 resumes in 5 runs with spare links, none in
-/// 5 with none (T-305).
+/// 5 with none (T-305). The pair's relay is not between the ends, nor its
+/// bound (T-443): the DERP road takes these too.
 pub fn iroh_settings(features: &'static [&'static str]) -> Settings {
-    Settings { features, spare_links: false, ..settings() }
+    Settings { features, spare_links: false, ..settings().off_the_pair() }
 }
 
 /// A time of `--resume-deadline`: a whole number, then s, m, h or d (none

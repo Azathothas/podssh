@@ -344,7 +344,7 @@ where
             async move { crate::channel::piped_by(channel, routes, target).await }
         }
     };
-    let settings = Settings { features: podssh_iroh::FEATURES, ..crate::layered::settings() };
+    let settings = Settings { features: podssh_iroh::FEATURES, ..crate::layered::settings().off_the_pair() };
     let budget = podssh_relay::reverse::layered::NODE_BUDGET;
     // One keeper for both roads: a session resumes on either (T-164).
     let keeper = Arc::new(Keeper::new(settings.resume_deadline));

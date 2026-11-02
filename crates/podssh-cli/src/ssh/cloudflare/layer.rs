@@ -48,9 +48,10 @@ where
     F: Future<Output = Next<DuplexStream>> + Send,
 {
     // `keep.v1` named, as `podssh ssh` names it (T-158): a copy asks for
-    // no shell, so the offer changes nothing of it.
+    // no shell, so the offer changes nothing of it. The edge keeps no bound
+    // of the pair's relay (T-443).
     let client = greeted
-        .start(Ask::New, layered::ssh_settings(), &mut OsEntropy)
+        .start(Ask::New, layered::ssh_settings().off_the_pair(), &mut OsEntropy)
         .await
         .map_err(|e| format!("the far end greets with the resumable layer, but its handshake failed: {e}"))?;
     log.verbose(&format!("{shown}: {}", client.found()));
@@ -156,8 +157,8 @@ mod tests {
             let opened = Arc::new(AtomicUsize::new(0));
             let target = Echo { opened: opened.clone() };
             let channel = crate::channel::node_end("quick", Identity::from_seed(&[2; 32]), admit);
-            let handler =
-                Layered::new(E2e::new(target, channel), crate::layered::settings(), reverse::layered::NODE_BUDGET);
+            let settings = crate::layered::settings().off_the_pair();
+            let handler = Layered::new(E2e::new(target, channel), settings, reverse::layered::NODE_BUDGET);
             (Arc::new(Node { handler, ids: AtomicU64::new(1), links: Mutex::new(Vec::new()) }), opened)
         }
 

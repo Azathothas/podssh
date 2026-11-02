@@ -166,7 +166,7 @@ where
         let (link, decoder, established, settings) = accepted.into_parts();
         let carry = Carry::new(settings.link(&established));
         lock(&self.sessions).attach(&established.id, carry.state.clone());
-        let (watch, done) = (Arc::new(Watch::far_end()), Arc::new(Notify::new()));
+        let (watch, done) = (Arc::new(Watch::far_end().within(settings.window)), Arc::new(Notify::new()));
         let live = Slot::Live {
             watch: watch.clone(),
             done: done.clone(),
@@ -186,7 +186,7 @@ where
         L: AsyncRead + AsyncWrite + Unpin + Send + 'static,
     {
         let number = accepted.resume();
-        let (mut link, decoder, established, _) = accepted.into_parts();
+        let (mut link, decoder, established, settings) = accepted.into_parts();
         let id = established.id;
         // Only raised: an older resume whose task starts late gives way.
         {
@@ -194,7 +194,7 @@ where
             let at = newest.entry(id).or_insert(number);
             *at = (*at).max(number);
         }
-        let (watch, done) = (Arc::new(Watch::far_end()), Arc::new(Notify::new()));
+        let (watch, done) = (Arc::new(Watch::far_end().within(settings.window)), Arc::new(Notify::new()));
         let (mut app, mut carry, admitted) = match self.take(&id, number, &watch, &done).await {
             Ok(taken) => taken,
             // The client hears the session's end, not a lost link.

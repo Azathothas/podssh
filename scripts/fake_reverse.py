@@ -30,6 +30,15 @@ MODE = "normal"
 # lenient: a frame of the node for an id that the relay does not know is
 # dropped; in each other mode it closes the node's socket with 1003
 # "unknown session id", as the live relay does.
+# strict:RATE (T-443): the bound of the contract for a slow receiver
+# (crates/podssh-probe/tests/spec/relay-spec-2026-10-03-r2.txt, `1011 relay
+# backpressure`): each frame for a socket waits in a queue with no bound, as
+# at a relay that reads its sender at once, and goes to an operator at RATE
+# bytes a second (0: at once; to a node, at once); a frame that would put
+# more than 1 MiB in the queue is dropped, the socket gets Close 1011 "relay
+# backpressure", and a line on stderr says so. A Close goes after the frames
+# before it.
+BOUND = 1 << 20
 # Whether the short pair of expirefirst was made.
 SHORT = {"made": False}
 # Seconds after an operator's link was lost (an error, not its Close) in
@@ -72,6 +81,72 @@ class Socket:
     async def close(self, code, reason):
         await self.send(close_frame(code, reason))
         self.closed = True
+
+
+class Bounded(Socket):
+    """A socket of strict:RATE: its frames in a queue that only BOUND
+    limits, sent in order at `rate` bytes a second (None: as fast as the
+    socket takes them)."""
+
+    def __init__(self, reader, writer, rate, who):
+        super().__init__(reader, writer)
+        self.rate, self.who, self.waiting = rate, who, 0
+        self.queue = asyncio.Queue()
+        self.task = asyncio.ensure_future(self.run())
+
+    async def send(self, data):
+        if self.closed:
+            return
+        if self.waiting + len(data) > BOUND:
+            # As the contract's relay: the frame is dropped, and what waits.
+            print(f"reverse: {self.waiting + len(data)} bytes would wait for {self.who}: 1011 relay backpressure",
+                  file=sys.stderr, flush=True)
+            self.task.cancel()
+            await super().send(close_frame(1011, "relay backpressure"))
+            self.closed = True
+            return
+        self.waiting += len(data)
+        await self.queue.put(data)
+
+    async def close(self, code, reason):
+        # After the frames before it, as a relay that closes a session
+        # delivers what it holds first.
+        await self.queue.put((code, reason))
+
+    async def run(self):
+        while True:
+            item = await self.queue.get()
+            if item is None:
+                return
+            if isinstance(item, tuple):
+                await super().send(close_frame(*item))
+                self.closed = True
+                return
+            if self.rate:
+                await asyncio.sleep(len(item) / self.rate)
+            await super().send(item)
+            self.waiting -= len(item)
+
+
+async def settled(socket):
+    """In strict:RATE, what waits in a socket's queue, its Close too, goes
+    out before its handler returns and the connection ends."""
+    task = getattr(socket, "task", None)
+    if task is None or task.done():
+        return
+    await socket.queue.put(None)
+    try:
+        await asyncio.wait_for(task, 60)
+    except (asyncio.TimeoutError, asyncio.CancelledError):
+        pass
+
+
+def socket_for(reader, writer, who):
+    """The relay's socket of a node or an operator: bounded in strict:RATE."""
+    if not MODE.startswith("strict:"):
+        return Socket(reader, writer)
+    rate = int(MODE.split(":")[1]) if who == "an operator" else 0
+    return Bounded(reader, writer, rate or None, who)
 
 
 class Pair:
@@ -135,11 +210,15 @@ async def handle(method, path, headers, reader, writer):
             return True
         writer.write(upgraded(headers))
         await writer.drain()
-        await node(pair, Socket(reader, writer))
+        socket = socket_for(reader, writer, "a node")
+        await node(pair, socket)
+        await settled(socket)
     else:
         writer.write(upgraded(headers))
         await writer.drain()
-        await operator(pair, Socket(reader, writer))
+        socket = socket_for(reader, writer, "an operator")
+        await operator(pair, socket)
+        await settled(socket)
     return True
 
 

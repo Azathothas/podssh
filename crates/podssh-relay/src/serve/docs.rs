@@ -139,13 +139,43 @@ pub fn text(body: &str) -> Vec<u8> {
 }
 
 fn ok(kind: &str, body: &[u8]) -> Vec<u8> {
+    // The Date lets a client check its own clock, as `podssh doctor` does
+    // with the default relay's.
+    let date = http_date(super::tokens::now_ms() / 1000);
     let mut out = format!(
-        "HTTP/1.1 200 OK\r\nContent-Type: {kind}\r\nContent-Length: {}\r\nCache-Control: no-store\r\nConnection: close\r\n\r\n",
+        "HTTP/1.1 200 OK\r\nDate: {date}\r\nContent-Type: {kind}\r\nContent-Length: {}\r\nCache-Control: no-store\r\nConnection: close\r\n\r\n",
         body.len()
     )
     .into_bytes();
     out.extend_from_slice(body);
     out
+}
+
+/// `secs` after the epoch as an HTTP date (RFC 9110, section 5.6.7):
+/// `Sun, 06 Nov 1994 08:49:37 GMT`.
+pub fn http_date(secs: u64) -> String {
+    const DAYS: [&str; 7] = ["Thu", "Fri", "Sat", "Sun", "Mon", "Tue", "Wed"];
+    const MONTHS: [&str; 12] = ["Jan", "Feb", "Mar", "Apr", "May", "Jun", "Jul", "Aug", "Sep", "Oct", "Nov", "Dec"];
+    let (days, rest) = (secs / 86_400, secs % 86_400);
+    // The civil date of a day count, by Howard Hinnant's days_from_civil
+    // turned around: years of 400 from 0000-03-01.
+    let z = days as i64 + 719_468;
+    let era = z.div_euclid(146_097);
+    let doe = z.rem_euclid(146_097);
+    let yoe = (doe - doe / 1_460 + doe / 36_524 - doe / 146_096) / 365;
+    let doy = doe - (365 * yoe + yoe / 4 - yoe / 100);
+    let mp = (5 * doy + 2) / 153;
+    let day = doy - (153 * mp + 2) / 5 + 1;
+    let month = if mp < 10 { mp + 3 } else { mp - 9 };
+    let year = yoe + era * 400 + i64::from(month <= 2);
+    format!(
+        "{}, {day:02} {} {year} {:02}:{:02}:{:02} GMT",
+        DAYS[(days % 7) as usize],
+        MONTHS[(month - 1) as usize],
+        rest / 3600,
+        rest % 3600 / 60,
+        rest % 60
+    )
 }
 
 #[cfg(test)]
@@ -180,6 +210,14 @@ mod tests {
         );
         assert_eq!((&l["max_session_bytes"], &l["max_frame_bytes"]), (&json!(67108864), &json!(262144)));
         assert_eq!(health(&cfg())["service"], "tcp-ssh-relay");
+    }
+
+    #[test]
+    fn an_http_date_is_the_rfcs_form() {
+        assert_eq!(http_date(784_111_777), "Sun, 06 Nov 1994 08:49:37 GMT");
+        assert_eq!(http_date(0), "Thu, 01 Jan 1970 00:00:00 GMT");
+        assert_eq!(http_date(1_709_164_800), "Thu, 29 Feb 2024 00:00:00 GMT");
+        assert_eq!(http_date(1_793_577_600), "Mon, 02 Nov 2026 00:00:00 GMT");
     }
 
     #[tokio::test]

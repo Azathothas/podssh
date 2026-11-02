@@ -30,6 +30,13 @@ pub fn capacity(env: Option<&str>) -> usize {
         .unwrap_or(DEFAULT_CAPACITY)
 }
 
+/// The most bytes that one link of the pair's road carries with no
+/// acknowledgement: the relay holds at most 1 MiB for a slow receiver, and
+/// past it drops a frame and closes with `1011 relay backpressure`, so a
+/// quarter of it stays free for the headers of the records and the frames
+/// (T-443). The buffer keeps its capacity, for the links of other roads.
+pub const PAIR_WINDOW: usize = 768 << 10;
+
 /// A resume from an offset that the buffer does not keep.
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub struct NotKept {

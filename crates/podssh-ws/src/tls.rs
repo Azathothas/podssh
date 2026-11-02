@@ -120,11 +120,11 @@ pub fn roots_for(trust: &Trust) -> Result<TlsRoots, WsError> {
 }
 
 /// The rustls configuration for `trust`: the caller's as it is, or podssh's
-/// own over the roots of `trust`.
+/// own over the roots of `trust`, made once in the process, so TLS resumes.
 pub fn config_for(trust: &Trust) -> Result<Arc<ClientConfig>, WsError> {
     match trust {
         Trust::Caller(caller) => Ok(caller.config().clone()),
-        own => client_config(&roots_for(own)?),
+        own => kept::config(own, || client_config(&roots_for(own)?)),
     }
 }
 
@@ -319,6 +319,9 @@ pub fn client_config_with(roots: &TlsRoots, provider: CryptoProvider) -> Result<
 
     Ok(Arc::new(config))
 }
+
+// The configuration of each trust, kept for the process (T-444).
+mod kept;
 
 #[cfg(test)]
 mod tests {

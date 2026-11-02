@@ -170,9 +170,10 @@ impl Online {
     }
 }
 
-/// The settings of the layer on the DERP road: the iroh road's features.
+/// The settings of the layer on the DERP road: the iroh road's features, and
+/// no window of the pair's relay (T-443).
 pub(crate) fn settings() -> Settings {
-    Settings { features: derp::FEATURES, ..crate::layered::settings() }
+    Settings { features: derp::FEATURES, ..crate::layered::settings().off_the_pair() }
 }
 
 /// Each check of the node that needs no network, done.

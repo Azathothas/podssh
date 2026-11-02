@@ -302,8 +302,10 @@ pub(super) async fn connect(
             return EXIT_FAILURE;
         }
     };
-    // `podssh ssh` names `keep.v1`, for `~d` and `--attach` (T-158).
-    let settings = layered::ssh_settings();
+    // `podssh ssh` names `keep.v1`, for `~d` and `--attach` (T-158). Each
+    // resume races the roads again, so a session that the pair's road may
+    // carry keeps that road's window on each (T-443).
+    let settings = if roads.pair.is_some() { layered::ssh_settings() } else { layered::ssh_settings().off_the_pair() };
     let client = match Box::pin(client::start(first, Ask::New, settings, &mut OsEntropy)).await {
         Ok(client) => client,
         Err(e) => {

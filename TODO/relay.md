@@ -2096,7 +2096,7 @@ Q63 (2026-11-02, `docs/decisions.md`; docs/mesh.md, section 4) the relay is a ro
 itself, so the relay's change of the Approach above is podssh's, in its relay role's reverse road
 (T-427): a frame of the node for an id that it closed in the last few seconds is dropped as one
 in flight, and `1003` stays for an id that it never gave or closed long before. The stand-in
-already tells the two apart (`scripts/fake_reverse.py:190-202`), with a grace of 2 s.
+already tells the two apart (`scripts/fake_reverse.py:250-262`), with a grace of 2 s.
 
 What the client does (the research of 2026-11-02 on the client's side), where the default
 deployment still closes the socket: make the cut cheap. A 1003 is no exit since T-409, and the

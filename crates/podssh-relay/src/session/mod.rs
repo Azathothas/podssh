@@ -81,6 +81,12 @@ pub struct Settings {
     pub features: &'static [&'static str],
     /// The capacity of the replay buffer in each direction (T-152).
     pub replay_capacity: usize,
+    /// The most bytes that one link carries with no acknowledgement, when
+    /// fewer than the buffer's capacity: on the pair's road, under what the
+    /// relay holds for a slow receiver (T-443). `None`: the buffer alone.
+    /// Each link takes it from the settings of its own road, so a session
+    /// that resumes on another road takes that road's.
+    pub window: Option<usize>,
     /// How long after a loss the session waits for a new link (T-153): a
     /// far end keeps a lost session this long, and names it in its
     /// `GREETING`; a client waits this long when the far end names none
@@ -109,6 +115,7 @@ impl Default for Settings {
         Settings {
             features: FEATURES,
             replay_capacity: replay::DEFAULT_CAPACITY,
+            window: None,
             resume_deadline: resume::RESUME_DEADLINE,
             client_deadline: None,
             wall_clock: std::time::SystemTime::now,
@@ -120,6 +127,20 @@ impl Default for Settings {
 }
 
 impl Settings {
+    /// These settings on the pair's road: each link carries
+    /// [`replay::PAIR_WINDOW`] at most with no acknowledgement, under the
+    /// relay's bound for a slow receiver (T-443).
+    pub fn on_the_pair(self) -> Settings {
+        Settings { window: Some(replay::PAIR_WINDOW), ..self }
+    }
+
+    /// These settings on a road with no relay of the contract between the
+    /// ends (iroh, DERP, a quick tunnel): the replay buffer alone bounds the
+    /// bytes in flight.
+    pub fn off_the_pair(self) -> Settings {
+        Settings { window: None, ..self }
+    }
+
     /// The state of a new session: a replay buffer and acknowledgements when
     /// both sides named `replay.v1`, else neither, since a peer that does not
     /// acknowledge would fill the buffer and stop the session; a heartbeat

@@ -98,7 +98,7 @@ the roots that it was built with: an update of the roots makes a release
 (Dependabot, T-205; after `v1.0.0`, a patch release), and `podssh doctor`
 says when the compiled-in roots are older than 12 months. A system bundle
 adds roots and removes none, so to stop trusting a root that Mozilla removed
-after the build, give `--ca-file` or `SSL_CERT_FILE` with a current bundle.
+after the build, give `--ca-file` or `SSL_CERT_FILE` with a current bundle. A process makes one rustls configuration for each trust and keeps it (T-444, `crates/podssh-ws/src/tls/kept.rs`): rustls keeps its cache of sessions there, so a second connection of a run to the same host resumes TLS, and a CA file is read again only when its time or its length changed. A session is resumed under the trust that verified it alone, as a resumed handshake checks no certificate.
 
 A library that embeds `podssh-ws` or `podssh-relay` can bring its own
 `rustls::ClientConfig` (`Trust::caller`, T-066): podbox keeps `ring` and
@@ -223,6 +223,7 @@ session whose output nobody reads.
 | A read of `podssh pipe` | 32 KiB | `CHUNK`, `crates/podssh-cli/src/pipe/pump.rs` | One read at a time |
 | What is typed while `--persist` connects again | 64 KiB | `QUEUE`, `crates/podssh-ssh/src/io.rs` | The rest is dropped, and podssh says how many bytes |
 | The replay buffer of a resumable session | 4 MiB each way; `PODSSH_REPLAY_BUFFER` gives 4 to 16 MiB, and another value is ignored | `crates/podssh-relay/src/session/replay.rs` | The writer waits for the peer's `ACK`; no byte is dropped |
+| The bytes that a link of the pair's road carries with no acknowledgement (T-443) | 768 KiB each way, under the 1 MiB that the relay holds for a slow receiver; a link of another road takes the buffer's room alone | `PAIR_WINDOW`, `crates/podssh-relay/src/session/replay.rs` | The writer waits for the peer's `ACK`: what the relay holds for one session's operator stays under its bound, and `1011 relay backpressure` does not come of it |
 | The replay buffers of a node | 64 MiB | `NODE_BUDGET`, `crates/podssh-relay/src/reverse/layered.rs` | A new resumable session is closed: "this node keeps as many resumable sessions as its budget allows (64 MiB of replay buffers)". Under the channel, a session counts once its key is let in, and one let in past the budget is refused there ("this node keeps as many sessions as its budget allows"); one that was not let in waits 30 s for a resume, not the deadline (T-300) |
 | What waits for a node's local side | 1 MiB for a side with no flow control; a handler with its own keeps its window | `QUEUE_BYTES`, `crates/podssh-relay/src/reverse/node.rs` | That session ends with its reason, and the others go on (T-256) |
 | An operator's input before the node is ready | 1 MiB | `QUEUE_BEFORE_READY`, `crates/podssh-relay/src/reverse/operator.rs` | A Close 1000, and "more than 1048576 bytes of input came before the node was ready" |

@@ -179,8 +179,8 @@ async fn serve_quick(ready: Ready, err: &mut dyn Write) -> i32 {
     podssh_ssh::out_line!("{url}");
     let first = &targets[0];
     let tcp = TcpHandler { host: first.host.clone(), port: first.port, timeout: DIAL_LIMIT, sshd: roost };
-    let (settings, budget) = (crate::layered::settings(), reverse::layered::NODE_BUDGET);
-    // As the pair's road does: the layer, the channel above it, then TARGET.
+    let (settings, budget) = (crate::layered::settings().off_the_pair(), reverse::layered::NODE_BUDGET);
+    // As the pair's road does: the layer, the channel above it, then TARGET; the edge keeps no bound of the relay's.
     let handler = Arc::new(Layered::new(E2e::new(tcp, channel), settings, budget));
     let ids = Arc::new(AtomicU64::new(1));
     let visit = move |stream: DuplexStream| {
