@@ -15,6 +15,10 @@ pub enum Road {
     Derp(podssh_relay::derp::Link),
     Transit(podssh_relay::transit::Link),
     Piping(podssh_relay::piping::Link),
+    /// A WebSocket to a node's quick tunnel, of its record (T-445), which a
+    /// build with the iroh road reads.
+    #[cfg(feature = "iroh")]
+    Tunnel(DuplexStream),
 }
 
 impl AsyncRead for Road {
@@ -26,6 +30,8 @@ impl AsyncRead for Road {
             Road::Derp(link) => Pin::new(link).poll_read(cx, buf),
             Road::Transit(link) => Pin::new(link).poll_read(cx, buf),
             Road::Piping(link) => Pin::new(link).poll_read(cx, buf),
+            #[cfg(feature = "iroh")]
+            Road::Tunnel(link) => Pin::new(link).poll_read(cx, buf),
         }
     }
 }
@@ -39,6 +45,8 @@ impl AsyncWrite for Road {
             Road::Derp(link) => Pin::new(link).poll_write(cx, buf),
             Road::Transit(link) => Pin::new(link).poll_write(cx, buf),
             Road::Piping(link) => Pin::new(link).poll_write(cx, buf),
+            #[cfg(feature = "iroh")]
+            Road::Tunnel(link) => Pin::new(link).poll_write(cx, buf),
         }
     }
 
@@ -50,6 +58,8 @@ impl AsyncWrite for Road {
             Road::Derp(link) => Pin::new(link).poll_flush(cx),
             Road::Transit(link) => Pin::new(link).poll_flush(cx),
             Road::Piping(link) => Pin::new(link).poll_flush(cx),
+            #[cfg(feature = "iroh")]
+            Road::Tunnel(link) => Pin::new(link).poll_flush(cx),
         }
     }
 
@@ -61,6 +71,8 @@ impl AsyncWrite for Road {
             Road::Derp(link) => Pin::new(link).poll_shutdown(cx),
             Road::Transit(link) => Pin::new(link).poll_shutdown(cx),
             Road::Piping(link) => Pin::new(link).poll_shutdown(cx),
+            #[cfg(feature = "iroh")]
+            Road::Tunnel(link) => Pin::new(link).poll_shutdown(cx),
         }
     }
 }

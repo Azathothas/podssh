@@ -1,9 +1,13 @@
-//! A node's record at a server of pkarr (T-350): its home relay, signed with
-//! its key, so that a client whose ticket names an older relay finds it.
+//! A node's record at a server of pkarr (T-350, T-445): its home relay, and
+//! each other road that it has, signed with its key, so that a client whose
+//! ticket names an older relay finds it, and a client with the node's key
+//! alone finds each of its roads.
 //!
-//! The record is iroh's own: a signed packet of pkarr whose `_iroh` TXT names
-//! `relay=URL` (iroh-dns writes and reads it), so iroh's tools and n0's DNS
-//! read it too. It names the relay alone, never an address of the host.
+//! The record is iroh's own, with podssh's beside it ([`record`]): a signed
+//! packet of pkarr whose `_iroh` TXT names `relay=URL` (iroh-dns writes and
+//! reads it), so iroh's tools and n0's DNS read it too, and whose `_podssh`
+//! TXT names the DERP home and the quick tunnel, which iroh passes by. It
+//! names no address of the host.
 //! podssh puts it and asks for it over podssh-ws, through podssh's proxy and
 //! trust store, as it asks a relay's `/ping`: iroh's own publisher and
 //! resolver would take the one proxy that the endpoint has, ask at each
@@ -11,19 +15,26 @@
 //!
 //! The server is n0's when an end's relays are n0's, as Q50 makes n0's
 //! relays and n0's server a fallback; [`ENV`] names another one, or `off`.
-//! The node's end is [`keep`]; a client's is [`Finder`], which
-//! [`crate::Dialer`] asks when the ticket's relay does not reach the node.
+//! The node's end is [`keep`], or [`keep_roads`] for a node with no iroh
+//! endpoint; a client's is [`Finder`], which [`crate::Dialer`] asks when the
+//! ticket's relay does not reach the node, and which a client with the
+//! node's key alone asks for each road.
 
 use std::sync::Arc;
-use std::time::{Duration, SystemTime, UNIX_EPOCH};
+use std::time::Duration;
 
-use iroh::endpoint_info::EndpointInfo;
 use iroh::{Endpoint, PublicKey, RelayUrl, SecretKey, Watcher as _};
 use podssh_ws::{dial, http, ProxyChoice, Trust};
+use tokio::sync::watch;
 use url::Url;
 
 pub use iroh_dns::pkarr::SignedPacket;
 use iroh_dns::pkarr::SignedPacketVerifyError;
+
+// What a record names, and its packet, in a file of their own.
+#[path = "pkarr_record.rs"]
+pub mod record;
+pub use record::{Record, Roads};
 
 /// n0's server of pkarr, as iroh 1.4.1 names it (`N0_DNS_PKARR_RELAY_PROD`);
 /// a test holds it to iroh's.
@@ -154,37 +165,6 @@ pub fn choose(relays: &[RelayUrl]) -> Result<Option<Server>, String> {
     Ok(server_for(&choice_from_environment()?, relays))
 }
 
-/// A node's record, read and checked.
-#[derive(Debug, Clone, PartialEq, Eq)]
-pub struct Record {
-    /// The relays that it names, `https://` alone, in its order.
-    pub relays: Vec<RelayUrl>,
-    /// When the node signed it, in microseconds since the epoch (pkarr's
-    /// sequence number).
-    pub signed_at: u64,
-}
-
-impl Record {
-    /// The names of `packet`, whose signature the caller checked.
-    pub fn of(packet: &SignedPacket) -> Result<Record, String> {
-        let info = EndpointInfo::from_pkarr_signed_packet(packet)
-            .map_err(|e| format!("the record is not iroh's record of a node: {e}"))?;
-        // A relay that podssh would not dial is no relay of the record.
-        let relays: Vec<RelayUrl> =
-            info.relay_urls().filter_map(|url| crate::relays::parse_url(url.as_str()).ok()).collect();
-        if relays.is_empty() {
-            return Err("the record names no https:// relay".into());
-        }
-        Ok(Record { relays, signed_at: packet.timestamp().as_micros() })
-    }
-
-    /// How long ago the node signed it; none for a time after this host's.
-    pub fn age(&self) -> Duration {
-        let now = SystemTime::now().duration_since(UNIX_EPOCH).map(|d| d.as_micros()).unwrap_or_default();
-        Duration::from_micros(u64::try_from(now).unwrap_or(u64::MAX).saturating_sub(self.signed_at))
-    }
-}
-
 /// How a client reads a server's answer for the record of `key`.
 pub type Read = fn(&PublicKey, &[u8]) -> Result<Record, String>;
 
@@ -229,17 +209,16 @@ async fn request(
     tokio::time::timeout(limit, asked).await.map_err(|_| format!("{host}: no answer within {} s", limit.as_secs()))?
 }
 
-/// Put the record of `secret`'s key, which names `relay` alone, at `server`.
+/// Put the record of `secret`'s key, which names `roads`, at `server`.
 pub async fn publish(
     server: &Server,
     secret: &SecretKey,
-    relay: &RelayUrl,
+    roads: &Roads,
     trust: &Trust,
     proxy: &ProxyChoice,
     limit: Duration,
 ) -> Result<(), String> {
-    let info = EndpointInfo::new(secret.public()).with_relay_url(relay.clone());
-    let packet = info.to_pkarr_signed_packet(secret, TTL).map_err(|e| format!("the record could not be made: {e}"))?;
+    let packet = record::packet(secret, roads, TTL)?;
     let key = secret.public();
     let response = request(server, "PUT", &key, &packet.to_relay_payload(), trust, proxy, limit).await?;
     match response.status {
@@ -277,35 +256,110 @@ pub async fn lookup(
     lookup_with(server, key, trust, proxy, limit, read).await
 }
 
-/// What [`keep`] last said, so that it says each change once.
+/// What [`keep_roads`] last said, so that it says each change once.
 #[derive(PartialEq, Eq)]
 enum Said {
-    Put(RelayUrl),
+    Put(Roads),
     Failed,
 }
 
-/// Keep the record of `endpoint`'s home relay at `server` until the
-/// endpoint closes: at once, again when the home relay changes, and each
-/// [`REPUBLISH`]; after a failure, again within 5 s, then twice as long each
-/// time. `say` hears the first record of each relay, and the first failure
-/// of a run of them.
-pub async fn keep(endpoint: Endpoint, server: Server, trust: Trust, proxy: ProxyChoice, say: impl Fn(String)) {
+/// Keep the record of `endpoint`'s roads at `server` until the endpoint
+/// closes: its home relay, which the endpoint gives, and the DERP home and
+/// quick tunnel of `others`, which the node's other roads give as they come
+/// online and move (T-445); `None` names the home relay alone. Put as
+/// [`keep_roads`] puts it.
+pub async fn keep(
+    endpoint: Endpoint,
+    server: Server,
+    trust: Trust,
+    proxy: ProxyChoice,
+    mut others: Option<watch::Receiver<Roads>>,
+    say: impl Fn(String),
+) {
     let secret = endpoint.secret_key().clone();
-    let mut addrs = endpoint.watch_addr();
-    let mut relay = crate::ticket::home_relay(&endpoint);
+    let now = others.as_mut().map(|o| o.borrow_and_update().clone()).unwrap_or_default();
+    let (told, roads) = watch::channel(Roads { relay: crate::ticket::home_relay(&endpoint), ..now });
+    let follow = async move {
+        let mut addrs = endpoint.watch_addr();
+        loop {
+            tokio::select! {
+                changed = addrs.updated() => match changed {
+                    // A change of the endpoint's other addresses changes
+                    // nothing in the record.
+                    Ok(addr) => {
+                        let now = addr.relay_urls().next().cloned();
+                        told.send_if_modified(|roads| {
+                            let new = now.is_some() && now != roads.relay;
+                            if new {
+                                roads.relay = now;
+                            }
+                            new
+                        });
+                    }
+                    // The endpoint closed: the node has stopped.
+                    Err(_) => return,
+                },
+                other = next_other(&mut others) => {
+                    told.send_if_modified(|roads| {
+                        let new = roads.derp != other.derp || roads.quick != other.quick;
+                        if new {
+                            (roads.derp, roads.quick) = (other.derp, other.quick);
+                        }
+                        new
+                    });
+                }
+            }
+        }
+    };
+    tokio::select! {
+        () = follow => {}
+        () = keep_roads(secret, server, trust, proxy, roads, say) => {}
+    }
+}
+
+/// The next change of a node's other roads; none, for ever, once each of
+/// their senders is gone.
+async fn next_other(others: &mut Option<watch::Receiver<Roads>>) -> Roads {
+    loop {
+        let Some(receiver) = others.as_mut() else { return std::future::pending().await };
+        match receiver.changed().await {
+            Ok(()) => return receiver.borrow_and_update().clone(),
+            Err(_) => *others = None,
+        }
+    }
+}
+
+/// Keep the record of `secret`'s key at `server`, naming what `roads` holds,
+/// until each sender of `roads` is gone: once it names a road, again when it
+/// changes, and each [`REPUBLISH`]; after a failure, again within 5 s, then
+/// twice as long each time. `say` hears the first record of each set of
+/// roads, and the first failure of a run of them. A node with no iroh
+/// endpoint (the quick tunnel's, the DERP road's alone) keeps its record so.
+pub async fn keep_roads(
+    secret: SecretKey,
+    server: Server,
+    trust: Trust,
+    proxy: ProxyChoice,
+    mut roads: watch::Receiver<Roads>,
+    say: impl Fn(String),
+) {
     let mut said: Option<Said> = None;
     let mut retry = RETRY;
     loop {
-        let wait = match &relay {
-            None => REPUBLISH,
-            Some(url) => match publish(&server, &secret, url, &trust, &proxy, LIMIT).await {
+        let now = roads.borrow_and_update().clone();
+        let wait = if now.is_empty() {
+            REPUBLISH
+        } else {
+            match publish(&server, &secret, &now, &trust, &proxy, LIMIT).await {
                 Ok(()) => {
-                    if said.as_ref() != Some(&Said::Put(url.clone())) {
+                    if said.as_ref() != Some(&Said::Put(now.clone())) {
                         say(format!(
-                            "its record at {} names the home relay {url}, for a client whose ticket names another",
-                            server.host()
+                            "its record at {} names {}, for a client whose ticket names another, or that has the \
+                             node's key alone",
+                            server.host(),
+                            now.said()
                         ));
-                        said = Some(Said::Put(url.clone()));
+                        said = Some(Said::Put(now));
                     }
                     retry = RETRY;
                     REPUBLISH
@@ -319,26 +373,14 @@ pub async fn keep(endpoint: Endpoint, server: Server, trust: Trust, proxy: Proxy
                     retry = (retry * 2).min(REPUBLISH);
                     wait
                 }
-            },
-        };
-        let deadline = tokio::time::Instant::now() + wait;
-        // Until the time to put it again, or a new home relay; a change of
-        // the endpoint's other addresses changes nothing in the record.
-        loop {
-            tokio::select! {
-                changed = addrs.updated() => match changed {
-                    Ok(addr) => {
-                        let now = addr.relay_urls().next().cloned();
-                        if now.is_some() && now != relay {
-                            relay = now;
-                            break;
-                        }
-                    }
-                    // The endpoint closed: the node has stopped.
-                    Err(_) => return,
-                },
-                () = tokio::time::sleep_until(deadline) => break,
             }
+        };
+        // Until the time to put it again, or a change of the roads.
+        tokio::select! {
+            changed = roads.changed() => if changed.is_err() {
+                return;
+            },
+            () = tokio::time::sleep(wait) => {}
         }
     }
 }

@@ -19,7 +19,7 @@ use iroh::endpoint_info::EndpointInfo;
 use iroh::tls::CaTlsConfig;
 use iroh::{Endpoint, EndpointAddr, PublicKey, RelayUrl, SecretKey};
 use podssh_iroh::client::FIND_AFTER;
-use podssh_iroh::pkarr::{self, Finder, Read, Record, Server, SignedPacket};
+use podssh_iroh::pkarr::{self, Finder, Read, Record, Roads, Server, SignedPacket};
 use podssh_iroh::test_pkarr::{self, TestPkarr};
 use podssh_iroh::{ticket, Dialer, Failure, Options, Udp};
 use podssh_relay::session::client::Outcome;
@@ -142,7 +142,8 @@ async fn a_client_with_the_first_ticket_finds_the_node_on_its_second_relay() {
     let node = podssh_iroh::bind(&options(&second, Some(secret.clone()), true)).await.expect("the node again");
     tokio::time::timeout(LIMIT, node.online()).await.expect("the node's second home relay");
     let (node_said, say) = heard();
-    let keeping = tokio::spawn(pkarr::keep(node.clone(), server.clone(), trust.clone(), ProxyChoice::Direct, say));
+    let keeping =
+        tokio::spawn(pkarr::keep(node.clone(), server.clone(), trust.clone(), ProxyChoice::Direct, None, say));
     let record = record_naming(&server, &secret.public(), &trust, &second).await;
     assert_eq!(record.relays, vec![second.clone()], "the record names the home relay alone");
     serve(&node);
@@ -262,7 +263,8 @@ async fn iroh_s_own_client_reads_podssh_s_record_and_podssh_reads_iroh_s() {
 
     let ours = SecretKey::from_bytes(&[0x61; 32]);
     let relay: RelayUrl = "https://relay-a.podssh.test".parse().unwrap();
-    pkarr::publish(&server, &ours, &relay, &trust, &ProxyChoice::Direct, LIMIT).await.expect("podssh puts its record");
+    let roads = Roads { relay: Some(relay.clone()), ..Roads::default() };
+    pkarr::publish(&server, &ours, &roads, &trust, &ProxyChoice::Direct, LIMIT).await.expect("podssh puts its record");
     let packet = theirs.resolve(ours.public()).await.expect("iroh's client reads podssh's record");
     let info = EndpointInfo::from_pkarr_signed_packet(&packet).expect("iroh's record of a node");
     assert_eq!(info.relay_urls().cloned().collect::<Vec<_>>(), vec![relay]);

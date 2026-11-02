@@ -98,6 +98,9 @@ pub mod node_transit;
 // `podssh node --iroh`: the iroh road, with the feature `iroh` only.
 #[cfg(feature = "iroh")]
 pub mod node_iroh;
+// A node's record of pkarr with each of its roads (T-445); in a build with
+// no iroh road, no record.
+pub mod node_record;
 // The Piping Server road of a node of a pair (T-437): asked by PODSSH_PIPING,
 // or unasked where the WebSocket upgrade is refused on the way (Q65).
 pub mod node_piping;

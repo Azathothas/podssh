@@ -1,6 +1,6 @@
 //! The manual's facts of the iroh road, which only a build with the feature
 //! `iroh` has: its variables (T-165, T-359, T-350), and its items in THE
-//! RELAY, its relays and the record of a node's home relay (T-350).
+//! RELAY, its relays and a node's record of its roads (T-350, T-445).
 
 use super::super::model::Block;
 #[cfg(feature = "iroh")]
@@ -26,10 +26,11 @@ pub(super) const VARIABLES: &[(&[&str], &str)] = &[
     ),
     (
         &["PODSSH_IROH_PKARR"],
-        "The server of pkarr where a node of the iroh road keeps the record of its home relay, and where a \
-          client asks for it: https://HOST[:PORT][/PATH], or off for none. Unset or empty, it is n0's when the \
-          relays are n0's, and none else (see iroh record in THE RELAY). A bad value is a configuration error \
-          (78).",
+        "The server of pkarr where a node keeps the record of its roads, and where a client asks for it: \
+          https://HOST[:PORT][/PATH], or off for none. Unset or empty, it is n0's when the iroh relays are \
+          n0's, and none else; a node with no iroh road (--quick-tunnel, the DERP road alone) keeps its \
+          record at n0's too, unless this names another or off (see iroh record in THE RELAY). A bad value is \
+          a configuration error (78).",
     ),
 ];
 
@@ -66,21 +67,27 @@ fn relays() -> Block {
     )
 }
 
-/// The record of a node's home relay at a server of pkarr (T-350).
+/// A node's record of its roads at a server of pkarr (T-350, T-445).
 #[cfg(feature = "iroh")]
 fn record() -> Block {
     use podssh_iroh::pkarr;
     item(
         vec![lit("iroh record")],
         format!(
-            "A node of the iroh road keeps a record of its home relay, signed with its key, at a server of \
-             pkarr: {n0} when its relays are n0's, else the one of {env}, and none with {env}=off. The record \
-             names the relay alone, no address of the host; the node puts it through the proxy at its start, \
-             again when its home relay changes, and each {minutes} minutes. A client whose ticket's relay does \
-             not reach the node within {after} s (at once, when that relay does not answer /ping) asks for the \
-             record, {limit} s at most, and dials the relay that it names too. A record that the node's key \
-             did not sign is refused, and the connection checks the node's key either way. podssh ssh then \
-             says the node's ticket at that relay.",
+            "A node of the iroh road keeps a record of its roads, signed with its key, at a server of pkarr: \
+             {n0} when its relays are n0's, else the one of {env}, and none with {env}=off. The record names \
+             its home relay in iroh's own _iroh names, which iroh's tools read, and, in podssh's _podssh names, \
+             which they pass by, its DERP home (its ticket, with --derp) and its quick tunnel; no address of the \
+             host. The node puts it through the proxy at its start, again when a road comes or moves, and each \
+             {minutes} minutes. A node of --quick-tunnel, or of the DERP road alone, keeps the record of its \
+             road at {n0} too, unless {env} names another server or off. A client whose ticket's relay does not reach the node within \
+             {after} s (at once, when that relay does not answer /ping) asks for the record, {limit} s at most, \
+             and dials the relay that it names too; podssh ssh then says the node's ticket at that relay. \
+             podssh ssh node://NAME of a member of the net, whose key the net names, asks it once each road with \
+             a ticket failed, and races each road that it names and no ticket gave: the iroh road, the DERP road \
+             and the quick tunnel. A record that the node's key did not sign is refused; of a record, a DERP \
+             ticket of another key, or a quick tunnel that is not one name under trycloudflare.com, is set \
+             aside; and the end-to-end channel checks the node's key on each road either way.",
             n0 = pkarr::N0,
             env = pkarr::ENV,
             minutes = pkarr::REPUBLISH.as_secs() / 60,

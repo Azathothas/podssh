@@ -12,7 +12,9 @@
 //! server lets any key send, so the channel's allowlist is the node's only
 //! door. A node with no pair, and an allowlist, serves the road unasked
 //! (the operator's ruling Q50) and says so; `PODSSH_DERP=no` turns that off.
-//! stdout stays empty: the lines are on stderr.
+//! Its record of pkarr names its DERP home, at a server that
+//! `PODSSH_IROH_PKARR` names, in a build with the iroh road (T-445,
+//! `node_record`). stdout stays empty: the lines are on stderr.
 
 use std::future::Future;
 use std::io::Write;
@@ -112,6 +114,8 @@ pub(crate) struct Online {
     first: Conn,
     pub ticket: Ticket,
     servers: Vec<Server>,
+    /// The keeper of the node's record, told of each home (T-445).
+    tell: crate::node_record::Tell,
 }
 
 /// The home, the first of `servers` whose probe answers through the proxy;
@@ -143,13 +147,21 @@ pub(crate) async fn online(
         .await
         .map_err(|why| Refusal { message: format!("the DERP server {home}: {why}"), code: unreachable })?;
     let ticket = Ticket { node: identity.public(), derp: first.key(), server: home };
-    Ok(Online { node, first, ticket, servers: servers.to_vec() })
+    Ok(Online { node, first, ticket, servers: servers.to_vec(), tell: Default::default() })
 }
 
 impl Online {
     /// The node's home.
     pub(crate) fn home(&self) -> &Server {
         &self.ticket.server
+    }
+
+    /// With `tell`, which hears the ticket now and at each move, so that
+    /// the node's record names its DERP home (T-445).
+    pub(crate) fn telling(mut self, tell: crate::node_record::Tell) -> Online {
+        tell.derp(&self.ticket);
+        self.tell = tell;
+        self
     }
 
     /// Serve the road's sessions for ever with `keeper`, which another road
@@ -161,11 +173,12 @@ impl Online {
         O: Fn() -> F + Clone + Send + Sync + 'static,
         F: Future<Output = Result<A, String>> + Send + 'static,
     {
-        let Online { node, first, ticket, servers } = self;
+        let Online { node, first, ticket, servers, tell } = self;
         let say = node.say.clone();
         let moved: far::Moved = Arc::new(move |server: &Server| {
             let now = Ticket { server: server.clone(), ..ticket.clone() };
             say(format!("the home moved to the DERP server {server}; the ticket is now {now}"));
+            tell.derp(&now);
         });
         far::serve_roaming(node, Roam { servers, moved }, Some(first), settings, budget, open, keeper).await;
     }
@@ -191,6 +204,8 @@ struct Ready {
     pair: Result<(Pair, bool), String>,
     /// Why the node serves the road unasked, when it does.
     unasked: Option<String>,
+    /// The server of its record: n0's, or the one of PODSSH_IROH_PKARR (T-445, Q81).
+    record: Option<crate::node_record::Named>,
 }
 
 fn prepare(args: &NodeArgs, unasked: Option<String>) -> Result<Ready, Refusal> {
@@ -211,11 +226,12 @@ fn prepare(args: &NodeArgs, unasked: Option<String>) -> Result<Ready, Refusal> {
     };
     crate::pairs::online()?;
     crate::node_transit::check()?; // PODSSH_TRANSIT (T-436), before anything connects
+    let record = crate::node_record::named()?;
     let trust = crate::pairs::trust(args.ca_file.as_deref());
     // The key is made only once each check passed.
     let key = crate::channel::load_node_key(&place)?;
     crate::node_exit::ready(&label, &key.identity.public())?;
-    Ok(Ready { label, targets, roost: args.sshd, key, allow, servers, trust, pair, unasked })
+    Ok(Ready { label, targets, roost: args.sshd, key, allow, servers, trust, pair, unasked, record })
 }
 
 /// Run the node of the DERP road; `unasked` is why it serves the road with
@@ -242,7 +258,7 @@ pub fn run(args: &NodeArgs, unasked: Option<String>, err: &mut dyn Write) -> i32
 }
 
 async fn serve(ready: Ready, err: &mut dyn Write) -> i32 {
-    let Ready { label, targets, roost, key, allow, servers, trust, pair, unasked } = ready;
+    let Ready { label, targets, roost, key, allow, servers, trust, pair, unasked, record } = ready;
     // TARGET first: a node that cannot reach it would serve no session.
     let target = match crate::node::probe(&targets, roost).await {
         Ok(versions) => crate::node::serving(&targets, &versions),
@@ -291,6 +307,12 @@ async fn serve(ready: Ready, err: &mut dyn Write) -> i32 {
     if let Some(line) = crate::net::admit::line(&public) {
         let _ = writeln!(err, "podssh node: {label}: {line}");
     }
+    // Its record names its DERP home, now and at each move (T-445).
+    let line = |words: String| {
+        let _ = writeln!(err, "podssh node: {label}: {words}");
+    };
+    let (_record, tell) = crate::node_record::alone(record, &identity, &trust, say.clone(), line);
+    let road = road.telling(tell);
     // The channel of T-088 on both roads, with this node's key and its
     // allowlist: a session made on one road may resume on the other.
     let channel = ends::Node {

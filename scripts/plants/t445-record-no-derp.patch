@@ -1,0 +1,12 @@
+--- a/crates/podssh-iroh/src/pkarr_record.rs
++++ b/crates/podssh-iroh/src/pkarr_record.rs
+@@ -197,9 +197,6 @@
+         values.extend(iroh.txt_records(IROH_TXT_NAME).into_iter().map(|value| (name.clone(), value)));
+     }
+     let ours = format!("{PODSSH_TXT_NAME}.{zone}");
+-    if let Some(ticket) = &roads.derp {
+-        values.push((ours.clone(), format!("{DERP_KEY}={ticket}")));
+-    }
+     if let Some(name) = &roads.quick {
+         values.push((ours.clone(), format!("{QUICK_KEY}={name}")));
+     }

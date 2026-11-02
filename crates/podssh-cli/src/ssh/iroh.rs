@@ -12,6 +12,11 @@ mod race;
 // The iroh road of the race of a node's roads (T-164, `super::roads`).
 #[cfg(feature = "iroh")]
 pub(crate) use race::IrohRoad;
+// The roads of a member's record of pkarr, in that race (T-445).
+#[cfg(feature = "iroh")]
+mod record;
+#[cfg(feature = "iroh")]
+pub(crate) use record::{record_ask, RecordAsk, RecordRoads};
 
 use super::node::Ask;
 use super::resolve::Transport;
@@ -224,6 +229,53 @@ pub(super) fn same_node(_: &str, _: &podssh_relay::derp::Ticket) -> Result<(), R
 #[allow(dead_code)]
 pub(crate) enum IrohRoad<'a> {
     Never(std::convert::Infallible, std::marker::PhantomData<&'a ()>),
+}
+
+/// A build with no iroh road reads no record: no run asks one.
+#[cfg(not(feature = "iroh"))]
+pub(crate) fn record_ask(
+    _: &str,
+    _: bool,
+    _: &super::derp::Race,
+    _: &crate::channel::Ask,
+) -> Result<Option<RecordAsk>, Refusal> {
+    Ok(None)
+}
+
+/// No value of these types is made in a build with no iroh road.
+#[cfg(not(feature = "iroh"))]
+#[derive(Debug, Clone)]
+pub(crate) enum RecordAsk {}
+
+#[cfg(not(feature = "iroh"))]
+#[allow(dead_code)]
+pub(crate) enum RecordRoads<'a> {
+    Never(std::convert::Infallible, std::marker::PhantomData<&'a ()>),
+}
+
+#[cfg(not(feature = "iroh"))]
+impl<'a> RecordRoads<'a> {
+    pub(crate) fn new(ask: &'a RecordAsk, _: &'a Trust, _: &'a std::sync::Arc<podssh_ssh::Log>, _: &'a str) -> Self {
+        match *ask {}
+    }
+
+    pub(crate) fn race(&self) -> Vec<(podssh_relay::session::race::Start, super::roads::Going<'_>, &'static str)> {
+        match self {
+            RecordRoads::Never(never, _) => match *never {},
+        }
+    }
+
+    pub(crate) async fn carried(&self) -> Option<String> {
+        match self {
+            RecordRoads::Never(never, _) => match *never {},
+        }
+    }
+
+    pub(crate) async fn close(&self) {
+        match self {
+            RecordRoads::Never(never, _) => match *never {},
+        }
+    }
 }
 
 #[cfg(not(feature = "iroh"))]

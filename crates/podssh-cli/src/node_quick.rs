@@ -18,6 +18,9 @@
 //! With `--relay`, the node is its owner's relay too, behind the tunnel and
 //! with no listener (T-428, `crate::node_quick_relay`), and TARGET may be
 //! left out.
+//! In a build with the iroh road, the node's record of pkarr names the
+//! tunnel, at n0's server unless `PODSSH_IROH_PKARR` names another or `off`
+//! (Q81), for a client with the node's key alone (T-445, `node_record`).
 
 use std::io::Write;
 use std::path::PathBuf;
@@ -65,6 +68,8 @@ struct Ready {
     warp: bool,
     /// The relay role behind the tunnel (`--relay`).
     relay: Option<Role>,
+    /// The server of its record: n0's, or the one of PODSSH_IROH_PKARR (T-445, Q81).
+    record: Option<crate::node_record::Named>,
 }
 
 /// Run the node; returns the process exit code.
@@ -129,8 +134,9 @@ fn prepare(args: &NodeArgs) -> Result<Ready, Refusal> {
     let relay = crate::node_quick_relay::role(args, &label, &allow)?;
     let place = crate::channel::node_place(&label, flags.key.as_deref(), flags.ephemeral)?;
     crate::pairs::online()?;
+    let record = crate::node_record::named()?;
     let key = crate::channel::load_node_key(&place)?;
-    Ok(Ready { label, targets, key, allow, sshd: args.sshd, warp: args.warp, relay })
+    Ok(Ready { label, targets, key, allow, sshd: args.sshd, warp: args.warp, relay, record })
 }
 
 /// The system and the machine as cloudflared names them, Go's names.
@@ -149,7 +155,7 @@ fn arch() -> String {
 }
 
 async fn serve_quick(ready: Ready, err: &mut dyn Write) -> i32 {
-    let Ready { label, targets, key, allow, sshd: roost, warp, relay } = ready;
+    let Ready { label, targets, key, allow, sshd: roost, warp, relay, record } = ready;
     // TARGET first, when there is one; with none, the node is the relay alone.
     let target = match targets.is_empty() {
         true => None,
@@ -203,6 +209,12 @@ async fn serve_quick(ready: Ready, err: &mut dyn Write) -> i32 {
     if let Some(relay) = &relay {
         let _ = writeln!(err, "podssh node: {label}: {}", relay.shown(&tunnel.hostname));
     }
+    // Its record names the tunnel, for as long as the node runs (T-445).
+    let line = |words: String| {
+        let _ = writeln!(err, "podssh node: {label}: {words}");
+    };
+    let (_record, tell) = crate::node_record::alone(record, &key.identity, &trust, say.clone(), line);
+    tell.quick(&tunnel.hostname);
     // As the pair's road does: the layer, the channel above it, then TARGET; the edge keeps no bound of the relay's.
     let handler = match targets.first() {
         Some(first) => {

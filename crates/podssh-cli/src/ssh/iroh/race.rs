@@ -1,13 +1,14 @@
 //! The iroh road of `podssh ssh node://NAME --iroh-ticket TICKET` (T-164),
 //! one road of the race of a node's roads (`crate::ssh::roads`, T-379): its
 //! endpoint, made at its first attempt, so that the roads after it need not
-//! wait for it.
+//! wait for it. The iroh road of a node's record (T-445) is one too, with
+//! the record's finder, so that a node that moved again is found again.
 
 use std::time::Duration;
 
 use iroh::{Endpoint, EndpointAddr, RelayUrl};
 use podssh_iroh::keys::{self, Place};
-use podssh_iroh::{Dialer, Failure, Options, Udp};
+use podssh_iroh::{Dialer, Failure, Finder, Options, Udp};
 use podssh_relay::session::OsEntropy;
 use podssh_ssh::Log;
 use podssh_ws::{ProxyChoice, Trust};
@@ -22,18 +23,28 @@ const CLOSE_LIMIT: Duration = Duration::from_secs(3);
 /// The iroh road: its endpoint, made at its first attempt, so that the
 /// pair's road need not wait for it.
 pub(crate) struct IrohRoad<'a> {
-    race: &'a Race,
-    trust: &'a Trust,
+    race: Race,
+    trust: Trust,
     addr: EndpointAddr,
     made: OnceCell<(Endpoint, Dialer)>,
+    /// The node's record, asked when the ticket's relay does not reach it.
+    finder: Option<Finder>,
     log: &'a Log,
 }
 
 impl<'a> IrohRoad<'a> {
     /// The road to the node of `race`'s ticket; else why it is no ticket.
-    pub(crate) fn new(race: &'a Race, trust: &'a Trust, log: &'a Log) -> Result<IrohRoad<'a>, String> {
+    pub(crate) fn new(race: &Race, trust: &Trust, log: &'a Log) -> Result<IrohRoad<'a>, String> {
         let addr = podssh_iroh::ticket::parse(&race.ticket)?;
-        Ok(IrohRoad { race, trust, addr, made: OnceCell::new(), log })
+        let (race, trust) = (race.clone(), trust.clone());
+        Ok(IrohRoad { race, trust, addr, made: OnceCell::new(), finder: None, log })
+    }
+
+    /// With `finder`, which asks for the node's record when the ticket's
+    /// relay does not reach the node (T-350).
+    pub(crate) fn finding(mut self, finder: Finder) -> IrohRoad<'a> {
+        self.finder = Some(finder);
+        self
     }
 
     /// The node's identity, which the ticket names, for the channel of
@@ -70,7 +81,7 @@ impl<'a> IrohRoad<'a> {
             }
         }
         let proxy = ProxyChoice::FromEnvironment;
-        let (home, _) = podssh_iroh::relays::home(&list, self.trust, &proxy).await;
+        let (home, _) = podssh_iroh::relays::home(&list, &self.trust, &proxy).await;
         let options = Options {
             relays: home,
             proxy,
@@ -84,7 +95,12 @@ impl<'a> IrohRoad<'a> {
         // Which answer the road took of this host's UDP (T-359).
         self.log.verbose(&format!("the iroh road: {}", opened.udp));
         let endpoint = opened.endpoint;
-        Ok((endpoint.clone(), Dialer::new(endpoint, self.addr.clone())))
+        let dialer = Dialer::new(endpoint.clone(), self.addr.clone());
+        let dialer = match &self.finder {
+            Some(finder) => dialer.finding(finder.clone()),
+            None => dialer,
+        };
+        Ok((endpoint, dialer))
     }
 
     pub(crate) async fn link(&self) -> Result<Road, String> {

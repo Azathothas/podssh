@@ -112,8 +112,28 @@ What T-429 built ([cli.md](cli.md), "`podssh net`"):
   for each session (`crates/podssh-cli/src/net/admit.rs`), on the pair's,
   the iroh, the DERP and the quick tunnel's roads, as far as the policy lets
   (T-430, below). The DERP
-  road's node still needs `--allow` to start, and its record at pkarr names
-  no road but iroh's (T-445).
+  road's node still needs `--allow` to start.
+
+What T-445 built (drafted 2026-11-02; [design.md](design.md), section 7):
+
+- The record is one signed packet of pkarr with two names in the node's
+  zone: iroh's `_iroh` (`relay=URL`, in iroh-dns's own words), which iroh's
+  tools and n0's DNS read, and podssh's `_podssh` (`derp=TICKET`,
+  `quick=NAME.trycloudflare.com`), which iroh reads past; a key that iroh
+  does not know under `_iroh` would make iroh refuse the whole record
+  (`crates/podssh-iroh/src/pkarr_record.rs`).
+- A node of `--iroh --derp` names its DERP home once its DERP road is
+  online, and again at each move; a node of `--quick-tunnel`, or of the
+  DERP road alone, has no iroh relay, and keeps its record at n0's server
+  too, unless `PODSSH_IROH_PKARR` names another or `off` (Q81, which widens
+  Q57; `crates/podssh-cli/src/node_record.rs`).
+- `podssh ssh node://NAME` of a member that the net names by its key asks
+  the record once each road with a ticket failed, keeps it 30 s, and races
+  each road that it names and no ticket gave: the iroh road, the DERP road
+  and the quick tunnel (`crates/podssh-cli/src/ssh/iroh/record.rs`). A
+  client takes of a record what it takes of a command line, and a DERP
+  ticket of another key, or a name outside `trycloudflare.com`, is set
+  aside; the end-to-end channel checks the member's key on each road.
 - A member's name is a destination (`crates/podssh-cli/src/net/lookup.rs`):
   `node://NAME`, and `NAME` alone with the role `node`; the net names the key
   that the channel checks, and the tickets that race.

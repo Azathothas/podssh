@@ -125,8 +125,9 @@ pub(super) const NODE: &[&str] = &[
      prints its key's \
      fingerprint and its ticket (iroh:...) on stderr, and a new ticket when its home \
      relay changes; a client dials the ticket with podssh ssh iroh:TICKET. On n0's relays, the node \
-     also keeps a record of its home relay at n0's server of pkarr, where a client with an older \
-     ticket finds it (see iroh record in THE RELAY). When the pair NAME is stored \
+     also keeps a record of its roads at n0's server of pkarr, its home relay and, with --derp, its DERP \
+     home, where a client with an older ticket, or with the node's key alone, finds them (see iroh \
+     record in THE RELAY). When the pair NAME is stored \
      and good, or --pair-file gives one, the node serves the pair's road too, with one keeper of \
      sessions for both: a session resumes on either road, and podssh ssh node://NAME --iroh-ticket \
      TICKET races them. When the pair's road ends, the node says why, and the iroh road goes on.",
@@ -148,7 +149,9 @@ pub(super) const NODE: &[&str] = &[
      udp: TARGET are refused with it (64), and so is --derp with no --allow. With the pair NAME stored \
      and good, or --pair-file, the node serves the pair's road too, and with --iroh the iroh road, with \
      one keeper of sessions for each road. A server sees each end's key on it, the sizes and the times; \
-     the channel keeps the bytes from it.",
+     the channel keeps the bytes from it. With --iroh, the node's record of pkarr names its DERP home; \
+     with no --iroh, in a build with the iroh road, it does too, at n0's server unless its variable names \
+     another or off (see iroh record in THE RELAY).",
     "A node with no pair stored under NAME (or one that expired), no --iroh and no --plain, and an \
      allowlist, serves the DERP road unasked, by the operator's ruling Q50, and its first line says so; \
      PODSSH_DERP=no turns that off, and the node refuses as before (78). With no --allow, it refuses as \
@@ -195,7 +198,9 @@ pub(super) const NODE: &[&str] = &[
      to 90 s while a new connection, at once, takes the new ones. A \
      connection to the edge that is lost is made again, with the same name; at Ctrl-C the node \
      unregisters each. --iroh, --derp, --plain, --no-e2e, --pair-file, a route and a udp: TARGET are \
-     refused with it (64).",
+     refused with it (64). In a build with the iroh road, the node's record of pkarr names the tunnel, at \
+     n0's server unless its variable names another or off, for a client with the node's key (see iroh \
+     record in THE RELAY).",
     "With --quick-tunnel --relay, the node is its owner's relay too, with no listener: behind its tunnel \
      it serves the relay's forward and reverse roads, those of podssh relay serve, where a request of \
      another path than a visitor's would get 404: /health, /v1/mint, /connect/HOST/PORT, /relays.json, \

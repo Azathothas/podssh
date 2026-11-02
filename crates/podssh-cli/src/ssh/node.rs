@@ -174,7 +174,8 @@ pub(super) async fn connect(
             let why = crate::pairs::connect_refusal(&e, label).message;
             if let Some(race) = piping.filter(|_| podssh_relay::piping::probe::upgrade_refused(&e)) {
                 log.verbose(&format!("{shown}: {why}: the upgrade was refused on the way; the Piping Server road"));
-                let raced = super::roads::Raced { iroh: None, derp: None, transit: None, piping: Some(race.refused()) };
+                let piping = Some(race.refused());
+                let raced = super::roads::Raced { iroh: None, derp: None, transit: None, piping, record: None };
                 return Box::pin(super::roads::connect(label, pair_file, trust, raced, ask, opts, log)).await;
             }
             log.error(&format!("{shown}: {why}"));

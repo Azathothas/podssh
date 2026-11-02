@@ -231,8 +231,9 @@ pub(super) async fn reach(
 }
 
 /// A new WebSocket to the service of `host`'s tunnel, as bytes; else the
-/// line that says why not, and its code.
-async fn open(host: &str, access: &Access, trust: &Trust) -> Result<DuplexStream, (String, i32)> {
+/// line that says why not, and its code. The quick tunnel of a node's
+/// record is one too (T-445).
+pub(crate) async fn open(host: &str, access: &Access, trust: &Trust) -> Result<DuplexStream, (String, i32)> {
     let timeout = podssh_relay::open::CONNECT_TIMEOUT;
     match cloudflare::connect(host, access, trust, &ProxyChoice::FromEnvironment, timeout, Some(DEFAULT_IDLE_TIMEOUT))
         .await

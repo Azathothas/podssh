@@ -15,7 +15,8 @@
 //! ([`keys`]), and its home relay is the first of its list that answers
 //! ([`relays`]). A node keeps a record of its home relay at a server of
 //! pkarr, and a client whose ticket's relay does not reach the node asks it
-//! ([`pkarr`], T-350).
+//! ([`pkarr`], T-350); the record names the node's DERP home and quick
+//! tunnel too, for a client with the node's key alone (T-445).
 
 pub mod allow;
 pub mod client;
