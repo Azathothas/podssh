@@ -501,7 +501,7 @@ repository and CI).
 | [T-427](mesh.md) | P1 | L | M10 | feature | done | The relay's reverse road in podssh's relay role |
 | [T-428](mesh.md) | P1 | M | M10 | feature | open | The relay role behind a node's quick tunnel, with no listener |
 | [T-429](mesh.md) | P1 | L | M10 | feature | done | The net: an owner's signed list of its nodes, and their names |
-| [T-430](mesh.md) | P2 | M | M10 | feature | open | The net's policy: who may reach which node, share and exit |
+| [T-430](mesh.md) | P2 | M | M10 | feature | partial | The net's policy: who may reach which node, share and exit |
 | [T-431](mesh.md) | P1 | L | M10 | feature | open | Exit mode: a node's egress for its owner's forward road |
 | [T-432](mesh.md) | P2 | M | M10 | feature | open | Routes: a node reaches its private networks for the net |
 | [T-433](mesh.md) | P2 | M | M10 | feature | open | `podssh share`: a node's local services by name, for the net |

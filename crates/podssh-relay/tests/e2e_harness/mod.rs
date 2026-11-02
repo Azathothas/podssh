@@ -47,7 +47,7 @@ pub fn node(
     let lines = Arc::new(Mutex::new(Vec::new()));
     let kept = lines.clone();
     let say = Arc::new(move |line: String| kept.lock().unwrap().push(line));
-    (Node { identity: me, admit: Arc::new(admit), say }, lines)
+    (Node { identity: me, admit: Arc::new(move |key: &PublicKey, _: Option<&str>| admit(key)), say }, lines)
 }
 
 /// A target that echoes each byte, and counts how often it is opened.

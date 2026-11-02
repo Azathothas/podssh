@@ -5,15 +5,18 @@
 //! keys in order, so that each change is a short diff of a text file.
 //!
 //! A field that this podssh does not know is kept as it is when the owner
-//! signs a change, so that the part of a later podssh (the policy, T-430)
-//! is not lost by an earlier one. A document whose `requires` names a part
-//! that this podssh does not read is refused: a rule that an end cannot
-//! read must not be skipped, as a policy skipped lets in each member.
+//! signs a change, so that the part of a later podssh is not lost by an
+//! earlier one. A document whose `requires` names a part that this podssh
+//! does not read is refused: a rule that an end cannot read must not be
+//! skipped, as a policy skipped lets in each member. The policy (T-430,
+//! `super::policy`) is such a part.
 
 use std::collections::BTreeMap;
 
 use podssh_relay::identity::KeyName;
 use serde_json::{json, Map, Value};
+
+use super::policy::{self, Policy};
 
 /// The form of the document, its field `podssh-net`.
 pub const VERSION: u64 = 1;
@@ -22,8 +25,8 @@ pub const ROLES: &[&str] = &["node", "exit", "relay", "share"];
 /// The kinds of a member's tickets, the roads where it can be found.
 pub const TICKETS: &[&str] = &["iroh", "derp"];
 /// The parts that a document's `requires` may name and that this podssh
-/// reads. None yet: the policy (T-430) adds its own.
-const KNOWN_PARTS: &[&str] = &[];
+/// reads: the policy (T-430).
+const KNOWN_PARTS: &[&str] = &[policy::PART];
 /// The most bytes of a document: with its signature, it fits a file of the
 /// cache and one message of the end-to-end channel.
 pub const MAX_DOC: usize = 60 * 1024;
@@ -60,6 +63,8 @@ pub struct Doc {
     /// The owner's public key, as an OpenSSH line: `TYPE BASE64`.
     pub owner: String,
     pub members: Vec<Member>,
+    /// Who may reach what (T-430); none: each member reaches each.
+    pub policy: Option<Policy>,
     /// The whole object, with each field that this podssh does not know.
     whole: Map<String, Value>,
 }
@@ -163,7 +168,8 @@ impl Doc {
             }
             members.push(member);
         }
-        Ok(Doc { name, serial, issued, expires, owner, members, whole })
+        let policy = whole.get(policy::FIELD).map(Policy::read).transpose()?;
+        Ok(Doc { name, serial, issued, expires, owner, members, policy, whole })
     }
 
     /// The document's bytes, as the owner signs them: one line of JSON, its
@@ -184,17 +190,35 @@ impl Doc {
         self.members.iter().find(|m| m.key.matches(key))
     }
 
+    /// A field of the document as it is, with what this podssh does not read.
+    pub fn field(&self, name: &str) -> Option<&Value> {
+        self.whole.get(name)
+    }
+
     /// The next document: the serial one higher, signed now, ending at
     /// `expires`, and `change` done to its members. Each field that this
     /// podssh does not know stays.
     pub fn next(&self, issued: i64, expires: i64, change: impl FnOnce(&mut Vec<Value>)) -> Result<Doc, String> {
+        self.next_whole(issued, expires, |whole| {
+            let mut list = whole.get("members").and_then(Value::as_array).cloned().unwrap_or_default();
+            change(&mut list);
+            whole.insert("members".into(), Value::Array(list));
+        })
+    }
+
+    /// [`Doc::next`] with `change` done to the whole object: the policy's
+    /// commands change a field beside the members.
+    pub fn next_whole(
+        &self,
+        issued: i64,
+        expires: i64,
+        change: impl FnOnce(&mut Map<String, Value>),
+    ) -> Result<Doc, String> {
         let mut whole = self.whole.clone();
         whole.insert("serial".into(), json!(self.serial + 1));
         whole.insert("issued".into(), json!(issued));
         whole.insert("expires".into(), json!(expires));
-        let mut list = whole.get("members").and_then(Value::as_array).cloned().unwrap_or_default();
-        change(&mut list);
-        whole.insert("members".into(), Value::Array(list));
+        change(&mut whole);
         let next = Doc::from_value(Value::Object(whole))?;
         let size = next.to_bytes().len();
         if size > MAX_DOC {

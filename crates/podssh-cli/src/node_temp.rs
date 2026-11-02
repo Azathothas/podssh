@@ -164,7 +164,7 @@ async fn serve(ready: Ready, err: &mut dyn Write) -> i32 {
             let _ = writeln!(std::io::stderr(), "podssh node: {label}: {line}");
         })
     };
-    let admit = move |key: &PublicKey| {
+    let admit = move |key: &PublicKey, _: Option<&str>| {
         if client.matches(key) {
             Ok(())
         } else {

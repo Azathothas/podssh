@@ -395,7 +395,7 @@ here.
 **Milestone:** M10
 **Priority:** P2
 **Effort:** M
-**Status:** open
+**Status:** partial
 
 ## Problem
 
@@ -417,6 +417,79 @@ that decides.
 3. Checked at the node that is reached, for each session, with the newest document it holds.
 4. `podssh net policy check FROM TO` says what a rule list allows, with no connection.
 
+## Decision
+
+The calls of the draft (2026-11-02), each with what lost:
+
+- **One field `policy` of the document, set whole from a file of JSON** (`policy set FILE`),
+  given back by `policy show` in a form that `set` takes again, as Tailscale's policy file is
+  edited whole: `rules`, each with `from`, `to` and an optional `note`, and `tags`, each a list
+  of members' names. Lost: a command for each rule (`policy allow FROM TO`, `policy rm N`), whose
+  numbers move under the user, and a file reviewed as one; tags on the members (`net add
+  --tags`), which `net add` of an existing member would drop, and which would scatter the policy
+  over the members.
+- **`NODE` is the whole node**: its target with no route and each route, as Tailscale's
+  `host:*`; `NODE/ROUTE` is one route, as `node://NODE/ROUTE` reaches it (a share of T-433 is
+  reached so). Lost: `NODE` as the target with no route alone, beside `NODE/*` for the routes,
+  which lets in less than a user who names a node means and needs two forms of each tag; a user
+  who wants one service alone gives it a route.
+- **The words**: `from` is `*`, a member's name or `tag:TAG`; `to` is `*`, `NODE`,
+  `NODE/ROUTE`, `tag:TAG` (each member of the tag, as `NODE`), `exit:NODE`, `exit:*` and a range
+  `ADDR/BITS` or one address. `*` in `to` reaches each node, route, exit and range, as
+  Tailscale's `*:*`, so that `from * to *` is no policy; a tag reaches its members' services,
+  not their exits, as Tailscale's `tag:x:*` is the devices and not the internet through them.
+  Lost: Tailscale's `autogroup:` words and ports, which have no counterpart in a net whose
+  services are named routes.
+- **A rule only allows, and what this podssh does not read allows nothing**: a word of no known
+  form names nobody and reaches nothing; a rule with a field that this podssh does not read lets
+  nobody in, as the field may narrow it; a field of the policy beside `rules` and `tags` is kept
+  and not read. A later podssh whose part narrows a rule, or denies, names that part in
+  `requires`, so that this one refuses the document. A fault of the policy's form (not an
+  object, a list that is not one, a word that is not text) refuses the document whole, as each
+  other fault of a document's form does (T-429). Lost: refusing a document for an unknown word,
+  which would keep each end of before on an older document that may let in more; a deny rule,
+  whose order would matter and which Tailscale's grants do not have either.
+- **A policy with no `rules` lets nobody in**, as `rules: []` does; only a document with no
+  policy at all lets each member reach each. Lost: no list read as no policy, which would let a
+  later podssh's policy that keeps its rules elsewhere open the whole net here.
+- **`policy set` puts `policy` in `requires`, and `clear` takes it out**, so that a podssh of
+  before T-430 refuses a document with a policy and keeps the one before, never skipping the
+  rules (the rule of T-429). Lost: no part in `requires`, with which an end of before would take
+  the document and let in each member.
+- **The node's admission sees the route** (`crates/podssh-relay/src/e2e/ends.rs`: `Admit` takes
+  the route that the operator named, or none), so one check at the node gives the verdict for
+  the key and what it asks, and its refusal is the channel's `NotAllowed`, which names no route
+  to the operator, while the node's line gives the policy's words. Lost: the admission by key
+  and the route's grant as they were, as the grant is asked for a named route only
+  (`crates/podssh-relay/src/reverse/routes.rs`), so a member let in for one route would reach
+  the target with no route; and a grant asked for the target with no route too, with the
+  admission told whether the node has routes: two checks for one verdict, and the grant's words
+  are dropped there, so the node could not say which rule failed.
+- **The iroh road's door**, before the channel and with no route known, lets in a member that a
+  rule lets reach anything of the node (`Want::AnyOf`): a route of it, the node, its exit, or a
+  range, as which node routes a range is T-432's; the channel then checks what it asks. Lost:
+  membership alone, with which a member that the policy refuses whole still costs the node a
+  connection; and the whole check there, which cannot know the route.
+- **The keys of `--allow` are not narrowed**: a member that the policy refuses comes in when the
+  node's own file names its key, as T-429 kept `--allow` the fallback beside the net. Lost: the
+  policy over the file, which would make the node's operator edit the net's policy to let in a
+  key of its own list.
+- **`policy check FROM TO`**: FROM a member's name, key or fingerprint, as a node's line names
+  the key; TO `NODE` (as `node://NODE`, its target with no route), `NODE/ROUTE`, `exit:NODE` or
+  an address; one line on stdout, `allowed` or `refused`, a tab and the rule or the reason; 0 or
+  77 (`EX_NOPERM`, as `operator` exits when the channel refuses), and 64 for a FROM or a TO that
+  is no member. It reads the rules alone: the summary on stderr says an ended document, which a
+  node refuses by its end. Lost: exit 1, which podssh keeps for no refusal (`docs/cli.md`,
+  "Exit codes").
+- **`policy set` is strict**: a field, a form or an undefined tag is refused (65) and nothing is
+  signed; a name that no member has, and `exit:NODE` of a member with no role `exit`, are said
+  on stderr, not refused, as the member may come later; `rules: []` is taken, and said. Lost:
+  refusing an unknown name, which would make the owner add the member before its rule.
+- **Exits and ranges**: their words are read and checked now, and `policy check` answers them;
+  the node that serves them is T-431's and T-432's, which ask `policy::check` with
+  `Want::Exit(NODE)` and `Want::Addr(ADDR)`. The role `exit` is said by `set`, and enforced by
+  T-431.
+
 ## Prove
 
 ```sh
@@ -427,6 +500,69 @@ cargo test -p podssh-cli --test net
 On the stand-in relay with three members: an allowed route is reached; a route that no rule
 names is refused, with the rule's words; a newer document that removes a rule is in force at
 the next session. Planted: the node that skips the check, and the refusal test fails.
+
+## Correction
+
+The Premise holds: the node gives its verdict before it dials (`docs/reverse.md`, "The
+end-to-end channel", rule 3), and its routes are `podssh node NAME TARGET [ROUTE=TARGET]...`.
+One read that the Approach did not name: the node's admission (`Admit` of
+`crates/podssh-relay/src/e2e/ends.rs`) saw the operator's key alone, and the grant of a route
+(`crates/podssh-relay/src/reverse/routes.rs`) was asked for a named route only, so nothing
+checked the target with no route by itself. The admission takes the route named now (the
+Decision), on each road, as each road's node serves the channel through it.
+
+## Done
+
+2026-11-02: drafted by an agent in a worktree; nothing was built or run there. Each result
+below is UNVERIFIED until the main session builds, runs and measures it.
+
+- The policy (`crates/podssh-cli/src/net/policy.rs`): its form read from the document, its
+  check (`policy::check`, the rule or the reason), and the strict check of a policy that the
+  owner sets; the words of a rule and the ranges (`crates/podssh-cli/src/net/policy_words.rs`).
+  The document holds it (`crates/podssh-cli/src/net/doc.rs`: `Doc::policy`, `field`,
+  `next_whole`), and `policy` is a part that `requires` may name.
+- The commands (`crates/podssh-cli/src/net/policy_cmd.rs`): `policy check FROM TO`, `show`,
+  `set FILE` and `clear`, the last two signed as each change of the owner
+  (`crates/podssh-cli/src/net/edit.rs`); the flags of the owner go with `policy set` and `policy
+  clear` (`crates/podssh-cli/src/net/mod.rs`).
+- The node (`crates/podssh-cli/src/net/admit.rs`): the verdict for what is asked (a route, the
+  target with no route, or anything at a road's door), in the admission, the routes' grant and
+  the iroh road's door; the node's first line counts the policy's rules. The channel's admission
+  takes the route (`crates/podssh-relay/src/e2e/ends.rs`), and each admission of the binary and
+  of the tests with it (`crates/podssh-cli/src/channel.rs`, `crates/podssh-cli/src/node_temp.rs`,
+  `crates/podssh-cli/src/ssh/cloudflare/layer.rs`, `crates/podssh-relay/tests/e2e_harness/mod.rs`);
+  the operator's words of a refusal name the policy.
+- The manual: the notes (`crates/podssh-cli/src/man/notes_net.rs`), the flags' words
+  (`crates/podssh-cli/src/flags/node.rs`), the arguments (`crates/podssh-cli/src/positionals.rs`),
+  the usage (`crates/podssh-cli/src/help.rs`), an example (`crates/podssh-cli/src/man/examples.rs`)
+  and 77 in EXIT STATUS (`crates/podssh-cli/src/man/data.rs`). The documents: `docs/cli.md`
+  ("`podssh net`"), `docs/mesh.md` (section 3), `docs/reverse.md` ("The end-to-end channel"),
+  `docs/STATUS.md`.
+- Tests: `crates/podssh-cli/src/net/policy_tests.rs` (7: no policy, rules and tags, an empty
+  list, the words, the ranges, the strict check, a later podssh's words and a wrong form), and
+  the module `net_policy` of `crates/podssh-cli/tests/net.rs` (2: the commands with no
+  connection; three ends on the stand-in relay). `crates/podssh-cli/src/net/tests.rs` names
+  another part than `policy` for a part that this podssh does not read.
+- Planted: `scripts/plants/t430-policy-skipped.plant` (the node lets in each member that the policy
+  refuses).
+
+To measure at the merge, each UNVERIFIED:
+
+- `cargo fmt` on podssh-cli and podssh-relay (the draft was formatted by hand), then clippy with
+  `-D warnings`: UNVERIFIED.
+- `cargo test -p podssh-cli --lib net` (the 12 of T-429 and the 7 here): UNVERIFIED.
+- `cargo test -p podssh-cli --test net` (6 of T-429 and 2 here; the stand-in needs Python and
+  openssl), and no scratch directory left in the temporary directory: UNVERIFIED.
+- The suites that the admission's new form touches: `cargo test -p podssh-relay --features pair
+  --test e2e --test e2e_faults --test e2e_layered --test e2e_net --test routes`, `cargo test -p
+  podssh-cli --test node_routes --test channel_cli`, and `--lib ssh::cloudflare`: UNVERIFIED.
+- The manual: `cargo test -p podssh-cli --test flag_table --test man_page --test man_flag_parity`
+  and `--lib man`: UNVERIFIED.
+- The build with `--features iroh` (the iroh road's door): UNVERIFIED.
+- Planted, `sh scripts/plant-each.sh --here t430-policy-skipped`: UNVERIFIED.
+- `cargo todo remap` for the files whose cited lines this draft moved (`docs/cli.md`,
+  `docs/STATUS.md`, `docs/reverse.md`, `crates/podssh-cli/src/man/examples.rs`), and `cargo todo
+  counts` for the status: UNVERIFIED.
 
 # T-431: Exit mode: a node's egress for its owner's forward road
 

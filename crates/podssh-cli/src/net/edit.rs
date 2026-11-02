@@ -1,5 +1,6 @@
 //! The owner's commands of `podssh net` (T-429): `init NAME`, `add NAME
-//! KEY`, `rm NAME` and `renew`. Each signs a new document with the owner's
+//! KEY`, `rm NAME` and `renew`, and the policy's `set FILE` and `clear`
+//! (T-430, `super::policy_cmd`). Each signs a new document with the owner's
 //! key, its serial one higher than the one held, and keeps it in place of
 //! that one; the owner then gives the file to the other ends, or lets the
 //! ends of the net pass it on.
@@ -36,6 +37,7 @@ pub(super) fn run(word: &str, args: &NetArgs, err: &mut dyn Write) -> Result<i32
     let (next, said) = match word {
         "add" => add(before, args, issued, expires)?,
         "rm" => rm(before, &args.args[0], issued, expires)?,
+        "policy" => super::policy_cmd::change(before, args, issued, expires, err)?,
         _ => (before.next(issued, expires, |_| {}).map_err(data)?, "renewed".to_string()),
     };
     let signing = sign::signing_for(&before.owner, key).map_err(Refusal::config)?;

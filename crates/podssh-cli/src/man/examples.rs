@@ -99,6 +99,10 @@ fn examples() -> Vec<(&'static str, String)> {
                 .into(),
         ),
         (
+            "the net's policy: who may reach which node and route, signed by its owner, then asked with no connection",
+            "podssh net policy set policy.json && podssh net policy check laptop lab/web".into(),
+        ),
+        (
             "say what an update would do, its signature checked, then replace this binary with the newest release",
             "podssh update --check && podssh update".into(),
         ),

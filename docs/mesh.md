@@ -109,13 +109,32 @@ What T-429 built ([cli.md](cli.md), "`podssh net`"):
   signature, so no SSH code comes into the library.
 - A node whose key is a member lets in the members of the document held,
   for each session (`crates/podssh-cli/src/net/admit.rs`), on the pair's,
-  the iroh, the DERP and the quick tunnel's roads; with the routes of a node,
-  a member uses each route until the policy says less (T-430). The DERP
+  the iroh, the DERP and the quick tunnel's roads, as far as the policy lets
+  (T-430, below). The DERP
   road's node still needs `--allow` to start, and its record at pkarr names
   no road but iroh's (T-445).
 - A member's name is a destination (`crates/podssh-cli/src/net/lookup.rs`):
   `node://NAME`, and `NAME` alone with the role `node`; the net names the key
   that the channel checks, and the tickets that race.
+
+What T-430 built ([cli.md](cli.md), "`podssh net`"):
+
+- The policy is the document's field `policy`, which `requires` names:
+  rules from members (`*`, a name, `tag:TAG`) to what they may reach (`*`,
+  `NODE` whole, `NODE/ROUTE`, `tag:TAG`, `exit:NODE`, `exit:*`, a range
+  `ADDR/BITS`), and tags; with no policy, each member reaches each, as
+  Tailscale's default policy (`crates/podssh-cli/src/net/policy.rs`). A rule
+  only allows, so what this podssh does not read allows nothing.
+- The node that is reached decides, for each session, with the newest
+  document that it holds: the channel's admission now sees the route that
+  the operator named (`crates/podssh-relay/src/e2e/ends.rs`), so that a
+  member let in to one route reaches neither another route nor the target
+  with no route. Its refusal names the rule list's serial and what was
+  asked; a relay never sees which route.
+- `podssh net policy set FILE`, `clear`, `show` and `check FROM TO`, the
+  last with no connection. The words of exits and ranges are read and
+  checked now; the node that uses them comes with T-431 and T-432, which
+  ask `crates/podssh-cli/src/net/policy.rs` for `exit:NODE` and an address.
 
 ## 4. The relay as a role of podssh
 

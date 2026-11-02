@@ -87,14 +87,18 @@ fn podssh_signs_a_document_that_it_reads_back_and_each_change_raises_the_serial(
 fn a_part_that_this_podssh_does_not_know_is_kept_or_refused_as_it_asks() {
     let (_, first) = owned();
     let mut value: Value = serde_json::from_slice(&first.to_bytes()).unwrap();
-    value["policy"] = serde_json::json!({"rules": ["a later podssh's"]});
+    value["later"] = serde_json::json!({"rules": ["a later podssh's"]});
     let doc = Doc::parse(value.to_string().as_bytes()).expect("an unknown field is kept, not refused");
     let next = doc.next(1_793_577_700, 4_102_444_800, |_| {}).unwrap();
     let kept: Value = serde_json::from_slice(&next.to_bytes()).unwrap();
-    assert_eq!(kept["policy"]["rules"][0], "a later podssh's", "a change keeps the later podssh's part");
-    value["requires"] = serde_json::json!(["policy"]);
+    assert_eq!(kept["later"]["rules"][0], "a later podssh's", "a change keeps the later podssh's part");
+    value["requires"] = serde_json::json!(["later"]);
     let why = Doc::parse(value.to_string().as_bytes()).unwrap_err();
-    assert!(why.contains("requires \"policy\"") && why.contains("podssh update"), "{why}");
+    assert!(why.contains("requires \"later\"") && why.contains("podssh update"), "{why}");
+    // The policy is a part that this podssh reads (T-430).
+    value["requires"] = serde_json::json!(["policy"]);
+    value["policy"] = serde_json::json!({"rules": []});
+    assert!(Doc::parse(value.to_string().as_bytes()).unwrap().policy.is_some_and(|p| p.rules.is_empty()));
     value["requires"] = serde_json::json!([]);
     value["podssh-net"] = serde_json::json!(2);
     assert!(Doc::parse(value.to_string().as_bytes()).unwrap_err().contains("form 2"));
