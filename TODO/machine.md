@@ -933,3 +933,164 @@ with the new `result.session_log`, 10 passed, 0 failed: a run of
 `direct`, exit 0, with no `SECRET-WORD`; there, clippy with `-D warnings`
 and the tests of the log: no warning, no failure. Here, clippy: no warning;
 the suites of `podssh-cli` and `podssh-ssh`: 803 passed, 0 failed, 31 ignored (the live tests).
+
+# T-486: `--result-file` for `cp`, `mv`, `scp`, `run` and `sftp`, in the schema of `ssh --result-file`
+
+**Source:** GitHub #97 (Nemo-010, 2026-11-02): with `podssh 1.0.0 (35a0d19d)` `ssh --result-file`
+works, and `cp --result-file` and `run --json` are unknown flags. GitHub #90 of the same tester
+asks for the summary of the same facts for people.
+**Category:** feature
+**Milestone:** none
+**Priority:** P3
+**Effort:** M
+**Status:** open
+
+## Problem
+
+A harness that runs `podssh cp`, `mv`, `run` or `sftp` learns what happened from the exit code
+alone, or from the lines of `-v` and the events of `cp --jsonl`, which it must put together
+itself. `ssh --result-file` gives one object at the end; the verbs that copy give none.
+
+## Premise
+
+- Read: `--result-file` is a row of `ssh` alone (`crates/podssh-cli/src/flags.rs:205-206`); its
+  object is `schema`, `exit`, `status`, `signal`, `end`, `failure`, `bytes` (stdin, stdout,
+  stderr), `duration_ms` and `relay` (`crates/podssh-cli/src/ssh/result.rs:15-46`), written with
+  the mode 0600 (`crates/podssh-cli/src/ssh/result.rs:60-74`).
+- Read: `cp`, `mv` and `scp` share one run and one report (`crates/podssh-cli/src/cp/report.rs:1-3`);
+  its outcome holds the files done, the failure, the deletes, the actions of a dry run and the
+  files that `run` did not send again (`crates/podssh-cli/src/cp/mod.rs:157-170`); `--jsonl`
+  gives an event for each (`crates/podssh-cli/src/flags/copy.rs:45-46`).
+- Read: `run` copies, then runs the command as `ssh` does (`crates/podssh-cli/src/run_cmd/mod.rs:1-15`),
+  and says its count of files sent and unchanged with `-v` alone
+  (`crates/podssh-cli/src/run_cmd/mod.rs:226`).
+- Read: `sftp` runs a batch or a prompt, and exits with the code of the first command that fails
+  (`crates/podssh-cli/src/sftp/mod.rs:1-9`).
+- Read: the record of `ssh` is the process's (`crates/podssh-ssh/src/outcome.rs:1-6`); a copy past
+  the relay's cap opens more than one session.
+
+## Approach
+
+1. One object for each verb, with the keys of `ssh`'s in their meaning, and `verb` (`ssh`, `cp`,
+   `mv`, `scp`, `run`, `sftp`): `schema` 1, `verb`, `exit`, `failure` (the classes of T-054, and
+   `copy`, and `verify` for a digest that differed), `error` (its words), `duration_ms` and `relay`
+   (the host, the close code, the reason, and `sessions`, the relay sessions that the run opened).
+2. The verbs that copy add `files` (`sent`, `unchanged`, `skipped`, `deleted`, `failed`) and
+   `transferred` (`up` and `down`, the bytes of the files each way); `mv` adds `removed`, the
+   sources that it removed. `bytes` keeps its meaning of `ssh`, the command's streams: null for
+   `cp`.
+3. `run` adds the `status`, `signal`, `end` and `bytes` of its command, as `ssh` gives them, from
+   the session's own record (T-484).
+4. `sftp` adds `commands` (run and failed) and `failed_command`, the command of the batch that
+   failed, as the user wrote it.
+5. The row `--result-file FILE` on each of these verbs; the file is written on each path, mode
+   0600, and `-` is refused, as for `ssh`; one writer, that of `crates/podssh-cli/src/ssh/result.rs`,
+   serves each. The notes of each verb, `docs/cli.md` and `docs/STATUS.md`.
+
+## Decision
+
+- The keys of `ssh` keep their meaning in each verb, and a verb adds keys. A key of the same name
+  with another meaning lost: the issue's `bytes` with `up` and `down`, where the `bytes` of `ssh`
+  are its three streams; the bytes of a copy are `transferred`.
+- A summary at the end in a file, and the stream of `--jsonl` as it is, as the issue asks. `--json`
+  on stdout lost: the stdout of `run` is its command's.
+- The facts come of the run's own outcome (that of `cp`, and the session's record of T-484 for the
+  command of `run`), never of the process's record where the verb opens more than one session.
+
+## Prove
+
+```sh
+export CARGO_BUILD_JOBS=4
+cargo test -p podssh-cli --test ssh_result    # unchanged
+cargo test -p podssh-cli --test result_file   # new: each verb's object against the test's server
+```
+
+Against the test's SSH server: `cp -r` of a tree with one file changed gives `files.sent` 1,
+`files.unchanged` 2 and `transferred.up` its size; `mv` names its removed sources; `run -- 'exit
+3'` gives `exit` 3, `status` 3 and its files; `sftp -b` with a `get` that fails gives
+`failed_command`; each file has the mode 0600, and one list of keys and their types holds for the
+six verbs. In `scripts/interop-result.sh`, the same against OpenSSH and Dropbear. Planted (new,
+t486-bytes-meaning): `cp` writes its transferred bytes under `bytes`; the test of one list of keys
+fails.
+
+# T-488: `podssh mcp` offers `cp`, `job`, `health` and `session` as tools, behind the gate of `ssh_exec`
+
+**Source:** GitHub #101 (Nemo-010, 2026-11-02): with `podssh 1.0.0 (35a0d19d)` `tools/list` gives
+`ssh_exec`, `status`, `doctor` and `man`.
+**Category:** feature
+**Milestone:** none
+**Priority:** P3
+**Effort:** L
+**Status:** open
+
+## Problem
+
+An agent on `podssh mcp` runs one command at a time on an allowed host. To put a file there or
+fetch a result, it pipes base64 through `ssh_exec`, which `podssh cp` exists to avoid; a long
+build outlives the call's limit; a shell with state has no tool; and whether a host can take the
+work is one more command of the agent's own making. Each is a verb of podssh, with its own checks.
+
+## Premise
+
+- Read: the tools are `ssh_exec` (only when a host is allowed), `status`, `doctor` and `man`
+  (`crates/podssh-cli/src/mcp/tools.rs:35-73`); each call runs this binary again as a child
+  (`crates/podssh-cli/src/mcp/mod.rs:6-11`), whose command line `plan` makes
+  (`crates/podssh-cli/src/mcp/tools.rs:127-168`).
+- Read: `ssh_exec` checks its destination against `--allow-host`
+  (`crates/podssh-cli/src/mcp/tools.rs:170-173`), and forces no prompt, a known host key, no
+  forwarding and no shared connection, before the user's `-F`
+  (`crates/podssh-cli/src/mcp/tools.rs:186-194`); a call has 60 s by default and 3600 s at most
+  (`crates/podssh-cli/src/mcp/tools.rs:17-19`).
+- Read: `podssh mcp` takes `--allow-host`, `-F` and `--direct`, and no local path
+  (`crates/podssh-cli/src/flags/mcp.rs:8-15`): no tool reads or writes a file of this host.
+- Read: `job` has `start`, `list`, `log`, `wait` with `--timeout`, `fetch` and `stop`
+  (`crates/podssh-cli/src/job/mod.rs:1-23`); `health --json` gives one object
+  (`crates/podssh-cli/src/health/show.rs:62-117`); `session` keeps a shell and its screen in a
+  daemon of this host (T-186, T-382).
+
+## Approach
+
+1. Each new tool is a child of one verb, with the forced options of `ssh_exec`, its destination
+   checked by `--allow-host`, and a limit of its own; its result is the verb's JSON (those of T-484
+   and T-486 once they are done; until then the exit, stdout and stderr).
+2. `health`: `podssh health --json`, with `preflight` (T-482).
+3. `job_start`, `job_list`, `job_log` (an offset and a cap, as the bytes of one call are bounded),
+   `job_wait` (its `timeout_seconds` under the call's limit; a job that has not ended is a result,
+   not an error) and `job_stop`.
+4. `cp_put` and `cp_get`: a file or a tree between a directory of this host that `--allow-dir DIR`
+   names (new, repeated for more; with none, no copy tool is offered) and a path of an allowed
+   host, by `podssh cp`, with its digest checked. A local path is resolved, links followed, and
+   refused outside each `--allow-dir`, before the child runs. `cp_put` also takes `content` in
+   place of a local path: bytes in base64, 1 MiB at most, into a file of the host.
+5. `session_start`, `session_send`, `session_wait`, `session_capture` and `session_stop`, with
+   `--allow-session` (new) alone. The server stops at its end each session that it started.
+6. The notes of `mcp`, `docs/cli.md`, `docs/STATUS.md`, and `SECURITY.md` (the two new gates).
+
+## Decision
+
+- The local side of a copy has a gate of its own: `--allow-host` lets an agent reach a host, not
+  read the files of this one, and no tool reads or writes one so far (Premise). A copy with any
+  local path lost: it would hand the agent each file that the user can read, `~/.ssh` among them.
+  `content` serves the small case with no local file.
+- Sessions behind a flag of their own: a session's daemon outlives the call, and would outlive the
+  server. The server stops those that it started; leaving them lost, as an agent's sessions would
+  stay on the host with no owner.
+- `job_wait` gives back the job's state when its time passed, and the agent calls it again under
+  each call's own limit.
+
+## Prove
+
+```sh
+export CARGO_BUILD_JOBS=4
+cargo test -p podssh-cli --lib mcp::
+cargo test -p podssh-cli --test mcp
+```
+
+Through the server against the test's SSH server: `tools/list` gives the tools of `job` and
+`health` with a host allowed, those of the copy only with `--allow-dir`, and those of the session
+only with `--allow-session`; `cp_put` of a file of the allowed directory arrives with its digest;
+a local path outside it, and a link that leads out of it, are refused before any child runs; a
+host outside `--allow-host` is refused by each tool; `job_start`, then `job_wait`, gives the job's
+status; the server's end stops the sessions that it started. In `scripts/interop-mcp.sh`:
+`cp_put`, `cp_get` and `job_start` against OpenSSH. Planted (new, t488-dir-unchecked): the local
+path of a copy not held to `--allow-dir`; the test of the path outside fails.

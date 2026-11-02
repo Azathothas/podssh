@@ -1680,3 +1680,76 @@ and `Frame`. The relay was a separate project then, a ruling that Q63 replaced o
 - At the merge: the session's field `peer`, the name of the other end in an error, met T-344's
   `peer`, the address of the connection; the name is `peer_name` now, and each keeps its method.
   `ws_listen::first` was public with a private argument's type, now `pub(super)`; clippy clean.
+
+# T-483: `http-listen:` takes `ssh:[USER@]HOP` with no target, and `pipe --help` shows the proxy of an SSH server with its client
+
+**Source:** GitHub #93 (Nemo-010, 2026-11-02): with `podssh 1.0.0 (35a0d19d)` the proxy of
+`ssh:USER@HOST,%h:%p` answered `HTTP/1.1 200 Connection Established`, then the target's banner;
+`ssh:USER@HOST` was refused.
+**Category:** feature
+**Milestone:** none
+**Priority:** P3
+**Effort:** S
+**Status:** open
+
+## Problem
+
+The other side of `http-listen:` must end with `%h:%p`. A user who writes `ssh:me@bastion`, the
+one reading that a proxy of CONNECT can have, gets a refusal (64) and tries again.
+`podssh pipe --help` shows no example of the proxy, and the manual's example names `relay:%h:%p`
+alone, so the form of `ssh:`, with its comma before the target, is found by trial.
+
+## Premise
+
+- Read: the template takes `%h:%p` once and last, and refuses each other text with its forms
+  (`crates/podssh-cli/src/pipe/web.rs:63-70`); `ssh:` needs a comma before the target
+  (`crates/podssh-cli/src/pipe/web.rs:74-77`).
+- Read: the other side of a proxy goes to the template alone
+  (`crates/podssh-cli/src/pipe/address.rs:112-116`).
+- Read: the manual's example of the proxy is `podssh pipe http-listen:3128 relay:%h:%p`
+  (`crates/podssh-cli/src/man/examples.rs:191`), and its notes give the forms in words
+  (`crates/podssh-cli/src/man/notes_pipe.rs:33-36`); a test parses each example with the real
+  parser (`crates/podssh-cli/src/man/examples.rs:366`).
+- Read: `--help` of a verb gives its options, then its notes, and the notes have nothing for `pipe`
+  (`crates/podssh-cli/src/help.rs:240-263`).
+
+## Approach
+
+1. A template with no `%h` and no `%p`: `ssh:HOP[,HOP...]` takes `,%h:%p` at its end, and `relay`
+   or `tcp`, with or without a colon, takes `:%h:%p`. One line on stderr says the reading before
+   the proxy listens: `http-listen: ssh:me@bastion is read as ssh:me@bastion,%h:%p: each CONNECT's
+   target is reached from the last hop`. A text with a `%h` or a `%p` that is not its target is
+   refused as now.
+2. `podssh pipe --help`: two lines under the options, the proxy of an SSH server and its client,
+   `podssh pipe http-listen:/tmp/proxy.sock ssh:me@bastion`, then `curl --proxy http://localhost
+   --unix-socket /tmp/proxy.sock https://example.org/`, and `HTTPS_PROXY=http://127.0.0.1:3128`
+   for a port.
+3. The manual: an example of `ssh:` beside the one of `relay:`, and the note of the forms says that
+   `ssh:HOPS` alone is read with its target.
+
+## Decision
+
+- Each word of `ssh:` with no target is a hop. `ssh:me@bastion,db:5432` then has two hops, where a
+  user may have meant a fixed target, which a proxy never has: the line of step 1 shows the reading
+  before any request, and a hop that is no SSH server fails at its login with its own words. The
+  last word as a fixed target lost: it serves no CONNECT. A refusal of more than one hop with no
+  target lost: the line says enough.
+- `relay` and `tcp` alone are read too, as each has one meaning for a proxy.
+- The listener is T-367's, which the user asks for (rule 2 of `AGENTS.md`); nothing new listens.
+
+## Prove
+
+```sh
+export CARGO_BUILD_JOBS=4
+cargo test -p podssh-cli --lib pipe::web
+cargo test -p podssh-cli --lib man::examples
+cargo test -p podssh-cli --test pipe_http
+```
+
+`ssh:me@bastion`, `ssh:a,b`, `relay` and `tcp:` give the templates `ssh:me@bastion,%h:%p`,
+`ssh:a,b,%h:%p`, `relay:%h:%p` and `tcp:%h:%p`; `ssh:me@%h` and `relay:%h:443` are refused (64).
+In `pipe_http`, beside `a_connect_through_ssh_gets_the_banner_of_the_sshd_s_own_port`, the same
+CONNECT through `ssh:tester@127.0.0.1:PORT` with no target gets the banner, and stderr holds the
+line of the reading. `pipe --help` holds the example, which the parser of the examples takes.
+Planted (new, t483-no-target): `ssh:` with no target keeps its last word as the target; the test
+of `ssh:a,b` fails.

@@ -2541,3 +2541,102 @@ run the same day; at the merge a test's temporaries are bound before the lookup 
   port 7844) came through the proxy of names alone, which logged `200 CONNECT
   cloudflare-dns.com:443`; the job's three other live tests of DoH passed too.
 - `docs/design.md` (the edge's SRV record) and `docs/STATUS.md` (the row of DNS over HTTPS).
+
+# T-487: `doctor` says once that each TLS handshake was reset, and tells a reset from a timeout
+
+**Source:** GitHub #99 (Nemo-010, 2026-11-02), with `podssh 1.0.0 (35a0d19d)` in a sandbox whose
+egress resets TLS for the names that it does not list (the reporter's measurement: `github.com`,
+`cloudflare.com`, `pypi.org` and `registry.npmjs.org` complete a handshake;
+`tcp.ssh.relay.ajam.dev`, `example.com` and `www.google.com` are reset; a ClientHello with no SNI
+is reset everywhere). Distinct from GitHub #74 (T-366), which is about a proxy.
+**Category:** feature
+**Milestone:** none
+**Priority:** P3
+**Effort:** S
+**Status:** open
+
+## Problem
+
+On a host whose egress allows TLS to listed names alone, each relay host and each resolver of DNS
+over HTTPS fails with `Connection reset by peer`, each on a FAIL line of its own: 14 of them, and
+no diagnosis. The fact is one sentence: this host resets TLS for each name that it does not list,
+so each road through the relay's name stays closed until that name is listed. A reset tells this
+from a path that drops packets, which times out, and the report does not say which of the two it
+met.
+
+## Premise
+
+- Read: each relay host gets a line of its own (`crates/podssh-cli/src/doctor/relay_checks.rs:41-53`),
+  and DNS over HTTPS one line with each resolver's error
+  (`crates/podssh-cli/src/doctor/names.rs:133`); the end of the report gives the counts alone
+  (`crates/podssh-cli/src/doctor/mod.rs:357-373`).
+- Read: a failed handshake reaches `doctor` as text: `ConnectError::Tls` holds a String
+  (`crates/podssh-ws/src/client.rs:115`), and `HealthError::Connect` the error's text
+  (`crates/podssh-relay/src/health.rs:69`). The kind of the I/O error, a reset or a timeout, is
+  then in the system's words alone, which differ on Windows (os error 10054).
+- Read: with no proxy, `doctor` reaches `github.com` by TCP on port 22 alone
+  (`crates/podssh-cli/src/doctor/net.rs:159-178`, `:248-274`), and makes TLS only where a road
+  needs it: each relay host, each resolver by its address, each DERP server
+  (`crates/podssh-cli/src/doctor/derp.rs:13-35`) and, in a build with iroh, n0's relays
+  (`crates/podssh-cli/src/doctor/iroh.rs:1-6`). Each failure is a line of its own, and no
+  handshake is made with a name that no road needs, as a reference. Through a proxy, `doctor` asks
+  for `github.com` on port 443 by CONNECT, with no TLS
+  (`crates/podssh-cli/src/doctor/net.rs:198-243`), and a reference probe is `ok` with what it met
+  (`crates/podssh-cli/src/doctor/net.rs:231-236`).
+- Read: T-366 tells a proxy that takes names from one that takes addresses
+  (`crates/podssh-cli/src/doctor/address.rs:1-9`); it does not look at TLS with no proxy, nor at
+  the name of the handshake, which is this case.
+
+## Approach
+
+1. The kind of each failure: the dial and the TLS of `podssh-ws` keep the `std::io::ErrorKind` of
+   the error that ended them (reset, refused, timed out, closed with nothing, other) beside their
+   words, and `podssh_relay::health` gives it back; `doctor` reads the kind, never the words.
+2. One more probe in the section `egress`, with no proxy: TLS with `github.com` on port 443 by its
+   name, its certificate checked, as a reference, `ok` with what it met (a handshake, a reset, a
+   timeout), as the reference probes of CONNECT are.
+3. After the counts, a diagnosis where the probes show a case, one line each, and in `--json` as
+   `diagnosis` (`kind`, `detail`, `evidence`):
+   - each TLS handshake of a road (the relay hosts, the resolvers, the DERP servers, n0's relays)
+     was reset, and that of `github.com` completed: this host resets TLS for the names that it
+     does not list; `github.com` is on the list and the relay's name is not; each road through the
+     relay's name is closed until it is listed, or a road through a listed name serves
+     (`--forwarder`, `--via`, a relay of the user's own). Its evidence names each name whose
+     handshake completed, the reference's and a road's;
+   - each was reset, that of `github.com` too: this host resets each TLS handshake on port 443;
+   - each timed out: the path drops each handshake on port 443 and resets none, as a firewall
+     that drops does, not one that lists names;
+   - the same cases through a proxy, by its answers to CONNECT and the TLS after them.
+   A diagnosis adds no count.
+4. The notes of `doctor`, `docs/cli.md`, `docs/target-environment.md` (the case of an egress that
+   lists names) and `docs/STATUS.md`.
+
+## Decision
+
+- After the counts, not above the failures: each line goes out as its check ends
+  (`crates/podssh-cli/src/doctor/mod.rs:328-332`), so a line about them all comes once they are
+  known. Holding each line back until the end lost: a check of a minute would look like a hang.
+- One reference name, `github.com`, which `doctor` uses already
+  (`crates/podssh-cli/src/doctor/net.rs:18-20`). A list of names that an allowlist often holds
+  (`pypi.org`, `registry.npmjs.org`) lost: it guesses at an allowlist, and adds connections to a
+  check that must stay short.
+- A ClientHello with no SNI is not probed: no road of podssh sends one but to an address (the
+  resolvers'), which their line covers.
+- A diagnosis counts as nothing: the same fact told twice does not grow the count of FAIL.
+
+## Prove
+
+```sh
+export CARGO_BUILD_JOBS=4
+cargo test -p podssh-ws --lib                 # the kind of a reset and of a timeout, kept
+cargo test -p podssh-cli --lib doctor::
+cargo test -p podssh-cli --test doctor
+```
+
+Stand-ins on the loopback, named by `--relay-host` and `--relay-addr`: one that resets each
+connection after the ClientHello for the relay's name and completes TLS for the reference (a TLS
+server of the test's own, with the reference pinned to it): each relay line FAIL, and the
+diagnosis of a list of names; one that resets each: the second case; one that takes the
+ClientHello and never answers: the third. In CI's job `windows`, the same kinds from os error
+10054. Planted (new, t487-reset-as-timeout): a reset read as a timeout; the test of the first case
+fails.

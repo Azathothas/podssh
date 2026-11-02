@@ -2242,3 +2242,563 @@ note of `each`, `docs/cli.md` and `docs/terminal.md` say it.
   failed ("the terminal's QUIT character after podssh"); restored, it
   passed.
 - Waiting for CI's job `windows`: the refusal of the flag on Windows.
+
+# T-475: `podssh run` has no `--dry-run`, and its help names neither `.podsshignore` nor the paths that never go
+
+**Source:** GitHub #103 (Nemo-010, 2026-11-02, verified with `podssh 1.0.0 (35a0d19d)`), and its
+comment of the same day, which corrects its first ask.
+**Category:** feature
+**Milestone:** none
+**Priority:** P3
+**Effort:** S
+**Status:** open
+
+## Problem
+
+`podssh run` leaves out `target/`, `node_modules/`, `.git/` and what the project's
+`.podsshignore` names, but `podssh run --help` says neither, so a user who reads it cannot tell an
+ignore from a defect of the sync. Nothing says how many paths the ignores left out, nothing turns
+them off, and `run` has no dry run, though it is the verb where a plan matters most: it also runs
+a command.
+
+## Premise
+
+- Read: `run` leaves out the default excludes, and reads `.podsshignore` at the project's root
+  when it is there (`crates/podssh-cli/src/run_cmd/mod.rs:30-34`, `:141-149`), as the manual's
+  note says (`crates/podssh-cli/src/man/notes_run.rs:11-16`). So the issue's first ask, a
+  `.podsshignore` read by default, is met, as its comment found.
+- Read: the rows of `run`, which `--help` shows, name neither the defaults nor the file, and hold
+  no `--dry-run` and no way to turn the excludes off (`crates/podssh-cli/src/flags/run.rs:10-47`,
+  `:13-16`).
+- Read: the walk drops each excluded path with no count (`crates/podssh-cli/src/cp/tree.rs:216-218`),
+  and the run says its files sent and unchanged at `-v` alone
+  (`crates/podssh-cli/src/run_cmd/mod.rs:226`).
+- Read: `cp -r --dry-run` says each action and changes nothing
+  (`crates/podssh-cli/src/cp/report.rs:14-29`), but a dry run passes over the check of a file that
+  did not change (`crates/podssh-cli/src/cp/tree_copy.rs:161`), so a dry run of `run` built on it
+  as it is would list each file.
+- Read: `cp -r` has no default excludes, and reads no ignore file that `--exclude-from` does not
+  name (T-143's Decision), where `run` reads `.podsshignore` (T-192's Decision). One project
+  copied by the two verbs lands differently, as the comment says, and neither manual says so.
+
+## Approach
+
+1. `run --dry-run`: the copy's plan on stdout, as `cp -r --dry-run` gives it, with only the files
+   that changed (the check of an unchanged file only reads, so it runs in a dry run too), then the
+   line `run cd DIR && COMMAND`. Nothing changes on either side and nothing runs; the exit is 0,
+   or 255 when the far side cannot be read.
+2. `--no-ignore`: neither the default excludes nor `.podsshignore`; `--exclude` and
+   `--exclude-from` still apply.
+3. When the excludes left paths out, one line at the default level: "N paths left out by
+   target/, node_modules/, .git/ and .podsshignore", from a count that the walk keeps; in T-472's
+   summary once that entry is done.
+4. The row of `--exclude` names the defaults and `.podsshignore`; `--dry-run` and `--no-ignore`
+   are rows. The notes of `run` and of `cp` say that `cp -r` has no default excludes and reads no
+   `.podsshignore`, and that `run` does. `docs/cli.md` and `docs/STATUS.md`.
+
+## Decision
+
+- Each verb keeps its rule, and both manuals say it: `cp -r` copies what its command line names
+  (T-143's Decision: a fixed file read on each run changes what is copied with no word on the
+  command line), and `run` is a loop of work on a project, which reads its ignore file (T-192).
+  Lost: `cp -r` that reads `.podsshignore` too (a tree that holds one would copy otherwise, with
+  no word on its command line); `.gitignore` (T-192's Decision: its rules are more than T-143's
+  patterns).
+- The dry run connects, as `cp -r --dry-run` does: what changed is known on the far side alone.
+
+## Prove
+
+```sh
+export CARGO_BUILD_JOBS=4
+cargo test -p podssh-cli --lib run_cmd::
+cargo test -p podssh-cli --test run
+cargo test -p podssh-cli --test run_far
+```
+
+`run_far` gains: on the project of its test, `--dry-run` prints `copy` for each file and the line
+of the command, leaves the server's directory absent, and runs nothing (the command's output does
+not come, and the exit is 0); after a run and one change, `--dry-run` lists that file alone;
+`--no-ignore` copies `target/` and `x.tmp`; a run with no `-v` says that 2 paths were left out.
+`run`: `--help` names `.podsshignore`, and `--no-ignore` and `--dry-run` parse offline. Planted
+defect: the dry run runs the command; the check that nothing ran fails.
+
+# T-480: `health` gives the host's CPUs and memory where a container's cgroup allows fewer
+
+**Source:** GitHub #88 (Nemo-010, 2026-11-02), measured by the reporter with `podssh 1.0.0
+(35a0d19d)` on Ubuntu 26.04 in a cgroup of 4 GiB and 4 CPUs, on a host of 48 CPUs and 188 GiB.
+**Category:** defect
+**Milestone:** none
+**Priority:** P2
+**Effort:** M
+**Status:** open
+
+## Problem
+
+In a container, `podssh health` says `48 CPUs` and `118.2 GiB available of 188.7 GiB`, where the
+container's cgroup gives it 4 CPUs and 4 GiB. A script or an agent that plans work from those
+lines asks the host for twelve times what it can have, and the cgroup's out-of-memory killer ends
+that work. The load averages are the whole host's too, and the line does not say so. The hosts of
+podssh are often containers and the sandboxes of agents, where these numbers differ most.
+
+## Premise
+
+- Read: the script reads `/proc/loadavg`, `/proc/uptime`, `/proc/meminfo`, `/proc/stat` and
+  `/proc/net/dev`, and nothing of `/sys/fs/cgroup` (`crates/podssh-cli/src/health/script.rs:23-27`).
+- Read: the CPUs are the count of the `cpuN` lines of `/proc/stat`
+  (`crates/podssh-cli/src/health/parse.rs:172-185`), and the memory is `MemTotal` and
+  `MemAvailable` of `/proc/meminfo` (`crates/podssh-cli/src/health/parse.rs:187-210`). The kernel
+  gives these files for the whole host, not for a cgroup (Known: proc(5)); the reporter's
+  measurement agrees (`memory.max` 4294967296, `cpu.max` `400000 100000`, `nproc` 48).
+- Read: the line of the load names the CPUs and not whose they are
+  (`crates/podssh-cli/src/health/show.rs:19-22`), and the line of the memory gives the total of
+  `/proc/meminfo` (`crates/podssh-cli/src/health/show.rs:26-37`); the JSON has `cpus` and `memory`
+  with no source (`crates/podssh-cli/src/health/show.rs:62-117`).
+- Read: the notes of the manual say that `health` reads those files of `/proc`
+  (`crates/podssh-cli/src/man/notes_health.rs:5-9`): the numbers are what the page says, and not
+  what a user of a container needs.
+- Read: a reader of the answer finds each section by its name, so a section that it does not use
+  is no fault (`crates/podssh-cli/src/health/parse.rs:89-113`); the script is one line with no
+  single quote and no `!`, which a test holds (`crates/podssh-cli/src/health/script.rs:52-61`).
+
+## Approach
+
+1. The script reads its own shell's cgroup, after the files of `/proc`, each file only where
+   `[ -r ]` finds it and with the shell's `read`, in the form that the test of the script holds:
+   `/proc/self/cgroup`, then the files of that cgroup under `/sys/fs/cgroup` (at the mount's root
+   where a cgroup namespace shows the container's own cgroup as `/`).
+   - cgroup v2: `memory.max`, `memory.current`, `memory.swap.max`, the `inactive_file` line of
+     `memory.stat`, `cpu.max`, `cpuset.cpus.effective`, `cpu.stat` (twice, around the `sleep 1`
+     that is there already), `io.max`, `pids.max`, and `cpu.pressure` and `memory.pressure` where
+     the kernel has PSI.
+   - cgroup v1: `memory.limit_in_bytes` and `memory.usage_in_bytes` of the `memory` hierarchy,
+     `cpu.cfs_quota_us` and `cpu.cfs_period_us` of `cpu`, `cpuset.effective_cpus` (else
+     `cpuset.cpus`) of `cpuset`, and `cpuacct.usage` twice.
+   They come in a section `@ cgroup` of their own, with the version and each value as read; the
+   number of the form (`podssh-health 1`) stays, as a reader takes each section by its name.
+2. The effective facts. CPUs: the least of the quota over the period (none for `max`), the count
+   of the effective cpuset, and the host's. Memory: `memory.max` (none for `max`), with the
+   available memory `max - (current - inactive_file)`, the working set as the kubelet and
+   `docker stats` count it (Known), never above the host's `MemAvailable`. The cgroup's busy share
+   from `usage_usec` of `cpu.stat` over the two samples, against its CPUs. A cgroup with no limit
+   gives the host's facts, with the source `host`.
+3. The lines: `cpus 4 (cgroup v2 cpu.max), 48 on the host`; `memory 3.1 GiB available of 4.0 GiB
+   (cgroup v2 memory.max); the host: 118.2 GiB of 188.7 GiB`; the line of the load says that it is
+   the whole host's where a cgroup limits CPUs or memory, and the cgroup's pressure, where PSI
+   gives it, follows as the container's own measure of waiting; an `io.max` that is not empty and
+   a `pids.max` that is not `max` get a line each.
+4. The JSON keeps each key with its meaning, the host's (`cpus`, `memory`, `load`), and adds
+   `effective` (`cpus`, a number such as 4.0 or 1.5; `cpus_from`, as `cgroup v2 cpu.max`, `cgroup
+   v2 cpuset`, `cgroup v1 cfs_quota_us` or `host`; `memory_total_kib`, `memory_available_kib`,
+   `memory_from`) and `cgroup` (the version, the path, and each value as read). A program reads
+   `effective` on any host.
+5. The notes of `health`, `docs/cli.md` (the section of `podssh health`) and `docs/STATUS.md`.
+
+## Decision
+
+- The working set, not `memory.current`: the current counts the page cache, which the kernel takes
+  back before the killer runs, so a container with a warm cache would read as full. `max -
+  current` lost for the same reason.
+- The JSON adds keys and changes none. A schema 2 whose `cpus` is the cgroup's lost: a reader of
+  schema 1 that does not check the number would get another fact under the same name. `effective`
+  is the fact to plan from.
+- A host where `/sys/fs/cgroup` cannot be read (a cage that hides it, a BSD) gives the host's facts
+  as now, with the source `host`: a fact that the answer lacks is absent, never a guess
+  (`crates/podssh-cli/src/health/parse.rs:1-6`). A host whose `/proc/meminfo` is already the
+  container's (LXCFS) gives equal numbers from both, and nothing is counted twice.
+
+## Prove
+
+```sh
+export CARGO_BUILD_JOBS=4
+cargo test -p podssh-cli --lib health::   # the reader: answers of cgroup v2, of v1, with max, and with none
+cargo test -p podssh-cli --test health    # the binary against the test server's answer of a container
+```
+
+New fixtures in `crates/podssh-cli/tests/fixtures/health/`: the answer of a container run with
+`--memory 4g --cpus 4` under cgroup v2 and under cgroup v1, and of one with no limit, each
+captured with `docker run` or `podman run` in the build image; the reader gives 4 CPUs and 4 GiB
+with their sources, and the host's facts beside them. In `scripts/interop-health.sh`, the OpenSSH
+container of the interop run with `--cpus 2 --memory 1g`: `effective.cpus` 2 and
+`effective.memory_total_kib` 1048576. Planted (new, t480-host-cpus): the effective CPUs from
+`/proc/stat` alone; the reader's test of the v2 answer and the interop check fail.
+
+# T-481: `job` and `--persist` on a host with no tmux: the command that installs it, and jobs with no tmux when asked
+
+**Source:** GitHub #91 (Nemo-010, 2026-11-02), with `podssh 1.0.0 (35a0d19d)` on Ubuntu 26.04 with
+no tmux: `job start`, `job submit` and `--persist` exit 255 until `apt-get install tmux`.
+**Category:** feature
+**Milestone:** none
+**Priority:** P2
+**Effort:** M
+**Status:** open
+
+## Problem
+
+A fresh container has no tmux, and `podssh job` and `ssh --persist` refuse there (255). The
+refusal names tmux, and leaves the user to find the package and the command of the host's
+system. Where tmux cannot be installed (no root, no package manager, no network for one), `job`
+gives nothing at all, though a job that outlives the connection needs no terminal. The README does
+not say that `job` and `--persist` need tmux on the far host.
+
+## Premise
+
+- Read: the far script says `missing tmux` when `command -v` does not find it, for `start` and
+  `submit` (`crates/podssh-cli/src/job/far.sh:29-37`, `:139-140`), and the client makes of it
+  "HOST has no tmux on PATH; podssh job runs each job in the host's tmux, and starts none without
+  it" (`crates/podssh-cli/src/job/far.rs:195-200`).
+- Read: `--persist` probes `command -v tmux`, and refuses with "the server has no tmux on PATH;
+  --persist needs it" (`crates/podssh-ssh/src/persist.rs:183-187`).
+- Read: tmux runs each job (`crates/podssh-cli/src/job/far.sh:97-102`) and the queue's runner
+  (`:111-117`), and `stop` ends the job's tmux session by its exact name (`:256-272`).
+- Read: T-193's Decision chose tmux and set aside `nohup` with a file of the PID, as a `stop` by a
+  PID can kill another process once the system gives the PID again, and the output had no safe
+  place. Since T-193 the output and the status are files of the job's private directory
+  (`crates/podssh-cli/src/job/far.sh:1-10`).
+- Read: "First steps on a new host" (`README.md:60`) names `doctor`, `man` and `keygen`; no part
+  of the README says that the far host needs tmux.
+
+## Approach
+
+1. The hint. Where tmux is missing, the far script says what can install it: `missing tmux PM ID
+   ROOT`, with PM the first package manager that `command -v` finds (`apk`, `apt-get`, `dnf`,
+   `yum`, `zypper`, `pacman`, `brew`, `pkg`), ID the `ID=` of `/etc/os-release` where it can be
+   read, and ROOT `root`, `sudo` (on PATH) or `user`. The client adds one sentence, "to install
+   it: apt-get install -y tmux", with `sudo` first for a login that is not root where sudo is
+   there, and for `user` that the install needs root. A host with no package manager found gets
+   the refusal as now. `--persist`'s probe asks the same, and its refusal ends with the same
+   sentence; one table of the commands serves both.
+2. Jobs with no tmux, when the user asks: `podssh job start --no-tmux` and `job submit --no-tmux`.
+   Where tmux is missing and the flag is not given, the refusal names the flag after the hint.
+   - The far script starts the job's runner as `nohup sh jobs.sh - job NAME`, with no input and its
+     output to the null device, in the background, in a session of its own with `setsid` where
+     `command -v` finds it. The runner writes the kind of the job (`plain`) and its own PID into
+     the job's directory.
+   - **The runner is the command's parent, and it alone signals it**: it starts `sh -c CMD` in the
+     background, keeps `$!`, and each second looks for a file `stop` in the job's directory; then
+     it sends TERM, and 10 s later KILL to the child. The system does not give again the PID of a
+     child that its parent has not waited for (Known: wait(2)), so no other process gets the
+     signal. TERM goes to the runner's process group (`kill -TERM 0`, the runner's own TERM
+     ignored) only where the runner leads that group: it was started by `setsid`, and on Linux
+     `/proc/self/stat` shows its group as its PID; else to the child alone. `stop` writes the file
+     `stop`, and sends no signal itself.
+   - `list` and `state`: `done` with the status; `running` while the PID that the runner wrote is
+     alive and its `/proc/PID/cmdline` holds `jobs.sh` (with no `/proc`, while it is alive); else
+     `lost`.
+   - `stop` of a plain job writes `stop`, waits up to 15 s for the status, then removes the
+     directory; a job that has not ended by then is said, and its directory stays.
+   - The queue's runner with `--no-tmux` starts the same way; its lock is a directory
+     `runner.lock`, made with `mkdir` (atomic), with its PID; a lock whose PID is not alive is
+     taken over.
+   - `log`, `wait` and `fetch` read the files, as now, for both kinds.
+3. `--persist` keeps tmux: a shell that comes back after a loss needs a terminal that outlives the
+   connection, which `nohup` does not keep. Its refusal gets the hint of step 1.
+4. The README: in "First steps on a new host", a step for the far hosts: `podssh job` and
+   `ssh --persist` need tmux there, with the command of step 1 for the common systems, and
+   `--no-tmux` for jobs. The notes of `job` and of `--persist`, `docs/cli.md` (the section of
+   `podssh job`) and `docs/STATUS.md`.
+
+## Decision
+
+- The hint names a command and runs none: a package manager would change the far host, which the
+  user did not ask for. A command from `ID=` alone lost: a probe of the managers on PATH finds what
+  the host has, where an ID names what it was built from.
+- **The fallback takes T-193's lost alternative, with the reason that it lost removed**: no `stop`
+  sends a signal to a PID read from a file, and the runner signals only its own child, which it
+  has not waited for. The safe place of the output is there since T-193 (the job's directory, of
+  mode 0700). What the fallback loses, which the notes say: the job stays in the login's scope of
+  systemd, so logind's `KillUserProcesses`, where it is on, ends it at the logout, as it ends a
+  tmux built with no systemd support (Known); and a stop ends the runner's group at most, not a
+  process that the command put in another group.
+- The group is signalled only where the runner leads it. An SSH server that starts each command in
+  the server's own process group, with no new session (a server built on Go's `os/exec`, which
+  makes none by default, Inferred), would else get the signal itself. `set -m` lost: dash turns
+  job control off with no terminal, so it makes no group. With no `setsid`, a stop ends the
+  command's own process, and what it started in the background stays, which the notes say.
+- `--no-tmux` is the user's choice, never the default, as the issue asks: with tmux there, jobs
+  stay in tmux. The fallback by default lost: a host where tmux comes and goes would mix two kinds
+  of jobs with no word.
+- GNU screen as a second terminal for `--persist` lost for now: no tester asked for it, and its
+  detach and its attach differ from tmux's.
+
+## Prove
+
+```sh
+export CARGO_BUILD_JOBS=4
+cargo test -p podssh-cli --lib job::      # the words of the hint, the answers of the far script
+cargo test -p podssh-cli --test job_far   # Unix: the far script in sh, with and without tmux on PATH
+cargo test -p podssh-cli --test job
+```
+
+With no tmux on PATH and a stand-in `apt-get` on it, `start` exits 255 and names
+`apt-get install -y tmux`, and `--persist` the same. With `--no-tmux`, two jobs `sleep 300` start,
+`list` shows both running, a `stop` of one ends it and leaves the other running, and a job that
+ends has its exit status; a job whose PID file names another process (a `sleep` of the test's)
+never signals it; with no `setsid` on PATH, a stop ends the job's command and the test's server
+lives. `scripts/interop-job.sh` runs the same against OpenSSH and Dropbear with no tmux on PATH.
+Planted (new, t481-stop-by-pid): `stop` sends TERM to the PID of the file; the test of the other
+process fails.
+
+# T-482: `health --preflight`: what the far host allows, from one login, before a long command needs it
+
+**Source:** GitHub #92 (Nemo-010, 2026-11-02), after GitHub #83 to #87 of the same tester (a
+keepalive reply that cannot be decoded, the relay's cap of 64 MiB, a refused `tcpip-forward`, no
+`direct-tcpip`, no `copy-data`), each triaged on its own.
+**Category:** feature
+**Milestone:** none
+**Priority:** P2
+**Effort:** L
+**Status:** open
+
+## Problem
+
+A long command depends on what the far server allows: a keepalive whose reply decodes, the
+forwards of `-R` and `-J`, an SFTP server and its extensions, tmux for `job` and `--persist`, the
+tools of the copy by exec, the room of the cgroup. Each shows only when the command that needs it
+fails, often late (60 s for `-J`) and in the words of a dead link. `podssh doctor` checks this host
+and the road, and `--hop` checks a hop as `--direct` reaches it, so it fails a hop that only the
+relay reaches; nothing reports the far side.
+
+## Premise
+
+- Read: `doctor --hop` reaches the hop as `--direct` does, through `HTTPS_PROXY`
+  (`crates/podssh-cli/src/doctor/hop.rs:1-8`), and logs in with a key made for the check, which
+  the server refuses (`crates/podssh-cli/src/doctor/hop.rs:131-152`): no command runs there.
+- Read: `doctor` takes no option of `ssh` (`crates/podssh-cli/src/doctor/mod.rs:59-83`), and its
+  `--via` is the second proxy of T-439 (`crates/podssh-cli/src/doctor/mod.rs:79-80`), so the
+  issue's `doctor --via HOST` names a flag that exists.
+- Read: `podssh health` resolves the host as `ssh` does, logs in on the same road, and runs one
+  exec (`crates/podssh-cli/src/health/mod.rs:125-143`).
+- Read: what a preflight asks is in podssh already: the SFTP server's extensions
+  (`crates/podssh-ssh/src/sftp/mod.rs:224-227`), the request of a remote forward
+  (`crates/podssh-ssh/src/remote.rs:109-123`), a channel `direct-tcpip`
+  (`crates/podssh-ssh/src/local.rs:79`), keepalives each 60 s by default
+  (`crates/podssh-ssh/src/options.rs:377-378`), and the relay's cap on a session
+  (`crates/podssh-relay/src/relay.rs:23-25`).
+- Read in the issue: a Go SSH server's keepalive reply ended each idle session at 60 s (#83); it
+  refused `tcpip-forward` (#85) and had no `direct-tcpip` (#86); its SFTP server had no
+  `copy-data` (#87).
+
+## Approach
+
+1. `podssh health --preflight [ssh options] [user@]host`: after the facts, a section `preflight`
+   of `ok`, `FAIL` and `????` lines in the form of `doctor`, with its report shared, each a probe
+   on the one connection with a limit of its own (10 s):
+   - `login`: the road (the relay host, `--direct`, the hops), the server's banner, the method
+     that let the user in.
+   - `road`: the relay's limits for each session (64 MiB both ways, 180 s idle, 12 h, from its
+     document, else the built-in ones), or none with `--direct`: `ok` with the fact, and what a
+     long `cp` or `ssh` does at the cap.
+   - `sftp`: the subsystem, its version and its extensions, and what `cp` does without each
+     (`copy-data` for `--delta`, `posix-rename`, `hardlink`, `limits`); no subsystem is `ok`, as
+     `cp` then copies by exec.
+   - `remote forward`: `tcpip-forward` for 127.0.0.1 port 0, then `cancel-tcpip-forward` at once;
+     a refusal is `FAIL` with its words: `-R` cannot work on this host.
+   - `jump`: a channel `direct-tcpip` to the server's own loopback, port 22. Opened, or refused as
+     `connect failed`, is `ok`: the server opens such channels, and the target was a guess.
+     `administratively prohibited` or an unknown channel type is `FAIL`: `-J`, `-L`, `-D` and
+     `-W` through this host cannot work. No answer in 10 s is `FAIL`, the case of #86.
+   - `exec tools`: one exec of `sh -c 'command -v ...'` for the tools of the copy by exec and of
+     `job` (`sh`, `cat`, `mv`, `mkdir`, `sha256sum` or `shasum`, `head`, `dd`, `tmux`, `nohup`);
+     each tool missing is named with what it stops.
+   - `tmux`: from the same exec, with the hint of T-481.
+   - `cgroup`: the effective CPUs and memory of T-480.
+   - `keepalive`, last: one global request `keepalive@openssh.com` with a reply wanted. A reply,
+     success or failure, is `ok`; a reply that cannot be decoded, or a connection that ends, is
+     `FAIL`, with `-o ServerAliveInterval=0` as the way round it.
+2. `--json`: the object of `health`, with `preflight`: the checks in the form of `doctor --json`
+   (`section`, `check`, `status`, `detail`) and their counts.
+3. The exit: 0 when no check failed, 1 when one did (as `doctor`), 255 when the login failed (as
+   `health`); 64 and 78 as now.
+4. The notes of `health`, an example, `docs/cli.md`, `docs/STATUS.md`; the tool `health` of T-488
+   takes `preflight`.
+
+## Decision
+
+- A flag of `health`, not of `doctor`: `health` logs in as `ssh` does, with each of its options
+  (the relay, `--direct`, `-J`, `-i`, `ssh_config`), and its answer is the far host's; `doctor`
+  checks this host first, the relay's probes among them, for tens of seconds, and takes no option
+  of `ssh`. `doctor --via HOST`, as the issue writes it, lost: `--via` is T-439's. A new verb
+  `podssh check` lost: a fifth verb in the group "Check this host and the path" for what the login
+  of `health` already does. The name is the issue's own word.
+- The probe of the remote forward asks the far server to listen on its loopback, on a port that it
+  chooses, and cancels at once. Rule 2 of `AGENTS.md` is about this host, which binds nothing
+  here; the user asks for the probe with `--preflight`, and `health` alone stays a command that
+  only reads.
+- The target of the jump's probe is the server's own loopback port 22, as no port of the far side
+  is known; RFC 4254 (section 5.1) tells `connect failed` (2) from `administratively prohibited`
+  (1), so a refused target still shows a server that opens the channel.
+- The keepalive goes last: where its reply cannot be decoded (#83), it ends the connection, and
+  each other probe has run by then.
+
+## Prove
+
+```sh
+export CARGO_BUILD_JOBS=4
+cargo test -p podssh-cli --lib health::
+cargo test -p podssh-cli --test health   # the test server in two modes, as below
+```
+
+The test's SSH server (`crates/podssh-cli/tests/ssh_harness/health.rs`) in two modes: one that
+allows each probe (each line `ok`, exit 0), and one that refuses `tcpip-forward`, answers
+`direct-tcpip` with `administratively prohibited` and has no SFTP subsystem (`remote forward` and
+`jump` `FAIL`, `sftp` `ok` with the words of the copy by exec, exit 1). In
+`scripts/interop-health.sh`: OpenSSH with `AllowTcpForwarding no`, and Dropbear with `-j -k`,
+each `FAIL` on both forwards; OpenSSH as it is, each `ok`. Planted (new, t482-forward-unasked):
+the probe of the forward reads a refusal as `ok`; the refusing mode's test fails.
+
+# T-484: `each --json` and `each --result-file`: each host's status, failure and streams in one object
+
+**Source:** GitHub #94 (Nemo-010, 2026-11-02), with `podssh 1.0.0 (35a0d19d)` across one host and a
+pair of a good and a dead one: `podssh each --json` is an unknown flag.
+**Category:** feature
+**Milestone:** none
+**Priority:** P3
+**Effort:** M
+**Status:** open
+
+## Problem
+
+`podssh each` is the verb whose output a script most needs to read, and it has no form for a
+program. The far output comes as lines with the host's label, and each host's status comes in a
+summary for people, on stderr. `--output-dir` gives each host's bytes and status in files, and no
+failure's words, no signal and no time. The other surfaces give one object (`ssh --result-file`,
+`health --json`, `job list --json`, `doctor --json`); `each` is the gap.
+
+## Premise
+
+- Read: the rows of `each` have no `--json` and no `--result-file`
+  (`crates/podssh-cli/src/flags/each.rs`); its summary is lines for people on stderr, above the
+  level quiet only (`crates/podssh-cli/src/each/mod.rs:164-168`,
+  `crates/podssh-cli/src/each/fan.rs:75-93`).
+- Read: a host ends with its status, the first line of its failure, or not started
+  (`crates/podssh-cli/src/each/fan.rs:10-20`); its signal, its end, the class of its failure, its
+  bytes and its time are not kept.
+- Read: the record of a run of `ssh`, which `--result-file` writes, is the process's
+  (`crates/podssh-ssh/src/outcome.rs:1-6`), and `run_outcome` gives back a code, a retry and lines
+  only (`crates/podssh-ssh/src/run.rs:49-53`). T-183's Done says that each host's session takes
+  the process's records, so that a lost session's words may name another host's error, and that
+  `each` writes no `--result-file`.
+- Read: `podssh mcp` runs each call as a child for the same reason
+  (`crates/podssh-cli/src/mcp/mod.rs:6-11`).
+
+## Approach
+
+1. The record of a session becomes the session's: `run_outcome` gives back its facts (the status,
+   the signal, the end, the failure, the bytes, the relay), counted in a value that the session
+   carries; `podssh ssh` fills the process's record of T-054 from it at its end, so that
+   `--result-file` of `ssh` stays as it is.
+2. `each --result-file FILE`: at the end, one object in FILE, mode 0600, and the lines on stdout
+   and stderr as now: `schema` 1, `podssh`, `exit` (the run's), `hosts`, each in the order of the
+   list (`host`, the label; `destination`, user@host:port; `exit`, its part, null when it did not
+   start; `status`, `signal`, `end`; `failure`, the class of T-054, and `error`, its words;
+   `duration_ms`, `bytes`, `relay`), and `counts` (gave 0, failed, not started).
+3. `each --json`: the same object on stdout once each host ended. Each host's stdout and stderr go
+   into its record (`stdout` and `stderr`, 1 MiB each at most, with `truncated`) in place of the
+   lines; no line with a label goes to stdout, and podssh's own lines stay on stderr. With
+   `--output-dir` the bytes go into the files as now, and the record names them. `--json` with
+   `--interactive` is refused (64).
+4. The notes of `each`, `docs/cli.md`, `docs/STATUS.md`.
+
+## Decision
+
+- Each host's facts are its session's own: a record of the process lost, as two hosts at once
+  write into one record (T-183's Done).
+- `--json` carries the streams, as `ssh_exec` of `podssh mcp` gives them, with the same cap
+  (`crates/podssh-cli/src/mcp/tools.rs:15-16`). Bytes that are not UTF-8 go as `stdout_base64`
+  (`stderr_base64`), so that no byte changes; text made lossy lost. `--output-dir` keeps each byte
+  in its files, for output past the cap.
+- One object, as the issue asks, and `--result-file` for a script that wants the lines too. A JSON
+  line as each host ends (`--jsonl`) lost for now: a script then needs a reader of a stream for
+  what one object gives.
+
+## Prove
+
+```sh
+export CARGO_BUILD_JOBS=4
+cargo test -p podssh-cli --lib each::
+cargo test -p podssh-cli --test each
+cargo test -p podssh-cli --test ssh_result   # unchanged
+```
+
+Against the test's servers: `exit 3` on one host, `exit 0` on another, and a closed port: the
+records give 3 with status 3, 0, and 255 with the failure `connect` and its words; two hosts that
+fail at once in two ways (a refused key and a closed port) each name their own error. `--json`
+holds each host's stdout byte for byte, and bytes that are not UTF-8 as base64. In
+`scripts/interop-each.sh` (OpenSSH and Dropbear at once): the object of `exit 3` and `exit 0`.
+Planted (new, t484-shared-record): the hosts' facts read from the process's record; the test of
+the two failures at once fails.
+
+# T-485: `job log --follow`: a job's output as it comes, on one connection, then its status
+
+**Source:** GitHub #96 (Nemo-010, 2026-11-02): with `podssh 1.0.0 (35a0d19d)` `job log --follow` is
+an unknown flag, and each poll of `job log` is a new connection through the relay, some 1.4 s of
+handshake each (the reporter's measurement).
+**Category:** feature
+**Milestone:** none
+**Priority:** P3
+**Effort:** S
+**Status:** open
+
+## Problem
+
+`podssh job log HOST ID` prints what the job wrote so far, and exits. To watch a long job, a user
+runs it again and again: each run is a new connection, a relay session and a login, and the
+output comes in steps.
+
+## Premise
+
+- Read: the far script's `log` prints the file `out` once
+  (`crates/podssh-cli/src/job/far.sh:225-237`), and the client streams those bytes as they come
+  (`crates/podssh-cli/src/job/far.rs:121-169`), in one call
+  (`crates/podssh-cli/src/job/mod.rs:262-272`).
+- Read: `job wait` reads the state over one connection each 5 s until the job ends, and exits with
+  its status, or 75 once `--timeout` passed (`crates/podssh-cli/src/job/queue.rs:18`,
+  `crates/podssh-cli/src/job/mod.rs:129-144`).
+- Read: each step of a call has 30 s, each piece of the answer too
+  (`crates/podssh-cli/src/job/far.rs:29-31`), so a call that waits longer for a quiet job's next
+  byte fails.
+- Read: a call sends the far script on stdin and runs as one exec on the connection
+  (`crates/podssh-cli/src/job/far.rs:81-96`): a call is a channel, not a connection.
+
+## Approach
+
+1. A far action `follow ID FROM`: `out`, then the bytes of `out` from the offset FROM, and each
+   second the new ones, until the job's status is there and nothing more came, or 20 s passed with
+   no byte. Each read is `tail -c +N` into a file of the job's directory, counted with `wc -c`, so
+   that each byte goes once.
+2. `podssh job log --follow HOST ID`: on one connection, `follow` from the offset that the client
+   counted, then `state`: `done N` ends the run with N; `running` or `queued` calls `follow` again;
+   `lost` ends with 255, as `wait` does. `--from-end` starts at the size that the first call
+   finds. `--timeout` ends it with 75. A reader that went (`| head`) ends the follow.
+3. `--jsonl` with `--follow`: one object for each line of the output (`event` `line`, its `text`,
+   or `base64` for bytes that are not UTF-8), and a last `event` `end` with the state and the
+   status.
+4. The notes of `job`, `docs/cli.md` (the section of `podssh job`) and `docs/STATUS.md`.
+
+## Decision
+
+- Calls of 20 s at most, each on the same connection: each keeps the 30 s of a piece of the
+  answer, so a dead connection is found as now. A call with no limit lost: a quiet job and a dead
+  link would look the same for as long as the job runs. The script goes with each call, some
+  8 KiB each 20 s on a quiet job.
+- `tail -c +N` and `wc -c` are POSIX (Known). `tail -f` lost: it does not end at the job's end, and
+  a kill of it can lose its last bytes.
+- The offset is the client's count of the bytes that came, so a call that broke goes on where the
+  output stopped, with no byte twice.
+- `--follow` alone, with no `-f`: on `ssh`, `-f` is `--detach` (T-380), and `job` takes the
+  connection's options of `ssh`; a `-f` with another meaning on `job` lost.
+
+## Prove
+
+```sh
+export CARGO_BUILD_JOBS=4
+cargo test -p podssh-cli --lib job::
+cargo test -p podssh-cli --test job_far   # Unix: the far script in sh, through the test's server
+```
+
+A job that prints `tick N` each second for 5 s and exits 3: `log --follow` prints each tick once,
+in order, each within 2 s of its write, and exits 3, over one connection (the test's server counts
+them). A job quiet for 45 s, then printing, is followed across three calls with no byte lost or
+twice. `--from-end` prints only what came after; `--timeout 2s` on `sleep 300` exits 75; a lost
+job exits 255. In `scripts/interop-job.sh`, the ticks against OpenSSH and Dropbear. Planted (new,
+t485-offset-reset): each call from offset 0; the test of the ticks finds a tick twice, and fails.

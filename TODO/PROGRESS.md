@@ -145,7 +145,7 @@ and `CARGO_BUILD_JOBS=4`:
 
 ## Counts
 
-`TODO/INDEX.md` holds 453 entries: 44 open, 2 partial, 17 blocked, 390 done.
+`TODO/INDEX.md` holds 475 entries: 66 open, 2 partial, 17 blocked, 390 done.
 
 Open includes parked work. `cargo todo check` verifies this line.
 
@@ -194,7 +194,11 @@ this order:
    protocols of Q66 are done), then T-442.
 5. T-446: betas `v1.1.0-beta.N` after batches, and `v1.1.0` at the end.
 
-Between entries: the `none` entries, the highest priority first.
+Between entries: the `none` entries, the highest priority first. The issues of a tester of
+`v1.0.0` (GitHub #83 to #105, 2026-11-02) are such entries (T-460 to T-464, T-470 to T-476 and
+T-480 to T-489): its defects first, the P1 ones before any other (T-460, T-461, T-471), then the
+P2 defects (T-462, T-464, T-470, T-476, T-480), each a repair that goes into `v1.0.1`, from
+`main` with the checks of a release, once they are done; then its features by priority.
 
 **Skip** the entries that the operator holds (status
 `blocked`, Q32):

@@ -2893,3 +2893,454 @@ cargo test -p podssh-cli --test persist persist_forever
 - The entry's Prove named a test of ten failed attempts after a loss; the unit test shows the
   limit lifted, and the integration test the attempts going on, in 5 s in place of the 5 minutes
   that ten real attempts take.
+
+# T-460: A reply to a global request that carries data ends the connection: a quiet minute with keepalives, and a refused `-R`
+
+**Source:** GitHub #83 (Nemo-010, 2026-11-02): against a Go SSH server (`SSH-2.0-Go`, behind a
+gateway), `podssh ssh HOST 'sleep 100; echo alive'` ends after 62 s with "SshEncoding: unexpected
+trailing data at end of message (15 bytes)" and 255; `-o ServerAliveInterval=20` ends it at 21 s,
+`=0` keeps it, and a command that prints each second lives; its comment: on that server no
+interval holds a quiet session past the relay's idle cut. GitHub #85 (the same day):
+`-N -R 12345:127.0.0.1:9` against a Go server ends 0.7 s after the login with "the connection was
+lost while the forwards were asked for". Read at `f8d15bf`.
+**Category:** defect
+**Milestone:** none
+**Priority:** P1
+**Effort:** M
+**Status:** open
+
+## Problem
+
+A server built on Go's x/crypto/ssh may answer a global request with data after the reply's type.
+russh, podssh's SSH client, ends the whole connection on such a reply: on a failure of any
+request, and on a success of a keepalive or a ping. podssh's keepalives are on by default, each
+60 s, so on such a server each session that goes quiet for a minute dies, and the only way out,
+`ServerAliveInterval=0`, gives the session to the relay's idle cut at 180 s. `-R`, whose
+`tcpip-forward` such a server refuses, ends the run as a lost connection, where podssh should warn
+and go on. OpenSSH's client reads no data of either reply, and keeps the session.
+
+## Premise
+
+Read in russh 0.65.0, the version of the lock (cargo's registry), its `src/client/encrypted.rs`: a
+REQUEST_SUCCESS that answers a keepalive or a ping must end where its type ends (`ensure_end`,
+lines 971-976), and so must each REQUEST_FAILURE, before russh looks at which request it answers
+(lines 1041-1043); the `?` of each ends the session's task. `ensure_end` gives ssh-encoding's
+`TrailingData` (russh's `src/parsing.rs`, lines 13-22), whose words are those of #83. The
+generic `Handle::send_global_request` keeps a success's data (`GlobalRequestResponse::Other`,
+lines 1032-1033), but not a failure's. russh's API sends no channel request of a free name (its
+`src/channels/mod.rs`), and no SSH_MSG_IGNORE.
+
+Read, through fetch.web.pkgforge.dev on 2026-11-02: Go's x/crypto/ssh gives each reply of a global
+request a field for the rest of the message (`golang/crypto:ssh/messages.go`,
+`globalRequestSuccessMsg` and `globalRequestFailureMsg`), and `Request.Reply(ok, payload)` sends
+that payload in a failure too (`golang/crypto:ssh/channel.go`, `Reply`; `golang/crypto:ssh/mux.go`,
+`ackRequest`); the reply to a channel's request carries none. OpenSSH's client reads no data of
+either reply: `client_global_request_reply` calls the callback of the request, and its keepalive
+registers none (`openssh/openssh-portable:clientloop.c`, `client_global_request_reply` and
+`server_alive_check`).
+
+- Read: keepalives are on by default, each 60 s (`crates/podssh-ssh/src/options.rs:377`), as
+  russh's own (`crates/podssh-ssh/src/run_config.rs:63-64`), so that the relay's idle cut never
+  meets a quiet session; `-o ServerAliveInterval=0` turns them off, with the warning of the cut
+  (`crates/podssh-cli/src/ssh/resolve.rs:400-403`) that #83's comment reads. T-332's question on
+  `--direct` sends russh's ping (`crates/podssh-ssh/src/io.rs:219`), which the same reply ends.
+- Read: the handler keeps russh's error in podssh's words, and a lost session names it
+  (`crates/podssh-ssh/src/handler.rs:167`, `crates/podssh-ssh/src/session.rs:30-33`); a decode
+  error has no words of podssh's (`crates/podssh-ssh/src/run.rs:468`), so #83 read russh's.
+- Read: a forward that the server refuses is a warning, and the run goes on
+  (`crates/podssh-ssh/src/remote.rs:90-95`); a refusal with the connection gone ends the run as
+  lost, with no cause (`crates/podssh-ssh/src/remote.rs:87-88`). `tcpip_forward` gives the same
+  `None` for an error and a refusal (`crates/podssh-ssh/src/remote.rs:115`).
+- Inferred: #85's server sent a failure with data. A failure with none, or a success with data
+  (which russh reads as a refusal when more than a port came), leaves the connection up, and
+  podssh would have warned (`crates/podssh-ssh/src/remote.rs:94`); the connection was gone 0.7 s
+  after the login, as the failure's decode ends it. #83's 15 bytes are a failure's too, then: a
+  Go server that knows no `keepalive@openssh.com` refuses it.
+- Read: the project carries a patched crate in `vendor/` through `[patch.crates-io]`, iroh-relay's
+  (`vendor/README.md:91-110`, `Cargo.toml:232-233`), and watches its upstream (T-341); russh's
+  copy went with T-356, as 0.65.0 gave what its patch had added.
+
+## Approach
+
+1. A stand-in of the report's server first: a Go server on x/crypto/ssh, the library under
+   gliderlabs/ssh, of a few lines in scripts/interop-go-ssh/ (new), which runs a command, refuses
+   `tcpip-forward`, and answers each other global request with `Reply(false, payload)` of 15
+   bytes; a second mode answers with `Reply(true, payload)`. Its harness, scripts/interop-go-ssh.sh
+   (new, its checks in `scripts/interop-baseline.txt`), runs in a workflow of its own with Go on
+   the runner, as `.github/workflows/build.yml` sets Go up for T-385's transports. Run first on
+   the code of now: a quiet session ends with 255 at about 60 s, and `-R` as lost, #83 and #85
+   reproduced.
+2. russh 0.65.0 into vendor/russh from cargo's copy, with one patch
+   (vendor/patches/russh/0001-reply-data.patch): a reply's data after its type is read as RFC
+   4254, section 4, leaves it ("response specific data"), and dropped where podssh needs none: a
+   success that answers a keepalive, a ping, `no-more-sessions@openssh.com` or a cancel, and a
+   failure that answers any request. A success of `tcpip-forward` for port 0 reads its port and
+   drops the rest. Each drop is a debug line, never an end. The patch's tests, in russh's own way
+   of crafted messages (as its `third_ext_info_is_rejected`): a failure with 15 bytes after a
+   keepalive, a success with data after a ping, and a failure with data after `tcpip-forward`,
+   each leave the session up and give the caller its answer.
+3. `[patch.crates-io]` takes it, as iroh-relay's; `vendor/README.md` gets its section (the
+   upstream, the patch and why, how to carry it to another version); T-341's watch reads it, and
+   cargo-deny and `scripts/check-vendored-advisories.py` read it as a path package.
+4. The words where a message still does not decode: `describe` names a message of the server
+   that podssh could not read, then russh's words; a connection lost while the forwards were asked
+   for names russh's cause, as a lost session does (the reading of T-464).
+5. The patch offered to russh upstream. That is the operator's to send, as no session changes
+   another repository (`docs/decisions.md:48` says "no session changes another repository"); the
+   copy goes once a release of russh reads such replies.
+6. `docs/cli.md` (the keepalive, and `-R`'s refusal), `docs/STATUS.md`.
+
+## Decision
+
+- A copy of russh with a patch, as iroh-relay's: it repairs both reports, and each request whose
+  reply a Go server fills. Lost: podssh's own keepalive through `send_global_request`, which
+  keeps a success's data but still ends on a failure's, the reply that Go gives to a request that
+  it does not know (Premise); a keepalive that asks for no reply, which keeps the idle cut away
+  but finds no dead far end for ServerAliveCountMax, and leaves `-R` broken (and russh's
+  `send_keepalive(false)` queues a reply that never comes; `send_global_request` with no reply
+  does not); a keepalive as a request on the session's channel, which Go answers with no data
+  (#83's third ask): russh's API sends none of a free name; and a wait for a release of russh, as
+  no entry waits for another party.
+- #83's second ask, a failure that names the keepalive and its workaround: with the patch the
+  session lives, so no workaround is said; a message that still does not decode names itself
+  (Approach item 4).
+
+## Prove
+
+```sh
+export CARGO_BUILD_JOBS=4
+cargo test --manifest-path vendor/russh/Cargo.toml --target-dir .work/russh-target --lib client::reply_data
+cargo test -p podssh-ssh --lib -- run::tests
+sh scripts/interop-go-ssh.sh
+```
+
+Against Go's x/crypto/ssh, in the harness's workflow: `sleep 100; echo alive` with the default
+keepalive exits 0 and prints `alive`, and with `-o ServerAliveInterval=20` too, in both modes;
+`-N -R 12345:127.0.0.1:9` warns "remote port forwarding failed for listen port 12345" and waits,
+and with `-o ExitOnForwardFailure=yes` exits 255 with that error. Planted: the published russh
+(the patch's line of `[patch.crates-io]` gone): the quiet session ends with 255 at about 60 s, and
+the harness fails; the patch's tests fail on the copy with no patch.
+
+# T-461: A link that ends after the exit status and before the output's end gives that status: output cut at the relay's 64 MiB exits 0
+
+**Source:** GitHub #84 (Nemo-010, 2026-11-02):
+`podssh ssh --result-file r.json HOST 'head -c 70000000 /dev/zero' > out.bin` exits 0, stderr
+empty, with 67010560 bytes of 70000000; the file holds `"exit":0` beside the relay's close 1009
+`session byte cap`, in three runs and in a second sandbox; with 100000000 bytes the run exits 255
+with the cap's words. Read at `f8d15bf`.
+**Category:** defect
+**Milestone:** none
+**Priority:** P1
+**Effort:** S
+**Status:** open
+
+## Problem
+
+The relay ends a session at 64 MiB, both ways together. When the server's exit status came before
+the last of the output, and the relay then cut the session, `podssh ssh` exits with that status,
+0 here, and says nothing, also at `-v`; the bytes after the cut are lost. A script reads a success
+and a cut file. The relay's close is in `--result-file` alone.
+
+## Premise
+
+- Read: when the channel ends with the connection, the session gives the status if one came, and
+  is lost only with none:
+  `crates/podssh-ssh/src/io.rs:273` says "None => return status.map(End::Status)", and so does
+  the wait of a send (`crates/podssh-ssh/src/io.rs:356`). The channel's EOF is not kept: it falls
+  through (`crates/podssh-ssh/src/io/msg.rs:70-72`). So a status, then a lost link, reads as the
+  command's end.
+- Read: a run that ends with a code prints no line, whatever the relay's close
+  (`crates/podssh-ssh/src/run.rs:62`); the lines of a close, with "a session carries 64 MiB at
+  most" (`crates/podssh-ws/src/close.rs:91-93`), come for a run that failed alone
+  (`crates/podssh-ssh/src/run.rs:86-106`).
+- Read: the exec of the copy and the probes takes the same rule: a status, then a lost channel, is
+  its end (`crates/podssh-ssh/src/exec.rs:109`).
+- Read: the relay stream counts the payload both ways, as the relay counts its cap
+  (`crates/podssh-ssh/src/relay_stream.rs:120-124`), and `podssh cp` opens a new relay session
+  before the cap with that count (T-137; the cap and the budget,
+  `crates/podssh-relay/src/relay.rs:25` and `crates/podssh-relay/src/relay.rs:34`). A session of
+  `podssh ssh` cannot go on in a new relay session: its SSH connection is one, and a plain sshd
+  keeps nothing to resume; a node's layer moves its session before the cap (T-155).
+- Read, through fetch.web.pkgforge.dev on 2026-11-02: OpenSSH's client ends its loop on a closed
+  or failed read with a message, and returns the status that came
+  (`openssh/openssh-portable:clientloop.c`, `client_process_net_input` and the end of
+  `client_loop`), so it exits with the status in #84's case too.
+- Inferred: a server sends the status when the command exits, while the command's last output can
+  still wait for the client's window, in the server's buffers or a gateway's (RFC 4254 orders
+  them in no way). The cut can then come between them, as in #84; with 100000000 bytes the command
+  was still writing at the cut, and no status had come.
+
+## Approach
+
+1. The end of the output is the channel's EOF or its Close. The loop keeps the EOF; a link that
+   ends after a status and before either is a cut: the run fails with 255, its line "the
+   connection to HOST was lost before the output ended (the remote command had exited with N)",
+   then the relay's lines (its close, and the remedy of the cap), as for a lost session. A status
+   and an EOF, then a lost link, keep the status, as now.
+2. `--result-file`: `"end": "lost"`, `"exit": 255`, and the remote `"status"` kept, so that a reader
+   sees both; the class of the failure is `relay` when the relay closed abnormally, as now.
+3. The same rule in the exec's finish (`exec.rs`), for the copy by exec and the probes.
+4. Near the cap, a line on stderr once the payload passes the budget of the relay's limits (60
+   MiB): "this relay session has carried 60 MiB, and the relay ends it at 64 MiB; podssh cp
+   copies more on new sessions", not with `-q`.
+5. `docs/cli.md` (the exit codes, the relay's cap), the manual's note, `docs/STATUS.md`.
+6. Tests: the tests' SSH server (`crates/podssh-cli/tests/ssh_harness/mod.rs`) gets a command
+   `cut N`: the exit status 0, then N bytes, then the end of the connection with no EOF and no
+   Close; and `cut-eof N`, with the EOF before the end.
+   `podssh ssh --direct` on `cut 1000000` exits 255 with the line, and on `cut-eof 1000000` exits
+   0; the result file holds each.
+
+## Decision
+
+- A status that came before the output's end, then a cut link, is no success: 255, as a lost
+  session. Lost: OpenSSH's reading, which exits with the status (Premise): podssh cannot tell a
+  clean close of the target from the relay's cut on every road, and a success that lost bytes is
+  the worse error. Lost: the status with a warning: a script reads the code, not the line. Lost:
+  the rule on an abnormal close of the relay alone, as a reset on `--direct` loses bytes the same
+  way.
+- No rotation for `podssh ssh`, which #84 names as the ideal: the far end of a plain sshd keeps
+  nothing to go on with (Premise); a node's layer does it already (T-155). No refusal up front: the
+  size of a command's output is not known before it runs.
+
+## Prove
+
+```sh
+export CARGO_BUILD_JOBS=4
+cargo test -p podssh-ssh --lib -- exit_code_of_end
+cargo test -p podssh-cli --test ssh_exit_status -- cut
+cargo test -p podssh-cli --test ssh_result -- cut
+```
+
+Planted: a cut read as its status: the tests of `cut` fail. Live, through the live relay to
+railway.new's sshd: `head -c 70000000 /dev/zero` never exits 0 with fewer bytes than asked, in 5
+runs; `head -c 50000000 /dev/zero` exits 0 with each byte. The gate's interop against OpenSSH and
+Dropbear (`scripts/interop.sh`, T-026's codes) keeps each status, and waits for the release's
+checks.
+
+# T-462: A `-J` hop whose channel opens and then carries nothing ends in a bare handshake timeout, and the open has no limit
+
+**Source:** GitHub #86 (Nemo-010, 2026-11-02):
+`podssh ssh -v -J USER@HOST USER@HOST 'echo via-jump'` against a Go SSH server logs in to the hop,
+says "SSH handshake with HOST", and 60 s later "HOST: the SSH handshake did not finish within
+60 s", 255; the issue reads it as a hop with no `direct-tcpip`. Read at `f8d15bf`.
+**Category:** defect
+**Milestone:** none
+**Priority:** P2
+**Effort:** S
+**Status:** open
+
+## Problem
+
+A hop that takes the channel to the next hop and then carries nothing gives, after 60 s, a line
+that names a handshake, and never the hop or its channel; with no `-v` nothing is said in the
+60 s. A user debugs the destination, or the network. And the open of the channel waits for the
+hop's answer with no limit.
+
+## Premise
+
+- Read: each later hop is reached on a `direct-tcpip` channel of the one before
+  (`crates/podssh-ssh/src/run.rs:165-168`); the open waits for the hop's answer with no limit, and
+  a refusal is named at once in the hop's words (`crates/podssh-ssh/src/forward.rs:19-21`), which
+  `crates/podssh-cli/tests/jump_hop.rs:180` tests ("administratively prohibited").
+- Read: "SSH handshake with" is said once the channel opened (`crates/podssh-ssh/src/run.rs:390`),
+  and its limit, ConnectTimeout (60 s by default, `crates/podssh-ssh/src/options.rs:379`), gives a
+  line with the next hop's label alone (`crates/podssh-ssh/src/run.rs:393-397`).
+- Inferred, against the issue's reading: #86's hop opened the channel, as the handshake's line
+  came, and nothing of an SSH server answered on it within 60 s. A hop with no `direct-tcpip`
+  refuses the open, and podssh names that at once.
+- Read: `--direct` marks the first byte that comes through a proxy, and a failure with none heard
+  names the proxy (`crates/podssh-cli/src/ssh/transport.rs:98-124`, T-317); a hop's channel has no
+  such mark.
+
+## Approach
+
+1. The open of a hop's channel has ConnectTimeout's limit, and its line names the hop and the
+   target: "the hop HOP did not answer the open of a channel to DEST:PORT within 60 s".
+2. `-v`: "the hop HOP opened a channel to DEST:PORT" once it opened.
+3. The channel's stream marks its first byte, as `--direct`'s does. A handshake that runs out with
+   nothing heard says "the hop HOP opened its channel to DEST:PORT, and no byte came on it within
+   60 s: no SSH server answered behind the hop"; with a byte heard, the line of now.
+4. `-v` says the wait: a line after 10 s with nothing from DEST through HOP, and each 10 s after.
+5. Tests, in `crates/podssh-cli/tests/jump_hop.rs`: the harness's `direct-tcpip` to a listener of
+   the test that reads and never writes, with `-o ConnectTimeout=3`, ends with 255 within 10 s and
+   names the hop and its channel; a hop that never answers the open (a user of the harness whose
+   server never answers `direct-tcpip`) gives the open's line after 3 s; the refused hop's test
+   stays.
+
+## Decision
+
+The open's limit is ConnectTimeout, as for the handshake that follows it: one setting for the
+whole reach of a hop. Lost: a limit of its own, which nobody set. The lines of the wait are for
+`-v` alone, as each other line of the reach is: without `-v` podssh says nothing until it fails,
+as OpenSSH does. Lost: a line at 10 s for each run, which a script's stderr would get in each slow
+login.
+
+## Prove
+
+```sh
+export CARGO_BUILD_JOBS=4
+cargo test -p podssh-cli --test jump_hop
+```
+
+Planted: the first byte always marked as heard: the test of the silent channel fails, with the old
+words.
+
+# T-463: A warning before the relay's idle cut, while the user can still act
+
+**Source:** GitHub #98 (Nemo-010, 2026-11-02, a request): the relay ends a session after 180 s
+with no payload; podssh says so once at the connect when keepalives are off, and after the cut;
+`sleep 175` with `-o ServerAliveInterval=0` printed nothing between. It asks for a line at about
+150 s of silence, the terminal's title with a pty, `--idle-warn SECONDS`, and `-q` to silence it.
+Read at `f8d15bf`.
+**Category:** feature
+**Milestone:** none
+**Priority:** P2
+**Effort:** M
+**Status:** open
+
+## Problem
+
+A session that crosses the relay with keepalives off, or slower than the idle cut, gets no word
+before the cut: a shell left idle, or a script that waits on a lock, is gone at 180 s, and the
+first word is the cut's. A warning 30 s before would let the user press a key, or know why.
+
+## Premise
+
+- Read: the warning at the connect, on the relay's road when ServerAliveInterval is off or at least
+  the cut (`crates/podssh-cli/src/ssh/resolve.rs:400-403`); after the cut, the relay's close with
+  its remedy (`crates/podssh-ws/src/close.rs:88-90`). The cut is the relay's, from its limits
+  (`crates/podssh-relay/src/relay.rs:70-73`), counted on payload alone (`docs/relay.md:223`).
+- Read: the relay stream counts the payload both ways
+  (`crates/podssh-ssh/src/relay_stream.rs:120-124`), and keeps the time of the relay's last frame
+  of any kind, keepalives among them (`crates/podssh-ws/src/session.rs:256-259`,
+  `crates/podssh-ssh/src/relay_stream.rs:179`); it keeps no time of the last payload. So #98's
+  reading that the client already knows the time of the last byte holds for no clock that the cut
+  counts: russh's keepalive counts SSH's packets in.
+- Read: the notice of a silent far end (T-302) has the places that this needs: the window's title
+  with a pty on a terminal that keeps the stack of titles, taken back before the far end's next
+  bytes, and none with `-q` or for output that goes elsewhere
+  (`crates/podssh-ssh/src/notice/mod.rs:208-223`, `crates/podssh-ssh/src/notice/title.rs`).
+- Read: with T-460, the default keepalives hold a quiet session on the servers of #83 too; the
+  warning is for `ServerAliveInterval=0`, an interval at or above the cut, and `podssh proxy`
+  under a client with none.
+
+## Approach
+
+1. The relay stream keeps the time of the last payload, either way, beside its count.
+2. A watch of each session on the relay's road (`podssh ssh`, and `podssh proxy`, whose stderr its
+   client shows): when the payload's age reaches the cut less the lead (30 s: at 150 s of 180),
+   one warning, and none again until a payload crossed. With a pty on a terminal that keeps the
+   title stack, in the title, as T-302's notice, taken back at the next payload; else one line on
+   stderr: "the relay ends this session in 30 s, as nothing crossed it for 150 s: a key, or -o
+   ServerAliveInterval below 180, keeps it".
+3. `--idle-warn SECONDS`, the lead; 0 turns it off, and so does `-q`. The manual, the table of
+   `podssh man --json`, `docs/cli.md`.
+4. On a road with the relay's cut alone: not on `node://` (the layer's heartbeat), `--direct`, the
+   iroh road or DERP.
+5. Tests, on tokio's paused clock: no payload for 150 s gives the warning once; a payload at 140 s
+   moves it; the title with a pty, and its return at the next byte; none with `-q`, none with 0.
+
+## Decision
+
+- A line on stderr also where stderr is no terminal: the agents and scripts that #98 names read
+  stderr from a pipe, and a cut session is theirs too. T-302's notice stays out of a pipe, as it
+  counts its seconds up; this one is a single line. Lost: a terminal alone.
+- `--idle-warn SECONDS`, as #98 asks, with no `-o` keyword, as OpenSSH has none of it.
+- The lead is 30 s, or a sixth of a shorter cut, which a relay's limits may give (T-342).
+- The warning keeps nothing alive: podssh sends nothing that the user turned off. Lost: an
+  SSH_MSG_IGNORE as the cut nears, which needs no reply and which each server ignores (RFC 4253,
+  section 11.2): it would undo the `ServerAliveInterval=0` that the user set, and russh 0.65.0 has
+  no call that sends one.
+
+## Prove
+
+```sh
+export CARGO_BUILD_JOBS=4
+cargo test -p podssh-ssh --lib -- notice::idle
+cargo test -p podssh-cli --test ssh_args -- idle_warn
+cargo test -p podssh-cli --test relay_live -- --ignored idle_warn
+```
+
+The live test, through the live relay with `-o ServerAliveInterval=0` and `sleep 175`: the line at
+about 150 s, then the cut's at 180 s, each once. Planted: the payload's time never moved: the test
+of a payload at 140 s fails.
+
+# T-464: A connection that ends right after the login reads as a refused session, or as a loss with no cause
+
+**Source:** GitHub #104 (Nemo-010, 2026-11-02): against a stopped sandbox whose gateway
+(`SSH-2.0-Go`) still logs in, `podssh ssh -v HOST 'echo hi'` says "the server refused to open a
+session: Disconnected", on another run "...: Channel send error", then "the relay closed the
+connection (code 1000): target closed", 255; four times in an afternoon, each time read as a fault
+of the relay. GitHub #85 (the same day): the lost connection while `-R`'s forwards were asked for
+names no cause. Read at `f8d15bf`.
+**Category:** defect
+**Milestone:** none
+**Priority:** P2
+**Effort:** S
+**Status:** open
+
+## Problem
+
+When the server ends the connection between the login and the first channel, podssh says that the
+server refused a session, with russh's words; the server refused nothing. A refusal and a lost
+connection read alike, so a user cannot tell a far host that has stopped from a server that
+refuses a session, and debugs the relay.
+
+## Premise
+
+Read in russh 0.65.0, the version of the lock (cargo's registry), its `src/client/mod.rs`:
+`channel_open_session` gives `SendError` when the connection's task went before the request
+(lines 849-852), `Disconnect` when it went before the answer (lines 768-771), and
+`ChannelOpenFailure` for the server's refusal alone (lines 765-766). So the words that #104 reads
+as the server's are russh's.
+
+- Read: each error of the session's open gives "the server refused to open a session", with
+  russh's words after (`crates/podssh-ssh/src/session.rs:62-63`), and that open has no limit,
+  where the exec's and SFTP's have one (`crates/podssh-ssh/src/exec.rs:82`,
+  `crates/podssh-ssh/src/sftp/mod.rs:168`). `describe` reads `Disconnect` and `SendError` as a
+  connection that closed (`crates/podssh-ssh/src/run.rs:453-455`); the session's open does not
+  call it. The other opens give one line for each error alike
+  (`crates/podssh-ssh/src/exec.rs:84`, `crates/podssh-ssh/src/mux/msession.rs:65`,
+  `crates/podssh-ssh/src/sftp/mod.rs:170`, `crates/podssh-cli/src/ping/far.rs:51`).
+- Read: the handler keeps the server's DISCONNECT in words, and russh's error
+  (`crates/podssh-ssh/src/handler.rs:162`, `crates/podssh-ssh/src/handler.rs:167`); the open reads
+  neither. The relay's close with 1000 comes as a line after the message
+  (`crates/podssh-ssh/src/run.rs:93-96`).
+- Read: the lost connection of `-R`'s requests names no cause
+  (`crates/podssh-ssh/src/remote.rs:87-88`), where a lost session names russh's
+  (`crates/podssh-ssh/src/session.rs:30-33`).
+
+## Approach
+
+1. One reading of an open's error, for each place that opens a channel after the login (the
+   session, `-R`'s requests, the exec, SFTP, a control master's session, `ping`):
+   `ChannelOpenFailure` is a refusal, in OpenSSH's words of its reason ("open failed:
+   administratively prohibited"); `Disconnect`, `SendError` or a closed handle is a connection
+   that ended: "the server ended the connection right after the login, before a session opened",
+   with the server's own words when it sent a DISCONNECT, else russh's cause from the handler;
+   then one line of what it may mean: "the far host may be stopped, the login may no longer be
+   valid, or the server takes no more sessions".
+2. The session's open within ConnectTimeout, as the exec's and SFTP's opens have their limits.
+3. Tests: the tests' SSH server (`crates/podssh-cli/tests/ssh_harness/mod.rs`) gets a user whose
+   server ends the connection when a session channel is asked for, and one whose server refuses
+   it (administratively prohibited);
+   `podssh ssh --direct` exits 255 with the line of each; and `-R` to a server that ends the
+   connection at `tcpip-forward` names the cause.
+
+## Decision
+
+The words name what podssh knows, the order of the events, and then say what it may mean, with no
+product's name: a sandbox is #104's case, not each server's. Lost: #104's own sentence ("the
+sandbox may be stopped, the token expired"). The cause comes first and the reading second, so a
+script that reads the first line gets the fact.
+
+## Prove
+
+```sh
+export CARGO_BUILD_JOBS=4
+cargo test -p podssh-ssh --lib -- session::tests
+cargo test -p podssh-cli --test ssh_exit_status -- after_login
+```
+
+Planted: the refusal's words for each error, as now: the test of the user whose server ends the
+connection fails.

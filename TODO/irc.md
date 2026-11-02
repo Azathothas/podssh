@@ -1202,3 +1202,83 @@ InspIRCd 4.11.0 at `commandrate="10000"`, `threshold="100"` and `fakelag="no"`, 
 transfer_server -- --ignored` carried 64 KiB paced, in 246 chunks and 50 s, with the same SHA-256;
 planted, the same run at 1000 lines a second was closed. Paced, 2000 bytes crossed ngircd 27 and
 ergo 2.18.0.
+
+# T-489: `chat --listen --linger`: a listener that stays for each peer after its input ended
+
+**Source:** GitHub #102 (Nemo-010, 2026-11-02): with `podssh 1.0.0 (35a0d19d)` a `--listen` with
+stdin at `/dev/null` left as its peer came, and the peer read `not delivered` and `the peer left`;
+with `sleep 60 |` in front, the same listener took a message and a file, with equal digests.
+**Category:** feature
+**Milestone:** none
+**Priority:** P3
+**Effort:** S
+**Status:** open
+
+## Problem
+
+`podssh chat --listen` reads its messages from stdin. A listener that a service, an entrypoint or
+an agent starts has no stdin to keep open; at its end, the listener ends its conversation as soon
+as a peer comes, and the peer reads "the peer left", which looks like a fault of the delivery. The
+way round it is a trick of the shell (`sleep 3600 |`). The help does not say that the end of stdin
+ends the listener, and the listener does not say why it left.
+
+## Premise
+
+- Read: while no peer is there, an input that ended keeps the listener waiting
+  (`crates/podssh-cli/src/chat/lines.rs:104-116`); `crates/podssh-cli/src/chat/lines.rs:113` says
+  "None => std::future::pending().await". So the issue's "exits at once" is "leaves as its first
+  peer comes", which the issue's first run shows too.
+- Read: a conversation that sends no one thing runs until stdin ends and each message and file
+  went, or until the peer leaves (`crates/podssh-cli/src/chat/converse.rs:27-28`); at the input's
+  end the loop stops reading it (`crates/podssh-cli/src/chat/converse.rs:169`), and `finished`
+  then ends the conversation (`crates/podssh-cli/src/chat/converse.rs:159`).
+- Read: after a peer left, the listener goes on only while input may still come
+  (`crates/podssh-cli/src/chat/run.rs:155-156`, `crates/podssh-cli/src/chat/listen.rs:179-186`).
+- Read: the row of `--listen` says nothing of stdin (`crates/podssh-cli/src/flags/chat.rs:11-12`),
+  and with no terminal `--timeout` is needed (`crates/podssh-cli/src/flags/chat.rs:25-26`).
+- Read: the side that waits is the node of a pair, which connects out to the relay
+  (`crates/podssh-cli/src/chat/listen.rs:1-5`): it listens on no socket, so `--linger` adds no
+  listener (rule 2 of `AGENTS.md`).
+
+## Approach
+
+1. `--linger`, with `--listen` alone (64 elsewhere): the end of the input ends neither a
+   conversation nor the run. A conversation ends when the peer leaves, at `/quit`, at a signal or
+   at `--timeout`; then the listener waits for the next peer.
+2. With `--linger`, `--timeout` is the run's planned end: the exit is 0 when each message went, as
+   at SIGTERM, not 75.
+3. Without `--linger`, a listener whose input had ended when its peer came says so on stderr, and
+   in `--jsonl` as the end `input-ended`: "stdin ended: the conversation ends with nothing to send;
+   --linger keeps the listener for its peers".
+4. The row of `--listen` and the notes of `chat`: the end of stdin ends the listener once each line
+   went, and `--linger` keeps it. `docs/cli.md`, `docs/irc.md` (chat on the roads) and
+   `docs/STATUS.md`.
+
+## Decision
+
+- A flag with no value, bounded by `--timeout`. `--linger DURATION` lost: a second clock, where
+  `--timeout` bounds the run already and is needed with no terminal. `--no-stdin` lost: it names
+  what is not read, and a listener that reads a file of first lines and then stays is a case too
+  (`--linger < hello.txt`).
+- The default stays: a listener whose input ends leaves once each line went, which
+  `--listen NAME < lines` and the tests of T-099 rely on. A listener that stays by default lost for
+  that reason.
+- No record tells the peer why: the protocol has no record of a leave with a reason
+  (`crates/podssh-core/src/chat/record.rs:29-71`), and a new one needs both ends' versions; the
+  listener's own line says why.
+
+## Prove
+
+```sh
+export CARGO_BUILD_JOBS=4
+cargo test -p podssh-cli --test chat_converse
+cargo test -p podssh-cli --test chat_cli
+```
+
+In memory (`chat_converse`): a listener whose input ended, with `--linger`, takes a message,
+acknowledges it and stays until the peer leaves, then takes a second peer; without it, its line
+says that stdin ended. `chat_cli`: `--linger` without `--listen` is 64, and the help and the
+manual name the end of stdin. Live, through the live relay (a test of the relay runs with its
+entry): `chat --listen --linger --timeout 60s NAME < /dev/null`, and two runs of `--send` from the
+peer, each delivered. Planted (new, t489-linger-ignored): the end of the input ends the
+conversation with `--linger`; the test in memory fails.

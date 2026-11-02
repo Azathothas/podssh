@@ -62,15 +62,15 @@ repository and CI).
 
 ## Counts
 
-**453 entries: 44 open, 2 partial, 17 blocked, 390 done.**
+**475 entries: 66 open, 2 partial, 17 blocked, 390 done.**
 
 | Priority | open | partial | blocked | done | total |
 | --- | --- | --- | --- | --- | --- |
 | P0 | 0 | 0 | 0 | 1 | 1 |
-| P1 | 1 | 2 | 0 | 50 | 53 |
-| P2 | 19 | 0 | 14 | 187 | 220 |
-| P3 | 24 | 0 | 3 | 152 | 179 |
-| **All** | 44 | 2 | 17 | 390 | 453 |
+| P1 | 4 | 2 | 0 | 50 | 56 |
+| P2 | 29 | 0 | 14 | 187 | 230 |
+| P3 | 33 | 0 | 3 | 152 | 188 |
+| **All** | 66 | 2 | 17 | 390 | 475 |
 
 ## Entries
 
@@ -529,3 +529,25 @@ repository and CI).
 | [T-455](mesh.md) | P2 | S | M10 | feature | open | The relay role mints for the members of the net |
 | [T-456](mesh.md) | P3 | M | M10 | feature | blocked | XHTTP over HTTP/1.1, on a second connection |
 | [T-457](mesh.md) | P2 | M | M10 | feature | open | The relay role dials its targets through the host's `HTTPS_PROXY` |
+| [T-460](ssh.md) | P1 | M | none | defect | open | A reply to a global request that carries data ends the connection: a quiet minute with keepalives, and a refused `-R` |
+| [T-461](ssh.md) | P1 | S | none | defect | open | A link that ends after the exit status and before the output's end gives that status: output cut at the relay's 64 MiB exits 0 |
+| [T-462](ssh.md) | P2 | S | none | defect | open | A `-J` hop whose channel opens and then carries nothing ends in a bare handshake timeout, and the open has no limit |
+| [T-463](ssh.md) | P2 | M | none | feature | open | A warning before the relay's idle cut, while the user can still act |
+| [T-464](ssh.md) | P2 | S | none | defect | open | A connection that ends right after the login reads as a refused session, or as a loss with no cause |
+| [T-470](copy.md) | P2 | S | none | defect | open | `cp --delta` sends the whole file with no word when the server cannot take a delta |
+| [T-471](copy.md) | P1 | M | none | defect | open | `sftp`'s `ls -l` is not OpenSSH's long form, and five switches of its `ls` do nothing |
+| [T-472](copy.md) | P2 | M | none | feature | open | `cp`, `mv` and `run` say nothing of what they did without `-v`, and nothing in a pipe while a copy runs |
+| [T-473](copy.md) | P3 | M | none | feature | open | `cp` and `mv` have no `--no-clobber`, `--update` or `--backup` |
+| [T-474](copy.md) | P2 | S | none | feature | open | `cp` copies many small files one at a time unless `--parallel` is given |
+| [T-475](multi.md) | P3 | S | none | feature | open | `podssh run` has no `--dry-run`, and its help names neither `.podsshignore` nor the paths that never go |
+| [T-476](copy.md) | P2 | S | none | defect | open | `cp -r` says its first failure twice, and exits 66 for a device, FIFO or socket that it skips by design |
+| [T-480](multi.md) | P2 | M | none | defect | open | `health` gives the host's CPUs and memory where a container's cgroup allows fewer |
+| [T-481](multi.md) | P2 | M | none | feature | open | `job` and `--persist` on a host with no tmux: the command that installs it, and jobs with no tmux when asked |
+| [T-482](multi.md) | P2 | L | none | feature | open | `health --preflight`: what the far host allows, from one login, before a long command needs it |
+| [T-483](pipe.md) | P3 | S | none | feature | open | `http-listen:` takes `ssh:[USER@]HOP` with no target, and `pipe --help` shows the proxy of an SSH server with its client |
+| [T-484](multi.md) | P3 | M | none | feature | open | `each --json` and `each --result-file`: each host's status, failure and streams in one object |
+| [T-485](multi.md) | P3 | S | none | feature | open | `job log --follow`: a job's output as it comes, on one connection, then its status |
+| [T-486](machine.md) | P3 | M | none | feature | open | `--result-file` for `cp`, `mv`, `scp`, `run` and `sftp`, in the schema of `ssh --result-file` |
+| [T-487](ws.md) | P3 | S | none | feature | open | `doctor` says once that each TLS handshake was reset, and tells a reset from a timeout |
+| [T-488](machine.md) | P3 | L | none | feature | open | `podssh mcp` offers `cp`, `job`, `health` and `session` as tools, behind the gate of `ssh_exec` |
+| [T-489](irc.md) | P3 | S | none | feature | open | `chat --listen --linger`: a listener that stays for each peer after its input ended |

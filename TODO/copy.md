@@ -1432,6 +1432,14 @@ drop the name check; that case must then fail.
 (`crates/podssh-cli/src/cp/`): this entry builds on its temporary name, its
 digest check and its rename for each file of a tree.
 
+2026-11-02 (GitHub #105): step 3's "the exit is then not zero", which the
+Decision gives "as `scp` does", holds for OpenSSH's `scp -O` alone. Read in
+OpenSSH 10.2p1 (`openssh/openssh-portable:sftp-client.c` at the tag
+`V_10_2_P1`, `upload_dir_internal` and `download_dir_internal`): `scp -r` in
+its SFTP mode, the default since OpenSSH 9.0, and `sftp`'s `put -r` and
+`get -r` log a device, a FIFO or a socket as "not a regular file" and go on
+with no failure. T-476 makes such a skip no failure.
+
 ## Done
 
 2026-10-12. `crates/podssh-cli/src/cp/tree.rs` (the walks, the names, the
@@ -2716,3 +2724,519 @@ relay with 50 ms each way, 0.8 up and 0.7 down a second with one task (0.7 and 0
 and 3.4 with 8 (4.6 and 3.2); to a node of the live relay with 8 tasks, 4.7 and 1.5 (4.6 and 1.6),
 and with one task the 200 files still outlast `cp`'s 300 s. Several tasks stay the lever, now
 named where it is wanted; the default stays one task (the Decision).
+
+# T-470: `cp --delta` sends the whole file with no word when the server cannot take a delta
+
+**Source:** GitHub #87 (Nemo-010, 2026-11-02, with `podssh 1.0.0 (35a0d19d)`).
+**Category:** defect
+**Milestone:** none
+**Priority:** P2
+**Effort:** S
+**Status:** open
+
+## Problem
+
+A user gives `--delta` to send less through a slow relay. When the server cannot take a delta,
+the copy sends the whole file and says why only at `-v`. The issue changed 13 bytes of a file of
+5 MiB on a Go SFTP server with no `copy-data`: the copy sent all 5,242,880 bytes, in the time of a
+full copy, and said nothing. After the run, the user cannot tell whether the delta helped.
+
+## Premise
+
+- Read: each reason of a server for a full copy is said with `Log::verbose`, at `-v` alone: no
+  `copy-data` for a copy up (`crates/podssh-cli/src/cp/delta.rs:137-140`), and no digest of a
+  block, up and down (`:142-145`, `:270-273`). Only digests that differ after a delta are said at
+  the default level (`:223`, `:339`).
+- Read: `Log::info` writes at the default level, and `Log::verbose` at `-v` and above
+  (`crates/podssh-ssh/src/log.rs:52-58`); `-q` silences both.
+- Read: a copy that goes on in the temporary file of an earlier attempt goes in full, with no word
+  (`crates/podssh-cli/src/cp/bysftp.rs:81`, `:262`), as `docs/cli.md:1729` says. The copy by exec,
+  for a server with no SFTP, does not read `--delta`: `crates/podssh-cli/src/cp/byexec.rs` names no
+  delta, so the flag does nothing there, and nothing says so.
+- Read: a copy up makes its temporary file from the old one with `copy-data` alone
+  (`crates/podssh-cli/src/cp/delta.rs:155-170`), though the delta already runs a command on the
+  server for the digests of the far blocks (`:101-114`), and a command could make that copy too.
+  The issue's server offers `hardlink@openssh.com` and `posix-rename@openssh.com`, and no
+  `copy-data` (the issue; not measured here); OpenSSH's `sftp-server` offers `copy-data` (T-142).
+- Read: the `done` object of `--jsonl` has no field for a delta
+  (`crates/podssh-cli/src/cp/report.rs:43-51`).
+
+## Approach
+
+1. Each reason why `--delta` gives a full copy is one line at the default level, once for each
+   file, that names the reason and says that the whole file goes: "SRC: the server has no
+   copy-data and runs no command: this copy sends the whole file". The reasons: no `copy-data` and
+   no command; no command, `dd` or digest tool for the blocks; a copy by exec; a copy that goes on
+   from an earlier attempt. A destination that is not there, or is empty, stays at `-v`: it has no
+   older version, and a full first copy is what the user expects.
+2. On a server with a command and no `copy-data`, a copy up makes its temporary file from the old
+   one there: the file is made over SFTP as now (mode 0600, `CREATE` and `EXCLUDE`), then one
+   command fills it (`cat -- OLD > TEMP`, each path one quoted word, as
+   `podssh_ssh::exec::shell_word` gives it), so no byte of the old file crosses. Then the blocks
+   that differ, the size, the digest and the rename, as now. The order: `copy-data`, the command,
+   a full copy.
+3. With `--jsonl`, the `done` object of each copy with `--delta` gains `"delta"`:
+   `{"blocks": N, "sent": K, "bytes": B}` after a delta, or `{"full": "REASON"}` after a full copy.
+4. The row of `--delta` (`crates/podssh-cli/src/flags/copy.rs:29-30`), the manual,
+   `docs/cli.md:1719-1730` and `docs/STATUS.md`.
+
+## Decision
+
+- The line is a note, not a refusal: the full copy is still a correct and verified copy, and a
+  refusal would fail a copy that works. Lost: the silence of today; an exit that is not zero,
+  which would fail each script that gives `--delta` to a server without `copy-data`.
+- The temporary file is made over SFTP, then filled by the command: `EXCLUDE` makes the name the
+  copy's own, as now, so the command writes into no name that it did not make. A command that
+  makes the file too lost: whether `set -C` opens with `O_EXCL` is the far shell's choice, and
+  podssh does not know that shell (Inferred). Lost too: a read of the far blocks over SFTP, to
+  hash them here, which brings the old file down whole, as many bytes through the relay as the
+  full copy sends up.
+
+## Prove
+
+```sh
+export CARGO_BUILD_JOBS=4
+cargo test -p podssh-cli --test cp_delta
+sh scripts/dev.sh check   # interop-cp.sh: --delta against a subsystem with no copy-data
+```
+
+`cp_delta` gains tests against the test's server whose commands run in sh
+(`crates/podssh-cli/tests/ssh_harness/serve.rs:41`), with a user whose subsystem leaves
+`copy-data` out of its version reply (new, beside the user `evil-...` of
+`crates/podssh-cli/tests/ssh_harness/sftp.rs`): over an older file of 5 MiB with 13 bytes
+changed, a copy up with `--delta` sends one block of five, by the command's copy, and the digests
+are equal; with the command refused as well, the copy goes in full, exits 0, and stderr says once,
+with no `-v`, that the whole file goes; with `-q`, nothing; with `--jsonl`, the `done` object
+holds `"delta"`. In the gate, `scripts/interop-cp.sh` checks the same through OpenSSH, with a
+subsystem that drops `copy-data` from the version reply, made as its subsystem that flips a byte
+is made. Planted defect: the note back at `-v`; the test with no `-v` fails.
+
+# T-471: `sftp`'s `ls -l` is not OpenSSH's long form, and five switches of its `ls` do nothing
+
+**Source:** GitHub #89 (Nemo-010, 2026-11-02, with `podssh 1.0.0 (35a0d19d)`).
+**Category:** defect
+**Milestone:** none
+**Priority:** P1
+**Effort:** M
+**Status:** open
+
+## Problem
+
+`podssh sftp` says that it works "as OpenSSH's sftp", but its `ls -l` prints the mode, the size
+and the name alone: no link count, owner, group or time. A script that reads the long form by its
+columns (`awk '{print $3, $4}'`) reads the wrong ones. `ls` also takes `-f`, `-h`, `-r`, `-S` and
+`-t`, as OpenSSH's does, and does nothing with them: a batch that sorts by time gets the order of
+the names, with no word.
+
+## Premise
+
+- Read: a long line is the type, the nine bits of the mode, the size and the name
+  (`crates/podssh-cli/src/sftp/run.rs:294-310`). The type is `d`, `-`, or else `?`, so a link, a
+  FIFO, a device and a socket each show `?`, and the set-id and sticky bits are not shown. Its
+  unit test holds that form (`:343-346`). The file has 352 lines.
+- Read: `ls` takes `-1afhlnrSt` and keeps `l`, `n` and `a` alone
+  (`crates/podssh-cli/src/sftp/commands.rs:201-205`): `-n` is `-l`, and `-f`, `-h`, `-r`, `-S`
+  and `-t` do nothing. `docs/cli.md:1916` names `ls [-la]`.
+- Read: the about of `sftp` says "as OpenSSH's sftp" (`crates/podssh-cli/src/flags.rs:392`); the
+  issue names it the README's.
+- Read: `Sftp::read_dir` keeps the name and the attributes of each entry, and drops the long name
+  that the server sends with each (`crates/podssh-ssh/src/sftp/mod.rs:71-78`, `:426-441`);
+  russh-sftp 3.0.1's `File` holds it as `longname`.
+- Read, in OpenSSH 10.2p1 (`openssh/openssh-portable:sftp.c` and
+  `openssh/openssh-portable:sftp-common.c`, at the tag `V_10_2_P1`, the functions `do_ls_dir`,
+  `do_globbed_ls` and `ls_file`): `ls -l` of a directory prints the long name of each entry as the
+  server sent it, unless `-n` or `-h` is given or the server offers
+  `users-groups-by-id@openssh.com`. Then, and for `ls -l` of a file or a pattern, `ls_file` makes
+  the line from the attributes: the mode as `strmode` gives it, `?` for the link count of a remote
+  file, the owner and the group by name from that extension, else by number, each 8 wide at
+  least, the size 8 wide, the time as `%b %e %H:%M` within the last six months, else as
+  `%b %e  %Y`, in the local zone, then the name. Without `-l` or `-1`, the names go in columns of
+  the terminal's width, else of 80.
+- Inferred from that source, not measured: for the issue's one file, OpenSSH's `sftp` prints `?`
+  for the link count and, on the issue's server, which offers no
+  `users-groups-by-id@openssh.com`, `0` for the owner and the group; the issue's line is the
+  server's long name.
+- Read: `chrono`, with its local zone, is a dependency of `podssh-ssh` already
+  (`crates/podssh-ssh/Cargo.toml:66`, `crates/podssh-ssh/src/sshsig.rs:16`).
+
+## Approach
+
+1. `Sftp::read_dir` keeps the long name of each entry (empty when the server sent none).
+2. `ls -l` of a directory prints each long name, as OpenSSH does, when the server sent them,
+   offers no `users-groups-by-id@openssh.com`, and neither `-n` nor `-h` is given. Else, and for a
+   file or a pattern, a line made as `ls_file` makes it: the type letter of each kind (`-`, `d`,
+   `l`, `p`, `s`, `c`, `b`) and the set-id and sticky bits, `?` for the link count, the owner and
+   the group by name from `users-groups-by-id@openssh.com` (asked once for the ids of a listing),
+   else or with `-n` by number, the size (with `-h` scaled as OpenSSH's `fmt_scaled` scales it),
+   the time in the local zone, and the name, with OpenSSH's widths.
+3. The other switches as OpenSSH's: `-a` the names that start with a dot, `-f` no sort, `-r` the
+   reverse order, `-S` by size, `-t` by time of change, `-1` one name a line; without `-l` or
+   `-1`, the names in columns, as OpenSSH's.
+4. The listing goes into a module of its own, so that `crates/podssh-cli/src/sftp/run.rs` stays
+   well under 500 lines. The `help` of `sftp`'s commands, the manual, `docs/cli.md:1913-1919` and
+   `docs/STATUS.md`.
+
+## Prove
+
+```sh
+export CARGO_BUILD_JOBS=4
+cargo test -p podssh-cli --lib sftp::
+cargo test -p podssh-cli --test copy_pipeline -- sftp_ls
+sh scripts/dev.sh check   # interop-sftp.sh: podssh's ls lines beside OpenSSH's sftp's
+```
+
+The unit tests: the line of a file, a directory, a link, a FIFO, the set-id bits, a time of the
+last six months and an older one, an owner longer than 8, and `-h`. `sftp_ls` (new) runs one
+batch against the test's server (OpenSSH's `sftp-server`, which sends long names and, in 10.2p1,
+offers `users-groups-by-id@openssh.com`; `openssh/openssh-portable:sftp-server.c` at the tag
+`V_10_2_P1`): `ls -l` of a directory and of a file give seven columns, `?` for the link count, and
+the owner and the group by name; `ls -ln` by number; `ls -lt`, `ls -lS` and `ls -lr` their orders;
+with the extension hidden from the version reply (a user of the test's server, as T-470 makes
+one), `ls -l` of a directory gives the server's long names. In the gate,
+`scripts/interop-sftp.sh` runs the same batch through OpenSSH's `sftp` and through `podssh sftp`
+against one server, with `TZ=UTC` for both, and the lines must be equal. Planted defect: the owner
+left out of a line that the form of `ls_file` makes; the comparison fails.
+
+# T-472: `cp`, `mv` and `run` say nothing of what they did without `-v`, and nothing in a pipe while a copy runs
+
+**Source:** GitHub #90 (Nemo-010, 2026-11-02, measured with `podssh 1.0.0 (35a0d19d)` at about 2
+MiB/s through the relay).
+**Category:** feature
+**Milestone:** none
+**Priority:** P2
+**Effort:** M
+**Status:** open
+
+## Problem
+
+At the default level, a copy that succeeds says nothing: not what it sent, nor what it left as it
+was, nor how long it took. A second `podssh run` that sent one file and left two says so at `-v`
+alone. And where stderr is a pipe, as for an agent in a cage, a copy of 70 MiB at 2 MiB/s is 35 s
+with no word, which reads as a hang.
+
+## Premise
+
+- Read: at its end, a run of `cp` or `mv` says each file done at `-v` alone
+  (`crates/podssh-cli/src/cp/report.rs:40-68`, `:66`), and at the default level only the number of
+  deletes (`:37-39`) and a failure. `run` says "files sent N, unchanged M" at `-v` alone
+  (`crates/podssh-cli/src/run_cmd/mod.rs:226`), the line that its test reads
+  (`crates/podssh-cli/tests/run_far.rs:17-20`).
+- Read: the progress line is drawn only when stderr is a terminal and `-q` is not given, unless
+  `PODSSH_PROGRESS=line` (`crates/podssh-cli/src/cp/gauge.rs:23-37`): T-145's Approach chose
+  nothing in a pipe.
+- Read: a gauge is made only by the SFTP road's copy of one file in one stream
+  (`crates/podssh-cli/src/cp/bysftp.rs:155`, `:336`). The chunks of `--parallel`
+  (`crates/podssh-cli/src/cp/chunks.rs`) and the copy by exec (`crates/podssh-cli/src/cp/byexec.rs`)
+  draw none, and each file of a tree draws a line of its own, with no count of the run's files.
+- Read: the counts that a summary needs are in the run's `Outcome` already: the files done with
+  their bytes, the files left as they were, and the deletes (`crates/podssh-cli/src/cp/mod.rs:155-170`).
+
+## Approach
+
+1. One summary line at the end of each run of `cp`, `mv` and `run`'s copy, at the default level
+   (`-q` silences it), also after a failure, before its error: "3 copied (3.1 MiB), 2 unchanged,
+   1 skipped, 1 failed, in 12.0 s (264.5 KiB/s)"; each count of zero is left out but the first.
+   With `--jsonl`, a `summary` object on stdout in its place. The skips are those of T-476 and
+   T-473.
+2. Where stderr is no terminal, a plain line (no carriage return, no escape) at the default level
+   each 10 s, once the run has passed 10 s: the run's files done of its files, its bytes, its
+   rate, and the file in flight. A run shorter than 10 s writes none. `-q` and
+   `PODSSH_PROGRESS=off` silence it; `PODSSH_PROGRESS=line` keeps the line of a terminal, as now.
+3. One gauge for the run, fed by each road: one stream, the chunks of `--parallel`, the files K at
+   once (one line for the run, not one for each lane), and the copy by exec (the bytes as its
+   command takes them). On a terminal, the line names the file in flight and, with several files,
+   the run's count.
+4. `run` says its summary before the command starts, on stderr, so that the command's stdout stays
+   its own; with T-475, the paths that the ignores left out.
+5. `scp` and `sftp` keep the output of OpenSSH's, with no summary. The manual,
+   `docs/cli.md:1783-1794`, `docs/STATUS.md`, and `crates/podssh-cli/tests/run_far.rs`, which reads
+   the summary in place of the line of `-v`.
+
+## Decision
+
+- The summary is at the default level: it is the one fact that a user of a sync wants, the run has
+  counted it already, and `-q` still gives a silent run. `scp` keeps OpenSSH's output, as its users
+  and their scripts read it. Lost: the summary at `-v` (today); the summary on stdout, which holds
+  answers alone (the plan of a dry run, `--jsonl`).
+- In a pipe, a plain line each 10 s, and only past 10 s: T-145 kept the line out of a pipe, where
+  its carriage returns would make a log of lines that overwrite each other; a plain line, rare and
+  late, keeps a short copy silent and shows that a long one lives. Lost: the terminal's line in a
+  pipe; a line at each 10 percent, which on a slow link can be minutes apart.
+
+## Prove
+
+```sh
+export CARGO_BUILD_JOBS=4
+cargo test -p podssh-cli --test cp_progress
+cargo test -p podssh-cli --test cp_tree
+cargo test -p podssh-cli --test run_far
+```
+
+Against the test's server: a copy of three files in a pipe ends with one summary line on stderr
+and nothing on stdout, and none with `-q`; `--jsonl` gives one `summary` object; a copy under `-l`
+that lasts 12 s gives one progress line or more in the pipe, with no carriage return, and a copy
+of 1 s none; a tree under `--parallel 4` draws one line for the run (`PODSSH_PROGRESS=line`).
+`run_far` reads "3 copied", then "0 copied, 3 unchanged", then "1 copied, 2 unchanged", with no
+`-v`. Planted defect: the summary at `-v`; the test with no `-v` fails.
+
+# T-473: `cp` and `mv` have no `--no-clobber`, `--update` or `--backup`
+
+**Source:** GitHub #95 (Nemo-010, 2026-11-02, verified with `podssh 1.0.0 (35a0d19d)`).
+**Category:** feature
+**Milestone:** none
+**Priority:** P3
+**Effort:** M
+**Status:** open
+
+## Problem
+
+A copy always replaces its destination, with exit 0 and no word. A user who deploys cannot ask
+podssh to leave a live file alone, a user who syncs cannot ask it to skip a far file that is newer,
+and nobody can keep the old file beside the new one. `--inplace` and `--delta` write over the
+destination too.
+
+## Premise
+
+- Measured in the issue: `cp -n`, `--no-clobber`, `-u` and `--backup` are each an unknown flag,
+  and a second copy of a changed file replaces the far one with exit 0 and nothing on stderr.
+  Read: `CP_FLAGS` has no such row (`crates/podssh-cli/src/flags/copy.rs:10-80`), and each copy
+  ends with a rename over its destination (`crates/podssh-cli/src/cp/transfer.rs:196-215`), by
+  `posix-rename@openssh.com` where the server has it
+  (`crates/podssh-ssh/src/sftp/mod.rs:404-413`).
+- Read: `hardlink@openssh.com` gives a file a second name
+  (`crates/podssh-ssh/src/sftp/mod.rs:331-341`, which T-146 uses in
+  `crates/podssh-cli/src/cp/meta.rs:372-388`). A hard link is never made over a name that is there
+  (POSIX `link()`; Inferred for each server), so it can put a verified file at a name that must
+  not be replaced, also when that name came during the copy. Not read here: what each server does
+  with SFTP's own rename onto a name that is there.
+- Read: OpenSSH's `scp` has none of these flags (its usage, T-139). rsync's manual
+  (`RsyncProject/rsync:rsync.1.md` at `v3.4.1`): `--update` skips a file whose destination is
+  newer, and copies one whose time is equal when the sizes differ; `--backup` keeps the old file
+  with the suffix `~` (`--suffix`), and with `--delete` protects the names with that suffix from
+  deletion.
+- Read: `run`'s check of a file that did not change compares the size and the time of change in
+  whole seconds, as SFTP version 3 carries them (`crates/podssh-cli/src/cp/tree_copy.rs:415-423`).
+
+## Approach
+
+1. Flags of `cp` and `mv` (`scp` keeps OpenSSH's table): `--no-clobber` (`-n`), `--update`
+   (`-u`), and `--backup` (`-b`) with `--suffix SUFFIX` (default `~`, as GNU `cp` and rsync have
+   it). `--no-clobber` with `--backup` is refused (64), as GNU `cp` refuses it; `--backup` with
+   `--inplace` is refused (64), as a copy in place keeps no old file.
+2. `--no-clobber`: a destination file that is there stays as it is. The copy looks first, before
+   any byte goes, and says it once at the default level ("DST: there, so not replaced"). A name
+   that comes during the copy stays too: the verified temporary file takes the name by a hard link
+   (`hardlink@openssh.com`; here `std::fs::hard_link`), which refuses a name that is there, and
+   then the temporary name goes. With no hard link, the look is the guard, and `-v` says so.
+   `mv -n` keeps each source that it did not copy. By exec, `ln` (POSIX), else the look.
+3. `--update`: a file goes when its destination is missing, when the source's time of change is
+   later, or when the times are equal and the sizes differ, as rsync's does; the times in whole
+   seconds, as `run` compares them. A file that does not go is said at `-v`.
+4. `--backup`: the old file stays at its name with the suffix. Before the rename, a hard link of
+   the old file takes that name (an older backup there goes first), so that the destination's name
+   is never missing; with no hard link, a rename of the old file first, and `-v` says that the name
+   is missing for that moment. With `--delete`, a name that ends with the suffix is never deleted,
+   as rsync protects its backups.
+5. Each skip counts in T-472's summary and is a `skipped` object with `--jsonl` (its `"why"`:
+   `exists` or `not newer`); `--dry-run` says `skip SRC: exists`, `skip SRC: not newer` and
+   `backup DST -> DST~`; the `done` object of a copy with a backup gains `"backup"`.
+6. The rows, the manual, `docs/cli.md` and `docs/STATUS.md`.
+
+## Decision
+
+- The names are GNU `cp`'s and rsync's, as OpenSSH's `scp` has none: a user of a sync knows them.
+  The exit is 0 after a skip that the user asked for.
+- A hard link is the guard of `--no-clobber` and the way of `--backup`: it never takes a name that
+  is there, and it leaves the old file where it is until the rename. Lost: a look, then the rename
+  (a file that comes between the two is replaced); SFTP's own rename, which version 3 says refuses
+  a name that is there, but whose answer on other servers was not read.
+
+## Prove
+
+```sh
+export CARGO_BUILD_JOBS=4
+cargo test -p podssh-cli --test cp_args
+cargo test -p podssh-cli --test cp_tree -- clobber
+```
+
+`cp_args`: `-n` with `-b`, and `-b` with `--inplace`, exit 64 before anything connects, and
+`scp -n` is refused, as OpenSSH's `scp` has no `-n`. A new test of `cp_tree`, against the test's
+server (OpenSSH's `sftp-server`), up and down: with `-n`, a destination that is there stays, the
+copy exits 0 and says so once, and a destination written while a copy under `-l` runs stays too;
+with `-u`, an older destination is replaced, a newer one stays, and one of the same time and
+another size is replaced; with `-b`, the old file is at `NAME~` and the new one at `NAME`, and
+`--delete` leaves `NAME~`; each also in `--dry-run` and in `--jsonl`. Planted defect: the rename
+in place of the hard link for `-n`; the check of a name written during the copy fails.
+
+# T-474: `cp` copies many small files one at a time unless `--parallel` is given
+
+**Source:** GitHub #100 (Nemo-010, 2026-11-02, measured with `podssh 1.0.0 (35a0d19d)` through
+the relay, at some 172 ms of echo latency), and its comment of the same day.
+**Category:** feature
+**Milestone:** none
+**Priority:** P2
+**Effort:** S
+**Status:** open
+
+## Problem
+
+Through the relay, each small file waits for its own round trips, so a tree of small files takes
+their sum. `--parallel 8` takes 6 to 12 times less time, but a user who does not know the flag
+waits minutes: 100 files of 2 bytes took 210 s with the default.
+
+## Premise
+
+- Read: `--parallel` is 1 when it is not given (`crates/podssh-cli/src/cp/pipe.rs:38-44`), and
+  files go K at once only with K above 1 (`crates/podssh-cli/src/cp/lanes.rs:33-37`). A tree of 50
+  files or more that goes one at a time says once that `--parallel 8` copies 8 at once
+  (`crates/podssh-cli/src/cp/tree_conn.rs:26-28`, `:74-87`). One K sets both the files at once and
+  the chunks of one large file (`crates/podssh-cli/src/flags/copy.rs:27-28`).
+- Measured in the issue, each tree equal to its source: 12 files of 40 KB, 28 s one at a time and
+  8 s with `--parallel 6`; 20 files of 20 KB, 48.9 s and 10.0 s; 100 files of 2 bytes, 210 s, 32 s
+  with 8, and 18 s with 16. T-417 measured 0.8 files a second up with one, and 5.3 with 8, through
+  the stand-in relay with 50 ms each way.
+- Read: T-141 and T-417 kept the default of 1 as their own call ("several channels are the user's
+  choice"), after the operator's ruling Q23. Its row reads: several relay sessions for one copy
+  when the user asks, a flag sets the number, the default is 1, and
+  `docs/decisions.md:46` says "Several channels in one connection come first". The files K at
+  once are channels of one connection (T-297), not relay sessions. T-141's Approach kept K at 1
+  "until a measurement shows a gain".
+- Read: a server that opens fewer sessions gets fewer files at once, with no failure, and through
+  the relay the files share 1.5 MiB in flight (T-297's Decision). OpenSSH opens 10 sessions on one
+  connection by default, and the far digest of each file opens an exec channel beside its SFTP
+  session; a digest that cannot start falls back to a second read (T-297, T-417).
+
+## Approach
+
+1. When the command line gives no `--parallel`, the files of a run over SFTP (several sources, a
+   tree with `-r`, and `run`'s copy) go K at once, K the smaller of their number and a default
+   that step 3 sets, from 4 to 8. `--parallel 1` keeps one at a time; `--parallel K` sets K, as
+   now.
+2. The default is for files alone: a file of more than one chunk goes in one stream unless
+   `--parallel` is given, as no measurement through the live relay shows that chunks gain by
+   default (T-141 measured 1.34 to 1.55 times through the stand-in). So the shape of a copy keeps
+   two numbers: the files at once, and the chunks of one file.
+3. The measurement, by T-157's method (`throughput_live`, `cp_small_files_by_tasks`), through the
+   stand-in relay and the live relay, with K of 4, 6 and 8: the files a second, and the far
+   digests that fell back to a second read. The default is the K with the most files a second
+   whose digests do not fall back on OpenSSH's 10 sessions.
+4. T-417's line about `--parallel` is not said when the default applies, nor after
+   `--parallel 1`, which the user chose.
+5. The row of `--parallel` names the default; the manual, README.md (its copies, with the
+   measured numbers), `docs/cli.md:1696-1718` and `docs/STATUS.md`.
+
+## Decision
+
+- Q23 does not hold this default, so the entry is not blocked: the ruling sets the default of
+  relay sessions, and puts several channels in one connection first; the files K at once are such
+  channels, over one outbound connection (rule 2 of `AGENTS.md`). The default of 1 was T-141's
+  call, until a measurement showed the gain; the issue's measurements through the live relay show
+  3.5 to 11.7 times. If the operator reads Q23 as the default of `--parallel` too, a question goes
+  to `TODO/PROGRESS.md`, with this default as its recommendation, and the entry is blocked.
+- Lost: K of 16, the issue's fastest, which is more than OpenSSH's 10 sessions, so that the server
+  refuses some lanes and the digests of others fall back to a second read; a K that follows the
+  measured round trip, of which there is none before the first file.
+
+## Prove
+
+```sh
+export CARGO_BUILD_JOBS=4
+cargo test -p podssh-cli --test cp_parallel
+cargo test -p podssh-cli --test cp_tree
+cargo test -p podssh-cli --test throughput_live -- --ignored --nocapture cp_small_files_by_tasks
+```
+
+Against the test's server, which counts the SFTP sessions of each connection
+(`crates/podssh-cli/tests/ssh_harness/watch.rs:89`): a tree of 20 small files with no
+`--parallel` has two sessions or more at once, and the default at most; with `--parallel 1`, one,
+and no line about `--parallel`; one file of 25 MiB with no `--parallel` goes in one stream.
+Planted defect: the default back to 1; the first check fails.
+
+# T-476: `cp -r` says its first failure twice, and exits 66 for a device, FIFO or socket that it skips by design
+
+**Source:** GitHub #105 (Nemo-010, 2026-11-02, verified with `podssh 1.0.0 (35a0d19d)`).
+**Category:** defect
+**Milestone:** none
+**Priority:** P2
+**Effort:** S
+**Status:** open
+
+## Problem
+
+A tree with two FIFOs gives three lines for two skips, and exits 66, the code of a source that is
+missing or cannot be read, though the rest of the tree copied and the row of `-r` calls the FIFO a
+skip. A project with a log pipe or a server's socket in it then fails each `cp -r`, which a CI
+step reads as a failure, and each `podssh run`, which then runs no command.
+
+## Premise
+
+- Read: an item of a tree that fails is said at once, and the first is kept for the exit
+  (`crates/podssh-cli/src/cp/tree_copy.rs:66-71`); at the end, `report` says the kept failure
+  again (`crates/podssh-cli/src/cp/report.rs:69-80`, `:79`). So the first failure of a tree is said
+  twice. The issue reads the line said again as the last skip; its own output shows `ft/p1`, the
+  first.
+- Read, not measured: a list of sources keeps its first failure and says none when it comes
+  (`crates/podssh-cli/src/cp/session.rs:136-141`), so the second failure of a list is never said,
+  and `--jsonl` gives one `error` object for a run (`crates/podssh-cli/src/cp/report.rs:69-78`).
+- Read: a device, a FIFO or a socket of a tree is an `Item::Skip`
+  (`crates/podssh-cli/src/cp/tree.rs:233`, `:301`), and each skip is a failure with the code 66
+  (`crates/podssh-cli/src/cp/tree_copy.rs:243-251`, `:374-383`), "a source that is missing or
+  cannot be read" (`crates/podssh-cli/src/cp/mod.rs:13-14`). T-143 chose it (its Approach, item 3,
+  and its Decision, "as `scp` does"), and `crates/podssh-cli/src/cp/tree.rs:56-57` says so. The
+  row of `-r` says "a device, FIFO or socket skipped with a note"
+  (`crates/podssh-cli/src/flags/copy.rs:31-32`).
+- Read, in OpenSSH 10.2p1 (`openssh/openssh-portable:sftp-client.c` at the tag `V_10_2_P1`, the
+  functions `upload_dir_internal` and `download_dir_internal`): `scp -r` in its SFTP mode, the
+  default since OpenSSH 9.0, and `sftp`'s `put -r` and `get -r` log "not a regular file" for such
+  a file and go on, with no failure. The old protocol, `scp -O`, counts it as an error and exits 1
+  (`openssh/openssh-portable:scp.c`, the functions `source` and `run_err`). So T-143's "as `scp`
+  does" holds for `scp -O` alone.
+- Read: `--delete` never deletes the name of an item that the source skipped
+  (`crates/podssh-cli/src/cp/tree.rs:140-155`), and the check `cp.delete.failed` takes its failed
+  copy from a FIFO (`scripts/interop-cp.sh:150-157`).
+
+## Approach
+
+1. Each failure is said once, when it comes: `report` says the kept failure only when nothing said
+   it before (one file, a connection that failed); the files of a list are said as a tree's are;
+   with `--jsonl`, one `error` object for each failure. The exit code stays the first failure's,
+   in the order of the sources (T-297).
+2. A device, a FIFO or a socket is not copied, and is no failure: one line at the default level
+   that names its kind ("SRC: not copied: a FIFO"), a `skipped` object with `--jsonl`, a count in
+   T-472's summary, and `skip` in `--dry-run`, as now. The exit stays 0 when nothing else failed.
+   `mv -r` removes what it copied, and leaves the special file and the directories that hold it.
+   `--delete` goes on, and never deletes the skipped name. `podssh run`, and `sftp`'s `put -r` and
+   `get -r`, take the same rule.
+3. The other skips stay failures, with their codes: a loop, a depth past 64 levels, a listing or a
+   link that cannot be read, a name that is not UTF-8, and a refused name (70).
+4. The comments that say that a skip makes the exit not zero
+   (`crates/podssh-cli/src/cp/tree.rs:56-57`, and the module comment of
+   `crates/podssh-cli/src/cp/tree_copy.rs`), the row of `-r`, the manual, `docs/cli.md:1731-1747`,
+   `docs/STATUS.md`, and `scripts/interop-cp.sh`: `cp.tree.up` asks for 0 and the note once, and
+   `cp.delete.failed` takes its failed copy from a far directory at the name of a source file (the
+   rename onto it fails, 73, as T-297's test makes one fail).
+
+## Decision
+
+- A special file that `-r` cannot copy is a skip, not a failure: OpenSSH's own `scp` and `sftp`
+  treat it so, the row of `-r` calls it a skip, and a sync with a FIFO or a socket in its tree must
+  not fail at each run. Lost: 66, documented (a project with a socket in it could then never
+  `run`); a code of its own for a skip (sysexits has none, and a script reads 0 or not 0); a
+  `--strict` flag (`--jsonl`'s `skipped` objects let a script decide); a FIFO made as a FIFO on
+  the other side (SFTP version 3 has no request that makes one; Inferred).
+
+## Prove
+
+```sh
+export CARGO_BUILD_JOBS=4
+cargo test -p podssh-cli --test cp_tree -- special
+cargo test -p podssh-cli --test cp_parallel
+sh scripts/dev.sh check   # interop-cp.sh: cp.tree.up and cp.delete.failed, as item 4 says
+```
+
+A new test of `cp_tree` (Unix), against the test's server (OpenSSH's `sftp-server`): a tree with
+a file and two FIFOs (`libc::mkfifo`) goes up and down, exits 0, names each FIFO once on stderr
+and no line twice, and copies the file; with `--jsonl`, two `skipped` objects; with `-q`, nothing
+on stderr and exit 0. A tree with a name that is not UTF-8 still exits not 0, and says it once.
+Two missing sources of one command line are each said once, and the exit is 66. Planted defect:
+`report` says the kept failure again; the check of one line each fails.
