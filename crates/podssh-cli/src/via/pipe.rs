@@ -2,7 +2,9 @@
 //! URL` (T-439): the pipe to the target through the second proxy's tunnel,
 //! as OpenSSH's `ProxyCommand` takes it. The tunnel has TCP's half-close
 //! (END_STREAM on HTTP/2, TLS's close on HTTP/1.1), so the end of stdin
-//! stops what goes, and the target's bytes come until it closes.
+//! stops what goes, and the target's bytes come until it closes; but squid
+//! ends the whole tunnel at TLS's close, so there the end of stdin is the
+//! end, as with squid on the direct road.
 
 use std::io::Write;
 

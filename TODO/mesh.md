@@ -722,6 +722,20 @@ that lacks what the run needs.
   `cargo fmt --check` of the packages: clean.
 - Planted (`scripts/plants/t439-via-no-credential.plant`): the test of the credential failed
   with "refused CONNECT 127.0.0.1:...: 407 Proxy Authentication Required; it asks for Basic".
+- The first run of `via-interop.yml` (41386992760, at the merge's push) failed on three faults
+  of the script, none of podssh's: forwardproxy's module has no `cmd/caddy` at the pinned
+  commit (its README's `go install` path is stale), so Caddy's container ended at once; the
+  check of each proxy took a TCP connection, which Docker's own proxy of a published port
+  accepts with nobody behind it; and squid ends a tunnel at the client's TLS close, which an
+  empty stdin sent before sshd's banner came back. Squid's session, its `407` and the host's
+  proxy to squid passed. Repaired: Caddy is built as xcaddy builds it (a main of Caddy's command
+  with the plugin, at forwardproxy's commit and Caddy v2.11.7, as the 2.8.4 that forwardproxy's
+  go.mod names panics at its start when Go 1.27 builds it), in a container of its own whose
+  failure shows its log; each proxy must answer a TLS handshake with the run's CA, or a request,
+  while its container runs; the banners keep stdin open for 3 s, as OpenSSH keeps a
+  ProxyCommand's. Here, through this session's proxy (`PODSSH_VIA_BUILD_NET=host` and
+  `PODSSH_VIA_BUILD_CA`), Caddy built and answered TLS; squid's container cannot install its
+  package from this host, so the run goes on in Actions.
 
 # T-440: VLESS over a WebSocket and over XHTTP
 
