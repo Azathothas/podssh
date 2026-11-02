@@ -24,8 +24,11 @@ LISTENERS = {
     # test-relay, which no release builds.
     # And the stand-in of WARP's edge (T-352), for the tests of this crate
     # and of podssh-relay (T-374), on the loopback: podssh-warp's feature
-    # `stand-in`, which no binary enables.
+    # `stand-in`, which no binary enables. And the relay as a role of podssh
+    # (T-169, Q63), which the user asks for with `podssh relay serve --listen
+    # ADDR:PORT`: the bind is the probe, and PODSSH_LISTEN turns it off.
     "TcpListener": [
+        "crates/podssh-cli/src/relay_serve.rs",
         "crates/podssh-cli/src/pipe/listen.rs",
         "crates/podssh-ssh/src/remote_tests.rs",
         "crates/podssh-cli/src/ssh/local_bind.rs",
@@ -78,6 +81,7 @@ LISTENERS = {
     # (T-301) and its probe of UDP (T-400), the tests of the iroh road's
     # probe (T-359), and the stand-in server of pkarr (T-350), as above.
     "bind(": [
+        "crates/podssh-cli/src/relay_serve.rs",
         "crates/podssh-iroh/src/test_pkarr.rs",
         "crates/podssh-iroh/src/endpoint_udp_tests.rs",
         "crates/podssh-relay/src/udp/flow.rs",

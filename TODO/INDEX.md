@@ -62,15 +62,15 @@ repository and CI).
 
 ## Counts
 
-**442 entries: 49 open, 1 partial, 16 blocked, 376 done.**
+**444 entries: 50 open, 2 partial, 16 blocked, 376 done.**
 
 | Priority | open | partial | blocked | done | total |
 | --- | --- | --- | --- | --- | --- |
 | P0 | 0 | 0 | 0 | 1 | 1 |
 | P1 | 4 | 1 | 0 | 48 | 53 |
-| P2 | 20 | 0 | 14 | 179 | 213 |
-| P3 | 25 | 0 | 2 | 148 | 175 |
-| **All** | 49 | 1 | 16 | 376 | 442 |
+| P2 | 22 | 0 | 14 | 179 | 215 |
+| P3 | 24 | 1 | 2 | 148 | 175 |
+| **All** | 50 | 2 | 16 | 376 | 444 |
 
 ## Entries
 
@@ -243,7 +243,7 @@ repository and CI).
 | [T-166](roads.md) | P3 | M | backlog | feature | done | A roost: a podssh next to a standard sshd |
 | [T-167](roads.md) | P3 | M | backlog | feature | done | Start from a standard sshd, then move the session to a better road |
 | [T-168](roads.md) | P3 | M | backlog | feature | done | UDP over the relay |
-| [T-169](roads.md) | P3 | L | M10 | feature | open | A self-hosted relay that speaks the relay's contract |
+| [T-169](roads.md) | P3 | L | M10 | feature | partial | A self-hosted relay that speaks the relay's contract |
 | [T-170](roads.md) | P3 | M | backlog | research | done | A Cloudflare quick tunnel made by podssh itself, with no `cloudflared`: the protocol and its ports |
 | [T-171](roads.md) | P3 | M | backlog | research | done | The functions of Mosh that M6 and T-160 do not give, made in podssh itself |
 | [T-172](roads.md) | P3 | S | backlog | research | done | Multipath TCP on the direct road |
@@ -518,3 +518,5 @@ repository and CI).
 | [T-444](mesh.md) | P3 | S | M10 | feature | open | One TLS configuration for each trust in a process, so that TLS resumes |
 | [T-445](mesh.md) | P2 | S | M10 | feature | open | A node's record names each of its roads |
 | [T-446](mesh.md) | P2 | M | M10 | release | open | The release of milestone M10: betas `v1.1.0-beta.N`, then `v1.1.0` |
+| [T-447](mesh.md) | P2 | M | M10 | feature | open | `podssh relay serve` takes its certificate from ACME, and reads it again on SIGHUP |
+| [T-448](mesh.md) | P2 | M | M10 | feature | open | The relay role mints tokens for the keys of an allowlist or of the net |

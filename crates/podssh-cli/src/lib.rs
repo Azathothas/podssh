@@ -109,6 +109,7 @@ pub mod refuse;
 pub mod relay_cmd;
 pub mod relay_diag;
 mod relay_diag_text;
+pub mod relay_serve;
 pub mod relay_settings;
 pub mod relay_spec;
 // `podssh session`: a session that outlives each call of an agent (T-186).

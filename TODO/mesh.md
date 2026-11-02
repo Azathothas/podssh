@@ -830,3 +830,86 @@ sh scripts/release-check.sh v1.1.0
 ```
 
 The release check passes on the published files, with M10's rows.
+
+# T-447: `podssh relay serve` takes its certificate from ACME, and reads it again on SIGHUP
+
+**Source:** the Correction of T-169 (2026-11-02), its Approach item 1, which T-169's first cut
+left out.
+**Category:** feature
+**Milestone:** M10
+**Priority:** P2
+**Effort:** M
+**Status:** open
+
+## Problem
+
+A user who runs `podssh relay serve` on a host of their own needs a certificate that each client
+trusts with no `--ca-file`. Today the role takes one from files alone, and keeps the one that it
+read at its start, so a renewed certificate needs a restart, which ends each token and session.
+
+## Premise
+
+- The role reads `--cert` and `--key` once (`crates/podssh-cli/src/relay_serve.rs`), and serves
+  one certificate for each client (`crates/podssh-ws/src/tls_server.rs`).
+
+## Approach
+
+1. SIGHUP reads `--cert` and `--key` again, and the next handshakes take them; a pair that does
+   not load is said, and the old one stays.
+2. `--acme NAME`: a certificate for NAME from Let's Encrypt by TLS-ALPN-01 on the role's own
+   port, with a P-256 key that the role makes, kept in a private directory and renewed 30 days
+   before its end; the ACME client in the binary crate, which links aws-lc already (rule 4 of
+   `AGENTS.md` keeps C out of the library crates).
+
+## Prove
+
+```sh
+export CARGO_BUILD_JOBS=4
+cargo test -p podssh-cli --test relay_serve
+```
+
+A certificate replaced on disk and SIGHUP: the next client sees the new one, and a session that
+was open goes on. ACME against Pebble, Let's Encrypt's test server, in a container: a client
+that trusts Pebble's root reaches the role. Planted: no reload, and the test of the new
+certificate fails.
+
+# T-448: The relay role mints tokens for the keys of an allowlist or of the net
+
+**Source:** the Correction of T-169 (2026-11-02), its Approach item 2, which T-169's first cut
+left out.
+**Category:** feature
+**Milestone:** M10
+**Priority:** P2
+**Effort:** M
+**Status:** open
+
+## Problem
+
+`podssh relay serve` mints a token for anyone (`--mint anyone`) or for no one, so a relay that
+its owner keeps for their own ends must be open to anyone who finds it, or its tokens must be
+given out of band.
+
+## Premise
+
+- `/v1/mint` takes the contract's body `{}` and gives `{token, expires, scope}`
+  (`docs/relay.md`, "Tokens"); the role's mint is `crates/podssh-relay/src/serve/mod.rs`.
+- Each podssh end has an Ed25519 key (`podssh node --key`, the end-to-end channel).
+
+## Approach
+
+1. `--mint keys:FILE`: a key of the allowlist file (the format of `podssh node --allow`), or a
+   member of the net (T-429), proves itself by signing the relay's challenge; then the role
+   mints, and any other request gets `403`.
+2. The client signs a mint when the relay's `/health` says that it wants one, with its own
+   key, and caches the token as for the default relay.
+
+## Prove
+
+```sh
+export CARGO_BUILD_JOBS=4
+cargo test -p podssh-cli --test relay_serve
+```
+
+A client whose key is on the list gets a token and a session; another key gets `403`, and a
+replayed signature is refused. Planted: the signature's check skipped, and the test of the other
+key fails.

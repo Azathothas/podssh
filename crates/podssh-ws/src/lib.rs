@@ -58,6 +58,7 @@ mod socks5;
 pub mod stores;
 pub mod text;
 pub mod tls;
+pub mod tls_server;
 mod tls_wrap;
 pub mod url;
 // Tor's WebTunnel, for a bridge of the Tor road (T-385).

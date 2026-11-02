@@ -1608,7 +1608,7 @@ Nothing watches the expiry of the relay's domain, on which each road but `--dire
 - Read: a beta needs the job `all` of the gate (`docs/decisions.md:37`). Citations of an older
   document of the relay were once off by 35 (`TODO/repo.md:2318-2321`).
 - Read: no workflow checks the relay on a schedule: `relay-live.yml` runs by hand
-  (`.github/workflows/relay-live.yml:8-17`), and `build.yml` on a push, a pull request or by hand
+  (`.github/workflows/relay-live.yml:10-19`), and `build.yml` on a push, a pull request or by hand
   (`.github/workflows/build.yml:9-13`).
 - Read, by the audit through web.pkgforge.dev on 2026-10-31 (the registry's RDAP,
   https://pubapi.registry.google/rdap/domain/ajam.dev): `ajam.dev` expires on 2028-01-19, under
@@ -1763,7 +1763,7 @@ in; the code compiles it in, and the live check never reads `/relays.json`.
   (`crates/podssh-relay/src/pool.rs:150-222`). `podssh relay info` reads its `limits`
   (`connect_timeout_ms`, `idle_timeout_ms`, `max_session_ms`, `max_session_bytes` and
   `max_frame_bytes`; `crates/podssh-cli/src/relay_diag_text.rs:64-77`), and a test asserts a
-  stand-in's `max_frame_bytes` of 262144 (`crates/podssh-cli/tests/relay.rs:216`).
+  stand-in's `max_frame_bytes` of 262144 (`crates/podssh-cli/tests/relay.rs:238`).
 - Read: to a node, the resumable layer resumes after the relay's `1009` at the cap
   (`docs/relay.md:221-227`); a forward session has no layer.
 

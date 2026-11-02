@@ -60,7 +60,21 @@ impl Cell {
         Cell::fake_relay_cert(s, "normal", "the stand-in relay, its certificate expired", "relay-expired.pem")
     }
 
+    /// podssh's own relay role (T-169), `podssh relay serve` with `extra`
+    /// flags, where the stand-in would run.
+    pub fn podssh_relay(s: &Session, name: &str, extra: &[&str]) -> Result<Cell, Skipped> {
+        Cell::relay_process(s, "normal", name, "relay.pem", Some(extra))
+    }
+
     fn fake_relay_cert(s: &Session, mode: &str, name: &str, cert: &str) -> Result<Cell, Skipped> {
+        // PODSSH_RELAY_UNDER_TEST=podssh: podssh's own relay role in place of
+        // the stand-in where it behaves (T-169); the fault modes stay the
+        // stand-in's.
+        let role = mode == "normal" && std::env::var("PODSSH_RELAY_UNDER_TEST").as_deref() == Ok("podssh");
+        Cell::relay_process(s, mode, name, cert, role.then_some(&["--allow-private"][..]))
+    }
+
+    fn relay_process(s: &Session, mode: &str, name: &str, cert: &str, role: Option<&[&str]>) -> Result<Cell, Skipped> {
         let name = name.to_string();
         let python = ["python3", "python"].into_iter().find(|p| found(p, &["--version"]));
         let Some(python) = python else { return Err((name, "no Python here".into())) };
@@ -75,22 +89,29 @@ impl Cell {
         if cert == "relay-expired.pem" && !dir.join(cert).exists() {
             expired(&dir).map_err(|why| (name.clone(), why))?;
         }
-        let port_file = dir.join(format!("port-{}-{cert}", mode.replace(':', "-")));
-        let child = Command::new(python)
-            .arg(scripts().join("fake-relay.py"))
+        let which = if role.is_some() { "-role" } else { "" };
+        let port_file = dir.join(format!("port-{}-{cert}{which}", mode.replace(':', "-")));
+        let mut command = if let Some(extra) = role {
+            let mut c = Command::new(env!("CARGO_BIN_EXE_podssh"));
+            c.args(["relay", "serve", "--listen", "127.0.0.1:0", "--mint", "anyone"]).args(extra);
+            c
+        } else {
+            let mut c = Command::new(python);
+            c.arg(scripts().join("fake-relay.py")).arg("--mode").arg(mode);
+            c
+        };
+        let child = command
             .arg("--cert")
             .arg(dir.join(cert))
             .arg("--key")
             .arg(dir.join("relay.key"))
             .arg("--port-file")
             .arg(&port_file)
-            .arg("--mode")
-            .arg(mode)
             .stdin(Stdio::null())
             .stdout(Stdio::null())
             // Its errors, and with FAKE_RELAY_DEBUG each frame, for a test
             // that fails to show.
-            .stderr(log(&s.home.join(format!("fake-relay-{}.log", mode.replace(':', "-")))))
+            .stderr(log(&s.home.join(format!("fake-relay-{}{which}.log", mode.replace(':', "-")))))
             .spawn()
             .map_err(|e| (name.clone(), format!("the stand-in relay: {e}")))?;
         s.keep(child);

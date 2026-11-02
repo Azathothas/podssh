@@ -339,6 +339,7 @@ pub fn parse_verb(verb: &'static Verb, rest: &[std::ffi::OsString]) -> Parsed {
             operator_file: get("operator-file"),
             document: get("document"),
             json: matches.get_flag("json"),
+            serve: crate::relay_serve::ServeArgs::from_matches(&matches),
             refused,
         }));
     }

@@ -33,6 +33,8 @@ pub struct RelayArgs {
     pub document: Option<String>,
     /// `status` with no NAME, `info` and `trace`: one JSON object.
     pub json: bool,
+    /// `serve`: the relay as a role of podssh (T-169).
+    pub serve: crate::relay_serve::ServeArgs,
     pub refused: Vec<(String, &'static str, &'static str)>,
 }
 
@@ -57,6 +59,10 @@ pub fn run_relay(args: &RelayArgs, out: &mut dyn Write, err: &mut dyn Write) -> 
         let _ = writeln!(err, "podssh relay: --document goes with `podssh relay spec` only");
         return EXIT_USAGE;
     }
+    if args.serve.any() && sub != Some("serve") {
+        let _ = writeln!(err, "podssh relay: --listen, --cert, --key, --port-file, --mint, --allow-private and --keepalive go with `podssh relay serve` only");
+        return EXIT_USAGE;
+    }
     let name = args.args.first().map(String::as_str);
     let done = match (sub, name) {
         (Some("pair"), Some(label)) => make(args, label, out, err),
@@ -67,16 +73,20 @@ pub fn run_relay(args: &RelayArgs, out: &mut dyn Write, err: &mut dyn Write) -> 
         }
         (Some("status"), None) => return crate::relay_diag::status(args, out, err),
         (Some("spec"), None) => return crate::relay_spec::run(args, out, err),
+        (Some("serve"), None) => return crate::relay_serve::run(args, err),
+        (Some("serve"), Some(word)) => {
+            Err(Refusal::usage(format!("serve takes no NAME, and {word:?} would be dropped: `podssh relay serve --listen ADDR:PORT ...`")))
+        }
         (Some("spec"), Some(word)) => {
             Err(Refusal::usage(format!("spec takes no NAME, and {word:?} would be dropped: `podssh relay spec`")))
         }
         (Some("info"), _) => return crate::relay_diag::info(args, out, err),
         (Some("trace"), _) => return crate::relay_diag::trace(args, out, err),
         (Some(other), _) => Err(Refusal::usage(format!(
-            "there is no subcommand {other:?}; the subcommands are pair, revoke, status, info, trace and spec"
+            "there is no subcommand {other:?}; the subcommands are pair, revoke, status, info, trace, spec and serve"
         ))),
         (None, _) => Err(Refusal::usage(
-            "missing SUBCOMMAND: pair NAME, revoke NAME, status [NAME], info [HOST PORT], trace HOST PORT or spec",
+            "missing SUBCOMMAND: pair NAME, revoke NAME, status [NAME], info [HOST PORT], trace HOST PORT, spec or serve",
         )),
     };
     match done {

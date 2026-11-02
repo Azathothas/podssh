@@ -73,6 +73,10 @@ warp = ["quick", "dep:podssh-warp"]
 # The same with podssh-warp's stand-in of WARP's edge, which listens on the
 # loopback, for tests/quick_edge_warp.rs alone; the binary never enables it.
 warp-stand-in = ["warp", "podssh-warp/stand-in"]
+# The relay as a role of podssh (T-169, Q63): the forward road of the
+# relay's contract, served; the caller owns the listener and TLS. No C either;
+# the gate builds it.
+serve = []
 # Plain ws:// to a stand-in relay on the loopback, for the tests of an embedder
 # (T-068). The binary never enables it (scripts/no-plain-ws.sh).
 plain-ws = ["podssh-ws/plain-ws"]

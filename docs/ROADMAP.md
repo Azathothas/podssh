@@ -287,7 +287,8 @@ into a mesh of its user's own nodes, and the relay is a role of podssh
 itself, so that no entry waits for another party.
 
 - The relay's role in podssh: its forward road (T-169), its reverse road
-  (T-427), and behind a node's quick tunnel with no listener (T-428); what
+  (T-427), and behind a node's quick tunnel with no listener (T-428); its
+  certificate from ACME (T-447), and tokens for the keys it lets in (T-448); what
   the default deployment does not do: T-336, T-255, T-253, T-421, T-319,
   T-321, T-325, T-326, T-173, T-346.
 - The net: the owner's signed list of nodes and names (T-429), its policy

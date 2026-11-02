@@ -3,7 +3,9 @@ name: relay live
 # The live tests of the relay that need no secret, from GitHub's network,
 # where no egress proxy stands between the client and the relay (T-062), and
 # the CLI's tests of a node on the live relay (node_live: T-083, T-154's idle
-# session of 10 minutes, T-155's 200 MiB each way; T-251).
+# session of 10 minutes, T-155's 200 MiB each way; T-251), and podssh's own
+# relay role on the runner, which reaches GitHub's SSH endpoint (relay_serve:
+# T-169).
 # Started by hand only. Each test mints its own tokens and pairs on the live
 # relay, stops its pairs at the end, and prints no token.
 
@@ -18,6 +20,7 @@ on:
           - live_backpressure
           - reverse_live
           - node_live
+          - relay_serve
 
 permissions:
   contents: read
@@ -39,6 +42,7 @@ jobs:
           case "$TEST" in
             live_backpressure|reverse_live) cargo test --locked -p podssh-relay --features pair --test "$TEST" --no-run ;;
             node_live) cargo test --locked -p podssh-cli --test node_live --no-run ;;
+            relay_serve) cargo build --locked -p podssh-cli && cargo test --locked -p podssh-cli --test proxy_live --no-run ;;
             *) echo "not a live test of the list: $TEST" >&2; exit 2 ;;
           esac
 
@@ -54,5 +58,6 @@ jobs:
             node_live)
               command -v /usr/sbin/sshd >/dev/null || { sudo apt-get update -q && sudo apt-get install -y -q openssh-server; }
               PODSSH_TEST_NODE_LINES=1 cargo test --locked -p podssh-cli --test node_live -- --ignored --nocapture --test-threads 1 ;;
+            relay_serve) sh scripts/relay-serve-live.sh target/debug/podssh ;;
             *) cargo test --locked -p podssh-relay --features pair --test "$TEST" -- --ignored --nocapture ;;
           esac

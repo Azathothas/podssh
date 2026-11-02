@@ -86,6 +86,23 @@ fn banner_target(line: &'static str) -> u16 {
     port
 }
 
+/// What the relay under test says of itself: the stand-in's words, or those
+/// of podssh's own relay role with `PODSSH_RELAY_UNDER_TEST=podssh` (T-169).
+struct Who {
+    version: String,
+    edge: Option<&'static str>,
+    pool: &'static str,
+    road: &'static str,
+}
+
+fn who() -> Who {
+    if std::env::var("PODSSH_RELAY_UNDER_TEST").as_deref() == Ok("podssh") {
+        Who { version: format!("podssh {}", env!("CARGO_PKG_VERSION")), edge: None, pool: "podssh", road: "direct" }
+    } else {
+        Who { version: "fake".into(), edge: Some("TEST"), pool: "stand-in", road: "loopback" }
+    }
+}
+
 /// The stand-in relay's flags, its host, or `None` when it cannot run here.
 fn stand_in(s: &Session) -> Option<(Vec<String>, String)> {
     let cell = match Cell::fake_relay_mode(s, "normal", "the stand-in relay") {
@@ -158,7 +175,9 @@ fn status_asks_each_host_and_needs_one_answer() {
     assert_eq!(out.status.code(), Some(0), "stdout: {stdout}\nstderr: {}", text(&out.stderr));
     let lines: Vec<&str> = stdout.lines().collect();
     assert_eq!(lines.len(), 2, "{stdout}");
-    assert!(lines[0].starts_with("relay-a.test: tcp-ssh-relay fake at edge TEST, "), "{stdout}");
+    let w = who();
+    let edge = w.edge.map(|e| format!(" at edge {e}")).unwrap_or_default();
+    assert!(lines[0].starts_with(&format!("relay-a.test: tcp-ssh-relay {}{edge}, ", w.version)), "{stdout}");
     assert!(lines[0].contains("certificate verified for relay-a.test; opened TCP 127.0.0.1:"), "{stdout}");
     assert!(lines[1].starts_with("127.0.0.1: "), "{stdout}");
     // Only the host that is down: none answers.
@@ -183,8 +202,9 @@ fn status_json_is_one_document() {
     let first = &doc["hosts"][0];
     assert_eq!(first["host"], "relay-a.test");
     assert_eq!(first["ok"], true);
-    assert_eq!(first["version"], "fake");
-    assert_eq!(first["edge"], "TEST");
+    let w = who();
+    assert_eq!(first["version"], serde_json::json!(w.version));
+    assert_eq!(first["edge"], serde_json::json!(w.edge));
     assert!(first["ms"].as_u64().is_some(), "{first}");
 }
 
@@ -198,10 +218,12 @@ fn info_gives_the_pool_the_limits_and_the_url_for_a_target() {
     let stdout = text(&out.stdout);
     assert_eq!(out.status.code(), Some(0), "stdout: {stdout}\nstderr: {}", text(&out.stderr));
     let lines: Vec<&str> = stdout.lines().collect();
-    assert_eq!(lines[0], "relay relay-a.test: tcp-ssh-relay fake; this host reaches it at edge TEST", "{stdout}");
+    let w = who();
+    let edge = w.edge.map(|e| format!("; this host reaches it at edge {e}")).unwrap_or_default();
+    assert_eq!(lines[0], format!("relay relay-a.test: tcp-ssh-relay {}{edge}", w.version), "{stdout}");
     assert_eq!(lines[1], format!("for 127.0.0.1:2222: wss://{host}/connect/127.0.0.1/2222"), "{stdout}");
     assert_eq!(lines[2], "pool, best first: 1 hosts", "{stdout}");
-    assert!(lines[3].contains("stand-in") && lines[3].contains("relay-a.test"), "{stdout}");
+    assert!(lines[3].contains(w.pool) && lines[3].contains("relay-a.test"), "{stdout}");
     assert_eq!(
         lines[4],
         "limits: connect 10 s, idle 3 min, a session 12 h, a session 64 MiB, a frame 256 KiB, UDP unsupported",
@@ -228,7 +250,10 @@ fn trace_sends_the_token_and_gives_the_targets_first_line() {
     let stdout = text(&out.stdout);
     assert_eq!(out.status.code(), Some(0), "stdout: {stdout}\nstderr: {}", text(&out.stderr));
     let lines: Vec<&str> = stdout.lines().collect();
-    let head = format!("trace 127.0.0.1:{target} through relay-a.test (fake, edge TEST): live; road loopback, dialed");
+    let w = who();
+    let edge = w.edge.map(|e| format!(", edge {e}")).unwrap_or_default();
+    let head =
+        format!("trace 127.0.0.1:{target} through relay-a.test ({}{edge}): live; road {}, dialed", w.version, w.road);
     assert!(lines[0].starts_with(&head), "{stdout}");
     assert!(lines[0].ends_with("25 bytes seen"), "{stdout}");
     assert_eq!(lines[1], "banner: SSH-2.0-stand-in-target", "{stdout}");
@@ -239,7 +264,7 @@ fn trace_sends_the_token_and_gives_the_targets_first_line() {
     assert_eq!(out.status.code(), Some(0), "{}", text(&out.stderr));
     let doc: serde_json::Value = serde_json::from_slice(&out.stdout).expect("one JSON document");
     assert_eq!(doc["target"]["banner"], "SSH-2.0-stand-in-target");
-    assert_eq!(doc["edge"], "TEST");
+    assert_eq!(doc["edge"], serde_json::json!(w.edge));
     assert!(doc.get("request").is_none(), "{doc}");
 }
 

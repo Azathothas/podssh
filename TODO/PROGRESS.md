@@ -125,7 +125,7 @@ and `CARGO_BUILD_JOBS=4`:
 
 ## Counts
 
-`TODO/INDEX.md` holds 442 entries: 49 open, 1 partial, 16 blocked, 376 done.
+`TODO/INDEX.md` holds 444 entries: 50 open, 2 partial, 16 blocked, 376 done.
 
 Open includes parked work. `cargo todo check` verifies this line.
 
@@ -165,7 +165,8 @@ operator and the parked ones.
 this order:
 
 1. The relay role: its forward road (T-169), its reverse road (T-427), behind a node's quick
-   tunnel (T-428), with the repairs T-443 and T-444; then what the role serves: T-336, T-255,
+   tunnel (T-428), with the repairs T-443 and T-444, then ACME (T-447) and tokens for keys
+   (T-448); then what the role serves: T-336, T-255,
    T-421, T-253, T-325, T-326, T-319, T-321 and T-173.
 2. The net: T-429, T-430, T-445, T-086, T-226, T-346 and T-106.
 3. Exit, routes, share and funnel: T-431, T-432, T-433, T-180, then T-434 and T-435.

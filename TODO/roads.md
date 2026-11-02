@@ -1124,7 +1124,7 @@ limits, quotas and connection caps, from sandhole and USBoverSSH).
 **Milestone:** M10
 **Priority:** P3
 **Effort:** L
-**Status:** open
+**Status:** partial
 
 ## Problem
 
@@ -1265,6 +1265,55 @@ line of `podssh doctor` is `ok`.
 
 What `tcp.ssh.relay.ajam.dev` lacks here is no blocker: a note of docs/relay-operator.md
 (item 12).
+
+## Done
+
+2026-11-02, partial: the forward road of the role is built and passes each offline test; the
+live run on a GitHub runner closes the entry (`.github/workflows/relay-live.yml`, `relay_serve`,
+`scripts/relay-serve-live.sh`). Two parts of the Correction's Approach are entries of their own:
+ACME and a certificate read again on SIGHUP (T-447), and tokens minted for the keys of an
+allowlist or of the net by a signed request (T-448).
+
+- `podssh relay serve --listen ADDR:PORT --cert FILE --key FILE [--mint anyone|nobody]
+  [--allow-private] [--port-file FILE] [--keepalive SECONDS]` (`crates/podssh-cli/src/relay_serve.rs`)
+  serves the routes of `crates/podssh-relay/src/serve/` (feature `serve`): `/health` (the service
+  `tcp-ssh-relay`, the version `podssh VERSION`), `/v1/mint` (`503` with `--mint nobody`, the
+  default), `/connect/<host>/<port>` with `?dial=lazy`, `?precheck` (400 ms at most) and
+  `?family`, `/relays.json` with the five limits, `/trace` (a token in its header only) and
+  `/llms-full.txt`, the pinned copy of the contract.
+- The policy (`crates/podssh-relay/src/serve/policy.rs`): each address of a name must be
+  public, port 25 is refused, and a refusal is a `403` that names the target and "not in the
+  ALLOW list"; `--allow-private` lifts the first. The limits and close codes of
+  `docs/relay.md`: 1000 `target closed`, 1001 `idle timeout` and `session time cap`, 1009
+  `session byte cap`, 1011 for a write or a dial that failed, an empty frame each 25 s; each
+  write waits for its reader, so no queue grows without a bound.
+- Tokens of the contract's form under HMAC-SHA256 of a secret of the run
+  (`crates/podssh-relay/src/serve/tokens.rs`); TLS 1.3 and 1.2 from PEM files with a P-256 key
+  that `p256` signs (`crates/podssh-ws/src/tls_server.rs`), so the role needs no C.
+- The listener is the one that the user asks for: `PODSSH_LISTEN=no` refuses it, and
+  `scripts/repo_listeners.py` names the file. The role dials its targets directly, as a relay
+  does; a relay behind an egress proxy is no goal of this entry (Decision of 2026-11-02).
+
+Measured on 2026-11-02, at the commit of this text:
+
+- `cargo test -p podssh-ws --lib tls_server`: 2 passed; `cargo test -p podssh-relay --features
+  serve --lib serve`: 8 passed (the policy's ranges, the tokens, the paths, `/relays.json`,
+  `/trace`).
+- `cargo test -p podssh-cli --test relay_serve`: 7 passed. `podssh ssh` carried 8 MiB each way
+  through the role; OpenSSH's `ssh` with `ProxyCommand podssh proxy` reached OpenSSH's sshd
+  through it, 8 MiB each way with equal SHA-256 digests; a loopback target was refused (exit
+  not 0, "not in the ALLOW list ... not a public address", no byte of the target), and port 25
+  ("port 25 is refused"); `--mint nobody` gave 503; `relay status --json`, `info` and `trace`
+  read the role; the usage refusals were 64.
+- `PODSSH_RELAY_UNDER_TEST=podssh`, the harness's switch to the role for each stand-in of the
+  mode `normal` (`crates/podssh-cli/tests/throughput_harness/cells.rs`): `--test relay` 10
+  passed, `--test faults -- --ignored` 12 passed, `--test ping` 12 passed, `--test
+  doctor_upgrade` 2 passed. The four tests of `relay` that named the stand-in's own version,
+  edge, pool and road now read them from the relay under test.
+- Planted: the policy skipped (`if true` for `if self.private`): the private target's test
+  failed.
+- `cargo clippy -p podssh-ws -p podssh-relay -p podssh-cli --all-targets -- -D warnings`: clean;
+  `python scripts/check-repo.py`: exit 0.
 
 # T-170: A Cloudflare quick tunnel made by podssh itself, with no `cloudflared`: the protocol and its ports
 
@@ -4791,11 +4840,11 @@ code that no command of the default build uses is P2 at most".
   the road's own relay is in reach.
 - Read: the quick tunnel's QUIC does not take this probe, so the issue's "one bind decides two
   roads" is wrong. T-301's Approach item 1 said "After a UDP probe (the iroh road's)"
-  (`TODO/roads.md:2099`); its Decision took QUIC only where no proxy is set, on the connection's
-  own socket (`TODO/roads.md:2131-2138`), and the QUIC handshake, bounded at 5 s, is its probe:
+  (`TODO/roads.md:2148`); its Decision took QUIC only where no proxy is set, on the connection's
+  own socket (`TODO/roads.md:2180-2187`), and the QUIC handshake, bounded at 5 s, is its probe:
   QUIC that fails gave way to HTTP/2 for the run (`crates/podssh-cli/src/node_quick.rs`, its `link`,
   read at `a09f40e`, which T-400 replaced by a race; `crates/podssh-relay/src/quick/quic.rs:32`). Its cost on a host that drops UDP is
-  one handshake a run, as its Decision item 5 chose (`TODO/roads.md:2139-2143`). doctor says
+  one handshake a run, as its Decision item 5 chose (`TODO/roads.md:2188-2192`). doctor says
   nothing of it in the default build, where the quick tunnel is.
 - Read: the measured cage refuses UDP (`docs/target-environment.md:23`), and the box does too
   (`scripts/box/seccomp.json:11-30`): there the probe is right. Inferred: it is wrong on a host
@@ -5853,7 +5902,7 @@ edge still needs the operator's relay. WARP's tunnel (T-352) carries any port ov
 ## Premise
 
 - Read: `crates/podssh-relay/src/quick/edge.rs:23` says "pub const PORT: u16 = 7844". The relay's
-  VPC road carried TLS to that port, and `TODO/roads.md:1902` says "the edge's 443 and 8443 serve
+  VPC road carried TLS to that port, and `TODO/roads.md:1951` says "the edge's 443 and 8443 serve
   no tunnel".
 - Read: the measured proxy allows ports 443, 80 and 8443 alone (`docs/target-environment.md:21`).
 - Read: T-352 plans WARP's road over HTTP/2, with smoltcp for TCP inside, which the operator

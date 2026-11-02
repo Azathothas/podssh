@@ -47,6 +47,31 @@ days ahead; 2, never a pass, when no record was read. A run by hand takes
 `dry_run`, which opens no issue, and `plant` (`moved-section`, `unreadable`)
 to prove each path.
 
+## podssh's own relay (T-169)
+
+Since the operator's ruling Q63 (2026-11-02, [mesh.md](mesh.md)) the relay
+is also a role of podssh itself: `podssh relay serve` serves the forward road
+of this contract, so that a user who runs it on a host of their own needs no
+other party, and each client of podssh reaches it unchanged.
+
+```sh
+podssh relay serve --listen 0.0.0.0:443 --cert fullchain.pem --key key.pem --mint anyone
+podssh ssh --relay-host relay.example.org user@target
+```
+
+It serves `/health` (the service `tcp-ssh-relay`, the version `podssh
+VERSION`), `/v1/mint`, `/connect/<host>/<port>` with `?dial=lazy`,
+`?precheck` and `?family`, `/relays.json`, `/trace` and `/llms-full.txt`
+(the pinned copy). Its limits are the ones below. A target is dialed only
+once each address of its name is public, and port 25 is refused; a `403`
+names the target and "not in the ALLOW list", as the client reads a policy
+refusal. Each write waits for the reader on the other side, so no queue of a
+session grows without a bound (T-336 asks the same of the default relay).
+The key is a P-256 key in PEM, signed in pure Rust as podssh's other TLS is;
+a token is the contract's form under a secret of the run, so a restart ends
+each token. The role's reverse road is T-427, and the role behind a node's
+quick tunnel, with no listener, is T-428.
+
 ## How podssh selects relay hosts
 
 The code is in `crates/podssh-relay/`.
