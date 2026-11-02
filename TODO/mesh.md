@@ -1980,7 +1980,7 @@ here; the net's members are T-455 (Correction).
 **Milestone:** M10
 **Priority:** P2
 **Effort:** S
-**Status:** open
+**Status:** partial
 
 ## Problem
 
@@ -2023,6 +2023,13 @@ registration failed the test the same way at its 180 s. Repaired: the stand-in r
 with the same delay after its answer the test passes, and 15 runs in a row passed. Its time fits
 the failure that this entry counted, which is not proven to be the same test: the loop of the
 Approach still runs.
+
+## Done
+
+2026-11-02 (partial): `.github/workflows/suite-repeat.yml`, a suite run after run on one runner
+(1 to 50 runs, podssh-relay with `pair,quick,derp,serve,piping` by default), each run going on
+after a failure and each log kept as an artifact, with the count of each failed test by name; its
+inputs are checked before they reach a shell. Its runs and the local loop follow.
 
 # T-450: Three live runs of the transit road met nobody within 20 s
 
