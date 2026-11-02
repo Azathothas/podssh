@@ -3247,7 +3247,7 @@ same day.
   10 s; `cut-eof 1000000`: 0 and each byte) and `ssh_result` (`lost`, 255 and `status` 0 beside
   them; then `status` and 0): `cargo test -p podssh-cli --test ssh_exit_status --test ssh_result
   -- cut`, 2 and 1 passed; and each other test of the server's users, as each connection now runs
-  on the cuttable stream: SUITE_RESULT.
+  on the cuttable stream: 1366 passed, 0 failed, 52 ignored (Unix, 2026-11-02, at the merge of T-460 to T-464, run in chunks of 15 targets, each chunk's binaries deleted after it, as the disk holds no more).
 - The plant `t461-cut-is-status` (a cut read as its status; group `cli-tests`), `sh
   scripts/plant-each.sh --here t461-cut-is-status`: caught, the test of a cut after the status
   failed.
@@ -3379,7 +3379,7 @@ same day.
 - The manual's note of `-J` (`notes_ssh_more.rs`), `docs/cli.md` (the destination's bullet),
   `docs/STATUS.md`.
 - The merge: clippy of `podssh-ssh` and `podssh-cli` with `-D warnings`, all targets: clean; the
-  whole suite of `podssh-cli`: SUITE_RESULT. Waits: a live run against a Go server as
+  whole suite of `podssh-cli`: 1366 passed, 0 failed, 52 ignored (Unix, 2026-11-02, at the merge of T-460 to T-464, run in chunks of 15 targets, each chunk's binaries deleted after it, as the disk holds no more). Waits: a live run against a Go server as
   #86's, which the tests' russh server stands in for, waits for T-460's harness of Go's x/crypto/ssh
   (`scripts/interop-go-ssh.sh`), whose server could take a mode with a hop's silent channel; and
   `cargo todo remap` of each file that the draft changed and an entry cites
@@ -3542,8 +3542,8 @@ same day.
   man --json`), `docs/cli.md` (a bullet beside `--result-file`), `docs/STATUS.md`.
 - The merge: rustfmt of `podssh-cli` (one call of `ssh/mod.rs` wrapped) and clippy of
   `podssh-ssh` and `podssh-cli` with `-D warnings`, all targets: clean after one repair (a slice
-  of one clone in `idle_tests.rs`, `std::slice::from_ref`); the whole suite of `podssh-cli`:
-  SUITE_RESULT; `cargo todo remap` from the tree before the draft of each file that it changed.
+  of one clone in `idle_tests.rs`, `std::slice::from_ref`); the whole suite of `podssh-ssh`: 326
+  passed, 0 failed, 1 ignored; the whole suite of `podssh-cli`: 1366 passed, 0 failed, 52 ignored (Unix, 2026-11-02, at the merge of T-460 to T-464, run in chunks of 15 targets, each chunk's binaries deleted after it, as the disk holds no more); `cargo todo remap` from the tree before the draft of each file that it changed.
   Waits: the live test through the live relay, to the server of `PODSSH_THROUGHPUT_SSH`, which this
   session has not (its target is a call for the operator to confirm, Q86); and the watch for
   `--persist` and `--upgrade` (Decision), for a later entry.
@@ -3696,7 +3696,7 @@ same day.
 - The manual's row of 255, `docs/cli.md` (a bullet beside T-461's), `docs/STATUS.md`.
 - The merge: rustfmt and clippy of `podssh-ssh` and `podssh-cli` with `-D warnings`, all targets:
   clean; the tests of `cp`, `job` and `--persist` whose server ends a connection at an exec, which
-  now read `Lost` where they read `Refused`, and the whole suite of `podssh-cli`: SUITE_RESULT;
+  now read `Lost` where they read `Refused`, and the whole suite of `podssh-cli`: 1366 passed, 0 failed, 52 ignored (Unix, 2026-11-02, at the merge of T-460 to T-464, run in chunks of 15 targets, each chunk's binaries deleted after it, as the disk holds no more);
   `cargo todo remap` from the tree before the draft of each file that it changed and an entry
   cites, in place of the draft's moves by hand. Waits: a live run against a far host that stops
   behind a gateway, as #104's, which no test target gives.
