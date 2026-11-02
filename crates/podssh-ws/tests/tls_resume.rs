@@ -24,16 +24,26 @@ mod cert {
 const NAME: &str = "resume.podssh.test";
 const LIMIT: Duration = Duration::from_secs(10);
 
+/// A test's directory of its own, gone when the test ends, pass or fail: the
+/// gate fails a run that leaves one in the temporary directory.
+struct Scratch(PathBuf);
+
+impl Drop for Scratch {
+    fn drop(&mut self) {
+        let _ = std::fs::remove_dir_all(&self.0);
+    }
+}
+
 /// The root of the server's certificate for [`NAME`], in a file of its own
 /// under `tag`: its key comes from its name, so the root minted again is the
-/// server's.
-fn root_file(tag: &str) -> PathBuf {
+/// server's. The directory goes with the [`Scratch`].
+fn root_file(tag: &str) -> (PathBuf, Scratch) {
     let dir = std::env::temp_dir().join(format!("podssh-tls-resume-{}-{tag}", std::process::id()));
     std::fs::create_dir_all(&dir).expect("a directory for the root");
     let path = dir.join("root.pem");
     let der = cert::encoding::self_signed_inner(&cert::encoding::anchor_name(NAME), true).der;
     std::fs::write(&path, cert::encoding::pem(&der)).expect("the root is written");
-    path
+    (path, Scratch(dir))
 }
 
 /// A server for [`NAME`] on the loopback that takes `count` connections in
@@ -79,7 +89,8 @@ async fn kinds(served: JoinHandle<Vec<Option<HandshakeKind>>>) -> Vec<Option<Han
 
 #[tokio::test]
 async fn the_second_connection_of_a_trust_resumes_tls() {
-    let trust = Trust::File(root_file("same"));
+    let (path, _scratch) = root_file("same");
+    let trust = Trust::File(path);
     let (addr, served) = server(2).await;
     connect(addr, &trust).await;
     connect(addr, &trust).await;
@@ -96,7 +107,8 @@ async fn the_second_connection_of_a_trust_resumes_tls() {
 /// another trust, and its handshake is whole.
 #[tokio::test]
 async fn another_trust_does_not_resume_the_session_of_the_first() {
-    let (one, other) = (Trust::File(root_file("one")), Trust::File(root_file("other")));
+    let ((one, _first), (other, _second)) = (root_file("one"), root_file("other"));
+    let (one, other) = (Trust::File(one), Trust::File(other));
     let (addr, served) = server(2).await;
     connect(addr, &one).await;
     connect(addr, &other).await;
@@ -107,11 +119,12 @@ async fn another_trust_does_not_resume_the_session_of_the_first() {
 /// trust has its own; a file that changed is read again.
 #[test]
 fn a_trust_keeps_one_configuration_until_its_file_changes() {
-    let path = root_file("changed");
+    let (path, _scratch) = root_file("changed");
     let trust = Trust::File(path.clone());
     let first = config_for(&trust).expect("a configuration");
     assert!(Arc::ptr_eq(&first, &config_for(&trust).unwrap()), "one configuration for the trust");
-    let beside = config_for(&Trust::File(root_file("beside"))).unwrap();
+    let (beside, _beside) = root_file("beside");
+    let beside = config_for(&Trust::File(beside)).unwrap();
     assert!(!Arc::ptr_eq(&first, &beside), "another trust, another configuration");
     assert!(Arc::ptr_eq(&config_for(&Trust::Default).unwrap(), &config_for(&Trust::Default).unwrap()));
     // The same root and a line more: another length.

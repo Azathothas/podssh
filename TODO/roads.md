@@ -1124,7 +1124,7 @@ limits, quotas and connection caps, from sandhole and USBoverSSH).
 **Milestone:** M10
 **Priority:** P3
 **Effort:** L
-**Status:** partial
+**Status:** done
 
 ## Problem
 
@@ -1268,9 +1268,18 @@ What `tcp.ssh.relay.ajam.dev` lacks here is no blocker: a note of docs/relay-ope
 
 ## Done
 
-2026-11-02, partial: the forward road of the role is built and passes each offline test; the
-live run on a GitHub runner closes the entry (`.github/workflows/relay-live.yml`, `relay_serve`,
-`scripts/relay-serve-live.sh`). Two parts of the Correction's Approach are entries of their own:
+2026-11-02: the forward road of the role is built, passes each offline test, and passed its
+live run on a GitHub runner (`.github/workflows/relay-live.yml`, `relay_serve`,
+`scripts/relay-serve-live.sh`; run 41384882142): the role on the runner's loopback with a
+certificate of the run's CA, `PODSSH_RELAY=relay-a.test:PORT cargo test -p podssh-cli --test
+proxy_live -- --ignored` got GitHub's banner through it (1 passed), and `podssh doctor` against it
+said `ok` for the relay ("tcp-ssh-relay podssh 1.0.0 ... TLS 1.3, certificate verified"), the
+token, the forward road (GitHub's ED25519 host key, "one of GitHub's published keys") and the
+clock ("agrees with the relay's within 2 s"). The role's events: `mint upgrade upgrade close 1000`.
+The first live run (41382110949) found that the role sent no `Date` header, so `doctor` could not
+check the clock (`????`), and that the script's `--ca-file` leaves the public DERP servers that
+`doctor` also checks untrusted; the role sends `Date` now, and the script judges the relay's own
+lines. Two parts of the Correction's Approach are entries of their own:
 ACME and a certificate read again on SIGHUP (T-447), and tokens minted for the keys of an
 allowlist or of the net by a signed request (T-448).
 
@@ -4840,11 +4849,11 @@ code that no command of the default build uses is P2 at most".
   the road's own relay is in reach.
 - Read: the quick tunnel's QUIC does not take this probe, so the issue's "one bind decides two
   roads" is wrong. T-301's Approach item 1 said "After a UDP probe (the iroh road's)"
-  (`TODO/roads.md:2148`); its Decision took QUIC only where no proxy is set, on the connection's
-  own socket (`TODO/roads.md:2180-2187`), and the QUIC handshake, bounded at 5 s, is its probe:
+  (`TODO/roads.md:2157`); its Decision took QUIC only where no proxy is set, on the connection's
+  own socket (`TODO/roads.md:2189-2196`), and the QUIC handshake, bounded at 5 s, is its probe:
   QUIC that fails gave way to HTTP/2 for the run (`crates/podssh-cli/src/node_quick.rs`, its `link`,
   read at `a09f40e`, which T-400 replaced by a race; `crates/podssh-relay/src/quick/quic.rs:32`). Its cost on a host that drops UDP is
-  one handshake a run, as its Decision item 5 chose (`TODO/roads.md:2188-2192`). doctor says
+  one handshake a run, as its Decision item 5 chose (`TODO/roads.md:2197-2201`). doctor says
   nothing of it in the default build, where the quick tunnel is.
 - Read: the measured cage refuses UDP (`docs/target-environment.md:23`), and the box does too
   (`scripts/box/seccomp.json:11-30`): there the probe is right. Inferred: it is wrong on a host
@@ -5902,7 +5911,7 @@ edge still needs the operator's relay. WARP's tunnel (T-352) carries any port ov
 ## Premise
 
 - Read: `crates/podssh-relay/src/quick/edge.rs:23` says "pub const PORT: u16 = 7844". The relay's
-  VPC road carried TLS to that port, and `TODO/roads.md:1951` says "the edge's 443 and 8443 serve
+  VPC road carried TLS to that port, and `TODO/roads.md:1960` says "the edge's 443 and 8443 serve
   no tunnel".
 - Read: the measured proxy allows ports 443, 80 and 8443 alone (`docs/target-environment.md:21`).
 - Read: T-352 plans WARP's road over HTTP/2, with smoltcp for TCP inside, which the operator
