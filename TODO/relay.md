@@ -1001,7 +1001,7 @@ live test `ipv6_the_relay_takes_the_bare_literal`
 **Milestone:** M10
 **Priority:** P2
 **Effort:** M
-**Status:** blocked
+**Status:** open
 
 ## Problem
 
@@ -1049,11 +1049,66 @@ cargo test -p podssh-relay --test live -- --ignored ipv6 --nocapture
 
 The test prints "bytes came back from the IPv6 host".
 
-## Blocker
+## Correction
 
-The relay's operator: the egress of the relay is work of the relay project.
-The operator ruled on 2026-10-08 that the relay stays separate
-(`docs/decisions.md`).
+2026-11-02 (the drafting agent). Until that day this entry was blocked, and its `## Blocker`
+read, moved here as `cargo todo check` refuses a Blocker on an open entry:
+
+> The relay's operator: the egress of the relay is work of the relay project.
+> The operator ruled on 2026-10-08 that the relay stays separate
+> (`docs/decisions.md`).
+
+Lifted on 2026-11-02 by Q63: see below.
+
+The Premise, a measurement of the default deployment, stands. Approach item 2 says that podssh
+"already says what happened" (`crates/podssh-relay/src/relay.rs:204-207`): true, but the direct
+road after the relay hosts (T-363) does not run in this case. It runs only when no relay host
+opened a session, and never with `-4` or `-6` (`docs/cli.md:288-292`); here the relay opened
+(101), then closed with 1011.
+
+By Q63 (2026-11-02, `docs/decisions.md`; docs/mesh.md, section 4) the relay is a role of podssh
+itself, so this entry is podssh's work. podssh's relay role (T-169) dials a target's IPv6
+address where its host has an IPv6 route, a dual-stack host, with the policy's IPv6 ranges
+(unique-local, link-local, multicast, documentation, NAT64, 6to4); where its host has none, it
+refuses an IPv6 target before the upgrade, with a `502` that says why.
+
+What the client does (the research of 2026-11-02 on the client's side): an IPv6 target that a
+relay upgraded and then closed with `1011 target closed before sending anything`, before any
+byte, counts as one that the relay could not reach, so the direct road of T-363 runs, with its
+line, also under `-6`; and the note names the roads that can carry IPv6 (a relay of the user's
+that has it, a node with IPv6 egress as `-J node://NAME`, `warp://[ADDR]`, which is never tried
+unasked, Q59).
+
+The new Approach, in place of the one above:
+
+1. podssh's relay role: `?family=6` and IPv6 literals dialed on a dual-stack host, else a `502`
+   before the upgrade; a field of `/relays.json` says whether it has IPv6 egress.
+2. The client: that 1011 for an IPv6 target runs the direct fallback of T-363, with its line,
+   also under `-6`; a relay whose `/relays.json` says that it has IPv6 goes first for an IPv6
+   target.
+3. `doctor`: a line for IPv6 targets, through the default relay (none, measured on 2026-10-08),
+   through a relay that the user names, and direct.
+4. The manual's IPv6 note, `docs/relay.md`, `README.md` and `docs/STATUS.md`, as item 2 above
+   says.
+5. What `tcp.ssh.relay.ajam.dev` lacks here (an IPv6 route, or a `502` before the upgrade) is no
+   blocker: a note of docs/relay-operator.md (item 3).
+
+The new Prove, in place of the one above:
+
+```sh
+export CARGO_BUILD_JOBS=4
+cargo test -p podssh-relay --test relay_serve_ipv6
+cargo test -p podssh-cli --test faults
+cargo test -p podssh-relay --test live -- --ignored ipv6 --nocapture
+```
+
+Offline: podssh's relay role on the loopback carries the banner of OpenSSH's sshd on `::1`, or
+says that this host has no IPv6 and skips; with its IPv6 turned off, the target gets the `502`
+before the upgrade; the stand-in, in a mode that upgrades and then closes with that 1011 for an
+IPv6 target, sends the client to the direct road with its line, also under `-6`. Planted: the
+fallback skipped under `-6`; its test fails. Live: the third command, pointed at
+`podssh relay serve` on a host with IPv6 egress, prints "bytes came back from the IPv6 host"; a
+host with none says so.
 
 # T-255: The relay's side drops reverse sockets at random, with no Close
 
@@ -1062,7 +1117,7 @@ The operator ruled on 2026-10-08 that the relay stays separate
 **Milestone:** M10
 **Priority:** P2
 **Effort:** M
-**Status:** blocked
+**Status:** open
 
 ## Problem
 
@@ -1130,37 +1185,89 @@ cargo test -p podssh-relay --features pair --test reverse_drops_live -- --ignore
 Each drop is printed with its UTC time; the run here and the run on the runner are compared by
 time. A drop that the relay saw is told apart from one that it did not by the other end's frame.
 
-## Blocker
+## Correction
 
-The relay's operator: the drops are on the relay's side, and the relay is its own project (the
-operator's ruling of 2026-10-08, `docs/decisions.md`). The evidence, measured on 2026-10-09:
+2026-11-02 (the drafting agent). Until that day this entry was blocked, and its `## Blocker`
+read, moved here as `cargo todo check` refuses a Blocker on an open entry:
 
-- Two networks, the same end time, 01:31 to 02:05:38 UTC (`cargo test -p podssh-relay --features pair --test reverse_drops_live -- --ignored --nocapture`, here and in the
-  workflow `.github/workflows/reverse-drops.yml`, run 37870123203): from this machine, 5 sessions
-  over 2.3 hours of sessions and no drop; from a GitHub Actions runner, 6 sessions over 2.3 hours
-  and one drop, at 02:01:01.872Z, when both sockets of one pair ended at once with no Close. This
-  machine saw nothing at that moment, so it was not a restart of the whole relay. The planted drop
-  of each run reached the node as the relay's `close` of the session.
-- Before that, from this machine (T-061 and the trial of this entry, 00:27 to 01:28 UTC): 7 of the
-  sessions held ended by a drop, in about 0.8 hour of sessions: about 9 an hour. So the drops come
-  in bursts.
-- Two kinds: one socket ends with no Close while the relay lives on, as it then tells the other end
-  (`1011 node disconnected`, or a `close` of the session), 6 times; or both sockets of one pair end
-  at once, as when the relay's object for the pair ends, 2 times (once from each network).
-- The forward path, held beside them from both networks: 25 sessions over 1.2 hours, no drop; 22
-  ended by the relay's idle cut at 180.3 s to 180.9 s, which Pings do not reset, and one by the
-  relay's `1011 write failed: Network connection lost.` toward GitHub after 5.2 s.
+> The relay's operator: the drops are on the relay's side, and the relay is its own project (the
+> operator's ruling of 2026-10-08, `docs/decisions.md`). The evidence, measured on 2026-10-09:
+>
+> - Two networks, the same end time, 01:31 to 02:05:38 UTC (`cargo test -p podssh-relay --features pair --test reverse_drops_live -- --ignored --nocapture`, here and in the
+>   workflow `.github/workflows/reverse-drops.yml`, run 37870123203): from this machine, 5
+>   sessions over 2.3 hours of sessions and no drop; from a GitHub Actions runner, 6 sessions over
+>   2.3 hours and one drop, at 02:01:01.872Z, when both sockets of one pair ended at once with no
+>   Close. This machine saw nothing at that moment, so it was not a restart of the whole relay.
+>   The planted drop of each run reached the node as the relay's `close` of the session.
+> - Before that, from this machine (T-061 and the trial of this entry, 00:27 to 01:28 UTC): 7 of
+>   the sessions held ended by a drop, in about 0.8 hour of sessions: about 9 an hour. So the
+>   drops come in bursts.
+> - Two kinds: one socket ends with no Close while the relay lives on, as it then tells the other
+>   end (`1011 node disconnected`, or a `close` of the session), 6 times; or both sockets of one
+>   pair end at once, as when the relay's object for the pair ends, 2 times (once from each
+>   network).
+> - The forward path, held beside them from both networks: 25 sessions over 1.2 hours, no drop;
+>   22 ended by the relay's idle cut at 180.3 s to 180.9 s, which Pings do not reset, and one by
+>   the relay's `1011 write failed: Network connection lost.` toward GitHub after 5.2 s.
+>
+> What the relay's operator can do: read the relay's logs for the ends of reverse sockets in those
+> windows; send a Close (`1001` or `1012`) before a restart that the relay plans, so that a client
+> can tell it from a broken link; and keep reverse sockets across a restart of the pair's object,
+> where the platform allows it.
+>
+> podssh's part is done (commit "A dropped link of the reverse road is named as one"): `podssh
+> operator` and `podssh ssh node://NAME` say that the link ended with no Close, or that the node's
+> link ended, and that a new session may work (`crates/podssh-cli/src/pairs.rs`, `session_end`,
+> with three unit tests, and a plant of the old wording that fails the first); a node connects
+> again by itself (T-079); resumable sessions (M6) carry a session over a drop.
 
-What the relay's operator can do: read the relay's logs for the ends of reverse sockets in those
-windows; send a Close (`1001` or `1012`) before a restart that the relay plans, so that a client
-can tell it from a broken link; and keep reverse sockets across a restart of the pair's object,
-where the platform allows it.
+Lifted on 2026-11-02 by Q63: see below. The evidence above stands.
 
-podssh's part is done (commit "A dropped link of the reverse road is named as one"): `podssh
-operator` and `podssh ssh node://NAME` say that the link ended with no Close, or that the node's
-link ended, and that a new session may work (`crates/podssh-cli/src/pairs.rs`, `session_end`,
-with three unit tests, and a plant of the old wording that fails the first); a node connects again
-by itself (T-079); resumable sessions (M6) carry a session over a drop.
+The Premise holds. By Q63 (2026-11-02, `docs/decisions.md`; docs/mesh.md, section 4) the relay
+is a role of podssh itself, so this entry is podssh's work. In podssh's relay role, the reverse
+road of T-427, the relay's side of the drops is podssh's code: the role sends a Close (`1012`,
+a restart) to each socket before a stop that it plans (a signal, a new binary), and no platform
+under it restarts its objects. So the default deployment's drops are measured here, not repaired;
+their repair there is a note.
+
+What the client does (the research of 2026-11-02 on the client's side): measure again, as the
+only paired run is of 2026-10-09 and the relay's platform may have changed since; test the
+inference of T-336 that memory causes the drops, beside a slow reader; and count what a drop
+costs. A node's first connection again after a socket that served goes at once, not after
+`backoff(1)` (`crates/podssh-relay/src/reverse/node.rs:251`). Since T-379 each resume races the
+roads again (`crates/podssh-cli/src/ssh/roads.rs:1-10`), so a drop of the pair's socket can cost
+a resume on the iroh or the DERP road, not a cut.
+
+The new Approach, in place of the one above:
+
+1. podssh's relay role (T-427): a Close with `1012` to each socket before a planned stop, after a
+   grace for the sessions' last frames; the node and the operator read `1012` as a restart and
+   connect again at once.
+2. The node: its first connection again after a socket that served goes at once (with T-421).
+3. The measurement: `reverse_drops_live.rs` from a session's host and `reverse-drops.yml` at the
+   same end time, twice against the default relay, alone and beside the slow reader of
+   `live_backpressure.rs`; then once against `podssh relay serve` on a runner, where a drop with
+   no Close is the path's.
+4. For each drop: the time until the node is online again, and until the operator's session
+   resumed.
+5. The results in `docs/relay.md` ("Open questions") and `docs/STATUS.md`; what the default
+   deployment still lacks (the cause in its logs, a Close before its restarts) is no blocker: a
+   note of docs/relay-operator.md (item 2).
+
+The new Prove, in place of the one above:
+
+```sh
+export CARGO_BUILD_JOBS=4
+cargo test -p podssh-relay --features pair --test reverse_restart
+cargo test -p podssh-relay --features pair --test reverse_drops_live -- --ignored --nocapture   # live, about 16 min
+```
+
+Offline (`reverse_restart`, new): podssh's relay role, stopped as by a signal during two layered
+sessions: each socket gets `1012` before its end, the node connects again at once, and the
+sessions resume with equal digests. Planted: the Close skipped; the test fails. Live, as the
+Prove above, from a session's host and a runner at the same end time, against the default relay
+and against `podssh relay serve`; a live run of more than 5 minutes waits for the release checks
+(T-446).
 
 # T-274: On Windows, the owner and the writers of a private file are not checked
 
@@ -1361,7 +1468,7 @@ question for the relay's operator.
 **Milestone:** M10
 **Priority:** P2
 **Effort:** M
-**Status:** blocked
+**Status:** open
 
 ## Problem
 
@@ -1404,11 +1511,62 @@ cargo test -p podssh-relay --features pair --test live_backpressure -- --ignored
 
 The slow run's verdict names a `1013`, or the bytes past the node stay under 16 MiB.
 
-## Blocker
+## Correction
 
-The relay's operator: the relay's queues are work of the relay project (`docs/decisions.md`,
-2026-10-08: the relay stays separate). The evidence is in this entry and in
-`docs/relay-operator.md`.
+2026-11-02 (the drafting agent). Until that day this entry was blocked, and its `## Blocker`
+read, moved here as `cargo todo check` refuses a Blocker on an open entry:
+
+> The relay's operator: the relay's queues are work of the relay project (`docs/decisions.md`,
+> 2026-10-08: the relay stays separate). The evidence is in this entry and in
+> `docs/relay-operator.md`.
+
+Lifted on 2026-11-02 by Q63: see below.
+
+The Premise holds. By Q63 (2026-11-02, `docs/decisions.md`; docs/mesh.md, section 4) the relay
+is a role of podssh itself, so this entry is podssh's work. In podssh's relay role a write that
+waits bounds each queue: the forward road's `1013` at 2 MiB (T-169), the reverse road's
+`1011 relay backpressure` at 1 MiB (T-427), which a Worker of the default deployment cannot
+give, as its forward check reads `bufferedAmount`.
+
+The research on the client's side (2026-11-02) found podssh's own part of the exposure, which
+Approach item 3 above calls done. The layer's window on the pair's road is its replay capacity,
+4 MiB by default and up to 16 MiB (`crates/podssh-relay/src/session/replay.rs:18-20`), and a node
+takes twice that before it calls a local side stalled
+(`crates/podssh-relay/src/reverse/layered.rs:93-98`): above the contract's 1 MiB on the reverse
+road (`crates/podssh-probe/tests/spec/relay-spec-2026-10-03-r2.txt:185`). Its repair is T-443.
+And a raw forward stream (`podssh proxy`, `pipe relay:`) has no bound of podssh's: the pump
+reads 32 KiB, then writes (`crates/podssh-cli/src/pipe/pump.rs:4-6`).
+
+The new Approach, in place of the one above:
+
+1. podssh's relay role bounds each queue: it stops reading the target, or the node's socket,
+   while a client's queue is full, and closes with the documented code once the bound is
+   passed (`1013` on the forward road; `1011 relay backpressure` on the reverse road, the
+   undelivered frame dropped). Its copy of the contract says which.
+2. The stand-in gains a mode that keeps the contract's 1 MiB on the reverse road, so that a test
+   sees the `1011` that the default deployment does not send.
+3. `live_backpressure.rs` gains an SSH case: `podssh ssh` through the relay's loop with a slow
+   reader; the bytes past the far end stay under 512 KiB for each channel.
+4. The layer's window under the bound is T-443. A raw forward stream that drains into a local
+   queue of the contract's 2 MiB, then ends with the contract's words, waits for a Decision in
+   this entry; the alternative: leave it, and the relay keeps paying for it.
+5. What `tcp.ssh.relay.ajam.dev` lacks here is no blocker: a note of docs/relay-operator.md
+   (item 1).
+
+The new Prove, in place of the one above:
+
+```sh
+export CARGO_BUILD_JOBS=4
+cargo test -p podssh-relay --features pair --test relay_serve_backpressure
+cargo test -p podssh-relay --features pair --test live_backpressure -- --ignored --nocapture   # the live relay
+```
+
+Offline: through podssh's relay role on the loopback, the slow run of `live_backpressure.rs`
+(48 MiB, a reader at 16 KiB/s) ends with the documented code, or the bytes past the node stay
+under 2 MiB, on each road; the stand-in's new mode gives the reverse road's `1011` at 1 MiB.
+Planted: the role's bound removed; the test fails. Live: the slow run against the default relay,
+from a session's host and in `relay-live.yml`, recorded as a reading of that deployment; and
+against `podssh relay serve` on a runner.
 
 # T-338: The relay's facts are read by their line, and only a push checks the live relay
 
@@ -1699,7 +1857,7 @@ a signed `/relays.json`, and a default of several deployments).
 **Milestone:** M10
 **Priority:** P2
 **Effort:** M
-**Status:** blocked
+**Status:** open
 
 ## Problem
 
@@ -1773,16 +1931,70 @@ With a test key: a signed document's host outside the domain is used; one change
 the check of the signature skipped; the tests of the changed byte and of the unknown key fail.
 Live, once the relay signs: `podssh relay status` names the second deployment.
 
-## Blocker
+## Correction
 
-The relay's operator (`docs/relay-operator.md`, item 14, which is optional for them): the form of
-the signed document (where the signature goes, its fields) and the public keys to compile in, or a
-word that no signed list comes. Read again against its Decision on 2026-10-31: `podssh update`
-(T-375, done) lets a binary in the field move to a release that names a new deployment wherever
-GitHub is reached, and a binary copied into a cage is copied again by its user; relays that
-their users bring are T-169's, which waits for the relay's operator too. podssh's side is then the
-check of item 3 and the list of item 4, against the form that the operator chose; written before
-that choice, it would follow a form that may not come.
+2026-11-02 (the drafting agent). Until that day this entry was blocked, and its `## Blocker`
+read, moved here as `cargo todo check` refuses a Blocker on an open entry:
+
+> The relay's operator (`docs/relay-operator.md`, item 14, which is optional for them): the form
+> of the signed document (where the signature goes, its fields) and the public keys to compile
+> in, or a word that no signed list comes. Read again against its Decision on 2026-10-31:
+> `podssh update` (T-375, done) lets a binary in the field move to a release that names a new
+> deployment wherever GitHub is reached, and a binary copied into a cage is copied again by its
+> user; relays that their users bring are T-169's, which waits for the relay's operator too.
+> podssh's side is then the check of item 3 and the list of item 4, against the form that the
+> operator chose; written before that choice, it would follow a form that may not come.
+
+Lifted on 2026-11-02 by Q63: see below.
+
+The Premise holds at its lines. By Q63 (2026-11-02, `docs/decisions.md`; docs/mesh.md,
+section 4) the relay is a role of podssh itself, so this entry is podssh's work, and the form of
+the signed document is podssh's choice: the relays that users bring are podssh's own relay role
+(T-169), and Q49 lets a binary use them. Two lists, each signed by a key that podssh's user or
+podssh's release already trusts:
+
+- For a net: the owner's signed document of the net (T-429) names the members that carry the
+  relay role, with their hosts. A member takes a relay from it as it takes any member, and a
+  token goes only to the deployment that minted it (Q49).
+- For the public default: a `relays.json` of deployments, signed by a workflow of this
+  repository with `cosign sign-blob --bundle`, and checked by the Sigstore verifier that
+  `podssh update` already runs on `SHA256SUMS` (`crates/podssh-cli/src/update/mod.rs:278-290`,
+  `crates/podssh-cli/src/update/sigstore.rs`), its identity widened from the release workflow to
+  that workflow and its ref. No private key to keep offline, no new cryptography, and an
+  unattended session can publish a new list. The document holds a `serial`, a `not_after` and a
+  fixed `format` inside the signed bytes.
+
+This replaces Approach items 1 and 2 above (a detached Ed25519 signature by the relay's operator,
+and two keys compiled in).
+
+The new Approach, in place of the one above:
+
+1. The public list as above, a release asset at a fixed URL of the repository, mirrored at the
+   relay hosts, and cached with its bundle. The verifier moves where `pool.rs` can call it, or
+   the pool takes it as a function from `podssh-cli`.
+2. Items 3 to 6 above hold: a host outside the parent domain only from a signed document whose
+   `not_after` is ahead and whose `serial` is not below the cached one; a token only to the
+   deployment that minted it; the cache; `podssh relay status` and `doctor` name each deployment,
+   and whether its list was signed.
+3. A net's relays come from its signed document (T-429), under the same rules.
+4. A second deployment of the public default, on another provider and under another domain, is
+   no blocker: a note of docs/relay-operator.md (item 14); podssh's relay role on a host of the
+   operator's can be it.
+
+The new Prove, in place of the one above:
+
+```sh
+export CARGO_BUILD_JOBS=4
+cargo test -p podssh-relay --lib pool
+cargo test -p podssh-cli --test relay
+```
+
+Offline: a list and the bundle that a run of the signing workflow made with cosign, software
+that podssh did not write, kept as a fixture as the tests of `podssh update` keep a release's
+(`crates/podssh-cli/tests/update.rs`): its host outside the domain is used; one changed byte, an
+old `not_after`, a lower `serial`, or another workflow's identity keeps the parent domain alone.
+Planted: the check skipped; the test of the changed byte fails. Live: the workflow signs a list
+that names `podssh relay serve` on a runner, and `podssh relay status` names it.
 
 # T-407: A relay's Retry-After reaches a line as it came, with its terminal controls
 
@@ -1838,7 +2050,7 @@ socket with 1003 for a frame that was on its way when an operator's link was los
 **Milestone:** M10
 **Priority:** P3
 **Effort:** S
-**Status:** blocked
+**Status:** open
 
 ## Problem
 
@@ -1870,6 +2082,53 @@ cargo test -p podssh-cli --test node_live -- --ignored
 From GitHub's network (`relay-live.yml` with `test=node_live`), a client's link cut during a bulk
 download through a node: the node's other session goes on, and no 1003 reaches it.
 
-## Blocker
+## Correction
 
-The relay's operator (`docs/relay-operator.md`, item 19): a change of the relay.
+2026-11-02 (the drafting agent). Until that day this entry was blocked, and its `## Blocker`
+read, moved here as `cargo todo check` refuses a Blocker on an open entry:
+
+> The relay's operator (`docs/relay-operator.md`, item 19): a change of the relay.
+
+Lifted on 2026-11-02 by Q63: see below.
+
+The Premise holds: the node learns of an operator's loss only from the relay's `close {id}`. By
+Q63 (2026-11-02, `docs/decisions.md`; docs/mesh.md, section 4) the relay is a role of podssh
+itself, so the relay's change of the Approach above is podssh's, in its relay role's reverse road
+(T-427): a frame of the node for an id that it closed in the last few seconds is dropped as one
+in flight, and `1003` stays for an id that it never gave or closed long before. The stand-in
+already tells the two apart (`scripts/fake_reverse.py:190-202`), with a grace of 2 s.
+
+What the client does (the research of 2026-11-02 on the client's side), where the default
+deployment still closes the socket: make the cut cheap. A 1003 is no exit since T-409, and the
+operator's layer resumes since T-410; but the node's first connection again after a fault waits
+`backoff(1)`, 0.5 s to 1.5 s (`crates/podssh-relay/src/reverse/node.rs:251`), though a 1003 is no
+overload. Since T-379 a resume can land on the iroh or the DERP road
+(`crates/podssh-cli/src/ssh/roads.rs:1-10`). The sessions of `node --plain` end with the socket,
+and nothing says so.
+
+The new Approach, in place of the one above:
+
+1. podssh's relay role (T-427): a grace of 2 s, the stand-in's, for an id that it closed; such a
+   frame is dropped and counted under `-v`; `1003` for the rest.
+2. The node: its first connection again after a socket that served, closed for a fault, goes at
+   once (with T-255).
+3. The manual says that a lost operator can end each `--plain` session of a node on the default
+   relay, and names the layer.
+4. What `tcp.ssh.relay.ajam.dev` lacks here is no blocker: a note of docs/relay-operator.md
+   (item 19).
+
+The new Prove, in place of the one above:
+
+```sh
+export CARGO_BUILD_JOBS=4
+cargo test -p podssh-cli --test node_moves
+cargo test -p podssh-cli --test node_live -- --ignored
+```
+
+Offline (`node_moves`, a new case): two layered sessions through one node and podssh's relay
+role; an RST of one operator's link (`scripts/fake-proxy.py`) during 32 MiB down: no 1003, and
+the other session goes on with equal digests. Against the stand-in in its strict mode the 1003
+comes, and the other session's longest stall is under 3 s. Planted: the backoff back at the
+first connection again; the stall check fails. Live, from GitHub's network (`relay-live.yml`
+with `test=node_live`), against `podssh relay serve` on the runner: the node's other session goes
+on, and no 1003 reaches it.

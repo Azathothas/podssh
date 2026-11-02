@@ -12,7 +12,7 @@ Triage of 2026-10-08: issues #1 to #36.
 | Issue | Subject | State | Entries |
 | --- | --- | --- | --- |
 | #1 | `podssh man` writes the whole manual | closed | T-014 |
-| #2 | Bracketed IPv6 literals refused | closed | T-007 (the commit "IPv6 addresses as targets: podssh sends the bare literal to the relay"); T-253 waits for the relay's operator |
+| #2 | Bracketed IPv6 literals refused | closed | T-007 (the commit "IPv6 addresses as targets: podssh sends the bare literal to the relay"); T-253 is M10's, in podssh's own relay role (Q63) |
 | #3 | The token cache key is the first host | closed | T-057 (the commit "Relay tokens: one cache entry for each deployment, with the host that minted it") |
 | #4 | Blank flag names under groff | closed | T-015 |
 | #5 | `-c`, `-m`, `-X`, `-Y`, `-O`: "unknown flag" | closed | T-016 |
@@ -27,7 +27,7 @@ Triage of 2026-10-08: issues #1 to #36.
 | #14 | `ssh_config`, `-F` and `-G` | closed (2026-10-30, with a comment that names the entries and commits; in `v1.0.0-beta.1`) | T-043, T-044, T-045, T-046 |
 | #15 | `keygen` waits for ever on a dead `/dev/tty` | closed | T-005 (repaired in `eacd94e`; measured in the box in the commit "The box has the sandbox's dead /dev/tty; T-005 measured there") |
 | #16 | A repeated flag keeps the last value | closed | T-017 |
-| #17 | Relay drops (1011): a generic message, no retry | closed | T-024 (the commit "A dropped session names the hop that broke"), T-025 (33c9a31), T-062 (the backpressure close: f93e4a2, b1f75c9); T-336 waits for the relay's operator |
+| #17 | Relay drops (1011): a generic message, no retry | closed | T-024 (the commit "A dropped session names the hop that broke"), T-025 (33c9a31), T-062 (the backpressure close: f93e4a2, b1f75c9); T-336 is M10's, in podssh's own relay role (Q63) |
 | #27 | Repository health | open | T-205, T-206, T-207, T-208, T-209, T-210, T-211, T-212, T-213, T-214, T-215, T-216, T-217, T-218 |
 | #28 | `sandbox-check.sh` exits 0 on failure | closed | T-006 (the commit "sandbox-check.sh: each step has a verdict, and a failed step fails the run") |
 
@@ -40,7 +40,7 @@ scope on 2026-10-08 (`docs/decisions.md`).
 **#18, transports and reachability.** The iroh road: T-162, T-163, T-164,
 T-165. QUIC with a fallback over TLS and TCP: T-162 and T-164 (the reverse
 road is the fallback), T-124 (a server that listens, after a probe). A
-self-hosted relay: T-169 (it waits for the relay's operator). SSH on port 443: podssh already carries SSH over port 443
+self-hosted relay: T-169 (M10, in podssh's own relay role since Q63). SSH on port 443: podssh already carries SSH over port 443
 through the relay; for a server that listens, T-124. UDP over TCP:
 T-168. A Cloudflare quick tunnel, made by podssh itself: T-170 (the research, done), then T-299
 (the measurement), T-300 and T-301. QUIC between peers with a relay
@@ -92,7 +92,7 @@ MobaXterm, Remmina), T-327 (mRemoteNG) and T-328 (FinalShell, Termius; it
 waits for the operator's exports).
 
 **#25, robustness and releases.** A circuit breaker: T-059; the retry policy:
-T-025. Rate limits and quotas: T-169 (in a relay; it waits for the relay's operator), T-114 (in `serve`),
+T-025. Rate limits and quotas: T-169 (in podssh's own relay role, M10, Q63), T-114 (in `serve`),
 T-145 (a bandwidth limit). Resource limits: T-201. Connection sharing: T-039.
 A scored interop harness: T-199. Fuzzing and a terminal oracle: T-198,
 T-200. An audit log: T-116. Live tests kept out of the default run: already
@@ -106,7 +106,7 @@ streams: T-179. UDP over TCP: T-168. Publish a local HTTP service: T-180 (it wai
 operator).
 Port discovery: T-180. A local-only mode: T-177. USB/IP: T-182 (a tested recipe over `podssh pipe`).
 Closed on 2026-10-30 with a comment that names the entries and commits, and
-T-180, which waits for the relay's operator.
+T-180, `podssh funnel` in M10 (Q63).
 
 ## Requests of a second review (#29 to #36)
 
@@ -122,7 +122,7 @@ corrects a claim that the code does not support.
 | #32 | `podssh serve` finds a shell with no passwd entry | open | T-222 |
 | #33 | `check-repo.py` passes with nothing to check; no scan for a listener | closed | T-223 (the commit "Each repository check has a floor, and fails on an empty tree"), T-224 (the commit "The repository check finds a listener outside its allowance"); the floors of `cargo todo check` are in T-204 (done). Closed on 2026-10-09 with a comment that names them |
 | #34 | The expected exit codes, from stock OpenSSH | closed | T-225 (`e8bec97`) |
-| #35 | Signed pairing grants that are used once | open | T-226 (it waits for the relay's operator) |
+| #35 | Signed pairing grants that are used once | open | T-226 (M10, in podssh's own relay role since Q63) |
 | #36 | `--direct` has no limit on a stuck write | closed (`f502fba`, 2026-10-11) | T-227 |
 
 ## Requests after the triage (#51 on)
@@ -136,10 +136,10 @@ root lock), made on `main` and closed with a comment; Dependabot's #78 to #82 of
 
 | Issue | Subject | State | Entries |
 | --- | --- | --- | --- |
-| #51 | An HTTP/2 road over extended CONNECT (RFC 8441) | open | T-321 (it waits for the relay's operator: the relay's edge chose `h2` and did not offer extended CONNECT, measured on 2026-10-30; the comment on RFC 9113's CONNECT is in its Blocker) |
-| #54 | `doctor` measures what the proxy does to a stream | closed | T-324 (the three failures of the upgrade, and samples with their loss; the commit "doctor samples each probe of TCP, and names three failures of the upgrade"); T-325 (buffering, a cap on bodies, an idle limit) waits for the relay's operator |
-| #55 | The split road's wire protocol | open | T-319 (its Approach holds the protocol; the operator allowed its second connection, Q44, and it waits for the relay's operator) |
-| #56 | A cleartext road on port 443, probed | open | T-326 (the operator allowed it with a token for one session, Q45, and it waits for the relay's operator) |
+| #51 | An HTTP/2 road over extended CONNECT (RFC 8441) | open | T-321 (M10, on podssh's own relay role's listener since Q63; the default relay's edge chose `h2` and did not offer extended CONNECT, measured on 2026-10-30) |
+| #54 | `doctor` measures what the proxy does to a stream | closed | T-324 (the three failures of the upgrade, and samples with their loss; the commit "doctor samples each probe of TCP, and names three failures of the upgrade"); T-325 (buffering, a cap on bodies, an idle limit) is M10's, served by podssh's own relay role (Q63) |
+| #55 | The split road's wire protocol | open | T-319 (its Approach holds the protocol; the operator allowed its second connection, Q44, and it is M10's since Q63, served by podssh's own relay role) |
+| #56 | A cleartext road on port 443, probed | open | T-326 (the operator allowed it with a token for one session, Q45, and it is M10's since Q63, served by podssh's own relay role) |
 | #59 | The forward road without the operator's relay: ways with no account to reach a `host:port` (research) | open | Each road of its ranking, in the paragraph below |
 | #60 | A relay template: a WebSocket forwarder that takes the destination from the URL | closed 2026-11-01, each entry done | T-369 (a forwarder that the user names); T-370 (the public forwarders in the binary, and a fallback to them, by the operator's ruling Q56) |
 | #61 | SSH on port 443 as a hop | closed 2026-11-01, each entry done | T-371 (the hop measured, and a `doctor` line for a hop, b666713), T-372 (a hop or a destination whose SSH is wrapped in TLS, `ssh+tls://`, 60c2414) |
@@ -159,9 +159,8 @@ carriers of the same day (`docs/carriers.md`, whose forward road is T-347,
 T-351, T-352 and T-353). Its ranking, road by road: 1, a forwarder that
 takes its target from the URL: T-369, and T-370 for the forwarders in the
 binary (Q56), both done on 2026-11-01; 2, the same Worker in the user's own Cloudflare account: a
-template of T-369 can name it, podssh ships no forwarder (the relay stays a
-separate project, `docs/decisions.md`, Q4 and Q9; a relay of the user's own
-is T-169, which waits for the relay's operator), and a recipe for it is
+template of T-369 can name it, podssh ships no forwarder (a relay of the user's own
+is T-169, podssh's own relay role since Q63, 2026-11-02), and a recipe for it is
 part of Q56; 3, SSH on port 443 as a hop: T-371 and T-372 (#61, both done); 4,
 Shadowsocks: T-373 (#62, done); 5 and 6, WARP and Arti: T-352 and T-353 (#63,
 Q52, settled); 7, n0's iroh relays: a road already (T-162, done), and T-348 for the

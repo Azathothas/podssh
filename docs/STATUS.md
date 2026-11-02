@@ -847,7 +847,7 @@ ended at once at 02:01:01Z, which this machine did not see. Before, from
 00:27 to 01:28, about 9 drops an hour of a session. Forward sessions held
 beside them from both networks had no drop in 1.2 hours; the relay's idle cut
 ended 22 of them at 180.3 s to 180.9 s, with Pings every 10 s. The planted
-drop of each run reached the node. T-255 waits for the relay's operator.
+drop of each run reached the node. T-255 is M10's since Q63 (2026-11-02), in podssh's own relay role.
 
 The relay's checks of a slow receiver do not operate (T-062, 2026-10-31,
 `cargo test -p podssh-relay --features pair --test live_backpressure -- --ignored --nocapture`,
@@ -859,7 +859,7 @@ ended `1000` at both levels. A client that then read 16 KiB/s got no Close
 in 90 s, neither the forward road's `1013` nor the reverse road's `1011`,
 while the node had given the relay each of 48 MiB within 15 s: 48.9 MB that
 the client had not read waited in the relay or its edge, on both networks.
-T-336 waits for the relay's operator.
+T-336 is M10's since Q63 (2026-11-02), in podssh's own relay role.
 
 ## The release check
 

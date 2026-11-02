@@ -1124,7 +1124,7 @@ limits, quotas and connection caps, from sandhole and USBoverSSH).
 **Milestone:** M10
 **Priority:** P3
 **Effort:** L
-**Status:** blocked
+**Status:** open
 
 ## Problem
 
@@ -1183,9 +1183,88 @@ GitHub's banner (the test reads `PODSSH_RELAY`:
 is `ok`. The tests of the relay project cover its limits and both close
 tables.
 
-## Blocker
+## Correction
 
-The relay's operator: a self-hosted relay is work of the relay project. The operator ruled on 2026-10-08 that the relay stays separate (`docs/decisions.md`).
+2026-11-02 (the drafting agent). Until that day this entry was blocked, and its `## Blocker`
+read, moved here as `cargo todo check` refuses a Blocker on an open entry:
+
+> The relay's operator: a self-hosted relay is work of the relay project. The operator ruled on
+> 2026-10-08 that the relay stays separate (`docs/decisions.md`).
+
+Lifted on 2026-11-02 by Q63: see below.
+
+The Premise is stale in one sentence: the stand-in serves more than "the forward path,
+`/v1/mint` and `/health` only". At `scripts/fake-relay.py:129-133` it also serves `/relays.json`
+and `/trace`, and `scripts/fake-relay.py:117` hands the whole reverse road to
+`scripts/fake_reverse.py`, which is as strict as the live relay for an id that it forgot, and
+tells a frame in flight apart (`scripts/fake_reverse.py:190-202`). The rest holds; the ruling of
+2026-10-08 that it cites is changed.
+
+By Q63 (2026-11-02, `docs/decisions.md`; the design is docs/mesh.md, section 4) the relay is a
+role of podssh itself, so this entry is podssh's work: `podssh relay serve`, the relay's forward
+road served by the podssh binary. Its reverse road is T-427, and the role behind a node's quick
+tunnel, with no listener, is T-428.
+
+What the role serves: the contract `2026-10-03-r2`, so that each client of podssh, each test and
+`doctor` work against it unchanged. `/health` with the service name `tcp-ssh-relay`
+(`crates/podssh-relay/src/health.rs:15`) and a version; `/v1/mint`; `/connect/<host>/<port>`
+with `?dial=lazy`, `?precheck` and `?family`; `/relays.json` with the five limits of
+`crates/podssh-probe/facts/relay-limits.toml`; `/trace`; and `/llms-full.txt`, podssh's own copy
+of the contract. A target is dialed only after its name resolved to a public address (the ranges
+of `docs/relay.md:202`), and port 25 is refused; the limits are the contract's (an empty frame
+each 25 s, 180 s idle, 12 h, 64 MiB, frames of 262144 bytes), and so are the forward close
+codes; each queue has a bound (`1013` at 2 MiB, T-336), which a write that waits gives.
+
+What the client does: nothing new. `--relay-host` and `PODSSH_RELAY` name the role's host,
+`--ca-file` a test CA, and a token goes only to the deployment that minted it (Q49).
+
+The new Approach, in place of the one above:
+
+1. `podssh relay serve --listen ADDR`, on a listener that the user asks for, after the probe of
+   a bind (Q1). TLS with a certificate and a key from files (`--cert`, `--key`, read again on
+   SIGHUP), or from ACME (TLS-ALPN-01 on the same port) for a name that the user gives. The
+   routes, the tokens, the policy and the codecs go in `podssh-relay`, with no C (rule 4 of
+   `AGENTS.md`); the server's signing key and ACME go in `podssh-cli`, which links aws-lc
+   already. Reused: the server's side of the handshake (`crates/podssh-ws/src/server.rs:1-5`),
+   the request reader and the listeners' probe.
+2. Tokens of the contract's form, `ephm1.<expiry-ms>.forward.<mac>`, under a secret of the
+   role's in a 0600 file. `/v1/mint` mints for a key of the net's members (T-429), and before
+   the net for a key of an allowlist file of T-087's format (`--allow FILE`), each by its
+   signature of the request; for anyone only when the user asks (`--mint anyone`); else `503`,
+   which podssh reads as "do not retry".
+3. The policy: resolve, refuse the private, shared, loopback, link-local, unique-local,
+   multicast, documentation and NAT64 ranges and port 25, then dial the vetted address; an
+   optional list of allowed targets narrows it. Rate limits for each address (120 a minute
+   with no token) and each token.
+4. The forward road as the contract gives it: the dial before the upgrade (10 s, else `502`),
+   binary frames both ways, the keepalive, the limits, the client's Close and 15 s of the
+   target's tail, the close codes, and a bound on each queue.
+5. Its check is the offline suite that holds the stand-in today: a variable that only the
+   tests read, PODSSH_RELAY_UNDER_TEST=podssh, makes the harness start `podssh relay serve` with
+   the stand-in's arguments (`--cert`, `--key`, `--port-file`) in place of
+   `scripts/fake-relay.py` for its mode `normal`; the fault modes stay the stand-in's.
+6. The manual, `docs/relay.md` and docs/mesh.md say how to run it, and
+   `scripts/check-relay-spec.py` compares its copy of the contract with the pinned one.
+
+The new Prove, in place of the one above:
+
+```sh
+export CARGO_BUILD_JOBS=4
+cargo test -p podssh-relay --test relay_serve
+PODSSH_RELAY_UNDER_TEST=podssh cargo test -p podssh-cli --test relay --test faults --test ping --test doctor_upgrade
+```
+
+Offline: the role on the loopback, with a certificate of a test CA; OpenSSH's `ssh` with
+`ProxyCommand podssh proxy` reaches OpenSSH's sshd through it, 8 MiB each way with equal digests;
+a private target, port 25 and a bad token get the contract's refusals; `/health`, `/relays.json`
+and `/trace` parse as the live relay's do; and the tests of the second command pass with the role
+in place of the stand-in. Planted: the policy skipped; the private target's test fails. Live, on
+a GitHub runner where the role runs with a certificate of the run: `PODSSH_RELAY=HOST cargo test
+-p podssh-cli --test proxy_live -- --ignored` gets GitHub's banner through it, and each relay
+line of `podssh doctor` is `ok`.
+
+What `tcp.ssh.relay.ajam.dev` lacks here is no blocker: a note of docs/relay-operator.md
+(item 12).
 
 # T-170: A Cloudflare quick tunnel made by podssh itself, with no `cloudflared`: the protocol and its ports
 
@@ -2409,7 +2488,7 @@ section 8).
 **Milestone:** M10
 **Priority:** P3
 **Effort:** L
-**Status:** blocked
+**Status:** open
 
 ## Problem
 
@@ -2460,11 +2539,59 @@ relay: the link drops at random points, the digests are equal, and no URL
 holds the token. The live test does the same against the relay, when the
 relay offers the feature.
 
-## Blocker
+## Correction
 
-The relay's operator: resumption in the relay is work of the relay project. After M6 (T-156), the
-operator and the relay's operator decide question 1 of `docs/design.md` section 9. Sessions skip
-this entry (the operator's ruling of 2026-10-08).
+2026-11-02 (the drafting agent). Until that day this entry was blocked, and its `## Blocker`
+read, moved here as `cargo todo check` refuses a Blocker on an open entry:
+
+> The relay's operator: resumption in the relay is work of the relay project. After M6 (T-156),
+> the operator and the relay's operator decide question 1 of `docs/design.md` section 9.
+> Sessions skip this entry (the operator's ruling of 2026-10-08).
+
+Lifted on 2026-11-02 by Q63: see below.
+
+The Premise holds for the default deployment (`docs/design.md:659-662`). By Q63 (2026-11-02,
+`docs/decisions.md`; docs/mesh.md, section 4) the relay is a role of podssh itself, so this
+entry is podssh's work, and the proposal of Approach item 1 needs no other project: in podssh's
+relay role (T-169) the relay's side of the forward road is podssh's code, and the far end of the
+resumable layer already exists (`crates/podssh-relay/src/session/far.rs:1-8`). A relay that runs
+it holds the TCP connection to a standard sshd while the client's link drops and comes back, with
+no Durable Object and no time billed.
+
+What the client has: the layer's client, which each road between two podssh ends runs. And
+today, with no relay: a roost in front of an sshd (`podssh node --sshd TARGET`), whose far end
+dials TARGET once for a whole session, so a roost on a jump host keeps a remote sshd's session
+across the client's drops (the research of 2026-11-02 on the client's side).
+
+The new Approach, in place of the one above:
+
+1. In podssh's relay role (T-169), `/connect/<host>/<port>` with a header that asks for the
+   layer runs the layer's far end between the client's links and the target; a resume on a new
+   link carries the session on. The role offers it in a field of `/relays.json`, and the client
+   asks only where that field is (item 2 above holds).
+2. The layer's secret and its proofs stay in memory and in headers, never in a URL (item 3
+   above holds). The far end keeps a session for the layer's deadline (10 minutes) and its
+   replay capacity, then closes the target.
+3. A resume reaches the process that holds the session: each host of the role names itself in
+   `/relays.json`, and a resume goes to that host (item 4 above holds, by host).
+4. The manual names the roost on a jump host for a host where podssh runs beside sshd, and this
+   road for an sshd where nothing else runs.
+5. What `tcp.ssh.relay.ajam.dev` lacks here is no blocker: a note of docs/relay-operator.md
+   (item 16).
+
+The new Prove, in place of the one above:
+
+```sh
+export CARGO_BUILD_JOBS=4
+cargo test -p podssh-relay --test session_relay_resume
+```
+
+Offline: OpenSSH's `ssh`, with `ProxyCommand podssh proxy`, through podssh's relay role on the
+loopback to OpenSSH's sshd; the client's link is cut at 20 random points during 32 MiB each way,
+the SSH session lives on, the digests are equal, and no URL holds the layer's secret. Planted:
+the far end closes the target at a cut; the test fails. Live, on a GitHub runner where
+`podssh relay serve` runs: the same to the runner's sshd, with the client's link cut by
+`scripts/fake-proxy.py`.
 
 # T-280: The iroh road through a SOCKS5 proxy
 
@@ -2615,7 +2742,7 @@ documents that refusal for the names that it intercepts (T-311). GitHub #55
 **Milestone:** M10
 **Priority:** P2
 **Effort:** L
-**Status:** blocked
+**Status:** open
 
 ## Problem
 
@@ -2666,10 +2793,62 @@ Against a stand-in proxy that refuses `Upgrade` and buffers request bodies,
 a session carries 20 MiB each way with equal digests on the split form and
 on the serial form. Planted: the sequence number ignored; the digests differ.
 
-## Blocker
+## Correction
 
-The relay's operator: the relay has no HTTP endpoints for a session
-(`docs/relay.md`).
+2026-11-02 (the drafting agent). Until that day this entry was blocked, and its `## Blocker`
+read, moved here as `cargo todo check` refuses a Blocker on an open entry:
+
+> The relay's operator: the relay has no HTTP endpoints for a session
+> (`docs/relay.md`).
+
+Lifted on 2026-11-02 by Q63: see below.
+
+The Premise holds, and so does its "Not measured: the body buffering of this container's proxy".
+By Q63 (2026-11-02, `docs/decisions.md`; docs/mesh.md, section 4) the relay is a role of podssh
+itself, so this entry is podssh's work: the session endpoints of Approach item 1 are served by
+podssh's relay role (T-169), for the forward road to a public target, and by a node's quick
+tunnel (T-428), for the user's own node. That node is the server of the edge's requests, and
+today answers each one that is not a visitor's WebSocket with 404
+(`crates/podssh-relay/src/quick/serve.rs:8`). The resumable layer runs over any byte stream, so
+the road is one more link under it, and podssh-ws has a POST loop already, for Tor's meek_lite
+(`crates/podssh-ws/src/meek.rs`). VLESS over XHTTP's `packet-up` (T-440) has the same shape
+against a server that the user runs (Xray-core): a second server of this road, which podssh did
+not write.
+
+What the client does (the research of 2026-11-02 on the client's side): the split form of #55
+between two podssh ends, chosen by the probes of T-325, and raced after the WebSocket on the same
+name.
+
+The new Approach, in place of the one above:
+
+1. The protocol of #55, as Approach item 2 gives it (sequence numbers, `X-Ack`, consume then
+   delete, a bounded window, a 204 as a whole answer), in `podssh-relay`, its server and its
+   client in one module beside the WebSocket road.
+2. Its server in podssh's relay role (T-169: the target of `/connect/<host>/<port>`, the token in
+   a header), and in the quick tunnel's node (T-428: the node's own target, with no relay token,
+   as the layer's secret and the e2e channel guard the session; an unknown session id is
+   refused).
+3. Its client: a road of `podssh ssh`, `proxy` and `ssh node://`, tried when a probe found the
+   upgrade refused (T-325): the split form first, the serial form after it (Q44).
+4. Beside it, XHTTP's `packet-up` to a user's Xray-core (T-440).
+5. `doctor` names the road that answered (item 3 above holds).
+6. What `tcp.ssh.relay.ajam.dev` lacks here is no blocker: a note of docs/relay-operator.md
+   (item 5).
+
+The new Prove, in place of the one above:
+
+```sh
+export CARGO_BUILD_JOBS=4
+cargo test -p podssh-relay --test http_road
+cargo test -p podssh-relay --features quick --test http_road_quick
+```
+
+Offline: through a stand-in proxy that refuses `Upgrade` and buffers request bodies, a session
+carries 20 MiB each way with equal digests, on the split form and on the serial form, to podssh's
+relay role with OpenSSH's sshd as the target, and to a quick tunnel's node behind the stand-in
+edge of T-300. Planted: the sequence number ignored; the digests differ. Live: in
+`.github/workflows/quick-tunnel-live.yml`, through a quick tunnel of the run, and on a GitHub
+runner where `podssh relay serve` runs.
 
 # T-321: An HTTP/2 road: the WebSocket over extended CONNECT (RFC 8441)
 
@@ -2678,7 +2857,7 @@ The relay's operator: the relay has no HTTP endpoints for a session
 **Milestone:** M10
 **Priority:** P3
 **Effort:** L
-**Status:** blocked
+**Status:** open
 
 ## Problem
 
@@ -2750,20 +2929,64 @@ CONNECT ends the session with the relay's refusal. Planted: `:protocol`
 sent with the setting absent; the fallback test fails. Live, when a relay
 offers it: `podssh doctor` says so, and `podssh ssh` runs on the road.
 
-## Blocker
+## Correction
 
-The relay's operator: the relay's edge does not offer extended CONNECT
-(measured above), and a relay that does is the self-hosted relay of
-T-169, which waits for the relay's operator.
+2026-11-02 (the drafting agent). Until that day this entry was blocked, and its `## Blocker`
+read, moved here as `cargo todo check` refuses a Blocker on an open entry:
 
-Read (#51's comment of 2026-10-30, checked in the RFCs): RFC 9113,
-section 8.5, says that a proxy's CONNECT "MUST" omit `:scheme` and `:path`,
-which RFC 8441, section 4, requires beside `:protocol`, so an HTTP/2 proxy
-that does not implement RFC 8441 reads the request as malformed. RFC 8441,
-section 7, keeps the traditional CONNECT to a proxy, and lets the version of
-HTTP inside the tunnel decide. podssh tunnels by a traditional CONNECT, so
-through a proxy that does not end TLS the relay alone must offer the
-setting; a proxy that ends TLS must implement RFC 8441 itself.
+> The relay's operator: the relay's edge does not offer extended CONNECT
+> (measured above), and a relay that does is the self-hosted relay of
+> T-169, which waits for the relay's operator.
+>
+> Read (#51's comment of 2026-10-30, checked in the RFCs): RFC 9113,
+> section 8.5, says that a proxy's CONNECT "MUST" omit `:scheme` and `:path`,
+> which RFC 8441, section 4, requires beside `:protocol`, so an HTTP/2 proxy
+> that does not implement RFC 8441 reads the request as malformed. RFC 8441,
+> section 7, keeps the traditional CONNECT to a proxy, and lets the version of
+> HTTP inside the tunnel decide. podssh tunnels by a traditional CONNECT, so
+> through a proxy that does not end TLS the relay alone must offer the
+> setting; a proxy that ends TLS must implement RFC 8441 itself.
+
+Lifted on 2026-11-02 by Q63: see below. The reading of the RFCs above stands.
+
+The Premise holds at its lines, and its measurement of the default deployment's edge stands. By
+Q63 (2026-11-02, `docs/decisions.md`; docs/mesh.md, section 4) the relay is a role of podssh
+itself, so this entry is podssh's work: the self-hosted relay of Approach item 5 is podssh's own
+relay role (T-169), whose front podssh controls. Its HTTP/2 server, the `h2` crate, offers the
+setting (`enable_connect_protocol`, read in its source in the research of 2026-11-02). The
+motive, a TLS handshake for each session, is partly podssh's own: each dial builds a new rustls
+configuration (`crates/podssh-ws/src/tls.rs:124-128`), so no session of a process resumes TLS
+from another; that repair is T-444.
+
+The new Approach, in place of the one above:
+
+1. Approach items 1 to 4 above: the road `h2` in `podssh-ws`, taken only where the server's
+   SETTINGS offer extended CONNECT.
+2. podssh's relay role (T-169) offers ALPN `h2` and `SETTINGS_ENABLE_CONNECT_PROTOCOL`, and takes
+   a CONNECT with `:protocol websocket` to its forward road, and to the reverse road of T-427,
+   answered 200; its HTTP/1.1 upgrade stays for each other client.
+3. The sessions of one process share a connection up to the server's MAX_CONCURRENT_STREAMS;
+   with T-444, a second connection resumes TLS.
+4. `doctor` names the ALPN and the setting of the default relay, of a relay that the user names,
+   and of the forwarders.
+5. What `tcp.ssh.relay.ajam.dev` lacks here (the setting at Cloudflare's edge) is no blocker: a
+   note of docs/relay-operator.md (item 8).
+
+The new Prove, in place of the one above:
+
+```sh
+export CARGO_BUILD_JOBS=4
+cargo test -p podssh-ws --test h2_road
+cargo test -p podssh-relay --test relay_serve_h2
+```
+
+Offline: the cases of the Prove above against a stand-in made with the `h2` crate; then, in the
+build image, Apache httpd 2.4.58 or later with `H2WebSockets on` in front of a WebSocket echo,
+software that podssh did not write; then 8 sessions of `podssh proxy` on one TLS connection to
+podssh's relay role, OpenSSH's sshd as the target, with equal digests. Planted: `:protocol` sent
+with the setting absent; the fallback test fails. Live, on a GitHub runner where
+`podssh relay serve` runs: `podssh doctor` names `h2` and the setting, and `podssh ssh` runs on
+the road.
 
 # T-329: Carry the patch of iroh-relay to iroh 1.4.1 (Azathothas/podssh#53)
 
@@ -4568,11 +4791,11 @@ code that no command of the default build uses is P2 at most".
   the road's own relay is in reach.
 - Read: the quick tunnel's QUIC does not take this probe, so the issue's "one bind decides two
   roads" is wrong. T-301's Approach item 1 said "After a UDP probe (the iroh road's)"
-  (`TODO/roads.md:2020`); its Decision took QUIC only where no proxy is set, on the connection's
-  own socket (`TODO/roads.md:2052-2059`), and the QUIC handshake, bounded at 5 s, is its probe:
+  (`TODO/roads.md:2099`); its Decision took QUIC only where no proxy is set, on the connection's
+  own socket (`TODO/roads.md:2131-2138`), and the QUIC handshake, bounded at 5 s, is its probe:
   QUIC that fails gave way to HTTP/2 for the run (`crates/podssh-cli/src/node_quick.rs`, its `link`,
   read at `a09f40e`, which T-400 replaced by a race; `crates/podssh-relay/src/quick/quic.rs:32`). Its cost on a host that drops UDP is
-  one handshake a run, as its Decision item 5 chose (`TODO/roads.md:2060-2064`). doctor says
+  one handshake a run, as its Decision item 5 chose (`TODO/roads.md:2139-2143`). doctor says
   nothing of it in the default build, where the quick tunnel is.
 - Read: the measured cage refuses UDP (`docs/target-environment.md:23`), and the box does too
   (`scripts/box/seccomp.json:11-30`): there the probe is right. Inferred: it is wrong on a host
@@ -4770,7 +4993,7 @@ does not depend on them.
   `CONNECT github.com:22` and carries no SSH (`docs/target-environment.md:57-66`; the issue cited
   `:66-73`).
 - Read: each road of the release binaries but `--direct` depends on Cloudflare and on one domain
-  (`docs/carriers.md:17-19`; T-346).
+  (`docs/carriers.md:23-25`; T-346).
 - Read: the opener tries the relay hosts in turn, and stops at once on a failure that each host
   would repeat (`crates/podssh-relay/src/open.rs:1-14`).
 
@@ -4916,7 +5139,7 @@ relay's path and token.
   as #59 read it); ssheasy's code caps a connection at 1 GiB, then 100 KiB/s
   (`hullarb/ssheasy:proxy/main.go`, as #60 read it).
 - Read: the study of carriers found no documented service, with no account, that carries any TCP
-  target over a WebSocket (`docs/carriers.md:16-17`); the three above publish no limit, and say
+  target over a WebSocket (`docs/carriers.md:22-23`); the three above publish no limit, and say
   nothing of other clients.
 - Read: a relay is a host and a port (`crates/podssh-relay/src/relay.rs:56-62`), and its forward
   path is `/connect/<host>/<port>` (`:139-152`); a run has one road, of five kinds
@@ -5095,7 +5318,7 @@ and no notice.
   tailcat; the forwarders of #59 serve their own products' users, and say nothing of others.
 - Read: whether Cloudflare's terms, which forbid using its services "to provide a virtual private
   network or other similar proxy services", hold for the relay is a question for the relay's
-  operator (`docs/relay-operator.md:83-87`).
+  operator (`docs/relay-operator.md:92-96`).
 - Read: the test targets of a session are the operator's list (`AGENTS.md:233-252`), which names
   none of the three.
 
@@ -5173,8 +5396,8 @@ relay host failed. Live, as Q56 allows: GitHub's banner through each, in GitHub 
 ## Correction
 
 2026-10-31 (the drafting agent): two citations of the Premise, read at `a3f948d`. The question of
-Cloudflare's terms is item 15 of the relay operator's list, `docs/relay-operator.md:315-322`;
-`docs/relay-operator.md:83-87` is item 1's word on the drops of reverse sockets. The test targets
+Cloudflare's terms is item 15 of the relay operator's list, `docs/relay-operator.md`, lines 315-322 at `80a6407`;
+`docs/relay-operator.md:92-96` is item 1's word on the drops of reverse sockets. The test targets
 of `AGENTS.md:232-249` name the three forwarders now, from GitHub Actions only, with short runs
 (Q56, the same day); the Premise read them before that ruling.
 
@@ -5630,7 +5853,7 @@ edge still needs the operator's relay. WARP's tunnel (T-352) carries any port ov
 ## Premise
 
 - Read: `crates/podssh-relay/src/quick/edge.rs:23` says "pub const PORT: u16 = 7844". The relay's
-  VPC road carried TLS to that port, and `TODO/roads.md:1823` says "the edge's 443 and 8443 serve
+  VPC road carried TLS to that port, and `TODO/roads.md:1902` says "the edge's 443 and 8443 serve
   no tunnel".
 - Read: the measured proxy allows ports 443, 80 and 8443 alone (`docs/target-environment.md:21`).
 - Read: T-352 plans WARP's road over HTTP/2, with smoltcp for TCP inside, which the operator

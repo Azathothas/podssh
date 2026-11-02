@@ -57,21 +57,20 @@ repository and CI).
    highest priority first. They do not wait for a milestone.
 6. An entry that waits for a measurement in a real sandbox is done in one
    session with the other entries of that kind.
-7. The entries that wait for the relay's operator are skipped: T-086,
-   T-106, T-169, T-173, T-180, T-226, T-253, T-255, T-319, T-321, T-325,
-   T-326 and T-336.
+7. No entry waits for the relay's operator since Q63 (2026-11-02): the
+   entries that did are M10's, done in podssh's own relay role.
 
 ## Counts
 
-**442 entries: 34 open, 1 partial, 31 blocked, 376 done.**
+**442 entries: 49 open, 1 partial, 16 blocked, 376 done.**
 
 | Priority | open | partial | blocked | done | total |
 | --- | --- | --- | --- | --- | --- |
 | P0 | 0 | 0 | 0 | 1 | 1 |
 | P1 | 4 | 1 | 0 | 48 | 53 |
-| P2 | 13 | 0 | 21 | 179 | 213 |
-| P3 | 17 | 0 | 10 | 148 | 175 |
-| **All** | 34 | 1 | 31 | 376 | 442 |
+| P2 | 20 | 0 | 14 | 179 | 213 |
+| P3 | 25 | 0 | 2 | 148 | 175 |
+| **All** | 49 | 1 | 16 | 376 | 442 |
 
 ## Entries
 
@@ -161,7 +160,7 @@ repository and CI).
 | [T-083](reverse.md) | P2 | M | M4 | feature | done | `podssh node NAME TARGET` |
 | [T-084](reverse.md) | P2 | M | M4 | feature | done | `podssh operator NAME` and `podssh ssh NODE` |
 | [T-085](reverse.md) | P2 | M | M4 | measurement | blocked | M4 exit: two sessions at once into a node in another sandbox, and the facade for podbox |
-| [T-086](reverse.md) | P3 | M | M10 | feature | blocked | Pairing by a short one-time code, given out of band |
+| [T-086](reverse.md) | P3 | M | M10 | feature | open | Pairing by a short one-time code, given out of band |
 | [T-087](reverse.md) | P2 | M | backlog | feature | done | Node identity and access: a node key, an allowlist, an expected fingerprint, revocation |
 | [T-088](reverse.md) | P2 | L | backlog | feature | done | End-to-end encryption between two podssh ends |
 | [T-089](reverse.md) | P3 | M | backlog | feature | done | A node offers several named targets, each with its own grant |
@@ -181,7 +180,7 @@ repository and CI).
 | [T-103](ts.md) | P2 | M | M8 | defect | done | The DERP dial of the Tailscale fork does not use the proxy |
 | [T-104](ts.md) | P2 | M | M8 | feature | done | `podssh ts` connects again after a drop |
 | [T-105](ts.md) | P2 | M | M8 | defect | done | The fork shows the relay's `1008 not authorized` as a missing network map |
-| [T-106](ts.md) | P2 | M | M10 | measurement | blocked | The live test of `podssh ts` with two nodes |
+| [T-106](ts.md) | P2 | M | M10 | measurement | open | The live test of `podssh ts` with two nodes |
 | [T-107](serve.md) | P2 | M | M5 | feature | blocked | `podssh serve`: the russh server, its host key in a state file, and authorized keys |
 | [T-108](serve.md) | P2 | M | M5 | feature | blocked | `podssh serve`: exec, a shell and the environment, as the sandbox's user |
 | [T-109](serve.md) | P2 | S | M5 | feature | blocked | `podssh serve`: direct-tcpip into the cage |
@@ -244,18 +243,18 @@ repository and CI).
 | [T-166](roads.md) | P3 | M | backlog | feature | done | A roost: a podssh next to a standard sshd |
 | [T-167](roads.md) | P3 | M | backlog | feature | done | Start from a standard sshd, then move the session to a better road |
 | [T-168](roads.md) | P3 | M | backlog | feature | done | UDP over the relay |
-| [T-169](roads.md) | P3 | L | M10 | feature | blocked | A self-hosted relay that speaks the relay's contract |
+| [T-169](roads.md) | P3 | L | M10 | feature | open | A self-hosted relay that speaks the relay's contract |
 | [T-170](roads.md) | P3 | M | backlog | research | done | A Cloudflare quick tunnel made by podssh itself, with no `cloudflared`: the protocol and its ports |
 | [T-171](roads.md) | P3 | M | backlog | research | done | The functions of Mosh that M6 and T-160 do not give, made in podssh itself |
 | [T-172](roads.md) | P3 | S | backlog | research | done | Multipath TCP on the direct road |
-| [T-173](roads.md) | P3 | L | M10 | feature | blocked | Resumption in the relay for a standard sshd |
+| [T-173](roads.md) | P3 | L | M10 | feature | open | Resumption in the relay for a standard sshd |
 | [T-174](pipe.md) | P2 | M | M7 | feature | done | `podssh pipe A B` with local addresses |
 | [T-175](pipe.md) | P2 | M | M7 | feature | done | `podssh pipe` with remote addresses |
 | [T-176](pipe.md) | P2 | S | M7 | feature | done | `podssh pipe` with `unix-connect:PATH` |
 | [T-177](pipe.md) | P3 | M | M7 | feature | done | `podssh pipe` with a local listener after a probe |
 | [T-178](pipe.md) | P2 | M | M7 | feature | done | `--persist`: connect again and attach `tmux` again |
 | [T-179](pipe.md) | P3 | S | backlog | docs | done | Desktop streams and Telnet through `proxy` and `pipe` |
-| [T-180](pipe.md) | P3 | L | M10 | feature | blocked | Publish a local HTTP service at `https://NAME` through the relay |
+| [T-180](pipe.md) | P3 | L | M10 | feature | open | Publish a local HTTP service at `https://NAME` through the relay |
 | [T-181](pipe.md) | P3 | S | backlog | feature | done | A `serial:` address for a local serial device |
 | [T-182](pipe.md) | P3 | S | backlog | docs | done | USB/IP devices through `podssh pipe`: a tested recipe, with no driver in podssh |
 | [T-183](multi.md) | P3 | M | backlog | feature | done | Run one command on many hosts |
@@ -299,7 +298,7 @@ repository and CI).
 | [T-223](repo.md) | P3 | S | none | defect | done | `scripts/check-repo.py` passes when it finds nothing to check (GitHub #33) |
 | [T-224](repo.md) | P2 | S | none | chore | done | The gate finds a listener in the source: a scan with an allow-list (GitHub #33) |
 | [T-225](robustness.md) | P3 | M | backlog | chore | done | The interop gate takes each expected exit code from stock OpenSSH, beside the literal (GitHub #34) |
-| [T-226](reverse.md) | P2 | M | M10 | feature | blocked | Pairing grants that are signed and used once, not bearer tokens that can be replayed (GitHub #35) |
+| [T-226](reverse.md) | P2 | M | M10 | feature | open | Pairing grants that are signed and used once, not bearer tokens that can be replayed (GitHub #35) |
 | [T-227](ssh.md) | P2 | S | backlog | defect | done | `--direct` has no limit on a stuck write, but the relay leg fails after 60 s (GitHub #36) |
 | [T-228](ssh.md) | P2 | M | backlog | feature | done | A credential helper inside podssh, for passphrases and passwords |
 | [T-229](ssh.md) | P3 | L | backlog | feature | done | Hardware keys (FIDO2 `sk-` keys) in `podssh keygen`, the client and `podssh agent` |
@@ -326,9 +325,9 @@ repository and CI).
 | [T-250](release.md) | P1 | M | M9 | release | partial | Publish v1.0.0, the first stable release |
 | [T-251](release.md) | P1 | M | M9 | measurement | done | The check of a release from end to end, with no human |
 | [T-252](irc.md) | P2 | M | M8 | feature | done | `podssh chat --irc`: IRC as a second transport for chat |
-| [T-253](relay.md) | P2 | M | M10 | defect | blocked | The relay's egress reaches no IPv6 host |
+| [T-253](relay.md) | P2 | M | M10 | defect | open | The relay's egress reaches no IPv6 host |
 | [T-254](repo.md) | P2 | S | none | defect | done | `cargo todo check` passes when a cited file was edited and `remap` was not run |
-| [T-255](relay.md) | P2 | M | M10 | measurement | blocked | The relay's side drops reverse sockets at random, with no Close |
+| [T-255](relay.md) | P2 | M | M10 | measurement | open | The relay's side drops reverse sockets at random, with no Close |
 | [T-256](reverse.md) | P2 | S | M4 | defect | done | A local side that does not read stops every session of the node |
 | [T-257](ssh.md) | P2 | M | backlog | defect | done | An RSA user key signs through the `rsa` crate, which is open to a timing attack |
 | [T-258](repo.md) | P3 | S | none | defect | done | Line numbers written as plain text in the record are not moved |
@@ -392,14 +391,14 @@ repository and CI).
 | [T-316](ws.md) | P2 | S | backlog | defect | done | `no_proxy` with CIDR blocks: an address inside a listed block goes through the proxy |
 | [T-317](ws.md) | P2 | S | backlog | defect | done | A proxy that answers `200` to CONNECT and then carries no SSH: `doctor` says that plain ssh can leave, and `--direct` ends with a bare reset |
 | [T-318](ws.md) | P3 | S | backlog | defect | done | A relay's name pinned to a loopback address goes to the proxy |
-| [T-319](roads.md) | P2 | L | M10 | feature | blocked | An HTTP road for a proxy that refuses the WebSocket upgrade |
+| [T-319](roads.md) | P2 | L | M10 | feature | open | An HTTP road for a proxy that refuses the WebSocket upgrade |
 | [T-320](ws.md) | P3 | S | backlog | defect | done | A `407` names the proxy's authentication scheme |
-| [T-321](roads.md) | P3 | L | M10 | feature | blocked | An HTTP/2 road: the WebSocket over extended CONNECT (RFC 8441) |
+| [T-321](roads.md) | P3 | L | M10 | feature | open | An HTTP/2 road: the WebSocket over extended CONNECT (RFC 8441) |
 | [T-322](multi.md) | P3 | S | backlog | feature | done | The emergency stop of the broadcast has a key that the user chooses |
 | [T-323](relay.md) | P3 | S | backlog | chore | done | A frame that `podssh ssh` sends to the relay stays under 64 KiB with room to spare |
 | [T-324](ws.md) | P3 | M | backlog | feature | done | `doctor` tells the three failures of the upgrade apart, and samples each probe |
-| [T-325](ws.md) | P3 | M | M10 | feature | blocked | `doctor` measures what the path does to a stream: buffering, a cap on bodies, an idle limit |
-| [T-326](ws.md) | P3 | M | M10 | feature | blocked | A cleartext road on port 443, probed after the TLS road fails |
+| [T-325](ws.md) | P3 | M | M10 | feature | open | `doctor` measures what the path does to a stream: buffering, a cap on bodies, an idle limit |
+| [T-326](ws.md) | P3 | M | M10 | feature | open | A cleartext road on port 443, probed after the TLS road fails |
 | [T-327](config.md) | P3 | M | backlog | feature | done | `podssh config import` from mRemoteNG |
 | [T-328](config.md) | P3 | M | backlog | feature | blocked | `podssh config import` from FinalShell and Termius |
 | [T-329](roads.md) | P2 | S | none | defect | done | Carry the patch of iroh-relay to iroh 1.4.1 (Azathothas/podssh#53) |
@@ -409,7 +408,7 @@ repository and CI).
 | [T-333](repo.md) | P3 | S | none | chore | done | aes-gcm 0.11 and chacha20poly1305 0.11 in `podssh-ws` |
 | [T-334](ts.md) | P2 | M | M9 | measurement | done | A headscale stand-in for the live runs of `podssh ts` |
 | [T-335](resume.md) | P2 | S | M9 | defect | done | The iroh cells of the throughput run may not cross a relay |
-| [T-336](relay.md) | P2 | M | M10 | defect | blocked | The relay holds a slow client's bytes with no bound, and closes nothing |
+| [T-336](relay.md) | P2 | M | M10 | defect | open | The relay holds a slow client's bytes with no bound, and closes nothing |
 | [T-337](repo.md) | P1 | M | none | defect | done | The publish job runs actions by tags that can move, before it attests the binaries |
 | [T-338](relay.md) | P2 | M | none | chore | done | The relay's facts are read by their line, and only a push checks the live relay |
 | [T-339](roads.md) | P2 | M | backlog | chore | done | Nothing watches the quick tunnel's pin of cloudflared, and its edge names are fixed |
@@ -419,7 +418,7 @@ repository and CI).
 | [T-343](repo.md) | P3 | S | none | chore | done | The release takes Zig from one site, builds armv7 with an unchecked rust, and runs an unpinned schema check |
 | [T-344](ws.md) | P3 | M | backlog | feature | done | DNS over HTTPS: two operators, one encoding, and no memory of the addresses that worked |
 | [T-345](ws.md) | P3 | S | backlog | defect | done | Only `doctor` names the clock when a certificate has expired or is not valid yet |
-| [T-346](relay.md) | P2 | M | M10 | feature | blocked | Relay hosts outside the default domain from a signed `/relays.json`, and a list of deployments |
+| [T-346](relay.md) | P2 | M | M10 | feature | open | Relay hosts outside the default domain from a signed `/relays.json`, and a list of deployments |
 | [T-347](roads.md) | P2 | S | backlog | feature | done | `-J cf://HOST`: a Cloudflare tunnel as the first hop of a jump chain |
 | [T-348](roads.md) | P2 | M | backlog | feature | done | The iroh road in the release binaries, and a notice when n0 refuses an old iroh |
 | [T-349](roads.md) | P2 | L | backlog | feature | done | A DERP link through Tailscale's tailcat relays, a second carrier of the reverse road |
@@ -493,7 +492,7 @@ repository and CI).
 | [T-418](ws.md) | P1 | S | none | defect | done | The test of DoH over HTTP/2 spun on h2's repeated error, and the client tore its socket |
 | [T-419](roads.md) | P1 | S | none | defect | done | WARP's front door showed another certificate once, and the road gave up at the first |
 | [T-420](reverse.md) | P1 | S | none | defect | done | The strict stand-in failed the test of a stopped relay host at random: a frame in flight |
-| [T-421](relay.md) | P3 | S | M10 | defect | blocked | A client's lost link during a node's bulk closes the node's whole socket on the relay |
+| [T-421](relay.md) | P3 | S | M10 | defect | open | A client's lost link during a node's bulk closes the node's whole socket on the relay |
 | [T-422](release.md) | P1 | S | M9 | defect | done | railway.new refuses anonymous visitors for hours, and two checks of the release fail on it |
 | [T-423](release.md) | P1 | S | none | defect | done | The test of a session's lock found it still held on macOS just after its holder went |
 | [T-424](release.md) | P1 | S | none | defect | done | `-M` leaves its control socket when its connection fails before the master serves |

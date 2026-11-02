@@ -893,7 +893,7 @@ and sandhole. Read in the reports, not verified here.
 **Milestone:** M10
 **Priority:** P3
 **Effort:** L
-**Status:** blocked
+**Status:** open
 
 ## Problem
 
@@ -947,9 +947,64 @@ Unix socket, a WebSocket upgrade echoes, and stderr has the line about TLS.
 Plant: hold each connection until a full HTTP header arrives; the WebSocket
 check must fail.
 
-## Blocker
+## Correction
 
-The relay's operator: an endpoint that publishes a local HTTP service. The operator ruled on 2026-10-08 that the relay stays separate (`docs/decisions.md`).
+2026-11-02 (the drafting agent). Until that day this entry was blocked, and its `## Blocker`
+read, moved here as `cargo todo check` refuses a Blocker on an open entry:
+
+> The relay's operator: an endpoint that publishes a local HTTP service. The operator ruled on
+> 2026-10-08 that the relay stays separate (`docs/decisions.md`).
+
+Lifted on 2026-11-02 by Q63: see below.
+
+The Premise holds for the default deployment (`docs/relay.md:318-382`), and for the measured
+sandbox (`docs/target-environment.md:22`). By Q63 (2026-11-02, `docs/decisions.md`;
+docs/mesh.md, section 5) this entry is podssh's work, and becomes `podssh funnel TARGET`,
+Tailscale's funnel in podssh: a local HTTP service at a public `https://` name, through the quick
+tunnel that podssh makes itself (T-300), with no relay. The name is a random
+`*.trycloudflare.com` with no account, or a named tunnel of the user's own account, by a token
+file. The quick tunnel's node is the server of the edge's requests on the connection that it
+dialed, and today answers each one that is not a visitor's WebSocket with 404
+(`crates/podssh-relay/src/quick/serve.rs:8`, `crates/podssh-relay/src/quick/connect.rs:130-132`),
+while the edge already says which streams carry HTTP (`crates/podssh-relay/src/quick/connect.rs:23-27`).
+A node in a cage reaches the edge inside WARP's tunnel (T-374).
+
+A call, made here: Approach item 2 says "podssh parses no HTTP". On this road the edge gives a
+request's head as HTTP/2 headers, and takes the response's head the same way
+(`crates/podssh-relay/src/quick/headers.rs`), so podssh writes and reads HTTP/1.1 heads to
+TARGET; the bodies pass as bytes. The alternative that lost: WebSocket upgrades alone, which
+serve almost no web application. A chunked body is decoded as a stream, as
+`crates/podssh-ws/src/http.rs:184` decodes a whole body in memory.
+
+The new Approach, in place of the one above:
+
+1. `podssh funnel TARGET` runs a quick tunnel's node (T-300, with the roads of T-374) whose
+   route for an HTTP stream writes the request to TARGET as HTTP/1.1, with
+   `Connection: close`, reads the status and the headers, gives them to the edge, and streams
+   the body; a WebSocket upgrade passes through to TARGET. TARGET is each address of T-174 to
+   T-176 (`unix:` and `exec:` where loopback is refused).
+2. It prints the URL and one line: "TLS ends at Cloudflare's edge; Cloudflare can read this
+   traffic." (the rule of item 3 above, for this road). No `--allow`: the URL is public.
+3. `--tunnel-token-file FILE`: a named tunnel of the user's own account, registered the same way,
+   at a stable name; the token in no argv, output or URL.
+4. In the same commit: the manual, docs/mesh.md, `SECURITY.md` (what the edge sees),
+   `docs/STATUS.md`.
+5. A publish at the default relay, with a name under its domain, is no blocker: a note of
+   docs/relay-operator.md (item 17).
+
+The new Prove, in place of the one above:
+
+```sh
+export CARGO_BUILD_JOBS=4
+cargo test -p podssh-relay --features quick --test quick_publish
+```
+
+Offline: the stand-in edge of T-300 sends a GET, a POST with a chunked body, and an upgrade;
+Python's `http.server`, software that podssh did not write, answers the GET and the POST over
+TCP and over a Unix socket, and a WebSocket echo answers the upgrade; stderr has the line about
+TLS. Planted: each request held until its whole body came; the WebSocket check fails. Live, in
+`.github/workflows/quick-tunnel-live.yml`: `curl` gets the body of a server of the runner at the
+printed `https://` name.
 
 # T-181: A `serial:` address for a local serial device
 

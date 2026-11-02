@@ -77,9 +77,10 @@ entry keeps its proof in the entry; this page keeps no history (git does).
   `plants.yml` and `box.yml` passed on that branch at `bb46515`; those three
   branches can go, as this session's git proxy would not delete them.
 
-  Waiting on 2026-11-02: `draft-m10-corrections`, the Corrections of the 15 entries that waited
-  for the relay's operator, after Q63, with `docs/relay-operator.md` and `docs/carriers.md`
-  (Q64, Q65), drafted by an agent of this cloud session in `.claude/worktrees/m10-corrections`.
+  On 2026-11-02, `draft-m10-corrections` (the Corrections of the 15 entries that waited for the
+  relay's operator, after Q63, with `docs/relay-operator.md` and `docs/carriers.md`, Q64 and
+  Q65), drafted by an agent of this cloud session, is merged, and its worktree and branch are
+  gone.
 
   CI: the gate passed at
   `24b9f6e` (run 38331509229), and its step `release` at `cad2885` (478
@@ -124,7 +125,7 @@ and `CARGO_BUILD_JOBS=4`:
 
 ## Counts
 
-`TODO/INDEX.md` holds 442 entries: 34 open, 1 partial, 31 blocked, 376 done.
+`TODO/INDEX.md` holds 442 entries: 49 open, 1 partial, 16 blocked, 376 done.
 
 Open includes parked work. `cargo todo check` verifies this line.
 

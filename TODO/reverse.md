@@ -1055,7 +1055,7 @@ slingshot); read in the reports, not verified here.
 **Milestone:** M10
 **Priority:** P3
 **Effort:** M
-**Status:** blocked
+**Status:** open
 
 ## Problem
 
@@ -1117,10 +1117,67 @@ code fails both sides and ends the code; a second use fails; a code older than 1
 code is in no output. Plant: accept a second use; the single-use test must fail. Live: a node and an
 operator on two hosts pair by code through the mailbox, then `podssh operator` reaches the node.
 
-## Blocker
+## Correction
 
-The relay's operator: a mailbox endpoint for the pairing (the relay is a separate project:
-`docs/decisions.md`). The operator ruled on 2026-10-08 that sessions skip this entry until then.
+2026-11-02 (the drafting agent). Until that day this entry was blocked, and its `## Blocker`
+read, moved here as `cargo todo check` refuses a Blocker on an open entry:
+
+> The relay's operator: a mailbox endpoint for the pairing (the relay is a separate project:
+> `docs/decisions.md`). The operator ruled on 2026-10-08 that sessions skip this entry until then.
+
+Lifted on 2026-11-02 by Q63 and Q65: see below.
+
+The Premise holds at its lines. By Q63 (2026-11-02, `docs/decisions.md`; docs/mesh.md,
+section 3) the relay is a role of podssh itself, so this entry is podssh's work; and by Q65 (the
+same day) podssh may use the public magic-wormhole mailboxes when the user did not ask. The
+Decision above kept "a public mailbox of another project" as the fallback if the relay's
+operator declined; Q65 makes it the meeting point, and the net's `podssh net invite` (T-429)
+pairs by this code.
+
+The meeting point: magic-wormhole's mailbox (its rendezvous protocol), a WebSocket on port 443:
+`wss://relay.magic-wormhole.io/v1`, then Least Authority's `wss://mailbox.mw.leastauthority.com/v1`
+(read in the research of 2026-11-02; `docs/carriers.md`). The mailbox stores and forwards; the two
+ends run SPAKE2 keyed by the whole code, so the mailbox learns nothing and can change nothing,
+and an active attacker gets one guess for each run. podssh's relay role (T-427) may serve the
+same protocol for a user who names it.
+
+What the client does: the protocol as magic-wormhole writes it, so that the tests run the
+Python mailbox server and the Python client, which podssh did not write.
+
+The new Approach, in place of the one above:
+
+1. Items 1, 4 and 6 above hold.
+2. The mailbox's client in `podssh-relay`, on podssh-ws's WebSocket, through `HTTPS_PROXY`, with
+   podssh's TLS and DNS fallbacks: `bind` with an AppID of podssh's own, `allocate` or `claim`,
+   `open`, `add`, `release`, and `close` with a mood.
+3. The client's protocol: the `pake` phase (SPAKE2 of the pure-Rust `spake2` crate, which
+   python-spake2 interoperates with), the encrypted `version` phase, then phases in NaCl
+   SecretBox under keys of HKDF-SHA256.
+4. The code: the mailbox's nameplate, then three words of the PGP lists; valid for 10 minutes,
+   shown only on the node's terminal; one failed confirmation ends it on both sides.
+5. What moves after the key is confirmed: the node's Ed25519 key, pinned under the label, and
+   its roads (iroh and DERP tickets, a quick tunnel's name, the pair's part where a pair exists);
+   the operator's Ed25519 key back, which the node adds to its `--allow` with the routes that
+   its command names, or answers with a grant of T-226.
+6. The mailboxes in order: the two above, then one that `--pair-mailbox URL` names (a podssh
+   relay role of the user's, T-427). What `tcp.ssh.relay.ajam.dev` lacks here is no blocker: a
+   note of docs/relay-operator.md (item 10).
+
+The new Prove, in place of the one above:
+
+```sh
+export CARGO_BUILD_JOBS=4
+cargo test -p podssh-relay --features pair,code --test pair_code
+cargo test -p podssh-relay --features pair,code --test pair_code_live -- --ignored
+```
+
+Offline, against Python's `magic-wormhole-mailbox-server` on the loopback: two podssh peers with
+one code agree and move each part; a podssh peer and the Python `wormhole` library, with podssh's
+AppID, finish the `pake` and `version` phases; a wrong code fails both sides and ends the code;
+a second use fails; a code older than 10 minutes fails; the code is in no output. Planted: a
+second use accepted; the single-use test fails. Live, a short run from a GitHub runner and from a
+session's own host (Q65): a node and an operator pair through `wss://relay.magic-wormhole.io/v1`,
+then `podssh operator` reaches the node.
 
 # T-087: Node identity and access: a node key, an allowlist, an expected fingerprint, revocation
 
@@ -1671,7 +1728,7 @@ Not measured: no pairing ran.
 **Milestone:** M10
 **Priority:** P2
 **Effort:** M
-**Status:** blocked
+**Status:** open
 
 ## Problem
 
@@ -1741,10 +1798,70 @@ Offline: a grant verifies once; a second use of its nonce fails; a grant for ano
 after its expiry, fails; a grant in a URL is refused before a request exists. Plant: skip the spent-nonce
 check; the replay test must fail. Live, the relay's shape only: a second use of one grant gets its refusal.
 
-## Blocker
+## Correction
 
-The relay's operator: an endpoint that gives a signed grant, used once. The operator ruled on 2026-10-08 that
-M4 keeps the relay's tokens (`docs/decisions.md`).
+2026-11-02 (the drafting agent). Until that day this entry was blocked, and its `## Blocker`
+read, moved here as `cargo todo check` refuses a Blocker on an open entry:
+
+> The relay's operator: an endpoint that gives a signed grant, used once. The operator ruled on
+> 2026-10-08 that M4 keeps the relay's tokens (`docs/decisions.md`).
+
+Lifted on 2026-11-02 by Q63: see below.
+
+The Premise holds at its lines. By Q63 (2026-11-02, `docs/decisions.md`; docs/mesh.md,
+sections 1 and 3) the relay is a role of podssh itself, so this entry is podssh's work, in two
+parts, and the Decision above (the relay's shape, by the relay's operator) gives way to both:
+
+- At the node. The seam that the client's shape lacked exists: the e2e channel carries an
+  encrypted proof of the operator's key, with a version byte
+  (`crates/podssh-relay/src/e2e/handshake.rs:20-24`), so a third version carries a grant that no
+  relay sees. A grant is an OpenSSH user certificate over the grantee's Ed25519 key, signed by an
+  issuer that the node's allowlist names (`crates/podssh-relay/src/identity/allow.rs:1-8`) or by
+  the node's own key: a principal `node:SHA256:<the node's key>` (with `/ROUTE`), a validity
+  window that it must have, a random serial, and the critical option `once@podssh`. OpenSSH's
+  `ssh-keygen -s ... -O critical:once@podssh` mints one, and so does `podssh keygen -s`
+  (`crates/podssh-cli/src/keygen_cert.rs:1-6`). The node checks it before it dials, records the
+  serial in a create-new private file (`crates/podssh-relay/src/cache.rs:338-344`), and refuses
+  a second use. Bound to the grantee's key, a leaked grant is worth nothing without that key,
+  which answers the reporter's correction; a resume of the layer runs no new handshake, so a
+  used grant ends no resumed session.
+- In podssh's relay role (T-427): the pair's tokens used once where the pair asks for it, a
+  `connect_token` for each session, and a `stop_token` that the node rotates inside the e2e
+  channel, so a leaked token dies at the next rotation. A replayed token reaches the node's door
+  at most, and the grant and the allowlist hold it.
+
+The new Approach, in place of the one above:
+
+1. A grant's reader and a store of spent serials in `podssh-relay`, pure Rust (the `ssh-key`
+   crate with `ed25519` alone, or a reader of the Ed25519 certificate if that crate brings C);
+   the proof's version 3 in the e2e handshake.
+2. The node's check, in this order: the key that Noise proved is the certificate's; the
+   issuer's signature; the type user; a principal for this node (and route); the window, with 5
+   minutes of skew; each critical option known; then the spent record, written and synced, and
+   only then the admission. A crash between the two burns the grant.
+3. `--grant FILE` on `podssh operator`, `ssh node://` and `pipe node:`; `podssh node grant` on
+   the node; a raw TCP TARGET with no `--allow` gets a warning. Revocation: remove the issuer's
+   line, or name the serial in a file that the node reads for each session.
+4. Tokens used once in podssh's relay role (T-427), offered in `/relays.json` and asked for at
+   the pair's making.
+5. What `tcp.ssh.relay.ajam.dev` lacks here is no blocker: a note of docs/relay-operator.md
+   (item 9).
+
+The new Prove, in place of the one above:
+
+```sh
+export CARGO_BUILD_JOBS=4
+cargo test -p podssh-relay --features pair,grant --test grant
+cargo test -p podssh-relay --features pair,grant --test grant_live -- --ignored
+```
+
+Offline: a grant that OpenSSH's `ssh-keygen -s` minted, software that podssh did not write,
+admits its key once; a second use, another node's principal, a window that ended, an unknown
+critical option, and a certificate of another key are refused; a grant in a URL is refused
+before a request exists; through podssh's relay role (T-427) on the loopback, a `connect_token`
+of one use is refused at its second upgrade. Planted: the spent check skipped; the replay test
+fails. Live, on a GitHub runner where `podssh relay serve` runs: a node and an operator, one
+grant used, then refused.
 
 # T-256: A local side that does not read stops every session of the node
 

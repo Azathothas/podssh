@@ -1479,7 +1479,7 @@ upgrade. The stand-in relay has two modes for them, `badaccept` and
 **Milestone:** M10
 **Priority:** P3
 **Effort:** M
-**Status:** blocked
+**Status:** open
 
 ## Problem
 
@@ -1523,10 +1523,55 @@ Against stand-ins that buffer a response, buffer a body, refuse 1 MiB and
 end a quiet stream at 3 s, each line names the property and the size or
 the time. Planted: the chunk times ignored; the buffering test fails.
 
-## Blocker
+## Correction
 
-The relay's operator: the relay has no endpoint that streams a response or
-takes a body (`docs/relay.md`).
+2026-11-02 (the drafting agent). Until that day this entry was blocked, and its `## Blocker`
+read, moved here as `cargo todo check` refuses a Blocker on an open entry:
+
+> The relay's operator: the relay has no endpoint that streams a response or
+> takes a body (`docs/relay.md`).
+
+Lifted on 2026-11-02 by Q63: see below.
+
+The Premise holds for the default deployment. By Q63 (2026-11-02, `docs/decisions.md`;
+docs/mesh.md, section 4) the relay is a role of podssh itself, so this entry is podssh's work:
+the two endpoints of Approach item 1 are served by podssh's relay role (T-169) and by a node's
+quick tunnel (T-428), whose node today answers each request that is not a visitor's WebSocket
+with 404 (`crates/podssh-relay/src/quick/serve.rs:8`). The entry's Prove was offline already;
+what lacked was a live server, which podssh now runs.
+
+What the client does (the research of 2026-11-02 on the client's side): the four probes against
+stand-ins; `doctor --stream URL` at a node's quick tunnel or at a relay that the user names; and,
+for the default relay, the idle probe alone, on a quiet node socket of the reverse road, which
+that relay never cuts for idleness and sends no keepalive. Each line says where it measured,
+never "the relay's path" for another host, as a proxy can treat names apart (#74).
+
+The new Approach, in place of the one above:
+
+1. The two endpoints (a response in timed chunks; a body taken in chunks, with the time each
+   came) in podssh's relay role and in the quick tunnel's node, with their limits in
+   `/relays.json`, so that a cut below them is the path's.
+2. The four probes of item 2 above, at the relay that the user names, at a node's quick tunnel
+   (`doctor --stream URL`), and, for the idle limit alone, on a quiet node socket of the
+   default relay under `doctor --full`.
+3. Items 3 and 4 above hold: the table of fingerprints, and the results for T-319's choice.
+4. go-httpbin (`/drip`, `POST /anything`), software that podssh did not write, as a second
+   server: the response and cap probes give it the same verdicts as podssh's endpoints.
+5. What `tcp.ssh.relay.ajam.dev` lacks here is no blocker: a note of docs/relay-operator.md
+   (item 6).
+
+The new Prove, in place of the one above:
+
+```sh
+export CARGO_BUILD_JOBS=4
+cargo test -p podssh-cli --test doctor_stream
+```
+
+Offline: the cases of the Prove above, then podssh's relay role and a quick tunnel's node behind
+the stand-in edge of T-300 as the servers of the endpoints, then go-httpbin where it is found.
+Planted: the chunk times ignored; the buffering test fails. Live, from a GitHub runner:
+`podssh doctor --stream` against a quick tunnel of the run and against `podssh relay serve` on
+the runner, each line naming its host.
 
 # T-326: A cleartext road on port 443, probed after the TLS road fails
 
@@ -1535,7 +1580,7 @@ takes a body (`docs/relay.md`).
 **Milestone:** M10
 **Priority:** P3
 **Effort:** M
-**Status:** blocked
+**Status:** open
 
 ## Problem
 
@@ -1580,10 +1625,56 @@ session opens on the cleartext road after the TLS road fails; against one
 that resets cleartext, `doctor` says so. Planted: the road tried first; the
 test fails.
 
-## Blocker
+## Correction
 
-The relay's operator: an endpoint that takes the upgrade in cleartext on
-port 443 (Cloudflare's edge serves TLS there).
+2026-11-02 (the drafting agent). Until that day this entry was blocked, and its `## Blocker`
+read, moved here as `cargo todo check` refuses a Blocker on an open entry:
+
+> The relay's operator: an endpoint that takes the upgrade in cleartext on
+> port 443 (Cloudflare's edge serves TLS there).
+
+Lifted on 2026-11-02 by Q63: see below.
+
+The Premise holds, and so does its "Not measured" (GitHub Actions can measure it). By Q63
+(2026-11-02, `docs/decisions.md`; docs/mesh.md, section 4) the relay is a role of podssh itself,
+so this entry is podssh's work: the endpoint is podssh's relay role (T-169) on a listener of its
+user's, whose front is podssh's own, not Cloudflare's edge. On one port it can tell a TLS
+ClientHello from an HTTP request by the first byte, and take the upgrade in cleartext beside
+TLS. Q45 holds: a token minted for that one session and never cached; the role mints one that
+lives for minutes and is spent at its upgrade, the tokens used once of T-226.
+
+What the client does (the research of 2026-11-02 on the client's side): #56 asks for "one
+probe, one line in `doctor`": a CONNECT to a relay's host on 443, a cleartext `GET /health`, and
+the answer read as a reset, the edge's refusal, or an answer; the same at port 80. A forwarder
+carries no relay token, so Q45's concern does not arise for one: the built-in forwarders can
+take a `ws://` form where the probe passed and their `wss://` failed.
+
+The new Approach, in place of the one above:
+
+1. Items 1 and 2 above: the road with no TLS in `podssh-ws`, tried only after the TLS road
+   failed, with a token of one session.
+2. podssh's relay role takes the upgrade in cleartext on its listener, by the first byte, with
+   a token of one session that it mints on request and refuses at a second use.
+3. The probe of #56 in `doctor`, at 443 and 80, for the default relay, a relay that the user
+   names, and the forwarders' hosts, with its three outcomes named.
+4. A `ws://` form of the built-in forwarders, tried last, only where the probe passed.
+5. What `tcp.ssh.relay.ajam.dev` lacks here (its edge serves TLS on 443) is no blocker: a note
+   of docs/relay-operator.md (item 7).
+
+The new Prove, in place of the one above:
+
+```sh
+export CARGO_BUILD_JOBS=4
+cargo test -p podssh-ws --test cleartext_road
+cargo test -p podssh-relay --test relay_serve_cleartext
+```
+
+Offline: through a stand-in proxy that intercepts TLS and passes cleartext, the session opens on
+the cleartext road to podssh's relay role after the TLS road failed, OpenSSH's sshd as the
+target; its token works once, and a second use is refused; through one that resets cleartext,
+`doctor` says so. Planted: the road tried first; the test fails. Live, from a GitHub runner: the
+probe's lines for the default relay and the forwarders, and the road to `podssh relay serve` on
+the runner.
 
 # T-340: On Windows and macOS podssh reads no store of the system, and `UnknownIssuer` comes with no hint
 
@@ -2090,7 +2181,7 @@ host has.
   resolves each name and checks its addresses, so it takes a public literal as it takes a name
   (`scripts/box/proxy.py:181-189`).
 - Read: the study of carriers takes it as Inferred that a proxy which allows listed names only
-  refuses WARP's address literal (`docs/carriers.md:81-89`).
+  refuses WARP's address literal (`docs/carriers.md:85-93`).
 - Read: a test of `doctor` counts the lines whose check is `CONNECT`, and wants three
   (`crates/podssh-cli/tests/doctor.rs:345-369`).
 

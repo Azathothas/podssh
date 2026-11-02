@@ -2,24 +2,31 @@
 
 podssh is one static Rust binary that carries SSH, or another TCP stream,
 through a WebSocket relay on port 443, for hosts whose only way out is
-HTTPS. Its relay is `tcp-ssh-relay` at `https://tcp.ssh.relay.ajam.dev`, a
-Cloudflare Worker that podssh's operator runs from another repository: the
-forward road (`podssh ssh`, `proxy`, `cp` and the others) and the reverse
-road (`podssh node`, `operator` and `ssh node://`) go through it. The
-relay's live document, `https://tcp.ssh.relay.ajam.dev/llms-full.txt`, is
-the contract and the boundary of podssh ([decisions.md](decisions.md), Q4
-and Q9). podssh uses version `2026-10-03-r2`, and [relay.md](relay.md)
-gives the parts that it uses. When an item is done, change the contract and
-tell podssh's operator, as the last section says
-([When an item is ready](#when-an-item-is-ready)).
+HTTPS. Its default relay is `tcp-ssh-relay` at
+`https://tcp.ssh.relay.ajam.dev`, a Cloudflare Worker that podssh's
+operator runs from another repository: by default the forward road
+(`podssh ssh`, `proxy`, `cp` and the others) and the reverse road
+(`podssh node`, `operator` and `ssh node://`) go through it. The relay's
+live document, `https://tcp.ssh.relay.ajam.dev/llms-full.txt`, is the
+contract; podssh uses version `2026-10-03-r2`, and [relay.md](relay.md)
+gives the parts that it uses.
 
-Each item below waits for the relay, unless it says that it is optional or
-a question. It names the entry of [TODO/](../TODO/INDEX.md) that holds the
-detail, and the GitHub issue where there is one; "no entry" marks a
-question or an option that podssh's record does not hold. podssh's sessions
-skip the entries that wait for the relay. The most urgent come first: the defects of the relay's side,
-then the roads that the testers asked for. Read on 2026-10-31: the relay
-served version `2026-10-03-r2`, byte for byte the pinned copy
+Since 2026-11-02 the relay is also a role of podssh itself (Q63 in
+[decisions.md](decisions.md); [mesh.md](mesh.md)): `podssh relay serve`
+serves the same contract on a listener that its user asks for, or behind a
+node's quick tunnel with no listener. So no entry of podssh waits for this
+deployment. Each item below is a note for the deployment
+`tcp.ssh.relay.ajam.dev`: what it lacks, and, in its last line ("In
+podssh"), the podssh entry that does it in podssh's own relay role or its
+client. Each item names the entry of [TODO/](../TODO/INDEX.md) that holds
+the detail, and the GitHub issue where there is one; "no entry" marks a
+question or an option that podssh's record does not hold. The deployment
+stays the default: when an item is done here, change the contract and tell
+podssh's operator, as the last section says
+([When an item is ready](#when-an-item-is-ready)). The defects of the
+relay's side come first, then the roads that the testers asked for. Read
+on 2026-10-31: the relay served version `2026-10-03-r2`, byte for byte the
+pinned copy
 [`relay-spec-2026-10-03-r2.txt`](../crates/podssh-probe/tests/spec/relay-spec-2026-10-03-r2.txt)
 (SHA-256 `88eb1b0b...a5a8`), and `python3 scripts/check-relay-spec.py`
 found each of podssh's 7 facts in it.
@@ -57,6 +64,8 @@ found each of podssh's 7 facts in it.
      the node. podssh keeps the SSH window at 512 KiB, so the relay holds no
      more than that for an SSH session; a raw stream (`podssh proxy`, `-W`)
      has no such bound.
+   - In podssh: T-336 bounds each queue in podssh's own relay role, on the
+     forward road (T-169) and on the reverse road (T-427).
 2. **Reverse sockets end with no Close** (T-255, [TODO/relay.md](../TODO/relay.md)).
    Measured on 2026-10-09: the TCP connection of a socket of the reverse
    road (`/v1/node/<name>` or `/v1/connect/<name>`) ended at random, with
@@ -91,6 +100,8 @@ found each of podssh's 7 facts in it.
    done: `podssh operator` and `podssh ssh node://NAME` say that the link
    ended with no Close, a node connects again, and the resumable layer
    carries a session over a drop.
+   In podssh: T-255 sends a Close before each planned stop of podssh's own
+   relay role (T-427), and measures this deployment's drops again.
 3. **No IPv6 egress** (T-253, [TODO/relay.md](../TODO/relay.md); [#2](https://github.com/Azathothas/podssh/issues/2)).
    Measured on 2026-10-08, at the version that the relay still serves: no
    IPv6 host can be reached. `/connect/2001:4860:4860::8888/853` (the bare
@@ -108,6 +119,9 @@ found each of podssh's 7 facts in it.
    it at once, and say so in the contract. podssh's check:
    `cargo test -p podssh-relay --test live -- --ignored ipv6 --nocapture`
    prints "bytes came back from the IPv6 host".
+   In podssh: T-253 gives podssh's own relay role (T-169) IPv6 egress on a
+   dual-stack host, else a `502` before the upgrade, and gives the client a
+   road with IPv6 for a target that this deployment cannot reach.
 4. **A question: one write of a frame above 64 KiB** (T-323, [TODO/relay.md](../TODO/relay.md)).
    workerd issue 7074 (`cloudflare/workerd`, opened on 2026-08-20)
    reports that one `write()` of more than 65,536 bytes to a socket of
@@ -120,13 +134,16 @@ found each of podssh's 7 facts in it.
    limit? If so, write in pieces of 32 KiB or less. podssh sends at most
    32 KiB in a frame since T-323, and no test of podssh has sent a frame
    above 65,536 bytes to the relay; other clients can.
+   In podssh: podssh's own relay role (T-169) writes to a target with
+   tokio, not through a Worker's `connect()`, so that runtime's limit does
+   not reach it.
 
 ## Roads for networks that block the WebSocket
 
 The testers asked for these (#51, #54, #55 and #56). podssh's operator
 allowed the two roads that needed a ruling (Q44 and Q45 in
-[decisions.md](decisions.md)). podssh builds its side of each when the
-relay's endpoints are in the contract.
+[decisions.md](decisions.md)). podssh builds each in its own relay role and
+its client; this deployment serves them once its contract has them.
 
 5. **An HTTP road** (T-319, [TODO/roads.md](../TODO/roads.md); [#55](https://github.com/Azathothas/podssh/issues/55)).
    For a proxy that re-terminates TLS for the relay's name, refuses
@@ -161,7 +178,9 @@ relay's endpoints are in the contract.
    streams responses with no time limit, and a Durable Object can join both
    directions of a session. podssh's check: 20 MiB each way, with equal
    digests, on each form, through a stand-in proxy that refuses `Upgrade`
-   and buffers request bodies; then the live relay.
+   and buffers request bodies; then the live relay. In podssh: T-319
+   serves these endpoints in podssh's own relay role (T-169) and in a
+   node's quick tunnel (T-428).
 6. **Endpoints that `doctor` can measure** (T-325, [TODO/ws.md](../TODO/ws.md); [#54](https://github.com/Azathothas/podssh/issues/54)).
    On the relay's own host: one endpoint that sends a response in timed
    chunks, and one that takes a body in chunks and says when each chunk
@@ -173,6 +192,8 @@ relay's endpoints are in the contract.
    it ends; #54 names limits from 60 s to 15 minutes). Give each limit of
    the endpoints in the contract, so that a cut below it is the path's.
    Item 5 takes its poll interval and its batch size from these results.
+   In podssh: T-325 serves both endpoints in podssh's own relay role
+   (T-169) and in a node's quick tunnel (T-428).
 7. **A cleartext upgrade on port 443** (T-326, [TODO/ws.md](../TODO/ws.md); [#56](https://github.com/Azathothas/podssh/issues/56)).
    For a proxy that tunnels CONNECT but intercepts TLS by its SNI or its
    certificate: an endpoint that takes the WebSocket upgrade with no TLS on
@@ -186,7 +207,9 @@ relay's endpoints are in the contract.
    one session and never cached, as each hop can read the header (Q45). A
    token that the relay takes once, or that ends within minutes, would
    limit what a hop can do with it (#56): say in the contract whether a
-   mint can ask for one.
+   mint can ask for one. In podssh: T-326 takes the cleartext upgrade in
+   podssh's own relay role (T-169), on its own listener, with a token of
+   one session.
 8. **Extended CONNECT** (T-321, [TODO/roads.md](../TODO/roads.md); [#51](https://github.com/Azathothas/podssh/issues/51)).
    A WebSocket as one stream of an HTTP/2 connection (RFC 8441), so that
    many sessions share one TLS connection. Measured on 2026-10-30: the
@@ -200,7 +223,8 @@ relay's endpoints are in the contract.
    `200`. Through a proxy that does not end TLS, the relay alone must offer
    the setting; a proxy that ends TLS must implement RFC 8441 itself (RFC
    9113, section 8.5). podssh keeps the HTTP/1.1 upgrade where the setting
-   is absent.
+   is absent. In podssh: T-321 offers the setting in podssh's own relay
+   role (T-169), whose front is podssh's.
 
 ## Pairing
 
@@ -214,6 +238,9 @@ relay's endpoints are in the contract.
    namespace of podssh, which `ssh-keygen -Y verify` can check. podssh
    keeps a grant in a 0600 file and sends it in a header, never in a URL.
    The live check: a second use of one grant gets the relay's refusal.
+   In podssh: T-226 checks a grant at the node (an OpenSSH certificate,
+   used once) and makes the pair's tokens single-use in podssh's own relay
+   role (T-427).
 10. **Pairing by a short code** (T-086, [TODO/reverse.md](../TODO/reverse.md)).
     Today the node gives the operator a file with the relay host, the
     pair's name and its `connect_token`, and a person moves it over a
@@ -225,6 +252,8 @@ relay's endpoints are in the contract.
     network: three words from a fixed list and a number, used once, valid
     for 10 minutes. The mailbox limits the attempts, and one failed
     exchange ends the code. podssh keeps the file as the fallback.
+    In podssh: T-086 pairs by a short code over a public magic-wormhole
+    mailbox (Q65), and podssh's own relay role (T-427) may serve one.
 
 ## The Tailscale relay
 
@@ -242,7 +271,9 @@ relay's endpoints are in the contract.
     ts` prints the first 8 hex characters of a node key on its status line,
     and exits 77, with a hint, when the relay refuses the key.
     [tailscale.md](tailscale.md) also names the relay's `derpMap` runbook as
-    open.
+    open. In podssh: T-106 pins `relay` mode to a DERP server whose
+    admission is its user's (podssh's own relay role) or public (tailcat's
+    fleet, Q58).
 
 ## Relays beyond the one deployment
 
@@ -278,7 +309,9 @@ relay's endpoints are in the contract.
     URL or from a first frame of JSON, and gets no relay token. podssh ships
     no forwarder of its own; by the operator's ruling on Q56 (2026-10-31),
     the binary names the three of #59 by a word and tries them when each
-    relay host fails (T-370). Item 15 holds for such a Worker too.
+    relay host fails (T-370). In podssh: T-169 is this relay,
+    `podssh relay serve`, with its reverse road in T-427 and its form
+    behind a node's quick tunnel, with no listener, in T-428.
 13. **An iroh relay of the operator's** (no entry; optional). podssh's iroh
     road (behind the cargo feature `iroh`, in each release binary since
     T-348) uses n0's public relays
@@ -290,36 +323,27 @@ relay's endpoints are in the contract.
     measurement (T-165, T-157). podssh needs an `https://` origin with no
     path, which answers iroh's `/ping` and speaks the relay protocol of
     iroh 1.4. At least three projects run the iroh relay protocol on
-    Workers and Durable Objects (read, not verified).
+    Workers and Durable Objects (read, not verified). In podssh: no entry;
+    podssh's own relay role (T-169, T-427) carries the pair's road, and
+    the iroh road keeps n0's relays.
 14. **A signed `/relays.json`, and a second deployment** (T-346, [TODO/relay.md](../TODO/relay.md)).
     Optional: do it if the relay's operator wants it. podssh's operator
     ruled on Q49 on 2026-10-31: a binary may use a relay outside
     `ssh.relay.ajam.dev` that speaks this contract, and it sends a token
-    only to the deployment that minted it. podssh's side of T-346 waits
-    for your choice: the form of the signed document and the public keys,
-    or a word that no signed list comes. Relays that users bring (item 12,
-    and the relay template of #60) and `podssh update` (T-375, which a
+    only to the deployment that minted it. Relays that users bring (item
+    12, and the relay template of #60) and `podssh update` (T-375, which a
     binary has from `v1.0.0-beta.3` on) make a signed list of deployments
     less pressing.
     Today a binary in the field knows relay hosts under
     `ssh.relay.ajam.dev` only, unless its user names another, so a lapse of
     `ajam.dev` (RDAP gives its expiry as 2028-01-19) or an outage of
     Cloudflare stops each road but `--direct`. For a hedge: run a second
-    deployment on another provider and under another domain, and name it
-    in `/relays.json`; and sign the document with an offline Ed25519 key.
-    The relay's operator chooses the form, and podssh follows it. T-346
-    proposed a detached signature over the document's exact bytes, in a
-    header or at `/relays.json.sig`; a `serial` and a `not_after` in the
-    document; and two public keys compiled into podssh, the current one and
-    the next, each by its id.
-15. **Cloudflare's terms** (no entry; a question). Cloudflare's Self-Serve
-    Subscription Agreement, section 2.2.1(j), forbids using its services
-    "to provide a virtual private network or other similar proxy services"
-    (<https://www.cloudflare.com/terms/>, last updated 2025-09-12). Read
-    whether it applies to the relay, and to each relay of this section that
-    runs on Cloudflare. [carriers.md](carriers.md) gives the study that
-    found it. If it applies, a deployment on another provider (item 14)
-    matters more.
+    deployment on another provider and under another domain; podssh's own
+    relay role on a host of the operator's can be it. In podssh: T-346
+    signs the list of deployments itself, as a release asset that a
+    workflow of podssh's repository signs with Sigstore and that the
+    verifier of `podssh update` checks, so this deployment need not sign
+    one; a net's own relays come in its owner's signed document (T-429).
 
 ## Larger work of the relay project
 
@@ -337,17 +361,19 @@ relay's endpoints are in the contract.
     a header only. A resume must reach the same object, so only the hosts
     of one deployment can resume a session. Decide it with podssh's
     operator first ([design.md](design.md), section 9, question 1); its
-    condition, the end of M6, holds since 2026-10-10.
+    condition, the end of M6, holds since 2026-10-10. In podssh: T-173 runs
+    the resumable layer's far end in podssh's own relay role (T-169).
 17. **A local HTTP service published at `https://NAME`** (T-180, [TODO/pipe.md](../TODO/pipe.md); [#26](https://github.com/Azathothas/podssh/issues/26)).
     An endpoint that takes public HTTPS for a name, and hands each incoming
     connection to a node as a session of the reverse road (`open {id}`,
-    `ready {id}`), so that a node serves it with today's runner
-    (`podssh node NAME TARGET --publish`, to come). Publish it in the
-    contract first: the name, its public host name, and the sessions. TLS
-    ends at the relay, and podssh says so: "TLS ends at the relay; the
-    relay can read this traffic." podssh parses no HTTP: the bytes pass,
-    WebSocket upgrades too. Expiry and passwords are options of the relay;
-    podssh passes them, and never prints a token.
+    `ready {id}`), so that a node serves it with today's runner. Publish it
+    in the contract first: the name, its public host name, and the
+    sessions. TLS ends at the relay, and podssh says so: "TLS ends at the
+    relay; the relay can read this traffic." podssh parses no HTTP on this
+    road: the bytes pass, WebSocket upgrades too. Expiry and passwords are
+    options of the relay; podssh passes them, and never prints a token. In
+    podssh: T-180 publishes a local service as `podssh funnel TARGET`,
+    through the quick tunnel that podssh makes itself, with no relay.
 
 ## A frame in flight
 
@@ -358,7 +384,8 @@ relay's endpoints are in the contract.
     relay closes the node's whole socket with `1003 unknown session id`,
     and each other session of that node is cut. Drop such a frame instead
     when the id was closed in the last few seconds, and keep 1003 for an id
-    that the relay never gave.
+    that the relay never gave. In podssh: T-421 drops such a frame in the
+    reverse road of podssh's own relay role (T-427).
 
 ## Questions about the contract
 
@@ -386,6 +413,8 @@ relay's endpoints are in the contract.
     - `?precheck`: the contract says "clamped to the server cap", and names
       no value; podssh measured about 400 ms (2026-10-01), and a value that
       is not a number is read as `0`, with no message.
+    - In podssh: podssh's own relay role (T-169, T-427) serves its own copy
+      of the contract, which answers each of these for that role.
 
 ## When an item is ready
 
@@ -393,11 +422,10 @@ Change the live contract (`/llms-full.txt`), give it a new version, and
 tell podssh's operator which item it is, by its entry (T-NNN), or by its
 title when it has none: the numbers of this page change when items come and
 go. A podssh session then reads the new contract (`podssh relay spec`),
-lifts the entry's blocker, builds the client's side, and tests it against
-the live relay; it updates the pinned copy and [relay.md](relay.md) in the
-same commit. For an item that changes no endpoint (a cause found, keys on
-an allowlist, an answer to a question), a note to podssh's operator is
-enough.
+tests the entry's client side against the live relay, and updates the
+pinned copy and [relay.md](relay.md) in the same commit. For an item that
+changes no endpoint (a cause found, keys on an allowlist, an answer to a
+question), a note to podssh's operator is enough.
 
 podssh reads the contract each day (`.github/workflows/relay-watch.yml`),
 and opens an issue when one of its facts

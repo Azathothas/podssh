@@ -763,7 +763,7 @@ Read here on `3ee70dc`.
 **Milestone:** M10
 **Priority:** P2
 **Effort:** M
-**Status:** blocked
+**Status:** open
 
 ## Problem
 
@@ -817,22 +817,71 @@ The new test crates/podssh-cli/tests/ts_two_nodes.rs runs node A in the process 
 is the repaired status test. The new script scripts/ts-two-nodes.sh runs node B in the box, with a
 static binary built with `--features ts`. Each command must exit 0 with the two kept state files.
 
-## Blocker
+## Correction
 
-Two steps, in this order; T-103, T-104 and T-105 are done.
+2026-11-02 (the drafting agent). Until that day this entry was blocked, and its `## Blocker`
+read, moved here as `cargo todo check` refuses a Blocker on an open entry:
 
-1. podssh's operator: Approach item 2, the two kept state files. They need the tailnet's auth key,
-   which the operator keeps in `.env/` on the operator's own machine (the operator's note of
-   2026-10-10, `AGENTS.md`, section 4), so a cloud session cannot make them. A session on that
-   machine makes them, and the operator names the two nodes to the relay's operator, never their
-   state files, which hold the private keys (`podssh ts` prints the first 8 hex characters of a
-   node key, and exits 77 when the relay refuses one). Until then the relay's operator has no node
-   to admit (`docs/relay-operator.md`, item 11, asks for them first).
-2. The relay's operator: the two node keys on the relay's allowlist, with a Tailscale admin token
-   and the relay's deployment credential that only the operator has (`docs/tailscale.md:20-21`).
+> Two steps, in this order; T-103, T-104 and T-105 are done.
+>
+> 1. podssh's operator: Approach item 2, the two kept state files. They need the tailnet's auth
+>    key, which the operator keeps in `.env/` on the operator's own machine (the operator's note
+>    of 2026-10-10, `AGENTS.md`, section 4), so a cloud session cannot make them. A session on
+>    that machine makes them, and the operator names the two nodes to the relay's operator, never
+>    their state files, which hold the private keys (`podssh ts` prints the first 8 hex
+>    characters of a node key, and exits 77 when the relay refuses one). Until then the relay's
+>    operator has no node to admit (`docs/relay-operator.md`, item 11, asks for them first).
+> 2. The relay's operator: the two node keys on the relay's allowlist, with a Tailscale admin
+>    token and the relay's deployment credential that only the operator has
+>    (`docs/tailscale.md:20-21`).
+>
+> Sessions skip this entry until then (the operator's ruling of 2026-10-08). For `v1.0.0`, the
+> stand-in of T-334 (headscale in Podman, Q42) carries the runs with two nodes that this test
+> cannot.
 
-Sessions skip this entry until then (the operator's ruling of 2026-10-08). For `v1.0.0`, the
-stand-in of T-334 (headscale in Podman, Q42) carries the runs with two nodes that this test cannot.
+Lifted on 2026-11-02 by Q63: see below. Step 2 is gone. Step 1 is a session's work on the
+operator's machine, which holds the tailnet's auth key in `.env/` and passes it to podssh by its
+path alone (`AGENTS.md`, section 4); no outside party acts.
+
+The Premise holds at its lines. By Q63 (2026-11-02, `docs/decisions.md`; docs/mesh.md,
+sections 1 and 4) the relay is a role of podssh itself, so this entry is podssh's work: the DERP
+server that `relay` mode pins need not be the operator's Tailscale relay, the default of
+`--ts-relay` (`crates/podssh-cli/src/ts.rs:109`), whose allowlist only the operator holds.
+`--ts-relay` names a DERP server over a WebSocket whose admission is the user's or public:
+podssh's own relay role, where it carries DERP for its user's keys (the route of a member that
+relays for two others, T-434), and Tailscale's tailcat fleet (Q58, short runs). T-334's harness
+already runs two nodes in `relay` mode through headscale's DERP over a WebSocket
+(`scripts/ts-headscale.sh:242-252`), so podssh's part of the function is shown; what this entry
+adds is a real tailnet and a DERP server off the loopback.
+
+The new Approach, in place of the one above:
+
+1. Items 2 to 6 above hold; item 2's state files are made by a session on the operator's
+   machine, as step 1 above says.
+2. The two nodes in `relay` mode pinned to podssh's relay role on a GitHub runner
+   (`podssh relay serve` with its DERP route, admitting the two node keys), 1 MiB each way.
+3. The same pinned to a server of tailcat's fleet (`tc301a.ipn.dev`), 64 KiB each way, as Q58
+   allows.
+4. Where the tailnet's auth key is not at hand (a cloud session, a runner), the control is
+   T-334's headscale and the DERP server is podssh's relay role or tailcat's: the path of
+   `relay` mode is the same.
+5. The operator's Tailscale relay stays the default of `--ts-relay`; what it lacks (the two keys
+   on its allowlist) is no blocker: a note of docs/relay-operator.md (item 11).
+
+The new Prove, in place of the one above:
+
+```sh
+export CARGO_BUILD_JOBS=4
+cargo test -p podssh-cli --features ts --test ts_two_nodes -- --ignored --nocapture
+sh scripts/ts-headscale.sh path/to/podssh-ts-x86_64-unknown-linux-musl
+```
+
+The new test runs node A in the process and the real binary as node B, in `relay` mode pinned
+to podssh's relay role on the loopback, then to tailcat's fleet; the SHA-256 of what each sent
+is equal both ways. `scripts/ts-headscale.sh` gains a run of `relay` mode pinned to
+`podssh relay serve`, OpenSSH over `podssh ts -W`, 1 MiB each way. On the operator's machine,
+with the two kept state files and the real tailnet, the first command and the repaired
+`ts_live_status_prints_the_node_line` exit 0.
 
 # T-240: `podssh ts --jsonl` writes no JSON
 

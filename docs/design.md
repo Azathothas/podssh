@@ -701,9 +701,9 @@ session on it ends.
      the session stays, with one note, and nothing is copied to the server;
    - a relay feature: a Durable Object that owns the target socket across
      client reconnections, a resume token in the `101` response, and offset
-     framing as a protocol version that the client selects. This is a
-     project of the relay's operator, and it costs Durable Object time for
-     the whole session.
+     framing as a protocol version that the client selects. Since Q63
+     (2026-11-02) it is podssh's own relay role's (T-173), with no Durable
+     Object.
 
 An interactive echo for high latency (as mosh does) is a later option on top
 of layer 2. It needs podssh at both ends, and it cannot use UDP here.
