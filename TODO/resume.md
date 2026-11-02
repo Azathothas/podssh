@@ -1383,7 +1383,7 @@ the shell on a detach fails it.
   `env` requests of podssh's own names and a subsystem, which the handler
   sees (`crates/podssh-ssh/src/keep.rs`).
 - An escape needs a pty and a terminal on stdin
-  (`crates/podssh-ssh/src/session.rs:163`), so a test cannot type `~d`
+  (`crates/podssh-ssh/src/session.rs:166`), so a test cannot type `~d`
   through a pipe: the attach test types it in a pseudo console on Windows
   (`crates/podssh-cli/tests/conpty_harness/mod.rs`) and in a pty on Linux
   (`crates/podssh-cli/tests/pty_harness/mod.rs`, new).

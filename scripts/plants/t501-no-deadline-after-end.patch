@@ -1,0 +1,10 @@
+--- a/crates/podssh-ssh/src/elevate.rs
++++ b/crates/podssh-ssh/src/elevate.rs
+@@ -299,7 +299,6 @@
+             let _ = writer.data(&self.end_keys[..]).await;
+         }
+         let _ = writer.eof().await;
+-        self.deadline = Some(tokio::time::Instant::now() + WAIT);
+         self.phase = phase;
+     }
+

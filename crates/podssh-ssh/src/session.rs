@@ -80,9 +80,10 @@ pub async fn attach(
     };
     let mut early = Vec::new();
     let mut pty = false;
+    // The modes of the pty also give the keys that end su's read (T-501).
+    let modes = if want_pty { terminal::pty_modes() } else { Vec::new() };
     if want_pty {
         let size = terminal::size().unwrap_or_else(terminal::fallback_size);
-        let modes = terminal::pty_modes();
         channel
             .request_pty(true, &terminal::term_name(), size.cols, size.rows, size.px_width, size.px_height, &modes)
             .await
@@ -126,7 +127,9 @@ pub async fn attach(
                     let markers = crate::elevate::Markers::new();
                     let line = crate::elevate::command(how, command, &markers);
                     let may_ask = !opts.batch_mode && crate::prompt::can_ask();
-                    elevated = Some(crate::elevate::Elevated::new(how, markers, question(how, opts, host), may_ask));
+                    let end = crate::elevate::end_keys(how, pty, &modes);
+                    let words = question(how, opts, host);
+                    elevated = Some(crate::elevate::Elevated::new(how, markers, words, may_ask, end));
                     line
                 }
                 None => command.clone(),

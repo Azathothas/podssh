@@ -1258,7 +1258,7 @@ Read:
 - `scripts/interop-conpty.py:219-275` needs a server with a POSIX shell,
   `stty`, `vi`, `less`, `top`, `seq`, `sed` and `/tmp`.
 - The code for Windows: `crates/podssh-ssh/src/terminal/windows.rs`,
-  `crates/podssh-ssh/src/prompt.rs:97`, and the `cfg(not(unix))` branches of
+  `crates/podssh-ssh/src/prompt.rs:100`, and the `cfg(not(unix))` branches of
   `crates/podssh-relay/src/cache.rs:330-447`.
 
 ## Approach
@@ -4900,7 +4900,7 @@ of GitHub #69 to #72 corrected these; nothing finds the next.
 - Read, by `grep -w yet` over `docs/`, `README.md`, `AGENTS.md` and `SECURITY.md` on 2026-10-31,
   after the corrections: 19 lines with no date and no id on them. Most are true today, as of the
   work that the operator holds (Q32); some state nothing of podssh, as "not whole yet"
-  (`docs/cli.md:1620`) and "did not act on yet" (`docs/cli.md:1346`).
+  (`docs/cli.md:1628`) and "did not act on yet" (`docs/cli.md:1354`).
 - Read: the checker reads the ids of these documents and the citations of `TODO/` alone
   (`crates/podssh-todo/src/refs.rs:22-35`); it reads no sentence of a document.
 - Read: the fifth statement of GitHub #71, the comment of the facts file that the relay's frame

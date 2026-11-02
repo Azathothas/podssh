@@ -20,7 +20,8 @@
 //! sh -c '...'` and `su -c '...'` run as sudo and su run them, with the
 //! password `secret`: the prompt, then the command's marker, then `0` and its
 //! input echoed, as `id -u; cat` as root; `sudo-nopass-...` has a NOPASSWD
-//! rule, and only `su-...` is granted a pty. `x11-probe` (T-037) opens an
+//! rule, only `su-...` is granted a pty, and the su of `su-deaf-...` ignores
+//! the keys that end its read (T-501, `sudo.rs`). `x11-probe` (T-037) opens an
 //! `x11` channel to the client with the cookie of its `x11-req`, sends an X
 //! client's first packet on it, and prints the X server's status and that
 //! cookie. A direct-streamlocal channel to the socket `/echo` (T-040) sends
@@ -90,6 +91,7 @@ impl server::Handler for Far {
         self.early = user.starts_with("bare-early-");
         self.late = user.starts_with("late-");
         self.su = user.starts_with("su-");
+        self.deaf = user.starts_with("su-deaf-");
         self.nopass = user.starts_with("sudo-nopass-");
         // `pass-pty-...` is both: a password, then a pty (T-382).
         self.pty = user.trim_start_matches("pass-").starts_with("pty-");
@@ -289,7 +291,7 @@ impl server::Handler for Far {
                 Some(prompt) => session.extended_data(channel, 1, prompt.clone().into_bytes())?,
                 None => session.data(channel, b"Password: ".as_slice())?,
             }
-            self.elevated.insert(channel, Elevated { prompt, started, line: Vec::new() });
+            self.elevated.insert(channel, Elevated::new(prompt, started, self.deaf));
             return Ok(());
         }
         if let Some(answered) = health::answer(&command, channel, session) {
@@ -464,12 +466,9 @@ impl server::Handler for Far {
         if self.sftps.remove(&channel).is_some() {
             return Ok(());
         }
-        // sudo with no password to read: a refusal.
-        if self.elevated.remove(&channel).is_some() {
-            session.extended_data(channel, 1, b"sudo: 1 incorrect password attempt\n".to_vec())?;
-            session.exit_status_request(channel, 1)?;
-            session.eof(channel)?;
-            session.close(channel)?;
+        // sudo with no password to read refuses; su reads its pty, still open.
+        if let Some(elevated) = self.elevated.remove(&channel) {
+            self.elevated.extend(sudo::eof(elevated, channel, session)?.map(|waiting| (channel, waiting)));
             return Ok(());
         }
         if let Some((stop, status)) = self.spews.remove(&channel) {

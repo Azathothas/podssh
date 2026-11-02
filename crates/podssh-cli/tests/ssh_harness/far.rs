@@ -35,8 +35,10 @@ pub(super) struct Far {
     pub(super) late: bool,
     pub(super) late_echoes: Vec<ChannelId>,
     /// The users `su-...` and `sudo-nopass-...`, and the commands of sudo
-    /// and su that wait for their password.
+    /// and su that wait for their password; `su-deaf-...`, whose su ignores
+    /// the keys that end its read (T-501).
     pub(super) su: bool,
+    pub(super) deaf: bool,
     pub(super) nopass: bool,
     pub(super) elevated: HashMap<ChannelId, Elevated>,
     /// The cookie of the client's `x11-req`, in hexadecimal.

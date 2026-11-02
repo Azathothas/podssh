@@ -24,9 +24,11 @@ pub enum PromptError {
     /// A terminal that nobody watched: no answer within the limit
     /// (`terminal::UNWATCHED_PROMPT`).
     NoAnswer,
-    /// The user cancelled: Ctrl-C or Ctrl-D at a prompt, or the askpass
-    /// program exited non-zero.
+    /// The user cancelled: Ctrl-C or Ctrl-D at a prompt.
     Cancelled,
+    /// The askpass program ended not 0, which OpenSSH reads as a cancel: how
+    /// it ended (`exited 1`), for the line that names the cause (T-501).
+    Exited(String),
     /// The askpass program could not be run.
     Failed(String),
 }
@@ -39,6 +41,7 @@ impl std::fmt::Display for PromptError {
                 write!(f, "nobody answered on the terminal within {} s", crate::terminal::UNWATCHED_PROMPT.as_secs())
             }
             PromptError::Cancelled => f.write_str("cancelled"),
+            PromptError::Exited(how) => write!(f, "SSH_ASKPASS {how}"),
             PromptError::Failed(why) => write!(f, "SSH_ASKPASS failed: {why}"),
         }
     }
@@ -111,9 +114,22 @@ fn run_askpass(program: &OsString, prompt: &str) -> Result<Zeroizing<String>, Pr
     let output = command.output().map_err(|e| PromptError::Failed(format!("{}: {e}", program.to_string_lossy())))?;
     let stdout = Zeroizing::new(output.stdout);
     if !output.status.success() {
-        return Err(PromptError::Cancelled);
+        return Err(PromptError::Exited(ended(output.status)));
     }
     let text = String::from_utf8_lossy(&stdout);
     let first = text.split('\n').next().unwrap_or_default().trim_end_matches('\r');
     Ok(Zeroizing::new(first.to_string()))
+}
+
+/// How a program ended that did not exit 0: `exited 1`, or its signal.
+fn ended(status: std::process::ExitStatus) -> String {
+    #[cfg(unix)]
+    let signal = std::os::unix::process::ExitStatusExt::signal(&status);
+    #[cfg(not(unix))]
+    let signal: Option<i32> = None;
+    match (status.code(), signal) {
+        (Some(code), _) => format!("exited {code}"),
+        (None, Some(signal)) => format!("was killed by signal {signal}"),
+        (None, None) => "ended with no exit status".to_string(),
+    }
 }

@@ -263,7 +263,7 @@ it there.
   read in reverse on the server; a second table would drift.
 - Read: doctor already opens a pty to test the host
   (`crates/podssh-cli/src/doctor/unix.rs:83-139`). The client continues
-  without a pty when the server refuses (`crates/podssh-ssh/src/session.rs:81-94`).
+  without a pty when the server refuses (`crates/podssh-ssh/src/session.rs:81-95`).
 - Read: the measured sandbox has no `/dev/ptmx` and no `/dev/pts`
   (`docs/target-environment.md:26`); there, T-111 applies.
 

@@ -8,20 +8,76 @@
 //! a pty, its prompt is its output that ends with no newline before the
 //! command starts, and that output, su's own, is written only if the command
 //! never starts.
+//!
+//! A password that cannot be sent (a cancelled question, a helper that
+//! failed, no way to ask) ends the command's read (T-501): `sudo -S` at the
+//! channel's EOF, su at its pty's own end of file, which the channel's EOF
+//! never gives, as OpenSSH's server keeps the pty open. Then the command has
+//! [`WAIT`] to end with its own refusal, or the run ends with 255 and podssh
+//! closes the channel, so that the far su gets its hangup.
 
 use std::time::Duration;
 
 use russh::client::Msg;
-use russh::ChannelWriteHalf;
+use russh::{ChannelWriteHalf, Pty};
 use zeroize::Zeroizing;
 
 use crate::log::Log;
 use crate::options::Elevate;
 use crate::prompt::{self, PromptError};
 
-/// How long the prompt or the start of the command may take, and the check
-/// of the password after it was sent (as a reply to a request, T-032).
+/// How long the prompt or the start of the command may take, the check of
+/// the password after it was sent (as a reply to a request, T-032), and the
+/// end of a command that got no password (T-501).
 pub const WAIT: Duration = Duration::from_secs(30);
+
+/// A pty's defaults for the two keys of [`end_keys`]: Ctrl-U and Ctrl-D.
+const KILL: u8 = 0x15;
+const EOF: u8 = 0x04;
+
+/// What ends the read of su on its pty, sent before the channel's EOF: the
+/// line's kill key (`VKILL`), which drops what the line holds, then its end
+/// of file key (`VEOF`), which at a line's start ends su's read. Each as the
+/// modes that podssh asked for the pty with, else the pty's default; a key
+/// that the modes turned off (255 on the wire) is not sent. `sudo -S` reads
+/// the channel, whose EOF ends its read, and so does a command with no pty.
+pub fn end_keys(how: Elevate, pty: bool, modes: &[(Pty, u32)]) -> Vec<u8> {
+    if how != Elevate::Su || !pty {
+        return Vec::new();
+    }
+    let key = |which: Pty, default: u8| match modes.iter().find(|(mode, _)| *mode == which) {
+        Some((_, value)) => u8::try_from(*value).ok().filter(|k| *k != 0 && *k != 255),
+        None => Some(default),
+    };
+    [key(Pty::VKILL, KILL), key(Pty::VEOF, EOF)].into_iter().flatten().collect()
+}
+
+/// The program's name, for podssh's lines.
+fn program(how: Elevate) -> &'static str {
+    match how {
+        Elevate::Sudo => "sudo",
+        Elevate::Su => "su",
+    }
+}
+
+/// The line of a question whose answer cannot be sent: its cause first.
+pub fn unanswered(how: Elevate, why: &str) -> String {
+    format!("the password for the remote command: {why}, so podssh sends {} no password", program(how))
+}
+
+/// Where an elevated command is, for the line of a time that ran out: that
+/// line says what podssh did, and what the command did not.
+#[derive(Debug, Clone, PartialEq, Eq)]
+enum Phase {
+    /// Before its prompt or its start.
+    Starting,
+    /// Its password was sent.
+    Sent,
+    /// It asked again after its password, and its input was ended.
+    Refused,
+    /// It got no password, for this cause, and its read was ended.
+    Ended(String),
+}
 
 /// The two markers of one run: random, so that no output holds them by
 /// chance, and of letters, digits and `-` alone, which no shell expands.
@@ -181,8 +237,9 @@ fn held(bytes: &[u8], markers: [&[u8]; 2]) -> usize {
 }
 
 /// An elevated command's session: its filter, the question for its
-/// password, and the time it has to start.
+/// password, and the time it has to start, or to end once its read ended.
 pub struct Elevated {
+    how: Elevate,
     filter: Filter,
     question: String,
     /// Whether a question may be asked: no `BatchMode`, and a terminal or
@@ -191,18 +248,59 @@ pub struct Elevated {
     events: Vec<Event>,
     asking: Option<tokio::task::JoinHandle<Result<Zeroizing<String>, PromptError>>>,
     deadline: Option<tokio::time::Instant>,
+    phase: Phase,
+    /// What ends the command's read before the channel's EOF ([`end_keys`]).
+    end_keys: Vec<u8>,
+}
+
+/// The line of a time that ran out, in `phase`.
+fn expired_line(how: Elevate, phase: &Phase) -> String {
+    let (secs, program) = (WAIT.as_secs(), program(how));
+    match phase {
+        Phase::Starting => format!("the remote command neither asked for a password nor started within {secs} s"),
+        Phase::Sent => format!(
+            "the remote command asked for a password, and neither started nor asked again within {secs} s after \
+             podssh sent it"
+        ),
+        Phase::Refused => {
+            format!("{program} refused the password, and did not end within {secs} s after podssh ended its input")
+        }
+        Phase::Ended(why) => format!("{program} did not end within {secs} s after podssh sent it no password: {why}"),
+    }
 }
 
 impl Elevated {
-    pub fn new(how: Elevate, markers: Markers, question: String, may_ask: bool) -> Self {
+    /// `end_keys` ends the command's read when it gets no password: see
+    /// [`end_keys`].
+    pub fn new(how: Elevate, markers: Markers, question: String, may_ask: bool, end_keys: Vec<u8>) -> Self {
         Elevated {
+            how,
             filter: Filter::new(how, markers),
             question,
             may_ask,
             events: Vec::new(),
             asking: None,
             deadline: Some(tokio::time::Instant::now() + WAIT),
+            phase: Phase::Starting,
+            end_keys,
         }
+    }
+
+    /// The line of a time that ran out: what podssh did, and what the
+    /// command did not.
+    pub fn expired(&self) -> String {
+        expired_line(self.how, &self.phase)
+    }
+
+    /// The end of the command's read: su's keys of [`end_keys`], then the
+    /// channel's EOF; then the command has [`WAIT`] to end, in `phase`.
+    async fn end(&mut self, writer: &ChannelWriteHalf<Msg>, phase: Phase) {
+        if !self.end_keys.is_empty() {
+            let _ = writer.data(&self.end_keys[..]).await;
+        }
+        let _ = writer.eof().await;
+        self.deadline = Some(tokio::time::Instant::now() + WAIT);
+        self.phase = phase;
     }
 
     pub fn started(&self) -> bool {
@@ -222,9 +320,15 @@ impl Elevated {
     pub async fn act(&mut self, writer: &ChannelWriteHalf<Msg>, held: &mut bool, ended: bool, log: &Log) {
         for event in std::mem::take(&mut self.events) {
             match event {
+                // The end of a failed question, at once: su refuses in its
+                // own words, with no wait for the time to start.
                 Event::Ask if !self.may_ask => {
-                    log.info("the remote command asked for a password, and podssh may ask none (BatchMode, or no terminal and no SSH_ASKPASS)");
-                    let _ = writer.eof().await;
+                    let why = "podssh may ask none (BatchMode, or no terminal and no SSH_ASKPASS)";
+                    log.info(&format!(
+                        "the remote command asked for a password, and {why}, so podssh sends {} no password",
+                        program(self.how)
+                    ));
+                    self.end(writer, Phase::Ended(why.to_string())).await;
                 }
                 Event::Ask => {
                     self.deadline = None;
@@ -233,7 +337,7 @@ impl Elevated {
                 }
                 Event::Again => {
                     log.info("the password was refused");
-                    let _ = writer.eof().await;
+                    self.end(writer, Phase::Refused).await;
                 }
                 Event::Started => {
                     self.deadline = None;
@@ -257,26 +361,27 @@ impl Elevated {
     }
 
     /// Until the answer to the question comes; then it is sent, with a
-    /// newline, or the input ends.
+    /// newline, or the command's read ends.
     async fn answer(&mut self, writer: &ChannelWriteHalf<Msg>, log: &Log) {
         let Some(asking) = self.asking.as_mut() else { return std::future::pending().await };
         let answer = asking.await;
         self.asking = None;
-        match answer {
+        let why = match answer {
             Ok(Ok(password)) => {
                 let mut line = Zeroizing::new(password.as_bytes().to_vec());
                 line.push(b'\n');
                 let _ = writer.data(&line[..]).await;
                 self.deadline = Some(tokio::time::Instant::now() + WAIT);
+                self.phase = Phase::Sent;
+                return;
             }
-            Ok(Err(why)) => {
-                log.info(&format!("the password for the remote command: {why}"));
-                let _ = writer.eof().await;
-            }
-            Err(_) => {
-                let _ = writer.eof().await;
-            }
-        }
+            // A helper's output after it failed is no answer, as OpenSSH
+            // reads it: nothing is sent.
+            Ok(Err(why)) => why.to_string(),
+            Err(_) => "the thread of the question ended".to_string(),
+        };
+        log.info(&unanswered(self.how, &why));
+        self.end(writer, Phase::Ended(why)).await;
     }
 
     /// What was held back, for the end of a command that never started.

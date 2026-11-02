@@ -945,7 +945,7 @@ command is the process that the server started. podssh never sends it.
 - Measured (T-131): the table of `docs/terminal.md`, section "Ctrl-C with no
   remote pty", by `crates/podssh-ssh/tests/signal_request.rs`.
 - Read: with no remote pty the local terminal keeps its mode
-  (`crates/podssh-ssh/src/session.rs:149`), so Ctrl-C is SIGINT to podssh,
+  (`crates/podssh-ssh/src/session.rs:152`), so Ctrl-C is SIGINT to podssh,
   or `CTRL_C_EVENT` in a Windows console, and it ends podssh. No code of
   `crates/podssh-ssh/src` sends a `signal` request.
 - Read: OpenSSH's client sends none either; OpenSSH's sshd refuses one for

@@ -1,0 +1,10 @@
+# T-501: su gets the channel's EOF alone, as before: OpenSSH's sshd keeps
+# su's pty open, su waits for its password, and --su with an SSH_ASKPASS that
+# fails ends with 255 after 30 s, so sudo.su_cancelled of interop-sudo.sh
+# (sshd and su in the build image) must fail.
+ENTRY=T-501
+GROUP=ssh-pty
+EXPECT='^FAIL +sudo\.su_cancelled '
+SETUP='CARGO_PROFILE_RELEASE_LTO=false CARGO_PROFILE_RELEASE_CODEGEN_UNITS=16 cargo build --locked --release --target "$TARGET" -p podssh-cli'
+RUN='INTEROP_ONLY=sudo sh scripts/interop.sh "$BIN"'
+LIMIT=2400

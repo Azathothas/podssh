@@ -286,10 +286,9 @@ pub async fn pump(
                 return End::NoStatus;
             }
             expired = elevating(&mut through.elevated, &writer, log) => if expired {
-                log.error(&format!(
-                    "the remote command neither asked for a password nor started within {} s",
-                    crate::elevate::WAIT.as_secs()
-                ));
+                log.error(&through.elevated.as_ref().map(Elevated::expired).unwrap_or_default());
+                // The far end closes the session, and its pty hangs up on su.
+                let _ = writer.close().await;
                 return End::NoStatus;
             },
             Some(size) = resize.next() => {

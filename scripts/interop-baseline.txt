@@ -646,6 +646,7 @@ hostkeys.alias_read pass
 sudo.password pass
 sudo.wrong pass
 sudo.nopass pass
+sudo.su_cancelled env-allowed a su that asks podtest for root's password: util-linux-login, or a setuid busybox su (T-501)
 recording.session pass
 recording.no_overwrite pass
 recording.play pass
