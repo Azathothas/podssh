@@ -53,7 +53,7 @@ pub const PROXY_FLAGS: &[FlagRow] = &[
         "trust only the CA certificates in FILE (default: env SSL_CERT_FILE, else system and built-in roots)", None),
     super::forwarder::PROXY_FORWARDER,
     super::shadowsocks::PROXY_SHADOWSOCKS,
-    super::via::VIA, super::via::VIA_AUTH_FILE,
+    super::via::VIA, super::via::VIA_AUTH_FILE, super::via::WSTUNNEL, super::via::WSTUNNEL_SECRET_FILE,
 ];
 
 /// `doctor` checks the relay path `ssh` and `proxy` would take, so it takes

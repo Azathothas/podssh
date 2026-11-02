@@ -20,7 +20,8 @@ use super::notes_play::PLAY;
 use super::notes_relay::RELAY;
 use super::notes_run::RUN;
 use super::notes_session::SESSION;
-use super::notes_ssh::SSH;
+// ssh's own notes, then those of its roads to a server of the user's (T-441).
+use super::notes_roads::SSH;
 use super::notes_update::UPDATE;
 
 /// The notes of the verb `name`, one paragraph each.
@@ -196,6 +197,9 @@ const PROXY: &[&str] = &[
     "podssh proxy --via https://[USER@]HOST[:PORT] carries the pipe through a forward proxy over TLS, with \
      no relay, as podssh ssh does (see its notes); PODSSH_VIA names it too. The end of stdin is the \
      tunnel's half-close (the end of the stream, on HTTP/2): the target's bytes come until it closes.",
+    "podssh proxy --wstunnel wss://HOST[:PORT] carries the pipe through a wstunnel server that you run, \
+     with no relay, as podssh ssh does (see its notes); PODSSH_WSTUNNEL names it too. The end of stdin \
+     sends no Close, as a Close is no half-close: the target's bytes come until it closes.",
 ];
 
 const DOCTOR: &[&str] = &[

@@ -142,6 +142,8 @@ mod upgrade_line;
 pub mod version;
 // `--via URL`: a forward proxy over TLS in place of the relay (T-439).
 pub mod via;
+// `--wstunnel URL`: a wstunnel server in place of the relay (T-441).
+pub mod wstunnel;
 
 pub use flags::{FlagKind, FlagRow, Verb, VERBS};
 pub use tree::{parse, Parsed};

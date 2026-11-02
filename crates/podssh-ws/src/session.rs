@@ -65,6 +65,9 @@ pub struct RelaySession<S = RelayStream> {
     /// The side that this end speaks: a client masks each frame and takes
     /// the server's unmasked, a server the reverse (RFC 6455 section 5.1).
     role: frame::Role,
+    /// A client's frames masked with a key of zero, for a peer that reads a
+    /// payload without its mask (wstunnel's server, T-441).
+    zero_mask: bool,
     /// The other end, in the words of an error: `the relay`, unless named.
     peer_name: &'static str,
 }
@@ -113,6 +116,7 @@ impl<S: AsyncRead + AsyncWrite> RelaySession<S> {
             receive_cap: AtomicUsize::new(frame::FORWARD_MAX_FRAME),
             peer: None,
             role: frame::Role::Client,
+            zero_mask: false,
             peer_name: "the relay",
         }
     }
@@ -128,6 +132,16 @@ impl<S: AsyncRead + AsyncWrite> RelaySession<S> {
     /// ones taken, as from a client of `podssh pipe ws-listen:` (T-368).
     pub fn as_server(mut self) -> Self {
         self.role = frame::Role::Server;
+        self
+    }
+
+    /// Mask each frame with a key of zero, which a peer reads the same
+    /// whether it applies the mask or not: wstunnel's server, by default,
+    /// takes a payload without its mask, so a fresh key would change each
+    /// byte (T-441). The frames keep the mask bit that RFC 6455 asks of a
+    /// client.
+    pub fn with_zero_mask(mut self) -> Self {
+        self.zero_mask = true;
         self
     }
 
@@ -369,7 +383,7 @@ impl<S: AsyncRead + AsyncWrite> RelaySession<S> {
 
     async fn write(&self, opcode: u8, payload: &[u8]) -> Result<(), SessionError> {
         let mut writer = self.writer.lock().await;
-        let written = write_frame_as(&mut *writer, self.role, opcode, payload);
+        let written = write_frame_as(&mut *writer, self.role, self.zero_mask, opcode, payload);
         let (peer, limit) = (self.peer_name, self.write_timeout.as_secs());
         tokio::time::timeout(self.write_timeout, written)
             .await

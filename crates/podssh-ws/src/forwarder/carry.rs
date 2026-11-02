@@ -1,4 +1,5 @@
-//! A forwarder's session as a byte stream (T-369). Two tasks copy between
+//! A forwarder's session as a byte stream (T-369), and a wstunnel server's
+//! (T-441), which names its peer in its words. Two tasks copy between
 //! the session and one end of a pipe in memory: bytes out in binary frames
 //! of 32 KiB at most, as each Worker's socket takes them safely; binary
 //! frames back in as bytes. A text frame is the forwarder's own word (a
@@ -68,7 +69,7 @@ impl std::fmt::Debug for Carried {
 
 impl Carried {
     /// Stop both tasks, for a session that is given up before its use.
-    pub(super) fn abort(&self) {
+    pub(crate) fn abort(&self) {
         for task in &self.tasks {
             task.abort();
         }
@@ -76,7 +77,7 @@ impl Carried {
 }
 
 /// The forwarder's first word after the upgrade.
-pub(super) enum First {
+pub(crate) enum First {
     /// A frame came: the target's bytes or a note, or the answer `ok`.
     Ready,
     Closed {
@@ -104,12 +105,14 @@ fn note_text(payload: &[u8]) -> String {
 /// Start copying; the receiver gets the forwarder's first word. With
 /// `close_at_end`, the end of this side's bytes sends a Close at once (an
 /// SSH session that is done); else the session waits for the forwarder's
-/// end, as the target may still answer (a pipe).
-pub(super) fn spawn<S>(
+/// end, as the target may still answer (a pipe). `peer` names the other end
+/// in a failure's words: `the forwarder`, `the wstunnel server`.
+pub(crate) fn spawn<S>(
     session: RelaySession<S>,
     form: Form,
     close_at_end: bool,
     note: Note,
+    peer: &'static str,
 ) -> (Carried, oneshot::Receiver<First>)
 where
     S: AsyncRead + AsyncWrite + Send + 'static,
@@ -146,7 +149,7 @@ where
                 }
                 Ok(n) => {
                     if let Err(e) = up_session.send_binary(&buf[..n]).await {
-                        up_status.set_once(Ended::Failed(format!("sending to the forwarder failed: {e}")));
+                        up_status.set_once(Ended::Failed(format!("sending to {peer} failed: {e}")));
                         up_failed_tx.notify_one();
                         return;
                     }
@@ -220,7 +223,7 @@ where
                     }
                 }
                 other => {
-                    let why = format!("an unexpected frame (opcode {other:#x}) from the forwarder");
+                    let why = format!("an unexpected frame (opcode {other:#x}) from {peer}");
                     down_status.set_once(Ended::Failed(why.clone()));
                     say(&mut first, First::Failed(why));
                     let _ = session.send_close(1002, "").await;

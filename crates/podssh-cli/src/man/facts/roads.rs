@@ -1,7 +1,8 @@
 //! The variables of the roads that are read apart from `facts.rs`, for the
 //! length of that file: the DERP road (T-349, T-379), the direct road after
 //! the relay hosts (T-363), the forwarders of other products (T-369) and
-//! their fallback (T-370), and the forward proxy over TLS of --via (T-439).
+//! their fallback (T-370), the forward proxy over TLS of --via (T-439), and
+//! the wstunnel server of --wstunnel (T-441).
 
 /// Each one: its names, and what it does.
 pub(super) const VARIABLES: &[(&[&str], &str)] = &[
@@ -70,6 +71,19 @@ pub(super) const VARIABLES: &[(&[&str], &str)] = &[
         "1.1 or 2: the one version of HTTP that podssh offers the proxy of --via by ALPN; a proxy that does not \
       take it is refused. Unset, empty or auto offers h2, then http/1.1, and the proxy chooses. Another word is \
       a configuration error (78).",
+    ),
+    (
+        &["PODSSH_WSTUNNEL"],
+        "The wstunnel server of podssh ssh, of each command that reaches its server as podssh ssh does, and of \
+      podssh proxy, as --wstunnel: wss://HOST[:PORT] or ws://HOST[:PORT], in place of the relay. The flag wins, \
+      and so do --relay-host, --relay-failover, --forwarder, --shadowsocks and --via; beside PODSSH_RELAY, \
+      PODSSH_FORWARDER or PODSSH_VIA, or with a URL that cannot be read, it is a configuration error (78). An \
+      empty value is no value.",
+    ),
+    (
+        &["PODSSH_WSTUNNEL_SECRET_FILE"],
+        "The secret file of the server of --wstunnel or PODSSH_WSTUNNEL, as --wstunnel-secret-file, which wins: a \
+      private file of path-prefix PREFIX, credentials USER[:PASSWORD] or authorization VALUE (see FILES).",
     ),
     (
         &["INVOCATION_ID", "WSL_DISTRO_NAME", "TERMUX_VERSION"],

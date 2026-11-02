@@ -10,7 +10,8 @@
 //! meek_lite and WebTunnel, are spoken here too (`meek`, `webtunnel`,
 //! T-385), so that the Tor road needs no other program. A forward proxy
 //! that the user runs over TLS carries a target that CONNECT names, over
-//! HTTP/1.1 or HTTP/2 (`via`, T-439).
+//! HTTP/1.1 or HTTP/2 (`via`, T-439), and a wstunnel server one that its
+//! token names (`wstunnel`, T-441).
 //!
 //! Why a crypto provider of its own: rustls 0.23 ships none in pure Rust, and
 //! `ring` and `aws-lc-sys` both need a C compiler, which podssh's default build
@@ -69,6 +70,8 @@ pub mod via;
 pub mod webtunnel;
 mod wire;
 pub mod write_limit;
+// wstunnel's protocol, to a server that the user runs (T-441).
+pub mod wstunnel;
 
 pub use client::{
     connect, doctor, https_get, https_post_json, ConnectError, Endpoint, WsClientConfig, DEFAULT_IDLE_TIMEOUT,

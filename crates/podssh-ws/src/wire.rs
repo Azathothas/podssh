@@ -26,12 +26,22 @@ pub fn next_event_from(buf: &mut Vec<u8>, sender: Role, cap: usize) -> Result<Op
 
 /// Write one frame as `role` writes it: a client's masked with a fresh key
 /// (RFC 6455 section 5.3 requires a new key for each frame, and a client has
-/// no unmasked path), a server's with no mask (section 5.1).
-pub async fn write_frame_as<S>(stream: &mut S, role: Role, opcode: u8, payload: &[u8]) -> Result<(), SessionError>
+/// no unmasked path), a server's with no mask (section 5.1). `zero_mask`
+/// gives a client's frame a key of zero, for a peer that reads a payload
+/// without its mask (wstunnel's server, T-441).
+pub async fn write_frame_as<S>(
+    stream: &mut S,
+    role: Role,
+    zero_mask: bool,
+    opcode: u8,
+    payload: &[u8],
+) -> Result<(), SessionError>
 where
     S: AsyncWrite + Unpin,
 {
     let key = match role {
+        // The mask bit stays; the bytes read the same, unmasked or not.
+        Role::Client if zero_mask => [0; 4],
         // No bytes for a masking key: the frame cannot be sent (RFC 6455 5.3).
         Role::Client => crate::handshake::masking_key().map_err(no_key)?,
         // `encode` writes no key for a server.

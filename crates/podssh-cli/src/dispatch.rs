@@ -93,6 +93,7 @@ pub fn run_with(p: &Parsed, s: &mut Streams<'_>, tty: Tty) -> i32 {
             forwarder,
             shadowsocks,
             via,
+            wstunnel,
             refused,
         } => {
             if refusals("proxy", refused, s.err) {
@@ -109,6 +110,7 @@ pub fn run_with(p: &Parsed, s: &mut Streams<'_>, tty: Tty) -> i32 {
                     forwarder: forwarder.clone(),
                     shadowsocks: shadowsocks.clone(),
                     via: via.clone(),
+                    wstunnel: wstunnel.clone(),
                 },
                 s.err,
             )

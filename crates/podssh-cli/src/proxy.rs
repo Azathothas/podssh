@@ -48,6 +48,9 @@ pub struct ProxyArgs {
     /// `--via` and `--via-auth-file`: a forward proxy over TLS in place of
     /// the relay (T-439).
     pub via: crate::via::Flags,
+    /// `--wstunnel` and `--wstunnel-secret-file`: a wstunnel server in place
+    /// of the relay (T-441).
+    pub wstunnel: crate::wstunnel::Flags,
 }
 
 /// Run the verb; returns the process exit code. A run that named its
@@ -70,10 +73,11 @@ pub fn run_proxy(args: &ProxyArgs, err: &mut dyn Write) -> i32 {
 
 fn proxy(args: &ProxyArgs, err: &mut dyn Write) -> i32 {
     // A road of its own takes no forwarder (T-369), no Shadowsocks server
-    // (T-373) and no second proxy (T-439).
+    // (T-373), no second proxy (T-439) and no wstunnel server (T-441).
     let beside = crate::forwarder::pipe::beside(args)
         .and_then(|()| crate::shadowsocks::pipe::beside(args))
-        .and_then(|()| crate::via::pipe::beside(args));
+        .and_then(|()| crate::via::pipe::beside(args))
+        .and_then(|()| crate::wstunnel::pipe::beside(args));
     if let Err(refusal) = beside {
         return refusal.report("proxy", err);
     }
@@ -105,7 +109,8 @@ fn proxy(args: &ProxyArgs, err: &mut dyn Write) -> i32 {
                 || args.ca_file.is_some()
                 || args.forwarder.is_some()
                 || args.shadowsocks.is_some()
-                || args.via != crate::via::Flags::default();
+                || args.via != crate::via::Flags::default()
+                || args.wstunnel != crate::wstunnel::Flags::default();
             if flags && (args.target.is_none() || args.port.is_none()) {
                 let _ = writeln!(err, "podssh proxy: a HOST that starts with - is read as a flag; put -- before it");
             }
@@ -120,9 +125,15 @@ fn proxy(args: &ProxyArgs, err: &mut dyn Write) -> i32 {
     if let Err(refusal) = crate::pins::apply(args.relay_addr.as_deref()) {
         return refusal.report("proxy", err);
     }
-    // A forward proxy over TLS (T-439), the Shadowsocks servers of a file
-    // (T-373), then the forwarders, when the command line or the environment
-    // names them (T-369): then the relay is not asked.
+    // A wstunnel server (T-441), a forward proxy over TLS (T-439), the
+    // Shadowsocks servers of a file (T-373), then the forwarders, when the
+    // command line or the environment names them (T-369): then the relay is
+    // not asked.
+    match crate::wstunnel::pipe::chosen(args) {
+        Ok(Some(road)) => return crate::wstunnel::pipe::run(&road, &host, port, err),
+        Ok(None) => {}
+        Err(refusal) => return refusal.report("proxy", err),
+    }
     match crate::via::pipe::chosen(args) {
         Ok(Some(road)) => return crate::via::pipe::run(&road, &host, port, err),
         Ok(None) => {}

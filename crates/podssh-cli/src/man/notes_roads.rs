@@ -1,0 +1,56 @@
+//! The notes of `podssh ssh` on the roads of Q66 to a server of the user's
+//! own (T-441), apart from `notes_ssh`, which is full: [`SSH`] is its notes,
+//! then these, joined when the binary is built.
+
+use super::notes_ssh::SSH as OWN;
+
+/// The notes of `podssh ssh`.
+pub const SSH: &[&str] = &join::<{ OWN.len() + ROADS.len() }>(OWN, ROADS);
+
+const ROADS: &[&str] = &[
+    "--wstunnel wss://HOST[:PORT] reaches the first hop through a server of erebe/wstunnel that you run \
+     (wstunnel server wss://[::]:443), in place of the relay: podssh opens the WebSocket to it, through \
+     HTTPS_PROXY when one is set, checked for HOST with podssh's trust (--ca-file), and its token names the \
+     first hop as wstunnel's own client names it; the server dials it and carries the bytes. podssh speaks \
+     the protocol of wstunnel 9.1 to 11 over its WebSocket, which each server serves beside its HTTP/2 on \
+     one port: https:// and wts:// are refused (64), and ws:// has no TLS. What the server checks of a \
+     client comes from --wstunnel-secret-file FILE (or PODSSH_WSTUNNEL_SECRET_FILE), a file of yours that \
+     others cannot read: path-prefix PREFIX, the prefix that the server restricts its clients to; \
+     credentials USER[:PASSWORD] or authorization VALUE, the Authorization that its restrictions match; or \
+     one line, the prefix alone. With no file, podssh is the client of wstunnel's defaults, the prefix v1. \
+     Over ws:// a secret goes to this host alone (64). The server refuses a tunnel with a 400 that names \
+     no cause: podssh says it in the words of the version that sent it (a path prefix or an Authorization \
+     that it does not take, a target that it does not allow, or one that it could not reach; its log names \
+     which), and exits 77. An answer that is not wstunnel's is said so (69). Each frame is masked with a \
+     key of zero, which the server reads the same whether it applies masks or not. PODSSH_WSTUNNEL names \
+     the server where the command line names no other road; beside PODSSH_RELAY, PODSSH_FORWARDER or \
+     PODSSH_VIA it is refused (78). A run has one road: --relay-host, --relay-failover, --direct, \
+     --forwarder, --shadowsocks, --via, -4, -6, and a destination with a road of its own cannot go with it \
+     (64). The host key of SSH protects the session, as on each road.",
+];
+
+/// `a`, then `b`, as one array of `N`, their lengths' sum.
+const fn join<const N: usize>(a: &[&'static str], b: &[&'static str]) -> [&'static str; N] {
+    let mut out = [""; N];
+    let mut i = 0;
+    while i < a.len() {
+        out[i] = a[i];
+        i += 1;
+    }
+    let mut j = 0;
+    while j < b.len() {
+        out[a.len() + j] = b[j];
+        j += 1;
+    }
+    out
+}
+
+#[cfg(test)]
+mod tests {
+    #[test]
+    fn the_notes_of_ssh_are_its_own_then_those_of_its_roads() {
+        assert_eq!(super::SSH.len(), super::OWN.len() + super::ROADS.len());
+        assert_eq!(super::SSH[..super::OWN.len()], *super::OWN);
+        assert!(super::SSH.last().is_some_and(|n| n.starts_with("--wstunnel ")));
+    }
+}

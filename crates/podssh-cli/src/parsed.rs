@@ -83,6 +83,8 @@ pub enum Parsed {
         shadowsocks: Option<String>,
         /// `--via` and `--via-auth-file` (T-439).
         via: crate::via::Flags,
+        /// `--wstunnel` and `--wstunnel-secret-file` (T-441).
+        wstunnel: crate::wstunnel::Flags,
         refused: Vec<(String, &'static str, &'static str)>,
     },
     /// `podssh status`: the relay settings in effect, and the destination

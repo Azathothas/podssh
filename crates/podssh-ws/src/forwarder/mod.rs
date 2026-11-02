@@ -11,7 +11,8 @@
 
 // The public forwarders of other products that the binary names (T-370).
 pub mod builtin;
-mod carry;
+// A wstunnel server's session is carried the same way (T-441).
+pub(crate) mod carry;
 mod template;
 
 use std::sync::Arc;
@@ -134,7 +135,7 @@ pub async fn open(template: &Template, host: &str, port: u16, dial: &Dial<'_>) -
             .map_err(|e| ForwarderError::Answer(format!("sending the target failed: {e}")))?;
     }
     let form = template.form();
-    let (carried, first) = carry::spawn(session, form, dial.close_at_end, dial.note.clone());
+    let (carried, first) = carry::spawn(session, form, dial.close_at_end, dial.note.clone(), "the forwarder");
     let wait = if form == Form::Query { EARLY_WAIT } else { dial.timeout };
     let word = match tokio::time::timeout(wait, first).await {
         Ok(Ok(word)) => word,

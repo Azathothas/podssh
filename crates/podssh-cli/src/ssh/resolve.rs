@@ -65,6 +65,8 @@ pub enum Transport {
     Shadowsocks { servers: crate::shadowsocks::Servers, trust: Trust },
     /// Through a forward proxy over TLS that the user runs (`--via`, T-439).
     Via { road: crate::via::Road },
+    /// Through a wstunnel server that the user runs (`--wstunnel`, T-441).
+    Wstunnel { road: crate::wstunnel::Road },
 }
 
 /// A command line, resolved.
@@ -364,12 +366,12 @@ pub fn resolve_or_refuse(args: &SshArgs, env: &Env) -> Result<Resolved, Refusal>
         };
         // The direct road after the relay hosts (T-363): not with a relay
         // that the user named, nor with -4 or -6, which the direct road
-        // cannot keep. Forwarders (T-369), Shadowsocks servers (T-373) or a
-        // proxy over TLS (T-439), when named, take the relay's place.
+        // cannot keep. Forwarders (T-369), Shadowsocks servers (T-373), a
+        // proxy over TLS (T-439) or wstunnel (T-441) take the relay's place.
         let direct = crate::relay_settings::direct_from(env.direct.clone(), &env.settings)?;
         let then_direct = direct && !relays.explicit && family.is_none();
         let relay = Transport::Relay { relays, trust, family, failover, then_direct };
-        let relay = crate::via::or_relay(args, env, relay)?;
+        let relay = crate::via::or_relay(args, env, crate::wstunnel::or_relay(args, env, relay)?)?;
         crate::shadowsocks::or_relay(args, crate::forwarder::or_relay(args, env, relay)?)?
     };
 
@@ -480,7 +482,7 @@ pub fn resolve_or_refuse(args: &SshArgs, env: &Env) -> Result<Resolved, Refusal>
     };
     super::persist::check(args, &mut resolved)?;
     crate::forwarder::check(args, &resolved).and_then(|()| crate::shadowsocks::check(args, &resolved))?;
-    crate::via::check(args, &resolved)?;
+    crate::via::check(args, &resolved).and_then(|()| crate::wstunnel::check(args, &resolved))?;
     super::upgrade::check(args, env, &mut resolved)?;
     super::elevate::check(args, &mut resolved)?;
     super::recording::check(args, &mut resolved)?;

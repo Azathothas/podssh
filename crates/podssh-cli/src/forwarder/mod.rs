@@ -174,6 +174,7 @@ pub fn check(args: &SshArgs, resolved: &Resolved) -> Result<(), Refusal> {
         Transport::Derp { .. } => "a derp: destination",
         Transport::Shadowsocks { .. } => "--shadowsocks",
         Transport::Via { .. } => "--via",
+        Transport::Wstunnel { .. } => "--wstunnel",
     };
     Err(Refusal::usage(format!("--forwarder cannot go with {other}, which is a road of its own; a run has one road")))
 }

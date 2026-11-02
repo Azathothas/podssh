@@ -434,7 +434,7 @@ pub(crate) async fn write_frame_over<S>(
 where
     S: tokio::io::AsyncWrite + Unpin,
 {
-    crate::wire::write_frame_as(stream, frame::Role::Client, opcode, payload).await
+    crate::wire::write_frame_as(stream, frame::Role::Client, false, opcode, payload).await
 }
 
 /// What can be checked without a token: the crypto provider and the trust
