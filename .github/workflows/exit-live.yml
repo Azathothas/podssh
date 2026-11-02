@@ -66,10 +66,13 @@ jobs:
           if head -c 8 "$work/banner" | grep -q '^SSH-2.0-'; then echo "ok    GitHub's banner: $(head -1 "$work/banner")"
           else echo "FAIL no banner of GitHub's"; rc=1; fi
           # SSH to GitHub through the exit: its host key is met under its own
-          # name; the login is refused, as no key of GitHub's is offered.
+          # name; the login is refused, as no key of GitHub's is offered. No
+          # global file: the runner's image knows GitHub's keys already, and
+          # the key must be met fresh, through the exit.
           src=0
           timeout 60 "$bin" ssh --exit gw --client-key "$work/me.key" -o BatchMode=yes \
-            -o StrictHostKeyChecking=accept-new -o "UserKnownHostsFile=$work/known_hosts" git@github.com \
+            -o StrictHostKeyChecking=accept-new -o "UserKnownHostsFile=$work/known_hosts" \
+            -o GlobalKnownHostsFile=/dev/null git@github.com \
             < /dev/null 2> "$work/ssh.log" || src=$?
           sed 's/^/ssh: /' "$work/ssh.log"
           if grep -q '^github.com ' "$work/known_hosts" 2>/dev/null; then echo "ok    GitHub's host key, through the exit (ssh exit $src)"
