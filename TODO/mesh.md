@@ -1691,10 +1691,14 @@ cargo test -p podssh-cli --test relay_serve
 sh scripts/plant-each.sh --here t448-no-signature-check
 ```
 
+2026-11-02, at the merge: the net's members, the second half of Approach item 1, move to
+T-455. T-429's document landed after this draft, and a member's mint needs its own calls (which
+roles mint, a document read again when it changes); the keys of a list are this entry's.
+
 ## Done
 
-DRAFT T-448, 2026-11-02, written with no build and no run (a drafting agent); each result below
-is UNVERIFIED until the merge runs it. The net's members wait for T-429 (Decision 8).
+2026-11-02: drafted by an agent of this session in a worktree, then merged, built and measured
+here; the net's members are T-455 (Correction).
 
 - The role: `--mint keys:FILE` (`crates/podssh-cli/src/relay_serve.rs`, the list read at the
   start and its keys said), the proof of `crates/podssh-relay/src/serve/keys.rs` for `/v1/mint`
@@ -1704,17 +1708,21 @@ is UNVERIFIED until the merge runs it. The net's members wait for T-429 (Decisio
   (`pair.rs`) go through; `Identity::sign` and `PublicKey::verifies`
   (`crates/podssh-relay/src/identity/mod.rs`). The manual's note, the flag's row, `docs/relay.md`
   ("Tokens for the keys of a list") and docs/mesh.md, section 4.
-- `cargo test -p podssh-relay --features serve --lib serve::`: UNVERIFIED (a key of the list
+- `cargo test -p podssh-relay --features serve --lib serve::`: 20 passed (a key of the list
   proves itself once; another key, a forged signature, another path, another relay, another TLS
-  name, a late answer and another relay's challenge are refused; a challenge is the relay's
-  until its end and no token).
-- `cargo test -p podssh-relay --lib keyed`: UNVERIFIED (the message, a proof that verifies under
-  its key alone, a `401` with a challenge as the one ask).
-- `cargo test -p podssh-cli --test relay_serve`: UNVERIFIED (a client whose key is not listed
-  gets `403` that names it, and no byte; listed, it mints, carries the session and makes a pair;
-  a replayed signature, a forged one and another key get `403`).
+  name, a late answer and another relay's challenge are refused; a challenge is the relay's until
+  its end and no token).
+- `cargo test -p podssh-relay --lib keyed`: 3 passed (the message, a proof that verifies under its
+  key alone, a `401` with a challenge as the one ask).
+- `cargo test -p podssh-cli --test relay_serve`: 9 passed, among them a client whose key is not
+  listed gets `403` that names it, and no byte; listed, it mints, carries the session and makes a
+  pair; a replayed signature, a forged one and another key get `403`. `--test relay_serve_node`: 3
+  passed, unchanged.
 - Planted, `sh scripts/plant-each.sh --here t448-no-signature-check` (the signature's check
-  skipped): UNVERIFIED.
+  skipped): caught, the test of another key, signature, relay or late answer failed.
+- Clippy with `-D warnings` on podssh-relay and podssh-cli, and on podssh-relay with
+  `serve,plain-ws`: clean.
+- SUITES_448
 
 # T-449: A test of the podssh-relay suite failed once in 11 runs, unnamed
 
@@ -1954,3 +1962,40 @@ cargo test -p podssh-relay --features serve --lib serve::
 
 The 121st mint of an address within a minute is a `429`, another address's is not, and the
 first after the minute passes. Planted, the brake removed, and the test fails.
+
+# T-455: The relay role mints for the members of the net
+
+**Source:** the merge of T-448 (2026-11-02), the second half of its Approach item 1.
+**Category:** feature
+**Milestone:** M10
+**Priority:** P2
+**Effort:** S
+**Status:** open
+
+## Problem
+
+`podssh relay serve --mint keys:FILE` mints for the keys of a list (T-448). An owner of a net
+(T-429) who runs the role for the net's nodes keeps a second list by hand, which drifts from the
+net's document.
+
+## Premise
+
+- `crates/podssh-relay/src/serve/keys.rs` checks a proof against the keys of one list, read at the
+  start; `crates/podssh-cli/src/net/` holds the net's document of the host.
+
+## Approach
+
+1. `--mint net`, and `keys:FILE` beside it: a member of the net that the host holds proves itself
+   by the same signature of T-448; a member that the owner removed is refused from the document's
+   next serial on, read again when it changes.
+2. Which roles of a member mint is the net's policy's (T-430): until then, each member.
+
+## Prove
+
+```sh
+export CARGO_BUILD_JOBS=4
+cargo test -p podssh-cli --test relay_serve
+```
+
+A member mints and pairs; a stranger, and a member removed by a newer document, get `403`.
+Planted, the member check skipped, and the stranger's test fails.

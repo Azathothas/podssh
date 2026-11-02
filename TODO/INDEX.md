@@ -526,3 +526,4 @@ repository and CI).
 | [T-452](mesh.md) | P3 | S | M10 | feature | open | A node of the DERP road whose key is a member of the net starts with no `--allow` |
 | [T-453](mesh.md) | P3 | S | M10 | feature | open | `podssh cp` and `podssh sftp` reach a member of the net by its name alone |
 | [T-454](mesh.md) | P2 | S | M10 | feature | open | The relay role brakes `/v1/mint` and `/v1/pair` for each address |
+| [T-455](mesh.md) | P2 | S | M10 | feature | open | The relay role mints for the members of the net |
