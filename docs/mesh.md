@@ -126,7 +126,9 @@ nodes and operators ([relay.md](relay.md), "The relay role's reverse road"),
 which `--pairs FILE` keeps across a restart:
 
 - where it can listen: on an address that the user names (Q1), with a
-  certificate from files or from ACME;
+  certificate from files, read again on SIGHUP, or from ACME by TLS-ALPN-01
+  on the role's own listener, kept in the cache and renewed in the role
+  (T-447);
 - where it cannot: behind the node's own quick tunnel, whose node serves the
   relay's routes to its visitors instead of 404, with no listener (T-428);
 - for the keys of a list, each by its signature of the role's challenge

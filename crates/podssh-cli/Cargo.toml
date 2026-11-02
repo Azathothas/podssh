@@ -74,8 +74,14 @@ podssh-ssh = { path = "../podssh-ssh" }
 # The JWT of a service account's key for IAP (T-351), signed RS256 in
 # aws-lc-rs, whose RSA is constant-time, never with the `rsa` crate
 # (RUSTSEC-2023-0071): the version and features that podssh-ssh builds, so
-# nothing new is compiled.
+# nothing new is compiled. ACME's P-256 keys and their signatures too
+# (T-447): the account's JWS, the CSR and TLS-ALPN-01's certificate.
 aws-lc-rs = "1.16.2"
+# The DER of ACME's CSR and of TLS-ALPN-01's certificate, with its
+# acmeIdentifier (T-447): no crypto feature, so no ring and no C of its own;
+# each signature is aws-lc-rs's. The lock has it (the tests' certificates
+# below), and it brings yasna and bit-vec, pure Rust, into the binary.
+rcgen = { version = "0.14", default-features = false }
 # `signal`: `podssh node` stops on Ctrl-C and SIGTERM.
 tokio = { workspace = true, features = ["signal", "process", "fs"] }
 serde_json = { workspace = true }
@@ -163,11 +169,11 @@ russh = { version = "0.65.0", default-features = false, features = ["aws-lc-rs",
 # model terminal that the tests of podssh-ssh run, so no crate is added.
 vt100 = { workspace = true }
 # The stand-in release of `tests/update.rs` (T-375): its certificates, of
-# its own Fulcio and of its TLS server, made by rcgen with no crypto
-# feature and signed by P-256 keys of p256, as podssh-relay's tests make
-# theirs, so that no C is compiled; the server's TLS, of tokio-rustls, which
-# podssh-ws builds. The lock has each one.
-rcgen = { version = "0.14", default-features = false }
+# its own Fulcio and of its TLS server, made by rcgen (a dependency above)
+# with no crypto feature and signed by P-256 keys of p256, as podssh-relay's
+# tests make theirs, so that no C is compiled; the server's TLS, of
+# tokio-rustls, which podssh-ws builds. The lock has each one. p256 also
+# checks ACME's signatures in the tests (T-447), a second implementation.
 p256 = { workspace = true, features = ["getrandom"] }
 tokio-rustls = { workspace = true }
 # The stand-in DERP server of `tests/derp_road.rs` (T-379), podssh-relay's

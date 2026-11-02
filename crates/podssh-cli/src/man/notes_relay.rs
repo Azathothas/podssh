@@ -1,6 +1,6 @@
 //! The notes of `podssh relay`: the pairs (T-083), the document (T-060),
-//! the relay's own state (T-058) and the relay role (T-169, T-427), apart
-//! from the others so that each file stays short.
+//! the relay's own state (T-058) and the relay role (T-169, T-427), with its
+//! certificate (T-447), apart from the others so that each file stays short.
 
 pub const RELAY: &[&str] = &[
     "podssh relay pair NAME makes a pair on the relay and keeps it under the label NAME, in a private \
@@ -39,7 +39,7 @@ pub const RELAY: &[&str] = &[
      the relay's view of the target for trace. The exit codes are in EXIT STATUS.",
     "podssh relay serve is the relay itself, as a role of podssh: it serves the relay's forward road, \
      the contract that podssh speaks (version 2026-10-03-r2), on --listen ADDR:PORT, with TLS from \
-     --cert FILE and --key FILE (a P-256 key in PEM; ACME is not built in), so that each podssh reaches \
+     --cert FILE and --key FILE (a P-256 key in PEM) or from --acme NAME, so that each podssh reaches \
      it with --relay-host and the CA that signed its certificate. It serves /health, /v1/mint, \
      /connect/HOST/PORT, /relays.json, /trace and /llms-full.txt, dials a target only once its name \
      resolves to public addresses (--allow-private dials the others too), refuses port 25, and keeps \
@@ -66,4 +66,23 @@ pub const RELAY: &[&str] = &[
      signature that does not verify, a challenge that ended or was answered before, and a request \
      whose Host is not the name that its TLS asked for each get 403, which names the key's \
      fingerprint for the owner's list. podssh caches the token as any other.",
+    "The certificate and its key are read again on SIGHUP, and when either file changes, which the \
+     role looks at each minute; on Windows, which has no SIGHUP, that is the way. The handshakes after \
+     the read take the new pair, and each session that is open goes on with its own. A pair that does \
+     not load, or whose key is not the key of its first certificate, is said on stderr, and the pair \
+     of before stays. The role takes SIGHUP for this, so SIGHUP no longer stops it.",
+    "--acme NAME takes a certificate for NAME from an ACME CA (RFC 8555): Let's Encrypt, unless \
+     --acme-directory URL names another, such as a CA's staging directory or Pebble for a test, whose \
+     own certificate --ca-file names. The CA validates NAME by TLS-ALPN-01 (RFC 8737) on the role's \
+     own listener, so nothing else listens: NAME must resolve to this host, and the CA's connection to \
+     its port 443 must reach --listen. A new account agrees to the CA's terms, which the role names as \
+     it makes the account. The account's key, and the certificate with its own P-256 key in one file, \
+     are kept in the cache (acme/, see FILES), each of mode 0600 in a directory of mode 0700, so that \
+     a restart serves the certificate kept and asks the CA for nothing; PODSSH_CACHE_DIR=none refuses \
+     --acme (78), and so does a cache with no directory that can be made private (73). The role renews \
+     the certificate 30 days before its end, or at a third of its life left for a shorter one, with a \
+     new key, and the next handshakes take it. A renewal that fails is said on stderr and asked again \
+     after 5 minutes, then twice as long each time up to 6 hours, and the certificate of before stays. \
+     When no certificate is kept and the first order fails, the role stops with the CA's reason (69). \
+     SIGHUP reads the file kept again.",
 ];

@@ -2313,6 +2313,25 @@ commands. The rules behind them:
   not the connection. The caller's address and place, which `/trace` also
   sends, are never shown. `--json` gives each answer as one object: each
   host, the relay's `/relays.json` as it came, or its view of the target.
+- **`relay serve` renews its certificate with no restart (T-447).** It reads
+  `--cert` and `--key` again on SIGHUP, and when either file changes (it
+  looks each minute, the one way on Windows, which has no SIGHUP): the next
+  handshakes take the new pair, each open session keeps its own, and a pair
+  that does not load, or whose key is not its leaf's, is said on stderr
+  while the old one stays. `--acme NAME` takes the certificate from an ACME
+  CA instead: Let's Encrypt, or the directory of `--acme-directory URL`,
+  checked against `--ca-file`. The CA validates NAME by TLS-ALPN-01 on the
+  role's own listener, so NAME must resolve to the host and its port 443
+  reach `--listen`; nothing else listens. The account's key and the
+  certificate, with its own key, are kept in the cache (`acme/HOST-DIGEST/`:
+  `account.key` and `NAME.pem`, mode 0600), so a restart serves the one kept;
+  the role renews it 30 days before its end (a third of its life, for a
+  shorter one), with a new key, and asks again after 5 minutes, doubling to
+  6 hours, when a renewal fails, keeping the old one. A first order that
+  fails stops the role with the CA's reason (69); `--acme` beside `--cert`,
+  a name that is no DNS name of two labels, and `--ca-file` with files are
+  usage errors (64). `scripts/interop-acme.sh` runs it against Pebble, Let's
+  Encrypt's server for tests (`.github/workflows/acme-interop.yml`).
 - **A node as a service, with no privilege (T-121).** `node NAME TARGET
   --install` probes for a way that this user may use: a user unit of
   systemd when `systemctl --user` answers, else a LaunchAgent when

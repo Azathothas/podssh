@@ -1,0 +1,11 @@
+--- a/crates/podssh-cli/src/relay_serve/certs.rs
++++ b/crates/podssh-cli/src/relay_serve/certs.rs
+@@ -172,7 +172,7 @@
+     pub fn reload(&self, why: &str) -> String {
+         match self.files.load() {
+             Ok((pair, leaf)) => {
+-                self.served.set(pair);
++                drop(pair);
+                 let line = format!("{why}: read {} again: the certificate {}", self.files.shown(), acme::about(&leaf));
+                 format!("{line}, for the next handshakes")
+             }

@@ -1,0 +1,47 @@
+name: acme interop
+
+# `podssh relay serve --acme NAME` (T-447) against Pebble, Let's Encrypt's
+# ACME server for tests, and pebble-challtestsrv's DNS, each in a container
+# of the runner's Docker on the host's network: scripts/interop-acme.sh.
+# Pebble validates TLS-ALPN-01 on the role's own listener, issues
+# certificates of 180 s so that the role renews one in the run, and refuses
+# 15 % of good nonces; OpenSSL's s_client checks the chain to Pebble's root.
+# Pebble's binaries are its release's, pinned by version and SHA-256.
+# Started by hand, and on a push that changes the role's certificate; it
+# publishes nothing.
+
+on:
+  workflow_dispatch:
+  push:
+    branches: [main]
+    paths:
+      - "crates/podssh-cli/src/acme/**"
+      - "crates/podssh-cli/src/relay_serve.rs"
+      - "crates/podssh-cli/src/relay_serve/**"
+      - "crates/podssh-ws/src/tls_server.rs"
+      - "crates/podssh-ws/src/tls_server/**"
+      - "scripts/interop-acme.sh"
+      - ".github/workflows/acme-interop.yml"
+
+permissions:
+  contents: read
+
+jobs:
+  interop:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 45
+    env:
+      CARGO_BUILD_JOBS: "4"
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+      - name: the build
+        run: cargo build --locked -p podssh-cli
+      - name: Pebble and the role
+        run: |
+          set -u
+          # Each exit code is read directly; the shell's -e would stop at it.
+          rc=0
+          PODSSH_ENGINE=docker timeout 1800 sh scripts/interop-acme.sh "$GITHUB_WORKSPACE/target/debug/podssh" \
+            > acme.log 2>&1 || rc=$?
+          cat acme.log
+          [ "$rc" = 0 ] || { echo "interop-acme exited $rc"; exit 1; }
