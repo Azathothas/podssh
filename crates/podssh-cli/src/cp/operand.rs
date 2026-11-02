@@ -13,7 +13,9 @@
 //! A node of a pair (T-296), `node://[user@]NAME[/ROUTE]:path`, is reached
 //! as `podssh ssh node://` reaches it: the path comes after the first `:`
 //! after the name, as a `/` there names a route (T-089); with no `:`, the
-//! login directory.
+//! login directory. A member of the net by its name alone, `NAME:path`, is
+//! read here as a host, and its destination is the node that `podssh ssh
+//! NAME` reaches, as ssh's resolution reads it (T-453).
 
 /// The scheme of a node's operand (T-296).
 const NODE: &str = "node://";
@@ -55,12 +57,31 @@ impl Remote {
         format!("{user}{host}")
     }
 
-    /// Whether `other` names the same login on the same server.
+    /// Whether `other` names the same login on the same server. A node is
+    /// one server whether it is named `node://NAME` or, as a member of the
+    /// net, by its name alone (T-453).
     pub fn same_server(&self, other: &Remote) -> bool {
-        self.user == other.user
-            && self.host.eq_ignore_ascii_case(&other.host)
-            && self.port == other.port
-            && self.node == other.node
+        if self.user != other.user || self.port != other.port {
+            return false;
+        }
+        // The same words resolve the same way: no net to read.
+        if self.node == other.node && self.host == other.host {
+            return true;
+        }
+        match (self.node_name(), other.node_name()) {
+            (Some(a), Some(b)) => a == b,
+            (None, None) => self.host.eq_ignore_ascii_case(&other.host),
+            _ => false,
+        }
+    }
+
+    /// The node that the operand names, as `podssh ssh` reads its
+    /// destination, the net first (`crate::ssh::node::destination`):
+    /// `node://NAME[/ROUTE]`; `None` for a host.
+    fn node_name(&self) -> Option<String> {
+        let text = if self.node { format!("{NODE}{}", self.host) } else { self.host.clone() };
+        let (_, label, route) = crate::ssh::node::destination(&text).ok()??;
+        Some(crate::ssh::node::shown(&label, route.as_deref()))
     }
 }
 

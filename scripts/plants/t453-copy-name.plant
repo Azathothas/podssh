@@ -1,0 +1,7 @@
+# T-453: the net's lookup of a name alone is skipped where ssh resolves a
+# destination, so the copies read a member's name as a host; the test of the
+# copies by the member's name must fail with its words.
+ENTRY=T-453
+GROUP=cli-tests
+EXPECT='the copy up by the member.s name alone'
+RUN='cargo test --locked -p podssh-cli --test net -- net_copy::copies_reach_a_member_by_its_name_alone'

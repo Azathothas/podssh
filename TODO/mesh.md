@@ -3047,7 +3047,7 @@ measured by the main session the same day.
 **Milestone:** M10
 **Priority:** P3
 **Effort:** S
-**Status:** open
+**Status:** done
 
 ## Problem
 
@@ -3061,7 +3061,31 @@ Since T-429 `podssh ssh NAME` reaches a member of the net by its name alone; `po
 ## Approach
 
 1. The copies resolve `NAME:PATH` and `NAME` as `podssh ssh` does, the net first for a name with
-   no dot.
+   no dot. (Corrected below: they already do, by `ssh`'s own resolution, which stays theirs.)
+2. The copies' own test of one server reads a node as that resolution reads it, so that
+   `NAME:PATH` and `node://NAME:PATH` are one server for `mv` and `cp`.
+3. A test through the stand-in relay proves each copy by the member's name, and the manual and
+   the documents say it, with the limit that a copy takes the pair's road alone.
+
+## Decision
+
+The calls of the draft (2026-11-02), each with what lost:
+
+- **The copies keep `ssh`'s resolution**: they read `NAME:PATH` with their own parser, as scp
+  reads an operand, and hand `NAME` to `resolve_or_refuse`, which asks the net first. Lost: a
+  lookup of the net in the operand's parser, a second copy of the resolution that would drift
+  from `ssh`'s (a `Host` block, `podssh each`'s groups, `PODSSH_NET=no`).
+- **One server is one node, however it is named**: `Remote::same_server` asks
+  `crate::ssh::node::destination` for each side's node, after a test with no net for two operands
+  typed the same. Lost: marking a member's operand as a node in the parser, which is the second
+  copy above; leaving the test as it was, by which `mv NAME:a node://NAME:b` copies through this
+  host and removes the source, where the server could rename it, and `mv NAME:a node://NAME:a` is
+  not refused as one file before anything connects.
+- **A copy keeps the pair's road alone** (`crates/podssh-cli/src/ssh/node.rs:225` says "the
+  pair's road is its only one"), and the manual says so. Lost: racing the net's iroh and DERP
+  tickets for a copy as `ssh` races them, which needs `roads::connect` to give a stream in place
+  of running SSH itself: more than this entry's effort, in a file of 463 of its 500 lines; it is
+  the merge's to file as an entry of its own.
 
 ## Prove
 
@@ -3072,6 +3096,56 @@ cargo test -p podssh-cli --test net
 
 `podssh cp FILE lab:/tmp/` and `podssh sftp lab` reach the member `lab` through the stand-in
 relay. Planted, the net's lookup skipped, and the test fails.
+
+## Correction
+
+The copies do ask the net (read 2026-11-02). Each reads its operand with its own parser
+(`crates/podssh-cli/src/cp/operand.rs:114`), and hands the server to `ssh`'s resolution
+(`crates/podssh-cli/src/cp/mod.rs:261`, `crates/podssh-cli/src/sftp/mod.rs:161`,
+`crates/podssh-cli/src/edit/mod.rs:108`), which reads the destination's node before its host
+(`crates/podssh-cli/src/ssh/resolve.rs:142`), and a name alone there in the net
+(`crates/podssh-cli/src/ssh/node.rs:40` says "crate::net::lookup::bare(text)"); the copy's link then reaches `Transport::Node` through the pair
+(`crates/podssh-cli/src/cp/link.rs:152-153`). So `podssh cp FILE lab:PATH` and `podssh sftp lab`
+already resolve to the member's node. What was missing: a test that proves it, the manual's and
+the documents' words, and the copies' own test of one server, which compared the operands as
+typed (`crates/podssh-cli/src/cp/operand.rs`, lines 59-64 at `f8d15bf`), so that `lab:` and
+`node://lab:` were two servers. The Approach above is corrected to match.
+
+## Done
+
+Drafted 2026-11-02 (DRAFT T-453), which built nothing; merged and measured by the main session the
+same day.
+
+- `crates/podssh-cli/src/cp/operand.rs`: `same_server` takes a member by its name and
+  `node://NAME` for one node, by `ssh`'s resolution (`node_name`), after a test with no net for
+  operands typed the same; the module's words say how a member's name is read.
+- Test: `crates/podssh-cli/tests/net_copy/mod.rs`, a module of `tests/net.rs`: three ends on the
+  stand-in relay, the node `lab` with no `--allow`, and the member `a`; by the name alone, `cp`
+  up and down, `scp` up and `sftp`'s put and get agree with the disk; `mv tester@lab:F
+  node://tester@lab:G` is the server's rename, with no word of two hosts, and `mv` of one file
+  named both ways is refused (64) and keeps it. Each run within 180 s.
+- Planted: `scripts/plants/t453-copy-name.plant` (the net's lookup of a name alone skipped in
+  `ssh`'s resolution; the test must fail with "the copy up by the member's name alone"). It
+  needs an `sftp-server` in the image of its group, else the test does not run.
+- The manual (`crates/podssh-cli/src/man/notes.rs`, the notes of `cp`, `scp` and `sftp`;
+  `man/notes_net.rs`), `docs/cli.md` ("`podssh cp`", "`podssh scp` and `podssh sftp`", "`podssh
+  net`"), `docs/mesh.md` (sections 1 and 3) and `docs/STATUS.md`; the citations of the files
+  changed moved by a line diff against the draft's parent, as `cargo todo remap` moves them: to
+  be checked with `cargo todo check` at the merge.
+- The merge: applied onto `a88524b` beside T-445's text of the net's notes (the record of
+  pkarr) and T-431's notes of `exit`, which it kept; the draft's moved citations of other entries
+  were taken from `main` and remapped.
+- `cargo test -p podssh-cli --test net`: 8 passed, among them
+  `net_copy::copies_reach_a_member_by_its_name_alone`, against OpenSSH's
+  `/usr/lib/openssh/sftp-server`.
+- Planted, `sh scripts/plant-each.sh --here t453-copy-name`: caught, "the copy up by the member's
+  name alone".
+- Clippy with `-D warnings` of podssh-cli, all targets: clean; `cargo fmt -p podssh-cli`.
+- The whole suite, `cargo test --no-fail-fast -p podssh-cli`: 1347 passed, none failed (51
+  ignored); the temporary directory held the same entries after it as before.
+- Filed: T-551, the copies' race of the roads that the net names, which the draft named (a copy
+  reaches a node on its pair's road alone, where `podssh ssh NAME` races the iroh and DERP
+  tickets).
 
 # T-454: The relay role brakes `/v1/mint` and `/v1/pair` for each address
 
@@ -4214,3 +4288,44 @@ cargo test -p podssh-cli --test node_quick_relay --test node
 A quick tunnel's node of a member starts with no `--allow` through the stand-in edge, a member
 reaches it and a stranger's key is refused at the node; a node of no net and no `--allow` is
 refused as now. Planted: the closed door that lets each key in, and the stranger's test fails.
+
+# T-551: A copy to a node races the roads that `podssh ssh` races, not the pair's road alone
+
+**Source:** the merge of T-453 (2026-11-02), its drafting agent's note.
+**Category:** feature
+**Milestone:** M10
+**Priority:** P3
+**Effort:** M
+**Status:** open
+
+## Problem
+
+`podssh ssh NAME` of a member races the pair's road with the iroh and DERP roads that its
+tickets and its record of pkarr name, so a member whose relay is refused is still reached. A copy
+to the same member (`cp`, `mv`, `scp`, `sftp`, `edit`) takes the pair's road alone, and fails
+where `ssh` would reach it.
+
+## Premise
+
+- `crates/podssh-cli/src/cp/link.rs:152` says "Transport::Node { label, pair_file, trust, channel, .. } => {",
+  and the copy reaches the node by `crate::ssh::node::reach`, the pair's road.
+- `crates/podssh-cli/src/ssh/roads.rs:1` says "`podssh ssh node://NAME` over more roads than the pair's (T-164, T-379):".
+
+## Approach
+
+1. The copies' link to a node takes the race of `ssh::roads` (the pair's road, the iroh road, the
+   DERP road, the transit relay and Piping Server, and the record's roads), with the same order
+   and delays, and keeps the road that answered first for the run.
+2. A copy that resumes on another road, as the layer allows, says so at `-v`.
+3. The manual's notes of the copies say that they reach a node as `ssh` does.
+
+## Prove
+
+```sh
+export CARGO_BUILD_JOBS=4
+cargo test -p podssh-cli --test net
+```
+
+With the pair's road refused at the stand-in relay, `cp` to a member by its name reaches it over
+the DERP road that the net names; planted, the race skipped for the pair's road alone, and the
+test fails.

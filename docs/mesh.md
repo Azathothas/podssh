@@ -34,7 +34,7 @@ This page is the design. Each part names its entry, and
 | `tailscale serve` | `podssh share`: a node's local services, by name, for the net | T-433 |
 | `tailscale funnel` | `podssh funnel`: a local HTTP service at a public `https://` name | T-180 |
 | Tailscale SSH | `podssh ssh node://NAME` (M4); `podssh serve`, the server in the cage, stays held (Q32) | done; T-248 |
-| Taildrop | `podssh cp` to and from `node://NAME` | done |
+| Taildrop | `podssh cp` to and from `node://NAME`, and a member's `NAME:PATH` | done; T-453 |
 | `tailscale status`, `ping`, `netcheck` | `podssh status`, `ping` and `doctor` for the net | T-435 |
 
 `podssh serve` is M5's command (the server in the cage), so Tailscale's
@@ -136,7 +136,9 @@ What T-445 built (drafted 2026-11-02; [design.md](design.md), section 7):
   aside; the end-to-end channel checks the member's key on each road.
 - A member's name is a destination (`crates/podssh-cli/src/net/lookup.rs`):
   `node://NAME`, and `NAME` alone with the role `node`; the net names the key
-  that the channel checks, and the tickets that race.
+  that the channel checks, and the tickets that race. The copies read
+  `NAME:PATH` by the same resolution, and reach the node on its pair's road
+  (T-453).
 
 What T-430 built ([cli.md](cli.md), "`podssh net`"):
 
