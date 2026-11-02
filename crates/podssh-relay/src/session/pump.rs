@@ -24,6 +24,7 @@
 
 mod down;
 mod outbox;
+mod up;
 
 use std::future::Future;
 use std::sync::atomic::{AtomicBool, AtomicU64, Ordering};
@@ -37,7 +38,6 @@ use tokio::time::Instant;
 use super::decode::Decoder;
 use super::hearing::Hearing;
 use super::link::{Link, LinkError};
-use super::record::MAX_DATA;
 use outbox::{Finish, Outbox, Written};
 
 /// How much of the application's bytes one read takes: a `DATA` record that
@@ -205,6 +205,9 @@ pub struct Watch {
     /// bytes still on their way, and the relay ends the node's whole socket
     /// for a frame of an id that it forgot (T-410).
     pub ends_links: bool,
+    /// The most bytes that this link carries with no acknowledgement, from
+    /// the settings of its road (T-443); `None` leaves it to the buffer.
+    pub window: Option<usize>,
 }
 
 impl Watch {
@@ -212,6 +215,12 @@ impl Watch {
     /// retired under it.
     pub fn far_end() -> Watch {
         Watch { ends_links: true, ..Watch::default() }
+    }
+
+    /// This watch, for a link whose bytes in flight stay within `window`.
+    pub fn within(mut self, window: Option<usize>) -> Watch {
+        self.window = window;
+        self
     }
 
     /// A watch that tells `due` when the link passes `move_at` bytes.
@@ -259,7 +268,7 @@ where
 
     let mut retired = false;
     let end = {
-        let up = up(&mut app_r, again, data_tx, state, &room);
+        let up = up::run(&mut app_r, again, data_tx, state, &room, watch.window);
         let down =
             down::run(&mut app_w, &mut link_r, decoder, &outbox, state, &room, undelivered, &heard, hearing, watch);
         let writer = outbox::write(&mut link_w, &mut data_rx, &outbox, state, watch, hearing);
@@ -401,68 +410,5 @@ async fn beat(outbox: &Outbox, heard: &Mutex<Instant>) -> End {
         let next = (outbox.quiet_since() + PING_EVERY).min(last_heard + DEAD_AFTER);
         // Never a wait of nothing: a clock that stands still would spin.
         tokio::time::sleep_until(next.max(Instant::now() + Duration::from_millis(10))).await;
-    }
-}
-
-/// The end of the first record in `records`: a type byte, a 32-bit length,
-/// the body.
-fn first_record(records: &[u8]) -> usize {
-    match records.get(1..5) {
-        Some(len) => (5 + u32::from_be_bytes([len[0], len[1], len[2], len[3]]) as usize).min(records.len()),
-        None => records.len(),
-    }
-}
-
-/// The application's bytes out, as `DATA` for the writer: first the records
-/// of a resume (`again`), a record at a time, then the application's new
-/// bytes. `None` when the application ended them, which `CLOSE` then says,
-/// else why the session cannot go on. It reads only what the replay buffer
-/// has room for, and waits for an acknowledgement when it has none. A byte
-/// read is in the buffer before any await, so a link that ends loses none.
-async fn up<R>(
-    app: &mut R,
-    again: Vec<u8>,
-    data: mpsc::Sender<Vec<u8>>,
-    state: &Mutex<Link>,
-    room: &Notify,
-) -> Option<End>
-where
-    R: AsyncRead + Unpin,
-{
-    // The records of a resume are in the replay buffer already: a link that
-    // ends before they go out loses none, and the next resume sends them.
-    let mut rest = &again[..];
-    while !rest.is_empty() {
-        let end = first_record(rest);
-        if data.send(rest[..end].to_vec()).await.is_err() {
-            return std::future::pending().await;
-        }
-        rest = &rest[end..];
-    }
-    let mut buf = vec![0u8; CHUNK.min(MAX_DATA)];
-    loop {
-        let space = loop {
-            // Asked for before the check, so that an `ACK` between the two is
-            // not missed.
-            let freed = room.notified();
-            let space = lock(state).room();
-            if space > 0 {
-                break space;
-            }
-            freed.await;
-        };
-        let want = buf.len().min(space);
-        let n = match app.read(&mut buf[..want]).await {
-            Ok(0) | Err(_) => return None,
-            Ok(n) => n,
-        };
-        let mut records = Vec::with_capacity(n + 16);
-        if let Err(e) = lock(state).send(&buf[..n], &mut records) {
-            return Some(End::Broken(e));
-        }
-        if data.send(records).await.is_err() {
-            // The writer is gone, and its own end ends the link.
-            return std::future::pending().await;
-        }
     }
 }

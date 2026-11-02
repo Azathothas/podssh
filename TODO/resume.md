@@ -1888,8 +1888,8 @@ a full-screen program is written into its screen.
 
 ## Premise
 
-- Read: the layer's lines, written always: a loss (`crates/podssh-cli/src/layered.rs:367`) and a
-  resume (`crates/podssh-cli/src/layered.rs:378`). The heartbeat each 10 s, and a link dead after
+- Read: the layer's lines, written always: a loss (`crates/podssh-cli/src/layered.rs:370`) and a
+  resume (`crates/podssh-cli/src/layered.rs:381`). The heartbeat each 10 s, and a link dead after
   30 s with nothing from the far end (`crates/podssh-relay/src/session/pump.rs:57`,
   `crates/podssh-relay/src/session/pump.rs:60`). The forward road's checks
   (`docs/design.md:652`).
@@ -1998,8 +1998,8 @@ that gives `Line` to a terminal in raw mode; in the model, the control
 ## Correction
 
 The first item of the Premise cites the layer's lines at lines of `next_leg`, which opens a new
-leg. The lines are in `line_of`: a loss (`crates/podssh-cli/src/layered.rs:412`) and a resume
-(`crates/podssh-cli/src/layered.rs:423`). What the item says of them holds.
+leg. The lines are in `line_of`: a loss (`crates/podssh-cli/src/layered.rs:415`) and a resume
+(`crates/podssh-cli/src/layered.rs:426`). What the item says of them holds.
 
 ## Done
 
@@ -2872,7 +2872,7 @@ for a new link, and the test that asks for no loss fails at random.
 - Not reproduced here: 40 runs of the test alone, and 80 runs eight at a
   time, passed (a Claude Code cloud container, 2026-10-31).
 - Read: `End::Closing` comes from the pump's wait for the answer to its
-  `CLOSE` (`crates/podssh-relay/src/session/pump.rs:310-317`): a reader that
+  `CLOSE` (`crates/podssh-relay/src/session/pump.rs:319-326`): a reader that
   ended with anything but the peer's `CLOSE`, the 10 s of `LINGER` (not
   reached in a run of 2.9 s), or a stop. A loss with no `Resumed` after it is
   a resume that found the session forgotten while this side's application

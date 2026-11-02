@@ -192,6 +192,28 @@ impl Link {
         self.replay.as_ref().map_or(usize::MAX, Replay::room)
     }
 
+    /// [`Link::room`] on a link whose bytes in flight, those sent and not
+    /// acknowledged, stay within `window` (T-443). With no replay buffer no
+    /// byte is acknowledged, and the window holds nothing back; a window of
+    /// 0 is taken as 1, so that a link always moves.
+    pub fn room_within(&self, window: Option<usize>) -> usize {
+        match window {
+            Some(window) => self.room().min(window.max(1).saturating_sub(self.kept())),
+            None => self.room(),
+        }
+    }
+
+    /// Whether the encoded record `record`, which a resume sends again, keeps
+    /// the bytes in flight within `window` once sent (T-443): a buffer filled
+    /// on another road can hold more than this link may carry at once. A
+    /// `DATA` with nothing in flight before it fits, so a link always moves,
+    /// and another record carries no bytes of the session.
+    pub fn again_fits(&self, record: &[u8], window: Option<usize>) -> bool {
+        let (Some(window), Some((start, end))) = (window, data_span(record)) else { return true };
+        let acknowledged = self.acknowledged();
+        start <= acknowledged || end.saturating_sub(acknowledged) <= window as u64
+    }
+
     /// The error that ended the link, if one did.
     pub fn failed(&self) -> Option<&LinkError> {
         self.failed.as_ref()
@@ -320,6 +342,17 @@ impl Link {
         self.failed = None;
         Ok(again)
     }
+}
+
+/// The offsets of the session's bytes that an encoded `DATA` record carries,
+/// from its first byte to the one after its last; `None` for another record.
+fn data_span(record: &[u8]) -> Option<(u64, u64)> {
+    if record.first() != Some(&super::record::kind::DATA) {
+        return None;
+    }
+    let offset: [u8; 8] = record.get(5..13)?.try_into().ok()?;
+    let start = u64::from_be_bytes(offset);
+    Some((start, start + (record.len() - 13) as u64))
 }
 
 /// A `DATA` record written straight into `out`, with no copy of the bytes

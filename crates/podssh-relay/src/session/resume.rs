@@ -165,7 +165,7 @@ where
     let moves = lock(&carry.state).moves();
     let heartbeat = lock(&carry.state).heartbeat();
     loop {
-        let watch = Watch::moving_at(if moves { settings.move_bytes } else { 0 });
+        let watch = Watch::moving_at(if moves { settings.move_bytes } else { 0 }).within(settings.window);
         let started = Instant::now();
         let state = carry.state.clone();
         // A session whose application ended is closing: its `CLOSE` goes on

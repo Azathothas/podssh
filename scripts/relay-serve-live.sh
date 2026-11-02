@@ -37,8 +37,14 @@ echo "relay-serve-live: podssh relay serve at relay-a.test:$PORT"
 
 export PODSSH_RELAY="relay-a.test:$PORT" PODSSH_RELAY_ADDR="relay-a.test=127.0.0.1" SSL_CERT_FILE="$FK/ca.pem"
 cargo test --locked -p podssh-cli --test proxy_live -- --ignored --nocapture
+# doctor's relay section: its other checks trust the test's CA alone here
+# (--ca-file replaces each root), so the public DERP servers fail them, as
+# they would behind such a CA anywhere; the role's own lines must each be ok.
 "$PODSSH" doctor --relay-host "relay-a.test:$PORT" --relay-addr relay-a.test=127.0.0.1 --ca-file "$FK/ca.pem" \
-    >"$FK/doctor" 2>&1 || { cat "$FK/doctor"; echo "relay-serve-live: doctor failed" >&2; exit 1; }
-grep -i "relay" "$FK/doctor"
+    >"$FK/doctor" 2>&1 || true
+for check in relay token forward clock; do
+    grep -Eq "^  ok +$check " "$FK/doctor" || { cat "$FK/doctor"; echo "relay-serve-live: doctor's $check is not ok" >&2; exit 1; }
+done
+grep -E "^  (ok|FAIL|\?\?\?\?) +(relay|token|forward|clock) " "$FK/doctor"
 echo "relay-serve-live: the role's events: $(tr '\n' ' ' <"$FK/events")"
 echo "relay-serve-live: ok"

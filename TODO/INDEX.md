@@ -62,15 +62,15 @@ repository and CI).
 
 ## Counts
 
-**444 entries: 50 open, 2 partial, 16 blocked, 376 done.**
+**445 entries: 49 open, 2 partial, 16 blocked, 378 done.**
 
 | Priority | open | partial | blocked | done | total |
 | --- | --- | --- | --- | --- | --- |
 | P0 | 0 | 0 | 0 | 1 | 1 |
 | P1 | 4 | 1 | 0 | 48 | 53 |
-| P2 | 22 | 0 | 14 | 179 | 215 |
-| P3 | 24 | 1 | 2 | 148 | 175 |
-| **All** | 50 | 2 | 16 | 376 | 444 |
+| P2 | 22 | 0 | 14 | 180 | 216 |
+| P3 | 23 | 1 | 2 | 149 | 175 |
+| **All** | 49 | 2 | 16 | 378 | 445 |
 
 ## Entries
 
@@ -514,9 +514,10 @@ repository and CI).
 | [T-440](mesh.md) | P2 | L | M10 | feature | open | VLESS over a WebSocket and over XHTTP |
 | [T-441](mesh.md) | P3 | M | M10 | feature | open | wstunnel's protocol |
 | [T-442](mesh.md) | P3 | M | M10 | research | open | More public services and standard protocols that fit |
-| [T-443](mesh.md) | P2 | S | M10 | defect | open | The resumable layer's window on the pair's road is above the relay's bound |
-| [T-444](mesh.md) | P3 | S | M10 | feature | open | One TLS configuration for each trust in a process, so that TLS resumes |
+| [T-443](mesh.md) | P2 | S | M10 | defect | done | The resumable layer's window on the pair's road is above the relay's bound |
+| [T-444](mesh.md) | P3 | S | M10 | feature | done | One TLS configuration for each trust in a process, so that TLS resumes |
 | [T-445](mesh.md) | P2 | S | M10 | feature | open | A node's record names each of its roads |
 | [T-446](mesh.md) | P2 | M | M10 | release | open | The release of milestone M10: betas `v1.1.0-beta.N`, then `v1.1.0` |
 | [T-447](mesh.md) | P2 | M | M10 | feature | open | `podssh relay serve` takes its certificate from ACME, and reads it again on SIGHUP |
 | [T-448](mesh.md) | P2 | M | M10 | feature | open | The relay role mints tokens for the keys of an allowlist or of the net |
+| [T-449](mesh.md) | P2 | S | M10 | defect | open | A test of the podssh-relay suite failed once in 11 runs, unnamed |

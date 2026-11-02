@@ -692,7 +692,7 @@ The entries filed and the rows written; `cargo todo check` passes.
 **Milestone:** M10
 **Priority:** P2
 **Effort:** S
-**Status:** open
+**Status:** done
 
 ## Problem
 
@@ -713,16 +713,93 @@ operator reads slowly, with a frame dropped, again and again.
 On the pair's road, the bytes in flight stay under the relay's bound (a window below 1 MiB),
 while the replay capacity stays 4 MiB for a resume; the other roads keep their window.
 
+## Decision
+
+The draft's calls, 2026-11-02:
+
+1. Where the window is held: the writer of each link
+   (`crates/podssh-relay/src/session/pump/up.rs`) reads the application's bytes only while the
+   replay buffer has room, and now also while the bytes not acknowledged are fewer than the
+   link's window (`Link::room_within`). In flight is what the peer has not acknowledged, and an
+   acknowledgement covers what the peer's application took (T-387), so what the relay holds for
+   that receiver is at most the window.
+2. The window belongs to the link, not to the session: the pump's `Watch` takes it from the
+   settings of the link's own road (`Settings::window`, set by `on_the_pair`). A node's far end
+   that shares one keeper between roads (T-164) then gives a session that iroh opened the pair's
+   window on its links of the pair's road, and none on iroh's. Lost: a window kept in the
+   session's `Link`, which a session resumed onto another road would carry wrongly; and a
+   replay capacity under 1 MiB on the pair's road, which a resume onto another road and the
+   node's budget need at 4 MiB.
+3. The value, 768 KiB (`PAIR_WINDOW`): a quarter of the relay's 1 MiB stays free for the
+   records' headers (13 bytes for each read of 32 KiB), the frames, and the `ACK` and `PING`
+   records. Lost: 512 KiB, SSH's window, which would halve a raw stream's rate on a long round
+   trip (`podssh operator`, `podssh pipe`) for no gain under the bound; a margin computed from
+   the frames' sizes, which a change of a chunk would break.
+4. The default of `podssh_cli::layered::settings()` is the pair's road; each other road takes
+   `off_the_pair()`: the iroh and DERP roads, the quick tunnel's node and its client. A road
+   that forgets it costs speed, never the bound. Lost: no window by default, with the pair's
+   road taking one, where a forgotten call site would pass the bound.
+5. The records that a resume sends again wait for the window of their link too
+   (`Link::again_fits`): a buffer filled on a road with no window holds up to 16 MiB. A record
+   with nothing in flight before it always goes, so a link always moves.
+6. `podssh ssh node://` with more roads (T-164, T-379): the client has one set of settings for
+   the session, and each resume races the roads again, so while the pair's road is in its race
+   each link keeps the pair's window, iroh's and DERP's too. Lost: a window by link on the
+   client, which needs the road of each link in `resume::run`, generic over its link.
+7. What the window does not bound: the relay's queue for a node's socket carries each session
+   of the node, 64 at most, so it can hold more than one window. That queue is the relay's to
+   bound, by reading a sender only while its receiver's queue has room, as T-427 and T-336
+   plan for podssh's relay role. The node's own queue (`Layered::queue_bytes`, twice the
+   buffer) stays: it bounds what the node takes for a slow local side, above the window, and a
+   client of another version can still send its whole buffer.
+8. The tests: sans-IO checks of the window; a stand-in of the bound in podssh-relay's own test,
+   which counts its queues with no socket of the network; and the stand-in relay's mode
+   `strict:RATE` (`scripts/fake_reverse.py`), which closes with `1011 relay backpressure` as
+   the contract says, against the binary. Its test runs `podssh operator --no-e2e`: SSH's own
+   window (512 KiB) and the channel would bound what waits before the layer's window does.
+
 ## Prove
 
 ```sh
 export CARGO_BUILD_JOBS=4
 cargo test -p podssh-relay --features pair
+cargo test -p podssh-cli --test node_window
 ```
 
 Against the stand-in in a strict mode that sends `1011 relay backpressure` at 1 MiB queued: a
 session whose operator reads slowly finishes with no 1011. Planted: the window of 4 MiB, and
 the test meets 1011.
+
+## Done
+
+2026-11-02: drafted by an agent in a worktree of its own, and merged, built and measured here.
+
+- podssh-relay: `PAIR_WINDOW`, 768 KiB (`crates/podssh-relay/src/session/replay.rs`), under the
+  contract's 1 MiB for a slow receiver; the replay buffer stays 4 MiB for a resume. Each link
+  takes its window from its road's settings (`on_the_pair` and `off_the_pair` in
+  `crates/podssh-relay/src/session/mod.rs`); the writer, now in
+  `crates/podssh-relay/src/session/pump/up.rs`, waits for the window, and each record that a
+  resume sends again waits for it too. The iroh road, DERP and the quick tunnel keep the buffer's
+  window; `podssh ssh node://` keeps the pair's while the pair's road is in its race.
+- The stand-in relay: the mode `strict:RATE` of `scripts/fake_reverse.py`, the contract's bound:
+  a frame that would put more than 1 MiB in a receiver's queue is dropped and the socket gets
+  `1011 relay backpressure`. Its first draft ended a connection before its queue had gone out,
+  so a Close that waited behind paced frames was lost and the operator saw "no Close" (exit 69);
+  `settled()` now lets what waits go out before the handler returns.
+- `cargo test -p podssh-relay --test session_window`: 4 passed. `cargo test -p podssh-relay
+  --features pair --test reverse_window`: 1 passed (8 MiB each way, each queue at most 1 MiB),
+  and 150 runs passed, 120 of them four at once. `cargo test -p podssh-cli --test node_window`:
+  2 passed (6 MB to a slow operator with `--no-e2e`, exit 0, each byte, no `relay
+  backpressure`).
+- Planted, `PAIR_WINDOW` at `4 << 20`: `session_window` 2 of 4 failed, `reverse_window` failed,
+  and `node_window` found `1011 relay backpressure` in the stand-in's log (1,080,898 bytes would
+  have waited).
+- `cargo test -p podssh-relay --features pair,quick,derp,serve` whole: 10 runs passed; one run
+  before them counted a failed test that its quiet output did not name (T-449). The CLI's tests
+  of the layered roads (`node`, `node_restart`, `m6_exit`, `derp_road`, `node_copy`, `attach`,
+  `direct_fallback`) passed. Clippy and `cargo fmt --check`: clean.
+- Not measured: the reverse cell of the throughput run on the live relay with the window; it
+  runs with the release check of M10 (T-446).
 
 # T-444: One TLS configuration for each trust in a process, so that TLS resumes
 
@@ -731,7 +808,7 @@ the test meets 1011.
 **Milestone:** M10
 **Priority:** P3
 **Effort:** S
-**Status:** open
+**Status:** done
 
 ## Problem
 
@@ -748,15 +825,63 @@ file is read again each time.
 
 A configuration kept for each trust in the process, made once; a CA file read once.
 
+## Decision
+
+The draft's calls, 2026-11-02:
+
+1. Where: behind `config_for` in `crates/podssh-ws/src/tls.rs`, a cache of the process
+   (`crates/podssh-ws/src/tls/kept.rs`) keyed by the trust: the default one, and each CA file
+   by its path. Each road that reaches TLS through `config_for` (the relay's connection, the
+   HTTPS requests, DNS over HTTPS, `chat --irc`, the hops of `ssh+tls://`, Tor's transports)
+   resumes with no change of its own. A caller's own configuration (`Trust::caller`) is already
+   one `Arc` with its own cache, and passes as it is. Lost: a cache that each caller holds and
+   passes down (the pool, `each`, `cp`), which the roads that call `config_for` deep inside
+   would miss.
+2. Nothing that varies by connection is in the shared configuration: the server's name goes
+   with each connection; ALPN is set on a clone (`resolve::h2::config_h2`), and a clone shares
+   the cache of sessions, as rustls keeps its store in an `Arc`, so DNS over HTTPS/2 resumes
+   too; podssh writes no key log and offers no early data. The configurations that are not a
+   trust's (the quick tunnel's edge with cloudflared's roots, WARP's with its client
+   certificate, iroh's) are built apart, as before, and are not changed.
+3. The key keeps trusts apart: a resumed handshake checks no certificate, so a session that one
+   trust verified is never resumed under another, even one that holds the same roots.
+4. A CA file is read again when its time or its length changed, so a node that runs for days
+   takes a new CA of its proxy with no restart, and one that cannot be read fails as before.
+   Lost: read once for the process, as the Approach says, which would keep an old CA until a
+   restart; read for each connection, which is the defect.
+5. Sixteen trusts at most, the oldest first out: a run names one or two, and a process given
+   many CA files must not grow without a bound.
+6. What a resumption shows: the server can link the connections of one run, which it can
+   already by their address; and `podssh health` times a handshake that may be a resumed one
+   after the first of a run.
+
 ## Prove
 
 ```sh
 export CARGO_BUILD_JOBS=4
 cargo test -p podssh-ws
+cargo test -p podssh-ws --test tls_resume
 ```
 
 Two connections of one process to a rustls server on the loopback: the second resumes (the
 server says so). Planted: a new configuration each time, and the test fails.
+
+## Done
+
+2026-11-02: drafted by an agent in a worktree of its own, and merged, built and measured here.
+
+- `config_for` (`crates/podssh-ws/src/tls.rs`) takes each trust's configuration from
+  `crates/podssh-ws/src/tls/kept.rs`: made once, kept by the trust, and made again when a CA
+  file's time or length changed, so that a long-running node takes a new CA; a failure is not
+  kept.
+- `cargo test -p podssh-ws --test tls_resume`: 3 passed against rustls's own server on the
+  loopback: the second connection of a trust is `Resumed`, the first `Full`; another trust,
+  even with the same root, resumes nothing of the first's.
+- Planted, a configuration made for each call: the test failed with `[Full, Full]` for `[Full,
+  Resumed]` (2 of 3 failed).
+- `cargo test -p podssh-ws` whole passed; clippy and `cargo fmt --check`: clean.
+- Not measured: the handshakes of a run against the live relay (`podssh each`, the staggered
+  failover); it runs with the release check of M10 (T-446).
 
 # T-445: A node's record names each of its roads
 
@@ -913,3 +1038,41 @@ cargo test -p podssh-cli --test relay_serve
 A client whose key is on the list gets a token and a session; another key gets `403`, and a
 replayed signature is refused. Planted: the signature's check skipped, and the test of the other
 key fails.
+
+# T-449: A test of the podssh-relay suite failed once in 11 runs, unnamed
+
+**Source:** the merge of T-443 and T-444 (2026-11-02).
+**Category:** defect
+**Milestone:** M10
+**Priority:** P2
+**Effort:** S
+**Status:** open
+
+## Problem
+
+One run of `cargo test -p podssh-relay --features pair,quick,derp,serve` on 2026-11-02 counted
+three lines of a failure (a test's `FAILED` and its panic) in its quiet output, which was counted
+and not kept, so the test is not known. Ten runs after it passed, and 150 runs of the new
+`reverse_window` (120 of them four at once) passed. A test that fails at random hides a defect,
+or teaches the reader to rerun.
+
+## Premise
+
+- The run was the second of two in a row, at the merge of T-443 and T-444, with nothing else
+  building or testing on the host.
+
+## Approach
+
+1. Run the suite in a loop with each log kept, here and on a GitHub runner (a workflow by hand,
+   20 runs), and name the test.
+2. Repair its cause, not its timing; a test that waits on time gets a condition instead.
+
+## Prove
+
+```sh
+export CARGO_BUILD_JOBS=4
+cargo test -p podssh-relay --features pair,quick,derp,serve
+```
+
+The named test passes 50 runs in a row, here and on the runner, and its cause planted again
+fails it.
