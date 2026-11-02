@@ -147,7 +147,7 @@ and `CARGO_BUILD_JOBS=4`:
 
 ## Counts
 
-`TODO/INDEX.md` holds 495 entries: 83 open, 3 partial, 16 blocked, 393 done.
+`TODO/INDEX.md` holds 505 entries: 92 open, 3 partial, 16 blocked, 394 done.
 
 Open includes parked work. `cargo todo check` verifies this line.
 
@@ -194,7 +194,9 @@ this order:
 3. Exit, routes, share and funnel: T-431 (merged; its live run, `exit-live.yml`, waits), T-458, T-432, T-433,
    T-180, then T-434, T-435 and T-459.
 4. The public carriers of Q65 (T-451, then T-450 from the runs of `transit-live.yml`; the
-   protocols of Q66 are done), XHTTP over HTTP/1.1 (T-456, Q67), then T-442; then what the triage of the sweep of public relays
+   protocols of Q66 are done), XHTTP over HTTP/1.1 (T-456, Q67), then what the research of more services (done) filed: the protocols of
+   servers that a user runs (T-490 and T-493, then T-491, T-492, T-494 and T-498), upterm's door
+   (T-495) and a second Piping Server (T-497), T-496 and T-499 parked; then what the triage of the sweep of public relays
    (2026-11-02) filed, as Q74 to Q79 rule: OpenTunnel's link and its road (T-530, T-531, Q76),
    and the manual's word on the public services that podssh uses and the ones it never names
    (T-533); T-532 is parked. These are features of a tester's report, so they wait for the
@@ -246,6 +248,8 @@ it can start.
 | T-303 | T-110 is done: `podssh serve` has a pty (the operator holds it, Q32); and T-161 has a model of the far end's screen |
 | T-304 | T-303 is done: frames of the screen exist |
 | T-532 | T-180 and T-530 are done: `podssh funnel` and OpenTunnel's link exist |
+| T-496 | T-086 is done: the pairing's exchange exists over a mailbox |
+| T-499 | draft-ietf-httpbis-connect-tcp is an RFC, and a server over HTTP/2 or HTTP/1.1 implements it |
 | T-250 | Each entry is done, except the relay's, and the gate is green |
 | T-251 | Each entry is done, except the relay's; it runs before the tag of T-250 |
 

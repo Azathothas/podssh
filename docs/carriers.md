@@ -262,6 +262,43 @@ The candidates, ranked:
    port 443 carries no Shadowsocks (Inferred, as for SSH, T-317), and a
    public key has no operator who answers for it, so podssh names none.
 
+9. **upterm's community server, `uptermd.upterm.dev`** (class B: the
+   server tunnels to a machine of the user's that runs `upterm host`; read
+   on 2026-11-02 for T-442). Fits: T-495.
+   - Who, and the account: upterm's author runs it on Fly.io, "for your
+     convenience (please put it into good use!)" [S6]; no account, no terms
+     and no limits found. Its README now names the use: "Leave a door open on
+     a machine ... and reach it ... through the relay, without opening a
+     port. Only your own keys get in" [S5]. By default any SSH client may
+     register a session as a host [S5].
+   - The protocol: the host runs an SSH server in its own process, dials
+     uptermd over SSH, asks it for a session (the global request
+     `upterm-create-session@upterm.dev`, a message of protobuf) and for a
+     `streamlocal-forward` named by the session's ID [S5]. A guest's SSH
+     ends at uptermd, which checks the
+     guest's key against the host's list, mints a short-lived user
+     certificate, and makes its own SSH connection to the host's server
+     through the tunnel [S5]. So uptermd sees the guest's SSH in clear;
+     podssh's own SSH to the far machine's sshd, in a `direct-tcpip` channel
+     to its loopback (`--allow-forwarding=loopback`), keeps the session end
+     to end (Inferred). uptermd's host key is a certificate, under an
+     `@cert-authority` line that the README gives [S5].
+   - Through a proxy: `wss://uptermd.upterm.dev` on 443, a WebSocket by name
+     that carries SSH in binary messages, with `Authorization: Basic` of the
+     session's ID and its node, and an `Upterm-Client-Version` header; and
+     with no WebSocket, SSH on port 22, which the measured cage refuses
+     ([target-environment.md](target-environment.md)); upterm itself
+     takes `HTTPS_PROXY` for `wss://` [S5]. TLS 1.2, ALPN `h2`, a Let's
+     Encrypt certificate valid to 2027-01-24; no category in the index, and
+     the family resolvers clear it (Verified [S4] [N8]). Both ends can be in
+     a cage of an HTTPS-only proxy.
+   - Rust and C: podssh-ws's WebSocket and podssh's SSH client, which reads
+     host certificates. Effort: M for a guest; a podssh node as an upterm
+     host needs an SSH server in the node for uptermd's hop, L, and is not
+     filed: podssh's own nodes have roads on 443 (the reverse road below).
+   - The tests: uptermd and `upterm host` of the release v0.41.0
+     (2026-11-02, Apache-2.0, with `checksums.txt`) in containers [S5].
+
 Since the operator's rulings Q77 and Q78 (2026-11-02, [decisions.md](decisions.md)), an item
 below that needs no account of the user's and carries bytes is no longer out: it is a last
 fallback, tried after podssh's own roads and after the services that allow the use, whatever its
@@ -272,6 +309,11 @@ A domain that looks taken over is never used (Q79).
 
 Ruled out:
 
+- **MASQUE servers that others run** (read on 2026-11-02 for T-442):
+  WARP is the one with no account, and podssh speaks it (T-352). CONNECT-UDP
+  carries UDP, which no road of the forward road needs; masque-go speaks it
+  over HTTP/3 alone, which needs UDP [S14]. CONNECT-IP needs an IP stack, as
+  WARP's road has one.
 - **Deno Deploy**: its policy forbids a "Forward proxy" and a "VPN" [F11].
 - **Fly.io**: its policy bans spam proxying only [F12], but it is a VM:
   class B as a jump host, or class C with podssh's own relay role on it
@@ -487,6 +529,18 @@ The candidates, ranked:
      which the measured cage refuses ([design.md](design.md), section 2).
      Inside WARP's tunnel, on port 443, a node reaches it from a cage whose
      proxy takes a CONNECT to an address (T-374, drafted 2026-10-31).
+   - A second public server (read on 2026-11-02 for T-442; fits: T-497):
+     Piping Server's README lists `https://ppng.io`,
+     `https://piping.onrender.com` and `https://piping.glitch.me` as public
+     servers [S9]. `piping.onrender.com/version` answered `1.12.9`, from
+     Render's origin behind Cloudflare; `piping.glitch.me` answered 410 with
+     Glitch's page [S9]. It has no category of its own, and `onrender.com`
+     is "Content Servers" (Verified [N8]). Render spins a free web service
+     down after 15 minutes with no inbound traffic, takes about a minute to
+     spin it up, and may suspend one that "initiates an uncommonly high
+     volume of traffic" [S9]; whether this one is on the free tier was not
+     read, and no terms of its own were found. So it is the second server,
+     tried when the first failed, with short live runs.
    - Limits: 200 requests in flight; no SLA. Built, pure Rust. Effort: S.
    - Risks: nodes with an open egress only; the protocol is not published,
      and T-339 watches its pin.
@@ -636,7 +690,27 @@ services with small messages and rate limits.
   ephemeral events become a meeting point of the pairing, tried unasked
   after podssh's own.
 - **ntfy.sh**: 4,096 bytes for each message, 250 a day, and it bans abuse
-  [R31].
+  [R31]. Read again on 2026-11-02 for T-442; fits as a meeting point of the
+  pairing by a short code where a proxy refuses the WebSocket upgrade, which
+  the mailboxes below need (T-496).
+  - Terms (ntfy LLC, last updated 2026-01-26): "You may use the Service
+    without creating an account or subscribing to a paid plan. Free usage is
+    subject to rate limits"; it forbids spam, to "Circumvent rate limits",
+    and an "unreasonable or disproportionately large load"; "Topic names on
+    ntfy.sh are public ... your topic name functions as a password"; "best
+    effort", with no uptime promised [S1].
+  - Limits: 4,096 bytes a message; 60 requests at once for each visitor,
+    then one each 5 s; 250 messages a day on ntfy.sh; 30 open subscriptions
+    [S2]. A pairing sends a few messages of SPAKE2 and of the version phase
+    (Inferred from T-086's protocol).
+  - Through a proxy: a topic is read as a JSON stream by a plain GET
+    (`TOPIC/json`), or polled (`poll=1`, `since=`), and written by a POST:
+    no upgrade [S2]. TLS 1.2, ALPN `h2`, a Let's Encrypt certificate valid
+    to 2027-01-23; no category in the index, and the family resolvers clear
+    it (Verified [S4] [N8]).
+  - The server: Apache-2.0 and GPLv2, release v2.36.0 (2026-10-31) with
+    `checksums.txt` [S3], for the tests. Rust and C: nothing new, the HTTP
+    client of podssh-ws. Effort: S, on T-086's exchange.
 - **The public magic-wormhole mailboxes** (read on 2026-11-02; T-086):
   `wss://relay.magic-wormhole.io/v1`, on port 443 since the commit
   "public_relay.py: use TLS" (`f0522ac7dc`, 2026-05-13), and before it
@@ -647,6 +721,12 @@ services with small messages and rate limits.
   or they can run their own", and its source says of the first: "If it
   gets too expensive to run, I'll shut it down" [N18]. The two ends run
   SPAKE2 over it, keyed by a short code, so it learns nothing of the code.
+  Least Authority's mailbox, read again on 2026-11-02 for T-442: Winden's
+  terms cover "the backend servers used by Winden" with other applications
+  (section 1.6 [N12]), as for its transit relay; TLS 1.2, ALPN `h2`, a Let's
+  Encrypt certificate valid to 2026-12-09; no category in the index, and
+  the family resolvers clear it (Verified [S4] [N8]). It fits, as T-086's
+  second mailbox; no entry more.
 
 Since the operator's rulings Q77 and Q78 (2026-11-02, [decisions.md](decisions.md)), an item
 below that needs no account of the user's and carries bytes is no longer out: it is a last
@@ -663,7 +743,37 @@ Ruled out:
   22067 and only 8 use 443, each as an IP literal (counted on 2026-11-02,
   Verified [N19]; 88 and 5 on 2026-10-31), and the session mode is
   raw TCP while the protocol mode needs client certificates, so a proxy
-  that re-terminates TLS breaks both (Inferred).
+  that re-terminates TLS breaks both (Inferred). Read again for T-442 on
+  2026-11-02: 5 of the 100 on port 443 at about 09:40 UTC, each an IP literal
+  (Verified [S7]), so the pool moves within a day. The specification says
+  that a relay tells the modes apart by the first byte, 0x16 for protocol
+  mode's TLS, and that session mode "is a plain-text protocol" [S7]: a
+  connection of session mode cannot start as TLS does, so a proxy that waits
+  for TLS on 443 refuses it, and a proxy that allows listed names refuses
+  each IP literal (Inferred). It stays out.
+- **Yggdrasil's public peers** (read on 2026-11-02 for T-442): an overlay of
+  IPv6 whose peers are "virtual wires which are used for traffic routing";
+  its list asks for "a small number of NEARBY peers" and "Do not add large
+  numbers of peers" [S8]. Of its 365 entries, 20 are `tls://` on port 443
+  (10 of them IP literals) and 6 `wss://` on 443, the rest on other ports or
+  QUIC; 9 of those 26 were online at 09:02 UTC, 2 of them `wss://` [S8].
+  Through a proxy only the `wss://` peers pass a proxy that re-terminates
+  TLS (Inferred). No Rust crate implements the network
+  (crates.io, 2026-11-02 [S8]): podssh would port its Go source, the links,
+  the routing and the sessions, and run a stream over its datagrams, as the
+  DERP road's adapter does; effort L and more. Out, as the roads of podssh's
+  own nodes on 443 carry the same pairs.
+- **HTTP Relay, `demo.httprelay.io`** (read on 2026-11-02 for T-442): the
+  shape of Piping Server, a POST to `/link/CHANNEL` met by a GET there, but
+  its own page says "Streaming ✖": each request is a whole message [S10]. Its
+  public server is a demo, whose `/health` answered 503 on 2026-11-02, and
+  its last release is 2.0.1 (2022-04-11) [S10]. Out: Piping Server streams,
+  and T-497 gives it a second server.
+- **The iroh relays of chatmail's servers** (read on 2026-11-02 for T-442):
+  Delta Chat's mail servers run an iroh relay for its realtime channels;
+  one deployment's design names iroh-relay v0.35, where podssh's iroh is
+  1.4, and a client learns the relay's URL by IMAP METADATA after it logs in
+  [S11], so it needs a mail account there. Out.
 - **libp2p's circuit relay v2**: Kubo's defaults are 2 minutes and 128 KiB
   in each direction [R33], enough for hole punching only.
 - **Public MQTT brokers**: none is reachable on 443 in practice. HiveMQ's
@@ -770,6 +880,141 @@ TLS ends at the node, so a client behind a proxy that refuses the upgrade
 has a second carrier beside Piping Server (T-530, T-531), and `podssh
 funnel` a name whose TLS the edge does not end (T-532). A node with no
 other road tries it unasked (Q76, 2026-11-02).
+
+## Servers that a user runs
+
+Since Q66 (2026-11-02, [decisions.md](decisions.md)), podssh speaks, as a
+client, the standard protocols of servers that a user runs, so that such a
+server is a road with no relay: HTTP CONNECT to a second proxy over TLS
+(`--via`, T-439), VLESS over a WebSocket and over XHTTP (`--vless`, T-440)
+and wstunnel's protocol (`--wstunnel`, T-441), after Shadowsocks' AEAD form
+(`--shadowsocks`, T-373). The research of T-442 read the protocols below on
+2026-11-02, in their specifications and their servers' sources; it ran
+none of them. "Passes" means: through an HTTP CONNECT proxy to port 443,
+with TCP and TLS alone.
+
+1. **chisel** (fits: T-490).
+   - What it is: one binary, MIT, run as `chisel server`, often behind TLS
+     on 443; release v1.13.0 (2026-10-11) with `chisel_1.13.0_checksums.txt`
+     [S12].
+   - The protocol: a WebSocket with the subprotocol `chisel-v3`, which the
+     server requires; SSH in its binary messages (Go's `crypto/ssh`, the
+     server's version `SSH-chisel-v3-server`), with password authentication
+     by `--auth user:pass` or an authfile of the targets that each user may
+     reach; the server's key checked by "hashing the ECDSA public key using
+     SHA256 and encoding the result in base64", 44 characters; a global
+     request `config`, JSON of the client's version and its remotes; then a
+     channel `chisel` for each tunnel, its extra data `HOST:PORT`, which the
+     server dials before it accepts; `ping` requests both ways [S12].
+   - Passes: yes, with the upgrade; a proxy that refuses the upgrade stops
+     it. The SSH inside is checked against the server's key, so a proxy that
+     re-terminates TLS passes it when podssh trusts the proxy's CA
+     (Inferred).
+   - Rust and C: podssh-ws's WebSocket with russh's client inside it. russh
+     links aws-lc, so this client lives in the binary's crates, not in
+     podssh-ws (rule 4 of [AGENTS.md](../AGENTS.md), section 5). Effort: M.
+2. **Trojan** (fits: T-491).
+   - The protocol: after a real TLS handshake, `hex(SHA224(password))`,
+     CRLF, a request of SOCKS5's shape (CONNECT, an address's type, the
+     address, the port), CRLF, then the payload, in one write; a server that
+     reads a wrong password or request hands the connection to a preset
+     endpoint, an HTTP server by default, so that it looks like a web site
+     [S13]. Xray-core writes the same request, and serves it over TLS and
+     over a WebSocket; trojan-go has a WebSocket mode too, for a CDN [S13].
+   - The servers: trojan-gfw's own, GPL-3.0, its last release 1.16.0
+     (2020-06-10) with a PGP signature for each file; trojan-go 0.10.6
+     (2021-09-14); Xray-core, whose v26.10.21 T-440's tests pin [S13].
+   - Passes: over TLS by name on 443, yes. A proxy that re-terminates TLS
+     and reads HTTP inside refuses the request, which is not HTTP; the
+     WebSocket form passes there where the upgrade passes (Inferred).
+   - Rust and C: SHA-224 of the `sha2` crate, which podssh-ws holds, and
+     podssh-ws's TLS and WebSocket. Effort: M, less than VLESS's.
+3. **Shadowsocks 2022, SIP022** (fits: T-492).
+   - The protocol: a pre-shared key of 16 or 32 bytes in base64, never a
+     password; each stream's key by BLAKE3's `derive_key` over the key and a
+     salt; a request of a salt, a fixed header (a type, a timestamp, a
+     length) and a header of the address with padding or payload; the
+     response's header holds the request's salt; a timestamp more than 30 s
+     off is a replay; `2022-blake3-aes-128-gcm` and `2022-blake3-aes-256-gcm`
+     are mandatory, `2022-blake3-chacha20-poly1305` is optional [S16].
+     `--shadowsocks` refuses each 2022 method by its name today (T-373).
+   - Passes: as T-373's AEAD form, raw TCP to the server's port, so a proxy
+     that waits for TLS on 443 carries none (Inferred, as for SSH, T-317).
+   - The server: shadowsocks-rust, MIT, v1.25.0 (2026-08-26) with a
+     `.sha256` for each file [S16]; the gate's image installs its `ssserver`
+     for T-373's tests.
+   - Rust and C: `blake3` 1.8.7 with its feature `pure` builds no C and no
+     assembly [S16]; AES-GCM and ChaCha20-Poly1305 are in podssh-ws.
+     Effort: M.
+4. **Shadowsocks in a WebSocket, Outline's** (fits: T-493).
+   - What it is: Outline's server, outline-ss-server (Apache-2.0), serves
+     Shadowsocks in a WebSocket by a path since 1.9.0 (2025-02-11):
+     `websocket-stream` for TCP and `websocket-packet` for UDP, on a web
+     server of its own that a TLS front such as Caddy covers; v1.9.2 has a
+     `checksums.txt` [S17]. The Outline SDK's endpoint carries the stream as
+     it is in binary messages, and refuses a message of another kind [S17].
+   - Its keys: a dynamic access key is the location of a configuration,
+     `ssconf://` read as `https://`, in JSON (`server`, `server_port`,
+     `password`, `method`) or in a YAML whose TCP part names
+     `$type: websocket` and a `wss://` URL; "A dynamic access key URL is a
+     credential" [S17].
+   - Passes: yes, a WebSocket over TLS by name, where T-373's raw TCP does
+     not pass a proxy that waits for TLS.
+   - Rust and C: T-373's codec and podssh-ws's WebSocket; a reader of the
+     key's YAML. Effort: M.
+5. **NaiveProxy's server** (fits, through `--via`: T-494).
+   - What it is: Caddy with klzgrad's fork of forwardproxy, Apache-2.0,
+     release v2.11.7-naive2 (2026-10-22): an HTTP/2 CONNECT proxy over TLS
+     with a layer of padding [S18].
+   - The padding is opted into by a `padding` header in the CONNECT and in
+     its answer, and its servers "should interoperate with any regular HTTP/2
+     clients"; the fork pads only a request that has the header [S18]. So
+     `--via` (T-439) should reach it as it is (Inferred). With
+     `probe_resistance`, a request whose credentials fail goes to the next
+     handler, a web server, in place of a `407` [S18], and `--via` gives its
+     words to a `407` alone.
+   - Passes: as `--via`. Effort: S, a measurement and the words of that
+     refusal.
+6. **frp** (fits: T-498).
+   - What it is: frps and frpc, Apache-2.0, about 110,000 stars, release
+     v0.71.1 (2026-10-14) with `frp_sha256_checksums.txt` [S19]. Many users
+     run a frps on a public host already.
+   - The protocol: the transports `tcp`, `kcp`, `quic`, `websocket` and
+     `wss`; the WebSocket at the path `/~!frp`, in binary frames; messages of
+     a type byte and JSON, `Login` with a `privilege_key`; "STCP (Secret
+     TCP)", a service with a `secretKey` and no public port, which another
+     frpc visits with the same key (`NewVisitorConn`, with a `sign_key` and a
+     timestamp); TLS on by default since 0.50 [S19]. Its other parts, the
+     control connection's cipher and its multiplexing, are for the entry to
+     read in the source.
+   - Passes: over `wss://` on 443, with the upgrade. A reverse road through
+     a server that the user runs: a podssh node logs in as a frpc with an
+     STCP service, and `podssh ssh node://` visits it.
+   - Rust and C: podssh-ws's WebSocket and JSON, and a multiplexer.
+     Effort: L.
+7. **connect-tcp, the IETF's template-driven CONNECT** (waits for its RFC:
+   T-499).
+   - The draft: version 17 (2026-10-29), an Internet-Draft; a URI template
+     with `target_host` and `target_port`; on HTTP/1.1 a GET with
+     `Upgrade: connect-tcp`, on HTTP/2 and HTTP/3 an extended CONNECT with
+     `:protocol = connect-tcp`; the payload in capsules DATA (0x08) and
+     FINAL_DATA (0x09); for the interop of this version, the token
+     `connect-tcp-12` [S14].
+   - The servers: none of the working group's own. The author's fork of
+     masque-go speaks HTTP/3 alone and cites draft 09; erlang_masque speaks
+     HTTP/2 and HTTP/3 but carries raw bytes with no capsules, an earlier
+     form [S14]. The wire moved between drafts, and no server over HTTP/2
+     that speaks draft 17 was found, so there is nothing to test against.
+   - Passes: over HTTP/2 and HTTP/1.1 by name, as `--via` does (Inferred).
+     Effort: M, once it is an RFC.
+8. **Hysteria 2** (where UDP passes, Q82). The protocol "MUST be
+   implemented on top of the standard QUIC transport protocol" with
+   unreliable datagrams, and its server looks like an HTTP/3 server [S15]:
+   UDP alone, which the hosts of podssh's design do not have, and where UDP
+   passes the iroh road speaks QUIC already. The operator ruled Q82
+   (2026-11-02): roads over UDP, Hysteria 2, TUIC and MASQUE over HTTP/3,
+   tried only where a probe found that UDP passes, after the roads over
+   TCP.
 
 ## Sources
 
@@ -929,6 +1174,63 @@ public data file), not a run of podssh.
 - [N26] https://github.com/nwtgck/piping-server-rust: `src/piping_server.rs`
   and `src/main.rs` of its main branch, and `src/main.rs` and `Cargo.toml`
   at v0.18.0 (hyper 1.2, hyper-util's server of both protocols)
+
+Read or measured on 2026-11-02 through the services of web.pkgforge.dev,
+for T-442. "Verified" marks a reading of those services, as above.
+
+- [S1] https://docs.ntfy.sh/terms/ (last updated 2026-01-26)
+- [S2] https://docs.ntfy.sh/publish/ (its "Limitations");
+  https://docs.ntfy.sh/subscribe/api/
+- [S3] https://github.com/binwiederhier/ntfy (its release v2.36.0)
+- [S4] https://domain.web.pkgforge.dev/tls/HOST (TLS handshakes of
+  `ntfy.sh`, `mailbox.mw.leastauthority.com` and `uptermd.upterm.dev`)
+- [S5] https://github.com/owenthereal/upterm: its README,
+  `host/internal/reversetunnel.go`, `ws/client.go` and `upterm/const.go` of
+  its default branch, and its release v0.41.0 (2026-11-02)
+- [S6] https://owenou.com/upterm/ (its author's page)
+- [S7] https://relays.syncthing.net/endpoint (counted);
+  https://docs.syncthing.net/specs/relay-v1.html
+- [S8] https://publicpeers.neilalexander.dev/ (the list for v0.5 and its
+  status of 2026-11-02 09:02 UTC, counted); a search of crates.io for
+  `yggdrasil` and `ironwood`
+- [S9] https://github.com/nwtgck/piping-server (its README, "Public
+  servers"); https://piping.onrender.com/version;
+  https://piping.glitch.me/version; https://render.com/docs/free
+- [S10] https://httprelay.io/; https://httprelay.io/features/link;
+  https://gitlab.com/jonas.jasas/httprelay (its releases);
+  https://demo.httprelay.io/health
+- [S11] https://madmail.chat/docs/TDD/11-proxy-services (a chatmail
+  deployment's design)
+- [S12] https://github.com/jpillora/chisel at v1.13.0: `share/version.go`,
+  `client/client.go`, `client/client_connect.go`, `server/server.go`,
+  `server/server_handler.go`, `share/tunnel/tunnel_out_ssh.go` and
+  `share/tunnel/tunnel_in_proxy.go`; its release v1.13.0
+- [S13] https://trojan-gfw.github.io/trojan/protocol;
+  https://github.com/trojan-gfw/trojan (its release 1.16.0);
+  https://github.com/p4gefau1t/trojan-go (its README and release v0.10.6);
+  `XTLS/Xray-core:proxy/trojan/protocol.go` at v26.10.21
+- [S14] https://datatracker.ietf.org/doc/draft-ietf-httpbis-connect-tcp/
+  (draft 17); `bemasc/masque-go:proxy.go` (its branch `capsules`);
+  https://github.com/benoitc/erlang_masque (its README,
+  `benoitc/erlang_masque:docs/2-use/connect-tcp.md` and
+  `benoitc/erlang_masque:docs/reference/conformance.md`)
+- [S15] https://v2.hysteria.network/docs/developers/Protocol/
+- [S16] https://shadowsocks.org/doc/sip022.html;
+  https://github.com/shadowsocks/shadowsocks-rust (its release v1.25.0);
+  `BLAKE3-team/BLAKE3:build.rs` and `BLAKE3-team/BLAKE3:Cargo.toml` at
+  1.8.7
+- [S17] https://developers.google.com/outline/docs/guides/service-providers/caddy;
+  https://developers.google.com/outline/docs/guides/service-providers/dynamic-access-keys;
+  `OutlineFoundation/outline-ss-server:cmd/outline-ss-server/config_example.yml`,
+  and `main.go` beside it at v1.9.2, and its releases 1.9.0 and 1.9.2;
+  `Jigsaw-Code/outline-sdk:x/websocket/endpoint.go`
+- [S18] https://github.com/klzgrad/naiveproxy (its README, "Padding
+  protocol, an informal specification");
+  `klzgrad/forwardproxy:forwardproxy.go` (its branch `naive`), and its
+  release v2.11.7-naive2
+- [S19] https://github.com/fatedier/frp (its README);
+  `fatedier/frp:pkg/util/net/websocket.go` and `fatedier/frp:pkg/msg/msg.go`
+  at v0.71.1; its release v0.71.1
 
 Read on 2026-11-02 through the services of web.pkgforge.dev, for the triage
 of the operator's sweep of public relays. "Verified" marks a reading of

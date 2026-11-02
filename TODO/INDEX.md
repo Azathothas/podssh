@@ -62,15 +62,15 @@ repository and CI).
 
 ## Counts
 
-**495 entries: 83 open, 3 partial, 16 blocked, 393 done.**
+**505 entries: 92 open, 3 partial, 16 blocked, 394 done.**
 
 | Priority | open | partial | blocked | done | total |
 | --- | --- | --- | --- | --- | --- |
 | P0 | 0 | 0 | 0 | 1 | 1 |
 | P1 | 6 | 3 | 0 | 51 | 60 |
-| P2 | 34 | 0 | 14 | 189 | 237 |
-| P3 | 43 | 0 | 2 | 152 | 197 |
-| **All** | 83 | 3 | 16 | 393 | 495 |
+| P2 | 36 | 0 | 14 | 189 | 239 |
+| P3 | 50 | 0 | 2 | 153 | 205 |
+| **All** | 92 | 3 | 16 | 394 | 505 |
 
 ## Entries
 
@@ -513,7 +513,7 @@ repository and CI).
 | [T-439](mesh.md) | P2 | M | M10 | feature | done | HTTP CONNECT to a second proxy over TLS, HTTP/1.1 and HTTP/2 |
 | [T-440](mesh.md) | P2 | L | M10 | feature | done | VLESS over a WebSocket and over XHTTP |
 | [T-441](mesh.md) | P3 | M | M10 | feature | done | wstunnel's protocol |
-| [T-442](mesh.md) | P3 | M | M10 | research | open | More public services and standard protocols that fit |
+| [T-442](mesh.md) | P3 | M | M10 | research | done | More public services and standard protocols that fit |
 | [T-443](mesh.md) | P2 | S | M10 | defect | done | The resumable layer's window on the pair's road is above the relay's bound |
 | [T-444](mesh.md) | P3 | S | M10 | feature | done | One TLS configuration for each trust in a process, so that TLS resumes |
 | [T-445](mesh.md) | P2 | S | M10 | feature | open | A node's record names each of its roads |
@@ -554,6 +554,16 @@ repository and CI).
 | [T-487](ws.md) | P3 | S | none | feature | open | `doctor` says once that each TLS handshake was reset, and tells a reset from a timeout |
 | [T-488](machine.md) | P3 | L | none | feature | open | `podssh mcp` offers `cp`, `job`, `health` and `session` as tools, behind the gate of `ssh_exec` |
 | [T-489](irc.md) | P3 | S | none | feature | open | `chat --listen --linger`: a listener that stays for each peer after its input ended |
+| [T-490](mesh.md) | P2 | M | M10 | feature | open | chisel's protocol: a chisel server as the road |
+| [T-491](mesh.md) | P3 | M | M10 | feature | open | Trojan over TLS and over a WebSocket |
+| [T-492](mesh.md) | P3 | M | M10 | feature | open | Shadowsocks 2022 (SIP022) for `--shadowsocks` |
+| [T-493](mesh.md) | P2 | M | M10 | feature | open | Shadowsocks in a WebSocket, as Outline's servers serve it, and `ssconf://` keys |
+| [T-494](mesh.md) | P3 | S | M10 | measurement | open | `--via` against NaiveProxy's server, and the words of a probe-resistant proxy |
+| [T-495](mesh.md) | P3 | M | M10 | feature | open | `-J upterm://SESSION@HOST`: a session of upterm's host as the first hop |
+| [T-496](mesh.md) | P3 | S | M10 | feature | open | ntfy.sh, a meeting point of the pairing where a proxy refuses the WebSocket upgrade |
+| [T-497](mesh.md) | P3 | S | M10 | feature | open | A second public Piping Server, `piping.onrender.com` |
+| [T-498](mesh.md) | P3 | L | M10 | feature | open | frp's protocol: a podssh node behind the user's frps, and its visitor |
+| [T-499](mesh.md) | P3 | M | M10 | feature | open | IETF's connect-tcp, once it is an RFC |
 | [T-500](ssh.md) | P1 | S | none | defect | open | A destination with no user name is refused when `USER`, `LOGNAME` and `USERNAME` are unset, where OpenSSH reads the user database |
 | [T-501](ssh.md) | P1 | S | none | defect | open | `--su` waits for ever when its password cannot be given: a cancelled `SSH_ASKPASS` leaves su waiting, and podssh with it |
 | [T-502](config.md) | P2 | S | none | defect | open | `-o ProxyCommand=none` does not beat a file's `ProxyCommand`, and the first `ProxyCommand` of a file does not hold |
