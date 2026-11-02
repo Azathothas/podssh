@@ -20,9 +20,13 @@
 //! terminal's parser at its ground state ([`Boundary`]), and takes its title
 //! back before the far end's next bytes, so that a title that a program sets
 //! then is kept.
+//!
+//! The same title holds the warning before the relay's idle cut ([`idle`],
+//! T-463), while the far end answers and no notice of silence shows.
 
 pub mod asked;
 mod boundary;
+pub mod idle;
 #[cfg(test)]
 mod tests;
 pub mod title;
@@ -61,6 +65,9 @@ struct Shared {
     /// then leaves out its own lines of a loss and a resume, which would be
     /// written into the screen.
     titled: AtomicBool,
+    /// The warning before the relay's idle cut, for the title, while it
+    /// stands (T-463).
+    idle: Mutex<Option<String>>,
 }
 
 impl std::fmt::Debug for Silence {
@@ -110,6 +117,17 @@ impl Silence {
 
     fn set_titled(&self, on: bool) {
         self.0.titled.store(on, Ordering::SeqCst);
+    }
+
+    /// The warning before the relay's idle cut, for a session that shows the
+    /// title; `None` once a payload crossed (T-463).
+    pub fn set_idle(&self, words: Option<String>) {
+        *lock(&self.0.idle) = words;
+    }
+
+    /// The warning that stands, when one does.
+    pub fn idle(&self) -> Option<String> {
+        lock(&self.0.idle).clone()
     }
 }
 
@@ -172,6 +190,8 @@ pub struct Notice {
     escape: Option<u8>,
     boundary: Boundary,
     shown: Option<Shown>,
+    /// The title holds the warning before the relay's idle cut (T-463).
+    idle_up: bool,
     /// When the notice reads the silence next.
     next: Instant,
 }
@@ -198,6 +218,7 @@ impl Notice {
             escape,
             boundary: Boundary::default(),
             shown: None,
+            idle_up: false,
             next: Instant::now() + TICK,
         }
     }
@@ -233,12 +254,39 @@ impl Notice {
     /// kept; each byte moves the [`Boundary`].
     pub fn before_output(&mut self, data: &[u8], stderr: bool) -> Vec<u8> {
         let mut first = Vec::new();
-        if !stderr && self.place == Place::Title && self.shown.is_some() && self.boundary.at_ground() {
+        let up = self.shown.is_some() || self.idle_up;
+        if !stderr && self.place == Place::Title && up && self.boundary.at_ground() {
             first.extend_from_slice(title::POP);
             self.shown = None;
+            // These bytes crossed the relay: its idle cut is no nearer.
+            if self.idle_up {
+                self.idle_up = false;
+                self.silence.set_idle(None);
+            }
         }
         self.boundary.feed(data);
         first
+    }
+
+    /// The warning before the relay's idle cut in the title, where no notice
+    /// of silence holds it: up while the warning stands, down after.
+    fn idle_title(&mut self) -> Option<Action> {
+        if !self.boundary.at_ground() {
+            return None;
+        }
+        match (self.silence.idle(), self.idle_up) {
+            (Some(words), false) => {
+                self.idle_up = true;
+                let mut out = title::PUSH.to_vec();
+                out.extend_from_slice(&title::set(&words));
+                Some(Action::Write(out))
+            }
+            (None, true) => {
+                self.idle_up = false;
+                Some(Action::Write(title::POP.to_vec()))
+            }
+            _ => None,
+        }
     }
 
     /// The words of the notice, after `seconds` of silence.
@@ -256,13 +304,19 @@ impl Notice {
         self.next = now + TICK;
         let silent = self.silence.silent();
         let shown = self.shown;
+        if self.place == Place::Title && silent.is_none() && shown.is_none() {
+            return self.idle_title();
+        }
         match (self.place, silent, shown) {
             (Place::Title, Some(silent), shown) => {
                 let seconds = silent.as_secs();
                 if shown.is_some_and(|s| s.seconds == seconds) || !self.boundary.at_ground() {
                     return None;
                 }
-                let mut out = if shown.is_none() { title::PUSH.to_vec() } else { Vec::new() };
+                // A title that holds the idle warning is pushed already: the
+                // notice of silence takes its place.
+                let pushed = shown.is_some() || std::mem::take(&mut self.idle_up);
+                let mut out = if pushed { Vec::new() } else { title::PUSH.to_vec() };
                 out.extend_from_slice(&title::set(&self.text(seconds)));
                 let (since, silent) = shown.map_or((now, silent), |s| (s.since, s.silent));
                 self.shown = Some(Shown { seconds, since, silent });
@@ -316,7 +370,7 @@ impl Drop for Notice {
             return;
         }
         self.silence.set_titled(false);
-        if self.shown.is_some() {
+        if self.shown.is_some() || self.idle_up {
             let mut out = std::io::stdout();
             let _ = out.write_all(title::POP);
             let _ = out.flush();

@@ -11,6 +11,8 @@ use podssh_ssh::{Agent, LogLevel, Method, Request, RequestTty, StdioTarget, Stri
 
 // The host picker (T-188), in a module of its own: this file is near 500 lines.
 mod ssh_picker;
+// `--idle-warn` (T-463), for the same reason.
+mod ssh_idle;
 
 fn ssh(words: &[&str]) -> SshArgs {
     let argv: Vec<std::ffi::OsString> = std::iter::once("ssh").chain(words.iter().copied()).map(Into::into).collect();

@@ -1,0 +1,9 @@
+# T-463: the time of the last payload never moves, so the warning before the
+# relay's idle cut comes 150 s after the session's start whatever crossed
+# since (GitHub #98); the test of a payload at 140 s, which moves the warning
+# to 150 s after it, must fail.
+ENTRY=T-463
+GROUP=resume
+EXPECT='test notice::idle::tests::a_payload_at_140_s_moves_the_warning \.\.\. FAILED'
+RUN='cargo test --locked -p podssh-ssh --lib -- notice::idle'
+LIMIT=1800

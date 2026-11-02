@@ -62,15 +62,15 @@ repository and CI).
 
 ## Counts
 
-**546 entries: 126 open, 3 partial, 16 blocked, 401 done.**
+**547 entries: 126 open, 3 partial, 16 blocked, 402 done.**
 
 | Priority | open | partial | blocked | done | total |
 | --- | --- | --- | --- | --- | --- |
 | P0 | 0 | 0 | 0 | 1 | 1 |
 | P1 | 4 | 3 | 0 | 53 | 60 |
-| P2 | 40 | 0 | 14 | 192 | 246 |
-| P3 | 82 | 0 | 2 | 155 | 239 |
-| **All** | 126 | 3 | 16 | 401 | 546 |
+| P2 | 39 | 0 | 14 | 193 | 246 |
+| P3 | 83 | 0 | 2 | 155 | 240 |
+| **All** | 126 | 3 | 16 | 402 | 547 |
 
 ## Entries
 
@@ -534,7 +534,7 @@ repository and CI).
 | [T-460](ssh.md) | P1 | M | none | defect | partial | A reply to a global request that carries data ends the connection: a quiet minute with keepalives, and a refused `-R` |
 | [T-461](ssh.md) | P1 | S | none | defect | done | A link that ends after the exit status and before the output's end gives that status: output cut at the relay's 64 MiB exits 0 |
 | [T-462](ssh.md) | P2 | S | none | defect | done | A `-J` hop whose channel opens and then carries nothing ends in a bare handshake timeout, and the open has no limit |
-| [T-463](ssh.md) | P2 | M | none | feature | open | A warning before the relay's idle cut, while the user can still act |
+| [T-463](ssh.md) | P2 | M | none | feature | done | A warning before the relay's idle cut, while the user can still act |
 | [T-464](ssh.md) | P2 | S | none | defect | done | A connection that ends right after the login reads as a refused session, or as a loss with no cause |
 | [T-465](robustness.md) | P1 | S | none | defect | partial | `pipe`'s test of `unix-connect` waited past its 10 s once on macOS |
 | [T-470](copy.md) | P2 | S | none | defect | open | `cp --delta` sends the whole file with no word when the server cannot take a delta |
@@ -622,3 +622,4 @@ repository and CI).
 | [T-580](mesh.md) | P3 | L | M10 | feature | open | Hysteria 2 as a client road over QUIC, where a probe found that UDP passes |
 | [T-581](mesh.md) | P3 | M | M10 | feature | open | TUIC version 5 as a client road over QUIC, where a probe found that UDP passes |
 | [T-582](mesh.md) | P3 | L | M10 | feature | open | MASQUE over HTTP/3: WARP's connect-ip on UDP, where a probe found that UDP passes |
+| [T-583](ssh.md) | P3 | S | none | feature | open | The warning before the relay's idle cut with `--persist` and `--upgrade` |

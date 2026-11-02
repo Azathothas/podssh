@@ -28,7 +28,7 @@ a session id and a 256-bit resume secret, under SSH (`docs/design.md:671-688`),
 in a `session` module of `podssh-relay` (`docs/design.md:574-583`), a crate
 with no C. Measured: `grep -ril resum crates` finds only the IRC client.
 Today russh's bytes go through a pipe to the relay session
-(`crates/podssh-ssh/src/relay_stream.rs:169-279`). Frame boundaries mean nothing
+(`crates/podssh-ssh/src/relay_stream.rs:182-292`). Frame boundaries mean nothing
 on the relay (`docs/relay.md:162-165`), and the relay reads each record and can
 drop or add frames (`SECURITY.md:33-36`).
 
@@ -58,7 +58,7 @@ drop or add frames (`SECURITY.md:33-36`).
    side ignores a name that it does not know (ssh-obi's model, read in
    GitHub #19, not verified here).
 7. On the client, the layer goes between the pipe and the link, and keeps
-   `RelayStatus` (`crates/podssh-ssh/src/relay_stream.rs:69-163`). Docs: the
+   `RelayStatus` (`crates/podssh-ssh/src/relay_stream.rs:69-176`). Docs: the
    records and the threat model in `docs/design.md` section 5,
    `docs/architecture.md`, the map of `AGENTS.md`, and `docs/STATUS.md`.
 
@@ -102,7 +102,7 @@ unknown session. The gate builds `podssh-relay` with `CC=/nonexistent`.
 ## Correction
 
 Step 7 cites the pipe of the forward road
-(`crates/podssh-ssh/src/relay_stream.rs:69-163`), whose far end is the
+(`crates/podssh-ssh/src/relay_stream.rs:69-176`), whose far end is the
 relay itself: it never speaks the layer, so that pipe keeps no layer and its
 `RelayStatus` is unchanged. The client's pipe to a node is in
 `crates/podssh-cli/src/ssh/node.rs`, between SSH and the operator's leg,
@@ -817,7 +817,7 @@ Read: a read waits 90 s at most (`crates/podssh-ws/src/client.rs:23-25`, set at
 frame each 25 s. The ping watcher acts only after a first Pong
 (`crates/podssh-ws/src/session.rs:261-299`); Pongs and the idle cut on reverse
 sockets are not measured (T-061). russh sends a keepalive each 60 s and ends
-the session after 3 with no answer (`crates/podssh-ssh/src/options.rs:338-378`).
+the session after 3 with no answer (`crates/podssh-ssh/src/options.rs:341-381`).
 Measured on `3ee70dc`, offline (`PODSSH_OFFLINE=1`, a `.invalid` host):
 `-o ServerAliveInterval=0` prints the warning of
 `crates/podssh-cli/src/ssh/resolve.rs:390-404` (the `warnings` of keepalives), and `podssh ssh` exits 255.
@@ -1320,7 +1320,7 @@ new SSH login to a far end that kept the shell (T-159). Read: podssh knows
 the escapes `~.`, `~R`, `~?` and `~~`, and another character after `~` goes
 to the server with the `~` (`crates/podssh-ssh/src/escape.rs:1-9`,
 `crates/podssh-ssh/src/escape.rs:90-138`). The flag table has 469 lines, near
-the limit of 500 (the table of `ssh`: `crates/podssh-cli/src/flags.rs:112-286`).
+the limit of 500 (the table of `ssh`: `crates/podssh-cli/src/flags.rs:112-287`).
 
 ## Approach
 
@@ -2544,7 +2544,7 @@ show on that road.
 
 - Read: the relay's session pings each 10 s, and a link with no frame for three intervals is dead
   (`crates/podssh-ws/src/client.rs:27-32`); the relay stream of the SSH client runs that check
-  (`crates/podssh-ssh/src/relay_stream.rs:228`).
+  (`crates/podssh-ssh/src/relay_stream.rs:241`).
 - Read: on that road nothing below SSH answers a key: the relay copies the bytes to the target's
   TCP connection. A Ping of podssh's, which the relay answers with a Pong, is the one question
   that the road asks.

@@ -104,11 +104,10 @@ entry keeps its proof in the entry; this page keeps no history (git does).
   and the merges' `draft/m10-merge-427`, `-429`, `-437`, `-438`, `-439`, `-440`, `-443-444` and
   `-448`.
 
-  On 2026-11-02 an agent drafts the testers' defects of SSH, unbuilt, one commit each, on the
-  local branch `worktree-agent-a7cc3c512bf98ec67` (its worktree under `.claude/worktrees/`):
-  T-460 (the WIP `818f7fe` of `worktree-agent-t460-ssh`, which can go once it is merged), T-461,
-  T-462 and T-464, each with its UNVERIFIED in its `## Done`. Before the session ends, the branch
-  goes to GitHub as `draft/worktree-agent-a7cc3c512bf98ec67`.
+  On 2026-11-02 an agent drafted the testers' defects of SSH, unbuilt, one commit each, on the
+  local branch `worktree-agent-a7cc3c512bf98ec67`: T-460 to T-464 (T-463 a feature, by Q85), each
+  merged and closed the same day. The branch and its worktree can go, and so can
+  `worktree-agent-t460-ssh` (`818f7fe`) and `draft/worktree-agent-t460-ssh`.
 
   CI: the gate passed at
   `24b9f6e` (run 38331509229), and its step `release` at `cad2885` (478
@@ -153,7 +152,7 @@ and `CARGO_BUILD_JOBS=4`:
 
 ## Counts
 
-`TODO/INDEX.md` holds 546 entries: 126 open, 3 partial, 16 blocked, 401 done.
+`TODO/INDEX.md` holds 547 entries: 126 open, 3 partial, 16 blocked, 402 done.
 
 Open includes parked work. `cargo todo check` verifies this line.
 
@@ -222,13 +221,13 @@ and relay sweep of 2026-11-02 come first among the `none` entries, the P1 ones b
 (T-460, T-471, T-500, T-501, T-504; and T-465, a test that failed once), then the P2 ones
 (T-470, T-476, T-480, T-502, T-503, T-505, T-509, T-560, T-563), then the P3 ones (T-506,
 T-507), each a repair that goes into `v1.0.1`, from `main` with the checks of a release. Their
-features and documents (T-463, T-472 to T-475, T-481 to T-489, T-508, T-510 to T-512, T-530
+features and documents (T-472 to T-475, T-481 to T-489, T-508, T-510 to T-512, T-530
 to T-533, T-561, T-562, T-564, and T-534 to T-549 and T-565 to T-582, which Q74, Q75, Q77, Q78
 and Q82 filed) follow, by priority, beside M10 (Q85); `v1.0.1`
 goes out unattended once the defects pass the checks of a release (Q87). Overnight a fork of
 policy is decided and listed below for the operator to confirm (Q86). The drafts of the defects wait to
 be merged (`.claude/worktrees/agent-*`: T-470, T-471, T-476; T-500, T-501, T-503; T-502, T-505;
-T-504, T-506, T-507, T-509, T-480), and the feature T-463 beside SSH's.
+T-504, T-506, T-507, T-509, T-480).
 
 **Skip** the entries that the operator holds (status
 `blocked`, Q32):
@@ -307,6 +306,11 @@ unattended (Q87).
   fronts another party's name or sits under a school's, a church's or a government's suffix.
 - T-578: one short live run of an onion service on the public Tor network, more than Q60's one
   bootstrap and one stream.
+- T-463 (done; its live run waits): the live run goes to the operator's server of
+  `PODSSH_THROUGHPUT_SSH`, which Q38 names for the throughput run, for 3 minutes with nothing sent:
+  no other test target gives a shell behind the relay's forward road. Recommendation: allow it, as
+  a run lighter than the throughput run on the same server; podssh's own relay role measured it
+  in its place.
 
 The operator settled Q63 to Q66 on 2026-11-02 (`docs/decisions.md`), after the research of five
 agents on the dependency on the relay's operator: podssh grows into a mesh of its user's own nodes

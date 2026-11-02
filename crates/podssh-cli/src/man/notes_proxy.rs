@@ -7,7 +7,8 @@ pub const PROXY: &[&str] = &[
      ssh -o ProxyCommand='podssh proxy %h %p' user@host. It also carries each TCP protocol that a \
      program can speak over stdin and stdout.",
     "With OpenSSH, set -o ServerAliveInterval=60: the relay closes a session with no traffic (see THE \
-     RELAY).",
+     RELAY). Once nothing crossed for all but 30 s of the relay's idle cut, podssh proxy says so on \
+     stderr, which OpenSSH shows; --idle-warn SECONDS sets that lead, and 0 turns it off.",
     "The session ends when the target closes the connection or when stdout closes; both are a success. \
      An error is one line on stderr; the codes are in EXIT STATUS.",
     "HOST can be an IPv6 address, bare (as OpenSSH gives %h) or in brackets. In one word, the form is \

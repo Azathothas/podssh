@@ -75,11 +75,15 @@ pub struct RelayStatus {
     bytes: Arc<AtomicU64>,
     started: Instant,
     quiet: Arc<Quiet>,
+    /// When payload last crossed, either way, as the relay's idle cut counts
+    /// (T-463); a keepalive of the relay carries none.
+    crossed: crate::notice::idle::Crossed,
 }
 
 impl Default for RelayStatus {
     fn default() -> Self {
-        RelayStatus { end: Arc::default(), bytes: Arc::default(), started: Instant::now(), quiet: Arc::default() }
+        let (end, bytes, quiet, crossed) = (Arc::default(), Arc::default(), Arc::default(), Default::default());
+        RelayStatus { end, bytes, started: Instant::now(), quiet, crossed }
     }
 }
 
@@ -115,6 +119,15 @@ impl RelayStatus {
 
     fn count(&self, n: usize) {
         self.bytes.fetch_add(n as u64, Ordering::Relaxed);
+        if n > 0 {
+            self.crossed.mark();
+        }
+    }
+
+    /// When payload last crossed, either way; the session's start before any
+    /// did. The relay's idle cut counts from it (T-463).
+    pub fn last_payload(&self) -> tokio::time::Instant {
+        self.crossed.last()
     }
 
     /// The payload bytes of the session so far, out and in together: what

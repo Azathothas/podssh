@@ -45,9 +45,21 @@ fn the_positionals_and_options_reach_the_verb() {
             vless: None,
             wstunnel: Default::default(),
             exit: Default::default(),
+            idle_warn: None,
             refused: vec![],
         }
     );
+}
+
+/// `--idle-warn SECONDS` reaches the verb (T-463).
+#[test]
+fn idle_warn_reaches_the_proxy() {
+    let p = parse(args(&["proxy", "--idle-warn", "45", "host.example", "22"]));
+    let Parsed::Proxy { idle_warn, refused, .. } = &p else { panic!("{p:?}") };
+    assert_eq!((idle_warn.as_deref(), refused.is_empty()), (Some("45"), true));
+    let (rc, _, err) = run_case(&["proxy", "--idle-warn", "soon", "host.example", "22"]);
+    assert_eq!(rc, 64, "{err}");
+    assert!(err.contains("--idle-warn") && err.contains("whole number of seconds"), "{err}");
 }
 
 #[test]

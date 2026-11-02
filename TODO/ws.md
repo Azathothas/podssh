@@ -40,7 +40,7 @@ byte is read as a Close with no code (`session.rs` lines 275-278 at `076e3ce`); 
    `WsError::Frame` when `fin` is clear or the length is over 125. Name the rule in the message.
 2. Refuse a Close payload of 1 byte in the same place.
 3. The read then fails (`crates/podssh-ws/src/session.rs` line 176 at `3b60753`). Today a failed
-   read sends no Close (`crates/podssh-ssh/src/relay_stream.rs:267-269`): send 1002 (protocol
+   read sends no Close (`crates/podssh-ssh/src/relay_stream.rs:280-282`): send 1002 (protocol
    error) there, as lines 130-137 do for an unexpected frame. `podssh proxy` exits as for a
    broken session.
 4. `crates/podssh-ws/tests/rfc6455.rs` has 486 lines: put the new tests in a new file,
@@ -601,7 +601,7 @@ Read; the lines of the files that this entry changed are those of `723d90b`. `se
 `read_frame` (170-221) and `write` (223-228) return `Result<_, String>`; `watch_liveness`
 returns a `String` (142-166). The callers keep or pass the text:
 `crates/podssh-ssh/src/relay_stream.rs` lines 95-96 and 138-140 at `23b5d82` put it in `RelayEnd::Failed`;
-`crates/podssh-cli/src/pipe/relay.rs:112-188` prints it; `podssh-transport` makes a write error
+`crates/podssh-cli/src/pipe/relay.rs:127-205` prints it; `podssh-transport` makes a write error
 `TransportError::Unexpected` (crates/podssh-transport/src/socket.rs at `e8bbd4d` lines 104-113, 143, 161
 and 185), and, since T-072, a read error `Aborted` with its text. Tests and the gate match the
 text: `crates/podssh-ws/tests/session.rs` lines 108 ("continuation") and 172 ("without a
@@ -705,7 +705,7 @@ socks5:// is not supported; podssh speaks HTTP CONNECT to an http:// proxy"
 `HTTPS_PROXY`, `all_proxy` and `ALL_PROXY` (lines 163 and 184), and parses the first that is set
 (line 192). `dial` makes the error `DialError::BadProxy` (line 232), which stops the failover at
 once (`crates/podssh-relay/src/open.rs:70`) and gives exit 78 in `podssh proxy`
-(`crates/podssh-cli/src/proxy.rs:385`). `doctor` reports it as `FAIL`
+(`crates/podssh-cli/src/proxy.rs:405`). `doctor` reports it as `FAIL`
 (`crates/podssh-cli/src/doctor/net.rs`, lines 101-107). Two tests assert the refusal:
 `crates/podssh-cli/tests/doctor.rs`, lines 144-153, and `crates/podssh-ws/tests/dial.rs`, lines
 50-58.
@@ -724,7 +724,7 @@ once (`crates/podssh-relay/src/open.rs:70`) and gives exit 78 in `podssh proxy`
    order (pinned, system, DNS over HTTPS), and try once with the address.
 4. Map each answer to the HTTP case that `another_host_may_help`
    (`crates/podssh-relay/src/open.rs:62-84`) and the exit codes of `podssh proxy`
-   (`crates/podssh-cli/src/proxy.rs:381-394`) already treat: a refused user or password as 407
+   (`crates/podssh-cli/src/proxy.rs:401-414`) already treat: a refused user or password as 407
    (the same for each host: stop); 0x02 (not allowed) as 403; 0x03, 0x04 and 0x05 as 502.
 5. Credentials never in output: `Display` shows the host and port only (now
    `crates/podssh-ws/src/proxy.rs:70-75`).

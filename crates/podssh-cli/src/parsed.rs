@@ -90,6 +90,8 @@ pub enum Parsed {
         /// `--exit NAME` and `--client-key FILE`: the pipe starts at this
         /// exit of the net (T-431).
         exit: crate::exit::Flags,
+        /// `--idle-warn SECONDS` (T-463), unparsed.
+        idle_warn: Option<String>,
         refused: Vec<(String, &'static str, &'static str)>,
     },
     /// `podssh status`: the relay settings in effect, and the destination

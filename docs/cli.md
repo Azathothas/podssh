@@ -553,6 +553,22 @@ scripts. The facts about OpenSSH on this page were measured with OpenSSH
   which ends it before it reads the others (64), nor when a signal kills
   podssh, as it kills OpenSSH's `ssh`: only a session on a terminal ends at
   SIGTERM or SIGHUP, as `terminated`, and writes it.
+- **A warning before the relay's idle cut** (T-463, GitHub #98): the relay
+  ends a session after 180 s with no payload either way, which keepalives
+  prevent and `-o ServerAliveInterval=0` allows. Through the relay, once
+  nothing crossed for the cut less the lead, podssh warns once: "the relay
+  ends this session in 30 s, as nothing crossed it for 150 s: a key, or -o
+  ServerAliveInterval below 180, keeps it", in the window's title where the
+  session shows the notice of a silent far end there (T-302, taken back at
+  the next payload), else as one line on stderr, also into a pipe; and again
+  only after a payload crossed. **`--idle-warn SECONDS`** sets the lead (30
+  s, or a sixth of a shorter cut of a relay's limits); 0 turns it off, and
+  so does `-q`. The warning sends nothing: a session whose keepalives are
+  off stays so. `podssh proxy --idle-warn SECONDS` warns on stderr, which
+  its SSH client shows. Not on `node://` and the other roads of the
+  resumable layer, whose heartbeat keeps the link busy, nor with
+  `--direct`; with `--persist`, which attaches again after the cut, and
+  `--upgrade`, not before T-583.
 - **`--sudo` and `--su` run the remote command as root** (T-032), with the
   password asked here, on the terminal or through `SSH_ASKPASS`, never on
   the command line. `--sudo` sends `sudo -S -k -p PROMPT -- sh -c '...'`

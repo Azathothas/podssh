@@ -27,6 +27,8 @@ pub mod exit_road;
 pub mod expect;
 pub mod forward;
 pub(crate) mod hop;
+// A warning before the relay's idle cut (T-463).
+pub mod idle_warn;
 pub mod iroh;
 mod jump;
 pub mod keywords;
@@ -161,6 +163,11 @@ fn run(args: &SshArgs, tty: Tty, err: &mut dyn Write) -> i32 {
         Ok(r) => r,
         Err(refusal) => return refusal.report("ssh", err),
     };
+    // The lead of the warning before the relay's idle cut (T-463).
+    match idle_warn::lead_of(args.idle_warn.as_deref()) {
+        Ok(lead) => resolved.options.idle_lead = lead,
+        Err(why) => return crate::relay_settings::Refusal::usage(why).report("ssh", err),
+    }
     // Shown and asked before anything connects; -G runs nothing.
     if let Some((_, snippet)) = chosen.as_ref().filter(|_| !args.print_config) {
         let options = &resolved.options;
@@ -429,9 +436,15 @@ async fn tries(resolved: &Resolved, log: &Arc<Log>) -> (i32, Option<podssh_ssh::
             log.verbose("the far end runs the resumable layer, whose heartbeat finds a dead link: no SSH keepalives");
         }
         let near = reached.relay.clone().map(|status| near_cap::spawn(status, log.clone()));
+        // The relay's idle cut alone: a road of the resumable layer has none.
+        let idle = reached
+            .relay
+            .clone()
+            .filter(|_| reached.layer.is_none())
+            .and_then(|status| idle_warn::spawn(status, opts.silence.clone(), opts.idle_lead, log.clone()));
         let outcome = podssh_ssh::run::run_outcome(reached.stream, &opts, reached.relay, log.clone()).await;
-        if let Some(near) = near {
-            near.abort();
+        for watch in [near, idle].into_iter().flatten() {
+            watch.abort();
         }
         // The layer's CLOSE, and the line of its failure, before the exit.
         transport::settle(reached.layer).await;

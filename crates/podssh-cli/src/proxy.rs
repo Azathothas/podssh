@@ -56,6 +56,9 @@ pub struct ProxyArgs {
     /// `--exit NAME` and `--client-key FILE`: the pipe starts at this exit
     /// of the net, in place of the relay (T-431).
     pub exit: crate::exit::Flags,
+    /// `--idle-warn SECONDS`: the lead of the warning before the relay's
+    /// idle cut (T-463), unparsed.
+    pub idle_warn: Option<String>,
 }
 
 /// Run the verb; returns the process exit code. A run that named its
@@ -88,6 +91,11 @@ fn proxy(args: &ProxyArgs, err: &mut dyn Write) -> i32 {
     if let Err(refusal) = beside.and_then(|()| key_alone(args)) {
         return refusal.report("proxy", err);
     }
+    // The lead of the warning before the relay's idle cut (T-463).
+    let idle = match crate::ssh::idle_warn::lead_of(args.idle_warn.as_deref()) {
+        Ok(lead) => lead,
+        Err(why) => return crate::relay_settings::Refusal::usage(why).report("proxy", err),
+    };
     // iap:// and eice://, a cloud's own tunnel (T-351).
     if let Some(code) = crate::ssh::cloud::proxy::run(args, err) {
         return code;
@@ -199,7 +207,7 @@ fn proxy(args: &ProxyArgs, err: &mut dyn Write) -> i32 {
     };
     let v6 = relay::is_ipv6_literal(&host);
     let road = Road { relays: &relays, trust: &trust, failover };
-    let code = runtime.block_on(session(&road, &path, (&host, port), v6, err));
+    let code = runtime.block_on(session(&road, &path, (&host, port), v6, idle, err));
     // A read on stdin may still be blocked in a helper thread; do not wait
     // for it, or podssh would hang after the session has ended.
     runtime.shutdown_background();
@@ -350,7 +358,15 @@ struct Road<'a> {
     failover: Mode,
 }
 
-async fn session(road: &Road<'_>, path: &str, (host, port): (&str, u16), v6: bool, err: &mut dyn Write) -> i32 {
+/// The session through the relay; `idle`, the lead of `--idle-warn`.
+async fn session(
+    road: &Road<'_>,
+    path: &str,
+    (host, port): (&str, u16),
+    v6: bool,
+    idle: Option<std::time::Duration>,
+    err: &mut dyn Write,
+) -> i32 {
     let target = &podssh_ws::dial::authority(host, port);
     let request = Request { relays: road.relays, path, trust: road.trust, target, rounds: 1, failover: road.failover };
     let opened = podssh_relay::open(&request, &mut |note: &str| {
@@ -360,8 +376,12 @@ async fn session(road: &Road<'_>, path: &str, (host, port): (&str, u16), v6: boo
     match opened {
         Ok(opened) => {
             crate::session_log::opened(Some(&opened.relay.host));
-            let relayed = crate::pipe::relay::carry(opened.session, target.to_string(), v6, false);
+            let (relayed, crossed) = crate::pipe::relay::carry_watched(opened.session, target.to_string(), v6);
+            let watch = crate::ssh::idle_warn::spawn_proxy(crossed, idle);
             let pumped = crate::pipe::pump::pump(crate::pipe::local::stdio(), relayed).await;
+            if let Some(watch) = watch {
+                watch.abort();
+            }
             crate::session_log::carried(pumped.carried.0, pumped.carried.1);
             crate::pipe::report(pumped, "podssh", err).await
         }

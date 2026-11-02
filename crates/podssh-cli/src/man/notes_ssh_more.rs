@@ -49,7 +49,11 @@ pub(super) const MORE: &[&str] = &[
      ServerAliveInterval is set: a keepalive with no answer would end a session that the layer carries \
      onto a new link. Through the relay a session carries 64 MiB at most, both ways together: once it \
      has carried 60 MiB (less under a relay's smaller limits, or PODSSH_SESSION_BUDGET), podssh says so \
-     once (with -q, nothing); podssh cp copies more on new sessions.",
+     once (with -q, nothing); podssh cp copies more on new sessions. With keepalives off, or slower than \
+     the relay's idle cut (180 s with no payload), podssh warns once 30 s before the cut, in the window's \
+     title where the notice of a silent far end shows, else as a line on stderr, and again only after a \
+     payload crossed; --idle-warn SECONDS sets the lead, and 0, or -q, turns it off. The warning sends \
+     nothing.",
     "podssh reads options before and after the host, as OpenSSH does, so a host that a script did not \
      write can be read as a flag. Put -- before it: podssh ssh -- \"$HOST\" uptime. A host, or a \
      -o HostName=VALUE, that starts with - is refused (exit 64), as OpenSSH refuses it.",

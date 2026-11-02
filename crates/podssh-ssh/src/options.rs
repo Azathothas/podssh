@@ -279,6 +279,9 @@ pub struct Options {
     /// The far end's silence, which a road with the resumable layer tells,
     /// for a notice in the terminal (T-302).
     pub silence: crate::notice::Silence,
+    /// `--idle-warn SECONDS`: the lead of the warning before the relay's idle
+    /// cut (T-463); `None` the default, zero none.
+    pub idle_lead: Option<Duration>,
     /// `SetEnv`.
     pub set_env: Vec<(String, String)>,
     /// `SendEnv` patterns, matched against the local environment.
@@ -385,6 +388,7 @@ impl Options {
             command_line: None,
             keep: crate::keep::Keep::default(),
             silence: crate::notice::Silence::default(),
+            idle_lead: None,
             set_env: Vec::new(),
             send_env: Vec::new(),
             compression: false,

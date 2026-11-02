@@ -121,6 +121,9 @@ pub struct SshArgs {
     pub tag: Option<String>,
     /// `--result-file FILE`: the run's result as JSON (T-054).
     pub result_file: Option<String>,
+    /// `--idle-warn SECONDS`: the lead of the warning before the relay's idle
+    /// cut (T-463), unparsed.
+    pub idle_warn: Option<String>,
     pub su: bool,
     /// `-G`: print the settings, and connect to nothing.
     pub print_config: bool,
@@ -193,6 +196,7 @@ pub const ONCE: &[(&str, &str)] = &[
     ("attach", "give one name"),
     ("resume-deadline", "give one time"),
     ("record", "give one file"),
+    ("idle-warn", "give one lead"),
     ("control-command", "give one command, as OpenSSH asks"),
     ("snippet", "give one snippet"),
     ("expect-timeout", "give one time"),
@@ -332,6 +336,7 @@ impl SshArgs {
             record: one("record"),
             tag: one("tag").filter(|t| !t.is_empty()),
             result_file: one("result-file"),
+            idle_warn: one("idle-warn"),
             su: flag("su"),
             print_config: flag("print-config"),
             remote_forwards: many("forward-remote"),

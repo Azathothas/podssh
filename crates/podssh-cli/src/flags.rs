@@ -204,6 +204,7 @@ pub const SSH_FLAGS: &[FlagRow] = &[
     node::OWN_DEADLINE,
     row(None, "result-file", Some("FILE"), FlagKind::Supported,
         "at the end, one JSON object in FILE: the exit, the remote status or signal, the end, the failure, the bytes and the relay", None),
+    idle::IDLE_WARN,
     row(None, "persist-name", Some("NAME"), FlagKind::Supported,
         "the tmux session of --persist: letters, digits, _ and -, 32 at most (default podssh)", None),
     row(None, "persist-forever", None, FlagKind::Supported,
@@ -300,6 +301,7 @@ mod expect;
 mod forwarder;
 mod groups;
 mod health;
+mod idle;
 mod job;
 mod keygen;
 mod man;

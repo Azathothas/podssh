@@ -10,7 +10,9 @@
 //!
 //! Two tasks copy between the session and the pump's end of a pipe in
 //! memory. When the task that sends fails, it stops the task that receives,
-//! so that the pipe closes and the pump's write fails, as in T-269.
+//! so that the pipe closes and the pump's write fails, as in T-269. Each
+//! keeps when payload last crossed, for `podssh proxy`'s warning before the
+//! relay's idle cut (T-463).
 
 use std::future::Future;
 use std::pin::Pin;
@@ -19,6 +21,7 @@ use std::sync::{Arc, Mutex};
 use podssh_relay::failover::Mode;
 use podssh_relay::open::{Failure, Request};
 use podssh_relay::relay::RelayList;
+use podssh_ssh::notice::idle::Crossed;
 use podssh_ws::session::close_code_and_reason;
 use podssh_ws::{frame, RelaySession, SessionError, Trust};
 use tokio::io::{AsyncReadExt, AsyncWriteExt};
@@ -102,6 +105,17 @@ pub async fn session(
 /// stream with no Close is the end of the session, as on the road of
 /// `cloudflared`, where neither side sends a Close (T-264).
 pub fn carry(session: RelaySession, target: String, v6: bool, quiet_end: bool) -> End {
+    carried(session, target, v6, quiet_end, Crossed::default())
+}
+
+/// [`carry`] on the relay's road, with when payload last crossed, either
+/// way, for the warning before the relay's idle cut (T-463).
+pub fn carry_watched(session: RelaySession, target: String, v6: bool) -> (End, Crossed) {
+    let crossed = Crossed::default();
+    (carried(session, target, v6, false, crossed.clone()), crossed)
+}
+
+fn carried(session: RelaySession, target: String, v6: bool, quiet_end: bool, crossed: Crossed) -> End {
     let session = Arc::new(session);
     let status = Arc::new(Status::default());
     let up_failed = Arc::new(Notify::new());
@@ -109,6 +123,7 @@ pub fn carry(session: RelaySession, target: String, v6: bool, quiet_end: bool) -
     let (mut from_pipe, mut to_pipe) = tokio::io::split(theirs);
 
     let (up_session, up_status, up_failed_tx) = (session.clone(), status.clone(), up_failed.clone());
+    let (up_crossed, down_crossed) = (crossed.clone(), crossed);
     tokio::spawn(async move {
         let mut buf = vec![0u8; CHUNK];
         loop {
@@ -122,6 +137,7 @@ pub fn carry(session: RelaySession, target: String, v6: bool, quiet_end: bool) -
                 up_failed_tx.notify_one();
                 return;
             }
+            up_crossed.mark();
         }
     });
 
@@ -152,6 +168,7 @@ pub fn carry(session: RelaySession, target: String, v6: bool, quiet_end: bool) -
             match f.opcode {
                 frame::OPCODE_BINARY if f.payload.is_empty() => {} // the relay's keepalive
                 frame::OPCODE_BINARY => {
+                    down_crossed.mark();
                     let wrote = tokio::select! {
                         wrote = to_pipe.write_all(&f.payload) => wrote.is_ok(),
                         () = up_failed.notified() => false,

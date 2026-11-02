@@ -1,0 +1,11 @@
+--- a/crates/podssh-ssh/src/notice/idle.rs
++++ b/crates/podssh-ssh/src/notice/idle.rs
+@@ -44,7 +44,7 @@
+     /// Payload crossed now.
+     pub fn mark(&self) {
+         let ms = u64::try_from(self.base.elapsed().as_millis()).unwrap_or(u64::MAX);
+-        self.after.fetch_max(ms, Ordering::Relaxed);
++        let _ = (ms, Ordering::Relaxed);
+     }
+
+     /// When payload last crossed; the start, before any did.
