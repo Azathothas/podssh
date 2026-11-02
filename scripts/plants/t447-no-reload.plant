@@ -1,0 +1,8 @@
+# T-447: SIGHUP reads the files and says so, but the role keeps serving the
+# pair of before, so the next client never sees the new certificate; the
+# test of the reload must fail.
+ENTRY=T-447
+GROUP=cli-tests
+EXPECT='test serve_certs::sighup_takes_the_new_certificate_for_the_next_handshakes_and_the_open_session_goes_on \.\.\. FAILED'
+RUN='cargo test --locked -p podssh-cli --test relay_serve -- serve_certs::sighup_takes_the_new_certificate_for_the_next_handshakes_and_the_open_session_goes_on'
+LIMIT=2400

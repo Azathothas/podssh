@@ -31,7 +31,7 @@ the rest is read. `bound` wraps only `TsNode::start` and `tcp_connect`
 (`crates/podssh-cli/src/ts.rs`, lines 207-221 at `4c3b456`, `crates/podssh-cli/src/ts.rs`, lines 353-363 at `4c3b456`), not `node.status()`
 or `node.peer_ip()` (`crates/podssh-cli/src/ts.rs`, line 289 at `4c3b456`, `crates/podssh-cli/src/ts.rs`, line 344 at `4c3b456`). The
 module comment says that the bound caps the whole operation (`crates/podssh-cli/src/ts.rs`, lines 9-14 at `4c3b456`),
-and `docs/cli.md:3632-3634` makes that a rule.
+and `docs/cli.md:3651-3653` makes that a rule.
 
 Read: `status()` calls `Device::self_node()` (`crates/podssh-ts/src/node.rs`, lines 76-79 at `4c3b456`), whose reply
 waits in a queue until a map with the self node arrives
@@ -145,7 +145,7 @@ Read: `podssh proxy` keeps receiving after the end of stdin (`crates/podssh-cli/
 and a closed stdout is a clean end there (`crates/podssh-cli/src/pipe/relay.rs:222-226`) and in the rules
 (`docs/cli.md`, line 610 at `8cf2587`). `podssh ts -W` exits 70 on each copy error (`crates/podssh-cli/src/ts.rs`, lines 404-407 at `1ee321d`).
 The relay closes a half-closed forward session after 15 s with no bytes from the target
-(`docs/relay.md:287`). An earlier version of the pipe waited with no limit, and hung
+(`docs/relay.md:296`). An earlier version of the pipe waited with no limit, and hung
 (`crates/podssh-ts/src/pipe.rs`, lines 77-81 at `1ee321d`).
 
 ## Approach
@@ -533,7 +533,7 @@ supervision (`vendor/tailscale-rs/ts_runtime/src/lib.rs` lines 161-170): five re
 most, with no wait
 (`tqwewe/kameo:src/supervision.rs`). podssh's relay client has the rules to copy: a capped backoff
 with jitter (`crates/podssh-relay/src/open.rs:379-393`), and a ping every 10 s with three silent
-checks allowed (`crates/podssh-ws/src/client.rs:31-32`, `docs/relay.md:182-184`).
+checks allowed (`crates/podssh-ws/src/client.rs:31-32`, `docs/relay.md:191-193`).
 
 ## Approach
 
@@ -914,7 +914,7 @@ Read: the row is at `crates/podssh-cli/src/flags.rs`, lines 293-294 at `efee2fc`
 (`crates/podssh-cli/src/ts.rs`, lines 314-316 at `efee2fc`, `crates/podssh-ts/src/status.rs:17-21`), and `-W` writes the
 stream (`crates/podssh-cli/src/ts.rs`, lines 391-393 at `efee2fc`). `proxy --jsonl` is refused at parse, with the reason
 (`crates/podssh-cli/src/tree.rs`, lines 179-187 at `efee2fc`, `crates/podssh-cli/src/non_interactive.rs`, lines 309-320 at `efee2fc`).
-`serde_json` is already a dependency of the binary (`crates/podssh-cli/Cargo.toml:81`).
+`serde_json` is already a dependency of the binary (`crates/podssh-cli/Cargo.toml:87`).
 
 ## Approach
 

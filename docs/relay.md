@@ -56,6 +56,7 @@ other party, and each client of podssh reaches it unchanged.
 
 ```sh
 podssh relay serve --listen 0.0.0.0:443 --cert fullchain.pem --key key.pem --mint anyone
+podssh relay serve --listen 0.0.0.0:443 --acme relay.example.org --mint anyone
 podssh ssh --relay-host relay.example.org user@target
 ```
 
@@ -69,8 +70,16 @@ refusal. Each write waits for the reader on the other side, so no queue of a
 session grows without a bound (T-336 asks the same of the default relay).
 The key is a P-256 key in PEM, signed in pure Rust as podssh's other TLS is;
 a token is the contract's form under a secret of the run, so a restart ends
-each token. Its reverse road (T-427) is in "The relay role's reverse road",
-below, and the role behind a quick tunnel, with no listener, at the end.
+each token. The certificate is read again on SIGHUP, and when its files
+change, so that a renewal needs no restart (T-447): the next handshakes take
+the new pair, each session that is open goes on, and a pair that does not
+load, or whose key is not its leaf's, is said while the old one stays.
+`--acme NAME` takes a certificate for NAME from Let's Encrypt (or the CA of
+`--acme-directory URL`) by TLS-ALPN-01 on the role's own listener, keeps it
+in the cache and renews it in the role 30 days before its end; the client
+of ACME is the binary's, on aws-lc-rs, and the role's TLS stays podssh-ws's.
+Its reverse road (T-427) is in "The relay role's reverse road", below, and
+the role behind a quick tunnel, with no listener, at the end.
 
 ## How podssh selects relay hosts
 

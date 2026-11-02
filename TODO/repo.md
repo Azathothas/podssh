@@ -2026,7 +2026,7 @@ Read, in the tree as it is now:
   build must fail at `/nonexistent`; the control, with `CC` alone, must not
   stop there.
 - `docs/development.md:302-304` states the rule with `CXX`, and
-  `docs/STATUS.md:720` records the measurement. Rule 4 of
+  `docs/STATUS.md:721` records the measurement. Rule 4 of
   `docs/architecture.md` named `CC=/nonexistent` only; it was repaired in the
   same change as the record.
 - `.github/workflows/build.yml:103-111` runs the plant on each push.
@@ -2057,7 +2057,7 @@ the same script in its step "the no-C rule is load-bearing".
 (CXX=/nonexistent)"). Measured with `sh scripts/dev.sh plant` in
 `rust:1-alpine`: the C plant failed twice for the right reason, the C++ plant
 failed at `CXX=/nonexistent`, the control with `CC` alone was not stopped
-there, and the clean tree built (`docs/STATUS.md:720`). The CI run of
+there, and the clean tree built (`docs/STATUS.md:721`). The CI run of
 `eacd94e`, which contains `a378863`, passed, with its step "the no-C rule is
 load-bearing".
 
@@ -2321,7 +2321,7 @@ Read, wrong facts:
   `crates/podssh-probe/tests/spec/relay-spec-2026-10-03-r2.txt`).
 - crates/podssh-transport/src/backpressure/mod.rs lines 4-22 at `e8bbd4d` gives the reverse
   path's backpressure (1011, 1 MiB, the frame dropped: line 185 of that copy)
-  as the forward path's. For the forward path, `docs/relay.md:302-314` says
+  as the forward path's. For the forward path, `docs/relay.md:311-323` says
   1013 at 2 MiB, with no frame dropped. The comment on the SSH window said
   the same as `backpressure/mod.rs` (`crates/podssh-ssh/src/run.rs` lines
   25-28 at `80f20bf`); T-024 corrected it.
@@ -3954,7 +3954,7 @@ identities (x25519-dalek, `podssh-ws` and `podssh-relay`), and its AEAD
 
 ## Premise
 
-- Read: `crates/podssh-ssh/Cargo.toml:26` and `crates/podssh-cli/Cargo.toml:86`
+- Read: `crates/podssh-ssh/Cargo.toml:26` and `crates/podssh-cli/Cargo.toml:92`
   ask for `sha1` 0.10.7, and the root `Cargo.toml:143` for `hmac` 0.12;
   `Cargo.lock` holds `sha1` 0.10.7 and 0.11.0, `hmac` 0.12.1 and 0.13.0,
   and `digest` 0.10.7 and 0.11.3, as russh 0.64.1 (vendor/russh/Cargo.toml)

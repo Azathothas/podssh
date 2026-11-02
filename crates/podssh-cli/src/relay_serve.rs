@@ -1,16 +1,21 @@
 //! `podssh relay serve` (T-169, the operator's ruling Q63): the relay's
 //! forward road and its reverse road (T-427), served by this binary on a
 //! listener that the user asks for (Q1), with TLS from a certificate and a
-//! P-256 key in PEM files. The routes are `podssh_relay::serve`'s; this file
-//! owns the listener, TLS, the port file of a harness, the file of the pairs,
-//! and the end on Ctrl-C or SIGTERM, which closes each reverse socket with
-//! `1012` first (T-255).
+//! P-256 key in PEM files, or from ACME, read again on SIGHUP (T-447,
+//! `relay_serve/certs.rs`). The routes are `podssh_relay::serve`'s; this
+//! file owns the listener, TLS, the port file of a harness, the file of the
+//! pairs, and the end on Ctrl-C or SIGTERM, which closes each reverse socket
+//! with `1012` first (T-255).
+
+mod certs;
 
 use std::io::Write;
 use std::sync::Arc;
 use std::time::Duration;
 
 use podssh_relay::serve::{self, Config, Limits, Mint};
+use podssh_ws::tls_server::ACME_TLS_1;
+use tokio::io::AsyncWriteExt as _;
 
 use crate::exitmap::sysexits::{EX_CONFIG, EX_UNAVAILABLE};
 use crate::relay_cmd::RelayArgs;
@@ -33,6 +38,10 @@ pub struct ServeArgs {
     pub keepalive: Option<String>,
     /// The file that keeps the pairs of the reverse road across a restart.
     pub pairs: Option<String>,
+    /// The name of a certificate from ACME, in place of `cert` and `key`.
+    pub acme: Option<String>,
+    /// The CA's directory, else Let's Encrypt's.
+    pub acme_directory: Option<String>,
 }
 
 impl ServeArgs {
@@ -47,6 +56,8 @@ impl ServeArgs {
             allow_private: matches.try_get_one::<bool>("allow-private").ok().flatten().copied().unwrap_or(false),
             keepalive: get("keepalive"),
             pairs: get("pairs"),
+            acme: get("acme"),
+            acme_directory: get("acme-directory"),
         }
     }
 
@@ -58,26 +69,31 @@ impl ServeArgs {
 
 /// Run `podssh relay serve`; returns the exit code.
 pub fn run(args: &RelayArgs, err: &mut dyn Write) -> i32 {
-    match prepare(&args.serve) {
-        Ok((listener, acceptor, cfg, shown)) => {
-            let _ = writeln!(err, "podssh relay serve: {shown}");
-            serve_until_stopped(listener, acceptor, cfg, err)
+    match prepare(&args.serve, args.ca_file.as_deref()) {
+        Ok(prepared) => {
+            let _ = writeln!(err, "podssh relay serve: {}", prepared.shown);
+            serve_until_stopped(prepared, err)
         }
         Err(refusal) => refusal.report("relay serve", err),
     }
 }
 
-type Prepared = (std::net::TcpListener, podssh_ws::tls_server::TlsAcceptor, Arc<Config>, String);
+/// The role, ready to serve.
+struct Prepared {
+    listener: std::net::TcpListener,
+    acceptor: podssh_ws::tls_server::TlsAcceptor,
+    cfg: Arc<Config>,
+    certs: certs::Certs,
+    shown: String,
+    /// The file of `--port-file`, and the port that it gets.
+    port_file: Option<(String, u16)>,
+}
 
-fn prepare(s: &ServeArgs) -> Result<Prepared, Refusal> {
+fn prepare(s: &ServeArgs, ca_file: Option<&str>) -> Result<Prepared, Refusal> {
     let listen = s.listen.as_deref().ok_or_else(|| {
         Refusal::usage("serve needs --listen ADDR:PORT, the address to serve on (127.0.0.1:0 takes a free port)")
     })?;
-    let (Some(cert), Some(key)) = (s.cert.as_deref(), s.key.as_deref()) else {
-        return Err(Refusal::usage(
-            "serve needs --cert FILE and --key FILE: a certificate chain and its P-256 key, in PEM",
-        ));
-    };
+    let source = certs::Source::of(s, ca_file)?;
     let mint = mint_of(s.mint.as_deref().unwrap_or("nobody"))?;
     let who = minting_for(&mint)?;
     let keepalive = match s.keepalive.as_deref() {
@@ -95,9 +111,8 @@ fn prepare(s: &ServeArgs) -> Result<Prepared, Refusal> {
         });
     }
     crate::pipe::listen::allowed()?;
-    let read = |path: &str| std::fs::read(path).map_err(|e| Refusal::config(format!("{path}: {e}")));
-    let acceptor = podssh_ws::tls_server::acceptor(&read(cert)?, &read(key)?, &[podssh_ws::tls_server::HTTP1])
-        .map_err(|e| Refusal::config(format!("{cert} and {key}: {e}")))?;
+    let certs = certs::Certs::open(source)?;
+    let acceptor = podssh_ws::tls_server::acceptor_for(certs.served.clone(), certs.alpn()).map_err(Refusal::config)?;
     let tokens = serve::tokens::Tokens::random().map_err(Refusal::config)?;
     let pairs = serve::reverse::Pairs::open(s.pairs.as_deref().map(Into::into)).map_err(Refusal::config)?;
     let kept = match (s.pairs.as_deref(), pairs.len()) {
@@ -107,9 +122,6 @@ fn prepare(s: &ServeArgs) -> Result<Prepared, Refusal> {
     let listener = std::net::TcpListener::bind(listen)
         .map_err(|e| Refusal { message: format!("cannot listen on {listen}: {e}"), code: EX_UNAVAILABLE })?;
     let bound = listener.local_addr().map_err(|e| Refusal::config(e.to_string()))?;
-    if let Some(path) = s.port_file.as_deref() {
-        std::fs::write(path, bound.port().to_string()).map_err(|e| Refusal::config(format!("{path}: {e}")))?;
-    }
     let events: serve::Events = Box::new(|line: &str| {
         let mut out = std::io::stdout().lock();
         let _ = writeln!(out, "{line}");
@@ -127,10 +139,12 @@ fn prepare(s: &ServeArgs) -> Result<Prepared, Refusal> {
     };
     let inside = if s.allow_private { ", private targets too" } else { "" };
     let shown = format!(
-        "the relay's forward and reverse roads (contract {}) at {bound}, minting for {who}{inside}{kept}",
-        serve::CONTRACT
+        "the relay's forward and reverse roads (contract {}) at {bound}, minting for {who}{inside}{kept}; {}",
+        serve::CONTRACT,
+        certs.shown
     );
-    Ok((listener, acceptor, Arc::new(cfg), shown))
+    let port_file = s.port_file.clone().map(|path| (path, bound.port()));
+    Ok(Prepared { listener, acceptor, cfg: Arc::new(cfg), certs, shown, port_file })
 }
 
 /// Who `--mint WORD` mints for: anyone, nobody, or the keys of a list
@@ -164,12 +178,7 @@ pub(crate) fn minting_for(mint: &Mint) -> Result<String, Refusal> {
     })
 }
 
-fn serve_until_stopped(
-    listener: std::net::TcpListener,
-    acceptor: podssh_ws::tls_server::TlsAcceptor,
-    cfg: Arc<Config>,
-    err: &mut dyn Write,
-) -> i32 {
+fn serve_until_stopped(prepared: Prepared, err: &mut dyn Write) -> i32 {
     let runtime = match tokio::runtime::Builder::new_multi_thread().worker_threads(2).enable_all().build() {
         Ok(rt) => rt,
         Err(e) => {
@@ -177,24 +186,64 @@ fn serve_until_stopped(
             return EX_CONFIG;
         }
     };
+    let Prepared { listener, acceptor, cfg, certs: kept, port_file, .. } = prepared;
+    // SIGHUP is taken before a harness learns the port, so that none sent
+    // after it ends the role.
+    let mut hangups = {
+        let _inside = runtime.enter();
+        certs::Hangups::take()
+    };
+    if let Some((path, port)) = port_file {
+        if let Err(e) = std::fs::write(&path, port.to_string()) {
+            let _ = writeln!(err, "podssh relay serve: {path}: {e}");
+            return EX_CONFIG;
+        }
+    }
+    let said: &mut dyn Write = &mut *err;
     let code = runtime.block_on(async move {
         if listener.set_nonblocking(true).is_err() {
             return Err("the listener cannot be made non-blocking".to_string());
         }
         let listener = tokio::net::TcpListener::from_std(listener).map_err(|e| e.to_string())?;
+        // The lines of ACME's work, said here, as each other line of the role.
+        let (say, mut lines) = tokio::sync::mpsc::unbounded_channel();
+        let mut keeper = tokio::spawn(kept.keeper(say));
+        let mut watch = tokio::time::interval_at(tokio::time::Instant::now() + certs::WATCH, certs::WATCH);
+        watch.set_missed_tick_behavior(tokio::time::MissedTickBehavior::Delay);
         loop {
             tokio::select! {
                 accepted = listener.accept() => {
                     let Ok((tcp, _)) = accepted else { continue };
                     let (acceptor, cfg) = (acceptor.clone(), cfg.clone());
                     tokio::spawn(async move {
-                        if let Ok(Ok(tls)) = tokio::time::timeout(HANDSHAKE_WAIT, acceptor.accept(tcp)).await {
+                        if let Ok(Ok(mut tls)) = tokio::time::timeout(HANDSHAKE_WAIT, acceptor.accept(tcp)).await {
+                            // A CA's validation of TLS-ALPN-01 wants the
+                            // handshake alone (RFC 8737, section 3).
+                            if tls.get_ref().1.alpn_protocol() == Some(ACME_TLS_1) {
+                                let _ = tls.shutdown().await;
+                                return;
+                            }
                             // The name that the client asked for, which a
                             // key's signed mint must name (T-448).
                             let sni = tls.get_ref().1.server_name().map(str::to_string);
                             serve::serve_named(tls, cfg, sni).await;
                         }
                     });
+                }
+                () = hangups.next() => {
+                    let _ = writeln!(said, "podssh relay serve: {}", kept.reload("SIGHUP"));
+                }
+                _ = watch.tick() => {
+                    if let Some(line) = kept.reload_if_changed() {
+                        let _ = writeln!(said, "podssh relay serve: {line}");
+                    }
+                }
+                Some(line) = lines.recv() => {
+                    let _ = writeln!(said, "podssh relay serve: {line}");
+                }
+                ended = &mut keeper => {
+                    // No certificate to serve: the first order failed.
+                    return Err(ended.unwrap_or_else(|e| format!("the certificate's keeper stopped: {e}")));
                 }
                 _ = stopped() => {
                     // A planned stop: each reverse socket hears 1012, which

@@ -2,11 +2,13 @@
 //! itself, on the loopback with a certificate of a test CA (made by
 //! `openssl`, as for the stand-in relay), against podssh's own client: bytes
 //! both ways through `podssh ssh`, the policy's refusals, a relay that mints
-//! for no one, a relay that mints for the keys of a list (T-448), and the
-//! documents that `podssh relay` reads. The suite of the stand-in also runs
+//! for no one, a relay that mints for the keys of a list (T-448), the
+//! documents that `podssh relay` reads, and its certificate read again on
+//! SIGHUP (T-447, `serve_certs`). The suite of the stand-in also runs
 //! against the role with `PODSSH_RELAY_UNDER_TEST=podssh`.
 
 mod live_harness;
+mod serve_certs;
 mod ssh_harness;
 mod throughput_harness;
 
@@ -154,7 +156,7 @@ fn status_info_and_trace_read_the_role_as_they_read_the_default_relay() {
 #[test]
 fn serve_refuses_a_missing_certificate_or_listener_and_its_flags_elsewhere() {
     let s = Session::start("serve-usage");
-    let cases: [(&[&str], &str); 4] = [
+    let cases: [(&[&str], &str); 7] = [
         (&["relay", "serve", "--cert", "c.pem", "--key", "k.pem"], "needs --listen"),
         (&["relay", "serve", "--listen", "127.0.0.1:0"], "needs --cert FILE and --key FILE"),
         (
@@ -162,6 +164,13 @@ fn serve_refuses_a_missing_certificate_or_listener_and_its_flags_elsewhere() {
             "anyone, nobody or keys:FILE",
         ),
         (&["relay", "spec", "--listen", "127.0.0.1:0"], "go with `podssh relay serve` only"),
+        // ACME's certificate, or files: never both (T-447).
+        (
+            &["relay", "serve", "--listen", "127.0.0.1:0", "--cert", "c", "--key", "k", "--acme", "a.test"],
+            "one or the other",
+        ),
+        (&["relay", "serve", "--listen", "127.0.0.1:0", "--acme", "localhost"], "a DNS name of this host"),
+        (&["relay", "info", "--acme", "relay.example.org"], "go with `podssh relay serve` only"),
     ];
     for (args, says) in cases {
         let args: Vec<String> = args.iter().map(|a| a.to_string()).collect();

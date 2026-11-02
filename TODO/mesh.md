@@ -2111,7 +2111,7 @@ left out.
 **Milestone:** M10
 **Priority:** P2
 **Effort:** M
-**Status:** open
+**Status:** done
 
 ## Problem
 
@@ -2133,6 +2133,76 @@ read at its start, so a renewed certificate needs a restart, which ends each tok
    before its end; the ACME client in the binary crate, which links aws-lc already (rule 4 of
    `AGENTS.md` keeps C out of the library crates).
 
+## Decision
+
+The draft's calls, 2026-11-02:
+
+1. The keys and the signatures of ACME are aws-lc-rs's, in the binary, as the Approach says: the
+   account's ES256 JWS (the fixed form of r and s), the CSR's and the challenge certificate's
+   ECDSA in DER, and each new P-256 key, as PKCS #8 from aws-lc's own source of randomness. The
+   role's handshakes stay podssh-ws's, signed by p256, which reads the same PKCS #8 in PEM as it
+   reads `--key`; so the test of ACME is a test of a stored key too. Lost: p256 in the binary
+   (in the build already, through podssh-ws, but its keys need its `getrandom` feature, and the
+   entry asked for aws-lc); ring, which rcgen's default features bring, and which compiles C.
+2. The DER of the CSR and of the challenge's certificate is rcgen 0.14's, with no default
+   features, now a dependency of the binary (it was a dev-dependency of the same version, and is
+   in the lock): it writes RFC 8737's acmeIdentifier (`CustomExtension::new_acme_identifier`)
+   as rustls-acme does, and signs through a trait that aws-lc-rs serves. It brings rcgen, yasna
+   and bit-vec into the release binary, each pure Rust. Lost: the DER written by hand (two fixed
+   shapes, about 150 lines of podssh's own that no CA would have read before the merge);
+   instant-acme, rustls-acme and tokio-rustls-acme, each with an HTTP client of its own that does
+   not take podssh's road through `HTTPS_PROXY`, and a crypto provider of rustls's (ring or
+   aws-lc) beside podssh's own.
+3. Each request to the CA is a connection of its own, through `HTTPS_PROXY` when it is set, with
+   podssh-ws's TLS and `http::exchange`, as `podssh update` fetches a file (rule 2 of `AGENTS.md`:
+   one outbound connection at a time); the nonce of each answer goes into the next request, and a
+   `badNonce` is sent again with the next nonce, 8 times at most (Pebble refuses 5 % of good ones
+   by default, and the harness 15 %). The trust of the directory is `--ca-file`, else the store
+   that each command of podssh trusts. Lost: one connection kept alive for an order (`exchange`
+   closes; an order is about 15 requests a renewal).
+4. TLS-ALPN-01, on the role's own listener: its resolver (`Served`,
+   `crates/podssh-ws/src/tls_server/served.rs`) gives the challenge's certificate only to a hello
+   whose one protocol is `acme-tls/1`, and only for the name of the validation; the listener
+   offers `acme-tls/1` after `http/1.1`, and only with `--acme`; a connection that chose it is
+   closed after its handshake, as RFC 8737 asks. Lost: HTTP-01, which needs a listener on port 80
+   that the user did not ask for (Q1); DNS-01, which needs a DNS provider's API and its
+   credential; an acceptor of its own for each hello (tokio-rustls's `LazyConfigAcceptor`), more
+   code for the same choice.
+5. The state is in the cache, so that a restart serves the certificate kept and asks the CA for
+   nothing (Let's Encrypt allows 5 certificates a week for one set of names): `acme/HOST-DIGEST/`
+   for each directory URL (mode 0700), `account.key` made once, and `NAME.pem`, the
+   certificate's key and its chain in one file (mode 0600), replaced whole by a rename; the
+   directory that holds the CA's account already is taken first. `PODSSH_CACHE_DIR` names the
+   place, and its `none` refuses `--acme` (78); no directory that can be made private, 73. Lost:
+   `cert.pem` and `key.pem` apart, which a read between two renames would pair wrong; a flag of
+   its own for the directory, which `PODSSH_CACHE_DIR` gives already.
+6. The renewal: 30 days before the end, or at a third of the life left when that is shorter, as
+   Let's Encrypt advises (its certificates of 6 days, and the 45 days that it plans; Pebble's of
+   180 s in the harness), with a new key each time. A renewal that fails is said, and asked again after 5
+   minutes, then twice as long each time up to 6 hours; the certificate of before stays. When no
+   certificate is held and the first order fails, the role stops with the CA's reason (69), so
+   that the user, or the supervisor that starts it again, sees it at once. Lost: ACME's renewal
+   information (RFC 9773), which a later entry can add; a role that waits with no certificate,
+   asking for ever, which a script that reads the exit code never sees.
+7. SIGHUP reads the files again (`--cert` and `--key`, or ACME's `NAME.pem`): the pair must load,
+   and its key must be its leaf's (rustls's `keys_match`, now that podssh-ws's key gives its
+   public half), else the line says why and the pair of before stays; the handshakes after it
+   take the new pair, and each open connection keeps its own. The role also looks at the
+   modification time and the length of `--cert` and `--key` each minute, and reads them again
+   when either changed: a renewal by certbot with no hook is taken, and Windows, which has no
+   SIGHUP, gets this way (Ctrl-Break lost: a service has no console). SIGHUP is taken before
+   the port file is written, so that a harness's SIGHUP never ends the role; it no longer stops
+   the role at all. Lost: SIGHUP alone, which leaves Windows a restart; the watch of ACME's own
+   file, which the role writes and serves itself.
+8. The flags: `--acme NAME` in place of `--cert` and `--key` (both: 64), `--acme-directory URL`
+   (Let's Encrypt's by default; its staging directory, or Pebble, for a test), and `--ca-file`
+   with `serve` as the trust of that directory alone (with files it does nothing, so 64). NAME is
+   a DNS name of two labels at least, lower-cased: no wildcard (TLS-ALPN-01 cannot prove one) and
+   no address (RFC 8738's IP identifiers wait). A new account agrees to the CA's terms, which the
+   role names as it makes the account, and gives no contact: RFC 8555 makes it optional, and Let's
+   Encrypt sends no mail of expiry since 2025. A CA that asks for an external account binding
+   (ZeroSSL) is refused by name.
+
 ## Prove
 
 ```sh
@@ -2144,6 +2214,78 @@ A certificate replaced on disk and SIGHUP: the next client sees the new one, and
 was open goes on. ACME against Pebble, Let's Encrypt's test server, in a container: a client
 that trusts Pebble's root reaches the role. Planted: no reload, and the test of the new
 certificate fails.
+
+## Correction
+
+2026-11-02 (the drafting agent). The Premise holds: `prepare` reads both files once, and the
+resolver `One` gave one certificate for each hello. The Prove that runs, in place of the one
+above (the reload's test is `serve_certs`, a module of `tests/relay_serve.rs`):
+
+```sh
+export CARGO_BUILD_JOBS=4
+cargo test -p podssh-cli --test relay_serve
+cargo test -p podssh-cli --lib -- acme:: relay_serve::
+cargo test -p podssh-ws --lib tls_server
+sh scripts/plant-each.sh --here t447-no-reload
+sh scripts/interop-acme.sh target/debug/podssh
+```
+
+The last runs Pebble v2.10.1 and its DNS in containers of images/box's Alpine on the host's
+network, and by hand or on a push in `.github/workflows/acme-interop.yml`. The renewal is 30 days
+before the end, or at a third of a shorter life (Decision 6); SIGHUP comes with a watch of the
+files each minute (Decision 7).
+
+## Done
+
+2026-11-02: drafted by an agent in a worktree, which built and ran nothing; merged and measured by
+the main session the same day.
+
+- The resolver that changes: `crates/podssh-ws/src/tls_server/served.rs` (`Served`: the pair
+  served now, and the challenges of TLS-ALPN-01, each for its name and for a hello whose one
+  protocol is `acme-tls/1`); `tls_server::certified`, which refuses a key that is not the
+  leaf's, and `acceptor_for`, in `crates/podssh-ws/src/tls_server.rs`. No C in the library crate.
+- The role: `crates/podssh-cli/src/relay_serve.rs` (the flags, SIGHUP taken before the port
+  file, the watch, the lines of ACME said on stderr, a TLS-ALPN-01 connection closed after its
+  handshake, the stop with 69 when the first order fails) and `relay_serve/certs.rs` (the source
+  of the flags, NAME's check, the reload, `Hangups`).
+- The ACME client: `crates/podssh-cli/src/acme/` (`jws.rs`, `client.rs`, `order.rs`,
+  `certs.rs`, `store.rs`, and the renewals in `mod.rs`); rcgen moved to the binary's
+  dependencies (`crates/podssh-cli/Cargo.toml`).
+- The manual: the rows of `--acme` and `--acme-directory`, and `--cert`, `--key` and `--ca-file`
+  (`crates/podssh-cli/src/flags/relay.rs`); two notes of `podssh relay`
+  (`crates/podssh-cli/src/man/notes_relay.rs`), and the row of `acme/` in FILES
+  (`crates/podssh-cli/src/man/data.rs`). `docs/cli.md`, `docs/relay.md`, `docs/mesh.md` (section
+  4), `SECURITY.md` (the keys kept) and the row of `docs/STATUS.md`.
+- `cargo test -p podssh-ws --lib tls_server`: 4 passed (the next hello takes the pair set
+  last, a challenge goes to a validation of its name alone).
+- `cargo test -p podssh-cli --lib -- acme:: relay_serve::`: 21 passed (RFC 7517's key gives
+  the thumbprint that other JOSE libraries give; a JWS of ES256 verifies under p256 with its
+  nonce, URL and `jwk` or `kid`; the CSR names its name alone and verifies; the challenge's
+  certificate holds one name and a critical acmeIdentifier of the digest; a key of another pair
+  is refused; the directory and the problems of RFC 8555's examples; Pebble's `badNonce`; the
+  times of renewal and of retry; the store's account made once and its file replaced whole, each
+  private; NAME's check and the flags).
+- `cargo test -p podssh-cli --test relay_serve`: 10 passed (the reload: the first CA's pair,
+  then the second's after SIGHUP while a session through `podssh proxy` goes on, and a key of
+  another pair said while the second stays; the refusals of `--acme` beside `--cert`, of
+  `localhost`, and of `--acme` with another subcommand).
+- Planted, `sh scripts/plant-each.sh --here t447-no-reload` (the pair read and not served):
+  caught, the test of SIGHUP failed.
+- `sh scripts/interop-acme.sh target/debug/podssh` against Pebble v2.10.1, its 8 checks
+  (`acme.issued`, `acme.private`, `acme.status`, `acme.s-client`, `acme.sighup`, `acme.kept`,
+  `acme.renewed`, `acme.refused`; `scripts/interop-baseline.txt`): here, with podman, 8 passed,
+  0 failed (Pebble validated TLS-ALPN-01 on the role's listener; the state private; `relay status`
+  and `openssl s_client` verify the chain to Pebble's root; SIGHUP; a second start orders nothing;
+  the renewal before its end; a role that Pebble cannot reach stops with 69 and Pebble's reason).
+  `acme-interop.yml` runs it on GitHub on the push of the merge.
+- The merge: one conflict in `crates/podssh-cli/src/relay_serve.rs` with T-428, which had moved
+  the words of `--mint` into `mint_of` and `minting_for`; both kept, with this entry's source of
+  certificates. Two imports of the tests were unused (clippy). `cargo fmt -p` of both packages;
+  clippy with `-D warnings` on podssh-ws and podssh-cli, all targets: clean.
+- `cargo test -p podssh-cli --lib`: 589 passed; `--test man_page`, `man_flag_parity`, `flag_table`
+  and `man_json`: passed. The whole suites: `cargo test --no-fail-fast -p podssh-cli`, 1332 passed,
+  none failed (51 ignored); `-p podssh-ws`, 437 passed, none failed (11 ignored); none left a
+  directory in the temporary directory.
 
 # T-448: The relay role mints tokens for the keys of an allowlist or of the net
 

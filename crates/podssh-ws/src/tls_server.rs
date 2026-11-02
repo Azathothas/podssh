@@ -4,16 +4,19 @@
 //! no key (`crypto::sign`), so the key is signed here with `p256`, as the
 //! tests' servers sign theirs. Only P-256: the key that `openssl req -newkey
 //! ec` and an ACME client make by default; another key is refused by name.
+//! The pair served can change while the server runs ([`served`], T-447).
+
+pub mod served;
 
 use std::sync::Arc;
 
 use base64::Engine as _;
 use p256::ecdsa::signature::Signer as _;
 use p256::ecdsa::{DerSignature, SigningKey};
-use rustls::server::{ClientHello, ResolvesServerCert};
 use rustls::sign::CertifiedKey;
 use rustls::{SignatureAlgorithm, SignatureScheme};
-use rustls_pki_types::CertificateDer;
+use rustls_pki_types::{CertificateDer, SubjectPublicKeyInfoDer};
+pub use served::{Served, ACME_TLS_1};
 pub use tokio_rustls::TlsAcceptor;
 
 /// The ALPN of a relay's upgrade: HTTP/1.1, which the WebSocket of RFC 6455
@@ -23,20 +26,41 @@ pub const HTTP1: &[u8] = b"http/1.1";
 /// A TLS acceptor that presents `cert_pem`'s chain with `key_pem`'s key,
 /// over TLS 1.3 and 1.2, offering `alpn`.
 pub fn acceptor(cert_pem: &[u8], key_pem: &[u8], alpn: &[&[u8]]) -> Result<TlsAcceptor, String> {
+    acceptor_for(Served::new(Some(certified(cert_pem, key_pem)?)), alpn)
+}
+
+/// A TLS acceptor that presents what `served` holds at each handshake, over
+/// TLS 1.3 and 1.2, offering `alpn`.
+pub fn acceptor_for(served: Arc<Served>, alpn: &[&[u8]]) -> Result<TlsAcceptor, String> {
+    let provider = crate::crypto::provider();
+    let mut config = rustls::ServerConfig::builder_with_provider(Arc::new(provider))
+        .with_protocol_versions(&[&rustls::version::TLS13, &rustls::version::TLS12])
+        .map_err(|e| format!("the TLS versions: {e}"))?
+        .with_no_client_auth()
+        .with_cert_resolver(served);
+    config.alpn_protocols = alpn.iter().map(|p| p.to_vec()).collect();
+    Ok(TlsAcceptor::from(Arc::new(config)))
+}
+
+/// `cert_pem`'s chain with `key_pem`'s key, which must be the leaf's: a pair
+/// read while a renewal had written one file of two is refused, so that the
+/// server keeps the pair of before (T-447). The two may be one file, a key
+/// and a chain, as ACME's is kept.
+pub fn certified(cert_pem: &[u8], key_pem: &[u8]) -> Result<Arc<CertifiedKey>, String> {
     let chain = crate::bundle::pem_certificates(cert_pem).map_err(|e| format!("the certificate: {e}"))?;
     if chain.is_empty() {
         return Err("the certificate file holds no CERTIFICATE block".into());
     }
     let key = signing_key(key_pem)?;
     let certified = CertifiedKey::new(chain, Arc::new(P256Key(key)));
-    let provider = crate::crypto::provider();
-    let mut config = rustls::ServerConfig::builder_with_provider(Arc::new(provider))
-        .with_protocol_versions(&[&rustls::version::TLS13, &rustls::version::TLS12])
-        .map_err(|e| format!("the TLS versions: {e}"))?
-        .with_no_client_auth()
-        .with_cert_resolver(Arc::new(One(Arc::new(certified))));
-    config.alpn_protocols = alpn.iter().map(|p| p.to_vec()).collect();
-    Ok(TlsAcceptor::from(Arc::new(config)))
+    match certified.keys_match() {
+        Err(rustls::Error::InconsistentKeys(rustls::InconsistentKeys::KeyMismatch)) => {
+            Err("the key is not the one of the certificate's first block (its leaf)".into())
+        }
+        // A leaf that webpki does not read is served as before, unchecked:
+        // TLS-ALPN-01's, whose acmeIdentifier is a critical extension.
+        _ => Ok(Arc::new(certified)),
+    }
 }
 
 /// The P-256 key of a PEM file: `EC PRIVATE KEY` (SEC1) or `PRIVATE KEY`
@@ -134,17 +158,6 @@ fn sec1_scalar(der: &[u8]) -> Result<[u8; 32], String> {
     <[u8; 32]>::try_from(scalar).map_err(|_| "the EC key is not 32 bytes: not a P-256 key".to_string())
 }
 
-/// One certificate for each client, whatever name it asked for: a relay of
-/// the user's serves one name.
-#[derive(Debug)]
-struct One(Arc<CertifiedKey>);
-
-impl ResolvesServerCert for One {
-    fn resolve(&self, _hello: ClientHello<'_>) -> Option<Arc<CertifiedKey>> {
-        Some(self.0.clone())
-    }
-}
-
 #[derive(Debug)]
 struct P256Key(SigningKey);
 
@@ -154,6 +167,13 @@ impl rustls::sign::SigningKey for P256Key {
         offered
             .contains(&SignatureScheme::ECDSA_NISTP256_SHA256)
             .then(|| Box::new(P256Signer(self.0.clone())) as Box<dyn rustls::sign::Signer>)
+    }
+
+    /// The key's SubjectPublicKeyInfo, which `keys_match` compares with the
+    /// leaf's.
+    fn public_key(&self) -> Option<SubjectPublicKeyInfoDer<'_>> {
+        let point = self.0.verifying_key().to_sec1_point(false);
+        Some(rustls::sign::public_key_to_spki(&rustls_pki_types::alg_id::ECDSA_P256, point.as_bytes()))
     }
 
     fn algorithm(&self) -> SignatureAlgorithm {

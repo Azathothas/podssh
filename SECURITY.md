@@ -252,6 +252,18 @@ Each rule is implemented.
   `podssh detached stop` (T-392) sends a signal only to the pid that the
   holder of a run's lock wrote, while the lock is held: a record of a run
   that ended names a pid that the system may have given to another process.
+- `podssh relay serve --acme NAME` (T-447) keeps its ACME account's key and
+  the certificate's key in the cache, each of mode 0600 in a directory of
+  mode 0700, and refuses one that is a symbolic link, another user's, or
+  readable by others: the account's key orders and revokes certificates of
+  the account at that CA, and the certificate's key serves as the role. The
+  certificate's key is made anew at each renewal, and kept in one file with
+  its chain, replaced whole, so that no read pairs a key with another
+  certificate. TLS-ALPN-01's certificate is self-signed for the one name, is
+  presented only to a hello whose one protocol is `acme-tls/1`, and goes
+  when its order ends; such a connection carries nothing after its
+  handshake. A pair read again on SIGHUP is served only when its key is the
+  key of its leaf.
 
 ## Known gaps
 

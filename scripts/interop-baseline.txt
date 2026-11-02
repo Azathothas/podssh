@@ -62,6 +62,7 @@ harness ts ts-headscale 11 scripts/ts-headscale.sh
 harness via via 11 scripts/interop-via.sh
 harness vless vless 14 scripts/interop-vless.sh
 harness wstunnel wstunnel 12 scripts/interop-wstunnel.sh
+harness acme acme 8 scripts/interop-acme.sh
 
 # scripts/interop.sh
 ssh.exit.dropbear.0 pass
@@ -816,3 +817,12 @@ wstunnel.none pass
 wstunnel.server-log pass
 wstunnel.hop pass
 wstunnel.secret pass
+# scripts/interop-acme.sh
+acme.issued pass
+acme.private pass
+acme.status pass
+acme.s-client pass
+acme.sighup pass
+acme.kept pass
+acme.renewed pass
+acme.refused pass

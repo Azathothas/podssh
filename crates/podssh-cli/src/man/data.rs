@@ -237,6 +237,16 @@ pub fn files() -> Vec<(Vec<String>, String)> {
                 .to_string(),
         ),
         (
+            vec![format!("{}/HOST-DIGEST/", crate::acme::store::DIR)],
+            "The state of podssh relay serve --acme NAME (T-447), in the cache, mode 0700, for each CA: HOST is the \
+             host of its directory, and DIGEST 8 hex digits of the SHA-256 of its URL. account.key, the account's \
+             P-256 key, made once and never replaced; NAME.pem, the certificate's own P-256 key and its chain in one \
+             file, replaced whole by a rename at each renewal, so that the key of one certificate is never read with \
+             the chain of another. Each has mode 0600; podssh refuses one that is a symbolic link, another user's, or \
+             that others can read."
+                .to_string(),
+        ),
+        (
             vec!["detached/".to_string()],
             "The runs that --detach and -f sent into the background (T-380, T-392), in the cache, mode 0700: \
              VERB-PID.log, mode 0600, which takes the run's stdout and stderr once it is ready; past 1 MiB it is \
