@@ -808,16 +808,16 @@ box's proxy stands for the measured cage's policy.
 
 ## The Piping Server road, measured
 
-T-437, drafted 2026-11-02 ([reverse.md](reverse.md), "The Piping Server
-road"): a road of a pair for a proxy that refuses the WebSocket upgrade,
-through `https://ppng.io` or the server of `PODSSH_PIPING`. Each UNVERIFIED
-below is filled in from the first run that passes its check.
+T-437, 2026-11-02 ([reverse.md](reverse.md), "The Piping Server road"): a
+road of a pair for a proxy that refuses the WebSocket upgrade, through
+`https://ppng.io` or the server of `PODSSH_PIPING`, measured at its merge
+from this cloud session's host.
 
 | Check | Result |
 | --- | --- |
-| The unit tests: the paths and marks of each end, the hello, HTTP/1.1's framing, the server's URL, the probe's words (`cargo test -p podssh-relay --features piping --lib piping`) | UNVERIFIED |
-| A session of the layer, 1 MiB each way through an echo, against nwtgck/piping-server 1.12.9 (HTTP/1.1), piping-server-rust v0.18.0 (HTTP/2 and HTTP/1.1), and in numbered pieces through a stand-in proxy that holds each body (`cargo test -p podssh-relay --features piping --test piping`, both servers named, `.github/workflows/piping.yml`) | UNVERIFIED |
-| Live, short (Q65): 64 KiB each way through `ppng.io`, directly and through the box's proxy of names (`piping.yml`, `--test piping_live -- --ignored`) | UNVERIFIED |
+| The unit tests: the paths and marks of each end, the hello, HTTP/1.1's framing, the server's URL, the probe's words (`cargo test -p podssh-relay --features piping --lib piping`) | 18 passed |
+| A session of the layer, 1 MiB each way through an echo, against nwtgck/piping-server 1.12.9 (HTTP/1.1), piping-server-rust v0.18.0 (HTTP/2 and HTTP/1.1), and in numbered pieces through a stand-in proxy that holds each body (`cargo test -p podssh-relay --features piping --test piping`, both servers named, `.github/workflows/piping.yml`) | 6 passed, after four repairs: the mark now goes with the POST's head, as nwtgck's server answers neither way before a byte came; the client takes the Rust server's "halfway disconnected" to a hello as its delivery, and the node opens a link's id once; the layer's future is on the heap |
+| Live, short (Q65): 64 KiB each way through `ppng.io`, directly and through the box's proxy of names (`piping.yml`, `--test piping_live -- --ignored`) | From this host through its proxy: 3 runs, each passed in about 4 s; `piping.yml` on a runner: PIPING_YML |
 | Planted: the client's two ways swapped (`scripts/plants/t437-paths-swapped.plant`) | UNVERIFIED |
 
 ## The relay

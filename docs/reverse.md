@@ -293,7 +293,7 @@ reverse road). podssh's road through one (T-437, drafted 2026-11-02;
    road between two podssh ends: the server sees the paths, the sizes and
    the times, and a change that it makes ends the session.
 
-`podssh node NAME TARGET` probes at its start: one upgrade of its socket's
+`podssh node NAME TARGET` probes once TARGET answered: one upgrade of its socket's
 path at the relay with no token, which the relay refuses with its own word
 (`403 reverse: forbidden`). A refusal of 400, 403, 405 or 501 in words that
 are not the relay's, or a `426` (the request came with its `Upgrade` taken
@@ -306,6 +306,7 @@ node://NAME` takes the road when the pair's leg finds the same, and races
 the roads again at each resume. `PODSSH_PIPING=yes`, or a server's
 `https://` URL, asks for the road: the node serves it beside the pair's
 road, with one keeper of sessions for both, and the client races it 250 ms
-after the pair's road; `PODSSH_PIPING=no` turns it off. Measured: UNVERIFIED
-(`cargo test -p podssh-relay --features piping --test piping`, against
-nwtgck's two servers on the loopback).
+after the pair's road; `PODSSH_PIPING=no` turns it off. Measured (2026-11-02):
+`cargo test -p podssh-relay --features piping --test piping`, against
+nwtgck's two servers on the loopback, 6 passed; a short live run through
+`ppng.io` (`--test piping_live -- --ignored`) passed.

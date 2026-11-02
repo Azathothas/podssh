@@ -4,12 +4,14 @@
 //! gives, so that a client of the pair reaches it with plain HTTPS where a
 //! proxy refuses the WebSocket upgrade. Asked by PODSSH_PIPING, the node
 //! serves it beside the pair's road, with one keeper for both, so that a
-//! session resumes on either. Unasked (the operator's ruling Q65), a probe
-//! asks the relay for the node's socket with no token: where something on
-//! the way refuses the upgrade, the node serves this road alone, as the
-//! pair's road cannot pass and a proxy's 403 must not read as a stopped
-//! pair, until the pair expires; where the relay answers, the node is the
-//! pair's road's, as before (`crate::node`). Beside the pair's road, the
+//! session resumes on either. Unasked (the operator's ruling Q65), once the
+//! node of the pair's road checked TARGET (`crate::node`), a probe asks the
+//! relay for the node's socket with no token: where something on the way
+//! refuses the upgrade, the node serves this road alone, as the pair's road
+//! cannot pass and a proxy's 403 must not read as a stopped pair, until the
+//! pair expires; where the relay answers, the node is the pair's road's, as
+//! before. A TARGET that fails its check so never costs the relay a
+//! connection. Beside the pair's road, the
 //! node waits at the transit relay of Q65 too (T-436, `node_transit`), as
 //! the node of the pair's road does. The road needs the resumable layer and
 //! the end-to-end channel, as the server would see each byte else. stdout
@@ -54,27 +56,23 @@ fn unfit(args: &NodeArgs) -> Option<&'static str> {
     }
 }
 
-/// The node with the Piping Server road, when it serves one: the process
-/// exit code. `None` when the node is the pair's road's alone, which the
-/// caller then runs as before, and says each refusal of.
+/// The node with the Piping Server road that `PODSSH_PIPING` asks for: the
+/// process exit code. `None` when the road is not asked, as the node of the
+/// pair's road decides on the unasked one once it checked TARGET
+/// ([`unasked`]), and says each refusal.
 pub fn run(args: &NodeArgs, err: &mut dyn Write) -> Option<i32> {
-    let (server, asked) = match piping_road::want() {
-        Ok(Want::Off) => return None,
-        Ok(Want::Unasked(server)) => (server, false),
-        Ok(Want::Asked(server)) => (server, true),
+    let server = match piping_road::want() {
+        Ok(Want::Off | Want::Unasked(_)) => return None,
+        Ok(Want::Asked(server)) => server,
         Err(refusal) => return Some(refusal.report("node", err)),
     };
     if let Some(why) = unfit(args) {
-        if !asked {
-            return None;
-        }
         return Some(Refusal::usage(format!("{ENV} asks for the Piping Server road, but {why}")).report("node", err));
     }
     let label = args.name.clone()?;
     let (pair, stored) = match pair_of(args, &label) {
         Ok(found) => found,
-        Err(refusal) if asked => return Some(refusal.report("node", err)),
-        Err(_) => return None,
+        Err(refusal) => return Some(refusal.report("node", err)),
     };
     let trust = crate::pairs::trust(args.ca_file.as_deref());
     let runtime = match tokio::runtime::Builder::new_multi_thread().worker_threads(2).enable_all().build() {
@@ -84,19 +82,6 @@ pub fn run(args: &NodeArgs, err: &mut dyn Write) -> Option<i32> {
             return Some(Fault::SessionFault.code());
         }
     };
-    // Unasked, the road waits for a probe that finds the upgrade refused.
-    let refused = if asked {
-        None
-    } else {
-        let proxy = ProxyChoice::FromEnvironment;
-        match runtime.block_on(probe::upgrade(&pair.relay, &pair.name, &trust, &proxy, PROBE_LIMIT)) {
-            Probe::Refused(why) => Some(why),
-            Probe::Passes | Probe::Unknown(_) => {
-                runtime.shutdown_background();
-                return None;
-            }
-        }
-    };
     let ready = match prepare(args, label, pair, stored, trust) {
         Ok(ready) => ready,
         Err(refusal) => return Some(refusal.report("node", err)),
@@ -104,7 +89,7 @@ pub fn run(args: &NodeArgs, err: &mut dyn Write) -> Option<i32> {
     // A run of --restart beats from this runtime, while it polls (T-394).
     crate::detach::beat::keep(runtime.handle());
     // On the heap: Windows gives the main thread 1 MiB of stack.
-    let code = runtime.block_on(Box::pin(serve(ready, server, refused, err)));
+    let code = runtime.block_on(Box::pin(serve(ready, server, None, None, err)));
     // A session may still be closing; the node has ended, so none is waited for.
     runtime.shutdown_background();
     Some(code)
@@ -125,15 +110,28 @@ fn pair_of(args: &NodeArgs, label: &str) -> Result<(Pair, bool), Refusal> {
 }
 
 /// Each check of the node that needs no network, done.
-struct Ready {
-    label: String,
-    pair: Pair,
-    stored: bool,
-    targets: Vec<Route>,
-    roost: bool,
-    key: podssh_relay::identity::file::Key,
-    allow: Option<PathBuf>,
-    trust: Trust,
+pub(crate) struct Ready {
+    pub label: String,
+    pub pair: Pair,
+    pub stored: bool,
+    pub targets: Vec<Route>,
+    pub roost: bool,
+    pub key: podssh_relay::identity::file::Key,
+    pub allow: Option<PathBuf>,
+    pub trust: Trust,
+}
+
+/// The unasked road of a node of the pair's road whose TARGET passed its
+/// check (Q65): the server, and why the probe found the upgrade refused on
+/// the way; `None` when the relay answered, or no probe could tell, or the
+/// road is off.
+pub(crate) async fn unasked(pair: &Pair, trust: &Trust) -> Option<(Server, String)> {
+    let Ok(Want::Unasked(server)) = piping_road::want() else { return None };
+    let proxy = ProxyChoice::FromEnvironment;
+    match probe::upgrade(&pair.relay, &pair.name, trust, &proxy, PROBE_LIMIT).await {
+        Probe::Refused(why) => Some((server, why)),
+        Probe::Passes | Probe::Unknown(_) => None,
+    }
 }
 
 fn prepare(args: &NodeArgs, label: String, pair: Pair, stored: bool, trust: Trust) -> Result<Ready, Refusal> {
@@ -151,13 +149,23 @@ fn settings() -> Settings {
 }
 
 /// Serve the road, and the pair's road too unless the upgrade was `refused`,
-/// until Ctrl-C, or until both roads ended by themselves.
-async fn serve(ready: Ready, server: Server, refused: Option<String>, err: &mut dyn Write) -> i32 {
+/// until Ctrl-C, or until both roads ended by themselves; `checked` is the
+/// line of a TARGET that the caller checked already.
+pub(crate) async fn serve(
+    ready: Ready,
+    server: Server,
+    refused: Option<String>,
+    checked: Option<String>,
+    err: &mut dyn Write,
+) -> i32 {
     let Ready { label, pair, stored, targets, roost, key, allow, trust } = ready;
     // TARGET first: a node that cannot reach it would serve no session.
-    let target = match crate::node::probe(&targets, roost).await {
-        Ok(versions) => crate::node::serving(&targets, &versions),
-        Err(refusal) => return refusal.report("node", err),
+    let target = match checked {
+        Some(line) => line,
+        None => match crate::node::probe(&targets, roost).await {
+            Ok(versions) => crate::node::serving(&targets, &versions),
+            Err(refusal) => return refusal.report("node", err),
+        },
     };
     let say: piping::Say = {
         let label = label.clone();

@@ -164,7 +164,7 @@ pub(super) const NODE: &[&str] = &[
      names the relay. The relay sees the token, the sizes and the times; the channel keeps the bytes \
      from it. A node of --derp with a pair waits there too.",
     "A node of a pair has a road for a proxy that refuses the WebSocket upgrade: the Piping Server road, \
-     through https://ppng.io, which needs no account, or the server of PODSSH_PIPING. At its start, the \
+     through https://ppng.io, which needs no account, or the server of PODSSH_PIPING. Once TARGET answered, the \
      node asks the relay for its socket with no token; where something on the way refuses the upgrade, \
      the node says so and serves the Piping Server road alone, unasked, by the operator's ruling Q65, \
      until the pair expires (77). It waits there with a GET at a door whose path comes from the pair's \

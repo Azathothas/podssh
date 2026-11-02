@@ -674,7 +674,13 @@ here.
   `crates/podssh-cli/src/node_piping.rs`, the dispatch in `crates/podssh-cli/src/node.rs`, and
   `node://NAME` in `crates/podssh-cli/src/ssh/`; the manual, docs/reverse.md, docs/carriers.md,
   docs/development.md; the feature in the gate's library steps; `.github/workflows/piping.yml`.
-- Four defects found and repaired at the merge, each by a test against nwtgck's servers:
+- Five defects found and repaired at the merge. The roost's tests found that the node probed
+  the relay for the unasked road before it checked TARGET, so a node whose TARGET failed still
+  reached the relay: the node of the pair's road now decides on the unasked road once TARGET
+  passed (`crate::node_piping::unasked`), with TARGET's line, which it dials once, and only an
+  asked road is the node of `node_piping::run`; the TARGET checks moved to
+  `crates/podssh-cli/src/node_target.rs`, for the length of node.rs. The other four, each by a
+  test against nwtgck's servers:
   nwtgck's piping-server (the server of `ppng.io`) answers neither a sender nor its receiver
   before the sender's first byte, so both ends waited for their POST's answer before sending
   their mark and fell to numbered pieces after 15 s: the mark now goes with the POST's head

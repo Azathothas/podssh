@@ -99,6 +99,7 @@ pub mod node_quick;
 // `warp`; without it, the road says what such a build does.
 pub mod node_warp;
 // `podssh node --temporary`: the far end of `podssh ssh --upgrade` (T-167).
+pub mod node_target;
 pub mod node_temp;
 pub mod non_interactive;
 pub mod operator;
