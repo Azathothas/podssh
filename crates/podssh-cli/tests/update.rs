@@ -188,7 +188,9 @@ async fn the_newest_release_replaces_the_binary_which_then_runs() {
     assert!(out.contains("replaced; it is podssh 1.0.0-beta.3 now"), "{out}");
     // T-396: it ran first, and the binary before it is kept.
     assert!(out.contains("it ran here, and said podssh 1.0.0-beta.3"), "{out}");
-    assert!(out.contains("podssh update --rollback puts it back"), "{out}");
+    // T-507: 1.0.0-beta.3 has no --rollback, so the line names the move.
+    assert!(out.contains("puts it back; podssh 1.0.0-beta.3 has no update --rollback"), "{out}");
+    assert!(!out.contains("podssh update --rollback puts it back"), "{out}");
     assert!(!out.contains("s3cret"), "a signed URL's query is shown: {out}");
     assert!(stand.binary_asked());
     assert!(std::fs::read(&stand.exe).unwrap() == binary, "the file is not the release's binary");

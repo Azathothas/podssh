@@ -1107,7 +1107,7 @@ there, so nothing is lost. Read at `01e371e`.
 **Milestone:** none
 **Priority:** P3
 **Effort:** S
-**Status:** open
+**Status:** partial
 
 ## Problem
 
@@ -1116,16 +1116,17 @@ run by the binary now in place, and the user must know that a `mv` does it.
 
 ## Premise
 
-- Read: the last line names `--rollback` for each release (`crates/podssh-cli/src/update/mod.rs:319-324`),
-  once the new binary took the old one's place (`crates/podssh-cli/src/update/mod.rs:317-318`); an
-  older release is allowed with `--version` (`crates/podssh-cli/src/update/mod.rs:274`).
+- Read, before this entry's change: the last line named `--rollback` for each release
+  (`crates/podssh-cli/src/update/mod.rs:319-323`, now the line of T-507), once the new binary took
+  the old one's place (`crates/podssh-cli/src/update/mod.rs:317-318`); an older release is allowed
+  with `--version` (`crates/podssh-cli/src/update/mod.rs:274`).
 - Read: `--rollback` came with T-396, first in `v1.0.0-beta.4`
   (`docs/releases/v1.0.0-beta.4.md:119-120`); beta.3 has `update` and no `--rollback`
   (`docs/releases/v1.0.0-beta.3.md:101`), and the betas before it have no `update`.
 - Read: the new binary runs once, with `--version` alone (`crates/podssh-cli/src/update/trial.rs:1-8`),
   and the update knows its version before the swap.
-- Read: `--rollback` says its own line of the binary that it put back
-  (`crates/podssh-cli/src/update/keep.rs:63`).
+- Read, before this entry's change: `--rollback` says its own line of the binary that it put back
+  (`crates/podssh-cli/src/update/keep.rs:107-115`, now with the move of T-507).
 
 ## Approach
 
@@ -1147,6 +1148,19 @@ trial runs `--version` alone, so that no other code of a binary runs before it i
 first version with `--rollback` is a fact of this repository. Lost: a second run, which would also
 read the help's words as a contract.
 
+(The draft, 2026-11-02.) Each line starts "the binary before it is P:", the words of before, and
+then names the move, so that a script that read the path keeps it: "P: mv P EXE puts it back;
+podssh 1.0.0-beta.3 has no update --rollback", and "P: podssh update --rollback puts it back, and so
+does mv P EXE". Lost: the Approach's "podssh VERSION has no update --rollback: mv P EXE puts the
+binary before it back", which moves the path out of its place. On Windows the move is `cmd /c move
+/Y "P" "EXE"`: `move /Y` alone is cmd's, and PowerShell's `move` (Move-Item) refuses `/Y`; through
+`cmd /c` both shells run it. Lost: `move /Y` bare, the Approach's. The paths are quoted for a POSIX
+shell (`snippets::quote`), as a home with a blank is common. The constant `ROLLBACK_SINCE`
+(`crates/podssh-cli/src/flags/update.rs`) is tied to the notes by a test: the first of
+`docs/releases/v1.0.0-beta.1.md` to `v1.0.0-beta.4.md` that names `--rollback` is the constant's.
+After `--rollback`, the version of the binary now in place is the one that its trial said; a line
+that names no version names the move alone.
+
 ## Prove
 
 ```sh
@@ -1155,3 +1169,36 @@ cargo test -p podssh-cli --test update -- rollback
 ```
 
 Planted: the check of the version always true: the test of the update to beta.3 fails.
+
+## Done
+
+2026-11-02: drafted by an agent in a worktree, which built and ran nothing; each measurement is
+UNVERIFIED, for the main session.
+
+- `crates/podssh-cli/src/update/keep.rs`: `has_rollback` (a version of `ROLLBACK_SINCE`,
+  `1.0.0-beta.4`, or later; the constant beside the row of `--rollback` in
+  `crates/podssh-cli/src/flags/update.rs`, exported by `crates/podssh-cli/src/flags.rs`),
+  `moved_back` (`mv P EXE`, quoted; on Windows `cmd /c move /Y "P" "EXE"`), and `way_back`, the
+  last line of an update (`crates/podssh-cli/src/update/mod.rs`): the move always, and `podssh
+  update --rollback` only for a version that has it. The line of `--rollback` names the move to go
+  forward again, and `--rollback` only where the binary that it put back has it, by the version that
+  it said. A binary before that was not kept: "there is none to put back".
+- The manual: the notes of `update` (`crates/podssh-cli/src/man/notes_update.rs`, a paragraph THE
+  WAY BACK) and FILES (`crates/podssh-cli/src/man/data.rs`, the entry of `podssh.prev`, its one
+  line); `docs/cli.md` ("podssh update", a bullet of the way back).
+- Tests in `crates/podssh-cli/tests/update_keep/mod.rs`:
+  `the_way_back_names_rollback_only_for_a_release_that_has_it` (an update from beta.2 to beta.3 of
+  the stand-in release names the move and no `--rollback`; then to `v1.0.0`, both, and the kept
+  binary is beta.3's), `rollback_came_with_the_release_that_the_constant_names` (the release notes,
+  the boundary of the versions, this build, the quoting of a path with a blank), and
+  `rollback_puts_the_kept_binary_back_and_keeps_the_other`, whose second line names the move and
+  no `--rollback` for its kept binary of beta.2 (on Windows, this build's, both); in
+  `crates/podssh-cli/tests/update.rs`, `the_newest_release_replaces_the_binary_which_then_runs`
+  now holds the move for beta.3 and no `--rollback`. UNVERIFIED: `cargo test -p podssh-cli --test
+  update` (each test, as `-- rollback` runs three of the four that changed), on Linux and in CI's
+  Windows job.
+- Planted: `scripts/plants/t507-rollback-always.plant` (`has_rollback` true for each version):
+  UNVERIFIED, `sh scripts/plant-each.sh --here t507-rollback-always`.
+- The citations of `crates/podssh-cli/src/update/mod.rs` and `keep.rs` in this entry's Premise were
+  moved by hand, and those of `docs/cli.md` in each entry; the main session runs `cargo todo remap`
+  on each file that this draft changed, and `cargo todo check`.

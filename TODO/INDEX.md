@@ -62,15 +62,15 @@ repository and CI).
 
 ## Counts
 
-**505 entries: 88 open, 7 partial, 16 blocked, 394 done.**
+**505 entries: 87 open, 8 partial, 16 blocked, 394 done.**
 
 | Priority | open | partial | blocked | done | total |
 | --- | --- | --- | --- | --- | --- |
 | P0 | 0 | 0 | 0 | 1 | 1 |
 | P1 | 5 | 4 | 0 | 51 | 60 |
 | P2 | 34 | 2 | 14 | 189 | 239 |
-| P3 | 49 | 1 | 2 | 153 | 205 |
-| **All** | 88 | 7 | 16 | 394 | 505 |
+| P3 | 48 | 2 | 2 | 153 | 205 |
+| **All** | 87 | 8 | 16 | 394 | 505 |
 
 ## Entries
 
@@ -571,7 +571,7 @@ repository and CI).
 | [T-504](multi.md) | P1 | S | none | defect | partial | `each` splits a host of the command line at a blank, and runs the command on hosts that nobody named |
 | [T-505](config.md) | P2 | M | none | defect | open | Keywords that restrict a connection (`Ciphers`, `HostKeyAlgorithms`, `RequiredRSASize` and others) are accepted with no effect and no word, and the manual says that they change nothing |
 | [T-506](multi.md) | P3 | S | none | defect | partial | `session list` and `detached list` print nothing when there is nothing to list, and `session list` drops a session that does not answer |
-| [T-507](release.md) | P3 | S | none | defect | open | `update` to a release with no `--rollback` names `--rollback` as the way back |
+| [T-507](release.md) | P3 | S | none | defect | partial | `update` to a release with no `--rollback` names `--rollback` as the way back |
 | [T-508](copy.md) | P3 | S | none | feature | open | `scp` and `sftp` take no `--timeout`, where `cp` and `mv` need one with no terminal, and no manual says why |
 | [T-509](roads.md) | P2 | S | none | defect | partial | The fallback to other products' forwarders follows a failure at the target, which no forwarder mends, and `doctor` counts it as checked |
 | [T-510](copy.md) | P3 | S | none | feature | open | `edit` with no terminal refuses an editor that needs none, and a copy kept after a conflict stays for ever |

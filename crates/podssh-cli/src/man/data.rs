@@ -403,7 +403,7 @@ pub fn files() -> Vec<(Vec<String>, String)> {
             "In the directory of the podssh binary, while podssh update runs: the new binary, written beside \
              the old one with its mode and run once with --version, then renamed over it, or removed when a \
              step fails. The binary before the last update stays as podssh.prev (podssh.prev.exe on Windows, \
-             where the running binary is renamed to it), which podssh update --rollback puts back; on \
+             where the running binary is renamed to it), which a move over it or update --rollback puts back; on \
              Windows, when that name is taken by a running one, the running binary is renamed to \
              podssh.exe.old instead, which the next run of podssh removes."
                 .to_string(),

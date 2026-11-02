@@ -4,7 +4,9 @@
 //! the trial on the podssh of this build itself, on each system; the binary
 //! before an update kept, `--rollback` putting it back and keeping the
 //! other, and the fallback that a supervisor (T-390) can start, through the
-//! library and through the command on a link of this build.
+//! library and through the command on a link of this build. The way back
+//! that each line names: the move of the kept file, and `--rollback` only
+//! for a release that has it (T-507).
 
 // Some helpers serve Unix alone.
 #![allow(dead_code)]
@@ -149,7 +151,16 @@ fn rollback_puts_the_kept_binary_back_and_keeps_the_other() {
     assert_eq!(keep::fallback(&exe), Some(prev.clone()), "a supervisor's way back");
     let lines = keep::rollback(&exe).unwrap();
     assert!(lines[0].contains("rolled back") && lines[0].contains("said podssh "), "{lines:?}");
-    assert!(lines[1].contains("podssh update --rollback goes back to it"), "{lines:?}");
+    // T-507: the way back names the move; --rollback only where the binary
+    // now in place has it, which 1.0.0-beta.2 has not, and this build has.
+    let mv = keep::moved_back(&prev, &exe);
+    if cfg!(windows) {
+        let back = format!("podssh update --rollback goes back to it, and so does {mv}");
+        assert!(lines[1].ends_with(&back), "{lines:?}");
+    } else {
+        let back = format!("{mv} goes back to it; podssh 1.0.0-beta.2 has no update --rollback");
+        assert!(lines[1].ends_with(&back), "{lines:?}");
+    }
     assert_eq!(std::fs::read(&exe).unwrap(), old);
     assert_eq!(std::fs::read(&prev).unwrap(), new);
     assert_eq!(std::fs::read_dir(&dir).unwrap().count(), 2, "nothing left aside");
@@ -203,6 +214,56 @@ fn the_command_rolls_back_the_binary_that_runs_it() {
     let built = std::fs::read(env!("CARGO_BIN_EXE_podssh")).unwrap();
     assert!(std::fs::read(&prev).unwrap() == built, "the binary that ran is kept");
     let _ = std::fs::remove_dir_all(&dir);
+}
+
+/// T-507: an update to a release before 1.0.0-beta.4, whose binary says
+/// "unknown flag '--rollback'", names the move of the kept file alone; to
+/// one of 1.0.0-beta.4 or later, `podssh update --rollback` and the move.
+#[tokio::test]
+async fn the_way_back_names_rollback_only_for_a_release_that_has_it() {
+    let stand = Stand::new("way-back").await;
+    let prev = keep::prev_of(&stand.exe);
+    let mv = keep::moved_back(&prev, &stand.exe);
+    let binary = super::release_binary();
+    stand.release(TAG, &binary, stand.sums_of(&binary), &Leaf::of_tag(TAG));
+    let (result, out) = run(&stand.options("1.0.0-beta.2"), false, Some(TAG)).await;
+    assert!(result.is_ok(), "{result:?}\n{out}");
+    let kept = format!("the binary before it is {}", prev.display());
+    let want = format!("{kept}: {mv} puts it back; podssh 1.0.0-beta.3 has no update --rollback");
+    assert!(out.lines().any(|l| l == want), "{want}\n{out}");
+    assert!(!out.contains("podssh update --rollback puts it back"), "{out}");
+    let stable = if cfg!(windows) { b"a binary of the release".to_vec() } else { script("1.0.0", "stable") };
+    stand.release("v1.0.0", &stable, stand.sums_of(&stable), &Leaf::of_tag("v1.0.0"));
+    let (result, out) = run(&stand.options("1.0.0-beta.3"), false, Some("v1.0.0")).await;
+    assert!(result.is_ok(), "{result:?}\n{out}");
+    let want = format!("{kept}: podssh update --rollback puts it back, and so does {mv}");
+    assert!(out.lines().any(|l| l == want), "{want}\n{out}");
+    assert_eq!(std::fs::read(&prev).unwrap(), binary, "the binary of beta.3 is the one kept now");
+}
+
+/// The first release with `--rollback` is the constant's, a fact of this
+/// repository's notes: none before 1.0.0-beta.4 names it, and those of
+/// beta.4 do; the check of a version holds at that boundary.
+#[test]
+fn rollback_came_with_the_release_that_the_constant_names() {
+    let notes: [(&str, &str); 4] = [
+        ("1.0.0-beta.1", include_str!("../../../../docs/releases/v1.0.0-beta.1.md")),
+        ("1.0.0-beta.2", include_str!("../../../../docs/releases/v1.0.0-beta.2.md")),
+        ("1.0.0-beta.3", include_str!("../../../../docs/releases/v1.0.0-beta.3.md")),
+        ("1.0.0-beta.4", include_str!("../../../../docs/releases/v1.0.0-beta.4.md")),
+    ];
+    let first = notes.iter().find(|(_, text)| text.contains("--rollback")).map(|(version, _)| *version);
+    assert_eq!(first, Some(keep::ROLLBACK_SINCE));
+    let has = |v: &str| keep::has_rollback(&Version::parse(v).unwrap());
+    assert!(!has("1.0.0-beta.3") && !has("0.9.0") && !has("1.0.0-beta.2"));
+    assert!(has("1.0.0-beta.4") && has("1.0.0-beta.10") && has("1.0.0") && has("1.0.1") && has("1.1.0-beta.1"));
+    assert!(has(env!("CARGO_PKG_VERSION")), "this build has --rollback");
+    let mv = keep::moved_back(Path::new("/opt/my bin/podssh.prev"), Path::new("/opt/my bin/podssh"));
+    if cfg!(windows) {
+        assert!(mv.starts_with("cmd /c move /Y \""), "{mv}");
+    } else {
+        assert_eq!(mv, "mv '/opt/my bin/podssh.prev' '/opt/my bin/podssh'");
+    }
 }
 
 /// The replacement keeps the old binary: the one before the update, as it

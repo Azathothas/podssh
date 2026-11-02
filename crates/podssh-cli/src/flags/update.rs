@@ -16,3 +16,8 @@ pub const UPDATE_FLAGS: &[FlagRow] = &[
     row(None, "rollback", None, FlagKind::Supported,
         "put back the binary that the last update kept beside this one (podssh.prev), once it ran here, and keep this one in its place; no network", None),
 ];
+
+/// The first version whose `update` has `--rollback` (T-396; the notes of
+/// `v1.0.0-beta.4`): the way back that an update names for a binary of an
+/// older release needs no podssh (T-507).
+pub const ROLLBACK_SINCE: &str = "1.0.0-beta.4";
