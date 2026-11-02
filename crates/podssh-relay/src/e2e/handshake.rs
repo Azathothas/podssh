@@ -3,9 +3,11 @@
 //! verdict. The operator learns the node's key before it proves its own, so
 //! a node that it refuses learns nothing of it. The operator's proof may
 //! name a route of the node (T-089), encrypted with it, so that the relay
-//! never sees which.
+//! never sees which. Two ends that hold the net's document say which, and
+//! the newer one travels (T-429, [`super::net`]).
 
 use std::future::Future;
+use std::sync::Arc;
 
 use snow::params::NoiseParams;
 use snow::{Builder, HandshakeState};
@@ -13,7 +15,8 @@ use tokio::io::{AsyncRead, AsyncWrite, AsyncWriteExt};
 
 use super::channel::Channel;
 use super::frame::{read_frame, read_magic, write_frame};
-use super::{Error, Refusal, HANDSHAKE_LIMIT, MAGIC, MAX_MESSAGE, PATTERN, PROLOGUE};
+use super::net::{self, Docs, Held};
+use super::{Error, Refusal, HANDSHAKE_LIMIT, MAGIC, MAX_DATA, MAX_MESSAGE, PATTERN, PROLOGUE};
 use crate::identity::{Identity, PublicKey};
 
 /// The version of a proof of a key, its first byte.
@@ -22,9 +25,30 @@ const PROOF_VERSION: u8 = 1;
 /// byte, then its name (T-089). A node of an earlier podssh refuses it, as a
 /// proof that it does not read.
 const ROUTED_PROOF: u8 = 2;
+/// The version of a proof of the net's form (T-429): the route, the
+/// document held and whether it follows, as [`net::encode`] writes them;
+/// sent only to an end that said that it reads it.
+const NET_PROOF: u8 = 3;
 /// A proof: its version, the sender's Ed25519 key, and that key's signature
 /// of the sender's Noise static key.
 const PROOF_LEN: usize = 1 + 32 + 64;
+
+/// What the two ends of a handshake said of the net: this end's documents,
+/// and what the peer holds.
+pub(super) struct Talk {
+    pub docs: Arc<dyn Docs>,
+    pub peer: Option<Held>,
+}
+
+impl Talk {
+    /// This end's document, when it is newer than the peer's and the peer
+    /// is a member of it; within one message of the channel.
+    fn gift(&self, peer: &PublicKey) -> Option<Vec<u8>> {
+        let (held, bytes) = self.docs.held()?;
+        let newer = self.peer.is_some_and(|theirs| held.newer_than(&theirs));
+        (newer && bytes.len() <= MAX_DATA && self.docs.shares_with(peer)).then_some(bytes)
+    }
+}
 
 /// The operator's side after the node's message: the node's key, to check
 /// before this end proves its own.
@@ -33,6 +57,7 @@ pub struct Offered<T> {
     state: HandshakeState,
     peer: PublicKey,
     proof: [u8; PROOF_LEN],
+    net: Option<Talk>,
 }
 
 /// The node's side after the operator's proof: the operator's key, which the
@@ -41,15 +66,36 @@ pub struct Asked<T> {
     channel: Channel<T>,
     peer: PublicKey,
     route: Option<String>,
+    net: Option<Talk>,
+}
+
+/// A proof, read: the key, the route that it names, and, in the net's form,
+/// what the sender holds and whether its document follows.
+struct Proof {
+    key: PublicKey,
+    route: Option<String>,
+    net: Option<(Option<Held>, bool)>,
 }
 
 /// Start the channel on `transport` as its initiator, an operator: the
 /// magic and the first message, then the node's message, which proves the
-/// node's key.
-pub async fn initiate<T: AsyncRead + AsyncWrite + Unpin>(mut transport: T, me: &Identity) -> Result<Offered<T>, Error> {
+/// node's key. The net's documents are this process's ([`net::installed`]).
+pub async fn initiate<T: AsyncRead + AsyncWrite + Unpin>(transport: T, me: &Identity) -> Result<Offered<T>, Error> {
+    initiate_with(transport, me, net::installed()).await
+}
+
+/// [`initiate`] with the net's documents given, or none.
+pub async fn initiate_with<T: AsyncRead + AsyncWrite + Unpin>(
+    mut transport: T,
+    me: &Identity,
+    docs: Option<Arc<dyn Docs>>,
+) -> Result<Offered<T>, Error> {
+    // Only an end that holds a document offers: the offer goes in clear.
+    let docs = docs.filter(|docs| docs.held().is_some());
     let mut state = builder(me)?.build_initiator().map_err(noise)?;
     let mut out = vec![0u8; MAX_MESSAGE];
-    let n = state.write_message(&[], &mut out).map_err(noise)?;
+    let first = if docs.is_some() { net::OFFER } else { &[][..] };
+    let n = state.write_message(first, &mut out).map_err(noise)?;
     transport.write_all(MAGIC).await.map_err(Error::Io)?;
     write_frame(&mut transport, &out[..n]).await?;
     let mut message = Vec::new();
@@ -60,8 +106,12 @@ pub async fn initiate<T: AsyncRead + AsyncWrite + Unpin>(mut transport: T, me: &
     .await?;
     let mut payload = vec![0u8; MAX_MESSAGE];
     let k = state.read_message(&message, &mut payload).map_err(not_noise("the node's message"))?;
-    let (peer, _) = peer_of(&payload[..k], state.get_remote_static())?;
-    Ok(Offered { transport, state, peer, proof: proof(me) })
+    let read = proof_of(&payload[..k], state.get_remote_static(), docs.is_some())?;
+    let net = match (docs, read.net) {
+        (Some(docs), Some((peer, _))) => Some(Talk { docs, peer }),
+        _ => None,
+    };
+    Ok(Offered { transport, state, peer: read.key, proof: proof(me), net })
 }
 
 impl<T: AsyncRead + AsyncWrite + Unpin> Offered<T> {
@@ -71,16 +121,30 @@ impl<T: AsyncRead + AsyncWrite + Unpin> Offered<T> {
     }
 
     /// Prove this end's key, with `route` of the node when one is asked
-    /// (T-089), then wait for the node's verdict: the channel, or why the
-    /// node refused.
+    /// (T-089), and this end's document of the net when it is the newer
+    /// one, then wait for the node's verdict: the channel, or why the node
+    /// refused.
     pub async fn accept(self, route: Option<&str>) -> Result<Channel<T>, Error> {
-        let Offered { mut transport, mut state, proof, .. } = self;
-        let payload = routed(&proof, route)?;
+        let Offered { mut transport, mut state, peer, proof, net } = self;
+        let gift = net.as_ref().and_then(|talk| talk.gift(&peer));
+        let payload = match &net {
+            Some(talk) => {
+                let held = talk.docs.held().map(|(held, _)| held);
+                in_net_form(&proof, route, held, gift.is_some())?
+            }
+            None => routed(&proof, route)?,
+        };
         let mut out = vec![0u8; MAX_MESSAGE];
         let n = state.write_message(&payload, &mut out).map_err(noise)?;
         write_frame(&mut transport, &out[..n]).await?;
         let state = state.into_stateless_transport_mode().map_err(noise)?;
         let mut channel = Channel::new(transport, state);
+        if let Some(bytes) = gift {
+            channel.send_net(&bytes).await?;
+        }
+        if let Some(talk) = net {
+            channel.set_net(talk.docs, peer);
+        }
         within("the node's verdict", channel.read_verdict()).await?;
         Ok(channel)
     }
@@ -93,8 +157,18 @@ impl<T: AsyncRead + AsyncWrite + Unpin> Offered<T> {
 }
 
 /// Answer the channel on `transport` as its responder, a node: the
-/// operator's first message, this node's proof, then the operator's.
-pub async fn respond<T: AsyncRead + AsyncWrite + Unpin>(mut transport: T, me: &Identity) -> Result<Asked<T>, Error> {
+/// operator's first message, this node's proof, then the operator's. The
+/// net's documents are this process's ([`net::installed`]).
+pub async fn respond<T: AsyncRead + AsyncWrite + Unpin>(transport: T, me: &Identity) -> Result<Asked<T>, Error> {
+    respond_with(transport, me, net::installed()).await
+}
+
+/// [`respond`] with the net's documents given, or none.
+pub async fn respond_with<T: AsyncRead + AsyncWrite + Unpin>(
+    mut transport: T,
+    me: &Identity,
+    docs: Option<Arc<dyn Docs>>,
+) -> Result<Asked<T>, Error> {
     let mut state = builder(me)?.build_responder().map_err(noise)?;
     // The node speaks first, as the operator does: a client of the layer
     // waits for the far end's first byte before it sends (T-153), so a node
@@ -108,17 +182,37 @@ pub async fn respond<T: AsyncRead + AsyncWrite + Unpin>(mut transport: T, me: &I
     })
     .await?;
     let mut payload = vec![0u8; MAX_MESSAGE];
-    // The first message carries nothing yet; what it may carry later is
-    // read, and set aside.
-    state.read_message(&message, &mut payload).map_err(not_noise("the operator's first message"))?;
+    // The first message carries the net's offer, or nothing; what else it
+    // may carry later is read, and set aside.
+    let k = state.read_message(&message, &mut payload).map_err(not_noise("the operator's first message"))?;
+    let offered = &payload[..k] == net::OFFER;
+    let docs = docs.filter(|docs| offered && docs.held().is_some());
+    let mine = match &docs {
+        Some(docs) => in_net_form(&proof(me), None, docs.held().map(|(held, _)| held), false)?,
+        None => proof(me).to_vec(),
+    };
     let mut out = vec![0u8; MAX_MESSAGE];
-    let n = state.write_message(&proof(me), &mut out).map_err(noise)?;
+    let n = state.write_message(&mine, &mut out).map_err(noise)?;
     write_frame(&mut transport, &out[..n]).await?;
     within("the operator's proof of its key", async { whole(read_frame(&mut transport, &mut message).await?) }).await?;
     let k = state.read_message(&message, &mut payload).map_err(not_noise("the operator's proof"))?;
-    let (peer, route) = peer_of(&payload[..k], state.get_remote_static())?;
+    let read = proof_of(&payload[..k], state.get_remote_static(), docs.is_some())?;
     let state = state.into_stateless_transport_mode().map_err(noise)?;
-    Ok(Asked { channel: Channel::new(transport, state), peer, route })
+    let mut channel = Channel::new(transport, state);
+    let net = match (docs, read.net) {
+        (Some(docs), Some((peer, follows))) => {
+            // The operator's newer document comes before the verdict, so
+            // that it holds for this session; one that does not hold is the
+            // binary's to say, and the session goes on.
+            if follows {
+                let bytes = within("the operator's document of the net", channel.read_net()).await?;
+                let _ = docs.take(&read.key, &bytes);
+            }
+            Some(Talk { docs, peer })
+        }
+        _ => None,
+    };
+    Ok(Asked { channel, peer: read.key, route: read.route, net })
 }
 
 impl<T: AsyncRead + AsyncWrite + Unpin> Asked<T> {
@@ -132,13 +226,21 @@ impl<T: AsyncRead + AsyncWrite + Unpin> Asked<T> {
         self.route.as_deref()
     }
 
-    /// Let the operator in: the verdict, then the channel.
+    /// Let the operator in: the verdict, then this node's document of the
+    /// net when it is the newer one, then the channel.
     pub async fn admit(mut self) -> Result<Channel<T>, Error> {
         self.channel.send_verdict(&Ok(())).await?;
+        if let Some(talk) = self.net {
+            if let Some(bytes) = talk.gift(&self.peer) {
+                self.channel.send_net(&bytes).await?;
+            }
+            self.channel.set_net(talk.docs, self.peer);
+        }
         Ok(self.channel)
     }
 
-    /// Refuse the operator, with `why`, and end the stream.
+    /// Refuse the operator, with `why`, and end the stream: a refused end
+    /// gets no document of the net.
     pub async fn refuse(mut self, why: Refusal) {
         if self.channel.send_verdict(&Err(why)).await.is_ok() {
             self.channel.close().await;
@@ -163,9 +265,7 @@ fn proof(me: &Identity) -> [u8; PROOF_LEN] {
 /// The proof of this end, with `route` after it when one is named.
 fn routed(proof: &[u8; PROOF_LEN], route: Option<&str>) -> Result<Vec<u8>, Error> {
     let Some(route) = route else { return Ok(proof.to_vec()) };
-    let bad = || Error::Handshake(format!("the route {route:?} is not a route's name"));
-    podssh_ws::names::check_node_name(route).map_err(|_| bad())?;
-    let len = u8::try_from(route.len()).map_err(|_| bad())?;
+    let len = route_len(route)?;
     let mut payload = proof.to_vec();
     payload[0] = ROUTED_PROOF;
     payload.push(len);
@@ -173,33 +273,66 @@ fn routed(proof: &[u8; PROOF_LEN], route: Option<&str>) -> Result<Vec<u8>, Error
     Ok(payload)
 }
 
-/// The peer's key, from its proof: the key must sign the Noise static key
-/// that the handshake proved the peer holds; and the route that the proof
-/// names, if one.
-fn peer_of(payload: &[u8], remote_static: Option<&[u8]>) -> Result<(PublicKey, Option<String>), Error> {
+/// The proof of this end in the net's form: the route, the document held,
+/// and whether it follows.
+fn in_net_form(
+    proof: &[u8; PROOF_LEN],
+    route: Option<&str>,
+    held: Option<Held>,
+    follows: bool,
+) -> Result<Vec<u8>, Error> {
+    if let Some(route) = route {
+        route_len(route)?;
+    }
+    let mut payload = proof.to_vec();
+    payload[0] = NET_PROOF;
+    payload.extend_from_slice(&net::encode(route, held, follows));
+    Ok(payload)
+}
+
+/// The length of a route's name, which must be one and fit one byte.
+fn route_len(route: &str) -> Result<u8, Error> {
+    let bad = || Error::Handshake(format!("the route {route:?} is not a route's name"));
+    podssh_ws::names::check_node_name(route).map_err(|_| bad())?;
+    u8::try_from(route.len()).map_err(|_| bad())
+}
+
+/// The peer's proof: the key must sign the Noise static key that the
+/// handshake proved the peer holds. The net's form is read only where this
+/// end said that it reads it (`net_ok`), as an end of before would not.
+fn proof_of(payload: &[u8], remote_static: Option<&[u8]>, net_ok: bool) -> Result<Proof, Error> {
     let unread = || Error::Handshake("the peer's proof of its key is not one that this podssh reads".into());
-    let (payload, route) = match payload.first() {
-        Some(&PROOF_VERSION) if payload.len() == PROOF_LEN => (payload, None),
+    let named = |bytes: &[u8]| {
+        std::str::from_utf8(bytes)
+            .ok()
+            .filter(|r| podssh_ws::names::check_node_name(r).is_ok())
+            .map(str::to_string)
+            .ok_or_else(unread)
+    };
+    let (route, net) = match payload.first() {
+        Some(&PROOF_VERSION) if payload.len() == PROOF_LEN => (None, None),
         Some(&ROUTED_PROOF) if payload.len() > PROOF_LEN + 1 => {
-            let named = &payload[PROOF_LEN + 1..];
-            let route = std::str::from_utf8(named)
-                .ok()
-                .filter(|r| r.len() == usize::from(payload[PROOF_LEN]))
-                .filter(|r| podssh_ws::names::check_node_name(r).is_ok())
-                .ok_or_else(unread)?;
-            (&payload[..PROOF_LEN], Some(route.to_string()))
+            let route = &payload[PROOF_LEN + 1..];
+            if route.len() != usize::from(payload[PROOF_LEN]) {
+                return Err(unread());
+            }
+            (Some(named(route)?), None)
+        }
+        Some(&NET_PROOF) if net_ok && payload.len() > PROOF_LEN => {
+            let (route, held, follows) = net::decode(&payload[PROOF_LEN..]).ok_or_else(unread)?;
+            (route.map(named).transpose()?, Some((held, follows)))
         }
         _ => return Err(unread()),
     };
     let key = PublicKey(payload[1..33].try_into().map_err(|_| unread())?);
-    let binding: [u8; 64] = payload[33..].try_into().map_err(|_| unread())?;
+    let binding: [u8; 64] = payload[33..PROOF_LEN].try_into().map_err(|_| unread())?;
     let noise_key: [u8; 32] = remote_static
         .and_then(|s| s.try_into().ok())
         .ok_or_else(|| Error::Handshake("the peer sent no Noise static key".into()))?;
     if !key.signed(&noise_key, &binding) {
         return Err(Error::Handshake(format!("the key {key} does not sign the peer's Noise key")));
     }
-    Ok((key, route))
+    Ok(Proof { key, route, net })
 }
 
 /// A frame that must be there: the stream's end in its place is a cut.

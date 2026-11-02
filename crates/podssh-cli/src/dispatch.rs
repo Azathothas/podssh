@@ -157,6 +157,8 @@ pub fn run_with(p: &Parsed, s: &mut Streams<'_>, tty: Tty) -> i32 {
         Parsed::Session(args) => crate::session::run(args, s.out, s.err),
         Parsed::Detached(args) if refusals("detached", &args.refused, s.err) => EXIT_USAGE,
         Parsed::Detached(args) => crate::detach::control::run(args, s.out, s.err),
+        Parsed::Net(args) if refusals("net", &args.refused, s.err) => EXIT_USAGE,
+        Parsed::Net(args) => crate::net::run(args, s.out, s.err),
         Parsed::Agent(args) if refusals("agent", &args.refused, s.err) => EXIT_USAGE,
         Parsed::Agent(args) => crate::agent::run(args, s.out, s.err),
         Parsed::Status { relay_host, relay_addr, destination, refused } => {

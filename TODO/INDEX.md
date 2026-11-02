@@ -523,3 +523,5 @@ repository and CI).
 | [T-449](mesh.md) | P2 | S | M10 | defect | open | A test of the podssh-relay suite failed once in 11 runs, unnamed |
 | [T-450](mesh.md) | P3 | S | M10 | defect | open | Three live runs of the transit road met nobody within 20 s |
 | [T-451](mesh.md) | P2 | M | M10 | measurement | open | The Piping Server road from end to end: `podssh node` and `ssh node://` behind a proxy that refuses the upgrade |
+| [T-452](mesh.md) | P3 | S | M10 | feature | open | A node of the DERP road whose key is a member of the net starts with no `--allow` |
+| [T-453](mesh.md) | P3 | S | M10 | feature | open | `podssh cp` and `podssh sftp` reach a member of the net by its name alone |

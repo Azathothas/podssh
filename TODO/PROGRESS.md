@@ -87,8 +87,11 @@ entry keeps its proof in the entry; this page keeps no history (git does).
   T-437's is merged and closed (its
   two servers, its live run through ppng.io; nwtgck's server answers a sender only once a byte
   came, so the mark now goes with the POST's head; the command-level run is T-451); T-438's is merged
-  and closed (against wisp-server-python, and live through the demo server); agents draft T-427
-  with T-448, T-429, T-440 and T-441. The branch `draft/m10-merge-437` of the T-437 merge can go,
+  and closed (against wisp-server-python, and live through the demo server); T-429's is merged and
+  closed. The drafts of T-427 with T-448, of T-440 and of T-441 wait in worktrees of
+  `.claude/worktrees/`, and on GitHub as `draft/draft-t427-t448`,
+  `draft/worktree-agent-t440-vless` and `draft/worktree-agent-t441-wstunnel`; T-429's
+  `draft/worktree-agent-t429-net` can go. The branch `draft/m10-merge-437` of the T-437 merge can go,
   as this session's git proxy would not delete it.
 
   CI: the gate passed at
@@ -177,7 +180,7 @@ this order:
    comes first.
 1. The relay role: its reverse road (T-427), behind a node's quick tunnel (T-428), then ACME (T-447) and tokens for keys (T-448); then what the role serves: T-336, T-255,
    T-421, T-253, T-325, T-326, T-319, T-321 and T-173.
-2. The net: T-429, T-430, T-445, T-086, T-226, T-346 and T-106.
+2. The net: T-430, T-445, T-452, T-453, T-086, T-226, T-346 and T-106.
 3. Exit, routes, share and funnel: T-431, T-432, T-433, T-180, then T-434 and T-435.
 4. The public carriers of Q65 (T-451, then T-450 from the runs of `transit-live.yml`)
    and the protocols of Q66 (T-440, T-441), then T-442.

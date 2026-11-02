@@ -117,7 +117,7 @@ quick tunnel. Planted: the 404 kept, and the client fails.
 **Milestone:** M10
 **Priority:** P1
 **Effort:** L
-**Status:** open
+**Status:** partial
 
 ## Problem
 
@@ -157,6 +157,49 @@ so that `ssh-keygen -Y verify` checks a document: software that podssh did not w
 document; no server of coordination, as Tailnet Lock's nodes trust the signing keys and not the
 server.
 
+The calls of the draft (2026-11-02), each with what lost:
+
+- **One file, the document then its armoured signature**, replaced whole (`net.doc` of the
+  cache, or `PODSSH_NET`); `podssh net show` and `show --signature` give the two parts that
+  `ssh-keygen -Y verify` reads, and `take FILE` reads either form. Lost: two files, `net.json`
+  and `net.json.sig`, which a node that reads them for each session could see half replaced.
+- **The owner is trusted at the first `take`** (or `init`), which `--owner KEY` can check; each
+  later document must have the same owner, so a document of the channel never starts a net.
+  Lost: a separate pin of the owner's key, which says what the document held says already; and
+  a new owner by a document of the old one, which a lost key could not stop (a new net is the
+  remedy, as a new tailnet is).
+- **Fields that this podssh does not know stay** when the owner signs a change (the document is
+  edited as JSON, not rebuilt), and `requires` names each part that an end must read to take it.
+  Lost: a version number for each addition, which would make each later podssh's document
+  unreadable to the ends of before even where they lose nothing; and dropping unknown fields,
+  which would let an older owner's podssh erase a policy (T-430).
+- **Member names have no dot**, so that `podssh ssh NAME` can try the net first and no DNS name
+  is ever a member's; a `Host` block that sets `HostName` for a member's name is refused, as for
+  `node://NAME`. Lost: dotted names, which would take hosts of DNS; and the ssh_config first,
+  which would need the file read before the destination is known for a node.
+- **The passage of a document inside the end-to-end channel**, negotiated so that an end of
+  `v1.0.0` never meets a form that it does not read: the operator's first Noise message carries
+  `podssh-net/1` in clear (a node of before sets that payload aside), and only then do the proofs
+  take a third form, which names the owner (the SHA-256 of its fingerprint) and the serial,
+  encrypted. The operator's newer document is a message before the verdict, so that it holds for
+  its own session; the node's goes after a verdict that let the operator in. Each goes only to a
+  member of the document sent. Lost: a request of its own after the session's bytes (a second
+  round trip, and nothing for the session that brought it); a document in the clear message (the
+  relay would read the members); and the documents in the library (`podssh-relay` would need
+  SSHSIG, and so C).
+- **One net for each host's cache**, as one tailnet for each `tailscaled`; `PODSSH_NET` names
+  another file for another. Lost: several nets in one store, which no command of this entry needs.
+- **A node whose key is a member** admits the members beside `--allow`; a node of no net keeps its
+  door as before. A document that ended, or one that is there and fails its check, admits nobody
+  by the net, and `--allow` stays the fallback. Lost: admitting each operator with the pair's
+  token when the document cannot be read (a removed member would come back), and refusing each
+  key of `--allow` with it (a server that only the node reaches could be locked out by its net).
+- **A year** for each document by default (`--days`, at most ten years), and `podssh net renew`.
+  Lost: no end, which would keep a removed member in at a node that never got the newer document.
+- **The owner's key** for a change: `--owner-key`, else the agent's, else a key of `~/.ssh` whose
+  public half is the owner; for `init`, `~/.ssh/id_ed25519`. podssh keygen's signer is used as it
+  is (`crates/podssh-cli/src/keygen_sign.rs`).
+
 ## Prove
 
 ```sh
@@ -169,6 +212,62 @@ that `ssh-keygen -Y sign` signs is taken; an older serial, another key's signatu
 expired document are refused. Three ends on the stand-in relay: a member reaches a node by its
 name; after `net rm`, the removed member is refused. Planted: the serial's check removed, and
 the test of an older document fails.
+
+## Correction
+
+The Premise holds, with two reads that the Approach did not name. The iroh road has a door of its
+own before the channel: `podssh node --iroh` lets in the client keys of its allowlist at each
+connection, and none with no `--allow` (`crates/podssh-cli/src/node_iroh.rs`), so the net's members
+are let in there too. And `podssh node --derp` needs `--allow` to start
+(`crates/podssh-cli/src/node_derp.rs`): with the net, its door is the allowlist and the members,
+but the flag is still asked for, as the draft left that check as it was.
+
+## Done
+
+2026-11-02: drafted by an agent of this session in a worktree, then merged, built and measured
+here.
+
+- `podssh net` (`crates/podssh-cli/src/net/`): the document (`doc.rs`), its SSHSIG (`sign.rs`),
+  the store and the rule of a new document (`store.rs`), the commands (`mod.rs`, `edit.rs`), the
+  node's door and the passage in the channel (`admit.rs`), the names (`lookup.rs`); the verb, its
+  table (`crates/podssh-cli/src/flags/node.rs`), its notes (`crates/podssh-cli/src/man/notes_net.rs`),
+  `PODSSH_NET` (`crates/podssh-cli/src/man/facts/net.rs`), an example and `net.doc` in FILES.
+- The channel (`crates/podssh-relay/src/e2e/net.rs`, `handshake.rs`, `channel.rs`): the offer, the
+  third form of a proof, the message `NET`.
+- The doors: `crates/podssh-cli/src/channel.rs` (the pair's road and the quick tunnel),
+  `crates/podssh-cli/src/node_derp.rs`, `crates/podssh-cli/src/node_iroh.rs` (the channel's door and
+  the iroh road's own), and the routes of each (`crates/podssh-cli/src/node.rs`).
+- The names: `node://NAME` and `NAME` alone (`crates/podssh-cli/src/ssh/node.rs`), the member's key
+  in place of the pins (`crates/podssh-cli/src/channel.rs`, and `crates/podssh-cli/src/ssh/roads.rs`
+  for a run with tickets), its iroh ticket (`crates/podssh-cli/src/ssh/iroh.rs`) and its DERP
+  ticket (`crates/podssh-cli/src/ssh/derp.rs`).
+- Captured: OpenSSH_9.6p1's `ssh-keygen -Y sign` over a document written by hand, by its owner, by
+  another key and in another namespace, and an expired one (`crates/podssh-cli/src/net/testdata/`).
+- `cargo test -p podssh-cli --lib net`: 12 passed (the captured signatures read and refused, a
+  document signed here read back, unknown fields kept, `requires`, each fault of a document, the
+  names and roles, `PODSSH_NET`'s forms).
+- `cargo test -p podssh-cli --test net`: 6 passed: OpenSSH_9.6p1's `ssh-keygen -Y verify -n
+  podssh-net` verifies what `podssh net` signed, and refuses a changed byte; what `ssh-keygen -Y
+  sign` signed is taken; and three ends on the stand-in relay: two members reach a node of no
+  `--allow` by its name alone, the owner removes one, the other brings the new document to the
+  node in its next session, and the removed member is refused.
+- `cargo test -p podssh-relay --test e2e_net` 4 and `--lib e2e::net` 2 passed; the channel's and
+  the roads' suites, for ends with no documents: `--features pair --test e2e` 10, `e2e_faults` 7,
+  `e2e_layered` 4, `routes` 2; `podssh-cli --test node_routes` 5 and `channel_cli` 9 passed.
+- `cargo test -p podssh-cli --test flag_table --test man_page --test man_flag_parity` and `--lib
+  man` (58) passed.
+- Planted, `sh scripts/plant-each.sh --here t429-net-serial t429-net-owner t429-net-gossip`: 3
+  caught (an older serial taken; another key's signature taken; the operator kept the older
+  document).
+- Repairs at the merge: the test read `ssh-keygen -Y verify`'s verdict on stderr, where OpenSSH 9.6
+  says it on stdout (it reads both now); a test's closure needed its error type named; clippy's
+  `type_complexity` on the decoded proof (a type alias now); the draft predates T-437, so the node
+  of the Piping Server road takes the net's members for its routes too, and node.rs keeps T-437's
+  order and its TARGET checks in `node_target.rs`. The build with `--features iroh` checks clean;
+  clippy with `-D warnings` on podssh-relay and podssh-cli: clean.
+- SUITES_429
+- Filed for the merge: T-452 (a node of the DERP road whose key is a member starts with no
+  `--allow`) and T-453 (`podssh cp` and `podssh sftp` reach a member by its name alone).
 
 # T-430: The net's policy: who may reach which node, share and exit
 
@@ -1532,3 +1631,72 @@ cargo test -p podssh-cli --test node_piping
 
 The session runs; planted, the node's probe that reads the relay's own refusal as a proxy's, and
 the node serves the pair's road alone, so the test fails.
+
+# T-452: A node of the DERP road whose key is a member of the net starts with no `--allow`
+
+**Source:** the merge of T-429 (2026-11-02).
+**Category:** feature
+**Milestone:** M10
+**Priority:** P3
+**Effort:** S
+**Status:** open
+
+## Problem
+
+The DERP road's node requires `--allow`, as a DERP server lets any key send and the channel's
+allowlist is its only door. Since T-429 a node whose key is a member of the net lets the net's
+members in beside `--allow`, so the net is a door too; the DERP road still refuses to start
+without the file.
+
+## Premise
+
+- `crates/podssh-cli/src/node_derp.rs` refuses a node with no `--allow`, before it reads the net.
+
+## Approach
+
+1. Where the node's key is a member of the net that this host holds, the net's members are the
+   door, and the node starts with no `--allow`, saying so on its first line.
+2. A node of no net and no `--allow` is refused as before.
+
+## Prove
+
+```sh
+export CARGO_BUILD_JOBS=4
+cargo test -p podssh-cli --test derp_road
+```
+
+A member reaches a DERP node of no `--allow` by its name; a stranger's key is refused. Planted, a
+door with no member check, and the stranger's test fails.
+
+# T-453: `podssh cp` and `podssh sftp` reach a member of the net by its name alone
+
+**Source:** the merge of T-429 (2026-11-02).
+**Category:** feature
+**Milestone:** M10
+**Priority:** P3
+**Effort:** S
+**Status:** open
+
+## Problem
+
+Since T-429 `podssh ssh NAME` reaches a member of the net by its name alone; `podssh cp` and
+`podssh sftp` take it only as `node://NAME`.
+
+## Premise
+
+- The copies resolve their destinations through their own parser, which does not ask the net.
+
+## Approach
+
+1. The copies resolve `NAME:PATH` and `NAME` as `podssh ssh` does, the net first for a name with
+   no dot.
+
+## Prove
+
+```sh
+export CARGO_BUILD_JOBS=4
+cargo test -p podssh-cli --test net
+```
+
+`podssh cp FILE lab:/tmp/` and `podssh sftp lab` reach the member `lab` through the stand-in
+relay. Planted, the net's lookup skipped, and the test fails.

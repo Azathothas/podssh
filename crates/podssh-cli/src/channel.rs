@@ -140,6 +140,8 @@ pub fn client_identity(named: Option<&str>, say: &dyn Fn(String)) -> Result<Arc<
 }
 
 /// The check of a node's key by `expect`; `say` gets the line of a new pin.
+/// A label that the net names is checked by the member's key, and pins
+/// nothing (T-429).
 pub fn check(
     expect: Expect,
     say: impl Fn(String) + Send + 'static,
@@ -149,6 +151,9 @@ pub fn check(
         Expect::Named(name) => Err(format!("the node has the key {key}, not {name}, which --node-key names")),
         Expect::Ticket(named) if named == *key => Ok(()),
         Expect::Ticket(named) => Err(format!("the node has the key {key}, not {named}, which its ticket names")),
+        Expect::Pinned(label) if crate::net::lookup::member(&label).is_some() => {
+            crate::net::lookup::check_key(&label, key).unwrap_or(Ok(()))
+        }
         Expect::Pinned(label) => match pins::check(&label, key) {
             Ok(pins::Seen::Known) => Ok(()),
             Ok(pins::Seen::Pinned(path)) => {
@@ -179,6 +184,8 @@ pub fn around<A: Bytes + 'static>(
     say: impl Fn(String) + Send + 'static,
 ) -> (Box<dyn Bytes>, Option<Session>) {
     let Some(Operator { identity, expect, route }) = channel else { return (Box::new(app), None) };
+    // The net's documents for this channel (T-429): a client takes in silence.
+    crate::net::admit::install(false);
     let (cipher, session) = ends::operator_to(app, identity, check(expect, say), route);
     (Box::new(cipher), Some(Box::pin(session)))
 }
@@ -193,8 +200,8 @@ pub fn judged(e: &e2e::Error, me: Option<&Identity>) -> Option<(Fault, String)> 
         e2e::Error::Refused(NodeRefusal::NotAllowed) => (
             Fault::Auth,
             format!(
-                "the node refused this client's key{mine}: it is not in the node's allowlist; the node's \
-                 operator adds the key to the file of --allow"
+                "the node refused this client's key{mine}: it is not in the node's allowlist, nor a member of \
+                 its net; the node's operator adds the key to the file of --allow, or the net's owner to the net"
             ),
         ),
         e2e::Error::Refused(NodeRefusal::NoTarget(why)) => {
@@ -234,9 +241,14 @@ pub fn node(label: &str, key: file::Key, allow: Option<PathBuf>, err: &mut dyn W
         (Some(path), true) => format!("a new key, in {}", path.display()),
         (Some(path), false) => format!("in {}", path.display()),
     };
-    let _ = writeln!(err, "podssh node: {label}: key {} ({kept})", key.identity.public());
+    let me = key.identity.public();
+    let _ = writeln!(err, "podssh node: {label}: key {me} ({kept})");
     let _ = writeln!(err, "podssh node: {label}: {}", who_may(allow.as_deref()));
-    node_end(label, key.identity, admit_of(allow))
+    // A member of the net lets in its members too (T-429).
+    if let Some(line) = crate::net::admit::line(&me) {
+        let _ = writeln!(err, "podssh node: {label}: {line}");
+    }
+    node_end(label, key.identity, crate::net::admit::admit(allow, me))
 }
 
 /// A node's channel with this identity and admission, whose lines go to

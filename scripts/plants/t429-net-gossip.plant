@@ -1,0 +1,7 @@
+# T-429: a node never gives its newer document of the net after its verdict,
+# so an operator keeps its older one; the test of the node's document must
+# fail with its words.
+ENTRY=T-429
+GROUP=resume
+EXPECT='the operator keeps the newer document'
+RUN='cargo test --locked -p podssh-relay --test e2e_net -- the_node_s_newer_document_reaches_the_operator_after_the_verdict'

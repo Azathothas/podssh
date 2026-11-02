@@ -308,7 +308,7 @@ pub fn resolve_or_refuse(args: &SshArgs, env: &Env) -> Result<Resolved, Refusal>
         forward: matches!(request, Request::StdioForward(_)),
     };
     let transport = if let Some((_, label, route)) = &node {
-        let race = super::iroh::race(args)?;
+        let race = super::iroh::race(args, label)?;
         // The DERP road of the node (T-379): one node, one key for each road.
         let derp = super::derp::race(args)?;
         crate::node_transit::check()?; // PODSSH_TRANSIT (T-436), before anything connects

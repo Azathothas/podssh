@@ -193,8 +193,10 @@ pub(crate) async fn serve(
     }
     // The channel of T-088 on both roads, with the node's key and its
     // allowlist: a session made on one road may resume on the other.
+    // The net's members too (T-429), as on the other roads.
+    let me = key.identity.public();
     let channel = crate::channel::node(&label, key, allow.clone(), err);
-    let routes = crate::node::routes_of(&targets, allow, roost);
+    let routes = crate::node::routes_of(&targets, crate::net::admit::grant(allow, Some(me)), roost);
     let (host, port) = (targets[0].host.clone(), targets[0].port);
     let handler = TcpHandler { host: host.clone(), port, timeout: DIAL_LIMIT, sshd: roost };
     let target = move || {

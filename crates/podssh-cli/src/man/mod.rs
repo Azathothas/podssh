@@ -29,6 +29,7 @@ mod notes_health;
 mod notes_job;
 mod notes_keygen;
 mod notes_mcp;
+mod notes_net;
 mod notes_pair;
 mod notes_ping;
 mod notes_pipe;

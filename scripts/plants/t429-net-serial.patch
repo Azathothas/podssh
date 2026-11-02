@@ -1,0 +1,11 @@
+--- a/crates/podssh-cli/src/net/store.rs
++++ b/crates/podssh-cli/src/net/store.rs
+@@ -189,7 +189,7 @@
+             if mine.bytes == signed.bytes {
+                 return Ok(Taken::Same);
+             }
+-            if offered.serial <= mine.doc.serial {
++            if offered.serial < mine.doc.serial && false {
+                 return Err(NotTaken::Older { offered: offered.serial, held: mine.doc.serial });
+             }
+             Some(mine.doc.serial)

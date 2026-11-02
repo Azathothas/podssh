@@ -209,8 +209,7 @@ pub const SSH_FLAGS: &[FlagRow] = &[
         "the tmux session of --persist: letters, digits, _ and -, 32 at most (default podssh)", None),
     row(None, "persist-forever", None, FlagKind::Supported,
         "with --persist: connect again after each loss, and after a first connection that failed, with no limit of attempts or of time", None),
-    node::SSH_INSTALL, node::SSH_UNINSTALL, node::SSH_ENV_FILE, attach::ATTACH,
-    attach::TAKE,
+    node::SSH_INSTALL, node::SSH_UNINSTALL, node::SSH_ENV_FILE, attach::ATTACH, attach::TAKE,
     expect::EXPECT, expect::SEND, expect::EXPECT_TIMEOUT,
     row(None, "upgrade", None, FlagKind::Supported,
         "log in, then move the session to a temporary node that the server's podssh starts, which resumes after a lost link; with no podssh there, the session stays", None),
@@ -221,8 +220,7 @@ pub const SSH_FLAGS: &[FlagRow] = &[
         "keep the session's output, with its timing, in FILE as asciicast v2 (mode 0600, never over a file); podssh play shows it again", None),
     row(None, "su", None, FlagKind::Supported,
         "run the command as root with su -c, in a pty; the password is asked here (terminal or SSH_ASKPASS)", None),
-    snippet::SNIPPET,
-    snippet::YES,
+    snippet::SNIPPET, snippet::YES,
     // -x and -k disable things podssh never does, so they need no work.
     row(Some('x'), "no-x11", None, FlagKind::Supported,
         "no X11 forwarding (the default); the last of -X, -Y and -x wins", None),
@@ -334,7 +332,7 @@ pub use job::JOB_FLAGS;
 pub use keygen::KEYGEN_FLAGS;
 pub use man::MAN_FLAGS;
 pub use mcp::MCP_FLAGS;
-pub use node::NODE_FLAGS;
+pub use node::{NET_FLAGS, NODE_FLAGS};
 pub use operator::PAIR_FLAGS;
 pub use ping::PING_FLAGS;
 pub use pipe::PIPE_FLAGS;
@@ -382,6 +380,8 @@ pub const VERBS: &[Verb] = &[
         about: "reverse mode: expose a local service to operators" },
     Verb { name: "operator", aliases: &["operator"], flags: PAIR_FLAGS,
         about: "reverse mode, operator side: raw bytes to a named node" },
+    Verb { name: "net", aliases: &["net"], flags: NET_FLAGS,
+        about: "your own nodes as one net: their names and keys, signed by your key, kept by each" },
     Verb { name: "chat", aliases: &["chat", "irc"], flags: CHAT_FLAGS,
         about: "messages and files with another podssh, end to end encrypted" },
     Verb { name: "cp", aliases: &["cp"], flags: CP_FLAGS,
@@ -436,7 +436,7 @@ pub const GROUPS: &[(&str, &[&str])] = &[
     ("Copy files", &["cp", "mv", "scp", "sftp", "edit"]),
     ("Keys", &["keygen", "agent"]),
     ("Check this host and the path", &["doctor", "status", "ping", "health"]),
-    ("The reverse road", &["node", "operator"]),
+    ("The reverse road", &["node", "operator", "net"]),
     ("Runs in the background", &["detached"]),
     ("Messages", &["chat"]),
     ("Recordings", &["play"]),

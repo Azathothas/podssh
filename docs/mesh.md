@@ -89,6 +89,34 @@ there is no server to trust and nothing to hold up (T-429).
 - **Policy.** Who may reach which node, which share and which exit, as
   Tailscale's ACLs; checked by the node that is reached, never by a relay.
 
+What T-429 built ([cli.md](cli.md), "`podssh net`"):
+
+- The document is JSON, written on one line with its keys in order, and
+  the owner's signature is OpenSSH's SSHSIG over its bytes in the namespace
+  `podssh-net`, so `ssh-keygen -Y verify` and `-Y sign` read and make one.
+  Each end keeps it in one file (`net.doc` of the cache, or `PODSSH_NET`).
+- A field that an earlier podssh does not know stays when its owner signs a
+  change, and `requires` names each part that an end must read to take the
+  document: the policy (T-430) names its own, so that an end that cannot
+  read the rules refuses the document and keeps the older one, never
+  skipping the rules.
+- The newer document passes in the end-to-end channel
+  (`crates/podssh-relay/src/e2e/net.rs`): the operator's first message of
+  the handshake offers it in clear, which an end of before sets aside; the
+  proofs then name each end's owner and serial, encrypted; the operator's
+  document goes before the node's verdict, the node's after it, each only to
+  a member. The library compares serials, and the binary checks the
+  signature, so no SSH code comes into the library.
+- A node whose key is a member lets in the members of the document held,
+  for each session (`crates/podssh-cli/src/net/admit.rs`), on the pair's,
+  the iroh, the DERP and the quick tunnel's roads; with the routes of a node,
+  a member uses each route until the policy says less (T-430). The DERP
+  road's node still needs `--allow` to start, and its record at pkarr names
+  no road but iroh's (T-445).
+- A member's name is a destination (`crates/podssh-cli/src/net/lookup.rs`):
+  `node://NAME`, and `NAME` alone with the role `node`; the net names the key
+  that the channel checks, and the tickets that race.
+
 ## 4. The relay as a role of podssh
 
 `podssh relay serve` (T-169, T-427) serves the relay's contract, version
