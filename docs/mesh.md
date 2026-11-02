@@ -252,11 +252,19 @@ ends at the node and whose client's leg needs no upgrade (T-530, T-531);
 a node with no other road tries it unasked (Q76). The operator's rulings
 of the same day (Q74, Q75, Q77, Q78, Q82; [decisions.md](decisions.md))
 take each other fallback that exists: Tailscale's main DERP fleet after
-tailcat's, the public Wisp servers that are made for it, the overlay
-networks and meeting points of other projects, file hosts and public proxy
-nodes as last fallbacks, and roads over UDP where UDP passes; a domain that
-looks taken over is never used (Q79). The manual says which it tries last,
-and why (T-533).
+tailcat's, once a short test shows that it lets podssh in (T-534); the
+public Wisp servers that are made for it (T-535); the overlay networks of
+other projects, a research entry each (T-536 to T-544), and the meeting
+points of the pairing: Nostr's ephemeral events (T-545), the trackers
+(T-546) and the pub/sub networks (T-547); as last fallbacks, the tunnel
+providers (Pinggy T-548, Serveo T-549, localhost.run T-565, srv.us T-566,
+tunnl.gg T-567, localtunnel T-568, bore.pub T-569, ssh-j.com T-570),
+Syncthing's relays (T-571), file hosts and paste sites (T-572), public proxy
+nodes (T-573, T-574), a third public Piping Server (T-575), HTTP Relay
+(T-576), Bare servers (T-577), Tor's onion services (T-578) and libp2p's
+relays (T-579); and roads over UDP where UDP passes: Hysteria 2 (T-580),
+TUIC (T-581) and MASQUE over HTTP/3 (T-582). A domain that looks taken over
+is never used (Q79). The manual says which it tries last, and why (T-533).
 
 The standard protocols of Q66, so that a server that the user runs is a
 road with no relay: HTTP CONNECT to a second proxy over TLS, HTTP/1.1 and

@@ -62,15 +62,15 @@ repository and CI).
 
 ## Counts
 
-**512 entries: 96 open, 2 partial, 16 blocked, 398 done.**
+**546 entries: 130 open, 2 partial, 16 blocked, 398 done.**
 
 | Priority | open | partial | blocked | done | total |
 | --- | --- | --- | --- | --- | --- |
 | P0 | 0 | 0 | 0 | 1 | 1 |
 | P1 | 6 | 2 | 0 | 52 | 60 |
-| P2 | 38 | 0 | 14 | 190 | 242 |
-| P3 | 52 | 0 | 2 | 155 | 209 |
-| **All** | 96 | 2 | 16 | 398 | 512 |
+| P2 | 42 | 0 | 14 | 190 | 246 |
+| P3 | 82 | 0 | 2 | 155 | 239 |
+| **All** | 130 | 2 | 16 | 398 | 546 |
 
 ## Entries
 
@@ -581,6 +581,22 @@ repository and CI).
 | [T-531](mesh.md) | P2 | M | M10 | feature | open | The OpenTunnel road in the command line: `podssh node --opentunnel` and `ssh node://` |
 | [T-532](mesh.md) | P3 | M | M10 | feature | open | `podssh funnel` through OpenTunnel, with TLS that ends at the node |
 | [T-533](mesh.md) | P3 | S | M10 | docs | open | The manual says which public services podssh tries last, and which it never names |
+| [T-534](mesh.md) | P2 | M | M10 | feature | open | Tailscale's main DERP fleet after tailcat's: a short test that it lets podssh in, then the fallback |
+| [T-535](mesh.md) | P2 | M | M10 | feature | open | The public Wisp servers that their operators run for that use, as forwarders after the demo server |
+| [T-536](mesh.md) | P3 | S | M10 | research | open | NetBird: whether its relays or its signal server carry a podssh session with no account |
+| [T-537](mesh.md) | P3 | S | M10 | research | open | Firezone: whether its relays or its portal carry a podssh session with no account |
+| [T-538](mesh.md) | P3 | M | M10 | research | open | ZeroTier: whether its roots and its TCP relay on 443 carry a podssh session |
+| [T-539](mesh.md) | P3 | M | M10 | research | open | Tox: whether its TCP relays on 443 carry a podssh session between two keys |
+| [T-540](mesh.md) | P3 | M | M10 | research | open | Yggdrasil again, under Q77: a port of its links and routing, over its peers on 443 |
+| [T-541](mesh.md) | P3 | S | M10 | research | open | croc: whether a public croc relay carries a podssh session from a host with 443 alone |
+| [T-542](mesh.md) | P3 | M | M10 | research | open | HyperDHT: whether Holepunch's DHT and its relays reach a podssh end by its key |
+| [T-543](mesh.md) | P3 | S | M10 | research | open | Cabal: whether it adds a carrier or a meeting point beyond HyperDHT |
+| [T-544](mesh.md) | P3 | S | M10 | research | open | Hyphanet: whether a podssh end can use it with no node of its own |
+| [T-545](mesh.md) | P3 | M | M10 | feature | open | Nostr's ephemeral events as a meeting point of the pairing by a short code |
+| [T-546](mesh.md) | P3 | S | M10 | research | open | Trackers as meeting points: whether a BitTorrent or WebTorrent tracker passes the pairing's messages |
+| [T-547](mesh.md) | P3 | M | M10 | research | open | The pub/sub networks and the public MQTT brokers, as carriers or meeting points |
+| [T-548](mesh.md) | P2 | L | M10 | feature | open | Pinggy as a last fallback of the reverse road: SSH inside TLS on 443, and a TLS tunnel that ends at the node |
+| [T-549](mesh.md) | P3 | M | M10 | feature | open | Serveo as a last fallback: a node's alias by SSH, and a client's hop through it |
 | [T-550](mesh.md) | P3 | S | M10 | feature | open | The quick tunnel's node takes its net's members as its door, with no `--allow` |
 | [T-551](mesh.md) | P3 | M | M10 | feature | open | A copy to a node races the roads that `podssh ssh` races, not the pair's road alone |
 | [T-560](roads.md) | P2 | S | none | defect | open | WARP's road opens on TLS to the front door, and never proves that the tunnel carries a packet |
@@ -588,3 +604,21 @@ repository and CI).
 | [T-562](roads.md) | P3 | S | none | feature | open | WARP's registration dials one name of the API, with no second route |
 | [T-563](relay.md) | P2 | S | none | defect | open | The relay's record forgets a host that opens, and one road's failure moves the host on each road |
 | [T-564](robustness.md) | P3 | S | none | feature | open | podssh never raises its soft limit of open files, so a wide `cp --parallel` or `each` meets `EMFILE` |
+| [T-565](mesh.md) | P3 | M | M10 | feature | open | localhost.run as a last fallback: the relay role behind a tunnel of HTTP made by `ssh -R` |
+| [T-566](mesh.md) | P3 | S | M10 | feature | open | srv.us as a last fallback: an HTTPS name derived from the node's SSH key |
+| [T-567](mesh.md) | P3 | S | M10 | feature | open | tunnl.gg as a last fallback, a word of the tunnel of HTTP made by `ssh -R` |
+| [T-568](mesh.md) | P3 | M | M10 | feature | open | localtunnel as a last fallback: the relay role behind `localtunnel.me` |
+| [T-569](mesh.md) | P3 | M | M10 | feature | open | bore.pub as a last fallback: a raw TCP port for the node, reached by the client's other roads |
+| [T-570](mesh.md) | P3 | S | M10 | feature | open | `ssh-j.com` as a last fallback: a public SSH jump and forward by name |
+| [T-571](mesh.md) | P3 | M | M10 | feature | open | Syncthing's relays on 443 as a last fallback of the reverse road |
+| [T-572](mesh.md) | P3 | M | M10 | research | open | File hosts and paste sites as a carrier that stores and forwards: the research |
+| [T-573](mesh.md) | P3 | S | M10 | research | open | VMess's protocol: the research, for the public proxy nodes that speak it alone |
+| [T-574](mesh.md) | P2 | M | M10 | feature | open | The public proxy nodes of aggregator lists (VLESS, Trojan) as a last fallback of the forward road |
+| [T-575](mesh.md) | P3 | S | M10 | feature | open | serv00's public Piping Server as the third server of the Piping Server road |
+| [T-576](mesh.md) | P3 | S | M10 | feature | open | HTTP Relay's demo server as a last fallback, in the Piping Server road's pieces |
+| [T-577](mesh.md) | P3 | S | M10 | research | open | Bare servers as a hop to a WebSocket road: the research |
+| [T-578](mesh.md) | P3 | L | M10 | feature | open | Tor's onion services: a node reached by its onion address, through the Tor road |
+| [T-579](mesh.md) | P3 | S | M10 | research | open | libp2p's public circuit relays: whether links of 128 KiB and 2 minutes carry a session |
+| [T-580](mesh.md) | P3 | L | M10 | feature | open | Hysteria 2 as a client road over QUIC, where a probe found that UDP passes |
+| [T-581](mesh.md) | P3 | M | M10 | feature | open | TUIC version 5 as a client road over QUIC, where a probe found that UDP passes |
+| [T-582](mesh.md) | P3 | L | M10 | feature | open | MASQUE over HTTP/3: WARP's connect-ip on UDP, where a probe found that UDP passes |

@@ -4329,3 +4329,1655 @@ cargo test -p podssh-cli --test net
 With the pair's road refused at the stand-in relay, `cp` to a member by its name reaches it over
 the DERP road that the net names; planted, the race skipped for the pair's road alone, and the
 test fails.
+
+# T-534: Tailscale's main DERP fleet after tailcat's: a short test that it lets podssh in, then the fallback
+
+**Source:** the operator's ruling Q74 (2026-11-02).
+**Category:** feature
+**Milestone:** M10
+**Priority:** P2
+**Effort:** M
+**Status:** open
+
+## Problem
+
+The DERP road knows tailcat's four servers alone, one in each of four regions, so a node whose
+four servers are down, slowed or refused has no DERP road. Tailscale's main fleet has many more
+servers, and the operator ruled that podssh tries them after tailcat's, once a short test shows
+that they let podssh in.
+
+## Premise
+
+- `docs/decisions.md:27` says "Q74: Tailscale's main DERP fleet, after tailcat's".
+- `crates/podssh-relay/src/derp/servers.rs:15` says "The servers of tailcat's map, in the order
+  of its regions: New York,", and `crates/podssh-relay/src/derp/servers.rs:97` says "pub fn
+  for_client(home: &Server) -> Vec<Server> {": a client tries the ticket's server, then the
+  rest of tailcat's four.
+- `docs/carriers.md:454` says "88 servers in 28 regions in Tailscale's map, 85 of which
+  answered", and `docs/carriers.md:455` says "derper admits each": a `200` on `/` says nothing
+  of who may relay, and whether Tailscale's servers run with `--verify-clients` was not read.
+  Headscale's documents read the map at `https://controlplane.tailscale.com/derpmap/default`
+  (`docs/carriers.md`, the reverse road, item 2).
+- `crates/podssh-relay/src/derp/key.rs:126` says "acknowledge, and the name of the program,
+  which a server may count by,": a server may refuse podssh by the name of its program.
+- `crates/podssh-relay/tests/derp_live.rs:3` says "server of the fleet whose probe answers
+  through the proxy of the": the live test of tailcat's fleet, 64 KiB each way, run by hand.
+- `AGENTS.md:251` says "session's own host: Tailscale's main DERP fleet, to learn whether it
+  lets": short runs from GitHub Actions and the session's host.
+
+## Approach
+
+1. The test first, short (Q74), from GitHub Actions and this host: the first server of each
+   region of the map, read on the test's day, one after another; for each, DERP's handshake with
+   a random key and podssh's program name, then a node and a client in one process exchange
+   64 KiB each way through it, as `derp_live` does for tailcat's. The result of each server (it
+   relayed; it closed after the client's info; it never sent its own info) goes into
+   `docs/carriers.md` and `docs/STATUS.md`.
+2. Where the test shows that the main fleet lets podssh in: its servers in the binary, after
+   tailcat's four, as a list read from the map on a date and cited with its source (Q79); the
+   node's home is the first of the whole list whose probe answers, and a client's order is the
+   ticket's server, then the rest of the list, as now.
+3. The node's line names the fleet of its home, and says that the main fleet serves Tailscale's
+   clients and that podssh tries it last; `PODSSH_DERP=no` turns the road off as now, and
+   `PODSSH_DERP_MAIN=no` keeps tailcat's four alone.
+4. `doctor`'s DERP section says which fleet answered. The manual's words are T-533's.
+5. Where the test shows that no server lets podssh in: the entry is done with that measurement,
+   and the binary names no server of the main fleet, as Q74 asks.
+
+## Decision
+
+- **A server lets podssh in when it relays**: DERP's handshake gets the server's info, and a
+  packet between two keys of podssh crosses it. Lost: a `200` on `/` or on `/derp/probe`, which
+  says nothing of who may relay.
+- **The list is in the binary, with its date and its source**, not the map read at each start:
+  one host less on each run, and a name that a proxy may refuse by category. The test runs again
+  when the list is read again. Lost: the map at run time, which follows Tailscale's changes.
+- **One server of each region first**, so that a node in a cage probes at most one server of a
+  region before the next region; the other servers of a region follow the first round.
+
+## Prove
+
+```sh
+export CARGO_BUILD_JOBS=4
+cargo test -p podssh-relay --features derp --lib derp::servers
+cargo test -p podssh-relay --features derp --test derp_live -- --ignored
+```
+
+Offline: the list's order (tailcat's four, then one server of each region of the main fleet, then
+the rest), a client's order for a home of either fleet, and `PODSSH_DERP_MAIN=no`; a stand-in
+derper on the loopback that closes after the client's info, as one with `--verify-clients` does,
+sends the node on to the next server. Live, short (Q74): the test of step 1. Planted: the main
+fleet put before tailcat's, and the test of the order fails.
+
+# T-535: The public Wisp servers that their operators run for that use, as forwarders after the demo server
+
+**Source:** the operator's ruling Q75 (2026-11-02).
+**Category:** feature
+**Milestone:** M10
+**Priority:** P2
+**Effort:** M
+**Status:** open
+
+## Problem
+
+The forward road's fallback to other products' forwarders ends at one Wisp server, Mercury
+Workshop's demo server, which its operator offers for demo and testing. When it is down or slowed,
+the fallback has no Wisp server more. The operator ruled that podssh tries the public Wisp servers
+that their operators run for that use, after the other forwarders, and never a domain that looks
+taken over.
+
+## Premise
+
+- `docs/decisions.md:26` says "Q75: the public Wisp servers that are made for it, as fallbacks",
+  and `docs/decisions.md:22` says "A domain that looks taken over (a school's, a church's, a
+  shop's, or a name made to look like one) is never used and never published".
+- `crates/podssh-ws/src/forwarder/builtin.rs:7` says "After them, and never first, by the
+  operator's ruling Q65: the demo", and
+  `crates/podssh-cli/src/forwarder/fallback.rs:4` says "stderr with each one's name; the Wisp
+  demo server last, never first, by".
+- `docs/carriers.md:208` says "sweep took 76 more Wisp servers from the server lists of web
+  proxies on", and `docs/carriers.md:216` says "No host names an operator, terms or limits. The
+  sweep flagged 54 of": the sweep's hosts give no operator, and most are domains of other
+  parties, so none of them is a source for this entry.
+- `AGENTS.md:252` says "podssh in (Q74); the public Wisp servers that their operators run for
+  that": short live runs may reach them.
+
+## Approach
+
+1. The research first, through the services of web.pkgforge.dev: Wisp servers whose operator
+   says, on a page of the operator's own, that the server is public for the use of others, as
+   Mercury Workshop's page says of its demo server. For each: its operator, its page, its terms
+   and limits, its software (wisp-server-python, wisp-js, or another), the version of Wisp that it
+   speaks, whether it filters port 22, and its category in a filter list. Never a server list of
+   a web proxy, and never a host that the sweep flagged (Q79). Each fact and its source go into
+   `docs/carriers.md`.
+2. Each server that passes: a short live run (Q75) from GitHub Actions and this host, GitHub's
+   version line through it, then a word of `crates/podssh-ws/src/forwarder/builtin.rs` after
+   `wisp`, with its note, in the order that the research gives.
+3. The fallback tries them after the demo server, each with its name on stderr, as now.
+4. Where no server passes: the entry is done with the research, and the fallback keeps the demo
+   server alone.
+
+## Decision
+
+A server passes when its operator names it on a page of the operator's own as offered to others,
+with no account, and the domain is the operator's own. Lost: the 53 hosts of the sweep that took
+a bare upgrade, which no operator offers.
+
+## Prove
+
+```sh
+export CARGO_BUILD_JOBS=4
+cargo test -p podssh-ws --lib forwarder::builtin
+cargo test -p podssh-cli --test forwarder_cli
+cargo test -p podssh-ws --test live_forwarder -- --ignored
+```
+
+The words in their order, each new one after `wisp`; the fallback through stand-ins tries them
+after the demo server; live, GitHub's version line through each new server (Q75). Planted: a new
+server put before the demo server, and the test of the order fails.
+
+# T-536: NetBird: whether its relays or its signal server carry a podssh session with no account
+
+**Source:** the operator's ruling Q77 (2026-11-02).
+**Category:** research
+**Milestone:** M10
+**Priority:** P3
+**Effort:** S
+**Status:** open
+
+## Problem
+
+The operator ruled that podssh uses the fallbacks that exist: each overlay network that the sweep
+of 2026-11-02 named gets a research entry, for a host with TCP to 443 alone or where UDP passes,
+and each that passes becomes a road tried unasked after podssh's own. NetBird's relays answer on
+port 443 over a WebSocket.
+
+## Premise
+
+- `docs/decisions.md:24` says "Q77: use the fallbacks that exist".
+- `docs/carriers.md:851` says "NetBird's relays, 67 over a WebSocket on TCP 443," and
+  `docs/carriers.md:854` says "so each peer needs an account": a relay admits a peer with a token
+  of NetBird's management server alone.
+- `crates/podssh-iroh/src/probe.rs:1` says "Whether this host's UDP goes out and comes back
+  (T-359). A sandbox can": podssh probes UDP before it takes it.
+
+## Approach
+
+1. Read NetBird's parts in its source and documents: the management server and how a peer joins
+   (a setup key, an account of netbird.io's cloud, or a server that the user runs), the signal
+   server and whether it passes messages between two keys with no account, and the relays and
+   their tokens.
+2. For each part: whether it answers on 443 by name, with TLS or a WebSocket, through an HTTP
+   CONNECT proxy, or needs UDP.
+3. podssh's side: what a podssh end would speak (gRPC of the signal server, the relay's
+   messages), in pure Rust in the library crates (rule 4 of `AGENTS.md`, section 5), and its size.
+4. The verdict in `docs/carriers.md` with its sources: a road or a meeting point, with a feature
+   entry, tried unasked after podssh's own roads (Q77); or out, for need of an account, no stream,
+   or no port that the host reaches.
+
+## Prove
+
+```sh
+cargo todo check
+```
+
+The verdict and its sources in `docs/carriers.md`; a feature entry filed where NetBird passes.
+
+# T-537: Firezone: whether its relays or its portal carry a podssh session with no account
+
+**Source:** the operator's ruling Q77 (2026-11-02).
+**Category:** research
+**Milestone:** M10
+**Priority:** P3
+**Effort:** S
+**Status:** open
+
+## Problem
+
+Firezone is an overlay network that the sweep of 2026-11-02 named; the operator's ruling Q77 gives
+it a research entry, for a host with TCP to 443 alone or where UDP passes.
+
+## Premise
+
+- `docs/decisions.md:24` says "Q77: use the fallbacks that exist".
+- `docs/carriers.md:855` says "Firezone's relays are TURN on UDP, behind an account".
+
+## Approach
+
+1. Read Firezone's parts in its source and documents: its portal and how a client or a gateway
+   joins, its relays (TURN, and whether over TCP or TLS on 443), and what a user's own Firezone
+   gives a podssh node.
+2. For each part: an account or none, the port and the transport, through an HTTP CONNECT proxy
+   or not, and where UDP passes.
+3. podssh's side: its size, in pure Rust.
+4. The verdict in `docs/carriers.md` with its sources, and a feature entry where it passes (Q77).
+
+## Prove
+
+```sh
+cargo todo check
+```
+
+The verdict and its sources in `docs/carriers.md`; a feature entry filed where Firezone passes.
+
+# T-538: ZeroTier: whether its roots and its TCP relay on 443 carry a podssh session
+
+**Source:** the operator's ruling Q77 (2026-11-02).
+**Category:** research
+**Milestone:** M10
+**Priority:** P3
+**Effort:** M
+**Status:** open
+
+## Problem
+
+ZeroTier's roots use UDP, but ZeroTier Inc. runs a TCP relay on port 443 that its agent falls
+back to where UDP fails. Whether a podssh end can join a ZeroTier network through it, with no
+account, and carry a session, was not read.
+
+## Premise
+
+- `docs/decisions.md:24` says "Q77: use the fallbacks that exist".
+- `docs/carriers.md:855-856` says "ZeroTier's roots use UDP 9993", and
+  `docs/carriers.md:862-863` says "ZeroTier Inc. runs a TCP relay that ZeroTier One falls back
+  to where it cannot use UDP": an IP literal on port 443, which its document calls slow.
+
+## Approach
+
+1. Read ZeroTier's protocol (its packets, its identities, the roots, a network's controller and
+   how it admits a member) and the TCP relay's framing, in ZeroTierOne's source and in pylon's.
+2. Whether a member joins with no account: a network whose controller the user runs (a podssh
+   node as its controller), or a public network; and what ZeroTier's license allows.
+3. Through a proxy: the TCP relay by its IP literal on 443, which a proxy that waits for TLS or
+   that allows listed names refuses (Inferred, as for Syncthing's relays); and where UDP passes.
+4. podssh's side: a Rust implementation of ZeroTier, or the size of one in pure Rust, and a
+   stream over its frames under the resumable layer.
+5. The verdict in `docs/carriers.md` with its sources, and a feature entry where it passes (Q77).
+
+## Prove
+
+```sh
+cargo todo check
+```
+
+The verdict and its sources in `docs/carriers.md`; a feature entry filed where ZeroTier passes.
+
+# T-539: Tox: whether its TCP relays on 443 carry a podssh session between two keys
+
+**Source:** the operator's ruling Q77 (2026-11-02).
+**Category:** research
+**Milestone:** M10
+**Priority:** P3
+**Effort:** M
+**Status:** open
+
+## Problem
+
+Tox's TCP relays try port 443 first, and a few nodes of its public list listen there. Two Tox
+keys reach each other through them with no account; whether that carries a podssh session was not
+read.
+
+## Premise
+
+- `docs/decisions.md:24` says "Q77: use the fallbacks that exist".
+- `docs/carriers.md:857-858` says "Tox's TCP relays try port 443 first", and
+  `docs/carriers.md:859` says "but they speak Tox's own handshake, not TLS".
+
+## Approach
+
+1. Read Tox's TCP relay protocol (`irungentoo/toxcore:docs/TCP_Network.txt`), its friend
+   connections and the size of a lossless packet, and the public list of nodes with their ports.
+2. Through a proxy: a CONNECT to a node's IP literal on 443, then Tox's handshake; which proxies
+   refuse it (one that waits for TLS, one that allows listed names); and where UDP passes, Tox's
+   DHT.
+3. podssh's side: a maintained Rust implementation of Tox, or the size of the TCP client and the
+   friend connection in pure Rust; a stream over its packets under the resumable layer.
+4. The verdict in `docs/carriers.md` with its sources, and a feature entry where it passes (Q77).
+
+## Prove
+
+```sh
+cargo todo check
+```
+
+The verdict and its sources in `docs/carriers.md`; a feature entry filed where Tox passes.
+
+# T-540: Yggdrasil again, under Q77: a port of its links and routing, over its peers on 443
+
+**Source:** the operator's ruling Q77 (2026-11-02); T-442's verdict.
+**Category:** research
+**Milestone:** M10
+**Priority:** P3
+**Effort:** M
+**Status:** open
+
+## Problem
+
+T-442 left Yggdrasil out: no Rust crate implements it, its peers ask for few nearby links, and
+podssh's own roads on 443 carry the same pairs. The operator's ruling Q77 asks for each fallback
+that exists, so the verdict is read again: whether a podssh end can reach another through one or
+two public peers on 443, and at what cost.
+
+## Premise
+
+- `docs/decisions.md:24` says "Q77: use the fallbacks that exist".
+- `docs/carriers.md:785` says "Of its 365 entries, 20 are", and `docs/carriers.md:789` says "No
+  Rust crate implements the network"; `docs/carriers.md:792-793` says "Out, as the roads of
+  podssh's own nodes on 443 carry the same pairs".
+
+## Approach
+
+1. Count the public peers again on `wss://` and `tls://` on 443 by name, and those online.
+2. Read the parts that a podssh end needs: a peer link over a WebSocket, the handshake, the
+   routing and the sessions of two keys, in Yggdrasil's Go source (its license read too), and the
+   size of a port in pure Rust; or a smaller part that two podssh ends need alone (one peer each,
+   the same peer for both).
+3. The peers' etiquette ("a small number of NEARBY peers"): one peer for each end, for the time
+   of a session.
+4. The verdict in `docs/carriers.md` with its sources, and a feature entry where it passes (Q77),
+   tried after podssh's own roads.
+
+## Prove
+
+```sh
+cargo todo check
+```
+
+The verdict and its sources in `docs/carriers.md`; a feature entry filed where Yggdrasil passes.
+
+# T-541: croc: whether a public croc relay carries a podssh session from a host with 443 alone
+
+**Source:** the operator's ruling Q77 (2026-11-02).
+**Category:** research
+**Milestone:** M10
+**Priority:** P3
+**Effort:** S
+**Status:** open
+
+## Problem
+
+croc pairs two ends by a code through a public relay, with no account. Its relay listens on TCP
+9009, which a host with 443 alone cannot reach; whether a public croc relay answers on 443, and
+whether its rooms carry a podssh session, was not read.
+
+## Premise
+
+- `docs/decisions.md:24` says "Q77: use the fallbacks that exist".
+- `docs/carriers.md:856` says "croc's relay uses TCP 9009".
+
+## Approach
+
+1. Read croc's relay protocol (its rooms, its ports, its PAKE) and its documents: the default
+   public relay, its ports, and whether a relay may listen on 443.
+2. Through a proxy: croc's own client takes a proxy for its relay connection (read); a port that
+   a proxy of 443 alone refuses.
+3. podssh's side: the room protocol in pure Rust under the channel and the layer, or croc's
+   relay as a meeting point of the pairing.
+4. The verdict in `docs/carriers.md` with its sources, and a feature entry where it passes (Q77).
+
+## Prove
+
+```sh
+cargo todo check
+```
+
+The verdict and its sources in `docs/carriers.md`; a feature entry filed where croc passes.
+
+# T-542: HyperDHT: whether Holepunch's DHT and its relays reach a podssh end by its key
+
+**Source:** the operator's ruling Q77 (2026-11-02).
+**Category:** research
+**Milestone:** M10
+**Priority:** P3
+**Effort:** M
+**Status:** open
+
+## Problem
+
+HyperDHT finds a peer by its public key and punches a hole between two ends, with no account. Its
+bootstrap nodes use UDP; whether a podssh end with UDP can reach a node through it, and whether
+any part of it answers over TCP on 443, was not read.
+
+## Premise
+
+- `docs/decisions.md:24` says "Q77: use the fallbacks that exist".
+- `docs/carriers.md:856-857` says "the bootstrap nodes of HyperDHT, Cabal and Hyphanet use UDP
+  or other ports".
+- `crates/podssh-relay/src/quick/probe.rs:1` says "The probe of UDP before QUIC (T-400): one QUIC
+  packet of a reserved": podssh probes UDP before a road over it.
+
+## Approach
+
+1. Read HyperDHT's protocol (its RPC over UDP, the announce and lookup of a key, the hole
+   punching, the Noise handshake, and its relays: blind relays through a third peer) and its
+   public bootstrap nodes.
+2. Where UDP passes: whether two podssh ends meet by a key derived from the pair's secret, and a
+   stream between them under the layer. With TCP to 443 alone: whether any part answers there.
+3. podssh's side: a Rust implementation, or the size of one in pure Rust.
+4. The verdict in `docs/carriers.md` with its sources, and a feature entry where it passes (Q77).
+
+## Prove
+
+```sh
+cargo todo check
+```
+
+The verdict and its sources in `docs/carriers.md`; a feature entry filed where HyperDHT passes.
+
+# T-543: Cabal: whether it adds a carrier or a meeting point beyond HyperDHT
+
+**Source:** the operator's ruling Q77 (2026-11-02).
+**Category:** research
+**Milestone:** M10
+**Priority:** P3
+**Effort:** S
+**Status:** open
+
+## Problem
+
+Cabal is a chat of peers that the sweep of 2026-11-02 named among the overlay networks; its
+bootstrap nodes use UDP or other ports. Whether it has a part of its own that carries bytes from
+a host with 443 alone, or only what HyperDHT gives (T-542), was not read.
+
+## Premise
+
+- `docs/decisions.md:24` says "Q77: use the fallbacks that exist".
+- `docs/carriers.md:856-857` says "the bootstrap nodes of HyperDHT, Cabal and Hyphanet use UDP
+  or other ports".
+
+## Approach
+
+1. Read Cabal's stack and its public parts: the swarm that it joins, and any server of its own (a
+   seeder, a bridge to the web) that answers on 443 by name.
+2. Each part: an account or none, the port and the transport, and whether it carries bytes
+   between two keys.
+3. The verdict in `docs/carriers.md` with its sources: a road or a meeting point with a feature
+   entry (Q77), the same as T-542's, or out.
+
+## Prove
+
+```sh
+cargo todo check
+```
+
+The verdict and its sources in `docs/carriers.md`; a feature entry filed where Cabal adds a part.
+
+# T-544: Hyphanet: whether a podssh end can use it with no node of its own
+
+**Source:** the operator's ruling Q77 (2026-11-02).
+**Category:** research
+**Milestone:** M10
+**Priority:** P3
+**Effort:** S
+**Status:** open
+
+## Problem
+
+Hyphanet (formerly Freenet) stores and forwards signed and keyed data between peers over UDP. Its
+seed nodes use UDP or other ports; whether a podssh end can use it as a carrier or a meeting point
+from a host with 443 alone, or where UDP passes, was not read.
+
+## Premise
+
+- `docs/decisions.md:24` says "Q77: use the fallbacks that exist".
+- `docs/carriers.md:856-857` says "the bootstrap nodes of HyperDHT, Cabal and Hyphanet use UDP
+  or other ports".
+
+## Approach
+
+1. Read Hyphanet's protocol (its node's transport over UDP, its keys, its client protocol FCP)
+   and its public parts: a gateway that answers on 443, or seed nodes.
+2. Whether a podssh end can use it with no Hyphanet node of its own (a node is Java, another
+   program, which rule 3 of `AGENTS.md`, section 5, forbids podssh to start), and with what
+   latency for the messages of the pairing or of a session.
+3. The verdict in `docs/carriers.md` with its sources, and a feature entry where it passes (Q77).
+
+## Prove
+
+```sh
+cargo todo check
+```
+
+The verdict and its sources in `docs/carriers.md`; a feature entry filed where Hyphanet passes.
+
+# T-545: Nostr's ephemeral events as a meeting point of the pairing by a short code
+
+**Source:** the operator's ruling Q77 (2026-11-02).
+**Category:** feature
+**Milestone:** M10
+**Priority:** P3
+**Effort:** M
+**Status:** open
+
+## Problem
+
+T-086's pairing by a short code meets at magic-wormhole's mailboxes. When both are down, or
+refused by a proxy's filter, two ends cannot pair. The operator ruled that Nostr's ephemeral
+events become a meeting point of the pairing, tried unasked after podssh's own.
+
+## Premise
+
+- `docs/decisions.md:24` says "Nostr's ephemeral events and the trackers become meeting points of
+  the pairing, in the same order".
+- `docs/carriers.md:697` says "relays need not store ephemeral events (kinds 20000 to 29999)";
+  `docs/carriers.md:700` says "has BIP-340 signatures", of the pure-Rust `k256`, where the
+  `nostr` crate needs a C library.
+- `docs/carriers.md:702` says "Each relay has its own operator and its own policy", and
+  `docs/carriers.md:703` says "which its NIP-11 document gives".
+- `TODO/reverse.md:1137` says "The meeting point: magic-wormhole's mailbox": T-086's exchange
+  runs over a mailbox that stores and forwards the messages of two sides.
+
+## Approach
+
+1. The research first: public relays whose NIP-11 document asks no authentication, no payment and
+   no restricted writes, that take ephemeral events and pass them to each subscriber, on 443 by
+   name; each with its operator and its source (Q79), in `docs/carriers.md`.
+2. A carrier of T-086's messages: each message one event of an ephemeral kind that podssh fixes,
+   signed with BIP-340 by a key made for that code alone, with a tag derived from the code's
+   nameplate alone, never from the words that SPAKE2 takes, as T-496 derives its topic; each
+   under the size that the relay's NIP-11 gives.
+3. NIP-01 over podssh-ws's WebSocket through `HTTPS_PROXY`: `REQ` with a filter of the kind and
+   the tag from the code's start, `EVENT` to publish, and `OK`, `CLOSED` and `NOTICE` read for a
+   refusal.
+4. One relay at a time, in the order of the binary's list: both ends start at the first relay that
+   answers, and an end that hears nothing within a bound moves to the next and sends again.
+5. Tried after the mailboxes and after ntfy (T-496); `PODSSH_PAIR_NOSTR` names another relay, or
+   `no`.
+
+## Decision
+
+BIP-340 by `k256`, pure Rust, and NIP-01's JSON written by podssh. Lost: the `nostr` crate, whose
+`secp256k1` is C (`docs/carriers.md`, the meeting points).
+
+## Prove
+
+```sh
+export CARGO_BUILD_JOBS=4
+cargo test -p podssh-relay --features pair,code --test pair_nostr
+```
+
+Against a Nostr relay of another project (nostr-rs-relay or strfry) in a container: two peers with
+one code pair through it; a wrong code fails both sides and ends the code; a stranger's event with
+the same tag changes nothing; the tag holds no word of the code; the signatures pass the test
+vectors of BIP-340. Live, a short run through one public relay (T-548's Decision). Planted: the tag derived
+from the whole code, and the test of the tag fails.
+
+## Start condition
+
+T-086 is done: the pairing's exchange exists over a mailbox.
+
+# T-546: Trackers as meeting points: whether a BitTorrent or WebTorrent tracker passes the pairing's messages
+
+**Source:** the operator's ruling Q77 (2026-11-02).
+**Category:** research
+**Milestone:** M10
+**Priority:** P3
+**Effort:** S
+**Status:** open
+
+## Problem
+
+The operator ruled that the trackers become meeting points of the pairing, after Nostr's. A
+tracker gives the peers of one torrent each other's addresses, and a WebTorrent tracker passes
+offers between them over a WebSocket; whether either carries the messages of T-086's pairing, or a
+node's roads, from a host with 443 alone, was not read.
+
+## Premise
+
+- `docs/decisions.md:24` says "Nostr's ephemeral events and the trackers become meeting points of
+  the pairing, in the same order".
+- `docs/carriers.md:878-879` says "a tracker gives a peer list, or passes WebRTC's offers between
+  the peers of one torrent".
+
+## Approach
+
+1. Read the tracker protocols: HTTP's announce (BEP 3), UDP's (BEP 15), and WebTorrent's
+   WebSocket tracker (`webtorrent/bittorrent-tracker`): the fields of an offer and an answer, their
+   sizes, whether a tracker checks that an offer is WebRTC's, and how long it keeps one.
+2. Whether two ends meet by an infohash derived from the code's nameplate, and pass T-086's few
+   messages as offers and answers; or a node's tickets, read by a client of its pair.
+3. The trackers on 443 by name, each with its operator and its source, and their categories
+   (Q79).
+4. The verdict in `docs/carriers.md` with its sources, and a feature entry where it passes, tried
+   after Nostr's (Q77).
+
+## Prove
+
+```sh
+cargo todo check
+```
+
+The verdict and its sources in `docs/carriers.md`; a feature entry filed where a tracker passes.
+
+# T-547: The pub/sub networks and the public MQTT brokers, as carriers or meeting points
+
+**Source:** the operator's ruling Q77 (2026-11-02).
+**Category:** research
+**Milestone:** M10
+**Priority:** P3
+**Effort:** M
+**Status:** open
+
+## Problem
+
+The sweep of 2026-11-02 named pub/sub networks (Bluesky's relays, ActivityPub's relays, the Waku
+Network, XMTP, Farcaster's hubs), and `docs/carriers.md` has the public MQTT brokers. Each was
+read in part; which of them carries a message from one podssh end to another with no account, on
+443, was not settled.
+
+## Premise
+
+- `docs/decisions.md:24` says "Q77: use the fallbacks that exist".
+- `docs/carriers.md:867-868` says "relays send each record to each consumer, and a record is
+  written to a PDS by an account"; `docs/carriers.md:868` says "ActivityPub's relays take a
+  server's posts"; `docs/carriers.md:871` says "takes a message from a member alone" (the Waku
+  Network); `docs/carriers.md:875` says "an inbox that a wallet's signature registered" (XMTP);
+  `docs/carriers.md:875-876` says "The Farcaster hubs of the sweep were gone".
+- `docs/carriers.md:807` says "none is reachable on 443 in practice" (the public MQTT brokers).
+
+## Approach
+
+1. For each network: whether a message goes from one end to another with no account of the
+   user's (a PDS or a server that takes posts with none, a fleet that relays with no membership, a
+   key that registers itself), its port and transport on 443 by name, its sizes and its limits.
+2. The public MQTT brokers again: each that answers over a WebSocket on 443, with its operator and
+   its terms.
+3. The verdict for each in `docs/carriers.md` with its sources; each that passes becomes a feature
+   entry, a meeting point of the pairing or a carrier, tried after podssh's own (Q77).
+
+## Prove
+
+```sh
+cargo todo check
+```
+
+The verdicts and their sources in `docs/carriers.md`; a feature entry filed for each that passes.
+
+# T-548: Pinggy as a last fallback of the reverse road: SSH inside TLS on 443, and a TLS tunnel that ends at the node
+
+**Source:** the operator's ruling Q78 (2026-11-02).
+**Category:** feature
+**Milestone:** M10
+**Priority:** P2
+**Effort:** L
+**Status:** open
+
+## Problem
+
+Pinggy gives a tunnel with no account. Its node's leg is SSH inside TLS on port 443, also through
+an HTTP proxy, and its TLS tunnels on 443 are routed by SNI, so a client's leg is TLS by name with
+no upgrade and the TLS ends at the node: both ends pass a cage of an HTTPS proxy, a proxy that
+refuses the upgrade among them. podssh does not use it. The operator ruled that each public
+service that needs no account and carries bytes is a last fallback, whatever its terms.
+
+## Premise
+
+- `docs/decisions.md:23` says "Q78: each service is a last fallback, whatever its terms".
+- `docs/carriers.md:822-824` says "Pinggy's leg need not be raw SSH, as it takes SSH inside TLS
+  on ports 443 and 7878, also through an HTTP proxy, and gives TLS tunnels on 443 that it routes
+  by SNI", and `docs/carriers.md:828-829` says "Pinggy's free tunnels end at 60 minutes".
+- `crates/podssh-ssh/src/remote.rs:4` says "podssh joins it to the forward's target": podssh's
+  SSH client asks a remote forward and takes its `forwarded-tcpip` channels (`-R`).
+- `crates/podssh-ws/src/tls_server.rs:1` says "TLS for a server of podssh's": the node can end a
+  visitor's TLS itself.
+
+## Approach
+
+1. Read first, in Pinggy's documents: the user name and the forward that a TLS tunnel with no
+   account asks for, how the tunnel's name comes back, the limits of a free tunnel and its terms.
+2. The node: podssh's SSH client to Pinggy on 443 inside TLS, through `HTTPS_PROXY`, asks the
+   remote forward of a TLS tunnel; each `forwarded-tcpip` channel is a visitor's TLS, which
+   podssh-ws's server ends, then the end-to-end channel and the resumable layer above, as on
+   each carrier.
+3. A free tunnel's name changes at each tunnel: the node puts it in its record (T-445) and the
+   net's list, and a client reads it there; a tunnel that ends at 60 minutes is opened again, and
+   the layer moves its sessions.
+4. The client: TLS by name to the tunnel's name on 443 through `HTTPS_PROXY`, then the channel to
+   the node's pinned key: a road of `podssh ssh node://NAME`'s race, last.
+5. A last fallback (Q78): tried after podssh's own roads and after the services of Q65 that allow
+   the use; a line on stderr names Pinggy and says that a third party that nobody vouches for
+   carries the session, and that SSH and the end-to-end channel keep its bytes private;
+   `PODSSH_PINGGY=no` turns it off, and so does the switch of the Decision.
+
+## Decision
+
+- **One switch for all the last fallbacks of Q78**, `PODSSH_LAST_RESORT=no`, beside each road's
+  own variable; the first of T-548, T-549 and T-565 to T-579 to be built adds it, and T-533's
+  manual names it. Lost: a variable for each road alone, which leaves a user who wants none of
+  them a dozen to set.
+- **Short live tests against the services of Q77 and Q78, for the operator to confirm (Q86).**
+  Q78 lets a binary in the field try each of them unasked, but `AGENTS.md` (section 4) names no
+  live target for them, as it names Q74's, Q75's and Q76's. The call: a short run for each, as
+  Q65 allows for its services (one node and one client, a few MiB at most, throwaway keys, the
+  service's tunnel or name given up at the end), from GitHub Actions and the session's own host;
+  no throughput run, and no host that looks taken over (Q79). Each entry of T-545, T-548, T-549
+  and T-565 to T-579 that names a live run takes this one. Lost: no live run until the operator
+  rules, which leaves each road tested against stand-ins alone, and the protocol of a service
+  that has no published server (Serveo's alias, `ssh-j.com`) tested against nothing that podssh
+  did not write.
+- **The node's certificate is its own, self-signed, and the client checks the channel's key**, as
+  a free tunnel's name changes each hour, where a certificate of ACME for each name would spend
+  its limits. Inferred: a proxy that re-terminates TLS on the client's side refuses that
+  certificate, so the road there needs a proxy that passes TLS; the entry measures it.
+
+## Prove
+
+```sh
+export CARGO_BUILD_JOBS=4
+cargo test -p podssh-cli --test pinggy_road
+```
+
+Against a stand-in of Pinggy in containers, software that podssh did not write: OpenSSH's sshd
+behind stunnel on 443 for the node's leg, and HAProxy that routes the forward's port by SNI for
+the client's, with a plain squid as the proxy at both ends: `podssh node NAME TARGET` makes its
+tunnel there, and `podssh ssh node://NAME 'echo ok'` passes through it with the pair's road down;
+stderr has the line about the third party. Live, short, through Pinggy (the Decision). Planted: the
+client's check of the node's key skipped, and the test of a stranger's node fails.
+
+# T-549: Serveo as a last fallback: a node's alias by SSH, and a client's hop through it
+
+**Source:** the operator's ruling Q78 (2026-11-02).
+**Category:** feature
+**Milestone:** M10
+**Priority:** P3
+**Effort:** M
+**Status:** open
+
+## Problem
+
+Serveo forwards SSH to a private alias with no account, over raw SSH on port 22 or 443: a node
+asks for an alias, and a client jumps to it through Serveo. Raw SSH on 443 passes a proxy that does
+not wait for TLS. podssh does not use it; Q78 makes it a last fallback, whatever its terms.
+
+## Premise
+
+- `docs/decisions.md:23` says "Q78: each service is a last fallback, whatever its terms".
+- `docs/carriers.md:824-825` says "Serveo documents private SSH forwarding by alias with no
+  account, over raw SSH on 22 or 443", and `docs/carriers.md:829` says "Serveo's anonymous TCP at
+  10 minutes".
+- `crates/podssh-ssh/src/remote.rs:4` says "podssh joins it to the forward's target", and
+  `crates/podssh-cli/src/ssh/jump.rs:96` says "The first hop's tunnel": the remote forward and the
+  first hop of `-J` exist.
+
+## Approach
+
+1. Read first, in Serveo's documents: the form of a private alias, how a client reaches it, the
+   bound of anonymous TCP, its terms.
+2. The node: podssh's SSH client to Serveo on 443 (then 22), raw SSH through `HTTPS_PROXY`'s
+   CONNECT, asks the remote forward of an alias derived from the node's key, so that a client
+   computes it; an alias that another took is named, and the node takes the next of its series.
+3. The client: Serveo as the first hop of `node://NAME`'s road, a `direct-tcpip` channel to the
+   alias, then the end-to-end channel to the node's pinned key, so a stranger at the alias is
+   refused.
+4. The 10-minute bound: the node asks again before it, and the layer moves its sessions.
+5. A last fallback (Q78), with the line of T-548's step 5; `PODSSH_SERVEO=no`, and the switch of
+   T-548's Decision.
+
+## Prove
+
+```sh
+export CARGO_BUILD_JOBS=4
+cargo test -p podssh-cli --test serveo_road
+```
+
+Against a stand-in written from Serveo's documents (its alias forward is not OpenSSH's), with a
+plain squid as the proxy: a node's alias, a client's hop, 1 MiB each way under the channel; a
+stranger at the alias refused. Live, short, through Serveo (T-548's Decision), the test that software that
+podssh did not write needs. Planted: the alias not derived from the key, and the test of the
+client's alias fails.
+
+# T-565: localhost.run as a last fallback: the relay role behind a tunnel of HTTP made by `ssh -R`
+
+**Source:** the operator's ruling Q78 (2026-11-02).
+**Category:** feature
+**Milestone:** M10
+**Priority:** P3
+**Effort:** M
+**Status:** open
+
+## Problem
+
+localhost.run makes a public HTTPS name for a node with no account: the node asks a remote forward
+of port 80 over SSH, and the service ends HTTPS on 443 and sends plain HTTP down the tunnel. A
+client in a cage reaches the name on 443. podssh's relay role already serves behind a quick tunnel
+with no listener; behind this tunnel it would give the node a road where its egress reaches SSH.
+
+## Premise
+
+- `docs/decisions.md:23` says "Q78: each service is a last fallback, whatever its terms".
+- `docs/carriers.md:833` says "which names no port, so SSH on port 22 (Inferred)", and
+  `docs/carriers.md:833-834` says "a free domain carries HTTP alone, changes after a few hours
+  and has a speed limit"; `docs/carriers.md:835` says "443 ends at its edge, which sends plain
+  HTTP down the tunnel".
+- `crates/podssh-relay/src/serve/behind.rs:1` says "The relay role behind a node's quick tunnel
+  (T-428): the role's routes as"; `crates/podssh-ssh/src/remote.rs:4` says "podssh joins it to
+  the forward's target".
+
+## Approach
+
+1. Measure first, short (T-548's Decision): how the free domain comes back, how long it lasts, and whether the
+   service's edge passes a WebSocket upgrade and a streamed body, which the relay's contract and
+   the split road need.
+2. A module for a tunnel of HTTP made by `ssh -R`, which T-566 and T-567 take too: podssh's SSH
+   client to the service with a remote forward of port 80; each `forwarded-tcpip` channel a
+   visitor's plain HTTP, served by the relay role as T-428's origin serves the quick tunnel's.
+3. The node puts its domain in its record (T-445) and the net's list; a client takes the relay
+   road to `https://DOMAIN` as to a relay of another deployment (Q49), with the node's pinned key.
+4. A last fallback (Q78), with the line of T-548's step 5; `PODSSH_LOCALHOST_RUN=no`, and the
+   switch of T-548's Decision.
+
+## Prove
+
+```sh
+export CARGO_BUILD_JOBS=4
+cargo test -p podssh-cli --test ssh_tunnel_http
+```
+
+Against a stand-in in containers, software that podssh did not write: OpenSSH's sshd that takes
+the remote forward, behind nginx that ends TLS and sends HTTP to it, with a plain squid as the
+proxy: `podssh node NAME TARGET` behind it and `podssh ssh node://NAME 'echo ok'` with the pair's
+road down. Live, short, through localhost.run (T-548's Decision). Planted: the visitor's channel joined to
+TARGET in place of the relay role, and the test of the contract fails.
+
+# T-566: srv.us as a last fallback: an HTTPS name derived from the node's SSH key
+
+**Source:** the operator's ruling Q78 (2026-11-02).
+**Category:** feature
+**Milestone:** M10
+**Priority:** P3
+**Effort:** S
+**Status:** open
+
+## Problem
+
+srv.us makes HTTPS names for a node's remote forward over SSH, with no account, and its README says
+that the names derive from the SSH key, so a node's name could stay the same from run to run, and
+a client that knows the node's key could know its name. podssh does not use it.
+
+## Premise
+
+- `docs/decisions.md:23` says "Q78: each service is a last fallback, whatever its terms".
+- `docs/carriers.md:891` says "derived from your SSH key", with no account and with a key
+  required; `docs/carriers.md:885` says "on port 22 in their own commands" of the SSH tunnel
+  providers of the sweep.
+
+## Approach
+
+1. Read first, in srv.us's source (0BSD): how the name derives from the key, its limits, and
+   whether its edge passes a WebSocket upgrade and a streamed body.
+2. A word of T-565's module: the remote forward that srv.us asks for, with a key of the node's own
+   for that service.
+3. Where the name is a function of the key: the client computes it from the node's pinned key, and
+   needs no meeting point (Inferred, to read); else the node's record (T-445) carries it.
+4. A last fallback (Q78), with the line of T-548's step 5; `PODSSH_SRV_US=no`.
+
+## Prove
+
+```sh
+export CARGO_BUILD_JOBS=4
+cargo test -p podssh-cli --test ssh_tunnel_http -- srv_us
+```
+
+The name computed from a key equals srv.us's own derivation, on vectors from its source; the word
+through T-565's stand-in. Live, short, through srv.us (T-548's Decision). Planted: a wrong derivation, and the
+test of the vectors fails.
+
+## Start condition
+
+T-565 is done: the module for a tunnel of HTTP made by `ssh -R` exists.
+
+# T-567: tunnl.gg as a last fallback, a word of the tunnel of HTTP made by `ssh -R`
+
+**Source:** the operator's ruling Q78 (2026-11-02).
+**Category:** feature
+**Milestone:** M10
+**Priority:** P3
+**Effort:** S
+**Status:** open
+
+## Problem
+
+tunnl.gg gives HTTPS names for a remote forward over SSH on port 22, with no account. It has the
+shape of localhost.run's tunnel; podssh does not use it.
+
+## Premise
+
+- `docs/decisions.md:23` says "Q78: each service is a last fallback, whatever its terms".
+- `docs/carriers.md:885` says "on port 22 in their own commands", and
+  `docs/carriers.md:887` says "gives HTTPS URLs alone".
+
+## Approach
+
+1. Read first, in tunnl.gg's README and source (MIT): its command, its names and their life, its
+   limits, and whether its edge passes a WebSocket upgrade and a streamed body.
+2. A word of T-565's module; the node's record (T-445) carries the name.
+3. A last fallback (Q78), with the line of T-548's step 5; `PODSSH_TUNNL=no`.
+
+## Prove
+
+```sh
+export CARGO_BUILD_JOBS=4
+cargo test -p podssh-cli --test ssh_tunnel_http -- tunnl
+```
+
+The word through T-565's stand-in. Live, short, through tunnl.gg (T-548's Decision). Planted: the word's
+forward of another port, and the test of the stand-in fails.
+
+## Start condition
+
+T-565 is done: the module for a tunnel of HTTP made by `ssh -R` exists.
+
+# T-568: localtunnel as a last fallback: the relay role behind `localtunnel.me`
+
+**Source:** the operator's ruling Q78 (2026-11-02).
+**Category:** feature
+**Milestone:** M10
+**Priority:** P3
+**Effort:** M
+**Status:** open
+
+## Problem
+
+localtunnel's public server gives a node an HTTPS name with no account: the node asks for a tunnel
+over HTTPS, then opens raw TCP connections to a port that the server names, and each carries a
+visitor's HTTP. A client in a cage reaches the name on 443. podssh does not use it.
+
+## Premise
+
+- `docs/decisions.md:23` says "Q78: each service is a last fallback, whatever its terms".
+- `docs/carriers.md:893` says "a port and a URL, then opens raw TCP to that port", and
+  `docs/carriers.md:894` says "request meets a reminder page unless it carries the header".
+- `crates/podssh-relay/src/serve/behind.rs:1` says "The relay role behind a node's quick tunnel
+  (T-428): the role's routes as".
+
+## Approach
+
+1. Read first, in localtunnel's client and server (both MIT): the answer of `?new` (its id, its
+   port, its count of connections, its URL), how the server joins a visitor to a connection,
+   whether it passes a WebSocket upgrade, and the tunnel password of its public server.
+2. The node: the request over HTTPS through `HTTPS_PROXY`, then the connections to the named port,
+   directly where the egress reaches it or by a CONNECT that the proxy allows; each connection
+   served by the relay role, as T-428's origin serves the quick tunnel's.
+3. The client: the relay road to the URL with the header `Bypass-Tunnel-Reminder`, and the node's
+   pinned key; the URL in the node's record (T-445).
+4. A last fallback (Q78), with the line of T-548's step 5; `PODSSH_LOCALTUNNEL=no`.
+
+## Prove
+
+```sh
+export CARGO_BUILD_JOBS=4
+cargo test -p podssh-cli --test localtunnel_road
+```
+
+Against localtunnel's own server (`localtunnel/server`) in a container, with a plain squid:
+`podssh node NAME TARGET` behind it and `podssh ssh node://NAME 'echo ok'` with the pair's road
+down. Live, short, through `localtunnel.me` (T-548's Decision). Planted: the header left out, and the live
+client meets the reminder page (the test names it).
+
+# T-569: bore.pub as a last fallback: a raw TCP port for the node, reached by the client's other roads
+
+**Source:** the operator's ruling Q78 (2026-11-02).
+**Category:** feature
+**Milestone:** M10
+**Priority:** P3
+**Effort:** M
+**Status:** open
+
+## Problem
+
+bore.pub gives a node a public TCP port with no account: the node's control connection is on port
+7835, and the public port is one that the server names. A node whose egress reaches 7835 gets a
+port; a client reaches it directly where its egress allows, or through the forward road's
+forwarders (Q56) where a proxy allows 443 alone. podssh does not use it.
+
+## Premise
+
+- `docs/decisions.md:23` says "Q78: each service is a last fallback, whatever its terms".
+- `docs/carriers.md:840-841` says "JSON messages ended by a zero byte on the control port 7835",
+  and `docs/carriers.md:837-838` says "isn't meant for long-lived connections".
+
+## Approach
+
+1. The node: TCP to the server's port 7835 (directly, or by a CONNECT that the proxy allows),
+   `Hello` with port 0, the server's `Hello` with the public port; each `Connection` taken on a
+   new connection with `Accept`, then the end-to-end channel and the layer above, raw.
+2. The public port in the node's record (T-445); the client dials it directly, or through a
+   forwarder of Q56 that takes the target from its URL, which reaches a port that the client's
+   proxy refuses.
+3. The server's restarts: the node registers again, and the layer moves its sessions.
+4. A last fallback (Q78), with the line of T-548's step 5; `PODSSH_BORE=no`.
+
+## Prove
+
+```sh
+export CARGO_BUILD_JOBS=4
+cargo test -p podssh-relay --features bore --test bore_link
+```
+
+Against bore's own server (`bore server` of its release, checked by its sums) in a container:
+a node registers, a client reaches its port, and 1 MiB goes each way under the channel; a server
+that restarts makes the node register again. Live, short, through bore.pub (T-548's Decision). Planted: the
+`Accept` sent on the control connection, and the test of a second visitor fails.
+
+# T-570: `ssh-j.com` as a last fallback: a public SSH jump and forward by name
+
+**Source:** the operator's ruling Q78 (2026-11-02).
+**Category:** feature
+**Milestone:** M10
+**Priority:** P3
+**Effort:** S
+**Status:** open
+
+## Problem
+
+`ssh-j.com` is a public SSH server for jumps and forwards, with no account, over raw SSH on port
+22: a node forwards a name to itself, and a client jumps to that name. podssh does not use it.
+
+## Premise
+
+- `docs/decisions.md:23` says "Q78: each service is a last fallback, whatever its terms".
+- `docs/carriers.md:883-884` says "a public SSH jump and forwarding server with no account", and
+  `docs/carriers.md:885` says "on port 22 in their own commands".
+- `crates/podssh-cli/src/ssh/jump.rs:96` says "The first hop's tunnel".
+
+## Approach
+
+1. Read first, in its author's pages: the forms of a forward and of a jump, its names, its limits.
+2. The node: podssh's SSH client to it on port 22 (directly, or by a CONNECT that the proxy
+   allows), a remote forward of a name derived from the node's key.
+3. The client: it as the first hop of `node://NAME`'s road, directly or through a forwarder of
+   Q56 where the client's proxy refuses port 22, then the channel to the node's pinned key.
+4. A last fallback (Q78), with the line of T-548's step 5; `PODSSH_SSH_J=no`.
+
+## Prove
+
+```sh
+export CARGO_BUILD_JOBS=4
+cargo test -p podssh-cli --test ssh_j_road
+```
+
+Against a stand-in in a container: OpenSSH's sshd as the jump, with a remote forward of the
+node's; a client's hop through it; 1 MiB each way under the channel. Live, short, through
+`ssh-j.com` (T-548's Decision). Planted: the name not derived from the key, and the test of the client's name
+fails.
+
+# T-571: Syncthing's relays on 443 as a last fallback of the reverse road
+
+**Source:** the operator's ruling Q78 (2026-11-02); T-442's verdict.
+**Category:** feature
+**Milestone:** M10
+**Priority:** P3
+**Effort:** M
+**Status:** open
+
+## Problem
+
+Syncthing's relays are run by volunteers for any client, and their protocol invites other
+programs. A few of the pool listen on 443, each as an IP literal; their session mode is plain
+TCP. T-442 left them out; Q78 makes them a last fallback.
+
+## Premise
+
+- `docs/decisions.md:23` says "Q78: each service is a last fallback, whatever its terms".
+- `docs/carriers.md:770-771` says "87 of the pool's 100 relays use port 22067 and only 8 use 443,
+  each as an IP literal", and `docs/carriers.md:772-773` says "session mode is raw TCP while the
+  protocol mode needs client certificates"; `docs/carriers.md:779` says "session mode cannot
+  start as TLS does".
+- `crates/podssh-ws/src/tls_server.rs:1` says "TLS for a server of podssh's": a certificate of
+  podssh's own, whose digest would be the node's device ID.
+
+## Approach
+
+1. Read relay-v1 again for its messages (join a relay, a session's invitation, a request to
+   connect to a device, join a session) and the pool's list at `relays.syncthing.net/endpoint`.
+2. The node: protocol mode to a relay of the pool on 443 (TLS with a certificate of its own,
+   whose digest is its device ID), waits for an invitation; the client: a request to connect to
+   the node's device ID, then session mode to the address that the invitation names, raw; the
+   end-to-end channel and the layer above.
+3. The relays on 443 alone, each by its IP literal through a CONNECT that names it; the node's
+   relay in its record (T-445), so that both ends use the same one.
+4. A last fallback (Q78), with the line of T-548's step 5; `PODSSH_SYNCTHING_RELAY=no`.
+
+## Prove
+
+```sh
+export CARGO_BUILD_JOBS=4
+cargo test -p podssh-relay --features strelay --test strelay_link
+```
+
+Against Syncthing's own relay server (`strelaysrv` of its release, checked by its sums) in a
+container on port 443: two podssh ends meet, and 1 MiB goes each way under the channel; a request
+for another device ID gets no session. Live, short, through one relay of the pool on 443 (T-548's Decision).
+Planted: the invitation's key ignored, and the join of the session fails.
+
+# T-572: File hosts and paste sites as a carrier that stores and forwards: the research
+
+**Source:** the operator's ruling Q78 (2026-11-02).
+**Category:** research
+**Milestone:** M10
+**Priority:** P3
+**Effort:** M
+**Status:** open
+
+## Problem
+
+File hosts and paste sites take an upload with no account and give it to anyone with its link.
+Each piece of a session could be one upload, sealed by the end-to-end channel, where a proxy
+refuses each other road. Their APIs, limits and terms were not read for that use; Q78 makes them a
+last fallback, whatever their terms.
+
+## Premise
+
+- `docs/decisions.md:23` says "Q78: each service is a last fallback, whatever its terms".
+- `docs/carriers.md:359-360` says "each keeps whole uploads, for hours or days, where anyone with
+  the link reads them".
+- `docs/carriers.md:613-614` says "makes the client ask for numbered pieces": the Piping Server
+  road already carries a session as a series of whole uploads.
+
+## Approach
+
+1. Pick the hosts: those of the sweep and others, 0x0.st among them, that take an upload over
+   HTTPS on 443 with no account and serve it by URL; for each, its API, the size and the life of
+   an upload, whether the uploader names the path, whether it deletes, its limits, its terms, its
+   category, and its operator (Q79: no domain that looks taken over).
+2. The design: each piece of the layer's link one upload, sealed and numbered; how the other end
+   learns each URL where the host names it (a meeting point of T-496 or T-545, or a paste that
+   lists them) or derives it where the uploader names it; the latency, the cost to the host, and
+   the delete after a read.
+3. The verdict in `docs/carriers.md` with its sources, and a feature entry for the carrier with
+   the hosts that pass, the last of the last fallbacks (Q78).
+
+## Prove
+
+```sh
+cargo todo check
+```
+
+The verdict, the hosts and their sources in `docs/carriers.md`; a feature entry filed for the
+carrier where hosts pass.
+
+# T-573: VMess's protocol: the research, for the public proxy nodes that speak it alone
+
+**Source:** the operator's ruling Q78 (2026-11-02).
+**Category:** research
+**Milestone:** M10
+**Priority:** P3
+**Effort:** S
+**Status:** open
+
+## Problem
+
+The public lists of proxy nodes give VLESS, VMess and Trojan nodes. podssh speaks VLESS (T-440)
+and will speak Trojan (T-491); VMess's protocol was not read, so the nodes that speak it alone
+are out of T-574's reach.
+
+## Premise
+
+- `docs/decisions.md:23` says "and the lists of public proxy nodes (VLESS, VMess, Trojan) are a
+  last fallback".
+- `crates/podssh-ws/src/vless/mod.rs:1` says "VLESS (T-440, the operator's ruling Q66): a server
+  that the user runs,".
+
+## Approach
+
+1. Read VMess's protocol in V2Ray's and Xray-core's documents and source: its form with an AEAD
+   header, the older form that servers refuse, its ciphers and keys, its use over a WebSocket and
+   TLS.
+2. The ciphers that it needs against those of podssh-ws (rule 4 of `AGENTS.md`, section 5).
+3. The share of the nodes of the lists that T-574 picks that speak VMess alone, counted on a day.
+4. The verdict in `docs/carriers.md` with its sources: VMess joins T-574's fallback by a feature
+   entry, or stays out with its reason.
+
+## Prove
+
+```sh
+cargo todo check
+```
+
+The verdict and its sources in `docs/carriers.md`; a feature entry filed where VMess passes.
+
+# T-574: The public proxy nodes of aggregator lists (VLESS, Trojan) as a last fallback of the forward road
+
+**Source:** the operator's ruling Q78 (2026-11-02).
+**Category:** feature
+**Milestone:** M10
+**Priority:** P2
+**Effort:** M
+**Status:** open
+
+## Problem
+
+Public lists on GitHub give proxy nodes, VLESS and Trojan among them, over a WebSocket or TLS on
+443, each of which dials the target that a client names. Their operators are anonymous, and a list
+changes within hours. podssh speaks VLESS for a server that the user names; the operator ruled
+that the lists of public proxy nodes are a last fallback.
+
+## Premise
+
+- `docs/decisions.md:23` says "and the lists of public proxy nodes (VLESS, VMess, Trojan) are a
+  last fallback".
+- `docs/carriers.md:345-346` says "operators are anonymous and answer for nothing, and a list
+  changes within hours".
+- `crates/podssh-ws/src/vless/mod.rs:1` says "VLESS (T-440, the operator's ruling Q66): a server
+  that the user runs,".
+
+## Approach
+
+1. The research first: the lists (each with its source and how often it changes), the forms of
+   their lines (`vless://`, `trojan://`), and the share on 443 by name over TLS or a WebSocket.
+2. At run time: the list fetched over HTTPS through `HTTPS_PROXY` into the cache, the lines that
+   podssh speaks parsed (VLESS; Trojan once T-491 is done; VMess as T-573 rules), those on 443
+   kept, each tried in turn once each other road of the forward road failed; the SSH host key
+   check stands.
+3. Q79 at run time, as the Decision says.
+4. A last fallback (Q78): a line on stderr names the node's host and says that the target goes to
+   a third party that nobody vouches for; `PODSSH_PROXY_LISTS=no`, and the switch of T-548's
+   Decision.
+
+## Decision
+
+**Q79 at run time, for the operator to confirm (Q86).** Q79 names each host that podssh uses,
+with its source, and never uses a domain that looks taken over; a list's nodes change within
+hours, and no person screens them. The call: the binary names each list that it fetches (its URL
+and its source), never a node, and the repository publishes no node. At run time a node is kept
+when its address is an IP literal, or when its host, its SNI and its `Host` are one name that is
+under no suffix of a school's, a church's or a government's (`.edu`, `.k12.`, `.ac.`, `.sch.`,
+`.gov`, `.mil`, and those that the research of step 1 adds); a node whose SNI or `Host` is another
+party's name is skipped. Lost: each node as the list gives it, which may front a name that is
+taken over; and no list at all, which Q78 rules out.
+
+## Prove
+
+```sh
+export CARGO_BUILD_JOBS=4
+cargo test -p podssh-cli --test proxy_lists
+```
+
+Against Xray-core (the version of T-440's tests) in a container, serving VLESS over a WebSocket,
+named in a list that a stand-in HTTP server serves: the fallback takes the node and reaches sshd's
+banner; a line that fronts another name is skipped; stderr has the line about the third party.
+Planted: the skip removed, and the test of the fronted line fails.
+
+# T-575: serv00's public Piping Server as the third server of the Piping Server road
+
+**Source:** the operator's ruling Q78 (2026-11-02).
+**Category:** feature
+**Milestone:** M10
+**Priority:** P3
+**Effort:** S
+**Status:** open
+
+## Problem
+
+The sweep found a third public Piping Server, on serv00, whose terms forbid tunnels. Q78 makes it a
+last fallback whatever its terms, after `ppng.io` and T-497's `piping.onrender.com`.
+
+## Premise
+
+- `docs/decisions.md:23` says "Q78: each service is a last fallback, whatever its terms".
+- `docs/carriers.md:899` says "The last runs on serv00, whose terms forbid to", of
+  `p.kokoro.serv00.net`.
+- `crates/podssh-relay/src/piping/server.rs:10` says "pub const DEFAULT_HOST: &str =".
+
+## Approach
+
+1. Measure first, short (T-548's Decision): its version page, whether it is a Piping Server and which, and
+   whether it streams.
+2. The third server of T-497's order, tried once the two before failed, as a last fallback: the
+   line of T-548's step 5 names it.
+3. `PODSSH_PIPING` naming a server keeps that server alone, as now.
+
+## Prove
+
+```sh
+export CARGO_BUILD_JOBS=4
+cargo test -p podssh-relay --test piping
+cargo test -p podssh-relay --features piping --test piping_live -- --ignored
+```
+
+Three of nwtgck's servers on the loopback, the first two stopped: the node and the client meet at
+the third. Live, a short run through it (T-548's Decision). Planted: the third server tried before the second,
+and the test of the order fails.
+
+## Start condition
+
+T-497 is done: the road has public servers in order.
+
+# T-576: HTTP Relay's demo server as a last fallback, in the Piping Server road's pieces
+
+**Source:** the operator's ruling Q78 (2026-11-02); T-442's verdict.
+**Category:** feature
+**Milestone:** M10
+**Priority:** P3
+**Effort:** S
+**Status:** open
+
+## Problem
+
+HTTP Relay meets a POST and a GET on one path, as Piping Server does, but each request is a whole
+message: no stream. The Piping Server road's numbered pieces are whole messages too, so they could
+go through it. Its demo server answered 503 on 2026-11-02. T-442 left it out; Q78 makes it a last
+fallback.
+
+## Premise
+
+- `docs/decisions.md:23` says "Q78: each service is a last fallback, whatever its terms".
+- `docs/carriers.md:796` says "each request is a whole message", and
+  `docs/carriers.md:797` says "answered 503 on 2026-11-02".
+- `docs/carriers.md:613-614` says "makes the client ask for numbered pieces".
+
+## Approach
+
+1. Measure first, short (T-548's Decision): whether the demo server answers its health and one exchange on a
+   link, on three days. Where it never answers, the entry is done with that measurement, and the
+   binary names it not (Q79 names the hosts that podssh uses).
+2. Where it answers: the Piping Server road's numbered pieces over its `/link/` paths, after each
+   Piping Server, as a last fallback with the line of T-548's step 5; `PODSSH_HTTPRELAY=no`.
+
+## Prove
+
+```sh
+export CARGO_BUILD_JOBS=4
+cargo test -p podssh-relay --features piping --test httprelay_pieces
+```
+
+Against HTTP Relay's own server (its last release) in a container: the pieces of a session meet,
+1 MiB each way. Live, a short run (T-548's Decision) where the demo answers. Planted: a piece's number dropped,
+and the test of the order of the pieces fails.
+
+# T-577: Bare servers as a hop to a WebSocket road: the research
+
+**Source:** the operator's ruling Q78 (2026-11-02).
+**Category:** research
+**Milestone:** M10
+**Priority:** P3
+**Effort:** S
+**Status:** open
+
+## Problem
+
+A Bare server fetches a URL for a web proxy in a browser, and opens a WebSocket to a URL that its
+client names. Through that WebSocket, podssh's relay road, a forwarder's or Wisp's could reach a
+host that a proxy's filter refuses by name. The research of the sweep read the protocol for its
+HTTP form alone.
+
+## Premise
+
+- `docs/decisions.md:23` says "Q78: each service is a last fallback, whatever its terms".
+- `docs/carriers.md:351` says "URL, or opens a WebSocket to a", of TompHTTP's Bare protocol.
+
+## Approach
+
+1. Read the WebSocket form of the Bare protocol's versions (TompHTTP's specifications): how a
+   client names the far URL and its headers, whether binary messages pass both ways, and whether
+   a server refuses a far host by a list.
+2. The public Bare servers (openbare's network and others): their operators, their terms, and
+   whether they are run for the use of others; Q79 (no domain that looks taken over).
+3. The verdict in `docs/carriers.md` with its sources, and a feature entry where it passes, a hop
+   of the WebSocket roads tried last (Q78).
+
+## Prove
+
+```sh
+cargo todo check
+```
+
+The verdict and its sources in `docs/carriers.md`; a feature entry filed where a Bare server
+passes.
+
+# T-578: Tor's onion services: a node reached by its onion address, through the Tor road
+
+**Source:** the operator's ruling Q78 (2026-11-02).
+**Category:** feature
+**Milestone:** M10
+**Priority:** P3
+**Effort:** L
+**Status:** open
+
+## Problem
+
+An onion service reaches a node by a key with no account and no listener of the node's, through
+volunteers' relays. It was ruled out because Tor's TLS fails through a proxy that re-terminates
+TLS and WebTunnel needed another program; both changed when the Tor road ran meek_lite and
+WebTunnel in its own process. podssh's Tor road dials out alone.
+
+## Premise
+
+- `docs/decisions.md:23` says "Q78: each service is a last fallback, whatever its terms", and
+  `docs/decisions.md:40` says "Q60: the Tor road's live test may reach the public Tor network".
+- `docs/carriers.md:813-814` says "the purpose fits, but Tor's TLS fails through a proxy that
+  re-terminates TLS", and `docs/carriers.md:818-819` says "Both reasons changed on 2026-11-01:
+  T-385 runs meek_lite and WebTunnel in podssh's own process".
+- `crates/podssh-tor/src/lib.rs:8` says "Bridges (T-385) take their first hops in place of the
+  directory's".
+
+## Approach
+
+1. Read first: Arti's onion service in the version that podssh-tor takes (its crate, its feature
+   of arti-client, its keys and its restricted discovery), and whether its C stays SQLite alone.
+2. The node: an onion service of a key of its own for the service, kept in the cache, whose
+   virtual port the node's road serves, with the end-to-end channel and the layer; restricted
+   discovery for the net's members where the net knows them.
+3. The client: `node://NAME` races a road to the onion address through the Tor road, with
+   bridges where the cage needs them; the address from the node's record (T-445) or the net.
+4. A last fallback (Q78), with a line that names the Tor network; `PODSSH_ONION=no`.
+
+## Decision
+
+**The live run, for the operator to confirm (Q86).** Q60 lets a live test reach the public Tor
+network with one bootstrap and one stream; an onion service also publishes its descriptor and
+keeps circuits to its introduction points. The call: one short run from GitHub Actions and the
+session's own host, a throwaway key for the service, one bootstrap at each end, one stream of
+1 MiB at most each way, and the service stopped at the end, so that its descriptor expires
+unused. Lost: no live run, which leaves the onion road tested on chutney alone; and a node's
+service kept up for a day, which Q60's short runs do not cover.
+
+## Prove
+
+```sh
+export CARGO_BUILD_JOBS=4
+cargo test -p podssh-tor --test onion_service
+```
+
+Against a private Tor network on the loopback (chutney, as T-353's tests run it): a node's onion
+service reached by a client, 1 MiB each way under the channel; a client outside the restricted
+discovery cannot find it. Live, short, on the public Tor network, as the Decision says. Planted:
+the service's key not kept, and the test of a second start, which must keep its address, fails.
+
+# T-579: libp2p's public circuit relays: whether links of 128 KiB and 2 minutes carry a session
+
+**Source:** the operator's ruling Q78 (2026-11-02).
+**Category:** research
+**Milestone:** M10
+**Priority:** P3
+**Effort:** S
+**Status:** open
+
+## Problem
+
+libp2p's circuit relays carry bytes between two peers with no account, but Kubo's defaults bound
+each circuit to 2 minutes and 128 KiB each way, made for hole punching. The resumable layer moves
+a session to a new link, so a session could ride many short circuits; whether public relays answer
+on 443, and at what cost, was not read.
+
+## Premise
+
+- `docs/decisions.md:23` says "Q78: each service is a last fallback, whatever its terms".
+- `docs/carriers.md:805-806` says "Kubo's defaults are 2 minutes and 128 KiB in each direction".
+
+## Approach
+
+1. Read relay v2's protocol (a reservation, a circuit, their limits) and the transports of public
+   nodes that serve it: a WebSocket or TLS on 443 by name.
+2. The cost: a new circuit for each 128 KiB, under the layer, and the load that it puts on a
+   volunteer's node; the Rust crate `libp2p` and its C.
+3. The verdict in `docs/carriers.md` with its sources, and a feature entry where it passes, last
+   (Q78).
+
+## Prove
+
+```sh
+cargo todo check
+```
+
+The verdict and its sources in `docs/carriers.md`; a feature entry filed where libp2p's relays
+pass.
+
+# T-580: Hysteria 2 as a client road over QUIC, where a probe found that UDP passes
+
+**Source:** the operator's ruling Q82 (2026-11-02).
+**Category:** feature
+**Milestone:** M10
+**Priority:** P3
+**Effort:** L
+**Status:** open
+
+## Problem
+
+Where UDP passes, a Hysteria 2 server that the user runs, or that its operator gives the user,
+dials any target over QUIC, and looks like an HTTP/3 server to one who has no password. podssh
+speaks QUIC on the iroh road and the quick tunnel alone. The operator ruled that Hysteria 2, TUIC
+and MASQUE over HTTP/3 become client roads, tried only where a probe found that UDP passes, after
+the roads over TCP.
+
+## Premise
+
+- `docs/decisions.md:19` says "Q82: roads over UDP where UDP passes".
+- `docs/carriers.md:1065-1066` says "a client's first request is an HTTP/3", a `POST /auth` with
+  `Hysteria-Auth`; `docs/carriers.md:1067` says "answers status 233", then each TCP stream opens
+  with a request of ID 0x401 and the address; `docs/carriers.md:1061` says "UDP alone, which the
+  hosts of podssh's design do not have".
+- `crates/podssh-relay/src/quick/probe.rs:1` says "The probe of UDP before QUIC (T-400): one QUIC
+  packet of a reserved", and `crates/podssh-relay/Cargo.toml:38` says "The quick tunnel over
+  QUIC (src/quick/quic.rs, T-301): noq, the QUIC of the": a probe of UDP and a QUIC with no C
+  exist.
+
+## Approach
+
+1. Read first: the form of the lines that Hysteria's clients share (`hysteria2://`, `hy2://`),
+   its obfuscation Salamander, and the server's answers to a wrong password and a refused target.
+2. `--hysteria FILE`, a private file of such lines, as a road of the forward road, as `--vless`
+   is: QUIC on noq with podssh-ws's provider, TLS checked for the server's name or the pin that
+   the line gives, datagrams on; an HTTP/3 client of that one request (QPACK's static table
+   alone), its status 233 checked; then a bidirectional stream for each session, its request and
+   the server's status.
+3. A probe of UDP to the server's port first, as T-400's probe of the edge: one QUIC packet of a
+   reserved version; with no answer, podssh says that UDP does not pass, and takes no QUIC wait.
+4. Salamander where it is small; else refused by its name. `doctor --hysteria FILE`.
+
+## Decision
+
+A server that the user names is tried as asked once the probe found UDP; with no answer to the
+probe, the road ends at once with its words (69). Unasked, a road over UDP comes after the roads
+over TCP (Q82). Lost: QUIC's own handshake as the probe, which waits 5 s for each address.
+
+## Prove
+
+```sh
+export CARGO_BUILD_JOBS=4
+cargo test -p podssh-ws --features quic --test hysteria
+```
+
+Against Hysteria's own server (`HyNetworks/hysteria`, MIT, its release binary checked by its sums)
+on the loopback: sshd's banner through it; a wrong password meets the server's web answer, any
+status but 233, and the road is refused; a stand-in that drops UDP makes the probe say so with no
+wait for QUIC. Planted: the check of the status 233 removed, and the test of the wrong password
+fails.
+
+# T-581: TUIC version 5 as a client road over QUIC, where a probe found that UDP passes
+
+**Source:** the operator's ruling Q82 (2026-11-02).
+**Category:** feature
+**Milestone:** M10
+**Priority:** P3
+**Effort:** M
+**Status:** open
+
+## Problem
+
+TUIC is a proxy protocol over QUIC whose servers (mihomo, sing-box, shoes and others) dial a target
+for a client with a UUID and a password. Where UDP passes, a TUIC server that the user runs is a
+road with no relay. podssh does not speak it (Q82).
+
+## Premise
+
+- `docs/decisions.md:19` says "Q82: roads over UDP where UDP passes".
+- `docs/carriers.md:1072-1073` says "a token of 32 bytes that the TLS keying material exporter
+  derives", and `docs/carriers.md:1075-1076` says "as the server never answers a command";
+  `docs/carriers.md:1078` says "are mihomo, shoes, sing-box and Itsusinn's tuic".
+- `crates/podssh-relay/Cargo.toml:38` says "The quick tunnel over QUIC (src/quick/quic.rs,
+  T-301): noq, the QUIC of the".
+
+## Approach
+
+1. Read first: the form of the lines that TUIC's clients share (`tuic://`), the ALPN and the
+   congestion control that its servers expect, and how each server answers a wrong token and a
+   refused target.
+2. `--tuic FILE`, a private file of such lines, as a road of the forward road: QUIC on noq, TLS
+   checked for the server's name; `Authenticate` on a unidirectional stream with the token of the
+   TLS exporter (the UUID as its label, the password as its context); `Connect` on a
+   bidirectional stream, the session's bytes after it at once; `Heartbeat` datagrams while it
+   runs.
+3. The server never answers a command: a target that it cannot reach is a stream that it closes,
+   and a wrong token a connection that it closes; podssh names each by what it saw.
+4. T-580's probe of UDP first, and T-580's Decision on the order.
+
+## Prove
+
+```sh
+export CARGO_BUILD_JOBS=4
+cargo test -p podssh-ws --features quic --test tuic
+```
+
+Against a TUIC server of another project (sing-box, or `Itsusinn/tuic`) in a container: sshd's
+banner through it; a wrong password closes the connection, and podssh says so. Planted: the
+exporter's label and context swapped, and the test of the banner fails.
+
+# T-582: MASQUE over HTTP/3: WARP's connect-ip on UDP, where a probe found that UDP passes
+
+**Source:** the operator's ruling Q82 (2026-11-02).
+**Category:** feature
+**Milestone:** M10
+**Priority:** P3
+**Effort:** L
+**Status:** open
+
+## Problem
+
+WARP's road speaks MASQUE's connect-ip over HTTP/2 on TCP port 443. WARP's endpoint and the open
+clients of it speak it over HTTP/3 too, with each IP packet in a QUIC datagram, which is faster
+and keeps no TCP inside TCP. The MASQUE servers that others run speak it over HTTP/3 alone. podssh
+does not speak HTTP/3 (Q82).
+
+## Premise
+
+- `docs/decisions.md:19` says "Q82: roads over UDP where UDP passes".
+- `crates/podssh-warp/src/lib.rs:1` says "WARP's MASQUE road over HTTP/2 (T-352): Cloudflare's
+  own"; `docs/carriers.md:85` says "connect-ip over HTTP/2 to 162.159.198.2:443".
+- `docs/carriers.md:96-97` says "The mode with no IP stack works over QUIC only", and
+  `docs/carriers.md:326-327` says "masque-go speaks it over HTTP/3 alone, which needs UDP".
+- `crates/podssh-relay/src/quick/probe.rs:1` says "The probe of UDP before QUIC (T-400): one QUIC
+  packet of a reserved".
+
+## Approach
+
+1. Read first: usque's road over HTTP/3 and the fork of connect-ip-go that it takes (the extended
+   CONNECT with the protocol `connect-ip`, HTTP Datagrams with their context, the capsules), and
+   WARP's endpoint on UDP 443.
+2. podssh-warp over HTTP/3: QUIC on noq with the device's key and the endpoint's pinned key; the
+   extended CONNECT; IP packets in QUIC datagrams; TCP inside on smoltcp, as now.
+3. Where a probe of UDP to the endpoint answers: HTTP/3 after the road over HTTP/2 failed, unasked
+   (Q82), or first where the user asks for it (`warp://` with a word for HTTP/3).
+4. A server of connect-ip that the user runs, over HTTP/3, by its URL: the same code.
+
+## Prove
+
+```sh
+export CARGO_BUILD_JOBS=4
+cargo test -p podssh-warp --features h3 --test connect_ip_h3
+```
+
+Against quic-go's connect-ip-go (MIT), as a proxy of connect-ip over HTTP/3 in a container: sshd's
+banner through it, and 1 MiB each way. Live, short, through WARP's endpoint over UDP from GitHub
+Actions (Q52, Q59). Planted: a datagram's context ID dropped, and the test of the banner fails.

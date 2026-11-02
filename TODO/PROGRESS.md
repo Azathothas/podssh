@@ -147,7 +147,7 @@ and `CARGO_BUILD_JOBS=4`:
 
 ## Counts
 
-`TODO/INDEX.md` holds 512 entries: 96 open, 2 partial, 16 blocked, 398 done.
+`TODO/INDEX.md` holds 546 entries: 130 open, 2 partial, 16 blocked, 398 done.
 
 Open includes parked work. `cargo todo check` verifies this line.
 
@@ -199,8 +199,13 @@ this order:
    (T-495) and a second Piping Server (T-497), T-496 and T-499 parked; then what the triage of the sweep of public relays
    (2026-11-02) filed, as Q74 to Q79 rule: OpenTunnel's link and its road (T-530, T-531, Q76),
    and the manual's word on the public services that podssh uses and the ones it never names
-   (T-533); T-532 is parked. These are features of a tester's report, done after the
-   defects (Q85).
+   (T-533); T-532 is parked; then what the rulings Q74, Q75, Q77, Q78 and Q82 filed (2026-11-02),
+   the P2 ones first: Tailscale's main DERP fleet after tailcat's (T-534), the public Wisp servers
+   made for it (T-535), Pinggy (T-548) and the public proxy nodes (T-574); then the research of the
+   overlay networks (T-536 to T-544), of the trackers (T-546) and of the pub/sub networks (T-547),
+   and Nostr's meeting point (T-545, parked); the other last fallbacks of Q78 (T-549, T-565 to
+   T-573 and T-575 to T-579; T-566, T-567 and T-575 parked); and the roads over UDP (T-580, T-581,
+   T-582). These are features of a tester's report and of the sweep, done after the defects (Q85).
 5. T-446: betas `v1.1.0-beta.N` after batches, and `v1.1.0` at the end.
 
 Between entries: the `none` entries, the highest priority first, but for the testers' entries.
@@ -212,7 +217,8 @@ and relay sweep of 2026-11-02 come first among the `none` entries, the P1 ones b
 (T-462, T-464, T-470, T-476, T-480, T-502, T-503, T-505, T-509, T-560, T-563), then the P3 ones (T-506,
 T-507), each a repair that goes into `v1.0.1`, from `main` with the checks of a release. Their
 features and documents (T-463, T-472 to T-475, T-481 to T-489, T-508, T-510 to T-512, T-530
-to T-533, T-561, T-562, T-564, and the entries that Q74 to Q82 file) follow, by priority, beside M10 (Q85); `v1.0.1`
+to T-533, T-561, T-562, T-564, and T-534 to T-549 and T-565 to T-582, which Q74, Q75, Q77, Q78
+and Q82 filed) follow, by priority, beside M10 (Q85); `v1.0.1`
 goes out unattended once the defects pass the checks of a release (Q87). Overnight a fork of
 policy is decided and listed below for the operator to confirm (Q86). Five drafting agents work on
 the defects (`.claude/worktrees/agent-*`: T-460 to T-464; T-470, T-471, T-476; T-500, T-501, T-503;
@@ -253,6 +259,10 @@ it can start.
 | T-532 | T-180 and T-530 are done: `podssh funnel` and OpenTunnel's link exist |
 | T-496 | T-086 is done: the pairing's exchange exists over a mailbox |
 | T-499 | draft-ietf-httpbis-connect-tcp is an RFC, and a server over HTTP/2 or HTTP/1.1 implements it |
+| T-545 | T-086 is done: the pairing's exchange exists over a mailbox |
+| T-566 | T-565 is done: the module for a tunnel of HTTP made by `ssh -R` exists |
+| T-567 | T-565 is done: the module for a tunnel of HTTP made by `ssh -R` exists |
+| T-575 | T-497 is done: the road has public servers in order |
 | T-250 | Each entry is done, except the relay's, and the gate is green |
 | T-251 | Each entry is done, except the relay's; it runs before the tag of T-250 |
 
@@ -283,7 +293,14 @@ testers' defects go now (Q84). Later the same day: their features go too (Q85), 
 is decided overnight and listed for confirmation (Q86), and `v1.0.1` and the next beta go out
 unattended (Q87).
 
-**For the operator to confirm (Q86):** none yet.
+**For the operator to confirm (Q86):** each a call made overnight, in its entry's `## Decision`.
+
+- T-548: short live tests against the services of Q77 and Q78 (Pinggy and the others), one
+  Decision for all of them; if confirmed, `AGENTS.md`'s list of test targets names them.
+- T-574: the binary names the public lists of proxy nodes but never a node, and skips a node that
+  fronts another party's name or sits under a school's, a church's or a government's suffix.
+- T-578: one short live run of an onion service on the public Tor network, more than Q60's one
+  bootstrap and one stream.
 
 The operator settled Q63 to Q66 on 2026-11-02 (`docs/decisions.md`), after the research of five
 agents on the dependency on the relay's operator: podssh grows into a mesh of its user's own nodes

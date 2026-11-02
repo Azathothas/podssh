@@ -232,7 +232,9 @@ The candidates, ranked:
    A Wisp server that the user runs stays `--forwarder wisp+wss://HOST/`.
    The operator ruled Q75 (2026-11-02): podssh tries the public Wisp
    servers that their operators run for that use, after the other
-   forwarders, and never a domain that looks taken over (Q79).
+   forwarders, and never a domain that looks taken over (Q79). T-535's
+   research picks them, each with its source, before any joins the
+   fallback.
 
    Built by T-438 from the document alone (`crates/podssh-ws/src/wisp/`):
    the word `wisp`, the last of the fallback, and `--forwarder
@@ -306,6 +308,16 @@ terms, with a word to the user that the target goes to a third party that nobody
 gets an entry, research first where its protocol was not read. An item that needs an account,
 carries no stream, or answers only on a port that the host cannot reach stays out for that reason.
 A domain that looks taken over is never used (Q79).
+
+The entries of the items below, filed on 2026-11-02: the public proxy nodes of aggregator lists
+(T-574), with VMess's protocol, which no road of podssh speaks (T-573); Bare servers, as a hop to
+a WebSocket road (T-577); and file hosts and paste sites, as a carrier that stores and forwards
+(T-572). MASQUE over HTTP/3, where UDP passes, is T-582 (Q82). The others stay out: Deno Deploy,
+Fly.io, Cloudflare's TURN, GitHub Codespaces, Microsoft dev tunnels and the MASQUE servers of
+others need an account of the user's; the tailscale road is built; Federation 2's forwarder lets
+in its own web client alone, by its Origin, so podssh would pass for that client to use it, and it
+stays out, a call for the operator to confirm (Q86), as Q74 asks a test that a service lets podssh
+in; and the two Workers want a credential that their owners give.
 
 Ruled out:
 
@@ -456,7 +468,11 @@ The candidates, ranked:
      has no category (Verified [N8]): where a filter blocks anonymizers, the
      main fleet adds no reach (Inferred). The operator ruled Q74
      (2026-11-02): podssh tries the main fleet after tailcat's servers,
-     once a short test shows that they let podssh in.
+     once a short test shows that they let podssh in. T-534 runs that test
+     first, from GitHub Actions and the session's host, then adds the
+     fallback. Headscale's documents read the map at
+     `https://controlplane.tailscale.com/derpmap/default` (read again on
+     2026-11-02 [R10]).
    - Community DERP servers: the sweep found 8 on public lists of
      Headscale's users, and 1 answered; their operators and terms could not
      be read [W1]. podssh names none; `--derp-server` takes a server that the
@@ -688,7 +704,8 @@ services with small messages and rate limits.
   `payment_required`, `restricted_writes`) [W25], so no one set of terms
   holds for the network. The operator ruled Q77 (2026-11-02): Nostr's
   ephemeral events become a meeting point of the pairing, tried unasked
-  after podssh's own.
+  after podssh's own. T-545 carries T-086's messages there, with BIP-340
+  signatures of the pure-Rust `k256`.
 - **ntfy.sh**: 4,096 bytes for each message, 250 a day, and it bans abuse
   [R31]. Read again on 2026-11-02 for T-442; fits as a meeting point of the
   pairing by a short code where a proxy refuses the WebSocket upgrade, which
@@ -735,6 +752,17 @@ terms, with a word to the user that the target goes to a third party that nobody
 gets an entry, research first where its protocol was not read. An item that needs an account,
 carries no stream, or answers only on a port that the host cannot reach stays out for that reason.
 A domain that looks taken over is never used (Q79).
+
+The entries of the items below, filed on 2026-11-02: Syncthing's relays on port 443 (T-571);
+Yggdrasil's peers (T-540) and each other overlay network of the sweep, a research entry each
+(NetBird T-536, Firezone T-537, ZeroTier T-538, Tox T-539, croc T-541, HyperDHT T-542, Cabal
+T-543, Hyphanet T-544); HTTP Relay's demo server (T-576); libp2p's circuit relays (T-579); Tor's
+onion services (T-578); public MQTT brokers, with the pub/sub networks, one research entry
+(T-547); Pinggy (T-548), Serveo (T-549) and localhost.run (T-565); bore.pub (T-569); `srv.us`
+(T-566), `tunnl.gg` (T-567), localtunnel (T-568) and `ssh-j.com` (T-570); a third public Piping
+Server, serv00's (T-575); and the trackers, a research entry (T-546). The others stay out, as each
+needs an account of the user's: chatmail's iroh relays (a mail account, to learn the relay's
+URL), Matrix.org, zrok, and Metered's TURN.
 
 Ruled out:
 
@@ -787,7 +815,9 @@ Ruled out:
   a transport in Go [R39], another program, which rule 3 of
   [AGENTS.md](../AGENTS.md), section 5, forbids. Arti's restricted
   discovery of onion services is stable since 1.7.0 [R40], and 2.7.0
-  repaired defects of onion services [R41].
+  repaired defects of onion services [R41]. Both reasons changed on
+  2026-11-01: T-385 runs meek_lite and WebTunnel in podssh's own process,
+  and both pass a proxy that re-terminates TLS whose CA podssh trusts.
 - **Pinggy, localhost.run and Serveo**: small operators. Corrected on
   2026-11-02: Pinggy's leg need not be raw SSH, as it takes SSH inside TLS
   on ports 443 and 7878, also through an HTTP proxy, and gives TLS tunnels
@@ -798,12 +828,21 @@ Ruled out:
   They stay out for their terms, their limits (Pinggy's free tunnels end at
   60 minutes [R42]; Serveo's anonymous TCP at 10 minutes [N21]) and their
   categories: `a.pinggy.io` is "Security threats" and "Malware",
-  `serveo.net` "Security threats" (Verified [N8]).
+  `serveo.net` "Security threats" (Verified [N8]). localhost.run, read again
+  on 2026-11-02 [X2]: its client is `ssh -R 80:localhost:PORT localhost.run`,
+  which names no port, so SSH on port 22 (Inferred); a free domain carries
+  HTTP alone, changes after a few hours and has a speed limit; HTTPS on
+  443 ends at its edge, which sends plain HTTP down the tunnel.
 - **bore.pub**: one person runs it, on the control port 7835 and random
   ports [R43]. Read on 2026-11-02: it restarts on purpose and "isn't meant
   for long-lived connections" (its issue 170, 2025-06-24), it was down on
   2026-09-08 (issue 202), and a monitor of a third party reported it down
-  for 3 months [N23].
+  for 3 months [N23]. Its protocol, read on 2026-11-02 [X5]: JSON
+  messages ended by a zero byte on the control port 7835; the client's
+  `Hello` names a port, the server's `Hello` gives the public port, a
+  `Connection` with a UUID comes for each visitor, and the client takes it
+  on a new connection with `Accept`; a server with a secret sends a
+  `Challenge` first.
 - **zrok**: accounts at both ends, 5 GB a day on the free plan [R44], and
   no SDK in Rust (Inferred).
 - **OpenRelay, Metered's TURN**: now a Metered account, with 500 MB free
@@ -820,6 +859,10 @@ Ruled out:
   [W1], but they speak Tox's own handshake, not TLS, so a proxy that waits
   for TLS refuses them, and a proxy of names alone each IP literal
   (Inferred, as for Syncthing's above). Yggdrasil's peers: T-442.
+  ZeroTier, read on 2026-11-02 [X6]: ZeroTier Inc. runs a TCP relay that
+  ZeroTier One falls back to where it cannot use UDP, `204.80.128.1/443`
+  in its source, which its document calls slow; a user may run one
+  (pylon's `reflect` mode).
 - **Pub/sub networks** (the sweep [W1]; read on 2026-11-02). Bluesky's
   relays send each record to each consumer, and a record is written to a
   PDS by an account [W18]. ActivityPub's relays take a server's posts and
@@ -844,7 +887,12 @@ Ruled out:
   read `srv.us` as the same kind [W1]; `tunnl.gg` gives HTTPS URLs alone;
   localtunnel's client dials a raw TCP port that its server names [W23]. A
   user whose egress reaches one may name it as a hop of `-J`, with no change
-  of podssh.
+  of podssh. Read on 2026-11-02: `ssh srv.us -R 1:localhost:PORT` gives
+  HTTPS URLs "derived from your SSH key", with no account, and needs a key
+  [X3]; localtunnel's client asks `https://localtunnel.me/?new` for an id,
+  a port and a URL, then opens raw TCP to that port, and a visitor's
+  request meets a reminder page unless it carries the header
+  `Bypass-Tunnel-Reminder` [X4].
 - **Other public Piping Servers**: of the servers that Piping Server's wiki
   names, the sweep found `ppng.io` alone alive, and by a search
   `piping.onrender.com` (T-442's research) and `p.kokoro.serv00.net` [W1].
@@ -1014,7 +1062,20 @@ with TCP and TLS alone.
    passes the iroh road speaks QUIC already. The operator ruled Q82
    (2026-11-02): roads over UDP, Hysteria 2, TUIC and MASQUE over HTTP/3,
    tried only where a probe found that UDP passes, after the roads over
-   TCP.
+   TCP. Read again on 2026-11-02 [S15]: a client's first request is an
+   HTTP/3 `POST /auth` with `Hysteria-Auth`, a server that accepts it
+   answers status 233, and each TCP stream is a bidirectional QUIC stream
+   that opens with a request of ID 0x401 and the address as `host:port`.
+   Entries: T-580 (Hysteria 2), T-581 (TUIC), T-582 (MASQUE over HTTP/3).
+9. **TUIC** (where UDP passes, Q82; read on 2026-11-02 [X1]). Version 5:
+   each command is a version, a type and its data, on QUIC's streams and
+   datagrams. `Authenticate` is a UUID and a token of 32 bytes that the TLS
+   keying material exporter derives, with the UUID as its label and the
+   password as its context; `Connect` names an address on a bidirectional
+   stream, and the bytes follow it at once, as the server never answers a
+   command; UDP goes in `Packet`s; a `Heartbeat` keeps the connection. The
+   repository is GPL-3.0 and has no implementation of its own; its servers
+   are mihomo, shoes, sing-box and Itsusinn's tuic. Entry: T-581.
 
 ## Sources
 
@@ -1300,3 +1361,30 @@ this page: a host's own page is cited from a search index or an archive.
 - [W25] `nostr-protocol/nips:11.md`
 - [W26] https://github.com/klipitkas/tunnl.gg (its README, MIT), read in a
   search result
+
+Read on 2026-11-02 through the services of web.pkgforge.dev (read, forge
+and search), for the entries of the rulings Q74, Q75, Q77, Q78 and Q82
+(T-534 to T-549 and T-565 to T-582). No host of the sweep's lists was
+contacted beyond a public page that those services read: each fact is
+from a project's own repository or document.
+
+- [X1] https://github.com/tuic-protocol/tuic: `tuic-protocol/tuic:SPEC.md`
+  (version `0x05`) and its README (its servers and clients); GPL-3.0, its
+  last push 2025-05-15
+- [X2] https://localhost.run/docs/ (its pages "The Basics", "HTTP
+  Tunnels", "TLS Passthru Tunnels", "CLI Reference", "Forever Free" and
+  "FAQ")
+- [X3] https://github.com/xmit-dev/srv.us (its README; 0BSD)
+- [X4] `localtunnel/localtunnel:lib/Tunnel.js` and its README (MIT);
+  its issues 663 and 407 (the header `Bypass-Tunnel-Reminder`) and 719
+  (the tunnel password), read in search results
+- [X5] `ekzhang/bore:src/shared.rs` (`CONTROL_PORT`, `ClientMessage`,
+  `ServerMessage`)
+- [X6] https://docs.zerotier.com/relay/;
+  `zerotier/ZeroTierOne:service/OneService.cpp` (`ZT_TCP_FALLBACK_RELAY`),
+  read in a search result
+- [X7] The licenses of the servers that the tests of T-568, T-569, T-580,
+  T-581 and T-582 would run, read in GitHub's records:
+  `HyNetworks/hysteria` (MIT; its old name `apernet/hysteria`),
+  `Itsusinn/tuic` (GPL-3.0), `quic-go/connect-ip-go` (MIT),
+  `localtunnel/server` (MIT) and `ekzhang/bore` (MIT)
