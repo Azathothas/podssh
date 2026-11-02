@@ -1,0 +1,11 @@
+--- a/crates/podssh-ssh/src/hop.rs
++++ b/crates/podssh-ssh/src/hop.rs
+@@ -145,7 +145,7 @@
+
+ impl<S> Heard<S> {
+     fn new(inner: S) -> Self {
+-        Heard { inner, heard: Arc::new(AtomicBool::new(false)) }
++        Heard { inner, heard: Arc::new(AtomicBool::new(true)) }
+     }
+
+     /// The mark, which stays readable once the stream went to russh.

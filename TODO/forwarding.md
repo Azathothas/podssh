@@ -458,7 +458,7 @@ command line in `crates/podssh-cli/src/ssh/x11.rs:1-153`, the flags at
   this Xvfb takes an untrusted cookie of `xauth` at all
   (`scripts/interop-x11.sh:37-51`): env when it does not, a failure when it
   does and podssh's `-X` fails.
-- `docs/cli.md:792-815`, a note of the manual and the variable `XAUTHORITY`
+- `docs/cli.md:801-824`, a note of the manual and the variable `XAUTHORITY`
   say what the flags do, and the risk of `-Y`.
 - `cargo test -p podssh-ssh`: 155 passed; `cargo test -p podssh-cli`:
   577 passed, 0 failed, 31 ignored; clippy; rustfmt.
@@ -861,7 +861,7 @@ Read:
 3. A server that refuses the channel (OpenSSH with
    `AllowStreamLocalForwarding no`) gives its reason, and 255, as for TCP.
 4. Change the help of the `-W` row (`crates/podssh-cli/src/flags.rs:139-140`)
-   and `docs/cli.md:107-116` (T-239 refuses a path there until this entry), and
+   and `docs/cli.md:116-125` (T-239 refuses a path there until this entry), and
    add an example to the manual. A local socket
    is the work of T-176 (`pipe`).
 
@@ -916,7 +916,7 @@ path at `crates/podssh-cli/src/ssh/hop.rs:95-98`, and the row of `-W` says so
   OpenSSH's sshd: `stdio.socket` (a Python echo server on a Unix socket of the
   box answers `ping`) and `stdio.socket_refused`. The gate runs them at this
   push.
-- `docs/cli.md:107-116`, a note and an example of the manual.
+- `docs/cli.md:116-125`, a note and an example of the manual.
 - `cargo test -p podssh-ssh`: 155 passed; `cargo test -p podssh-cli`:
   578 passed, 0 failed, 31 ignored; clippy; rustfmt.
 
@@ -1000,7 +1000,7 @@ and `crates/podssh-ssh/src/remote_join.rs:48`, `-W` at
 `crates/podssh-ssh/src/forward.rs:42` and
 `crates/podssh-ssh/src/forward.rs:53`; `~#` at
 `crates/podssh-ssh/src/escape.rs:98` and `crates/podssh-ssh/src/io.rs:260`,
-and the lines of `-v` at `crates/podssh-ssh/src/run.rs:259`.
+and the lines of `-v` at `crates/podssh-ssh/src/run.rs:263`.
 - `cargo test -p podssh-ssh -- forward_counts`: 3 passed: 262144 bytes up and
   1000 down through a forward's copy, counted once, with one connection; one
   name, one forward, across connections and a failure; the listing in the
@@ -1014,7 +1014,7 @@ and the lines of `-v` at `crates/podssh-ssh/src/run.rs:259`.
   -W` through OpenSSH's sshd to a TCP echo server, 262144 bytes each way) and
   `pty.forwards` (`scripts/interop-pty.py`, `~#` in a session with `-R
   0:127.0.0.1:2201`).
-- `docs/cli.md:607-614` and the manual's note of `-t` say what `~#` and `-v`
+- `docs/cli.md:616-623` and the manual's note of `-t` say what `~#` and `-v`
   print.
 - `cargo test -p podssh-ssh`: 158 passed; `cargo test -p podssh-cli`:
   578 passed, 0 failed, 31 ignored; clippy; rustfmt.
@@ -1055,7 +1055,7 @@ sessions (GitHub #17).
 ## Premise
 
 Read: a drop ends the run with 255 (`crates/podssh-ssh/src/run.rs:61-77`,
-`crates/podssh-ssh/src/run.rs:208-250`). `podssh_relay::open` fails over and
+`crates/podssh-ssh/src/run.rs:212-254`). `podssh_relay::open` fails over and
 backs off with jitter, but only before a session exists
 (`crates/podssh-relay/src/open.rs:200-277`,
 `crates/podssh-relay/src/open.rs:379-393`). With `-N`, no command runs, so a
@@ -1236,7 +1236,7 @@ Read: `request` parses the value with `parse_hop`
    refuses `-W 5432`, whose meaning in OpenSSH is not known here.
 3. Keep `HOST:PORT` and `[v6]:PORT`. A `-J` hop keeps its own parse, where a
    host alone means port 22, as in OpenSSH.
-4. Add the rule to `docs/cli.md:107-116`. The help of the `-W` row
+4. Add the rule to `docs/cli.md:116-125`. The help of the `-W` row
    (`crates/podssh-cli/src/flags.rs:139-140`) already says `HOST:PORT`.
 
 ## Prove
@@ -1633,14 +1633,14 @@ server (`remote_socket:host:hostport`), a socket on this host as the target
 (`[bind_address:]port:local_socket`, `remote_socket:local_socket`), and a SOCKS proxy that the
 server listens for and the client serves (`[bind_address:]port`). podssh refuses each by name, so
 a command line of OpenSSH fails with podssh. A server whose host refuses an AF_INET bind and
-allows an AF_UNIX one, as sandbox A does (`docs/STATUS.md:311`), can listen on a socket only; and
+allows an AF_UNIX one, as sandbox A does (`docs/STATUS.md:312`), can listen on a socket only; and
 the SOCKS form gives a server whose egress is closed a way out through the client.
 
 ## Premise
 
 - Read: `crates/podssh-cli/src/ssh/forward.rs` line 43 at `6f6eda2` says "a Unix socket is not
   carried yet", and its line 49 says "the server's SOCKS proxy (-R [bind_address:]port) is not
-  carried yet", for a spec of one or two fields (its lines 45-54); `docs/cli.md:730-731` and
+  carried yet", for a spec of one or two fields (its lines 45-54); `docs/cli.md:739-740` and
   `crates/podssh-cli/src/man/notes_ssh.rs:427-428` say so too. `TODO/forwarding.md:52-54` says
   "until a later step" of both, in T-035.
 - Read: `RemoteForward` holds a port and a `host:host_port` only

@@ -838,7 +838,7 @@ Measured on `3ee70dc`, offline (`PODSSH_OFFLINE=1`, a `.invalid` host):
 5. In the same commit: "Liveness" and "Idle limit" in the manual
    (`crates/podssh-cli/src/man/facts.rs:396-411`,
    `crates/podssh-cli/src/man/facts.rs:431-440`), the note at
-   `crates/podssh-cli/src/man/notes_ssh_more.rs:42`, `docs/relay.md`, `README.md`.
+   `crates/podssh-cli/src/man/notes_ssh_more.rs:47`, `docs/relay.md`, `README.md`.
 
 ## Decision
 

@@ -91,6 +91,15 @@ scripts. The facts about OpenSSH on this page were measured with OpenSSH
   of `-o` and `-i` hold for each hop too; OpenSSH applies its command line
   to the destination only (its jump process gets `-l`, `-p`, `-J`, `-F` and
   `-v`).
+  Each later hop is reached on a `direct-tcpip` channel of the hop before
+  it, whose open has that hop's `ConnectTimeout` (T-462, GitHub #86): a hop
+  that never answers it gives "the hop HOP did not answer the open of a
+  channel to DEST:PORT within N s". A channel that opened, and on which no
+  byte of an SSH server came, names the hop, never a handshake of the
+  destination: "the hop HOP opened its channel to DEST:PORT, and no byte
+  came on it within N s: no SSH server answered behind the hop", or "and it
+  closed before any byte came". `-v` says the open, and each 10 s while
+  nothing came; a refusal keeps the hop's words.
   `ssh host:2222` connects to a host named `host:2222` on port 22. The port
   form of OpenSSH is `ssh://user@host:2222`. podssh also accepts `host:PORT`,
   because its own "did you mean" message gives that form. A host name cannot

@@ -1,7 +1,8 @@
 //! The forwards of the test's server: a direct-tcpip channel (`-W`, `podssh
 //! pipe ssh:`) reaches its HOST:PORT from the server, each way with its
 //! half-close; a direct-streamlocal channel to the socket `/echo` (T-040)
-//! sends back what it gets, and one to another socket is refused.
+//! sends back what it gets, and one to another socket is refused. A hop that
+//! hangs never answers a direct-tcpip open (T-462).
 
 use russh::server::{ChannelOpenHandle, Msg};
 use russh::Channel;
@@ -18,6 +19,15 @@ pub(super) async fn tcpip(channel: Channel<Msg>, host: &str, port: u32, reply: C
         }
         Err(_) => reply.reject(russh::ChannelOpenFailure::ConnectFailed).await,
     }
+}
+
+/// No answer to the open of `channel`, as a hop that hangs (T-462): the
+/// reply is held, as its drop would refuse the open.
+pub(super) fn never(channel: Channel<Msg>, reply: ChannelOpenHandle) {
+    tokio::spawn(async move {
+        tokio::time::sleep(std::time::Duration::from_secs(600)).await;
+        drop((channel, reply));
+    });
 }
 
 /// A direct-streamlocal channel to `socket_path`.

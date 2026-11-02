@@ -39,6 +39,11 @@ pub(super) const MORE: &[&str] = &[
     "A repeated value follows OpenSSH: the first -p and -l, the last -e, -E and -F, and the first value \
      of each -o keyword. A second -J or -W is refused, and so is a second --relay-host, --relay-addr or \
      --ca-file: give several hops, hosts or addresses as one comma list.",
+    "Each later hop of -J is reached on a direct-tcpip channel of the hop before it, whose open has that \
+     hop's ConnectTimeout. A hop that never answers the open, and a channel on which no byte of an SSH \
+     server came within it, or that closed with none, are named so: the hop, and the target of its \
+     channel, never a handshake of the destination. With -v, podssh says the open, and each 10 s while \
+     nothing came.",
     "podssh sends keepalives (ServerAliveInterval), so the relay does not close an idle session. To a \
      node, the resumable layer keeps the link busy and finds a dead one, and SSH sends none unless \
      ServerAliveInterval is set: a keepalive with no answer would end a session that the layer carries \

@@ -373,7 +373,7 @@ sandbox can block what iroh needs, so the fallback is necessary
 6. With `-v`, print the road that won and its time.
 7. Each resume of T-153 runs the same race.
 8. Docs: the rule of the race in `docs/design.md` section 2, and the notes of
-   `ssh` in the manual (`crates/podssh-cli/src/man/notes_ssh.rs:4-462` and `crates/podssh-cli/src/man/notes_ssh_more.rs:4-86`).
+   `ssh` in the manual (`crates/podssh-cli/src/man/notes_ssh.rs:4-462` and `crates/podssh-cli/src/man/notes_ssh_more.rs:4-91`).
 
 ## Decision
 
@@ -669,7 +669,7 @@ not verified here: iroh-ssh checks that a local sshd answers before it accepts
 Recommendation: the client records the host key of sshd under the name that
 the user gives to `podssh ssh` (the roost's name), as OpenSSH does for a host
 with a `ProxyCommand`. `podssh ssh` names a host this way today
-(`crates/podssh-ssh/src/run.rs:365-375`). The alternative, the address of sshd
+(`crates/podssh-ssh/src/run.rs:369-379`). The alternative, the address of sshd
 behind the roost (`127.0.0.1`), lost: each roost would share one name, and one
 key would replace another.
 
@@ -3409,10 +3409,10 @@ allows podssh as a client of Cloudflare (`docs/decisions.md:60`).
   (`crates/podssh-cli/src/ssh/hop.rs:58-60`); `jump_hop` refuses a node only (`:68-74`).
 - Read: a `cf://` destination refuses `-J`:
   `crates/podssh-cli/src/ssh/cloudflare.rs:73` says "a Cloudflare tunnel cannot be reached
-  through a -J hop yet", and `docs/cli.md:129-130` says so too.
+  through a -J hop yet", and `docs/cli.md:138-139` says so too.
 - Read: the road of a run is chosen for the first hop's host
   (`crates/podssh-cli/src/ssh/resolve.rs:303`), and each later hop runs in a `direct-tcpip`
-  channel of the session before it (`crates/podssh-ssh/src/run.rs:160-167`;
+  channel of the session before it (`crates/podssh-ssh/src/run.rs:160-172`;
   `crates/podssh-ssh/src/forward.rs:14-22`).
 - Read: the `cf://` road opens the WebSocket of `cloudflared access tcp` through `HTTPS_PROXY`,
   and a node behind it greets with the resumable layer first

@@ -1,0 +1,9 @@
+# T-462: the channel of a later hop of -J is always marked as heard, so a
+# handshake that runs out with nothing behind the hop gives the old line of
+# the destination's handshake again (GitHub #86); the test of the silent
+# channel, which wants the hop's line, must fail.
+ENTRY=T-462
+GROUP=cli-tests
+EXPECT='test a_silent_channel_behind_the_hop_names_the_hop \.\.\. FAILED'
+RUN='cargo test --locked -p podssh-cli --test jump_hop -- a_silent_channel'
+LIMIT=2400

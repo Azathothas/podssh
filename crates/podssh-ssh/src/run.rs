@@ -164,8 +164,12 @@ where
     let mut handles: Vec<Handle<Client>> = vec![connect(stream, hops[0].0, last == 0, &hops[0].1, log).await?];
     for (i, (hop, hop_opts)) in hops.iter().enumerate().skip(1) {
         let previous = handles.last().expect("one handle per hop so far");
-        let channel = forward::open(previous, &hop.host, hop.port).await.map_err(HopError::Unreachable)?;
-        handles.push(connect(channel, hop, i == last, hop_opts, log).await?);
+        // Within the hop's ConnectTimeout, on a stream that tells whether
+        // anything answered behind the hop (T-462).
+        let reach = crate::hop::Reach::new(display(hops[i - 1].0), hop, hop_opts.connect_timeout);
+        let channel = reach.open(previous, hop, log).await?;
+        let heard = channel.heard();
+        handles.push(reach.login(heard, connect(channel, hop, i == last, hop_opts, log), log).await?);
     }
     Ok(handles)
 }

@@ -100,6 +100,7 @@ impl server::Handler for Far {
         self.evil = user.starts_with("evil-");
         self.containers = user.starts_with("containers-").then(|| user.to_string());
         self.nofwd = pass::refuses_forwarding(user);
+        self.mute = pass::mutes_forwarding(user);
         if let Some(auth) = pass::none(user) {
             return Ok(auth);
         }
@@ -161,6 +162,10 @@ impl server::Handler for Far {
     ) -> Result<(), Self::Error> {
         if self.nofwd {
             reply.reject(russh::ChannelOpenFailure::AdministrativelyProhibited).await;
+            return Ok(());
+        }
+        if self.mute {
+            forward::never(channel, reply);
             return Ok(());
         }
         forward::tcpip(channel, host, port, reply).await;

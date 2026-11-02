@@ -106,9 +106,9 @@ entry keeps its proof in the entry; this page keeps no history (git does).
 
   On 2026-11-02 an agent drafts the testers' defects of SSH, unbuilt, one commit each, on the
   local branch `worktree-agent-a7cc3c512bf98ec67` (its worktree under `.claude/worktrees/`):
-  T-460 (the WIP `818f7fe` of `worktree-agent-t460-ssh`, which can go once it is merged) and
-  T-461, each with its UNVERIFIED in its `## Done`. Before the session ends, the branch goes to GitHub as
-  `draft/worktree-agent-a7cc3c512bf98ec67`.
+  T-460 (the WIP `818f7fe` of `worktree-agent-t460-ssh`, which can go once it is merged), T-461
+  and T-462, each with its UNVERIFIED in its `## Done`. Before the session ends, the branch goes to
+  GitHub as `draft/worktree-agent-a7cc3c512bf98ec67`.
 
   CI: the gate passed at
   `24b9f6e` (run 38331509229), and its step `release` at `cad2885` (478
@@ -153,7 +153,7 @@ and `CARGO_BUILD_JOBS=4`:
 
 ## Counts
 
-`TODO/INDEX.md` holds 546 entries: 128 open, 3 partial, 16 blocked, 399 done.
+`TODO/INDEX.md` holds 546 entries: 127 open, 3 partial, 16 blocked, 400 done.
 
 Open includes parked work. `cargo todo check` verifies this line.
 
@@ -220,7 +220,7 @@ Between entries: the `none` entries, the highest priority first, but for the tes
 defects of the issues of the testers of `v1.0.0` (GitHub #83 to #111) and of the testers' bundle
 and relay sweep of 2026-11-02 come first among the `none` entries, the P1 ones before any other
 (T-460, T-471, T-500, T-501, T-504; and T-465, a test that failed once), then the P2 ones
-(T-462, T-464, T-470, T-476, T-480, T-502, T-503, T-505, T-509, T-560, T-563), then the P3 ones (T-506,
+(T-464, T-470, T-476, T-480, T-502, T-503, T-505, T-509, T-560, T-563), then the P3 ones (T-506,
 T-507), each a repair that goes into `v1.0.1`, from `main` with the checks of a release. Their
 features and documents (T-463, T-472 to T-475, T-481 to T-489, T-508, T-510 to T-512, T-530
 to T-533, T-561, T-562, T-564, and T-534 to T-549 and T-565 to T-582, which Q74, Q75, Q77, Q78

@@ -25,6 +25,8 @@ pub(super) struct Far {
     pub(super) kick: bool,
     /// The user `pass-nofwd-...`: each direct-tcpip channel refused (T-371).
     pub(super) nofwd: bool,
+    /// The user `pass-mute-...`: no answer to a direct-tcpip open (T-462).
+    pub(super) mute: bool,
     /// The channels of `cat > /dev/null`: read to the end, say nothing.
     pub(super) drains: Vec<ChannelId>,
     /// The user `bare-...`: a host with no `cat` and no `head`; and

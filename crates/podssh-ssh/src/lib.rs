@@ -46,6 +46,8 @@ pub mod forward;
 pub mod handler;
 pub mod hostcert;
 pub mod hostkey;
+// The reach of each later hop of `-J` (T-462).
+mod hop;
 pub mod io;
 pub mod keep;
 pub mod key_file;

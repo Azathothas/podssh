@@ -188,3 +188,86 @@ fn a_hop_that_refuses_forwarding_is_named_in_its_words() {
     assert_eq!(code, 255, "{err}");
     assert!(err.to_lowercase().contains("prohibited"), "the hop's own refusal: {err}");
 }
+
+/// A target behind the hop that `answer` serves: each connection that the
+/// hop opens to it, on a thread of its own; its port.
+fn behind_the_hop(answer: fn(TcpStream)) -> u16 {
+    let listener = TcpListener::bind("127.0.0.1:0").unwrap();
+    let port = listener.local_addr().unwrap().port();
+    std::thread::spawn(move || {
+        for stream in listener.incoming().flatten() {
+            std::thread::spawn(move || answer(stream));
+        }
+    });
+    port
+}
+
+/// The args of a run through `hop_user` on 443 to `target`, with
+/// `ConnectTimeout=3` and `-v`.
+fn through(hop_user: &str, target: &str) -> Vec<String> {
+    ["-v", "-o", "ConnectTimeout=3", "-J", &format!("{hop_user}@hop.test:443"), target, "greet"]
+        .iter()
+        .map(|s| s.to_string())
+        .collect()
+}
+
+/// GitHub #86: the hop opens its channel, and nothing behind it answers. The
+/// line names the hop and its channel, not a handshake of the destination,
+/// within the limit and soon after it.
+#[test]
+fn a_silent_channel_behind_the_hop_names_the_hop() {
+    let home = Scratch::new("silent");
+    let hop = hop(&home);
+    let (proxy, _) = proxy_of_443(hop.port);
+    // It reads what comes and never writes, as a port that no SSH server holds.
+    let silent = behind_the_hop(|mut stream| {
+        let mut buf = [0u8; 1024];
+        while matches!(stream.read(&mut buf), Ok(n) if n > 0) {}
+    });
+    let started = std::time::Instant::now();
+    let (code, _, err) = ssh(&home, proxy, &through("pass-hop", &format!("tester@127.0.0.1:{silent}")), b"");
+    assert_eq!(code, 255, "{err}");
+    let opened = format!("the hop hop.test:443 opened a channel to 127.0.0.1:{silent}");
+    assert!(err.contains(&opened), "-v says the open: {err}");
+    let line = format!(
+        "the hop hop.test:443 opened its channel to 127.0.0.1:{silent}, and no byte came on it within 3 s: no SSH \
+         server answered behind the hop"
+    );
+    assert!(err.contains(&line), "{err}");
+    assert!(started.elapsed() < Duration::from_secs(10), "{:?}", started.elapsed());
+}
+
+/// A target behind the hop that closes at once: the hop opened its channel,
+/// and it closed with nothing.
+#[test]
+fn a_channel_that_closes_with_nothing_names_the_hop() {
+    let home = Scratch::new("closed");
+    let hop = hop(&home);
+    let (proxy, _) = proxy_of_443(hop.port);
+    let closed = behind_the_hop(drop);
+    let (code, _, err) = ssh(&home, proxy, &through("pass-hop", &format!("tester@127.0.0.1:{closed}")), b"");
+    assert_eq!(code, 255, "{err}");
+    let line = format!(
+        "the hop hop.test:443 opened its channel to 127.0.0.1:{closed}, and it closed before any byte came: no SSH \
+         server answered behind the hop"
+    );
+    assert!(err.contains(&line), "{err}");
+}
+
+/// A hop that never answers the open of the channel: the open has the
+/// limit of ConnectTimeout, where it had none.
+#[test]
+fn a_hop_that_never_answers_the_open_is_named_after_the_limit() {
+    let home = Scratch::new("mute");
+    let hop = hop(&home);
+    let (proxy, _) = proxy_of_443(hop.port);
+    let target = format!("tester@127.0.0.1:{}", hop.port);
+    let started = std::time::Instant::now();
+    let (code, _, err) = ssh(&home, proxy, &through("pass-mute-hop", &target), b"");
+    assert_eq!(code, 255, "{err}");
+    let line =
+        format!("the hop hop.test:443 did not answer the open of a channel to 127.0.0.1:{} within 3 s", hop.port);
+    assert!(err.contains(&line), "{err}");
+    let took = started.elapsed();
+    assert!(took >= Duration::from_secs(3) && took < Duration::from_secs(10), "{took:?}");
+}
