@@ -247,7 +247,10 @@ GitHub #59, from GitHub Actions only, with short runs (Q56); and Tailscale's
 tailcat DERP fleet, with short runs, from GitHub Actions and the session's
 own host (Q58). Since 2026-11-01: the public Tor network, with short runs
 (one bootstrap and one stream), from GitHub Actions and the session's own
-host (Q60). Use throwaway keys, and
+host (Q60). Since 2026-11-02, with short runs, from GitHub Actions and the
+session's own host: Tailscale's main DERP fleet, to learn whether it lets
+podssh in (Q74); the public Wisp servers that their operators run for that
+use (Q75); and OpenTunnel, `opentunnel.xyz` (Q76). Use throwaway keys, and
 delete them after the test. Keep keys and scratch files in `.work/`, which
 git ignores, or outside the repository. Never print the claim URL of
 railway.new.

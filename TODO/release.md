@@ -907,7 +907,7 @@ A binary that was copied into a sandbox is never updated (Q48): a fix such as ru
 
 - Read: the operator's decision of 2026-10-31: an explicit command that fetches the release for
   its own target through the proxy, checks the signed `SHA256SUMS` and the binary's sum, and
-  replaces itself at once; it never runs on its own (`docs/decisions.md:32`).
+  replaces itself at once; it never runs on its own (`docs/decisions.md:50`).
 - Inferred: the release publishes each binary with its provenance and a signed `SHA256SUMS`
   (T-210, T-211), which a client can check before it runs anything that it fetched.
 
@@ -1094,3 +1094,64 @@ merge the supervisor of T-390 took `keep::fallback` (below).
   file at its path, which it does.
 - Not measured: an update of a release's binary to the next one on each system (T-251's checks of
   a release), and the Windows half of the swap on a runner.
+
+# T-507: `update` to a release with no `--rollback` names `--rollback` as the way back
+
+**Source:** the report of the operator's testing agents on `v1.0.0` (`35a0d19`), 2026-11-02 (T-500's
+Source): its issue 07 (`07-update-rollback-advice.md`) and its ledger's L-37.
+`podssh update --version v1.0.0-beta.3` checks the release's signature, runs the new binary once,
+replaces itself, and ends with "the binary before it is .../podssh.prev: podssh update --rollback
+puts it back"; the binary of beta.3 says "unknown flag '--rollback'" (64). The kept binary is
+there, so nothing is lost. Read at `01e371e`.
+**Category:** defect
+**Milestone:** none
+**Priority:** P3
+**Effort:** S
+**Status:** open
+
+## Problem
+
+After an update to a release older than `--rollback`, the one way back that podssh names cannot be
+run by the binary now in place, and the user must know that a `mv` does it.
+
+## Premise
+
+- Read: the last line names `--rollback` for each release (`crates/podssh-cli/src/update/mod.rs:319-324`),
+  once the new binary took the old one's place (`crates/podssh-cli/src/update/mod.rs:317-318`); an
+  older release is allowed with `--version` (`crates/podssh-cli/src/update/mod.rs:274`).
+- Read: `--rollback` came with T-396, first in `v1.0.0-beta.4`
+  (`docs/releases/v1.0.0-beta.4.md:119-120`); beta.3 has `update` and no `--rollback`
+  (`docs/releases/v1.0.0-beta.3.md:101`), and the betas before it have no `update`.
+- Read: the new binary runs once, with `--version` alone (`crates/podssh-cli/src/update/trial.rs:1-8`),
+  and the update knows its version before the swap.
+- Read: `--rollback` says its own line of the binary that it put back
+  (`crates/podssh-cli/src/update/keep.rs:63`).
+
+## Approach
+
+1. The line always names the way that needs no podssh: "the binary before it is P: mv P EXE puts
+   it back" (on Windows, `move /Y P EXE`), and `podssh update --rollback` beside it only when the
+   version now in place has it: 1.0.0-beta.4 or later, a constant beside the row of `--rollback`.
+2. When it has none: "podssh VERSION has no update --rollback: mv P EXE puts the binary before it
+   back".
+3. The line of `--rollback` names the same `mv`, for a later update to an older release.
+4. The manual of `update` says that the way back is the kept file, and that `--rollback` is in
+   1.0.0-beta.4 and later.
+5. Tests in `crates/podssh-cli/tests/update.rs`, with its stand-in release: an update to a version
+   before beta.4 names `mv` and no `--rollback`; to a later one, both.
+
+## Decision
+
+The version decides, not a run of the new binary's `update --help` (the report's second way): the
+trial runs `--version` alone, so that no other code of a binary runs before it is in place, and the
+first version with `--rollback` is a fact of this repository. Lost: a second run, which would also
+read the help's words as a contract.
+
+## Prove
+
+```sh
+export CARGO_BUILD_JOBS=4
+cargo test -p podssh-cli --test update -- rollback
+```
+
+Planted: the check of the version always true: the test of the update to beta.3 fails.

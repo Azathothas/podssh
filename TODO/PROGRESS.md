@@ -147,7 +147,7 @@ and `CARGO_BUILD_JOBS=4`:
 
 ## Counts
 
-`TODO/INDEX.md` holds 478 entries: 65 open, 3 partial, 17 blocked, 393 done.
+`TODO/INDEX.md` holds 495 entries: 83 open, 3 partial, 16 blocked, 393 done.
 
 Open includes parked work. `cargo todo check` verifies this line.
 
@@ -194,20 +194,24 @@ this order:
 3. Exit, routes, share and funnel: T-431 (merged; its live run, `exit-live.yml`, waits), T-458, T-432, T-433,
    T-180, then T-434, T-435 and T-459.
 4. The public carriers of Q65 (T-451, then T-450 from the runs of `transit-live.yml`; the
-   protocols of Q66 are done), then T-442.
+   protocols of Q66 are done), XHTTP over HTTP/1.1 (T-456, Q67), then T-442; then what the triage of the sweep of public relays
+   (2026-11-02) filed, as Q74 to Q79 rule: OpenTunnel's link and its road (T-530, T-531, Q76),
+   and the manual's word on the public services that podssh uses and the ones it never names
+   (T-533); T-532 is parked. These are features of a tester's report, so they wait for the
+   operator's next go-ahead (Q84).
 5. T-446: betas `v1.1.0-beta.N` after batches, and `v1.1.0` at the end.
 
 Between entries: the `none` entries, the highest priority first, but for the testers' entries.
 
-**The testers' entries wait for the operator's go-ahead** (the operator, 2026-11-02;
-`docs/decisions.md`): those of the issues of the testers of `v1.0.0` (GitHub #83 to #106: T-460
-to T-464, T-470 to T-476 and T-480 to T-489), and those of the testers' bundle and relay sweep of
-2026-11-02 as they are filed. A session settles their open questions with the operator first and
-makes each item a proper entry; it does none of them until the operator says go. Once they may
-go, their defects come first, the P1 ones before any other (T-460, T-461, T-471), then the P2
-defects (T-462, T-464, T-470, T-476, T-480), each a repair that goes into `v1.0.1`, from `main`
-with the checks of a release; then their features by priority. The draft of T-460
-(`draft/worktree-agent-t460-ssh`, unbuilt) waits with them.
+**The testers' defects go now; their features wait** (Q84, the operator, 2026-11-02). The
+defects of the issues of the testers of `v1.0.0` (GitHub #83 to #106) and of the testers' bundle
+and relay sweep of 2026-11-02 come first among the `none` entries, the P1 ones before any other
+(T-460, T-461, T-471, T-500, T-501, T-504; and T-465, a test that failed once), then the P2 ones
+(T-462, T-464, T-470, T-476, T-480, T-502, T-503, T-505, T-509), then the P3 ones (T-506,
+T-507), each a repair that goes into `v1.0.1`, from `main` with the checks of a release. Their
+features and documents (T-463, T-472 to T-475, T-481 to T-489, T-508, T-510 to T-512, T-530
+to T-533, and the entries that Q74 to Q82 file) wait for the operator's next go-ahead. The draft of
+T-460 (`draft/worktree-agent-t460-ssh`, unbuilt) is the first to finish.
 
 **Skip** the entries that the operator holds (status
 `blocked`, Q32):
@@ -241,6 +245,7 @@ it can start.
 | T-161 | T-159 is done: a far end keeps a shell, its ring and its pty after the client leaves |
 | T-303 | T-110 is done: `podssh serve` has a pty (the operator holds it, Q32); and T-161 has a model of the far end's screen |
 | T-304 | T-303 is done: frames of the screen exist |
+| T-532 | T-180 and T-530 are done: `podssh funnel` and OpenTunnel's link exist |
 | T-250 | Each entry is done, except the relay's, and the gate is green |
 | T-251 | Each entry is done, except the relay's; it runs before the tag of T-250 |
 
@@ -253,13 +258,21 @@ that it blocks (status `blocked`) and a recommendation; the session then
 takes the next entry. Nothing is closed as out of scope until the operator
 rules.
 
-**Q67 (open, 2026-11-02): may XHTTP over HTTP/1.1 open a second connection?** T-440's `--vless`
-carries XHTTP on HTTP/2 alone, and refuses a server, or a front end that re-terminates TLS
-(squid's `ssl_bump`), that speaks HTTP/1.1 alone (exit 78): Xray-core's packet-up and stream-up
-over HTTP/1.1 carry the download and the upload on two connections at once, the shape of the
-split road that Q44 allows on that road alone. Recommendation: yes, as another exception of rule 2
-of `AGENTS.md`, tried only after HTTP/2 was refused, to the same server, and named by `doctor
---vless`. It blocks T-456; T-440 is done without it, and its refusal stands until a ruling.
+The operator settled Q67 to Q84 on 2026-11-02 (`docs/decisions.md`), after the triage of the
+testers' reports (GitHub #83 to #106, the bundle, the relay sweep) and of the drafts of M10:
+XHTTP over HTTP/1.1 may open its second connection (Q67, T-456); the login name comes from
+`PODSSH_USER`, the three variables, then the user database (Q68, T-500); the fallback to other
+products' forwarders follows only a failure where no relay host answered about the target (Q69,
+T-509); a file's `ProxyCommand` for each host stays refused with 78 (Q70, T-502); the keywords of
+a restriction apply (Q71, T-505); `scp` and `sftp` take `--timeout` (Q72, T-508); `doctor` runs
+its sections at once, with a flag that limits it (Q73, T-511); Tailscale's main DERP fleet after
+tailcat's (Q74), the public Wisp servers made for it (Q75) and OpenTunnel (Q76) are tried as
+fallbacks; podssh uses the fallbacks that exist, overlay networks and meeting points among them
+(Q77), each service as a last fallback whatever its terms (Q78), and the repository names only
+the hosts that podssh uses (Q79); the operator passes cfrs's defect on (Q80); a node with no iroh
+road keeps its pkarr record at n0's server (Q81); roads over UDP where UDP passes (Q82); the
+experience of an agent and of a human comes first, and the triages' calls stay (Q83); the
+testers' defects go now, their features later (Q84).
 
 The operator settled Q63 to Q66 on 2026-11-02 (`docs/decisions.md`), after the research of five
 agents on the dependency on the relay's operator: podssh grows into a mesh of its user's own nodes

@@ -3011,7 +3011,7 @@ Planted, the member check skipped, and the stranger's test fails.
 **Milestone:** M10
 **Priority:** P3
 **Effort:** M
-**Status:** blocked
+**Status:** open
 
 ## Problem
 
@@ -3034,6 +3034,12 @@ carry the upload and the download on two connections at once: a second connectio
 2. stream-one stays refused on HTTP/1.1: Go's server reads a whole body before it answers.
 3. The line of `doctor --vless` names the second connection when it opens one.
 
+## Decision
+
+The operator ruled Q67 (2026-11-02, `docs/decisions.md`): XHTTP over HTTP/1.1 may open its second
+connection, another exception of rule 2 of `AGENTS.md`, tried only after HTTP/2 was refused, to the
+same server, and named by `doctor --vless`. The Blocker that waited for it is gone.
+
 ## Prove
 
 ```sh
@@ -3044,11 +3050,6 @@ cargo test -p podssh-ws --test vless
 The stand-in of HTTP/1.1 carries a session over packet-up on two connections; `scripts/interop-vless.sh`'s
 server of HTTP/1.1 alone (Xray-core's port with `alpn` `http/1.1`) carries one, where its check of a
 refusal stands today. Planted, the second connection not opened, and the session fails.
-
-## Blocker
-
-The operator: Q67 (`TODO/PROGRESS.md`), whether XHTTP over HTTP/1.1 may open the second connection
-that Q44 allows the split road alone. A change of rule 2 is a policy of `docs/decisions.md`.
 
 # T-457: The relay role dials its targets through the host's `HTTPS_PROXY`
 
@@ -3174,3 +3175,240 @@ cargo test -p podssh-cli --test exit
 
 A node of the quick tunnel's stand-in edge with `--exit` carries a session to a target of the
 range that its `--routes` names, for a member; a private address of no range is refused.
+
+# T-530: OpenTunnel, a blind TLS tunnel with no account, as a carrier of the reverse road
+
+**Source:** the triage of the operator's sweep of public relays (2026-11-02); the operator's
+ruling Q65 ("each other public service that fits these needs").
+**Category:** feature
+**Milestone:** M10
+**Priority:** P2
+**Effort:** L
+**Status:** open
+
+## Problem
+
+Each carrier of the reverse road with no account takes a WebSocket or an HTTP request at both
+ends, and a client behind a proxy that refuses the WebSocket upgrade has Piping Server alone.
+OpenTunnel gives a node, with no account, a public name whose TLS ends at the node itself: the
+node's leg is a WebSocket through `HTTPS_PROXY`, and a client's leg is TLS by name on port 443,
+with no upgrade. podssh does not speak it.
+
+## Premise
+
+- Read on 2026-11-02 (`docs/carriers.md`, the reverse road, item 6; MIT;
+  `anomalyco/opentunnel:docs/protocol.md`, `anomalyco/opentunnel:docs/server.md` and its README):
+  `POST /api/tunnel` with `{}` and no account gives a tunnel `<id>.opentunnel.xyz` and a bearer
+  token, shown once; the client makes a P-256 key and a CSR with `CN=<hostname>` and the names
+  `<hostname>` and `*.<hostname>`, keeps that identity before it binds the CSR
+  (`POST /api/tunnel/:id/certificate`), and polls each 2 s until the certificate is `ready`; the
+  server renews it with the same CSR. The bridge is one WebSocket with the subprotocol
+  `opentunnel` at `/api/tunnel/:id/connect`: JSON in text frames (`attach` with the token and its
+  routes within 10 s; `attached` with `heartbeat_ms` and `idle_timeout_ms`; `open` with `conn`,
+  `peer`, `sni` and `alpn`; `end`, `reset`, `ping`, `pong`, `drain`), and binary frames of a
+  big-endian `u32` connection id and at most 32 KiB; 256 connections a bridge at most. A visitor's
+  connection comes as `open`, then its bytes from the ClientHello on, and the node ends TLS with
+  its own key. The limits: 30 tunnels an hour and 10 at once from one address; 5 new
+  certificates a day for one tunnel.
+- The node's TLS can be podssh-ws's server, which signs P-256 in pure Rust:
+  `crates/podssh-ws/src/tls_server.rs:1` says "TLS for a server of podssh's". The CSR of a name is
+  made by the binary's ACME client, on aws-lc-rs: `crates/podssh-cli/src/acme/certs.rs:91` says
+  "pub fn csr". The crate `opentunnel` takes rustls with ring
+  (`anomalyco/opentunnel:crates/opentunnel/Cargo.toml`), C that rule 4 of `AGENTS.md` (section 5)
+  keeps out of the library crates.
+- Each carrier of the reverse road is a module of `podssh-relay` behind a feature of its own
+  (`crates/podssh-relay/Cargo.toml`, its `[features]`: `derp`, `piping`).
+
+## Approach
+
+1. A module `opentunnel` of `podssh-relay`, behind a feature of that name: the API over
+   podssh-ws's HTTP client through `HTTPS_PROXY`, with the retries of the protocol's table; the
+   bridge over podssh-ws's WebSocket, offering `opentunnel`; its control messages, its frames, the
+   heartbeat and the idle bound; each `open` a stream whose TLS podssh-ws's server ends, with the
+   end-to-end channel and the resumable layer above it, as on each carrier.
+2. A node's tunnel (its id, its name, its token, its key and its CSR) is kept in the cache, mode
+   0600, and written before the bind, as the protocol asks, so that a node keeps one tunnel for
+   its key's life and never spends the 5 certificates of a day. The key and the CSR come from
+   the binary through a trait of the module, so that the library holds no C. The token is never
+   in argv, a line of output or a URL.
+3. A client: TLS by name to `ROUTE.<id>.opentunnel.xyz:443` through `HTTPS_PROXY`, checked
+   against the public roots as each name is, then the channel to the node's pinned key. The
+   route is a random label of the node's (Inferred: the README says that route names never reach
+   the logs of Certificate Transparency, where the tunnel's name does).
+4. The words of each refusal: `bad_token`, `cert_not_ready`, `route_conflict`,
+   `too_many_routes`, a `429` of the API with its `Retry-After`, and a close `1008` or `1009`.
+
+## Prove
+
+```sh
+export CARGO_BUILD_JOBS=4
+cargo test -p podssh-relay --features opentunnel --test opentunnel_link
+```
+
+Against OpenTunnel's own server (`anomalyco/opentunnel:crates/opentunnel-server` at the tag
+v0.6.1, built from its source in a container, with MySQL 8 and its local test CA, `ISSUER=local`), through a plain squid
+as the host's proxy: a node makes a tunnel and attaches, a client reaches it by TLS by name, and
+1 MiB goes each way under the channel; a node started again keeps its tunnel and binds no new
+CSR; a wrong token is named. Planted: the node's tunnel not kept, and the test of the second
+start fails, as it binds a new CSR.
+
+# T-531: The OpenTunnel road in the command line: `podssh node --opentunnel` and `ssh node://`
+
+**Source:** T-530, as T-379 followed T-349; the triage of the operator's sweep of public relays
+(2026-11-02).
+**Category:** feature
+**Milestone:** M10
+**Priority:** P2
+**Effort:** M
+**Status:** open
+
+## Problem
+
+T-530 builds OpenTunnel's link in `podssh-relay`; no command uses it.
+
+## Premise
+
+- `crates/podssh-cli/src/ssh/roads.rs:1` says "over more roads than the pair's": the race of
+  `podssh ssh node://NAME`; each carrier's node has a file of its own (`crates/podssh-cli/src/node_piping.rs`,
+  `crates/podssh-cli/src/node_transit.rs`, `crates/podssh-cli/src/node_derp.rs`).
+- A DERP server lets any key send, so the DERP road needs `--allow` and the end-to-end channel
+  (T-379's Decision); a tunnel's name is in the logs of Certificate Transparency, so anyone may
+  open a connection to it (`docs/carriers.md`, the reverse road, item 6).
+- The operator ruled Q76 (2026-11-02, `docs/decisions.md`): podssh tries OpenTunnel unasked, for a
+  node with no other road, one tunnel for each node, off with `PODSSH_OPENTUNNEL=no`, with short
+  live tests from GitHub Actions and the session's own host.
+
+## Approach
+
+1. `podssh node NAME TARGET --opentunnel`: the road alone, or beside the pair's road with one
+   keeper of sessions; it needs `--allow`, or the net (T-452's door), and the end-to-end channel;
+   it says its name on stderr, and its record names the road once T-445 is done.
+2. `podssh ssh node://NAME --opentunnel-name HOST`, and a name kept under NAME as a DERP ticket is
+   kept: a road of the race, 250 ms after the road before it.
+3. As the operator answers question 3: the unasked fallback of Q65, for a node with no other road
+   and for a client once each road before it failed, with `PODSSH_OPENTUNNEL=no` to turn it off;
+   or the road when the user asks for it alone.
+4. `doctor` says whether the API's host answers, and makes no tunnel. The manual, `docs/mesh.md`,
+   `docs/carriers.md`, `docs/reverse.md`, `SECURITY.md` (what the service sees: the SNI, the
+   times and the sizes, never the plaintext) and `docs/STATUS.md`.
+
+## Prove
+
+```sh
+export CARGO_BUILD_JOBS=4
+cargo test -p podssh-cli --test opentunnel_road
+```
+
+Against T-530's server in containers, with a stand-in proxy on the client's side that refuses each
+upgrade: `podssh node NAME TARGET --opentunnel` and `podssh ssh node://NAME 'echo ok'`, the
+pair's road down and the race on OpenTunnel. Live, short, from GitHub Actions through
+`opentunnel.xyz`, if the operator allows it (question 3). Planted: the road started with no
+`--allow`, and the test of its refusal fails.
+
+# T-532: `podssh funnel` through OpenTunnel, with TLS that ends at the node
+
+**Source:** the triage of the operator's sweep of public relays (2026-11-02); T-180.
+**Category:** feature
+**Milestone:** M10
+**Priority:** P3
+**Effort:** M
+**Status:** open
+
+## Problem
+
+T-180's `podssh funnel` publishes through the quick tunnel: TLS ends at Cloudflare's edge, and a
+node in a cage reaches the edge inside WARP's tunnel alone. OpenTunnel publishes a name whose TLS
+ends at the node, over a WebSocket through `HTTPS_PROXY`, so a funnel could leave a cage of an
+HTTPS proxy with no WARP, and no third party reads its traffic.
+
+## Premise
+
+- T-180's Correction: its funnel prints "TLS ends at Cloudflare's edge; Cloudflare can read this
+  traffic.", and a node in a cage reaches the edge inside WARP's tunnel (T-374).
+- `docs/carriers.md`, the reverse road, item 6: a visitor's bytes come over the bridge from the
+  ClientHello on; the service reads the SNI alone; a route `@` is the tunnel's own name.
+
+## Approach
+
+1. `podssh funnel TARGET --opentunnel`: T-530's node, whose route `@` ends TLS and serves each
+   request to TARGET as T-180's route does (HTTP/1.1 heads, the bodies as bytes, an upgrade
+   passed through).
+2. The URL `https://<id>.opentunnel.xyz/` and one line: "TLS ends at this host; OpenTunnel sees
+   the names, the times and the sizes." No `--allow`: the URL is public.
+3. ALPN `http/1.1`, and `h2` only where podssh-ws's server serves it.
+4. As Q76 rules, a funnel that the quick tunnel cannot carry tries this road unasked.
+
+## Prove
+
+```sh
+export CARGO_BUILD_JOBS=4
+cargo test -p podssh-cli --test funnel_opentunnel
+```
+
+Against T-530's server in containers: curl, software that podssh did not write, GETs and POSTs
+through the tunnel to Python's `http.server`; a WebSocket echo answers an upgrade; stderr has the
+line about TLS. Planted: TLS ended with a certificate of another name, and curl refuses it, so
+the test fails.
+
+## Start condition
+
+T-180 and T-530 are done: `podssh funnel` and OpenTunnel's link exist.
+
+# T-533: The manual says which public services podssh tries last, and which it never names
+
+**Source:** the triage of the operator's sweep of public relays (2026-11-02).
+**Category:** docs
+**Milestone:** M10
+**Priority:** P3
+**Effort:** S
+**Status:** open
+
+## Problem
+
+The sweep offers, as changes with no code, Tailscale's main DERP fleet through `--derp-server` and
+32 public Wisp servers through `--forwarder`. The manual names the servers that podssh tries, but
+says nothing of those that it never names, nor why, so a user who reads such a list has no word
+of podssh's.
+
+## Premise
+
+- `crates/podssh-cli/src/man/notes_pair.rs:139` says "Tailscale's free servers for tailcat", and
+  `crates/podssh-cli/src/man/notes_ssh.rs:215` says "Four words name public forwarders".
+- `docs/carriers.md` (the forward road, item 7 and its "Ruled out"; the reverse road, item 2):
+  Tailscale's main fleet serves Tailscale's clients; the public Wisp lists come from web proxies
+  that serve a network's users against that network's own filter, with no operator, terms or
+  limits; the public proxy nodes of aggregator lists have no operator who answers for them; file
+  hosts forbid automated uploads.
+- `crates/podssh-cli/src/man/notes_ssh.rs` has 456 of its 500 lines.
+
+## Approach
+
+1. The notes of `--derp-server`: after tailcat's servers, podssh tries Tailscale's main fleet
+   (Q74), which serves Tailscale's clients under Tailscale's terms, and says so.
+2. The notes of `--forwarder`: the public Wisp servers that podssh tries after the demo server
+   (Q75), and the last fallbacks of Q78, each with the words that tell the user that the target
+   goes to a third party that nobody vouches for.
+3. One sentence: podssh never uses or names a domain that looks taken over (a school's, a
+   church's, a shop's, or a name made to look like one), Q79.
+4. A file of notes of its own where a file would pass 500 lines, as T-438 made
+   `crates/podssh-cli/src/man/notes_ssh_more.rs`.
+
+## Prove
+
+```sh
+export CARGO_BUILD_JOBS=4
+cargo test -p podssh-cli --test man_page
+```
+
+The pages hold the sentences; `man_json` and `man_flag_parity` pass. Planted: one sentence
+removed, and the test that names it fails.
+
+## Correction
+
+The operator ruled Q74, Q75, Q77, Q78 and Q79 on 2026-11-02 (`docs/decisions.md`), against the
+triage's recommendation that podssh name none of these: Tailscale's main DERP fleet is tried after
+tailcat's, once a short test shows that it lets podssh in (Q74); the public Wisp servers that their
+operators run for that use are fallbacks (Q75); each public service is a last fallback whatever
+its terms, the lists of public proxy nodes among them (Q78); and a domain that looks taken over is
+never used and never published (Q79). The entry now says what podssh tries last, and why, and
+which hosts it never names; the roads themselves are the entries that those rulings file.

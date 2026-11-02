@@ -204,6 +204,36 @@ The candidates, ranked:
    rule out a default: by Q65 podssh may try it when the user did not ask,
    after the three forwarders of Q56, never first.
 
+   **The other public Wisp servers** (the sweep of 2026-11-02 [W1]). The
+   sweep took 76 more Wisp servers from the server lists of web proxies on
+   GitHub, and 53 of them answered a bare upgrade with `101`. podssh names
+   none of them, tries none unasked, and does not use one as a test target:
+   - The lists come from projects that serve a network's users against that
+     network's own filter: one of them holds a table of the browser
+     extensions of school filters (Securly, GoGuardian, LANSchool, Linewize,
+     Blocksi), to detect them [W2]. 7 of the 16 purpose-built hosts that
+     were looked up are "Anonymizer" in a filter list (Verified [N8]).
+   - No host names an operator, terms or limits. The sweep flagged 54 of
+     the 76 as domains of other parties (schools, churches, clubs,
+     publishers, hotels, small businesses), or names made to pass for such,
+     and 32 of them took the upgrade; one is a look-alike of an education
+     site's name. Inferred [W1]: hosts used without their owners' knowledge,
+     or names that impersonate. podssh keeps no list of them either: a
+     list goes stale, and a server that a user names stays the user's.
+   - Mercury Workshop's second host, `anura.pro`, is the Wisp server of the
+     demo of its own web proxy, Scramjet [W3], and is "Anonymizer"
+     (Verified [N8]); its operator offers `wisp.mercurywork.shop` alone, for
+     demo and testing [N2].
+   - `relay.widgetry.org`, which the sweep took for a Wisp server, is the
+     wsproxy of v86's own example: it relays Ethernet frames for the guests
+     of that emulator, which needs an IP stack, and v86's document says that
+     public proxies give limited bandwidth [W4].
+
+   A Wisp server that the user runs stays `--forwarder wisp+wss://HOST/`.
+   The operator ruled Q75 (2026-11-02): podssh tries the public Wisp
+   servers that their operators run for that use, after the other
+   forwarders, and never a domain that looks taken over (Q79).
+
    Built by T-438 from the document alone (`crates/podssh-ws/src/wisp/`):
    the word `wisp`, the last of the fallback, and `--forwarder
    wisp+wss://HOST/PATH/` for a server that the user runs. Read on
@@ -232,6 +262,14 @@ The candidates, ranked:
    port 443 carries no Shadowsocks (Inferred, as for SSH, T-317), and a
    public key has no operator who answers for it, so podssh names none.
 
+Since the operator's rulings Q77 and Q78 (2026-11-02, [decisions.md](decisions.md)), an item
+below that needs no account of the user's and carries bytes is no longer out: it is a last
+fallback, tried after podssh's own roads and after the services that allow the use, whatever its
+terms, with a word to the user that the target goes to a third party that nobody vouches for; each
+gets an entry, research first where its protocol was not read. An item that needs an account,
+carries no stream, or answers only on a port that the host cannot reach stays out for that reason.
+A domain that looks taken over is never used (Q79).
+
 Ruled out:
 
 - **Deno Deploy**: its policy forbids a "Forward proxy" and a "VPN" [F11].
@@ -248,10 +286,42 @@ Ruled out:
   reaches DERP over a WebSocket through the proxy
   ([tailscale.md](tailscale.md)), so a node of a tailnet is a jump host of
   class B today.
+- **Public proxy nodes of aggregator lists** (VLESS, VMess and Trojan over a
+  WebSocket on 443; the sweep of 2026-11-02 left them out [W1]): their
+  operators are anonymous and answer for nothing, and a list changes within
+  hours, as with the public Shadowsocks keys of item 8. podssh names none
+  and fetches no such list; `--vless` (T-440) is for a server that the user
+  runs, or that its operator gives the user.
+- **Bare servers** (read on 2026-11-02 for the sweep [W5]): TompHTTP's Bare
+  protocol, which openbare's nodes speak, fetches an `http:` or `https:`
+  URL, or opens a WebSocket to a `ws:` URL, for web proxies that run in a
+  browser; it carries no TCP stream. openbare calls itself "A
+  decentralized, censorship-resistant web proxy network".
+- **Other products' forwarders of the sweep** [W1]: Federation 2's, a free
+  MUD's, takes `host` and `port` in its query as Mudlet's Worker does, and
+  checks the Origin of its own web client; podssh never sends another
+  client's Origin. Two Workers that want a bearer token and a ticket for
+  each session need a credential that their owners give.
+- **File hosts and paste sites** (29 in the sweep [W1]): each keeps whole
+  uploads, for hours or days, where anyone with the link reads them; a
+  session over them is a stream of uploads, which their rules forbid
+  (0x0.st: "NOT a platform for: ... other automated mass uploads" [W6]).
+  The sweep links them to GitHub #55, which is the split road between two
+  podssh ends through podssh's own relay role (T-319), not a file host.
 
 What follows: T-347 is open; T-351 waits for Q51, and T-352 and T-353 for
 Q52 ([TODO/PROGRESS.md](../TODO/PROGRESS.md), "Questions for the
 operator").
+
+The pool of the default relay, read again by the sweep of 2026-11-02
+[W1]: `/relays.json` held 37 hosts, and 36 answered `/health`. Each is a
+host of the same Worker under `ssh.relay.ajam.dev`; a name's `aws:`,
+`gcp:` or `azure:` is the Worker's placement near that cloud's region, not
+another provider (`crates/podssh-probe/tests/spec/relay-spec-2026-10-03-r2.txt:30-66`;
+Inferred from that document's word "placement"). So the pool spreads the
+egress, and the dependence on Cloudflare and on one domain stands. podssh
+tries the default host and three hosts of the pool when the user names no
+list ([relay.md](relay.md), "How podssh selects relay hosts").
 
 ## The reverse road
 
@@ -295,6 +365,10 @@ The candidates, ranked:
      Inferred: a proxy or a resolver that blocks "DNS Tunneling" refuses
      the road that podssh tries first, and the record of Q57, so a second
      and a third provider with clean names matter.
+   - The sweep of 2026-11-02 named three relays under `relay.iroh.network.`
+     [W1], names of n0's older documents (Inferred): n0's page names no
+     host on 2026-11-02 [N5], and podssh's table is that of iroh 1.4.1's
+     `defaults::prod` (`crates/podssh-iroh/src/relays.rs:17-22`).
 2. **Tailscale's DERP relays for tailcat** (`tc301a.ipn.dev` to
    `tc304a.ipn.dev`).
    - Who, and the account: Tailscale, "our free rate-limited DERP relays"
@@ -322,6 +396,29 @@ The candidates, ranked:
      a server may refuse [R48]. tailcat refuses its own test of throughput
      through the fleet [R5], so no throughput run goes there. The command
      line and the race follow (T-379).
+   - Tailscale's main fleet (read on 2026-11-02 for the sweep, which counted
+     88 servers in 28 regions in Tailscale's map, 85 of which answered `/`
+     [W1]). A `200` on `/` says nothing of who may relay: derper admits each
+     key unless it runs with `--verify-clients` or `--verify-client-url`
+     [W7], and whether Tailscale's servers do was not read. Each server says
+     of itself that it relays "end-to-end encrypted traffic for Tailscale
+     clients" [W8]; Tailscale's documents say "DERP servers only serve as the
+     connective tissue between devices in your tailnet" [W9]; its terms
+     (last updated 2026-08-25) bind each one "accessing or using the
+     Services" to use them "solely in accordance with the Agreement, our
+     Documentation" (section 2.5), and forbid to "circumvent any security
+     measure" (section 2.3) [W10]. Tailscale made tailcat's servers for
+     clients with no account, and "may revoke access to them at any time,
+     for any reason" [W11]. `tailscale.com`, and so each of its DERP
+     servers, is "Anonymizer" in two filter lists, where `tc301a.ipn.dev`
+     has no category (Verified [N8]): where a filter blocks anonymizers, the
+     main fleet adds no reach (Inferred). The operator ruled Q74
+     (2026-11-02): podssh tries the main fleet after tailcat's servers,
+     once a short test shows that they let podssh in.
+   - Community DERP servers: the sweep found 8 on public lists of
+     Headscale's users, and 1 answered; their operators and terms could not
+     be read [W1]. podssh names none; `--derp-server` takes a server that the
+     user trusts (T-379).
 3. **Least Authority's magic-wormhole transit relay** (read on 2026-11-02;
    T-436).
    - Who, and the account: Least Authority, the servers behind its Winden
@@ -449,29 +546,71 @@ The candidates, ranked:
      relay refused on the way, and a client once its pair's road found the
      same (Q65); `PODSSH_PIPING` names another server, or `no`
      ([reverse.md](reverse.md), "The Piping Server road").
-6. **Microsoft Dev Tunnels**: a preview, for "adhoc testing and
+6. **OpenTunnel, `opentunnel.xyz`** (read on 2026-11-02 for the sweep;
+   T-530, T-531).
+   - Who, and the account: Anomaly (`anomalyco` on GitHub) runs it on
+     Fly.io; its server and its two clients are MIT, and its release v0.6.1
+     (2026-10-23) has a `SHA256SUMS` [W12]. "Creating a tunnel needs no
+     account" [W13]. No terms were found (its repository's code and a
+     search, 2026-11-02).
+   - The protocol: `POST /api/tunnel` gives a tunnel, `<id>.opentunnel.xyz`,
+     and a bearer token; the client makes a P-256 key and a CSR for the name
+     and `*.<name>`, and the service gets the certificate from ZeroSSL by
+     DNS-01 and renews it, so the key never leaves the client. The client
+     keeps a bridge: one WebSocket with the subprotocol `opentunnel`, JSON
+     control messages in its text frames, and each visitor's bytes in binary
+     frames of a `u32` connection id and 32 KiB at most, 256 connections a
+     bridge at most, with a heartbeat and an idle bound that the server
+     names [W13]. The server reads a visitor's ClientHello on 443 for its
+     SNI alone, and sends the connection, still encrypted, over the bridge:
+     TLS ends at the client, so the service never sees plaintext [W12].
+   - Through a proxy: the bridge and the API go through `HTTPS_PROXY`, and
+     through a proxy that re-terminates TLS whose CA is trusted [W12], so a
+     node's leg passes where a WebSocket passes. A client's leg is TLS by
+     name to `ROUTE.<id>.opentunnel.xyz:443`, with no upgrade: it passes a
+     proxy that refuses the upgrade, and one that re-terminates TLS, as the
+     node's certificate is a public one (Inferred). `opentunnel.xyz` has no
+     category (Verified [N8]).
+   - Limits: 30 tunnels an hour and 10 at once from one address, and 5 new
+     certificates a day for one tunnel [W13]; no limit of bytes or of time
+     was found. A tunnel's name goes into the logs of Certificate
+     Transparency, and its routes' names do not, under the wildcard [W12]:
+     anyone may connect to the name, so the end-to-end channel's allowlist
+     is the node's door, as on DERP.
+   - Rust and C: the crate `opentunnel` takes rustls with ring, which holds
+     C [W14]; podssh would speak the protocol itself on podssh-ws, with a CSR
+     of the binary's ACME client (`crates/podssh-cli/src/acme/certs.rs:91`)
+     and the TLS of podssh-ws's server. The tests: its server from its
+     source, with MySQL 8 and its local test CA, in containers [W12].
+     Effort: L for the link, M for the command line.
+   - Risks: one company, and a service of 2026 (its repository dates from
+     2026-03-30 [W12]); one security vendor calls the name "Suspicious",
+     with one detection of a blacklist [W15]. The operator ruled Q76
+     (2026-11-02): a node with no other road tries it unasked, one tunnel
+     for each node, off with `PODSSH_OPENTUNNEL=no`.
+7. **Microsoft Dev Tunnels**: a preview, for "adhoc testing and
    development" [R11]. The host logs in with Microsoft or GitHub; a client
    can be anonymous, or use a token of 24 h [R12]. The host opens a
    `tunnel-relay-host` WebSocket, and TLS ends at Microsoft's ingress [R13]
    [R12]. 5 GB for each user a month, 20 MB/s, 10 tunnels [R14]. Its SDK
    needs openssl and russh 0.37 [R15], and its outer SSH has a "none" key
    exchange [R13]. Effort: L; a person must log in once.
-7. **ngrok**: an authtoken. The agent dials `connect.ngrok-agent.com:443`,
+8. **ngrok**: an authtoken. The agent dials `connect.ngrok-agent.com:443`,
    trusts ngrok's own root only unless `connect_cas: host` is set, and takes
    `proxy_url` [R16]. The free plan gives 1 GB a month, and TCP endpoints
    need a card [R17]; the `ngrok` crate 0.19 uses rustls [R18]. Effort: M;
    the risk is the quota.
-8. **Cloudflare's Realtime TURN**: credentials that an account mints, valid
+9. **Cloudflare's Realtime TURN**: credentials that an account mints, valid
    for 48 h at most [R19]; TURN over TLS on 443/tcp [R20], which is not
    HTTP, so a proxy that re-terminates TLS breaks it (Inferred); UDP only,
    with no RFC 6062 [R19]; drops past 50 to 100 Mbps for one allocation
    [R20]. It needs a TURN client, and QUIC or an adapter on top. Effort: L.
-9. **Azure Relay Hybrid Connections, and AWS IoT Secure Tunneling**: made
-   for access that goes out only; a cloud account; a WebSocket at both ends
-   [R21] [R22]. Azure charges each listener, with 5 GB a month included
-   [R23]; AWS gives 800 kbps and 12 h, at $1 for each tunnel [R24] [R25].
-   Effort: S to M; the risks are the cost, and AWS is too slow for copies.
-10. **An iroh relay or a pair relay in the user's own Cloudflare account**
+10. **Azure Relay Hybrid Connections, and AWS IoT Secure Tunneling**: made
+    for access that goes out only; a cloud account; a WebSocket at both ends
+    [R21] [R22]. Azure charges each listener, with 5 GB a month included
+    [R23]; AWS gives 800 kbps and 12 h, at $1 for each tunnel [R24] [R25].
+    Effort: S to M; the risks are the cost, and AWS is too slow for copies.
+11. **An iroh relay or a pair relay in the user's own Cloudflare account**
     (Workers and Durable Objects): the free plan's 100,000 requests a day,
     with incoming WebSocket messages counted 20 to 1 [R26]. The Worker
     lives outside podssh; since Q63 (2026-11-02) a pair relay of the
@@ -489,6 +628,13 @@ services with small messages and rate limits.
   [R28]; nos.lol, damus.io and Primal take messages of 131,072 to 1,000,000
   bytes (their NIP-11 documents). The `nostr` crate needs the C library
   `secp256k1` [R29]; the pure-Rust `k256` has BIP-340 signatures [R30].
+  The sweep of 2026-11-02 listed about 50 public relays, 4 of which took a
+  bare upgrade [W1]. Each relay has its own operator and its own policy,
+  which its NIP-11 document gives (`terms_of_service`, `auth_required`,
+  `payment_required`, `restricted_writes`) [W25], so no one set of terms
+  holds for the network. The operator ruled Q77 (2026-11-02): Nostr's
+  ephemeral events become a meeting point of the pairing, tried unasked
+  after podssh's own.
 - **ntfy.sh**: 4,096 bytes for each message, 250 a day, and it bans abuse
   [R31].
 - **The public magic-wormhole mailboxes** (read on 2026-11-02; T-086):
@@ -501,6 +647,14 @@ services with small messages and rate limits.
   or they can run their own", and its source says of the first: "If it
   gets too expensive to run, I'll shut it down" [N18]. The two ends run
   SPAKE2 over it, keyed by a short code, so it learns nothing of the code.
+
+Since the operator's rulings Q77 and Q78 (2026-11-02, [decisions.md](decisions.md)), an item
+below that needs no account of the user's and carries bytes is no longer out: it is a last
+fallback, tried after podssh's own roads and after the services that allow the use, whatever its
+terms, with a word to the user that the target goes to a third party that nobody vouches for; each
+gets an entry, research first where its protocol was not read. An item that needs an account,
+carries no stream, or answers only on a port that the host cannot reach stays out for that reason.
+A domain that looks taken over is never used (Q79).
 
 Ruled out:
 
@@ -544,6 +698,48 @@ Ruled out:
   no SDK in Rust (Inferred).
 - **OpenRelay, Metered's TURN**: now a Metered account, with 500 MB free
   (read on 2026-11-02 [N24]); and TURN relays UDP.
+- **Overlay networks of other projects** (the sweep of 2026-11-02 [W1];
+  read the same day). NetBird's relays, 67 over a WebSocket on TCP 443,
+  admit a peer with a token of NetBird's management server alone: the relay
+  refuses to start with no `--auth-secret`, and "The Management server
+  provides the tokens for the peers" [W16], so each peer needs an account.
+  Firezone's relays are TURN on UDP, behind an account; ZeroTier's roots
+  use UDP 9993; croc's relay uses TCP 9009; the bootstrap nodes of
+  HyperDHT, Cabal and Hyphanet use UDP or other ports [W1]. Tox's TCP relays
+  try port 443 first [W17], and 4 of the 28 nodes of its list listen there
+  [W1], but they speak Tox's own handshake, not TLS, so a proxy that waits
+  for TLS refuses them, and a proxy of names alone each IP literal
+  (Inferred, as for Syncthing's above). Yggdrasil's peers: T-442.
+- **Pub/sub networks** (the sweep [W1]; read on 2026-11-02). Bluesky's
+  relays send each record to each consumer, and a record is written to a
+  PDS by an account [W18]. ActivityPub's relays take a server's posts and
+  send them to each server that subscribed: a server and a domain of the
+  user's, and a broadcast of what it sends (Inferred). The Waku Network
+  takes a message from a member alone: "Publishers must register to send
+  messages", by an RLN membership on a smart contract [W19]; whether the
+  fleet of Status that the sweep listed holds the same rule was not read.
+  XMTP sends to
+  an inbox that a wallet's signature registered [W20]. The Farcaster hubs
+  of the sweep were gone [W1]. Nostr: the meeting points above.
+- **Trackers** (41 on 443 in the sweep, 2 of them WebTorrent's with a
+  WebSocket [W1]): a tracker gives a peer list, or passes WebRTC's offers
+  between the peers of one torrent [W21], and the bytes then need a path
+  between the peers, or WebRTC over UDP (Inferred). The default WebTorrent
+  tracker's domain is "Questionable Content" in an anti-piracy list
+  (Verified [N8]).
+- **SSH tunnel providers of the sweep**: `ssh-j.com`, a public SSH jump
+  and forwarding server with no account [W22], and `tunnl.gg` take raw SSH
+  on port 22 in their own commands [W22] [W26], which the measured cage
+  refuses ([target-environment.md](target-environment.md)), and the sweep
+  read `srv.us` as the same kind [W1]; `tunnl.gg` gives HTTPS URLs alone;
+  localtunnel's client dials a raw TCP port that its server names [W23]. A
+  user whose egress reaches one may name it as a hop of `-J`, with no change
+  of podssh.
+- **Other public Piping Servers**: of the servers that Piping Server's wiki
+  names, the sweep found `ppng.io` alone alive, and by a search
+  `piping.onrender.com` (T-442's research) and `p.kokoro.serv00.net` [W1].
+  The last runs on serv00, whose terms forbid to "use account for" "Proxy
+  software", "VPN" and "Tunneling software" (item 7) [W24].
 
 The chain that the study recommends, for `podssh node` and
 `podssh ssh node://` with no pair, raced as T-164 races the roads:
@@ -568,7 +764,12 @@ refuses the WebSocket upgrade, which none of the others passes (T-437).
 The study of 2026-11-02 ranks the carriers with no account in this order:
 n0's relays, tailcat's DERP, the transit relay, the quick tunnel, Piping
 Server; the categories above make a second and a third provider worth
-more than a faster first one.
+more than a faster first one. The triage of the sweep of 2026-11-02 puts
+OpenTunnel (item 6) after them: its client's leg needs no upgrade and its
+TLS ends at the node, so a client behind a proxy that refuses the upgrade
+has a second carrier beside Piping Server (T-530, T-531), and `podssh
+funnel` a name whose TLS the edge does not end (T-532). A node with no
+other road tries it unasked (Q76, 2026-11-02).
 
 ## Sources
 
@@ -728,3 +929,72 @@ public data file), not a run of podssh.
 - [N26] https://github.com/nwtgck/piping-server-rust: `src/piping_server.rs`
   and `src/main.rs` of its main branch, and `src/main.rs` and `Cargo.toml`
   at v0.18.0 (hyper 1.2, hyper-util's server of both protocols)
+
+Read on 2026-11-02 through the services of web.pkgforge.dev, for the triage
+of the operator's sweep of public relays. "Verified" marks a reading of
+those services, as above. No host that the sweep lists was contacted for
+this page: a host's own page is cited from a search index or an archive.
+
+- [W1] The sweep: a report of the operator's research agent of 2026-11-02,
+  measured from a host whose only egress is an HTTP CONNECT proxy and whose
+  DNS does not resolve, by a `GET /` and a bare WebSocket upgrade with no
+  frame for each host, with the pool files of Tailscale and Syncthing; about
+  700 endpoints in twelve classes, about 315 of which answered; with its
+  probe's results and the handshakes that it captured. Not in the
+  repository.
+- [W2] `0800WebDev/zinc:script.js`, read in the sweep's copy (its list of
+  Wisp servers, and its table of the extensions of school filters)
+- [W3] https://github.com/MercuryWorkshop/scramjet/commit/8a5444b5d6c3267c3934daac84ab992ad1fc6d80
+  ("[scramjet/demo] set wisp url to anura.pro", 2026-02-19), read in a
+  search result; the repository's description: "Scramjet is a versatile web
+  proxy designed to bypass internet censorship"
+- [W4] `copy/v86:docs/networking.md`
+- [W5] `tomphttp/specifications:BareServerV3.md` and
+  `tomphttp/specifications:README.md`; `nirholas/openbare:README.md`
+- [W6] https://0x0.st/, its capture of 2025-12-02 in the Wayback Machine,
+  through archive.web.pkgforge.dev ("Terms of Service")
+- [W7] `tailscale/tailscale:cmd/derper/derper.go` (its flags
+  `verify-clients` and `verify-client-url`, read in a search result);
+  https://tailscale.com/docs/reference/derp-servers/custom-derp-servers
+  ("Anyone that knows the IP address of your DERP server could add it to
+  their DERP map")
+- [W8] https://derp3g.tailscale.com/, as a search index holds it: "This is
+  a Tailscale DERP server. It provides STUN, interactive connectivity
+  establishment, and relaying of end-to-end encrypted traffic for
+  Tailscale clients."
+- [W9] https://tailscale.com/kb/1232/derp-servers (validated 2026-01-21)
+- [W10] https://tailscale.com/terms (last updated 2026-08-25), sections 1,
+  2.3 and 2.5
+- [W11] `tailscale/tailcat:README.md`, its section "Stability"
+- [W12] https://github.com/anomalyco/opentunnel: its README (the
+  architecture, "Corporate proxies / custom CAs", the deployment on Fly.io,
+  and the server's local run with MySQL 8 and its test CA), its creation
+  (2026-03-30) and its release v0.6.1; the text of `opentunnel.xyz`, read
+  in a search result
+- [W13] `anomalyco/opentunnel:docs/protocol.md` (the HTTP API, the
+  provisioning, the bridge) and `anomalyco/opentunnel:docs/server.md`
+  ("Limits")
+- [W14] `anomalyco/opentunnel:crates/opentunnel/Cargo.toml`
+- [W15] https://gridinsoft.com/online-virus-scanner/url/opentunnel-xyz, read
+  in a search result
+- [W16] `netbirdio/netbird:relay/cmd/root.go` ("auth secret is required")
+  and `netbirdio/netbird:shared/relay/auth/hmac/doc.go`, at `5b55b834bf`
+  (2026-11-02)
+- [W17] `irungentoo/toxcore:docs/TCP_Network.txt` ("The first port the
+  server will try binding to is 443 followed by port 3389")
+- [W18] https://docs.bsky.app/docs/advanced-guides/api-directory and
+  https://docs.bsky.app/docs/advanced-guides/firehose, read in search
+  results
+- [W19] https://blog.waku.org/explanation-series-rln-relay/;
+  `waku-org/specs:standards/core/rln-contract.md`; read in search results
+- [W20] https://docs.xmtp.org/chat-apps/core-messaging/create-a-client,
+  read in a search result
+- [W21] `webtorrent/bittorrent-tracker:README.md`
+- [W22] https://news.ycombinator.com/item?id=26500128 (its author's post);
+  https://lottunnels.github.io/lottunnels/Binaries/sshj/; the text of
+  `ssh-j.com`, read in a search result
+- [W23] `localtunnel/localtunnel:lib/TunnelCluster.js`
+- [W24] https://www.serv00.com/terms-of-service/
+- [W25] `nostr-protocol/nips:11.md`
+- [W26] https://github.com/klipitkas/tunnl.gg (its README, MIT), read in a
+  search result

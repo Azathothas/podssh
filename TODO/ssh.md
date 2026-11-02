@@ -816,7 +816,7 @@ measured: a race needs two processes; the test below makes it certain.
    (`crates/podssh-ssh/src/hostkey.rs:351-375`). Else append.
 3. Hold the lock only for the read and the write, never across a prompt.
 4. When the file system refuses locks, append as today, with a verbose note
-   (a fallback that says so, `AGENTS.md:286`).
+   (a fallback that says so, `AGENTS.md:289`).
 
 ## Prove
 
@@ -2986,7 +2986,7 @@ registers none (`openssh/openssh-portable:clientloop.c`, `client_global_request_
    that podssh could not read, then russh's words; a connection lost while the forwards were asked
    for names russh's cause, as a lost session does (the reading of T-464).
 5. The patch offered to russh upstream. That is the operator's to send, as no session changes
-   another repository (`docs/decisions.md:48` says "no session changes another repository"); the
+   another repository (`docs/decisions.md:66` says "no session changes another repository"); the
    copy goes once a release of russh reads such replies.
 6. `docs/cli.md` (the keepalive, and `-R`'s refusal), `docs/STATUS.md`.
 
@@ -3344,3 +3344,247 @@ cargo test -p podssh-cli --test ssh_exit_status -- after_login
 
 Planted: the refusal's words for each error, as now: the test of the user whose server ends the
 connection fails.
+
+# T-500: A destination with no user name is refused when `USER`, `LOGNAME` and `USERNAME` are unset, where OpenSSH reads the user database
+
+**Source:** the report of the operator's testing agents, a black-box test of `v1.0.0` (`35a0d19`)
+on a Debian 13 guest with a curated environment, 2026-11-02: its issue 01 (`01-no-user-name.md`)
+and its ledger's L-01. `env -u USER -u LOGNAME -u USERNAME podssh ssh --direct 127.0.0.1 'id -un'`
+exits 64 with "no user name: give one with user@host or -l USER", and so do `cp`, `mv`, `scp`,
+`sftp`, `health`, `ping`, `run`, `each`, `containers` and `job`; OpenSSH 10.0p2 on the same host
+logs in as the uid's entry of `/etc/passwd`, and podssh with `-l agent` does too. Read at
+`01e371e`.
+**Category:** defect
+**Milestone:** none
+**Priority:** P1
+**Effort:** S
+**Status:** open
+
+## Problem
+
+An agent's harness, `env -i`, `docker exec` with an environment of its own and many runners start
+podssh with none of the three variables, and the process still runs as a uid with an entry in
+`/etc/passwd`. Each command that logs in then refuses a destination with no user name (64), the
+one that a hosted service prints (`ssh railway.new`) among them, and the user does not know which
+name to give. OpenSSH on the same host connects.
+
+## Premise
+
+- Read: the local user is `USER`, else `LOGNAME`, else `USERNAME`, else `root` for uid 0 alone
+  (`crates/podssh-cli/src/ssh/resolve_env.rs:40`, `crates/podssh-cli/src/ssh/resolve_env.rs:63-70`);
+  with none, a destination with no user, no `-l` and no `User` is refused
+  (`crates/podssh-cli/src/ssh/resolve.rs:263`), and so is a jump host
+  (`crates/podssh-cli/src/ssh/jump.rs:231-232`). Each verb of the report resolves its destination
+  there, so one change serves all eleven.
+- Read: the manual says that podssh never reads the user database
+  (`crates/podssh-cli/src/man/facts.rs:197-200`); the reason is in
+  `docs/target-environment.md:37-44`: on hosts with no passwd entry, OpenSSH's tools exit 255 ("No
+  user exists for uid 0"), so podssh takes the name from the environment. The rule is no row of
+  `docs/decisions.md`; T-222 (on hold) says the same of the shell of `podssh serve`.
+- Read: the same name is `%u`, `Match localuser` (`crates/podssh-cli/src/ssh/config/matching.rs:110`),
+  the nick of `chat`, and the default comment of `keygen`, "never from the user database"
+  (`crates/podssh-cli/src/man/notes_keygen.rs:48-49`).
+- Read, against the report: the README of this repository holds no prompt with `ssh railway.new`
+  (no line of `README.md` names Railway, at `01e371e` and at `35a0d19`); that one-liner is
+  Railway's own page. Its L-02, Railway's refusal of each login of the day, is the service's state,
+  as `docs/STATUS.md` records in the row of `podssh ssh node://`, and no defect of podssh.
+
+## Approach
+
+1. `PODSSH_USER` first, then the three variables (Q68), then the name of the effective uid's entry, when the host has one: on
+   Linux and the BSDs the first line of `/etc/passwd` whose uid field is the euid, read as a file
+   (no NSS, which a static binary lacks); on macOS `getpwuid_r`. A file that is missing or
+   unreadable, or that has no such line, gives no name and no error, so a host with no entry is as
+   now. uid 0 with no entry stays `root`. A variable that is set still wins.
+2. With no name from any of them, the refusal says what was read and what to do: "no user name:
+   PODSSH_USER, USER, LOGNAME and USERNAME are not set, and uid 1000 has no entry in
+   /etc/passwd: give user@host, -l USER, PODSSH_USER, or User in ssh_config".
+3. `-v` says once where the name came from: "the user name agent is uid 1000's entry in
+   /etc/passwd, as USER, LOGNAME and USERNAME are not set".
+4. One function gives the name to each user of it: the login, the tokens, `Match localuser`, the
+   nick of `chat` and the comment of `keygen`. The manual's VARIABLES (`USER`), the notes of
+   `keygen` and `docs/target-environment.md` say the new order.
+5. Tests: the function over the text of a passwd file and a uid: the entry's name; no line for
+   the uid, a line with too few fields, an empty file: none, and the refusal's words; uid 0 with no
+   entry: `root`. In `crates/podssh-cli/tests/ssh_args.rs`, `podssh ssh -G` with the three
+   variables removed gives the entry's name as its `user` line, on a Unix host that has one.
+
+## Decision
+
+Recommendation, for the operator to rule, as the manual and `docs/target-environment.md:42-44`
+state "never the user database" as a rule: read the entry last, after the variables, and go on without
+it. The rule's reason holds: a host with no entry gives the refusal of now, and nothing fails where
+an entry is missing, which is where OpenSSH fails. Lost: a new variable, `PODSSH_USER` (the report's
+third way): `USER` is the variable that each tool reads, and `PODSSH_SSH_CONFIG` with `Host *` and
+`User NAME` already sets a name once for a harness. Lost: the refusal alone with better words (its
+second way): the name that it would print is the entry's, which it would read anyway.
+
+**Ruled, Q68 (2026-11-02):** the entry last, and `PODSSH_USER` too, against the loss above: `PODSSH_USER` names the login first, then `USER`, `LOGNAME` and `USERNAME`, then the entry. The Approach says it.
+
+## Prove
+
+```sh
+export CARGO_BUILD_JOBS=4
+cargo test -p podssh-cli --lib ssh::resolve_env
+cargo test -p podssh-cli --test ssh_args -- user_database
+```
+
+Planted: the entry never read: the test of a host with no variables fails with the old refusal.
+
+# T-501: `--su` waits for ever when its password cannot be given: a cancelled `SSH_ASKPASS` leaves su waiting, and podssh with it
+
+**Source:** the report of 2026-11-02 (T-500's Source): its issue 02 (`02-su-hang.md`) and its
+ledger's L-03, L-05 and L-11. With an `SSH_ASKPASS` that exits 1 and `SSH_ASKPASS_REQUIRE=force`,
+`podssh ssh --direct --su agent@127.0.0.1 'id -un'` prints "the password for the remote command:
+cancelled" and runs on: killed at 30, 45, 150 and 180 s, with the far `su -c` still waiting for its
+password; `--sudo` with the same helper ends with 1 in 1 s, and so does OpenSSH with `su -c`. With
+no helper and no terminal, `--su` says at once that podssh may ask none, and ends 30 s later with
+255 (L-05). Read at `01e371e`.
+**Category:** defect
+**Milestone:** none
+**Priority:** P1
+**Effort:** S
+**Status:** open
+
+## Problem
+
+An agent whose askpass helper fails (a call of `pass`, `gpg` or a keychain, a helper that cannot
+run) gets a run that never ends, after a line that reads like an end. That breaks the README's
+promise for a host with no terminal: podssh never waits for input that cannot come. With no helper
+the run ends, but 30 s after the line that gave the reason, with a line that says the command never
+asked.
+
+## Premise
+
+- Read: `su` reads a terminal alone, so `--su` asks for a pty, and `--sudo` for none
+  (`crates/podssh-cli/src/ssh/elevate.rs:32-36`); `sudo -S` reads the channel
+  (`crates/podssh-ssh/src/elevate.rs:1-10`).
+- Read: at su's prompt, podssh drops the deadline of the start and asks on a thread
+  (`crates/podssh-ssh/src/elevate.rs:229-233`). A cancelled answer (a helper that exits not 0 is
+  `Cancelled`, `crates/podssh-ssh/src/prompt.rs:27-29`), and each other failure of the question,
+  give a line and the end of the channel's input, and no new deadline
+  (`crates/podssh-ssh/src/elevate.rs:272-278`); with no deadline the wait has no end
+  (`crates/podssh-ssh/src/elevate.rs:166-171`, `crates/podssh-ssh/src/elevate.rs:251-257`).
+- Inferred, from the report's controls: the end of the input stops `sudo -S`, whose stdin is the
+  channel, and does not reach `su`, which reads the pty: OpenSSH's server takes the EOF of a pty's
+  channel and keeps the pty open, so su waits, and podssh with it.
+- Read: with no way to ask, podssh says so, ends the input and keeps the deadline
+  (`crates/podssh-ssh/src/elevate.rs:225-228`); at 30 s its line says that the command "neither
+  asked for a password nor started" (`crates/podssh-ssh/src/io.rs:288-293`), though it asked.
+- Read: the tests run `--su` with a right and a wrong password, and with no helper that fails
+  (`crates/podssh-cli/tests/ssh_sudo.rs:143-155`).
+- Read (L-11): `--sudo` under a `NOPASSWD` rule sends no password, by design
+  (`crates/podssh-ssh/src/elevate.rs:6-7`); no change.
+
+## Approach
+
+1. One end for each answer that cannot be sent (a cancelled question, a helper that failed or did
+   not run, a thread that ended, and no way to ask): with `--su`, the pty's own end of the line
+   that su reads, Ctrl-U then Ctrl-D, so that su's read ends and su refuses with its own words and
+   status, as `sudo -S` does at the end of its stdin; then the channel's EOF, as now.
+2. After that end, the deadline of 30 s again: a su that does not end gives 255 within it, with a
+   line that says what podssh did ("su did not end within 30 s after podssh sent it no password:
+   the helper was cancelled"), and podssh closes the channel, so that the far su gets its hangup.
+3. The line of a failed helper names the cause: "the password for the remote command: SSH_ASKPASS
+   exited 1, so podssh sends su no password"; the line of the 30 s says that the command asked,
+   when it did.
+4. With no way to ask (BatchMode, or no terminal and no helper), the same end at once: su's
+   refusal, not a wait of 30 s.
+5. Tests in `crates/podssh-cli/tests/ssh_sudo.rs`, against the harness's su: a helper that exits 1
+   ends `--su` within 10 s with not 0 and the new line; no helper and no terminal ends within 10 s;
+   `--sudo` with the same helper keeps its 1; a su of the harness that ignores Ctrl-D gives 255
+   within the 30 s, with the line of step 2. In `scripts/interop-sudo.sh`, `--su` with a failing
+   helper against OpenSSH's server ends with not 0, and no `su` of the test runs after it.
+
+## Decision
+
+- su's own refusal and status, as `--sudo` gives sudo's. Lost: 255 at once (the report's second
+  reading), which hides whether su refused; 255 stays for a su that does not end.
+- A cancelled helper sends no password: its output is no answer, as OpenSSH reads it. Lost: send
+  what the helper wrote (the report's first reading).
+
+## Prove
+
+```sh
+export CARGO_BUILD_JOBS=4
+cargo test -p podssh-ssh --lib elevate
+cargo test -p podssh-cli --test ssh_sudo
+```
+
+Planted: no deadline after the end, as now: the test of the su that ignores Ctrl-D runs past its
+limit and fails.
+
+# T-503: The direct road dials a host name that the relay road refuses, and refuses a blank only at the dial, with 255
+
+**Source:** the report of 2026-11-02 (T-500's Source): its issue 04 (`04-each-whitespace.md`), the
+first part, and its ledger's L-19. `a$b`, `a!b` and `a/b` are refused with 64 through the relay
+("\"a$b\" is not a host name ('$' is not allowed)"), and end with 255 with `--direct`, where `a$b`
+reached the proxy as `CONNECT a$b:22`. The road decides which names are legal, and the direct road
+is the one that a user falls back to when the relay is down. Read at `01e371e`.
+**Category:** defect
+**Milestone:** none
+**Priority:** P2
+**Effort:** S
+**Status:** open
+
+## Problem
+
+On the direct road (`--direct`, and the fallback once the relay hosts failed), podssh passes `$`
+and `!` to the proxy or the resolver, and refuses a blank or a `/` only when it dials, with 255,
+the code of a network failure. A script that assembles a name badly gets a dial, where the relay
+road gives 64 before anything connects.
+
+## Premise
+
+- Read, against the report: the check of the relay road is podssh's own, before anything connects
+  (`crates/podssh-cli/src/ssh/resolve.rs:353`, with `crates/podssh-ws/src/names.rs:10-24` and
+  `crates/podssh-ws/src/names.rs:29-37`: letters, digits, `.`, `-` and `_`, or an IPv6 literal),
+  not the relay's.
+- Read: on the direct road, the destination is checked for an empty name and a first `-` alone
+  (`crates/podssh-cli/src/ssh/hop.rs:79-87`), then at the dial for a blank, a control character,
+  `/`, `?`, `#` and `@` (`crates/podssh-ws/src/dial.rs:346-354`, from
+  `crates/podssh-ws/src/dial.rs:225`), which ends with "invalid destination" and 255. Inferred: the
+  report's `a/b` with `--direct` is that refusal, which its table counts as a dial; `a$b` and `a!b`
+  reach the proxy.
+- Read: OpenSSH 10.0p2 refuses a destination that holds one of the characters of its
+  `valid_hostname` (quotes, a backquote, `$`, `\`, `;`, `&`, `<`, `>`, `|`, parentheses, braces and
+  a comma), a blank or a control character, with 255 before it connects
+  (`openssh/openssh-portable:ssh.c`, at its tag `V_10_0_P2`); it takes `!`, `/` and each byte above
+  127.
+- Read: the relay road's check reads the host that is dialed, after `HostName`
+  (`crates/podssh-cli/src/ssh/resolve.rs:353`).
+
+## Approach
+
+1. One check at the resolve, for each road, of the host that is dialed and of the first hop of
+   `-J`: what `check_target` takes, and on the direct road also an IPv6 literal with a zone
+   (`fe80::1%eth0`), which only a dial from this host can use; else 64 before anything connects,
+   in the relay road's words. A name with a byte above 127 is refused with the advice of its ASCII
+   form (`xn--`).
+2. The check at the dial stays, the second line of defence for each other caller of
+   `podssh_ws::dial`.
+3. Each verb that resolves a destination gets it (`ssh`, `cp`, `mv`, `scp`, `sftp`, `run`, `each`,
+   `job`, `health`, `ping`, `containers`, `edit`, `session start`); `pipe`'s `tcp:` and `ssh:` take
+   their hosts through the same function.
+4. Tests in `crates/podssh-cli/tests/ssh_args.rs`: `a$b`, `a!b`, `a/b` and a blank, with
+   `--direct` and without: 64, and no dial (with `PODSSH_OFFLINE` set, a dial would say so);
+   `fe80::1%eth0` with `--direct` passes the check, and through the relay it is refused, as now.
+
+## Decision
+
+The relay road's rule on each road, as the report asks, with the zone of a link-local address on
+the direct road. Lost: OpenSSH's shorter list, which lets `!` and `/` go to the resolver or the
+proxy, which refuse them later with 255; no name of DNS holds them. Lost: a name in Unicode on the
+direct road: a proxy takes a CONNECT in ASCII, and podssh has no IDNA of its own; the line names
+the `xn--` form.
+
+## Prove
+
+```sh
+export CARGO_BUILD_JOBS=4
+cargo test -p podssh-ws --lib names
+cargo test -p podssh-cli --test ssh_args -- host_name
+```
+
+Planted: the direct road's check removed: `a$b` with `--direct` reaches the dial, and the test
+fails.

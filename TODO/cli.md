@@ -2579,7 +2579,7 @@ alone measures less than they use, so it cannot answer what a user asks it.
 - Read: `AGENTS.md` lines 248-250 at `48a8744` says "closes it without listening" of doctor's bind in rule 2;
   `SECURITY.md` lines 112-113 at `48a8744`, `docs/architecture.md` lines 133-134 at `48a8744` and `docs/cli.md` lines 1346-1347 at `48a8744` say the same.
   The ruling of 2026-10-08 lets a listener open when the user asks for it and a probe at run time
-  allows the bind (`docs/decisions.md:45`). A listen of doctor's is no listener that the user asks
+  allows the bind (`docs/decisions.md:63`). A listen of doctor's is no listener that the user asks
   for, so it waits for a ruling: Q53.
 - Read: the measured cage's listening was not measured, and stands on the operator's report
   (`docs/target-environment.md:25`); sandbox A's AF_UNIX bind was doctor's bind
@@ -3565,3 +3565,73 @@ same day.
 - Planted, each failed its test: the sweep skipped ("ghost.json stayed"); `cwd::to_root` that never
   changes directory ("the child holds .../work"); `cut` that copies and cuts (the line written
   meanwhile was not in `.1`).
+
+# T-512: The help and the manual leave out eight facts that the report of 2026-11-02 found by trial or after a refusal
+
+**Source:** the report of the operator's testing agents on `v1.0.0` (`35a0d19`), 2026-11-02 (T-500's
+Source): its ledger's L-10, L-14, L-17, L-22, L-25, L-27, L-29 and L-36, each too small for an
+entry of its own. Read at `01e371e`.
+**Category:** docs
+**Milestone:** none
+**Priority:** P3
+**Effort:** S
+**Status:** open
+
+## Problem
+
+A user finds each of these by trial: the version line that podssh sends (a server that admits
+clients by OpenSSH's line refuses it); where a broken copy keeps its state; a job's ID and the 75
+of `job fetch`; why a file given by process substitution is refused; the direct road for OpenSSH's
+`ProxyCommand`; which file faults are 78; and that `keygen -l` takes the private key too.
+
+## Premise
+
+- Read (L-10): the client's version line is `SSH-2.0-podssh_VERSION`
+  (`crates/podssh-ssh/src/run_config.rs:61-62`), as RFC 4253 allows, and no part of the manual says
+  it. Inferred: a line shaped as OpenSSH's would make OpenSSH's server apply the quirks of its own
+  client's versions to podssh, so the line stays podssh's. Against the report: the README says
+  that podssh has "the options of OpenSSH" (`README.md:120`), not that it is OpenSSH.
+- Read (L-14): the side file of a broken copy is in FILES (`crates/podssh-cli/src/man/data.rs:203-204`)
+  and in the notes (`crates/podssh-cli/src/man/notes.rs:122`), and in no row of `cp --help`
+  (`crates/podssh-cli/src/flags/copy.rs:15-48`).
+- Read (L-17): `job fetch` of a job that runs exits 75, as EXIT STATUS says
+  (`crates/podssh-cli/src/man/data.rs:86-88`); the rows of `job --help` do not
+  (`crates/podssh-cli/src/flags/job.rs:12-17`).
+- Read (L-22): a job's ID is 8 hex digits (`crates/podssh-cli/src/job/args.rs:96-101`), which the
+  about of `job` does not say (`crates/podssh-cli/src/flags.rs:373-374`).
+- Read (L-25): a file that is a link is refused with "is a symbolic link, which podssh does not
+  follow here" (`crates/podssh-relay/src/cache/own.rs:37-38`); `--allow <(...)` gives such a link
+  (`/dev/fd/63`), and the line does not say that a regular file works.
+- Read (L-27): `podssh proxy` has no direct road (`crates/podssh-cli/src/man/notes_ssh.rs:228`);
+  `podssh pipe - tcp:%h:%p` is that road as a `ProxyCommand` (`crates/podssh-cli/src/man/notes_pipe.rs:5-14`),
+  and the notes of `proxy` do not name it (`crates/podssh-cli/src/man/notes.rs:166`).
+- Read (L-29): a bad line of the settings file or of an `ssh_config` file is 78, and the same
+  keyword with `-o` is 64, by the decision of 2026-10-05; the row of 78 names the settings of the
+  environment and the flag's 64 (`crates/podssh-cli/src/man/data.rs:104-113`), not the files.
+- Read (L-36): the README's `keygen -l` names the public file alone (`README.md:114`).
+
+## Approach
+
+1. The notes of `ssh`: the version line that podssh sends, and why it is podssh's own.
+2. `cp --help`: a line under the rows that a broken copy goes on from its side file when the same
+   command runs again, and where that file is.
+3. `job --help`: the about says that an ID is the 8 hex digits that `start` or `submit` printed,
+   and the notes of `fetch` say its 75 for a job that runs.
+4. The refusal of a link adds "name a regular file (a process substitution gives a link)".
+5. The notes of `proxy` name `podssh pipe - tcp:%h:%p` as OpenSSH's `ProxyCommand` for the direct
+   road.
+6. The row of 78 names the settings file and an `ssh_config` file, and says that the same keyword
+   on the command line is 64.
+7. The README's line of `keygen -l` says that the file of the private key works too.
+8. Tests: the manual's own tests hold each new sentence; the help of `job` and of `cp`.
+
+## Prove
+
+```sh
+export CARGO_BUILD_JOBS=4
+cargo test -p podssh-cli --lib man
+cargo test -p podssh-cli --test man_json
+cargo test -p podssh-cli --test man_page
+```
+
+Planted: none; each sentence is text, which the manual's tests read.

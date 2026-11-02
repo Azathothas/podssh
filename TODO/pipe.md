@@ -72,12 +72,12 @@ the verb, the address grammar, the copy loop, and the local addresses `-`,
    (`crates/podssh-cli/src/man/examples.rs:8-267`; its test at
    `crates/podssh-cli/src/man/examples.rs:390-416` learns the new variant),
    `docs/design.md:983-992`, `docs/STATUS.md`. Each file stays under 500
-   lines (`AGENTS.md:282-283`).
+   lines (`AGENTS.md:285-286`).
 
 ## Decision
 
 Recommendation: `exec:` splits the words itself and starts no shell, because
-podssh must not assume a shell (`AGENTS.md:259-260`), and the user can name one
+podssh must not assume a shell (`AGENTS.md:262-263`), and the user can name one
 (`exec:sh -c 'CMD'`). The alternative, a `system:` address through
 `/bin/sh -c` as in socat, lost: Windows and some images have no `/bin/sh`.
 
@@ -352,7 +352,7 @@ never answers, and the test fails at its limit of 10 s.
 ## Correction
 
 2026-10-10: the Prove's "On Windows, the address exits 64" was written
-before the operator's ruling of 2026-10-08 (Q24, `docs/decisions.md:47`),
+before the operator's ruling of 2026-10-08 (Q24, `docs/decisions.md:65`),
 which step 4 of the Approach follows: on Windows, `unix-connect:` reaches
 an AF_UNIX socket or a named pipe (`\\.\pipe\NAME`), each tried when the
 pipe starts. So the Prove on Windows is the one of Unix, through an AF_UNIX
@@ -412,7 +412,7 @@ shows that an AF_UNIX or loopback bind works (`docs/design.md:1026-1028`).
   allows the bind. The default is loopback and AF_UNIX; the user can
   configure the address and can turn listening off.
 - Read: five documents still say that podssh never listens:
-  `AGENTS.md:261-267`, `docs/architecture.md:208-223`,
+  `AGENTS.md:264-270`, `docs/architecture.md:208-223`,
   `docs/target-environment.md:84-88`, `SECURITY.md:160-187`, `README.md:43-52`.
 - Read: sandbox A refuses an AF_INET bind and allows an AF_UNIX bind
   (`docs/STATUS.md:308`). The box refuses each `bind`, AF_UNIX too
@@ -500,7 +500,7 @@ Plant: bind with no umask; the check of the mode must fail.
 ## Correction
 
 2026-10-10: three of the five documents already say what the ruling
-allows: `AGENTS.md:261-267`, `docs/architecture.md:208-223` and
+allows: `AGENTS.md:264-270`, `docs/architecture.md:208-223` and
 `docs/target-environment.md:84-88` name a listener that the user asks for,
 after a probe. `SECURITY.md` and `README.md` still said that nothing
 listens, and change here. Step 4's umask 077 makes a socket's file mode
@@ -1157,7 +1157,7 @@ and with which limits.
 - Read: through the relay, a session ends at 64 MiB (`docs/relay.md:234`);
   the traffic of a USB disk reaches that in seconds.
 - Read: podssh cannot load a module or attach a device, and never assumes a
-  privilege (`AGENTS.md:259-260`). The recipe uses the user's own `usbip` and
+  privilege (`AGENTS.md:262-263`). The recipe uses the user's own `usbip` and
   its privileges.
 
 ## Approach
@@ -1357,7 +1357,7 @@ the request's target, would be the proxy that such a program points at.
   takes one client by default, and with `--keep-listening` each client in turn, 8 at once at most,
   each joined to a new instance of the other side (`crates/podssh-cli/src/pipe/serve.rs:1-11`).
 - Read: the operator allows a listener that the user asks for, when a probe allows the bind, on
-  loopback or AF_UNIX by default (`docs/decisions.md:45`; `docs/architecture.md:208-215`); the
+  loopback or AF_UNIX by default (`docs/decisions.md:63`; `docs/architecture.md:208-215`); the
   gate's scan of listeners allows the listener of `pipe` (`scripts/check-repo.py:81-105`).
 - Read: the SOCKS side of `-D` answers once the server's channel opened, so that a client learns
   whether its target was reached (`crates/podssh-ssh/src/socks.rs:1-5`). The relay refuses a target
@@ -1465,7 +1465,7 @@ live relay behind it.
 
 2026-10-31: three citations of the Premise name other lines, as they did when the entry was
 written (read at `8207d29`). The ruling on a listener that the user asks for is
-`docs/decisions.md:50`; `docs/decisions.md:45` is the ruling on `exec:`. The relay's `403` of its
+`docs/decisions.md:68`; `docs/decisions.md:63` is the ruling on `exec:`. The relay's `403` of its
 policy is `docs/relay.md:223-225`; `docs/relay.md:218-220` is the form of a token and its header.
 The rest reads as cited. Nothing in the Approach changes.
 
@@ -1583,7 +1583,7 @@ user who needs `websocat` must bring it, and a cage may not run it.
   for `websocat`.
 - `ws-listen:` takes no target from the request: each client goes to the other side as given.
   Lost: a target from the URL, which would make podssh a public forwarder of the kind of T-369's,
-  that is a relay, and the relay stays a separate project (`docs/decisions.md:50`).
+  that is a relay, and the relay stays a separate project (`docs/decisions.md:68`).
 - No `wss-listen:`: a server of TLS needs a certificate and a key of the user's, and #76 does not
   ask for it.
 - The reader of requests is T-367's; whichever is done first writes it. The dial with no token
@@ -1640,7 +1640,7 @@ Planted: the server's frames encoded as `Role::Client`; the test of the masks fa
 `8207d29`). The role of the codec is `crates/podssh-ws/src/frame.rs:74-83`, and `encode` ignores a
 key of a server's at `:85-88`; `crates/podssh-ws/src/frame.rs:61-70` holds the markers of a length
 and `Frame`. The relay was a separate project then, a ruling that Q63 replaced on 2026-11-02
-(`docs/decisions.md:14`); `docs/decisions.md:50` is the ruling on a listener that the user asks for. Nothing in the Approach changes.
+(`docs/decisions.md:32`); `docs/decisions.md:68` is the ruling on a listener that the user asks for. Nothing in the Approach changes.
 
 ## Done
 
@@ -1685,7 +1685,9 @@ and `Frame`. The relay was a separate project then, a ruling that Q63 replaced o
 
 **Source:** GitHub #93 (Nemo-010, 2026-11-02): with `podssh 1.0.0 (35a0d19d)` the proxy of
 `ssh:USER@HOST,%h:%p` answered `HTTP/1.1 200 Connection Established`, then the target's banner;
-`ssh:USER@HOST` was refused.
+`ssh:USER@HOST` was refused. The report of the operator's testing agents of the same day (T-500's
+Source), its ledger's L-26: `pipe http-listen:PORT exec:CMD`, the first thing a user tries, is
+refused with the forms of the other side, and not with why a command cannot be one.
 **Category:** feature
 **Milestone:** none
 **Priority:** P3
@@ -1726,6 +1728,11 @@ alone, so the form of `ssh:`, with its comma before the target, is found by tria
    for a port.
 3. The manual: an example of `ssh:` beside the one of `relay:`, and the note of the forms says that
    `ssh:HOPS` alone is read with its target.
+4. (L-26.) Another kind of address on the other side (`exec:`, `stdio`, `node:`, `unix-connect:`)
+   is refused with the reason first: "exec:CMD cannot be the other side of http-listen:: each
+   CONNECT names its own target, which a command does not take; give relay:%h:%p, tcp:%h:%p or
+   ssh:HOPS,%h:%p" (64), where `crates/podssh-cli/src/pipe/web.rs:66-69` (with no `%h:%p`) and
+   `:76` (with one) refuse it now with the forms alone.
 
 ## Decision
 
@@ -1747,7 +1754,8 @@ cargo test -p podssh-cli --test pipe_http
 ```
 
 `ssh:me@bastion`, `ssh:a,b`, `relay` and `tcp:` give the templates `ssh:me@bastion,%h:%p`,
-`ssh:a,b,%h:%p`, `relay:%h:%p` and `tcp:%h:%p`; `ssh:me@%h` and `relay:%h:443` are refused (64).
+`ssh:a,b,%h:%p`, `relay:%h:%p` and `tcp:%h:%p`; `ssh:me@%h` and `relay:%h:443` are refused (64),
+and `exec:cat` with the reason of step 4.
 In `pipe_http`, beside `a_connect_through_ssh_gets_the_banner_of_the_sshd_s_own_port`, the same
 CONNECT through `ssh:tester@127.0.0.1:PORT` with no target gets the banner, and stderr holds the
 line of the reading. `pipe --help` holds the example, which the parser of the examples takes.

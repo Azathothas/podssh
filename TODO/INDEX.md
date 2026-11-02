@@ -62,15 +62,15 @@ repository and CI).
 
 ## Counts
 
-**478 entries: 65 open, 3 partial, 17 blocked, 393 done.**
+**495 entries: 83 open, 3 partial, 16 blocked, 393 done.**
 
 | Priority | open | partial | blocked | done | total |
 | --- | --- | --- | --- | --- | --- |
 | P0 | 0 | 0 | 0 | 1 | 1 |
-| P1 | 3 | 3 | 0 | 51 | 57 |
-| P2 | 28 | 0 | 14 | 189 | 231 |
-| P3 | 34 | 0 | 3 | 152 | 189 |
-| **All** | 65 | 3 | 17 | 393 | 478 |
+| P1 | 6 | 3 | 0 | 51 | 60 |
+| P2 | 34 | 0 | 14 | 189 | 237 |
+| P3 | 43 | 0 | 2 | 152 | 197 |
+| **All** | 83 | 3 | 16 | 393 | 495 |
 
 ## Entries
 
@@ -527,7 +527,7 @@ repository and CI).
 | [T-453](mesh.md) | P3 | S | M10 | feature | open | `podssh cp` and `podssh sftp` reach a member of the net by its name alone |
 | [T-454](mesh.md) | P2 | S | M10 | feature | done | The relay role brakes `/v1/mint` and `/v1/pair` for each address |
 | [T-455](mesh.md) | P2 | S | M10 | feature | open | The relay role mints for the members of the net |
-| [T-456](mesh.md) | P3 | M | M10 | feature | blocked | XHTTP over HTTP/1.1, on a second connection |
+| [T-456](mesh.md) | P3 | M | M10 | feature | open | XHTTP over HTTP/1.1, on a second connection |
 | [T-457](mesh.md) | P2 | M | M10 | feature | open | The relay role dials its targets through the host's `HTTPS_PROXY` |
 | [T-458](mesh.md) | P2 | S | M10 | feature | open | `podssh doctor --exit NAME`: the exit, its verdict and the road that reached it |
 | [T-459](mesh.md) | P3 | S | M10 | feature | open | The quick tunnel's node lends its egress (`--exit` with `--quick-tunnel`) |
@@ -554,3 +554,20 @@ repository and CI).
 | [T-487](ws.md) | P3 | S | none | feature | open | `doctor` says once that each TLS handshake was reset, and tells a reset from a timeout |
 | [T-488](machine.md) | P3 | L | none | feature | open | `podssh mcp` offers `cp`, `job`, `health` and `session` as tools, behind the gate of `ssh_exec` |
 | [T-489](irc.md) | P3 | S | none | feature | open | `chat --listen --linger`: a listener that stays for each peer after its input ended |
+| [T-500](ssh.md) | P1 | S | none | defect | open | A destination with no user name is refused when `USER`, `LOGNAME` and `USERNAME` are unset, where OpenSSH reads the user database |
+| [T-501](ssh.md) | P1 | S | none | defect | open | `--su` waits for ever when its password cannot be given: a cancelled `SSH_ASKPASS` leaves su waiting, and podssh with it |
+| [T-502](config.md) | P2 | S | none | defect | open | `-o ProxyCommand=none` does not beat a file's `ProxyCommand`, and the first `ProxyCommand` of a file does not hold |
+| [T-503](ssh.md) | P2 | S | none | defect | open | The direct road dials a host name that the relay road refuses, and refuses a blank only at the dial, with 255 |
+| [T-504](multi.md) | P1 | S | none | defect | open | `each` splits a host of the command line at a blank, and runs the command on hosts that nobody named |
+| [T-505](config.md) | P2 | M | none | defect | open | Keywords that restrict a connection (`Ciphers`, `HostKeyAlgorithms`, `RequiredRSASize` and others) are accepted with no effect and no word, and the manual says that they change nothing |
+| [T-506](multi.md) | P3 | S | none | defect | open | `session list` and `detached list` print nothing when there is nothing to list, and `session list` drops a session that does not answer |
+| [T-507](release.md) | P3 | S | none | defect | open | `update` to a release with no `--rollback` names `--rollback` as the way back |
+| [T-508](copy.md) | P3 | S | none | feature | open | `scp` and `sftp` take no `--timeout`, where `cp` and `mv` need one with no terminal, and no manual says why |
+| [T-509](roads.md) | P2 | S | none | defect | open | The fallback to other products' forwarders follows a failure at the target, which no forwarder mends, and `doctor` counts it as checked |
+| [T-510](copy.md) | P3 | S | none | feature | open | `edit` with no terminal refuses an editor that needs none, and a copy kept after a conflict stays for ever |
+| [T-511](machine.md) | P3 | M | none | feature | open | `doctor` checks each road one after another, 22 to 40 s, roads that the run did not ask for among them |
+| [T-512](cli.md) | P3 | S | none | docs | open | The help and the manual leave out eight facts that the report of 2026-11-02 found by trial or after a refusal |
+| [T-530](mesh.md) | P2 | L | M10 | feature | open | OpenTunnel, a blind TLS tunnel with no account, as a carrier of the reverse road |
+| [T-531](mesh.md) | P2 | M | M10 | feature | open | The OpenTunnel road in the command line: `podssh node --opentunnel` and `ssh node://` |
+| [T-532](mesh.md) | P3 | M | M10 | feature | open | `podssh funnel` through OpenTunnel, with TLS that ends at the node |
+| [T-533](mesh.md) | P3 | S | M10 | docs | open | The manual says which public services podssh tries last, and which it never names |

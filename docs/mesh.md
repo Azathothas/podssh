@@ -204,7 +204,8 @@ carries sessions between two other members that no other road joins
 - **Funnel** (T-180). `podssh funnel TARGET` publishes a local HTTP service
   at a public `https://` name through the quick tunnel that podssh makes:
   a random name with no account, or a named tunnel of the user's own
-  account through its token file.
+  account through its token file. Where the quick tunnel's edge is out of
+  reach, OpenTunnel can carry it, with TLS that ends at the node (T-532).
 
 ## 6. Carriers and standard servers
 
@@ -218,6 +219,18 @@ availability only ([carriers.md](carriers.md)):
 - Piping Server, for a proxy that refuses the WebSocket upgrade (T-437);
 - the Wisp demo server, a forwarder after the three of Q56 (T-438);
 - each other service that fits, once its terms are read (T-442).
+
+The triage of the operator's sweep of public relays (2026-11-02) found one
+more that fits: OpenTunnel, a blind TLS tunnel with no account, whose TLS
+ends at the node and whose client's leg needs no upgrade (T-530, T-531);
+a node with no other road tries it unasked (Q76). The operator's rulings
+of the same day (Q74, Q75, Q77, Q78, Q82; [decisions.md](decisions.md))
+take each other fallback that exists: Tailscale's main DERP fleet after
+tailcat's, the public Wisp servers that are made for it, the overlay
+networks and meeting points of other projects, file hosts and public proxy
+nodes as last fallbacks, and roads over UDP where UDP passes; a domain that
+looks taken over is never used (Q79). The manual says which it tries last,
+and why (T-533).
 
 The standard protocols of Q66, so that a server that the user runs is a
 road with no relay: HTTP CONNECT to a second proxy over TLS, HTTP/1.1 and

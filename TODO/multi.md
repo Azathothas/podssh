@@ -1180,7 +1180,7 @@ name is copied by hand.
   remote command with a pty (`crates/podssh-cli/src/ssh/resolve.rs:272-280`,
   `crates/podssh-cli/src/ssh/hop.rs:106-117`). Only the list is missing.
 - Read: podssh starts a program only when the user names it or a probe
-  finds it (`AGENTS.md:272-278`). Here the programs run on the server, for a
+  finds it (`AGENTS.md:275-281`). Here the programs run on the server, for a
   request of the user.
 
 ## Approach
@@ -1802,7 +1802,7 @@ a ticket, or a tool that asks an AI.
 ## Premise
 
 - Read: podssh starts another program only when the user names it
-  (`AGENTS.md:272-278`), as it runs `SSH_ASKPASS`: the program, no shell, and
+  (`AGENTS.md:275-281`), as it runs `SSH_ASKPASS`: the program, no shell, and
   its first line read back (`crates/podssh-ssh/src/prompt.rs:102-119`).
 - Read: credentials never go to output, logs, URLs or argv
   (`docs/architecture.md:236-238`). The token type never shows itself
@@ -2246,7 +2246,10 @@ note of `each`, `docs/cli.md` and `docs/terminal.md` say it.
 # T-475: `podssh run` has no `--dry-run`, and its help names neither `.podsshignore` nor the paths that never go
 
 **Source:** GitHub #103 (Nemo-010, 2026-11-02, verified with `podssh 1.0.0 (35a0d19d)`), and its
-comment of the same day, which corrects its first ask.
+comment of the same day, which corrects its first ask. The report of the operator's testing agents
+of the same day (T-500's Source), its ledger's L-20: `run --exclude '*.log'` leaves `skip.log` out
+of the copy, and a later `run` still finds the copy that an earlier one sent: "exclude" reads as
+more than it does.
 **Category:** feature
 **Milestone:** none
 **Priority:** P3
@@ -2295,6 +2298,9 @@ a command.
 4. The row of `--exclude` names the defaults and `.podsshignore`; `--dry-run` and `--no-ignore`
    are rows. The notes of `run` and of `cp` say that `cp -r` has no default excludes and reads no
    `.podsshignore`, and that `run` does. `docs/cli.md` and `docs/STATUS.md`.
+5. (L-20.) The row of `--exclude` and the notes of `run` say that an exclude leaves a path out of
+   the copy and removes nothing: what an earlier run sent stays on the far side. `run` has no
+   `--delete`, which `cp -r` has (`crates/podssh-cli/src/flags/copy.rs:39-40`); the notes say so.
 
 ## Decision
 
@@ -2802,3 +2808,129 @@ them). A job quiet for 45 s, then printing, is followed across three calls with 
 twice. `--from-end` prints only what came after; `--timeout 2s` on `sleep 300` exits 75; a lost
 job exits 255. In `scripts/interop-job.sh`, the ticks against OpenSSH and Dropbear. Planted (new,
 t485-offset-reset): each call from offset 0; the test of the ticks finds a tick twice, and fails.
+
+# T-504: `each` splits a host of the command line at a blank, and runs the command on hosts that nobody named
+
+**Source:** the report of the operator's testing agents on `v1.0.0` (`35a0d19`), 2026-11-02 (T-500's
+Source): its issue 04 (`04-each-whitespace.md`), the second part, and its ledger's L-18 and L-19.
+`podssh each -l agent 'a b' 'echo X'` dialed `a` and `b` as two hosts (255), where `podssh ssh`
+refuses `a b` (64); a tab splits too. The manual says: "Each host is checked before anything
+connects: a bad one exits 64, and nothing has run anywhere." Read at `01e371e`.
+**Category:** defect
+**Milestone:** none
+**Priority:** P1
+**Effort:** S
+**Status:** open
+
+## Problem
+
+A list of hosts from a variable that kept a blank, or a `"$HOSTS"` meant as one host, becomes more
+hosts, and the command runs on each of them. The manual says a comma list, and promises that a bad
+host runs nothing anywhere.
+
+## Premise
+
+- Read: an item of a word is split at the blanks outside braces too, "as a group's line may have
+  them" (`crates/podssh-cli/src/hosts.rs:151-153`, `crates/podssh-cli/src/hosts.rs:177-178`,
+  `crates/podssh-cli/src/hosts.rs:184-204`), for the word of the command line and for a group of
+  the settings file alike; `add` knows which of the two it reads
+  (`crates/podssh-cli/src/hosts.rs:107-112`).
+- Read: the manual says "a comma list" (`crates/podssh-cli/src/man/notes_each.rs:5-9`), and gives
+  a group's hosts as "a list of the same kind" (`crates/podssh-cli/src/man/notes_each.rs:10-15`):
+  no part of it states the blanks.
+- Read: `podssh ssh` takes a word that is no pattern as one host
+  (`crates/podssh-cli/src/hosts.rs:27-31`), so `a b` goes to the name check of the road (T-503).
+- Read: the hosts are expanded, then each is resolved, before anything connects
+  (`crates/podssh-cli/src/each/mod.rs:124-134`); the resolve of the direct road takes `a`, and the
+  relay road takes it too, so the blank is the only fault, and it is lost.
+
+## Approach
+
+1. A blank outside braces in the word of the command line is refused (64) before anything
+   connects: "\"a b\": a blank parts no hosts on the command line; give a,b". A group's line keeps
+   its blanks.
+2. The manual of `each`, and of the groups in FILES, says it: commas on the command line, commas or
+   blanks in a group's line.
+3. Tests in `crates/podssh-cli/src/hosts_tests.rs`: `a b` and `a`, a tab, `b` from the command
+   line: refused; a group whose line is `web1 web2`: two hosts. In `crates/podssh-cli/tests/each.rs`,
+   `each 'a b' true` exits 64, and nothing is dialed (`PODSSH_OFFLINE` set).
+
+## Decision
+
+Refuse, not part: the manual's word is the rule, and a blank in one word is a mistake of quoting far
+more often than a list. Lost: blanks as a separator, said in the manual (the report's other way),
+which keeps the report's case. A group's line keeps its blanks: each settings file that has them
+goes on.
+
+## Prove
+
+```sh
+export CARGO_BUILD_JOBS=4
+cargo test -p podssh-cli --lib hosts
+cargo test -p podssh-cli --test each
+```
+
+Planted: the command line's word split at blanks again: the test of `a b` fails.
+
+# T-506: `session list` and `detached list` print nothing when there is nothing to list, and `session list` drops a session that does not answer
+
+**Source:** the report of 2026-11-02 (T-500's Source): its issue 06 (`06-empty-list-output.md`) and
+its ledger's L-23. Both exit 0 with no byte when nothing runs; with one session, `session list`
+prints a line `NAME`, its state and its host, with a tab between them. An empty list and one that
+could not be made look alike to a script that reads stdout. Read at `01e371e`.
+**Category:** defect
+**Milestone:** none
+**Priority:** P3
+**Effort:** S
+**Status:** open
+
+## Problem
+
+A script that reads stdout cannot tell "none" from a list that could not be made. `session list`
+also drops, with no word, a session whose server does not answer, and a directory that it cannot
+read.
+
+## Premise
+
+- Read: `session list` returns 0 at once with no session
+  (`crates/podssh-cli/src/session/client.rs:102-104`), and skips a session whose server does not
+  answer within its wait (`crates/podssh-cli/src/session/client.rs:108`); the sockets are found in
+  the directories that it can read, and one that it cannot is skipped
+  (`crates/podssh-cli/src/session/place.rs:70-84`, `:73`).
+- Read: `detached list` writes a line for each run of its directory, and none for none
+  (`crates/podssh-cli/src/detach/control.rs:143-150`); a directory that cannot be read gives none
+  (`crates/podssh-cli/src/detach/control.rs:128-139`).
+- Read, against the report: `job list` prints no header either
+  (`crates/podssh-cli/src/job/list.rs:58-67`), and has `--json` (T-197); `containers` says on
+  stderr that a host has none (`crates/podssh-cli/src/containers/mod.rs:299`).
+
+## Approach
+
+1. With nothing to list, one line on stderr, none with `-q`: "podssh session: no session runs (the
+   directories read: ...)" and "podssh detached: no run is known in DIR"; stdout stays empty, and
+   the exit 0.
+2. A session that does not answer within its wait is a line of the list with the state
+   `no-answer`; a directory that cannot be read is a line on stderr with its error.
+3. `--json` for both lists: one object with the list (`[]` for none) and the directories read.
+4. The notes of `session` and `detached`, and `docs/cli.md`.
+5. Tests: in `crates/podssh-cli/tests/session.rs`, an empty list gives its line on stderr and
+   nothing on stdout, and a socket of the test that takes a connection and never answers is listed
+   `no-answer`; in `crates/podssh-cli/tests/detach.rs`, the empty list of `detached`; `--json` of
+   each gives `[]`.
+
+## Decision
+
+A line on stderr, not a header on stdout (the report's first way): each parser of the lines keeps
+working, and stdout stays the list alone. Lost: a header, which each parser would skip (`job list`
+has none either). The state `no-answer` is a new word of the list, not a line on stderr alone: the
+session is there, and a script that counts the lines counts it.
+
+## Prove
+
+```sh
+export CARGO_BUILD_JOBS=4
+cargo test -p podssh-cli --test session -- list
+cargo test -p podssh-cli --test detach -- list
+```
+
+Planted: the line of an empty list removed: the test of the empty list fails.

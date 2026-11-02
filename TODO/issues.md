@@ -176,6 +176,7 @@ root lock), made on `main` and closed with a comment; Dependabot's #78 to #82 of
 | #103 | `run` reads a `.podsshignore` by default, and `--dry-run` | open | T-475 (its first ask is met already, `crates/podssh-cli/src/run_cmd/mod.rs:141-145`, as its comment found) |
 | #104 | A target that ends the connection right after the login reads as a refused session | open | T-464 (the words "Disconnected" and "Channel send error" are russh's, not the server's) |
 | #105 | `cp -r` says a skip twice, and exits 66 for a skip | open | T-476 (the line said twice is the first failure of the tree, not the last skip) |
+| #106 | The fallback to other products' forwarders should be asked for: 20.8 s against 0.14 s on a dead target, and the target goes to three services | open | T-509 (the fallback follows the relay's answer about the target too, a 502 or a refusal by policy, which no forwarder mends; the default of off is the operator's to rule, as Q56 set it on) |
 
 **The survey of #59, of 2026-10-31.** It extends #18 and the study of
 carriers of the same day (`docs/carriers.md`, whose forward road is T-347,
@@ -242,3 +243,27 @@ T-353 needs none (Inferred).
 | --- | --- |
 | Sandbox A (`report-podssh-sandbox-KTM-2026-10-08.txt`) | T-001 (done), T-004, T-005, T-006, T-024, T-025, T-157 |
 | Sandbox B (`report-podssh-3a88e1d-20261008.txt`) | T-001 (done), T-004, T-157 |
+
+## The report of the operator's testing agents on `v1.0.0`, 2026-11-02
+
+A black-box test of `podssh-x86_64-unknown-linux-musl` `v1.0.0` (`35a0d19`) on a Debian 13 guest
+with a curated environment (no `USER`, no `ssh` config, no key, no `tmux`, egress through one HTTP
+CONNECT proxy on ports 80 and 443): eight issues, not on GitHub, a ledger of 40 observations
+(L-01 to L-40), its findings and a checker of its claims, which the triage read and did not run.
+Each entry says which claims it verified in the code, and corrects the ones that the code does not
+support.
+
+| Report | Entries |
+| --- | --- |
+| Issue 01, "no user name" with `USER`, `LOGNAME` and `USERNAME` unset (`01-no-user-name.md`; L-01) | T-500 (the README of this repository names no `ssh railway.new`; that one-liner is Railway's page) |
+| Issue 02, `--su` waits for ever when `SSH_ASKPASS` exits not 0 (`02-su-hang.md`; L-03, L-05, L-11) | T-501 (L-11, `--sudo` under `NOPASSWD`, is by design) |
+| Issue 03, `-o ProxyCommand=none` does not beat a file's `ProxyCommand` (`03-proxycommand-in-config.md`; L-07) | T-502 (L-07 is T-043's Decision: `podssh proxy %h %p` names `podssh ssh` itself, and runs nothing) |
+| Issue 04, host names by road, and `each`'s blanks (`04-each-whitespace.md`; L-18, L-19) | T-503 (the check of the relay road is podssh's own, not the relay's), T-504 |
+| Issue 05, 22 keywords of a restriction accepted with no word (`05-ignored-config-keywords.md`; L-08, L-09, L-39) | T-505 (L-39's two notes come from Debian's `/etc/ssh/ssh_config`, not OpenSSH's defaults) |
+| Issue 06, an empty list reads as a broken one (`06-empty-list-output.md`; L-23) | T-506 (`job list` prints no header either) |
+| Issue 07, the way back after a downgrade (`07-update-rollback-advice.md`; L-37) | T-507 |
+| Issue 08, `--timeout` on two copy verbs of four (`08-timeout-inconsistent.md`; L-12, L-13, L-30) | T-508 (the split is T-139's Decision; the silent server's wait is ConnectTimeout's 60 s, past the report's 30 s; L-30 is met) |
+| The ledger's other observations | L-04, L-28 and L-40: T-509, with GitHub #106; L-06: T-481 (GitHub #91); L-15 and L-16: T-510; L-20: T-475; L-26: T-483; L-32: T-511; L-10, L-14, L-17, L-22, L-25, L-27, L-29 and L-36: T-512. Met: L-21 (the row of `--timeout` of `job` names `wait`, and the refusal names `job wait`, `crates/podssh-cli/src/flags/job.rs:14-15`), L-33 (the table of flags for a program is `podssh man --json`, T-050, which holds no such word; `--help` is prose for a person). Not podssh's, as the ledger says: L-02 (Railway refused each login), L-24 (the quick tunnel's road, as its manual says), L-31 and L-35 (the proxy dropped a CONNECT), L-34 (a note on the test), L-38 (both forms of help work) |
+
+The report names GitHub #22 (T-502 and T-505 are on its ground, `ssh_config` and the flags of
+OpenSSH) and #60 (T-509 narrows T-370's fallback).

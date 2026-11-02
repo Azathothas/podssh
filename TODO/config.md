@@ -680,7 +680,7 @@ go through one function since T-231 (`crates/podssh-cli/src/relay_settings.rs:65
 (`crates/podssh-cli/src/pins.rs:15-34`). The token cache uses the user's
 cache directory first, after the directory of `PODSSH_CACHE_DIR` (T-243;
 `crates/podssh-relay/src/cache/dirs.rs:59-87`). The decision named the
-configuration directory first; the operator corrected it on 2026-10-08 (`docs/decisions.md:72`, T-243).
+configuration directory first; the operator corrected it on 2026-10-08 (`docs/decisions.md:90`, T-243).
 
 ## Approach
 
@@ -1428,3 +1428,184 @@ The operator: a real export of FinalShell and of Termius, written by each
 program, under a license that this repository can hold (Q41).
 The operator ruled on 2026-10-31 that this is a known gap: `v1.0.0` does
 not wait for it, and its notes name it (`docs/decisions.md`).
+
+# T-502: `-o ProxyCommand=none` does not beat a file's `ProxyCommand`, and the first `ProxyCommand` of a file does not hold
+
+**Source:** the report of the operator's testing agents on `v1.0.0` (`35a0d19`), 2026-11-02 (T-500's
+Source): its issue 03 (`03-proxycommand-in-config.md`) and its ledger's L-07. With the line
+`ProxyCommand ssh -W %h:%p b` in a file of `-F`,
+`podssh ssh --direct -F FILE -o ProxyCommand=none HOST true` exits 78 with "FILE:1: ProxyCommand: podssh ssh reaches the host through the relay itself and runs
+no ProxyCommand ..."; so do `cp`, `scp`, `sftp` and `mv`, where `-o User` and `-o Port` beat the
+same file. A `ProxyCommand` of a block that does not apply is not read; one of `Host *` stops each
+destination. Related: GitHub #22. Read at `01e371e`.
+**Category:** defect
+**Milestone:** none
+**Priority:** P2
+**Effort:** S
+**Status:** open
+
+## Problem
+
+The command line's value of a keyword beats a file's, as in OpenSSH; for `ProxyCommand` it does
+not. A `Host *` block (or `Match all`, or `Match final`) with a jump host for OpenSSH, from a base
+image or a user's dotfiles, stops podssh for each host, and the one way out, `-F none`, drops each
+other block of the file too.
+
+## Premise
+
+- Read: the `-o` of the command line are applied first (`crates/podssh-cli/src/ssh/resolve.rs:135-137`),
+  the file is read into settings of its own (`crates/podssh-cli/src/ssh/resolve.rs:199`), and the
+  two are merged, the first value obtained winning (`crates/podssh-cli/src/ssh/resolve.rs:203`,
+  `crates/podssh-cli/src/ssh/options.rs:300-306`, `crates/podssh-cli/src/ssh/options.rs:375-379`).
+- Read: `ProxyCommand none` sets nothing (`crates/podssh-cli/src/ssh/options.rs:211`), and
+  `podssh proxy %h %p` adds a note alone (`:214`); each other value is an error (`:215-226`), which
+  a line of a file gets with its place and the file's exit, 78
+  (`crates/podssh-cli/src/ssh/config.rs:226`, `crates/podssh-cli/src/ssh/resolve.rs:199`). So no
+  value of the command line stands before the file's; and in one file, a `ProxyCommand none` of an
+  earlier block does not stand before a later `Host *`'s, where OpenSSH takes the first.
+- Read: a block that does not apply is not read (T-043's Decision), and `Match` is read (T-045), as
+  the report found.
+- Read (L-07): T-043 decided to accept `ProxyCommand podssh proxy %h %p` with no effect, and to
+  run no `ProxyCommand` (rule 3 of `AGENTS.md`), as `podssh ssh` is the program that it names; so
+  `/nonexistent/podssh proxy %h %p`, accepted and never run, is that decision. Its note says "-o
+  ProxyCommand has no effect in podssh", at `-v` alone (`crates/podssh-cli/src/ssh/resolve.rs:389`).
+- Read: 78 is the exit of a configuration error (`docs/decisions.md`, 2026-10-05); the report asks
+  for 255, or 64.
+
+## Approach
+
+1. A `ProxyCommand` that podssh takes as its own road (`none`, or `podssh proxy %h %p`) is a value
+   that holds: the first one given, on the command line or in a file, is kept, and each later
+   `ProxyCommand` is not read, as OpenSSH reads the first alone. So `-o ProxyCommand=none` beats
+   each file, and the `ProxyCommand none` of a `Host bastion` block beats a later `Host *`'s.
+2. A `ProxyCommand` that runs another command, with no value before it, stays refused, with 78 and
+   its place, and the line names the way out: "...; -o ProxyCommand=none makes podssh ssh take its
+   own road for this run, with the file's other settings".
+3. `-v` names the place of the value that it does not run: "ProxyCommand podssh proxy %h %p
+   (FILE:N) is not run: podssh ssh carries the session itself", in place of a note that says "-o".
+4. Each verb that reads the file gets it through the resolve: `cp`, `mv`, `scp`, `sftp`, `run`,
+   `each`, `health` and the others.
+5. Tests in `crates/podssh-cli/tests/ssh_config_file.rs`: the report's file with
+   `-o ProxyCommand=none`, and with `-o ProxyCommand='podssh proxy %h %p'`, logs in to the harness
+   with `--direct`; a `Host x` block with `ProxyCommand none` before a `Host *` with a command: `x` logs
+   in, another host is refused (78) with the new words; `cp` with the same file and `-o`.
+
+## Decision
+
+Recommendation, for the operator to rule: a `ProxyCommand` that applies to each host and that no
+earlier value beats stays a refusal (78), as T-043 decided: the file asks for a road (a jump host, a
+proxy of a company) that podssh does not take, and to carry the session over the relay with a note
+would send it where the file's author did not. The way out is one flag, which the line names. Lost:
+ignore it with a note, as the inert keywords are (the report's ask); and 255 at the connect, as a
+fault of the configuration is 78 (2026-10-05).
+
+**Ruled, Q70 (2026-11-02):** as recommended: refused with 78, and the refusal names `-o ProxyCommand=none`.
+
+## Prove
+
+```sh
+export CARGO_BUILD_JOBS=4
+cargo test -p podssh-cli --lib ssh::options
+cargo test -p podssh-cli --test ssh_config_file -- proxy_command
+```
+
+Planted: `none` sets nothing again: the test of `-o ProxyCommand=none` fails with 78.
+
+# T-505: Keywords that restrict a connection (`Ciphers`, `HostKeyAlgorithms`, `RequiredRSASize` and others) are accepted with no effect and no word, and the manual says that they change nothing
+
+**Source:** the report of 2026-11-02 (T-500's Source): its issue 05
+(`05-ignored-config-keywords.md`) and its ledger's L-08, L-09 and L-39. A `Host *` with `Ciphers`,
+`MACs`, `KexAlgorithms`, `HostKeyAlgorithms`, `PubkeyAcceptedAlgorithms`, `RequiredRSASize 3072`
+and `VerifyHostKeyDNS yes`: exit 0, stderr empty, and with `-v` a line "-o Ciphers has no effect in
+podssh" for each. The report splits the 50 keywords of the manual into 28 inert ones and 22 of a
+restriction. `-G` prints 40 lines where OpenSSH prints 91 (L-09); `-v` names `HashKnownHosts` and
+`GSSAPIAuthentication` in each run (L-39). Related: GitHub #22. Read at `01e371e`.
+**Category:** defect
+**Milestone:** none
+**Priority:** P2
+**Effort:** M
+**Status:** open
+
+## Problem
+
+A hardened `~/.ssh/config`, or `-o Ciphers=...`, connects with podssh's own algorithms and no word,
+and the manual says that those keywords "change nothing that podssh does". A restriction that the
+user asked for is gone with no sign, and an audit finds it.
+
+## Premise
+
+- Read: the 50 keywords are accepted with no effect, as they "ask for nothing podssh does
+  differently, or limit algorithm lists that podssh keeps modern itself"
+  (`crates/podssh-cli/src/ssh/keywords.rs:86-103`), and the manual says "Accepted and ignored,
+  because they change nothing that podssh does" (`crates/podssh-cli/src/man/model.rs:252-255`).
+- Read: each one is a note (`crates/podssh-cli/src/ssh/options.rs:258`), "-o NAME has no effect in
+  podssh" (`crates/podssh-cli/src/ssh/resolve.rs:389`), said at `-v` alone
+  (`crates/podssh-cli/src/ssh/mod.rs:231-233`): "-o" also for the line of a file, with no file and
+  no line.
+- Read, against L-39: the two notes of each run come from Debian 13's `/etc/ssh/ssh_config`, whose
+  `Host *` sets `HashKnownHosts` and `GSSAPIAuthentication` (T-044's Correction), and which podssh
+  reads after `~/.ssh/config`; they are not OpenSSH's defaults.
+- Read: russh's lists of algorithms are podssh's to set (`crates/podssh-ssh/src/run_config.rs:18`),
+  and podssh orders the host key algorithms by `known_hosts` already
+  (`crates/podssh-ssh/src/run_config.rs:19-43`); no keyword reaches the lists.
+- Read: Fedora's system file includes the crypto policy's file (T-044's Correction). Inferred, not
+  read here: that file sets `Ciphers`, `MACs`, `KexAlgorithms`, `HostKeyAlgorithms`,
+  `PubkeyAcceptedAlgorithms`, `CASignatureAlgorithms` and `RequiredRSASize` for each host, so a
+  note at the default level for those would come in each run on Fedora.
+- Read, against the report's table: `CertificateFile` names the user's certificate, not a host's,
+  so a login that needs it fails where podssh does not apply it, and the user sees that;
+  `HostbasedAcceptedAlgorithms` restricts a hostbased login, which podssh does not make, so it is
+  inert here.
+- Read (L-09): `-G` prints the keywords that podssh applies (`crates/podssh-cli/src/ssh/dump.rs:1-7`),
+  as its manual says (`crates/podssh-cli/src/man/notes_ssh_more.rs:28-32`), so it has no line for
+  an algorithm list.
+
+## Approach
+
+1. Applied, as filters of what podssh offers, in OpenSSH's forms (a list, `+` to add, `-` to
+   remove, `^` to put first; a name that podssh lacks is dropped): `Ciphers`, `MACs`,
+   `KexAlgorithms`, `HostKeyAlgorithms`, `PubkeyAcceptedAlgorithms` (and its old name
+   `PubkeyAcceptedKeyTypes`) and `CASignatureAlgorithms`; and `RequiredRSASize`: a host's or a
+   user's RSA key smaller than it is refused, as OpenSSH refuses it (default 1024, as OpenSSH's).
+   A list that leaves nothing that podssh speaks is refused before anything connects (64 on the
+   command line, 78 in a file), and names what podssh speaks.
+2. A note at the default level, once for each keyword and run, for a restriction that podssh does
+   not apply (`BindAddress`, `BindInterface`, `IPQoS`, `TCPKeepAlive`, `ChannelTimeout`,
+   `RekeyLimit`, `UpdateHostKeys`, `VerifyHostKeyDNS`, `CertificateFile`, `SecurityKeyProvider`,
+   `Tunnel`, `TunnelDevice`, `WarnWeakCrypto`), when the user gave it (on the command line, in `-F`'s or
+   `PODSSH_SSH_CONFIG`'s file, or in `~/.ssh/config`): "VerifyHostKeyDNS yes (~/.ssh/config:4) is
+   not applied: podssh checks host keys against known_hosts alone". None for a line of the system's
+   file, and none with `-q`.
+3. The inert keywords keep their note at `-v`, and each note names its place
+   ("/etc/ssh/ssh_config:22: HashKnownHosts has no effect in podssh"), not "-o".
+4. `-G` prints the lists of step 1 as podssh will offer them (`ciphers`, `macs`, `kexalgorithms`,
+   `hostkeyalgorithms`, `pubkeyacceptedalgorithms`, `casignaturealgorithms`, `requiredrsasize`).
+5. The manual splits its list in three: applied, accepted with a note (not applied), and inert;
+   `docs/cli.md` says the same.
+6. Tests: the reading of the lists and their forms; `-G` gives each list as filtered;
+   `-o Ciphers=3des-cbc`, which podssh lacks, is refused (64); `RequiredRSASize 4096` against the
+   harness's RSA host key of 2048 bits is refused with 255 and its words; the note of
+   `VerifyHostKeyDNS` of `-F` at the default level, none for the same line in a system file of the
+   test, none with `-q`. In `scripts/interop.sh`, `-o KexAlgorithms=curve25519-sha256` against
+   OpenSSH, whose log names that exchange.
+
+## Decision
+
+Recommendation, for the operator to rule: apply the lists, which filter what podssh offers
+already, and say the rest. Lost: a note alone for each of the 22 (the report's second way): on
+Fedora each run would print seven lines for its crypto policy, which sets them for each program.
+Lost: the manual's split alone (its first way), which still connects with no word. `BindAddress`
+and `BindInterface` stay notes: a bind of the client's socket is outside rule 2 of `AGENTS.md`, and
+the relay road has no local address to choose.
+
+**Ruled, Q71 (2026-11-02):** as recommended: the lists apply.
+
+## Prove
+
+```sh
+export CARGO_BUILD_JOBS=4
+cargo test -p podssh-cli --lib ssh::keywords
+cargo test -p podssh-cli --test ssh_config_file -- algorithms
+```
+
+Planted: a list read and not applied: the test of `-G` fails.

@@ -3098,7 +3098,7 @@ waits minutes: 100 files of 2 bytes took 210 s with the default.
 - Read: T-141 and T-417 kept the default of 1 as their own call ("several channels are the user's
   choice"), after the operator's ruling Q23. Its row reads: several relay sessions for one copy
   when the user asks, a flag sets the number, the default is 1, and
-  `docs/decisions.md:46` says "Several channels in one connection come first". The files K at
+  `docs/decisions.md:64` says "Several channels in one connection come first". The files K at
   once are channels of one connection (T-297), not relay sessions. T-141's Approach kept K at 1
   "until a measurement shows a gain".
 - Read: a server that opens fewer sessions gets fewer files at once, with no failure, and through
@@ -3240,3 +3240,134 @@ and no line twice, and copies the file; with `--jsonl`, two `skipped` objects; w
 on stderr and exit 0. A tree with a name that is not UTF-8 still exits not 0, and says it once.
 Two missing sources of one command line are each said once, and the exit is 66. Planted defect:
 `report` says the kept failure again; the check of one line each fails.
+
+# T-508: `scp` and `sftp` take no `--timeout`, where `cp` and `mv` need one with no terminal, and no manual says why
+
+**Source:** the report of the operator's testing agents on `v1.0.0` (`35a0d19`), 2026-11-02 (T-500's
+Source): its issue 08 (`08-timeout-inconsistent.md`) and its ledger's L-12, L-13 and L-30. With
+stdin and stdout pipes, `cp` and `mv` exit 64 and ask for `--timeout`; `scp` and `sftp -b` run;
+`scp --timeout 30s` and `sftp --timeout 30s` exit 64 with "unknown flag". `scp` to a server that
+sends its version line and then nothing was still running when killed at 30 s. Related: GitHub #6
+(T-008) and #12 (T-012), both closed. Read at `01e371e`.
+**Category:** feature
+**Milestone:** none
+**Priority:** P3
+**Effort:** S
+**Status:** open
+
+## Problem
+
+A script that drives the four copy verbs must give `--timeout` to two of them and must not give it
+to the other two; no manual says that the split is a choice, or why.
+
+## Premise
+
+- Read: the gate asks for `--timeout` with no terminal of each verb whose table has the flag
+  (`crates/podssh-cli/src/dispatch.rs:280-304`, `crates/podssh-cli/src/non_interactive.rs:178-202`);
+  `cp` and `mv` have it (`crates/podssh-cli/src/flags/copy.rs:47-48`), and `scp` and `sftp` have
+  none, by T-139's Decision: as in OpenSSH, so that a script that runs `scp` in a pipe does not exit
+  64, with ConnectTimeout and T-133's limits on each wait.
+- Inferred, against the report's evidence: a server that sends its version line and then nothing
+  holds the handshake, which ConnectTimeout bounds, 60 s by default
+  (`crates/podssh-cli/src/ssh/keywords.rs:36-37`); the report killed `scp` at 30 s, before it.
+- Read (L-30): `PODSSH_TIMEOUT` is the default of `--timeout` "for each command that has the flag"
+  (`crates/podssh-cli/src/man/facts.rs:107-109`), as the report found; met.
+- Read (L-13): the gate runs at the dispatch, before a verb reads its operands
+  (`crates/podssh-cli/src/dispatch.rs:280-304`), so with no terminal `cp DIR HOST:` with no `-r`
+  gets 64 for the missing `--timeout` first, and on a terminal 66.
+
+## Approach
+
+1. `scp` and `sftp` take `--timeout DURATION`, with `PODSSH_TIMEOUT` as its default, as a bound of
+   the whole run (75 when it passes, as `cp`'s); it is never required, so T-139's Decision stands.
+   The gate reads a field of the row that bounds and does not require, so that the table still
+   decides.
+2. The notes of `cp`, `mv`, `scp` and `sftp` say the rule and why: `cp` and `mv` need a bound with
+   no terminal; `scp` and `sftp` take one and need none, as OpenSSH's tools run in pipes with no
+   such flag, and ConnectTimeout bounds their login.
+3. The order of L-13 stays: an error of the command line before a fault of the files.
+4. Tests in `crates/podssh-cli/tests/scp_args.rs`: `scp --timeout 30s` and `sftp --timeout 30s -b`
+   with no terminal go on to connect (no 64); a server of the test that sends its version line and
+   then nothing ends `scp --timeout 2s` with 75 within 5 s, and, with no `--timeout`,
+   `-o ConnectTimeout=3` ends it with 255 within 10 s.
+
+## Decision
+
+Recommendation, for the operator to rule: the flag on all four, required on two (the report's
+first way, with T-139's reason kept). Lost: required on all four, as each script that runs `scp` in
+a pipe would exit 64 (T-139); required on none, which drops the gate of T-008 and T-012 that the
+testers of #6 and #12 asked for. L-13's order: a usage error comes before the work in each verb,
+so that nothing is done by half.
+
+**Ruled, Q72 (2026-11-02):** `scp` and `sftp` take `--timeout` as an optional bound, `PODSSH_TIMEOUT` as its default, never required; `cp` and `mv` keep theirs.
+
+## Prove
+
+```sh
+export CARGO_BUILD_JOBS=4
+cargo test -p podssh-cli --test scp_args -- timeout
+cargo test -p podssh-cli --test non_interactive
+```
+
+Planted: the new field read as required: the test of `scp` with no terminal fails with 64.
+
+# T-510: `edit` with no terminal refuses an editor that needs none, and a copy kept after a conflict stays for ever
+
+**Source:** the report of 2026-11-02 (T-500's Source): its ledger's L-15 and L-16. `podssh edit`
+with stdin and stdout not a terminal exits 64 whatever `EDITOR` is, and works under
+`script -qec`; after a conflict (73) the copy stays in `edit-HASH` of the cache, which nothing
+removes. Read at `01e371e`.
+**Category:** feature
+**Milestone:** none
+**Priority:** P3
+**Effort:** S
+**Status:** open
+
+## Problem
+
+An agent cannot use `edit`'s check of the far file, by which a change on the server is never lost,
+with an editor that is a script (`sed -i`); it must copy down and up with `cp`, with no check. Each
+conflict leaves a directory in the cache with no end.
+
+## Premise
+
+- Read, against the report's order: the editor is chosen first, and the terminal checked after it
+  (`crates/podssh-cli/src/edit/mod.rs:90-98`): with no terminal, each editor is refused, whatever
+  it is.
+- Read: the editor runs on the copy with podssh's own terminal
+  (`crates/podssh-cli/src/edit/editor.rs:89`); the check of the far file and the copy up need no
+  terminal (`crates/podssh-cli/src/edit/mod.rs:1-12`).
+- Read: a copy that holds a change stays and is named, by design
+  (`crates/podssh-cli/src/edit/mod.rs:9-12`, `crates/podssh-cli/src/edit/mod.rs:153`), in a new
+  directory of the cache for each run (`crates/podssh-cli/src/edit/local.rs:52-54`).
+
+## Approach
+
+1. `edit --no-terminal` runs the editor with no terminal: its stdin `/dev/null` and its stdout on
+   podssh's stderr, so that `EDITOR='sed -i s/a/b/'` works; `--timeout` bounds the editor's run,
+   and the gate asks for it with no terminal, as for `cp`. With no terminal and no flag, the
+   refusal names the flag.
+2. After a conflict, the line names the directory to remove after the merge: "your copy stays at
+   P; rm -r DIR once you merged it".
+3. A later `edit` says once that copies kept for more than 7 days are in the cache, with their
+   directory; it removes none.
+4. Tests in `crates/podssh-cli/tests/edit_args.rs` and against the harness: `--no-terminal` with
+   an editor of the test that adds a line: the far file has it, 0; the far file changed meanwhile:
+   73, and the copy kept; no `--timeout` with no terminal: 64.
+
+## Decision
+
+A flag, not a guess from `EDITOR`: podssh cannot tell an editor that needs a terminal from one that
+does not, and `vi` with no terminal waits for ever. Lost: the editor run with no terminal whenever
+there is none. A kept copy is never removed by podssh: each holds a change of the user's.
+
+## Prove
+
+```sh
+export CARGO_BUILD_JOBS=4
+cargo test -p podssh-cli --test edit_args
+cargo test -p podssh-cli --lib edit
+```
+
+Planted: `--no-terminal` that still checks the terminal: the test of the editor of the test fails
+with 64.

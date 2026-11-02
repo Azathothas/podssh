@@ -1094,3 +1094,70 @@ host outside `--allow-host` is refused by each tool; `job_start`, then `job_wait
 status; the server's end stops the sessions that it started. In `scripts/interop-mcp.sh`:
 `cp_put`, `cp_get` and `job_start` against OpenSSH. Planted (new, t488-dir-unchecked): the local
 path of a copy not held to `--allow-dir`; the test of the path outside fails.
+
+# T-511: `doctor` checks each road one after another, 22 to 40 s, roads that the run did not ask for among them
+
+**Source:** the report of the operator's testing agents on `v1.0.0` (`35a0d19`), 2026-11-02 (T-500's
+Source): its ledger's L-32, and its findings: `doctor` took 22 to 40 s in each run (37.8 s in the
+first steps on a new host), 3.2 s of it the relay's handshake, the rest the iroh relays, the DERP
+servers and the quick tunnel's edge, through one proxy. Read at `01e371e`.
+**Category:** feature
+**Milestone:** none
+**Priority:** P3
+**Effort:** M
+**Status:** open
+
+## Problem
+
+`doctor` is the first command on a new host, and an agent may run it at each start. It waits for
+each section in turn, so its time is the sum of the limits of each road, of roads that the user
+never named among them.
+
+## Premise
+
+- Read: the sections run one after another, each awaited before the next: the network, the quick
+  tunnel's UDP and its road over TCP, the relay, the forwarders, the roads of the build (iroh,
+  Tor), DERP and the pairs (`crates/podssh-cli/src/doctor/mod.rs:225-266`); the checks of the relay
+  and of the pairs have limits of 10 s (`crates/podssh-cli/src/doctor/relay_checks.rs:25`,
+  `crates/podssh-cli/src/doctor/pairs.rs:14`).
+- Read: the report prints the sections in a fixed order, which `--json` keeps (T-049).
+- Read: rule 2 of `AGENTS.md`: one outbound connection, with the exceptions of the operator's
+  decisions; `doctor` makes many, one at a time, and a race of the relay hosts may hold several
+  at once (Q10, `docs/decisions.md`, 2026-10-08).
+- Not measured here: the report's 22 to 40 s. Its L-31: the same proxy dropped a CONNECT twice in an
+  hour, so more CONNECTs at once may meet more drops.
+
+## Approach
+
+1. `doctor --quick`: the host, the network and the relay alone (what each run of `ssh` and `proxy`
+   needs), and a line that names the sections that it left out.
+2. The sections run at once by default (Q73), each into its own part of the report, and the
+   report keeps its order; the time of a run becomes that of its longest sections, not their sum.
+   `--jobs N` (and the setting `DoctorJobs`) limits how many run together; `--jobs 1` is one at
+   a time, as before.
+3. The manual and `docs/cli.md`; `docs/STATUS.md` gets the time of a run before and after.
+4. Tests in `crates/podssh-cli/tests/doctor.rs`: `--quick` gives no line of iroh, DERP or the quick
+   tunnel's edge, and the line of what it left out; with stand-ins that each wait 3 s, a run at once
+   ends within 8 s, its lines in the order of now; with `--jobs 1`, it takes the sum.
+
+## Decision
+
+- Recommendation, for the operator to rule (rule 2 of `AGENTS.md`): sections at once, at most 3
+  connections at a time, as many as the relay hosts' race may hold. Lost: one at a time (now),
+  which keeps the sum. Lost: all at once, which a proxy that drops CONNECTs (L-31) would answer
+  with more failures.
+- `--quick` is a flag, and the default stays whole: each road's line serves the host that needs
+  that road when the relay fails (Q50, Q58), and `doctor` names each. Lost: the roads in `--full`
+  alone.
+
+- **Ruled, Q73 (2026-11-02):** all the sections at once by default, against the cap of 3 above; a flag and a setting limit how many run together, down to one at a time. The Approach says it.
+
+## Prove
+
+```sh
+export CARGO_BUILD_JOBS=4
+cargo test -p podssh-cli --test doctor -- quick
+cargo test -p podssh-cli --lib doctor
+```
+
+Planted: `--quick` that still runs the road of DERP: the test of `--quick` fails.
