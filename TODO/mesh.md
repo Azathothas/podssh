@@ -625,7 +625,7 @@ protocols).
 **Milestone:** M10
 **Priority:** P2
 **Effort:** M
-**Status:** partial
+**Status:** done
 
 ## Problem
 
@@ -694,12 +694,16 @@ Caddy. Planted: the credential left out, and the `407` is said with its words.
 
 ## Done
 
-2026-11-02, partial: drafted by an agent in a worktree of its own, and merged, built and
-measured here; the run against Caddy and squid in containers closes it, in GitHub Actions
-(`.github/workflows/via-interop.yml`, on the push of the merge): this host's containers reach
-Go's module proxy only through the session's own proxy, whose CA they do not hold, so
-`scripts/interop-via.sh` said exit 71 here ("Caddy did not listen"), as it should for a host
-that lacks what the run needs.
+2026-11-02: drafted by an agent in a worktree of its own, and merged, built and measured here;
+the run against Caddy and squid in containers ran in GitHub Actions
+(`.github/workflows/via-interop.yml`, run 41389960690 at `5b62f4e`): 12 passed, 0 failed:
+sshd's banner, a session over HTTP/2's CONNECT, one over HTTP/1.1's (`PODSSH_VIA_HTTP=1.1`) and
+two sessions of `podssh each` on one HTTP/2 connection through Caddy 2.11.7 with forwardproxy;
+the banner and a session over HTTP/1.1 through squid's `https_port`; each proxy's `407` said
+with its words when the credential is left out (exit 77); the host's own squid carrying the TLS
+to each proxy by its name; `podssh doctor --via` naming Caddy and HTTP/2; and no output holding
+the proxies' password. This host's containers reach Go's module proxy and Alpine's packages only
+through the session's own proxy, so the whole run is the runner's.
 
 - podssh-ws, `crates/podssh-ws/src/via/`: the URL and its credentials, the versions offered, the
   client that keeps HTTP/2's connection and falls back to HTTP/1.1, and a refusal's words
