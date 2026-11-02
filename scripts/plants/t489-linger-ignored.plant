@@ -1,0 +1,7 @@
+# T-489: the end of the input ends the conversation with --linger too, so a
+# listener whose stdin ended leaves as its first peer comes; the test in
+# memory of the lingering listener must fail.
+ENTRY=T-489
+GROUP=cli-tests
+EXPECT='test a_lingering_listener_whose_input_ended_takes_each_peer \.\.\. FAILED'
+RUN='cargo test --locked -p podssh-cli --test chat_converse -- a_lingering_listener_whose_input_ended_takes_each_peer'

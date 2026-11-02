@@ -38,6 +38,10 @@ fn each_refusal_of_the_command_line_is_64_with_its_words() {
         (vec!["../x"], "not a pair name"),
         (vec!["node://../x"], "not a pair name"),
         (vec!["--no-e2e", "lab"], "--no-e2e"),
+        (vec!["--linger", "lab"], "--linger is for the side that waits: add --listen"),
+        (vec!["--listen", "--linger", "--send", "hi", "lab"], "--linger keeps the listener for each peer"),
+        (vec!["--listen", "--linger", "--file", "f", "lab"], "--linger keeps the listener for each peer"),
+        (vec!["--irc", "irc.example.org", "--linger", "#c"], "--linger is for the roads"),
     ] {
         let (rc, out, err) = chat(&home, &args);
         assert_eq!(rc, 64, "{args:?}: {err}");
@@ -127,10 +131,23 @@ fn the_help_and_the_manual_give_the_peer_and_the_commands() {
     assert!(!help.contains("not implemented"), "{help}");
     // The page wraps its lines: the words are looked for in one line.
     let flat = |text: &str| text.split_whitespace().collect::<Vec<_>>().join(" ");
+    // The end of stdin ends a listener, and --linger keeps it (T-489).
+    let help = flat(&help);
+    for words in ["--linger", "the end of stdin ends the run"] {
+        assert!(help.contains(words), "{words}: {help}");
+    }
     let (rc, page, err) = podssh(&home, &["man", "chat"], &[]);
     assert_eq!(rc, 0, "{err}");
     let page = flat(&page);
-    for words in ["--listen", "--accept-dir DIR", "/accept ID", "known-nodes", "1000 lines or 1 MiB"] {
+    for words in [
+        "--listen",
+        "--accept-dir DIR",
+        "/accept ID",
+        "known-nodes",
+        "1000 lines or 1 MiB",
+        "the end of stdin ends the listener",
+        "--linger keeps it",
+    ] {
         assert!(page.contains(words), "{words}: {page}");
     }
     let (rc, exits, _) = podssh(&home, &["man", "exit-status"], &[]);

@@ -98,5 +98,5 @@ pub(in crate::chat) async fn run<W: AsyncWrite + Unpin>(
         // The node said why as it stopped.
         return run::refused(code, "the node could not serve its roads".into(), lines, out).await;
     }
-    run::finish(&ended, lost, lines, out).await
+    run::finish_planned(&ended, lost, opts.linger, lines, out).await
 }

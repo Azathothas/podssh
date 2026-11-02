@@ -55,6 +55,12 @@ come in, as on each node of that road. `podssh man chat` has each flag.
   `--accept-dir` stays until the peer leaves, as files can come after its
   stdin ended. `--timeout` is required when stdin or stdout is not a
   terminal.
+- The end of stdin ends the side that waits once each line went, and it
+  says so when a peer came after it (`stdin ended: the conversation ends
+  with nothing to send`). `--listen NAME --linger` keeps it for each peer
+  after its input ended, for a service or an agent with no stdin to keep
+  open: a conversation ends when the peer leaves, and the `--timeout` is
+  the run's planned end, with exit 0 (T-489).
 - The channel is always on, with the keys of `podssh node` and `podssh
   operator`: `--key`, `--ephemeral-key` and `--allow` at the side that waits;
   `--client-key` and `--node-key` at the side that reaches, which pins the

@@ -22,7 +22,8 @@ pub fn exit_codes() -> Vec<(Code, String)> {
         row(
             0,
             "Success. For podssh ssh: the remote command exited 0. For podssh chat: each message was \
-             acknowledged, and the one thing of --send or --file is done. For podssh ping: a relay host \
+             acknowledged, and the one thing of --send or --file is done; with --listen --linger, also when \
+             the --timeout passed, the run's planned end. For podssh ping: a relay host \
              gave its measures, or with a destination each measure has its number. For podssh health: the \
              facts came, or the host has no /proc and gave its system's name.",
         ),

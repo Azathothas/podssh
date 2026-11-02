@@ -187,7 +187,7 @@ measured: the debug binary has no `ts`).
 1. In the `Parsed::Command` arm, refuse a verb of `VERB_OWNER`
    (`crates/podssh-cli/src/flags.rs`, line 453 at `7aa955a`) before the gate. Keep one usage
    error first: a `--timeout` value that was given and does not parse is 64
-   (`docs/cli.md:3621-3622`).
+   (`docs/cli.md:3632-3633`).
 2. Give `require_timeout` the verb's name. The message names that verb, gives
    one true reason, and shows an example for that verb only. Replace
    `({attachment:?})` with words: "stdin or stdout is not a terminal", or
@@ -197,7 +197,7 @@ measured: the debug binary has no `ts`).
    (`crates/podssh-cli/src/dispatch.rs`, lines 424-477 at `7aa955a`,
    `crates/podssh-cli/tests/non_interactive.rs` lines 252-284 at `37ace00`). `ts` is the only verb
    that runs the gate today (`crates/podssh-cli/tests/ts_behave.rs:220-226`).
-5. Same commit: `docs/STATUS.md`. `docs/cli.md:3664` needs no change.
+5. Same commit: `docs/STATUS.md`. `docs/cli.md:3675` needs no change.
 
 ## Decision
 
@@ -604,7 +604,7 @@ variable matters when `cp`, `mv` and `relay` exist. `ssh` and `proxy` have no
    which `each_variable_in_the_source_is_documented` requires
    (`crates/podssh-cli/src/man/facts/tests.rs:65-78`); "default: env
    PODSSH_TIMEOUT" in the help of each `--timeout` row, as `--relay-host` says
-   it (`crates/podssh-cli/src/flags.rs:171-172`); `docs/cli.md:3740-3742`;
+   it (`crates/podssh-cli/src/flags.rs:171-172`); `docs/cli.md:3751-3753`;
    `docs/STATUS.md`.
 5. Do this after T-008, so that a verb that does nothing still exits 70 first.
 
@@ -1175,7 +1175,7 @@ Read: podssh matches hashed lines with HMAC-SHA1
 with their numbers (`scan`, `crates/podssh-ssh/src/known_hosts.rs:149-179`), and
 appends without a rewrite (`crates/podssh-ssh/src/known_hosts.rs`, lines 323-372 at `f6b7676`).
 The default files are the ones of `podssh ssh`
-(`crates/podssh-cli/src/man/data.rs:167`).
+(`crates/podssh-cli/src/man/data.rs:168`).
 
 ## Approach
 
@@ -1762,7 +1762,7 @@ file); measured here on `3ee70dc`.
 A `PODSSH_RELAY` or `PODSSH_RELAY_ADDR` that cannot be used makes
 `podssh proxy`, `podssh ssh` and `podssh doctor` exit 64, the code of a usage
 error. The command line is correct; a setting of the environment is not.
-`docs/cli.md:3621-3622` and `docs/decisions.md` ("Exit codes") give 78
+`docs/cli.md:3632-3633` and `docs/decisions.md` ("Exit codes") give 78
 (`EX_CONFIG`) for a configuration error. A script that reads 64 looks for the
 fault in its arguments.
 
@@ -1877,7 +1877,7 @@ flag (`crates/podssh-cli/tests/non_interactive.rs`, line 185 at `8c05b5e`).
 The real gate is `can_ask` (`crates/podssh-ssh/src/prompt.rs:82`), called at
 `crates/podssh-ssh/src/auth.rs:189`, `crates/podssh-ssh/src/auth.rs:306`,
 `crates/podssh-ssh/src/keys.rs:321` and `crates/podssh-cli/src/keygen.rs:382`.
-Its refusals name the real remedies (`docs/cli.md:3702-3704`). Commands use
+Its refusals name the real remedies (`docs/cli.md:3713-3715`). Commands use
 these parts of the module, which stay: `Attachment`, `resolve`, `resolve_tty`,
 `parse_timeout`, `require_timeout` (`crates/podssh-cli/src/dispatch.rs:298-316`,
 `crates/podssh-cli/src/ts.rs:56-65`) and `refuse_jsonl_in_proxy`
@@ -2507,7 +2507,7 @@ nothing.
 ## Decision
 
 A refused bind stays `ok`, with the features named. `FAIL` lost: the hosts that podssh is built
-for refuse the bind (sandbox A for AF_INET, `docs/STATUS.md:309`; the measured cage by the
+for refuse the bind (sandbox A for AF_INET, `docs/STATUS.md:310`; the measured cage by the
 operator's report, `docs/target-environment.md:25`), and doctor exits 1 on a `FAIL`, so each run
 there would fail where each road works (`crates/podssh-cli/src/doctor/mod.rs:6-9`). A fourth
 status lost: the report and its JSON have three (`docs/cli.md:2036-2039`). The issue's grade by a
@@ -2583,7 +2583,7 @@ alone measures less than they use, so it cannot answer what a user asks it.
   for, so it waits for a ruling: Q53.
 - Read: the measured cage's listening was not measured, and stands on the operator's report
   (`docs/target-environment.md:25`); sandbox A's AF_UNIX bind was doctor's bind
-  (`docs/STATUS.md:309`), so whether it listens is not known. The box refuses each bind
+  (`docs/STATUS.md:310`), so whether it listens is not known. The box refuses each bind
   (`scripts/box/seccomp.json:5-10`): it has no case of a bind allowed and a listen refused.
 - Read, in the issue (measured by its reporter on a development host, not with podssh): a bind
   of an AF_INET stream socket refused, where an AF_INET datagram socket and an AF_UNIX socket
@@ -3591,11 +3591,11 @@ of `job fetch`; why a file given by process substitution is refused; the direct 
   it. Inferred: a line shaped as OpenSSH's would make OpenSSH's server apply the quirks of its own
   client's versions to podssh, so the line stays podssh's. Against the report: the README says
   that podssh has "the options of OpenSSH" (`README.md:120`), not that it is OpenSSH.
-- Read (L-14): the side file of a broken copy is in FILES (`crates/podssh-cli/src/man/data.rs:203-204`)
+- Read (L-14): the side file of a broken copy is in FILES (`crates/podssh-cli/src/man/data.rs:204-205`)
   and in the notes (`crates/podssh-cli/src/man/notes.rs:123`), and in no row of `cp --help`
   (`crates/podssh-cli/src/flags/copy.rs:15-48`).
 - Read (L-17): `job fetch` of a job that runs exits 75, as EXIT STATUS says
-  (`crates/podssh-cli/src/man/data.rs:86-88`); the rows of `job --help` do not
+  (`crates/podssh-cli/src/man/data.rs:87-89`); the rows of `job --help` do not
   (`crates/podssh-cli/src/flags/job.rs:12-17`).
 - Read (L-22): a job's ID is 8 hex digits (`crates/podssh-cli/src/job/args.rs:96-101`), which the
   about of `job` does not say (`crates/podssh-cli/src/flags.rs:373-374`).
@@ -3607,7 +3607,7 @@ of `job fetch`; why a file given by process substitution is refused; the direct 
   and the notes of `proxy` do not name it (`crates/podssh-cli/src/man/notes.rs:167`).
 - Read (L-29): a bad line of the settings file or of an `ssh_config` file is 78, and the same
   keyword with `-o` is 64, by the decision of 2026-10-05; the row of 78 names the settings of the
-  environment and the flag's 64 (`crates/podssh-cli/src/man/data.rs:104-113`), not the files.
+  environment and the flag's 64 (`crates/podssh-cli/src/man/data.rs:105-114`), not the files.
 - Read (L-36): the README's `keygen -l` names the public file alone (`README.md:114`).
 
 ## Approach

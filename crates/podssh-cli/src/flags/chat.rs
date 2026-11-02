@@ -9,7 +9,9 @@ use super::{row, FlagKind, FlagRow};
 #[rustfmt::skip]
 pub const CHAT_FLAGS: &[FlagRow] = &[
     row(None, "listen", None, FlagKind::Supported,
-        "wait for the peer: serve the pair PEER as its node, one peer at a time", None),
+        "wait for the peer: serve the pair PEER as its node, one peer at a time; the end of stdin ends the run once each line went (see --linger)", None),
+    row(None, "linger", None, FlagKind::Supported,
+        "with --listen: the end of stdin ends no conversation; stay for each next peer until --timeout (then exit 0), a signal or /quit", None),
     row(None, "send", Some("MESSAGE"), FlagKind::Supported,
         "send one message, and exit once the peer acknowledged it; never prompts", None),
     row(None, "sendfile", Some("FILE"), FlagKind::Supported,

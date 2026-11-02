@@ -62,6 +62,9 @@ pub struct Lines {
     room: Arc<Room>,
     /// Lines taken while no peer was there, first for the next one.
     front: VecDeque<String>,
+    /// The lines that a conversation took, so that a listener can tell a
+    /// conversation that ended for want of input.
+    taken: u64,
 }
 
 impl Lines {
@@ -74,19 +77,19 @@ impl Lines {
         std::thread::Builder::new()
             .name("podssh-chat-input".into())
             .spawn(move || read_lines(std::io::BufReader::new(input), &tx, &theirs, &say))?;
-        Ok(Lines { rx, room, front: VecDeque::new() })
+        Ok(Lines { rx, room, front: VecDeque::new(), taken: 0 })
     }
 
     /// No lines: `--send` and `--file` read no input.
     pub fn none() -> Lines {
         let (_, rx) = mpsc::channel(1);
-        Lines { rx, room: Arc::default(), front: VecDeque::new() }
+        Lines { rx, room: Arc::default(), front: VecDeque::new(), taken: 0 }
     }
 
     /// Lines that the caller sends itself, with no bound of their own.
     pub fn channel(capacity: usize) -> (mpsc::Sender<String>, Lines) {
         let (tx, rx) = mpsc::channel(capacity);
-        (tx, Lines { rx, room: Arc::default(), front: VecDeque::new() })
+        (tx, Lines { rx, room: Arc::default(), front: VecDeque::new(), taken: 0 })
     }
 
     /// The next line; `None` once the input ended and each line went.
@@ -96,7 +99,13 @@ impl Lines {
             None => self.rx.recv().await?,
         };
         self.room.give(line.len());
+        self.taken += 1;
         Some(line)
+    }
+
+    /// How many lines the conversations took so far.
+    pub fn taken(&self) -> u64 {
+        self.taken
     }
 
     /// While no peer is there: each line that comes waits for the next peer,

@@ -3,7 +3,8 @@
 //! acknowledged; files of 0, 1 and 200,000 bytes taken into the directory of
 //! `--accept-dir`, with equal digests; a file that the user did not accept,
 //! never written; a declined file; `--send` and `--file`, which end once
-//! done; and a message with no acknowledgement, said at the end.
+//! done; a message with no acknowledgement, said at the end; and the side
+//! that waits, whose input ended, with `--linger` (T-489) and without.
 
 mod cleanup;
 
@@ -14,13 +15,16 @@ use std::task::{Context, Poll};
 use std::time::{Duration, Instant};
 
 use podssh_cli::chat::output::Output;
-use podssh_cli::chat::{converse, Ended, Lines, Once, Options, Summary};
+use podssh_cli::chat::{converse, listen_over, Ended, Lines, Once, Options, Summary};
 use tokio::io::{AsyncWrite, DuplexStream};
 use tokio::sync::mpsc;
 use tokio::task::JoinHandle;
 
 const LIMIT: Duration = Duration::from_secs(30);
 const PIPE: usize = 256 * 1024;
+/// The end of a listener whose input ended, as its user reads it.
+const INPUT_ENDED: &str =
+    "stdin ended: the conversation ends with nothing to send; --linger keeps the listener for its peers";
 
 fn scratch(name: &str) -> PathBuf {
     let dir = std::env::temp_dir().join(format!("podssh-chat-{name}-{}", std::process::id()));
@@ -71,6 +75,7 @@ impl Side {
             accept_dir: accept_dir.map(Path::to_path_buf),
             here: here.to_path_buf(),
             once: once.clone(),
+            linger: false,
         };
         let (out_sink, kept) = (stdout.clone(), notes.clone());
         let task = tokio::spawn(async move {
@@ -87,21 +92,7 @@ impl Side {
 
     /// Wait until a notice or stdout holds `needle`.
     async fn wait_for(&self, needle: &str) {
-        let deadline = Instant::now() + LIMIT;
-        loop {
-            let seen =
-                self.notes.lock().unwrap().iter().any(|n| n.contains(needle)) || self.stdout.text().contains(needle);
-            if seen {
-                return;
-            }
-            assert!(
-                Instant::now() < deadline,
-                "no {needle:?} in {:?} / {:?}",
-                self.notes.lock().unwrap(),
-                self.stdout.text()
-            );
-            tokio::time::sleep(Duration::from_millis(10)).await;
-        }
+        wait_for(&self.notes, &self.stdout, needle).await;
     }
 
     async fn end(mut self) -> Summary {
@@ -110,8 +101,121 @@ impl Side {
     }
 }
 
+/// Wait until a notice or stdout holds `needle`.
+async fn wait_for(notes: &Mutex<Vec<String>>, stdout: &Sink, needle: &str) {
+    let deadline = Instant::now() + LIMIT;
+    loop {
+        let seen = notes.lock().unwrap().iter().any(|n| n.contains(needle)) || stdout.text().contains(needle);
+        if seen {
+            return;
+        }
+        assert!(Instant::now() < deadline, "no {needle:?} in {:?} / {:?}", notes.lock().unwrap(), stdout.text());
+        tokio::time::sleep(Duration::from_millis(10)).await;
+    }
+}
+
+/// Wait until the notices hold `line` `n` times.
+async fn wait_count(notes: &Mutex<Vec<String>>, line: &str, n: usize) {
+    let deadline = Instant::now() + LIMIT;
+    while notes.lock().unwrap().iter().filter(|said| *said == line).count() < n {
+        assert!(Instant::now() < deadline, "{line:?} not {n} times in {:?}", notes.lock().unwrap());
+        tokio::time::sleep(Duration::from_millis(10)).await;
+    }
+}
+
 fn pair() -> (DuplexStream, DuplexStream) {
     tokio::io::duplex(PIPE)
+}
+
+/// The side that waits, as `--listen` holds its conversations, over streams
+/// that the test hands it in place of a road's sessions; its input ended
+/// before any peer came, as a service's with stdin at `/dev/null`.
+struct Listener {
+    stdout: Sink,
+    notes: Arc<Mutex<Vec<String>>>,
+    task: JoinHandle<i32>,
+}
+
+impl Listener {
+    fn start(here: &Path, linger: bool, jsonl: bool, timeout: Duration) -> (mpsc::Sender<DuplexStream>, Listener) {
+        let (peers, theirs) = mpsc::channel(4);
+        let (input, mut lines) = Lines::channel(4);
+        drop(input);
+        let opts = Options { nick: "ana".into(), accept_dir: None, here: here.to_path_buf(), once: Once::No, linger };
+        let stdout = Sink::default();
+        let notes = Arc::new(Mutex::new(Vec::new()));
+        let (out_sink, kept) = (stdout.clone(), notes.clone());
+        let task = tokio::spawn(async move {
+            let mut out = Output::new(out_sink, jsonl, move |line| kept.lock().unwrap().push(line));
+            listen_over(theirs, &mut lines, &mut out, opts, Some(timeout)).await
+        });
+        (peers, Listener { stdout, notes, task })
+    }
+
+    async fn wait_for(&self, needle: &str) {
+        wait_for(&self.notes, &self.stdout, needle).await;
+    }
+
+    /// Its exit code, once it ended by itself.
+    async fn end(self) -> i32 {
+        tokio::time::timeout(LIMIT, self.task).await.expect("the listener ends").unwrap()
+    }
+}
+
+/// With `--linger`, a listener whose input ended takes a peer, acknowledges
+/// its message and stays until the peer leaves, then takes a second; its
+/// `--timeout` is its planned end, with exit 0. Each peer here is a run of
+/// `--send`, as a script's.
+#[tokio::test(flavor = "multi_thread", worker_threads = 4)]
+async fn a_lingering_listener_whose_input_ended_takes_each_peer() {
+    let here = scratch("linger");
+    // Long enough for two conversations in memory, which take milliseconds.
+    let (peers, listener) = Listener::start(&here, true, false, Duration::from_secs(6));
+    for (n, text) in [(1, "first"), (2, "second")] {
+        let (ours, theirs) = pair();
+        peers.send(theirs).await.expect("the listener takes the next peer");
+        let peer = Side::start(ours, "bo", None, &here, Once::Send(text.into()));
+        let summary = peer.end().await;
+        assert_eq!(summary, Summary { ended: Ended::Done, undelivered: vec![], peer: Some("ana".into()) }, "{text}");
+        listener.wait_for(&format!("bo: {text}")).await;
+        // The next peer comes once this conversation is over, or it is told
+        // that the chat is busy.
+        wait_count(&listener.notes, "the peer left; podssh waits for the next", n).await;
+    }
+    assert!(!listener.task.is_finished(), "the listener left before its --timeout");
+    let notes = listener.notes.clone();
+    assert_eq!(listener.end().await, 0, "the --timeout of --linger exits 0: {:?}", notes.lock().unwrap());
+    let notes = notes.lock().unwrap();
+    assert!(notes.iter().any(|n| n == "the --timeout passed"), "{notes:?}");
+    assert!(!notes.iter().any(|n| n.starts_with("stdin ended")), "{notes:?}");
+    drop(peers);
+}
+
+/// Without `--linger`, the same listener leaves as its first peer comes, and
+/// says that stdin ended and what keeps it, on stderr and in `--jsonl`.
+#[tokio::test(flavor = "multi_thread", worker_threads = 4)]
+async fn a_listener_whose_input_ended_says_so_as_it_leaves() {
+    let here = scratch("unlingered");
+    for jsonl in [false, true] {
+        let (peers, listener) = Listener::start(&here, false, jsonl, LIMIT);
+        let (ours, theirs) = pair();
+        peers.send(theirs).await.unwrap();
+        // A peer that stays until the listener goes, so that the listener's
+        // end comes from its input alone.
+        let peer = Side::start(ours, "bo", None, &here, Once::No);
+        peer.say("hello").await;
+        let (stdout, notes) = (listener.stdout.clone(), listener.notes.clone());
+        assert_eq!(listener.end().await, 0, "jsonl {jsonl}: {:?}", notes.lock().unwrap());
+        if jsonl {
+            assert!(stdout.text().contains(r#""ended":"input-ended""#), "{}", stdout.text());
+        } else {
+            assert!(notes.lock().unwrap().iter().any(|n| n == INPUT_ENDED), "{:?}", notes.lock().unwrap());
+        }
+        // The peer reads the end of the stream, the issue's "the peer left";
+        // its message may or may not have been acknowledged first.
+        let _ = peer.end().await;
+        drop(peers);
+    }
 }
 
 #[tokio::test(flavor = "multi_thread", worker_threads = 4)]
