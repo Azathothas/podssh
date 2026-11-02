@@ -193,12 +193,20 @@ availability only ([carriers.md](carriers.md)):
 - the public magic-wormhole mailboxes, for pairing by a short code (T-086);
 - Piping Server, for a proxy that refuses the WebSocket upgrade (T-437);
 - the Wisp demo server, a forwarder after the three of Q56 (T-438);
-- each other service that fits, once its terms are read (T-442).
+- each other service that fits, once its terms are read (T-442): ntfy.sh,
+  a meeting point of the pairing where a proxy refuses the WebSocket
+  upgrade (T-496); a second public Piping Server, `piping.onrender.com`
+  (T-497); and upterm's community server, a door on 443 to a machine that
+  runs upterm's own host (T-495).
 
 The standard protocols of Q66, so that a server that the user runs is a
 road with no relay: HTTP CONNECT to a second proxy over TLS, HTTP/1.1 and
 HTTP/2 (T-439); VLESS over a WebSocket and over XHTTP (T-440); wstunnel's
-protocol (T-441); and the others that T-442 finds.
+protocol (T-441); and those that T-442 found: chisel (T-490), Trojan
+(T-491), Shadowsocks 2022 (T-492), Outline's Shadowsocks in a WebSocket
+(T-493), NaiveProxy's server through `--via` (T-494), frp for the reverse
+road (T-498), and the IETF's connect-tcp once it is an RFC (T-499).
+[carriers.md](carriers.md) gives each reason, and those that do not fit.
 
 ## 7. Small repairs that the research found
 

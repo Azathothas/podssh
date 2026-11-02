@@ -513,7 +513,7 @@ repository and CI).
 | [T-439](mesh.md) | P2 | M | M10 | feature | done | HTTP CONNECT to a second proxy over TLS, HTTP/1.1 and HTTP/2 |
 | [T-440](mesh.md) | P2 | L | M10 | feature | done | VLESS over a WebSocket and over XHTTP |
 | [T-441](mesh.md) | P3 | M | M10 | feature | done | wstunnel's protocol |
-| [T-442](mesh.md) | P3 | M | M10 | research | open | More public services and standard protocols that fit |
+| [T-442](mesh.md) | P3 | M | M10 | research | partial | More public services and standard protocols that fit |
 | [T-443](mesh.md) | P2 | S | M10 | defect | done | The resumable layer's window on the pair's road is above the relay's bound |
 | [T-444](mesh.md) | P3 | S | M10 | feature | done | One TLS configuration for each trust in a process, so that TLS resumes |
 | [T-445](mesh.md) | P2 | S | M10 | feature | open | A node's record names each of its roads |
@@ -528,3 +528,13 @@ repository and CI).
 | [T-454](mesh.md) | P2 | S | M10 | feature | open | The relay role brakes `/v1/mint` and `/v1/pair` for each address |
 | [T-455](mesh.md) | P2 | S | M10 | feature | open | The relay role mints for the members of the net |
 | [T-456](mesh.md) | P3 | M | M10 | feature | blocked | XHTTP over HTTP/1.1, on a second connection |
+| [T-490](mesh.md) | P2 | M | M10 | feature | open | chisel's protocol: a chisel server as the road |
+| [T-491](mesh.md) | P3 | M | M10 | feature | open | Trojan over TLS and over a WebSocket |
+| [T-492](mesh.md) | P3 | M | M10 | feature | open | Shadowsocks 2022 (SIP022) for `--shadowsocks` |
+| [T-493](mesh.md) | P2 | M | M10 | feature | open | Shadowsocks in a WebSocket, as Outline's servers serve it, and `ssconf://` keys |
+| [T-494](mesh.md) | P3 | S | M10 | measurement | open | `--via` against NaiveProxy's server, and the words of a probe-resistant proxy |
+| [T-495](mesh.md) | P3 | M | M10 | feature | open | `-J upterm://SESSION@HOST`: a session of upterm's host as the first hop |
+| [T-496](mesh.md) | P3 | S | M10 | feature | open | ntfy.sh, a meeting point of the pairing where a proxy refuses the WebSocket upgrade |
+| [T-497](mesh.md) | P3 | S | M10 | feature | open | A second public Piping Server, `piping.onrender.com` |
+| [T-498](mesh.md) | P3 | L | M10 | feature | open | frp's protocol: a podssh node behind the user's frps, and its visitor |
+| [T-499](mesh.md) | P3 | M | M10 | feature | open | IETF's connect-tcp, once it is an RFC |

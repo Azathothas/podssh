@@ -191,7 +191,9 @@ this order:
 2. The net (its policy is done): T-445, T-452, T-453, T-086, T-226, T-346 and T-106.
 3. Exit, routes, share and funnel: T-431, T-432, T-433, T-180, then T-434 and T-435.
 4. The public carriers of Q65 (T-451, then T-450 from the runs of `transit-live.yml`; the
-   protocols of Q66 are done), then T-442.
+   protocols of Q66 are done), then T-442, and what its research filed: the protocols of servers
+   that a user runs (T-490 and T-493, then T-491, T-492, T-494 and T-498), upterm's door (T-495)
+   and a second Piping Server (T-497); T-496 and T-499 are parked.
 5. T-446: betas `v1.1.0-beta.N` after batches, and `v1.1.0` at the end.
 
 Between entries: the `none` entries, the highest priority first.
@@ -228,6 +230,8 @@ it can start.
 | T-161 | T-159 is done: a far end keeps a shell, its ring and its pty after the client leaves |
 | T-303 | T-110 is done: `podssh serve` has a pty (the operator holds it, Q32); and T-161 has a model of the far end's screen |
 | T-304 | T-303 is done: frames of the screen exist |
+| T-496 | T-086 is done: the pairing's exchange exists over a mailbox |
+| T-499 | draft-ietf-httpbis-connect-tcp is an RFC, and a server over HTTP/2 or HTTP/1.1 implements it |
 | T-250 | Each entry is done, except the relay's, and the gate is green |
 | T-251 | Each entry is done, except the relay's; it runs before the tag of T-250 |
 
