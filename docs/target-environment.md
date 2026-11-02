@@ -39,9 +39,13 @@ the box against the report before it measures podssh. See
   not run programs, `/tmp` and `/workspace` did, and namespaces, `mount`,
   `chroot` and `ptrace` were refused. In a sandssh sandbox with no passwd
   entry, the `ssh`, `ssh-keygen` and `scp` of OpenSSH 10.5p1 exited 255 with
-  `No user exists for uid 0`. Thus podssh takes the user name and the home
-  directory from `user@`, `$USER`, `$LOGNAME` and `$HOME`, never from
-  `getpwuid`.
+  `No user exists for uid 0`. Thus podssh takes the home directory from
+  `$HOME`, and the user name from `user@`, `-l`, `$PODSSH_USER`, `$USER`,
+  `$LOGNAME` and `$USERNAME` first; the user database comes last, and
+  nothing fails where it has no entry (the operator's ruling Q68, T-500). Its
+  entry is read from `/etc/passwd` as a file, as a static binary has no NSS
+  (`getpwuid_r` on macOS); uid 0 with no entry is `root`, and any other uid
+  with none gets a refusal that names `-l`, `PODSSH_USER` and `USER`.
 - **A writable directory may not run programs, and `/proc` may be
   missing.** Install podssh in `/tmp` or in the workspace. A related host had
   no `/proc`, so `current_exe()` can fail. podssh then does not look for a

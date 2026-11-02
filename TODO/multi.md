@@ -57,7 +57,7 @@ succeeded. `podssh ssh` takes one destination, as OpenSSH does.
 4. No prompts: BatchMode is on (`crates/podssh-cli/src/ssh/login.rs:86`).
    An unknown host key refuses that host and gives its fingerprint and
    `-o StrictHostKeyChecking=accept-new`. stdin is not read
-   (`crates/podssh-cli/src/ssh/resolve.rs:438`).
+   (`crates/podssh-cli/src/ssh/resolve.rs:436`).
 5. Get the token once, before the fan-out. Serialize `known_hosts::append`
    in the process with a mutex; T-029 covers two processes.
 6. The exit status: the largest status of the hosts, and 255 for a host that
@@ -72,7 +72,7 @@ succeeded. `podssh ssh` takes one destination, as OpenSSH does.
 ## Decision
 
 Recommendation: a new verb, because `podssh ssh` keeps the command line and
-the exit codes of OpenSSH for one host (`docs/cli.md:3598-3601`), and a list
+the exit codes of OpenSSH for one host (`docs/cli.md:3600-3603`), and a list
 of hosts changes both. The alternative, `podssh ssh --hosts LIST`, lost: one
 flag would change what the exit status means.
 
@@ -184,7 +184,7 @@ is not a shell. A set of hosts has no name.
   (`crates/podssh-cli/src/ssh/hop.rs:30-78`,
   `crates/podssh-ws/src/names.rs:10-24`).
 - Read: the `Host` lines of ssh_config are patterns, not lists
-  (`docs/cli.md:3726-3819`); they cannot define a group.
+  (`docs/cli.md:3728-3821`); they cannot define a group.
 
 ## Approach
 
@@ -295,7 +295,7 @@ a broadcast needs a stop that works at once.
 - Read: escapes work only at the start of a line, and only with a pty
   (`crates/podssh-ssh/src/escape.rs:1-8`).
 - Read: each session can live in one process, so a broadcast needs no
-  listener (`docs/target-environment.md:84-88`).
+  listener (`docs/target-environment.md:88-92`).
 
 ## Approach
 
@@ -1547,7 +1547,7 @@ of the command.
    quoted for a POSIX shell (T-187). When the copy used most of the 64 MiB
    (`docs/relay.md:229`), run the exec on a new session (T-137).
 4. The exit status: the command's, with the rules of `podssh ssh`
-   (`docs/cli.md:3598-3601`). A failed copy exits 255 and runs nothing.
+   (`docs/cli.md:3600-3603`). A failed copy exits 255 and runs nothing.
 5. In the same commit: the rows, the notes, an example, `docs/cli.md`,
    `docs/STATUS.md`. This entry depends on T-134 and T-143.
 
@@ -1814,13 +1814,13 @@ a ticket, or a tool that asks an AI.
   (`crates/podssh-ssh/src/log.rs:83-103`). The exit code leaves through
   `crates/podssh-cli/src/dispatch.rs:368-409`.
 - Read: for `podssh ssh`, an exit that is not 0 can be the remote command's
-  status (`docs/cli.md:3598-3601`), which is not a failure of podssh.
+  status (`docs/cli.md:3600-3603`), which is not a failure of podssh.
 
 ## Approach
 
 1. A variable `PODSSH_ERROR_PROGRAM`: one program, with no shell and no
    arguments, as `SSH_ASKPASS`. Add it to `VARIABLES`
-   (`crates/podssh-cli/src/man/facts.rs:46-291`).
+   (`crates/podssh-cli/src/man/facts.rs:46-295`).
 2. When: only when podssh itself fails: a usage error (64), a configuration
    error (78), 69, 70, 77, or 255 for a failure of podssh. Never after a
    success, and never for the status of a remote command or of an `exec:`
@@ -1995,7 +1995,7 @@ queue, no wait for a result, and no way to get the output back.
   T-178, or under `podssh serve` (T-107).
 - Read: the client can stop at any time: a sandbox ends, a laptop sleeps. A
   queue on the client dies with it, and a client that waits must not need a
-  listener (`docs/target-environment.md:74-78`).
+  listener (`docs/target-environment.md:78-82`).
 - Read: the output comes back with `cp` (T-134), within 64 MiB for each
   relay session (`docs/relay.md:229`); T-137 opens a new session.
 - Read in the report: GPU-Share places jobs by idle time and free VRAM. No

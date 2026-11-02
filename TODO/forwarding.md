@@ -377,7 +377,7 @@ X11 channel.
 
 Recommendation: refuse before the connection when the probe fails. podssh's
 rule is an error that tells what to do, never a silent fallback
-(`docs/target-environment.md:101-103`). The alternative, OpenSSH's way (a debug
+(`docs/target-environment.md:105-107`). The alternative, OpenSSH's way (a debug
 line, then a session with no X11), lost: the user asked for X11 and would
 not see why it is missing.
 
@@ -458,7 +458,7 @@ command line in `crates/podssh-cli/src/ssh/x11.rs:1-153`, the flags at
   this Xvfb takes an untrusted cookie of `xauth` at all
   (`scripts/interop-x11.sh:37-51`): env when it does not, a failure when it
   does and podssh's `-X` fails.
-- `docs/cli.md:782-805`, a note of the manual and the variable `XAUTHORITY`
+- `docs/cli.md:783-806`, a note of the manual and the variable `XAUTHORITY`
   say what the flags do, and the risk of `-Y`.
 - `cargo test -p podssh-ssh`: 155 passed; `cargo test -p podssh-cli`:
   577 passed, 0 failed, 31 ignored; clippy; rustfmt.
@@ -492,7 +492,7 @@ AF_UNIX.
   (`crates/podssh-cli/src/flags.rs`, lines 215-220 at `97146aa`). Read: `-o LocalForward` and
   `-o DynamicForward` too (`crates/podssh-cli/src/ssh/options.rs`, lines 185-189 at `97146aa`).
 - Read: `AGENTS.md:264-270` (no bind, no listen),
-  `docs/target-environment.md:84-88` (rule 3), `SECURITY.md:160-187` ("Nothing
+  `docs/target-environment.md:88-92` (rule 3), `SECURITY.md:160-187` ("Nothing
   listens") and `README.md:43-52` state the rule from before the ruling.
   `docs/design.md:1026-1028` already allows a local listener for `pipe` after
   a probe.
@@ -590,7 +590,7 @@ The refusals of `-L` and `-D` say "podssh ssh opens no local listener yet"
 and name `podssh pipe tcp-listen:` (`crates/podssh-cli/src/flags.rs`, lines 215-220 at `97146aa`,
 `crates/podssh-cli/src/ssh/options.rs`, lines 185-189 at `97146aa`). `SECURITY.md:160-187` and
 `README.md:43-52` state the ruling now, as `AGENTS.md:264-270` and
-`docs/target-environment.md:84-88` did already.
+`docs/target-environment.md:88-92` did already.
 
 ## Done
 
@@ -1633,14 +1633,14 @@ server (`remote_socket:host:hostport`), a socket on this host as the target
 (`[bind_address:]port:local_socket`, `remote_socket:local_socket`), and a SOCKS proxy that the
 server listens for and the client serves (`[bind_address:]port`). podssh refuses each by name, so
 a command line of OpenSSH fails with podssh. A server whose host refuses an AF_INET bind and
-allows an AF_UNIX one, as sandbox A does (`docs/STATUS.md:309`), can listen on a socket only; and
+allows an AF_UNIX one, as sandbox A does (`docs/STATUS.md:310`), can listen on a socket only; and
 the SOCKS form gives a server whose egress is closed a way out through the client.
 
 ## Premise
 
 - Read: `crates/podssh-cli/src/ssh/forward.rs` line 43 at `6f6eda2` says "a Unix socket is not
   carried yet", and its line 49 says "the server's SOCKS proxy (-R [bind_address:]port) is not
-  carried yet", for a spec of one or two fields (its lines 45-54); `docs/cli.md:728-729` and
+  carried yet", for a spec of one or two fields (its lines 45-54); `docs/cli.md:729-730` and
   `crates/podssh-cli/src/man/notes_ssh.rs:421-422` say so too. `TODO/forwarding.md:52-54` says
   "until a later step" of both, in T-035.
 - Read: `RemoteForward` holds a port and a `host:host_port` only

@@ -228,9 +228,7 @@ impl Chain<'_> {
         let user = match (&target.user, &filed.user) {
             (Some(user), _) => user.clone(),
             (None, Some(user)) => tokens.text("User ", user, USER_REFUSES)?,
-            (None, None) => env.user.clone().ok_or_else(|| {
-                format!("no user name for the jump host {}: give one as user@host, or User in ssh_config", target.host)
-            })?,
+            (None, None) => env.login_user(Some(&target.host))?,
         };
         tokens.remote_user = user.clone();
         let login = super::login::login(&self.args.identity_files, &settings, &tokens, env)?;

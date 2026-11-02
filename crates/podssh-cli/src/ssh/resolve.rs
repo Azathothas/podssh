@@ -121,7 +121,7 @@ pub(super) fn tls_trust(args: &SshArgs, env: &Env) -> podssh_ws::Trust {
         None => podssh_ws::Trust::Default,
     }
 }
-pub use super::resolve_env::Env;
+pub use super::resolve_env::{local_user, Env, LocalUser, UserFrom, USER_VARIABLES};
 
 /// Resolve `args`; `Err` is the message of a refusal.
 pub fn resolve(args: &SshArgs, env: &Env) -> Result<Resolved, String> {
@@ -260,7 +260,7 @@ pub fn resolve_or_refuse(args: &SshArgs, env: &Env) -> Result<Resolved, Refusal>
         (None, Some(user), ..) => tokens.text("-o User=", user, USER_REFUSES)?,
         (None, None, Some(user), _) => user.clone(),
         (None, None, None, Some(user)) => tokens.text("User ", user, USER_REFUSES)?,
-        (None, None, None, None) => env.user.clone().ok_or("no user name: give one with user@host or -l USER")?,
+        (None, None, None, None) => env.login_user(None)?,
     };
     tokens.remote_user = user.clone();
     let remote_command =
@@ -362,10 +362,7 @@ pub fn resolve_or_refuse(args: &SshArgs, env: &Env) -> Result<Resolved, Refusal>
             }
             _ => {}
         }
-        let trust = match ca_file(args, env) {
-            Some(file) => Trust::File(file.into()),
-            None => Trust::Default,
-        };
+        let trust = tls_trust(args, env);
         // The direct road after the relay hosts (T-363): not with a relay
         // that the user named, nor with -4 or -6, which the direct road
         // cannot keep. Forwarders (T-369), Shadowsocks servers (T-373), a
@@ -386,7 +383,8 @@ pub fn resolve_or_refuse(args: &SshArgs, env: &Env) -> Result<Resolved, Refusal>
         None if resumable => None,
         None => Some(Duration::from_secs(60)),
     };
-    let notes: Vec<String> = settings.ignored.iter().map(|k| format!("-o {k} has no effect in podssh")).collect();
+    let ignored = settings.ignored.iter().map(|k| format!("-o {k} has no effect in podssh"));
+    let notes: Vec<String> = ignored.chain(env.user_note()).collect();
     let mut warnings: Vec<String> = agents.warning.clone().into_iter().collect();
     let idle = relay::idle_secs(&podssh_relay::pool::in_use());
     if resumable {

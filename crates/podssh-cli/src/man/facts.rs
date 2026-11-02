@@ -195,10 +195,14 @@ pub const VARIABLES: &[(&[&str], &str)] = &[
         "The home directory, for ~ in file names (USERPROFILE on Windows when HOME is not set).",
     ),
     (
-        &["USER", "LOGNAME", "USERNAME"],
-        "The login name when none is given, and the nick of podssh chat when neither --nick nor \
-      PODSSH_NICK gives one. With none of them set, uid 0 is root. podssh never reads the user \
-      database.",
+        &["PODSSH_USER", "USER", "LOGNAME", "USERNAME"],
+        "The login name when none is given: the first of them that is set. With none set, the name of \
+      the effective uid's entry in the user database (/etc/passwd, read as a file; on macOS the system's \
+      directory), and root for uid 0 with no entry; -v says where the name came from. On a host with no \
+      name, a destination with no user is refused (64), with what was read and the ways to give one: \
+      user@host, -l, PODSSH_USER, USER or User in ssh_config. The same name is %u, Match localuser, the \
+      nick of podssh chat when neither --nick nor PODSSH_NICK gives one, and the default comment of \
+      podssh keygen.",
     ),
     (
         &["USERDOMAIN"],

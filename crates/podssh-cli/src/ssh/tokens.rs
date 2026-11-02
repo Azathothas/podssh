@@ -149,7 +149,7 @@ impl Tokens {
                 'r' => out.push_str(&self.remote_user),
                 'u' => {
                     out.push_str(self.local_user.as_deref().ok_or_else(|| {
-                        missing("%u", "the local user name, and USER, LOGNAME and USERNAME are not set")
+                        missing("%u", "the local user name, which no variable and no user database entry gives")
                     })?)
                 }
                 other => return Err(refuse(format!("%{other} is not a token; the tokens are {TOKENS}"))),

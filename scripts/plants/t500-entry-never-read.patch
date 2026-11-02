@@ -1,0 +1,11 @@
+--- a/crates/podssh-cli/src/ssh/resolve_env.rs
++++ b/crates/podssh-cli/src/ssh/resolve_env.rs
+@@ -27,7 +27,7 @@
+ /// The file of the user database, read as a file: a static binary has no
+ /// NSS, and the file is what each C library reads first.
+ #[cfg(unix)]
+-const PASSWD: &str = "/etc/passwd";
++const PASSWD: &str = "/nonexistent/passwd";
+ 
+ /// The most of that file that is read: a file synced from a directory can be
+ /// large, and an entry past this is not looked for.

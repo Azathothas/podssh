@@ -673,7 +673,8 @@ scripts. The facts about OpenSSH on this page were measured with OpenSSH
   host of the last jump), `%k` (`HostKeyAlias`, else `%n`), `%L`, `%l`
   (the local host name, and its first label for `%L`), `%n` (the host as
   typed), `%p`, `%r` (the remote user) and `%u` (the local user, from
-  `USER`, `LOGNAME` or `USERNAME`). An unknown token, or one whose value
+  `PODSSH_USER`, `USER`, `LOGNAME` or `USERNAME`, else the effective uid's
+  entry in the user database, T-500). An unknown token, or one whose value
   podssh does not know, is refused (exit 64); OpenSSH refuses an unknown one
   too. `RemoteCommand` takes the same tokens, and `User` from `-o` or from a
   file takes them but `%C` and `%r`; `-l` and `user@host` take none, as in
@@ -2295,7 +2296,8 @@ process.
   `rsa` crate, whose private-key operations are not (RUSTSEC-2023-0071, the
   Marvin attack): 2048, 3072 (the default), 4096 or 8192 bits, the sizes
   that aws-lc-rs makes (T-257).
-- The comment comes from the environment, never from the user database.
+- The comment is `USER@HOST`, with the local user's name as `podssh ssh`
+  takes it: the variables first, the user database's entry last (T-500).
 
 ### Security keys
 

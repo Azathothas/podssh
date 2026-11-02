@@ -436,8 +436,9 @@ fn print_fingerprint(path: &Path, out: &mut dyn Write, err: &mut dyn Write) -> i
     }
 }
 
-/// `user@host`, as `ssh-keygen` names a key, from the environment (never the
-/// user database, which some hosts lack).
+/// `user@host`, as `ssh-keygen` names a key: the local user as `podssh ssh`
+/// takes it, the variables first and the user database last, which some
+/// hosts lack (T-500).
 pub(crate) fn default_comment() -> String {
     match (crate::ssh::resolve::Env::from_process().user, crate::ssh::tokens::local_host_name()) {
         (Some(user), Some(host)) => format!("{user}@{host}"),
