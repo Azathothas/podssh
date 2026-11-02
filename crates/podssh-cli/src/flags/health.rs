@@ -41,6 +41,7 @@ pub const HEALTH_FLAGS: &[FlagRow] = &[
         "connect without the relay: TCP, through HTTPS_PROXY when one is set", None),
     super::forwarder::FORWARDER,
     super::shadowsocks::SHADOWSOCKS,
+    super::vless::VLESS,
     super::via::VIA, super::via::VIA_AUTH_FILE,
     row(None, "json", None, FlagKind::Supported,
         "the facts as one JSON object on stdout, also after a failure", None),

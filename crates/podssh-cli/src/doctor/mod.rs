@@ -50,6 +50,8 @@ mod tor;
 mod unix;
 // The second proxy of --via (T-439).
 mod via;
+// The servers of --vless (T-440).
+mod vless;
 
 /// The exit when at least one check failed.
 pub const EXIT_FAILED: i32 = 1;
@@ -76,6 +78,8 @@ pub struct DoctorArgs {
     pub shadowsocks: Option<String>,
     /// `--via`: the second proxy that is checked (T-439).
     pub via: crate::via::Flags,
+    /// `--vless`: the file whose servers are checked (T-440).
+    pub vless: Option<String>,
 }
 
 /// Run every check; returns the exit code. The report goes to `out`; only a
@@ -110,6 +114,10 @@ pub fn run_doctor(args: &DoctorArgs, out: &mut dyn Write, err: &mut dyn Write) -
     };
     let road = match crate::via::chosen(&args.via, crate::via::trust(args.ca_file.as_deref())) {
         Ok(road) => road,
+        Err(refusal) => return refusal.report("doctor", err),
+    };
+    let links = match crate::vless::for_doctor(args.vless.as_deref()) {
+        Ok(links) => links,
         Err(refusal) => return refusal.report("doctor", err),
     };
     let cert_env = std::env::var("SSL_CERT_FILE").ok().filter(|v| !v.trim().is_empty());
@@ -169,6 +177,9 @@ pub fn run_doctor(args: &DoctorArgs, out: &mut dyn Write, err: &mut dyn Write) -
         if road.is_some() {
             report.unknown("via", "not attempted: PODSSH_OFFLINE is set");
         }
+        if links.is_some() {
+            report.unknown("vless", "not attempted: PODSSH_OFFLINE is set");
+        }
         report.section("pairs");
         let stored = pairs::stored(&mut report);
         pairs::not_asked(&mut report, &stored, "not asked: PODSSH_OFFLINE is set");
@@ -184,6 +195,7 @@ pub fn run_doctor(args: &DoctorArgs, out: &mut dyn Write, err: &mut dyn Write) -
                 forwarders: &forwarders,
                 servers: servers.as_ref(),
                 road: road.as_ref(),
+                links: links.as_ref(),
             };
             runtime.block_on(network(&mut report, &checks));
             // A probe may have left a task behind (a relay leg still closing);
@@ -206,10 +218,12 @@ struct Checks<'a> {
     servers: Option<&'a crate::shadowsocks::Servers>,
     /// The second proxy of `--via` or `PODSSH_VIA`.
     road: Option<&'a crate::via::Road>,
+    /// The servers of `--vless`, when it names a file.
+    links: Option<&'a crate::vless::Servers>,
 }
 
 async fn network(report: &mut Report<'_>, checks: &Checks<'_>) {
-    let Checks { relays, trust, failover, full, forwarders, servers, road } = *checks;
+    let Checks { relays, trust, failover, full, forwarders, servers, road, links } = *checks;
     net::check_network(report, relays, trust).await;
     // Whether UDP reaches the quick tunnel's edge, Cloudflare's, with --full
     // alone (T-359).
@@ -230,6 +244,10 @@ async fn network(report: &mut Report<'_>, checks: &Checks<'_>) {
     if let Some(road) = road {
         report.section("via");
         via::check(report, road).await;
+    }
+    if let Some(servers) = links {
+        report.section("vless");
+        vless::check(report, servers, trust).await;
     }
     #[cfg(feature = "iroh")]
     {

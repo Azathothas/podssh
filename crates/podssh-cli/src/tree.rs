@@ -259,6 +259,7 @@ pub fn parse_verb(verb: &'static Verb, rest: &[std::ffi::OsString]) -> Parsed {
             forwarder: get("forwarder"),
             shadowsocks: get("shadowsocks"),
             via: crate::via::Flags { url: get("via"), auth_file: get("via-auth-file") },
+            vless: get("vless"),
             refused,
         };
     }
@@ -427,6 +428,7 @@ pub fn parse_verb(verb: &'static Verb, rest: &[std::ffi::OsString]) -> Parsed {
             forwarder: get("forwarder"),
             shadowsocks: get("shadowsocks"),
             via: crate::via::Flags { url: get("via"), auth_file: get("via-auth-file") },
+            vless: get("vless"),
             refused,
         };
     }

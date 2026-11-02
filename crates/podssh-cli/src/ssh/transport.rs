@@ -259,6 +259,10 @@ pub async fn reach_skipping(resolved: &Resolved, skip: usize, log: &Arc<Log>) ->
         Transport::Via { road } => {
             crate::via::reach::reach(road, &first.host, first.port, resolved.connection_attempts, log).await
         }
+        // The VLESS servers of a file, in order (T-440).
+        Transport::Vless { servers, trust } => {
+            crate::vless::reach::reach(servers, trust, &first.host, first.port, log).await
+        }
         Transport::Direct => {
             if podssh_relay::open::offline() {
                 return Err(NotReached {

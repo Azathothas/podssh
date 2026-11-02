@@ -1,0 +1,43 @@
+name: vless interop
+
+# `--vless`, VLESS servers in place of the relay (T-440, the operator's
+# ruling Q66), against Xray-core and shoes, each in a container of the
+# runner's Docker, with nginx in front of Xray-core as a front end that does
+# not pass the WebSocket upgrade, OpenSSH's sshd as the target and a plain
+# squid as the host's proxy: scripts/interop-vless.sh. Xray-core and shoes are
+# their projects' release binaries, pinned by version and SHA-256. The users'
+# ID is made for the run and never printed. Started by hand, and on a push
+# that changes the road; it publishes nothing.
+
+on:
+  workflow_dispatch:
+  push:
+    branches: [main]
+    paths:
+      - "crates/podssh-ws/src/vless/**"
+      - "crates/podssh-cli/src/vless/**"
+      - "scripts/interop-vless.sh"
+      - ".github/workflows/vless-interop.yml"
+
+permissions:
+  contents: read
+
+jobs:
+  interop:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 45
+    env:
+      CARGO_BUILD_JOBS: "4"
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+      - name: the build
+        run: cargo build --locked -p podssh-cli
+      - name: Xray-core, shoes and nginx in front
+        run: |
+          set -u
+          # Each exit code is read directly; the shell's -e would stop at it.
+          rc=0
+          PODSSH_ENGINE=docker timeout 2400 sh scripts/interop-vless.sh "$GITHUB_WORKSPACE/target/debug/podssh" \
+            > vless.log 2>&1 || rc=$?
+          cat vless.log
+          [ "$rc" = 0 ] || { echo "interop-vless exited $rc"; exit 1; }

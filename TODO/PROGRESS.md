@@ -88,10 +88,13 @@ entry keeps its proof in the entry; this page keeps no history (git does).
   two servers, its live run through ppng.io; nwtgck's server answers a sender only once a byte
   came, so the mark now goes with the POST's head; the command-level run is T-451); T-438's is merged
   and closed (against wisp-server-python, and live through the demo server); T-429's is merged and
-  closed. T-427's and T-448's are merged and closed. The drafts of T-440 and of T-441 wait in worktrees of
-  `.claude/worktrees/`, and on GitHub as `draft/worktree-agent-t440-vless` and `draft/worktree-agent-t441-wstunnel`; T-429's
-  `draft/worktree-agent-t429-net` can go. The branch `draft/m10-merge-437` of the T-437 merge can go,
-  as this session's git proxy would not delete it.
+  closed. T-427's and T-448's are merged and closed. T-440's is merged (three compile repairs, and
+  its XHTTP stand-in made the session for either request first, as Xray-core does); it stays
+  `partial` until `vless-interop.yml` runs on its push. The draft of T-441 waits in a worktree of
+  `.claude/worktrees/`, and on GitHub as `draft/worktree-agent-t441-wstunnel`. These branches can go, as
+  this session's git proxy would not delete them: `draft/worktree-agent-t429-net`,
+  `draft/worktree-agent-t440-vless`, `draft/draft-t427-t448`, and the merges' `draft/m10-merge-427`,
+  `-429`, `-437`, `-438`, `-439`, `-440`, `-443-444` and `-448`.
 
   CI: the gate passed at
   `24b9f6e` (run 38331509229), and its step `release` at `cad2885` (478
@@ -136,7 +139,7 @@ and `CARGO_BUILD_JOBS=4`:
 
 ## Counts
 
-`TODO/INDEX.md` holds 451 entries: 48 open, 1 partial, 16 blocked, 386 done.
+`TODO/INDEX.md` holds 452 entries: 47 open, 2 partial, 17 blocked, 386 done.
 
 Open includes parked work. `cargo todo check` verifies this line.
 
@@ -230,6 +233,14 @@ unattended session (Q13 to Q28) on 2026-10-08; the rulings are in
 that it blocks (status `blocked`) and a recommendation; the session then
 takes the next entry. Nothing is closed as out of scope until the operator
 rules.
+
+**Q67 (open, 2026-11-02): may XHTTP over HTTP/1.1 open a second connection?** T-440's `--vless`
+carries XHTTP on HTTP/2 alone, and refuses a server, or a front end that re-terminates TLS
+(squid's `ssl_bump`), that speaks HTTP/1.1 alone (exit 78): Xray-core's packet-up and stream-up
+over HTTP/1.1 carry the download and the upload on two connections at once, the shape of the
+split road that Q44 allows on that road alone. Recommendation: yes, as another exception of rule 2
+of `AGENTS.md`, tried only after HTTP/2 was refused, to the same server, and named by `doctor
+--vless`. It blocks T-456; T-440 is done without it, and its refusal stands until a ruling.
 
 The operator settled Q63 to Q66 on 2026-11-02 (`docs/decisions.md`), after the research of five
 agents on the dependency on the relay's operator: podssh grows into a mesh of its user's own nodes

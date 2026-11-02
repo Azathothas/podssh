@@ -263,6 +263,7 @@ pub fn flags(ssh: &SshArgs) -> Vec<String> {
         ("--shadowsocks", &ssh.shadowsocks),
         ("--via", &ssh.via),
         ("--via-auth-file", &ssh.via_auth_file),
+        ("--vless", &ssh.vless),
     ];
     for (flag, value) in named {
         if let Some(value) = value {

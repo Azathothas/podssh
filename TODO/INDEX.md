@@ -62,15 +62,15 @@ repository and CI).
 
 ## Counts
 
-**451 entries: 48 open, 1 partial, 16 blocked, 386 done.**
+**452 entries: 47 open, 2 partial, 17 blocked, 386 done.**
 
 | Priority | open | partial | blocked | done | total |
 | --- | --- | --- | --- | --- | --- |
 | P0 | 0 | 0 | 0 | 1 | 1 |
 | P1 | 2 | 1 | 0 | 50 | 53 |
-| P2 | 21 | 0 | 14 | 184 | 219 |
-| P3 | 25 | 0 | 2 | 151 | 178 |
-| **All** | 48 | 1 | 16 | 386 | 451 |
+| P2 | 20 | 1 | 14 | 184 | 219 |
+| P3 | 25 | 0 | 3 | 151 | 179 |
+| **All** | 47 | 2 | 17 | 386 | 452 |
 
 ## Entries
 
@@ -511,7 +511,7 @@ repository and CI).
 | [T-437](mesh.md) | P2 | M | M10 | feature | done | Piping Server, a road for a proxy that refuses the WebSocket upgrade |
 | [T-438](mesh.md) | P3 | M | M10 | feature | done | Wisp: the demo server as a forwarder, and the Wisp protocol |
 | [T-439](mesh.md) | P2 | M | M10 | feature | done | HTTP CONNECT to a second proxy over TLS, HTTP/1.1 and HTTP/2 |
-| [T-440](mesh.md) | P2 | L | M10 | feature | open | VLESS over a WebSocket and over XHTTP |
+| [T-440](mesh.md) | P2 | L | M10 | feature | partial | VLESS over a WebSocket and over XHTTP |
 | [T-441](mesh.md) | P3 | M | M10 | feature | open | wstunnel's protocol |
 | [T-442](mesh.md) | P3 | M | M10 | research | open | More public services and standard protocols that fit |
 | [T-443](mesh.md) | P2 | S | M10 | defect | done | The resumable layer's window on the pair's road is above the relay's bound |
@@ -527,3 +527,4 @@ repository and CI).
 | [T-453](mesh.md) | P3 | S | M10 | feature | open | `podssh cp` and `podssh sftp` reach a member of the net by its name alone |
 | [T-454](mesh.md) | P2 | S | M10 | feature | open | The relay role brakes `/v1/mint` and `/v1/pair` for each address |
 | [T-455](mesh.md) | P2 | S | M10 | feature | open | The relay role mints for the members of the net |
+| [T-456](mesh.md) | P3 | M | M10 | feature | blocked | XHTTP over HTTP/1.1, on a second connection |

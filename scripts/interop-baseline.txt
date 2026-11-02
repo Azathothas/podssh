@@ -60,6 +60,7 @@ harness conpty conpty 14 scripts/interop-conpty.py
 harness derp derp 3 scripts/interop-derp.sh
 harness ts ts-headscale 11 scripts/ts-headscale.sh
 harness via via 11 scripts/interop-via.sh
+harness vless vless 14 scripts/interop-vless.sh
 
 # scripts/interop.sh
 ssh.exit.dropbear.0 pass
@@ -785,3 +786,19 @@ via.hop.caddy pass
 via.hop.squid pass
 via.doctor env-allowed a route from the proxy's container to github.com:22 (T-439)
 via.secret pass
+# scripts/interop-vless.sh
+vless.xray.ws pass
+vless.xray.stream-one pass
+vless.xray.stream-up pass
+vless.xray.packet-up pass
+vless.xray.banner pass
+vless.xray.wrong-id pass
+vless.xray.http1 pass
+vless.shoes.ws pass
+vless.shoes.packet-up pass
+vless.shoes.stream-one pass
+vless.nginx.upgrade-refused pass
+vless.nginx.packet-up pass
+vless.hop pass
+vless.doctor env-allowed a route from the servers' containers to github.com:22 (T-440)
+vless.secret pass
