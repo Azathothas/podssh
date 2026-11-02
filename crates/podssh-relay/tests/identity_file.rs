@@ -131,6 +131,35 @@ fn a_key_under_the_name_of_t163_stays_the_identity() {
     assert_eq!(found.identity.public(), old_client.identity.public());
 }
 
+/// What a node reads to ask its net about its key (T-452): the key where it
+/// is kept, and none where there is none, with no file made either way.
+#[test]
+fn an_existing_key_is_read_where_it_is_kept_and_none_is_made() {
+    let base = scratch("existing");
+    let (a, b) = (base.join("a"), base.join("b"));
+    let dirs = [a.clone(), b.clone()];
+    let place = file::node_place("lab");
+    assert!(file::existing_in(&dirs, &place).unwrap().is_none());
+    assert!(!a.join(file::node_file("lab")).exists() && !b.join(file::node_file("lab")).exists(), "a key was made");
+    let path = base.join("node.key");
+    assert!(file::existing_in(&[], &Place::File(path.clone())).unwrap().is_none());
+    assert!(!path.exists(), "a key was made at the named file");
+    assert!(file::existing_in(&dirs, &Place::Ephemeral).unwrap().is_none(), "an ephemeral key is in no file");
+    // Kept, in the second directory and at a file: the same key as load's.
+    std::fs::create_dir_all(&b).unwrap();
+    let kept = file::load_in(std::slice::from_ref(&b), &place, &mut Fixed(0x33)).unwrap();
+    let found = file::existing_in(&dirs, &place).unwrap().expect("the kept key");
+    assert_eq!(found.public(), kept.identity.public());
+    let named = file::load_in(&[], &Place::File(path.clone()), &mut Fixed(0x44)).unwrap();
+    let found = file::existing_in(&[], &Place::File(path.clone())).unwrap().expect("the key of the file");
+    assert_eq!(found.public(), named.identity.public());
+    // A file that is no key is refused, as load refuses it.
+    std::fs::write(&path, "not a key\n").unwrap();
+    restrict(&path);
+    let why = file::existing_in(&[], &Place::File(path)).unwrap_err();
+    assert!(why.contains("not a key"), "{why}");
+}
+
 #[test]
 fn an_ephemeral_key_is_new_each_time_and_written_nowhere() {
     let dir = scratch("ephemeral");

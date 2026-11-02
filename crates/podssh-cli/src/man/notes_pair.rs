@@ -144,15 +144,18 @@ pub(super) const NODE: &[&str] = &[
      while its home does; after 3 failed connections in a row to its home, the node calls the next server \
      of its list home that takes a connection, and prints the new ticket. A client dials the ticket with \
      podssh ssh derp:TICKET, or races it with podssh ssh node://NAME --derp-ticket TICKET. A DERP server \
-     lets any key send, so the road needs --allow and the end-to-end channel: --no-e2e, --plain and a \
-     udp: TARGET are refused with it (64), and so is --derp with no --allow. With the pair NAME stored \
+     lets any key send, so the road needs the end-to-end channel and a door for it: --allow, or a node key \
+     that is a member of the net held here and in force (see podssh net), whose members are then the door \
+     alone, on each road of the node, and the first line says so. --no-e2e, --plain and a udp: TARGET are \
+     refused with it (64), and so is --derp with neither door, before the node's key is made. A node with no \
+     --allow that leaves its net lets nobody in. With the pair NAME stored \
      and good, or --pair-file, the node serves the pair's road too, and with --iroh the iroh road, with \
      one keeper of sessions for each road. A server sees each end's key on it, the sizes and the times; \
      the channel keeps the bytes from it.",
-    "A node with no pair stored under NAME (or one that expired), no --iroh and no --plain, and an \
-     allowlist, serves the DERP road unasked, by the operator's ruling Q50, and its first line says so; \
-     PODSSH_DERP=no turns that off, and the node refuses as before (78). With no --allow, it refuses as \
-     before too, as no client could come in.",
+    "A node with no pair stored under NAME (or one that expired), no --iroh and no --plain, and a door \
+     (an allowlist, or a key that the net held here names), serves the DERP road unasked, by the operator's \
+     ruling Q50, and its first line says so; PODSSH_DERP=no turns that off, and the node refuses as before \
+     (78). With neither door, it refuses as before too, as no client could come in.",
     "A node of the pair's road with the resumable layer and the end-to-end channel (no --plain, no \
      --no-e2e) and a TCP TARGET also waits for the pair's operators at a magic-wormhole transit relay \
      (T-436), Least Authority's wss://relay.mw.leastauthority.com, which needs no account, by the \

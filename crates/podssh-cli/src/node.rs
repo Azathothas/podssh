@@ -13,9 +13,9 @@
 //! `--temporary KEY`, it is the far end of `podssh ssh --upgrade` (T-167,
 //! `node_temp`). `udp:HOST:PORT` is a UDP TARGET: each session is one flow
 //! of datagrams from this host (T-168, `node_udp`). With `--derp`, or with
-//! no pair and an allowlist, the node serves the DERP road (T-379,
-//! `node_derp`). A node of the layer and the channel also waits at the
-//! transit relay of Q65 for the pair's operators (T-436, `node_transit`).
+//! no pair and a door (`--allow`, or its net), the node serves the DERP road
+//! (T-379, T-452, `node_derp`). A node of the layer and the channel also waits
+//! at the transit relay of Q65 for the pair's operators (T-436, `node_transit`).
 
 use std::io::Write;
 use std::path::PathBuf;

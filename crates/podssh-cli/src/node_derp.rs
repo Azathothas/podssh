@@ -8,21 +8,24 @@
 //! the pair NAME, or the one of `--pair-file`, it serves the pair's road
 //! too, with one keeper for both, so that a session resumes on either
 //! (T-164), and the transit relay's for the pair's operators (T-436,
-//! `node_transit`). The road needs the end-to-end channel and `--allow`: a DERP
-//! server lets any key send, so the channel's allowlist is the node's only
-//! door. A node with no pair, and an allowlist, serves the road unasked
-//! (the operator's ruling Q50) and says so; `PODSSH_DERP=no` turns that off.
-//! stdout stays empty: the lines are on stderr.
+//! `node_transit`). The road needs the end-to-end channel and a door for it:
+//! a DERP server lets any key send, so the channel's admission is the node's
+//! only door. That door is `--allow`, or, where the node's key is a member of
+//! the net held here, the net's members alone (T-452, `Door`). A node with
+//! no pair, and a door, serves the road unasked (the operator's ruling Q50)
+//! and says so; `PODSSH_DERP=no` turns that off. stdout stays empty: the
+//! lines are on stderr.
 
 use std::future::Future;
 use std::io::Write;
-use std::path::PathBuf;
+use std::path::{Path, PathBuf};
 use std::sync::Arc;
 use std::time::Duration;
 
 use podssh_relay::derp::far::{self, Node, Roam};
 use podssh_relay::derp::{self, dial, servers, Conn, Secret, Server, Ticket};
 use podssh_relay::e2e::ends;
+use podssh_relay::identity::file::{self as key_file, Place};
 use podssh_relay::identity::Identity;
 use podssh_relay::pair::Pair;
 use podssh_relay::reverse::routes::Route;
@@ -66,24 +69,66 @@ fn has_udp(args: &NodeArgs) -> bool {
 }
 
 /// Why a node with no `--derp` serves the DERP road, when it does: it has
-/// no pair (none stored, or expired), and an allowlist, and nothing else
-/// asked of it needs the pair's road (Q50).
+/// no pair (none stored, or expired), and a door (an allowlist, or a net
+/// that names its key, T-452), and nothing else asked of it needs the pair's
+/// road (Q50).
 pub(crate) fn unasked(args: &NodeArgs) -> Result<Option<String>, Refusal> {
     let other = args.derp || args.iroh || args.plain || args.no_e2e;
-    let allowed = args.allow.is_some() || args.iroh_allow.is_some();
-    if other || !allowed || args.pair_file.is_some() || has_udp(args) {
+    if other || args.pair_file.is_some() || has_udp(args) {
         return Ok(None);
     }
     let Some(label) = args.name.as_deref().filter(|label| crate::pairs::check_label(label).is_ok()) else {
         return Ok(None);
     };
-    if !fallback_on()? {
+    let allowed = args.allow.is_some() || args.iroh_allow.is_some() || net_door(args, label);
+    if !allowed || !fallback_on()? {
         return Ok(None);
     }
     Ok(crate::pairs::stored(label).err().map(|refusal| refusal.message))
 }
 
-/// The flags of the DERP road, checked before anything is read.
+/// Whether the net held here names the node's key as it is kept: the door
+/// of a node with no `--allow` (T-452). A flag that cannot be used is the
+/// later checks' to say.
+fn net_door(args: &NodeArgs, label: &str) -> bool {
+    let Ok(flags) = crate::node::key_flags(args) else { return false };
+    let Ok(place) = crate::channel::node_place(label, flags.key.as_deref(), flags.ephemeral) else { return false };
+    matches!(door(None, &place), Ok(Door::Net(_)))
+}
+
+/// Who comes in over the DERP road.
+pub(crate) enum Door {
+    /// The keys of `--allow`, and the net's members when the node is one.
+    Allow(PathBuf),
+    /// No `--allow`: the members of the net of this name alone (T-452).
+    Net(String),
+}
+
+/// The door of a node of the DERP road, read before its key is made, as a
+/// key made now is in no net: `--allow`, else the net held here when it
+/// names the key kept at `place`. A node with neither is refused, as before
+/// the net, as no client could come in.
+pub(crate) fn door(allow: Option<&Path>, place: &Place) -> Result<Door, Refusal> {
+    if let Some(path) = allow {
+        return Ok(Door::Allow(path.to_path_buf()));
+    }
+    let why = match key_file::existing(place) {
+        Ok(Some(identity)) => match crate::net::admit::member_door(&identity.public()) {
+            Ok(net) => return Ok(Door::Net(net)),
+            Err(why) => why,
+        },
+        Ok(None) if matches!(place, Place::Ephemeral) => "a key for this run only is in no net".to_string(),
+        Ok(None) => "the node has no key yet, so no net names it".to_string(),
+        Err(why) => format!("the node's key: {why}"),
+    };
+    Err(Refusal::usage(format!(
+        "--derp needs --allow FILE, the client keys that may come in, or a key that the net held here names \
+         ({why}): a DERP server lets any key send to the node"
+    )))
+}
+
+/// The flags of the DERP road, checked before anything is read; its door is
+/// `door`'s.
 pub(crate) fn check(args: &NodeArgs) -> Result<(), Refusal> {
     if args.plain {
         return Err(Refusal::usage("--plain is for the pair's road: the DERP road always runs the resumable layer"));
@@ -96,11 +141,6 @@ pub(crate) fn check(args: &NodeArgs) -> Result<(), Refusal> {
     }
     if has_udp(args) {
         return Err(Refusal::usage("a udp: TARGET goes on the pair's road: the DERP road carries TCP only"));
-    }
-    if args.allow.is_none() && args.iroh_allow.is_none() {
-        return Err(Refusal::usage(
-            "--derp needs --allow FILE, the client keys that may come in: a DERP server lets any key send to the node",
-        ));
     }
     Ok(())
 }
@@ -183,7 +223,7 @@ struct Ready {
     targets: Vec<Route>,
     roost: bool,
     key: podssh_relay::identity::file::Key,
-    allow: PathBuf,
+    door: Door,
     servers: Vec<Server>,
     trust: Trust,
     /// The pair's road: the pair, and whether it came from the store; or
@@ -200,7 +240,7 @@ fn prepare(args: &NodeArgs, unasked: Option<String>) -> Result<Ready, Refusal> {
     let targets = crate::node::targets_of(&crate::node::words_of(args), args.no_e2e)?;
     let flags = crate::node::key_flags(args)?;
     let place = crate::channel::node_place(&label, flags.key.as_deref(), flags.ephemeral)?;
-    let allow = flags.allow.ok_or("--derp needs --allow FILE")?;
+    let door = door(flags.allow.as_deref(), &place)?;
     let servers = crate::ssh::derp::servers(args.derp_server.as_deref())?;
     crate::pins::apply(args.relay_addr.as_deref())?;
     // A pair that `--pair-file` names must be good; a stored one may be
@@ -214,7 +254,7 @@ fn prepare(args: &NodeArgs, unasked: Option<String>) -> Result<Ready, Refusal> {
     let trust = crate::pairs::trust(args.ca_file.as_deref());
     // The key is made only once each check passed.
     let key = crate::channel::load_node_key(&place)?;
-    Ok(Ready { label, targets, roost: args.sshd, key, allow, servers, trust, pair, unasked })
+    Ok(Ready { label, targets, roost: args.sshd, key, door, servers, trust, pair, unasked })
 }
 
 /// Run the node of the DERP road; `unasked` is why it serves the road with
@@ -241,7 +281,7 @@ pub fn run(args: &NodeArgs, unasked: Option<String>, err: &mut dyn Write) -> i32
 }
 
 async fn serve(ready: Ready, err: &mut dyn Write) -> i32 {
-    let Ready { label, targets, roost, key, allow, servers, trust, pair, unasked } = ready;
+    let Ready { label, targets, roost, key, door, servers, trust, pair, unasked } = ready;
     // TARGET first: a node that cannot reach it would serve no session.
     let target = match crate::node::probe(&targets, roost).await {
         Ok(versions) => crate::node::serving(&targets, &versions),
@@ -282,22 +322,31 @@ async fn serve(ready: Ready, err: &mut dyn Write) -> i32 {
         Err(_) => "the DERP road alone".to_string(),
     };
     let public = identity.public();
-    let _ = writeln!(err, "podssh node: {label}: serving {target} over {roads} until Ctrl-C");
+    // With no --allow, the net is the door, and the first line says so (T-452).
+    let by = match &door {
+        Door::Allow(_) => String::new(),
+        Door::Net(net) => format!("; with no --allow, the members of the net {net} are its door"),
+    };
+    let _ = writeln!(err, "podssh node: {label}: serving {target} over {roads} until Ctrl-C{by}");
     let _ = writeln!(err, "podssh node: {label}: key {public}, the node derp:{} ({kept})", public.hex());
     let _ = writeln!(err, "podssh node: {label}: home {}, the first DERP server whose probe answered", road.home());
     let _ = writeln!(err, "podssh node: {label}: ticket {}", road.ticket);
-    let _ = writeln!(err, "podssh node: {label}: {}", crate::channel::who_may(Some(allow.as_path())));
+    if let Door::Allow(allow) = &door {
+        let _ = writeln!(err, "podssh node: {label}: {}", crate::channel::who_may(Some(allow.as_path())));
+    }
     if let Some(line) = crate::net::admit::line(&public) {
         let _ = writeln!(err, "podssh node: {label}: {line}");
     }
-    // The channel of T-088 on both roads, with this node's key and its
-    // allowlist: a session made on one road may resume on the other.
-    let channel = ends::Node {
-        identity: identity.clone(),
-        admit: crate::net::admit::admit(Some(allow.clone()), public),
-        say: say.clone(),
+    // The channel of T-088 on both roads, with this node's key and its door:
+    // a session made on one road may resume on the other. With no --allow,
+    // the net's members alone, also when the node leaves the net.
+    let allow = match door {
+        Door::Allow(path) => Some(path),
+        Door::Net(_) => None,
     };
-    let routes = crate::node::routes_of(&targets, crate::net::admit::grant(Some(allow), Some(public)), roost);
+    let (admit, grant) = crate::net::admit::doors(allow, public, true);
+    let channel = ends::Node { identity: identity.clone(), admit, say: say.clone() };
+    let routes = crate::node::routes_of(&targets, grant, roost);
     let (host, port) = (targets[0].host.clone(), targets[0].port);
     let handler = TcpHandler { host: host.clone(), port, timeout: DIAL_LIMIT, sshd: roost };
     let target = move || {

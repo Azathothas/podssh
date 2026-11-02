@@ -110,9 +110,9 @@ What T-429 built ([cli.md](cli.md), "`podssh net`"):
 - A node whose key is a member lets in the members of the document held,
   for each session (`crates/podssh-cli/src/net/admit.rs`), on the pair's,
   the iroh, the DERP and the quick tunnel's roads, as far as the policy lets
-  (T-430, below). The DERP
-  road's node still needs `--allow` to start, and its record at pkarr names
-  no road but iroh's (T-445).
+  (T-430, below). The DERP road's node starts with no `--allow` when its key
+  is a member, and the members are then its whole door (T-452); its record
+  at pkarr names no road but iroh's (T-445).
 - A member's name is a destination (`crates/podssh-cli/src/net/lookup.rs`):
   `node://NAME`, and `NAME` alone with the role `node`; the net names the key
   that the channel checks, and the tickets that race.

@@ -8,9 +8,12 @@
 //! ticket falls back on the one that it kept. A node with no pair serves the
 //! road unasked. When the node's home goes away, the node moves to the next
 //! server and says its new ticket, and a client of the old ticket finds it
-//! there; a client that tries the ticket's server alone does not.
+//! there; a client that tries the ticket's server alone does not. A node of
+//! no `--allow` whose key is a member of the net is the module `derp_net`
+//! (T-452).
 
 mod cleanup;
+mod derp_net;
 mod derp_support;
 mod ssh_harness;
 // The TLS acceptor of the test's own CA.
@@ -137,6 +140,10 @@ fn ticket_in(seen: &[String], needle: &str) -> String {
     line[at..].split_whitespace().next().unwrap().to_string()
 }
 
+/// A node that started: the process, its lines, and the lines up to its
+/// ticket.
+type Started = (Node, mpsc::Receiver<String>, Vec<String>);
+
 /// The place of one test: its runtime, which serves the stand-ins and the
 /// SSH server; two DERP servers; the node's home and the client's.
 struct Lab {
@@ -190,12 +197,24 @@ impl Lab {
 
     /// `podssh node lab TARGET` with `extra`, its lines, and the lines up to
     /// its ticket.
-    fn node(&self, extra: &[&str]) -> (Node, mpsc::Receiver<String>, Vec<String>) {
+    fn node(&self, extra: &[&str]) -> Started {
         let allow = self.allow.to_string_lossy().into_owned();
+        self.node_with(&["--allow", allow.as_str()], None, extra)
+    }
+
+    /// [`Lab::node`] with the door `door` (`--allow FILE`, or none) and the
+    /// net's document `net` (T-452).
+    fn node_with(&self, door: &[&str], net: Option<&Path>, extra: &[&str]) -> Started {
         let key = self.node_home.join("node.key").to_string_lossy().into_owned();
-        let mut args = vec!["node", "lab", &self.target, "--allow", &allow, "--key", &key, "--ca-file", &self.ca];
+        let mut args = vec!["node", "lab", self.target.as_str()];
+        args.extend_from_slice(door);
+        args.extend_from_slice(&["--key", key.as_str(), "--ca-file", self.ca.as_str()]);
         args.extend_from_slice(extra);
-        let mut child = command(&self.node_home, &args).stdin(Stdio::null()).stderr(Stdio::piped()).spawn().unwrap();
+        let mut cmd = command(&self.node_home, &args);
+        if let Some(net) = net {
+            cmd.env("PODSSH_NET", net);
+        }
+        let mut child = cmd.stdin(Stdio::null()).stderr(Stdio::piped()).spawn().unwrap();
         let lines = lines_of(&mut child);
         let node = Node(child);
         let started = wait_for(&lines, "ticket derp:");

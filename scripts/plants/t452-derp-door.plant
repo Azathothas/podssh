@@ -1,0 +1,7 @@
+# T-452: the door of a DERP node with no --allow lets in each key that the
+# net refuses, as if it had no member check, so a key that the net does not
+# name reaches the node; the test of the stranger must fail with its words.
+ENTRY=T-452
+GROUP=cli-tests
+EXPECT='a key that the net does not name reached the node'
+RUN='cargo test --locked -p podssh-cli --test derp_road -- derp_net::a_member_reaches_a_derp_node_of_no_allow_by_its_name_and_a_stranger_is_refused'

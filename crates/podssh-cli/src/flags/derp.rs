@@ -17,7 +17,7 @@ pub const SSH_DERP_SERVER: FlagRow = row(None, "derp-server", Some("SERVERS"), F
 /// `node --derp`.
 #[rustfmt::skip]
 pub const NODE_DERP: FlagRow = row(None, "derp", None, FlagKind::Supported,
-    "serve TARGET over the DERP road, through Tailscale's tailcat fleet: a client dials the ticket that the node prints; beside the pair's road and the iroh road; needs --allow and the end-to-end channel", None);
+    "serve TARGET over the DERP road, through Tailscale's tailcat fleet: a client dials the ticket that the node prints; beside the pair's road and the iroh road; needs the end-to-end channel, and --allow or a key that the net held here names, whose members are then the door", None);
 
 /// `node --derp-server SERVERS`.
 #[rustfmt::skip]
