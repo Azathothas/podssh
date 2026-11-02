@@ -89,9 +89,9 @@
 81 pull closed
 82 pull closed
 83 issue open
-84 issue open
+84 issue closed
 85 issue open
-86 issue open
+86 issue closed
 87 issue open
 88 issue open
 89 issue open
@@ -103,13 +103,13 @@
 95 issue open
 96 issue open
 97 issue open
-98 issue open
+98 issue closed
 99 issue open
 100 issue open
 101 issue open
 102 issue open
 103 issue open
-104 issue open
+104 issue closed
 105 issue open
 106 issue open
 107 issue open

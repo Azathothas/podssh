@@ -154,9 +154,9 @@ root lock), made on `main` and closed with a comment; Dependabot's #78 to #82 of
 | #75 | An HTTP CONNECT listener | closed 2026-10-31, its entry done | T-367 |
 | #76 | `ws:` and `ws-listen:` as addresses of `pipe` | closed 2026-10-31, each entry done | T-368, with the reader of requests of T-367 |
 | #83 | A quiet minute ends the session when a Go server's reply to the keepalive carries data | open | T-460 (russh ends the connection on a failure with data, which Go's x/crypto/ssh sends; OpenSSH reads none) |
-| #84 | Exit 0 with stdout cut at the relay's 64 MiB | open | T-461 (the status came before the output's end; no rotation for a plain sshd, whose far end keeps nothing to go on with) |
+| #84 | Exit 0 with stdout cut at the relay's 64 MiB | closed 2026-11-02, its entry done (`5b2468a`) | T-461 (the status came before the output's end; no rotation for a plain sshd, whose far end keeps nothing to go on with) |
 | #85 | `-R` refused by a Go server reads as a lost connection | open | T-460 (the connection was lost: the failure's data ended it, inferred from the 0.7 s), T-464 (that line names no cause) |
-| #86 | A `-J` hop that opens its channel and carries nothing ends in a bare 60 s timeout | open | T-462 (the hop took the channel, as the handshake's line came; a refused one is named at once, as `crates/podssh-cli/tests/jump_hop.rs:180` tests) |
+| #86 | A `-J` hop that opens its channel and carries nothing ends in a bare 60 s timeout | closed 2026-11-02, its entry done (`f460dcf`) | T-462 (the hop took the channel, as the handshake's line came; a refused one is named at once, as `crates/podssh-cli/tests/jump_hop.rs:180` tests) |
 | #87 | `cp --delta` falls back to a full copy with no word | open | T-470 (also: the copy by exec does not read `--delta`, and a server with a command and no `copy-data` gets its delta through that command) |
 | #88 | `health` gives the host's 48 CPUs and 188 GiB, not the container's 4 CPUs and 4 GiB | open | T-480 (the cgroup's limits, v2 and v1, beside the host's facts, and `effective` in the JSON) |
 | #89 | `sftp`'s `ls -l` is not OpenSSH's long form | open | T-471 (also: `-f`, `-h`, `-r`, `-S` and `-t` of `ls` do nothing; the words "as OpenSSH's sftp" are the about of `--help`, `crates/podssh-cli/src/flags.rs:397`, not the README's) |
@@ -168,13 +168,13 @@ root lock), made on `main` and closed with a comment; Dependabot's #78 to #82 of
 | #95 | `cp --no-clobber`, `--update` and `--backup` | open | T-473 |
 | #96 | `job log --follow` on one connection | open | T-485 |
 | #97 | `--result-file` for `cp`, `mv`, `run` and `sftp`, in one schema | open | T-486 (the copy's bytes are `transferred`, as `bytes` keeps the meaning of `ssh`'s), with T-484's record of a session for `run` |
-| #98 | A warning before the relay's 180 s idle cut | open | T-463 |
+| #98 | A warning before the relay's 180 s idle cut | closed 2026-11-02, its entry done (`b39a29d`) | T-463 |
 | #99 | `doctor` says once that each TLS handshake was reset | open | T-487 (the kind of each failure kept, not read from the system's words; a reference handshake with `github.com`; a diagnosis after the counts) |
 | #100 | `cp` chooses `--parallel` itself for many small files | open | T-474 (Q23 sets the default of relay sessions; the files at once are channels of one connection: T-474's Decision) |
 | #101 | `podssh mcp` offers `cp`, `job` and `health` as tools | open | T-488 (with `session`, which the issue names too; the copy's local side behind a new `--allow-dir`, the sessions behind `--allow-session`) |
 | #102 | `chat --listen --linger`, and a word on the end of stdin | open | T-489 (the listener connects out to the relay, so `--linger` adds no listener) |
 | #103 | `run` reads a `.podsshignore` by default, and `--dry-run` | open | T-475 (its first ask is met already, `crates/podssh-cli/src/run_cmd/mod.rs:141-145`, as its comment found) |
-| #104 | A target that ends the connection right after the login reads as a refused session | open | T-464 (the words "Disconnected" and "Channel send error" are russh's, not the server's) |
+| #104 | A target that ends the connection right after the login reads as a refused session | closed 2026-11-02, its entry done (`772275c`) | T-464 (the words "Disconnected" and "Channel send error" are russh's, not the server's) |
 | #105 | `cp -r` says a skip twice, and exits 66 for a skip | open | T-476 (the line said twice is the first failure of the tree, not the last skip) |
 | #106 | The fallback to other products' forwarders should be asked for: 20.8 s against 0.14 s on a dead target, and the target goes to three services | open | T-509 (the fallback follows the relay's answer about the target too, a 502 or a refusal by policy, which no forwarder mends; the default of off is the operator's to rule, as Q56 set it on) |
 | #107 | WARP's road opens on TLS to the edge, and proves no packet through the tunnel | open | T-560 |
