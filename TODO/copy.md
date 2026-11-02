@@ -755,7 +755,7 @@ relay's limits, and logs in as the first session did".
 
 **Source:** ROADMAP M5 ("Across hosts, `mv` is copy, verify, delete; podssh
 says first that it is not atomic"); the description of `mv` in
-`crates/podssh-cli/src/flags.rs:394-395`.
+`crates/podssh-cli/src/flags.rs:396-397`.
 **Category:** feature
 **Milestone:** M5
 **Priority:** P2
@@ -773,7 +773,7 @@ user must know this before the move starts.
 
 - Measured on `3ee70dc`, offline: `podssh mv --timeout 30s a b` exits 70
   (`'mv' is not implemented yet; nothing was done.`).
-- Read: `mv` shares `CP_FLAGS` (`crates/podssh-cli/src/flags.rs:394-395`),
+- Read: `mv` shares `CP_FLAGS` (`crates/podssh-cli/src/flags.rs:396-397`),
   so the operands and options of T-134 apply.
 - Measured (T-133's offline probe): `posix-rename@openssh.com` replaces in
   one step; `SSH_FXP_RENAME` refuses an existing target.
@@ -2837,7 +2837,7 @@ the names, with no word.
 - Read: `ls` takes `-1afhlnrSt` and keeps `l`, `n` and `a` alone
   (`crates/podssh-cli/src/sftp/commands.rs:201-205`): `-n` is `-l`, and `-f`, `-h`, `-r`, `-S`
   and `-t` do nothing. `docs/cli.md:1916` names `ls [-la]`.
-- Read: the about of `sftp` says "as OpenSSH's sftp" (`crates/podssh-cli/src/flags.rs:393`); the
+- Read: the about of `sftp` says "as OpenSSH's sftp" (`crates/podssh-cli/src/flags.rs:395`); the
   issue names it the README's.
 - Read: `Sftp::read_dir` keeps the name and the attributes of each entry, and drops the long name
   that the server sends with each (`crates/podssh-ssh/src/sftp/mod.rs:71-78`, `:426-441`);

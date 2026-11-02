@@ -298,6 +298,7 @@ mod each;
 mod edit;
 mod expect;
 mod forwarder;
+mod groups;
 mod health;
 mod job;
 mod keygen;
@@ -328,6 +329,7 @@ pub use detach::DETACHED_FLAGS;
 pub use each::EACH_FLAGS;
 pub use edit::EDIT_FLAGS;
 pub use health::HEALTH_FLAGS;
+pub use groups::GROUPS;
 pub use job::JOB_FLAGS;
 pub use keygen::KEYGEN_FLAGS;
 pub use man::MAN_FLAGS;
@@ -425,27 +427,6 @@ pub const VERBS: &[Verb] = &[
         about: "the runs that --detach and -f sent into the background, by their names: list them, the state of one, stop one" },
     Verb { name: "update", aliases: &["update"], flags: UPDATE_FLAGS,
         about: "this binary from the newest release, its signature and its sum checked first; only when asked" },
-];
-
-/// **The verbs by purpose, in the order that `--help` and the manual print
-/// them** (T-013). Each verb is in one group, as a test of the flag table
-/// holds; a purpose does not change between releases and builds, as a list
-/// of the commands that work would.
-pub const GROUPS: &[(&str, &[&str])] = &[
-    ("Connect", &["ssh", "each", "containers", "proxy", "pipe", "ts"]),
-    ("Work on a host", &["run", "job"]),
-    ("Copy files", &["cp", "mv", "scp", "sftp", "edit"]),
-    ("Keys", &["keygen", "agent"]),
-    ("Check this host and the path", &["doctor", "status", "ping", "health"]),
-    ("The reverse road", &["node", "operator", "net", "exit"]),
-    ("Runs in the background", &["detached"]),
-    ("Messages", &["chat"]),
-    ("Recordings", &["play"]),
-    ("Settings", &["config"]),
-    ("Tools for an agent", &["mcp", "session"]),
-    ("The relay", &["relay"]),
-    ("This manual", &["man"]),
-    ("This binary", &["update"]),
 ];
 
 /// Every verb that dispatch refuses as "not implemented yet", with the roadmap

@@ -564,7 +564,7 @@ that client: bytes captured from the real program (`AGENTS.md`, section 6, rule 
    a comment line. Never drop it silently.
 6. The output must read with the reader of T-043 and with OpenSSH.
 7. Add the verb to the tables: `VERBS`, and `VERB_OWNER` or a dispatch arm
-   (`crates/podssh-cli/src/flags.rs:364-461`), the arguments, `usage_tail`
+   (`crates/podssh-cli/src/flags.rs:366-442`), the arguments, `usage_tail`
    (`crates/podssh-cli/src/help.rs:268-293`), the manual's notes and examples, and
    `DISPATCHED` (`crates/podssh-cli/tests/flag_table.rs:110-143`).
 
@@ -624,7 +624,7 @@ output. Planted defect: copy the password field into a comment; the secret test 
 `crates/podssh-cli/src/config_import/mod.rs:171-175` and the options of
 `ansible_ssh_common_args` at
 `crates/podssh-cli/src/config_import/mod.rs:177-230`; the verb in the
-tables at `crates/podssh-cli/src/flags.rs:418-419`,
+tables at `crates/podssh-cli/src/flags.rs:420-421`,
 `crates/podssh-cli/src/positionals.rs:228-233`,
 `crates/podssh-cli/src/tree.rs:341-347` and
 `crates/podssh-cli/src/dispatch.rs:157-158`.

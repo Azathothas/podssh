@@ -393,7 +393,7 @@ rest. For a verb, clap reads each word before `--help` is answered
 3. Keep the verb level as it is: `podssh ssh --help host` prints the help of
    `ssh`, after clap has checked each word.
 4. If the top-level help text changes (`TOP_OPTIONS`,
-   `crates/podssh-cli/src/flags.rs:486-489`), update its test
+   `crates/podssh-cli/src/flags.rs:467-470`), update its test
    `no_top_level_option_runs_into_its_description`
    (`crates/podssh-cli/src/help.rs:345-360`). Same commit: `docs/cli.md:56-60`,
    `docs/STATUS.md`.
@@ -581,7 +581,7 @@ Measured offline: `PODSSH_TIMEOUT=5s podssh mv` and
 Read: the `--timeout` rows are those of `cp` and `mv`
 (`crates/podssh-cli/src/flags/copy.rs:47-48`), `chat`
 (`crates/podssh-cli/src/flags.rs`, lines 274-275 at `7aa955a`), `ts`
-(`crates/podssh-cli/src/flags.rs:366-367`) and `relay`
+(`crates/podssh-cli/src/flags.rs:368-369`) and `relay`
 (`crates/podssh-cli/src/flags.rs` lines 317-318 at `af0a163`). Each but `ts` exits 70
 (`crates/podssh-cli/src/flags.rs` lines 436-443 at `af0a163`), and `ts` needs its feature. So the
 variable matters when `cp`, `mv` and `relay` exist. `ssh` and `proxy` have no
@@ -697,7 +697,7 @@ group. Four places render it: `top_level_help`
 ## Approach
 
 1. Add the group to the table in `crates/podssh-cli/src/flags.rs`: a field of
-   `Verb` (`crates/podssh-cli/src/flags.rs:347-358`), or one list of groups. A
+   `Verb` (`crates/podssh-cli/src/flags.rs:349-360`), or one list of groups. A
    new test in `crates/podssh-cli/tests/flag_table.rs` asserts that each verb
    is in exactly one group, as `every_verb_has_an_owner_so_no_verb_can_be_a_silent_stub`
    does for owners (`crates/podssh-cli/tests/flag_table.rs:104`).
@@ -1987,7 +1987,7 @@ passes.
 ## Approach
 
 1. In `verb_help`, for a verb that is not `Works`
-   (`crates/podssh-cli/src/flags.rs:474-482`): the title with the note, the
+   (`crates/podssh-cli/src/flags.rs:455-463`): the title with the note, the
    sentence of the manual, and no option but `--help`, as the manual does.
 2. Keep that sentence in one place, so that `--help` and the manual
    (`crates/podssh-cli/src/man/model.rs` lines 188-200 at `fdbba30`) cannot

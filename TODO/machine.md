@@ -56,7 +56,7 @@ failed (lines 156-168). The sections are "this host", "egress" and "relay" (line
 Recommendation: `--json` writes one JSON document when a one-shot report is complete (`doctor`,
 `man`, `status`, `relay`, `ping`); `--jsonl` stays for the events of a long run (`chat`, `cp`,
 `ts`: `crates/podssh-cli/src/flags.rs`, lines 272-273 at `7aa955a`, `crates/podssh-cli/src/flags/copy.rs:45-46`,
-`crates/podssh-cli/src/flags.rs:364-365`). `--jsonl` also makes the run
+`crates/podssh-cli/src/flags.rs:366-367`). `--jsonl` also makes the run
 non-interactive and starts the `--timeout` rule
 (`crates/podssh-cli/src/non_interactive.rs:56-64`, 187-203), which a bounded report does not
 need. `--jsonl` everywhere lost for that reason. `--format json` lost because podssh's other
@@ -145,7 +145,7 @@ manual do not keep the kind and the `instead` of a flag.
    `--roff` is a usage error (64). No pager for JSON
    (`crates/podssh-cli/src/man/mod.rs` lines 73-78 at `332ee58`).
 5. The JSON is the same on each host: no path from `HOME` (`docs/cli.md:41-42`).
-6. Add the row to `MAN_FLAGS` (`crates/podssh-cli/src/flags.rs:375-382`), the field to
+6. Add the row to `MAN_FLAGS` (`crates/podssh-cli/src/flags.rs:377-384`), the field to
    `man::Request` (`crates/podssh-cli/src/man/mod.rs:53-60`), and the parse
    (`crates/podssh-cli/src/tree.rs:240-248`). JSON for `--help` stays with T-010.
 
