@@ -153,6 +153,10 @@ step_lint() {
     run "clippy: no warning with the WARP feature" \
         cargo clippy --locked --all-targets -p podssh-cli -p podssh-warp -p podssh-relay \
             --features podssh-cli/warp,podssh-warp/stand-in,podssh-relay/warp-stand-in -- -D warnings
+    # The relay role's tests on plain ws:// (T-427), which no other feature
+    # set builds.
+    run "clippy: no warning in the relay role's tests" \
+        cargo clippy --locked --all-targets -p podssh-relay --features serve,plain-ws -- -D warnings
     # The Tor road (T-353): the crate and the CLI's road with its feature.
     run "clippy: no warning with the Tor feature" \
         cargo clippy --locked --all-targets -p podssh-cli -p podssh-tor --features podssh-cli/tor -- -D warnings
@@ -187,6 +191,13 @@ step_libs() {
         env CC=/nonexistent CXX=/nonexistent cargo test --locked --no-fail-fast -p podssh-ws --features plain-ws --test cloudflare_access
     tests "the blocking facade against a stand-in relay (features blocking, plain-ws, no C compiler)" \
         env CC=/nonexistent CXX=/nonexistent cargo test --locked --no-fail-fast -p podssh-relay --features blocking,plain-ws --test blocking_plain
+    # The relay role (T-169, T-427): its routes, and its reverse road against
+    # raw sockets and against podssh's node and operator on plain ws://.
+    tests "the relay role's routes (feature serve, no C compiler)" \
+        env CC=/nonexistent CXX=/nonexistent cargo test --locked --no-fail-fast -p podssh-relay --features serve --lib serve::
+    tests "the relay role's reverse road (features serve, plain-ws, no C compiler)" \
+        env CC=/nonexistent CXX=/nonexistent cargo test --locked --no-fail-fast -p podssh-relay --features serve,plain-ws \
+            --test relay_serve_contract --test relay_serve_reverse
     run "the binary does not enable plain-ws" sh scripts/no-plain-ws.sh
 }
 

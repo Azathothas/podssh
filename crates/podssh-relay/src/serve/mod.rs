@@ -1,13 +1,14 @@
 //! The relay as a role of podssh (T-169, the operator's ruling Q63): the
-//! forward road of the relay's contract, version `2026-10-03-r2`, served by
-//! podssh itself, so that each client of podssh and each test of the forward
-//! road works against it unchanged (`docs/relay.md`, `docs/mesh.md`). The
-//! caller owns the listener and TLS (`podssh relay serve`); this serves one
-//! connection's request.
+//! forward road of the relay's contract, version `2026-10-03-r2`, and its
+//! reverse road (T-427, [`reverse`]), served by podssh itself, so that each
+//! client of podssh and each test of both roads works against it unchanged
+//! (`docs/relay.md`, `docs/mesh.md`). The caller owns the listener and TLS
+//! (`podssh relay serve`); this serves one connection's request.
 
 pub mod docs;
 pub mod forward;
 pub mod policy;
+pub mod reverse;
 pub mod tokens;
 
 use std::sync::Arc;
@@ -70,8 +71,11 @@ pub struct Config {
     pub tokens: tokens::Tokens,
     pub policy: policy::Policy,
     pub limits: Limits,
+    /// The pairs of the reverse road, and their sockets.
+    pub pairs: reverse::Pairs,
     /// Each mint, upgrade and client's Close as a line (`mint`, `upgrade`,
-    /// `close CODE`), as the stand-in relay prints them for a harness.
+    /// `close CODE`), and each step of the reverse road (`reverse ...`), as
+    /// the stand-in relay prints them for a harness.
     pub events: Option<Events>,
 }
 
@@ -108,12 +112,13 @@ where
             answer(&mut stream, reply).await
         }
         ("GET", "/llms-full.txt") => answer(&mut stream, docs::text(docs::SPEC)).await,
+        (_, p) if reverse::serves(p) => reverse::request(stream, head, pending, cfg).await,
         (_, p) => answer(&mut stream, request::refusal(404, &format!("{p}: not found"), &[])).await,
     }
 }
 
 /// `POST /v1/mint`: `{token, expires, scope}`.
-async fn mint<S>(stream: &mut S, head: &request::Request, mut pending: Vec<u8>, cfg: &Config)
+async fn mint<S>(stream: &mut S, head: &request::Request, pending: Vec<u8>, cfg: &Config)
 where
     S: AsyncRead + AsyncWrite + Unpin,
 {
@@ -121,22 +126,40 @@ where
         let why = "/v1/mint: this relay mints no token; its owner gives them";
         return answer(stream, request::refusal(503, why, &[])).await;
     }
-    let length: usize = head.header("content-length").and_then(|l| l.parse().ok()).unwrap_or(0);
-    if length > MINT_BODY {
-        return answer(stream, request::refusal(413, &format!("/v1/mint: a body of {MINT_BODY} bytes at most"), &[]))
-            .await;
-    }
-    let mut chunk = [0u8; 1024];
-    while pending.len() < length {
-        match tokio::time::timeout(HEAD_WAIT, stream.read(&mut chunk)).await {
-            Ok(Ok(n)) if n > 0 => pending.extend_from_slice(&chunk[..n]),
-            _ => return,
-        }
+    if let Err(refusal) = body(stream, head, pending, MINT_BODY, "/v1/mint").await {
+        return answer(stream, refusal).await;
     }
     cfg.event("mint");
     let (token, expires) = cfg.tokens.mint(tokens::now_ms(), tokens::LIFETIME_MS);
     let body = serde_json::json!({ "token": token, "expires": expires, "scope": "forward" });
     answer(stream, docs::json(&body)).await;
+}
+
+/// The body of a request, `max` bytes at most; `Err` holds the refusal to
+/// answer, empty for a client that went away.
+async fn body<S>(
+    stream: &mut S,
+    head: &request::Request,
+    mut pending: Vec<u8>,
+    max: usize,
+    path: &str,
+) -> Result<Vec<u8>, Vec<u8>>
+where
+    S: AsyncRead + Unpin,
+{
+    let length: usize = head.header("content-length").and_then(|l| l.parse().ok()).unwrap_or(0);
+    if length > max {
+        return Err(request::refusal(413, &format!("{path}: a body of {max} bytes at most"), &[]));
+    }
+    let mut chunk = [0u8; 1024];
+    while pending.len() < length {
+        match tokio::time::timeout(HEAD_WAIT, stream.read(&mut chunk)).await {
+            Ok(Ok(n)) if n > 0 => pending.extend_from_slice(&chunk[..n]),
+            _ => return Err(Vec::new()),
+        }
+    }
+    pending.truncate(length);
+    Ok(pending)
 }
 
 /// Write `reply`, then end the connection.

@@ -235,7 +235,7 @@ does; the late-reply check must fail.
 2026-10-09 (T-081): the relay does not cut a reply at a client's Close. It
 stops the client's bytes to the target, but the target's bytes still come,
 until the target closes or is idle for 15 s; then its Close is `1000 client
-half-closed, target idle for 15s` (`docs/relay.md:67-73`, measured with
+half-closed, target idle for 15s` (`docs/relay.md:162-168`, measured with
 `python scripts/capture-close.py --client-close`). A Close is a half-close for
 a reply that comes within 15 s of silence; a target that waits for the end of
 its input sees no end.

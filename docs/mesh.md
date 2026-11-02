@@ -93,7 +93,9 @@ there is no server to trust and nothing to hold up (T-429).
 
 `podssh relay serve` (T-169, T-427) serves the relay's contract, version
 `2026-10-03-r2`, so that each podssh client and each test of the forward and
-the reverse road works against it unchanged:
+the reverse road works against it unchanged: its forward road, and its pairs,
+nodes and operators ([relay.md](relay.md), "The relay role's reverse road"),
+which `--pairs FILE` keeps across a restart:
 
 - where it can listen: on an address that the user names (Q1), with a
   certificate from files or from ACME;

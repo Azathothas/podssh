@@ -6,10 +6,16 @@
 # `podssh doctor` against it. The role dials public targets alone and mints a
 # token for this run's clients; no token is printed.
 #
-# Usage: sh scripts/relay-serve-live.sh PODSSH
+# With `reverse` (T-427): the role's reverse road instead, the tests of
+# tests/node_live.rs that need no long run against it (PODSSH_LIVE_RELAY),
+# and, when PODSSH_OLD names the binary of an earlier release, that client's
+# `podssh operator` reads GitHub's banner through a node of the role's pair.
+#
+# Usage: sh scripts/relay-serve-live.sh PODSSH [reverse]
 set -eu
 
-PODSSH=${1:?usage: relay-serve-live.sh PODSSH}
+PODSSH=${1:?usage: relay-serve-live.sh PODSSH [reverse]}
+MODE=${2:-forward}
 HERE=$(cd "$(dirname "$0")" && pwd)
 FK=$(mktemp -d)
 SAN="DNS:relay-a.test"
@@ -34,6 +40,43 @@ while [ ! -s "$FK/port" ]; do
 done
 PORT=$(cat "$FK/port")
 echo "relay-serve-live: podssh relay serve at relay-a.test:$PORT"
+
+if [ "$MODE" = reverse ]; then
+    export PODSSH_LIVE_RELAY="relay-a.test:$PORT" PODSSH_LIVE_RELAY_ADDR="relay-a.test=127.0.0.1" SSL_CERT_FILE="$FK/ca.pem"
+    cargo test --locked -p podssh-cli --test node_live -- --ignored --nocapture --test-threads 1 \
+        node_command_serves_a_tcp_target ssh_to_a_node
+    if [ -n "${PODSSH_OLD:-}" ]; then
+        # An earlier release's client, in a home of its own: the pair that
+        # this binary made, its node in front of GitHub's SSH port, and the
+        # old `podssh operator`, which must read the server's banner.
+        (
+            export HOME="$FK/old-home" XDG_CACHE_HOME="$FK/old-home/cache" PODSSH_RELAY_ADDR="relay-a.test=127.0.0.1" PODSSH_TRANSIT=no
+            mkdir -p "$HOME"
+            "$PODSSH" relay pair old --relay-host "relay-a.test:$PORT" >/dev/null
+            "$PODSSH" node old github.com:22 2>"$FK/node.log" &
+            NODE=$!
+            i=0
+            until grep -q online "$FK/node.log"; do
+                i=$((i + 1))
+                [ "$i" -le 300 ] || { cat "$FK/node.log" >&2; kill "$NODE"; exit 1; }
+                sleep 0.1
+            done
+            rc=0
+            (sleep 8) | timeout 60 "$PODSSH_OLD" operator old >"$FK/banner" 2>"$FK/old.log" || rc=$?
+            kill "$NODE" 2>/dev/null || true
+            "$PODSSH" relay revoke old >/dev/null || true
+            if ! head -c 8 "$FK/banner" | grep -q '^SSH-2.0'; then
+                echo "relay-serve-live: $("$PODSSH_OLD" --version)'s operator read no banner (exit $rc):" >&2
+                cat "$FK/old.log" "$FK/node.log" >&2
+                exit 1
+            fi
+            echo "relay-serve-live: $("$PODSSH_OLD" --version)'s operator read $(head -n 1 "$FK/banner" | tr -d '\r') through a node of the role"
+        )
+    fi
+    echo "relay-serve-live: the role's events: $(tr '\n' ' ' <"$FK/events")"
+    echo "relay-serve-live: ok"
+    exit 0
+fi
 
 export PODSSH_RELAY="relay-a.test:$PORT" PODSSH_RELAY_ADDR="relay-a.test=127.0.0.1" SSL_CERT_FILE="$FK/ca.pem"
 cargo test --locked -p podssh-cli --test proxy_live -- --ignored --nocapture

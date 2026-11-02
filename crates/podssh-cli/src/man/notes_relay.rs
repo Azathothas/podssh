@@ -1,6 +1,6 @@
-//! The notes of `podssh relay`: the pairs (T-083), the document (T-060) and
-//! the relay's own state (T-058), apart from the others so that each file
-//! stays short.
+//! The notes of `podssh relay`: the pairs (T-083), the document (T-060),
+//! the relay's own state (T-058) and the relay role (T-169, T-427), apart
+//! from the others so that each file stays short.
 
 pub const RELAY: &[&str] = &[
     "podssh relay pair NAME makes a pair on the relay and keeps it under the label NAME, in a private \
@@ -48,4 +48,14 @@ pub const RELAY: &[&str] = &[
      another way. A token lives until the relay stops. Each mint, upgrade and client's Close is a line \
      on stdout. It listens because you ask it to, and PODSSH_LISTEN=no refuses it; Ctrl-C or SIGTERM \
      stops it.",
+    "It serves the reverse road too: /v1/pair, for whom it mints, /v1/node/NAME, /v1/connect/NAME, \
+     /v1/status/NAME and /v1/stop/NAME, so that podssh relay pair --relay-host, podssh node and podssh \
+     ssh node:// work through it with no other relay. A pair lives 72 hours; --pairs FILE keeps the \
+     pairs in FILE, a file of mode 0600 that holds the digests of their tokens and never a token, so \
+     that they outlive a restart. At most 1 MiB waits for a slow operator: past it, the session ends \
+     with 1011 relay backpressure, and the node's other sessions go on; a node that reads slowly slows \
+     its operators instead. A frame of the node for a session that ended in the last 2 seconds was on \
+     its way, and is dropped; one for an id never given closes the node's socket with 1003, as the \
+     contract says. Ctrl-C or SIGTERM first closes each socket of the reverse road with 1012, so that \
+     each node connects again and each session resumes once the relay is back with its pairs.",
 ];

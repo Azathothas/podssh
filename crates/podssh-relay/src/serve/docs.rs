@@ -28,7 +28,9 @@ pub fn health(cfg: &Config) -> Value {
         "service": crate::health::SERVICE,
         "version": cfg.version,
         "contract": super::CONTRACT,
-        "relay": { "name": "podssh", "reverse": false },
+        "relay": { "name": "podssh" },
+        // The shape of the default relay's, which `podssh relay status` reads.
+        "reverse": { "enabled": true },
     })
 }
 
@@ -189,6 +191,7 @@ mod tests {
             tokens: super::super::tokens::Tokens::new([3; 32]),
             policy: Default::default(),
             limits: Default::default(),
+            pairs: Default::default(),
             events: None,
         }
     }
@@ -210,6 +213,7 @@ mod tests {
         );
         assert_eq!((&l["max_session_bytes"], &l["max_frame_bytes"]), (&json!(67108864), &json!(262144)));
         assert_eq!(health(&cfg())["service"], "tcp-ssh-relay");
+        assert_eq!(health(&cfg())["reverse"]["enabled"], true, "the reverse road is served (T-427)");
     }
 
     #[test]
