@@ -68,6 +68,38 @@ fn more_than_1000_hosts_none_or_a_range_that_runs_backwards_is_64() {
     }
 }
 
+/// T-504: a blank of the command line's word parts no hosts, a tab neither;
+/// the refusal gives the comma list. A blank beside a comma parts nothing,
+/// and a group's line keeps its blanks.
+#[test]
+fn a_blank_parts_the_hosts_of_a_group_and_none_of_the_command_line() {
+    for (word, give) in [
+        ("a b", "give a,b"),
+        ("a\tb", "give a,b"),
+        ("a  \t b", "give a,b"),
+        ("x,a b", "give x,a,b"),
+        ("a b{1,2}", "give a,b{1,2}"),
+        ("@web db", "give @web,db"),
+    ] {
+        let refusal = expand(word, &Groups::new()).expect_err(word);
+        assert_eq!(refusal.code, 64, "{word:?}: {refusal}");
+        assert!(refusal.message.contains("a blank parts no hosts on the command line"), "{word:?}: {refusal}");
+        assert!(refusal.message.ends_with(give), "{word:?}: {refusal}");
+    }
+    assert_eq!(hosts(" a , b "), ["a", "b"], "a blank beside a comma parts nothing");
+    let mut groups = Groups::new();
+    groups.insert("web".into(), Value { text: "web1 web2\tweb3".into(), at: "f:2".into() });
+    assert_eq!(expand("@web", &groups).unwrap(), ["web1", "web2", "web3"]);
+    assert_eq!(expand("@web,db", &groups).unwrap(), ["web1", "web2", "web3", "db"]);
+    let settings = fixture();
+    assert_eq!(expand("@all", &settings.groups).unwrap().len(), 6, "the fixture's line of blanks");
+    // podssh ssh takes a word that is no pattern as one host, for its road's
+    // check of the name; a pattern with a blank is refused as each refuses it.
+    assert_eq!(one("a b", &groups).unwrap(), "a b");
+    let refusal = one("a b,c", &groups).unwrap_err();
+    assert!(refusal.message.contains("a blank parts no hosts"), "{refusal}");
+}
+
 #[test]
 fn a_group_of_the_settings_file_names_hosts_and_groups() {
     let settings = fixture();

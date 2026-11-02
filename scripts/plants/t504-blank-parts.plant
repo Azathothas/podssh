@@ -1,0 +1,7 @@
+# T-504: the word of the command line is split at blanks again, as a group's
+# line is, so 'a b' gives two hosts; the test of the blank must fail.
+ENTRY=T-504
+GROUP=cli-tests
+EXPECT='test hosts::tests::a_blank_parts_the_hosts_of_a_group_and_none_of_the_command_line \.\.\. FAILED'
+RUN='cargo test --locked -p podssh-cli --lib -- hosts::tests::a_blank_parts_the_hosts_of_a_group_and_none_of_the_command_line'
+LIMIT=2400

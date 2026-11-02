@@ -7,10 +7,12 @@
 //!
 //! A word is expanded before anything connects, and each host it gives is
 //! then checked as a destination is. More than [`MOST`] hosts, none, an
-//! empty host, a range that runs backwards, or a group that the settings
-//! do not have is a usage error (64). A fault in a group of the file is the
-//! file's (78), with its line: a group that names itself, through others or
-//! not, is one, and the file is refused as it is read.
+//! empty host, a range that runs backwards, a blank that would part two
+//! hosts of the command line, or a group that the settings do not have is a
+//! usage error (64). A group's line may part its hosts with blanks. A fault
+//! in a group of the file is the file's (78), with its line: a group that
+//! names itself, through others or not, is one, and the file is refused as
+//! it is read.
 
 use std::collections::BTreeMap;
 
@@ -112,7 +114,9 @@ fn add(word: &str, groups: &Groups, within: &mut Vec<String>, hosts: &mut Vec<St
         Some((name, at)) => Fault::File(format!("{at}: the group {name}: {why}")),
         None => Fault::Word(why),
     };
-    for item in items(word).map_err(fault)? {
+    // Blanks part the hosts of a group's line only: on the command line a
+    // blank in one word is a mistake of quoting far more often than a list.
+    for item in items(word, holder.is_some()).map_err(fault)? {
         if let Some(name) = item.strip_prefix('@') {
             if within.iter().any(|n| n == name) {
                 let mut cycle = within.clone();
@@ -148,9 +152,11 @@ fn add(word: &str, groups: &Groups, within: &mut Vec<String>, hosts: &mut Vec<St
     Ok(())
 }
 
-/// The items of a word: split at each comma outside braces, and at blanks
-/// as a group's line may have them; an empty item is refused.
-fn items(word: &str) -> Result<Vec<String>, String> {
+/// The items of a word: split at each comma outside braces, and, where
+/// `blanks` allows it (a group's line), at blanks. An empty item is refused,
+/// and so is a blank that would part hosts where `blanks` does not allow it;
+/// a blank beside a comma parts nothing, and is dropped.
+fn items(word: &str, blanks: bool) -> Result<Vec<String>, String> {
     let mut out = Vec::new();
     let (mut depth, mut start) = (0usize, 0usize);
     for (i, c) in word.char_indices() {
@@ -170,12 +176,19 @@ fn items(word: &str) -> Result<Vec<String>, String> {
     }
     out.push(&word[start..]);
     let mut items = Vec::new();
+    let mut parted = false;
     for item in out {
         if item.trim().is_empty() {
             return Err("an empty host; give HOST,HOST,...".into());
         }
-        // Blanks outside braces part hosts too: `web1 web2` in a group.
-        items.extend(split_blanks(item.trim())?);
+        // Blanks outside braces part hosts in a group: `web1 web2`.
+        let words = split_blanks(item.trim())?;
+        parted |= words.len() > 1;
+        items.extend(words);
+    }
+    if parted && !blanks {
+        // The same hosts as a comma list, which the user can give instead.
+        return Err(format!("a blank parts no hosts on the command line; give {}", items.join(",")));
     }
     Ok(items)
 }

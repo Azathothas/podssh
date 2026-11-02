@@ -1,0 +1,11 @@
+--- a/crates/podssh-cli/src/hosts.rs
++++ b/crates/podssh-cli/src/hosts.rs
+@@ -116,7 +116,7 @@
+     };
+     // Blanks part the hosts of a group's line only: on the command line a
+     // blank in one word is a mistake of quoting far more often than a list.
+-    for item in items(word, holder.is_some()).map_err(fault)? {
++    for item in items(word, true).map_err(fault)? {
+         if let Some(name) = item.strip_prefix('@') {
+             if within.iter().any(|n| n == name) {
+                 let mut cycle = within.clone();

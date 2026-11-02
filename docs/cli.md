@@ -1248,10 +1248,10 @@ of a list (T-183, `crates/podssh-cli/src/each/`). It is a verb of its own:
 `podssh ssh` keeps the command line and the exit codes of OpenSSH for one
 host, and a list of hosts changes both.
 
-- **The hosts** are a comma list of `[user@]host[:port]`, each named in
-  the output as it is written. A host named twice runs once. Each one is
-  resolved as `podssh ssh` resolves a destination, with the `Host` blocks of
-  `ssh_config` for that host, before anything connects: a bad host fails
+- **The hosts** are a comma list of `[user@]host[:port]`, each named in the output as it is written; a
+  blank or a tab parts no hosts here (T-504): `'a b'` is refused with 64, and the refusal gives `a,b`.
+  A host named twice runs once. Each one is resolved as `podssh ssh` resolves a destination, with the
+  `Host` blocks of `ssh_config` for that host, before anything connects: a bad host fails
   the whole run with 64, and nothing has run anywhere.
 - **Braces and groups** (T-184, `crates/podssh-cli/src/hosts.rs`) are
   expanded first, so that a shell that has no braces (dash, cmd,
@@ -3502,8 +3502,8 @@ keyword holds a token. `podssh status` gives its path as `settings` and
 After a line `[groups]`, to the next table or the end of the file, each line is
 `NAME HOSTS` (or `NAME=HOSTS`): a group of hosts for `podssh each`, named
 `@NAME` (T-184). A name has letters, digits, `.`, `_` and `-`, and does
-not start with `.` or `-`; its hosts are a word of `podssh each`, with
-commas or blanks between items, braces, and other groups. The settings
+not start with `.` or `-`; its hosts are a word of `podssh each`, with commas or blanks between
+items (a group's line alone may part its hosts with blanks), braces, and other groups. The settings
 come before the table: a line of the table that is a setting's keyword is
 refused, and so are a group given twice, another table, and a group that
 names one that is not there or itself, through others or not (78, with
