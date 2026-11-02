@@ -1,0 +1,11 @@
+--- a/vendor/russh/src/client/encrypted.rs
++++ b/vendor/russh/src/client/encrypted.rs
+@@ -1050,7 +1050,7 @@
+                 trace!("global request failure");
+                 // A failure answers each kind of request: its data, Go's
+                 // words of the refusal, is no answer of any.
+-                drop_reply_data("global request failure", &r);
++                map_err!(ensure_end(&r))?;
+                 match self.open_global_requests.pop_front() {
+                     Some(GlobalRequestResponse::Keepalive) => {
+                         // ignore keepalives

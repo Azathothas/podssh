@@ -750,6 +750,14 @@ scripts. The facts about OpenSSH on this page were measured with OpenSSH
   4, has no field for one), so podssh names the port: a warning, or with
   `-o ExitOnForwardFailure=yes` the end of the run (exit 255). A channel
   that the server opens for a port that podssh did not ask for is refused.
+  A server of Go's x/crypto/ssh (gliderlabs/ssh, and the gateways built on
+  it) puts words after its refusal anyway, and data after its answer to a
+  keepalive that it does not know: podssh reads past them, as OpenSSH's
+  client does, so the refusal is the same warning there, and the default
+  keepalive (each 60 s) holds a quiet session (T-460). russh 0.65.0 ended
+  the connection on such data; `vendor/russh` carries the repair
+  (`vendor/README.md`). A connection that ends while the forwards are asked
+  for names its cause: the server's words, else the error.
 - `-A` forwards the agent (T-036), off by default as in OpenSSH; `-a`
   turns it off, and the last of the two wins, over `-o ForwardAgent`, whose
   first value wins. podssh asks for it on the destination's session

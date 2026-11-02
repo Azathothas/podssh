@@ -88,6 +88,62 @@ in memory that is cleared; a logout; and a test's CA beside the roots, from
 Not done here: the home-region override, and connecting again after a drop
 (T-104).
 
+## russh
+
+- **Upstream**: <https://github.com/warp-tech/russh> (once Eugeny/russh),
+  the release 0.65.0 of crates.io, whose `.cargo_vcs_info.json` names the
+  commit `183a22e8f8f490fa09b6eb7bd044ef99d8c4414f`.
+- **Upstream read**: 0.65.0 on 2026-11-02, the copy's own release and the
+  newest of crates.io; its default branch reads such replies as 0.65.0 does.
+- **Vendored**: 2026-11-02 (T-460), from the copy that cargo unpacked of
+  that release, whose archive has the SHA-256 of `Cargo.lock`'s checksum
+  (`3bb77a4b...`). The import is the published crate byte for byte, but
+  `.cargo-ok`, a mark of cargo's own; the shipped tree is the import plus
+  the one patch `patches/russh/0001-reply-data.patch`, and nothing else.
+- **License**: Apache-2.0, as its `Cargo.toml` says.
+- **How podssh uses it**: the root `Cargo.toml` puts it in the place of the
+  release with `[patch.crates-io]`, and excludes it from the workspace, so
+  its tests, examples and benches are not podssh's; `fuzz/Cargo.toml` does
+  the same. The version stays 0.65.0, so no requirement changes, and the
+  lock files' `russh` entries have no source and no checksum, as a path
+  package has none. `scripts/check-repo.py` fails when a lock leaves the
+  patch unused, as it would after an update of russh that did not move it.
+
+### The patch
+
+| Patch | Files | Why |
+| --- | --- | --- |
+| `patches/russh/0001-reply-data.patch` | `src/client/encrypted.rs`, `src/client/mod.rs`, `src/client/reply_data.rs` (new) | podssh T-460, GitHub #83 and #85: russh's client ended the whole connection when a reply to a global request held data after its type: `ensure_end` on each failure, before it looked at which request the reply answers, and on a success of a keepalive, a ping, `no-more-sessions@openssh.com` or a cancel; and it read a success of `tcpip-forward` with more than a port as a refusal. RFC 4254, section 4, lets a success carry "response specific data", and Go's x/crypto/ssh sends data in a failure too (`Request.Reply(false, payload)`): its servers answer a keepalive that they do not know with one, so each quiet session on them died at the first keepalive, and `-R` that they refuse as a lost connection. OpenSSH's client reads none of such data. The patch drops the data that a request needs none of, with a debug line, and reads the port of a success of `tcpip-forward` before the rest. Proven by the tests of `src/client/reply_data.rs`, in russh's own way of crafted packets, and in podssh by `scripts/interop-go-ssh.sh` against a server of x/crypto/ssh. |
+
+No podssh build runs the crate's own tests. Run its tests of the patch with
+its manifest, in a target directory of their own (it fetches the crate's
+dev-dependencies, and uses the crate's own `Cargo.lock`):
+`cargo test --manifest-path vendor/russh/Cargo.toml --target-dir
+.work/russh-target --lib client::reply_data`.
+
+The patch is for russh upstream too: sending it is the operator's, as no
+session changes another repository. Drop the patch, and this tree, when a
+release of russh reads such replies.
+
+### How to carry it to another version
+
+```sh
+# 1. The published crate, from cargo's copy (after a build that fetched it),
+#    or downloaded from crates.io and checked against Cargo.lock's checksum.
+rm -rf vendor/russh
+cp -r ~/.cargo/registry/src/index.crates.io-*/russh-NEW/. vendor/russh/
+rm -f vendor/russh/.cargo-ok
+
+# 2. The patch (it must exit 0), then the version of the crates' requirement
+#    of russh, and the lock files, follow.
+git apply --directory=vendor/russh vendor/patches/russh/0001-reply-data.patch
+```
+
+The patch is a unified diff of the published crate (`a/`) against the
+shipped tree (`b/`); `patch -p1 -d vendor/russh` takes it too. A release
+whose reading of a reply changed needs the patch moved onto it, and its
+tests run again.
+
 ## iroh-relay
 
 - **Upstream**: the crate `iroh-relay` 1.4.1 as crates.io publishes it

@@ -458,7 +458,7 @@ command line in `crates/podssh-cli/src/ssh/x11.rs:1-153`, the flags at
   this Xvfb takes an untrusted cookie of `xauth` at all
   (`scripts/interop-x11.sh:37-51`): env when it does not, a failure when it
   does and podssh's `-X` fails.
-- `docs/cli.md:782-805`, a note of the manual and the variable `XAUTHORITY`
+- `docs/cli.md:790-813`, a note of the manual and the variable `XAUTHORITY`
   say what the flags do, and the risk of `-Y`.
 - `cargo test -p podssh-ssh`: 155 passed; `cargo test -p podssh-cli`:
   577 passed, 0 failed, 31 ignored; clippy; rustfmt.
@@ -995,7 +995,7 @@ count each chunk twice, and the unit test fails.
 `crates/podssh-ssh/src/tally.rs:1-193`; `-L` and `-D` count at
 `crates/podssh-ssh/src/local.rs:156-162`, `crates/podssh-ssh/src/local.rs:254` and
 `crates/podssh-ssh/src/local.rs:278`, `-R` at
-`crates/podssh-ssh/src/remote.rs:159`, `crates/podssh-ssh/src/remote_join.rs:27`
+`crates/podssh-ssh/src/remote.rs:171`, `crates/podssh-ssh/src/remote_join.rs:27`
 and `crates/podssh-ssh/src/remote_join.rs:48`, `-W` at
 `crates/podssh-ssh/src/forward.rs:42` and
 `crates/podssh-ssh/src/forward.rs:53`; `~#` at
@@ -1141,7 +1141,7 @@ link: the mode at `crates/podssh-cli/src/ssh/persist.rs:38-45` and
 `crates/podssh-ssh/src/persist.rs:98-140`, which asks for the forwards,
 serves `-L` and `-D`, and tells a loss from an end
 (`crates/podssh-ssh/src/persist.rs:57-62`); a refused `-R` asked again in
-`crates/podssh-ssh/src/remote.rs:50-179`, as `Options::forwards_again` says
+`crates/podssh-ssh/src/remote.rs:50-191`, as `Options::forwards_again` says
 (`crates/podssh-ssh/src/options.rs:323-332`), which the loop sets after the
 first loss (`crates/podssh-cli/src/ssh/persist.rs:169-179`); the rule of
 `STEADY` at `crates/podssh-cli/src/ssh/persist.rs:147-153`.
@@ -1460,7 +1460,7 @@ counts, and cannot change them.
 Read: the escapes are `~.`, `~R`, `~#`, `~?` and `~~`
 (`crates/podssh-ssh/src/escape.rs:13-25`). The listeners of `-L` and `-D` are
 served from the start of the session (`crates/podssh-ssh/src/local.rs:152-181`),
-and `-R` is asked for after the login (`crates/podssh-ssh/src/remote.rs:50-165`).
+and `-R` is asked for after the login (`crates/podssh-ssh/src/remote.rs:50-177`).
 ssh(1), ESCAPE CHARACTERS: `~C` opens a command line that takes `-L`, `-R`,
 `-D`, `-KL`, `-KR` and `-KD` (read in the manual, not measured here).
 
@@ -1516,7 +1516,7 @@ ssh(1), ESCAPE CHARACTERS: `~C` opens a command line that takes `-L`, `-R`,
   OpenSSH. `~#` says closed when no listener of the forward is left.
   `-KR` finds the forward by the port that the server listens on (the one
   it chose for a port of 0) and, when one is given, the address sent
-  (`crates/podssh-ssh/src/remote.rs:194`).
+  (`crates/podssh-ssh/src/remote.rs:206`).
 - The forwards that `~C` adds belong to the connection, and those that it
   stops stay stopped: a new connection of `--persist` asks only for the
   forwards of the command line that `~C` did not stop
@@ -1633,7 +1633,7 @@ server (`remote_socket:host:hostport`), a socket on this host as the target
 (`[bind_address:]port:local_socket`, `remote_socket:local_socket`), and a SOCKS proxy that the
 server listens for and the client serves (`[bind_address:]port`). podssh refuses each by name, so
 a command line of OpenSSH fails with podssh. A server whose host refuses an AF_INET bind and
-allows an AF_UNIX one, as sandbox A does (`docs/STATUS.md:309`), can listen on a socket only; and
+allows an AF_UNIX one, as sandbox A does (`docs/STATUS.md:310`), can listen on a socket only; and
 the SOCKS form gives a server whose egress is closed a way out through the client.
 
 ## Premise
@@ -1645,7 +1645,7 @@ the SOCKS form gives a server whose egress is closed a way out through the clien
   "until a later step" of both, in T-035.
 - Read: `RemoteForward` holds a port and a `host:host_port` only
   (`crates/podssh-ssh/src/options.rs` lines 328-339 at `6f6eda2`). podssh asks for it with `tcpip_forward`
-  (`crates/podssh-ssh/src/remote.rs:138-165`), and so does a control master for `-O forward -R`
+  (`crates/podssh-ssh/src/remote.rs:150-177`), and so does a control master for `-O forward -R`
   (`crates/podssh-ssh/src/mux/fwd.rs` line 52 at `6f6eda2`); `-G` prints it from those fields
   (`crates/podssh-cli/src/ssh/dump.rs:111-123`), and `~C -R` reads it with the same parser
   (`crates/podssh-cli/src/ssh/local_bind.rs:264-266`).

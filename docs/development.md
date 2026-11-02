@@ -159,6 +159,12 @@ states the fact. The tests of the record's checker, which hold Markdown
 locations as data, and one test of `podssh-probe` are allowed the last two;
 no file is allowed a marker. Three planted lines must be found at each run.
 
+And it reads `Cargo.toml` and `fuzz/Cargo.toml` with their lock files: each
+package of `[patch.crates-io]`, a copy of `vendor/`, must come from its path
+in the lock, with no `[[patch.unused]]` (T-460). An update of russh or of
+iroh that did not move the copy builds the release in its place, with none
+of podssh's patch, and cargo only warns. Two planted locks must be found.
+
 `deny.toml` allows each license that a crate of the graph needs, by name,
 and crates.io as the only source; an advisory is ignored only with its
 reason and the date it was read. CI runs both commands on each push, each
@@ -759,11 +765,11 @@ let an update in.
 
 Dependabot moves no path package, so the crates of `vendor/` have two
 watches of their own (T-341). `.github/workflows/upstream.yml` reads each
-week crates.io's newest release of iroh-relay, and the latest release of
-tailscale-rs on GitHub, against each copy and the line
+week crates.io's newest release of russh and of iroh-relay, and the latest
+release of tailscale-rs on GitHub, against each copy and the line
 "Upstream read" of its section of `vendor/README.md`
 (`scripts/check-vendored.py`). And cargo-deny passes over a path package (an
-advisory planted for russh passed it while `vendor/russh` held it), so
+advisory planted for russh passed it while `vendor/russh` held 0.64.1), so
 `.github/workflows/deny.yml` reads its copy of advisory-db for each package
 of the lock files with no source, but podssh's own
 (`scripts/check-vendored-advisories.py`), on each push and each day. When the

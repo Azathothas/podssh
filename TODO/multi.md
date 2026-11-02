@@ -72,7 +72,7 @@ succeeded. `podssh ssh` takes one destination, as OpenSSH does.
 ## Decision
 
 Recommendation: a new verb, because `podssh ssh` keeps the command line and
-the exit codes of OpenSSH for one host (`docs/cli.md:3627-3630`), and a list
+the exit codes of OpenSSH for one host (`docs/cli.md:3635-3638`), and a list
 of hosts changes both. The alternative, `podssh ssh --hosts LIST`, lost: one
 flag would change what the exit status means.
 
@@ -184,7 +184,7 @@ is not a shell. A set of hosts has no name.
   (`crates/podssh-cli/src/ssh/hop.rs:30-78`,
   `crates/podssh-ws/src/names.rs:10-24`).
 - Read: the `Host` lines of ssh_config are patterns, not lists
-  (`docs/cli.md:3755-3848`); they cannot define a group.
+  (`docs/cli.md:3763-3856`); they cannot define a group.
 
 ## Approach
 
@@ -1547,7 +1547,7 @@ of the command.
    quoted for a POSIX shell (T-187). When the copy used most of the 64 MiB
    (`docs/relay.md:229`), run the exec on a new session (T-137).
 4. The exit status: the command's, with the rules of `podssh ssh`
-   (`docs/cli.md:3627-3630`). A failed copy exits 255 and runs nothing.
+   (`docs/cli.md:3635-3638`). A failed copy exits 255 and runs nothing.
 5. In the same commit: the rows, the notes, an example, `docs/cli.md`,
    `docs/STATUS.md`. This entry depends on T-134 and T-143.
 
@@ -1814,7 +1814,7 @@ a ticket, or a tool that asks an AI.
   (`crates/podssh-ssh/src/log.rs:83-103`). The exit code leaves through
   `crates/podssh-cli/src/dispatch.rs:368-409`.
 - Read: for `podssh ssh`, an exit that is not 0 can be the remote command's
-  status (`docs/cli.md:3627-3630`), which is not a failure of podssh.
+  status (`docs/cli.md:3635-3638`), which is not a failure of podssh.
 
 ## Approach
 
@@ -2576,7 +2576,7 @@ relay reaches; nothing reports the far side.
   exec (`crates/podssh-cli/src/health/mod.rs:125-143`).
 - Read: what a preflight asks is in podssh already: the SFTP server's extensions
   (`crates/podssh-ssh/src/sftp/mod.rs:224-227`), the request of a remote forward
-  (`crates/podssh-ssh/src/remote.rs:109-123`), a channel `direct-tcpip`
+  (`crates/podssh-ssh/src/remote.rs:121-135`), a channel `direct-tcpip`
   (`crates/podssh-ssh/src/local.rs:79`), keepalives each 60 s by default
   (`crates/podssh-ssh/src/options.rs:377-378`), and the relay's cap on a session
   (`crates/podssh-relay/src/relay.rs:23-25`).

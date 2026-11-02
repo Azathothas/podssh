@@ -85,7 +85,7 @@ pub async fn request(handle: &Handle<Client>, table: &Table, opts: &Options, log
         }
     }
     if !refused.is_empty() && handle.is_closed() {
-        return Err(HopError::Unreachable("the connection was lost while the forwards were asked for".into()));
+        return Err(HopError::Unreachable(lost_while_asked()));
     }
     for forward in refused {
         if opts.exit_on_forward_failure {
@@ -94,6 +94,18 @@ pub async fn request(handle: &Handle<Client>, table: &Table, opts: &Options, log
         log.info(&failed("Warning", forward));
     }
     Ok(())
+}
+
+/// A connection that ended while the forwards were asked for, with its
+/// cause as a lost session names it: the server's words of a DISCONNECT,
+/// else russh's error, which the handler kept (GitHub #85 read none).
+fn lost_while_asked() -> String {
+    let lost = "the connection was lost while the forwards were asked for";
+    let said = crate::handler::take_last_disconnect().map(|s| format!("the server said: {s}"));
+    match said.or_else(crate::handler::take_last_error) {
+        Some(cause) => format!("{lost}: {cause}"),
+        None => lost.to_string(),
+    }
 }
 
 /// Where the server will listen for `forward` before it answers: a port or

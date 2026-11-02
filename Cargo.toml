@@ -39,10 +39,11 @@ default-members = [
 # Exclusion does not block the path dependency — `podssh-ts` still reaches
 # the fork's `tailscale` package by path. `fuzz/` is cargo-fuzz's workspace
 # (T-198), built with nightly Rust and libFuzzer, never by the gate.
-# `vendor/iroh-relay` is the release of iroh's relay client with podssh's
-# patch (T-280), which the `[patch]` below puts in its place; excluded, it is
-# no member, so its tests and examples are not podssh's.
-exclude = ["vendor/tailscale-rs", "vendor/iroh-relay", "fuzz"]
+# `vendor/russh` is the release of russh with podssh's patch (T-460), and
+# `vendor/iroh-relay` the same for iroh's relay client (T-280), which the
+# `[patch]` below puts in their places; excluded, they are no members, so
+# their tests and examples are not podssh's.
+exclude = ["vendor/tailscale-rs", "vendor/russh", "vendor/iroh-relay", "fuzz"]
 
 # Versions below were resolved on 2026-10-01, not recalled. Before loosening a
 # range, re-run the no-C build of the library crates (see scripts/gate.sh).
@@ -220,6 +221,15 @@ codegen-units = 1
 panic = "abort"
 strip = true
 
+# russh 0.65.0 as published, with one patch of podssh's (T-460,
+# `vendor/patches/russh/`, `vendor/README.md`): the data of a reply to a
+# global request that the request needs none of is dropped, where russh ended
+# the whole connection on it; a server of Go's x/crypto/ssh sends such data
+# after a failure, and so after each keepalive that it does not know. The
+# version stays 0.65.0, so the requirements of the crates do not change; an
+# update of russh moves the patch first, and drops it once a release reads
+# such replies (`scripts/check-repo.py` fails on a patch that the lock does
+# not use).
 # iroh's relay client with podssh's patch (T-280,
 # `vendor/patches/iroh-relay/`): its relay dial speaks SOCKS5 too, where
 # iroh-relay 1.4.1 speaks HTTP CONNECT only, and iroh's HTTPS probe of the
@@ -230,4 +240,5 @@ strip = true
 # patch unused, and cargo says so: carry the patch to that version first
 # (`vendor/README.md`).
 [patch.crates-io]
+russh = { path = "vendor/russh" }
 iroh-relay = { path = "vendor/iroh-relay" }

@@ -1,0 +1,258 @@
+diff --git a/src/client/encrypted.rs b/src/client/encrypted.rs
+index bd00b12..6fe0719 100644
+--- a/src/client/encrypted.rs
++++ b/src/client/encrypted.rs
+@@ -59,6 +59,20 @@ fn verify_hostkeys_proof(
+     Ok(())
+ }
+ 
++/// The data of a global request's reply that its request needs none of.
++/// RFC 4254, section 4, lets a success carry "response specific data", and
++/// a server of Go's x/crypto/ssh puts data in a failure too
++/// (`Request.Reply(false, payload)`). OpenSSH's client reads none of it and
++/// keeps the connection, so the rest is dropped here, never an error.
++fn drop_reply_data(reply: &str, r: &impl Reader) {
++    if !r.is_finished() {
++        debug!(
++            "{reply}: {} bytes after the reply's type, dropped",
++            r.remaining_len()
++        );
++    }
++}
++
+ impl Session {
+     pub(crate) async fn client_read_encrypted<H: Handler>(
+         &mut self,
+@@ -969,15 +983,15 @@ impl Session {
+                 trace!("Global Request Success");
+                 match self.open_global_requests.pop_front() {
+                     Some(GlobalRequestResponse::Keepalive) => {
+-                        map_err!(ensure_end(&r))?;
++                        drop_reply_data("keepalive success", &r);
+                         // ignore keepalives
+                     }
+                     Some(GlobalRequestResponse::Ping(return_channel)) => {
+-                        map_err!(ensure_end(&r))?;
++                        drop_reply_data("ping success", &r);
+                         let _ = return_channel.send(());
+                     }
+                     Some(GlobalRequestResponse::NoMoreSessions) => {
+-                        map_err!(ensure_end(&r))?;
++                        drop_reply_data("no-more-sessions success", &r);
+                         debug!("no-more-sessions@openssh.com requests success");
+                     }
+                     Some(GlobalRequestResponse::TcpIpForward(return_channel)) => {
+@@ -987,14 +1001,8 @@ impl Session {
+                         } else {
+                             match u32::decode(&mut r) {
+                                 Ok(port) => {
+-                                    if let Err(e) = ensure_end(&r) {
+-                                        error!(
+-                                            "Error parsing port for TcpIpForward request: {e:?}"
+-                                        );
+-                                        None
+-                                    } else {
+-                                        Some(port)
+-                                    }
++                                    drop_reply_data("tcpip-forward success", &r);
++                                    Some(port)
+                                 }
+                                 Err(e) => {
+                                     error!("Error parsing port for TcpIpForward request: {e:?}");
+@@ -1005,15 +1013,15 @@ impl Session {
+                         let _ = return_channel.send(result);
+                     }
+                     Some(GlobalRequestResponse::CancelTcpIpForward(return_channel)) => {
+-                        map_err!(ensure_end(&r))?;
++                        drop_reply_data("cancel-tcpip-forward success", &r);
+                         let _ = return_channel.send(true);
+                     }
+                     Some(GlobalRequestResponse::StreamLocalForward(return_channel)) => {
+-                        map_err!(ensure_end(&r))?;
++                        drop_reply_data("streamlocal-forward success", &r);
+                         let _ = return_channel.send(true);
+                     }
+                     Some(GlobalRequestResponse::CancelStreamLocalForward(return_channel)) => {
+-                        map_err!(ensure_end(&r))?;
++                        drop_reply_data("cancel-streamlocal-forward success", &r);
+                         let _ = return_channel.send(true);
+                     }
+                     Some(GlobalRequestResponse::HostKeysProve {
+@@ -1040,7 +1048,9 @@ impl Session {
+             }
+             Some((&msg::REQUEST_FAILURE, r)) => {
+                 trace!("global request failure");
+-                map_err!(ensure_end(&r))?;
++                // A failure answers each kind of request: its data, Go's
++                // words of the refusal, is no answer of any.
++                drop_reply_data("global request failure", &r);
+                 match self.open_global_requests.pop_front() {
+                     Some(GlobalRequestResponse::Keepalive) => {
+                         // ignore keepalives
+diff --git a/src/client/mod.rs b/src/client/mod.rs
+index 5998944..57a11d3 100644
+--- a/src/client/mod.rs
++++ b/src/client/mod.rs
+@@ -80,6 +80,11 @@ mod session;
+ #[cfg(test)]
+ mod test;
+ 
++// The replies to global requests with data after their type (podssh's
++// patch, vendor/patches/russh/).
++#[cfg(test)]
++mod reply_data;
++
+ /// Actual client session's state.
+ ///
+ /// It is in charge of multiplexing and keeping track of various channels
+@@ -2125,7 +2130,7 @@ mod tests {
+     use crate::sshbuffer::{IncomingSshPacket, PacketWriter, SSHBuffer};
+     use crate::{CryptoVec, cipher, mac};
+ 
+-    struct TestHandler;
++    pub(super) struct TestHandler;
+ 
+     impl Handler for TestHandler {
+         type Error = crate::Error;
+@@ -2138,7 +2143,7 @@ mod tests {
+         }
+     }
+ 
+-    fn keyboard_interactive_session() -> (
++    pub(super) fn keyboard_interactive_session() -> (
+         Session,
+         tokio::sync::mpsc::Sender<Msg>,
+         tokio::sync::mpsc::UnboundedReceiver<Reply>,
+diff --git a/src/client/reply_data.rs b/src/client/reply_data.rs
+new file mode 100644
+index 0000000..d9ec719
+--- /dev/null
++++ b/src/client/reply_data.rs
+@@ -0,0 +1,127 @@
++//! Replies to global requests with data after their type, as a server of
++//! Go's x/crypto/ssh sends them (`Request.Reply(ok, payload)`): each leaves
++//! the session up and gives the caller its answer, where each ended the
++//! whole connection with `TrailingData` before.
++#![allow(clippy::unwrap_used)] // as in the test suite
++
++use ssh_encoding::Encode;
++use tokio::sync::oneshot;
++
++use super::tests::{TestHandler, keyboard_interactive_session};
++use crate::msg;
++use crate::session::EncryptedState;
++
++/// The 15 bytes after a server's failure that podssh's GitHub #83 met.
++const DATA: &[u8] = b"unknown request";
++
++/// The words after a refused `tcpip-forward` of a gliderlabs/ssh server.
++const REFUSED: &[u8] = b"port forwarding is disabled";
++
++fn reply(kind: u8, data: &[u8]) -> Vec<u8> {
++    let mut packet = vec![kind];
++    packet.extend_from_slice(data);
++    packet
++}
++
++/// The session's state after the login, where the replies come.
++fn logged_in(session: &mut super::Session) {
++    session.common.encrypted.as_mut().unwrap().state = EncryptedState::Authenticated;
++}
++
++#[tokio::test]
++async fn a_failure_with_data_after_a_keepalive_leaves_the_session_up() {
++    let (mut session, _sender, _replies) = keyboard_interactive_session();
++    logged_in(&mut session);
++    session.send_keepalive(true).unwrap();
++    session
++        .process_packet(&mut TestHandler, &reply(msg::REQUEST_FAILURE, DATA))
++        .await
++        .unwrap();
++    assert!(session.open_global_requests.is_empty());
++    // The next reply answers the next request, as the order of the replies
++    // is the order of the requests (RFC 4254, section 4).
++    let (pong, mut answered) = oneshot::channel();
++    session.send_ping(pong).unwrap();
++    session
++        .process_packet(&mut TestHandler, &reply(msg::REQUEST_FAILURE, b""))
++        .await
++        .unwrap();
++    assert!(matches!(answered.try_recv(), Ok(())));
++}
++
++#[tokio::test]
++async fn a_success_with_data_after_a_keepalive_or_a_ping_answers_it() {
++    let (mut session, _sender, _replies) = keyboard_interactive_session();
++    logged_in(&mut session);
++    session.send_keepalive(true).unwrap();
++    session
++        .process_packet(&mut TestHandler, &reply(msg::REQUEST_SUCCESS, DATA))
++        .await
++        .unwrap();
++    let (pong, mut answered) = oneshot::channel();
++    session.send_ping(pong).unwrap();
++    session
++        .process_packet(&mut TestHandler, &reply(msg::REQUEST_SUCCESS, DATA))
++        .await
++        .unwrap();
++    assert!(matches!(answered.try_recv(), Ok(())));
++    assert!(session.open_global_requests.is_empty());
++}
++
++#[tokio::test]
++async fn a_failure_with_words_after_tcpip_forward_is_a_refusal() {
++    let (mut session, _sender, _replies) = keyboard_interactive_session();
++    logged_in(&mut session);
++    let (tx, mut answer) = oneshot::channel();
++    session.tcpip_forward(Some(tx), "127.0.0.1", 12345).unwrap();
++    session
++        .process_packet(&mut TestHandler, &reply(msg::REQUEST_FAILURE, REFUSED))
++        .await
++        .unwrap();
++    assert!(matches!(answer.try_recv(), Ok(None)));
++    // A cancel that the server took, with data, is taken too.
++    let (tx, mut cancelled) = oneshot::channel();
++    session.cancel_tcpip_forward(Some(tx), "127.0.0.1", 12345).unwrap();
++    session
++        .process_packet(&mut TestHandler, &reply(msg::REQUEST_SUCCESS, DATA))
++        .await
++        .unwrap();
++    assert!(matches!(cancelled.try_recv(), Ok(true)));
++}
++
++#[tokio::test]
++async fn a_success_of_tcpip_forward_gives_its_port_and_drops_the_rest() {
++    let (mut session, _sender, _replies) = keyboard_interactive_session();
++    logged_in(&mut session);
++    let (tx, mut answer) = oneshot::channel();
++    session.tcpip_forward(Some(tx), "127.0.0.1", 0).unwrap();
++    let mut data = Vec::new();
++    40_000u32.encode(&mut data).unwrap();
++    data.extend_from_slice(DATA);
++    session
++        .process_packet(&mut TestHandler, &reply(msg::REQUEST_SUCCESS, &data))
++        .await
++        .unwrap();
++    assert!(matches!(answer.try_recv(), Ok(Some(40_000))));
++}
++
++/// The control: replies with no data are read as before.
++#[tokio::test]
++async fn replies_with_no_data_are_read_as_before() {
++    let (mut session, _sender, _replies) = keyboard_interactive_session();
++    logged_in(&mut session);
++    let (tx, mut answer) = oneshot::channel();
++    session.tcpip_forward(Some(tx), "127.0.0.1", 12345).unwrap();
++    session
++        .process_packet(&mut TestHandler, &reply(msg::REQUEST_SUCCESS, b""))
++        .await
++        .unwrap();
++    assert!(matches!(answer.try_recv(), Ok(Some(0))));
++    let (pong, mut answered) = oneshot::channel();
++    session.send_ping(pong).unwrap();
++    session
++        .process_packet(&mut TestHandler, &reply(msg::REQUEST_FAILURE, b""))
++        .await
++        .unwrap();
++    assert!(matches!(answered.try_recv(), Ok(())));
++}

@@ -1,0 +1,9 @@
+# T-460: vendor/russh reads a global request's failure as russh 0.65.0 did,
+# with no data after its type, so the 15 bytes after a keepalive's failure
+# end the session again; the patch's test of that reply must fail. On the
+# runner, with the copy's own manifest and lock, in a target of its own.
+ENTRY=T-460
+GROUP=host-gossh
+EXPECT='test client::reply_data::a_failure_with_data_after_a_keepalive_leaves_the_session_up \.\.\. FAILED'
+RUN='cargo test --manifest-path vendor/russh/Cargo.toml --target-dir .work/russh-target --lib client::reply_data'
+LIMIT=1800

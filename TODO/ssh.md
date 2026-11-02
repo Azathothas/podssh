@@ -54,7 +54,7 @@ Read:
 4. Give the note about skipped encrypted keys
    (`crates/podssh-ssh/src/keys.rs:152-158`) the same condition as step 1.
 5. Keep `PublicKeys::new` for each login (`crates/podssh-ssh/src/auth.rs:106`),
-   so that only the notes change. No document changes: `docs/cli.md:3687-3742`
+   so that only the notes change. No document changes: `docs/cli.md:3695-3750`
    already says that a refusal names the remedy.
 
 ## Prove
@@ -181,7 +181,7 @@ Read:
    `scripts/interop-faults.sh:261` looks for `1009 session byte cap`.
 6. Correct the comment on the window (`crates/podssh-ssh/src/run.rs` lines
    25-29 at `80f20bf`). The window of 512 KiB stays: it is below both limits.
-7. Update `docs/relay.md` (lines 155-158 at `80f20bf`) and `docs/STATUS.md:616`. T-025 uses the
+7. Update `docs/relay.md` (lines 155-158 at `80f20bf`) and `docs/STATUS.md:617`. T-025 uses the
    classification for its retry rule. T-227 is a different path
    (`--direct`).
 
@@ -295,13 +295,13 @@ Read:
    terminal and no `SSH_ASKPASS`, a retry that needs a prompt stops. Keep a
    typed password in memory (zeroized) for the retry; do not ask twice.
 6. Say each retry on stderr, with the hop and the reason. Document the rule
-   in `docs/cli.md:3617-3685`, and add a row to `docs/STATUS.md`.
+   in `docs/cli.md:3625-3693`, and add a row to `docs/STATUS.md`.
 
 ## Decision
 
 Recommendation: retry inside podssh, and only before the session request.
 Only podssh knows whether the request was sent, and `podssh ssh` keeps the
-exit code 255 of OpenSSH (`docs/cli.md:3627-3630`). The alternative, a distinct
+exit code 255 of OpenSSH (`docs/cli.md:3635-3638`). The alternative, a distinct
 exit code for the caller to retry on, lost: it breaks scripts that expect
 OpenSSH's codes, and a caller that retries each 255 runs a command twice.
 
@@ -420,7 +420,7 @@ Read:
    measured code.
 4. Make the mapping from `io::End` to an exit code a pure function in
    `crates/podssh-ssh/src/session.rs`, with a test for each variant.
-5. Write the measured rule in `docs/cli.md:3617-3685`, and the measurement in
+5. Write the measured rule in `docs/cli.md:3625-3693`, and the measurement in
    `docs/STATUS.md`.
 
 ## Prove
@@ -704,7 +704,7 @@ Not measured here: each case needs a server.
    (`HOME` is not set, `UserKnownHostsFile none`, or the write error); the
    next run cannot detect a changed key.
 4. Check the file type before the open: a FIFO blocks an open for reading.
-5. Update `docs/cli.md:3687-3742` (one line) and the manual's note on host keys
+5. Update `docs/cli.md:3695-3750` (one line) and the manual's note on host keys
    (`crates/podssh-cli/src/man/notes.rs`, lines 60-66 at `33c9a31`).
 
 ## Decision
@@ -1240,7 +1240,7 @@ and no player.
    hold a secret.
 4. Playback: a new verb `podssh play FILE`, with `--speed` and
    `--idle-limit`. Not `replay`: it is one edit from `relay`, and the
-   suggestion step would mix them (`docs/cli.md:1634-1643`). Add it to `VERBS`
+   suggestion step would mix them (`docs/cli.md:1642-1651`). Add it to `VERBS`
    (`crates/podssh-cli/src/flags.rs:364-428`), to
    `crates/podssh-cli/src/positionals.rs`, to dispatch, and to `DISPATCHED`
    (`crates/podssh-cli/tests/flag_table.rs:110-143`).
@@ -1308,7 +1308,7 @@ session starts with the size of its start
   place of the one of `scripts/interop.sh`. The next commit names that helper
   `ping_via` (`scripts/interop-ping.sh:10-16`), so that each later harness
   gets `podssh ssh`.
-- `docs/cli.md:561-572` and `docs/cli.md:3188-3200`, the manual's notes and an
+- `docs/cli.md:561-572` and `docs/cli.md:3196-3208`, the manual's notes and an
   example, say what the flag and the verb do, and their risks.
 - `cargo test -p podssh-ssh`: 151 passed; `cargo test -p podssh-cli`:
   574 passed, 0 failed, 31 ignored; clippy; rustfmt.
@@ -2037,7 +2037,7 @@ Read, at `9fefff2`:
   the session after 180 s with no payload (`docs/relay.md:232`). The relay's
   own keepalive frames keep the ping watcher content meanwhile.
 - A prompt has its own limit when nobody watches the terminal (60 s, T-005;
-  `docs/cli.md:3710-3713`). A person who types slowly must not meet a limit
+  `docs/cli.md:3718-3721`). A person who types slowly must not meet a limit
   of the server.
 
 Not measured: it needs a server that stalls.
@@ -2061,7 +2061,7 @@ Not measured: it needs a server that stalls.
 5. Make the comment and the manual (`crates/podssh-cli/src/ssh/keywords.rs:36-37`,
    `crates/podssh-cli/src/flags.rs:169-170`) say the same: the handshake, and
    each answer during the authentication.
-   `docs/cli.md:3740-3742` asks for a limit on the whole operation.
+   `docs/cli.md:3748-3750` asks for a limit on the whole operation.
 
 ## Decision
 
@@ -2510,7 +2510,7 @@ constraint of a key (lines 296-297), and when a request to sign names such a key
 that is always ready with `true`; it never calls the agent's `confirm` (lines 348-356).
 
 Read: podssh's `confirm` refuses (`crates/podssh-cli/src/agent/serve.rs:173-176`), and is never
-called. `docs/cli.md:3097-3098` says that the key "is never used".
+called. `docs/cli.md:3105-3106` says that the key "is never used".
 
 ## Approach
 
@@ -2907,7 +2907,7 @@ lost while the forwards were asked for". Read at `f8d15bf`.
 **Milestone:** none
 **Priority:** P1
 **Effort:** M
-**Status:** open
+**Status:** partial
 
 ## Problem
 
@@ -2946,18 +2946,18 @@ registers none (`openssh/openssh-portable:clientloop.c`, `client_global_request_
   `--direct` sends russh's ping (`crates/podssh-ssh/src/io.rs:219`), which the same reply ends.
 - Read: the handler keeps russh's error in podssh's words, and a lost session names it
   (`crates/podssh-ssh/src/handler.rs:167`, `crates/podssh-ssh/src/session.rs:30-33`); a decode
-  error has no words of podssh's (`crates/podssh-ssh/src/run.rs:468`), so #83 read russh's.
+  error has no words of podssh's (`crates/podssh-ssh/src/run.rs:470`), so #83 read russh's.
 - Read: a forward that the server refuses is a warning, and the run goes on
   (`crates/podssh-ssh/src/remote.rs:90-95`); a refusal with the connection gone ends the run as
   lost, with no cause (`crates/podssh-ssh/src/remote.rs:87-88`). `tcpip_forward` gives the same
-  `None` for an error and a refusal (`crates/podssh-ssh/src/remote.rs:115`).
+  `None` for an error and a refusal (`crates/podssh-ssh/src/remote.rs:127`).
 - Inferred: #85's server sent a failure with data. A failure with none, or a success with data
   (which russh reads as a refusal when more than a port came), leaves the connection up, and
   podssh would have warned (`crates/podssh-ssh/src/remote.rs:94`); the connection was gone 0.7 s
   after the login, as the failure's decode ends it. #83's 15 bytes are a failure's too, then: a
   Go server that knows no `keepalive@openssh.com` refuses it.
 - Read: the project carries a patched crate in `vendor/` through `[patch.crates-io]`, iroh-relay's
-  (`vendor/README.md:91-110`, `Cargo.toml:232-233`), and watches its upstream (T-341); russh's
+  (`vendor/README.md:147-166`, `Cargo.toml:242-244`), and watches its upstream (T-341); russh's
   copy went with T-356, as 0.65.0 gave what its patch had added.
 
 ## Approach
@@ -3004,6 +3004,15 @@ registers none (`openssh/openssh-portable:clientloop.c`, `client_global_request_
 - #83's second ask, a failure that names the keepalive and its workaround: with the patch the
   session lives, so no workaround is said; a message that still does not decode names itself
   (Approach item 4).
+- The stand-in is built in the Go of `images/derper/Dockerfile`, pinned to a digest, against
+  x/crypto v0.58.0 checked by Go's checksum database, and runs on the Alpine of
+  `images/box/Dockerfile`: the harness then runs the same on a runner and on any host with a
+  container engine, as `scripts/interop-wstunnel.sh` does, and `scripts/check-repo.py` keeps
+  each image in one place. Lost: `actions/setup-go` on the runner (Approach item 1), which ties
+  the harness to GitHub's runners and to a Go that no file of the repository pins.
+- The plants run on the runner (the group `host-gossh` of `plants.yml`), as the harness starts
+  containers of its own. The Prove's plant of the copy with no patch is the failure's reading
+  put back (`t460-failure-data-ends`), the reply of #83; the others would fail the same tests.
 
 ## Prove
 
@@ -3020,6 +3029,85 @@ keepalive exits 0 and prints `alive`, and with `-o ServerAliveInterval=20` too, 
 and with `-o ExitOnForwardFailure=yes` exits 255 with that error. Planted: the published russh
 (the patch's line of `[patch.crates-io]` gone): the quiet session ends with 255 at about 60 s, and
 the harness fails; the patch's tests fail on the copy with no patch.
+
+## Done
+
+Drafted 2026-11-02 by an agent, which built nothing; merged and measured by the main session the
+same day. The WIP `818f7fe` (branch `worktree-agent-t460-ssh`) is carried onto
+`main` here, with what it left.
+
+- `vendor/russh`: crates.io's russh 0.65.0, the crate that cargo unpacked of that release file
+  for file (`diff -r`, 2026-11-02, but `.cargo-ok`), and the same tree with
+  `vendor/patches/russh/0001-reply-data.patch` applied: the patch is the whole difference. In
+  `src/client/encrypted.rs`, `drop_reply_data` (a debug line) in place of `ensure_end` for each
+  failure, before russh looks at which request it answers, and for the success of a keepalive,
+  a ping, `no-more-sessions@openssh.com`, a cancel and `streamlocal-forward`; a success of
+  `tcpip-forward` gives its port, then drops the rest. Its 5 tests in `src/client/reply_data.rs`
+  (crafted packets through `process_packet`, as `third_ext_info_is_rejected`): a failure with
+  15 bytes after a keepalive, then a ping answered; a success with data after a keepalive and a
+  ping; a failure with gliderlabs/ssh's words after `tcpip-forward` (a refusal), then a cancel
+  taken; a success of port 0 with data (its port); and replies with no data, as before.
+  `cargo test --manifest-path vendor/russh/Cargo.toml --target-dir .work/russh-target --lib
+  client::reply_data`: 5 passed. `diff -r` of `vendor/russh` against cargo's own copy of
+  russh 0.65.0 with the patch applied: no difference (but `.cargo-ok` and
+  `.cargo_vcs_info.json`).
+- `Cargo.toml`: `[patch.crates-io]` takes `vendor/russh`, and `exclude` keeps it out of the
+  workspace; `fuzz/Cargo.toml` the same; both locks' `russh` with no source and no checksum.
+  `vendor/README.md`'s section (the upstream, the release read, the patch and why, how to carry
+  it). `AGENTS.md`'s map, Dependabot's comment, `docs/development.md` (check 10, the watch).
+  `scripts/check-vendored.py` watches russh again; `scripts/check-vendored-advisories.py` reads
+  it as each path package, unchanged.
+- `scripts/check-repo.py`, check 10 (`scripts/repo_scans.py`, `patch_misses`): each package of
+  a `[patch.crates-io]` must come from its path in its lock, with no `[[patch.unused]]`; two
+  planted locks (the release, an unused patch) must be found, and a lock of the path not.
+  `python scripts/check-repo.py`: each check passed, check 10 with its "2 planted locks found".
+- `describe` names a message of the server that does not decode, then russh's words
+  (`a_message_that_does_not_decode_names_the_server`); a connection lost while `-R`'s forwards
+  were asked for names the server's words of a DISCONNECT, else russh's error
+  (`crates/podssh-ssh/src/remote.rs`, `lost_while_asked`). `cargo test -p podssh-ssh`: 309
+  passed, none failed (1 ignored).
+- `scripts/interop-go-ssh.sh` with its stand-in `scripts/interop-go-ssh/main.go` (Go's
+  x/crypto/ssh v0.58.0; a failure, or a success, with 15 bytes for each global request but
+  `tcpip-forward`, which it refuses with 27): 8 checks, `go-ssh.*` in
+  `scripts/interop-baseline.txt` (floor 8); `.github/workflows/go-ssh-interop.yml` runs it;
+  the release check's row `actions.gossh` (`scripts/release-check-catalog.sh`). UNVERIFIED:
+  `gh workflow run go-ssh-interop.yml --ref main`, 8 of 8, and first on the code before the
+  patch (the plant below): #83 and #85 reproduced.
+- Plants: `t460-published-russh` (the patch's line of `[patch.crates-io]` gone, the lock on
+  crates.io's russh: `go-ssh.quiet.failure.default` must fail) and `t460-failure-data-ends` (a
+  failure read with `ensure_end` again: the patch's first test must fail), group `host-gossh`.
+  UNVERIFIED: `gh workflow run plants.yml --ref main -f group=host-gossh`, or on a host with
+  Docker, `sh scripts/plant-each.sh --here t460-published-russh t460-failure-data-ends`.
+- `docs/cli.md` (a refused `-R` and the keepalive against Go's servers).
+- The merge: `cargo build`; clippy of `podssh-ssh` with `-D warnings`, all targets: clean; `cargo
+  deny check`: advisories, bans, licenses and sources ok, russh a path package. Waits for GitHub
+  Actions, once the workflow is on `main`: `go-ssh-interop.yml` (8 of 8) and the plants of
+  `host-gossh`; the entry stays `partial` until they pass. The rest the draft named for the main
+  session: `cargo todo interop`; `cargo todo remap` of
+  `Cargo.toml`, `docs/development.md`, `vendor/README.md`, `AGENTS.md`, `docs/cli.md` and
+  `docs/STATUS.md` (the draft moved their citations by hand, `Cargo.toml:218` among them);
+  and TruffleHog: the test keys of russh 0.65.0 are where 0.64.1 held them, so after the commit
+  on `main` add to `.github/secrets-allow.txt`, with that commit's first 12 digits for COMMIT
+  (and the draft branch's commit, if it is pushed):
+
+```text
+PrivateKey vendor/russh/src/keys/mod.rs:279 COMMIT  # ED25519_KEY of russh's keys tests
+PrivateKey vendor/russh/src/keys/mod.rs:289 COMMIT  # ED25519_AESCTR_KEY of russh's keys tests, password test
+PrivateKey vendor/russh/src/keys/mod.rs:385 COMMIT  # a test key of russh's keys tests
+PrivateKey vendor/russh/src/keys/mod.rs:406 COMMIT  # a test key of russh's keys tests
+PrivateKey vendor/russh/src/keys/mod.rs:428 COMMIT  # a test key of russh's keys tests
+PrivateKey vendor/russh/src/keys/mod.rs:547 COMMIT  # a test key of russh's keys tests
+PrivateKey vendor/russh/src/keys/mod.rs:583 COMMIT  # a test key of russh's keys tests
+PrivateKey vendor/russh/src/keys/mod.rs:601 COMMIT  # a test key of russh's keys tests
+PrivateKey vendor/russh/src/keys/mod.rs:620 COMMIT  # a test key of russh's keys tests
+PrivateKey vendor/russh/src/keys/mod.rs:658 COMMIT  # a test key of russh's keys tests
+PrivateKey vendor/russh/src/keys/mod.rs:693 COMMIT  # a test key of russh's keys tests
+PrivateKey vendor/russh/src/keys/format/tests.rs:9 COMMIT  # a test key of russh's format tests
+PrivateKey vendor/russh/src/helpers.rs:286 COMMIT  # a test key of russh's helpers tests
+```
+
+  The scan's own findings are the list to trust: a key that it finds elsewhere goes in too.
+- The patch for russh upstream (Approach item 5) is the operator's to send.
 
 # T-461: A link that ends after the exit status and before the output's end gives that status: output cut at the relay's 64 MiB exits 0
 

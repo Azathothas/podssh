@@ -465,6 +465,8 @@ pub fn describe(e: &russh::Error) -> String {
         Error::StrictKeyExchangeViolation { .. } => {
             format!("{e} (the connection was tampered with, or the server is broken)")
         }
+        // russh's words alone named no side (GitHub #83).
+        Error::SshEncoding(inner) => format!("podssh could not read a message of the server: {inner}"),
         other => other.to_string(),
     }
 }

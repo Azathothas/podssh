@@ -104,6 +104,12 @@ entry keeps its proof in the entry; this page keeps no history (git does).
   and the merges' `draft/m10-merge-427`, `-429`, `-437`, `-438`, `-439`, `-440`, `-443-444` and
   `-448`.
 
+  On 2026-11-02 an agent drafts the testers' defects of SSH, unbuilt, one commit each, on the
+  local branch `worktree-agent-a7cc3c512bf98ec67` (its worktree under `.claude/worktrees/`):
+  T-460 (the WIP `818f7fe` of `worktree-agent-t460-ssh`, which can go once it is merged), with
+  its UNVERIFIED in its `## Done`. Before the session ends, the branch goes to GitHub as
+  `draft/worktree-agent-a7cc3c512bf98ec67`.
+
   CI: the gate passed at
   `24b9f6e` (run 38331509229), and its step `release` at `cad2885` (478
   checks, the desktop's, `usbip` and `each` among them). At `d0dbb59` (run
@@ -147,7 +153,7 @@ and `CARGO_BUILD_JOBS=4`:
 
 ## Counts
 
-`TODO/INDEX.md` holds 546 entries: 130 open, 2 partial, 16 blocked, 398 done.
+`TODO/INDEX.md` holds 546 entries: 129 open, 3 partial, 16 blocked, 398 done.
 
 Open includes parked work. `cargo todo check` verifies this line.
 

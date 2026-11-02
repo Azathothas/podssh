@@ -1,0 +1,45 @@
+name: go-ssh interop
+
+# podssh ssh against a server of Go's x/crypto/ssh (T-460, GitHub #83 and
+# #85), whose replies to a global request carry data after their type:
+# scripts/interop-go-ssh.sh builds its stand-in in the pinned Go image of
+# images/derper against x/crypto at a pinned release, runs it on the pinned
+# Alpine of images/box in the runner's Docker, and checks that a quiet
+# session lives past its keepalives and that a refused -R warns. Started by
+# hand, and on a push that changes the patched russh or the harness; it
+# publishes nothing.
+
+on:
+  workflow_dispatch:
+  push:
+    branches: [main]
+    paths:
+      - "vendor/russh/**"
+      - "vendor/patches/russh/**"
+      - "crates/podssh-ssh/src/remote.rs"
+      - "scripts/interop-go-ssh.sh"
+      - "scripts/interop-go-ssh/**"
+      - ".github/workflows/go-ssh-interop.yml"
+
+permissions:
+  contents: read
+
+jobs:
+  interop:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 40
+    env:
+      CARGO_BUILD_JOBS: "4"
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+      - name: the build
+        run: cargo build --locked -p podssh-cli
+      - name: a server of Go's x/crypto/ssh
+        run: |
+          set -u
+          # Each exit code is read directly; the shell's -e would stop at it.
+          rc=0
+          PODSSH_ENGINE=docker timeout 1800 sh scripts/interop-go-ssh.sh "$GITHUB_WORKSPACE/target/debug/podssh" \
+            > go-ssh.log 2>&1 || rc=$?
+          cat go-ssh.log
+          [ "$rc" = 0 ] || { echo "interop-go-ssh exited $rc"; exit 1; }
