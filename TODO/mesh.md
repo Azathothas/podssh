@@ -1324,7 +1324,7 @@ protocols).
 **Milestone:** M10
 **Priority:** P2
 **Effort:** L
-**Status:** partial
+**Status:** done
 
 ## Problem
 
@@ -1478,6 +1478,12 @@ which built and ran nothing; merged and measured by the main session the same da
   reach, as OpenSSH does; their words were right, and they now wait for 255. The line of a silent
   server names Xray-core's rule, as a user's own private target meets it too, and the manual and
   `docs/cli.md` say so, and that `proxy` exits 78 for HTTP/1.1 where `ssh` exits 255.
+- Its run at `28cba8a` (41418123743): 15 passed, 0 failed, against Xray-core v26.10.21 (a
+  WebSocket, stream-one, stream-up and packet-up; sshd's banner through `proxy --vless`; another
+  ID and a server of HTTP/1.1 alone refused with their words), shoes v0.3.6 (a WebSocket,
+  packet-up and stream-one), nginx in front of Xray-core (the refused upgrade names XHTTP, and
+  packet-up passes), the host's squid by name, `doctor --vless`, and no output holding the ID;
+  `cargo todo interop --logs` scores it 15 of the floor of 14.
 - The question of the Decision is Q67 (`TODO/PROGRESS.md`); its work is T-456, blocked on it.
 
 # T-441: wstunnel's protocol
@@ -1488,7 +1494,7 @@ protocols).
 **Milestone:** M10
 **Priority:** P3
 **Effort:** M
-**Status:** partial
+**Status:** done
 
 ## Problem
 
@@ -1632,8 +1638,12 @@ which built and ran nothing; merged onto T-440 and measured by the main session 
 - The whole suites: `cargo test --no-fail-fast -p podssh-cli`, 1298 passed, none failed (51
   ignored); `-p podssh-ws`, 435 passed, none failed (11 ignored).
 - `scripts/interop-wstunnel.sh` in `.github/workflows/wstunnel-interop.yml`, against wstunnel
-  11.1.0's own server (12 checks): runs on the push of the merge, as GitHub starts a new workflow
-  by hand only from the default branch; this entry stays `partial` until it passes.
+  11.1.0's own server, its first run at `28cba8a` (41418123818): 12 passed, 0 failed (its
+  version; sshd's banner through `proxy --wstunnel`; a session and 1 MiB each way with equal
+  digests through the server of the defaults; one with `--websocket-mask-frame`; over `wss://`
+  with the path prefix and the credentials of a restrictions file; a wrong prefix and no secret,
+  each the server's 400 in its version's words (77), which the server's log names; the host's
+  squid by name; no output holding the secret); `cargo todo interop --logs` scores it 12 of 12.
 
 # T-442: More public services and standard protocols that fit
 

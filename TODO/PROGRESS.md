@@ -88,11 +88,11 @@ entry keeps its proof in the entry; this page keeps no history (git does).
   two servers, its live run through ppng.io; nwtgck's server answers a sender only once a byte
   came, so the mark now goes with the POST's head; the command-level run is T-451); T-438's is merged
   and closed (against wisp-server-python, and live through the demo server); T-429's is merged and
-  closed. T-427's and T-448's are merged and closed. T-440's is merged (three compile repairs, and
-  its XHTTP stand-in made the session for either request first, as Xray-core does); it stays
-  `partial` until `vless-interop.yml` runs on its push. T-441's is merged onto it (each list of
-  roads took both, and `--vless` and `--wstunnel` refuse each other); it stays `partial` until
-  `wstunnel-interop.yml` runs on its push. T-430's is merged and closed (the synopsis of `podssh
+  closed. T-427's and T-448's are merged and closed. T-440's is merged and closed (three compile
+  repairs; its XHTTP stand-in made the session for either request first, as Xray-core does; its
+  interop's first run found that Xray-core blackholes a private target unless a final rule allows
+  it, then 15 of 15). T-441's is merged onto it and closed (each list of roads took both, and
+  `--vless` and `--wstunnel` refuse each other; 12 of 12 against wstunnel's own server). T-430's is merged and closed (the synopsis of `podssh
   net` was wider than the page). The drafts of T-428, T-447 and T-454 wait in worktrees of
   `.claude/worktrees/` (`agent-t428-quick-relay`, `agent-t447-acme`, `agent-t454-brake`), from
   `33ccb11`, and on GitHub as `draft/worktree-agent-t428-quick-relay`, `-t447-acme` and
@@ -145,7 +145,7 @@ and `CARGO_BUILD_JOBS=4`:
 
 ## Counts
 
-`TODO/INDEX.md` holds 452 entries: 44 open, 4 partial, 17 blocked, 387 done.
+`TODO/INDEX.md` holds 452 entries: 44 open, 2 partial, 17 blocked, 389 done.
 
 Open includes parked work. `cargo todo check` verifies this line.
 
@@ -190,8 +190,8 @@ this order:
    T-421, T-253, T-325, T-326, T-319, T-321 and T-173.
 2. The net (its policy is done): T-445, T-452, T-453, T-086, T-226, T-346 and T-106.
 3. Exit, routes, share and funnel: T-431, T-432, T-433, T-180, then T-434 and T-435.
-4. The public carriers of Q65 (T-451, then T-450 from the runs of `transit-live.yml`)
-   and the protocols of Q66 (T-440, T-441), then T-442.
+4. The public carriers of Q65 (T-451, then T-450 from the runs of `transit-live.yml`; the
+   protocols of Q66 are done), then T-442.
 5. T-446: betas `v1.1.0-beta.N` after batches, and `v1.1.0` at the end.
 
 Between entries: the `none` entries, the highest priority first.
