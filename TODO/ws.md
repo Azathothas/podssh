@@ -308,7 +308,7 @@ the configuration on each call (`crates/podssh-ws/src/client.rs` lines 187-207 a
 `crates/podssh-ws/src/tls.rs` lines 153-180 at `723d90b`). `WsClientConfig` carries only a `Trust`
 (`client.rs` lines 47-61 at `723d90b`). The same `Trust` goes through `podssh-relay`: `Request`
 (`crates/podssh-relay/src/open.rs:147-159`), `MintContext`
-(`crates/podssh-relay/src/token.rs:94-99`), the pool refresh
+(`crates/podssh-relay/src/token.rs:95-100`), the pool refresh
 (`crates/podssh-relay/src/pool.rs:177-185`), and the `https_*` functions (`client.rs` lines
 261-287). podssh's configuration offers no ALPN (`tls.rs` lines 174-177 at `723d90b`), because the upgrade is
 HTTP/1.1 only (`docs/relay.md:315`). The `tls12` feature of `rustls` is on in the workspace

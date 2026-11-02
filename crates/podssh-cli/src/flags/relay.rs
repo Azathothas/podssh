@@ -28,7 +28,7 @@ pub const RELAY_FLAGS: &[FlagRow] = &[
     row(None, "port-file", Some("FILE"), FlagKind::Supported,
         "serve: write the port that it listens on to FILE, for --listen ADDR:0", None),
     row(None, "mint", Some("WHO"), FlagKind::Supported,
-        "serve: who may mint a token at /v1/mint and make a pair at /v1/pair: anyone, or nobody (the default: 503, and tokens are given another way)", None),
+        "serve: who may mint a token at /v1/mint and make a pair at /v1/pair: anyone; keys:FILE, the keys of FILE (the format of podssh node --allow), each by its signature of the relay's challenge; or nobody (the default: 503, and tokens are given another way)", None),
     row(None, "allow-private", None, FlagKind::Supported,
         "serve: dial private, loopback and other non-public addresses too (by default only public targets, as the default relay)", None),
     row(None, "keepalive", Some("SECONDS"), FlagKind::Supported,

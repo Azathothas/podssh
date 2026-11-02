@@ -28,6 +28,8 @@ pub fn health(cfg: &Config) -> Value {
         "service": crate::health::SERVICE,
         "version": cfg.version,
         "contract": super::CONTRACT,
+        // Who may mint: `keys` asks a key's signature (T-448).
+        "mint": cfg.mint.word(),
         "relay": { "name": "podssh" },
         // The shape of the default relay's, which `podssh relay status` reads.
         "reverse": { "enabled": true },
@@ -192,6 +194,7 @@ mod tests {
             policy: Default::default(),
             limits: Default::default(),
             pairs: Default::default(),
+            answered: Default::default(),
             events: None,
         }
     }

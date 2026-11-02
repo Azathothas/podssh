@@ -11,6 +11,8 @@
 //!   kept in the cache for a run whose resolver fails (T-344);
 //! - [`mod@open`]: a forward session, failing over from host to host with backoff,
 //!   one bounded attempt per host;
+//! - [`keyed`]: a mint or a pair that the relay asks this client's key to
+//!   sign (T-448);
 //! - `pair` (feature `pair`): the pairs of the reverse road, made, asked
 //!   about and stopped on the relay's control host, kept in a private file;
 //! - `reverse` (feature `pair`): the node and the operator of the reverse road;
@@ -48,6 +50,7 @@ pub mod failover;
 pub mod failures;
 pub mod health;
 pub mod identity;
+pub mod keyed;
 pub mod open;
 #[cfg(feature = "pair")]
 pub mod pair;

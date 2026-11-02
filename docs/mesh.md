@@ -101,8 +101,9 @@ which `--pairs FILE` keeps across a restart:
   certificate from files or from ACME;
 - where it cannot: behind the node's own quick tunnel, whose node serves the
   relay's routes to its visitors instead of 404, with no listener (T-428);
-- for a net: a member mints its tokens with its key; for anyone, only when
-  the user asks.
+- for the keys of a list, each by its signature of the role's challenge
+  (`--mint keys:FILE`, T-448), and for the net's members by the net's list
+  (T-429); for anyone, only when the user asks.
 
 The role does what the default deployment does not do, which were the items
 of [relay-operator.md](relay-operator.md): bounded queues for a slow client

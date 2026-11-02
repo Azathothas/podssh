@@ -75,6 +75,13 @@ impl Identity {
     pub fn binding(&self) -> &[u8; 64] {
         &self.binding
     }
+
+    /// The Ed25519 key's signature of `message`, for a proof that names its
+    /// own purpose in its first bytes (the relay's mint, T-448), so that no
+    /// signature serves two.
+    pub fn sign(&self, message: &[u8]) -> [u8; 64] {
+        self.signing.sign(message).to_bytes()
+    }
 }
 
 impl fmt::Debug for Identity {
@@ -116,6 +123,13 @@ impl PublicKey {
     pub fn signed(&self, dh_public: &[u8; 32], binding: &[u8; 64]) -> bool {
         let Ok(key) = VerifyingKey::from_bytes(&self.0) else { return false };
         key.verify_strict(&binding_message(dh_public), &Signature::from_bytes(binding)).is_ok()
+    }
+
+    /// Whether `signature` is this key's of `message`, by the strict rules
+    /// of Ed25519 that refuse a weak key and a malleable signature.
+    pub fn verifies(&self, message: &[u8], signature: &[u8; 64]) -> bool {
+        let Ok(key) = VerifyingKey::from_bytes(&self.0) else { return false };
+        key.verify_strict(message, &Signature::from_bytes(signature)).is_ok()
     }
 
     /// The key written as iroh writes it: 64 hex digits, or 52 characters

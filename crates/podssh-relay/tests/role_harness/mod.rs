@@ -46,6 +46,7 @@ impl Role {
             policy: Default::default(),
             limits: Limits::default(),
             pairs: Default::default(),
+            answered: Default::default(),
             events: Some(say),
         });
         let served = cfg.clone();

@@ -52,10 +52,10 @@ pair (`crates/podssh-relay/src/cache.rs` lines 126-153 and 221-240 at `9811e0d`)
    in the library step of the gate (`scripts/gate.sh` line 61 at `3632dcb`), so the no-C check covers
    it.
 2. `pair::create` returns a `Pair`: relay host, name, the three tokens, expiry. Keep each token in
-   `Zeroizing` with a redacted `Debug`, as `token::Token` does (`crates/podssh-relay/src/token.rs:27-56`).
+   `Zeroizing` with a redacted `Debug`, as `token::Token` does (`crates/podssh-relay/src/token.rs:28-57`).
    Check the name with T-076, and each token with `cache::valid_token`
    (`crates/podssh-relay/src/cache.rs` lines 52-56 at `3632dcb`). Never quote a 2xx body
-   (`crates/podssh-relay/src/token.rs:196`).
+   (`crates/podssh-relay/src/token.rs:197`).
 3. Answers: `409`, pair again once; `429`, report `Retry-After`; `503`, stop. Refuse a pair with less
    than 10 min left, as the token cache does (`cache.rs` lines 15-16 at `3632dcb`).
 4. `pair::stop` sends `stop_token` to `/v1/stop/<name>`, then deletes the local copy whatever the
@@ -445,7 +445,7 @@ Read: podbox keeps `ring` and TLS 1.2 through a `rustls::ClientConfig` that it s
    it needs 1.88, and podbox follows (the operator's ruling of 2026-10-08). Write the result in
    `docs/design.md` (section 3).
 7. Document the facade in `docs/design.md` (lines 89-110 at `0d92eef`) and in the crate's header
-   (`crates/podssh-relay/src/lib.rs:1-38`); add the feature to the gate (`scripts/gate.sh:133`).
+   (`crates/podssh-relay/src/lib.rs:1-40`); add the feature to the gate (`scripts/gate.sh:133`).
 
 ## Decision
 

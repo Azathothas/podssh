@@ -1,0 +1,7 @@
+# T-448: the role takes a key of its list without checking the key's
+# signature of its challenge, so a request that names a listed key and
+# carries another key's signature mints; the test of the refusals must fail.
+ENTRY=T-448
+GROUP=resume
+EXPECT='test serve::keys::tests::another_key_another_signature_another_relay_or_a_late_answer_is_refused \.\.\. FAILED'
+RUN='cargo test --locked -p podssh-relay --features serve --lib serve::keys'
