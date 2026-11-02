@@ -45,7 +45,8 @@ impl Status {
         self.0.lock().unwrap_or_else(|e| e.into_inner()).clone()
     }
 
-    fn set_once(&self, ended: Ended) {
+    /// A Wisp stream's end sets it too (T-438).
+    pub(crate) fn set_once(&self, ended: Ended) {
         let mut slot = self.0.lock().unwrap_or_else(|e| e.into_inner());
         if slot.is_none() {
             *slot = Some(ended);
@@ -57,7 +58,7 @@ impl Status {
 pub struct Carried {
     pub stream: DuplexStream,
     pub status: Status,
-    tasks: [JoinHandle<()>; 2],
+    tasks: Vec<JoinHandle<()>>,
 }
 
 impl std::fmt::Debug for Carried {
@@ -67,7 +68,13 @@ impl std::fmt::Debug for Carried {
 }
 
 impl Carried {
-    /// Stop both tasks, for a session that is given up before its use.
+    /// A session that another protocol carries, its tasks with it: a
+    /// stream of a Wisp server (T-438).
+    pub(crate) fn of(stream: DuplexStream, status: Status, tasks: Vec<JoinHandle<()>>) -> Carried {
+        Carried { stream, status, tasks }
+    }
+
+    /// Stop each task, for a session that is given up before its use.
     pub(super) fn abort(&self) {
         for task in &self.tasks {
             task.abort();
@@ -233,7 +240,7 @@ where
         let _ = to_local.shutdown().await;
     });
 
-    (Carried { stream: ours, status, tasks: [up, down] }, first_rx)
+    (Carried { stream: ours, status, tasks: vec![up, down] }, first_rx)
 }
 
 #[cfg(test)]

@@ -136,9 +136,19 @@ pub fn request_target(target: &str) -> Result<String, String> {
 /// The upgrade request of `url`, with `key`: no token, no subprotocol, no
 /// extension and no `Origin`, as a program sends it.
 pub fn request(url: &WsUrl, key: &str) -> Result<Vec<u8>, ConnectError> {
+    offering(url, key, None)
+}
+
+/// [`request`], offering `protocol` in `Sec-WebSocket-Protocol` when one is
+/// given: a Wisp server speaks its version 2 only where the request names
+/// one (T-438). The value is podssh's own constant, never a user's text.
+pub fn offering(url: &WsUrl, key: &str, protocol: Option<&str>) -> Result<Vec<u8>, ConnectError> {
     let target = request_target(&url.target).map_err(ConnectError::Config)?;
     let mut request = format!("GET {target} HTTP/1.1\r\nHost: {}\r\nUser-Agent: {USER_AGENT}\r\n", url.host_header());
     request.push_str("Upgrade: websocket\r\nConnection: Upgrade\r\n");
+    if let Some(protocol) = protocol {
+        request.push_str(&format!("Sec-WebSocket-Protocol: {protocol}\r\n"));
+    }
     request.push_str(&format!("Sec-WebSocket-Key: {key}\r\nSec-WebSocket-Version: 13\r\n\r\n"));
     Ok(request.into_bytes())
 }
@@ -191,8 +201,22 @@ pub async fn dial(
     timeout: Duration,
     idle: Option<Duration>,
 ) -> Result<RelaySession<Stream>, ConnectError> {
+    dial_offering(url, None, trust, proxy, timeout, idle).await
+}
+
+/// [`dial`], its upgrade offering `protocol` ([`offering`]). A server's
+/// choice of one in its answer is not checked: the one that a Wisp server
+/// may name is the one offered, and a server of version 1 names none.
+pub async fn dial_offering(
+    url: &WsUrl,
+    protocol: Option<&str>,
+    trust: &Trust,
+    proxy: &ProxyChoice,
+    timeout: Duration,
+    idle: Option<Duration>,
+) -> Result<RelaySession<Stream>, ConnectError> {
     let key = handshake::generate_key().map_err(|e| ConnectError::Upgrade(e.to_string()))?;
-    let request = request(url, &key)?;
+    let request = offering(url, &key, protocol)?;
     let stream = if url.tls {
         Stream::Tls(Box::new(client::open_tls(&url.host, url.port, &url.host, trust, proxy, timeout).await?))
     } else {
@@ -273,5 +297,20 @@ mod tests {
         }
         let failure = failure(&url("wss://h/p?k=SECRET"), &ConnectError::Refused { status: 403, body: "no".into() });
         assert_eq!(failure, "wss://h/p refused the upgrade: HTTP 403: no");
+    }
+
+    /// T-438: a Wisp server speaks version 2 where the request offers a
+    /// protocol, once, before the end of the head.
+    #[test]
+    fn an_offered_protocol_is_one_header_in_the_request() {
+        let key = "dGhlIHNhbXBsZSBub25jZQ==";
+        let request = String::from_utf8(offering(&url("wss://w/"), key, Some("wisp-v2")).unwrap()).unwrap();
+        assert_eq!(request.matches("Sec-WebSocket-Protocol: wisp-v2\r\n").count(), 1, "{request}");
+        assert!(request.ends_with("Sec-WebSocket-Version: 13\r\n\r\n"), "{request}");
+        assert_eq!(offering(&url("wss://w/"), key, None).unwrap(), request_bytes(key));
+    }
+
+    fn request_bytes(key: &str) -> Vec<u8> {
+        request(&url("wss://w/"), key).unwrap()
     }
 }

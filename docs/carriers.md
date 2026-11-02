@@ -203,6 +203,24 @@ The candidates, ranked:
    can speak the small protocol itself (Inferred). Its operator's words
    rule out a default: by Q65 podssh may try it when the user did not ask,
    after the three forwarders of Q56, never first.
+
+   Built by T-438 from the document alone (`crates/podssh-ws/src/wisp/`):
+   the word `wisp`, the last of the fallback, and `--forwarder
+   wisp+wss://HOST/PATH/` for a server that the user runs. Read on
+   2026-11-02 in the servers' sources, for the tests: wisp-server-python
+   0.9.0 (AGPL-3.0, run in the tests, never copied) speaks version 1 only,
+   ignores the offered protocol, gives each stream 128 packets of credit
+   and a `CONTINUE` after each 32 that it wrote, and closes each stream
+   that it cannot open with `0x42`, whatever the cause [N3]; its reader of
+   the WebSocket waits while one stream's buffer is full, so a client that
+   ignored the credit would hold up each stream of its connection. Mercury
+   Workshop's JavaScript server (`wisp-js` 0.5.2, LGPL-3.0) speaks version
+   2, but sends a stream's `CONTINUE` for UDP streams alone, so a TCP
+   stream through it that keeps the credit stops after its first 128
+   packets (Inferred from MercuryWorkshop/wisp-js:src/server/connection.mjs;
+   not measured). The tests: a stand-in of version 1 and 2 written from
+   the document, wisp-server-python on the loopback, and the demo server
+   from GitHub Actions (`.github/workflows/forwarder-live.yml`).
 8. **Shadowsocks servers that the user names** (class A in shape: the
    server dials the target that its address header names). Read in GitHub
    #62 (a tester's report of 2026-10-31, not measured here): such servers
@@ -662,7 +680,8 @@ public data file), not a run of podssh.
 - [N1] https://github.com/MercuryWorkshop/wisp-protocol/blob/v2/protocol.md
   (version 2.1)
 - [N2] https://wisp.mercurywork.shop/
-- [N3] https://github.com/MercuryWorkshop/wisp-server-python (v0.8.3)
+- [N3] https://github.com/MercuryWorkshop/wisp-server-python (v0.8.3; its
+  source at v0.9.0, read on 2026-11-02 for T-438)
 - [N4] https://crates.io/crates/wisp-mux;
   https://github.com/MercuryWorkshop/epoxy-tls
 - [N5] https://docs.iroh.computer/iroh-services/relays/public

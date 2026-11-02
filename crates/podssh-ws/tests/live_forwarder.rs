@@ -1,10 +1,11 @@
-//! The forwarders that the binary names (T-370), live: through each, the
-//! first line of github.com port 22 is GitHub's version line. By the
-//! operator's ruling Q56 they are run from GitHub Actions only, short: one
-//! connection to each, one at a time, by `.github/workflows/forwarder-live.yml`,
-//! each day and by hand; ignored here. With `PODSSH_TEST_FORWARDER_PLANT`
-//! set, each template names a host under `.invalid` in place of its own,
-//! and each check must fail: the plant of the watch.
+//! The forwarders that the binary names (T-370, and the Wisp demo server of
+//! T-438), live: through each, the first line of github.com port 22 is
+//! GitHub's version line. By the operator's rulings Q56 and Q65 they are run
+//! from GitHub Actions, short: one connection to each, one at a time, by
+//! `.github/workflows/forwarder-live.yml`, each day and by hand; ignored
+//! here. With `PODSSH_TEST_FORWARDER_PLANT` set, each template names a host
+//! under `.invalid` in place of its own, and each check must fail: the plant
+//! of the watch.
 
 use std::sync::Arc;
 use std::time::Duration;
@@ -20,9 +21,10 @@ fn template(b: &builtin::Builtin) -> Template {
     let text = match std::env::var_os("PODSSH_TEST_FORWARDER_PLANT") {
         None => b.template.to_string(),
         Some(_) => {
-            let rest = b.template.strip_prefix("wss://").expect("a wss:// template");
+            // A Wisp server's `wisp+` stays before the scheme (T-438).
+            let (scheme, rest) = b.template.split_once("://").expect("a ws:// template");
             let at = rest.find('/').unwrap_or(rest.len());
-            format!("wss://podssh-plant.invalid{}", &rest[at..])
+            format!("{scheme}://podssh-plant.invalid{}", &rest[at..])
         }
     };
     Template::parse(&text).unwrap()
@@ -77,4 +79,12 @@ async fn live_ssheasy_gives_github_s_version_line() {
 #[ignore = "live: from GitHub Actions only (Q56)"]
 async fn live_mudix_gives_github_s_version_line() {
     banner("mudix").await;
+}
+
+/// The Wisp demo server (T-438, Q65): its CONNECT to github.com port 22, on
+/// a stream of its WebSocket.
+#[tokio::test(flavor = "multi_thread", worker_threads = 2)]
+#[ignore = "live: from GitHub Actions (Q56, Q65)"]
+async fn live_wisp_gives_github_s_version_line() {
+    banner("wisp").await;
 }

@@ -4,9 +4,12 @@
 //! would reach the forwarders themselves. Each one dials the test's SSH
 //! server, whatever target it was asked for, and keeps what it saw: the
 //! request, the target, and the first frame of the frame form. A name of
-//! no stand-in, such as a relay host, gets 503.
+//! no stand-in, such as a relay host, gets 503. The Wisp demo server's
+//! stand-in speaks the Wisp protocol (`wisp`, T-438).
 
 #![allow(dead_code)]
+
+pub mod wisp;
 
 use std::collections::HashSet;
 use std::sync::{Arc, Mutex};
@@ -68,7 +71,8 @@ impl Stands {
         // a reset of unread bytes.
         let Ok((head, pending)) = podssh_ws::http::read_request(&mut tls, Vec::new()).await else { return };
         let query = QUERY_HOSTS.contains(&host.as_str()) || host == CLOSE_HOST;
-        if !query && !FRAME_HOSTS.contains(&host.as_str()) {
+        let speaks_wisp = host == wisp::HOST;
+        if !query && !speaks_wisp && !FRAME_HOSTS.contains(&host.as_str()) {
             let _ = tls.write_all(b"HTTP/1.1 503 Service Unavailable\r\nContent-Length: 0\r\n\r\n").await;
             let _ = tls.shutdown().await;
             return;
@@ -81,6 +85,9 @@ impl Stands {
             return;
         }
         let session = Arc::new(podssh_ws::server::session(tls, pending, None));
+        if speaks_wisp {
+            return wisp::carry(self, host, head, session).await;
+        }
         let (target, first_frame) = if query {
             (query_target(&head.target), None)
         } else {

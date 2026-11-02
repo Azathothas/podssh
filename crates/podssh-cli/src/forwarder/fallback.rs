@@ -1,7 +1,8 @@
 //! The fallback to the forwarders that the binary names (T-370), by the
 //! operator's ruling Q56: when each relay host failed, podssh tries them in
 //! order, after the relay hosts and before the run ends, and says so on
-//! stderr with each one's name. Only where the relay was podssh's own
+//! stderr with each one's name; the Wisp demo server last, never first, by
+//! the ruling Q65 (T-438). Only where the relay was podssh's own
 //! choice: not for relay hosts that the user names (`--relay-host`,
 //! `PODSSH_RELAY`, `RelayHost`), whose road stays theirs alone, nor with
 //! `-4` or `-6`, nor when `PODSSH_FORWARDER_FALLBACK`, or
@@ -167,6 +168,6 @@ mod tests {
         assert!(not_after(&ours, Some(6), EX_UNAVAILABLE).unwrap().contains("-4 and -6"));
         assert!(not_after(&ours, None, EX_CONFIG).unwrap().contains("a forwarder's too"));
         assert!(not_after(&ours, None, crate::exitmap::sysexits::EX_USAGE).is_some());
-        assert!(announce().contains("mudlet, ssheasy, mudix"));
+        assert!(announce().contains("in order: mudlet, ssheasy, mudix, wisp;"), "{}", announce());
     }
 }

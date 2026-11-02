@@ -1,0 +1,83 @@
+//! The last notes of `podssh ssh` (`notes_ssh`), apart for the length of
+//! that file.
+
+pub(super) const MORE: &[&str] = &[
+    "-A forwards the agent, off by default as in OpenSSH; -a turns it off, and the last of the two wins, \
+     over the keyword ForwardAgent. podssh asks for it on the session, never on a jump host, and joins each \
+     agent channel that the server opens to the agent that podssh logs in with (IdentityAgent, else \
+     SSH_AUTH_SOCK); ForwardAgent with a path or $NAME names another agent. While the session lasts, the \
+     server, and root on it, can use each key of the agent, though it cannot read one. podssh binds the \
+     agent to the server's host key first, as OpenSSH does (session-bind@openssh.com), so an OpenSSH agent \
+     keeps from the server each key that ssh-add limits to other hosts; an agent that refuses the bind \
+     serves unbound. An agent channel that a server opens with no -A is refused, with a warning.",
+    "-X and -Y forward X11 to the display of DISPLAY; -x turns it off, and the last of the three wins. The \
+     server is given a spoofed cookie, and podssh puts the real one in each X11 channel's first packet. -Y \
+     uses the cookie of XAUTHORITY or ~/.Xauthority, and gives the server's X clients full access; -X an \
+     untrusted cookie that xauth makes, for ForwardX11Timeout, and with no xauth it is refused. With no \
+     DISPLAY, no X server that answers, or no cookie that it takes, the run ends with 255 before anything \
+     connects.",
+    "-M with -S PATH (or ControlMaster and ControlPath) makes this run the control master, on Unix: other \
+     runs with -S PATH go through its one connection, as with OpenSSH, whose ssh -O check and clients \
+     work with it; a second -M asks before each request. -O check, forward, cancel, exit and stop speak to the \
+     master. With no master there, a run connects alone, and ControlMaster auto makes it the master. \
+     The socket is made mode 0600 before anything connects, and goes with the master. ControlPersist keeps \
+     a -N master with no client for that long; podssh does not go to the background. On Windows, -M, -S \
+     and -O are refused (exit 64).",
+    "-P on ssh is the Tag of OpenSSH, which Match tagged reads, not a port; a tag that is a number gets \
+     a note on stderr. On scp and sftp, -P is the port. Use -p for the port of ssh.",
+    "-G prints the settings in effect, as ssh -G does: a line of keyword and value for each keyword of \
+     OpenSSH that podssh applies, defaults included, then exits 0 with nothing opened. The defaults \
+     that differ from OpenSSH's do on purpose: ServerAliveInterval and ConnectTimeout are 60, and no \
+     identity file of a security key is tried. podssh's own settings, such as the relay hosts, print no \
+     line, as OpenSSH knows no keyword for them.",
+    "Paths in -i and in the IdentityFile, UserKnownHostsFile, GlobalKnownHostsFile, IdentityAgent and \
+     ForwardAgent keywords take the tokens of OpenSSH: %% %C %d %h %i %j %k %L %l %n %p %r %u, with \
+     OpenSSH's values. %u is the local user and %r the remote one. An unknown token is refused (exit 64). \
+     ${NAME} in them is the variable NAME, which must be set (exit 64); a whole $NAME as IdentityAgent or \
+     ForwardAgent is the variable that holds the path, and no agent when it is not set. -E FILE is opened \
+     as typed.",
+    "A repeated value follows OpenSSH: the first -p and -l, the last -e, -E and -F, and the first value \
+     of each -o keyword. A second -J or -W is refused, and so is a second --relay-host, --relay-addr or \
+     --ca-file: give several hops, hosts or addresses as one comma list.",
+    "podssh sends keepalives (ServerAliveInterval), so the relay does not close an idle session. To a \
+     node, the resumable layer keeps the link busy and finds a dead one, and SSH sends none unless \
+     ServerAliveInterval is set: a keepalive with no answer would end a session that the layer carries \
+     onto a new link.",
+    "podssh reads options before and after the host, as OpenSSH does, so a host that a script did not \
+     write can be read as a flag. Put -- before it: podssh ssh -- \"$HOST\" uptime. A host, or a \
+     -o HostName=VALUE, that starts with - is refused (exit 64), as OpenSSH refuses it.",
+    "An IPv6 address needs brackets only before a port: user@2001:db8::1 is port 22, and \
+     user@[2001:db8::1]:2222 or -p 2222 gives another port. -4 or -6 with an address of the other family \
+     is refused. The relay takes an IPv6 address, but when this version was measured, its way out \
+     reached no IPv6 host: such a session ends at once, and podssh says so. --direct needs no relay.",
+    "--result-file FILE writes one JSON object to FILE at the end of each run, also of one that failed \
+     before it connected: schema, exit (the code that podssh exits with), status (the remote exit status, \
+     or null), signal (its name and core_dumped, or null), end (status, signal, no-status, lost, escaped, \
+     terminated, detached, interrupted (Ctrl-C with no pty, and no end of the command), failed, or shared \
+     through a control master, which tells the exit code alone; null with no \
+     session, as with -W), failure (connect, host-key, auth, forward, relay, session, usage, config or \
+     not-built, or null), bytes (stdin, stdout and stderr, as they passed; null through a control master, \
+     which carries them), duration_ms, and relay (its host, close_code and reason, or null with no relay). \
+     stdout and stderr stay as they are; the command's output never goes into the file. A new file is made \
+     for its owner alone; - is refused (exit 64). No file is written after a flag that podssh does not know, \
+     which ends it before it reads the others, nor when a signal kills podssh: only a session on a terminal \
+     ends at SIGTERM or SIGHUP, as terminated, and one with no pty at Ctrl-C, by the command's end or as \
+     interrupted.",
+    "--install NAME, with -N, --persist and a forward, makes the tunnel a service of this user, which \
+     starts it again whenever it ends, as podssh node --install makes a node's, by the same ways: a user \
+     unit of systemd (podssh-ssh-NAME.service), a LaunchAgent (dev.podssh.ssh.NAME), two lines of the \
+     crontab, or a task of Windows. A server that only the tunnel reaches is locked out while it is down. \
+     The service runs this program with the words of this command line but --install NAME, in this \
+     directory, so that each relative path means what it meant; after ssh come BatchMode=yes, \
+     ForkAfterAuthentication=no, ControlPath=none and ExitOnForwardFailure=yes, each after -o, which win \
+     over the rest and over ssh_config, as nobody answers a prompt there, a run in the background or \
+     through a master would leave the service, and a refused forward serves nothing until a new start; \
+     then --env-file with ssh-NAME.env, the private file of the variables that it reads, with no token, \
+     and --persist-forever, so that an outage of the relay never ends the tunnel between two starts. \
+     The login needs a key with no passphrase, and the host key in known_hosts: run the same command \
+     once in the foreground first. The command line is resolved first: a shell, a command, -W, -f, -G, \
+     -O, --attach, --upgrade or --snippet is refused (64). So is a tunnel without --persist, or with no \
+     forward. --uninstall NAME removes what --install NAME wrote, and nothing else. --env-file FILE \
+     sets the variables of FILE first and holds FILE.lock while the run lasts, as for podssh node: a \
+     second start of the same service ends at once with 0.",
+];

@@ -99,6 +99,8 @@ async fn serve(mut tcp: TcpStream, form: Form, act: Act, seen: Arc<Mutex<Seen>>)
             let doc: serde_json::Value = serde_json::from_str(&text).unwrap_or_default();
             (doc["Host"].as_str().unwrap_or_default().to_string(), doc["Port"].as_u64().unwrap_or(0) as u16)
         }
+        // A Wisp server's stand-ins are those of tests/wisp.rs (T-438).
+        Form::Wisp => return,
     };
     seen.lock().unwrap().targets.push(target.clone());
     match act {

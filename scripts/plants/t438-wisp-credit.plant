@@ -1,0 +1,8 @@
+# T-438: the Wisp client ignores the server's credit and sends each DATA at
+# once; the test of flow control, whose stand-in counts each DATA past the
+# credit of its CONTINUE, must fail.
+ENTRY=T-438
+GROUP=cli-tests
+EXPECT='test the_client_sends_no_data_past_the_server_s_credit \.\.\. FAILED'
+RUN='cargo test --locked -p podssh-ws --test wisp -- the_client_sends_no_data_past_the_server_s_credit'
+LIMIT=2400

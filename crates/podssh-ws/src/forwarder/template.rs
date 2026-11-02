@@ -2,7 +2,8 @@
 //! and `{port}` once each, which the target fills in, or with neither, and
 //! then the target goes in a first frame of JSON. The placeholders go in the
 //! path or the query, never in the authority: a forwarder is reached by its
-//! own name, and only the forwarder dials the target.
+//! own name, and only the forwarder dials the target. `wisp+` before the
+//! URL names a Wisp server (T-438), which takes the target in a packet.
 
 use crate::names::check_target;
 use crate::url::WsUrl;
@@ -11,6 +12,8 @@ use crate::url::WsUrl;
 pub const HOST: &str = "{host}";
 /// The placeholder of the target's port.
 pub const PORT: &str = "{port}";
+/// The prefix of a Wisp server's URL: `wisp+wss://` or `wisp+ws://`.
+pub const WISP: &str = "wisp+";
 
 /// Where a forwarder takes its target.
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
@@ -21,6 +24,9 @@ pub enum Form {
     /// forwarder answers with `{"status":"ok"}` before the target's bytes,
     /// as ssheasy's proxy does.
     Frame,
+    /// In a CONNECT packet of the Wisp protocol, on a stream of the
+    /// WebSocket ([`crate::wisp`], T-438).
+    Wisp,
 }
 
 /// A template, checked: its text as the user wrote it, its form, and the
@@ -46,6 +52,9 @@ impl Template {
     /// [`WsUrl::parse`] refuses. The text itself is never in a refusal.
     pub fn parse(text: &str) -> Result<Template, String> {
         let text = text.trim();
+        if text.get(..WISP.len()).is_some_and(|p| p.eq_ignore_ascii_case(WISP)) {
+            return wisp(&text[WISP.len()..]);
+        }
         let lower = text.get(..6).unwrap_or(text).to_ascii_lowercase();
         let rest = if lower.starts_with("wss://") {
             &text[6..]
@@ -106,7 +115,7 @@ impl Template {
         }
         let text = match self.form {
             Form::Query => self.text.replacen(HOST, &encoded(host), 1).replacen(PORT, &port.to_string(), 1),
-            Form::Frame => self.text.clone(),
+            Form::Frame | Form::Wisp => self.text.clone(),
         };
         WsUrl::parse(&text).map_err(|why| format!("the target cannot go to a forwarder: {why}"))
     }
@@ -117,6 +126,31 @@ impl Template {
     pub fn first_frame(&self, host: &str, port: u16) -> Option<String> {
         (self.form == Form::Frame).then(|| serde_json::json!({ "Host": host, "Port": port }).to_string())
     }
+}
+
+/// A Wisp server's template, the URL after [`WISP`]: a `ws://` or `wss://`
+/// URL with no placeholder, whose path ends with `/`, as Wisp asks: a Wisp
+/// server takes a path without it for the older wsproxy's form, whose
+/// target is in the path. Its text holds the URL alone; it is shown with
+/// its prefix.
+fn wisp(rest: &str) -> Result<Template, String> {
+    let lower = rest.get(..6).unwrap_or(rest).to_ascii_lowercase();
+    if !(lower.starts_with("wss://") || lower.starts_with("ws://")) {
+        return Err("a Wisp server is wisp+wss://HOST/PATH/ or wisp+ws://HOST/PATH/".into());
+    }
+    if rest.contains(['{', '}']) {
+        return Err(format!("a Wisp server takes the target in a packet: its URL has no {HOST} and no {PORT}"));
+    }
+    if rest.contains('#') {
+        return Err("a Wisp server's URL has no fragment, which is never sent".into());
+    }
+    let url = WsUrl::parse(rest).map_err(|why| format!("a Wisp server's URL: {why}"))?;
+    if !url.target.split('?').next().unwrap_or_default().ends_with('/') {
+        let why = "a Wisp server's path ends with /, as Wisp asks: without it a Wisp server reads the older \
+                   wsproxy's form";
+        return Err(why.into());
+    }
+    Ok(Template { text: rest.to_string(), form: Form::Wisp, shown: format!("{WISP}{}", url.shown()) })
 }
 
 /// `host` for a URL: a letter, a digit, `.`, `-` and `_` as they are, and
@@ -193,6 +227,35 @@ mod tests {
         assert!(t.fill("github.com", 0).is_err());
         let frame = Template::parse("wss://ssheasy.com/p").unwrap();
         assert!(frame.fill("a&b", 22).is_err(), "the frame form checks it too");
+    }
+
+    /// T-438: `wisp+` names a Wisp server, shown with its prefix; the
+    /// target is checked as in each form, and goes in no URL.
+    #[test]
+    fn a_wisp_server_s_template_is_its_url_after_the_prefix() {
+        let t = Template::parse(" WISP+wss://wisp.mercurywork.shop/ ").unwrap();
+        assert_eq!((t.form(), t.shown()), (Form::Wisp, "wisp+wss://wisp.mercurywork.shop/"));
+        let url = t.fill("github.com", 22).unwrap();
+        assert_eq!((url.tls, url.host.as_str(), url.port), (true, "wisp.mercurywork.shop", 443));
+        assert_eq!(url.target, "/", "no target in the URL");
+        assert_eq!(t.first_frame("github.com", 22), None);
+        assert!(t.fill("a&b", 22).is_err() && t.fill("github.com", 0).is_err(), "the target is checked");
+        let own = Template::parse("wisp+ws://127.0.0.1:6001/wisp/?key=SECRET").unwrap();
+        assert_eq!(own.shown(), "wisp+ws://127.0.0.1:6001/wisp/");
+        assert_eq!(own.fill("h", 1).unwrap().target, "/wisp/?key=SECRET");
+        for bad in [
+            "wisp+https://w.example/",
+            "wisp+wss://w.example/wisp",
+            "wisp+wss://w.example/?host={host}&port={port}",
+            "wisp+wss://w.example/#x",
+            "wisp+wss://user:SECRET@w.example/",
+            "wisp+",
+        ] {
+            let refused = Template::parse(bad).unwrap_err();
+            assert!(!refused.contains("SECRET") && !refused.contains("w.example"), "{bad:?}: {refused}");
+        }
+        let unslashed = Template::parse("wisp+wss://w.example/wisp?k=1").unwrap_err();
+        assert!(unslashed.contains("ends with /"), "{unslashed}");
     }
 
     #[test]

@@ -723,7 +723,7 @@ carriers).
 **Milestone:** M10
 **Priority:** P3
 **Effort:** M
-**Status:** open
+**Status:** partial
 
 ## Problem
 
@@ -755,6 +755,76 @@ Against the reference server (`wisp-server-python`) on the loopback: two streams
 WebSocket, each with its bytes; a stream that the server closes gives its reason. Live, short
 (Q65), from GitHub Actions: GitHub's banner through the demo server. Planted: the credit
 ignored, and the test of flow control fails.
+
+## Decision
+
+- The protocol is spoken by podssh-ws itself, from its document, branch v2 of
+  MercuryWorkshop/wisp-protocol:protocol.md, in `crates/podssh-ws/src/wisp/`. Lost: the crate `wisp-mux`
+  (LGPL-3.0-only, a relinking duty on a static 0BSD binary, and a dependency tree of its own),
+  and any code of wisp-server-python (AGPL-3.0), which the tests run and nothing copies.
+- A Wisp server is a forwarder of the list, `wisp+wss://HOST/PATH/`, so `--forwarder`,
+  `PODSSH_FORWARDER`, `Forwarder` of the settings file, `doctor --forwarder` and the fallback
+  take it unchanged. Lost: a flag of its own, which would be a second road beside the list.
+- One WebSocket for each session, with one stream on it, as each forwarder's session is: the
+  session's end closes its WebSocket, and its lines are a forwarder's. The client multiplexes
+  (`podssh_ws::wisp::Wisp::open`, tested with two streams at once) for a road that holds several
+  streams later. Lost: one WebSocket shared by the sessions of a run, which no command of today
+  holds open across sessions.
+- The upgrade offers `Sec-WebSocket-Protocol: wisp-v2`, the value of Mercury Workshop's own
+  client; a server that refuses it with HTTP 400 is dialed once more with none (rule 7, as that
+  client falls back to version 1). Version 1 is spoken where the server's `CONTINUE` comes first.
+- The credit is kept as the document says: the count of the last `CONTINUE`, less one for each
+  `DATA`, and no `DATA` at zero. The server gives this side no credit: each stream keeps 64
+  packets of the server's, then the WebSocket's reader waits for its caller.
+- A path that does not end with `/` is refused (64), not amended: a Wisp server reads it as the
+  older wsproxy's form, another endpoint.
+- A server that requires a password or a key is refused with a `CLOSE 0x04` on stream 0: no
+  credential goes in a URL, and none was asked for.
+- The end of the caller's bytes sends a `CLOSE 0x02` on `ssh`'s road (the session is done), and
+  none on `proxy`'s, which waits for the server's end, as Wisp has no half-close.
+
+## Correction
+
+The words are a table of `podssh_ws::forwarder::builtin` (`crates/podssh-ws/src/forwarder/builtin.rs`),
+which `podssh_cli::forwarder` parses and whose fallback it runs
+(`crates/podssh-cli/src/forwarder/fallback.rs`). Version 2 has a fifth packet, `INFO`, which opens
+the connection where the upgrade offers a protocol; the demo server runs wisp-server-python, whose
+version 0.9.0 speaks version 1 only (read in its source on 2026-11-02, [carriers.md](../docs/carriers.md)).
+
+## Done
+
+2026-11-02: drafted by an agent of this session in a worktree, then merged, built and measured
+here.
+
+- The client: `crates/podssh-ws/src/wisp/` (the packets, the opening of version 1 and 2, the
+  streams with the credit, the forwarder's road); `wisp+wss://` and `wisp+ws://` in
+  `crates/podssh-ws/src/forwarder/template.rs`; the word `wisp` last in
+  `crates/podssh-ws/src/forwarder/builtin.rs`; `Sec-WebSocket-Protocol` offered by
+  `podssh_ws::url::dial_offering`.
+- `cargo test -p podssh-ws --lib`: 140 passed (the codec against byte strings written from the
+  document's tables, the answer to an `INFO`, the template, the words).
+- `cargo test -p podssh-ws --test wisp`, with `PODSSH_TEST_WISP_PYTHON` naming a virtualenv of
+  `wisp-python==0.9.0` and `websockets==15.0.1`, and `PODSSH_TEST_WISP_REQUIRED=1`: 8 passed,
+  against the stand-in of `crates/podssh-ws/tests/wisp_support/mod.rs` and two against
+  wisp-server-python 0.9.0 on the loopback (two streams at once each carry their bytes; a stream
+  that the server closes gives its reason).
+- `cargo test -p podssh-ws --test forwarder` 5 and `--test live_forwarder` (built, its four live
+  tests ignored) passed; `cargo test -p podssh-cli --test forwarder_cli` 12 (the word `wisp`
+  through a stand-in of the demo server, and the demo server last in the fallback), `--lib
+  forwarder` 8, and the manual's tests (`man_page`, `man_json`, `man_flag_parity`, `flag_table`)
+  passed.
+- Planted, `sh scripts/plant-each.sh --here t438-wisp-credit` (the credit ignored): caught, the
+  test of flow control failed.
+- Live, short (Q65), from this cloud session's host through its proxy:
+  `cargo test -p podssh-ws --test live_forwarder -- --ignored --exact
+  live_wisp_gives_github_s_version_line`: GitHub's version line through
+  `wisp+wss://wisp.mercurywork.shop/` (0.7 s). The three forwarders of Q56 stay to GitHub
+  Actions (`forwarder-live.yml`, by hand).
+- At the merge: a lint of the tests' stand-in repaired (`is_multiple_of`), and the notes of
+  `podssh ssh` split in two lists that one constant joins at compile time
+  (`crates/podssh-cli/src/man/notes_ssh_more.rs`), as the file passed 500 lines; the manual came
+  out byte for byte the same. Clippy with `-D warnings` on podssh-ws and podssh-cli: clean.
+- SUITES_438
 
 # T-439: HTTP CONNECT to a second proxy over TLS, HTTP/1.1 and HTTP/2
 
