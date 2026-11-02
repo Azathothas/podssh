@@ -1,0 +1,225 @@
+//! podssh's own node (T-079) and operator (T-080) against podssh's relay
+//! role (T-427), as they run against the live relay and the stand-in: two
+//! sessions at once carry their bytes whole; a slow operator meets the
+//! contract's bound, `1011 relay backpressure` at 1 MiB, while the node's
+//! other session goes on (T-336); and a planned stop's `1012` sends the node
+//! back to its pair (T-255).
+#![cfg(all(feature = "serve", feature = "plain-ws"))]
+
+mod role_harness;
+
+use std::sync::atomic::{AtomicUsize, Ordering};
+use std::sync::Arc;
+use std::time::Duration;
+
+use podssh_relay::pair::Pair;
+use podssh_relay::reverse::{self, operator, Exit, Handler, NodeConfig, Opening, OperatorConfig, OperatorLimits};
+use podssh_relay::reverse::{Outcome, SessionId, Settings, Wire};
+use podssh_ws::{ProxyChoice, Trust};
+use role_harness::{Role, LIMIT};
+use sha2::{Digest, Sha256};
+use tokio::io::{AsyncReadExt, AsyncWriteExt, DuplexStream};
+use tokio::sync::oneshot;
+
+const MIB: usize = 1 << 20;
+
+/// Bytes from a fixed xorshift, so that a byte out of place shows.
+fn pattern(len: usize, seed: u32) -> Vec<u8> {
+    let mut x = seed | 1;
+    (0..len)
+        .map(|_| {
+            x ^= x << 13;
+            x ^= x >> 17;
+            x ^= x << 5;
+            x as u8
+        })
+        .collect()
+}
+
+/// Each session echoes what it takes; with `flood`, the first one opened
+/// sends `flood` bytes as fast as the node takes them, and reads nothing.
+struct Local {
+    opened: AtomicUsize,
+    flood: Option<usize>,
+}
+
+impl Handler for Local {
+    type Stream = DuplexStream;
+
+    fn open(&self, _id: SessionId) -> Opening<DuplexStream> {
+        let first = self.opened.fetch_add(1, Ordering::SeqCst) == 0;
+        let flood = self.flood.filter(|_| first);
+        Box::pin(async move {
+            let (ours, theirs) = tokio::io::duplex(256 * 1024);
+            tokio::spawn(async move {
+                let (mut r, mut w) = tokio::io::split(theirs);
+                match flood {
+                    Some(len) => {
+                        for chunk in pattern(len, 9).chunks(64 * 1024) {
+                            if w.write_all(chunk).await.is_err() {
+                                return;
+                            }
+                        }
+                    }
+                    None => {
+                        let _ = tokio::io::copy(&mut r, &mut w).await;
+                    }
+                }
+            });
+            Ok(ours)
+        })
+    }
+}
+
+/// podssh's node for `pair`, on the plain wire, until `stop`.
+async fn node(pair: Pair, handler: Local, stop: oneshot::Receiver<()>) -> (Exit, Pair) {
+    let (trust, proxy) = (Trust::Default, ProxyChoice::Direct);
+    let mut config = NodeConfig {
+        pair,
+        label: None,
+        trust: &trust,
+        proxy: &proxy,
+        timeout: LIMIT,
+        settings: Settings::default(),
+        repair: None,
+        wire: Wire::PlainLoopback,
+        say: None,
+    };
+    let exit = reverse::run(&mut config, Arc::new(handler), async {
+        let _ = stop.await;
+    })
+    .await;
+    (exit, config.pair)
+}
+
+/// podssh's operator on `name`. With no `pace`, `sent` goes up and the
+/// same count comes back, then the input ends; with a `pace`, nothing goes
+/// up, the input stays open, and 16 KiB is read at a time with a pause after
+/// each read, until the session ends. Its outcome, and what came back.
+async fn operate(role: &Role, name: &str, token: &str, sent: Vec<u8>, pace: Option<Duration>) -> (Outcome, Vec<u8>) {
+    let config = OperatorConfig {
+        relay: &role.relay,
+        name,
+        connect_token: token,
+        trust: &Trust::Default,
+        proxy: &ProxyChoice::Direct,
+        timeout: LIMIT,
+        limits: OperatorLimits::default(),
+        wire: Wire::PlainLoopback,
+    };
+    let (app, leg) = tokio::io::duplex(64 * 1024);
+    let (mut r, mut w) = tokio::io::split(app);
+    let want = if pace.is_some() { usize::MAX } else { sent.len() };
+    let carry = async {
+        let mut got = Vec::new();
+        let writing = async {
+            w.write_all(&sent).await.unwrap();
+            w
+        };
+        let reading = async {
+            let mut buf = vec![0u8; 16 * 1024];
+            while got.len() < want {
+                match r.read(&mut buf).await {
+                    Ok(0) | Err(_) => break,
+                    // The slow reader keeps a count, not the bytes.
+                    Ok(n) if pace.is_some() => got.resize(got.len() + n, 0),
+                    Ok(n) => got.extend_from_slice(&buf[..n]),
+                }
+                if let Some(pause) = pace {
+                    tokio::time::sleep(pause).await;
+                }
+            }
+        };
+        let (mut w, ()) = tokio::join!(writing, reading);
+        // The end of the input ends an echoed session.
+        let _ = w.shutdown().await;
+        got
+    };
+    let (outcome, got) = tokio::join!(operator::run(&config, leg), carry);
+    (outcome.expect("the operator's socket"), got)
+}
+
+#[tokio::test(flavor = "multi_thread", worker_threads = 4)]
+async fn two_sessions_carry_their_bytes_whole_through_the_role() {
+    let role = Role::start().await;
+    let pair = role.pair();
+    let (name, token) = (pair.name.clone(), pair.connect_token().to_string());
+    let (stop, stopped) = oneshot::channel();
+    let test = async {
+        role.until_said("reverse node").await;
+        let (a, b) = tokio::join!(
+            operate(&role, &name, &token, pattern(2 * MIB, 1), None),
+            operate(&role, &name, &token, pattern(2 * MIB, 2), None),
+        );
+        let _ = stop.send(());
+        (a, b)
+    };
+    let (((a, got_a), (b, got_b)), (exit, _)) = tokio::time::timeout(4 * LIMIT, async {
+        tokio::join!(test, node(pair, Local { opened: 0.into(), flood: None }, stopped))
+    })
+    .await
+    .expect("in time");
+    assert_eq!(Sha256::digest(&got_a), Sha256::digest(pattern(2 * MIB, 1)), "session a: {a:?}");
+    assert_eq!(Sha256::digest(&got_b), Sha256::digest(pattern(2 * MIB, 2)), "session b: {b:?}");
+    assert!(a.is_success() && b.is_success(), "{a:?} {b:?}");
+    assert!(matches!(exit, Exit::Stopped), "{exit:?}");
+    assert!(!role.said("reverse node closed"), "{:?}", role.events.lock().unwrap());
+}
+
+#[tokio::test(flavor = "multi_thread", worker_threads = 4)]
+async fn a_slow_operator_meets_the_bound_and_the_nodes_other_session_goes_on() {
+    let role = Role::start().await;
+    let pair = role.pair();
+    let (name, token) = (pair.name.clone(), pair.connect_token().to_string());
+    let (stop, stopped) = oneshot::channel();
+    let test = async {
+        role.until_said("reverse node").await;
+        // The first session floods 48 MiB to an operator that reads 16 KiB
+        // each 5 ms, about 3 MiB/s: more than 1 MiB waits at the role.
+        let slow = operate(&role, &name, &token, Vec::new(), Some(Duration::from_millis(5)));
+        let slow = tokio::time::timeout(2 * LIMIT, slow);
+        let (slow, ()) = tokio::join!(slow, role.until_said("reverse backpressure"));
+        // The node's socket carried it all: a second session goes through.
+        let other = operate(&role, &name, &token, pattern(MIB, 3), None).await;
+        let _ = stop.send(());
+        (slow, other)
+    };
+    let local = Local { opened: 0.into(), flood: Some(48 * MIB) };
+    let ((slow, (other, got)), (exit, _)) =
+        tokio::time::timeout(4 * LIMIT, async { tokio::join!(test, node(pair, local, stopped)) })
+            .await
+            .expect("in time");
+    let (slow, _) = slow.expect("the slow session ends, as the contract's bound ends it");
+    assert!(
+        matches!(&slow, Outcome::Ended { code: 1011, reason } if reason == "relay backpressure"),
+        "the slow operator: {slow:?}"
+    );
+    assert_eq!(Sha256::digest(&got), Sha256::digest(pattern(MIB, 3)), "the other session: {other:?}");
+    assert!(other.is_success(), "{other:?}");
+    assert!(matches!(exit, Exit::Stopped), "{exit:?}");
+    assert!(!role.said("reverse node closed"), "no 1003 for the node: {:?}", role.events.lock().unwrap());
+}
+
+#[tokio::test(flavor = "multi_thread", worker_threads = 4)]
+async fn after_a_planned_stops_1012_the_node_joins_its_pair_again() {
+    let role = Role::start().await;
+    let pair = role.pair();
+    let (stop, stopped) = oneshot::channel();
+    let test = async {
+        role.until_said("reverse node").await;
+        assert!(role.cfg.pairs.restart(Duration::from_secs(5)).await, "each Close went out");
+        // The node connects again, after its backoff, to the pair it holds.
+        let deadline = std::time::Instant::now() + LIMIT;
+        while role.events.lock().unwrap().iter().filter(|l| *l == "reverse node").count() < 2 {
+            assert!(std::time::Instant::now() < deadline, "{:?}", role.events.lock().unwrap());
+            tokio::time::sleep(Duration::from_millis(50)).await;
+        }
+        let _ = stop.send(());
+    };
+    let ((), (exit, _)) = tokio::time::timeout(2 * LIMIT, async {
+        tokio::join!(test, node(pair, Local { opened: 0.into(), flood: None }, stopped))
+    })
+    .await
+    .expect("in time");
+    assert!(matches!(exit, Exit::Stopped), "{exit:?}");
+}

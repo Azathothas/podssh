@@ -5,7 +5,8 @@ name: relay live
 # the CLI's tests of a node on the live relay (node_live: T-083, T-154's idle
 # session of 10 minutes, T-155's 200 MiB each way; T-251), and podssh's own
 # relay role on the runner, which reaches GitHub's SSH endpoint (relay_serve:
-# T-169).
+# T-169), and its reverse road, with node_live's short tests and the client
+# of the release before against it (relay_serve_reverse: T-427).
 # Started by hand only. Each test mints its own tokens and pairs on the live
 # relay, stops its pairs at the end, and prints no token.
 
@@ -21,6 +22,7 @@ on:
           - reverse_live
           - node_live
           - relay_serve
+          - relay_serve_reverse
 
 permissions:
   contents: read
@@ -43,6 +45,7 @@ jobs:
             live_backpressure|reverse_live) cargo test --locked -p podssh-relay --features pair --test "$TEST" --no-run ;;
             node_live) cargo test --locked -p podssh-cli --test node_live --no-run ;;
             relay_serve) cargo build --locked -p podssh-cli && cargo test --locked -p podssh-cli --test proxy_live --no-run ;;
+            relay_serve_reverse) cargo build --locked -p podssh-cli && cargo test --locked -p podssh-cli --test node_live --no-run ;;
             *) echo "not a live test of the list: $TEST" >&2; exit 2 ;;
           esac
 
@@ -50,6 +53,7 @@ jobs:
         env:
           CARGO_BUILD_JOBS: "4"
           TEST: ${{ inputs.test }}
+          GH_TOKEN: ${{ github.token }}
         run: |
           case "$TEST" in
             # Each line of the node too, as a node's end is otherwise
@@ -59,5 +63,15 @@ jobs:
               command -v /usr/sbin/sshd >/dev/null || { sudo apt-get update -q && sudo apt-get install -y -q openssh-server; }
               PODSSH_TEST_NODE_LINES=1 cargo test --locked -p podssh-cli --test node_live -- --ignored --nocapture --test-threads 1 ;;
             relay_serve) sh scripts/relay-serve-live.sh target/debug/podssh ;;
+            # The client of v1.0.0, the first stable release, as a user of
+            # it reaches a node of a newer role.
+            relay_serve_reverse)
+              command -v /usr/sbin/sshd >/dev/null || { sudo apt-get update -q && sudo apt-get install -y -q openssh-server; }
+              old="$RUNNER_TEMP/old"
+              timeout 300 gh release download v1.0.0 --repo "$GITHUB_REPOSITORY" \
+                --pattern podssh-x86_64-unknown-linux-musl --dir "$old"
+              chmod 0755 "$old/podssh-x86_64-unknown-linux-musl"
+              PODSSH_OLD="$old/podssh-x86_64-unknown-linux-musl" PODSSH_TEST_NODE_LINES=1 \
+                sh scripts/relay-serve-live.sh target/debug/podssh reverse ;;
             *) cargo test --locked -p podssh-relay --features pair --test "$TEST" -- --ignored --nocapture ;;
           esac

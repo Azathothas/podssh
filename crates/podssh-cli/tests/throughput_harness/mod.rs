@@ -163,12 +163,14 @@ impl Drop for Session {
 }
 
 /// The stand-in relay's lines, in the logs under `home`, of a frame of the
-/// node for an unknown id.
+/// node for an unknown id; and the relay role's, of a node it closed for one.
 fn unknown_ids(home: &std::path::Path) -> Vec<String> {
     let Ok(entries) = std::fs::read_dir(home) else { return Vec::new() };
     let logs = entries.flatten().filter(|e| e.file_name().to_string_lossy().starts_with("fake-relay-"));
     let text = logs.filter_map(|e| std::fs::read_to_string(e.path()).ok()).collect::<Vec<_>>().join("\n");
-    text.lines().filter(|l| l.contains("for an unknown id")).map(str::to_string).collect()
+    // The stand-in's words, and the role's (T-427).
+    let unknown = |l: &&str| l.contains("for an unknown id") || l.contains("1003 unknown session id");
+    text.lines().filter(unknown).map(str::to_string).collect()
 }
 
 /// A fresh, empty scratch directory unique to one test.

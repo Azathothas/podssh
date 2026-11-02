@@ -18,7 +18,7 @@ use podssh_cli::channel::{Expect, Operator};
 use podssh_relay::identity::{Identity, KeyName};
 use podssh_relay::relay::parse_relay;
 use podssh_relay::reverse::{operator, OperatorConfig, OperatorLimits, Outcome, Wire};
-use podssh_ws::{ProxyChoice, Trust};
+use podssh_ws::ProxyChoice;
 use tokio::io::{AsyncReadExt, AsyncWriteExt};
 
 /// The operator's end of the channel (T-088), with a key of the test's own,
@@ -73,7 +73,7 @@ fn node_command_serves_a_tcp_target() {
                 relay: &relay,
                 name: &name,
                 connect_token: &token,
-                trust: &Trust::Default,
+                trust: &live_harness::trust(),
                 proxy: &ProxyChoice::FromEnvironment,
                 timeout: Duration::from_secs(30),
                 limits: OperatorLimits::default(),
@@ -298,7 +298,7 @@ fn an_idle_session_through_a_node_lives_10_minutes() {
                 relay: &relay,
                 name: &name,
                 connect_token: &token,
-                trust: &Trust::Default,
+                trust: &live_harness::trust(),
                 proxy: &ProxyChoice::FromEnvironment,
                 timeout: Duration::from_secs(30),
                 limits: OperatorLimits::default(),
@@ -412,7 +412,7 @@ fn move_200mib_each_way_through_a_node() {
                 relay: &relay,
                 name: &name,
                 connect_token: &token,
-                trust: &Trust::Default,
+                trust: &live_harness::trust(),
                 proxy: &ProxyChoice::FromEnvironment,
                 timeout: Duration::from_secs(30),
                 limits: OperatorLimits::default(),

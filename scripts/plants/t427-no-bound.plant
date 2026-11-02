@@ -1,0 +1,8 @@
+# T-427 (and T-336's bound in podssh's relay role): a frame for an operator
+# takes no room in its queue, so a slow operator is never refused; the test
+# of the slow operator, which must meet `1011 relay backpressure` while the
+# node's other session goes on, must fail.
+ENTRY=T-427
+GROUP=resume
+EXPECT='test a_slow_operator_meets_the_bound_and_the_nodes_other_session_goes_on \.\.\. FAILED'
+RUN='cargo test --locked -p podssh-relay --features serve,plain-ws --test relay_serve_reverse -- a_slow_operator_meets_the_bound_and_the_nodes_other_session_goes_on'

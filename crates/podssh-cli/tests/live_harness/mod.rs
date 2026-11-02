@@ -1,7 +1,8 @@
 //! The harness of the live tests of the pairs (T-083, T-084, T-154, T-155):
 //! a scratch HOME and cache, the binary on the network, a node that is
 //! killed and a pair that is stopped when a test ends, and an echo server on
-//! this machine's loopback for a node's TARGET.
+//! this machine's loopback for a node's TARGET. The relay is the default
+//! one, or podssh's own role on a runner (T-427).
 
 // Each test binary uses a part of it.
 #![allow(dead_code)]
@@ -16,11 +17,33 @@ use std::time::{Duration, Instant};
 
 pub const LIMIT: Duration = Duration::from_secs(60);
 
+/// The relay of a live run, when it is podssh's own role on the runner
+/// (T-427, `scripts/relay-serve-live.sh`): its `HOST:PORT`, with its CA in
+/// `SSL_CERT_FILE` and its address in [`LIVE_RELAY_ADDR`]. Unset: the
+/// default relay.
+pub const LIVE_RELAY: &str = "PODSSH_LIVE_RELAY";
+/// `HOST=IP` for [`LIVE_RELAY`]'s name, as `PODSSH_RELAY_ADDR` takes it.
+pub const LIVE_RELAY_ADDR: &str = "PODSSH_LIVE_RELAY_ADDR";
+
 pub fn scratch(tag: &str) -> PathBuf {
     let nanos = std::time::SystemTime::now().duration_since(std::time::UNIX_EPOCH).unwrap().subsec_nanos();
     let dir = std::env::temp_dir().join(format!("podssh-node-live-{tag}-{}-{nanos}", std::process::id()));
     std::fs::create_dir_all(&dir).unwrap();
+    // The operators that a test runs in its process find the role's name
+    // as the binary does.
+    if let Some(pins) = std::env::var(LIVE_RELAY_ADDR).ok().and_then(|p| podssh_ws::resolve::parse_pins(&p).ok()) {
+        podssh_ws::resolve::set_pins(pins);
+    }
     dir
+}
+
+/// The trust of an operator that a test runs in its process: the role's CA
+/// for a run against the role, as the binary reads `SSL_CERT_FILE`.
+pub fn trust() -> podssh_ws::Trust {
+    match (std::env::var_os(LIVE_RELAY), std::env::var_os("SSL_CERT_FILE")) {
+        (Some(_), Some(file)) => podssh_ws::Trust::File(file.into()),
+        _ => podssh_ws::Trust::Default,
+    }
 }
 
 /// `podssh ARGS` with HOME and the cache under `home`, on the network.
@@ -31,6 +54,12 @@ pub fn command(home: &Path, args: &[&str]) -> Command {
     cmd.env("PODSSH_SSH_CONFIG", "none");
     for name in ["PODSSH_RELAY", "PODSSH_RELAY_ADDR", "PODSSH_RELAY_TOKEN", "PODSSH_OFFLINE"] {
         cmd.env_remove(name);
+    }
+    if let Ok(relay) = std::env::var(LIVE_RELAY) {
+        cmd.env("PODSSH_RELAY", relay);
+        if let Ok(pins) = std::env::var(LIVE_RELAY_ADDR) {
+            cmd.env("PODSSH_RELAY_ADDR", pins);
+        }
     }
     cmd.env("HOME", home).env("USERPROFILE", home);
     cmd.env("XDG_CACHE_HOME", home.join("cache")).env("LOCALAPPDATA", home.join("cache"));

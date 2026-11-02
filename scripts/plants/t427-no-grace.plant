@@ -1,0 +1,8 @@
+# T-427 (and T-421's grace in podssh's relay role): a session that the role
+# closed is never in flight, so a frame of the node that was on its way
+# closes the node's socket with 1003; the test of the frame in flight must
+# fail.
+ENTRY=T-427
+GROUP=resume
+EXPECT='test a_frame_in_flight_is_dropped_and_an_id_never_given_closes_the_node \.\.\. FAILED'
+RUN='cargo test --locked -p podssh-relay --features serve,plain-ws --test relay_serve_contract -- a_frame_in_flight_is_dropped_and_an_id_never_given_closes_the_node'
