@@ -3430,7 +3430,7 @@ of podssh's.
 ## Premise
 
 - `crates/podssh-cli/src/man/notes_pair.rs:139` says "Tailscale's free servers for tailcat", and
-  `crates/podssh-cli/src/man/notes_ssh.rs:215` says "Four words name public forwarders".
+  `crates/podssh-cli/src/man/notes_ssh.rs:220` says "Four words name public forwarders".
 - `docs/carriers.md` (the forward road, item 7 and its "Ruled out"; the reverse road, item 2):
   Tailscale's main fleet serves Tailscale's clients; the public Wisp lists come from web proxies
   that serve a network's users against that network's own filter, with no operator, terms or

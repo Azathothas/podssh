@@ -36,6 +36,11 @@ const FIRST: &[&str] = &[
      falls back. PODSSH_DIRECT=no, or Direct no in the settings file, turns the fallback off. The commands \
      that reach a server as podssh ssh does (cp, each, job, health, containers, ping, pipe ssh:) do the \
      same, and so does the first hop of -J.",
+    "Each host that is dialed, the destination after HostName and each hop of -J, is checked before \
+     anything connects, on each road, by the rule of the relay: letters, digits, ., - and _, not first a \
+     - or a ., at most 253 characters, or an IPv4 or IPv6 address; else the exit is 64. A name beyond \
+     ASCII goes in its ASCII form, whose labels begin xn--. An IPv6 address with a zone (fe80::1%eth0) is \
+     taken where this host dials it (--direct) or a jump host does, and refused through the relay.",
     "node://[user@]NAME reaches the node of the pair under the label NAME (see podssh node), through the \
      relay. Its host key is recorded and checked under the name node://NAME. --pair-file gives the pair, \
      or its operator's part, in a file. The session runs the end-to-end channel, with the node's key \

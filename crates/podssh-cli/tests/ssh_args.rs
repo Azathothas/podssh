@@ -13,6 +13,8 @@ use podssh_ssh::{Agent, LogLevel, Method, Request, RequestTty, StdioTarget, Stri
 mod ssh_picker;
 // The login name from the user database (T-500), against the binary.
 mod ssh_user;
+// The host names that each road dials (T-503).
+mod ssh_hostname;
 
 fn ssh(words: &[&str]) -> SshArgs {
     let argv: Vec<std::ffi::OsString> = std::iter::once("ssh").chain(words.iter().copied()).map(Into::into).collect();

@@ -1,0 +1,8 @@
+# T-503: the direct road checks no host name, as before: `a$b` with --direct
+# resolves to a dial, where the relay road refuses it with 64, and the test of
+# each road, resolved and against the binary, fails.
+ENTRY=T-503
+GROUP=cli-tests
+EXPECT='test ssh_hostname::a_host_name_that_the_relay_refuses_is_refused_on_each_road \.\.\. FAILED'
+RUN='cargo test --locked -p podssh-cli --test ssh_args -- host_name'
+LIMIT=2400

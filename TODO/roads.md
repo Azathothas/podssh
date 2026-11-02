@@ -373,7 +373,7 @@ sandbox can block what iroh needs, so the fallback is necessary
 6. With `-v`, print the road that won and its time.
 7. Each resume of T-153 runs the same race.
 8. Docs: the rule of the race in `docs/design.md` section 2, and the notes of
-   `ssh` in the manual (`crates/podssh-cli/src/man/notes_ssh.rs:4-460` and `crates/podssh-cli/src/man/notes_ssh_more.rs:4-82`).
+   `ssh` in the manual (`crates/podssh-cli/src/man/notes_ssh.rs:4-465` and `crates/podssh-cli/src/man/notes_ssh_more.rs:4-82`).
 
 ## Decision
 
@@ -503,7 +503,7 @@ in iroh's source at the pinned version.
    `--relay-host` and `PODSSH_RELAY` replace the relay list
    (`crates/podssh-relay/src/relay.rs:104-125`). The flag wins.
 3. Accept `https://` URLs only, with a host that passes `check_host`
-   (`crates/podssh-ws/src/names.rs:8-24`), and with no user information
+   (`crates/podssh-ws/src/names.rs:8-32`), and with no user information
    and no query.
 4. The order is a failover: the first relay that answers `/ping` through the
    proxy, within a time limit, is the home relay.
@@ -3409,7 +3409,7 @@ allows podssh as a client of Cloudflare (`docs/decisions.md:57`).
   (`crates/podssh-cli/src/ssh/hop.rs:58-60`); `jump_hop` refuses a node only (`:68-74`).
 - Read: a `cf://` destination refuses `-J`:
   `crates/podssh-cli/src/ssh/cloudflare.rs:73` says "a Cloudflare tunnel cannot be reached
-  through a -J hop yet", and `docs/cli.md:129-130` says so too.
+  through a -J hop yet", and `docs/cli.md:140-141` says so too.
 - Read: the road of a run is chosen for the first hop's host
   (`crates/podssh-cli/src/ssh/resolve.rs:303`), and each later hop runs in a `direct-tcpip`
   channel of the session before it (`crates/podssh-ssh/src/run.rs:160-167`;
@@ -5026,10 +5026,10 @@ does not depend on them.
 
 - Read: `Transport::Direct` comes from `--direct` alone
   (`crates/podssh-cli/src/ssh/resolve.rs`, lines 340-346 at `4e2010e`), and else the relay (lines 348-371 at `4e2010e`); its other
-  uses are a label (`crates/podssh-cli/src/ssh/mod.rs:261`), the dial
+  uses are a label (`crates/podssh-cli/src/ssh/mod.rs:263`), the dial
   (`crates/podssh-cli/src/ssh/transport.rs:272-316`) and a check of `--upgrade`
   (`crates/podssh-cli/src/ssh/upgrade.rs:59`). The issue's citation of
-  the arm began two lines early; it is at `crates/podssh-cli/src/ssh/resolve.rs:339-345`.
+  the arm began two lines early; it is at `crates/podssh-cli/src/ssh/resolve.rs:340-343`.
 - Read: `docs/design.md:45` says "podssh tries the roads in this order"; for a public sshd, the
   forward road comes first, then the direct road (`docs/design.md:51`), which at `8554930` said
   "`--direct`, or when a probe shows it works"; the triage of GitHub #69 to #72 named this entry
@@ -5520,7 +5520,7 @@ a hop. `doctor` has no line for a hop, so a user cannot see whether one is reach
 - Read: a hop is `[user@]host[:port]` or `ssh://[user@]host[:port]`
   (`crates/podssh-cli/src/ssh/hop.rs:30-57`), and `-J` refuses a node only (`:68-74`). The road is
   chosen for the first hop's host (`crates/podssh-cli/src/ssh/resolve.rs:303`); with `--direct` it
-  is TCP through `HTTPS_PROXY` (`crates/podssh-cli/src/ssh/resolve.rs:339-345`; `crates/podssh-cli/src/ssh/transport.rs:1-2`).
+  is TCP through `HTTPS_PROXY` (`crates/podssh-cli/src/ssh/resolve.rs:340-343`; `crates/podssh-cli/src/ssh/transport.rs:1-2`).
 - Read: a prompt goes to the terminal, or to the program of `SSH_ASKPASS`, chosen as OpenSSH
   chooses it (`crates/podssh-ssh/src/prompt.rs:1-12`).
 - Read: through the agent proxy of a cloud container, a CONNECT to `ssh.github.com:443` got `200`,
@@ -7503,7 +7503,7 @@ puts the fallback in its `ok` column without a probe.
   measure (`crates/podssh-cli/src/doctor/mod.rs:353-355`).
 - Read: the operator's rulings Q56 and Q65 (`docs/decisions.md`) let the binary try the forwarders,
   and the Wisp demo server last, "when each relay host fails", unasked (T-370, T-438); since T-438
-  there are four: mudlet, ssheasy, mudix and wisp (`crates/podssh-cli/src/man/notes_ssh.rs:222-233`).
+  there are four: mudlet, ssheasy, mudix and wisp (`crates/podssh-cli/src/man/notes_ssh.rs:227-238`).
   A default of off is a change of that ruling.
 - Not measured here: #106's times. Inferred from the code: with the direct road's dial refused at
   once by the tester's proxy, the 20.8 s are the forwarders' own dials of a dead address.

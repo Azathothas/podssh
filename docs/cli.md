@@ -104,6 +104,17 @@ scripts. The facts about OpenSSH on this page were measured with OpenSSH
   and after the destination, as OpenSSH does, so a script that passes a host
   that it did not write puts `--` before it: `podssh ssh -- "$HOST" COMMAND`,
   `podssh proxy -- "$HOST" PORT`.
+  Each host that is dialed (the destination after `HostName`, each hop of
+  `-J`) is checked before anything connects, on each road, by the relay's
+  rule (T-503): letters, digits, `.`, `-` and `_`, not first a `-` or a
+  `.`, at most 253 characters, or an IPv4 or IPv6 address; else exit 64,
+  with `--direct` too, so that no `$`, `!`, blank or `/` reaches a proxy or
+  a resolver. A name beyond ASCII goes in its ASCII form (`xn--...`): a
+  proxy takes a `CONNECT` in ASCII, and podssh has no IDNA of its own. An
+  IPv6 address with a zone (`fe80::1%eth0`) is taken where this host dials
+  it (`--direct`) or a jump host does, and refused through the relay.
+  OpenSSH's own list is shorter (it takes `!`, `/` and each byte above
+  127).
 - `-N` alone is valid. `-W HOST:PORT` is a stdio forward: no session, and
   exit when the forward fails. `-W` takes `HOST:PORT`, `[ADDR]:PORT`, or
   `/PATH`, a Unix socket on the server (T-040), which the server opens as

@@ -335,13 +335,11 @@ pub fn resolve_or_refuse(args: &SshArgs, env: &Env) -> Result<Resolved, Refusal>
         // the destination's port and HostName are the next hop's.
         let (label, port) = (first.label(), jump[0].port);
         let at = super::node::Ask { jumps: 0, port: false, host_name: false, ..ask(&label, None) };
+        super::dialed::check(super::dialed::Road::Tunnel, &jump, &host)?;
         first.transport(&at, env, port)?
     } else if args.direct {
-        if family.is_some() {
-            return Err(
-                "-4/-6 select the address family the relay dials; with --direct they are not supported yet".into()
-            );
-        }
+        // -4 and -6, and each host that this host or a hop dials (T-503).
+        super::dialed::direct(family, &jump, &host)?;
         Transport::Direct
     } else {
         let relays = crate::relay_settings::relays_from(args.relay_host.as_deref(), env.relay.clone(), &env.settings)?;
@@ -350,7 +348,7 @@ pub fn resolve_or_refuse(args: &SshArgs, env: &Env) -> Result<Resolved, Refusal>
             env.relay_failover.clone(),
             &env.settings,
         )?;
-        relay::check_target(&first).map_err(|why| format!("cannot reach {first} through the relay: {why}"))?;
+        super::dialed::check(super::dialed::Road::Relay, &jump, &host)?;
         // The relay dials a literal as it is; a family of the other kind
         // cannot apply to it.
         match family {

@@ -147,7 +147,7 @@ and `CARGO_BUILD_JOBS=4`:
 
 ## Counts
 
-`TODO/INDEX.md` holds 505 entries: 90 open, 5 partial, 16 blocked, 394 done.
+`TODO/INDEX.md` holds 505 entries: 89 open, 6 partial, 16 blocked, 394 done.
 
 Open includes parked work. `cargo todo check` verifies this line.
 
@@ -277,6 +277,11 @@ the hosts that podssh uses (Q79); the operator passes cfrs's defect on (Q80); a 
 road keeps its pkarr record at n0's server (Q81); roads over UDP where UDP passes (Q82); the
 experience of an agent and of a human comes first, and the triages' calls stay (Q83); the
 testers' defects go now, their features later (Q84).
+
+**For the operator to confirm (Q86):** T-503 checks each host after the first hop too (a later hop
+of `-J`, and the destination behind it), on each road, by the direct road's rule, so that
+`-J bastion 'a$b'` is refused with 64 where the relay road passed it to the jump host (its
+`## Decision`).
 
 The operator settled Q63 to Q66 on 2026-11-02 (`docs/decisions.md`), after the research of five
 agents on the dependency on the relay's operator: podssh grows into a mesh of its user's own nodes
