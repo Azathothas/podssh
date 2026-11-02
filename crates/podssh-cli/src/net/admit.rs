@@ -7,7 +7,9 @@
 //! beside them. A node that is no member keeps its door as before. A
 //! document that ended lets nobody in by the net, as a node key that
 //! expired leaves its tailnet: its owner signs a new one (`podssh net
-//! renew`). The policy of T-430 narrows "each member" here.
+//! renew`). The net's policy (T-430, `super::policy`) narrows "each member"
+//! to what its rules let each reach: this node, with no route or with the
+//! route that the operator named.
 
 use std::path::PathBuf;
 use std::sync::Arc;
@@ -17,6 +19,7 @@ use podssh_relay::e2e::net::{self as channel_net, Docs, Held};
 use podssh_relay::identity::PublicKey;
 use podssh_relay::reverse::routes::Grant;
 
+use super::policy::{self, Want};
 use super::store::{self, Taken};
 
 /// What the net says of a peer at this node.
@@ -30,8 +33,18 @@ pub enum Verdict {
     Outside,
 }
 
-/// The net's verdict on `peer` at the node `me`, now.
-pub fn verdict(me: &PublicKey, peer: &PublicKey) -> Verdict {
+/// What a peer asks of this node.
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub enum Asks<'a> {
+    /// Its target with no route, or a route, as the channel names it.
+    Target(Option<&'a str>),
+    /// Anything of it: the door of a road before the channel, which knows no
+    /// route yet.
+    Any,
+}
+
+/// The net's verdict on `peer` at the node `me`, now, for what it asks.
+pub fn verdict(me: &PublicKey, peer: &PublicKey, asks: Asks<'_>) -> Verdict {
     if !store::on() {
         return Verdict::Outside;
     }
@@ -43,9 +56,7 @@ pub fn verdict(me: &PublicKey, peer: &PublicKey) -> Verdict {
         Err(why) => return Verdict::Refused(format!("the net's document cannot be trusted: {why}")),
     };
     let doc = &held.signed.doc;
-    if doc.member_of_key(me).is_none() {
-        return Verdict::Outside;
-    }
+    let Some(mine) = doc.member_of_key(me) else { return Verdict::Outside };
     if doc.expires <= super::now() {
         let ended = crate::pairs::utc(doc.expires * 1000);
         return Verdict::Refused(format!(
@@ -53,32 +64,40 @@ pub fn verdict(me: &PublicKey, peer: &PublicKey) -> Verdict {
             doc.name, doc.serial
         ));
     }
-    match doc.member_of_key(peer) {
-        Some(member) => Verdict::Member(member.name.clone()),
-        None => Verdict::Refused(format!("it is not a member of the net {} (serial {})", doc.name, doc.serial)),
+    let Some(member) = doc.member_of_key(peer) else {
+        return Verdict::Refused(format!("it is not a member of the net {} (serial {})", doc.name, doc.serial));
+    };
+    let want = match asks {
+        Asks::Target(route) => Want::Node { node: &mine.name, route },
+        Asks::Any => Want::AnyOf(&mine.name),
+    };
+    match policy::check(doc, member, want) {
+        Ok(_) => Verdict::Member(member.name.clone()),
+        Err(why) => Verdict::Refused(why),
     }
 }
 
-/// Who may reach the node `me`: the members of its net, and the keys of
-/// `allow`; with no net and no allowlist, each operator, as the relay's
-/// connect token decided who reaches the node.
+/// Who may reach the node `me`, with the route that it names: the members
+/// of its net that the policy lets, and the keys of `allow`, which the
+/// policy does not narrow; with no net and no allowlist, each operator, as
+/// the relay's connect token decided who reaches the node.
 pub fn admit(allow: Option<PathBuf>, me: PublicKey) -> Arc<Admit> {
     install(true);
     let file = crate::channel::admit_of(allow.clone());
-    Arc::new(move |peer: &PublicKey| match verdict(&me, peer) {
+    Arc::new(move |peer: &PublicKey, route: Option<&str>| match verdict(&me, peer, Asks::Target(route)) {
         Verdict::Member(_) => Ok(()),
-        Verdict::Outside => file(peer),
-        Verdict::Refused(why) if allow.is_some() => file(peer).map_err(|also| format!("{why}, and {also}")),
+        Verdict::Outside => file(peer, route),
+        Verdict::Refused(why) if allow.is_some() => file(peer, route).map_err(|also| format!("{why}, and {also}")),
         Verdict::Refused(why) => Err(why),
     })
 }
 
-/// Which routes each operator may use at the node `me`: each route for a
-/// member, until the policy of T-430 says less; else those of `allow`.
+/// Which routes each operator may use at the node `me`: those that the
+/// policy lets a member use; else those of `allow`.
 pub fn grant(allow: Option<PathBuf>, me: Option<PublicKey>) -> Arc<Grant> {
     let file = crate::channel::grant_of(allow.clone());
     let Some(me) = me else { return file };
-    Arc::new(move |peer: &PublicKey, route: &str| match verdict(&me, peer) {
+    Arc::new(move |peer: &PublicKey, route: &str| match verdict(&me, peer, Asks::Target(Some(route))) {
         Verdict::Member(_) => Ok(()),
         Verdict::Outside => file(peer, route),
         Verdict::Refused(why) if allow.is_some() => file(peer, route).map_err(|also| format!("{why}, and {also}")),
@@ -87,9 +106,9 @@ pub fn grant(allow: Option<PathBuf>, me: Option<PublicKey>) -> Arc<Grant> {
 }
 
 /// Whether the net lets `peer` in at the node `me`: the iroh road's door,
-/// which has its own allowlist.
+/// which has its own allowlist, and which knows no route yet.
 pub fn lets_in(me: &PublicKey, peer: &PublicKey) -> bool {
-    matches!(verdict(me, peer), Verdict::Member(_))
+    matches!(verdict(me, peer, Asks::Any), Verdict::Member(_))
 }
 
 /// The node's line of its net as it starts, when it is a member of one.
@@ -105,9 +124,15 @@ pub fn line(me: &PublicKey) -> Option<String> {
     let mine = doc.member_of_key(me)?;
     let others = doc.members.len().saturating_sub(1);
     let until = crate::pairs::utc(doc.expires * 1000);
+    let door = match &doc.policy {
+        None => format!("its {others} other members may come in"),
+        Some(policy) => {
+            let rules = policy.rules.len();
+            format!("its {others} other members may come in as the {rules} rules of its policy let")
+        }
+    };
     Some(format!(
-        "a member of the net {} as {} (serial {}, until {until}): its {others} other members may come in, read again \
-         for each session",
+        "a member of the net {} as {} (serial {}, until {until}): {door}, read again for each session",
         doc.name, mine.name, doc.serial
     ))
 }

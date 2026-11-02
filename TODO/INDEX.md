@@ -62,15 +62,15 @@ repository and CI).
 
 ## Counts
 
-**452 entries: 45 open, 4 partial, 17 blocked, 386 done.**
+**452 entries: 44 open, 4 partial, 17 blocked, 387 done.**
 
 | Priority | open | partial | blocked | done | total |
 | --- | --- | --- | --- | --- | --- |
 | P0 | 0 | 0 | 0 | 1 | 1 |
 | P1 | 2 | 1 | 0 | 50 | 53 |
-| P2 | 19 | 2 | 14 | 184 | 219 |
+| P2 | 18 | 2 | 14 | 185 | 219 |
 | P3 | 24 | 1 | 3 | 151 | 179 |
-| **All** | 45 | 4 | 17 | 386 | 452 |
+| **All** | 44 | 4 | 17 | 387 | 452 |
 
 ## Entries
 
@@ -501,7 +501,7 @@ repository and CI).
 | [T-427](mesh.md) | P1 | L | M10 | feature | done | The relay's reverse road in podssh's relay role |
 | [T-428](mesh.md) | P1 | M | M10 | feature | open | The relay role behind a node's quick tunnel, with no listener |
 | [T-429](mesh.md) | P1 | L | M10 | feature | done | The net: an owner's signed list of its nodes, and their names |
-| [T-430](mesh.md) | P2 | M | M10 | feature | open | The net's policy: who may reach which node, share and exit |
+| [T-430](mesh.md) | P2 | M | M10 | feature | done | The net's policy: who may reach which node, share and exit |
 | [T-431](mesh.md) | P1 | L | M10 | feature | open | Exit mode: a node's egress for its owner's forward road |
 | [T-432](mesh.md) | P2 | M | M10 | feature | open | Routes: a node reaches its private networks for the net |
 | [T-433](mesh.md) | P2 | M | M10 | feature | open | `podssh share`: a node's local services by name, for the net |

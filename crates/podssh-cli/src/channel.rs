@@ -200,8 +200,8 @@ pub fn judged(e: &e2e::Error, me: Option<&Identity>) -> Option<(Fault, String)> 
         e2e::Error::Refused(NodeRefusal::NotAllowed) => (
             Fault::Auth,
             format!(
-                "the node refused this client's key{mine}: it is not in the node's allowlist, nor a member of \
-                 its net; the node's operator adds the key to the file of --allow, or the net's owner to the net"
+                "the node refused this client's key{mine}: not in its allowlist, nor a member that its net's policy \
+                 lets reach that; the node's operator adds the key to the file of --allow, or the net's owner a rule"
             ),
         ),
         e2e::Error::Refused(NodeRefusal::NoTarget(why)) => {
@@ -264,8 +264,8 @@ pub fn node_end(label: &str, identity: Identity, admit: Arc<ends::Admit>) -> end
 /// relay's connect token decided who reaches the node.
 pub fn admit_of(allow: Option<PathBuf>) -> Arc<ends::Admit> {
     match allow {
-        Some(path) => Arc::new(move |key: &PublicKey| allow::admits(&path, key)),
-        None => Arc::new(|_: &PublicKey| Ok(())),
+        Some(path) => Arc::new(move |key: &PublicKey, _: Option<&str>| allow::admits(&path, key)),
+        None => Arc::new(|_: &PublicKey, _: Option<&str>| Ok(())),
     }
 }
 

@@ -26,6 +26,18 @@ pub const NET: &[&str] = &[
      the keys of podssh node --allow; a member removed by a newer document is refused at its next session. A node \
      of no net keeps its door as before. A document that ended, or one that is there and fails its check, lets \
      nobody in by the net, so a node that must not be locked out keeps an allowlist too.",
+    "The net's policy says who may reach what, as Tailscale's ACLs do; with none, each member reaches each other. \
+     Its owner writes it as a file of JSON, {\"tags\": {\"dev\": [\"phone\"]}, \"rules\": [{\"from\": [\"laptop\", \
+     \"tag:dev\"], \"to\": [\"lab/web\"], \"note\": \"...\"}]}, and signs it into the net with policy set FILE (policy \
+     clear removes it); policy show gives it back. A rule is from *, a member's name or tag:TAG, to * (each node, \
+     route, exit and range), NODE (its TARGET with no route and each route), NODE/ROUTE (one route, as \
+     node://NODE/ROUTE reaches it), tag:TAG, exit:NODE or exit:* (an exit node's egress), or ADDR/BITS (a range of \
+     routes); a rule only allows, and once a policy is there nothing else is allowed. The node that is reached \
+     checks it, for each session, against the newest document that it holds, and refuses the rest with the \
+     policy's words on its own lines; the keys of podssh node --allow are not narrowed by it. policy check FROM TO \
+     says what the policy lets, with no connection: FROM a member's name or key, TO NODE, NODE/ROUTE, exit:NODE or \
+     an address; on stdout allowed or refused, a tab and the rule or the reason, and 0 or 77. A document with a \
+     policy requires it, so a podssh that cannot read the rules refuses the document and keeps the one before.",
     "A member's name is a destination: podssh ssh node://NAME, and podssh ssh NAME alone when NAME is a member \
      with the role node, as MagicDNS names a host of its tailnet. A name has no dot, so no DNS name is a member's. \
      The net names the member's key, which the end-to-end channel checks in place of the pins of known-nodes, and \

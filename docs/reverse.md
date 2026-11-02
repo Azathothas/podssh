@@ -178,7 +178,9 @@ session's bytes.
    which names the route, the owner and the serial held, and whether a
    document follows. The operator's newer document is a message of its own
    before the verdict; the node's, after a verdict that let the operator in.
-   Each goes to a member of it only.
+   Each goes to a member of it only. The node's verdict on a member follows
+   the net's policy (T-430) for the route named, or for the target with no
+   route, with the document that it holds once the operator's came.
 
 ## The transit road
 

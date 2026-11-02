@@ -98,7 +98,7 @@ pub fn exit_codes() -> Vec<(Code, String)> {
              --node-key, or the node's allowlist refused this client's key. podssh cp and mv: the server \
              refused the login, or podssh did not accept its host key. podssh chat: the same of the pair \
              and of the keys, or the peer declined the file of --file. podssh session start: this host refuses \
-             the bind of the session's socket.",
+             the bind of the session's socket. podssh net policy check: the policy does not let FROM reach TO.",
         ),
         row(
             sysexits::EX_CONFIG,

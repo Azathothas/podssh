@@ -18,9 +18,9 @@ const PIPE: usize = 256 * 1024;
 /// the verdict.
 pub const TARGET_WAIT: Duration = Duration::from_secs(20);
 
-/// Who may reach a node: `Err` is why not, for the node's log; the operator
-/// learns only that its key is not let in.
-pub type Admit = dyn Fn(&PublicKey) -> Result<(), String> + Send + Sync;
+/// Who may reach a node, and the route that it named (T-430): `Err` is why
+/// not, for the node's log; the operator learns only that it is not let in.
+pub type Admit = dyn Fn(&PublicKey, Option<&str>) -> Result<(), String> + Send + Sync;
 
 /// A node's end: its key, who may come in, and where its lines go.
 #[derive(Clone)]
@@ -34,7 +34,7 @@ impl Node {
     /// A node that lets in each operator whose key proves itself: the relay's
     /// connect token decided who reaches it.
     pub fn open_to_all(identity: Arc<Identity>, say: Arc<dyn Fn(String) + Send + Sync>) -> Node {
-        Node { identity, admit: Arc::new(|_: &PublicKey| Ok(())), say }
+        Node { identity, admit: Arc::new(|_: &PublicKey, _: Option<&str>| Ok(())), say }
     }
 }
 
@@ -78,7 +78,7 @@ where
     };
     let peer = asked.peer();
     let to = asked.route().map(|r| format!(" to the route {r}")).unwrap_or_default();
-    if let Err(why) = (node.admit)(&peer) {
+    if let Err(why) = (node.admit)(&peer, asked.route()) {
         (node.say)(format!("refused the operator key {peer}: {why}"));
         asked.refuse(Refusal::NotAllowed).await;
         return;

@@ -5,10 +5,12 @@
 //! owner and an expired document are refused. Three ends on the stand-in
 //! relay: two members reach a node by its name alone; the owner removes
 //! one, a member brings the new document to the node in the end-to-end
-//! channel, and the removed member is refused at its next session. A check
-//! that needs ssh-keygen, or Python and openssl for the stand-in, says that
-//! it did not run when this host has none.
+//! channel, and the removed member is refused at its next session. The
+//! net's policy (T-430) is the module `net_policy`. A check that needs
+//! ssh-keygen, or Python and openssl for the stand-in, says that it did not
+//! run when this host has none.
 
+mod net_policy;
 mod ssh_harness;
 mod throughput_harness;
 

@@ -2675,7 +2675,7 @@ that the owner's key signs, and that each end keeps.
   `share`; its tickets are `iroh` and `derp`, checked to name its key. A
   field that this podssh does not know stays as it is when the owner signs a
   change; a document whose `requires` names a part that it does not read is
-  refused (the policy of T-430 takes its own part).
+  refused (the policy below takes its own part, `policy`).
 - **The signature** is OpenSSH's SSHSIG over the document's bytes, in the
   namespace `podssh-net`, with SHA-512: `ssh-keygen -Y verify -f ALLOWED -I
   owner -n podssh-net -s FILE.sig < FILE` checks it, and a document that
@@ -2709,6 +2709,36 @@ that the owner's key signs, and that each end keeps.
   refused at its next session. A document that ended, or one that fails its
   check, lets nobody in by the net. A node of no net keeps its door as
   before. The node's first lines say its net.
+- **The policy** (T-430), as Tailscale's ACLs: who may reach which node,
+  route, exit and range. With none, each member reaches each other; once
+  the document has one, only what a rule allows. It is the field `policy`:
+  `rules`, each `from` (a list of `*`, a member's name or `tag:TAG`), `to`
+  (a list of `*`; `NODE`, its TARGET with no route and each route;
+  `NODE/ROUTE`, one route, as `node://NODE/ROUTE` reaches it, and so a
+  share of T-433; `tag:TAG`, each member of the tag as `NODE`; `exit:NODE`
+  and `exit:*`, the egress of T-431; `ADDR/BITS` or one address, the
+  routes of T-432) and an optional `note`; and `tags`, each a list of
+  members' names. A rule only allows; a word or a field of a rule that
+  this podssh does not read allows nothing, so a later podssh's rule never
+  lets in more here, and a later part that narrows a rule must be named in
+  `requires`. The owner's `policy set FILE` checks the file strictly (each
+  field, each form, each tag; a name that no member has is said, not
+  refused), signs it in with `policy` in `requires`, so that a podssh of
+  before refuses the document and keeps the one before; `policy clear`
+  removes it; `policy show` gives it back as a file that `set` takes.
+- **The policy at a node**: the node that is reached checks it for each
+  session, with the newest document that it holds, against the route that
+  the operator named in the channel (none: its TARGET with no route),
+  before it dials; the iroh road's door, before the channel, lets in a
+  member that a rule lets reach anything of the node. A refusal is the
+  channel's (77 at the operator, 255 at `podssh ssh`), and the node's line
+  gives the policy's words: `no rule of the net home's policy (serial 6)
+  lets phone reach lab/db`. The keys of `--allow` come in as before: the
+  policy rules the net's door, not the node's own list.
+- **`policy check FROM TO`** says what the policy lets, with no connection:
+  FROM a member's name, key or fingerprint; TO `NODE`, `NODE/ROUTE`,
+  `exit:NODE` or an address. One line on stdout, `allowed` or `refused`, a
+  tab, then the rule that lets it or the reason; 0 or 77.
 - **A member's name** is a destination: `podssh ssh node://NAME`, and
   `podssh ssh NAME` alone when NAME is a member with the role `node`. The
   net names the member's key, which the channel checks in place of the pins
@@ -2718,9 +2748,11 @@ that the owner's key signs, and that each end keeps.
   ticket kept under NAME. A `Host` block that sets `HostName` for a
   member's name is refused, as for `node://NAME`.
 - `PODSSH_NET=no` turns the net off: no name, no door, no document of the
-  channel. Exit codes: 64 for the command line, 65 for a document refused,
-  73 for a document that could not be kept, 78 for a host with no net, an
-  owner's key that is not found, or a bad `PODSSH_NET`.
+  channel. Exit codes: 64 for the command line, 65 for a document or a
+  policy refused, 66 for a file of `take` or `policy set` that is not there,
+  73 for a document that could not be kept, 77 for `policy check` refused,
+  78 for a host with no net, an owner's key that is not found, or a bad
+  `PODSSH_NET`.
 
 ## `podssh pipe`
 

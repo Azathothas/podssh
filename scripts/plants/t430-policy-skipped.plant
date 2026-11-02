@@ -1,0 +1,7 @@
+# T-430: the node lets in each member that the net's policy refuses, as if it
+# skipped the check, so a member reaches a target that no rule names; the
+# test of the refusals at the node must fail with its words.
+ENTRY=T-430
+GROUP=cli-tests
+EXPECT='a target that no rule names was reached'
+RUN='cargo test --locked -p podssh-cli --test net -- net_policy::a_member_reaches_only_what_the_policy_lets_it'

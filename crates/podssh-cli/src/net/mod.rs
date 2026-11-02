@@ -9,14 +9,19 @@
 //! name is a destination (`lookup`).
 //!
 //! The owner's commands (`edit`): `init NAME`, `add NAME KEY`, `rm NAME`,
-//! `renew`; each signs a document with a higher serial. Each end's: `ls`,
-//! `show`, `take FILE`. stdout carries the answer (a list, a document);
-//! podssh's words go to stderr.
+//! `renew`, `policy set FILE` and `policy clear`; each signs a document with
+//! a higher serial. Each end's: `ls`, `show`, `take FILE`, `policy show` and
+//! `policy check FROM TO` (T-430, `policy`), which says what the policy lets
+//! with no connection. stdout carries the answer (a list, a document, a
+//! verdict); podssh's words go to stderr.
 
 pub mod admit;
 pub mod doc;
 mod edit;
 pub mod lookup;
+pub mod policy;
+mod policy_cmd;
+mod policy_words;
 pub mod sign;
 pub mod store;
 
@@ -75,7 +80,7 @@ pub fn now() -> i64 {
 }
 
 /// The subcommands, as a refusal names them.
-const SUBCOMMANDS: &str = "init, add, rm, renew, ls, show or take";
+const SUBCOMMANDS: &str = "init, add, rm, renew, ls, show, take or policy";
 
 /// Run the verb; returns the process exit code.
 pub fn run(args: &NetArgs, out: &mut dyn Write, err: &mut dyn Write) -> i32 {
@@ -92,6 +97,8 @@ pub fn run(args: &NetArgs, out: &mut dyn Write, err: &mut dyn Write) -> i32 {
 fn dispatch(word: &str, args: &NetArgs, out: &mut dyn Write, err: &mut dyn Write) -> Result<i32, Refusal> {
     match word {
         "init" | "add" | "rm" | "renew" => edit::run(word, args, err),
+        "policy" if policy_cmd::signs(&args.args) => edit::run(word, args, err),
+        "policy" => policy_cmd::run(args, out, err),
         "ls" => ls(out, err),
         "show" => show(args.signature, out, err),
         "take" => take(&args.args[0], args.owner.as_deref(), err),
@@ -110,22 +117,28 @@ fn checked(args: &NetArgs) -> Result<&str, Refusal> {
         "rm" => (1, "rm NAME"),
         "take" => (1, "take FILE"),
         "renew" | "ls" | "show" => (0, word),
+        "policy" => policy_cmd::shape(&args.args)?,
         other => return Err(Refusal::usage(format!("{other:?} is not a subcommand: {SUBCOMMANDS}"))),
     };
     if args.args.len() != words {
         return Err(Refusal::usage(format!("podssh net {shape}: {} words given", args.args.len())));
     }
-    // Each flag goes with the subcommands that read it.
+    // Each flag goes with the subcommands that read it; `policy` by its verb.
+    let form = match (word, args.args.first()) {
+        ("policy", Some(verb)) => format!("policy {verb}"),
+        _ => word.to_string(),
+    };
+    let signing: &[&str] = &["init", "add", "rm", "renew", "policy set", "policy clear"];
     let flags: [(&str, bool, &[&str]); 7] = [
-        ("--owner-key", args.owner_key.is_some(), &["init", "add", "rm", "renew"]),
-        ("--days", args.days.is_some(), &["init", "add", "rm", "renew"]),
+        ("--owner-key", args.owner_key.is_some(), signing),
+        ("--days", args.days.is_some(), signing),
         ("--roles", args.roles.is_some(), &["add"]),
         ("--iroh-ticket", args.iroh_ticket.is_some(), &["add"]),
         ("--derp-ticket", args.derp_ticket.is_some(), &["add"]),
         ("--owner", args.owner.is_some(), &["take"]),
         ("--signature", args.signature, &["show"]),
     ];
-    if let Some((flag, _, with)) = flags.iter().find(|(_, given, with)| *given && !with.contains(&word)) {
+    if let Some((flag, _, with)) = flags.iter().find(|(_, given, with)| *given && !with.contains(&form.as_str())) {
         return Err(Refusal::usage(format!("{flag} is for podssh net {}", with.join(", "))));
     }
     if !store::on() {
@@ -231,5 +244,7 @@ fn owner_key_name(text: &str) -> Option<KeyName> {
     KeyName::parse(&podssh_ssh::known_hosts::fingerprint(&key))
 }
 
+#[cfg(test)]
+mod policy_tests;
 #[cfg(test)]
 mod tests;
