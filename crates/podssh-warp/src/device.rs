@@ -60,6 +60,10 @@ pub struct Device {
     pub address_v6: Option<Ipv6Addr>,
     pub registered: String,
     pub team: bool,
+    /// Where the probe of a tunnel that has just opened goes (T-560): a
+    /// setting of the run, which the record never holds. Cloudflare's
+    /// resolver of a family that the device has; none skips the probe.
+    pub probe: Option<SocketAddr>,
 }
 
 impl fmt::Debug for Device {
@@ -71,6 +75,7 @@ impl fmt::Debug for Device {
             .field("address_v6", &self.address_v6)
             .field("registered", &self.registered)
             .field("team", &self.team)
+            .field("probe", &self.probe)
             .finish_non_exhaustive()
     }
 }
@@ -94,7 +99,7 @@ impl Device {
         if address_v4.is_none() && address_v6.is_none() {
             return Err("the device has no address inside the tunnel".into());
         }
-        Ok(Device {
+        let mut device = Device {
             id,
             token: Zeroizing::new(token),
             key,
@@ -105,7 +110,10 @@ impl Device {
             address_v6,
             registered,
             team,
-        })
+            probe: None,
+        };
+        device.probe = crate::probe::target(&device.addresses());
+        Ok(device)
     }
 
     /// The API's token of the device.
@@ -172,6 +180,14 @@ impl Device {
         self
     }
 
+    /// The same device with the probe of its tunnel at `probe`, or with none
+    /// (`PODSSH_WARP_PROBE=no`, T-560); a setting of the run, never of the
+    /// record.
+    pub fn probing(mut self, probe: Option<SocketAddr>) -> Device {
+        self.probe = probe;
+        self
+    }
+
     /// The endpoint's key that WARP's API gives now, PEM, in place of the
     /// one that the handshake pinned (T-399). A key that does not read
     /// leaves the device as it was; its file is the caller's to write.
@@ -233,6 +249,17 @@ mod tests {
         assert_eq!(again.endpoint_point, first.endpoint_point);
         assert_eq!(again.endpoint, first.endpoint);
         assert_eq!(again.addresses(), first.addresses());
+    }
+
+    /// The probe goes to the resolver of the device's IPv4 by default; its
+    /// setting is the run's, and the record holds none (T-560).
+    #[test]
+    fn the_probe_is_a_setting_of_the_run() {
+        let first = device();
+        assert_eq!(first.probe, Some(crate::probe::TARGET_V4));
+        let json = first.clone().probing(None).to_json().to_string();
+        assert!(!json.contains("probe") && !json.contains("1.1.1.1"), "{json}");
+        assert_eq!(Device::from_json(&json).unwrap().probe, Some(crate::probe::TARGET_V4));
     }
 
     /// Neither the token nor the key shows in `Debug`, nor in an error of a

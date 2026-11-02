@@ -9,11 +9,13 @@
 //! Cloudflare's network carries one to its target. It counts what it saw,
 //! so that a test can tell that a stream went through it. A test can change
 //! the key that it shows, as WARP's front door showed a new device another
-//! key than its record's (T-399).
+//! key than its record's (T-399). Its far end answers the probe of a tunnel
+//! (T-560) at Cloudflare's resolver, as WARP's network does; silenced, it is
+//! a front door that takes TLS and the CONNECT, then relays nothing.
 
 use std::collections::VecDeque;
 use std::net::{IpAddr, Ipv4Addr, SocketAddr};
-use std::sync::atomic::{AtomicUsize, Ordering};
+use std::sync::atomic::{AtomicBool, AtomicUsize, Ordering};
 use std::sync::{Arc, Mutex, PoisonError};
 
 use bytes::Bytes;
@@ -50,12 +52,16 @@ pub struct Seen {
     pub tunnels: AtomicUsize,
     /// Connections inside that it carried to the loopback.
     pub carried: AtomicUsize,
+    /// Probes of a tunnel (T-560) that its far end answered.
+    pub probes: AtomicUsize,
     /// The headers of the last CONNECT, names in lower case, and its
     /// authority.
     pub headers: Mutex<Vec<(String, String)>>,
     pub authority: Mutex<Option<String>>,
     /// Set to end each connection at once, as an edge that goes away.
     cut: tokio::sync::watch::Sender<bool>,
+    /// Set to relay nothing in each tunnel answered from then on.
+    silent: AtomicBool,
 }
 
 impl Default for Seen {
@@ -64,9 +70,11 @@ impl Default for Seen {
             connections: AtomicUsize::new(0),
             tunnels: AtomicUsize::new(0),
             carried: AtomicUsize::new(0),
+            probes: AtomicUsize::new(0),
             headers: Mutex::new(Vec::new()),
             authority: Mutex::new(None),
             cut: tokio::sync::watch::Sender::new(false),
+            silent: AtomicBool::new(false),
         }
     }
 }
@@ -251,6 +259,19 @@ impl StandIn {
     pub fn carried(&self) -> usize {
         self.seen.carried.load(Ordering::SeqCst)
     }
+
+    /// The probes of a tunnel (T-560) that the far end answered.
+    pub fn probes(&self) -> usize {
+        self.seen.probes.load(Ordering::SeqCst)
+    }
+
+    /// From now on, each tunnel that the stand-in answers relays nothing:
+    /// TLS, HTTP/2 and the CONNECT's 200 as before, then each packet of the
+    /// client read and dropped, and none sent back, as a front door that
+    /// relays nothing (T-560); `false` carries again.
+    pub fn silence(&self, silent: bool) {
+        self.seen.silent.store(silent, Ordering::SeqCst);
+    }
 }
 
 /// A connection whose handshake was refused, after its alert went out. In
@@ -306,13 +327,29 @@ async fn serve(tcp: TcpStream, acceptor: tokio_rustls::TlsAcceptor, routes: Arc<
             continue;
         }
         seen.tunnels.fetch_add(1, Ordering::SeqCst);
+        if seen.silent.load(Ordering::SeqCst) {
+            tokio::spawn(relay_nothing(request.into_body(), send));
+            continue;
+        }
         let link = crate::tunnel::pump(request.into_body(), send, Why::default());
         far(link, &routes, &seen);
     }
 }
 
+/// A tunnel of a front door that relays nothing (T-560): each packet of the
+/// client is read, its window given back, and dropped; the stream of the
+/// answer stays open and carries nothing, and the connection's PINGs are
+/// answered still, as h2's server answers them.
+async fn relay_nothing(mut body: h2::RecvStream, send: h2::SendStream<Bytes>) {
+    while let Some(Ok(chunk)) = body.data().await {
+        let _ = body.flow_control().release_capacity(chunk.len());
+    }
+    drop(send);
+}
+
 /// The far end of one tunnel: a stack at the routes' addresses, and each
-/// connection that comes to a route carried to its service.
+/// connection that comes to a route carried to its service; and the probe's
+/// target (T-560), where a route does not take its place.
 fn far(link: crate::stack::Link, routes: &[Route], seen: &Arc<Seen>) {
     let mut addresses: Vec<IpAddr> = Vec::new();
     for route in routes {
@@ -323,7 +360,17 @@ fn far(link: crate::stack::Link, routes: &[Route], seen: &Arc<Seen>) {
     if addresses.is_empty() {
         addresses.push(IpAddr::V4(Ipv4Addr::new(192, 0, 2, 1)));
     }
+    // The stack keeps two addresses at most: a test with routes at two
+    // others gets no answer to the probe, and skips it on its device
+    // (`Device::probing`).
+    let probe = crate::probe::TARGET_V4;
+    if !addresses.contains(&probe.ip()) && addresses.len() < 2 {
+        addresses.push(probe.ip());
+    }
     let Ok(stack) = Stack::start(&addresses, link) else { return };
+    if addresses.contains(&probe.ip()) && !routes.iter().any(|route| route.inside == probe) {
+        answer_probes(&stack, probe, seen);
+    }
     for route in routes.iter().copied() {
         let Ok(mut listener) = stack.listen(route.inside) else { continue };
         let seen = seen.clone();
@@ -340,4 +387,18 @@ fn far(link: crate::stack::Link, routes: &[Route], seen: &Arc<Seen>) {
     }
     // The stack lives as long as its tunnel, with a route or none.
     tokio::spawn(async move { stack.closed().await });
+}
+
+/// The probe's target inside the tunnel: each connection to `at` is taken,
+/// counted and closed, as Cloudflare's resolver takes one on its port of
+/// TLS; it is never carried to the loopback.
+fn answer_probes(stack: &Stack, at: SocketAddr, seen: &Arc<Seen>) {
+    let Ok(mut listener) = stack.listen(at) else { return };
+    let seen = seen.clone();
+    tokio::spawn(async move {
+        while let Ok(probe) = listener.accept().await {
+            seen.probes.fetch_add(1, Ordering::SeqCst);
+            drop(probe);
+        }
+    });
 }

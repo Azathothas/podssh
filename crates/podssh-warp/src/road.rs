@@ -2,14 +2,18 @@
 //! its stack; [`Warp::connect`] opens a TCP stream to `HOST:PORT` inside it,
 //! a name asked of the resolver inside the tunnel first.
 //!
-//! The probe (T-352's Approach, step 2) is the opening itself: the CONNECT
+//! The opening proves the way out (T-352's Approach, step 2): the CONNECT
 //! to the endpoint's address through the proxy, then TLS against the
 //! pinned key. A proxy that allows listed names alone refuses the first,
 //! or cuts the second. A certificate of another key is a proxy's that
 //! re-terminates TLS, or the front door's own new key (T-399):
 //! [`Warp::open_reading`] asks WARP's API for the device's record again,
 //! and tries a new key that the API gives; else the proxy is named, and the
-//! road is not tried again in the run.
+//! road is not tried again in the run. Then the probe ([`crate::probe`],
+//! T-560) proves the tunnel itself: one connection inside it, whose answer
+//! must come back through it. A front door that took TLS and HTTP/2 and
+//! relays nothing is [`Fault::Silent`], one line for the road, and the run
+//! does not remember it as it remembers a proxy.
 
 use std::net::{IpAddr, SocketAddr};
 use std::sync::{Mutex, PoisonError};
@@ -18,6 +22,7 @@ use std::time::Duration;
 use podssh_ws::dial::{self, DialError, ProxyChoice};
 
 use crate::device::Device;
+use crate::probe::Verdict;
 use crate::register::{self, Api};
 use crate::stack::{Link, Stack};
 use crate::stream::Stream;
@@ -44,6 +49,10 @@ pub enum Fault {
     Device(String),
     /// The edge failed or answered as podssh does not read.
     Edge(String),
+    /// The tunnel opened and carried no packet: the probe inside it got no
+    /// answer (T-560). The endpoint is reached; its front door relays
+    /// nothing.
+    Silent(String),
     /// This host's part.
     Local(String),
 }
@@ -55,9 +64,23 @@ impl std::fmt::Display for Fault {
             | Fault::Intercepted(line)
             | Fault::Device(line)
             | Fault::Edge(line)
+            | Fault::Silent(line)
             | Fault::Local(line) => f.write_str(line),
         }
     }
+}
+
+/// The line of a tunnel, `via` the road's words, that opened and carried
+/// nothing: no answer from `to` inside it, for the reasons `why` (T-560).
+pub fn silent(via: &str, to: SocketAddr, why: &[String]) -> Fault {
+    Fault::Silent(format!(
+        "{via}: the tunnel opened and carried nothing: no answer inside it from {to} in {} tries {} ms apart \
+         ({}); the front door took TLS and HTTP/2 and relays no packet (PODSSH_WARP_PROBE=no skips this probe, \
+         where {to} is filtered)",
+        crate::probe::TRIES,
+        crate::probe::GAP.as_millis(),
+        why.join("; ")
+    ))
 }
 
 /// The proxy that carries a connection to `ip`, as `proxy` chooses one.
@@ -149,6 +172,9 @@ pub struct Warp {
     /// The endpoint, and the proxy that carries the tunnel, if any.
     pub endpoint: SocketAddr,
     pub proxy: Option<String>,
+    /// The target inside the tunnel whose answer came back through it, the
+    /// probe of T-560; none when the run skipped the probe.
+    pub probed: Option<SocketAddr>,
 }
 
 impl Warp {
@@ -160,7 +186,7 @@ impl Warp {
         let proxied = proxy_for(&endpoint.ip().to_string(), proxy);
         tried_before(proxied.as_deref(), endpoint)?;
         match tunnel::open(device, proxy, limit).await {
-            Ok(link) => Warp::over(device, link, proxied),
+            Ok(link) => Warp::over(device, link, proxied, limit).await,
             Err(Opening::Intercepted { issuer }) => Err(intercepted_now(issuer, endpoint, proxied, None)),
             Err(opening) => Err(fault(opening, endpoint, proxied.as_deref())),
         }
@@ -188,7 +214,7 @@ impl Warp {
         let proxied = proxy_for(&endpoint.ip().to_string(), proxy);
         tried_before(proxied.as_deref(), endpoint)?;
         let issuer = match tunnel::open(device, proxy, limit).await {
-            Ok(link) => return Warp::over(device, link, proxied),
+            Ok(link) => return Warp::over(device, link, proxied, limit).await,
             Err(Opening::Intercepted { issuer }) => issuer,
             Err(opening) => return Err(fault(opening, endpoint, proxied.as_deref())),
         };
@@ -229,7 +255,7 @@ impl Warp {
                 tokio::time::sleep(RETRY_AFTER).await;
             }
             match tunnel::open(device, proxy, limit).await {
-                Ok(link) => return Warp::over(device, link, proxied),
+                Ok(link) => return Warp::over(device, link, proxied, limit).await,
                 Err(Opening::Intercepted { issuer }) => shown = issuer,
                 Err(opening) => return Err(fault(opening, endpoint, proxied.as_deref())),
             }
@@ -237,10 +263,24 @@ impl Warp {
         Err(intercepted_now(shown, endpoint, proxied, Some(note)))
     }
 
-    /// The stack of `device` over its open tunnel.
-    fn over(device: &Device, link: Link, proxy: Option<String>) -> Result<Warp, Fault> {
+    /// The stack of `device` over its open tunnel, once the probe found that
+    /// the tunnel carries a packet each way (T-560); with no probe, as it
+    /// opened. A tunnel that fails the probe ends with its stack here.
+    async fn over(device: &Device, link: Link, proxy: Option<String>, limit: Duration) -> Result<Warp, Fault> {
         let stack = Stack::start(&device.addresses(), link).map_err(Fault::Local)?;
-        Ok(Warp { stack, endpoint: device.endpoint, proxy })
+        let mut warp = Warp { stack, endpoint: device.endpoint, proxy, probed: None };
+        let Some(to) = device.probe else { return Ok(warp) };
+        match crate::probe::run(&warp.stack, to, limit).await {
+            Verdict::Carried => {
+                warp.probed = Some(to);
+                Ok(warp)
+            }
+            Verdict::Silent(why) => Err(silent(&warp.via(), to, &why)),
+            Verdict::Ended(why) => Err(Fault::Edge(format!(
+                "{}: the tunnel ended before a packet came back through it: {why}",
+                warp.via()
+            ))),
+        }
     }
 
     /// The road's words for `-v` and doctor: the endpoint, and its proxy.
@@ -330,6 +370,20 @@ mod tests {
         let cut = Opening::Tls("connection reset by peer".into());
         assert!(matches!(fault(cut.clone(), at(), Some("http://p:1")), Fault::Unreachable(_)));
         assert!(matches!(fault(cut, at(), None), Fault::Edge(_)));
+    }
+
+    /// A tunnel that carried nothing names its road, the target, the tries
+    /// and the switch that skips the probe (T-560).
+    #[test]
+    fn a_silent_tunnel_names_the_road_and_the_switch() {
+        let why = vec!["1.1.1.1:443: no answer inside the tunnel within 3 s".to_string()];
+        let fault = silent("WARP's endpoint 162.159.198.2:443", crate::probe::TARGET_V4, &why);
+        let Fault::Silent(line) = &fault else { panic!("{fault:?}") };
+        let head = "WARP's endpoint 162.159.198.2:443: the tunnel opened and carried nothing";
+        assert!(line.starts_with(head), "{line}");
+        for part in ["from 1.1.1.1:443 in 2 tries 700 ms apart", "within 3 s", "PODSSH_WARP_PROBE=no"] {
+            assert!(line.contains(part), "{part}: {line}");
+        }
     }
 
     /// An interception names its issuer; a refusal of 403 is the device's.

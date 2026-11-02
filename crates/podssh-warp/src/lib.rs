@@ -23,6 +23,9 @@
 //!   opens a stream to `HOST:PORT`; a front door that shows another key
 //!   than the pinned one sends it to the API for the device's record again
 //!   (T-399).
+//! - [`probe`]: one connection inside a tunnel that has just opened, so that
+//!   a front door which takes TLS and relays nothing is named as such
+//!   (T-560).
 //!
 //! Its rules are podssh's: one outbound connection, through `HTTPS_PROXY`
 //! when one is set; no listener and no TUN device; no credential in output.
@@ -37,6 +40,7 @@ pub mod dns;
 pub mod inside;
 pub mod key;
 mod phy;
+pub mod probe;
 pub mod register;
 pub mod road;
 pub mod stack;

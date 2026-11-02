@@ -11,7 +11,8 @@ name: warp live
 # port 22 is reached only inside WARP's tunnel; OpenSSH's ssh to GitHub
 # with podssh proxy as its ProxyCommand, to the refusal of a client with no
 # key; and the box's proxy with names alone, which refuses the endpoint's
-# address and is named. Then 16 MiB each way inside the tunnel (T-398), with
+# address and is named. The first run's -v says that the probe inside the
+# tunnel, a connection to 1.1.1.1:443, was answered (T-560). Then 16 MiB each way inside the tunnel (T-398), with
 # their digests: a node of the live relay in front of an OpenSSH server on
 # the loopback, and podssh ssh to it through the box's proxy, which carries
 # each CONNECT through podssh proxy warp:// (--carry), so the client's bytes
@@ -73,6 +74,10 @@ jobs:
           echo "ok    the device's record is kept, mode 0600"
           grep -q "Permission denied (publickey)" "$RUNNER_TEMP/ssh.log" || { echo "FAIL no refusal of GitHub's ($rc)"; exit 1; }
           [ "$rc" = 255 ] || { echo "FAIL exit $rc, not 255"; exit 1; }
+          # T-560: the tunnel was proven by a packet through it, not by TLS alone.
+          grep -q "a packet went inside WARP's tunnel to 1.1.1.1:443" "$RUNNER_TEMP/ssh.log" \
+            || { echo "FAIL the probe inside the tunnel was not answered"; exit 1; }
+          echo "ok    the probe inside WARP's tunnel was answered"
           # The far end is GitHub itself: its published Ed25519 key.
           ssh-keygen -lf "$RUNNER_TEMP/known_hosts_podssh" | tee "$RUNNER_TEMP/keys.txt"
           grep -q "$GITHUB_ED25519" "$RUNNER_TEMP/keys.txt" || { echo "FAIL the host key is not GitHub's published one"; exit 1; }

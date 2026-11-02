@@ -43,6 +43,7 @@ cargo test -p podssh-ws --features plain-ws --test cloudflare_access # the road 
 cargo build -p podssh-cli --features warp                        # with WARP's road (T-352, Rust 1.91)
 cargo test -p podssh-warp -p podssh-cli --features podssh-cli/warp --lib   # its tests
 cargo test -p podssh-warp --test small_frames                    # its tunnel under volume (T-398)
+cargo test -p podssh-warp --features stand-in --test road        # the probe of an open tunnel (T-560)
 cargo test -p podssh-relay --features warp-stand-in --test quick_edge_warp # the edge inside it (T-374)
 ```
 

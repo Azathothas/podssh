@@ -10,17 +10,34 @@ use podssh_warp::register::{self, Api};
 use podssh_warp::{Device, Fault, Warp};
 use podssh_ws::{ProxyChoice, Trust};
 
-use super::{accepted, ACCEPT_TERMS_ENV, DEVICE_FILE, ENDPOINT_ENV, TEAM_TOKEN_FILE_ENV};
+use super::{accepted, probe_kept, ACCEPT_TERMS_ENV, DEVICE_FILE, ENDPOINT_ENV, PROBE_ENV, TEAM_TOKEN_FILE_ENV};
 use crate::exitmap::sysexits::{EX_CONFIG, EX_NOPERM, EX_SOFTWARE, EX_UNAVAILABLE};
 
 /// The code of a run that a fault of the road ends: 77 for the device that
-/// the edge refused, 70 for this host's part, 69 else.
+/// the edge refused, 70 for this host's part, 69 else, a tunnel that carried
+/// nothing too (T-560).
 pub fn code(fault: &Fault) -> i32 {
     match fault {
         Fault::Device(_) => EX_NOPERM,
         Fault::Local(_) => EX_SOFTWARE,
-        Fault::Unreachable(_) | Fault::Intercepted(_) | Fault::Edge(_) => EX_UNAVAILABLE,
+        Fault::Unreachable(_) | Fault::Intercepted(_) | Fault::Edge(_) | Fault::Silent(_) => EX_UNAVAILABLE,
     }
+}
+
+/// The device of a run: at `PODSSH_WARP_ENDPOINT` when it is set, and with
+/// no probe of its tunnel where `PODSSH_WARP_PROBE=no` (T-560); neither goes
+/// into the record.
+fn for_run(device: Device) -> Result<Device, (String, i32)> {
+    let device = match endpoint()? {
+        Some(at) => device.at(at),
+        None => device,
+    };
+    Ok(if probe()? { device } else { device.probing(None) })
+}
+
+/// `PODSSH_WARP_PROBE`: whether the run probes a tunnel that has just opened.
+fn probe() -> Result<bool, (String, i32)> {
+    probe_kept(std::env::var(PROBE_ENV).ok().as_deref()).map_err(|why| (why, EX_CONFIG))
 }
 
 /// `PODSSH_WARP_ENDPOINT`: another endpoint, as `ADDRESS:PORT`.
@@ -58,21 +75,21 @@ fn register_code(fault: &register::Fault) -> i32 {
     }
 }
 
-/// The device of the record in the cache, at `PODSSH_WARP_ENDPOINT` when
-/// it is set; `None` with no record. It never registers: `podssh doctor`
-/// reads it so (T-374).
+/// The device of the record in the cache, as [`for_run`] sets it for the
+/// run; `None` with no record. It never registers: `podssh doctor` reads it
+/// so (T-374).
 pub fn kept() -> Result<Option<Device>, (String, i32)> {
-    let at = endpoint()?;
+    // A setting that cannot be used is said before the record is read, and
+    // before a device is registered.
+    endpoint()?;
+    probe()?;
     let Some(text) = podssh_relay::cache::load_file(DEVICE_FILE) else { return Ok(None) };
     let text = zeroize::Zeroizing::new(text);
     let device = Device::from_json(&text).map_err(|why| {
         let line = format!("the device's record {DEVICE_FILE} in the cache: {why}; remove it to register again");
         (line, EX_CONFIG)
     })?;
-    Ok(Some(match at {
-        Some(at) => device.at(at),
-        None => device,
-    }))
+    for_run(device).map(Some)
 }
 
 /// The device: [`kept`]; else a new one, registered when the user accepted
@@ -87,7 +104,6 @@ pub async fn device(
     if let Some(device) = kept()? {
         return Ok(device);
     }
-    let at = endpoint()?;
     let yes = accepted(std::env::var(ACCEPT_TERMS_ENV).ok().as_deref()).map_err(|why| (why, EX_CONFIG))?;
     if !yes {
         let line = format!(
@@ -110,10 +126,7 @@ pub async fn device(
         Ok(path) => verbose(&format!("the device's record is in {}", path.display())),
         Err(why) => say(&format!("the device's record was not kept ({why}): the next run registers again")),
     }
-    Ok(match at {
-        Some(at) => device.at(at),
-        None => device,
-    })
+    for_run(device)
 }
 
 /// The tunnel of `device` through the environment's proxy (T-399): a
@@ -126,9 +139,15 @@ pub async fn tunnel(device: &mut Device, trust: &Trust, verbose: &(dyn Fn(&str) 
     let proxy = ProxyChoice::FromEnvironment;
     let api = Api::cloudflare(trust.clone(), proxy.clone(), limit);
     let pinned = device.endpoint_point.clone();
+    if device.probe.is_none() {
+        verbose(&format!("{PROBE_ENV}=no: WARP's tunnel is taken as it opens, with no packet through it proven"));
+    }
     let opened = Warp::open_reading(device, &api, &proxy, limit).await;
     if device.endpoint_point != pinned {
         keep_key(device, verbose);
+    }
+    if let Ok(Some(to)) = opened.as_ref().map(|warp| warp.probed) {
+        verbose(&format!("a packet went inside WARP's tunnel to {to} and its answer came back"));
     }
     opened
 }

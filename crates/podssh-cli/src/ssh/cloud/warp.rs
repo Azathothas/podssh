@@ -27,6 +27,9 @@ pub const ACCEPT_TERMS_ENV: &str = "PODSSH_WARP_ACCEPT_TERMS";
 pub const TEAM_TOKEN_FILE_ENV: &str = "PODSSH_WARP_TEAM_TOKEN_FILE";
 /// Another endpoint of HTTP/2, `ADDRESS:PORT`, in place of 162.159.198.2:443.
 pub const ENDPOINT_ENV: &str = "PODSSH_WARP_ENDPOINT";
+/// `no` skips the probe inside a tunnel that has just opened (T-560), for a
+/// host where its target is filtered inside WARP.
+pub const PROBE_ENV: &str = "PODSSH_WARP_PROBE";
 
 /// A host and a port inside the tunnel.
 #[derive(Debug, Clone, PartialEq, Eq)]
@@ -134,6 +137,18 @@ pub fn accepted(value: Option<&str>) -> Result<bool, String> {
     }
 }
 
+/// Whether `value` of [`PROBE_ENV`] keeps the probe of a tunnel (T-560):
+/// unset, empty, yes, on, true or 1 keep it; no, off, false or 0 skip it;
+/// another word is a setting that cannot be used.
+pub fn probe_kept(value: Option<&str>) -> Result<bool, String> {
+    let Some(value) = value else { return Ok(true) };
+    match value.trim().to_ascii_lowercase().as_str() {
+        "" | "yes" | "on" | "true" | "1" => Ok(true),
+        "no" | "off" | "false" | "0" => Ok(false),
+        _ => Err(format!("{PROBE_ENV}={value}: yes or no")),
+    }
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;
@@ -170,6 +185,18 @@ mod tests {
         assert_eq!(accepted(Some(" ON ")), Ok(true));
         assert_eq!(accepted(Some("no")), Ok(false));
         assert!(accepted(Some("maybe")).is_err());
+    }
+
+    /// The probe of a tunnel stays unless a word skips it (T-560).
+    #[test]
+    fn warp_the_probe_is_kept_unless_no() {
+        assert_eq!(probe_kept(None), Ok(true));
+        assert_eq!(probe_kept(Some("")), Ok(true));
+        assert_eq!(probe_kept(Some("yes")), Ok(true));
+        assert_eq!(probe_kept(Some(" NO ")), Ok(false));
+        assert_eq!(probe_kept(Some("0")), Ok(false));
+        let why = probe_kept(Some("later")).unwrap_err();
+        assert!(why.contains("PODSSH_WARP_PROBE=later"), "{why}");
     }
 
     /// The name of the record is the library's, in a build that has it.
