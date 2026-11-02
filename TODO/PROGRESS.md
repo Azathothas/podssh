@@ -81,8 +81,10 @@ entry keeps its proof in the entry; this page keeps no history (git does).
   relay's operator, after Q63, with `docs/relay-operator.md` and `docs/carriers.md`, Q64 and
   Q65), drafted by an agent of this cloud session, is merged, and its worktree and branch are
   gone. The same day, the drafts of agents of this session for T-443 and T-444 are merged (their
-  node window test found a defect of the stand-in's new mode, repaired); those of T-436, T-437,
-  T-438 and T-439 wait in worktrees of `.claude/worktrees/`.
+  node window test found a defect of the stand-in's new mode, repaired); T-439's is merged (its
+  run against Caddy and squid waits for `via-interop.yml`), and T-436's is merged and closed (its
+  live runs through Least Authority's relay passed; three first runs that met nobody are T-450);
+  those of T-437 and T-438 wait in worktrees of `.claude/worktrees/`.
 
   CI: the gate passed at
   `24b9f6e` (run 38331509229), and its step `release` at `cad2885` (478
@@ -127,7 +129,7 @@ and `CARGO_BUILD_JOBS=4`:
 
 ## Counts
 
-`TODO/INDEX.md` holds 445 entries: 48 open, 2 partial, 16 blocked, 379 done.
+`TODO/INDEX.md` holds 446 entries: 48 open, 2 partial, 16 blocked, 380 done.
 
 Open includes parked work. `cargo todo check` verifies this line.
 
@@ -172,8 +174,8 @@ this order:
    T-421, T-253, T-325, T-326, T-319, T-321 and T-173.
 2. The net: T-429, T-430, T-445, T-086, T-226, T-346 and T-106.
 3. Exit, routes, share and funnel: T-431, T-432, T-433, T-180, then T-434 and T-435.
-4. The public carriers of Q65 (T-436, T-437, T-438) and the protocols of Q66 (T-439, T-440,
-   T-441), then T-442.
+4. The public carriers of Q65 (T-437, T-438, then T-450 from the runs of `transit-live.yml`)
+   and the protocols of Q66 (T-439, T-440, T-441), then T-442.
 5. T-446: betas `v1.1.0-beta.N` after batches, and `v1.1.0` at the end.
 
 Between entries: the `none` entries, the highest priority first.

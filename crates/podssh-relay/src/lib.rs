@@ -28,6 +28,8 @@
 //! - `derp` (feature `derp`): the DERP road (T-349), through Tailscale's
 //!   servers for tailcat or a derper of the user's own, with an adapter
 //!   under the resumable layer that sends again what a server drops;
+//! - [`transit`]: the transit road (T-436), a pair's carrier through a
+//!   magic-wormhole transit relay, Least Authority's by default;
 //! - `blocking` (feature `blocking`): a synchronous facade over all of these,
 //!   for a caller with no async runtime: it owns a runtime on the current
 //!   thread, and refuses a call from inside a tokio runtime.
@@ -58,6 +60,7 @@ pub mod reverse;
 pub mod serve;
 pub mod session;
 pub mod token;
+pub mod transit;
 pub mod udp;
 
 pub use open::{open, Failure, OpenError, Opened, Request};

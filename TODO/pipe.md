@@ -612,7 +612,7 @@ running on the server (`docs/design.md:692-696`).
    cached token. A prompt with no terminal ends the loop
    (`docs/cli.md:3320-3322`). After the attach, send the window size again.
 7. In the same commit: `docs/cli.md`, the notes of ssh
-   (`crates/podssh-cli/src/man/notes_ssh.rs:4-494`), `docs/design.md:692-696`,
+   (`crates/podssh-cli/src/man/notes_ssh.rs:4-499`), `docs/design.md:692-696`,
    `docs/STATUS.md`, and tmux in the interop image
    (`scripts/interop.sh:24-25`). T-025 shares the classes of close codes;
    T-153 replaces this loop when both ends run podssh.

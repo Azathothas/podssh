@@ -173,6 +173,43 @@ session's bytes.
    encrypted with it: the relay never sees which. The node refuses a route
    that it does not have, or that the key may not use, before it dials.
 
+## The transit road
+
+A pair's node and its operators also meet at a magic-wormhole transit relay
+(T-436), Least Authority's `wss://relay.mw.leastauthority.com` by default,
+which needs no account and which the operator's ruling Q65 lets podssh try
+unasked ([carriers.md](carriers.md)). It carries a session where the
+relay of the pair is down, or refused by a proxy, as long as the pair
+lasts. `PODSSH_TRANSIT=no` turns it off; a `ws://` or `wss://` URL there
+names another relay.
+
+1. Each end derives the relay's TOKEN (64 hex digits) and the key of a
+   proof from the pair's connect token and name, by HKDF-SHA256, and takes
+   a random SIDE (16 hex digits) for its run.
+2. Each connection sends `please relay TOKEN for side SIDE` and a newline,
+   alone in one binary message; the relay answers `ok` and a newline to
+   both once two sides of the TOKEN met, then copies the messages. A
+   connection waits while nobody comes; two connections of one SIDE never
+   meet.
+3. After `ok`, each end sends its part (`N`, the node; `C`, a client) and a
+   nonce, then an HMAC-SHA256 of both nonces under the proof key. A peer of
+   the same part (two clients of one pair) parts and tries again; a peer
+   whose proof fails (one that knows the TOKEN alone, as the relay does) is
+   refused, so the node's door stays the pair's.
+4. The bytes after the proofs are the link's: the resumable layer and, above
+   it, the end-to-end channel, as on the pair's road. The relay has no
+   half-close, so an end's Close ends both directions after the bytes that
+   it sent.
+
+A node of the layer and the channel (no `--plain`, no `--no-e2e`) with a TCP
+TARGET keeps one connection waiting, opens the next at each meeting, and
+shares its keeper with the pair's road, so that a session resumes on either;
+a node of `--derp` with a pair does the same. `podssh ssh node://NAME` races
+the road last, only when each road before it failed, and again at each
+resume. Tests: `cargo test -p podssh-relay --test transit`, against
+magic-wormhole's own relay on the loopback (5 passed, 2026-11-02), and with
+`--ignored` through Least Authority's relay (`transit-live.yml`).
+
 ## Finding a node
 
 A pair's name is random and lasts 72 hours at most, so podssh finds a node

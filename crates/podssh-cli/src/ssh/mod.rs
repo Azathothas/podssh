@@ -324,8 +324,13 @@ pub(crate) async fn connect_and_run(mut resolved: Resolved, log: Arc<Log>) -> i3
         // The DERP road: the ticket given, else the one kept under the label
         // (Q50); never with --no-e2e, as its node's door is the channel.
         let derp = derp.road(label).filter(|_| !channel.off);
-        if race.is_some() || derp.is_some() {
-            let raced = roads::Raced { iroh: race.as_ref(), derp };
+        // The transit relay of the pair (T-436, Q65): never with --no-e2e,
+        // and only with a good pair here, whose token it is; with none, the
+        // pair's road says why, as before.
+        let good_pair = || crate::pairs::operator_part(label, pair_file.as_deref()).is_ok();
+        let transit = crate::node_transit::url().filter(|_| !channel.off && good_pair());
+        if race.is_some() || derp.is_some() || transit.is_some() {
+            let raced = roads::Raced { iroh: race.as_ref(), derp, transit };
             return Box::pin(roads::connect(label, pair_file.as_deref(), trust, raced, channel, opts, log)).await;
         }
         return Box::pin(node::connect(label, pair_file.as_deref(), trust, channel, opts, log)).await;

@@ -62,15 +62,15 @@ repository and CI).
 
 ## Counts
 
-**445 entries: 48 open, 2 partial, 16 blocked, 379 done.**
+**446 entries: 48 open, 2 partial, 16 blocked, 380 done.**
 
 | Priority | open | partial | blocked | done | total |
 | --- | --- | --- | --- | --- | --- |
 | P0 | 0 | 0 | 0 | 1 | 1 |
 | P1 | 4 | 1 | 0 | 48 | 53 |
-| P2 | 21 | 1 | 14 | 180 | 216 |
-| P3 | 23 | 0 | 2 | 150 | 175 |
-| **All** | 48 | 2 | 16 | 379 | 445 |
+| P2 | 20 | 1 | 14 | 181 | 216 |
+| P3 | 24 | 0 | 2 | 150 | 176 |
+| **All** | 48 | 2 | 16 | 380 | 446 |
 
 ## Entries
 
@@ -507,7 +507,7 @@ repository and CI).
 | [T-433](mesh.md) | P2 | M | M10 | feature | open | `podssh share`: a node's local services by name, for the net |
 | [T-434](mesh.md) | P2 | M | M10 | feature | open | A member that relays between two other members |
 | [T-435](mesh.md) | P2 | M | M10 | feature | open | `status`, `ping` and `doctor` for the net |
-| [T-436](mesh.md) | P2 | M | M10 | feature | open | The magic-wormhole transit relay as a carrier of a pair's road |
+| [T-436](mesh.md) | P2 | M | M10 | feature | done | The magic-wormhole transit relay as a carrier of a pair's road |
 | [T-437](mesh.md) | P2 | M | M10 | feature | open | Piping Server, a road for a proxy that refuses the WebSocket upgrade |
 | [T-438](mesh.md) | P3 | M | M10 | feature | open | Wisp: the demo server as a forwarder, and the Wisp protocol |
 | [T-439](mesh.md) | P2 | M | M10 | feature | partial | HTTP CONNECT to a second proxy over TLS, HTTP/1.1 and HTTP/2 |
@@ -521,3 +521,4 @@ repository and CI).
 | [T-447](mesh.md) | P2 | M | M10 | feature | open | `podssh relay serve` takes its certificate from ACME, and reads it again on SIGHUP |
 | [T-448](mesh.md) | P2 | M | M10 | feature | open | The relay role mints tokens for the keys of an allowlist or of the net |
 | [T-449](mesh.md) | P2 | S | M10 | defect | open | A test of the podssh-relay suite failed once in 11 runs, unnamed |
+| [T-450](mesh.md) | P3 | S | M10 | defect | open | Three live runs of the transit road met nobody within 20 s |

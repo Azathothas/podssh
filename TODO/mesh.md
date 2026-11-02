@@ -424,7 +424,7 @@ carriers).
 **Milestone:** M10
 **Priority:** P2
 **Effort:** M
-**Status:** open
+**Status:** done
 
 ## Problem
 
@@ -446,6 +446,42 @@ other than the iroh relays and DERP, which some proxies refuse by category.
    layer and the end-to-end channel above it.
 3. In the race after the DERP road; tried unasked (Q65), and `PODSSH_TRANSIT=no` turns it off.
 
+## Decision
+
+- **The token is the pair's, not each link's.** TOKEN and the key of a proof come from the
+  pair's connect token and name by HKDF-SHA256 (salt `podssh transit, version 1`), which both
+  ends hold. Lost: a token for each link from both ends' keys (`docs/carriers.md`, Inferred),
+  as the two ends would need a channel of signals to agree on each link, which is missing when
+  the pair's relay is down, the case that this carrier is for.
+- **A proof of the pair after `ok`.** The relay sees TOKEN, and a node with no `--allow` lets
+  in each operator that has the pair, as the pair's relay checks the connect token. So each end
+  sends its part (`N` or `C`) and a nonce, then an HMAC-SHA256 of both nonces under the proof
+  key; a peer whose proof fails is refused before the layer. Lost: `--allow` required, as on the
+  DERP road, which would leave the default node off the road; the channel's allowlist alone,
+  which a node with no allowlist does not have.
+- **The parts.** The relay pairs any two sides of one TOKEN, so two clients of one pair meet each
+  other while the node's wait is taken: a hello of the same part parts them, and each tries
+  again within its wait. Lost: a TOKEN for each direction, which the relay cannot pair.
+- **One wait at a time at the node**, the next opened at each meeting, with one SIDE for the
+  run, so that its own connections never meet. Lost: a wait only after a signal, which has no
+  channel when the pair's relay is down; several waits, which load a free service whose relay
+  drops the spare ones at each meeting.
+- **Last in the race, only when each road before it failed** (`Start::WhenAllFailed`), as a
+  kept DERP ticket is (Q50): it costs Least Authority nothing while the pair's road works. Lost:
+  the 250 ms head start of a road that the user asked for.
+- **`podssh ssh node://NAME` with a good pair goes through the race of
+  `crates/podssh-cli/src/ssh/roads.rs`** when the road is on, the default, as a run with a kept
+  DERP ticket did: the race is where each resume tries each road again. A run with no pair, or
+  an expired one, keeps the words of the pair's road alone; the warning an hour before the
+  expiry moved into the race too. Lost: the transit road in the resume of the pair's road alone
+  (`layered::next_leg`), a second race.
+- **The node of the pair's road, and the node of `--derp` with a pair, wait there**, not the
+  node of `--iroh`, `--quick-tunnel`, `--plain`, `--no-e2e` or a `udp:` TARGET: the iroh road's
+  node and the quick tunnel's have roads of their own without the relay of the pair, and the
+  others have no layer or no channel under which a stranger's relay may carry the bytes.
+- **Tests switch the road off** in the harnesses of the offline and stand-in tests
+  (`PODSSH_TRANSIT=no`), so that no test of another road reaches Least Authority's relay.
+
 ## Prove
 
 ```sh
@@ -457,6 +493,49 @@ Against magic-wormhole's own transit relay server (Python) on the loopback: two 
 a session carries 1 MiB each way and survives the carrier's loss by moving to another road.
 Live, short (Q65): one session through Least Authority's server from GitHub Actions. Planted:
 the wrong side's line, and the meeting fails.
+
+## Done
+
+2026-11-02: drafted by an agent of this session in a worktree, then merged, built and measured
+here.
+
+- Measured, with no build of podssh: magic-wormhole-transit-relay 0.5.0 (Twisted 26.10.0,
+  Autobahn 26.10.2), run as `python -m twisted transitrelay --websocket=tcp:PORT` on the
+  loopback, with a WebSocket client written by hand: `ok\n` to both sides as a binary message,
+  none for two connections of one side, Pings answered while a side waits, and the bytes before
+  a side's Close reached the other side before a Close 1000. The Premise holds; at the merge,
+  Python's `websockets` met two sides at Least Authority's relay through this session's proxy 26
+  times of 26.
+- `crates/podssh-relay/src/transit/`: the words (`token.rs`), the meeting (`meet.rs`), the link
+  over the WebSocket (`link.rs`), the node (`far.rs`) and the client (`client.rs`), pure Rust,
+  through `HTTPS_PROXY`. `crates/podssh-cli/src/node_transit.rs`: the node's road beside the
+  pair's road with one keeper (`podssh node`, and `--derp` with a pair), the client's dialer,
+  and `PODSSH_TRANSIT` (78 for a value that is none of its forms, which is not echoed).
+  `crates/podssh-cli/src/ssh/roads.rs`: the road last in the race.
+- Repairs at the merge: `node_derp.rs` moved its line writer into the channel before the transit
+  road took it (it did not build); the test of a session that moves held the layer's future on
+  the test thread's stack, which overflowed in a debug build (it is on the heap now), and named a
+  temporary that did not live long enough; `scripts/interop-roost.sh` turns the road off, so that
+  no interop run reaches Least Authority's relay.
+- `cargo test -p podssh-relay --lib -- transit`: 4 passed (the token and the proof key equal to
+  Python's `hmac` and HKDF written out, recomputed at the merge; a proof for its part and order
+  alone; the line; the variable).
+- `cargo test -p podssh-relay --test transit` against magic-wormhole's own relay on the loopback
+  (`PODSSH_TRANSIT_TEST_SERVER=required`): 5 passed: two ends meet and carry 1 MiB each way; a
+  session of the layer moves to another road when the relay stops; two ends of one side never
+  meet, and the client gives up within its wait; a side that knows the token alone is refused;
+  two clients never take each other for the node.
+- `cargo test -p podssh-cli --test node`: 4 passed, with the variable's refusal. The whole suite
+  of podssh-cli passed, as `ssh node://` with a pair now goes through the race.
+- Planted (`scripts/plants/t436-transit-same-side.patch`, group `host-transit`):
+  `sh scripts/plant-each.sh --here t436-transit-same-side`: caught, the 1 MiB test FAILED.
+- Live, short (Q65), from this cloud session's host through its proxy:
+  `cargo test -p podssh-relay --test transit -- --ignored`, ten runs in a row: two ends met at
+  Least Authority's relay and carried 1 MiB each way, and a session of the layer echoed 1 MiB,
+  each time (2 passed, 6 s); planted there (`PODSSH_TRANSIT_TEST_PLANT=same-side`), both ends
+  waited alone and the test failed, as it must. The first three runs, before them, met nobody
+  within 20 s; their cause is not found, and the test now names both ends' results: T-450.
+  `transit-live.yml` runs them each week and by hand.
 
 # T-437: Piping Server, a road for a proxy that refuses the WebSocket upgrade
 
@@ -1143,3 +1222,43 @@ cargo test -p podssh-relay --features pair,quick,derp,serve
 
 The named test passes 50 runs in a row, here and on the runner, and its cause planted again
 fails it.
+
+# T-450: Three live runs of the transit road met nobody within 20 s
+
+**Source:** the merge of T-436 (2026-11-02).
+**Category:** defect
+**Milestone:** M10
+**Priority:** P3
+**Effort:** S
+**Status:** open
+
+## Problem
+
+At the merge of T-436, the first three runs of the live tests through Least Authority's transit
+relay (`cargo test -p podssh-relay --test transit -- --ignored`, from this cloud session's host)
+met nobody: the node waited 20 s alone, and the client said nothing that the test kept. Each run
+after them met at once: ten runs of both live tests, 20 pairs of Python's `websockets` through the
+same proxy, and a node of podssh with a Python side. A carrier that misses at random leaves the
+race's last road empty when it is needed.
+
+## Premise
+
+- The failed runs were in the first minutes of the session's use of the relay, while a build of
+  podssh-cli ran on the host; the test's message named the node's result alone then, and now
+  names both ends' (`no meeting: the node ..., the client ...`).
+
+## Approach
+
+1. Read each run of `transit-live.yml` (each week, and by hand) for a run that met nobody, and
+   the two results that it names.
+2. If the relay is the cause (a backend that lost a side, or a limit), the node opens its wait
+   again after a bound, and the client dials again within its wait; if podssh is, repair that.
+
+## Prove
+
+```sh
+export CARGO_BUILD_JOBS=4
+cargo test -p podssh-relay --test transit -- --ignored
+```
+
+Twenty runs in a row meet, from GitHub Actions and this host; the cause, planted, fails one.

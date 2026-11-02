@@ -336,3 +336,18 @@ fn doctor_has_a_line_for_each_stored_pair() {
     assert!(line("old").starts_with("  FAIL") && line("old").contains("podssh relay pair old"), "{out}");
     no_token(&out);
 }
+
+/// `PODSSH_TRANSIT` (T-436): a value that is none of its forms is refused
+/// before anything connects (78), and the refusal does not echo it, as a
+/// relay's URL may hold a secret; `no` leaves the pair's road as it was.
+#[test]
+fn a_transit_setting_that_is_none_of_its_forms_is_refused_without_its_text() {
+    let home = scratch("transit");
+    let set = [("PODSSH_TRANSIT", "maybe?key=SECRET")];
+    let (rc, out, err) = podssh(&home, &["ssh", "node://lab", "true"], &set);
+    assert_eq!(rc, 78, "{err}");
+    assert!(err.contains("PODSSH_TRANSIT") && !err.contains("SECRET") && out.is_empty(), "{err}");
+    let (rc, _, err) = podssh(&home, &["ssh", "node://lab", "true"], &[("PODSSH_TRANSIT", "no")]);
+    assert_ne!(rc, 78, "{err}");
+    assert!(!err.contains("PODSSH_TRANSIT"), "{err}");
+}

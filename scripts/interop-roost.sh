@@ -18,8 +18,10 @@ mkdir -p "$RO"
 # shell that runs ro, so that kill ends podssh.
 RX=
 ro() {
+    # No transit road (T-436): the roost's roads alone, never Least
+    # Authority's relay from a test.
     ${as_job:-} env -u SSH_AUTH_SOCK -u https_proxy -u HTTPS_PROXY -u all_proxy -u ALL_PROXY ${RX:+https_proxy=$RX} \
-        XDG_CACHE_HOME="$RO/cache" HOME="$W" "$BIN" "$@"
+        PODSSH_TRANSIT=no XDG_CACHE_HOME="$RO/cache" HOME="$W" "$BIN" "$@"
 }
 # waitfor FILE TEXT: up to 30 s for TEXT in FILE.
 waitfor() {

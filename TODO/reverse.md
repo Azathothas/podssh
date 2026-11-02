@@ -191,7 +191,7 @@ verified here).
    send an empty binary frame: under 32 bytes is `1009 bad multiplex frame` (`:182` of the contract).
    Pitfall: no idle read limit while no probe exists; the forward opener sets 90 s
    (`crates/podssh-relay/src/open.rs:345`), and a quiet socket would reconnect.
-6. Close actions, by code and reason (`docs/reverse.md:205-207`): `409`, exit, no retry;
+6. Close actions, by code and reason (`docs/reverse.md:242-244`): `409`, exit, no retry;
    `1001 operator stopped reverse relay`, exit and delete the pair; `1001 pair expired`, or a `403` after the
    stored expiry, a re-pair hook that is off by default; `1003` and `1009`, exit with the reason, never a loop;
    any other close, connect again with `open::backoff`.
@@ -271,7 +271,7 @@ sessions at once with T-080, compare the digests of 1 MiB each way, and stop the
 
 # T-080: The operator runner
 
-**Source:** ROADMAP M4 (`docs/ROADMAP.md:150-158`); `docs/design.md` lines 94-97 at `0d92eef`; `docs/reverse.md:86-207`.
+**Source:** ROADMAP M4 (`docs/ROADMAP.md:150-158`); `docs/design.md` lines 94-97 at `0d92eef`; `docs/reverse.md:86-244`.
 Read here on `3ee70dc`.
 **Category:** feature
 **Milestone:** M4
@@ -318,7 +318,7 @@ fails on each close but `1000` (`Azathothas/podbox:crates/podbox-ssh/src/mux.rs`
    a text `close` keeps its reason. Never send a text frame.
 5. Outcome: `NeverReady { code, reason }`, `Ended { code, reason }` or `LocalEnd`. Never ready is a
    failure; `1000` after `ready` is success; each other code after `ready` is a failure that names
-   the code and the reason (`docs/reverse.md:202-207`).
+   the code and the reason (`docs/reverse.md:239-244`).
 6. End of input: send a Close `1000`, and wait up to 10 s for the relay's answer, so the last bytes
    arrive.
 7. Liveness as in T-079: `watch_liveness` only if the relay answers a Ping on this leg; no idle read
@@ -445,7 +445,7 @@ Read: podbox keeps `ring` and TLS 1.2 through a `rustls::ClientConfig` that it s
    it needs 1.88, and podbox follows (the operator's ruling of 2026-10-08). Write the result in
    `docs/design.md` (section 3).
 7. Document the facade in `docs/design.md` (lines 89-110 at `0d92eef`) and in the crate's header
-   (`crates/podssh-relay/src/lib.rs:1-36`); add the feature to the gate (`scripts/gate.sh:133`).
+   (`crates/podssh-relay/src/lib.rs:1-38`); add the feature to the gate (`scripts/gate.sh:133`).
 
 ## Decision
 
@@ -882,12 +882,12 @@ Measured on `3ee70dc`, offline: `podssh operator mynode` gives exit 70;
 `PODSSH_OFFLINE`); `podssh ssh -T node://lab true` gives `"//lab" is not a port` and exit 64.
 
 Read: `parse_hop` strips `ssh://` and reads `host:PORT` (`crates/podssh-cli/src/ssh/hop.rs:30-78`).
-`Transport` is `Relay` or `Direct` (`crates/podssh-cli/src/ssh/resolve.rs:23-68`, chosen at `:299-376`).
+`Transport` is `Relay` or `Direct` (`crates/podssh-cli/src/ssh/resolve.rs:23-68`, chosen at `:299-374`).
 `connect_and_run` gives `relay_stream::spawn` to russh (`crates/podssh-cli/src/ssh/mod.rs` lines 73-116 at `6483366`), and
 `relay_stream` closes with 1002 on a text frame (`crates/podssh-ssh/src/relay_stream.rs:259-265`); the
 operator leg receives text frames (`docs/relay.md:368-371`). A host key is recorded under the target
 host, never the relay's name (`SECURITY.md:121-131`); `HostKeyAlias` exists
-(`crates/podssh-cli/src/ssh/resolve.rs:419`). `podssh ssh` uses the exit codes of OpenSSH, and
+(`crates/podssh-cli/src/ssh/resolve.rs:417`). `podssh ssh` uses the exit codes of OpenSSH, and
 `podssh proxy` sysexits (`docs/cli.md:3245-3249`).
 
 ## Approach
@@ -1588,10 +1588,10 @@ operator's at `crates/podssh-relay/src/e2e/ends.rs:129-137`. The grants at
 `crates/podssh-relay/src/identity/allow.rs:33-64` and
 `crates/podssh-relay/src/identity/allow.rs:114-122`. The routes of a node,
 their check and their dial in `crates/podssh-relay/src/reverse/routes.rs:1-88`.
-The command line: the targets at `crates/podssh-cli/src/node.rs:187-222`,
-`NAME/ROUTE` at `crates/podssh-cli/src/node.rs:224-239`, the dial of each
-target at `crates/podssh-cli/src/node.rs:250-275`, the routes at
-`crates/podssh-cli/src/node.rs:287-295`; the channel's glue at
+The command line: the targets at `crates/podssh-cli/src/node.rs:189-224`,
+`NAME/ROUTE` at `crates/podssh-cli/src/node.rs:226-241`, the dial of each
+target at `crates/podssh-cli/src/node.rs:252-277`, the routes at
+`crates/podssh-cli/src/node.rs:289-297`; the channel's glue at
 `crates/podssh-cli/src/channel.rs:260-269` and
 `crates/podssh-cli/src/channel.rs:313-333`; `node://NAME/ROUTE` at
 `crates/podssh-cli/src/ssh/node.rs:32-60`, and `iroh:TICKET/ROUTE` at
@@ -1957,7 +1957,7 @@ session through a node loses a link that it need not lose.
 - Measured: CI's step `m6` at `a220c13` failed in that test with `relay close 1011: node
   unavailable`; the step had passed at each push since T-156.
 - Read: `podssh node` prints its `serving` line after its probe of TARGET, before its socket to
-  the relay opens (`crates/podssh-cli/src/node.rs:316-321`), and the tests waited for that line
+  the relay opens (`crates/podssh-cli/src/node.rs:318-323`), and the tests waited for that line
   (`crates/podssh-cli/tests/m6_exit.rs:99`, `crates/podssh-cli/tests/node_plain.rs:41`,
   `crates/podssh-cli/tests/pipe_remote.rs:194`).
 - Measured, native, 2026-10-10: on a host at 42 % of its CPU, the control lost a link in each of
@@ -2035,7 +2035,7 @@ podssh knew in advance, and said nowhere.
 ## Premise
 
 - Read, at `ea2bd4f`: a unit of T-121 does not restart after 77 (`crates/podssh-cli/src/node_install/text.rs:101`).
-- Read: the node's hook for a new pair is unset (`crates/podssh-cli/src/node.rs:346`, `repair:
+- Read: the node's hook for a new pair is unset (`crates/podssh-cli/src/node.rs:348`, `repair:
   None`).
 
 ## Approach

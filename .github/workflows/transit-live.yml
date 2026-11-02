@@ -1,0 +1,57 @@
+name: transit live
+
+# The transit road (T-436): first the tests against magic-wormhole's own
+# transit relay on the loopback, which must run here, not skip; then a short
+# run through Least Authority's relay, wss://relay.mw.leastauthority.com, by
+# the operator's ruling Q65: two meetings, 1 MiB each way, and one session of
+# the resumable layer. Each week, as the watch of a relay that publishes no
+# limit; and by hand. A planted run gives both ends one side, which the relay
+# never pairs, and must fail. The token is a test pair's: no credential of
+# podssh's goes to the relay.
+
+on:
+  schedule:
+    # Each Wednesday at 05:41 UTC, off the hour.
+    - cron: "41 5 * * 3"
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: transit-live
+  cancel-in-progress: false
+
+jobs:
+  live:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 45
+    env:
+      CARGO_BUILD_JOBS: "4"
+      PODSSH_TRANSIT_TEST_PYTHON: ${{ github.workspace }}/.work/transit-venv/bin/python
+      PODSSH_TRANSIT_TEST_SERVER: required
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+      - name: magic-wormhole's transit relay, in a virtualenv
+        run: |
+          python3 -m venv .work/transit-venv
+          timeout 300 .work/transit-venv/bin/python -m pip install --quiet magic-wormhole-transit-relay
+      - name: build the test
+        run: cargo test --locked -p podssh-relay --test transit --no-run
+      - name: the loopback, against magic-wormhole's own relay
+        run: timeout 600 cargo test --locked -p podssh-relay --test transit -- --nocapture
+      - name: one short run through Least Authority's relay
+        run: timeout 300 cargo test --locked -p podssh-relay --test transit -- --ignored --nocapture --test-threads=1
+      # The check must see two ends that cannot meet: one side for both.
+      - name: a planted side fails it
+        env:
+          PODSSH_TRANSIT_TEST_PLANT: same-side
+        run: |
+          rc=0
+          timeout 300 cargo test --locked -p podssh-relay --test transit -- --ignored --test-threads=1 \
+            through_least_authority_two_ends_meet || rc=$?
+          if [ "$rc" -eq 0 ]; then
+            echo "the check is vacuous: two ends of one side passed"
+            exit 1
+          fi
+          echo "two ends of one side failed (exit $rc), as they must"

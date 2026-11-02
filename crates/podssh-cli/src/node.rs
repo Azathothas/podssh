@@ -14,7 +14,8 @@
 //! `node_temp`). `udp:HOST:PORT` is a UDP TARGET: each session is one flow
 //! of datagrams from this host (T-168, `node_udp`). With `--derp`, or with
 //! no pair and an allowlist, the node serves the DERP road (T-379,
-//! `node_derp`).
+//! `node_derp`). A node of the layer and the channel also waits at the
+//! transit relay of Q65 for the pair's operators (T-436, `node_transit`).
 
 use std::io::Write;
 use std::path::PathBuf;
@@ -165,6 +166,7 @@ fn prepare(args: &NodeArgs) -> Result<Ready, Refusal> {
         None => (pairs::stored(&label)?, true),
     };
     pairs::online()?;
+    crate::node_transit::check()?; // PODSSH_TRANSIT (T-436), before anything connects
     let trust = pairs::trust(args.ca_file.as_deref());
     // The key is made only once the node goes online.
     let key = match place {
@@ -365,6 +367,14 @@ async fn serve(ready: Ready, err: &mut dyn Write) -> i32 {
     }
     let tcp = TcpHandler { host: first.host.clone(), port: first.port, timeout: DIAL_LIMIT, sshd: roost };
     let (settings, budget) = (crate::layered::settings(), reverse::layered::NODE_BUDGET);
+    // The transit relay of Q65 beside the pair's road (T-436), with one
+    // keeper for both; never with --plain or --no-e2e.
+    if let (false, Some(node), Some(url)) = (plain, &channel, crate::node_transit::url()) {
+        let beside = crate::node_transit::Beside { label: &label, stored, trust: &trust, url, say: say.clone() };
+        let exit = Box::pin(beside.run(&mut config, tcp, node.clone(), routes)).await;
+        expiry.abort();
+        return finish(&label, exit, err);
+    }
     // TARGET at `open` with no layer: an operator that does not speak the
     // layer can use the node, and a lost leg ends the session. With the
     // layer (T-153), a client that loses its leg resumes the session on a

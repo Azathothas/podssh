@@ -153,6 +153,16 @@ pub(super) const NODE: &[&str] = &[
      allowlist, serves the DERP road unasked, by the operator's ruling Q50, and its first line says so; \
      PODSSH_DERP=no turns that off, and the node refuses as before (78). With no --allow, it refuses as \
      before too, as no client could come in.",
+    "A node of the pair's road with the resumable layer and the end-to-end channel (no --plain, no \
+     --no-e2e) and a TCP TARGET also waits for the pair's operators at a magic-wormhole transit relay \
+     (T-436), Least Authority's wss://relay.mw.leastauthority.com, which needs no account, by the \
+     operator's ruling Q65, or the relay of PODSSH_TRANSIT; PODSSH_TRANSIT=no turns it off. The token by \
+     which the relay pairs the two ends, and a proof of the pair that each end gives the other, come from \
+     the pair's connect token, so a side that knows the token alone, as the relay does, is refused before \
+     the resumable layer. The node keeps one connection waiting there, opens the next at each meeting, \
+     and keeps the sessions of both roads with one keeper, so that a session resumes on either; its line \
+     names the relay. The relay sees the token, the sizes and the times; the channel keeps the bytes \
+     from it. A node of --derp with a pair waits there too.",
     "With --quick-tunnel, the node serves TARGET at https://NAME.trycloudflare.com, a quick tunnel of \
      Cloudflare's that podssh makes itself, with no pair, no account and no cloudflared. The name is new \
      each run, and is the one line on stdout. The node needs port 7844 of Cloudflare's edge, and races \

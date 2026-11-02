@@ -338,7 +338,7 @@ pub fn expiry_wait(expires_ms: i64, now_ms: i64) -> Option<Duration> {
 
 /// One line an hour before the pair expires, or at once when less is left;
 /// never, with no expiry or one that passed.
-async fn warn_of_expiry(expires_ms: Option<i64>, say: &(dyn Fn(Line) + Sync)) {
+pub(crate) async fn warn_of_expiry(expires_ms: Option<i64>, say: &(dyn Fn(Line) + Sync)) {
     let now_ms = std::time::SystemTime::now()
         .duration_since(std::time::UNIX_EPOCH)
         .map_or(0, |d| i64::try_from(d.as_millis()).unwrap_or(i64::MAX));

@@ -627,9 +627,9 @@ failure at `crates/podssh-ssh/src/run.rs:135-145` and
 `crates/podssh-cli/src/ssh/result.rs:60-74`, written at the end of
 `run_ssh` (`crates/podssh-cli/src/ssh/mod.rs:65-99`); the relay host at
 `crates/podssh-cli/src/ssh/transport.rs:207` and its close at
-`crates/podssh-cli/src/ssh/mod.rs:341`. The flag in `SSH_FLAGS`
+`crates/podssh-cli/src/ssh/mod.rs:346`. The flag in `SSH_FLAGS`
 (`crates/podssh-cli/src/flags.rs:206`), its note at
-`crates/podssh-cli/src/man/notes_ssh.rs:464-476`, and `docs/cli.md`.
+`crates/podssh-cli/src/man/notes_ssh.rs:469-481`, and `docs/cli.md`.
 
 The test `crates/podssh-cli/tests/ssh_result.rs`, against the test server,
 whose `exit N` and `kill NAME` are in

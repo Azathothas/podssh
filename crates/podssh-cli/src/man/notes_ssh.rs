@@ -251,6 +251,11 @@ pub const SSH: &[&str] = &[
      none dials it only once the roads before it failed, or as the only road when no pair is stored \
      under NAME: the fallback that the operator's ruling Q50 allows, which PODSSH_DERP=no turns off. -v \
      says the order of the roads, and which answered first.",
+    "node://NAME also races the transit road of its pair (T-436), last, and only once each road before \
+     it failed: the magic-wormhole transit relay where the node waits, Least Authority's by default, by \
+     the operator's ruling Q65. PODSSH_TRANSIT=no turns it off, a ws:// or wss:// URL there names another \
+     relay, and --no-e2e leaves it out, as the relay is a stranger's. Each resume races the roads again, \
+     so a session whose relay of the pair went away goes on through the transit relay.",
     "Host keys are checked against the known_hosts files. On a terminal, podssh asks about an unknown \
      key. With no terminal and no SSH_ASKPASS, it refuses the key and names the remedy: \
      -o StrictHostKeyChecking=accept-new records a new key with no question. A changed key is always \

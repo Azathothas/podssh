@@ -20,6 +20,16 @@ pub(super) const VARIABLES: &[(&[&str], &str)] = &[
           another word is a configuration error (78).",
     ),
     (
+        &["PODSSH_TRANSIT"],
+        "The transit road of a pair (T-436), which the operator's ruling Q65 lets podssh take unasked: a \
+          magic-wormhole transit relay, Least Authority's wss://relay.mw.leastauthority.com by default, where a \
+          node of the resumable layer and the end-to-end channel waits for the pair's operators beside the pair's \
+          road, and where podssh ssh node://NAME meets it when each other road failed. Its token and the proof of \
+          the pair come from the pair's connect token; the relay sees ciphertext. no: no transit road; a ws:// or \
+          wss:// URL: that relay in place of Least Authority's; unset, empty or yes: the default; another word \
+          is a configuration error (78), which does not echo the value.",
+    ),
+    (
         &["PODSSH_DIRECT"],
         "no: when each relay host failed, podssh ssh and each command that reaches a server as it does (cp, \
           each, job, health, containers, ping, pipe ssh:) end with the relay's failure, as with --relay-host, \

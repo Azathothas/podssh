@@ -311,15 +311,13 @@ pub fn resolve_or_refuse(args: &SshArgs, env: &Env) -> Result<Resolved, Refusal>
         let race = super::iroh::race(args)?;
         // The DERP road of the node (T-379): one node, one key for each road.
         let derp = super::derp::race(args)?;
+        crate::node_transit::check()?; // PODSSH_TRANSIT (T-436), before anything connects
         if let (Some(iroh), Some(ticket)) = (&race, &derp.ticket) {
             super::iroh::same_node(&iroh.ticket, ticket)?;
         }
         super::node::transport(&ask(label, route.as_deref()), env, race, derp)?
     } else if let Some(dest) = &iroh {
-        let trust = match ca_file(args, env) {
-            Some(file) => Trust::File(file.into()),
-            None => Trust::Default,
-        };
+        let trust = ca_file(args, env).map_or(Trust::Default, |file| Trust::File(file.into()));
         super::iroh::transport(dest, &ask(&dest.shown, None), trust)?
     } else if let Some(dest) = &derp {
         let trust = ca_file(args, env).map_or(Trust::Default, |file| Trust::File(file.into()));

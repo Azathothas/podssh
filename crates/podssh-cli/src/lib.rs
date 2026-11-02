@@ -83,6 +83,9 @@ pub mod node_udp;
 // `podssh node --derp`: the DERP road, and its fallback of a node with no
 // pair (T-379).
 pub mod node_derp;
+// The transit relay of Q65 beside a pair's road, for a node and its
+// operators (T-436).
+pub mod node_transit;
 // `podssh node --iroh`: the iroh road, with the feature `iroh` only.
 #[cfg(feature = "iroh")]
 pub mod node_iroh;

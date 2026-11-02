@@ -337,6 +337,34 @@ The candidates, ranked:
      the handshake line and `ok\n` over podssh-ws's WebSocket, with a TOKEN
      for each link derived from the two ends' keys (Inferred), and the
      layer and the channel above, as on each carrier. Effort: S.
+   - Measured on 2026-11-02 against magic-wormhole-transit-relay 0.5.0
+     (Twisted 26.10.0, Autobahn 26.10.2) on the loopback, with a WebSocket
+     client written by hand, as `python -m twisted transitrelay
+     --websocket=tcp:PORT`: the upgrade with a `Host` that names the port;
+     the line as one binary message, with its newline; `ok\n` to both as a
+     binary message once a second side met, and none for two connections
+     of one side; Pings answered while a side waits; and the bytes that a
+     side sent before its Close reached the other side before a Close 1000.
+     The relay's source answers `bad handshake\n` to a line that it does not
+     read, `impatient\n` to bytes before `ok`, and drops the other waiting
+     connections of a token once two met [N10].
+   - Built (T-436, drafted 2026-11-02): `podssh-relay`'s `transit` module,
+     on podssh-ws's WebSocket through `HTTPS_PROXY`, pure Rust. The TOKEN is
+     not of each link: it comes, with the key of a proof, from the pair's
+     connect token and name by HKDF-SHA256, which both ends hold; each end
+     keeps one random SIDE for its run, so that its own connections never
+     meet each other. After `ok`, each end sends its part (node or client)
+     and a nonce, then an HMAC of both nonces under the proof key: a side
+     that knows the TOKEN alone, as the relay does, is refused, and two
+     clients of one pair that met each other part and try again. A node of
+     the layer and the channel keeps one connection waiting, opens the next
+     at each meeting, and shares its keeper with the pair's road;
+     `podssh ssh node://` tries the road last, once each other road failed.
+     `PODSSH_TRANSIT=no` turns it off, and a URL names another relay. Its
+     tests run magic-wormhole's own relay on the loopback (5 passed,
+     2026-11-02), and a short live run met through Least Authority's relay
+     with 1 MiB each way ten times of thirteen; the three first runs met
+     nobody, their cause not found (T-450).
 4. **Cloudflare's quick tunnel** (T-300).
    - Who, and the account: Cloudflare, for testing and development; no
      account.

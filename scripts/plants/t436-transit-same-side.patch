@@ -1,0 +1,11 @@
+--- a/crates/podssh-relay/src/transit/token.rs
++++ b/crates/podssh-relay/src/transit/token.rs
+@@ -129,7 +129,7 @@ impl fmt::Debug for Side {
+ /// src/wormhole_transit_relay/transit_server.py), which a relay matches
+ /// only with another side.
+ pub fn line(keys: &Keys, side: &Side) -> String {
+-    format!("please relay {} for side {}\n", keys.token(), side.as_str())
++    format!("please relay {} for side {:0>16}\n", keys.token(), &side.as_str()[..0])
+ }
+ 
+ fn info(label: &[u8], name: &str) -> Vec<u8> {

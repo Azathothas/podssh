@@ -373,7 +373,7 @@ sandbox can block what iroh needs, so the fallback is necessary
 6. With `-v`, print the road that won and its time.
 7. Each resume of T-153 runs the same race.
 8. Docs: the rule of the race in `docs/design.md` section 2, and the notes of
-   `ssh` in the manual (`crates/podssh-cli/src/man/notes_ssh.rs:4-494`).
+   `ssh` in the manual (`crates/podssh-cli/src/man/notes_ssh.rs:4-499`).
 
 ## Decision
 
@@ -3815,7 +3815,7 @@ podssh's own, which makes it M.
   (`crates/podssh-iroh/src/endpoint.rs:4-7`, `:305-306`), as the design chose for a host with no
   DNS (`docs/design.md:1063`, `:1073`).
 - Read: the node's key is Ed25519 and stays across its pairs, and the operator pins it by label
-  (`docs/reverse.md:187-191`).
+  (`docs/reverse.md:224-228`).
 - Read in the study (https://docs.iroh.computer/connecting/dns-address-lookup): an endpoint
   publishes a signed packet to a DNS/Pkarr server over HTTP; n0's servers are free, rate-limited,
   with no guaranteed uptime, and "You're more than welcome to run production systems" on them,
@@ -5029,7 +5029,7 @@ does not depend on them.
   uses are a label (`crates/podssh-cli/src/ssh/mod.rs:256`), the dial
   (`crates/podssh-cli/src/ssh/transport.rs:264-308`) and a check of `--upgrade`
   (`crates/podssh-cli/src/ssh/upgrade.rs:59`). The issue's citation of
-  the arm began two lines early; it is at `crates/podssh-cli/src/ssh/resolve.rs:337-343`.
+  the arm began two lines early; it is at `crates/podssh-cli/src/ssh/resolve.rs:335-341`.
 - Read: `docs/design.md:45` says "podssh tries the roads in this order"; for a public sshd, the
   forward road comes first, then the direct road (`docs/design.md:51`), which at `8554930` said
   "`--direct`, or when a probe shows it works"; the triage of GitHub #69 to #72 named this entry
@@ -5520,7 +5520,7 @@ a hop. `doctor` has no line for a hop, so a user cannot see whether one is reach
 - Read: a hop is `[user@]host[:port]` or `ssh://[user@]host[:port]`
   (`crates/podssh-cli/src/ssh/hop.rs:30-57`), and `-J` refuses a node only (`:68-74`). The road is
   chosen for the first hop's host (`crates/podssh-cli/src/ssh/resolve.rs:299`); with `--direct` it
-  is TCP through `HTTPS_PROXY` (`crates/podssh-cli/src/ssh/resolve.rs:337-343`; `crates/podssh-cli/src/ssh/transport.rs:1-2`).
+  is TCP through `HTTPS_PROXY` (`crates/podssh-cli/src/ssh/resolve.rs:335-341`; `crates/podssh-cli/src/ssh/transport.rs:1-2`).
 - Read: a prompt goes to the terminal, or to the program of `SSH_ASKPASS`, chosen as OpenSSH
   chooses it (`crates/podssh-ssh/src/prompt.rs:1-12`).
 - Read: through the agent proxy of a cloud container, a CONNECT to `ssh.github.com:443` got `200`,
@@ -6130,7 +6130,7 @@ ask, and nothing does so.
 
 - Read: the node of the iroh road serves the pair's road beside it, with one keeper for both
   (`crates/podssh-cli/src/node_iroh.rs:341-342`), and `podssh node` sends `--iroh` there
-  (`crates/podssh-cli/src/node.rs:96-98`).
+  (`crates/podssh-cli/src/node.rs:97-99`).
 - Read: `podssh ssh` resolves its destination into an enum of transports
   (`crates/podssh-cli/src/ssh/resolve.rs:24-68`), in a file of 488 of its 500 lines.
 - Read: the race of T-164 orders two roads (`crates/podssh-relay/src/session/race.rs:59-61`), and

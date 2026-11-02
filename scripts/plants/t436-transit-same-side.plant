@@ -1,0 +1,11 @@
+# T-436: each end's line to the transit relay names one side, which the relay
+# never pairs with itself, so no node and client meet; the test of two ends
+# that carry 1 MiB each way through magic-wormhole's own relay must fail.
+# On the runner, not in the build image: the relay's Python packages come as
+# wheels for glibc, in a virtualenv under .work/ (ignored by git).
+ENTRY=T-436
+GROUP=host-transit
+EXPECT='test two_ends_meet_and_carry_one_mib_each_way \.\.\. FAILED'
+SETUP='python3 -m venv .work/transit-venv && timeout 300 .work/transit-venv/bin/python -m pip install --quiet magic-wormhole-transit-relay'
+RUN='PODSSH_TRANSIT_TEST_SERVER=required PODSSH_TRANSIT_TEST_PYTHON="$PWD/.work/transit-venv/bin/python" cargo test --locked -p podssh-relay --test transit -- two_ends_meet_and_carry_one_mib_each_way'
+LIMIT=1800

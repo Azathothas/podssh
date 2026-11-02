@@ -59,6 +59,8 @@ fn command(home: &Path, args: &[&str]) -> Command {
     ] {
         cmd.env_remove(name);
     }
+    // No transit road (T-436): the roads of the test alone.
+    cmd.env("PODSSH_TRANSIT", "no");
     cmd.env("HOME", home).env("USERPROFILE", home);
     cmd.env("XDG_CACHE_HOME", home.join("cache")).env("LOCALAPPDATA", home.join("cache"));
     cmd

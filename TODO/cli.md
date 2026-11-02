@@ -37,7 +37,7 @@ OpenSSH 10.3p1 (`ssh -G -F none`, offline) gives `hostname 2001:db8::1` for
 Read: `parse_hop` already removes the brackets
 (`crates/podssh-cli/src/ssh/hop.rs:30-78`). The refusal is `check_host`
 (`crates/podssh-ws/src/names.rs:8-24`, re-exported by `podssh_relay::relay`), called at
-`crates/podssh-cli/src/ssh/resolve.rs:351`, `crates/podssh-cli/src/proxy.rs:251`
+`crates/podssh-cli/src/ssh/resolve.rs:349`, `crates/podssh-cli/src/proxy.rs:251`
 and in `forward_path` (`crates/podssh-relay/src/relay.rs:163-176`); since this
 entry, each calls `check_target` there. Tests assert the refusal:
 `crates/podssh-relay/src/relay.rs:297`, and `crates/podssh-cli/tests/proxy.rs`
@@ -62,7 +62,7 @@ GitHub #2, not verified here: the relay's `/trace` dials `[V6]:8079`.
    relay hosts, which are TLS names (`crates/podssh-relay/src/relay.rs:148-161`,
    `crates/podssh-relay/src/pool.rs:147`).
 3. `forward_path` writes the literal in the measured form. `podssh ssh` uses
-   the new check at `crates/podssh-cli/src/ssh/resolve.rs:351`, and refuses
+   the new check at `crates/podssh-cli/src/ssh/resolve.rs:349`, and refuses
    `-4` with an IPv6 literal (64).
 4. `podssh proxy` (`crates/podssh-cli/src/proxy.rs:243-253`): `HOST PORT` takes
    a bare literal (the `%h %p` form) or `[V6]`. One word takes `[V6]:PORT` and
@@ -491,7 +491,7 @@ Read, at `61e55d1`: no option made podssh start a program: `ProxyCommand` is ref
    `[OPTIONS] [--] [user@]host [COMMAND...]` for `ssh` and
    `[OPTIONS] [--] HOST PORT` for `proxy`; `--help` and the synopsis of the
    manual (`crates/podssh-cli/src/man/model.rs:186-190`) read it.
-2. A note for `ssh` and `proxy` (`crates/podssh-cli/src/man/notes_ssh.rs:4-494` and `crates/podssh-cli/src/man/notes.rs:63-199`)
+2. A note for `ssh` and `proxy` (`crates/podssh-cli/src/man/notes_ssh.rs:4-499` and `crates/podssh-cli/src/man/notes.rs:63-199`)
    and an example (`crates/podssh-cli/src/man/examples.rs:8-240`). Pitfall: the
    notes test reads a bare `--` as a flag that does not exist
    (`crates/podssh-cli/src/man/notes.rs:401-417`); teach `flag_exists`
@@ -990,7 +990,7 @@ Read then: each value flag but `-i` and `-o` was `ArgAction::Set`.
    (`crates/podssh-cli/src/ssh/args.rs:155-204`, called at
    `crates/podssh-cli/src/tree.rs:467-471`).
 4. `docs/cli.md:631-636` and a note of the manual
-   (`crates/podssh-cli/src/man/notes_ssh.rs:450-452`) state the rule.
+   (`crates/podssh-cli/src/man/notes_ssh.rs:455-457`) state the rule.
 
 ## Prove
 
@@ -3080,8 +3080,8 @@ node at its next line, often "online again" after a reconnect. A server then has
 ## Premise
 
 - Read: `panic = "abort"` in the release profile (`Cargo.toml:220`).
-- Read: the node's lines are `eprintln!` (`crates/podssh-cli/src/node.rs:333`,
-  `crates/podssh-cli/src/node_derp.rs:251`, `crates/podssh-cli/src/node_iroh.rs:301`), as are 40
+- Read: the node's lines are `eprintln!` (`crates/podssh-cli/src/node.rs:335`,
+  `crates/podssh-cli/src/node_derp.rs:253`, `crates/podssh-cli/src/node_iroh.rs:301`), as are 40
   more sites in `crates/podssh-cli/src` and 4 in `crates/podssh-ssh/src` (2026-11-01, a search for
   `eprintln!`, `println!`, `eprint!` and `print!`).
 - Read: after ready a detached child's stderr is its log (`crates/podssh-cli/src/detach/child.rs:242`).

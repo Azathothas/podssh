@@ -447,7 +447,7 @@ refused. ... podssh reads no ssh_config, so it has no configuration to print."
 lines of `keyword value`, the keyword in lower case: `port 2222`, `user alice`,
 `pubkeyauthentication true`, `batchmode no`, `connecttimeout none`, `serveraliveinterval 30`,
 `identityfile ~/.ssh/id_rsa` (with `~`), and others. Read: `resolve::resolve`
-(`crates/podssh-cli/src/ssh/resolve.rs:122-500`) decides each setting before any connection; its
+(`crates/podssh-cli/src/ssh/resolve.rs:122-498`) decides each setting before any connection; its
 result, `Resolved` (lines 27-41 at `22c3b88`), holds the settings in effect, the defaults included.
 
 ## Approach
@@ -464,7 +464,7 @@ result, `Resolved` (lines 27-41 at `22c3b88`), holds the settings in effect, the
    `serveraliveinterval 60` (the relay's idle cut, `docs/relay.md:223`) and `connecttimeout 60`.
 6. It does not wait for T-043: with no file, `-G` shows the effect of `-o`. After T-043 and
    T-044, `-v` names the files that were read, on stderr.
-7. Change the `ssh` notes (`crates/podssh-cli/src/man/notes_ssh.rs:4-494`) and `docs/cli.md:48-641`
+7. Change the `ssh` notes (`crates/podssh-cli/src/man/notes_ssh.rs:4-499`) and `docs/cli.md:48-641`
    in the same commit.
 
 ## Decision

@@ -4,7 +4,8 @@
 //! when each road before it failed. A DERP ticket kept under NAME, which
 //! the user did not give in this run, starts only when each road before it
 //! failed: the fallback that the operator's ruling Q50 allows, which costs
-//! tailcat's fleet nothing while the pair's road works. The first far end
+//! tailcat's fleet nothing while the pair's road works; so does the transit
+//! relay of the pair (T-436), last, by the operator's ruling Q65. The first far end
 //! that speaks carries the session, and the other links end before they
 //! send a byte, so they open nothing at the node's TARGET; each resume races
 //! the roads again. A node with no pair here has its other roads alone.
@@ -38,6 +39,7 @@ pub enum Road {
     Iroh(podssh_iroh::Stream),
     Pair(DuplexStream),
     Derp(podssh_relay::derp::Link),
+    Transit(podssh_relay::transit::Link),
 }
 
 impl AsyncRead for Road {
@@ -47,6 +49,7 @@ impl AsyncRead for Road {
             Road::Iroh(link) => Pin::new(link).poll_read(cx, buf),
             Road::Pair(link) => Pin::new(link).poll_read(cx, buf),
             Road::Derp(link) => Pin::new(link).poll_read(cx, buf),
+            Road::Transit(link) => Pin::new(link).poll_read(cx, buf),
         }
     }
 }
@@ -58,6 +61,7 @@ impl AsyncWrite for Road {
             Road::Iroh(link) => Pin::new(link).poll_write(cx, buf),
             Road::Pair(link) => Pin::new(link).poll_write(cx, buf),
             Road::Derp(link) => Pin::new(link).poll_write(cx, buf),
+            Road::Transit(link) => Pin::new(link).poll_write(cx, buf),
         }
     }
 
@@ -67,6 +71,7 @@ impl AsyncWrite for Road {
             Road::Iroh(link) => Pin::new(link).poll_flush(cx),
             Road::Pair(link) => Pin::new(link).poll_flush(cx),
             Road::Derp(link) => Pin::new(link).poll_flush(cx),
+            Road::Transit(link) => Pin::new(link).poll_flush(cx),
         }
     }
 
@@ -76,15 +81,17 @@ impl AsyncWrite for Road {
             Road::Iroh(link) => Pin::new(link).poll_shutdown(cx),
             Road::Pair(link) => Pin::new(link).poll_shutdown(cx),
             Road::Derp(link) => Pin::new(link).poll_shutdown(cx),
+            Road::Transit(link) => Pin::new(link).poll_shutdown(cx),
         }
     }
 }
 
 /// The roads of a run beside the pair's: the iroh road of `--iroh-ticket`,
-/// and the DERP road of a ticket given or kept.
+/// the DERP road of a ticket given or kept, and the transit relay's.
 pub(super) struct Raced<'a> {
     pub iroh: Option<&'a super::iroh::Race>,
     pub derp: Option<super::derp::Road>,
+    pub transit: Option<podssh_ws::url::WsUrl>,
 }
 
 /// Which road a place of the race is.
@@ -93,6 +100,7 @@ enum Kind {
     Iroh,
     Pair,
     Derp,
+    Transit,
 }
 
 impl Kind {
@@ -101,6 +109,7 @@ impl Kind {
             Kind::Iroh => "the iroh road",
             Kind::Pair => "the pair's road",
             Kind::Derp => "the DERP road",
+            Kind::Transit => "the transit road",
         }
     }
 }
@@ -115,6 +124,8 @@ struct Roads<'a> {
     pair: Option<&'a OperatorConfig<'a>>,
     /// The DERP road's dialer, and whether the user gave its ticket.
     derp: Option<(Dialer, bool)>,
+    /// The transit relay's dialer, under the pair's token (T-436).
+    transit: Option<podssh_relay::transit::Dialer>,
     label: &'a str,
     legs: Mutex<Option<JoinHandle<LegOutcome>>>,
     /// The pair's road ended with a close that a new leg would only get again.
@@ -140,6 +151,11 @@ impl<'a> Roads<'a> {
             let start = if *asked { Start::After(HEAD_START) } else { Start::WhenAllFailed };
             list.push((start, Box::pin(derp_link(dialer))));
             kinds.push(Kind::Derp);
+        }
+        if let Some(dialer) = &self.transit {
+            // Q65's fallback: only when each road before it failed.
+            list.push((Start::WhenAllFailed, Box::pin(transit_link(dialer))));
+            kinds.push(Kind::Transit);
         }
         (list, kinds)
     }
@@ -204,6 +220,10 @@ async fn pair_link(
 
 async fn derp_link(dialer: &Dialer) -> Result<Road, String> {
     dialer.link().await.map(Road::Derp)
+}
+
+async fn transit_link(dialer: &podssh_relay::transit::Dialer) -> Result<Road, String> {
+    dialer.link().await.map(Road::Transit)
 }
 
 /// SSH to the node of the pair under `label`, over the first of its roads
@@ -286,8 +306,13 @@ pub(super) async fn connect(
         limits: OperatorLimits::default(),
         wire: Wire::Tls,
     });
-    let roads =
-        Roads { iroh, pair: config.as_ref(), derp, label, legs: Mutex::new(None), pair_final: AtomicBool::new(false) };
+    // The transit relay's road: its token is the pair's, so it needs the pair.
+    let transit = match (raced.transit, &part) {
+        (Some(url), Some(part)) => crate::node_transit::dialer(url, part, trust, &log, &shown),
+        _ => None,
+    };
+    let (legs, pair_final) = (Mutex::new(None), AtomicBool::new(false));
+    let roads = Roads { iroh, pair: config.as_ref(), derp, transit, label, legs, pair_final };
     let (list, kinds) = roads.race(None);
     log.verbose(&format!("connecting to {shown}: {}", order(&kinds, &roads)));
     let first = match in_turn(list).await {
@@ -354,11 +379,18 @@ pub(super) async fn connect(
         }
     };
     let mut entropy = OsEntropy;
-    let (code, outcome, failed) = tokio::join!(
-        Box::pin(podssh_ssh::run(ssh_end, opts, None, log.clone())),
-        Box::pin(resume::run(client, layer_app, connect, note, &mut entropy)),
-        session
-    );
+    // A line an hour before the pair expires, as on the pair's road alone
+    // (T-155): the transit road brings each run with a pair here (T-436).
+    let expires_ms = part.as_ref().map(|part| part.expires_ms);
+    let carried = async {
+        let mut layer = Box::pin(resume::run(client, layer_app, connect, note, &mut entropy));
+        tokio::select! {
+            outcome = &mut layer => outcome,
+            () = layered::warn_of_expiry(expires_ms, &say) => layer.await,
+        }
+    };
+    let (code, outcome, failed) =
+        tokio::join!(Box::pin(podssh_ssh::run(ssh_end, opts, None, log.clone())), Box::pin(carried), session);
     if let Some(path) = roads.iroh.as_ref().and_then(IrohRoad::path) {
         log.verbose(&format!("{shown}: the iroh road: {path}"));
     }
@@ -391,6 +423,7 @@ fn order(kinds: &[Kind], roads: &Roads<'_>) -> String {
             (_, Kind::Derp) if roads.derp.as_ref().is_some_and(|(_, asked)| !asked) => {
                 "when each road before it failed (a kept ticket)".to_string()
             }
+            (_, Kind::Transit) => "when each road before it failed (Q65)".to_string(),
             _ => format!("{} ms after", HEAD_START.as_millis()),
         };
         words.push(format!("{} {when}", kind.name()));

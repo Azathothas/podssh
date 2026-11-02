@@ -7,7 +7,8 @@
 //! calls the next server of its list home, and says its new ticket. With
 //! the pair NAME, or the one of `--pair-file`, it serves the pair's road
 //! too, with one keeper for both, so that a session resumes on either
-//! (T-164). The road needs the end-to-end channel and `--allow`: a DERP
+//! (T-164), and the transit relay's for the pair's operators (T-436,
+//! `node_transit`). The road needs the end-to-end channel and `--allow`: a DERP
 //! server lets any key send, so the channel's allowlist is the node's only
 //! door. A node with no pair, and an allowlist, serves the road unasked
 //! (the operator's ruling Q50) and says so; `PODSSH_DERP=no` turns that off.
@@ -209,6 +210,7 @@ fn prepare(args: &NodeArgs, unasked: Option<String>) -> Result<Ready, Refusal> {
         None => crate::pairs::stored(&label).map(|pair| (pair, true)).map_err(|refusal| refusal.message),
     };
     crate::pairs::online()?;
+    crate::node_transit::check()?; // PODSSH_TRANSIT (T-436), before anything connects
     let trust = crate::pairs::trust(args.ca_file.as_deref());
     // The key is made only once each check passed.
     let key = crate::channel::load_node_key(&place)?;
@@ -287,7 +289,11 @@ async fn serve(ready: Ready, err: &mut dyn Write) -> i32 {
     let _ = writeln!(err, "podssh node: {label}: {}", crate::channel::who_may(Some(allow.as_path())));
     // The channel of T-088 on both roads, with this node's key and its
     // allowlist: a session made on one road may resume on the other.
-    let channel = ends::Node { identity: identity.clone(), admit: crate::channel::admit_of(Some(allow.clone())), say };
+    let channel = ends::Node {
+        identity: identity.clone(),
+        admit: crate::channel::admit_of(Some(allow.clone())),
+        say: say.clone(),
+    };
     let routes = crate::node::routes_of(&targets, Some(allow), roost);
     let (host, port) = (targets[0].host.clone(), targets[0].port);
     let handler = TcpHandler { host: host.clone(), port, timeout: DIAL_LIMIT, sshd: roost };
@@ -306,6 +312,13 @@ async fn serve(ready: Ready, err: &mut dyn Write) -> i32 {
     };
     let budget = podssh_relay::reverse::layered::NODE_BUDGET;
     let keeper = Arc::new(Keeper::new(settings().resume_deadline));
+    // The transit relay of Q65 for the pair's operators (T-436), beside the
+    // pair's road and with its keeper.
+    let transit = match (&pair, crate::node_transit::url()) {
+        (Ok((pair, stored)), Some(url)) => crate::node_transit::road(&label, pair, *stored, &trust, url, say.clone()),
+        _ => None,
+    };
+    let transit_open = open.clone();
     let (stop, stopped) = watch::channel(false);
     let until_stopped = |mut stopped: watch::Receiver<bool>| async move {
         let _ = stopped.wait_for(|stop| *stop).await;
@@ -337,7 +350,8 @@ async fn serve(ready: Ready, err: &mut dyn Write) -> i32 {
         };
         let piped = crate::channel::Piped { inner: Arc::new(handler), channel: Some(channel.clone()), routes };
         let layered = Layered::with_keeper(piped, crate::layered::settings(), budget, keeper.clone());
-        let exit = Box::pin(reverse::run(&mut config, Arc::new(layered), until_stopped(stopped.clone()))).await;
+        let pair_run = Box::pin(reverse::run(&mut config, Arc::new(layered), until_stopped(stopped.clone())));
+        let exit = crate::node_transit::alongside(pair_run, transit, transit_open, keeper.clone()).await;
         expiry.abort();
         if let Some((_, why)) = crate::node::ended(&label, exit) {
             (channel.say)(format!("the pair's road ended: {why}; the DERP road goes on"));
