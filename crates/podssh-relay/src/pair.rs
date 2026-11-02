@@ -171,20 +171,14 @@ pub fn parse(relay: &Relay, body: &[u8], now_ms: i64) -> Result<Pair, PairError>
     Ok(Pair { relay: relay.clone(), name, node_token, connect_token, stop_token, expires_ms: expires })
 }
 
-/// `POST /v1/pair` with `{}`. A `409` means "pair again", which is done once.
+/// `POST /v1/pair` with `{}`, and once more with this client's key when the
+/// relay asks for it (T-448). A `409` means "pair again", which is done once.
 pub async fn create(ctx: &PairContext<'_>) -> Result<Pair, PairError> {
     for _ in 0..2 {
-        let response = podssh_ws::client::https_post_json(
-            &ctx.relay.host,
-            ctx.relay.port,
-            "/v1/pair",
-            b"{}",
-            ctx.trust,
-            ctx.proxy,
-            ctx.timeout,
-        )
-        .await
-        .map_err(PairError::Connect)?;
+        let response =
+            crate::keyed::post(&ctx.relay.host, ctx.relay.port, "/v1/pair", ctx.trust, ctx.proxy, ctx.timeout)
+                .await
+                .map_err(PairError::Connect)?;
         match response.status {
             200..=299 => return parse(ctx.relay, &response.body, now_ms()),
             409 => continue,

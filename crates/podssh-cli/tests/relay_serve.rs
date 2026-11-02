@@ -2,8 +2,9 @@
 //! itself, on the loopback with a certificate of a test CA (made by
 //! `openssl`, as for the stand-in relay), against podssh's own client: bytes
 //! both ways through `podssh ssh`, the policy's refusals, a relay that mints
-//! for no one, and the documents that `podssh relay` reads. The suite of the
-//! stand-in also runs against the role with `PODSSH_RELAY_UNDER_TEST=podssh`.
+//! for no one, a relay that mints for the keys of a list (T-448), and the
+//! documents that `podssh relay` reads. The suite of the stand-in also runs
+//! against the role with `PODSSH_RELAY_UNDER_TEST=podssh`.
 
 mod live_harness;
 mod ssh_harness;
@@ -158,7 +159,7 @@ fn serve_refuses_a_missing_certificate_or_listener_and_its_flags_elsewhere() {
         (&["relay", "serve", "--listen", "127.0.0.1:0"], "needs --cert FILE and --key FILE"),
         (
             &["relay", "serve", "--listen", "127.0.0.1:0", "--cert", "c", "--key", "k", "--mint", "some"],
-            "anyone or nobody",
+            "anyone, nobody or keys:FILE",
         ),
         (&["relay", "spec", "--listen", "127.0.0.1:0"], "go with `podssh relay serve` only"),
     ];
@@ -250,4 +251,94 @@ fn openssh_through_podssh_proxy_and_the_role_reaches_openssh_with_equal_digests(
     let out = down.output().unwrap();
     assert!(out.status.success(), "down: {}", said(&out));
     assert_eq!(digest_of(&back).as_deref(), Some(want.as_str()), "down: the 8 MiB came back whole");
+}
+
+/// The first fingerprint (`SHA256:` and 43 characters) in `text`.
+fn fingerprint_in(text: &str) -> Option<String> {
+    let at = text.find("SHA256:")?;
+    let print: String = text[at..].chars().take(7 + 43).collect();
+    (print.len() == 50).then_some(print)
+}
+
+#[test]
+fn a_relay_that_mints_for_a_list_takes_its_keys_alone() {
+    let s = Session::start("serve-keys");
+    let allow = s.home.join("allow");
+    std::fs::write(&allow, "# the keys that this relay mints for\n").unwrap();
+    let mint = format!("keys:{}", allow.display());
+    let Some(cell) = role(&s, &["--allow-private", "--mint", &mint]) else { return };
+    let target = banner_target("SSH-2.0-relay-role-keys\r\n");
+    let proxy = || {
+        let mut args = vec!["proxy".to_string()];
+        args.extend(relay_flags(&cell));
+        args.extend(["127.0.0.1".into(), target.to_string()]);
+        ran(s.command(&args))
+    };
+    // This client's key, made at its first use, is on no list: 403, which
+    // names it, and no byte of the target.
+    let out = proxy();
+    let text = said(&out);
+    assert!(!out.status.success(), "{text}");
+    assert!(text.contains("403") && text.contains("not on this relay's list"), "{text}");
+    assert!(!text.contains("SSH-2.0-relay-role-keys"), "{text}");
+    let key = fingerprint_in(&text).unwrap_or_else(|| panic!("no fingerprint in {text}"));
+    // The owner lists it: the next request mints, and carries the session.
+    std::fs::write(&allow, format!("{key} the test's client\n")).unwrap();
+    let out = proxy();
+    assert!(said(&out).contains("SSH-2.0-relay-role-keys"), "{}", said(&out));
+    // A pair too, for the same key.
+    let mut args = vec!["relay".to_string(), "pair".into(), "lab".into()];
+    args.extend(relay_flags(&cell));
+    let out = ran(s.command(&args));
+    assert!(
+        out.status.success() && String::from_utf8_lossy(&out.stdout).starts_with("lab: expires "),
+        "{}",
+        said(&out)
+    );
+    let events = std::fs::read_to_string(s.home.join("fake-relay-normal-events.log")).unwrap_or_default();
+    assert!(events.contains(&format!("/v1/mint: the key {key}")), "{events}");
+    assert!(events.contains(&format!("/v1/pair: the key {key}")), "{events}");
+}
+
+#[test]
+fn a_replayed_or_forged_signature_is_refused() {
+    use podssh_relay::identity::Identity;
+    use podssh_relay::keyed;
+    let s = Session::start("serve-keys-replay");
+    let ours = Identity::from_seed(&[0x51; 32]);
+    let allow = s.home.join("allow");
+    std::fs::write(&allow, format!("{}\n", ours.public().fingerprint())).unwrap();
+    let mint = format!("keys:{}", allow.display());
+    let Some(cell) = role(&s, &["--mint", &mint]) else { return };
+    let flags = relay_flags(&cell);
+    let (host, port) = flags[1].rsplit_once(':').map(|(h, p)| (h.to_string(), p.parse::<u16>().unwrap())).unwrap();
+    let trust = podssh_ws::Trust::File(flags[3].clone().into());
+    podssh_ws::resolve::set_pins(podssh_ws::resolve::parse_pins("relay-a.test=127.0.0.1").unwrap());
+    let proxy = podssh_ws::ProxyChoice::Direct;
+    let post = |body: Vec<u8>| {
+        s.runtime
+            .block_on(podssh_ws::https_post_json(&host, port, "/v1/mint", &body, &trust, &proxy, LIMIT))
+            .expect("the role answers")
+    };
+    let ask = || keyed::challenge_of(&post(b"{}".to_vec())).expect("a 401 with a challenge");
+    let sent_host = keyed::host_header(&host, port);
+
+    let signed = keyed::proof(&ours, &sent_host, "/v1/mint", &ask());
+    let minted = post(signed.clone());
+    assert_eq!(minted.status, 200, "{}", minted.body_text(200));
+    let replayed = post(signed);
+    assert_eq!(replayed.status, 403);
+    assert!(replayed.body_text(200).contains("answered before"), "{}", replayed.body_text(200));
+
+    // The listed key, with the signature of a key that is not.
+    let theirs = Identity::from_seed(&[0x52; 32]);
+    let mut forged: serde_json::Value =
+        serde_json::from_slice(&keyed::proof(&theirs, &sent_host, "/v1/mint", &ask())).unwrap();
+    forged["key"] = ours.public().hex().into();
+    let refused = post(forged.to_string().into_bytes());
+    assert_eq!(refused.status, 403, "a forged signature: {}", refused.body_text(200));
+    assert!(refused.body_text(200).contains("does not verify"), "{}", refused.body_text(200));
+    let other = post(keyed::proof(&theirs, &sent_host, "/v1/mint", &ask()));
+    assert_eq!(other.status, 403);
+    assert!(other.body_text(200).contains(&theirs.public().fingerprint()), "{}", other.body_text(200));
 }

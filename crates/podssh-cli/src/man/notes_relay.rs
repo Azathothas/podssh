@@ -58,4 +58,12 @@ pub const RELAY: &[&str] = &[
      its way, and is dropped; one for an id never given closes the node's socket with 1003, as the \
      contract says. Ctrl-C or SIGTERM first closes each socket of the reverse road with 1012, so that \
      each node connects again and each session resumes once the relay is back with its pairs.",
+    "--mint keys:FILE mints tokens and makes pairs for the keys of FILE alone, a list in the format of \
+     podssh node --allow, read again for each request. A request with no key gets 401 and a challenge \
+     of the relay's, which lives a minute; podssh then asks once more with the key of this client \
+     (client.key in the cache, the key that a node's list lets in), the challenge and the key's \
+     signature of them, of the relay's name and of the path. A key that is not on the list, a \
+     signature that does not verify, a challenge that ended or was answered before, and a request \
+     whose Host is not the name that its TLS asked for each get 403, which names the key's \
+     fingerprint for the owner's list. podssh caches the token as any other.",
 ];

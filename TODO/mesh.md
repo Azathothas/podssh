@@ -1605,7 +1605,7 @@ left out.
 **Milestone:** M10
 **Priority:** P2
 **Effort:** M
-**Status:** open
+**Status:** done
 
 ## Problem
 
@@ -1627,6 +1627,45 @@ given out of band.
 2. The client signs a mint when the relay's `/health` says that it wants one, with its own
    key, and caches the token as for the default relay.
 
+## Decision
+
+The draft's calls, 2026-11-02:
+
+1. The proof answers a challenge of the role's, not a time that the client signs: no clock of
+   the client's is trusted (a sandbox's clock drifts, T-345), and the role takes each challenge
+   once, for a minute. A challenge is `c1.<end-ms>.<nonce>.<mac>` under the role's secret, so
+   that no state waits for an answer, and only the challenges answered are kept, until their
+   end. Lost: one request with a signed time, which needs a clock within a bound and a list of
+   the signatures seen in it anyway.
+2. When the client signs: when the answer to `{}` is `401` with a challenge, not after a read of
+   `/health`: no request more for each mint at each relay, the default one too, and no race with
+   a role that restarted with another `--mint`. `/health` still says who the role mints for
+   (`"mint": "keys"`). Lost: the read of `/health` first, of Approach item 2.
+3. The key: the client's of the cache (`client.key`), loaded or made by
+   `crates/podssh-relay/src/identity/file.rs` as the end-to-end channel loads it, so that one
+   line on a node's list and on a relay's lets a user in. `--client-key` of `podssh ssh` names
+   the channel's key and does not reach the mint, as `MintContext` has no key and its callers
+   none at hand. Lost: a key on `MintContext`, which each caller of the mint would have to give;
+   a key of the relay's own, a second line for each user.
+4. What is signed: a label of the purpose and its version, the `Host` that the request sends,
+   the path and the challenge (`crates/podssh-relay/src/keyed.rs`), so that a signature for a
+   mint makes no pair, and one for a relay no token at another; the role refuses a `Host` that is
+   not the name that the connection's TLS asked for, as a relay in the middle would pass on
+   another's challenge and the signature made for it. Lost: the role's names read from its
+   certificate, which the role does not parse (rustls takes the chain as it is), and which a
+   role behind a quick tunnel (T-428) would not hold.
+5. The list: the format of `podssh node --allow` (`crates/podssh-relay/src/identity/allow.rs`),
+   its routes unread; read again for each request, as a node reads its own, so that a key added
+   counts at once and one taken away at the next mint. A list that cannot be read stops the
+   start (78), and later each proof gets `403`, which does not name the owner's file.
+6. Pairs: with `--mint keys:FILE`, `/v1/pair` takes the same proof, so that a relay for a list
+   keeps no pair of a stranger's. Lost: pairs for anyone on such a relay.
+7. A `403` names the key's fingerprint, which is no secret, so that the user gives the owner the
+   line for the list: the first run of a client against the role says it.
+8. The net's members (Approach item 1, its second half) wait for the net's document (T-429): the
+   proof is the same, and `Mint` takes a second source of keys then. This entry stays `partial`
+   until it does.
+
 ## Prove
 
 ```sh
@@ -1637,6 +1676,54 @@ cargo test -p podssh-cli --test relay_serve
 A client whose key is on the list gets a token and a session; another key gets `403`, and a
 replayed signature is refused. Planted: the signature's check skipped, and the test of the other
 key fails.
+
+## Correction
+
+2026-11-02 (the drafting agent). Approach item 2 is done another way (Decision 2): the client
+signs when the relay's answer to the contract's `{}` is `401` with a challenge, and reads no
+`/health` first. The Prove that runs, in place of the one above:
+
+```sh
+export CARGO_BUILD_JOBS=4
+cargo test -p podssh-relay --features serve --lib serve::
+cargo test -p podssh-relay --lib keyed
+cargo test -p podssh-cli --test relay_serve
+sh scripts/plant-each.sh --here t448-no-signature-check
+```
+
+2026-11-02, at the merge: the net's members, the second half of Approach item 1, move to
+T-455. T-429's document landed after this draft, and a member's mint needs its own calls (which
+roles mint, a document read again when it changes); the keys of a list are this entry's.
+
+## Done
+
+2026-11-02: drafted by an agent of this session in a worktree, then merged, built and measured
+here; the net's members are T-455 (Correction).
+
+- The role: `--mint keys:FILE` (`crates/podssh-cli/src/relay_serve.rs`, the list read at the
+  start and its keys said), the proof of `crates/podssh-relay/src/serve/keys.rs` for `/v1/mint`
+  and `/v1/pair`, the challenges of `crates/podssh-relay/src/serve/tokens.rs`, the TLS name
+  given to the role (`serve_named`), `"mint"` in `/health`.
+- The client: `crates/podssh-relay/src/keyed.rs`, which the mint (`token.rs`) and the pair
+  (`pair.rs`) go through; `Identity::sign` and `PublicKey::verifies`
+  (`crates/podssh-relay/src/identity/mod.rs`). The manual's note, the flag's row, `docs/relay.md`
+  ("Tokens for the keys of a list") and docs/mesh.md, section 4.
+- `cargo test -p podssh-relay --features serve --lib serve::`: 20 passed (a key of the list
+  proves itself once; another key, a forged signature, another path, another relay, another TLS
+  name, a late answer and another relay's challenge are refused; a challenge is the relay's until
+  its end and no token).
+- `cargo test -p podssh-relay --lib keyed`: 3 passed (the message, a proof that verifies under its
+  key alone, a `401` with a challenge as the one ask).
+- `cargo test -p podssh-cli --test relay_serve`: 9 passed, among them a client whose key is not
+  listed gets `403` that names it, and no byte; listed, it mints, carries the session and makes a
+  pair; a replayed signature, a forged one and another key get `403`. `--test relay_serve_node`: 3
+  passed, unchanged.
+- Planted, `sh scripts/plant-each.sh --here t448-no-signature-check` (the signature's check
+  skipped): caught, the test of another key, signature, relay or late answer failed.
+- Clippy with `-D warnings` on podssh-relay and podssh-cli, and on podssh-relay with
+  `serve,plain-ws`: clean.
+- `cargo test --no-fail-fast -p podssh-cli`: 1288 passed, 0 failed; `cargo test --no-fail-fast -p
+  podssh-relay --features pair,quick,derp,serve,piping`: 495 passed, 0 failed.
 
 # T-449: A test of the podssh-relay suite failed once in 11 runs, unnamed
 
@@ -1876,3 +1963,40 @@ cargo test -p podssh-relay --features serve --lib serve::
 
 The 121st mint of an address within a minute is a `429`, another address's is not, and the
 first after the minute passes. Planted, the brake removed, and the test fails.
+
+# T-455: The relay role mints for the members of the net
+
+**Source:** the merge of T-448 (2026-11-02), the second half of its Approach item 1.
+**Category:** feature
+**Milestone:** M10
+**Priority:** P2
+**Effort:** S
+**Status:** open
+
+## Problem
+
+`podssh relay serve --mint keys:FILE` mints for the keys of a list (T-448). An owner of a net
+(T-429) who runs the role for the net's nodes keeps a second list by hand, which drifts from the
+net's document.
+
+## Premise
+
+- `crates/podssh-relay/src/serve/keys.rs` checks a proof against the keys of one list, read at the
+  start; `crates/podssh-cli/src/net/` holds the net's document of the host.
+
+## Approach
+
+1. `--mint net`, and `keys:FILE` beside it: a member of the net that the host holds proves itself
+   by the same signature of T-448; a member that the owner removed is refused from the document's
+   next serial on, read again when it changes.
+2. Which roles of a member mint is the net's policy's (T-430): until then, each member.
+
+## Prove
+
+```sh
+export CARGO_BUILD_JOBS=4
+cargo test -p podssh-cli --test relay_serve
+```
+
+A member mints and pairs; a stranger, and a member removed by a newer document, get `403`.
+Planted, the member check skipped, and the stranger's test fails.

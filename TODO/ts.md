@@ -1004,7 +1004,7 @@ a third copy, a `String` that goes to the fork (`crates/podssh-ts/src/node.rs`, 
 its control runner, for each registration (`vendor/tailscale-rs/ts_runtime/src/lib.rs`, line 54 at `160773e`,
 `vendor/tailscale-rs/ts_runtime/src/control_runner.rs`, line 54 at `160773e`, `vendor/tailscale-rs/ts_runtime/src/control_runner.rs`, line 108 at `160773e`).
 
-Read: the relay token is a `Zeroizing<String>` (`crates/podssh-relay/src/token.rs:29`), and
+Read: the relay token is a `Zeroizing<String>` (`crates/podssh-relay/src/token.rs:30`), and
 `zeroize` is a workspace dependency (`Cargo.toml:205`), but podssh-ts does not use it
 (`crates/podssh-ts/Cargo.toml`, lines 10-14 at `160773e`). The fork already depends on it
 (`vendor/tailscale-rs/Cargo.toml:106`). The comment at `crates/podssh-ts/src/secret.rs`, lines 3-5 at `160773e` names a

@@ -54,6 +54,42 @@ impl Tokens {
         (format!("ephm1.{expiry}.forward.{tag}"), expiry)
     }
 
+    /// A challenge for a key (T-448), `c1.<end-ms>.<nonce>.<mac>`, which
+    /// this relay alone makes and takes, until `life_ms` after `now_ms`;
+    /// with its end.
+    pub fn challenge(&self, now_ms: u64, life_ms: u64) -> Result<(String, u64), String> {
+        use rand::TryRng;
+        let mut nonce = [0u8; 16];
+        rand::rngs::SysRng.try_fill_bytes(&mut nonce).map_err(|e| format!("no randomness for a challenge: {e}"))?;
+        let ends = now_ms + life_ms;
+        let nonce = base64::engine::general_purpose::URL_SAFE_NO_PAD.encode(nonce);
+        let tag = self.challenge_mac(ends, &nonce).finalize().into_bytes();
+        let tag = base64::engine::general_purpose::URL_SAFE_NO_PAD.encode(tag);
+        Ok((format!("c1.{ends}.{nonce}.{tag}"), ends))
+    }
+
+    /// The end of `challenge` when it is one of this relay's and has not
+    /// ended at `now_ms`; the MAC is compared in constant time.
+    pub fn check_challenge(&self, challenge: &str, now_ms: u64) -> Option<u64> {
+        let mut parts = challenge.split('.');
+        let (Some("c1"), Some(ends), Some(nonce), Some(tag), None) =
+            (parts.next(), parts.next(), parts.next(), parts.next(), parts.next())
+        else {
+            return None;
+        };
+        let ends: u64 = ends.parse().ok().filter(|e| *e > now_ms)?;
+        let tag = base64::engine::general_purpose::URL_SAFE_NO_PAD.decode(tag).ok()?;
+        self.challenge_mac(ends, nonce).verify_slice(&tag).is_ok().then_some(ends)
+    }
+
+    /// A challenge's MAC: under the tokens' secret, apart from them by its
+    /// first word.
+    fn challenge_mac(&self, ends: u64, nonce: &str) -> HmacSha256 {
+        let mut mac = HmacSha256::new_from_slice(&self.secret[..]).expect("HMAC takes a key of any length");
+        mac.update(format!("c1.{ends}.{nonce}").as_bytes());
+        mac
+    }
+
     /// Whether `token` is one of this relay's, not ended at `now_ms`; the
     /// MAC is compared in constant time.
     pub fn check(&self, token: &str, now_ms: u64) -> bool {
@@ -103,5 +139,21 @@ mod tests {
         }
         let (long, _) = tokens.mint(1_000, u64::MAX / 2);
         assert!(tokens.check(&long, 1_000), "the lifetime is cut to 72 h, not refused");
+    }
+
+    #[test]
+    fn a_challenge_is_this_relays_until_its_end_and_no_token() {
+        let tokens = Tokens::new([1; 32]);
+        let (challenge, ends) = tokens.challenge(1_000, 60_000).unwrap();
+        assert_eq!(ends, 61_000);
+        assert_eq!(tokens.check_challenge(&challenge, 60_999), Some(61_000));
+        assert_eq!(tokens.check_challenge(&challenge, 61_000), None, "ended");
+        assert_eq!(Tokens::new([2; 32]).check_challenge(&challenge, 1_000), None, "another relay's");
+        assert!(!tokens.check(&challenge, 1_000), "a challenge is no token");
+        let (token, _) = tokens.mint(1_000, 60_000);
+        assert_eq!(tokens.check_challenge(&token, 1_000), None, "a token is no challenge");
+        let later = challenge.replacen("c1.61000", "c1.99000", 1);
+        assert_eq!(tokens.check_challenge(&later, 1_000), None, "a later end under the old MAC");
+        assert_ne!(tokens.challenge(1_000, 60_000).unwrap().0, challenge, "each is drawn");
     }
 }

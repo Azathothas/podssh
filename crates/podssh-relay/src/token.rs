@@ -1,11 +1,12 @@
 //! Getting a relay token: `PODSSH_RELAY_TOKEN` if set, else a cached one,
-//! else a fresh one minted with `POST /v1/mint` (self-service, no account).
+//! else a fresh one minted with `POST /v1/mint` (self-service, no account;
+//! signed by this client's key where the relay asks, T-448).
 //! Tokens go into the `X-Relay-Token` header and nowhere else: not into
 //! output, errors, URLs or argv.
 
 use std::time::{Duration, SystemTime, UNIX_EPOCH};
 
-use podssh_ws::{https_post_json, ConnectError, ProxyChoice, Trust};
+use podssh_ws::{ConnectError, ProxyChoice, Trust};
 use serde::Deserialize;
 use zeroize::Zeroizing;
 
@@ -185,12 +186,12 @@ struct MintResponse {
     expires: i64,
 }
 
-/// `POST /v1/mint` with `{}`; the relay answers `{token, expires, scope}`.
+/// `POST /v1/mint` with `{}`, and once more with this client's key when the
+/// relay asks for it; the relay answers `{token, expires, scope}`.
 async fn mint(ctx: &MintContext<'_>) -> Result<(String, i64), TokenError> {
-    let response =
-        https_post_json(&ctx.relay.host, ctx.relay.port, "/v1/mint", b"{}", ctx.trust, ctx.proxy, ctx.timeout)
-            .await
-            .map_err(TokenError::Connect)?;
+    let response = crate::keyed::post(&ctx.relay.host, ctx.relay.port, "/v1/mint", ctx.trust, ctx.proxy, ctx.timeout)
+        .await
+        .map_err(TokenError::Connect)?;
     match response.status {
         200..=299 => {
             // Never quote a 2xx body in an error: it may hold a token.

@@ -36,7 +36,7 @@ succeeded. `podssh ssh` takes one destination, as OpenSSH does.
   work. `known_hosts` is appended under a lock since T-029
   (`crates/podssh-ssh/src/known_hosts.rs:335-410`).
 - Read: with no cached token, each session mints one
-  (`crates/podssh-relay/src/token.rs:134-179`); the relay allows 120 attempts
+  (`crates/podssh-relay/src/token.rs:135-180`); the relay allows 120 attempts
   with no token for each minute and address (`docs/relay.md:226`).
 
 ## Approach
@@ -1806,7 +1806,7 @@ a ticket, or a tool that asks an AI.
   its first line read back (`crates/podssh-ssh/src/prompt.rs:102-119`).
 - Read: credentials never go to output, logs, URLs or argv
   (`docs/architecture.md:199-201`). The token type never shows itself
-  (`crates/podssh-relay/src/token.rs:27-56`), and doctor never shows proxy
+  (`crates/podssh-relay/src/token.rs:28-57`), and doctor never shows proxy
   credentials or tokens (`docs/cli.md` lines 1345-1347 at `48a8744`).
 - Read: podssh's messages leave through two writers: `Streams.err` in the
   command line (`crates/podssh-cli/src/dispatch.rs:26-29`), and `Log`, which

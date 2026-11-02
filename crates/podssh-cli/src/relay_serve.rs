@@ -81,7 +81,24 @@ fn prepare(s: &ServeArgs) -> Result<Prepared, Refusal> {
     let mint = match s.mint.as_deref().unwrap_or("nobody") {
         "anyone" => Mint::Anyone,
         "nobody" | "none" => Mint::Nobody,
-        other => return Err(Refusal::usage(format!("--mint {other:?}: anyone or nobody"))),
+        word => match word.strip_prefix("keys:").filter(|file| !file.is_empty()) {
+            Some(file) => Mint::Keys(file.into()),
+            None => return Err(Refusal::usage(format!("--mint {word:?}: anyone, nobody or keys:FILE"))),
+        },
+    };
+    // The list is read again for each request; here, so that a list that
+    // cannot be read stops the start, and the keys that it holds are said.
+    let who = match &mint {
+        Mint::Anyone => "anyone".to_string(),
+        Mint::Nobody => "no one".to_string(),
+        Mint::Keys(file) => {
+            let list = podssh_relay::identity::allow::Allowlist::read(file).map_err(Refusal::config)?;
+            let bad = match list.bad_lines() {
+                [] => String::new(),
+                lines => format!("; lines {lines:?} hold no key, and let nobody in"),
+            };
+            format!("the {} keys of {}{bad}", list.len(), file.display())
+        }
     };
     let keepalive = match s.keepalive.as_deref() {
         None => Limits::default().keepalive,
@@ -125,9 +142,9 @@ fn prepare(s: &ServeArgs) -> Result<Prepared, Refusal> {
         policy: serve::policy::Policy { private: s.allow_private, ..Default::default() },
         limits: Limits { keepalive, ..Limits::default() },
         pairs,
+        answered: Default::default(),
         events: Some(events),
     };
-    let who = if mint == Mint::Anyone { "anyone" } else { "no one" };
     let inside = if s.allow_private { ", private targets too" } else { "" };
     let shown = format!(
         "the relay's forward and reverse roads (contract {}) at {bound}, minting for {who}{inside}{kept}",
@@ -161,7 +178,10 @@ fn serve_until_stopped(
                     let (acceptor, cfg) = (acceptor.clone(), cfg.clone());
                     tokio::spawn(async move {
                         if let Ok(Ok(tls)) = tokio::time::timeout(HANDSHAKE_WAIT, acceptor.accept(tcp)).await {
-                            serve::serve_connection(tls, cfg).await;
+                            // The name that the client asked for, which a
+                            // key's signed mint must name (T-448).
+                            let sni = tls.get_ref().1.server_name().map(str::to_string);
+                            serve::serve_named(tls, cfg, sni).await;
                         }
                     });
                 }
