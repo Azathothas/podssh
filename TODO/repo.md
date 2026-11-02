@@ -458,7 +458,7 @@ Read:
 3. On a run by hand, make the list of the commits since the last tag as an
    artifact, so that it can be read before a tag.
 4. Link each "Fixes #N" of a commit to its issue in the list.
-5. docs/development.md, "Release builds" (`docs/development.md:749-862`): the
+5. docs/development.md, "Release builds" (`docs/development.md:763-876`): the
    body is the notes file and the generated list.
 
 No new shell script: each step is a step of the workflow.
@@ -2643,7 +2643,7 @@ command uses `podssh-probe`.
 2. Move `podssh-core` and `podssh-transport` to the dev-dependencies: an
    example can use a dev-dependency, and the binary does not declare them.
 3. Move `libc` to the dependencies for Unix only, as
-   `crates/podssh-relay/Cargo.toml:84` does; else the lint of step 4 fails on
+   `crates/podssh-relay/Cargo.toml:92` does; else the lint of step 4 fails on
    Windows.
 4. The check: `#![cfg_attr(not(test), deny(unused_crate_dependencies))]` in
    `crates/podssh-cli/src/lib.rs`. rustc then refuses a dependency that the
@@ -3954,7 +3954,7 @@ identities (x25519-dalek, `podssh-ws` and `podssh-relay`), and its AEAD
 
 ## Premise
 
-- Read: `crates/podssh-ssh/Cargo.toml:26` and `crates/podssh-cli/Cargo.toml:83`
+- Read: `crates/podssh-ssh/Cargo.toml:26` and `crates/podssh-cli/Cargo.toml:86`
   ask for `sha1` 0.10.7, and the root `Cargo.toml:143` for `hmac` 0.12;
   `Cargo.lock` holds `sha1` 0.10.7 and 0.11.0, `hmac` 0.12.1 and 0.13.0,
   and `digest` 0.10.7 and 0.11.3, as russh 0.64.1 (vendor/russh/Cargo.toml)

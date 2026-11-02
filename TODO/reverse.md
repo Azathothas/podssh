@@ -445,7 +445,7 @@ Read: podbox keeps `ring` and TLS 1.2 through a `rustls::ClientConfig` that it s
    it needs 1.88, and podbox follows (the operator's ruling of 2026-10-08). Write the result in
    `docs/design.md` (section 3).
 7. Document the facade in `docs/design.md` (lines 89-110 at `0d92eef`) and in the crate's header
-   (`crates/podssh-relay/src/lib.rs:1-38`); add the feature to the gate (`scripts/gate.sh:133`).
+   (`crates/podssh-relay/src/lib.rs:1-41`); add the feature to the gate (`scripts/gate.sh:133`).
 
 ## Decision
 
@@ -1588,10 +1588,10 @@ operator's at `crates/podssh-relay/src/e2e/ends.rs:129-137`. The grants at
 `crates/podssh-relay/src/identity/allow.rs:33-64` and
 `crates/podssh-relay/src/identity/allow.rs:114-122`. The routes of a node,
 their check and their dial in `crates/podssh-relay/src/reverse/routes.rs:1-88`.
-The command line: the targets at `crates/podssh-cli/src/node.rs:189-224`,
-`NAME/ROUTE` at `crates/podssh-cli/src/node.rs:226-241`, the dial of each
-target at `crates/podssh-cli/src/node.rs:252-277`, the routes at
-`crates/podssh-cli/src/node.rs:289-297`; the channel's glue at
+The command line: the targets at `crates/podssh-cli/src/node.rs:195-230`,
+`NAME/ROUTE` at `crates/podssh-cli/src/node.rs:232-247`, the dial of each
+target at `crates/podssh-cli/src/node_target.rs:14-39`, the routes at
+`crates/podssh-cli/src/node.rs:258-266`; the channel's glue at
 `crates/podssh-cli/src/channel.rs:260-269` and
 `crates/podssh-cli/src/channel.rs:313-333`; `node://NAME/ROUTE` at
 `crates/podssh-cli/src/ssh/node.rs:32-60`, and `iroh:TICKET/ROUTE` at
@@ -1957,7 +1957,7 @@ session through a node loses a link that it need not lose.
 - Measured: CI's step `m6` at `a220c13` failed in that test with `relay close 1011: node
   unavailable`; the step had passed at each push since T-156.
 - Read: `podssh node` prints its `serving` line after its probe of TARGET, before its socket to
-  the relay opens (`crates/podssh-cli/src/node.rs:318-323`), and the tests waited for that line
+  the relay opens (`crates/podssh-cli/src/node.rs:297-302`), and the tests waited for that line
   (`crates/podssh-cli/tests/m6_exit.rs:99`, `crates/podssh-cli/tests/node_plain.rs:41`,
   `crates/podssh-cli/tests/pipe_remote.rs:194`).
 - Measured, native, 2026-10-10: on a host at 42 % of its CPU, the control lost a link in each of
@@ -2035,7 +2035,7 @@ podssh knew in advance, and said nowhere.
 ## Premise
 
 - Read, at `ea2bd4f`: a unit of T-121 does not restart after 77 (`crates/podssh-cli/src/node_install/text.rs:101`).
-- Read: the node's hook for a new pair is unset (`crates/podssh-cli/src/node.rs:348`, `repair:
+- Read: the node's hook for a new pair is unset (`crates/podssh-cli/src/node.rs:327`, `repair:
   None`).
 
 ## Approach

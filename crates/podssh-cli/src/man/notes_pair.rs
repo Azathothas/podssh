@@ -163,6 +163,19 @@ pub(super) const NODE: &[&str] = &[
      and keeps the sessions of both roads with one keeper, so that a session resumes on either; its line \
      names the relay. The relay sees the token, the sizes and the times; the channel keeps the bytes \
      from it. A node of --derp with a pair waits there too.",
+    "A node of a pair has a road for a proxy that refuses the WebSocket upgrade: the Piping Server road, \
+     through https://ppng.io, which needs no account, or the server of PODSSH_PIPING. Once TARGET answered, the \
+     node asks the relay for its socket with no token; where something on the way refuses the upgrade, \
+     the node says so and serves the Piping Server road alone, unasked, by the operator's ruling Q65, \
+     until the pair expires (77). It waits there with a GET at a door whose path comes from the pair's \
+     secret; a client of the pair posts a hello there, and each end then sends its way of the link as a \
+     POST and reads the other's as a GET, over HTTP/2 on one connection where the server offers it, else \
+     over HTTP/1.1, through HTTPS_PROXY. Where a proxy holds a streamed body until its end, the link goes \
+     in numbered pieces, a whole POST for each. PODSSH_PIPING=yes, or a server's https:// URL, serves the \
+     road beside the pair's, with one keeper of sessions for both; PODSSH_PIPING=no turns it off. The road \
+     runs the resumable layer and the end-to-end channel, so --plain, --no-e2e and a udp: TARGET keep the \
+     node on the pair's road alone. The server sees the paths, the sizes and the times; the channel keeps \
+     the bytes from it.",
     "With --quick-tunnel, the node serves TARGET at https://NAME.trycloudflare.com, a quick tunnel of \
      Cloudflare's that podssh makes itself, with no pair, no account and no cloudflared. The name is new \
      each run, and is the one line on stdout. The node needs port 7844 of Cloudflare's edge, and races \

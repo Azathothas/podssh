@@ -116,11 +116,14 @@ pub(super) fn transport(
     Ok(Transport::Node { label, pair_file, trust, race, derp, channel })
 }
 
-/// SSH over the operator's leg to the node of the pair under `label`.
+/// SSH over the operator's leg to the node of the pair under `label`; over
+/// the Piping Server road of `piping` when the leg's upgrade is refused on
+/// the way (T-437, Q65).
 pub(super) async fn connect(
     label: &str,
     pair_file: Option<&str>,
     trust: &Trust,
+    piping: Option<&crate::piping_road::Race>,
     ask: &crate::channel::Ask,
     opts: &podssh_ssh::options::Options,
     log: Arc<Log>,
@@ -165,7 +168,13 @@ pub(super) async fn connect(
     let leg = match operator::start(&config, leg_end).await {
         Ok(leg) => leg,
         Err(e) => {
-            log.error(&format!("{shown}: {}", crate::pairs::connect_refusal(&e, label).message));
+            let why = crate::pairs::connect_refusal(&e, label).message;
+            if let Some(race) = piping.filter(|_| podssh_relay::piping::probe::upgrade_refused(&e)) {
+                log.verbose(&format!("{shown}: {why}: the upgrade was refused on the way; the Piping Server road"));
+                let raced = super::roads::Raced { iroh: None, derp: None, transit: None, piping: Some(race.refused()) };
+                return Box::pin(super::roads::connect(label, pair_file, trust, raced, ask, opts, log)).await;
+            }
+            log.error(&format!("{shown}: {why}"));
             podssh_ssh::outcome::failed("relay");
             return EXIT_FAILURE;
         }

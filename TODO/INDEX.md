@@ -62,15 +62,15 @@ repository and CI).
 
 ## Counts
 
-**446 entries: 48 open, 1 partial, 16 blocked, 381 done.**
+**447 entries: 48 open, 1 partial, 16 blocked, 382 done.**
 
 | Priority | open | partial | blocked | done | total |
 | --- | --- | --- | --- | --- | --- |
 | P0 | 0 | 0 | 0 | 1 | 1 |
 | P1 | 4 | 1 | 0 | 48 | 53 |
-| P2 | 20 | 0 | 14 | 182 | 216 |
+| P2 | 20 | 0 | 14 | 183 | 217 |
 | P3 | 24 | 0 | 2 | 150 | 176 |
-| **All** | 48 | 1 | 16 | 381 | 446 |
+| **All** | 48 | 1 | 16 | 382 | 447 |
 
 ## Entries
 
@@ -508,7 +508,7 @@ repository and CI).
 | [T-434](mesh.md) | P2 | M | M10 | feature | open | A member that relays between two other members |
 | [T-435](mesh.md) | P2 | M | M10 | feature | open | `status`, `ping` and `doctor` for the net |
 | [T-436](mesh.md) | P2 | M | M10 | feature | done | The magic-wormhole transit relay as a carrier of a pair's road |
-| [T-437](mesh.md) | P2 | M | M10 | feature | open | Piping Server, a road for a proxy that refuses the WebSocket upgrade |
+| [T-437](mesh.md) | P2 | M | M10 | feature | done | Piping Server, a road for a proxy that refuses the WebSocket upgrade |
 | [T-438](mesh.md) | P3 | M | M10 | feature | open | Wisp: the demo server as a forwarder, and the Wisp protocol |
 | [T-439](mesh.md) | P2 | M | M10 | feature | done | HTTP CONNECT to a second proxy over TLS, HTTP/1.1 and HTTP/2 |
 | [T-440](mesh.md) | P2 | L | M10 | feature | open | VLESS over a WebSocket and over XHTTP |
@@ -522,3 +522,4 @@ repository and CI).
 | [T-448](mesh.md) | P2 | M | M10 | feature | open | The relay role mints tokens for the keys of an allowlist or of the net |
 | [T-449](mesh.md) | P2 | S | M10 | defect | open | A test of the podssh-relay suite failed once in 11 runs, unnamed |
 | [T-450](mesh.md) | P3 | S | M10 | defect | open | Three live runs of the transit road met nobody within 20 s |
+| [T-451](mesh.md) | P2 | M | M10 | measurement | open | The Piping Server road from end to end: `podssh node` and `ssh node://` behind a proxy that refuses the upgrade |

@@ -1,0 +1,11 @@
+--- a/crates/podssh-relay/src/piping/paths.rs
++++ b/crates/podssh-relay/src/piping/paths.rs
+@@ -195,7 +195,7 @@
+ impl Ends {
+     /// The client's: it sends up, and reads down.
+     pub fn client(secret: &Secret, link: &LinkId) -> Ends {
+-        Ends::of(secret, link, Way::Up, Way::Down)
++        Ends::of(secret, link, Way::Down, Way::Up)
+     }
+
+     /// The node's: it sends down, and reads up.

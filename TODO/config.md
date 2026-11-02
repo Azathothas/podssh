@@ -454,7 +454,7 @@ result, `Resolved` (lines 27-41 at `22c3b88`), holds the settings in effect, the
 
 1. Make the `-G` row Supported, with no `instead`; `crates/podssh-cli/tests/flag_table.rs:60-80`
    requires that pair. The reviewed set of short flags does not change.
-2. In `run_ssh` (`crates/podssh-cli/src/ssh/mod.rs:68-250`), after `resolve` (lines 36-42 at `e8bbd4d`): with
+2. In `run_ssh` (`crates/podssh-cli/src/ssh/mod.rs:69-251`), after `resolve` (lines 36-42 at `e8bbd4d`): with
    `-G`, print the settings and exit 0. Open nothing: no relay, no token, no pool refresh.
 3. Print from `Resolved` and its `Options`, not from `Settings`, so the defaults are shown.
 4. Print only keywords of OpenSSH that podssh applies
@@ -542,7 +542,7 @@ work.
 ## Premise
 
 Read: podssh has no import and no `config` command (`crates/podssh-cli/src/flags.rs:366-427`).
-`serde_json` is a dependency of the binary (`crates/podssh-cli/Cargo.toml:78`), so a JSON
+`serde_json` is a dependency of the binary (`crates/podssh-cli/Cargo.toml:81`), so a JSON
 export needs no new crate. XML and YAML need a parser that the binary does not have. The export
 formats of the other clients were not read here. Each step below starts from a real export of
 that client: bytes captured from the real program (`AGENTS.md`, section 6, rule 2).

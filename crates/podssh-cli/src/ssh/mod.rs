@@ -42,6 +42,7 @@ pub mod resolve;
 mod resolve_env;
 pub mod result;
 // The race of a node's roads: iroh, the pair's, DERP (T-164, T-379).
+pub(crate) mod road_link;
 pub(crate) mod roads;
 pub mod tokens;
 pub mod transport;
@@ -329,11 +330,23 @@ pub(crate) async fn connect_and_run(mut resolved: Resolved, log: Arc<Log>) -> i3
         // pair's road says why, as before.
         let good_pair = || crate::pairs::operator_part(label, pair_file.as_deref()).is_ok();
         let transit = crate::node_transit::url().filter(|_| !channel.off && good_pair());
-        if race.is_some() || derp.is_some() || transit.is_some() {
-            let raced = roads::Raced { iroh: race.as_ref(), derp, transit };
+        // The Piping Server road (T-437): asked, or the fallback of Q65 once
+        // the upgrade is refused; never with --no-e2e, as its server would
+        // see each byte.
+        let piping = match crate::piping_road::race() {
+            Ok(piping) => piping.filter(|_| !channel.off),
+            Err(refusal) => {
+                log.error(&refusal.message);
+                return refusal.code;
+            }
+        };
+        let piping_asked = piping.as_ref().is_some_and(|road| road.asked);
+        if race.is_some() || derp.is_some() || transit.is_some() || piping_asked {
+            let raced = roads::Raced { iroh: race.as_ref(), derp, transit, piping };
             return Box::pin(roads::connect(label, pair_file.as_deref(), trust, raced, channel, opts, log)).await;
         }
-        return Box::pin(node::connect(label, pair_file.as_deref(), trust, channel, opts, log)).await;
+        let piping = piping.as_ref();
+        return Box::pin(node::connect(label, pair_file.as_deref(), trust, piping, channel, opts, log)).await;
     }
     if let Transport::Iroh { ticket, key, relays, trust, channel } = &resolved.transport {
         return Box::pin(iroh::connect(ticket, key.as_deref(), relays, trust, channel, opts, log)).await;

@@ -25,11 +25,12 @@ use std::time::Duration;
 use podssh_relay::e2e::ends::Node;
 use podssh_relay::pair::Pair;
 use podssh_relay::reverse::routes::{Route, Routed, Routes};
-use podssh_relay::reverse::{self, sshd, E2e, Exit, Handler, Layered, NodeConfig, Settings, TcpHandler, Wire};
+use podssh_relay::reverse::{self, E2e, Exit, Handler, Layered, NodeConfig, Settings, TcpHandler, Wire};
 use podssh_ws::dial::ProxyChoice;
 use podssh_ws::Trust;
 
 use crate::exitmap::Fault;
+pub(crate) use crate::node_target::{probe, serving};
 use crate::pairs;
 use crate::relay_settings::Refusal;
 
@@ -37,7 +38,7 @@ use crate::relay_settings::Refusal;
 pub(crate) use crate::node_flags::key_flags;
 
 /// Bound on each dial of TARGET, under the node's 10 s to open a session.
-const DIAL_LIMIT: Duration = Duration::from_secs(8);
+pub(crate) const DIAL_LIMIT: Duration = Duration::from_secs(8);
 /// A roost's TARGET when the command line names none: the sshd of this host.
 pub(crate) const SSHD: &str = "127.0.0.1:22";
 
@@ -99,6 +100,11 @@ pub fn run_node(args: &NodeArgs, err: &mut dyn Write) -> i32 {
     }
     if args.derp || unasked.is_some() {
         return crate::node_derp::run(args, unasked, err);
+    }
+    // The Piping Server road (T-437) that PODSSH_PIPING asks for; the
+    // unasked one is decided in `serve`, once TARGET passed (Q65).
+    if let Some(code) = crate::node_piping::run(args, err) {
+        return code;
     }
     let ready = match prepare(args) {
         Ok(ready) => ready,
@@ -249,43 +255,6 @@ pub(crate) fn shown(targets: &[Route]) -> String {
     each.collect::<Vec<_>>().join(", ")
 }
 
-/// Each target, dialled once: a node that cannot reach one would refuse its
-/// sessions, so it does not start (69). A roost's targets must each send an
-/// SSH version line first (T-166): their lines, in order, for the node's
-/// first line. Another service there is a TARGET set up wrong (78); a
-/// silence or a close, one out of reach (69).
-pub(crate) async fn probe(targets: &[Route], roost: bool) -> Result<Vec<String>, Refusal> {
-    let (proxy, unreachable) = (ProxyChoice::FromEnvironment, Fault::RelayUnreachable.code());
-    let mut versions = Vec::new();
-    for t in targets {
-        let shown = shown(std::slice::from_ref(t));
-        let dialled = podssh_ws::dial::dial(&t.host, t.port, &proxy, DIAL_LIMIT).await;
-        let stream = dialled.map_err(|e| Refusal { message: format!("TARGET {shown}: {e}"), code: unreachable })?;
-        if !roost {
-            continue;
-        }
-        match sshd::check(&stream, sshd::BANNER_LIMIT).await {
-            Ok(line) => versions.push(line),
-            Err(why) => {
-                let fault = if why.is_other() { Fault::Config } else { Fault::RelayUnreachable };
-                let message = format!("TARGET {shown} is not an SSH server: it {why}; --sshd serves a standard sshd");
-                return Err(Refusal { message, code: fault.code() });
-            }
-        }
-    }
-    Ok(versions)
-}
-
-/// The targets as the node's first line says them: a roost's, each with the
-/// version line that its sshd sent.
-pub(crate) fn serving(targets: &[Route], versions: &[String]) -> String {
-    if versions.len() != targets.len() {
-        return shown(targets);
-    }
-    let each = targets.iter().zip(versions).map(|(t, line)| format!("{} ({line})", shown(std::slice::from_ref(t))));
-    format!("the sshd {}", each.collect::<Vec<_>>().join(", "))
-}
-
 /// The routes of a node, when it has one, with who may use each.
 pub(crate) fn routes_of(targets: &[Route], allow: Option<PathBuf>, roost: bool) -> Option<Routes> {
     targets.iter().any(|t| t.name.is_some()).then(|| Routes {
@@ -313,6 +282,16 @@ async fn serve(ready: Ready, err: &mut dyn Write) -> i32 {
             Err(refusal) => return refusal.report("node", err),
         }
     };
+    // The Piping Server road unasked (T-437, Q65), once TARGET passed: where
+    // a probe finds the upgrade refused on the way, the node serves it alone.
+    // Not with --plain, --no-e2e or UDP, which it cannot carry.
+    if let (false, false, Some(_)) = (udp, plain, &key) {
+        if let Some((server, why)) = crate::node_piping::unasked(&pair, &trust).await {
+            let Some(key) = key else { return Fault::SessionFault.code() };
+            let ready = crate::node_piping::Ready { label, pair, stored, targets, roost, key, allow, trust };
+            return Box::pin(crate::node_piping::serve(ready, server, Some(why), Some(target), err)).await;
+        }
+    }
     let routes = routes_of(&targets, allow.clone(), roost);
     let mode = if plain { "in plain mode, with no resumable layer".into() } else { crate::node_flags::layer_mode() };
     let _ = writeln!(

@@ -64,7 +64,10 @@ rustls = { workspace = true }
 # Relay hosts and failover, tokens, forward sessions (C-free, shared with podbox).
 # `derp`: the DERP road of `podssh node --derp` and `podssh ssh derp:` (T-379),
 # pure Rust, in each build, as the operator's ruling Q50 makes it a fallback.
-podssh-relay = { path = "../podssh-relay", features = ["pair", "quick", "derp", "serve"] }
+# `piping`: the Piping Server road of `podssh node` and `podssh ssh node://`
+# (T-437), pure Rust, in each build, as the operator's ruling Q65 makes it a
+# fallback for a proxy that refuses the WebSocket upgrade.
+podssh-relay = { path = "../podssh-relay", features = ["pair", "quick", "derp", "serve", "piping"] }
 # The native SSH client. It needs a C compiler (russh with aws-lc-rs); the
 # operator accepted that for the binary on 2026-10-08.
 podssh-ssh = { path = "../podssh-ssh" }

@@ -47,7 +47,7 @@ succeeded. `podssh ssh` takes one destination, as OpenSSH does.
    flags), and `--parallel N` (default 8, 64 at most), `--fail-fast`,
    `--output-dir DIR`.
 2. One runtime, one task for each host, each on the existing path: the relay
-   open and `podssh_ssh::run` (`crates/podssh-cli/src/ssh/mod.rs:268-358`,
+   open and `podssh_ssh::run` (`crates/podssh-cli/src/ssh/mod.rs:269-371`,
    `crates/podssh-ssh/src/run.rs:34-79`). Invariant: no second SSH client.
 3. Sinks: give `crates/podssh-ssh/src/io.rs:151-446` (and `crates/podssh-ssh/src/io/msg.rs:11-94`) a sink for stdout and
    stderr in place of the streams of the process, and give `Log` a prefix
@@ -1924,7 +1924,7 @@ The premise of two writers is not whole. `Log` writes to the file of `-E`
 in place of stderr when it is given (`crates/podssh-ssh/src/log.rs:83-103`),
 and `podssh node`, `operator`, `chat`, `pipe` and `agent` write their lines
 while they serve with `eprintln!`, which is neither writer
-(`crates/podssh-cli/src/node.rs:328`). The report keeps what goes through
+(`crates/podssh-cli/src/node.rs:307`). The report keeps what goes through
 the two writers, the file of `-E` too; the lines of `eprintln!` are not
 kept, and `docs/cli.md` says so.
 

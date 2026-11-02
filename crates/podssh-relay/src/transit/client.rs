@@ -142,5 +142,7 @@ where
             Err(why) => Next::Retry(why),
         }
     };
-    Ok(resume::run(client, app, connect, note, &mut OsEntropy).await)
+    // On the heap: the layer's future is larger than a small thread's stack
+    // in a debug build.
+    Ok(Box::pin(resume::run(client, app, connect, note, &mut OsEntropy)).await)
 }

@@ -5026,7 +5026,7 @@ does not depend on them.
 
 - Read: `Transport::Direct` comes from `--direct` alone
   (`crates/podssh-cli/src/ssh/resolve.rs`, lines 340-346 at `4e2010e`), and else the relay (lines 348-371 at `4e2010e`); its other
-  uses are a label (`crates/podssh-cli/src/ssh/mod.rs:256`), the dial
+  uses are a label (`crates/podssh-cli/src/ssh/mod.rs:257`), the dial
   (`crates/podssh-cli/src/ssh/transport.rs:264-308`) and a check of `--upgrade`
   (`crates/podssh-cli/src/ssh/upgrade.rs:59`). The issue's citation of
   the arm began two lines early; it is at `crates/podssh-cli/src/ssh/resolve.rs:335-341`.
@@ -6130,7 +6130,7 @@ ask, and nothing does so.
 
 - Read: the node of the iroh road serves the pair's road beside it, with one keeper for both
   (`crates/podssh-cli/src/node_iroh.rs:341-342`), and `podssh node` sends `--iroh` there
-  (`crates/podssh-cli/src/node.rs:97-99`).
+  (`crates/podssh-cli/src/node.rs:98-100`).
 - Read: `podssh ssh` resolves its destination into an enum of transports
   (`crates/podssh-cli/src/ssh/resolve.rs:24-68`), in a file of 488 of its 500 lines.
 - Read: the race of T-164 orders two roads (`crates/podssh-relay/src/session/race.rs:59-61`), and

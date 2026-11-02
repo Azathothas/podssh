@@ -914,7 +914,7 @@ Read: the row is at `crates/podssh-cli/src/flags.rs`, lines 293-294 at `efee2fc`
 (`crates/podssh-cli/src/ts.rs`, lines 314-316 at `efee2fc`, `crates/podssh-ts/src/status.rs:17-21`), and `-W` writes the
 stream (`crates/podssh-cli/src/ts.rs`, lines 391-393 at `efee2fc`). `proxy --jsonl` is refused at parse, with the reason
 (`crates/podssh-cli/src/tree.rs`, lines 179-187 at `efee2fc`, `crates/podssh-cli/src/non_interactive.rs`, lines 309-320 at `efee2fc`).
-`serde_json` is already a dependency of the binary (`crates/podssh-cli/Cargo.toml:78`).
+`serde_json` is already a dependency of the binary (`crates/podssh-cli/Cargo.toml:81`).
 
 ## Approach
 

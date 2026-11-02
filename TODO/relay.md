@@ -1235,7 +1235,7 @@ only paired run is of 2026-10-09 and the relay's platform may have changed since
 inference of T-336 that memory causes the drops, beside a slow reader; and count what a drop
 costs. A node's first connection again after a socket that served goes at once, not after
 `backoff(1)` (`crates/podssh-relay/src/reverse/node.rs:251`). Since T-379 each resume races the
-roads again (`crates/podssh-cli/src/ssh/roads.rs:1-11`), so a drop of the pair's socket can cost
+roads again (`crates/podssh-cli/src/ssh/roads.rs:1-14`), so a drop of the pair's socket can cost
 a resume on the iroh or the DERP road, not a cut.
 
 The new Approach, in place of the one above:
@@ -2103,7 +2103,7 @@ deployment still closes the socket: make the cut cheap. A 1003 is no exit since 
 operator's layer resumes since T-410; but the node's first connection again after a fault waits
 `backoff(1)`, 0.5 s to 1.5 s (`crates/podssh-relay/src/reverse/node.rs:251`), though a 1003 is no
 overload. Since T-379 a resume can land on the iroh or the DERP road
-(`crates/podssh-cli/src/ssh/roads.rs:1-11`). The sessions of `node --plain` end with the socket,
+(`crates/podssh-cli/src/ssh/roads.rs:1-14`). The sessions of `node --plain` end with the socket,
 and nothing says so.
 
 The new Approach, in place of the one above:
