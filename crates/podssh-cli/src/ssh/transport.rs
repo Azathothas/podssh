@@ -255,6 +255,10 @@ pub async fn reach_skipping(resolved: &Resolved, skip: usize, log: &Arc<Log>) ->
         Transport::Shadowsocks { servers, trust } => {
             crate::shadowsocks::reach::reach(servers, trust, &first.host, first.port, log).await
         }
+        // A forward proxy over TLS that the user runs (T-439).
+        Transport::Via { road } => {
+            crate::via::reach::reach(road, &first.host, first.port, resolved.connection_attempts, log).await
+        }
         Transport::Direct => {
             if podssh_relay::open::offline() {
                 return Err(NotReached {

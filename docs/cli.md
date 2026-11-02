@@ -897,6 +897,57 @@ Tested against `ssserver` and `sslocal` of shadowsocks-rust
 from the specification with known answers that OpenSSL computed
 (`crates/podssh-ws/tests/shadowsocks.rs`).
 
+## A forward proxy over TLS: `--via URL`
+
+T-439, the operator's ruling Q66: a standard forward proxy that the user
+runs over TLS (Caddy with forwardproxy, squid's `https_port`, h2o) is a road
+with no relay. `--via https://[USER@]HOST[:PORT]` makes it the road, in
+place of the relay, for `ssh`, each command that reaches its server as
+`ssh` does, `proxy`, `pipe` (its `tcp:` and the first hop of `ssh:`) and
+`doctor`, which checks it:
+
+- podssh dials the proxy as it dials the relay, through `HTTPS_PROXY` when
+  one is set (by its name, as the host's proxy resolves it), then TLS checked
+  for HOST with podssh's trust (`--ca-file`, `SSL_CERT_FILE`, the stores).
+  The port is 443 when none is named. A scheme other than `https://`, a
+  path, a query and a password in the URL are refused (64).
+- ALPN offers `h2`, then `http/1.1`, and the proxy chooses
+  (`PODSSH_VIA_HTTP=1.1` or `2` offers one alone). On HTTP/2 the tunnel is
+  a CONNECT of RFC 9113, section 8.5: `:method CONNECT` and `:authority
+  HOST:PORT`, no `:scheme` or `:path`; its DATA frames carry the bytes, and
+  END_STREAM is the half-close. The connection is kept for the run, so that
+  the sessions of `podssh each` are streams of one connection; `-v` says
+  whether a session took a new connection or shared one. A proxy that resets
+  the CONNECT on HTTP/2 gets HTTP/1.1 on a connection of its own, and `-v`
+  says why. A reset with `CONNECT_ERROR` is the proxy's word that the target
+  failed, and nothing is tried again.
+- On HTTP/1.1, `CONNECT HOST:PORT HTTP/1.1` with `Host` and `User-Agent`,
+  and the answer's head read a byte at a time, so that the target's first
+  bytes stay in the tunnel.
+- The credentials are Basic, from `--via-auth-file FILE` or
+  `PODSSH_VIA_AUTH_FILE`: a regular file of the user that others cannot
+  read (78 otherwise), one line, `USER:PASSWORD`, or the password alone when
+  the URL names USER. A URL that names a user with no file is refused (64).
+  On HTTP/2 the header is sensitive, so HPACK never indexes it. No message
+  shows the line.
+- A `407` is said with its words: the schemes of `Proxy-Authenticate`, and
+  whether podssh sent credentials or none, with the flag to give them
+  (77, as `proxy` exits for a refusal of the proxy's; 403 too).
+- `PODSSH_VIA` names the proxy where the command line names no other road
+  (`--relay-host`, `--relay-failover`, `--forwarder`, `--shadowsocks`);
+  beside `PODSSH_RELAY` or `PODSSH_FORWARDER` it is refused (78). A run has
+  one road: `--via` beside one of those flags, `--direct`, `-4`, `-6` or a
+  destination with a road of its own is refused (64).
+- `podssh doctor --via URL` gives a line in its section `via`: the host's
+  proxy that carried the TCP, if one did, the version of HTTP that the
+  proxy chose and the time of its CONNECT, then GitHub's published host key
+  on `github.com:22` through it.
+
+Tested against stand-ins on the loopback, h2's own server for HTTP/2
+(`crates/podssh-ws/tests/via.rs`), and against Caddy with forwardproxy and
+squid over TLS in containers, through a plain squid as the host's proxy
+(`scripts/interop-via.sh`, `.github/workflows/via-interop.yml`).
+
 ## Going to the background: `--detach` and `-f`
 
 T-380, after the study of `docs/detach.md`: a run that must outlive its

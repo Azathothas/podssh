@@ -59,6 +59,7 @@ harness man man 7 scripts/interop-man.sh
 harness conpty conpty 14 scripts/interop-conpty.py
 harness derp derp 3 scripts/interop-derp.sh
 harness ts ts-headscale 11 scripts/ts-headscale.sh
+harness via via 11 scripts/interop-via.sh
 
 # scripts/interop.sh
 ssh.exit.dropbear.0 pass
@@ -771,3 +772,16 @@ ts.key pass
 ts.live.refused env-allowed a route from this host to the live relay tcp.ts.relay.ajam.dev:443 (T-334)
 ts.live.proxy env-allowed a route from this host to the live relay tcp.ts.relay.ajam.dev:443 (T-334)
 ts.live.socks5 env-allowed a route from this host to the live relay tcp.ts.relay.ajam.dev:443 (T-334)
+# scripts/interop-via.sh
+via.caddy.banner pass
+via.caddy.h2 pass
+via.caddy.h1 pass
+via.caddy.shared pass
+via.caddy.407 pass
+via.squid.banner pass
+via.squid.h1 pass
+via.squid.407 pass
+via.hop.caddy pass
+via.hop.squid pass
+via.doctor env-allowed a route from the proxy's container to github.com:22 (T-439)
+via.secret pass

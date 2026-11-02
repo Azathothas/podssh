@@ -137,6 +137,8 @@ pub mod ts;
 mod upgrade_line;
 // The commit that a release build names in `--version` (T-210).
 pub mod version;
+// `--via URL`: a forward proxy over TLS in place of the relay (T-439).
+pub mod via;
 
 pub use flags::{FlagKind, FlagRow, Verb, VERBS};
 pub use tree::{parse, Parsed};

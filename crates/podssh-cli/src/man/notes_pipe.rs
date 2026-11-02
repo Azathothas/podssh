@@ -23,6 +23,9 @@ pub const PIPE: &[&str] = &[
      file goes; --keep-listening takes each client in turn, 8 at once, until SIGINT or SIGTERM, after \
      which the file goes too. A path that is a file and not a socket is kept (64), and a socket that \
      answers is another program's (69). PODSSH_LISTEN set to no turns listening off (78).",
+    "--via https://[USER@]HOST[:PORT] carries tcp:HOST:PORT and the first hop of ssh: through a forward \
+     proxy over TLS, as podssh ssh --via does (see its notes), with the credentials of --via-auth-file; \
+     tcp: takes the flag alone, as PODSSH_VIA names a road in place of the relay.",
     "--detach sends a listening pipe into the background once it listens, as podssh ssh -f does (see its \
      notes): this program again, its log detached/pipe-PID.log in the cache; its other side may not be \
      stdio (64), as the background has neither stdin nor stdout. --detach-name NAME names it, and a second \

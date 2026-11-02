@@ -1,0 +1,43 @@
+name: via interop
+
+# `--via`, a forward proxy over TLS in place of the relay (T-439, the
+# operator's ruling Q66), against Caddy with its forwardproxy plugin and
+# squid's https_port, each in a container of the runner's Docker, with
+# OpenSSH's sshd as the target and a plain squid as the host's proxy:
+# scripts/interop-via.sh. Caddy is built from forwardproxy's pinned commit
+# in images/derper's Go, so the run takes a few minutes. The password of the
+# proxies is made for the run and never printed. Started by hand, and on a
+# push that changes the road; it publishes nothing.
+
+on:
+  workflow_dispatch:
+  push:
+    branches: [main]
+    paths:
+      - "crates/podssh-ws/src/via/**"
+      - "crates/podssh-cli/src/via/**"
+      - "scripts/interop-via.sh"
+      - ".github/workflows/via-interop.yml"
+
+permissions:
+  contents: read
+
+jobs:
+  interop:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 45
+    env:
+      CARGO_BUILD_JOBS: "4"
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+      - name: the build
+        run: cargo build --locked -p podssh-cli
+      - name: Caddy's forwardproxy and squid over TLS
+        run: |
+          set -u
+          # Each exit code is read directly; the shell's -e would stop at it.
+          rc=0
+          PODSSH_ENGINE=docker timeout 2400 sh scripts/interop-via.sh "$GITHUB_WORKSPACE/target/debug/podssh" \
+            > via.log 2>&1 || rc=$?
+          cat via.log
+          [ "$rc" = 0 ] || { echo "interop-via exited $rc"; exit 1; }

@@ -546,7 +546,7 @@ protocols).
 **Milestone:** M10
 **Priority:** P2
 **Effort:** M
-**Status:** open
+**Status:** partial
 
 ## Problem
 
@@ -576,6 +576,85 @@ cargo test -p podssh-ws --test via
 Against Caddy with forwardproxy and squid over TLS in containers, through the box's proxy:
 GitHub's banner from a fixture through each, and two sessions on one HTTP/2 connection with
 Caddy. Planted: the credential left out, and the `407` is said with its words.
+
+## Decision
+
+- **A road in place of the relay, as `--shadowsocks` is.** `--via` takes the relay's place for
+  `ssh`, each command of its road, `proxy`, `pipe` (`tcp:`, and `ssh:` through the resolver) and
+  `doctor`; beside `--relay-host`, `--relay-failover`, `--forwarder`, `--shadowsocks`,
+  `--direct`, `-4`, `-6` or a road of its own it is refused (64). Lost: a second proxy as a third
+  kind of `ProxyKind` for the host's proxy (a chain), which would change the cleartext path that
+  the brief keeps, and send the relay's WebSocket through it where Q66 asks for a road with no
+  relay.
+- **Credentials from a file, its one line `USER:PASSWORD`, or the password alone when the URL
+  names the user** (`--via-auth-file`, `PODSSH_VIA_AUTH_FILE`), read as `--shadowsocks` reads
+  its file (`podssh_relay::cache::read_private`). A URL with a password is refused, and a URL
+  with a user and no file too: an empty password sent silently would be a 407 with no cause.
+  Lost: the password in the URL (argv, `ps`), and a prompt (no terminal under `ProxyCommand`).
+- **`PODSSH_VIA`** names the road where the command line names no other, as `PODSSH_FORWARDER`
+  does, and is refused beside `PODSSH_RELAY` (78). `pipe`'s `tcp:` takes the flag alone: it is
+  TCP from this host, which the variable of a road in place of the relay does not reach.
+- **HTTP/2 kept for the process.** A client for each second proxy (`podssh_cli::via::client`)
+  keeps HTTP/2's connection while it lasts, and dials one connection at a time, so that the
+  sessions of `podssh each`, which start together, share it. Lost: a connection for each tunnel,
+  which loses the sharing that the Approach asks for.
+- **A fallback, as rule 7 asks:** a proxy that chose `h2` and reset the CONNECT for a reason other
+  than `CONNECT_ERROR` (the proxy's word that the target failed) gets HTTP/1.1 on a connection
+  of its own, and `-v` says why. `PODSSH_VIA_HTTP=1.1` or `2` offers one version alone, for a
+  proxy whose HTTP/2 misbehaves in another way, and for the run of Caddy over HTTP/1.1.
+- **The words of a `407`** are the host's proxy's (T-320, `proxy_auth::schemes`), with the flag
+  of the file in place of the URL's credentials; on HTTP/2 the head is rebuilt from the answer's
+  `Proxy-Authenticate` fields. `Proxy-Authorization` is sensitive on HTTP/2, so HPACK never
+  indexes it.
+- **The test against Caddy and squid is a harness of its own** (`scripts/interop-via.sh`, with
+  `.github/workflows/via-interop.yml`): Docker or Podman on a runner, Caddy built from
+  forwardproxy's commit 0aab84dad4fc (2026-03-21) in the Go image that `images/derper` pins, squid
+  from Alpine's packages, OpenSSH's sshd as the target (in place of a fixture of GitHub's banner:
+  the brief allows either), and a plain squid as the host's proxy in place of the box's. The
+  gate's build image has no Caddy with the plugin, so a test of the crate cannot run it.
+
+## Done
+
+2026-11-02, partial: drafted in a worktree; nothing was built or run here (a drafting agent does
+not build). Each result below is UNVERIFIED until the session that merges it runs it.
+
+- podssh-ws, `crates/podssh-ws/src/via/`: the URL and its credentials, the versions offered, the
+  client that keeps HTTP/2's connection and falls back to HTTP/1.1, and the words of a refusal
+  (`mod.rs`); HTTP/1.1's CONNECT with its head read a byte at a time (`http1.rs`); HTTP/2's
+  CONNECT and its stream as `AsyncRead` and `AsyncWrite` (`http2.rs`); unit tests (`tests.rs`).
+  `crate::proxy::percent_decode` is `pub(crate)` for the URL's user; the host's proxy's path is
+  otherwise unchanged. UNVERIFIED: `cargo test -p podssh-ws --lib via`, and the crate with
+  `CC=/nonexistent CXX=/nonexistent`.
+- `cargo test -p podssh-ws --test via`, 5 tests against stand-ins on the loopback, HTTP/2 by h2's
+  own server: the credential with each CONNECT on both versions and the `407` with its words
+  without it; two tunnels as two streams of one TLS connection; the host's proxy carrying the TLS
+  by the second proxy's name; a reset on HTTP/2 that falls back to HTTP/1.1, and HTTP/2 alone
+  refused by a proxy of HTTP/1.1; a 403, an unreachable target (502) and a certificate of another
+  name. UNVERIFIED.
+- podssh-cli, `crates/podssh-cli/src/via/`: the choice of the road and its refusals (`mod.rs`,
+  with `tests.rs`), the road of `ssh` (`reach.rs`) and of `proxy` and `pipe`'s `tcp:`
+  (`pipe.rs`); `Transport::Via` in the resolver; the section `via` of `doctor`
+  (`crates/podssh-cli/src/doctor/via.rs`); the rows of `--via` and `--via-auth-file` in each table
+  of `--shadowsocks` and in `pipe`'s (`crates/podssh-cli/src/flags/via.rs`); the manual (notes of
+  `ssh`, `proxy`, `pipe` and `doctor`, a row of FILES, three variables) and `docs/cli.md` (a
+  section), `docs/architecture.md` (the road). UNVERIFIED: `cargo test -p podssh-cli --lib`,
+  `--test man_page`, `--test flag_table`, `--test proxy`, `--test man_flag_parity`, clippy, and
+  `cargo todo remap` of the edited files that entries cite (`docs/architecture.md`,
+  `crates/podssh-cli/src/flags.rs`, `crates/podssh-cli/src/ssh/resolve.rs`,
+  `crates/podssh-cli/src/ssh/transport.rs`, `crates/podssh-cli/src/proxy.rs`,
+  `crates/podssh-cli/src/dispatch.rs`, `crates/podssh-cli/src/tree.rs`,
+  `crates/podssh-cli/src/doctor/mod.rs`, `crates/podssh-cli/src/man/notes.rs`,
+  `crates/podssh-cli/src/man/notes_ssh.rs`).
+- Against Caddy with forwardproxy and squid over TLS: `scripts/interop-via.sh`, 12 ids in
+  `scripts/interop-baseline.txt`, run by `.github/workflows/via-interop.yml`: the banner and a
+  session through each, HTTP/2 with Caddy and HTTP/1.1 with squid and with Caddy at
+  `PODSSH_VIA_HTTP=1.1`; two sessions of `podssh each` on one HTTP/2 connection with Caddy; both
+  proxies through a plain squid as the host's proxy; each `407` said with its words when the
+  credential is left out; `doctor --via`; no output that holds the password. UNVERIFIED: not run;
+  `dash -n` and shellcheck not run on the script either.
+- Planted (`scripts/plants/t439-via-no-credential.plant`): the credential left out of each
+  CONNECT; the test of the credential must fail with the stand-in's `407` in its words.
+  UNVERIFIED; `git apply --check` of its patch passed here.
 
 # T-440: VLESS over a WebSocket and over XHTTP
 

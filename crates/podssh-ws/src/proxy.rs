@@ -174,8 +174,9 @@ fn percent_encode(s: &str) -> String {
         .collect()
 }
 
-/// Decode `%XX` escapes in proxy credentials.
-fn percent_decode(s: &str) -> Result<String, String> {
+/// Decode `%XX` escapes in proxy credentials, and in the user of a second
+/// proxy's URL (`via`, T-439).
+pub(crate) fn percent_decode(s: &str) -> Result<String, String> {
     let bytes = s.as_bytes();
     let mut out = Vec::with_capacity(bytes.len());
     let mut i = 0;

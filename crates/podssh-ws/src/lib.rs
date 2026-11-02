@@ -8,7 +8,9 @@
 //! and a Shadowsocks server one that its address header names, over TCP
 //! (`shadowsocks`, T-373). Tor's two pluggable transports for a bridge,
 //! meek_lite and WebTunnel, are spoken here too (`meek`, `webtunnel`,
-//! T-385), so that the Tor road needs no other program.
+//! T-385), so that the Tor road needs no other program. A forward proxy
+//! that the user runs over TLS carries a target that CONNECT names, over
+//! HTTP/1.1 or HTTP/2 (`via`, T-439).
 //!
 //! Why a crypto provider of its own: rustls 0.23 ships none in pure Rust, and
 //! `ring` and `aws-lc-sys` both need a C compiler, which podssh's default build
@@ -61,6 +63,8 @@ pub mod tls;
 pub mod tls_server;
 mod tls_wrap;
 pub mod url;
+// A second proxy over TLS, HTTP/1.1's and HTTP/2's CONNECT (T-439).
+pub mod via;
 // Tor's WebTunnel, for a bridge of the Tor road (T-385).
 pub mod webtunnel;
 mod wire;
