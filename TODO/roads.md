@@ -3256,7 +3256,7 @@ roots must be exactly three, and a refusal of the edge does not say which releas
 - Read: two fixed regions, port 7844 and the TLS name `h2.cftunnel.com`
   (`crates/podssh-relay/src/quick/edge.rs:22-29`); the roots must give 3 anchors and no invalid
   one (`:40-44`); the API's host is fixed (`crates/podssh-relay/src/quick/api.rs:28`). The node
-  registers as `podssh` and the package's version (`crates/podssh-cli/src/node_quick.rs:197-198`),
+  registers as `podssh` and the package's version (`crates/podssh-cli/src/node_quick.rs:234-235`),
   `1.0.0-beta.2` today (`Cargo.toml:50`).
 - Read: the three roots end on 2029-08-15, 2029-08-15 and 2029-11-01
   (`crates/podssh-relay/src/quick/cloudflare-roots.pem:6`, `:25`, `:52`).
@@ -6063,9 +6063,9 @@ line. P3: the node connects again either way, and only its words differ.
 ## Premise
 
 - Read: the loop over HTTP/2 returns `Ended::Http2` or `Ended::Closed` from the connection's
-  accept (`crates/podssh-relay/src/quick/serve.rs:203-204`), and `Ended::Control` from the control
-  stream's failure (`crates/podssh-relay/src/quick/serve.rs:221`), in one `tokio::select!`
-  (`crates/podssh-relay/src/quick/serve.rs:206`).
+  accept (`crates/podssh-relay/src/quick/serve.rs:212-213`), and `Ended::Control` from the control
+  stream's failure (`crates/podssh-relay/src/quick/serve.rs:230`), in one `tokio::select!`
+  (`crates/podssh-relay/src/quick/serve.rs:215`).
 - Read: the loop over QUIC had the same two arms, and a close or a silence read as the control
   stream's end one run in six, until the control stream's failure took the connection's reason
   (T-301's Done, 2026-10-31).
@@ -6130,7 +6130,7 @@ ask, and nothing does so.
 
 - Read: the node of the iroh road serves the pair's road beside it, with one keeper for both
   (`crates/podssh-cli/src/node_iroh.rs:349-350`), and `podssh node` sends `--iroh` there
-  (`crates/podssh-cli/src/node.rs:98-100`).
+  (`crates/podssh-cli/src/node.rs:102-104`).
 - Read: `podssh ssh` resolves its destination into an enum of transports
   (`crates/podssh-cli/src/ssh/resolve.rs:24-72`), in a file of 488 of its 500 lines.
 - Read: the race of T-164 orders two roads (`crates/podssh-relay/src/session/race.rs:59-61`), and

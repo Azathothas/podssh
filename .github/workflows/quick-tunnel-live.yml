@@ -16,8 +16,11 @@ name: quick tunnel live
 # with TCP and UDP to 7844 dropped as in a cage whose proxy allows port 443
 # alone, reaches the edge inside WARP's tunnel (T-374; WARP's live run is
 # allowed in Actions by Q52), and its device is one of this run; podssh ssh
-# cf://NAME carries 16 MiB each way through it, with their digests (T-398). Three
-# tunnels, each alive for a few minutes at most. The logs of this public
+# cf://NAME carries 16 MiB each way through it, with their digests (T-398). A
+# fourth node, with --relay and no TARGET, is the relay role behind its
+# tunnel (T-428): the client of v1.0.0 reads GitHub's version line through
+# it with --relay-host. Four tunnels, each alive for a few minutes at most.
+# The logs of this public
 # repository are public: the tunnel's name is masked, its secret never
 # leaves the node's memory, and the keys are throwaway ones of this run.
 
@@ -210,6 +213,46 @@ jobs:
           echo "ok    a --node-key that is not the node's is refused (exit 255)"
           sed 's/^/proxy: /' "$RUNNER_TEMP/proxy.log" | tail -n 20
 
+      # T-428: the relay role behind a quick tunnel, with no listener: a node
+      # with --relay and no TARGET. The client of v1.0.0 asks no key, so this
+      # node mints for anyone, for its few minutes; that client reads
+      # GitHub's version line through the role with --relay-host
+      # https://NAME.trycloudflare.com, and this commit's reads its /health.
+      - name: the relay behind a quick tunnel, and the client of v1.0.0
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          old="$RUNNER_TEMP/old"
+          timeout 300 gh release download v1.0.0 --repo "$GITHUB_REPOSITORY" \
+            --pattern podssh-x86_64-unknown-linux-musl --dir "$old"
+          chmod 0755 "$old/podssh-x86_64-unknown-linux-musl"
+          : > "$RUNNER_TEMP/allow4"
+          target/debug/podssh node relay --quick-tunnel --relay --mint anyone --allow "$RUNNER_TEMP/allow4" \
+            --ephemeral-key >"$RUNNER_TEMP/url4" 2>"$RUNNER_TEMP/node4.log" &
+          echo $! >"$RUNNER_TEMP/node4.pid"
+          for _ in $(seq 1 90); do grep -q "registered at" "$RUNNER_TEMP/node4.log" && break; sleep 1; done
+          host4=$(sed -n 's#^https://##p' "$RUNNER_TEMP/url4" | head -n 1)
+          [ -n "$host4" ] && echo "::add-mask::$host4"
+          sed 's/^/node4: /' "$RUNNER_TEMP/node4.log"
+          grep -q "registered at" "$RUNNER_TEMP/node4.log" || { echo "FAIL the relay's node registered nothing"; exit 1; }
+          grep -q "the relay's forward and reverse roads" "$RUNNER_TEMP/node4.log" || { echo "FAIL no line of the role"; exit 1; }
+          # The client of v1.0.0, in a cache of its own: the role's token,
+          # then the server's version line through the role.
+          set +e
+          (sleep 8) | PODSSH_CACHE_DIR="$RUNNER_TEMP/old-cache" timeout 60 "$old/podssh-x86_64-unknown-linux-musl" \
+            proxy --relay-host "https://$host4" github.com 22 >"$RUNNER_TEMP/banner4" 2>"$RUNNER_TEMP/old4.log"
+          rc=$?
+          set -e
+          sed 's/^/client of v1.0.0: /' "$RUNNER_TEMP/old4.log" | tail -n 20
+          head -c 8 "$RUNNER_TEMP/banner4" | grep -q '^SSH-2.0' \
+            || { echo "FAIL the client of v1.0.0 read no version line through the role (exit $rc)"; exit 1; }
+          echo "ok    the client of v1.0.0 read $(head -n 1 "$RUNNER_TEMP/banner4" | tr -d '\r' | cut -c1-8) through the relay behind the quick tunnel"
+          timeout 60 target/debug/podssh relay status --relay-host "https://$host4" >"$RUNNER_TEMP/status4" 2>&1 \
+            || { cat "$RUNNER_TEMP/status4"; echo "FAIL podssh relay status through the tunnel"; exit 1; }
+          echo "ok    podssh relay status read the role's /health through the tunnel"
+          grep "relay: " "$RUNNER_TEMP/node4.log" | sed 's/^/node4: /' | tail -n 10 || true
+          kill -TERM "$(cat "$RUNNER_TEMP/node4.pid")" 2>/dev/null || true
+
       # T-301, T-400: with UDP to the edge's 7844 dropped, the probe of UDP
       # gets no answer, QUIC gives way at once, the node says so and
       # registers over HTTP/2, its race within 5 s (cfrs's testers saw 2.44
@@ -324,6 +367,7 @@ jobs:
         run: |
           sudo iptables -D OUTPUT -p tcp --dport 7844 -j DROP 2>/dev/null || true
           sudo iptables -D OUTPUT -p udp --dport 7844 -j DROP 2>/dev/null || true
+          kill -TERM "$(cat "$RUNNER_TEMP/node4.pid" 2>/dev/null)" 2>/dev/null || true
           kill -TERM "$(cat "$RUNNER_TEMP/node3.pid" 2>/dev/null)" 2>/dev/null || true
           kill -TERM "$(cat "$RUNNER_TEMP/node2.pid" 2>/dev/null)" 2>/dev/null || true
           pid=$(cat "$RUNNER_TEMP/node.pid" 2>/dev/null || true)
@@ -334,5 +378,5 @@ jobs:
           pkill -f scripts/box/proxy.py || true
           sudo kill "$(cat "$RUNNER_TEMP/sshd.pid" 2>/dev/null)" 2>/dev/null || true
           rm -f "$RUNNER_TEMP"/user_ed25519* "$RUNNER_TEMP"/client.key* "$RUNNER_TEMP/blob" "$RUNNER_TEMP"/blob16 "$RUNNER_TEMP"/back16
-          rm -rf "$PODSSH_CACHE_DIR"
+          rm -rf "$PODSSH_CACHE_DIR" "$RUNNER_TEMP/old-cache" "$RUNNER_TEMP/old"
           sudo rm -f "$RUNNER_TEMP"/host_ed25519*

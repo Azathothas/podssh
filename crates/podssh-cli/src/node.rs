@@ -67,6 +67,10 @@ pub fn run_node(args: &NodeArgs, err: &mut dyn Write) -> i32 {
         let why = "--warp is for --quick-tunnel, whose node then reaches Cloudflare's edge inside WARP's tunnel";
         return Refusal::usage(why.to_string()).report("node", err);
     }
+    // The relay role behind the quick tunnel (T-428): its flags need --relay.
+    if let Err(refusal) = crate::node_quick_relay::check(args) {
+        return refusal.report("node", err);
+    }
     // A quick tunnel of Cloudflare's, which podssh makes itself (T-300).
     if args.quick_tunnel {
         return crate::node_quick::run(args, err);

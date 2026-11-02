@@ -27,7 +27,12 @@
 //!   whose cage does not reach TCP port 7844 (T-374);
 //! - `goaway` (feature `quick`): the edge's GOAWAY, seen as it passes;
 //! - `serve` (feature `quick`): the connection to the edge, served over
-//!   HTTP/2: the control stream, and each visitor's WebSocket;
+//!   HTTP/2: the control stream, and each visitor's WebSocket; `h2_stream`:
+//!   a stream's bytes as the edge's window lets them go, and a WebSocket on
+//!   one;
+//! - `origin` (feature `quick`): what the node serves, its visitors and the
+//!   origin of HTTP/1.1 of a node that is its owner's relay (T-428), whose
+//!   requests `origin_h2` and `origin_quic` carry over HTTP/2 and QUIC;
 //! - `settings` (feature `quick`): HTTP/2's streams and windows there, and
 //!   h2's budget of small frames (T-408);
 //! - `quic` and `quic_serve` (feature `quick`): the same over QUIC, where UDP
@@ -49,9 +54,17 @@ pub mod edge;
 pub mod edge_warp;
 #[cfg(feature = "quick")]
 pub mod goaway;
+#[cfg(feature = "quick")]
+mod h2_stream;
 pub mod headers;
 #[cfg(feature = "quick")]
 pub mod keep;
+#[cfg(feature = "quick")]
+pub mod origin;
+#[cfg(feature = "quick")]
+pub mod origin_h2;
+#[cfg(feature = "quick")]
+pub mod origin_quic;
 #[cfg(feature = "quick")]
 pub mod probe;
 #[cfg(feature = "quick")]

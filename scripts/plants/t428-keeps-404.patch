@@ -1,0 +1,11 @@
+--- a/crates/podssh-relay/src/quick/origin.rs
++++ b/crates/podssh-relay/src/quick/origin.rs
+@@ -95,7 +95,7 @@
+ /// `origin` when it serves `path`, the path of a request target.
+ pub fn taking(origin: &Option<Arc<dyn Origin>>, path: &str) -> Option<Arc<dyn Origin>> {
+     let path = path.split(['?', '#']).next().unwrap_or_default();
+-    origin.as_ref().filter(|origin| origin.serves(path)).cloned()
++    origin.as_ref().filter(|origin| origin.serves(path) && false).cloned()
+ }
+ 
+ /// The headers of one hop, which the origin's connection does not take from

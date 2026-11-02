@@ -189,7 +189,7 @@ here.
 **Milestone:** M10
 **Priority:** P1
 **Effort:** M
-**Status:** open
+**Status:** partial
 
 ## Problem
 
@@ -209,10 +209,85 @@ owner's relay.
 
 1. A node with `--quick-tunnel --relay` routes the relay's paths (`/health`, `/v1/mint`,
    `/connect/<host>/<port>`, `/relays.json`, `/trace`, `/v1/...`) to the relay role of T-169
-   and T-427, in place of the 404.
-2. Its line on stdout names the relay host (`NAME.trycloudflare.com`), for `--relay-host`.
-3. Its tokens are minted for the keys of its net (T-429), else for its owner's keys in an
-   `--allow` file, and for anyone only when the user asks.
+   and T-427, in place of the 404, over HTTP/2 and over QUIC: each request as cloudflared's
+   proxy sends one to an origin of HTTP/1.1, and the role's answer back as cloudflared's writer
+   sends an origin's (the Correction).
+2. Its line on stdout names the relay host (`https://NAME.trycloudflare.com`, which
+   `--relay-host` takes as it is).
+3. Its tokens are minted for its owner's keys in its `--allow` file (T-448's keys of a list),
+   or as `--mint` says, and for anyone only when the user asks; the keys of its net are
+   T-455's.
+
+## Decision
+
+The draft's calls, 2026-11-02, each with what lost:
+
+1. **The role as the tunnel's origin of HTTP/1.1, in the process.** The node gives each request
+   of a relay's path to `podssh_relay::serve::serve_named` on a pipe of its own
+   (`crates/podssh-relay/src/serve/behind.rs`), as cloudflared gives a request to an origin of
+   HTTP, so the role of T-169, T-427 and T-448 serves it unchanged. Lost: a second entry of the
+   role that takes a parsed head and answers through a trait, which would change each answer of
+   the role and the path that its listener's tests measured; and a listener of the role on the
+   loopback, which rule 2 of `AGENTS.md` forbids and the entry's title rules out.
+2. **The request and the answer as cloudflared's** (`proxy/proxy.go`, `connection/http2.go`,
+   `connection/quic_connection.go` at 2026.10.6; `crates/podssh-relay/src/quick/origin.rs`): the
+   visitor's headers but those of one hop and the edge's own (`cf-cloudflared-*`); for a
+   WebSocket, `Connection: Upgrade`, `Upgrade: websocket` and `Sec-WebSocket-Version: 13`, as
+   cloudflared's proxy sets them whatever came; any other request's body read whole, 32 KiB at
+   most, with its `Content-Length`; the answer's headers but those of one hop, the three of a
+   101 kept, serialized over HTTP/2 with `content-length` beside them and a 101 as 200, and over
+   QUIC each in the metadata with the 101 as it is. After a 101 each byte goes as it came, both
+   ways, as the edge passes a WebSocket's frames unchanged. Lost: decoding the visitor's frames
+   and encoding them again for the role, a copy that changes nothing; a body streamed to the
+   role, as no request of the contract carries more than 4 KiB.
+3. **Which paths.** The role's own, as `serve::serves` says beside the match that routes them:
+   `/health`, `/v1/mint`, `/relays.json`, `/trace`, `/llms-full.txt`, `/connect/...` and each
+   path under `/v1/`, whose unknown ones the role answers with its 404; a WebSocket at another
+   path stays a visitor of TARGET (`cf://` asks for `/`), and a request of raw TCP stays 404. With
+   no TARGET, each path is the role's. Lost: a prefix of the role's own (`/relay/...`), which no
+   client of the contract sends; each path always, which would take `/` from TARGET.
+4. **How the origin reaches the loop.** A trait `Visit`, which each closure of before has by a
+   blanket impl, and `Visitors { visit, origin }` for a node with an origin; `serve`, `race`,
+   `keep` and `Link::serve` take a `Visit`, so each test and caller that passes a closure stays
+   as it was. `send_all` and the visitor's WebSocket moved to `quick/h2_stream.rs`, as
+   `serve.rs` was at 500 lines. Lost: a parameter more for each of those functions, which each
+   test's call would carry; a field of `Registration` or `Connector`, which are the
+   registration's.
+5. **The tunnel's name stands for the TLS's.** `serve_named` gets the tunnel's name as the name
+   that a TLS asked for, and the request's `Host` is the edge's authority (`:authority` over
+   HTTP/2, `HttpHost` over QUIC), so a key's signed mint or pair must name the tunnel (T-448).
+   Lost: no name, with which a relay in the middle could pass on a request signed for itself.
+6. **Whom it mints for.** The keys of the node's `--allow` by default (`Mint::Keys`), the list of
+   who may reach the node, so that one line lets its owner in at both; `--mint` takes the words
+   of `podssh relay serve` (`anyone`, `nobody`, `keys:FILE`). Lost: anyone by default, on a
+   public name; no one by default, a role that no client could use with no other channel of
+   tokens; the net's members, which are T-455's.
+7. **The command line.** `podssh node NAME [TARGET] --quick-tunnel --relay`, with `--mint`,
+   `--pairs` and `--allow-private` of `relay serve`, each refused without `--relay`, and
+   `--relay` without `--quick-tunnel` (64); TARGET may be left out with `--relay`; `--allow`
+   stays needed. Lost: `podssh relay serve --quick-tunnel`, to which each flag of the quick
+   tunnel's node (`--warp`, `--detach`, `--install`, the key's) would have to come; and
+   `--keepalive` on the node, whose default of 25 s serves.
+8. **The line on stdout stays `https://NAME.trycloudflare.com`**, which `--relay-host` and
+   `PODSSH_RELAY` take as they are, as they strip `https://`; the role's line on stderr says so.
+   Lost: the bare name, which would change the line that scripts of the quick tunnel read.
+9. **The role's events** (`mint`, `upgrade`, `close CODE`, `reverse ...`) are the node's lines on
+   stderr, as `relay: ...`. Lost: stdout, as `relay serve` prints them, where the tunnel's name
+   is the one line.
+10. **A planned stop** closes each socket of the reverse road with `1012` within 3 s, as `relay
+    serve` does (T-255), and then the tunnel unregisters.
+11. **`--pairs FILE`** is kept, though a pair names its relay host and the tunnel's name is new
+    at each run: it is `relay serve`'s, and a named tunnel (T-180) keeps its name.
+12. **The tests.** Through the stand-in edge of T-300 (`tests/quick_harness/`) and a front of
+    its own that plays the visitor's side of Cloudflare's edge, HTTP/1.1 in and HTTP/2 with
+    cloudflared's headers out (`tests/quick_relay_harness/`): a client of the contract that
+    podssh did not shape (plain ws:// and HTTP by hand), and podssh's own node and operator of
+    the reverse road. The QUIC side on pipes (`tests/quick_relay_quic.rs`), with the metadata's
+    names of the reference's fixture, as a QUIC stand-in carries a stream's bytes unchanged.
+    podssh's client with `--relay-host` over TLS, and the client of `v1.0.0`, live.
+13. **Rule 2 of `AGENTS.md`.** Nothing listens, and the node's own connections stay the two to
+    the edge of T-414 (Q62); each dial of a target is a forward session's, which the role makes
+    on a listener too (T-169).
 
 ## Prove
 
@@ -225,6 +300,86 @@ Offline, through the edge's stand-in of T-300: a client with `--relay-host` of t
 name carries GitHub's banner from a fixture through the node. In GitHub Actions
 (`quick-tunnel-live.yml`, Q43): a client of `v1.0.0` reaches `github.com:22` through the node's
 quick tunnel. Planted: the 404 kept, and the client fails.
+
+## Correction
+
+2026-11-02 (the drafting agent). The Premise's first point holds
+(`crates/podssh-relay/src/quick/serve.rs:8` said the 404). The second holds for a WebSocket's
+frames, not for the requests: over HTTP/2 the edge sends the upgrade in a header of its own
+(`cf-cloudflared-proxy-connection-upgrade`) and no `Upgrade` or `Connection`, which HTTP/2
+forbids, and wants the answer's headers serialized; over QUIC a request is a `ConnectRequest`
+whose metadata holds the method, the Host and the headers; and the relay's mint, pair, status
+and stop are no WebSockets. So the node translates each request for the role as cloudflared's
+proxy does for an origin (the Decision, 2), as Approach item 1 now says. Approach item 3 said
+the keys of the net (T-429) first: the net's members' mint is T-455, so this entry mints for the
+keys of `--allow` (T-448's keys of a list) and for `--mint`'s. Approach item 2 said the bare
+name: the line stays `https://NAME.trycloudflare.com`, which `--relay-host` takes as it is. The
+Prove's command builds no test of the role, which needs the features `serve` and `plain-ws`; and
+its client is one of the contract on plain ws:// to the stand-in's front, the stand-in's name in
+its `Host`, as the stand-in edge speaks no TLS; podssh's own client with `--relay-host` runs
+live. The Prove that runs, in place of the one above:
+
+```sh
+export CARGO_BUILD_JOBS=4
+cargo test -p podssh-relay --features quick,serve,plain-ws --test quick_relay --test quick_relay_quic
+cargo test -p podssh-relay --features quick,serve --lib serve::behind
+cargo test -p podssh-relay --features quick --lib quick::origin
+cargo test -p podssh-relay --features quick --test quick_tunnel --test quick_tunnel_quic --test quick_resilience --test quick_small_frames
+cargo test -p podssh-cli --test node_quick_relay --test node
+sh scripts/plant-each.sh --here t428-keeps-404
+```
+
+Live, by hand (`quick-tunnel-live.yml`, Q43): a node with `--relay` and no TARGET, and the client
+of `v1.0.0` reads GitHub's version line through it with `--relay-host https://NAME...`.
+
+## Done
+
+2026-11-02: drafted by an agent in a worktree, which built and ran nothing; merged and measured by
+the main session the same day.
+
+- The origin of a quick tunnel's node (`crates/podssh-relay/src/quick/origin.rs`, its tests in
+  `origin_tests.rs`): the traits `Origin` and `Visit`, `Visitors`, and the heads between the
+  edge and the origin; over HTTP/2 (`origin_h2.rs`) and over QUIC (`origin_quic.rs`); the
+  routing in `serve.rs` and `quic_serve.rs`; `Visit` in `roads.rs`, `keep.rs` and `quic.rs`;
+  `send_all` and the visitor's WebSocket moved to `h2_stream.rs`.
+- The role behind the tunnel: `crates/podssh-relay/src/serve/behind.rs` and `serve::serves`.
+- `podssh node --quick-tunnel --relay` with `--mint`, `--pairs` and `--allow-private`
+  (`crates/podssh-cli/src/node_quick_relay.rs`, `node_quick.rs`, `node_args.rs`, the check in
+  `node.rs`, the rows in `flags/node.rs`, TARGET's help); `relay serve`'s words of `--mint` and
+  its stop's wait shared (`relay_serve.rs`); the manual's notes of `node` and `relay`, two
+  examples; `docs/cli.md`, `docs/relay.md` ("The relay role behind a quick tunnel"),
+  `docs/mesh.md`, section 4, and the row of `docs/STATUS.md`.
+- The gate: clippy of the role's tests with `quick` too, and two new runs of tests
+  (`scripts/gate.sh`). The live step in `quick-tunnel-live.yml`.
+- The merge: the draft applied with one conflict (the row of T-448 in `docs/STATUS.md`, which
+  the repair of `60b3070` had changed) and built at once. The help's check that no flag runs
+  into its description failed on `--relay`, whose words named `--relay-host`: they name the
+  relay host in other words now.
+- `cargo test -p podssh-relay --features quick,serve,plain-ws --test quick_relay`: 4 passed (the
+  keyed mint and a target's first line through the role, the node and the edge; the documents
+  and the node's own paths; the relay alone; podssh's node and operator, 1 MiB each way);
+  `--test quick_relay_quic`: 4 passed. Both again with no C compiler, as the gate runs them.
+- `cargo test -p podssh-relay --features quick,serve --lib serve::`: 22 passed (`serve::behind`,
+  2, again with no C compiler); `--features quick --lib quick::`: 74 passed.
+- The quick tunnel's suites with `Visit`: `quick_tunnel` 12, `quick_tunnel_quic` 2,
+  `quick_resilience` 8, `quick_small_frames` 7 passed; `--features warp-stand-in --test
+  quick_edge_warp`: 2 passed.
+- `cargo test -p podssh-cli --test node_quick_relay`: 3 passed; `--test node`: 17;
+  `flag_table` 9, `man_flag_parity` 6, `man_json` 4, `man_page` 10; `--lib`: 568.
+- Planted, `sh scripts/plant-each.sh --here t428-keeps-404` (the 404 kept): caught, the test of
+  a target's first line through the role failed.
+- Clippy with `-D warnings`: podssh-relay with `serve,plain-ws,quick`, and podssh-cli with
+  podssh-relay, all targets: clean; `cargo fmt -p` of both.
+- The whole suites: `cargo test --no-fail-fast -p podssh-cli`, 1310 passed, none failed (51
+  ignored); `-p podssh-relay --features pair,quick,derp,serve,piping`, 509 passed, none failed
+  (22 ignored). Each run of `quick_relay` left its list's scratch directory in the temporary
+  directory, which the gate's step would count: the list is a guard now, which goes when the test
+  ends, pass or fail, and none is left.
+- Live (`quick-tunnel-live.yml`, Q43): dispatched after the merge; this entry stays `partial`
+  until it passes.
+- Not done here: the role dials its targets from the node's host directly, so behind a quick
+  tunnel on a host whose way out is only `HTTPS_PROXY` its forward road answers `502`, while its
+  reverse road works: T-457.
 
 # T-429: The net: an owner's signed list of its nodes, and their names
 
@@ -2451,3 +2606,47 @@ refusal stands today. Planted, the second connection not opened, and the session
 
 The operator: Q67 (`TODO/PROGRESS.md`), whether XHTTP over HTTP/1.1 may open the second connection
 that Q44 allows the split road alone. A change of rule 2 is a policy of `docs/decisions.md`.
+
+# T-457: The relay role dials its targets through the host's `HTTPS_PROXY`
+
+**Source:** the merge of T-428 (2026-11-02), its drafting agent's note.
+**Category:** feature
+**Milestone:** M10
+**Priority:** P2
+**Effort:** M
+**Status:** open
+
+## Problem
+
+The relay role dials each target of its forward road from its host directly, as on a listener.
+Behind a quick tunnel (T-428) the role runs on hosts whose only way out may be an HTTP CONNECT
+proxy: there its forward road answers `502` for each target, while its reverse road, which dials
+nothing, works.
+
+## Premise
+
+- `crates/podssh-relay/src/serve/forward.rs:140` dials the resolved addresses with
+  `TcpStream::connect`, and `crates/podssh-relay/src/serve/docs.rs:104` does the same for
+  `/trace`; neither reads `HTTPS_PROXY`.
+- Rule 2 of `AGENTS.md`: one outbound connection, through `HTTPS_PROXY` when it is set.
+
+## Approach
+
+1. Where `HTTPS_PROXY` is set (and `NO_PROXY` does not name the target), the role dials each
+   target through it with a CONNECT to `HOST:PORT`, as the client dials its relay, and carries
+   the bytes of the tunnel; a proxy's refusal is the role's `502` with its status said.
+2. The role's policy (private addresses refused unless `--allow-private`) checks the name as it
+   resolves on the role's host before the CONNECT, and the proxy's own answer is the last word;
+   the Decision says what a proxy that resolves the name otherwise means for that check.
+3. `/trace` reports the proxy's leg as it is.
+
+## Prove
+
+```sh
+export CARGO_BUILD_JOBS=4
+cargo test -p podssh-relay --features serve,plain-ws --test relay_serve_contract
+```
+
+Through a stand-in proxy of the tests: the forward road's target is reached by a CONNECT, and the
+proxy's 403 is the role's 502 with its status. Planted: the proxy skipped, and the test of the
+CONNECT fails.

@@ -750,7 +750,7 @@ So a local TCP TARGET exists only where the host allows it; `podssh serve` (M5) 
    FILE, and prints only the label and the expiry. `podssh relay revoke NAME` stops the pair and deletes the
    local copies. `podssh relay status NAME` gives presence; agree on the form with T-058, whose `relay status`
    has no NAME.
-4. Exit codes as `podssh proxy` (`docs/cli.md:3500`): 64 usage; 69 the relay or TARGET cannot be reached; 77 a
+4. Exit codes as `podssh proxy` (`docs/cli.md:3523`): 64 usage; 69 the relay or TARGET cannot be reached; 77 a
    refused pair (`403`); 78 no usable pair; 0 after a stop by a signal. Add the rows to
    `crates/podssh-cli/src/man/facts.rs:468`.
 5. `doctor`: one line for each stored pair, with its expiry and its presence, as in
@@ -758,7 +758,7 @@ So a local TCP TARGET exists only where the host allows it; `podssh serve` (M5) 
 6. Remove `node` and `relay` from `VERB_OWNER`, and add them to `DISPATCHED`
    (`crates/podssh-cli/tests/flag_table.rs:110-142`). New variables go in `VARIABLES`
    (`crates/podssh-cli/src/man/facts.rs:45`), files in FILES (`:303` there), examples in
-   `crates/podssh-cli/src/man/examples.rs:8-243`; update `docs/cli.md`, `docs/reverse.md` and
+   `crates/podssh-cli/src/man/examples.rs:8-252`; update `docs/cli.md`, `docs/reverse.md` and
    `docs/STATUS.md` (lines 48-50 at `af0a163`).
 7. Pitfalls: `podssh man relay` shows the command; the topic THE RELAY has its own key since
    T-234 (`relay-facts`, `crates/podssh-cli/src/man/facts.rs:38`), so keep the two apart. Never
@@ -888,7 +888,7 @@ Read: `parse_hop` strips `ssh://` and reads `host:PORT` (`crates/podssh-cli/src/
 operator leg receives text frames (`docs/relay.md:368-371`). A host key is recorded under the target
 host, never the relay's name (`SECURITY.md:133-143`); `HostKeyAlias` exists
 (`crates/podssh-cli/src/ssh/resolve.rs:420`). `podssh ssh` uses the exit codes of OpenSSH, and
-`podssh proxy` sysexits (`docs/cli.md:3496-3500`).
+`podssh proxy` sysexits (`docs/cli.md:3519-3523`).
 
 ## Approach
 
@@ -1588,10 +1588,10 @@ operator's at `crates/podssh-relay/src/e2e/ends.rs:129-137`. The grants at
 `crates/podssh-relay/src/identity/allow.rs:33-64` and
 `crates/podssh-relay/src/identity/allow.rs:114-122`. The routes of a node,
 their check and their dial in `crates/podssh-relay/src/reverse/routes.rs:1-88`.
-The command line: the targets at `crates/podssh-cli/src/node.rs:195-230`,
-`NAME/ROUTE` at `crates/podssh-cli/src/node.rs:232-247`, the dial of each
+The command line: the targets at `crates/podssh-cli/src/node.rs:199-234`,
+`NAME/ROUTE` at `crates/podssh-cli/src/node.rs:236-251`, the dial of each
 target at `crates/podssh-cli/src/node_target.rs:14-39`, the routes at
-`crates/podssh-cli/src/node.rs:258-266`; the channel's glue at
+`crates/podssh-cli/src/node.rs:262-270`; the channel's glue at
 `crates/podssh-cli/src/channel.rs:272-281` and
 `crates/podssh-cli/src/channel.rs:325-345`; `node://NAME/ROUTE` at
 `crates/podssh-cli/src/ssh/node.rs:32-63`, and `iroh:TICKET/ROUTE` at
@@ -1957,7 +1957,7 @@ session through a node loses a link that it need not lose.
 - Measured: CI's step `m6` at `a220c13` failed in that test with `relay close 1011: node
   unavailable`; the step had passed at each push since T-156.
 - Read: `podssh node` prints its `serving` line after its probe of TARGET, before its socket to
-  the relay opens (`crates/podssh-cli/src/node.rs:298-303`), and the tests waited for that line
+  the relay opens (`crates/podssh-cli/src/node.rs:302-307`), and the tests waited for that line
   (`crates/podssh-cli/tests/m6_exit.rs:99`, `crates/podssh-cli/tests/node_plain.rs:41`,
   `crates/podssh-cli/tests/pipe_remote.rs:194`).
 - Measured, native, 2026-10-10: on a host at 42 % of its CPU, the control lost a link in each of
@@ -2035,7 +2035,7 @@ podssh knew in advance, and said nowhere.
 ## Premise
 
 - Read, at `ea2bd4f`: a unit of T-121 does not restart after 77 (`crates/podssh-cli/src/node_install/text.rs:101`).
-- Read: the node's hook for a new pair is unset (`crates/podssh-cli/src/node.rs:328`, `repair:
+- Read: the node's hook for a new pair is unset (`crates/podssh-cli/src/node.rs:332`, `repair:
   None`).
 
 ## Approach

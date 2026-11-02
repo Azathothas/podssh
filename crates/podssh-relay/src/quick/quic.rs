@@ -152,17 +152,13 @@ pub struct EdgeConnection {
 
 impl EdgeConnection {
     /// Serve it as `quic_serve::serve` does, then let the endpoint go.
-    pub async fn serve<V, F>(
+    pub async fn serve<V: super::origin::Visit>(
         self,
         registration: &super::register::Registration<'_>,
         visit: V,
         steps: tokio::sync::mpsc::UnboundedSender<super::serve::Step>,
         stop: impl std::future::Future<Output = ()>,
-    ) -> Result<(), super::serve::Ended>
-    where
-        V: FnMut(tokio::io::DuplexStream) -> F,
-        F: std::future::Future<Output = ()> + Send + 'static,
-    {
+    ) -> Result<(), super::serve::Ended> {
         let served = super::quic_serve::serve(self.connection, registration, visit, steps, stop).await;
         self.endpoint.close(VarInt::from_u32(0), b"");
         served

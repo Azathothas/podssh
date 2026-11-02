@@ -97,6 +97,9 @@ pub mod node_piping;
 // `podssh node --quick-tunnel`: a quick tunnel of Cloudflare's, which podssh
 // makes itself (T-300).
 pub mod node_quick;
+// `podssh node --quick-tunnel --relay`: the relay role behind the node's
+// quick tunnel, with no listener (T-428).
+pub mod node_quick_relay;
 // The quick tunnel's edge inside WARP's tunnel (T-374), with the feature
 // `warp`; without it, the road says what such a build does.
 pub mod node_warp;

@@ -3,8 +3,12 @@
 //! reverse road (T-427, [`reverse`]), served by podssh itself, so that each
 //! client of podssh and each test of both roads works against it unchanged
 //! (`docs/relay.md`, `docs/mesh.md`). The caller owns the listener and TLS
-//! (`podssh relay serve`); this serves one connection's request.
+//! (`podssh relay serve`); this serves one connection's request. Behind a
+//! quick tunnel, the node's origin is the role, with no listener (T-428,
+//! `behind`).
 
+#[cfg(feature = "quick")]
+pub mod behind;
 pub mod docs;
 pub mod forward;
 pub mod keys;
@@ -101,6 +105,16 @@ impl Config {
             say(line);
         }
     }
+}
+
+/// Whether `path`, with no query, is one of the role's, as
+/// [`serve_named`] routes them: what the node of a quick tunnel gives the
+/// role in place of its 404 (T-428). Each path under `/v1/` is the role's,
+/// which answers the ones that it does not know.
+pub fn serves(path: &str) -> bool {
+    matches!(path, "/health" | "/v1/mint" | "/relays.json" | "/trace" | "/llms-full.txt")
+        || path.starts_with("/connect/")
+        || path.starts_with("/v1/")
 }
 
 /// Serve the one request of `stream`, which closes after it as each request

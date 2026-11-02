@@ -15,6 +15,9 @@
 //! the second to the edge's other region first, and on the edge's GOAWAY it
 //! connects again at once while the old connection drains (T-402). A lost
 //! connection to the edge is made again, with the same name, until Ctrl-C.
+//! With `--relay`, the node is its owner's relay too, behind the tunnel and
+//! with no listener (T-428, `crate::node_quick_relay`), and TARGET may be
+//! left out.
 
 use std::io::Write;
 use std::path::PathBuf;
@@ -24,6 +27,7 @@ use std::time::Duration;
 
 use podssh_relay::identity::file;
 use podssh_relay::quick::keep::{self, Gone, Keep, Made, Plan, Roads, Say};
+use podssh_relay::quick::origin::Visitors;
 use podssh_relay::quick::register::Connector;
 use podssh_relay::quick::roads::{self, Link, Road};
 use podssh_relay::quick::{api, edge};
@@ -36,6 +40,7 @@ use tokio::sync::{watch, Mutex};
 
 use crate::exitmap::{sysexits, Fault};
 use crate::node::NodeArgs;
+use crate::node_quick_relay::Role;
 use crate::node_warp::WarpRoad;
 use crate::relay_settings::Refusal;
 
@@ -58,6 +63,8 @@ struct Ready {
     sshd: bool,
     /// The edge inside WARP's tunnel first (`--warp`).
     warp: bool,
+    /// The relay role behind the tunnel (`--relay`).
+    relay: Option<Role>,
 }
 
 /// Run the node; returns the process exit code.
@@ -104,8 +111,13 @@ fn prepare(args: &NodeArgs) -> Result<Ready, Refusal> {
     if args.targets.iter().any(|t| t.starts_with("udp:")) {
         return Err(Refusal::usage("a udp: TARGET goes on the pair's road: a quick tunnel carries TCP only"));
     }
-    let targets = crate::node::targets_of(&crate::node::words_of(args), false)?;
-    if targets.len() != 1 || targets[0].name.is_some() {
+    // With --relay and no TARGET, the node is the relay alone (T-428).
+    let words = crate::node::words_of(args);
+    let targets = match words.is_empty() && args.relay {
+        true => Vec::new(),
+        false => crate::node::targets_of(&words, false)?,
+    };
+    if targets.len() > 1 || targets.first().is_some_and(|t| t.name.is_some()) {
         return Err(Refusal::usage("--quick-tunnel serves one TARGET, with no route"));
     }
     let flags = crate::node::key_flags(args)?;
@@ -114,10 +126,11 @@ fn prepare(args: &NodeArgs) -> Result<Ready, Refusal> {
             "--quick-tunnel needs --allow FILE: its name is public, so only the operator keys in FILE come in",
         )
     })?;
+    let relay = crate::node_quick_relay::role(args, &label, &allow)?;
     let place = crate::channel::node_place(&label, flags.key.as_deref(), flags.ephemeral)?;
     crate::pairs::online()?;
     let key = crate::channel::load_node_key(&place)?;
-    Ok(Ready { label, targets, key, allow, sshd: args.sshd, warp: args.warp })
+    Ok(Ready { label, targets, key, allow, sshd: args.sshd, warp: args.warp, relay })
 }
 
 /// The system and the machine as cloudflared names them, Go's names.
@@ -136,10 +149,14 @@ fn arch() -> String {
 }
 
 async fn serve_quick(ready: Ready, err: &mut dyn Write) -> i32 {
-    let Ready { label, targets, key, allow, sshd: roost, warp } = ready;
-    let target = match crate::node::probe(&targets, roost).await {
-        Ok(versions) => crate::node::serving(&targets, &versions),
-        Err(refusal) => return refusal.report("node", err),
+    let Ready { label, targets, key, allow, sshd: roost, warp, relay } = ready;
+    // TARGET first, when there is one; with none, the node is the relay alone.
+    let target = match targets.is_empty() {
+        true => None,
+        false => match crate::node::probe(&targets, roost).await {
+            Ok(versions) => Some(crate::node::serving(&targets, &versions)),
+            Err(refusal) => return refusal.report("node", err),
+        },
     };
     let proxy = ProxyChoice::FromEnvironment;
     let say: Say = {
@@ -147,8 +164,14 @@ async fn serve_quick(ready: Ready, err: &mut dyn Write) -> i32 {
         Arc::new(move |line: String| podssh_ssh::err_line!("podssh node: {label}: {line}"))
     };
     let (stop, stopped) = watch::channel(false);
+    // A planned stop closes each socket of the role's reverse road with 1012
+    // first, which its client tells apart from a lost link (T-255).
+    let role = relay.as_ref().map(|relay| relay.cfg.clone());
     tokio::spawn(async move {
         crate::node::stop_signal().await;
+        if let Some(cfg) = role {
+            let _ = cfg.pairs.restart(crate::relay_serve::STOP_WAIT).await;
+        }
         let _ = stop.send(true);
     });
     // The API is asked again for minutes after a refusal for now (T-401):
@@ -172,28 +195,42 @@ async fn serve_quick(ready: Ready, err: &mut dyn Write) -> i32 {
         }
     };
     let url = format!("https://{}", tunnel.hostname);
-    let mode = crate::node_flags::layer_mode();
-    let _ = writeln!(err, "podssh node: {label}: serving {target} at {url}, a quick tunnel, {mode} until Ctrl-C");
-    let channel = crate::channel::node(&label, key, Some(allow), err);
+    let serving = match &target {
+        Some(target) => format!("serving {target} at {url}, a quick tunnel, {}", crate::node_flags::layer_mode()),
+        None => format!("serving the relay alone at {url}, a quick tunnel"),
+    };
+    let _ = writeln!(err, "podssh node: {label}: {serving} until Ctrl-C");
+    if let Some(relay) = &relay {
+        let _ = writeln!(err, "podssh node: {label}: {}", relay.shown(&tunnel.hostname));
+    }
+    // As the pair's road does: the layer, the channel above it, then TARGET; the edge keeps no bound of the relay's.
+    let handler = match targets.first() {
+        Some(first) => {
+            let channel = crate::channel::node(&label, key, Some(allow), err);
+            let tcp = TcpHandler { host: first.host.clone(), port: first.port, timeout: DIAL_LIMIT, sshd: roost };
+            let (settings, budget) = (crate::layered::settings().off_the_pair(), reverse::layered::NODE_BUDGET);
+            Some(Arc::new(Layered::new(E2e::new(tcp, channel), settings, budget)))
+        }
+        None => None,
+    };
     // The name is the node's answer: the one line on stdout.
     podssh_ssh::out_line!("{url}");
-    let first = &targets[0];
-    let tcp = TcpHandler { host: first.host.clone(), port: first.port, timeout: DIAL_LIMIT, sshd: roost };
-    let (settings, budget) = (crate::layered::settings().off_the_pair(), reverse::layered::NODE_BUDGET);
-    // As the pair's road does: the layer, the channel above it, then TARGET; the edge keeps no bound of the relay's.
-    let handler = Arc::new(Layered::new(E2e::new(tcp, channel), settings, budget));
     let ids = Arc::new(AtomicU64::new(1));
     let visit = move |stream: DuplexStream| {
         // Each visitor's id in the form of a relay's session id: 32 hex digits.
         let id = SessionId::parse(format!("{:032x}", ids.fetch_add(1, Ordering::Relaxed)).as_bytes());
         let handler = handler.clone();
         async move {
-            let Ok(id) = id else { return };
+            // With no TARGET each path is the role's, and no visitor comes here.
+            let (Some(handler), Ok(id)) = (handler, id) else { return };
             let Ok(mut session) = handler.open(id).await else { return };
             let mut stream = stream;
             let _ = tokio::io::copy_bidirectional(&mut stream, &mut session).await;
         }
     };
+    // The relay's paths go to the role, in place of the 404 (T-428).
+    let origin = relay.as_ref().map(|relay| relay.origin(&tunnel.hostname, targets.is_empty()));
+    let visit = Visitors { visit, origin };
     // The tunnel's credentials, and this run's id, version and system, as
     // each connection registers them.
     let connector = Arc::new(Connector {

@@ -15,10 +15,10 @@ use std::pin::Pin;
 use std::sync::{Arc, Mutex};
 use std::time::Duration;
 
-use tokio::io::DuplexStream;
 use tokio::sync::watch;
 use tokio::time::Instant;
 
+use super::origin::Visit;
 use super::register::Connector;
 use super::roads::{self, Failed, Road, Serving};
 use super::serve::{Ended, Step, CLOSE_GRACE, DRAIN, UNREGISTER_WAIT};
@@ -173,10 +173,9 @@ fn paired(conn_index: u8) -> u8 {
 }
 
 /// One connection, the index `base` and its pair's, kept until `end`.
-async fn connection<V, F>(shared: &Shared<V>, base: u8, mut end: watch::Receiver<bool>) -> Result<(), Gone>
+async fn connection<V>(shared: &Shared<V>, base: u8, mut end: watch::Receiver<bool>) -> Result<(), Gone>
 where
-    V: FnMut(DuplexStream) -> F + Clone + Send + 'static,
-    F: Future<Output = ()> + Send + 'static,
+    V: Visit + Clone + Send + 'static,
 {
     let (mut wait, mut reached, mut index) = (RETRY_FIRST, false, base);
     // The connection that drains after a GOAWAY, while the next one serves.
@@ -264,10 +263,9 @@ where
 
 /// Keep the node's connections to the edge until `stop`, or until the node
 /// must end.
-pub async fn keep<V, F>(keep: Keep<V>, stop: watch::Receiver<bool>) -> Result<(), Gone>
+pub async fn keep<V>(keep: Keep<V>, stop: watch::Receiver<bool>) -> Result<(), Gone>
 where
-    V: FnMut(DuplexStream) -> F + Clone + Send + 'static,
-    F: Future<Output = ()> + Send + 'static,
+    V: Visit + Clone + Send + 'static,
 {
     let Keep { connector, visit, roads, say, ready, connections } = keep;
     let won = watch::channel(None).0;
