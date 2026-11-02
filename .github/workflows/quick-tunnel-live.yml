@@ -236,6 +236,15 @@ jobs:
           sed 's/^/node4: /' "$RUNNER_TEMP/node4.log"
           grep -q "registered at" "$RUNNER_TEMP/node4.log" || { echo "FAIL the relay's node registered nothing"; exit 1; }
           grep -q "the relay's forward and reverse roads" "$RUNNER_TEMP/node4.log" || { echo "FAIL no line of the role"; exit 1; }
+          # A quick tunnel's name comes to DNS some seconds after it
+          # registers, and a resolver keeps an NXDOMAIN for a while: the
+          # role's /health must answer through the system's resolver first.
+          for _ in $(seq 1 60); do
+            [ "$(curl -s -o /dev/null -m 5 -w '%{http_code}' "https://$host4/health")" = 200 ] && break
+            sleep 2
+          done
+          [ "$(curl -s -o /dev/null -m 5 -w '%{http_code}' "https://$host4/health")" = 200 ] \
+            || { echo "FAIL the role's /health did not answer at the tunnel's name within 120 s"; exit 1; }
           # The client of v1.0.0, in a cache of its own: the role's token,
           # then the server's version line through the role.
           set +e
