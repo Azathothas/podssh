@@ -461,7 +461,7 @@ result, `Resolved` (lines 27-41 at `22c3b88`), holds the settings in effect, the
    (`crates/podssh-cli/src/ssh/keywords.rs:25-84`), and `host`, `hostname`, `user`, `port`,
    `identityfile` and `proxyjump`. Spell each value as `ssh -G` does (`true` or `yes`).
 5. Keep a list in the test of the values that differ on purpose, each with its reason:
-   `serveraliveinterval 60` (the relay's idle cut, `docs/relay.md:198`) and `connecttimeout 60`.
+   `serveraliveinterval 60` (the relay's idle cut, `docs/relay.md:223`) and `connecttimeout 60`.
 6. It does not wait for T-043: with no file, `-G` shows the effect of `-o`. After T-043 and
    T-044, `-v` names the files that were read, on stderr.
 7. Change the `ssh` notes (`crates/podssh-cli/src/man/notes_ssh.rs:4-479`) and `docs/cli.md:48-641`
@@ -626,7 +626,7 @@ output. Planted defect: copy the password field into a comment; the secret test 
 `crates/podssh-cli/src/config_import/mod.rs:177-230`; the verb in the
 tables at `crates/podssh-cli/src/flags.rs:417-418`,
 `crates/podssh-cli/src/positionals.rs:211-216`,
-`crates/podssh-cli/src/tree.rs:361-367` and
+`crates/podssh-cli/src/tree.rs:362-368` and
 `crates/podssh-cli/src/dispatch.rs:149-150`.
 - `cargo test -p podssh-cli --test config_import`: 5 passed. The fixture
   `crates/podssh-cli/tests/fixtures/ansible/inventory.ini`, read by
@@ -702,7 +702,7 @@ configuration directory first; the operator corrected it on 2026-10-08 (`docs/de
 5. No keyword for a token: a token in a file is a stored credential (question Q5, T-034).
 6. podssh never writes the file: csshw creates one, but podssh changes nothing unasked.
 7. `doctor` and `status` (T-051) name the file in use. Change in the same commit: VARIABLES and
-   FILES (`crates/podssh-cli/src/man/facts.rs:45-290`, 98-142), `docs/relay.md:50-109` and
+   FILES (`crates/podssh-cli/src/man/facts.rs:45-290`, 98-142), `docs/relay.md:75-134` and
    `docs/cli.md`. The cache directory is the work of T-243.
 
 ## Decision
