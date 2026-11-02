@@ -1,0 +1,8 @@
+# T-506: the line of an empty list taken out, as before the entry: `session
+# list` with no session exits 0 with no byte, and a script cannot tell none
+# from a list that could not be made; the test of the empty list must fail.
+ENTRY=T-506
+GROUP=cli-tests
+EXPECT='test an_empty_list_says_so_on_stderr_alone \.\.\. FAILED'
+RUN='cargo test --locked -p podssh-cli --test session -- an_empty_list_says_so_on_stderr_alone'
+LIMIT=2400

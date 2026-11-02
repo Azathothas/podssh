@@ -25,8 +25,15 @@ pub const SESSION: &[&str] = &[
     "capture NAME writes the screen as a terminal of the pty's size shows it: its rows, with no blank at their \
      ends and no empty row at the end. --raw writes the last 64 KiB of the output as it came, from a place \
      where a terminal can start to read it, never inside a sequence or a character. stop NAME ends the session \
-     and its podssh. list writes a line for each session that answers: its name, running or ended and the \
-     status, and its host, with a tab between them.",
+     and its podssh.",
+    "list writes a line for each session of the directories of the cache: its name, running or ended and the \
+     status, and its host, with a tab between them. A session whose podssh takes the connection and gives no \
+     answer within 2 s is listed with the state no-answer and no host, and why on stderr: it is there, busy or \
+     stuck. A socket that nobody serves any more, as after a crash, is no session, and the next start of its \
+     name takes its place. With no session, stdout stays empty and one line on stderr says so and names the \
+     directories read; a directory that cannot be read is a line on stderr with its error; -q leaves out \
+     each of these lines. --json writes one object instead: sessions (each with its name, state, host and \
+     socket; [] for none), read (the directories read) and unreadable (each with its error). The exit is 0.",
     "The session's podssh ends at stop, a minute after its session ended (so that the last screen can still \
      be read), after an hour with no request, or at SIGINT, SIGTERM or SIGHUP. serve NAME [OPTIONS] HOST is \
      that podssh in the foreground, for a program that keeps it itself: it writes one line of JSON on stdout \

@@ -1,0 +1,11 @@
+--- a/crates/podssh-cli/src/session/list.rs
++++ b/crates/podssh-cli/src/session/list.rs
+@@ -84,7 +84,7 @@
+     for l in &listed {
+         let _ = writeln!(out, "{}\t{}\t{}", l.name, l.state, l.host);
+     }
+-    if listed.is_empty() && !quiet {
++    if listed.is_empty() && !quiet && listed.len() > 1 {
+         let _ = writeln!(err, "{}", none_line(&found));
+     }
+     0

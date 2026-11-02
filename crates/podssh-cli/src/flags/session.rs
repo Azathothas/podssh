@@ -24,6 +24,8 @@ pub const SESSION_FLAGS: &[FlagRow] = &[
         "capture: the last 64 KiB of output as it came, from a clean place of the terminal's grammar, in place of the screen", None),
     row(None, "detach", None, FlagKind::Supported,
         "serve: after the line that says it is ready, write nothing more on stdout and stderr (start gives it)", None),
+    row(None, "json", None, FlagKind::Supported,
+        "list: one JSON object on stdout: each session with its name, state, host and socket ([] for none), the directories read, and those that could not be", None),
     row(Some('p'), "port", Some("PORT"), FlagKind::Supported,
         "start: port to connect to", None),
     row(Some('l'), "login-name", Some("USER"), FlagKind::Supported,

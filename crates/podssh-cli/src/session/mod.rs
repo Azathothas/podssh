@@ -21,6 +21,7 @@
 
 mod client;
 mod daemon;
+mod list;
 mod model;
 mod place;
 mod start;
@@ -67,6 +68,8 @@ pub struct SessionArgs {
     pub no_enter: bool,
     pub raw: bool,
     pub detach: bool,
+    /// `list --json` (T-506).
+    pub json: bool,
     /// The words after the verb, as typed: `start` gives them to `serve`.
     pub argv: Vec<OsString>,
     pub refused: Vec<(String, &'static str, &'static str)>,
@@ -89,6 +92,7 @@ impl SessionArgs {
             no_enter: flag("no-enter"),
             raw: flag("raw"),
             detach: flag("detach"),
+            json: flag("json"),
             argv: rest.to_vec(),
             refused,
         }
@@ -120,7 +124,7 @@ pub fn run(args: &SessionArgs, out: &mut dyn Write, err: &mut dyn Write) -> i32 
     match ask {
         Ask::Start => start::run(args, out, err),
         Ask::Serve => daemon::run(args, out, err),
-        Ask::List => client::list(out, err),
+        Ask::List => list::list(args, out, err),
         Ask::SendStdin => match client::stdin_text() {
             Ok(text) => client::request(args, wire::Op::Send(text), out, err),
             Err(refusal) => refusal.report("session", err),
@@ -162,6 +166,7 @@ fn check(args: &SessionArgs) -> Result<Ask, Refusal> {
         (args.no_enter, "--no-enter", &["send"][..]),
         (args.raw, "--raw", &["capture"][..]),
         (args.detach, "--detach", &["serve"][..]),
+        (args.json, "--json", &["list"][..]),
         (args.socket.is_some(), "--socket", &["start", "serve", "send", "wait", "capture", "stop"][..]),
         (connection_flags(&args.ssh), "a connection flag", &["start", "serve"][..]),
     ] {

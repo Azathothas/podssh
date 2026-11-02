@@ -10,7 +10,7 @@ use std::io::Write;
 use std::path::Path;
 use std::time::{Duration, Instant};
 
-use serde_json::Value;
+use serde_json::{json, Value};
 
 use super::lock::{self, Holder};
 use crate::exitmap::sysexits::{EX_SOFTWARE, EX_TEMPFAIL, EX_UNAVAILABLE};
@@ -31,6 +31,9 @@ const SUBCOMMANDS: &str = "list, status or stop";
 pub struct DetachedArgs {
     pub subcommand: Option<String>,
     pub args: Vec<String>,
+    /// `list --json` and `-q` (T-506).
+    pub json: bool,
+    pub quiet: bool,
     pub refused: Vec<(String, &'static str, &'static str)>,
 }
 
@@ -56,15 +59,25 @@ pub fn run(args: &DetachedArgs, out: &mut dyn Write, err: &mut dyn Write) -> i32
             return Refusal::usage(why).report("detached", err);
         }
     }
+    if (args.json || args.quiet) && sub != "list" {
+        return Refusal::usage("--json and -q are for list").report("detached", err);
+    }
     let Some(dir) = lock::dir() else {
-        let _ =
-            writeln!(err, "podssh detached: no directory of the cache is there, so no run in the background is known");
+        if !(args.quiet && name.is_none()) {
+            let _ = writeln!(
+                err,
+                "podssh detached: no directory of the cache is there, so no run in the background is known"
+            );
+        }
+        if args.json {
+            let _ = writeln!(out, "{}", json_of(&[], None));
+        }
         return if name.is_none() { 0 } else { EX_UNAVAILABLE };
     };
     match (sub, name) {
         ("status", Some(name)) => status(&dir, name, out, err),
         ("stop", Some(name)) => stop(&dir, name, err),
-        _ => list(&dir, out),
+        _ => list(&dir, args, out, err),
     }
 }
 
@@ -124,10 +137,15 @@ impl Seen {
     }
 }
 
-/// The names of the runs in `dir`: each record's and each lock's.
-fn names(dir: &Path) -> BTreeSet<String> {
+/// The names of the runs in `dir`: each record's and each lock's; why the
+/// directory could not be read, where it could not.
+fn names(dir: &Path) -> Result<BTreeSet<String>, std::io::Error> {
     let mut found = BTreeSet::new();
-    let Ok(entries) = std::fs::read_dir(dir) else { return found };
+    let entries = match std::fs::read_dir(dir) {
+        Ok(entries) => entries,
+        Err(e) if e.kind() == std::io::ErrorKind::NotFound => return Ok(found),
+        Err(e) => return Err(e),
+    };
     for entry in entries.flatten() {
         let Ok(file) = entry.file_name().into_string() else { continue };
         let name = file.strip_suffix(".json").or_else(|| file.strip_suffix(".lock"));
@@ -135,18 +153,67 @@ fn names(dir: &Path) -> BTreeSet<String> {
             found.insert(name.to_string());
         }
     }
-    found
+    Ok(found)
 }
 
 /// A line for each run: its name, its state, its pid and its words, with a
-/// tab between them.
-fn list(dir: &Path, out: &mut dyn Write) -> i32 {
-    for name in names(dir) {
+/// tab between them; or, with `--json`, one object. With none, stdout stays
+/// empty and a line on stderr names the directory read (none with `-q`),
+/// so that "none" is not a list that could not be made (T-506).
+fn list(dir: &Path, args: &DetachedArgs, out: &mut dyn Write, err: &mut dyn Write) -> i32 {
+    let names = match names(dir) {
+        Ok(names) => names,
+        Err(e) => {
+            if !args.quiet {
+                let _ = writeln!(err, "podssh detached: {}: {e}; no run of it is listed", dir.display());
+            }
+            BTreeSet::new()
+        }
+    };
+    let mut runs = Vec::new();
+    for name in names {
         let seen = Seen::of(dir, &name);
         let pid = seen.holder_pid().or(seen.run_pid()).map_or_else(|| "-".to_string(), |p| p.to_string());
-        let _ = writeln!(out, "{name}\t{}\t{pid}\t{}", seen.state(), seen.text("words"));
+        runs.push(Run { name, state: seen.state(), pid, words: seen.text("words") });
+    }
+    if args.json {
+        let _ = writeln!(out, "{}", json_of(&runs, Some(dir)));
+        return 0;
+    }
+    for run in &runs {
+        let _ = writeln!(out, "{}\t{}\t{}\t{}", run.name, run.state, run.pid, run.words);
+    }
+    if runs.is_empty() && !args.quiet {
+        let _ = writeln!(err, "{}", none_line(dir));
     }
     0
+}
+
+/// One line of the list.
+#[derive(Debug, Clone, PartialEq, Eq)]
+struct Run {
+    name: String,
+    state: String,
+    pid: String,
+    words: String,
+}
+
+/// The line of an empty list.
+fn none_line(dir: &Path) -> String {
+    format!("podssh detached: no run is known in {}", dir.display())
+}
+
+/// The list as one object: each run (`[]` for none), with its pid a number
+/// where it is known, and the directory read (`null` for none).
+fn json_of(runs: &[Run], dir: Option<&Path>) -> Value {
+    let runs: Vec<Value> = runs
+        .iter()
+        .map(|r| {
+            let pid = r.pid.parse::<u32>().map_or(Value::Null, Value::from);
+            json!({ "name": r.name, "state": r.state, "pid": pid, "words": r.words })
+        })
+        .collect();
+    json!({ "runs": runs, "dir": dir.map(|d| d.display().to_string()) })
 }
 
 fn status(dir: &Path, name: &str, out: &mut dyn Write, err: &mut dyn Write) -> i32 {

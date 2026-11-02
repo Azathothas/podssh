@@ -1228,7 +1228,10 @@ cache (`PODSSH_CACHE_DIR=none`) there is no lock, a line says so, and the
 run goes on. Beside the lock, `NAME.json` records the run: its pid, the pid
 of a supervisor's run, its words, its log and its start.
 `podssh detached list` writes a line for each run (its name, its state, its
-pid, its words); `status NAME` its fields, with 0 when it runs and 69 when
+pid, its words); with none, stdout stays empty and one line on stderr says
+that no run is known and names the directory read, none with `-q`; `list
+--json` writes one object, `runs` (`[]` for none) and `dir` (T-506).
+`status NAME` writes its fields, with 0 when it runs and 69 when
 it does not; `stop NAME` sends SIGTERM to the holder of the name, then
 SIGKILL after 10 s to each holder still there, the supervisor first (on
 Windows `TerminateProcess` at once, the supervisor first), and exits 0 once
@@ -3411,8 +3414,19 @@ output stops, and reads its screen, each with a call of its own.
   terminal can start to read it: the ring of T-221, never inside a
   sequence or a character.
 - `stop NAME` ends the session and its podssh. `list` writes a line for
-  each session of the cache that answers: its name, `running` or `ended`
-  and the status, and its host, with a tab between them.
+  each session of the cache: its name, `running` or `ended` and the
+  status, and its host, with a tab between them (T-506). A session whose
+  podssh takes the connection and gives no answer within 2 s is a line
+  with the state `no-answer` and no host, and why on stderr: it is there,
+  busy or stuck, and a script that counts the lines counts it. A socket
+  that nobody serves any more (`ECONNREFUSED`, as after a crash) is no
+  session; the next `start` of its name takes its place. With no session,
+  stdout stays empty and one line on stderr says so and names the
+  directories read, so that "none" is not a list that could not be made; a
+  directory that is there and cannot be read is a line on stderr with its
+  error; `-q` leaves these lines out. `--json` writes one object instead:
+  `sessions` (`name`, `state`, `host` and `socket`; `[]` for none), `read`
+  and `unreadable` (`dir` and `error`). The exit is 0.
 - The session's podssh ends at `stop`, 60 s after its session ended (so
   that its last screen and its status can be read), after an hour with no
   request, or at SIGINT, SIGTERM or SIGHUP. `podssh session serve NAME
