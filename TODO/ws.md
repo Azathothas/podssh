@@ -1476,7 +1476,7 @@ upgrade. The stand-in relay has two modes for them, `badaccept` and
 
 **Source:** GitHub #54 (Nemo-010, 2026-10-30).
 **Category:** feature
-**Milestone:** backlog
+**Milestone:** M10
 **Priority:** P3
 **Effort:** M
 **Status:** blocked
@@ -1532,7 +1532,7 @@ takes a body (`docs/relay.md`).
 
 **Source:** GitHub #56 (Nemo-010, 2026-10-30).
 **Category:** feature
-**Milestone:** backlog
+**Milestone:** M10
 **Priority:** P3
 **Effort:** M
 **Status:** blocked

@@ -33,12 +33,15 @@ follow it" and nothing more: this file is then your whole instruction.
 stop to ask, and do not wait for a reply. Stop only when the operator
 interrupts you, or when the goal is reached.
 
-**The goal.** Each entry of `TODO/` is done, except the entries that wait
-for the relay's operator and the entries that the operator holds
-(`TODO/PROGRESS.md`). Each test passes, and the gate is green in CI.
-Betas `v1.0.0-beta.N` reach the testers on the way (T-309), and `v1.0.0`,
-the first stable release, is published and verified from end to end at the
-end (T-250, T-251).
+**The goal.** Each entry of `TODO/` is done, except the entries that the
+operator holds (`TODO/PROGRESS.md`). Each test passes, and the gate is green
+in CI. `v1.0.0`, the first stable release, went out on 2026-11-02 (T-250).
+Milestone M10 follows it (the operator, 2026-11-02, Q63;
+[docs/mesh.md](docs/mesh.md)): podssh's own nodes as a mesh at parity with
+Tailscale, and the relay as a role of podssh itself, so that no entry waits
+for the relay's operator. Betas `v1.1.0-beta.N` reach the testers on the
+way, and `v1.1.0` is published and verified from end to end at the end
+(T-446).
 
 ### At the start of a session
 
@@ -137,23 +140,24 @@ the next entries.
   correct yourself; move the old text to "Superseded".
 - When somebody outside must act, set the entry to `blocked`, write a
   `## Blocker` that names who, and take the next entry. Do not work on the
-  entries that wait for the relay's operator or that the operator holds
-  (`TODO/PROGRESS.md`).
+  entries that the operator holds (`TODO/PROGRESS.md`). No entry waits for
+  the relay's operator since Q63: podssh's own relay role does each item.
 - Never close an entry as out of scope or as "won't fix".
 
 ### Releases
 
-- Betas `v1.0.0-beta.N` (the operator, 2026-10-30; T-309): a prerelease
-  from `main` when the gate passed on its commit, the release workflow
-  passed by hand on it, and the local checks of its binary passed. The next
-  beta follows a batch of repairs that the testers should test again, at
-  most one a day. A tag never moves: a defect found in a beta goes into the
-  next one.
-- `v1.0.0`, the final release, when each other entry is done, except the
-  relay's (T-250). Check it from end to end with no human (T-251): before
-  the tag, on the gate's artifact of the last push and a local build; then
-  tag `v1.0.0` once; then check the published files. A defect found after
-  the tag goes into `v1.0.1`.
+- Betas (the operator, 2026-10-30; T-309): a prerelease from `main` when
+  the gate passed on its commit, the release workflow passed by hand on it,
+  and the local checks of its binary passed. The next beta follows a batch
+  of repairs or of M10's entries that the testers should test, at most one a
+  day. A tag never moves: a defect found in a beta goes into the next one.
+  The betas of M10 are `v1.1.0-beta.N` (T-446).
+- `v1.0.0` went out on 2026-11-02 (T-250); a defect found in it goes into
+  `v1.0.1`, from `main` with the same checks. `v1.1.0`, the release of
+  M10, when each other entry is done (T-446). Check it from end to end with
+  no human, as T-251 checked `v1.0.0`: before the tag, on the gate's
+  artifact of the last push and a local build; then tag once; then check
+  the published files.
 - Run the release workflow by hand on the commit before each tag, and once
   for the tag.
 - [docs/development.md](docs/development.md) (section "Release builds")
@@ -183,6 +187,7 @@ current.
 | Work on the resumable layer (milestone M6) | [docs/design.md](docs/design.md) (section 5), `crates/podssh-relay/src/session/`, [TODO/resume.md](TODO/resume.md) |
 | Work on IRC | [docs/irc.md](docs/irc.md) |
 | Work on Tailscale | [docs/tailscale.md](docs/tailscale.md) |
+| Work on the mesh or the relay role (milestone M10) | [docs/mesh.md](docs/mesh.md), [docs/relay.md](docs/relay.md) (the contract that the role serves), `TODO/mesh.md`, [docs/carriers.md](docs/carriers.md) |
 | Work on the iroh road | [docs/design.md](docs/design.md) (section 7), `crates/podssh-iroh/` |
 | Repair a known defect, or do any open work | [TODO/PROGRESS.md](TODO/PROGRESS.md) (the order), [TODO/INDEX.md](TODO/INDEX.md) (each entry) |
 | File, close or reorder work; a GitHub issue | [TODO/RULES.md](TODO/RULES.md), [TODO/issues.md](TODO/issues.md), `cargo todo` (`crates/podssh-todo`) |

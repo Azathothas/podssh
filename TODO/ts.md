@@ -1,7 +1,7 @@
 This file holds the work on `podssh ts`: the command in `crates/podssh-cli/src/ts.rs`, the adapter
 crate crates/podssh-ts/, and the fork vendor/tailscale-rs with its patches in vendor/patches/
 (`vendor/tailscale-rs/LOCAL-PATCHES.md`). It has the rows C2, C3 and C9 of the former defects page
-(`git show 3ee70dc:docs/defects.md`) and the Tailscale item of M8 (`docs/ROADMAP.md:247-250`). All
+(`git show 3ee70dc:docs/defects.md`) and the Tailscale item of M8 (`docs/ROADMAP.md:247-251`). All
 of it is behind the cargo feature `ts`: the default binary refuses `podssh ts` with exit 70. The
 fork builds aws-lc and uses much memory, so run one build at a time with `CARGO_BUILD_JOBS=4`
 (`AGENTS.md`, section 4). The fork's own tests run in the build image through
@@ -51,7 +51,7 @@ a self node with no home region (`crates/podssh-cli/src/ts.rs`, lines 288-320 at
    a later send must not panic.
 3. With no `--timeout` (a terminal), limit the first map wait by `--ts-wait-allowlist`, else by a
    named constant of 20 s, "a design constant, not a measurement", as at
-   `crates/podssh-cli/src/ts.rs`, lines 298-301 at `4c3b456`. The default stays fail-fast (`docs/decisions.md:61`).
+   `crates/podssh-cli/src/ts.rs`, lines 298-301 at `4c3b456`. The default stays fail-fast (`docs/decisions.md:66`).
 4. Apply the same limit to the address wait in `Device::tcp_connect`
    (`vendor/tailscale-rs/src/lib.rs:308-312`). Keep one message and exit 78 for "no map in time".
 5. Correct the two comments, and update `docs/STATUS.md`, line 307 at `7aa955a` in the same commit.
@@ -232,7 +232,7 @@ Read, at `c17e64f`: `probe` returns `Ok` for `Tcp` and `Relay` when `has_key` is
 (`crates/podssh-ts/src/chain.rs` lines 44-61), which `podssh ts` always sets
 (`crates/podssh-cli/src/ts.rs` line 136). The first ready mode of `tcp`, `relay` wins
 (`crates/podssh-ts/src/chain.rs` lines 63-76), and a test asserts it (`crates/podssh-ts/tests/chain.rs`
-lines 26-31). The decided chain is tun, socks, tcp, relay (`docs/decisions.md:61`), and the rule is to probe
+lines 26-31). The decided chain is tun, socks, tcp, relay (`docs/decisions.md:66`), and the rule is to probe
 before use (`docs/target-environment.md:101-103`).
 
 Read, at `c17e64f`: `ephemeral` goes into the register request (`crates/podssh-ts/src/node.rs` line
@@ -354,7 +354,7 @@ say so.
 
 # T-103: The DERP dial of the Tailscale fork does not use the proxy
 
-**Source:** `docs/ROADMAP.md:247-250` ("first repair its DERP dial, which does not use the proxy").
+**Source:** `docs/ROADMAP.md:247-251` ("first repair its DERP dial, which does not use the proxy").
 Confirmed here on `3ee70dc` by reading the fork and the command.
 **Category:** defect
 **Milestone:** M8
@@ -501,7 +501,7 @@ a URL with its port written, uses the same proxy for its checks before the start
 
 # T-104: `podssh ts` connects again after a drop
 
-**Source:** `docs/ROADMAP.md:247-250` ("and its missing reconnection"). Read here on `3ee70dc` in
+**Source:** `docs/ROADMAP.md:247-251` ("and its missing reconnection"). Read here on `3ee70dc` in
 the fork, and in kameo 0.21.1, the fork's actor crate, in the local cargo registry.
 **Category:** feature
 **Milestone:** M8
@@ -543,7 +543,7 @@ checks allowed (`crates/podssh-ws/src/client.rs:31-32`, `docs/relay.md:157-159`)
 2. Wait with podssh's backoff, passed in `RuntimeOptions`; count from 1 after a link of 60 s. With
    a pin, each region dials the relay with one key (`vendor/tailscale-rs/ts_runtime/src/multiderp/uniderp.rs:333-340`):
    two sockets must not replace each other for ever (`crates/podssh-ts/src/classify.rs:3-6`).
-3. Do not retry `1008 "not authorized"`, except under `--ts-wait-allowlist` (`docs/decisions.md:61`);
+3. Do not retry `1008 "not authorized"`, except under `--ts-wait-allowlist` (`docs/decisions.md:66`);
    it goes to the state of T-105. The inactivity close of a region that is not home is no error
    (`vendor/tailscale-rs/ts_runtime/src/multiderp/uniderp.rs:404-409`).
 4. Ping every 10 s; three silent intervals mean a dead link, after the relay answered one ping.
@@ -757,10 +757,10 @@ comment of `no_map` is gone. `docs/tailscale.md`, the manual and `docs/STATUS.md
 
 # T-106: The live test of `podssh ts` with two nodes
 
-**Source:** `docs/ROADMAP.md:247-250` ("then the tests with two nodes"), `docs/tailscale.md:22`.
+**Source:** `docs/ROADMAP.md:247-251` ("then the tests with two nodes"), `docs/tailscale.md:22`.
 Read here on `3ee70dc`.
 **Category:** measurement
-**Milestone:** M8
+**Milestone:** M10
 **Priority:** P2
 **Effort:** M
 **Status:** blocked
@@ -789,7 +789,7 @@ Not measured: whether the proxy of a sandbox allows `tcp.ts.relay.ajam.dev:443` 
 
 ## Approach
 
-1. Start after T-103, T-104 and T-105 (`docs/ROADMAP.md:247-250`).
+1. Start after T-103, T-104 and T-105 (`docs/ROADMAP.md:247-251`).
 2. Make two state files once, outside the repository, and keep them. For the allowlist, print only
    the node key prefix of each (`crates/podssh-ts/src/status.rs:7-22`).
 3. Node A: a new example, crates/podssh-ts/examples/ts_echo.rs, in `relay` mode: an echo on the

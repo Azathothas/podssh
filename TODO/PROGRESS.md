@@ -77,6 +77,10 @@ entry keeps its proof in the entry; this page keeps no history (git does).
   `plants.yml` and `box.yml` passed on that branch at `bb46515`; those three
   branches can go, as this session's git proxy would not delete them.
 
+  Waiting on 2026-11-02: `draft-m10-corrections`, the Corrections of the 15 entries that waited
+  for the relay's operator, after Q63, with `docs/relay-operator.md` and `docs/carriers.md`
+  (Q64, Q65), drafted by an agent of this cloud session in `.claude/worktrees/m10-corrections`.
+
   CI: the gate passed at
   `24b9f6e` (run 38331509229), and its step `release` at `cad2885` (478
   checks, the desktop's, `usbip` and `each` among them). At `d0dbb59` (run
@@ -120,7 +124,7 @@ and `CARGO_BUILD_JOBS=4`:
 
 ## Counts
 
-`TODO/INDEX.md` holds 422 entries: 14 open, 1 partial, 31 blocked, 376 done.
+`TODO/INDEX.md` holds 442 entries: 34 open, 1 partial, 31 blocked, 376 done.
 
 Open includes parked work. `cargo todo check` verifies this line.
 
@@ -135,12 +139,10 @@ the surface for agents: done.
 
 **M4:** T-085 (the exit measurement) is on hold (Q32).
 
-**First (2026-11-01):** `v1.0.0-beta.3` is published, a prerelease at
-`54d89a0` (01:44 UTC), with the provenance of each binary and the signature
-of `SHA256SUMS`, each proven on the published files (`docs/STATUS.md`). The
-next beta follows the next batch of repairs that the testers should test
-again, at most one a day, so not before 2026-11-02 01:44 UTC, and once the
-gate is green on its commit.
+**First (2026-11-02):** `v1.0.0-beta.4` is published, a prerelease at `4e79a1f` (01:59 UTC),
+its files proven by `release-proofs.yml` (run 41375376913) and `update-live.yml` (run
+41375379843); `v1.0.0` is tagged from `35a0d19` the same night (T-250), and its checks after the
+tag finish T-250.
 
 **The operator's request of 2026-11-01:** `--detach` is in, `session start` asks its prompts on
 the terminal, and both are measured on Windows and macOS in Actions (2026-11-01); since Q61 a
@@ -158,21 +160,21 @@ the live relay are repaired, and the entries of the audit, the study and the iss
 of 2026-10-31 (GitHub #59 to #63 and #69 to #76), each done. Each other `backlog` entry is done, but for those on hold, those of the relay's
 operator and the parked ones.
 
-**Next (2026-11-01):** each entry that the operator's rulings of Q60 to Q62 opened is done. The
-rehearsals of the release check found checks that fail at random, a stale socket of `-M` and the outside
-refusals of railway.new and the IRC networks, each repaired; `v1.0.0-beta.4` comes after
-2026-11-02 01:44 UTC from `4e79a1f`, where the release's dry run and the local rows passed, once
-its gate is green.
+**Next (2026-11-02): M10**, the mesh and the relay in podssh (Q63 to Q66, `docs/mesh.md`), in
+this order:
 
-**Then** M9: the release check's whole run before the tag passed at `35a0d19` (2026-11-01), and
-last T-250 (the one release) from that commit, after `v1.0.0-beta.4`, unattended (the operator,
-2026-11-01). Between
-entries: the `none` entries, the highest priority first.
+1. The relay role: its forward road (T-169), its reverse road (T-427), behind a node's quick
+   tunnel (T-428), with the repairs T-443 and T-444; then what the role serves: T-336, T-255,
+   T-421, T-253, T-325, T-326, T-319, T-321 and T-173.
+2. The net: T-429, T-430, T-445, T-086, T-226, T-346 and T-106.
+3. Exit, routes, share and funnel: T-431, T-432, T-433, T-180, then T-434 and T-435.
+4. The public carriers of Q65 (T-436, T-437, T-438) and the protocols of Q66 (T-439, T-440,
+   T-441), then T-442.
+5. T-446: betas `v1.1.0-beta.N` after batches, and `v1.1.0` at the end.
 
-**Skip** the entries that wait for the relay's operator (status
-`blocked`): T-086, T-106, T-169, T-173, T-180, T-226, T-253, T-255,
-T-319, T-321, T-325, T-326, T-336, T-346 (the form and the keys of a signed list of relays) and T-421 (a frame in flight
-after an operator's lost link); and the entries that the operator holds (status
+Between entries: the `none` entries, the highest priority first.
+
+**Skip** the entries that the operator holds (status
 `blocked`, Q32):
 T-085, T-107 to T-113, T-117, T-118, T-213, T-222, T-245 and T-248; and the work
 parked behind them (T-114, T-115, T-116, T-119, T-120, T-122, T-123,
@@ -215,6 +217,16 @@ unattended session (Q13 to Q28) on 2026-10-08; the rulings are in
 that it blocks (status `blocked`) and a recommendation; the session then
 takes the next entry. Nothing is closed as out of scope until the operator
 rules.
+
+The operator settled Q63 to Q66 on 2026-11-02 (`docs/decisions.md`), after the research of five
+agents on the dependency on the relay's operator: podssh grows into a mesh of its user's own nodes
+at parity with Tailscale (exit nodes, routes, share, funnel), and the relay becomes a role of
+podssh itself, so that no entry waits for the relay's operator (Q63, milestone M10,
+`docs/mesh.md`); Cloudflare's terms are accepted and are not raised again (Q64); the
+magic-wormhole transit relay and mailboxes, Piping Server, the Wisp demo server and others that
+fit may be tried unasked (Q65); podssh speaks HTTP CONNECT over TLS, VLESS and XHTTP, and
+wstunnel's protocol as a client (Q66). The operator also had `v1.0.0` published at once, for the
+testers, while sessions build M10.
 
 The operator settled Q60 to Q62 on 2026-11-01 (`docs/decisions.md`), each as recommended: the
 Tor road's live test may reach the public Tor network, with short runs, from GitHub Actions and a
@@ -298,10 +310,5 @@ After the release:
   `scripts/sandbox-check.sh`.
 - Pinning the facade of `podssh-relay` in podbox (T-081, T-085).
 
-As the relay's operator: a mailbox for pairing (T-086), the node keys of
-the Tailscale test (T-106), a self-hosted relay (T-169), resumption in the
-relay (T-173), a publish endpoint (T-180), signed pairing grants (T-226),
-an IPv6 route out of the relay (T-253), the cause of the drops of
-reverse sockets (T-255), a bound on what the relay holds for a slow
-client (T-336), and, if the relay's operator wants one, a signed
-`/relays.json` with a second deployment (T-346, Q49).
+As the operator of the default relay, at any time and with no entry waiting: the notes of
+`docs/relay-operator.md`, each of which podssh's own relay role does since Q63 (2026-11-02).

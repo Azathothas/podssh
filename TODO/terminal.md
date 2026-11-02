@@ -55,7 +55,7 @@ a local echo to the echo of the remote pty, so each key shows two times.
    `docs/terminal.md` ("Select a mode"), `docs/STATUS.md:677`, and the module notes
    (`crates/podssh-terminal/src/session.rs:1-46`,
    `crates/podssh-terminal/src/lib.rs:18-34`). Remove the warning markers
-   from the lines that you change (`AGENTS.md:278-279`).
+   from the lines that you change (`AGENTS.md:283-284`).
 
 ## Decision
 

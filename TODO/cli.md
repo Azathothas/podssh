@@ -2579,7 +2579,7 @@ alone measures less than they use, so it cannot answer what a user asks it.
 - Read: `AGENTS.md` lines 248-250 at `48a8744` says "closes it without listening" of doctor's bind in rule 2;
   `SECURITY.md` lines 112-113 at `48a8744`, `docs/architecture.md` lines 133-134 at `48a8744` and `docs/cli.md` lines 1346-1347 at `48a8744` say the same.
   The ruling of 2026-10-08 lets a listener open when the user asks for it and a probe at run time
-  allows the bind (`docs/decisions.md:40`). A listen of doctor's is no listener that the user asks
+  allows the bind (`docs/decisions.md:45`). A listen of doctor's is no listener that the user asks
   for, so it waits for a ruling: Q53.
 - Read: the measured cage's listening was not measured, and stands on the operator's report
   (`docs/target-environment.md:25`); sandbox A's AF_UNIX bind was doctor's bind

@@ -246,20 +246,20 @@ podssh. M3 has no release: the one release is `v1.0.0`, in M9
   M6. The defects of the IRC client: T-091 to T-098.
 - Tailscale (`podssh ts`, feature `ts`): first repair its DERP dial, which
   does not use the proxy, and its missing reconnection; then the tests with
-  two nodes ([tailscale.md](tailscale.md)): T-103, T-104, T-106, and the
-  defects T-100, T-101, T-102, T-105.
+  two nodes ([tailscale.md](tailscale.md)): T-103, T-104, and the
+  defects T-100, T-101, T-102, T-105; the test with two nodes in its relay
+  mode moved to M10, through podssh's own relay role (Q63).
 - Compatibility with `ssh_config` ([cli.md](cli.md)): T-043, T-044, T-046.
   `-R`: T-035.
-- Resumption in the relay for a standard sshd (a Durable Object that keeps
-  the target socket across reconnections): not now; look at it again after
-  M6 (T-173).
+- Resumption in the relay for a standard sshd moved to M10, in podssh's
+  own relay role (Q63).
 
 ## After M8
 
 The entries with the milestone `backlog` in [TODO/INDEX.md](../TODO/INDEX.md)
 come after M8, in the order of the index: the operator scheduled each of
-them on 2026-10-08. The entries that wait for the relay's operator are
-skipped.
+them on 2026-10-08. Since Q63 (2026-11-02) no entry waits for the relay's
+operator: those entries are M10's.
 
 ## M9: `v1.0.0`, the first stable release
 
@@ -279,3 +279,37 @@ skipped.
   README; `doctor`; `proxy` and `ssh` through the live relay; the reverse
   road; `serve` with `vi`, `less` and Ctrl-C in the box; `cp` of 200 MiB
   each way; a session that survives a killed relay connection; `pipe`.
+
+## M10: The mesh, at parity with Tailscale, and the relay in podssh
+
+The operator's ruling of 2026-11-02 (Q63; [mesh.md](mesh.md)): podssh grows
+into a mesh of its user's own nodes, and the relay is a role of podssh
+itself, so that no entry waits for another party.
+
+- The relay's role in podssh: its forward road (T-169), its reverse road
+  (T-427), and behind a node's quick tunnel with no listener (T-428); what
+  the default deployment does not do: T-336, T-255, T-253, T-421, T-319,
+  T-321, T-325, T-326, T-173, T-346.
+- The net: the owner's signed list of nodes and names (T-429), its policy
+  (T-430), pairing by a short code (T-086), grants used once (T-226), a
+  node's record of each road (T-445), the status of the net (T-435), and
+  the Tailscale road with two nodes (T-106).
+- Exit, routes, share and funnel: T-431, T-432, T-433, T-180; a member that
+  relays for two others (T-434).
+- Public carriers with no account (Q65): T-436, T-437, T-438; standard
+  servers that a user runs (Q66): T-439, T-440, T-441; more that fit:
+  T-442.
+- Repairs that the research found: T-443, T-444.
+- The release: betas `v1.1.0-beta.N`, then `v1.1.0` (T-446).
+
+**Exit criteria** (T-446)
+
+- Each entry of M10 is done; each test passes, and the gate is green.
+- Through `podssh relay serve` on a GitHub runner: the forward road, the
+  reverse road and `doctor` of a client of `v1.0.0` work unchanged, and each
+  item of [relay-operator.md](relay-operator.md) that the role does is
+  measured.
+- A net of three ends in GitHub Actions: a member joins by a short code;
+  `podssh ssh NAME` reaches a node by its name; an exit node carries a
+  forward session; a share and a funnel serve a local service; a removed
+  member is refused.

@@ -60,7 +60,7 @@ pool host accepted the token of the default host: `docs/STATUS.md`, "`podssh pro
 live"), and no token goes to another deployment. The exact minting host lost: each pool host
 would mint its own token, against the brake of 120 attempts a minute (`docs/relay.md:201`).
 The decision said "one machine has one cached token"; on 2026-10-08 the operator ruled
-"one for each relay deployment" (`docs/decisions.md:67`).
+"one for each relay deployment" (`docs/decisions.md:72`).
 
 The session that did it (2026-10-08) made one call stricter than step 3: an old entry, with
 no minting host, is not used at all, also under the default key. An old list that put the
@@ -998,7 +998,7 @@ a new `PODSSH_CACHE_DIR`, and a plain file there.
 live test `ipv6_the_relay_takes_the_bare_literal`
 (`crates/podssh-relay/tests/live.rs`) and probes of the live relay.
 **Category:** defect
-**Milestone:** backlog
+**Milestone:** M10
 **Priority:** P2
 **Effort:** M
 **Status:** blocked
@@ -1059,7 +1059,7 @@ The operator ruled on 2026-10-08 that the relay stays separate
 
 **Source:** the runs of T-061 on 2026-10-09 (`crates/podssh-relay/tests/reverse_idle_live.rs`).
 **Category:** measurement
-**Milestone:** M4
+**Milestone:** M10
 **Priority:** P2
 **Effort:** M
 **Status:** blocked
@@ -1358,7 +1358,7 @@ question for the relay's operator.
 (`crates/podssh-relay/tests/live_backpressure.rs`; `.github/workflows/relay-live.yml`, run
 41157016178).
 **Category:** defect
-**Milestone:** backlog
+**Milestone:** M10
 **Priority:** P2
 **Effort:** M
 **Status:** blocked
@@ -1447,7 +1447,7 @@ Nothing watches the expiry of the relay's domain, on which each road but `--dire
   live relay (`scripts/release-short.sh:109-115`, run at `.github/workflows/release.yml:144`, `:207`,
   `:279`, `:318` and `:412`; three of these run in a matrix of two). The audit counted seven
   jobs; the matrices give eight.
-- Read: a beta needs the job `all` of the gate (`docs/decisions.md:32`). Citations of an older
+- Read: a beta needs the job `all` of the gate (`docs/decisions.md:37`). Citations of an older
   document of the relay were once off by 35 (`TODO/repo.md:2318-2321`).
 - Read: no workflow checks the relay on a schedule: `relay-live.yml` runs by hand
   (`.github/workflows/relay-live.yml:8-17`), and `build.yml` on a push, a pull request or by hand
@@ -1696,7 +1696,7 @@ read the five limits of the live `/relays.json?host=github.com&port=22` (10000, 
 **Source:** the audit of hardcoded assumptions of 2026-10-31, finding 1 (its first two proposals:
 a signed `/relays.json`, and a default of several deployments).
 **Category:** feature
-**Milestone:** backlog
+**Milestone:** M10
 **Priority:** P2
 **Effort:** M
 **Status:** blocked
@@ -1723,8 +1723,8 @@ relay's operator has no way to move the binaries in the field to another deploym
   (`crates/podssh-relay/src/pair.rs:1-4`; `docs/relay.md:347-352`). The audit cited
   `docs/relay.md:339-344`; the fact is at `:347-352`.
 - Read: a release binary is uploaded or copied into its host, which cannot build it or download
-  it (Q48, `docs/decisions.md:28`); a machine keeps one token for each deployment, and podssh
-  "never sends a token to a deployment that did not mint it" (`docs/decisions.md:67`).
+  it (Q48, `docs/decisions.md:33`); a machine keeps one token for each deployment, and podssh
+  "never sends a token to a deployment that did not mint it" (`docs/decisions.md:72`).
 - Read, by the audit through web.pkgforge.dev on 2026-10-31
   (https://pubapi.registry.google/rdap/domain/ajam.dev): Cloudflare's name servers, no DNSSEC, an
   expiry on 2028-01-19.
@@ -1748,7 +1748,7 @@ podssh's side:
    still meets TLS on its own name.
 4. The default becomes a list of deployments: today's first, then those that the signed document
    names. A token is minted at each deployment and sent to no other (T-057), and the hosts are
-   tried in the ways of Q10 (`docs/decisions.md:46`).
+   tried in the ways of Q10 (`docs/decisions.md:51`).
 5. The cache keeps the signed document and its signature, so that a binary keeps the other
    deployments when the old domain is gone.
 6. `podssh relay status` and doctor name each deployment, and whether its pool was signed.
@@ -1835,7 +1835,7 @@ absent header). Planted, `header_text` that returns the header as it came: that 
 **Source:** T-420 (2026-11-01): the stand-in, as strict as the live relay (T-412), closed the node's
 socket with 1003 for a frame that was on its way when an operator's link was lost.
 **Category:** defect
-**Milestone:** backlog
+**Milestone:** M10
 **Priority:** P3
 **Effort:** S
 **Status:** blocked
