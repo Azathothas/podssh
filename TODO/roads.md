@@ -3400,7 +3400,7 @@ account (`podssh node NAME --sshd --quick-tunnel`), and reach it from a cage wit
 `podssh ssh cf://NAME`. That host cannot yet be a jump host: `-J cf://HOST` is refused, so the
 targets that it can reach still need the relay. With it, the forward road has a carrier that is not the operator's
 relay, for each user with such a host. Cloudflare documents SSH through a tunnel, and the operator
-allows podssh as a client of Cloudflare (`docs/decisions.md:57`).
+allows podssh as a client of Cloudflare (`docs/decisions.md:60`).
 
 ## Premise
 
@@ -4004,7 +4004,7 @@ Endpoint puts a credential in its URL.
   Endpoint takes a presigned SigV4 `wss://` URL, valid for 60 s, then raw binary frames; AWS's
   client honours `HTTPS_PROXY`; a connection lasts an hour at most, and 20 run at once.
 - Read: credentials never go in URLs (`docs/architecture.md:238-243`; `docs/design.md:66`), and
-  `docs/decisions.md:73` says "in a header or a 0600 file and never in a URL" of the relay's
+  `docs/decisions.md:76` says "in a header or a 0600 file and never in a URL" of the relay's
   tokens. The presigned URL carries an access key id and a signature in its query.
 - Read: the `cf://` road uses podssh-ws's WebSocket client through the proxy
   (`crates/podssh-cli/src/ssh/cloudflare.rs:238`); an RSA key signs through aws-lc-rs in the
@@ -4780,7 +4780,7 @@ tunnel until a run against the clouds.
 ## Premise
 
 - Read: the operator allowed both roads and asked for stand-ins first, the live run to wait for
-  accounts (`docs/decisions.md:43`).
+  accounts (`docs/decisions.md:46`).
 
 ## Approach
 
@@ -5204,7 +5204,7 @@ relay's path and token.
   (`crates/podssh-cli/src/ssh/resolve.rs:23-72`).
 - Read: `validate` refuses a query other than the relay's knobs, and `connect` always sends a token
   (`crates/podssh-ws/src/client.rs:66-105`, `:159-182`); a token goes only to the deployment that
-  minted it (`docs/decisions.md:85`).
+  minted it (`docs/decisions.md:88`).
 - Read: a SOCKS5 proxy that the user names in `ALL_PROXY` carries each road already (T-070;
   `crates/podssh-ws/src/socks5.rs:1-7`): podssh takes a third party's proxy that the user chooses.
 
@@ -5238,7 +5238,7 @@ relay's path and token.
   step.
 - A forwarder of the user's own, #59's road 2 (the same Worker in the user's own Cloudflare
   account), is a template as any other; podssh ships no forwarder, as the relay stays a separate
-  project (`docs/decisions.md:68`; T-169).
+  project (`docs/decisions.md:71`; T-169).
 - The drafting agent's calls (2026-10-31):
   1. The template, the dial and the stream are in `podssh-ws` (`forwarder/`), pure Rust, so a
      live check of a forwarder builds that crate alone (T-370); `podssh-cli` chooses a run's road
@@ -5294,7 +5294,7 @@ are). Planted: the host put in with no check; the test of `&` fails.
 `a3f948d`. A relay is a host and a port at `crates/podssh-relay/src/relay.rs:80-86`, and its
 forward path is built at `crates/podssh-relay/src/relay.rs:163-176`; `:56-62` and `:139-152` hold
 the byte budget and the parser of a relay list. A token goes only to the deployment that minted it
-at `docs/decisions.md:87` (T-057), and at Q49's row, `docs/decisions.md:41`; `docs/decisions.md:82`
+at `docs/decisions.md:90` (T-057), and at Q49's row, `docs/decisions.md:44`; `docs/decisions.md:85`
 holds the exit codes. `Transport` in `crates/podssh-cli/src/ssh/resolve.rs` had six kinds, not five
 (the relay, `--direct`, `node://`, `iroh:`, `cf://`, and the clouds' roads of T-351); this entry
 adds the seventh. Two facts of #59 that the Premise did not hold, read in the forwarders' sources:
@@ -5921,7 +5921,7 @@ edge still needs the operator's relay. WARP's tunnel (T-352) carries any port ov
   tunnel's name answered `200`, after a closed port and an address with no route had failed first.
   It carried QUIC through its stack; the edge's HTTP/2 on TCP 7844, over smoltcp's TCP, would reuse
   the client of T-300.
-- Read: the quick tunnel's live tests run in GitHub Actions only (`docs/decisions.md:42`).
+- Read: the quick tunnel's live tests run in GitHub Actions only (`docs/decisions.md:45`).
 
 ## Approach
 
@@ -5993,7 +5993,7 @@ Read at `a3f948d` on 2026-10-31.
   the VPC road carried TLS to 7844 when T-299 measured it by hand through `podssh proxy`. Step 1
   of the Approach therefore reads: after QUIC and the TCP dial failed.
 - The ruling of the quick tunnel's live tests in GitHub Actions alone is Q47's row (and Q43's),
-  `docs/decisions.md:49`; the Premise's `docs/decisions.md:42` names the row of Q50 since rows
+  `docs/decisions.md:52`; the Premise's `docs/decisions.md:45` names the row of Q50 since rows
   came above it.
 - The Prove names its test with no feature; the test needs the stand-in of WARP's edge, a
   feature of podssh-relay (the Decision, item 5).

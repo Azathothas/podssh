@@ -2986,7 +2986,7 @@ registers none (`openssh/openssh-portable:clientloop.c`, `client_global_request_
    that podssh could not read, then russh's words; a connection lost while the forwards were asked
    for names russh's cause, as a lost session does (the reading of T-464).
 5. The patch offered to russh upstream. That is the operator's to send, as no session changes
-   another repository (`docs/decisions.md:66` says "no session changes another repository"); the
+   another repository (`docs/decisions.md:69` says "no session changes another repository"); the
    copy goes once a release of russh reads such replies.
 6. `docs/cli.md` (the keepalive, and `-R`'s refusal), `docs/STATUS.md`.
 

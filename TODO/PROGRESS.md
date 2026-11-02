@@ -199,21 +199,24 @@ this order:
    (T-495) and a second Piping Server (T-497), T-496 and T-499 parked; then what the triage of the sweep of public relays
    (2026-11-02) filed, as Q74 to Q79 rule: OpenTunnel's link and its road (T-530, T-531, Q76),
    and the manual's word on the public services that podssh uses and the ones it never names
-   (T-533); T-532 is parked. These are features of a tester's report, so they wait for the
-   operator's next go-ahead (Q84).
+   (T-533); T-532 is parked. These are features of a tester's report, done after the
+   defects (Q85).
 5. T-446: betas `v1.1.0-beta.N` after batches, and `v1.1.0` at the end.
 
 Between entries: the `none` entries, the highest priority first, but for the testers' entries.
 
-**The testers' defects go now; their features wait** (Q84, the operator, 2026-11-02). The
+**The testers' defects go first, then their features** (Q84, Q85, the operator, 2026-11-02). The
 defects of the issues of the testers of `v1.0.0` (GitHub #83 to #106) and of the testers' bundle
 and relay sweep of 2026-11-02 come first among the `none` entries, the P1 ones before any other
 (T-460, T-461, T-471, T-500, T-501, T-504; and T-465, a test that failed once), then the P2 ones
 (T-462, T-464, T-470, T-476, T-480, T-502, T-503, T-505, T-509), then the P3 ones (T-506,
 T-507), each a repair that goes into `v1.0.1`, from `main` with the checks of a release. Their
 features and documents (T-463, T-472 to T-475, T-481 to T-489, T-508, T-510 to T-512, T-530
-to T-533, and the entries that Q74 to Q82 file) wait for the operator's next go-ahead. The draft of
-T-460 (`draft/worktree-agent-t460-ssh`, unbuilt) is the first to finish.
+to T-533, and the entries that Q74 to Q82 file) follow, by priority, beside M10 (Q85); `v1.0.1`
+goes out unattended once the defects pass the checks of a release (Q87). Overnight a fork of
+policy is decided and listed below for the operator to confirm (Q86). Five drafting agents work on
+the defects (`.claude/worktrees/agent-*`: T-460 to T-464; T-470, T-471, T-476; T-500, T-501, T-503;
+T-502, T-505; T-504, T-506, T-507, T-509, T-480).
 
 **Skip** the entries that the operator holds (status
 `blocked`, Q32):
@@ -276,7 +279,11 @@ fallbacks; podssh uses the fallbacks that exist, overlay networks and meeting po
 the hosts that podssh uses (Q79); the operator passes cfrs's defect on (Q80); a node with no iroh
 road keeps its pkarr record at n0's server (Q81); roads over UDP where UDP passes (Q82); the
 experience of an agent and of a human comes first, and the triages' calls stay (Q83); the
-testers' defects go now, their features later (Q84).
+testers' defects go now (Q84). Later the same day: their features go too (Q85), a fork of policy
+is decided overnight and listed for confirmation (Q86), and `v1.0.1` and the next beta go out
+unattended (Q87).
+
+**For the operator to confirm (Q86):** none yet.
 
 The operator settled Q63 to Q66 on 2026-11-02 (`docs/decisions.md`), after the research of five
 agents on the dependency on the relay's operator: podssh grows into a mesh of its user's own nodes
