@@ -57,6 +57,24 @@ russh <-> tunnel <-> TLS to the second proxy (ALPN h2, http/1.1) <-> CONNECT HOS
   for. The cleartext path to the host's proxy, `crates/podssh-ws/src/proxy.rs`
   with its two kinds, is unchanged: the second proxy is a road, not a kind
   of the host's proxy.
+- `--vless FILE` (T-440, the operator's ruling Q66) uses VLESS servers that
+  the user runs (Xray-core, shoes) in place of the relay:
+
+```
+russh <-> VLESS (request, answer) <-> a WebSocket, or XHTTP on HTTP/2 <-> TLS to the server <-> sshd
+                                                                          |
+                                                                          `- TCP, or HTTPS_PROXY then CONNECT
+```
+
+  `podssh-ws` (`crates/podssh-ws/src/vless/`) reads the share link, sends
+  VLESS's request (the user's ID, then the target) as the stream's first
+  bytes, and reads the server's answer, which comes with the target's first
+  bytes, before them. The stream is a WebSocket's binary messages, or XHTTP:
+  each request a stream of one HTTP/2 connection, `Referer` with the padding
+  that the server checks, and the modes packet-up (a streamed GET down and a
+  numbered POST for each chunk up), stream-up and stream-one. XHTTP passes a
+  front end that refuses the upgrade; on HTTP/1.1 it would need a second
+  connection, which this road does not open.
 
 **The way to the relay.** `podssh-relay` gives an ordered list of relay
 hosts: the default host and up to three hosts of the pool, or the list that

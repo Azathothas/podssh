@@ -52,6 +52,8 @@ pub struct SshArgs {
     /// place of the relay, and its credentials (T-439).
     pub via: Option<String>,
     pub via_auth_file: Option<String>,
+    /// `--vless FILE`: VLESS servers in place of the relay (T-440).
+    pub vless: Option<String>,
     /// For `node://NAME`: a pair, or its operator's part, in a file.
     pub pair_file: Option<String>,
     /// For `iroh:TICKET`: this client's key file, by its earlier name.
@@ -167,6 +169,7 @@ pub const ONCE: &[(&str, &str)] = &[
     ("shadowsocks", "give one file, with a line for each server"),
     ("via", "give one proxy"),
     ("via-auth-file", "give one file"),
+    ("vless", "give one file, with a line for each server"),
     ("pair-file", "give one file"),
     ("iroh-key", "give one file"),
     ("client-key", "give one file"),
@@ -289,6 +292,7 @@ impl SshArgs {
             shadowsocks: one("shadowsocks"),
             via: one("via"),
             via_auth_file: one("via-auth-file"),
+            vless: one("vless"),
             pair_file: one("pair-file"),
             iroh_key: one("iroh-key"),
             client_key: one("client-key"),

@@ -1,0 +1,8 @@
+# T-440: an end of the session before VLESS's answer is taken for a server
+# that says nothing yet, so a wrong ID gives a stream in place of the
+# server's refusal; the test of a wrong ID, over a WebSocket and over
+# packet-up, must fail as no refusal is said.
+ENTRY=T-440
+GROUP=resume
+EXPECT='the wrong ID was taken over (Ws|Xhttp\(PacketUp\)): no refusal said'
+RUN='cargo test --locked -p podssh-ws --test vless -- a_wrong_id_is_said_as_the_server_s_refusal'

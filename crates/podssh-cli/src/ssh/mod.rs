@@ -262,6 +262,7 @@ fn road(transport: &Transport) -> &'static str {
         Transport::Forwarder { .. } => "forwarder",
         Transport::Shadowsocks { .. } => "shadowsocks",
         Transport::Via { .. } => "via",
+        Transport::Vless { .. } => "vless",
     }
 }
 

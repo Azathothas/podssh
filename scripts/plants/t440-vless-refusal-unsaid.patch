@@ -1,0 +1,11 @@
+--- a/crates/podssh-ws/src/vless/mod.rs
++++ b/crates/podssh-ws/src/vless/mod.rs
+@@ -133,7 +133,7 @@
+     let mut stream = header::Answered::new(stream);
+     let answered = match tokio::time::timeout(dial.answer, stream.answer()).await {
+         Ok(Ok(())) => true,
+-        Ok(Err(e)) => return Err(e.into()),
++        Ok(Err(_)) => false,
+         Err(_) if dial.silence_is_ready => false,
+         Err(_) => return Err(VlessError::Silent(dial.answer)),
+     };

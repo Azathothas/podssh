@@ -129,7 +129,7 @@ and `CARGO_BUILD_JOBS=4`:
 
 ## Counts
 
-`TODO/INDEX.md` holds 446 entries: 48 open, 1 partial, 16 blocked, 381 done.
+`TODO/INDEX.md` holds 446 entries: 47 open, 2 partial, 16 blocked, 381 done.
 
 Open includes parked work. `cargo todo check` verifies this line.
 

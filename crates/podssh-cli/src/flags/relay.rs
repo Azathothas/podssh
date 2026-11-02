@@ -53,6 +53,7 @@ pub const PROXY_FLAGS: &[FlagRow] = &[
         "trust only the CA certificates in FILE (default: env SSL_CERT_FILE, else system and built-in roots)", None),
     super::forwarder::PROXY_FORWARDER,
     super::shadowsocks::PROXY_SHADOWSOCKS,
+    super::vless::PROXY_VLESS,
     super::via::VIA, super::via::VIA_AUTH_FILE,
 ];
 
@@ -78,6 +79,7 @@ pub const DOCTOR_FLAGS: &[FlagRow] = &[
          server's banner, its host key, and the methods that it offers to a key made for the check", None),
     super::forwarder::DOCTOR_FORWARDER,
     super::shadowsocks::DOCTOR_SHADOWSOCKS,
+    super::vless::DOCTOR_VLESS,
     super::via::DOCTOR_VIA, super::via::VIA_AUTH_FILE,
 ];
 

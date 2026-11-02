@@ -142,6 +142,8 @@ mod upgrade_line;
 pub mod version;
 // `--via URL`: a forward proxy over TLS in place of the relay (T-439).
 pub mod via;
+// `--vless FILE`: VLESS servers in place of the relay (T-440).
+pub mod vless;
 
 pub use flags::{FlagKind, FlagRow, Verb, VERBS};
 pub use tree::{parse, Parsed};
