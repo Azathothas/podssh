@@ -1,0 +1,8 @@
+# T-476: report says the kept failure again at the end of the run, as it
+# did; the test that reads each failure once on stderr must fail.
+ENTRY=T-476
+GROUP=cli-tests
+EXPECT='test special_files_are_skipped_once_each_with_exit_0 \.\.\. FAILED'
+SETUP='apk add --no-cache openssh-sftp-server >/dev/null'
+RUN='cargo test --locked -p podssh-cli --test cp_tree -- special'
+LIMIT=2400

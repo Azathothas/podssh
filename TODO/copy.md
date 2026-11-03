@@ -958,7 +958,7 @@ Where podssh must replace them, OpenSSH's own `scp` and `sftp` cannot run
 
 Recommendation: `scp` and `sftp` get no `--timeout` row, as in OpenSSH, so
 the gate of `crates/podssh-cli/src/dispatch.rs:300-318` skips them; T-133's
-limits keep each wait finite. Usage errors stay 64 (`docs/cli.md:3688-3691`)
+limits keep each wait finite. Usage errors stay 64 (`docs/cli.md:3700-3703`)
 where OpenSSH gives 1; a script that tests for "not zero" works with both.
 `--timeout` required with no terminal, as for `cp`, lost: each script that
 runs `scp` in a pipe would exit 64 under `podssh scp`.
@@ -2950,7 +2950,7 @@ the names, with no word.
    reverse order, `-S` by size, `-t` by time of change, `-1` one name a line; without `-l` or
    `-1`, the names in columns, as OpenSSH's.
 4. The listing goes into a module of its own, so that `crates/podssh-cli/src/sftp/run.rs` stays
-   well under 500 lines. The `help` of `sftp`'s commands, the manual, `docs/cli.md:1971-1977` and
+   well under 500 lines. The `help` of `sftp`'s commands, the manual, `docs/cli.md:1982-1988` and
    `docs/STATUS.md`.
 
 ## Decision
@@ -3086,8 +3086,8 @@ with no word, which reads as a hang.
 ## Premise
 
 - Read: at its end, a run of `cp` or `mv` says each file done at `-v` alone
-  (`crates/podssh-cli/src/cp/report.rs:40-72`, `:70`), and at the default level only the number of
-  deletes (`:37-39`) and a failure. `run` says "files sent N, unchanged M" at `-v` alone
+  (`crates/podssh-cli/src/cp/report.rs:41-73`, `:71`), and at the default level only the number of
+  deletes (`:38-40`) and a failure. `run` says "files sent N, unchanged M" at `-v` alone
   (`crates/podssh-cli/src/run_cmd/mod.rs:226`), the line that its test reads
   (`crates/podssh-cli/tests/run_far.rs:17-20`).
 - Read: the progress line is drawn only when stderr is a terminal and `-q` is not given, unless
@@ -3098,7 +3098,8 @@ with no word, which reads as a hang.
   (`crates/podssh-cli/src/cp/chunks.rs`) and the copy by exec (`crates/podssh-cli/src/cp/byexec.rs`)
   draw none, and each file of a tree draws a line of its own, with no count of the run's files.
 - Read: the counts that a summary needs are in the run's `Outcome` already: the files done with
-  their bytes, the files left as they were, and the deletes (`crates/podssh-cli/src/cp/mod.rs:155-170`).
+  their bytes, the files left as they were, and the deletes
+  (`crates/podssh-cli/src/cp/outcome.rs:14-38`, where T-476 moved it from `cp/mod.rs`).
 
 ## Approach
 
@@ -3118,7 +3119,7 @@ with no word, which reads as a hang.
 4. `run` says its summary before the command starts, on stderr, so that the command's stdout stays
    its own; with T-475, the paths that the ignores left out.
 5. `scp` and `sftp` keep the output of OpenSSH's, with no summary. The manual,
-   `docs/cli.md:1839-1850`, `docs/STATUS.md`, and `crates/podssh-cli/tests/run_far.rs`, which reads
+   `docs/cli.md:1848-1859`, `docs/STATUS.md`, and `crates/podssh-cli/tests/run_far.rs`, which reads
    the summary in place of the line of `-v`.
 
 ## Decision
@@ -3184,7 +3185,8 @@ destination too.
   with the suffix `~` (`--suffix`), and with `--delete` protects the names with that suffix from
   deletion.
 - Read: `run`'s check of a file that did not change compares the size and the time of change in
-  whole seconds, as SFTP version 3 carries them (`crates/podssh-cli/src/cp/tree_copy.rs:416-424`).
+  whole seconds, as SFTP version 3 carries them (`crates/podssh-cli/src/cp/tree_items.rs:17-25`,
+  where T-476 moved it from `tree_copy.rs`).
 
 ## Approach
 
@@ -3328,7 +3330,7 @@ Planted defect: the default back to 1; the first check fails.
 **Milestone:** none
 **Priority:** P2
 **Effort:** S
-**Status:** open
+**Status:** done
 
 ## Problem
 
@@ -3340,20 +3342,21 @@ step reads as a failure, and each `podssh run`, which then runs no command.
 ## Premise
 
 - Read: an item of a tree that fails is said at once, and the first is kept for the exit
-  (`crates/podssh-cli/src/cp/tree_copy.rs:66-71`); at the end, `report` says the kept failure
-  again (`crates/podssh-cli/src/cp/report.rs:73-84`, `:83`). So the first failure of a tree is said
-  twice. The issue reads the line said again as the last skip; its own output shows `ft/p1`, the
-  first.
+  (`crates/podssh-cli/src/cp/tree_copy.rs`, lines 66-71 at `582b1bf`); at the end, `report` says
+  the kept failure again (`crates/podssh-cli/src/cp/report.rs`, lines 69-80 there, line 79). So
+  the first failure of a tree is said twice. The issue reads the line said again as the last skip;
+  its own output shows `ft/p1`, the first.
 - Read, not measured: a list of sources keeps its first failure and says none when it comes
-  (`crates/podssh-cli/src/cp/session.rs:136-141`), so the second failure of a list is never said,
-  and `--jsonl` gives one `error` object for a run (`crates/podssh-cli/src/cp/report.rs:73-82`).
+  (`crates/podssh-cli/src/cp/session.rs`, lines 136-141 at `582b1bf`), so the second failure of a
+  list is never said, and `--jsonl` gives one `error` object for a run (`report.rs`, lines 69-78
+  there).
 - Read: a device, a FIFO or a socket of a tree is an `Item::Skip`
-  (`crates/podssh-cli/src/cp/tree.rs:233`, `:301`), and each skip is a failure with the code 66
-  (`crates/podssh-cli/src/cp/tree_copy.rs:244-252`, `:375-384`), "a source that is missing or
-  cannot be read" (`crates/podssh-cli/src/cp/mod.rs:13-14`). T-143 chose it (its Approach, item 3,
-  and its Decision, "as `scp` does"), and `crates/podssh-cli/src/cp/tree.rs:56-57` says so. The
-  row of `-r` says "a device, FIFO or socket skipped with a note"
-  (`crates/podssh-cli/src/flags/copy.rs:31-32`).
+  (`crates/podssh-cli/src/cp/tree.rs`, lines 233 and 301 at `582b1bf`), and each skip is a failure
+  with the code 66 (`crates/podssh-cli/src/cp/tree_copy.rs`, lines 243-251 and 374-383 there), "a
+  source that is missing or cannot be read" (`crates/podssh-cli/src/cp/mod.rs:13-14`). T-143 chose
+  it (its Approach, item 3, and its Decision, "as `scp` does"), and the comment of `Item::Skip`
+  said so (`tree.rs`, lines 56-57 at `582b1bf`). The row of `-r` says "a device, FIFO or socket
+  skipped with a note" (`crates/podssh-cli/src/flags/copy.rs:31-32`).
 - Read, in OpenSSH 10.2p1 (`openssh/openssh-portable:sftp-client.c` at the tag `V_10_2_P1`, the
   functions `upload_dir_internal` and `download_dir_internal`): `scp -r` in its SFTP mode, the
   default since OpenSSH 9.0, and `sftp`'s `put -r` and `get -r` log "not a regular file" for such
@@ -3361,8 +3364,9 @@ step reads as a failure, and each `podssh run`, which then runs no command.
   (`openssh/openssh-portable:scp.c`, the functions `source` and `run_err`). So T-143's "as `scp`
   does" holds for `scp -O` alone.
 - Read: `--delete` never deletes the name of an item that the source skipped
-  (`crates/podssh-cli/src/cp/tree.rs:140-155`), and the check `cp.delete.failed` takes its failed
-  copy from a FIFO (`scripts/interop-cp.sh:150-157`).
+  (`crates/podssh-cli/src/cp/tree.rs`, lines 140-155 at `582b1bf`), and the check
+  `cp.delete.failed` took its failed copy from a FIFO (`scripts/interop-cp.sh`, lines 150-157
+  there).
 
 ## Approach
 
@@ -3394,6 +3398,22 @@ step reads as a failure, and each `podssh run`, which then runs no command.
   `--strict` flag (`--jsonl`'s `skipped` objects let a script decide); a FIFO made as a FIFO on
   the other side (SFTP version 3 has no request that makes one; Inferred).
 
+The calls of the draft (2026-11-02), each for the operator to confirm (Q86):
+
+- This reverses T-143's call of a skip as a failure (66), as item 2 says; `docs/decisions.md`
+  holds no row of it, so no ruling is changed.
+- A special file is an item of its own (`Item::Special`, with its kind read from the mode: a
+  FIFO, a socket, a character or a block device, else a special file), so that the other skips
+  stay failures with no test of their words. Lost: a skip that a text marks as a special one.
+- The `skipped` object of `--jsonl` is `{"event":"skipped","source":SRC,"why":"a FIFO"}`, the
+  kind as the line says it. Lost: a word of its own (`fifo`); T-473's skips may take theirs.
+- `mv -r` leaves each directory that holds a special file, at any depth, and says once that each
+  special file stays with them; the rest of the source goes. Lost: the first failed `rmdir` that
+  ends the removal, as today, which would leave each other part of the tree too.
+- `Outcome` moved to `crates/podssh-cli/src/cp/outcome.rs`, and the steps on one name of
+  `tree_copy.rs` to `crates/podssh-cli/src/cp/tree_items.rs`, so that `cp/mod.rs` (497 lines) and
+  `tree_copy.rs` (499) stay under 500.
+
 ## Prove
 
 ```sh
@@ -3410,6 +3430,52 @@ on stderr and exit 0. A tree with a name that is not UTF-8 still exits not 0, an
 Two missing sources of one command line are each said once, and the exit is 66. Planted defect:
 `report` says the kept failure again; the check of one line each fails.
 
+## Correction
+
+2026-11-02: item 4's failure for `cp.delete.failed` does not fail. A tree's file goes to its own
+target path, and `transfer::remote_target` puts a file into a directory that is there at that
+name, so a far directory at the name of a source file takes the file (T-297's test fails only as
+its destination ends with `/`). The check takes its failure from a far directory that the login
+may not write, made by the gate's root (73). `cp_tree`'s `delete_after_a_failed_copy_deletes_nothing`
+took its failure from a FIFO on Unix too; it now takes it from a far file where the source has a
+directory, whose `mkdir` fails also for root.
+
+## Done
+
+Drafted 2026-11-02 by an agent, which built nothing; merged and measured by the main session on
+2026-11-03.
+
+- `crates/podssh-cli/src/cp/outcome.rs` (new, from `cp/mod.rs`): `Outcome::fail` says a failure
+  at once and keeps the first for the code, each later one for `--jsonl`; `said` tells `report`
+  that the first was said. `report` (`crates/podssh-cli/src/cp/report.rs`) says the first failure
+  only when nothing said it, and with `--jsonl` gives an `error` object for each failure and a
+  `skipped` object for each special file. A list of sources says each failure when it comes
+  (`settle`, `crates/podssh-cli/src/cp/session.rs`), as a tree does (`tree_copy::failed`).
+- `crates/podssh-cli/src/cp/tree.rs`: `Item::Special` and its kind (`Special`), from the local
+  walk's file type and the far walk's mode; `not_copied`, which `--delete` reads. Its unit tests:
+  the kinds by mode, and `to_delete` with a special file and a skip.
+- `crates/podssh-cli/src/cp/tree_copy.rs`: a special file is said once at the default level
+  ("SRC: not copied: a FIFO"), kept for `--jsonl`, and `skip` in a dry run; no failure, so `mv -r`
+  and `--delete` go on. `crates/podssh-cli/src/cp/tree_items.rs` (new, from `tree_copy.rs`):
+  `mv -r` leaves a special file and the directories that hold it, and says so once; its unit tests.
+  `podssh run` and `sftp`'s `put -r` and `get -r` take the same walk.
+- The row of `-r`, the notes of `cp`, `docs/cli.md` (the paragraph of `-r`, the objects of
+  `--jsonl`, `get -r` and `put -r`), and the row of `podssh cp` in `docs/STATUS.md`.
+- `crates/podssh-cli/tests/cp_tree.rs`: `special_files_are_skipped_once_each_with_exit_0` (Unix),
+  the Prove's paragraph above; `delete_after_a_failed_copy_deletes_nothing` takes its failure
+  from a far file at a directory's name (the Correction).
+- `scripts/interop-cp.sh`: `cp.tree.up` asks for 0, the FIFO's note once and no line twice;
+  `cp.delete.failed` asks for 73 from a far directory that the login may not write.
+- Planted defect: `scripts/plants/t476-said-twice.plant` (group `cli-tests`, with OpenSSH's
+  `sftp-server` added in its SETUP): `report` says the first failure again; the new test fails.
+- The merge: `cargo test -p podssh-cli --test cp_tree` (Unix, against OpenSSH's `sftp-server`), 8
+  passed, `special_files_are_skipped_once_each_with_exit_0` among them; `--test cp_parallel`, 8
+  passed; `--lib cp::`, 73 passed. The plant `t476-said-twice`, its patch applied and its RUN run
+  by hand (its SETUP is `apk` of the build image): caught, the test of special files failed.
+  rustfmt and clippy of `podssh-cli` with `-D warnings`, all targets: clean. `cargo todo remap`
+  from the tree before the draft, in place of its port.
+- Waits for the build image, which this host's Docker did not run: `scripts/interop-cp.sh`'s
+  `cp.tree.up` and `cp.delete.failed`, in the gate's step `release` at each push.
 # T-508: `scp` and `sftp` take no `--timeout`, where `cp` and `mv` need one with no terminal, and no manual says why
 
 **Source:** the report of the operator's testing agents on `v1.0.0` (`35a0d19`), 2026-11-02 (T-500's

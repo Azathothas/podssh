@@ -1786,21 +1786,30 @@ SFTP, through the relay or with `--direct`, with the connection flags of
   their bytes. The full copy stays the default.
 - **`-r`** (T-143) copies a directory and what it holds, depth first with
   `lstat`, 64 levels at most: each file as one copy goes (a temporary name,
-  the digest, the rename), each symbolic link as a link, and a device, a
-  FIFO or a socket skipped with a note; a directory gets its mode after its
-  files. `scp -r` follows links, as OpenSSH's does, and refuses a loop.
-  Each name that a far listing gives must be one component: `.`, `..`, a
-  `/` or a NUL, and here on Windows a `\`, a `:`, a device's name or a
-  trailing dot or space, are refused (70), so nothing is written outside
-  the target. Into a directory that exists the copy goes under it, with the
-  source's name; else it is the destination. An item that fails is
-  reported, the rest goes on, and the exit is not zero. `--exclude PATTERN`
-  (repeatable; `*` and `?` within a name; with a `/`, from the root of the
-  copy) and `--exclude-from FILE` (a pattern a line; `#` starts a comment)
-  leave paths out; `--dry-run` says each action (`mkdir`, `copy`, `link`,
-  `skip`; with `--jsonl` an object each) and changes nothing. `mv -r`
-  removes the source once each item of it is copied. A directory goes up or
-  down, over SFTP, not between two servers.
+  the digest, the rename), each symbolic link as a link; a directory gets
+  its mode after its files. `scp -r` follows links, as OpenSSH's does, and
+  refuses a loop. A device, a FIFO or a socket is not copied, and is no
+  failure (T-476), as OpenSSH's `scp` and `sftp` skip one: one line at the
+  default level names its kind (`SRC: not copied: a FIFO`), `--jsonl` gives
+  a `skipped` object, and the exit stays 0 when nothing else failed; the
+  same in `podssh run` and `sftp`'s `put -r` and `get -r`. Each name that a
+  far listing gives must be one component: `.`, `..`, a `/` or a NUL, and
+  here on Windows a `\`, a `:`, a device's name or a trailing dot or space,
+  are refused (70), so nothing is written outside the target. Into a
+  directory that exists the copy goes under it, with the source's name; else
+  it is the destination. Each other item that fails (a loop, a depth past
+  64, a listing or a link that cannot be read, a name that is not UTF-8, a
+  refused name) is said once, when it comes, as is each failed file of a
+  list of sources; the rest goes on, and the exit is the first failure's,
+  in the order of the sources. With `--jsonl` each failure is an `error`
+  object. `--exclude PATTERN` (repeatable; `*` and `?` within a name; with
+  a `/`, from the root of the copy) and `--exclude-from FILE` (a pattern a
+  line; `#` starts a comment) leave paths out; `--dry-run` says each action
+  (`mkdir`, `copy`, `link`, `skip`; with `--jsonl` an object each) and
+  changes nothing. `mv -r` removes the source once each item of it is
+  copied, and leaves a special file and the directories that hold it, and
+  says so. `--delete` goes on past a special file, and never deletes its
+  name. A directory goes up or down, over SFTP, not between two servers.
 - **What a copy keeps** (T-146, `crates/podssh-cli/src/cp/meta.rs`): the
   source's permission bits always. `-p` keeps the access and the
   modification times too (`scp -p`, `sftp -p`, `get -p` and `put -p` as
@@ -1880,7 +1889,9 @@ SFTP, through the relay or with `--direct`, with the connection flags of
 - `--jsonl` prints one object per file: `{"event":"done", "source",
   "destination", "bytes", "sha256", "verified_by", "atomic"}`, with
   `"delta"` too after `--delta` (T-470), or
-  `{"event":"error", "source", "message", "code"}`.
+  `{"event":"error", "source", "message", "code"}`, one for each failure;
+  and `{"event":"skipped", "source", "why"}` for each special file of a
+  tree (T-476).
 - Each SFTP reply with no file data waits 30 s at most, each read or write
   60 s (T-133); `--timeout` bounds the whole copy, the login included.
 - **A copy goes on after a broken connection**
@@ -2000,7 +2011,8 @@ renamed.
 - **`get -r` and `put -r`** (or `-R`; each `get` and `put` after `sftp
   -r`) copy a directory with T-143's walk, its checks of names and its copy
   of each file (`crates/podssh-cli/src/cp/tree_conn.rs`): each link as a
-  link, a device, a FIFO or a socket skipped with a note, each directory's
+  link, a device, a FIFO or a socket skipped with a note and no failure
+  (T-476), each directory's
   mode (and with `-p` its times) after its files, and a name of a far
   listing that is not one component refused. Into a directory that exists
   the tree goes under it, with its own name; else it takes the name given.

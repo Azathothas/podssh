@@ -97,8 +97,9 @@ rc=$?
 
 # -r (T-143): a tree with levels, an empty directory, a name with a space,
 # a link and a FIFO goes up and comes down; the lists of digests agree, the
-# link stays a link, and the FIFO is skipped with a note (an exit not zero).
-# A dry run changes nothing.
+# link stays a link, and the FIFO is skipped with one note and exit 0, as
+# OpenSSH's scp and sftp skip one (T-476); no line is said twice. A dry run
+# changes nothing.
 lists() { (cd "$1" && find . -type f -exec sha256sum {} + | sort); }
 TR="$CW/tree"
 mkdir -p "$TR/a/b c" "$TR/empty"
@@ -113,9 +114,9 @@ rc=$?
     || bad cp.tree.dry_run "cp -r --dry-run: exit $rc" "$CW/out"
 c 2201 -r "$TR" "$T:cp/tree" >"$CW/out" 2>"$CW/err"
 rc=$?
-[ "$rc" != 0 ] && grep -q "fifo: not copied" "$CW/err" && [ "$(lists "$TR")" = "$(lists "$RD/tree")" ] \
-    && [ -L "$RD/tree/link" ] && [ -d "$RD/tree/empty" ] \
-    && ok cp.tree.up "cp -r up: the digests agree, the link is a link, the FIFO skipped" \
+[ "$rc" = 0 ] && [ "$(grep -c "fifo: not copied: a FIFO" "$CW/err")" = 1 ] && [ -z "$(sort "$CW/err" | uniq -d)" ] \
+    && [ "$(lists "$TR")" = "$(lists "$RD/tree")" ] && [ -L "$RD/tree/link" ] && [ -d "$RD/tree/empty" ] \
+    && ok cp.tree.up "cp -r up: the digests agree, the link is a link, the FIFO skipped once, exit 0" \
     || bad cp.tree.up "cp -r up: exit $rc" "$CW/err"
 c 2201 -r "$T:cp/tree" "$CW/down/" >"$CW/out" 2>"$CW/err"
 rc=$?
@@ -126,7 +127,8 @@ rc=$?
 
 # --delete (T-144): the target becomes a mirror: what the source lacks goes,
 # and an excluded name and the file that a link names stay. A copy that
-# fails (a FIFO in the source) deletes nothing.
+# fails (into a far directory that the login may not write, 73) deletes
+# nothing; a FIFO is a skip, no failure (T-476).
 rm -f "$TR/fifo"
 mkdir -p "$RD/m"
 chown podtest:podtest "$RD/m"
@@ -148,11 +150,12 @@ rc=$?
     && ok cp.delete.mirror "cp -r --delete: what the source lacks went; the excluded name and the link's file stayed" \
     || bad cp.delete.mirror "cp -r --delete: exit $rc" "$CW/err"
 printf z >"$RD/m/tree/extra2"
-mkfifo "$TR/fifo2"
+mkdir -p "$TR/locked" "$RD/m/tree/locked"
+printf l >"$TR/locked/f"
 c 2201 -r --delete "$TR" "$T:cp/m" >"$CW/out" 2>"$CW/err"
 rc=$?
-rm -f "$TR/fifo2"
-[ "$rc" != 0 ] && grep -q "nothing was deleted" "$CW/err" && [ -f "$RD/m/tree/extra2" ] \
+rm -rf "$TR/locked" "$RD/m/tree/locked"
+[ "$rc" = 73 ] && grep -q "nothing was deleted" "$CW/err" && [ -f "$RD/m/tree/extra2" ] \
     && ok cp.delete.failed "cp -r --delete after a failed copy: nothing deleted" \
     || bad cp.delete.failed "cp -r --delete after a failed copy: exit $rc" "$CW/err"
 

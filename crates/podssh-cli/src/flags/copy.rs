@@ -29,7 +29,7 @@ pub const CP_FLAGS: &[FlagRow] = &[
     row(None, "delta", None, FlagKind::Supported,
         "over an older version of the file, send only the blocks of 1 MiB that changed; a full copy when the server cannot, or when the digests then differ, which a line says without -v", None),
     row(Some('r'), "recursive", None, FlagKind::Supported,
-        "copy a directory and what it holds, depth first; each link as a link, and a device, FIFO or socket skipped with a note", None),
+        "copy a directory and what it holds, depth first; each link as a link, and a device, FIFO or socket skipped with a note, which is no failure", None),
     row(None, "exclude", Some("PATTERN"), FlagKind::Supported,
         "with -r, leave out a path: * and ? within a name; with a /, from the root of the copy; repeatable", None),
     row(None, "exclude-from", Some("FILE"), FlagKind::Supported,

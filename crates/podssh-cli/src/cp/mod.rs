@@ -33,6 +33,7 @@ pub mod meta;
 mod mirror;
 mod moving;
 pub mod operand;
+mod outcome;
 pub(crate) mod pipe;
 pub mod plan;
 pub mod rate;
@@ -44,6 +45,7 @@ pub(crate) mod transfer;
 pub mod tree;
 pub(crate) mod tree_conn;
 mod tree_copy;
+mod tree_items;
 
 use std::io::Write;
 use std::sync::Arc;
@@ -57,6 +59,7 @@ use crate::ssh::args::SshArgs;
 use crate::ssh::resolve::{self, Env, Resolved};
 use moving::After;
 use operand::{Operand, Remote};
+use outcome::Outcome;
 use plan::{Direction, Plan};
 use report::report;
 use resume::Before;
@@ -150,23 +153,6 @@ impl CpArgs {
             inplace: flag("inplace"),
         }
     }
-}
-
-/// What a run ended with: each file done, and the first failure.
-#[derive(Default)]
-struct Outcome {
-    done: Vec<Done>,
-    failed: Option<(String, Failed)>,
-    /// The first leg of a move between servers: each source as it was.
-    recorded: Vec<Before>,
-    /// The actions of a dry run (T-143), in their order.
-    planned: Vec<tree_copy::Planned>,
-    /// What `--delete` removed (T-144), and what waits for the end of the
-    /// run.
-    deleted: Vec<String>,
-    pending: Vec<mirror::Pending>,
-    /// The files that `podssh run` did not send again (T-192).
-    unchanged: usize,
 }
 
 /// What `-r` and its flags ask for (T-143); `None` without `-r`. `scp -r`

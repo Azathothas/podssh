@@ -1,0 +1,11 @@
+--- a/crates/podssh-cli/src/cp/report.rs
++++ b/crates/podssh-cli/src/cp/report.rs
+@@ -90,7 +90,7 @@
+     }
+     let Some((_, failed)) = &outcome.failed else { return 0 };
+     // Once: a failure said when it came is not said again (T-476).
+-    if !outcome.said {
++    {
+         log.error(&failed.message);
+     }
+     failed.fault.code()

@@ -4,11 +4,13 @@
 //! `sftp`'s `get -r` and `put -r`: over the batch's session, T-298; see
 //! `tree_conn.rs`), each link made, and each directory's mode, and what `-p`
 //! and `--owner` keep, set after its files. Up, two names of one local file
-//! arrive as one file with two names (T-146). An item that cannot be copied
-//! is reported and the walk goes on; the exit is then not zero, as for
-//! `scp`. `--dry-run` says each action and changes nothing. With `--parallel
-//! K` the files wait, then go K at once, before each directory's mode is set
-//! (T-297).
+//! arrive as one file with two names (T-146). A device, a FIFO or a socket
+//! is not copied, said once, and no failure, as OpenSSH's scp and sftp skip
+//! one (T-476); each other item that cannot be copied is said once, the walk
+//! goes on, and the exit is then not zero. `--dry-run` says each action and
+//! changes nothing. With `--parallel K` the files wait, then go K at once,
+//! before each directory's mode is set (T-297). The steps on one name each
+//! are in `tree_items.rs`.
 
 use std::path::{Path, PathBuf};
 use std::sync::Arc;
@@ -23,15 +25,16 @@ use super::operand::{Operand, Remote};
 use super::pipe::Shape;
 use super::session::shown;
 use super::transfer::{self, Done, Failed, Side};
-use super::tree::{self, Item, Tree};
+use super::tree::{self, Item, Special, Tree};
 use super::tree_conn::{flush, Conn, Linked, Waiting};
+use super::tree_items::{far_link, make_link, remove_far, remove_local, same_far};
 use super::Outcome;
 use crate::exitmap::Fault;
 
 /// One action of a dry run, as `report` prints it: what, from, and to.
 pub type Planned = (&'static str, String, String);
 
-fn remote_join(root: &str, rel: &str) -> String {
+pub(super) fn remote_join(root: &str, rel: &str) -> String {
     match (root, rel) {
         (_, "") => root.to_string(),
         ("", _) => rel.to_string(),
@@ -39,7 +42,7 @@ fn remote_join(root: &str, rel: &str) -> String {
     }
 }
 
-fn local_join(root: &Path, rel: &str) -> PathBuf {
+pub(super) fn local_join(root: &Path, rel: &str) -> PathBuf {
     rel.split('/').filter(|c| !c.is_empty()).fold(root.to_path_buf(), |path, c| path.join(c))
 }
 
@@ -63,11 +66,22 @@ pub async fn is_dir(sftp: Option<&Sftp>, source: &Operand, tree: &Tree) -> bool 
     }
 }
 
-/// Record a failure of the tree, and say it at once: each one is reported,
-/// and the first sets the exit code.
+/// Record a failure of the tree, and say it at once: each one is reported
+/// once, and the first sets the exit code.
 pub(super) fn failed(outcome: &mut Outcome, log: &Log, name: String, failed: Failed) {
-    log.error(&failed.message);
-    outcome.failed.get_or_insert((name, failed));
+    outcome.fail(log, name, failed);
+}
+
+/// A device, a FIFO or a socket of the tree, `from`: not copied, and no
+/// failure (T-476). One line at the default level, and with `--jsonl` a
+/// `skipped` object; a dry run says `skip`.
+fn skipped(outcome: &mut Outcome, log: &Log, from: String, kind: Special, dry_run: bool) {
+    if dry_run {
+        outcome.planned.push(("skip", from, kind.noun().to_string()));
+        return;
+    }
+    log.info(&format!("{from}: not copied: {}", kind.noun()));
+    outcome.skipped.push((from, kind.noun()));
 }
 
 /// Copy the directory `source` to `dest` over `conn`: up or down.
@@ -241,6 +255,10 @@ async fn up(
                     failed(outcome, log, target, transfer::from_sftp(e, Side::Destination));
                 }
             }
+            Item::Special { rel, kind } => {
+                let from = local_join(Path::new(src), rel).display().to_string();
+                skipped(outcome, log, from, *kind, tree.dry_run);
+            }
             Item::Skip { rel, why } => {
                 let from = local_join(Path::new(src), rel).display().to_string();
                 if tree.dry_run {
@@ -372,6 +390,7 @@ async fn down(
                     failed(outcome, log, shown, Failed::new(Fault::CantCreate, why));
                 }
             }
+            Item::Special { rel, kind } => skipped(outcome, log, remote_join(&src.path, rel), *kind, tree.dry_run),
             Item::Skip { rel, why } => {
                 let from = remote_join(&src.path, rel);
                 if tree.dry_run {
@@ -396,7 +415,7 @@ async fn down(
     // of the run (T-144).
     if tree.delete && root.is_dir() {
         let mut target = tree::walk_local(&root, &Tree { follow: false, ..tree.clone() });
-        target.retain(|i| !matches!(i, Item::Skip { .. }));
+        target.retain(|i| !tree::not_copied(i));
         for item in tree::to_delete(&items, &target) {
             let path = local_join(&root, tree::rel_of(&item)).display().to_string();
             if tree.dry_run {
@@ -409,91 +428,6 @@ async fn down(
     if moving && clean && !tree.dry_run {
         if let Some(sftp) = conn.sftp() {
             remove_far(sftp, &src.path, &items, log).await;
-        }
-    }
-}
-
-/// Whether the far regular file `target` has the size of the local file
-/// `from`, and its time of change to the second: a copy of `podssh run`
-/// that kept the times left it so (T-192).
-async fn same_far(sftp: Option<&Sftp>, from: &str, target: &str) -> bool {
-    let (Some(sftp), Ok(local)) = (sftp, std::fs::metadata(from)) else { return false };
-    let Ok(far) = sftp.lstat(target).await else { return false };
-    let time = local.modified().ok().and_then(meta::seconds);
-    far.is_regular() && !far.is_symlink() && far.size == Some(local.len()) && time.is_some() && far.mtime == time
-}
-
-/// A symbolic link at `target` on the server that names `names`: one that a
-/// copy before made stays, and anything else there is replaced, as a file
-/// is (a link cannot be made over a name that exists).
-async fn far_link(sftp: &Sftp, target: &str, names: &str) -> Result<(), podssh_ssh::sftp::SftpError> {
-    if let Ok(attrs) = sftp.lstat(target).await {
-        if attrs.is_symlink() && sftp.readlink(target).await.is_ok_and(|now| now == names) {
-            return Ok(());
-        }
-        if attrs.is_dir() {
-            sftp.rmdir(target).await?;
-        } else {
-            sftp.remove(target).await?;
-        }
-    }
-    sftp.symlink(target, names).await
-}
-
-/// A symbolic link at `at` that names `names`: one there that names the same
-/// stays, and another file or link there is replaced.
-fn make_link(at: &Path, names: &str) -> std::io::Result<()> {
-    if let Ok(meta) = std::fs::symlink_metadata(at) {
-        if meta.file_type().is_symlink() && std::fs::read_link(at).is_ok_and(|now| now == Path::new(names)) {
-            return Ok(());
-        }
-        if meta.is_dir() {
-            std::fs::remove_dir(at)?;
-        } else {
-            std::fs::remove_file(at)?;
-        }
-    }
-    new_link(at, names)
-}
-
-fn new_link(at: &Path, names: &str) -> std::io::Result<()> {
-    #[cfg(unix)]
-    {
-        std::os::unix::fs::symlink(names, at)
-    }
-    #[cfg(windows)]
-    {
-        std::os::windows::fs::symlink_file(names, at)
-    }
-}
-
-/// mv -r up: the local source, each file and link, then each directory, the
-/// deepest first.
-fn remove_local(src: &str, items: &[Item], log: &Log) {
-    for item in items.iter().rev() {
-        let gone = match item {
-            Item::File { rel } | Item::Link { rel, .. } => std::fs::remove_file(local_join(Path::new(src), rel)),
-            Item::Dir { rel, .. } => std::fs::remove_dir(local_join(Path::new(src), rel)),
-            Item::Skip { .. } => Ok(()),
-        };
-        if let Err(e) = gone {
-            log.info(&format!("{src}: a part of the source stays: {e}"));
-            return;
-        }
-    }
-}
-
-/// mv -r down: the far source, as [`remove_local`] does here.
-async fn remove_far(sftp: &Sftp, src: &str, items: &[Item], log: &Log) {
-    for item in items.iter().rev() {
-        let gone = match item {
-            Item::File { rel } | Item::Link { rel, .. } => sftp.remove(&remote_join(src, rel)).await,
-            Item::Dir { rel, .. } => sftp.rmdir(&remote_join(src, rel)).await,
-            Item::Skip { .. } => Ok(()),
-        };
-        if let Err(e) = gone {
-            log.info(&format!("{src}: a part of the source stays: {e}"));
-            return;
         }
     }
 }

@@ -75,7 +75,7 @@ pub(super) async fn session(
             continue;
         }
         let answer = attempts(&mut link, resolved, source, &plan.destination, many, log, plan.shape).await;
-        settle(&mut outcome, link.as_ref(), source, named.as_deref(), after, answer).await;
+        settle(&mut outcome, link.as_ref(), source, named.as_deref(), after, answer, log).await;
         // No connection is left for the next file.
         if link.is_none() {
             break;
@@ -115,15 +115,16 @@ async fn pool(
     for ((source, _), answer) in files.iter().zip(answers) {
         // None: no connection was left to try it.
         if let Some(answer) = answer {
-            settle(outcome, link.as_ref(), source, None, after, answer).await;
+            settle(outcome, link.as_ref(), source, None, after, answer, log).await;
         }
     }
     link.is_some()
 }
 
-/// One file's answer into the outcome: its failure, or the file done, with
-/// its source then removed (`mv`) or kept as it was (the first leg of a
-/// move between servers). `named` replaces the source's name in the report.
+/// One file's answer into the outcome: its failure, said now as a tree's is
+/// (T-476), or the file done, with its source then removed (`mv`) or kept as
+/// it was (the first leg of a move between servers). `named` replaces the
+/// source's name in the report.
 async fn settle(
     outcome: &mut Outcome,
     link: Option<&Link>,
@@ -131,14 +132,12 @@ async fn settle(
     named: Option<&str>,
     after: After,
     answer: Answer,
+    log: &Log,
 ) {
     let name = named.map_or_else(|| shown(source), str::to_string);
     let (mut done, before) = match answer {
         Ok(pair) => pair,
-        Err(failed) => {
-            outcome.failed.get_or_insert((name, failed));
-            return;
-        }
+        Err(failed) => return outcome.fail(log, name, failed),
     };
     if let Some(n) = named {
         done.source = n.to_string();
@@ -159,7 +158,7 @@ async fn settle(
     }
     outcome.done.push(done);
     if let Some(failed) = kept {
-        outcome.failed.get_or_insert((name, failed));
+        outcome.fail(log, name, failed);
     }
 }
 

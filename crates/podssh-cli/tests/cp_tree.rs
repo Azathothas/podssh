@@ -3,8 +3,10 @@
 //! empty directory and names with a space goes up and comes back down, each
 //! file equal to its source; `--dry-run` says each action and changes
 //! nothing; `--exclude` leaves paths out; and a server whose listing names
-//! `../escape` is refused, with nothing written outside the target. Links and
-//! FIFOs are measured against OpenSSH in the gate (`scripts/interop-cp.sh`).
+//! `../escape` is refused, with nothing written outside the target. A FIFO
+//! is skipped with one note and no failure, each failure is said once, and
+//! the first gives the code (T-476). Links and FIFOs are measured against
+//! OpenSSH in the gate too (`scripts/interop-cp.sh`).
 
 mod cleanup;
 mod ssh_harness;
@@ -190,26 +192,6 @@ fn the_tree_flags_go_with_r() {
     }
 }
 
-/// A file that no copy can read for as long as the value lives: a FIFO on
-/// Unix (a walk skips it), a file held with no sharing on Windows.
-struct Unreadable(#[allow(dead_code)] Option<std::fs::File>);
-
-fn unreadable(path: &Path) -> Unreadable {
-    #[cfg(unix)]
-    {
-        let made = Command::new("mkfifo").arg(path).status().unwrap();
-        assert!(made.success(), "mkfifo");
-        Unreadable(None)
-    }
-    #[cfg(windows)]
-    {
-        use std::os::windows::fs::OpenOptionsExt;
-        std::fs::write(path, b"held").unwrap();
-        let held = std::fs::OpenOptions::new().read(true).share_mode(0).open(path).unwrap();
-        Unreadable(Some(held))
-    }
-}
-
 /// The source copied once into the server's `dest`, where each later run of
 /// the same command lands again: `dest/src`.
 fn mirrored(home: &Path, port: u16) {
@@ -280,7 +262,10 @@ fn delete_after_a_failed_copy_deletes_nothing() {
     let (_runtime, port) = server(&home);
     mirrored(&home, port);
     std::fs::write(home.join("dest/src/extra.txt"), b"x").unwrap();
-    let _held = unreadable(&home.join("src/cannot"));
+    // A far file where the source has a directory: its mkdir fails, also for
+    // root, and so does each file under it (a FIFO is no failure, T-476).
+    std::fs::remove_dir_all(home.join("dest/src/a")).unwrap();
+    std::fs::write(home.join("dest/src/a"), b"a file").unwrap();
     let (rc, _, err) = cp(&home, port, &["-r", "--delete", "src", "u@127.0.0.1:dest"]);
     assert_ne!(rc, 0, "{err}");
     assert!(err.contains("nothing was deleted"), "{err}");
@@ -331,4 +316,72 @@ fn a_tree_of_many_files_one_at_a_time_names_parallel() {
     let (rc, _, err) = cp(&home, port, &["-r", "few", "u@127.0.0.1:few-up"]);
     assert_eq!(rc, 0, "{err}");
     assert!(!err.contains(hint), "a few files: {err}");
+}
+
+/// A device, a FIFO or a socket of a tree is not copied and no failure
+/// (T-476): a tree with a file and two FIFOs goes up and comes down with
+/// exit 0, each FIFO named once on stderr and no line twice, the file
+/// copied; `--jsonl` gives a `skipped` object for each; `-q` says nothing.
+/// A failure is said once: a name that is not UTF-8 (Linux) still fails,
+/// and two missing sources are each said once, with 66.
+#[cfg(unix)]
+#[test]
+fn special_files_are_skipped_once_each_with_exit_0() {
+    need_server!();
+    let home = scratch("special");
+    let (_runtime, port) = server(&home);
+    let src = home.join("pipes");
+    std::fs::create_dir_all(src.join("sub")).unwrap();
+    std::fs::write(src.join("sub/file"), b"kept").unwrap();
+    for fifo in ["p1", "sub/p2"] {
+        let path = std::ffi::CString::new(src.join(fifo).into_os_string().into_encoded_bytes()).unwrap();
+        // SAFETY: a path with no NUL, and a mode.
+        assert_eq!(unsafe { libc::mkfifo(path.as_ptr(), 0o644) }, 0, "mkfifo {fifo}");
+    }
+    let once = |err: &str| {
+        let lines: Vec<&str> = err.lines().collect();
+        let unique: std::collections::BTreeSet<&str> = lines.iter().copied().collect();
+        assert_eq!(lines.len(), unique.len(), "no line twice: {err}");
+        assert_eq!(err.matches("p1: not copied: a FIFO").count(), 1, "{err}");
+        assert_eq!(err.matches("p2: not copied: a FIFO").count(), 1, "{err}");
+    };
+    let (rc, _, err) = cp(&home, port, &["-r", "pipes", "u@127.0.0.1:up"]);
+    assert_eq!(rc, 0, "{err}");
+    once(&err);
+    assert_eq!(std::fs::read(home.join("up/sub/file")).unwrap(), b"kept");
+    assert!(!home.join("up/p1").exists() && !home.join("up/sub/p2").exists());
+    // Down: the far tree's FIFOs, made where the server's tree is.
+    for fifo in ["up/p1", "up/sub/p2"] {
+        let path = std::ffi::CString::new(home.join(fifo).into_os_string().into_encoded_bytes()).unwrap();
+        // SAFETY: as above.
+        assert_eq!(unsafe { libc::mkfifo(path.as_ptr(), 0o644) }, 0, "mkfifo {fifo}");
+    }
+    let (rc, _, err) = cp(&home, port, &["-r", "u@127.0.0.1:up", "down"]);
+    assert_eq!(rc, 0, "{err}");
+    once(&err);
+    assert_eq!(std::fs::read(home.join("down/sub/file")).unwrap(), b"kept");
+    let (rc, out, err) = cp(&home, port, &["-r", "--jsonl", "pipes", "u@127.0.0.1:up2"]);
+    assert_eq!(rc, 0, "{err}");
+    let skipped: Vec<serde_json::Value> = out
+        .lines()
+        .filter_map(|l| serde_json::from_str::<serde_json::Value>(l).ok())
+        .filter(|v| v["event"] == "skipped")
+        .collect();
+    assert_eq!(skipped.len(), 2, "{out}");
+    assert!(skipped.iter().all(|v| v["why"] == "a FIFO"), "{out}");
+    let (rc, _, err) = cp(&home, port, &["-q", "-r", "pipes", "u@127.0.0.1:up3"]);
+    assert_eq!((rc, err.as_str()), (0, ""), "-q");
+    // A name that is not UTF-8 is still a failure, said once.
+    #[cfg(target_os = "linux")]
+    {
+        use std::os::unix::ffi::OsStrExt;
+        std::fs::write(src.join(std::ffi::OsStr::from_bytes(b"bad\xff")), b"x").unwrap();
+        let (rc, _, err) = cp(&home, port, &["-r", "pipes", "u@127.0.0.1:up4"]);
+        assert_eq!(rc, 66, "{err}");
+        assert_eq!(err.matches("not UTF-8").count(), 1, "said once: {err}");
+    }
+    // Two missing sources of one command line: each said once, 66.
+    let (rc, _, err) = cp(&home, port, &["gone1", "gone2", "u@127.0.0.1:up"]);
+    assert_eq!(rc, 66, "{err}");
+    assert_eq!((err.matches("gone1").count(), err.matches("gone2").count()), (1, 1), "{err}");
 }

@@ -3,7 +3,8 @@
 //! goes (a temporary name, the digest, the rename), each symbolic link as a
 //! link (`cp`) or what it names (`scp -r`, which follows links, as OpenSSH's
 //! does, with a check for a loop), and skips a device, a FIFO or a socket with
-//! a note. Each name that a listing gives must be one component: `.`, `..`,
+//! a note and no failure, as OpenSSH's scp and sftp skip one (T-476). Each
+//! name that a listing gives must be one component: `.`, `..`,
 //! a `/` or a NUL, and here on Windows a `\`, a `:`, a device's name or a
 //! trailing dot or space, are refused, so that nothing is written outside the
 //! target. `--exclude` and `--exclude-from` leave paths out; `--dry-run`
@@ -53,12 +54,77 @@ pub enum Item {
         rel: String,
         target: String,
     },
-    /// Not copied, and why: a special file, a refused name, a loop, or a
-    /// listing that failed. Each makes the exit code not zero.
+    /// A device, a FIFO or a socket: not copied, and no failure (T-476).
+    Special {
+        rel: String,
+        kind: Special,
+    },
+    /// Not copied, and why: a refused name, a loop, a depth past
+    /// [`MOST_DEPTH`], or a listing, a link or a name that cannot be read.
+    /// Each makes the exit code not zero.
     Skip {
         rel: String,
         why: String,
     },
+}
+
+/// The kind of a special file, which SFTP version 3 has no request to make.
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub enum Special {
+    Fifo,
+    Socket,
+    CharDevice,
+    BlockDevice,
+    /// Another kind, as Windows gives for each that is neither a file, a
+    /// directory nor a link.
+    Other,
+}
+
+impl Special {
+    /// The kind by the type bits of a mode, as SFTP gives them.
+    pub fn of_mode(mode: u32) -> Special {
+        match mode & 0o170_000 {
+            0o010_000 => Special::Fifo,
+            0o140_000 => Special::Socket,
+            0o020_000 => Special::CharDevice,
+            0o060_000 => Special::BlockDevice,
+            _ => Special::Other,
+        }
+    }
+
+    /// The kind of a local file that is neither a file, a directory nor a
+    /// link.
+    pub fn of_local(kind: std::fs::FileType) -> Special {
+        #[cfg(unix)]
+        {
+            use std::os::unix::fs::FileTypeExt;
+            if kind.is_fifo() {
+                return Special::Fifo;
+            }
+            if kind.is_socket() {
+                return Special::Socket;
+            }
+            if kind.is_char_device() {
+                return Special::CharDevice;
+            }
+            if kind.is_block_device() {
+                return Special::BlockDevice;
+            }
+        }
+        let _ = kind;
+        Special::Other
+    }
+
+    /// As a note says it: "SRC: not copied: a FIFO".
+    pub fn noun(self) -> &'static str {
+        match self {
+            Special::Fifo => "a FIFO",
+            Special::Socket => "a socket",
+            Special::CharDevice => "a character device",
+            Special::BlockDevice => "a block device",
+            Special::Other => "a special file",
+        }
+    }
 }
 
 /// The names that Windows keeps for devices, with or without an extension.
@@ -133,18 +199,27 @@ pub fn read_excludes(path: &Path) -> std::io::Result<Vec<String>> {
 /// The path under the root of an item.
 pub fn rel_of(item: &Item) -> &str {
     match item {
-        Item::Dir { rel, .. } | Item::File { rel } | Item::Link { rel, .. } | Item::Skip { rel, .. } => rel,
+        Item::Dir { rel, .. }
+        | Item::File { rel }
+        | Item::Link { rel, .. }
+        | Item::Special { rel, .. }
+        | Item::Skip { rel, .. } => rel,
     }
 }
 
+/// Whether `item` is not copied: a special file or a skip.
+pub fn not_copied(item: &Item) -> bool {
+    matches!(item, Item::Special { .. } | Item::Skip { .. })
+}
+
 /// What `--delete` removes: each item of the target that the source does
-/// not have, a directory after what it holds; never the root, never a
-/// skipped item.
+/// not have, a directory after what it holds; never the root, never an item
+/// that is not copied.
 pub fn to_delete(source: &[Item], target: &[Item]) -> Vec<Item> {
     let kept: HashSet<&str> = source.iter().map(rel_of).collect();
     let mut gone: Vec<Item> = target
         .iter()
-        .filter(|i| !matches!(i, Item::Skip { .. }) && !rel_of(i).is_empty() && !kept.contains(rel_of(i)))
+        .filter(|i| !not_copied(i) && !rel_of(i).is_empty() && !kept.contains(rel_of(i)))
         .cloned()
         .collect();
     // The deepest first: a directory's contents before it.
@@ -230,7 +305,7 @@ fn walk_local_in(
         match meta {
             Ok(m) if m.is_dir() => walk_local_in(&path, &child, tree, depth + 1, seen, items),
             Ok(m) if m.is_file() => items.push(Item::File { rel: child }),
-            Ok(_) => items.push(Item::Skip { rel: child, why: "a device, a FIFO or a socket".into() }),
+            Ok(m) => items.push(Item::Special { rel: child, kind: Special::of_local(m.file_type()) }),
             Err(e) => items.push(Item::Skip { rel: child, why: format!("the link names nothing here: {e}") }),
         }
     }
@@ -298,7 +373,7 @@ pub async fn walk_far(sftp: &Sftp, root: &str, tree: &Tree, windows: bool) -> Ve
             match attrs {
                 Ok(a) if a.is_dir() => below.push((path, child, depth + 1)),
                 Ok(a) if a.is_regular() => items.push(Item::File { rel: child }),
-                Ok(_) => items.push(Item::Skip { rel: child, why: "a device, a FIFO or a socket".into() }),
+                Ok(a) => items.push(Item::Special { rel: child, kind: Special::of_mode(a.permissions.unwrap_or(0)) }),
                 Err(e) => items.push(Item::Skip { rel: child, why: format!("the link names nothing there: {e}") }),
             }
         }
@@ -366,7 +441,8 @@ mod tests {
             dir("old/deeper"),
             file("old/deeper/x"),
             Item::Link { rel: "link".into(), target: "/etc/passwd".into() },
-            Item::Skip { rel: "fifo".into(), why: "a FIFO".into() },
+            Item::Special { rel: "fifo".into(), kind: Special::Fifo },
+            Item::Skip { rel: "unread".into(), why: "not read".into() },
             file("top"),
         ];
         let rels: Vec<String> = to_delete(&source, &target).iter().map(|i| rel_of(i).to_string()).collect();
@@ -388,10 +464,21 @@ mod tests {
                 Item::Dir { rel, .. } => format!("d:{rel}"),
                 Item::File { rel } => format!("f:{rel}"),
                 Item::Link { rel, .. } => format!("l:{rel}"),
+                Item::Special { rel, .. } => format!("p:{rel}"),
                 Item::Skip { rel, .. } => format!("s:{rel}"),
             })
             .collect();
         assert_eq!(rels, ["d:", "f:a file", "d:b", "d:b/c", "f:b/c/d", "d:empty"]);
         let _ = std::fs::remove_dir_all(&dir);
+    }
+
+    #[test]
+    fn the_kind_of_a_special_file_is_read_from_its_mode() {
+        assert_eq!(Special::of_mode(0o010_644), Special::Fifo);
+        assert_eq!(Special::of_mode(0o140_755), Special::Socket);
+        assert_eq!(Special::of_mode(0o020_620), Special::CharDevice);
+        assert_eq!(Special::of_mode(0o060_660), Special::BlockDevice);
+        assert_eq!(Special::of_mode(0), Special::Other);
+        assert_eq!(Special::Fifo.noun(), "a FIFO");
     }
 }

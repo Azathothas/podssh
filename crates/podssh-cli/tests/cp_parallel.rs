@@ -130,8 +130,9 @@ struct Ran {
     code: i32,
     /// The source of each `done` object, in their order.
     done: Vec<String>,
-    /// The code of its `error` object, if one came.
-    error: Option<i64>,
+    /// The code of each `error` object, one for each failure, the first
+    /// failure's first (T-476).
+    errors: Vec<i64>,
     stderr: String,
 }
 
@@ -155,12 +156,12 @@ fn cp_jsonl(home: &Path, port: u16, args: &[&str]) -> Ran {
     }
     let out = cmd.output().unwrap();
     let stderr = String::from_utf8_lossy(&out.stderr).into_owned();
-    let mut ran = Ran { code: out.status.code().unwrap_or(-1), done: Vec::new(), error: None, stderr };
+    let mut ran = Ran { code: out.status.code().unwrap_or(-1), done: Vec::new(), errors: Vec::new(), stderr };
     for line in String::from_utf8_lossy(&out.stdout).lines() {
         let Ok(event) = serde_json::from_str::<serde_json::Value>(line) else { continue };
         match event["event"].as_str() {
             Some("done") => ran.done.push(event["source"].as_str().unwrap_or_default().to_string()),
-            Some("error") => ran.error = event["code"].as_i64(),
+            Some("error") => ran.errors.extend(event["code"].as_i64()),
             _ => {}
         }
     }
@@ -362,7 +363,7 @@ fn small_files_report_the_first_failure_in_the_order_of_their_sources() {
     std::fs::create_dir_all(home.join("far").join(leaf(&names[0]))).unwrap();
     std::fs::remove_file(home.join(&names[5])).unwrap();
     let ran = cp_jsonl(&home, port, &eight(&names, "u@127.0.0.1:far/"));
-    assert_eq!((ran.code, ran.error), (73, Some(73)), "{}", ran.stderr);
+    assert_eq!((ran.code, ran.errors.as_slice()), (73, [73, 66].as_slice()), "{}", ran.stderr);
     let copied: Vec<String> = [&names[1..5], &names[6..]].concat();
     assert_eq!(ran.done, copied, "each other file, in the order of the sources");
     for name in &copied {

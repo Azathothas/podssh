@@ -1,6 +1,7 @@
 //! What a run of `cp`, `mv` or `scp` prints at its end: each action of a dry
-//! run (T-143, T-144), each file done, each delete, and the failure, as text
-//! or as `--jsonl` objects; and its exit code.
+//! run (T-143, T-144), each file done, each delete, each item skipped and
+//! each failure, as text or as `--jsonl` objects; and its exit code. A
+//! failure said when it came is not said again (T-476).
 
 use std::io::Write;
 
@@ -70,16 +71,27 @@ pub(super) fn report(outcome: &Outcome, jsonl: bool, out: &mut dyn Write, log: &
             log.verbose(&format!("{} -> {}: {how}{source}", done.source, done.destination));
         }
     }
-    let Some((source, failed)) = &outcome.failed else { return 0 };
     if jsonl {
-        let line = serde_json::json!({
-            "event": "error",
-            "source": source,
-            "message": failed.message,
-            "code": failed.fault.code(),
-        });
-        let _ = writeln!(out, "{line}");
+        // Each device, FIFO or socket that a tree skipped (T-476), and each
+        // failure, the first first: each was said when it came.
+        for (source, kind) in &outcome.skipped {
+            let line = serde_json::json!({ "event": "skipped", "source": source, "why": kind });
+            let _ = writeln!(out, "{line}");
+        }
+        for (source, failed) in outcome.failures() {
+            let line = serde_json::json!({
+                "event": "error",
+                "source": source,
+                "message": failed.message,
+                "code": failed.fault.code(),
+            });
+            let _ = writeln!(out, "{line}");
+        }
     }
-    log.error(&failed.message);
+    let Some((_, failed)) = &outcome.failed else { return 0 };
+    // Once: a failure said when it came is not said again (T-476).
+    if !outcome.said {
+        log.error(&failed.message);
+    }
     failed.fault.code()
 }

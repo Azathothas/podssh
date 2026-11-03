@@ -89,7 +89,9 @@ const CP: &[&str] = &[
      side was checked, or error, with the exit code.",
     "Several sources go into a directory. A copy from server to server goes through a temporary file on \
      this host, one connection at a time. -r copies a directory and what it holds, each link as a link \
-     (scp -r follows links).",
+     (scp -r follows links). A device, a FIFO or a socket is not copied: one line says so, with --jsonl \
+     a skipped object, and it is no failure, as OpenSSH's scp and sftp skip one. Each failure is said \
+     once, when it comes; the rest goes on, and the exit code is the first failure's.",
     "With --parallel K several files go K at once, each over an SFTP session of its own in the one \
      connection, and so do the files of a tree with -r; a file of more than 8 MiB goes after them, alone, \
      as chunks, K at once. Each file keeps its own side file, so after a broken connection each goes on \
