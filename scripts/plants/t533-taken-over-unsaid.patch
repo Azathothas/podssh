@@ -1,0 +1,13 @@
+--- a/crates/podssh-cli/src/man/notes_public.rs
++++ b/crates/podssh-cli/src/man/notes_public.rs
+@@ -15,9 +15,7 @@
+      Tailscale's main DERP fleet, which serves Tailscale's own clients; no community DERP server, no Wisp \
+      server of a web proxy's list and no public proxy node of an aggregator's list, as none names an \
+      operator who answers for it. A server that you name (--derp-server, --forwarder, --shadowsocks, \
+-     --vless, --via, --wstunnel) is yours to trust. podssh never uses, and never names, a domain that \
+-     looks taken over: a school's, a church's or a shop's, or a name made to look like one (the \
+-     operator's ruling Q79).";
++     --vless, --via, --wstunnel) is yours to trust.";
+
+ #[cfg(test)]
+ mod tests {

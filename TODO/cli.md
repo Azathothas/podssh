@@ -491,7 +491,7 @@ Read, at `61e55d1`: no option made podssh start a program: `ProxyCommand` is ref
    `[OPTIONS] [--] [user@]host [COMMAND...]` for `ssh` and
    `[OPTIONS] [--] HOST PORT` for `proxy`; `--help` and the synopsis of the
    manual (`crates/podssh-cli/src/man/model.rs:186-190`) read it.
-2. A note for `ssh` and `proxy` (`crates/podssh-cli/src/man/notes_ssh.rs:4-482` and `crates/podssh-cli/src/man/notes_ssh_more.rs:4-119` and `crates/podssh-cli/src/man/notes.rs:69-192`)
+2. A note for `ssh` and `proxy` (`crates/podssh-cli/src/man/notes_ssh.rs:4-483` and `crates/podssh-cli/src/man/notes_ssh_more.rs:4-119` and `crates/podssh-cli/src/man/notes.rs:69-192`)
    and an example (`crates/podssh-cli/src/man/examples.rs:8-291`). Pitfall: the
    notes test reads a bare `--` as a flag that does not exist
    (`crates/podssh-cli/src/man/notes_tests.rs:56-72`); teach `flag_exists`

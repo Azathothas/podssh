@@ -1,0 +1,7 @@
+# T-533: the note of the public services loses its sentence of Q79, that
+# podssh never uses or names a domain that looks taken over; the test of
+# the manual that names the sentence must fail.
+ENTRY=T-533
+GROUP=cli-tests
+EXPECT='test the_manual_says_which_public_services_podssh_tries_and_which_it_never_names \.\.\. FAILED'
+RUN='cargo test --locked -p podssh-cli --test man_page -- the_manual_says_which_public_services_podssh_tries_and_which_it_never_names'

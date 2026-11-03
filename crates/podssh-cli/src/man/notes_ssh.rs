@@ -245,6 +245,7 @@ const FIRST: &[&str] = &[
      to whom first, and one line gives each one's reason when none carries the session; a bad setting ends \
      the run as before, and no relay token goes to them. PODSSH_FORWARDER_FALLBACK=no, or ForwarderFallback \
      no, turns this off; doctor's line fallback says so, unmeasured, and doctor --forwarder WORDS asks them.",
+    super::notes_public::PUBLIC,
     "--shadowsocks FILE reaches the first hop through Shadowsocks servers, in place of the relay: a server \
      that takes the target in an address header and dials it, with a key in place of a token. FILE must be \
      yours and closed to others (chmod 600), as a pair file is: each line is an ss:// URI of SIP002, \
