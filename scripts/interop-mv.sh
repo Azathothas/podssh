@@ -119,10 +119,13 @@ rc=$?
     && ok mv.server_to_server "mv from server to server: through this host, then the source removed" \
     || bad mv.server_to_server "mv from server to server: exit $rc" "$CW/err"
 
-# --jsonl: one done object that says that the source is gone.
+# --jsonl: one done object that says that the source is gone, then the
+# run's summary (T-472).
 far j
 m 2201 --jsonl "$T:cp/j" "$MW/j" >"$CW/out" 2>"$CW/err"
 rc=$?
-[ "$rc" = 0 ] && [ "$(wc -l <"$CW/out")" = 1 ] && grep -q '"source_removed":true' "$CW/out" \
-    && ok mv.jsonl "mv --jsonl: one done object, and the source removed" || bad mv.jsonl "mv --jsonl: exit $rc" "$CW/out"
+[ "$rc" = 0 ] && [ "$(wc -l <"$CW/out")" = 2 ] && head -n 1 "$CW/out" | grep -q '"source_removed":true' \
+    && tail -n 1 "$CW/out" | grep -q '"event":"summary"' \
+    && ok mv.jsonl "mv --jsonl: one done object, the source removed, then the summary" \
+    || bad mv.jsonl "mv --jsonl: exit $rc" "$CW/out"
 no_part mv.no_part "mv"

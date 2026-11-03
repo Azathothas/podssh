@@ -3210,7 +3210,9 @@ of 1 s none; a tree under `--parallel 4` draws one line for the run (`PODSSH_PRO
   `apk`, so it ran by hand, the patch applied, then taken off: caught,
   `a_run_in_a_pipe_ends_with_one_summary_line` failed.
 - Runs in the gate's interop at the push: `scripts/interop-cp.sh`'s `cp.jsonl` (the `done` object,
-  then the `summary`) and `scripts/interop-run.sh`'s `run.again` (the summary with no `-v`).
+  then the `summary`) and `scripts/interop-run.sh`'s `run.again` (the summary with no `-v`). The
+  gate at `2e3dcec` (run 41613214239) found `scripts/interop-mv.sh`'s `mv.jsonl`, which the draft
+  left at one line: it now reads the `done` object first, then the `summary`.
 
 # T-473: `cp` and `mv` have no `--no-clobber`, `--update` or `--backup`
 

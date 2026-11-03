@@ -1188,7 +1188,9 @@ own run of it waits for the release check (Q88).
   `operand` drops, so two tests of `mcp::copy` now hold the operand that `podssh cp` takes; and
   Windows reads `..` in the text before it opens a path, so that `new/..` named the allowed
   directory there and passed, where it names nothing elsewhere: a path to write now names no
-  `..` on any system (`Dirs::target`).
+  `..` on any system (`Dirs::target`). The gate at `2e3dcec` (run 41613214239) found the second
+  operand of `a_file_of_the_directory_goes_up_with_the_gate_of_ssh_exec`, `cp_get`'s, held the same
+  way; it is now `operand`'s too.
 
 # T-511: `doctor` checks each road one after another, 22 to 40 s, roads that the run did not ask for among them
 

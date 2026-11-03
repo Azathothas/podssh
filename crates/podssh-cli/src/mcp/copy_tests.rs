@@ -72,7 +72,7 @@ fn a_file_of_the_directory_goes_up_with_the_gate_of_ssh_exec() {
         &file,
     )
     .unwrap();
-    let local = s.0.join("allowed/a.log").display().to_string();
+    let local = super::super::dirs::operand(&s.0.join("allowed/a.log"));
     assert_eq!(down[down.len() - 3..], ["--", "web2:/var/log/a.log", local.as_str()]);
 }
 
