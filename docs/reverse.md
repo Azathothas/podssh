@@ -126,7 +126,9 @@ NAME`, by one function, in the form of a node that `ssh` takes. With
 `--ConnectTimeout SECONDS` (T-589) one bound covers the operator's socket,
 the node's `ready` (the leg's hook `OperatorLimits::on_ready` names that
 step), its first bytes and the handshakes of the layer and of the channel;
-past it the run ends with 69 and the step's words.
+past it the run ends with 69 and the step's words. `--timeout DURATION` and
+`PODSSH_TIMEOUT` are other names of that bound (T-613), and the line names
+the one that set it.
 
 Since T-153, each session of `podssh node` runs the resumable layer: the
 node answers `ready` at once, greets, and dials TARGET only after the

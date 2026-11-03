@@ -265,6 +265,7 @@ pub fn parse_verb(verb: &'static Verb, rest: &[std::ffi::OsString]) -> Parsed {
             idle_warn: get("idle-warn"),
             node: crate::proxy_node::Flags::from_matches(&matches),
             connect_timeout: get("ConnectTimeout"),
+            timeout: get("timeout"),
             refused,
         };
     }
@@ -291,26 +292,13 @@ pub fn parse_verb(verb: &'static Verb, rest: &[std::ffi::OsString]) -> Parsed {
             ssh: crate::ssh::args::SshArgs::from_matches(&matches),
             keep_listening: matches.get_flag("keep-listening"),
             proxy_auth_file: get("proxy-auth-file"),
+            timeout: get("timeout"),
             refused,
         }));
     }
 
     if verb.name == "operator" {
-        let get = |id: &str| matches.get_one::<String>(id).cloned();
-        return Parsed::Operator(Box::new(crate::operator::OperatorArgs {
-            name: get("name"),
-            relay_addr: get("relay-addr"),
-            ca_file: get("ca-file"),
-            pair_file: get("pair-file"),
-            client_key: get("client-key"),
-            node_key: get("node-key"),
-            no_e2e: matches.get_flag("no-e2e"),
-            resume_deadline: get("resume-deadline"),
-            no_resume: matches.get_flag("no-resume"),
-            connect_timeout: get("ConnectTimeout"),
-            carrier: get("carrier"),
-            refused,
-        }));
+        return Parsed::Operator(Box::new(crate::operator::OperatorArgs::from_matches(&matches, refused)));
     }
 
     if verb.name == "relay" {

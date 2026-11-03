@@ -67,6 +67,8 @@ pub fn podssh(home: &Path, args: &[&str], set: &[(&str, &str)]) -> (i32, String,
         "PODSSH_RELAY",
         "PODSSH_RELAY_ADDR",
         "PODSSH_RELAY_TOKEN",
+        // The bound of operator, proxy and pipe's open too (T-613).
+        "PODSSH_TIMEOUT",
         "https_proxy",
         "HTTPS_PROXY",
         "all_proxy",

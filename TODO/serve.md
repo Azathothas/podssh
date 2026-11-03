@@ -50,9 +50,9 @@ core: the handshake, a host key that does not change, and key authentication.
    `$HOME/.ssh/authorized_keys`. Lines with options wait for T-114. No usable
    key: exit 78. Invariant: no setting accepts each key. `auth_publickey`
    compares `key_data()`; the login name selects nothing.
-5. The verb: rows in `crates/podssh-cli/src/flags.rs:372-440` and
+5. The verb: rows in `crates/podssh-cli/src/flags.rs:373-441` and
    `crates/podssh-cli/src/positionals.rs:8-262`, an arm beside
-   `crates/podssh-cli/src/dispatch.rs:291-365`, the manual, `docs/cli.md`,
+   `crates/podssh-cli/src/dispatch.rs:293-367`, the manual, `docs/cli.md`,
    `docs/STATUS.md`. The first source is `--stdio`, as `sshd -i`: OpenSSH
    then tests serve in the gate through `ProxyCommand`, with no listener.
    `podssh serve NAME` follows on the node runner of T-079. Windows: exit 70.
@@ -1338,7 +1338,7 @@ no reason (`docs/target-environment.md:88-89`).
 ## Premise
 
 - Read: no source in `crates/` reads `SHELL` or selects a shell; `serve` is
-  not a verb (`crates/podssh-cli/src/flags.rs:372-440`). The line numbers in
+  not a verb (`crates/podssh-cli/src/flags.rs:373-441`). The line numbers in
   the report are older; the content is at the lines given here.
 - Read: the report says that `docs/cli.md` records why podssh does not call
   `getpwuid`. It does not; that record is `docs/target-environment.md:37-44`.
@@ -1368,7 +1368,7 @@ no reason (`docs/target-environment.md:88-89`).
    (`crates/podssh-cli/src/doctor/host.rs:11-28`) from the same function.
 6. T-108 runs the result. Never call `getpwuid`. Same commit: `--shell` in
    `crates/podssh-cli/src/flags.rs`, `SHELL` in
-   `crates/podssh-cli/src/man/facts.rs:46-298`, `docs/cli.md`.
+   `crates/podssh-cli/src/man/facts.rs:46-300`, `docs/cli.md`.
 
 ## Decision
 

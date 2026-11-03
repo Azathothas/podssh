@@ -1,0 +1,8 @@
+# T-613: --timeout read and passed over, as before it was a name of the
+# bound: `operator --timeout 2` on a carrier whose program (sleep) starts no
+# node waits for the carrier's 60 s in place of 2 s, so the test of the names
+# of the bound must fail.
+ENTRY=T-613
+GROUP=cli-tests
+EXPECT='test timeout_and_podssh_timeout_bound_the_open_as_connect_timeout_does \.\.\. FAILED'
+RUN='cargo test --locked -p podssh-cli --test operator -- timeout_and_podssh_timeout_bound_the_open_as_connect_timeout_does'

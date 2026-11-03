@@ -315,7 +315,10 @@ pub(super) const OPERATOR: &[&str] = &[
      did not answer ready within 25 s (--ConnectTimeout), and the exit is 69. The bytes after the open are \
      never bounded. A node run as podssh node --plain sends its TARGET's first bytes as they come, and \
      the bound waits for them too: with a TARGET that speaks second, give none. operator takes no -o, so \
-     -o ConnectTimeout=N is refused (64); 0 is refused too.",
+     -o ConnectTimeout=N is refused (64); 0 is refused too. --timeout DURATION is another name of the same \
+     bound, as a duration (30s, 2m, 1h) rounded up to whole seconds, a day at most, and PODSSH_TIMEOUT gives \
+     it its default, held to a day: the line past the bound names the one that set it, as within 25 s \
+     (--timeout). --ConnectTimeout wins when both are given; none of them is ever required.",
     "The session runs the end-to-end channel (see podssh node). This operator's key is a private file \
      in the cache (client.key, or iroh-client.key of an earlier podssh), or the file of --client-key, \
      made when it is missing, and its fingerprint is said when it is new. The node's key is pinned at \

@@ -44,9 +44,10 @@ pub struct FlagRow {
     pub help: &'static str,
     /// For a `Refused` row, what the user should type instead.
     pub instead: Option<&'static str>,
-    /// A `--timeout` that bounds a run and is never required, with no
-    /// terminal either (`scp` and `sftp`, Q72): the gate reads it, so that
-    /// the table decides. False on each other row.
+    /// A `--timeout` that is never required, with no terminal either: a
+    /// bound of the run (`scp` and `sftp`, Q72), which the gate reads, so
+    /// that the table decides; or of the open alone (`operator`, `proxy` and
+    /// `pipe`, T-613). False on each other row.
     pub optional: bool,
 }
 

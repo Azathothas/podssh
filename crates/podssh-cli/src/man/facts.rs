@@ -108,7 +108,9 @@ pub const VARIABLES: &[(&[&str], &str)] = &[
         &["PODSSH_TIMEOUT"],
         "The default of --timeout for each command that has the flag (podssh edit's with --no-terminal \
       alone), as a whole duration such as 30s; the flag wins, and an empty value is no value. A bad value is \
-      a configuration error (78).",
+      a configuration error (78). For podssh operator, proxy and pipe, whose --timeout is another name of \
+      --ConnectTimeout, it bounds the session's open alone, held to a day; pipe reads it for a node: or \
+      relay: side where no side listens.",
     ),
     (&["PODSSH_RELAY_TOKEN"], "A relay token to use in place of one podssh mints. podssh never prints it."),
     (

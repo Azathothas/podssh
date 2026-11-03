@@ -1,12 +1,14 @@
 //! The flag rows of `operator`: those of a pair, and those of the end-to-end
 //! channel (T-087, T-088): this operator's key, the node's key in place of
 //! the pins, and the switch that turns the channel off. And the bound on a
-//! pipe's open, `--ConnectTimeout`, of `operator`, `proxy` and `pipe` (T-589);
-//! and `--carrier` of the other clients of a node (T-595).
+//! pipe's open, `--ConnectTimeout`, of `operator`, `proxy` and `pipe` (T-589),
+//! with its other name `--timeout` (T-613); and `--carrier` of the other
+//! clients of a node (T-595).
 
-use super::{row, FlagKind, FlagRow};
+use super::{optional, row, FlagKind, FlagRow};
 
-/// `operator` (T-084): a pipe, with no `--timeout`; and the channel's flags.
+/// `operator` (T-084): a pipe, whose `--timeout` bounds its open alone, never
+/// its run (T-613); and the channel's flags.
 pub const PAIR_FLAGS: &[FlagRow] = &[
     row(None, "relay-addr", Some("HOST=IP"), FlagKind::Supported,
         "use IP for HOST instead of DNS, HOST=IP[,...]; also env PODSSH_RELAY_ADDR (for hosts with no DNS)", None),
@@ -23,7 +25,7 @@ pub const PAIR_FLAGS: &[FlagRow] = &[
     super::node::OWN_DEADLINE,
     // A session that ends with its link (T-612).
     super::node::OPERATOR_NO_RESUME,
-    OPERATOR_CONNECT_TIMEOUT,
+    OPERATOR_CONNECT_TIMEOUT, TIMEOUT,
     // The node at the other end of a stream that exists already (T-595).
     row(None, "carrier", Some("ADDR"), FlagKind::Supported,
         "reach the node at the other end of ADDR, a stream that exists already, with no relay and no pair: exec:CMD, a program started with no shell, as exec:'ssh -T HOST podssh node --carrier stdio NAME TARGET', or fd:N (Unix); NAME is then the label under which the node's key is pinned", None),
@@ -50,3 +52,11 @@ pub const PROXY_CONNECT_TIMEOUT: FlagRow = row(None, "ConnectTimeout", Some("SEC
 /// `--ConnectTimeout` of `pipe` (T-589).
 pub const PIPE_CONNECT_TIMEOUT: FlagRow = row(None, "ConnectTimeout", Some("SECONDS"), FlagKind::Supported,
     "node: and relay:: the bound on the time to the session's open, as operator and proxy take it, with no listening side; ssh:: each hop's ConnectTimeout too, and with no node: or relay: side the hops' alone", None);
+
+/// `--timeout` of `operator` and `proxy` (T-613): another name of their
+/// `--ConnectTimeout`, a bound on the open alone, so never required.
+pub const TIMEOUT: FlagRow = optional(row(None, "timeout", Some("DURATION"), FlagKind::Supported,
+    "another name of --ConnectTimeout, as a duration (30s, 2m, 1h) rounded up to whole seconds, a day at most, which bounds the session's open and never its bytes; --ConnectTimeout wins when both are given; never required (default: env PODSSH_TIMEOUT)", None));
+/// `--timeout` of `pipe` (T-613).
+pub const PIPE_TIMEOUT: FlagRow = optional(row(None, "timeout", Some("DURATION"), FlagKind::Supported,
+    "node:, relay: and ssh:: another name of --ConnectTimeout, as a duration (30s, 2m, 1h) rounded up to whole seconds, a day at most; --ConnectTimeout wins when both are given; never required (default: env PODSSH_TIMEOUT, for a node: or relay: side of a pipe that does not listen)", None));

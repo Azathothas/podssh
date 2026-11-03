@@ -147,8 +147,10 @@ fn to_operator(text: &str, args: &ProxyArgs) -> Result<OperatorArgs, Refusal> {
         no_e2e: args.node.no_e2e,
         resume_deadline: args.node.resume_deadline.clone(),
         no_resume: args.node.no_resume,
-        // The bound of the node's steps, as `operator` takes it (T-589).
+        // The bound of the node's steps, as `operator` takes it (T-589), by
+        // either name (T-613).
         connect_timeout: args.connect_timeout.clone(),
+        timeout: args.timeout.clone(),
         // The node at the other end of a stream, as `operator --carrier`
         // reaches it (T-595); its checks are operator's.
         carrier: args.node.carrier.clone(),

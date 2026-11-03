@@ -62,15 +62,15 @@ repository and CI).
 
 ## Counts
 
-**578 entries: 110 open, 4 partial, 2 blocked, 462 done.**
+**578 entries: 109 open, 5 partial, 2 blocked, 462 done.**
 
 | Priority | open | partial | blocked | done | total |
 | --- | --- | --- | --- | --- | --- |
 | P0 | 0 | 0 | 0 | 1 | 1 |
 | P1 | 0 | 1 | 0 | 63 | 64 |
 | P2 | 40 | 3 | 0 | 221 | 264 |
-| P3 | 70 | 0 | 2 | 177 | 249 |
-| **All** | 110 | 4 | 2 | 462 | 578 |
+| P3 | 69 | 1 | 2 | 177 | 249 |
+| **All** | 109 | 5 | 2 | 462 | 578 |
 
 ## Entries
 
@@ -652,5 +652,5 @@ repository and CI).
 | [T-610](relay.md) | P2 | S | M10 | defect | open | `relay info` shows the relay's `rank` and `score_ms`, which change with the edge that answered, as an order |
 | [T-611](mesh.md) | P3 | S | M10 | feature | open | A node's record of pkarr names its OpenTunnel name, and a member's client races it |
 | [T-612](resume.md) | P2 | S | M10 | feature | partial | A client of a node can turn the resumable layer off: `--no-resume` |
-| [T-613](reverse.md) | P3 | S | M10 | feature | open | `operator`, `proxy` and `pipe`'s remote sides take `--timeout` and `PODSSH_TIMEOUT` as other names of `--ConnectTimeout` |
+| [T-613](reverse.md) | P3 | S | M10 | feature | partial | `operator`, `proxy` and `pipe`'s remote sides take `--timeout` and `PODSSH_TIMEOUT` as other names of `--ConnectTimeout` |
 | [T-614](mesh.md) | P2 | M | M10 | feature | open | `ssh`, `proxy` and `pipe` take `--exit` beside `--carrier`, as `exit --listen` does |

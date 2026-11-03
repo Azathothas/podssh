@@ -99,6 +99,7 @@ pub fn run_with(p: &Parsed, s: &mut Streams<'_>, tty: Tty) -> i32 {
             idle_warn,
             node,
             connect_timeout,
+            timeout,
             refused,
         } => {
             if refusals("proxy", refused, s.err) {
@@ -121,6 +122,7 @@ pub fn run_with(p: &Parsed, s: &mut Streams<'_>, tty: Tty) -> i32 {
                     idle_warn: idle_warn.clone(),
                     node: node.clone(),
                     connect_timeout: connect_timeout.clone(),
+                    timeout: timeout.clone(),
                 },
                 s.err,
             )

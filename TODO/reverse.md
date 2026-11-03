@@ -70,7 +70,7 @@ pair (`crates/podssh-relay/src/cache.rs` lines 126-153 and 221-240 at `9811e0d`)
 8. Use the control host only (`tcp.ssh.relay.ajam.dev`, or one host that the user names). No failover
    to pool hosts until a measurement shows that they serve `/v1/*`.
 9. In the same commit: `docs/relay.md` (lines 192-214 at `3632dcb`), `docs/reverse.md` (lines 46-53 at
-   `3632dcb`), and the FILES section of the manual (`crates/podssh-cli/src/man/facts.rs:311`).
+   `3632dcb`), and the FILES section of the manual (`crates/podssh-cli/src/man/facts.rs:313`).
 
 ## Decision
 
@@ -191,7 +191,7 @@ verified here).
    send an empty binary frame: under 32 bytes is `1009 bad multiplex frame` (`:182` of the contract).
    Pitfall: no idle read limit while no probe exists; the forward opener sets 90 s
    (`crates/podssh-relay/src/open.rs:345`), and a quiet socket would reconnect.
-6. Close actions, by code and reason (`docs/reverse.md:290-292`): `409`, exit, no retry;
+6. Close actions, by code and reason (`docs/reverse.md:292-294`): `409`, exit, no retry;
    `1001 operator stopped reverse relay`, exit and delete the pair; `1001 pair expired`, or a `403` after the
    stored expiry, a re-pair hook that is off by default; `1003` and `1009`, exit with the reason, never a loop;
    any other close, connect again with `open::backoff`.
@@ -271,7 +271,7 @@ sessions at once with T-080, compare the digests of 1 MiB each way, and stop the
 
 # T-080: The operator runner
 
-**Source:** ROADMAP M4 (`docs/ROADMAP.md:150-158`); `docs/design.md` lines 94-97 at `0d92eef`; `docs/reverse.md:93-292`.
+**Source:** ROADMAP M4 (`docs/ROADMAP.md:150-158`); `docs/design.md` lines 94-97 at `0d92eef`; `docs/reverse.md:93-294`.
 Read here on `3ee70dc`.
 **Category:** feature
 **Milestone:** M4
@@ -318,7 +318,7 @@ fails on each close but `1000` (`Azathothas/podbox:crates/podbox-ssh/src/mux.rs`
    a text `close` keeps its reason. Never send a text frame.
 5. Outcome: `NeverReady { code, reason }`, `Ended { code, reason }` or `LocalEnd`. Never ready is a
    failure; `1000` after `ready` is success; each other code after `ready` is a failure that names
-   the code and the reason (`docs/reverse.md:287-292`).
+   the code and the reason (`docs/reverse.md:289-294`).
 6. End of input: send a Close `1000`, and wait up to 10 s for the relay's answer, so the last bytes
    arrive.
 7. Liveness as in T-079: `watch_liveness` only if the relay answers a Ping on this leg; no idle read
@@ -425,7 +425,7 @@ through `curl` (`docs/design.md:592-593`).
 
 Read: `podssh-relay` declares the workspace minimum, Rust 1.88 (`crates/podssh-relay/Cargo.toml:5-6`,
 `Cargo.toml` lines 45-48 at `0d92eef`), above podbox's 1.85. `podssh proxy` already runs async code from sync code with
-a current-thread runtime and `shutdown_background` (`crates/podssh-cli/src/proxy.rs:232-245`).
+a current-thread runtime and `shutdown_background` (`crates/podssh-cli/src/proxy.rs:236-249`).
 
 Read: podbox keeps `ring` and TLS 1.2 through a `rustls::ClientConfig` that it supplies
 (`docs/design.md:585-589`); that is T-066, not this entry.
@@ -750,14 +750,14 @@ So a local TCP TARGET exists only where the host allows it; `podssh serve` (M5) 
    FILE, and prints only the label and the expiry. `podssh relay revoke NAME` stops the pair and deletes the
    local copies. `podssh relay status NAME` gives presence; agree on the form with T-058, whose `relay status`
    has no NAME.
-4. Exit codes as `podssh proxy` (`docs/cli.md:4593`): 64 usage; 69 the relay or TARGET cannot be reached; 77 a
+4. Exit codes as `podssh proxy` (`docs/cli.md:4608`): 64 usage; 69 the relay or TARGET cannot be reached; 77 a
    refused pair (`403`); 78 no usable pair; 0 after a stop by a signal. Add the rows to
    `crates/podssh-cli/src/man/facts/exit.rs:8`.
 5. `doctor`: one line for each stored pair, with its expiry and its presence, as in
    `crates/podssh-cli/src/doctor/relay_checks.rs:42-80` (zuko's doctor checks its ticket and state).
 6. Remove `node` and `relay` from `VERB_OWNER`, and add them to `DISPATCHED`
    (`crates/podssh-cli/tests/flag_table.rs:110-143`). New variables go in `VARIABLES`
-   (`crates/podssh-cli/src/man/facts.rs:46`), files in FILES (`:311` there), examples in
+   (`crates/podssh-cli/src/man/facts.rs:46`), files in FILES (`:313` there), examples in
    `crates/podssh-cli/src/man/examples.rs:8-309`; update `docs/cli.md`, `docs/reverse.md` and
    `docs/STATUS.md` (lines 48-50 at `af0a163`).
 7. Pitfalls: `podssh man relay` shows the command; the topic THE RELAY has its own key since
@@ -888,7 +888,7 @@ Read: `parse_hop` strips `ssh://` and reads `host:PORT` (`crates/podssh-cli/src/
 operator leg receives text frames (`docs/relay.md:396-399`). A host key is recorded under the target
 host, never the relay's name (`SECURITY.md:171-181`); `HostKeyAlias` exists
 (`crates/podssh-cli/src/ssh/resolve.rs:419`). `podssh ssh` uses the exit codes of OpenSSH, and
-`podssh proxy` sysexits (`docs/cli.md:4589-4593`).
+`podssh proxy` sysexits (`docs/cli.md:4604-4608`).
 
 ## Approach
 
@@ -903,7 +903,7 @@ host, never the relay's name (`SECURITY.md:171-181`); `HostKeyAlias` exists
 4. Host keys: record and check the node's key under the name `node://NAME`, which no DNS name can be;
    `-o HostKeyAlias` still wins.
 5. Refuse by name a node as a `-J` hop, and `-W` through a node; record them for later.
-6. Flags: `--pair-file FILE` for `operator` and `ssh` (`crates/podssh-cli/src/flags.rs:121-296`,
+6. Flags: `--pair-file FILE` for `operator` and `ssh` (`crates/podssh-cli/src/flags.rs:122-297`,
    lines 418-419 at `3cbf215`). Update the manual's examples and notes, `docs/cli.md` (lines 62-75 at `3cbf215`) and `docs/reverse.md`.
 
 ## Decision
@@ -2388,16 +2388,16 @@ documents works; the form that a user expects is missing.
 ## Premise
 
 - Read: with one word, `proxy` splits `node://NAME` at its last `:`
-  (`crates/podssh-cli/src/proxy.rs:382`) and says that `"//NAME"` is not a port (`:352-353`), the
+  (`crates/podssh-cli/src/proxy.rs:386`) and says that `"//NAME"` is not a port (`:356-357`), the
   issue's words; with a second word, that `"node://NAME"` is not a host name or an IPv6 address
   (`crates/podssh-ws/src/names.rs:41`). The issue's prefix `podssh ssh:` is not this code's,
-  which writes `podssh proxy:` (`crates/podssh-cli/src/proxy.rs:137`); not reproduced.
+  which writes `podssh proxy:` (`crates/podssh-cli/src/proxy.rs:141`); not reproduced.
 - Read: `operator NAME` is "the ProxyCommand of OpenSSH for a node"
   (`crates/podssh-cli/src/man/notes_pair.rs:283-285`), and `pipe` takes `node:NAME`
   (`crates/podssh-cli/src/pipe/address.rs:32-33`); the about of `proxy` is "ProxyCommand form: a
-  byte pipe, not an SSH client" (`crates/podssh-cli/src/flags.rs:390`), with no word of a node.
+  byte pipe, not an SSH client" (`crates/podssh-cli/src/flags.rs:391`), with no word of a node.
 - Read: `proxy` takes other schemes of its own, each with no PORT: `cf://HOST`, and the roads of
-  `iap://`, `eice://`, `warp://` and `tor://` (`crates/podssh-cli/src/proxy.rs:118-133`).
+  `iap://`, `eice://`, `warp://` and `tor://` (`crates/podssh-cli/src/proxy.rs:122-137`).
 
 ## Approach
 
@@ -2513,10 +2513,11 @@ cannot set.
 ## Premise
 
 - Read: the rows of `operator` are "a pipe, with no `--timeout`"
-  (`crates/podssh-cli/src/flags/operator.rs:9`), and have no ConnectTimeout; `ssh` has one
-  (`crates/podssh-cli/src/flags.rs:178-179`).
+  (`crates/podssh-cli/src/flags/operator.rs` line 9 at `d629249`, before T-613 gave it one), and
+  have no ConnectTimeout; `ssh` has one
+  (`crates/podssh-cli/src/flags.rs:179-180`).
 - Read: `operator`'s waits are 30 s for each request of the relay
-  (`crates/podssh-cli/src/operator.rs:103`, `crates/podssh-cli/src/pairs.rs:18`) and 20 s for the
+  (`crates/podssh-cli/src/operator.rs:135`, `crates/podssh-cli/src/pairs.rs:18`) and 20 s for the
   node's `ready` (`crates/podssh-relay/src/reverse/operator.rs:59`); `proxy`'s, 20 s for each
   relay host (`crates/podssh-relay/src/open.rs:30`), in the order of the failover.
 - Inferred, which the Prove measures: OpenSSH's ConnectTimeout bounds the wait for the server's
@@ -2650,7 +2651,7 @@ each run); Windows: the gate's job `windows`.
 **Milestone:** M10
 **Priority:** P3
 **Effort:** S
-**Status:** open
+**Status:** partial
 
 ## Problem
 
@@ -2670,6 +2671,37 @@ bound on the open of those three.
    as the more precise name, and the flag's flag row says so.
 2. The manual's notes and `docs/cli.md`.
 
+## Decision
+
+The calls of the draft (2026-11-03):
+
+- `--timeout` and `PODSSH_TIMEOUT` take the duration of the other commands' `--timeout` (`30s`,
+  `2m`, `1h`, `500ms`, a bare number of seconds), in whole seconds rounded up, as a user who set
+  the variable for the copies set it so. Lost: `--ConnectTimeout`'s whole seconds alone, which
+  would refuse with 78 a variable of `2m` that `cp` takes.
+- The flag takes a day at most, as `--ConnectTimeout` does (64 past it); the variable is held to a
+  day, with no refusal, as it bounds whole runs of other commands, which may be longer. Lost: the
+  variable refused past a day, which would end an `operator` for a setting of the copies.
+- `--ConnectTimeout` wins over `--timeout`, and either over the variable, which is read only with
+  no flag, as each command reads it; a bad `--timeout` beside `--ConnectTimeout` is still refused,
+  as a typo. Lost: the first given wins, an order of the command line that clap does not keep.
+- The line past the bound names the name that set it: `within 2 s (--timeout)`, `(PODSSH_TIMEOUT)`,
+  `(--ConnectTimeout)`, so that a user who never typed `--ConnectTimeout` sees what bound the run.
+  Lost: `(--ConnectTimeout)` for each, which a user of the variable alone would not recognise.
+- `pipe`: `--timeout` has `--ConnectTimeout`'s refusals (a listening side, no `node:`, `relay:` or
+  `ssh:` side) and is each `ssh:` hop's ConnectTimeout too, in whole seconds. The variable bounds
+  the open of a `node:` or `relay:` side where no side listens, and nothing else: it refuses no pipe
+  and is no hop's ConnectTimeout. Lost: the variable as the flag, which would refuse each listening
+  pipe of a user who set it for copies, and give a hop a ConnectTimeout longer than its own 60 s.
+- The three rows are `optional`, as `scp`'s and `sftp`'s: never required, with no terminal either.
+  These verbs never reach the gate of `--timeout` (their `Parsed` is their own), so the mark is the
+  table's word, as `docs/cli.md` says. Lost: rows that look required.
+- `OperatorArgs` is read in `operator.rs` (`OperatorArgs::from_matches`), as `NodeArgs` is, to keep
+  `tree.rs` under its 500 lines; and the tests of `operator.rs` through the stand-in relay (T-586's,
+  T-612's) went to `tests/operator_relayed/mod.rs`, unchanged but for their paths, for the same
+  reason. The plant of T-589 (`t589-bound-not-applied`) follows `watch`, which now takes the bound
+  and its name.
+
 ## Prove
 
 ```sh
@@ -2678,6 +2710,49 @@ cargo test -p podssh-cli --test operator
 
 `operator --timeout 2` to a carrier that starts no node ends with 69 at 2 s, as `--ConnectTimeout
 2` does; `PODSSH_TIMEOUT=2` the same; planted, the name ignored: the test fails.
+
+## Done
+
+Drafted 2026-11-03, unbuilt: each result below is UNVERIFIED until the main session builds the draft.
+The Premise holds: T-589's `## Decision` takes `--ConnectTimeout` alone, and lost `--timeout`
+and `PODSSH_TIMEOUT` (`TODO/reverse.md`, T-589).
+
+- `crates/podssh-cli/src/connect_bound.rs`: `Bound` (the limit and the name that set it),
+  `of_connect_timeout`, `chosen` (`--ConnectTimeout`, else `--timeout`, else `PODSSH_TIMEOUT`),
+  `variable_bound`; `watch` takes a `Bound`, and the line past it names it. Its unit test
+  `timeout_and_the_variable_are_other_names_of_the_bound`.
+- `crates/podssh-cli/src/operator.rs`: `OperatorArgs::timeout`, `OperatorArgs::from_matches` (out
+  of `tree.rs`) and `OperatorArgs::bound`, which `prepare` and `carrier.rs`'s `prepare` read.
+  `proxy.rs` (`ProxyArgs::timeout`, read by `chosen`), `proxy_node.rs` (to operator), `parsed.rs`,
+  `dispatch.rs` and `tree.rs` (the field of `proxy` and of `pipe`). `pipe/mod.rs`:
+  `PipeArgs::timeout`; `connect_bound` takes `--timeout` with the refusals of `--ConnectTimeout`,
+  and the variable for a `node:` or `relay:` side where no side listens; `hops_timeout` gives the
+  `ssh:` hops `ConnectTimeout=SECONDS` of `--timeout`.
+- The rows: `flags/operator.rs` (`TIMEOUT` of `operator` and `proxy`, `PIPE_TIMEOUT`, both
+  `optional`), in `flags/relay.rs` and `flags/pipe.rs`; `flags.rs`, the words of `optional`.
+- The manual: `man/notes_pair.rs` (operator), `man/notes_proxy.rs`, `man/notes_pipe.rs`,
+  `man/facts.rs` (`PODSSH_TIMEOUT`). `docs/cli.md` (the bullets of the reverse road and of pipe, and
+  "Prompts and time limits"), `docs/reverse.md`, `docs/STATUS.md` (a row).
+- Tests: `crates/podssh-cli/tests/operator.rs`, `a_bad_timeout_is_refused_by_its_name` (each verb,
+  offline: 64 for the flag, 78 for the variable, `pipe`'s listening side, and a pipe with no side of
+  a node or the relay that reads no variable) and, on Unix,
+  `timeout_and_podssh_timeout_bound_the_open_as_connect_timeout_does` (a carrier of `sleep 10`:
+  each name ends the run with 69 at 2 s, its line naming it; `--ConnectTimeout` wins).
+  `tests/pair_harness/mod.rs` removes `PODSSH_TIMEOUT` from each run, as the variable now reaches
+  these verbs. The tests through the stand-in relay moved to `tests/operator_relayed/mod.rs`.
+- The plants: `scripts/plants/t613-timeout-ignored.plant` (GROUP=cli-tests), and
+  `scripts/plants/t589-bound-not-applied.patch` and `scripts/plants/t595-proxy-carrier-dropped.patch`
+  moved with the code; `scripts/plants/t595-ssh-carrier-skipped.patch`, which no longer applied
+  since its code moved to `crates/podssh-cli/src/ssh/node.rs` at `54b124b`, follows it. Each takes
+  `git apply --check`; UNVERIFIED that each test fails with it.
+
+To measure (`export CARGO_BUILD_JOBS=4`): `cargo test -p podssh-cli --test operator` (12 expected
+on Unix, the two new ones and T-586's and T-612's through the moved module); `cargo test -p podssh-cli --lib
+connect_bound` (3 expected); `cargo test -p podssh-cli --test proxy --test node_carrier --test
+node_detach --test node_moves --test roost` (the line of `--ConnectTimeout` is the same words);
+`cargo test -p podssh-cli --test man_flag_parity --test flag_table --test man_page --test
+non_interactive`; `cargo test -p podssh-cli --lib -- notes proxy_node`; clippy and rustfmt; the plants
+of T-613, T-589 and T-595.
 
 # T-591: An operator's host cannot see its pair's expiry: `relay status` reads the store alone, and `relay pair` does not say the way past the expiry
 

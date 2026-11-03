@@ -3396,6 +3396,17 @@ commands. The rules behind them:
   the exit is 69; a session that opened is never cut, as the road says its
   open first. 0 is refused (64), and so is `-o ConnectTimeout=N`, as these
   verbs take no `-o`; with none, each wait is as before.
+- **`--timeout DURATION` and `PODSSH_TIMEOUT` are other names of that
+  bound** (T-613, the operator's ruling Q90), on `operator`, `proxy` and
+  `pipe`'s remote sides: the time to the session's open, never the bytes
+  after it. They take the duration of the other commands' `--timeout`
+  (`30s`, `2m`, `1h`, `500ms`), in whole seconds rounded up; the flag takes
+  a day at most, as `--ConnectTimeout` does (64 past it, and for 0 or a
+  typo, also beside `--ConnectTimeout`), and the variable, which bounds
+  whole runs of other commands, is held to a day (78 for a bad one).
+  `--ConnectTimeout` wins over `--timeout`, and either over the variable;
+  the line past the bound names the one that set it (`within 25 s
+  (--timeout)`). None of them is ever required, with no terminal either.
 - **`--no-resume`** (T-612, the operator's ruling Q90) of `operator`,
   `proxy node://NAME`, `pipe`'s `node:`, `udp:node:` and `iroh:` sides, and
   of `ssh`, `cp`, `mv`, `scp` and `sftp` to a node: a session that ends with
@@ -3883,7 +3894,11 @@ own, and the forward road starts at the node.
   its own ConnectTimeout too, and alone where no side is `node:` or
   `relay:`. A listening side refuses it (64), as each client opens a road
   long after the start, and so does a pipe with no `node:`, `relay:` or
-  `ssh:` side.
+  `ssh:` side. `--timeout DURATION` is another name of it (T-613), with the
+  same refusals, and is each `ssh:` hop's ConnectTimeout too, in whole
+  seconds; `PODSSH_TIMEOUT` bounds the open of a `node:` or `relay:` side
+  where no side listens, and refuses no pipe and is no hop's ConnectTimeout,
+  as it bounds whole runs of other commands.
 - **`--no-resume` ends the session of each `node:`, `udp:node:` and
   `iroh:` side with its link** (T-612), as `operator --no-resume` does
   (above), for each client of a listening side too; a pipe with none of
@@ -4732,8 +4747,10 @@ with the report (`docs/decisions.md`, 2026-10-08).
 - `PODSSH_TIMEOUT` gives `--timeout` its default, for each command that has
   the flag (GitHub #12): the flag wins, and an empty value is no value. A
   bad value of the variable exits 78 and names it; a bad `--timeout` exits
-  64. It never bounds `ssh` or `proxy`, which have no `--timeout`. A command
-  that is not implemented exits 70 first.
+  64. It never bounds `ssh`, which has no `--timeout`. For `operator`,
+  `proxy` and `pipe`, whose `--timeout` is another name of
+  `--ConnectTimeout`, it bounds the session's open alone, and is never
+  required (T-613). A command that is not implemented exits 70 first.
 - `ConnectTimeout` (60 s by default) limits the SSH handshake, and each
   answer of the server while podssh logs in: a server that stalls after the
   key exchange ends the run with 255 and names the request that it did not
