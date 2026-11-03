@@ -19,6 +19,7 @@ use podssh_relay::serve::behind::Behind;
 use podssh_relay::serve::{self, Config, Limits, Mint};
 
 use crate::node::NodeArgs;
+use crate::node_derp::Door;
 use crate::relay_settings::Refusal;
 
 /// The role of a node, its settings checked before anything connects.
@@ -55,33 +56,31 @@ pub(crate) fn check(args: &NodeArgs) -> Result<(), Refusal> {
 /// What `role` reads, read before anything connects or a key is loaded: a
 /// list that cannot be read, or a net that this host does not hold, stops
 /// the start (78) as it did before the role waited for the node's key.
-pub(crate) fn precheck(args: &NodeArgs, allow: &std::path::Path) -> Result<(), Refusal> {
+pub(crate) fn precheck(args: &NodeArgs, door: &Door) -> Result<(), Refusal> {
     if !args.relay {
         return Ok(());
     }
-    let mint = match args.mint.as_deref() {
-        Some(word) => crate::relay_serve::mint_of(word, None)?,
-        None => Mint::Keys(allow.to_path_buf()),
-    };
-    crate::relay_serve::minting_for(&mint).map(|_| ())
+    crate::relay_serve::minting_for(&mint_of(args, door, None)?).map(|_| ())
 }
 
-/// The role that `--relay` asks for, or none: whom it mints for (the keys of
-/// `allow` by default), and its pairs, read now; `me` is the node's key,
+/// Whom the role mints for: `--mint`, else the node's own door: the keys of
+/// `--allow`, or the net's members with no `--allow` (T-550).
+fn mint_of(args: &NodeArgs, door: &Door, me: Option<PublicKey>) -> Result<Mint, Refusal> {
+    match (args.mint.as_deref(), door) {
+        (Some(word), _) => crate::relay_serve::mint_of(word, me),
+        (None, Door::Allow(allow)) => Ok(Mint::Keys(allow.clone())),
+        (None, Door::Net(_)) => crate::relay_serve::mint_of("net", me),
+    }
+}
+
+/// The role that `--relay` asks for, or none: whom it mints for (the node's
+/// door by default), and its pairs, read now; `me` is the node's key,
 /// whose name in the net `relay:NAME` names (T-455).
-pub(crate) fn role(
-    args: &NodeArgs,
-    label: &str,
-    allow: &std::path::Path,
-    me: PublicKey,
-) -> Result<Option<Role>, Refusal> {
+pub(crate) fn role(args: &NodeArgs, label: &str, door: &Door, me: PublicKey) -> Result<Option<Role>, Refusal> {
     if !args.relay {
         return Ok(None);
     }
-    let mint = match args.mint.as_deref() {
-        Some(word) => crate::relay_serve::mint_of(word, Some(me))?,
-        None => Mint::Keys(allow.to_path_buf()),
-    };
+    let mint = mint_of(args, door, Some(me))?;
     let who = crate::relay_serve::minting_for(&mint)?;
     // The host's proxy, which the node's own dial of the edge takes too
     // (T-457): behind a quick tunnel it may be the one way out.

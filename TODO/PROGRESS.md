@@ -172,7 +172,7 @@ and `CARGO_BUILD_JOBS=4`:
 
 ## Counts
 
-`TODO/INDEX.md` holds 578 entries: 102 open, 2 partial, 2 blocked, 472 done.
+`TODO/INDEX.md` holds 578 entries: 101 open, 2 partial, 2 blocked, 473 done.
 
 Open includes parked work. `cargo todo check` verifies this line.
 
@@ -215,7 +215,7 @@ this order:
    in a row here and on a runner).
 1. The relay role (its certificate from ACME, its brake of mint and pair, the role behind a node's quick tunnel, the net's members' mint, the role's dial through `HTTPS_PROXY` and its bound on a slow reader's bytes are done): what the role serves: T-255,
    T-421, T-253, T-325, T-326, T-319, T-321 and T-173.
-2. The net (its policy, the record of each road, the DERP node of a member and the copies by a name are done): T-086, T-226, T-346, T-106, T-550 and T-551.
+2. The net (its policy, the record of each road, the DERP node of a member and the copies by a name are done): T-086, T-226, T-346, T-106 and T-551 (the quick tunnel's node with the net as its door is done).
 3. Exit, routes, share and funnel (the exit is done): T-458, T-432, T-433,
    T-180, then T-434, T-435 and T-459.
 4. The public carriers of Q65 (T-451, then T-450 from the runs of `transit-live.yml`; the

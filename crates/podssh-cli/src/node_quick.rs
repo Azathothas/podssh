@@ -4,8 +4,9 @@
 //! no pair and no account (`podssh_relay::quick`). The name is new each run,
 //! and the one line on stdout. A visitor's WebSocket through the name is one
 //! link of the resumable layer, with the end-to-end channel above it: the
-//! name is public, so only an operator whose key is in the file of `--allow`
-//! reaches TARGET, which is dialled only after the layer's handshake. The
+//! name is public, so only an operator whose key is in the file of `--allow`,
+//! or with no `--allow` a member of the net that names the node's key
+//! (T-550), reaches TARGET, which is dialled only after the layer's handshake. The
 //! node races its roads to port 7844 of Cloudflare's edge (T-400): QUIC
 //! where no proxy is set and UDP answers a probe, as cloudflared does
 //! (T-301), HTTP/2 on TCP, directly or through a proxy that allows it, and
@@ -23,7 +24,6 @@
 //! (Q81), for a client with the node's key alone (T-445, `node_record`).
 
 use std::io::Write;
-use std::path::PathBuf;
 use std::sync::atomic::{AtomicBool, AtomicU64, Ordering};
 use std::sync::Arc;
 use std::time::Duration;
@@ -43,6 +43,7 @@ use tokio::sync::{watch, Mutex};
 
 use crate::exitmap::{sysexits, Fault};
 use crate::node::NodeArgs;
+use crate::node_derp::Door;
 use crate::node_quick_relay::Role;
 use crate::node_warp::WarpRoad;
 use crate::relay_settings::Refusal;
@@ -62,7 +63,8 @@ struct Ready {
     label: String,
     targets: Vec<Route>,
     key: file::Key,
-    allow: PathBuf,
+    /// Who comes in: the keys of `--allow`, else the net's members (T-550).
+    door: Door,
     sshd: bool,
     /// The edge inside WARP's tunnel first (`--warp`).
     warp: bool,
@@ -127,19 +129,36 @@ fn prepare(args: &NodeArgs) -> Result<Ready, Refusal> {
         return Err(Refusal::usage("--quick-tunnel serves one TARGET, with no route"));
     }
     let flags = crate::node::key_flags(args)?;
-    let allow = flags.allow.ok_or_else(|| {
-        Refusal::usage(
-            "--quick-tunnel needs --allow FILE: its name is public, so only the operator keys in FILE come in",
-        )
-    })?;
-    crate::node_quick_relay::precheck(args, &allow)?;
     let place = crate::channel::node_place(&label, flags.key.as_deref(), flags.ephemeral)?;
+    // Its name is public: `--allow`, else the net that names its key, as
+    // the DERP road's door (T-550); with neither, no one could come in.
+    let why_open = "its name is public, so anyone may reach it";
+    let door = crate::node_derp::door_of("--quick-tunnel", why_open, flags.allow.as_deref(), &place)?;
+    crate::node_quick_relay::precheck(args, &door)?;
     crate::pairs::online()?;
     let record = crate::node_record::named()?;
     let key = crate::channel::load_node_key(&place)?;
     // After the key: the net's `relay:NAME` names the node by it (T-455).
-    let relay = crate::node_quick_relay::role(args, &label, &allow, key.identity.public())?;
-    Ok(Ready { label, targets, key, allow, sshd: args.sshd, warp: args.warp, relay, record })
+    let relay = crate::node_quick_relay::role(args, &label, &door, key.identity.public())?;
+    Ok(Ready { label, targets, key, door, sshd: args.sshd, warp: args.warp, relay, record })
+}
+
+/// The node's end of the channel, by its door: the keys of `--allow` and
+/// the net's members, or the members alone, also when the node leaves the
+/// net: a key that no list names is never let in on a public name.
+fn channel_of(label: &str, key: file::Key, door: Door, err: &mut dyn Write) -> podssh_relay::e2e::ends::Node {
+    match door {
+        Door::Allow(path) => crate::channel::node(label, key, Some(path), err),
+        Door::Net(_) => {
+            let me = key.identity.public();
+            let _ = writeln!(err, "podssh node: {label}: key {me}");
+            if let Some(line) = crate::net::admit::line(&me) {
+                let _ = writeln!(err, "podssh node: {label}: {line}");
+            }
+            let (admit, _) = crate::net::admit::doors(None, me, true);
+            crate::channel::node_end(label, key.identity, admit)
+        }
+    }
 }
 
 /// The system and the machine as cloudflared names them, Go's names.
@@ -158,7 +177,7 @@ fn arch() -> String {
 }
 
 async fn serve_quick(ready: Ready, err: &mut dyn Write) -> i32 {
-    let Ready { label, targets, key, allow, sshd: roost, warp, relay, record } = ready;
+    let Ready { label, targets, key, door, sshd: roost, warp, relay, record } = ready;
     // TARGET first, when there is one; with none, the node is the relay alone.
     let target = match targets.is_empty() {
         true => None,
@@ -208,7 +227,12 @@ async fn serve_quick(ready: Ready, err: &mut dyn Write) -> i32 {
         Some(target) => format!("serving {target} at {url}, a quick tunnel, {}", crate::node_flags::layer_mode()),
         None => format!("serving the relay alone at {url}, a quick tunnel"),
     };
-    let _ = writeln!(err, "podssh node: {label}: {serving} until Ctrl-C");
+    // With no --allow, the net is the door, and the first line says so (T-550).
+    let by = match &door {
+        Door::Allow(_) => String::new(),
+        Door::Net(net) => format!("; with no --allow, the members of the net {net} are its door"),
+    };
+    let _ = writeln!(err, "podssh node: {label}: {serving} until Ctrl-C{by}");
     if let Some(relay) = &relay {
         let _ = writeln!(err, "podssh node: {label}: {}", relay.shown(&tunnel.hostname));
     }
@@ -221,7 +245,7 @@ async fn serve_quick(ready: Ready, err: &mut dyn Write) -> i32 {
     // As the pair's road does: the layer, the channel above it, then TARGET; the edge keeps no bound of the relay's.
     let handler = match targets.first() {
         Some(first) => {
-            let channel = crate::channel::node(&label, key, Some(allow), err);
+            let channel = channel_of(&label, key, door, err);
             let tcp = TcpHandler { host: first.host.clone(), port: first.port, timeout: DIAL_LIMIT, sshd: roost };
             let (settings, budget) = (crate::layered::settings().off_the_pair(), reverse::layered::NODE_BUDGET);
             Some(Arc::new(Layered::new(E2e::new(tcp, channel), settings, budget)))
@@ -330,5 +354,18 @@ mod tests {
         let arch = super::arch();
         assert!(arch.split_once('_').is_some_and(|(os, machine)| !os.is_empty() && !machine.is_empty()), "{arch}");
         assert!(!arch.contains("x86_64") && !arch.contains("aarch64") && !arch.contains("macos"), "{arch}");
+    }
+
+    /// With no --allow, the channel lets in the net's members alone (T-550):
+    /// a key that no net names is refused, though a public name lets any key
+    /// try, and an allowlist that is missing opens nothing.
+    #[test]
+    fn the_nets_door_refuses_a_key_that_no_net_names() {
+        use podssh_relay::e2e::Ask;
+        use podssh_relay::identity::{file, Identity};
+        let key = file::Key { identity: Identity::from_seed(&[0x31; 32]), path: None, made: false };
+        let node = super::channel_of("lab", key, super::Door::Net("home".into()), &mut Vec::new());
+        let stranger = Identity::from_seed(&[0x51; 32]).public();
+        assert!((node.admit)(&stranger, &Ask::Target).is_err(), "a stranger came in through the net's door");
     }
 }

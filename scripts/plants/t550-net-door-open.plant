@@ -1,0 +1,9 @@
+# T-550: the quick tunnel's node of a member, with no --allow, takes the
+# door of a node with no list, which lets each operator in, and not the
+# net's members alone; on a public name, any key comes in. The unit test of
+# a stranger at the net's door must fail.
+ENTRY=T-550
+GROUP=cli-tests
+EXPECT='test node_quick::tests::the_nets_door_refuses_a_key_that_no_net_names \.\.\. FAILED'
+RUN='cargo test --locked -p podssh-cli --lib node_quick'
+LIMIT=1800

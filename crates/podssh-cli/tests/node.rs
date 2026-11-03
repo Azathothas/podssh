@@ -64,6 +64,43 @@ fn a_quick_tunnel_is_refused_before_any_connection_without_its_needs() {
     assert!(err.contains("PODSSH_OFFLINE") && out.is_empty(), "{err}");
 }
 
+/// A quick tunnel's node with no `--allow` (T-550): a node whose key the net
+/// held here names takes the net's members as its door, and passes each
+/// check that needs no network; one that no net names is refused before
+/// anything, and the refusal names both ways in.
+#[test]
+fn a_quick_tunnel_of_a_member_needs_no_allow_and_one_of_no_net_is_refused() {
+    let home = scratch("quick-net");
+    let path = |name: &str| home.join(name).to_string_lossy().into_owned();
+    let seed = [0x21u8; 32];
+    let hex: String = seed.iter().map(|b| format!("{b:02x}")).collect();
+    podssh_relay::cache::create_private(&home.join("node.key"), format!("{hex}\n").as_bytes()).unwrap();
+    let node_hex = podssh_relay::identity::Identity::from_seed(&seed).public().hex();
+    let (key, held, owned) = (path("node.key"), path("node.doc"), path("owner.doc"));
+    let node = ["node", "lab", "127.0.0.1:22", "--quick-tunnel", "--key", key.as_str()];
+    let (rc, out, err) = podssh(&home, &node, &[("PODSSH_NET", held.as_str())]);
+    assert_eq!(rc, 64, "{err}");
+    assert!(err.contains("needs --allow FILE") && err.contains("a key that the net held here names"), "{err}");
+    assert!(err.contains("this host holds no net") && out.is_empty(), "{err}");
+    // The owner names the node's key in a net, and the node's host takes it.
+    let owner = path("owner");
+    let (rc, _, err) = podssh(&home, &["keygen", "-q", "-t", "ed25519", "-N", "", "-f", owner.as_str()], &[]);
+    assert_eq!(rc, 0, "podssh keygen: {err}");
+    for words in [vec!["net", "init", "home"], vec!["net", "add", "lab", node_hex.as_str()]] {
+        let mut words = words;
+        words.extend_from_slice(&["--owner-key", owner.as_str()]);
+        let (rc, _, err) = podssh(&home, &words, &[("PODSSH_NET", owned.as_str())]);
+        assert_eq!(rc, 0, "{words:?}: {err}");
+    }
+    let copy = path("serial-2");
+    std::fs::copy(&owned, &copy).unwrap();
+    let (rc, _, err) = podssh(&home, &["net", "take", copy.as_str()], &[("PODSSH_NET", held.as_str())]);
+    assert_eq!(rc, 0, "podssh net take: {err}");
+    let (rc, out, err) = podssh(&home, &node, &[("PODSSH_NET", held.as_str()), ("PODSSH_OFFLINE", "1")]);
+    assert_eq!(rc, 69, "the member's node passes each check that needs no network: {err}");
+    assert!(err.contains("PODSSH_OFFLINE") && out.is_empty(), "{err}");
+}
+
 /// `--warp` (T-374) is a flag of the quick tunnel's node alone, and of a
 /// build with the feature `warp`; each refusal comes before any connection.
 #[test]

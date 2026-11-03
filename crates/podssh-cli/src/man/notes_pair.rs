@@ -218,9 +218,10 @@ pub(super) const NODE: &[&str] = &[
      road that won goes first at the next connection, and the node exits 69 when no road reaches the \
      edge. Its line of the registration names the road and how long the race took, after a line for \
      each road that gave way. A client in a cage \
-     reaches the name on port 443. The name is public, so --allow FILE is needed: only an operator \
-     whose key is a line of FILE reaches TARGET, through the end-to-end channel above the resumable \
-     layer. The node keeps two connections to the edge, each to its own region first, so that one stays \
+     reaches the name on port 443. The name is public, so the node needs a door: --allow FILE, and only \
+     an operator whose key is a line of FILE reaches TARGET, through the end-to-end channel above the \
+     resumable layer; or, with no --allow, a key of the node's that the net held here names, and only \
+     the net's members come in (T-550), its first line saying so. With neither, it is refused (64). The node keeps two connections to the edge, each to its own region first, so that one stays \
      while the other is made again. On the edge's GOAWAY its visitors go on for up \
      to 90 s while a new connection, at once, takes the new ones. A \
      connection to the edge that is lost is made again, with the same name; at Ctrl-C the node \
@@ -234,7 +235,7 @@ pub(super) const NODE: &[&str] = &[
      /trace, /llms-full.txt and each path under /v1/. Its one line on stdout is the relay host: a client \
      reaches the relay with --relay-host https://NAME.trycloudflare.com, as it reaches another relay. With \
      no TARGET, the node is the relay alone, and each path is the relay's. It mints tokens, and makes \
-     pairs, for the keys of --allow by default, each by its signature of the relay's challenge, and a \
+     pairs, for the keys of --allow by default (the net's members, with no --allow), each by its signature of the relay's challenge, and a \
      signed request must name the tunnel; --mint keys:FILE names another list, --mint net the members of \
      the node's net, as its policy lets them reach relay:NAME (NAME the node's name in the net) or \
      relay:*, --mint anyone mints for each client, and --mint nobody for none. --pairs FILE keeps its \

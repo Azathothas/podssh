@@ -1,0 +1,11 @@
+--- a/crates/podssh-cli/src/node_quick.rs
++++ b/crates/podssh-cli/src/node_quick.rs
+@@ -155,7 +155,7 @@ fn channel_of(label: &str, key: file::Key, door: Door, err: &mut dyn Write) -> p
+             if let Some(line) = crate::net::admit::line(&me) {
+                 let _ = writeln!(err, "podssh node: {label}: {line}");
+             }
+-            let (admit, _) = crate::net::admit::doors(None, me, true);
++            let (admit, _) = crate::net::admit::doors(None, me, false);
+             crate::channel::node_end(label, key.identity, admit)
+         }
+     }

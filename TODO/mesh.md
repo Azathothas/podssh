@@ -4756,7 +4756,7 @@ draft-ietf-httpbis-connect-tcp is an RFC, and a server over HTTP/2 or HTTP/1.1 i
 **Milestone:** M10
 **Priority:** P3
 **Effort:** S
-**Status:** open
+**Status:** done
 
 ## Problem
 
@@ -4767,7 +4767,8 @@ the net that already names them.
 
 ## Premise
 
-- `crates/podssh-cli/src/node_quick.rs:132` says "--quick-tunnel needs --allow FILE: its name is public, so only the operator keys in FILE come in".
+- `crates/podssh-cli/src/node_quick.rs:132`, where the node with no `--allow` was refused: its
+  name is public, so only the operator keys of the file came in.
 - `crates/podssh-cli/src/node_derp.rs:114` says "pub(crate) fn door(allow: Option<&Path>, place: &Place) -> Result<Door, Refusal>",
   the door of T-452 that the quick tunnel's node can take too.
 
@@ -4788,6 +4789,36 @@ cargo test -p podssh-cli --test node_quick_relay --test node
 A quick tunnel's node of a member starts with no `--allow` through the stand-in edge, a member
 reaches it and a stranger's key is refused at the node; a node of no net and no `--allow` is
 refused as now. Planted: the closed door that lets each key in, and the stranger's test fails.
+
+## Correction
+
+2026-11-03. The Prove's run "through the stand-in edge" cannot be made from the binary: the API's
+host is a constant (`crates/podssh-relay/src/quick/api.rs:28`), so no test points the node at the
+stand-in edge of T-300, which runs in the relay crate's own process. The node's door is the DERP
+road's, `net::admit::doors(None, KEY, true)`, whose test of a member and a stranger runs end to
+end through stand-in DERP servers (`crates/podssh-cli/tests/derp_net/mod.rs`); here the door is
+proven by the start, offline, and by a unit test of the channel that the node builds.
+
+## Done
+
+2026-11-03. The quick tunnel's node reads its door as the DERP road's does (`door_of`): `--allow`,
+else the net held here when it names the node's key, whose members alone then come in, also after
+the node leaves the net; with neither, the refusal names both ways in (64). Its serving line says
+"with no --allow, the members of the net NAME are its door"; with `--relay` and no `--mint`, the
+role mints for the same door (`--mint net`).
+
+- `cargo test -p podssh-cli --test node`: 18 passed. A node whose key the net names, with no
+  `--allow`, passes each check that needs no network and stops at `PODSSH_OFFLINE` (69); with no
+  net held, it is refused, 64, naming `--allow FILE`, the net, and "this host holds no net".
+- `cargo test -p podssh-cli --lib node_quick`: 2 passed; the channel of the net's door refuses a
+  key that no net names. `--lib`: 796 passed. `--test node_quick_relay` 3 passed, `--test
+  derp_road` 6 (the member and the stranger of T-452 among them), the manual's tests 21.
+- Planted (`sh scripts/plant-each.sh --here t550-net-door-open`, the door of a node with no list):
+  caught, the stranger's test failed.
+- `cargo clippy -p podssh-cli --all-targets -- -D warnings` and `cargo fmt --check`: clean.
+
+Waits (Q88): a member through the live quick tunnel, in `quick-tunnel-live.yml`.
+
 
 # T-551: A copy to a node races the roads that `podssh ssh` races, not the pair's road alone
 
@@ -6722,7 +6753,7 @@ through a relay. A feature of the mesh (Q63; Q77, the fallbacks that exist).
 - Read: `pipe` does not refuse a terminal on stdin (no such check in `crates/podssh-cli/src/pipe/`
   at `3bb42ea`); the issue's "as `pipe` does" is not this code's.
 - Read: the exit lends its egress on the node's roads
-  (`crates/podssh-cli/src/man/notes_pair.rs:252-262`); a carrier is one more road for it (T-596).
+  (`crates/podssh-cli/src/man/notes_pair.rs:253-263`); a carrier is one more road for it (T-596).
 
 ## Approach
 
@@ -7076,8 +7107,8 @@ roads, and a carrier must be one of them.
 ## Premise
 
 - Read: the exit goes on the pair's, the iroh, the DERP, the transit and the Piping Server roads
-  (`crates/podssh-cli/src/man/notes_pair.rs:261-262`), and needs the net's role exit, signed by
-  its owner (`:259-260`).
+  (`crates/podssh-cli/src/man/notes_pair.rs:262-263`), and needs the net's role exit, signed by
+  its owner (`:260-261`).
 - Read: `podssh exit NAME --listen` gives SOCKS5, SOCKS4a and HTTP CONNECT on a loopback address
   (`docs/STATUS.md:92`).
 - In the issue's case the end with egress starts the channel (`ssh -T sandbox CMD`), so the node

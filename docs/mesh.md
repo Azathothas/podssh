@@ -112,7 +112,10 @@ What T-429 built ([cli.md](cli.md), "`podssh net`"):
   for each session (`crates/podssh-cli/src/net/admit.rs`), on the pair's,
   the iroh, the DERP and the quick tunnel's roads, as far as the policy lets
   (T-430, below). The DERP road's node starts with no `--allow` when its key
-  is a member, and the members are then its whole door (T-452).
+  is a member, and the members are then its whole door (T-452); so do the
+  OpenTunnel road's (T-531) and the quick tunnel's (T-550), whose names are
+  public too. With `--relay` and no `--mint`, the quick tunnel's role mints
+  for that door.
 
 What T-445 built (drafted 2026-11-02; [design.md](design.md), section 7):
 
