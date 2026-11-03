@@ -22,6 +22,12 @@ use tokio::io::{AsyncReadExt, AsyncWriteExt, DuplexStream};
 use tokio::sync::oneshot;
 
 const MIB: usize = 1 << 20;
+/// The most bytes of an echoed session in flight at once: under each bound
+/// of the road (the operator's 1 MiB before the node is ready, the node's
+/// queue for its local side, the role's backpressure), as the layer's window
+/// keeps a session under them, so that a slow host meets none of them; each
+/// bound has its own test (T-602).
+const WINDOW: usize = 256 * 1024;
 
 /// Bytes from a fixed xorshift, so that a byte out of place shows.
 fn pattern(len: usize, seed: u32) -> Vec<u8> {
@@ -109,28 +115,37 @@ async fn operate(role: &Role, name: &str, token: &str, sent: Vec<u8>, pace: Opti
     };
     let (app, leg) = tokio::io::duplex(64 * 1024);
     let (mut r, mut w) = tokio::io::split(app);
-    let want = if pace.is_some() { usize::MAX } else { sent.len() };
     let carry = async {
         let mut got = Vec::new();
-        let writing = async {
-            w.write_all(&sent).await.unwrap();
-            w
-        };
-        let reading = async {
-            let mut buf = vec![0u8; 16 * 1024];
-            while got.len() < want {
+        let mut buf = vec![0u8; 16 * 1024];
+        match pace {
+            // The slow reader keeps a count, not the bytes.
+            Some(pause) => loop {
                 match r.read(&mut buf).await {
                     Ok(0) | Err(_) => break,
-                    // The slow reader keeps a count, not the bytes.
-                    Ok(n) if pace.is_some() => got.resize(got.len() + n, 0),
-                    Ok(n) => got.extend_from_slice(&buf[..n]),
+                    Ok(n) => got.resize(got.len() + n, 0),
                 }
-                if let Some(pause) = pace {
-                    tokio::time::sleep(pause).await;
+                tokio::time::sleep(pause).await;
+            },
+            // An echoed session keeps WINDOW at most in flight.
+            None => {
+                let mut at = 0;
+                while got.len() < sent.len() {
+                    let room = at < sent.len() && at - got.len() < WINDOW;
+                    let piece = &sent[at..(at + 16 * 1024).min(sent.len())];
+                    tokio::select! {
+                        written = w.write(piece), if room => match written {
+                            Ok(n) => at += n,
+                            Err(_) => break,
+                        },
+                        read = r.read(&mut buf) => match read {
+                            Ok(0) | Err(_) => break,
+                            Ok(n) => got.extend_from_slice(&buf[..n]),
+                        },
+                    }
                 }
             }
-        };
-        let (mut w, ()) = tokio::join!(writing, reading);
+        }
         // The end of the input ends an echoed session.
         let _ = w.shutdown().await;
         got

@@ -105,6 +105,17 @@ where
                     end(&pair, &id, &outbox, (1003, "binary frames required"));
                     phase = Phase::Closing;
                 }
+                // The node's `ready` went to the operator, under the pair's
+                // lock, before this loop heard the answer: an operator that
+                // writes at once is in time, and its bytes are the session's
+                // (T-602).
+                Some(Ok(f)) if f.opcode == frame::OPCODE_BINARY && phase == Phase::Opening && readied(&pair, &id) => {
+                    phase = Phase::Ready;
+                    if let Err(why) = carry(&pair, &id, &f.payload).await {
+                        end(&pair, &id, &outbox, why);
+                        phase = Phase::Closing;
+                    }
+                }
                 Some(Ok(f)) if f.opcode == frame::OPCODE_BINARY && phase == Phase::Opening => {
                     if !f.payload.is_empty() {
                         end(&pair, &id, &outbox, (1008, "wait for ready"));
@@ -165,6 +176,12 @@ async fn sleep_until(at: Option<Instant>) {
 
 /// End the session for `why`: the node hears `close {id}` with the reason,
 /// and the operator the Close.
+/// Whether the node readied session `id`, and so the operator heard its
+/// `ready`.
+fn readied(pair: &Pair, id: &SessionId) -> bool {
+    pair.lock().sessions.get(id).is_some_and(|session| session.ready)
+}
+
 fn end(pair: &Pair, id: &SessionId, operator: &Outbox, why: (u16, &str)) {
     let (session, node) = {
         let mut state = pair.lock();

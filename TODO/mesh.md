@@ -6372,7 +6372,7 @@ with the code of `ac1ed74`, 43 of 150 with T-601's; one at a time, 30 of 30 pass
 **Milestone:** M10
 **Priority:** P2
 **Effort:** S
-**Status:** open
+**Status:** done
 
 ## Problem
 
@@ -6405,3 +6405,30 @@ cargo test -p podssh-relay --features serve --test relay_serve_reverse
 ```
 
 150 runs of its binary, six at once, pass.
+
+## Correction
+
+One cause was the role's, not the test's. With the window, 1 of 150 runs failed with `1008
+wait for ready` on session b: the role marks the session ready and queues `ready` to the operator
+under the pair's lock, then answers the leg's loop; an operator that writes as soon as it hears
+`ready` (podssh's does) could have its first frame read by that loop before the answer, and its
+phase still `Opening` refused it. The road's contract asks the operator to wait for `ready`, and
+it had.
+
+## Done
+
+2026-11-03.
+
+- `crates/podssh-relay/tests/relay_serve_reverse.rs`: an echoed session keeps 256 KiB at most in
+  flight (`WINDOW`), under each bound of the road, as the layer's window does.
+- `crates/podssh-relay/src/serve/reverse/operator.rs`: a binary frame that the leg's loop reads
+  before it heard the node's answer is the session's when the pair's state says the node readied
+  it (`readied`); before that, `1008 wait for ready` as the contract says (`relay_serve_contract`,
+  10 passed).
+- Six copies of the binary at once, on 4 CPUs: 0 of 300 runs failed, where the code before failed
+  50 of 150 and the window alone 1 of 150 (the `1008` above). `relay_serve_reverse` 3 passed,
+  `reverse_carrier` 6.
+- Planted, the window removed (`usize::MAX`), with the role's repair: 2 of 60 runs failed, six at
+  once. The role's half is a race of one poll, seen once in 150 runs before it and in none of 300
+  after; it has no test that forces the order.
+
