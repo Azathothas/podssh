@@ -53,6 +53,15 @@ pub(super) const VARIABLES: &[(&[&str], &str)] = &[
           does not echo the value.",
     ),
     (
+        &["PODSSH_RELAY_RANK"],
+        "no (or off, 0): the default relay hosts go in the order of /relays.json, as before T-607. Unset or \
+          another word: when a rank of podssh relay rank holds for this egress (24 h), the default list is the \
+          default host and the best three other hosts of the pool in the rank's order, the default host at its \
+          place among them; where none holds, the times of each run's own race, the last 8 of each host, order \
+          the pool. A list that the user named keeps its order, and a host that failed lately goes last over \
+          its rank. The settings file's RelayRank no says the same, below the variable.",
+    ),
+    (
         &["PODSSH_DIRECT"],
         "no: when each relay host failed, podssh ssh and each command that reaches a server as it does (cp, \
           each, job, health, containers, ping, pipe ssh:) end with the relay's failure, as with --relay-host, \

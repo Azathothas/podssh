@@ -29,7 +29,7 @@ in a `session` module of `podssh-relay` (`docs/design.md:574-583`), a crate
 with no C. Measured: `grep -ril resum crates` finds only the IRC client.
 Today russh's bytes go through a pipe to the relay session
 (`crates/podssh-ssh/src/relay_stream.rs:182-292`). Frame boundaries mean nothing
-on the relay (`docs/relay.md:190-193`), and the relay reads each record and can
+on the relay (`docs/relay.md:202-205`), and the relay reads each record and can
 drop or add frames (`SECURITY.md:33-36`).
 
 ## Approach
@@ -315,7 +315,7 @@ GitHub #19 reports. Some closes mean "do not come back".
 ## Premise
 
 Read: the failover across relay hosts serves the first connection only
-(`crates/podssh-relay/src/open.rs:200-277`). `classify` maps each reverse close
+(`crates/podssh-relay/src/open.rs:200-281`). `classify` maps each reverse close
 to a retry class (crates/podssh-transport/src/closes.rs lines 154-229 at `e8bbd4d`), with
 `relay backpressure` as `Retry::Never`
 (crates/podssh-transport/src/closes.rs line 202 at `e8bbd4d`); a received Close lost its code
@@ -331,7 +331,7 @@ the node then exits (docs/reverse.md, line 19 at `fb228e9`).
    the roads of T-164 and each host of the `RelayList`
    (`crates/podssh-relay/src/relay.rs:88-102`), each within `HOST_DEADLINE`
    (`crates/podssh-relay/src/open.rs:32-34`), with `open::backoff` between
-   rounds (`crates/podssh-relay/src/open.rs:379-393`). Do not fork it (T-077).
+   rounds (`crates/podssh-relay/src/open.rs:390-404`). Do not fork it (T-077).
 2. A `CLOSE` record never reconnects; each other loss reconnects first
    (ssh-obi's rule, read in GitHub #19, not verified here). Print one stderr
    line for each loss and each resume, and never a secret or a token.
@@ -806,14 +806,14 @@ always runs the layer. The flag's row, the manual's note of `node`,
 ## Problem
 
 The relay cuts a connection after 180 s with no payload, and its empty
-keepalive frames do not count (`docs/relay.md:197-198`, `docs/relay.md:260`). A
+keepalive frames do not count (`docs/relay.md:209-210`, `docs/relay.md:272`). A
 reverse socket gets no keepalive at all (`docs/reverse.md:37-45`). SSH's own
 keepalives must not end a session that the layer would resume.
 
 ## Premise
 
 Read: a read waits 90 s at most (`crates/podssh-ws/src/client.rs:23-25`, set at
-`crates/podssh-relay/src/open.rs:345`), a limit that counts on the relay's
+`crates/podssh-relay/src/open.rs:351`), a limit that counts on the relay's
 frame each 25 s. The ping watcher acts only after a first Pong
 (`crates/podssh-ws/src/session.rs:261-299`); Pongs and the idle cut on reverse
 sockets are not measured (T-061). russh sends a keepalive each 60 s and ends
@@ -925,7 +925,7 @@ close at the volume cap).
 ## Problem
 
 The relay ends a WebSocket session after 64 MiB, both directions together, or
-after 12 h (`docs/relay.md:261-262`). A long or large session on the layer
+after 12 h (`docs/relay.md:273-274`). A long or large session on the layer
 meets these limits, and an end at a limit costs a resume and its delay.
 
 ## Premise
@@ -1189,7 +1189,7 @@ proxy (4 runs). Read in the report, not verified here: the script's target
 `/trace` showed that the relay could not reach it.
 Read: no iroh figure exists for a relay through a CONNECT proxy
 (`docs/design.md:1256-1276`). A session carries 64 MiB at most, both directions
-together (`docs/relay.md:262`).
+together (`docs/relay.md:274`).
 
 ## Approach
 
@@ -1204,7 +1204,7 @@ together (`docs/relay.md:262`).
    cells; 20 MiB up and 20 MiB down in separate sessions; 300 s at most each.
 4. The targets: a far podssh node that sends and drains bytes. For the
    forward road, two public targets, each checked first with `/trace`, which
-   needs a token (`docs/relay.md:317-318`; `docs/relay.md`, lines 296-302 at `24f3e2a`). Skip a
+   needs a token (`docs/relay.md:329-330`; `docs/relay.md`, lines 296-302 at `24f3e2a`). Skip a
    target that fails the check, with its reason; never count it as 0.
 5. A control: the same runs through the stand-in relay on loopback
    (`scripts/fake-relay.py`), which shows podssh's own limit.

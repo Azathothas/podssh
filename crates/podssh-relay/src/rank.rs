@@ -164,6 +164,10 @@ pub struct Rank {
     pub named: bool,
     /// The hosts, in the order to try them.
     pub hosts: Vec<Figures>,
+    /// The samples of the sessions' own races (T-607), by host: kept with
+    /// or without a rank, and read where none holds.
+    #[serde(skip_serializing_if = "std::collections::BTreeMap::is_empty")]
+    pub samples: std::collections::BTreeMap<String, Vec<crate::rank_list::Sample>>,
 }
 
 impl Rank {

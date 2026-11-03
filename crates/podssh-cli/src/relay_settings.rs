@@ -68,7 +68,7 @@ pub fn relays(flag: Option<&str>, env: Option<String>) -> Result<RelayList, Refu
 
 /// [`relays`] with the settings given.
 pub fn relays_from(flag: Option<&str>, env: Option<String>, file: &Defaults) -> Result<RelayList, Refusal> {
-    let pool = podssh_relay::pool::alternates(relay::DEFAULT_RELAY_HOST);
+    let pool = ranked(podssh_relay::pool::alternates(relay::DEFAULT_RELAY_HOST), file);
     // select_relays reads the variable only when there is no flag, and an
     // empty variable as no variable.
     let from_env = flag.is_none() && env.as_deref().is_some_and(|v| !v.trim().is_empty());
@@ -84,6 +84,25 @@ pub fn relays_from(flag: Option<&str>, env: Option<String>, file: &Defaults) -> 
             Refusal::usage(format!("--relay-host: {why}"))
         }
     })
+}
+
+/// The pool in the order that this host measured (T-607): by the rank of
+/// `relay rank` when one holds for this egress, else by the times of the
+/// races; as `/relays.json` gave it with `RelayRank no` or
+/// `PODSSH_RELAY_RANK=no`, which `open` reads too.
+fn ranked(pool: Vec<String>, file: &Defaults) -> Vec<String> {
+    podssh_relay::rank_list::set_by_settings(rank_on(file));
+    if !podssh_relay::rank_list::enabled() {
+        return pool;
+    }
+    let egress = podssh_relay::rank_list::egress_for(relay::DEFAULT_RELAY_HOST);
+    let kept = podssh_relay::rank::load();
+    podssh_relay::rank_list::alternates(pool, kept.as_ref(), &egress, crate::pairs::now_ms())
+}
+
+/// Whether the settings file leaves the rank on: all but `RelayRank no`.
+fn rank_on(file: &Defaults) -> bool {
+    file.relay_rank.as_ref().is_none_or(|value| yes_or_no(&value.text) != Some(false))
 }
 
 /// How the relay hosts are tried (T-220): `--relay-failover`, else
@@ -151,6 +170,15 @@ mod tests {
         assert_eq!(bad.code, EX_CONFIG);
         assert!(bad.message.contains("PODSSH_DIRECT=maybe"), "{bad}");
         assert!(crate::settings::parse("Direct maybe\n", "settings", None).is_err(), "the file checks its value");
+    }
+
+    #[test]
+    fn relay_rank_no_turns_the_rank_off_and_nothing_else_does() {
+        let file = |text: &str| crate::settings::parse(&format!("RelayRank {text}\n"), "settings", None).unwrap();
+        assert!(rank_on(&Defaults::default()), "on by default");
+        assert!(!rank_on(&file("no")));
+        assert!(rank_on(&file("yes")));
+        assert!(crate::settings::parse("RelayRank maybe\n", "settings", None).is_err(), "the file checks its value");
     }
 
     #[test]

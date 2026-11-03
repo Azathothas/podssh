@@ -62,6 +62,15 @@ pub const RELAY: &[&str] = &[
      --cached prints the rank kept, its age and whether it holds here, and --forget removes it; neither \
      connects. Exit 0 when a host opened, 69 when none did or PODSSH_OFFLINE is set, 64 for a bad flag. \
      podssh probes no host that the user did not ask it to (Q89).",
+    "The default list of relay hosts takes the rank (T-607): while a rank of podssh relay rank holds for this \
+     egress, the default list is the default host and the best three other hosts of the pool, in the rank's \
+     order, and a run tries the default host at its place among them; the record of failures still moves a \
+     host that failed lately to the end. Each run also keeps the time to open of each host that opened in \
+     its race, the last 8 of each, with no connection of its own; where no rank holds, those times order the \
+     pool. A list that the user names (--relay-host, PODSSH_RELAY, RelayHost) keeps its order. \
+     PODSSH_RELAY_RANK=no, or RelayRank no in the settings file, gives the relay's order of the pool, as \
+     before; podssh status says which order a run takes (relay_order), and podssh doctor's line rank names \
+     it with the list.",
     "podssh relay trace HOST PORT asks the first relay host to dial the target and to read its first \
      line, with a forward token in a header and never in the URL: the relay's verdict (live, or \
      silent-or-unreachable for a target that sent nothing), the address that it dialed, the times of \

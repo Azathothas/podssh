@@ -62,15 +62,15 @@ repository and CI).
 
 ## Counts
 
-**578 entries: 104 open, 2 partial, 2 blocked, 470 done.**
+**578 entries: 103 open, 2 partial, 2 blocked, 471 done.**
 
 | Priority | open | partial | blocked | done | total |
 | --- | --- | --- | --- | --- | --- |
 | P0 | 0 | 0 | 0 | 1 | 1 |
 | P1 | 0 | 1 | 0 | 63 | 64 |
-| P2 | 35 | 1 | 0 | 228 | 264 |
+| P2 | 34 | 1 | 0 | 229 | 264 |
 | P3 | 69 | 0 | 2 | 178 | 249 |
-| **All** | 104 | 2 | 2 | 470 | 578 |
+| **All** | 103 | 2 | 2 | 471 | 578 |
 
 ## Entries
 
@@ -646,7 +646,7 @@ repository and CI).
 | [T-604](ws.md) | P3 | S | none | feature | done | `doctor`'s diagnosis of the TLS handshakes counts no resolver of DNS over HTTPS and no relay of n0's |
 | [T-605](relay.md) | P2 | M | none | measurement | done | A harness that measures the relay hosts and the roads through podssh's own binary, adapted from the operator's archive of relay research |
 | [T-606](relay.md) | P2 | M | M10 | feature | done | `podssh relay rank`: each relay host measured on demand, and the rank kept in the cache beside the record of failures |
-| [T-607](relay.md) | P2 | M | M10 | feature | open | The default list of relay hosts takes the rank: the best three of the pool in the rank's order, and samples of each session's own race |
+| [T-607](relay.md) | P2 | M | M10 | feature | done | The default list of relay hosts takes the rank: the best three of the pool in the rank's order, and samples of each session's own race |
 | [T-608](relay.md) | P3 | S | M10 | feature | open | A rank that podssh makes unasked, in the background of a session, once a day for an egress |
 | [T-609](ssh.md) | P1 | S | none | defect | done | An ECDSA key of P-256 whose scalar OpenSSH writes in 31 bytes is refused: "SshKey: length invalid" |
 | [T-610](relay.md) | P2 | S | M10 | defect | done | `relay info` shows the relay's `rank` and `score_ms`, which change with the edge that answered, as an order |

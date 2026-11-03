@@ -86,6 +86,7 @@ pub fn run_status(args: &StatusArgs, tty: Tty, out: &mut dyn Write, err: &mut dy
         "relay_failures": relay_failures(),
         "relay_opened": relay_opened(),
         "relay_rank": crate::relay_rank::status_value(),
+        "relay_order": podssh_relay::rank_list::order_now(podssh_relay::relay::DEFAULT_RELAY_HOST),
         "open_files": open_files(),
         "pairs": pairs_state(),
     });

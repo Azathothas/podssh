@@ -30,6 +30,7 @@ pub const KEYWORDS: &[(&str, &str)] = &[
     ("RelayHost", "HOST[:PORT][,...]: the relay hosts, as --relay-host and PODSSH_RELAY"),
     ("RelayAddr", "HOST=IP[,...]: addresses for relay hosts, as --relay-addr; each line adds to the others"),
     ("RelayFailover", "MODE: how the relay hosts are tried, as --relay-failover"),
+    ("RelayRank", "yes or no: whether the rank of podssh relay rank, and the times of each run's own race, order the default relay hosts, as PODSSH_RELAY_RANK (default yes)"),
     ("CaFile", "FILE: trust only the CA certificates in FILE, as --ca-file and SSL_CERT_FILE; ~ is the home"),
     ("SessionLog", "yes, no or FILE: a line for each session of this host, as PODSSH_SESSION_LOG; ~ is the home"),
     ("Direct", "yes or no: whether podssh tries the direct road once each relay host failed, as PODSSH_DIRECT"),
@@ -62,6 +63,8 @@ pub struct Defaults {
     pub session_log: Option<Value>,
     /// `Direct`: the direct road after the relay hosts (T-363).
     pub direct: Option<Value>,
+    /// `RelayRank`: the measured order of the default relay hosts (T-607).
+    pub relay_rank: Option<Value>,
     /// `Forwarder` (T-369), and `ForwarderFallback` (T-370).
     pub forwarder: Option<Value>,
     pub forwarder_fallback: Option<Value>,
@@ -262,6 +265,10 @@ pub fn parse(text: &str, file: &str, home: Option<&Path>) -> Result<Defaults, St
             "direct" => {
                 crate::relay_settings::yes_or_no(text).ok_or_else(|| format!("{at}: Direct {text:?}: yes or no"))?;
                 d.direct.get_or_insert(value);
+            }
+            "relayrank" => {
+                crate::relay_settings::yes_or_no(text).ok_or_else(|| format!("{at}: RelayRank {text:?}: yes or no"))?;
+                d.relay_rank.get_or_insert(value);
             }
             "forwarder" => {
                 crate::forwarder::parse_list(text).map_err(|why| format!("{at}: Forwarder {why}"))?;

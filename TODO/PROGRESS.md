@@ -172,7 +172,7 @@ and `CARGO_BUILD_JOBS=4`:
 
 ## Counts
 
-`TODO/INDEX.md` holds 578 entries: 104 open, 2 partial, 2 blocked, 470 done.
+`TODO/INDEX.md` holds 578 entries: 103 open, 2 partial, 2 blocked, 471 done.
 
 Open includes parked work. `cargo todo check` verifies this line.
 
@@ -250,9 +250,9 @@ policy is decided and listed below for the operator to confirm (Q86). The drafts
 **The operator's request of 2026-11-03:** an archive of research on relays, read in
 `docs/research/relay-measurement.md`: its harness, adapted to run podssh itself, is done
 (2026-11-03, `scripts/relay-measure.py` and `relay-measure.yml`), and so is the rank of the relay
-hosts on demand (`podssh relay rank`, 2026-11-03); the default list's use of it (T-607) is M10's,
-after item 2 of its order; a rank that podssh makes unasked
-(T-608) follows them, with `RelayRank auto` alone (Q89).
+hosts on demand (`podssh relay rank`, 2026-11-03), and so is the default list's use of it, with
+the samples of each race (2026-11-03); a rank that podssh makes unasked (T-608) follows, with
+`RelayRank auto` alone (Q89).
 
 **The holds are released** (Q92, the operator, 2026-11-03): T-085, T-107 to T-113, T-117,
 T-118, T-213, T-222, T-245 and T-248 are open and go by their priority, M5's `podssh serve`

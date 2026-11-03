@@ -96,6 +96,7 @@ fn the_file_is_private_and_reads_back() {
         rounds: 3,
         named: false,
         hosts: order(vec![figures("b", &[opened(500.0)]), figures("a", &[opened(100.0)])]),
+        samples: Default::default(),
     };
     let path = save_in(&dirs, &rank).unwrap();
     assert_eq!(load_from(&dirs), Some(rank.clone()));

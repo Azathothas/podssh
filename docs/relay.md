@@ -142,8 +142,20 @@ cache as `relay-rank.json` for 24 h for the egress that measured it. The
 order is the share of failed probes, then the median time to open, then the
 p95, a tie within 50 ms or 10 % kept in the order given. It is a measure of
 this host's path, which `/relays.json`'s rank is not (see "Relay facts for a
-client that selects a relay"); the default list's use of it is T-607's, and
-podssh makes no rank unasked unless `RelayRank auto` asks (Q89, T-608).
+client that selects a relay"), and podssh makes no rank unasked unless
+`RelayRank auto` asks (Q89, T-608).
+
+The default list takes the rank (T-607). While a rank holds for this egress,
+step 2's three hosts of the pool are the best three of the rank, and a run
+tries the default host at its place among them; the record of step 5 still
+moves a host that failed lately to the end. Each run keeps the time to open
+of each host that opened in its race (from its dial to the `101`, the token
+left out), the last 8 of each host with when and the egress, in the rank's
+file; where no rank holds, they order the pool. They cost no connection. A
+list that the user named keeps its order. `PODSSH_RELAY_RANK=no`, or the
+settings file's `RelayRank no`, gives the pool's order of `/relays.json`, as
+before; `podssh status` gives `relay_order` (`rank`, `samples`, `pool` or
+`off`), and `podssh doctor` a line `rank` with the list in that order.
 
 A token is cached for its relay deployment, with the host that minted it.
 The hosts of the default deployment share one token: a pool host accepts the

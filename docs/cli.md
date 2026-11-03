@@ -3052,7 +3052,12 @@ commands. The rules behind them:
   egress as a digest of the proxy's host and port or `direct`; it holds
   24 h for that egress. `--cached` prints it and `--forget` removes it,
   neither connecting. Exit 0 when a host opened, 69 when none did or with
-  `PODSSH_OFFLINE`, 64 for a bad flag.
+  `PODSSH_OFFLINE`, 64 for a bad flag. While a rank holds for this
+  egress, the default list takes it (T-607): the default host and the best
+  three other hosts of the pool, the default host at its place in the rank;
+  the times of each run's own race order the pool where none holds;
+  `PODSSH_RELAY_RANK=no` or `RelayRank no` turns both off, and `status`'s
+  `relay_order` and `doctor`'s line `rank` say which order a run takes.
   `relay info [HOST PORT]` reads the first host's `/relays.json`: the edge
   that this host reaches, the pool in the relay's order, the limits, and
   with a target the URL that the relay chooses for it. The relay ranks the

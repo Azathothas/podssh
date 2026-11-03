@@ -232,3 +232,75 @@ fn offline_and_bad_flags_refuse_before_anything_connects() {
     }
     assert_eq!(reached.load(Ordering::SeqCst), 0, "nothing connects before the flags are checked");
 }
+
+/// A target that sends one line and closes: a `proxy` run then ends.
+fn line_target() -> u16 {
+    let listener = TcpListener::bind("127.0.0.1:0").unwrap();
+    let port = listener.local_addr().unwrap().port();
+    std::thread::spawn(move || {
+        for mut stream in listener.incoming().map_while(Result::ok) {
+            let _ = stream.write_all(b"SSH-2.0-stand-in-target\r\n");
+        }
+    });
+    port
+}
+
+/// T-607: each attempt of a race that opened leaves a sample of its time in
+/// the rank's file, with no connection of its own: a run of `proxy
+/// --relay-failover parallel` over the slow stand-in and the fast one, named
+/// in that order, keeps one of each, the slow one's 600 ms longer.
+#[test]
+fn a_race_keeps_a_sample_of_each_host_that_opened() {
+    let s = Session::start("relay-rank-samples");
+    let (fast, slow) = match (
+        Cell::fake_relay_mode(&s, "normal", "the stand-in relay"),
+        Cell::fake_relay_mode(&s, "slowopen:600", "the stand-in relay, slow to open"),
+    ) {
+        (Ok(fast), Ok(slow)) => (fast, slow),
+        (Err((_, why)), _) | (_, Err((_, why))) => {
+            eprintln!("did not run: {why}");
+            return;
+        }
+    };
+    let ((fast, ca), (slow, _)) = (host_of(&fast), host_of(&slow));
+    let target = line_target().to_string();
+    let args = words(&[
+        "proxy",
+        "--relay-failover",
+        "parallel",
+        "--relay-host",
+        &format!("{slow},{fast}"),
+        "--ca-file",
+        &ca,
+        "--relay-addr",
+        "relay-a.test=127.0.0.1",
+        "127.0.0.1",
+        &target,
+    ]);
+    let out = ran(podssh(&s.home, &args));
+    assert_eq!(out.status.code(), Some(0), "{}", text(&out.stderr));
+    assert!(text(&out.stdout).starts_with("SSH-2.0-stand-in-target"), "{}", text(&out.stdout));
+    let files = found(&s.home, "relay-rank.json");
+    assert_eq!(files.len(), 1, "{files:?}");
+    let doc: serde_json::Value = serde_json::from_str(&std::fs::read_to_string(&files[0]).unwrap()).unwrap();
+    let time = |host: &str| doc["samples"][host][0]["open_ms"].as_f64();
+    let (fast_ms, slow_ms) = (time(&fast), time(&slow));
+    assert!(fast_ms.is_some() && slow_ms.is_some(), "a sample of each: {doc}");
+    assert!(slow_ms.unwrap() - fast_ms.unwrap() >= 500.0, "the slow one's 600 ms: {doc}");
+    assert_eq!(doc["samples"][&fast][0]["egress"], "direct", "{doc}");
+    // No rank was made: the file holds the samples alone, and nothing holds.
+    assert!(doc["hosts"].as_array().is_none_or(|h| h.is_empty()), "{doc}");
+    // status says which order a run of the default list takes: the samples,
+    // or none with PODSSH_RELAY_RANK=no.
+    let order = |off: bool| {
+        let mut status = podssh(&s.home, &words(&["status"]));
+        status.env("PODSSH_OFFLINE", "1");
+        if off {
+            status.env("PODSSH_RELAY_RANK", "no");
+        }
+        let doc: serde_json::Value = serde_json::from_slice(&ran(status).stdout).expect("status is one JSON object");
+        doc["relay_order"].as_str().map(str::to_string)
+    };
+    assert_eq!(order(false).as_deref(), Some("samples"));
+    assert_eq!(order(true).as_deref(), Some("off"));
+}

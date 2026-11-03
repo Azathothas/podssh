@@ -206,11 +206,13 @@ pub async fn open(req: &Request<'_>, notes: &mut dyn FnMut(&str)) -> Result<Open
     crate::addresses::install();
     // A host that failed lately goes last (T-059), and one that opened first (T-563).
     let mut records = Records::load();
-    let (order, moved) = failures::order(failures::WEBSOCKET, &req.relays.hosts, &records, crate::pool::now_ms());
+    // The rank that this host measured places each host first (T-607).
+    let listed = crate::rank_list::placed_now(req.relays);
+    let (order, moved) = failures::order(failures::WEBSOCKET, &listed, &records, crate::pool::now_ms());
     for note in moved {
         notes(&note);
     }
-    let hosts: &Vec<Relay> = &order.iter().map(|&i| req.relays.hosts[i].clone()).collect();
+    let hosts: &Vec<Relay> = &order.iter().map(|&i| listed[i].clone()).collect();
     let shared = Arc::new(Shared {
         path: req.path.to_string(),
         trust: req.trust.clone(),
@@ -218,6 +220,7 @@ pub async fn open(req: &Request<'_>, notes: &mut dyn FnMut(&str)) -> Result<Open
         primary: req.relays.primary().host.clone(),
         explicit: req.relays.explicit,
         several: hosts.len() > 1,
+        samples: Default::default(),
     });
     let gate = MintGate::default();
     let rounds = req.rounds.max(1);
@@ -246,6 +249,7 @@ pub async fn open(req: &Request<'_>, notes: &mut dyn FnMut(&str)) -> Result<Open
         let silent = raced.silent.iter().map(|i| (hosts[*i].host.clone(), failures::SILENT.to_string()));
         let failed: Vec<(String, String)> = reasons.chain(silent).collect();
         let opened = raced.kept.as_ref().map(|(i, _)| hosts[*i].host.as_str());
+        crate::rank_list::keep(&shared.samples);
         if records.update(failures::WEBSOCKET, &failed, opened, crate::pool::now_ms()) {
             records.store();
         }
@@ -288,6 +292,8 @@ struct Shared {
     explicit: bool,
     /// Whether there is more than one host, so that a failure names its own.
     several: bool,
+    /// The time to open of each attempt that opened (T-607).
+    samples: crate::rank_list::Samples,
 }
 
 /// One host within [`HOST_DEADLINE`], each step within `step`, with its
@@ -345,6 +351,7 @@ async fn try_host(
         idle_timeout: Some(podssh_ws::DEFAULT_IDLE_TIMEOUT),
         proxy: proxy.clone(),
     };
+    let mut started = std::time::Instant::now();
     let mut result = connect(&config, token.secret()).await;
     // A cached token the relay no longer accepts: forget it and mint once.
     // Not for a policy refusal, which a new token cannot fix.
@@ -355,8 +362,12 @@ async fn try_host(
                 let _turn = gate.hold(&key, STAGGER).await;
                 token::obtain(&ctx, true).await.map_err(OpenError::Token)?
             };
+            started = std::time::Instant::now();
             result = connect(&config, token.secret()).await;
         }
+    }
+    if result.is_ok() {
+        crate::rank_list::sample(&shared.samples, relay, started.elapsed());
     }
     let origin = token.origin;
     drop(token);

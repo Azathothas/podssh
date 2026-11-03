@@ -200,6 +200,8 @@ fn measure(plan: &Plan, json: bool, out: &mut dyn Write, err: &mut dyn Write) ->
         rounds: plan.rounds,
         named: plan.named,
         hosts: rank::order(figures),
+        // The samples of the races are kept across ranks (T-607).
+        samples: rank::load().map(|old| old.samples).unwrap_or_default(),
     };
     let kept = rank::save(&made);
     let opened = made.first().is_some();

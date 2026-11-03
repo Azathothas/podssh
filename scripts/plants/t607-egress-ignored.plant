@@ -1,0 +1,8 @@
+# T-607: the order of the default list takes a rank whatever the egress that
+# made it, so a rank measured through another proxy, or with none, orders the
+# list of this one; the unit test of a rank of another egress must fail.
+ENTRY=T-607
+GROUP=cli-tests
+EXPECT='test rank_list::tests::a_rank_of_another_egress_an_old_one_or_none_gives_the_pools_order \.\.\. FAILED'
+RUN='cargo test --locked -p podssh-relay --lib rank_list'
+LIMIT=1800

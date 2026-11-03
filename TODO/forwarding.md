@@ -679,7 +679,7 @@ OpenSSH shares one connection through a control socket (`-M`, `-S`, `-O`,
   (T-001); the Podman box refuses each `bind`
   (`scripts/box/seccomp.json:5-10`).
 - Read: the relay's limits apply to the shared connection: all the sessions
-  of a master share one 64 MiB and one 12 h (`docs/relay.md:256-262`).
+  of a master share one 64 MiB and one 12 h (`docs/relay.md:268-274`).
 
 ## Approach
 
@@ -1057,8 +1057,8 @@ sessions (GitHub #17).
 Read: a drop ends the run with 255 (`crates/podssh-ssh/src/run.rs:62-78`,
 `crates/podssh-ssh/src/run.rs:213-255`). `podssh_relay::open` fails over and
 backs off with jitter, but only before a session exists
-(`crates/podssh-relay/src/open.rs:200-277`,
-`crates/podssh-relay/src/open.rs:379-393`). With `-N`, no command runs, so a
+(`crates/podssh-relay/src/open.rs:200-281`,
+`crates/podssh-relay/src/open.rs:390-404`). With `-N`, no command runs, so a
 new connection has no side effect on the server. `docs/design.md:689-696`
 puts a new connection with a new login in layer 3, for a standard sshd.
 T-153 (M6) resumes a session when both ends run podssh.
@@ -1633,7 +1633,7 @@ server (`remote_socket:host:hostport`), a socket on this host as the target
 (`[bind_address:]port:local_socket`, `remote_socket:local_socket`), and a SOCKS proxy that the
 server listens for and the client serves (`[bind_address:]port`). podssh refuses each by name, so
 a command line of OpenSSH fails with podssh. A server whose host refuses an AF_INET bind and
-allows an AF_UNIX one, as sandbox A does (`docs/STATUS.md:376`), can listen on a socket only; and
+allows an AF_UNIX one, as sandbox A does (`docs/STATUS.md:377`), can listen on a socket only; and
 the SOCKS form gives a server whose egress is closed a way out through the client.
 
 ## Premise
