@@ -3733,7 +3733,7 @@ T-180 and T-530 are done: `podssh funnel` and OpenTunnel's link exist.
 **Milestone:** M10
 **Priority:** P3
 **Effort:** S
-**Status:** open
+**Status:** done
 
 ## Problem
 
@@ -3765,6 +3765,20 @@ of podssh's.
 4. A file of notes of its own where a file would pass 500 lines, as T-438 made
    `crates/podssh-cli/src/man/notes_ssh_more.rs`.
 
+## Decision
+
+The manual tells what this binary does (2026-11-03, the draft): one note of `podssh ssh`, after
+the forwarders', names the public services that podssh tries when the user named none, each after
+its own roads, says that each is a third party that nobody vouches for and what it sees, names the
+kinds of server that podssh never names and why, and gives the sentence of Q79; the DERP note of
+`podssh node` says that Tailscale may withdraw tailcat's servers and that podssh names none of its
+main fleet. Each road of Q74, Q75 and Q78 that comes later (T-534, T-535, T-574, and the last
+fallbacks after them) moves its servers into that note, in its words, in the change that builds it,
+as T-534's item 4 asks. Lost: sentences now that podssh tries Tailscale's main fleet or the public
+Wisp servers, which this binary does not do, so the manual would tell of roads that it lacks, as
+GitHub #121 found `docs/STATUS.md` did (T-594); and this entry kept open until each of those roads is
+built, which would leave the manual silent on today's services meanwhile.
+
 ## Prove
 
 ```sh
@@ -3784,6 +3798,39 @@ operators run for that use are fallbacks (Q75); each public service is a last fa
 its terms, the lists of public proxy nodes among them (Q78); and a domain that looks taken over is
 never used and never published (Q79). The entry now says what podssh tries last, and why, and
 which hosts it never names; the roads themselves are the entries that those rulings file.
+
+Read at `38f424c` (2026-11-03): `crates/podssh-cli/src/man/notes_ssh.rs` has 482 lines, so the
+note is in a file of its own, `crates/podssh-cli/src/man/notes_public.rs`, which one line of
+`notes_ssh.rs` names after the forwarders' note. T-534, T-535 and T-574 are open: this binary tries
+no server of Tailscale's main fleet, no public Wisp server but the demo server, and no public proxy
+node, so the note says that it names none of them (the Decision).
+
+## Done
+
+Drafted 2026-11-03 (built nothing; the main session merges and measures it):
+
+- `crates/podssh-cli/src/man/notes_public.rs` (new, `mod notes_public` in
+  `crates/podssh-cli/src/man/mod.rs`): the note `PUBLIC`, which `crates/podssh-cli/src/man/notes_ssh.rs`
+  puts after the forwarders' note: the services that podssh tries when the user named none (the
+  four forwarders, wisp last; tailcat's DERP servers, Least Authority's transit relay, ppng.io and
+  n0's server of pkarr), each a third party that nobody vouches for, which sees the target or the
+  two ends, the sizes and the times, may log them and may stop; the kinds that podssh never names
+  (Tailscale's main DERP fleet, community DERP servers, the Wisp servers of web proxies' lists,
+  the public proxy nodes of aggregators' lists); a server that the user names is the user's to
+  trust; and Q79's sentence. Its unit test, `the_note_of_the_public_services_follows_the_forwarders`.
+- `crates/podssh-cli/src/man/notes_pair.rs`: the DERP note says that Tailscale may withdraw
+  tailcat's servers at any time, and that podssh names no server of its main fleet.
+- `crates/podssh-cli/tests/man_page.rs`:
+  `the_manual_says_which_public_services_podssh_tries_and_which_it_never_names`, on the pages of
+  `ssh` and `node` with their lines joined.
+- `scripts/plants/t533-taken-over-unsaid.patch` and `.plant`: the sentence of Q79 removed; the test
+  of the pages must fail.
+- `docs/STATUS.md`: the row of this entry, `unreleased`.
+
+At the merge (2026-11-03): `cargo test -p podssh-cli --test man_page`, 11 passed; `--lib man`
+(the notes' names, the new unit test), 40; `--test man_json`, 4; `--test man_flag_parity`, 6; the
+lib, 754; clippy clean. The plant `t533-taken-over-unsaid` (`sh scripts/plant-each.sh --here`):
+caught; its run in the build image waits (Q88).
 
 # T-490: chisel's protocol: a chisel server as the road
 
@@ -6132,7 +6179,7 @@ through a relay. A feature of the mesh (Q63; Q77, the fallbacks that exist).
 - Read: `pipe` does not refuse a terminal on stdin (no such check in `crates/podssh-cli/src/pipe/`
   at `3bb42ea`); the issue's "as `pipe` does" is not this code's.
 - Read: the exit lends its egress on the node's roads
-  (`crates/podssh-cli/src/man/notes_pair.rs:241-251`); a carrier is one more road for it (T-596).
+  (`crates/podssh-cli/src/man/notes_pair.rs:243-253`); a carrier is one more road for it (T-596).
 
 ## Approach
 
@@ -6325,8 +6372,8 @@ roads, and a carrier must be one of them.
 ## Premise
 
 - Read: the exit goes on the pair's, the iroh, the DERP, the transit and the Piping Server roads
-  (`crates/podssh-cli/src/man/notes_pair.rs:250-251`), and needs the net's role exit, signed by
-  its owner (`:248-249`).
+  (`crates/podssh-cli/src/man/notes_pair.rs:252-253`), and needs the net's role exit, signed by
+  its owner (`:250-251`).
 - Read: `podssh exit NAME --listen` gives SOCKS5, SOCKS4a and HTTP CONNECT on a loopback address
   (`docs/STATUS.md:92`).
 - In the issue's case the end with egress starts the channel (`ssh -T sandbox CMD`), so the node

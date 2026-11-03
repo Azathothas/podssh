@@ -154,7 +154,9 @@ pub(super) const NODE: &[&str] = &[
      only after the layer's handshake, and resumes on a new link for 10 minutes, as on the relay.",
     "With --derp, the node serves TARGET over the DERP road, in each build: DERP's packets over a \
      WebSocket at wss://SERVER/derp, through HTTPS_PROXY, to Tailscale's free servers for tailcat \
-     (tc301a.ipn.dev to tc304a.ipn.dev, which need no account and are rate-limited), or to the servers of \
+     (tc301a.ipn.dev to tc304a.ipn.dev, which need no account and are rate-limited, and which Tailscale \
+     may withdraw at any time; podssh names no server of Tailscale's main fleet, which serves Tailscale's \
+     own clients: see the public services in the notes of podssh ssh), or to the servers of \
      --derp-server or PODSSH_DERP_SERVER, under the resumable layer with an adapter that sends again what \
      a server drops. The node's home is the first server whose /derp/probe answers within 5 s, and its \
      key there is derived from the node's key, so its ticket (derp:...), which it prints on stderr, stays \

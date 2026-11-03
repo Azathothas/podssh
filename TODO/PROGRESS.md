@@ -159,7 +159,7 @@ and `CARGO_BUILD_JOBS=4`:
 
 ## Counts
 
-`TODO/INDEX.md` holds 568 entries: 98 open, 5 partial, 16 blocked, 449 done.
+`TODO/INDEX.md` holds 568 entries: 97 open, 5 partial, 16 blocked, 450 done.
 
 Open includes parked work. `cargo todo check` verifies this line.
 
@@ -211,7 +211,7 @@ this order:
    (T-495) and a second Piping Server (T-497), T-496 and T-499 parked; then what the triage of the sweep of public relays
    (2026-11-02) filed, as Q74 to Q79 rule: OpenTunnel's link and its road (T-530, T-531, Q76),
    and the manual's word on the public services that podssh uses and the ones it never names
-   (T-533); T-532 is parked; then what the rulings Q74, Q75, Q77, Q78 and Q82 filed (2026-11-02),
+   (done 2026-11-03); T-532 is parked; then what the rulings Q74, Q75, Q77, Q78 and Q82 filed (2026-11-02),
    the P2 ones first: Tailscale's main DERP fleet after tailcat's (T-534), the public Wisp servers
    made for it (T-535), Pinggy (T-548) and the public proxy nodes (T-574); then the research of the
    overlay networks (T-536 to T-544), of the trackers (T-546) and of the pub/sub networks (T-547),
@@ -229,12 +229,12 @@ and relay sweep of 2026-11-02 come first among the `none` entries, the P1 ones b
 merged; `v1.0.1` went out with them on 2026-11-03. The defects of GitHub #112 to #124 (triaged
 on 2026-11-03) are done and go into `v1.1.0-beta.1`. Until podssh is stable the expensive checks wait (Q88). Their
 features and documents (T-475, T-486, T-530
-to T-533, and T-534 to T-549 and T-565 to T-582, which Q74, Q75, Q77, Q78
+to T-532, and T-534 to T-549 and T-565 to T-582, which Q74, Q75, Q77, Q78
 and Q82 filed; and of #112 to #124, with M10's T-595, T-592 and
 T-596, the relay role's and the roads') follow, by priority, beside M10 (Q85); Dependabot's #119,
 #120 and #122 are in `main` (2026-11-03), and #123 waits for an iroh-dns that takes simple-dns 0.13. Overnight a fork of
 policy is decided and listed below for the operator to confirm (Q86). The first drafts of 2026-11-03 are merged (T-595's first step among them). The second round
-(T-533 and T-595's next steps) waits on the
+(T-595's next steps) waits on the
 branches `draft/worktree-agent-*` of GitHub, each merged in turn.
 
 **Skip** the entries that the operator holds (status
