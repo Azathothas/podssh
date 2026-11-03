@@ -22,6 +22,16 @@ pub const CP_FLAGS: &[FlagRow] = &[
         "write into the destination itself: its inode and hard links stay, and no second copy needs room; a failure leaves it damaged, which is said first; a link is refused", None),
     row(None, "sparse", None, FlagKind::Supported,
         "a hole for each block of 64 KiB of zeros, whatever the source; without it only a copy up of a sparse file makes holes", None),
+    // What becomes of a destination that is there (T-473): GNU cp's and
+    // rsync's names, as OpenSSH's scp has none.
+    row(Some('n'), "no-clobber", None, FlagKind::Supported,
+        "leave a destination that is there as it is, also one that comes during the copy; said once, and a skip, not a failure", None),
+    row(Some('u'), "update", None, FlagKind::Supported,
+        "copy a file only when its destination is missing, older, or of the same second and another size, as rsync's -u", None),
+    row(Some('b'), "backup", None, FlagKind::Supported,
+        "keep the old destination at its name with a suffix (~), an older backup there replaced; --delete never deletes such a name", None),
+    row(None, "suffix", Some("SUFFIX"), FlagKind::Supported,
+        "with --backup, the suffix of the old file's name, in place of ~", None),
     row(Some('i'), "identity-file", Some("FILE"), FlagKind::Supported,
         "identity file, repeatable; also -oIdentityFile=", None),
     row(None, "parallel", Some("K"), FlagKind::Supported,

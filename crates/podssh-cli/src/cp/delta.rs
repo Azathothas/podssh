@@ -23,6 +23,7 @@ use podssh_ssh::{Connection, Log};
 use sha2::{Digest, Sha256};
 
 use super::chunks::{read_at, write_at};
+use super::clobber;
 use super::digest::{self, Sum};
 use super::in_place;
 use super::meta::{self, Stamp};
@@ -303,9 +304,15 @@ pub async fn up(
     if let Err(failed) = meta::set_far(sftp, &temp, &stamp, keep, log).await {
         return Err(gone(failed).await);
     }
-    let mut not_atomic = false;
+    let mut placed = clobber::Placed::default();
     if !inplace {
-        not_atomic = transfer::rename_onto(sftp, &temp, target, log).await?;
+        placed = clobber::place_far(sftp, &temp, target, shape.clobber, log).await?;
+    }
+    // A name that came during the copy stays as it is (T-473).
+    if let Some(skip) = placed.skipped {
+        return Ok(Ok(clobber::skipped(source, target, skip)));
+    }
+    if !inplace {
         meta::times_after_rename(sftp, target, &stamp, keep).await;
     }
     Ok(Ok(Done {
@@ -314,9 +321,10 @@ pub async fn up(
         bytes: plan.size,
         sum: Some(sum),
         verified_by: how,
-        not_atomic,
-        removed: None,
+        not_atomic: placed.not_atomic,
         delta: Some(sent(&plan, near.len())),
+        backup: placed.backup,
+        ..Done::default()
     }))
 }
 
@@ -427,19 +435,9 @@ pub async fn down(
         let _ = std::fs::remove_file(&temp);
         return Err(failed);
     }
-    if !inplace {
-        std::fs::rename(&temp, target).map_err(|e| Failed::new(Fault::CantCreate, format!("{shown}: {e}")))?;
-    }
-    Ok(Ok(Done {
-        source: source.into(),
-        destination: shown,
-        bytes: size,
-        sum: Some(sum),
-        verified_by: how,
-        not_atomic: false,
-        removed: None,
-        delta: Some(sent(&plan, far.len())),
-    }))
+    let done = clobber::done_here(source, &temp, target, size, sum, how, shape, log)?;
+    let delta = done.skipped.is_none().then(|| sent(&plan, far.len()));
+    Ok(Ok(Done { delta, ..done }))
 }
 
 #[cfg(test)]

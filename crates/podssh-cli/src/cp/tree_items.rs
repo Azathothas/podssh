@@ -1,8 +1,9 @@
 //! The steps of a tree's copy (`tree_copy.rs`) that act on one name each: a
 //! far file that a copy of `podssh run` left as it is, a link made there or
-//! here, and the removal of the source of `mv -r`, which leaves each device,
-//! FIFO or socket, with the directories that hold it, as it copied none
-//! (T-476).
+//! here, another name of a file copied up, and the removal of the source of
+//! `mv -r`, which leaves each device, FIFO or socket, with the directories
+//! that hold it, as it copied none (T-476), and each file that
+//! `--no-clobber` or `--update` left out (T-473).
 
 use std::collections::HashSet;
 use std::path::Path;
@@ -10,8 +11,11 @@ use std::path::Path;
 use podssh_ssh::sftp::Sftp;
 use podssh_ssh::Log;
 
+use super::clobber::{self, Clobber, Mode, Skip};
+use super::digest::Sum;
 use super::meta;
-use super::tree::Item;
+use super::transfer::{Done, Failed};
+use super::tree::{rel_of, Item};
 use super::tree_copy::{local_join, remote_join};
 
 /// Whether the far regular file `target` has the size of the local file
@@ -26,35 +30,86 @@ pub(super) async fn same_far(sftp: Option<&Sftp>, from: &str, target: &str) -> b
 
 /// A symbolic link at `target` on the server that names `names`: one that a
 /// copy before made stays, and anything else there is replaced, as a file
-/// is (a link cannot be made over a name that exists).
-pub(super) async fn far_link(sftp: &Sftp, target: &str, names: &str) -> Result<(), podssh_ssh::sftp::SftpError> {
+/// is (a link cannot be made over a name that exists). Under `--no-clobber`
+/// and `--update` a name that is there stays, as a link has no time of the
+/// source's to compare; under `--backup` the old one takes the suffix
+/// (T-473).
+pub(super) async fn far_link(
+    sftp: &Sftp,
+    target: &str,
+    names: &str,
+    clobber: Clobber,
+) -> Result<Option<Skip>, podssh_ssh::sftp::SftpError> {
     if let Ok(attrs) = sftp.lstat(target).await {
         if attrs.is_symlink() && sftp.readlink(target).await.is_ok_and(|now| now == names) {
-            return Ok(());
+            return Ok(None);
         }
-        if attrs.is_dir() {
-            sftp.rmdir(target).await?;
-        } else {
-            sftp.remove(target).await?;
+        if clobber.mode != Mode::Replace {
+            return Ok(Some(Skip::Exists));
+        }
+        match clobber.backup {
+            Some(suffix) if !attrs.is_dir() => {
+                let aside = format!("{target}{suffix}");
+                let _ = sftp.remove(&aside).await;
+                sftp.rename(target, &aside).await?;
+            }
+            _ if attrs.is_dir() => sftp.rmdir(target).await?,
+            _ => sftp.remove(target).await?,
         }
     }
-    sftp.symlink(target, names).await
+    sftp.symlink(target, names).await.map(|()| None)
 }
 
 /// A symbolic link at `at` that names `names`: one there that names the same
-/// stays, and another file or link there is replaced.
-pub(super) fn make_link(at: &Path, names: &str) -> std::io::Result<()> {
+/// stays, and another file or link there is replaced, or kept as
+/// [`far_link`] keeps one.
+pub(super) fn make_link(at: &Path, names: &str, clobber: Clobber) -> std::io::Result<Option<Skip>> {
     if let Ok(meta) = std::fs::symlink_metadata(at) {
         if meta.file_type().is_symlink() && std::fs::read_link(at).is_ok_and(|now| now == Path::new(names)) {
-            return Ok(());
+            return Ok(None);
         }
-        if meta.is_dir() {
-            std::fs::remove_dir(at)?;
-        } else {
-            std::fs::remove_file(at)?;
+        if clobber.mode != Mode::Replace {
+            return Ok(Some(Skip::Exists));
+        }
+        match clobber.backup {
+            Some(suffix) if !meta.is_dir() => {
+                let mut aside = at.as_os_str().to_owned();
+                aside.push(suffix);
+                let _ = std::fs::remove_file(&aside);
+                std::fs::rename(at, &aside)?;
+            }
+            _ if meta.is_dir() => std::fs::remove_dir(at)?,
+            _ => std::fs::remove_file(at)?,
         }
     }
-    new_link(at, names)
+    new_link(at, names).map(|()| None)
+}
+
+/// Another name of a file of a tree up, as a far hard link of its copy
+/// `first` (T-146), after the look of `--no-clobber` and `--update`
+/// (T-473): the name done, or left out; `None` with no hard link there, for
+/// a copy. `first` is the copy's name, its size and its digest.
+pub(super) async fn second_name(
+    sftp: &Sftp,
+    from: &str,
+    first: (&str, u64, Option<Sum>),
+    target: &str,
+    clobber: Clobber,
+    log: &Log,
+) -> Result<Option<Done>, Failed> {
+    let (first, bytes, sum) = first;
+    if let Ok(local) = std::fs::metadata(from) {
+        let seen = clobber::Seen::of_local(&local);
+        if let Some(kept) = clobber::before_far(sftp, from, target, seen, clobber, false, log).await? {
+            return Ok(Some(kept));
+        }
+    }
+    let Some(placed) = meta::hard_link(sftp, first, target, clobber, log).await? else { return Ok(None) };
+    if let Some(skip) = placed.skipped {
+        return Ok(Some(clobber::skipped(from, target, skip)));
+    }
+    let (source, destination, verified_by) = (from.into(), target.into(), format!("a hard link to {first}"));
+    Ok(Some(Done { source, destination, bytes, sum, verified_by, backup: placed.backup, ..Done::default() }))
 }
 
 fn new_link(at: &Path, names: &str) -> std::io::Result<()> {
@@ -68,36 +123,51 @@ fn new_link(at: &Path, names: &str) -> std::io::Result<()> {
     }
 }
 
-/// The directories of `items` that hold a device, a FIFO or a socket, at
-/// any depth, the root `""` included: `mv -r` leaves them.
-pub(super) fn holding_specials(items: &[Item]) -> HashSet<&str> {
+/// The directories of `items` that hold an item that `stays` keeps, at any
+/// depth, the root `""` included: `mv -r` leaves them.
+fn holding(items: &[Item], stays: impl Fn(&Item) -> bool) -> HashSet<&str> {
     let mut out = HashSet::new();
-    for item in items {
-        if let Item::Special { rel, .. } = item {
-            let mut at = rel.as_str();
-            while let Some((parent, _)) = at.rsplit_once('/') {
-                out.insert(parent);
-                at = parent;
-            }
-            out.insert("");
+    for item in items.iter().filter(|&item| stays(item)) {
+        let mut at = rel_of(item);
+        while let Some((parent, _)) = at.rsplit_once('/') {
+            out.insert(parent);
+            at = parent;
         }
+        out.insert("");
     }
     out
 }
 
-/// What `mv -r` leaves, said once: each special file, which it did not copy.
-fn said_kept(src: &str, kept: &HashSet<&str>, log: &Log) {
-    if !kept.is_empty() {
+/// The directories of `items` that hold a device, a FIFO or a socket.
+pub(super) fn holding_specials(items: &[Item]) -> HashSet<&str> {
+    holding(items, |item| matches!(item, Item::Special { .. }))
+}
+
+/// What `mv -r` leaves, said once: each special file, which it did not copy,
+/// and each file that the run left out (T-473).
+fn said_kept(src: &str, specials: bool, left: bool, log: &Log) {
+    if specials {
         log.info(&format!("{src}: each device, FIFO or socket stays, with the directories that hold it"));
+    }
+    if left {
+        log.info(&format!("{src}: each file that was not copied stays, with the directories that hold it"));
     }
 }
 
 /// mv -r up: the local source, each file and link, then each directory, the
-/// deepest first; a special file and the directories that hold it stay.
-pub(super) fn remove_local(src: &str, items: &[Item], log: &Log) {
-    let kept = holding_specials(items);
+/// deepest first; a special file, each file or link of `left` (the sources
+/// that the run left out, by their names) and the directories that hold
+/// them stay.
+pub(super) fn remove_local(src: &str, items: &[Item], left: &HashSet<&str>, log: &Log) {
+    let named = |rel: &str| local_join(Path::new(src), rel).display().to_string();
+    let not_copied = |item: &Item| match item {
+        Item::File { rel } | Item::Link { rel, .. } => left.contains(named(rel).as_str()),
+        _ => false,
+    };
+    let kept = holding(items, |item| matches!(item, Item::Special { .. }) || not_copied(item));
     for item in items.iter().rev() {
         let gone = match item {
+            _ if not_copied(item) => Ok(()),
             Item::File { rel } | Item::Link { rel, .. } => std::fs::remove_file(local_join(Path::new(src), rel)),
             Item::Dir { rel, .. } if kept.contains(rel.as_str()) => Ok(()),
             Item::Dir { rel, .. } => std::fs::remove_dir(local_join(Path::new(src), rel)),
@@ -108,14 +178,19 @@ pub(super) fn remove_local(src: &str, items: &[Item], log: &Log) {
             return;
         }
     }
-    said_kept(src, &kept, log);
+    said_kept(src, !holding_specials(items).is_empty(), items.iter().any(not_copied), log);
 }
 
 /// mv -r down: the far source, as [`remove_local`] does here.
-pub(super) async fn remove_far(sftp: &Sftp, src: &str, items: &[Item], log: &Log) {
-    let kept = holding_specials(items);
+pub(super) async fn remove_far(sftp: &Sftp, src: &str, items: &[Item], left: &HashSet<&str>, log: &Log) {
+    let not_copied = |item: &Item| match item {
+        Item::File { rel } | Item::Link { rel, .. } => left.contains(remote_join(src, rel).as_str()),
+        _ => false,
+    };
+    let kept = holding(items, |item| matches!(item, Item::Special { .. }) || not_copied(item));
     for item in items.iter().rev() {
         let gone = match item {
+            _ if not_copied(item) => Ok(()),
             Item::File { rel } | Item::Link { rel, .. } => sftp.remove(&remote_join(src, rel)).await,
             Item::Dir { rel, .. } if kept.contains(rel.as_str()) => Ok(()),
             Item::Dir { rel, .. } => sftp.rmdir(&remote_join(src, rel)).await,
@@ -126,7 +201,7 @@ pub(super) async fn remove_far(sftp: &Sftp, src: &str, items: &[Item], log: &Log
             return;
         }
     }
-    said_kept(src, &kept, log);
+    said_kept(src, !holding_specials(items).is_empty(), items.iter().any(not_copied), log);
 }
 
 #[cfg(test)]
@@ -171,7 +246,7 @@ mod tests {
             Item::File { rel: "c/g".into() },
         ];
         let shown = src.display().to_string();
-        remove_local(&shown, &items, &Log::new(podssh_ssh::LogLevel::Quiet));
+        remove_local(&shown, &items, &HashSet::new(), &Log::new(podssh_ssh::LogLevel::Quiet));
         assert!(!src.join("a/b/f").exists() && !src.join("c").exists(), "what was copied went");
         assert!(src.join("a/b/fifo").exists(), "the special file stays, and what holds it");
         let _ = std::fs::remove_dir_all(&src);

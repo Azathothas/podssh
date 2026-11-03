@@ -16,6 +16,7 @@ use podssh_ssh::sftp::SftpError;
 use podssh_ssh::Log;
 
 use super::byexec::Kind;
+use super::clobber::{self, Clobber};
 use super::digest;
 use super::link::{Link, Road};
 use super::meta::{Keep, Stamp};
@@ -111,8 +112,16 @@ pub async fn remove_far(link: &Link, path: &str, before: &Before, done: &Done) -
 
 /// Move `source` onto `dest` within one server: the server renames, and no
 /// byte moves. `None` when the server fails the rename for a reason of its
-/// own (two file systems), for a copy and a delete instead.
-pub async fn rename(link: &Link, source: &str, dest: &str, log: &Log) -> Result<Option<Done>, Failed> {
+/// own (two file systems), for a copy and a delete instead. `clobber` looks
+/// first and places as a copy does (T-473); a source that does not move
+/// stays.
+pub async fn rename(
+    link: &Link,
+    source: &str,
+    dest: &str,
+    clobber: Clobber,
+    log: &Log,
+) -> Result<Option<Done>, Failed> {
     let (_, name) = transfer::split_remote(source.trim_end_matches('/'));
     match &link.road {
         Road::Sftp(sftp) => {
@@ -126,9 +135,29 @@ pub async fn rename(link: &Link, source: &str, dest: &str, log: &Log) -> Result<
                     return Err(one_file(source, &target));
                 }
             }
+            let seen = clobber::Seen::of_far(&attrs);
+            if let Some(kept) = clobber::before_far(sftp, source, &target, seen, clobber, false, log).await? {
+                return Ok(Some(stays(kept)));
+            }
+            let mut backup = None;
+            if let Some(suffix) = clobber.backup {
+                backup = clobber::backup_far(sftp, &target, suffix, log).await?;
+            }
             log.verbose(&format!("{source}: a rename to {target} on the server"));
+            let size = attrs.size.unwrap_or(0);
+            // --no-clobber: a hard link, which refuses a name that came since
+            // the look, then the source's name goes.
+            if clobber.mode == clobber::Mode::Keep {
+                match clobber::link_far(sftp, source, &target, log).await {
+                    Some(placed) if placed.skipped.is_some() => {
+                        return Ok(Some(stays(clobber::skipped(source, &target, clobber::Skip::Exists))))
+                    }
+                    Some(_) => return Ok(Some(renamed(source, &target, size, false))),
+                    None => {}
+                }
+            }
             match transfer::rename_raw(sftp, source, &target, log).await {
-                Ok(not_atomic) => Ok(Some(renamed(source, &target, attrs.size.unwrap_or(0), not_atomic))),
+                Ok(not_atomic) => Ok(Some(Done { backup, ..renamed(source, &target, size, not_atomic) })),
                 // SSH_FX_FAILURE: a reason of the server's own, such as two
                 // file systems; a copy and a delete can still move the file.
                 Err(SftpError::Status { code: 4, .. }) => Ok(None),
@@ -150,10 +179,22 @@ pub async fn rename(link: &Link, source: &str, dest: &str, log: &Log) -> Result<
             if far.same_file(handle, source, &target).await? {
                 return Err(one_file(source, &target));
             }
+            if clobber.mode != clobber::Mode::Replace {
+                let times = clobber.mode == clobber::Mode::Update;
+                let seen = far.seen(handle, source, times).await?.unwrap_or(clobber::Seen { mtime: None, size });
+                let there = far.seen(handle, &target, times).await?;
+                if let Some(skip) = clobber::judged(clobber, &target, seen, there, log) {
+                    return Ok(Some(stays(clobber::skipped(source, &target, skip))));
+                }
+            }
             log.verbose(&format!("{source}: a rename to {target} on the server, by mv"));
             // Across two file systems, `mv` copies and removes by itself.
-            far.rename(handle, source, &target, &Stamp::default(), Keep::default(), log).await?;
-            Ok(Some(renamed(source, &target, size, false)))
+            let placed =
+                far.rename(handle, source, &target, &Stamp::default(), Keep::default(), clobber, false, log).await?;
+            if let Some(skip) = placed.skipped {
+                return Ok(Some(stays(clobber::skipped(source, &target, skip))));
+            }
+            Ok(Some(Done { backup: placed.backup, ..renamed(source, &target, size, false) }))
         }
     }
 }
@@ -164,12 +205,17 @@ fn renamed(source: &str, target: &str, bytes: u64, not_atomic: bool) -> Done {
         source: source.into(),
         destination: target.into(),
         bytes,
-        sum: None,
         verified_by: "rename".into(),
         not_atomic,
         removed: Some(true),
-        delta: None,
+        ..Done::default()
     }
+}
+
+/// A source that did not move, as `--no-clobber` or `--update` asks: it
+/// stays where it is.
+fn stays(kept: Done) -> Done {
+    Done { removed: Some(false), ..kept }
 }
 
 fn not_a_file(source: &str) -> Failed {

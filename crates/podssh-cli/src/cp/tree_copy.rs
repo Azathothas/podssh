@@ -10,7 +10,8 @@
 //! goes on, and the exit is then not zero. `--dry-run` says each action and
 //! changes nothing. The files wait, then go K at once (`--parallel K`, else
 //! the default of T-474), before each directory's mode is set (T-297). The
-//! steps on one name each are in `tree_items.rs`.
+//! steps on one name each are in `tree_items.rs`. `--no-clobber`, `--update`
+//! and `--backup` (T-473, `clobber.rs`) take each file, link and dry run.
 
 use std::path::{Path, PathBuf};
 use std::sync::Arc;
@@ -18,6 +19,7 @@ use std::sync::Arc;
 use podssh_ssh::sftp::{FileAttributes, Sftp};
 use podssh_ssh::Log;
 
+use super::clobber::{self, Skip};
 use super::gauge;
 use super::link::{Link, Road};
 use super::meta;
@@ -25,10 +27,10 @@ use super::mirror::{refused_root, Pending};
 use super::operand::{Operand, Remote};
 use super::pipe::Shape;
 use super::session::shown;
-use super::transfer::{self, Done, Failed, Side};
+use super::transfer::{self, Failed, Side};
 use super::tree::{self, Item, Special, Tree};
 use super::tree_conn::{flush, Conn, Linked, Waiting};
-use super::tree_items::{far_link, make_link, remove_far, remove_local, same_far};
+use super::tree_items::{far_link, make_link, remove_far, remove_local, same_far, second_name};
 use super::Outcome;
 use crate::exitmap::Fault;
 
@@ -83,6 +85,13 @@ fn skipped(outcome: &mut Outcome, log: &Log, from: String, kind: Special, dry_ru
     }
     log.info(&format!("{from}: not copied: {}", kind.noun()));
     outcome.skipped.push((from, kind.noun()));
+}
+
+/// A link of the tree whose name the run left as it was (T-473): said once,
+/// and a skip.
+fn kept(outcome: &mut Outcome, log: &Log, from: String, target: &str, skip: Skip) {
+    log.info(&clobber::there(target));
+    outcome.skipped.push((from, skip.why()));
 }
 
 /// The files of a tree once walked, into the run's count, which its
@@ -200,26 +209,14 @@ async fn up(
                         continue;
                     }
                     let Some(sftp) = conn.sftp() else { return };
-                    match meta::hard_link(sftp, &first, &target, log).await {
-                        Ok(true) => {
+                    match second_name(sftp, &from, (first.as_str(), bytes, sum), &target, shape.clobber, log).await {
+                        Ok(Some(done)) => {
                             gauge::passed();
-                            let verified_by = format!("a hard link to {first}");
-                            let not_atomic = false;
-                            let (source, destination, removed) = (from, target, None);
-                            outcome.done.push(Done {
-                                source,
-                                destination,
-                                bytes,
-                                sum,
-                                verified_by,
-                                not_atomic,
-                                removed,
-                                delta: None,
-                            });
+                            outcome.add(done);
                             continue;
                         }
                         // No hardlink@openssh.com: a copy.
-                        Ok(false) => {}
+                        Ok(None) => {}
                         Err(f) => {
                             clean = false;
                             failed(outcome, log, from, f);
@@ -231,7 +228,7 @@ async fn up(
                     if let Some(id) = id {
                         linked.entry(id).or_insert((target.clone(), 0, None));
                     }
-                    outcome.planned.push(("copy", from, target));
+                    outcome.planned.extend(clobber::dry_up(conn.sftp(), from, target, shape.clobber).await);
                     continue;
                 }
                 let to = Operand::Remote(Remote { path: target, ..dst.clone() });
@@ -241,10 +238,11 @@ async fn up(
                 }
                 match conn.file(&Operand::Local(from.clone()), &to, log, shape).await {
                     Ok(done) => {
-                        if let Some(id) = id {
+                        // A file left out has no copy for its other names (T-473).
+                        if let (Some(id), None) = (id, done.skipped) {
                             linked.entry(id).or_insert((done.destination.clone(), done.bytes, done.sum));
                         }
-                        outcome.done.push(done)
+                        outcome.add(done)
                     }
                     Err(f) => {
                         clean = false;
@@ -262,9 +260,15 @@ async fn up(
                     continue;
                 }
                 let Some(sftp) = conn.sftp() else { return };
-                if let Err(e) = far_link(sftp, &target, names).await {
-                    clean = false;
-                    failed(outcome, log, target, transfer::from_sftp(e, Side::Destination));
+                match far_link(sftp, &target, names, shape.clobber).await {
+                    Ok(None) => {}
+                    Ok(Some(skip)) => {
+                        kept(outcome, log, local_join(Path::new(src), rel).display().to_string(), &target, skip)
+                    }
+                    Err(e) => {
+                        clean = false;
+                        failed(outcome, log, target, transfer::from_sftp(e, Side::Destination));
+                    }
                 }
             }
             Item::Special { rel, kind } => {
@@ -298,7 +302,8 @@ async fn up(
     // of the run, once each copy of it succeeded (T-144).
     if tree.delete {
         if let Some(sftp) = conn.sftp() {
-            let target = tree::walk_far(sftp, &root, &Tree { follow: false, ..tree.clone() }, false).await;
+            let mut target = tree::walk_far(sftp, &root, &Tree { follow: false, ..tree.clone() }, false).await;
+            clobber::protect(&mut target, shape.clobber);
             for item in tree::to_delete(&items, &target) {
                 let path = remote_join(&root, tree::rel_of(&item));
                 if tree.dry_run {
@@ -309,9 +314,10 @@ async fn up(
             }
         }
     }
-    // mv -r: the source goes once each item of it is copied.
+    // mv -r: the source goes once each item of it is copied; what the run
+    // left out stays (T-473).
     if moving && clean && !tree.dry_run {
-        remove_local(src, &items, log);
+        remove_local(src, &items, &outcome.left(), log);
     }
 }
 
@@ -371,7 +377,7 @@ async fn down(
                 let from = remote_join(&src.path, rel);
                 let target = local_join(&root, rel).display().to_string();
                 if tree.dry_run {
-                    outcome.planned.push(("copy", from, target));
+                    outcome.planned.extend(clobber::dry_down(conn.sftp(), from, target, shape.clobber).await);
                     continue;
                 }
                 let source = Operand::Remote(Remote { path: from.clone(), ..src.clone() });
@@ -380,7 +386,7 @@ async fn down(
                     continue;
                 }
                 match conn.file(&source, &Operand::Local(target), log, shape).await {
-                    Ok(done) => outcome.done.push(done),
+                    Ok(done) => outcome.add(done),
                     Err(f) => {
                         clean = false;
                         failed(outcome, log, from, f);
@@ -396,11 +402,17 @@ async fn down(
                     outcome.planned.push(("link", target.display().to_string(), names.clone()));
                     continue;
                 }
-                if let Err(e) = make_link(&target, names) {
-                    clean = false;
-                    let shown = target.display().to_string();
-                    let why = format!("{shown}: the link to {names} is not made: {e}");
-                    failed(outcome, log, shown, Failed::new(Fault::CantCreate, why));
+                match make_link(&target, names, shape.clobber) {
+                    Ok(None) => {}
+                    Ok(Some(skip)) => {
+                        kept(outcome, log, remote_join(&src.path, rel), &target.display().to_string(), skip)
+                    }
+                    Err(e) => {
+                        clean = false;
+                        let shown = target.display().to_string();
+                        let why = format!("{shown}: the link to {names} is not made: {e}");
+                        failed(outcome, log, shown, Failed::new(Fault::CantCreate, why));
+                    }
                 }
             }
             Item::Special { rel, kind } => skipped(outcome, log, remote_join(&src.path, rel), *kind, tree.dry_run),
@@ -429,6 +441,7 @@ async fn down(
     if tree.delete && root.is_dir() {
         let mut target = tree::walk_local(&root, &Tree { follow: false, ..tree.clone() });
         target.retain(|i| !tree::not_copied(i));
+        clobber::protect(&mut target, shape.clobber);
         for item in tree::to_delete(&items, &target) {
             let path = local_join(&root, tree::rel_of(&item)).display().to_string();
             if tree.dry_run {
@@ -440,7 +453,7 @@ async fn down(
     }
     if moving && clean && !tree.dry_run {
         if let Some(sftp) = conn.sftp() {
-            remove_far(sftp, &src.path, &items, log).await;
+            remove_far(sftp, &src.path, &items, &outcome.left(), log).await;
         }
     }
 }

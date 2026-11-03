@@ -6,14 +6,15 @@
 use podssh_ssh::sftp::Pipeline;
 
 use super::chunks::MOST_TASKS;
+use super::clobber::Clobber;
 use super::meta::Keep;
 
 /// How a copy goes: the requests in flight of each SFTP session (T-140), the
 /// files at once of a run (T-297, T-474), the tasks of one file, each with a
 /// session of its own (T-141), whether only the changed blocks go (T-142),
 /// what it keeps besides the bytes (T-146), whether it writes into the
-/// destination itself (T-147), and the mode that a copy up gives the far
-/// file (T-149).
+/// destination itself (T-147), the mode that a copy up gives the far file
+/// (T-149), and what becomes of a destination that is there (T-473).
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub struct Shape {
     pub pipe: Pipeline,
@@ -33,6 +34,9 @@ pub struct Shape {
     /// local source's: `podssh edit` keeps the far file's mode. Set on the
     /// temporary file before the rename, so the name never has another mode.
     pub mode: Option<u32>,
+    /// What becomes of a destination that is there: `--no-clobber`,
+    /// `--update` and `--backup` (T-473); replaced by default.
+    pub clobber: Clobber,
 }
 
 impl Default for Shape {
@@ -45,6 +49,7 @@ impl Default for Shape {
             keep: Keep::default(),
             inplace: false,
             mode: None,
+            clobber: Clobber::default(),
         }
     }
 }

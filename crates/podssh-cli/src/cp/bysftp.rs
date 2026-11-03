@@ -13,6 +13,7 @@ use podssh_ssh::{Connection, Log};
 use sha2::{Digest, Sha256};
 
 use super::chunks;
+use super::clobber::{self, Seen};
 use super::delta;
 use super::digest::{self, Sum};
 use super::finish::{finish_up, Ends};
@@ -75,6 +76,12 @@ pub async fn up(
     };
     if shape.inplace {
         in_place::check_far(sftp, &target).await?;
+    }
+    // --no-clobber and --update look before any byte goes (T-473).
+    let seen = Seen::of_local(&before);
+    let resumed = progress.temp.is_some();
+    if let Some(kept) = clobber::before_far(sftp, source, &target, seen, shape.clobber, resumed, log).await? {
+        return Ok(kept);
     }
     // Over an older version, only the blocks that changed (T-142); a copy
     // that broke goes on where it was instead. A full copy says why (T-470).
@@ -204,7 +211,8 @@ pub async fn up(
     .await;
     let copied = match copied {
         Ok((offset, sum)) => {
-            let ends = Ends { offset, sum, keep: shape.keep, holes, inplace: shape.inplace, mode: shape.mode };
+            let (keep, inplace, mode, clobber) = (shape.keep, shape.inplace, shape.mode, shape.clobber);
+            let ends = Ends { offset, sum, keep, holes, inplace, mode, clobber };
             finish_up(sftp, handle, &file, local, source, &temp, &target, &before, ends, log).await
         }
         Err(failed) => Err(failed),
@@ -264,6 +272,11 @@ pub async fn down(
     if shape.inplace {
         in_place::check_local(&target)?;
     }
+    // --no-clobber and --update look before any byte goes (T-473).
+    let resumed = progress.temp.is_some();
+    if let Some(kept) = clobber::before_local(source, &target, Seen::of_far(&attrs), shape.clobber, resumed, log)? {
+        return Ok(kept);
+    }
     // Over an older version here, only the blocks that changed (T-142); a
     // full copy says why (T-470).
     let stamp = Stamp::of_far(&attrs, 0o777);
@@ -316,20 +329,7 @@ pub async fn down(
             let (far, how) = transfer::far_digest(handle, sftp, source, size, Side::Source).await?;
             transfer::compare(&sum, &far, &how, source)?;
             meta::set_local(&temp, &stamp, shape.keep, log)?;
-            if !shape.inplace {
-                std::fs::rename(&temp, &target)
-                    .map_err(|e| failed(Fault::CantCreate, format!("{}: {e}", target.display())))?;
-            }
-            return Ok(Done {
-                source: source.into(),
-                destination: target.display().to_string(),
-                bytes: size,
-                sum: Some(sum),
-                verified_by: how,
-                not_atomic: false,
-                removed: None,
-                delta: None,
-            });
+            return clobber::done_here(source, &temp, &target, size, sum, how, shape, log);
         }
         progress.begin_sequential();
         let mut hasher = Sha256::new();
@@ -429,20 +429,7 @@ pub async fn down(
         };
         transfer::compare(&sum, &far, &how, source)?;
         meta::set_local(&temp, &stamp, shape.keep, log)?;
-        if !shape.inplace {
-            let renamed = std::fs::rename(&temp, &target);
-            renamed.map_err(|e| failed(Fault::CantCreate, format!("{}: {e}", target.display())))?;
-        }
-        Ok(Done {
-            source: source.into(),
-            destination: target.display().to_string(),
-            bytes: offset,
-            sum: Some(sum),
-            verified_by: how,
-            not_atomic: false,
-            removed: None,
-            delta: None,
-        })
+        clobber::done_here(source, &temp, &target, offset, sum, how, shape, log)
     }
     .await;
     drop(out);

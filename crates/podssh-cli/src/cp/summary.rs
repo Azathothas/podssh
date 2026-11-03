@@ -18,7 +18,9 @@ pub struct Counts {
     pub bytes: u64,
     /// The files that `podssh run` found as they are here.
     pub unchanged: usize,
-    /// The items skipped by design: a device, a FIFO or a socket (T-476).
+    /// The items skipped by design: a device, a FIFO or a socket (T-476);
+    /// and the files whose destination stays, as `--no-clobber` or
+    /// `--update` asks (T-473).
     pub skipped: usize,
     /// Each failure, said when it came.
     pub failed: usize,

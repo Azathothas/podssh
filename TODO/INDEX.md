@@ -62,15 +62,15 @@ repository and CI).
 
 ## Counts
 
-**567 entries: 105 open, 5 partial, 16 blocked, 441 done.**
+**567 entries: 104 open, 5 partial, 16 blocked, 442 done.**
 
 | Priority | open | partial | blocked | done | total |
 | --- | --- | --- | --- | --- | --- |
 | P0 | 0 | 0 | 0 | 1 | 1 |
 | P1 | 0 | 1 | 0 | 62 | 63 |
 | P2 | 26 | 4 | 14 | 214 | 258 |
-| P3 | 79 | 0 | 2 | 164 | 245 |
-| **All** | 105 | 5 | 16 | 441 | 567 |
+| P3 | 78 | 0 | 2 | 165 | 245 |
+| **All** | 104 | 5 | 16 | 442 | 567 |
 
 ## Entries
 
@@ -540,7 +540,7 @@ repository and CI).
 | [T-470](copy.md) | P2 | S | none | defect | done | `cp --delta` sends the whole file with no word when the server cannot take a delta |
 | [T-471](copy.md) | P1 | M | none | defect | done | `sftp`'s `ls -l` is not OpenSSH's long form, and five switches of its `ls` do nothing |
 | [T-472](copy.md) | P2 | M | none | feature | done | `cp`, `mv` and `run` say nothing of what they did without `-v`, and nothing in a pipe while a copy runs |
-| [T-473](copy.md) | P3 | M | none | feature | open | `cp` and `mv` have no `--no-clobber`, `--update` or `--backup` |
+| [T-473](copy.md) | P3 | M | none | feature | done | `cp` and `mv` have no `--no-clobber`, `--update` or `--backup` |
 | [T-474](copy.md) | P2 | S | none | feature | done | `cp` copies many small files one at a time unless `--parallel` is given |
 | [T-475](multi.md) | P3 | S | none | feature | open | `podssh run` has no `--dry-run`, and its help names neither `.podsshignore` nor the paths that never go |
 | [T-476](copy.md) | P2 | S | none | defect | done | `cp -r` says its first failure twice, and exits 66 for a device, FIFO or socket that it skips by design |
