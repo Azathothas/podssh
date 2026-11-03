@@ -48,6 +48,9 @@ SHORT = {"made": False}
 # node learns of the loss only from the relay's close, so such a frame is
 # said apart. The socket still gets 1003, as on the live relay.
 IN_FLIGHT = 2.0
+# lateclose:SECONDS (T-421): the relay tells the node of an operator's lost
+# link SECONDS late, as a relay far from its node does, so that the node's
+# frames for that session are sure to come after the relay forgot it.
 # FAKE_RELAY_DEBUG=1: each frame of the reverse road, on stderr.
 DEBUG = bool(os.environ.get("FAKE_RELAY_DEBUG"))
 
@@ -352,5 +355,14 @@ async def operator(pair, socket):
         pair.sessions.pop(sid, None)
         if lost:
             pair.lost[sid] = time.monotonic()
-        if pair.node is not None:
+        if lost and MODE.startswith("lateclose:"):
+            asyncio.ensure_future(close_late(pair, sid, float(MODE.split(":", 1)[1])))
+        elif pair.node is not None:
             await pair.node.text({"type": "close", "id": sid})
+
+
+async def close_late(pair, sid, seconds):
+    """The close of a lost link, `seconds` late (lateclose)."""
+    await asyncio.sleep(seconds)
+    if pair.node is not None and not pair.node.closed:
+        await pair.node.text({"type": "close", "id": sid})

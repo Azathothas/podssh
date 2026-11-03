@@ -4230,7 +4230,7 @@ A defect: `ssh node://` is the documented way to log in to a node.
 - Read: the tester's lines show the layer's session open and its features (`replay.v1`,
   `heartbeat.v1`, `move.v1`), so the relay, the pair and the layer's handshake worked; a roost
   checks sshd's version line on each session's connection
-  (`crates/podssh-cli/src/man/notes_pair.rs:35-37`), so the node had sshd's line.
+  (`crates/podssh-cli/src/man/notes_pair.rs:39-41`), so the node had sshd's line.
 - Read: no test runs `ssh node://` with a client on Windows: `relay-live.yml` runs `node_live` on
   Linux alone (`.github/workflows/relay-live.yml:37`), and `node_live`'s `ssh_to_a_node`
   (`crates/podssh-cli/tests/node_live.rs:141-142`) serves railway.new:22 where no sshd runs, so a

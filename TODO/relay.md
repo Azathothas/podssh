@@ -2404,7 +2404,7 @@ socket with 1003 for a frame that was on its way when an operator's link was los
 **Milestone:** M10
 **Priority:** P3
 **Effort:** S
-**Status:** open
+**Status:** done
 
 ## Problem
 
@@ -2425,6 +2425,28 @@ session of the node is cut too, and resumes only where the layer carries it (T-4
 The relay drops a frame of the node for an id that it closed in the last few seconds, as a frame
 in flight, and keeps 1003 for an id that it never gave or closed long before. podssh needs no
 change: its node already drops what comes for a closed session.
+
+## Decision
+
+2026-11-03, the main session (each call with the alternatives that lost):
+
+1. The offline case of the Correction's Prove is a suite of its own,
+   `crates/podssh-cli/tests/node_cut.rs`, not a case of `node_moves`: two relays (podssh's role,
+   the strict stand-in), each with two sessions and a proxy that cuts one, where `node_moves`
+   keeps its one move. Lost: a case in `node_moves`, which would mix a move and a cut in one file.
+2. The stand-in tells the node of a lost link a second late (its mode `lateclose:1`,
+   `scripts/fake_reverse.py`), as a relay far from its node, so that the node's frames for that
+   session come after the relay forgot it each time: with the close at once, the race came in one
+   run of two here. Lost: the close at once, which leaves the check to chance; a larger bulk,
+   which makes the race likelier and never sure.
+3. The planted defect (the backoff again at the first connection after a fault) is caught by the
+   node's line, `connecting again at once` after the `1003`, not by the stall alone: the backoff
+   adds 0.5 s to 1.5 s, less than the margin of the 3 s bound on a loaded runner. The bound stays,
+   as the Correction's Prove says.
+4. The role's case makes no race of its own on purpose: the role's grace has its contract test
+   (`crates/podssh-relay/tests/relay_serve_contract.rs`), which sends such a frame each time, and
+   here the case says that no `1003` reached the node when the race came or not. Lost: a setting
+   of the role to tell its nodes late, a surface of the binary for a test alone.
 
 ## Prove
 
@@ -2450,7 +2472,7 @@ Q63 (2026-11-02, `docs/decisions.md`; docs/mesh.md, section 4) the relay is a ro
 itself, so the relay's change of the Approach above is podssh's, in its relay role's reverse road
 (T-427): a frame of the node for an id that it closed in the last few seconds is dropped as one
 in flight, and `1003` stays for an id that it never gave or closed long before. The stand-in
-already tells the two apart (`scripts/fake_reverse.py:286-298`), with a grace of 2 s.
+already tells the two apart (`scripts/fake_reverse.py:289-301`), with a grace of 2 s.
 
 What the client does (the research of 2026-11-02 on the client's side), where the default
 deployment still closes the socket: make the cut cheap. A 1003 is no exit since T-409, and the
@@ -2486,6 +2508,43 @@ comes, and the other session's longest stall is under 3 s. Planted: the backoff 
 first connection again; the stall check fails. Live, from GitHub's network (`relay-live.yml`
 with `test=node_live`), against `podssh relay serve` on the runner: the node's other session goes
 on, and no 1003 reaches it.
+
+## Done
+
+2026-11-03. Items 1, 2 and 4 of the Correction's Approach were in place: the role's grace of 2 s
+for a frame of a session that it closed (`IN_FLIGHT`, `crates/podssh-relay/src/serve/reverse/pairs.rs`,
+dropped and counted, with its contract test), the node's first connection again at once after a
+socket that served (T-255, `again_at_once`), and item 19 of `docs/relay-operator.md`. Done now:
+
+- Item 3: the manual's note of the node (`crates/podssh-cli/src/man/notes_pair.rs`) says that on
+  the default relay one operator's lost link can end each `--plain` session of the node, that
+  `podssh relay serve` drops such a frame, that the layer resumes its sessions, and that the node
+  connects again at once.
+- The offline case of the Prove (`crates/podssh-cli/tests/node_cut.rs`, Decision 1): two sessions
+  of the layer through one node, 24 MiB and 48 MiB down from the tests' SSH server; the first
+  through `scripts/fake-proxy.py`, which resets its link with RST at 6 MiB, the second straight to
+  the relay and in its middle then. Each ends with exit 0 and each byte (`0x5a` each), the cut
+  resumes, and the second never waits 3 s. Against podssh's relay role: no `1003` reaches the node.
+  Against the stand-in in its mode `lateclose:1` (Decision 2): the `1003` comes, and the node's
+  line says `connecting again at once`. The harness lets a test that makes the race on purpose
+  claim the stand-in's lines of an unknown id (`Session::claim_unknown_ids`), which fail each other
+  test's end.
+
+Measured, 2026-11-03, here:
+
+- `cargo test -p podssh-cli --test node_cut`: 2 passed (with the harness's own, 3), five runs in a
+  row; the longest wait of the session that went on: 0.38 s to 0.51 s through the role, 0.97 s to
+  1.54 s through the stand-in, whose 1003 came in each run. Each run takes about 90 s.
+- Planted (`sh scripts/plant-each.sh --here t421-backoff-after-a-fault`): caught, "the node went
+  again at once: podssh node: lab: the relay closed the node for a fault of this node: 1003 unknown
+  session id; connecting again in 1.1 s".
+- `cargo test -p podssh-cli --test node_moves`: passed with the harness's change; the manual
+  (`--lib man::` 40, `man_page`); `cargo clippy -p podssh-cli --all-targets -D warnings` and
+  rustfmt: clean.
+
+Waits: the Prove's live run from GitHub's network against `podssh relay serve` on the runner
+(`relay-live.yml` with `test=node_live`, whose suite has no cut of an operator's link; with the
+checks of the release, Q88).
 
 # T-563: The relay's record forgets a host that opens, and one road's failure moves the host on each road
 

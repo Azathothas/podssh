@@ -1,0 +1,13 @@
+diff --git a/crates/podssh-relay/src/reverse/node.rs b/crates/podssh-relay/src/reverse/node.rs
+--- a/crates/podssh-relay/src/reverse/node.rs
++++ b/crates/podssh-relay/src/reverse/node.rs
+@@ -138,7 +138,8 @@ pub const AT_ONCE_EVERY: Duration = Duration::from_secs(10);
+ /// and a fault of one frame are no overload; and once each [`AT_ONCE_EVERY`]
+ /// at most, `last` being when it last went at once.
+ pub fn again_at_once(served: bool, last: Option<Instant>, now: Instant) -> bool {
+-    served && last.is_none_or(|at| now.saturating_duration_since(at) >= AT_ONCE_EVERY)
++    let _ = (served, last, now);
++    false
+ }
+ 
+ /// How a socket that served ended, in the words of the node's line: the

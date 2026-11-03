@@ -26,7 +26,11 @@ pub(super) const NODE: &[&str] = &[
      --no-resume, and the same flag of ssh, cp, scp, sftp, proxy and pipe) gets a session that the node \
      forgets as its link ends, which holds nothing after. podssh ssh node:// and podssh operator speak the layer. For an \
      operator that does not, --plain carries each session's bytes as they are, TARGET dialled at the \
-     start of the session: a lost link then ends the session. The node's first line names its mode.",
+     start of the session: a lost link then ends the session. On the default relay, which closes the \
+     node's whole socket with 1003 for a frame of a session whose operator's link it lost (podssh relay \
+     serve drops such a frame), one operator's lost link can end each --plain session of the node, where \
+     the layer resumes each of its sessions; the node connects again at once after such a close (T-421). \
+     The node's first line names its mode.",
     "A roost: with --sshd, the node serves a standard sshd, TARGET, or 127.0.0.1:22 when no TARGET is \
      given. A normal server gets the resumable layer, and with --iroh the iroh road, this way: the roost \
      owns the TCP connection to sshd. Before the node goes online, it dials each TARGET and reads its \

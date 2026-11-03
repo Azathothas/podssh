@@ -1197,7 +1197,7 @@ The Premise is stale in one sentence: the stand-in serves more than "the forward
 `/v1/mint` and `/health` only". At `scripts/fake-relay.py:157-161` it also serves `/relays.json`
 and `/trace`, and `scripts/fake-relay.py:143` hands the whole reverse road to
 `scripts/fake_reverse.py`, which is as strict as the live relay for an id that it forgot, and
-tells a frame in flight apart (`scripts/fake_reverse.py:286-298`). The rest holds; the ruling of
+tells a frame in flight apart (`scripts/fake_reverse.py:289-301`). The rest holds; the ruling of
 2026-10-08 that it cites is changed.
 
 By Q63 (2026-11-02, `docs/decisions.md`; the design is docs/mesh.md, section 4) the relay is a
@@ -8105,7 +8105,7 @@ as a firewall or a wrong port; it never says that this host has no sshd, or what
   worked reaches the check of the version line, whose refusal names `--sshd` (`:29-35`).
 - Read: the row of `--sshd` says that each TARGET "is a standard sshd"
   (`crates/podssh-cli/src/flags/node.rs:126-127`), and the manual that the node "serves a standard
-  sshd" (`crates/podssh-cli/src/man/notes_pair.rs:30`); neither says that it must run already.
+  sshd" (`crates/podssh-cli/src/man/notes_pair.rs:34`); neither says that it must run already.
 - Read: no line of `doctor` names sshd (searched in `crates/podssh-cli/src/doctor/` at `3bb42ea`).
 - Read: T-481 (open) names the command that installs tmux, from the package managers that a probe
   finds on the far host (`apk`, `apt-get`, `dnf`, `yum`, `zypper`, `pacman`, `brew`, `pkg`); its

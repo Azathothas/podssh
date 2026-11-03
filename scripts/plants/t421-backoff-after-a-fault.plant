@@ -1,0 +1,9 @@
+# T-421: the node's first connection again after a socket that served, closed
+# by the relay for a fault of one frame, waits the backoff again, as before
+# T-255; each other session of the node then waits on its layer that long,
+# and the node's line says "connecting again in", which the test refuses.
+ENTRY=T-421
+GROUP=cli-tests
+EXPECT='the node went again at once'
+RUN='cargo test --locked -p podssh-cli --test node_cut -- a_strict'
+LIMIT=2400

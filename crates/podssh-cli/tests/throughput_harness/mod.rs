@@ -76,6 +76,9 @@ pub struct Session {
     pub connections: Arc<std::sync::atomic::AtomicUsize>,
     children: Mutex<Vec<Child>>,
     pairs: Mutex<Vec<String>>,
+    /// A test that makes the race of an unknown id on purpose reads its lines
+    /// itself (T-421): the session's end does not fail for them.
+    claimed: AtomicBool,
     #[cfg(feature = "iroh-test")]
     pub relays: Mutex<Vec<podssh_iroh::test_relay::TestRelay>>,
 }
@@ -101,9 +104,18 @@ impl Session {
             connections,
             children: Mutex::new(Vec::new()),
             pairs: Mutex::new(Vec::new()),
+            claimed: AtomicBool::new(false),
             #[cfg(feature = "iroh-test")]
             relays: Mutex::new(Vec::new()),
         }
+    }
+
+    /// The relay's lines so far of a frame of the node for an unknown id, for
+    /// a test that makes that race on purpose (T-421), which checks them
+    /// itself: from here on they do not fail the session's end.
+    pub fn claim_unknown_ids(&self) -> Vec<String> {
+        self.claimed.store(true, Ordering::Relaxed);
+        unknown_ids(&self.home)
     }
 
     /// `podssh ARGS` with HOME and the cache under the scratch directory.
@@ -158,7 +170,7 @@ impl Drop for Session {
         // A frame of the node for an id that the relay forgot ends the
         // node's socket on the live relay; a test whose node sent one hides
         // a race that only the live relay would show (T-412).
-        if !faults.is_empty() && !std::thread::panicking() {
+        if !faults.is_empty() && !self.claimed.load(Ordering::Relaxed) && !std::thread::panicking() {
             panic!("the node sent frames of ids that the stand-in relay did not know: {faults:?}");
         }
     }
