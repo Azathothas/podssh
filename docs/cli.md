@@ -2901,6 +2901,19 @@ commands. The rules behind them:
   `pipe` writes a node) is refused with the three forms of a node's
   ProxyCommand: `proxy node://NAME`, `operator NAME` and `pipe - node:NAME`;
   `node:22`, one word, stays the host `node` and its port.
+- **`--ConnectTimeout SECONDS` of `operator` and `proxy`** (T-589, GitHub
+  #115), `ssh`'s flag, its meaning taken to a pipe: one bound, 1 to 86400 s,
+  on the time from the start to the session's open, never on the bytes after
+  it. For `proxy`, the relay's answer (each host's dial, TLS, the upgrade,
+  the relay's dial of the target) or that of the road in its place; for
+  `operator` and `node://`, the relay's answer, the node's `ready`, its first
+  bytes, and the handshakes of the layer and of the channel. Each step keeps
+  its own limit too, and the first limit to pass ends the wait. A watch on a
+  thread of its own ends the run past the bound: one line names the step
+  that waited (`no relay host answered within 25 s (--ConnectTimeout)`), and
+  the exit is 69; a session that opened is never cut, as the road says its
+  open first. 0 is refused (64), and so is `-o ConnectTimeout=N`, as these
+  verbs take no `-o`; with none, each wait is as before.
 - **`node --iroh` needs no pair** (T-163, a build with the feature
   `iroh`). Its key is the node's key of each road (`--iroh-key` and
   `--iroh-ephemeral` are `--key` and `--ephemeral-key` by their earlier
@@ -3268,6 +3281,13 @@ own, and the forward road starts at the node.
   (a keyword of a session, such as `RequestTTY`, is refused) and `--direct`;
   `node:` takes the pair of the label or of `--pair-file`; `iroh:` the key
   of `--iroh-key` and the relays of `--iroh-relay`.
+- **`--ConnectTimeout SECONDS` bounds the open of a `node:` or `relay:`
+  side** (T-589), as `operator` and `proxy` bound theirs, the other side's
+  open with it. Its id is `ssh`'s, so each hop of an `ssh:` side takes it as
+  its own ConnectTimeout too, and alone where no side is `node:` or
+  `relay:`. A listening side refuses it (64), as each client opens a road
+  long after the start, and so does a pipe with no `node:`, `relay:` or
+  `ssh:` side.
 - **A serial line is a stream too** (the operator's ruling of 2026-10-08,
   T-181). `serial:PATH[,BAUD]` opens a device such as `/dev/ttyUSB0` at
   BAUD, one of the speeds that Linux names from 1200 to 4000000 (115200 when

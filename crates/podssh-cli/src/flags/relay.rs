@@ -68,6 +68,8 @@ pub const PROXY_FLAGS: &[FlagRow] = &[
     // A node by its name, as operator reaches it (T-587).
     super::node::PROXY_PAIR_FILE, super::node::PROXY_NODE_KEY, super::node::PROXY_NO_E2E,
     super::node::PROXY_DEADLINE,
+    // The bound on the open of each road (T-589).
+    super::operator::PROXY_CONNECT_TIMEOUT,
 ];
 
 /// `doctor` checks the relay path `ssh` and `proxy` would take, so it takes

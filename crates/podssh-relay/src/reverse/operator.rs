@@ -48,6 +48,9 @@ pub struct OperatorLimits {
     /// an id that it forgot (`1003 unknown session id`, T-388). `None`: the
     /// Close goes at once, as a plain session's must.
     pub node_ends: Option<Duration>,
+    /// Called as `ready` comes, before any byte: a caller's bound on the
+    /// open learns its step (T-589).
+    pub on_ready: Option<fn()>,
 }
 
 impl Default for OperatorLimits {
@@ -58,6 +61,7 @@ impl Default for OperatorLimits {
             ping_every: podssh_ws::LIVENESS_EVERY,
             pings_allowed: podssh_ws::LIVENESS_ALLOWED,
             node_ends: None,
+            on_ready: None,
         }
     }
 }
@@ -211,11 +215,14 @@ where
                 let _ = session.send_close(1000, "").await;
                 return Outcome::NeverReady {
                     code: None,
-                    reason: format!("the node did not answer within {} s", limits.ready_limit.as_secs()),
+                    reason: format!("the node did not answer ready within {} s", limits.ready_limit.as_secs()),
                 };
             }
             dead = &mut liveness => return Outcome::NeverReady { code: None, reason: dead.to_string() },
         }
+    }
+    if let Some(ready) = limits.on_ready {
+        ready();
     }
 
     // `ready`: the queue first, in order, then both ways.

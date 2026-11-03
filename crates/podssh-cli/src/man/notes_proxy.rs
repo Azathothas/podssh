@@ -52,6 +52,13 @@ pub const PROXY: &[&str] = &[
      (64). A word that starts with node: and is no node://NAME is refused with the three forms of a node's \
      ProxyCommand: podssh proxy node://NAME, podssh operator NAME and podssh pipe - node:NAME; node:PORT stays \
      the host node and its port.",
+    "--ConnectTimeout SECONDS, 1 to 86400, bounds the time from the start to the session's open, on each \
+     road: the relay's answer (each host's dial, its TLS, the upgrade, and its dial of HOST), or the answer of \
+     the road in the relay's place, and for node://NAME the steps of podssh operator. Each step keeps its own \
+     limit too, and the first limit to pass ends the wait. Past the bound one line names the step that waited, \
+     as: no relay host answered within 25 s (--ConnectTimeout), and the exit is 69. The bytes after the open \
+     are never bounded: a pipe may wait. proxy takes no -o, so -o ConnectTimeout=N is refused (64); 0 is \
+     refused too.",
     "podssh proxy --exit NAME HOST PORT carries the pipe from NAME, a node of your net that lends its egress \
      (see podssh node --exit and podssh exit), in place of the relay: the node resolves HOST, checks each of its \
      addresses and dials HOST PORT from its own host, over the pair kept under NAME, in the resumable layer and \

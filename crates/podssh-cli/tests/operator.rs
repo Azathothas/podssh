@@ -2,7 +2,9 @@
 //! offline, with a scratch HOME and cache: each refusal and its code, a pair
 //! file of either form, stdout that stays empty, and no token in any output.
 //! Through the stand-in relay of the reverse road (Python and openssl), an
-//! operator that its parent hangs up closes its session (T-586).
+//! operator that its parent hangs up closes its session (T-586), and the
+//! bound of `--ConnectTimeout` ends a wait for `ready` that the relay's own
+//! limit would not (T-589).
 
 mod pair_harness;
 mod ssh_harness;
@@ -97,6 +99,98 @@ fn operator_needs_a_name_and_takes_no_target() {
     assert_eq!(rc, 64, "the node, not the operator, names the TARGET: {err}");
     let (rc, _, err) = podssh(&home, &["operator", "../x"], &[]);
     assert_eq!(rc, 64, "{err}");
+}
+
+/// `--ConnectTimeout` (T-589): 0, or no number, is refused (64) on each of
+/// the three verbs, before a pair is read or anything dialled; `operator`
+/// and `proxy` take no `-o`, so `-o ConnectTimeout=N` stays refused.
+#[test]
+fn a_connect_timeout_of_zero_is_refused() {
+    let home = scratch("op-bound-zero");
+    let cases: [&[&str]; 6] = [
+        &["operator", "lab", "--ConnectTimeout", "0"],
+        &["operator", "lab", "--ConnectTimeout", "soon"],
+        &["proxy", "--ConnectTimeout", "0", "host.example", "22"],
+        &["proxy", "--ConnectTimeout", "0", "node://lab"],
+        &["pipe", "--ConnectTimeout", "0", "stdio", "relay:host.example:22"],
+        &["pipe", "--ConnectTimeout", "0s", "stdio", "node:lab"],
+    ];
+    for args in cases {
+        let (rc, out, err) = podssh(&home, args, &[]);
+        assert_eq!(rc, 64, "{args:?}: {err}");
+        assert!(err.contains("--ConnectTimeout"), "{args:?}: {err}");
+        assert!(!err.contains("PODSSH_OFFLINE"), "{args:?}: refused before any connection: {err}");
+        assert!(out.is_empty(), "{args:?}");
+    }
+    for args in
+        [&["operator", "-o", "ConnectTimeout=3", "lab"][..], &["proxy", "-o", "ConnectTimeout=3", "h", "22"][..]]
+    {
+        let (rc, _, err) = podssh(&home, args, &[]);
+        assert_eq!(rc, 64, "{args:?}: {err}");
+    }
+    // A listening pipe opens a road for each client: no bound of one open.
+    let (rc, _, err) =
+        podssh(&home, &["pipe", "--ConnectTimeout", "3", "tcp-listen:127.0.0.1:0", "relay:host.example:22"], &[]);
+    assert_eq!(rc, 64, "{err}");
+    assert!(err.contains("a listening side"), "{err}");
+}
+
+/// `--ConnectTimeout` (T-589): through a stand-in relay that takes the
+/// operator's socket and never sends `ready` (its mode `noready`), a bound of
+/// 3 s ends the operator within 5 s, with 69 and a line that names `ready`;
+/// with none, its own 20 s for `ready` would pass first. It says that it did
+/// not run where this host cannot run the stand-in.
+#[test]
+fn operator_s_connect_timeout_ends_a_wait_for_ready() {
+    use std::process::Stdio;
+    use std::time::{Duration, Instant};
+
+    let s = throughput_harness::Session::start("op-bound");
+    let cell = match throughput_harness::Cell::fake_relay_mode(&s, "noready", "the stand-in relay, never ready") {
+        Ok(cell) => cell,
+        Err((_, why)) => {
+            eprintln!("did not run: {why}");
+            return;
+        }
+    };
+    let at = |flag: &str| cell.args.iter().position(|a| a == flag).map(|i| cell.args[i + 1].clone()).unwrap();
+    let (relay, ca) = (at("--relay-host"), at("--ca-file"));
+    let command = |args: &[&str]| {
+        let words: Vec<String> = args.iter().map(|a| a.to_string()).collect();
+        // The pin of the stand-in's name goes after the verb.
+        let mut cmd = s.stand_in(&words[..1], &ca);
+        cmd.args(["--relay-addr", "relay-a.test=127.0.0.1"]).args(&words[1..]);
+        cmd
+    };
+    let out = command(&["relay", "pair", "lab", "--relay-host", relay.as_str()]).stdin(Stdio::null()).output().unwrap();
+    assert!(out.status.success(), "podssh relay pair: {}", String::from_utf8_lossy(&out.stderr));
+    let started = Instant::now();
+    let mut operator = command(&["operator", "lab", "--ConnectTimeout", "3"])
+        .stdin(Stdio::piped())
+        .stdout(Stdio::null())
+        .stderr(Stdio::piped())
+        .spawn()
+        .unwrap();
+    // Its stdin stays open: only the bound ends the wait.
+    let _stdin = operator.stdin.take().expect("stdin");
+    let said = throughput_harness::lines_of(&mut operator);
+    let status = loop {
+        if let Some(status) = operator.try_wait().expect("wait") {
+            break status;
+        }
+        if started.elapsed() > Duration::from_secs(60) {
+            let _ = operator.kill();
+            panic!("the operator did not end within 60 s: {:?}", said.try_iter().collect::<Vec<_>>());
+        }
+        std::thread::sleep(Duration::from_millis(20));
+    };
+    let took = started.elapsed();
+    std::thread::sleep(Duration::from_millis(100));
+    let lines: Vec<String> = said.try_iter().collect();
+    assert_eq!(status.code(), Some(69), "{lines:?}");
+    assert!(took < Duration::from_secs(5), "the bound of 3 s ended the wait after {took:?}: {lines:?}");
+    let line = lines.iter().find(|l| l.contains("(--ConnectTimeout)"));
+    assert!(line.is_some_and(|l| l.contains("ready") && l.contains("within 3 s")), "{lines:?}");
 }
 
 /// GitHub #112 (T-586): OpenSSH ends its ProxyCommand with SIGHUP and does

@@ -264,6 +264,14 @@ pub(super) const OPERATOR: &[&str] = &[
      this side was away by the wall clock.",
     "With --pair-file, the pair comes from FILE, or its operator's part alone, as podssh relay pair \
      writes it for the operator, and the store is not used.",
+    "--ConnectTimeout SECONDS, 1 to 86400, bounds the time from the start to the session's open: the \
+     relay's answer, the node's ready, its first bytes, and the handshakes of the layer and of the \
+     end-to-end channel. Each step keeps its own limit too (30 s for the relay, 20 s for ready), and the \
+     first limit to pass ends the wait. Past the bound one line names the step that waited, as: the node \
+     did not answer ready within 25 s (--ConnectTimeout), and the exit is 69. The bytes after the open are \
+     never bounded. A node run as podssh node --plain sends its TARGET's first bytes as they come, and \
+     the bound waits for them too: with a TARGET that speaks second, give none. operator takes no -o, so \
+     -o ConnectTimeout=N is refused (64); 0 is refused too.",
     "The session runs the end-to-end channel (see podssh node). This operator's key is a private file \
      in the cache (client.key, or iroh-client.key of an earlier podssh), or the file of --client-key, \
      made when it is missing, and its fingerprint is said when it is new. The node's key is pinned at \

@@ -27,6 +27,8 @@ pub mod channel;
 pub mod chat;
 pub mod clap_error;
 pub mod config_import;
+// `--ConnectTimeout` of operator, proxy and pipe: one bound on the open (T-589).
+pub mod connect_bound;
 // `podssh containers`: the containers of a host, and --exec (T-190).
 pub mod containers;
 pub mod cp;

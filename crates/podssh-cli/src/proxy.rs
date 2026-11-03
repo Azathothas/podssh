@@ -62,6 +62,9 @@ pub struct ProxyArgs {
     pub idle_warn: Option<String>,
     /// The flags of a pair and of its channel, for `node://NAME` (T-587).
     pub node: crate::proxy_node::Flags,
+    /// `--ConnectTimeout SECONDS`: the bound on the open of each road
+    /// (T-589), unparsed.
+    pub connect_timeout: Option<String>,
 }
 
 /// Run the verb; returns the process exit code. A run that named its
@@ -104,6 +107,14 @@ fn proxy(args: &ProxyArgs, err: &mut dyn Write) -> i32 {
         Ok(lead) => lead,
         Err(why) => return crate::relay_settings::Refusal::usage(why).report("proxy", err),
     };
+    // --ConnectTimeout (T-589): one bound on the open of the road, whose step
+    // each road below names; a node's run keeps its own, in `operator`.
+    let bound = match crate::connect_bound::parse(args.connect_timeout.as_deref()) {
+        Ok(bound) => bound,
+        Err(refusal) => return refusal.report("proxy", err),
+    };
+    let first = format!("{} did not answer", args.target.as_deref().unwrap_or("the road"));
+    let _bound = crate::connect_bound::watch(bound, "proxy", &first);
     // iap:// and eice://, a cloud's own tunnel (T-351).
     if let Some(code) = crate::ssh::cloud::proxy::run(args, err) {
         return code;
@@ -151,6 +162,7 @@ fn proxy(args: &ProxyArgs, err: &mut dyn Write) -> i32 {
     }
     // The exit of the net (T-431): the pipe starts at the node, alone.
     if let Some(name) = args.exit.name.as_deref() {
+        crate::connect_bound::step(format!("the exit {name} did not answer"));
         return match exit_alone(args) {
             Ok(()) => crate::exit::open::run_proxy(&exit_to(name, args), &host, port, err),
             Err(why) => crate::relay_settings::Refusal::usage(why).report("proxy", err),
@@ -162,28 +174,38 @@ fn proxy(args: &ProxyArgs, err: &mut dyn Write) -> i32 {
     // the forwarders, when the command line or the environment names them
     // (T-369): then the relay is not asked.
     if let Some(path) = args.vless.as_deref() {
+        crate::connect_bound::step("no VLESS server answered");
         return crate::vless::pipe::run(path, &host, port, args.ca_file.as_deref(), err);
     }
     match crate::wstunnel::pipe::chosen(args) {
-        Ok(Some(road)) => return crate::wstunnel::pipe::run(&road, &host, port, err),
-        Ok(None) => {}
-        Err(refusal) => return refusal.report("proxy", err),
-    }
-    match crate::via::pipe::chosen(args) {
-        Ok(Some(road)) => return crate::via::pipe::run(&road, &host, port, err),
-        Ok(None) => {}
-        Err(refusal) => return refusal.report("proxy", err),
-    }
-    if let Some(path) = args.shadowsocks.as_deref() {
-        return crate::shadowsocks::pipe::run(path, &host, port, args.ca_file.as_deref(), err);
-    }
-    match crate::forwarder::pipe::chosen(args) {
-        Ok(Some(forwarders)) => {
-            return crate::forwarder::pipe::run(&forwarders, &host, port, args.ca_file.as_deref(), err)
+        Ok(Some(road)) => {
+            crate::connect_bound::step("the wstunnel server did not answer");
+            return crate::wstunnel::pipe::run(&road, &host, port, err);
         }
         Ok(None) => {}
         Err(refusal) => return refusal.report("proxy", err),
     }
+    match crate::via::pipe::chosen(args) {
+        Ok(Some(road)) => {
+            crate::connect_bound::step("the proxy of --via did not answer");
+            return crate::via::pipe::run(&road, &host, port, err);
+        }
+        Ok(None) => {}
+        Err(refusal) => return refusal.report("proxy", err),
+    }
+    if let Some(path) = args.shadowsocks.as_deref() {
+        crate::connect_bound::step("no Shadowsocks server answered");
+        return crate::shadowsocks::pipe::run(path, &host, port, args.ca_file.as_deref(), err);
+    }
+    match crate::forwarder::pipe::chosen(args) {
+        Ok(Some(forwarders)) => {
+            crate::connect_bound::step("no forwarder answered");
+            return crate::forwarder::pipe::run(&forwarders, &host, port, args.ca_file.as_deref(), err);
+        }
+        Ok(None) => {}
+        Err(refusal) => return refusal.report("proxy", err),
+    }
+    crate::connect_bound::step("no relay host answered");
     let relays = match crate::relay_settings::relays(args.relay_host.as_deref(), std::env::var(relay::RELAY_ENV).ok()) {
         Ok(r) => r,
         Err(refusal) => return refusal.report("proxy", err),
@@ -404,6 +426,7 @@ async fn session(
             // answered about the target (T-509).
             let code = sysexit(failure.last());
             let answered = crate::forwarder::fallback::answered(&failure);
+            crate::connect_bound::step("no forwarder answered after the relay");
             let to = (host, port);
             crate::forwarder::fallback::after_relay_pipe(code, answered, road.relays, to, road.trust, err).await
         }

@@ -115,7 +115,11 @@ podssh-cli --test node_live -- --ignored`). Since T-151, `podssh ssh
 node://` sends nothing until the node's first byte, to learn whether the
 node offers the resumable layer ([design.md](design.md), section 5).
 `podssh proxy node://NAME` (T-587) is the same pipe as `podssh operator
-NAME`, by one function, in the form of a node that `ssh` takes.
+NAME`, by one function, in the form of a node that `ssh` takes. With
+`--ConnectTimeout SECONDS` (T-589) one bound covers the operator's socket,
+the node's `ready` (the leg's hook `OperatorLimits::on_ready` names that
+step), its first bytes and the handshakes of the layer and of the channel;
+past it the run ends with 69 and the step's words.
 
 Since T-153, each session of `podssh node` runs the resumable layer: the
 node answers `ready` at once, greets, and dials TARGET only after the

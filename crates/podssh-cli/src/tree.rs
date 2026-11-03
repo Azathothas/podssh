@@ -264,6 +264,7 @@ pub fn parse_verb(verb: &'static Verb, rest: &[std::ffi::OsString]) -> Parsed {
             exit: crate::exit::Flags { name: get("exit"), client_key: get("client-key") },
             idle_warn: get("idle-warn"),
             node: crate::proxy_node::Flags::from_matches(&matches),
+            connect_timeout: get("ConnectTimeout"),
             refused,
         };
     }
@@ -305,6 +306,7 @@ pub fn parse_verb(verb: &'static Verb, rest: &[std::ffi::OsString]) -> Parsed {
             node_key: get("node-key"),
             no_e2e: matches.get_flag("no-e2e"),
             resume_deadline: get("resume-deadline"),
+            connect_timeout: get("ConnectTimeout"),
             refused,
         }));
     }

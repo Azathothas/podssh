@@ -1,6 +1,7 @@
 //! The flag rows of `operator`: those of a pair, and those of the end-to-end
 //! channel (T-087, T-088): this operator's key, the node's key in place of
-//! the pins, and the switch that turns the channel off.
+//! the pins, and the switch that turns the channel off. And the bound on a
+//! pipe's open, `--ConnectTimeout`, of `operator`, `proxy` and `pipe` (T-589).
 
 use super::{row, FlagKind, FlagRow};
 
@@ -19,4 +20,15 @@ pub const PAIR_FLAGS: &[FlagRow] = &[
     row(None, "no-e2e", None, FlagKind::Supported,
         "carry the bytes with no end-to-end channel, to a node that runs none either; the relay then sees them", None),
     super::node::OWN_DEADLINE,
+    OPERATOR_CONNECT_TIMEOUT,
 ];
+
+/// `--ConnectTimeout` of `operator` (T-589).
+pub const OPERATOR_CONNECT_TIMEOUT: FlagRow = row(None, "ConnectTimeout", Some("SECONDS"), FlagKind::Supported,
+    "the bound on the time to the session's open, 1 to 86400: the relay's answer, the node's ready, and the handshakes of the layer and of the channel, each within its own limit too; past it one line names the step that waited, and the exit is 69; never the bytes after the open", None);
+/// `--ConnectTimeout` of `proxy` (T-589).
+pub const PROXY_CONNECT_TIMEOUT: FlagRow = row(None, "ConnectTimeout", Some("SECONDS"), FlagKind::Supported,
+    "the bound on the time to the session's open, 1 to 86400: the relay's answer (each host's dial, TLS, the upgrade, its dial of HOST), or that of the road in its place, or the steps of node://NAME as operator has them; past it one line names the step that waited, and the exit is 69; never the bytes after the open", None);
+/// `--ConnectTimeout` of `pipe` (T-589).
+pub const PIPE_CONNECT_TIMEOUT: FlagRow = row(None, "ConnectTimeout", Some("SECONDS"), FlagKind::Supported,
+    "node: and relay:: the bound on the time to the session's open, as operator and proxy take it, with no listening side; ssh:: each hop's ConnectTimeout too, and with no node: or relay: side the hops' alone", None);

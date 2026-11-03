@@ -107,6 +107,12 @@ pub const PIPE: &[&str] = &[
      and puts its settings back at the end, also at SIGINT and SIGTERM, which then exit 130 and 143. The \
      line has no end: the end of the other side's input leaves it open, and the pipe ends when the other \
      side ends it, at a signal, or when the device fails (69). On Windows, serial: is refused (64).",
+    "--ConnectTimeout SECONDS bounds the open of a node: or relay: side as podssh operator and podssh proxy \
+     bound theirs, the other side's open with it, and never the bytes after it; past it one line names the \
+     step that waited, and the exit is 69. Each hop of an ssh: side takes it as its own ConnectTimeout too \
+     (the SSH handshake, and each answer while logging in), and alone where no side is node: or relay:. A \
+     listening side refuses it (64), as each client opens a road long after the start, and so does a pipe \
+     with no node:, relay: or ssh: side.",
     "--exit NAME starts relay:HOST:PORT, and each relay:%h:%p of http-listen:, at NAME, a node of your net that \
      lends its egress (see podssh node --exit and podssh exit), in place of the relay, over the pair kept under \
      NAME: the node resolves HOST and dials it from its own host. A pipe with --exit and no relay: address is \

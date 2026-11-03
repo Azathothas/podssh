@@ -201,7 +201,18 @@ pub fn around<A: Bytes + 'static>(
     let Some(Operator { identity, expect, route }) = channel else { return (Box::new(app), None) };
     // The net's documents for this channel (T-429): a client takes in silence.
     crate::net::admit::install(false);
-    let (cipher, session) = ends::operator_to(app, identity, check(expect, say), route);
+    // The node's key, checked, opens the session for the bound of
+    // --ConnectTimeout (T-589).
+    crate::connect_bound::channel_follows();
+    let checked = check(expect, say);
+    let checked = move |key: &PublicKey| {
+        let verdict = checked(key);
+        if verdict.is_ok() {
+            crate::connect_bound::opened();
+        }
+        verdict
+    };
+    let (cipher, session) = ends::operator_to(app, identity, checked, route);
     (Box::new(cipher), Some(Box::pin(session)))
 }
 

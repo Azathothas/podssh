@@ -1052,8 +1052,8 @@ Measured in the gate (`docs/STATUS.md`, "Faults between podssh and the relay,
 measured"): a relay that stalls is declared dead at 50 s, and a relay host
 killed in a session gives exit 255 (`scripts/interop-faults.sh:265-283`).
 These checks stay, for the forward road, which has no resumption. Read: the
-stand-in relay serves the forward path only (`scripts/fake-relay.py:119-137`),
-and its `stall` mode never ends (`scripts/fake-relay.py:330-333`). The
+stand-in relay serves the forward path only (`scripts/fake-relay.py:121-139`),
+and its `stall` mode never ends (`scripts/fake-relay.py:332-335`). The
 harness cannot change an address or end a stall yet (T-203). The checks need
 T-151 to T-155, the iroh road (T-162 to T-165), the reverse runners (T-079,
 T-080) and a far end (`podssh serve`, T-107).
@@ -1888,8 +1888,8 @@ a full-screen program is written into its screen.
 
 ## Premise
 
-- Read: the layer's lines, written always: a loss (`crates/podssh-cli/src/layered.rs:395`) and a
-  resume (`crates/podssh-cli/src/layered.rs:406`). The heartbeat each 10 s, and a link dead after
+- Read: the layer's lines, written always: a loss (`crates/podssh-cli/src/layered.rs:397`) and a
+  resume (`crates/podssh-cli/src/layered.rs:408`). The heartbeat each 10 s, and a link dead after
   30 s with nothing from the far end (`crates/podssh-relay/src/session/pump.rs:57`,
   `crates/podssh-relay/src/session/pump.rs:60`). The forward road's checks
   (`docs/design.md:652`).
@@ -1998,8 +1998,8 @@ that gives `Line` to a terminal in raw mode; in the model, the control
 ## Correction
 
 The first item of the Premise cites the layer's lines at lines of `next_leg`, which opens a new
-leg. The lines are in `line_of`: a loss (`crates/podssh-cli/src/layered.rs:440`) and a resume
-(`crates/podssh-cli/src/layered.rs:451`). What the item says of them holds.
+leg. The lines are in `line_of`: a loss (`crates/podssh-cli/src/layered.rs:442`) and a resume
+(`crates/podssh-cli/src/layered.rs:453`). What the item says of them holds.
 
 ## Done
 
@@ -3392,7 +3392,7 @@ Read while drafting, 2026-11-03:
   channel above the layer, the end of stdin is the channel's `END`, a half-close
   (`crates/podssh-relay/src/e2e/channel.rs:101-103`), and the layer's `CLOSE` follows only once
   the TARGET ends too. So a signal ends the layer's own input, the channel's ciphertext, in
-  `crates/podssh-cli/src/layered.rs:267`, and the `CLOSE` goes at once, whatever the TARGET does.
+  `crates/podssh-cli/src/layered.rs:269`, and the `CLOSE` goes at once, whatever the TARGET does.
 - The layer's own wait for the answer to a `CLOSE` stays 10 s
   (`crates/podssh-relay/src/session/pump.rs:47`), as for an end of stdin. After a signal the
   session has 2 s in all (`crates/podssh-cli/src/hangup.rs:27`), the node's answer and the leg's

@@ -65,6 +65,7 @@ fn limits() -> OperatorLimits {
         ping_every: Duration::from_secs(60),
         pings_allowed: 3,
         node_ends: None,
+        on_ready: None,
     }
 }
 

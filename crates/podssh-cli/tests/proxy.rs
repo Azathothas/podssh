@@ -54,6 +54,7 @@ fn the_positionals_and_options_reach_the_verb() {
             exit: Default::default(),
             idle_warn: None,
             node: Default::default(),
+            connect_timeout: None,
             refused: vec![],
         }
     );
@@ -194,6 +195,59 @@ fn the_help_lists_the_relay_and_trust_options() {
     for line in out.lines().filter(|l| l.trim_start().starts_with("--") && !l.contains("--help")) {
         assert!(line.contains("  "), "flag and description run together: {line:?}");
     }
+}
+
+/// `--ConnectTimeout` (T-589): a relay host that takes TCP and never answers
+/// its TLS, with a bound of 3 s, ends the proxy within 5 s, with 69 and the
+/// words of the step; with none, the host's own 45 s would pass first.
+#[test]
+fn proxy_s_connect_timeout_ends_a_silent_relay() {
+    use std::io::Read;
+    use std::process::{Command, Stdio};
+    use std::time::{Duration, Instant};
+    let listener = std::net::TcpListener::bind("127.0.0.1:0").unwrap();
+    let port = listener.local_addr().unwrap().port();
+    // Each connection is held open, and nothing is sent on it.
+    std::thread::spawn(move || {
+        let held: Vec<_> = listener.incoming().map_while(Result::ok).collect();
+        drop(held);
+    });
+    let nanos = std::time::SystemTime::now().duration_since(std::time::UNIX_EPOCH).unwrap().subsec_nanos();
+    let home = std::env::temp_dir().join(format!("podssh-proxy-bound-{}-{nanos}", std::process::id()));
+    std::fs::create_dir_all(&home).unwrap();
+    let relay = format!("127.0.0.1:{port}");
+    let mut cmd = Command::new(env!("CARGO_BIN_EXE_podssh"));
+    cmd.args(["proxy", "--ConnectTimeout", "3", "--relay-host", relay.as_str(), "host.example", "22"]);
+    cmd.env("PODSSH_SSH_CONFIG", "none").env("PODSSH_DIRECT", "no");
+    for name in ["PODSSH_OFFLINE", "PODSSH_RELAY", "PODSSH_RELAY_ADDR", "PODSSH_RELAY_TOKEN", "PODSSH_FORWARDER"] {
+        cmd.env_remove(name);
+    }
+    for name in ["HTTPS_PROXY", "https_proxy", "ALL_PROXY", "all_proxy", "NO_PROXY", "no_proxy"] {
+        cmd.env_remove(name);
+    }
+    cmd.env("HOME", &home).env("USERPROFILE", &home);
+    cmd.env("XDG_CACHE_HOME", home.join("cache")).env("LOCALAPPDATA", home.join("cache"));
+    let started = Instant::now();
+    let mut child = cmd.stdin(Stdio::piped()).stdout(Stdio::null()).stderr(Stdio::piped()).spawn().unwrap();
+    // stdin stays open: only the bound ends the wait.
+    let _stdin = child.stdin.take();
+    let status = loop {
+        if let Some(status) = child.try_wait().expect("wait") {
+            break status;
+        }
+        if started.elapsed() > Duration::from_secs(60) {
+            let _ = child.kill();
+            panic!("podssh proxy did not end within 60 s");
+        }
+        std::thread::sleep(Duration::from_millis(20));
+    };
+    let took = started.elapsed();
+    let mut err = String::new();
+    child.stderr.take().expect("stderr").read_to_string(&mut err).expect("stderr is text");
+    let _ = std::fs::remove_dir_all(&home);
+    assert_eq!(status.code(), Some(69), "{err}");
+    assert!(took < Duration::from_secs(5), "the bound of 3 s ended the wait after {took:?}: {err}");
+    assert!(err.contains("no relay host answered within 3 s (--ConnectTimeout)"), "{err}");
 }
 
 /// Run the binary with `vars` and no other relay or proxy setting; the code

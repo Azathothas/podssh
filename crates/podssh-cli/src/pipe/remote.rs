@@ -94,6 +94,9 @@ pub async fn open(address: &Address, settings: &Settings, err: &mut dyn Write) -
             })
         }
         Address::Relay { host, port } => {
+            // The step that the bound of --ConnectTimeout names (T-589).
+            let shown = podssh_ws::dial::authority(host, *port);
+            crate::connect_bound::step(format!("relay:{shown}: no relay host answered"));
             let relays = settings.relays.as_ref().expect("the relay hosts, read with the addresses");
             let road = super::relay::Road { relays, trust: &settings.trust, failover: settings.failover };
             super::relay::open(&road, host, *port, &mut say).await
@@ -102,8 +105,14 @@ pub async fn open(address: &Address, settings: &Settings, err: &mut dyn Write) -
             Some(road) => crate::via::pipe::open(road, host, *port, &mut say).await,
             None => tcp(host, *port, &mut say).await,
         },
-        Address::Ssh { hops, host, port } => super::ssh::open(hops, host, *port, &settings.ssh, &mut say).await,
-        Address::Node(label) => super::node::open(label, &settings.ssh, &mut say).await,
+        Address::Ssh { hops, host, port } => {
+            crate::connect_bound::step(format!("ssh:{}: the SSH hops did not answer", hops.join(",")));
+            super::ssh::open(hops, host, *port, &settings.ssh, &mut say).await
+        }
+        Address::Node(label) => {
+            crate::connect_bound::step(format!("node:{label}: the relay did not answer"));
+            super::node::open(label, &settings.ssh, &mut say).await
+        }
         Address::UdpNode(label) => super::datagram::open_node(label, &settings.ssh, &mut say).await,
         Address::Iroh(ticket) => super::iroh::open(ticket, &settings.ssh, &settings.trust, &mut say).await,
         Address::Ws(url) => super::ws::open(url, &settings.trust, &mut say).await,
