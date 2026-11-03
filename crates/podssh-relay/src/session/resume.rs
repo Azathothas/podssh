@@ -139,7 +139,8 @@ fn lock<T>(mutex: &Mutex<T>) -> std::sync::MutexGuard<'_, T> {
 /// lost one, and for a move or a spare link beside a silent one, with
 /// [`End::Moving`]; `note` hears of each loss, attempt, resume, move and
 /// spare. With no layer at the far end, the bytes pass as they are, on the
-/// first link only.
+/// first link only; a session that ends with its link (T-612) has its first
+/// link alone too.
 pub async fn run<L, A, C, F, N>(
     client: Client<L>,
     mut app: A,
@@ -154,8 +155,10 @@ where
     F: Future<Output = Next<L>>,
     N: FnMut(Note),
 {
-    let parts = client.into_parts();
-    let Some((mut decoder, established)) = parts.layer else {
+    let mut parts = client.into_parts();
+    // `--no-resume` (T-612): no resume, no move and no spare link.
+    let layer = if parts.settings.resumes { parts.layer.take() } else { None };
+    let Some((mut decoder, established)) = layer else {
         return Client::from_parts(parts).run(app).await;
     };
     let settings = parts.settings;
@@ -271,7 +274,7 @@ where
         // A `CLOSE` with no answer is most often one that the far end had,
         // its answer gone with the link: that loss waits until the resume
         // says whether the session goes on (T-354).
-        let mut unsaid = (!lost_said).then(|| Note::Lost { why: describe(&ended.end) });
+        let mut unsaid = (!lost_said).then(|| Note::Lost { why: ended.end.loss() });
         if !matches!(ended.end, End::Closing) {
             say_lost(&mut unsaid, &mut note);
         }
@@ -408,19 +411,6 @@ async fn waiting<T, N: FnMut(Note)>(
         }
     }
     step.await
-}
-
-/// A loss, in words.
-fn describe(end: &End) -> String {
-    match end {
-        End::Lost(Some(e)) => format!("the link failed: {e}"),
-        End::Lost(None) => "the link ended with no word from the far end".to_string(),
-        End::Broken(e) => format!("the link broke: {e}"),
-        End::Closing => "the link ended before the far end answered this side's CLOSE".to_string(),
-        End::Stopped | End::Retired => "the link was replaced".to_string(),
-        End::Moving => "the link nears the relay's limits".to_string(),
-        End::LocalEnd | End::Closed(_) | End::GaveUp(_) => "the session ended".to_string(),
-    }
 }
 
 /// The far end's first bytes on a new link: a `GREETING`, as on the first

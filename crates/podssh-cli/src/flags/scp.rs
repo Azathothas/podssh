@@ -86,6 +86,8 @@ pub const SCP_FLAGS: &[FlagRow] = &[
     // The exit of the net (T-431), as for podssh ssh; a node on a carrier
     // (T-595).
     super::node::EXIT, super::operator::SSH_CARRIER,
+    // A session to a node that ends with its link (T-612).
+    super::node::NO_RESUME,
 ];
 
 /// **`sftp`.** `-46AaCfNpqrv`, and the values
@@ -164,4 +166,6 @@ pub const SFTP_FLAGS: &[FlagRow] = &[
     // The exit of the net (T-431), as for podssh ssh; a node on a carrier
     // (T-595).
     super::node::EXIT, super::operator::SSH_CARRIER,
+    // A session to a node that ends with its link (T-612).
+    super::node::NO_RESUME,
 ];

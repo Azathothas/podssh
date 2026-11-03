@@ -119,6 +119,9 @@ pub struct SshArgs {
     /// `--resume-deadline TIME`: this client's own resume deadline, which
     /// only shortens the far end's (T-306), unparsed.
     pub resume_deadline: Option<String>,
+    /// `--no-resume`: each session to a node ends with its link, which the
+    /// node is asked for (T-612).
+    pub no_resume: bool,
     /// `--sudo` and `--su`: the remote command runs as root (T-032).
     pub sudo: bool,
     /// `--record FILE`: the session's output in an asciicast v2 file (T-033).
@@ -342,6 +345,7 @@ impl SshArgs {
             upgrade: flag("upgrade"),
             no_signal: flag("no-signal"),
             resume_deadline: one("resume-deadline"),
+            no_resume: flag("no-resume"),
             sudo: flag("sudo"),
             record: one("record"),
             tag: one("tag").filter(|t| !t.is_empty()),

@@ -52,4 +52,6 @@ pub const PIPE_FLAGS: &[FlagRow] = &[
     super::operator::PIPE_CONNECT_TIMEOUT,
     // A node: side at the other end of a stream (T-595), by ssh's id.
     super::operator::PIPE_CARRIER,
+    // The sessions of a node: side end with their link (T-612), by ssh's id.
+    super::node::PIPE_NO_RESUME,
 ];

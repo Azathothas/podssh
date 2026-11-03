@@ -46,6 +46,8 @@ pub struct Flags {
     pub no_e2e: bool,
     /// `--resume-deadline`: this client's own deadline, unparsed.
     pub resume_deadline: Option<String>,
+    /// `--no-resume`: the session ends with its link (T-612).
+    pub no_resume: bool,
     /// `--carrier ADDR`: the node at the other end of a stream (T-595),
     /// unparsed.
     pub carrier: Option<String>,
@@ -60,6 +62,7 @@ impl Flags {
             node_key: get("node-key"),
             no_e2e: m.get_flag("no-e2e"),
             resume_deadline: get("resume-deadline"),
+            no_resume: m.get_flag("no-resume"),
             carrier: get("carrier"),
         }
     }
@@ -71,6 +74,7 @@ impl Flags {
             (self.node_key.is_some(), "--node-key"),
             (self.no_e2e, "--no-e2e"),
             (self.resume_deadline.is_some(), "--resume-deadline"),
+            (self.no_resume, "--no-resume"),
             (self.carrier.is_some(), "--carrier"),
         ]
         .into_iter()
@@ -151,6 +155,7 @@ fn to_operator(text: &str, args: &ProxyArgs) -> Result<OperatorArgs, Refusal> {
         node_key: args.node.node_key.clone(),
         no_e2e: args.node.no_e2e,
         resume_deadline: args.node.resume_deadline.clone(),
+        no_resume: args.node.no_resume,
         // The bound of the node's steps, as `operator` takes it (T-589).
         connect_timeout: args.connect_timeout.clone(),
         // The node at the other end of a stream, as `operator --carrier`
@@ -201,12 +206,14 @@ mod tests {
         let mut args = node("node://lab/web/");
         args.node.pair_file = Some("lab.json".into());
         args.node.no_e2e = true;
+        args.node.no_resume = true;
         args.ca_file = Some("ca.pem".into());
         let operator = to_operator("node://lab/web/", &args).unwrap();
         assert_eq!(operator.name.as_deref(), Some("lab/web"));
         assert_eq!(operator.pair_file.as_deref(), Some("lab.json"));
         assert_eq!(operator.ca_file.as_deref(), Some("ca.pem"));
         assert!(operator.no_e2e);
+        assert!(operator.no_resume, "--no-resume goes to operator (T-612)");
         assert_eq!(operator.carrier, None, "the pair's road, with no --carrier");
         // The carrier goes to operator, whose checks it meets (T-595).
         let mut carried = node("node://lab");

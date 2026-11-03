@@ -225,13 +225,15 @@ pub fn resolve_or_refuse(args: &SshArgs, env: &Env) -> Result<Resolved, Refusal>
         None | Some("none") => (Vec::new(), Vec::new(), None),
         Some(list) => super::jump::hops(list, args, &cli, env)?,
     };
-    // The channel's flags are for a destination of two podssh ends (T-087);
-    // --upgrade takes this client's key for its temporary node (T-167).
+    // The channel's flags, and --no-resume of the layer (T-612), are for a
+    // destination of two podssh ends (T-087); --upgrade takes this client's
+    // key for its temporary node (T-167).
     let channel = [
         ("--client-key", args.client_key.is_some() && !args.upgrade),
         ("--iroh-key", args.iroh_key.is_some() && !args.upgrade),
         ("--node-key", args.node_key.is_some()),
         ("--no-e2e", args.no_e2e),
+        ("--no-resume", args.no_resume),
     ];
     // A cf://HOST name may be a podssh node's quick tunnel (T-300), as the
     // destination or as the first hop of -J, whose node takes the same keys

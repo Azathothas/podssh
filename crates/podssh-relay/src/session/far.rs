@@ -20,6 +20,7 @@ use super::deadline;
 use super::decode::{DecodeError, Decoder};
 use super::handshake::{Established, FarHandshake, HandshakeError, Step};
 use super::keep::{admitted_at_once, Admitted, Keeper};
+use super::once;
 use super::pump::{self, Carry, Ended};
 use super::record::{Record, Role};
 use super::secret::{Entropy, OsEntropy};
@@ -86,8 +87,10 @@ pub async fn accept<L>(
 where
     L: AsyncRead + AsyncWrite + Unpin,
 {
-    // The `GREETING` names how long this far end keeps a lost session (T-306).
-    let offered = deadline::offered(&settings);
+    // The `GREETING` names how long this far end keeps a lost session (T-306),
+    // and that it ends a session with its link when the client asks (T-612).
+    let mut offered = deadline::offered(&settings);
+    offered.push(once::ONCE.to_string());
     let named: Vec<&str> = offered.iter().map(String::as_str).collect();
     let (handshake, greeting) = FarHandshake::start(role, &named, entropy).map_err(FarError::Handshake)?;
     send(&mut link, &greeting).await?;

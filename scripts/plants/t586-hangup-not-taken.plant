@@ -5,6 +5,6 @@
 ENTRY=T-586
 GROUP=resume-cli
 EXPECT='test an_operator_that_its_parent_hangs_up_closes_the_session \.\.\. FAILED'
-SETUP='apk add --no-cache python3 openssl'
+SETUP='{ command -v python3 && command -v openssl; } >/dev/null || apk add --no-cache python3 openssl'
 RUN='cargo test --locked -p podssh-cli --test operator -- an_operator_that_its_parent_hangs_up_closes_the_session'
 LIMIT=2700

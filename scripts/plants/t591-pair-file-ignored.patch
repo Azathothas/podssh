@@ -1,9 +1,9 @@
 --- a/crates/podssh-cli/src/relay_status.rs
 +++ b/crates/podssh-cli/src/relay_status.rs
-@@ -23,7 +23,7 @@
-     if let Some(label) = label {
-         pairs::check_label(label)?;
+@@ -27,7 +27,7 @@
      }
+     // Before the part: a file past its end asks its relay (T-592).
+     crate::pins::apply(args.relay_addr.as_deref())?;
 -    let (shown, part) = match (args.pair_file.as_deref(), label) {
 +    let (shown, part) = match (args.pair_file.as_deref().filter(|_| false), label) {
          (Some(file), _) => {

@@ -5,6 +5,6 @@
 ENTRY=T-587
 GROUP=resume-cli
 EXPECT='proxy_carries_a_session_to_a_node_by_its_name \.\.\. FAILED'
-SETUP='apk add --no-cache python3 openssl'
+SETUP='{ command -v python3 && command -v openssl; } >/dev/null || apk add --no-cache python3 openssl'
 RUN='cargo test --locked -p podssh-cli --test proxy -- proxy_carries_a_session_to_a_node_by_its_name'
 LIMIT=2700

@@ -5,6 +5,6 @@
 ENTRY=T-589
 GROUP=resume-cli
 EXPECT='operator_s_connect_timeout_ends_a_wait_for_ready \.\.\. FAILED'
-SETUP='apk add --no-cache python3 openssl'
+SETUP='{ command -v python3 && command -v openssl; } >/dev/null || apk add --no-cache python3 openssl'
 RUN='cargo test --locked --no-fail-fast -p podssh-cli --test operator --test proxy -- connect_timeout_ends'
 LIMIT=2700

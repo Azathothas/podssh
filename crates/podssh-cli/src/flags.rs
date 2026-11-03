@@ -210,7 +210,7 @@ pub const SSH_FLAGS: &[FlagRow] = &[
     derp::SSH_DERP_SERVER, node::EXIT, operator::SSH_CARRIER,
     row(None, "persist", None, FlagKind::Supported,
         "run the shell in the server's tmux, and after a lost link connect again and attach it again; tmux is probed", None),
-    node::OWN_DEADLINE,
+    node::OWN_DEADLINE, node::NO_RESUME,
     row(None, "result-file", Some("FILE"), FlagKind::Supported,
         "at the end, one JSON object in FILE: the exit, the remote status or signal, the end, the failure, the bytes and the relay", None),
     idle::IDLE_WARN,

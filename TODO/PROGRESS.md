@@ -120,7 +120,12 @@ entry keeps its proof in the entry; this page keeps no history (git does).
   T-484 and T-486, OpenTunnel's road T-530 and T-531 (live run 41679059624), T-592 (`5c14126`) and
   T-596. Their worktrees and local branches are gone; their `draft/` branches on GitHub can go.
   The research of the operator's relay archive followed (`09f0c0d`): its four entries, with T-605
-  partial, and `docs/research/relay-measurement.md`. No draft waits; `draft/relay-measure` can go.
+  partial, and `docs/research/relay-measurement.md`; `draft/relay-measure` can go.
+
+  On 2026-11-03 a fourth round was drafted, unbuilt, one commit for each entry: T-614
+  (`worktree-agent-afe7db2e2c9eeb0a3`, merged and closed, `e0a2496`); T-612 and T-613
+  (`worktree-agent-ac366026bd4dfc2dc`, `6b76515` and `741e842`); T-455 and T-457
+  (`worktree-agent-a78b0fb3db0c3f0c8`, `2454434` and `ac38d51`). They are merged in that order.
 
   CI: the gate passed at
   `24b9f6e` (run 38331509229), and its step `release` at `cad2885` (478
@@ -165,7 +170,7 @@ and `CARGO_BUILD_JOBS=4`:
 
 ## Counts
 
-`TODO/INDEX.md` holds 578 entries: 108 open, 2 partial, 2 blocked, 466 done.
+`TODO/INDEX.md` holds 578 entries: 107 open, 2 partial, 2 blocked, 467 done.
 
 Open includes parked work. `cargo todo check` verifies this line.
 
@@ -236,7 +241,7 @@ merged; `v1.0.1` went out with them on 2026-11-03. The defects of GitHub #112 to
 on 2026-11-03) are done and go into `v1.1.0-beta.1`. Until podssh is stable the expensive checks wait (Q88). Their
 features and documents (T-532,
 and T-534 to T-549 and T-565 to T-582, which Q74, Q75, Q77, Q78
-and Q82 filed; and of #112 to #124, T-612 and T-613, the calls of Q90) follow, by priority, beside M10 (Q85); Dependabot's #119,
+and Q82 filed; and of #112 to #124, T-613, a call of Q90) follow, by priority, beside M10 (Q85); Dependabot's #119,
 #120 and #122 are in `main` (2026-11-03), and #123 waits for an iroh-dns that takes simple-dns 0.13. Overnight a fork of
 policy is decided and listed below for the operator to confirm (Q86). The drafts of 2026-11-03, both rounds, are merged. GitHub #125 (2026-11-03, `relay info`'s rank changes with the edge that answered) is done: the line says whose order it is; the research of the operator's relay archive is merged (2026-11-03).
 

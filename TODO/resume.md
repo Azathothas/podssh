@@ -820,7 +820,7 @@ sockets are not measured (T-061). russh sends a keepalive each 60 s and ends
 the session after 3 with no answer (`crates/podssh-ssh/src/options.rs:349-389`).
 Measured on `3ee70dc`, offline (`PODSSH_OFFLINE=1`, a `.invalid` host):
 `-o ServerAliveInterval=0` prints the warning of
-`crates/podssh-cli/src/ssh/resolve.rs:387-401` (the `warnings` of keepalives), and `podssh ssh` exits 255.
+`crates/podssh-cli/src/ssh/resolve.rs:389-403` (the `warnings` of keepalives), and `podssh ssh` exits 255.
 
 ## Approach
 
@@ -834,7 +834,7 @@ Measured on `3ee70dc`, offline (`PODSSH_OFFLINE=1`, a `.invalid` host):
 3. Carry the `ACK` of T-152 in each `PONG`. The cost is about 20 bytes each
    way each 10 s: under 0.2 MiB in 12 h.
 4. On the resumable road, do not print the warning of
-   `crates/podssh-cli/src/ssh/resolve.rs:387-401` (the `warnings` of keepalives).
+   `crates/podssh-cli/src/ssh/resolve.rs:389-403` (the `warnings` of keepalives).
 5. In the same commit: "Liveness" and "Idle limit" in the manual
    (`crates/podssh-cli/src/man/facts.rs:410-425`,
    `crates/podssh-cli/src/man/facts.rs:445-454`), the note at
@@ -1164,7 +1164,7 @@ road, and the same faults end a session of the forward road with 255
 # T-157: Throughput on each road and relay, by a committed method
 
 **Source:** ROADMAP M6 (throughput on each road and relay, in and out of a
-sandbox, before a default depends on it); `docs/design.md:1244-1264`; the two
+sandbox, before a default depends on it); `docs/design.md:1256-1276`; the two
 sandbox reports of 2026-10-08; GitHub #18 (warren's method) and GitHub #23
 (sshping: throughput up and down).
 **Category:** measurement
@@ -1188,7 +1188,7 @@ proxy (4 runs). Read in the report, not verified here: the script's target
 (thinkbroadband) gave `1011 write failed` and 0 bytes, and the relay's
 `/trace` showed that the relay could not reach it.
 Read: no iroh figure exists for a relay through a CONNECT proxy
-(`docs/design.md:1244-1264`). A session carries 64 MiB at most, both directions
+(`docs/design.md:1256-1276`). A session carries 64 MiB at most, both directions
 together (`docs/relay.md:261`).
 
 ## Approach
@@ -1888,8 +1888,8 @@ a full-screen program is written into its screen.
 
 ## Premise
 
-- Read: the layer's lines, written always: a loss (`crates/podssh-cli/src/layered.rs:397`) and a
-  resume (`crates/podssh-cli/src/layered.rs:408`). The heartbeat each 10 s, and a link dead after
+- Read: the layer's lines, written always: a loss (`crates/podssh-cli/src/layered.rs:408`) and a
+  resume (`crates/podssh-cli/src/layered.rs:419`). The heartbeat each 10 s, and a link dead after
   30 s with nothing from the far end (`crates/podssh-relay/src/session/pump.rs:57`,
   `crates/podssh-relay/src/session/pump.rs:60`). The forward road's checks
   (`docs/design.md:652`).
@@ -1998,8 +1998,8 @@ that gives `Line` to a terminal in raw mode; in the model, the control
 ## Correction
 
 The first item of the Premise cites the layer's lines at lines of `next_leg`, which opens a new
-leg. The lines are in `line_of`: a loss (`crates/podssh-cli/src/layered.rs:442`) and a resume
-(`crates/podssh-cli/src/layered.rs:453`). What the item says of them holds.
+leg. The lines are in `line_of`: a loss (`crates/podssh-cli/src/layered.rs:453`) and a resume
+(`crates/podssh-cli/src/layered.rs:464`). What the item says of them holds.
 
 ## Done
 
@@ -2192,7 +2192,7 @@ then resumes over a new one. For those 30 s, an interactive session shows nothin
   (`crates/podssh-relay/src/session/pump.rs:60`; `docs/design.md:863-871`).
 - Read: a resume can come while the far end still runs the old link; the old link stops, and the
   new one goes on (`docs/design.md:877-879`). The far end lets the newest resume take a session
-  (`docs/design.md:942-944`).
+  (`docs/design.md:954-956`).
 - Measured (T-156): a session on the layer and on the iroh road survives a new address of its
   client (`crates/podssh-cli/tests/m6_exit.rs:262`); the time that the resume took is not in the
   record.
@@ -2390,10 +2390,10 @@ session 10 minutes after its link was lost. A session of Mosh waits.
   `docs/design.md:872-882`). T-153's Decision kept a deadline, as a node in a cage would keep
   connections for clients that never come back.
 - Read: a node keeps 64 MiB of replay buffers at most, a whole buffer for each session that it
-  keeps (`docs/design.md:975-978`); a pair expires after 72 h at most
-  (`docs/design.md:944-946`).
+  keeps (`docs/design.md:987-990`); a pair expires after 72 h at most
+  (`docs/design.md:956-958`).
 - Read: the client measures the deadline with `Instant`
-  (`crates/podssh-relay/src/session/resume.rs:329`). Not verified: whether `Instant` counts the
+  (`crates/podssh-relay/src/session/resume.rs:332`). Not verified: whether `Instant` counts the
   time that the host slept, on Linux, macOS and Windows. If it does not, a client that wakes
   counts too little, and tries to resume a session that the far end forgot; it then gets
   `REFUSE` with the code 1.
@@ -2478,7 +2478,7 @@ Item 3 of the Approach says that a session past the node's bound is refused
 with `REFUSE` (6). Read: the far end accepts the handshake, then ends the
 session with a `CLOSE` that gives the reason ("this node keeps as many
 resumable sessions as its budget allows",
-`crates/podssh-relay/src/session/far.rs:224-234`, whose words since T-586 name what holds the
+`crates/podssh-relay/src/session/far.rs:227-237`, whose words since T-586 name what holds the
 budget); code 6 is not sent. The bound and its words stay as they are.
 
 ## Done
@@ -2872,11 +2872,11 @@ for a new link, and the test that asks for no loss fails at random.
 - Not reproduced here: 40 runs of the test alone, and 80 runs eight at a
   time, passed (a Claude Code cloud container, 2026-10-31).
 - Read: `End::Closing` comes from the pump's wait for the answer to its
-  `CLOSE` (`crates/podssh-relay/src/session/pump.rs:319-326`): a reader that
+  `CLOSE` (`crates/podssh-relay/src/session/pump.rs:333-340`): a reader that
   ended with anything but the peer's `CLOSE`, the 10 s of `LINGER` (not
   reached in a run of 2.9 s), or a stop. A loss with no `Resumed` after it is
   a resume that found the session forgotten while this side's application
-  had ended (`crates/podssh-relay/src/session/resume.rs:359`): the far end
+  had ended (`crates/podssh-relay/src/session/resume.rs:362`): the far end
   had the `CLOSE` and ended the session, and this side's reader ended before
   its answer.
 - Inferred: both ends closed at once (the test's target ends as the
@@ -2895,7 +2895,7 @@ for a new link, and the test that asks for no loss fails at random.
 ## Decision
 
 1. **A far end's last record on a link waits for the client**: `last_word`
-   (`crates/podssh-relay/src/session/far.rs:158-175`) writes the record, then
+   (`crates/podssh-relay/src/session/far.rs:161-178`) writes the record, then
    keeps the link, reading and dropping what the client sends, until the
    client ends it or 10 s pass (the wait of a `CLOSE` for its answer). It
    ends the four places: the `REFUSE` of the handshake, the `CLOSE` of a
@@ -2906,7 +2906,7 @@ for a new link, and the test that asks for no loss fails at random.
    a shorter wait (1 s), which a slow path to the client could outlast; a
    wait in the relay's own close, which podssh cannot change.
 2. **A loss after this side's `CLOSE` is said only when the resume goes
-   on** (`crates/podssh-relay/src/session/resume.rs:271-277`, `:307-411`): the
+   on** (`crates/podssh-relay/src/session/resume.rs:274-280`, `:310-414`): the
    line "the link ended before the far end answered this side's CLOSE;
    resuming the session" waits, and comes before the next step said (a
    retry, the resume, the end that the resume gave up at), or once the
@@ -2916,7 +2916,7 @@ for a new link, and the test that asks for no loss fails at random.
    line on each end whose answer a relay drops; never saying it, which hides
    a resume that waits.
 3. **A handshake whose write fails reads what came before**
-   (`crates/podssh-relay/src/session/client.rs:286-314`), 2 s at most, as the
+   (`crates/podssh-relay/src/session/client.rs:290-318`), 2 s at most, as the
    pump reads a link whose writes fail: a `REFUSE` there is the answer, else
    the write's failure is. Redundant with item 1 at podssh's own far end,
    and the answer from a far end or a relay that closes right after its
@@ -2943,7 +2943,7 @@ one kind, and the client's word for it in a fourth. Debug lines in the close
 paths, 40 runs of the test on one CPU (a Claude Code cloud container,
 2026-10-31): in one run the far end accepted a resume on a move's new link,
 then found the session ended on the old link (`NotTaken::Ended`,
-`crates/podssh-relay/src/session/keep.rs:275-278`), wrote its `CLOSE` there and
+`crates/podssh-relay/src/session/keep.rs:277-280`), wrote its `CLOSE` there and
 dropped the link at once. The client's pump wrote on that link (the `DATA`
 of a resume, its own `CLOSE`), and the stand-in relay, which ends both ways
 when one way ends or fails as the relay ends a session, failed that write and
@@ -2953,11 +2953,11 @@ link that the far end had ended the session. A new test of both ends closing
 at once while the session moves each 16 KiB, 50 sessions a run, failed once
 in 10 runs on one CPU on the code before, by the same kind of cut in the
 handshake: the far end refused a resume at its `OPEN` and dropped the link
-(`crates/podssh-relay/src/session/far.rs:137-141`) while the client wrote its
+(`crates/podssh-relay/src/session/far.rs:140-144`) while the client wrote its
 `PROOF`, so the client got a broken pipe in place of the refusal, said a
 move's failure and a loss, and tried again. The same pattern is in
 `Accepted::close`, whose reason the client would lose for "the far end did
-not resume the session" (`crates/podssh-relay/src/session/far.rs:274-282`).
+not resume the session" (`crates/podssh-relay/src/session/far.rs:277-285`).
 Approach item 2 is done as the Decision says.
 
 ## Done
@@ -3284,7 +3284,7 @@ an ordinary use of its documented ProxyCommand form ends that.
   deadline (`crates/podssh-relay/src/session/keep.rs`, lines 280-281 and 301-305); a loss and a
   `CLOSE` with no answer are such ends (`crates/podssh-relay/src/session/pump.rs:102-108`). The
   node's `CLOSE` after its target's last byte waits 10 s for the operator's answer, and with none
-  the end is `End::Closing`: `crates/podssh-relay/src/session/pump.rs:324` says "_ => End::Closing,".
+  the end is `End::Closing`: `crates/podssh-relay/src/session/pump.rs:338` says "_ => End::Closing,".
 - Known, from OpenSSH's source (not read here): at its exit, OpenSSH's client sends SIGHUP to its
   ProxyCommand and does not wait for it (`openssh/openssh-portable:sshconnect.c`,
   `ssh_kill_proxy_command`). `podssh operator` took no signal at `3bb42ea`
@@ -3296,7 +3296,7 @@ an ordinary use of its documented ProxyCommand form ends that.
   refused. The tester did not count the held sessions, as the issue says.
 - Read: a session whose target ended can take no more bytes into its buffer, and is charged as
   much as a live one.
-- Read: `--resume-deadline` takes 1 minute to 72 h (`crates/podssh-cli/src/layered.rs:122`), and
+- Read: `--resume-deadline` takes 1 minute to 72 h (`crates/podssh-cli/src/layered.rs:125`), and
   `--plain` is a node with no layer.
 - Not the cap of GitHub #84 (T-461): that is the relay's 64 MiB for one session.
 
@@ -3315,7 +3315,7 @@ an ordinary use of its documented ProxyCommand form ends that.
    `CLOSE` went out keeps the bytes that the client has not acknowledged, and is charged those,
    not a whole buffer; once the client acknowledged each byte, it keeps its id alone, charged
    nothing, until the deadline, and a resume of it gets its `CLOSE`, as a resume of a session that
-   ended on its old link does (`crates/podssh-relay/src/session/keep.rs:274-278`).
+   ended on its old link does (`crates/podssh-relay/src/session/keep.rs:276-280`).
 4. The refusal says what holds the budget and when room comes: "this node keeps 16 resumable
    sessions (64 MiB of replay buffers): 3 with a link, 13 waiting for their client, the first of
    them for 4 min 10 s more; --resume-deadline and PODSSH_REPLAY_BUFFER of the node change its budget".
@@ -3392,14 +3392,14 @@ Read while drafting, 2026-11-03:
   channel above the layer, the end of stdin is the channel's `END`, a half-close
   (`crates/podssh-relay/src/e2e/channel.rs:101-103`), and the layer's `CLOSE` follows only once
   the TARGET ends too. So a signal ends the layer's own input, the channel's ciphertext, in
-  `crates/podssh-cli/src/layered.rs:269`, and the `CLOSE` goes at once, whatever the TARGET does.
+  `crates/podssh-cli/src/layered.rs:276`, and the `CLOSE` goes at once, whatever the TARGET does.
 - The layer's own wait for the answer to a `CLOSE` stays 10 s
   (`crates/podssh-relay/src/session/pump.rs:47`), as for an end of stdin. After a signal the
   session has 2 s in all (`crates/podssh-cli/src/hangup.rs:27`), the node's answer and the leg's
   Close included; a session cut then is a clean end of a session that the node took, exit 0. A
   signal before the node took the session ends the wait at once, with the session's fault (70).
 - `ssh node://` takes SIGHUP and SIGTERM alone: its Ctrl-C is the remote command's. The same on
-  the road that races the node's roads (`crates/podssh-cli/src/ssh/roads.rs:415`).
+  the road that races the node's roads (`crates/podssh-cli/src/ssh/roads.rs:420`).
 - The plant of the signals is two plants, one for each test, as a plant runs one check:
   `t586-hangup-not-taken` (the operator's test) and `t586-hangup-not-taken-openssh` (the
   roost's), with one patch.
@@ -3453,7 +3453,7 @@ Read while drafting, 2026-11-03:
 **Milestone:** M10
 **Priority:** P2
 **Effort:** S
-**Status:** open
+**Status:** done
 
 ## Problem
 
@@ -3474,6 +3474,44 @@ no way to say so.
    as before, and the client says so at `-v`.
 2. The flag rows, the manual's notes and `docs/cli.md`.
 
+## Decision
+
+The calls of the draft (2026-11-03):
+
+- The ask is one more feature name of the layer, `once.v1`: the client names it in its `OPEN` when
+  its user asked, and a far end that knows the ask names it in its `GREETING` always; with both
+  names the far end forgets the session and shuts its target as the link ends. An old far end
+  ignores the name, as each name that it does not know, and the client sees no `once.v1` among the
+  names that both gave. Lost: a record or a field of `OPEN` of its own, a change of the layer's
+  version, which an old node refuses; and a client's `deadline.0`, which an old far end reads as no
+  name, and a new one must tell apart from a bad one.
+- With `--no-resume` the client carries the session on its first link alone: no resume, no move
+  before the relay's limits and no spare link, as on a node of `--plain`, so the relay's limits (64
+  MiB, 12 h) end the session too; a copy goes on over a new connection, as after each broken one
+  (T-136). Lost: the moves kept, as a move is a resume of the layer on a new link, which a far end
+  asked to keep nothing must not wait for; and a resume where an old node still keeps the session,
+  which the user asked against.
+- The far end forgets at each end of the link, a `CLOSE` with no answer and a stop included: no id
+  is kept alone (T-586's `Slot::Closed`), as no client of the ask resumes. Lost: the id kept alone,
+  for a resume that nobody sends.
+- A node that does not know the ask is said always, in one line; one that took it at `-v`.
+  `operator`, `proxy` and `pipe` show no line of `-v`, and a user who asked counts on the node's
+  budget. Lost: both at `-v`, as the Approach said, which those three verbs would never show.
+- A loss that ends a session of `--no-resume` is said in one line, the words of the layer's loss and
+  "with --no-resume the session ends with it", and the exit is that of the leg's end, as on a node of
+  `--plain`. Lost: a code of its own, for an end that the user asked for.
+- The switch is one for the process (`crate::no_resume`), as the deadline of `--resume-deadline`,
+  and `layered::settings` reads it, so each road to a node takes it (the pair's, iroh, DERP,
+  OpenTunnel, the transit and Piping Server roads, a carrier, the exit). Lost: a field carried
+  through each road's arguments, a change in a dozen roads. The lines are said on the pair's road
+  (`layered::carry`: `operator`, `proxy node://`, `pipe`, `ssh node://` on the pair) and in the race
+  of `ssh node://` (`ssh/roads.rs`); the other roads take the switch with no line of their own.
+- `ssh`, `cp`, `mv`, `scp` and `sftp` refuse the flag with a destination that is no node (64), by
+  the rule of the channel's flags, `--upgrade` included, whose temporary node is there to resume;
+  `pipe` with no `node:`, `udp:node:` or `iroh:` side (64). Lost: the flag taken with no effect.
+- The client's loss in words, `describe` of `session::resume`, is `End::loss` in `session::pump`,
+  for the CLI's line too; `resume.rs` had no room for the switch at its 500 lines.
+
 ## Prove
 
 ```sh
@@ -3483,6 +3521,65 @@ cargo test -p podssh-cli --test operator
 
 With `--no-resume`, the node's budget is free at once after the client's link goes; without it, the
 session waits its deadline; planted, the ask dropped: the test fails.
+
+## Done
+
+Drafted 2026-11-03; merged and measured on this machine the same day.
+The Premise holds: T-586's `## Decision` names no `--no-resume` (`TODO/resume.md`, T-586).
+
+- `crates/podssh-relay/src/session/once.rs` (new): `ONCE`, `asked` (the names of the client's
+  `OPEN`) and `agreed`; its unit test. `session/mod.rs`: `Settings::resumes` (default true), and
+  `Settings::link` gives `Link::with_once` when both named `once.v1` (`session/link.rs`).
+  `session/client.rs`: the `OPEN` names `once::asked`. `session/far.rs`: the `GREETING` names
+  `once.v1`. `session/keep.rs`: a session of `Link::once` is forgotten, its target shut, at each end
+  of its link. `session/resume.rs`: with `resumes` false, `run` carries the first link alone;
+  `describe` went to `End::loss` (`session/pump.rs`).
+- `crates/podssh-cli/src/no_resume.rs` (new): the switch (`ask`, `asked`), the line of the far end's
+  answer (`heard`) and of a loss that ended the session (`ended`); its unit tests.
+  `layered.rs`: `settings` reads it, and `carry` says both lines; `ssh/roads.rs` the same.
+- The flags: `ssh/args.rs` (`SshArgs::no_resume`), `ssh/resolve.rs` (refused with no node, as the
+  channel's flags), `ssh/mod.rs`, `cp/mod.rs` and `sftp/mod.rs` (the switch), `operator.rs`
+  (`OperatorArgs::no_resume`), `tree.rs`, `carrier.rs`, `proxy_node.rs` (the flag of `node://`, to
+  operator; its unit test), `pipe/remote.rs` (refused with no `node:`, `udp:node:` or `iroh:` side).
+  The rows: `flags/node.rs` (`NO_RESUME`, `OPERATOR_NO_RESUME`, `PROXY_NO_RESUME`,
+  `PIPE_NO_RESUME`), in `flags.rs`, `flags/copy.rs`, `flags/scp.rs`, `flags/operator.rs`,
+  `flags/relay.rs` and `flags/pipe.rs`.
+- The manual: `man/notes_pair.rs` (operator's note, and node's), `man/notes_ssh.rs`, `man/notes.rs`
+  (cp, scp, sftp), `man/notes_proxy.rs`, `man/notes_pipe.rs`. `docs/cli.md` (ssh's destinations,
+  cp's node, the reverse road's section and pipe's), `docs/reverse.md`, `docs/design.md` (section
+  5), `docs/STATUS.md` (a row).
+- Tests: `crates/podssh-relay/tests/session_newest.rs`,
+  `a_session_that_ends_with_its_link_leaves_the_far_end_nothing` and its control
+  `with_no_ask_a_lost_session_waits_its_deadline`, through a stand-in relay that drops the link both
+  ways; `crates/podssh-cli/tests/operator.rs`,
+  `an_operator_of_no_resume_leaves_the_node_nothing_at_a_loss` (through the stand-in relay, an
+  operator killed after the target's line; and the control, with no ask), the target of T-586's test
+  moved to a module of its own for both.
+- The plants: `scripts/plants/t612-ask-dropped.plant` (GROUP=resume) and
+  `scripts/plants/t612-ask-dropped-operator.plant` (GROUP=resume-cli), one patch each, which `git
+  apply --check` takes: each caught (below).
+
+Measured at the merge (2026-11-03, Linux, `CARGO_BUILD_JOBS=4`):
+
+- `cargo test -p podssh-relay --test session_newest`: 5 passed; `--lib session::`: 8 passed.
+- The relay crate's suite with `pair,quick,derp,serve,piping`, one target at a time (the disk of
+  this session holds no more): the library and each of the 67 test targets passed, 563 tests, none
+  failed, as the `GREETING` names one more feature.
+- `cargo test -p podssh-cli --lib`: 789 passed, once two words were repaired that the draft could not
+  see: the help's check reads the last `--no-resume` of a line, which the rows of `proxy` and `pipe`
+  had in their own text (`as operator --no-resume: ...`), now `as with operator's`; and the check of
+  the names in the notes read `podssh ssh. --timeout` in `sftp`'s note as a flag of `ssh`, now `as
+  podssh ssh does.`.
+- `cargo test -p podssh-cli --test operator --test proxy --test node_carrier --test node_detach
+  --test node_moves --test roost --test non_interactive --test man_flag_parity --test flag_table
+  --test man_page`: each passed (operator 10, proxy 15, node_carrier 14, node_detach 8, node_moves 2,
+  roost 17).
+- clippy `--all-targets -D warnings` of `podssh-cli` and of `podssh-relay` (`pair,quick,derp,serve,
+  piping,blocking`), and rustfmt: clean.
+- The plants `t612-ask-dropped` and `t612-ask-dropped-operator`: caught. The second, and five others
+  of GROUP `resume-cli` and `cli-tests` (t158, t586, t587, t589, t591), had a SETUP of `apk add`
+  alone, which fails on a host with no apk, so `--here` missed them: the SETUP now installs only
+  what is missing.
 
 # T-600: A resume that comes before the first link's task carries its session ends the session, as while a node opens its target
 

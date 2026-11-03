@@ -53,6 +53,9 @@ const FIRST: &[&str] = &[
      by a new one for as long as the node keeps the session (10 minutes, or its --resume-deadline; -v \
      says it), and the SSH session goes on where it was; one line on stderr tells of each loss and each \
      resume. --resume-deadline TIME waits at most TIME, never longer than the node keeps the session. \
+     --no-resume asks the node to end the session with its link: a lost link ends it, with a line, no \
+     spare link or move goes beside it, and the node keeps nothing of it; -v says that the node took the \
+     ask, and a line that a node of an earlier podssh does not know it and keeps the session as before. \
      When the node forgot the session, as after a sleep of this host longer than its deadline, the \
      line says so, with how long this side was away by the wall clock. SIGHUP and SIGTERM end the \
      session with its end at the node, which then keeps nothing of it, 2 s at most after the signal; \

@@ -367,6 +367,11 @@ pub(super) async fn connect(
         }
     };
     log.verbose(&format!("{shown}: {}", client.found()));
+    match crate::no_resume::heard(client.found()) {
+        Some((true, line)) => log.info(&format!("{shown}: {line}")),
+        Some((false, line)) => log.verbose(&format!("{shown}: {line}")),
+        None => {}
+    }
     layered::learn(client.found(), &opts.keep.offer);
     // The far end's silence, for a notice (T-302).
     let client = layered::heard(client, &opts.silence);
@@ -449,6 +454,10 @@ pub(super) async fn connect(
         let _ = layered::last(&roads.legs).await;
         roads.close().await;
         return EXIT_FAILURE;
+    }
+    // A loss that --no-resume did not carry over (T-612).
+    if let Some(line) = outcome.as_ref().and_then(crate::no_resume::ended) {
+        log.info(&format!("{shown}: {line}"));
     }
     // A session cut after a signal says nothing more: its `CLOSE` went.
     if let (true, Some(why)) = (code == EXIT_FAILURE, outcome.and_then(layered::why_ended)) {

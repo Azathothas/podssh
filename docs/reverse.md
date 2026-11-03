@@ -140,7 +140,10 @@ a `node:` side and `podssh ssh node://` take the signals that end them
 (OpenSSH's SIGHUP to its ProxyCommand first) as the end of their bytes, and
 close the session, which the node then forgets (T-586). A refusal for the
 budget names the sessions that hold it and when the first of them is
-forgotten, and the node says it on stderr too.
+forgotten, and the node says it on stderr too. A client of `--no-resume`
+asks, in the layer's handshake, for a session that the node forgets with
+its connection to TARGET as the link ends, whatever the end, and carries
+it on that link alone (T-612).
 `podssh ssh node://` and `podssh operator` run the client: after a lost
 leg, they open a new one and resume the session where it was, unless the
 relay's close says not to come back (a stopped or expired pair, a fault of

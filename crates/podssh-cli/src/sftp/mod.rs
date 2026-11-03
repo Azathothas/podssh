@@ -205,6 +205,9 @@ fn sftp_run(
     if let Err(refusal) = crate::pins::apply(args.ssh.relay_addr.as_deref()) {
         return refused(&refusal, err, tally);
     }
+    // The session to a node ends with its link (T-612); resolve checks that
+    // a node is named.
+    crate::no_resume::ask(args.ssh.no_resume);
     let mut ssh = args.ssh.clone();
     ssh.destination = Some(server.destination());
     if let Some(port) = server.port {

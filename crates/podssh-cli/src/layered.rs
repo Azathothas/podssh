@@ -3,7 +3,8 @@
 //! NAME`. It sends nothing until the node's first byte: a node that greets
 //! gets the layer, and a lost leg is then replaced by a new one, whose
 //! handshake resumes the session where it was. A node with no layer gets the
-//! bytes as they are, on one leg, as before.
+//! bytes as they are, on one leg, as before; so does a session of
+//! `--no-resume`, in the layer (T-612).
 
 use std::sync::{Arc, Mutex};
 use std::time::Duration;
@@ -76,8 +77,9 @@ pub const SPARE_LINKS_ENV: &str = "PODSSH_SPARE_LINKS";
 /// The layer's settings on the pair's road, with the replay buffer of
 /// `PODSSH_REPLAY_BUFFER` and the deadlines of `--resume-deadline`; a client
 /// opens a spare link beside a silent one (T-305), unless
-/// `PODSSH_SPARE_LINKS` is `no`. A link carries less than the relay holds
-/// for a slow receiver (T-443): another road takes `off_the_pair`.
+/// `PODSSH_SPARE_LINKS` is `no`, and resumes unless its command line gave
+/// `--no-resume` (T-612). A link carries less than the relay holds for a
+/// slow receiver (T-443): another road takes `off_the_pair`.
 pub fn settings() -> Settings {
     let capacity = replay::capacity(std::env::var(replay::CAPACITY_ENV).ok().as_deref());
     let defaults = Settings::default();
@@ -89,6 +91,7 @@ pub fn settings() -> Settings {
         resume_deadline: far.unwrap_or(defaults.resume_deadline),
         client_deadline: own,
         spare_links,
+        resumes: !crate::no_resume::asked(),
         ..defaults.on_the_pair()
     }
 }
@@ -241,6 +244,10 @@ where
     if let Found::Layer { features, .. } = client.found() {
         say(Line::Verbose(format!("the layer's features: {}", features.join(", "))));
     }
+    // What the far end does with --no-resume (T-612).
+    if let Some((always, line)) = crate::no_resume::heard(client.found()) {
+        say(if always { Line::Always(line) } else { Line::Verbose(line) });
+    }
     // How long the far end keeps the session after a loss (T-306).
     if let Some(kept) = client.established().and_then(|e| e.peer_deadline) {
         say(Line::Verbose(format!("the far end keeps the session {} after a loss", deadline::span(kept))));
@@ -278,6 +285,10 @@ where
     let Some(outcome) = crate::hangup::bounded(hangup.as_ref(), Box::pin(run)).await else {
         return Carried { why: None, leg: None, channel: None, signalled: true };
     };
+    // A loss that --no-resume did not carry over (T-612); the leg says how.
+    if let Some(line) = crate::no_resume::ended(&outcome) {
+        say(Line::Always(line));
+    }
     Carried { why: why_ended(outcome), leg: last(&legs).await, channel: None, signalled: false }
 }
 
