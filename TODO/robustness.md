@@ -1408,6 +1408,10 @@ workflow now allows. The test now says podssh's stderr when its 10 s pass, so th
 failure names where podssh waited. The cause is not named yet: the entry stays partial for the next
 failure's words, or for more runs.
 
+2026-11-03: 50 more runs on `macos-15` at `a003af3` (run 41560477021), after the merges of
+T-460 to T-509: 50 of 50 passed, so 100 in a row since the one failure, with no word of where
+podssh waited. It stays partial for the next failure's words.
+
 # T-564: podssh never raises its soft limit of open files, so a wide `cp --parallel` or `each` meets `EMFILE`
 
 **Source:** GitHub #111 (a tester, 2026-11-02).
