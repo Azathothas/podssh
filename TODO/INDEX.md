@@ -62,15 +62,15 @@ repository and CI).
 
 ## Counts
 
-**563 entries: 117 open, 1 partial, 16 blocked, 429 done.**
+**563 entries: 116 open, 2 partial, 16 blocked, 429 done.**
 
 | Priority | open | partial | blocked | done | total |
 | --- | --- | --- | --- | --- | --- |
 | P0 | 0 | 0 | 0 | 1 | 1 |
 | P1 | 0 | 1 | 0 | 62 | 63 |
-| P2 | 36 | 0 | 14 | 204 | 254 |
+| P2 | 35 | 1 | 14 | 204 | 254 |
 | P3 | 81 | 0 | 2 | 162 | 245 |
-| **All** | 117 | 1 | 16 | 429 | 563 |
+| **All** | 116 | 2 | 16 | 429 | 563 |
 
 ## Entries
 
@@ -626,7 +626,7 @@ repository and CI).
 | [T-584](release.md) | P1 | M | none | release | done | Publish `v1.0.1`, the repairs of the testers' defects |
 | [T-585](roads.md) | P3 | S | none | defect | open | WARP's road names a proxy that re-terminates TLS on a road with no proxy |
 | [T-586](resume.md) | P1 | M | none | defect | done | A node holds each session whose OpenSSH client ended its `operator`, so 16 short logins in 10 minutes fill its budget and it refuses each new one |
-| [T-587](reverse.md) | P2 | S | none | feature | open | `podssh proxy` takes no `node://NAME`, and its help never names `operator`, the ProxyCommand form of a node |
+| [T-587](reverse.md) | P2 | S | none | feature | partial | `podssh proxy` takes no `node://NAME`, and its help never names `operator`, the ProxyCommand form of a node |
 | [T-588](ssh.md) | P1 | M | none | defect | done | `ssh node://` waits ConnectTimeout for an SSH handshake that OpenSSH through `operator` finishes on the same node, and says nothing of what came |
 | [T-589](reverse.md) | P2 | S | none | feature | open | `operator` and `proxy` take no `--ConnectTimeout`, so a ProxyCommand has no bound of its own on reaching its far end |
 | [T-590](roads.md) | P2 | S | none | feature | open | A roost on a host with no sshd says `Connection refused`, not that no sshd is installed, and `doctor` has no line for a roost |

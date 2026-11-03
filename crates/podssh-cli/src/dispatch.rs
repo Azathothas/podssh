@@ -97,6 +97,7 @@ pub fn run_with(p: &Parsed, s: &mut Streams<'_>, tty: Tty) -> i32 {
             wstunnel,
             exit,
             idle_warn,
+            node,
             refused,
         } => {
             if refusals("proxy", refused, s.err) {
@@ -117,6 +118,7 @@ pub fn run_with(p: &Parsed, s: &mut Streams<'_>, tty: Tty) -> i32 {
                     wstunnel: wstunnel.clone(),
                     exit: exit.clone(),
                     idle_warn: idle_warn.clone(),
+                    node: node.clone(),
                 },
                 s.err,
             )

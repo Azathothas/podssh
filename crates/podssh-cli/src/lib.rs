@@ -134,6 +134,8 @@ pub mod piping_road;
 pub mod play;
 pub mod positionals;
 pub mod proxy;
+// `podssh proxy node://NAME`: the pipe of `podssh operator NAME` (T-587).
+pub mod proxy_node;
 pub mod refuse;
 pub mod relay_cmd;
 pub mod relay_diag;

@@ -114,6 +114,8 @@ gave 3 through a node in front of railway.new's SSH service, and
 podssh-cli --test node_live -- --ignored`). Since T-151, `podssh ssh
 node://` sends nothing until the node's first byte, to learn whether the
 node offers the resumable layer ([design.md](design.md), section 5).
+`podssh proxy node://NAME` (T-587) is the same pipe as `podssh operator
+NAME`, by one function, in the form of a node that `ssh` takes.
 
 Since T-153, each session of `podssh node` runs the resumable layer: the
 node answers `ready` at once, greets, and dials TARGET only after the

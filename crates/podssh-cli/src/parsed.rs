@@ -92,6 +92,8 @@ pub enum Parsed {
         exit: crate::exit::Flags,
         /// `--idle-warn SECONDS` (T-463), unparsed.
         idle_warn: Option<String>,
+        /// The flags of a pair and of its channel, for `node://NAME` (T-587).
+        node: crate::proxy_node::Flags,
         refused: Vec<(String, &'static str, &'static str)>,
     },
     /// `podssh status`: the relay settings in effect, and the destination

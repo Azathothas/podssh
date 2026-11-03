@@ -3815,7 +3815,7 @@ podssh's own, which makes it M.
   (`crates/podssh-iroh/src/endpoint.rs:4-7`, `:305-306`), as the design chose for a host with no
   DNS (`docs/design.md:1082`, `:1092`).
 - Read: the node's key is Ed25519 and stays across its pairs, and the operator pins it by label
-  (`docs/reverse.md:247-251`).
+  (`docs/reverse.md:249-253`).
 - Read in the study (https://docs.iroh.computer/connecting/dns-address-lookup): an endpoint
   publishes a signed packet to a DNS/Pkarr server over HTTP; n0's servers are free, rate-limited,
   with no guaranteed uptime, and "You're more than welcome to run production systems" on them,
@@ -7491,9 +7491,9 @@ puts the fallback in its `ok` column without a probe.
   (`crates/podssh-cli/src/ssh/transport.rs:212-233`); the module's own words are that "a target
   that cannot go" ends the run as before (`crates/podssh-cli/src/forwarder/fallback.rs:9-11`).
 - Read: the relay's refusal of a target by its policy (400, a blocked address range) is 77
-  (`crates/podssh-cli/src/proxy.rs:351-352`), and each other answer, the 502 of a target that the
+  (`crates/podssh-cli/src/proxy.rs:361-362`), and each other answer, the 502 of a target that the
   relay could not reach or whose name does not resolve among them, is 69
-  (`crates/podssh-cli/src/proxy.rs:345-358`); so both go to the forwarders (L-28, and #106's dead
+  (`crates/podssh-cli/src/proxy.rs:355-368`); so both go to the forwarders (L-28, and #106's dead
   target).
 - Read: the relay pool already tells these apart: another host cannot help after a refusal by
   policy or of a token, or after a 502 whose target's name fails
@@ -8102,7 +8102,7 @@ as a firewall or a wrong port; it never says that this host has no sshd, or what
   the dial's error, with 69 (`crates/podssh-cli/src/node_target.rs:24-25`); only a dial that
   worked reaches the check of the version line, whose refusal names `--sshd` (`:29-35`).
 - Read: the row of `--sshd` says that each TARGET "is a standard sshd"
-  (`crates/podssh-cli/src/flags/node.rs:71-72`), and the manual that the node "serves a standard
+  (`crates/podssh-cli/src/flags/node.rs:81-82`), and the manual that the node "serves a standard
   sshd" (`crates/podssh-cli/src/man/notes_pair.rs:28`); neither says that it must run already.
 - Read: no line of `doctor` names sshd (searched in `crates/podssh-cli/src/doctor/` at `3bb42ea`).
 - Read: T-481 (open) names the command that installs tmux, from the package managers that a probe

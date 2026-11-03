@@ -1,0 +1,11 @@
+--- a/crates/podssh-cli/src/proxy.rs
++++ b/crates/podssh-cli/src/proxy.rs
+@@ -85,7 +85,7 @@
+ fn proxy(args: &ProxyArgs, err: &mut dyn Write) -> i32 {
+     // node://NAME, the pipe of `operator NAME`, first: each other road's
+     // flag is its refusal there, and the flags of a node go with it alone.
+-    if let Some(code) = crate::proxy_node::run(args, err) {
++    if let Some(code) = args.target.is_none().then(|| crate::proxy_node::run(args, err)).flatten() {
+         return code;
+     }
+     // A road of its own takes no forwarder (T-369), no Shadowsocks server

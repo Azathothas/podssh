@@ -2885,6 +2885,22 @@ commands. The rules behind them:
   bytes and nothing else, and it exits 0 only when the node took the
   session. Its codes are those of `node`. `ssh node://NAME` runs the SSH
   client over the same leg, and keeps the codes of OpenSSH (255).
+- **`proxy node://NAME[/ROUTE]` is `operator NAME[/ROUTE]`** (T-587, GitHub
+  #113): one function carries both, with the pair stored under NAME or that
+  of `--pair-file`, the channel's `--client-key`, `--node-key` and
+  `--no-e2e`, `--resume-deadline`, and the same codes, so that a
+  ProxyCommand names a node in the form that `ssh` and `cp` take: `ssh -o
+  ProxyCommand='podssh proxy node://lab' user@lab`. The node's TARGET or
+  route names the service, so a PORT is refused (64), as `cf://HOST` takes
+  none; so are `--relay-host` and `--relay-failover`, as the pair names its
+  relay, and `--forwarder`, `--shadowsocks`, `--via`, `--vless`,
+  `--wstunnel`, `--exit` and `--idle-warn`, each a road in the relay's place
+  or a word of its forward road. `--relay-addr` and `--ca-file` reach the
+  pair's relay. A flag of a node beside another target is refused (64). A
+  word that starts with `node:` and is no `node://NAME` (`node:lab`, as
+  `pipe` writes a node) is refused with the three forms of a node's
+  ProxyCommand: `proxy node://NAME`, `operator NAME` and `pipe - node:NAME`;
+  `node:22`, one word, stays the host `node` and its port.
 - **`node --iroh` needs no pair** (T-163, a build with the feature
   `iroh`). Its key is the node's key of each road (`--iroh-key` and
   `--iroh-ephemeral` are `--key` and `--ephemeral-key` by their earlier
