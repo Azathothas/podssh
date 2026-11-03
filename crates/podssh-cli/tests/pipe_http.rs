@@ -183,16 +183,11 @@ fn through_the_relay_a_page_comes_whole_its_policy_is_403_and_a_dead_target_502(
     wait_for(&lines, "ALLOW list").expect("podssh's line names the relay's refusal");
 }
 
-#[test]
-fn a_connect_through_ssh_gets_the_banner_of_the_sshd_s_own_port() {
-    let session = Session::start("http-ssh");
-    let mut flags = vec!["--direct".to_string()];
-    flags.extend(session.common());
-    let other = format!("ssh:tester@127.0.0.1:{},%h:%p", session.port);
-    let (proxy_url, _lines) = proxy(&session, without_proxy(session.command(&args(&flags, &other))));
+/// What a CONNECT to the sshd's own port through `proxy_url` gets, up to its
+/// banner.
+fn banner_through(proxy_url: &str, port: u16) -> String {
     let mut stream = std::net::TcpStream::connect(proxy_url.trim_start_matches("http://")).unwrap();
     stream.set_read_timeout(Some(LIMIT)).unwrap();
-    let port = session.port;
     write!(stream, "CONNECT 127.0.0.1:{port} HTTP/1.1\r\nHost: 127.0.0.1:{port}\r\n\r\n").unwrap();
     let (mut got, mut buf) = (Vec::new(), [0u8; 1024]);
     while !String::from_utf8_lossy(&got).contains("SSH-2.0-") {
@@ -200,7 +195,38 @@ fn a_connect_through_ssh_gets_the_banner_of_the_sshd_s_own_port() {
         assert!(n > 0, "the tunnel ended: {:?}", String::from_utf8_lossy(&got));
         got.extend_from_slice(&buf[..n]);
     }
-    let said = String::from_utf8_lossy(&got);
+    String::from_utf8_lossy(&got).into_owned()
+}
+
+#[test]
+fn a_connect_through_ssh_gets_the_banner_of_the_sshd_s_own_port() {
+    let session = Session::start("http-ssh");
+    let mut flags = vec!["--direct".to_string()];
+    flags.extend(session.common());
+    let other = format!("ssh:tester@127.0.0.1:{},%h:%p", session.port);
+    let (proxy_url, _lines) = proxy(&session, without_proxy(session.command(&args(&flags, &other))));
+    let said = banner_through(&proxy_url, session.port);
+    assert!(said.starts_with("HTTP/1.1 200 Connection Established\r\n\r\nSSH-2.0-"), "{said}");
+}
+
+/// The same CONNECT through `ssh:HOP` with no target (T-483, GitHub #93):
+/// the line of the reading comes before the proxy listens, then the banner.
+#[test]
+fn a_connect_through_ssh_with_no_target_takes_its_target_and_says_the_reading() {
+    let session = Session::start("http-ssh-bare");
+    let mut flags = vec!["--direct".to_string()];
+    flags.extend(session.common());
+    let hop = format!("ssh:tester@127.0.0.1:{}", session.port);
+    let mut cmd = without_proxy(session.command(&args(&flags, &hop)));
+    let mut child = cmd.stdin(Stdio::null()).stdout(Stdio::null()).stderr(Stdio::piped()).spawn().unwrap();
+    let lines = lines_of(&mut child);
+    session.keep(child);
+    let reading = wait_for(&lines, "is read as").expect("the line of the reading");
+    let want = format!("http-listen: {hop} is read as {hop},%h:%p: each CONNECT's target is reached from the last hop");
+    assert!(reading.ends_with(&want), "{reading}");
+    let line = wait_for(&lines, "HTTPS_PROXY=").expect("the proxy listens, after the reading");
+    let url = line.split("HTTPS_PROXY=").nth(1).unwrap().split(',').next().unwrap().trim();
+    let said = banner_through(url, session.port);
     assert!(said.starts_with("HTTP/1.1 200 Connection Established\r\n\r\nSSH-2.0-"), "{said}");
 }
 

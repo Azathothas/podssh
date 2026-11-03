@@ -1,0 +1,7 @@
+# T-483: ssh: with no target keeps its last word as the target that the
+# proxy drops, so ssh:a,b is read with one hop and ssh:HOP alone is refused;
+# the unit test of the reading must fail.
+ENTRY=T-483
+GROUP=cli-tests
+EXPECT='test pipe::web::tests::a_road_with_no_target_takes_each_request_s_target_at_its_end \.\.\. FAILED'
+RUN='cargo test --locked -p podssh-cli --lib pipe::web'

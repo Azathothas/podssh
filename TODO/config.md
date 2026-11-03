@@ -1,7 +1,7 @@
 This file holds the work on configuration files: OpenSSH's `ssh_config` (`-F`, `Host`,
 `Include`, `Match` and `-G`), host lists from other clients, and a settings file for podssh's
 own options. The rules of OpenSSH that podssh follows were measured with `ssh -G` and are in
-`docs/cli.md:3766-3862`. Since T-043, `podssh ssh` reads `~/.ssh/config` and the file of `-F`.
+`docs/cli.md:3781-3877`. Since T-043, `podssh ssh` reads `~/.ssh/config` and the file of `-F`.
 
 # T-043: Read `ssh_config`: `~/.ssh/config`, `-F FILE`, `Host` patterns, and `Match` refused by name (GitHub #14, #22)
 
@@ -206,7 +206,7 @@ No glob code exists in podssh. `known_hosts::wildcard`
    stands, and `Match final all` applies after the last line and fills only unset values, as
    measured. Each other `Match` stays refused by name until T-045.
 6. Check each included file as T-043 checks the user file: its owner and its mode.
-7. Change `docs/cli.md:3766-3871`, FILES (`crates/podssh-cli/src/man/data.rs:151-414`) and the
+7. Change `docs/cli.md:3781-3886`, FILES (`crates/podssh-cli/src/man/data.rs:151-414`) and the
    `ssh` notes in the same commit.
 
 ## Prove
@@ -565,7 +565,7 @@ that client: bytes captured from the real program (`AGENTS.md`, section 6, rule 
 6. The output must read with the reader of T-043 and with OpenSSH.
 7. Add the verb to the tables: `VERBS`, and `VERB_OWNER` or a dispatch arm
    (`crates/podssh-cli/src/flags.rs:366-442`), the arguments, `usage_tail`
-   (`crates/podssh-cli/src/help.rs:268-293`), the manual's notes and examples, and
+   (`crates/podssh-cli/src/help.rs:282-307`), the manual's notes and examples, and
    `DISPATCHED` (`crates/podssh-cli/tests/flag_table.rs:110-143`).
 
 ## Decision
@@ -946,7 +946,7 @@ try after the first reaches each hop (`crates/podssh-ssh/src/options.rs:339-347`
 - `scripts/interop.sh:325-335`: `ssh.config.jump_alias`, `-F FILE -J openssh-alias dropbear-alias`
   with podssh and with OpenSSH's `ssh`, each to exit 6 (the floor of ssh is 72). The gate runs it
   at this push.
-- `docs/cli.md:87-93` and `docs/cli.md:3795-3807`, and the manual's file `~/.ssh/config`, say what
+- `docs/cli.md:87-93` and `docs/cli.md:3810-3822`, and the manual's file `~/.ssh/config`, say what
   a hop takes.
 - `cargo test -p podssh-ssh`: 142 passed; `cargo test -p podssh-cli`: 565 passed, 0 failed,
   31 ignored; clippy; rustfmt.

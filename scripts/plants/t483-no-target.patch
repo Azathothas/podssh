@@ -1,0 +1,11 @@
+--- a/crates/podssh-cli/src/pipe/web.rs
++++ b/crates/podssh-cli/src/pipe/web.rs
+@@ -104,7 +104,7 @@
+         "tcp" => return Some((format!("tcp:{TARGET}"), "from this host")),
+         _ => {}
+     }
+-    let hops = text.strip_prefix("ssh:")?.trim_end_matches(',');
++    let hops = text.strip_prefix("ssh:")?.rsplit_once(',')?.0;
+     if hops.trim().is_empty() {
+         return None;
+     }

@@ -62,15 +62,15 @@ repository and CI).
 
 ## Counts
 
-**546 entries: 129 open, 3 partial, 16 blocked, 398 done.**
+**546 entries: 128 open, 4 partial, 16 blocked, 398 done.**
 
 | Priority | open | partial | blocked | done | total |
 | --- | --- | --- | --- | --- | --- |
 | P0 | 0 | 0 | 0 | 1 | 1 |
 | P1 | 6 | 2 | 0 | 52 | 60 |
 | P2 | 42 | 0 | 14 | 190 | 246 |
-| P3 | 81 | 1 | 2 | 155 | 239 |
-| **All** | 129 | 3 | 16 | 398 | 546 |
+| P3 | 80 | 2 | 2 | 155 | 239 |
+| **All** | 128 | 4 | 16 | 398 | 546 |
 
 ## Entries
 
@@ -547,7 +547,7 @@ repository and CI).
 | [T-480](multi.md) | P2 | M | none | defect | open | `health` gives the host's CPUs and memory where a container's cgroup allows fewer |
 | [T-481](multi.md) | P2 | M | none | feature | open | `job` and `--persist` on a host with no tmux: the command that installs it, and jobs with no tmux when asked |
 | [T-482](multi.md) | P2 | L | none | feature | open | `health --preflight`: what the far host allows, from one login, before a long command needs it |
-| [T-483](pipe.md) | P3 | S | none | feature | open | `http-listen:` takes `ssh:[USER@]HOP` with no target, and `pipe --help` shows the proxy of an SSH server with its client |
+| [T-483](pipe.md) | P3 | S | none | feature | partial | `http-listen:` takes `ssh:[USER@]HOP` with no target, and `pipe --help` shows the proxy of an SSH server with its client |
 | [T-484](multi.md) | P3 | M | none | feature | open | `each --json` and `each --result-file`: each host's status, failure and streams in one object |
 | [T-485](multi.md) | P3 | S | none | feature | open | `job log --follow`: a job's output as it comes, on one connection, then its status |
 | [T-486](machine.md) | P3 | M | none | feature | open | `--result-file` for `cp`, `mv`, `scp`, `run` and `sftp`, in the schema of `ssh --result-file` |
