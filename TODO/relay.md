@@ -344,7 +344,7 @@ failure at `crates/podssh-relay/src/failures.rs:289-308`. `open` orders
 the hosts at `crates/podssh-relay/src/open.rs:207-213` and keeps the record
 after each round at `crates/podssh-relay/src/open.rs:245-251`; the race
 gives the silent hosts at `crates/podssh-relay/src/failover.rs:245-248`.
-`podssh status` at `crates/podssh-cli/src/status.rs:115-119`, `podssh
+`podssh status` at `crates/podssh-cli/src/status.rs:116-120`, `podssh
 doctor` at `crates/podssh-cli/src/doctor/mod.rs:99-109`, THE RELAY in the
 manual at `crates/podssh-cli/src/man/facts.rs:373-390`, and
 `docs/relay.md` and `docs/cli.md`.
@@ -2248,7 +2248,7 @@ session on 2026-11-03.
   (`crates/podssh-cli/src/proxy.rs:363`) and the relay's end of `podssh pipe` (`carry_opened`)
   tell it at their end (`crates/podssh-cli/src/pipe/relay.rs:210-212`).
 - `podssh status`: `relay_failures` names the road, and `relay_opened` gives the hosts that opened
-  lately (`crates/podssh-cli/src/status.rs:215-222`); `podssh doctor`'s line `failed relays` says
+  lately (`crates/podssh-cli/src/status.rs:216-223`); `podssh doctor`'s line `failed relays` says
   each host tried last, and a line `opened relays` those tried first
   (`crates/podssh-cli/src/doctor/mod.rs:397-425`). THE RELAY in the manual
   (`crates/podssh-cli/src/man/facts.rs:369-386`), `docs/relay.md` (step 5 of the selection) and

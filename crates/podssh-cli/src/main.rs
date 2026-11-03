@@ -18,6 +18,8 @@ fn main() {
     let args: Vec<std::ffi::OsString> = std::env::args_os().skip(1).collect();
     // A detached child releases what it inherited before any thread runs.
     podssh_cli::detach::prepare_process(&args);
+    // Each verb's descriptors within the hard limit, not the shell's soft one (T-564).
+    podssh_cli::nofile::start();
     let kept = args.clone();
     let run = std::thread::Builder::new().stack_size(STACK).spawn(move || podssh_cli::dispatch::main_with_args(args));
     let code = match run {

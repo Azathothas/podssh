@@ -29,7 +29,7 @@ succeeded. `podssh ssh` takes one destination, as OpenSSH does.
   and `podssh ssh 'web1,web2' true` exits 64 (`',' is not allowed`).
 - Read: remote output goes straight to the stdout and stderr of the process
   (`crates/podssh-ssh/src/io/msg.rs:78-95`), and podssh's own messages go to
-  stderr with one `podssh: ` prefix (`crates/podssh-ssh/src/log.rs:83-103`).
+  stderr with one `podssh: ` prefix (`crates/podssh-ssh/src/log.rs:87-107`).
   Two hosts cannot be told apart.
 - Read: a host-key prompt waits for the user
   (`crates/podssh-ssh/src/hostkey.rs:208-247`); N prompts at once cannot
@@ -1811,7 +1811,7 @@ a ticket, or a tool that asks an AI.
 - Read: podssh's messages leave through two writers: `Streams.err` in the
   command line (`crates/podssh-cli/src/dispatch.rs:26-29`), and `Log`, which
   writes to the stderr of the process itself
-  (`crates/podssh-ssh/src/log.rs:83-103`). The exit code leaves through
+  (`crates/podssh-ssh/src/log.rs:87-107`). The exit code leaves through
   `crates/podssh-cli/src/dispatch.rs:370-411`.
 - Read: for `podssh ssh`, an exit that is not 0 can be the remote command's
   status (`docs/cli.md:3875-3878`), which is not a failure of podssh.
@@ -1921,7 +1921,7 @@ program for each exit that is not 0; the remote `exit 3` check must fail.
 ## Correction
 
 The premise of two writers is not whole. `Log` writes to the file of `-E`
-in place of stderr when it is given (`crates/podssh-ssh/src/log.rs:83-103`),
+in place of stderr when it is given (`crates/podssh-ssh/src/log.rs:87-107`),
 and `podssh node`, `operator`, `chat`, `pipe` and `agent` write their lines
 while they serve with `eprintln!`, which is neither writer
 (`crates/podssh-cli/src/node.rs:324`). The report keeps what goes through

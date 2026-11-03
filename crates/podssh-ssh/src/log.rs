@@ -72,7 +72,11 @@ impl Log {
 
     fn at(&self, level: LogLevel, message: &str) {
         if self.level >= level {
+            // A fact of the process, said once by the first log at -v (T-564).
+            self.say_once();
             self.write(message, true);
+            // A hint of the binary's after an error that it explains.
+            self.hint(level, message);
         } else if level == LogLevel::Error && crate::said::on() {
             // -q hides an error from the screen, not from the report of a
             // failure (T-195).
@@ -130,4 +134,45 @@ fn host_text(message: &str, prefix: bool, host: Option<&str>, raw: bool) -> Stri
         text = text.replace("\r\n", "\n").replace('\n', "\r\n");
     }
     text
+}
+
+/// Lines of the process that no command owns, such as the limit of open
+/// files (T-564): each said once, before the first line of the first log at
+/// `-v` or more.
+static ONCE: Mutex<Vec<String>> = Mutex::new(Vec::new());
+
+/// What the binary says after an error line that it explains, such as
+/// "Too many open files" with the limit (T-564).
+static HINT: std::sync::OnceLock<fn(&str) -> Option<String>> = std::sync::OnceLock::new();
+
+/// Say `line` once, before the first line of the first log at `-v` or more.
+pub fn say_once_at_verbose(line: String) {
+    ONCE.lock().unwrap_or_else(|e| e.into_inner()).push(line);
+}
+
+/// Give each error line to `hint`, and say what it returns after the line;
+/// the first call holds.
+pub fn hint_errors(hint: fn(&str) -> Option<String>) {
+    let _ = HINT.set(hint);
+}
+
+impl Log {
+    fn say_once(&self) {
+        if self.level < LogLevel::Verbose {
+            return;
+        }
+        let lines = std::mem::take(&mut *ONCE.lock().unwrap_or_else(|e| e.into_inner()));
+        for line in lines {
+            self.write(&line, true);
+        }
+    }
+
+    fn hint(&self, level: LogLevel, message: &str) {
+        if level != LogLevel::Error {
+            return;
+        }
+        if let Some(hint) = HINT.get().and_then(|hint| hint(message)) {
+            self.write(&hint, true);
+        }
+    }
 }

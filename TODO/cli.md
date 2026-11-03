@@ -494,8 +494,8 @@ Read, at `61e55d1`: no option made podssh start a program: `ProxyCommand` is ref
 2. A note for `ssh` and `proxy` (`crates/podssh-cli/src/man/notes_ssh.rs:4-480` and `crates/podssh-cli/src/man/notes_ssh_more.rs:4-114` and `crates/podssh-cli/src/man/notes.rs:69-184`)
    and an example (`crates/podssh-cli/src/man/examples.rs:8-267`). Pitfall: the
    notes test reads a bare `--` as a flag that does not exist
-   (`crates/podssh-cli/src/man/notes.rs:391-407`); teach `flag_exists`
-   (`crates/podssh-cli/src/man/notes.rs:356-372`) that `--` ends the options.
+   (`crates/podssh-cli/src/man/notes.rs:394-410`); teach `flag_exists`
+   (`crates/podssh-cli/src/man/notes.rs:359-375`) that `--` ends the options.
 3. `podssh proxy` (`crates/podssh-cli/src/proxy.rs:314-319`): when HOST or PORT
    is missing and a relay or trust flag was given, add one line: a HOST that
    starts with `-` is read as a flag; put `--` before it.
@@ -3087,7 +3087,7 @@ node at its next line, often "online again" after a reconnect. A server then has
 - Read: after ready a detached child's stderr is its log (`crates/podssh-cli/src/detach/child.rs:242`).
 - Read in Rust's documentation: `eprintln!` "panics if writing to io::stderr fails"; only EBADF is
   ignored.
-- Read: `crates/podssh-ssh/src/log.rs:95` already writes its lines and ignores a failure.
+- Read: `crates/podssh-ssh/src/log.rs:99` already writes its lines and ignores a failure.
 
 ## Approach
 

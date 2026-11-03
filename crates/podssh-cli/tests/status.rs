@@ -33,8 +33,14 @@ fn cache_dir(home: &Path) -> PathBuf {
 /// Run `podssh status ARGS` with HOME and the cache under `home`, offline,
 /// and nothing else steering it but `set`. The code and stdout, within 30 s.
 fn status(home: &Path, args: &[&str], set: &[(&str, &str)]) -> (i32, String, String) {
+    ran(command(home, "status", args, set))
+}
+
+/// `podssh VERB ARGS` with HOME and the cache under `home`, offline, and
+/// nothing else steering it but `set`.
+fn command(home: &Path, verb: &str, args: &[&str], set: &[(&str, &str)]) -> Command {
     let mut cmd = Command::new(env!("CARGO_BIN_EXE_podssh"));
-    cmd.arg("status").args(args);
+    cmd.arg(verb).args(args);
     for name in [
         "PODSSH_RELAY",
         "PODSSH_RELAY_ADDR",
@@ -50,11 +56,16 @@ fn status(home: &Path, args: &[&str], set: &[(&str, &str)]) -> (i32, String, Str
     cmd.env("HOME", home).env("USERPROFILE", home).env("PODSSH_OFFLINE", "1");
     cmd.env("XDG_CACHE_HOME", home.join("cache")).env("LOCALAPPDATA", home.join("cache"));
     cmd.envs(set.iter().copied());
+    cmd
+}
+
+/// The code, stdout and stderr of `cmd`, within 30 s.
+fn ran(mut cmd: Command) -> (i32, String, String) {
     let mut child =
         cmd.stdin(Stdio::null()).stdout(Stdio::piped()).stderr(Stdio::piped()).spawn().expect("podssh runs");
     let deadline = Instant::now() + Duration::from_secs(30);
     while child.try_wait().expect("wait").is_none() {
-        assert!(Instant::now() < deadline, "podssh status did not end within 30 s");
+        assert!(Instant::now() < deadline, "podssh did not end within 30 s");
         std::thread::sleep(Duration::from_millis(20));
     }
     let out = child.wait_with_output().expect("output");
@@ -206,4 +217,74 @@ fn the_proxy_is_named_with_its_kind_and_no_credentials() {
     assert!(doc["proxy"]["error"].as_str().is_some_and(|why| why.contains("SOCKS4")), "{out}");
     assert_eq!((doc["proxy"]["proxy"].clone(), doc["proxy"]["kind"].clone()), (Value::Null, Value::Null), "{out}");
     assert!(!out.contains("s3cret") && !out.contains("alice"), "{out}");
+}
+
+/// The limit of open files (T-564): a soft limit of 64 under a hard one
+/// above it is raised to the hard one; a hard limit of 64 keeps it, and `-v`
+/// says so once.
+#[cfg(unix)]
+mod open_files {
+    use std::os::unix::process::CommandExt;
+
+    use super::*;
+
+    /// The hard limit of this test process.
+    #[allow(clippy::unnecessary_cast)]
+    fn hard_here() -> u64 {
+        let mut limit = libc::rlimit { rlim_cur: 0, rlim_max: 0 };
+        // SAFETY: a read of this process's limit into a struct of its own.
+        assert_eq!(unsafe { libc::getrlimit(libc::RLIMIT_NOFILE, &mut limit) }, 0);
+        limit.rlim_max as u64
+    }
+
+    /// `cmd`, its child started with these soft and hard limits of open files.
+    #[allow(clippy::unnecessary_cast)]
+    fn limited(mut cmd: Command, soft: u64, hard: u64) -> Command {
+        let limit = libc::rlimit { rlim_cur: soft as libc::rlim_t, rlim_max: hard as libc::rlim_t };
+        // SAFETY: setrlimit is async-signal-safe, and changes the child alone.
+        unsafe {
+            cmd.pre_exec(move || match libc::setrlimit(libc::RLIMIT_NOFILE, &limit) {
+                0 => Ok(()),
+                _ => Err(std::io::Error::last_os_error()),
+            });
+        }
+        cmd
+    }
+
+    #[test]
+    fn a_soft_limit_below_the_hard_one_is_raised_to_it() {
+        let hard = hard_here().min(4096);
+        if hard <= 64 {
+            eprintln!("skipped: this host's hard limit of open files is {hard}, with no room above 64");
+            return;
+        }
+        let home = scratch("nofile-raised");
+        let (rc, out, err) = ran(limited(command(&home, "status", &[], &[]), 64, hard));
+        assert_eq!(rc, 0, "{err}");
+        let doc = one_line(&out);
+        let files = &doc["open_files"];
+        assert_eq!(files["at_start"], 64, "{out}");
+        assert_eq!(files["soft"], hard, "raised to the hard limit: {out}");
+        assert_eq!(files["hard"], hard, "{out}");
+        assert_eq!(files["raised"], true, "{out}");
+        assert!(files["refused"].is_null(), "{out}");
+    }
+
+    #[test]
+    fn a_hard_limit_at_the_soft_one_keeps_it_and_v_says_so() {
+        let home = scratch("nofile-kept");
+        let (rc, out, err) = ran(limited(command(&home, "status", &[], &[]), 64, 64));
+        assert_eq!(rc, 0, "{err}");
+        let files = &one_line(&out)["open_files"];
+        let shown = (files["soft"].as_u64(), files["at_start"].as_u64(), files["raised"].as_bool());
+        assert_eq!(shown, (Some(64), Some(64), Some(false)), "{out}");
+        // Offline, the run ends before a session; -v says the limit once,
+        // before its first line.
+        let args = ["-v", "-o", "BatchMode=yes", "tester@unreachable.example", "true"];
+        let (rc, _, err) = ran(limited(command(&home, "ssh", &args, &[]), 64, 64));
+        assert_ne!(rc, 0, "offline, no session: {err}");
+        let said: Vec<&str> = err.lines().filter(|line| line.contains("open file limit")).collect();
+        assert_eq!(said, ["podssh: open file limit: 64, the hard limit of this host"], "{err}");
+        assert!(err.lines().next().is_some_and(|line| line.contains("open file limit")), "said first: {err}");
+    }
 }

@@ -910,7 +910,7 @@ pump at `crates/podssh-cli/src/pipe/pump.rs:96` and
 `crates/podssh-cli/src/pipe/pump.rs:106-134`, and the relay's close at
 `crates/podssh-cli/src/pipe/relay.rs:228`. `SessionLog` at
 `crates/podssh-cli/src/settings.rs:255-258`, and `podssh status` at
-`crates/podssh-cli/src/status.rs:123-134`. The variable in VARIABLES, the
+`crates/podssh-cli/src/status.rs:124-135`. The variable in VARIABLES, the
 two files in FILES, and `docs/cli.md`.
 
 The test `crates/podssh-cli/tests/session_log.rs`, 4 tests, against the

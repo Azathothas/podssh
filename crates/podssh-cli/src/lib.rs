@@ -118,6 +118,8 @@ pub mod node_warp;
 // `podssh node --temporary`: the far end of `podssh ssh --upgrade` (T-167).
 pub mod node_target;
 pub mod node_temp;
+// The soft limit of open files, raised at start within the hard one (T-564).
+pub mod nofile;
 pub mod non_interactive;
 pub mod operator;
 pub mod pager;

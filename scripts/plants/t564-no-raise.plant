@@ -1,0 +1,7 @@
+# T-564: the start reads the limit of open files and never raises it, so a
+# soft limit of 64 under a higher hard one stays 64; the test of the raise
+# through podssh status must fail.
+ENTRY=T-564
+GROUP=cli-tests
+EXPECT='test open_files::a_soft_limit_below_the_hard_one_is_raised_to_it \.\.\. FAILED'
+RUN='cargo test --locked -p podssh-cli --test status -- open_files'

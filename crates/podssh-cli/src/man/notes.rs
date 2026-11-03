@@ -264,8 +264,11 @@ const STATUS: &[&str] = &[
      user's tree, its dir and why, see FILES), proxy (the variable, HOST:PORT and the kind, \
      http or socks5), offline, \
      attachment, stdin_tty and stdout_tty, host for a destination (its name in known_hosts, whether \
-     a key is recorded, the key types), and pairs: each stored pair's label, when it expires, whether \
-     it expired, and next_now, whether podssh relay pair LABEL makes its next pair now.",
+     a key is recorded, the key types), session_log, relay_failures and relay_opened (the relay hosts \
+     tried last and first: road, host, ago_s, and the reason or the opens), open_files (soft, hard, \
+     at_start, raised, refused: the limit of open files, which podssh raises at start; null on \
+     Windows), and pairs: each stored pair's label, when it expires, whether it expired, and \
+     next_now, whether podssh relay pair LABEL makes its next pair now.",
     "It shows no token and no proxy credentials, opens no connection, asks no DNS and writes nothing. A \
      bad --relay-host or destination is a usage error (64), a bad PODSSH_RELAY a configuration error \
      (78). podssh doctor is the report that measures.",
