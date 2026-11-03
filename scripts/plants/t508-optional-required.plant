@@ -1,0 +1,8 @@
+# T-508: the gate reads each row of --timeout as required, as before the
+# field of the row: scp with no --timeout and no terminal exits 64, and the
+# test of scp's and sftp's bound must fail. Offline, so no SETUP: it runs
+# natively too.
+ENTRY=T-508
+GROUP=cli-tests
+EXPECT='test timeout_is_a_bound_that_scp_and_sftp_never_require \.\.\. FAILED'
+RUN='cargo test --locked -p podssh-cli --test scp_args -- timeout_is_a_bound_that_scp_and_sftp_never_require'

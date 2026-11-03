@@ -301,17 +301,24 @@ pub fn run_with(p: &Parsed, s: &mut Streams<'_>, tty: Tty) -> i32 {
             // below (70): it has nothing to bound, and a 64 would tell a script
             // that its command line is wrong. A --timeout that was given and
             // does not parse is wrong for each verb, so it stays 64.
+            //
+            // A row that is `optional` bounds the run and is never required
+            // (`scp` and `sftp`, Q72): OpenSSH's run in pipes with no such
+            // flag, and ConnectTimeout bounds their login.
             let not_yet = VERB_OWNER.iter().any(|(name, _)| *name == *verb);
-            let gated = crate::flags::verb_for(verb).is_some_and(|v| v.flags.iter().any(|r| r.long == "timeout"));
-            let checked = if not_yet {
-                timeout.as_deref().map(crate::non_interactive::parse_timeout).transpose()
-            } else if gated {
-                let attachment = crate::non_interactive::resolve_tty(tty, *jsonl);
-                crate::non_interactive::require_timeout_or_env(verb, attachment, timeout.as_deref(), |n| {
-                    std::env::var(n).ok()
-                })
-            } else {
-                Ok(None)
+            let row = crate::flags::verb_for(verb).and_then(|v| v.flags.iter().find(|r| r.long == "timeout"));
+            let checked = match row {
+                _ if not_yet => timeout.as_deref().map(crate::non_interactive::parse_timeout).transpose(),
+                Some(row) if row.optional => {
+                    crate::non_interactive::optional_timeout(timeout.as_deref(), |n| std::env::var(n).ok())
+                }
+                Some(_) => {
+                    let attachment = crate::non_interactive::resolve_tty(tty, *jsonl);
+                    crate::non_interactive::require_timeout_or_env(verb, attachment, timeout.as_deref(), |n| {
+                        std::env::var(n).ok()
+                    })
+                }
+                None => Ok(None),
             };
             let deadline = match checked {
                 Ok(deadline) => deadline,
@@ -335,7 +342,7 @@ pub fn run_with(p: &Parsed, s: &mut Streams<'_>, tty: Tty) -> i32 {
                 return crate::cp::run_cp(args, deadline, *jsonl, s.out, s.err);
             }
             if let Some(args) = sftp {
-                return crate::sftp::run_sftp(args, tty, s.out, s.err);
+                return crate::sftp::run_sftp(args, deadline, tty, s.out, s.err);
             }
             if let Some(args) = chat {
                 return crate::chat::run_chat(args, deadline, *jsonl, s.out, s.err);

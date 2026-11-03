@@ -480,7 +480,7 @@ GitHub #17 (talaria0101, 2026-10-08: drops that repeat on one target).
 A dropped relay session ends a copy, and a new run sends the whole file
 again. On a link that drops every few minutes, a large file never arrives.
 GitHub #17 measured one drop (`1011`) in 180 short sessions from one edge
-(`docs/STATUS.md:347`), and drops that came back 3 times of 3 on one target.
+(`docs/STATUS.md:348`), and drops that came back 3 times of 3 on one target.
 
 ## Premise
 
@@ -637,7 +637,7 @@ old writer can race the new one.
 
 - Read: the pinned contract gives the same caps
   (`crates/podssh-probe/tests/spec/relay-spec-2026-10-03-r2.txt:233-235`).
-- Measured in the KTM sandbox (`docs/STATUS.md:346`; the 99 s are in the
+- Measured in the KTM sandbox (`docs/STATUS.md:347`; the 99 s are in the
   report): `podssh proxy` received 67,107,943 bytes, then the relay closed
   with `1009 session byte cap`, 921 bytes short of 64 MiB on that side.
 - Read: `podssh-relay` has a constant for the idle cut only
@@ -755,7 +755,7 @@ relay's limits, and logs in as the first session did".
 
 **Source:** ROADMAP M5 ("Across hosts, `mv` is copy, verify, delete; podssh
 says first that it is not atomic"); the description of `mv` in
-`crates/podssh-cli/src/flags.rs:398-399`.
+`crates/podssh-cli/src/flags.rs:407-408`.
 **Category:** feature
 **Milestone:** M5
 **Priority:** P2
@@ -773,7 +773,7 @@ user must know this before the move starts.
 
 - Measured on `3ee70dc`, offline: `podssh mv --timeout 30s a b` exits 70
   (`'mv' is not implemented yet; nothing was done.`).
-- Read: `mv` shares `CP_FLAGS` (`crates/podssh-cli/src/flags.rs:398-399`),
+- Read: `mv` shares `CP_FLAGS` (`crates/podssh-cli/src/flags.rs:407-408`),
   so the operands and options of T-134 apply.
 - Measured (T-133's offline probe): `posix-rename@openssh.com` replaces in
   one step; `SSH_FXP_RENAME` refuses an existing target.
@@ -957,8 +957,8 @@ Where podssh must replace them, OpenSSH's own `scp` and `sftp` cannot run
 ## Decision
 
 Recommendation: `scp` and `sftp` get no `--timeout` row, as in OpenSSH, so
-the gate of `crates/podssh-cli/src/dispatch.rs:304-322` skips them; T-133's
-limits keep each wait finite. Usage errors stay 64 (`docs/cli.md:4202-4205`)
+the gate of `crates/podssh-cli/src/dispatch.rs:308-329` skips them; T-133's
+limits keep each wait finite. Usage errors stay 64 (`docs/cli.md:4214-4217`)
 where OpenSSH gives 1; a script that tests for "not zero" works with both.
 `--timeout` required with no terminal, as for `cp`, lost: each script that
 runs `scp` in a pipe would exit 64 under `podssh scp`.
@@ -1065,7 +1065,7 @@ trip is long, so such a copy uses a small part of what the path carries.
   (`crates/podssh-ssh/src/run.rs:26-29`): `docs/relay.md:328-340` gives
   2 MiB, `1013` and no drop. The window can grow only after that is
   settled; T-062 measures the `1013`.
-- Measured in two sandboxes (`docs/STATUS.md:345`): 20 MiB through the
+- Measured in two sandboxes (`docs/STATUS.md:346`): 20 MiB through the
   relay with `podssh proxy` (no SSH window in the path) at 0.5 to 0.7 MB/s
   through a CONNECT proxy, and 1.8 to 6.9 MiB/s with no proxy. SFTP through
   the relay is not measured.
@@ -1273,7 +1273,7 @@ differ", and the destination was not changed. The measurement:
 
 A copy over an older version of the same file sends each byte again.
 Through the relay that costs a new session for each 60 MiB (T-137), at 0.5
-to 0.7 MB/s in the KTM sandbox (`docs/STATUS.md:345`).
+to 0.7 MB/s in the KTM sandbox (`docs/STATUS.md:346`).
 
 ## Premise
 
@@ -1546,7 +1546,7 @@ in the issues; the `-l limit` of OpenSSH's `scp` and `sftp` (T-139).
 ## Problem
 
 A copy through the relay can take minutes (0.5 to 0.7 MB/s in the KTM
-sandbox, `docs/STATUS.md:345`). podssh would show no progress, a Ctrl-C
+sandbox, `docs/STATUS.md:346`). podssh would show no progress, a Ctrl-C
 would leave a temporary file with no word, and one copy can take the whole
 uplink of a shared host.
 
@@ -2018,7 +2018,7 @@ host, and the copy back then destroys that change with no word.
 
 ## Approach
 
-1. A new verb `edit` in `VERBS` (`crates/podssh-cli/src/flags.rs:366-430`),
+1. A new verb `edit` in `VERBS` (`crates/podssh-cli/src/flags.rs:375-439`),
    with the connection flags that T-134 gives `cp`. It needs a terminal on
    stdin and stdout; else exit 64.
 2. Download with T-134 into a new directory of mode 0700 in the cache
@@ -2914,7 +2914,7 @@ the names, with no word.
 - Read: `ls` takes `-1afhlnrSt` and keeps `l`, `n` and `a` alone
   (`crates/podssh-cli/src/sftp/commands.rs`, lines 201-205 at `582b1bf`): `-n` is `-l`, and `-f`,
   `-h`, `-r`, `-S` and `-t` do nothing. `docs/cli.md` (line 1916 at `582b1bf`) names `ls [-la]`.
-- Read: the about of `sftp` says "as OpenSSH's sftp" (`crates/podssh-cli/src/flags.rs:397`); the
+- Read: the about of `sftp` says "as OpenSSH's sftp" (`crates/podssh-cli/src/flags.rs:406`); the
   issue names it the README's.
 - Read: `Sftp::read_dir` keeps the name and the attributes of each entry, and drops the long name
   that the server sends with each (`crates/podssh-ssh/src/sftp/mod.rs`, lines 71-78 and 426-441
@@ -2950,7 +2950,7 @@ the names, with no word.
    reverse order, `-S` by size, `-t` by time of change, `-1` one name a line; without `-l` or
    `-1`, the names in columns, as OpenSSH's.
 4. The listing goes into a module of its own, so that `crates/podssh-cli/src/sftp/run.rs` stays
-   well under 500 lines. The `help` of `sftp`'s commands, the manual, `docs/cli.md:2237-2243` and
+   well under 500 lines. The `help` of `sftp`'s commands, the manual, `docs/cli.md:2249-2255` and
    `docs/STATUS.md`.
 
 ## Decision
@@ -3722,7 +3722,7 @@ sends its version line and then nothing was still running when killed at 30 s. R
 **Milestone:** none
 **Priority:** P3
 **Effort:** S
-**Status:** open
+**Status:** partial
 
 ## Problem
 
@@ -3732,7 +3732,8 @@ to the other two; no manual says that the split is a choice, or why.
 ## Premise
 
 - Read: the gate asks for `--timeout` with no terminal of each verb whose table has the flag
-  (`crates/podssh-cli/src/dispatch.rs:286-310`, `crates/podssh-cli/src/non_interactive.rs:178-202`);
+  (`crates/podssh-cli/src/dispatch.rs`, lines 286-310 at `0b00c6e`,
+  `crates/podssh-cli/src/non_interactive.rs:191-215`);
   `cp` and `mv` have it (`crates/podssh-cli/src/flags/copy.rs:57-58`), and `scp` and `sftp` have
   none, by T-139's Decision: as in OpenSSH, so that a script that runs `scp` in a pipe does not exit
   64, with ConnectTimeout and T-133's limits on each wait.
@@ -3742,8 +3743,8 @@ to the other two; no manual says that the split is a choice, or why.
 - Read (L-30): `PODSSH_TIMEOUT` is the default of `--timeout` "for each command that has the flag"
   (`crates/podssh-cli/src/man/facts.rs:107-109`), as the report found; met.
 - Read (L-13): the gate runs at the dispatch, before a verb reads its operands
-  (`crates/podssh-cli/src/dispatch.rs:286-310`), so with no terminal `cp DIR HOST:` with no `-r`
-  gets 64 for the missing `--timeout` first, and on a terminal 66.
+  (`crates/podssh-cli/src/dispatch.rs`, lines 286-310 at `0b00c6e`), so with no terminal
+  `cp DIR HOST:` with no `-r` gets 64 for the missing `--timeout` first, and on a terminal 66.
 
 ## Approach
 
@@ -3779,6 +3780,54 @@ cargo test -p podssh-cli --test non_interactive
 ```
 
 Planted: the new field read as required: the test of `scp` with no terminal fails with 64.
+
+## Correction
+
+2026-11-03, the draft: item 4's 255 is `ssh`'s code. `podssh scp` exits with `cp`'s sysexits
+(EXIT STATUS), and a handshake that ConnectTimeout ends is a hop that could not be reached
+(`crates/podssh-ssh/src/run.rs:405` says "Err(timed_out) => return Err(HopError::Unreachable(timed_out)),"),
+which a copy takes as a server that cannot be reached, 69
+(`crates/podssh-cli/src/cp/link.rs:217`). Read, not measured; the test asks for 69 within 10 s.
+The field of the row is `FlagRow::optional` (`crates/podssh-cli/src/flags.rs`), set by
+`optional(row(...))` on the row of `--timeout` of `scp` and `sftp`, and false on each other row.
+
+## Done
+
+2026-11-03, drafted by an agent, which built nothing and ran no test: each result below is
+UNVERIFIED until the main session merges it.
+
+- `crates/podssh-cli/src/flags.rs`: `FlagRow::optional`, and `optional`, the row as a bound that is
+  never required. `crates/podssh-cli/src/flags/scp.rs`: one row of `--timeout`, in `SCP_FLAGS` and
+  `SFTP_FLAGS`, `optional`; the module's comment.
+- `crates/podssh-cli/src/dispatch.rs`: the gate takes the row of `--timeout`: an `optional` one
+  gives the flag, else `PODSSH_TIMEOUT`, else no bound, with a terminal or not; any other row is
+  required with no terminal, as before. `sftp` gets the bound.
+  `crates/podssh-cli/src/non_interactive.rs`: `optional_timeout`, which refuses a bad flag (64) and
+  a bad variable (78) as `require_timeout_or_env` does. `crates/podssh-cli/src/sftp/mod.rs`:
+  `run_sftp` bounds the whole run, the login and the batch, and says "the --timeout of N s
+  passed" with 75. `scp` takes the bound of `cp`'s run (`run_cp`'s `deadline`), unchanged.
+- `crates/podssh-cli/src/man/notes.rs`: the notes of `cp` (the rule, and why `scp` and `sftp` need
+  none), `mv`, `scp` (a note of its own in place of "takes no flag for a time limit") and `sftp`.
+  `docs/cli.md`: the bullet of `scp` and `sftp` in place of "No `--timeout`", and the bullet of
+  `cp`'s limits. `docs/STATUS.md`: a row.
+- Tests: `crates/podssh-cli/tests/scp_args.rs`, `timeout_is_a_bound_that_scp_and_sftp_never_require`
+  (offline, no terminal: `scp --timeout 30s`, `scp`, `sftp --timeout 30s -b` and `sftp -b` 69;
+  `--timeout 30x` and `0` 64; `PODSSH_TIMEOUT=30x` 78, `30s` 69; `cp` with neither 64) and
+  `timeout_ends_scp_and_sftp_at_a_server_that_says_nothing` (a listener of the test on the
+  loopback that sends `SSH-2.0-...` and then nothing: `scp --timeout 2s` 75 within 5 s, with "the
+  --timeout of 2 s passed"; `sftp --timeout 2s -b` 75 within 5 s; `scp -o ConnectTimeout=3` 69
+  within 10 s), each process killed past its limit: UNVERIFIED.
+  `crates/podssh-cli/tests/non_interactive.rs`, `an_optional_timeout_bounds_and_is_never_required`
+  and `scp_and_sftp_pass_the_gate_with_no_timeout` (with neither, `scp` and `sftp` say what their
+  command line lacks, never the gate): UNVERIFIED.
+- Planted defect: `scripts/plants/t508-optional-required.patch` and `.plant` (group `cli-tests`, no
+  SETUP, offline): the gate's arm of an `optional` row taken out, so each row is required;
+  `timeout_is_a_bound_that_scp_and_sftp_never_require` must fail with 64. `git apply --check` of
+  the patch: passed. Its run: UNVERIFIED.
+- Not run: rustfmt found nothing to change in the files of this entry but `flags.rs`, whose
+  differences are of lines this entry did not write (the gate's rustfmt is another version); the
+  build, clippy and the tests did not run. `scripts/interop-sftp.sh` runs `scp` and `sftp` with no
+  `--timeout`, which still needs none.
 
 # T-510: `edit` with no terminal refuses an editor that needs none, and a copy kept after a conflict stays for ever
 
