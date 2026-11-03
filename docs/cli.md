@@ -1451,9 +1451,35 @@ host, and a list of hosts changes both.
   a failure (a status other than 0, or no session); the hosts that run end
   as they end. A summary on stderr gives each host and its status, or why
   it has none; `-q` leaves it out.
+- **A record for a program** (T-484, GitHub #94,
+  `crates/podssh-cli/src/each/record.rs`). `--result-file FILE` writes one
+  JSON object to FILE at the end, a new file for its owner alone (mode
+  0600 on Unix), and the lines stay as they are; `-` is refused (64), as
+  stdout carries the lines. `--json` writes the same object on stdout once
+  each host ended: each host's stdout and stderr go into its record in
+  place of the lines, as `ssh_exec` of `podssh mcp` gives them (`stdout`,
+  `stdout_encoding`, `stderr`, `stderr_encoding`: 1 MiB of each at most, as
+  text when it is UTF-8 and else as base64, so that no byte changes;
+  `truncated` when more came), and podssh's own lines stay on stderr. With
+  `--output-dir` the bytes go to the files, and each host's record names
+  them in `files` (`stdout`, `stderr`, `status`), for output past the cap.
+  The object: `schema` (1), `podssh` (the version), `exit` (the run's),
+  `counts` (`hosts`, `ok`, `failed`, `not_started`, as the summary counts
+  them) and `hosts`, in the order of the list, each with `host` (the label),
+  `destination` (`user@host:port`), `exit` (its part of the run's exit;
+  null when it did not start), `status`, `signal`, `end`, `failure`,
+  `bytes` and `relay` as `ssh --result-file` gives them, `error` (the
+  words of its failure, or null), `duration_ms` and `files` (or null). A
+  host with no session has the end `failed`, and the class `connect` when
+  its session said no other. Each host's facts are its own session's: the
+  record of `podssh_ssh::outcome` is the session's inside
+  `outcome::scoped`, with its phase and the server's last words, so that
+  two hosts that fail at once each name their own failure; with no scope,
+  as for `podssh ssh`, it is the process's. `--json` and `--result-file`
+  with `--interactive` are refused (64).
 - A host's session is not tried again after a drop of the relay, as
-  `ssh`'s is (T-025): the phase of a try is the process's, and many
-  sessions share it.
+  `ssh`'s is (T-025): `each` makes one try of each host. The phase of a
+  try is each session's own since T-484, as the rest of its record is.
 
 ### The broadcast: `--interactive`
 

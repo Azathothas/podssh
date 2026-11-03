@@ -2,16 +2,19 @@
 //! the first hop reached through the relay or with `--direct`
 //! ([`crate::ssh::transport`]), then the login and the command on the one
 //! SSH client, `podssh_ssh::run`, with its output into the host's place as
-//! it comes. No second SSH client.
+//! it comes. No second SSH client. The session has a record of its own
+//! (`podssh_ssh::outcome::scoped`), which the host's record reads (T-484).
 
 use std::sync::Arc;
+use std::time::{Duration, Instant};
 
 use podssh_relay::token::Origin;
+use podssh_ssh::outcome::Record;
 use podssh_ssh::{Log, Request};
 use tokio::sync::mpsc;
 
 use super::fan::Ended;
-use super::out::{self, Place};
+use super::out::{self, Kept, Place};
 use crate::relay_settings::Refusal;
 use crate::ssh::args::SshArgs;
 use crate::ssh::resolve::{self, Env, Resolved, Transport};
@@ -101,13 +104,35 @@ fn shell_only(resolved: &mut Resolved) -> Result<(), Refusal> {
     Ok(())
 }
 
+/// What one host's session did, beside its end, for its record (T-484):
+/// the session's own record, its time, and the streams that `--json` kept.
+#[derive(Debug, Clone, Default)]
+pub(crate) struct Ran {
+    pub record: Record,
+    pub took: Duration,
+    pub kept: Option<Kept>,
+}
+
+/// `user@host:port` of the host of `plan`, as its login goes.
+pub(crate) fn destination(plan: &Plan) -> String {
+    let opts = &plan.resolved.options;
+    let user = opts.destination.user.as_deref().unwrap_or(&opts.user);
+    format!("{user}@{}", podssh_ws::dial::authority(&opts.destination.host, opts.destination.port))
+}
+
 /// Run the command on the host of `plan`, its output into `place` as it
 /// comes; with `--output-dir`, its status into its status file at the end.
 /// How it ended.
 pub(crate) async fn run(plan: &Plan, place: Place) -> Ended {
+    ran(plan, place).await.0
+}
+
+/// [`run`], and what the session did.
+pub(crate) async fn ran(plan: &Plan, place: Place) -> (Ended, Ran) {
+    let started = Instant::now();
     let status_file = match &place {
         Place::Files(files) => Some(files.status.clone()),
-        Place::Lines { .. } => None,
+        Place::Lines { .. } | Place::Kept => None,
     };
     let (sink, pieces) = mpsc::channel(16);
     let mut opts = plan.resolved.options.clone();
@@ -122,12 +147,20 @@ pub(crate) async fn run(plan: &Plan, place: Place) -> Ended {
                 for line in &failure.lines {
                     log.error(line);
                 }
+                // The class of the road that failed, as `podssh ssh` gives it.
+                let leg = if matches!(plan.resolved.transport, Transport::Relay { .. }) { "relay" } else { "connect" };
+                podssh_ssh::outcome::failure_is(leg);
                 let why = failure.lines.first().cloned().unwrap_or_else(|| "no connection".to_string());
                 return Ended::Failed(why);
             }
         };
+        let relay = reached.relay.clone();
         let outcome = podssh_ssh::run::run_outcome(reached.stream, &opts, reached.relay, log.clone()).await;
         transport::settle(reached.layer).await;
+        // The relay's close, as `podssh ssh` keeps it.
+        if let Some(end) = relay.as_ref().and_then(podssh_ssh::RelayStatus::get) {
+            podssh_ssh::outcome::relay_end(&end);
+        }
         for line in &outcome.lines {
             log.error(line);
         }
@@ -136,16 +169,20 @@ pub(crate) async fn run(plan: &Plan, place: Place) -> Ended {
             None => Ended::Status(outcome.code),
         }
     };
-    let (ended, drained) = tokio::join!(Box::pin(session), out::drain(pieces, place));
-    if let Err(why) = drained {
+    // The session's own record: hosts at once each write theirs, and none
+    // the process's (T-484).
+    let session = podssh_ssh::outcome::scoped(session);
+    let ((ended, record), drained) = tokio::join!(Box::pin(session), out::drain(pieces, place));
+    let kept = drained.unwrap_or_else(|why| {
         plan.log.error(&why);
-    }
+        None
+    });
     if let (Some(path), Some(code)) = (status_file, ended.code()) {
         if let Err(why) = out::status(&path, code).await {
             plan.log.error(&why);
         }
     }
-    ended
+    (ended, Ran { record, took: started.elapsed(), kept })
 }
 
 /// A relay token before the fan-out, so that the hosts read the one that the

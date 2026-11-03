@@ -107,7 +107,7 @@ pub fn run_ssh(args: &SshArgs, tty: Tty, err: &mut dyn Write) -> i32 {
         crate::error_program::not_a_failure();
     }
     if let Some(path) = &args.result_file {
-        result::write(path, &object, err);
+        result::write("ssh", path, &object, err);
     }
     if let Some(line) = crate::session_log::ssh_line(start_ms, &object).filter(|_| log != Place::Off) {
         if let Err(why) = crate::session_log::append(&log, &line) {

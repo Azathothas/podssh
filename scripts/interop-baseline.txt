@@ -25,7 +25,7 @@ harness stdio interop 3 scripts/interop-stdio.sh
 harness match interop 18 scripts/interop-match.sh
 harness result interop 13 scripts/interop-result.sh
 harness mcp interop 6 scripts/interop-mcp.sh
-harness each interop 7 scripts/interop-each.sh
+harness each interop 9 scripts/interop-each.sh
 harness snippets interop 7 scripts/interop-snippets.sh
 harness health interop 9 scripts/interop-health.sh
 harness containers interop 8 scripts/interop-containers.sh
@@ -725,6 +725,8 @@ each.lines pass
 each.order.0_3 pass
 each.order.3_0 pass
 each.closed pass
+each.json pass
+each.result_file pass
 each.output_dir pass
 each.host_key pass
 each.fail_fast pass

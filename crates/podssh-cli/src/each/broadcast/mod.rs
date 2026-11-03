@@ -65,6 +65,9 @@ pub fn run(args: &EachArgs, err: &mut dyn Write) -> i32 {
         ("--output-dir", args.output_dir.is_some()),
         // A snippet is a command too (T-187).
         ("--snippet", args.ssh.snippet.is_some()),
+        // The record gives the ends of a command on each host (T-484).
+        ("--json", args.json),
+        ("--result-file", args.ssh.result_file.is_some()),
     ];
     if let Some((flag, _)) = for_a_command.iter().find(|(_, given)| *given) {
         return usage(err, format!("{flag} is for a command; --interactive keeps each host open, at once"));

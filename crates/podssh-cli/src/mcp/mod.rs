@@ -23,6 +23,11 @@ mod sessions;
 mod tools;
 mod verbs;
 
+// The streams of a call as text or base64, and their cap, which the record
+// of `podssh each --json` keeps the same way (T-484).
+pub(crate) use child::{text, Captured};
+pub(crate) use tools::SSH_CAP;
+
 use std::collections::HashMap;
 use std::io::Write;
 use std::path::{Path, PathBuf};

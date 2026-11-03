@@ -6,12 +6,14 @@
 //! `--output-dir`, and a host key that no question can accept; and the
 //! braces and the groups of T-184 through the binary. Against OpenSSH and
 //! Dropbear it runs in the gate (`scripts/interop-each.sh`). The broadcast
-//! of `--interactive` (T-185) is in `each_interactive/`.
+//! of `--interactive` (T-185) is in `each_interactive/`, and the record of
+//! `--result-file` and `--json` (T-484) in `each_json/`.
 
 mod cleanup;
 #[cfg(windows)]
 mod conpty_harness;
 mod each_interactive;
+mod each_json;
 #[cfg(target_os = "linux")]
 mod pty_harness;
 mod ssh_harness;

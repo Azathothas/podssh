@@ -1,8 +1,9 @@
 # podssh each (T-183) against OpenSSH on port 2201 and Dropbear on port
 # 2203 at once: a line for each host with its label, the largest status as
 # the exit in each order of the hosts (the planted defect, the first host's
-# status, fails the order 0, 3), a closed port named with 255, the files of
-# --output-dir, a host key that no question can accept, and --fail-fast.
+# status, fails the order 0, 3), a closed port named with 255, the record of
+# --json and --result-file (T-484), the files of --output-dir, a host key
+# that no question can accept, and --fail-fast.
 # Sourced by scripts/interop.sh; uses ok, bad, expect_rc, $BIN, $W, $K, $T
 # and $KH. At its end it sources scripts/interop-snippets.sh (T-187), which
 # uses its e(), and the other harnesses of commands on other hosts
@@ -38,6 +39,26 @@ rc=$?
 [ "$rc" = 255 ] && grep -q "^podssh each: .*$T:2299 .*255, no session" "$EW/err" \
     && ok each.closed "a closed port beside two good hosts: exit 255, and the summary names it" \
     || bad each.closed "exit $rc" "$EW/err"
+# The record (T-484): 0 from OpenSSH and 3 from Dropbear, each host's own
+# status in one object on stdout, in the order of the list.
+e --json "$BOTH" -- "$by_port" >"$EW/json" 2>"$EW/err"
+rc=$?
+[ "$rc" = 3 ] && python3 -c 'import json, sys
+r = json.load(open(sys.argv[1]))
+got = [(h["exit"], h["status"], h["end"], h["failure"]) for h in r["hosts"]]
+sys.exit(0 if r["exit"] == 3 and got == [(0, 0, "status", None), (3, 3, "status", None)] else 1)' "$EW/json" \
+    && ok each.json "--json: 0 from OpenSSH and 3 from Dropbear, each host's status in one object" \
+    || bad each.json "exit $rc; $(head -c 600 "$EW/json")" "$EW/err"
+e --result-file "$EW/result.json" "$BOTH,$T:2299" -- 'echo out; exit 3' >"$EW/out" 2>"$EW/err"
+rc=$?
+[ "$rc" = 255 ] && [ "$(wc -l <"$EW/out")" -eq 2 ] && python3 -c 'import json, sys
+r = json.load(open(sys.argv[1]))
+h = r["hosts"]
+ok = [x["status"] for x in h[:2]] == [3, 3] and all(x["bytes"]["stdout"] == 4 for x in h[:2])
+sys.exit(0 if ok and h[2]["failure"] == "connect" and h[2]["error"] and r["counts"]["failed"] == 3 else 1)' \
+    "$EW/result.json" \
+    && ok each.result_file "--result-file: each host's status and bytes, the closed port's class and words, and the lines" \
+    || bad each.result_file "exit $rc; $(head -c 600 "$EW/result.json" 2>&1)" "$EW/err"
 e --output-dir "$EW/dir" "$BOTH" -- 'printf "a\\r\\nb"; printf x >&2; exit 3' >"$EW/out" 2>"$EW/err"
 rc=$?
 f="$EW/dir/podtest@127.0.0.1%3A2203"
