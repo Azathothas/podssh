@@ -2,7 +2,9 @@
 //! the label NAME. stdin goes to the node's TARGET and its bytes come back on
 //! stdout, as `podssh proxy` carries a forward session; so it is the
 //! ProxyCommand of OpenSSH for a node. stdout carries those bytes and nothing
-//! else; it exits 0 only after the node took the session.
+//! else; it exits 0 only after the node took the session. SIGHUP, which
+//! OpenSSH sends it at its exit, SIGTERM and SIGINT end the session with its
+//! `CLOSE`, as the end of stdin does (T-586).
 
 use std::io::Write;
 
@@ -82,6 +84,9 @@ pub fn run_operator(args: &OperatorArgs, err: &mut dyn Write) -> i32 {
     let ran = runtime.block_on(async {
         let (link, leg_end) = tokio::io::duplex(PIPE);
         let first = operator::start(&config, leg_end).await?;
+        // OpenSSH ends its ProxyCommand with SIGHUP: the session's end, which
+        // the node hears as a `CLOSE` and keeps nothing of (T-586).
+        crate::hangup::take(crate::hangup::Which::All);
         let shown = label.clone();
         let pin_say = move |line: String| podssh_ssh::err_line!("podssh operator: {shown}: {line}");
         let carried =
@@ -114,6 +119,9 @@ pub(crate) fn judged(label: &str, carried: &Carried) -> Option<(i32, String)> {
     }
     match carried {
         Carried { why: Some(why), .. } => Some((Fault::SessionFault.code(), why.clone())),
+        // A signal ended a session that the node took, as an end of stdin
+        // does (T-586).
+        Carried { why: None, signalled: true, .. } => None,
         Carried { why: None, leg: Some(outcome), .. } => {
             verdict(label, outcome).map(|(fault, why)| (fault.code(), why))
         }

@@ -15,8 +15,14 @@ pub(super) const NODE: &[&str] = &[
      that sleeps for a night needs 8h or more. The node names that time to each operator, which waits \
      as long, and its first line says it. A session kept longer keeps its replay buffers longer, and \
      the bound below holds. TARGET is dialled only once the operator's handshake is done. The node keeps at most \
-     64 MiB of replay buffers (16 sessions with the default of PODSSH_REPLAY_BUFFER); a new session past \
-     that ends at once with the reason. podssh ssh node:// and podssh operator speak the layer. For an \
+     64 MiB of replay buffers: a whole buffer for each session that can still fill one, with a link or \
+     waiting for its operator (16 sessions with the default of PODSSH_REPLAY_BUFFER); for a session whose \
+     TARGET ended and whose end went out, the bytes that the operator has not acknowledged; nothing for a \
+     session that ended, whose operator had each byte but lost the link before it answered: its id alone \
+     waits as long, and a resume of it hears the end. A new session past the 64 MiB ends at once with the \
+     reason, which counts the sessions with a link and those waiting for their operator, and says when the \
+     first of those is forgotten; the node says the same on stderr, once a minute at most, and once when \
+     its buffers pass three quarters of the 64 MiB. podssh ssh node:// and podssh operator speak the layer. For an \
      operator that does not, --plain carries each session's bytes as they are, TARGET dialled at the \
      start of the session: a lost link then ends the session. The node's first line names its mode.",
     "A roost: with --sshd, the node serves a standard sshd, TARGET, or 127.0.0.1:22 when no TARGET is \
@@ -242,6 +248,12 @@ pub(super) const OPERATOR: &[&str] = &[
     "Before the node takes the session, up to 1 MiB of stdin is kept, and sent then. The session ends \
      when stdin ends or the node's TARGET closes; it exits 0 only when the node took the session. An \
      error is one line on stderr; the codes are in EXIT STATUS.",
+    "SIGHUP, SIGTERM and SIGINT (on Windows, Ctrl-C, Ctrl-Break and the close of the console) end the \
+     session as the end of stdin does: OpenSSH ends its ProxyCommand with SIGHUP as it exits, and does \
+     not wait for it. The node hears the session's end after the bytes on their way, and keeps nothing of \
+     it; podssh waits 2 s at most for the node's answer, then exits, 0 when the node took the session. A \
+     signal before the node took it ends the wait at once. A signal that podssh was started to ignore \
+     (nohup, a detached run's SIGHUP) stays ignored.",
     "With a node that offers the resumable layer, a lost link to the relay is replaced by a new one, \
      for as long as the node keeps the session (10 minutes, or its --resume-deadline), and the session \
      goes on where it was; one line on stderr tells of each loss and each resume. --resume-deadline \

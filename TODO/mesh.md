@@ -2083,7 +2083,7 @@ operator reads slowly, with a frame dropped, again and again.
 
 - `crates/podssh-relay/src/session/replay.rs:15` says "the relay holds at most 1 MiB for a
   slow", and the capacity is 4 MiB (`crates/podssh-relay/src/session/replay.rs:18`).
-- A node queues twice the layer's window (`crates/podssh-relay/src/reverse/layered.rs:93`).
+- A node queues twice the layer's window (`crates/podssh-relay/src/reverse/layered.rs:99`).
 - The contract: `crates/podssh-probe/tests/spec/relay-spec-2026-10-03-r2.txt:185`.
 
 ## Approach
@@ -3081,7 +3081,7 @@ The calls of the draft (2026-11-02), each with what lost:
   copy above; leaving the test as it was, by which `mv NAME:a node://NAME:b` copies through this
   host and removes the source, where the server could rename it, and `mv NAME:a node://NAME:a` is
   not refused as one file before anything connects.
-- **A copy keeps the pair's road alone** (`crates/podssh-cli/src/ssh/node.rs:225` says "the
+- **A copy keeps the pair's road alone** (`crates/podssh-cli/src/ssh/node.rs:228` says "the
   pair's road is its only one"), and the manual says so. Lost: racing the net's iroh and DERP
   tickets for a copy as `ssh` races them, which needs `roads::connect` to give a stream in place
   of running SSH itself: more than this entry's effort, in a file of 463 of its 500 lines; it is
@@ -3709,8 +3709,8 @@ of podssh's.
 
 ## Premise
 
-- `crates/podssh-cli/src/man/notes_pair.rs:140` says "Tailscale's free servers for tailcat", and
-  `crates/podssh-cli/src/man/notes_ssh.rs:222` says "Four words name public forwarders".
+- `crates/podssh-cli/src/man/notes_pair.rs:146` says "Tailscale's free servers for tailcat", and
+  `crates/podssh-cli/src/man/notes_ssh.rs:224` says "Four words name public forwarders".
 - `docs/carriers.md` (the forward road, item 7 and its "Ruled out"; the reverse road, item 2):
   Tailscale's main fleet serves Tailscale's clients; the public Wisp lists come from web proxies
   that serve a network's users against that network's own filter, with no operator, terms or
@@ -6097,7 +6097,7 @@ through a relay. A feature of the mesh (Q63; Q77, the fallbacks that exist).
 - Read: `pipe` does not refuse a terminal on stdin (no such check in `crates/podssh-cli/src/pipe/`
   at `3bb42ea`); the issue's "as `pipe` does" is not this code's.
 - Read: the exit lends its egress on the node's roads
-  (`crates/podssh-cli/src/man/notes_pair.rs:225-235`); a carrier is one more road for it (T-596).
+  (`crates/podssh-cli/src/man/notes_pair.rs:231-241`); a carrier is one more road for it (T-596).
 
 ## Approach
 
@@ -6177,8 +6177,8 @@ roads, and a carrier must be one of them.
 ## Premise
 
 - Read: the exit goes on the pair's, the iroh, the DERP, the transit and the Piping Server roads
-  (`crates/podssh-cli/src/man/notes_pair.rs:234-235`), and needs the net's role exit, signed by
-  its owner (`:232-233`).
+  (`crates/podssh-cli/src/man/notes_pair.rs:240-241`), and needs the net's role exit, signed by
+  its owner (`:238-239`).
 - Read: `podssh exit NAME --listen` gives SOCKS5, SOCKS4a and HTTP CONNECT on a loopback address
   (`docs/STATUS.md:68`).
 - In the issue's case the end with egress starts the channel (`ssh -T sandbox CMD`), so the node

@@ -2,7 +2,9 @@
 //! the pair stored under the label NAME, or in `--pair-file`. The bytes go
 //! over the operator's leg, in the resumable layer when the node offers it,
 //! as `podssh operator` carries them: a lost leg is replaced, and the
-//! session goes on. When the node's session ends, nothing more can come.
+//! session goes on. When the node's session ends, nothing more can come. A
+//! signal ends the session with its `CLOSE`, as an end of the input does
+//! (T-586).
 
 use std::future::Future;
 use std::pin::Pin;
@@ -71,6 +73,9 @@ pub async fn open(label: &str, args: &SshArgs, say: &mut dyn FnMut(&str)) -> Res
         let (link, leg_end) = tokio::io::duplex(PIPE);
         let leg = match operator::start(&config, leg_end).await {
             Ok(leg) => {
+                // A signal ends the pipe with the node's session closed, not
+                // kept by the node as a loss (T-586).
+                crate::hangup::take(crate::hangup::Which::All);
                 let _ = started.send(Ok(()));
                 leg
             }

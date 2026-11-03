@@ -1,0 +1,13 @@
+--- a/crates/podssh-relay/src/session/keep.rs
++++ b/crates/podssh-relay/src/session/keep.rs
+@@ -104,8 +104,8 @@
+             Slot::Live { admitted, .. } | Slot::Idle { admitted, .. } if !admitted.load(Ordering::SeqCst) => 0,
+             Slot::Idle { carry, .. } if carry.app_ended() => {
+-                lock(&carry.state).kept().saturating_add(carry.undelivered()).min(each)
++                each
+             }
+             Slot::Live { .. } | Slot::Idle { .. } => each,
+-            Slot::Closed { .. } => 0,
++            Slot::Closed { .. } => each,
+         }
+     }

@@ -1,0 +1,9 @@
+--- a/crates/podssh-cli/src/hangup.rs
++++ b/crates/podssh-cli/src/hangup.rs
+@@ -169,5 +169,5 @@
+         // SIGHUP, a detached run's (`--detach`, `ssh -f`).
+         kinds.retain(|&(_, number)| !ignored(number));
+         // One that cannot be taken keeps its default: a probe, not a guess.
+-        Stops(kinds.into_iter().filter_map(|(kind, _)| signal(kind).ok()).collect())
++        Stops(kinds.into_iter().filter(|_| false).filter_map(|(kind, _)| signal(kind).ok()).collect())
+     }

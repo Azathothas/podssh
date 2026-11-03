@@ -491,7 +491,7 @@ Read, at `61e55d1`: no option made podssh start a program: `ProxyCommand` is ref
    `[OPTIONS] [--] [user@]host [COMMAND...]` for `ssh` and
    `[OPTIONS] [--] HOST PORT` for `proxy`; `--help` and the synopsis of the
    manual (`crates/podssh-cli/src/man/model.rs:186-190`) read it.
-2. A note for `ssh` and `proxy` (`crates/podssh-cli/src/man/notes_ssh.rs:4-473` and `crates/podssh-cli/src/man/notes_ssh_more.rs:4-106` and `crates/podssh-cli/src/man/notes.rs:69-184`)
+2. A note for `ssh` and `proxy` (`crates/podssh-cli/src/man/notes_ssh.rs:4-475` and `crates/podssh-cli/src/man/notes_ssh_more.rs:4-106` and `crates/podssh-cli/src/man/notes.rs:69-184`)
    and an example (`crates/podssh-cli/src/man/examples.rs:8-267`). Pitfall: the
    notes test reads a bare `--` as a flag that does not exist
    (`crates/podssh-cli/src/man/notes.rs:389-405`); teach `flag_exists`
@@ -3080,7 +3080,7 @@ node at its next line, often "online again" after a reconnect. A server then has
 ## Premise
 
 - Read: `panic = "abort"` in the release profile (`Cargo.toml:221`).
-- Read: the node's lines are `eprintln!` (`crates/podssh-cli/src/node.rs:329`,
+- Read: the node's lines are `eprintln!` (`crates/podssh-cli/src/node.rs:331`,
   `crates/podssh-cli/src/node_derp.rs:310`, `crates/podssh-cli/src/node_iroh.rs:319`), as are 40
   more sites in `crates/podssh-cli/src` and 4 in `crates/podssh-ssh/src` (2026-11-01, a search for
   `eprintln!`, `println!`, `eprint!` and `print!`).
@@ -3602,7 +3602,7 @@ of `job fetch`; why a file given by process substitution is refused; the direct 
 - Read (L-25): a file that is a link is refused with "is a symbolic link, which podssh does not
   follow here" (`crates/podssh-relay/src/cache/own.rs:37-38`); `--allow <(...)` gives such a link
   (`/dev/fd/63`), and the line does not say that a regular file works.
-- Read (L-27): `podssh proxy` has no direct road (`crates/podssh-cli/src/man/notes_ssh.rs:235`);
+- Read (L-27): `podssh proxy` has no direct road (`crates/podssh-cli/src/man/notes_ssh.rs:237`);
   `podssh pipe - tcp:%h:%p` is that road as a `ProxyCommand` (`crates/podssh-cli/src/man/notes_pipe.rs:5-14`),
   and the notes of `proxy` do not name it (`crates/podssh-cli/src/man/notes.rs:183`).
 - Read (L-29): a bad line of the settings file or of an `ssh_config` file is 78, and the same

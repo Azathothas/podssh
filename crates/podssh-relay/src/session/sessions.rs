@@ -77,6 +77,17 @@ impl Sessions {
         }
     }
 
+    /// The session's state goes, its received offset read from it last: a
+    /// session that ended keeps its secret and offset alone, for the
+    /// handshake of a resume that lost its `CLOSE` (T-586).
+    pub fn detach(&mut self, id: &SessionId) {
+        if let Some(kept) = self.kept.get_mut(id) {
+            let received = kept.received();
+            kept.received = received;
+            kept.state = None;
+        }
+    }
+
     /// Forget a session: its secret is wiped, and no client can resume it.
     pub fn remove(&mut self, id: &SessionId) -> bool {
         self.kept.remove(id).is_some()

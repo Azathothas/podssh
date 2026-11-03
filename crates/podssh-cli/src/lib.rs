@@ -55,6 +55,8 @@ pub mod flags;
 // `--forwarder`: other products' WebSocket forwarders, in place of the
 // relay (T-369).
 pub mod forwarder;
+// The signals that end a client of a node's layer with a `CLOSE` (T-586).
+pub mod hangup;
 pub mod help;
 // `podssh health`: the facts of the far host, over one exec (T-189).
 pub mod health;

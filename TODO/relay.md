@@ -522,7 +522,7 @@ relay sends no keepalives on reverse sockets, and a quiet socket becomes dormant
    reason of the close, or "open at 240 s".
 3. At 240 s, send one byte each way: a hibernated socket can stay open and not deliver.
 4. Stop the pair at the end (`POST /v1/stop/NAME`). Tokens go only in headers; never print one,
-   and above all not the `stop_token` (`docs/reverse.md:271-280`).
+   and above all not the `stop_token` (`docs/reverse.md:278-287`).
 5. Answer the question in `docs/relay.md` lines 189-195 at `cd75137`, record the result in `docs/STATUS.md` with
    the date and the command, and correct `docs/reverse.md` lines 24-29 at `cd75137` if the result differs.
 
@@ -1532,7 +1532,7 @@ The research on the client's side (2026-11-02) found podssh's own part of the ex
 Approach item 3 above calls done. The layer's window on the pair's road is its replay capacity,
 4 MiB by default and up to 16 MiB (`crates/podssh-relay/src/session/replay.rs:18-20`), and a node
 takes twice that before it calls a local side stalled
-(`crates/podssh-relay/src/reverse/layered.rs:93-98`): above the contract's 1 MiB on the reverse
+(`crates/podssh-relay/src/reverse/layered.rs:99-104`): above the contract's 1 MiB on the reverse
 road (`crates/podssh-probe/tests/spec/relay-spec-2026-10-03-r2.txt:185`). Its repair is T-443.
 And a raw forward stream (`podssh proxy`, `pipe relay:`) has no bound of podssh's: the pump
 reads 32 KiB, then writes (`crates/podssh-cli/src/pipe/pump.rs:4-6`).

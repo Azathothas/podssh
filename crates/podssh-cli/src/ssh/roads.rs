@@ -410,12 +410,19 @@ pub(super) async fn connect(
     // A line an hour before the pair expires, as on the pair's road alone
     // (T-155): the transit road brings each run with a pair here (T-436).
     let expires_ms = part.as_ref().map(|part| part.expires_ms);
+    // SIGHUP and SIGTERM end the session with its `CLOSE`, as on the pair's
+    // road alone; Ctrl-C stays the remote command's (T-586).
+    let hangup = crate::hangup::take(crate::hangup::Which::Ends);
     let carried = async {
-        let mut layer = Box::pin(resume::run(client, layer_app, connect, note, &mut entropy));
-        tokio::select! {
-            outcome = &mut layer => outcome,
-            () = layered::warn_of_expiry(expires_ms, &say) => layer.await,
-        }
+        let app = crate::hangup::ending(layer_app, Some(&hangup));
+        let mut layer = Box::pin(resume::run(client, app, connect, note, &mut entropy));
+        let run = async {
+            tokio::select! {
+                outcome = &mut layer => outcome,
+                () = layered::warn_of_expiry(expires_ms, &say) => layer.await,
+            }
+        };
+        crate::hangup::bounded(Some(&hangup), run).await
     };
     let (code, outcome, failed) =
         tokio::join!(Box::pin(podssh_ssh::run(ssh_end, opts, None, log.clone())), Box::pin(carried), session);
@@ -443,7 +450,8 @@ pub(super) async fn connect(
         roads.close().await;
         return EXIT_FAILURE;
     }
-    if let (true, Some(why)) = (code == EXIT_FAILURE, layered::why_ended(outcome)) {
+    // A session cut after a signal says nothing more: its `CLOSE` went.
+    if let (true, Some(why)) = (code == EXIT_FAILURE, outcome.and_then(layered::why_ended)) {
         log.error(&format!("{shown}: {why}"));
     }
     let _ = layered::last(&roads.legs).await;

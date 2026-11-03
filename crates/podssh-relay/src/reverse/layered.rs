@@ -52,6 +52,12 @@ impl<H: Handler> Layered<H> {
         self.keeper.kept()
     }
 
+    /// The sessions that ended and keep their id alone, charged nothing,
+    /// for a resume that lost their `CLOSE` (T-586).
+    pub fn closed(&self) -> usize {
+        self.keeper.closed()
+    }
+
     /// One task forgets the sessions whose deadline passed; started with the
     /// first session, inside the node's runtime.
     fn sweep(&self) {

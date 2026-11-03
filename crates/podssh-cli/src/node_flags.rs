@@ -45,6 +45,15 @@ pub(crate) fn deadline(args: &NodeArgs) -> Result<(), Refusal> {
     Ok(())
 }
 
+/// The lines of the layer's budget of replay buffers (T-586), on the node's
+/// stderr beside its others, which a detached node's log keeps: a refusal,
+/// once a minute at most, and the budget past three quarters. The client
+/// that is refused hears why; the node's own user must too.
+pub(crate) fn tell_budget(args: &NodeArgs) {
+    let label = args.name.clone().unwrap_or_default();
+    podssh_relay::session::budget::tell(move |line: &str| podssh_ssh::err_line!("podssh node: {label}: {line}"));
+}
+
 /// The mode of a node with the layer, as its first line says it: with the
 /// time for which it keeps a lost session.
 pub(crate) fn layer_mode() -> String {

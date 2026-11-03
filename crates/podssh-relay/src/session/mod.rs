@@ -22,7 +22,7 @@
 //!   link of a session, [`resume`]: the client's session across links,
 //!   [`beside`]: a new link beside the one that carries it, before the
 //!   relay's limits or when it went silent, and [`keep`]: the sessions that
-//!   a far end keeps across links;
+//!   a far end keeps across links, charged against its [`budget`] (T-586);
 //! - [`deadline`]: how long each end waits for a new link (T-306), and
 //!   [`hearing`]: what the client heard from the far end, for a notice of
 //!   its silence (T-302);
@@ -33,6 +33,7 @@
 //! with no socket and no clock.
 
 pub mod beside;
+pub mod budget;
 pub mod client;
 pub mod deadline;
 pub mod decode;
