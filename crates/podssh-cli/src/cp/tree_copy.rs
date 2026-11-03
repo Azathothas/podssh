@@ -18,6 +18,7 @@ use std::sync::Arc;
 use podssh_ssh::sftp::{FileAttributes, Sftp};
 use podssh_ssh::Log;
 
+use super::gauge;
 use super::link::{Link, Road};
 use super::meta;
 use super::mirror::{refused_root, Pending};
@@ -84,6 +85,14 @@ fn skipped(outcome: &mut Outcome, log: &Log, from: String, kind: Special, dry_ru
     outcome.skipped.push((from, kind.noun()));
 }
 
+/// The files of a tree once walked, into the run's count, which its
+/// progress line shows (T-472); a dry run copies none.
+fn count_files(items: &[Item], tree: &Tree) {
+    if !tree.dry_run {
+        gauge::more_files(items.iter().filter(|item| matches!(item, Item::File { .. })).count());
+    }
+}
+
 /// Copy the directory `source` to `dest` over `conn`: up or down.
 #[allow(clippy::too_many_arguments)]
 pub async fn copy(
@@ -142,6 +151,7 @@ async fn up(
         }
     }
     let items = tree::walk_local(Path::new(src), tree);
+    count_files(&items, tree);
     let mut dirs = Vec::new();
     let mut clean = true;
     // The far name, the size and the digest of each file copied that has
@@ -174,6 +184,7 @@ async fn up(
                 let target = remote_join(&root, rel);
                 if tree.changed_only && !tree.dry_run && same_far(conn.sftp(), &from, &target).await {
                     outcome.unchanged += 1;
+                    gauge::passed();
                     continue;
                 }
                 let id = meta::inode(Path::new(&from));
@@ -191,6 +202,7 @@ async fn up(
                     let Some(sftp) = conn.sftp() else { return };
                     match meta::hard_link(sftp, &first, &target, log).await {
                         Ok(true) => {
+                            gauge::passed();
                             let verified_by = format!("a hard link to {first}");
                             let not_atomic = false;
                             let (source, destination, removed) = (from, target, None);
@@ -334,6 +346,7 @@ async fn down(
     }
     let Some(sftp) = conn.sftp() else { return };
     let items = tree::walk_far(sftp, &src.path, tree, cfg!(windows)).await;
+    count_files(&items, tree);
     let mut dirs = Vec::new();
     let mut clean = true;
     // The files wait, then go K at once (T-297, T-474).

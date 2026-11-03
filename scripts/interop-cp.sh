@@ -201,13 +201,16 @@ rc=$?
     && ok cp.many_into_dir "cp up of two files into a directory" \
     || bad cp.many_into_dir "cp up into a directory: exit $rc" "$CW/err"
 
-# --jsonl: one object, with the digest that sha256sum gives.
+# --jsonl: one done object, with the digest that sha256sum gives, then the
+# run's summary object (T-472).
 c 2201 --jsonl "$CW/up/f1" "$T:cp/j1" >"$CW/out" 2>"$CW/err"
 rc=$?
 want=$(sum "$CW/up/f1")
-[ "$rc" = 0 ] && [ "$(wc -l <"$CW/out")" = 1 ] && grep -q '"event":"done"' "$CW/out" \
+[ "$rc" = 0 ] && [ "$(wc -l <"$CW/out")" = 2 ] && [ "$(grep -c '"event":"done"' "$CW/out")" = 1 ] \
     && grep -q "\"sha256\":\"$want\"" "$CW/out" && grep -q '"verified_by":"sha256sum"' "$CW/out" \
-    && ok cp.jsonl "cp --jsonl prints one done object with the SHA-256" || bad cp.jsonl "cp --jsonl: exit $rc" "$CW/out"
+    && tail -n 1 "$CW/out" | grep -q '"event":"summary"' \
+    && ok cp.jsonl "cp --jsonl prints one done object with the SHA-256, then the summary" \
+    || bad cp.jsonl "cp --jsonl: exit $rc" "$CW/out"
 
 # On one server, copy-data: no byte comes through here.
 c 2201 --jsonl "$T:cp/f262145" "$T:cp/within" >"$CW/out" 2>"$CW/err"

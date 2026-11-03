@@ -87,6 +87,12 @@ const CP: &[&str] = &[
      there; else podssh reads the file again over SFTP, which counts again against the relay's limits. \
      With --jsonl each file gives one JSON object: done, with the bytes, the SHA-256 and how the far \
      side was checked, or error, with the exit code.",
+    "At its end a run of podssh cp or mv says on one line what it did: the files copied and their bytes, \
+     those that podssh run left as they were, those skipped and those that failed, how long it took and \
+     its rate; also after a failure, before its error. -q silences it, and --jsonl gives a summary object \
+     in its place. On a terminal one line shows the progress of the run: the file in flight, and with \
+     several files their count. Where stderr is no terminal, a plain line comes each 10 s once the run \
+     has passed 10 s, with no carriage return; PODSSH_PROGRESS=off and -q silence it.",
     "Several sources go into a directory. A copy from server to server goes through a temporary file on \
      this host, one connection at a time. -r copies a directory and what it holds, each link as a link \
      (scp -r follows links). A device, a FIFO or a socket is not copied: one line says so, with --jsonl \
@@ -138,7 +144,8 @@ const CP: &[&str] = &[
 const SCP: &[&str] = &[
     "podssh scp takes the command line of OpenSSH's scp, and copies as podssh cp does: over SFTP, or by \
      exec when the server has no SFTP; under a temporary name, verified by its digest, then renamed. -p \
-     keeps the times, as podssh cp -p does.",
+     keeps the times, as podssh cp -p does. As OpenSSH's scp, it gives no summary at its end, and no \
+     progress where stderr is no terminal.",
     "Each letter of OpenSSH's usage parses: -B is BatchMode=yes, -3, -s and -T are accepted and change \
      nothing, and the others that podssh does not carry are refused by name. An operand can be a URI, \
      scp://[user@]host[:port][/path]: its path is under the login directory, and // makes it absolute. \

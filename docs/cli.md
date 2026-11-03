@@ -1667,7 +1667,8 @@ a host, then runs a command in it, with the command's exit status (T-192,
   blocks of `ssh_config` apply.
 - **The copy is that of `podssh cp -r -p`**
   (`crates/podssh-cli/src/cp/sync.rs`): each file to a temporary name,
-  verified by its digest, then renamed, with its times kept; a new
+  verified by its digest, then renamed, with its times kept; several files
+  at once, as `cp` sends them with no `--parallel` (T-474); a new
   connection after a break, and a new relay session before its limits. It
   goes onto the far directory itself, also when the directory is there,
   and a file whose size and time of change (to the second) are the far
@@ -1676,8 +1677,11 @@ a host, then runs a command in it, with the command's exit status (T-192,
   `node_modules/` and `.git/` never go, at any depth, nor what the
   project's `.podsshignore` (a pattern a line, as the file of
   `--exclude-from`), `--exclude` and `--exclude-from` leave out. Nothing on
-  the far side is removed. `-v` says the files sent and those not sent
-  again: `DIR: files sent N, unchanged M`.
+  the far side is removed. Before the command starts, the summary of `cp`
+  says at the default level what the copy did (T-472): `1 copied (34 B), 2
+  unchanged, in 0.6 s (56 B/s)`, also before the error of a copy that
+  failed; `-q` silences it. A copy that lasts writes a plain line each 10 s
+  where stderr is no terminal, as `cp` does.
 - **Then the command** runs on the same connection, as `podssh ssh` runs
   one: `cd 'DIR' && COMMAND`, DIR in single quotes for a POSIX shell, the
   words of COMMAND joined with spaces as OpenSSH joins them, with stdin and
@@ -1957,13 +1961,40 @@ SFTP, through the relay or with `--direct`, with the connection flags of
   `copy-data` is needed; `mv` removes the source only after the check. By
   exec, the first attempt writes with `cat >` (a truncation keeps the
   inode) and a later one appends. No holes are made in place.
-- **Progress, an interruption and a limit** (T-145). On stderr, when it is
-  a terminal and `-q` is not given, one line that a carriage return
-  rewrites, 4 times a second at most: the name, the bytes of the total,
-  the percent, the rate and the time left; nothing in a pipe
-  (`PODSSH_PROGRESS=line` or `off` sets the line on or off). With
-  `--jsonl`, a `progress` object on stdout each second, before the `done`
-  one. The first SIGINT or SIGTERM (Ctrl-C on Windows) ends the copy in
+- **Progress** (T-145, T-472). One gauge for
+  the run, which each road feeds: a file in one stream, the chunks of
+  `--parallel`, the files K at once and the copy by exec. On stderr, when
+  it is a terminal and `-q` is not given, one line that a carriage return
+  rewrites, 4 times a second at most: for one file the name, the bytes of
+  the total, the percent, the rate and the time left; with several, the
+  file in flight, the run's files done of its files, its bytes and its
+  rate, one line for the run and not one for each file at once. Where
+  stderr is no terminal, `cp`, `mv` and `run` write a plain line each 10 s
+  once the run has passed 10 s, with no carriage return and no escape
+  (`podssh: 3 of 20 files, 1.2 MiB in 10 s (122.9 KiB/s); now NAME, 40.0
+  KiB of 80.0 KiB`), so that a copy that lasts shows that it lives and a
+  short one writes none; `scp`, `sftp`, `edit` and `job` write none there,
+  as OpenSSH's `scp` and `sftp` write none. A control character of a name
+  is a `?` on either line. `-q` and `PODSSH_PROGRESS=off` silence both;
+  `PODSSH_PROGRESS=line` draws the terminal's line whatever stderr is.
+  With `--jsonl`, a `progress` object on stdout each second for each file,
+  before its `done` one.
+- **The summary** (T-472). At its end a run of `cp` or `mv`, and the copy
+  of `podssh run`, says on one line at the default level what it did:
+  `3 copied (3.1 MiB), 2 unchanged, 1 skipped, 1 failed, in 12.0 s (264.5
+  KiB/s)`. Each count of zero is left out but the first, and so are the
+  bytes and the rate when nothing was copied; unchanged counts the files
+  that `run` left as they were, skipped a device, a FIFO or a socket of a
+  tree, and failed each failure, said when it came. It comes also after a
+  failure, before the error that nothing said yet, so that the error stays
+  the last line. `-q` silences it; with `--jsonl` a `summary` object on
+  stdout takes its place (`copied`, `bytes`, `unchanged`, `skipped`,
+  `failed` and `seconds`). `run` says it before the command starts, so
+  that the command's stdout stays its own. A dry run gives none, nor a run
+  that the `--timeout` ended, whose records went with it, nor `scp` and
+  `sftp`, which keep the output of OpenSSH's.
+- **An interruption and a limit** (T-145). The first SIGINT or SIGTERM
+  (Ctrl-C on Windows) ends the copy in
   flight, keeps the temporary file and its side file, names them, and
   exits 130; the same command then goes on from them; a second signal ends
   podssh at once. `-l LIMIT` (`cp`, `mv`, `scp`, `sftp`) is OpenSSH's, in

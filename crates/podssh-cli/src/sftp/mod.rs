@@ -168,7 +168,8 @@ pub fn run_sftp(args: &SftpArgs, tty: crate::pager::Tty, out: &mut dyn Write, er
     // sftp-server uses no agent (T-036): no agent channel is ever accepted.
     resolved.options.forward_agent = podssh_ssh::Agent::Off;
     let log = Arc::new(Log::new(resolved.options.log_level));
-    crate::cp::gauge::init(false, resolved.options.log_level == podssh_ssh::LogLevel::Quiet);
+    // No plain line in a pipe, as OpenSSH's sftp writes none (T-472).
+    crate::cp::gauge::init(false, resolved.options.log_level == podssh_ssh::LogLevel::Quiet, false);
     for note in &resolved.notes {
         log.verbose(note);
     }

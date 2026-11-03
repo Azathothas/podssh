@@ -22,7 +22,7 @@ use clap::ArgMatches;
 use podssh_ssh::{Connection, Log, Request, EXIT_FAILURE};
 
 use crate::cp::operand::{self, Operand, Remote};
-use crate::cp::{link, sync, tree};
+use crate::cp::{link, summary, sync, tree};
 use crate::relay_settings::Refusal;
 use crate::ssh::args::SshArgs;
 use crate::ssh::resolve::{self, Env, Resolved, Transport};
@@ -191,7 +191,8 @@ pub fn run_run(args: &RunArgs, err: &mut dyn Write) -> i32 {
     for warning in &resolved.warnings {
         log.info(warning);
     }
-    crate::cp::gauge::init(false, resolved.options.log_level == podssh_ssh::LogLevel::Quiet);
+    // A plain line in a pipe each 10 s of a long copy (T-472).
+    crate::cp::gauge::init(false, resolved.options.log_level == podssh_ssh::LogLevel::Quiet, true);
     let runtime = match tokio::runtime::Builder::new_current_thread().enable_all().build() {
         Ok(rt) => rt,
         Err(e) => {
@@ -208,6 +209,7 @@ pub fn run_run(args: &RunArgs, err: &mut dyn Write) -> i32 {
 
 /// The copy, then the command: its exit status, or 255.
 async fn copy_then_run(plan: &Plan, resolved: &Resolved, log: &Arc<Log>) -> i32 {
+    let started = std::time::Instant::now();
     let first = match link::connect(resolved, log).await {
         Ok(first) => first,
         Err(failed) => {
@@ -222,16 +224,17 @@ async fn copy_then_run(plan: &Plan, resolved: &Resolved, log: &Arc<Log>) -> i32 
     }
     let mut link = Some(first);
     let local = plan.local.display().to_string();
-    match sync::up(&mut link, resolved, &local, &plan.far, &plan.tree, log).await {
-        Ok(done) => log.verbose(&format!("{}: files sent {}, unchanged {}", plan.far.path, done.sent, done.unchanged)),
-        Err(_) => {
-            // Each failure was said as it came.
-            if let Some(link) = link {
-                link.close().await;
-            }
-            log.error(&format!("the copy to {} failed, so the command did not run", plan.far.path));
-            return EXIT_FAILURE;
+    let synced = sync::up(&mut link, resolved, &local, &plan.far, &plan.tree, log).await;
+    // The summary, on stderr before the command starts, so that the
+    // command's stdout stays its own (T-472).
+    log.info(&summary::line(&synced.counts, started.elapsed()));
+    if synced.failed.is_some() {
+        // Each failure was said as it came.
+        if let Some(link) = link {
+            link.close().await;
         }
+        log.error(&format!("the copy to {} failed, so the command did not run", plan.far.path));
+        return EXIT_FAILURE;
     }
     let spent = link.as_ref().is_none_or(|l| l.meter.through_relay() && l.meter.left() < SPARE);
     if spent {

@@ -1,0 +1,11 @@
+--- a/crates/podssh-cli/src/cp/report.rs
++++ b/crates/podssh-cli/src/cp/report.rs
+@@ -98,7 +98,7 @@
+         if jsonl {
+             let _ = writeln!(out, "{}", summary::json(&counts, took));
+         } else {
+-            log.info(&summary::line(&counts, took));
++            log.verbose(&summary::line(&counts, took));
+         }
+     }
+     let Some((_, failed)) = &outcome.failed else { return 0 };

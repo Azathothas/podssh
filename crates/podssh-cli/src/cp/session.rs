@@ -15,7 +15,7 @@ use super::plan::{Direction, Plan};
 use super::resume::{self, Before, Progress, TRIES};
 use super::transfer::{self, Cause, Done, Failed};
 use super::tree_conn::Conn;
-use super::{bysftp, lanes, mirror, tree_copy, Outcome};
+use super::{bysftp, gauge, lanes, mirror, tree_copy, Outcome};
 use crate::exitmap::Fault;
 use crate::ssh::resolve::Resolved;
 
@@ -70,6 +70,8 @@ pub(super) async fn session(
                 continue;
             }
         }
+        // One file of the run's count, which its progress line shows (T-472).
+        gauge::more_files(1);
         if pooled {
             waiting.push((source.clone(), plan.destination.clone()));
             continue;

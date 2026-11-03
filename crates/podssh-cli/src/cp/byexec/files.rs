@@ -15,6 +15,7 @@ use sha2::{Digest, Sha256};
 use super::{command, failed, step_failed, Far, Kind};
 use crate::cp::delta::{self, Full};
 use crate::cp::digest::{self, Sum};
+use crate::cp::gauge;
 use crate::cp::in_place;
 use crate::cp::link::Meter;
 use crate::cp::meta::{self, Stamp};
@@ -124,6 +125,8 @@ impl Far {
             let raw = self.raw;
             let mut spent = None;
             let mut grew = false;
+            // The bytes as the command takes them feed the run's gauge (T-472).
+            let mut bar = gauge::Gauge::new(source, before.len(), start);
             let mut fill = |piece: &mut Vec<u8>| {
                 let mut buf = vec![0u8; PIECE];
                 let n = read_full(&mut file, &mut buf)?;
@@ -143,6 +146,7 @@ impl Far {
                 // Sent, not yet known to be written: a break counts the far
                 // file again before it goes on.
                 progress.advance(sent);
+                bar.set(sent);
                 if raw {
                     piece.extend_from_slice(&buf[..n]);
                 } else if n > 0 {
@@ -150,7 +154,9 @@ impl Far {
                 }
                 Ok(())
             };
-            let got = exec::send(handle, &cmd, DATA_WAIT, 4096, &mut fill, &mut |_| Ok(())).await.map_err(|e| {
+            let got = exec::send(handle, &cmd, DATA_WAIT, 4096, &mut fill, &mut |_| Ok(())).await;
+            bar.finish();
+            let got = got.map_err(|e| {
                 spent
                     .take()
                     .or_else(|| grew.then(|| transfer::changed(source)))
@@ -272,7 +278,9 @@ impl Far {
             let mut came = start;
             let mut spent = None;
             let mut grew = false;
-            self.read(handle, source, start, &mut |bytes| {
+            // The bytes as they come feed the run's gauge (T-472).
+            let mut bar = gauge::Gauge::new(source, size, start);
+            let read = self.read(handle, source, start, &mut |bytes| {
                 // More than `wc -c` gave: the far file grows (T-267).
                 if came + bytes.len() as u64 > size {
                     grew = true;
@@ -287,10 +295,12 @@ impl Far {
                 out.as_mut().map_or(Ok(()), |f| f.write_all(bytes))?;
                 came += bytes.len() as u64;
                 progress.advance(came);
+                bar.set(came);
                 Ok(())
             })
-            .await
-            .map_err(|e| spent.take().or_else(|| grew.then(|| transfer::changed(source))).unwrap_or(e))?;
+            .await;
+            bar.finish();
+            read.map_err(|e| spent.take().or_else(|| grew.then(|| transfer::changed(source))).unwrap_or(e))?;
             if came != size {
                 return Err(failed(Fault::SessionFault, format!("{source}: {came} bytes came, and wc -c gave {size}")));
             }
