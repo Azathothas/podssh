@@ -207,7 +207,7 @@ remote host that must use the key, such as `git` on a build host.
 1. `-A` and `-o ForwardAgent=yes|no|PATH` turn the forward on; it is off by
    default. Move `ForwardAgent` from `IGNORED` to `HONOURED`
    (`crates/podssh-cli/src/ssh/keywords.rs:25-132`). Change the help of `-a`
-   (`crates/podssh-cli/src/flags.rs:230-231`, the row `no-agent-forwarding`).
+   (`crates/podssh-cli/src/flags.rs:239-240`, the row `no-agent-forwarding`).
 2. On the destination's session channel, send `auth-agent-req@openssh.com`
    before the shell or exec request (`crates/podssh-ssh/src/session.rs:126-152`).
    Never to a jump hop.
@@ -368,7 +368,7 @@ X11 channel.
    allows. Else refuse `-X`, and name `-Y`.
 5. Move `ForwardX11`, `ForwardX11Trusted`, `ForwardX11Timeout` and
    `XAuthLocation` to `HONOURED`. Change the help of `-x`
-   (`crates/podssh-cli/src/flags.rs:225-226`).
+   (`crates/podssh-cli/src/flags.rs:234-235`).
 6. On Windows, a `DISPLAY` such as `localhost:0` (VcXsrv, X410) is TCP port
    6000. The X server's connection is local and named by the user, as the
    agent's connection is (`crates/podssh-ssh/src/keys.rs:406-443`, `connect_agent`).
@@ -431,7 +431,7 @@ swap of the cookie in `crates/podssh-ssh/src/x11.rs:1-339`; the session asks
 channel when the destination's run asked
 (`crates/podssh-ssh/src/handler.rs:299-312`). The plan and the probe of the
 command line in `crates/podssh-cli/src/ssh/x11.rs:1-153`, the flags at
-`crates/podssh-cli/src/flags.rs:281-284`, and the keywords, honoured now, at
+`crates/podssh-cli/src/flags.rs:290-293`, and the keywords, honoured now, at
 `crates/podssh-cli/src/ssh/keywords.rs:49-51` and
 `crates/podssh-cli/src/ssh/keywords.rs:96`.
 - `cargo test -p podssh-ssh --lib -- x11`: 4 passed: `DISPLAY` as Xlib reads
@@ -860,7 +860,7 @@ Read:
    (`crates/podssh-ssh/src/forward.rs:39-110`) for both kinds.
 3. A server that refuses the channel (OpenSSH with
    `AllowStreamLocalForwarding no`) gives its reason, and 255, as for TCP.
-4. Change the help of the `-W` row (`crates/podssh-cli/src/flags.rs:139-140`)
+4. Change the help of the `-W` row (`crates/podssh-cli/src/flags.rs:148-149`)
    and `docs/cli.md:174-183` (T-239 refuses a path there until this entry), and
    add an example to the manual. A local socket
    is the work of T-176 (`pipe`).
@@ -902,7 +902,7 @@ as a TCP host again, and the gate's check fails with the server's error.
 (`crates/podssh-ssh/src/mux/client.rs:177-192`,
 `crates/podssh-ssh/src/mux/msession.rs:271-278`). The command line reads a
 path at `crates/podssh-cli/src/ssh/hop.rs:95-98`, and the row of `-W` says so
-(`crates/podssh-cli/src/flags.rs:139-140`).
+(`crates/podssh-cli/src/flags.rs:148-149`).
 - `cargo test -p podssh-cli --test ssh_stdio_socket`: 2 passed. The test of
   the Prove, `stdio_forward_socket_or_host_and_port`, is in this file, as
   `ssh_args.rs` reached 500 lines: `/tmp/s`, a socket's path with a `:` in it,
@@ -1237,7 +1237,7 @@ Read: `request` parses the value with `parse_hop`
 3. Keep `HOST:PORT` and `[v6]:PORT`. A `-J` hop keeps its own parse, where a
    host alone means port 22, as in OpenSSH.
 4. Add the rule to `docs/cli.md:174-183`. The help of the `-W` row
-   (`crates/podssh-cli/src/flags.rs:139-140`) already says `HOST:PORT`.
+   (`crates/podssh-cli/src/flags.rs:148-149`) already says `HOST:PORT`.
 
 ## Prove
 
@@ -1633,7 +1633,7 @@ server (`remote_socket:host:hostport`), a socket on this host as the target
 (`[bind_address:]port:local_socket`, `remote_socket:local_socket`), and a SOCKS proxy that the
 server listens for and the client serves (`[bind_address:]port`). podssh refuses each by name, so
 a command line of OpenSSH fails with podssh. A server whose host refuses an AF_INET bind and
-allows an AF_UNIX one, as sandbox A does (`docs/STATUS.md:341`), can listen on a socket only; and
+allows an AF_UNIX one, as sandbox A does (`docs/STATUS.md:342`), can listen on a socket only; and
 the SOCKS form gives a server whose egress is closed a way out through the client.
 
 ## Premise

@@ -44,6 +44,10 @@ pub struct FlagRow {
     pub help: &'static str,
     /// For a `Refused` row, what the user should type instead.
     pub instead: Option<&'static str>,
+    /// A `--timeout` that bounds a run and is never required, with no
+    /// terminal either (`scp` and `sftp`, Q72): the gate reads it, so that
+    /// the table decides. False on each other row.
+    pub optional: bool,
 }
 
 impl FlagRow {
@@ -72,7 +76,12 @@ const fn row(
     help: &'static str,
     instead: Option<&'static str>,
 ) -> FlagRow {
-    FlagRow { short, long, arg, kind, help, instead }
+    FlagRow { short, long, arg, kind, help, instead, optional: false }
+}
+
+/// `row` as a bound that is never required (T-508).
+const fn optional(row: FlagRow) -> FlagRow {
+    FlagRow { optional: true, ..row }
 }
 
 /// **The one-line description of the whole program**, and it is here rather

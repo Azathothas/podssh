@@ -2,10 +2,17 @@
 //! OpenSSH 10.3p1 (T-139), supported, accepted, or refused by name, so no
 //! letter of those command lines is an unknown flag. `-s`, `-R` and `-B` are
 //! switches on `scp` and take a value on `sftp`, so each verb has its own
-//! table. Neither has `--timeout`: OpenSSH's have none, and each wait of a
-//! copy has its own limit.
+//! table. Each takes `--timeout` as a bound that is never required (Q72,
+//! T-508): OpenSSH's run in pipes with no such flag, and each wait of a copy
+//! has its own limit, ConnectTimeout the login's.
 
-use super::{row, FlagKind, FlagRow};
+use super::{optional, row, FlagKind, FlagRow};
+
+/// `--timeout` of `scp` and `sftp`: a bound of the whole run, never asked
+/// for, so that a script that runs them in a pipe as OpenSSH's runs as it
+/// did.
+const TIMEOUT: FlagRow = optional(row(None, "timeout", Some("DURATION"), FlagKind::Supported,
+    "bound the whole run, the login included (exit 75); never required, with no TTY either (default: env PODSSH_TIMEOUT)", None));
 
 /// **`scp`.** `-346ABCOpqRrsTv`, and the values `-c -D -F -i -J -l -o -P -S -X`.
 pub const SCP_FLAGS: &[FlagRow] = &[
@@ -52,6 +59,7 @@ pub const SCP_FLAGS: &[FlagRow] = &[
     row(Some('X'), "sftp-option", Some("OPTION"), FlagKind::Supported,
         "an SFTP option, repeatable: buffer=BYTES (each read or write, at most 256K) or nrequests=COUNT (in flight at once)", None),
     row(None, "jsonl", None, FlagKind::Supported, "one JSON object per event on stdout", None),
+    TIMEOUT,
     row(None, "relay-host", Some("HOSTS"), FlagKind::Supported,
         "relay hosts to try in order, HOST[:PORT][,...] (default: env PODSSH_RELAY, else the built-in relay and its pool)", None),
     row(None, "relay-addr", Some("HOST=IP"), FlagKind::Supported,
@@ -125,6 +133,7 @@ pub const SFTP_FLAGS: &[FlagRow] = &[
         "the subsystem of the SFTP server (default: sftp)", None),
     row(Some('X'), "sftp-option", Some("OPTION"), FlagKind::Supported,
         "an SFTP option, repeatable: buffer=BYTES (as -B) or nrequests=COUNT (as -R)", None),
+    TIMEOUT,
     row(None, "relay-host", Some("HOSTS"), FlagKind::Supported,
         "relay hosts to try in order, HOST[:PORT][,...] (default: env PODSSH_RELAY, else the built-in relay and its pool)", None),
     row(None, "relay-addr", Some("HOST=IP"), FlagKind::Supported,

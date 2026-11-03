@@ -2142,7 +2142,10 @@ SFTP, through the relay or with `--direct`, with the connection flags of
   tree (T-476), and each file that `-n` or `-u` left out (T-473), with
   `"backup"` in the `done` object of a copy that kept the old file.
 - Each SFTP reply with no file data waits 30 s at most, each read or write
-  60 s (T-133); `--timeout` bounds the whole copy, the login included.
+  60 s (T-133); `--timeout` bounds the whole copy, the login included, and
+  with no terminal it is required, or `PODSSH_TIMEOUT` in its place (64
+  with neither): nobody may be there to stop a run that waits. `scp` and
+  `sftp` take it as a bound and need none (T-508).
 - **A copy goes on after a broken connection**
   (`crates/podssh-cli/src/cp/resume.rs`): a relay close, a lost link or a
   step with no reply keeps the temporary file, and a new connection writes
@@ -2227,8 +2230,17 @@ renamed.
   `node://[user@]NAME[/ROUTE][:path]`, reach the node as `cp` reaches it;
   `-P`, `-J` and `--direct` with a node exit 64. A member of the net is
   reached by its name alone, as for `cp` (T-453).
-- **No `--timeout`**, as OpenSSH's have none; each wait of a copy has its
-  own limit. Usage errors are 64 where OpenSSH gives 1.
+- **`--timeout DURATION` bounds the whole run and is never required**
+  (T-508, the operator's ruling Q72): the login, each file and, for `sftp`,
+  the batch, with `PODSSH_TIMEOUT` as its default, and 75 when it passes,
+  as for `cp`. With no terminal it is not asked for, as OpenSSH's `scp` and
+  `sftp` run in pipes with no such flag, and each wait of a copy has its
+  own limit: `ConnectTimeout` the login's (60 s by default), 30 s each SFTP
+  reply with no file data, 60 s each read or write. `cp` and `mv` need it
+  with no terminal (64), as nothing else bounds the whole run there. The
+  gate reads the row of `--timeout`: `optional` is a bound that is never
+  required (`crates/podssh-cli/src/flags.rs`, `FlagRow`). Usage errors are
+  64 where OpenSSH gives 1.
 - **`sftp -b FILE`** (`-b -` for stdin) runs each line in order and prints
   it first; `@` before a command keeps the line from being printed, and `-`
   keeps its failure from ending the batch. Else, on a terminal, `sftp`

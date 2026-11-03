@@ -120,6 +120,19 @@ pub fn require_timeout_or_env(
     }
 }
 
+/// The bound of a verb whose `--timeout` is never required (`scp` and
+/// `sftp`, Q72): the flag, else `PODSSH_TIMEOUT`, else none, with a terminal
+/// or not. A bad value is refused as [`require_timeout_or_env`] refuses it.
+pub fn optional_timeout(flag: Option<&str>, var: impl Fn(&str) -> Option<String>) -> Result<Option<Duration>, Refusal> {
+    match timeout_text(flag, var) {
+        Some((text, TimeoutFrom::Variable)) => parse_duration(TIMEOUT_ENV, &text)
+            .map(Some)
+            .map_err(|r| Refusal { fault: Fault::Config, message: r.message }),
+        Some((text, TimeoutFrom::Flag)) => parse_timeout(&text).map(Some),
+        None => Ok(None),
+    }
+}
+
 /// Parse `--timeout DURATION`: `<n>`, `<n>s`, `<n>m`, `<n>h` or `<n>ms`.
 ///
 /// Whole-string, checked, and greater than zero. `30x` is not 30 seconds and

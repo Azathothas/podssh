@@ -143,8 +143,11 @@ const CP: &[&str] = &[
      what a copy keeps, where the server has them. With no POSIX sh, or a needed tool missing, the copy \
      exits 69 and names it.",
     "Each SFTP reply that carries no file data is waited for 30 s at most, and each read or write 60 s. \
-     --timeout bounds the whole copy, the login included. The exit codes are the sysexits of \
-     EXIT STATUS, as for podssh proxy.",
+     --timeout bounds the whole copy, the login included (exit 75). With no terminal it is required, or \
+     PODSSH_TIMEOUT in its place (exit 64 with neither): nobody may be there to stop a run that waits. \
+     podssh scp and podssh sftp take it as a bound and need none, as OpenSSH's run in pipes with no \
+     such flag, and ConnectTimeout bounds their login. The exit codes are the sysexits of EXIT STATUS, \
+     as for podssh proxy.",
     "A copy goes on after a broken connection: the temporary file stays, and a new connection writes on \
      at the offset below which each byte is in it, 5 times in a row at most with no new byte, with a \
      backoff between them. A refused login, or a host key other than the first connection's, ends it. \
@@ -160,8 +163,11 @@ const SCP: &[&str] = &[
     "Each letter of OpenSSH's usage parses: -B is BatchMode=yes, -3, -s and -T are accepted and change \
      nothing, and the others that podssh does not carry are refused by name. An operand can be a URI, \
      scp://[user@]host[:port][/path]: its path is under the login directory, and // makes it absolute. \
-     An operand can name a node as podssh cp does: node://[user@]NAME[/ROUTE]:path, or a member's NAME:path. \
-     podssh scp takes no flag for a time limit, as OpenSSH's takes none; each wait of a copy has its own.",
+     An operand can name a node as podssh cp does: node://[user@]NAME[/ROUTE]:path, or a member's NAME:path.",
+    "--timeout DURATION, or PODSSH_TIMEOUT, bounds the whole run, the login included (exit 75), and is \
+     never required, with no terminal either: a script runs OpenSSH's scp in a pipe with no such flag, \
+     and each wait of a copy has its own limit, ConnectTimeout the login's (60 s by default). podssh cp \
+     and podssh mv need it with no terminal, where nothing else bounds the whole run.",
 ];
 
 const SFTP: &[&str] = &[
@@ -170,7 +176,9 @@ const SFTP: &[&str] = &[
      one that starts with - does not end the batch when it fails. Else, on a terminal, it asks at a \
      prompt; with no terminal and no -b it refuses (exit 64). A destination with the path of a file \
      fetches that file and ends; one with a directory starts there. The destination can be the node of a \
-     pair, node://[user@]NAME[/ROUTE][:path], or a member of the net by its name alone, as for podssh cp.",
+     pair, node://[user@]NAME[/ROUTE][:path], or a member of the net by its name alone, as for podssh cp. \
+     --timeout DURATION, or PODSSH_TIMEOUT, bounds the whole run, the login and the batch included (exit \
+     75), and is never required, as for podssh scp.",
     "The commands: get and put (with reget and reput, which are the same), rename, rm (with * and ? in \
      the last name), mkdir [-p], rmdir, ls [-1afhlnrSt], cd, lcd, pwd, lpwd, chmod, df [-hi], help, version, \
      and bye, exit or quit. get and put copy as podssh cp does; get -p and put -p, or each of them after \
@@ -189,7 +197,8 @@ const SFTP: &[&str] = &[
 ];
 
 const MV: &[&str] = &[
-    "podssh mv moves files, with the operands and the flags of podssh cp. Within one server the server \
+    "podssh mv moves files, with the operands and the flags of podssh cp; with no terminal it needs \
+     --timeout, as podssh cp does. Within one server the server \
      renames, with posix-rename or by exec with mv -f, and no byte moves; a rename that the server fails \
      for a reason of its own, such as two file systems, becomes a copy and a delete, said first.",
     "Between hosts a move is not atomic, and podssh says so on stderr before any byte moves: the copy of \

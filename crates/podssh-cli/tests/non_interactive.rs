@@ -228,3 +228,33 @@ fn podssh_timeout_is_the_default_of_the_flag() {
     assert_eq!(missing.fault.code(), 64);
     assert!(missing.message.contains("--timeout DURATION is required"), "{}", missing.message);
 }
+
+/// The bound of `scp` and `sftp` (T-508, Q72): the flag, else
+/// `PODSSH_TIMEOUT`, else none, and never a refusal for its absence; a bad
+/// value is 64 for the flag and 78 for the variable, as for `cp`.
+#[test]
+fn an_optional_timeout_bounds_and_is_never_required() {
+    use podssh_cli::non_interactive::optional_timeout;
+    let var = |value: &'static str| move |name: &str| (name == "PODSSH_TIMEOUT").then(|| value.to_string());
+    assert_eq!(optional_timeout(None, |_: &str| None).unwrap(), None, "none, with no terminal too");
+    assert_eq!(optional_timeout(Some("5s"), var("30s")).unwrap(), Some(Duration::from_secs(5)));
+    assert_eq!(optional_timeout(None, var("30s")).unwrap(), Some(Duration::from_secs(30)));
+    assert_eq!(optional_timeout(None, var(" ")).unwrap(), None, "an empty value is no value");
+    assert_eq!(optional_timeout(None, var("30x")).unwrap_err().fault.code(), 78);
+    assert_eq!(optional_timeout(Some("30x"), var("30s")).unwrap_err().fault.code(), 64);
+}
+
+/// `scp` and `sftp` pass the gate with no `--timeout` and no terminal
+/// (T-508): the verb itself says what its command line lacks, never the
+/// gate, while `cp` asks for the flag first.
+#[test]
+fn scp_and_sftp_pass_the_gate_with_no_timeout() {
+    let (rc, _, err) = podssh(&["scp"]);
+    let err = String::from_utf8(err).unwrap();
+    assert_eq!(rc, 64, "scp: {err}");
+    assert!(err.contains("podssh scp: give a source and a destination") && !err.contains("is required"), "{err}");
+    let (rc, _, err) = podssh(&["sftp"]);
+    let err = String::from_utf8(err).unwrap();
+    assert_eq!(rc, 64, "sftp: {err}");
+    assert!(err.contains("give a destination") && !err.contains("is required"), "{err}");
+}

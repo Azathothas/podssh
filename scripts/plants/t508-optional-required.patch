@@ -1,0 +1,12 @@
+--- a/crates/podssh-cli/src/dispatch.rs
++++ b/crates/podssh-cli/src/dispatch.rs
+@@ -309,9 +309,6 @@
+             let row = crate::flags::verb_for(verb).and_then(|v| v.flags.iter().find(|r| r.long == "timeout"));
+             let checked = match row {
+                 _ if not_yet => timeout.as_deref().map(crate::non_interactive::parse_timeout).transpose(),
+-                Some(row) if row.optional => {
+-                    crate::non_interactive::optional_timeout(timeout.as_deref(), |n| std::env::var(n).ok())
+-                }
+                 Some(_) => {
+                     let attachment = crate::non_interactive::resolve_tty(tty, *jsonl);
+                     crate::non_interactive::require_timeout_or_env(verb, attachment, timeout.as_deref(), |n| {

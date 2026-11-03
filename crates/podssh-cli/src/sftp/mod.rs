@@ -113,8 +113,15 @@ fn read_batch(path: &str) -> std::io::Result<Vec<String>> {
     }
 }
 
-/// Run `podssh sftp`; the process exit code.
-pub fn run_sftp(args: &SftpArgs, tty: crate::pager::Tty, out: &mut dyn Write, err: &mut dyn Write) -> i32 {
+/// Run `podssh sftp`; the process exit code. `deadline` is `--timeout`, or
+/// `PODSSH_TIMEOUT`: a bound of the whole run, never required (T-508).
+pub fn run_sftp(
+    args: &SftpArgs,
+    deadline: Option<std::time::Duration>,
+    tty: crate::pager::Tty,
+    out: &mut dyn Write,
+    err: &mut dyn Write,
+) -> i32 {
     let refuse = |err: &mut dyn Write, why: &str| {
         let _ = writeln!(err, "podssh sftp: {why}.\n  Nothing has been attempted.");
         Fault::Usage.code()
@@ -185,7 +192,16 @@ pub fn run_sftp(args: &SftpArgs, tty: crate::pager::Tty, out: &mut dyn Write, er
     };
     let subsystem = args.subsystem.as_deref().unwrap_or("sftp");
     let ran = session(&resolved, &server, subsystem, shape, args.recursive, script, tty.stdin, &log, out);
-    let code = runtime.block_on(ran);
+    // The bound covers the login and each command, as cp's covers its copy.
+    let code = runtime.block_on(async {
+        match deadline {
+            Some(limit) => tokio::time::timeout(limit, ran).await.unwrap_or_else(|_| {
+                log.error(&format!("the --timeout of {} s passed", limit.as_secs()));
+                Fault::TimedOut.code()
+            }),
+            None => ran.await,
+        }
+    });
     runtime.shutdown_background();
     code
 }
