@@ -300,19 +300,26 @@ fn a_lost_link_asks_for_the_remote_forward_again() {
     assert_eq!((tmux.connections, tmux.forward_requests, tmux.attaches), (2, 3, 0), "{err}");
 }
 
-/// A port of this host where nothing listens.
-fn closed_port() -> u16 {
-    std::net::TcpListener::bind("127.0.0.1:0").unwrap().local_addr().unwrap().port()
+/// A port of the loopback that refuses each dial, held for as long as its
+/// socket lives: bound and never listening. A port that is bound and let
+/// go can be handed at once to a server of a test that runs beside this
+/// one, which then answers the dial.
+fn closed_port() -> (u16, tokio::net::TcpSocket) {
+    let socket = tokio::net::TcpSocket::new_v4().unwrap();
+    socket.bind(std::net::SocketAddr::from(([127, 0, 0, 1], 0))).unwrap();
+    (socket.local_addr().unwrap().port(), socket)
 }
 
 /// `podssh ssh --direct --persist -N -R` to a server that is not there, with
-/// `extra`: the child and its stderr as it comes.
-fn tunnel_to_nothing(home: &std::path::Path, extra: &[&str]) -> (Child, Arc<Mutex<String>>) {
+/// `extra`: the child, its stderr as it comes, and the port's socket, which
+/// the test holds while the child tries.
+fn tunnel_to_nothing(home: &std::path::Path, extra: &[&str]) -> (Child, Arc<Mutex<String>>, tokio::net::TcpSocket) {
     std::fs::create_dir_all(home).unwrap();
+    let (port, held) = closed_port();
     let known = format!("UserKnownHostsFile={}", home.join("known_hosts").display());
     let mut child = podssh(home)
         .args(["ssh", "--direct", "--persist", "-N", "-R", "0:127.0.0.1:9", "-o", "BatchMode=yes", "-o", &known])
-        .args(["-p", &closed_port().to_string()])
+        .args(["-p", &port.to_string()])
         .args(extra)
         .arg("tester@127.0.0.1")
         .stdin(Stdio::null())
@@ -322,7 +329,7 @@ fn tunnel_to_nothing(home: &std::path::Path, extra: &[&str]) -> (Child, Arc<Mute
         .expect("podssh ssh runs");
     let err = Arc::new(Mutex::new(String::new()));
     collect(child.stderr.take().unwrap(), err.clone());
-    (child, err)
+    (child, err, held)
 }
 
 /// With `--persist-forever` (T-391), a server that is not there yet is a
@@ -332,7 +339,7 @@ fn tunnel_to_nothing(home: &std::path::Path, extra: &[&str]) -> (Child, Arc<Mute
 fn persist_forever_keeps_trying_a_server_that_is_not_there() {
     let home = std::env::temp_dir().join(format!("podssh-persist-forever-{}", std::process::id()));
     let _ = std::fs::remove_dir_all(&home);
-    let (mut once, err) = tunnel_to_nothing(&home, &[]);
+    let (mut once, err, _held) = tunnel_to_nothing(&home, &[]);
     let started = Instant::now();
     let code = loop {
         if let Some(status) = once.try_wait().unwrap() {
@@ -342,7 +349,7 @@ fn persist_forever_keeps_trying_a_server_that_is_not_there() {
         std::thread::sleep(Duration::from_millis(50));
     };
     assert_eq!(code, Some(255), "{}", err.lock().unwrap());
-    let (mut forever, err) = tunnel_to_nothing(&home, &["--persist-forever"]);
+    let (mut forever, err, _held_too) = tunnel_to_nothing(&home, &["--persist-forever"]);
     let started = Instant::now();
     while !err.lock().unwrap().contains("(attempt 3, with no limit; Ctrl-C stops)") {
         if let Some(status) = forever.try_wait().unwrap() {

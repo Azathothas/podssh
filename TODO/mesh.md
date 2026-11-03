@@ -3666,6 +3666,11 @@ sh scripts/plant-each.sh --here t457-proxy-skipped
   caught.
 - Clippy with `-D warnings` and `cargo fmt --check` of both crates: clean. `cargo test -p
   podssh-cli --lib`: 794 passed.
+- Repaired 2026-11-03, after the gate's job `windows` at `5f79906`: Windows has one variable for
+  `https_proxy` and `HTTPS_PROXY`, so the role names the proxy by `https_proxy`, the name that
+  podssh reads first, and the two tests of `serve_proxy` that looked for `HTTPS_PROXY` failed
+  there. They take either name on Windows (`says_variable`); `cargo test -p podssh-cli --test
+  relay_serve`: 14 passed on Linux; on Windows, the gate's job.
 
 # T-458: `podssh doctor --exit NAME`: the exit, its verdict and the road that reached it
 

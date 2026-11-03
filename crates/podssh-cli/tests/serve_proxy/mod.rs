@@ -63,6 +63,13 @@ fn tunnel(client: TcpStream, target: u16, kept: &Mutex<Vec<String>>) {
     let _ = writer.shutdown(std::net::Shutdown::Write);
 }
 
+/// Whether `text` holds `words`, where Windows, which has one variable for
+/// both cases of a name, may say `HTTPS_PROXY` as `https_proxy`, the name
+/// that podssh reads first.
+fn says_variable(text: &str, words: &str) -> bool {
+    text.contains(words) || (cfg!(windows) && text.contains(&words.replace("HTTPS_PROXY", "https_proxy")))
+}
+
 /// The proxy's variables for the role alone: the stand-in's URL, with
 /// `userinfo`, in `HTTPS_PROXY`, and each other one empty, which podssh
 /// reads as unset, so that the machine's own proxy stays out.
@@ -84,7 +91,7 @@ fn the_role_dials_a_target_through_its_hosts_proxy_and_names_the_proxy_by_its_pl
     let Some(cell) = role_env(&s, &["--allow-private"], &env) else { return };
     let started = std::fs::read_to_string(s.home.join("fake-relay-normal-role.log")).unwrap_or_default();
     let named = format!("its targets through the http proxy 127.0.0.1:{port} of HTTPS_PROXY");
-    assert!(started.contains(&named), "{started}");
+    assert!(says_variable(&started, &named), "{started}");
     assert!(!started.contains("s3cret") && !started.contains("relayuser"), "{started}");
 
     let proxy = |host: &str, port: &str| {
@@ -115,6 +122,6 @@ fn a_proxy_that_cannot_be_read_stops_the_start_and_its_credentials_are_never_sai
     let out = ran_with(s.command(&words), &[("HTTPS_PROXY", url.as_str())]);
     let text = said(&out);
     assert_eq!(out.status.code(), Some(78), "{text}");
-    assert!(text.contains("the proxy of this host: HTTPS_PROXY: proxy scheme ftp://"), "{text}");
+    assert!(says_variable(&text, "the proxy of this host: HTTPS_PROXY: proxy scheme ftp://"), "{text}");
     assert!(!text.contains("s3cret") && !text.contains("relayuser"), "{text}");
 }

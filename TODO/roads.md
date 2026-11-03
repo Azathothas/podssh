@@ -8243,6 +8243,15 @@ scripts/plant-each.sh --here t590-dial-words-alone`): caught. Waits (Q88): the w
 the box like the target sandbox, whose image installs no OpenSSH (`scripts/test_in_box.sh`), and
 `doctor`'s line there.
 
+Repaired 2026-11-03, after the gate's step `ssh` at `5f79906`: the roost test of a stopped sshd
+found a server of another test at its TARGET (`serving the sshd 127.0.0.1:44379
+(SSH-2.0-russh_0.65.0)`), as `closed_port` bound a port and let it go, and a test beside it was
+given the port at once. Its socket now stays bound, never listening, for the test's life: a dial
+is refused (`ECONNREFUSED`), and a bind of the port, `SO_REUSEADDR` or not, is refused
+(`EADDRINUSE`), as a check of both on this host showed. `tests/direct_fallback.rs` and
+`tests/persist.rs` had the same helper and take the same repair. `cargo test -p podssh-cli --test
+roost`, `--test direct_fallback`, `--test persist`: 11, 4 and 7 passed.
+
 # T-599: The stand-in edge's echo of 1 MiB inside WARP's tunnel stalls at random
 
 **Source:** the gate at `84864f2` (run 41590196203, its job `gate (libs)`, 2026-11-03):

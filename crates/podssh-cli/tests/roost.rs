@@ -78,9 +78,14 @@ fn service(first: &'static str, later: &'static str) -> (u16, Arc<AtomicUsize>) 
     (port, count)
 }
 
-/// A port of the loopback with nothing on it: bound, then let go.
-fn closed_port() -> u16 {
-    TcpListener::bind("127.0.0.1:0").unwrap().local_addr().unwrap().port()
+/// A port of the loopback that refuses each dial, held for as long as its
+/// socket lives: bound and never listening. A port that is bound and let
+/// go can be handed at once to a server of a test that runs beside this
+/// one, which then answers the dial.
+fn closed_port() -> (u16, tokio::net::TcpSocket) {
+    let socket = tokio::net::TcpSocket::new_v4().unwrap();
+    socket.bind(std::net::SocketAddr::from(([127, 0, 0, 1], 0))).unwrap();
+    (socket.local_addr().unwrap().port(), socket)
 }
 
 /// The test pair under the label lab, whose relay is `relay`.
@@ -142,7 +147,7 @@ fn a_roost_with_nothing_at_target_exits_before_it_registers() {
     let s = Session::start("roost-none");
     let relay = counted();
     store_pair(&s, &relay);
-    let port = closed_port();
+    let (port, _held) = closed_port();
     let (rc, out, err) = roost_ends(&s, &[format!("127.0.0.1:{port}")]);
     assert_eq!(rc, 69, "{err}");
     assert!(err.contains(&format!("TARGET 127.0.0.1:{port}")), "the roost names TARGET: {err}");
@@ -172,7 +177,7 @@ fn stand_ins(s: &Session, names: &[&str]) -> std::path::PathBuf {
 fn roost_on_path(s: &Session, path: &std::path::Path) -> (u16, String) {
     let relay = counted();
     store_pair(s, &relay);
-    let port = closed_port();
+    let (port, _held) = closed_port();
     let (rc, out, err) = roost_ends_with(s, &[format!("127.0.0.1:{port}")], &[("PATH", path.as_os_str())]);
     assert_eq!(rc, 69, "{err}");
     assert!(err.contains(&format!("TARGET 127.0.0.1:{port}: could not connect")), "the dial's words stay: {err}");
