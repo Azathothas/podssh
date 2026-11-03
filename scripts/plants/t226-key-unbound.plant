@@ -1,0 +1,7 @@
+# T-226: the node no longer checks that the channel proved the grant's own
+# key, so a grant that leaks lets in whoever holds it; the test of each other
+# grant, which a key that is not the certificate's must meet, must fail.
+ENTRY=T-226
+GROUP=resume
+EXPECT='test each_other_grant_is_refused_before_the_node_dials \.\.\. FAILED'
+RUN='cargo test --locked -p podssh-relay --features pair,grant --test grant -- each_other_grant_is_refused_before_the_node_dials'

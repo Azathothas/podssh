@@ -56,6 +56,7 @@ pub fn settings(args: &PipeArgs, addresses: [&Address; 2]) -> Result<Settings, R
     }
     carrier(args, addresses)?;
     no_resume(args, addresses)?;
+    grant(args, addresses)?;
     let relays = if addresses.iter().any(relay) {
         Some(crate::relay_settings::relays(args.ssh.relay_host.as_deref(), std::env::var(relay::RELAY_ENV).ok())?)
     } else {
@@ -107,6 +108,19 @@ fn carrier(args: &PipeArgs, addresses: [&Address; 2]) -> Result<(), Refusal> {
         return Err(Refusal::usage("--pair-file is for a relay and its pair, and --carrier has neither"));
     }
     Ok(())
+}
+
+/// `--grant FILE` (T-226): the first session of a `node:` or `udp:node:`
+/// side carries it in its channel; a pipe with none has no node to give it
+/// to (64).
+fn grant(args: &PipeArgs, addresses: [&Address; 2]) -> Result<(), Refusal> {
+    if args.ssh.grant.is_none() {
+        return Ok(());
+    }
+    if !addresses.iter().any(|a| matches!(a, Address::Node(_) | Address::UdpNode(_))) {
+        return Err(Refusal::usage("--grant is for the session of a node: or udp:node: side: name one"));
+    }
+    crate::grants::ask(args.ssh.grant.as_deref(), args.ssh.no_e2e)
 }
 
 /// `--no-resume` (T-612): each session of a `node:`, `udp:node:` or `iroh:`

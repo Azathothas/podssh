@@ -19,6 +19,8 @@ use crate::cache::{self, valid_token, MIN_REMAINING_MS};
 use crate::relay::{check_node_name, parse_relay, Relay};
 use crate::token::relay_name;
 
+/// A pair whose connect token takes one upgrade alone (T-226).
+pub mod once;
 /// A pair that its owner renews in podssh's relay role, and its end (T-592).
 pub mod renew;
 
@@ -177,18 +179,7 @@ pub fn parse(relay: &Relay, body: &[u8], now_ms: i64) -> Result<Pair, PairError>
 /// `POST /v1/pair` with `{}`, and once more with this client's key when the
 /// relay asks for it (T-448). A `409` means "pair again", which is done once.
 pub async fn create(ctx: &PairContext<'_>) -> Result<Pair, PairError> {
-    for _ in 0..2 {
-        let response =
-            crate::keyed::post(&ctx.relay.host, ctx.relay.port, "/v1/pair", ctx.trust, ctx.proxy, ctx.timeout)
-                .await
-                .map_err(PairError::Connect)?;
-        match response.status {
-            200..=299 => return parse(ctx.relay, &response.body, now_ms()),
-            409 => continue,
-            status => return Err(refused(status, &response)),
-        }
-    }
-    Err(PairError::Failed { status: 409, detail: ": the relay asked twice to pair again".into() })
+    once::create_with(ctx, false).await.map(|(pair, _)| pair)
 }
 
 /// Whether the pair's node is online, and its sessions.

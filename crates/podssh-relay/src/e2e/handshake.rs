@@ -5,8 +5,11 @@
 //! name a route of the node (T-089), or the target of an exit (T-431), as
 //! its word ([`super::Ask`]), encrypted with it, so that the relay never
 //! sees which. Two ends that hold the net's document say which, and the
-//! newer one travels (T-429, [`super::net`]).
+//! newer one travels (T-429, [`super::net`]). The operator's proof may carry
+//! a grant used once (T-226), around the proof of each form, so that a node
+//! checks it with what the proof asks.
 
+use std::borrow::Cow;
 use std::future::Future;
 use std::sync::Arc;
 
@@ -17,7 +20,7 @@ use tokio::io::{AsyncRead, AsyncWrite, AsyncWriteExt};
 use super::channel::Channel;
 use super::frame::{read_frame, read_magic, write_frame};
 use super::net::{self, Docs, Held};
-use super::{Ask, Error, Refusal, HANDSHAKE_LIMIT, MAGIC, MAX_DATA, MAX_MESSAGE, PATTERN, PROLOGUE};
+use super::{Ask, Error, Refusal, HANDSHAKE_LIMIT, MAGIC, MAX_DATA, MAX_GRANT, MAX_MESSAGE, PATTERN, PROLOGUE};
 use crate::identity::{Identity, PublicKey};
 
 /// The version of a proof of a key, its first byte.
@@ -30,6 +33,12 @@ const ROUTED_PROOF: u8 = 2;
 /// document held and whether it follows, as [`net::encode`] writes them;
 /// sent only to an end that said that it reads it.
 const NET_PROOF: u8 = 3;
+/// The version of a proof that carries a grant (T-226): the key and its
+/// binding, the grant's length in two bytes and the grant, then the version
+/// of the proof that it carries and what follows that one's binding. Sent
+/// only when the user gave a grant: a node of before T-226 refuses it whole,
+/// as a proof that it does not read.
+const GRANT_PROOF: u8 = 4;
 /// A proof: its version, the sender's Ed25519 key, and that key's signature
 /// of the sender's Noise static key.
 const PROOF_LEN: usize = 1 + 32 + 64;
@@ -68,14 +77,16 @@ pub struct Asked<T> {
     peer: PublicKey,
     ask: Ask,
     net: Option<Talk>,
+    grant: Option<Vec<u8>>,
 }
 
-/// A proof, read: the key, what its word asks, and, in the net's form, what
-/// the sender holds and whether its document follows.
+/// A proof, read: the key, what its word asks, in the net's form what the
+/// sender holds and whether its document follows, and the grant it carries.
 struct Proof {
     key: PublicKey,
     ask: Ask,
     net: Option<(Option<Held>, bool)>,
+    grant: Option<Vec<u8>>,
 }
 
 /// Start the channel on `transport` as its initiator, an operator: the
@@ -126,6 +137,12 @@ impl<T: AsyncRead + AsyncWrite + Unpin> Offered<T> {
     /// this end's document of the net when it is the newer one, then wait
     /// for the node's verdict: the channel, or why the node refused.
     pub async fn accept(self, route: Option<&str>) -> Result<Channel<T>, Error> {
+        self.accept_granted(route, None).await
+    }
+
+    /// [`Offered::accept`] with `grant`, a grant used once (T-226), in the
+    /// proof: it goes to the node whose key this end checked, encrypted.
+    pub async fn accept_granted(self, route: Option<&str>, grant: Option<&[u8]>) -> Result<Channel<T>, Error> {
         let Offered { mut transport, mut state, peer, proof, net } = self;
         let gift = net.as_ref().and_then(|talk| talk.gift(&peer));
         let payload = match &net {
@@ -135,6 +152,7 @@ impl<T: AsyncRead + AsyncWrite + Unpin> Offered<T> {
             }
             None => routed(&proof, route)?,
         };
+        let payload = granted(payload, grant)?;
         let mut out = vec![0u8; MAX_MESSAGE];
         let n = state.write_message(&payload, &mut out).map_err(noise)?;
         write_frame(&mut transport, &out[..n]).await?;
@@ -213,7 +231,7 @@ pub async fn respond_with<T: AsyncRead + AsyncWrite + Unpin>(
         }
         _ => None,
     };
-    Ok(Asked { channel, peer: read.key, ask: read.ask, net })
+    Ok(Asked { channel, peer: read.key, ask: read.ask, net, grant: read.grant })
 }
 
 impl<T: AsyncRead + AsyncWrite + Unpin> Asked<T> {
@@ -231,6 +249,12 @@ impl<T: AsyncRead + AsyncWrite + Unpin> Asked<T> {
     /// exit's target (T-431).
     pub fn ask(&self) -> &Ask {
         &self.ask
+    }
+
+    /// The grant that the operator's proof carried, unchecked (T-226): the
+    /// node's door reads it before anything is dialed.
+    pub fn grant(&self) -> Option<&[u8]> {
+        self.grant.as_deref()
     }
 
     /// Let the operator in: the verdict, then this node's document of the
@@ -310,6 +334,15 @@ fn route_len(route: &str) -> Result<u8, Error> {
 /// end said that it reads it (`net_ok`), as an end of before would not.
 fn proof_of(payload: &[u8], remote_static: Option<&[u8]>, net_ok: bool) -> Result<Proof, Error> {
     let unread = || Error::Handshake("the peer's proof of its key is not one that this podssh reads".into());
+    // A grant wraps a proof of each other form (T-226).
+    let (inner, grant) = match payload.first() {
+        Some(&GRANT_PROOF) => {
+            let (inner, grant) = ungranted(payload).ok_or_else(unread)?;
+            (Cow::Owned(inner), Some(grant))
+        }
+        _ => (Cow::Borrowed(payload), None),
+    };
+    let payload: &[u8] = &inner;
     // A word is a route's name or an exit's target (T-431).
     let named = |bytes: &[u8]| std::str::from_utf8(bytes).ok().and_then(|r| Ask::read(Some(r))).ok_or_else(unread);
     let (ask, net) = match payload.first() {
@@ -335,7 +368,45 @@ fn proof_of(payload: &[u8], remote_static: Option<&[u8]>, net_ok: bool) -> Resul
     if !key.signed(&noise_key, &binding) {
         return Err(Error::Handshake(format!("the key {key} does not sign the peer's Noise key")));
     }
-    Ok(Proof { key, ask, net })
+    Ok(Proof { key, ask, net, grant })
+}
+
+/// `proof`, a proof of another form, with `grant` around it (T-226).
+fn granted(proof: Vec<u8>, grant: Option<&[u8]>) -> Result<Vec<u8>, Error> {
+    let Some(grant) = grant else { return Ok(proof) };
+    if grant.is_empty() || grant.len() > MAX_GRANT {
+        return Err(Error::Handshake(format!("a grant of {} bytes, where one has 1 to {MAX_GRANT}", grant.len())));
+    }
+    let mut out = Vec::with_capacity(proof.len() + 3 + grant.len());
+    out.push(GRANT_PROOF);
+    out.extend_from_slice(&proof[1..PROOF_LEN]);
+    // MAX_GRANT fits two bytes.
+    out.extend_from_slice(&(grant.len() as u16).to_be_bytes());
+    out.extend_from_slice(grant);
+    out.push(proof[0]);
+    out.extend_from_slice(&proof[PROOF_LEN..]);
+    Ok(out)
+}
+
+/// The proof that a grant's proof carries, in its own form, and the grant;
+/// `None` for bytes of no such form, a grant around a grant among them.
+fn ungranted(payload: &[u8]) -> Option<(Vec<u8>, Vec<u8>)> {
+    let (head, rest) = payload.split_at_checked(PROOF_LEN)?;
+    let (len, rest) = rest.split_at_checked(2)?;
+    let len = usize::from(u16::from_be_bytes([len[0], len[1]]));
+    if len == 0 || len > MAX_GRANT {
+        return None;
+    }
+    let (grant, rest) = rest.split_at_checked(len)?;
+    let (&version, tail) = rest.split_first()?;
+    if version == GRANT_PROOF {
+        return None;
+    }
+    let mut inner = Vec::with_capacity(PROOF_LEN + tail.len());
+    inner.push(version);
+    inner.extend_from_slice(&head[1..]);
+    inner.extend_from_slice(tail);
+    Some((inner, grant.to_vec()))
 }
 
 /// A frame that must be there: the stream's end in its place is a cut.

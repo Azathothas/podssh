@@ -191,7 +191,7 @@ verified here).
    send an empty binary frame: under 32 bytes is `1009 bad multiplex frame` (`:182` of the contract).
    Pitfall: no idle read limit while no probe exists; the forward opener sets 90 s
    (`crates/podssh-relay/src/open.rs:351`), and a quiet socket would reconnect.
-6. Close actions, by code and reason (`docs/reverse.md:292-294`): `409`, exit, no retry;
+6. Close actions, by code and reason (`docs/reverse.md:338-340`): `409`, exit, no retry;
    `1001 operator stopped reverse relay`, exit and delete the pair; `1001 pair expired`, or a `403` after the
    stored expiry, a re-pair hook that is off by default; `1003` and `1009`, exit with the reason, never a loop;
    any other close, connect again with `open::backoff`.
@@ -271,7 +271,7 @@ sessions at once with T-080, compare the digests of 1 MiB each way, and stop the
 
 # T-080: The operator runner
 
-**Source:** ROADMAP M4 (`docs/ROADMAP.md:150-158`); `docs/design.md` lines 94-97 at `0d92eef`; `docs/reverse.md:93-294`.
+**Source:** ROADMAP M4 (`docs/ROADMAP.md:150-158`); `docs/design.md` lines 94-97 at `0d92eef`; `docs/reverse.md:93-340`.
 Read here on `3ee70dc`.
 **Category:** feature
 **Milestone:** M4
@@ -318,7 +318,7 @@ fails on each close but `1000` (`Azathothas/podbox:crates/podbox-ssh/src/mux.rs`
    a text `close` keeps its reason. Never send a text frame.
 5. Outcome: `NeverReady { code, reason }`, `Ended { code, reason }` or `LocalEnd`. Never ready is a
    failure; `1000` after `ready` is success; each other code after `ready` is a failure that names
-   the code and the reason (`docs/reverse.md:289-294`).
+   the code and the reason (`docs/reverse.md:335-340`).
 6. End of input: send a Close `1000`, and wait up to 10 s for the relay's answer, so the last bytes
    arrive.
 7. Liveness as in T-079: `watch_liveness` only if the relay answers a Ping on this leg; no idle read
@@ -445,7 +445,7 @@ Read: podbox keeps `ring` and TLS 1.2 through a `rustls::ClientConfig` that it s
    it needs 1.88, and podbox follows (the operator's ruling of 2026-10-08). Write the result in
    `docs/design.md` (section 3).
 7. Document the facade in `docs/design.md` (lines 89-110 at `0d92eef`) and in the crate's header
-   (`crates/podssh-relay/src/lib.rs:1-46`); add the feature to the gate (`scripts/gate.sh:133`).
+   (`crates/podssh-relay/src/lib.rs:1-49`); add the feature to the gate (`scripts/gate.sh:133`).
 
 ## Decision
 
@@ -750,7 +750,7 @@ So a local TCP TARGET exists only where the host allows it; `podssh serve` (M5) 
    FILE, and prints only the label and the expiry. `podssh relay revoke NAME` stops the pair and deletes the
    local copies. `podssh relay status NAME` gives presence; agree on the form with T-058, whose `relay status`
    has no NAME.
-4. Exit codes as `podssh proxy` (`docs/cli.md:4682`): 64 usage; 69 the relay or TARGET cannot be reached; 77 a
+4. Exit codes as `podssh proxy` (`docs/cli.md:4712`): 64 usage; 69 the relay or TARGET cannot be reached; 77 a
    refused pair (`403`); 78 no usable pair; 0 after a stop by a signal. Add the rows to
    `crates/podssh-cli/src/man/facts/exit.rs:8`.
 5. `doctor`: one line for each stored pair, with its expiry and its presence, as in
@@ -882,13 +882,13 @@ Measured on `3ee70dc`, offline: `podssh operator mynode` gives exit 70;
 `PODSSH_OFFLINE`); `podssh ssh -T node://lab true` gives `"//lab" is not a port` and exit 64.
 
 Read: `parse_hop` strips `ssh://` and reads `host:PORT` (`crates/podssh-cli/src/ssh/hop.rs:30-78`).
-`Transport` is `Relay` or `Direct` (`crates/podssh-cli/src/ssh/resolve.rs:23-76`, chosen at `:312-374`).
+`Transport` is `Relay` or `Direct` (`crates/podssh-cli/src/ssh/resolve.rs:23-76`, chosen at `:313-375`).
 `connect_and_run` gives `relay_stream::spawn` to russh (`crates/podssh-cli/src/ssh/mod.rs` lines 73-116 at `6483366`), and
 `relay_stream` closes with 1002 on a text frame (`crates/podssh-ssh/src/relay_stream.rs:272-278`); the
 operator leg receives text frames (`docs/relay.md:456-459`). A host key is recorded under the target
 host, never the relay's name (`SECURITY.md:171-181`); `HostKeyAlias` exists
-(`crates/podssh-cli/src/ssh/resolve.rs:419`). `podssh ssh` uses the exit codes of OpenSSH, and
-`podssh proxy` sysexits (`docs/cli.md:4678-4682`).
+(`crates/podssh-cli/src/ssh/resolve.rs:420`). `podssh ssh` uses the exit codes of OpenSSH, and
+`podssh proxy` sysexits (`docs/cli.md:4708-4712`).
 
 ## Approach
 
@@ -947,7 +947,7 @@ cargo test -p podssh-cli --test node_live -- --ignored ssh_to_a_node
 22. `operator.rs` runs the binary with no stored pair (78, naming `podssh relay pair`), and checks
 that stdout stays empty. The binary line must exit 255, name `podssh relay pair lab`, and open no
 connection. The live test runs `podssh ssh node://lab 'exit 3'` through a node whose TARGET is
-`railway.new:22` (an anonymous SSH service, `docs/STATUS.md:127`), and expects 3. Plant: read `node:`
+`railway.new:22` (an anonymous SSH service, `docs/STATUS.md:128`), and expects 3. Plant: read `node:`
 with no slashes as a node; `node_destinations` must fail.
 
 ## Done
@@ -1580,20 +1580,20 @@ next session. Plant: ignore the grant; the refusal test must fail.
 ## Done
 
 2026-10-12. The route in the channel's handshake: the proof that names one
-at `crates/podssh-relay/src/e2e/handshake.rs:23-28`, made at
-`crates/podssh-relay/src/e2e/handshake.rs:272-281` and read at
-`crates/podssh-relay/src/e2e/handshake.rs:308-339`; the node's side of a
-routed session at `crates/podssh-relay/src/e2e/ends.rs:67-138`, and the
-operator's at `crates/podssh-relay/src/e2e/ends.rs:129-137`. The grants at
+at `crates/podssh-relay/src/e2e/handshake.rs:26-31`, made at
+`crates/podssh-relay/src/e2e/handshake.rs:296-305` and read at
+`crates/podssh-relay/src/e2e/handshake.rs:332-410`; the node's side of a
+routed session at `crates/podssh-relay/src/e2e/ends.rs:97-194`, and the
+operator's at `crates/podssh-relay/src/e2e/ends.rs:185-193`. The grants at
 `crates/podssh-relay/src/identity/allow.rs:33-64` and
 `crates/podssh-relay/src/identity/allow.rs:114-122`. The routes of a node,
-their check and their dial in `crates/podssh-relay/src/reverse/routes.rs:1-113`.
+their check and their dial in `crates/podssh-relay/src/reverse/routes.rs:1-116`.
 The command line: the targets at `crates/podssh-cli/src/node.rs:210-246`,
 `NAME/ROUTE` at `crates/podssh-cli/src/node.rs:248-263`, the dial of each
 target at `crates/podssh-cli/src/node_target.rs:14-39`, the routes at
 `crates/podssh-cli/src/node.rs:267-275`; the channel's glue at
-`crates/podssh-cli/src/channel.rs:311-320` and
-`crates/podssh-cli/src/channel.rs:364-383`; `node://NAME/ROUTE` at
+`crates/podssh-cli/src/channel.rs:331-340` and
+`crates/podssh-cli/src/channel.rs:384-403`; `node://NAME/ROUTE` at
 `crates/podssh-cli/src/ssh/node.rs:36-67`, and `iroh:TICKET/ROUTE` at
 `crates/podssh-cli/src/ssh/iroh.rs:59-80`. The manual's notes of `node`
 and `operator`, the file of `--allow`, `docs/cli.md` and
@@ -1728,7 +1728,7 @@ Not measured: no pairing ran.
 **Milestone:** M10
 **Priority:** P2
 **Effort:** M
-**Status:** open
+**Status:** partial
 
 ## Problem
 
@@ -1786,12 +1786,56 @@ the relay can make a token single use for each client. The alternative, the clie
 still accepts a replayed `connect_token`, so that grant protects only the TARGET, which the allowlist of T-087
 already protects, at the cost of a framing on a leg that the contract keeps bare.
 
+2026-11-03 (the drafting agent), for what the Correction below leaves open. No row of `docs/decisions.md`
+settles these and none changes one: Q4 keeps the relay's tokens and the trust end to end, which a grant is.
+
+1. The reader of the certificate is podssh's own (`crates/podssh-relay/src/grant/cert.rs`), not the `ssh-key`
+   crate. Only the Ed25519 certificate is a grant, its form is a page of OpenSSH's PROTOCOL.certkeys, and the
+   crate (the patched copy in `vendor/ssh-key`) would bring its features and a change of `Cargo.lock` into a
+   library crate that the gate builds with no C. The same bytes as `ssh-keygen -s` gives are its test. Lost:
+   the crate, for those reasons.
+2. A grant's use is recorded by the SHA-256 of what its issuer signed, which holds the issuer's random nonce,
+   not by its serial: `ssh-keygen -s` gives serial 0 unless `-z` is given, so a record by serial would refuse
+   each grant after an issuer's first. The serial names a grant in the lines and in `--revoked`. Lost: by
+   serial (that reason); by issuer and serial, with 0 refused (one more flag at each mint).
+3. A grant decides alone: one that fails is refused, also for a key that `--allow` names, as the operator
+   asked by it. A node that reads no grant (the temporary node of `--upgrade`, chat) sets one aside and goes
+   by its door. Lost: a failed grant that falls back to the allowlist, which hides the refusal from its user.
+4. The issuers are the node's own key, and a key of `--allow` or a member of the net for what that key may
+   reach itself, with no word of its own on the allowlist's line; a node with no `--allow` and no net trusts
+   its own key alone. A key of the allowlist can carry its own access to another already, so a grant gives
+   it nothing more. Lost: a mark on the line, as sshd's `cert-authority`, a new form of the file that the
+   allowlist's readers of T-087 refuse.
+5. The use is recorded before the dial: a TARGET out of reach spends the grant, and its issuer mints another,
+   as a retry with the same grant is a replay to the node. Lost: the record after the dial, where a replay
+   reaches TARGET's door.
+6. The operator hears one sentence for each refused grant (`GRANT_REFUSED`, exit 77), and the node's log the
+   reason, as a reason can name the node's files. Lost: the reason itself in the verdict.
+7. A grant must end (no `valid_before` of forever), with 5 minutes of skew at each end of its window; `podssh
+   node --grant-to` gives 1 h, and takes 1 minute to 30 days. A record goes after its grant's end and the
+   skew, when the window refuses the grant.
+8. A client reads its grant once, before anything connects, and the run's first channel takes it: a grant
+   lets in one session, so a copy of several files or a listening `pipe` sends it in its first. `cp`, `mv`,
+   `scp` and `sftp` take no `--grant`.
+9. The proof's version is 4, around a proof of each other form, as version 3 is the net's (T-429). A node of
+   before refuses it whole, and an operator sends it only with `--grant`. Lost: a message of its own after the
+   handshake, which a node of before reads as a fault of the channel.
+10. `podssh node NAME --grant-to KEY` in the place of `podssh node grant`: `node` takes NAME first, as
+    `--install` does, and a node may be labelled `grant`.
+11. In the relay role, the connect token of a pair of `--once` is spent at the first upgrade that the role
+    takes, and refused at the status too after it; the status before it spends nothing. The file of `--pairs`
+    keeps the use, and one that takes no write refuses the upgrade. `?once=1` asks for it, as the body stays
+    the contract's `{}` and the proof of a key (T-448) signs the path. A connect token for each session, and a
+    stop token that the node rotates, which the Correction names, are T-615: they need frames of the node's
+    socket that the contract does not have.
+
 ## Prove
 
 ```sh
 export CARGO_BUILD_JOBS=4
 cargo test -p podssh-relay --features pair,grant --test grant
 cargo test -p podssh-relay --features pair,grant --test grant_live -- --ignored
+cargo test -p podssh-relay --features serve,plain-ws --test relay_serve_once
 ```
 
 Offline: a grant verifies once; a second use of its nonce fails; a grant for another node or principal, or
@@ -1814,7 +1858,7 @@ parts, and the Decision above (the relay's shape, by the relay's operator) gives
 
 - At the node. The seam that the client's shape lacked exists: the e2e channel carries an
   encrypted proof of the operator's key, with a version byte
-  (`crates/podssh-relay/src/e2e/handshake.rs:24-28`), so a third version carries a grant that no
+  (`crates/podssh-relay/src/e2e/handshake.rs:27-31`), so a third version carries a grant that no
   relay sees. A grant is an OpenSSH user certificate over the grantee's Ed25519 key, signed by an
   issuer that the node's allowlist names (`crates/podssh-relay/src/identity/allow.rs:1-8`) or by
   the node's own key: a principal `node:SHA256:<the node's key>` (with `/ROUTE`), a validity
@@ -1862,6 +1906,50 @@ before a request exists; through podssh's relay role (T-427) on the loopback, a 
 of one use is refused at its second upgrade. Planted: the spent check skipped; the replay test
 fails. Live, on a GitHub runner where `podssh relay serve` runs: a node and an operator, one
 grant used, then refused.
+
+2026-11-03 (the drafting agent). Read at `d262613`: the proof's version 3 is the net's form (T-429,
+`NET_PROOF` in `crates/podssh-relay/src/e2e/handshake.rs`), so a grant is the proof's version 4, around a
+proof of each other form (Decision 9). Item 3 of the new Approach is `podssh node NAME --grant-to KEY`,
+with `--grant-route` and `--grant-for` (Decision 10), and `--revoked FILE` names the serials. Item 4 is a
+pair of `--once` in podssh's relay role (`POST /v1/pair?once=1`); the connect token for each session and
+the stop token that the node rotates moved to T-615 (Decision 11). The Prove adds the role's test,
+`relay_serve_once`, which needs the features `serve` and `plain-ws` on the loopback. The offline grants are
+certificates that OpenSSH 9.6's `ssh-keygen -s` minted, kept with their issuer's public key alone
+(`crates/podssh-relay/tests/fixtures/grant/`), so the test needs no `ssh-keygen` where it runs; the live
+test runs through the live relay, which carries the channel as each relay does, in the place of a runner
+of `podssh relay serve`.
+
+## Done
+
+2026-11-03, drafted (`DRAFT T-226`), UNVERIFIED: no command below ran in the draft.
+
+- The grant in `podssh-relay` (feature `grant`, `crates/podssh-relay/src/grant/`): the reader and the writer
+  of the Ed25519 user certificate, the node's door in the order of the Approach, and the record of each grant
+  used; the proof's version 4 in `crates/podssh-relay/src/e2e/handshake.rs`, the door's hook `Redeem` of
+  `crates/podssh-relay/src/e2e/ends.rs`, and a route that a grant named in
+  `crates/podssh-relay/src/reverse/routes.rs`. `cargo test -p podssh-relay --features pair,grant --test
+  grant`: UNVERIFIED (a grant that `ssh-keygen -s` minted lets its key in once, the relay never sees it, a
+  second use is refused, also by a node started again; another node, a window that ended or is to come, an
+  unknown critical option, no `once@podssh`, no end, a host certificate, another key, an issuer not trusted,
+  a changed serial and no certificate are refused before the dial; the node's own key issues; a route's
+  grant; no grant, and a node that reads none; a revoked serial; podssh's writer gives the bytes of
+  `ssh-keygen -s`; a URL is refused). `cargo test -p podssh-relay --features pair,grant,serve --lib`:
+  UNVERIFIED.
+- In the relay role: `cargo test -p podssh-relay --features serve,plain-ws --test relay_serve_once`:
+  UNVERIFIED (a connect token of one use refused at its second upgrade and at the status, a pair of before,
+  `/relays.json`).
+- In the binary (`crates/podssh-cli/src/grants.rs`): `--grant FILE` of `operator`, `proxy node://`, `ssh
+  node://` and `pipe`'s `node:` side; `podssh node NAME --grant-to KEY`, `--grant-route`, `--grant-for` and
+  `--revoked FILE`; each node's door on the pair's, the DERP, the OpenTunnel and the iroh roads; `podssh
+  relay pair NAME --once`. `cargo test -p podssh-cli --lib`: UNVERIFIED; `cargo test -p podssh-cli --test
+  flag_table`: UNVERIFIED.
+- Live: `cargo test -p podssh-relay --features pair,grant --test grant_live -- --ignored`: UNVERIFIED (one
+  grant used through the live relay, then refused).
+- Planted, each of which must fail its test: the record of a use skipped
+  (`scripts/plants/t226-spent-skipped.plant`), the key's bind skipped
+  (`scripts/plants/t226-key-unbound.plant`), a token of `once` taken again
+  (`scripts/plants/t226-once-reused.plant`), and a grant's route left unmarked
+  (`scripts/plants/t226-route-unmarked.plant`): UNVERIFIED.
 
 # T-256: A local side that does not read stops every session of the node
 
@@ -2393,9 +2481,9 @@ documents works; the form that a user expects is missing.
   (`crates/podssh-ws/src/names.rs:41`). The issue's prefix `podssh ssh:` is not this code's,
   which writes `podssh proxy:` (`crates/podssh-cli/src/proxy.rs:141`); not reproduced.
 - Read: `operator NAME` is "the ProxyCommand of OpenSSH for a node"
-  (`crates/podssh-cli/src/man/notes_pair.rs:288-290`), and `pipe` takes `node:NAME`
+  (`crates/podssh-cli/src/man/notes_pair.rs:290-292`), and `pipe` takes `node:NAME`
   (`crates/podssh-cli/src/pipe/address.rs:32-33`); the about of `proxy` is "ProxyCommand form: a
-  byte pipe, not an SSH client" (`crates/podssh-cli/src/flags.rs:391`), with no word of a node.
+  byte pipe, not an SSH client" (`crates/podssh-cli/src/flags.rs:392`), with no word of a node.
 - Read: `proxy` takes other schemes of its own, each with no PORT: `cf://HOST`, and the roads of
   `iap://`, `eice://`, `warp://` and `tor://` (`crates/podssh-cli/src/proxy.rs:122-137`).
 
@@ -2517,7 +2605,7 @@ cannot set.
   have no ConnectTimeout; `ssh` has one
   (`crates/podssh-cli/src/flags.rs:179-180`).
 - Read: `operator`'s waits are 30 s for each request of the relay
-  (`crates/podssh-cli/src/operator.rs:135`, `crates/podssh-cli/src/pairs.rs:18`) and 20 s for the
+  (`crates/podssh-cli/src/operator.rs:142`, `crates/podssh-cli/src/pairs.rs:18`) and 20 s for the
   node's `ready` (`crates/podssh-relay/src/reverse/operator.rs:59`); `proxy`'s, 20 s for each
   relay host (`crates/podssh-relay/src/open.rs:30`), in the order of the failover.
 - Inferred, which the Prove measures: OpenSSH's ConnectTimeout bounds the wait for the server's
@@ -2793,12 +2881,12 @@ to go on. A feature.
   issue's claim holds where no pair is stored under NAME, as on an operator's host.
 - Read: it reads the pair from the store alone (`crates/podssh-cli/src/relay_cmd.rs` line 229 at
   `2608b91`, `crates/podssh-cli/src/pairs.rs:36-44`); `relay` takes no `--pair-file`, and `--operator-file`
-  goes with `pair` alone (`crates/podssh-cli/src/relay_cmd.rs:113-116`).
+  goes with `pair` alone (`crates/podssh-cli/src/relay_cmd.rs:116-119`).
 - Read: the relay answers `/v1/status/<name>` to the connect token
-  (`crates/podssh-relay/src/pair.rs:201-205`), which the operator's part holds.
+  (`crates/podssh-relay/src/pair.rs:192-196`), which the operator's part holds.
 - Read: `relay pair` prints the label and its expiry and nothing more
-  (`crates/podssh-cli/src/relay_cmd.rs:244`); in the last 24 h of a stored pair it makes the next
-  one, which the node takes at the expiry (T-395, `crates/podssh-cli/src/relay_cmd.rs:193-216`);
+  (`crates/podssh-cli/src/relay_cmd.rs:271`); in the last 24 h of a stored pair it makes the next
+  one, which the node takes at the expiry (T-395, `crates/podssh-cli/src/relay_cmd.rs:200-223`);
   the operator's part of the next pair is a new file, and the default relay renews no pair (T-395's
   Decision, item 2).
 
@@ -2941,3 +3029,54 @@ Each passes; planted, the guard that aborts nothing: the new test fails.
   crate with `pair,quick,derp,serve,piping,blocking,plain-ws`: 584 passed, and 1 failed at random,
   `relay_serve_reverse`'s two sessions of 2 MiB, which fails as often with the code before (T-602).
 - Planted, `Drop` that aborts nothing: the new test failed ("the role sees the stream end").
+
+# T-615: A connect token for each session, and a stop token that the node rotates, in podssh's relay role
+
+**Source:** T-226's Correction (2026-11-02) and its draft (2026-11-03), which built the connect token
+of one upgrade and left these two.
+**Category:** feature
+**Milestone:** M10
+**Priority:** P3
+**Effort:** M
+**Status:** open
+
+## Problem
+
+A pair's connect token on podssh's relay role takes each upgrade for 72 h, or one alone with
+`podssh relay pair --once`, which then carries one session with no resume. A pair's stop token lasts
+as long as the pair. A token that leaks, from a proxy that logs the headers of a request, stays good
+until then; a grant (T-226) holds the node's door behind it, but the relay's own door stays open to
+whoever holds the token.
+
+## Premise
+
+Read at `d262613` and in the draft of T-226: the role keeps the SHA-256 of each of a pair's three
+tokens, and a pair of `once` spends its connect token at its first upgrade
+(`crates/podssh-relay/src/serve/reverse/pairs.rs`). The node's socket carries the contract's text
+frames alone (`hello`, `open`, `close`, `ready`, `reject`; `docs/relay.md`, "The reverse path"), so a
+token that the node gives its operators needs a frame of podssh's own, sent only to a relay that offers
+it in `/relays.json`. A resume of the layer opens a new leg, which needs a token of its own.
+
+## Approach
+
+1. In the relay role: a frame of the node's socket, `{"type":"token","digest":HEX,"expires":MS}`, which
+   the role takes only where its `/relays.json` offers it, and which registers a connect token of one
+   upgrade by its digest; the role answers each upgrade with such a token once, as for a pair of
+   `once`.
+2. At the node: once the channel let an operator in, the node draws the next token of its session, sends
+   its digest to the role, and gives the token to the operator inside the channel; the operator's next leg
+   (a resume) takes it, so that each leg has a token that no other leg can use.
+3. The stop token: `POST /v1/rotate/<name>` with the stop token answers a new one, and the node rotates its
+   own at each start and each day, inside the private file of its pair; an operator never holds it.
+4. A node of a relay that offers neither keeps the pair's tokens, as now.
+
+## Prove
+
+```sh
+export CARGO_BUILD_JOBS=4
+cargo test -p podssh-relay --features serve,plain-ws --test relay_serve_once
+```
+
+Offline, through the role on the loopback: a leg's token takes one upgrade, a resume takes the next one
+that the node gave, and a replayed one is refused; a rotated stop token ends the old one. Planted: the
+role takes a spent token; the replay test fails.

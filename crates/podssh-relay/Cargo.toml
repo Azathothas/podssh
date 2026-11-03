@@ -86,6 +86,11 @@ warp = ["quick", "dep:podssh-warp"]
 # The same with podssh-warp's stand-in of WARP's edge, which listens on the
 # loopback, for tests/quick_edge_warp.rs alone; the binary never enables it.
 warp-stand-in = ["warp", "podssh-warp/stand-in"]
+# Grants used once (T-226): the reader and the writer of an OpenSSH user
+# certificate of an Ed25519 key, the node's check of one, and its record of
+# each grant used. Pure Rust, with the crates of `identity`; the channel
+# carries a grant's bytes with or without it. No C either; the gate builds it.
+grant = []
 # The relay as a role of podssh (T-169, Q63): the forward road of the
 # relay's contract, served, and its reverse road (T-427), which reads and
 # writes the frames with the node's own codecs of `pair`; the caller owns the

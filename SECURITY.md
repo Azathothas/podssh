@@ -242,6 +242,21 @@ Each rule is implemented.
   for each session, and dials its target only after it let the key in. No
   end falls back to plain text: one with the channel refuses a peer
   without it.
+- **A grant lets one key in once, and no relay sees it** (T-226, GitHub
+  #35). A grant is an OpenSSH user certificate of the operator's key, for
+  one node or route, with a window and the critical option `once@podssh`,
+  signed by the node's own key or by a key that the node already lets reach
+  as much. It travels inside the end-to-end channel, after the operator
+  checked the node's key, never in a URL, a header or a file of the relay.
+  The node checks that the channel proved the certificate's key, the
+  issuer, the principal, the window and each critical option, then records
+  the grant as used in a private file made create-new and synced, before it
+  dials: a second use, also after a restart, is refused, and a grant that
+  leaks is worth nothing without its key. A node whose door is the pair's
+  connect token alone says so as it starts, as whoever holds the token
+  reaches a TARGET that has no login of its own; podssh's relay role makes
+  a connect token of one upgrade where the pair asks for it (`relay pair
+  --once`).
 - **`podssh ssh --upgrade` copies nothing to the server, and its token
   crosses the relay only inside SSH** (T-167). It runs a podssh that is on
   the server already, after `podssh --version` found one. The temporary
@@ -332,6 +347,11 @@ security:
   it with `--node-key`; an iroh ticket names the key (T-087).
 - The end-to-end channel is podssh's own framing over the `snow` crate. No
   third party has audited it (T-088).
+- The tokens of a pair on the default relay are bearer tokens for up to 72
+  h: whoever holds the connect token reaches the node's door, and its
+  `stop_token` ends the pair. The node's `--allow`, its net and its grants
+  (T-226) hold the door behind it; a connect token of one upgrade comes from
+  podssh's relay role alone, as the default relay's contract has none.
 - With `-A` (T-036), the server, and root on it, can use each key of the
   agent while the session lasts, as with OpenSSH. podssh binds the
   forwarded agent to the server's host key (`session-bind@openssh.com`,

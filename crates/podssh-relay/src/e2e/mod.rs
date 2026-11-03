@@ -16,7 +16,8 @@
 //! may be skipped. Two ends that hold the net's document give each other
 //! the newer one inside the channel (T-429, [`net`]). The operator's proof
 //! names what it asks of the node ([`Ask`]): a route, or the target of an
-//! exit (T-431).
+//! exit (T-431); and it may carry a grant used once (T-226), which the node
+//! checks before it dials, and which no relay sees.
 
 mod ask;
 mod channel;
@@ -49,6 +50,9 @@ pub const MAX_DATA: usize = MAX_MESSAGE - TAG - 1;
 /// The bound on each step of the handshake, and on the verdict, in which the
 /// node may dial its target.
 pub const HANDSHAKE_LIMIT: Duration = Duration::from_secs(30);
+/// The largest grant that the operator's proof carries (T-226): an Ed25519
+/// certificate with a few principals is about 300 bytes.
+pub const MAX_GRANT: usize = 8 * 1024;
 
 /// Why a node refused a session.
 #[derive(Debug, Clone, PartialEq, Eq)]

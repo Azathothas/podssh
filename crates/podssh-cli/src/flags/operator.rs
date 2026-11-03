@@ -25,6 +25,8 @@ pub const PAIR_FLAGS: &[FlagRow] = &[
     super::node::OWN_DEADLINE,
     // A session that ends with its link (T-612).
     super::node::OPERATOR_NO_RESUME,
+    // A grant used once (T-226).
+    super::grant::OPERATOR_GRANT,
     OPERATOR_CONNECT_TIMEOUT, TIMEOUT,
     // The node at the other end of a stream that exists already (T-595).
     row(None, "carrier", Some("ADDR"), FlagKind::Supported,

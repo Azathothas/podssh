@@ -5,7 +5,8 @@
 //! with no route is the one that an operator who names none reaches. A
 //! roost's targets are each a standard sshd, checked at each dial (T-166).
 //! An exit node (T-431) dials a target that the operator names too, by the
-//! binary's [`ExitDial`], which decides who may and which address.
+//! binary's [`ExitDial`], which decides who may and which address. A grant
+//! used once (T-226) that named the route stands for the key's own line.
 
 use std::future::Future;
 use std::pin::Pin;
@@ -79,7 +80,9 @@ impl Routes {
             None => Refusal::Other("the node has a target for each route only: name one, as NAME/ROUTE".into()),
         };
         let target = self.routes.iter().find(|r| r.name.as_deref() == route).ok_or_else(refused)?;
-        if let Some(name) = route {
+        // A grant used once named this route already, and its issuer may use
+        // it (T-226): the key needs no line of its own.
+        if let (Some(name), false) = (route, crate::e2e::ends::granted()) {
             (self.grant)(key, name).map_err(|_| refused())?;
         }
         dial_target(&target.host, target.port, self.timeout, self.sshd).await.map_err(Refusal::NoTarget)

@@ -56,4 +56,6 @@ pub const PIPE_FLAGS: &[FlagRow] = &[
     super::operator::PIPE_CARRIER,
     // The sessions of a node: side end with their link (T-612), by ssh's id.
     super::node::PIPE_NO_RESUME,
+    // A grant used once for its first session (T-226), by ssh's id.
+    super::grant::PIPE_GRANT,
 ];

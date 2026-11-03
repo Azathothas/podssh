@@ -248,8 +248,12 @@ its client; this deployment serves them once its contract has them.
    keeps a grant in a 0600 file and sends it in a header, never in a URL.
    The live check: a second use of one grant gets the relay's refusal.
    In podssh: T-226 checks a grant at the node (an OpenSSH certificate,
-   used once) and makes the pair's tokens single-use in podssh's own relay
-   role (T-427).
+   used once), on each road, in the end-to-end channel, so this deployment
+   needs no change for it; and podssh's own relay role (T-427) makes a pair
+   whose connect token takes one upgrade, `POST /v1/pair?once=1`, offered
+   in its `/relays.json` as `"reverse": {"pair_once": true}`. The relay's
+   part, should it want the same: that query, the answer's `"once": true`,
+   and the token refused after its first upgrade, also by the status.
 10. **Pairing by a short code** (T-086, [TODO/reverse.md](../TODO/reverse.md)).
     Today the node gives the operator a file with the relay host, the
     pair's name and its `connect_token`, and a person moves it over a

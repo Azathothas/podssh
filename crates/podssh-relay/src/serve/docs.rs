@@ -63,6 +63,9 @@ pub fn relays(cfg: &Config, head: &Request) -> Value {
         "policy": { "note": "podssh relay serve: public TCP targets, port 25 refused" },
         // Whether this host routes IPv6 out, as its role knows it (T-253).
         "egress": cfg.policy.ipv6.doc(&cfg.egress),
+        // A pair whose connect token takes one upgrade, `POST /v1/pair?once=1`
+        // (T-226), beside the contract.
+        "reverse": { "pair_once": true },
         "pool": [{ "rank": 0, "name": "podssh", "host": name, "bucket": null, "region": null,
                    "client_ms": 0, "target_ms": 0, "score_ms": 0 }],
         "limits": {
@@ -227,6 +230,7 @@ mod tests {
             (&json!(10000), &json!(180000), &json!(43200000))
         );
         assert_eq!((&l["max_session_bytes"], &l["max_frame_bytes"]), (&json!(67108864), &json!(262144)));
+        assert_eq!(doc["reverse"]["pair_once"], true, "pairs of one upgrade are offered (T-226)");
         assert_eq!(health(&cfg())["service"], "tcp-ssh-relay");
         assert_eq!(health(&cfg())["reverse"]["enabled"], true, "the reverse road is served (T-427)");
         // Whether the host routes IPv6 out, as the role knows it (T-253).

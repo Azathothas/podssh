@@ -3221,7 +3221,7 @@ The draft's calls, 2026-11-02:
    numbers an address, whose wait is an estimate, so a client told 60 s could meet a second
    `429`.
 2. `/v1/mint` and `/v1/pair` share one count, as on the default relay
-   (`crates/podssh-relay/src/pair.rs:94` says "the brake that pairs share with mints"; the
+   (`crates/podssh-relay/src/pair.rs:96` says "the brake that pairs share with mints"; the
    contract's limits, `docs/relay.md`, "Limits that users see": "mint, pair, upgrades with no
    token"). Each request at the two paths counts, whatever its answer: a keyed mint's `401`
    (T-448), a `403`, `--mint nobody`'s `503`. Lost: a count for each path, which lets one client
@@ -3284,7 +3284,7 @@ first after the minute passes. Planted, the brake removed, and the test fails.
 
 2026-11-02 (the drafting agent). The Premise holds; the Approach needs two facts that it does not
 name. `/v1/pair` is answered in the reverse road, where `serve/mod.rs` routes it:
-`crates/podssh-relay/src/serve/reverse/mod.rs:130` says "async fn pair". And the role had no
+`crates/podssh-relay/src/serve/reverse/mod.rs:137` says "async fn pair". And the role had no
 address to count by: at `33ccb11`,
 `podssh relay serve` dropped the peer of each connection that it accepted
 (`let Ok((tcp, _)) = accepted` in `crates/podssh-cli/src/relay_serve.rs`). So the brake stands in
@@ -3547,7 +3547,7 @@ nothing, works.
 ## Premise
 
 - `crates/podssh-relay/src/serve/forward.rs:140` dials the resolved addresses with
-  `TcpStream::connect`, and `crates/podssh-relay/src/serve/docs.rs:106` does the same for
+  `TcpStream::connect`, and `crates/podssh-relay/src/serve/docs.rs:109` does the same for
   `/trace`; neither reads `HTTPS_PROXY`.
 - Rule 2 of `AGENTS.md`: one outbound connection, through `HTTPS_PROXY` when it is set.
 
@@ -4860,6 +4860,20 @@ cargo test -p podssh-cli --test net
 With the pair's road refused at the stand-in relay, `cp` to a member by its name reaches it over
 the DERP road that the net names; planted, the race skipped for the pair's road alone, and the
 test fails.
+
+## Correction
+
+2026-11-03 (the main session, read before any change). The copies take a stream from `reach` and
+keep it for the whole run (`crates/podssh-cli/src/cp/link.rs:161`), while the race of
+`ssh::roads::connect` runs SSH itself over the layered stream, its roads borrowing the run's
+locals (`crates/podssh-cli/src/ssh/roads.rs:238-246`). So the copies need the race in a task of
+its own, which owns what the roads borrow. Measured: `Transport` is `Clone`
+(`crates/podssh-cli/src/ssh/resolve.rs:24`), and each road's future is `Send` already (the type
+`Going` with `+ Send` compiled with no change elsewhere). The Approach's item 1 is then: the body
+of `connect` as a function that hands the layered stream to a closure in the place of
+`podssh_ssh::run`; `connect` passes SSH, and a copy's `reach` spawns it with a clone of the
+transport and a pipe to the copy, as the pair's road alone does (`crates/podssh-cli/src/ssh/node.rs:351`).
+`roads.rs` is at its 500 lines, so the order's words move to `road_link.rs` first.
 
 # T-534: Tailscale's main DERP fleet after tailcat's: a short test that it lets podssh in, then the fallback
 
@@ -6540,8 +6554,8 @@ pair that its operators hold.
 
 ## Premise
 
-- Read: the role keeps the contract's 72 h (`crates/podssh-relay/src/serve/reverse/pairs.rs:24-25`,
-  set as the pair is made, `:206`), and serves `/v1/pair`, `/v1/node/`, `/v1/connect/`,
+- Read: the role keeps the contract's 72 h (`crates/podssh-relay/src/serve/reverse/pairs.rs:26-27`,
+  set as the pair is made, `:235`), and serves `/v1/pair`, `/v1/node/`, `/v1/connect/`,
   `/v1/status/` and `/v1/stop/` alone (`crates/podssh-relay/src/serve/reverse/mod.rs`, line 57 at
   `b02d8c4`).
 - Read: the default relay renews no pair (T-395's Correction: no such request in its document); a
@@ -6753,7 +6767,7 @@ through a relay. A feature of the mesh (Q63; Q77, the fallbacks that exist).
 - Read: `pipe` does not refuse a terminal on stdin (no such check in `crates/podssh-cli/src/pipe/`
   at `3bb42ea`); the issue's "as `pipe` does" is not this code's.
 - Read: the exit lends its egress on the node's roads
-  (`crates/podssh-cli/src/man/notes_pair.rs:253-263`); a carrier is one more road for it (T-596).
+  (`crates/podssh-cli/src/man/notes_pair.rs:255-265`); a carrier is one more road for it (T-596).
 
 ## Approach
 
@@ -7107,8 +7121,8 @@ roads, and a carrier must be one of them.
 ## Premise
 
 - Read: the exit goes on the pair's, the iroh, the DERP, the transit and the Piping Server roads
-  (`crates/podssh-cli/src/man/notes_pair.rs:262-263`), and needs the net's role exit, signed by
-  its owner (`:260-261`).
+  (`crates/podssh-cli/src/man/notes_pair.rs:264-265`), and needs the net's role exit, signed by
+  its owner (`:262-263`).
 - Read: `podssh exit NAME --listen` gives SOCKS5, SOCKS4a and HTTP CONNECT on a loopback address
   (`docs/STATUS.md:92`).
 - In the issue's case the end with egress starts the channel (`ssh -T sandbox CMD`), so the node

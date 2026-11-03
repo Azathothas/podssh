@@ -51,6 +51,8 @@ pub struct Flags {
     /// `--carrier ADDR`: the node at the other end of a stream (T-595),
     /// unparsed.
     pub carrier: Option<String>,
+    /// `--grant FILE`: a grant used once (T-226).
+    pub grant: Option<String>,
 }
 
 impl Flags {
@@ -64,6 +66,7 @@ impl Flags {
             resume_deadline: get("resume-deadline"),
             no_resume: m.get_flag("no-resume"),
             carrier: get("carrier"),
+            grant: get("grant"),
         }
     }
 
@@ -76,6 +79,7 @@ impl Flags {
             (self.resume_deadline.is_some(), "--resume-deadline"),
             (self.no_resume, "--no-resume"),
             (self.carrier.is_some(), "--carrier"),
+            (self.grant.is_some(), "--grant"),
         ]
         .into_iter()
         .find_map(|(given, flag)| given.then_some(flag))
@@ -163,6 +167,8 @@ fn to_operator(text: &str, args: &ProxyArgs) -> Result<OperatorArgs, Refusal> {
         // The node at the other end of a stream, as `operator --carrier`
         // reaches it (T-595); its checks are operator's.
         carrier: args.node.carrier.clone(),
+        // A grant used once, as `operator --grant` takes it (T-226).
+        grant: args.node.grant.clone(),
         refused: Vec::new(),
     })
 }

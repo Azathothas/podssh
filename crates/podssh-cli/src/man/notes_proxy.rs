@@ -78,4 +78,5 @@ pub const PROXY: &[&str] = &[
      exec:CMD, a program started with no shell, or fd:N (Unix); the net's rule of the exit holds as on each \
      road, and at the end the node hears a Close. stdio, --relay-addr and --ca-file are refused with it (64), \
      as stdin and stdout carry the pipe's bytes and the stream has no relay.",
+    super::notes_grant::PROXY,
 ];
