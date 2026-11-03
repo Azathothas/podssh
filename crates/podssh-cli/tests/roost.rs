@@ -289,6 +289,7 @@ fn a_target_that_stops_answering_as_sshd_refuses_the_next_session() {
 }
 
 /// The bound on each login of OpenSSH, its ProxyCommand's end included.
+#[cfg(unix)]
 const LOGIN_LIMIT: Duration = Duration::from_secs(60);
 
 /// SIGHUP at its default in `cmd`, which OpenSSH then hands on to its
@@ -304,12 +305,10 @@ fn hangup_by_default(cmd: &mut std::process::Command) {
     }
 }
 
-#[cfg(not(unix))]
-fn hangup_by_default(_: &mut std::process::Command) {}
-
 /// The words of `cmd` as one line of the shell, as OpenSSH runs a
 /// ProxyCommand: each in single quotes, none of which holds one, nor the
 /// `%` of OpenSSH's tokens.
+#[cfg(unix)]
 fn proxy_command(cmd: &std::process::Command) -> String {
     let words = std::iter::once(cmd.get_program()).chain(cmd.get_args());
     let quoted = words.map(|word| {
@@ -323,6 +322,7 @@ fn proxy_command(cmd: &std::process::Command) -> String {
 /// `cmd`'s exit code, stdout and stderr, each pipe read to its end (a
 /// ProxyCommand holds OpenSSH's stderr until it exits); a run past `limit`
 /// is killed, and fails the test.
+#[cfg(unix)]
 fn output_within(mut cmd: std::process::Command, limit: Duration) -> (Option<i32>, String, String) {
     let mut child = cmd.stdin(Stdio::null()).stdout(Stdio::piped()).stderr(Stdio::piped()).spawn().expect("ssh runs");
     let read = |mut pipe: Box<dyn Read + Send>| {
@@ -361,7 +361,10 @@ fn output_within(mut cmd: std::process::Command, limit: Duration) -> (Option<i32
 /// exits, and each login ends at the node with its `CLOSE`, so each exits
 /// 0; an operator that died of the signal left each session held for 10
 /// minutes, and the fifth login was refused. It says that it did not run
-/// where this host has no OpenSSH, or cannot run the stand-in.
+/// where this host has no OpenSSH, or cannot run the stand-in. Unix's: OpenSSH
+/// for Windows ends its ProxyCommand with no SIGHUP, and its CreateProcessW
+/// takes no command line of a shell.
+#[cfg(unix)]
 #[test]
 fn short_logins_through_operator_leave_the_node_room() {
     let s = Session::start("roost-logins");

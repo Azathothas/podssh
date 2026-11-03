@@ -62,15 +62,15 @@ repository and CI).
 
 ## Counts
 
-**562 entries: 122 open, 1 partial, 16 blocked, 423 done.**
+**563 entries: 123 open, 1 partial, 16 blocked, 423 done.**
 
 | Priority | open | partial | blocked | done | total |
 | --- | --- | --- | --- | --- | --- |
 | P0 | 0 | 0 | 0 | 1 | 1 |
 | P1 | 0 | 1 | 0 | 62 | 63 |
-| P2 | 36 | 0 | 14 | 203 | 253 |
+| P2 | 37 | 0 | 14 | 203 | 254 |
 | P3 | 86 | 0 | 2 | 157 | 245 |
-| **All** | 122 | 1 | 16 | 423 | 562 |
+| **All** | 123 | 1 | 16 | 423 | 563 |
 
 ## Entries
 
@@ -638,3 +638,4 @@ repository and CI).
 | [T-596](mesh.md) | P3 | S | M10 | feature | open | The exit over a carrier: a host that grants an exec channel alone gets egress through its other end |
 | [T-597](repo.md) | P3 | S | none | chore | open | Dependabot's updates of 2026-11-02: Python 3.15 for the box's proxy, the build image's digest, sha2 0.11.1 and simple-dns 0.13 |
 | [T-598](ssh.md) | P3 | S | none | defect | open | On a cloud container's host, a peer that stops reading below SSH with `--direct` ends the session after 240 s on the keepalives, not after 60 s on the stuck write |
+| [T-599](roads.md) | P2 | M | none | defect | open | The stand-in edge's echo of 1 MiB inside WARP's tunnel stalls at random |

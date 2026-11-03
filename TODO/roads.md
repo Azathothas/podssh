@@ -7977,3 +7977,49 @@ installed and `apt-get install -y openssh-server`), and
 `a_roost_whose_sshd_is_stopped_says_that_nothing_listens` (a stand-in `sshd` on PATH, a closed
 port); in `doctor`, the line's three forms, "answers" with the test's OpenSSH sshd where this host
 has one. Planted: `t590-dial-words-alone` (the look of item 1 skipped): the first test fails.
+
+# T-599: The stand-in edge's echo of 1 MiB inside WARP's tunnel stalls at random
+
+**Source:** the gate at `84864f2` (run 41590196203, its job `gate (libs)`, 2026-11-03):
+`podssh-warp`'s `tests::edge::a_session_passes_both_ways_inside_the_tunnel` gave "the echo in
+time: Elapsed(())" after 60 s, where it takes 1.1 s on this cloud session's host (5 runs of 5
+passed) and passed at the gates before and after; that push changed no file of `podssh-warp`.
+**Category:** defect
+**Milestone:** none
+**Priority:** P2
+**Effort:** M
+**Status:** open
+
+## Problem
+
+A test that fails at random: 1 MiB written and read back inside the tunnel, through the
+stand-in edge, stopped moving within 60 s once on a runner, so the gate went red with no change of
+the code. Whether a real tunnel can stall the same way is not known, so a stall is a defect of the
+road until a measurement says otherwise.
+
+## Premise
+
+- `crates/podssh-warp/src/tests/edge.rs:35` writes 1 MiB, shuts the writer and reads to the end
+  within `LIMIT * 3` (`crates/podssh-warp/src/tests/mod.rs:20`, 20 s).
+- T-398 made the tunnel read while a packet waits and take small frames up to its whole window
+  (`66044bd`); a lost wakeup between the stack's queue and the HTTP/2 stream's window would stall
+  the transfer with no error, as seen.
+
+## Approach
+
+1. Reproduce: the test in a loop with the runner's load (`stress` beside it, or 4 test threads on 2
+   CPUs), with the stack's and the stream's counters logged at the stall: bytes queued in smoltcp,
+   the h2 window each way, the capsules sent and read.
+2. Repair the wait that has no wakeup; a stall of the tunnel that no byte crosses for the road's
+   limit ends the stream with a named fault rather than a silent wait.
+3. The test keeps its 1 MiB and its limit.
+
+## Prove
+
+```sh
+export CARGO_BUILD_JOBS=4
+for i in $(seq 1 200); do cargo test -q -p podssh-warp --lib -- tests::edge || break; done
+```
+
+200 runs in a row pass under the load that reproduced the stall; planted, the repair removed: the
+stall comes back within the loop.

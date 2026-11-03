@@ -225,7 +225,9 @@ where
             Begin::Link(link) => client::start(link, Ask::New, layer, &mut OsEntropy).await,
         }
     };
-    let Some(started) = crate::hangup::unless(hangup.as_ref(), begun).await else {
+    // On the heap: with the signal's wait around it, the future of the
+    // session outgrew a worker thread's stack in a debug build (T-586).
+    let Some(started) = crate::hangup::unless(hangup.as_ref(), Box::pin(begun)).await else {
         let why = "a signal ended the session before the node took it".to_string();
         return Carried { why: Some(why), leg: None, channel: None, signalled: false };
     };
@@ -263,7 +265,7 @@ where
     };
     let mut entropy = OsEntropy;
     let app = crate::hangup::ending(app, hangup.as_ref());
-    let session = resume::run(client, app, connect, note, &mut entropy);
+    let session = Box::pin(resume::run(client, app, connect, note, &mut entropy));
     let run = async move {
         tokio::pin!(session);
         tokio::select! {
@@ -271,7 +273,7 @@ where
             () = warn_of_expiry(expires_ms, say) => session.await,
         }
     };
-    let Some(outcome) = crate::hangup::bounded(hangup.as_ref(), run).await else {
+    let Some(outcome) = crate::hangup::bounded(hangup.as_ref(), Box::pin(run)).await else {
         return Carried { why: None, leg: None, channel: None, signalled: true };
     };
     Carried { why: why_ended(outcome), leg: last(&legs).await, channel: None, signalled: false }

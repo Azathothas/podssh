@@ -1888,8 +1888,8 @@ a full-screen program is written into its screen.
 
 ## Premise
 
-- Read: the layer's lines, written always: a loss (`crates/podssh-cli/src/layered.rs:393`) and a
-  resume (`crates/podssh-cli/src/layered.rs:404`). The heartbeat each 10 s, and a link dead after
+- Read: the layer's lines, written always: a loss (`crates/podssh-cli/src/layered.rs:395`) and a
+  resume (`crates/podssh-cli/src/layered.rs:406`). The heartbeat each 10 s, and a link dead after
   30 s with nothing from the far end (`crates/podssh-relay/src/session/pump.rs:57`,
   `crates/podssh-relay/src/session/pump.rs:60`). The forward road's checks
   (`docs/design.md:652`).
@@ -1998,8 +1998,8 @@ that gives `Line` to a terminal in raw mode; in the model, the control
 ## Correction
 
 The first item of the Premise cites the layer's lines at lines of `next_leg`, which opens a new
-leg. The lines are in `line_of`: a loss (`crates/podssh-cli/src/layered.rs:438`) and a resume
-(`crates/podssh-cli/src/layered.rs:449`). What the item says of them holds.
+leg. The lines are in `line_of`: a loss (`crates/podssh-cli/src/layered.rs:440`) and a resume
+(`crates/podssh-cli/src/layered.rs:451`). What the item says of them holds.
 
 ## Done
 
@@ -3392,7 +3392,7 @@ Read while drafting, 2026-11-03:
   channel above the layer, the end of stdin is the channel's `END`, a half-close
   (`crates/podssh-relay/src/e2e/channel.rs:101-103`), and the layer's `CLOSE` follows only once
   the TARGET ends too. So a signal ends the layer's own input, the channel's ciphertext, in
-  `crates/podssh-cli/src/layered.rs:265`, and the `CLOSE` goes at once, whatever the TARGET does.
+  `crates/podssh-cli/src/layered.rs:267`, and the `CLOSE` goes at once, whatever the TARGET does.
 - The layer's own wait for the answer to a `CLOSE` stays 10 s
   (`crates/podssh-relay/src/session/pump.rs:47`), as for an end of stdin. After a signal the
   session has 2 s in all (`crates/podssh-cli/src/hangup.rs:27`), the node's answer and the leg's
@@ -3435,6 +3435,12 @@ Read while drafting, 2026-11-03:
   0 failed; clippy of `podssh-relay` (with those features) and `podssh-cli`, all targets, `-D
   warnings`: clean; rustfmt: clean; `man_page` and `flag_table`: 10 and 9 passed. Windows (the
   signals of the console): the gate's job `windows` at the push.
+- The gate at the push (`84864f2`, run 41590196203): `exit`'s test failed on macOS and Windows,
+  and here too in each of 15 runs: the session's future, with the signal's wait around it, overflowed
+  a worker thread's stack in `podssh exit --listen` ("has overflowed its stack"). `layered.rs`
+  puts the session's futures on the heap; `exit` 3 passed, 5 runs of 5. The OpenSSH test of
+  `roost` is Unix's alone (OpenSSH for Windows sends no SIGHUP, and its `CreateProcessW` took no
+  command line of a shell: "error:2").
 - Planted: `t586-closing-charged-whole` by `sh scripts/plant-each.sh --here`, and the two of the
   signals by hand (their SETUP is the build image's `apk`): each caught, `reverse_layered`'s first
   test, the operator's test and the OpenSSH test failing.
