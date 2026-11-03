@@ -33,7 +33,7 @@ harness expect interop 6 scripts/interop-expect.sh
 harness broadcast interop 3 scripts/interop-broadcast.sh
 harness keygen interop 92 scripts/interop-keygen.sh
 harness agent interop 30 scripts/interop-agent.sh
-harness job interop 11 scripts/interop-job.sh
+harness job interop 18 scripts/interop-job.sh
 harness run interop 3 scripts/interop-run.sh
 harness local interop 6 scripts/interop-local.sh
 harness control interop 13 scripts/interop-control.sh
@@ -774,6 +774,13 @@ job.dropbear.start pass
 job.dropbear.stop pass
 job.dropbear.log pass
 job.no_tmux pass
+job.persist_no_tmux pass
+job.plain.openssh.start pass
+job.plain.openssh.stop pass
+job.plain.openssh.log pass
+job.plain.dropbear.start pass
+job.plain.dropbear.stop pass
+job.plain.dropbear.log pass
 job.queue.slots pass
 job.queue.wait pass
 job.queue.fetch pass

@@ -72,7 +72,7 @@ succeeded. `podssh ssh` takes one destination, as OpenSSH does.
 ## Decision
 
 Recommendation: a new verb, because `podssh ssh` keeps the command line and
-the exit codes of OpenSSH for one host (`docs/cli.md:3950-3953`), and a list
+the exit codes of OpenSSH for one host (`docs/cli.md:3998-4001`), and a list
 of hosts changes both. The alternative, `podssh ssh --hosts LIST`, lost: one
 flag would change what the exit status means.
 
@@ -184,7 +184,7 @@ is not a shell. A set of hosts has no name.
   (`crates/podssh-cli/src/ssh/hop.rs:30-78`,
   `crates/podssh-ws/src/names.rs:10-32`).
 - Read: the `Host` lines of ssh_config are patterns, not lists
-  (`docs/cli.md:4130-4239`); they cannot define a group.
+  (`docs/cli.md:4178-4287`); they cannot define a group.
 
 ## Approach
 
@@ -1547,7 +1547,7 @@ of the command.
    quoted for a POSIX shell (T-187). When the copy used most of the 64 MiB
    (`docs/relay.md:246`), run the exec on a new session (T-137).
 4. The exit status: the command's, with the rules of `podssh ssh`
-   (`docs/cli.md:3950-3953`). A failed copy exits 255 and runs nothing.
+   (`docs/cli.md:3998-4001`). A failed copy exits 255 and runs nothing.
 5. In the same commit: the rows, the notes, an example, `docs/cli.md`,
    `docs/STATUS.md`. This entry depends on T-134 and T-143.
 
@@ -1777,7 +1777,7 @@ session built it and ran each check below.
 - The planted defect: `stop` ends each tmux session whose name starts
   with `podssh-job-`. The test
   `two_jobs_run_and_a_stop_of_one_leaves_the_other` failed with it, at
-  `crates/podssh-cli/tests/job_far.rs:40`, and passed again without it. The checks `job.openssh.stop` and
+  `crates/podssh-cli/tests/job_far.rs:77`, and passed again without it. The checks `job.openssh.stop` and
   `job.dropbear.stop` of the interop wait for T-251.
 
 # T-195: Hand an error report to a program that the user names, for triage by an AI or a script
@@ -1814,7 +1814,7 @@ a ticket, or a tool that asks an AI.
   (`crates/podssh-ssh/src/log.rs:87-107`). The exit code leaves through
   `crates/podssh-cli/src/dispatch.rs:370-411`.
 - Read: for `podssh ssh`, an exit that is not 0 can be the remote command's
-  status (`docs/cli.md:3950-3953`), which is not a failure of podssh.
+  status (`docs/cli.md:3998-4001`), which is not a failure of podssh.
 
 ## Approach
 
@@ -2543,7 +2543,7 @@ no tmux: `job start`, `job submit` and `--persist` exit 255 until `apt-get insta
 **Milestone:** none
 **Priority:** P2
 **Effort:** M
-**Status:** open
+**Status:** partial
 
 ## Problem
 
@@ -2556,19 +2556,20 @@ not say that `job` and `--persist` need tmux on the far host.
 ## Premise
 
 - Read: the far script says `missing tmux` when `command -v` does not find it, for `start` and
-  `submit` (`crates/podssh-cli/src/job/far.sh:29-37`, `:139-140`), and the client makes of it
-  "HOST has no tmux on PATH; podssh job runs each job in the host's tmux, and starts none without
-  it" (`crates/podssh-cli/src/job/far.rs:195-200`).
+  `submit` (`crates/podssh-cli/src/job/far.sh`, lines 29-37 and 139-140 at `477b47c`), and the
+  client makes of it "HOST has no tmux on PATH; podssh job runs each job in the host's tmux, and
+  starts none without it" (`crates/podssh-cli/src/job/far.rs`, lines 195-200 at `477b47c`).
 - Read: `--persist` probes `command -v tmux`, and refuses with "the server has no tmux on PATH;
-  --persist needs it" (`crates/podssh-ssh/src/persist.rs:195-199`).
-- Read: tmux runs each job (`crates/podssh-cli/src/job/far.sh:97-102`) and the queue's runner
-  (`:111-117`), and `stop` ends the job's tmux session by its exact name (`:256-272`).
+  --persist needs it" (`crates/podssh-ssh/src/persist.rs`, lines 195-199 at `477b47c`).
+- Read: tmux runs each job (`crates/podssh-cli/src/job/far.sh`, lines 97-102 at `477b47c`) and
+  the queue's runner (lines 111-117 at `477b47c`), and `stop` ends the job's tmux session by its
+  exact name (lines 256-272 at `477b47c`).
 - Read: T-193's Decision chose tmux and set aside `nohup` with a file of the PID, as a `stop` by a
   PID can kill another process once the system gives the PID again, and the output had no safe
   place. Since T-193 the output and the status are files of the job's private directory
-  (`crates/podssh-cli/src/job/far.sh:1-10`).
-- Read: "First steps on a new host" (`README.md:60`) names `doctor`, `man` and `keygen`; no part
-  of the README says that the far host needs tmux.
+  (`crates/podssh-cli/src/job/far.sh`, lines 1-10 at `477b47c`).
+- Read: "First steps on a new host" (`README.md`, line 60 at `477b47c`) names `doctor`, `man` and
+  `keygen`; no part of the README says that the far host needs tmux.
 
 ## Approach
 
@@ -2632,6 +2633,30 @@ not say that `job` and `--persist` need tmux on the far host.
   of jobs with no word.
 - GNU screen as a second terminal for `--persist` lost for now: no tester asked for it, and its
   detach and its attach differ from tmux's.
+- 2026-11-03, as drafted: **the table of the commands is T-590's**
+  (`crates/podssh-cli/src/install_hint.rs`, copied byte for byte from its draft, with a hunk of
+  T-481's own: `TMUX`, `managers` and `far_command`), at the main session's word, so that the two
+  drafts name one command for one system. Its rule of who runs the manager comes with it: `sudo`
+  first only for a login that is neither root nor the owner of the manager's file (Homebrew's,
+  Termux's), so the probe's WHO has a fourth value, `own` (`[ -O FILE ]`); a `user` gets the
+  command with `(as root)` after it. Lost: a table of T-481's own in podssh-ssh, which drafted
+  first and was removed.
+- 2026-11-03, as drafted: `--persist`'s refusal is podssh-cli's (`Attempt::NoTmux` carries what
+  the probe found), as the table is podssh-cli's and podssh-ssh cannot read it; the probe, one line
+  of sh for the login shell, stays in podssh-ssh (`crates/podssh-ssh/src/missing.rs`), and a test
+  holds its list of managers, and the far script's, to the table's. A login that runs no sh gets
+  `command -v tmux` itself, as before, and a refusal with no command.
+- 2026-11-03, as drafted: the far script is two files sent as one (`far_notmux.sh`, the functions
+  of the jobs with no tmux, then `far.sh`), so that each stays under 500 lines; the plants of T-193
+  and T-197 move with the lines that they patch.
+- 2026-11-03, as drafted: `start` writes `kind` before the runner starts, and the PID of `$!` to
+  `pid.start` until the runner writes its own to `pid`, so that a `list` right after a start finds
+  a running job and not a lost one; the runner's action is `plain`, beside tmux's `job`. Each
+  second a watcher of the runner's (a subshell that ignores TERM) sends it USR1 while the file
+  `stop` is there, which ends its `wait` for the command: the runner reaps its child only in that
+  `wait`, and a command that ended as the stop came gets no signal. `stop` of a job whose runner is
+  gone (`lost`) waits 5 s, not 15, and removes it; a lost job's command, if it runs, has no parent
+  left to end it, and the words say so.
 
 ## Prove
 
@@ -2650,6 +2675,68 @@ never signals it; with no `setsid` on PATH, a stop ends the job's command and th
 lives. `scripts/interop-job.sh` runs the same against OpenSSH and Dropbear with no tmux on PATH.
 Planted (new, t481-stop-by-pid): `stop` sends TERM to the PID of the file; the test of the other
 process fails.
+
+## Done
+
+2026-11-03, drafted by an agent that does not build: nothing below was compiled or run, but a run
+of the far script under dash in a scratch home. Each result is UNVERIFIED until the main session
+runs the Prove.
+
+- `crates/podssh-cli/src/install_hint.rs`: T-590's table, byte for byte from its draft, and
+  `pub mod install_hint;` in `crates/podssh-cli/src/lib.rs` at its place; T-481's hunk after
+  `may_install`: `TMUX`, `managers()` and `far_command(package, manager, may_install, sudo)`.
+- `crates/podssh-ssh/src/missing.rs` (new): the probe `sh -c 'SCRIPT' sh TOOL`, one line with no
+  quote and no backslash, which prints `missing TOOL PM ID WHO`; `Found`, its parse (quotes off the
+  ID, an odd ID or an unknown manager is `None`), and `read` of the last such line. Two unit tests.
+- `crates/podssh-ssh/src/persist.rs`: the first probe runs it; a `missing` line is
+  `Attempt::NoTmux(Some(found))`, a status other than 0 with no such line asks `command -v tmux` as
+  before (`NoTmux(None)` when it fails). `crates/podssh-cli/src/ssh/persist.rs`: `no_tmux` says the
+  refusal, with the command; the loop ends on `NoTmux` as on `Failed`.
+  `crates/podssh-cli/tests/tmux_harness/mod.rs`: its doc says that it runs no sh, so the old path
+  answers there.
+- `crates/podssh-cli/src/job/far_notmux.sh` (new, sent before `far.sh`): `hint`, `kind_of`, `put`,
+  `mine` (a PID alive whose `/proc` command line holds `jobs.sh`), `runs`, `away` (nohup, and
+  setsid where it is), `loose`, `leads`, `runplain`, `halt`, `held`, `lock`, `release`, `retake`.
+  `crates/podssh-cli/src/job/far.sh`: `start` and `submit` take the kind as their fifth word, say
+  `missing tmux PM ID WHO`, and write `kind`; `state_of` and `scan` read `runs`; `launch` starts a
+  job by its kind (`intmux`, the old one, or `loose`); `runner_up KIND` starts no runner while one
+  of either kind holds its lock; the actions `plain` and `runner plain`; `stop` of a plain job
+  writes `stop` and waits (`stopped`, `lost`, `stuck`); `plain()` is now `quotable()`.
+- `crates/podssh-cli/src/job/far.rs`: `SCRIPT` is the two files; the refusal of `missing tmux ...`
+  ends with `install_sentence` and `--no-tmux`; three unit tests (the words, the list of the
+  managers against the table, the actions and the order of the two files).
+  `crates/podssh-cli/src/job/args.rs`: `--no-tmux` (64 with another subcommand), `Action::Start`
+  and `Action::Submit` carry `plain`; `crates/podssh-cli/src/job/mod.rs` and
+  `crates/podssh-cli/src/job/queue.rs` send the kind, and say `lost` and `stuck` (255);
+  `crates/podssh-cli/src/job/tests.rs`, two tests more.
+- The row `--no-tmux` (`crates/podssh-cli/src/flags/job.rs`), the notes of `job`
+  (`crates/podssh-cli/src/man/notes_job.rs`) and of `--persist`
+  (`crates/podssh-cli/src/man/notes_ssh.rs`), an example (`crates/podssh-cli/src/man/examples.rs`),
+  `README.md` (a fifth first step, for the far hosts), `docs/cli.md`, a row of `docs/STATUS.md`.
+- Tests: `crates/podssh-cli/tests/job_far.rs`, four new
+  (`with_no_tmux_and_apt_get_start_and_persist_name_the_command_that_installs_it`,
+  `with_no_tmux_two_jobs_run_and_a_stop_of_one_leaves_the_other`,
+  `a_pid_file_that_names_another_process_never_gets_it_signalled`,
+  `with_no_setsid_a_stop_ends_the_command_and_the_server_lives`), on `job_harness`'s new
+  `bin_of`, `alive`, `job_dir`, `pid_in`, its count of connections, and a stop of each plain job
+  at its end; `crates/podssh-cli/tests/job.rs`, the refusal of `--no-tmux` with `list`, and the
+  manual's word.
+- `scripts/interop-job.sh`: with tmux off PATH, `job.no_tmux` also asks for `apk add tmux` and
+  `--no-tmux`; `job.persist_no_tmux`; `job.plain.{openssh,dropbear}.{start,stop,log}`;
+  `scripts/interop-baseline.txt` has the seven ids, and its floor is 18.
+- Planted: `scripts/plants/t481-stop-by-pid.plant` (group `cli-tests`), a TERM to the PID of the
+  file in `stop`; the plants `t193-job-stop-prefix`, `t197-queue-slots` and `t197-runner-slots`
+  made again on the new `far.sh` (the same defects; `git apply --check` takes each).
+- The run under dash (no build): two jobs and a stop of one, a status of 5, a PID file of another
+  process left alone (`state lost`, `stopped`, the other process alive), the queue with one slot
+  and no runner left after it, `missing tmux apt-get ubuntu root` with a stand-in and no tmux, with
+  no setsid the stop of an `exec sleep`, a command that ignores TERM ended 11 s after its stop,
+  and with setsid a stop that ends what the command started in the background.
+
+What waits, UNVERIFIED: each command of the Prove, and `cargo test -p podssh-cli --lib
+install_hint`, `cargo test -p podssh-ssh --lib missing` and `cargo test -p podssh-cli --test
+persist`; `cargo fmt --check` and `cargo clippy`; `scripts/interop-job.sh` in the gate; the plant
+(`sh scripts/plant-each.sh t481-stop-by-pid`) and the three plants made again.
 
 # T-482: `health --preflight`: what the far host allows, from one login, before a long command needs it
 
@@ -2861,17 +2948,17 @@ output comes in steps.
 ## Premise
 
 - Read: the far script's `log` prints the file `out` once
-  (`crates/podssh-cli/src/job/far.sh:225-237`), and the client streams those bytes as they come
-  (`crates/podssh-cli/src/job/far.rs:121-169`), in one call
-  (`crates/podssh-cli/src/job/mod.rs:262-272`).
+  (`crates/podssh-cli/src/job/far.sh:274-286`), and the client streams those bytes as they come
+  (`crates/podssh-cli/src/job/far.rs:125-173`), in one call
+  (`crates/podssh-cli/src/job/mod.rs:269-279`).
 - Read: `job wait` reads the state over one connection each 5 s until the job ends, and exits with
   its status, or 75 once `--timeout` passed (`crates/podssh-cli/src/job/queue.rs:18`,
-  `crates/podssh-cli/src/job/mod.rs:129-144`).
+  `crates/podssh-cli/src/job/mod.rs:134-149`).
 - Read: each step of a call has 30 s, each piece of the answer too
-  (`crates/podssh-cli/src/job/far.rs:29-31`), so a call that waits longer for a quiet job's next
+  (`crates/podssh-cli/src/job/far.rs:33-35`), so a call that waits longer for a quiet job's next
   byte fails.
 - Read: a call sends the far script on stdin and runs as one exec on the connection
-  (`crates/podssh-cli/src/job/far.rs:81-96`): a call is a channel, not a connection.
+  (`crates/podssh-cli/src/job/far.rs:85-100`): a call is a channel, not a connection.
 
 ## Approach
 

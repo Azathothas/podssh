@@ -63,6 +63,8 @@ pub mod local;
 pub mod line;
 pub mod local_command;
 pub mod log;
+// What a far host that lacks a tool has that could install it (T-481).
+pub mod missing;
 pub mod mux;
 pub mod notice;
 pub mod options;

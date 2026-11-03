@@ -1,11 +1,11 @@
 --- a/crates/podssh-cli/src/job/far.sh
 +++ b/crates/podssh-cli/src/job/far.sh
-@@ -152,7 +152,7 @@
-         exit 0
+@@ -190,7 +190,7 @@
      }
+     [ "$kind" = tmux ] || printf 'plain\n' >"$1/kind"
      if [ "$a" = submit ]; then
 -        printf 'queued\n' >"$1/state"
 +        launch "$1"
          [ "$2" = - ] || printf '%s\n' "$2" >slots
-         runner_up
+         runner_up "$kind"
          say "queued ${1#*-}"

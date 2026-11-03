@@ -1,7 +1,7 @@
 --- a/crates/podssh-cli/src/job/far.sh
 +++ b/crates/podssh-cli/src/job/far.sh
-@@ -264,6 +264,9 @@
-     if command -v tmux >/dev/null 2>&1 && tmux kill-session -t "=$(sess "$d")" 2>/dev/null; then
+@@ -328,6 +328,9 @@
+     elif command -v tmux >/dev/null 2>&1 && tmux kill-session -t "=$(sess "$d")" 2>/dev/null; then
          w=stopped
      fi
 +    for s in $(tmux list-sessions -F '#{session_name}' 2>/dev/null); do

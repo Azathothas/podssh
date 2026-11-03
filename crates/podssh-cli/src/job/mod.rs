@@ -13,8 +13,13 @@
 //! **tmux holds each job.** The job outlives the connection, and `stop`
 //! ends the tmux session of that exact name, so that no other process can
 //! take its place, as a process ID given again could. With no tmux nothing
-//! starts, and the exit is 255 with the reason. The output and the status
+//! starts, and the exit is 255 with the reason and the command that would
+//! install it, which podssh never runs (T-481). The output and the status
 //! go to files of a private directory, so that they outlive the job too.
+//!
+//! **With `--no-tmux`, the user's choice** (T-481), a runner under nohup
+//! holds the job: it is the command's parent, and alone signals it, when a
+//! file of `stop` asks; no call signals a process ID read from a file.
 //!
 //! **Exit codes are those of `podssh ssh`**: 64 a usage error and 78 a
 //! setting, before anything connects; 255 a failure of podssh (no
@@ -125,7 +130,7 @@ pub fn run_job(args: &JobArgs, out: &mut dyn Write, err: &mut dyn Write) -> i32 
 async fn perform(action: &Action, labels: &[String], plans: &[Resolved], log: &Arc<Log>, out: &mut dyn Write) -> i32 {
     let (host, resolved) = (labels[0].as_str(), &plans[0]);
     match action {
-        Action::Submit { command, slots } => submit(labels, plans, command, *slots, log, out).await,
+        Action::Submit { command, slots, plain } => submit(labels, plans, command, (*slots, *plain), log, out).await,
         Action::Wait { id, timeout } => {
             let waited = queue::wait(resolved, host, id, log);
             match timeout {
@@ -164,12 +169,13 @@ async fn perform(action: &Action, labels: &[String], plans: &[Resolved], log: &A
 
 /// `submit` (T-197): to the one host, or to the host of the list with the
 /// fewest jobs queued or running, read with one list of each. The ID on
-/// stdout, after the host when the list had more than one.
+/// stdout, after the host when the list had more than one. `how`: the
+/// slots of `--slots`, and whether `--no-tmux` was given.
 async fn submit(
     labels: &[String],
     plans: &[Resolved],
     command: &str,
-    slots: Option<u32>,
+    how: (Option<u32>, bool),
     log: &Arc<Log>,
     out: &mut dyn Write,
 ) -> i32 {
@@ -206,7 +212,7 @@ async fn submit(
     };
     let host = labels[at].as_str();
     let Some(handles) = far::connect(&plans[at], log).await else { return EXIT_FAILURE };
-    let queued = queue::submit(handles.last().expect("the destination's connection"), host, command, slots).await;
+    let queued = queue::submit(handles.last().expect("the destination's connection"), host, command, how).await;
     podssh_ssh::run::disconnect_all(&handles).await;
     match queued {
         Ok(id) => {
@@ -239,10 +245,11 @@ pub(crate) fn unexpected(host: &str, line: &str) -> String {
 /// One call on one connection: `start`, `list`, `log` or `stop`.
 async fn act(action: &Action, host: &str, handle: &Connection, log: &Log, out: &mut dyn Write) -> Result<(), String> {
     match action {
-        Action::Start(command) => {
+        Action::Start { command, plain } => {
             let id = new_id();
             let name = list::dir_name(now_ms(), &id);
-            let lines = far::lines(handle, host, &["start", name.as_str(), "-", command.as_str()]).await?;
+            let kind = if *plain { "plain" } else { "tmux" };
+            let lines = far::lines(handle, host, &["start", name.as_str(), "-", command.as_str(), kind]).await?;
             let first = first_line(host, &lines)?;
             if first != format!("started {id}") {
                 return Err(unexpected(host, first));
@@ -277,6 +284,17 @@ async fn act(action: &Action, host: &str, handle: &Connection, log: &Log, out: &
                 log.info(&format!("job {id} on {host} stopped, and removed with its output"));
             } else if first == format!("removed {id}") {
                 log.info(&format!("job {id} on {host} removed with its output; it did not run"));
+            } else if first == format!("lost {id}") {
+                // A job of --no-tmux whose runner is gone (T-481).
+                log.info(&format!(
+                    "job {id} on {host} removed with its output; its runner was gone, so nothing could end its \
+                     command, which may still run there"
+                ));
+            } else if first == format!("stuck {id}") {
+                return Err(format!(
+                    "job {id} on {host} was asked to stop, and runs on after 15 s; it keeps its output, and podssh \
+                     job stop {host} {id} asks again"
+                ));
             } else {
                 return Err(unexpected(host, first));
             }

@@ -373,7 +373,7 @@ sandbox can block what iroh needs, so the fallback is necessary
 6. With `-v`, print the road that won and its time.
 7. Each resume of T-153 runs the same race.
 8. Docs: the rule of the race in `docs/design.md` section 2, and the notes of
-   `ssh` in the manual (`crates/podssh-cli/src/man/notes_ssh.rs:4-480` and `crates/podssh-cli/src/man/notes_ssh_more.rs:4-114`).
+   `ssh` in the manual (`crates/podssh-cli/src/man/notes_ssh.rs:4-482` and `crates/podssh-cli/src/man/notes_ssh_more.rs:4-114`).
 
 ## Decision
 
@@ -3151,7 +3151,7 @@ the task (`transport::settle`); five commands do not.
 - Read: `crates/podssh-cli/src/ssh/transport.rs` gives each road's stream
   in `Reached`, with the layer's task in `Reached::layer`, and `settle`
   waits for it up to `CARRIAGE_WAIT`.
-- Read: `crates/podssh-cli/src/job/far.rs:60-78`,
+- Read: `crates/podssh-cli/src/job/far.rs:64-82`,
   `crates/podssh-cli/src/pipe/ssh.rs:68-91`,
   `crates/podssh-cli/src/health/mod.rs:129-136`,
   `crates/podssh-cli/src/containers/mod.rs:186-197` and

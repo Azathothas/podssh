@@ -1,0 +1,10 @@
+--- a/crates/podssh-cli/src/job/far.sh
++++ b/crates/podssh-cli/src/job/far.sh
+@@ -315,6 +315,7 @@
+         # runner, which alone signals the command, and the status is waited
+         # for. A job that still runs then keeps its directory.
+         if [ ! -f "$d/status" ]; then
++            kill -TERM "$(cat "$d/pid" 2>/dev/null)" 2>/dev/null
+             : >"$d/stop"
+             if [ "$(cat "$d/state" 2>/dev/null)" != queued ]; then
+                 halt "$d" || {

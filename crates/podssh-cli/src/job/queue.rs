@@ -48,17 +48,18 @@ pub fn parse_state(line: &str) -> Option<(String, Option<i32>)> {
 }
 
 /// Queue `command` on the host of `handle`, with the slots of `--slots`
-/// when given: its ID.
+/// when given, and with no tmux for `--no-tmux` (T-481): its ID.
 pub(crate) async fn submit(
     handle: &Connection,
     host: &str,
     command: &str,
-    slots: Option<u32>,
+    (slots, plain): (Option<u32>, bool),
 ) -> Result<String, String> {
     let id = new_id();
     let name = list::dir_name(now_ms(), &id);
     let slots = slots.map_or_else(|| "-".to_string(), |n| n.to_string());
-    let lines = far::lines(handle, host, &["submit", name.as_str(), slots.as_str(), command]).await?;
+    let kind = if plain { "plain" } else { "tmux" };
+    let lines = far::lines(handle, host, &["submit", name.as_str(), slots.as_str(), command, kind]).await?;
     let first = first_line(host, &lines)?;
     if first != format!("queued {id}") {
         return Err(unexpected(host, first));

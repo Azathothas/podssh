@@ -61,6 +61,10 @@ fn examples() -> Vec<(&'static str, String)> {
             "podssh job start user@build.example.org -- make all && podssh job list user@build.example.org".into(),
         ),
         (
+            "the same on a host that has no tmux and cannot get it: the job runs under nohup",
+            "podssh job start --no-tmux user@build.example.org -- make all".into(),
+        ),
+        (
             "copy the project here to a stronger host, only what changed, then run its tests there",
             "podssh run user@build.example.org -- cargo test".into(),
         ),

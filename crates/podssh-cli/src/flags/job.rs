@@ -17,6 +17,9 @@ pub const JOB_FLAGS: &[FlagRow] = &[
         "fetch: also the files of this pattern of sh in the host's home directory, under DIR/files", None),
     row(None, "json", None, FlagKind::Supported,
         "list: one JSON object on stdout: the host, and each job with its id, state, status, start and command", None),
+    // A host where tmux cannot be installed (T-481): the user's choice, never the default.
+    row(None, "no-tmux", None, FlagKind::Supported,
+        "start, submit: run the job with no tmux, under nohup, for a host that has none and cannot get it", None),
     row(Some('p'), "port", Some("PORT"), FlagKind::Supported,
         "port to connect to", None),
     row(Some('l'), "login-name", Some("USER"), FlagKind::Supported,
