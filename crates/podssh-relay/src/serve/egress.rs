@@ -23,6 +23,8 @@ use podssh_ws::dial::{self as ws, DialError, Proxy, ProxyChoice, ProxyKind, NO_P
 use tokio::net::TcpStream;
 use tokio::time::Instant;
 
+use super::ipv6::Ipv6Out;
+
 /// How the role reaches its targets.
 #[derive(Debug, Clone, Default)]
 pub enum Egress {
@@ -101,8 +103,15 @@ pub struct Missed {
 }
 
 /// The target `name` by `plan`, through the proxy that `egress` gives it,
-/// within `limit` in all: the first address that answers, in order.
-pub async fn dial(name: &str, plan: &Plan, egress: &Egress, limit: Duration) -> Result<(TcpStream, Leg), Missed> {
+/// within `limit` in all: the first address that answers, in order. A
+/// direct dial tells `ipv6` whether this host routes IPv6 out (T-253).
+pub async fn dial(
+    name: &str,
+    plan: &Plan,
+    egress: &Egress,
+    ipv6: &Ipv6Out,
+    limit: Duration,
+) -> Result<(TcpStream, Leg), Missed> {
     let deadline = Instant::now() + limit;
     let attempt = async {
         let addresses = match plan {
@@ -117,9 +126,13 @@ pub async fn dial(name: &str, plan: &Plan, egress: &Egress, limit: Duration) -> 
             let via = egress.proxy_for(name).and(egress.proxy_for(&ip));
             let got = match via {
                 Some(proxy) => through(proxy, &ip, address.port(), deadline).await,
-                None => TcpStream::connect(address)
-                    .await
-                    .map_err(|e| Missed { said: format!("{address}: {e}"), line: None }),
+                None => match TcpStream::connect(address).await {
+                    Ok(tcp) => {
+                        ipv6.reached(address);
+                        Ok(tcp)
+                    }
+                    Err(e) => Err(Missed { said: ipv6.missed(address, &e), line: None }),
+                },
             };
             match got {
                 Ok(tcp) => return Ok((tcp, Leg { dialed: ip, family, proxy: via.map(|p| p.kind) })),

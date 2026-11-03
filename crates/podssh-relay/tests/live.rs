@@ -62,7 +62,9 @@ async fn the_relay_answers_websocket_pings() {
 /// literal, and the upgrade must succeed. Whether bytes then reach the
 /// target depends on the relay's egress, so it is printed, not asserted:
 /// on 2026-10-08 the session closed at once with 1011 "target closed before
-/// sending anything", while IPv4 to the same host worked.
+/// sending anything", while IPv4 to the same host worked. Pointed by
+/// `PODSSH_RELAY` at `podssh relay serve` (T-253), a host with IPv6 egress
+/// carries the bytes, and a host with none says so before the upgrade.
 #[tokio::test(flavor = "current_thread")]
 #[ignore = "network: the live relay"]
 async fn ipv6_the_relay_takes_the_bare_literal() {
@@ -83,6 +85,10 @@ async fn ipv6_the_relay_takes_the_bare_literal() {
     };
     let opened = match podssh_relay::open(&request, &mut |note: &str| eprintln!("note: {note}")).await {
         Ok(opened) => opened,
+        // podssh's relay role on a host with no IPv6 route out: its 502.
+        Err(failure) if failure.lines(target).iter().any(|l| l.contains(relay::NO_IPV6_ROUTE)) => {
+            return eprintln!("the relay host has no IPv6 route out: {:?}", failure.lines(target));
+        }
         Err(failure) => panic!("the relay refused the literal: {:?}", failure.lines(target)),
     };
     eprintln!("the relay host {} took /connect/2001:4860:4860::8888/853", opened.relay.host);

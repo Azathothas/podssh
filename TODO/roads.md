@@ -373,7 +373,7 @@ sandbox can block what iroh needs, so the fallback is necessary
 6. With `-v`, print the road that won and its time.
 7. Each resume of T-153 runs the same race.
 8. Docs: the rule of the race in `docs/design.md` section 2, and the notes of
-   `ssh` in the manual (`crates/podssh-cli/src/man/notes_ssh.rs:4-488` and `crates/podssh-cli/src/man/notes_ssh_more.rs:4-119`).
+   `ssh` in the manual (`crates/podssh-cli/src/man/notes_ssh.rs:4-489` and `crates/podssh-cli/src/man/notes_ssh_more.rs:4-126`).
 
 ## Decision
 
@@ -1136,7 +1136,7 @@ their own server, and the gate tests faults against a stand-in in Python.
 
 Read: the relay is a Cloudflare Worker, and its own document is the contract
 (`docs/relay.md:1-21`, `README.md:36-39`). The stand-in serves the forward
-path, `/v1/mint` and `/health` only (`scripts/fake-relay.py:121-139`). The
+path, `/v1/mint` and `/health` only (`scripts/fake-relay.py:126-144`). The
 pinned contract gives the forward path and the tokens
 (`crates/podssh-probe/tests/spec/relay-spec-2026-10-03-r2.txt:73-104`), the
 reverse path and its close table
@@ -1156,13 +1156,13 @@ the part of podssh:
    server of their own, on port 443.
 2. The forward path: `/connect/<host>/<port>`, the token header, `/v1/mint`,
    an empty frame each 25 s, the limits (180 s idle, 12 h, 64 MiB, frames of
-   262144 bytes), the close codes of `docs/relay.md:335-356`, and `/health`
+   262144 bytes), the close codes of `docs/relay.md:365-386`, and `/health`
    with the service name that `doctor` checks
    (`crates/podssh-relay/src/health.rs:13-15`).
 3. The reverse path: `/v1/pair`, `/v1/node/<name>`, `/v1/connect/<name>`,
    `/v1/stop/<name>`, the text control frames, the 32-character ids, `409` for
    a second node, and the reverse close table.
-4. The targets: public addresses only, the ranges of `docs/relay.md:280`,
+4. The targets: public addresses only, the ranges of `docs/relay.md:310`,
    checked after the name resolves. TLS with a certificate that the relay's
    owner gives. Rate limits and quotas for each address and each token.
 5. The part of podssh: no change in the client, because the contract is the
@@ -1194,8 +1194,8 @@ read, moved here as `cargo todo check` refuses a Blocker on an open entry:
 Lifted on 2026-11-02 by Q63: see below.
 
 The Premise is stale in one sentence: the stand-in serves more than "the forward path,
-`/v1/mint` and `/health` only". At `scripts/fake-relay.py:131-135` it also serves `/relays.json`
-and `/trace`, and `scripts/fake-relay.py:119` hands the whole reverse road to
+`/v1/mint` and `/health` only". At `scripts/fake-relay.py:136-140` it also serves `/relays.json`
+and `/trace`, and `scripts/fake-relay.py:124` hands the whole reverse road to
 `scripts/fake_reverse.py`, which is as strict as the live relay for an id that it forgot, and
 tells a frame in flight apart (`scripts/fake_reverse.py:286-298`). The rest holds; the ruling of
 2026-10-08 that it cites is changed.
@@ -1211,7 +1211,7 @@ What the role serves: the contract `2026-10-03-r2`, so that each client of podss
 with `?dial=lazy`, `?precheck` and `?family`; `/relays.json` with the five limits of
 `crates/podssh-probe/facts/relay-limits.toml`; `/trace`; and `/llms-full.txt`, podssh's own copy
 of the contract. A target is dialed only after its name resolved to a public address (the ranges
-of `docs/relay.md:280`), and port 25 is refused; the limits are the contract's (an empty frame
+of `docs/relay.md:310`), and port 25 is refused; the limits are the contract's (an empty frame
 each 25 s, 180 s idle, 12 h, 64 MiB, frames of 262144 bytes), and so are the forward close
 codes; each queue has a bound (`1013` at 2 MiB, T-336), which a write that waits gives.
 
@@ -2575,7 +2575,7 @@ The part of podssh, when the start condition holds:
 2. The client uses it only when the relay says that it offers it (a field of
    `/relays.json` or `/health`, read at run time). Never assume it.
 3. Keep the resume token in memory only. Send it back in a header, never in a
-   URL or in output (`docs/relay.md:264-266`).
+   URL or in output (`docs/relay.md:294-296`).
 4. A resume must reach the same Durable Object, so only hosts of one
    deployment can resume a session (the rule of the pool:
    `crates/podssh-relay/src/pool.rs:139-148`).
@@ -4009,7 +4009,7 @@ Endpoint puts a credential in its URL.
 - Read: the `cf://` road uses podssh-ws's WebSocket client through the proxy
   (`crates/podssh-cli/src/ssh/cloudflare.rs:238`); an RSA key signs through aws-lc-rs in the
   binary (`deny.toml`, the reason of RUSTSEC-2023-0071); `podssh cp` opens a new session before
-  the relay's caps (`docs/relay.md:291-297`), as an hour of EICE would need.
+  the relay's caps (`docs/relay.md:321-327`), as an hour of EICE would need.
 - Inferred: a proxy that re-terminates TLS passes either road where it passes a WebSocket.
 
 ## Approach
@@ -5029,7 +5029,7 @@ does not depend on them.
 - Read: `Transport::Direct` comes from `--direct` alone
   (`crates/podssh-cli/src/ssh/resolve.rs`, lines 340-346 at `4e2010e`), and else the relay (lines 348-371 at `4e2010e`); its other
   uses are a label (`crates/podssh-cli/src/ssh/mod.rs:284`), the dial
-  (`crates/podssh-cli/src/ssh/transport.rs:276-320`) and a check of `--upgrade`
+  (`crates/podssh-cli/src/ssh/transport.rs:278-322`) and a check of `--upgrade`
   (`crates/podssh-cli/src/ssh/upgrade.rs:59`). The issue's citation of
   the arm began two lines early; it is at `crates/podssh-cli/src/ssh/resolve.rs:342-345`.
 - Read: `docs/design.md:45` says "podssh tries the roads in this order"; for a public sshd, the
@@ -5040,13 +5040,13 @@ does not depend on them.
   and for the split HTTP road (`AGENTS.md:276-286`); a race of the forward and the direct road is
   neither.
 - Read: the direct dial goes through `HTTPS_PROXY` when it is set, with the relay's step limit of
-  20 s (`crates/podssh-cli/src/ssh/transport.rs:336-350`, `crates/podssh-relay/src/open.rs:30`),
+  20 s (`crates/podssh-cli/src/ssh/transport.rs:338-352`, `crates/podssh-relay/src/open.rs:30`),
   and names a proxy that takes the CONNECT and sends nothing back (T-317). doctor reads the
   server's version line on port 22, straight out or through the proxy, to say whether plain ssh
   can leave (`crates/podssh-cli/src/doctor/net.rs:192-199`, `:201-293`).
 - Read: `cp`, `each`, `job`, `health`, `containers`, `ping` and the `ssh:` address of `pipe` reach
   their server through the same function as `podssh ssh`
-  (`crates/podssh-cli/src/ssh/transport.rs:165-169`; `crates/podssh-cli/src/cp/link.rs`,
+  (`crates/podssh-cli/src/ssh/transport.rs:167-171`; `crates/podssh-cli/src/cp/link.rs`,
   `crates/podssh-cli/src/each/host.rs`).
 - Read: on the hosts that podssh is built for, the proxy refuses port 22 and a direct dial is
   dropped with no answer (`docs/target-environment.md:21-22`); a cloud container's proxy takes
@@ -7490,7 +7490,7 @@ puts the fallback in its `ok` column without a probe.
 - Read: the fallback follows each failure of the relay whose exit is 69 or 77
   (`crates/podssh-cli/src/forwarder/fallback.rs:90-110`), on by default
   (`crates/podssh-cli/src/forwarder/fallback.rs:54-66`), after the direct road
-  (`crates/podssh-cli/src/ssh/transport.rs:214-235`); the module's own words are that "a target
+  (`crates/podssh-cli/src/ssh/transport.rs:216-237`); the module's own words are that "a target
   that cannot go" ends the run as before (`crates/podssh-cli/src/forwarder/fallback.rs:9-11`).
 - Read: the relay's refusal of a target by its policy (400, a blocked address range) is 77
   (`crates/podssh-cli/src/proxy.rs:397-398`), and each other answer, the 502 of a target that the
@@ -7505,7 +7505,7 @@ puts the fallback in its `ok` column without a probe.
   measure (`crates/podssh-cli/src/doctor/mod.rs:328-330`).
 - Read: the operator's rulings Q56 and Q65 (`docs/decisions.md`) let the binary try the forwarders,
   and the Wisp demo server last, "when each relay host fails", unasked (T-370, T-438); since T-438
-  there are four: mudlet, ssheasy, mudix and wisp (`crates/podssh-cli/src/man/notes_ssh.rs:239-250`).
+  there are four: mudlet, ssheasy, mudix and wisp (`crates/podssh-cli/src/man/notes_ssh.rs:240-251`).
   A default of off is a change of that ruling.
 - Not measured here: #106's times. Inferred from the code: with the direct road's dial refused at
   once by the tester's proxy, the 20.8 s are the forwarders' own dials of a dead address.

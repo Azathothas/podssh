@@ -83,8 +83,15 @@ pub(super) const MORE: &[&str] = &[
      -o HostName=VALUE, that starts with - is refused (exit 64), as OpenSSH refuses it.",
     "An IPv6 address needs brackets only before a port: user@2001:db8::1 is port 22, and \
      user@[2001:db8::1]:2222 or -p 2222 gives another port. -4 or -6 with an address of the other family \
-     is refused. The relay takes an IPv6 address, but when this version was measured, its way out \
-     reached no IPv6 host: such a session ends at once, and podssh says so. --direct needs no relay.",
+     is refused. The default relay takes an IPv6 address, but when this version was measured, its way out \
+     reached no IPv6 host: it opens the session, then closes it at once (1011 target closed before \
+     sending anything). podssh then tries the direct road once, as after a relay that failed, also under \
+     -6, whose dial takes the name's IPv6 addresses alone; with a relay named, or PODSSH_DIRECT=no, it \
+     ends, and the note names the roads that carry IPv6: a relay of yours on a host with IPv6 (podssh \
+     relay serve, then --relay-host), a node with IPv6 egress (-J node://NAME), or warp://[ADDR]. podssh \
+     relay serve dials an IPv6 target where its host routes IPv6 out, and refuses it before the upgrade \
+     where it does not (502, this relay's host has no IPv6 route out), so that the next relay host is \
+     tried at once. --direct needs no relay.",
     "--result-file FILE writes one JSON object to FILE at the end of each run, also of one that failed \
      before it connected: schema, exit (the code that podssh exits with), status (the remote exit status, \
      or null), signal (its name and core_dumped, or null), end (status, signal, no-status, lost, escaped, \

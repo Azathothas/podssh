@@ -197,13 +197,30 @@ pub fn is_ipv6_literal(host: &str) -> bool {
     host.parse::<std::net::Ipv6Addr>().is_ok()
 }
 
+/// The words of podssh's relay role for an IPv6 target that its host cannot
+/// route out (T-253): its `502` before the upgrade, or its `1011` when a lazy
+/// dial meets it after the upgrade.
+pub const NO_IPV6_ROUTE: &str = "this relay's host has no IPv6 route out";
+
+/// The default relay's reason for each session to an IPv6 target on
+/// 2026-10-08, while IPv4 to the same hosts worked: its egress reached none.
+const CLOSED_AT_ONCE: &str = "target closed before sending anything";
+
+/// Whether a relay's Close of a session to an IPv6 target says that the
+/// relay reached no IPv6 host (T-253): the default relay's `1011` with
+/// [`CLOSED_AT_ONCE`], or the role's own words.
+pub fn unreached_ipv6(code: Option<u16>, reason: &str) -> bool {
+    code == Some(1011) && (reason.contains(CLOSED_AT_ONCE) || reason.contains(NO_IPV6_ROUTE))
+}
+
 /// A note for a session to an IPv6 target that the relay closed with
-/// `reason`. The relay takes IPv6 targets, but on 2026-10-08 its egress
-/// reached none: each such session closed at once with this reason, while
-/// IPv4 to the same hosts worked.
+/// `reason`, the default relay's or the role's: the roads that carry IPv6.
 pub fn ipv6_note(ipv6_target: bool, reason: &str) -> Option<&'static str> {
-    (ipv6_target && reason.contains("target closed before sending anything"))
-        .then_some("an IPv6 target that closes at once usually means that the relay has no IPv6 route out")
+    (ipv6_target && (reason.contains(CLOSED_AT_ONCE) || reason.contains(NO_IPV6_ROUTE))).then_some(
+        "an IPv6 target that closes at once usually means that the relay has no IPv6 route out: a relay of \
+         yours on a host with IPv6 (podssh relay serve, then --relay-host), a node with IPv6 egress (-J \
+         node://NAME) or warp://[ADDR] can carry it",
+    )
 }
 
 #[cfg(test)]
@@ -372,5 +389,24 @@ mod tests {
         assert!(ipv6_note(true, "target closed before sending anything").is_some());
         assert!(ipv6_note(false, "target closed before sending anything").is_none());
         assert!(ipv6_note(true, "idle timeout").is_none());
+        // The role's words (T-253), and the roads that the note names.
+        let note = ipv6_note(true, &format!("connect failed: {NO_IPV6_ROUTE}")).unwrap();
+        assert!(note.contains("podssh relay serve") && note.contains("node://NAME") && note.contains("warp://"));
+    }
+
+    /// The Close of a relay that reached no IPv6 host (T-253): the default
+    /// relay's, and the role's after a lazy dial; no other.
+    #[test]
+    fn a_close_that_says_the_relay_reached_no_ipv6_host() {
+        assert!(unreached_ipv6(Some(1011), "target closed before sending anything"));
+        assert!(unreached_ipv6(Some(1011), &format!("connect failed: {NO_IPV6_ROUTE} ([2001:db8::7]:22: x)")));
+        for (code, reason) in [
+            (Some(1000), "target closed before sending anything"),
+            (Some(1011), "connect failed: refused"),
+            (Some(1011), "write failed: reset"),
+            (None, "target closed before sending anything"),
+        ] {
+            assert!(!unreached_ipv6(code, reason), "{code:?} {reason}");
+        }
     }
 }

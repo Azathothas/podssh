@@ -66,8 +66,9 @@ pub(super) const VARIABLES: &[(&[&str], &str)] = &[
         "no: when each relay host failed, podssh ssh and each command that reaches a server as it does (cp, \
           each, job, health, containers, ping, pipe ssh:) end with the relay's failure, as with --relay-host, \
           and do not try the direct road. Unset, empty or yes: with no relay named (no --relay-host, \
-          PODSSH_RELAY or RelayHost) and no -4 or -6, the direct road is tried once, as --direct dials it, \
-          through HTTPS_PROXY when one is set, and the server's version line must come within 10 s. The \
+          PODSSH_RELAY or RelayHost), the direct road is tried once, as --direct dials it, of the family of \
+          -4 or -6 when one is given, also after a relay that closed a session to an IPv6 target before any \
+          byte, through HTTPS_PROXY when one is set, and the server's version line must come within 10 s. The \
           settings file's Direct says the same, below the variable; another word is a configuration error (78).",
     ),
     (

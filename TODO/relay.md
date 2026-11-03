@@ -58,7 +58,7 @@ the token is stored under A; in the next run, A answers and gets B's token in `X
 Recommendation: key by deployment. One token serves the hosts of the default deployment (a
 pool host accepted the token of the default host: `docs/STATUS.md`, "`podssh proxy`, measured
 live"), and no token goes to another deployment. The exact minting host lost: each pool host
-would mint its own token, against the brake of 120 attempts a minute (`docs/relay.md:279`).
+would mint its own token, against the brake of 120 attempts a minute (`docs/relay.md:309`).
 The decision said "one machine has one cached token"; on 2026-10-08 the operator ruled
 "one for each relay deployment" (`docs/decisions.md:95`).
 
@@ -131,7 +131,7 @@ Measured on `3ee70dc` (`PODSSH_OFFLINE=1`, stdin from `/dev/null`): `podssh rela
 ("'relay' is not implemented yet; nothing was done."). Its help shows `--relay-host URL`
 (`crates/podssh-cli/src/flags.rs` lines 315-316 at `af0a163`), not the `HOSTS` of the other commands (lines
 169-170, 326-327, 337-338). Read: `/trace` needs a forward token in `X-Relay-Token`
-(`docs/relay.md:333-334`). The `health` function of `doctor`
+(`docs/relay.md:363-364`). The `health` function of `doctor`
 (`crates/podssh-cli/src/doctor/relay_checks.rs:102-119`) already makes a verified `/health`
 request; `crates/podssh-relay/src/pool.rs:177-194` fetches `/relays.json`. `https_get` sends no
 token header (`crates/podssh-ws/src/client.rs:280-291`); `https_request` takes headers (lines
@@ -147,7 +147,7 @@ token header (`crates/podssh-ws/src/client.rs:280-291`); `https_request` takes h
    `verdict_from` (`crates/podssh-probe/src/relay_facts.rs:345-359`), or `--document FILE`.
    This is T-060.
 4. `relay trace HOST PORT`: `/trace` with `banner=1`, the token in the header and never in the
-   URL (`docs/relay.md:264-266`). Check HOST with `relay::check_host`
+   URL (`docs/relay.md:294-296`). Check HOST with `relay::check_host`
    (`crates/podssh-ws/src/names.rs:10-32`), so no text can add a query parameter.
 5. `pair` and `revoke`: refuse by name, and name M4 (T-078, T-083).
 6. Flags as for `doctor` (`--relay-host HOSTS`, `--relay-addr`, `--ca-file`), and `--json`
@@ -188,7 +188,7 @@ sh scripts/dev.sh check                                   # interop: the stand-i
 cargo test -p podssh-cli --test relay_live -- --ignored   # the live relay, on request
 ```
 
-`scripts/fake-relay.py` (it serves `/health` and the mint: `:121-130`) gets `/relays.json`,
+`scripts/fake-relay.py` (it serves `/health` and the mint: `:126-135`) gets `/relays.json`,
 `/trace` and `/llms-full.txt`. In the gate, `relay status` exits 0 with the stand-in's version;
 `relay trace` sends `X-Relay-Token`, which the stand-in requires; a HOST of `a&b` exits 64 before
 any connection. Planted defect: leave the header out; the stand-in answers 403, the test fails.
@@ -284,7 +284,7 @@ nothing, and a host that does not start TLS, each cost the 20 s limit before the
 4. Print one note for each moved host: "trying HOST last: it failed N s ago (REASON)".
 5. Ignore a record with a time in the future (a clock that moved).
 6. `doctor` and `status` (T-051) show the records. State the window in THE RELAY section of the
-   manual (`crates/podssh-cli/src/man/facts.rs:347-360`) and in `docs/relay.md:89-132`.
+   manual (`crates/podssh-cli/src/man/facts.rs:347-360`) and in `docs/relay.md:91-134`.
 7. This is retry policy across runs. T-220 shortens the wait inside one run; the two work
    together.
 
@@ -592,7 +592,7 @@ pairs need, and the file of Decision 1.
 
 # T-062: Measure whether the relay's backpressure close (1013) operates
 
-**Source:** `docs/relay.md:357-369`; the reverse close table of the pinned contract
+**Source:** `docs/relay.md:387-399`; the reverse close table of the pinned contract
 (`crates/podssh-probe/tests/spec/relay-spec-2026-10-03-r2.txt:185`); the comment on the SSH
 window (`crates/podssh-ssh/src/run.rs` lines 25-29 at `80f20bf`).
 **Category:** measurement
@@ -610,8 +610,8 @@ rule is true.
 
 ## Premise
 
-Not measured. Read: `docs/relay.md:346` gives the forward codes `1013` `client receive backlog`
-and `target write backlog` (2 MiB queued), read from the relay's source; `docs/relay.md:357-369`
+Not measured. Read: `docs/relay.md:376` gives the forward codes `1013` `client receive backlog`
+and `target write backlog` (2 MiB queued), read from the relay's source; `docs/relay.md:387-399`
 says that no frame is dropped, and that the check reads `bufferedAmount`, which Workers may not
 supply. The comment on the SSH window (`crates/podssh-ssh/src/run.rs` lines 25-29 at `80f20bf`)
 said that the relay drops a frame when more than 1 MiB waits (`1011 relay backpressure`). That is
@@ -634,7 +634,7 @@ so the comment applied a rule of the reverse path to the forward path.
 4. The other direction (`target write backlog`) needs a slow target; record it as not measured
    when none is at hand.
 5. Write the result into the comment on the window (`crates/podssh-ssh/src/run.rs:26-30`) and
-   into `docs/relay.md:357-369`. Change the window (512 KiB) only if the result asks for it.
+   into `docs/relay.md:387-399`. Change the window (512 KiB) only if the result asks for it.
 
 ## Decision
 
@@ -667,10 +667,10 @@ size, which shows that the target and the path work. The slow run then gives the
 ## Correction
 
 2026-10-08, T-024: the comment on the SSH window now gives the forward path's rule that
-`docs/relay.md:346` reads from the relay's source: `1013` when 2 MiB wait, and no frame dropped
+`docs/relay.md:376` reads from the relay's source: `1013` when 2 MiB wait, and no frame dropped
 (`crates/podssh-ssh/src/run.rs:26-29`). The two texts agree now. The question of this entry
 stays: whether the relay's check operates at all (it reads `bufferedAmount`,
-`docs/relay.md:357-369`).
+`docs/relay.md:387-399`).
 
 2026-10-31. The blocker cleared: the operator made the relay's own loop the
 target (Q42, `docs/decisions.md`). The target of item 1 is the relay
@@ -775,14 +775,14 @@ listener" (lines 86-88 at `22c3b88`), and the ruling on Q10 allows more than one
    that opens waits at most D for each earlier host that still runs, then the earliest opened
    host wins. `serial`: one at a time, as now, with a 5 s step limit for a host that has a
    successor, and the full limit for the last host.
-2. D starts at 2 s. An open includes the relay's dial of the target (`docs/relay.md:210-212`), so
+2. D starts at 2 s. An open includes the relay's dial of the target (`docs/relay.md:214-216`), so
    a slow target also starts the next host. Measure the open times through a proxy in the box,
    and record D in `docs/STATUS.md`.
 3. Send a Close to each attempt that is not kept, at once. The relay then frees the target
-   socket within 15 s (`docs/design.md:659-661`, `docs/relay.md:342`); the target still sees one
+   socket within 15 s (`docs/design.md:659-661`, `docs/relay.md:372`); the target still sees one
    short connection, because the relay dials it before the upgrade.
 4. One mint at a time for each relay deployment (single flight, keyed as T-057 keys the cache),
-   against the brake of `docs/relay.md:279`. When the minting attempt is the silent one, the next
+   against the brake of `docs/relay.md:309`. When the minting attempt is the silent one, the next
    attempt mints at its own host after D.
 5. An error that each host would give (`crates/podssh-relay/src/open.rs:62-84`) still stops the
    run, and stops the other attempts.
@@ -792,7 +792,7 @@ listener" (lines 86-88 at `22c3b88`), and the ruling on Q10 allows more than one
 7. Add the flag to `SSH_FLAGS`, `PROXY_FLAGS` and `DOCTOR_FLAGS`
    (`crates/podssh-cli/src/flags.rs:122-297`, 323-343) and to `ONCE`
    (`crates/podssh-cli/src/ssh/args.rs:180-218`); the variable to VARIABLES and the modes to THE
-   RELAY (`crates/podssh-cli/src/man/facts.rs:46-300`, 170-183); both to `docs/relay.md:89-132`.
+   RELAY (`crates/podssh-cli/src/man/facts.rs:46-300`, 170-183); both to `docs/relay.md:91-134`.
 8. T-059 orders the hosts across runs; this entry shortens the wait in one run. GitHub #25 asks
    for a circuit breaker: retry policy, not overlap.
 
@@ -1001,7 +1001,7 @@ live test `ipv6_the_relay_takes_the_bare_literal`
 **Milestone:** M10
 **Priority:** P2
 **Effort:** M
-**Status:** open
+**Status:** partial
 
 ## Problem
 
@@ -1041,6 +1041,60 @@ road refuses it.
    `docs/STATUS.md`. podssh already says what happened
    (`podssh_relay::relay::ipv6_note`).
 
+## Decision
+
+2026-11-03, the draft (each call with the alternatives that lost):
+
+1. The role knows its host's way out to IPv6 by two probes at run time: the table of IPv6
+   routes that Linux gives as a file (`/proc/net/ipv6_route`, read again each 30 s), whose
+   longest usable prefix that covers an address decides, as the kernel's does; where no table
+   can be read (macOS, Windows, a host with IPv6 off), its own dials: a direct one that met no
+   route (no route, the network down, no address of the family) holds for a minute, and one
+   that connected says that a route exists. The table wins over a dial, as a dial meets one
+   address alone. Lost: a UDP `connect()` to a public address at the start, which sends nothing
+   but opens a socket that the role does not need; a test dial of a public IPv6 host, a
+   connection to a host that podssh does not use (rule 2 of `AGENTS.md`); a flag of the
+   owner's, `--ipv6 no`, a surface for the one case that the probes miss, a route that drops
+   what it takes, which the dial's limit of 10 s bounds already.
+2. A name of both families keeps its IPv4 addresses on a host with no route, and only a target
+   with no address left gets the `502`. The loopback, and an IPv4 address written as IPv6, are
+   the host's own, never refused. Through the host's proxy (T-457) the role refuses nothing:
+   the proxy's way out decides, and `/relays.json` says `null`. Lost: a refusal of the whole
+   name, which would refuse a target that IPv4 reaches.
+3. The `502` says `relay: cannot reach [ADDR]:PORT: this relay's host has no IPv6 route out`,
+   words that the client shares (`podssh_relay::relay::NO_IPV6_ROUTE`) and that name no fault
+   of the target's name, so that the client's opener tries the next relay host at once, with
+   no change (`crates/podssh-relay/src/open.rs:80` says "!target_name_fails(body)"). This
+   takes the place of Approach item 2's "a
+   relay whose `/relays.json` says that it has IPv6 goes first": podssh keeps one
+   `/relays.json` for each deployment, the first host's, so it cannot order the hosts of a
+   list by theirs without a request to each host before each race (rule 2). The field serves a
+   person and doctor's line (item 3).
+4. The direct road after that `1011` is taken in `podssh ssh`'s run, where the try of the relay
+   once more (T-025) is, at once and in its place (`crates/podssh-cli/src/ssh/mod.rs`, `tries`):
+   the `1011` comes after the upgrade, which T-363's fallback in `reach_skipping` never sees.
+   Lost: the same in each command that reaches its server as `ssh` does (`cp`, `each`, `job`
+   and the others): none has a try after an upgrade, and each ends with the relay's lines, as
+   before.
+5. The direct road keeps the family of `-4` as of `-6`: one dial does both, and T-363's call 6
+   ("the direct road cannot keep the family that the user asked for") no longer holds. Under
+   `-4` or `-6` a name is resolved on this host by podssh's resolver (pins, the system's,
+   DNS over HTTPS), and its addresses of that family are dialed in turn, through the proxy
+   that the name takes, as addresses. Lost: `-6` alone, which keeps a rule whose reason is
+   gone for `-4`; the name to the proxy, which keeps no family. A host with no DNS then fails
+   that dial with its reason, and the relay's lines stay first.
+6. The role's offline test dials a target of the test's on `::1` that sends OpenSSH's version
+   line, not OpenSSH's sshd itself: an sshd that a test starts as a user who is not root needs
+   its privilege separation and its `sshd-session` at the paths that it was built with, which
+   a host may not give; the role reads none of the bytes that it carries. The role against
+   OpenSSH is the interop of T-169 (`PODSSH_RELAY_UNDER_TEST=podssh`) in the build image, which
+   waits until podssh is stable (Q88).
+7. The client's test reaches the stand-in relay as the built-in relay, through the stand-in
+   proxy's map of its name (`scripts/fake-proxy.py`), as a run that names no relay: the cells of
+   `crates/podssh-cli/tests/faults.rs` name their relay with `--relay-host`, which is the relay
+   alone and never falls back. The stand-in's certificate names the built-in relay too, and only
+   the test's runs trust its CA. Lost: a mode of `faults.rs`, whose runs could not fall back.
+
 ## Prove
 
 ```sh
@@ -1061,10 +1115,10 @@ read, moved here as `cargo todo check` refuses a Blocker on an open entry:
 Lifted on 2026-11-02 by Q63: see below.
 
 The Premise, a measurement of the default deployment, stands. Approach item 2 says that podssh
-"already says what happened" (`crates/podssh-relay/src/relay.rs:204-207`): true, but the direct
-road after the relay hosts (T-363) does not run in this case. It runs only when no relay host
-opened a session, and never with `-4` or `-6` (`docs/cli.md:390-394`); here the relay opened
-(101), then closed with 1011.
+"already says what happened" (`crates/podssh-relay/src/relay.rs`, lines 204-207 at `d262613`):
+true, but the direct road after the relay hosts (T-363) does not run in this case. It runs only
+when no relay host opened a session, and never with `-4` or `-6` (`docs/cli.md`, lines 390-394
+at `d262613`); here the relay opened (101), then closed with 1011.
 
 By Q63 (2026-11-02, `docs/decisions.md`; docs/mesh.md, section 4) the relay is a role of podssh
 itself, so this entry is podssh's work. podssh's relay role (T-169) dials a target's IPv6
@@ -1109,6 +1163,68 @@ IPv6 target, sends the client to the direct road with its line, also under `-6`.
 fallback skipped under `-6`; its test fails. Live: the third command, pointed at
 `podssh relay serve` on a host with IPv6 egress, prints "bytes came back from the IPv6 host"; a
 host with none says so.
+
+2026-11-03 (the drafting agent), read at `d262613`. The Premise of 2026-11-02 holds at its lines
+then: `ipv6_note` gave the note, and the direct road ran only when no relay host opened a session,
+never with `-4` or `-6` (`crates/podssh-cli/src/ssh/resolve.rs`, line 371 at `d262613`, its
+`family.is_none()`). podssh's relay role dialed an IPv6 address already, as its policy's
+addresses come of either family, and a direct dial with no route failed at once, before the
+upgrade: a `502` whose words were the kernel's alone; with `?dial=lazy`, the upgrade came first,
+then `1011 connect failed`.
+The IPv6 note of the manual is in `crates/podssh-cli/src/man/notes_ssh_more.rs`, not in
+`crates/podssh-cli/src/man/notes.rs`. Three changes of the Prove of 2026-11-02:
+
+- `relay_serve_ipv6` builds only with the features `serve` and `plain-ws`, as
+  `relay_serve_contract`; with none, it runs no test and passes.
+- The client's check is `crates/podssh-cli/tests/ipv6_fallback.rs`, not a mode of
+  `crates/podssh-cli/tests/faults.rs`, by Decision 7; its runs are not ignored, and say "did not
+  run" where the host has no IPv6 loopback, no Python or no `openssl`. The planted fallback
+  skipped under `-6` is caught by `crates/podssh-cli/tests/ssh_args.rs` too, which needs neither.
+- The unit tests of the role's knowledge, of the client's words and of the line of the direct
+  road join it.
+
+The Prove, in place of the one of 2026-11-02:
+
+```sh
+export CARGO_BUILD_JOBS=4
+cargo test -p podssh-relay --features serve,plain-ws --test relay_serve_ipv6
+cargo test -p podssh-relay --features serve --lib serve::
+cargo test -p podssh-relay --lib relay::
+cargo test -p podssh-cli --test ipv6_fallback
+cargo test -p podssh-cli --test ssh_args
+cargo test -p podssh-cli --lib ssh::transport
+sh scripts/plant-each.sh --here t253-route-unchecked t253-no-fallback-under-6
+cargo test -p podssh-relay --test live -- --ignored ipv6 --nocapture
+```
+
+## Done
+
+2026-11-03, drafted (`DRAFT T-253`, unbuilt; the commit of the merge: UNVERIFIED). Items 1, 2,
+4 and 5 of the Approach of 2026-11-02; item 3, `doctor`'s line, is not in this draft, as
+`doctor`'s files are T-325's draft's at the same time, and the entry stays `partial` until it is
+done.
+
+- The role (`crates/podssh-relay/src/serve/ipv6.rs`, its tests in
+  `crates/podssh-relay/src/serve/ipv6_tests.rs`): the knowledge of Decision 1, the plan of
+  Decision 2 in the policy's `plan`, which `/connect/` and `/trace` ask before any dial; the
+  dial's words for a fault of no route; `/relays.json`'s `"egress": {"ipv6", "known_by"}`.
+- The client (`podssh_relay::relay`): `NO_IPV6_ROUTE`, `unreached_ipv6` and the note that
+  names the roads with IPv6. `podssh ssh`: the direct road at once after a relay that reached no
+  IPv6 host (`crates/podssh-cli/src/ssh/transport/after.rs`), with its line; the direct road of
+  the family of `-4` or `-6`, after each relay host failed too.
+- The stand-in relay's mode `v6close` (`scripts/fake-relay.py`), and the built-in relay's name in
+  the stand-in's certificate (`crates/podssh-cli/tests/throughput_harness/cells.rs`).
+- The manual (the IPv6 note, the direct road's note, `PODSSH_DIRECT`), `docs/cli.md`,
+  `docs/relay.md` ("IPv6 targets", step 7, the role), `README.md`, `docs/relay-operator.md`
+  (item 3) and `docs/STATUS.md`.
+
+Measured: UNVERIFIED (each command of the Prove of 2026-11-03, in its order; the counts of each;
+whether this host has an IPv6 loopback, and whether `localhost` has an IPv6 address, for the
+parts that say "did not run"). Planted: `t253-route-unchecked` (the refusal before the upgrade
+skipped), UNVERIFIED; `t253-no-fallback-under-6` (the fallback skipped under `-6`), UNVERIFIED.
+Live: the last command against `podssh relay serve` on a host with IPv6 egress, UNVERIFIED; a
+host with none, the role's `502` said, UNVERIFIED. The role with OpenSSH's own sshd is the
+interop of T-169 in the build image, which waits until podssh is stable (Q88; Decision 6).
 
 # T-255: The relay's side drops reverse sockets at random, with no Close
 
@@ -1485,7 +1601,7 @@ Measured on 2026-10-31 by T-062, twice from a cloud container and once from GitH
 through the relay's own loop, a pair's node gave the relay each of 48 MiB within 15 s, while the
 outer forward client read 16 KiB/s. After 90 s the client had read 1.46 MB, and no Close had
 come; 48.9 MB that it had not read had left the node, and the relay or its edge held them
-(`docs/STATUS.md`, "The relay"). Read: the forward codes in `docs/relay.md:346` (2 MiB queued),
+(`docs/STATUS.md`, "The relay"). Read: the forward codes in `docs/relay.md:376` (2 MiB queued),
 and the reverse row of the pinned contract
 (`crates/podssh-probe/tests/spec/relay-spec-2026-10-03-r2.txt:185`, 1 MiB). The forward check
 reads `bufferedAmount`, which Workers may not supply (`docs/relay.md`, "Backpressure").
@@ -1818,7 +1934,7 @@ in; the code compiles it in, and the live check never reads `/relays.json`.
   `max_frame_bytes`; `crates/podssh-cli/src/relay_diag_text.rs:87-100`), and a test asserts a
   stand-in's `max_frame_bytes` of 262144 (`crates/podssh-cli/tests/relay.rs:255`).
 - Read: to a node, the resumable layer resumes after the relay's `1009` at the cap
-  (`docs/relay.md:299-305`); a forward session has no layer.
+  (`docs/relay.md:329-335`); a forward session has no layer.
 
 ## Approach
 
@@ -1931,8 +2047,8 @@ relay's operator has no way to move the binaries in the field to another deploym
   in regions of AWS, GCP and Azure, each a name of the same domain (`:30-68`). Inferred: each is a
   placement of the same Worker.
 - Read: the pairs of the reverse road live on the control host alone
-  (`crates/podssh-relay/src/pair.rs:1-4`; `docs/relay.md:430-435`). The audit cited
-  `docs/relay.md:422-427`; the fact is at `:430-435`.
+  (`crates/podssh-relay/src/pair.rs:1-4`; `docs/relay.md:460-465`). The audit cited
+  `docs/relay.md:452-457`; the fact is at `:460-465`.
 - Read: a release binary is uploaded or copied into its host, which cannot build it or download
   it (Q48, `docs/decisions.md:56`); a machine keeps one token for each deployment, and podssh
   "never sends a token to a deployment that did not mint it" (`docs/decisions.md:95`).
@@ -2297,7 +2413,7 @@ session on 2026-11-03.
   WebSocket road (`crates/podssh-relay/src/open.rs:209`, `crates/podssh-relay/src/open.rs:253`).
 - `crates/podssh-cli/src/relay_ends.rs`: what a cut is (`cut_by`, `cut`), and `Told`, the relay
   stream that tells the record how its session ended once SSH lets it go, which
-  `crates/podssh-cli/src/ssh/transport.rs:208` spawns. `podssh proxy`
+  `crates/podssh-cli/src/ssh/transport.rs:210` spawns. `podssh proxy`
   (`crates/podssh-cli/src/proxy.rs:409`) and the relay's end of `podssh pipe` (`carry_opened`)
   tell it at their end (`crates/podssh-cli/src/pipe/relay.rs:210-212`).
 - `podssh status`: `relay_failures` names the road, and `relay_opened` gives the hosts that opened
@@ -2470,7 +2586,7 @@ root's own cache. Planted: `t593-owner-unchecked` (the owner not read): the firs
 ## Correction
 
 Approach item 5 names `docs/architecture.md` for the cache: its place is written in
-`docs/relay.md` (the paragraph of T-243, `docs/relay.md:172-180`), and `docs/architecture.md` says
+`docs/relay.md` (the paragraph of T-243, `docs/relay.md:176-184`), and `docs/architecture.md` says
 nothing of it. The draft writes `docs/relay.md`, and `SECURITY.md` (the cache in its user's own
 tree).
 
@@ -2772,7 +2888,7 @@ working hosts, which a measurement can make.
   default list is the default host, then the pool in its order
   (`crates/podssh-relay/src/relay.rs:104-125`).
 - Read: the alternates are the cached pool, in the order of `/relays.json`
-  (`crates/podssh-relay/src/pool.rs:106-121`); `docs/relay.md:377-379` says that `/relays.json`
+  (`crates/podssh-relay/src/pool.rs:106-121`); `docs/relay.md:407-409` says that `/relays.json`
   ranks relays by the edge that answered, and that its `score_ms` did not agree with the measured
   latency.
 - Read: `podssh ping`'s leg times the token, the dial, TLS and the upgrade of one host, and its
@@ -2937,7 +3053,7 @@ times the hosts that it tries, and throws the times away.
   stayed silent (`crates/podssh-relay/src/failover.rs:88-101`).
 - Read: the record's `order` puts a host that opened lately first and one that failed or rests
   last, each group in the order of the list (`crates/podssh-relay/src/failures.rs:231-255`), also
-  for a list that the user named, whose order is a preference (`docs/relay.md:127-128`).
+  for a list that the user named, whose order is a preference (`docs/relay.md:129-130`).
 - Read: T-563's Done: the fault checks of the interop lean on the list's order, so each takes an
   empty record of its own.
 - Read: the relay's keys of the settings file (`crates/podssh-cli/src/settings.rs:30-32`).
@@ -3074,7 +3190,7 @@ to hosts that the session does not use.
 - Read: the pool's refresh after a mint is a request of its own in the background
   (`crates/podssh-relay/src/open.rs:377-388`): one request to the host that minted, at most once in
   7 days.
-- Read: the contract's `?dial=lazy` (`docs/relay.md:316-319`): the relay dials the target on the
+- Read: the contract's `?dial=lazy` (`docs/relay.md:346-349`): the relay dials the target on the
   client's first byte, so a probe with it and no byte reaches no target.
 - Read: Q83, the experience of a user first (`docs/decisions.md:18`), and Q73, `doctor`'s sections
   at once (`docs/decisions.md:28`).

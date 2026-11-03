@@ -299,14 +299,19 @@ impl Cell {
 }
 
 /// `make CA and leaf`: a test CA and a certificate of `relay-a.test` signed
-/// by it, as `scripts/interop-faults.sh` makes them.
+/// by it, as `scripts/interop-faults.sh` makes them; it names the built-in
+/// relay too, which a test reaches through a stand-in proxy's map, for a run
+/// that names no relay (T-253), and which only that test's runs trust.
 fn certificates(dir: &std::path::Path) -> Result<(), String> {
     let p = |name: &str| dir.join(name).display().to_string();
     std::fs::write(dir.join("req.cnf"), "[req]\ndistinguished_name = dn\n[dn]\n").map_err(|e| e.to_string())?;
+    let builtin = podssh_relay::relay::DEFAULT_RELAY_HOST;
     std::fs::write(
         dir.join("ext"),
-        "subjectAltName=DNS:relay-a.test,DNS:relay-b.test\nbasicConstraints=CA:FALSE\nkeyUsage=critical,digitalSignature\n\
-         extendedKeyUsage=serverAuth\n",
+        format!(
+            "subjectAltName=DNS:relay-a.test,DNS:relay-b.test,DNS:{builtin}\nbasicConstraints=CA:FALSE\n\
+             keyUsage=critical,digitalSignature\nextendedKeyUsage=serverAuth\n"
+        ),
     )
     .map_err(|e| e.to_string())?;
     let steps: [Vec<String>; 3] = [

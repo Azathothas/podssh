@@ -16,10 +16,12 @@ use tokio::io::{AsyncRead, AsyncWrite, ReadBuf};
 
 use super::resolve::{Resolved, Transport};
 
-// The direct road after the relay hosts (T-363), apart for this file's length.
+// The direct road after the relay hosts (T-363), and after a relay that
+// reached no IPv6 host (T-253), apart for this file's length.
 mod after;
 use crate::exitmap::sysexits;
 use after::after_relay;
+pub(crate) use after::{after_ipv6_close, ipv6_unreached};
 
 /// A stream of either transport.
 pub trait Duplex: AsyncRead + AsyncWrite + Unpin + Send {}
@@ -223,7 +225,7 @@ pub async fn reach_skipping(resolved: &Resolved, skip: usize, log: &Arc<Log>) ->
                     // the relay was podssh's choice (T-370), another product's,
                     // unless a relay host answered about the target (T-509).
                     let not = if *then_direct {
-                        match Box::pin(after_relay(first, &target, not, started.elapsed(), log)).await {
+                        match Box::pin(after_relay(first, *family, &target, not, started.elapsed(), log)).await {
                             Ok(reached) => return Ok(reached),
                             Err(not) => not,
                         }

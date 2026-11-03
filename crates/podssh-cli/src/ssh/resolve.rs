@@ -23,9 +23,9 @@ pub use super::hop::parse_hop;
 /// How the first hop is reached.
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub enum Transport {
-    /// Through the relay hosts, in order; `family` is 4 or 6 when one was
-    /// asked for. With `then_direct`, the direct road once each host failed
-    /// (T-363): no relay was named, and `PODSSH_DIRECT` is not `no`.
+    /// Through the relay hosts, in order; `family` is 4 or 6 when asked. With
+    /// `then_direct`, the direct road once each host failed or one reached no
+    /// IPv6 host (T-363, T-253): no relay was named, nor `PODSSH_DIRECT=no`.
     Relay { relays: RelayList, trust: Trust, family: Option<u8>, failover: Mode, then_direct: bool },
     /// A TCP connection, through `HTTPS_PROXY` when one is set (`--direct`).
     Direct,
@@ -364,11 +364,11 @@ pub fn resolve_or_refuse(args: &SshArgs, env: &Env) -> Result<Resolved, Refusal>
         }
         let trust = tls_trust(args, env);
         // The direct road after the relay hosts (T-363): not with a relay
-        // that the user named, nor with -4 or -6, which the direct road
-        // cannot keep. Forwarders (T-369), Shadowsocks servers (T-373), a
+        // that the user named; with -4 or -6 it dials that family alone
+        // (T-253). Forwarders (T-369), Shadowsocks servers (T-373), a
         // proxy over TLS (T-439), VLESS (T-440) or wstunnel (T-441) take its place.
         let direct = crate::relay_settings::direct_from(env.direct.clone(), &env.settings)?;
-        let then_direct = direct && !relays.explicit && family.is_none();
+        let then_direct = direct && !relays.explicit;
         let relay = Transport::Relay { relays, trust, family, failover, then_direct };
         super::servers::or_relay(args, env, relay)?
     };

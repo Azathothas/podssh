@@ -5,10 +5,13 @@
 //! its owner runs in a private network, or a test on the loopback, allows
 //! private addresses by asking for it. Through the host's proxy (T-457,
 //! `super::egress`), the checked addresses are what the proxy is asked for.
+//! An IPv6 address that this host cannot route out is refused before any
+//! dial (T-253, `super::ipv6`).
 
 use std::net::{IpAddr, Ipv4Addr, Ipv6Addr, SocketAddr};
 
 use super::egress::{Egress, Plan};
+use super::ipv6::Ipv6Out;
 
 /// What the relay dials.
 #[derive(Debug, Clone)]
@@ -17,11 +20,13 @@ pub struct Policy {
     pub private: bool,
     /// Ports that are never dialed.
     pub denied_ports: Vec<u16>,
+    /// What this host's way out to IPv6 is known to be (T-253).
+    pub ipv6: Ipv6Out,
 }
 
 impl Default for Policy {
     fn default() -> Self {
-        Policy { private: false, denied_ports: vec![25] }
+        Policy { private: false, denied_ports: vec![25], ipv6: Ipv6Out::default() }
     }
 }
 
@@ -39,13 +44,17 @@ impl Policy {
     /// What to dial for `host:port` through `egress` (T-457): the addresses
     /// of [`Policy::addresses`], each checked; or the name as it came, for
     /// the proxy to resolve, where nothing is checked (`--allow-private`),
-    /// no family is asked, and the name goes through a proxy.
+    /// no family is asked, and the name goes through a proxy. An IPv6
+    /// address that this host dials and cannot route is left out, and a
+    /// target with no other is unreachable, before the upgrade (T-253).
     pub async fn plan(&self, host: &str, port: u16, family: Option<u8>, egress: &Egress) -> Result<Plan, Refused> {
         if self.by_name(host, family, egress) {
             self.port_allowed(host, port)?;
             return Ok(Plan::Name(host.to_string(), port));
         }
-        self.addresses(host, port, family).await.map(Plan::Addresses)
+        let plan = self.addresses(host, port, family).await.map(Plan::Addresses)?;
+        let refused = |why: String| Refused::Unreachable(format!("cannot reach {}: {why}", shown(host, port)));
+        self.ipv6.keep(plan, host, egress).map_err(refused)
     }
 
     /// Whether the name goes to the proxy as it came: nothing of it is to

@@ -61,6 +61,8 @@ pub fn relays(cfg: &Config, head: &Request) -> Value {
         "target": target,
         "connect": connect,
         "policy": { "note": "podssh relay serve: public TCP targets, port 25 refused" },
+        // Whether this host routes IPv6 out, as its role knows it (T-253).
+        "egress": cfg.policy.ipv6.doc(&cfg.egress),
         "pool": [{ "rank": 0, "name": "podssh", "host": name, "bucket": null, "region": null,
                    "client_ms": 0, "target_ms": 0, "score_ms": 0 }],
         "limits": {
@@ -105,7 +107,7 @@ pub async fn trace(cfg: &Config, head: &Request) -> Vec<u8> {
 /// is set (T-457), whose leg the answer names as it went.
 async fn dial_for_trace(host: &str, port: u16, plan: &Plan, cfg: &Config) -> Value {
     let started = Instant::now();
-    let (mut tcp, leg) = match egress::dial(host, plan, &cfg.egress, cfg.limits.connect).await {
+    let (mut tcp, leg) = match egress::dial(host, plan, &cfg.egress, &cfg.policy.ipv6, cfg.limits.connect).await {
         Ok(reached) => reached,
         Err(missed) => {
             if let Some(line) = missed.line {
@@ -227,6 +229,10 @@ mod tests {
         assert_eq!((&l["max_session_bytes"], &l["max_frame_bytes"]), (&json!(67108864), &json!(262144)));
         assert_eq!(health(&cfg())["service"], "tcp-ssh-relay");
         assert_eq!(health(&cfg())["reverse"]["enabled"], true, "the reverse road is served (T-427)");
+        // Whether the host routes IPv6 out, as the role knows it (T-253).
+        let mut none = cfg();
+        none.policy.ipv6 = super::super::ipv6::Ipv6Out::none();
+        assert_eq!(relays(&none, &head("/relays.json"))["egress"]["ipv6"], false);
     }
 
     #[test]

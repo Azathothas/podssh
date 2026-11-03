@@ -85,6 +85,8 @@ of ACME is the binary's, on aws-lc-rs, and the role's TLS stays podssh-ws's.
 Its reverse road (T-427) is in "The relay role's reverse road", below, the
 role behind a quick tunnel, with no listener, after it, and its targets
 through the host's `HTTPS_PROXY` in "The relay role's way out" (T-457).
+An IPv6 target that its host cannot route out gets a `502` before the
+upgrade, which says so ("IPv6 targets", below; T-253).
 
 ## How podssh selects relay hosts
 
@@ -130,14 +132,16 @@ The code is in `crates/podssh-relay/`.
    gives (a policy refusal, a target that does not resolve, a bad token in the environment, a proxy that wants credentials) stops each attempt at once.
 6. `ConnectionAttempts` repeats the whole list, with a backoff of 1 s that
    doubles up to 30 s, scaled by a random factor from 0.5 to 1.5.
-7. When no host opened a session, and the user named no relay (step 1) and
-   no `-4` or `-6`, `podssh ssh` tries the direct road once (T-363): the
-   dial of `--direct`, through `HTTPS_PROXY` when one is set, and the
-   server's version line within 10 s. One line says so before the dial;
-   when both roads fail, a line names both with their times, and the exit is
-   the relay's. A list that the user named is the relay alone, and
-   `PODSSH_DIRECT=no` or the settings file's `Direct no` turns the fallback
-   off ([cli.md](cli.md), "Options of `podssh ssh`").
+7. When no host opened a session, and the user named no relay (step 1),
+   `podssh ssh` tries the direct road once (T-363): the dial of `--direct`,
+   through `HTTPS_PROXY` when one is set, of the family of `-4` or `-6` when
+   one is given (T-253), and the server's version line within 10 s. So it
+   does, at once, when a host opened a session to an IPv6 target and closed
+   it before any byte came ("IPv6 targets", below). One line says so before
+   the dial; when both roads fail, a line names both with their times, and
+   the exit is the relay's. A list that the user named is the relay alone,
+   and `PODSSH_DIRECT=no` or the settings file's `Direct no` turns the
+   fallback off ([cli.md](cli.md), "Options of `podssh ssh`").
 
 `podssh relay rank` (T-606) measures each host of the default list's pool
 from this host, on demand, one at a time: rounds of a session to
@@ -251,8 +255,34 @@ Measured 2026-10-08 (T-007), with a TLS handshake through each session:
   anything`. On the direct road (`?path=direct`), the upgrade fails with
   `502`. `?family=6` with a host name gives the same results. IPv4 to the
   same hosts worked.
-- podssh then adds a note that names the likely cause: the relay has no
-  IPv6 route out. The repair is the relay's (T-253).
+
+What podssh does about it (T-253):
+
+- `podssh ssh` reads that `1011`, for an IPv6 target (an address, or `-6`)
+  and before any byte of the target, as a relay that reached no IPv6 host:
+  where the user named no relay, it tries the direct road at once, with its
+  line, of IPv6 alone under `-6` (step 7 above), in place of the try of the
+  relay once more. Else, and when the direct road fails too, a note names
+  the roads that carry IPv6: a relay of the user's on a host with IPv6, a
+  node with IPv6 egress (`-J node://NAME`), or `warp://[ADDR]`. `podssh
+  proxy`, which has no direct road, gives the note.
+- podssh's own relay role (`podssh relay serve`, below) dials an IPv6
+  target where its host routes IPv6 out, and refuses one that its host
+  cannot route before the upgrade, also with `?dial=lazy`: `502 relay:
+  cannot reach [ADDR]:PORT: this relay's host has no IPv6 route out`. A
+  name of both families keeps its IPv4 addresses. The client tries the next
+  relay host at once on that `502`, as on each `502` that names no fault of
+  the target's name. The role knows its host's routes from the table that
+  Linux gives as a file (`/proc/net/ipv6_route`, read again each 30 s),
+  which opens no socket; where there is none, from its own dials: one that
+  met no route (`ENETUNREACH`, no address of the family) for a minute, and
+  one that connected. The loopback is its own. Through the host's proxy
+  (T-457) the proxy's way out decides, and the role refuses nothing for it.
+  `/relays.json` says what the role knows: `"egress": {"ipv6": true, false
+  or null, "known_by": WORDS}`.
+- What `tcp.ssh.relay.ajam.dev` lacks here (an IPv6 route, or a `502`
+  before the upgrade) is a note of [relay-operator.md](relay-operator.md),
+  item 3.
 
 ### Tokens
 

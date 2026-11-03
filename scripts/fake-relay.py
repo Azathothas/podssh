@@ -67,6 +67,11 @@ Modes:
                    more than BYTES wait in it, Close 1013 `client receive
                    backlog`, the relay's check of a slow client, and drop
                    what waits (T-062)
+  v6close          an IPv6 target (an address, or `?family=6`) is upgraded
+                   and dialed never, and at the client's first bytes the
+                   session gets Close 1011 `target closed before sending
+                   anything`, as the default relay did on 2026-10-08; an IPv4
+                   target behaves (T-253)
 
 Each mint, each upgrade and each Close from the client is a line on stdout
 (`mint`, `upgrade`, `close CODE`), so a harness counts them (T-220).
@@ -238,6 +243,10 @@ async def connect(reader, writer, path, headers):
     if args.mode == "policy":
         writer.write(response(403, "Forbidden", f"forward: {host}:{port} is not in the ALLOW list".encode()))
         return
+    query = urllib.parse.parse_qs(urllib.parse.urlsplit(path).query)
+    if args.mode == "v6close" and (":" in host or query.get("family") == ["6"]):
+        await close_unreached(reader, writer, headers)
+        return
     try:
         t_reader, t_writer = await asyncio.wait_for(asyncio.open_connection(host, port), 10)
     except (OSError, asyncio.TimeoutError) as e:
@@ -250,6 +259,22 @@ async def connect(reader, writer, path, headers):
     event("upgrade")
     UPGRADED["count"] += 1
     await pump(reader, writer, t_reader, t_writer, first=UPGRADED["count"] == 1)
+
+
+async def close_unreached(reader, writer, headers):
+    """v6close: the upgrade, then at the client's first payload the default
+    relay's Close of 2026-10-08 for an IPv6 target, with no dial."""
+    writer.write(upgraded(headers))
+    await writer.drain()
+    event("upgrade")
+    while True:
+        opcode, data = await read_frame(reader)
+        if opcode in (0x0, 0x2) and data:
+            break
+        if opcode == 0x8:
+            return
+    writer.write(close_frame(1011, "target closed before sending anything"))
+    await writer.drain()
 
 
 async def pump(reader, writer, t_reader, t_writer, first=False):

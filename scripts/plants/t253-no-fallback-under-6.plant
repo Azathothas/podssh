@@ -1,0 +1,9 @@
+# T-253: the direct road after the relay hosts skipped under -4 and -6 again,
+# as before; a run of -6 whose relay reached no IPv6 host then ends with the
+# relay's failure, and the resolution of -6 with no relay named, which must
+# keep the direct road, fails its test.
+ENTRY=T-253
+GROUP=cli-tests
+EXPECT='keeps the direct road after the relay, of IPv6 alone'
+RUN='cargo test --locked -p podssh-cli --test ssh_args -- ipv6_literals'
+LIMIT=2400

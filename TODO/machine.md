@@ -413,8 +413,8 @@ Read: the session pings the relay every 10 s and counts the pongs, but it measur
 trip (`crates/podssh-ws/src/session.rs:270-298`; the payload is a counter, `:295`). `doctor`
 prints the milliseconds of each `/health` request
 (`crates/podssh-cli/src/doctor/relay_checks.rs`, lines 130-132 at `24f3e2a`). The relay counts both directions
-against 64 MiB for each session (`docs/relay.md:278`). The stand-in relay answers pings
-(`scripts/fake-relay.py:352-353`).
+against 64 MiB for each session (`docs/relay.md:308`). The stand-in relay answers pings
+(`scripts/fake-relay.py:377-378`).
 
 ## Approach
 
@@ -530,7 +530,7 @@ Read: a session ends as `io::End` (`crates/podssh-ssh/src/io.rs:35-56`). The exi
 signal are read in `handle_msg` (`crates/podssh-ssh/src/io/msg.rs:35-53`). The output goes straight to the process's
 stdout and stderr in `write_out` (`:78-95`), so nothing counts bytes. `session::run` maps
 the end to the exit code (`crates/podssh-ssh/src/session.rs:39-48`). The relay host is known
-at `crates/podssh-cli/src/ssh/transport.rs:208`, and the relay's close reason is in `RelayStatus`
+at `crates/podssh-cli/src/ssh/transport.rs:210`, and the relay's close reason is in `RelayStatus`
 (`crates/podssh-ssh/src/relay_stream.rs:69-176`).
 
 ## Approach
@@ -626,10 +626,10 @@ failure at `crates/podssh-ssh/src/run.rs:136-146` and
 `crates/podssh-cli/src/ssh/result.rs:114-124`, the file at
 `crates/podssh-cli/src/ssh/result.rs:126-140`, written at the end of
 `run_ssh` (`crates/podssh-cli/src/ssh/mod.rs:86-120`); the relay host at
-`crates/podssh-cli/src/ssh/transport.rs:209` and its close at
+`crates/podssh-cli/src/ssh/transport.rs:211` and its close at
 `crates/podssh-cli/src/ssh/mod.rs:365`. The flag in `SSH_FLAGS`
 (`crates/podssh-cli/src/flags.rs:215`), its note at
-`crates/podssh-cli/src/man/notes_ssh_more.rs:88-102`, and `docs/cli.md`.
+`crates/podssh-cli/src/man/notes_ssh_more.rs:95-109`, and `docs/cli.md`.
 
 The test `crates/podssh-cli/tests/ssh_result.rs`, against the test server,
 whose `exit N` and `kill NAME` are in
@@ -674,7 +674,7 @@ stdin and stdout gives typed tools, with no shell quoting.
 
 Measured: `podssh mcp` exits 64 (unknown subcommand).
 
-Read: a prompt goes to the controlling terminal or to `SSH_ASKPASS` (`docs/cli.md:4747-4775`),
+Read: a prompt goes to the controlling terminal or to `SSH_ASKPASS` (`docs/cli.md:4764-4792`),
 and the terminal of an agent can be the user's own. The session output goes straight to the
 process's stdout (`crates/podssh-ssh/src/io/msg.rs:78-95`), which an MCP server over stdio uses for
 its protocol. podssh never listens (`docs/architecture.md:208-223`), and stdio needs no listener.

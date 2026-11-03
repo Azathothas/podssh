@@ -390,10 +390,11 @@ scripts. The facts about OpenSSH on this page were measured with OpenSSH
 - **The direct road after the relay hosts** (T-363), as the road table of
   [design.md](design.md) gives it. When no relay host opened a session, and
   the user named no relay (`--relay-host`, `PODSSH_RELAY` or the settings
-  file's `RelayHost`) and no `-4` or `-6`, podssh tries the direct road
-  once: the dial of `--direct`, through `HTTPS_PROXY` when one is set, then
-  the server's version line within 10 s, whose bytes go to the SSH client
-  first. One line says that the relay hosts failed, after how long, and that
+  file's `RelayHost`), podssh tries the direct road once: the dial of
+  `--direct`, through `HTTPS_PROXY` when one is set, then the server's
+  version line within 10 s, whose bytes go to the SSH client first, of the
+  family of `-4` or `-6` when one is given (below). One line says that the
+  relay hosts failed, after how long, and that
   podssh tries HOST:PORT directly, and through which proxy, whose CONNECT
   then names the target, which the relay's does not. A proxy that takes the
   CONNECT and sends nothing is no road (T-317): the line names it. When both
@@ -409,6 +410,22 @@ scripts. The facts about OpenSSH on this page were measured with OpenSSH
   comes after the relay, never before it or beside it: where podssh is
   built for, a direct dial is dropped with no answer
   ([target-environment.md](target-environment.md)).
+- **The direct road after a relay that reached no IPv6 host** (T-253). With
+  `-4` or `-6` the direct road keeps the family: a name is resolved on this
+  host, and its addresses of that family alone are dialed in turn, each
+  through the proxy that the name takes, as an address; an address is of its
+  own family. `podssh ssh` takes the direct road at once, in place of the try
+  of the relay once more (T-025), when a relay host opened a session to an
+  IPv6 target (an address, or `-6`) and closed it before any byte came: with
+  `1011 target closed before sending anything`, as the default relay did for
+  each IPv6 target ([relay.md](relay.md), "IPv6 targets"), or with the words
+  of podssh's own relay role, `this relay's host has no IPv6 route out`. Its
+  line says that the relay reached no IPv6 host, and when the direct road
+  fails too, a note names the roads that carry IPv6: a relay of the user's
+  on a host with IPv6 (`podssh relay serve`, then `--relay-host`), a node
+  with IPv6 egress (`-J node://NAME`), or `warp://[ADDR]`, which podssh
+  never tries unasked. With a relay named, or `PODSSH_DIRECT=no`, the run
+  ends with that note, as before.
 - **`--forwarder TEMPLATES` reaches the first hop through other products'
   WebSocket forwarders, in place of the relay** (T-369, GitHub #60). A
   forwarder dials the host and the port that a client names and carries the

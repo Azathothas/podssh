@@ -125,8 +125,12 @@ found each of podssh's 7 facts in it.
    `cargo test -p podssh-relay --test live -- --ignored ipv6 --nocapture`
    prints "bytes came back from the IPv6 host".
    In podssh: T-253 gives podssh's own relay role (T-169) IPv6 egress on a
-   dual-stack host, else a `502` before the upgrade, and gives the client a
-   road with IPv6 for a target that this deployment cannot reach.
+   dual-stack host, else a `502` before the upgrade that says
+   `this relay's host has no IPv6 route out`, and `/relays.json`'s
+   `egress.ipv6`; `podssh ssh` takes this deployment's `1011` for an IPv6
+   target as a relay that reached no IPv6 host, and tries the direct road at
+   once, also under `-6` ([relay.md](relay.md), "IPv6 targets"). What this
+   deployment lacks here is no blocker of any entry.
 4. **A question: one write of a frame above 64 KiB** (T-323, [TODO/relay.md](../TODO/relay.md)).
    workerd issue 7074 (`cloudflare/workerd`, opened on 2026-08-20)
    reports that one `write()` of more than 65,536 bytes to a socket of
