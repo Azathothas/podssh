@@ -68,6 +68,17 @@ the box against the report before it measures podssh. See
   `CONNECT github.com:22` gets `200`, and then no SSH banner comes, as the
   proxy waits for TLS: plain SSH cannot leave that way, and the relay is the
   road. `NO_PROXY` there holds CIDR blocks (`10.0.0.0/8`, `100.64.0.0/10`).
+- **An egress that lists names for TLS, with no proxy** (GitHub #99, a
+  tester's sandbox with `podssh 1.0.0`, 2026-11-02). TLS completes for
+  `github.com`, `cloudflare.com`, `pypi.org` and `registry.npmjs.org`; it is
+  reset after the ClientHello for the relay's name, `example.com` and
+  `www.google.com`; a ClientHello with no SNI is reset everywhere. Each road
+  through the relay's name stays closed there until the name is listed; a
+  road through a listed name serves (`--forwarder`, `--via`, a relay of the
+  user's own). `podssh doctor` says so once, after its counts, from its
+  line `TLS reference` and the kind of each handshake's end: a reset, never
+  read from the words, and told from a path that drops packets, which times
+  out (T-487).
 
 Some server faults look like key failures. podssh's authentication errors
 should name them:

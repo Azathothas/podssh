@@ -8,7 +8,9 @@ use podssh_relay::relay::RelayList;
 // dialer's own list, so this report names the one that the dialer takes.
 use podssh_ws::dial::{self, HttpProxy, ProxyChoice, PROXY_VARS};
 use podssh_ws::{Trust, Verdict};
+use tokio::net::TcpStream;
 
+use super::diagnosis::Through;
 use super::samples::{sample, Tried};
 use super::Report;
 
@@ -16,8 +18,9 @@ use super::Report;
 pub(super) const PROBE: Duration = Duration::from_secs(8);
 
 /// A host every proxy and resolver can be asked about. Its port 22 tells an
-/// egress that lets SSH out from one that allows only HTTPS.
-const REFERENCE_HOST: &str = "github.com";
+/// egress that lets SSH out from one that allows only HTTPS, and its TLS on
+/// port 443 the reference of the roads' handshakes (T-487).
+pub(super) const REFERENCE_HOST: &str = "github.com";
 
 fn var(name: &str) -> Option<String> {
     std::env::var(name).ok().filter(|v| !v.trim().is_empty())
@@ -162,7 +165,11 @@ pub(super) async fn check_network(report: &mut Report<'_>, relays: &RelayList, t
     let primary = relays.primary();
     match dial::proxy_from_env(&primary.host) {
         Ok(Some(proxy)) => {
-            let names = through_proxy(report, &proxy, &primary.host, primary.port).await;
+            let (names, kept) = through_proxy(report, &proxy, &primary.host, primary.port).await;
+            // TLS with github.com over its CONNECT, the reference of each
+            // road's handshake (T-487).
+            let through = Through::Proxy { shown: proxy.to_string(), kept };
+            super::diagnosis::reference(report, trust, through).await;
             // An address too (T-366), and what the two mean.
             let addresses = super::address::through_proxy(report, &proxy, trust).await;
             super::address::case(report, names, addresses, true);
@@ -170,6 +177,7 @@ pub(super) async fn check_network(report: &mut Report<'_>, relays: &RelayList, t
         }
         Ok(None) => {
             let straight = direct(report).await;
+            super::diagnosis::reference(report, trust, Through::Direct).await;
             let (named, by_address) = super::names::direct(report, &primary.host).await;
             super::address::case(report, named, by_address || straight, false);
         }
@@ -194,9 +202,16 @@ pub(super) async fn no_ssh_banner<S: tokio::io::AsyncRead + Unpin>(mut stream: S
 /// and 22, each tried several times (T-324). Each answer is reported as the
 /// proxy gave it; on port 22, only the server's banner, read on the first
 /// connection that opened, says that plain ssh can leave. Whether the proxy
-/// took a name on port 443, the relay's or GitHub's.
-async fn through_proxy(report: &mut Report<'_>, proxy: &HttpProxy, relay_host: &str, relay_port: u16) -> bool {
+/// took a name on port 443, the relay's or GitHub's; and the first stream
+/// that it took to GitHub's 443, for the reference handshake (T-487).
+async fn through_proxy(
+    report: &mut Report<'_>,
+    proxy: &HttpProxy,
+    relay_host: &str,
+    relay_port: u16,
+) -> (bool, Option<TcpStream>) {
     let mut named = false;
+    let mut kept = None;
     let via = &ProxyChoice::Via(proxy.clone());
     for (host, port) in [(relay_host, relay_port), (REFERENCE_HOST, 443), (REFERENCE_HOST, 22)] {
         let target = dial::authority(host, port);
@@ -208,15 +223,19 @@ async fn through_proxy(report: &mut Report<'_>, proxy: &HttpProxy, relay_host: &
             Some(stream) => {
                 let peer = stream.peer_addr().map(|a| a.to_string()).unwrap_or_else(|_| "?".into());
                 let by = proxy_reached(proxy, &peer);
-                let detail = match (port == 22 && !is_relay).then_some(stream) {
-                    None => format!("{target}: allowed by {by}; {summary}"),
-                    Some(stream) => match no_ssh_banner(stream).await {
+                let detail = if port == 22 && !is_relay {
+                    match no_ssh_banner(stream).await {
                         None => format!("{target}: allowed by {by}; {summary}; plain ssh can leave this way too"),
                         Some(why) => format!(
                             "{target}: {by} took the CONNECT, then {why}: it carries no SSH, and may expect TLS; \
                              plain ssh cannot leave this way, which is what the relay is for; {summary}"
                         ),
-                    },
+                    }
+                } else {
+                    if host == REFERENCE_HOST && port == 443 {
+                        kept = Some(stream);
+                    }
+                    format!("{target}: allowed by {by}; {summary}")
                 };
                 Verdict::Ok { detail }
             }
@@ -239,7 +258,7 @@ async fn through_proxy(report: &mut Report<'_>, proxy: &HttpProxy, relay_host: &
         };
         report.sampled("CONNECT", verdict, &samples);
     }
-    named
+    (named, kept)
 }
 
 /// With no proxy: whether port 22 is open straight out, in which case the

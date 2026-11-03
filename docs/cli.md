@@ -2356,6 +2356,31 @@ and no `--timeout`: a person decides how long an edit takes.
   `--direct` to one, WARP's endpoint or Tor's first hops, cannot leave),
   addresses only, or neither. With no proxy, it comes of `direct TCP` and of
   DNS over HTTPS, which reaches its resolvers by their addresses.
+- **A reset, a timeout, and the diagnosis** (T-487, GitHub #99). The dial
+  and the TLS of `podssh-ws` keep the kind of the error that ended them
+  (`podssh_ws::Cut`: reset, refused, timed out, closed with nothing,
+  other), read from its `std::io::ErrorKind`, never from the system's
+  words, which differ between systems (Windows says os error 10054 for a
+  reset). The line `TLS reference` makes TLS with `github.com` on port 443
+  by its name, its certificate checked, with doctor's trust: straight out
+  with no proxy (one connection), else over the first `CONNECT` that the
+  proxy took for `github.com:443` (no new connection); it is `ok` with what
+  it met, a handshake, a reset or a timeout, as the other reference probes
+  are. A reset and a close with nothing before the handshake ended are both
+  the far end's, and read as a reset. After the counts, a line
+  `diagnosis:` names a case that the handshakes of the roads (each relay
+  host's `/health`, each DERP server's probe) show beside the reference,
+  and it counts as nothing: each relay host reset, none of the roads timed
+  out, and `github.com`'s completed is an egress that resets TLS for each
+  name that it does not list (`tls-names`: each road through the relay's
+  name stays closed until the name is listed, and a road through a listed
+  name serves: `--forwarder`, `--via`, a relay of your own), with each name
+  whose handshake completed as evidence; each reset, `github.com`'s too, is
+  an egress that resets each TLS handshake on port 443 (`tls-reset`); each
+  timed out, `github.com`'s too, is a path that drops them and resets none
+  (`tls-dropped`). Through a proxy the same cases read the TLS after its
+  `CONNECT`. The resolvers of DNS over HTTPS keep their line, whose errors
+  reach doctor as words; iroh's relays keep theirs.
 - `--full` adds the check `login` (GitHub #13): a login to `github.com` as
   `git` through the relay, with an Ed25519 key made for the check, kept in
   memory and never written. GitHub refuses it, which is `ok`: the handshake,
@@ -2404,7 +2429,8 @@ and no `--timeout`: a person decides how long an edit takes.
 - `--json` writes the same report as one JSON object, when every check has
   run (GitHub #9): `schema` (1), `podssh`, `os`, `arch`, `checks` (each
   with `section`, `check`, `status` and `detail`; `status` is `ok`, `FAIL`
-  or `unknown`) and `counts`. The exit code does not change. `--json` is
+  or `unknown`), `counts`, and `diagnosis` (each case after the counts, with
+  `kind`, `detail` and `evidence`; empty when none, T-487). The exit code does not change. `--json` is
   for a report that ends; `--jsonl` stays for the events of a long run.
 - Each probe that connects (each `CONNECT`, and `direct TCP`) is tried nine
   times, 125 ms apart (GitHub #54, T-324): one time cannot tell a path that

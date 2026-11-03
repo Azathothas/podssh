@@ -111,8 +111,9 @@ pub enum ConnectError {
     Config(String),
     /// The TCP connection (direct or through the proxy) could not be opened.
     Dial(DialError),
-    /// The TLS handshake failed: certificate, hostname or protocol.
-    Tls(String),
+    /// The TLS handshake failed: certificate, hostname or protocol, or the
+    /// far end cut it, whose kind it keeps (T-487).
+    Tls(crate::cut::TlsFailure),
     /// A step did not finish in time.
     Timeout { step: &'static str, after: Duration },
     /// The relay answered the upgrade with an HTTP status instead of `101`.

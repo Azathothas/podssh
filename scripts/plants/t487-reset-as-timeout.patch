@@ -1,0 +1,11 @@
+--- a/crates/podssh-cli/src/doctor/diagnosis.rs
++++ b/crates/podssh-cli/src/doctor/diagnosis.rs
+@@ -68,7 +68,7 @@
+ /// the far end, before its answer; a timeout is the path's silence.
+ pub(super) fn met_of(cut: Option<Cut>) -> Met {
+     match cut {
+-        Some(Cut::Reset | Cut::Closed) => Met::Reset,
++        Some(Cut::Reset | Cut::Closed) => Met::TimedOut,
+         Some(Cut::TimedOut) => Met::TimedOut,
+         _ => Met::Other,
+     }

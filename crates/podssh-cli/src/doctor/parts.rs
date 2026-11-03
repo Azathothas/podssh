@@ -18,10 +18,12 @@ use tokio::sync::mpsc::{unbounded_channel, UnboundedReceiver, UnboundedSender};
 use super::Line;
 
 /// What a part keeps once it has ended: its lines and their counts, for the
-/// counts of the report and for `--json`.
+/// counts of the report and for `--json`, and its handshakes, for the
+/// diagnosis.
 #[derive(Default)]
 pub(super) struct Ended {
     pub(super) lines: Vec<Line>,
+    pub(super) handshakes: Vec<super::diagnosis::Handshake>,
     pub(super) ok: usize,
     pub(super) failed: usize,
     pub(super) unknown: usize,

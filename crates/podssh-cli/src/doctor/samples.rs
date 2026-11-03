@@ -8,7 +8,7 @@
 use std::future::Future;
 use std::time::Duration;
 
-use podssh_ws::DialError;
+use podssh_ws::{Cut, DialError};
 use tokio::net::TcpStream;
 // tokio's clock, which a test can pause.
 use tokio::time::Instant;
@@ -156,7 +156,8 @@ where
                     DialError::Timeout { .. } => tried.samples.timed_out += 1,
                     // An answer: the proxy's rules, or a port that says no.
                     DialError::ProxyRefused { .. } => tried.samples.refused += 1,
-                    DialError::Connect { detail, .. } if detail.contains("refused") => tried.samples.refused += 1,
+                    // By the kind of its error, never its words (T-487).
+                    refused if refused.cut() == Some(Cut::Refused) => tried.samples.refused += 1,
                     _ => tried.samples.broke += 1,
                 }
                 let first_timed_out = i == 0 && matches!(e, DialError::Timeout { .. });
@@ -242,6 +243,26 @@ mod tests {
         let s = &tried.samples;
         assert_eq!((s.tries, s.refused, s.broke, s.timed_out, s.cut), (9, 3, 3, 3, false), "{s:?}");
         assert!(tried.first.is_none() && tried.error.is_some());
+    }
+
+    /// A refusal is read from the kind of the error (T-487): neither the
+    /// words of Windows nor words that say "refused" decide it.
+    #[tokio::test(start_paused = true)]
+    async fn a_refusal_is_read_from_its_kind_never_its_words() {
+        let connect = |cut, detail: &str| DialError::Connect { target: "t:22".into(), detail: detail.into(), cut };
+        let windows = "No connection could be made because the target machine actively refused it. (os error 10061)";
+        let mut n = 0;
+        let tried = sample(Duration::from_secs(8), |_| {
+            n += 1;
+            let e = match n % 2 {
+                0 => connect(Some(Cut::Refused), windows),
+                _ => connect(Some(Cut::Reset), "refused, say these words"),
+            };
+            async move { Err::<TcpStream, _>(e) }
+        })
+        .await;
+        let s = &tried.samples;
+        assert_eq!((s.tries, s.refused, s.broke), (9, 4, 5), "{s:?}");
     }
 
     /// After a first try that failed at once, each later one has 3 s; the

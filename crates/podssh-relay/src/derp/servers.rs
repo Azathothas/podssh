@@ -9,7 +9,7 @@
 use std::fmt;
 use std::time::Duration;
 
-use podssh_ws::{ProxyChoice, Trust};
+use podssh_ws::{Cut, ProxyChoice, Trust};
 use tokio::time::Instant;
 
 /// The servers of tailcat's map, in the order of its regions: New York,
@@ -109,16 +109,34 @@ pub fn for_client_in(home: &Server, list: &[Server]) -> Vec<Server> {
     servers
 }
 
+/// Why a probe got no answer: the words, and how the connection ended
+/// where an error of I/O or the bound ended it, which `podssh doctor` reads
+/// (T-487); an answer of another status has none.
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub struct Missed {
+    pub why: String,
+    pub cut: Option<Cut>,
+}
+
 /// derper's probe at `server`, through `proxy`: how long its answer took, or
 /// why none came.
 pub async fn probe(server: &Server, trust: &Trust, proxy: &ProxyChoice) -> Result<Duration, String> {
+    probe_kept(server, trust, proxy).await.map_err(|missed| missed.why)
+}
+
+/// [`probe`], with the cut of a failure beside its words.
+pub async fn probe_kept(server: &Server, trust: &Trust, proxy: &ProxyChoice) -> Result<Duration, Missed> {
     let started = Instant::now();
     let get = podssh_ws::client::https_get(&server.host, server.port, PROBE_PATH, 1024, trust, proxy, PROBE_LIMIT);
+    let missed = |why: String, cut: Option<Cut>| Err(Missed { why, cut });
     match tokio::time::timeout(PROBE_LIMIT, get).await {
-        Err(_) => Err(format!("{server} did not answer {PROBE_PATH} within {} s", PROBE_LIMIT.as_secs())),
+        Err(_) => missed(
+            format!("{server} did not answer {PROBE_PATH} within {} s", PROBE_LIMIT.as_secs()),
+            Some(Cut::TimedOut),
+        ),
         Ok(Ok(answer)) if (200..300).contains(&answer.status) => Ok(started.elapsed()),
-        Ok(Ok(answer)) => Err(format!("{server} answered {PROBE_PATH} with HTTP {}", answer.status)),
-        Ok(Err(e)) => Err(format!("{server}: {e}")),
+        Ok(Ok(answer)) => missed(format!("{server} answered {PROBE_PATH} with HTTP {}", answer.status), None),
+        Ok(Err(e)) => missed(format!("{server}: {e}"), e.cut()),
     }
 }
 

@@ -427,7 +427,7 @@ requires TLS 1.3 (`scripts/fake-relay.py`, lines 426-427 at `0d3d13a`).
    one suite at a time in the container gate, and `scripts/fake-relay.py` with an option for TLS
    1.2 only.
 5. The relay line of `doctor` names the version
-   (`crates/podssh-relay/src/health.rs:103-106`, which `doctor` and `relay status` share); the live relay must still give TLS
+   (`crates/podssh-relay/src/health.rs:104-107`, which `doctor` and `relay status` share); the live relay must still give TLS
    1.3.
 6. Change the comment of `suites.rs`, `docs/architecture.md` (line 46 at `0d3d13a`), the Trust item of the manual
    (`crates/podssh-cli/src/man/facts.rs` lines 408-424 at `59b67e6`) and `docs/STATUS.md` in the same commit.
@@ -729,7 +729,7 @@ once (`crates/podssh-relay/src/open.rs:70`) and gives exit 78 in `podssh proxy`
 5. Credentials never in output: `Display` shows the host and port only (now
    `crates/podssh-ws/src/proxy.rs:70-75`).
 6. `doctor` names the SOCKS5 proxy, and its proxy checks
-   (`crates/podssh-cli/src/doctor/net.rs:193-235`) work for both forms. The two tests above
+   (`crates/podssh-cli/src/doctor/net.rs:201-254`) work for both forms. The two tests above
    plant `ftp://` and `socks4://` instead; `socks4` and `socks4a` are refused by name.
 7. Change the proxy variables in VARIABLES (`crates/podssh-cli/src/man/facts.rs:47-56`),
    `docs/architecture.md` and `docs/cli.md` in the same commit.
@@ -829,7 +829,7 @@ a value with its top bit set, which section 5.2 forbids too. `frame::encode` wri
 form (`:111-119`). The tests check the encoder at the boundaries 125, 126, 65535 and 65536
 (`crates/podssh-ws/tests/rfc6455.rs:92-117`), and no test decodes a length that is not
 minimal. The only caller in the code is `next_event`, for the frames of the relay
-(`crates/podssh-ws/src/client.rs:416-424`). The stand-in relay writes the minimal form
+(`crates/podssh-ws/src/client.rs:417-425`). The stand-in relay writes the minimal form
 (`scripts/fake_ws.py:21-29`); the frames of the real relay were not checked for it.
 
 ## Approach
@@ -1399,7 +1399,7 @@ refuses from one that was slow, nor a steady path from a lossy one.
 - The meaning of a wrong accept is podssh-ws's
   (`crates/podssh-ws/src/handshake.rs:211`), so `podssh ssh` says it too; the
   death after a valid 101 is doctor's
-  (`crates/podssh-cli/src/doctor/relay_checks.rs:213`), as a session of
+  (`crates/podssh-cli/src/doctor/relay_checks.rs:221`), as a session of
   `podssh ssh` already names the relay's end.
 
 ## Prove
@@ -1423,7 +1423,7 @@ failure. Against a stand-in that drops one probe in three, the loss reads
 gives an answer other than 101 its status and its text
 (`crates/podssh-ws/src/handshake.rs:185` says "if status != 101 {"), and a
 101 with a wrong or no `Sec-WebSocket-Accept` its own error, and the
-forward line carries each (`crates/podssh-cli/src/doctor/relay_checks.rs:159`).
+forward line carries each (`crates/podssh-cli/src/doctor/relay_checks.rs:167`).
 Measured against the stand-in relay before the change: a wrong accept read
 "Sec-WebSocket-Accept was ..., expected ...", with nothing of what it means,
 and a valid 101 that the stand-in ended 200 ms later read "the connection
@@ -1699,11 +1699,11 @@ command says what to do. Four of the eight release binaries are for Windows and 
   first bundle that reads (`crates/podssh-ws/src/tls.rs` lines 180-200 at `59b67e6`). An explicit
   file (`--ca-file`, `SSL_CERT_FILE`) is used alone and never widened
   (`crates/podssh-ws/src/tls.rs:35-36`).
-- Read: a failed handshake gives rustls's text: `crates/podssh-ws/src/client.rs:133` says "TLS
+- Read: a failed handshake gives rustls's text: `crates/podssh-ws/src/client.rs:134` says "TLS
   with the relay failed: {why}", and `crates/podssh-ws/src/client.rs` lines 202-203 at `1316e53`
   kept rustls's words. doctor adds a hint for the
   clock's errors only (`crates/podssh-cli/src/doctor/relay_checks.rs` lines 96-105 at `b9e007c`), and its test
-  asserts none for `UnknownIssuer` (`:345`).
+  asserts none for `UnknownIssuer` (`:353`).
 - Read: the release builds two binaries for macOS and two for Windows
   (`.github/workflows/release.yml:286-297`, `:329-345`).
 - Read: `windows-sys` 0.61 is already a dependency of `podssh-relay` on Windows
@@ -1722,7 +1722,7 @@ command says what to do. Four of the eight release binaries are for Windows and 
    `CertificateError::UnknownIssuer`, and its text as the fallback): the issuer is not trusted
    here; a proxy that re-signs TLS needs its CA, in `--ca-file FILE` or `SSL_CERT_FILE` (which
    replace the store) or in `podssh-ca.pem` next to the binary (which adds to it). Each command
-   gets it with the error's text (`crates/podssh-ws/src/client.rs:222`,
+   gets it with the error's text (`crates/podssh-ws/src/client.rs:223`,
    `crates/podssh-ws/src/tls.rs:151`), and doctor too. T-345 adds the clock's errors to the same
    function.
 2. Windows: the stores `ROOT` and `CA` of the current user and of the machine, read through
@@ -2048,8 +2048,8 @@ and each other command print rustls's words alone. An error should tell what to 
 ## Premise
 
 - Read: doctor's hint (`crates/podssh-cli/src/doctor/relay_checks.rs` lines 96-105 at `b9e007c`) and its tests
-  (`:342-345`).
-- Read: the other commands print the error's text: `crates/podssh-ws/src/client.rs:133` says "TLS
+  (`:350-353`).
+- Read: the other commands print the error's text: `crates/podssh-ws/src/client.rs:134` says "TLS
   with the relay failed: {why}"; the TLS of IRC and of the quick tunnel's edge gives the text of
   `crates/podssh-ws/src/tls.rs:151` (`crates/podssh-relay/src/quick/edge.rs:111-113`).
 - Read: rustls 0.23.46 (`Cargo.lock:4807-4808`) has the errors `Expired`, `ExpiredContext`,
@@ -2067,7 +2067,7 @@ and each other command print rustls's words alone. An error should tell what to 
    failed with one of the four time errors (their text as the fallback) gets the clock's hint,
    with this host's clock in UTC, in doctor's words.
 2. Each place where podssh-ws makes the text of a TLS error uses it: `ConnectError::Tls`
-   (`crates/podssh-ws/src/client.rs:222`), `tls::connect_over` (`crates/podssh-ws/src/tls.rs:151`)
+   (`crates/podssh-ws/src/client.rs:223`), `tls::connect_over` (`crates/podssh-ws/src/tls.rs:151`)
    and the query of DNS over HTTPS (`crates/podssh-ws/src/resolve.rs:179-182`). doctor's `clock_hint`
    calls it, so that the words are the same.
 3. Tests through a stand-in relay with an expired certificate: `podssh ssh`, `podssh proxy` and
@@ -2163,8 +2163,8 @@ host has.
 ## Premise
 
 - Read: through a proxy, `doctor` asks for the relay's host and for `github.com` on ports 443 and
-  22, each by name (`crates/podssh-cli/src/doctor/net.rs:18-20`, `:193-243`), and
-  `crates/podssh-cli/src/doctor/net.rs:146` says "podssh asks it to CONNECT by name, so no DNS is
+  22, each by name (`crates/podssh-cli/src/doctor/net.rs:20-23`, `:201-262`), and
+  `crates/podssh-cli/src/doctor/net.rs:149` says "podssh asks it to CONNECT by name, so no DNS is
   needed".
 - Read: the dialer gives a proxy the relay's name and never an address, and a pin of the relay's
   name to an address that is not the loopback keeps the name for the proxy
@@ -2172,7 +2172,7 @@ host has.
   (`:255-264`). So no road of the release binaries asks a proxy for an address, but `--direct`,
   `pipe tcp:` and a target of `-R`, each to an address that the user gives.
 - Read: with no proxy, `doctor` reaches addresses already: DNS over HTTPS to the resolvers'
-  address literals (`crates/podssh-cli/src/doctor/net.rs:286-357`;
+  address literals (`crates/podssh-cli/src/doctor/net.rs:305-376`;
   `crates/podssh-ws/src/resolve.rs:28-32`), each checked by TLS for its address
   (`crates/podssh-ws/src/resolve.rs:172-182`).
 - Read: the proxy of the measured sandbox gave `200` for public names on ports 443, 80 and 8443,
@@ -2510,7 +2510,7 @@ refused it.
 - Read: no other lookup of DNS over HTTPS goes through a proxy. `doh_lookup` dials each
   resolver's address directly (`crates/podssh-ws/src/resolve.rs:317`), as the source of the
   resolver's order (`crates/podssh-ws/src/resolve/order.rs:124`), which the dialer runs only
-  with no proxy (`crates/podssh-ws/src/dial.rs:235`, `:239`; `crates/podssh-ws/src/race.rs:50`);
+  with no proxy (`crates/podssh-ws/src/dial.rs:235`, `:239`; `crates/podssh-ws/src/race.rs:51`);
   doctor's line asks `doh_ask`, the same direct way
   (`crates/podssh-cli/src/doctor/names.rs:101`). So "other lookups of DoH fail the same way" does
   not hold: the change is `doh_srv`'s alone.
@@ -2553,7 +2553,7 @@ is reset everywhere). Distinct from GitHub #74 (T-366), which is about a proxy.
 **Milestone:** none
 **Priority:** P3
 **Effort:** S
-**Status:** open
+**Status:** partial
 
 ## Problem
 
@@ -2566,23 +2566,25 @@ met.
 
 ## Premise
 
-- Read: each relay host gets a line of its own (`crates/podssh-cli/src/doctor/relay_checks.rs:41-53`),
+- Read: each relay host gets a line of its own (`crates/podssh-cli/src/doctor/relay_checks.rs:42-56`),
   and DNS over HTTPS one line with each resolver's error
   (`crates/podssh-cli/src/doctor/names.rs:133`); the end of the report gives the counts alone
-  (`crates/podssh-cli/src/doctor/mod.rs:339-355`).
+  (`crates/podssh-cli/src/doctor/mod.rs:352-374`).
 - Read: a failed handshake reaches `doctor` as text: `ConnectError::Tls` holds a String
-  (`crates/podssh-ws/src/client.rs:115`), and `HealthError::Connect` the error's text
-  (`crates/podssh-relay/src/health.rs:69`). The kind of the I/O error, a reset or a timeout, is
-  then in the system's words alone, which differ on Windows (os error 10054).
+  (`crates/podssh-ws/src/client.rs` line 115 at `38f424c`), and `HealthError::Connect` the
+  error's text (`crates/podssh-relay/src/health.rs` line 69 at `38f424c`). The kind of the I/O
+  error, a reset or a timeout, is then in the system's words alone, which differ on Windows (os
+  error 10054).
 - Read: with no proxy, `doctor` reaches `github.com` by TCP on port 22 alone
-  (`crates/podssh-cli/src/doctor/net.rs:159-178`, `:248-274`), and makes TLS only where a road
+  (`crates/podssh-cli/src/doctor/net.rs:162-186`, `:267-293`), and makes TLS only where a road
   needs it: each relay host, each resolver by its address, each DERP server
-  (`crates/podssh-cli/src/doctor/derp.rs:13-35`) and, in a build with iroh, n0's relays
+  (`crates/podssh-cli/src/doctor/derp.rs:14-41`) and, in a build with iroh, n0's relays
   (`crates/podssh-cli/src/doctor/iroh.rs:1-6`). Each failure is a line of its own, and no
   handshake is made with a name that no road needs, as a reference. Through a proxy, `doctor` asks
   for `github.com` on port 443 by CONNECT, with no TLS
-  (`crates/podssh-cli/src/doctor/net.rs:198-243`), and a reference probe is `ok` with what it met
-  (`crates/podssh-cli/src/doctor/net.rs:231-236`).
+  (`crates/podssh-cli/src/doctor/net.rs` lines 198-243 at `38f424c`), and a reference probe is
+  `ok` with what it met
+  (`crates/podssh-cli/src/doctor/net.rs:250-255`).
 - Read: T-366 tells a proxy that takes names from one that takes addresses
   (`crates/podssh-cli/src/doctor/address.rs:1-9`); it does not look at TLS with no proxy, nor at
   the name of the handshake, which is this case.
@@ -2614,15 +2616,32 @@ met.
 ## Decision
 
 - After the counts, not above the failures: each line goes out as its check ends
-  (`crates/podssh-cli/src/doctor/mod.rs:296-300`), so a line about them all comes once they are
+  (`crates/podssh-cli/src/doctor/mod.rs:302-306`), so a line about them all comes once they are
   known. Holding each line back until the end lost: a check of a minute would look like a hang.
 - One reference name, `github.com`, which `doctor` uses already
-  (`crates/podssh-cli/src/doctor/net.rs:18-20`). A list of names that an allowlist often holds
+  (`crates/podssh-cli/src/doctor/net.rs:20-23`). A list of names that an allowlist often holds
   (`pypi.org`, `registry.npmjs.org`) lost: it guesses at an allowlist, and adds connections to a
   check that must stay short.
 - A ClientHello with no SNI is not probed: no road of podssh sends one but to an address (the
   resolvers'), which their line covers.
 - A diagnosis counts as nothing: the same fact told twice does not grow the count of FAIL.
+- The kind is a type of `podssh-ws`, `Cut` (reset, refused, timed out, closed with nothing,
+  other), read from the `std::io::ErrorKind`: `ConnectError::Tls` holds a `TlsFailure`, its words
+  and its cut, and `DialError::Connect` its cut beside its words; `HealthError::Connect` keeps the
+  `ConnectError` whole, whose text is the line's. A refusal of the handshake itself (a
+  certificate, a name, kind `InvalidData`) has no cut, as it says nothing of the path. Lost: the
+  kind's word inside the String, which a reader would parse again, as the words are parsed now.
+- A close with nothing before the ServerHello reads as a reset, as a reset does: a proxy that
+  carries the far end's RST closes its client's connection, which then sees an end with nothing.
+- Through a proxy, the reference rides the first stream that the proxy took for the CONNECT probe
+  of `github.com:443`, so it opens no connection; with no proxy it is one dial of its own. The
+  cases through a proxy (item 3) need the TLS after the CONNECT, which the probe of names lacked.
+- The text gives `diagnosis: DETAIL` on a line of its own after the counts, with no label, so the
+  counts' line and the labels of the check lines stay as their readers read them; `--json` gives
+  `diagnosis`, a list, empty when none, in schema 1, as a key added to the object.
+- The case of a list of names asks each relay host reset, no road timed out and the reference
+  completed; a DERP server whose name is listed may complete, and is evidence. Lost: each road
+  reset, which a listed DERP server, the case's own evidence, would never meet.
 
 ## Prove
 
@@ -2631,6 +2650,7 @@ export CARGO_BUILD_JOBS=4
 cargo test -p podssh-ws --lib                 # the kind of a reset and of a timeout, kept
 cargo test -p podssh-cli --lib doctor::
 cargo test -p podssh-cli --test doctor
+cargo test -p podssh-cli --test doctor_tls
 ```
 
 Stand-ins on the loopback, named by `--relay-host` and `--relay-addr`: one that resets each
@@ -2640,3 +2660,70 @@ diagnosis of a list of names; one that resets each: the second case; one that ta
 ClientHello and never answers: the third. In CI's job `windows`, the same kinds from os error
 10054. Planted (new, t487-reset-as-timeout): a reset read as a timeout; the test of the first case
 fails.
+
+## Correction
+
+2026-11-03, the draft:
+
+- The stand-ins are reached through a stand-in proxy on the loopback
+  (`crates/podssh-cli/tests/doctor_tls.rs`), which plays the egress behind it, not by
+  `--relay-addr`: a pin gives an address and no port, so the reference `github.com:443` cannot
+  reach a server of the test's own on a port of the loopback, and with no proxy the egress asks
+  the public resolvers of DNS over HTTPS, which a test must not reach. So the Prove's stand-ins
+  test the cases through a proxy (item 3, its last case); the cases with no proxy, the same
+  function with the words of this host, are held by the unit tests of `doctor::diagnosis`, and the
+  kinds by the unit tests of `podssh_ws::cut` on a far end in memory.
+- The diagnosis counts the handshakes whose kind podssh keeps: each relay host's `/health`, each
+  DERP server's probe, and the reference. The resolvers of DNS over HTTPS answer through
+  `podssh_ws::resolve::doh_ask`, whose errors are words (its file, `crates/podssh-ws/src/resolve.rs`,
+  is near 500 lines), and n0's relays through `podssh_iroh::relays::ping`, in a build with iroh;
+  their lines stay as they are, and keeping their kinds is work for an entry of its own, which the
+  main session files when it merges this draft.
+- `doctor`'s samples read a refusal from the cut of `DialError::Connect`, no longer from the word
+  "refused" in its detail (`crates/podssh-cli/src/doctor/samples.rs`), as item 1 says.
+
+## Done
+
+2026-11-03, drafted by an agent that does not build: each result below is UNVERIFIED until the
+main session builds and runs it. The Premise holds at the cited lines, read at `38f424c`.
+
+- `crates/podssh-ws/src/cut.rs` (new): `Cut` and `Cut::of`, `TlsFailure` (its words, its cut)
+  and `TlsFailure::of`, `DialError::cut` and `ConnectError::cut`. Unit tests: each kind (Windows'
+  10054 on Windows), a certificate's refusal with no cut, and `tls_over` against a far end in
+  memory that resets after the ClientHello, closes with nothing, or stays silent to the bound.
+  `crates/podssh-ws/src/lib.rs`: the module, and `Cut` and `TlsFailure` at the root.
+- `crates/podssh-ws/src/client.rs`: `ConnectError::Tls(TlsFailure)`; `crates/podssh-ws/src/tls_wrap.rs`
+  keeps the cut. `crates/podssh-ws/src/dial.rs`: `DialError::Connect` has `cut`, which
+  `crates/podssh-ws/src/race.rs` (the last attempt's kind, and a source's wait as a timeout) and
+  `crates/podssh-ws/src/plain.rs` fill. `crates/podssh-ws/tests/doh_wire.rs` reads the words of a
+  `TlsFailure`.
+- `crates/podssh-relay/src/health.rs`: `HealthError::Connect(ConnectError)`.
+  `crates/podssh-relay/src/derp/servers.rs`: `Missed` and `probe_kept`, which `probe` wraps.
+  `crates/podssh-relay/src/serve/reverse/carrier.rs` and the test of `crates/podssh-relay/src/open.rs`:
+  a `DialError::Connect` with no cut.
+- `crates/podssh-cli/src/doctor/diagnosis.rs` (new): `Met`, `Of`, `Handshake`, `met`, the
+  reference handshake (`TLS reference`, in the section `egress`), and `diagnose`, the three cases
+  and none; `crates/podssh-cli/src/doctor/diagnosis_tests.rs` (new): what each end met, each
+  case, the runs with none, and the line after the counts and `--json`'s `diagnosis`.
+- `crates/podssh-cli/src/doctor/mod.rs`: the report keeps the handshakes, prints each diagnosis
+  after the counts, and gives `diagnosis` in `--json`; `crates/podssh-cli/src/doctor/parts.rs`:
+  a part's handshakes. `crates/podssh-cli/src/doctor/relay_checks.rs` and
+  `crates/podssh-cli/src/doctor/derp.rs` record each handshake; `crates/podssh-cli/src/doctor/net.rs`
+  runs the reference, through a proxy on the CONNECT probe's first stream to `github.com:443`.
+  `crates/podssh-cli/src/doctor/samples.rs`: a refusal by its cut, and a unit test.
+  `crates/podssh-cli/src/ping/relay.rs` and the test of `crates/podssh-cli/src/node_target.rs`:
+  the new shapes.
+- The manual: the note `DOCTOR_DIAGNOSIS` of `crates/podssh-cli/src/man/notes_doctor.rs`, which
+  `crates/podssh-cli/src/man/notes.rs` takes, with `diagnosis` in the note of `--json`.
+- `crates/podssh-cli/tests/doctor_tls.rs` (new): a stand-in proxy of names, of resets and of
+  drops, a TLS server of the test's own for `github.com`; the three cases.
+- `docs/cli.md` (doctor's rules, `--json`), `docs/target-environment.md` (an egress that lists
+  names, with no proxy) and a row of `docs/STATUS.md`.
+- `scripts/plants/t487-reset-as-timeout.patch` and `.plant`: a reset read as a timeout.
+- Results: `cargo test -p podssh-ws --lib`: UNVERIFIED; `cargo test -p podssh-ws --test
+  doh_wire`: UNVERIFIED; `cargo test -p podssh-relay --lib`: UNVERIFIED; `cargo test -p podssh-cli
+  --lib doctor::`: UNVERIFIED; `--test doctor`: UNVERIFIED; `--test doctor_tls`: UNVERIFIED;
+  `--lib node_target` and `--lib man::`: UNVERIFIED; the same kinds in CI's job `windows`:
+  UNVERIFIED; `cargo clippy --all-targets -D warnings` and a build with each feature (`iroh`,
+  `tor`, `warp`, `ts`, `plain-ws`): UNVERIFIED. Planted (`sh scripts/plant-each.sh --here
+  t487-reset-as-timeout`): UNVERIFIED.

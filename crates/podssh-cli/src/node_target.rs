@@ -81,7 +81,11 @@ mod tests {
     /// dial that each address refused; the dial's words come first.
     #[test]
     fn only_a_roost_on_the_loopback_looks_for_its_sshd() {
-        let refused = DialError::Connect { target: "x:2222".into(), detail: "Connection refused".into() };
+        let refused = DialError::Connect {
+            target: "x:2222".into(),
+            detail: "Connection refused".into(),
+            cut: Some(podssh_ws::Cut::Refused),
+        };
         let alone = "TARGET x: could not connect to x:2222: Connection refused";
         assert_eq!(failed("x", &route("192.0.2.7"), true, &refused), alone);
         assert_eq!(failed("x", &route("127.0.0.1"), false, &refused), alone);

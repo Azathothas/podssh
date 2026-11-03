@@ -11,6 +11,7 @@ use std::time::Duration;
 use tokio::net::TcpStream;
 use tokio::time::Instant;
 
+use crate::cut::Cut;
 use crate::dial::{authority, DialError, ATTEMPT_DELAY};
 use crate::mptcp::Multipath;
 use crate::resolve::{self, SOURCE_WAIT};
@@ -93,6 +94,8 @@ async fn race(
     let mut running = tokio::task::JoinSet::new();
     let mut next_at = Instant::now();
     let mut last = String::from("each address of this source was tried already");
+    // The kind of the last attempt's error, beside its words (T-487).
+    let mut cut = None;
     loop {
         if running.is_empty() || Instant::now() >= next_at {
             if let Some(addr) = waiting.next() {
@@ -102,7 +105,7 @@ async fn race(
                 continue;
             }
             if running.is_empty() {
-                return Err(DialError::Connect { target: target.to_string(), detail: last });
+                return Err(DialError::Connect { target: target.to_string(), detail: last, cut });
             }
         }
         let wake = if waiting.len() > 0 { next_at.min(until) } else { until };
@@ -111,10 +114,14 @@ async fn race(
                 Some(Ok((_, Ok(stream)))) => return Ok(stream),
                 Some(Ok((addr, Err(e)))) => {
                     last = format!("{addr}: {e}");
+                    cut = Some(Cut::of(e.kind()));
                     next_at = Instant::now();
                 }
                 // An attempt that panicked counts as one that failed.
-                Some(Err(e)) => last = e.to_string(),
+                Some(Err(e)) => {
+                    last = e.to_string();
+                    cut = None;
+                }
                 None => {}
             },
             _ = tokio::time::sleep_until(wake) => {
@@ -123,7 +130,7 @@ async fn race(
                 }
                 if Instant::now() >= until {
                     let detail = format!("no address of this source answered within {} s", SOURCE_WAIT.as_secs());
-                    return Err(DialError::Connect { target: target.to_string(), detail });
+                    return Err(DialError::Connect { target: target.to_string(), detail, cut: Some(Cut::TimedOut) });
                 }
             }
         }

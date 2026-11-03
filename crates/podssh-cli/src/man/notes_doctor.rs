@@ -1,6 +1,6 @@
 //! The notes of `podssh doctor` for the time of a run (T-511): its sections
-//! at once, `--jobs` and `--quick`, apart from the others so that each file
-//! stays short.
+//! at once, `--jobs` and `--quick`; and its diagnosis of the TLS handshakes
+//! (T-487). Apart from the others so that each file stays short.
 
 pub(super) const DOCTOR_AT_ONCE: &str = "The sections that connect run at once by default, each into its own part \
      of the report, and the report keeps its order: a section's lines go out once each section before it has ended, \
@@ -15,3 +15,14 @@ pub(super) const DOCTOR_QUICK: &str = "--quick checks this host, the egress and 
      --shadowsocks, --via, --vless). It leaves out the quick tunnel's edge (the lines quick tunnel roots, UDP out \
      and edge road), iroh and tor in a build with them, DERP and the pairs; its last line, sections in the section \
      left out, names them, as ????: checks that did not run.";
+
+pub(super) const DOCTOR_DIAGNOSIS: &str = "The line TLS reference makes TLS with github.com on port 443 by its \
+     name, its certificate checked, straight out with no proxy, else over the CONNECT that the proxy took for it, \
+     and says what it met: a handshake, a reset or a timeout. After the counts, a line diagnosis names a case that \
+     the handshakes of the roads (each relay host, each DERP server) show beside it, and counts as nothing: each \
+     relay host reset while github.com's completed is an egress that resets TLS for each name that it does not \
+     list, where a road through a listed name serves (--forwarder, --via, a relay of your own); each handshake \
+     reset, github.com's too, is an egress that resets each one on port 443; each timed out, github.com's too, is \
+     a path that drops them, not one that lists names. A reset and a timeout are read from the kind of the error, \
+     never from its words, which differ between systems. With --json, diagnosis lists each, with kind (tls-names, \
+     tls-reset or tls-dropped), detail and evidence, the names that show it.";
