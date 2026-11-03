@@ -3,10 +3,11 @@
 //! server, and whose far end is smoltcp, software that podssh did not
 //! write; the registration against a stand-in of the API; the proxies of a
 //! cage, each as a test of its own; a front door that changes its key
-//! (T-399); and the endpoints of a device in turn (T-561). Nothing here
-//! writes a file.
+//! (T-399); the endpoints of a device in turn (T-561); and the routes to
+//! the API in turn (T-562). Nothing here writes a file.
 
 mod api;
+mod api_routes;
 mod edge;
 mod peers;
 mod proxies;
@@ -20,6 +21,15 @@ use tokio::net::TcpListener;
 
 /// The bound on each wait of a test.
 pub(crate) const LIMIT: Duration = Duration::from_secs(20);
+
+/// A port of the loopback that refuses each connection at once: a listener
+/// that is gone.
+pub(crate) async fn refusing() -> SocketAddr {
+    let listener = TcpListener::bind((Ipv4Addr::LOCALHOST, 0)).await.unwrap();
+    let addr = listener.local_addr().unwrap();
+    drop(listener);
+    addr
+}
 
 /// An echo service on the loopback: each connection's bytes back, then its
 /// end.

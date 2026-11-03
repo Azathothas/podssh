@@ -38,7 +38,8 @@ pub const VARIABLES: &[(&[&str], &str)] = &[
         &["PODSSH_WARP_ACCEPT_TERMS"],
         "yes accepts Cloudflare's Terms (https://www.cloudflare.com/application/terms/), which a device of \
       WARP needs: with it, the first warp:// destination registers one device with Cloudflare's API, \
-      api.cloudflareclient.com, through the proxy, and keeps its record in the cache (see FILES); later runs \
+      api.cloudflareclient.com, else api.devices.cloudflare.com (PODSSH_WARP_API first), through the proxy, \
+      and keeps its record in the cache (see FILES); later runs \
       read the record and register nothing. Unset, no or empty, a run with no record refuses (78) and names \
       it. Another word is a configuration error (78). A build with the feature warp.",
     ),
@@ -54,6 +55,14 @@ pub const VARIABLES: &[(&[&str], &str)] = &[
       stays its own. The run tries it alone, not the endpoints of the device's record (the one that last \
       opened, 162.159.198.2:443, then the peers that WARP's API gave), and the record keeps those as they \
       were. Another value is a configuration error (78).",
+    ),
+    (
+        &["PODSSH_WARP_API"],
+        "Another route to WARP's API, as https://HOST[:PORT] (a path of / at most, no user or query), tried \
+      before api.cloudflareclient.com and api.devices.cloudflare.com, for the registration and for each read of \
+      the device's record again: a compatible API, or a name that this host can reach. A route that is not \
+      reached gives way to the next; an answer, a refusal too, is the API's. The device's record keeps the \
+      route that answered, tried first after this one. Another value is a configuration error (78).",
     ),
     (
         &["PODSSH_WARP_PROBE"],

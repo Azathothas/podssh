@@ -8,7 +8,8 @@
 //! proxy, with the headers of "WARP for Android", which the API takes and
 //! the open clients send (the operator's ruling Q52 allowed the road with
 //! them; T-352's Decision). A team's token (a Cloudflare One organization)
-//! goes in `CF-Access-Jwt-Assertion`, as usque sends it.
+//! goes in `CF-Access-Jwt-Assertion`, as usque sends it. Each request goes
+//! by the API's routes in turn, until one answers (T-562).
 
 use std::net::{IpAddr, SocketAddr};
 use std::time::{Duration, SystemTime, UNIX_EPOCH};
@@ -21,10 +22,18 @@ use tokio::io::AsyncWriteExt as _;
 
 use crate::device::Device;
 use crate::key::DeviceKey;
+use crate::routes::Route;
 
 /// The API (usque's `ApiUrl`, `ApiVersion`).
 pub const API_HOST: &str = "api.cloudflareclient.com";
 pub const API_VERSION: &str = "v0a4471";
+/// A second name of the same API, tried after the first (T-562): it
+/// resolved on 2026-11-02 to addresses of Cloudflare's other than the
+/// first's, and the issue reads it as the same service; the live run of
+/// `warp-live.yml` registers a throwaway device through it.
+pub const API_SECOND: &str = "api.devices.cloudflare.com";
+/// The names of the API, in the order that they are tried.
+pub const API_HOSTS: [&str; 2] = [API_HOST, API_SECOND];
 /// The headers of the app (usque's `Headers`), but `Connection`: each
 /// request here has its own connection.
 pub const USER_AGENT: &str = "WARP for Android";
@@ -41,24 +50,32 @@ const MAX_ANSWER: usize = 64 * 1024;
 /// Where the API is, and how it is reached.
 #[derive(Debug, Clone)]
 pub struct Api {
-    pub host: String,
-    pub port: u16,
+    /// The routes to the API, in turn: the first that answers serves the
+    /// request (T-562).
+    pub routes: Vec<Route>,
     pub trust: Trust,
     pub proxy: ProxyChoice,
     pub limit: Duration,
 }
 
 impl Api {
-    /// Cloudflare's, on port 443.
+    /// Cloudflare's: each of its names, on port 443.
     pub fn cloudflare(trust: Trust, proxy: ProxyChoice, limit: Duration) -> Api {
-        Api { host: API_HOST.to_string(), port: 443, trust, proxy, limit }
+        Api { routes: API_HOSTS.iter().map(|host| Route::https(host)).collect(), trust, proxy, limit }
+    }
+
+    /// The same API with `route` tried first, and once.
+    pub fn first(mut self, route: Route) -> Api {
+        self.routes.retain(|r| *r != route);
+        self.routes.insert(0, route);
+        self
     }
 }
 
 /// Why a registration did not end.
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub enum Fault {
-    /// The API was not reached: the proxy, DNS, TLS.
+    /// No route reached the API: the proxy, DNS, TLS; why, for each route.
     Unreachable(String),
     /// It answered with this status, and these words of its body.
     Refused { status: u16, said: String },
@@ -71,7 +88,7 @@ pub enum Fault {
 impl std::fmt::Display for Fault {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         match self {
-            Fault::Unreachable(why) => write!(f, "WARP's API ({API_HOST}) was not reached: {why}"),
+            Fault::Unreachable(why) => write!(f, "WARP's API was not reached by any of its routes: {why}"),
             Fault::Refused { status, said } => write!(f, "WARP's API refused the device (HTTP {status}): {said}"),
             Fault::Answer(why) => write!(f, "WARP's API answered with no device that podssh reads: {why}"),
             Fault::Local(why) => write!(f, "the device's key: {why}"),
@@ -227,18 +244,38 @@ pub fn read_answer(body: &[u8]) -> Result<Answer, String> {
     })
 }
 
-/// One request and its answer, on a connection of its own.
-async fn exchange(
-    api: &Api,
-    method: &str,
-    path: &str,
-    bearer: Option<&str>,
-    team: Option<&str>,
-    body: &str,
-) -> Result<Answer, Fault> {
-    let host = if api.port == 443 { api.host.clone() } else { podssh_ws::dial::authority(&api.host, api.port) };
+/// What one request asks of the API, whatever its route.
+struct Ask<'a> {
+    method: &'a str,
+    path: &'a str,
+    bearer: Option<&'a str>,
+    team: Option<&'a str>,
+    body: &'a str,
+}
+
+/// One request and its answer, by each route of `api` in turn until one
+/// answers (T-562): a route that does not reach the API gives way to the
+/// next; an answer, a refusal too, is the API's own, and ends the turn, as
+/// another name of the same API would answer the same. The route that
+/// answered comes with the answer; the failure names each route and why.
+async fn exchange(api: &Api, ask: &Ask<'_>) -> Result<(Answer, Route), Fault> {
+    let mut failed = Vec::new();
+    for route in &api.routes {
+        match exchange_at(api, route, ask).await {
+            Ok(answer) => return Ok((answer, route.clone())),
+            Err(Fault::Unreachable(why)) => failed.push(format!("{route}: {why}")),
+            Err(fault) => return Err(fault),
+        }
+    }
+    Err(Fault::Unreachable(if failed.is_empty() { "it has no route".into() } else { failed.join("; then ") }))
+}
+
+/// One request and its answer by `route`, on a connection of its own.
+async fn exchange_at(api: &Api, route: &Route, ask: &Ask<'_>) -> Result<Answer, Fault> {
+    let Ask { method, path, bearer, team, body } = *ask;
+    let host = route.to_string();
     let request = request(method, &host, path, bearer, team, body).map_err(Fault::Local)?;
-    let mut tls = podssh_ws::client::open_tls(&api.host, api.port, &api.host, &api.trust, &api.proxy, api.limit)
+    let mut tls = podssh_ws::client::open_tls(&route.host, route.port, &route.host, &api.trust, &api.proxy, api.limit)
         .await
         .map_err(|e| Fault::Unreachable(e.to_string()))?;
     let asked = async {
@@ -259,6 +296,8 @@ async fn exchange(
 /// Register a new device with `api`, and give it a key of MASQUE; `team` is
 /// the token of a Cloudflare One organization, when the user gives one. The
 /// caller has the user's acceptance of the Terms ([`crate::TERMS_URL`]).
+/// The enrolment goes by the route that registered the device first, and
+/// the device keeps that route (T-562).
 pub async fn register(api: &Api, team: Option<&str>, now: SystemTime) -> Result<Device, Fault> {
     let random = podssh_ws::crypto::random::OsRandom;
     let (mut wg_key, mut serial) = ([0u8; 32], [0u8; 8]);
@@ -266,36 +305,42 @@ pub async fn register(api: &Api, team: Option<&str>, now: SystemTime) -> Result<
     drawn.map_err(|_| Fault::Local("this host's random source gave no bytes".into()))?;
     let tos = terms_time(now);
     let body = registration_body(&wg_key, &serial, &tos);
-    let mut made = exchange(api, "POST", &format!("/{API_VERSION}/reg"), None, team, &body).await?;
+    let path = format!("/{API_VERSION}/reg");
+    let ask = Ask { method: "POST", path: &path, bearer: None, team, body: &body };
+    let (mut made, route) = exchange(api, &ask).await?;
     let token = made.token.take().ok_or_else(|| Fault::Answer("its answer has no token".into()))?;
     let token = zeroize::Zeroizing::new(token);
     let key = DeviceKey::generate().map_err(Fault::Local)?;
     let path = format!("/{API_VERSION}/reg/{}", made.id);
-    let enrolled = exchange(api, "PATCH", &path, Some(token.as_str()), None, &enrolment_body(&key.spki())).await?;
+    let body = enrolment_body(&key.spki());
+    let ask = Ask { method: "PATCH", path: &path, bearer: Some(token.as_str()), team: None, body: &body };
+    let (enrolled, _) = exchange(&api.clone().first(route.clone()), &ask).await?;
     let pem = enrolled.endpoint_key.ok_or_else(|| Fault::Answer("its answer has no endpoint key".into()))?;
     let endpoint = crate::ENDPOINT_H2.parse().map_err(|_| Fault::Local("the endpoint of HTTP/2".into()))?;
     let v4 = enrolled.address_v4.and_then(|t| t.parse::<std::net::Ipv4Addr>().ok());
     let v6 = enrolled.address_v6.and_then(|t| t.parse::<std::net::Ipv6Addr>().ok());
     let device = Device::new(made.id, token.to_string(), key, &pem, endpoint, v4, v6, tos, team.is_some());
-    // The API's own peers, after the endpoint of HTTP/2 (T-561).
-    device.map(|device| device.with_peers(enrolled.peers)).map_err(Fault::Answer)
+    // The API's own peers, after the endpoint of HTTP/2 (T-561), and the
+    // route that answered (T-562).
+    device.map(|device| device.with_peers(enrolled.peers).by(route)).map_err(Fault::Answer)
 }
 
 /// The device's record as WARP's API holds it now: `GET /reg/ID` with the
-/// device's token, as cfrs reads a device again (T-399). The answer must be
-/// of the same device.
-pub async fn read_record(api: &Api, device: &Device) -> Result<Answer, Fault> {
+/// device's token, as cfrs reads a device again (T-399), and the route that
+/// answered (T-562). The answer must be of the same device.
+pub async fn read_record(api: &Api, device: &Device) -> Result<(Answer, Route), Fault> {
     // The id goes into a path: a UUID's characters only, as a registration
     // takes it.
     if device.id.is_empty() || !device.id.bytes().all(|b| b.is_ascii_alphanumeric() || b == b'-') {
         return Err(Fault::Answer("the device's id in its record is not one that a path can hold".into()));
     }
     let path = format!("/{API_VERSION}/reg/{}", device.id);
-    let answer = exchange(api, "GET", &path, Some(device.token()), None, "").await?;
+    let ask = Ask { method: "GET", path: &path, bearer: Some(device.token()), team: None, body: "" };
+    let (answer, route) = exchange(api, &ask).await?;
     if answer.id != device.id {
         return Err(Fault::Answer("its answer is of another device".into()));
     }
-    Ok(answer)
+    Ok((answer, route))
 }
 
 #[cfg(test)]

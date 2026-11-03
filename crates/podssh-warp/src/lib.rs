@@ -10,7 +10,8 @@
 //! - [`register`]: a device, registered once with the API of Cloudflare's
 //!   app (`POST /reg`), then given a P-256 key and the tunnel type `masque`
 //!   (`PATCH /reg/ID`), whose answer gives the endpoint's key and the
-//!   device's addresses; [`device`] keeps them, for a private file.
+//!   device's addresses; [`device`] keeps them, for a private file. Each
+//!   request goes by the [`routes`] of the API in turn (T-562).
 //! - [`tls`]: TLS 1.3 with ALPN `h2` and the name [`SERVER_NAME`], the
 //!   device's self-signed certificate ([`key`], [`der`]), and the endpoint's
 //!   key pinned: no root signs the endpoint, and a proxy that re-terminates
@@ -46,6 +47,7 @@ mod phy;
 pub mod probe;
 pub mod register;
 pub mod road;
+pub mod routes;
 pub mod stack;
 #[cfg(any(test, feature = "stand-in"))]
 pub mod stand_in;

@@ -133,7 +133,8 @@ const FIRST: &[&str] = &[
      that last opened, 162.159.198.2:443, then the peers that WARP's API gave, on port 443; one that the \
      way out does not reach, or whose edge fails or carries nothing, gives way to the next, and the \
      device's record keeps the one that opened. The \
-     first run registers a device with WARP's API, once PODSSH_WARP_ACCEPT_TERMS=yes accepts Cloudflare's \
+     first run registers a device with WARP's API (api.cloudflareclient.com, else api.devices.cloudflare.com, \
+     or PODSSH_WARP_API first; a failure names each), once PODSSH_WARP_ACCEPT_TERMS=yes accepts Cloudflare's \
      Terms, and keeps its record in the cache (see FILES); each run then reads it. The proxy must take a \
      CONNECT to that address: one that allows listed names alone refuses it, and podssh doctor's line \
      egress takes names the case. A certificate of another key than the endpoint's pinned one sends podssh \

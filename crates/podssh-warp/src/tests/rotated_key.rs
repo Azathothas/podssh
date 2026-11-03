@@ -150,7 +150,7 @@ async fn an_api_that_is_not_reached_leaves_the_refusal() {
     edge.show(vec![next]);
     let closed = tokio::net::TcpListener::bind((Ipv4Addr::LOCALHOST, 0)).await.unwrap();
     let mut gone = stand_in.api.clone();
-    gone.port = closed.local_addr().unwrap().port();
+    gone.routes = vec![crate::routes::Route { host: "127.0.0.1".into(), port: closed.local_addr().unwrap().port() }];
     gone.limit = Duration::from_secs(5);
     drop(closed);
     let fault = Warp::open_reading(&mut device, &gone, &ProxyChoice::Direct, LIMIT).await.unwrap_err();

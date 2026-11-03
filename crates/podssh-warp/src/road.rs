@@ -276,11 +276,13 @@ impl Warp {
             Err(opening) => return Err(fault(opening, endpoint, proxied.as_deref())),
         };
         let given = match register::read_record(api, device).await {
-            Ok(record) => {
-                // The API's peers of now go with the record (T-561).
+            Ok((record, route)) => {
+                // The API's peers of now go with the record (T-561), and the
+                // route that answered (T-562).
                 if !record.peers.is_empty() {
                     device.peers = record.peers;
                 }
+                device.api = Some(route);
                 record.endpoint_key
             }
             Err(why) => {

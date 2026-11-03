@@ -147,7 +147,7 @@ and `CARGO_BUILD_JOBS=4`:
 
 ## Counts
 
-`TODO/INDEX.md` holds 546 entries: 128 open, 4 partial, 16 blocked, 398 done.
+`TODO/INDEX.md` holds 546 entries: 127 open, 5 partial, 16 blocked, 398 done.
 
 Open includes parked work. `cargo todo check` verifies this line.
 
@@ -303,6 +303,8 @@ unattended (Q87).
   bootstrap and one stream.
 - T-561 (a draft): `PODSSH_WARP_ENDPOINT` is the run's one endpoint, tried alone, and the road
   tries 162.159.198.2:443 before the peers that WARP's API gave, as usque serves HTTP/2 there.
+- T-562 (a draft): the second name of WARP's API, `api.devices.cloudflare.com`, is in the draft,
+  and comes out unless `warp-live.yml` registers a throwaway device through it.
 
 The operator settled Q63 to Q66 on 2026-11-02 (`docs/decisions.md`), after the research of five
 agents on the dependency on the relay's operator: podssh grows into a mesh of its user's own nodes

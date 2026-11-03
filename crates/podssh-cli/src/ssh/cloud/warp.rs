@@ -30,6 +30,8 @@ pub const ENDPOINT_ENV: &str = "PODSSH_WARP_ENDPOINT";
 /// `no` skips the probe inside a tunnel that has just opened (T-560), for a
 /// host where its target is filtered inside WARP.
 pub const PROBE_ENV: &str = "PODSSH_WARP_PROBE";
+/// Another route to WARP's API, `https://HOST[:PORT]`, tried first (T-562).
+pub const API_ENV: &str = "PODSSH_WARP_API";
 
 /// A host and a port inside the tunnel.
 #[derive(Debug, Clone, PartialEq, Eq)]

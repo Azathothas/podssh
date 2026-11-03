@@ -5,13 +5,11 @@
 //! endpoint is tried alone; and a device that the edge refuses is not taken
 //! to the next endpoint.
 
-use std::net::{Ipv4Addr, SocketAddr};
-
 use podssh_ws::ProxyChoice;
 use tokio::io::{AsyncReadExt as _, AsyncWriteExt as _};
 
 use super::api::api;
-use super::{echo, LIMIT};
+use super::{echo, refusing, LIMIT};
 use crate::device::Device;
 use crate::key::DeviceKey;
 use crate::road::{Fault, Warp};
@@ -21,14 +19,6 @@ use crate::stand_in::{Route, StandIn};
 async fn edge_for(key: &DeviceKey) -> StandIn {
     let route = Route { inside: "192.0.2.10:22".parse().unwrap(), outside: echo().await };
     StandIn::start(vec![key.point()], vec![route]).await.unwrap()
-}
-
-/// A port of the loopback that refuses each connection at once.
-async fn refusing() -> SocketAddr {
-    let listener = tokio::net::TcpListener::bind((Ipv4Addr::LOCALHOST, 0)).await.unwrap();
-    let addr = listener.local_addr().unwrap();
-    drop(listener);
-    addr
 }
 
 /// A stream inside the tunnel carries bytes both ways.
