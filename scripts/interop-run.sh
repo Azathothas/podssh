@@ -30,8 +30,9 @@ p 2201 $K -o BatchMode=yes "$T" 'ls -a .podssh/run/proj' </dev/null >"$RW/ls" 2>
 [ "$rc" = 6 ] && [ -s "$RW/ls" ] && ! grep -qx target "$RW/ls" \
     && ok run.excludes "target/ stayed here" \
     || bad run.excludes "target/ is on the server, or the run failed" "$RW/ls"
-r -v --from "$RW/proj" "$T" -- sh run.sh >"$RW/out" 2>"$RW/err"
+# With no -v: the summary is at the default level (T-472).
+r --from "$RW/proj" "$T" -- sh run.sh >"$RW/out" 2>"$RW/err"
 rc=$?
-[ "$rc" = 6 ] && grep -q ": files sent 0, unchanged 2" "$RW/err" \
-    && ok run.again "a second run: no file sent, and the exit 6 again" \
+[ "$rc" = 6 ] && grep -q "^podssh: 0 copied, 2 unchanged, in " "$RW/err" \
+    && ok run.again "a second run: no file sent, the summary says so, and the exit 6 again" \
     || bad run.again "exit $rc" "$RW/err"

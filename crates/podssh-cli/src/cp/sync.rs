@@ -14,6 +14,7 @@ use super::link::{Link, Road};
 use super::meta::Keep;
 use super::operand::{Operand, Remote};
 use super::pipe::{Shape, FILES_AT_ONCE};
+use super::summary::Counts;
 use super::transfer::{self, Failed, Side};
 use super::tree::Tree;
 use super::tree_conn::Conn;
@@ -21,12 +22,12 @@ use super::{tree_copy, Outcome};
 use crate::exitmap::Fault;
 use crate::ssh::resolve::Resolved;
 
-/// What a copy of `podssh run` did: the files that it sent, and those that
-/// were as they are here.
-#[derive(Debug, Clone, Copy, Default, PartialEq, Eq)]
+/// What a copy of `podssh run` did: its counts for the summary (T-472), the
+/// files that it sent and those that were as they are here among them, and
+/// its first failure.
 pub(crate) struct Synced {
-    pub sent: usize,
-    pub unchanged: usize,
+    pub counts: Counts,
+    pub failed: Option<Failed>,
 }
 
 /// Each directory above `path` on the server, made when it is not there,
@@ -59,8 +60,8 @@ pub(crate) async fn parents(link: &Link, path: &str) -> Result<(), Failed> {
 }
 
 /// Copy the directory `local` onto the far directory `far` over `link`:
-/// each file that changed, verified, with its times. The first failure;
-/// each one is said on `log` as it comes.
+/// each file that changed, verified, with its times. What it did, and its
+/// first failure; each one is said on `log` as it comes.
 pub(crate) async fn up(
     link: &mut Option<Link>,
     resolved: &Resolved,
@@ -68,7 +69,7 @@ pub(crate) async fn up(
     far: &Remote,
     tree: &Tree,
     log: &Arc<Log>,
-) -> Result<Synced, Failed> {
+) -> Synced {
     let mut outcome = Outcome::default();
     // The files go several at once, as `cp -r` sends them with no
     // `--parallel` (T-474).
@@ -76,8 +77,5 @@ pub(crate) async fn up(
     let (source, dest) = (Operand::Local(local.to_string()), Operand::Remote(far.clone()));
     let mut conn = Conn::Again { link, resolved };
     tree_copy::copy(&mut conn, &source, &dest, false, tree, log, shape, false, &mut outcome).await;
-    match outcome.failed {
-        Some((_, failed)) => Err(failed),
-        None => Ok(Synced { sent: outcome.done.len(), unchanged: outcome.unchanged }),
-    }
+    Synced { counts: Counts::of(&outcome), failed: outcome.failed.map(|(_, failed)| failed) }
 }

@@ -4,8 +4,9 @@
 //! (`exit 6`), `target/big.bin`, `src/a.txt`, and a `.podsshignore` that
 //! leaves out `*.tmp`: the run exits 6, and `target/` and `x.tmp` are not on
 //! the server (the planted defect, no default excludes, copies `target/`);
-//! a second run sends no file; after a change, one. With no `sftp-server`
-//! on this host, the test says so and passes.
+//! a second run sends no file; after a change, one. Each run's summary says
+//! so with no `-v`, before the command's output (T-472). With no
+//! `sftp-server` on this host, the test says so and passes.
 #![cfg(unix)]
 
 mod cleanup;
@@ -14,9 +15,10 @@ mod ssh_harness;
 
 use job_harness::{scratch, Far};
 
-/// What the run said of its copy, with -v: `files sent N, unchanged M`.
+/// What the run's summary said of its copy, at the default level (T-472):
+/// `N copied (BYTES), M unchanged, in S s (RATE/s)`.
 fn copied(err: &str) -> Option<&str> {
-    err.lines().find_map(|l| l.split_once(": files sent ").map(|(_, rest)| rest))
+    err.lines().filter_map(|l| l.strip_prefix("podssh: ")).find(|l| l.contains(" copied"))
 }
 
 #[test]
@@ -37,9 +39,9 @@ fn a_run_copies_what_changed_leaves_out_target_and_gives_the_status() {
     let from = proj.display().to_string();
     // run's destination is [user@]host[:DIR], as cp's: the port goes with -p.
     let port = far.port.to_string();
-    let run = || {
-        far.podssh("run", &["-v", "--from", from.as_str(), "-p", port.as_str(), "a@127.0.0.1", "--", "sh", "run.sh"])
-    };
+    // With no -v: the summary is at the default level (T-472).
+    let run =
+        || far.podssh("run", &["--from", from.as_str(), "-p", port.as_str(), "a@127.0.0.1", "--", "sh", "run.sh"]);
     let (code, out, err) = run();
     assert_eq!(code, 6, "{err}");
     assert_eq!(out, "ran\n", "the command's output, on stdout");
@@ -48,15 +50,17 @@ fn a_run_copies_what_changed_leaves_out_target_and_gives_the_status() {
     assert!(there.join(".podsshignore").is_file(), "the ignore file is the project's, and goes");
     assert!(!there.join("target").exists(), "target/ is never copied");
     assert!(!there.join("x.tmp").exists(), ".podsshignore leaves *.tmp out");
-    assert_eq!(copied(&err), Some("3, unchanged 0"), "{err}");
+    let said = copied(&err).unwrap_or_default();
+    assert!(said.starts_with("3 copied (") && !said.contains("unchanged"), "{err}");
     // As it was: nothing goes again.
     let (code, _, err) = run();
     assert_eq!(code, 6, "{err}");
-    assert_eq!(copied(&err), Some("0, unchanged 3"), "{err}");
+    assert!(copied(&err).is_some_and(|said| said.starts_with("0 copied, 3 unchanged, in ")), "{err}");
     // One file changed: it alone goes.
     std::fs::write(proj.join("src").join("a.txt"), "a, and more\n").unwrap();
     let (code, _, err) = run();
     assert_eq!(code, 6, "{err}");
-    assert_eq!(copied(&err), Some("1, unchanged 2"), "{err}");
+    let said = copied(&err).unwrap_or_default();
+    assert!(said.starts_with("1 copied (") && said.contains(", 2 unchanged, in "), "{err}");
     assert_eq!(std::fs::read_to_string(there.join("src").join("a.txt")).unwrap(), "a, and more\n");
 }

@@ -106,7 +106,8 @@ pub fn run_job(args: &JobArgs, out: &mut dyn Write, err: &mut dyn Write) -> i32 
             }
         }
     }
-    crate::cp::gauge::init(false, plans[0].options.log_level == podssh_ssh::LogLevel::Quiet);
+    // No plain line in a pipe, whose stdout and stderr are the jobs' (T-472).
+    crate::cp::gauge::init(false, plans[0].options.log_level == podssh_ssh::LogLevel::Quiet, false);
     let runtime = match tokio::runtime::Builder::new_current_thread().enable_all().build() {
         Ok(rt) => rt,
         Err(e) => {

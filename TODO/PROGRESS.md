@@ -159,7 +159,7 @@ and `CARGO_BUILD_JOBS=4`:
 
 ## Counts
 
-`TODO/INDEX.md` holds 563 entries: 113 open, 3 partial, 16 blocked, 431 done.
+`TODO/INDEX.md` holds 563 entries: 112 open, 3 partial, 16 blocked, 432 done.
 
 Open includes parked work. `cargo todo check` verifies this line.
 
@@ -228,12 +228,12 @@ and relay sweep of 2026-11-02 come first among the `none` entries, the P1 ones b
 (T-465, a test that failed once, 100 runs in a row passed since), each other one done and
 merged; `v1.0.1` went out with them on 2026-11-03. The defects of GitHub #112 to #124 (triaged
 on 2026-11-03) are done and go into `v1.1.0-beta.1`. Until podssh is stable the expensive checks wait (Q88). Their
-features and documents (T-472 to T-475, T-481 to T-487, T-508, T-510 to T-512, T-530
+features and documents (T-473, T-475, T-481 to T-487, T-508, T-510 to T-512, T-530
 to T-533, and T-534 to T-549 and T-565 to T-582, which Q74, Q75, Q77, Q78
 and Q82 filed; and of #112 to #124, T-587, T-589 to T-591 and T-594, with M10's T-595, T-592 and
 T-596, the relay role's and the roads') follow, by priority, beside M10 (Q85); Dependabot's #119
 to #123 are T-597, a `none` entry in its turn. Overnight a fork of
-policy is decided and listed below for the operator to confirm (Q86). The drafts that wait to be merged (2026-11-03; each branch also on GitHub as `draft/worktree-agent-*`): T-472 (`3560c02`, `.claude/worktrees/agent-a4ecd5658dc20f9f9`), T-595's first step (`84272a3`, `agent-ae7237865014745d9`), T-587, T-589 and T-591 (`5494bdd`, `2608b91`, `5e36feb`, `agent-a3fd99090197b1174`), T-481 and T-485 (`3b9d55d`, `1d17d43`, `agent-ac83f1d6c3e1cad56`).
+policy is decided and listed below for the operator to confirm (Q86). The drafts that wait to be merged (2026-11-03; each branch also on GitHub as `draft/worktree-agent-*`): T-595's first step (`84272a3`, `.claude/worktrees/agent-ae7237865014745d9`), T-587, T-589 and T-591 (`5494bdd`, `2608b91`, `5e36feb`, `agent-a3fd99090197b1174`), T-481 and T-485 (`3b9d55d`, `1d17d43`, `agent-ac83f1d6c3e1cad56`).
 
 **Skip** the entries that the operator holds (status
 `blocked`, Q32):

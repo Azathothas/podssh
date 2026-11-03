@@ -120,7 +120,8 @@ pub fn run_edit(args: &EditArgs, tty: Tty, err: &mut dyn Write) -> i32 {
         Err((fault, why)) => return refuse(err, fault, &why),
     };
     let log = Arc::new(Log::new(resolved.options.log_level));
-    crate::cp::gauge::init(false, resolved.options.log_level == podssh_ssh::LogLevel::Quiet);
+    // No plain line in a pipe: an edit's copies are its own (T-472).
+    crate::cp::gauge::init(false, resolved.options.log_level == podssh_ssh::LogLevel::Quiet, false);
     for note in &resolved.notes {
         log.verbose(note);
     }

@@ -1,0 +1,8 @@
+# T-472: the summary of a run of cp is said at -v alone, as the line of
+# podssh run was; the test of a run in a pipe with no -v must fail.
+ENTRY=T-472
+GROUP=cli-tests
+EXPECT='test a_run_in_a_pipe_ends_with_one_summary_line \.\.\. FAILED'
+SETUP='apk add --no-cache openssh-sftp-server >/dev/null'
+RUN='cargo test --locked -p podssh-cli --test cp_progress -- a_run_in_a_pipe_ends_with_one_summary_line'
+LIMIT=2400

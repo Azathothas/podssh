@@ -20,6 +20,7 @@ use std::sync::Mutex;
 use podssh_ssh::sftp::{FileAttributes, Limits, OpenFlags, Pipeline, Reads, Sftp, Writes, IN_FLIGHT};
 use podssh_ssh::Connection;
 
+use super::gauge::Gauge;
 use super::link::Meter;
 use super::resume::Progress;
 use super::transfer::{self, Failed, Side};
@@ -44,26 +45,35 @@ pub fn share(pipe: Pipeline, tasks: usize, relay: bool) -> Pipeline {
     Pipeline { in_flight: room.min(pipe.in_flight), ..pipe }
 }
 
-/// What the tasks share: the chunks left, the first failure, and the record.
+/// What the tasks share: the chunks left, the first failure, the record, and
+/// the file's gauge, which each task feeds (T-472).
 struct Shared<'a> {
     queue: Mutex<VecDeque<(u64, u64)>>,
     stop: Mutex<Option<Failed>>,
     progress: Mutex<&'a mut Progress>,
     size: u64,
     meter: &'a Meter,
+    bar: Mutex<Gauge>,
 }
 
 impl<'a> Shared<'a> {
     /// The chunks of `size` that `progress` does not hold yet, and the tasks
-    /// for them: as many as asked, one for each chunk at most.
-    fn new(size: u64, tasks: usize, progress: &'a mut Progress, meter: &'a Meter) -> (Shared<'a>, usize) {
+    /// for them: as many as asked, one for each chunk at most. `name` is the
+    /// source, as its progress line names it.
+    fn new(name: &str, size: u64, tasks: usize, progress: &'a mut Progress, meter: &'a Meter) -> (Shared<'a>, usize) {
         progress.begin_chunks(CHUNK);
         let todo: VecDeque<(u64, u64)> =
             plan(size, CHUNK).into_iter().filter(|(at, _)| !progress.has_chunk(*at)).collect();
         let tasks = tasks.clamp(1, MOST_TASKS).min(todo.len().max(1));
-        let shared =
-            Shared { queue: Mutex::new(todo), stop: Mutex::new(None), progress: Mutex::new(progress), size, meter };
-        (shared, tasks)
+        // The chunks that an earlier attempt brought count as done.
+        let bar = Mutex::new(Gauge::new(name, size, size - todo.iter().map(|(_, len)| len).sum::<u64>()));
+        let (queue, stop, progress) = (Mutex::new(todo), Mutex::new(None), Mutex::new(progress));
+        (Shared { queue, stop, progress, size, meter, bar }, tasks)
+    }
+
+    /// `n` more bytes of a chunk are there.
+    fn moved(&self, n: u64) {
+        self.bar.lock().unwrap().add(n);
     }
 
     /// The next chunk, while no task has failed and the relay session may
@@ -151,7 +161,7 @@ pub async fn down(
         .write(true)
         .open(temp)
         .map_err(|e| Failed::new(Fault::CantCreate, format!("{shown}: {e}")))?;
-    let (shared, tasks) = Shared::new(size, tasks, progress, meter);
+    let (shared, tasks) = Shared::new(source, size, tasks, progress, meter);
     let each = (0..tasks).map(|_| down_task(handle, source, &local, &shown, &shared, pipe));
     futures_util::future::join_all(each).await;
     shared.end()
@@ -191,6 +201,7 @@ async fn down_task(
                         break Err(Failed::new(Fault::CantCreate, format!("{shown}: {e}")));
                     }
                     pos += take as u64;
+                    shared.moved(take as u64);
                 }
                 // Shorter than its size at the start: it changed.
                 Ok(None) => break Err(transfer::changed(source)),
@@ -225,7 +236,7 @@ pub async fn up(
 ) -> Result<(), Failed> {
     let shown = source.display().to_string();
     let local = std::fs::File::open(source).map_err(|e| Failed::new(Fault::NoInput, format!("{shown}: {e}")))?;
-    let (shared, tasks) = Shared::new(size, tasks, progress, meter);
+    let (shared, tasks) = Shared::new(&shown, size, tasks, progress, meter);
     let each = (0..tasks).map(|_| up_task(handle, &local, &shown, temp, &shared, pipe));
     futures_util::future::join_all(each).await;
     shared.end()
@@ -267,6 +278,7 @@ async fn up_task(
                 break Err(transfer::from_sftp(e, Side::Destination));
             }
             pos += want as u64;
+            shared.moved(want as u64);
         };
         match copied {
             Ok(()) => shared.done(at),

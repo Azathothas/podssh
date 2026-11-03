@@ -115,16 +115,28 @@ fn a_drive_letter_is_local_on_windows_and_a_host_elsewhere() {
     }
 }
 
+/// A failure is one `error` object on stdout, and the summary of the run
+/// one `summary` object after it (T-472); in text the summary comes before
+/// the error, which stays the last line.
 #[test]
-fn jsonl_reports_a_failure_as_one_object_on_stdout() {
+fn jsonl_reports_a_failure_as_one_error_object_then_the_summary() {
     let (rc, out, err) = cp(&["--jsonl", "a", "host:b"]);
     assert_eq!(rc, 69, "{err}");
     let text = String::from_utf8(out).expect("UTF-8");
     let lines: Vec<&str> = text.lines().collect();
-    assert_eq!(lines.len(), 1, "{text}");
+    assert_eq!(lines.len(), 2, "{text}");
     let event: serde_json::Value = serde_json::from_str(lines[0]).expect("one JSON object");
     assert_eq!(event["event"], "error");
     assert_eq!(event["code"], 69);
+    let summary: serde_json::Value = serde_json::from_str(lines[1]).expect("one JSON object");
+    assert_eq!(summary["event"], "summary");
+    assert_eq!((summary["copied"].as_u64(), summary["failed"].as_u64()), (Some(0), Some(1)), "{text}");
+    assert!(!err.contains(" copied"), "the object takes the line's place: {err}");
+    let (rc, _, err) = cp(&["a", "host:b"]);
+    assert_eq!(rc, 69, "{err}");
+    let said: Vec<&str> = err.lines().collect();
+    let at = said.iter().position(|l| l.starts_with("podssh: 0 copied, 1 failed, in ")).expect(&err);
+    assert!(at + 1 < said.len(), "the error after the summary: {err}");
 }
 
 #[test]

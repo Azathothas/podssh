@@ -131,9 +131,10 @@ pub const VARIABLES: &[(&[&str], &str)] = &[
     ),
     (
         &["PODSSH_PROGRESS"],
-        "line or off: the progress line of podssh cp, mv, scp and sftp on stderr, on or off whatever \
-      stderr is. With neither, the line shows when stderr is a terminal and -q is not given; --jsonl \
-      gives progress objects instead.",
+        "line or off: the progress line of podssh cp, mv, scp, sftp and run on stderr, on or off whatever \
+      stderr is. With neither, the line shows when stderr is a terminal and -q is not given; where it is \
+      no terminal, podssh cp, mv and run write a plain line each 10 s once the run has passed 10 s, which \
+      off silences too; --jsonl gives progress objects instead.",
     ),
     (
         &["PODSSH_ZMODEM"],

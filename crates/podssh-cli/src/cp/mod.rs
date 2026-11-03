@@ -40,6 +40,7 @@ pub mod rate;
 mod report;
 pub(crate) mod resume;
 pub(crate) mod session;
+pub(crate) mod summary;
 pub(crate) mod sync;
 pub(crate) mod transfer;
 pub mod tree;
@@ -272,7 +273,9 @@ pub fn run_cp(args: &CpArgs, deadline: Option<Duration>, jsonl: bool, out: &mut 
         }
     }
     let log = Arc::new(Log::new(resolved[0].options.log_level));
-    gauge::init(jsonl, resolved[0].options.log_level == podssh_ssh::LogLevel::Quiet);
+    // scp keeps OpenSSH's output: no plain line in a pipe, and no summary.
+    let scp = verb == "scp";
+    gauge::init(jsonl, resolved[0].options.log_level == podssh_ssh::LogLevel::Quiet, !scp);
     // Before any byte moves, and before the first line of -v.
     if let Some(text) = args.moving.then(|| moving::notice(&args.paths, &plan)).flatten() {
         log.info(&text);
@@ -296,18 +299,17 @@ pub fn run_cp(args: &CpArgs, deadline: Option<Duration>, jsonl: bool, out: &mut 
         }
     };
     let after = if args.moving { After::Remove } else { After::Keep };
+    let (started, mut timed_out) = (std::time::Instant::now(), false);
     // On the heap: the copy's future is large, and Windows gives the main
     // thread 1 MiB of stack.
     let run = Box::pin(run_plan(&plan, &resolved, &log, after));
     let outcome = runtime.block_on(async {
         let run = async {
             match deadline {
-                Some(limit) => tokio::time::timeout(limit, run).await.unwrap_or_else(|_| Outcome {
-                    failed: Some((
-                        String::new(),
-                        Failed::new(Fault::TimedOut, format!("the --timeout of {} s passed", limit.as_secs())),
-                    )),
-                    ..Outcome::default()
+                Some(limit) => tokio::time::timeout(limit, run).await.unwrap_or_else(|_| {
+                    timed_out = true;
+                    let why = format!("the --timeout of {} s passed", limit.as_secs());
+                    Outcome { failed: Some((String::new(), Failed::new(Fault::TimedOut, why))), ..Outcome::default() }
                 }),
                 None => run.await,
             }
@@ -347,7 +349,10 @@ pub fn run_cp(args: &CpArgs, deadline: Option<Duration>, jsonl: bool, out: &mut 
         return 130;
     };
     runtime.shutdown_background();
-    report(&outcome, jsonl, out, &log)
+    // After the --timeout the run's records went with its future, so a
+    // summary would count nothing that it did (T-472).
+    let took = (!scp && !args.dry_run && !timed_out).then(|| started.elapsed());
+    report(&outcome, jsonl, out, &log, took)
 }
 
 /// A signal that asks the run to end: SIGINT or SIGTERM, or Ctrl-C on
