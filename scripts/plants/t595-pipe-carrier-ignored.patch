@@ -1,0 +1,11 @@
+--- a/crates/podssh-cli/src/pipe/node.rs
++++ b/crates/podssh-cli/src/pipe/node.rs
+@@ -89,7 +89,7 @@
+     };
+     // The pair first, as a pipe that cannot go makes no key of this client;
+     // a carrier has none, and its stream starts after the channel.
+-    let pair = match args.carrier.is_some() {
++    let pair = match args.carrier.as_ref().filter(|_| false).is_some() {
+         true => None,
+         false => match crate::pairs::operator_part(label, args.pair_file.as_deref()).and_then(|part| {
+             crate::pairs::online()?;

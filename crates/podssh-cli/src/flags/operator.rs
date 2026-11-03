@@ -35,6 +35,10 @@ pub const SSH_CARRIER: FlagRow = row(None, "carrier", Some("ADDR"), FlagKind::Su
 pub const PROXY_CARRIER: FlagRow = row(None, "carrier", Some("ADDR"), FlagKind::Supported,
     "node://NAME: reach the node at the other end of ADDR, a stream that exists already, with no relay and no pair, as podssh operator --carrier does: exec:CMD, a program started with no shell, or fd:N (Unix); NAME is then the label under which the node's key is pinned", None);
 
+/// `--carrier ADDR` of `pipe`'s `node:` side (T-595).
+pub const PIPE_CARRIER: FlagRow = row(None, "carrier", Some("ADDR"), FlagKind::Supported,
+    "node: and udp:node:: reach the node at the other end of ADDR, a stream that exists already, with no relay and no pair, as podssh operator --carrier does: exec:CMD, a program started with no shell, or fd:N (Unix); each client of a listening side is a session of the one stream", None);
+
 /// `--ConnectTimeout` of `operator` (T-589).
 pub const OPERATOR_CONNECT_TIMEOUT: FlagRow = row(None, "ConnectTimeout", Some("SECONDS"), FlagKind::Supported,
     "the bound on the time to the session's open, 1 to 86400: the relay's answer, the node's ready, and the handshakes of the layer and of the channel, each within its own limit too; past it one line names the step that waited, and the exit is 69; never the bytes after the open", None);

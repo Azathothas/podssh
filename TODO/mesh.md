@@ -6224,7 +6224,8 @@ each says that it did not run where this host has no OpenSSH). Planted: `t595-ca
 (the end-to-end channel skipped on a carrier with no `--no-e2e`): the test of the pin fails; and
 `t595-ssh-carrier-skipped` (`ssh --carrier` sent to the pair's road): the test of the node that
 `ssh` starts and closes fails; `t595-proxy-carrier-dropped` (`proxy node://` given no carrier): the
-test of `proxy --carrier` fails.
+test of `proxy --carrier` fails; `t595-pipe-carrier-ignored` (`pipe`'s node side on the pair's
+road beside `--carrier`): the test of `pipe - node:box --carrier` fails.
 
 ## Correction
 
@@ -6425,10 +6426,43 @@ Measured: UNVERIFIED (`cargo test -p podssh-cli --test node_carrier`, 12 tests; 
 proxy_node`; `--test proxy --test operator --test man_flag_parity --test man_page`; clippy; the
 plants `t595-proxy-carrier-dropped` and `t595-carrier-no-channel`, caught).
 
-What remains, the next steps of this entry:
+What remained after it:
 
 1. `pipe`'s `node:` side with `--carrier`.
 2. The exit over a carrier is T-596, which lifts the refusal of `--exit` here.
+
+2026-11-03, drafted (`DRAFT T-595: pipe's node: side on a carrier`), step 1 of the list above, the
+last step of the Approach that is this entry's: each client of a node takes the carrier now.
+UNVERIFIED: no build or test ran. The entry stays `partial` for the main session, which runs the
+three drafts and closes it.
+
+What changed:
+
+- `crates/podssh-cli/src/pipe/node.rs`: `Legs`, the relay of a pair or the shared client of a
+  carrier, each with the config of its legs and the words of a first leg's refusal; `open` takes
+  the carrier's legs when `--carrier` is given (the stream starts after the channel, the pair is
+  not read); `Session` judges a carrier's end in its words. `udp:node:` comes through `open` too.
+- `crates/podssh-cli/src/pipe/remote.rs`: `carrier`, the checks of `--carrier` (stdio, no node
+  side, `--pair-file`: 64), from `settings`; the first step of `--ConnectTimeout` names the
+  carrier's node.
+- `crates/podssh-cli/src/flags/operator.rs`: `PIPE_CARRIER`, in `pipe`'s table
+  (`crates/podssh-cli/src/flags/pipe.rs`), by `ssh`'s id, which `SshArgs` reads.
+- `crates/podssh-cli/src/man/notes_pipe.rs`: a note of `--carrier`, with a listening side for the
+  node's sshd.
+- `crates/podssh-cli/tests/node_carrier.rs`: 2 tests (an echo server's 1 MiB through `pipe -
+  node:box --carrier ...`, 0, and the node's Close; two clients of a listening `pipe` on one node,
+  started once, each one's bytes back whole); the refusals of `pipe --carrier` (stdio, no node
+  side, `--pair-file`), 64.
+- `scripts/plants/t595-pipe-carrier-ignored.patch` and `.plant`: `pipe`'s node side on the pair's
+  road beside `--carrier`, which the test of `pipe - node:box --carrier` must catch.
+- `docs/cli.md`, `docs/mesh.md`, `docs/reverse.md` and `docs/STATUS.md`.
+
+Measured: UNVERIFIED (`cargo test -p podssh-cli --test node_carrier`, 14 tests; `--test pipe
+--test pipe_remote --test pipe_udp --test pipe_listen --test man_flag_parity`; `--lib pipe`;
+clippy; the plant `t595-pipe-carrier-ignored`, caught).
+
+What remains: the exit over a carrier is T-596, which lifts the refusal of `--exit` here; the
+operator's answer to Q86 on the calls of the Decision.
 
 # T-596: The exit over a carrier: a host that grants an exec channel alone gets egress through its other end
 

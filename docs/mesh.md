@@ -272,9 +272,9 @@ whose every road out is closed, carries the node's socket of the reverse
 road, and the client's end serves the relay role's side of that socket in
 its own process, for that one node (`podssh node --carrier ADDR`, `podssh
 operator --carrier ADDR`, `podssh proxy --carrier ADDR node://NAME`,
-`podssh ssh --carrier ADDR node://NAME` and the copies to `node://NAME` with
-it, each connection of a command a leg of the one stream; [cli.md](cli.md)).
-The stream is the door, the
+`podssh ssh --carrier ADDR node://NAME`, the copies to `node://NAME` and
+`pipe`'s `node:` side with it, each connection of a command a leg of the one
+stream; [cli.md](cli.md)). The stream is the door, the
 end-to-end channel pins the node's key under its label, and no protocol is
 new. The exit over such a stream, for egress through the channel's other
 end, is T-596.

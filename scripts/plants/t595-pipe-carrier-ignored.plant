@@ -1,0 +1,7 @@
+# T-595: pipe's node: side on the pair's road beside --carrier, so that the
+# carrier is read and its node never starts; the test of pipe - node:box
+# --carrier must fail.
+ENTRY=T-595
+GROUP=cli-tests
+EXPECT='test pipe_s_node_side_reaches_the_node_at_the_other_end_of_a_carrier \.\.\. FAILED'
+RUN='cargo test --locked -p podssh-cli --test node_carrier -- pipe_s_node_side_reaches_the_node_at_the_other_end_of_a_carrier'

@@ -50,4 +50,6 @@ pub const PIPE_FLAGS: &[FlagRow] = &[
     // The bound on the open of a node: or relay: side (T-589), whose id is
     // ssh's, so that each hop of ssh: takes it as its ConnectTimeout too.
     super::operator::PIPE_CONNECT_TIMEOUT,
+    // A node: side at the other end of a stream (T-595), by ssh's id.
+    super::operator::PIPE_CARRIER,
 ];

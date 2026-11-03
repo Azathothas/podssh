@@ -184,10 +184,11 @@ fn a_terminal_on_the_node_s_stdin_is_refused_with_64() {
     assert!(pty.text().contains("stdin is a terminal"), "{}", pty.text());
 }
 
-/// OpenSSH at both ends: its client, with `podssh operator --carrier` as its
-/// ProxyCommand, logs in to its sshd behind the node on the carrier, as the
-/// tester's agent wanted it (GitHub #124). Unix's: OpenSSH for Windows takes
-/// no command line of a shell for a ProxyCommand.
+/// OpenSSH at both ends: its client, with `podssh operator --carrier`, then
+/// `podssh proxy --carrier ... node://box`, as its ProxyCommand, logs in to
+/// its sshd behind the node on the carrier, as the tester's agent wanted it
+/// (GitHub #124). Unix's: OpenSSH for Windows takes no command line of a
+/// shell for a ProxyCommand.
 #[cfg(unix)]
 #[test]
 fn openssh_logs_in_to_its_sshd_through_a_node_on_a_carrier() {
@@ -256,6 +257,81 @@ fn proxy_reaches_the_node_at_the_other_end_of_a_program_s_stdio() {
     assert!(err.contains("podssh node: box: the carrier's client ended the stream"), "the node's end, 0: {err}");
 }
 
+/// `pipe`'s node: side on a carrier: an echo server's bytes come back whole,
+/// as through `operator --carrier`, and the node hears the Close at the end.
+#[test]
+fn pipe_s_node_side_reaches_the_node_at_the_other_end_of_a_carrier() {
+    let home = scratch("carrier-pipe");
+    let _scratch = Scratch(home.clone());
+    let carrier = node_exec(&format!("127.0.0.1:{}", echo_server()), "");
+    let sent = pattern(1 << 20);
+    let pipe = podssh(&home, &["pipe", "-", "node:box", "--carrier", &carrier]);
+    let (code, out, err) = run_with(pipe, sent.clone(), LIMIT);
+    assert_eq!(code, Some(0), "{err}");
+    assert_eq!(out.len(), sent.len(), "{err}");
+    assert!(out == sent, "the bytes came back changed: {err}");
+    assert!(err.contains("podssh node: box: the carrier's client ended the stream"), "the node's end, 0: {err}");
+}
+
+/// A run that is ended however its test ends.
+struct Running(std::process::Child);
+
+impl Drop for Running {
+    fn drop(&mut self) {
+        let _ = self.0.kill();
+        let _ = self.0.wait();
+    }
+}
+
+/// A listening side on a carrier: each client is a session of its own on
+/// the one stream, so one node, started once, serves both, each client's
+/// bytes back whole.
+#[test]
+fn each_client_of_a_listening_pipe_is_a_session_of_the_one_stream() {
+    let home = scratch("carrier-listen");
+    let _scratch = Scratch(home.clone());
+    let carrier = node_exec(&format!("127.0.0.1:{}", echo_server()), "");
+    let args = ["pipe", "tcp-listen:127.0.0.1:0", "node:box", "--carrier", carrier.as_str(), "--keep-listening"];
+    let mut cmd = podssh(&home, &args);
+    let child = cmd.stdin(Stdio::null()).stdout(Stdio::null()).stderr(Stdio::piped()).spawn().expect("it runs");
+    let mut pipe = Running(child);
+    let lines = live_harness::lines_of(&mut pipe.0);
+    let mut said = Vec::new();
+    let at = loop {
+        let line = lines.recv_timeout(LIMIT).unwrap_or_else(|_| panic!("no line of where it listens: {said:#?}"));
+        said.push(line.clone());
+        if let Some(rest) = line.split("listening on ").nth(1) {
+            break rest.split(": ").next().unwrap_or_default().to_string();
+        }
+    };
+    for len in [64 * 1024, 256 * 1024] {
+        let sent = pattern(len);
+        let stream = std::net::TcpStream::connect(&at).expect("the pipe takes a client");
+        stream.set_read_timeout(Some(LIMIT)).unwrap();
+        let mut reader = stream.try_clone().unwrap();
+        let to_send = sent.clone();
+        let writing = std::thread::spawn(move || {
+            let mut stream = stream;
+            let _ = stream.write_all(&to_send);
+            stream
+        });
+        let mut got = vec![0u8; len];
+        if let Err(e) = reader.read_exact(&mut got) {
+            panic!("the client of {len} bytes: {e}: {said:#?}");
+        }
+        assert!(got == sent, "the client of {len} bytes: the bytes came back changed");
+        // The client goes, and its session with it.
+        drop(writing.join());
+        drop(reader);
+    }
+    drop(pipe);
+    while let Ok(line) = lines.recv_timeout(Duration::from_secs(2)) {
+        said.push(line);
+    }
+    let online = said.iter().filter(|line| line.contains("podssh node: box: online")).count();
+    assert_eq!(online, 1, "one node, on the one stream, for both clients: {said:#?}");
+}
+
 /// `--ConnectTimeout` bounds the open on a carrier too: a program that never
 /// starts a node is said at the bound, with 69, as a node out of reach.
 #[cfg(unix)]
@@ -292,7 +368,7 @@ fn podssh_ssh_starts_the_node_of_its_carrier_and_closes_it_at_the_end() {
     let home = scratch("carrier-ssh-start");
     let _scratch = Scratch(home.clone());
     let carrier = node_exec(&format!("127.0.0.1:{}", closing_server()), "");
-    let args = ["ssh", "-o", "BatchMode=yes", "--carrier", carrier.as_str(), "node://box", "true"];
+    let args = ["ssh", "-o", "BatchMode=yes", "--carrier", carrier.as_str(), "node://tester@box", "true"];
     let (code, out, err) = run_with(podssh(&home, &args), Vec::new(), LIMIT);
     assert_eq!(code, Some(255), "{err}");
     assert!(out.is_empty(), "{out:?}");
@@ -398,15 +474,18 @@ fn a_client_s_carrier_takes_no_other_road_and_reaches_a_node_alone() {
     let a = home.join("a");
     std::fs::write(&a, b"a").unwrap();
     let a = a.display().to_string();
-    let refused: [&[&str]; 8] = [
-        &["ssh", "--carrier", "stdio", "node://box", "true"],
-        &["ssh", "--carrier", "exec:cat", "--pair-file", "x", "node://box", "true"],
-        &["ssh", "--carrier", "exec:cat", "--direct", "node://box", "true"],
-        &["ssh", "--carrier", "exec:cat", "--derp-ticket", "x", "node://box", "true"],
-        &["ssh", "--carrier", "exec:cat", "example.org", "true"],
-        &["ssh", "--carrier", "exec:cat", "--exit", "gw", "example.org", "true"],
-        &["cp", "--carrier", "exec:cat", "--relay-host", "relay.example", a.as_str(), "node://box:x"],
-        &["scp", "--carrier", "tcp:127.0.0.1:1", a.as_str(), "node://box:x"],
+    let refused: [&[&str]; 11] = [
+        &["pipe", "-", "node:box", "--carrier", "stdio"],
+        &["pipe", "-", "tcp:127.0.0.1:1", "--carrier", "exec:cat"],
+        &["pipe", "-", "node:box", "--carrier", "exec:cat", "--pair-file", "x"],
+        &["ssh", "--carrier", "stdio", "node://tester@box", "true"],
+        &["ssh", "--carrier", "exec:cat", "--pair-file", "x", "node://tester@box", "true"],
+        &["ssh", "--carrier", "exec:cat", "--direct", "node://tester@box", "true"],
+        &["ssh", "--carrier", "exec:cat", "--derp-server", "derp.example", "node://tester@box", "true"],
+        &["ssh", "--carrier", "exec:cat", "tester@example.org", "true"],
+        &["ssh", "--carrier", "exec:cat", "--exit", "gw", "tester@example.org", "true"],
+        &["cp", "--carrier", "exec:cat", "--relay-host", "relay.example", a.as_str(), "node://tester@box:x"],
+        &["scp", "--carrier", "tcp:127.0.0.1:1", a.as_str(), "node://tester@box:x"],
     ];
     for args in refused {
         let (code, out, err) = run_with(podssh(&home, args), Vec::new(), LIMIT);

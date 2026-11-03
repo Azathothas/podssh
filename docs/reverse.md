@@ -380,9 +380,10 @@ node's socket on such a stream, with no relay, no pair and no token
 5. The relay's limits do not hold: no cap of 64 MiB a session, and no
    expiry of a pair. The role's bound of 1 MiB for a slow receiver does, and
    the layer keeps its window below it.
-6. Each client of a node takes the carrier: `operator`, and `proxy`, `ssh`,
-   `cp`, `mv`, `scp` and `sftp` to `node://NAME`. One command serves one
-   role, and each of its connections is a leg of its own on the one stream,
-   which ends with the command: the node hears the Close, and the program of
-   `exec:` ends. `--ConnectTimeout` of `operator` and `proxy` bounds the
-   open, the node's read of the stream first.
+6. Each client of a node takes the carrier: `operator`, `proxy`, `ssh`,
+   `cp`, `mv`, `scp` and `sftp` to `node://NAME`, and `pipe`'s `node:` and
+   `udp:node:` sides. One command serves one role, and each of its
+   connections, and each client of a listening `pipe`, is a leg of its own
+   on the one stream, which ends with the command: the node hears the Close,
+   and the program of `exec:` ends. `--ConnectTimeout` of `operator`,
+   `proxy` and `pipe` bounds the open, the node's read of the stream first.

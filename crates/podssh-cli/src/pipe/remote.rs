@@ -53,6 +53,7 @@ pub fn settings(args: &PipeArgs, addresses: [&Address; 2]) -> Result<Settings, R
     if args.ssh.exit.is_some() && !addresses.iter().any(relay) {
         return Err(Refusal::usage("--exit NAME starts relay:HOST:PORT and relay:%h:%p at the exit: name one of them"));
     }
+    carrier(args, addresses)?;
     let relays = if addresses.iter().any(relay) {
         Some(crate::relay_settings::relays(args.ssh.relay_host.as_deref(), std::env::var(relay::RELAY_ENV).ok())?)
     } else {
@@ -77,6 +78,23 @@ pub fn settings(args: &PipeArgs, addresses: [&Address; 2]) -> Result<Settings, R
         false => None,
     };
     Ok(Settings { relays, failover, trust, ssh: args.ssh.clone(), via })
+}
+
+/// `--carrier ADDR` (T-595): the road of a `node:` or `udp:node:` side, with
+/// no pair; stdio is refused, as the pipe's own stdin and stdout are a side
+/// or none (64). The other sides keep their roads and their flags.
+fn carrier(args: &PipeArgs, addresses: [&Address; 2]) -> Result<(), Refusal> {
+    let Some(text) = args.ssh.carrier.as_deref() else { return Ok(()) };
+    crate::carrier::for_a_client(text, "stdin and stdout are the pipe's own here")?;
+    if !addresses.iter().any(|a| matches!(a, Address::Node(_) | Address::UdpNode(_))) {
+        return Err(Refusal::usage(format!(
+            "--carrier {text} is the road of a node: or udp:node: side, the node at the other end of the stream: name one"
+        )));
+    }
+    if args.ssh.pair_file.is_some() {
+        return Err(Refusal::usage("--pair-file is for a relay and its pair, and --carrier has neither"));
+    }
+    Ok(())
 }
 
 /// Open a remote end: the end, or the exit code once its lines are written.
@@ -110,7 +128,11 @@ pub async fn open(address: &Address, settings: &Settings, err: &mut dyn Write) -
             super::ssh::open(hops, host, *port, &settings.ssh, &mut say).await
         }
         Address::Node(label) => {
-            crate::connect_bound::step(format!("node:{label}: the relay did not answer"));
+            let first = match settings.ssh.carrier {
+                Some(_) => "the carrier's node did not read the stream",
+                None => "the relay did not answer",
+            };
+            crate::connect_bound::step(format!("node:{label}: {first}"));
             super::node::open(label, &settings.ssh, &mut say).await
         }
         Address::UdpNode(label) => super::datagram::open_node(label, &settings.ssh, &mut say).await,
