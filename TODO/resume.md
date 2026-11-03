@@ -3445,6 +3445,45 @@ Read while drafting, 2026-11-03:
   signals by hand (their SETUP is the build image's `apk`): each caught, `reverse_layered`'s first
   test, the operator's test and the OpenSSH test failing.
 
+# T-612: A client of a node can turn the resumable layer off: `--no-resume`
+
+**Source:** the operator's ruling Q90 (2026-11-03) on T-586's call that the layer has no way off
+("Add --no-resume").
+**Category:** feature
+**Milestone:** M10
+**Priority:** P2
+**Effort:** S
+**Status:** open
+
+## Problem
+
+A client of a node always opens a resumable session, so the node holds it after its link goes, and
+the node's budget counts it until its deadline; a user who wants a session to end with its link has
+no way to say so.
+
+## Premise
+
+- Read: T-586's `## Decision`: no `--resume-deadline 0`, no `--no-resume`, no eviction of a waiting
+  session (`TODO/resume.md`, T-586).
+
+## Approach
+
+1. `--no-resume` on `ssh`, `cp`, `mv`, `scp`, `sftp`, `proxy`, `pipe` and `operator` to a node: the
+   client asks for a session that the node ends with its link, which the layer's handshake says,
+   so the node charges it nothing after its link goes; an old node that knows no such ask holds it
+   as before, and the client says so at `-v`.
+2. The flag rows, the manual's notes and `docs/cli.md`.
+
+## Prove
+
+```sh
+cargo test -p podssh-relay --test session_newest
+cargo test -p podssh-cli --test operator
+```
+
+With `--no-resume`, the node's budget is free at once after the client's link goes; without it, the
+session waits its deadline; planted, the ask dropped: the test fails.
+
 # T-600: A resume that comes before the first link's task carries its session ends the session, as while a node opens its target
 
 **Source:** the session of 2026-11-03: `cargo test -p podssh-relay --test session_newest` failed

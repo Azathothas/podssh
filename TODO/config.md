@@ -680,7 +680,7 @@ go through one function since T-231 (`crates/podssh-cli/src/relay_settings.rs:65
 (`crates/podssh-cli/src/pins.rs:15-34`). The token cache uses the user's
 cache directory first, after the directory of `PODSSH_CACHE_DIR` (T-243;
 `crates/podssh-relay/src/cache/dirs.rs:145-241`). The decision named the
-configuration directory first; the operator corrected it on 2026-10-08 (`docs/decisions.md:93`, T-243).
+configuration directory first; the operator corrected it on 2026-10-08 (`docs/decisions.md:95`, T-243).
 
 ## Approach
 
@@ -1428,6 +1428,8 @@ The operator: a real export of FinalShell and of Termius, written by each
 program, under a license that this repository can hold (Q41).
 The operator ruled on 2026-10-31 that this is a known gap: `v1.0.0` does
 not wait for it, and its notes name it (`docs/decisions.md`).
+The hold ended on 2026-11-03 (Q92, `docs/decisions.md`): the entry waits for this input
+alone, and takes its place in the work order once the operator gives it.
 
 # T-502: `-o ProxyCommand=none` does not beat a file's `ProxyCommand`, and the first `ProxyCommand` of a file does not hold
 

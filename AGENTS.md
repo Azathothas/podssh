@@ -258,7 +258,11 @@ own host (Q58). Since 2026-11-01: the public Tor network, with short runs
 host (Q60). Since 2026-11-02, with short runs, from GitHub Actions and the
 session's own host: Tailscale's main DERP fleet, to learn whether it lets
 podssh in (Q74); the public Wisp servers that their operators run for that
-use (Q75); and OpenTunnel, `opentunnel.xyz` (Q76). Use throwaway keys, and
+use (Q75); and OpenTunnel, `opentunnel.xyz` (Q76). Since 2026-11-03 (Q91), with
+short runs: the operator's SSH host of `PODSSH_THROUGHPUT_SSH` for three minutes
+with nothing sent (T-463); the services of Q77 and Q78 (T-548); one onion service
+on the public Tor network (T-578); and OpenTunnel each week from GitHub Actions
+(T-531). Use throwaway keys, and
 delete them after the test. Keep keys and scratch files in `.work/`, which
 git ignores, or outside the repository. Never print the claim URL of
 railway.new.

@@ -12,7 +12,7 @@ shell that T-108 runs.
 **Milestone:** M5
 **Priority:** P2
 **Effort:** M
-**Status:** blocked
+**Status:** open
 
 ## Problem
 
@@ -82,10 +82,10 @@ with an authorized key, and gets `Permission denied (publickey)` with
 another; a restart keeps the host key. A planted `auth_publickey` that
 accepts each key fails. With no key, the static binary (`$BIN`) exits 78.
 
-## Blocker
+## Correction
 
-The operator: on hold since 2026-10-09 (`docs/decisions.md`, "Entries on
-hold"). A session skips this entry until the operator lifts the hold.
+2026-11-03. The blocker cleared: the operator released the hold (Q92, `docs/decisions.md`);
+the entry joins the work order by its priority.
 
 # T-108: `podssh serve`: exec, a shell and the environment, as the sandbox's user
 
@@ -95,7 +95,7 @@ hold"). A session skips this entry until the operator lifts the hold.
 **Milestone:** M5
 **Priority:** P2
 **Effort:** M
-**Status:** blocked
+**Status:** open
 
 ## Problem
 
@@ -161,10 +161,10 @@ up and back with one digest; `SetEnv LANG=C.UTF-8` arrives, `SetEnv LD_PRELOAD=x
 does not. With `PODSSH_RELAY_TOKEN` set for serve, the child's `env` lacks
 it; a planted serve that passes its whole environment fails that check.
 
-## Blocker
+## Correction
 
-The operator: on hold since 2026-10-09 (`docs/decisions.md`, "Entries on
-hold"). A session skips this entry until the operator lifts the hold.
+2026-11-03. The blocker cleared: the operator released the hold (Q92, `docs/decisions.md`);
+the entry joins the work order by its priority.
 
 # T-109: `podssh serve`: direct-tcpip into the cage
 
@@ -173,7 +173,7 @@ hold"). A session skips this entry until the operator lifts the hold.
 **Milestone:** M5
 **Priority:** P2
 **Effort:** S
-**Status:** blocked
+**Status:** open
 
 ## Problem
 
@@ -231,10 +231,10 @@ gives OpenSSH a `Host serve` block whose `ProxyCommand` runs
 sshd; `ssh -W 127.0.0.1:1 serve` exits 255 and shows "Connection refused". A
 planted rejection with no reason fails that last check.
 
-## Blocker
+## Correction
 
-The operator: on hold since 2026-10-09 (`docs/decisions.md`, "Entries on
-hold"). A session skips this entry until the operator lifts the hold.
+2026-11-03. The blocker cleared: the operator released the hold (Q92, `docs/decisions.md`);
+the entry joins the work order by its priority.
 
 # T-110: `podssh serve`: a real pty when `/dev/ptmx` exists
 
@@ -244,7 +244,7 @@ hold"). A session skips this entry until the operator lifts the hold.
 **Milestone:** M5
 **Priority:** P2
 **Effort:** M
-**Status:** blocked
+**Status:** open
 
 ## Problem
 
@@ -306,20 +306,20 @@ a real pty and reads them back. In the gate, the pty driver
 status and `~.`. The `-tt` cases of `scripts/interop.sh:424-452` run against
 serve too. A planted serve that skips `TIOCSWINSZ` fails the size check.
 
-## Blocker
+## Correction
 
-The operator: on hold since 2026-10-09 (`docs/decisions.md`, "Entries on
-hold"). A session skips this entry until the operator lifts the hold.
+2026-11-03. The blocker cleared: the operator released the hold (Q92, `docs/decisions.md`);
+the entry joins the work order by its priority.
 
 # T-111: `podssh serve` with no `/dev/ptmx`: the line discipline, and Ctrl-C to the child's process group
 
 **Source:** `docs/ROADMAP.md:186-191`, `docs/design.md:624-628`,
-`docs/decisions.md:91`; GitHub #20 (fux line-discipline notes).
+`docs/decisions.md:93`; GitHub #20 (fux line-discipline notes).
 **Category:** feature
 **Milestone:** M5
 **Priority:** P2
 **Effort:** L
-**Status:** blocked
+**Status:** open
 
 ## Problem
 
@@ -384,11 +384,6 @@ LF. The gate runs the same through OpenSSH's `ssh -tt`, in the shape of
 `podman exec -i` from OpenSSH on the host. A planted serve that signals the
 shell's pid and not its group fails the 15 s check.
 
-## Blocker
-
-The operator: on hold since 2026-10-09 (`docs/decisions.md`, "Entries on
-hold"). A session skips this entry until the operator lifts the hold.
-
 ## Correction
 
 2026-10-09 (T-129): the crate now writes the child's output in the cooked
@@ -399,6 +394,8 @@ longer holds, and step 4 is the crate's: serve passes the child's output to
 goes that way, the child's stderr and the line of step 5 included, or the
 discipline's count of the screen is wrong.
 
+2026-11-03. The blocker cleared: the operator released the hold (Q92, `docs/decisions.md`);
+the entry joins the work order by its priority.
 # T-112: An SFTP server in `podssh serve`
 
 **Source:** `docs/ROADMAP.md:192`, `docs/design.md:629-633`; GitHub #20
@@ -407,7 +404,7 @@ discipline's count of the screen is wrong.
 **Milestone:** M5
 **Priority:** P2
 **Effort:** M
-**Status:** blocked
+**Status:** open
 
 ## Problem
 
@@ -463,10 +460,10 @@ limit. In the gate, scripts/interop-serve.sh runs OpenSSH's `sftp -b` through
 digests, then mkdir, rename, rm and ls; `scp` up and down with equal digests.
 A planted write handler that drops the last byte fails the digest check.
 
-## Blocker
+## Correction
 
-The operator: on hold since 2026-10-09 (`docs/decisions.md`, "Entries on
-hold"). A session skips this entry until the operator lifts the hold.
+2026-11-03. The blocker cleared: the operator released the hold (Q92, `docs/decisions.md`);
+the entry joins the work order by its priority.
 
 # T-113: M5 exit: a usable shell and 200 MiB each way from a sealed sandbox
 
@@ -475,7 +472,7 @@ hold"). A session skips this entry until the operator lifts the hold.
 **Milestone:** M5
 **Priority:** P2
 **Effort:** M
-**Status:** blocked
+**Status:** open
 
 ## Problem
 
@@ -491,7 +488,7 @@ out with matching digests.
 - Read: `vi`, `less` and `top` need a real pty (`docs/terminal.md:251-255`).
   The measured sandboxes have no `/dev/ptmx` (`docs/target-environment.md:26`,
   `docs/STATUS.md:378`). With no pty device, no podssh code can give the child
-  a tty: shims are excluded (`docs/decisions.md:90`).
+  a tty: shims are excluded (`docs/decisions.md:92`).
 - Read: one relay session carries 64 MiB, both directions together
   (`docs/relay.md:315`; measured: `docs/STATUS.md:386`). 200 MiB each way
   needs the new sessions of T-137.
@@ -533,18 +530,15 @@ session that continues, and two 200 MiB copies with equal digests. The grep
 shows the rows recorded for the box and for the real sandbox, with their
 dates.
 
-## Blocker
-
-The operator: on hold since 2026-10-09 (`docs/decisions.md`, "Entries on
-hold"). A session skips this entry until the operator lifts the hold.
-
 ## Correction
 
 The premise that no podssh code can give the child a tty where `/dev/ptmx` is
 missing is too strong. The operator allows two routes, each after a probe at
 run time (Q11, 2026-10-08), and T-248 studies them. The ban on `LD_PRELOAD`
-stays (`docs/decisions.md:90`).
+stays (`docs/decisions.md:92`).
 
+2026-11-03. The blocker cleared: the operator released the hold (Q92, `docs/decisions.md`);
+the entry joins the work order by its priority.
 # T-114: `podssh serve`: access rules for each key and command
 
 **Source:** GitHub #21 (agent-ssh-cli: command allow and deny lists);
@@ -754,7 +748,7 @@ lifecycle); GitHub #22 (Petyok/SSHub: hot reload).
 **Milestone:** M5
 **Priority:** P2
 **Effort:** S
-**Status:** blocked
+**Status:** open
 
 ## Problem
 
@@ -800,10 +794,10 @@ serve ends the client within 5 s with the reason, and `pgrep -f 'sleep 100'`
 then finds nothing. A planted stop with no SIGHUP to the group fails that
 last check.
 
-## Blocker
+## Correction
 
-The operator: on hold since 2026-10-09 (`docs/decisions.md`, "Entries on
-hold"). A session skips this entry until the operator lifts the hold.
+2026-11-03. The blocker cleared: the operator released the hold (Q92, `docs/decisions.md`);
+the entry joins the work order by its priority.
 
 # T-118: `podssh serve`: a slow client cannot stall a pty or fill the memory
 
@@ -813,7 +807,7 @@ queue; detach on a failed write).
 **Milestone:** M5
 **Priority:** P2
 **Effort:** S
-**Status:** blocked
+**Status:** open
 
 ## Problem
 
@@ -873,10 +867,10 @@ continues. In the gate, OpenSSH's client runs `yes` through
 holds, and a killed client ends `yes` within 5 s. A planted `Session::data`
 loop fails the memory bound.
 
-## Blocker
+## Correction
 
-The operator: on hold since 2026-10-09 (`docs/decisions.md`, "Entries on
-hold"). A session skips this entry until the operator lifts the hold.
+2026-11-03. The blocker cleared: the operator released the hold (Q92, `docs/decisions.md`);
+the entry joins the work order by its priority.
 
 # T-119: `podssh serve`: the MOTD and `~/.hushlogin`
 
@@ -1011,7 +1005,7 @@ with no privileges needs a way that the host allows, found by a probe.
 ## Premise
 
 - Read: podssh never assumes a tool or a privilege; it starts a program only
-  when a probe found it (`AGENTS.md:270-289`).
+  when a probe found it (`AGENTS.md:274-293`).
 - Read: a credential never goes on argv or into output (`AGENTS.md:229-234`).
   The command line of a unit file is argv, so it must hold no token.
 - Read in the reports of GitHub #20 and #18, not verified here: tty7, zuko
@@ -1147,7 +1141,7 @@ own scope; serve does nothing like it.
 ## Premise
 
 - Read: podssh must not assume systemd, and starts a program only when a probe
-  found it (`AGENTS.md:270-289`, `docs/target-environment.md:116-118`).
+  found it (`AGENTS.md:274-293`, `docs/target-environment.md:116-118`).
 - Read: T-110 and T-111 start each child with `setsid`, in serve's cgroup.
 - Read in the report of GitHub #19, not verified here: ssh-obi moves its pty
   children into a transient scope when systemd is there, and works without
@@ -1275,7 +1269,7 @@ a VM with no sshd, or on a network that lets only port 443 in. Without
   when the user asks for it and a probe at run time allows the bind. The
   default is loopback and AF_UNIX; the user can set the address and can turn
   listening off. The rules still say that podssh never listens
-  (`AGENTS.md:272-278`, `docs/architecture.md:208-223`).
+  (`AGENTS.md:276-282`, `docs/architecture.md:208-223`).
 - Read: russh has the listener: `Server::run_on_socket` and `run_on_address`
   (`Eugeny/russh:russh/src/server/mod.rs`, lines 900-1010 at `22c3b88`). doctor binds a
   TCP and an AF_UNIX socket to test the host, listens once on each, and closes them at once
@@ -1301,7 +1295,7 @@ a VM with no sshd, or on a network that lets only port 443 in. Without
 5. Later step: SSH and TLS on one port. Read the first bytes: `SSH-2.0-` goes
    to SSH; a TLS ClientHello (0x16) is refused.
 6. Same commit: the flags, the manual, `docs/cli.md`, and the rules in
-   `AGENTS.md:272-278` and `docs/architecture.md:208-223`, which then name this
+   `AGENTS.md:276-282` and `docs/architecture.md:208-223`, which then name this
    exception and the ruling.
 
 ## Prove
@@ -1332,7 +1326,7 @@ of 2026-10-08 (code at `3ee70dc`).
 **Milestone:** M5
 **Priority:** P2
 **Effort:** S
-**Status:** blocked
+**Status:** open
 
 ## Problem
 
@@ -1402,10 +1396,10 @@ good shell wins. A planted `exists()` test fails the directory case. In the
 gate, a copy of `/bin/sh` in `/dev/shm` (noexec: `docs/STATUS.md:340`) is
 refused as `--shell`. The static binary (`$BIN`) refuses a missing named shell.
 
-## Blocker
+## Correction
 
-The operator: on hold since 2026-10-09 (`docs/decisions.md`, "Entries on
-hold"). A session skips this entry until the operator lifts the hold.
+2026-11-03. The blocker cleared: the operator released the hold (Q92, `docs/decisions.md`);
+the entry joins the work order by its priority.
 
 # T-248: A tty for `podssh serve` where `/dev/ptmx` is missing: a new devpts instance, or a tty in user space
 
@@ -1418,7 +1412,7 @@ library cannot give a child a tty.
 **Milestone:** M5
 **Priority:** P2
 **Effort:** M
-**Status:** blocked
+**Status:** open
 
 ## Problem
 
@@ -1497,10 +1491,10 @@ The test in the box runs `vi`, `less` and `top` through `podssh serve
 answer `TCGETS` with an error; `test -t 0` in the child then fails, and the
 test fails.
 
-## Blocker
+## Correction
 
-The operator: on hold since 2026-10-09 (`docs/decisions.md`, "Entries on
-hold"). A session skips this entry until the operator lifts the hold.
+2026-11-03. The blocker cleared: the operator released the hold (Q92, `docs/decisions.md`);
+the entry joins the work order by its priority.
 
 # T-393: `--install` that always restarts: systemd without a start limit, a cron watchdog, a LaunchAgent; and `ssh -N -R --persist`
 

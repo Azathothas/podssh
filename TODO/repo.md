@@ -1140,7 +1140,7 @@ test in a box replica.
 **Milestone:** none
 **Priority:** P2
 **Effort:** M
-**Status:** blocked
+**Status:** open
 
 ## Problem
 
@@ -1209,11 +1209,6 @@ Planted defect: run the job by hand with the seccomp option removed (an input
 of `workflow_dispatch`); the probe must exit 1, as in `docs/STATUS.md:358`,
 and the job must fail.
 
-## Blocker
-
-The operator: on hold since 2026-10-09 (`docs/decisions.md`, "Entries on
-hold"). A session skips this entry until the operator lifts the hold.
-
 ## Correction
 
 2026-10-08, counted in the probe of `HEAD` and in the log of the box: the
@@ -1225,6 +1220,8 @@ step "a prompt with nobody to answer it" fails the run of
 tty needs Python 3 and `setsid` on the Podman host (`scripts/box/deadtty.py`),
 so the job of this entry must have both; nobody measured a runner for them.
 
+2026-11-03. The blocker cleared: the operator released the hold (Q92, `docs/decisions.md`);
+the entry joins the work order by its priority.
 # T-214: CI on Windows
 
 **Source:** the triage of GitHub #27 (2026-10-08). Windows is a released
@@ -2434,7 +2431,7 @@ measurement of sandbox A (T-001); the operator's ruling on Q1
 **Milestone:** none
 **Priority:** P2
 **Effort:** S
-**Status:** blocked
+**Status:** open
 
 ## Problem
 
@@ -2508,10 +2505,10 @@ Each run exits 0, and the probe prints `match` for both bind properties of
 its profile. Planted defect: run `sandbox-a` with the Landlock rule removed;
 the probe must report `DIFFERS` for the AF_INET bind, and exit 1.
 
-## Blocker
+## Correction
 
-The operator: on hold since 2026-10-09 (`docs/decisions.md`, "Entries on
-hold"). A session skips this entry until the operator lifts the hold.
+2026-11-03. The blocker cleared: the operator released the hold (Q92, `docs/decisions.md`);
+the entry joins the work order by its priority.
 
 # T-246: `scripts/dev.sh` excludes each file named `agents.md` from the container copy, with no reason given
 
@@ -4463,7 +4460,7 @@ Each can stop a release, or the gate, for a reason outside podssh.
   download must be checked; the pinned SHA-256 checks the exact bytes.
 - Read: the armv7 job installs Alpine's own `rust` and `cargo` (`.github/workflows/release.yml:187-195`),
   in Alpine 3.24 (`images/armv7/Dockerfile`); the CLI declares Rust 1.89
-  (`crates/podssh-cli/Cargo.toml:8`), and Q48 lets the minimum rise (`docs/decisions.md:54`).
+  (`crates/podssh-cli/Cargo.toml:8`), and Q48 lets the minimum rise (`docs/decisions.md:56`).
   Inferred: Alpine 3.24's rust is 1.89 or later, as the job built `v1.0.0-beta.2`.
 - Read: `pipx run check-jsonschema` names no version (`.github/workflows/build.yml` lines 175 and
   177 at `1a46970`).
@@ -4552,7 +4549,7 @@ the curves' 0.14 once needed a newer Rust than the library crates allowed.
 
 - Read: the root `Cargo.toml` asks for `p256` 0.13 and `p384` 0.13 for
   podssh-ws's provider; `deny.toml` ignores RUSTSEC-2026-0387 for the
-  crypto-bigint 0.5.5 that they bring (`TODO/repo.md:3880-3883` says why:
+  crypto-bigint 0.5.5 that they bring (`TODO/repo.md:3877-3880` says why:
   the curves' 0.14 needed Rust 1.87, above the library crates' 1.85 then).
   T-333 raised the library crates to 1.89 (the operator's ruling of Q48).
 - Read: #68 moves `p384` alone; `p256` stays at 0.13 in the PR, so the copy

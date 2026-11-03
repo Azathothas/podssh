@@ -159,7 +159,7 @@ and `CARGO_BUILD_JOBS=4`:
 
 ## Counts
 
-`TODO/INDEX.md` holds 570 entries: 97 open, 2 partial, 16 blocked, 455 done.
+`TODO/INDEX.md` holds 573 entries: 114 open, 2 partial, 2 blocked, 455 done.
 
 Open includes parked work. `cargo todo check` verifies this line.
 
@@ -235,16 +235,12 @@ T-596, the relay role's and the roads') follow, by priority, beside M10 (Q85); D
 #120 and #122 are in `main` (2026-11-03), and #123 waits for an iroh-dns that takes simple-dns 0.13. Overnight a fork of
 policy is decided and listed below for the operator to confirm (Q86). The drafts of 2026-11-03, both rounds, are merged. GitHub #125 (2026-11-03, `relay info`'s rank changes with the edge that answered) is T-610, a defect of M10 beside the research of the operator's relay archive (`draft/relay-measure`).
 
-**Skip** the entries that the operator holds (status
-`blocked`, Q32):
-T-085, T-107 to T-113, T-117, T-118, T-213, T-222, T-245 and T-248; and the work
-parked behind them (T-114, T-115, T-116, T-119, T-120, T-122, T-123,
-T-124, T-150, T-159, T-160, T-161, T-303 and T-304, "Parked open work"),
-which waits as they wait; and the entries that wait for the operator:
-T-328 (an export of FinalShell and of Termius: a known gap, which
-`v1.0.0` does not wait for) and T-376 (the operator's throwaway cloud
-accounts for the live run of the roads of iap:// and eice://), each a known gap that `v1.0.0`
-names and does not wait for (the operator, 2026-11-01).
+**The holds are released** (Q92, the operator, 2026-11-03): T-085, T-107 to T-113, T-117,
+T-118, T-213, T-222, T-245 and T-248 are open and go by their priority, M5's `podssh serve`
+among them, after M10's entries of their priority; the work parked behind them ("Parked open
+work") starts as its condition says. T-328 (a real export of FinalShell and of Termius) and
+T-376 (the operator's throwaway cloud accounts for the live run of the roads of iap:// and
+eice://) are no longer held, but still wait for those inputs, which only the operator has.
 
 ## Parked open work
 
@@ -254,18 +250,18 @@ it can start.
 | Entry | Start condition |
 | --- | --- |
 | T-150 | T-112 is done: `podssh serve` has an SFTP server |
-| T-114 | T-107 to T-112 are done: `podssh serve` exists (the operator holds them, Q32) |
-| T-115 | T-107 to T-112 are done: `podssh serve` exists (the operator holds them, Q32) |
-| T-116 | T-107 to T-112 are done: `podssh serve` exists (the operator holds them, Q32) |
-| T-119 | T-107 to T-112 are done: `podssh serve` exists (the operator holds them, Q32) |
-| T-120 | T-107 to T-112 are done: `podssh serve` exists (the operator holds them, Q32) |
-| T-122 | T-107 to T-112 are done: `podssh serve` exists (the operator holds them, Q32) |
-| T-123 | T-107 to T-112 are done: `podssh serve` exists (the operator holds them, Q32) |
-| T-124 | T-107 to T-112 are done: `podssh serve` exists (the operator holds them, Q32) |
-| T-159 | T-107, T-108, T-110 and T-117 are done: `podssh serve` runs a shell on a pty, and stops its process group (the operator holds them, Q32) |
-| T-160 | T-107 and T-110 are done: `podssh serve` runs a shell on a pty, which reports the input's offset and the ECHO flag (the operator holds them, Q32) |
+| T-114 | T-107 to T-112 are done: `podssh serve` exists |
+| T-115 | T-107 to T-112 are done: `podssh serve` exists |
+| T-116 | T-107 to T-112 are done: `podssh serve` exists |
+| T-119 | T-107 to T-112 are done: `podssh serve` exists |
+| T-120 | T-107 to T-112 are done: `podssh serve` exists |
+| T-122 | T-107 to T-112 are done: `podssh serve` exists |
+| T-123 | T-107 to T-112 are done: `podssh serve` exists |
+| T-124 | T-107 to T-112 are done: `podssh serve` exists |
+| T-159 | T-107, T-108, T-110 and T-117 are done: `podssh serve` runs a shell on a pty, and stops its process group |
+| T-160 | T-107 and T-110 are done: `podssh serve` runs a shell on a pty, which reports the input's offset and the ECHO flag |
 | T-161 | T-159 is done: a far end keeps a shell, its ring and its pty after the client leaves |
-| T-303 | T-110 is done: `podssh serve` has a pty (the operator holds it, Q32); and T-161 has a model of the far end's screen |
+| T-303 | T-110 is done: `podssh serve` has a pty; and T-161 has a model of the far end's screen |
 | T-304 | T-303 is done: frames of the screen exist |
 | T-532 | T-180 and T-530 are done: `podssh funnel` and OpenTunnel's link exist |
 | T-496 | T-086 is done: the pairing's exchange exists over a mailbox |
@@ -286,6 +282,12 @@ that it blocks (status `blocked`) and a recommendation; the session then
 takes the next entry. Nothing is closed as out of scope until the operator
 rules.
 
+The operator settled Q89 to Q92 on 2026-11-03 (`docs/decisions.md`), each asked on its own: podssh
+ranks relay hosts unasked only with `RelayRank auto` (Q89); the calls of Q86 stand but four
+(Q90: T-574's built-in nodes, T-612, T-613 and T-614); four more live test targets (Q91: T-463,
+T-548, T-578, T-531's weekly run); and the holds end (Q92), T-328 and T-376 waiting for their
+inputs alone.
+
 The operator settled Q67 to Q84 on 2026-11-02 (`docs/decisions.md`), after the triage of the
 testers' reports (GitHub #83 to #106, the bundle, the relay sweep) and of the drafts of M10:
 XHTTP over HTTP/1.1 may open its second connection (Q67, T-456); the login name comes from
@@ -304,7 +306,13 @@ testers' defects go now (Q84). Later the same day: their features go too (Q85), 
 is decided overnight and listed for confirmation (Q86), and `v1.0.1` and the next beta go out
 unattended (Q87).
 
-**For the operator to confirm (Q86):** each a call made overnight, in its entry's `## Decision`.
+**Ruled (Q90, the operator, 2026-11-03, each call asked on its own; `docs/decisions.md`):** the
+calls below, made overnight under Q86, stand, but four that changed: T-574 ships a short list of
+nodes re-checked before each release; T-586 gets `--no-resume` (T-612); T-589's commands take
+`--timeout` as another name of `--ConnectTimeout` (T-613); and `ssh`, `proxy` and `pipe` take
+`--exit` beside `--carrier` (T-614, after T-596). T-548, T-578 and T-463's live runs are
+allowed (Q91), and Q89 is ruled: podssh ranks unasked only with `RelayRank auto`. The list, as
+it was asked:
 
 - T-548: short live tests against the services of Q77 and Q78 (Pinggy and the others), one
   Decision for all of them; if confirmed, `AGENTS.md`'s list of test targets names them.
@@ -364,7 +372,7 @@ unattended (Q87).
   `exec:` is started again once for each wait of a leg; `--exit` with `--carrier` is refused until
   T-596.
 
-**For the operator to confirm (Q86):** T-503 checks each host after the first hop too (a later hop
+**Confirmed (Q90):** T-503 checks each host after the first hop too (a later hop
 of `-J`, and the destination behind it), on each road, by the direct road's rule, so that
 `-J bastion 'a$b'` is refused with 64 where the relay road passed it to the jump host (its
 `## Decision`).

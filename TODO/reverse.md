@@ -581,7 +581,7 @@ and crates/podssh-transport/examples/live_forward.rs lines 23-25 at `e8bbd4d`; `
 (`crates/podssh-cli/Cargo.toml` line 34 at `e8bbd4d`). The plan: "`podssh-transport` moves into `podssh-relay`. Its
 unused backpressure module goes." (`docs/design.md` lines 122-123 at `e8bbd4d`).
 
-Read: the comments of the crate break rule 6 of `AGENTS.md:295-296`: they carry the stop-sign marker,
+Read: the comments of the crate break rule 6 of `AGENTS.md:299-300`: they carry the stop-sign marker,
 session history and line numbers of documents, for example crates/podssh-transport/src/socket.rs lines 1-11 at `e8bbd4d`
 and crates/podssh-transport/src/control.rs lines 3-14 at `e8bbd4d`. The close rows cite lines of the pinned contract,
 and a test reads that copy to check them (crates/podssh-transport/src/closes.rs lines 45-59 at `e8bbd4d`).
@@ -592,11 +592,11 @@ and a test reads that copy to check them (crates/podssh-transport/src/closes.rs 
    and T-080 use the repaired codecs as a dependency until then.
 2. Move into crates/podssh-relay/src/reverse/: `framing.rs` and `framing/legs.rs`, `control.rs`,
    `closes.rs`, the retry parts of `error.rs`, and the name check of T-076, with their tests. Keep
-   each file at 500 lines or fewer (`AGENTS.md:293-294`).
+   each file at 500 lines or fewer (`AGENTS.md:297-298`).
 3. Delete, do not move: the backpressure module (T-074), the `Transport` trait and `backoff.rs`
    (T-077), and `RelayConfig` (`podssh-relay` has `Relay` and `RelayList`,
    `crates/podssh-relay/src/relay.rs:80-102`).
-4. Rewrite the comments of the moved code to `AGENTS.md:295-296`: why, in few words; no markers, no
+4. Rewrite the comments of the moved code to `AGENTS.md:299-300`: why, in few words; no markers, no
    history, no line numbers. Keep the check of the close rows against the pinned copy as a test
    (T-060 decides where the copy lives).
 5. Move the examples to `podssh_relay::open`, the forward path that the commands use. Then remove
@@ -988,7 +988,7 @@ with no slashes as a node; `node_destinations` must fail.
 **Milestone:** M4
 **Priority:** P2
 **Effort:** M
-**Status:** blocked
+**Status:** open
 
 ## Problem
 
@@ -1038,14 +1038,14 @@ times overlap, the relay closed each with `1000`, and the pair was stopped at th
 the second operator after the first ends; the overlap check must fail. The facade half is the test of
 step 5.
 
-## Blocker
-
-The operator: on hold since 2026-10-09 (`docs/decisions.md`, "Entries on
-hold"). A session skips this entry until the operator lifts the hold.
-
 ## Start condition
 
 M3 is complete and T-078 to T-084 are done.
+
+## Correction
+
+2026-11-03. The blocker cleared: the operator released the hold (Q92, `docs/decisions.md`);
+the entry joins the work order by its priority.
 
 # T-086: Pairing by a short one-time code, given out of band
 
@@ -1091,7 +1091,7 @@ short code safe.
 3. A meeting point that both reach with no pair: see the Decision.
 4. The code: three words from a fixed list and a number, used once, valid for 10 min. The node shows
    it only on its terminal, never in stdout, a log or argv; the operator types it at a prompt.
-5. A pure-Rust SPAKE2 crate, built under `CC=/nonexistent` before it is chosen (`AGENTS.md:290-292`).
+5. A pure-Rust SPAKE2 crate, built under `CC=/nonexistent` before it is chosen (`AGENTS.md:294-296`).
 6. Pitfalls: limit the attempts at the meeting point; one failed exchange ends the code; check the
    received part as T-076 and T-078 check a pair.
 
@@ -1366,7 +1366,7 @@ The resumable layer of M6 runs under SSH (`docs/design.md:671-683`).
 Read in the report (GitHub #18, not verified here): warren uses `Noise_IK_25519_ChaChaPoly_BLAKE2s`
 so that the relay cannot read a stream (`willykeenan/warren:src/noise.rs`).
 
-Read: the library crates must build with no C compiler (`AGENTS.md:290-292`, `scripts/gate.sh:133`).
+Read: the library crates must build with no C compiler (`AGENTS.md:294-296`, `scripts/gate.sh:133`).
 
 ## Approach
 
@@ -1654,7 +1654,7 @@ workloads (`arjun988/GPU-Share`); iroh-ssh has an open request for local discove
 56 of `rustonbsd/iroh-ssh`); cubic names and lists remote state (`cubic-vm/cubic:docs/howto/snapshots.rst`).
 
 Read: the measured sandbox refuses UDP (`docs/target-environment.md:23`), so mDNS cannot work there,
-and podssh must probe before it uses UDP (`AGENTS.md:270-271`).
+and podssh must probe before it uses UDP (`AGENTS.md:274-275`).
 
 ## Approach
 
@@ -1775,7 +1775,7 @@ T-107), and the relay stays a separate project (`docs/decisions.md`). The two sh
    the seam of T-088 and T-089. Spent nonces are create-new private files
    (`crates/podssh-relay/src/cache.rs:352-370`).
 3. Both shapes: an SSHSIG signature in a fixed podssh namespace, which `ssh-keygen -Y verify` can check
-   (T-020), with the keys of T-087, in pure Rust (`AGENTS.md:290-292`).
+   (T-020), with the keys of T-087, in pure Rust (`AGENTS.md:294-296`).
 4. Relations: T-078 makes the pair that a grant protects; T-086 can deliver a grant in place of the
    `connect_token`; T-087 gives the keys that a grant names.
 
@@ -2641,6 +2641,43 @@ test -p podssh-relay --features pair --test reverse_operator`, 10 passed; the `p
 Clippy on Linux: clean, once `Parsed`, which the new flags made 512 bytes in `Proxy`, takes
 `allow(clippy::large_enum_variant)`, as `keygen`'s `KeyFile` does (one value of it is made for
 each run); Windows: the gate's job `windows`.
+
+# T-613: `operator`, `proxy` and `pipe`'s remote sides take `--timeout` and `PODSSH_TIMEOUT` as other names of `--ConnectTimeout`
+
+**Source:** the operator's ruling Q90 (2026-11-03) on T-589's call that these commands take no
+`--timeout`: "also take --timeout", with the meaning of `--ConnectTimeout`.
+**Category:** feature
+**Milestone:** M10
+**Priority:** P3
+**Effort:** S
+**Status:** open
+
+## Problem
+
+`podssh operator`, `proxy` and `pipe`'s remote sides refuse `--timeout` and pass over
+`PODSSH_TIMEOUT`, which the copies and `run` take, so a user who sets the one variable gets no
+bound on the open of those three.
+
+## Premise
+
+- Read: T-589's `## Decision` and its `## Done`: `--ConnectTimeout SECONDS` alone bounds the open on
+  these commands (`TODO/reverse.md`, T-589).
+
+## Approach
+
+1. `--timeout SECONDS` and `PODSSH_TIMEOUT` set the same bound as `--ConnectTimeout` there: the time
+   to the session's open, never the bytes after it; `--ConnectTimeout` wins when both are given,
+   as the more precise name, and the flag's flag row says so.
+2. The manual's notes and `docs/cli.md`.
+
+## Prove
+
+```sh
+cargo test -p podssh-cli --test operator
+```
+
+`operator --timeout 2` to a carrier that starts no node ends with 69 at 2 s, as `--ConnectTimeout
+2` does; `PODSSH_TIMEOUT=2` the same; planted, the name ignored: the test fails.
 
 # T-591: An operator's host cannot see its pair's expiry: `relay status` reads the store alone, and `relay pair` does not say the way past the expiry
 
