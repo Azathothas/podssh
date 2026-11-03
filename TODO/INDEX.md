@@ -62,15 +62,15 @@ repository and CI).
 
 ## Counts
 
-**568 entries: 100 open, 5 partial, 16 blocked, 447 done.**
+**568 entries: 99 open, 5 partial, 16 blocked, 448 done.**
 
 | Priority | open | partial | blocked | done | total |
 | --- | --- | --- | --- | --- | --- |
 | P0 | 0 | 0 | 0 | 1 | 1 |
 | P1 | 0 | 1 | 0 | 62 | 63 |
-| P2 | 25 | 4 | 14 | 215 | 258 |
+| P2 | 24 | 4 | 14 | 216 | 258 |
 | P3 | 75 | 0 | 2 | 169 | 246 |
-| **All** | 100 | 5 | 16 | 447 | 568 |
+| **All** | 99 | 5 | 16 | 448 | 568 |
 
 ## Entries
 
@@ -633,7 +633,7 @@ repository and CI).
 | [T-591](reverse.md) | P2 | S | none | feature | done | An operator's host cannot see its pair's expiry: `relay status` reads the store alone, and `relay pair` does not say the way past the expiry |
 | [T-592](mesh.md) | P3 | M | M10 | feature | open | A pair that its owner renews in podssh's relay role, so that a node of the role outlives 72 h with its operators' file unchanged |
 | [T-593](relay.md) | P2 | S | none | defect | done | The cache follows `HOME` into another user's home: root's node key goes under that user's `.cache`, which podssh can make root's own |
-| [T-594](repo.md) | P2 | S | none | docs | open | `docs/STATUS.md` reads `main` and never says so: the exit node reads as working, and the release has none |
+| [T-594](repo.md) | P2 | S | none | docs | done | `docs/STATUS.md` reads `main` and never says so: the exit node reads as working, and the release has none |
 | [T-595](mesh.md) | P2 | L | M10 | feature | partial | A carrier of the node's road over a byte stream that exists already (`stdio`, `fd:N`, `exec:CMD`), for a host whose every road out is closed |
 | [T-596](mesh.md) | P3 | S | M10 | feature | open | The exit over a carrier: a host that grants an exec channel alone gets egress through its other end |
 | [T-597](repo.md) | P3 | S | none | chore | done | Dependabot's updates of 2026-11-02: Python 3.15 for the box's proxy, the build image's digest, sha2 0.11.1 and simple-dns 0.13 |

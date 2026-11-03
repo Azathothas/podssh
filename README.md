@@ -21,8 +21,9 @@ no installed `ssh`, and no TLS or crypto library of the system.
 > `podssh config` (settings), `podssh mcp` and `podssh update` (this
 > binary, from a signed release) work.
 > Tests run them against OpenSSH and Dropbear servers, through the live
-> relay, and in a box like the target sandbox. The measured state is in
-> [docs/STATUS.md](docs/STATUS.md).
+> relay, and in a box like the target sandbox. The measured state of `main`
+> is in [docs/STATUS.md](docs/STATUS.md), where a row of work after `v1.0.0`
+> names the first release that holds it, or says `unreleased`.
 > The plan is in [docs/ROADMAP.md](docs/ROADMAP.md).
 
 ## How it works

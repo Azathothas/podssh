@@ -111,7 +111,7 @@ What grows on the developer machine, and what removes it:
 ## Checks
 
 ```sh
-python scripts/check-repo.py        # 500-line rule, doc links, credentials, LF, pinned images, no listener, rule 6 in the code
+python scripts/check-repo.py        # 500-line rule, doc links, credentials, LF, pinned images, no listener, rule 6 in the code, STATUS's release marks
 python scripts/check-scripts.py     # shell scripts parse under dash
 python scripts/check-relay-spec.py  # the live relay still matches what podssh uses: 0 holds, 1 a fact changed, 2 not read
 python scripts/check-relay-spec.py --plant-moved-line     # each fact one line down holds, with a note (T-338)
@@ -166,6 +166,13 @@ in the lock, with no `[[patch.unused]]` (T-460). An update of russh or of
 iroh that did not move the copy builds the release in its place, with none
 of podssh's patch, and cargo only warns. Two planted locks must be found.
 
+And it reads the rows of `docs/STATUS.md`, the page of `main` (T-594): a row
+whose first cell has a date of 2026-11-02 or later, after `v1.0.0`, names a
+release that has its notes in `docs/releases/`, or says `unreleased`; a row
+that says `unreleased` with a date before the newest release that the head
+names fails, as the release step left it. It reads no git, so a checkout of
+depth 1 checks the same. Three planted rows must be found.
+
 `deny.toml` allows each license that a crate of the graph needs, by name,
 and crates.io as the only source; an advisory is ignored only with its
 reason and the date it was read. CI runs both commands on each push, each
@@ -177,7 +184,8 @@ Read each exit code directly. `cmd | tail` gives the exit code of `tail`.
 
 Each check of `check-repo.py` counts the files that it read, and fails below
 a floor (100 Rust files, 10 Markdown files, 150 tracked files, 5 shell
-scripts, one image, 100 files for the listeners, 100 code files for rule 6),
+scripts, one image, 100 files for the listeners, 100 code files for rule 6,
+100 rows of `docs/STATUS.md`),
 so a scan that read nothing
 never passes. `python scripts/check-repo.py --plant-empty` runs each check on
 an empty repository and must exit 1; CI runs both.
@@ -894,6 +902,12 @@ To publish a release:
    fails before anything is published, and the failed jobs of the tag's run
    are run again (`gh run rerun RUN --failed`); the tag stays where it is
    (T-343).
+4. In the commit after the tag, `docs/STATUS.md` names the tag as the
+   newest release in its head, with its date and commit, and each row that
+   says `unreleased` and whose commit the tag holds names the tag in its
+   place (`git merge-base --is-ancestor COMMIT TAG`, or `git tag --contains
+   COMMIT`). `python scripts/check-repo.py` fails a row that still says
+   `unreleased` with a date before the tag's (T-594).
 
 The list can be read at any time, as an artifact named `changes`; the run
 also checks that no commit is dropped:

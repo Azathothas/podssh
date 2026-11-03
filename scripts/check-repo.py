@@ -30,6 +30,10 @@
      from its path by its lock file: an update of the crate that did not
      move the copy builds the release, with none of podssh's patch, and
      cargo only warns (T-460). Two planted locks must be found.
+ 11. docs/STATUS.md reads `main`, so each row of work after `v1.0.0` names
+     the first release that holds it, or says `unreleased`; a row that says
+     `unreleased` with a date before the newest release's is stale (T-594).
+     No git is read. Three planted rows must be found.
 
 Each check counts the files that it read, and fails below a floor, so a
 scan that read nothing never passes. `--plant-empty` runs each check on an
@@ -55,6 +59,8 @@ from repo_scans import PRINT_RULE, planted_prints_found, print_hits, unpinned_us
 from repo_scans import PATCH_RULE, PATCHED, patch_misses  # noqa: E402
 # The allowance of the listener scan (check 6), beside this file too.
 from repo_listeners import LISTENER_RULE, LISTENERS  # noqa: E402
+# The scan of the release marks of docs/STATUS.md (check 11).
+from repo_status import MIN_ROWS, PLANTED_LINES, STATUS, mark_problems, planted_marks_found  # noqa: E402
 
 ROOT = Path(__file__).resolve().parent.parent
 MAX_SOURCE_LINES = 500
@@ -375,6 +381,23 @@ def check_patches_used() -> list[str]:
     return problems
 
 
+def check_status_marks() -> list[str]:
+    try:
+        text = (ROOT / STATUS).read_text(encoding="utf-8")
+    except OSError as exc:
+        return [f"{STATUS} cannot be read: {exc}"]
+    # One file of notes for each tag: the names that a mark may give.
+    releases = {p.stem for p in (ROOT / "docs" / "releases").glob("v*.md")}
+    read, marked, problems = mark_problems(text, releases)
+    problems += too_few(f"rows of {STATUS}", read, MIN_ROWS)
+    found = planted_marks_found()
+    if found != PLANTED_LINES:
+        problems.append(f"the scan of the release marks is wrong on its plants: it found lines {sorted(found)}, "
+                        f"not {sorted(PLANTED_LINES)}")
+    check_status_marks.note = f"{read} rows of {STATUS} read, {marked} of them marked by a release; 3 planted rows found"
+    return problems
+
+
 def main(argv: list[str]) -> int:
     global ROOT
     if argv == ["--plant-empty"]:
@@ -399,6 +422,7 @@ CHECKS = [
     ("each action is pinned by its commit", check_actions_pinned),
     ("no print macro that panics in the sources", check_print_macros),
     ("each patch of [patch.crates-io] is built", check_patches_used),
+    ("each row of STATUS after v1.0.0 names its release", check_status_marks),
 ]
 
 

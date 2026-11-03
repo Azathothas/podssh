@@ -1,0 +1,6 @@
+--- a/docs/STATUS.md
++++ b/docs/STATUS.md
+@@ -115,2 +115,3 @@
++| A planted row of work, after the newest release, with no mark (T-594, 2026-11-04) | **Works** |
+
+ ## `podssh ssh`, measured

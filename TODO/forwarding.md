@@ -5,7 +5,7 @@ of the forwards of a session.
 
 # T-035: `-R`: remote forwarding, each connection made out through the proxy
 
-**Source:** `docs/ROADMAP.md:252-253` (M8) and `docs/cli.md`, lines 153-158 at `a9299c4`; the
+**Source:** `docs/ROADMAP.md:255-256` (M8) and `docs/cli.md`, lines 153-158 at `a9299c4`; the
 VLOD-ZDOV/quic-ssh report in GitHub #22 (item 7) and the cubic-vm/cubic
 report in GitHub #23 (item 7). Read and measured here on `3ee70dc`.
 **Category:** feature
@@ -493,7 +493,7 @@ AF_UNIX.
   `-o DynamicForward` too (`crates/podssh-cli/src/ssh/options.rs`, lines 185-189 at `97146aa`).
 - Read: `AGENTS.md:272-278` (no bind, no listen),
   `docs/target-environment.md:99-103` (rule 3), `SECURITY.md:170-197` ("Nothing
-  listens") and `README.md:43-52` state the rule from before the ruling.
+  listens") and `README.md:44-53` state the rule from before the ruling.
   `docs/design.md:1045-1047` already allows a local listener for `pipe` after
   a probe.
 - Read: the Podman box refuses each `bind` (`scripts/box/seccomp.json:5-10`),
@@ -589,7 +589,7 @@ box fails.
 The refusals of `-L` and `-D` say "podssh ssh opens no local listener yet"
 and name `podssh pipe tcp-listen:` (`crates/podssh-cli/src/flags.rs`, lines 215-220 at `97146aa`,
 `crates/podssh-cli/src/ssh/options.rs`, lines 185-189 at `97146aa`). `SECURITY.md:170-197` and
-`README.md:43-52` state the ruling now, as `AGENTS.md:272-278` and
+`README.md:44-53` state the ruling now, as `AGENTS.md:272-278` and
 `docs/target-environment.md:99-103` did already.
 
 ## Done
@@ -1633,7 +1633,7 @@ server (`remote_socket:host:hostport`), a socket on this host as the target
 (`[bind_address:]port:local_socket`, `remote_socket:local_socket`), and a SOCKS proxy that the
 server listens for and the client serves (`[bind_address:]port`). podssh refuses each by name, so
 a command line of OpenSSH fails with podssh. A server whose host refuses an AF_INET bind and
-allows an AF_UNIX one, as sandbox A does (`docs/STATUS.md:343`), can listen on a socket only; and
+allows an AF_UNIX one, as sandbox A does (`docs/STATUS.md:374`), can listen on a socket only; and
 the SOCKS form gives a server whose egress is closed a way out through the client.
 
 ## Premise

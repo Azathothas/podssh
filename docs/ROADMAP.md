@@ -174,6 +174,9 @@ podssh. M3 has no release: the one release is `v1.0.0`, in M9
 
 ## M5: `podssh serve`, into the cage
 
+The operator holds the entries of M5 (Q32, [decisions.md](decisions.md)), and
+no release has `podssh serve`.
+
 - The server of russh in the node: T-107, T-108, T-109, T-117, T-118. It
   runs as the user that the sandbox gives, with no passwd entry, setgroups,
   chroot, `/etc/shells` or `/var`, and finds a shell to start without them

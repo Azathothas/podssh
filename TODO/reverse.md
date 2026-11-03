@@ -401,7 +401,7 @@ operator's outcome holds all 200 bytes.
 
 # T-081: A blocking facade of `podssh-relay`, for podbox
 
-**Source:** ROADMAP M4 (`docs/ROADMAP.md:150-152`, `:177-178`); `docs/design.md:580-593`. Read here
+**Source:** ROADMAP M4 (`docs/ROADMAP.md:150-152`, `:180-181`); `docs/design.md:580-593`. Read here
 on `3ee70dc`.
 **Category:** feature
 **Milestone:** M4
@@ -947,7 +947,7 @@ cargo test -p podssh-cli --test node_live -- --ignored ssh_to_a_node
 22. `operator.rs` runs the binary with no stored pair (78, naming `podssh relay pair`), and checks
 that stdout stays empty. The binary line must exit 255, name `podssh relay pair lab`, and open no
 connection. The live test runs `podssh ssh node://lab 'exit 3'` through a node whose TARGET is
-`railway.new:22` (an anonymous SSH service, `docs/STATUS.md:104`), and expects 3. Plant: read `node:`
+`railway.new:22` (an anonymous SSH service, `docs/STATUS.md:124`), and expects 3. Plant: read `node:`
 with no slashes as a node; `node_destinations` must fail.
 
 ## Done
@@ -1000,9 +1000,9 @@ facade later, as an operator action (the operator's ruling of 2026-10-08).
 ## Premise
 
 Read: the box like the target sandbox has one CONNECT proxy for ports 443, 80 and 8443 as its only
-way out, refuses `bind` and UDP, and has no `/dev/ptmx` (`docs/development.md:453-495`,
+way out, refuses `bind` and UDP, and has no `/dev/ptmx` (`docs/development.md:461-503`,
 `scripts/test_in_box.sh`). It allows `connect()` to loopback, which the real sandbox refuses
-(`docs/development.md:494-495`, `docs/target-environment.md:22`).
+(`docs/development.md:502-503`, `docs/target-environment.md:22`).
 
 Read: in such a sandbox nothing can listen (`docs/target-environment.md:25`, `:99-102`), so a node
 there has no local TCP service to offer before `podssh serve` (M5). Its TARGET must be a host that
@@ -1203,7 +1203,7 @@ over a trusted channel (`:137-138`); the node chooses what to expose (`:245-246`
 
 Read: `podssh ssh` checks host keys with `known_hosts`, and never records one under the relay's name
 (`SECURITY.md:74-78`, `:159-169`). `podssh serve` keeps its host key in a state file and takes
-authorized keys from a flag or a file (`docs/ROADMAP.md:177-182`, T-107).
+authorized keys from a flag or a file (`docs/ROADMAP.md:180-185`, T-107).
 
 Read in the reports (not verified here): iroh-ssh warns about an ephemeral node key
 (`rustonbsd/iroh-ssh:src/ssh.rs`); GPU-Share keeps an Ed25519 identity in a state directory and a

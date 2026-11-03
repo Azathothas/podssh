@@ -1,0 +1,11 @@
+# T-594: a row of work dated after the newest release, with no release named
+# and no `unreleased`, at the end of the table of commands of docs/STATUS.md;
+# the check of the release marks must fail and name the row's line.
+ENTRY=T-594
+GROUP=record
+EXPECT='docs/STATUS\.md:[0-9]+: a row dated 2026-11-04 names no release'
+# check-repo.py is Python's, and the build image has none, as T-430's plant
+# says; a host that has python3 (--here) installs nothing.
+SETUP='command -v python3 >/dev/null || apk add --no-cache python3 >/dev/null'
+RUN='python3 scripts/check-repo.py'
+LIMIT=600
