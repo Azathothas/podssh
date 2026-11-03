@@ -62,15 +62,15 @@ repository and CI).
 
 ## Counts
 
-**563 entries: 114 open, 2 partial, 16 blocked, 431 done.**
+**563 entries: 113 open, 3 partial, 16 blocked, 431 done.**
 
 | Priority | open | partial | blocked | done | total |
 | --- | --- | --- | --- | --- | --- |
 | P0 | 0 | 0 | 0 | 1 | 1 |
 | P1 | 0 | 1 | 0 | 62 | 63 |
-| P2 | 33 | 1 | 14 | 206 | 254 |
+| P2 | 32 | 2 | 14 | 206 | 254 |
 | P3 | 81 | 0 | 2 | 162 | 245 |
-| **All** | 114 | 2 | 16 | 431 | 563 |
+| **All** | 113 | 3 | 16 | 431 | 563 |
 
 ## Entries
 
@@ -517,7 +517,7 @@ repository and CI).
 | [T-443](mesh.md) | P2 | S | M10 | defect | done | The resumable layer's window on the pair's road is above the relay's bound |
 | [T-444](mesh.md) | P3 | S | M10 | feature | done | One TLS configuration for each trust in a process, so that TLS resumes |
 | [T-445](mesh.md) | P2 | S | M10 | feature | done | A node's record names each of its roads |
-| [T-446](mesh.md) | P2 | M | M10 | release | open | The release of milestone M10: betas `v1.1.0-beta.N`, then `v1.1.0` |
+| [T-446](mesh.md) | P2 | M | M10 | release | partial | The release of milestone M10: betas `v1.1.0-beta.N`, then `v1.1.0` |
 | [T-447](mesh.md) | P2 | M | M10 | feature | done | `podssh relay serve` takes its certificate from ACME, and reads it again on SIGHUP |
 | [T-448](mesh.md) | P2 | M | M10 | feature | done | The relay role mints tokens for the keys of an allowlist or of the net |
 | [T-449](mesh.md) | P2 | S | M10 | defect | done | A test of the podssh-relay suite failed once in 11 runs, unnamed |

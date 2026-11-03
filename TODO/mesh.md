@@ -2440,7 +2440,7 @@ which built nothing; merged and measured by the main session the same day.
 **Milestone:** M10
 **Priority:** P2
 **Effort:** M
-**Status:** open
+**Status:** partial
 
 ## Problem
 
@@ -2469,6 +2469,29 @@ sh scripts/release-check.sh v1.1.0
 ```
 
 The release check passes on the published files, with M10's rows.
+
+## Done
+
+Not done: `v1.1.0` waits for each other entry of M10. The betas so far:
+
+2026-11-03: `v1.1.0-beta.1` is published, a prerelease at `5d95e5f`
+(https://github.com/Azathothas/podssh/releases/tag/v1.1.0-beta.1, 08:31:08 UTC), by the run by
+hand with `publish` on the branch `beta/v1.1.0-beta.1` at that commit (41600702626), as `main`
+held newer commits, and the tag's run (41601111029). It carries `v1.0.1` and the repairs of GitHub
+#112, #114 and #118 (T-586, T-588, T-593). Checked by Q88: before the tag, the gate at that commit
+(run 41594979098), the release workflow by hand on it (41594987549), and the short form on the dry
+run's static x86_64 binary, whose zip's SHA-256 was the artifact's digest
+(`scripts/release-short.sh BINARY --net`: the version and its commit, the manual, keygen, the
+iroh road and WARP's, and GitHub's banner through the live relay); after it, `update-live.yml`
+(41604126246) and `release-proofs.yml` (41605128705). Twelve files: eight binaries,
+`SHA256SUMS`, its signature, the provenance and the licenses.
+
+The first run of the proofs (41604119398) failed on a defect of the proof, not of the release:
+its newest release came from `gh release list`, which holds prereleases, so it expected
+`v1.0.1`'s plain `podssh update` to take the beta, where a build of a release follows releases
+alone, as the beta's notes say ("podssh 1.0.1 is the newest release: nothing to do"). The proof
+now takes the newest release that is not a prerelease, and reaches a beta by `--version`
+(`279a283`); its run again passed.
 
 # T-447: `podssh relay serve` takes its certificate from ACME, and reads it again on SIGHUP
 

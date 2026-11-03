@@ -172,7 +172,7 @@ image's digest, sha2 0.11.1 and simple-dns 0.13) are T-597.
 | #97 | `--result-file` for `cp`, `mv`, `run` and `sftp`, in one schema | open | T-486 (the copy's bytes are `transferred`, as `bytes` keeps the meaning of `ssh`'s), with T-484's record of a session for `run` |
 | #98 | A warning before the relay's 180 s idle cut | closed 2026-11-02, its entry done (`b39a29d`) | T-463 |
 | #99 | `doctor` says once that each TLS handshake was reset | open | T-487 (the kind of each failure kept, not read from the system's words; a reference handshake with `github.com`; a diagnosis after the counts) |
-| #100 | `cp` chooses `--parallel` itself for many small files | open | T-474 (Q23 sets the default of relay sessions; the files at once are channels of one connection: T-474's Decision) |
+| #100 | `cp` chooses `--parallel` itself for many small files | closed 2026-11-03, its entry done (`f55c61d`) | T-474 (Q23 sets the default of relay sessions; the files at once are channels of one connection: T-474's Decision) |
 | #101 | `podssh mcp` offers `cp`, `job` and `health` as tools | closed 2026-11-03, its entry done (`f8eaeb4`) | T-488 (with `session`, which the issue names too; the copy's local side behind a new `--allow-dir`, the sessions behind `--allow-session`) |
 | #102 | `chat --listen --linger`, and a word on the end of stdin | closed 2026-11-03, its entry done (`ea2a70b`) | T-489 (the listener connects out to the relay, so `--linger` adds no listener) |
 | #103 | `run` reads a `.podsshignore` by default, and `--dry-run` | open | T-475 (its first ask is met already, `crates/podssh-cli/src/run_cmd/mod.rs:141-145`, as its comment found) |
