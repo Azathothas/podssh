@@ -2279,6 +2279,15 @@ session on 2026-11-03.
   `podssh-relay` (also with the gate's features) and `podssh-cli` with `-D warnings`, all targets:
   clean.
 - `docs/STATUS.md`: a row in "Build, tests, CI".
+- 2026-11-03, the gate at the push (`7abebd2`, run 41562803113, its step `release`): `interop:
+  610 passed, 3 failed`, each later push the same. `faults.proxy_502.failover`,
+  `faults.persist.reattach` and `faults.persist.tunnel` each list `relay-a.test` second, and the
+  tests before them had opened it, so it went first as this entry wants: no 502 for the first
+  host, and the kill ended a host that carried nothing (`exit 0`, no `connecting again`). The
+  order is this entry's; the three tests lean on the list's order, so each takes an empty record
+  of its own (`RC`, as `faults.failover_mode.one_mint` does) and asserts what it asserted. With
+  the dry run's static binary of `3bb42ea` in the build image, `INTEROP_ONLY=faults sh
+  scripts/interop.sh BIN`: UNVERIFIED.
 
 # T-593: The cache follows `HOME` into another user's home: root's node key goes under that user's `.cache`, which podssh can make root's own
 

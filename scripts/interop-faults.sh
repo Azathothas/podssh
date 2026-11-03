@@ -220,8 +220,13 @@ closes=$(( $(grep -c '^close ' "$FK/a.log") - closes ))
     || bad faults.failover_mode.one_mint "parallel, one deployment: exit $rc, $mints mints, $closes closes" "$FK/err"
 
 RP="http://127.0.0.1:$(port proxy)"
+# Its own empty record: a host that opened lately goes first (T-563), and
+# relay-a.test opened in the tests before, so the list's first is tried first
+# only in a record that has seen neither.
+RC="$FK/cache-proxy502"
 r "relay-bad.test:443,relay-a.test:$(port a)" "$T" 'echo via-the-proxy' >"$FK/out" 2>"$FK/err" </dev/null
 rc=$?
+RC=
 grep -q "^502 CONNECT relay-bad.test:443" "$FK/proxy.log" && grep -q "^200 CONNECT relay-a.test" "$FK/proxy.log" \
     && [ "$rc" = 0 ] && [ "$(cat "$FK/out")" = via-the-proxy ] \
     && ok faults.proxy_502.failover \
@@ -288,6 +293,10 @@ took=$(( $(date +%s) - start ))
 _term=${TERM-}
 TERM=xterm
 export TERM
+# An empty record of its own, so that relay-persist.test, first in the list,
+# carries the session that the kill ends (T-563: a host that opened lately
+# goes first).
+RC="$FK/cache-persist"
 {
     sleep 4
     printf 'MARK=kept\n'
@@ -301,6 +310,7 @@ export TERM
     sleep 3
 } | r "relay-persist.test:$(port persist),relay-a.test:$(port a)" --persist "$T" >"$FK/out" 2>"$FK/err"
 rc=$?
+RC=
 [ "$rc" = 0 ] && grep -q 'M=kept' "$FK/out" && grep -q 'connecting again' "$FK/err" \
     && ok faults.persist.reattach \
         "--persist: a relay host killed under tmux, and the same session attached through the next" \
@@ -343,10 +353,13 @@ while time.time() < limit:
 print(line)
 EOF
 }
-# As one process, so that kill ends podssh (see p in scripts/interop.sh).
+# As one process, so that kill ends podssh (see p in scripts/interop.sh). An
+# empty record of its own, so that the killed host carries the forward (T-563).
+RC="$FK/cache-tunnel"
 (as_job=exec r "relay-tunnel.test:$(port tunnel),relay-a.test:$(port a)" --persist -N -R 127.0.0.1:2290:127.0.0.1:2203 \
     "$T") </dev/null >"$FK/out" 2>"$FK/tunnel.err" &
 tunnel=$!
+RC=
 first=$(tunnel_banner 30)
 kill "$(cat "$FK/tunnel.pid")" 2>/dev/null
 second=$(tunnel_banner 60)
