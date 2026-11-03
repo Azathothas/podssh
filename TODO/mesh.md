@@ -4014,7 +4014,7 @@ upterm's host (`upterm host`) opens a reverse tunnel from a machine with no inbo
 uptermd, over a WebSocket on port 443 through `HTTPS_PROXY`; its community server
 `uptermd.upterm.dev` needs no account. A podssh in a cage could reach the user's own machine
 through it, at both ends through 443, but podssh's first hops of `-J` are the relay and three
-tunnels: `crates/podssh-cli/src/ssh/jump.rs:98` says "The first hop's tunnel".
+tunnels: `crates/podssh-cli/src/ssh/jump.rs:100` says "The first hop's tunnel".
 
 ## Premise
 
@@ -5097,7 +5097,7 @@ not wait for TLS. podssh does not use it; Q78 makes it a last fallback, whatever
   account, over raw SSH on 22 or 443", and `docs/carriers.md:829` says "Serveo's anonymous TCP at
   10 minutes".
 - `crates/podssh-ssh/src/remote.rs:4` says "podssh joins it to the forward's target", and
-  `crates/podssh-cli/src/ssh/jump.rs:98` says "The first hop's tunnel": the remote forward and the
+  `crates/podssh-cli/src/ssh/jump.rs:100` says "The first hop's tunnel": the remote forward and the
   first hop of `-J` exist.
 
 ## Approach
@@ -5379,7 +5379,7 @@ that restarts makes the node register again. Live, short, through bore.pub (T-54
 - `docs/decisions.md:23` says "Q78: each service is a last fallback, whatever its terms".
 - `docs/carriers.md:883-884` says "a public SSH jump and forwarding server with no account", and
   `docs/carriers.md:885` says "on port 22 in their own commands".
-- `crates/podssh-cli/src/ssh/jump.rs:98` says "The first hop's tunnel".
+- `crates/podssh-cli/src/ssh/jump.rs:100` says "The first hop's tunnel".
 
 ## Approach
 

@@ -85,6 +85,7 @@ fn ssh_keywords() -> Value {
                 "default": keywords::documented_default(k.name),
             }))
             .collect::<Vec<_>>(),
+        "noted": keywords::NOTED.iter().map(|(name, why)| json!({ "name": name, "reason": why })).collect::<Vec<_>>(),
         "ignored": keywords::IGNORED,
         "refused": keywords::REFUSED.iter().map(|(name, why)| json!({ "name": name, "reason": why })).collect::<Vec<_>>(),
     })

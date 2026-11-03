@@ -1,0 +1,10 @@
+--- a/crates/podssh-ssh/src/run_config.rs
++++ b/crates/podssh-ssh/src/run_config.rs
+@@ -17,7 +17,6 @@
+ pub(super) fn client_config(opts: &Options, policy: &Policy) -> Config {
+     let mut preferred = Preferred::default();
+     // The lists that the keywords gave, in place of russh's (T-505).
+-    crate::algorithms::restrict(&mut preferred, &opts.algorithms);
+     // Host-key algorithms already recorded for this host go first, as in
+     // OpenSSH, so a host known by its RSA key is not asked for an unknown
+     // Ed25519 one. An RSA key is asked for with SHA-2 signatures, never SHA-1.

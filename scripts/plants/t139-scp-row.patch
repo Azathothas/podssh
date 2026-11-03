@@ -8,4 +8,4 @@
 -        "no check of the names that a server sends; podssh names each file itself", None),
      row(Some('v'), "verbose", None, FlagKind::Supported, "raise log level; repeatable", None),
      row(Some('c'), "cipher", Some("CIPHERS"), FlagKind::Refused,
-         "podssh negotiates its own modern ciphers", Some("no flag")),
+         "the ciphers are a list of the keyword Ciphers, which podssh applies", Some("-o Ciphers=LIST")),

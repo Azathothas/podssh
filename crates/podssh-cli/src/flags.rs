@@ -255,9 +255,9 @@ pub const SSH_FLAGS: &[FlagRow] = &[
         "podssh chooses no source address: the relay does, or the system with --direct", Some("no flag")),
     // The rest of OpenSSH 10.3p1's flags, so that each one refuses by name.
     row(Some('c'), "cipher", Some("CIPHERS"), FlagKind::Refused,
-        "podssh negotiates its own modern ciphers", Some("no flag")),
+        "the ciphers are a list of the keyword Ciphers, which podssh applies", Some("-o Ciphers=LIST")),
     row(Some('m'), "mac", Some("MACS"), FlagKind::Refused,
-        "podssh negotiates its own modern MACs", Some("no flag")),
+        "the MACs are a list of the keyword MACs, which podssh applies", Some("-o MACs=LIST")),
     // T-380: OpenSSH's -f, and --detach of each command that serves; its
     // supervisor (T-390) and its name (T-392).
     detach::SSH_DETACH, detach::SSH_RESTART, detach::DETACH_NAME,
@@ -275,7 +275,7 @@ pub const SSH_FLAGS: &[FlagRow] = &[
     row(Some('S'), "control-path", Some("PATH"), FlagKind::Supported,
         "the control socket: use its master, or be it with -M (ControlPath); none shares nothing", None),
     row(Some('Q'), "query", Some("QUERY"), FlagKind::Refused,
-        "podssh has no list of algorithms to query", Some("no flag")),
+        "-G prints the lists of algorithms that podssh will offer", Some("-G")),
     row(Some('w'), "tunnel", Some("TUN"), FlagKind::Refused,
         "a tunnel device needs privileges that podssh never assumes", Some("-W HOST:PORT")),
     row(Some('X'), "forward-x11", None, FlagKind::Supported,

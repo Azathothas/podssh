@@ -8,6 +8,8 @@
 //! 64, and a bad relay variable 78, before anything is attempted.
 
 mod agents;
+// The lists of algorithms that ssh_config's keywords give (T-505).
+pub mod algorithms;
 pub mod args;
 mod attach;
 // The server's version line, for doctor and the direct road (T-363).

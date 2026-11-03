@@ -47,7 +47,7 @@ succeeded. `podssh ssh` takes one destination, as OpenSSH does.
    flags), and `--parallel N` (default 8, 64 at most), `--fail-fast`,
    `--output-dir DIR`.
 2. One runtime, one task for each host, each on the existing path: the relay
-   open and `podssh_ssh::run` (`crates/podssh-cli/src/ssh/mod.rs:290-401`,
+   open and `podssh_ssh::run` (`crates/podssh-cli/src/ssh/mod.rs:292-403`,
    `crates/podssh-ssh/src/run.rs:34-79`). Invariant: no second SSH client.
 3. Sinks: give `crates/podssh-ssh/src/io.rs:171-465` (and `crates/podssh-ssh/src/io/msg.rs:11-95`) a sink for stdout and
    stderr in place of the streams of the process, and give `Log` a prefix
@@ -72,7 +72,7 @@ succeeded. `podssh ssh` takes one destination, as OpenSSH does.
 ## Decision
 
 Recommendation: a new verb, because `podssh ssh` keeps the command line and
-the exit codes of OpenSSH for one host (`docs/cli.md:3727-3730`), and a list
+the exit codes of OpenSSH for one host (`docs/cli.md:3775-3778`), and a list
 of hosts changes both. The alternative, `podssh ssh --hosts LIST`, lost: one
 flag would change what the exit status means.
 
@@ -184,7 +184,7 @@ is not a shell. A set of hosts has no name.
   (`crates/podssh-cli/src/ssh/hop.rs:30-78`,
   `crates/podssh-ws/src/names.rs:10-32`).
 - Read: the `Host` lines of ssh_config are patterns, not lists
-  (`docs/cli.md:3879-3983`); they cannot define a group.
+  (`docs/cli.md:3927-4036`); they cannot define a group.
 
 ## Approach
 
@@ -208,7 +208,7 @@ is not a shell. A set of hosts has no name.
 
 Recommendation: the braces of bash, because users know them and csshw uses
 them. The alternative, ranges in brackets as in pdsh and bssh (`web[1-3]`),
-lost: brackets already mean an IPv6 literal (`docs/cli.md:106-109`, T-007).
+lost: brackets already mean an IPv6 literal (`docs/cli.md:153-156`, T-007).
 
 ## Prove
 
@@ -1359,8 +1359,8 @@ expect rule.
 ## Approach
 
 1. `LocalCommand`: move it and `PermitLocalCommand` from IGNORED to
-   HONOURED (`crates/podssh-cli/src/ssh/keywords.rs:25-84`), with fields in
-   `crates/podssh-cli/src/ssh/options.rs:21-97`. Run it when OpenSSH runs it
+   HONOURED (`crates/podssh-cli/src/ssh/keywords.rs:25-97`), with fields in
+   `crates/podssh-cli/src/ssh/options.rs:21-103`. Run it when OpenSSH runs it
    (check the order in the container). Expand the tokens with `Tokens::expand`
    (`crates/podssh-cli/src/ssh/tokens.rs:69-157`), which has `%p` and `%n`
    since T-238.
@@ -1547,7 +1547,7 @@ of the command.
    quoted for a POSIX shell (T-187). When the copy used most of the 64 MiB
    (`docs/relay.md:229`), run the exec on a new session (T-137).
 4. The exit status: the command's, with the rules of `podssh ssh`
-   (`docs/cli.md:3727-3730`). A failed copy exits 255 and runs nothing.
+   (`docs/cli.md:3775-3778`). A failed copy exits 255 and runs nothing.
 5. In the same commit: the rows, the notes, an example, `docs/cli.md`,
    `docs/STATUS.md`. This entry depends on T-134 and T-143.
 
@@ -1814,7 +1814,7 @@ a ticket, or a tool that asks an AI.
   (`crates/podssh-ssh/src/log.rs:83-103`). The exit code leaves through
   `crates/podssh-cli/src/dispatch.rs:370-411`.
 - Read: for `podssh ssh`, an exit that is not 0 can be the remote command's
-  status (`docs/cli.md:3727-3730`), which is not a failure of podssh.
+  status (`docs/cli.md:3775-3778`), which is not a failure of podssh.
 
 ## Approach
 
@@ -2578,7 +2578,7 @@ relay reaches; nothing reports the far side.
   (`crates/podssh-ssh/src/sftp/mod.rs:234-237`), the request of a remote forward
   (`crates/podssh-ssh/src/remote.rs:121-135`), a channel `direct-tcpip`
   (`crates/podssh-ssh/src/local.rs:79`), keepalives each 60 s by default
-  (`crates/podssh-ssh/src/options.rs:380-381`), and the relay's cap on a session
+  (`crates/podssh-ssh/src/options.rs:384-385`), and the relay's cap on a session
   (`crates/podssh-relay/src/relay.rs:23-25`).
 - Read in the issue: a Go SSH server's keepalive reply ended each idle session at 60 s (#83); it
   refused `tcpip-forward` (#85) and had no `direct-tcpip` (#86); its SFTP server had no

@@ -1063,7 +1063,7 @@ Lifted on 2026-11-02 by Q63: see below.
 The Premise, a measurement of the default deployment, stands. Approach item 2 says that podssh
 "already says what happened" (`crates/podssh-relay/src/relay.rs:204-207`): true, but the direct
 road after the relay hosts (T-363) does not run in this case. It runs only when no relay host
-opened a session, and never with `-4` or `-6` (`docs/cli.md:308-312`); here the relay opened
+opened a session, and never with `-4` or `-6` (`docs/cli.md:355-359`); here the relay opened
 (101), then closed with 1011.
 
 By Q63 (2026-11-02, `docs/decisions.md`; docs/mesh.md, section 4) the relay is a role of podssh
@@ -1138,7 +1138,7 @@ with no reason. Each drop read as the end of the TCP stream with no Close frame
 had drops, so the traffic does not cause them.
 
 Read: on the forward path, keepalives every 60 s kept one session for 602 s
-(`docs/STATUS.md:249`). That is one run, before 2026-10-09.
+(`docs/STATUS.md:250`). That is one run, before 2026-10-09.
 
 ## Approach
 

@@ -384,7 +384,7 @@ pub fn resolve_or_refuse(args: &SshArgs, env: &Env) -> Result<Resolved, Refusal>
     // T-502's notes of what podssh does not use, then T-500's of where the
     // login name came from.
     let notes: Vec<String> = super::noted::of(&settings).into_iter().chain(env.user_note()).collect();
-    let mut warnings: Vec<String> = agents.warning.clone().into_iter().collect();
+    let mut warnings: Vec<String> = agents.warning.clone().into_iter().chain(super::noted::said(&settings)).collect();
     let idle = relay::idle_secs(&podssh_relay::pool::in_use());
     if resumable {
         if keepalive_interval.is_some() {

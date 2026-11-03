@@ -288,6 +288,10 @@ pub struct Options {
     pub send_env: Vec<String>,
     /// `Compression`.
     pub compression: bool,
+    /// `Ciphers`, `MACs`, `KexAlgorithms`, `HostKeyAlgorithms`,
+    /// `PubkeyAcceptedAlgorithms`, `CASignatureAlgorithms` and
+    /// `RequiredRSASize` (T-505); each list unset is podssh's own.
+    pub algorithms: crate::algorithms::Algorithms,
     pub log_level: LogLevel,
     /// `-n`: send end-of-file at once instead of reading stdin.
     pub stdin_null: bool,
@@ -392,6 +396,7 @@ impl Options {
             set_env: Vec::new(),
             send_env: Vec::new(),
             compression: false,
+            algorithms: crate::algorithms::Algorithms::default(),
             log_level: LogLevel::Info,
             stdin_null: false,
             output: None,

@@ -29,6 +29,18 @@ pub fn server(home: &Path, kind: &str, bits: Option<&str>) -> (tokio::runtime::R
     (runtime, port)
 }
 
+/// A key of the user, made by `podssh keygen` in `home`: its path.
+pub fn user_key(home: &Path, kind: &str) -> String {
+    let key = home.join(format!("id_{kind}"));
+    let status = Command::new(env!("CARGO_BIN_EXE_podssh"))
+        .args(["keygen", "-q", "-t", kind, "-N", "", "-f"])
+        .arg(&key)
+        .status()
+        .expect("podssh keygen runs");
+    assert!(status.success(), "podssh keygen -t {kind}");
+    key.display().to_string()
+}
+
 /// `podssh ssh --direct` to the test's server, with `home` as HOME, no
 /// agent and no prompt: its exit code, stdout and stderr, within the limit.
 pub fn direct(home: &Path, words: &[&str]) -> (i32, String, String) {

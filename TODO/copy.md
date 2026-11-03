@@ -41,7 +41,7 @@ ever (tty7's issue 1126, read in GitHub #20; GitHub #15 was this class).
   reads and writes of 261120 bytes, 3195 handles. No extension gives a
   digest.
 - Read: that server exits at the end of its input without its last reply
-  (`scripts/interop.sh:364-366`).
+  (`scripts/interop.sh:368-370`).
 
 ## Approach
 
@@ -480,7 +480,7 @@ GitHub #17 (talaria0101, 2026-10-08: drops that repeat on one target).
 A dropped relay session ends a copy, and a new run sends the whole file
 again. On a link that drops every few minutes, a large file never arrives.
 GitHub #17 measured one drop (`1011`) in 180 short sessions from one edge
-(`docs/STATUS.md:327`), and drops that came back 3 times of 3 on one target.
+(`docs/STATUS.md:328`), and drops that came back 3 times of 3 on one target.
 
 ## Premise
 
@@ -503,7 +503,7 @@ GitHub #17 measured one drop (`1011`) in 180 short sessions from one edge
 2. Within a run: after a relay close, a lost connection or a failed
    request, open a new session (T-137's path) and continue at the offset.
    Check first that the host key is the one of the first session (pin it in
-   memory, `crates/podssh-ssh/src/handler.rs:132-154`), and that the source's
+   memory, `crates/podssh-ssh/src/handler.rs:142-171`), and that the source's
    size and mtime are the same; else start over and say so.
 3. Invariant: the attempts are bounded. At most 5 in a row with no new
    acknowledged byte, with `podssh_relay::open::backoff`
@@ -637,7 +637,7 @@ old writer can race the new one.
 
 - Read: the pinned contract gives the same caps
   (`crates/podssh-probe/tests/spec/relay-spec-2026-10-03-r2.txt:233-235`).
-- Measured in the KTM sandbox (`docs/STATUS.md:326`; the 99 s are in the
+- Measured in the KTM sandbox (`docs/STATUS.md:327`; the 99 s are in the
   report): `podssh proxy` received 67,107,943 bytes, then the relay closed
   with `1009 session byte cap`, 921 bytes short of 64 MiB on that side.
 - Read: `podssh-relay` has a constant for the idle cut only
@@ -648,7 +648,7 @@ old writer can race the new one.
   (`crates/podssh-ssh/src/relay_stream.rs:226`,
   `crates/podssh-ssh/src/relay_stream.rs:253-265`). Each new SSH
   connection asks again for a passphrase or a password
-  (`crates/podssh-ssh/src/keys.rs:283-345`,
+  (`crates/podssh-ssh/src/keys.rs:297-359`,
   `crates/podssh-ssh/src/auth.rs:266-327`).
 
 ## Approach
@@ -958,7 +958,7 @@ Where podssh must replace them, OpenSSH's own `scp` and `sftp` cannot run
 
 Recommendation: `scp` and `sftp` get no `--timeout` row, as in OpenSSH, so
 the gate of `crates/podssh-cli/src/dispatch.rs:300-318` skips them; T-133's
-limits keep each wait finite. Usage errors stay 64 (`docs/cli.md:3721-3724`)
+limits keep each wait finite. Usage errors stay 64 (`docs/cli.md:3769-3772`)
 where OpenSSH gives 1; a script that tests for "not zero" works with both.
 `--timeout` required with no terminal, as for `cp`, lost: each script that
 runs `scp` in a pipe would exit 64 under `podssh scp`.
@@ -1065,7 +1065,7 @@ trip is long, so such a copy uses a small part of what the path carries.
   (`crates/podssh-ssh/src/run.rs:25-28`): `docs/relay.md:311-323` gives
   2 MiB, `1013` and no drop. The window can grow only after that is
   settled; T-062 measures the `1013`.
-- Measured in two sandboxes (`docs/STATUS.md:325`): 20 MiB through the
+- Measured in two sandboxes (`docs/STATUS.md:326`): 20 MiB through the
   relay with `podssh proxy` (no SSH window in the path) at 0.5 to 0.7 MB/s
   through a CONNECT proxy, and 1.8 to 6.9 MiB/s with no proxy. SFTP through
   the relay is not measured.
@@ -1273,7 +1273,7 @@ differ", and the destination was not changed. The measurement:
 
 A copy over an older version of the same file sends each byte again.
 Through the relay that costs a new session for each 60 MiB (T-137), at 0.5
-to 0.7 MB/s in the KTM sandbox (`docs/STATUS.md:325`).
+to 0.7 MB/s in the KTM sandbox (`docs/STATUS.md:326`).
 
 ## Premise
 
@@ -1546,7 +1546,7 @@ in the issues; the `-l limit` of OpenSSH's `scp` and `sftp` (T-139).
 ## Problem
 
 A copy through the relay can take minutes (0.5 to 0.7 MB/s in the KTM
-sandbox, `docs/STATUS.md:325`). podssh would show no progress, a Ctrl-C
+sandbox, `docs/STATUS.md:326`). podssh would show no progress, a Ctrl-C
 would leave a temporary file with no word, and one copy can take the whole
 uplink of a shared host.
 
@@ -2780,7 +2780,7 @@ full copy, and said nothing. After the run, the user cannot tell whether the del
 3. With `--jsonl`, the `done` object of each copy with `--delta` gains `"delta"`:
    `{"blocks": N, "sent": K, "bytes": B}` after a delta, or `{"full": "REASON"}` after a full copy.
 4. The row of `--delta` (`crates/podssh-cli/src/flags/copy.rs:29-30`), the manual,
-   `docs/cli.md:1786-1797` and `docs/STATUS.md`.
+   `docs/cli.md:1834-1845` and `docs/STATUS.md`.
 
 ## Decision
 
@@ -2950,7 +2950,7 @@ the names, with no word.
    reverse order, `-S` by size, `-t` by time of change, `-1` one name a line; without `-l` or
    `-1`, the names in columns, as OpenSSH's.
 4. The listing goes into a module of its own, so that `crates/podssh-cli/src/sftp/run.rs` stays
-   well under 500 lines. The `help` of `sftp`'s commands, the manual, `docs/cli.md:2002-2008` and
+   well under 500 lines. The `help` of `sftp`'s commands, the manual, `docs/cli.md:2050-2056` and
    `docs/STATUS.md`.
 
 ## Decision
@@ -3119,7 +3119,7 @@ with no word, which reads as a hang.
 4. `run` says its summary before the command starts, on stderr, so that the command's stdout stays
    its own; with T-475, the paths that the ignores left out.
 5. `scp` and `sftp` keep the output of OpenSSH's, with no summary. The manual,
-   `docs/cli.md:1868-1879`, `docs/STATUS.md`, and `crates/podssh-cli/tests/run_far.rs`, which reads
+   `docs/cli.md:1916-1927`, `docs/STATUS.md`, and `crates/podssh-cli/tests/run_far.rs`, which reads
    the summary in place of the line of `-v`.
 
 ## Decision
@@ -3294,7 +3294,7 @@ waits minutes: 100 files of 2 bytes took 210 s with the default.
 4. T-417's line about `--parallel` is not said when the default applies, nor after
    `--parallel 1`, which the user chose.
 5. The row of `--parallel` names the default; the manual, README.md (its copies, with the
-   measured numbers), `docs/cli.md:1763-1785` and `docs/STATUS.md`.
+   measured numbers), `docs/cli.md:1811-1833` and `docs/STATUS.md`.
 
 ## Decision
 
@@ -3384,7 +3384,7 @@ step reads as a failure, and each `podssh run`, which then runs no command.
    link that cannot be read, a name that is not UTF-8, and a refused name (70).
 4. The comments that say that a skip makes the exit not zero
    (`crates/podssh-cli/src/cp/tree.rs:56-57`, and the module comment of
-   `crates/podssh-cli/src/cp/tree_copy.rs`), the row of `-r`, the manual, `docs/cli.md:1807-1823`,
+   `crates/podssh-cli/src/cp/tree_copy.rs`), the row of `-r`, the manual, `docs/cli.md:1855-1871`,
    `docs/STATUS.md`, and `scripts/interop-cp.sh`: `cp.tree.up` asks for 0 and the note once, and
    `cp.delete.failed` takes its failed copy from a far directory at the name of a source file (the
    rename onto it fails, 73, as T-297's test makes one fail).
@@ -3504,7 +3504,7 @@ to the other two; no manual says that the split is a choice, or why.
   64, with ConnectTimeout and T-133's limits on each wait.
 - Inferred, against the report's evidence: a server that sends its version line and then nothing
   holds the handshake, which ConnectTimeout bounds, 60 s by default
-  (`crates/podssh-cli/src/ssh/keywords.rs:36-37`); the report killed `scp` at 30 s, before it.
+  (`crates/podssh-cli/src/ssh/keywords.rs:39-40`); the report killed `scp` at 30 s, before it.
 - Read (L-30): `PODSSH_TIMEOUT` is the default of `--timeout` "for each command that has the flag"
   (`crates/podssh-cli/src/man/facts.rs:107-109`), as the report found; met.
 - Read (L-13): the gate runs at the dispatch, before a verb reads its operands

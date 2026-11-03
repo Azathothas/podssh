@@ -25,7 +25,10 @@ const fn kw(name: &'static str, value: &'static str, help: &'static str, sample:
 pub const HONOURED: &[Keyword] = &[
     kw("AddressFamily", "any|inet|inet6", "inet is -4 and inet6 is -6", "inet"),
     kw("BatchMode", "yes|no", "yes: never prompt; a prompt becomes an error", "yes"),
+    kw("CASignatureAlgorithms", "LIST", "the signatures with which a CA that a @cert-authority line names may sign a \
+        host certificate; another refuses it with 255", "-ssh-rsa"),
     kw("ChallengeResponseAuthentication", "yes|no", "the old name of KbdInteractiveAuthentication", "no"),
+    kw("Ciphers", "LIST", "the ciphers to offer, in order", "aes256-gcm@openssh.com,aes128-ctr"),
     kw("ClearAllForwardings", "yes|no", "yes: no -L, -D or -R, from the command line or a file (default no)", "yes"),
     kw("Compression", "yes|no", "the same as -C", "yes"),
     kw("ControlMaster", "yes|no|ask|auto|autoask", "be the master of ControlPath (yes is -M, ask is -MM; auto: when \
@@ -48,6 +51,8 @@ pub const HONOURED: &[Keyword] = &[
     kw("ForwardX11Trusted", "yes|no", "yes: -X gives the X server's own cookie, as -Y does (default no)", "yes"),
     kw("GatewayPorts", "yes|no", "the same as -g (default no)", "yes"),
     kw("GlobalKnownHostsFile", "FILE...|none", "the system known_hosts files", "/dev/null"),
+    kw("HostKeyAlgorithms", "LIST", "the host key algorithms to ask for; those that known_hosts records for the host \
+        go first within it", "ssh-ed25519,rsa-sha2-512"),
     kw("HostKeyAlias", "NAME", "look up and record the host key under this name, in lowercase", "alias"),
     kw("HostName", "HOST", "the host to connect to, in place of the destination; %h is the host as typed", "%h.example.org"),
     kw("IdentitiesOnly", "yes|no", "yes: use only the identity files, not the other keys of the agent", "yes"),
@@ -56,20 +61,28 @@ pub const HONOURED: &[Keyword] = &[
     kw("IdentityFile", "FILE", "the same as -i; repeatable", "~/.ssh/id_ed25519"),
     kw("IgnoreUnknown", "PATTERN,...", "unknown keywords to accept with no effect, when they come after it", "UseKeychain"),
     kw("KbdInteractiveAuthentication", "yes|no", "allow keyboard-interactive authentication", "yes"),
+    kw("KexAlgorithms", "LIST", "the key exchanges to offer, in order", "-diffie-hellman*"),
     kw("LocalCommand", "COMMAND", "with PermitLocalCommand yes: run COMMAND here after the login, as SHELL -c COMMAND; it \
         takes the % tokens, and %T", "touch /tmp/lc-%h"),
     kw("LocalForward", "[BIND:]PORT HOST:HOSTPORT", "the same as -L, with a space between the two sides; repeatable", "8080 db:5432"),
     kw("LogLevel", "QUIET|FATAL|ERROR|INFO|VERBOSE|DEBUG|DEBUG2|DEBUG3", "how much podssh says on stderr (default INFO)", "VERBOSE"),
+    kw("MACs", "LIST", "the MACs to offer, in order; a cipher with its own, such as AES-GCM, uses none", "hmac-sha2-256-etm@openssh.com"),
     kw("NumberOfPasswordPrompts", "N", "password attempts (default 3)", "2"),
     kw("PasswordAuthentication", "yes|no", "allow password authentication", "no"),
     kw("PermitLocalCommand", "yes|no", "yes: run LocalCommand (default no)", "yes"),
     kw("Port", "PORT", "the same as -p", "2222"),
     kw("PreferredAuthentications", "LIST", "publickey, keyboard-interactive and password, in the order to try them", "publickey,password"),
     kw("ProxyJump", "HOSTS|none", "the same as -J", "none"),
+    kw("PubkeyAcceptedAlgorithms", "LIST", "the algorithms that podssh signs a login with: a key of another is not \
+        offered, and an RSA key signs with the list's first of RSA when the server's best is not in it", "ssh-ed25519,rsa-sha2-512"),
+    kw("PubkeyAcceptedKeyTypes", "LIST", "the old name of PubkeyAcceptedAlgorithms", "+ssh-rsa"),
     kw("PubkeyAuthentication", "yes|no", "allow key authentication", "yes"),
     kw("RemoteCommand", "COMMAND", "the command to run when the command line gives none; it takes the % tokens", "uptime"),
     kw("RemoteForward", "LISTEN [TARGET]", "the same as -R: a port or a socket path, then HOST:PORT or a socket here, or none for SOCKS; repeatable", "8080 localhost:80"),
     kw("RequestTTY", "auto|yes|force|no", "yes is -t, force is -tt, no is -T", "force"),
+    kw("RequiredRSASize", "BITS", "the least RSA key: a smaller key of the user is not offered, and a smaller host \
+        key, or key of the CA of a host certificate, ends the connection with 255; under 1024 it changes nothing \
+        (default 1024)", "2048"),
     kw("SendEnv", "NAME...", "send these local variables; the server decides which to accept", "LANG"),
     kw("ServerAliveCountMax", "N", "keepalives with no answer before podssh ends the session (default 3)", "5"),
     kw("ServerAliveInterval", "SECONDS", "seconds between keepalives (default 60; 0 turns them off)", "30"),
@@ -83,23 +96,39 @@ pub const HONOURED: &[Keyword] = &[
     kw("XAuthLocation", "PATH", "the xauth that makes the untrusted cookie of -X (default: xauth in PATH)", "/usr/bin/xauth"),
 ];
 
+/// Keywords of a restriction that podssh accepts and does not apply, and
+/// why (T-505): a value that the user gave gets one note at the default
+/// level; a line of the system's file, at -v alone.
+#[rustfmt::skip]
+pub const NOTED: &[(&str, &str)] = &[
+    ("BindAddress", "podssh binds no socket of its own: the relay dials, or the system chooses the address with --direct"),
+    ("BindInterface", "podssh binds no socket of its own: the relay dials, or the system chooses the interface with --direct"),
+    ("CertificateFile", "podssh offers no certificate of the user, only keys"),
+    ("ChannelTimeout", "podssh closes no channel for being idle"),
+    ("IPQoS", "podssh leaves the type of service of its connection to the system"),
+    ("RekeyLimit", "podssh rekeys at russh's limits, after 1 GiB each way or an hour"),
+    ("SecurityKeyProvider", "podssh speaks to a security key itself, with no provider library"),
+    ("TCPKeepAlive", "podssh leaves TCP keepalives to the system; ServerAliveInterval finds a dead link"),
+    ("Tunnel", "podssh opens no tun device; -W and -D carry a stream"),
+    ("TunnelDevice", "podssh opens no tun device"),
+    ("UpdateHostKeys", "podssh records no host key that the server sends after the login"),
+    ("VerifyHostKeyDNS", "podssh checks host keys against known_hosts alone"),
+    ("WarnWeakCrypto", "podssh says nothing of the algorithms that it negotiated"),
+];
+
 /// Keywords accepted with no effect: they ask for nothing podssh does
-/// differently, or limit algorithm lists that podssh keeps modern itself.
+/// differently. A note at -v names the place of each.
 #[rustfmt::skip]
 pub const IGNORED: &[&str] = &[
-    "AddKeysToAgent", "BindAddress", "BindInterface", "CanonicalDomains", "CanonicalizeFallbackLocal",
-    "CanonicalizeHostname", "CanonicalizeMaxDots", "CanonicalizePermittedCNAMEs", "CASignatureAlgorithms",
-    "CertificateFile", "ChannelTimeout", "CheckHostIP", "Ciphers",
-    "EnableEscapeCommandline", "EnableSSHKeysign",
+    "AddKeysToAgent", "CanonicalDomains", "CanonicalizeFallbackLocal",
+    "CanonicalizeHostname", "CanonicalizeMaxDots", "CanonicalizePermittedCNAMEs",
+    "CheckHostIP", "EnableEscapeCommandline", "EnableSSHKeysign",
     "FingerprintHash", "GSSAPIAuthentication", "GSSAPIClientIdentity", "GSSAPIDelegateCredentials",
     "GSSAPIKeyExchange", "GSSAPIKexAlgorithms", "GSSAPIRenewalForcesRekey", "GSSAPIServerIdentity", "GSSAPITrustDns",
-    "HashKnownHosts",
-    "HostbasedAcceptedAlgorithms", "HostbasedAuthentication", "HostKeyAlgorithms", "IPQoS", "KexAlgorithms",
-    "LogVerbose", "MACs", "NoHostAuthenticationForLocalhost", "ObscureKeystrokeTiming",
-    "PubkeyAcceptedAlgorithms", "PubkeyAcceptedKeyTypes", "RekeyLimit",
-    "RequiredRSASize", "SecurityKeyProvider", "StreamLocalBindMask", "StreamLocalBindUnlink",
-    "SyslogFacility", "TCPKeepAlive", "Tunnel", "TunnelDevice", "UpdateHostKeys", "VerifyHostKeyDNS",
-    "VersionAddendum", "VisualHostKey", "WarnWeakCrypto",
+    "HashKnownHosts", "HostbasedAcceptedAlgorithms", "HostbasedAuthentication",
+    "LogVerbose", "NoHostAuthenticationForLocalhost", "ObscureKeystrokeTiming",
+    "StreamLocalBindMask", "StreamLocalBindUnlink", "SyslogFacility",
+    "VersionAddendum", "VisualHostKey",
 ];
 
 /// Keywords refused by name, and why. `options.rs` gives the same reasons.
@@ -116,6 +145,12 @@ pub const REFUSED: &[(&str, &str)] = &[
 /// Whether `-o` accepts `name` (any case) without effect.
 pub fn is_ignored(name: &str) -> bool {
     IGNORED.iter().any(|k| k.eq_ignore_ascii_case(name))
+}
+
+/// Why podssh does not apply `name` (any case), a keyword of a restriction
+/// that it accepts with a note; `None` for another keyword.
+pub fn noted(name: &str) -> Option<&'static str> {
+    NOTED.iter().find(|(k, _)| k.eq_ignore_ascii_case(name)).map(|(_, why)| *why)
 }
 
 /// Every keyword name podssh knows, for "did you mean" suggestions.
@@ -149,7 +184,21 @@ mod tests {
         for name in IGNORED {
             let mut s = Settings::default();
             s.apply(&format!("{name}=yes")).unwrap_or_else(|e| panic!("{name}: {e}"));
-            assert_eq!(s.ignored, vec![name.to_string()], "{name}");
+            assert_eq!(s.ignored.iter().map(|g| g.name.as_str()).collect::<Vec<_>>(), [*name], "{name}");
+            assert!(s.noted.is_empty(), "{name}");
+        }
+    }
+
+    /// Each keyword of a restriction that podssh does not apply is kept for
+    /// its note at the default level, not with the inert ones (T-505).
+    #[test]
+    fn each_noted_keyword_is_accepted_and_kept_for_its_note() {
+        for (name, why) in NOTED {
+            let mut s = Settings::default();
+            s.apply(&format!("{name}=yes")).unwrap_or_else(|e| panic!("{name}: {e}"));
+            assert_eq!(s.noted.iter().map(|g| g.name.as_str()).collect::<Vec<_>>(), [*name], "{name}");
+            assert!(s.ignored.is_empty(), "{name}");
+            assert!(why.starts_with("podssh "), "{name}: the reason says what podssh does: {why}");
         }
     }
 
@@ -172,7 +221,9 @@ mod tests {
 
     #[test]
     fn no_keyword_is_in_two_lists() {
-        let mut all: Vec<String> = known_names().chain(IGNORED.iter().copied()).map(str::to_ascii_lowercase).collect();
+        let noted = NOTED.iter().map(|(n, _)| *n);
+        let mut all: Vec<String> =
+            known_names().chain(IGNORED.iter().copied()).chain(noted).map(str::to_ascii_lowercase).collect();
         let count = all.len();
         all.sort();
         all.dedup();
@@ -207,5 +258,7 @@ mod tests {
         assert_eq!(o.forward_agent, podssh_ssh::Agent::Off);
         assert_eq!(d("PermitLocalCommand"), "no");
         assert!(o.local_command.is_none());
+        assert_eq!(d("RequiredRSASize"), o.algorithms.rsa_floor().to_string());
+        assert_eq!(o.algorithms, podssh_ssh::algorithms::Algorithms::default(), "each list is podssh's own");
     }
 }

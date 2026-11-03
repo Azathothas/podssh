@@ -1,0 +1,8 @@
+# T-505: each list is read and assembled, but never reaches the options of
+# the connection, so podssh offers its own lists whatever the keywords say;
+# the test of -G, which prints the lists of the options, must fail.
+ENTRY=T-505
+GROUP=cli-tests
+EXPECT='test algorithms::algorithms_each_list_and_its_forms_as_g_prints_them \.\.\. FAILED'
+RUN='cargo test --locked -p podssh-cli --test ssh_config_file -- algorithms::algorithms_each_list_and_its_forms_as_g_prints_them'
+LIMIT=2400

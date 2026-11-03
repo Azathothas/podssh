@@ -11,6 +11,9 @@ mod login;
 // The first ProxyCommand (T-502), apart for the length of this file.
 #[path = "ssh_config_file/proxy_command.rs"]
 mod proxy_command;
+// The keywords of a restriction (T-505).
+#[path = "ssh_config_file/algorithms.rs"]
+mod algorithms;
 
 use std::path::PathBuf;
 
@@ -312,6 +315,7 @@ const COUNTS: &str = "connectionattempts 1
 numberofpasswordprompts 3
 serveralivecountmax 3
 serveraliveinterval 30
+requiredrsasize 1024
 loglevel INFO";
 const FILES: &str = "globalknownhostsfile none
 userknownhostsfile /kh/user
@@ -345,6 +349,8 @@ fn podssh_reads_the_fixture_as_openssh_10_3_reads_it() {
         let mut all = vec!["-G", "-F", f.as_str()];
         all.extend_from_slice(words);
         let ours = dump::lines(&resolve(&ssh(&all), &h.env()).unwrap_or_else(|e| panic!("{words:?}: {e}")));
+        // The lists of algorithms are podssh's own, apart (T-505).
+        let ours: Vec<String> = ours.into_iter().filter(|l| !algorithms::is_list(l)).collect();
         let theirs = format!("{head}\n{SAME}\nstricthostkeychecking {strict}\n{COUNTS}\n{identities}\n{FILES}\n{tail}");
         let theirs: Vec<&str> = theirs.lines().filter(|l| !l.is_empty()).collect();
         assert_eq!(ours, theirs, "{words:?}");

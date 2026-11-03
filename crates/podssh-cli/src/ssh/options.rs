@@ -6,7 +6,7 @@
 
 use podssh_ssh::{LogLevel, Method, RequestTty, StrictHostKeyChecking};
 
-use super::given::{Given, Place};
+use super::given::{keep_first, Given, Place};
 use super::keywords;
 
 // The values of the keywords, apart for the length of this file.
@@ -92,8 +92,14 @@ pub struct Settings {
     /// `IgnoreUnknown`: a pattern list of unknown keywords to accept without
     /// effect, when they come after it.
     pub ignore_unknown: Option<String>,
-    /// Keywords accepted without effect, for a verbose note.
-    pub ignored: Vec<String>,
+    /// The lists of a restriction that podssh applies (T-505).
+    pub algorithms: super::algorithms::Lists,
+    /// The keywords of a restriction that podssh accepts and does not apply,
+    /// each with its first value and place, for a note (T-505).
+    pub noted: Vec<Given>,
+    /// Keywords accepted without effect, each with its first place, for a
+    /// note at -v.
+    pub ignored: Vec<Given>,
 }
 
 impl Settings {
@@ -113,8 +119,12 @@ impl Settings {
             return Err(format!("-o {raw:?}: expected NAME=VALUE"));
         }
         let key = name.to_ascii_lowercase();
-        if value.is_empty() && !keywords::is_ignored(&key) {
+        if value.is_empty() && !keywords::is_ignored(&key) && keywords::noted(&key).is_none() {
             return Err(format!("-o {name}: missing value"));
+        }
+        // The lists of a restriction, each assembled where it is read (T-505).
+        if self.algorithms.apply(&key, name, value, place)? {
+            return Ok(());
         }
         let bad = |what: &str| format!("-o {name}={value}: {what}");
         match key.as_str() {
@@ -269,8 +279,9 @@ impl Settings {
                 return Err(format!("-o {name}: an ssh_config block keyword, not an option"))
             }
             "ignoreunknown" => set(&mut self.ignore_unknown, value.to_string()),
-            k if keywords::is_ignored(k) => add(&mut self.ignored, name.to_string()),
-            k if self.ignores_unknown(k) => add(&mut self.ignored, name.to_string()),
+            k if keywords::noted(k).is_some() => keep_first(&mut self.noted, Given::new(name, value, place)),
+            k if keywords::is_ignored(k) => keep_first(&mut self.ignored, Given::new(name, value, place)),
+            k if self.ignores_unknown(k) => keep_first(&mut self.ignored, Given::new(name, value, place)),
             _ => return Err(unknown(name)),
         }
         Ok(())
@@ -353,7 +364,9 @@ impl Settings {
         let mut local_forwards = self.local_forwards;
         local_forwards.extend(file.local_forwards);
         let mut ignored = self.ignored;
-        file.ignored.into_iter().for_each(|k| add(&mut ignored, k));
+        file.ignored.into_iter().for_each(|k| keep_first(&mut ignored, k));
+        let mut noted = self.noted;
+        file.noted.into_iter().for_each(|k| keep_first(&mut noted, k));
         Settings {
             user: self.user,
             port: self.port,
@@ -406,6 +419,8 @@ impl Settings {
             control_path: self.control_path.or(file.control_path),
             control_persist: self.control_persist.or(file.control_persist),
             ignore_unknown: self.ignore_unknown.or(file.ignore_unknown),
+            algorithms: self.algorithms.then(file.algorithms),
+            noted,
             ignored,
         }
     }
@@ -414,11 +429,14 @@ impl Settings {
 impl Settings {
     /// What the command line gives the reading of a file before its first
     /// line: its `IgnoreUnknown`, which holds for the files too, and its
-    /// `ProxyCommand`, which holds, so that a file's is not read (T-502).
+    /// `ProxyCommand`, which holds, so that a file's is not read (T-502);
+    /// and its lists, so that a file's of the same keyword is not read
+    /// either (T-505).
     pub fn for_files(&self) -> Settings {
         Settings {
             ignore_unknown: self.ignore_unknown.clone(),
             proxy_command: self.proxy_command.clone(),
+            algorithms: self.algorithms.clone(),
             ..Settings::default()
         }
     }

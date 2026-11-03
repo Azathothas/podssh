@@ -1,0 +1,10 @@
+# T-505: the lists reach the options but not the handshake, so podssh
+# offers russh's own ciphers whatever Ciphers says; -o Ciphers=aes256-ctr
+# then meets the sshd of aes128-ctr alone, and the check that no cipher is
+# in common must fail. SETUP stops what an earlier interop run left.
+ENTRY=T-505
+GROUP=ssh-keys
+EXPECT='^FAIL +algorithms\.cipher_none_in_common '
+RUN='RUSTFLAGS=-Ctarget-feature=+crt-static CARGO_PROFILE_RELEASE_LTO=false CARGO_PROFILE_RELEASE_CODEGEN_UNITS=16 cargo build --locked --release --target "$TARGET" -p podssh-cli && INTEROP_ONLY=algorithms sh scripts/interop.sh "$BIN"'
+SETUP='for p in sshd sshd-session sshd.pam dropbear python3 podssh tmux ssh-agent Xvfb Xvnc x0vncserver; do pkill -x "$p"; done; true'
+LIMIT=3600

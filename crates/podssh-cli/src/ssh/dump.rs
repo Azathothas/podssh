@@ -3,12 +3,14 @@
 //! two line by line. Only the keywords of OpenSSH that podssh applies are
 //! printed, defaults included, in OpenSSH's order; podssh's own settings
 //! (relay hosts, `--ca-file`) are not, as OpenSSH knows no such keyword and
-//! a line of `-G` must be one that a file of OpenSSH's takes. Nothing
-//! connects.
+//! a line of `-G` must be one that a file of OpenSSH's takes. The lists of
+//! algorithms (T-505) are podssh's: what it will offer, which differs from
+//! OpenSSH's defaults on purpose. Nothing connects.
 
 use std::path::{Path, PathBuf};
 
-use podssh_ssh::{LogLevel, Request, RequestTty, StrictHostKeyChecking};
+use podssh_ssh::algorithms::{Kind, MIN_RSA};
+use podssh_ssh::{LogLevel, Options, Request, RequestTty, StrictHostKeyChecking};
 
 use super::resolve::Resolved;
 
@@ -79,16 +81,23 @@ pub fn lines(resolved: &Resolved) -> Vec<String> {
         format!("numberofpasswordprompts {}", o.password_prompts),
         format!("serveralivecountmax {}", o.keepalive_max),
         format!("serveraliveinterval {}", o.keepalive_interval.map_or(0, |d| d.as_secs())),
+        // RequiredRSASize as given, as OpenSSH prints it; each list as podssh
+        // will offer it (T-505), in OpenSSH's places among the strings.
+        format!("requiredrsasize {}", o.algorithms.required_rsa_size.unwrap_or(MIN_RSA)),
+        listed(o, Kind::Ciphers),
     ];
     if let Some(path) = &resolved.control.path {
         out.push(format!("controlpath {}", path.display()));
     }
+    out.push(listed(o, Kind::HostKey));
     if let Some(alias) = &o.host_key_alias {
         out.push(format!("hostkeyalias {alias}"));
     }
     if let Some(agent) = &s.identity_agent {
         out.push(format!("identityagent {agent}"));
     }
+    out.push(listed(o, Kind::Kex));
+    out.push(listed(o, Kind::CaSignature));
     if let Some(command) = &s.local_command {
         out.push(format!("localcommand {command}"));
     }
@@ -96,9 +105,11 @@ pub fn lines(resolved: &Resolved) -> Vec<String> {
         out.push(format!("remotecommand {command}"));
     }
     out.push(format!("loglevel {}", log_level(o.log_level)));
+    out.push(listed(o, Kind::Macs));
     if let Some(list) = &s.preferred {
         out.push(format!("preferredauthentications {list}"));
     }
+    out.push(listed(o, Kind::Pubkey));
     if let Some(tag) = &s.tag {
         out.push(format!("tag {tag}"));
     }
@@ -136,6 +147,11 @@ pub fn lines(resolved: &Resolved) -> Vec<String> {
         out.push(format!("proxyjump {jump}"));
     }
     out
+}
+
+/// The line of one list of algorithms: the one given, else podssh's own.
+fn listed(o: &Options, kind: Kind) -> String {
+    format!("{} {}", kind.dumped(), o.algorithms.list(kind).join(","))
 }
 
 fn family(family: Option<u8>) -> &'static str {

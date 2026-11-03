@@ -1,0 +1,9 @@
+--- a/crates/podssh-cli/src/ssh/noted.rs
++++ b/crates/podssh-cli/src/ssh/noted.rs
+@@ -37,5 +37,5 @@
+ /// writes for each program; `-q` shows none, as it shows no warning.
+ pub(super) fn said(settings: &Settings) -> Vec<String> {
+-    settings.noted.iter().filter(|g| g.place.users()).map(not_applied).collect()
++    settings.noted.iter().map(not_applied).collect()
+ }
+ 

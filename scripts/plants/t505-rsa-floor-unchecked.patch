@@ -1,0 +1,11 @@
+--- a/crates/podssh-ssh/src/algorithms/apply.rs
++++ b/crates/podssh-ssh/src/algorithms/apply.rs
+@@ -130,7 +130,7 @@
+     /// `None` when these limits take it. `files` are the known_hosts files.
+     pub(crate) fn refuses(&self, offered: &PublicKeyOrCertificate, files: &[PathBuf], name: &str) -> Option<String> {
+         let key = offered.public_key();
+-        if let Some(bits) = rsa_bits(key.key_data()).filter(|bits| *bits < self.floor) {
++        if let Some(bits) = rsa_bits(key.key_data()).filter(|_| false) {
+             return Some(format!(
+                 "the host key of '{name}' is an RSA key of {bits} bits, under RequiredRSASize {}. Refusing to connect.",
+                 self.floor

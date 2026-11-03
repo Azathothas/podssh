@@ -373,7 +373,7 @@ sandbox can block what iroh needs, so the fallback is necessary
 6. With `-v`, print the road that won and its time.
 7. Each resume of T-153 runs the same race.
 8. Docs: the rule of the race in `docs/design.md` section 2, and the notes of
-   `ssh` in the manual (`crates/podssh-cli/src/man/notes_ssh.rs:4-471` and `crates/podssh-cli/src/man/notes_ssh_more.rs:4-95`).
+   `ssh` in the manual (`crates/podssh-cli/src/man/notes_ssh.rs:4-471` and `crates/podssh-cli/src/man/notes_ssh_more.rs:4-106`).
 
 ## Decision
 
@@ -3409,7 +3409,7 @@ allows podssh as a client of Cloudflare (`docs/decisions.md:60`).
   (`crates/podssh-cli/src/ssh/hop.rs:58-60`); `jump_hop` refuses a node only (`:68-74`).
 - Read: a `cf://` destination refuses `-J`:
   `crates/podssh-cli/src/ssh/cloudflare.rs:73` says "a Cloudflare tunnel cannot be reached
-  through a -J hop yet", and `docs/cli.md:149-150` says so too.
+  through a -J hop yet", and `docs/cli.md:196-197` says so too.
 - Read: the road of a run is chosen for the first hop's host
   (`crates/podssh-cli/src/ssh/resolve.rs:303`), and each later hop runs in a `direct-tcpip`
   channel of the session before it (`crates/podssh-ssh/src/run.rs:160-172`;
@@ -5026,7 +5026,7 @@ does not depend on them.
 
 - Read: `Transport::Direct` comes from `--direct` alone
   (`crates/podssh-cli/src/ssh/resolve.rs`, lines 340-346 at `4e2010e`), and else the relay (lines 348-371 at `4e2010e`); its other
-  uses are a label (`crates/podssh-cli/src/ssh/mod.rs:276`), the dial
+  uses are a label (`crates/podssh-cli/src/ssh/mod.rs:278`), the dial
   (`crates/podssh-cli/src/ssh/transport.rs:272-316`) and a check of `--upgrade`
   (`crates/podssh-cli/src/ssh/upgrade.rs:59`). The issue's citation of
   the arm began two lines early; it is at `crates/podssh-cli/src/ssh/resolve.rs:340-343`.
@@ -5649,7 +5649,7 @@ TCP, and podssh runs no `ProxyCommand` that could add TLS.
 - Read: a hop is `[user@]host[:port]` or `ssh://[user@]host[:port]`
   (`crates/podssh-cli/src/ssh/hop.rs:30-57`); a destination can also name a road by its scheme,
   `cf://`, `node://` or `iroh:` (`crates/podssh-cli/src/ssh/resolve.rs:23-72`).
-- Read: podssh runs no `ProxyCommand` (`crates/podssh-cli/src/ssh/options.rs:221-226`).
+- Read: podssh runs no `ProxyCommand` (`crates/podssh-cli/src/ssh/options.rs:231-236`).
 - Read: podssh-ws opens TCP through the proxy, then a TLS handshake checked for a name
   (`crates/podssh-ws/src/client.rs:184-199`), with no ALPN and no client certificate
   (`crates/podssh-ws/src/tls.rs:315-318`).
