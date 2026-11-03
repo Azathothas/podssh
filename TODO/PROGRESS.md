@@ -127,7 +127,14 @@ entry keeps its proof in the entry; this page keeps no history (git does).
   (`worktree-agent-ac366026bd4dfc2dc`, `6b76515` and `741e842`); T-455 and T-457
   (`worktree-agent-a78b0fb3db0c3f0c8`, `2454434` and `ac38d51`). Each is merged and closed, in that
   order (`5f0165b`, `a29abfc`, `3c30ce2` and T-457's), and their worktrees are gone; their
-  `draft/` branches on GitHub can go. No draft waits.
+  `draft/` branches on GitHub can go.
+
+  On 2026-11-03 a fifth round was drafted, unbuilt, one commit for each entry, each branch pushed
+  as `draft/worktree-agent-*`: T-226 (`worktree-agent-ab46b7435cc875cd9`, `d4da618`); T-253
+  (`worktree-agent-a6a21bc1a5b921742`, `330e6ed`, merged as partial on `draft/merge-253`,
+  `5d0db76`, its tests of IPv6 on a runner); T-255 (`worktree-agent-ab9d837b93edc90b0`,
+  `8f09eb3`); T-325 (`worktree-agent-ab532bbdaa9b8fe7b`, `fbda4ad`); T-608
+  (`worktree-agent-ab7069457e3f92567`, `be90ae1`). They wait to be merged in that order.
 
   CI: the gate passed at
   `24b9f6e` (run 38331509229), and its step `release` at `cad2885` (478
