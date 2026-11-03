@@ -140,7 +140,7 @@ where
     let session = Arc::new(session);
     let ((control, control_rx), (data, data_rx)) = (mpsc::channel(1024), mpsc::channel(256));
     let tx = Outbox { control, data };
-    let writer = tokio::spawn(write(session.clone(), control_rx, data_rx));
+    let mut writer = Writer(tokio::spawn(write(session.clone(), control_rx, data_rx)));
     let routes: Routes = Arc::default();
     let opening = Arc::new(AtomicUsize::new(0));
     let mut limits = NodeLimits::conservative();
@@ -205,8 +205,20 @@ where
     };
     routes.lock().unwrap_or_else(|e| e.into_inner()).clear();
     drop(tx);
-    let _ = tokio::time::timeout(Duration::from_secs(5), writer).await;
+    let _ = tokio::time::timeout(Duration::from_secs(5), &mut writer.0).await;
     end
+}
+
+/// The writer's task, which ends with `serve`: a `serve` that is dropped,
+/// as its task's abort drops it, takes the socket with it. The writer holds
+/// the socket, and lived on while a session's tasks held the outbox, so the
+/// far side never saw the node go (T-601).
+struct Writer(tokio::task::JoinHandle<Result<(), SessionError>>);
+
+impl Drop for Writer {
+    fn drop(&mut self) {
+        self.0.abort();
+    }
 }
 
 fn routes_len(routes: &Routes) -> usize {

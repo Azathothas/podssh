@@ -6360,3 +6360,48 @@ exec:` that starts `podssh exit NAME --listen 127.0.0.1:0 --carrier stdio`: curl
 listener's CONNECT reaches an HTTP server of the test, where curl is on PATH; a member with no rule
 is refused). Planted: `t596-carrier-rule-skipped` (the exit's rule not checked on a carrier): the
 refusal fails.
+
+# T-602: The relay role's test of two sessions of 2 MiB each way fails under load, on the limits of a road with no flow control
+
+**Source:** the session of 2026-11-03: `cargo test -p podssh-relay --features
+pair,quick,derp,serve,piping,blocking,plain-ws --no-fail-fast` failed one test, at random:
+`relay_serve_reverse::two_sessions_carry_their_bytes_whole_through_the_role` (its digest of
+session a). Then, six copies of its binary at once on this host's 4 CPUs: 50 of 150 runs failed
+with the code of `ac1ed74`, 43 of 150 with T-601's; one at a time, 30 of 30 passed with each.
+**Category:** defect
+**Milestone:** M10
+**Priority:** P2
+**Effort:** S
+**Status:** open
+
+## Problem
+
+A test that fails at random. Each failure is a limit that the road keeps on purpose, met when
+the host is slow: the node ends a session whose local side does not read (1000, "the node's local
+side does not read"), the operator ends one whose input passed 1 MiB before the node was ready
+(`NeverReady`), and the role ends a socket whose node reads too slowly (1011, "relay
+backpressure"). The test sends 2 MiB each way at once with no window above the road, so on a
+loaded host it measures the host, not the role.
+
+## Premise
+
+- Measured, 50 failures of 150: 18 "the node's local side does not read", 6 `NeverReady` ("more
+  than 1048576 bytes of input came before the node was ready"), 2 "relay backpressure"; the rest
+  of the 50 by the same digests, unread.
+- Read: `crates/podssh-relay/tests/relay_serve_reverse.rs`, `operate` writes the whole input at
+  once; `Local` takes the node's default queue.
+
+## Approach
+
+1. The test waits for the session's ready before it writes, and writes in pieces that the echo
+   gives back (a window of its own, as the layer keeps), so that no limit of the road is met;
+   the limits keep their own tests.
+2. 150 runs, six at a time, pass.
+
+## Prove
+
+```sh
+cargo test -p podssh-relay --features serve --test relay_serve_reverse
+```
+
+150 runs of its binary, six at once, pass.

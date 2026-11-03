@@ -59,13 +59,41 @@ impl Handler for Echo {
     }
 }
 
+/// Each session stays open: its local side never ends nor speaks, and
+/// `opened` hears that the node opened it.
+struct Hold {
+    opened: Arc<tokio::sync::Notify>,
+}
+
+impl Handler for Hold {
+    type Stream = DuplexStream;
+
+    fn open(&self, _id: SessionId) -> Opening<DuplexStream> {
+        let opened = self.opened.clone();
+        Box::pin(async move {
+            let (ours, theirs) = tokio::io::duplex(1024);
+            tokio::spawn(async move {
+                let _held = theirs;
+                std::future::pending::<()>().await
+            });
+            opened.notify_one();
+            Ok(ours)
+        })
+    }
+}
+
 /// podssh's node on `stream`, as `podssh node --carrier` runs it: its first
 /// frame, then its sessions until the stream ends.
 async fn node<S: AsyncRead + AsyncWrite + Send + 'static>(stream: S) -> End {
+    node_with(stream, Arc::new(Echo)).await
+}
+
+/// [`node`] with the sessions of `handler`.
+async fn node_with<S: AsyncRead + AsyncWrite + Send + 'static, H: Handler>(stream: S, handler: Arc<H>) -> End {
     let session = carrier::node_socket(stream);
     carrier::greet(&session).await.expect("the node's first frame");
     let mut stop = Box::pin(std::future::pending::<()>());
-    reverse::serve(session, Arc::new(Echo), Settings::default(), &mut stop).await
+    reverse::serve(session, handler, Settings::default(), &mut stop).await
 }
 
 /// A node on a new pipe: its task, and the client's end of the pipe.
@@ -167,6 +195,32 @@ async fn a_stream_that_the_client_was_given_has_one_life() {
     // Final, as a new leg would meet it again.
     assert!(matches!(&refused, ConnectError::Refused { status: 410, .. }), "{refused:?}");
     assert!(refused.to_string().contains("a pipe of the test"), "{refused}");
+}
+
+/// A node that goes while a session of it is open takes the stream with
+/// it: its writer held the stream while the session's tasks lived, so the
+/// role never saw the end, and each leg after waited for a node that read
+/// nothing (T-601; the macOS runner's order of the test before).
+#[tokio::test(flavor = "multi_thread", worker_threads = 4)]
+async fn a_node_that_goes_with_a_session_open_ends_the_stream() {
+    let said = Arc::new(Mutex::new(Vec::new()));
+    let opened = Arc::new(tokio::sync::Notify::new());
+    let (near, far) = tokio::io::duplex(STREAM);
+    let node = tokio::spawn(node_with(far, Arc::new(Hold { opened: opened.clone() })));
+    let door = door_over(Box::new(near), None, &said);
+    let leg = tokio::spawn(operate(door, Vec::new(), LIMIT));
+    tokio::time::timeout(LIMIT, opened.notified()).await.expect("the node opens the session");
+    node.abort();
+    let gone = tokio::time::timeout(Duration::from_secs(5), async {
+        while !said.lock().unwrap().iter().any(|l| l == "reverse node gone") {
+            tokio::time::sleep(Duration::from_millis(20)).await;
+        }
+    })
+    .await;
+    assert!(gone.is_ok(), "the role sees the stream end: {:?}", said.lock().unwrap());
+    let refused = operate(door, Vec::new(), Duration::from_secs(5)).await.0;
+    assert!(matches!(&refused, Err(ConnectError::Refused { status: 410, .. })), "{refused:?}");
+    leg.abort();
 }
 
 #[tokio::test(flavor = "multi_thread", worker_threads = 4)]

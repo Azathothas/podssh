@@ -2760,3 +2760,60 @@ pairs changed); the whole lib, 709; `cargo test -p podssh-relay --features block
 blocking`, 5 passed, and `--features pair --lib pair`, 2 passed; `man_page` 10 and `flag_table`
 9; `cargo clippy --all-targets -D warnings`: clean.
 
+
+# T-601: A node's `serve` that is dropped leaves its writer holding the socket, so the far side never sees the node go while a session of it lives
+
+**Source:** the gate at `38f424c` (run 41620927795, its job `macos`): `podssh-relay`'s
+`reverse_carrier::a_stream_that_the_client_was_given_has_one_life` gave "a leg still opened"
+after 30 s; it passed on Linux there and here. Read at `38f424c`.
+**Category:** defect
+**Milestone:** none
+**Priority:** P2
+**Effort:** S
+**Status:** done
+
+## Problem
+
+A test that fails at random on macOS, and a defect under it. `reverse::serve` spawns the one
+writer of the node's socket with a clone of the socket, and each session's tasks hold clones of
+its outbox. When the future of `serve` is dropped (its task aborted, as the test ends a node;
+any caller that drops it), the read loop goes, but the writer lives as long as a session's task
+holds the outbox, and so does the socket: the far side (the relay, a carrier's role) never sees
+the node go, and each leg after waits for a node that reads nothing. On Linux the test's first
+session had ended before the abort; on the macOS runner its tasks still lived.
+
+## Premise
+
+- Read, at `38f424c`: `crates/podssh-relay/src/reverse/serve.rs`, `serve` spawns
+  `write(session.clone(), ...)` and awaits it only at its own end, 5 s at most; `open` and its
+  copies hold `tx.clone()`.
+- Read: `crates/podssh-relay/tests/reverse_carrier.rs`, the test aborts the node's task and
+  expects the role to refuse the next leg with 410 within 30 s.
+
+## Approach
+
+1. The writer's handle in a guard that aborts it when `serve` is dropped; the end of `serve`
+   still waits for it 5 s.
+2. A test of the order that the macOS runner met: a node that holds a session open, its task
+   aborted; the role must see the stream end, and refuse the next leg with 410.
+
+## Prove
+
+```sh
+cargo test -p podssh-relay --features serve --test reverse_carrier
+```
+
+Each passes; planted, the guard that aborts nothing: the new test fails.
+
+## Done
+
+2026-11-03.
+
+- `crates/podssh-relay/src/reverse/serve.rs`: `Writer`, the writer's task, aborted when `serve`
+  is dropped.
+- `crates/podssh-relay/tests/reverse_carrier.rs`: `a_node_that_goes_with_a_session_open_ends_the_stream`,
+  with a handler that holds each session open.
+- `cargo test -p podssh-relay --features serve --test reverse_carrier`: 6 passed. The whole
+  crate with `pair,quick,derp,serve,piping,blocking,plain-ws`: 584 passed, and 1 failed at random,
+  `relay_serve_reverse`'s two sessions of 2 MiB, which fails as often with the code before (T-602).
+- Planted, `Drop` that aborts nothing: the new test failed ("the role sees the stream end").

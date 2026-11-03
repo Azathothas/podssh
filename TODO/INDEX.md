@@ -62,15 +62,15 @@ repository and CI).
 
 ## Counts
 
-**564 entries: 106 open, 4 partial, 16 blocked, 438 done.**
+**566 entries: 107 open, 4 partial, 16 blocked, 439 done.**
 
 | Priority | open | partial | blocked | done | total |
 | --- | --- | --- | --- | --- | --- |
 | P0 | 0 | 0 | 0 | 1 | 1 |
 | P1 | 0 | 1 | 0 | 62 | 63 |
-| P2 | 26 | 3 | 14 | 212 | 255 |
+| P2 | 27 | 3 | 14 | 213 | 257 |
 | P3 | 80 | 0 | 2 | 163 | 245 |
-| **All** | 106 | 4 | 16 | 438 | 564 |
+| **All** | 107 | 4 | 16 | 439 | 566 |
 
 ## Entries
 
@@ -640,3 +640,5 @@ repository and CI).
 | [T-598](ssh.md) | P3 | S | none | defect | open | On a cloud container's host, a peer that stops reading below SSH with `--direct` ends the session after 240 s on the keepalives, not after 60 s on the stuck write |
 | [T-599](roads.md) | P2 | M | none | defect | partial | The stand-in edge's echo of 1 MiB inside WARP's tunnel stalls at random |
 | [T-600](resume.md) | P2 | S | none | defect | done | A resume that comes before the first link's task carries its session ends the session, as while a node opens its target |
+| [T-601](reverse.md) | P2 | S | none | defect | done | A node's `serve` that is dropped leaves its writer holding the socket, so the far side never sees the node go while a session of it lives |
+| [T-602](mesh.md) | P2 | S | M10 | defect | open | The relay role's test of two sessions of 2 MiB each way fails under load, on the limits of a road with no flow control |
