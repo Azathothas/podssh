@@ -55,7 +55,10 @@ pub const PROXY: &[&str] = &[
      --relay-addr and --ca-file reach the pair's relay. The flags of a node with another target are refused \
      (64). A word that starts with node: and is no node://NAME is refused with the three forms of a node's \
      ProxyCommand: podssh proxy node://NAME, podssh operator NAME and podssh pipe - node:NAME; node:PORT stays \
-     the host node and its port.",
+     the host node and its port. With --carrier ADDR the node is at the other end of a stream that exists \
+     already, with no relay and no pair, as podssh operator --carrier reaches it (see its notes), with its \
+     checks and codes: ssh -o ProxyCommand=\"podssh proxy --carrier 'exec:ssh -T sandbox podssh node \
+     --carrier stdio box 127.0.0.1:22' node://box\" user@box.",
     "--ConnectTimeout SECONDS, 1 to 86400, bounds the time from the start to the session's open, on each \
      road: the relay's answer (each host's dial, its TLS, the upgrade, and its dial of HOST), or the answer of \
      the road in the relay's place, and for node://NAME the steps of podssh operator. Each step keeps its own \

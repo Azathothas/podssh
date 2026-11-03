@@ -315,7 +315,8 @@ pub fn run_cp(args: &CpArgs, deadline: Option<Duration>, jsonl: bool, out: &mut 
     // On the heap: the copy's future is large, and Windows gives the main
     // thread 1 MiB of stack.
     let run = Box::pin(run_plan(&plan, &resolved, &log, after));
-    let outcome = runtime.block_on(async {
+    // A carrier that the copy's connections shared ends after it (T-595).
+    let outcome = runtime.block_on(crate::ssh::transport::settled(async {
         let run = async {
             match deadline {
                 Some(limit) => tokio::time::timeout(limit, run).await.unwrap_or_else(|_| {
@@ -338,7 +339,7 @@ pub fn run_cp(args: &CpArgs, deadline: Option<Duration>, jsonl: bool, out: &mut 
                 None
             }
         }
-    });
+    }));
     let Some(outcome) = outcome else {
         // Several files at once leave a partial copy each (T-297).
         let kept = match resume::each_current().as_slice() {

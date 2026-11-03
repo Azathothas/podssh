@@ -312,6 +312,7 @@ const FIRST: &[&str] = &[
      the operator's ruling Q65. PODSSH_TRANSIT=no turns it off, a ws:// or wss:// URL there names another \
      relay, and --no-e2e leaves it out, as the relay is a stranger's. Each resume races the roads again, \
      so a session whose relay of the pair went away goes on through the transit relay.",
+    super::notes_pair::SSH_CARRIER,
     "Host keys are checked against the known_hosts files. On a terminal, podssh asks about an unknown \
      key. With no terminal and no SSH_ASKPASS, it refuses the key and names the remedy: \
      -o StrictHostKeyChecking=accept-new records a new key with no question. A changed key is always \

@@ -159,7 +159,7 @@ and `CARGO_BUILD_JOBS=4`:
 
 ## Counts
 
-`TODO/INDEX.md` holds 568 entries: 97 open, 4 partial, 16 blocked, 451 done.
+`TODO/INDEX.md` holds 568 entries: 97 open, 3 partial, 16 blocked, 452 done.
 
 Open includes parked work. `cargo todo check` verifies this line.
 
@@ -230,12 +230,10 @@ merged; `v1.0.1` went out with them on 2026-11-03. The defects of GitHub #112 to
 on 2026-11-03) are done and go into `v1.1.0-beta.1`. Until podssh is stable the expensive checks wait (Q88). Their
 features and documents (T-475, T-486, T-530
 to T-532, and T-534 to T-549 and T-565 to T-582, which Q74, Q75, Q77, Q78
-and Q82 filed; and of #112 to #124, with M10's T-595, T-592 and
+and Q82 filed; and of #112 to #124, with M10's T-592 and
 T-596, the relay role's and the roads') follow, by priority, beside M10 (Q85); Dependabot's #119,
 #120 and #122 are in `main` (2026-11-03), and #123 waits for an iroh-dns that takes simple-dns 0.13. Overnight a fork of
-policy is decided and listed below for the operator to confirm (Q86). The first drafts of 2026-11-03 are merged (T-595's first step among them). The second round
-(T-595's next steps) waits on the
-branches `draft/worktree-agent-*` of GitHub, each merged in turn.
+policy is decided and listed below for the operator to confirm (Q86). The drafts of 2026-11-03, both rounds, are merged.
 
 **Skip** the entries that the operator holds (status
 `blocked`, Q32):

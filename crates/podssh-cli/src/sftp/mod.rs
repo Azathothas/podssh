@@ -192,8 +192,9 @@ pub fn run_sftp(
     };
     let subsystem = args.subsystem.as_deref().unwrap_or("sftp");
     let ran = session(&resolved, &server, subsystem, shape, args.recursive, script, tty.stdin, &log, out);
-    // The bound covers the login and each command, as cp's covers its copy.
-    let code = runtime.block_on(async {
+    // The bound covers the login and each command, as cp's covers its copy;
+    // a carrier that the session's connection took ends after it (T-595).
+    let code = runtime.block_on(crate::ssh::transport::settled(async {
         match deadline {
             Some(limit) => tokio::time::timeout(limit, ran).await.unwrap_or_else(|_| {
                 log.error(&format!("the --timeout of {} s passed", limit.as_secs()));
@@ -201,7 +202,7 @@ pub fn run_sftp(
             }),
             None => ran.await,
         }
-    });
+    }));
     runtime.shutdown_background();
     code
 }

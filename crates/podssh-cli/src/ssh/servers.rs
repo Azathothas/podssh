@@ -23,7 +23,9 @@ pub(super) fn or_relay(args: &SshArgs, env: &Env, relay: Transport) -> Result<Tr
 
 /// Each server's flag beside a road of its own, which [`or_relay`] never
 /// took: a usage error; and the exit's word, once the first hop is known.
+/// A carrier beside a destination that is no node is refused first (T-595).
 pub(super) fn check(args: &SshArgs, resolved: &mut Resolved) -> Result<(), Refusal> {
+    super::carried::check(args, resolved)?;
     super::exit_road::fill(args, resolved)?;
     let resolved: &Resolved = resolved;
     crate::forwarder::check(args, resolved)

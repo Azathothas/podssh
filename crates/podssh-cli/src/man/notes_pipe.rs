@@ -70,6 +70,15 @@ pub const PIPE: &[&str] = &[
      -o; an -o of a session (RequestTTY, RemoteCommand) is refused. node: takes the pair stored under \
      NAME, or the one of --pair-file. iroh: takes this client's key of --iroh-key, and the relays of \
      --iroh-relay after the ticket's.",
+    "With --carrier ADDR, node:NAME and udp:node:NAME take the node at the other end of a stream that \
+     exists already, with no relay and no pair, as podssh operator --carrier does (see its notes): exec:CMD, \
+     a program that podssh starts with no shell, or fd:N (Unix); NAME is the label under which the node's \
+     key is pinned. stdio is refused (64), as the pipe's own stdin and stdout are a side or none, and so are \
+     --pair-file and a pipe with no node side. Each node side, and each client of a listening side, is a \
+     session of its own on the one stream, which ends with the pipe: the node hears a Close, and the \
+     program of exec: ends. The other side keeps its road, so podssh pipe tcp-listen:2222 node:box --carrier \
+     'exec:ssh -T sandbox podssh node --carrier stdio box 127.0.0.1:22' --keep-listening gives a port here \
+     for the node's sshd.",
     "exec:CMD starts the program with no shell: its words split at blanks, with single and double \
      quotes, and no variables, globs or escapes; exec:sh -c 'CMD' names a shell. The program gets one \
      end of a socketpair as its stdin and stdout, or two pipes where a socketpair is refused and on \

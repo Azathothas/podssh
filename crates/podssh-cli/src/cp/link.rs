@@ -146,6 +146,11 @@ type Hops = (Vec<Connection>, Option<RelayStatus>, Option<crate::ssh::transport:
 
 async fn hops(resolved: &Resolved, log: &Arc<Log>) -> Result<Hops, Failed> {
     let reached = match &resolved.transport {
+        // A node at the other end of a carrier, the command's one stream,
+        // each connection a leg of it (T-595).
+        Transport::Node { label, channel, carrier: Some(text), .. } => {
+            crate::ssh::carried::reach(label, text, channel, log).await
+        }
         // A node of a pair, through its pair, as `ssh node://` reaches it
         // (T-296). Its session has no relay status here: the resumable layer
         // moves it to a new leg before the relay's limits (T-155).

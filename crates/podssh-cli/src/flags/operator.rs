@@ -1,7 +1,8 @@
 //! The flag rows of `operator`: those of a pair, and those of the end-to-end
 //! channel (T-087, T-088): this operator's key, the node's key in place of
 //! the pins, and the switch that turns the channel off. And the bound on a
-//! pipe's open, `--ConnectTimeout`, of `operator`, `proxy` and `pipe` (T-589).
+//! pipe's open, `--ConnectTimeout`, of `operator`, `proxy` and `pipe` (T-589);
+//! and `--carrier` of the other clients of a node (T-595).
 
 use super::{row, FlagKind, FlagRow};
 
@@ -25,6 +26,18 @@ pub const PAIR_FLAGS: &[FlagRow] = &[
     row(None, "carrier", Some("ADDR"), FlagKind::Supported,
         "reach the node at the other end of ADDR, a stream that exists already, with no relay and no pair: exec:CMD, a program started with no shell, as exec:'ssh -T HOST podssh node --carrier stdio NAME TARGET', or fd:N (Unix); NAME is then the label under which the node's key is pinned", None),
 ];
+
+/// `--carrier ADDR` of `ssh`, `cp`, `mv`, `scp` and `sftp` (T-595).
+pub const SSH_CARRIER: FlagRow = row(None, "carrier", Some("ADDR"), FlagKind::Supported,
+    "node://NAME: reach the node at the other end of ADDR, a stream that exists already, as its one road, with no relay and no pair: exec:CMD, a program started with no shell, as exec:'ssh -T HOST podssh node --carrier stdio NAME TARGET', or fd:N (Unix); NAME is then the label under which the node's key is pinned", None);
+
+/// `--carrier ADDR` of `proxy node://NAME` (T-595), as `operator` takes it.
+pub const PROXY_CARRIER: FlagRow = row(None, "carrier", Some("ADDR"), FlagKind::Supported,
+    "node://NAME: reach the node at the other end of ADDR, a stream that exists already, with no relay and no pair, as podssh operator --carrier does: exec:CMD, a program started with no shell, or fd:N (Unix); NAME is then the label under which the node's key is pinned", None);
+
+/// `--carrier ADDR` of `pipe`'s `node:` side (T-595).
+pub const PIPE_CARRIER: FlagRow = row(None, "carrier", Some("ADDR"), FlagKind::Supported,
+    "node: and udp:node:: reach the node at the other end of ADDR, a stream that exists already, with no relay and no pair, as podssh operator --carrier does: exec:CMD, a program started with no shell, or fd:N (Unix); each client of a listening side is a session of the one stream", None);
 
 /// `--ConnectTimeout` of `operator` (T-589).
 pub const OPERATOR_CONNECT_TIMEOUT: FlagRow = row(None, "ConnectTimeout", Some("SECONDS"), FlagKind::Supported,

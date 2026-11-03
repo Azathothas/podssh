@@ -62,15 +62,15 @@ repository and CI).
 
 ## Counts
 
-**568 entries: 97 open, 4 partial, 16 blocked, 451 done.**
+**568 entries: 97 open, 3 partial, 16 blocked, 452 done.**
 
 | Priority | open | partial | blocked | done | total |
 | --- | --- | --- | --- | --- | --- |
 | P0 | 0 | 0 | 0 | 1 | 1 |
 | P1 | 0 | 1 | 0 | 62 | 63 |
-| P2 | 24 | 3 | 14 | 217 | 258 |
+| P2 | 24 | 2 | 14 | 218 | 258 |
 | P3 | 73 | 0 | 2 | 171 | 246 |
-| **All** | 97 | 4 | 16 | 451 | 568 |
+| **All** | 97 | 3 | 16 | 452 | 568 |
 
 ## Entries
 
@@ -634,7 +634,7 @@ repository and CI).
 | [T-592](mesh.md) | P3 | M | M10 | feature | open | A pair that its owner renews in podssh's relay role, so that a node of the role outlives 72 h with its operators' file unchanged |
 | [T-593](relay.md) | P2 | S | none | defect | done | The cache follows `HOME` into another user's home: root's node key goes under that user's `.cache`, which podssh can make root's own |
 | [T-594](repo.md) | P2 | S | none | docs | done | `docs/STATUS.md` reads `main` and never says so: the exit node reads as working, and the release has none |
-| [T-595](mesh.md) | P2 | L | M10 | feature | partial | A carrier of the node's road over a byte stream that exists already (`stdio`, `fd:N`, `exec:CMD`), for a host whose every road out is closed |
+| [T-595](mesh.md) | P2 | L | M10 | feature | done | A carrier of the node's road over a byte stream that exists already (`stdio`, `fd:N`, `exec:CMD`), for a host whose every road out is closed |
 | [T-596](mesh.md) | P3 | S | M10 | feature | open | The exit over a carrier: a host that grants an exec channel alone gets egress through its other end |
 | [T-597](repo.md) | P3 | S | none | chore | done | Dependabot's updates of 2026-11-02: Python 3.15 for the box's proxy, the build image's digest, sha2 0.11.1 and simple-dns 0.13 |
 | [T-598](ssh.md) | P3 | S | none | defect | open | On a cloud container's host, a peer that stops reading below SSH with `--direct` ends the session after 240 s on the keepalives, not after 60 s on the stuck write |

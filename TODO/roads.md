@@ -3411,7 +3411,7 @@ allows podssh as a client of Cloudflare (`docs/decisions.md:60`).
   `crates/podssh-cli/src/ssh/cloudflare.rs:73` says "a Cloudflare tunnel cannot be reached
   through a -J hop yet", and `docs/cli.md:196-197` says so too.
 - Read: the road of a run is chosen for the first hop's host
-  (`crates/podssh-cli/src/ssh/resolve.rs:303`), and each later hop runs in a `direct-tcpip`
+  (`crates/podssh-cli/src/ssh/resolve.rs:305`), and each later hop runs in a `direct-tcpip`
   channel of the session before it (`crates/podssh-ssh/src/run.rs:161-173`;
   `crates/podssh-ssh/src/forward.rs:14-22`).
 - Read: the `cf://` road opens the WebSocket of `cloudflared access tcp` through `HTTPS_PROXY`,
@@ -5026,10 +5026,10 @@ does not depend on them.
 
 - Read: `Transport::Direct` comes from `--direct` alone
   (`crates/podssh-cli/src/ssh/resolve.rs`, lines 340-346 at `4e2010e`), and else the relay (lines 348-371 at `4e2010e`); its other
-  uses are a label (`crates/podssh-cli/src/ssh/mod.rs:278`), the dial
-  (`crates/podssh-cli/src/ssh/transport.rs:274-318`) and a check of `--upgrade`
+  uses are a label (`crates/podssh-cli/src/ssh/mod.rs:280`), the dial
+  (`crates/podssh-cli/src/ssh/transport.rs:276-320`) and a check of `--upgrade`
   (`crates/podssh-cli/src/ssh/upgrade.rs:59`). The issue's citation of
-  the arm began two lines early; it is at `crates/podssh-cli/src/ssh/resolve.rs:340-343`.
+  the arm began two lines early; it is at `crates/podssh-cli/src/ssh/resolve.rs:342-345`.
 - Read: `docs/design.md:45` says "podssh tries the roads in this order"; for a public sshd, the
   forward road comes first, then the direct road (`docs/design.md:51`), which at `8554930` said
   "`--direct`, or when a probe shows it works"; the triage of GitHub #69 to #72 named this entry
@@ -5038,13 +5038,13 @@ does not depend on them.
   and for the split HTTP road (`AGENTS.md:272-282`); a race of the forward and the direct road is
   neither.
 - Read: the direct dial goes through `HTTPS_PROXY` when it is set, with the relay's step limit of
-  20 s (`crates/podssh-cli/src/ssh/transport.rs:334-348`, `crates/podssh-relay/src/open.rs:30`),
+  20 s (`crates/podssh-cli/src/ssh/transport.rs:336-350`, `crates/podssh-relay/src/open.rs:30`),
   and names a proxy that takes the CONNECT and sends nothing back (T-317). doctor reads the
   server's version line on port 22, straight out or through the proxy, to say whether plain ssh
   can leave (`crates/podssh-cli/src/doctor/net.rs:192-199`, `:201-293`).
 - Read: `cp`, `each`, `job`, `health`, `containers`, `ping` and the `ssh:` address of `pipe` reach
   their server through the same function as `podssh ssh`
-  (`crates/podssh-cli/src/ssh/transport.rs:163-167`; `crates/podssh-cli/src/cp/link.rs`,
+  (`crates/podssh-cli/src/ssh/transport.rs:165-169`; `crates/podssh-cli/src/cp/link.rs`,
   `crates/podssh-cli/src/each/host.rs`).
 - Read: on the hosts that podssh is built for, the proxy refuses port 22 and a direct dial is
   dropped with no answer (`docs/target-environment.md:21-22`); a cloud container's proxy takes
@@ -5201,7 +5201,7 @@ relay's path and token.
   nothing of other clients.
 - Read: a relay is a host and a port (`crates/podssh-relay/src/relay.rs:56-62`), and its forward
   path is `/connect/<host>/<port>` (`:139-152`); a run has one road, of five kinds
-  (`crates/podssh-cli/src/ssh/resolve.rs:23-72`).
+  (`crates/podssh-cli/src/ssh/resolve.rs:23-74`).
 - Read: `validate` refuses a query other than the relay's knobs, and `connect` always sends a token
   (`crates/podssh-ws/src/client.rs:66-105`, `:160-183`); a token goes only to the deployment that
   minted it (`docs/decisions.md:88`).
@@ -5519,14 +5519,14 @@ a hop. `doctor` has no line for a hop, so a user cannot see whether one is reach
 
 - Read: a hop is `[user@]host[:port]` or `ssh://[user@]host[:port]`
   (`crates/podssh-cli/src/ssh/hop.rs:30-57`), and `-J` refuses a node only (`:68-74`). The road is
-  chosen for the first hop's host (`crates/podssh-cli/src/ssh/resolve.rs:303`); with `--direct` it
-  is TCP through `HTTPS_PROXY` (`crates/podssh-cli/src/ssh/resolve.rs:340-343`; `crates/podssh-cli/src/ssh/transport.rs:1-2`).
+  chosen for the first hop's host (`crates/podssh-cli/src/ssh/resolve.rs:305`); with `--direct` it
+  is TCP through `HTTPS_PROXY` (`crates/podssh-cli/src/ssh/resolve.rs:342-345`; `crates/podssh-cli/src/ssh/transport.rs:1-2`).
 - Read: a prompt goes to the terminal, or to the program of `SSH_ASKPASS`, chosen as OpenSSH
   chooses it (`crates/podssh-ssh/src/prompt.rs:1-12`).
 - Read: through the agent proxy of a cloud container, a CONNECT to `ssh.github.com:443` got `200`,
   and then a reset: `TODO/ws.md:1160` says "gets 200, then a reset". A proxy that waits for TLS
   carries no SSH on port 443; T-372 wraps SSH in TLS for it. Through the relay, GitHub's SSH on
-  port 443 answers (`docs/STATUS.md:140`).
+  port 443 answers (`docs/STATUS.md:139`).
 - Read: `doctor` asks the proxy for the relay and for `github.com` only
   (`crates/podssh-cli/src/doctor/net.rs:201-262`).
 - Read in GitHub #61 (a tester's measurement of 2026-10-31, from a host with direct egress; not
@@ -5648,7 +5648,7 @@ TCP, and podssh runs no `ProxyCommand` that could add TLS.
 
 - Read: a hop is `[user@]host[:port]` or `ssh://[user@]host[:port]`
   (`crates/podssh-cli/src/ssh/hop.rs:30-57`); a destination can also name a road by its scheme,
-  `cf://`, `node://` or `iroh:` (`crates/podssh-cli/src/ssh/resolve.rs:23-72`).
+  `cf://`, `node://` or `iroh:` (`crates/podssh-cli/src/ssh/resolve.rs:23-74`).
 - Read: podssh runs no `ProxyCommand` (`crates/podssh-cli/src/ssh/options.rs:231-236`).
 - Read: podssh-ws opens TCP through the proxy, then a TLS handshake checked for a name
   (`crates/podssh-ws/src/client.rs:185-200`), with no ALPN and no client certificate
@@ -6132,7 +6132,7 @@ ask, and nothing does so.
   (`crates/podssh-cli/src/node_iroh.rs:358-359`), and `podssh node` sends `--iroh` there
   (`crates/podssh-cli/src/node.rs:111-113`).
 - Read: `podssh ssh` resolves its destination into an enum of transports
-  (`crates/podssh-cli/src/ssh/resolve.rs:24-72`), in a file of 488 of its 500 lines.
+  (`crates/podssh-cli/src/ssh/resolve.rs:24-74`), in a file of 488 of its 500 lines.
 - Read: the race of T-164 orders two roads (`crates/podssh-relay/src/session/race.rs:59-61`), and
   the race of the command line is in a build with the feature `iroh` only
   (`crates/podssh-cli/src/ssh/iroh.rs:8-11`).
@@ -7488,7 +7488,7 @@ puts the fallback in its `ok` column without a probe.
 - Read: the fallback follows each failure of the relay whose exit is 69 or 77
   (`crates/podssh-cli/src/forwarder/fallback.rs:90-110`), on by default
   (`crates/podssh-cli/src/forwarder/fallback.rs:54-66`), after the direct road
-  (`crates/podssh-cli/src/ssh/transport.rs:212-233`); the module's own words are that "a target
+  (`crates/podssh-cli/src/ssh/transport.rs:214-235`); the module's own words are that "a target
   that cannot go" ends the run as before (`crates/podssh-cli/src/forwarder/fallback.rs:9-11`).
 - Read: the relay's refusal of a target by its policy (400, a blocked address range) is 77
   (`crates/podssh-cli/src/proxy.rs:383-384`), and each other answer, the 502 of a target that the

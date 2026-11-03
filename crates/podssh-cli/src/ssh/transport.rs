@@ -84,7 +84,8 @@ fn running(kept: &mut Vec<Carriage>) {
 
 /// Run `work`, a command's whole run, then wait for each task of the layer
 /// that it kept, within [`CARRIAGE_WAIT`] in all: inside the runtime, as
-/// a task spawned there runs only while the runtime does.
+/// a task spawned there runs only while the runtime does. Then the carrier
+/// that its legs shared ends, when one started (T-595).
 pub async fn settled<T>(work: impl std::future::Future<Output = T>) -> T {
     let out = work.await;
     let kept = std::mem::take(&mut *KEPT.lock().unwrap_or_else(std::sync::PoisonError::into_inner));
@@ -92,6 +93,7 @@ pub async fn settled<T>(work: impl std::future::Future<Output = T>) -> T {
     for layer in kept {
         let _ = tokio::time::timeout_at(deadline, layer).await;
     }
+    crate::carrier::end_shared().await;
     out
 }
 

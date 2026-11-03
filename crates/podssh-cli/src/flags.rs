@@ -207,7 +207,7 @@ pub const SSH_FLAGS: &[FlagRow] = &[
     row(None, "iroh-ticket", Some("TICKET"), FlagKind::Supported,
         "node://NAME: race the iroh road to TICKET, first, with the pair's road; the first that answers carries the session; a build with the feature iroh", None),
     derp::DERP_TICKET,
-    derp::SSH_DERP_SERVER, node::EXIT,
+    derp::SSH_DERP_SERVER, node::EXIT, operator::SSH_CARRIER,
     row(None, "persist", None, FlagKind::Supported,
         "run the shell in the server's tmux, and after a lost link connect again and attach it again; tmux is probed", None),
     node::OWN_DEADLINE,

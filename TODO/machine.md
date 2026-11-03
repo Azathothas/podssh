@@ -530,7 +530,7 @@ Read: a session ends as `io::End` (`crates/podssh-ssh/src/io.rs:35-56`). The exi
 signal are read in `handle_msg` (`crates/podssh-ssh/src/io/msg.rs:35-53`). The output goes straight to the process's
 stdout and stderr in `write_out` (`:78-95`), so nothing counts bytes. `session::run` maps
 the end to the exit code (`crates/podssh-ssh/src/session.rs:39-48`). The relay host is known
-at `crates/podssh-cli/src/ssh/transport.rs:206`, and the relay's close reason is in `RelayStatus`
+at `crates/podssh-cli/src/ssh/transport.rs:208`, and the relay's close reason is in `RelayStatus`
 (`crates/podssh-ssh/src/relay_stream.rs:69-176`).
 
 ## Approach
@@ -901,8 +901,8 @@ at `crates/podssh-cli/src/session_log.rs:97-121`, the lines of `ssh` and
 checks and its move aside at `crates/podssh-cli/src/session_log.rs:174-243`,
 and its last line at `crates/podssh-cli/src/session_log.rs:246-263`. The
 line of `podssh ssh` at the end of `run_ssh`, from its result
-(`crates/podssh-cli/src/ssh/mod.rs:85-116`), and its destination at
-`crates/podssh-cli/src/ssh/mod.rs:237`; that of `podssh proxy` at
+(`crates/podssh-cli/src/ssh/mod.rs:87-118`), and its destination at
+`crates/podssh-cli/src/ssh/mod.rs:239`; that of `podssh proxy` at
 `crates/podssh-cli/src/proxy.rs:72-86`, its destination at
 `crates/podssh-cli/src/proxy.rs:157` and `crates/podssh-cli/src/proxy.rs:263`,
 its session at `crates/podssh-cli/src/proxy.rs:410-417`; the bytes of the

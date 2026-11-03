@@ -3112,7 +3112,7 @@ The calls of the draft (2026-11-02), each with what lost:
   copy above; leaving the test as it was, by which `mv NAME:a node://NAME:b` copies through this
   host and removes the source, where the server could rename it, and `mv NAME:a node://NAME:a` is
   not refused as one file before anything connects.
-- **A copy keeps the pair's road alone** (`crates/podssh-cli/src/ssh/node.rs:232` says "the
+- **A copy keeps the pair's road alone** (`crates/podssh-cli/src/ssh/node.rs:263` says "the
   pair's road is its only one"), and the manual says so. Lost: racing the net's iroh and DERP
   tickets for a copy as `ssh` races them, which needs `roads::connect` to give a stream in place
   of running SSH itself: more than this entry's effort, in a file of 463 of its 500 lines; it is
@@ -3135,7 +3135,7 @@ The copies do ask the net (read 2026-11-02). Each reads its operand with its own
 (`crates/podssh-cli/src/cp/mod.rs:264`, `crates/podssh-cli/src/sftp/mod.rs:169`,
 `crates/podssh-cli/src/edit/mod.rs:153`), which reads the destination's node before its host
 (`crates/podssh-cli/src/ssh/resolve.rs:142`), and a name alone there in the net
-(`crates/podssh-cli/src/ssh/node.rs:41` says "crate::net::lookup::bare(text)"); the copy's link then reaches `Transport::Node` through the pair
+(`crates/podssh-cli/src/ssh/node.rs:44` says "crate::net::lookup::bare(text)"); the copy's link then reaches `Transport::Node` through the pair
 (`crates/podssh-cli/src/cp/link.rs:152-153`). So `podssh cp FILE lab:PATH` and `podssh sftp lab`
 already resolve to the member's node. What was missing: a test that proves it, the manual's and
 the documents' words, and the copies' own test of one server, which compared the operands as
@@ -4389,7 +4389,7 @@ where `ssh` would reach it.
 
 ## Premise
 
-- `crates/podssh-cli/src/cp/link.rs:152` says "Transport::Node { label, pair_file, trust, channel, .. } => {",
+- `crates/podssh-cli/src/cp/link.rs:157` says "Transport::Node { label, pair_file, trust, channel, .. } => {",
   and the copy reaches the node by `crate::ssh::node::reach`, the pair's road.
 - `crates/podssh-cli/src/ssh/roads.rs:1` says "`podssh ssh node://NAME` over more roads than the pair's (T-164, T-379):".
 
@@ -6157,7 +6157,7 @@ It asks for `podssh node --stdio NAME TARGET`, and
 **Milestone:** M10
 **Priority:** P2
 **Effort:** L
-**Status:** partial
+**Status:** done
 
 ## Problem
 
@@ -6237,6 +6237,23 @@ Calls of the draft (2026-11-03), for the operator to confirm with the rest (Q86)
   `Copy` and a command runs one carrier. Lost: a lifetime on `Wire`, which each `OperatorConfig`
   of the code would carry; a table of roles by number, the same handle with more code.
 
+Calls of the draft of the next steps (2026-11-03), for the operator to confirm with the rest
+(Q86):
+
+- The clients of a node share one client of the carrier for the command (`crate::carrier::shared`):
+  one program, one node, and each connection of a copy, each session of `ssh`, a leg of its own,
+  as the role carries many legs; the command's end sends the node its Close
+  (`crate::carrier::end_shared`, from `crate::ssh::transport::settled`, which `cp` and `sftp` now
+  run in). Lost: a program for each connection, which would log in to the platform again for each
+  step of a copy (a move across hosts makes three), and leak a role each time.
+- A client's `--carrier stdio` is refused (64), as for `operator`: its stdin and stdout are its
+  session's or its lines'. Lost: stdio at a client, which is T-596's `exit --listen` alone.
+- A carrier is the node's one road: `ssh --carrier` races no other, and the flags of a relay, a
+  pair, the tickets, `--derp-server`, a server's road, `--exit` and `--upgrade` are refused with it
+  (64), in its own words, before those of a node's other roads. Lost: the race of the carrier with
+  the pair's road, for a node that has both, which no tester asked for and which would make the
+  stream's program start for a session that the pair carries.
+
 ## Prove
 
 ```sh
@@ -6251,7 +6268,11 @@ exec:'podssh node --carrier stdio NAME 127.0.0.1:PORT' node://NAME` to the test'
 `true` exits 0; OpenSSH's client with `ProxyCommand="podssh proxy --carrier exec:... node://NAME"`;
 a pinned key that the far end does not have, refused with 77; a terminal on stdin refused, 64;
 each says that it did not run where this host has no OpenSSH). Planted: `t595-carrier-no-channel`
-(the end-to-end channel skipped on a carrier with no `--no-e2e`): the test of the pin fails.
+(the end-to-end channel skipped on a carrier with no `--no-e2e`): the test of the pin fails; and
+`t595-ssh-carrier-skipped` (`ssh --carrier` sent to the pair's road): the test of the node that
+`ssh` starts and closes fails; `t595-proxy-carrier-dropped` (`proxy node://` given no carrier): the
+test of `proxy --carrier` fails; `t595-pipe-carrier-ignored` (`pipe`'s node side on the pair's
+road beside `--carrier`): the test of `pipe - node:box --carrier` fails.
 
 ## Correction
 
@@ -6271,6 +6292,18 @@ Read at `477b47c` (2026-11-03), for the draft of the first step:
 - The first step's `node_carrier` runs OpenSSH's client with `podssh operator --carrier` as its
   ProxyCommand, to OpenSSH's sshd; the Prove's `podssh ssh --carrier` comes with the next step, and
   its test joins `node_carrier` then.
+
+Read at `38f424c` (2026-11-03), for the draft of the next steps:
+
+- `proxy node://` of T-587 is built (`crates/podssh-cli/src/proxy_node.rs`), and its `to_operator`
+  gave `carrier: None`; `proxy --carrier` is its flag now, which `operator`'s checks take.
+- `operator --carrier` took `--ConnectTimeout` and did nothing with it: `carrier::prepare` did not
+  read `connect_timeout`, though the manual says that the flag bounds `operator`'s open. The draft
+  of `proxy --carrier` gives the carrier the bound, for both verbs: the node's read of the stream,
+  its ready, then the layer and the channel.
+- A copy (`cp`, `scp`, `sftp`) opens a connection at a time, and more than one in a run (a move
+  across hosts makes three), each through `crate::ssh::node::reach`; so a carrier's client is one
+  for the command, not one for each connection (Decision).
 
 ## Done
 
@@ -6342,7 +6375,7 @@ Measured, 2026-11-03:
   `tree.rs` with the draft's (`--carrier` first, then `to_node`; `--ConnectTimeout` beside
   `--carrier`), and gave `proxy_node`'s `OperatorArgs` no carrier, as `proxy --carrier` is step 2.
 
-What remains, the next steps of this entry:
+What remained after the first step:
 
 1. `podssh ssh --carrier ADDR node://NAME`, and `cp`, `scp` and `sftp` to `node://NAME` on one,
    on `crate::carrier::Client` and `Wire::Carrier`; its test joins `node_carrier`, as the Prove
@@ -6350,6 +6383,134 @@ What remains, the next steps of this entry:
 2. `podssh proxy --carrier ADDR node://NAME`, once T-587 gives `proxy node://`.
 3. `pipe`'s `node:` side with `--carrier`.
 4. The exit over a carrier is T-596, which lifts the refusal of `--exit` here.
+
+2026-11-03, drafted (`DRAFT T-595: ssh, cp, scp and sftp to node://NAME on a carrier`), step 1 of
+the list above; merged here with the two after it, and the results are the merge's.
+
+What changed:
+
+- `crates/podssh-cli/src/ssh/carried.rs` (new): `flags`, the refusals of `--carrier` beside a flag
+  of a relay, a pair or another road, and of `stdio` (64), called from `node::transport` first;
+  `check`, `--carrier` with a destination that is no node, or with `--exit` (64), called from
+  `servers::check`; `connect`, `ssh` to the node over the shared client, a first leg, then
+  `node::run_on`, and the node's Close at the end; `reach`, a copy's stream over a leg of the
+  shared client, in a task, as `node::reach` carries one over the pair's; a unit test.
+- `crates/podssh-cli/src/ssh/node.rs`: `connect` split into its pair's part and `run_on` (with
+  `Leg`), the session over a first leg, which the carrier's `connect` runs too; `transport` checks
+  the carrier's flags first and sets `carrier` of `Transport::Node`.
+- `crates/podssh-cli/src/ssh/resolve.rs`: the field `carrier` of `Transport::Node`;
+  `crates/podssh-cli/src/ssh/exit_road.rs`: `carrier: None` for an exit's road.
+- `crates/podssh-cli/src/ssh/args.rs`: `SshArgs::carrier`, read by its id, and once only.
+- `crates/podssh-cli/src/ssh/mod.rs`: the module `carried`, and the dispatch of a node on a
+  carrier, before the race of the other roads; `crates/podssh-cli/src/ssh/servers.rs`: `check`
+  calls `carried::check` first.
+- `crates/podssh-cli/src/cp/link.rs`: the arm of a node on a carrier; `crates/podssh-cli/src/cp/mod.rs`
+  and `crates/podssh-cli/src/sftp/mod.rs`: the run inside `transport::settled`, so that the shared
+  client ends with the command; `crates/podssh-cli/src/ssh/transport.rs`: `settled` ends it.
+- `crates/podssh-cli/src/carrier.rs`: `shared` and `end_shared`, the client of a command's legs;
+  `Client::end`; `for_a_client`, `parse` with no stdio (also `operator`'s check); `said`, the words
+  of a leg's end for `ssh`; `refusal_of` for the crate; the node's ready a step of
+  `--ConnectTimeout` in `Client::config`; a unit test.
+- `crates/podssh-cli/src/flags/operator.rs`: `SSH_CARRIER`, in the tables of `ssh`
+  (`crates/podssh-cli/src/flags.rs`), `cp` and `mv` (`crates/podssh-cli/src/flags/copy.rs`), `scp`
+  and `sftp` (`crates/podssh-cli/src/flags/scp.rs`); `crates/podssh-cli/src/flags/node.rs`: the
+  node's row names the new clients.
+- `crates/podssh-cli/src/man/notes_pair.rs`: `SSH_CARRIER`, the note of `ssh`, which
+  `crates/podssh-cli/src/man/notes_ssh.rs` names, and the node's note names the clients;
+  `crates/podssh-cli/src/man/notes.rs`: a sentence each for `cp`, `scp` and `sftp`;
+  `crates/podssh-cli/src/man/examples.rs`: `cp --carrier` to the node's sshd.
+- `crates/podssh-cli/tests/node_carrier.rs`: 4 tests (`ssh --carrier` starts the node of its
+  carrier, whose TARGET closes at once, 255, and the node hears the Close, on each host; `ssh
+  --carrier` runs `echo carried` on OpenSSH's sshd behind the node; `cp` up and down, `scp` up and
+  `sftp`'s put and get through the sshd's own SFTP, each file whole; the refusals, 64);
+  `crates/podssh-cli/tests/live_harness/sshd.rs`: `start_with`, a line more of the sshd's
+  configuration (`Subsystem sftp internal-sftp`).
+- `scripts/plants/t595-ssh-carrier-skipped.patch` and `.plant`: `ssh --carrier` sent to the pair's
+  road, which the test of the node that `ssh` starts must catch.
+- `docs/cli.md`, `docs/mesh.md`, `docs/reverse.md` (item 6 of "A carrier") and `docs/STATUS.md`.
+
+Measured at the merge: see the last step's line below, which covers the three; the plant
+`t595-ssh-carrier-skipped` (`sh scripts/plant-each.sh --here`): caught.
+
+What remained after it:
+
+1. `podssh proxy --carrier ADDR node://NAME` (T-587 gave `proxy node://`).
+2. `pipe`'s `node:` side with `--carrier`.
+3. The exit over a carrier is T-596, which lifts the refusal of `--exit` here.
+
+2026-11-03, drafted (`DRAFT T-595: proxy node://NAME on a carrier`), step 1 of the list above.
+
+What changed:
+
+- `crates/podssh-cli/src/proxy_node.rs`: `Flags::carrier`, read by its id, one of the flags of a
+  node (`--carrier` with another target, 64); `to_operator` gives it to `operator`, and `run` runs
+  `operator::run_as`; its unit test.
+- `crates/podssh-cli/src/operator.rs`: `run_as`, the pipe of either verb on the pair's road or on a
+  carrier, which `run_operator` and `proxy node://` call.
+- `crates/podssh-cli/src/carrier.rs`: `operator` takes the verb of its lines, and `--ConnectTimeout`
+  (the Correction): `prepare` parses the bound, `operator` watches it from the node's read of the
+  stream, and `carry` names the step of the node's ready.
+- `crates/podssh-cli/src/flags/operator.rs`: `PROXY_CARRIER`, in `proxy`'s table
+  (`crates/podssh-cli/src/flags/relay.rs`); `crates/podssh-cli/src/flags/node.rs`: the node's row
+  names `proxy`.
+- `crates/podssh-cli/src/man/notes_proxy.rs`: a sentence of `proxy --carrier`, with OpenSSH's
+  ProxyCommand; `crates/podssh-cli/src/man/notes_pair.rs`: operator's note says the bound and the
+  same pipe of `proxy`, and the node's note names `proxy`.
+- `crates/podssh-cli/tests/node_carrier.rs`: OpenSSH's test runs `proxy --carrier ... node://box`
+  as its ProxyCommand too; 2 tests (an echo server's 1 MiB through `proxy --carrier`, both ends 0;
+  `--ConnectTimeout 1` of `exec:sleep 5`, 69 at the bound, Unix); the refusals of `proxy
+  --carrier` (stdio, `--pair-file`, a target that is no node), 64.
+- `scripts/plants/t595-proxy-carrier-dropped.patch` and `.plant`: `proxy node://` given no
+  carrier, which the test of `proxy --carrier` must catch; `scripts/plants/t595-carrier-no-channel.patch`
+  moved to the lines of `carrier.rs` now.
+- `docs/cli.md`, `docs/mesh.md`, `docs/reverse.md` and `docs/STATUS.md`.
+
+Measured at the merge: `--lib proxy_node` 3 passed, `--test proxy` 15, `--test operator` 9; the
+plants `t595-proxy-carrier-dropped` and `t595-carrier-no-channel` (its context moved): caught.
+
+What remained after it:
+
+1. `pipe`'s `node:` side with `--carrier`.
+2. The exit over a carrier is T-596, which lifts the refusal of `--exit` here.
+
+2026-11-03, drafted (`DRAFT T-595: pipe's node: side on a carrier`), step 1 of the list above, the
+last step of the Approach that is this entry's: each client of a node takes the carrier now.
+Merged with the two before it.
+
+What changed:
+
+- `crates/podssh-cli/src/pipe/node.rs`: `Legs`, the relay of a pair or the shared client of a
+  carrier, each with the config of its legs and the words of a first leg's refusal; `open` takes
+  the carrier's legs when `--carrier` is given (the stream starts after the channel, the pair is
+  not read); `Session` judges a carrier's end in its words. `udp:node:` comes through `open` too.
+- `crates/podssh-cli/src/pipe/remote.rs`: `carrier`, the checks of `--carrier` (stdio, no node
+  side, `--pair-file`: 64), from `settings`; the first step of `--ConnectTimeout` names the
+  carrier's node.
+- `crates/podssh-cli/src/flags/operator.rs`: `PIPE_CARRIER`, in `pipe`'s table
+  (`crates/podssh-cli/src/flags/pipe.rs`), by `ssh`'s id, which `SshArgs` reads.
+- `crates/podssh-cli/src/man/notes_pipe.rs`: a note of `--carrier`, with a listening side for the
+  node's sshd.
+- `crates/podssh-cli/tests/node_carrier.rs`: 2 tests (an echo server's 1 MiB through `pipe -
+  node:box --carrier ...`, 0, and the node's Close; two clients of a listening `pipe` on one node,
+  started once, each one's bytes back whole); the refusals of `pipe --carrier` (stdio, no node
+  side, `--pair-file`), 64.
+- `scripts/plants/t595-pipe-carrier-ignored.patch` and `.plant`: `pipe`'s node side on the pair's
+  road beside `--carrier`, which the test of `pipe - node:box --carrier` must catch.
+- `docs/cli.md`, `docs/mesh.md`, `docs/reverse.md` and `docs/STATUS.md`.
+
+Measured at the merge (2026-11-03): `cargo test -p podssh-cli --test node_carrier`, 14 passed
+(OpenSSH's sshd through a node on a carrier: `ssh`, and `cp` up and down, `scp` and `sftp`
+through its own SFTP); `--test pipe` 10, `pipe_remote` 6, `pipe_udp` 4, `pipe_listen` 8,
+`pipe_http` 7, `pipe_ws` 5, `proxy` 15, `operator` 9, `node_copy` 3, `ssh_args` 36, `cp_args` 10,
+`man_page` 11, `man_flag_parity` 6, `flag_table` 9; `--lib carrier` 7, `proxy_node` 3, `pipe` 42,
+the lib 756; `podssh-relay`'s `reverse_carrier` 6; clippy, all targets, `-D warnings`: clean. The
+plant `t595-pipe-carrier-ignored`: caught. The merge: the tests' `cp` had no `--timeout`, which
+`cp` asks for with no terminal (T-139), where `scp` and `sftp` need none (T-508); `sftp` keeps
+T-508's bound inside the carrier's `settled`; the two tests of the clients move to
+`tests/node_carrier/clients.rs`, as the file passed 500 lines.
+
+What remains: the exit over a carrier is T-596, which lifts the refusal of `--exit` here; the
+operator's answer to Q86 on the calls of the Decision.
 
 # T-596: The exit over a carrier: a host that grants an exec channel alone gets egress through its other end
 

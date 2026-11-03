@@ -3346,8 +3346,26 @@ commands. The rules behind them:
   stdio` on a terminal (64), `operator --carrier stdio` (its stdio is the
   session's), a relay's or a pair's flag, `--iroh`, `--derp`,
   `--quick-tunnel`, `--install`, `--detach` and `--exit` with it are usage
-  errors (64). `ssh node://`, `proxy node://`, `pipe node:` and the exit's
-  client over a carrier are T-595's next step and T-596.
+  errors (64). `ssh --carrier ADDR node://NAME`, and `cp`, `mv`, `scp` and
+  `sftp` with it to `node://NAME`, take the same road
+  (`crates/podssh-cli/src/ssh/carried.rs`): the command serves the role's
+  side, each of its connections a leg of the one stream, which ends with the
+  command (the node's Close, then the program of `exec:`); the session runs
+  as on the pair's road (`run_on` of `crates/podssh-cli/src/ssh/node.rs`),
+  and no other road races it. `stdio`, `--pair-file`, a relay's flag,
+  `--direct`, `--iroh-ticket`, `--derp-ticket`, `--derp-server`, a server's
+  road, `--exit` and `--upgrade` with it, and `--carrier` with a destination
+  that is no node, are usage errors (64). `proxy --carrier ADDR
+  node://NAME` is the pipe of `operator --carrier`, with its checks and
+  codes (`run_as` of `crates/podssh-cli/src/operator.rs`), and
+  `--ConnectTimeout` bounds the open of both on a carrier: the node's read
+  of the stream, its ready, then the layer and the channel. `pipe`'s
+  `node:` and `udp:node:` sides take `--carrier` too
+  (`crates/podssh-cli/src/pipe/node.rs`): each node side, and each client of
+  a listening side, a leg of the one stream, which ends with the pipe; the
+  other side keeps its road and its flags; `stdio`, `--pair-file` and a pipe
+  with no node side are usage errors (64). The exit's client over a carrier
+  is T-596.
 - **A link can drop.** The relay's side ends a socket of the reverse road
   at random, with no Close (T-255). `operator` and `ssh node://NAME` then
   say that the link ended with no Close, or that the node's link ended

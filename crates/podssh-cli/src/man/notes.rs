@@ -77,7 +77,9 @@ const CP: &[&str] = &[
      after the first : after the name, and with none it is the login directory. A member of the net (see \
      podssh net) is [user@]NAME:path by its name alone, read as podssh ssh NAME reads it, the net first. \
      --pair-file, --client-key, --node-key and --no-e2e are those of podssh ssh. A port, -J or --direct \
-     cannot reach a node (exit 64).",
+     cannot reach a node (exit 64). With --carrier ADDR, as for podssh ssh, the node is at the other end of \
+     a stream that exists already, with no relay and no pair: each connection of the copy is a session of \
+     its own on that one stream, which ends with the copy; each operand that is remote is then a node.",
     "The destination's name never holds a file that was not verified. The bytes go to \
      .NAME.podssh-RANDOM.part beside the destination, a new file of mode 0600. The SHA-256 of what was \
      sent is compared with the far side's; then the file takes the source's permission bits and is \
@@ -164,7 +166,8 @@ const SCP: &[&str] = &[
     "Each letter of OpenSSH's usage parses: -B is BatchMode=yes, -3, -s and -T are accepted and change \
      nothing, and the others that podssh does not carry are refused by name. An operand can be a URI, \
      scp://[user@]host[:port][/path]: its path is under the login directory, and // makes it absolute. \
-     An operand can name a node as podssh cp does: node://[user@]NAME[/ROUTE]:path, or a member's NAME:path.",
+     An operand can name a node as podssh cp does: node://[user@]NAME[/ROUTE]:path, or a member's NAME:path, \
+     and with --carrier ADDR a node at the other end of a stream that exists already.",
     "--timeout DURATION, or PODSSH_TIMEOUT, bounds the whole run, the login included (exit 75), and is \
      never required, with no terminal either: a script runs OpenSSH's scp in a pipe with no such flag, \
      and each wait of a copy has its own limit, ConnectTimeout the login's (60 s by default). podssh cp \
@@ -177,7 +180,8 @@ const SFTP: &[&str] = &[
      one that starts with - does not end the batch when it fails. Else, on a terminal, it asks at a \
      prompt; with no terminal and no -b it refuses (exit 64). A destination with the path of a file \
      fetches that file and ends; one with a directory starts there. The destination can be the node of a \
-     pair, node://[user@]NAME[/ROUTE][:path], or a member of the net by its name alone, as for podssh cp. \
+     pair, node://[user@]NAME[/ROUTE][:path], or a member of the net by its name alone, as for podssh cp, \
+     and with --carrier ADDR a node at the other end of a stream that exists already. \
      --timeout DURATION, or PODSSH_TIMEOUT, bounds the whole run, the login and the batch included (exit \
      75), and is never required, as for podssh scp.",
     "The commands: get and put (with reget and reput, which are the same), rename, rm (with * and ? in \

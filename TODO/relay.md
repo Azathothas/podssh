@@ -1138,7 +1138,7 @@ with no reason. Each drop read as the end of the TCP stream with no Close frame
 had drops, so the traffic does not cause them.
 
 Read: on the forward path, keepalives every 60 s kept one session for 602 s
-(`docs/STATUS.md:304`). That is one run, before 2026-10-09.
+(`docs/STATUS.md:303`). That is one run, before 2026-10-09.
 
 ## Approach
 
@@ -2244,7 +2244,7 @@ session on 2026-11-03.
   WebSocket road (`crates/podssh-relay/src/open.rs:209`, `crates/podssh-relay/src/open.rs:249`).
 - `crates/podssh-cli/src/relay_ends.rs`: what a cut is (`cut_by`, `cut`), and `Told`, the relay
   stream that tells the record how its session ended once SSH lets it go, which
-  `crates/podssh-cli/src/ssh/transport.rs:206` spawns. `podssh proxy`
+  `crates/podssh-cli/src/ssh/transport.rs:208` spawns. `podssh proxy`
   (`crates/podssh-cli/src/proxy.rs:395`) and the relay's end of `podssh pipe` (`carry_opened`)
   tell it at their end (`crates/podssh-cli/src/pipe/relay.rs:210-212`).
 - `podssh status`: `relay_failures` names the road, and `relay_opened` gives the hosts that opened

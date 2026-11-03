@@ -300,7 +300,7 @@ Read: `docs/cli.md`, lines 1197-1200 at `ec7f018`: `Match` never overrides a val
 it by name, not skip it. `-P TAG` is accepted and ignored today
 (`crates/podssh-cli/src/flags.rs`, lines 220-221 at `ec7f018`), so `Match tagged` would give the tag its meaning.
 The login name comes from the environment, never from the user database
-(`crates/podssh-cli/src/ssh/resolve.rs:138-167`); `Match localuser` needs it. podssh does no
+(`crates/podssh-cli/src/ssh/resolve.rs:140-169`); `Match localuser` needs it. podssh does no
 canonical pass: `CanonicalizeHostname` is accepted and ignored
 (`crates/podssh-cli/src/ssh/keywords.rs:122-132`). Measured with OpenSSH_10.3p1 (T-044):
 `Match all` applies where it stands, and `Match final all` fills only unset values.
@@ -386,7 +386,7 @@ case fails.
 `crates/podssh-cli/src/ssh/config.rs:94-106`, the lines at
 `crates/podssh-cli/src/ssh/config.rs:211-232` and what a `Match` line sees
 at `crates/podssh-cli/src/ssh/config.rs:237-273`; the command line's part
-at `crates/podssh-cli/src/ssh/resolve.rs:186-197` and, for a hop of `-J`,
+at `crates/podssh-cli/src/ssh/resolve.rs:188-199` and, for a hop of `-J`,
 `crates/podssh-cli/src/ssh/jump.rs:183-189`. `Tag` at
 `crates/podssh-cli/src/ssh/options.rs:237` and the `tag` line of `-G` at
 `crates/podssh-cli/src/ssh/dump.rs:113-115`; a key file once at
@@ -447,14 +447,14 @@ refused. ... podssh reads no ssh_config, so it has no configuration to print."
 lines of `keyword value`, the keyword in lower case: `port 2222`, `user alice`,
 `pubkeyauthentication true`, `batchmode no`, `connecttimeout none`, `serveraliveinterval 30`,
 `identityfile ~/.ssh/id_rsa` (with `~`), and others. Read: `resolve::resolve`
-(`crates/podssh-cli/src/ssh/resolve.rs:126-497`) decides each setting before any connection; its
+(`crates/podssh-cli/src/ssh/resolve.rs:128-499`) decides each setting before any connection; its
 result, `Resolved` (lines 27-41 at `22c3b88`), holds the settings in effect, the defaults included.
 
 ## Approach
 
 1. Make the `-G` row Supported, with no `instead`; `crates/podssh-cli/tests/flag_table.rs:60-80`
    requires that pair. The reviewed set of short flags does not change.
-2. In `run_ssh` (`crates/podssh-cli/src/ssh/mod.rs:85-272`), after `resolve` (lines 36-42 at `e8bbd4d`): with
+2. In `run_ssh` (`crates/podssh-cli/src/ssh/mod.rs:87-274`), after `resolve` (lines 36-42 at `e8bbd4d`): with
    `-G`, print the settings and exit 0. Open nothing: no relay, no token, no pool refresh.
 3. Print from `Resolved` and its `Options`, not from `Settings`, so the defaults are shown.
 4. Print only keywords of OpenSSH that podssh applies
@@ -1453,14 +1453,14 @@ other block of the file too.
 
 ## Premise
 
-- Read: the `-o` of the command line are applied first (`crates/podssh-cli/src/ssh/resolve.rs:135-137`),
-  the file is read into settings of its own (`crates/podssh-cli/src/ssh/resolve.rs:199`), and the
-  two are merged, the first value obtained winning (`crates/podssh-cli/src/ssh/resolve.rs:203`,
+- Read: the `-o` of the command line are applied first (`crates/podssh-cli/src/ssh/resolve.rs:137-139`),
+  the file is read into settings of its own (`crates/podssh-cli/src/ssh/resolve.rs:201`), and the
+  two are merged, the first value obtained winning (`crates/podssh-cli/src/ssh/resolve.rs:205`,
   `crates/podssh-cli/src/ssh/options.rs:349-355`, `crates/podssh-cli/src/ssh/options.rs:445-449`).
 - Read: `ProxyCommand none` sets nothing (`crates/podssh-cli/src/ssh/options.rs:221`), and
   `podssh proxy %h %p` adds a note alone (`:224`); each other value is an error (`:225-236`), which
   a line of a file gets with its place and the file's exit, 78
-  (`crates/podssh-cli/src/ssh/config.rs:226`, `crates/podssh-cli/src/ssh/resolve.rs:199`). So no
+  (`crates/podssh-cli/src/ssh/config.rs:226`, `crates/podssh-cli/src/ssh/resolve.rs:201`). So no
   value of the command line stands before the file's; and in one file, a `ProxyCommand none` of an
   earlier block does not stand before a later `Host *`'s, where OpenSSH takes the first.
 - Read: a block that does not apply is not read (T-043's Decision), and `Match` is read (T-045), as
@@ -1468,7 +1468,7 @@ other block of the file too.
 - Read (L-07): T-043 decided to accept `ProxyCommand podssh proxy %h %p` with no effect, and to
   run no `ProxyCommand` (rule 3 of `AGENTS.md`), as `podssh ssh` is the program that it names; so
   `/nonexistent/podssh proxy %h %p`, accepted and never run, is that decision. Its note says "-o
-  ProxyCommand has no effect in podssh", at `-v` alone (`crates/podssh-cli/src/ssh/resolve.rs:388`).
+  ProxyCommand has no effect in podssh", at `-v` alone (`crates/podssh-cli/src/ssh/resolve.rs:390`).
 - Read: 78 is the exit of a configuration error (`docs/decisions.md`, 2026-10-05); the report asks
   for 255, or 64.
 
@@ -1594,8 +1594,8 @@ user asked for is gone with no sign, and an audit finds it.
   (`crates/podssh-cli/src/ssh/keywords.rs:119-132`), and the manual says "Accepted and ignored,
   because they change nothing that podssh does" (`crates/podssh-cli/src/man/model.rs:268-272`).
 - Read: each one is a note (`crates/podssh-cli/src/ssh/options.rs:272`), "-o NAME has no effect in
-  podssh" (`crates/podssh-cli/src/ssh/resolve.rs:388`), said at `-v` alone
-  (`crates/podssh-cli/src/ssh/mod.rs:248-250`): "-o" also for the line of a file, with no file and
+  podssh" (`crates/podssh-cli/src/ssh/resolve.rs:390`), said at `-v` alone
+  (`crates/podssh-cli/src/ssh/mod.rs:250-252`): "-o" also for the line of a file, with no file and
   no line.
 - Read, against L-39: the two notes of each run come from Debian 13's `/etc/ssh/ssh_config`, whose
   `Host *` sets `HashKnownHosts` and `GSSAPIAuthentication` (T-044's Correction), and which podssh
