@@ -424,8 +424,10 @@ async fn tries(resolved: &Resolved, log: &Arc<Log>) -> (i32, Option<podssh_ssh::
             .clone()
             .filter(|_| reached.layer.is_none())
             .and_then(|status| idle_warn::spawn(status, opts.silence.clone(), opts.idle_lead, log.clone()));
+        // A rank in the session's background, with RelayRank auto (T-608).
+        let ranker = crate::relay_rank_auto::spawn(&resolved.transport, reached.relay.is_some());
         let outcome = podssh_ssh::run::run_outcome(reached.stream, &opts, reached.relay, log.clone()).await;
-        for watch in [near, idle].into_iter().flatten() {
+        for watch in [near, idle, ranker].into_iter().flatten() {
             watch.abort();
         }
         // The layer's CLOSE, and the line of its failure, before the exit.

@@ -1,0 +1,11 @@
+# T-608: the rank in a session's background starts the probe of the plan's
+# next host beside each probe, so two probes run at once, which rule 2's
+# exception of Q89 does not allow; the test of the overlap, which reads the
+# stand-in relay's line of each probe's start and end, must fail.
+ENTRY=T-608
+GROUP=cli-tests
+EXPECT='test rank_background::background_probes_come_one_at_a_time_inside_the_session_and_once_a_day \.\.\. FAILED'
+RUN='cargo test --locked -p podssh-cli --test relay_rank -- rank_background::background_probes_come_one_at_a_time_inside_the_session_and_once_a_day'
+# The stand-in relay is Python, and its certificates openssl's.
+SETUP='if command -v apk >/dev/null; then apk add --no-cache python3 openssl >/dev/null; fi'
+LIMIT=1800

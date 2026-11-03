@@ -333,8 +333,11 @@ const STATUS: &[&str] = &[
      http or socks5), offline, \
      attachment, stdin_tty and stdout_tty, host for a destination (its name in known_hosts, whether \
      a key is recorded, the key types), session_log, relay_failures and relay_opened (the relay hosts \
-     tried last and first: road, host, ago_s, and the reason or the opens), relay_rank (the rank that \
-     podssh relay rank kept: age_s, this_egress, holds, named, first and hosts; null with none), open_files (soft, hard, \
+     tried last and first: road, host, ago_s, and the reason or the opens), relay_rank (the rank kept: \
+     age_s, this_egress, holds, named, source, relay rank or background, partial, first and hosts; null \
+     with none), relay_order (rank, samples, pool or off), relay_rank_auto (whether a setting asks for a \
+     rank in a session's background and which one, and when the last was made: asked, by, last_ms, \
+     last_age_s, partial), open_files (soft, hard, \
      at_start, raised, refused: the limit of open files, which podssh raises at start; null on \
      Windows), and pairs: each stored pair's label, when it expires, whether it expired, and \
      next_now, whether podssh relay pair LABEL makes its next pair now.",

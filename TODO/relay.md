@@ -3051,6 +3051,68 @@ relay's dial is out of a background figure: a background rank orders by the clie
 and a rank of T-606 keeps the dial. Lost: the dial to `github.com:22` in each background probe,
 which would make 8 short connections a day to GitHub's SSH port from each user.
 
+The calls of the draft (2026-11-03), each with what lost:
+
+- **Which sessions.** `podssh ssh` alone, in its session's loop (`tries`), and only a session that
+  the relay's default list carried: not a list that the user named, whose order T-607 keeps, so
+  a rank buys it nothing and its probes would go to hosts that the user did not name; not the
+  direct road after the relay (T-363) nor a forwarder (T-370), which use no relay host. Lost:
+  `proxy` and `pipe` (a ProxyCommand's runs are short and many, the Approach's item 2), `cp`,
+  `each`, `job` and the other commands (short runs too, often many at once); each command.
+- **Never beside a race.** `open` counts the races in progress (one guard at its start, in
+  `podssh_relay::rank_auto`); a probe waits until none runs, and a race that starts while a probe
+  runs drops it, its connection with it. Lost: the check before a probe alone (a race that starts
+  during a probe would run beside it); a lock that a race waits on (a race never waits for a
+  probe).
+- **The session's end** aborts the task: a probe in flight is dropped and nothing of it is kept.
+  Lost: a wait for the probe at the end (the session's end would wait up to a probe's bound).
+- **Once a day.** Any rank that holds for this egress blocks a new run: `relay rank`'s, which the
+  user asked for, one of named hosts (the file holds one rank, and podssh never puts an unasked
+  one over an asked one), and a whole background rank. Lost: a background rank over an older
+  `relay rank` that still holds (it would throw away what the user asked for).
+- **A partial run keeps what it measured.** The rank is saved after each probe, and the hosts go in
+  the pool's order, the default host first, so a partial rank orders the pool's first hosts, those
+  that the default list tries, and the others keep the pool's order after them (T-607's order).
+  The next session of the same day goes on with the hosts that the rank lacks, never one twice,
+  8 in the day's rank in all; the rank's time stays its first probe's, so it holds 24 h from
+  then. Lost: a partial rank that orders nothing until it is whole (a user whose sessions are
+  short would wait for days, and the samples that it would leave in place mostly time the
+  default host alone, as `staggered` seldom starts a second host); a new rank in each session
+  (more than 8 hosts a day, against Q89); a rank only from a session that ran its whole plan
+  (130 s at least, which few sessions reach).
+- **Which 8 hosts.** The default host and the first 7 of its pool in `/relays.json`'s order (the
+  seed while no pool is cached). Lost: each of the 37 (Q89 says 8); 8 at random (a rank of hosts
+  that the default list may never take); the samples' order (they see the default list alone).
+- **The probe** is `ping`'s leg with a query (`leg_with`, `?dial=lazy`), to `github.com:22`, three
+  pings, with the deployment's cached token (the session's mint cached it). A relay that ignored
+  `?dial=lazy` would dial GitHub's SSH port, as `ping` does, never the session's destination.
+- **The source.** The rank keeps `source` (`relay rank`, or `background`; none in a file of before
+  this entry, which `relay rank` made), `partial`, and `background_ms`, when the last background
+  rank was made, kept across ranks as the samples are, so that `status` and `doctor` still say it
+  after a `relay rank` replaced the rank. Lost: a file of its own (two ranks to choose between,
+  where T-607 reads one).
+- **The setting.** `RelayRank yes, no or auto`, and `PODSSH_RELAY_RANK=auto`; a variable that is
+  set, and not empty, wins over the file, for the rank's order too (see the Correction). Lost: a
+  key of its own (`RelayRankAuto yes`): two keys for one setting, where Q89 names `RelayRank auto`.
+- **The test's pace.** `PODSSH_RELAY_RANK_PACE=DELAY_MS,GAP_MS`, read only where
+  `cfg!(debug_assertions)` holds, the build of the tests, so that each release binary keeps 60 s
+  and 10 s; the manual's ENVIRONMENT says that it is for tests only. Lost: a flag (a user could
+  loosen Q89's bounds); a feature of the build (the integration test runs the binary that
+  `cargo test` builds, with none); a paused clock (a process of the test has none).
+- **The test.** A stand-in HTTP CONNECT proxy of the test's, in `HTTPS_PROXY`, carries each CONNECT
+  of the default list to one stand-in relay (`scripts/fake-relay.py`, which now serves
+  `?dial=lazy` in `scripts/fake_lazy.py` and writes a line for each connect with its query and
+  its time, and for each end) with a certificate of the default relay host and its seed pool
+  (`throughput_harness::default_relay`), trusted by `--ca-file`. The seed is the pool: the
+  stand-in's `/relays.json` names only the host that asked, which is no alternate, so no pool file
+  is needed. The test reads the stand-in's lines: each probe's start and end, its query, the
+  session's own connect and end; then the rank's file and `status`. Lost: the live relay (a test
+  stays offline, and Q89's probes on the operator's relay at each run); `--relay-host` (a named
+  list makes no background rank, by the first call); podssh's own relay role in place of the
+  stand-in (it serves `?dial=lazy` too, `crates/podssh-relay/src/serve/forward.rs`, but writes no
+  line for each connect, which the test reads); a pool file in the test's cache (the seed gives 7
+  hosts with none).
+
 ## Prove
 
 ```sh
@@ -3068,3 +3130,67 @@ once; the test of the overlap fails.
 - 2026-11-03: the Blocker is cleared. The operator ruled Q89 (`docs/decisions.md`): podssh ranks
   unasked only with `RelayRank auto`, at most once a day for each egress, 8 hosts, one probe each
   10 s at most, each with `?dial=lazy`. Item 1 no longer waits on a default.
+- 2026-11-03, the draft: the Premise's lines moved before it was read. Rule 2 begins at
+  `AGENTS.md:276`, and the rows of Q89 and Q90 came above the others: Q67 is at
+  `docs/decisions.md:36`, Q83 at `docs/decisions.md:20` and Q73 at `docs/decisions.md:30`. Rule 2
+  had four exceptions, and Q67's XHTTP is not among them; the draft adds Q89's as the fifth.
+- The settings file's `RelayRank` took yes or no alone (`crates/podssh-cli/src/settings.rs`, its
+  `relayrank`), and the file's `no` won over the variable (`crates/podssh-relay/src/rank_list.rs`,
+  `enabled`), where the manual said that the file is below the variable: `RelayRank` takes auto
+  now, and a variable that is set, and not empty, wins (a unit test of each).
+- The Approach's "8 hosts at most in a session" is 8 hosts in a day's rank, over each session that
+  adds to it, as Q89 words it ("at most once a day for each egress, 8 hosts"); a session makes 8
+  probes at most too.
+- The code is in two modules of their own: `podssh_relay::rank_auto` (the setting, the count of
+  races, the pace, the plan and the rank that a probe adds to, with its tests in
+  `rank_auto_tests.rs`) and `crates/podssh-cli/src/relay_rank_auto.rs` (the task, `status`'s
+  value and `doctor`'s words); `open.rs` gets two lines, the session's loop three, and
+  `doctor/relay_checks.rs` one. `podssh status` gives the rank's `source` and `partial`, and
+  `relay_rank_auto`; `relay rank --cached` names a background rank.
+
+## Done
+
+2026-11-03, drafted; each result below is UNVERIFIED until the merge runs it. With
+`RelayRank auto` or `PODSSH_RELAY_RANK=auto` alone, a session of `podssh ssh` that the default
+list carries ranks the default host and its pool in its background when no rank holds for this
+egress: 8 hosts in a day, the first probe after 60 s, then one each 10 s at most, none beside a
+race, none past the session's end, each with `?dial=lazy` and three pings; the rank is kept after
+each probe, source `background`, and the next session of the day goes on with a partial one.
+
+- `crates/podssh-relay/src/rank_auto.rs` (new) with `rank_auto_tests.rs`: `asked_from` (the
+  variable above the file, never by default), `pace` and `pace_of` (the variable in a build with
+  debug assertions alone), `racing`, `calm` and `unless_a_race`, `hosts`, `plan` and
+  `with_probe`. `rank.rs`: `source`, `partial` and `background_ms`. `rank_list.rs`:
+  `enabled_from`, the variable above the file. `open.rs`: the guard of a race.
+- `crates/podssh-cli/src/relay_rank_auto.rs` (new): `spawn`, the run, `status_value` and
+  `doctor_line`; `ssh/mod.rs` spawns it after the relay opened the session and aborts it at its
+  end; `ping/relay.rs`: `leg_with`; `relay_rank.rs`: the source in the rank, its JSON, `--cached`
+  and `status`; `settings.rs` and `relay_settings.rs`: `RelayRank auto`; `status.rs`:
+  `relay_rank_auto`; `doctor/relay_checks.rs`: its line `rank` with the setting and the last
+  background rank's age.
+- `scripts/fake-relay.py` and `scripts/fake_lazy.py` (new): `?dial=lazy`, and the lines
+  `connect MS PATH`, `ended MS PATH`, `lazy closed MS` and `lazy dial MS`; the harness keeps the
+  stand-in's events in a file, and `throughput_harness::default_relay` signs a certificate of the
+  default relay's names.
+- The manual (`man/notes_relay.rs`, `man/notes.rs`, `man/facts/roads.rs` with
+  `PODSSH_RELAY_RANK_PACE` for tests only), `docs/relay.md`, `docs/cli.md`, and rule 2 of
+  `AGENTS.md` with Q89's exception.
+- `cargo test -p podssh-relay --lib rank`: UNVERIFIED (the 7 tests of `rank_auto`, a file of
+  before T-608, the variable above the file).
+- `cargo test -p podssh-cli --lib -- relay_settings relay_rank`: UNVERIFIED.
+  `cargo test -p podssh-cli --lib man`: UNVERIFIED (each variable read is documented).
+- `cargo test -p podssh-cli --test relay_rank -- background`: UNVERIFIED. Against one stand-in
+  behind the test's proxy, with the waits at 400 ms and 1200 ms: the first session's probes, ended
+  after three, each `?dial=lazy` and none dialed, one at a time, the first at least 400 ms after
+  the session's connect, 1000 ms apart at least, none after its end; a partial rank of the plan's
+  first hosts, the proxy's egress; `status` and `relay rank --cached` name it; the second session
+  probes the hosts that it lacks and stops; a third makes none. Off by default, and with the
+  file's auto under `PODSSH_RELAY_RANK=yes`: none.
+- `cargo test -p podssh-cli --test relay_rank`, `--test status`, `--test doctor`, `--test settings`,
+  `--test man_page`: UNVERIFIED. The relay crate's suite: UNVERIFIED.
+- Planted (`scripts/plants/t608-two-probes-at-once.plant`, the probe of the plan's next host
+  beside each probe): `sh scripts/plant-each.sh --here t608-two-probes-at-once`, UNVERIFIED.
+- `cargo clippy -p podssh-relay -p podssh-cli --all-targets -- -D warnings`: UNVERIFIED.
+
+No live run: the probes of Q89 are a user's choice, and the stand-ins prove the bounds; the live
+relay's `?dial=lazy` is the contract's (`docs/relay.md`, "Connect options").

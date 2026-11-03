@@ -202,6 +202,8 @@ pub async fn open(req: &Request<'_>, notes: &mut dyn FnMut(&str)) -> Result<Open
     if offline() {
         return Err(Failure { attempts: vec![(req.relays.primary().host.clone(), OpenError::Offline)] });
     }
+    // No background probe runs beside a race (T-608).
+    let _racing = crate::rank_auto::racing();
     // The addresses that carried a session, for a resolver that fails (T-344).
     crate::addresses::install();
     // A host that failed lately goes last (T-059), and one that opened first (T-563).

@@ -89,9 +89,11 @@ pub fn relays_from(flag: Option<&str>, env: Option<String>, file: &Defaults) -> 
 /// The pool in the order that this host measured (T-607): by the rank of
 /// `relay rank` when one holds for this egress, else by the times of the
 /// races; as `/relays.json` gave it with `RelayRank no` or
-/// `PODSSH_RELAY_RANK=no`, which `open` reads too.
+/// `PODSSH_RELAY_RANK=no`, which `open` reads too. `RelayRank auto` asks
+/// for a rank in a session's background too (T-608).
 fn ranked(pool: Vec<String>, file: &Defaults) -> Vec<String> {
     podssh_relay::rank_list::set_by_settings(rank_on(file));
+    podssh_relay::rank_auto::set_by_settings(rank_auto(file));
     if !podssh_relay::rank_list::enabled() {
         return pool;
     }
@@ -103,6 +105,12 @@ fn ranked(pool: Vec<String>, file: &Defaults) -> Vec<String> {
 /// Whether the settings file leaves the rank on: all but `RelayRank no`.
 fn rank_on(file: &Defaults) -> bool {
     file.relay_rank.as_ref().is_none_or(|value| yes_or_no(&value.text) != Some(false))
+}
+
+/// Whether the settings file asks for a rank in the background:
+/// `RelayRank auto` alone, never by default (Q89).
+fn rank_auto(file: &Defaults) -> bool {
+    file.relay_rank.as_ref().is_some_and(|value| value.text.trim().eq_ignore_ascii_case("auto"))
 }
 
 /// How the relay hosts are tried (T-220): `--relay-failover`, else
@@ -179,6 +187,10 @@ mod tests {
         assert!(!rank_on(&file("no")));
         assert!(rank_on(&file("yes")));
         assert!(crate::settings::parse("RelayRank maybe\n", "settings", None).is_err(), "the file checks its value");
+        // auto (T-608): the rank on, and a rank in the background asked;
+        // nothing else asks for one.
+        assert!(rank_on(&file("auto")) && rank_auto(&file("Auto")));
+        assert!(!rank_auto(&file("yes")) && !rank_auto(&file("no")) && !rank_auto(&Defaults::default()));
     }
 
     #[test]

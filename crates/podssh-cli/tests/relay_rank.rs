@@ -7,6 +7,8 @@
 //! connection; a bad flag, 64. The checks say that they did not run when
 //! this host has no Python or no openssl for the stand-in.
 
+// The rank in a session's background, with RelayRank auto alone (T-608).
+mod rank_background;
 mod ssh_harness;
 mod throughput_harness;
 

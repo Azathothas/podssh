@@ -100,16 +100,20 @@ pub fn trust(ca_file: Option<&str>) -> Trust {
 /// Measure `relay` with `count` pings, on a session to `target` that the
 /// relay dials in `family` when one is given.
 pub async fn leg(relay: &Relay, trust: &Trust, target: (&str, u16), family: Option<u8>, count: usize) -> Leg {
+    let query = family.map(|f| format!("?family={f}")).unwrap_or_default();
+    leg_with(relay, trust, target, &query, count).await
+}
+
+/// [`leg`] with the connect path's query given: `?dial=lazy` for a probe
+/// whose target the relay never dials, as it sends no byte (T-608).
+pub async fn leg_with(relay: &Relay, trust: &Trust, target: (&str, u16), query: &str, count: usize) -> Leg {
     let mut leg = Leg {
         host: podssh_ws::dial::authority(&relay.host, relay.port),
         target: podssh_ws::dial::authority(target.0, target.1),
         ..Leg::default()
     };
     let path = match podssh_relay::relay::forward_path(target.0, target.1) {
-        Ok(path) => match family {
-            Some(f) => format!("{path}?family={f}"),
-            None => path,
-        },
+        Ok(path) => format!("{path}{query}"),
         Err(why) => {
             leg.failed = Some(why);
             return leg;

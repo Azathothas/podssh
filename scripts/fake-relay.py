@@ -69,7 +69,11 @@ Modes:
                    what waits (T-062)
 
 Each mint, each upgrade and each Close from the client is a line on stdout
-(`mint`, `upgrade`, `close CODE`), so a harness counts them (T-220).
+(`mint`, `upgrade`, `close CODE`), so a harness counts them (T-220). Each
+connect with the token is `connect MS PATH` too, its query in PATH, and the
+end of a session that dialed `ended MS PATH`, MS on the stand-in's clock;
+with `?dial=lazy` the target is dialed on the client's first byte alone
+(scripts/fake_lazy.py), so a harness sees each probe and its time (T-608).
 """
 
 import argparse
@@ -79,6 +83,7 @@ import ssl
 import time
 import urllib.parse
 
+import fake_lazy
 import fake_reverse
 from fake_shape import SHAPED, Shaper
 from fake_ws import close_frame, frame, read_frame, response, upgraded
@@ -96,11 +101,17 @@ REASONS = {
 }
 
 args = None
+STARTED = time.monotonic()
 
 
 def event(line):
     """One line on stdout, as it happens, for the harness to count."""
     print(line, flush=True)
+
+
+def clock():
+    """The ms since the stand-in started, for the times of its lines."""
+    return int((time.monotonic() - STARTED) * 1000)
 
 
 async def handle(reader, writer):
@@ -217,6 +228,7 @@ async def connect(reader, writer, path, headers):
     if headers.get("x-relay-token") != TOKEN:
         writer.write(response(403, "Forbidden", b"forward: missing or wrong token"))
         return
+    event(f"connect {clock()} {path}")
     if args.mode.startswith("refuse:"):
         status = int(args.mode.split(":")[1])
         writer.write(response(status, "Refused", b"connect: refused by fault injection"))
@@ -238,6 +250,9 @@ async def connect(reader, writer, path, headers):
     if args.mode == "policy":
         writer.write(response(403, "Forbidden", f"forward: {host}:{port} is not in the ALLOW list".encode()))
         return
+    if urllib.parse.parse_qs(urllib.parse.urlsplit(path).query).get("dial") == ["lazy"]:
+        await fake_lazy.serve(reader, writer, headers, (host, port), event, clock, pump)
+        return
     try:
         t_reader, t_writer = await asyncio.wait_for(asyncio.open_connection(host, port), 10)
     except (OSError, asyncio.TimeoutError) as e:
@@ -250,6 +265,7 @@ async def connect(reader, writer, path, headers):
     event("upgrade")
     UPGRADED["count"] += 1
     await pump(reader, writer, t_reader, t_writer, first=UPGRADED["count"] == 1)
+    event(f"ended {clock()} {path}")
 
 
 async def pump(reader, writer, t_reader, t_writer, first=False):

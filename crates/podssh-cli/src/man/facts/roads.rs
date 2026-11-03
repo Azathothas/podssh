@@ -59,7 +59,17 @@ pub(super) const VARIABLES: &[(&[&str], &str)] = &[
           default host and the best three other hosts of the pool in the rank's order, the default host at its \
           place among them; where none holds, the times of each run's own race, the last 8 of each host, order \
           the pool. A list that the user named keeps its order, and a host that failed lately goes last over \
-          its rank. The settings file's RelayRank no says the same, below the variable.",
+          its rank. auto: the same, and a session of podssh ssh on the default list ranks the hosts in its \
+          background when no rank holds for this egress, once a day, 8 hosts, one probe each 10 s at most, \
+          each with ?dial=lazy (Q89, T-608); never unless asked. The settings file's RelayRank yes, no or auto \
+          says the same, below the variable: a variable that is set, and not empty, wins.",
+    ),
+    (
+        &["PODSSH_RELAY_RANK_PACE"],
+        "For tests only, and read only by a build with debug assertions, never by a release binary: \
+          DELAY_MS,GAP_MS, the wait of a rank in a session's background (T-608) after the session opened and \
+          between the starts of two of its probes, in place of 60 s and 10 s, so that a test of the bounds \
+          runs in seconds.",
     ),
     (
         &["PODSSH_DIRECT"],

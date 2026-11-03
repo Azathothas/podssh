@@ -119,11 +119,23 @@ fn each_host_keeps_its_last_samples() {
 
 #[test]
 fn the_switch_turns_the_order_off() {
+    // The file's word, where the test's environment sets no variable, which
+    // would win over it.
+    let unset = std::env::var(ENV).is_err();
     set_by_settings(false);
-    assert!(!enabled());
+    assert!(!unset || !enabled());
     set_by_settings(true);
-    // The variable, where the test's environment sets none.
-    if std::env::var(ENV).is_err() {
-        assert!(enabled());
-    }
+    assert!(!unset || enabled());
+}
+
+/// The variable wins over the settings file, as the manual says; an empty
+/// one is none (T-608).
+#[test]
+fn the_variable_is_above_the_settings_file() {
+    assert!(!enabled_from(Some("no"), true));
+    assert!(!enabled_from(Some(" OFF "), true));
+    assert!(enabled_from(Some("yes"), false), "the variable wins");
+    assert!(enabled_from(Some("auto"), false), "auto is on");
+    assert!(!enabled_from(Some(""), false), "an empty variable is none");
+    assert!(enabled_from(None, true) && !enabled_from(None, false));
 }

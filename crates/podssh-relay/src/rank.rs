@@ -30,6 +30,11 @@ pub const TIE_MS: f64 = 50.0;
 pub const TIE_SHARE: f64 = 0.10;
 /// The egress of a host with no proxy.
 pub const DIRECT: &str = "direct";
+/// The source of a rank that `podssh relay rank` made, and of each file of
+/// before T-608, which names none.
+pub const ON_DEMAND: &str = "relay rank";
+/// The source of a rank that a session made in its background (T-608).
+pub const BACKGROUND: &str = "background";
 
 /// One probe of one host: the time to open a session (the dial, TLS and the
 /// upgrade, the token's time left out, as a session pays it once for days),
@@ -168,9 +173,23 @@ pub struct Rank {
     /// or without a rank, and read where none holds.
     #[serde(skip_serializing_if = "std::collections::BTreeMap::is_empty")]
     pub samples: std::collections::BTreeMap<String, Vec<crate::rank_list::Sample>>,
+    /// Who made it: [`ON_DEMAND`] or [`BACKGROUND`]; empty in a file of
+    /// before T-608, which `relay rank` made.
+    pub source: String,
+    /// A background rank that its session left before each host of its
+    /// plan: a later session of the same day goes on with it (T-608).
+    pub partial: bool,
+    /// When the last background rank was made, in ms since the epoch; kept
+    /// across ranks, as the samples are, for `status` and `doctor`.
+    pub background_ms: i64,
 }
 
 impl Rank {
+    /// Whether a session made it in its background (T-608).
+    pub fn background(&self) -> bool {
+        self.source == BACKGROUND
+    }
+
     /// Its age at `now_ms`; `None` for a time from the future, of a clock
     /// that moved.
     pub fn age(&self, now_ms: i64) -> Option<Duration> {

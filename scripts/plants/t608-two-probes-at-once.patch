@@ -1,0 +1,16 @@
+--- a/crates/podssh-cli/src/relay_rank_auto.rs
++++ b/crates/podssh-cli/src/relay_rank_auto.rs
+@@ -70,6 +70,13 @@
+         };
+         let Ok(relay) = podssh_relay::relay::parse_relay(host) else { return };
+         last = Some(tokio::time::Instant::now());
++        // The plan's next host beside this one, as two probes at once.
++        if let Some(next) = plan.get(1).and_then(|h| podssh_relay::relay::parse_relay(h).ok()) {
++            let trust = trust.clone();
++            tokio::spawn(async move {
++                crate::ping::relay::leg_with(&next, &trust, REFERENCE, rank_auto::LAZY, rank_auto::PINGS).await;
++            });
++        }
+         let leg = crate::ping::relay::leg_with(&relay, &trust, REFERENCE, rank_auto::LAZY, rank_auto::PINGS);
+         let Some(leg) = rank_auto::unless_a_race(leg).await else { continue };
+         let probe = crate::relay_rank::probe_of(&leg);

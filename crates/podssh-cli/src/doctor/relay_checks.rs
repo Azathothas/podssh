@@ -48,7 +48,7 @@ fn order_line(relays: &RelayList) -> String {
         (false, "off") => "the relay's order, as RelayRank no or PODSSH_RELAY_RANK=no says",
         (false, _) => "the relay's order: no rank holds for this egress, and podssh relay rank makes one",
     };
-    format!("{order}: {}", hosts.join(", "))
+    crate::relay_rank_auto::doctor_line(relays, order, &hosts)
 }
 
 /// Skew beyond which this host's clock is called wrong.

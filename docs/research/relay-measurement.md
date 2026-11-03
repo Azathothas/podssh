@@ -543,7 +543,7 @@ them, rank the same way.
 | T-605 | The harness of section 7, drafted in `scripts/`, and its workflow by hand (`none`, P2). |
 | T-606 | `podssh relay rank` on demand, and `relay-rank.json` in the cache (M10, P2). |
 | T-607 | The default list takes the rank, and samples of each session's own race (M10, P2). |
-| T-608 | A rank that podssh makes unasked, in a session's background (M10, P3), blocked on Q89. |
+| T-608 | A rank that podssh makes unasked, in a session's background (M10, P3); Q89 ruled it on 2026-11-03: with `RelayRank auto` alone. |
 
 Q89, in [PROGRESS.md](../../TODO/PROGRESS.md): may podssh measure relay
 hosts that the user did not ask it to measure, by default or with the

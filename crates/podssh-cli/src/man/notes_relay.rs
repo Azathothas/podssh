@@ -61,7 +61,7 @@ pub const RELAY: &[&str] = &[
      the egress is a digest of the proxy's host and port, or direct, and the rank holds 24 h for it. \
      --cached prints the rank kept, its age and whether it holds here, and --forget removes it; neither \
      connects. Exit 0 when a host opened, 69 when none did or PODSSH_OFFLINE is set, 64 for a bad flag. \
-     podssh probes no host that the user did not ask it to (Q89).",
+     podssh probes no host that the user did not ask it to, unless RelayRank auto asks (Q89, below).",
     "The default list of relay hosts takes the rank (T-607): while a rank of podssh relay rank holds for this \
      egress, the default list is the default host and the best three other hosts of the pool, in the rank's \
      order, and a run tries the default host at its place among them; the record of failures still moves a \
@@ -71,6 +71,19 @@ pub const RELAY: &[&str] = &[
      PODSSH_RELAY_RANK=no, or RelayRank no in the settings file, gives the relay's order of the pool, as \
      before; podssh status says which order a run takes (relay_order), and podssh doctor's line rank names \
      it with the list.",
+    "A rank in a session's background (T-608) comes only when the user asks for it, with RelayRank auto in \
+     the settings file or PODSSH_RELAY_RANK=auto, never by default (Q89). Then, when no rank holds for this \
+     egress, a session of podssh ssh that the default list carries probes the default host and the hosts \
+     of its pool, 8 at most in a day, in its own process, one at a time: the first after the session ran \
+     60 s, then one each 10 s at most, none while a race of relay hosts runs, none with PODSSH_OFFLINE, \
+     and none past the session's end, which drops a probe in flight. Each probe is a session to \
+     github.com:22 with ?dial=lazy that sends no byte and three pings, so the relay dials no target and \
+     the time to open is this host's leg alone. The rank is kept after each probe, source background, and \
+     the default list takes it as it takes one of podssh relay rank; a session that ended first leaves it \
+     partial, and the next session of the day goes on with the hosts that it lacks. A rank that holds, \
+     of either source, makes no new one for 24 h. podssh proxy, pipe, cp and the other commands make \
+     none. podssh status gives relay_rank_auto (asked, by, last_ms, last_age_s, partial), and podssh \
+     doctor's line rank names the setting and when the last background rank was made.",
     "podssh relay trace HOST PORT asks the first relay host to dial the target and to read its first \
      line, with a forward token in a header and never in the URL: the relay's verdict (live, or \
      silent-or-unreachable for a target that sent nothing), the address that it dialed, the times of \

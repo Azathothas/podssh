@@ -127,8 +127,8 @@ fn shuffled(n: usize) -> Vec<usize> {
 /// The probe of one leg of `ping`: opened once the relay answered the
 /// upgrade, which it does once it reached the target, as a session's race
 /// decides; a ping that failed after it leaves the ping's figure out, not
-/// the open.
-fn probe_of(leg: &crate::ping::relay::Leg) -> Probe {
+/// the open. A background probe (T-608) is one too.
+pub(crate) fn probe_of(leg: &crate::ping::relay::Leg) -> Probe {
     let ms = |d: &Duration| d.as_secs_f64() * 1000.0;
     let open = match (&leg.connect, &leg.tls, &leg.upgrade) {
         (Some((_, c)), Some(t), Some(u)) => Some(ms(c) + ms(t) + ms(u)),
@@ -192,6 +192,7 @@ fn measure(plan: &Plan, json: bool, out: &mut dyn Write, err: &mut dyn Write) ->
         .zip(&probes)
         .map(|(host, p)| rank::figures(&podssh_ws::dial::authority(&host.host, host.port), p))
         .collect();
+    let old = rank::load();
     let made = Rank {
         schema: rank::SCHEMA,
         made_ms: now_ms(),
@@ -200,8 +201,12 @@ fn measure(plan: &Plan, json: bool, out: &mut dyn Write, err: &mut dyn Write) ->
         rounds: plan.rounds,
         named: plan.named,
         hosts: rank::order(figures),
-        // The samples of the races are kept across ranks (T-607).
-        samples: rank::load().map(|old| old.samples).unwrap_or_default(),
+        // The samples of the races are kept across ranks (T-607), and when
+        // the last background rank was made (T-608).
+        background_ms: old.as_ref().map_or(0, |o| o.background_ms),
+        samples: old.map(|o| o.samples).unwrap_or_default(),
+        source: rank::ON_DEMAND.to_string(),
+        partial: false,
     };
     let kept = rank::save(&made);
     let opened = made.first().is_some();
@@ -280,8 +285,19 @@ pub(crate) fn rank_json(made: &Rank, now: i64) -> serde_json::Value {
         "target": made.target,
         "rounds": made.rounds,
         "named": made.named,
+        "source": source(made),
+        "partial": made.partial,
         "hosts": made.hosts,
     })
+}
+
+/// Who made a rank: `relay rank`, or `background` (T-608).
+fn source(made: &Rank) -> &'static str {
+    if made.background() {
+        rank::BACKGROUND
+    } else {
+        rank::ON_DEMAND
+    }
 }
 
 /// `--cached`: the rank kept, its age and whether it holds for this egress,
@@ -304,7 +320,17 @@ fn cached(json: bool, out: &mut dyn Write, err: &mut dyn Write) -> i32 {
     let age = kept.age(now).map_or_else(|| "at a time that this clock has not reached".into(), ago);
     let whose = if kept.egress == here { "this egress" } else { "another egress" };
     let state = if holds { "it holds" } else { "it no longer holds; `podssh relay rank` measures again" };
-    let _ = writeln!(out, "rank of {} hosts to {}, made {age}, for {whose}: {state}", kept.hosts.len(), kept.target);
+    let by = match (kept.background(), kept.partial) {
+        (true, true) => " in a session's background, of part of its hosts so far",
+        (true, false) => " in a session's background",
+        _ => "",
+    };
+    let _ = writeln!(
+        out,
+        "rank of {} hosts to {}, made {age}{by}, for {whose}: {state}",
+        kept.hosts.len(),
+        kept.target
+    );
     for line in rank_lines(&kept) {
         let _ = writeln!(out, "{line}");
     }
@@ -323,6 +349,8 @@ pub(crate) fn status_value() -> serde_json::Value {
         "this_egress": kept.egress == here,
         "holds": kept.holds(now, &here),
         "named": kept.named,
+        "source": source(&kept),
+        "partial": kept.partial,
         "first": kept.first().map(|h| h.host.clone()),
         "hosts": kept.hosts.len(),
     })
