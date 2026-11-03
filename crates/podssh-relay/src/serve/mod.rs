@@ -7,7 +7,8 @@
 //! the mints and pairs of each address ([`brake`], T-454). Behind a quick
 //! tunnel, the node's origin is the role, with no listener (T-428,
 //! `behind`). Its targets are dialed through the host's proxy when one is
-//! set ([`egress`], T-457).
+//! set ([`egress`], T-457). Its probes tell a client what the path does to a
+//! stream ([`probe`], T-325).
 
 #[cfg(feature = "quick")]
 pub mod behind;
@@ -17,6 +18,7 @@ pub mod egress;
 pub mod forward;
 pub mod keys;
 pub mod policy;
+pub mod probe;
 pub mod reverse;
 pub mod tokens;
 
@@ -194,6 +196,8 @@ where
             answer(&mut stream, reply).await
         }
         ("GET", "/llms-full.txt") => answer(&mut stream, docs::text(docs::SPEC)).await,
+        // What a path does to a stream, for `podssh doctor --stream` (T-325).
+        (_, p) if probe::serves(p) => probe::request(stream, head, pending).await,
         (_, p) if reverse::serves(p) => reverse::request(stream, head, pending, cfg, sni).await,
         (_, p) => answer(&mut stream, request::refusal(404, &format!("{p}: not found"), &[])).await,
     }

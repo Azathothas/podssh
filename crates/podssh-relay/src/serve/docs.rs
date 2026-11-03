@@ -70,6 +70,8 @@ pub fn relays(cfg: &Config, head: &Request) -> Value {
             "max_session_bytes": l.bytes,
             "max_frame_bytes": podssh_ws::frame::FORWARD_MAX_FRAME,
             "udp": "unsupported",
+            // The probes' own limits, beside the contract's (T-325).
+            "probe": super::probe::limits(),
         },
     })
 }

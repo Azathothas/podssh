@@ -1,0 +1,13 @@
+diff --git a/crates/podssh-cli/src/doctor/stream/judge.rs b/crates/podssh-cli/src/doctor/stream/judge.rs
+index 81281f1..6408b8d 100644
+--- a/crates/podssh-cli/src/doctor/stream/judge.rs
++++ b/crates/podssh-cli/src/doctor/stream/judge.rs
+@@ -122,7 +122,7 @@ pub(super) fn response(at: &str, over: Duration, bytes: u64, answer: &Timed) ->
+         }
+         _ => return Verdict::Unknown { why: format!("{lead} did not come whole within the probe's bound") },
+     };
+-    let seen = last.saturating_sub(first);
++    let seen = over;
+     let detail = if seen >= over.mul_f64(0.6) {
+         format!(
+             "{lead} came over {}, its first byte after {}: the path passes a response as it comes",

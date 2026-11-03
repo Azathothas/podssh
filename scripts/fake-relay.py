@@ -67,6 +67,12 @@ Modes:
                    more than BYTES wait in it, Close 1013 `client receive
                    backlog`, the relay's check of a slow client, and drop
                    what waits (T-062)
+  buffer, bodybuffer, bodycap:BYTES, idle:SECONDS
+                   the probes of `podssh doctor --stream` (T-325), served in
+                   each mode at /v1/probe/drip and /v1/probe/anything, with a
+                   fault of a path between the client and them: a response
+                   held until its end, a body held until its end, a cap on a
+                   body, a quiet stream ended (scripts/fake_stream.py)
 
 Each mint, each upgrade and each Close from the client is a line on stdout
 (`mint`, `upgrade`, `close CODE`), so a harness counts them (T-220).
@@ -80,6 +86,7 @@ import time
 import urllib.parse
 
 import fake_reverse
+import fake_stream
 from fake_shape import SHAPED, Shaper
 from fake_ws import close_frame, frame, read_frame, response, upgraded
 
@@ -117,6 +124,8 @@ async def handle(reader, writer):
                 k, v = line.split(":", 1)
                 headers[k.strip().lower()] = v.strip()
         if await fake_reverse.handle(method, path, headers, reader, writer):
+            pass
+        elif await fake_stream.handle(method, path, headers, reader, writer):
             pass
         elif method == "POST" and path == "/v1/mint":
             await reader.readexactly(int(headers.get("content-length", "0")))
@@ -162,7 +171,8 @@ def relays_json(path, headers):
         "pool": [{"rank": 0, "name": "stand-in", "host": name, "bucket": None, "region": None,
                   "client_ms": 0, "target_ms": 0, "score_ms": 0}],
         "limits": {"connect_timeout_ms": 10000, "idle_timeout_ms": 180000, "max_session_ms": 43200000,
-                   "max_session_bytes": 67108864, "max_frame_bytes": 262144, "udp": "unsupported"},
+                   "max_session_bytes": 67108864, "max_frame_bytes": 262144, "udp": "unsupported",
+                   "probe": fake_stream.limits()},
     }
     return json.dumps(doc).encode()
 
@@ -429,6 +439,7 @@ async def main():
     parser.add_argument("--keepalive", type=float, default=25.0)
     args = parser.parse_args()
     fake_reverse.MODE = args.mode
+    fake_stream.MODE = args.mode
     context = ssl.SSLContext(ssl.PROTOCOL_TLS_SERVER)
     if args.mode == "tls12":
         context.minimum_version = ssl.TLSVersion.TLSv1_2

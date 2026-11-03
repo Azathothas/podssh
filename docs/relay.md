@@ -651,3 +651,44 @@ and the signed one.
   `/v1/mint: braked, an address past 120 requests in a minute`, which does
   not name the address; the next ones until it is let through again say
   nothing.
+
+## The relay role's probes (T-325)
+
+`podssh relay serve`, and the role behind a node's quick tunnel, serve two
+endpoints with which `podssh doctor --stream` measures what a path does to
+a stream ([cli.md](cli.md), `podssh doctor`): go-httpbin's `/drip` and
+`/anything`, with their queries, under `/v1/probe`, so that doctor asks
+go-httpbin (`-prefix /v1/probe`) and the role alike
+(`crates/podssh-relay/src/serve/probe.rs`). They need no token, dial
+nothing and keep nothing of a body; at most 16 run together, and the next
+gets `503` with `Retry-After`. The brake does not count them.
+
+- `GET /v1/probe/drip?duration=S&numbytes=N` (`delay=S` and `code=C` too,
+  each as go-httpbin reads it: seconds, or Go's `2s` and `500ms`): after
+  the delay, the head with `Content-Length: N`, then N bytes of `*`, the
+  first at once and each next one a pause later, the pause the duration over
+  the gaps rounded up, as go-httpbin's, so the last goes at the duration;
+  each byte is flushed at its own moment, from the start. 600 s and 64 KiB
+  at most; a value that does not read is `400`.
+- `POST /v1/probe/anything` (or PUT): a body of its `Content-Length`, 8 MiB
+  at most, read as it comes and dropped, answered with
+  `{"bytes": N, "parts": [{"from_ms", "to_ms", "bytes"}, ...]}`: the reads
+  less than 50 ms apart are one part, 64 parts at most, each time from the
+  end of the head. A larger body gets `413` before it is read, and one with
+  no length or with `Transfer-Encoding`, `411`; the rest of a refused body
+  is read and dropped for 5 s, so that the refusal is not lost to a reset.
+  A body that waits 60 s for its next bytes gets `408`.
+- `/relays.json` names their limits beside the contract's, in
+  `limits.probe`: `paths`, `drip_max_ms`, `drip_max_bytes`,
+  `body_max_bytes`, `body` (`streamed`), `quiet_max_ms` and `at_once`.
+  Behind a quick tunnel's node, which takes a request's body whole, 32 KiB
+  at most, before the role reads it, and ends an answer whose bytes stop for
+  60 s (`crates/podssh-relay/src/quick/origin.rs`), the role's document
+  says so: `behind` (`the node of a quick tunnel`), `body` `whole`,
+  `body_max_bytes` 32768 and `quiet_max_ms` 60000, so that a client names
+  them as the node's, not the path's.
+
+A relay of the contract alone serves neither, and the default relay
+answers no probe; there `doctor --full` measures the quiet limit alone, on
+a socket of the reverse road, which that relay ends for no idleness
+([relay-operator.md](relay-operator.md), item 6).

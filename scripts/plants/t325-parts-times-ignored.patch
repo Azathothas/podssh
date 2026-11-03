@@ -1,0 +1,13 @@
+diff --git a/crates/podssh-relay/src/serve/probe.rs b/crates/podssh-relay/src/serve/probe.rs
+index e8092fb..955626b 100644
+--- a/crates/podssh-relay/src/serve/probe.rs
++++ b/crates/podssh-relay/src/serve/probe.rs
+@@ -296,7 +296,7 @@ impl Parts {
+     pub fn add(&mut self, at: Duration, bytes: u64) {
+         let full = self.0.len() >= PARTS_SHOWN;
+         if let Some(last) = self.0.last_mut() {
+-            if full || at.saturating_sub(last.to) <= SAME_PART {
++            if full || at.saturating_sub(last.to) <= Duration::MAX {
+                 last.to = at;
+                 last.bytes += bytes;
+                 return;

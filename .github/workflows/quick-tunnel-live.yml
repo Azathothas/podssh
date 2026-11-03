@@ -63,10 +63,11 @@ jobs:
 
       # T-359, T-400: doctor's UDP out sends the node's probe of UDP, then
       # makes its QUIC handshake with the edge, closed at once with nothing
-      # registered; here UDP reaches it.
+      # registered; here UDP reaches it. A short hold of --full's quiet socket
+      # at the relay (T-325), so that its pair is stopped within the timeout.
       - name: doctor's UDP out, with UDP to the edge
         run: |
-          timeout 120 target/debug/podssh doctor --full >"$RUNNER_TEMP/doctor.txt" 2>&1 || true
+          timeout 120 target/debug/podssh doctor --full --stream-idle 5 >"$RUNNER_TEMP/doctor.txt" 2>&1 || true
           line=$(grep -E '^ +[^ ]+ +UDP out ' "$RUNNER_TEMP/doctor.txt" | head -n 1)
           echo "doctor: $line"
           case $line in
@@ -270,7 +271,7 @@ jobs:
         run: |
           sudo iptables -I OUTPUT -p udp --dport 7844 -j DROP
           # T-359, T-400: doctor's probe finds no answer, and says HTTP/2.
-          timeout 120 target/debug/podssh doctor --full >"$RUNNER_TEMP/doctor2.txt" 2>&1 || true
+          timeout 120 target/debug/podssh doctor --full --stream-idle 5 >"$RUNNER_TEMP/doctor2.txt" 2>&1 || true
           line=$(grep -E '^ +[^ ]+ +UDP out ' "$RUNNER_TEMP/doctor2.txt" | head -n 1)
           echo "doctor: $line"
           case $line in
@@ -360,7 +361,7 @@ jobs:
           if grep -q "too_many_data_frames\|excessive load" "$RUNNER_TEMP/node3.log"; then
             echo "FAIL h2's guard of small frames ended WARP's tunnel"; exit 1
           fi
-          timeout 180 target/warp/debug/podssh doctor --full >"$RUNNER_TEMP/doctor3.txt" 2>&1 || true
+          timeout 180 target/warp/debug/podssh doctor --full --stream-idle 5 >"$RUNNER_TEMP/doctor3.txt" 2>&1 || true
           line=$(grep -E '^ +[^ ]+ +edge road ' "$RUNNER_TEMP/doctor3.txt" | head -n 1)
           echo "doctor: $line"
           case $line in

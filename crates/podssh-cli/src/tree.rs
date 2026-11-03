@@ -424,6 +424,8 @@ pub fn parse_verb(verb: &'static Verb, rest: &[std::ffi::OsString]) -> Parsed {
             vless: get("vless"),
             quick: matches.get_flag("quick"),
             jobs: get("jobs"),
+            stream: get("stream"),
+            stream_idle: get("stream-idle"),
             refused,
         };
     }
