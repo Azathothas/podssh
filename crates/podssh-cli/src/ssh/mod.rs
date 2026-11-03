@@ -397,9 +397,16 @@ async fn tries(resolved: &Resolved, log: &Arc<Log>) -> (i32, Option<podssh_ssh::
     let first = opts.jump.first().unwrap_or(&opts.destination);
     let target = podssh_ws::dial::authority(&first.host, first.port);
     let (mut tried, mut skip, mut again) = (0usize, 0usize, false);
+    // The relay's lines once it reached no IPv6 host, for the direct road
+    // that the next try takes (T-253).
+    let (started, mut unreached) = (tokio::time::Instant::now(), None);
     loop {
         tried += 1;
-        let reached = match transport::reach_skipping(resolved, skip, log).await {
+        let reached = match unreached.take() {
+            Some(relay) => Box::pin(transport::after_ipv6_close(resolved, relay, started.elapsed(), log)).await,
+            None => transport::reach_skipping(resolved, skip, log).await,
+        };
+        let reached = match reached {
             Ok(reached) => reached,
             Err(failure) => {
                 for line in &failure.lines {
@@ -430,6 +437,16 @@ async fn tries(resolved: &Resolved, log: &Arc<Log>) -> (i32, Option<podssh_ssh::
         }
         // The layer's CLOSE, and the line of its failure, before the exit.
         transport::settle(reached.layer).await;
+        // An IPv6 target that the relay opened, then closed before any byte:
+        // the direct road once, in place of another try of the relay (T-253).
+        if outcome.retry.is_some() && transport::ipv6_unreached(resolved, relay.as_ref()) {
+            // The record says how the relay's session ended, as the road after it has no relay.
+            if let Some(end) = relay.as_ref().and_then(podssh_ssh::RelayStatus::get) {
+                podssh_ssh::outcome::relay_end(&end);
+            }
+            unreached = Some(transport::NotReached { lines: outcome.lines, code: outcome.code });
+            continue;
+        }
         let how = match outcome.retry {
             Some(Retry::NextHost) if tried < most && skip + 1 < hosts => {
                 skip += 1;

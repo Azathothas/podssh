@@ -1,0 +1,10 @@
+# T-253: the relay role keeps each IPv6 address of a plan, as if its host
+# routed IPv6 out, so a role whose host has none upgrades a lazy session to
+# an IPv6 target, where it must answer 502 before the upgrade; the test's
+# refusal then sees the upgrade taken. Its first path is the lazy one, whose
+# dial waits for a byte that the test never sends, so the plant dials no
+# address of the documentation range.
+ENTRY=T-253
+GROUP=resume
+EXPECT='the upgrade was taken'
+RUN='cargo test --locked -p podssh-relay --features serve,plain-ws --test relay_serve_ipv6 -- without_a_route_out'

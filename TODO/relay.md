@@ -1049,6 +1049,60 @@ cargo test -p podssh-relay --test live -- --ignored ipv6 --nocapture
 
 The test prints "bytes came back from the IPv6 host".
 
+## Decision
+
+2026-11-03, the draft (each call with the alternatives that lost):
+
+1. The role knows its host's way out to IPv6 by two probes at run time: the table of IPv6
+   routes that Linux gives as a file (`/proc/net/ipv6_route`, read again each 30 s), whose
+   longest usable prefix that covers an address decides, as the kernel's does; where no table
+   can be read (macOS, Windows, a host with IPv6 off), its own dials: a direct one that met no
+   route (no route, the network down, no address of the family) holds for a minute, and one
+   that connected says that a route exists. The table wins over a dial, as a dial meets one
+   address alone. Lost: a UDP `connect()` to a public address at the start, which sends nothing
+   but opens a socket that the role does not need; a test dial of a public IPv6 host, a
+   connection to a host that podssh does not use (rule 2 of `AGENTS.md`); a flag of the
+   owner's, `--ipv6 no`, a surface for the one case that the probes miss, a route that drops
+   what it takes, which the dial's limit of 10 s bounds already.
+2. A name of both families keeps its IPv4 addresses on a host with no route, and only a target
+   with no address left gets the `502`. The loopback, and an IPv4 address written as IPv6, are
+   the host's own, never refused. Through the host's proxy (T-457) the role refuses nothing:
+   the proxy's way out decides, and `/relays.json` says `null`. Lost: a refusal of the whole
+   name, which would refuse a target that IPv4 reaches.
+3. The `502` says `relay: cannot reach [ADDR]:PORT: this relay's host has no IPv6 route out`,
+   words that the client shares (`podssh_relay::relay::NO_IPV6_ROUTE`) and that name no fault
+   of the target's name, so that the client's opener tries the next relay host at once, with
+   no change (`crates/podssh-relay/src/open.rs:80` says "!target_name_fails(body)"). This
+   takes the place of Approach item 2's "a
+   relay whose `/relays.json` says that it has IPv6 goes first": podssh keeps one
+   `/relays.json` for each deployment, the first host's, so it cannot order the hosts of a
+   list by theirs without a request to each host before each race (rule 2). The field serves a
+   person and doctor's line (item 3).
+4. The direct road after that `1011` is taken in `podssh ssh`'s run, where the try of the relay
+   once more (T-025) is, at once and in its place (`crates/podssh-cli/src/ssh/mod.rs`, `tries`):
+   the `1011` comes after the upgrade, which T-363's fallback in `reach_skipping` never sees.
+   Lost: the same in each command that reaches its server as `ssh` does (`cp`, `each`, `job`
+   and the others): none has a try after an upgrade, and each ends with the relay's lines, as
+   before.
+5. The direct road keeps the family of `-4` as of `-6`: one dial does both, and T-363's call 6
+   ("the direct road cannot keep the family that the user asked for") no longer holds. Under
+   `-4` or `-6` a name is resolved on this host by podssh's resolver (pins, the system's,
+   DNS over HTTPS), and its addresses of that family are dialed in turn, through the proxy
+   that the name takes, as addresses. Lost: `-6` alone, which keeps a rule whose reason is
+   gone for `-4`; the name to the proxy, which keeps no family. A host with no DNS then fails
+   that dial with its reason, and the relay's lines stay first.
+6. The role's offline test dials a target of the test's on `::1` that sends OpenSSH's version
+   line, not OpenSSH's sshd itself: an sshd that a test starts as a user who is not root needs
+   its privilege separation and its `sshd-session` at the paths that it was built with, which
+   a host may not give; the role reads none of the bytes that it carries. The role against
+   OpenSSH is the interop of T-169 (`PODSSH_RELAY_UNDER_TEST=podssh`) in the build image, which
+   waits until podssh is stable (Q88).
+7. The client's test reaches the stand-in relay as the built-in relay, through the stand-in
+   proxy's map of its name (`scripts/fake-proxy.py`), as a run that names no relay: the cells of
+   `crates/podssh-cli/tests/faults.rs` name their relay with `--relay-host`, which is the relay
+   alone and never falls back. The stand-in's certificate names the built-in relay too, and only
+   the test's runs trust its CA. Lost: a mode of `faults.rs`, whose runs could not fall back.
+
 ## Correction
 
 2026-11-02 (the drafting agent). Until that day this entry was blocked, and its `## Blocker`
@@ -1061,10 +1115,10 @@ read, moved here as `cargo todo check` refuses a Blocker on an open entry:
 Lifted on 2026-11-02 by Q63: see below.
 
 The Premise, a measurement of the default deployment, stands. Approach item 2 says that podssh
-"already says what happened" (`crates/podssh-relay/src/relay.rs:204-207`): true, but the direct
-road after the relay hosts (T-363) does not run in this case. It runs only when no relay host
-opened a session, and never with `-4` or `-6` (`docs/cli.md:390-394`); here the relay opened
-(101), then closed with 1011.
+"already says what happened" (`crates/podssh-relay/src/relay.rs`, lines 204-207 at `d262613`):
+true, but the direct road after the relay hosts (T-363) does not run in this case. It runs only
+when no relay host opened a session, and never with `-4` or `-6` (`docs/cli.md`, lines 390-394
+at `d262613`); here the relay opened (101), then closed with 1011.
 
 By Q63 (2026-11-02, `docs/decisions.md`; docs/mesh.md, section 4) the relay is a role of podssh
 itself, so this entry is podssh's work. podssh's relay role (T-169) dials a target's IPv6
@@ -1109,6 +1163,68 @@ IPv6 target, sends the client to the direct road with its line, also under `-6`.
 fallback skipped under `-6`; its test fails. Live: the third command, pointed at
 `podssh relay serve` on a host with IPv6 egress, prints "bytes came back from the IPv6 host"; a
 host with none says so.
+
+2026-11-03 (the drafting agent), read at `d262613`. The Premise of 2026-11-02 holds at its lines
+then: `ipv6_note` gave the note, and the direct road ran only when no relay host opened a session,
+never with `-4` or `-6` (`crates/podssh-cli/src/ssh/resolve.rs`, line 371 at `d262613`, its
+`family.is_none()`). podssh's relay role dialed an IPv6 address already, as its policy's
+addresses come of either family, and a direct dial with no route failed at once, before the
+upgrade: a `502` whose words were the kernel's alone; with `?dial=lazy`, the upgrade came first,
+then `1011 connect failed`.
+The IPv6 note of the manual is in `crates/podssh-cli/src/man/notes_ssh_more.rs`, not in
+`crates/podssh-cli/src/man/notes.rs`. Three changes of the Prove of 2026-11-02:
+
+- `relay_serve_ipv6` builds only with the features `serve` and `plain-ws`, as
+  `relay_serve_contract`; with none, it runs no test and passes.
+- The client's check is `crates/podssh-cli/tests/ipv6_fallback.rs`, not a mode of
+  `crates/podssh-cli/tests/faults.rs`, by Decision 7; its runs are not ignored, and say "did not
+  run" where the host has no IPv6 loopback, no Python or no `openssl`. The planted fallback
+  skipped under `-6` is caught by `crates/podssh-cli/tests/ssh_args.rs` too, which needs neither.
+- The unit tests of the role's knowledge, of the client's words and of the line of the direct
+  road join it.
+
+The Prove, in place of the one of 2026-11-02:
+
+```sh
+export CARGO_BUILD_JOBS=4
+cargo test -p podssh-relay --features serve,plain-ws --test relay_serve_ipv6
+cargo test -p podssh-relay --features serve --lib serve::
+cargo test -p podssh-relay --lib relay::
+cargo test -p podssh-cli --test ipv6_fallback
+cargo test -p podssh-cli --test ssh_args
+cargo test -p podssh-cli --lib ssh::transport
+sh scripts/plant-each.sh --here t253-route-unchecked t253-no-fallback-under-6
+cargo test -p podssh-relay --test live -- --ignored ipv6 --nocapture
+```
+
+## Done
+
+2026-11-03, drafted (`DRAFT T-253`, unbuilt; the commit of the merge: UNVERIFIED). Items 1, 2,
+4 and 5 of the Approach of 2026-11-02; item 3, `doctor`'s line, is not in this draft, as
+`doctor`'s files are T-325's draft's at the same time, and the entry stays `partial` until it is
+done.
+
+- The role (`crates/podssh-relay/src/serve/ipv6.rs`, its tests in
+  `crates/podssh-relay/src/serve/ipv6_tests.rs`): the knowledge of Decision 1, the plan of
+  Decision 2 in the policy's `plan`, which `/connect/` and `/trace` ask before any dial; the
+  dial's words for a fault of no route; `/relays.json`'s `"egress": {"ipv6", "known_by"}`.
+- The client (`podssh_relay::relay`): `NO_IPV6_ROUTE`, `unreached_ipv6` and the note that
+  names the roads with IPv6. `podssh ssh`: the direct road at once after a relay that reached no
+  IPv6 host (`crates/podssh-cli/src/ssh/transport/after.rs`), with its line; the direct road of
+  the family of `-4` or `-6`, after each relay host failed too.
+- The stand-in relay's mode `v6close` (`scripts/fake-relay.py`), and the built-in relay's name in
+  the stand-in's certificate (`crates/podssh-cli/tests/throughput_harness/cells.rs`).
+- The manual (the IPv6 note, the direct road's note, `PODSSH_DIRECT`), `docs/cli.md`,
+  `docs/relay.md` ("IPv6 targets", step 7, the role), `README.md`, `docs/relay-operator.md`
+  (item 3) and `docs/STATUS.md`.
+
+Measured: UNVERIFIED (each command of the Prove of 2026-11-03, in its order; the counts of each;
+whether this host has an IPv6 loopback, and whether `localhost` has an IPv6 address, for the
+parts that say "did not run"). Planted: `t253-route-unchecked` (the refusal before the upgrade
+skipped), UNVERIFIED; `t253-no-fallback-under-6` (the fallback skipped under `-6`), UNVERIFIED.
+Live: the last command against `podssh relay serve` on a host with IPv6 egress, UNVERIFIED; a
+host with none, the role's `502` said, UNVERIFIED. The role with OpenSSH's own sshd is the
+interop of T-169 in the build image, which waits until podssh is stable (Q88; Decision 6).
 
 # T-255: The relay's side drops reverse sockets at random, with no Close
 

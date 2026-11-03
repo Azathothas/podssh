@@ -103,6 +103,12 @@ pub const RELAY: &[&str] = &[
      that never say where the proxy is; the relay's own line on stdout names it, and never its \
      credentials. /trace names the road proxy and its kind. The first line on stderr names the proxy \
      by its host and port, and a proxy that cannot be read stops the start (78).",
+    "The relay dials an IPv6 target where its host routes IPv6 out. Where it does not, as the table \
+     of routes that Linux gives as a file says (/proc/net/ipv6_route), or else as a dial that met no \
+     route in the last minute, the target gets 502 before the upgrade, also with ?dial=lazy: this \
+     relay's host has no IPv6 route out, and a client tries its next relay host. A name of both \
+     families keeps its IPv4 addresses; the loopback is the relay's own; through HTTPS_PROXY the \
+     proxy decides. /relays.json says what the relay knows, as egress.ipv6: true, false, or null.",
     "It serves the reverse road too: /v1/pair, for whom it mints, /v1/node/NAME, /v1/connect/NAME, \
      /v1/status/NAME and /v1/stop/NAME, so that podssh relay pair --relay-host, podssh node and podssh \
      ssh node:// work through it with no other relay. A pair lives 72 hours, and /v1/renew/NAME, with \

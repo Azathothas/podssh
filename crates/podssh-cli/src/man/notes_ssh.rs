@@ -25,8 +25,9 @@ const fn join<const N: usize>(a: &[&'static str], b: &[&'static str]) -> [&'stat
 const FIRST: &[&str] = &[
     "podssh ssh reaches the host through the relay (see THE RELAY), or over TCP with --direct. It needs \
      no installed ssh, no pty and no user database entry.",
-    "When no relay host opened a session, and the user named no relay (--relay-host, PODSSH_RELAY or \
-     RelayHost) and no -4 or -6, podssh ssh tries the direct road once, as the road table gives it: one \
+    "When no relay host opened a session, or one closed a session to an IPv6 target before any byte \
+     came, and the user named no relay (--relay-host, PODSSH_RELAY or RelayHost), podssh ssh tries the \
+     direct road once, as the road table gives it, of the family of -4 or -6 when one is given: one \
      line says that the relay hosts failed and that it tries HOST:PORT directly, through HTTPS_PROXY when \
      one is set, whose CONNECT then names the target. The server's version line must come within 10 s, \
      as a proxy that takes the CONNECT and carries no SSH sends nothing; the proxy is then named. When \

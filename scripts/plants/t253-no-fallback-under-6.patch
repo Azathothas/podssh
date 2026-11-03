@@ -1,0 +1,11 @@
+--- a/crates/podssh-cli/src/ssh/resolve.rs
++++ b/crates/podssh-cli/src/ssh/resolve.rs
+@@ -368,7 +368,7 @@
+         // (T-253). Forwarders (T-369), Shadowsocks servers (T-373), a
+         // proxy over TLS (T-439), VLESS (T-440) or wstunnel (T-441) take its place.
+         let direct = crate::relay_settings::direct_from(env.direct.clone(), &env.settings)?;
+-        let then_direct = direct && !relays.explicit;
++        let then_direct = direct && !relays.explicit && family.is_none();
+         let relay = Transport::Relay { relays, trust, family, failover, then_direct };
+         super::servers::or_relay(args, env, relay)?
+     };

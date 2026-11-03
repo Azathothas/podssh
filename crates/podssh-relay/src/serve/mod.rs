@@ -7,7 +7,8 @@
 //! the mints and pairs of each address ([`brake`], T-454). Behind a quick
 //! tunnel, the node's origin is the role, with no listener (T-428,
 //! `behind`). Its targets are dialed through the host's proxy when one is
-//! set ([`egress`], T-457).
+//! set ([`egress`], T-457), and an IPv6 target that its host cannot route
+//! out is refused before the upgrade ([`ipv6`], T-253).
 
 #[cfg(feature = "quick")]
 pub mod behind;
@@ -15,6 +16,7 @@ pub mod brake;
 pub mod docs;
 pub mod egress;
 pub mod forward;
+pub mod ipv6;
 pub mod keys;
 pub mod policy;
 pub mod reverse;

@@ -142,7 +142,7 @@ where
 /// the client's words. The owner hears a proxy's fault, with where the
 /// proxy is, on the role's line.
 async fn dial(host: &str, plan: &Plan, cfg: &Config) -> Result<TcpStream, String> {
-    match egress::dial(host, plan, &cfg.egress, cfg.limits.connect).await {
+    match egress::dial(host, plan, &cfg.egress, &cfg.policy.ipv6, cfg.limits.connect).await {
         Ok((tcp, _)) => Ok(tcp),
         Err(Missed { said, line }) => {
             if let Some(line) = line {

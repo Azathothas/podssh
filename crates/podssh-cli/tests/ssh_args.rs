@@ -216,7 +216,7 @@ fn jump_hosts_transport_and_family() {
     assert_eq!(r.options.jump.len(), 2);
     assert_eq!(r.options.jump[1].port, 2222);
     let r = resolve(&ssh(&["-4", "host"]), &env()).unwrap();
-    assert!(matches!(r.transport, Transport::Relay { family: Some(4), .. }));
+    assert!(matches!(r.transport, Transport::Relay { family: Some(4), then_direct: true, .. }), "T-253");
     let r = resolve(&ssh(&["--direct", "host"]), &env()).unwrap();
     assert_eq!(r.transport, Transport::Direct);
     assert!(resolve(&ssh(&["--direct", "-6", "host"]), &env()).is_err());
@@ -242,7 +242,8 @@ fn ipv6_literals_resolve_through_the_relay_in_every_form() {
     let r = resolve(&ssh(&["-J", "u@[2001:db8::2]:2222", "u@2001:db8::1"]), &env()).unwrap();
     assert_eq!((r.options.jump[0].host.as_str(), r.options.jump[0].port), ("2001:db8::2", 2222));
     let r = resolve(&ssh(&["-6", "u@2001:db8::1"]), &env()).unwrap();
-    assert!(matches!(r.transport, Transport::Relay { family: Some(6), .. }));
+    let falls_back = matches!(r.transport, Transport::Relay { family: Some(6), then_direct: true, .. });
+    assert!(falls_back, "-6 keeps the direct road after the relay, of IPv6 alone (T-253)");
     let err = resolve(&ssh(&["-4", "u@2001:db8::1"]), &env()).unwrap_err();
     assert!(err.contains("-4") && err.contains("IPv6"), "{err}");
     let err = resolve(&ssh(&["-6", "u@192.0.2.1"]), &env()).unwrap_err();

@@ -1,0 +1,11 @@
+--- a/crates/podssh-relay/src/serve/ipv6.rs
++++ b/crates/podssh-relay/src/serve/ipv6.rs
+@@ -175,7 +175,7 @@
+         let Plan::Addresses(addresses) = plan else { return Ok(plan) };
+         // The name's NO_PROXY, and the address's, as the dial reads them.
+         let direct = |a: &SocketAddr| egress.proxy_for(name).and(egress.proxy_for(&a.ip().to_string())).is_none();
+-        let lost = |a: &SocketAddr| out_of_host(a).is_some_and(|ip| direct(a) && self.routes(ip).0 == Some(false));
++        let lost = |a: &SocketAddr| false && out_of_host(a).is_some_and(|ip| direct(a) && self.routes(ip).0 == Some(false));
+         let (out, kept): (Vec<SocketAddr>, Vec<SocketAddr>) = addresses.into_iter().partition(lost);
+         if kept.is_empty() && !out.is_empty() {
+             return Err(NO_IPV6_ROUTE.to_string());
