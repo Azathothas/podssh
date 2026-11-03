@@ -196,10 +196,11 @@ pub struct Presence {
 }
 
 /// `GET /v1/status/<name>`, with `connect_token`: the one token that the relay
-/// accepts there (measured 2026-10-09; the other two get `403`).
-pub async fn status(ctx: &PairContext<'_>, pair: &Pair) -> Result<Presence, PairError> {
-    let path = format!("/v1/status/{}", checked(&pair.name)?);
-    let response = with_token(ctx, "GET", &path, pair.connect_token()).await?;
+/// accepts there (measured 2026-10-09; the other two get `403`). The
+/// operator's part holds it, so an operator's host asks too (T-591).
+pub async fn status(ctx: &PairContext<'_>, part: &OperatorPart) -> Result<Presence, PairError> {
+    let path = format!("/v1/status/{}", checked(&part.name)?);
+    let response = with_token(ctx, "GET", &path, part.connect_token()).await?;
     match response.status {
         200..=299 => {
             serde_json::from_slice(&response.body).map_err(|_| PairError::BadAnswer("not the expected status"))

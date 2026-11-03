@@ -62,15 +62,15 @@ repository and CI).
 
 ## Counts
 
-**563 entries: 108 open, 3 partial, 16 blocked, 436 done.**
+**563 entries: 107 open, 3 partial, 16 blocked, 437 done.**
 
 | Priority | open | partial | blocked | done | total |
 | --- | --- | --- | --- | --- | --- |
 | P0 | 0 | 0 | 0 | 1 | 1 |
 | P1 | 0 | 1 | 0 | 62 | 63 |
-| P2 | 28 | 2 | 14 | 210 | 254 |
+| P2 | 27 | 2 | 14 | 211 | 254 |
 | P3 | 80 | 0 | 2 | 163 | 245 |
-| **All** | 108 | 3 | 16 | 436 | 563 |
+| **All** | 107 | 3 | 16 | 437 | 563 |
 
 ## Entries
 
@@ -630,7 +630,7 @@ repository and CI).
 | [T-588](ssh.md) | P1 | M | none | defect | done | `ssh node://` waits ConnectTimeout for an SSH handshake that OpenSSH through `operator` finishes on the same node, and says nothing of what came |
 | [T-589](reverse.md) | P2 | S | none | feature | done | `operator` and `proxy` take no `--ConnectTimeout`, so a ProxyCommand has no bound of its own on reaching its far end |
 | [T-590](roads.md) | P2 | S | none | feature | done | A roost on a host with no sshd says `Connection refused`, not that no sshd is installed, and `doctor` has no line for a roost |
-| [T-591](reverse.md) | P2 | S | none | feature | open | An operator's host cannot see its pair's expiry: `relay status` reads the store alone, and `relay pair` does not say the way past the expiry |
+| [T-591](reverse.md) | P2 | S | none | feature | done | An operator's host cannot see its pair's expiry: `relay status` reads the store alone, and `relay pair` does not say the way past the expiry |
 | [T-592](mesh.md) | P3 | M | M10 | feature | open | A pair that its owner renews in podssh's relay role, so that a node of the role outlives 72 h with its operators' file unchanged |
 | [T-593](relay.md) | P2 | S | none | defect | done | The cache follows `HOME` into another user's home: root's node key goes under that user's `.cache`, which podssh can make root's own |
 | [T-594](repo.md) | P2 | S | none | docs | open | `docs/STATUS.md` reads `main` and never says so: the exit node reads as working, and the release has none |

@@ -2711,8 +2711,9 @@ commands. The rules behind them:
   each new pair. NAME is the user's label for the pair in the cache
   (`pair-NAME.json`, mode 0600), so a script stays the same.
   `relay pair NAME` makes and keeps one; `node NAME TARGET` serves it;
-  `relay status NAME` asks whether its node is online; `relay revoke NAME`
-  stops it and forgets it.
+  `relay status NAME` asks whether its node is online, and `relay status
+  --pair-file FILE` the same of an operator's file (T-591); `relay revoke
+  NAME` stops it and forgets it.
 - **A pair expires, and its node goes on (T-395).** A pair lives 72 h at
   most and the relay renews none. The node says the expiry 24 h, 6 h and
   1 h before it, with the command that makes the next pair. `relay pair
@@ -2841,6 +2842,21 @@ commands. The rules behind them:
   The operator's part, the connect token alone, goes to the new private
   file of `--operator-file`; the node's token and the stop token stay in
   the store.
+- **The expiry, on each host of a pair** (T-591, GitHub #117). `relay pair`
+  keeps its one line on stdout, which scripts read, and says on stderr the
+  way past the expiry: in its last 24 h, `podssh relay pair NAME
+  --operator-file NEW` makes the next pair, which the node takes at the
+  expiry, and NEW goes to each operator. `relay status --pair-file FILE
+  [NAME]` asks the relay for the pair in FILE, or for its operator's part,
+  which the relay answers to the connect token, so an operator's host,
+  which stores no pair, sees the node online or offline and the expiry;
+  NAME is then the label shown (else FILE). In the last 24 h the expiry
+  says how long is left (`expires in 5 h, at ...`), on both hosts. `--json`
+  goes with `status NAME` and `--pair-file` too: one object, `schema`,
+  `podssh`, `label`, `online`, `sessions`, `expires` (RFC 3339) and
+  `seconds_left`. `--pair-file` with another subcommand is refused (64).
+  `pair::status` takes the operator's part (`OperatorPart`), of a stored
+  pair or of a file.
 - **One pair for each label.** A pair that has not expired is not replaced:
   a second pair would leave the first with no holder, for up to 72 hours.
   When a new pair cannot be stored, or its operator file cannot be written,

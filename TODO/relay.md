@@ -160,7 +160,7 @@ token header (`crates/podssh-ws/src/client.rs:279-290`); `https_request` takes h
 ## Decision
 
 Recommendation: remove the `--timeout` and `--jsonl` rows of `relay`
-(`crates/podssh-cli/src/flags/relay.rs:9-42`), and bound each request in the code, as `doctor`
+(`crates/podssh-cli/src/flags/relay.rs:9-44`), and bound each request in the code, as `doctor`
 does. With the row, the gate of `crates/podssh-cli/src/dispatch.rs:304-322` stops
 `podssh relay status` in each script that leaves `--timeout` out. Keeping the gate lost for that
 reason: the command is bounded anyway.
@@ -522,7 +522,7 @@ relay sends no keepalives on reverse sockets, and a quiet socket becomes dormant
    reason of the close, or "open at 240 s".
 3. At 240 s, send one byte each way: a hibernated socket can stay open and not deliver.
 4. Stop the pair at the end (`POST /v1/stop/NAME`). Tokens go only in headers; never print one,
-   and above all not the `stop_token` (`docs/reverse.md:288-297`).
+   and above all not the `stop_token` (`docs/reverse.md:291-300`).
 5. Answer the question in `docs/relay.md` lines 189-195 at `cd75137`, record the result in `docs/STATUS.md` with
    the date and the command, and correct `docs/reverse.md` lines 24-29 at `cd75137` if the result differs.
 
@@ -1763,7 +1763,7 @@ in; the code compiles it in, and the live check never reads `/relays.json`.
   (`crates/podssh-relay/src/pool.rs:150-222`). `podssh relay info` reads its `limits`
   (`connect_timeout_ms`, `idle_timeout_ms`, `max_session_ms`, `max_session_bytes` and
   `max_frame_bytes`; `crates/podssh-cli/src/relay_diag_text.rs:64-77`), and a test asserts a
-  stand-in's `max_frame_bytes` of 262144 (`crates/podssh-cli/tests/relay.rs:238`).
+  stand-in's `max_frame_bytes` of 262144 (`crates/podssh-cli/tests/relay.rs:246`).
 - Read: to a node, the resumable layer resumes after the relay's `1009` at the cap
   (`docs/relay.md:272-278`); a forward session has no layer.
 
@@ -2014,7 +2014,7 @@ and of any length. A relay, or a proxy on the way, can so write to the user's te
 
 ## Premise
 
-- Read: `crates/podssh-relay/src/token.rs:210` and `crates/podssh-relay/src/pair.rs:273` took
+- Read: `crates/podssh-relay/src/token.rs:210` and `crates/podssh-relay/src/pair.rs:274` took
   `response.header("retry-after")` as it was, and the lines of `TokenError::RateLimited` and
   `PairError::RateLimited` print it.
 - Read: the body of a refusal goes through `Response::body_text`, which `one_line` makes safe

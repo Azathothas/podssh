@@ -160,6 +160,41 @@ fn a_stopped_node_leaves_the_next_pair_in_the_store() {
     assert_eq!(std::fs::read(file("lab")).ok(), Some(next), "the next pair stays under the label");
 }
 
+/// T-591: in a pair's last day, `relay status` says how long is left beside
+/// the date, from the store of the owner's host and from the operator's
+/// file alike. The stand-in's mode `expirefirst` gives the first pair 23 h.
+#[test]
+fn status_in_a_pair_s_last_day_says_how_long_is_left() {
+    let session = Session::start("expiry-status");
+    let cell = match Cell::fake_relay_mode(&session, "expirefirst:600", "the stand-in relay") {
+        Ok(cell) => cell,
+        Err((_, why)) => {
+            eprintln!("did not run: {why}");
+            return;
+        }
+    };
+    let at = |flag: &str| cell.args.iter().position(|a| a == flag).map(|i| cell.args[i + 1].clone()).unwrap();
+    let (relay, ca) = (at("--relay-host"), at("--ca-file"));
+    let run = |words: &[&str]| {
+        let mut args: Vec<String> = words.iter().map(|w| w.to_string()).collect();
+        args.extend(["--relay-addr".to_string(), "relay-a.test=127.0.0.1".to_string()]);
+        session.stand_in(&args, &ca).stdin(Stdio::null()).output().unwrap()
+    };
+    let file = session.home.join("lab-operator.json");
+    let file = file.display().to_string();
+    let out = run(&["relay", "pair", "lab", "--relay-host", &relay, "--operator-file", &file]);
+    assert!(out.status.success(), "podssh relay pair: {}", String::from_utf8_lossy(&out.stderr));
+    let cases: [(&[&str], &str); 2] =
+        [(&["relay", "status", "lab"], "lab"), (&["relay", "status", "--pair-file", file.as_str()], file.as_str())];
+    for (words, label) in cases {
+        let out = run(words);
+        let stdout = String::from_utf8_lossy(&out.stdout).into_owned();
+        assert!(out.status.success(), "{words:?}: {}", String::from_utf8_lossy(&out.stderr));
+        let said = format!("{label}: offline; expires in 22 h 5");
+        assert!(stdout.starts_with(&said) && stdout.contains(" min, at 20"), "{words:?}: {stdout}");
+    }
+}
+
 /// Kill a node at the end of a test.
 struct Kill(std::process::Child);
 

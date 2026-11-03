@@ -25,14 +25,15 @@ async fn a_pair_is_made_asked_about_and_stopped() {
     let left_h = (made.expires_ms - now_ms()) / 3_600_000;
     assert!((70..=72).contains(&left_h), "{left_h} h left");
 
-    let presence = pair::status(&ctx, &made).await.expect("the status with connect_token");
+    let part = pair::OperatorPart::of(&made);
+    let presence = pair::status(&ctx, &part).await.expect("the status with connect_token");
     eprintln!("status: {presence:?}");
     assert!(!presence.online, "no node runs");
 
     let stopped = pair::stop(&ctx, &made).await.expect("the stop");
     eprintln!("stopped: {stopped:?}");
 
-    assert!(matches!(pair::status(&ctx, &made).await, Err(PairError::Forbidden)), "after the stop");
+    assert!(matches!(pair::status(&ctx, &part).await, Err(PairError::Forbidden)), "after the stop");
     assert!(matches!(pair::stop(&ctx, &made).await, Err(PairError::Forbidden)), "a second stop");
 }
 

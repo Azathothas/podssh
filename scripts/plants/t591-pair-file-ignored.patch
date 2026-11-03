@@ -1,0 +1,11 @@
+--- a/crates/podssh-cli/src/relay_status.rs
++++ b/crates/podssh-cli/src/relay_status.rs
+@@ -23,7 +23,7 @@
+     if let Some(label) = label {
+         pairs::check_label(label)?;
+     }
+-    let (shown, part) = match (args.pair_file.as_deref(), label) {
++    let (shown, part) = match (args.pair_file.as_deref().filter(|_| false), label) {
+         (Some(file), _) => {
+             let shown = label.unwrap_or(file).to_string();
+             let part = pairs::operator_part(&shown, Some(file))?;

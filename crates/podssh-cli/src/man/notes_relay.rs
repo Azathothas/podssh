@@ -7,7 +7,9 @@ pub const RELAY: &[&str] = &[
      file of the cache (see FILES). It prints the label and when the pair expires, 72 hours later, and \
      never a token. With --operator-file, the operator's part of the pair, its connect token alone, \
      goes to FILE, a new file that only its owner can read: give it to the operator by a channel that \
-     you trust.",
+     you trust. On stderr it says the way past the expiry: in its last 24 hours, podssh relay pair NAME \
+     --operator-file NEW makes the next pair, which the node takes at the expiry, and NEW goes to each \
+     operator; stdout keeps its one line.",
     "A pair under NAME with more than 24 hours left is not replaced: stop it first with podssh relay \
      revoke NAME. In its last 24 hours, the next pair is made and takes its place in the store, and a \
      node of NAME that runs takes it at the expiry, with no new start (see podssh node); the old pair \
@@ -15,7 +17,13 @@ pub const RELAY: &[&str] = &[
      needs the next one every 72 hours. revoke stops the pair on the relay and deletes the stored copy; \
      when the relay cannot be reached, the copy is kept, because its stop token is the one way to stop \
      the pair before it expires.",
-    "podssh relay status NAME says whether the pair's node is online, and its sessions.",
+    "podssh relay status NAME says whether the pair's node is online, its sessions, and when the pair \
+     expires; in its last 24 hours, how long is left too (expires in 5 h, at ...). On an operator's host, \
+     which stores no pair, podssh relay status --pair-file FILE [NAME] asks the same of the pair in FILE, \
+     or of its operator's part, which podssh relay pair --operator-file writes: the relay answers the \
+     status to its connect token. NAME is then only the label shown (else FILE). With --json, the pair's \
+     state is one object: schema (1), podssh, label, online, sessions, expires (RFC 3339) and \
+     seconds_left, for a check.",
     "podssh relay spec reads the relay's /health and its published document, /llms-full.txt, and checks \
      the document against the facts that podssh was built with (see RELAY FACTS). It prints ok, with the \
      document's lines, its digest and the version that the relay serves, or a FAIL line for each fact \
@@ -35,8 +43,9 @@ pub const RELAY: &[&str] = &[
      from a relay that cannot be reached. The relay's view of this host's address and place, which it \
      sends too, is never shown.",
     "With --json, status, info and trace write one JSON object on stdout when the run ends: schema (1), \
-     podssh, and the answer: each host for status, the relay's /relays.json as it came for info, and \
-     the relay's view of the target for trace. The exit codes are in EXIT STATUS.",
+     podssh, and the answer: each host for status with no NAME, the pair's state for status NAME or \
+     --pair-file, the relay's /relays.json as it came for info, and the relay's view of the target for \
+     trace. The exit codes are in EXIT STATUS.",
     "podssh relay serve is the relay itself, as a role of podssh: it serves the relay's forward road, \
      the contract that podssh speaks (version 2026-10-03-r2), on --listen ADDR:PORT, with TLS from \
      --cert FILE and --key FILE (a P-256 key in PEM) or from --acme NAME, so that each podssh reaches \

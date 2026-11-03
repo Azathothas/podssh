@@ -120,7 +120,7 @@
 112 issue closed
 113 issue closed
 114 issue closed
-115 issue open
+115 issue closed
 116 issue closed
 117 issue open
 118 issue closed

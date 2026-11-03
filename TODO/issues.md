@@ -187,7 +187,7 @@ image's digest, sha2 0.11.1 and simple-dns 0.13) are T-597.
 | #112 | A node refuses each new session once its replay budget is full, and names the budget, not its cause | closed | T-586 (inferred, which its Prove measures: OpenSSH ends its ProxyCommand `operator` with SIGHUP, and the node keeps each such session 10 minutes, charged a whole buffer) |
 | #113 | `proxy` cannot address `node://NAME` | closed 2026-11-03, its entry done (`6887d97`) | T-587 (`proxy node://NAME` as the pipe of `operator NAME`, a call of Q86; the issue's prefix `podssh ssh:` is not this code's) |
 | #114 | `ssh node://` waits the whole ConnectTimeout, where `operator` to the same node reads sshd's line in 3 s | closed | T-588 (not reproduced; no test runs `ssh node://` from Windows) |
-| #115 | `operator` and `proxy` take no `--ConnectTimeout` | open | T-589 |
+| #115 | `operator` and `proxy` take no `--ConnectTimeout` | closed 2026-11-03, its entry done (`801e346`) | T-589 |
 | #116 | `node --sshd` with no sshd says `Connection refused`; a line of `doctor` for it | closed 2026-11-03, its entry done (`279a283`) | T-590 |
 | #117 | A pair's expiry of 3 days, no renewal, and `relay status` with no expiry | open | T-591 (`relay status NAME` names the expiry of a stored pair already; an operator's file cannot be asked), T-592 (a renewal, in podssh's relay role, M10) |
 | #118 | The node's key under `HOME/.cache` when `HOME` is another user's | closed | T-593 |

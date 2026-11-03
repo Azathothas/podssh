@@ -1,0 +1,10 @@
+# T-591: `relay status` reads the store again and passes --pair-file over, as
+# before: on an operator's host, whose store is empty, the status of the
+# operator's file is refused, so the test through the stand-in relay (Python
+# and openssl) must fail.
+ENTRY=T-591
+GROUP=resume-cli
+EXPECT='relay_status_of_an_operator_s_file_names_the_expiry \.\.\. FAILED'
+SETUP='apk add --no-cache python3 openssl'
+RUN='cargo test --locked -p podssh-cli --test relay -- relay_status_of_an_operator_s_file_names_the_expiry'
+LIMIT=1800
