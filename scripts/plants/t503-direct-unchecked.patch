@@ -1,12 +1,12 @@
 --- a/crates/podssh-cli/src/ssh/dialed.rs
 +++ b/crates/podssh-cli/src/ssh/dialed.rs
-@@ -50,7 +50,8 @@
-             "-4/-6 select the address family the relay dials; with --direct they are not supported yet".into()
-         );
+@@ -48,7 +48,8 @@
+     if family.is_some() {
+         return Err("-4/-6 select the address family the relay dials; with --direct they are not supported yet".into());
      }
 -    check(Road::Direct, jump, host)
 +    let _ = (jump, host);
 +    Ok(())
  }
-
+ 
  /// The head of a refusal: the host that cannot be reached.
