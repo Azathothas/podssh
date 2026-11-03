@@ -38,6 +38,7 @@ mod diagnosis;
 // The forwarders of --forwarder (T-369).
 mod forwarder;
 mod host;
+mod ipv6;
 #[cfg(feature = "iroh")]
 mod iroh;
 pub mod listeners;

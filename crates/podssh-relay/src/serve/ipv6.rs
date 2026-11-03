@@ -168,6 +168,12 @@ impl Ipv6Out {
         (None, "nothing before a dial")
     }
 
+    /// Whether this host routes the public internet out over IPv6, and by
+    /// what: what `/relays.json` says, and `doctor`'s line `ipv6` (T-253).
+    pub fn out(&self) -> (Option<bool>, &'static str) {
+        self.routes(ANY_PUBLIC)
+    }
+
     /// `plan` without the IPv6 addresses that this host dials itself and
     /// cannot route, so that a name of both families keeps its IPv4 ones.
     /// `Err` holds the words of the `502` when nothing is left.
@@ -206,7 +212,7 @@ impl Ipv6Out {
         if egress.proxy_for(&ANY_PUBLIC.to_string()).is_some() {
             return json!({ "ipv6": null, "known_by": "the proxy of the relay's host decides" });
         }
-        let (routed, how) = self.routes(ANY_PUBLIC);
+        let (routed, how) = self.out();
         json!({ "ipv6": routed, "known_by": how })
     }
 

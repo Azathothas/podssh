@@ -1,0 +1,8 @@
+# T-253: doctor's line ipv6 reads no word of the relay's /relays.json of its
+# host's way out to IPv6, as if each relay said nothing; the role's word and
+# this host's own probes then disagree in the line, and its test fails.
+ENTRY=T-253
+GROUP=cli-tests
+EXPECT='the_role_s_word_and_this_host_s_own_probes_agree'
+RUN='cargo test --locked -p podssh-cli --test doctor_ipv6 -- the_role_s_word'
+LIMIT=2400

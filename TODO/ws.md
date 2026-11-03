@@ -311,7 +311,7 @@ the configuration on each call (`crates/podssh-ws/src/client.rs` lines 187-207 a
 (`crates/podssh-relay/src/token.rs:95-100`), the pool refresh
 (`crates/podssh-relay/src/pool.rs:177-185`), and the `https_*` functions (`client.rs` lines
 261-287). podssh's configuration offers no ALPN (`tls.rs` lines 174-177 at `723d90b`), because the upgrade is
-HTTP/1.1 only (`docs/relay.md:453`). The `tls12` feature of `rustls` is on in the workspace
+HTTP/1.1 only (`docs/relay.md:463`). The `tls12` feature of `rustls` is on in the workspace
 (`[workspace.dependencies]` of `Cargo.toml`).
 
 ## Approach
@@ -1399,7 +1399,7 @@ refuses from one that was slow, nor a steady path from a lossy one.
 - The meaning of a wrong accept is podssh-ws's
   (`crates/podssh-ws/src/handshake.rs:211`), so `podssh ssh` says it too; the
   death after a valid 101 is doctor's
-  (`crates/podssh-cli/src/doctor/relay_checks.rs:237`), as a session of
+  (`crates/podssh-cli/src/doctor/relay_checks.rs:240`), as a session of
   `podssh ssh` already names the relay's end.
 
 ## Prove
@@ -1423,7 +1423,7 @@ failure. Against a stand-in that drops one probe in three, the loss reads
 gives an answer other than 101 its status and its text
 (`crates/podssh-ws/src/handshake.rs:185` says "if status != 101 {"), and a
 101 with a wrong or no `Sec-WebSocket-Accept` its own error, and the
-forward line carries each (`crates/podssh-cli/src/doctor/relay_checks.rs:183`).
+forward line carries each (`crates/podssh-cli/src/doctor/relay_checks.rs:186`).
 Measured against the stand-in relay before the change: a wrong accept read
 "Sec-WebSocket-Accept was ..., expected ...", with nothing of what it means,
 and a valid 101 that the stand-in ended 200 ms later read "the connection
@@ -1807,7 +1807,7 @@ command says what to do. Four of the eight release binaries are for Windows and 
   with the relay failed: {why}", and `crates/podssh-ws/src/client.rs` lines 202-203 at `1316e53`
   kept rustls's words. doctor adds a hint for the
   clock's errors only (`crates/podssh-cli/src/doctor/relay_checks.rs` lines 96-105 at `b9e007c`), and its test
-  asserts none for `UnknownIssuer` (`:369`).
+  asserts none for `UnknownIssuer` (`:372`).
 - Read: the release builds two binaries for macOS and two for Windows
   (`.github/workflows/release.yml:286-297`, `:329-345`).
 - Read: `windows-sys` 0.61 is already a dependency of `podssh-relay` on Windows
@@ -2152,7 +2152,7 @@ and each other command print rustls's words alone. An error should tell what to 
 ## Premise
 
 - Read: doctor's hint (`crates/podssh-cli/src/doctor/relay_checks.rs` lines 96-105 at `b9e007c`) and its tests
-  (`:366-369`).
+  (`:369-372`).
 - Read: the other commands print the error's text: `crates/podssh-ws/src/client.rs:134` says "TLS
   with the relay failed: {why}"; the TLS of IRC and of the quick tunnel's edge gives the text of
   `crates/podssh-ws/src/tls.rs:151` (`crates/podssh-relay/src/quick/edge.rs:111-113`).
@@ -2673,7 +2673,7 @@ met.
 - Read: each relay host gets a line of its own (`crates/podssh-cli/src/doctor/relay_checks.rs:57-72`),
   and DNS over HTTPS one line with each resolver's error
   (`crates/podssh-cli/src/doctor/names.rs:140`); the end of the report gives the counts alone
-  (`crates/podssh-cli/src/doctor/mod.rs:366-388`).
+  (`crates/podssh-cli/src/doctor/mod.rs:367-389`).
 - Read: a failed handshake reaches `doctor` as text: `ConnectError::Tls` holds a String
   (`crates/podssh-ws/src/client.rs` line 115 at `38f424c`), and `HealthError::Connect` the
   error's text (`crates/podssh-relay/src/health.rs` line 69 at `38f424c`). The kind of the I/O
@@ -2720,7 +2720,7 @@ met.
 ## Decision
 
 - After the counts, not above the failures: each line goes out as its check ends
-  (`crates/podssh-cli/src/doctor/mod.rs:316-320`), so a line about them all comes once they are
+  (`crates/podssh-cli/src/doctor/mod.rs:317-321`), so a line about them all comes once they are
   known. Holding each line back until the end lost: a check of a minute would look like a hang.
 - One reference name, `github.com`, which `doctor` uses already
   (`crates/podssh-cli/src/doctor/net.rs:20-23`). A list of names that an allowlist often holds

@@ -281,6 +281,10 @@ Measured 2026-10-08 (T-007), with a TLS handshake through each session:
   `502`. `?family=6` with a host name gives the same results. IPv4 to the
   same hosts worked.
 
+Measured again 2026-11-03 (T-253, `cargo test -p podssh-relay --test live
+-- --ignored ipv6 --nocapture`): the relay host took the literal, and the
+session closed with the same `1011` when the first bytes went.
+
 What podssh does about it (T-253):
 
 - `podssh ssh` reads that `1011`, for an IPv6 target (an address, or `-6`)
@@ -308,6 +312,12 @@ What podssh does about it (T-253):
 - What `tcp.ssh.relay.ajam.dev` lacks here (an IPv6 route, or a `502`
   before the upgrade) is a note of [relay-operator.md](relay-operator.md),
   item 3.
+- `podssh doctor`'s line `ipv6`, in its section `relay`, gives what the
+  first relay host that answered says in `egress` of its `/relays.json`,
+  or for the default relay, which says nothing of it, its egress when last
+  measured; beside it the direct road's, by this host's own probes: the
+  proxy's way out where a proxy takes the address, else an IPv6 socket and
+  the same table of routes ([cli.md](cli.md), "`podssh doctor`").
 
 ### Tokens
 

@@ -1,0 +1,11 @@
+--- a/crates/podssh-cli/src/doctor/ipv6.rs
++++ b/crates/podssh-cli/src/doctor/ipv6.rs
+@@ -68,7 +68,7 @@ fn relay_words(host: &str, default: bool, body: Result<Vec<u8>, String>) -> Resu
+     let doc: Value = serde_json::from_slice(&body).map_err(|_| format!("{at}: /relays.json is not JSON"))?;
+     let egress = &doc["egress"];
+     let known = egress["known_by"].as_str().map(podssh_ws::text::one_line).unwrap_or_else(|| "it says not how".into());
+-    Ok(match egress.get("ipv6") {
++    Ok(match egress.get("ipv4") {
+         Some(Value::Bool(true)) => format!("{at}: yes, the relay says that its host routes IPv6 out ({known})"),
+         Some(Value::Bool(false)) => format!(
+             "{at}: none, the relay says that its host has no IPv6 route out ({known}), so it refuses an IPv6 \

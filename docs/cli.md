@@ -2587,6 +2587,21 @@ on a terminal no `--timeout`: a person decides how long an edit takes.
   `CONNECT`; the resolvers, which `doctor` asks only with no proxy and
   straight at their addresses, count only beside a reference that went with
   no proxy.
+- **The line `ipv6`** (T-253), in the section `relay`, after the relay
+  hosts: whether an IPv6 target can be reached, with no connection of its
+  own beyond one request. Through the first relay host that answered, by
+  its `/relays.json`: `podssh relay serve` says in `egress.ipv6` whether
+  its host routes IPv6 out (yes; none, and it refuses an IPv6 target before
+  the upgrade; or `null`, it cannot tell), and in `known_by` how it knows
+  ([relay.md](relay.md), "IPv6 targets"). The default relay says nothing
+  of it, and the line gives its egress when last measured, on 2026-11-03:
+  none, as each IPv6 target upgraded and then closed with `1011`. Direct,
+  by this host's own probes, which send nothing: where a proxy takes a
+  public IPv6 address, the proxy's way out decides and the line names the
+  proxy by its address; else an IPv6 socket made and closed (a kernel with
+  no IPv6 refuses it), then the table of IPv6 routes that Linux gives as a
+  file, as the role reads it. It is `ok`, a fact; `????` when no relay host
+  answered or its `/relays.json` cannot be read.
 - `--full` adds the check `login` (GitHub #13): a login to `github.com` as
   `git` through the relay, with an Ed25519 key made for the check, kept in
   memory and never written. GitHub refuses it, which is `ok`: the handshake,

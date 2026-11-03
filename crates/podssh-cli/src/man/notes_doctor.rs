@@ -1,8 +1,8 @@
 //! The notes of `podssh doctor` for the time of a run (T-511): its sections
 //! at once, `--jobs` and `--quick`; its diagnosis of the TLS handshakes
-//! (T-487); and its probes of what a path does to a stream (T-325), with
-//! the relay role's side of them. Apart from the others so that each file
-//! stays short.
+//! (T-487); its line of IPv6 targets (T-253); and its probes of what a path
+//! does to a stream (T-325), with the relay role's side of them. Apart from
+//! the others so that each file stays short.
 
 pub(super) const DOCTOR_AT_ONCE: &str = "The sections that connect run at once by default, each into its own part \
      of the report, and the report keeps its order: a section's lines go out once each section before it has ended, \
@@ -30,6 +30,15 @@ pub(super) const DOCTOR_DIAGNOSIS: &str = "The line TLS reference makes TLS with
      timed out says nothing of names. A reset and a timeout are read from the kind of the error, \
      never from its words, which differ between systems. With --json, diagnosis lists each, with kind (tls-names, \
      tls-reset or tls-dropped), detail and evidence, the names that show it.";
+
+pub(super) const DOCTOR_IPV6: &str = "The line ipv6, in the section relay, says whether an IPv6 target can be \
+     reached (T-253). Through the first relay host that answered, by what its /relays.json says of its host's way \
+     out: podssh relay serve says yes, none (and refuses an IPv6 target before the upgrade) or that it cannot tell, \
+     and how it knows; the default relay says nothing of it, and the line gives its egress when last measured, on \
+     2026-11-03: none, as each IPv6 target upgraded and then closed with 1011. Direct, by this host's own probes, \
+     which send nothing: through a proxy, the proxy's way out decides; else an IPv6 socket made and closed, then \
+     this host's table of IPv6 routes where Linux gives one. The line is ok, a fact; ???? when no relay host \
+     answered or its /relays.json cannot be read.";
 
 pub(super) const DOCTOR_STREAM: &str = "--stream URL checks this host, then what the path to URL does to a \
      stream, and nothing else, one connection at a time: URL is https://HOST[:PORT][/PATH] (TLS checked with \

@@ -2318,7 +2318,7 @@ Read, wrong facts:
   `crates/podssh-probe/tests/spec/relay-spec-2026-10-03-r2.txt`).
 - crates/podssh-transport/src/backpressure/mod.rs lines 4-22 at `e8bbd4d` gives the reverse
   path's backpressure (1011, 1 MiB, the frame dropped: line 185 of that copy)
-  as the forward path's. For the forward path, `docs/relay.md:412-424` says
+  as the forward path's. For the forward path, `docs/relay.md:422-434` says
   1013 at 2 MiB, with no frame dropped. The comment on the SSH window said
   the same as `backpressure/mod.rs` (`crates/podssh-ssh/src/run.rs` lines
   25-28 at `80f20bf`); T-024 corrected it.
@@ -4902,7 +4902,7 @@ of GitHub #69 to #72 corrected these; nothing finds the next.
   (`crates/podssh-todo/src/refs.rs:22-35`); it reads no sentence of a document.
 - Read: the fifth statement of GitHub #71, the comment of the facts file that the relay's frame
   cap is never compiled in, is T-342's: its Premise reads that line, and its Approach item 5
-  corrects it with the code (`TODO/relay.md:2099-2102`).
+  corrects it with the code (`TODO/relay.md:2137-2140`).
 
 ## Approach
 

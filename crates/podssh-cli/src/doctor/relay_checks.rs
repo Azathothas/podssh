@@ -70,6 +70,9 @@ pub(super) async fn check(report: &mut Report<'_>, relays: &RelayList, trust: &T
             Err(line) => report.fail("relay", line),
         }
     }
+    // What the first host that answered says of its way out to IPv6, beside
+    // this host's own (T-253).
+    super::ipv6::check(report, answered.as_ref().map(|(relay, _)| *relay), trust, TIMEOUT).await;
     let Some((relay, date)) = answered else {
         for name in ["token", "forward", "login", "clock"] {
             if name != "login" || full {

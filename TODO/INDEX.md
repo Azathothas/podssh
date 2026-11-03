@@ -62,15 +62,15 @@ repository and CI).
 
 ## Counts
 
-**579 entries: 97 open, 3 partial, 2 blocked, 477 done.**
+**579 entries: 97 open, 2 partial, 2 blocked, 478 done.**
 
 | Priority | open | partial | blocked | done | total |
 | --- | --- | --- | --- | --- | --- |
 | P0 | 0 | 0 | 0 | 1 | 1 |
 | P1 | 0 | 1 | 0 | 63 | 64 |
-| P2 | 30 | 2 | 0 | 232 | 264 |
+| P2 | 30 | 1 | 0 | 233 | 264 |
 | P3 | 67 | 0 | 2 | 181 | 250 |
-| **All** | 97 | 3 | 2 | 477 | 579 |
+| **All** | 97 | 2 | 2 | 478 | 579 |
 
 ## Entries
 
@@ -325,7 +325,7 @@ repository and CI).
 | [T-250](release.md) | P1 | M | M9 | release | done | Publish v1.0.0, the first stable release |
 | [T-251](release.md) | P1 | M | M9 | measurement | done | The check of a release from end to end, with no human |
 | [T-252](irc.md) | P2 | M | M8 | feature | done | `podssh chat --irc`: IRC as a second transport for chat |
-| [T-253](relay.md) | P2 | M | M10 | defect | partial | The relay's egress reaches no IPv6 host |
+| [T-253](relay.md) | P2 | M | M10 | defect | done | The relay's egress reaches no IPv6 host |
 | [T-254](repo.md) | P2 | S | none | defect | done | `cargo todo check` passes when a cited file was edited and `remap` was not run |
 | [T-255](relay.md) | P2 | M | M10 | measurement | done | The relay's side drops reverse sockets at random, with no Close |
 | [T-256](reverse.md) | P2 | S | M4 | defect | done | A local side that does not read stops every session of the node |
