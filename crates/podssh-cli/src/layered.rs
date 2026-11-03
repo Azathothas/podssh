@@ -376,7 +376,7 @@ pub(crate) async fn warn_of_expiry(expires_ms: Option<i64>, say: &(dyn Fn(Line) 
     let left = expires_ms.unwrap_or(0).saturating_sub(now_ms).saturating_sub(wait.as_millis() as i64);
     say(Line::Always(format!(
         "the pair expires in {} min; the relay then ends this session, and a new pair (podssh relay pair) is \
-         needed to go on",
+         needed to go on, unless its owner renews it first (podssh relay pair --renew, on podssh relay serve)",
         (left.max(0) / 60_000).max(1)
     )));
 }

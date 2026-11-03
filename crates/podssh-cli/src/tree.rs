@@ -321,6 +321,7 @@ pub fn parse_verb(verb: &'static Verb, rest: &[std::ffi::OsString]) -> Parsed {
             relay_addr: get("relay-addr"),
             ca_file: get("ca-file"),
             operator_file: get("operator-file"),
+            renew: matches.get_flag("renew"),
             pair_file: get("pair-file"),
             document: get("document"),
             json: matches.get_flag("json"),

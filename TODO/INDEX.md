@@ -62,15 +62,15 @@ repository and CI).
 
 ## Counts
 
-**574 entries: 110 open, 3 partial, 2 blocked, 459 done.**
+**574 entries: 109 open, 2 partial, 2 blocked, 461 done.**
 
 | Priority | open | partial | blocked | done | total |
 | --- | --- | --- | --- | --- | --- |
 | P0 | 0 | 0 | 0 | 1 | 1 |
 | P1 | 0 | 1 | 0 | 63 | 64 |
-| P2 | 39 | 2 | 0 | 220 | 261 |
-| P3 | 71 | 0 | 2 | 175 | 248 |
-| **All** | 110 | 3 | 2 | 459 | 574 |
+| P2 | 39 | 1 | 0 | 221 | 261 |
+| P3 | 70 | 0 | 2 | 176 | 248 |
+| **All** | 109 | 2 | 2 | 461 | 574 |
 
 ## Entries
 
@@ -578,7 +578,7 @@ repository and CI).
 | [T-511](machine.md) | P3 | M | none | feature | done | `doctor` checks each road one after another, 22 to 40 s, roads that the run did not ask for among them |
 | [T-512](cli.md) | P3 | S | none | docs | done | The help and the manual leave out eight facts that the report of 2026-11-02 found by trial or after a refusal |
 | [T-530](mesh.md) | P2 | L | M10 | feature | done | OpenTunnel, a blind TLS tunnel with no account, as a carrier of the reverse road |
-| [T-531](mesh.md) | P2 | M | M10 | feature | partial | The OpenTunnel road in the command line: `podssh node --opentunnel` and `ssh node://` |
+| [T-531](mesh.md) | P2 | M | M10 | feature | done | The OpenTunnel road in the command line: `podssh node --opentunnel` and `ssh node://` |
 | [T-532](mesh.md) | P3 | M | M10 | feature | open | `podssh funnel` through OpenTunnel, with TLS that ends at the node |
 | [T-533](mesh.md) | P3 | S | M10 | docs | done | The manual says which public services podssh tries last, and which it never names |
 | [T-534](mesh.md) | P2 | M | M10 | feature | open | Tailscale's main DERP fleet after tailcat's: a short test that it lets podssh in, then the fallback |
@@ -631,7 +631,7 @@ repository and CI).
 | [T-589](reverse.md) | P2 | S | none | feature | done | `operator` and `proxy` take no `--ConnectTimeout`, so a ProxyCommand has no bound of its own on reaching its far end |
 | [T-590](roads.md) | P2 | S | none | feature | done | A roost on a host with no sshd says `Connection refused`, not that no sshd is installed, and `doctor` has no line for a roost |
 | [T-591](reverse.md) | P2 | S | none | feature | done | An operator's host cannot see its pair's expiry: `relay status` reads the store alone, and `relay pair` does not say the way past the expiry |
-| [T-592](mesh.md) | P3 | M | M10 | feature | open | A pair that its owner renews in podssh's relay role, so that a node of the role outlives 72 h with its operators' file unchanged |
+| [T-592](mesh.md) | P3 | M | M10 | feature | done | A pair that its owner renews in podssh's relay role, so that a node of the role outlives 72 h with its operators' file unchanged |
 | [T-593](relay.md) | P2 | S | none | defect | done | The cache follows `HOME` into another user's home: root's node key goes under that user's `.cache`, which podssh can make root's own |
 | [T-594](repo.md) | P2 | S | none | docs | done | `docs/STATUS.md` reads `main` and never says so: the exit node reads as working, and the release has none |
 | [T-595](mesh.md) | P2 | L | M10 | feature | done | A carrier of the node's road over a byte stream that exists already (`stdio`, `fd:N`, `exec:CMD`), for a host whose every road out is closed |

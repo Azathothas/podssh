@@ -15,6 +15,9 @@ pub const RELAY_FLAGS: &[FlagRow] = &[
         "trust only the CA certificates in FILE (default: env SSL_CERT_FILE, else system and built-in roots); with serve --acme, for the ACME directory", None),
     row(None, "operator-file", Some("FILE"), FlagKind::Supported,
         "pair: write the operator's part of the pair to FILE, a new file that only its owner can read", None),
+    // The stored pair renewed, on podssh's relay role (T-592).
+    row(None, "renew", None, FlagKind::Supported,
+        "pair: renew the pair stored under NAME at its relay, 72 h from now, its tokens the same, so that each operator's file holds; podssh relay serve renews, and a relay that renews none is said so (69), with the next pair in the last 24 h as the way", None),
     row(None, "pair-file", Some("FILE"), FlagKind::Supported,
         "status: the pair in FILE, or its operator's part, as pair --operator-file writes it, not the one stored under NAME; NAME, when given, is the label shown", None),
     row(None, "document", Some("FILE"), FlagKind::Supported,

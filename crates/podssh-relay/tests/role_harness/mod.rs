@@ -63,13 +63,21 @@ impl Role {
     /// A new pair of the role's, as podssh's client reads the answer of
     /// `/v1/pair`.
     pub fn pair(&self) -> Pair {
-        let now = serve::tokens::now_ms();
-        let made = self.cfg.pairs.make(now).expect("a pair");
+        self.pair_made_at(serve::tokens::now_ms())
+    }
+
+    /// A pair of the role's as if made at `made_ms`, which ends 72 h after
+    /// it: one made `72 h - 3 s` before ends in 3 s (T-592). podssh's client
+    /// reads it as at that time, as it refuses a pair with less than 10
+    /// minutes left.
+    pub fn pair_made_at(&self, made_ms: u64) -> Pair {
+        let made = self.cfg.pairs.make(made_ms).expect("a pair");
         let body = serde_json::json!({
             "name": made.name, "node_token": made.node, "connect_token": made.connect,
             "stop_token": made.stop, "expires": made.expires_ms,
         });
-        pair::parse(&self.relay, body.to_string().as_bytes(), now as i64).expect("the role's pair, as podssh reads it")
+        let read = pair::parse(&self.relay, body.to_string().as_bytes(), made_ms as i64);
+        read.expect("the role's pair, as podssh reads it")
     }
 
     /// Whether the role said a line that holds `text`.

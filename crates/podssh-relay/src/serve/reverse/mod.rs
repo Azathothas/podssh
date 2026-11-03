@@ -6,7 +6,9 @@
 //! `podssh relay serve` with no other relay. What the default deployment does
 //! not do, the role does: a bound of 1 MiB for a slow receiver (T-336), a
 //! frame in flight for a session just closed dropped, not the node's socket
-//! (T-421), and `1012` to each socket before a planned stop (T-255).
+//! (T-421), and `1012` to each socket before a planned stop (T-255). Beside
+//! the contract, `POST /v1/renew/<name>` with the stop token renews a pair
+//! for 72 h, its tokens the same, and the status names the expiry (T-592).
 //!
 //! The frames are read and written with the codecs of podssh's own node
 //! (`crate::reverse::framing`, `crate::reverse::control`), so that the two
@@ -54,7 +56,8 @@ const BODY_MAX: usize = 4096;
 
 /// Whether `path` is one of the reverse road's.
 pub fn serves(path: &str) -> bool {
-    path == "/v1/pair" || ["/v1/node/", "/v1/connect/", "/v1/status/", "/v1/stop/"].iter().any(|p| path.starts_with(p))
+    let socket_or_pair = ["/v1/node/", "/v1/connect/", "/v1/status/", "/v1/stop/", "/v1/renew/"];
+    path == "/v1/pair" || socket_or_pair.iter().any(|p| path.starts_with(p))
 }
 
 /// Serve one request of the reverse road on `stream`.
@@ -101,17 +104,21 @@ where
                 let state = pair.lock();
                 (state.node_outbox().is_some(), state.sessions.len())
             };
-            answer(&mut stream, docs::json(&json!({ "online": online, "sessions": sessions }))).await
+            // The expiry beside the contract's fields, which a renewal moves
+            // (T-592), so that an operator's file need not name it.
+            let body = json!({ "online": online, "sessions": sessions, "expires": pair.expires_ms() });
+            answer(&mut stream, docs::json(&body)).await
         }
         ("stop", "POST") => {
             let (stopped, sessions) = cfg.pairs.end(name, 1001, "operator stopped reverse relay").unwrap_or((false, 0));
             cfg.event("reverse stop");
             answer(&mut stream, docs::json(&json!({ "stopped": stopped, "sessions": sessions }))).await
         }
+        ("renew", "POST") => renew(&mut stream, name, &cfg).await,
         ("node", _) => node::join(stream, head, pending, pair, cfg).await,
         ("connect", _) => operator::join(stream, head, pending, pair, cfg).await,
         (_, method) => {
-            let allow = if kind == "stop" { "POST" } else { "GET" };
+            let allow = if matches!(kind, "stop" | "renew") { "POST" } else { "GET" };
             let why = format!("{path}: not {method}, but {allow}");
             answer(&mut stream, request::refusal(405, &why, &[("Allow", allow)])).await
         }
@@ -159,6 +166,24 @@ where
         "stop_token": made.stop, "expires": made.expires_ms,
     });
     answer(stream, docs::json(&body)).await;
+}
+
+/// `POST /v1/renew/<name>`, whose stop token was checked (T-592): the pair
+/// ends 72 h from now, never earlier than it did, with its three tokens, so
+/// that each operator's file keeps working; `{"expires": ...}`. A pair that
+/// ended meanwhile gets the `403` of each failed authentication.
+async fn renew<S>(stream: &mut S, name: &str, cfg: &Config)
+where
+    S: AsyncRead + AsyncWrite + Unpin,
+{
+    match cfg.pairs.renew(name, super::tokens::now_ms()) {
+        Ok(Some(expires)) => {
+            cfg.event("reverse renew");
+            answer(stream, docs::json(&json!({ "expires": expires }))).await
+        }
+        Ok(None) => answer(stream, request::refusal(403, "reverse: forbidden", &[])).await,
+        Err(why) => answer(stream, request::refusal(503, &format!("/v1/renew: {why}"), &[])).await,
+    }
 }
 
 /// The token of a reverse request: its `X-Relay-Token`, else its `?token=`,
@@ -213,6 +238,7 @@ mod tests {
         for path in ["/v1/pair", "/v1/node/p-a", "/v1/connect/p-a", "/v1/status/p-a", "/v1/stop/p-a"] {
             assert!(serves(path), "{path}");
         }
+        assert!(serves("/v1/renew/p-a"), "the role's renewal (T-592)");
         for path in ["/v1/mint", "/v1/pairs", "/connect/h/22", "/health", "/v1/nodes/p-a"] {
             assert!(!serves(path), "{path}");
         }

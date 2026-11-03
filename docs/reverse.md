@@ -80,7 +80,11 @@ the label NAME, and each session dials TARGET. `podssh relay pair NAME`
 makes the pair, and writes the operator's part with `--operator-file`;
 `podssh relay status --pair-file FILE` asks `/v1/status/<name>` with that
 part's connect token, so an operator's host sees the node and the pair's
-expiry too (T-591).
+expiry too (T-591). On podssh's relay role a pair is renewed by its stop
+token, with its tokens (T-592): `podssh relay pair --renew NAME` by hand,
+and the node by itself at the start of its last day, then each hour until
+it took; the role's status names the new end, which an operator whose file
+names an end that passed asks once, so the operator's file keeps working.
 Measured against the live relay on 2026-10-09: an operator that held the
 operator's part alone read GitHub's SSH banner through
 `podssh node lab github.com:22` (`cargo test -p podssh-cli --test node_live

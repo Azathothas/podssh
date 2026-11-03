@@ -181,7 +181,11 @@ which `--pairs FILE` keeps across a restart:
   (T-429); for anyone, only when the user asks;
 - with a brake of 120 mints and pairs a minute for each address, as the
   default relay's, so that one client fills neither the table of pairs nor
-  the role's CPU ([relay.md](relay.md), "The relay role's brake", T-454).
+  the role's CPU ([relay.md](relay.md), "The relay role's brake", T-454);
+- with pairs that their owner renews by the stop token, 72 h from then with
+  the same tokens, as often as asked: `podssh relay pair --renew NAME`, and
+  each node in its pair's last day, so that a node of the role outlives
+  72 h with its operators' files unchanged (T-592).
 
 The role does what the default deployment does not do, which were the items
 of [relay-operator.md](relay-operator.md): bounded queues for a slow client

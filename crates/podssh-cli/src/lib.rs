@@ -157,6 +157,8 @@ mod relay_diag_text;
 // How a session that a relay host carried ended, for the record of the
 // hosts (T-563).
 pub mod relay_ends;
+// `podssh relay pair --renew NAME`: a pair renewed at podssh's relay role (T-592).
+mod relay_renew;
 pub mod relay_serve;
 pub mod relay_settings;
 pub mod relay_spec;

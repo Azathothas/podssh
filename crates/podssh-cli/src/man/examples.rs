@@ -262,6 +262,10 @@ fn examples() -> Vec<(&'static str, String)> {
         ),
         ("whether the node is online; then stop the pair", "podssh relay status lab && podssh relay revoke lab".into()),
         (
+            "on podssh relay serve, the pair renewed for 72 hours with its tokens, so that each operator's file holds",
+            "podssh relay pair --renew lab".into(),
+        ),
+        (
             "the node in the background under a name, started again whenever it ends; a second start of the name refuses",
             "podssh node lab --sshd --detach --restart --detach-name lab".into(),
         ),

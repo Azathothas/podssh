@@ -164,7 +164,7 @@ and `CARGO_BUILD_JOBS=4`:
 
 ## Counts
 
-`TODO/INDEX.md` holds 574 entries: 110 open, 3 partial, 2 blocked, 459 done.
+`TODO/INDEX.md` holds 574 entries: 109 open, 2 partial, 2 blocked, 461 done.
 
 Open includes parked work. `cargo todo check` verifies this line.
 
@@ -214,7 +214,7 @@ this order:
    protocols of Q66 are done), XHTTP over HTTP/1.1 (T-456, Q67), then what the research of more services (done) filed: the protocols of
    servers that a user runs (T-490 and T-493, then T-491, T-492, T-494 and T-498), upterm's door
    (T-495) and a second Piping Server (T-497), T-496 and T-499 parked; then what the triage of the sweep of public relays
-   (2026-11-02) filed, as Q74 to Q79 rule: OpenTunnel's road (T-531, Q76; its link is done),
+   (2026-11-02) filed, as Q74 to Q79 rule: OpenTunnel's road (Q76; done 2026-11-03),
    and the manual's word on the public services that podssh uses and the ones it never names
    (done 2026-11-03); T-532 is parked; then what the rulings Q74, Q75, Q77, Q78 and Q82 filed (2026-11-02),
    the P2 ones first: Tailscale's main DERP fleet after tailcat's (T-534), the public Wisp servers
@@ -233,9 +233,9 @@ and relay sweep of 2026-11-02 come first among the `none` entries, the P1 ones b
 (T-465, a test that failed once, 100 runs in a row passed since), each other one done and
 merged; `v1.0.1` went out with them on 2026-11-03. The defects of GitHub #112 to #124 (triaged
 on 2026-11-03) are done and go into `v1.1.0-beta.1`. Until podssh is stable the expensive checks wait (Q88). Their
-features and documents (T-531,
-T-532, and T-534 to T-549 and T-565 to T-582, which Q74, Q75, Q77, Q78
-and Q82 filed; and of #112 to #124, with M10's T-592 and
+features and documents (T-532,
+and T-534 to T-549 and T-565 to T-582, which Q74, Q75, Q77, Q78
+and Q82 filed; and of #112 to #124, with M10's
 T-596, the relay role's and the roads') follow, by priority, beside M10 (Q85); Dependabot's #119,
 #120 and #122 are in `main` (2026-11-03), and #123 waits for an iroh-dns that takes simple-dns 0.13. Overnight a fork of
 policy is decided and listed below for the operator to confirm (Q86). The drafts of 2026-11-03, both rounds, are merged. GitHub #125 (2026-11-03, `relay info`'s rank changes with the edge that answered) is T-610, a defect of M10 beside the research of the operator's relay archive (`draft/relay-measure`).
@@ -364,7 +364,12 @@ it was asked:
   the count of failures; the roost's words name the package to install and run nothing.
 - T-592: a renewal in podssh's relay role (`POST /v1/renew/<name>`, by the stop token) keeps the
   pair's three tokens, with no cap on renewals, and the node renews its own pair in its last 24 h
-  where its relay renews.
+  where its relay renews. Its draft (partial) adds: each failed renewal gets the role's `403`, not
+  a `404`; an operator past the end that its file names asks its relay's status once, with the
+  trust of `SSL_CERT_FILE` or the settings, and is refused as before (77) offline or where the
+  relay names no later end; a node of `--pair-file` renews too, and its file is not rewritten; a
+  renewal that did not take is tried each hour; `relay pair --renew` refuses `--operator-file` and
+  `--relay-host` (64).
 - T-593: `XDG_CACHE_HOME` and `HOME/.cache` are the user's cache only when the uid owns them, else
   the passwd entry's home; a file kept in another user's home before is read there and said,
   never moved.

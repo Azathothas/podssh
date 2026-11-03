@@ -19,6 +19,9 @@ use crate::cache::{self, valid_token, MIN_REMAINING_MS};
 use crate::relay::{check_node_name, parse_relay, Relay};
 use crate::token::relay_name;
 
+/// A pair that its owner renews in podssh's relay role, and its end (T-592).
+pub mod renew;
+
 /// A pair, as `POST /v1/pair` gives it.
 pub struct Pair {
     /// The control host that made the pair.

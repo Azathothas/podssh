@@ -13,12 +13,22 @@ pub const RELAY: &[&str] = &[
     "A pair under NAME with more than 24 hours left is not replaced: stop it first with podssh relay \
      revoke NAME. In its last 24 hours, the next pair is made and takes its place in the store, and a \
      node of NAME that runs takes it at the expiry, with no new start (see podssh node); the old pair \
-     can no longer be stopped, and ends at its expiry. The relay renews no pair, so each node of a pair \
-     needs the next one every 72 hours. revoke stops the pair on the relay and deletes the stored copy; \
-     when the relay cannot be reached, the copy is kept, because its stop token is the one way to stop \
-     the pair before it expires.",
+     can no longer be stopped, and ends at its expiry. The default relay renews no pair, so each node of \
+     a pair needs the next one every 72 hours. revoke stops the pair on the relay and deletes the stored \
+     copy; when the relay cannot be reached, the copy is kept, because its stop token is the one way to \
+     stop the pair before it expires.",
+    "podssh relay pair --renew NAME renews the pair stored under NAME at the relay that made it, 72 hours \
+     from now and never less than it had, with the same three tokens, so that each operator's file keeps \
+     working and the node goes on with no next pair; podssh relay serve renews, by the stop token, which \
+     the pair's owner alone holds, as often as asked. It prints the label and the new expiry, and the \
+     store keeps it. A relay that renews none (the default relay's contract has no such request: its \
+     answer is 404 or 405) is said so, with the next pair of the last 24 hours as the way, and the exit \
+     is 69; a refused stop token (403) is a pair that was stopped or ended (77). --operator-file and \
+     --relay-host are refused with it (64): the operator's file is never touched, and its end is asked \
+     of the relay once the file's has passed.",
     "podssh relay status NAME says whether the pair's node is online, its sessions, and when the pair \
-     expires; in its last 24 hours, how long is left too (expires in 5 h, at ...). On an operator's host, \
+     expires, as the relay names it where it does (podssh relay serve, whose renewal moves it), else as \
+     the file does; in its last 24 hours, how long is left too (expires in 5 h, at ...). On an operator's host, \
      which stores no pair, podssh relay status --pair-file FILE [NAME] asks the same of the pair in FILE, \
      or of its operator's part, which podssh relay pair --operator-file writes: the relay answers the \
      status to its connect token. NAME is then only the label shown (else FILE). With --json, the pair's \
@@ -59,7 +69,10 @@ pub const RELAY: &[&str] = &[
      stops it.",
     "It serves the reverse road too: /v1/pair, for whom it mints, /v1/node/NAME, /v1/connect/NAME, \
      /v1/status/NAME and /v1/stop/NAME, so that podssh relay pair --relay-host, podssh node and podssh \
-     ssh node:// work through it with no other relay. A pair lives 72 hours; --pairs FILE keeps the \
+     ssh node:// work through it with no other relay. A pair lives 72 hours, and /v1/renew/NAME, with \
+     the stop token, gives it 72 hours from then with its tokens, as often as its owner asks (podssh \
+     relay pair --renew, and its node in its last day); /v1/status/NAME names the expiry beside the \
+     contract's fields. --pairs FILE keeps the \
      pairs in FILE, a file of mode 0600 that holds the digests of their tokens and never a token, so \
      that they outlive a restart. At most 1 MiB waits for a slow operator: past it, the session ends \
      with 1011 relay backpressure, and the node's other sessions go on; a node that reads slowly slows \

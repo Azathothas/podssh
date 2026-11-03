@@ -338,7 +338,7 @@ async fn serve(ready: Ready, err: &mut dyn Write) -> i32 {
         }
     });
     // Its expiry said before it comes, and the next pair taken at it (T-395).
-    let (repair, expiry) = crate::node_expiry::watch(&label, &pair, stored, say.clone());
+    let (repair, expiry) = crate::node_expiry::watch(&label, &pair, stored, say.clone(), &trust);
     let mut config = NodeConfig {
         pair,
         label: stored.then(|| label.clone()),

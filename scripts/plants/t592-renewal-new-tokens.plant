@@ -1,0 +1,8 @@
+# T-592: a renewal in podssh's relay role that draws new tokens for the
+# pair, which is a new pair under the old name: each operator's file would
+# stop working at once. The test of the renewal, whose connect token must
+# still reach the status past the old end, must fail.
+ENTRY=T-592
+GROUP=resume
+EXPECT='test a_renewal_by_the_stop_token_extends_the_pair_and_keeps_its_tokens \.\.\. FAILED'
+RUN='cargo test --locked -p podssh-relay --features serve,plain-ws --test relay_serve_reverse -- a_renewal_by_the_stop_token_extends_the_pair_and_keeps_its_tokens'

@@ -1,0 +1,12 @@
+--- a/crates/podssh-relay/src/serve/reverse/pairs.rs
++++ b/crates/podssh-relay/src/serve/reverse/pairs.rs
+@@ -251,6 +251,9 @@ impl Pairs {
+             return Ok(None);
+         }
+         let before = pair.expires.fetch_max(now_ms.saturating_add(LIFETIME_MS), Ordering::SeqCst);
++        let drawn = [digest(&base36(64)?), digest(&base36(64)?), digest(&base36(64)?)];
++        let fresh = Pair::new(pair.name.clone(), pair.expires_ms(), pair.session_bytes, drawn);
++        self.map.lock().unwrap_or_else(|e| e.into_inner()).insert(pair.name.clone(), Arc::new(fresh));
+         if let Err(why) = self.save() {
+             pair.expires.store(before, Ordering::SeqCst);
+             return Err(why);
