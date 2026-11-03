@@ -24,4 +24,23 @@ pub const MCP: &[&str] = &[
      forwarding of a port, an agent or X11, and no shared connection; these come before -F FILE, so a \
      file cannot undo them. A call past its limit (60 s, or timeout_seconds, at most 3600) ends its \
      session, as a cancelled call does; four calls run at once, and the others wait.",
+    "With a host allowed, health and the job_ tools are offered too, each a child of its verb with the \
+     same options and the same check of --allow-host, and a host key that known_hosts holds: health gives \
+     podssh health --json; job_start runs a command in the host's tmux that outlives the call, and gives \
+     its id; job_list, job_log (a window of the output: offset, max_bytes, and more when bytes follow), \
+     job_wait (until the job ends, at most wait_seconds; a job that runs on is a result, ended false, to \
+     call again) and job_stop take that id.",
+    "cp_put and cp_get copy with podssh cp, each file's SHA-256 checked at both ends, between a path of \
+     this host and a path of an allowed host; they are offered only with --allow-dir DIR, as --allow-host \
+     lets an agent reach a host, not read the files of this one. A local path is resolved, its links \
+     followed, and refused unless it lies inside a DIR, before anything runs; a relative one is under the \
+     first DIR. A DIR that holds ~/.ssh or podssh's cache, or lies inside one, and the root, are refused \
+     (64), and a DIR that is not there is 78. cp_put takes content in place of local_path, the bytes of \
+     one file in base64, 1 MiB at most; cp_get puts a tree (recursive) only into a path that is not there, \
+     and a tree goes as cp -r copies it, a link as a link. The result has cp's exit and the events of its \
+     --jsonl.",
+    "--allow-session offers session_start, session_send, session_wait, session_capture and session_stop: a \
+     shell with a pty on an allowed host, held by podssh session between the calls. The server drives only \
+     the sessions that it started, never one of yours, and stops each as it ends; the text of session_send \
+     goes on the child's stdin, never on a command line.",
 ];

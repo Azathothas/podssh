@@ -1,0 +1,7 @@
+# T-488: the local path of a copy is not held to --allow-dir, so cp_put
+# would read any file of this host that the user can; the test of a path
+# outside the directory must fail.
+ENTRY=T-488
+GROUP=cli-tests
+EXPECT='test mcp::dirs::tests::a_path_of_the_directory_is_read_and_one_outside_it_is_refused \.\.\. FAILED'
+RUN='cargo test --locked -p podssh-cli --lib mcp::dirs'

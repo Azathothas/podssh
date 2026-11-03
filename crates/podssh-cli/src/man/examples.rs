@@ -83,6 +83,10 @@ fn examples() -> Vec<(&'static str, String)> {
             "podssh mcp --allow-host 'web*.example.org' --allow-host '!web9.example.org'".into(),
         ),
         (
+            "the same tools with copies to and from one directory of this host, and sessions that end with the server",
+            "podssh mcp --allow-host build.example.org --allow-dir ./artifacts --allow-session".into(),
+        ),
+        (
             "a shell that stays between the calls of an agent: type a line, wait for 2 s of quiet, read the screen",
             "podssh session start work user@example.org && podssh session send work 'make test' && \
              podssh session wait work --idle 2s && podssh session capture work"

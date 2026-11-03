@@ -72,7 +72,7 @@ succeeded. `podssh ssh` takes one destination, as OpenSSH does.
 ## Decision
 
 Recommendation: a new verb, because `podssh ssh` keeps the command line and
-the exit codes of OpenSSH for one host (`docs/cli.md:3901-3904`), and a list
+the exit codes of OpenSSH for one host (`docs/cli.md:3950-3953`), and a list
 of hosts changes both. The alternative, `podssh ssh --hosts LIST`, lost: one
 flag would change what the exit status means.
 
@@ -184,7 +184,7 @@ is not a shell. A set of hosts has no name.
   (`crates/podssh-cli/src/ssh/hop.rs:30-78`,
   `crates/podssh-ws/src/names.rs:10-32`).
 - Read: the `Host` lines of ssh_config are patterns, not lists
-  (`docs/cli.md:4081-4190`); they cannot define a group.
+  (`docs/cli.md:4130-4239`); they cannot define a group.
 
 ## Approach
 
@@ -1547,7 +1547,7 @@ of the command.
    quoted for a POSIX shell (T-187). When the copy used most of the 64 MiB
    (`docs/relay.md:246`), run the exec on a new session (T-137).
 4. The exit status: the command's, with the rules of `podssh ssh`
-   (`docs/cli.md:3901-3904`). A failed copy exits 255 and runs nothing.
+   (`docs/cli.md:3950-3953`). A failed copy exits 255 and runs nothing.
 5. In the same commit: the rows, the notes, an example, `docs/cli.md`,
    `docs/STATUS.md`. This entry depends on T-134 and T-143.
 
@@ -1814,7 +1814,7 @@ a ticket, or a tool that asks an AI.
   (`crates/podssh-ssh/src/log.rs:87-107`). The exit code leaves through
   `crates/podssh-cli/src/dispatch.rs:370-411`.
 - Read: for `podssh ssh`, an exit that is not 0 can be the remote command's
-  status (`docs/cli.md:3901-3904`), which is not a failure of podssh.
+  status (`docs/cli.md:3950-3953`), which is not a failure of podssh.
 
 ## Approach
 
@@ -2792,7 +2792,7 @@ failure's words, no signal and no time. The other surfaces give one object (`ssh
   the process's records, so that a lost session's words may name another host's error, and that
   `each` writes no `--result-file`.
 - Read: `podssh mcp` runs each call as a child for the same reason
-  (`crates/podssh-cli/src/mcp/mod.rs:6-11`).
+  (`crates/podssh-cli/src/mcp/mod.rs:6-13`).
 
 ## Approach
 
@@ -2817,7 +2817,7 @@ failure's words, no signal and no time. The other surfaces give one object (`ssh
 - Each host's facts are its session's own: a record of the process lost, as two hosts at once
   write into one record (T-183's Done).
 - `--json` carries the streams, as `ssh_exec` of `podssh mcp` gives them, with the same cap
-  (`crates/podssh-cli/src/mcp/tools.rs:15-16`). Bytes that are not UTF-8 go as `stdout_base64`
+  (`crates/podssh-cli/src/mcp/tools.rs:20-21`). Bytes that are not UTF-8 go as `stdout_base64`
   (`stderr_base64`), so that no byte changes; text made lossy lost. `--output-dir` keeps each byte
   in its files, for output past the cap.
 - One object, as the issue asks, and `--result-file` for a script that wants the lines too. A JSON
@@ -3120,7 +3120,7 @@ session on 2026-11-03.
   podssh-cli --test flag_table`: 9; `--lib session::`, 17; `--lib man`, 66; `--lib help`, 9.
 - Planted: `scripts/plants/t506-empty-silent.plant` (the line of an empty list never written):
   `sh scripts/plant-each.sh --here t506-empty-silent`: caught, the test of the empty list failed.
-- The Premise reads at `582b1bf`, so its citations stay; `crates/podssh-cli/src/tree.rs:457-461`
+- The Premise reads at `582b1bf`, so its citations stay; `crates/podssh-cli/src/tree.rs:459-463`
   (`TODO/cli.md`) and the citations of `docs/cli.md` were moved by hand; `cargo todo remap` from the
   tree before the draft confirmed them. rustfmt of `podssh-cli` (`exchange` of `session/client.rs`)
   and clippy of `podssh-cli` with `-D warnings`, all targets: clean.

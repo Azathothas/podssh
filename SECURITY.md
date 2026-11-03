@@ -204,6 +204,19 @@ Each rule is implemented.
   podssh logs in as `podssh ssh` would, and a request carries text to type.
   `send` with no text reads a password from stdin, so that no command line
   holds it.
+- **An agent's tools reach only what the user allowed** (T-055, T-488).
+  `podssh mcp` takes the words of each call from a model, which text that
+  the model read can steer. Each tool that reaches a host (`ssh_exec`,
+  `health`, the `job_` tools, the copies, `session_start`) reaches only a
+  host of `--allow-host`, with no prompt, a host key that `known_hosts`
+  holds, no forwarding and no shared connection, which the user's `-F` file
+  cannot undo. The copies have a gate of their own for this host's files:
+  they are offered only with `--allow-dir DIR`, each local path is
+  resolved, its links followed, and refused outside each DIR before any
+  child runs, and a DIR that holds `~/.ssh` or podssh's cache is refused as
+  the server starts. The session tools come only with `--allow-session`;
+  the server drives only the sessions that it started and stops each as it
+  ends, so that no shell stays on a host with no owner.
 - **Each end of a road between two podssh ends proves its key** (T-087).
   A node has one Ed25519 key for each label and a client one for each user,
   in the private files of the cache, the same on each road; a key is shown

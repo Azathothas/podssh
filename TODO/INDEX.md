@@ -62,15 +62,15 @@ repository and CI).
 
 ## Counts
 
-**563 entries: 118 open, 1 partial, 16 blocked, 428 done.**
+**563 entries: 117 open, 1 partial, 16 blocked, 429 done.**
 
 | Priority | open | partial | blocked | done | total |
 | --- | --- | --- | --- | --- | --- |
 | P0 | 0 | 0 | 0 | 1 | 1 |
 | P1 | 0 | 1 | 0 | 62 | 63 |
 | P2 | 36 | 0 | 14 | 204 | 254 |
-| P3 | 82 | 0 | 2 | 161 | 245 |
-| **All** | 118 | 1 | 16 | 428 | 563 |
+| P3 | 81 | 0 | 2 | 162 | 245 |
+| **All** | 117 | 1 | 16 | 429 | 563 |
 
 ## Entries
 
@@ -552,7 +552,7 @@ repository and CI).
 | [T-485](multi.md) | P3 | S | none | feature | open | `job log --follow`: a job's output as it comes, on one connection, then its status |
 | [T-486](machine.md) | P3 | M | none | feature | open | `--result-file` for `cp`, `mv`, `scp`, `run` and `sftp`, in the schema of `ssh --result-file` |
 | [T-487](ws.md) | P3 | S | none | feature | open | `doctor` says once that each TLS handshake was reset, and tells a reset from a timeout |
-| [T-488](machine.md) | P3 | L | none | feature | open | `podssh mcp` offers `cp`, `job`, `health` and `session` as tools, behind the gate of `ssh_exec` |
+| [T-488](machine.md) | P3 | L | none | feature | done | `podssh mcp` offers `cp`, `job`, `health` and `session` as tools, behind the gate of `ssh_exec` |
 | [T-489](irc.md) | P3 | S | none | feature | done | `chat --listen --linger`: a listener that stays for each peer after its input ended |
 | [T-490](mesh.md) | P2 | M | M10 | feature | open | chisel's protocol: a chisel server as the road |
 | [T-491](mesh.md) | P3 | M | M10 | feature | open | Trojan over TLS and over a WebSocket |

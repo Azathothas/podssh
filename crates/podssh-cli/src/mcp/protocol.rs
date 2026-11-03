@@ -30,7 +30,9 @@ const TTL_MS: u64 = 3_600_000;
 pub const INSTRUCTIONS: &str = "podssh runs commands on the hosts that its user allowed, over SSH: call ssh_exec \
      with a destination [user@]host and a command. No call asks for a password or a passphrase, and a host whose \
      key is not known is refused unless the call names its fingerprint: such a call fails, and its result says why. \
-     status, doctor and man describe this host, its path to the relay, and podssh.";
+     status, doctor and man describe this host, its path to the relay, and podssh. tools/list gives the others that \
+     the user allowed: health and the job_ tools on the same hosts, cp_put and cp_get within the user's directories, \
+     and the session_ tools, a shell that outlives each call.";
 
 /// The era of the process: the revision that `initialize` chose, if one did.
 #[derive(Debug, Default)]

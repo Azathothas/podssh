@@ -1,7 +1,9 @@
-//! The tools of `podssh mcp`: `ssh_exec`, `status`, `doctor` and `man`. A
-//! call becomes the command line of a child (`Plan`), and the child's end
-//! becomes the call's result: its JSON in `structuredContent`, and the same
-//! JSON as text, for a client of a revision that has no structured result.
+//! The tools of `podssh mcp`: `ssh_exec`, `status`, `doctor` and `man`;
+//! `health` and the tools of `job` (`verbs`), the copies (`copy`) and the
+//! sessions (`sessions`), T-488. A call becomes the command line of a child
+//! (`Plan`), and the child's end becomes the call's result: its JSON in
+//! `structuredContent`, and the same JSON as text, for a client of a
+//! revision that has no structured result.
 
 use std::ffi::OsString;
 use std::path::PathBuf;
@@ -11,14 +13,18 @@ use serde_json::{json, Map, Value};
 
 use super::allow::Allow;
 use super::child::{text, Captured, Plan, Ran};
+use super::dirs::Dirs;
+use super::sessions::Started;
+use super::{copy, sessions, verbs};
 
 /// The most bytes kept of each stream of `ssh_exec`.
 pub const SSH_CAP: usize = 1 << 20;
-/// The limit of `ssh_exec` when the call names none, and the most it may name.
+/// The limit of `ssh_exec` when the call names none, and the most that a
+/// call of any tool may name.
 const SSH_LIMIT: u64 = 60;
-const SSH_LIMIT_MAX: u64 = 3600;
+pub(super) const SSH_LIMIT_MAX: u64 = 3600;
 /// The bounds of the other tools, whose output is podssh's own.
-const OWN_CAP: usize = 8 << 20;
+pub(super) const OWN_CAP: usize = 8 << 20;
 
 /// What each call of a run shares.
 #[derive(Debug, Clone, Default)]
@@ -30,14 +36,28 @@ pub struct Settings {
     pub direct: bool,
     /// A private directory for the result files of the sessions.
     pub scratch: PathBuf,
+    /// The directories of `--allow-dir`, which the copies read and write.
+    pub dirs: Dirs,
+    /// `--allow-session`: the session_ tools are offered.
+    pub allow_session: bool,
+    /// The sessions that this server started, which it stops as it ends.
+    pub started: Started,
 }
 
 /// The tools, in the same order on each call: `ssh_exec` first, when a host
-/// is allowed.
+/// is allowed, then the other tools that reach a host, each behind its
+/// gate, then those of this host.
 pub fn list(settings: &Settings) -> Vec<Value> {
     let mut tools = Vec::new();
     if !settings.allow.is_empty() {
         tools.push(ssh_exec(&settings.allow));
+        tools.extend(verbs::list(&settings.allow));
+        if !settings.dirs.is_empty() {
+            tools.extend(copy::list(settings));
+        }
+        if settings.allow_session {
+            tools.extend(sessions::list(&settings.allow));
+        }
     }
     tools.push(json!({
         "name": "status",
@@ -120,8 +140,52 @@ fn object(properties: Value) -> Value {
     object_needing(properties, &[])
 }
 
-fn object_needing(properties: Value, required: &[&str]) -> Value {
+pub(super) fn object_needing(properties: Value, required: &[&str]) -> Value {
     json!({ "type": "object", "properties": properties, "required": required, "additionalProperties": false })
+}
+
+/// The property of a call's limit, of `default` seconds.
+pub(super) fn limit_property(default: u64) -> Value {
+    json!({ "type": "integer", "minimum": 1, "maximum": SSH_LIMIT_MAX,
+        "description": format!("the limit of the call, in seconds; past it the child ends (default {default})") })
+}
+
+/// The call's `timeout_seconds`, from 1 to [`SSH_LIMIT_MAX`], or `default`.
+pub(super) fn limit(arguments: &Map<String, Value>, default: u64) -> Result<u64, String> {
+    match arguments.get("timeout_seconds") {
+        None | Some(Value::Null) => Ok(default),
+        Some(value) => value
+            .as_u64()
+            .filter(|n| (1..=SSH_LIMIT_MAX).contains(n))
+            .ok_or(format!("timeout_seconds: a whole number from 1 to {SSH_LIMIT_MAX}")),
+    }
+}
+
+/// The options of each child that reaches a host, as `ssh_exec` forces
+/// them: no prompt, no unknown host key, no forwarding of any kind, no
+/// shared connection; then the user's `-F` and `--direct`. The first value
+/// of a keyword holds, so these come before what the user's file says.
+pub(super) fn forced(settings: &Settings) -> Vec<OsString> {
+    let mut argv: Vec<OsString> = ["-o", "BatchMode=yes", "-o", "StrictHostKeyChecking=yes"]
+        .into_iter()
+        .chain(["-o", "ClearAllForwardings=yes", "-o", "ControlMaster=no", "-o", "ControlPath=none"])
+        .chain(["-o", "ForwardAgent=no", "-o", "ForwardX11=no"])
+        .map(OsString::from)
+        .collect();
+    if let Some(config) = &settings.config {
+        argv.extend([OsString::from("-F"), config.into()]);
+    }
+    if settings.direct {
+        argv.push("--direct".into());
+    }
+    argv
+}
+
+/// The `destination` of a call, which a pattern of `--allow-host` lets in.
+pub(super) fn destination(settings: &Settings, arguments: &Map<String, Value>) -> Result<String, String> {
+    let destination = string(arguments, "destination")?.ok_or("destination: required, [user@]host")?;
+    settings.allow.check(&destination)?;
+    Ok(destination)
 }
 
 /// The child of a call of `name` with `arguments`: its plan, and the result
@@ -163,41 +227,28 @@ pub fn plan(settings: &Settings, name: &str, arguments: &Map<String, Value>, fil
             }
             Ok(Plan { argv, stdin: Vec::new(), limit: Duration::from_secs(30), cap: OWN_CAP })
         }
-        other => Err(format!("no tool {other}")),
+        // The tools of T-488, each of which checks its own gate again: a
+        // tool that the list does not offer never runs.
+        other => verbs::plan(settings, other, arguments)
+            .or_else(|| copy::plan(settings, other, arguments, file))
+            .or_else(|| sessions::plan(settings, other, arguments))
+            .unwrap_or_else(|| Err(format!("no tool {other}"))),
     }
 }
 
 fn ssh_plan(settings: &Settings, arguments: &Map<String, Value>, file: &str) -> Result<Plan, String> {
     known(arguments, &["destination", "command", "stdin", "timeout_seconds", "host_key_fingerprint"])?;
-    let destination = string(arguments, "destination")?.ok_or("destination: required, [user@]host")?;
-    settings.allow.check(&destination)?;
+    let destination = destination(settings, arguments)?;
     let command = string(arguments, "command")?.filter(|c| !c.is_empty()).ok_or("command: required, not empty")?;
     if command.contains('\0') {
         return Err("command: a NUL character".into());
     }
     let stdin = string(arguments, "stdin")?.unwrap_or_default();
-    let limit = match arguments.get("timeout_seconds") {
-        None | Some(Value::Null) => SSH_LIMIT,
-        Some(value) => value
-            .as_u64()
-            .filter(|n| (1..=SSH_LIMIT_MAX).contains(n))
-            .ok_or(format!("timeout_seconds: a whole number from 1 to {SSH_LIMIT_MAX}"))?,
-    };
-    // No prompt, no unknown host key, no forwarding of any kind, no shared
-    // connection: the first value of a keyword holds, so these come before
-    // what the user's file says.
-    let mut argv: Vec<OsString> = ["ssh", "-o", "BatchMode=yes", "-o", "StrictHostKeyChecking=yes"]
-        .into_iter()
-        .chain(["-o", "ClearAllForwardings=yes", "-o", "ControlMaster=no", "-o", "ControlPath=none"])
-        .chain(["-o", "ForwardAgent=no", "-o", "ForwardX11=no", "-T", "-e", "none"])
-        .map(OsString::from)
-        .collect();
-    if let Some(config) = &settings.config {
-        argv.extend([OsString::from("-F"), config.into()]);
-    }
-    if settings.direct {
-        argv.push("--direct".into());
-    }
+    let limit = limit(arguments, SSH_LIMIT)?;
+    // No pty and no escape character, beside what each child of a host gets.
+    let mut argv: Vec<OsString> = vec!["ssh".into()];
+    argv.extend(forced(settings));
+    argv.extend(["-T", "-e", "none"].map(OsString::from));
     if let Some(fingerprint) = string(arguments, "host_key_fingerprint")? {
         argv.push(format!("--host-key-fingerprint={fingerprint}").into());
     }
@@ -207,14 +258,14 @@ fn ssh_plan(settings: &Settings, arguments: &Map<String, Value>, file: &str) -> 
 
 /// Refuse an argument that the tool does not have: a misspelt one would be
 /// ignored, and its call would do something else than asked.
-fn known(arguments: &Map<String, Value>, names: &[&str]) -> Result<(), String> {
+pub(super) fn known(arguments: &Map<String, Value>, names: &[&str]) -> Result<(), String> {
     match arguments.keys().find(|k| !names.contains(&k.as_str())) {
         Some(other) => Err(format!("{other}: not an argument of this tool; it takes {}", names.join(", "))),
         None => Ok(()),
     }
 }
 
-fn string(arguments: &Map<String, Value>, name: &str) -> Result<Option<String>, String> {
+pub(super) fn string(arguments: &Map<String, Value>, name: &str) -> Result<Option<String>, String> {
     match arguments.get(name) {
         None | Some(Value::Null) => Ok(None),
         Some(Value::String(s)) => Ok(Some(s.clone())),
@@ -222,9 +273,40 @@ fn string(arguments: &Map<String, Value>, name: &str) -> Result<Option<String>, 
     }
 }
 
+pub(super) fn boolean(arguments: &Map<String, Value>, name: &str) -> Result<Option<bool>, String> {
+    match arguments.get(name) {
+        None | Some(Value::Null) => Ok(None),
+        Some(Value::Bool(b)) => Ok(Some(*b)),
+        Some(_) => Err(format!("{name}: expected true or false")),
+    }
+}
+
+/// The result of a verb whose output is its own words: its exit code, its
+/// streams as `ssh_exec` gives them, and whether the limit passed.
+pub(super) fn streams(ran: &Ran) -> Map<String, Value> {
+    let (stdout, stdout_encoding) = text(&ran.stdout);
+    let (stderr, stderr_encoding) = text(&ran.stderr);
+    let value = json!({
+        "exit": ran.exit,
+        "stdout": stdout,
+        "stdout_encoding": stdout_encoding,
+        "stderr": stderr,
+        "stderr_encoding": stderr_encoding,
+        "truncated": ran.stdout.truncated || ran.stderr.truncated,
+        "timed_out": ran.timed_out,
+        "duration_ms": ran.duration.as_millis() as u64,
+    });
+    value.as_object().cloned().unwrap_or_default()
+}
+
 /// The result of a call that ran: `structuredContent`, and whether the tool
 /// failed (not the command: its status is in the result).
-pub fn shape(name: &str, ran: &Ran, result_file: Option<Value>) -> (Value, bool) {
+pub fn shape(name: &str, arguments: &Map<String, Value>, ran: &Ran, result_file: Option<Value>) -> (Value, bool) {
+    if let Some(shaped) =
+        verbs::shape(name, arguments, ran).or_else(|| copy::shape(name, ran)).or_else(|| sessions::shape(name, ran))
+    {
+        return shaped;
+    }
     if name == "ssh_exec" {
         let r = result_file.unwrap_or(Value::Null);
         let field = |key: &str| r.get(key).cloned().unwrap_or(Value::Null);
