@@ -178,6 +178,10 @@ pub const NODE_FLAGS: &[FlagRow] = &[
     row(None, "iroh-relay", Some("URLS"), FlagKind::Supported,
         "with --iroh: the relays, https://HOST[:PORT][,...]; the first that answers is the home relay (default: env PODSSH_IROH_RELAY, else n0's)", None),
     super::derp::NODE_DERP_SERVER,
+    // Grants used once (T-226): one minted with the node's key, and the
+    // serials refused.
+    super::grant::NODE_GRANT_TO, super::grant::NODE_GRANT_ROUTE, super::grant::NODE_GRANT_FOR,
+    super::grant::NODE_REVOKED,
 ];
 
 /// **`net`** (T-429): the net of a user's own nodes, a list of their names

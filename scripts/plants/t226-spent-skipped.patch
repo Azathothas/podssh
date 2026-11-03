@@ -1,0 +1,11 @@
+--- a/crates/podssh-relay/src/grant/spent.rs
++++ b/crates/podssh-relay/src/grant/spent.rs
+@@ -71,7 +71,7 @@
+         let path = dir.join(name(until, &cert.digest()));
+         let mut file = match crate::cache::create_new_private(&path) {
+             Ok(file) => file,
+-            Err(e) if e.kind() == std::io::ErrorKind::AlreadyExists => return Err(NotRecorded::Used),
++            Err(e) if e.kind() == std::io::ErrorKind::AlreadyExists => return Ok(()),
+             Err(e) => return Err(failed(e)),
+         };
+         // The serial and the issuer, for a person who reads the directory:

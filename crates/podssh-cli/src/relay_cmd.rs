@@ -35,6 +35,8 @@ pub struct RelayArgs {
     /// `pair --renew`: the stored pair renewed at its relay, not a new one
     /// (T-592).
     pub renew: bool,
+    /// `pair --once`: a connect token that takes one upgrade alone (T-226).
+    pub once: bool,
     /// `status`: the pair, or its operator's part, in a file, in place of the
     /// store (T-591).
     pub pair_file: Option<String>,
@@ -71,6 +73,7 @@ impl RelayArgs {
             ca_file: get("ca-file"),
             operator_file: get("operator-file"),
             renew: matches.get_flag("renew"),
+            once: matches.get_flag("once"),
             pair_file: get("pair-file"),
             document: get("document"),
             json: matches.get_flag("json"),
@@ -116,6 +119,10 @@ pub fn run_relay(args: &RelayArgs, out: &mut dyn Write, err: &mut dyn Write) -> 
     }
     if args.renew && sub != Some("pair") {
         let _ = writeln!(err, "podssh relay: --renew goes with `podssh relay pair --renew NAME` only");
+        return EXIT_USAGE;
+    }
+    if args.once && (sub != Some("pair") || args.renew) {
+        let _ = writeln!(err, "podssh relay: --once goes with `podssh relay pair NAME` only, a new pair");
         return EXIT_USAGE;
     }
     if args.pair_file.is_some() && sub != Some("status") {
@@ -226,7 +233,20 @@ fn make(args: &RelayArgs, label: &str, out: &mut dyn Write, err: &mut dyn Write)
     pairs::online()?;
     let (trust, proxy) = (pairs::trust(args.ca_file.as_deref()), ProxyChoice::FromEnvironment);
     let ctx = pairs::context(&control, &trust, &proxy);
-    let made = block_on(pair::create(&ctx))?.map_err(|e| pairs::refusal(&e))?;
+    let (made, once) = block_on(pair::once::create_with(&ctx, args.once))?.map_err(|e| pairs::refusal(&e))?;
+    // A relay that does not offer --once made a pair whose token takes each
+    // upgrade (T-226): it is stopped, as it is not the one asked for.
+    if args.once && !once {
+        let _ = block_on(pair::stop(&ctx, &made));
+        return Err(Refusal {
+            message: format!(
+                "the relay {} makes no connect token of one upgrade (podssh relay serve does); the pair that it made \
+                 was stopped",
+                control.host
+            ),
+            code: Fault::RelayUnreachable.code(),
+        });
+    }
     if let Err(why) = keep(label, &made, args.operator_file.as_deref()) {
         // A pair that nobody holds would keep its name for 72 hours.
         let _ = block_on(pair::stop(&ctx, &made));
@@ -238,6 +258,13 @@ fn make(args: &RelayArgs, label: &str, out: &mut dyn Write, err: &mut dyn Write)
     }
     if let Some(file) = &args.operator_file {
         let _ = writeln!(err, "podssh relay: the operator's part is in {file}, which only its owner can read");
+    }
+    if once {
+        let _ = writeln!(
+            err,
+            "podssh relay: its connect token takes one upgrade: one operator's session, with no resume; a token that \
+             leaks after it is worth nothing"
+        );
     }
     // One line on stdout, as scripts read it; the way past the expiry on
     // stderr (T-591).

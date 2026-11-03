@@ -1,0 +1,11 @@
+--- a/crates/podssh-relay/src/serve/reverse/pairs.rs
++++ b/crates/podssh-relay/src/serve/reverse/pairs.rs
+@@ -168,7 +168,7 @@
+     /// time alone, also for two upgrades at once; `true` for each upgrade of
+     /// another pair.
+     pub fn take_connect(&self) -> bool {
+-        !self.once || self.spent.compare_exchange(false, true, Ordering::SeqCst, Ordering::SeqCst).is_ok()
++        true || self.spent.compare_exchange(false, true, Ordering::SeqCst, Ordering::SeqCst).is_ok()
+     }
+ 
+     /// Whether the connect token of a pair of `once` was taken.

@@ -3188,6 +3188,14 @@ commands. The rules behind them:
   `seconds_left`. `--pair-file` with another subcommand is refused (64).
   `pair::status` takes the operator's part (`OperatorPart`), of a stored
   pair or of a file.
+- **A connect token of one upgrade, on podssh's relay role** (T-226).
+  `relay pair NAME --once` asks `POST /v1/pair?once=1`: the role's answer
+  says `"once": true`, and its connect token takes the first operator's
+  upgrade alone, then is refused, the status too, so that one session, with
+  no resume, uses it (`crates/podssh-relay/src/pair/once.rs`). A relay that
+  makes none (the default relay's contract has no such pair) gives a pair
+  with no `once`, which is stopped, exit 69. `--once` with another
+  subcommand, or with `--renew`, is refused (64).
 - **A renewal, on podssh's relay role** (T-592, GitHub #117). `relay pair
   --renew NAME` renews the pair stored under NAME at the relay that made
   it (`crates/podssh-cli/src/relay_renew.rs`): `POST /v1/renew/<name>` with
@@ -3388,6 +3396,28 @@ commands. The rules behind them:
   given at both ends, carries the bytes with no channel. A conflict of these
   flags (`--key` with `--iroh-key`, `--node-key` with `--no-e2e`) is a usage
   error (64), before anything is read.
+- **A grant used once** (T-226, GitHub #35; [reverse.md](reverse.md),
+  "Grants used once") lets one operator's key in, once, also a key that no
+  `--allow` names: an OpenSSH user certificate of that key, signed by the
+  node's key or by a key of `--allow` (or a member of the net) for what it
+  may reach itself, with the principal `node:SHA256:...` (and `/ROUTE`), a
+  window and the critical option `once@podssh`. `podssh node NAME
+  --grant-to KEY` prints one on stdout and serves nothing: the node's key
+  signs it, read and never made, for KEY (`ssh-ed25519 BASE64`, 64 hex
+  digits, or a file of one line), `--grant-route ROUTE` and `--grant-for
+  TIME` (1 minute to 30 days, 1 h by default); `ssh-keygen -s` of OpenSSH
+  makes one with an issuer's key. The operator gives it with `--grant FILE`
+  on `operator`, `proxy node://`, `ssh node://` and `pipe`'s `node:` side:
+  the channel carries it, encrypted, to the node whose key it checked, for
+  the run's first session alone. A URL in place of FILE, or `--no-e2e`
+  beside it, is a usage error (64), and a file that is no Ed25519
+  certificate 78. The node checks the grant before it dials, records it in
+  `grants-NAME` of the cache, synced, then lets the session in; a second
+  use, another key, another node or route, a window that is not now, an
+  unknown critical option and a revoked serial (`--revoked FILE`) are
+  refused, and the operator exits 77, the reasons in the node's log. A node
+  with no `--allow` and no net says, as it starts, that the pair's token
+  alone is its door.
 - **`--pair-file FILE`** uses a pair of the store's form, which must be a
   regular file of the user that nobody else can read, as ssh reads a key.
   The store is not used. For `operator` and `ssh node://NAME`, the operator's

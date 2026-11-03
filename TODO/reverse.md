@@ -1786,12 +1786,56 @@ the relay can make a token single use for each client. The alternative, the clie
 still accepts a replayed `connect_token`, so that grant protects only the TARGET, which the allowlist of T-087
 already protects, at the cost of a framing on a leg that the contract keeps bare.
 
+2026-11-03 (the drafting agent), for what the Correction below leaves open. No row of `docs/decisions.md`
+settles these and none changes one: Q4 keeps the relay's tokens and the trust end to end, which a grant is.
+
+1. The reader of the certificate is podssh's own (`crates/podssh-relay/src/grant/cert.rs`), not the `ssh-key`
+   crate. Only the Ed25519 certificate is a grant, its form is a page of OpenSSH's PROTOCOL.certkeys, and the
+   crate (the patched copy in `vendor/ssh-key`) would bring its features and a change of `Cargo.lock` into a
+   library crate that the gate builds with no C. The same bytes as `ssh-keygen -s` gives are its test. Lost:
+   the crate, for those reasons.
+2. A grant's use is recorded by the SHA-256 of what its issuer signed, which holds the issuer's random nonce,
+   not by its serial: `ssh-keygen -s` gives serial 0 unless `-z` is given, so a record by serial would refuse
+   each grant after an issuer's first. The serial names a grant in the lines and in `--revoked`. Lost: by
+   serial (that reason); by issuer and serial, with 0 refused (one more flag at each mint).
+3. A grant decides alone: one that fails is refused, also for a key that `--allow` names, as the operator
+   asked by it. A node that reads no grant (the temporary node of `--upgrade`, chat) sets one aside and goes
+   by its door. Lost: a failed grant that falls back to the allowlist, which hides the refusal from its user.
+4. The issuers are the node's own key, and a key of `--allow` or a member of the net for what that key may
+   reach itself, with no word of its own on the allowlist's line; a node with no `--allow` and no net trusts
+   its own key alone. A key of the allowlist can carry its own access to another already, so a grant gives
+   it nothing more. Lost: a mark on the line, as sshd's `cert-authority`, a new form of the file that the
+   allowlist's readers of T-087 refuse.
+5. The use is recorded before the dial: a TARGET out of reach spends the grant, and its issuer mints another,
+   as a retry with the same grant is a replay to the node. Lost: the record after the dial, where a replay
+   reaches TARGET's door.
+6. The operator hears one sentence for each refused grant (`GRANT_REFUSED`, exit 77), and the node's log the
+   reason, as a reason can name the node's files. Lost: the reason itself in the verdict.
+7. A grant must end (no `valid_before` of forever), with 5 minutes of skew at each end of its window; `podssh
+   node --grant-to` gives 1 h, and takes 1 minute to 30 days. A record goes after its grant's end and the
+   skew, when the window refuses the grant.
+8. A client reads its grant once, before anything connects, and the run's first channel takes it: a grant
+   lets in one session, so a copy of several files or a listening `pipe` sends it in its first. `cp`, `mv`,
+   `scp` and `sftp` take no `--grant`.
+9. The proof's version is 4, around a proof of each other form, as version 3 is the net's (T-429). A node of
+   before refuses it whole, and an operator sends it only with `--grant`. Lost: a message of its own after the
+   handshake, which a node of before reads as a fault of the channel.
+10. `podssh node NAME --grant-to KEY` in the place of `podssh node grant`: `node` takes NAME first, as
+    `--install` does, and a node may be labelled `grant`.
+11. In the relay role, the connect token of a pair of `--once` is spent at the first upgrade that the role
+    takes, and refused at the status too after it; the status before it spends nothing. The file of `--pairs`
+    keeps the use, and one that takes no write refuses the upgrade. `?once=1` asks for it, as the body stays
+    the contract's `{}` and the proof of a key (T-448) signs the path. A connect token for each session, and a
+    stop token that the node rotates, which the Correction names, are T-615: they need frames of the node's
+    socket that the contract does not have.
+
 ## Prove
 
 ```sh
 export CARGO_BUILD_JOBS=4
 cargo test -p podssh-relay --features pair,grant --test grant
 cargo test -p podssh-relay --features pair,grant --test grant_live -- --ignored
+cargo test -p podssh-relay --features serve,plain-ws --test relay_serve_once
 ```
 
 Offline: a grant verifies once; a second use of its nonce fails; a grant for another node or principal, or
@@ -1862,6 +1906,50 @@ before a request exists; through podssh's relay role (T-427) on the loopback, a 
 of one use is refused at its second upgrade. Planted: the spent check skipped; the replay test
 fails. Live, on a GitHub runner where `podssh relay serve` runs: a node and an operator, one
 grant used, then refused.
+
+2026-11-03 (the drafting agent). Read at `d262613`: the proof's version 3 is the net's form (T-429,
+`NET_PROOF` in `crates/podssh-relay/src/e2e/handshake.rs`), so a grant is the proof's version 4, around a
+proof of each other form (Decision 9). Item 3 of the new Approach is `podssh node NAME --grant-to KEY`,
+with `--grant-route` and `--grant-for` (Decision 10), and `--revoked FILE` names the serials. Item 4 is a
+pair of `--once` in podssh's relay role (`POST /v1/pair?once=1`); the connect token for each session and
+the stop token that the node rotates moved to T-615 (Decision 11). The Prove adds the role's test,
+`relay_serve_once`, which needs the features `serve` and `plain-ws` on the loopback. The offline grants are
+certificates that OpenSSH 9.6's `ssh-keygen -s` minted, kept with their issuer's public key alone
+(`crates/podssh-relay/tests/fixtures/grant/`), so the test needs no `ssh-keygen` where it runs; the live
+test runs through the live relay, which carries the channel as each relay does, in the place of a runner
+of `podssh relay serve`.
+
+## Done
+
+2026-11-03, drafted (`DRAFT T-226`), UNVERIFIED: no command below ran in the draft.
+
+- The grant in `podssh-relay` (feature `grant`, `crates/podssh-relay/src/grant/`): the reader and the writer
+  of the Ed25519 user certificate, the node's door in the order of the Approach, and the record of each grant
+  used; the proof's version 4 in `crates/podssh-relay/src/e2e/handshake.rs`, the door's hook `Redeem` of
+  `crates/podssh-relay/src/e2e/ends.rs`, and a route that a grant named in
+  `crates/podssh-relay/src/reverse/routes.rs`. `cargo test -p podssh-relay --features pair,grant --test
+  grant`: UNVERIFIED (a grant that `ssh-keygen -s` minted lets its key in once, the relay never sees it, a
+  second use is refused, also by a node started again; another node, a window that ended or is to come, an
+  unknown critical option, no `once@podssh`, no end, a host certificate, another key, an issuer not trusted,
+  a changed serial and no certificate are refused before the dial; the node's own key issues; a route's
+  grant; no grant, and a node that reads none; a revoked serial; podssh's writer gives the bytes of
+  `ssh-keygen -s`; a URL is refused). `cargo test -p podssh-relay --features pair,grant,serve --lib`:
+  UNVERIFIED.
+- In the relay role: `cargo test -p podssh-relay --features serve,plain-ws --test relay_serve_once`:
+  UNVERIFIED (a connect token of one use refused at its second upgrade and at the status, a pair of before,
+  `/relays.json`).
+- In the binary (`crates/podssh-cli/src/grants.rs`): `--grant FILE` of `operator`, `proxy node://`, `ssh
+  node://` and `pipe`'s `node:` side; `podssh node NAME --grant-to KEY`, `--grant-route`, `--grant-for` and
+  `--revoked FILE`; each node's door on the pair's, the DERP, the OpenTunnel and the iroh roads; `podssh
+  relay pair NAME --once`. `cargo test -p podssh-cli --lib`: UNVERIFIED; `cargo test -p podssh-cli --test
+  flag_table`: UNVERIFIED.
+- Live: `cargo test -p podssh-relay --features pair,grant --test grant_live -- --ignored`: UNVERIFIED (one
+  grant used through the live relay, then refused).
+- Planted, each of which must fail its test: the record of a use skipped
+  (`scripts/plants/t226-spent-skipped.plant`), the key's bind skipped
+  (`scripts/plants/t226-key-unbound.plant`), a token of `once` taken again
+  (`scripts/plants/t226-once-reused.plant`), and a grant's route left unmarked
+  (`scripts/plants/t226-route-unmarked.plant`): UNVERIFIED.
 
 # T-256: A local side that does not read stops every session of the node
 
@@ -2941,3 +3029,54 @@ Each passes; planted, the guard that aborts nothing: the new test fails.
   crate with `pair,quick,derp,serve,piping,blocking,plain-ws`: 584 passed, and 1 failed at random,
   `relay_serve_reverse`'s two sessions of 2 MiB, which fails as often with the code before (T-602).
 - Planted, `Drop` that aborts nothing: the new test failed ("the role sees the stream end").
+
+# T-615: A connect token for each session, and a stop token that the node rotates, in podssh's relay role
+
+**Source:** T-226's Correction (2026-11-02) and its draft (2026-11-03), which built the connect token
+of one upgrade and left these two.
+**Category:** feature
+**Milestone:** M10
+**Priority:** P3
+**Effort:** M
+**Status:** open
+
+## Problem
+
+A pair's connect token on podssh's relay role takes each upgrade for 72 h, or one alone with
+`podssh relay pair --once`, which then carries one session with no resume. A pair's stop token lasts
+as long as the pair. A token that leaks, from a proxy that logs the headers of a request, stays good
+until then; a grant (T-226) holds the node's door behind it, but the relay's own door stays open to
+whoever holds the token.
+
+## Premise
+
+Read at `d262613` and in the draft of T-226: the role keeps the SHA-256 of each of a pair's three
+tokens, and a pair of `once` spends its connect token at its first upgrade
+(`crates/podssh-relay/src/serve/reverse/pairs.rs`). The node's socket carries the contract's text
+frames alone (`hello`, `open`, `close`, `ready`, `reject`; `docs/relay.md`, "The reverse path"), so a
+token that the node gives its operators needs a frame of podssh's own, sent only to a relay that offers
+it in `/relays.json`. A resume of the layer opens a new leg, which needs a token of its own.
+
+## Approach
+
+1. In the relay role: a frame of the node's socket, `{"type":"token","digest":HEX,"expires":MS}`, which
+   the role takes only where its `/relays.json` offers it, and which registers a connect token of one
+   upgrade by its digest; the role answers each upgrade with such a token once, as for a pair of
+   `once`.
+2. At the node: once the channel let an operator in, the node draws the next token of its session, sends
+   its digest to the role, and gives the token to the operator inside the channel; the operator's next leg
+   (a resume) takes it, so that each leg has a token that no other leg can use.
+3. The stop token: `POST /v1/rotate/<name>` with the stop token answers a new one, and the node rotates its
+   own at each start and each day, inside the private file of its pair; an operator never holds it.
+4. A node of a relay that offers neither keeps the pair's tokens, as now.
+
+## Prove
+
+```sh
+export CARGO_BUILD_JOBS=4
+cargo test -p podssh-relay --features serve,plain-ws --test relay_serve_once
+```
+
+Offline, through the role on the loopback: a leg's token takes one upgrade, a resume takes the next one
+that the node gave, and a replayed one is refused; a rotated stop token ends the old one. Planted: the
+role takes a spent token; the replay test fails.

@@ -69,8 +69,9 @@ rustls = { workspace = true }
 # fallback for a proxy that refuses the WebSocket upgrade. `opentunnel`: the
 # OpenTunnel road of `podssh node --opentunnel` and `podssh ssh node://`
 # (T-531), pure Rust, in each build, as the operator's ruling Q76 makes it a
-# fallback of a node with no other road.
-podssh-relay = { path = "../podssh-relay", features = ["pair", "quick", "derp", "serve", "piping", "opentunnel"] }
+# fallback of a node with no other road. `grant`: grants used once (T-226),
+# which each node checks, pure Rust, in each build.
+podssh-relay = { path = "../podssh-relay", features = ["pair", "quick", "derp", "serve", "piping", "opentunnel", "grant"] }
 # The native SSH client. It needs a C compiler (russh with aws-lc-rs); the
 # operator accepted that for the binary on 2026-10-08.
 podssh-ssh = { path = "../podssh-ssh" }

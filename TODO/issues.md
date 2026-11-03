@@ -122,7 +122,7 @@ corrects a claim that the code does not support.
 | #32 | `podssh serve` finds a shell with no passwd entry | deleted on GitHub by 2026-11-02 (it was open) | T-222 |
 | #33 | `check-repo.py` passes with nothing to check; no scan for a listener | deleted on GitHub by 2026-11-02 (it was closed) | T-223 (the commit "Each repository check has a floor, and fails on an empty tree"), T-224 (the commit "The repository check finds a listener outside its allowance"); the floors of `cargo todo check` are in T-204 (done). Closed on 2026-10-09 with a comment that names them |
 | #34 | The expected exit codes, from stock OpenSSH | deleted on GitHub by 2026-11-02 (it was closed) | T-225 (`e8bec97`) |
-| #35 | Signed pairing grants that are used once | deleted on GitHub by 2026-11-02 (it was open) | T-226 (M10, in podssh's own relay role since Q63) |
+| #35 | Signed pairing grants that are used once | deleted on GitHub by 2026-11-02 (it was open) | T-226 (M10, in podssh's own relay role since Q63), and T-615 from its draft |
 | #36 | `--direct` has no limit on a stuck write | deleted on GitHub by 2026-11-02 (it was closed (`f502fba`, 2026-10-11)) | T-227 |
 
 ## Requests after the triage (#51 on)

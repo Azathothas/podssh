@@ -287,8 +287,10 @@ async fn serve(ready: Ready, err: &mut dyn Write) -> i32 {
         Door::Allow(path) => Some(path),
         Door::Net(_) => None,
     };
+    // Grants used once (T-226), signed by the node's key or by its door's.
+    let redeem = crate::grants::door(&label, public, allow.clone());
     let (admit, grant) = crate::net::admit::doors(allow, public, true);
-    let channel = ends::Node { identity: identity.clone(), admit, say: say.clone() };
+    let channel = ends::Node { identity: identity.clone(), admit, say: say.clone(), redeem };
     let routes = crate::node::routes_of(&targets, grant, roost, Some(public));
     let first = crate::node_exit::first(&targets);
     let (host, port) = (first.host, first.port);

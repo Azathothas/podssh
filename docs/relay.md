@@ -506,6 +506,20 @@ through the default one:
   has no such path (the stand-in answers `404`), which a client reads as
   no renewal. There is no cap on renewals: the owner ends the pair with its
   stop token at any time.
+- Beside the contract, a pair whose connect token takes one upgrade alone
+  (T-226): `POST /v1/pair?once=1` (`podssh relay pair NAME --once`) answers
+  the contract's fields and `"once": true`. The first operator's upgrade
+  that the role takes spends the token: a second upgrade, and the status,
+  get the `403 reverse: forbidden` of each failed authentication, also
+  after a restart, as the file of `--pairs` keeps the use; so the pair
+  carries one session, with no resume, and a token that leaks from a log
+  after its use is worth nothing. The node's token and the stop token stay
+  as they are. `/relays.json` offers it as `"reverse": {"pair_once": true}`.
+  The query holds no credential, and the proof of a key (T-448) signs the
+  path alone. A relay of the contract makes a pair of before, with no
+  `once`, which `relay pair --once` stops and refuses (69). A grant used
+  once (T-226, [reverse.md](reverse.md), "Grants used once") is checked at
+  the node, on each road, and needs nothing of a relay.
 
 ## Tokens for the keys of a list (T-448)
 

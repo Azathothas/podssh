@@ -122,6 +122,9 @@ pub struct SshArgs {
     /// `--no-resume`: each session to a node ends with its link, which the
     /// node is asked for (T-612).
     pub no_resume: bool,
+    /// `--grant FILE`: a grant used once, for the first session's channel
+    /// (T-226).
+    pub grant: Option<String>,
     /// `--sudo` and `--su`: the remote command runs as root (T-032).
     pub sudo: bool,
     /// `--record FILE`: the session's output in an asciicast v2 file (T-033).
@@ -196,6 +199,7 @@ pub const ONCE: &[(&str, &str)] = &[
     ("iroh-key", "give one file"),
     ("client-key", "give one file"),
     ("node-key", "give one key"),
+    ("grant", "give one grant: it lets in one session"),
     ("host-key-fingerprint", "give the fingerprints as one comma list"),
     ("iroh-relay", "give the relays as one comma list"),
     ("iroh-ticket", "give one ticket"),
@@ -346,6 +350,7 @@ impl SshArgs {
             no_signal: flag("no-signal"),
             resume_deadline: one("resume-deadline"),
             no_resume: flag("no-resume"),
+            grant: one("grant"),
             sudo: flag("sudo"),
             record: one("record"),
             tag: one("tag").filter(|t| !t.is_empty()),

@@ -73,13 +73,28 @@ pub async fn post(
     proxy: &ProxyChoice,
     timeout: Duration,
 ) -> Result<Response, ConnectError> {
-    let first = https_post_json(host, port, path, b"{}", trust, proxy, timeout).await?;
+    post_query(host, port, path, "", trust, proxy, timeout).await
+}
+
+/// [`post`] to `path` and `query` (`?once=1`, T-226): the proof of a key
+/// signs the path alone, as the relay checks it.
+pub async fn post_query(
+    host: &str,
+    port: u16,
+    path: &str,
+    query: &str,
+    trust: &Trust,
+    proxy: &ProxyChoice,
+    timeout: Duration,
+) -> Result<Response, ConnectError> {
+    let target = format!("{path}{query}");
+    let first = https_post_json(host, port, &target, b"{}", trust, proxy, timeout).await?;
     let Some(challenge) = challenge_of(&first) else { return Ok(first) };
     let key = file::load(&file::client_place(), &mut OsEntropy).map_err(|why| {
         ConnectError::Config(format!("the relay mints for the keys of its list; this client's key: {why}"))
     })?;
     let body = proof(&key.identity, &host_header(host, port), path, &challenge);
-    https_post_json(host, port, path, &body, trust, proxy, timeout).await
+    https_post_json(host, port, &target, &body, trust, proxy, timeout).await
 }
 
 #[cfg(test)]

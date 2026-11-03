@@ -172,7 +172,8 @@ async fn serve(ready: Ready, err: &mut dyn Write) -> i32 {
             Err(format!("refused the operator key {key}: this node lets in {client} alone"))
         }
     };
-    let node = ends::Node { identity: Arc::new(key.identity), admit: Arc::new(admit), say: say.clone() };
+    // One client key alone, and no grant (T-226): the offer is its door.
+    let node = ends::Node { identity: Arc::new(key.identity), admit: Arc::new(admit), say: say.clone(), redeem: None };
     let settings = crate::layered::settings();
     let keeper: Arc<Keeper<DuplexStream>> = Arc::new(Keeper::new(settings.resume_deadline));
     let tcp = TcpHandler { host: target.host.clone(), port: target.port, timeout: DIAL_LIMIT, sshd: true };

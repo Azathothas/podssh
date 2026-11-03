@@ -22,6 +22,9 @@
 //!   allowlist and an operator's pins, the same on each road;
 //! - [`e2e`]: the channel between two podssh ends, Noise XX above the
 //!   resumable layer, in which each end proves its key;
+//! - `grant` (feature `grant`): grants used once (T-226), OpenSSH user
+//!   certificates that the node checks in the channel before it dials, and
+//!   its record of each one used;
 //! - [`udp`]: UDP in a stream (T-168): each datagram after its length, and
 //!   the flow at the far end, a UDP socket connected to the target;
 //! - [`quick`]: a quick tunnel of Cloudflare's that podssh makes itself, with
@@ -54,6 +57,8 @@ pub mod derp;
 pub mod e2e;
 pub mod failover;
 pub mod failures;
+#[cfg(feature = "grant")]
+pub mod grant;
 pub mod health;
 pub mod identity;
 pub mod keyed;

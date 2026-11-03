@@ -3,7 +3,9 @@
 //! operator costs the target no connection and gets none of its bytes. An
 //! operator checks the node's key before it proves its own. What the
 //! operator asks ([`Ask`]) is a route, or of an exit node a target of its
-//! own (T-431), which a node that is no exit refuses.
+//! own (T-431), which a node that is no exit refuses. An operator's grant
+//! used once (T-226) is the node's [`Redeem`]'s to judge, in the place of
+//! its admission.
 
 use std::future::Future;
 use std::sync::Arc;
@@ -13,6 +15,19 @@ use tokio::io::{AsyncRead, AsyncWrite, DuplexStream};
 
 use super::{initiate, respond, Ask, Error, Refusal};
 use crate::identity::{Identity, PublicKey};
+
+tokio::task_local! {
+    /// Set while a node opens the target of a session that a grant let in
+    /// (T-226): the grant named the route, so the route's own check of the
+    /// key is done.
+    static GRANTED: bool;
+}
+
+/// Whether the target that opens now is that of a session that a grant let
+/// in, whose route the grant named (T-226).
+pub fn granted() -> bool {
+    GRANTED.try_with(|granted| *granted).unwrap_or(false)
+}
 
 /// Each direction of the pipe between the channel and the stream under it.
 const PIPE: usize = 256 * 1024;
@@ -24,22 +39,37 @@ pub const TARGET_WAIT: Duration = Duration::from_secs(20);
 /// for the node's log; the operator learns only that it is not let in.
 pub type Admit = dyn Fn(&PublicKey, &Ask) -> Result<(), String> + Send + Sync;
 
+/// A node's check of an operator's grant (T-226): the operator's key, which
+/// the channel proved, what it asked, and the grant's bytes. `Ok` lets it
+/// in, once, with the words of the node's line; `Err` is why not, for the
+/// node's log.
+pub type Redeem = dyn Fn(&PublicKey, &Ask, &[u8]) -> Result<String, String> + Send + Sync;
+
 /// The refusal of an exit's target by a node that is no exit.
 pub const NO_EXIT: &str = "this node is no exit: it lends no egress (podssh node --exit)";
 
-/// A node's end: its key, who may come in, and where its lines go.
+/// What an operator whose grant the node refused hears: the reasons stay in
+/// the node's log, as they can name its files.
+pub const GRANT_REFUSED: &str = "this grant does not let this key in: it was used already, its window is not now, or \
+                                 it is not for this key, this node or this route; the node's log says which";
+
+/// A node's end: its key, who may come in, where its lines go, and its door
+/// for grants.
 #[derive(Clone)]
 pub struct Node {
     pub identity: Arc<Identity>,
     pub admit: Arc<Admit>,
     pub say: Arc<dyn Fn(String) + Send + Sync>,
+    /// The check of a grant used once (T-226); with none, a grant is set
+    /// aside and the admission decides.
+    pub redeem: Option<Arc<Redeem>>,
 }
 
 impl Node {
     /// A node that lets in each operator whose key proves itself: the relay's
     /// connect token decided who reaches it.
     pub fn open_to_all(identity: Arc<Identity>, say: Arc<dyn Fn(String) + Send + Sync>) -> Node {
-        Node { identity, admit: Arc::new(|_: &PublicKey, _: &Ask| Ok(())), say }
+        Node { identity, admit: Arc::new(|_: &PublicKey, _: &Ask| Ok(())), say, redeem: None }
     }
 }
 
@@ -105,12 +135,38 @@ where
     let peer = asked.peer();
     let ask = asked.ask().clone();
     let to = ask.to_string();
-    if let Err(why) = (node.admit)(&peer, &ask) {
-        (node.say)(format!("refused the operator key {peer}: {why}"));
-        asked.refuse(Refusal::NotAllowed).await;
-        return;
-    }
-    let target = match tokio::time::timeout(TARGET_WAIT, open(peer, ask)).await {
+    // A grant decides alone (T-226): a key that the admission lets in, but
+    // that brings a grant that fails, is refused, as it asked by the grant.
+    let verdict = match (asked.grant(), &node.redeem) {
+        (Some(grant), Some(redeem)) => match redeem(&peer, &ask, grant) {
+            Ok(line) => Ok((true, Some(format!("the operator key {peer} came with {line}")))),
+            Err(why) => Err((
+                format!("refused the grant of the operator key {peer}: {why}"),
+                Refusal::Other(GRANT_REFUSED.into()),
+            )),
+        },
+        (grant, _) => {
+            let aside = grant.map(|_| format!("set aside the grant of the operator key {peer}: this end reads none"));
+            match (node.admit)(&peer, &ask) {
+                Ok(()) => Ok((false, aside)),
+                Err(why) => Err((format!("refused the operator key {peer}: {why}"), Refusal::NotAllowed)),
+            }
+        }
+    };
+    let by_grant = match verdict {
+        Ok((by_grant, line)) => {
+            if let Some(line) = line {
+                (node.say)(line);
+            }
+            by_grant
+        }
+        Err((line, refusal)) => {
+            (node.say)(line);
+            asked.refuse(refusal).await;
+            return;
+        }
+    };
+    let target = match tokio::time::timeout(TARGET_WAIT, GRANTED.scope(by_grant, open(peer, ask))).await {
         Ok(Ok(target)) => target,
         Ok(Err(refusal)) => {
             (node.say)(format!("the operator key {peer} came in{to}; refused: {refusal}"));
@@ -165,6 +221,22 @@ where
     A: AsyncRead + AsyncWrite + Unpin + Send + 'static,
     C: FnOnce(&PublicKey) -> Result<(), String> + Send + 'static,
 {
+    operator_granted(app, identity, check, route, None)
+}
+
+/// [`operator_to`] with `grant`, a grant used once (T-226), in this end's
+/// proof: it goes only to a node whose key `check` let through.
+pub fn operator_granted<A, C>(
+    app: A,
+    identity: Arc<Identity>,
+    check: C,
+    route: Option<String>,
+    grant: Option<Vec<u8>>,
+) -> (DuplexStream, impl Future<Output = Result<PublicKey, Error>> + Send)
+where
+    A: AsyncRead + AsyncWrite + Unpin + Send + 'static,
+    C: FnOnce(&PublicKey) -> Result<(), String> + Send + 'static,
+{
     let (ours, theirs) = tokio::io::duplex(PIPE);
     let session = async move {
         let offered = initiate(theirs, &identity).await?;
@@ -173,7 +245,7 @@ where
             offered.reject().await;
             return Err(Error::NodeKey(why));
         }
-        offered.accept(route.as_deref()).await?.carry(app).await?;
+        offered.accept_granted(route.as_deref(), grant.as_deref()).await?.carry(app).await?;
         Ok(node)
     };
     (ours, session)

@@ -27,6 +27,7 @@ mod notes_detached;
 mod notes_doctor;
 mod notes_each;
 mod notes_edit;
+mod notes_grant;
 mod notes_health;
 mod notes_job;
 mod notes_keygen;

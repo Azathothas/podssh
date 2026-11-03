@@ -218,6 +218,52 @@ session's bytes.
    exit's target, the policy's `exit:NODE` or a range, then each address
    again once the name resolved (T-431).
 
+## Grants used once
+
+A token of the relay is a bearer token: whoever holds it can use it, as
+often as it likes, until it expires. A grant (T-226, GitHub #35) lets one
+operator's key in, once, at a node whose door would not take it otherwise,
+and the relay never sees it (`crates/podssh-relay/src/grant/`):
+
+1. A grant is an OpenSSH user certificate of the operator's Ed25519 key,
+   the key of the end-to-end channel (`client.key`, or `--client-key`). Its
+   issuer is the node's own key, or a key of `--allow` (or a member of the
+   net) for what that key may reach itself, so a grant never reaches more
+   than its issuer. Its principal is `node:SHA256:...`, the node's
+   fingerprint, with `/ROUTE` for a route; it has a window of its own, and
+   the critical option `once@podssh`. `ssh-keygen -s ISSUER -I ID -n
+   node:SHA256:... -O clear -O critical:once@podssh -V +1h KEY.pub` makes
+   one, and so does `podssh node NAME --grant-to KEY`, with the node's key.
+2. The operator gives it with `--grant FILE` (`operator`, `proxy` and `ssh`
+   to `node://`, `pipe`'s `node:` side). It goes in the operator's proof of
+   the channel, version 4, around the proof of each other form, encrypted,
+   after the operator checked the node's key: no relay, no proxy and no URL
+   holds it, and a URL in place of the file is refused before a request
+   exists. A node of before T-226 refuses that proof whole.
+3. The node checks it before it dials, in this order: the key that the
+   channel proved is the certificate's; the issuer's signature; a user
+   certificate; the principal; the window, with 5 minutes of skew; each
+   critical option known; the serials of `--revoked FILE`. Then it records
+   the grant in `grants-NAME` of the cache, a file made create-new, synced,
+   and its directory synced, and only then lets the session in: a second
+   use is refused, also after a restart, and a crash between the two spends
+   the grant. A grant decides alone: one that fails is refused, also for a
+   key that `--allow` names.
+4. Bound to its key, a grant that leaks is worth nothing without that key.
+   A resume of the layer runs no new handshake, so a grant lets in one
+   session, which lives as long as the layer keeps it.
+5. Revocation: the issuer's line goes from `--allow`, or its serial goes in
+   the file of `--revoked`, read again for each grant; a file that is
+   missing lets no grant in.
+
+podssh's relay role makes a pair whose connect token takes one upgrade
+alone, too (`podssh relay pair NAME --once`, [relay.md](relay.md)), so that
+a token that leaks after its use is worth nothing. A node whose door is the
+pair's token alone (no `--allow`, no net) says so as it starts: a TARGET
+that is not SSH has no other gate. Measured: UNVERIFIED (2026-11-03, the
+draft of T-226): `cargo test -p podssh-relay --features pair,grant --test
+grant`, against certificates that OpenSSH 9.6's `ssh-keygen -s` minted.
+
 ## The transit road
 
 A pair's node and its operators also meet at a magic-wormhole transit relay
@@ -307,6 +353,10 @@ tokens in URLs. podssh does not do that.
   each token and for a second stop).
 - `/v1/status` accepts `connect_token` only; `node_token` and `stop_token`
   get `403` (measured 2026-10-09, T-078).
+- Each token is a bearer token. A grant used once ("Grants used once",
+  above) holds the node's door with a key that the channel proves; a pair
+  of `--once` on podssh's relay role ends its connect token at its first
+  upgrade (T-226).
 
 ## The Piping Server road
 

@@ -98,8 +98,8 @@ pub fn exit_codes() -> Vec<(Code, String)> {
             "podssh proxy: the relay or the proxy refused (a token, a blocked address, a proxy's 403 or 407). \
              podssh node, operator and relay: the relay refused the pair, or the pair expired; for relay \
              trace, the token. podssh operator and pipe node:: the node's key is not the one pinned in known-nodes or named by \
-             --node-key, or the node's allowlist refused this client's key. podssh cp and mv: the server \
-             refused the login, or podssh did not accept its host key. podssh chat: the same of the pair \
+             --node-key, or the node's allowlist refused this client's key, or the node its grant. podssh cp \
+             and mv: the server refused the login, or podssh did not accept its host key. podssh chat: the same of the pair \
              and of the keys, or the peer declined the file of --file. podssh session start: this host refuses \
              the bind of the session's socket. podssh net policy check: the policy does not let FROM reach TO.",
         ),
@@ -248,6 +248,15 @@ pub fn files() -> Vec<(Vec<String>, String)> {
              refuses one that is a symbolic link, another user's, or that others can read, and never \
              replaces it: a new key would change the node's identity, which operators pinned, and its \
              ticket. The names of an earlier podssh, iroh-node-NAME.key and iroh-client.key, are still read."
+                .to_string(),
+        ),
+        (
+            vec!["grants-NAME/".to_string()],
+            "The grants used once that the node NAME let in (T-226), in the cache: a private directory with a \
+             file of mode 0600 for each grant, made create-new and synced before the session comes in, named by \
+             the end of the grant's window and the digest of what its issuer signed, and removed once that end \
+             passed. A grant whose file is there is refused; a directory that cannot take a file refuses each \
+             grant. It holds no secret: a serial and an issuer's fingerprint."
                 .to_string(),
         ),
         (

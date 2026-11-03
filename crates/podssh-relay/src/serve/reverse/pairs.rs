@@ -6,11 +6,13 @@
 //! memory and, when the user names a file, in that file of mode 0600, so
 //! that a node and its sessions come back after a restart. Its owner, who
 //! alone holds the stop token, renews a pair (T-592): 72 h from then, its
-//! tokens the same, so that each operator's file keeps working.
+//! tokens the same, so that each operator's file keeps working. A pair made
+//! with `once` (T-226) takes its connect token at one upgrade alone: a token
+//! that leaks after it is worth nothing, also after a restart.
 
 use std::collections::HashMap;
 use std::path::{Path, PathBuf};
-use std::sync::atomic::{AtomicU64, Ordering};
+use std::sync::atomic::{AtomicBool, AtomicU64, Ordering};
 use std::sync::{Arc, Mutex, MutexGuard};
 use std::time::{Duration, Instant};
 
@@ -45,6 +47,8 @@ pub struct Made {
     pub connect: String,
     pub stop: String,
     pub expires_ms: u64,
+    /// Its connect token takes one upgrade alone (T-226).
+    pub once: bool,
 }
 
 impl std::fmt::Debug for Made {
@@ -76,6 +80,10 @@ pub struct Pair {
     pub session_bytes: u64,
     digests: [[u8; 32]; 3],
     state: Mutex<State>,
+    /// Its connect token takes one upgrade alone (T-226).
+    pub once: bool,
+    /// The one upgrade of a pair of `once` was taken.
+    spent: AtomicBool,
 }
 
 /// The node's socket, while one is joined.
@@ -151,7 +159,21 @@ impl Pair {
     }
 
     fn new(name: String, expires_ms: u64, session_bytes: u64, digests: [[u8; 32]; 3]) -> Pair {
-        Pair { name, expires: AtomicU64::new(expires_ms), session_bytes, digests, state: Default::default() }
+        let expires = AtomicU64::new(expires_ms);
+        let (once, spent) = (false, AtomicBool::new(false));
+        Pair { name, expires, session_bytes, digests, state: Default::default(), once, spent }
+    }
+
+    /// Take the one upgrade of a pair of `once` (T-226): `true` the first
+    /// time alone, also for two upgrades at once; `true` for each upgrade of
+    /// another pair.
+    pub fn take_connect(&self) -> bool {
+        !self.once || self.spent.compare_exchange(false, true, Ordering::SeqCst, Ordering::SeqCst).is_ok()
+    }
+
+    /// Whether the connect token of a pair of `once` was taken.
+    pub fn connect_spent(&self) -> bool {
+        self.once && self.spent.load(Ordering::SeqCst)
     }
 
     /// When the pair ends now, in ms since the epoch.
@@ -189,7 +211,8 @@ impl Pairs {
             let mut map = pairs.map.lock().unwrap_or_else(|e| e.into_inner());
             for kept in load(path)?.into_iter().filter(|p| p.expires > now) {
                 let digests = kept.digests()?;
-                let pair = Pair::new(kept.name, kept.expires, super::SESSION_BYTES, digests);
+                let mut pair = Pair::new(kept.name, kept.expires, super::SESSION_BYTES, digests);
+                (pair.once, pair.spent) = (kept.once, AtomicBool::new(kept.spent));
                 map.insert(pair.name.clone(), Arc::new(pair));
             }
         }
@@ -198,12 +221,19 @@ impl Pairs {
 
     /// A new pair, made at `now_ms`, kept in the file when there is one.
     pub fn make(&self, now_ms: u64) -> Result<Made, NotMade> {
+        self.make_with(now_ms, false)
+    }
+
+    /// [`Pairs::make`], with a connect token that takes one upgrade alone
+    /// when `once` (T-226).
+    pub fn make_with(&self, now_ms: u64, once: bool) -> Result<Made, NotMade> {
         let made = Made {
             name: format!("p-{}", hex(&random(16).map_err(NotMade::Failed)?)),
             node: base36(64).map_err(NotMade::Failed)?,
             connect: base36(64).map_err(NotMade::Failed)?,
             stop: base36(64).map_err(NotMade::Failed)?,
             expires_ms: now_ms + LIFETIME_MS,
+            once,
         };
         {
             let mut map = self.map.lock().unwrap_or_else(|e| e.into_inner());
@@ -215,7 +245,8 @@ impl Pairs {
                 return Err(NotMade::Full);
             }
             let digests = [digest(&made.node), digest(&made.connect), digest(&made.stop)];
-            let pair = Pair::new(made.name.clone(), made.expires_ms, super::SESSION_BYTES, digests);
+            let mut pair = Pair::new(made.name.clone(), made.expires_ms, super::SESSION_BYTES, digests);
+            pair.once = once;
             map.insert(made.name.clone(), Arc::new(pair));
         }
         if let Err(why) = self.save() {
@@ -235,7 +266,16 @@ impl Pairs {
             return None;
         }
         let taken = token.is_some_and(|t| pair.takes(role, t)) && !pair.lock().ended;
-        taken.then_some(pair)
+        // A connect token of `once` that its upgrade took is refused, at the
+        // status too, as each failed authentication is (T-226).
+        (taken && !(role == Role::Connect && pair.connect_spent())).then_some(pair)
+    }
+
+    /// Take the connect token of `pair` for its upgrade (T-226): `false` for
+    /// a token of `once` that an upgrade took, and for one whose use the file
+    /// could not keep, so that a restart never gives it a second.
+    pub fn spend_connect(&self, pair: &Pair) -> bool {
+        pair.take_connect() && (!pair.once || self.save().is_ok())
     }
 
     /// Renew the pair `name` at `now_ms` (T-592): it ends [`LIFETIME_MS`]
@@ -323,6 +363,8 @@ impl Pairs {
                 node: hex(&p.digests[0]),
                 connect: hex(&p.digests[1]),
                 stop: hex(&p.digests[2]),
+                once: p.once,
+                spent: p.connect_spent(),
             })
             .collect();
         let body = serde_json::to_vec(&File { pairs: kept }).map_err(|e| e.to_string())?;
@@ -343,6 +385,12 @@ struct Kept {
     node: String,
     connect: String,
     stop: String,
+    /// A pair of `once`, and whether its connect token was taken (T-226); a
+    /// file of before has neither.
+    #[serde(default, skip_serializing_if = "std::ops::Not::not")]
+    once: bool,
+    #[serde(default, skip_serializing_if = "std::ops::Not::not")]
+    spent: bool,
 }
 
 impl Kept {

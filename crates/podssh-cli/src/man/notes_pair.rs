@@ -206,6 +206,8 @@ pub(super) const NODE: &[&str] = &[
      node on the pair's road alone. The server sees the paths, the sizes and the times; the channel keeps \
      the bytes from it.",
     super::notes_pair::NODE_OPENTUNNEL,
+    // Grants used once (T-226).
+    super::notes_grant::NODE,
     "With --quick-tunnel, the node serves TARGET at https://NAME.trycloudflare.com, a quick tunnel of \
      Cloudflare's that podssh makes itself, with no pair, no account and no cloudflared. The name is new \
      each run, and is the one line on stdout. The node needs port 7844 of Cloudflare's edge, and races \
@@ -349,6 +351,8 @@ pub(super) const OPERATOR: &[&str] = &[
      --ConnectTimeout bounds the open here too: the node's read of the stream, its ready, then the layer \
      and the channel. podssh proxy --carrier ADDR node://NAME is the same pipe. --pair-file, --relay-addr \
      and --ca-file are refused with --carrier (64).",
+    // Grants used once (T-226).
+    super::notes_grant::OPERATOR,
 ];
 
 /// The note of `ssh node://NAME --carrier ADDR` (T-595), beside operator's.
