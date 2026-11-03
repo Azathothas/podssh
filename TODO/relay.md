@@ -2549,7 +2549,7 @@ agent the same day: `docs/research/relay-measurement.md`.
 **Milestone:** none
 **Priority:** P2
 **Effort:** M
-**Status:** partial
+**Status:** done
 
 ## Problem
 
@@ -2641,7 +2641,7 @@ no credential (a search of the file for each). The workflow passes and uploads i
 
 ## Done
 
-2026-11-03, partial: step 1 and the first half of step 5. The drafting agent's harness is merged.
+2026-11-03. The drafting agent's harness is merged (step 1 and the first half of step 5).
 
 - `scripts/relay-measure.py`, `scripts/relay_measure_lib.py`, `scripts/relay_measure_selftest.py`:
   the harness as drafted. The live run below found that podssh's own leg names the proxy it went
@@ -2680,7 +2680,14 @@ Then, the same day (steps 2 to 4):
   lines. The sshd and both keys are deleted.
 - `docs/development.md`, "Live tests": the harness, its self-test, its stages and the workflow.
 
-Left: the workflow's run of step 5.
+Step 5, the workflow (`relay-measure.yml` at `d629249`, run 41687172170, `hosts=all`, `rounds=2`,
+stages `pool,trace,forward`): passed in 8 minutes with its build. The self-test passed on the
+runner; 187 runs of podssh, none left out by the budget; each of the 37 hosts of the pool opened 2
+of 2 and passed GitHub's key through it; the time to open, p50, went from 138 ms
+(`tcp-mx-central-1`) and 187 ms (`tcp`) to 496 ms (`af-south-1`) and 988 ms (`ap-south-2`); the
+ping, p50, from 25 to 296 ms. Within 50 ms the rank keeps the list's order, so `tcp` stays first
+beside `tcp-mx-central-1`, as the tie rule says. The stage `dest` was not asked; the run says that
+its secrets are not set. The JSON is the run's artifact.
 
 
 # T-606: `podssh relay rank`: each relay host measured on demand, and the rank kept in the cache beside the record of failures

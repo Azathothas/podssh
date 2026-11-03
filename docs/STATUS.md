@@ -1004,7 +1004,13 @@ The result holds no proxy address, no token and no credential: the first
 run found podssh's line `CONNECT through HOST:PORT` kept in it, which the
 harness now replaces with "the proxy" (T-605's Done). The self-test passes
 offline, and fails on runs that overlap and on podssh's lines kept as they
-are (`scripts/plants/t605-proxy-in-lines.plant`, caught).
+are (`scripts/plants/t605-proxy-in-lines.plant`, caught). From GitHub's
+network (`relay-measure.yml`, run 41687172170 at `d629249`, all hosts, 2
+rounds): 187 runs of podssh, each of the 37 hosts of the pool opened 2 of 2
+and passed GitHub's key; the time to open, p50, from 138 ms
+(`tcp-mx-central-1`) and 187 ms (`tcp`) to 988 ms (`ap-south-2`), the ping
+from 25 to 296 ms. The stage `dest` against a throwaway sshd on the
+loopback: the login 45 ms, 72.6 MiB/s down, 158.0 MiB/s up.
 
 ## The release check
 

@@ -165,7 +165,7 @@ and `CARGO_BUILD_JOBS=4`:
 
 ## Counts
 
-`TODO/INDEX.md` holds 578 entries: 110 open, 3 partial, 2 blocked, 463 done.
+`TODO/INDEX.md` holds 578 entries: 110 open, 2 partial, 2 blocked, 464 done.
 
 Open includes parked work. `cargo todo check` verifies this line.
 
@@ -242,8 +242,8 @@ and Q82 filed; and of #112 to #124, with M10's T-614, `--exit` beside `--carrier
 policy is decided and listed below for the operator to confirm (Q86). The drafts of 2026-11-03, both rounds, are merged. GitHub #125 (2026-11-03, `relay info`'s rank changes with the edge that answered) is done: the line says whose order it is; the research of the operator's relay archive is merged (2026-11-03).
 
 **The operator's request of 2026-11-03:** an archive of research on relays, read in
-`docs/research/relay-measurement.md`: its harness, adapted to run podssh itself (T-605), goes
-between entries, a `none` entry; the rank of the relay hosts on demand (T-606), then the default
+`docs/research/relay-measurement.md`: its harness, adapted to run podssh itself, is done
+(2026-11-03, `scripts/relay-measure.py` and `relay-measure.yml`); the rank of the relay hosts on demand (T-606), then the default
 list's use of it (T-607), are M10's, after item 2 of its order; a rank that podssh makes unasked
 (T-608) follows them, with `RelayRank auto` alone (Q89).
 
