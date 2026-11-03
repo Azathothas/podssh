@@ -106,8 +106,9 @@ pub const VARIABLES: &[(&[&str], &str)] = &[
     ),
     (
         &["PODSSH_TIMEOUT"],
-        "The default of --timeout for each command that has the flag, as a whole duration such as 30s; the \
-      flag wins, and an empty value is no value. A bad value is a configuration error (78).",
+        "The default of --timeout for each command that has the flag (podssh edit's with --no-terminal \
+      alone), as a whole duration such as 30s; the flag wins, and an empty value is no value. A bad value is \
+      a configuration error (78).",
     ),
     (&["PODSSH_RELAY_TOKEN"], "A relay token to use in place of one podssh mints. podssh never prints it."),
     (

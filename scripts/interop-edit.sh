@@ -24,8 +24,9 @@ e() {
         "$BIN" edit --direct -P "$_port" -o UserKnownHostsFile="$KH" -o StrictHostKeyChecking=accept-new \
         -o IdentityAgent=none -o IdentitiesOnly=yes -o BatchMode=yes $K "$@" </dev/null >"$EW/out" 2>&1
 }
-# kept: the path of the copy that podssh named as kept, from $EW/out.
-kept() { sed -n 's/.*your copy stays at \(.*\)$/\1/p' "$EW/out" | tr -d '\r' | head -n 1; }
+# kept: the path of the copy that podssh named as kept, from $EW/out, before
+# the directory that the line names for removal (T-510).
+kept() { sed -n 's/.*your copy stays at \(.*\); rm -r .* once you merged it.*$/\1/p' "$EW/out" | tr -d '\r' | head -n 1; }
 # far NAME: a far file of one line, the login's own.
 far() {
     printf 'the far file\n' >"$RD/$1"
@@ -87,7 +88,8 @@ rc=$?
 copy=$(kept)
 [ "$rc" = 73 ] && grep -q "a line from podssh ssh" "$RD/edit-far" && ! grep -q "a line from the editor" "$RD/edit-far" \
     && [ -n "$copy" ] && grep -q "a line from the editor" "$copy" \
-    && ok edit.far_changed "a far file that podssh ssh changed meanwhile: exit 73, nothing sent, the copy kept and named" \
+    && grep -qF "rm -r $(dirname "$copy") once you merged it" "$EW/out" \
+    && ok edit.far_changed "a far file that podssh ssh changed meanwhile: exit 73, nothing sent, the copy kept and named, its directory too" \
     || bad edit.far_changed "a far file changed meanwhile: exit $rc" "$EW/out"
 
 # An editor that fails: nothing goes, podssh exits with its status, and
@@ -114,3 +116,16 @@ rc=$?
 env -u SSH_AUTH_SOCK -u VISUAL HOME="$W" EDITOR="$EW/add-line" "$BIN" edit --direct -P 2201 "$T:cp/edit-sftp" \
     </dev/null >"$EW/out" 2>&1
 expect_rc edit.no_terminal "edit with no terminal" 64 $? "$EW/out"
+
+# --no-terminal (T-510): the script edits with no terminal, within its
+# --timeout, and its line goes; stdout stays empty.
+far edit-script
+# shellcheck disable=SC2086
+env -u SSH_AUTH_SOCK -u VISUAL HOME="$W" EDITOR="$EW/add-line" PODSSH_CACHE_DIR="$EW/cache" \
+    "$BIN" edit --no-terminal --timeout 120s --direct -P 2201 -o UserKnownHostsFile="$KH" \
+    -o StrictHostKeyChecking=accept-new -o IdentityAgent=none -o IdentitiesOnly=yes -o BatchMode=yes $K \
+    "$T:cp/edit-script" </dev/null >"$EW/stdout" 2>"$EW/out"
+rc=$?
+[ "$rc" = 0 ] && [ ! -s "$EW/stdout" ] && [ "$(sum "$EW/want")" = "$(sum "$RD/edit-script")" ] \
+    && ok edit.no_terminal_script "edit --no-terminal: the script's line went with no terminal, stdout empty" \
+    || bad edit.no_terminal_script "edit --no-terminal: exit $rc" "$EW/out"

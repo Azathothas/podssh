@@ -5,9 +5,15 @@
 use super::{row, FlagKind, FlagRow};
 
 /// **`edit`.** One file of a server, fetched, changed in an editor here, and
-/// sent back. No `--timeout`: a person decides how long an edit takes, and
-/// each wait of the fetch and the send has its own limit.
+/// sent back. On a terminal no `--timeout`: a person decides how long an
+/// edit takes, and each wait of the fetch and the send has its own limit.
+/// `--no-terminal` runs an editor that needs none, a script, and takes the
+/// bound that `cp` takes (T-510).
 pub const EDIT_FLAGS: &[FlagRow] = &[
+    row(None, "no-terminal", None, FlagKind::Supported,
+        "run the editor with no terminal: no input, its output on stderr, for an editor that is a script; with no TTY it needs --timeout", None),
+    row(None, "timeout", Some("DURATION"), FlagKind::Supported,
+        "with --no-terminal, bound the editor's run (exit 75); required with no TTY (default: env PODSSH_TIMEOUT)", None),
     row(Some('P'), "port", Some("PORT"), FlagKind::Supported,
         "port to connect to; this is scp's -P", None),
     row(Some('i'), "identity-file", Some("FILE"), FlagKind::Supported,

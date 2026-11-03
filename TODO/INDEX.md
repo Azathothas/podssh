@@ -62,15 +62,15 @@ repository and CI).
 
 ## Counts
 
-**568 entries: 101 open, 5 partial, 16 blocked, 446 done.**
+**568 entries: 100 open, 5 partial, 16 blocked, 447 done.**
 
 | Priority | open | partial | blocked | done | total |
 | --- | --- | --- | --- | --- | --- |
 | P0 | 0 | 0 | 0 | 1 | 1 |
 | P1 | 0 | 1 | 0 | 62 | 63 |
 | P2 | 25 | 4 | 14 | 215 | 258 |
-| P3 | 76 | 0 | 2 | 168 | 246 |
-| **All** | 101 | 5 | 16 | 446 | 568 |
+| P3 | 75 | 0 | 2 | 169 | 246 |
+| **All** | 100 | 5 | 16 | 447 | 568 |
 
 ## Entries
 
@@ -574,7 +574,7 @@ repository and CI).
 | [T-507](release.md) | P3 | S | none | defect | done | `update` to a release with no `--rollback` names `--rollback` as the way back |
 | [T-508](copy.md) | P3 | S | none | feature | done | `scp` and `sftp` take no `--timeout`, where `cp` and `mv` need one with no terminal, and no manual says why |
 | [T-509](roads.md) | P2 | S | none | defect | done | The fallback to other products' forwarders follows a failure at the target, which no forwarder mends, and `doctor` counts it as checked |
-| [T-510](copy.md) | P3 | S | none | feature | open | `edit` with no terminal refuses an editor that needs none, and a copy kept after a conflict stays for ever |
+| [T-510](copy.md) | P3 | S | none | feature | done | `edit` with no terminal refuses an editor that needs none, and a copy kept after a conflict stays for ever |
 | [T-511](machine.md) | P3 | M | none | feature | done | `doctor` checks each road one after another, 22 to 40 s, roads that the run did not ask for among them |
 | [T-512](cli.md) | P3 | S | none | docs | open | The help and the manual leave out eight facts that the report of 2026-11-02 found by trial or after a refusal |
 | [T-530](mesh.md) | P2 | L | M10 | feature | open | OpenTunnel, a blind TLS tunnel with no account, as a carrier of the reverse road |
