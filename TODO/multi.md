@@ -72,7 +72,7 @@ succeeded. `podssh ssh` takes one destination, as OpenSSH does.
 ## Decision
 
 Recommendation: a new verb, because `podssh ssh` keeps the command line and
-the exit codes of OpenSSH for one host (`docs/cli.md:3775-3778`), and a list
+the exit codes of OpenSSH for one host (`docs/cli.md:3822-3825`), and a list
 of hosts changes both. The alternative, `podssh ssh --hosts LIST`, lost: one
 flag would change what the exit status means.
 
@@ -184,7 +184,7 @@ is not a shell. A set of hosts has no name.
   (`crates/podssh-cli/src/ssh/hop.rs:30-78`,
   `crates/podssh-ws/src/names.rs:10-32`).
 - Read: the `Host` lines of ssh_config are patterns, not lists
-  (`docs/cli.md:3927-4036`); they cannot define a group.
+  (`docs/cli.md:3974-4083`); they cannot define a group.
 
 ## Approach
 
@@ -1547,7 +1547,7 @@ of the command.
    quoted for a POSIX shell (T-187). When the copy used most of the 64 MiB
    (`docs/relay.md:229`), run the exec on a new session (T-137).
 4. The exit status: the command's, with the rules of `podssh ssh`
-   (`docs/cli.md:3775-3778`). A failed copy exits 255 and runs nothing.
+   (`docs/cli.md:3822-3825`). A failed copy exits 255 and runs nothing.
 5. In the same commit: the rows, the notes, an example, `docs/cli.md`,
    `docs/STATUS.md`. This entry depends on T-134 and T-143.
 
@@ -1814,7 +1814,7 @@ a ticket, or a tool that asks an AI.
   (`crates/podssh-ssh/src/log.rs:83-103`). The exit code leaves through
   `crates/podssh-cli/src/dispatch.rs:370-411`.
 - Read: for `podssh ssh`, an exit that is not 0 can be the remote command's
-  status (`docs/cli.md:3775-3778`), which is not a failure of podssh.
+  status (`docs/cli.md:3822-3825`), which is not a failure of podssh.
 
 ## Approach
 
@@ -2336,7 +2336,7 @@ defect: the dry run runs the command; the check that nothing ran fails.
 **Milestone:** none
 **Priority:** P2
 **Effort:** M
-**Status:** open
+**Status:** partial
 
 ## Problem
 
@@ -2348,23 +2348,24 @@ podssh are often containers and the sandboxes of agents, where these numbers dif
 
 ## Premise
 
-- Read: the script reads `/proc/loadavg`, `/proc/uptime`, `/proc/meminfo`, `/proc/stat` and
-  `/proc/net/dev`, and nothing of `/sys/fs/cgroup` (`crates/podssh-cli/src/health/script.rs:23-27`).
+- Read, before this entry's change: the script read `/proc/loadavg`, `/proc/uptime`,
+  `/proc/meminfo`, `/proc/stat` and `/proc/net/dev`, and nothing of `/sys/fs/cgroup`
+  (`crates/podssh-cli/src/health/script.rs:35-36`, `:50-52`).
 - Read: the CPUs are the count of the `cpuN` lines of `/proc/stat`
-  (`crates/podssh-cli/src/health/parse.rs:172-185`), and the memory is `MemTotal` and
-  `MemAvailable` of `/proc/meminfo` (`crates/podssh-cli/src/health/parse.rs:187-210`). The kernel
+  (`crates/podssh-cli/src/health/parse.rs:176-189`), and the memory is `MemTotal` and
+  `MemAvailable` of `/proc/meminfo` (`crates/podssh-cli/src/health/parse.rs:191-214`). The kernel
   gives these files for the whole host, not for a cgroup (Known: proc(5)); the reporter's
   measurement agrees (`memory.max` 4294967296, `cpu.max` `400000 100000`, `nproc` 48).
-- Read: the line of the load names the CPUs and not whose they are
-  (`crates/podssh-cli/src/health/show.rs:19-22`), and the line of the memory gives the total of
-  `/proc/meminfo` (`crates/podssh-cli/src/health/show.rs:26-37`); the JSON has `cpus` and `memory`
-  with no source (`crates/podssh-cli/src/health/show.rs:62-117`).
-- Read: the notes of the manual say that `health` reads those files of `/proc`
-  (`crates/podssh-cli/src/man/notes_health.rs:5-9`): the numbers are what the page says, and not
-  what a user of a container needs.
+- Read, before this entry's change: the line of the load named the CPUs and not whose they are
+  (`crates/podssh-cli/src/health/show.rs:25-30`), and the line of the memory gave the total of
+  `/proc/meminfo` (`crates/podssh-cli/src/health/show.rs:43-53`); the JSON had `cpus` and `memory`
+  with no source (`crates/podssh-cli/src/health/show.rs:81-138`).
+- Read, before this entry's change: the notes of the manual said that `health` reads those files
+  of `/proc` (`crates/podssh-cli/src/man/notes_health.rs:5-10`): the numbers are what the page
+  says, and not what a user of a container needs.
 - Read: a reader of the answer finds each section by its name, so a section that it does not use
-  is no fault (`crates/podssh-cli/src/health/parse.rs:89-113`); the script is one line with no
-  single quote and no `!`, which a test holds (`crates/podssh-cli/src/health/script.rs:52-61`).
+  is no fault (`crates/podssh-cli/src/health/parse.rs:92-116`); the script is one line with no
+  single quote and no `!`, which a test holds (`crates/podssh-cli/src/health/script.rs:99-108`).
 
 ## Approach
 
@@ -2411,6 +2412,22 @@ podssh are often containers and the sandboxes of agents, where these numbers dif
   as now, with the source `host`: a fact that the answer lacks is absent, never a guess
   (`crates/podssh-cli/src/health/parse.rs:1-6`). A host whose `/proc/meminfo` is already the
   container's (LXCFS) gives equal numbers from both, and nothing is counted twice.
+- (The draft, 2026-11-02.) The limits of each parent up to the mount's root are read too (`upN`
+  lines), and the least binds: a limit of a systemd slice above a login's scope binds the login as
+  its own would, and the kernel's `memory.max` and `cpu.max` of a cgroup do not show a parent's.
+  Lost: the cgroup's own files alone, the Approach's words, which miss a slice's limit on a host
+  with no container. A limit at or above the host's memory limits nothing (cgroup v1 writes its
+  "none" as 9223372036854771712, and LXCFS's `/proc/meminfo` is the limit already); a cpuset of
+  each CPU limits nothing; of a quota and a cpuset of the same count, the quota names it.
+- (The draft.) Where a limit's use was not read (no `memory.current`), the available memory is
+  absent rather than the limit, which would be a guess; the limit stays.
+- (The draft.) The lines of a host with no limit are those of before, but for the line of the
+  CPUs, which adds the cgroup's share of the CPUs where a cgroup was read: a script that reads the
+  lines keeps its patterns (the gate's `^load .* CPUs`), and the share is the container's own
+  measure. The pressure, `io.max` and `pids.max` lines come only where they hold something.
+- (The draft.) The script grew from about 900 bytes to about 3,300, one word still: Dropbear
+  refuses a command longer than its `MAX_CMD_LEN`, 9000 bytes (`mkj/dropbear:src/sysoptions.h`),
+  and a test holds the command under half of it.
 
 ## Prove
 
@@ -2427,6 +2444,95 @@ with their sources, and the host's facts beside them. In `scripts/interop-health
 container of the interop run with `--cpus 2 --memory 1g`: `effective.cpus` 2 and
 `effective.memory_total_kib` 1048576. Planted (new, t480-host-cpus): the effective CPUs from
 `/proc/stat` alone; the reader's test of the v2 answer and the interop check fail.
+
+## Correction
+
+(The draft, 2026-11-02.) The Prove's interop check named "the OpenSSH container of the interop
+run with `--cpus 2 --memory 1g`": the interop's OpenSSH is a process in the gate's own container
+(`scripts/interop.sh:77`), started by the script, and neither the gate nor a workflow gives that
+container a limit (no `--cpus` and no `--memory` in `scripts/` or `.github/workflows/`). So the
+check is in two parts. In the gate, `health.openssh.effective` and `health.dropbear.effective`
+(`scripts/interop-health.sh`) compare `effective` and `cgroup` of `--json` with what
+`scripts/cgroup-effective.py` reads, apart from podssh's code, of the cgroup that `cat
+/proc/self/cgroup` names in a session of the same server: the version, the directory, the least
+quota and cpuset, and the least limit of memory. The limits are measured by a harness of its
+own, `scripts/interop-cgroup.sh`, in containers of the runner's Docker
+(`.github/workflows/cgroup-interop.yml`, by hand and on a push that changes `health`; the release
+check's row `actions.cgroup`): `--cpus 1.5 --memory 1g` (1.5, not 2: a quota of 2 on a runner of 2
+CPUs would limit nothing, and the line then shows a part), `--cpuset-cpus 0`, no limit, and
+`--cgroupns host`. The fixtures of the Prove are written by hand in the kernel's forms
+(`Documentation/admin-guide/cgroup-v2.rst`, `cgroup-v1/memory.rst`, `cgroup-v1/cpusets.rst`,
+`scheduler/sched-bwc.rst`, `accounting/psi.rst`, read on 2026-11-02 through
+`read.web.pkgforge.dev`), on a host of 16 CPUs, as the fixture of Alpine is; the main session
+captures one of each version (Done). The plant fails the reader's test; the interop check of a
+limit is `cgroup.limited`, which the plant fails too, on a runner.
+
+## Done
+
+Drafted 2026-11-02 by an agent in a worktree, which built nothing; merged and measured by the main
+session on 2026-11-03; partial: `cgroup-interop.yml` waits for its run at the push.
+
+- The script (`crates/podssh-cli/src/health/script.rs`): after `@ processes`, a section `@
+  cgroup` with each line of `/proc/self/cgroup`; on cgroup v2 (`/sys/fs/cgroup/cgroup.controllers`
+  readable) the directory of the `0::` path, else the mount's root, its `memory.max`,
+  `memory.current`, `memory.swap.max`, `cpu.max`, `cpuset.cpus.effective`, `cpu.stat`, `io.max`,
+  `pids.max`, `pids.current`, `cpu.pressure`, `memory.pressure`, the `inactive_file` of
+  `memory.stat`, then `upN` lines of each parent's `memory.max`, `memory.current`, `inactive_file`
+  and `cpu.max`; on v1, each controller's directory (`v1 CONTROLLER DIR`) and its files; after the
+  `sleep 1`, `@ cgroup 2` with `cpu.stat` (v2) or `cpuacct.usage` (v1). Each file only where `[ -r
+  ]` finds it, with the shell's `read`; one word with no `'`, `!` or line break; the mark stays
+  `podssh-health 1`.
+- The reader (`crates/podssh-cli/src/health/cgroup.rs`, its tests in
+  `crates/podssh-cli/src/health/cgroup_tests.rs`): `Cgroup`, its levels, and `Effective` (`cpus`,
+  `cpus_from`, `memory_total_kib`, `memory_available_kib`, `memory_from`, `cpu_used`,
+  `cpu_busy`, `throttled`); `Facts::cgroup` (`crates/podssh-cli/src/health/parse.rs`).
+- The lines and the JSON (`crates/podssh-cli/src/health/show.rs`): `cpus 4 (cgroup v2 cpu.max),
+  16 on the host`; `memory 3.3 GiB available of 4.0 GiB (82 %, cgroup v2 memory.max); the host:
+  ...`; the load line ends with ": the whole host's" where a cgroup limits; the cpu line adds `the
+  cgroup's 62.5 % of 4 CPUs, throttled in 4 of 10 periods`; `pressure cpu 1.20 %, memory 0.00 %
+  of the last 10 s waiting (the cgroup's)`; `io ...` and `pids N of M` where they limit. The JSON
+  keeps each key, the host's, and adds `effective` and `cgroup`; the schema stays 1.
+- The manual: the notes of `health` (`crates/podssh-cli/src/man/notes_health.rs`, a paragraph
+  CONTAINERS and the JSON's keys), `--json`'s row (`crates/podssh-cli/src/flags/health.rs`);
+  `docs/cli.md` ("podssh health", four bullets).
+- Tests: `health::script` (the cgroup read as `/proc` is, both versions, the second sample after
+  the sleep; the command under half of Dropbear's bound), `health::cgroup::tests` (v2, v1, no
+  limit and no cgroup, a parent's limit, a cpuset, LXCFS and v1's huge "none", the bounded room,
+  a hidden cgroup, the count of a CPU list), `health::show::tests` (the lines of the three
+  containers, `io` and `pids`, the JSON); in `crates/podssh-cli/tests/health.rs`,
+  `a_container_gives_its_cgroup_s_cpus_and_memory` against the test's server, which answers a
+  user `health-v2-...`, `health-v1-...` or `health-free-...` with that container's answer
+  (`crates/podssh-cli/tests/ssh_harness/health.rs`, `Far::named` in
+  `crates/podssh-cli/tests/ssh_harness/far.rs`; `ssh_harness/mod.rs` keeps its 499 lines).
+  `cargo test -p podssh-cli --lib health::`: 26 passed; `cargo test -p podssh-cli --test
+  health`: 4 passed; `--test containers`, 7, and `--test copy_pipeline`, 4, with the harness's
+  `Far::named`.
+- The fixtures `crates/podssh-cli/tests/fixtures/health/container-v2.txt`, `container-v1.txt` and
+  `container-free.txt`, written by hand on a host of 16 CPUs and 62.8 GiB (Correction).
+  Measured in their place on 2026-11-03, on this host, which Docker
+  did not run: a cloud container of hybrid cgroups (v1 controllers, a v2 mount), whose memory
+  cgroup is a nested one of its own, through OpenSSH's sshd and `podssh health --direct`: "memory
+  11.4 GiB available of 13.4 GiB (85 %, cgroup v1 memory.limit_in_bytes); the host: 15.1 GiB
+  available of 15.7 GiB", the limit 14341885952 bytes as the file of that path says, and 4 CPUs
+  from the host, as `cpu.cfs_quota_us` is -1; `--json`'s `effective` and `cgroup` the same. The
+  containers of v2 with `--cpus 1.5 --memory 1g`: `cgroup-interop.yml` in Actions.
+- The interop: `scripts/interop-health.sh` (`health.openssh.effective`,
+  `health.dropbear.effective`; the load line's pattern is `^load .* CPUs`, as a limited host's
+  line ends with whose they are), `scripts/cgroup-effective.py`, `scripts/interop-cgroup.sh`
+  (`cgroup.limited`, `cgroup.lines`, `cgroup.cpuset`, `cgroup.free`, `cgroup.hostns`),
+  `scripts/interop-baseline.txt` (the floor of `health` 6, the harness `cgroup` 5),
+  `.github/workflows/cgroup-interop.yml`, and the rows `actions.cgroup` of
+  `scripts/release-check-catalog.sh`. Waiting: the gate's step `release` at the push (its interop's `health.*` and `cargo todo
+  interop`); `cgroup-interop.yml` at the push, each of its 5 checks; if Docker of the runner shows
+  no path in the host's tree with `--cgroupns host`, `cgroup.hostns` says so, and the verdict is
+  the main session's.
+- Planted: `scripts/plants/t480-host-cpus.plant` (the effective CPUs from `/proc/stat` alone):
+  `sh scripts/plant-each.sh --here t480-host-cpus`: caught, the test of the v2
+  answer failed.
+- The merge: clippy found a type too complex (`Cgroup::periods`), now `(Option<Periods>,
+  Option<Periods>)`; the harness's `Far::named` beside T-471's `Mangle`; `cargo todo remap` from
+  the tree before the draft; rustfmt and clippy of `podssh-cli` with `-D warnings`, all targets:
+  clean.
 
 # T-481: `job` and `--persist` on a host with no tmux: the command that installs it, and jobs with no tmux when asked
 
@@ -2573,7 +2679,7 @@ relay reaches; nothing reports the far side.
   `--via` is the second proxy of T-439 (`crates/podssh-cli/src/doctor/mod.rs:79-80`), so the
   issue's `doctor --via HOST` names a flag that exists.
 - Read: `podssh health` resolves the host as `ssh` does, logs in on the same road, and runs one
-  exec (`crates/podssh-cli/src/health/mod.rs:125-143`).
+  exec (`crates/podssh-cli/src/health/mod.rs:127-145`).
 - Read: what a preflight asks is in podssh already: the SFTP server's extensions
   (`crates/podssh-ssh/src/sftp/mod.rs:234-237`), the request of a remote forward
   (`crates/podssh-ssh/src/remote.rs:121-135`), a channel `direct-tcpip`

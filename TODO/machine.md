@@ -674,7 +674,7 @@ stdin and stdout gives typed tools, with no shell quoting.
 
 Measured: `podssh mcp` exits 64 (unknown subcommand).
 
-Read: a prompt goes to the controlling terminal or to `SSH_ASKPASS` (`docs/cli.md:3861-3886`),
+Read: a prompt goes to the controlling terminal or to `SSH_ASKPASS` (`docs/cli.md:3908-3933`),
 and the terminal of an agent can be the user's own. The session output goes straight to the
 process's stdout (`crates/podssh-ssh/src/io/msg.rs:78-95`), which an MCP server over stdio uses for
 its protocol. podssh never listens (`docs/architecture.md:208-223`), and stdio needs no listener.
@@ -1046,7 +1046,7 @@ work is one more command of the agent's own making. Each is a verb of podssh, wi
   (`crates/podssh-cli/src/flags/mcp.rs:8-15`): no tool reads or writes a file of this host.
 - Read: `job` has `start`, `list`, `log`, `wait` with `--timeout`, `fetch` and `stop`
   (`crates/podssh-cli/src/job/mod.rs:1-23`); `health --json` gives one object
-  (`crates/podssh-cli/src/health/show.rs:62-117`); `session` keeps a shell and its screen in a
+  (`crates/podssh-cli/src/health/show.rs:81-138`); `session` keeps a shell and its screen in a
   daemon of this host (T-186, T-382).
 
 ## Approach

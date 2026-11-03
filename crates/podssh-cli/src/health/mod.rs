@@ -1,6 +1,7 @@
 //! `podssh health [OPTIONS] [user@]host` (T-189): the facts of the far host
 //! (load, CPUs, memory and swap, uptime, network bytes and their rate over
-//! one second, disks, processes), from one command that only reads. The
+//! one second, disks, processes, and the limits of its cgroup, T-480), from
+//! one command that only reads. The
 //! host is resolved as `podssh ssh` resolves its destination, reached on the
 //! same road, and logged in to by the same SSH client; then one exec runs a
 //! fixed script ([`script`]), whose answer is read ([`parse`]) and shown,
@@ -11,6 +12,7 @@
 //! failure (no connection, no login, no `sh`, no answer); 64 and 78 before
 //! anything connects.
 
+pub mod cgroup;
 pub mod parse;
 pub mod script;
 pub mod show;

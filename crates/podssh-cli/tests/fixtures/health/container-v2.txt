@@ -1,0 +1,115 @@
+A fixture of T-480: the answer of the script of podssh health in a container
+run with --cpus 4 --memory 4g on cgroup v2, in its own cgroup namespace, on a
+host of 16 CPUs and 62.8 GiB; written by hand in the forms of the kernel's
+cgroup-v2.rst and psi.rst, not captured. The main session captures one with
+docker run or podman run in the build image (T-480's Done).
+podssh-health 1
+@ loadavg
+2.10 1.80 1.50 3/412 2345
+@ uptime
+5000.00 70000.00
+@ meminfo
+MemTotal:       65842388 kB
+MemFree:        20000000 kB
+MemAvailable:   41234560 kB
+Buffers:          500000 kB
+Cached:         18000000 kB
+SwapCached:            0 kB
+SwapTotal:             0 kB
+SwapFree:              0 kB
+@ stat
+cpu  1000000 0 200000 7000000 10000 0 5000 0 0 0
+cpu0 62500 0 12500 437500 625 0 312 0 0 0
+cpu1 62500 0 12500 437500 625 0 312 0 0 0
+cpu2 62500 0 12500 437500 625 0 312 0 0 0
+cpu3 62500 0 12500 437500 625 0 312 0 0 0
+cpu4 62500 0 12500 437500 625 0 312 0 0 0
+cpu5 62500 0 12500 437500 625 0 312 0 0 0
+cpu6 62500 0 12500 437500 625 0 312 0 0 0
+cpu7 62500 0 12500 437500 625 0 312 0 0 0
+cpu8 62500 0 12500 437500 625 0 313 0 0 0
+cpu9 62500 0 12500 437500 625 0 313 0 0 0
+cpu10 62500 0 12500 437500 625 0 313 0 0 0
+cpu11 62500 0 12500 437500 625 0 313 0 0 0
+cpu12 62500 0 12500 437500 625 0 313 0 0 0
+cpu13 62500 0 12500 437500 625 0 313 0 0 0
+cpu14 62500 0 12500 437500 625 0 313 0 0 0
+cpu15 62500 0 12500 437500 625 0 313 0 0 0
+ctxt 81234567
+btime 1762000000
+processes 412345
+procs_running 3
+procs_blocked 0
+@ net/dev
+Inter-|   Receive                                                |  Transmit
+ face |bytes    packets errs drop fifo frame compressed multicast|bytes    packets errs drop fifo colls carrier compressed
+    lo:       0       0    0    0    0     0          0         0        0       0    0    0    0     0       0          0
+  eth0: 52428800   40000    0    0    0     0          0         0  1048576    9000    0    0    0     0       0          0
+@ processes
+9
+@ cgroup
+self 0::/
+v2 /sys/fs/cgroup/
+memory.max 4294967296
+memory.current 1073741824
+memory.swap.max max
+cpu.max 400000 100000
+cpuset.cpus.effective 0-15
+cpu.stat usage_usec 81234567
+cpu.stat user_usec 61234567
+cpu.stat system_usec 20000000
+cpu.stat nr_periods 41000
+cpu.stat nr_throttled 1200
+cpu.stat throttled_usec 9876543
+cpu.stat nr_bursts 0
+cpu.stat burst_usec 0
+pids.max max
+pids.current 23
+cpu.pressure some avg10=1.20 avg60=0.80 avg300=0.50 total=123456789
+cpu.pressure full avg10=0.00 avg60=0.00 avg300=0.00 total=0
+memory.pressure some avg10=0.00 avg60=0.00 avg300=0.00 total=1234
+memory.pressure full avg10=0.00 avg60=0.00 avg300=0.00 total=1000
+memory.stat inactive_file 314572800
+@ stat 2
+cpu  1000300 0 200100 7001200 10000 0 5000 0 0 0
+cpu0 62519 0 12506 437575 625 0 312 0 0 0
+cpu1 62519 0 12506 437575 625 0 312 0 0 0
+cpu2 62519 0 12506 437575 625 0 312 0 0 0
+cpu3 62519 0 12506 437575 625 0 312 0 0 0
+cpu4 62519 0 12506 437575 625 0 312 0 0 0
+cpu5 62519 0 12506 437575 625 0 312 0 0 0
+cpu6 62519 0 12506 437575 625 0 312 0 0 0
+cpu7 62519 0 12506 437575 625 0 312 0 0 0
+cpu8 62519 0 12506 437575 625 0 313 0 0 0
+cpu9 62519 0 12506 437575 625 0 313 0 0 0
+cpu10 62519 0 12506 437575 625 0 313 0 0 0
+cpu11 62519 0 12506 437575 625 0 313 0 0 0
+cpu12 62519 0 12506 437575 625 0 313 0 0 0
+cpu13 62519 0 12506 437575 625 0 313 0 0 0
+cpu14 62519 0 12506 437575 625 0 313 0 0 0
+cpu15 62519 0 12506 437575 625 0 313 0 0 0
+ctxt 81236000
+btime 1762000000
+processes 412350
+procs_running 2
+procs_blocked 0
+@ uptime 2
+5001.00 70012.00
+@ net/dev 2
+Inter-|   Receive                                                |  Transmit
+ face |bytes    packets errs drop fifo frame compressed multicast|bytes    packets errs drop fifo colls carrier compressed
+    lo:       0       0    0    0    0     0          0         0        0       0    0    0    0     0       0          0
+  eth0: 52430848   40002    0    0    0     0          0         0  1049600    9002    0    0    0     0       0          0
+@ cgroup 2
+cpu.stat usage_usec 83734567
+cpu.stat user_usec 63234567
+cpu.stat system_usec 20500000
+cpu.stat nr_periods 41010
+cpu.stat nr_throttled 1204
+cpu.stat throttled_usec 9906543
+cpu.stat nr_bursts 0
+cpu.stat burst_usec 0
+@ df
+Filesystem     1024-blocks     Used Available Capacity Mounted on
+overlay          61255492 21386712  36727456      37% /
+@ end

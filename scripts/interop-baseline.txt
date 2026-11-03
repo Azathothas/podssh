@@ -27,7 +27,7 @@ harness result interop 13 scripts/interop-result.sh
 harness mcp interop 4 scripts/interop-mcp.sh
 harness each interop 7 scripts/interop-each.sh
 harness snippets interop 7 scripts/interop-snippets.sh
-harness health interop 4 scripts/interop-health.sh
+harness health interop 6 scripts/interop-health.sh
 harness containers interop 8 scripts/interop-containers.sh
 harness expect interop 6 scripts/interop-expect.sh
 harness broadcast interop 3 scripts/interop-broadcast.sh
@@ -66,6 +66,7 @@ harness vless vless 14 scripts/interop-vless.sh
 harness wstunnel wstunnel 12 scripts/interop-wstunnel.sh
 harness acme acme 8 scripts/interop-acme.sh
 harness go-ssh go-ssh 8 scripts/interop-go-ssh.sh
+harness cgroup cgroup 5 scripts/interop-cgroup.sh
 
 # scripts/interop.sh
 ssh.exit.dropbear.0 pass
@@ -734,8 +735,10 @@ snippets.declined pass
 snippets.each pass
 # scripts/interop-health.sh
 health.openssh.memory pass
+health.openssh.effective pass
 health.openssh.lines pass
 health.dropbear.memory pass
+health.dropbear.effective pass
 health.dropbear.lines pass
 
 # scripts/interop-containers.sh
@@ -859,3 +862,9 @@ go-ssh.quiet.success.default pass
 go-ssh.quiet.success.interval pass
 go-ssh.forward.warn pass
 go-ssh.forward.exit pass
+# scripts/interop-cgroup.sh
+cgroup.limited pass
+cgroup.lines pass
+cgroup.cpuset pass
+cgroup.free pass
+cgroup.hostns pass

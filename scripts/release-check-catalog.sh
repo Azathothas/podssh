@@ -61,6 +61,7 @@ actions.service|both|T-121|GitHub Actions|0|service-live.yml at the commit: a no
 actions.via|both|T-439|GitHub Actions|0|via-interop.yml at the commit: --via through Caddy's forwardproxy and squid over TLS
 actions.wstunnel|both|T-441|GitHub Actions|0|wstunnel-interop.yml at the commit: --wstunnel through wstunnel 11.1.0's own server, ws:// and wss://
 actions.gossh|both|T-460|GitHub Actions|0|go-ssh-interop.yml at the commit: a quiet session and a refused -R against a server of Go's x/crypto/ssh
+actions.cgroup|both|T-480|GitHub Actions|0|cgroup-interop.yml at the commit: health in containers of --cpus 1.5 --memory 1g, a cpuset, no limit, and the host's namespace
 actions.deny|both|T-341|GitHub Actions|0|deny.yml at the commit: advisories, licenses, sources
 EOF
 }
@@ -95,6 +96,7 @@ actions.service|service|service-live.yml|unit:1|commit|gh workflow run service-l
 actions.via|via|via-interop.yml|interop:1|commit|gh workflow run via-interop.yml --ref REF
 actions.wstunnel|wstunnel|wstunnel-interop.yml|interop:1|commit|gh workflow run wstunnel-interop.yml --ref REF
 actions.gossh|gossh|go-ssh-interop.yml|interop:1|commit|gh workflow run go-ssh-interop.yml --ref REF
+actions.cgroup|cgroup|cgroup-interop.yml|interop:1|commit|gh workflow run cgroup-interop.yml --ref REF
 actions.deny|deny|deny.yml|deny:1|commit|the push of the commit starts it: gh run list -w deny.yml -c COMMIT
 EOF
 }

@@ -1,0 +1,11 @@
+--- a/crates/podssh-cli/src/health/cgroup.rs
++++ b/crates/podssh-cli/src/health/cgroup.rs
+@@ -293,7 +293,7 @@
+ /// an earlier one keeps the earlier's name.
+ fn cpus_of(cg: Option<&Cgroup>, host: Option<f64>) -> (Option<f64>, &'static str) {
+     let mut best = (host, HOST);
+-    let Some(cg) = cg else { return best };
++    let Some(cg) = cg.filter(|_| false) else { return best };
+     let v2 = cg.version == 2;
+     let mut candidates: Vec<(f64, &'static str)> = Vec::new();
+     for (i, level) in cg.levels.iter().enumerate() {

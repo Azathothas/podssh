@@ -7,6 +7,7 @@
 
 use podssh_ssh::exec::Captured;
 
+use super::cgroup::Cgroup;
 use super::script::MARK;
 
 /// The sections of an answer, each with its lines, in order.
@@ -65,6 +66,8 @@ pub struct Facts {
     pub network: Vec<Interface>,
     pub disks: Vec<Disk>,
     pub processes: Option<u64>,
+    /// The cgroup of the far shell, where the host lets it be read (T-480).
+    pub cgroup: Option<Cgroup>,
 }
 
 /// The facts of a run of the script, or why it gave none: no `sh` (the
@@ -155,6 +158,7 @@ pub fn facts(sections: &[(String, Vec<String>)]) -> Facts {
         network,
         disks: section(sections, "df").map(disks).unwrap_or_default(),
         processes: first_line(sections, "processes").and_then(|l| l.trim().parse().ok()),
+        cgroup: section(sections, "cgroup").and_then(|first| super::cgroup::read(first, section(sections, "cgroup 2"))),
     }
 }
 

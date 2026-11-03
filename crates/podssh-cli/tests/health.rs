@@ -1,7 +1,8 @@
 //! `podssh health` (T-189) against the test's SSH server, which answers its
-//! script as a Debian host does (`ssh_harness/health.rs`): one line for
-//! each fact, the same facts as one JSON object, and the codes of a
-//! failure. The reader of the answer has its own tests (`health::parse`).
+//! script as a Debian host does (`ssh_harness/health.rs`), or as a container
+//! with the limits of a cgroup does (T-480): one line for each fact, the
+//! same facts as one JSON object, and the codes of a failure. The reader of
+//! the answer has its own tests (`health::parse`, `health::cgroup`).
 
 mod cleanup;
 mod ssh_harness;
@@ -41,11 +42,16 @@ struct Ran {
 
 /// `podssh health --direct -p PORT ARGS u@127.0.0.1`.
 fn health(dir: &Path, port: u16, args: &[&str]) -> Ran {
+    health_as(dir, port, "u", args)
+}
+
+/// [`health`] as `user`, whose name says what the server answers.
+fn health_as(dir: &Path, port: u16, user: &str, args: &[&str]) -> Ran {
     let mut cmd = Command::new(env!("CARGO_BIN_EXE_podssh"));
     cmd.args(["health", "--direct", "-p", &port.to_string(), "-o", "BatchMode=yes", "-o", "IdentityAgent=none"]);
     cmd.args(["-o", "StrictHostKeyChecking=accept-new", "-o"]);
     cmd.arg(format!("UserKnownHostsFile={}", dir.join("known_hosts").display()));
-    cmd.args(args).arg("u@127.0.0.1");
+    cmd.args(args).arg(format!("{user}@127.0.0.1"));
     cmd.env("PODSSH_SSH_CONFIG", "none").env("PODSSH_SETTINGS", "none").env("HOME", dir).env("USERPROFILE", dir);
     for name in ["PODSSH_OFFLINE", "HTTPS_PROXY", "https_proxy", "ALL_PROXY", "all_proxy", "SSH_AUTH_SOCK"] {
         cmd.env_remove(name);
@@ -98,6 +104,53 @@ fn the_json_is_one_object() {
     assert_eq!(doc["network"][0]["interface"], "eth0", "{doc}");
     assert_eq!(doc["disks"].as_array().map(Vec::len), Some(1), "{doc}");
     assert_eq!((doc["processes"].as_u64(), doc["error"].as_str()), (Some(146), None), "{doc}");
+}
+
+/// A container of 4 CPUs and 4 GiB on a host of 16 (T-480): the lines give
+/// its own CPUs and memory with their sources, the host's beside them, and
+/// the JSON keeps the host's keys and adds `effective` and `cgroup`; a host
+/// with no cgroup gives `effective` too, from the host.
+#[test]
+fn a_container_gives_its_cgroup_s_cpus_and_memory() {
+    let dir = scratch("cgroup");
+    let (_runtime, port) = server(&dir);
+    let ran = health_as(&dir, port, "health-v2-u", &[]);
+    assert_eq!(ran.code, Some(0), "{}", ran.err);
+    let lines: Vec<&str> = ran.out.lines().collect();
+    for want in [
+        "load 2.10 1.80 1.50 (1, 5 and 15 min), 16 CPUs: the whole host's",
+        "cpus 4 (cgroup v2 cpu.max), 16 on the host",
+        "cpu 25.0 % busy over 1.0 s, the host's; the cgroup's 62.5 % of 4 CPUs, throttled in 4 of 10 periods",
+    ] {
+        assert!(lines.contains(&want), "{want}: {}", ran.out);
+    }
+    let memory = lines.iter().find(|l| l.starts_with("memory ")).expect("the memory's line");
+    assert!(
+        memory.starts_with("memory 3.3 GiB available of 4.0 GiB (82 %, cgroup v2 memory.max); the host: "),
+        "{memory}"
+    );
+    for (user, cpus_from, memory_from) in [
+        ("health-v2-u", "cgroup v2 cpu.max", "cgroup v2 memory.max"),
+        ("health-v1-u", "cgroup v1 cfs_quota_us", "cgroup v1 memory.limit_in_bytes"),
+    ] {
+        let ran = health_as(&dir, port, user, &["--json"]);
+        assert_eq!(ran.code, Some(0), "{user}: {}", ran.err);
+        let doc: Value = serde_json::from_str(&ran.out).unwrap_or_else(|e| panic!("{e}: {}", ran.out));
+        assert_eq!((doc["cpus"].as_u64(), doc["memory"]["total_kib"].as_u64()), (Some(16), Some(65842388)), "{doc}");
+        let e = &doc["effective"];
+        assert_eq!((e["cpus"].as_f64(), e["cpus_from"].as_str()), (Some(4.0), Some(cpus_from)), "{user}: {doc}");
+        assert_eq!(e["memory_total_kib"], 4 * 1024 * 1024, "{user}: {doc}");
+        assert_eq!(e["memory_from"], memory_from, "{user}: {doc}");
+        assert!(doc["cgroup"]["version"].is_u64(), "{user}: {doc}");
+    }
+    let ran = health_as(&dir, port, "health-free-u", &["--json"]);
+    let doc: Value = serde_json::from_str(&ran.out).unwrap_or_else(|e| panic!("{e}: {}", ran.out));
+    let e = &doc["effective"];
+    assert_eq!((e["cpus"].as_f64(), e["cpus_from"].as_str()), (Some(16.0), Some("host")), "{doc}");
+    assert_eq!(e["memory_from"], "host", "{doc}");
+    let ran = health(&dir, port, &["--json"]);
+    let doc: Value = serde_json::from_str(&ran.out).unwrap_or_else(|e| panic!("{e}: {}", ran.out));
+    assert_eq!((doc["effective"]["cpus"].as_f64(), doc["cgroup"].clone()), (Some(2.0), Value::Null), "{doc}");
 }
 
 /// A failure gives the code of `podssh ssh`, 255, and says why on stderr;

@@ -62,15 +62,15 @@ repository and CI).
 
 ## Counts
 
-**547 entries: 116 open, 2 partial, 16 blocked, 413 done.**
+**547 entries: 115 open, 3 partial, 16 blocked, 413 done.**
 
 | Priority | open | partial | blocked | done | total |
 | --- | --- | --- | --- | --- | --- |
 | P0 | 0 | 0 | 0 | 1 | 1 |
 | P1 | 0 | 2 | 0 | 58 | 60 |
-| P2 | 33 | 0 | 14 | 199 | 246 |
+| P2 | 32 | 1 | 14 | 199 | 246 |
 | P3 | 83 | 0 | 2 | 155 | 240 |
-| **All** | 116 | 2 | 16 | 413 | 547 |
+| **All** | 115 | 3 | 16 | 413 | 547 |
 
 ## Entries
 
@@ -544,7 +544,7 @@ repository and CI).
 | [T-474](copy.md) | P2 | S | none | feature | open | `cp` copies many small files one at a time unless `--parallel` is given |
 | [T-475](multi.md) | P3 | S | none | feature | open | `podssh run` has no `--dry-run`, and its help names neither `.podsshignore` nor the paths that never go |
 | [T-476](copy.md) | P2 | S | none | defect | done | `cp -r` says its first failure twice, and exits 66 for a device, FIFO or socket that it skips by design |
-| [T-480](multi.md) | P2 | M | none | defect | open | `health` gives the host's CPUs and memory where a container's cgroup allows fewer |
+| [T-480](multi.md) | P2 | M | none | defect | partial | `health` gives the host's CPUs and memory where a container's cgroup allows fewer |
 | [T-481](multi.md) | P2 | M | none | feature | open | `job` and `--persist` on a host with no tmux: the command that installs it, and jobs with no tmux when asked |
 | [T-482](multi.md) | P2 | L | none | feature | open | `health --preflight`: what the far host allows, from one login, before a long command needs it |
 | [T-483](pipe.md) | P3 | S | none | feature | open | `http-listen:` takes `ssh:[USER@]HOP` with no target, and `pipe --help` shows the proxy of an SSH server with its client |

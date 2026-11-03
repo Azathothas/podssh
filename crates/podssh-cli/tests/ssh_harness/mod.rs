@@ -103,7 +103,7 @@ impl server::Handler for Far {
         // `pass-pty-...` is both: a password, then a pty (T-382).
         self.pty = user.trim_start_matches("pass-").starts_with("pty-");
         self.mangle = sftp::Mangle::of(user);
-        self.containers = user.starts_with("containers-").then(|| user.to_string());
+        self.named(user);
         self.nofwd = pass::refuses_forwarding(user);
         self.mute = pass::mutes_forwarding(user);
         self.gone = gone::of(user);
@@ -315,7 +315,7 @@ impl server::Handler for Far {
             self.elevated.insert(channel, Elevated::new(prompt, started, self.deaf));
             return Ok(());
         }
-        if let Some(answered) = health::answer(&command, channel, session) {
+        if let Some(answered) = health::answer(self.health, &command, channel, session) {
             return answered;
         }
         if let Some(ended) = ends::ended(&command, channel, session) {
