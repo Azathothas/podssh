@@ -22,7 +22,7 @@ use tokio::io::{AsyncRead, AsyncWrite, AsyncWriteExt, DuplexStream, ReadBuf};
 use tokio::sync::{mpsc, watch};
 
 use super::args::ChatArgs;
-use super::converse::{converse_until, Ended, Options};
+use super::converse::{converse_until, Ended, Once, Options};
 use super::lines::Lines;
 use super::output::Output;
 use super::run::{self, Until, CLOSE_WAIT};
@@ -130,8 +130,27 @@ pub(super) async fn run<W: AsyncWrite + Unpin>(
     let (exit, (ended, lost)) = tokio::join!(node_part, talk_part);
     match crate::node::ended(&label, exit) {
         Some((fault, why)) => run::refused(fault.code(), why, lines, out).await,
-        None => run::finish(&ended, lost, lines, out).await,
+        None => run::finish_planned(&ended, lost, opts.linger, lines, out).await,
     }
+}
+
+/// The side that waits over the streams of `peers`, in place of the
+/// sessions of a road: the conversations one peer at a time, as `--listen`
+/// holds them, until the `timeout`, a signal, `/quit`, or the end of
+/// `peers`, which ends it as a road that ended; its exit code, with the end
+/// said. The tests drive it in memory.
+pub async fn listen_over<W: AsyncWrite + Unpin>(
+    mut peers: mpsc::Receiver<DuplexStream>,
+    lines: &mut Lines,
+    out: &mut Output<W>,
+    opts: Options,
+    timeout: Option<Duration>,
+) -> i32 {
+    // No road ends under it: the flag stays down while this runs.
+    let (_road, gone) = watch::channel(false);
+    let until = Until::after(timeout);
+    let (ended, lost) = talk("listener", &mut peers, lines, out, &opts, until, gone, "no more peers").await;
+    run::finish_planned(&ended, lost, opts.linger, lines, out).await
 }
 
 /// The conversations, one peer at a time, until the run ends: its end, and
@@ -168,6 +187,7 @@ pub(super) async fn talk<W: AsyncWrite + Unpin>(
                 }
             }
         };
+        let taken = lines.taken();
         let summary = {
             let conversation = converse_until(stream, lines, out, opts.clone(), stop);
             tokio::pin!(conversation);
@@ -185,9 +205,21 @@ pub(super) async fn talk<W: AsyncWrite + Unpin>(
                     out.notice("waiting", json!({}), "the peer left; podssh waits for the next".into()).await;
                 }
             }
+            // A listener with no stdin to keep open left as its peer came:
+            // its end says why, or the peer's "the peer left" looks like a
+            // fault of the delivery.
+            Ended::Done if for_want_of_input(lines, opts, taken) => {
+                return (Ended::InputEnded, summary.undelivered.len())
+            }
             ended => return (ended, summary.undelivered.len()),
         }
     }
+}
+
+/// Whether a conversation that ended as done ended only as the input was
+/// over: no `--linger`, no one thing, no line of it taken, and none to come.
+fn for_want_of_input(lines: &Lines, opts: &Options, taken: u64) -> bool {
+    !opts.linger && matches!(opts.once, Once::No) && lines.taken() == taken && lines.done()
 }
 
 /// Once the flag is up, or its sender is gone.

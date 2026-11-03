@@ -1,0 +1,11 @@
+--- a/crates/podssh-cli/src/chat/converse.rs
++++ b/crates/podssh-cli/src/chat/converse.rs
+@@ -164,7 +164,7 @@
+     }
+     // With --linger the input's end ends nothing: the peer leaves, or the run
+     // ends.
+-    let lingers = talk.opts.linger;
++    let lingers = false;
+     let ended = loop {
+         if let Some(ended) = talk.finished(input_open || lingers) {
+             break ended;

@@ -25,6 +25,8 @@ pub struct ChatArgs {
     pub nick: Option<String>,
     /// This side waits, as the node of the pair.
     pub listen: bool,
+    /// With `--listen`: the end of stdin ends no conversation.
+    pub linger: bool,
     /// With `--listen`: the iroh road too.
     pub iroh: bool,
     /// The key of the side that waits.
@@ -61,6 +63,7 @@ impl ChatArgs {
             accept_dir: get("accept-dir"),
             nick: get("nick"),
             listen: m.get_flag("listen"),
+            linger: m.get_flag("linger"),
             iroh: m.get_flag("iroh"),
             key: get("key"),
             ephemeral_key: m.get_flag("ephemeral-key"),
@@ -125,6 +128,18 @@ pub(super) fn plan(args: &ChatArgs) -> Result<Plan, Refusal> {
     if things.iter().filter(|given| **given).count() > 1 {
         return Err(Refusal::usage("--send, --sendfile and --file each give the run its one thing: give one"));
     }
+    // With --irc, its own refusal names the flags of the roads.
+    if args.linger && !args.listen && args.irc.is_none() {
+        return Err(Refusal::usage("--linger is for the side that waits: add --listen"));
+    }
+    // A listener of --sendfile, like one of `< FILE`, may stay: its first
+    // lines go to the first peer.
+    if args.linger && (args.send.is_some() || args.file.is_some()) {
+        return Err(Refusal::usage(
+            "--linger keeps the listener for each peer, and --send and --file end the run once their one thing \
+             is done: give one",
+        ));
+    }
     if let Some(text) = &args.send {
         if text.len() > MAX_TEXT {
             return Err(Refusal::usage(format!(
@@ -143,6 +158,7 @@ pub(super) fn plan(args: &ChatArgs) -> Result<Plan, Refusal> {
         accept_dir: accept_dir(args.accept_dir.as_deref())?,
         here: std::env::current_dir().unwrap_or_else(|_| PathBuf::from(".")),
         once: once(args)?,
+        linger: args.linger,
     };
     let input = match (&args.sendfile, &opts.once) {
         (Some(path), _) => Input::File(

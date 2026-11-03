@@ -24,8 +24,8 @@ const CHUNKS_QUEUED: usize = 8;
 /// What one run does besides talking.
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub enum Once {
-    /// Talk until stdin ends and each message and file went, or the peer
-    /// leaves.
+    /// Talk until stdin ends and each message and file went (never with
+    /// `linger`), or the peer leaves.
     No,
     /// Send this message, and end once it is acknowledged.
     Send(String),
@@ -42,6 +42,10 @@ pub struct Options {
     /// Where an accept with no path puts a file.
     pub here: PathBuf,
     pub once: Once,
+    /// `--listen --linger`: the end of the input ends no conversation, so a
+    /// listener with no stdin to keep open (a service's, an agent's) stays
+    /// for each peer until it leaves.
+    pub linger: bool,
 }
 
 /// How the conversation ended.
@@ -50,6 +54,9 @@ pub enum Ended {
     /// stdin ended (or `/quit`) and each message and file went, or the one
     /// thing of `--send` or `--file` is done.
     Done,
+    /// `--listen` with no `--linger`: stdin had ended, so the conversation
+    /// ended with nothing of this side's to send.
+    InputEnded,
     /// The peer ended the conversation.
     PeerLeft,
     /// The side that waits has another peer.
@@ -155,8 +162,11 @@ where
     if let Err(why) = talk.start(out).await {
         return talk.end(Ended::Failed(why));
     }
+    // With --linger the input's end ends nothing: the peer leaves, or the run
+    // ends.
+    let lingers = talk.opts.linger;
     let ended = loop {
-        if let Some(ended) = talk.finished(input_open) {
+        if let Some(ended) = talk.finished(input_open || lingers) {
             break ended;
         }
         tokio::select! {

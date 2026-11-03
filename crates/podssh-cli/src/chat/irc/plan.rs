@@ -32,6 +32,7 @@ pub struct IrcPlan {
 pub fn plan(args: &ChatArgs, server: &str, channel: &str) -> Result<IrcPlan, Refusal> {
     let roads = [
         ("--listen", args.listen),
+        ("--linger", args.linger),
         ("--iroh", args.iroh),
         ("--key", args.key.is_some()),
         ("--ephemeral-key", args.ephemeral_key),

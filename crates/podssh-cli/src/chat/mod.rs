@@ -22,4 +22,5 @@ mod talk;
 pub use args::ChatArgs;
 pub use converse::{converse, converse_until, Ended, Once, Options, Summary};
 pub use lines::Lines;
+pub use listen::listen_over;
 pub use run::run_chat;

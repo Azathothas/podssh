@@ -3403,6 +3403,17 @@ rules behind it:
   give a run its one thing, and at most one is given. `--timeout` is
   required with no terminal: a run that waits for a peer has nobody to stop
   it.
+- **A listener that stays.** The end of stdin ends a listener once each line
+  went, which `--listen NAME < lines` relies on; so a listener that a
+  service or an agent starts with stdin at `/dev/null` leaves as its first
+  peer comes, and its end says that stdin ended (`input-ended` in
+  `--jsonl`). `--linger` (T-489) keeps it: the end of stdin ends no
+  conversation, and the listener waits for the next peer until `--timeout`,
+  a signal or `/quit`; the `--timeout` is then the run's planned end, with
+  exit 0 when each message went. A flag with no value, as `--timeout`
+  bounds the run already; it opens no socket, as the listener connects out
+  to the relay. With `--send` or `--file`, which end the run once done, it
+  is a usage error.
 - **IRC second.** `--irc SERVER` talks in a channel of a network, with TLS
   inside the relay stream unless `--irc-plaintext` names the risk, and over
   TCP with `--direct`, as `ssh --direct`; the flags of the roads' keys do

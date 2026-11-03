@@ -29,6 +29,14 @@ pub(super) const CHAT: &[&str] = &[
      message and ends once it is acknowledged; --file PATH offers one file and ends once it arrived \
      whole; --sendfile FILE sends each line of FILE in place of stdin. The exit is 0 only when each message \
      was acknowledged; the other codes are in EXIT STATUS.",
+    "With --listen, the end of stdin ends the listener once each line went: a listener that a service, \
+     an entrypoint or an agent starts with stdin at /dev/null leaves as its first peer comes, and says \
+     that stdin ended (in --jsonl, the end input-ended). --linger keeps it: the end of stdin ends no \
+     conversation, each conversation ends when the peer leaves, and the listener then waits for the next \
+     peer, until --timeout, a signal or /quit. With --linger the --timeout is the run's planned end, and \
+     the exit is 0 when each message was acknowledged, as at SIGTERM. The lines of stdin or of --sendfile \
+     that came before go to the first peer. The listener connects out to the relay, as each node does: \
+     --linger opens no socket.",
     "While no peer is there, the lines wait in memory, 1000 lines or 1 MiB at most; podssh then reads no \
      more until some go, and says so. Nothing goes to disk. When the peer leaves, the side that waits \
      takes the next one, and the side that reaches tries again each 5 s, as it does while the node is \

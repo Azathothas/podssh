@@ -62,15 +62,15 @@ repository and CI).
 
 ## Counts
 
-**563 entries: 120 open, 1 partial, 16 blocked, 426 done.**
+**563 entries: 119 open, 1 partial, 16 blocked, 427 done.**
 
 | Priority | open | partial | blocked | done | total |
 | --- | --- | --- | --- | --- | --- |
 | P0 | 0 | 0 | 0 | 1 | 1 |
 | P1 | 0 | 1 | 0 | 62 | 63 |
 | P2 | 36 | 0 | 14 | 204 | 254 |
-| P3 | 84 | 0 | 2 | 159 | 245 |
-| **All** | 120 | 1 | 16 | 426 | 563 |
+| P3 | 83 | 0 | 2 | 160 | 245 |
+| **All** | 119 | 1 | 16 | 427 | 563 |
 
 ## Entries
 
@@ -553,7 +553,7 @@ repository and CI).
 | [T-486](machine.md) | P3 | M | none | feature | open | `--result-file` for `cp`, `mv`, `scp`, `run` and `sftp`, in the schema of `ssh --result-file` |
 | [T-487](ws.md) | P3 | S | none | feature | open | `doctor` says once that each TLS handshake was reset, and tells a reset from a timeout |
 | [T-488](machine.md) | P3 | L | none | feature | open | `podssh mcp` offers `cp`, `job`, `health` and `session` as tools, behind the gate of `ssh_exec` |
-| [T-489](irc.md) | P3 | S | none | feature | open | `chat --listen --linger`: a listener that stays for each peer after its input ended |
+| [T-489](irc.md) | P3 | S | none | feature | done | `chat --listen --linger`: a listener that stays for each peer after its input ended |
 | [T-490](mesh.md) | P2 | M | M10 | feature | open | chisel's protocol: a chisel server as the road |
 | [T-491](mesh.md) | P3 | M | M10 | feature | open | Trojan over TLS and over a WebSocket |
 | [T-492](mesh.md) | P3 | M | M10 | feature | open | Shadowsocks 2022 (SIP022) for `--shadowsocks` |

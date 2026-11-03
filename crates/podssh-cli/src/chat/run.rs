@@ -59,7 +59,7 @@ pub fn run_chat(
             return Fault::SessionFault.code();
         }
     };
-    let until = Until { deadline: deadline.map(|d| Instant::now() + d) };
+    let until = Until::after(deadline);
     // On the heap, as each large future here: Windows gives the main thread
     // 1 MiB of stack.
     let code = runtime.block_on(Box::pin(drive(ready, opts, input, until, jsonl, out, err)));
@@ -134,6 +134,11 @@ pub(super) struct Until {
 }
 
 impl Until {
+    /// The ends of a run that starts now, with the `--timeout` given.
+    pub fn after(timeout: Option<Duration>) -> Until {
+        Until { deadline: timeout.map(|d| Instant::now() + d) }
+    }
+
     /// The `--timeout`, or Ctrl-C (SIGTERM on Unix), whichever comes first.
     pub async fn wait(self) -> Ended {
         let timed_out = async move {
@@ -151,9 +156,10 @@ impl Until {
 
 /// Whether the run goes on after the peer left: a conversation of the one
 /// thing goes on with the next peer, as it is not done; another goes on
-/// while the user may still type, or lines wait.
+/// while the user may still type, or lines wait; a listener of `--linger`
+/// always.
 pub(super) fn goes_on(lines: &Lines, opts: &Options) -> bool {
-    !matches!(opts.once, Once::No) || !lines.done()
+    opts.linger || !matches!(opts.once, Once::No) || !lines.done()
 }
 
 /// Say each message of a conversation that went with no acknowledgement.
@@ -172,11 +178,32 @@ pub(super) async fn finish<W: AsyncWrite + Unpin>(
     lines: &mut Lines,
     out: &mut Output<W>,
 ) -> i32 {
+    finish_planned(ended, lost, false, lines, out).await
+}
+
+/// [`finish`] for the side that waits: with `--linger` (`linger`), the
+/// `--timeout` is the run's planned end, as a service's stop is.
+pub(super) async fn finish_planned<W: AsyncWrite + Unpin>(
+    ended: &Ended,
+    lost: usize,
+    linger: bool,
+    lines: &mut Lines,
+    out: &mut Output<W>,
+) -> i32 {
     let left = unsent(lines, out).await;
-    let code = code(ended, lost + left);
+    let code = end_code(ended, lost + left, linger);
     let (name, words) = words(ended);
     out.notice("end", json!({ "ended": name, "code": code }), words).await;
     code
+}
+
+/// The exit code of an end; with `--linger`, the `--timeout` exits as a
+/// signal does: 0 when each message went.
+pub(super) fn end_code(ended: &Ended, lost: usize, linger: bool) -> i32 {
+    match ended {
+        Ended::TimedOut if linger => code(&Ended::Stopped, lost),
+        _ => code(ended, lost),
+    }
 }
 
 /// The end of a run that the road refused, or ended for good: its code and
@@ -205,8 +232,8 @@ async fn unsent<W: AsyncWrite + Unpin>(lines: &mut Lines, out: &mut Output<W>) -
 /// what the run was for is done.
 pub(super) fn code(ended: &Ended, lost: usize) -> i32 {
     match ended {
-        Ended::Done | Ended::Stopped | Ended::PeerLeft if lost == 0 => 0,
-        Ended::Done | Ended::Stopped | Ended::PeerLeft => EX_UNAVAILABLE,
+        Ended::Done | Ended::InputEnded | Ended::Stopped | Ended::PeerLeft if lost == 0 => 0,
+        Ended::Done | Ended::InputEnded | Ended::Stopped | Ended::PeerLeft => EX_UNAVAILABLE,
         Ended::TimedOut | Ended::Busy => EX_TEMPFAIL,
         Ended::Declined | Ended::Refused(_) => EX_NOPERM,
         Ended::Damaged | Ended::Failed(_) => EX_SOFTWARE,
@@ -217,6 +244,10 @@ pub(super) fn code(ended: &Ended, lost: usize) -> i32 {
 fn words(ended: &Ended) -> (&'static str, String) {
     match ended {
         Ended::Done => ("done", String::new()),
+        Ended::InputEnded => (
+            "input-ended",
+            "stdin ended: the conversation ends with nothing to send; --linger keeps the listener for its peers".into(),
+        ),
         Ended::Stopped => ("stopped", "stopped".into()),
         Ended::PeerLeft => ("peer-left", "the peer left".into()),
         Ended::TimedOut => ("timed-out", "the --timeout passed".into()),
@@ -243,5 +274,25 @@ impl AsyncWrite for Plain<'_> {
 
     fn poll_shutdown(self: Pin<&mut Self>, _: &mut Context<'_>) -> Poll<std::io::Result<()>> {
         Poll::Ready(Ok(()))
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    /// With `--linger` the `--timeout` is the planned end, as a signal is;
+    /// without it, a later try can work (75). A listener that left for want
+    /// of input lost nothing of its own.
+    #[test]
+    fn the_timeout_of_a_lingering_listener_exits_as_a_signal_does() {
+        assert_eq!(end_code(&Ended::TimedOut, 0, true), 0);
+        assert_eq!(end_code(&Ended::TimedOut, 1, true), EX_UNAVAILABLE);
+        assert_eq!(end_code(&Ended::TimedOut, 0, false), EX_TEMPFAIL);
+        assert_eq!(end_code(&Ended::Busy, 0, true), EX_TEMPFAIL);
+        assert_eq!(end_code(&Ended::InputEnded, 0, false), 0);
+        let (name, words) = words(&Ended::InputEnded);
+        assert_eq!(name, "input-ended");
+        assert!(words.starts_with("stdin ended") && words.contains("--linger"), "{words}");
     }
 }

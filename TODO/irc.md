@@ -34,7 +34,7 @@ wait for `001` (`crates/podssh-core/src/irc/cap.rs`, lines 22-28 at `9460b4e`). 
 (`crates/podssh-core/src/irc/session.rs`, lines 318-322 at `9460b4e`), and the live probe can then drop the server
 (`crates/podssh-cli/examples/live_irc.rs:220-223`).
 
-Read: `docs/irc.md:106` says that libera, OFTC and tilde refuse the relay's addresses. They support
+Read: `docs/irc.md:112` says that libera, OFTC and tilde refuse the relay's addresses. They support
 `CAP`, so this defect alone explains "closed before `001`". The record does not say if that run
 used `--no-cap` (`crates/podssh-cli/examples/live_irc.rs:72-74`). The claim is not proven.
 
@@ -49,7 +49,7 @@ used `--no-cap` (`crates/podssh-cli/examples/live_irc.rs:72-74`). The claim is n
 4. Correct the comments at `crates/podssh-core/src/irc/cap.rs`, lines 9-28 at `9460b4e` and
    `crates/podssh-core/src/irc/session.rs`, lines 22-24 at `9460b4e`, and remove the test at
    `crates/podssh-core/tests/session.rs`, lines 200-223 at `9460b4e`. Record the new network results in
-   `docs/irc.md:99-128`, and update `docs/STATUS.md:706`, in the same commit.
+   `docs/irc.md:105-134`, and update `docs/STATUS.md:707`, in the same commit.
 
 ## Prove
 
@@ -256,7 +256,7 @@ covers it.
 3. Refuse a transfer name or reason with `|`, CR, LF or NUL. On receive, give the caller a base
    name only (`crates/podssh-core/src/irc/transfer/recv.rs`, lines 89-91 at `c3eb09d`).
 4. Update the callers (`crates/podssh-cli/examples/live_irc/support.rs:197-205`) and
-   `docs/STATUS.md:706` in the same commit.
+   `docs/STATUS.md:707` in the same commit.
 
 ## Decision
 
@@ -361,7 +361,7 @@ measured here.
 3. `CAP`: when the second parameter is a verb, the first is the target, `*` or a nick.
 4. Capture these forms from real servers into the fixture, with the server, version and date. Add
    the capture option to `crates/podssh-cli/examples/live_irc/support.rs`, because the probe's main
-   file has 473 lines. Update `docs/STATUS.md:706`. T-198 fuzzes this parser later.
+   file has 473 lines. Update `docs/STATUS.md:707`. T-198 fuzzes this parser later.
 
 ## Decision
 
@@ -512,7 +512,7 @@ cargo run -q -p podssh-cli --example live_irc -- --target irc.undernet.org --pai
 The new file crates/podssh-core/tests/own_nick.rs has one test for each rule above, such as
 `a_part_by_another_user_keeps_the_channel`; its `005` case uses the lines captured in T-094. Plant:
 remove the prefix check on `PART`; that test must fail. The last command is live: run it with
-`--role send` and the same ID in a second shell, as two separate clients (`docs/irc.md:126-128`).
+`--role send` and the same ID in a second shell, as two separate clients (`docs/irc.md:132-134`).
 Both must print `LIVE-IRC-OK`, so the reset does not break registration.
 
 ## Correction
@@ -576,7 +576,7 @@ comes out (`crates/podssh-core/tests/reassembly.rs`, lines 231-247 at `016baab`)
 Read: a non-UTF-8 line is an error (`crates/podssh-core/src/irc/framing.rs`, lines 212-226 at `016baab`), which
 `Session::on_bytes` returns with `?` (`crates/podssh-core/src/irc/session.rs`, lines 268-269 at `016baab`). The live
 probe then ends the attempt (`crates/podssh-cli/examples/live_irc/support.rs`, lines 156-159 at `016baab`). The only
-network that took the relay is undernet (`docs/irc.md:108`); its use of Latin-1 is not measured.
+network that took the relay is undernet (`docs/irc.md:114`); its use of Latin-1 is not measured.
 
 ## Approach
 
@@ -587,7 +587,7 @@ network that took the relay is undernet (`docs/irc.md:108`); its use of Latin-1 
 4. In `Session::on_bytes`, turn each line error into `Event::Protocol`, and go on
    (`crates/podssh-core/src/irc/session.rs`, lines 265-280 at `016baab`).
 5. Correct the comments at `crates/podssh-core/src/irc/framing.rs`, lines 28-33 at `016baab` (the quote is about case
-   mapping) and `crates/podssh-core/src/irc/framing.rs`, lines 121-126 at `016baab`. Update `docs/STATUS.md:706`.
+   mapping) and `crates/podssh-core/src/irc/framing.rs`, lines 121-126 at `016baab`. Update `docs/STATUS.md:707`.
 
 ## Decision
 
@@ -773,7 +773,7 @@ empty frames every 25 s (`docs/relay.md:186-187`, `docs/relay.md:249`). An IRC `
 are bytes of the stream, so they are payload.
 
 Measured on SSH, not on IRC: payload keepalives every 60 s kept a relay session for 602 s; with
-none, the relay cut it after 184 s (`docs/STATUS.md:259-260`).
+none, the relay cut it after 184 s (`docs/STATUS.md:260-261`).
 
 ## Approach
 
@@ -787,7 +787,7 @@ none, the relay cut it after 184 s (`docs/STATUS.md:259-260`).
 4. Rewrite the test at `crates/podssh-core/tests/session.rs`, lines 319-338 at `94f6243`. Correct the comments at
    `crates/podssh-core/src/irc/reap.rs`, lines 5-29 at `94f6243` and the test name at
    `crates/podssh-core/tests/transfer.rs`, lines 382-407 at `94f6243`.
-5. Update `docs/STATUS.md:706` in the same commit.
+5. Update `docs/STATUS.md:707` in the same commit.
 
 Pitfall: a server can limit the rate of `PING` lines. One `PING` in 60 s is far below the usual
 limits (not measured).
@@ -845,7 +845,7 @@ hosts chat and share files (`docs/decisions.md:92`).
 Two users on constrained hosts must chat and share files. `podssh chat` does
 not exist: it exits 70. The IRC client sends plain text that the relay and
 the IRC server read, and most public networks refused the relay
-(`docs/irc.md:99-128`).
+(`docs/irc.md:105-134`).
 
 ## Premise
 
@@ -1026,14 +1026,14 @@ run podssh, or who wants a public channel, has no chat.
 
 Read: the client is sans-IO, and T-091 to T-098 repair its defects. Measured
 on 2026-10-05: of seven public networks, only `irc.undernet.org:6667`
-accepted the relay's addresses (`docs/irc.md:99-128`). On port 6667 the relay
+accepted the relay's addresses (`docs/irc.md:105-134`). On port 6667 the relay
 and each server read the text (`SECURITY.md:299-303`).
 
 ## Approach
 
 1. After T-091 and T-092: measure the networks again through the relay, on
    port 6667, and on 6697 with TLS inside the relay stream. Record each
-   answer with its date in `docs/irc.md:99-128`.
+   answer with its date in `docs/irc.md:105-134`.
 2. `podssh chat --irc SERVER[:PORT] CHANNEL`: TLS inside the relay stream by
    default (port 6697). Plain text on 6667 only with a flag that names the
    risk, and one line about it on stderr. The nick comes from a flag or a
@@ -1212,7 +1212,7 @@ with `sleep 60 |` in front, the same listener took a message and a file, with eq
 **Milestone:** none
 **Priority:** P3
 **Effort:** S
-**Status:** open
+**Status:** done
 
 ## Problem
 
@@ -1225,17 +1225,19 @@ ends the listener, and the listener does not say why it left.
 ## Premise
 
 - Read: while no peer is there, an input that ended keeps the listener waiting
-  (`crates/podssh-cli/src/chat/lines.rs:104-116`); `crates/podssh-cli/src/chat/lines.rs:113` says
+  (`crates/podssh-cli/src/chat/lines.rs:113-125`); `crates/podssh-cli/src/chat/lines.rs:122` says
   "None => std::future::pending().await". So the issue's "exits at once" is "leaves as its first
   peer comes", which the issue's first run shows too.
 - Read: a conversation that sends no one thing runs until stdin ends and each message and file
   went, or until the peer leaves (`crates/podssh-cli/src/chat/converse.rs:27-28`); at the input's
-  end the loop stops reading it (`crates/podssh-cli/src/chat/converse.rs:169`), and `finished`
-  then ends the conversation (`crates/podssh-cli/src/chat/converse.rs:159`).
+  end the loop stops reading it (`crates/podssh-cli/src/chat/converse.rs:179`), and `finished`
+  then ends the conversation (`crates/podssh-cli/src/chat/converse.rs`, line 159 at `1769d79`).
 - Read: after a peer left, the listener goes on only while input may still come
-  (`crates/podssh-cli/src/chat/run.rs:155-156`, `crates/podssh-cli/src/chat/listen.rs:182-189`).
-- Read: the row of `--listen` says nothing of stdin (`crates/podssh-cli/src/flags/chat.rs:11-12`),
-  and with no terminal `--timeout` is needed (`crates/podssh-cli/src/flags/chat.rs:25-26`).
+  (`crates/podssh-cli/src/chat/run.rs`, lines 155-156 at `1769d79`;
+  `crates/podssh-cli/src/chat/listen.rs`, lines 179-186 at `1769d79`).
+- Read: the row of `--listen` says nothing of stdin
+  (`crates/podssh-cli/src/flags/chat.rs`, lines 11-12 at `1769d79`), and with no terminal
+  `--timeout` is needed (`crates/podssh-cli/src/flags/chat.rs:27-28`).
 - Read: the side that waits is the node of a pair, which connects out to the relay
   (`crates/podssh-cli/src/chat/listen.rs:1-5`): it listens on no socket, so `--linger` adds no
   listener (rule 2 of `AGENTS.md`).
@@ -1266,6 +1268,19 @@ ends the listener, and the listener does not say why it left.
 - No record tells the peer why: the protocol has no record of a leave with a reason
   (`crates/podssh-core/src/chat/record.rs:29-71`), and a new one needs both ends' versions; the
   listener's own line says why.
+- 2026-11-02, as drafted: with `--linger`, `/quit`, a signal and the `--timeout` end the run, as
+  without it; only the peer's leave gives the next peer. Lost: a `/quit` that ends only the
+  conversation, which a listener with no stdin cannot type, and which would take from one with a
+  terminal its way to stop.
+- 2026-11-02, as drafted: `--linger` with `--send` or `--file` is 64, as each ends the run once
+  its one thing is done; with `--sendfile` it stays, as with `< FILE`. With `--irc` it is refused
+  among the flags of the roads. Lost: the one thing sent to each peer in turn, a feature that no
+  request asked for; and a `--linger` passed over in silence.
+- 2026-11-02, as drafted: the line of step 3 comes when a conversation ended as done, took no line
+  of the input, and the input is over: so also when stdin ended while the peer greeted, which a
+  look at the input only as the peer came misses. Its exit stays 0, the default's: each line of
+  the listener went, as there was none. Lost: 69 for it, which would fail the scripts of
+  `--listen NAME < /dev/null` that pass today.
 
 ## Prove
 
@@ -1273,6 +1288,7 @@ ends the listener, and the listener does not say why it left.
 export CARGO_BUILD_JOBS=4
 cargo test -p podssh-cli --test chat_converse
 cargo test -p podssh-cli --test chat_cli
+cargo test -p podssh-cli --lib chat::run
 ```
 
 In memory (`chat_converse`): a listener whose input ended, with `--linger`, takes a message,
@@ -1282,3 +1298,46 @@ manual name the end of stdin. Live, through the live relay (a test of the relay 
 entry): `chat --listen --linger --timeout 60s NAME < /dev/null`, and two runs of `--send` from the
 peer, each delivered. Planted (new, t489-linger-ignored): the end of the input ends the
 conversation with `--linger`; the test in memory fails.
+
+## Done
+
+2026-11-02, drafted by an agent that does not build; merged and run by the main session on
+2026-11-03.
+
+- `crates/podssh-cli/src/chat/args.rs`: `--linger` (`ChatArgs::linger`, `Options::linger`); 64
+  without `--listen`, and with `--send` or `--file`; `crates/podssh-cli/src/chat/irc/plan.rs`
+  refuses it with `--irc` among the flags of the roads.
+- `crates/podssh-cli/src/chat/converse.rs`: with `linger`, the input's end ends no conversation
+  (`talk.finished` is asked as if the input were open); `Ended::InputEnded`, the end of a listener
+  that left for want of input.
+- `crates/podssh-cli/src/chat/listen.rs`: after a conversation that ended as done, took no line
+  (`Lines::taken`, `crates/podssh-cli/src/chat/lines.rs`) and left the input over, the end is
+  `InputEnded`, whose words (`crates/podssh-cli/src/chat/run.rs`) are step 3's, `input-ended` in
+  `--jsonl`, exit 0; `run::goes_on` is true with `--linger`, so the listener takes the next peer;
+  `run::finish_planned` and `run::end_code` give the `--timeout` of `--linger` the exit of a
+  signal, on both roads (`crates/podssh-cli/src/chat/iroh/listen.rs`). `listen_over` runs the
+  conversations of the side that waits over streams in memory, for the tests; `Until::after`
+  makes the ends of a run.
+- The rows of `--listen` and `--linger` (`crates/podssh-cli/src/flags/chat.rs`), the notes of
+  `chat`, the exit 0 of EXIT STATUS, `docs/cli.md`, `docs/irc.md`, and a row of `docs/STATUS.md`.
+- `crates/podssh-cli/tests/chat_converse.rs`: `a_lingering_listener_whose_input_ended_takes_each_peer`
+  and `a_listener_whose_input_ended_says_so_as_it_leaves` (plain and `--jsonl`);
+  `crates/podssh-cli/tests/chat_cli.rs`: the four refusals of `--linger`, and the words of the help
+  and the manual; the unit test of `run::end_code`.
+- Planted defect: `scripts/plants/t489-linger-ignored.plant` (group `cli-tests`): `lingers`
+  false in `converse.rs`; the test of the lingering listener fails.
+- The citations of the changed files are moved in each file of `TODO/` by a port of
+  `cargo todo remap` run here; the main session runs `cargo todo remap` on each changed file to
+  confirm. The Premise's lines that this change rewrote read at `1769d79`.
+
+Measured on 2026-11-03: `cargo test -p podssh-cli --test chat_converse`, 10 passed; `--test
+chat_cli`, 11 passed; `--lib chat::run`, 1 passed; `cargo fmt --check` and `cargo clippy
+--all-targets -D warnings`: clean; `cargo todo check` and `python scripts/check-repo.py`: clean.
+The merge kept the draft's citations of the chat's files, which it had moved. Planted (`sh
+scripts/plant-each.sh --here t489-linger-ignored`): caught,
+`a_lingering_listener_whose_input_ended_takes_each_peer` failed. Live through the relay
+(`tcp.ssh.relay.ajam.dev`), in a scratch cache: `relay pair`, then `chat --listen NAME --linger
+--timeout 75s < /dev/null`, and from another cache two runs of `chat NAME --pair-file ... --send`,
+each exit 0; the listener printed both messages, said "the peer left; podssh waits for the next"
+after each, and ended "the --timeout passed" with exit 0; the pair was revoked (exit 0) and the
+scratch removed.
