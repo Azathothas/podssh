@@ -100,7 +100,10 @@ pub fn target(host: &str, port: Option<u16>, road: &'static str) {
 }
 
 /// `podssh proxy`: its session opened, through this relay host when one.
+/// Each road of `proxy` says it here, so the bound of --ConnectTimeout ends
+/// here too (T-589).
 pub fn opened(relay_host: Option<&str>) {
+    crate::connect_bound::opened();
     run_mut(|run| {
         run.opened = true;
         run.relay_host = relay_host.map(str::to_string);

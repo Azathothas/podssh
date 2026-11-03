@@ -91,6 +91,10 @@ pub fn run_pipe(args: &PipeArgs, err: &mut dyn Write) -> i32 {
         Ok(settings) => settings,
         Err(refusal) => return refusal.report("pipe", err),
     };
+    let bound = match connect_bound(args, [&a, &b], listening) {
+        Ok(bound) => bound,
+        Err(refusal) => return refusal.report("pipe", err),
+    };
     if (args.ssh.restart || args.ssh.detach_name.is_some()) && !args.ssh.detach {
         let why = "--restart and --detach-name are for a detached run; give --detach too".to_string();
         return crate::relay_settings::Refusal::usage(why).report("pipe", err);
@@ -124,11 +128,37 @@ pub fn run_pipe(args: &PipeArgs, err: &mut dyn Write) -> i32 {
         // last one's before the exit (T-331).
         runtime.block_on(crate::ssh::transport::settled(serve::run(serve, &settings, err)))
     } else {
+        let _bound = crate::connect_bound::watch(bound, "pipe", "the remote side did not answer");
         runtime.block_on(crate::ssh::transport::settled(run(a, b, &settings, err)))
     };
     // A read of stdin may still wait in its thread; the pipe has ended.
     runtime.shutdown_background();
     code
+}
+
+/// The bound of `--ConnectTimeout` (T-589) on the open of a `node:` or
+/// `relay:` side: refused with a listening side, whose clients each open a
+/// road long after the start, and with no `node:`, `relay:` or `ssh:` side.
+/// An `ssh:` side's hops take it as their own ConnectTimeout, by its id of
+/// `ssh`; beside no `node:` or `relay:` side, theirs alone, with no watch.
+fn connect_bound(
+    args: &PipeArgs,
+    sides: [&address::Address; 2],
+    listening: bool,
+) -> Result<Option<std::time::Duration>, crate::relay_settings::Refusal> {
+    use address::Address::{Node, Relay, Ssh};
+    let given = args.ssh.long_options.iter().find_map(|option| option.strip_prefix("ConnectTimeout="));
+    let Some(limit) = crate::connect_bound::parse(given)? else { return Ok(None) };
+    let refused = |why: &str| Err(crate::relay_settings::Refusal::usage(why));
+    if listening {
+        return refused(
+            "--ConnectTimeout bounds the open of the pipe's one session; a listening side opens one for each client",
+        );
+    }
+    if !sides.iter().any(|side| matches!(side, Node(_) | Relay { .. } | Ssh { .. })) {
+        return refused("--ConnectTimeout bounds the open of a node:, relay: or ssh: side; name one");
+    }
+    Ok(sides.iter().any(|side| matches!(side, Node(_) | Relay { .. })).then_some(limit))
 }
 
 async fn run(a: address::Address, b: address::Address, settings: &remote::Settings, err: &mut dyn Write) -> i32 {
@@ -152,7 +182,10 @@ async fn interrupted(stop: &mut Option<serve::Interrupt>) -> i32 {
 
 /// Open both ends, pump, and report.
 async fn joined(a: address::Address, b: address::Address, settings: &remote::Settings, err: &mut dyn Write) -> i32 {
-    use address::Address::UdpNode;
+    use address::Address::{Node, UdpNode};
+    // A node's session opens after its layer and its channel, which say so
+    // to the bound of --ConnectTimeout (T-589); each other side here.
+    let node_side = matches!(a, Node(_)) || matches!(b, Node(_));
     // The node's session first, beside a program of datagrams: a datagram
     // socket has no end of input, so a program started first would not
     // learn that the session failed.
@@ -165,6 +198,9 @@ async fn joined(a: address::Address, b: address::Address, settings: &remote::Set
         Ok(ends) => ends,
         Err(code) => return code,
     };
+    if !node_side {
+        crate::connect_bound::opened();
+    }
     let pumped = pump::pump(a, b).await;
     report(pumped, "podssh pipe", err).await
 }

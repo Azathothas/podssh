@@ -4,6 +4,8 @@
 
 /// **What the parse produced.** Every variant here is a decision that had
 /// to be made deliberately, and each names the rule that made it.
+// One value of it is made for each run, so its size costs nothing.
+#[allow(clippy::large_enum_variant)]
 #[derive(Debug, PartialEq, Eq)]
 pub enum Parsed {
     /// `podssh --help`, or `podssh <verb> --help`. The payload is the section
@@ -94,6 +96,8 @@ pub enum Parsed {
         idle_warn: Option<String>,
         /// The flags of a pair and of its channel, for `node://NAME` (T-587).
         node: crate::proxy_node::Flags,
+        /// `--ConnectTimeout SECONDS` (T-589), unparsed.
+        connect_timeout: Option<String>,
         refused: Vec<(String, &'static str, &'static str)>,
     },
     /// `podssh status`: the relay settings in effect, and the destination

@@ -1,0 +1,10 @@
+# T-589: --ConnectTimeout read and not used: no watch starts, so each wait
+# keeps its own limit alone, the operator's 20 s for ready through the
+# stand-in's mode noready (Python and openssl) and a relay host's 45 s for
+# proxy; both tests want the end within 5 s of a bound of 3 s, and must fail.
+ENTRY=T-589
+GROUP=resume-cli
+EXPECT='operator_s_connect_timeout_ends_a_wait_for_ready \.\.\. FAILED'
+SETUP='apk add --no-cache python3 openssl'
+RUN='cargo test --locked --no-fail-fast -p podssh-cli --test operator --test proxy -- connect_timeout_ends'
+LIMIT=2700

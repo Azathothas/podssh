@@ -67,12 +67,14 @@ pub async fn open(label: &str, args: &SshArgs, say: &mut dyn FnMut(&str)) -> Res
             trust: &trust,
             proxy: &proxy,
             timeout: podssh_relay::open::CONNECT_TIMEOUT,
-            limits: OperatorLimits::default(),
+            // The node's ready, a step of --ConnectTimeout (T-589).
+            limits: OperatorLimits { on_ready: Some(crate::connect_bound::ready), ..OperatorLimits::default() },
             wire: Wire::Tls,
         };
         let (link, leg_end) = tokio::io::duplex(PIPE);
         let leg = match operator::start(&config, leg_end).await {
             Ok(leg) => {
+                crate::connect_bound::step(format!("{task_shown}: the node did not answer ready"));
                 // A signal ends the pipe with the node's session closed, not
                 // kept by the node as a loss (T-586).
                 crate::hangup::take(crate::hangup::Which::All);

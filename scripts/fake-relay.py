@@ -26,6 +26,8 @@ Modes:
   blackhole        accept TCP and never start TLS
   fault1003        behave, but close the first socket of each pair's node
                    with 1003 "unknown session id" (T-409)
+  noready          behave, but take each operator's socket and never send
+                   it ready, with no node asked and no limit (T-589)
   silent           finish TLS, then never answer a request
   stall:SECONDS    SECONDS after the upgrade, stop: no frames, no Pongs
   close:BYTES:CODE after BYTES from the target, Close with CODE and the

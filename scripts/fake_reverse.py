@@ -25,7 +25,9 @@ PAIRS = {}
 # expirefirst:SECONDS: the run's first pair says that it expires in 23 h,
 # within the last day in which its next pair may be made, and the relay
 # ends it after SECONDS as at its expiry: each socket of the pair gets 1001
-# "pair expired", and its tokens a 403 after.
+# "pair expired", and its tokens a 403 after. noready: each operator's socket
+# is taken and never readied, and the relay's 15 s for a node's answer never
+# end it (T-589).
 MODE = "normal"
 # lenient: a frame of the node for an id that the relay does not know is
 # dropped; in each other mode it closes the node's socket with 1003
@@ -233,6 +235,21 @@ async def expire(pair):
         await pair.node.close(1001, "pair expired")
 
 
+async def never_ready(socket):
+    """noready (T-589): the operator's socket is taken and never readied, as
+    a relay whose node never answers, with no limit of its own: Pings are
+    answered, and the socket ends with the operator's Close or its loss."""
+    try:
+        while not socket.closed:
+            opcode, data = await read_frame(socket.reader)
+            if opcode == 0x9:
+                await socket.send(frame(0xA, data))
+            elif opcode == 0x8:
+                return
+    except (asyncio.IncompleteReadError, ConnectionError, OSError):
+        pass
+
+
 async def node(pair, socket):
     pair.node = socket
     await socket.text({"type": "hello", "version": 1, "maxFrameBytes": 65536, "maxSessions": 64})
@@ -295,6 +312,9 @@ async def node(pair, socket):
 
 
 async def operator(pair, socket):
+    if MODE == "noready":
+        await never_ready(socket)
+        return
     if pair.node is None or pair.node.closed:
         await socket.close(1011, "node unavailable")
         return

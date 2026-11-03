@@ -1136,7 +1136,7 @@ their own server, and the gate tests faults against a stand-in in Python.
 
 Read: the relay is a Cloudflare Worker, and its own document is the contract
 (`docs/relay.md:1-21`, `README.md:35-38`). The stand-in serves the forward
-path, `/v1/mint` and `/health` only (`scripts/fake-relay.py:119-137`). The
+path, `/v1/mint` and `/health` only (`scripts/fake-relay.py:121-139`). The
 pinned contract gives the forward path and the tokens
 (`crates/podssh-probe/tests/spec/relay-spec-2026-10-03-r2.txt:73-104`), the
 reverse path and its close table
@@ -1194,10 +1194,10 @@ read, moved here as `cargo todo check` refuses a Blocker on an open entry:
 Lifted on 2026-11-02 by Q63: see below.
 
 The Premise is stale in one sentence: the stand-in serves more than "the forward path,
-`/v1/mint` and `/health` only". At `scripts/fake-relay.py:129-133` it also serves `/relays.json`
-and `/trace`, and `scripts/fake-relay.py:117` hands the whole reverse road to
+`/v1/mint` and `/health` only". At `scripts/fake-relay.py:131-135` it also serves `/relays.json`
+and `/trace`, and `scripts/fake-relay.py:119` hands the whole reverse road to
 `scripts/fake_reverse.py`, which is as strict as the live relay for an id that it forgot, and
-tells a frame in flight apart (`scripts/fake_reverse.py:269-281`). The rest holds; the ruling of
+tells a frame in flight apart (`scripts/fake_reverse.py:286-298`). The rest holds; the ruling of
 2026-10-08 that it cites is changed.
 
 By Q63 (2026-11-02, `docs/decisions.md`; the design is docs/mesh.md, section 4) the relay is a
@@ -3815,7 +3815,7 @@ podssh's own, which makes it M.
   (`crates/podssh-iroh/src/endpoint.rs:4-7`, `:305-306`), as the design chose for a host with no
   DNS (`docs/design.md:1082`, `:1092`).
 - Read: the node's key is Ed25519 and stays across its pairs, and the operator pins it by label
-  (`docs/reverse.md:253-257`).
+  (`docs/reverse.md:257-261`).
 - Read in the study (https://docs.iroh.computer/connecting/dns-address-lookup): an endpoint
   publishes a signed packet to a DNS/Pkarr server over HTTP; n0's servers are free, rate-limited,
   with no guaranteed uptime, and "You're more than welcome to run production systems" on them,
@@ -7491,9 +7491,9 @@ puts the fallback in its `ok` column without a probe.
   (`crates/podssh-cli/src/ssh/transport.rs:212-233`); the module's own words are that "a target
   that cannot go" ends the run as before (`crates/podssh-cli/src/forwarder/fallback.rs:9-11`).
 - Read: the relay's refusal of a target by its policy (400, a blocked address range) is 77
-  (`crates/podssh-cli/src/proxy.rs:361-362`), and each other answer, the 502 of a target that the
+  (`crates/podssh-cli/src/proxy.rs:383-384`), and each other answer, the 502 of a target that the
   relay could not reach or whose name does not resolve among them, is 69
-  (`crates/podssh-cli/src/proxy.rs:355-368`); so both go to the forwarders (L-28, and #106's dead
+  (`crates/podssh-cli/src/proxy.rs:377-390`); so both go to the forwarders (L-28, and #106's dead
   target).
 - Read: the relay pool already tells these apart: another host cannot help after a refusal by
   policy or of a token, or after a 502 whose target's name fails

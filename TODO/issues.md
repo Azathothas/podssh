@@ -185,7 +185,7 @@ image's digest, sha2 0.11.1 and simple-dns 0.13) are T-597.
 | #110 | The relay's record forgets a host that opens, and keys each road's verdict by the host | closed 2026-11-03, its entry done (`7abebd2`) | T-563 |
 | #111 | podssh never raises its soft limit of open files | closed 2026-11-03, its entry done (`5b643b1`) | T-564 |
 | #112 | A node refuses each new session once its replay budget is full, and names the budget, not its cause | closed | T-586 (inferred, which its Prove measures: OpenSSH ends its ProxyCommand `operator` with SIGHUP, and the node keeps each such session 10 minutes, charged a whole buffer) |
-| #113 | `proxy` cannot address `node://NAME` | open | T-587 (`proxy node://NAME` as the pipe of `operator NAME`, a call of Q86; the issue's prefix `podssh ssh:` is not this code's) |
+| #113 | `proxy` cannot address `node://NAME` | closed 2026-11-03, its entry done (`6887d97`) | T-587 (`proxy node://NAME` as the pipe of `operator NAME`, a call of Q86; the issue's prefix `podssh ssh:` is not this code's) |
 | #114 | `ssh node://` waits the whole ConnectTimeout, where `operator` to the same node reads sshd's line in 3 s | closed | T-588 (not reproduced; no test runs `ssh node://` from Windows) |
 | #115 | `operator` and `proxy` take no `--ConnectTimeout` | open | T-589 |
 | #116 | `node --sshd` with no sshd says `Connection refused`; a line of `doctor` for it | closed 2026-11-03, its entry done (`279a283`) | T-590 |

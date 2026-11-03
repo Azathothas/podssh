@@ -134,6 +134,8 @@ fn to_operator(text: &str, args: &ProxyArgs) -> Result<OperatorArgs, Refusal> {
         node_key: args.node.node_key.clone(),
         no_e2e: args.node.no_e2e,
         resume_deadline: args.node.resume_deadline.clone(),
+        // The bound of the node's steps, as `operator` takes it (T-589).
+        connect_timeout: args.connect_timeout.clone(),
         refused: Vec::new(),
     })
 }

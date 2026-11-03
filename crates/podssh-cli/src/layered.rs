@@ -235,6 +235,8 @@ where
         Ok(client) => client,
         Err(e) => return Carried { why: Some(e.to_string()), leg: last(&legs).await, channel: None, signalled: false },
     };
+    // The layer is up, a step of --ConnectTimeout (T-589).
+    crate::connect_bound::layer_up();
     say(Line::Verbose(client.found().to_string()));
     if let Found::Layer { features, .. } = client.found() {
         say(Line::Verbose(format!("the layer's features: {}", features.join(", "))));

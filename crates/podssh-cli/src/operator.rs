@@ -38,6 +38,9 @@ pub struct OperatorArgs {
     pub no_e2e: bool,
     /// This client's own resume deadline, unparsed (T-306).
     pub resume_deadline: Option<String>,
+    /// `--ConnectTimeout SECONDS`, the bound on the session's open, unparsed
+    /// (T-589).
+    pub connect_timeout: Option<String>,
     pub refused: Vec<(String, &'static str, &'static str)>,
 }
 
@@ -50,10 +53,13 @@ pub fn run_operator(args: &OperatorArgs, err: &mut dyn Write) -> i32 {
 /// operator NAME`, and of `podssh proxy node://NAME` (T-587), one function so
 /// that the two cannot drift; each line names `verb`. The exit code.
 pub(crate) fn to_node(args: &OperatorArgs, verb: &'static str, err: &mut dyn Write) -> i32 {
-    let (label, part, ask) = match prepare(args) {
+    let (label, part, ask, bound) = match prepare(args) {
         Ok(ready) => ready,
         Err(refusal) => return refusal.report(verb, err),
     };
+    // --ConnectTimeout (T-589): the relay's answer, the node's ready, then
+    // the layer and the channel, each step named by the line past the bound.
+    let _bound = crate::connect_bound::watch(bound, verb, "the relay did not answer");
     // The channel of T-088: this operator's key, and the node's by the pins
     // of the label or by --node-key.
     let say_line = |line: String| podssh_ssh::err_line!("podssh {verb}: {label}: {line}");
@@ -77,7 +83,7 @@ pub(crate) fn to_node(args: &OperatorArgs, verb: &'static str, err: &mut dyn Wri
         trust: &trust,
         proxy: &proxy,
         timeout: pairs::REQUEST_LIMIT,
-        limits: OperatorLimits::default(),
+        limits: OperatorLimits { on_ready: Some(crate::connect_bound::ready), ..OperatorLimits::default() },
         wire: Wire::Tls,
     };
     let io = tokio::io::join(tokio::io::stdin(), tokio::io::stdout());
@@ -92,6 +98,7 @@ pub(crate) fn to_node(args: &OperatorArgs, verb: &'static str, err: &mut dyn Wri
     let ran = runtime.block_on(async {
         let (link, leg_end) = tokio::io::duplex(PIPE);
         let first = operator::start(&config, leg_end).await?;
+        crate::connect_bound::step("the node did not answer ready");
         // OpenSSH ends its ProxyCommand with SIGHUP: the session's end, which
         // the node hears as a `CLOSE` and keeps nothing of (T-586).
         crate::hangup::take(crate::hangup::Which::All);
@@ -139,8 +146,14 @@ pub(crate) fn judged(label: &str, carried: &Carried) -> Option<(i32, String)> {
     }
 }
 
-fn prepare(args: &OperatorArgs) -> Result<(String, podssh_relay::pair::OperatorPart, crate::channel::Ask), Refusal> {
+/// What a run to a node needs once its command line is checked: the label,
+/// the operator's part, the channel's ask and the bound of --ConnectTimeout.
+type Prepared = (String, podssh_relay::pair::OperatorPart, crate::channel::Ask, Option<std::time::Duration>);
+
+fn prepare(args: &OperatorArgs) -> Result<Prepared, Refusal> {
     let name = args.name.clone().ok_or("missing NAME: the label of a pair (podssh relay pair NAME)")?;
+    // A bad bound is refused before anything is read (T-589).
+    let bound = crate::connect_bound::parse(args.connect_timeout.as_deref())?;
     let (label, route) = crate::node::label_and_route(&name)?;
     let ask = crate::channel::Ask::of(args.client_key.as_deref(), None, args.node_key.as_deref(), args.no_e2e)
         .and_then(|ask| ask.to_route(route.as_deref()))
@@ -155,7 +168,7 @@ fn prepare(args: &OperatorArgs) -> Result<(String, podssh_relay::pair::OperatorP
     crate::pins::apply(args.relay_addr.as_deref())?;
     let part = pairs::operator_part(&label, args.pair_file.as_deref())?;
     pairs::online()?;
-    Ok((label, part, ask))
+    Ok((label, part, ask, bound))
 }
 
 /// The fault for each end of the session, by the table of `exitmap`; none
