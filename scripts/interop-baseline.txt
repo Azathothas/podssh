@@ -23,7 +23,7 @@ harness x11 interop 3 scripts/interop-x11.sh
 harness stdio interop 3 scripts/interop-stdio.sh
 harness match interop 18 scripts/interop-match.sh
 harness result interop 13 scripts/interop-result.sh
-harness mcp interop 4 scripts/interop-mcp.sh
+harness mcp interop 6 scripts/interop-mcp.sh
 harness each interop 7 scripts/interop-each.sh
 harness snippets interop 7 scripts/interop-snippets.sh
 harness health interop 4 scripts/interop-health.sh
@@ -690,6 +690,8 @@ result.error_program.failure pass
 mcp.openssh.exec pass
 mcp.dropbear.exec pass
 mcp.refused pass
+mcp.cp pass
+mcp.job pass
 mcp.lines pass
 
 # scripts/interop-each.sh

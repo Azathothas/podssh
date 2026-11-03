@@ -3332,6 +3332,51 @@ The tools:
 - **`status`**, **`doctor`** and **`man`** give the JSON of `podssh
   status` (with a `destination`, which must be allowed), `podssh doctor
   --json` (with `full`) and `podssh man --json` (with a `section`).
+- **`health`** and the **`job_`** tools (T-488, GitHub #101), with a host
+  allowed: `podssh health --json`; `job_start` (a command in the host's
+  tmux, which outlives the call; the result's `id`), `job_list` (`job list
+  --json`), `job_log` (a window of the output: `offset`, `max_bytes`, 256
+  KiB by default and 1 MiB at most, `next_offset` and `more`; `job log` has
+  no offset, so the child keeps the output up to the window's end, 32 MiB
+  at most), `job_wait` (`job wait --timeout`, at most `wait_seconds`, under
+  a call's limit of that and 30 s; a job that runs on is a result, `ended`
+  false, not an error) and `job_stop`. Until `--json` and `--result-file`
+  come for those verbs (T-484, T-486), a result is the exit, the streams and
+  the fields that the tool reads from them; `health` waits for `preflight`
+  (T-482).
+- **`cp_put`** and **`cp_get`** (T-488), with `--allow-dir DIR` too: `podssh
+  cp --jsonl` between a path of this host in a DIR and a path of an allowed
+  host, each file's SHA-256 checked at both ends, with `recursive` for a
+  tree as `cp -r` copies it (a link as a link); `cp_put` takes `content`,
+  the bytes of one file in base64 (1 MiB at most), in place of a local
+  path. The result has cp's exit, its streams and the objects of its
+  `--jsonl` as `events`.
+- **The `session_` tools** (T-488), with `--allow-session`:
+  `session_start` (`podssh session start` with the options of each child
+  below, a pty, and the session's socket in the result), `session_send`
+  (the text on the child's stdin, then Enter unless `enter` is false),
+  `session_wait` (`idle_seconds`, `match`, `wait_seconds`; `ended_by` is
+  `idle`, `match` or `limit`), `session_capture` (`raw` at will) and
+  `session_stop`.
+
+**The local side has a gate of its own.** `--allow-host` lets an agent reach
+a host, not read the files of this one: no tool read or wrote one before
+T-488. So the copies are offered only with `--allow-dir DIR` (repeat it for
+more), and a local path of a call is resolved, its links followed, and
+refused unless it lies inside a DIR, before any child runs; a relative path
+is under the first DIR. A DIR that holds `~/.ssh` or a directory of
+podssh's cache, or lies inside one, and the root of the file system, are
+refused as the server starts (64), as a copy from them would hand your keys
+to the agent; a DIR that is not there is 78. `cp_get` puts a tree only into
+a new path, so that each path below it is one that the copy makes, and none
+a link made before it.
+
+**Sessions outlive a call.** A session's daemon outlives its call, and would
+outlive the server: so the session tools come only with `--allow-session`,
+the server drives only the sessions that it started (a name of yours is
+refused), and stops each of them as it ends, its stdin's end or a signal,
+so that none stays on the host with no owner. A start that the client
+cancelled, or that passed its limit, may have started, and is stopped too.
 
 **The risk, and the hosts allowed.** An agent with `ssh_exec` runs commands
 on each allowed host as you, with your keys and your `ssh_config`. The words
@@ -3347,7 +3392,10 @@ no port and no path: they come from your configuration.
 
 Each call runs `podssh ssh` again, as a child with pipes, so that a
 session's output never reaches the protocol's stdout and calls run at once
-(four, and the others wait). The child gets `-o BatchMode=yes` (no prompt,
+(four, and the others wait); `health`, `job`, `cp` and `session start` get
+the same options, but for `-T` and `-e none`, which are `ssh`'s, and none
+of them has a `host_key_fingerprint`: a host key that `known_hosts` holds.
+The child gets `-o BatchMode=yes` (no prompt,
 ever), `-o StrictHostKeyChecking=yes` (a host whose key `known_hosts` does
 not hold is refused, unless `host_key_fingerprint` names its key, as
 `--host-key-fingerprint` does), `-o ClearAllForwardings=yes`,
@@ -3359,8 +3407,9 @@ cancels (`notifications/cancelled`), ends with its child; a cancelled call
 gets no answer.
 
 `podssh mcp` exits 0 at the end of stdin, 64 for a pattern that is not one
-(empty, with a space or a comma, or `USER@` with no host), and 78 for a
-`-F` file that does not exist.
+(empty, with a space or a comma, or `USER@` with no host) or an
+`--allow-dir` of keys, and 78 for a `-F` file or an `--allow-dir` that does
+not exist.
 
 ## `podssh session`
 

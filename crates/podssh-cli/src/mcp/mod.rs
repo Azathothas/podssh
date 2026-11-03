@@ -5,17 +5,23 @@
 //!
 //! Each call of a tool runs this binary once more, as a child with pipes:
 //! `podssh ssh` for `ssh_exec`, and `status`, `doctor --json` and
-//! `man --json`. A session's output reaches the call's buffers and never
-//! the protocol's stdout; a call that runs too long, or that the client
-//! cancels, ends with its child; and calls run at once, which one process
-//! could not do, as the records of `podssh-ssh` are the process's (T-054).
-//! At the end of stdin, the calls in flight have 2 s to end; at a signal to
-//! end, none: each ends with its child.
+//! `man --json`; `health`, `job`, `cp` and `session` for the tools of T-488,
+//! each with the gate of `ssh_exec`. A session's output reaches the call's
+//! buffers and never the protocol's stdout; a call that runs too long, or
+//! that the client cancels, ends with its child; and calls run at once,
+//! which one process could not do, as the records of `podssh-ssh` are the
+//! process's (T-054). At the end of stdin, the calls in flight have 2 s to
+//! end; at a signal to end, none: each ends with its child. Then each
+//! session that the server started is stopped.
 
 mod allow;
 mod child;
+mod copy;
+mod dirs;
 mod protocol;
+mod sessions;
 mod tools;
+mod verbs;
 
 use std::collections::HashMap;
 use std::io::Write;
@@ -47,6 +53,10 @@ const GRACE: Duration = Duration::from_secs(2);
 pub struct McpArgs {
     /// `--allow-host PATTERN`, each one.
     pub allow_host: Vec<String>,
+    /// `--allow-dir DIR`, each one: what the copies may read and write.
+    pub allow_dir: Vec<String>,
+    /// `--allow-session`: the session_ tools.
+    pub allow_session: bool,
     /// `-F FILE`: the `ssh_config` of each session.
     pub config: Option<String>,
     /// `--direct`: each session over TCP.
@@ -55,7 +65,8 @@ pub struct McpArgs {
 }
 
 /// Serve stdin and stdout until the end of stdin: 0, or 64 for a pattern
-/// that is not one, 78 for a `-F` file that is not one.
+/// that is not one or a directory of keys, 78 for a `-F` file or an
+/// `--allow-dir` that is not there.
 pub fn run(args: &McpArgs, err: &mut dyn Write) -> i32 {
     let allow = match Allow::new(&args.allow_host) {
         Ok(allow) => allow,
@@ -68,6 +79,13 @@ pub fn run(args: &McpArgs, err: &mut dyn Write) -> i32 {
         let _ = writeln!(err, "podssh mcp: -F {file}: no such file");
         return EX_CONFIG;
     }
+    let dirs = match dirs::Dirs::new(&args.allow_dir, &dirs::key_dirs()) {
+        Ok(dirs) => dirs,
+        Err((code, why)) => {
+            let _ = writeln!(err, "podssh mcp: {why}");
+            return code;
+        }
+    };
     let binary = match std::env::current_exe() {
         Ok(binary) => binary,
         Err(e) => {
@@ -80,11 +98,26 @@ pub fn run(args: &McpArgs, err: &mut dyn Write) -> i32 {
         let _ = writeln!(err, "podssh mcp: {}: {e}", scratch.display());
         return EX_CONFIG;
     }
-    let settings = Settings { allow, config: args.config.clone(), direct: args.direct, scratch: scratch.clone() };
-    let _ = match settings.allow.is_empty() {
-        true => writeln!(err, "podssh mcp: no --allow-host: ssh_exec is not offered; status, doctor and man are"),
-        false => writeln!(err, "podssh mcp: ssh_exec may reach {}", settings.allow.shown()),
+    let settings = Settings {
+        allow,
+        config: args.config.clone(),
+        direct: args.direct,
+        scratch: scratch.clone(),
+        dirs,
+        allow_session: args.allow_session,
+        started: Default::default(),
     };
+    let _ = match settings.allow.is_empty() {
+        true => writeln!(err, "podssh mcp: no --allow-host: no tool reaches a host; status, doctor and man are offered"),
+        false => writeln!(err, "podssh mcp: ssh_exec, health and the job_ tools may reach {}", settings.allow.shown()),
+    };
+    // Each gate of T-488 says what it opened, so that the user sees it.
+    if !settings.allow.is_empty() && !settings.dirs.is_empty() {
+        let _ = writeln!(err, "podssh mcp: cp_put may read and cp_get may write in {}", settings.dirs.shown());
+    }
+    if !settings.allow.is_empty() && settings.allow_session {
+        let _ = writeln!(err, "podssh mcp: the session_ tools may start sessions; each stops as the server ends");
+    }
     let runtime = match tokio::runtime::Builder::new_multi_thread().worker_threads(2).enable_all().build() {
         Ok(runtime) => runtime,
         Err(e) => {
@@ -178,6 +211,16 @@ where
         let _ = stop.send(());
     }
     while tasks.join_next().await.is_some() {}
+    // No session that this server started outlives it, with no owner.
+    let mut stopping = tokio::task::JoinSet::new();
+    for plan in sessions::stops(&settings) {
+        let binary = binary.clone();
+        stopping.spawn(async move {
+            let (_kept, never) = oneshot::channel();
+            child::run(&binary, &plan, never).await
+        });
+    }
+    while stopping.join_next().await.is_some() {}
     drop(tx);
     let _ = writer.await;
 }
@@ -234,11 +277,14 @@ async fn call(
     let outcome = child::run(binary, &plan, stopped).await;
     let written = std::fs::read(&file).ok().and_then(|bytes| serde_json::from_slice(&bytes).ok());
     let _ = std::fs::remove_file(&file);
+    // The bytes of a cp_put's content, beside the result file.
+    let _ = std::fs::remove_dir_all(copy::content_dir(&file.to_string_lossy()));
+    sessions::settle(settings, name, arguments, &outcome);
     match outcome {
         Outcome::Stopped => None,
         Outcome::NotStarted(why) => Some(tools::refusal(&format!("podssh could not start: {why}"))),
         Outcome::Ran(ran) => {
-            let (structured, failed) = tools::shape(name, &ran, written);
+            let (structured, failed) = tools::shape(name, arguments, &ran, written);
             Some(tools::result(structured, failed))
         }
     }

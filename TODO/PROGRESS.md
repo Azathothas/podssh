@@ -147,7 +147,7 @@ and `CARGO_BUILD_JOBS=4`:
 
 ## Counts
 
-`TODO/INDEX.md` holds 546 entries: 128 open, 4 partial, 16 blocked, 398 done.
+`TODO/INDEX.md` holds 546 entries: 127 open, 5 partial, 16 blocked, 398 done.
 
 Open includes parked work. `cargo todo check` verifies this line.
 
@@ -301,6 +301,9 @@ unattended (Q87).
   fronts another party's name or sits under a school's, a church's or a government's suffix.
 - T-578: one short live run of an onion service on the public Tor network, more than Q60's one
   bootstrap and one stream.
+- T-488: `podssh mcp --allow-dir` refuses a directory that holds `~/.ssh` or podssh's cache, or
+  lies inside one, and the root; and its session tools drive only the sessions that the server
+  started, never the user's own.
 
 The operator settled Q63 to Q66 on 2026-11-02 (`docs/decisions.md`), after the research of five
 agents on the dependency on the relay's operator: podssh grows into a mesh of its user's own nodes

@@ -1,125 +1,21 @@
 //! `podssh mcp` (T-055) over its stdin and stdout, as an MCP client runs it:
 //! the handshake of the earlier revisions and the requests of 2026-07-28,
 //! the errors of JSON-RPC, a host outside `--allow-host` refused with no
-//! connection, and `ssh_exec` against the test's SSH server. Each line that
-//! the server writes on stdout is read as one JSON-RPC answer: one that is
-//! not fails the test.
+//! connection, and `ssh_exec` against the test's SSH server; the tools of
+//! T-488 behind their gates, and a local path outside `--allow-dir` refused
+//! before any child runs. Each line that the server writes on stdout is read
+//! as one JSON-RPC answer: one that is not fails the test.
 
 mod cleanup;
+mod mcp_harness;
 mod ssh_harness;
 
-use std::io::{BufRead, BufReader, Write};
-use std::path::{Path, PathBuf};
-use std::process::{Child, ChildStdin, Command, Stdio};
-use std::sync::mpsc::{channel, Receiver};
+use std::io::Write;
+use std::process::Stdio;
 use std::time::{Duration, Instant};
 
+use mcp_harness::{podssh, scratch, server, Mcp, WAIT};
 use serde_json::{json, Value};
-
-const WAIT: Duration = Duration::from_secs(60);
-
-struct Mcp {
-    child: Child,
-    stdin: Option<ChildStdin>,
-    lines: Receiver<String>,
-    next: u64,
-}
-
-fn podssh(dir: &Path) -> Command {
-    let mut cmd = Command::new(env!("CARGO_BIN_EXE_podssh"));
-    cmd.env("PODSSH_SSH_CONFIG", "none").env("PODSSH_SETTINGS", "none").env("HOME", dir).env("USERPROFILE", dir);
-    for name in ["PODSSH_OFFLINE", "HTTPS_PROXY", "https_proxy", "ALL_PROXY", "all_proxy", "SSH_AUTH_SOCK"] {
-        cmd.env_remove(name);
-    }
-    cmd
-}
-
-impl Mcp {
-    fn start(dir: &Path, args: &[&str]) -> Mcp {
-        let mut child = podssh(dir)
-            .arg("mcp")
-            .args(args)
-            .stdin(Stdio::piped())
-            .stdout(Stdio::piped())
-            .stderr(Stdio::null())
-            .spawn()
-            .unwrap();
-        let stdout = child.stdout.take().unwrap();
-        let (tx, lines) = channel();
-        std::thread::spawn(move || {
-            for line in BufReader::new(stdout).lines().map_while(Result::ok) {
-                if tx.send(line).is_err() {
-                    return;
-                }
-            }
-        });
-        Mcp { stdin: child.stdin.take(), child, lines, next: 100 }
-    }
-
-    fn send(&mut self, message: &Value) {
-        let stdin = self.stdin.as_mut().unwrap();
-        writeln!(stdin, "{message}").unwrap();
-        stdin.flush().unwrap();
-    }
-
-    /// The next answer, read as JSON-RPC 2.0: an id, and a result or an
-    /// error.
-    fn answer(&self, within: Duration) -> Option<Value> {
-        let line = self.lines.recv_timeout(within).ok()?;
-        let value: Value = serde_json::from_str(&line).unwrap_or_else(|e| panic!("not JSON-RPC ({e}): {line}"));
-        assert_eq!(value["jsonrpc"], "2.0", "{line}");
-        assert!(value.get("id").is_some(), "no id: {line}");
-        assert!(value.get("result").is_some() != value.get("error").is_some(), "{line}");
-        Some(value)
-    }
-
-    /// A request, and its answer.
-    fn ask(&mut self, method: &str, params: Value) -> Value {
-        self.next += 1;
-        let id = self.next;
-        self.send(&json!({ "jsonrpc": "2.0", "id": id, "method": method, "params": params }));
-        let answer = self.answer(WAIT).unwrap_or_else(|| panic!("no answer to {method}"));
-        assert_eq!(answer["id"], id, "{answer}");
-        answer
-    }
-
-    /// `tools/call` of `name` in the handshake's revision.
-    fn call(&mut self, name: &str, arguments: Value) -> Value {
-        self.ask("tools/call", json!({ "name": name, "arguments": arguments }))["result"].clone()
-    }
-
-    fn initialize(&mut self) {
-        let r = self.ask(
-            "initialize",
-            json!({ "protocolVersion": "2025-06-18", "capabilities": {},
-            "clientInfo": { "name": "test", "version": "1" } }),
-        );
-        assert_eq!(r["result"]["protocolVersion"], "2025-06-18", "{r}");
-        self.send(&json!({ "jsonrpc": "2.0", "method": "notifications/initialized" }));
-    }
-
-    /// Close stdin: the exit code, and how long the server took.
-    fn close(mut self) -> (Option<i32>, Duration) {
-        drop(self.stdin.take());
-        let started = Instant::now();
-        while started.elapsed() < WAIT {
-            if let Some(status) = self.child.try_wait().unwrap() {
-                return (status.code(), started.elapsed());
-            }
-            std::thread::sleep(Duration::from_millis(50));
-        }
-        let _ = self.child.kill();
-        panic!("podssh mcp did not end at the end of its input");
-    }
-}
-
-fn scratch(tag: &str) -> PathBuf {
-    let dir = std::env::temp_dir().join(format!("podssh-mcp-test-{tag}-{}", std::process::id()));
-    let _ = std::fs::remove_dir_all(&dir);
-    std::fs::create_dir_all(&dir).unwrap();
-    cleanup::at_test_end(&dir);
-    dir
-}
 
 #[test]
 fn the_handshake_the_list_and_the_errors_of_json_rpc() {
@@ -130,10 +26,9 @@ fn the_handshake_the_list_and_the_errors_of_json_rpc() {
     writeln!(mcp.stdin.as_mut().unwrap(), "not json").unwrap();
     assert_eq!(mcp.answer(WAIT).unwrap()["error"]["code"], -32700);
     mcp.initialize();
-    let tools = mcp.ask("tools/list", json!({}));
-    let names: Vec<&str> =
-        tools["result"]["tools"].as_array().unwrap().iter().map(|t| t["name"].as_str().unwrap()).collect();
-    assert_eq!(names, ["ssh_exec", "status", "doctor", "man"]);
+    let names = mcp.tool_names();
+    let hosts = ["ssh_exec", "health", "job_start", "job_list", "job_log", "job_wait", "job_stop"];
+    assert_eq!(names, [&hosts[..], &["status", "doctor", "man"][..]].concat());
     assert_eq!(mcp.ask("ping", json!({}))["result"], json!({}));
     assert_eq!(mcp.ask("prompts/list", json!({}))["error"]["code"], -32601);
     assert_eq!(mcp.ask("tools/call", json!({ "name": "rm" }))["error"]["code"], -32602);
@@ -190,30 +85,94 @@ fn a_bad_command_line_is_refused() {
         (&["--allow-host", "u@"][..], 64),
         (&["stray"][..], 64),
         (&["-F", "no-such-file"][..], 78),
+        (&["--allow-dir", "no-such-dir"][..], 78),
     ] {
         let out = podssh(&dir).arg("mcp").args(args).stdin(Stdio::null()).output().unwrap();
         assert_eq!(out.status.code(), Some(code), "{args:?}: {}", String::from_utf8_lossy(&out.stderr));
         assert!(out.stdout.is_empty(), "{args:?}");
     }
+    // A directory that holds the home's .ssh, the home itself here, is
+    // refused, and names why (T-488).
+    let out = podssh(&dir).arg("mcp").arg("--allow-dir").arg(&dir).stdin(Stdio::null()).output().unwrap();
+    let err = String::from_utf8_lossy(&out.stderr);
+    assert_eq!(out.status.code(), Some(64), "{err}");
+    assert!(err.contains(".ssh is inside it"), "{err}");
 }
 
-/// The test's server, and a configuration that reaches it as 127.0.0.1.
-fn server(dir: &Path) -> (tokio::runtime::Runtime, PathBuf, String) {
-    let key = dir.join("host_key");
-    let made = podssh(dir).args(["keygen", "-q", "-t", "ed25519", "-N", "", "-f"]).arg(&key).status().unwrap();
-    assert!(made.success());
-    let runtime = tokio::runtime::Builder::new_multi_thread().worker_threads(2).enable_all().build().unwrap();
-    let port = runtime.block_on(ssh_harness::start(&key));
-    let config = dir.join("config");
-    let known = dir.join("known_hosts");
-    let text = format!(
-        "Host 127.0.0.1\n  Port {port}\n  IdentitiesOnly yes\n  IdentityAgent none\n  UserKnownHostsFile {}\n",
-        known.display()
-    );
-    std::fs::write(&config, text).unwrap();
-    let public = std::fs::read_to_string(dir.join("host_key.pub")).unwrap();
-    let public = russh::keys::ssh_key::PublicKey::from_openssh(public.trim()).unwrap();
-    (runtime, config, public.fingerprint(russh::keys::HashAlg::Sha256).to_string())
+/// The copies only with `--allow-dir`, the sessions only with
+/// `--allow-session`, and neither with no host allowed (T-488).
+#[test]
+fn each_tool_of_t488_is_offered_behind_its_gate() {
+    let dir = scratch("gates");
+    let allowed = dir.join("allowed");
+    std::fs::create_dir_all(&allowed).unwrap();
+    let allowed = allowed.to_str().unwrap();
+    let names = |args: &[&str]| {
+        let mut mcp = Mcp::start(&dir, args);
+        mcp.initialize();
+        let names = mcp.tool_names();
+        mcp.close();
+        names
+    };
+    let copies = ["cp_put", "cp_get"];
+    let sessions = ["session_start", "session_send", "session_wait", "session_capture", "session_stop"];
+    let has = |names: &[String], wanted: &[&str]| wanted.iter().all(|w| names.iter().any(|n| n == w));
+    let all = names(&["--allow-host", "web*", "--allow-dir", allowed, "--allow-session"]);
+    assert!(has(&all, &copies) && has(&all, &sessions) && has(&all, &["health", "job_wait"]), "{all:?}");
+    let host = names(&["--allow-host", "web*"]);
+    assert!(!host.iter().any(|n| n.starts_with("cp_") || n.starts_with("session_")), "{host:?}");
+    let no_host = names(&["--allow-dir", allowed, "--allow-session"]);
+    assert_eq!(no_host, ["status", "doctor", "man"], "no tool reaches a host with none allowed");
+}
+
+/// A local path outside `--allow-dir`, and a link that leads out of it, are
+/// refused before any child runs: the host's port sees no connection; so is
+/// a host outside `--allow-host`, by each tool that reaches one (T-488).
+#[test]
+fn a_path_outside_the_directory_and_a_host_outside_the_list_reach_nothing() {
+    let dir = scratch("outside");
+    let listener = std::net::TcpListener::bind("127.0.0.1:0").unwrap();
+    listener.set_nonblocking(true).unwrap();
+    let config = mcp_harness::config(&dir, listener.local_addr().unwrap().port());
+    let (allowed, other) = (dir.join("allowed"), dir.join("other"));
+    std::fs::create_dir_all(&allowed).unwrap();
+    std::fs::create_dir_all(&other).unwrap();
+    std::fs::write(other.join("secret"), b"not for the agent").unwrap();
+    std::fs::write(allowed.join("ok.txt"), b"ok").unwrap();
+    #[cfg(unix)]
+    std::os::unix::fs::symlink(other.join("secret"), allowed.join("to-secret")).unwrap();
+    let (allowed_text, config_text) = (allowed.to_str().unwrap(), config.to_str().unwrap());
+    let args = ["--allow-host", "127.0.0.1", "--allow-dir", allowed_text, "-F", config_text, "--direct"];
+    let mut mcp = Mcp::start(&dir, &args);
+    mcp.initialize();
+    let secret = other.join("secret").display().to_string();
+    let mut outside = vec![secret.clone(), "../other/secret".to_string()];
+    if cfg!(unix) {
+        outside.push("to-secret".into());
+    }
+    for local in &outside {
+        let r = mcp.call("cp_put", json!({ "destination": "127.0.0.1", "path": "p", "local_path": local }));
+        assert_eq!(r["isError"], true, "{local}: {r}");
+        assert!(r["content"][0]["text"].as_str().unwrap().contains("outside the directories"), "{local}: {r}");
+    }
+    let r = mcp.call("cp_get", json!({ "destination": "127.0.0.1", "path": "p", "local_path": secret }));
+    assert_eq!(r["isError"], true, "{r}");
+    let other_host = json!({ "destination": "db1", "path": "p", "local_path": "ok.txt", "command": "true",
+        "id": "0123abcd" });
+    for (tool, keys) in [
+        ("cp_put", &["destination", "path", "local_path"][..]),
+        ("health", &["destination"][..]),
+        ("job_start", &["destination", "command"][..]),
+        ("job_stop", &["destination", "id"][..]),
+    ] {
+        let arguments: serde_json::Map<String, Value> =
+            keys.iter().map(|k| (k.to_string(), other_host[*k].clone())).collect();
+        let r = mcp.call(tool, Value::Object(arguments));
+        assert!(r["content"][0]["text"].as_str().unwrap().contains("not allowed"), "{tool}: {r}");
+    }
+    std::thread::sleep(Duration::from_millis(300));
+    assert!(listener.accept().is_err(), "a refused call reached the host");
+    mcp.close();
 }
 
 #[test]

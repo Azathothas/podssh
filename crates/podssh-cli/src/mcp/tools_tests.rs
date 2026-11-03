@@ -11,7 +11,13 @@ fn settings(patterns: &[&str]) -> Settings {
         config: Some("cfg".into()),
         direct: true,
         scratch: PathBuf::from("scratch"),
+        ..Settings::default()
     }
+}
+
+/// The names of the tools that `s` offers.
+fn names(s: &Settings) -> Vec<String> {
+    list(s).iter().map(|t| t["name"].as_str().unwrap().to_string()).collect()
 }
 
 fn args(value: Value) -> Map<String, Value> {
@@ -24,9 +30,10 @@ fn argv(plan: &Plan) -> Vec<String> {
 
 #[test]
 fn ssh_exec_is_offered_only_with_a_host_allowed() {
-    let names = |s: &Settings| list(s).iter().map(|t| t["name"].as_str().unwrap().to_string()).collect::<Vec<_>>();
-    assert_eq!(names(&settings(&["web*"])), ["ssh_exec", "status", "doctor", "man"]);
-    assert_eq!(names(&settings(&[])), ["status", "doctor", "man"]);
+    let host = ["ssh_exec", "health", "job_start", "job_list", "job_log", "job_wait", "job_stop"];
+    let own = ["status", "doctor", "man"];
+    assert_eq!(names(&settings(&["web*"])), [&host[..], &own[..]].concat());
+    assert_eq!(names(&settings(&[])), own);
     let tools = list(&settings(&["web*", "!web9"]));
     assert!(tools[0]["description"].as_str().unwrap().contains("web*, !web9"));
     assert_eq!(tools[0]["inputSchema"]["required"], json!(["destination", "command"]));
@@ -34,6 +41,28 @@ fn ssh_exec_is_offered_only_with_a_host_allowed() {
         assert_eq!(tool["inputSchema"]["additionalProperties"], false, "{tool}");
         let name = tool["name"].as_str().unwrap();
         assert!(name.chars().all(|c| c.is_ascii_alphanumeric() || c == '_'), "{name}");
+    }
+}
+
+/// The copies only with `--allow-dir`, the sessions only with
+/// `--allow-session`, and neither with no host allowed (T-488).
+#[test]
+fn each_tool_of_t488_is_offered_behind_its_gate() {
+    let dir = std::env::temp_dir().display().to_string();
+    let dirs = super::super::dirs::Dirs::new(&[dir], &[]).unwrap();
+    let both = Settings { dirs: dirs.clone(), allow_session: true, ..settings(&["web*"]) };
+    let offered = names(&both);
+    for name in ["cp_put", "cp_get", "session_start", "session_send", "session_wait", "session_capture"] {
+        assert!(offered.iter().any(|n| n == name), "{name}: {offered:?}");
+    }
+    assert!(offered.iter().any(|n| n == "session_stop"));
+    let plain = names(&settings(&["web*"]));
+    assert!(!plain.iter().any(|n| n.starts_with("cp_") || n.starts_with("session_")), "{plain:?}");
+    let no_host = Settings { dirs, allow_session: true, ..settings(&[]) };
+    assert_eq!(names(&no_host), ["status", "doctor", "man"], "no tool reaches a host with none allowed");
+    for tool in list(&both) {
+        assert_eq!(tool["inputSchema"]["additionalProperties"], false, "{tool}");
+        assert!(tool["description"].as_str().is_some_and(|d| !d.is_empty()), "{tool}");
     }
 }
 
@@ -100,8 +129,9 @@ fn ran(stdout: &[u8], exit: Option<i32>, timed_out: bool) -> Ran {
 
 #[test]
 fn a_session_result_has_the_status_and_the_streams() {
+    let none = Map::new();
     let file = json!({ "exit": 3, "status": 3, "signal": null, "end": "status", "failure": null });
-    let (value, failed) = shape("ssh_exec", &ran(b"hi\n", Some(3), false), Some(file));
+    let (value, failed) = shape("ssh_exec", &none, &ran(b"hi\n", Some(3), false), Some(file));
     assert!(!failed, "a status that is not 0 is the command's, not the tool's");
     assert_eq!(
         (value["exit"].clone(), value["status"].clone(), value["stdout"].clone()),
@@ -109,8 +139,8 @@ fn a_session_result_has_the_status_and_the_streams() {
     );
     assert_eq!((value["stderr"].clone(), value["truncated"].clone()), (json!("err!\n"), json!(false)));
     let file = json!({ "exit": 255, "status": null, "end": "failed", "failure": "auth" });
-    assert!(shape("ssh_exec", &ran(b"", Some(255), false), Some(file)).1);
-    let (value, failed) = shape("ssh_exec", &ran(b"part", None, true), None);
+    assert!(shape("ssh_exec", &none, &ran(b"", Some(255), false), Some(file)).1);
+    let (value, failed) = shape("ssh_exec", &none, &ran(b"part", None, true), None);
     assert!(failed);
     assert_eq!(
         (value["timed_out"].clone(), value["exit"].clone(), value["status"].clone()),
@@ -123,9 +153,10 @@ fn a_session_result_has_the_status_and_the_streams() {
 
 #[test]
 fn podssh_own_json_is_the_result_of_the_other_tools() {
-    let (value, failed) = shape("doctor", &ran(b"{\"ok\":false}\n", Some(1), false), None);
+    let none = Map::new();
+    let (value, failed) = shape("doctor", &none, &ran(b"{\"ok\":false}\n", Some(1), false), None);
     assert_eq!((value, failed), (json!({ "ok": false }), false));
-    let (value, failed) = shape("status", &ran(b"no json", Some(64), false), None);
+    let (value, failed) = shape("status", &none, &ran(b"no json", Some(64), false), None);
     assert!(failed);
     assert_eq!(value["stderr"], "err!\n");
 }

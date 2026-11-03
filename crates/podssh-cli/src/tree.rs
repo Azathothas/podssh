@@ -35,7 +35,7 @@ fn counted(long: &str) -> bool {
 
 /// Value flags a user may give more than once, each value kept, in order.
 fn appended(long: &str) -> bool {
-    matches!(long, "option" | "identity-file" | "allow-host" | "sftp-option" | "exclude")
+    matches!(long, "option" | "identity-file" | "allow-host" | "allow-dir" | "sftp-option" | "exclude")
 }
 
 /// Value flags whose value may start with `-`, as getopt takes the next
@@ -349,6 +349,8 @@ pub fn parse_verb(verb: &'static Verb, rest: &[std::ffi::OsString]) -> Parsed {
     if verb.name == "mcp" {
         return Parsed::Mcp(Box::new(crate::mcp::McpArgs {
             allow_host: matches.get_many::<String>("allow-host").map(|v| v.cloned().collect()).unwrap_or_default(),
+            allow_dir: matches.get_many::<String>("allow-dir").map(|v| v.cloned().collect()).unwrap_or_default(),
+            allow_session: matches.get_flag("allow-session"),
             config: matches.get_one::<String>("config").cloned(),
             direct: matches.get_flag("direct"),
             refused,

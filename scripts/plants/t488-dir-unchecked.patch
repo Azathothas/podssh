@@ -1,0 +1,11 @@
+--- a/crates/podssh-cli/src/mcp/dirs.rs
++++ b/crates/podssh-cli/src/mcp/dirs.rs
+@@ -71,7 +71,7 @@
+
+     /// Whether `resolved` lies in an allowed directory.
+     fn holds(&self, resolved: &Path, given: &str) -> Result<(), String> {
+-        if self.allowed.iter().any(|dir| resolved.starts_with(dir)) {
++        if !self.allowed.is_empty() {
+             return Ok(());
+         }
+         let shown = resolved.display();

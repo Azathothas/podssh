@@ -674,7 +674,7 @@ stdin and stdout gives typed tools, with no shell quoting.
 
 Measured: `podssh mcp` exits 64 (unknown subcommand).
 
-Read: a prompt goes to the controlling terminal or to `SSH_ASKPASS` (`docs/cli.md:3715-3740`),
+Read: a prompt goes to the controlling terminal or to `SSH_ASKPASS` (`docs/cli.md:3764-3789`),
 and the terminal of an agent can be the user's own. The session output goes straight to the
 process's stdout (`crates/podssh-ssh/src/io/msg.rs:77-94`), which an MCP server over stdio uses for
 its protocol. podssh never listens (`docs/architecture.md:208-223`), and stdio needs no listener.
@@ -766,23 +766,23 @@ session path; the test that parses each stdout line fails.
 
 ## Done
 
-2026-10-12. `podssh mcp` in `crates/podssh-cli/src/mcp/mod.rs:59-100`, its
-lines and its calls in flight at `crates/podssh-cli/src/mcp/mod.rs:107-183`,
-the signals that end it at `crates/podssh-cli/src/mcp/mod.rs:187-213`, a
-call at `crates/podssh-cli/src/mcp/mod.rs:216-245`. The messages in
-`crates/podssh-cli/src/mcp/protocol.rs:68-101`, the two eras at
-`crates/podssh-cli/src/mcp/protocol.rs:111-166` and
-`crates/podssh-cli/src/mcp/protocol.rs:186-218`, the answers at
-`crates/podssh-cli/src/mcp/protocol.rs:230-243`. The tools at
-`crates/podssh-cli/src/mcp/tools.rs:37-115`, the command line of a call at
-`crates/podssh-cli/src/mcp/tools.rs:130-206`, with the options of each
-session at `crates/podssh-cli/src/mcp/tools.rs:186-204`, and its result at
-`crates/podssh-cli/src/mcp/tools.rs:227-261`. The child of a call at
+2026-10-12. `podssh mcp` in `crates/podssh-cli/src/mcp/mod.rs:70-133`, its
+lines and its calls in flight at `crates/podssh-cli/src/mcp/mod.rs:140-226`,
+the signals that end it at `crates/podssh-cli/src/mcp/mod.rs:230-256`, a
+call at `crates/podssh-cli/src/mcp/mod.rs:259-291`. The messages in
+`crates/podssh-cli/src/mcp/protocol.rs:70-103`, the two eras at
+`crates/podssh-cli/src/mcp/protocol.rs:113-168` and
+`crates/podssh-cli/src/mcp/protocol.rs:188-220`, the answers at
+`crates/podssh-cli/src/mcp/protocol.rs:232-245`. The tools at
+`crates/podssh-cli/src/mcp/tools.rs:50-135`, the command line of a call at
+`crates/podssh-cli/src/mcp/tools.rs:194-257`, with the options of each
+session at `crates/podssh-cli/src/mcp/tools.rs:164-182`, and its result at
+`crates/podssh-cli/src/mcp/tools.rs:302-344`. The child of a call at
 `crates/podssh-cli/src/mcp/child.rs:63-122`, its streams at
 `crates/podssh-cli/src/mcp/child.rs:125-157`. The patterns of
 `--allow-host` at `crates/podssh-cli/src/mcp/allow.rs:36-124`. The flags in
 `crates/podssh-cli/src/flags/mcp.rs`, the risk and the rest in the manual
-(`crates/podssh-cli/src/man/notes_mcp.rs:4-27`), and `docs/cli.md`.
+(`crates/podssh-cli/src/man/notes_mcp.rs:4-46`), and `docs/cli.md`.
 
 The test `crates/podssh-cli/tests/mcp.rs`, 4 tests, over the stdin and the
 stdout of `podssh mcp`, reads each line of stdout as one JSON-RPC answer:
@@ -1021,7 +1021,7 @@ fails.
 **Milestone:** none
 **Priority:** P3
 **Effort:** L
-**Status:** open
+**Status:** partial
 
 ## Problem
 
@@ -1032,17 +1032,20 @@ work is one more command of the agent's own making. Each is a verb of podssh, wi
 
 ## Premise
 
+Read, at `1769d79`, before this entry's work:
+
 - Read: the tools are `ssh_exec` (only when a host is allowed), `status`, `doctor` and `man`
-  (`crates/podssh-cli/src/mcp/tools.rs:35-73`); each call runs this binary again as a child
-  (`crates/podssh-cli/src/mcp/mod.rs:6-11`), whose command line `plan` makes
-  (`crates/podssh-cli/src/mcp/tools.rs:127-168`).
+  (`crates/podssh-cli/src/mcp/tools.rs`, lines 35-73 at `1769d79`); each call runs this binary
+  again as a child (`crates/podssh-cli/src/mcp/mod.rs`, lines 6-11 at `1769d79`), whose command
+  line `plan` makes (`crates/podssh-cli/src/mcp/tools.rs:191-237`).
 - Read: `ssh_exec` checks its destination against `--allow-host`
-  (`crates/podssh-cli/src/mcp/tools.rs:170-173`), and forces no prompt, a known host key, no
-  forwarding and no shared connection, before the user's `-F`
-  (`crates/podssh-cli/src/mcp/tools.rs:186-194`); a call has 60 s by default and 3600 s at most
-  (`crates/podssh-cli/src/mcp/tools.rs:17-19`).
+  (`crates/podssh-cli/src/mcp/tools.rs`, lines 170-173 at `1769d79`), and forces no prompt, a
+  known host key, no forwarding and no shared connection, before the user's `-F`
+  (`crates/podssh-cli/src/mcp/tools.rs`, lines 186-194 at `1769d79`); a call has 60 s by default
+  and 3600 s at most (`crates/podssh-cli/src/mcp/tools.rs`, lines 17-19 at `1769d79`).
 - Read: `podssh mcp` takes `--allow-host`, `-F` and `--direct`, and no local path
-  (`crates/podssh-cli/src/flags/mcp.rs:8-15`): no tool reads or writes a file of this host.
+  (`crates/podssh-cli/src/flags/mcp.rs`, lines 8-15 at `1769d79`): no tool reads or writes a file
+  of this host.
 - Read: `job` has `start`, `list`, `log`, `wait` with `--timeout`, `fetch` and `stop`
   (`crates/podssh-cli/src/job/mod.rs:1-23`); `health --json` gives one object
   (`crates/podssh-cli/src/health/show.rs:62-117`); `session` keeps a shell and its screen in a
@@ -1077,6 +1080,33 @@ work is one more command of the agent's own making. Each is a verb of podssh, wi
   stay on the host with no owner.
 - `job_wait` gives back the job's state when its time passed, and the agent calls it again under
   each call's own limit.
+- 2026-11-03, as drafted, for the operator to confirm (Q86): an `--allow-dir` that holds `~/.ssh`
+  or a directory of podssh's cache that is there, or lies inside one, and the root of the file
+  system, are refused as the server starts (64), as a copy from them would hand the user's keys to
+  the agent; a home with no `.ssh` counts as one that has it. Lost: each directory that the user
+  names, which `--allow-dir ~` would make a gate of `~/.ssh`; and a refusal of each path below a
+  directory of keys at each call, which leaves the gate looking open in the list of tools.
+- 2026-11-03, as drafted, for the operator to confirm (Q86): the session tools drive only the
+  sessions that this server started; a name of the user's own sessions is refused, and a second
+  start of a name that it holds too. Lost: each session of this user, which would let an agent type
+  into a shell that the user keeps for itself.
+- 2026-11-03, as drafted: `cp_get` of a tree goes only into a path that is not there, so that each
+  path below it is one that the copy makes, and none a link made before the call; a link that
+  names nothing is refused as a target. A tree is copied by `podssh cp -r`, a link as a link, never
+  by `scp`, which follows links. Lost: a tree into a directory that is there, whose links the check
+  of one path cannot see.
+- 2026-11-03, as drafted: only `ssh_exec` takes `host_key_fingerprint`; `health`, `job`, `cp` and
+  `session start` have no such flag, so their host's key must be in `known_hosts`, which the user
+  fills (`ssh_exec` with a fingerprint checks a key and adds none). Lost: a new flag of four verbs,
+  whose files other drafts change.
+- 2026-11-03, as drafted: `job_wait` takes `wait_seconds` (the wait's `--timeout`), and its call has
+  that and 30 s; it takes no `timeout_seconds`, which would be a second clock. `job_log`'s window
+  is cut by the server from the child's output, kept up to the window's end and 32 MiB at most, as
+  `job log` has no offset; an offset of `job log` itself needs a change to
+  `crates/podssh-cli/src/job/`, which waits for the drafts there.
+- 2026-11-03, as drafted: the forced options go on each child that reaches a host (`health`, `job`,
+  `cp`, `session start`); `session send`, `wait`, `capture` and `stop` reach the session's podssh
+  on its socket, and `session` refuses a connection flag there.
 
 ## Prove
 
@@ -1084,6 +1114,7 @@ work is one more command of the agent's own making. Each is a verb of podssh, wi
 export CARGO_BUILD_JOBS=4
 cargo test -p podssh-cli --lib mcp::
 cargo test -p podssh-cli --test mcp
+cargo test -p podssh-cli --test mcp_tools
 ```
 
 Through the server against the test's SSH server: `tools/list` gives the tools of `job` and
@@ -1094,6 +1125,55 @@ host outside `--allow-host` is refused by each tool; `job_start`, then `job_wait
 status; the server's end stops the sessions that it started. In `scripts/interop-mcp.sh`:
 `cp_put`, `cp_get` and `job_start` against OpenSSH. Planted (new, t488-dir-unchecked): the local
 path of a copy not held to `--allow-dir`; the test of the path outside fails.
+
+## Done
+
+2026-11-03, drafted by an agent that does not build: nothing below was compiled or run. Each result
+is UNVERIFIED until the main session runs the Prove.
+
+- `crates/podssh-cli/src/flags/mcp.rs` and `crates/podssh-cli/src/tree.rs`: `--allow-dir DIR`
+  (repeated) and `--allow-session`; `McpArgs` keeps them (`crates/podssh-cli/src/mcp/mod.rs`).
+- `crates/podssh-cli/src/mcp/tools.rs`: `forced`, the options of `ssh_exec` for each child that
+  reaches a host, before `-F` and `--direct`; `destination`, `limit` and `streams`, shared; the
+  list puts `health` and the `job_` tools after `ssh_exec` with a host allowed, the copies with
+  `--allow-dir` too, the sessions with `--allow-session` too; `plan` and `shape` hand the new tools
+  to `verbs`, `copy` and `sessions`, each of which checks its own gate again.
+- `crates/podssh-cli/src/mcp/verbs.rs`: `health` (`health --json`), `job_start`, `job_list`
+  (`job list --json`), `job_log` (a window cut from the child's output), `job_wait` (`ended`, a job
+  that runs on as a result) and `job_stop`; the id is 8 hex digits.
+- `crates/podssh-cli/src/mcp/dirs.rs`: `Dirs`, the gate of the local side: each `--allow-dir`
+  resolved and checked against the directories of keys (`key_dirs`), each local path of a call
+  resolved, its links followed, and held inside one; a tree's target only a new path.
+- `crates/podssh-cli/src/mcp/copy.rs`: `cp_put` (a local path, or `content` through a private file
+  of the far name beside the call's result file, which the server removes) and `cp_get`, each
+  `podssh cp --jsonl --timeout`, with `events`.
+- `crates/podssh-cli/src/mcp/sessions.rs`: the five session tools, `Started` (the names that this
+  server started, reserved once each check passed, freed by a failed start or a stop), and the
+  stops that `serve` runs at its end; the text of `session_send` on the child's stdin.
+- Unit tests: `tools_tests.rs` (the list behind each gate, the new `shape`), `verbs_tests.rs`,
+  `dirs_tests.rs`, `copy_tests.rs`, `sessions_tests.rs` in `crates/podssh-cli/src/mcp/`.
+  `crates/podssh-cli/tests/mcp_harness/mod.rs` holds the client of `crates/podssh-cli/tests/mcp.rs`,
+  which gains the tests of the gates and of the paths outside; `crates/podssh-cli/tests/mcp_tools.rs`
+  runs the copies and the jobs against `job_harness`'s far host of sh (Unix; the jobs with tmux),
+  and the sessions against the pty user of the test's server.
+- `scripts/interop-mcp.sh`: `mcp.cp` (`cp_put` of a file's bytes to OpenSSH, `cp_get` back into
+  `--allow-dir`) and `mcp.job` (`job_start`, then `job_stop`); `scripts/interop-baseline.txt`
+  holds the two ids and the harness's floor of 6.
+- The notes of `mcp`, an example, the instructions of the server, `docs/cli.md`, `SECURITY.md`
+  (the two gates) and a row of `docs/STATUS.md`.
+- Planted defect: `scripts/plants/t488-dir-unchecked.plant` (group `cli-tests`): `holds` lets each
+  path in; the unit test of a path outside fails.
+- Step 2's `preflight` waits for T-482, and step 1's JSON of the verbs for T-484 and T-486: until
+  then a result is the exit, the streams and what the tool reads from them.
+- The citations of the changed files are moved in each file of `TODO/` by a port of
+  `cargo todo remap` run here; the main session runs `cargo todo remap` on each changed file to
+  confirm.
+
+What waits, UNVERIFIED: each command of the Prove; that `health`, `job`, `cp` and `session start`
+take each forced `-o` (`ClearAllForwardings`, `ControlMaster`, `ForwardX11` among them) and
+`session start` a `--` before its host; `cargo fmt --check` and `cargo clippy`; `cargo todo check`
+and `cargo todo interop`; `python scripts/check-repo.py`; `scripts/interop-mcp.sh` in the build
+image; the plant (`sh scripts/plant-each.sh t488-dir-unchecked`).
 
 # T-511: `doctor` checks each road one after another, 22 to 40 s, roads that the run did not ask for among them
 
