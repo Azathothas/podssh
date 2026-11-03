@@ -488,7 +488,7 @@ looks past the first three hosts of the pool. The design:
    host and port, or `direct`; no credential, no name), the target, and each
    host with its numbers. `--cached` shows the rank kept, with no
    connection; `--json` gives one object.
-2. **The list uses the rank.** With no list named, the default list is the
+2. **The list uses the rank** (T-607). With no list named, the default list is the
    default host and the three best other hosts of a rank that holds (less
    than 24 h old, of the same egress), in the rank's order; with none, the
    first three of the pool, as now. The record of failures still moves a
@@ -496,7 +496,7 @@ looks past the first three hosts of the pool. The design:
    list, the record moves hosts within it. A list that the user named keeps
    its order. `PODSSH_RELAY_RANK=no`, or `RelayRank no` in the settings
    file, leaves the rank out.
-3. **Samples with no connection.** Each attempt that opens in a session's
+3. **Samples with no connection** (T-607). Each attempt that opens in a session's
    own race, kept or dismissed, gives its time to open; the last few of each
    host go into the same file, and order the hosts of the list when no rank
    holds. They cost no connection: they time the race's own.

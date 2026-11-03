@@ -2655,3 +2655,96 @@ fails, and `--cached` reads it back with no connection; with `PODSSH_OFFLINE`, 6
 order by the last probe in place of the median; the test of a host that is slow once in three
 fails. Live (the live relay is the operator's own): the rank of the pool, and the harness's order
 of the same hosts in the same hour (T-605); the first three of each in `docs/STATUS.md`.
+
+# T-607: The default list of relay hosts takes the rank: the best three of the pool in the rank's order, and samples of each session's own race
+
+**Source:** The operator, 2026-11-03 ("... so it can rank relays on demand and then use"). The design
+is `docs/research/relay-measurement.md`, section 8, items 2 and 3.
+**Category:** feature
+**Milestone:** M10
+**Priority:** P2
+**Effort:** M
+**Status:** open
+
+## Problem
+
+A rank that nothing reads changes nothing: the default list still takes the first three hosts of
+`/relays.json`. And most users never run `podssh relay rank` (T-606), while each session's own race
+times the hosts that it tries, and throws the times away.
+
+## Premise
+
+- Read: `crates/podssh-cli/src/relay_settings.rs:71` says "let pool =
+  podssh_relay::pool::alternates(relay::DEFAULT_RELAY_HOST);": the one place where the default list
+  takes its alternates, which `select_relays` puts after the default host
+  (`crates/podssh-relay/src/relay.rs:104-125`).
+- Read: `open` loads the record and orders the list by it, then races the hosts
+  (`crates/podssh-relay/src/open.rs:207-213`, `crates/podssh-relay/src/open.rs:237`); each host's
+  attempt is `attempt` (`crates/podssh-relay/src/open.rs:295-311`); the file has 473 lines.
+- Read: the race gives the attempt kept, those that opened and were dismissed, and those that
+  stayed silent (`crates/podssh-relay/src/failover.rs:88-101`).
+- Read: the record's `order` puts a host that opened lately first and one that failed or rests
+  last, each group in the order of the list (`crates/podssh-relay/src/failures.rs:231-255`), also
+  for a list that the user named, whose order is a preference (`docs/relay.md:122-123`).
+- Read: T-563's Done: the fault checks of the interop lean on the list's order, so each takes an
+  empty record of its own.
+- Read: the relay's keys of the settings file (`crates/podssh-cli/src/settings.rs:30-32`).
+- Read: T-606 keeps the rank in `relay-rank.json`, with the egress that measured it.
+
+## Approach
+
+1. `podssh_relay::rank::alternates(primary, pool, now, egress)`: when a rank holds (under 24 h, of
+   this egress), the hosts of the rank that opened, in its order, the default host among them at
+   its place; else the pool ordered by the samples of item 2 where it has some; else the pool's
+   order, as now. `relay_settings::relays_from` takes it, so the default list is the default host
+   and the best three other hosts, in the rank's order (`select_relays` takes the order, and keeps
+   the default host in the list).
+2. Samples: `attempt` times its host from its start to the 101, the token's time left out; `open`
+   gives the time of each attempt that opened, kept or dismissed, to `rank::seen`, which keeps the
+   last 8 of each host, with when and the egress, in the rank's file. A failure gives no sample:
+   the record keeps it. The code goes in the rank's module; `open.rs` gets the few lines of the
+   call.
+3. `PODSSH_RELAY_RANK=no`, and `RelayRank no` in the settings file, leave the rank and the samples
+   out of the order (the samples are still kept); a list that the user named keeps its order, and
+   the record still moves its hosts.
+4. `podssh status`, and a line `relay rank` of `doctor` (its age, its egress, the list that it
+   gives), say which order a run takes, and why.
+5. The tests of failover, and the fault checks of `scripts/interop-faults.sh`, keep a cache of their
+   own with no rank, as T-563's do.
+6. The manual's THE RELAY, `docs/relay.md` (step 2 of the selection), `docs/cli.md`.
+
+## Decision
+
+- The default host stays in the default list, at its place in the rank. Lost: the four best hosts
+  with no default (it is the deployment's control host, and the host that a report names; a rank
+  goes stale in 24 h); the default host always first (the rank's gain is mostly the first host,
+  which `staggered` keeps when it opens within 2 s).
+- The rank orders the list, and the record moves hosts within it: a host that failed in the last
+  10 minutes goes last whatever its rank. Lost: one score of both (a failure is an event and a rank
+  a measure; T-563's order already says what a failure does).
+- Samples of the race's own connections alone: they cost no connection, so rule 2 of `AGENTS.md`
+  holds through the exception of the race between relay hosts. Lost: samples of each host of the
+  pool, which need probes (T-606 on demand; unasked, the report's section 8, item 4).
+- The samples order the list only where no rank holds. Lost: a mix of both, as a rank measures
+  each host in rounds under one condition, and samples come from four hosts at most, each in its
+  own run's conditions.
+- A list that the user named keeps its order (`docs/relay.md`, step 5). Lost: the rank over it.
+
+## Prove
+
+```sh
+export CARGO_BUILD_JOBS=4
+cargo test -p podssh-relay --lib rank
+cargo test -p podssh-relay --lib failures
+cargo test -p podssh-cli --lib relay_settings
+cargo test -p podssh-cli --test relay_rank
+```
+
+A rank that holds gives the default host and the best three others in its order; a rank of another
+egress, or 25 h old, gives the pool's order; `PODSSH_RELAY_RANK=no` gives the pool's order; a host
+that failed lately goes last over its rank; the samples order a pool where no rank holds (each of
+these on `rank::alternates`, with a cache of the test's own). Against two stand-in relays
+(`slowopen:600` and `normal`), a run of `podssh proxy --relay-failover parallel --relay-host
+SLOW,FAST` keeps a sample of each, the slow one's 600 ms longer, and keeps their order, as the user
+named it. Planted: `alternates` that ignores the egress; the test of a rank of another egress
+fails. The fault checks of the interop: unchanged, in their run of the release (Q88).
