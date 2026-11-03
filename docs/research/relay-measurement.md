@@ -158,8 +158,9 @@ Read in the tools. Each stage is one pass: each cell is measured once.
   to a `PING`, would settle it). The archive's own data say the same: the
   template relay closes with `1008 first packet is not handshake` when the
   first frame of the client is not a Minecraft handshake (Read:
-  RE-MEASURED.md, "What it cannot carry"), and the probe still reports "bidi
-  via irc" for each of its three deployments, whose first frame was
+  RE-MEASURED.md, "What it cannot carry", and the closes of its download in
+  results/throughput.json), and the probe still reports "bidi via irc" for
+  each of its three deployments, where the client's first frame was
   `NICK`/`USER`.
 - **A banner proves the read leg only**, as the survey says itself.
 - **A refusal at the proxy is the measuring host's.** The two relays on
@@ -182,8 +183,9 @@ Read in the tools. Each stage is one pass: each cell is measured once.
   path"), so its `upgrade_ms` holds the dial of `git.sr.ht`; through
   Mudlet's Worker the upgrade came at 341 ms and the banner at 792 ms (Read:
   results/probe.json), so that Worker dials after its 101 (Inferred). The
-  upgrade times of the two kinds are not the same measure. `podssh relay trace` gives the relay's own dial time, which tells
-  the two legs apart (`crates/podssh-cli/src/relay_diag.rs:166-239`).
+  upgrade times of the two kinds are not the same measure. `podssh relay
+  trace` gives the relay's own dial time, which tells the two legs apart
+  (`crates/podssh-cli/src/relay_diag.rs:166-239`).
 - **The target's path with the relay.** The download goes to one mirror in
   the US on port 80. A pool host is the same Worker placed near a cloud's
   region ([carriers.md](../carriers.md), the pool), so its MiB/s is mostly
@@ -293,9 +295,10 @@ the client (Read): three deployments of one template of a Minecraft relay
 MUD clients' proxies on ports other than 443, the three forwarders of Q56,
 and podssh's relay. Of the seven that podssh does not use:
 
-- none is shown to carry a client's binary bytes to the target: the
-  template's three deployments refuse a first frame that is not a Minecraft
-  handshake (`1008`); the MUD host's proxy and the two MUD clients' proxies
+- none is shown to carry a client's binary bytes to the target: two of the
+  template's three deployments closed a first frame that is not a Minecraft
+  handshake with `1008`, and the third moved no byte of the download; the
+  MUD host's proxy and the two MUD clients' proxies
   are text or base64 relays, whose bytes from the client the harness itself
   broke (section 3, item 8); and the Pages Function's write leg rests on the
   IRC proof, while its download moved no byte in 16 s (Read:
@@ -339,10 +342,11 @@ selects a relay").
 
 The archive is under 0BSD (its LICENSE, and "License: 0BSD" in its README);
 six of its seven tools carry `SPDX-License-Identifier: 0BSD`, and the README
-puts the whole repository, proxy_forward.py with it, under the LICENSE. podssh is under 0BSD too (its
-`LICENSE`, and `license = "0BSD"` in `Cargo.toml`). 0BSD asks for no notice,
-so any file may be copied or changed into podssh. What may not be copied is
-decided by podssh's own rules, not by the license:
+puts the whole repository, proxy_forward.py with it, under the LICENSE.
+podssh is under 0BSD too (its `LICENSE`, and `license = "0BSD"` in
+`Cargo.toml`). 0BSD asks for no notice, so any file may be copied or changed
+into podssh. What may not be copied is decided by podssh's own rules, not by
+the license:
 
 | File | May be | Why |
 | --- | --- | --- |
@@ -476,8 +480,8 @@ podssh measures the hosts that a user names with `ping`, and remembers each
 host's failures and opens; it keeps no measured time of a host, and it never
 looks past the first three hosts of the pool. The design:
 
-1. **`podssh relay rank`**, on demand (T-606). The default host and each host of
-   the cached pool (all of them), or the list of `--relay-host`; each host
+1. **`podssh relay rank`**, on demand (T-606). The default host and each
+   host of the cached pool (all of them), or the list of `--relay-host`; each host
    probed `--rounds` times in a new random order each round, one host at a
    time, by the code of `podssh ping`'s relay leg
    (`crates/podssh-cli/src/ping/relay.rs:102`), to `--target` (GitHub's SSH
@@ -488,16 +492,16 @@ looks past the first three hosts of the pool. The design:
    host and port, or `direct`; no credential, no name), the target, and each
    host with its numbers. `--cached` shows the rank kept, with no
    connection; `--json` gives one object.
-2. **The list uses the rank** (T-607). With no list named, the default list is the
-   default host and the three best other hosts of a rank that holds (less
+2. **The list uses the rank** (T-607). With no list named, the default list
+   is the default host and the three best other hosts of a rank that holds (less
    than 24 h old, of the same egress), in the rank's order; with none, the
    first three of the pool, as now. The record of failures still moves a
    host that failed last and one that opened first: the rank orders the
    list, the record moves hosts within it. A list that the user named keeps
    its order. `PODSSH_RELAY_RANK=no`, or `RelayRank no` in the settings
    file, leaves the rank out.
-3. **Samples with no connection** (T-607). Each attempt that opens in a session's
-   own race, kept or dismissed, gives its time to open; the last few of each
+3. **Samples with no connection** (T-607). Each attempt that opens in a
+   session's own race, kept or dismissed, gives its time to open; the last few of each
    host go into the same file, and order the hosts of the list when no rank
    holds. They cost no connection: they time the race's own.
 4. **A rank that podssh makes unasked** (T-608) would open connections that
