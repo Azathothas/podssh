@@ -10,6 +10,7 @@ use russh::Disconnect;
 use tokio::io::{AsyncRead, AsyncWrite};
 
 use crate::handler::Client;
+use crate::handshake::{Record, Wait};
 use crate::hostkey::Policy;
 use crate::known_hosts;
 use crate::log::Log;
@@ -384,6 +385,9 @@ where
     let x11 = if is_destination { opts.forward_x11.clone() } else { None };
     let client =
         Client::new(policy, log.clone()).forwarding_agent(forwarded).forwarding_x11(x11).limiting(&opts.algorithms);
+    // What the handshake sees, for its line when it does not finish (T-588).
+    let record = Record::default();
+    let client = client.recording(record.clone());
     let refusal = client.refusal();
     let disconnect = client.disconnect();
     let forwards = client.forwards();
@@ -393,14 +397,12 @@ where
     }
     let label = display(hop);
     log.verbose(&format!("SSH handshake with {label}"));
-    let handshake = russh::client::connect_stream(config, stream, client);
-    let mut handle = match tokio::time::timeout(opts.connect_timeout, handshake).await {
-        Err(_) => {
-            return Err(HopError::Unreachable(format!(
-                "{label}: the SSH handshake did not finish within {} s",
-                opts.connect_timeout.as_secs()
-            )))
-        }
+    // The road's words are the first hop's, and a node has no -J.
+    let road = opts.road.as_ref().filter(|_| opts.jump.is_empty());
+    let wait = Wait { label: &label, limit: opts.connect_timeout, road, log };
+    let handshake = russh::client::connect_stream(config, record.watch(stream), client);
+    let mut handle = match wait.run(&record, handshake).await {
+        Err(timed_out) => return Err(HopError::Unreachable(timed_out)),
         Ok(Err(russh::Error::UnknownKey)) => {
             let why = refusal.lock().unwrap_or_else(|e| e.into_inner()).take();
             return Err(HopError::HostKey(why.unwrap_or_else(|| "host key verification failed.".into())));

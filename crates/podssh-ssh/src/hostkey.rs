@@ -222,7 +222,8 @@ impl Policy {
         }
         question.push_str("Are you sure you want to continue connecting (yes/no/[fingerprint])? ");
         loop {
-            let answer = match prompt::ask(&question, true) {
+            // Marked on the handshake while it waits: its time is the user's (T-588).
+            let answer = match crate::handshake::asking(|| prompt::ask(&question, true)) {
                 Ok(a) => a,
                 Err(e @ (PromptError::NoTerminal | PromptError::NoAnswer)) => {
                     return Verdict::Reject(format!(

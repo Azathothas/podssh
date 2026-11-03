@@ -121,7 +121,10 @@ terminfo database of the server must resolve the name.
 - A console has no resize signal, so podssh reads the window size every
   500 ms. On Unix, SIGWINCH gives the change.
 - Prompts use `CONIN$` and `CONOUT$`, so they work when stdin and stdout are
-  redirected.
+  redirected. When none of stdin, stdout and stderr is a terminal, a prompt
+  waits 60 s at most for a key, as on Unix (T-588): a console with no
+  window, as an agent's, opens, and nobody sees its question. Another event
+  of the console (a focus, a mouse, a size) is no answer.
 - podssh sets no code page. Output goes to the console through Rust's
   standard output, which writes the console in UTF-16, so text in UTF-8
   shows whatever the code page is. That writer refuses a byte that is not

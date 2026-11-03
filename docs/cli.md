@@ -3962,7 +3962,10 @@ with the report (`docs/decisions.md`, 2026-10-08).
 - When stdin, stdout and stderr are all redirected, a prompt on the terminal
   waits 60 s at most (`terminal::UNWATCHED_PROMPT`), then refuses with the
   remedy. A person at the terminal can still answer; a terminal that nobody
-  watches does not stop podssh for ever.
+  watches does not stop podssh for ever. So does a console of Windows since
+  T-588: a console with no window, as an agent's, opens, and its question
+  waited for ever (GitHub #114). A key is the console's answer; a focus, a
+  mouse or a size is taken from it, and the wait goes on.
 - `-o BatchMode=yes` makes each prompt a refusal.
 - A changed host key is refused, also on a terminal.
   So it is under `StrictHostKeyChecking=no`, where OpenSSH warns, turns off
@@ -4002,7 +4005,32 @@ with the report (`docs/decisions.md`, 2026-10-08).
   key exchange ends the run with 255 and names the request that it did not
   answer. A prompt runs before its request, and the time that the agent
   spends signing (`ssh-add -c`) does not count, nor does the time of a
-  security key, whose touch has 30 s (T-229).
+  security key, whose touch has 30 s (T-229). Nor, since T-588, does the
+  question of a new host key, which runs inside the handshake: the
+  handshake's limit stops while it waits, and the question has its own
+  bound, as each prompt has.
+- A handshake that does not finish within `ConnectTimeout` names what came
+  (T-588, GitHub #114), one form for each case: "HOST: the SSH handshake did
+  not finish within N s: no byte came from the server"; "... N bytes came
+  from the server, with no SSH version line: the first line was "TEXT"";
+  "... SSH-2.0-OpenSSH_10.0p2 came, then nothing after this side's KEXINIT";
+  "... VERSION came; the last messages were the server's KEXINIT and this
+  side's KEX_ECDH_INIT". Through a node, the far end is the node's TARGET
+  after the layer opened, and the bytes of the layer and of the end-to-end
+  channel follow each way: "(through the layer: N bytes from the node, M
+  to it; through the end-to-end channel: N from it, M to it)", or "the
+  resumable layer to the node did not open". The record reads the stream
+  between russh and the road (`crates/podssh-ssh/src/handshake.rs`): the
+  lines before the version line, the version line, and the header of each
+  packet up to NEWKEYS, after which the packets are encrypted.
+- 10 s into a handshake that has not finished (through a node, 10 s after
+  its layer opened: the node's own bound on its TARGET's answer), one line
+  says where it is, as above, and that it waits until `ConnectTimeout`; so a
+  long `ConnectTimeout` is no long silence. While the question of a host
+  key waits and none of stdin, stdout and stderr is a terminal, the line
+  says that the question waits, its bound, and
+  `-o StrictHostKeyChecking=accept-new`; a person at the terminal gets no
+  line in the middle of the question.
 
 ## `ssh_config` (milestone M8)
 

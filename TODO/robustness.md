@@ -337,7 +337,7 @@ Read:
 - `crates/podssh-ws/src/text.rs:12-51` is the one sanitizer for text from a
   peer (`SECURITY.md:145-148`).
 - docs/terminal.md gives the redraw sequence and the refusals of the line
-  discipline (`docs/terminal.md:169-265`). T-127 (the cursor counts bytes) and
+  discipline (`docs/terminal.md:172-268`). T-127 (the cursor counts bytes) and
   T-129 (Home and End do not move the screen's cursor) are screen defects.
 - Read in the message of commit `a378863`: `rio-vt` needs `simdutf`, a C++
   library, so it cannot be a dependency of a library crate.
@@ -363,7 +363,7 @@ Read:
    in the gate's container (installed with apk, as `scripts/interop-man.sh:22`
    installs groff) and through `vt100`. The two must give the same screens
    before the model judges podssh.
-6. docs/terminal.md, section "Tests" (`docs/terminal.md:556`), names the
+6. docs/terminal.md, section "Tests" (`docs/terminal.md:559`), names the
    oracle.
 
 ## Decision
@@ -530,7 +530,7 @@ Read, the bounds today:
   (`crates/podssh-ws/src/handshake.rs:124`).
 - The pool document: 256 KiB (`crates/podssh-relay/src/pool.rs:36`). A cache
   file: 64 KiB (`crates/podssh-relay/src/cache.rs:33`).
-- The SSH window: 512 KiB (`crates/podssh-ssh/src/run.rs:29`). The relay pipe:
+- The SSH window: 512 KiB (`crates/podssh-ssh/src/run.rs:30`). The relay pipe:
   256 KiB each way, frames of 64 KiB
   (`crates/podssh-ssh/src/relay_stream.rs:36-39`). Pump buffers: 32 KiB
   (`crates/podssh-cli/src/pipe/pump.rs:23`).
@@ -543,7 +543,7 @@ Read, the bounds today:
   relay drops a frame when more than 1 MiB waits (`1011 relay
   backpressure`): the row of the reverse path in the relay's document
   (`crates/podssh-probe/tests/spec/relay-spec-2026-10-03-r2.txt:185`). It
-  now gives the forward path's rule (`crates/podssh-ssh/src/run.rs:25-28`):
+  now gives the forward path's rule (`crates/podssh-ssh/src/run.rs:26-29`):
   `docs/relay.md:311-323` says that backpressure closes with `1013` at
   2 MiB and drops no frame. T-062 measures whether that check operates.
 
@@ -553,7 +553,7 @@ Read, the bounds today:
    its value, its file, and what podssh does at the bound (the error and its
    exit code). Name the two missing limits as missing.
 2. The table states the forward path's bound, as the comment at
-   `crates/podssh-ssh/src/run.rs:25-28` does since T-024, and the result of
+   `crates/podssh-ssh/src/run.rs:26-29` does since T-024, and the result of
    T-062 when it exists.
 3. Tests in the process, with a peer over `tokio::io::duplex`, so no network
    (`docs/development.md:537-540`): a proxy head that never ends stops at
@@ -582,7 +582,7 @@ sh scripts/dev.sh check                    # interop: the slow reader stays unde
 ```
 
 Each command exits 0. Planted defect: set `WINDOW`
-(`crates/podssh-ssh/src/run.rs:29`) to 64 MiB, and russh's queue of a
+(`crates/podssh-ssh/src/run.rs:30`) to 64 MiB, and russh's queue of a
 channel (`channel_buffer_size`, `crates/podssh-ssh/src/run_config.rs:68-78`) to
 2^20 messages; the slow-reader check must fail. The window alone is not
 enough: the queue is a second bound (Correction). A second plant: remove the
@@ -843,10 +843,10 @@ Read:
   names and answers a status (`scripts/fake-proxy.py:1-27`). Neither shapes
   the traffic.
 - `scripts/interop-faults.sh:35-44` starts one stand-in for each fault; its
-  checks are at lines 73-182 at `8d668b7` (`docs/STATUS.md:611-631`, 14 of 14 since T-236).
+  checks are at lines 73-182 at `8d668b7` (`docs/STATUS.md:612-632`, 14 of 14 since T-236).
 - The time limits that latency meets today: the SSH handshake, 60 s
-  (`crates/podssh-ssh/src/options.rs:386`, enforced at
-  `crates/podssh-ssh/src/run.rs:397-403`); a reply, 30 s
+  (`crates/podssh-ssh/src/options.rs:390`, enforced at
+  `crates/podssh-ssh/src/run.rs:402-405`); a reply, 30 s
   (`crates/podssh-ssh/src/session.rs:22`); a write, 60 s, and liveness, three
   times 10 s (`crates/podssh-ws/src/client.rs:31-35`).
 - The gate's container gets no added capability

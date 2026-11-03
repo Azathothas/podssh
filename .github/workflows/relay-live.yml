@@ -6,7 +6,10 @@ name: relay live
 # session of 10 minutes, T-155's 200 MiB each way; T-251), and podssh's own
 # relay role on the runner, which reaches GitHub's SSH endpoint (relay_serve:
 # T-169), and its reverse road, with node_live's short tests and the client
-# of the release before against it (relay_serve_reverse: T-427).
+# of the release before against it (relay_serve_reverse: T-427); and
+# node_live's ssh_to_a_node with the client on Windows, where a tester's
+# `podssh ssh node://` waited its whole ConnectTimeout (node_live_windows:
+# T-588, GitHub #114).
 # Started by hand only. Each test mints its own tokens and pairs on the live
 # relay, stops its pairs at the end, and prints no token.
 
@@ -21,6 +24,7 @@ on:
           - live_backpressure
           - reverse_live
           - node_live
+          - node_live_windows
           - relay_serve
           - relay_serve_reverse
 
@@ -29,6 +33,7 @@ permissions:
 
 jobs:
   live:
+    if: inputs.test != 'node_live_windows'
     runs-on: ubuntu-24.04
     timeout-minutes: 60
     steps:
@@ -75,3 +80,37 @@ jobs:
                 sh scripts/relay-serve-live.sh target/debug/podssh reverse ;;
             *) cargo test --locked -p podssh-relay --features pair --test "$TEST" -- --ignored --nocapture ;;
           esac
+
+  # The node on the runner, in front of railway.new (a runner of Windows runs
+  # no sshd), and the client in a console with no window, as a step of a
+  # runner has one: as the tester's agent ran it.
+  windows:
+    if: inputs.test == 'node_live_windows'
+    runs-on: windows-2025
+    timeout-minutes: 60
+    env:
+      CARGO_BUILD_JOBS: "4"
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+      # aws-lc's build wants NASM on Windows, as in build.yml, with its
+      # fallback: the prebuilt objects when NASM cannot be set up.
+      - uses: ilammy/setup-nasm@72793074d3c8cdda771dba85f6deafe00623038b # v1.5.2
+        continue-on-error: true
+      - name: NASM, or aws-lc's prebuilt objects
+        shell: bash
+        run: |
+          if command -v nasm > /dev/null 2>&1; then
+            nasm -v
+          else
+            echo "::warning::no NASM: aws-lc's prebuilt objects (AWS_LC_SYS_PREBUILT_NASM=1)"
+            echo "AWS_LC_SYS_PREBUILT_NASM=1" >> "$GITHUB_ENV"
+          fi
+      - name: build the test
+        shell: bash
+        run: cargo test --locked -p podssh-cli --test node_live --no-run
+      # Each line of the node too, and the client's -vvv in the run of #114.
+      - name: the live test
+        shell: bash
+        env:
+          PODSSH_TEST_NODE_LINES: "1"
+        run: cargo test --locked -p podssh-cli --test node_live -- --ignored --nocapture --test-threads 1 ssh_to_a_node

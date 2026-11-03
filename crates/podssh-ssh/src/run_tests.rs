@@ -1,6 +1,10 @@
+use std::time::Duration;
+
 use russh::SshId;
+use tokio::io::AsyncWriteExt;
 
 use super::*;
+use crate::options::LogLevel;
 
 const DROP: &str = "railway.new: the connection closed unexpectedly";
 
@@ -106,4 +110,52 @@ fn a_hop_takes_its_own_options_and_the_runs_memory() {
     assert_eq!(hop_options(&opts, 1).destination.host, "dest.example", "no options of its own: the connection's");
     opts.set_batch_mode();
     assert!(opts.batch_mode && opts.jump_options[0].batch_mode);
+}
+
+/// OpenSSH 10.0p2's version line, as its sshd writes it with no addendum.
+const OPENSSH: &[u8] = b"SSH-2.0-OpenSSH_10.0p2\r\n";
+
+/// The line of `connect` to a far end that sends `far`, then nothing, with a
+/// ConnectTimeout of 3 s: it comes within 5 s, once the limit ran out.
+async fn handshake_line(far: &[u8]) -> String {
+    let (ours, mut theirs) = tokio::io::duplex(64 * 1024);
+    theirs.write_all(far).await.unwrap();
+    let hop = Hop { user: Some("u".into()), host: "dest.example".into(), port: 22, tls: false };
+    let mut opts = Options::new(hop.clone(), "u".into());
+    opts.connect_timeout = Duration::from_secs(3);
+    opts.batch_mode = true;
+    let log = Arc::new(Log::new(LogLevel::Quiet));
+    let started = tokio::time::Instant::now();
+    let ended = tokio::time::timeout(Duration::from_secs(5), connect(ours, &hop, true, &opts, &log));
+    let line = match ended.await.expect("an end within 5 s") {
+        Err(HopError::Unreachable(line)) => line,
+        Err(other) => panic!("not a failure to reach: {other}"),
+        Ok(_) => panic!("logged in"),
+    };
+    assert!(started.elapsed() >= Duration::from_secs(3), "the limit ran out");
+    // The far end stays open until the line, as a silent server does.
+    drop(theirs);
+    line
+}
+
+/// A far end that sends nothing (GitHub #114): the line says that no byte
+/// came, where it said only that the handshake did not finish (T-588).
+#[tokio::test(start_paused = true)]
+async fn a_silent_far_end_s_timeout_says_no_byte_came() {
+    assert_eq!(
+        handshake_line(b"").await,
+        "dest.example: the SSH handshake did not finish within 3 s: no byte came from the server"
+    );
+}
+
+/// A far end that sends OpenSSH's version line, then nothing: the line
+/// names the version line and the step, this side's KEXINIT, which russh
+/// sends once it read the server's line (T-588).
+#[tokio::test(start_paused = true)]
+async fn a_far_end_that_stops_after_its_version_line_is_named() {
+    assert_eq!(
+        handshake_line(OPENSSH).await,
+        "dest.example: the SSH handshake did not finish within 3 s: SSH-2.0-OpenSSH_10.0p2 came, then nothing after \
+         this side's KEXINIT"
+    );
 }

@@ -1,0 +1,16 @@
+--- a/crates/podssh-ssh/src/handshake.rs
++++ b/crates/podssh-ssh/src/handshake.rs
+@@ -216,11 +216,7 @@
+
+     /// The line of a handshake that did not finish within the limit.
+     pub(crate) fn timed_out(&self, record: &Record) -> String {
+-        format!(
+-            "{}: the SSH handshake did not finish within {} s: {}",
+-            self.label,
+-            self.limit.as_secs(),
+-            self.seen(record)
+-        )
++        let _ = record;
++        format!("{}: the SSH handshake did not finish within {} s", self.label, self.limit.as_secs())
+     }
+

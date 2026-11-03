@@ -491,7 +491,7 @@ Read, at `61e55d1`: no option made podssh start a program: `ProxyCommand` is ref
    `[OPTIONS] [--] [user@]host [COMMAND...]` for `ssh` and
    `[OPTIONS] [--] HOST PORT` for `proxy`; `--help` and the synopsis of the
    manual (`crates/podssh-cli/src/man/model.rs:186-190`) read it.
-2. A note for `ssh` and `proxy` (`crates/podssh-cli/src/man/notes_ssh.rs:4-473` and `crates/podssh-cli/src/man/notes_ssh_more.rs:4-106` and `crates/podssh-cli/src/man/notes.rs:69-184`)
+2. A note for `ssh` and `proxy` (`crates/podssh-cli/src/man/notes_ssh.rs:4-473` and `crates/podssh-cli/src/man/notes_ssh_more.rs:4-114` and `crates/podssh-cli/src/man/notes.rs:69-184`)
    and an example (`crates/podssh-cli/src/man/examples.rs:8-267`). Pitfall: the
    notes test reads a bare `--` as a flag that does not exist
    (`crates/podssh-cli/src/man/notes.rs:389-405`); teach `flag_exists`
@@ -604,7 +604,7 @@ variable matters when `cp`, `mv` and `relay` exist. `ssh` and `proxy` have no
    which `each_variable_in_the_source_is_documented` requires
    (`crates/podssh-cli/src/man/facts/tests.rs:65-78`); "default: env
    PODSSH_TIMEOUT" in the help of each `--timeout` row, as `--relay-host` says
-   it (`crates/podssh-cli/src/flags.rs:171-172`); `docs/cli.md:3992-3994`;
+   it (`crates/podssh-cli/src/flags.rs:171-172`); `docs/cli.md:3995-3997`;
    `docs/STATUS.md`.
 5. Do this after T-008, so that a verb that does nothing still exits 70 first.
 
@@ -2478,7 +2478,7 @@ nothing.
   (`crates/podssh-cli/src/pipe/listen.rs:48-55`), and 255 in `-L` and `-D`, with the system's
   words and "this host refuses the listener" (`crates/podssh-cli/src/ssh/local_bind.rs:89-93`).
   The issue's amendment says that `-L` exits 77: it exits 255, as OpenSSH's ssh does for a
-  failure of its own (`crates/podssh-ssh/src/run.rs:23`).
+  failure of its own (`crates/podssh-ssh/src/run.rs:24`).
 - Read: `crates/podssh-cli/src/flags.rs` line 364 at `48a8744` says "join two byte streams, as socat does, with no
   listener", though `pipe` listens for `tcp-listen:` and `unix-listen:` since T-177; the note of
   the manual says it right, "with no listener unless one side asks for one"
@@ -2507,7 +2507,7 @@ nothing.
 ## Decision
 
 A refused bind stays `ok`, with the features named. `FAIL` lost: the hosts that podssh is built
-for refuse the bind (sandbox A for AF_INET, `docs/STATUS.md:320`; the measured cage by the
+for refuse the bind (sandbox A for AF_INET, `docs/STATUS.md:321`; the measured cage by the
 operator's report, `docs/target-environment.md:25`), and doctor exits 1 on a `FAIL`, so each run
 there would fail where each road works (`crates/podssh-cli/src/doctor/mod.rs:6-9`). A fourth
 status lost: the report and its JSON have three (`docs/cli.md:2195-2198`). The issue's grade by a
@@ -2583,7 +2583,7 @@ alone measures less than they use, so it cannot answer what a user asks it.
   for, so it waits for a ruling: Q53.
 - Read: the measured cage's listening was not measured, and stands on the operator's report
   (`docs/target-environment.md:25`); sandbox A's AF_UNIX bind was doctor's bind
-  (`docs/STATUS.md:320`), so whether it listens is not known. The box refuses each bind
+  (`docs/STATUS.md:321`), so whether it listens is not known. The box refuses each bind
   (`scripts/box/seccomp.json:5-10`): it has no case of a bind allowed and a listen refused.
 - Read, in the issue (measured by its reporter on a development host, not with podssh): a bind
   of an AF_INET stream socket refused, where an AF_INET datagram socket and an AF_UNIX socket
@@ -2690,7 +2690,7 @@ later, in a file, and `ssh -f`, OpenSSH's way, is refused.
   caller's extra pipe never saw its end. `start.rs:155-156` says the opposite of Unix.
 - Read: a run of `podssh ssh` reaches `Phase::Requested` after its login, with `-L` and `-D`
   bound before anything connects (`crates/podssh-ssh/src/retry.rs:16-26`,
-  `crates/podssh-ssh/src/run.rs:208-215`); `podssh pipe` binds its listener in one place
+  `crates/podssh-ssh/src/run.rs:209-216`); `podssh pipe` binds its listener in one place
   (`crates/podssh-cli/src/pipe/serve.rs:87`).
 - Measured in the study: the Claude Code Bash tool's TaskStop kills each descendant of a living
   parent, a new session's included, and spares one that PID 1 adopted; Codex CLI kills a group

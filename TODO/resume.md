@@ -184,7 +184,7 @@ an escape sequence of GitHub #31 needs dropped bytes (T-221). The reverse road
 drops a frame and closes with `1011 relay backpressure` above 1 MiB queued
 (`crates/podssh-probe/tests/spec/relay-spec-2026-10-03-r2.txt:185`); the buffer
 turns that close into a resume. The SSH window is 512 KiB for each channel
-(`crates/podssh-ssh/src/run.rs:25-29`). Do not bring back the backpressure module of
+(`crates/podssh-ssh/src/run.rs:26-30`). Do not bring back the backpressure module of
 `podssh-transport`, which T-074 removed (`docs/design.md:590-591`).
 
 ## Approach
@@ -817,7 +817,7 @@ Read: a read waits 90 s at most (`crates/podssh-ws/src/client.rs:23-25`, set at
 frame each 25 s. The ping watcher acts only after a first Pong
 (`crates/podssh-ws/src/session.rs:261-299`); Pongs and the idle cut on reverse
 sockets are not measured (T-061). russh sends a keepalive each 60 s and ends
-the session after 3 with no answer (`crates/podssh-ssh/src/options.rs:345-385`).
+the session after 3 with no answer (`crates/podssh-ssh/src/options.rs:349-389`).
 Measured on `3ee70dc`, offline (`PODSSH_OFFLINE=1`, a `.invalid` host):
 `-o ServerAliveInterval=0` prints the warning of
 `crates/podssh-cli/src/ssh/resolve.rs:387-401` (the `warnings` of keepalives), and `podssh ssh` exits 255.
@@ -838,7 +838,7 @@ Measured on `3ee70dc`, offline (`PODSSH_OFFLINE=1`, a `.invalid` host):
 5. In the same commit: "Liveness" and "Idle limit" in the manual
    (`crates/podssh-cli/src/man/facts.rs:407-422`,
    `crates/podssh-cli/src/man/facts.rs:442-451`), the note at
-   `crates/podssh-cli/src/man/notes_ssh_more.rs:58`, `docs/relay.md`, `README.md`.
+   `crates/podssh-cli/src/man/notes_ssh_more.rs:66`, `docs/relay.md`, `README.md`.
 
 ## Decision
 
@@ -1888,8 +1888,8 @@ a full-screen program is written into its screen.
 
 ## Premise
 
-- Read: the layer's lines, written always: a loss (`crates/podssh-cli/src/layered.rs:370`) and a
-  resume (`crates/podssh-cli/src/layered.rs:381`). The heartbeat each 10 s, and a link dead after
+- Read: the layer's lines, written always: a loss (`crates/podssh-cli/src/layered.rs:374`) and a
+  resume (`crates/podssh-cli/src/layered.rs:385`). The heartbeat each 10 s, and a link dead after
   30 s with nothing from the far end (`crates/podssh-relay/src/session/pump.rs:57`,
   `crates/podssh-relay/src/session/pump.rs:60`). The forward road's checks
   (`docs/design.md:652`).
@@ -1998,8 +1998,8 @@ that gives `Line` to a terminal in raw mode; in the model, the control
 ## Correction
 
 The first item of the Premise cites the layer's lines at lines of `next_leg`, which opens a new
-leg. The lines are in `line_of`: a loss (`crates/podssh-cli/src/layered.rs:415`) and a resume
-(`crates/podssh-cli/src/layered.rs:426`). What the item says of them holds.
+leg. The lines are in `line_of`: a loss (`crates/podssh-cli/src/layered.rs:419`) and a resume
+(`crates/podssh-cli/src/layered.rs:430`). What the item says of them holds.
 
 ## Done
 
@@ -3295,7 +3295,7 @@ an ordinary use of its documented ProxyCommand form ends that.
   refused. The tester did not count the held sessions, as the issue says.
 - Read: a session whose target ended can take no more bytes into its buffer, and is charged as
   much as a live one.
-- Read: `--resume-deadline` takes 1 minute to 72 h (`crates/podssh-cli/src/layered.rs:117`), and
+- Read: `--resume-deadline` takes 1 minute to 72 h (`crates/podssh-cli/src/layered.rs:118`), and
   `--plain` is a node with no layer.
 - Not the cap of GitHub #84 (T-461): that is the relay's 64 MiB for one session.
 

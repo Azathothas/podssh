@@ -615,10 +615,10 @@ they pass: stdin at `crates/podssh-ssh/src/io.rs:230`, stdout and stderr at
 `crates/podssh-ssh/src/forward.rs:83`. The status and the signal at
 `crates/podssh-ssh/src/io/msg.rs:36` and `crates/podssh-ssh/src/io/msg.rs:41`,
 the end at `crates/podssh-ssh/src/session.rs:38`; the class of a hop's
-failure at `crates/podssh-ssh/src/run.rs:135-145` and
-`crates/podssh-ssh/src/run.rs:189`, a new connection at
-`crates/podssh-ssh/src/run.rs:155`, the relay's close first at
-`crates/podssh-ssh/src/run.rs:67-74`; a control master at
+failure at `crates/podssh-ssh/src/run.rs:136-146` and
+`crates/podssh-ssh/src/run.rs:190`, a new connection at
+`crates/podssh-ssh/src/run.rs:156`, the relay's close first at
+`crates/podssh-ssh/src/run.rs:68-75`; a control master at
 `crates/podssh-ssh/src/mux/client.rs:168`,
 `crates/podssh-ssh/src/mux/client.rs:202` and
 `crates/podssh-ssh/src/mux/client.rs:264-271`. The object in
@@ -629,7 +629,7 @@ failure at `crates/podssh-ssh/src/run.rs:135-145` and
 `crates/podssh-cli/src/ssh/transport.rs:207` and its close at
 `crates/podssh-cli/src/ssh/mod.rs:391`. The flag in `SSH_FLAGS`
 (`crates/podssh-cli/src/flags.rs:205`), its note at
-`crates/podssh-cli/src/man/notes_ssh_more.rs:75-89`, and `docs/cli.md`.
+`crates/podssh-cli/src/man/notes_ssh_more.rs:83-97`, and `docs/cli.md`.
 
 The test `crates/podssh-cli/tests/ssh_result.rs`, against the test server,
 whose `exit N` and `kill NAME` are in
@@ -674,7 +674,7 @@ stdin and stdout gives typed tools, with no shell quoting.
 
 Measured: `podssh mcp` exits 64 (unknown subcommand).
 
-Read: a prompt goes to the controlling terminal or to `SSH_ASKPASS` (`docs/cli.md:3941-3966`),
+Read: a prompt goes to the controlling terminal or to `SSH_ASKPASS` (`docs/cli.md:3941-3969`),
 and the terminal of an agent can be the user's own. The session output goes straight to the
 process's stdout (`crates/podssh-ssh/src/io/msg.rs:78-95`), which an MCP server over stdio uses for
 its protocol. podssh never listens (`docs/architecture.md:208-223`), and stdio needs no listener.

@@ -3081,7 +3081,7 @@ The calls of the draft (2026-11-02), each with what lost:
   copy above; leaving the test as it was, by which `mv NAME:a node://NAME:b` copies through this
   host and removes the source, where the server could rename it, and `mv NAME:a node://NAME:a` is
   not refused as one file before anything connects.
-- **A copy keeps the pair's road alone** (`crates/podssh-cli/src/ssh/node.rs:225` says "the
+- **A copy keeps the pair's road alone** (`crates/podssh-cli/src/ssh/node.rs:229` says "the
   pair's road is its only one"), and the manual says so. Lost: racing the net's iroh and DERP
   tickets for a copy as `ssh` races them, which needs `roads::connect` to give a stream in place
   of running SSH itself: more than this entry's effort, in a file of 463 of its 500 lines; it is
@@ -3104,7 +3104,7 @@ The copies do ask the net (read 2026-11-02). Each reads its operand with its own
 (`crates/podssh-cli/src/cp/mod.rs:247`, `crates/podssh-cli/src/sftp/mod.rs:162`,
 `crates/podssh-cli/src/edit/mod.rs:108`), which reads the destination's node before its host
 (`crates/podssh-cli/src/ssh/resolve.rs:142`), and a name alone there in the net
-(`crates/podssh-cli/src/ssh/node.rs:40` says "crate::net::lookup::bare(text)"); the copy's link then reaches `Transport::Node` through the pair
+(`crates/podssh-cli/src/ssh/node.rs:41` says "crate::net::lookup::bare(text)"); the copy's link then reaches `Transport::Node` through the pair
 (`crates/podssh-cli/src/cp/link.rs:152-153`). So `podssh cp FILE lab:PATH` and `podssh sftp lab`
 already resolve to the member's node. What was missing: a test that proves it, the manual's and
 the documents' words, and the copies' own test of one server, which compared the operands as

@@ -298,6 +298,10 @@ pub(super) async fn connect(
             return EXIT_FAILURE;
         }
     };
+    // What the layer and the channel carry, for the line of a handshake that
+    // does not finish (T-588).
+    let flow = Arc::new(podssh_ssh::handshake::Flow::default());
+    let opts = &super::node::on_the_road(opts, &flow, channel.is_some());
     let derp = match &raced.derp {
         Some(road) => match super::derp::dialer(&road.ticket, &road.servers, trust, &log, &shown) {
             Ok(dialer) => Some((dialer, road.asked)),
@@ -400,6 +404,7 @@ pub(super) async fn connect(
         move |line: String| log.info(&format!("{shown}: {line}"))
     };
     let (layer_app, session) = crate::channel::around(layer_end, channel, pin_say);
+    let layer_app = podssh_ssh::handshake::Counted::new(layer_app, Some(flow.clone()));
     let session = async move {
         match session {
             Some(session) => session.await.err(),
