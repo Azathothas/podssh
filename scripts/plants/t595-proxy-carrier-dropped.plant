@@ -1,0 +1,7 @@
+# T-595: podssh proxy node://NAME given no carrier, so that --carrier is
+# read and dropped and the pipe asks for a pair; the test of proxy --carrier
+# must fail.
+ENTRY=T-595
+GROUP=cli-tests
+EXPECT='test proxy_reaches_the_node_at_the_other_end_of_a_program_s_stdio \.\.\. FAILED'
+RUN='cargo test --locked -p podssh-cli --test node_carrier -- proxy_reaches_the_node_at_the_other_end_of_a_program_s_stdio'

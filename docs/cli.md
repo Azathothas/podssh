@@ -3162,8 +3162,12 @@ commands. The rules behind them:
   and no other road races it. `stdio`, `--pair-file`, a relay's flag,
   `--direct`, `--iroh-ticket`, `--derp-ticket`, `--derp-server`, a server's
   road, `--exit` and `--upgrade` with it, and `--carrier` with a destination
-  that is no node, are usage errors (64). `proxy node://` and `pipe node:`
-  over a carrier are T-595's next steps, and the exit's client T-596.
+  that is no node, are usage errors (64). `proxy --carrier ADDR
+  node://NAME` is the pipe of `operator --carrier`, with its checks and
+  codes (`run_as` of `crates/podssh-cli/src/operator.rs`), and
+  `--ConnectTimeout` bounds the open of both on a carrier: the node's read
+  of the stream, its ready, then the layer and the channel. `pipe node:`
+  over a carrier is T-595's next step, and the exit's client T-596.
 - **A link can drop.** The relay's side ends a socket of the reverse road
   at random, with no Close (T-255). `operator` and `ssh node://NAME` then
   say that the link ended with no Close, or that the node's link ended

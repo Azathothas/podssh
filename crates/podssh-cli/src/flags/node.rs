@@ -96,7 +96,7 @@ pub const NODE_FLAGS: &[FlagRow] = &[
         "with --exit: the private ranges that the exit dials too, ADDR/BITS or one address, separated by commas, each for the members that the net's policy lets reach the address", None),
     // A stream that exists already as the node's one road (T-595).
     row(None, "carrier", Some("ADDR"), FlagKind::Supported,
-        "serve TARGET over ADDR, a stream that exists already, with no relay and no pair: stdio (or -), as the exec channel of a platform's own SSH gives it, fd:N (Unix), or exec:CMD, a program started with no shell; the other end runs podssh operator --carrier, or ssh, cp, scp or sftp --carrier to node://NAME; stdin may not be a terminal", None),
+        "serve TARGET over ADDR, a stream that exists already, with no relay and no pair: stdio (or -), as the exec channel of a platform's own SSH gives it, fd:N (Unix), or exec:CMD, a program started with no shell; the other end runs podssh operator --carrier, or proxy, ssh, cp, scp or sftp --carrier to node://NAME; stdin may not be a terminal", None),
     row(None, "iroh", None, FlagKind::Supported,
         "serve TARGET over the iroh road, with no pair: a client dials the ticket that the node prints; a build with the feature iroh", None),
     super::derp::NODE_DERP,

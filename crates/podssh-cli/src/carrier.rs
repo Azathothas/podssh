@@ -188,36 +188,40 @@ pub(crate) async fn end_shared() {
     }
 }
 
-/// `podssh operator --carrier ADDR NAME`: stdin to the TARGET of the node at
-/// the other end of the stream, and its bytes to stdout, as on the pair's
-/// road, with the layer and the end-to-end channel.
-pub(crate) fn operator(args: &OperatorArgs, err: &mut dyn Write) -> i32 {
-    let (label, text, found, ask) = match prepare(args) {
+/// `podssh operator --carrier ADDR NAME`, and `podssh proxy --carrier ADDR
+/// node://NAME` (T-587's pipe): stdin to the TARGET of the node at the other
+/// end of the stream, and its bytes to stdout, as on the pair's road, with
+/// the layer and the end-to-end channel; each line names `verb`.
+pub(crate) fn operator(args: &OperatorArgs, verb: &'static str, err: &mut dyn Write) -> i32 {
+    let (label, text, found, ask, bound) = match prepare(args) {
         Ok(ready) => ready,
-        Err(refusal) => return refusal.report("operator", err),
+        Err(refusal) => return refusal.report(verb, err),
     };
-    let say_line = |line: String| podssh_ssh::err_line!("podssh operator: {label}: {line}");
+    // --ConnectTimeout (T-589): the node's read of the stream, its ready,
+    // then the layer and the channel, each step named past the bound.
+    let _bound = crate::connect_bound::watch(bound, verb, "the carrier's node did not read the stream");
+    let say_line = |line: String| podssh_ssh::err_line!("podssh {verb}: {label}: {line}");
     // The node's key, pinned under NAME: a stream that something else
     // answers is seen.
     let channel = match ask.operator(crate::channel::Expect::Pinned(label.clone()), &say_line) {
         Ok(channel) => channel,
-        Err(why) => return Refusal::config(why).report("operator", err),
+        Err(why) => return Refusal::config(why).report(verb, err),
     };
     let runtime = match tokio::runtime::Builder::new_current_thread().enable_all().build() {
         Ok(rt) => rt,
         Err(e) => {
-            let _ = writeln!(err, "podssh operator: could not start the async runtime: {e}");
+            let _ = writeln!(err, "podssh {verb}: could not start the async runtime: {e}");
             return Fault::SessionFault.code();
         }
     };
     let say = |line: Line| {
         if let Line::Always(text) = line {
-            podssh_ssh::err_line!("podssh operator: {label}: {text}");
+            podssh_ssh::err_line!("podssh {verb}: {label}: {text}");
         }
     };
     let ran = runtime.block_on(async {
         let client = Client::start(&text, &found)?;
-        let carried = carry(&client, &label, &say, channel).await;
+        let carried = carry(&client, &label, verb, &say, channel).await;
         client.finish().await;
         carried
     });
@@ -227,11 +231,11 @@ pub(crate) fn operator(args: &OperatorArgs, err: &mut dyn Write) -> i32 {
         Ok(carried) => match judged(&carried) {
             None => 0,
             Some((code, why)) => {
-                let _ = writeln!(err, "podssh operator: {label}: {why}");
+                let _ = writeln!(err, "podssh {verb}: {label}: {why}");
                 code
             }
         },
-        Err(refusal) => refusal.report("operator", err),
+        Err(refusal) => refusal.report(verb, err),
     }
 }
 
@@ -240,25 +244,35 @@ pub(crate) fn operator(args: &OperatorArgs, err: &mut dyn Write) -> i32 {
 async fn carry(
     client: &Client,
     label: &str,
+    verb: &'static str,
     say: &(dyn Fn(Line) + Sync),
     channel: Option<crate::channel::Operator>,
 ) -> Result<Carried, Refusal> {
     let config = client.config();
     let (link, leg_end) = tokio::io::duplex(PIPE);
     let first = operator::start(&config, leg_end).await.map_err(|e| refusal_of(&e))?;
+    crate::connect_bound::step("the node did not answer ready");
     // OpenSSH ends its ProxyCommand with SIGHUP (T-586).
     crate::hangup::take(crate::hangup::Which::All);
     let io = tokio::io::join(tokio::io::stdin(), tokio::io::stdout());
     let shown = label.to_string();
-    let pin_say = move |line: String| podssh_ssh::err_line!("podssh operator: {shown}: {line}");
+    let pin_say = move |line: String| podssh_ssh::err_line!("podssh {verb}: {shown}: {line}");
     Ok(crate::layered::carry_through(&config, link, first, io, None, say, channel, pin_say).await)
 }
 
-/// The checks before anything starts: the carrier, NAME and its route, the
-/// channel's flags; a relay's or a pair's flag has nothing to apply to.
-fn prepare(args: &OperatorArgs) -> Result<(String, String, Address, crate::channel::Ask), Refusal> {
+/// What a run of `operator --carrier` needs once its command line is
+/// checked: the label, the carrier in the user's words and as `pipe` reads
+/// it, the channel's ask and the bound of `--ConnectTimeout`.
+type Prepared = (String, String, Address, crate::channel::Ask, Option<Duration>);
+
+/// The checks before anything starts: the carrier, the bound, NAME and its
+/// route, the channel's flags; a relay's or a pair's flag has nothing to
+/// apply to.
+fn prepare(args: &OperatorArgs) -> Result<Prepared, Refusal> {
     let text = args.carrier.clone().unwrap_or_default();
     let found = for_a_client(&text, "stdin and stdout carry the session's bytes here")?;
+    // A bad bound is refused before anything is read (T-589).
+    let bound = crate::connect_bound::parse(args.connect_timeout.as_deref())?;
     let flags = [
         (args.pair_file.is_some(), "--pair-file"),
         (args.relay_addr.is_some(), "--relay-addr"),
@@ -278,7 +292,7 @@ fn prepare(args: &OperatorArgs) -> Result<(String, String, Address, crate::chann
         ));
     }
     crate::layered::own_deadline(args.resume_deadline.as_deref())?;
-    Ok((label, text, found, ask))
+    Ok((label, text, found, ask, bound))
 }
 
 /// A first leg that did not open: a stream that ended or a node that never

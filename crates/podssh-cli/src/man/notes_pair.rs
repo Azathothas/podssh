@@ -254,8 +254,8 @@ pub(super) const NODE: &[&str] = &[
      the stdin and stdout that such a channel gives the program that it starts; fd:N, a descriptor that the \
      node inherited (Unix); or exec:CMD, a program that the node starts with no shell, as podssh pipe reads \
      these. The stream carries the node's socket of the reverse road, its WebSocket frames with no HTTP \
-     before them, and its other end, podssh operator --carrier, or podssh ssh, cp, scp and sftp with \
-     --carrier to node://NAME, serves the relay's side of that socket in its own process. No relay, no pair and no token: whoever holds the stream reached the node through what \
+     before them, and its other end, podssh operator --carrier, or podssh proxy, ssh, cp, scp and sftp \
+     with --carrier to node://NAME, serves the relay's side of that socket in its own process. No relay, no pair and no token: whoever holds the stream reached the node through what \
      carries it, so NAME is a label alone, for the node's key, and each operator comes in unless --allow \
      names its keys. The resumable layer, the end-to-end channel, the routes, a roost and a udp: TARGET are as \
      on the pair's road; the relay's limits (64 MiB a session, a pair's 72 hours) do not hold. The node \
@@ -322,7 +322,9 @@ pub(super) const OPERATOR: &[&str] = &[
      that is lost is started again for the next link of a resume; the node that it starts is a new one, \
      which knows no session of the one before, and the session ends with its reason. A stream of fd: has \
      one life. At the end the node hears a Close, and the program of exec: is waited for 5 s, then ended. \
-     --pair-file, --relay-addr and --ca-file are refused with --carrier (64).",
+     --ConnectTimeout bounds the open here too: the node's read of the stream, its ready, then the layer \
+     and the channel. podssh proxy --carrier ADDR node://NAME is the same pipe. --pair-file, --relay-addr \
+     and --ca-file are refused with --carrier (64).",
 ];
 
 /// The note of `ssh node://NAME --carrier ADDR` (T-595), beside operator's.

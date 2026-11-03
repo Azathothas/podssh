@@ -9,11 +9,13 @@
 //! terminal on the node's stdin is refused with 64 (Linux, in a pty); and
 //! OpenSSH's client, with that operator as its ProxyCommand, logs in to
 //! OpenSSH's sshd behind the node, or says that it did not run where this
-//! host has no OpenSSH. podssh's own clients take the carrier too: `podssh
-//! ssh --carrier ... node://USER@box` runs a command on that sshd; `cp` up
-//! and down, `scp` up and `sftp`'s put and get agree with the disk, through
-//! the sshd's own SFTP; and a client's carrier beside a flag of another
-//! road, stdio, or a destination that is no node is refused with 64.
+//! host has no OpenSSH; so does `podssh proxy --carrier ... node://box`, the
+//! same pipe, which carries the echo server's bytes whole too, and whose
+//! open `--ConnectTimeout` bounds (Unix). podssh's own clients take it:
+//! `podssh ssh --carrier ... node://USER@box` runs a command on that sshd;
+//! `cp` up and down, `scp` up and `sftp`'s put and get agree with the disk,
+//! through the sshd's own SFTP; and a client's carrier beside a flag of
+//! another road, stdio, or a destination that is no node is refused with 64.
 
 mod live_harness;
 #[cfg(target_os = "linux")]
@@ -150,13 +152,17 @@ fn a_program_that_ends_at_once_is_said_with_69() {
 fn the_flags_of_a_relay_and_a_pair_and_stdio_for_an_operator_are_refused_with_64() {
     let home = scratch("carrier-flags");
     let _scratch = Scratch(home.clone());
-    let refused: [&[&str]; 6] = [
+    let refused: [&[&str]; 9] = [
         &["node", "box", "127.0.0.1:1", "--carrier", "exec:cat", "--iroh"],
         &["node", "box", "127.0.0.1:1", "--carrier", "exec:cat", "--pair-file", "x"],
         &["node", "box", "127.0.0.1:1", "--carrier", "exec:cat", "--install"],
         &["node", "box", "127.0.0.1:1", "--carrier", "tcp:127.0.0.1:1"],
         &["operator", "--carrier", "stdio", "box"],
         &["operator", "--carrier", "exec:cat", "--pair-file", "x", "box"],
+        // proxy node://NAME takes operator's checks, and a node alone (T-587).
+        &["proxy", "--carrier", "stdio", "node://box"],
+        &["proxy", "--carrier", "exec:cat", "--pair-file", "x", "node://box"],
+        &["proxy", "--carrier", "exec:cat", "example.org", "22"],
     ];
     for args in refused {
         let (code, out, err) = run_with(podssh(&home, args), Vec::new(), LIMIT);
@@ -203,28 +209,67 @@ fn openssh_logs_in_to_its_sshd_through_a_node_on_a_carrier() {
         }
     };
     // The ProxyCommand runs in OpenSSH's shell: each word of podssh's in
-    // quotes, and the node's words in the quotes of exec:.
+    // quotes, and the node's words in the quotes of exec:. operator NAME,
+    // then proxy node://NAME, its form of a destination (T-587).
     let carrier = node_exec(&format!("127.0.0.1:{}", sshd.port), "");
-    let proxy = format!("'{BIN}' operator --carrier \"{carrier}\" box");
-    let mut ssh = Command::new("ssh");
-    ssh.args(["-F", "/dev/null", "-o", "BatchMode=yes", "-o", "IdentitiesOnly=yes"])
-        .args(["-o", "StrictHostKeyChecking=no", "-o", "UserKnownHostsFile=/dev/null", "-o", "LogLevel=ERROR"])
-        .arg("-i")
-        .arg(&key)
-        .arg("-o")
-        .arg(format!("ProxyCommand={proxy}"))
-        .args([format!("{}@box", live_harness::this_user()).as_str(), "echo carried"]);
-    // The ProxyCommand's variables are podssh's: its HOME and its cache.
-    let podssh_env = podssh(&home, &[]);
-    for (name, value) in podssh_env.get_envs() {
-        match value {
-            Some(value) => ssh.env(name, value),
-            None => ssh.env_remove(name),
-        };
+    for proxy in [
+        format!("'{BIN}' operator --carrier \"{carrier}\" box"),
+        format!("'{BIN}' proxy --carrier \"{carrier}\" node://box"),
+    ] {
+        let mut ssh = Command::new("ssh");
+        ssh.args(["-F", "/dev/null", "-o", "BatchMode=yes", "-o", "IdentitiesOnly=yes"])
+            .args(["-o", "StrictHostKeyChecking=no", "-o", "UserKnownHostsFile=/dev/null", "-o", "LogLevel=ERROR"])
+            .arg("-i")
+            .arg(&key)
+            .arg("-o")
+            .arg(format!("ProxyCommand={proxy}"))
+            .args([format!("{}@box", live_harness::this_user()).as_str(), "echo carried"]);
+        // The ProxyCommand's variables are podssh's: its HOME and its cache.
+        let podssh_env = podssh(&home, &[]);
+        for (name, value) in podssh_env.get_envs() {
+            match value {
+                Some(value) => ssh.env(name, value),
+                None => ssh.env_remove(name),
+            };
+        }
+        let (code, out, err) = run_with(ssh, Vec::new(), LIMIT);
+        assert_eq!(code, Some(0), "{proxy}: {err}");
+        assert_eq!(String::from_utf8_lossy(&out), "carried\n", "{proxy}: {err}");
     }
-    let (code, out, err) = run_with(ssh, Vec::new(), LIMIT);
+}
+
+/// `podssh proxy --carrier ... node://box`, the pipe of `operator --carrier`
+/// by the form of a destination: an echo server's bytes come back whole, and
+/// the node hears the Close.
+#[test]
+fn proxy_reaches_the_node_at_the_other_end_of_a_program_s_stdio() {
+    let home = scratch("carrier-proxy");
+    let _scratch = Scratch(home.clone());
+    let target = format!("127.0.0.1:{}", echo_server());
+    let carrier = node_exec(&target, "");
+    let sent = pattern(1 << 20);
+    let proxy = podssh(&home, &["proxy", "--carrier", &carrier, "node://box"]);
+    let (code, out, err) = run_with(proxy, sent.clone(), LIMIT);
     assert_eq!(code, Some(0), "{err}");
-    assert_eq!(String::from_utf8_lossy(&out), "carried\n", "{err}");
+    assert_eq!(out.len(), sent.len(), "{err}");
+    assert!(out == sent, "the bytes came back changed: {err}");
+    assert!(err.contains("podssh node: box: the carrier's client ended the stream"), "the node's end, 0: {err}");
+}
+
+/// `--ConnectTimeout` bounds the open on a carrier too: a program that never
+/// starts a node is said at the bound, with 69, as a node out of reach.
+#[cfg(unix)]
+#[test]
+fn the_bound_of_connect_timeout_holds_on_a_carrier() {
+    let home = scratch("carrier-bound");
+    let _scratch = Scratch(home.clone());
+    let args = ["proxy", "--carrier", "exec:sleep 5", "--ConnectTimeout", "1", "node://box"];
+    let started = Instant::now();
+    let (code, out, err) = run_with(podssh(&home, &args), Vec::new(), LIMIT);
+    assert_eq!(code, Some(69), "{err}");
+    assert!(out.is_empty(), "{out:?}");
+    assert!(err.contains("the carrier's node did not read the stream within 1 s (--ConnectTimeout)"), "{err}");
+    assert!(started.elapsed() < Duration::from_secs(30), "the bound, not the program, ended the run: {err}");
 }
 
 /// A TARGET that takes each connection and closes it at once.

@@ -5,7 +5,9 @@
 //! node's TARGET, or its route, names the service, so a PORT is refused, as
 //! `cf://HOST` takes none; so are the relay's flags and each road that takes
 //! the relay's place, as the pair names its relay. The flags of the pair and
-//! of the channel go with `node://` alone.
+//! of the channel go with `node://` alone, and so does `--carrier ADDR`,
+//! the node at the other end of a stream that exists already, with no relay
+//! and no pair, as `operator --carrier` reaches it (T-595).
 
 use std::io::Write;
 
@@ -42,6 +44,9 @@ pub struct Flags {
     pub no_e2e: bool,
     /// `--resume-deadline`: this client's own deadline, unparsed.
     pub resume_deadline: Option<String>,
+    /// `--carrier ADDR`: the node at the other end of a stream (T-595),
+    /// unparsed.
+    pub carrier: Option<String>,
 }
 
 impl Flags {
@@ -53,6 +58,7 @@ impl Flags {
             node_key: get("node-key"),
             no_e2e: m.get_flag("no-e2e"),
             resume_deadline: get("resume-deadline"),
+            carrier: get("carrier"),
         }
     }
 
@@ -63,6 +69,7 @@ impl Flags {
             (self.node_key.is_some(), "--node-key"),
             (self.no_e2e, "--no-e2e"),
             (self.resume_deadline.is_some(), "--resume-deadline"),
+            (self.carrier.is_some(), "--carrier"),
         ]
         .into_iter()
         .find_map(|(given, flag)| given.then_some(flag))
@@ -74,7 +81,7 @@ impl Flags {
 pub fn run(args: &ProxyArgs, err: &mut dyn Write) -> Option<i32> {
     let Some(text) = args.target.as_deref().filter(|t| names_a_node(t)) else {
         let flag = args.node.given()?;
-        let why = format!("{flag} goes with node://NAME, the node of a pair");
+        let why = format!("{flag} goes with node://NAME, the node of a pair or of a carrier");
         return Some(Refusal::usage(why).report("proxy", err));
     };
     let operator = match to_operator(text, args) {
@@ -86,7 +93,8 @@ pub fn run(args: &ProxyArgs, err: &mut dyn Write) -> Option<i32> {
         }
     };
     crate::session_log::target(text.trim_end_matches('/'), None, "node");
-    let code = crate::operator::to_node(&operator, "proxy", err);
+    // The pair's road, or the carrier of --carrier (T-595), as operator.
+    let code = crate::operator::run_as(&operator, "proxy", err);
     // A session that the node took, and that ended well, had opened.
     if code == 0 {
         crate::session_log::opened(None);
@@ -136,9 +144,9 @@ fn to_operator(text: &str, args: &ProxyArgs) -> Result<OperatorArgs, Refusal> {
         resume_deadline: args.node.resume_deadline.clone(),
         // The bound of the node's steps, as `operator` takes it (T-589).
         connect_timeout: args.connect_timeout.clone(),
-        // `proxy` reaches a node through the relay; a carrier is
-        // `operator --carrier`'s for now (T-595).
-        carrier: None,
+        // The node at the other end of a stream, as `operator --carrier`
+        // reaches it (T-595); its checks are operator's.
+        carrier: args.node.carrier.clone(),
         refused: Vec::new(),
     })
 }
@@ -190,6 +198,12 @@ mod tests {
         assert_eq!(operator.pair_file.as_deref(), Some("lab.json"));
         assert_eq!(operator.ca_file.as_deref(), Some("ca.pem"));
         assert!(operator.no_e2e);
+        assert_eq!(operator.carrier, None, "the pair's road, with no --carrier");
+        // The carrier goes to operator, whose checks it meets (T-595).
+        let mut carried = node("node://lab");
+        carried.node.carrier = Some("exec:cat".into());
+        assert_eq!(to_operator("node://lab", &carried).unwrap().carrier.as_deref(), Some("exec:cat"));
+        assert_eq!(carried.node.given(), Some("--carrier"));
     }
 
     #[test]

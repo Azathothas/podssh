@@ -6223,7 +6223,8 @@ a pinned key that the far end does not have, refused with 77; a terminal on stdi
 each says that it did not run where this host has no OpenSSH). Planted: `t595-carrier-no-channel`
 (the end-to-end channel skipped on a carrier with no `--no-e2e`): the test of the pin fails; and
 `t595-ssh-carrier-skipped` (`ssh --carrier` sent to the pair's road): the test of the node that
-`ssh` starts and closes fails.
+`ssh` starts and closes fails; `t595-proxy-carrier-dropped` (`proxy node://` given no carrier): the
+test of `proxy --carrier` fails.
 
 ## Correction
 
@@ -6243,6 +6244,18 @@ Read at `477b47c` (2026-11-03), for the draft of the first step:
 - The first step's `node_carrier` runs OpenSSH's client with `podssh operator --carrier` as its
   ProxyCommand, to OpenSSH's sshd; the Prove's `podssh ssh --carrier` comes with the next step, and
   its test joins `node_carrier` then.
+
+Read at `38f424c` (2026-11-03), for the draft of the next steps:
+
+- `proxy node://` of T-587 is built (`crates/podssh-cli/src/proxy_node.rs`), and its `to_operator`
+  gave `carrier: None`; `proxy --carrier` is its flag now, which `operator`'s checks take.
+- `operator --carrier` took `--ConnectTimeout` and did nothing with it: `carrier::prepare` did not
+  read `connect_timeout`, though the manual says that the flag bounds `operator`'s open. The draft
+  of `proxy --carrier` gives the carrier the bound, for both verbs: the node's read of the stream,
+  its ready, then the layer and the channel.
+- A copy (`cp`, `scp`, `sftp`) opens a connection at a time, and more than one in a run (a move
+  across hosts makes three), each through `crate::ssh::node::reach`; so a carrier's client is one
+  for the command, not one for each connection (Decision).
 
 ## Done
 
@@ -6368,17 +6381,54 @@ What changed:
   road, which the test of the node that `ssh` starts must catch.
 - `docs/cli.md`, `docs/mesh.md`, `docs/reverse.md` (item 6 of "A carrier") and `docs/STATUS.md`.
 
-Measured: UNVERIFIED (`cargo test -p podssh-cli --test node_carrier`, 10 tests, of which the two
-of OpenSSH's sshd say that they did not run where this host has none; `cargo test -p podssh-cli
+Measured: UNVERIFIED (`cargo test -p podssh-cli --test node_carrier`, 10 tests, of which the
+three of OpenSSH say that they did not run where this host has none; `cargo test -p podssh-cli
 --lib carrier`; `--lib man`; `--test man_flag_parity --test flag_table --test node_copy --test
 ssh_args --test cp_args`; clippy of the crate with `-D warnings`; the plant
 `t595-ssh-carrier-skipped`, caught).
 
-What remains, the next steps of this entry:
+What remained after it:
 
 1. `podssh proxy --carrier ADDR node://NAME` (T-587 gave `proxy node://`).
 2. `pipe`'s `node:` side with `--carrier`.
 3. The exit over a carrier is T-596, which lifts the refusal of `--exit` here.
+
+2026-11-03, drafted (`DRAFT T-595: proxy node://NAME on a carrier`), step 1 of the list above.
+UNVERIFIED: no build or test ran.
+
+What changed:
+
+- `crates/podssh-cli/src/proxy_node.rs`: `Flags::carrier`, read by its id, one of the flags of a
+  node (`--carrier` with another target, 64); `to_operator` gives it to `operator`, and `run` runs
+  `operator::run_as`; its unit test.
+- `crates/podssh-cli/src/operator.rs`: `run_as`, the pipe of either verb on the pair's road or on a
+  carrier, which `run_operator` and `proxy node://` call.
+- `crates/podssh-cli/src/carrier.rs`: `operator` takes the verb of its lines, and `--ConnectTimeout`
+  (the Correction): `prepare` parses the bound, `operator` watches it from the node's read of the
+  stream, and `carry` names the step of the node's ready.
+- `crates/podssh-cli/src/flags/operator.rs`: `PROXY_CARRIER`, in `proxy`'s table
+  (`crates/podssh-cli/src/flags/relay.rs`); `crates/podssh-cli/src/flags/node.rs`: the node's row
+  names `proxy`.
+- `crates/podssh-cli/src/man/notes_proxy.rs`: a sentence of `proxy --carrier`, with OpenSSH's
+  ProxyCommand; `crates/podssh-cli/src/man/notes_pair.rs`: operator's note says the bound and the
+  same pipe of `proxy`, and the node's note names `proxy`.
+- `crates/podssh-cli/tests/node_carrier.rs`: OpenSSH's test runs `proxy --carrier ... node://box`
+  as its ProxyCommand too; 2 tests (an echo server's 1 MiB through `proxy --carrier`, both ends 0;
+  `--ConnectTimeout 1` of `exec:sleep 5`, 69 at the bound, Unix); the refusals of `proxy
+  --carrier` (stdio, `--pair-file`, a target that is no node), 64.
+- `scripts/plants/t595-proxy-carrier-dropped.patch` and `.plant`: `proxy node://` given no
+  carrier, which the test of `proxy --carrier` must catch; `scripts/plants/t595-carrier-no-channel.patch`
+  moved to the lines of `carrier.rs` now.
+- `docs/cli.md`, `docs/mesh.md`, `docs/reverse.md` and `docs/STATUS.md`.
+
+Measured: UNVERIFIED (`cargo test -p podssh-cli --test node_carrier`, 12 tests; `--lib
+proxy_node`; `--test proxy --test operator --test man_flag_parity --test man_page`; clippy; the
+plants `t595-proxy-carrier-dropped` and `t595-carrier-no-channel`, caught).
+
+What remains, the next steps of this entry:
+
+1. `pipe`'s `node:` side with `--carrier`.
+2. The exit over a carrier is T-596, which lifts the refusal of `--exit` here.
 
 # T-596: The exit over a carrier: a host that grants an exec channel alone gets egress through its other end
 

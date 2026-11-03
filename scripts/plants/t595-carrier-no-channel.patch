@@ -1,12 +1,12 @@
 --- a/crates/podssh-cli/src/carrier.rs
 +++ b/crates/podssh-cli/src/carrier.rs
-@@ -155,7 +155,7 @@
+@@ -204,7 +204,7 @@
      // The node's key, pinned under NAME: a stream that something else
      // answers is seen.
      let channel = match ask.operator(crate::channel::Expect::Pinned(label.clone()), &say_line) {
 -        Ok(channel) => channel,
 +        Ok(channel) => channel.filter(|_| false),
-         Err(why) => return Refusal::config(why).report("operator", err),
+         Err(why) => return Refusal::config(why).report(verb, err),
      };
      let runtime = match tokio::runtime::Builder::new_current_thread().enable_all().build() {
 --- a/crates/podssh-cli/src/node_carrier.rs
