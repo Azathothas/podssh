@@ -7887,3 +7887,16 @@ cargo test -p podssh-warp --features stand-in
 ```
 
 Planted: the proxy's words on the direct road: the test fails.
+
+## Correction
+
+2026-11-03: `warp-live.yml` at `3bb42ea` (run 41563996906, its first attempt) met the same
+certificate through the box's proxy (`scripts/box/proxy.py`, which passes port 443 and terminates
+no TLS), in the step of OpenSSH with `podssh proxy warp://` as its ProxyCommand, while WARP's API
+again refused the device's record; the steps before it, direct and through the same proxy, had
+passed; `quick-tunnel-live.yml` at the same commit (run 41564000406) met it in the same minutes,
+in its third node inside WARP's tunnel, with the API's 500. So a proxy on the way does not make
+the proxy the cause either. Step 1 changes: through a
+proxy too, the line names the certificate that the endpoint showed and says that a proxy that
+re-terminates TLS or WARP's own side can show it, and that a second try tells them apart (WARP's
+side passes on a later try, a proxy fails each time).
