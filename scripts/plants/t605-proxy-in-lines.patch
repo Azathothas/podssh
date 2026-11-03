@@ -1,0 +1,11 @@
+--- a/scripts/relay-measure.py
++++ b/scripts/relay-measure.py
+@@ -109,7 +109,7 @@
+         self.env = env
+         # podssh names the proxy in its own lines; a result and the lines of
+         # a run in Actions are shared, so each is read with those words out.
+-        self.words = lib.proxy_words(env)
++        self.words = []
+         self.deadline = time.monotonic() + budget
+         self.count = 0
+         self.skipped = 0

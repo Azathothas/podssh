@@ -1007,6 +1007,21 @@ while the node had given the relay each of 48 MiB within 15 s: 48.9 MB that
 the client had not read waited in the relay or its edge, on both networks.
 T-336 is M10's since Q63 (2026-11-02), in podssh's own relay role.
 
+The harness of T-605 (`scripts/relay-measure.py`, adapted from the
+operator's archive of relay research, `docs/research/relay-measurement.md`)
+measures each host through podssh itself, one run at a time. Measured on
+2026-11-03 from a cloud container through its proxy (`python3 -I
+scripts/relay-measure.py --podssh target/debug/podssh --stages
+pool,trace,forward --hosts 4 --rounds 2 --seed 605`, `unreleased`): 22 runs
+of podssh, each of 4 hosts opened 2 of 2, answered its trace and passed
+GitHub's key; the time to open (connect, TLS, upgrade), p50, was 335 ms at
+`tcp`, then 538, 561 and 729 ms, and the WebSocket ping, p50, 44 to 109 ms.
+The result holds no proxy address, no token and no credential: the first
+run found podssh's line `CONNECT through HOST:PORT` kept in it, which the
+harness now replaces with "the proxy" (T-605's Done). The self-test passes
+offline, and fails on runs that overlap and on podssh's lines kept as they
+are (`scripts/plants/t605-proxy-in-lines.plant`, caught).
+
 ## The release check
 
 `scripts/release-check.sh` checks a release from end to end with no human

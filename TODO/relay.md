@@ -2504,3 +2504,396 @@ cargo test -p podssh-cli --test relay_info
 Two documents of the stand-in relay, answered by two edges with opposite ranks: each text names its
 edge and says that the rank is the relay's estimate from it; planted, the line dropped: the test
 fails.
+
+# T-605: A harness that measures the relay hosts and the roads through podssh's own binary, adapted from the operator's archive of relay research
+
+**Source:** The operator, 2026-11-03: an archive of relay research that the operator's agent
+produced (`ff-relay`, under 0BSD), and the words "we should copy/adapt some of the
+scripts/measurement harness, after improving them to fit our needs better". Read by a drafting
+agent the same day: `docs/research/relay-measurement.md`.
+**Category:** measurement
+**Milestone:** none
+**Priority:** P2
+**Effort:** M
+**Status:** partial
+
+## Problem
+
+No repeatable measurement of podssh's relay hosts and roads exists. `podssh ping` measures the
+default host and three alternates once, and `doctor` checks them; nothing measures each host of
+the pool in rounds, keeps the figures as JSON, or runs by hand in GitHub Actions. The archive's
+harness measures, but with a WebSocket client of its own, not podssh, and with defects that change
+its results: cells that run at once and share one link, the dial counted in each rate, a Wisp
+request never sent as Wisp, a proof of the write leg that holds for one kind of server, the proxy's
+URL written into each result, and a download target that is no test target of `AGENTS.md`.
+
+## Premise
+
+- Read: `podssh ping` times the token, the dial, TLS and the upgrade of one host, then its
+  WebSocket pings (`crates/podssh-cli/src/ping/relay.rs:102-146`), one host after another
+  (`crates/podssh-cli/src/ping/mod.rs:155-160`), with `--json`.
+- Read: `doctor`'s `forward` proves both legs by one of GitHub's published host keys
+  (`crates/podssh-cli/src/doctor/relay_checks.rs:183-214`); `--quick` keeps the relay's sections and
+  `--jobs 1` runs them one at a time (`crates/podssh-cli/src/flags/relay.rs:98-102`).
+- Read: `podssh relay trace` asks the relay to dial a target and gives its own times
+  (`crates/podssh-cli/src/relay_diag.rs:166-169`); `relay info` gives the pool
+  (`crates/podssh-cli/src/relay_diag.rs:125-127`).
+- Read: the archive's harness and its defects, each at its file
+  (`docs/research/relay-measurement.md`, section 3); its license, 0BSD, as podssh's (`LICENSE`).
+- Read: a session's test targets are the live relay, GitHub's SSH endpoint and the operator's
+  server of `PODSSH_THROUGHPUT_SSH` (Q38), the forwarders of Q56 from GitHub Actions alone, short,
+  and the Wisp demo server, short (`AGENTS.md`, section 4).
+
+## Approach
+
+1. `scripts/relay-measure.py`, with `scripts/relay_measure_lib.py` (the numbers and the rank) and
+   `scripts/relay_measure_selftest.py` (offline, against a stand-in podssh), drafted with this
+   entry: the stages `pool` (`ping --json --relay-host HOST --target T`), `trace` (`relay trace
+   --json`), `forward` (`doctor --quick --json --jobs 1 --relay-host HOST`), `roads` (`doctor
+   --quick --json` with a road's flags) and `dest` (`ping --json DEST`); one podssh at a time;
+   rounds in a new random order from a seed that the result keeps; a limit on each run and a
+   budget on the whole; one JSON result, and `--ci` for GitHub's step summary.
+2. A workflow by hand only, .github/workflows/relay-measure.yml, from the draft in the report's
+   section 7, with the pins of `.github/workflows/forwarder-live.yml`.
+3. The stage `dest` in the workflow, with the operator's server of `PODSSH_THROUGHPUT_SSH` and its
+   key from the repository's secrets, as the throughput run takes them; an input names it.
+4. `docs/development.md`, "Live tests": the harness, its self-test and the workflow.
+5. A short run from the session's host, then one of the workflow; the figures in
+   `docs/STATUS.md`, and in the report what they say of its inferences (the 5 s of the resolver,
+   with the CONNECT timed apart).
+
+## Decision
+
+- Each figure from podssh's binary, not from a client of the script's own: the archive's client
+  measured what podssh does not do and broke what podssh does (Wisp's packets, binary bytes in
+  text frames). Lost: the relays that podssh does not speak, which Q79 keeps unnamed in any case.
+- One podssh at a time, with 250 ms between two: the archive's cells at once measured shares of
+  one link. Lost: time; 37 hosts in 5 rounds take about 10 minutes.
+- The write leg by `doctor`'s host key of GitHub, not by a KEXINIT after a version line, which a
+  server that sends its KEXINIT unasked passes. Lost: a write leg to a target that is no SSH
+  server, which podssh's sessions do not need.
+- Python's standard library alone, as `scripts/capture-close.py`. Lost: nothing; the script
+  speaks no protocol.
+- The workflow is drafted in the report, not in `.github/`: the drafting agent's brief kept its
+  changes to `docs/research/`, `TODO/` and `scripts/`.
+- The drafting agent ran the offline self-test on 2026-11-03 (no network, no podssh): each check
+  passed, and with `RELAY_MEASURE_PLANT=parallel` one failed, 7 runs overlapping. Each claim of
+  what a stage measures through a real podssh is UNVERIFIED.
+
+## Prove
+
+```sh
+python3 -I scripts/relay-measure.py --self-test
+RELAY_MEASURE_PLANT=parallel python3 -I scripts/relay-measure.py --self-test   # must exit 1
+export CARGO_BUILD_JOBS=4
+cargo build -p podssh-cli --bin podssh
+python3 -I scripts/relay-measure.py --podssh target/debug/podssh --stages pool,trace,forward \
+    --hosts 4 --rounds 2 --out .work/relay-measure.json
+gh workflow run relay-measure.yml --ref main -f hosts=all -f rounds=3
+```
+
+The self-test passes, and fails with the plant on two runs that overlap. The live run gives each of
+four hosts two legs, two traces and GitHub's key, and its JSON holds no token, no proxy address and
+no credential (a search of the file for each). The workflow passes and uploads its JSON.
+
+## Done
+
+2026-11-03, partial: step 1 and the first half of step 5. The drafting agent's harness is merged.
+
+- `scripts/relay-measure.py`, `scripts/relay_measure_lib.py`, `scripts/relay_measure_selftest.py`:
+  the harness as drafted. The live run below found that podssh's own leg names the proxy it went
+  through (`"connect": "CONNECT through HOST:PORT"`, as `ping` tells its user), and that the
+  harness kept that line in the result and printed it in the run's lines: 8 times in the result of
+  4 hosts. The runner now reads each line of podssh with the proxy's URL, its host and port and
+  its credentials replaced by "the proxy" (`lib.proxy_words`, `lib.scrub`), and the result is
+  scrubbed once more before it is returned. The self-test's stand-in names its proxy as podssh
+  does, in the leg and in a failure's line; two checks are new: the leg's line is kept with the
+  proxy's words out, and the run's lines hold no proxy address.
+- `python3 -I scripts/relay-measure.py --self-test`: each check passed;
+  `RELAY_MEASURE_PLANT=parallel`: 1 failed, 7 overlaps, exit 1. With the stand-in that names its
+  proxy and the harness unfixed: the check of the result failed.
+- `scripts/plants/t605-proxy-in-lines.patch` and `.plant` (the runner's scrub left out):
+  `sh scripts/plant-each.sh --here t605-proxy-in-lines`, caught (the check of the run's lines
+  failed).
+- Live, from the session's host through its proxy, 2026-11-03:
+  `python3 -I scripts/relay-measure.py --podssh target/debug/podssh --stages pool,trace,forward
+  --hosts 4 --rounds 2 --seed 605`: 22 runs of podssh, exit 0; each of 4 hosts opened 2 of 2, its
+  trace answered, and GitHub's key came through it; open p50 335 ms (`tcp`), 538, 561 and 729 ms.
+  The result holds no proxy address, no proxy URL, no JWT and no word `Bearer` (a search of the
+  file for each); the run's lines hold no proxy address either.
+
+Left: step 2 and step 3 (the workflow by hand, `relay-measure.yml`, with the stage `dest`),
+step 4 (`docs/development.md`) and the workflow's run of step 5.
+
+
+# T-606: `podssh relay rank`: each relay host measured on demand, and the rank kept in the cache beside the record of failures
+
+**Source:** The operator, 2026-11-03: "maybe even include it in podssh itself so it can rank relays
+on demand and then use". The design is `docs/research/relay-measurement.md`, section 8.
+**Category:** feature
+**Milestone:** M10
+**Priority:** P2
+**Effort:** M
+**Status:** open
+
+## Problem
+
+podssh tries the default host and the first three hosts of its pool, in the order of
+`/relays.json`, and never measures the other hosts of the pool. That order is the one of the edge
+that answered at the last refresh, and its score did not agree with measured latency. A user cannot
+ask podssh which hosts are best from this host, and podssh keeps no measured time of a host. The
+archive of 2026-11-03 found each of the 37 hosts working, so the choice of three is a choice among
+working hosts, which a measurement can make.
+
+## Premise
+
+- Read: `crates/podssh-relay/src/relay.rs:78` says "pub const MAX_ALTERNATES: usize = 3;", and the
+  default list is the default host, then the pool in its order
+  (`crates/podssh-relay/src/relay.rs:104-125`).
+- Read: the alternates are the cached pool, in the order of `/relays.json`
+  (`crates/podssh-relay/src/pool.rs:106-121`); `docs/relay.md:347-349` says that `/relays.json`
+  ranks relays by the edge that answered, and that its `score_ms` did not agree with the measured
+  latency.
+- Read: `podssh ping`'s leg times the token, the dial, TLS and the upgrade of one host, and its
+  WebSocket pings (`crates/podssh-cli/src/ping/relay.rs:102-146`), and `ping` runs the legs one after
+  another (`crates/podssh-cli/src/ping/mod.rs:155-160`); the module is private to `ping`
+  (`crates/podssh-cli/src/ping/mod.rs:9`).
+- Read: the record of failures is a file of the cache, `crates/podssh-relay/src/failures.rs:27`
+  says "pub const FILE: &str", and `order` keeps the list's order within each of its groups
+  (`crates/podssh-relay/src/failures.rs:231-255`).
+- Read: the subcommands of `podssh relay` (`crates/podssh-cli/src/relay_cmd.rs:76-101`), and
+  `--json` goes with `status`, `info` and `trace` alone (`crates/podssh-cli/src/relay_cmd.rs:55-58`).
+- Read: rule 2 of `AGENTS.md`, section 5: one outbound connection, through `HTTPS_PROXY` when it is
+  set; its exceptions name no measurement of hosts.
+- Read in the archive (`docs/research/relay-measurement.md`, section 4): 37 of 37 pool hosts opened
+  and carried a key exchange, one sample each, eight at a time, through one proxy.
+
+## Approach
+
+1. A module of `podssh-relay`, crates/podssh-relay/src/rank.rs, pure, its tests in a file of their
+   own: a probe (opened, the time to open as the dial, TLS and the upgrade, the token's time left
+   out, the pings' p50, why it failed in the record's words); a host's figures (tries, opens, p50
+   and p95 by nearest rank); the order of the report's section 7 (the share of failed probes, then
+   the p50, then the p95; a tie within 50 ms or 10 % keeps the order before, so that one run's
+   noise moves no host); and the file `relay-rank.json` in the cache, by
+   the cache's own functions (mode 0600): schema 1, when, the egress (the first 16 hexadecimal
+   digits of the SHA-256 of `HTTPS_PROXY`'s host and port, or `direct`; no credential, no name),
+   the target, and the hosts in order with their figures.
+2. crates/podssh-cli/src/relay_rank.rs: `podssh relay rank [--rounds N] [--count N] [--target
+   HOST:PORT] [--json] [--cached] [--forget]`, with `--relay-host`, `--relay-addr` and `--ca-file`.
+   The hosts: the list of `--relay-host`, else the default host and each host of the cached pool,
+   with `/relays.json` read once first when no pool is cached, as `relay info` reads it. Each round
+   in a new random order; each probe by `ping`'s leg (`pub(crate)`), with the deployment's token,
+   one mint at most; 250 ms between two probes; the whole run within 10 minutes, a host not probed
+   by then named. A line for each probe on stderr, the rank on stdout; `--json`, one object.
+3. Exit: 0 when a host opened; 69 when none did, and with `PODSSH_OFFLINE` before any connection;
+   64 for a bad flag. `--cached` prints the rank kept, its age and whether its egress is this one,
+   and `--forget` removes it; neither connects.
+4. `podssh status` names the rank's age, its egress and its first host, with no connection.
+5. The manual (`crates/podssh-cli/src/man/notes_relay.rs`, `crates/podssh-cli/src/flags/relay.rs`),
+   `docs/relay.md` ("How podssh selects relay hosts", "Diagnostics") and `docs/cli.md`.
+
+## Decision
+
+- On demand, one host at a time: rule 2's one connection holds, as for `ping` over its hosts and
+  `doctor` over each host's `/health`. Lost: probes at once, which are faster, need an exception of
+  rule 2, and skew the rank as the archive's cells at once did (the report, section 3); a rank that
+  podssh makes unasked, which waits for the operator (the report, section 8, item 4).
+- The time to open as the measure: it is what the race decides on, it needs no server, it costs a
+  few KiB, and the relay's dial of the target is in it, as in a session. Lost: throughput, which
+  needs a server and up to 64 MiB a host; the WebSocket ping alone, as which part of the relay
+  answers it is not known (a column of the rank, not its key).
+- `github.com:22` by default, never a session's destination: `ping`'s rule, as OpenSSH's
+  PerSourcePenalties would count the probes against the relay's shared address
+  (`crates/podssh-cli/src/ping/relay.rs:1-8`). Lost: a rank to the user's own target, which
+  `--target` gives for a target that the user owns.
+- A rank holds 24 h, for the egress that measured it. Lost: the 7 days of the pool's cache, as a
+  host's network changes sooner than a pool.
+- A file of its own, beside `relay-failures.json`: the record changes at each run, an older podssh
+  reads it, and the rank changes on demand. Lost: one file for both.
+- With `--relay-host`, the hosts of any deployment, each with its own token (T-057): a net's own
+  relays rank the same way once a net names them (T-435).
+
+## Prove
+
+```sh
+export CARGO_BUILD_JOBS=4
+cargo test -p podssh-relay --lib rank
+cargo test -p podssh-cli --test relay_rank
+target/debug/podssh relay rank --rounds 3 --json
+python3 -I scripts/relay-measure.py --podssh target/debug/podssh --stages pool --hosts all --rounds 3
+```
+
+Offline, against two stand-in relays of `scripts/fake-relay.py` (`normal`, and `slowopen:600`):
+the rank puts the fast one first, keeps its file with mode 0600 and no token, names a host that
+fails, and `--cached` reads it back with no connection; with `PODSSH_OFFLINE`, 69. Planted: the
+order by the last probe in place of the median; the test of a host that is slow once in three
+fails. Live (the live relay is the operator's own): the rank of the pool, and the harness's order
+of the same hosts in the same hour (T-605); the first three of each in `docs/STATUS.md`.
+
+# T-607: The default list of relay hosts takes the rank: the best three of the pool in the rank's order, and samples of each session's own race
+
+**Source:** The operator, 2026-11-03 ("... so it can rank relays on demand and then use"). The design
+is `docs/research/relay-measurement.md`, section 8, items 2 and 3.
+**Category:** feature
+**Milestone:** M10
+**Priority:** P2
+**Effort:** M
+**Status:** open
+
+## Problem
+
+A rank that nothing reads changes nothing: the default list still takes the first three hosts of
+`/relays.json`. And most users never run `podssh relay rank` (T-606), while each session's own race
+times the hosts that it tries, and throws the times away.
+
+## Premise
+
+- Read: `crates/podssh-cli/src/relay_settings.rs:71` says "let pool =
+  podssh_relay::pool::alternates(relay::DEFAULT_RELAY_HOST);": the one place where the default list
+  takes its alternates, which `select_relays` puts after the default host
+  (`crates/podssh-relay/src/relay.rs:104-125`).
+- Read: `open` loads the record and orders the list by it, then races the hosts
+  (`crates/podssh-relay/src/open.rs:207-213`, `crates/podssh-relay/src/open.rs:237`); each host's
+  attempt is `attempt` (`crates/podssh-relay/src/open.rs:295-311`); the file has 473 lines.
+- Read: the race gives the attempt kept, those that opened and were dismissed, and those that
+  stayed silent (`crates/podssh-relay/src/failover.rs:88-101`).
+- Read: the record's `order` puts a host that opened lately first and one that failed or rests
+  last, each group in the order of the list (`crates/podssh-relay/src/failures.rs:231-255`), also
+  for a list that the user named, whose order is a preference (`docs/relay.md:122-123`).
+- Read: T-563's Done: the fault checks of the interop lean on the list's order, so each takes an
+  empty record of its own.
+- Read: the relay's keys of the settings file (`crates/podssh-cli/src/settings.rs:30-32`).
+- Read: T-606 keeps the rank in `relay-rank.json`, with the egress that measured it.
+
+## Approach
+
+1. `podssh_relay::rank::alternates(primary, pool, now, egress)`: when a rank holds (under 24 h, of
+   this egress), the hosts of the rank that opened, in its order, the default host among them at
+   its place; else the pool ordered by the samples of item 2 where it has some; else the pool's
+   order, as now. `relay_settings::relays_from` takes it, so the default list is the default host
+   and the best three other hosts, in the rank's order (`select_relays` takes the order, and keeps
+   the default host in the list).
+2. Samples: `attempt` times its host from its start to the 101, the token's time left out; `open`
+   gives the time of each attempt that opened, kept or dismissed, to `rank::seen`, which keeps the
+   last 8 of each host, with when and the egress, in the rank's file. A failure gives no sample:
+   the record keeps it. The code goes in the rank's module; `open.rs` gets the few lines of the
+   call.
+3. `PODSSH_RELAY_RANK=no`, and `RelayRank no` in the settings file, leave the rank and the samples
+   out of the order (the samples are still kept); a list that the user named keeps its order, and
+   the record still moves its hosts.
+4. `podssh status`, and a line `relay rank` of `doctor` (its age, its egress, the list that it
+   gives), say which order a run takes, and why.
+5. The tests of failover, and the fault checks of `scripts/interop-faults.sh`, keep a cache of their
+   own with no rank, as T-563's do.
+6. The manual's THE RELAY, `docs/relay.md` (step 2 of the selection), `docs/cli.md`.
+
+## Decision
+
+- The default host stays in the default list, at its place in the rank. Lost: the four best hosts
+  with no default (it is the deployment's control host, and the host that a report names; a rank
+  goes stale in 24 h); the default host always first (the rank's gain is mostly the first host,
+  which `staggered` keeps when it opens within 2 s).
+- The rank orders the list, and the record moves hosts within it: a host that failed in the last
+  10 minutes goes last whatever its rank. Lost: one score of both (a failure is an event and a rank
+  a measure; T-563's order already says what a failure does).
+- Samples of the race's own connections alone: they cost no connection, so rule 2 of `AGENTS.md`
+  holds through the exception of the race between relay hosts. Lost: samples of each host of the
+  pool, which need probes (T-606 on demand; unasked, the report's section 8, item 4).
+- The samples order the list only where no rank holds. Lost: a mix of both, as a rank measures
+  each host in rounds under one condition, and samples come from four hosts at most, each in its
+  own run's conditions.
+- A list that the user named keeps its order (`docs/relay.md`, step 5). Lost: the rank over it.
+
+## Prove
+
+```sh
+export CARGO_BUILD_JOBS=4
+cargo test -p podssh-relay --lib rank
+cargo test -p podssh-relay --lib failures
+cargo test -p podssh-cli --lib relay_settings
+cargo test -p podssh-cli --test relay_rank
+```
+
+A rank that holds gives the default host and the best three others in its order; a rank of another
+egress, or 25 h old, gives the pool's order; `PODSSH_RELAY_RANK=no` gives the pool's order; a host
+that failed lately goes last over its rank; the samples order a pool where no rank holds (each of
+these on `rank::alternates`, with a cache of the test's own). Against two stand-in relays
+(`slowopen:600` and `normal`), a run of `podssh proxy --relay-failover parallel --relay-host
+SLOW,FAST` keeps a sample of each, the slow one's 600 ms longer, and keeps their order, as the user
+named it. Planted: `alternates` that ignores the egress; the test of a rank of another egress
+fails. The fault checks of the interop: unchanged, in their run of the release (Q88).
+
+# T-608: A rank that podssh makes unasked, in the background of a session, once a day for an egress
+
+**Source:** The design of the rank (`docs/research/relay-measurement.md`, section 8, item 4),
+after the operator's request of 2026-11-03.
+**Category:** feature
+**Milestone:** M10
+**Priority:** P3
+**Effort:** S
+**Status:** open
+
+## Problem
+
+Most users never run `podssh relay rank` (T-606), so its rank seldom holds, and the samples of
+T-607 see the four hosts of the default list at most. A rank kept fresh with no request would put
+the best hosts first for each user; but its probes are connections that the user did not ask for,
+to hosts that the session does not use.
+
+## Premise
+
+- Read: `AGENTS.md:272-282`, rule 2: one outbound connection, and its four exceptions (a listener
+  that the user asks for, the race between relay hosts, the split HTTP road of Q44, the quick
+  tunnel's second connection of Q62); `docs/decisions.md:34` adds XHTTP's second connection (Q67).
+  None covers a probe of a host that the session does not use.
+- Read: the pool's refresh after a mint is a request of its own in the background
+  (`crates/podssh-relay/src/open.rs:366-377`): one request to the host that minted, at most once in
+  7 days.
+- Read: the contract's `?dial=lazy` (`docs/relay.md:289-292`): the relay dials the target on the
+  client's first byte, so a probe with it and no byte reaches no target.
+- Read: Q83, the experience of a user first (`docs/decisions.md:18`), and Q73, `doctor`'s sections
+  at once (`docs/decisions.md:28`).
+- Read: T-606 ranks on demand and T-607 samples the race; neither probes a host unasked.
+
+## Approach
+
+As Q89 rules:
+
+1. With `RelayRank auto` in the settings file or `PODSSH_RELAY_RANK=auto`, and never by default
+   (Q89): when no rank holds for this egress, a session of `ssh` that has run 60 s probes the
+   hosts of the pool in its own process, one at a time, one probe each 10 s at most, 8 hosts at
+   most in a session, each with `?dial=lazy` and three WebSocket pings (a few KiB), and keeps what
+   it measured as a rank whose source is `background`, which T-607 reads as it reads T-606's.
+2. Never before the session opened, never during a race, never in `proxy` or `pipe` (the runs of a
+   ProxyCommand are short and many), never with `PODSSH_OFFLINE`, and never past the session's
+   end: a probe in flight then is dropped.
+3. `doctor` and `podssh status` name the setting, and when the last background rank was made.
+4. The manual and `docs/relay.md`; rule 2 of `AGENTS.md` names the exception, as Q89 words it.
+
+## Decision
+
+Q89 (the operator, 2026-11-03) rules: unasked only with `RelayRank auto`, in the bounds of the
+Approach. Then: the probe with `?dial=lazy`, so that no target sees a connection
+that sends it nothing, as `ping`'s rule asks (`crates/podssh-cli/src/ping/relay.rs:1-8`), and the
+relay's dial is out of a background figure: a background rank orders by the client's leg alone,
+and a rank of T-606 keeps the dial. Lost: the dial to `github.com:22` in each background probe,
+which would make 8 short connections a day to GitHub's SSH port from each user.
+
+## Prove
+
+```sh
+export CARGO_BUILD_JOBS=4
+cargo test -p podssh-cli --test relay_rank -- background
+```
+
+Against stand-in relays, with the session's delay and the gap between probes shortened for the
+test: with `RelayRank auto`, the probes come one at a time, each with `?dial=lazy`, none before
+the session opened and none after it ended; with the setting off, none. Planted: two probes at
+once; the test of the overlap fails.
+
+## Correction
+
+- 2026-11-03: the Blocker is cleared. The operator ruled Q89 (`docs/decisions.md`): podssh ranks
+  unasked only with `RelayRank auto`, at most once a day for each egress, 8 hosts, one probe each
+  10 s at most, each with `?dial=lazy`. Item 1 no longer waits on a default.

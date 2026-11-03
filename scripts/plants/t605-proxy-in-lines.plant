@@ -1,0 +1,10 @@
+# T-605: the relay harness keeps podssh's lines as they are, and podssh names
+# the proxy that it went through (CONNECT through HOST:PORT); the self-test's
+# check of the run's lines must fail, as a run in Actions prints them.
+ENTRY=T-605
+GROUP=record
+EXPECT='^FAIL no proxy address in the lines of the run'
+# The build image has no Python, as T-594's plant says.
+SETUP='command -v python3 >/dev/null || apk add --no-cache python3 >/dev/null'
+RUN='python3 -I scripts/relay-measure.py --self-test'
+LIMIT=600

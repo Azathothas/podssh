@@ -62,15 +62,15 @@ repository and CI).
 
 ## Counts
 
-**574 entries: 108 open, 2 partial, 2 blocked, 462 done.**
+**578 entries: 111 open, 3 partial, 2 blocked, 462 done.**
 
 | Priority | open | partial | blocked | done | total |
 | --- | --- | --- | --- | --- | --- |
 | P0 | 0 | 0 | 0 | 1 | 1 |
 | P1 | 0 | 1 | 0 | 63 | 64 |
-| P2 | 39 | 1 | 0 | 221 | 261 |
-| P3 | 69 | 0 | 2 | 177 | 248 |
-| **All** | 108 | 2 | 2 | 462 | 574 |
+| P2 | 41 | 2 | 0 | 221 | 264 |
+| P3 | 70 | 0 | 2 | 177 | 249 |
+| **All** | 111 | 3 | 2 | 462 | 578 |
 
 ## Entries
 
@@ -644,6 +644,10 @@ repository and CI).
 | [T-602](mesh.md) | P2 | S | M10 | defect | done | The relay role's test of two sessions of 2 MiB each way fails under load, on the limits of a road with no flow control |
 | [T-603](multi.md) | P2 | S | none | defect | done | On the macOS runner, `job log --follow` once ended with exit 0 after a job's first line, the second never given |
 | [T-604](ws.md) | P3 | S | none | feature | done | `doctor`'s diagnosis of the TLS handshakes counts no resolver of DNS over HTTPS and no relay of n0's |
+| [T-605](relay.md) | P2 | M | none | measurement | partial | A harness that measures the relay hosts and the roads through podssh's own binary, adapted from the operator's archive of relay research |
+| [T-606](relay.md) | P2 | M | M10 | feature | open | `podssh relay rank`: each relay host measured on demand, and the rank kept in the cache beside the record of failures |
+| [T-607](relay.md) | P2 | M | M10 | feature | open | The default list of relay hosts takes the rank: the best three of the pool in the rank's order, and samples of each session's own race |
+| [T-608](relay.md) | P3 | S | M10 | feature | open | A rank that podssh makes unasked, in the background of a session, once a day for an egress |
 | [T-609](ssh.md) | P1 | S | none | defect | done | An ECDSA key of P-256 whose scalar OpenSSH writes in 31 bytes is refused: "SshKey: length invalid" |
 | [T-610](relay.md) | P2 | S | M10 | defect | open | `relay info` shows the relay's `rank` and `score_ms`, which change with the edge that answered, as an order |
 | [T-611](mesh.md) | P3 | S | M10 | feature | open | A node's record of pkarr names its OpenTunnel name, and a member's client races it |
