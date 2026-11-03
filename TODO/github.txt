@@ -121,7 +121,7 @@
 113 issue open
 114 issue closed
 115 issue open
-116 issue open
+116 issue closed
 117 issue open
 118 issue closed
 119 pull open
