@@ -1,11 +1,11 @@
 --- a/crates/podssh-cli/src/connect_bound.rs
 +++ b/crates/podssh-cli/src/connect_bound.rs
-@@ -107,7 +107,7 @@
- /// in the line, and `first` is the words of the first step. With no limit,
+@@ -176,7 +176,7 @@
+ /// in the line, and `first` is the words of the first step. With no bound,
  /// no watch: each step's own limit alone.
- pub fn watch(limit: Option<Duration>, verb: &'static str, first: &str) -> Watch {
--    let Some(limit) = limit else { return Watch { run: None } };
-+    let Some(limit) = limit.filter(|_| false) else { return Watch { run: None } };
+ pub fn watch(bound: Option<Bound>, verb: &'static str, first: &str) -> Watch {
+-    let Some(Bound { limit, name }) = bound else { return Watch { run: None } };
++    let Some(Bound { limit, name }) = bound.filter(|_| false) else { return Watch { run: None } };
      let run = state().start(first);
      let deadline = Instant::now() + limit;
      let thread = std::thread::Builder::new().name("connect-timeout".into());

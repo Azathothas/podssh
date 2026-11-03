@@ -53,6 +53,9 @@ pub struct PipeArgs {
     pub keep_listening: bool,
     /// `--proxy-auth-file`: the credentials of the clients of `http-listen:`.
     pub proxy_auth_file: Option<String>,
+    /// `--timeout DURATION`, another name of `--ConnectTimeout` (T-613),
+    /// unparsed.
+    pub timeout: Option<String>,
     pub refused: Vec<(String, &'static str, &'static str)>,
 }
 
@@ -87,7 +90,7 @@ pub fn run_pipe(args: &PipeArgs, err: &mut dyn Write) -> i32 {
             return refusal.report("pipe", err);
         }
     }
-    let settings = match remote::settings(args, [&a, &b]) {
+    let mut settings = match remote::settings(args, [&a, &b]) {
         Ok(settings) => settings,
         Err(refusal) => return refusal.report("pipe", err),
     };
@@ -95,6 +98,9 @@ pub fn run_pipe(args: &PipeArgs, err: &mut dyn Write) -> i32 {
         Ok(bound) => bound,
         Err(refusal) => return refusal.report("pipe", err),
     };
+    // --timeout is each ssh: hop's ConnectTimeout too, as --ConnectTimeout is
+    // by its id (T-613).
+    settings.ssh.long_options.extend(hops_timeout(args));
     if (args.ssh.restart || args.ssh.detach_name.is_some()) && !args.ssh.detach {
         let why = "--restart and --detach-name are for a detached run; give --detach too".to_string();
         return crate::relay_settings::Refusal::usage(why).report("pipe", err);
@@ -136,29 +142,53 @@ pub fn run_pipe(args: &PipeArgs, err: &mut dyn Write) -> i32 {
     code
 }
 
-/// The bound of `--ConnectTimeout` (T-589) on the open of a `node:` or
-/// `relay:` side: refused with a listening side, whose clients each open a
-/// road long after the start, and with no `node:`, `relay:` or `ssh:` side.
-/// An `ssh:` side's hops take it as their own ConnectTimeout, by its id of
-/// `ssh`; beside no `node:` or `relay:` side, theirs alone, with no watch.
+/// The bound of `--ConnectTimeout` (T-589), or of `--timeout` (T-613), on the
+/// open of a `node:` or `relay:` side: refused with a listening side, whose
+/// clients each open a road long after the start, and with no `node:`,
+/// `relay:` or `ssh:` side. An `ssh:` side's hops take it as their own
+/// ConnectTimeout ([`hops_timeout`]); beside no `node:` or `relay:` side,
+/// theirs alone, with no watch. `PODSSH_TIMEOUT` bounds the open of a
+/// `node:` or `relay:` side of a pipe that does not listen, and refuses no
+/// pipe: a user sets it for whole runs of other commands, and an `ssh:` hop
+/// keeps its own ConnectTimeout.
 fn connect_bound(
     args: &PipeArgs,
     sides: [&address::Address; 2],
     listening: bool,
-) -> Result<Option<std::time::Duration>, crate::relay_settings::Refusal> {
+) -> Result<Option<crate::connect_bound::Bound>, crate::relay_settings::Refusal> {
     use address::Address::{Node, Relay, Ssh};
     let given = args.ssh.long_options.iter().find_map(|option| option.strip_prefix("ConnectTimeout="));
-    let Some(limit) = crate::connect_bound::parse(given)? else { return Ok(None) };
-    let refused = |why: &str| Err(crate::relay_settings::Refusal::usage(why));
+    let watched = sides.iter().any(|side| matches!(side, Node(_) | Relay { .. }));
+    let Some(bound) = crate::connect_bound::chosen(given, args.timeout.as_deref(), |_| None)? else {
+        if listening || !watched {
+            return Ok(None);
+        }
+        let limit = crate::connect_bound::variable_bound(|name| std::env::var(name).ok())?;
+        let name = crate::non_interactive::TIMEOUT_ENV;
+        return Ok(limit.map(|limit| crate::connect_bound::Bound { limit, name }));
+    };
+    let refused = |why: String| Err(crate::relay_settings::Refusal::usage(why));
+    let flag = bound.name;
     if listening {
-        return refused(
-            "--ConnectTimeout bounds the open of the pipe's one session; a listening side opens one for each client",
-        );
+        return refused(format!(
+            "{flag} bounds the open of the pipe's one session; a listening side opens one for each client"
+        ));
     }
     if !sides.iter().any(|side| matches!(side, Node(_) | Relay { .. } | Ssh { .. })) {
-        return refused("--ConnectTimeout bounds the open of a node:, relay: or ssh: side; name one");
+        return refused(format!("{flag} bounds the open of a node:, relay: or ssh: side; name one"));
     }
-    Ok(sides.iter().any(|side| matches!(side, Node(_) | Relay { .. })).then_some(limit))
+    Ok(watched.then_some(bound))
+}
+
+/// `--timeout`, with no `--ConnectTimeout`, as the option of each `ssh:` hop,
+/// `ConnectTimeout=SECONDS`, as `--ConnectTimeout` reaches the hops by its id
+/// of `ssh` (T-613). Read once [`connect_bound`] took it.
+fn hops_timeout(args: &PipeArgs) -> Option<String> {
+    if args.ssh.long_options.iter().any(|option| option.starts_with("ConnectTimeout=")) {
+        return None;
+    }
+    let bound = crate::connect_bound::chosen(None, args.timeout.as_deref(), |_| None).ok()??;
+    Some(format!("ConnectTimeout={}", bound.limit.as_secs()))
 }
 
 async fn run(a: address::Address, b: address::Address, settings: &remote::Settings, err: &mut dyn Write) -> i32 {

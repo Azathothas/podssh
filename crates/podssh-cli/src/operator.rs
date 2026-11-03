@@ -46,10 +46,41 @@ pub struct OperatorArgs {
     /// `--ConnectTimeout SECONDS`, the bound on the session's open, unparsed
     /// (T-589).
     pub connect_timeout: Option<String>,
+    /// `--timeout DURATION`, another name of the bound (T-613), unparsed.
+    pub timeout: Option<String>,
     /// `--carrier ADDR`: the node at the other end of a stream that exists
     /// already, with no relay and no pair (T-595), unparsed.
     pub carrier: Option<String>,
     pub refused: Vec<(String, &'static str, &'static str)>,
+}
+
+impl OperatorArgs {
+    /// The values out of `operator`'s matches, whose table has each row.
+    pub fn from_matches(m: &clap::ArgMatches, refused: Vec<(String, &'static str, &'static str)>) -> Self {
+        let get = |id: &str| m.get_one::<String>(id).cloned();
+        OperatorArgs {
+            name: get("name"),
+            relay_addr: get("relay-addr"),
+            ca_file: get("ca-file"),
+            pair_file: get("pair-file"),
+            client_key: get("client-key"),
+            node_key: get("node-key"),
+            no_e2e: m.get_flag("no-e2e"),
+            resume_deadline: get("resume-deadline"),
+            no_resume: m.get_flag("no-resume"),
+            connect_timeout: get("ConnectTimeout"),
+            timeout: get("timeout"),
+            carrier: get("carrier"),
+            refused,
+        }
+    }
+
+    /// The bound on the open of the run (T-589, T-613), read before anything
+    /// else: `--ConnectTimeout`, `--timeout`, then `PODSSH_TIMEOUT`.
+    pub(crate) fn bound(&self) -> Result<Option<crate::connect_bound::Bound>, Refusal> {
+        let var = |name: &str| std::env::var(name).ok();
+        crate::connect_bound::chosen(self.connect_timeout.as_deref(), self.timeout.as_deref(), var)
+    }
 }
 
 /// Run the verb; returns the process exit code.
@@ -75,8 +106,9 @@ pub(crate) fn to_node(args: &OperatorArgs, verb: &'static str, err: &mut dyn Wri
         Ok(ready) => ready,
         Err(refusal) => return refusal.report(verb, err),
     };
-    // --ConnectTimeout (T-589): the relay's answer, the node's ready, then
-    // the layer and the channel, each step named by the line past the bound.
+    // --ConnectTimeout (T-589), or --timeout or PODSSH_TIMEOUT (T-613): the
+    // relay's answer, the node's ready, then the layer and the channel, each
+    // step named by the line past the bound.
     let _bound = crate::connect_bound::watch(bound, verb, "the relay did not answer");
     // The channel of T-088: this operator's key, and the node's by the pins
     // of the label or by --node-key.
@@ -165,13 +197,14 @@ pub(crate) fn judged(label: &str, carried: &Carried) -> Option<(i32, String)> {
 }
 
 /// What a run to a node needs once its command line is checked: the label,
-/// the operator's part, the channel's ask and the bound of --ConnectTimeout.
-type Prepared = (String, podssh_relay::pair::OperatorPart, crate::channel::Ask, Option<std::time::Duration>);
+/// the operator's part, the channel's ask and the bound of --ConnectTimeout,
+/// or of its other names (T-613).
+type Prepared = (String, podssh_relay::pair::OperatorPart, crate::channel::Ask, Option<crate::connect_bound::Bound>);
 
 fn prepare(args: &OperatorArgs) -> Result<Prepared, Refusal> {
     let name = args.name.clone().ok_or("missing NAME: the label of a pair (podssh relay pair NAME)")?;
-    // A bad bound is refused before anything is read (T-589).
-    let bound = crate::connect_bound::parse(args.connect_timeout.as_deref())?;
+    // A bad bound is refused before anything is read (T-589, T-613).
+    let bound = args.bound()?;
     let (label, route) = crate::node::label_and_route(&name)?;
     let ask = crate::channel::Ask::of(args.client_key.as_deref(), None, args.node_key.as_deref(), args.no_e2e)
         .and_then(|ask| ask.to_route(route.as_deref()))

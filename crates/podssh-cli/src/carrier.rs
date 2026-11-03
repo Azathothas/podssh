@@ -111,6 +111,14 @@ impl Client {
     pub(crate) fn start(text: &str, found: &Address) -> Result<Client, Refusal> {
         let (link, child) = open(found)?;
         let child = Arc::new(Mutex::new(child));
+        // A bound that gives up ends the program too, as each one that
+        // carries the stream later is kept in the same place.
+        let held = child.clone();
+        crate::connect_bound::at_give_up(Box::new(move || {
+            if let Some(program) = lock(&held).as_mut() {
+                let _ = program.start_kill();
+            }
+        }));
         let again: Option<Again> = match found {
             Address::Exec(_) => {
                 let (found, child) = (found.clone(), child.clone());
@@ -281,8 +289,9 @@ async fn carry(
 
 /// What a run of `operator --carrier` needs once its command line is
 /// checked: the label, the carrier in the user's words and as `pipe` reads
-/// it, the channel's ask and the bound of `--ConnectTimeout`.
-type Prepared = (String, String, Address, crate::channel::Ask, Option<Duration>);
+/// it, the channel's ask and the bound of `--ConnectTimeout`, or of its other
+/// names (T-613).
+type Prepared = (String, String, Address, crate::channel::Ask, Option<crate::connect_bound::Bound>);
 
 /// The checks before anything starts: the carrier, the bound, NAME and its
 /// route, the channel's flags; a relay's or a pair's flag has nothing to
@@ -290,8 +299,8 @@ type Prepared = (String, String, Address, crate::channel::Ask, Option<Duration>)
 fn prepare(args: &OperatorArgs) -> Result<Prepared, Refusal> {
     let text = args.carrier.clone().unwrap_or_default();
     let found = for_a_client(&text, "stdin and stdout carry the session's bytes here")?;
-    // A bad bound is refused before anything is read (T-589).
-    let bound = crate::connect_bound::parse(args.connect_timeout.as_deref())?;
+    // A bad bound is refused before anything is read (T-589, T-613).
+    let bound = args.bound()?;
     let flags = [
         (args.pair_file.is_some(), "--pair-file"),
         (args.relay_addr.is_some(), "--relay-addr"),

@@ -1,0 +1,12 @@
+--- a/crates/podssh-cli/src/connect_bound.rs
++++ b/crates/podssh-cli/src/connect_bound.rs
+@@ -221,9 +221,6 @@
+     let step = state.step.clone();
+     drop(state);
+     podssh_ssh::err_line!("podssh {verb}: {step} within {} s ({name})", limit.as_secs());
+-    for stop in STOPS.lock().unwrap_or_else(|e| e.into_inner()).iter() {
+-        stop();
+-    }
+     std::process::exit(EX_UNAVAILABLE);
+ }
+ 

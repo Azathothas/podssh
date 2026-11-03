@@ -56,6 +56,7 @@ fn the_positionals_and_options_reach_the_verb() {
             idle_warn: None,
             node: Default::default(),
             connect_timeout: None,
+            timeout: None,
             refused: vec![],
         }
     );

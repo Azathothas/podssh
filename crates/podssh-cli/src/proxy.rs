@@ -65,6 +65,8 @@ pub struct ProxyArgs {
     /// `--ConnectTimeout SECONDS`: the bound on the open of each road
     /// (T-589), unparsed.
     pub connect_timeout: Option<String>,
+    /// `--timeout DURATION`, another name of the bound (T-613), unparsed.
+    pub timeout: Option<String>,
 }
 
 /// Run the verb; returns the process exit code. A run that named its
@@ -107,9 +109,11 @@ fn proxy(args: &ProxyArgs, err: &mut dyn Write) -> i32 {
         Ok(lead) => lead,
         Err(why) => return crate::relay_settings::Refusal::usage(why).report("proxy", err),
     };
-    // --ConnectTimeout (T-589): one bound on the open of the road, whose step
-    // each road below names; a node's run keeps its own, in `operator`.
-    let bound = match crate::connect_bound::parse(args.connect_timeout.as_deref()) {
+    // --ConnectTimeout (T-589), or --timeout or PODSSH_TIMEOUT (T-613): one
+    // bound on the open of the road, whose step each road below names; a
+    // node's run keeps its own, in `operator`.
+    let var = |name: &str| std::env::var(name).ok();
+    let bound = match crate::connect_bound::chosen(args.connect_timeout.as_deref(), args.timeout.as_deref(), var) {
         Ok(bound) => bound,
         Err(refusal) => return refusal.report("proxy", err),
     };

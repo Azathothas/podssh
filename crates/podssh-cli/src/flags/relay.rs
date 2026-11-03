@@ -86,8 +86,8 @@ pub const PROXY_FLAGS: &[FlagRow] = &[
     super::node::PROXY_DEADLINE, super::node::PROXY_NO_RESUME,
     // A node at the other end of a stream, as operator reaches it (T-595).
     super::operator::PROXY_CARRIER,
-    // The bound on the open of each road (T-589).
-    super::operator::PROXY_CONNECT_TIMEOUT,
+    // The bound on the open of each road (T-589), by either name (T-613).
+    super::operator::PROXY_CONNECT_TIMEOUT, super::operator::TIMEOUT,
 ];
 
 /// `doctor` checks the relay path `ssh` and `proxy` would take, so it takes

@@ -54,7 +54,7 @@ Read:
 4. Give the note about skipped encrypted keys
    (`crates/podssh-ssh/src/keys.rs:160-166`) the same condition as step 1.
 5. Keep `PublicKeys::new` for each login (`crates/podssh-ssh/src/auth.rs:107`),
-   so that only the notes change. No document changes: `docs/cli.md:4714-4772`
+   so that only the notes change. No document changes: `docs/cli.md:4729-4787`
    already says that a refusal names the remedy.
 
 ## Prove
@@ -295,13 +295,13 @@ Read:
    terminal and no `SSH_ASKPASS`, a retry that needs a prompt stops. Keep a
    typed password in memory (zeroized) for the retry; do not ask twice.
 6. Say each retry on stderr, with the hop and the reason. Document the rule
-   in `docs/cli.md:4620-4688`, and add a row to `docs/STATUS.md`.
+   in `docs/cli.md:4635-4703`, and add a row to `docs/STATUS.md`.
 
 ## Decision
 
 Recommendation: retry inside podssh, and only before the session request.
 Only podssh knows whether the request was sent, and `podssh ssh` keeps the
-exit code 255 of OpenSSH (`docs/cli.md:4630-4633`). The alternative, a distinct
+exit code 255 of OpenSSH (`docs/cli.md:4645-4648`). The alternative, a distinct
 exit code for the caller to retry on, lost: it breaks scripts that expect
 OpenSSH's codes, and a caller that retries each 255 runs a command twice.
 
@@ -420,7 +420,7 @@ Read:
    measured code.
 4. Make the mapping from `io::End` to an exit code a pure function in
    `crates/podssh-ssh/src/session.rs`, with a test for each variant.
-5. Write the measured rule in `docs/cli.md:4620-4688`, and the measurement in
+5. Write the measured rule in `docs/cli.md:4635-4703`, and the measurement in
    `docs/STATUS.md`.
 
 ## Prove
@@ -704,7 +704,7 @@ Not measured here: each case needs a server.
    (`HOME` is not set, `UserKnownHostsFile none`, or the write error); the
    next run cannot detect a changed key.
 4. Check the file type before the open: a FIFO blocks an open for reading.
-5. Update `docs/cli.md:4714-4772` (one line) and the manual's note on host keys
+5. Update `docs/cli.md:4729-4787` (one line) and the manual's note on host keys
    (`crates/podssh-cli/src/man/notes.rs`, lines 60-66 at `33c9a31`).
 
 ## Decision
@@ -1006,7 +1006,7 @@ and no other.
 ## Approach
 
 1. Add the long flag `--host-key-fingerprint SHA256:B64[,SHA256:B64...]` to
-   `SSH_FLAGS` (`crates/podssh-cli/src/flags.rs:121-296`), and to `ONCE`
+   `SSH_FLAGS` (`crates/podssh-cli/src/flags.rs:122-297`), and to `ONCE`
    (`crates/podssh-cli/src/ssh/args.rs:180-218`). Refuse a malformed value with
    exit 64 before anything connects.
 2. Carry it in `Options` (`crates/podssh-ssh/src/options.rs:195-332`) and
@@ -1176,7 +1176,7 @@ M1, and the NOPASSWD check fails.
 `crates/podssh-ssh/src/session.rs:240-249`), and the pump filters the output,
 asks, and holds its input until the start (`crates/podssh-ssh/src/io.rs:178-192`,
 `crates/podssh-ssh/src/io.rs:405-412`). The flags at
-`crates/podssh-cli/src/flags.rs:226-231`, and their check in
+`crates/podssh-cli/src/flags.rs:227-232`, and their check in
 `crates/podssh-cli/src/ssh/elevate.rs:1-43`.
 - `cargo test -p podssh-ssh -- elevate`: 5 passed: the quoting of the
   command, both markers removed, one password for each prompt, a marker split
@@ -1241,7 +1241,7 @@ and no player.
 4. Playback: a new verb `podssh play FILE`, with `--speed` and
    `--idle-limit`. Not `replay`: it is one edit from `relay`, and the
    suggestion step would mix them (`docs/cli.md:1906-1915`). Add it to `VERBS`
-   (`crates/podssh-cli/src/flags.rs:376-440`), to
+   (`crates/podssh-cli/src/flags.rs:377-441`), to
    `crates/podssh-cli/src/positionals.rs`, to dispatch, and to `DISPATCHED`
    (`crates/podssh-cli/tests/flag_table.rs:110-143`).
 5. Refuse a file whose header is not version 2. Skip unknown event types.
@@ -1283,7 +1283,7 @@ byte boundary, and the UTF-8 test fails.
 session starts with the size of its start
 (`crates/podssh-ssh/src/session.rs:179-186`) and its output passes through
 (`crates/podssh-ssh/src/io.rs:113-168`). The flag at
-`crates/podssh-cli/src/flags.rs:228-229`, its check and its file in
+`crates/podssh-cli/src/flags.rs:229-230`, its check and its file in
 `crates/podssh-cli/src/ssh/recording.rs:1-42`; the verb in
 `crates/podssh-cli/src/play.rs:1-86`, its flags in
 `crates/podssh-cli/src/flags/play.rs:1-14`.
@@ -1308,7 +1308,7 @@ session starts with the size of its start
   place of the one of `scripts/interop.sh`. The next commit names that helper
   `ping_via` (`scripts/interop-ping.sh:10-16`), so that each later harness
   gets `podssh ssh`.
-- `docs/cli.md:692-703` and `docs/cli.md:4118-4130`, the manual's notes and an
+- `docs/cli.md:692-703` and `docs/cli.md:4133-4145`, the manual's notes and an
   example, say what the flag and the verb do, and their risks.
 - `cargo test -p podssh-ssh`: 151 passed; `cargo test -p podssh-cli`:
   574 passed, 0 failed, 31 ignored; clippy; rustfmt.
@@ -1373,7 +1373,7 @@ runs: with no user database entry, OpenSSH's programs stop at once
 6. When the probe fails, refuse with the reason and the other ways: key
    files with `-i`, and the helper of T-228.
 7. In the same commit: the verb in `VERBS`
-   (`crates/podssh-cli/src/flags.rs:376-440`), in
+   (`crates/podssh-cli/src/flags.rs:377-441`), in
    `crates/podssh-cli/src/positionals.rs` and in `DISPATCHED`
    (`crates/podssh-cli/tests/flag_table.rs:110-143`); `docs/cli.md`;
    "Nothing listens" in `SECURITY.md:182-209`; `docs/STATUS.md`.
@@ -1382,7 +1382,7 @@ runs: with no user database entry, OpenSSH's programs stop at once
 
 Recommendation: the agent stays in the foreground, and the user starts it
 with `&`. podssh refuses to go to the background (`-f`,
-`crates/podssh-cli/src/flags.rs:270-271`), and one life cycle is easier to
+`crates/podssh-cli/src/flags.rs:271-272`), and one life cycle is easier to
 test. The alternative, the fork of `ssh-agent`, lost: it works on Unix only,
 and it hides a failure that comes after the fork.
 
@@ -1779,7 +1779,7 @@ with the key file of one, and has no agent to hold one.
   (`crates/podssh-ssh/src/keys.rs:208-277`), so an `sk-` key in OpenSSH's
   `ssh-agent`, with its device present, can work today. Not measured.
 - Read: `-I` (PKCS#11) is refused by name
-  (`crates/podssh-cli/src/flags.rs:274-275`).
+  (`crates/podssh-cli/src/flags.rs:275-276`).
 - A device needs USB access (`/dev/hidraw*` on Linux) or the WebAuthn API of
   Windows. A sandbox has neither, so each use needs a probe.
 
@@ -2041,7 +2041,7 @@ Read, at `9fefff2`:
   the session after 180 s with no payload (`docs/relay.md:259`). The relay's
   own keepalive frames keep the ping watcher content meanwhile.
 - A prompt has its own limit when nobody watches the terminal (60 s, T-005;
-  `docs/cli.md:4737-4740`). A person who types slowly must not meet a limit
+  `docs/cli.md:4752-4755`). A person who types slowly must not meet a limit
   of the server.
 
 Not measured: it needs a server that stalls.
@@ -2063,9 +2063,9 @@ Not measured: it needs a server that stalls.
 4. On expiry, end with 255, and name the step, as "HOST did not answer the
    publickey request within 60 s".
 5. Make the comment and the manual (`crates/podssh-cli/src/ssh/keywords.rs:39-40`,
-   `crates/podssh-cli/src/flags.rs:178-179`) say the same: the handshake, and
+   `crates/podssh-cli/src/flags.rs:179-180`) say the same: the handshake, and
    each answer during the authentication.
-   `docs/cli.md:4770-4772` asks for a limit on the whole operation.
+   `docs/cli.md:4785-4787` asks for a limit on the whole operation.
 
 ## Decision
 
@@ -2514,7 +2514,7 @@ constraint of a key (lines 296-297), and when a request to sign names such a key
 that is always ready with `true`; it never calls the agent's `confirm` (lines 348-356).
 
 Read: podssh's `confirm` refuses (`crates/podssh-cli/src/agent/serve.rs:173-176`), and is never
-called. `docs/cli.md:4016-4017` says that the key "is never used".
+called. `docs/cli.md:4031-4032` says that the key "is never used".
 
 ## Approach
 
@@ -3741,7 +3741,7 @@ name to give. OpenSSH on the same host connects.
   (`crates/podssh-cli/src/ssh/jump.rs:235-236`). Each verb of the report resolves its destination
   there, so one change serves all eleven.
 - Read: the manual says that podssh never reads the user database
-  (`crates/podssh-cli/src/man/facts.rs:199-202`); the reason is in
+  (`crates/podssh-cli/src/man/facts.rs:201-204`); the reason is in
   `docs/target-environment.md:37-44`: on hosts with no passwd entry, OpenSSH's tools exit 255 ("No
   user exists for uid 0"), so podssh takes the name from the environment. The rule is no row of
   `docs/decisions.md`; T-222 (on hold) says the same of the shell of `podssh serve`.
@@ -4089,7 +4089,7 @@ The draft's calls (2026-11-02), where the Approach left a choice:
   multicast address takes a zone too, and the resolver is the judge of the rest. Through
   `HTTPS_PROXY` the zone goes in the `CONNECT` as before, for the proxy to refuse.
 - `pipe`'s `tcp:` and the target of `ssh:` keep the relay's rule of their parser
-  (`crates/podssh-cli/src/proxy.rs:356`, before anything starts), so `tcp:` takes no zone; the hops
+  (`crates/podssh-cli/src/proxy.rs:360`, before anything starts), so `tcp:` takes no zone; the hops
   of `ssh:` get the new check, through the resolve of `podssh ssh`. Lost: a zone for `tcp:` too:
   that parser is `podssh proxy`'s as well, whose target the relay dials.
 - A host in a refusal is shown as it is typed when each of its characters prints as itself, else
@@ -4225,7 +4225,7 @@ A defect: `ssh node://` is the documented way to log in to a node.
   `keep.v1` (`crates/podssh-cli/src/layered.rs:221`), the far end's shells learned and its
   silence watched (`:255-261`), and the SSH client and the carriage joined in one task
   (`crates/podssh-cli/src/ssh/node.rs:325-328`); `operator` carries with `carry_through`, with
-  none of these (`crates/podssh-cli/src/operator.rs:125-126`). These are the client's differences
+  none of these (`crates/podssh-cli/src/operator.rs:157-158`). These are the client's differences
   between the run that stopped and the one that worked; which one stopped it is not known.
 - Read: the tester's lines show the layer's session open and its features (`replay.v1`,
   `heartbeat.v1`, `move.v1`), so the relay, the pair and the layer's handshake worked; a roost

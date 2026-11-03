@@ -124,7 +124,11 @@ pub const PIPE: &[&str] = &[
      step that waited, and the exit is 69. Each hop of an ssh: side takes it as its own ConnectTimeout too \
      (the SSH handshake, and each answer while logging in), and alone where no side is node: or relay:. A \
      listening side refuses it (64), as each client opens a road long after the start, and so does a pipe \
-     with no node:, relay: or ssh: side.",
+     with no node:, relay: or ssh: side. --timeout DURATION is another name of it, a duration (30s, 2m, 1h) \
+     rounded up to whole seconds, with the same refusals, and each ssh: hop's ConnectTimeout too; \
+     --ConnectTimeout wins when both are given. PODSSH_TIMEOUT gives the bound of a node: or relay: side its \
+     default where no side listens; it refuses no pipe, as it bounds whole runs of other commands, and is no \
+     hop's ConnectTimeout.",
     "--exit NAME starts relay:HOST:PORT, and each relay:%h:%p of http-listen:, at NAME, a node of your net that \
      lends its egress (see podssh node --exit and podssh exit), in place of the relay, over the pair kept under \
      NAME: the node resolves HOST and dials it from its own host. A pipe with --exit and no relay: address is \

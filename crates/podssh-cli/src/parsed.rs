@@ -98,6 +98,8 @@ pub enum Parsed {
         node: crate::proxy_node::Flags,
         /// `--ConnectTimeout SECONDS` (T-589), unparsed.
         connect_timeout: Option<String>,
+        /// `--timeout DURATION`, another name of it (T-613), unparsed.
+        timeout: Option<String>,
         refused: Vec<(String, &'static str, &'static str)>,
     },
     /// `podssh status`: the relay settings in effect, and the destination

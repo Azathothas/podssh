@@ -1,7 +1,7 @@
 --- a/crates/podssh-cli/src/proxy_node.rs
 +++ b/crates/podssh-cli/src/proxy_node.rs
-@@ -146,7 +146,7 @@
-         connect_timeout: args.connect_timeout.clone(),
+@@ -153,7 +153,7 @@
+         timeout: args.timeout.clone(),
          // The node at the other end of a stream, as `operator --carrier`
          // reaches it (T-595); its checks are operator's.
 -        carrier: args.node.carrier.clone(),

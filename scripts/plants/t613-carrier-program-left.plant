@@ -1,0 +1,8 @@
+# T-613: the bound that gives up exits and leaves the program of an exec:
+# carrier running, which holds the run's stderr and outlives podssh; the test
+# of the bound over a carrier, which waits for the run's pipes, must fail.
+ENTRY=T-613
+GROUP=cli-tests
+EXPECT='test timeout_and_podssh_timeout_bound_the_open_as_connect_timeout_does \.\.\. FAILED'
+RUN='cargo test --locked -p podssh-cli --test operator -- timeout_and_podssh_timeout_bound_the_open_as_connect_timeout_does'
+LIMIT=1800

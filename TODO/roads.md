@@ -56,7 +56,7 @@ unknown flag (exit 64), and `Cargo.lock` has no iroh crate.
 5. `doctor`, with the feature: a UDP line, and the `/ping` of the home relay
    through the proxy (`crates/podssh-cli/src/doctor/host.rs:11-28`).
 6. `availability()` knows `ts` as the only build feature
-   (`crates/podssh-cli/src/flags.rs:467-475`): extend it. With no feature, an
+   (`crates/podssh-cli/src/flags.rs:468-476`): extend it. With no feature, an
    iroh destination refuses before it connects and names `--features iroh`,
    as `crates/podssh-cli/tests/ts_not_built.rs:1-4` shows for `ts`.
 7. Docs: the "Outbound only" item of `README.md`, "Nothing listens" in
@@ -163,7 +163,7 @@ access is by an allowlist of keys or a relay token (`docs/design.md:1251-1252`).
 Read in the reports, not verified here: iroh-ssh warns when a server's key is
 ephemeral (`rustonbsd/iroh-ssh:src/ssh.rs`); zuko hands over a ticket out of
 band (`adonm/zuko:docs/protocol.md`). Read: `podssh ts` keeps its node key in
-the file that `--ts-state` names (`crates/podssh-cli/src/flags.rs:368-369`,
+the file that `--ts-state` names (`crates/podssh-cli/src/flags.rs:369-370`,
 `crates/podssh-cli/src/ts.rs:181`). Credentials never go on argv
 (`AGENTS.md`, section 4).
 
@@ -187,7 +187,7 @@ the file that `--ts-state` names (`crates/podssh-cli/src/flags.rs:368-369`,
    `podssh ssh iroh:TICKET` dials it (the address of `docs/design.md:1023`).
 6. Add the key files to FILES in the manual
    (`crates/podssh-cli/src/man/data.rs:161-438`), and each new variable to
-   `VARIABLES` (`crates/podssh-cli/src/man/facts.rs:46-298`).
+   `VARIABLES` (`crates/podssh-cli/src/man/facts.rs:46-300`).
 
 ## Decision
 
@@ -511,9 +511,9 @@ in iroh's source at the pinned version.
    not in the list.
 6. `doctor`, with the feature, reports the `/ping` of each relay and the home
    relay.
-7. Add the variable to `VARIABLES` (`crates/podssh-cli/src/man/facts.rs:46-298`),
+7. Add the variable to `VARIABLES` (`crates/podssh-cli/src/man/facts.rs:46-300`),
    the flag to the flag table, and the default to the relay section of the
-   manual (`crates/podssh-cli/src/man/facts.rs:317-483`). The tests compare
+   manual (`crates/podssh-cli/src/man/facts.rs:319-485`). The tests compare
    `VARIABLES` with the source in both directions
    (`crates/podssh-cli/src/man/facts.rs:44-45`), so a variable that only the
    feature reads is in the manual only with the feature.
@@ -3815,7 +3815,7 @@ podssh's own, which makes it M.
   (`crates/podssh-iroh/src/endpoint.rs:4-7`, `:305-306`), as the design chose for a host with no
   DNS (`docs/design.md:1094`, `:1104`).
 - Read: the node's key is Ed25519 and stays across its pairs, and the operator pins it by label
-  (`docs/reverse.md:267-271`).
+  (`docs/reverse.md:269-273`).
 - Read in the study (https://docs.iroh.computer/connecting/dns-address-lookup): an endpoint
   publishes a signed packet to a DNS/Pkarr server over HTTP; n0's servers are free, rate-limited,
   with no guaranteed uptime, and "You're more than welcome to run production systems" on them,
@@ -7493,9 +7493,9 @@ puts the fallback in its `ok` column without a probe.
   (`crates/podssh-cli/src/ssh/transport.rs:214-235`); the module's own words are that "a target
   that cannot go" ends the run as before (`crates/podssh-cli/src/forwarder/fallback.rs:9-11`).
 - Read: the relay's refusal of a target by its policy (400, a blocked address range) is 77
-  (`crates/podssh-cli/src/proxy.rs:393-394`), and each other answer, the 502 of a target that the
+  (`crates/podssh-cli/src/proxy.rs:397-398`), and each other answer, the 502 of a target that the
   relay could not reach or whose name does not resolve among them, is 69
-  (`crates/podssh-cli/src/proxy.rs:387-400`); so both go to the forwarders (L-28, and #106's dead
+  (`crates/podssh-cli/src/proxy.rs:391-404`); so both go to the forwarders (L-28, and #106's dead
   target).
 - Read: the relay pool already tells these apart: another host cannot help after a refusal by
   policy or of a token, or after a 502 whose target's name fails

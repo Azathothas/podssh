@@ -1,0 +1,11 @@
+--- a/crates/podssh-cli/src/connect_bound.rs
++++ b/crates/podssh-cli/src/connect_bound.rs
+@@ -128,7 +128,7 @@
+     var: impl Fn(&str) -> Option<String>,
+ ) -> Result<Option<Bound>, Refusal> {
+     let connect = of_connect_timeout(connect)?;
+-    let timeout = timeout.map(flag_bound).transpose()?;
++    let timeout = timeout.filter(|_| false).map(flag_bound).transpose()?;
+     if connect.is_some() || timeout.is_some() {
+         return Ok(connect.or(timeout));
+     }
