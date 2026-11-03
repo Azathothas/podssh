@@ -148,7 +148,7 @@ token header (`crates/podssh-ws/src/client.rs:279-290`); `https_request` takes h
    This is T-060.
 4. `relay trace HOST PORT`: `/trace` with `banner=1`, the token in the header and never in the
    URL (`docs/relay.md:220-222`). Check HOST with `relay::check_host`
-   (`crates/podssh-ws/src/names.rs:10-24`), so no text can add a query parameter.
+   (`crates/podssh-ws/src/names.rs:10-32`), so no text can add a query parameter.
 5. `pair` and `revoke`: refuse by name, and name M4 (T-078, T-083).
 6. Flags as for `doctor` (`--relay-host HOSTS`, `--relay-addr`, `--ca-file`), and `--json`
    (T-049). Each request has the 10 s limit of `doctor`
@@ -1063,7 +1063,7 @@ Lifted on 2026-11-02 by Q63: see below.
 The Premise, a measurement of the default deployment, stands. Approach item 2 says that podssh
 "already says what happened" (`crates/podssh-relay/src/relay.rs:204-207`): true, but the direct
 road after the relay hosts (T-363) does not run in this case. It runs only when no relay host
-opened a session, and never with `-4` or `-6` (`docs/cli.md:297-301`); here the relay opened
+opened a session, and never with `-4` or `-6` (`docs/cli.md:308-312`); here the relay opened
 (101), then closed with 1011.
 
 By Q63 (2026-11-02, `docs/decisions.md`; docs/mesh.md, section 4) the relay is a role of podssh
@@ -1138,7 +1138,7 @@ with no reason. Each drop read as the end of the TCP stream with no Close frame
 had drops, so the traffic does not cause them.
 
 Read: on the forward path, keepalives every 60 s kept one session for 602 s
-(`docs/STATUS.md:247`). That is one run, before 2026-10-09.
+(`docs/STATUS.md:248`). That is one run, before 2026-10-09.
 
 ## Approach
 

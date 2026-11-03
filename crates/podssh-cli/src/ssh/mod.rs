@@ -19,6 +19,8 @@ pub mod config;
 pub mod control;
 // derp:TICKET, and the DERP road of node://NAME (T-379).
 pub mod derp;
+// The hosts that a run dials, checked on each road (T-503).
+mod dialed;
 pub mod dump;
 // `--exit NAME`: the road starts at an exit of the user's net (T-431).
 mod elevate;
