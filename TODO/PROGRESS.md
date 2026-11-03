@@ -109,6 +109,13 @@ entry keeps its proof in the entry; this page keeps no history (git does).
   merged and closed the same day. The branch and its worktree can go, and so can
   `worktree-agent-t460-ssh` (`818f7fe`) and `draft/worktree-agent-t460-ssh`.
 
+  On 2026-11-03 the drafts of the testers' features, by agents of this cloud session, are merged
+  and closed, one at a time: T-561 (`c5299c2`) and T-562 (`cde307f`) of WARP, with the live run
+  41597035711; T-564 (`5b643b1`); T-489 (`ea2a70b`, live through the relay); T-483 (`7417676`); and
+  T-488 (`f8eaeb4`). Their worktrees and local branches are gone; `draft/worktree-agent-af45a8be5552d1bf0`,
+  `draft/worktree-agent-aad1db2c11baba50c` and `draft/worktree-agent-a3b8eb20dc7bccfa9` can go, as
+  this session's git proxy would not delete them.
+
   CI: the gate passed at
   `24b9f6e` (run 38331509229), and its step `release` at `cad2885` (478
   checks, the desktop's, `usbip` and `each` among them). At `d0dbb59` (run
