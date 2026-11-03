@@ -134,6 +134,9 @@ pub mod refuse;
 pub mod relay_cmd;
 pub mod relay_diag;
 mod relay_diag_text;
+// How a session that a relay host carried ended, for the record of the
+// hosts (T-563).
+pub mod relay_ends;
 pub mod relay_serve;
 pub mod relay_settings;
 pub mod relay_spec;

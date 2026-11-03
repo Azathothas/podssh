@@ -376,7 +376,7 @@ async fn session(
     match opened {
         Ok(opened) => {
             crate::session_log::opened(Some(&opened.relay.host));
-            let (relayed, crossed) = crate::pipe::relay::carry_watched(opened.session, target.to_string(), v6);
+            let (relayed, crossed) = crate::pipe::relay::carry_watched(opened, target.to_string(), v6);
             let watch = crate::ssh::idle_warn::spawn_proxy(crossed, idle);
             let pumped = crate::pipe::pump::pump(crate::pipe::local::stdio(), relayed).await;
             if let Some(watch) = watch {

@@ -908,9 +908,9 @@ line of `podssh ssh` at the end of `run_ssh`, from its result
 its session at `crates/podssh-cli/src/proxy.rs:378-385`; the bytes of the
 pump at `crates/podssh-cli/src/pipe/pump.rs:96` and
 `crates/podssh-cli/src/pipe/pump.rs:106-134`, and the relay's close at
-`crates/podssh-cli/src/pipe/relay.rs:222`. `SessionLog` at
+`crates/podssh-cli/src/pipe/relay.rs:228`. `SessionLog` at
 `crates/podssh-cli/src/settings.rs:255-258`, and `podssh status` at
-`crates/podssh-cli/src/status.rs:122-133`. The variable in VARIABLES, the
+`crates/podssh-cli/src/status.rs:123-134`. The variable in VARIABLES, the
 two files in FILES, and `docs/cli.md`.
 
 The test `crates/podssh-cli/tests/session_log.rs`, 4 tests, against the
@@ -1118,7 +1118,7 @@ never named among them.
 
 - Read: the sections run one after another, each awaited before the next: the network, the quick
   tunnel's UDP and its road over TCP, the relay, the forwarders, the roads of the build (iroh,
-  Tor), DERP and the pairs (`crates/podssh-cli/src/doctor/mod.rs:225-266`); the checks of the relay
+  Tor), DERP and the pairs (`crates/podssh-cli/src/doctor/mod.rs:216-257`); the checks of the relay
   and of the pairs have limits of 10 s (`crates/podssh-cli/src/doctor/relay_checks.rs:25`,
   `crates/podssh-cli/src/doctor/pairs.rs:14`).
 - Read: the report prints the sections in a fixed order, which `--json` keeps (T-049).

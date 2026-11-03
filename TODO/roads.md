@@ -513,7 +513,7 @@ in iroh's source at the pinned version.
    relay.
 7. Add the variable to `VARIABLES` (`crates/podssh-cli/src/man/facts.rs:46-295`),
    the flag to the flag table, and the default to the relay section of the
-   manual (`crates/podssh-cli/src/man/facts.rs:314-472`). The tests compare
+   manual (`crates/podssh-cli/src/man/facts.rs:314-479`). The tests compare
    `VARIABLES` with the source in both directions
    (`crates/podssh-cli/src/man/facts.rs:44-45`), so a variable that only the
    feature reads is in the manual only with the feature.
@@ -4837,7 +4837,7 @@ code that no command of the default build uses is P2 at most".
 - Read: doctor's two answers are `ok`: "the iroh road may go direct" after a bind, and "the iroh
   road then uses its relay alone" after a refusal (`crates/podssh-cli/src/doctor/iroh.rs` lines
   12-18 at `925c94b`), in a build with the feature only
-  (`crates/podssh-cli/src/doctor/mod.rs:160-161`). The refusal's
+  (`crates/podssh-cli/src/doctor/mod.rs:151-152`). The refusal's
   `ok` is doctor's rule, as the relay alone is a road that works; the bind's "may go direct" is
   not measured.
 - Read, in iroh 1.4.1 (the local cargo registry, `src/net_report/report.rs`): iroh's report of
@@ -7500,7 +7500,7 @@ puts the fallback in its `ok` column without a probe.
   (`crates/podssh-relay/src/open.rs:62-84`, `crates/podssh-relay/src/open.rs:137-145`).
 - Read: `doctor`'s line of the fallback is `ok`, with "not asked here"
   (`crates/podssh-cli/src/doctor/forwarder.rs:28-45`); `doctor` has a mark for what it did not
-  measure (`crates/podssh-cli/src/doctor/mod.rs:353-355`).
+  measure (`crates/podssh-cli/src/doctor/mod.rs:344-346`).
 - Read: the operator's rulings Q56 and Q65 (`docs/decisions.md`) let the binary try the forwarders,
   and the Wisp demo server last, "when each relay host fails", unasked (T-370, T-438); since T-438
   there are four: mudlet, ssheasy, mudix and wisp (`crates/podssh-cli/src/man/notes_ssh.rs:229-240`).
@@ -7545,7 +7545,7 @@ a 502 too, for a target that the relay cannot reach and a forwarder can: rare, a
 The draft's calls (2026-11-02), within Q69:
 
 - Each relay 502 is the target's, whatever its body, as the record of failures already takes it
-  (`crates/podssh-relay/src/failures.rs:124`): the relay dials the target before its upgrade, and
+  (`crates/podssh-relay/src/failures.rs:297`): the relay dials the target before its upgrade, and
   the relay role's 502 always names the target. Lost: a 502 only when its body starts with
   `relay:`, which would also send the target on after a 502 of a front of the relay; no front of
   the default relay answers 502 of its own (it is a Worker), and the narrower rule leaves #106's

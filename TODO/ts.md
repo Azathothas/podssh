@@ -142,7 +142,7 @@ of an OpenSSH `ProxyCommand` (`crates/podssh-ts/src/pipe.rs`, lines 51-61 at `1e
 (`crates/podssh-ts/tests/pipe.rs`, lines 97-122 at `1ee321d`).
 
 Read: `podssh proxy` keeps receiving after the end of stdin (`crates/podssh-cli/src/pipe/relay.rs:127-142`),
-and a closed stdout is a clean end there (`crates/podssh-cli/src/pipe/relay.rs:239-243`) and in the rules
+and a closed stdout is a clean end there (`crates/podssh-cli/src/pipe/relay.rs:245-249`) and in the rules
 (`docs/cli.md`, line 610 at `8cf2587`). `podssh ts -W` exits 70 on each copy error (`crates/podssh-cli/src/ts.rs`, lines 404-407 at `1ee321d`).
 The relay closes a half-closed forward session after 15 s with no bytes from the target
 (`docs/relay.md:296`). An earlier version of the pipe waited with no limit, and hung

@@ -200,7 +200,7 @@ fn the_cache_directories_are_the_ones_described() {
 
 #[test]
 fn the_exit_codes_are_the_constants() {
-    let blocks = exit_status();
+    let blocks = super::exit::status();
     let codes: Vec<String> = blocks
         .iter()
         .filter_map(|b| match b {

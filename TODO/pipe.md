@@ -52,7 +52,7 @@ the verb, the address grammar, the copy loop, and the local addresses `-`,
    reads of 32 KiB; an end of input half-closes the other side (a shutdown
    of the write side, never a drop, or the reply is lost), and the other
    direction goes on; a reader that is gone ends the pipe with 0
-   (`crates/podssh-cli/src/pipe/relay.rs:239-243`). Keep
+   (`crates/podssh-cli/src/pipe/relay.rs:245-249`). Keep
    `runtime.shutdown_background()` (`crates/podssh-cli/src/proxy.rs:211-213`).
    This is the one path: T-175 moves `podssh proxy` onto it.
 4. `fd:N` (Unix): `fcntl(F_GETFD)` first. A closed N, or N below 3, exits 64.
@@ -184,7 +184,7 @@ local program to a target, and `podssh proxy` stays a second pump.
 3. Move `podssh proxy` onto the pipe: `run_proxy`
    (`crates/podssh-cli/src/proxy.rs:66-215`) runs `stdio` and `relay:`. Keep
    its exit codes and messages (`crates/podssh-cli/src/proxy.rs:404-417`,
-   `crates/podssh-cli/src/pipe/relay.rs:217-247`).
+   `crates/podssh-cli/src/pipe/relay.rs:220-253`).
 4. `ssh:[USER@]HOP[,HOP...],HOST:PORT`: the last item is the target, each
    other item a hop, read as `-J` reads it
    (`crates/podssh-cli/src/ssh/resolve.rs:216-220`,
