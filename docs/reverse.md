@@ -351,3 +351,32 @@ after the pair's road; `PODSSH_PIPING=no` turns it off. Measured (2026-11-02):
 `cargo test -p podssh-relay --features piping --test piping`, against
 nwtgck's two servers on the loopback, 6 passed; a short live run through
 `ppng.io` (`--test piping_live -- --ignored`) passed.
+
+## A carrier
+
+A host whose every road out is closed often grants one channel, as the
+exec channel of a platform's own SSH. `--carrier ADDR` (T-595) puts the
+node's socket on such a stream, with no relay, no pair and no token
+(`crates/podssh-relay/src/serve/reverse/carrier.rs`):
+
+1. The stream carries the node's socket, its WebSocket frames with no HTTP
+   before them. The node is the client's side of the WebSocket, as on the
+   relay's socket, and runs its own `serve`; the other end runs the relay
+   role's side of the socket (T-427) in its own process, for this one node,
+   and each operator's leg is a pipe in that process to it. So rules 1 to 5
+   of "Node" hold as they are, and the role's checks of them too.
+2. The role speaks first (`hello`). The node's first frame is a Ping, sent
+   once its TARGET answered: no `open` goes before it, as the role ends a
+   session that the node does not ready within 15 s (`1013 node open
+   timeout`), and a node that a program starts can take longer to read.
+3. The stream is the door: whoever holds it reached the node through what
+   carries it. The end-to-end channel stays on, and the operator pins the
+   node's key under NAME, a label alone, so a stream that another key
+   answers is refused (77).
+4. One stream for the node's life. At its end the sessions end, and the node
+   exits 0 after the operator's Close, or 69 for a stream that failed. The
+   operator starts a stream of `exec:` again, once for each wait, for the
+   next leg; a stream of `stdio` or `fd:N` has one life (`410`).
+5. The relay's limits do not hold: no cap of 64 MiB a session, and no
+   expiry of a pair. The role's bound of 1 MiB for a slow receiver does, and
+   the layer keeps its window below it.

@@ -239,6 +239,13 @@ fn examples() -> Vec<(&'static str, String)> {
             "or with OpenSSH, with podssh as its way to the node",
             "ssh -o ProxyCommand='podssh operator lab --pair-file lab-operator.json' user@lab".into(),
         ),
+        (
+            "a host whose every road out is closed, but that the platform's own SSH reaches: its sshd through a \
+             node on that exec channel, with no relay and no pair",
+            "ssh -o ProxyCommand=\"podssh operator --carrier 'exec:ssh -T sandbox podssh node --carrier stdio box \
+             127.0.0.1:22' box\" user@box"
+                .into(),
+        ),
         ("whether the node is online; then stop the pair", "podssh relay status lab && podssh relay revoke lab".into()),
         (
             "the node in the background under a name, started again whenever it ends; a second start of the name refuses",

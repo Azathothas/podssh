@@ -307,6 +307,7 @@ pub fn parse_verb(verb: &'static Verb, rest: &[std::ffi::OsString]) -> Parsed {
             no_e2e: matches.get_flag("no-e2e"),
             resume_deadline: get("resume-deadline"),
             connect_timeout: get("ConnectTimeout"),
+            carrier: get("carrier"),
             refused,
         }));
     }

@@ -3284,7 +3284,7 @@ first after the minute passes. Planted, the brake removed, and the test fails.
 
 2026-11-02 (the drafting agent). The Premise holds; the Approach needs two facts that it does not
 name. `/v1/pair` is answered in the reverse road, where `serve/mod.rs` routes it:
-`crates/podssh-relay/src/serve/reverse/mod.rs:120` says "async fn pair". And the role had no
+`crates/podssh-relay/src/serve/reverse/mod.rs:123` says "async fn pair". And the role had no
 address to count by: at `33ccb11`,
 `podssh relay serve` dropped the peer of each connection that it accepted
 (`let Ok((tcp, _)) = accepted` in `crates/podssh-cli/src/relay_serve.rs`). So the brake stands in
@@ -5879,9 +5879,9 @@ the roads over TCP.
 ## Premise
 
 - `docs/decisions.md:19` says "Q82: roads over UDP where UDP passes".
-- `docs/carriers.md:1096-1097` says "a client's first request is an HTTP/3", a `POST /auth` with
-  `Hysteria-Auth`; `docs/carriers.md:1098` says "answers status 233", then each TCP stream opens
-  with a request of ID 0x401 and the address; `docs/carriers.md:1092` says "UDP alone, which the
+- `docs/carriers.md:1108-1109` says "a client's first request is an HTTP/3", a `POST /auth` with
+  `Hysteria-Auth`; `docs/carriers.md:1110` says "answers status 233", then each TCP stream opens
+  with a request of ID 0x401 and the address; `docs/carriers.md:1104` says "UDP alone, which the
   hosts of podssh's design do not have".
 - `crates/podssh-relay/src/quick/probe.rs:1` says "The probe of UDP before QUIC (T-400): one QUIC
   packet of a reserved", and `crates/podssh-relay/Cargo.toml:38` says "The quick tunnel over
@@ -5938,9 +5938,9 @@ road with no relay. podssh does not speak it (Q82).
 ## Premise
 
 - `docs/decisions.md:19` says "Q82: roads over UDP where UDP passes".
-- `docs/carriers.md:1103-1104` says "a token of 32 bytes that the TLS keying material exporter
-  derives", and `docs/carriers.md:1106-1107` says "as the server never answers a command";
-  `docs/carriers.md:1109` says "are mihomo, shoes, sing-box and Itsusinn's tuic".
+- `docs/carriers.md:1115-1116` says "a token of 32 bytes that the TLS keying material exporter
+  derives", and `docs/carriers.md:1118-1119` says "as the server never answers a command";
+  `docs/carriers.md:1121` says "are mihomo, shoes, sing-box and Itsusinn's tuic".
 - `crates/podssh-relay/Cargo.toml:38` says "The quick tunnel over QUIC (src/quick/quic.rs,
   T-301): noq, the QUIC of the".
 
@@ -6038,8 +6038,8 @@ pair that its operators hold.
 ## Premise
 
 - Read: the role keeps the contract's 72 h (`crates/podssh-relay/src/serve/reverse/pairs.rs:22-23`,
-  set as the pair is made, `:182`), and serves `/v1/pair`, `/v1/node/`, `/v1/connect/`,
-  `/v1/status/` and `/v1/stop/` alone (`crates/podssh-relay/src/serve/reverse/mod.rs:54`).
+  set as the pair is made, `:195`), and serves `/v1/pair`, `/v1/node/`, `/v1/connect/`,
+  `/v1/status/` and `/v1/stop/` alone (`crates/podssh-relay/src/serve/reverse/mod.rs:57`).
 - Read: the default relay renews no pair (T-395's Correction: no such request in its document); a
   change of that deployment is an item of `docs/relay-operator.md`, which no entry waits for
   (Q63).
@@ -6110,7 +6110,7 @@ It asks for `podssh node --stdio NAME TARGET`, and
 **Milestone:** M10
 **Priority:** P2
 **Effort:** L
-**Status:** open
+**Status:** partial
 
 ## Problem
 
@@ -6175,6 +6175,21 @@ For the operator to confirm (Q86):
   its connect token. Lost: a door required, as on the DERP road, where any key may send; here only
   the holder of the stream can.
 
+Calls of the draft (2026-11-03), for the operator to confirm with the rest (Q86):
+
+- The node's first frame is a WebSocket Ping, sent once its TARGET answered, and the client's role
+  opens no leg before it, 60 s at most. Lost: an `open` at once, which the role ends after 15 s
+  with `1013 node open timeout` where a program starts the node slowly (a login, then the node's
+  dial of TARGET); a message of the node's own, which would be a protocol of the carrier's.
+- A stream of `exec:` that ended is started again once for each wait of a leg, so a program that
+  ends at once is said in that wait (69), and the layer's own wait comes between two starts. Lost:
+  a start each time the wait looks, many in a second.
+- `--exit` with `--carrier` is refused (64) until T-596 builds its client. Lost: let it run, as the
+  node's routes would carry it, with no client that reaches it and no test.
+- The role is a handle for the process's life (`Door`, a `&'static` of `Box::leak`), as `Wire` is
+  `Copy` and a command runs one carrier. Lost: a lifetime on `Wire`, which each `OperatorConfig`
+  of the code would carry; a table of roles by number, the same handle with more code.
+
 ## Prove
 
 ```sh
@@ -6190,6 +6205,104 @@ exec:'podssh node --carrier stdio NAME 127.0.0.1:PORT' node://NAME` to the test'
 a pinned key that the far end does not have, refused with 77; a terminal on stdin refused, 64;
 each says that it did not run where this host has no OpenSSH). Planted: `t595-carrier-no-channel`
 (the end-to-end channel skipped on a carrier with no `--no-e2e`): the test of the pin fails.
+
+## Correction
+
+Read at `477b47c` (2026-11-03), for the draft of the first step:
+
+- The Premise holds at each cited line.
+- `proxy node://` of T-587, which Approach item 1 names, is not built: T-587 is open. `proxy
+  --carrier` waits for it.
+- `operator --carrier stdio` is refused (64): the operator's stdin and stdout carry the session's
+  bytes. `stdio` is a carrier for the node's end, and for a client whose stdio is free (T-596's
+  `exit --listen`).
+- Approach item 4, "a client of `exec:` starts the command again as the new link of a resume": the
+  command starts a new node, which by item 4's own rule has one stream for its life, so it knows no
+  session of the node before it, and the session ends with that node's reason; the new stream
+  serves the legs after it. A session resumes over the stream that carries it, whose legs are pipes
+  in the client's process.
+- The first step's `node_carrier` runs OpenSSH's client with `podssh operator --carrier` as its
+  ProxyCommand, to OpenSSH's sshd; the Prove's `podssh ssh --carrier` comes with the next step, and
+  its test joins `node_carrier` then.
+
+## Done
+
+2026-11-03, drafted (`DRAFT T-595`), the first step: the carrier in the library, `podssh node
+--carrier ADDR` and `podssh operator --carrier ADDR`; merged and run by the main session the same
+day. The entry stays open for the steps below.
+
+What changed:
+
+- `crates/podssh-relay/src/serve/reverse/carrier.rs` (new): `Role`, the relay role's side of one
+  node's socket on a stream (`Link`), in the client's process: `attach`, `open` of an operator's
+  leg (a pipe to `operator::leg`), the wait for the node's first frame, `start_again` through
+  `Again` for a stream that the client started (else `410`), `close` (1000); `Door`, the role as
+  the wire of a leg; `node_socket` and `greet`, the node's end.
+- `crates/podssh-relay/src/serve/reverse/node.rs`: `join` split into its upgrade and `socket`;
+  `carried`, a node's socket with no upgrade; the cap of a session is `pair.session_bytes`.
+- `crates/podssh-relay/src/serve/reverse/operator.rs`: `join` split into its upgrade and `leg`; the
+  cap is `pair.session_bytes`.
+- `crates/podssh-relay/src/serve/reverse/pairs.rs`: `Pair::session_bytes` (the contract's 64 MiB
+  for a pair of the role), `Pair::carried` (no expiry, no cap, no token), a unit test.
+- `crates/podssh-relay/src/serve/reverse/mod.rs`: the module `carrier`.
+- `crates/podssh-relay/src/reverse/wire.rs`: `Wire::Carrier(Door)` and `Socket::Carrier`, feature
+  `serve`; `crates/podssh-relay/src/reverse/operator.rs` and `crates/podssh-relay/src/reverse/node.rs`:
+  their arms.
+- `crates/podssh-relay/tests/reverse_carrier.rs` (new): 5 tests (two sessions of 2 MiB each way
+  and the Close of 1000; one life of a stream given; a stream started again; no `open` before the
+  node's first frame; no node's path).
+- `crates/podssh-cli/src/carrier.rs` (new): `--carrier`'s words, the refusal of a terminal, the
+  stream; `Client`, the role over a stream with `exec:` started again; `operator --carrier`, its
+  checks, and the words of its end; unit tests.
+- `crates/podssh-cli/src/node_carrier.rs` (new): `check` of the flags that a node of a carrier
+  takes none of (also in `node_install::dispatch`, before an `--install`), and the node over the
+  stream: TARGET's probe, the key, the first Ping, `reverse::serve` with the handlers of the pair's
+  road, its end (0 or 69); unit tests.
+- `crates/podssh-cli/src/node.rs`, `crates/podssh-cli/src/node_args.rs`,
+  `crates/podssh-cli/src/node_install/mod.rs`, `crates/podssh-cli/src/operator.rs`,
+  `crates/podssh-cli/src/tree.rs`, `crates/podssh-cli/src/lib.rs`: the field `carrier`, and the
+  dispatch to the new modules.
+- `crates/podssh-cli/src/flags/node.rs`, `crates/podssh-cli/src/flags/operator.rs`: the rows of
+  `--carrier ADDR`; `crates/podssh-cli/src/man/notes_pair.rs`: a note of `node` and one of
+  `operator`; `crates/podssh-cli/src/man/examples.rs`: OpenSSH through a node on an exec channel.
+- `crates/podssh-cli/tests/node_carrier.rs` (new): 6 tests (an echo server's 1 MiB through
+  `operator --carrier exec:'podssh node --carrier stdio ...'`; the pin, 77; a program that ends at
+  once, 69; the refused flags, 64; a terminal on the node's stdin, 64, in a pty of Linux; OpenSSH's
+  client to OpenSSH's sshd, or that it did not run).
+- `scripts/plants/t595-carrier-no-channel.patch` and `.plant`: the channel skipped at both ends.
+- `docs/cli.md`, `docs/mesh.md`, `docs/carriers.md`, `docs/reverse.md` ("A carrier") and
+  `docs/STATUS.md`.
+
+Measured, 2026-11-03:
+
+- `cargo test -p podssh-relay --features pair,serve --test reverse_carrier`: 5 passed.
+- `cargo test -p podssh-relay --features serve --lib serve::reverse`: 9 passed.
+- `cargo test -p podssh-relay --features serve,plain-ws --test relay_serve_reverse --test
+  relay_serve_contract`, the role after the split of `join`: 10 and 3 passed.
+- `cargo build -p podssh-relay --features blocking,serve`, the facade's arms of `Socket::Carrier`:
+  built.
+- `cargo test -p podssh-cli --test node_carrier`: 6 passed, the test of OpenSSH among them
+  (`openssh_logs_in_to_its_sshd_through_a_node_on_a_carrier`, OpenSSH's client to its sshd
+  through `operator --carrier`).
+- `cargo test -p podssh-cli --lib carrier`, 5 passed, and `--lib man::examples`, 4 passed; the
+  whole lib, 714.
+- `cargo test -p podssh-cli --test man_flag_parity --test flag_table --test operator --test roost`:
+  6, 9, 9 and 11 passed; `--test proxy` and `--test man_page`, 15 and 10.
+- `cargo clippy` of both crates with `-D warnings` (and the role's `serve`, `pair`): clean.
+- Planted (`sh scripts/plant-each.sh --here t595-carrier-no-channel`, the channel skipped at
+  both ends): caught.
+- The merge joined T-587's and T-589's changes of `operator.rs`, `flags/operator.rs` and
+  `tree.rs` with the draft's (`--carrier` first, then `to_node`; `--ConnectTimeout` beside
+  `--carrier`), and gave `proxy_node`'s `OperatorArgs` no carrier, as `proxy --carrier` is step 2.
+
+What remains, the next steps of this entry:
+
+1. `podssh ssh --carrier ADDR node://NAME`, and `cp`, `scp` and `sftp` to `node://NAME` on one,
+   on `crate::carrier::Client` and `Wire::Carrier`; its test joins `node_carrier`, as the Prove
+   names it.
+2. `podssh proxy --carrier ADDR node://NAME`, once T-587 gives `proxy node://`.
+3. `pipe`'s `node:` side with `--carrier`.
+4. The exit over a carrier is T-596, which lifts the refusal of `--exit` here.
 
 # T-596: The exit over a carrier: a host that grants an exec channel alone gets egress through its other end
 

@@ -1,7 +1,8 @@
 //! How a runner reaches the relay: TLS for each real use, or plain `ws://` to
 //! a stand-in relay on the loopback, for the tests of an embedder (feature
 //! `plain-ws`, T-068). The binary never enables the feature
-//! (`scripts/no-plain-ws.sh`).
+//! (`scripts/no-plain-ws.sh`). An operator's leg of a carrier (T-595, feature
+//! `serve`) is a pipe to the relay role's side in its own process.
 
 use podssh_ws::client::{connect, ConnectError, WsClientConfig};
 use podssh_ws::session::RelaySession;
@@ -17,6 +18,10 @@ pub enum Wire {
     /// never leaves the host in clear (`podssh_ws::plain`).
     #[cfg(feature = "plain-ws")]
     PlainLoopback,
+    /// The relay role's side of a carrier's node, in this process: no
+    /// connection, no token.
+    #[cfg(feature = "serve")]
+    Carrier(crate::serve::reverse::carrier::Door),
 }
 
 /// A socket to the relay, on either wire.
@@ -24,6 +29,8 @@ pub(crate) enum Socket {
     Tls(RelaySession),
     #[cfg(feature = "plain-ws")]
     Plain(RelaySession<tokio::net::TcpStream>),
+    #[cfg(feature = "serve")]
+    Carrier(RelaySession<tokio::io::DuplexStream>),
 }
 
 /// Connect on `wire` with `token`, as `config` says.
@@ -37,6 +44,9 @@ pub(crate) async fn open(wire: Wire, config: &WsClientConfig, token: &str) -> Re
                 .await
                 .map(Socket::Plain)
         }
+        // The stream is the door: the role takes no token.
+        #[cfg(feature = "serve")]
+        Wire::Carrier(door) => door.role().open(&config.endpoint.path, config.timeout).await.map(Socket::Carrier),
     }
 }
 
@@ -48,6 +58,8 @@ impl Socket {
             Socket::Tls(s) => s.read_frame().await,
             #[cfg(feature = "plain-ws")]
             Socket::Plain(s) => s.read_frame().await,
+            #[cfg(feature = "serve")]
+            Socket::Carrier(s) => s.read_frame().await,
         }
     }
 
@@ -56,6 +68,8 @@ impl Socket {
             Socket::Tls(s) => s.send_binary(payload).await,
             #[cfg(feature = "plain-ws")]
             Socket::Plain(s) => s.send_binary(payload).await,
+            #[cfg(feature = "serve")]
+            Socket::Carrier(s) => s.send_binary(payload).await,
         }
     }
 
@@ -64,6 +78,8 @@ impl Socket {
             Socket::Tls(s) => s.send_close(code, reason).await,
             #[cfg(feature = "plain-ws")]
             Socket::Plain(s) => s.send_close(code, reason).await,
+            #[cfg(feature = "serve")]
+            Socket::Carrier(s) => s.send_close(code, reason).await,
         }
     }
 
@@ -72,6 +88,8 @@ impl Socket {
             Socket::Tls(s) => s.close_sent(),
             #[cfg(feature = "plain-ws")]
             Socket::Plain(s) => s.close_sent(),
+            #[cfg(feature = "serve")]
+            Socket::Carrier(s) => s.close_sent(),
         }
     }
 }

@@ -5,7 +5,8 @@
 //! else; it exits 0 only after the node took the session. SIGHUP, which
 //! OpenSSH sends it at its exit, SIGTERM and SIGINT end the session with its
 //! `CLOSE`, as the end of stdin does (T-586). `podssh proxy node://NAME`
-//! runs the same pipe, by [`to_node`] (T-587).
+//! runs the same pipe, by [`to_node`] (T-587). With `--carrier ADDR`, the
+//! node is at the other end of a stream, with no relay (T-595, `carrier`).
 
 use std::io::Write;
 
@@ -41,11 +42,17 @@ pub struct OperatorArgs {
     /// `--ConnectTimeout SECONDS`, the bound on the session's open, unparsed
     /// (T-589).
     pub connect_timeout: Option<String>,
+    /// `--carrier ADDR`: the node at the other end of a stream that exists
+    /// already, with no relay and no pair (T-595), unparsed.
+    pub carrier: Option<String>,
     pub refused: Vec<(String, &'static str, &'static str)>,
 }
 
 /// Run the verb; returns the process exit code.
 pub fn run_operator(args: &OperatorArgs, err: &mut dyn Write) -> i32 {
+    if args.carrier.is_some() {
+        return crate::carrier::operator(args, err);
+    }
     to_node(args, "operator", err)
 }
 

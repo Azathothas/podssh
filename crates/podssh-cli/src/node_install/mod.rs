@@ -128,6 +128,10 @@ const WAYS: &[Way] = &[];
 /// `podssh node`: the variables of `--env-file` and the lock of its service
 /// first, then the node, or its install or uninstall.
 pub fn dispatch(args: &NodeArgs, out: &mut dyn Write, err: &mut dyn Write) -> i32 {
+    // A node of a carrier is no service: its stream is its parent's (T-595).
+    if let Err(refusal) = crate::node_carrier::check(args) {
+        return refusal.report("node", err);
+    }
     if let Some(file) = &args.env_file {
         if args.install || args.uninstall {
             let why = "--env-file is the file that --install writes for the service: give it to the node alone";

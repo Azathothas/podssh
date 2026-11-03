@@ -178,6 +178,10 @@ where
                     Socket::Tls(session) => serve(session, handler.clone(), config.settings, &mut stop).await,
                     #[cfg(feature = "plain-ws")]
                     Socket::Plain(session) => serve(session, handler.clone(), config.settings, &mut stop).await,
+                    // A carrier's role takes no node's path (T-595): never
+                    // here, but a socket is a socket.
+                    #[cfg(feature = "serve")]
+                    Socket::Carrier(session) => serve(session, handler.clone(), config.settings, &mut stop).await,
                 };
                 lost = Some(Instant::now());
                 match end {

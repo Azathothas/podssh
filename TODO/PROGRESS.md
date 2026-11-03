@@ -159,7 +159,7 @@ and `CARGO_BUILD_JOBS=4`:
 
 ## Counts
 
-`TODO/INDEX.md` holds 563 entries: 107 open, 3 partial, 16 blocked, 437 done.
+`TODO/INDEX.md` holds 563 entries: 106 open, 4 partial, 16 blocked, 437 done.
 
 Open includes parked work. `cargo todo check` verifies this line.
 
@@ -233,7 +233,7 @@ to T-533, and T-534 to T-549 and T-565 to T-582, which Q74, Q75, Q77, Q78
 and Q82 filed; and of #112 to #124, T-594, with M10's T-595, T-592 and
 T-596, the relay role's and the roads') follow, by priority, beside M10 (Q85); Dependabot's #119
 to #123 are T-597, a `none` entry in its turn. Overnight a fork of
-policy is decided and listed below for the operator to confirm (Q86). The drafts that wait to be merged (2026-11-03; each branch also on GitHub as `draft/worktree-agent-*`): T-595's first step (`84272a3`, `.claude/worktrees/agent-ae7237865014745d9`).
+policy is decided and listed below for the operator to confirm (Q86). The drafts of 2026-11-03 are merged (T-595's first step among them; its entry stays open for the next steps).
 
 **Skip** the entries that the operator holds (status
 `blocked`, Q32):
@@ -359,7 +359,10 @@ unattended (Q87).
   holds it or `unreleased`, held by a check of `scripts/check-repo.py`.
 - T-595: one flag, `--carrier ADDR` (`stdio`, `fd:N`, `exec:CMD`), at the node and at its
   clients; the node's socket of the reverse road on the stream, the relay role's side of it in
-  the client's process; the stream is the door, the end-to-end channel on by default.
+  the client's process; the stream is the door, the end-to-end channel on by default. Its draft
+  (partial) adds: the node's first frame is a Ping, and no session opens before it; a stream of
+  `exec:` is started again once for each wait of a leg; `--exit` with `--carrier` is refused until
+  T-596.
 
 **For the operator to confirm (Q86):** T-503 checks each host after the first hop too (a later hop
 of `-J`, and the destination behind it), on each road, by the direct road's rule, so that

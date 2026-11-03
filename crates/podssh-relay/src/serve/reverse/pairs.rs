@@ -67,6 +67,9 @@ pub enum NotMade {
 pub struct Pair {
     pub name: String,
     pub expires_ms: u64,
+    /// The cap of one session, both ways together: the contract's 64 MiB,
+    /// none on a carrier (T-595).
+    pub session_bytes: u64,
     digests: [[u8; 32]; 3],
     state: Mutex<State>,
 }
@@ -135,6 +138,15 @@ impl State {
 }
 
 impl Pair {
+    /// The one pair of a carrier's role (T-595), named `name`: it is in no
+    /// table, so no request finds it and no token takes it; it never expires,
+    /// and its sessions have no cap of bytes, as the relay's limits do not
+    /// hold on a stream of the user's.
+    pub fn carried(name: &str) -> Pair {
+        let (expires_ms, session_bytes) = (u64::MAX, u64::MAX);
+        Pair { name: name.to_string(), expires_ms, session_bytes, digests: [[0; 32]; 3], state: Default::default() }
+    }
+
     pub fn lock(&self) -> MutexGuard<'_, State> {
         self.state.lock().unwrap_or_else(|e| e.into_inner())
     }
@@ -165,7 +177,8 @@ impl Pairs {
             let mut map = pairs.map.lock().unwrap_or_else(|e| e.into_inner());
             for kept in load(path)?.into_iter().filter(|p| p.expires > now) {
                 let digests = kept.digests()?;
-                let pair = Pair { name: kept.name, expires_ms: kept.expires, digests, state: Default::default() };
+                let (expires_ms, session_bytes) = (kept.expires, super::SESSION_BYTES);
+                let pair = Pair { name: kept.name, expires_ms, session_bytes, digests, state: Default::default() };
                 map.insert(pair.name.clone(), Arc::new(pair));
             }
         }
@@ -191,8 +204,8 @@ impl Pairs {
                 return Err(NotMade::Full);
             }
             let digests = [digest(&made.node), digest(&made.connect), digest(&made.stop)];
-            let pair =
-                Pair { name: made.name.clone(), expires_ms: made.expires_ms, digests, state: Default::default() };
+            let (expires_ms, session_bytes) = (made.expires_ms, super::SESSION_BYTES);
+            let pair = Pair { name: made.name.clone(), expires_ms, session_bytes, digests, state: Default::default() };
             map.insert(made.name.clone(), Arc::new(pair));
         }
         if let Err(why) = self.save() {
@@ -407,6 +420,19 @@ mod tests {
         assert!(pairs.find("p-other", Role::Node, Some(&made.node), 2_000).is_none());
         assert!(pairs.find(&made.name, Role::Node, Some(&made.node), made.expires_ms).is_none(), "expired");
         assert!(pairs.is_empty(), "an expired pair is forgotten");
+    }
+
+    #[test]
+    fn a_carriers_pair_never_expires_has_no_cap_and_takes_no_token() {
+        let pair = Pair::carried("carrier");
+        assert_eq!((pair.expires_ms, pair.session_bytes), (u64::MAX, u64::MAX));
+        for role in [Role::Node, Role::Connect, Role::Stop] {
+            assert!(!pair.takes(role, ""), "{role:?}");
+        }
+        let pairs = Pairs::default();
+        let made = pairs.make(1_000).unwrap();
+        let found = pairs.find(&made.name, Role::Connect, Some(&made.connect), 2_000).unwrap();
+        assert_eq!(found.session_bytes, super::super::SESSION_BYTES, "a pair of the role keeps the contract's cap");
     }
 
     #[test]

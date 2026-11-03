@@ -3129,6 +3129,32 @@ commands. The rules behind them:
   no pair is stored: the fallback of Q50, which `PODSSH_DERP=no` turns off.
   `--derp-ticket` with another destination, and `--derp-server` with a
   destination that is no node, are usage errors (64).
+- **A carrier: the node's road on a stream that exists already (T-595).**
+  For a host whose every road out is closed but that grants one channel,
+  as the exec channel of a platform's own SSH: `node NAME TARGET --carrier
+  ADDR` and `operator --carrier ADDR NAME`, ADDR in `pipe`'s words, `stdio`
+  (or `-`), `fd:N` (Unix) or `exec:CMD`, a program that the end which names
+  it starts, with no shell. The stream carries the node's socket of the
+  reverse road, its WebSocket frames with no HTTP before them: the node
+  runs its own `reverse::serve` on it, and the operator's end serves the
+  relay role's side of that socket in its own process, for this one node
+  (`crates/podssh-relay/src/serve/reverse/carrier.rs`), each operator's leg
+  a pipe to it, so that the layer, the end-to-end channel and the routes are
+  the pair's road's. No relay, no pair and no token: the stream is the door,
+  NAME a label alone, under which the operator pins the node's key. The
+  node dials TARGET, then sends one Ping, its first frame, and the
+  operator opens no session before it (60 s at most), as the role ends a
+  session that the node does not answer within 15 s. One stream for the
+  node's life: it exits 0 after the operator's Close, 69 for a stream that
+  failed. A stream of `exec:` that the operator started is started again,
+  once for each wait, for the next leg, and the node that it starts knows no
+  session of the one before; `stdio` and `fd:N` have one life (410). The
+  relay's limits (64 MiB a session, a pair's 72 h) do not hold. `--carrier
+  stdio` on a terminal (64), `operator --carrier stdio` (its stdio is the
+  session's), a relay's or a pair's flag, `--iroh`, `--derp`,
+  `--quick-tunnel`, `--install`, `--detach` and `--exit` with it are usage
+  errors (64). `ssh node://`, `proxy node://`, `pipe node:` and the exit's
+  client over a carrier are T-595's next step and T-596.
 - **A link can drop.** The relay's side ends a socket of the reverse road
   at random, with no Close (T-255). `operator` and `ssh node://NAME` then
   say that the link ended with no Close, or that the node's link ended

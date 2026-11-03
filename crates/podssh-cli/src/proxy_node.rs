@@ -136,6 +136,9 @@ fn to_operator(text: &str, args: &ProxyArgs) -> Result<OperatorArgs, Refusal> {
         resume_deadline: args.node.resume_deadline.clone(),
         // The bound of the node's steps, as `operator` takes it (T-589).
         connect_timeout: args.connect_timeout.clone(),
+        // `proxy` reaches a node through the relay; a carrier is
+        // `operator --carrier`'s for now (T-595).
+        carrier: None,
         refused: Vec::new(),
     })
 }

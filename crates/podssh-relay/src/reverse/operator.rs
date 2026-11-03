@@ -109,6 +109,8 @@ where
         Socket::Tls(session) => exchange(session, io, config.limits).await,
         #[cfg(feature = "plain-ws")]
         Socket::Plain(session) => exchange(session, io, config.limits).await,
+        #[cfg(feature = "serve")]
+        Socket::Carrier(session) => exchange(session, io, config.limits).await,
     })
 }
 
@@ -124,6 +126,8 @@ where
         Socket::Tls(session) => tokio::spawn(exchange(session, io, limits)),
         #[cfg(feature = "plain-ws")]
         Socket::Plain(session) => tokio::spawn(exchange(session, io, limits)),
+        #[cfg(feature = "serve")]
+        Socket::Carrier(session) => tokio::spawn(exchange(session, io, limits)),
     })
 }
 

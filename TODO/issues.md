@@ -189,7 +189,7 @@ image's digest, sha2 0.11.1 and simple-dns 0.13) are T-597.
 | #114 | `ssh node://` waits the whole ConnectTimeout, where `operator` to the same node reads sshd's line in 3 s | closed | T-588 (not reproduced; no test runs `ssh node://` from Windows) |
 | #115 | `operator` and `proxy` take no `--ConnectTimeout` | closed 2026-11-03, its entry done (`801e346`) | T-589 |
 | #116 | `node --sshd` with no sshd says `Connection refused`; a line of `doctor` for it | closed 2026-11-03, its entry done (`279a283`) | T-590 |
-| #117 | A pair's expiry of 3 days, no renewal, and `relay status` with no expiry | open | T-591 (`relay status NAME` names the expiry of a stored pair already; an operator's file cannot be asked), T-592 (a renewal, in podssh's relay role, M10) |
+| #117 | A pair's expiry of 3 days, no renewal, and `relay status` with no expiry | closed 2026-11-03, its entry done (`a4344a7`) | T-591 (`relay status NAME` names the expiry of a stored pair already; an operator's file cannot be asked), T-592 (a renewal, in podssh's relay role, M10) |
 | #118 | The node's key under `HOME/.cache` when `HOME` is another user's | closed | T-593 |
 | #121 | `docs/STATUS.md` describes `main`, and the release has no exit node | open | T-594 (the exit is in `v1.0.1`'s notes, T-584) |
 | #124 | A carrier over stdio or exec for a node and its client | open | T-595, T-596 (the exit over it) |
