@@ -689,6 +689,29 @@ The candidates, ranked:
      with one detection of a blacklist [W15]. The operator ruled Q76
      (2026-11-02): a node with no other road tries it unasked, one tunnel
      for each node, off with `PODSSH_OPENTUNNEL=no`.
+   - Read again on 2026-11-03 at v0.6.1 [W13] [W27]: the API's host,
+     `opentunnel.xyz`, sits behind Cloudflare, which answers its own `520`
+     to `527`, and the names of the tunnels reach the service on Fly.io
+     directly; a retry waits half of to all of `min(250 ms × 2ⁿ, 8 s)`, or
+     the `Retry-After`, for 6 retries at most; a bridge reconnects from
+     250 ms to 30 s with jitter; the service checks that a CSR asks for its
+     tunnel's name and wildcard alone, with the name as its common name, and
+     renews with the same CSR, while a client asks for the certificate each
+     12 hours, each minute in its last 30 days; the heartbeat is 15 s and
+     the idle bound 45 s in its client's defaults [W27].
+   - Built (T-530, drafted 2026-11-03): `podssh-relay`'s `opentunnel`
+     module, pure Rust on podssh-ws, through `HTTPS_PROXY`. A node makes one
+     tunnel, keeps it with its token, its key and its CSR in a private file
+     of the cache before the bind, and binds the same CSR again at a start
+     that stopped half-way; its route is 26 random letters, which it alone
+     claims, so that a visitor of the tunnel's name of the logs is closed
+     by the service; TLS ends at the node with podssh-ws's server. A
+     client dials `ROUTE.<id>.opentunnel.xyz:443` and checks TLS with the
+     host's trust; the layer and the channel run above. The key and the CSR
+     come from the binary's ACME client, as the library holds no C. Its
+     tests run against a stand-in written from the protocol, and
+     `opentunnel-interop.yml` against OpenTunnel's own server, built from
+     its source.
 7. **Microsoft Dev Tunnels**: a preview, for "adhoc testing and
    development" [R11]. The host logs in with Microsoft or GitHub; a client
    can be anonymous, or use a token of 24 h [R12]. The host opens a
@@ -1404,6 +1427,11 @@ this page: a host's own page is cited from a search index or an archive.
 - [W25] `nostr-protocol/nips:11.md`
 - [W26] https://github.com/klipitkas/tunnl.gg (its README, MIT), read in a
   search result
+- [W27] `anomalyco/opentunnel:crates/opentunnel/src/protocol/bridge.rs`,
+  `anomalyco/opentunnel:crates/opentunnel/src/tunnel.rs`,
+  `anomalyco/opentunnel:spec/vectors/control.json` and the other vectors
+  of `spec/vectors`, at v0.6.1, read on 2026-11-03 through
+  forge.web.pkgforge.dev
 
 Read on 2026-11-02 through the services of web.pkgforge.dev (read, forge
 and search), for the entries of the rulings Q74, Q75, Q77, Q78 and Q82

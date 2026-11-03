@@ -35,6 +35,9 @@
 //! - `piping` (feature `piping`): the Piping Server road (T-437), a POST
 //!   and a GET for each way of a link, for a proxy that refuses the
 //!   WebSocket upgrade;
+//! - `opentunnel` (feature `opentunnel`): the OpenTunnel road (T-530), a
+//!   blind TLS tunnel with no account, whose client's leg is TLS by name
+//!   with no upgrade;
 //! - `blocking` (feature `blocking`): a synchronous facade over all of these,
 //!   for a caller with no async runtime: it owns a runtime on the current
 //!   thread, and refuses a call from inside a tokio runtime.
@@ -55,6 +58,8 @@ pub mod health;
 pub mod identity;
 pub mod keyed;
 pub mod open;
+#[cfg(feature = "opentunnel")]
+pub mod opentunnel;
 #[cfg(feature = "pair")]
 pub mod pair;
 #[cfg(feature = "piping")]
