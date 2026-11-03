@@ -24,6 +24,7 @@ use tokio::sync::mpsc::error::TrySendError;
 use tokio::sync::{mpsc, Notify};
 use tokio::task::AbortHandle;
 
+use crate::flow::Flow;
 use crate::phy::Queue;
 use crate::stream::Stream;
 
@@ -87,6 +88,8 @@ pub struct Link {
     pub inbound: mpsc::Receiver<Vec<u8>>,
     pub why: Why,
     pub tasks: Vec<AbortHandle>,
+    /// The counts of the tunnel's pumps (T-599).
+    pub flow: Arc<Flow>,
 }
 
 pub(crate) struct Inner {
@@ -123,11 +126,16 @@ impl Inner {
         self.next_port
     }
 
-    /// The sockets of closed connections, removed once their FIN is done.
+    /// The sockets of closed connections, removed once their FIN is done;
+    /// one whose FIN waited for its bytes is closed once they went.
     fn reap(&mut self) {
         let sockets = &mut self.sockets;
         self.closing.retain(|h| {
-            let gone = matches!(sockets.get::<tcp::Socket>(*h).state(), tcp::State::Closed | tcp::State::TimeWait);
+            let socket = sockets.get_mut::<tcp::Socket>(*h);
+            if socket.state() == tcp::State::CloseWait && !fin_waits(socket) {
+                socket.close();
+            }
+            let gone = matches!(socket.state(), tcp::State::Closed | tcp::State::TimeWait);
             if gone {
                 sockets.remove(*h);
             }
@@ -166,6 +174,30 @@ pub(crate) struct Core {
     tasks: Vec<AbortHandle>,
     addresses: Vec<IpAddr>,
     why: Why,
+    #[cfg_attr(not(any(test, feature = "stand-in")), allow(dead_code))]
+    flow: Arc<Flow>,
+}
+
+#[cfg(any(test, feature = "stand-in"))]
+impl Core {
+    /// The tunnel's counts, the device's queues and each connection's state
+    /// and bytes held, for a test that stalls to name where the bytes
+    /// waited (T-599).
+    pub(crate) fn words(&self) -> String {
+        let inner = self.shared.lock();
+        let (out, to_read, dropped) = (inner.phy.outbound.len(), inner.phy.inbound.len(), inner.phy.dropped);
+        let mut said =
+            format!("{}; the device: {out} packets to go, {to_read} to read, {dropped} dropped", self.flow.words());
+        for handle in inner.live.iter().chain(&inner.closing) {
+            let socket = inner.sockets.get::<tcp::Socket>(*handle);
+            let (state, to_send, held) = (socket.state(), socket.send_queue(), socket.recv_queue());
+            said.push_str(&format!("; a connection {state}: {to_send} bytes to send, {held} to read"));
+        }
+        if let Some(why) = &inner.ended {
+            said.push_str(&format!("; ended: {why}"));
+        }
+        said
+    }
 }
 
 impl Drop for Core {
@@ -186,6 +218,17 @@ impl std::fmt::Debug for Stack {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         f.debug_struct("Stack").field("addresses", &self.core.addresses).finish_non_exhaustive()
     }
+}
+
+/// Whether a connection's FIN must wait: the far end closed first (CLOSE-WAIT)
+/// and bytes of this end wait to be acknowledged. smoltcp's LAST-ACK, which a
+/// close goes to from CLOSE-WAIT, answers an acknowledgement of nothing new
+/// with a challenge ACK and reads no window from it, nor arms its probe of a
+/// closed window: bytes that the far end's window held back then go no more,
+/// or only after the probe's backed-off wait, past a minute (T-599). Closed
+/// once they are acknowledged, LAST-ACK holds the FIN alone.
+pub(crate) fn fin_waits(socket: &tcp::Socket<'_>) -> bool {
+    socket.state() == tcp::State::CloseWait && socket.send_queue() > 0
 }
 
 /// A TCP socket of smoltcp with podssh's settings: no Nagle, as a
@@ -244,10 +287,10 @@ impl Stack {
             born: tokio::time::Instant::now(),
         };
         let shared = Arc::new(Shared { inner: Mutex::new(inner), wake: Notify::new() });
-        let Link { out, inbound, why, mut tasks } = link;
+        let Link { out, inbound, why, mut tasks, flow } = link;
         let driver = tokio::spawn(drive(shared.clone(), inbound, out, why.clone()));
         tasks.push(driver.abort_handle());
-        Ok(Stack { core: Arc::new(Core { shared, tasks, addresses: addresses.to_vec(), why }) })
+        Ok(Stack { core: Arc::new(Core { shared, tasks, addresses: addresses.to_vec(), why, flow }) })
     }
 
     /// Wait until the tunnel has ended.
@@ -315,8 +358,9 @@ async fn drive(shared: Arc<Shared>, mut inbound: mpsc::Receiver<Vec<u8>>, out: m
             let now = guard.now();
             let inner = &mut *guard;
             inner.iface.poll(now, &mut inner.phy, &mut inner.sockets);
-            let wait = inner.iface.poll_delay(now, &inner.sockets).map(Duration::from).unwrap_or(IDLE);
+            // Before the next timer: a FIN that it queues is due at once.
             inner.reap();
+            let wait = inner.iface.poll_delay(now, &inner.sockets).map(Duration::from).unwrap_or(IDLE);
             let handed = hand_over(&mut inner.phy.outbound, &out);
             (handed, wait, !inner.phy.inbound.is_empty())
         };

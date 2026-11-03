@@ -131,3 +131,35 @@ fn the_diagnosis_follows_the_counts_and_adds_none() {
     let doc: serde_json::Value = serde_json::from_slice(&out).unwrap();
     assert_eq!(doc["diagnosis"], serde_json::json!([]));
 }
+
+/// A resolver of DNS over HTTPS and a relay of n0's are roads (T-604): a
+/// reset resolver is one more reset, a dropped one says nothing of names, as
+/// it is asked by its address alone; under a proxy the resolvers, asked
+/// with none, are left out.
+#[test]
+fn the_resolvers_and_n0_s_relays_are_counted_as_roads() {
+    let seen = [
+        reference(Met::Completed, None),
+        road(Of::Relay, "relay.example", Met::Reset),
+        road(Of::Doh, "1.1.1.1", Met::Reset),
+        road(Of::Doh, "9.9.9.9", Met::TimedOut),
+        road(Of::Iroh, "relay.n0.example", Met::Reset),
+    ];
+    let found = diagnose(&seen);
+    assert_eq!((found.len(), found[0].kind), (1, "tls-names"), "{found:?}");
+    assert!(found[0].detail.contains("(3 of the 4 handshakes of the roads)"), "{}", found[0].detail);
+    // n0's relay goes by its name: its timeout is a path that drops.
+    let mut dropped = seen.to_vec();
+    dropped[4].met = Met::TimedOut;
+    assert!(diagnose(&dropped).is_empty(), "{dropped:?}");
+    // Each reset, the resolver's too.
+    let each = [reference(Met::Reset, None), road(Of::Relay, "r", Met::Reset), road(Of::Doh, "1.1.1.1", Met::Reset)];
+    assert_eq!(diagnose(&each)[0].evidence, ["github.com", "r", "1.1.1.1"]);
+    // With no proxy, a resolver that completed is a handshake that passed;
+    // through one, the resolver's way is not the reference's.
+    let completed = road(Of::Doh, "1.1.1.1", Met::Completed);
+    let direct = [reference(Met::Reset, None), road(Of::Relay, "r", Met::Reset), completed.clone()];
+    assert!(diagnose(&direct).is_empty(), "{direct:?}");
+    let proxied = [reference(Met::Reset, Some("proxy.example:3128")), road(Of::Relay, "r", Met::Reset), completed];
+    assert_eq!(diagnose(&proxied)[0].kind, "tls-reset");
+}

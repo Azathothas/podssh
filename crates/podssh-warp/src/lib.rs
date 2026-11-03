@@ -39,6 +39,7 @@ pub mod der;
 pub mod device;
 pub mod dns;
 pub mod endpoints;
+pub mod flow;
 // The far end of the stand-in takes connections inside its tunnel.
 #[cfg(any(test, feature = "stand-in"))]
 pub mod inside;

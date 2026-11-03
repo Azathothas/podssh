@@ -1,10 +1,10 @@
 --- a/crates/podssh-cli/src/cp/bysftp.rs
 +++ b/crates/podssh-cli/src/cp/bysftp.rs
-@@ -76,6 +76,7 @@
+@@ -77,6 +77,7 @@ pub async fn up(
      if shape.inplace {
          in_place::check_far(sftp, &target).await?;
      }
 +    let shape = Shape { inplace: false, ..shape };
-     // Over an older version, only the blocks that changed (T-142); a copy
-     // that broke goes on where it was instead. A full copy says why (T-470).
-     let mut said = None;
+     // --no-clobber and --update look before any byte goes (T-473).
+     let seen = Seen::of_local(&before);
+     let resumed = progress.temp.is_some();

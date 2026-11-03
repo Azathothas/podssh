@@ -10,6 +10,7 @@ use std::time::Duration;
 use rustls::ClientConfig;
 use tokio::io::{AsyncRead, AsyncWrite};
 
+use crate::cut::Missed;
 use crate::dial::{self, ProxyChoice};
 use crate::http::Response;
 
@@ -34,15 +35,31 @@ pub async fn get_over<S>(
 where
     S: AsyncRead + AsyncWrite + Unpin + Send + 'static,
 {
-    let server = rustls_pki_types::ServerName::try_from(name.to_string()).map_err(|e| e.to_string())?;
+    get_over_kept(config, stream, name, target, accept, max).await.map_err(|missed| missed.why)
+}
+
+/// [`get_over`], with the cut of a failed handshake beside its words
+/// (T-604); a failure after the handshake has none.
+pub(super) async fn get_over_kept<S>(
+    config: &Arc<ClientConfig>,
+    stream: S,
+    name: &str,
+    target: &str,
+    accept: &str,
+    max: usize,
+) -> Result<Response, Missed>
+where
+    S: AsyncRead + AsyncWrite + Unpin + Send + 'static,
+{
+    let server = rustls_pki_types::ServerName::try_from(name.to_string()).map_err(|e| Missed::words(e.to_string()))?;
     let tls = tokio_rustls::TlsConnector::from(config_h2(config))
         .connect(server, stream)
         .await
-        .map_err(|e| format!("TLS: {}", crate::tls::handshake_failure(&e)))?;
+        .map_err(|e| Missed::tls(&e))?;
     if tls.get_ref().1.alpn_protocol() != Some(b"h2") {
-        return Err("the resolver did not take HTTP/2".into());
+        return Err(Missed::words("the resolver did not take HTTP/2"));
     }
-    get(tls, name, target, accept, max).await
+    get(tls, name, target, accept, max).await.map_err(Missed::words)
 }
 
 /// The same through `proxy` when one is set: the proxy is asked for `host`,

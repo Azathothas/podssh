@@ -191,3 +191,60 @@ An iroh that asks for another iroh-relay leaves the patch unused: cargo says
 so ("patch ... was not used in the crate graph"), and the SOCKS5 test of
 `crates/podssh-iroh/tests/proxy_env.rs` fails, as the published dial takes
 a `socks5h://` proxy for one that speaks TLS.
+
+## ssh-key
+
+- **Upstream**: <https://github.com/RustCrypto/SSH> (its directory
+  `ssh-key`), the release 0.7.0-rc.11 of crates.io, whose
+  `.cargo_vcs_info.json` names the commit
+  `7a1c757d2e2fcde32680e373d5226481de6d434e`.
+- **Upstream read**: 0.7.0-rc.11 on 2026-11-03, the copy's own release and
+  the newest version of crates.io (its newest stable, 0.6.7, is older); the
+  watch reads the newest version of all for a copy of a prerelease.
+- **Vendored**: 2026-11-03 (T-609), from the copy that cargo unpacked of that
+  release, whose archive has the SHA-256 of `Cargo.lock`'s old checksum
+  (`f9a32fae...`). The import is the published crate byte for byte, but
+  `.cargo-ok`, a mark of cargo's own, and two of its test keys,
+  `tests/examples/id_ed25519` and `tests/examples/id_ed25519.64cols`, which
+  GitHub's push protection refuses as SSH private keys (they log in nowhere,
+  and only the crate's own tests, which podssh never runs, read them); the
+  shipped tree is the import plus the one patch
+  `patches/ssh-key/0001-ecdsa-short-scalar.patch`, and nothing else.
+- **License**: Apache-2.0 OR MIT, as its `Cargo.toml` says (`LICENSE-APACHE`,
+  `LICENSE-MIT` retained).
+- **How podssh uses it**: russh reads every private key through it (OpenSSH's
+  format, plain and encrypted, and PuTTY's). The root `Cargo.toml` and
+  `fuzz/Cargo.toml` put it in the place of the release with
+  `[patch.crates-io]`, and the root excludes it from the workspace, so its
+  tests, examples and benches are not podssh's. The version stays
+  0.7.0-rc.11, so no requirement changes, and the lock files' `ssh-key`
+  entries have no source and no checksum.
+- **Its test keys**: `tests/examples/` and its doc comments hold the
+  crate's own throwaway keys, which log in nowhere; the secrets scan reads
+  them as unverified findings, and `.github/secrets-allow.txt` names any
+  that it could not verify.
+
+### The patch
+
+| Patch | Files | Why |
+| --- | --- | --- |
+| `patches/ssh-key/0001-ecdsa-short-scalar.patch` | `src/private/ecdsa.rs` | podssh T-609: an ECDSA private key's scalar is an `mpint`, which has no leading zero bytes, so OpenSSH's `ssh-keygen` writes a P-256 scalar whose first byte is zero (and whose next byte has no high bit) in 31 bytes or fewer, one key of 512. The release refused each scalar under 32 bytes ("length invalid"), so podssh could not use such a key, and the gate's interop test, whose `id_ecdsa` `ssh-keygen` makes anew each run, failed at random (run 41647533798). The patch takes any length from 1 to the field's size, as the code below it already pads. Proven in podssh by `key_file::tests::an_ecdsa_key_whose_scalar_openssh_writes_short_is_read`, a key built as OpenSSH writes it, and by a key of OpenSSH 9.6's `ssh-keygen` with a scalar of 31 bytes (`podssh keygen -y` gave its public key). |
+
+The patch is for ssh-key upstream too: sending it is the operator's, as no
+session changes another repository. Drop the patch, and this tree, when a
+release of ssh-key reads such keys.
+
+### How to carry it to another version
+
+```sh
+# 1. The published crate, from cargo's copy (after a build that fetched it).
+rm -rf vendor/ssh-key
+cp -a ~/.cargo/registry/src/*/ssh-key-NEW vendor/ssh-key
+rm -f vendor/ssh-key/.cargo-ok
+# The two test keys that GitHub's push protection refuses.
+rm -f vendor/ssh-key/tests/examples/id_ed25519 vendor/ssh-key/tests/examples/id_ed25519.64cols
+# 2. The patch, then the version in Cargo.lock and fuzz/Cargo.lock.
+patch -d vendor/ssh-key -p1 < vendor/patches/ssh-key/0001-ecdsa-short-scalar.patch
+cargo update -p ssh-key --offline
+(cd fuzz && cargo update -p ssh-key --offline)
+```

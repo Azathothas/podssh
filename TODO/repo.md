@@ -1154,14 +1154,14 @@ sees it.
 
 Read:
 
-- `docs/STATUS.md:347-361`: the box, measured by hand on 2026-10-08.
+- `docs/STATUS.md:350-364`: the box, measured by hand on 2026-10-08.
 - `scripts/test_in_box.sh:275-278`: the box runs `probe.sh`, then
   `sandbox-check.sh` (or, with `BOX_RUN=tt`, the session of T-004), and the
   script exits with the code of the second.
   `scripts/sandbox-check.sh:85-332` prints the exit code of each step and does
   not fail on it (T-006). So today the box exits 0 when podssh fails in it.
 - `scripts/box/probe.sh:148-153` exits 1 when the box differs from the sandbox
-  in a required property (17 properties, `docs/STATUS.md:354`).
+  in a required property (17 properties, `docs/STATUS.md:357`).
 - The box needs a static binary; CI uploads one
   (`.github/workflows/build.yml:88-93`).
 - The box uses `--disable-dns` (`scripts/test_in_box.sh:156`) and a mask on
@@ -1188,7 +1188,7 @@ Read:
    that CI runs the box.
 
 Pitfall: the live path can drop a session (179 of 180 short sessions,
-`docs/STATUS.md:384`). Run a failure again by hand and record it. Never retry
+`docs/STATUS.md:387`). Run a failure again by hand and record it. Never retry
 inside the job.
 
 ## Decision
@@ -1206,7 +1206,7 @@ test "$(grep -c '^match ' box.log)" -eq 17                  # the box was faithf
 
 The run passed, with the job `box`, and its log has 17 `match` lines.
 Planted defect: run the job by hand with the seccomp option removed (an input
-of `workflow_dispatch`); the probe must exit 1, as in `docs/STATUS.md:355`,
+of `workflow_dispatch`); the probe must exit 1, as in `docs/STATUS.md:358`,
 and the job must fail.
 
 ## Blocker
@@ -1901,7 +1901,7 @@ leaves armv7 out of the Decision; the plan below takes Alpine's own toolchain fo
   container. Plan B, which the Decision rejected, for native speed: `ghcr.io/cross-rs/armv7-unknown-
   linux-musleabihf:main`, or `cargo-zigbuild` (its CI covers x86_64, aarch64 and Apple, not armv7).
   The release profile is `opt-level = "z"`, `lto = true`, `codegen-units = 1`
-  (`Cargo.toml:218` says "opt-level"; the profile is at the lines around it): the link on a 32-bit
+  (`Cargo.toml:219` says "opt-level"; the profile is at the lines around it): the link on a 32-bit
   rustc may run out of address space, and under QEMU it is slow. Measure first.
 - `riscv64gc-unknown-linux-musl`: Rust tier 2 with host tools. Plan A: `runs-on: ubuntu-24.04`,
   `docker/setup-qemu-action` with `platforms: riscv64`, `docker run --platform linux/riscv64
@@ -2026,7 +2026,7 @@ Read, in the tree as it is now:
   build must fail at `/nonexistent`; the control, with `CC` alone, must not
   stop there.
 - `docs/development.md:317-319` states the rule with `CXX`, and
-  `docs/STATUS.md:794` records the measurement. Rule 4 of
+  `docs/STATUS.md:797` records the measurement. Rule 4 of
   `docs/architecture.md` named `CC=/nonexistent` only; it was repaired in the
   same change as the record.
 - `.github/workflows/build.yml:103-111` runs the plant on each push.
@@ -2057,7 +2057,7 @@ the same script in its step "the no-C rule is load-bearing".
 (CXX=/nonexistent)"). Measured with `sh scripts/dev.sh plant` in
 `rust:1-alpine`: the C plant failed twice for the right reason, the C++ plant
 failed at `CXX=/nonexistent`, the control with `CC` alone was not stopped
-there, and the clean tree built (`docs/STATUS.md:794`). The CI run of
+there, and the clean tree built (`docs/STATUS.md:797`). The CI run of
 `eacd94e`, which contains `a378863`, passed, with its step "the no-C rule is
 load-bearing".
 
@@ -2450,7 +2450,7 @@ Read:
 
 - `scripts/box/seccomp.json:5-10`: `bind` fails with EACCES for each socket,
   whatever its family.
-- `docs/STATUS.md:375`: in sandbox A, `bind` is refused for AF_INET and
+- `docs/STATUS.md:378`: in sandbox A, `bind` is refused for AF_INET and
   allowed for AF_UNIX. In the KTM report (read there), `doctor` printed
   `Permission denied (os error 13)` for AF_INET, and "bound" for an AF_UNIX
   path and for the abstract namespace.
@@ -3955,19 +3955,19 @@ identities (x25519-dalek, `podssh-ws` and `podssh-relay`), and its AEAD
 ## Premise
 
 - Read: `crates/podssh-ssh/Cargo.toml:26` and `crates/podssh-cli/Cargo.toml:92`
-  ask for `sha1` 0.10.7, and the root `Cargo.toml:144` for `hmac` 0.12;
+  ask for `sha1` 0.10.7, and the root `Cargo.toml:145` for `hmac` 0.12;
   `Cargo.lock` holds `sha1` 0.10.7 and 0.11.0, `hmac` 0.12.1 and 0.13.0,
   and `digest` 0.10.7 and 0.11.3, as russh 0.64.1 (vendor/russh/Cargo.toml)
   builds on the newer line, so the binary holds both lines today. podssh's `sha1`
   moves with its `hmac`, where the two meet (the hashed names of
   `known_hosts`): Inferred.
-- Read: the root `Cargo.toml:153` asks for `aes-gcm` 0.10 and
-  `Cargo.toml:162` for `x25519-dalek` 2;
+- Read: the root `Cargo.toml:154` asks for `aes-gcm` 0.10 and
+  `Cargo.toml:163` for `x25519-dalek` 2;
   `crates/podssh-ws/src/crypto/aead.rs` and `crates/podssh-ws/src/crypto/kx.rs`
   hold the calls, with `crates/podssh-relay/src/identity/mod.rs` and
   `crates/podssh-relay/src/session/secret.rs`, and
   `crates/podssh-ws/tests/crypto_vectors.rs` their vectors.
-- Read: `vt100` 0.15 (`Cargo.toml:118`) is the model of the terminal
+- Read: `vt100` 0.15 (`Cargo.toml:119`) is the model of the terminal
   oracle (T-200) and of `podssh session` (T-186).
 
 ## Approach
@@ -4893,7 +4893,7 @@ of GitHub #69 to #72 corrected these; nothing finds the next.
   and said that "the real sandbox is not run yet"; `docs/irc.md` said "No command uses the IRC
   client yet", with T-097 and T-098 as its known defects; `docs/STATUS.md` said "Over IRC too
   (T-252, partial)". Each part is built: the reverse road (`docs/STATUS.md:89`, `:97`), two runs
-  in real sandboxes (T-001; `docs/STATUS.md:366-375`), and `podssh chat --irc` (T-252, done, as
+  in real sandboxes (T-001; `docs/STATUS.md:369-378`), and `podssh chat --irc` (T-252, done, as
   T-097 and T-098 are). Of the same kind: `docs/design.md`'s summary and the head of its section
   4, and the row of `podssh-terminal` in `docs/architecture.md`. The triage's commit corrected
   each in place.
@@ -4920,7 +4920,7 @@ of GitHub #69 to #72 corrected these; nothing finds the next.
 3. A status written beside an id in those documents (`T-NNN, partial`, `(T-NNN, open)`) agrees
    with the index, unless its paragraph reads at a date or at a commit, as the record's readings
    do (`TODO/RULES.md:145-150`): "T-099, partial" of 2026-10-10 is such a reading
-   (`docs/STATUS.md:756`).
+   (`docs/STATUS.md:759`).
 4. `TODO/RULES.md` says it, beside the rules of citations.
 
 ## Decision
@@ -5240,8 +5240,8 @@ builds with, so that its DNS packets and iroh's are of one type.
   box's CONNECT proxy (`scripts/box/proxy.py`), which `scripts/test_in_box.sh` and
   `scripts/chat-in-boxes.sh` build; `images/build/Dockerfile:6` pins `rust:1-alpine` by the digest
   `0cce0a5...`, the gate's image.
-- Read: the workspace asks for `sha2` 0.11 (`Cargo.toml:146`), and the lock holds 0.11.0; 0.11.1
-  needs Rust 1.88, under the workspace's 1.89 (`Cargo.toml:58`, Q48).
+- Read: the workspace asks for `sha2` 0.11 (`Cargo.toml:147`), and the lock holds 0.11.0; 0.11.1
+  needs Rust 1.88, under the workspace's 1.89 (`Cargo.toml:59`, Q48).
 - Read: `crates/podssh-iroh/Cargo.toml:49-52` takes `simple-dns` 0.12, "the simple-dns that
   iroh-dns builds and reads with, so no crate is added"; iroh-dns 1.4.1, which the lock holds,
   takes simple-dns 0.12.0, the lock's only version.

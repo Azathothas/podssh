@@ -40,10 +40,11 @@ default-members = [
 # the fork's `tailscale` package by path. `fuzz/` is cargo-fuzz's workspace
 # (T-198), built with nightly Rust and libFuzzer, never by the gate.
 # `vendor/russh` is the release of russh with podssh's patch (T-460), and
-# `vendor/iroh-relay` the same for iroh's relay client (T-280), which the
+# `vendor/iroh-relay` the same for iroh's relay client (T-280), and
+# `vendor/ssh-key` for the keys that russh reads (T-609), which the
 # `[patch]` below puts in their places; excluded, they are no members, so
 # their tests and examples are not podssh's.
-exclude = ["vendor/tailscale-rs", "vendor/russh", "vendor/iroh-relay", "fuzz"]
+exclude = ["vendor/tailscale-rs", "vendor/russh", "vendor/iroh-relay", "vendor/ssh-key", "fuzz"]
 
 # Versions below were resolved on 2026-10-01, not recalled. Before loosening a
 # range, re-run the no-C build of the library crates (see scripts/gate.sh).
@@ -242,3 +243,6 @@ strip = true
 [patch.crates-io]
 russh = { path = "vendor/russh" }
 iroh-relay = { path = "vendor/iroh-relay" }
+# ssh-key, whose release refuses an ECDSA key of OpenSSH whose scalar has a
+# leading zero byte (T-609).
+ssh-key = { path = "vendor/ssh-key" }

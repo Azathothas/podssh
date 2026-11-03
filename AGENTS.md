@@ -352,6 +352,7 @@ These rules come from [docs/decisions.md](docs/decisions.md).
 | `crates/podssh-todo` | The checker of the work record: `cargo todo check` (the gate runs it), `cargo todo set`, `counts`, `next`; `cargo todo interop`, the ids of the interop harnesses and a run's logs against `scripts/interop-baseline.txt` |
 | `vendor/tailscale-rs` | A fork with local patches (`vendor/patches/`). It is outside the workspace and the 500-line rule. |
 | `vendor/russh` | russh 0.65.0 with one patch (`vendor/patches/russh/`, T-460), in the place of the release through `[patch.crates-io]`. It is outside the workspace and the 500-line rule. |
+| `vendor/ssh-key` | ssh-key 0.7.0-rc.11, the keys that russh reads, with one patch (`vendor/patches/ssh-key/`, T-609), in the place of the release through `[patch.crates-io]`. It is outside the workspace and the 500-line rule. |
 | `scripts/dev.sh` (with `scripts/dev-wsl.sh` on Windows, `scripts/dev-native.sh` on Linux), `scripts/cloud-setup.sh`, `scripts/gate.sh` | Container runs, a Linux host or a cloud session made ready, and the build gate that CI also runs |
 | `scripts/interop*.sh`, `scripts/interop-pty.py`, `scripts/interop-conpty.py` | Tests against OpenSSH and Dropbear, faults, groff and mandoc (`interop-man.sh`), and terminals on Linux and Windows |
 | `scripts/test_in_box.sh`, `scripts/box/`, `scripts/sandbox-check.sh` | The Podman box like the target sandbox, and the measurement for a sandbox |

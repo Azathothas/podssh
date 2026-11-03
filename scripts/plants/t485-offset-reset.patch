@@ -1,8 +1,8 @@
 --- a/crates/podssh-cli/src/job/follow.rs
 +++ b/crates/podssh-cli/src/job/follow.rs
-@@ -166,7 +166,7 @@
-     tries: &mut u32,
+@@ -172,7 +172,7 @@ async fn watch(
  ) -> Option<i32> {
+     let mut last_read = false;
      loop {
 -        let from = place.from.map_or_else(|| "end".to_string(), |n| n.to_string());
 +        let from = place.from.map_or_else(|| "end".to_string(), |_| "0".to_string());

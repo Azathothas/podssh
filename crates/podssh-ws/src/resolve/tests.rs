@@ -1,7 +1,10 @@
 //! The pins, the JSON form's answers, the resolvers' forms and the fallback
-//! from one form to the other (T-344).
+//! from one form to the other (T-344); how a resolver's connection ended
+//! (T-604).
 
 use super::*;
+
+mod cuts;
 
 #[test]
 fn pins_parse_and_reject_garbage() {
@@ -139,8 +142,8 @@ fn a_miss_of_the_form_falls_back_and_the_others_do_not() {
     assert_eq!(read(&answer(200, br#"{"Answer":[]}"#), json), Err(Miss::Form("DNS status missing".into())));
     assert_eq!(read(&answer(200, br#"{"Status":2}"#), json), Err(Miss::Said("DNS status 2".into())));
     assert_eq!(read(&answer(200, br#"{"Status":3}"#), json), Err(Miss::Said(NXDOMAIN.into())));
-    assert_eq!(read(&answer(503, b""), json), Err(Miss::Way("HTTP 503".into())));
-    assert_eq!(read(&answer(429, b""), json), Err(Miss::Way("HTTP 429".into())));
+    assert_eq!(read(&answer(503, b""), json), Err(Miss::Way("HTTP 503".into(), None)));
+    assert_eq!(read(&answer(429, b""), json), Err(Miss::Way("HTTP 429".into(), None)));
     let one = br#"{"Status":0,"Answer":[{"type":1,"data":"192.0.2.1"}]}"#;
     assert_eq!(read(&answer(200, one), json), Ok(vec!["192.0.2.1".parse::<IpAddr>().unwrap()]));
     // A JSON body where the wire form was asked is no DNS message.

@@ -30,6 +30,7 @@ podssh-warp = { path = "../crates/podssh-warp" }
 # build the client that podssh ships.
 [patch.crates-io]
 russh = { path = "../vendor/russh" }
+ssh-key = { path = "../vendor/ssh-key" }
 
 # A crash names its line.
 [profile.release]

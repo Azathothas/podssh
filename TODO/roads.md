@@ -3257,7 +3257,7 @@ roots must be exactly three, and a refusal of the edge does not say which releas
   (`crates/podssh-relay/src/quick/edge.rs:22-29`); the roots must give 3 anchors and no invalid
   one (`:40-44`); the API's host is fixed (`crates/podssh-relay/src/quick/api.rs:28`). The node
   registers as `podssh` and the package's version (`crates/podssh-cli/src/node_quick.rs:246-247`),
-  `1.0.0-beta.2` today (`Cargo.toml:51`).
+  `1.0.0-beta.2` today (`Cargo.toml:52`).
 - Read: the three roots end on 2029-08-15, 2029-08-15 and 2029-11-01
   (`crates/podssh-relay/src/quick/cloudflare-roots.pem:6`, `:25`, `:52`).
 - Read: cloudflared's README says "Cloudflare currently supports versions of cloudflared that are
@@ -4881,7 +4881,7 @@ code that no command of the default build uses is P2 at most".
    is set, a QUIC handshake to the quick tunnel's edge as `podssh node --quick-tunnel` makes it
    (`crates/podssh-relay/src/quick/quic.rs:125-145`), and with a proxy set, that the quick tunnel
    takes HTTP/2. Each answer is `ok`, as a road with no UDP works; a home relay that does not
-   answer is already `FAIL` (`crates/podssh-cli/src/doctor/iroh.rs:83-89`).
+   answer is already `FAIL` (`crates/podssh-cli/src/doctor/iroh.rs:89-95`).
 5. `-v` says which answer the road took. The manual's `PODSSH_IROH_UDP`, `docs/design.md`
    (section 7), `docs/architecture.md` (rule 3) and `SECURITY.md` say that the iroh road takes UDP
    after a datagram came back, not after a socket binds.
@@ -6320,7 +6320,7 @@ in use.
 
 ## Premise
 
-- Read: the client's windows are 4 and 8 MiB (`crates/podssh-warp/src/tunnel.rs:26`), with no
+- Read: the client's windows are 4 and 8 MiB (`crates/podssh-warp/src/tunnel.rs:28`), with no
   explicit budget of frames; the study read h2 0.4.20's automatic budget as half the connection's
   window, 4 MiB, which a front door's frames of 60 bytes reach after about 70,000 frames (inferred,
   not measured).
@@ -7771,7 +7771,7 @@ device's record shows an endpoint that podssh chose, not the service.
 
 ## Premise
 
-- `crates/podssh-warp/src/lib.rs:68` says "pub const ENDPOINT_H2", the address 162.159.198.2:443.
+- `crates/podssh-warp/src/lib.rs:69` says "pub const ENDPOINT_H2", the address 162.159.198.2:443.
 - `crates/podssh-warp/src/register.rs:235` says "[0];", the first peer of the answer alone.
 - `crates/podssh-warp/src/register.rs:319` says "let endpoint = crate::ENDPOINT_H2.parse()": the record takes the constant.
 - `crates/podssh-warp/src/device.rs:71` says "pub endpoint: SocketAddr,": one address.
@@ -8251,7 +8251,7 @@ passed) and passed at the gates before and after; that push changed no file of `
 **Milestone:** none
 **Priority:** P2
 **Effort:** M
-**Status:** partial
+**Status:** done
 
 ## Problem
 
@@ -8262,8 +8262,8 @@ road until a measurement says otherwise.
 
 ## Premise
 
-- `crates/podssh-warp/src/tests/edge.rs:35` writes 1 MiB, shuts the writer and reads to the end
-  within `LIMIT * 3` (`crates/podssh-warp/src/tests/mod.rs:24`, 20 s).
+- `crates/podssh-warp/src/tests/edge.rs:36` writes 1 MiB, shuts the writer and reads to the end
+  within `LIMIT * 3` (`crates/podssh-warp/src/tests/mod.rs:25`, 20 s).
 - T-398 made the tunnel read while a packet waits and take small frames up to its whole window
   (`66044bd`); a lost wakeup between the stack's queue and the HTTP/2 stream's window would stall
   the transfer with no error, as seen.
@@ -8314,9 +8314,27 @@ the repair removed, not the stall itself, as the new test makes it come every ti
 - Planted (`sh scripts/plant-each.sh --here t599-unread-left`, the repair turned off): caught, the
   new test failed. `cargo test -p podssh-warp --features stand-in`: 69 passed in the lib, 5 in
   `road`, 3 in the rest; clippy `--all-targets -D warnings`: clean.
-- Not done: the stall has a second cause. With the repair, the echo test under the same load
-  (8 loops of 60 at once) failed 1 of 480, after 60.9 s; 12 loops of 100 with each driver
-  printing its sockets once they held bytes unchanged for 15 s failed 2 of 1,200, and neither
-  printed a line: no socket of either stack held bytes that long, so the bytes waited outside
-  both stacks (the tunnel's tasks, h2, the stand-in's copy to the echo service), or crept on.
-  Next: a line of each part's counts at the test's timeout, to name where they waited.
+- The second cause, found by counts at the test's timeout (`crates/podssh-warp/src/flow.rs`, the
+  pumps' packets each way and HTTP/2's window, and each stack's connections, which the test prints
+  then): 2 of 2,400 runs failed with the counts of each side equal, nothing in either device's
+  queues, the client's connection in FIN-WAIT-2 with nothing to read and the edge's in LAST-ACK
+  with 117,256 and 52,776 bytes to send. smoltcp 0.14.0 enters LAST-ACK at a close in CLOSE-WAIT
+  with bytes still to send, and there answers an acknowledgement of nothing new with a challenge
+  ACK, returning before it reads the window from it and before it arms its probe of a closed window
+  (`src/socket/tcp.rs`, its state `LastAck`): the client's window updates were dropped, and the
+  bytes waited for a probe whose backed-off wait passed the test's minute.
+- Repaired in `crates/podssh-warp/src/stack.rs` and `stream.rs`: a connection in CLOSE-WAIT with
+  bytes not yet acknowledged sends no FIN (`fin_waits`): `poll_shutdown` waits for the
+  acknowledgement, and a drop leaves the close to the driver, which closes it once the bytes went
+  (the reaper, run before the next timer so that the FIN is due at once). LAST-ACK then holds the
+  FIN alone.
+- `crates/podssh-warp/src/tests/close.rs` (new): two stacks joined by channels, a far end that
+  writes 384 KiB to a client that reads none, the client's FIN, then the far end's shutdown
+  (`a_shutdown_in_close_wait_sends_its_fin_after_the_bytes_held_back`) or drop
+  (`a_drop_in_close_wait_...`): the shutdown waits, and each byte and the end come within 2 s of
+  the client's first read, 3.5 s later. Planted (`fin_waits` false): both failed, "the bytes came
+  3.52 s after the first read", and the shutdown did not wait.
+- `cargo test -p podssh-warp --features stand-in`: 71 passed in the lib, 5 in `road`, 3 in the
+  rest; clippy `--all-targets -D warnings`: clean. The echo test, 12 loops of 200 at once on 4
+  CPUs, on the repaired binary: 0 of 2,400 failed, where the binary before the repair failed 2
+  of 2,400 with the counts, and 4 of about 1,000 before them.

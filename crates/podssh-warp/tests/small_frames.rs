@@ -185,7 +185,7 @@ async fn the_stack_reads_the_tunnel_while_a_packet_waits_to_go_out() {
     // on the edge's window.
     let (out, mut taken) = mpsc::channel(1);
     let (to_stack, inbound) = mpsc::channel(8);
-    let link = Link { out, inbound, why: Why::default(), tasks: Vec::new() };
+    let link = Link { out, inbound, why: Why::default(), tasks: Vec::new(), flow: Default::default() };
     let stack = Stack::start(&[IpAddr::V4(Ipv4Addr::new(172, 16, 0, 2))], link).unwrap();
     for last in 1..=4u8 {
         let stack = stack.clone();

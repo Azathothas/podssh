@@ -54,7 +54,7 @@ Read:
 4. Give the note about skipped encrypted keys
    (`crates/podssh-ssh/src/keys.rs:160-166`) the same condition as step 1.
 5. Keep `PublicKeys::new` for each login (`crates/podssh-ssh/src/auth.rs:107`),
-   so that only the notes change. No document changes: `docs/cli.md:4464-4522`
+   so that only the notes change. No document changes: `docs/cli.md:4468-4526`
    already says that a refusal names the remedy.
 
 ## Prove
@@ -181,7 +181,7 @@ Read:
    `scripts/interop-faults.sh:261` looks for `1009 session byte cap`.
 6. Correct the comment on the window (`crates/podssh-ssh/src/run.rs` lines
    25-29 at `80f20bf`). The window of 512 KiB stays: it is below both limits.
-7. Update `docs/relay.md` (lines 155-158 at `80f20bf`) and `docs/STATUS.md:685`. T-025 uses the
+7. Update `docs/relay.md` (lines 155-158 at `80f20bf`) and `docs/STATUS.md:688`. T-025 uses the
    classification for its retry rule. T-227 is a different path
    (`--direct`).
 
@@ -295,13 +295,13 @@ Read:
    terminal and no `SSH_ASKPASS`, a retry that needs a prompt stops. Keep a
    typed password in memory (zeroized) for the retry; do not ask twice.
 6. Say each retry on stderr, with the hop and the reason. Document the rule
-   in `docs/cli.md:4370-4438`, and add a row to `docs/STATUS.md`.
+   in `docs/cli.md:4374-4442`, and add a row to `docs/STATUS.md`.
 
 ## Decision
 
 Recommendation: retry inside podssh, and only before the session request.
 Only podssh knows whether the request was sent, and `podssh ssh` keeps the
-exit code 255 of OpenSSH (`docs/cli.md:4380-4383`). The alternative, a distinct
+exit code 255 of OpenSSH (`docs/cli.md:4384-4387`). The alternative, a distinct
 exit code for the caller to retry on, lost: it breaks scripts that expect
 OpenSSH's codes, and a caller that retries each 255 runs a command twice.
 
@@ -420,7 +420,7 @@ Read:
    measured code.
 4. Make the mapping from `io::End` to an exit code a pure function in
    `crates/podssh-ssh/src/session.rs`, with a test for each variant.
-5. Write the measured rule in `docs/cli.md:4370-4438`, and the measurement in
+5. Write the measured rule in `docs/cli.md:4374-4442`, and the measurement in
    `docs/STATUS.md`.
 
 ## Prove
@@ -704,7 +704,7 @@ Not measured here: each case needs a server.
    (`HOME` is not set, `UserKnownHostsFile none`, or the write error); the
    next run cannot detect a changed key.
 4. Check the file type before the open: a FIFO blocks an open for reading.
-5. Update `docs/cli.md:4464-4522` (one line) and the manual's note on host keys
+5. Update `docs/cli.md:4468-4526` (one line) and the manual's note on host keys
    (`crates/podssh-cli/src/man/notes.rs`, lines 60-66 at `33c9a31`).
 
 ## Decision
@@ -1308,7 +1308,7 @@ session starts with the size of its start
   place of the one of `scripts/interop.sh`. The next commit names that helper
   `ping_via` (`scripts/interop-ping.sh:10-16`), so that each later harness
   gets `podssh ssh`.
-- `docs/cli.md:686-697` and `docs/cli.md:3868-3880`, the manual's notes and an
+- `docs/cli.md:686-697` and `docs/cli.md:3872-3884`, the manual's notes and an
   example, say what the flag and the verb do, and their risks.
 - `cargo test -p podssh-ssh`: 151 passed; `cargo test -p podssh-cli`:
   574 passed, 0 failed, 31 ignored; clippy; rustfmt.
@@ -2041,7 +2041,7 @@ Read, at `9fefff2`:
   the session after 180 s with no payload (`docs/relay.md:249`). The relay's
   own keepalive frames keep the ping watcher content meanwhile.
 - A prompt has its own limit when nobody watches the terminal (60 s, T-005;
-  `docs/cli.md:4487-4490`). A person who types slowly must not meet a limit
+  `docs/cli.md:4491-4494`). A person who types slowly must not meet a limit
   of the server.
 
 Not measured: it needs a server that stalls.
@@ -2065,7 +2065,7 @@ Not measured: it needs a server that stalls.
 5. Make the comment and the manual (`crates/podssh-cli/src/ssh/keywords.rs:39-40`,
    `crates/podssh-cli/src/flags.rs:178-179`) say the same: the handshake, and
    each answer during the authentication.
-   `docs/cli.md:4520-4522` asks for a limit on the whole operation.
+   `docs/cli.md:4524-4526` asks for a limit on the whole operation.
 
 ## Decision
 
@@ -2514,7 +2514,7 @@ constraint of a key (lines 296-297), and when a request to sign names such a key
 that is always ready with `true`; it never calls the agent's `confirm` (lines 348-356).
 
 Read: podssh's `confirm` refuses (`crates/podssh-cli/src/agent/serve.rs:173-176`), and is never
-called. `docs/cli.md:3766-3767` says that the key "is never used".
+called. `docs/cli.md:3770-3771` says that the key "is never used".
 
 ## Approach
 
@@ -2961,7 +2961,7 @@ registers none (`openssh/openssh-portable:clientloop.c`, `client_global_request_
   after the login, as the failure's decode ends it. #83's 15 bytes are a failure's too, then: a
   Go server that knows no `keepalive@openssh.com` refuses it.
 - Read: the project carries a patched crate in `vendor/` through `[patch.crates-io]`, iroh-relay's
-  (`vendor/README.md:147-166`, `Cargo.toml:242-244`), and watches its upstream (T-341); russh's
+  (`vendor/README.md:147-166`, `Cargo.toml:243-245`), and watches its upstream (T-341); russh's
   copy went with T-356, as 0.65.0 gave what its patch had added.
 
 ## Approach
@@ -3093,7 +3093,7 @@ same day. The WIP `818f7fe` (branch `worktree-agent-t460-ssh`) is carried onto
   bytes)"). The rest the draft named for the main
   session: `cargo todo interop`; `cargo todo remap` of
   `Cargo.toml`, `docs/development.md`, `vendor/README.md`, `AGENTS.md`, `docs/cli.md` and
-  `docs/STATUS.md` (the draft moved their citations by hand, `Cargo.toml:218` among them);
+  `docs/STATUS.md` (the draft moved their citations by hand, `Cargo.toml:219` among them);
   and TruffleHog: the test keys of russh 0.65.0 are where 0.64.1 held them, so after the commit
   on `main` add to `.github/secrets-allow.txt`, with that commit's first 12 digits for COMMIT
   (and the draft branch's commit, if it is pushed):
@@ -4437,3 +4437,77 @@ sh scripts/dev.sh run -- 'INTEROP_ONLY=faults sh /work/scripts/interop.sh BIN'
 
 On this cloud container's host, `faults.stuck_write` ends with 255 within 90 s and "no
 progress", as on the gate's runners. Planted: the new limit removed: it fails at 240 s again.
+
+# T-609: An ECDSA key of P-256 whose scalar OpenSSH writes in 31 bytes is refused: "SshKey: length invalid"
+
+**Source:** the gate at `b02d8c4` (run 41647533798, its job `gate (release)`, 2026-11-03):
+`ssh.auth.key.ecdsa` and `ref.auth.key.ecdsa` failed, "podssh: could not use the key file
+/tmp/podssh-interop/id_ecdsa: SshKey: length invalid", where OpenSSH's client logged in with the
+same key; the interop test makes that key anew with `ssh-keygen -t ecdsa` each run, and passed at
+the gates before.
+**Category:** defect
+**Milestone:** none
+**Priority:** P1
+**Effort:** S
+**Status:** done
+
+## Problem
+
+podssh cannot use some valid ECDSA keys of OpenSSH: about one P-256 key of 512 that
+`ssh-keygen -t ecdsa` makes is refused at its reading, on each road and by each verb, and the
+gate's interop test fails at random with it.
+
+## Premise
+
+- Read: ssh-key 0.7.0-rc.11, `src/private/ecdsa.rs`, `EcdsaPrivateKey::decode`, refuses a scalar
+  under 32 bytes (`MIN_SIZE`); an `mpint` (RFC 4251, section 5) has no leading zero bytes, so
+  OpenSSH writes a scalar whose first byte is zero, and whose second byte has no high bit, in 31
+  bytes or fewer. russh's `decode_secret_key`, which `crates/podssh-ssh/src/key_file.rs:35` calls,
+  reads every key through it.
+- Read: crates.io's newest ssh-key is 0.7.0-rc.11 (2026-11-03): no release reads such a key.
+
+## Approach
+
+1. Carry ssh-key 0.7.0-rc.11 as T-460 carries russh: the published crate in `vendor/ssh-key`, one
+   patch that takes a scalar of any length up to the field's, `[patch.crates-io]` in the root and
+   in `fuzz/`, the section of `vendor/README.md` and the watch of `scripts/check-vendored.py`.
+2. A test that builds a key as OpenSSH writes one, its scalar 31 bytes, and reads it.
+
+## Decision
+
+- A copy with a patch, not a repair inside podssh: russh reads OpenSSH's keys, encrypted ones and
+  PuTTY's through this one decoder, and a repair of the key's bytes before it would reach the
+  plain format alone. Lost: a pass over the plain format in `key_file.rs`, which leaves the
+  encrypted keys refused.
+- The patch takes any length from 1 to the field's size: each is a scalar that OpenSSH may write.
+  Lost: 31 bytes and up, which leaves the keys of 30 bytes (one of 131,072).
+
+## Prove
+
+```sh
+cargo test -p podssh-ssh --lib key_file
+```
+
+The key of 31 bytes is read and gives its own public key; planted, the release's decoder in the
+copy: the test fails. A key of `ssh-keygen` with such a scalar is read by `podssh keygen -y`.
+
+## Done
+
+2026-11-03.
+
+- `vendor/ssh-key`: ssh-key 0.7.0-rc.11, the published crate byte for byte but `.cargo-ok` and two
+  test keys that GitHub's push protection refused (`tests/examples/id_ed25519` and its 64-column
+  copy, read by the crate's own tests alone), and
+  `vendor/patches/ssh-key/0001-ecdsa-short-scalar.patch`; the patch over cargo's copy of the
+  release gives the shipped tree (`diff -r`: no other difference). In the place of the release by
+  `[patch.crates-io]` in `Cargo.toml` and `fuzz/Cargo.toml`; both locks updated
+  (`cargo update -p ssh-key --offline`). `scripts/check-vendored.py` watches it against crates.io's
+  newest version, as a copy of a prerelease.
+- `cargo test -p podssh-ssh --lib key_file`: 10 passed, one new
+  (`an_ecdsa_key_whose_scalar_openssh_writes_short_is_read`, a key made until its scalar has a zero
+  first byte and a second under 0x80, written as OpenSSH writes it: read, its public key and scalar
+  the ones written). Planted, the release's `ecdsa.rs` in the copy: the test failed at the
+  decode.
+- Against OpenSSH 9.6p1's `ssh-keygen -t ecdsa -b 256`: the 243rd key had a scalar of 31 bytes;
+  `podssh keygen -y -f` on it exited 0 and printed the public key of its `.pub`. The key was
+  deleted after.

@@ -78,6 +78,34 @@ impl fmt::Display for TlsFailure {
     }
 }
 
+/// Why a question got no answer, as `doctor` counts it (T-604): the words,
+/// and how its connection ended where an error of I/O or a bound ended it.
+/// An answer that refused, and a failure after the handshake, have none.
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub struct Missed {
+    pub why: String,
+    pub cut: Option<Cut>,
+}
+
+impl Missed {
+    /// Words alone: a failure whose kind says nothing of the path.
+    pub fn words(why: impl Into<String>) -> Missed {
+        Missed { why: why.into(), cut: None }
+    }
+
+    /// A TLS handshake's failure, `TLS: ` and its words, with its cut.
+    pub fn tls(error: &std::io::Error) -> Missed {
+        let failure = TlsFailure::of(error);
+        Missed { why: format!("TLS: {}", failure.why), cut: failure.cut }
+    }
+}
+
+impl fmt::Display for Missed {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        f.write_str(&self.why)
+    }
+}
+
 /// Words alone: a failure whose kind is not known.
 impl From<String> for TlsFailure {
     fn from(why: String) -> TlsFailure {

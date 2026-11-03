@@ -1,0 +1,8 @@
+# T-599: a connection in CLOSE-WAIT closes with bytes that the window holds
+# back, as before the repair; smoltcp's LAST-ACK then reads no window update,
+# and the bytes of the test of a far end that closes first come only after
+# its backed-off probe, past the test's 2 s.
+ENTRY=T-599
+GROUP=resume
+EXPECT='test tests::close::a_shutdown_in_close_wait_sends_its_fin_after_the_bytes_held_back \.\.\. FAILED'
+RUN='cargo test --locked -p podssh-warp --features stand-in --lib tests::close'

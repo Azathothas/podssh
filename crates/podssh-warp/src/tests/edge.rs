@@ -4,7 +4,8 @@
 //! end.
 
 use std::net::{Ipv4Addr, SocketAddr};
-use std::sync::PoisonError;
+use std::sync::atomic::{AtomicUsize, Ordering};
+use std::sync::{Arc, PoisonError};
 use std::time::Duration;
 
 use podssh_ws::ProxyChoice;
@@ -38,16 +39,35 @@ async fn a_session_passes_both_ways_inside_the_tunnel() {
     let warp = open(&edge, key).await;
     let stream = warp.connect("192.0.2.10", 22, LIMIT).await.expect("a stream inside");
     assert_eq!(stream.peer(), Some(TARGET));
+    let near = stream.core().clone();
     let sent: Vec<u8> = (0..1u32 << 20).map(|i| (i.wrapping_mul(7) % 251) as u8).collect();
     let (mut r, mut w) = tokio::io::split(stream);
     let out = sent.clone();
-    let writer = tokio::spawn(async move {
-        w.write_all(&out).await.unwrap();
-        w.shutdown().await.unwrap();
-        w
+    // What went up, for a stall to name its side (T-599).
+    let wrote = Arc::new(AtomicUsize::new(0));
+    let writer = tokio::spawn({
+        let wrote = wrote.clone();
+        async move {
+            for piece in out.chunks(16 * 1024) {
+                w.write_all(piece).await.unwrap();
+                wrote.fetch_add(piece.len(), Ordering::SeqCst);
+            }
+            w.shutdown().await.unwrap();
+            w
+        }
     });
     let mut got = Vec::new();
-    tokio::time::timeout(LIMIT * 3, r.read_to_end(&mut got)).await.expect("the echo in time").unwrap();
+    let read = tokio::time::timeout(LIMIT * 3, r.read_to_end(&mut got)).await;
+    let came = got.len();
+    read.unwrap_or_else(|_| {
+        let wrote = wrote.load(Ordering::SeqCst);
+        let (here, there) = (near.words(), edge.words());
+        panic!(
+            "the echo in time: {wrote} of {} bytes written, {came} back; here: {here}; the edge: {there}",
+            sent.len()
+        )
+    })
+    .unwrap();
     assert_eq!(got.len(), sent.len());
     assert!(got == sent, "the bytes came back changed");
     drop(writer.await.unwrap());

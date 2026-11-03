@@ -2442,9 +2442,12 @@ on a terminal no `--timeout`: a person decides how long an edit takes.
   are. A reset and a close with nothing before the handshake ended are both
   the far end's, and read as a reset. After the counts, a line
   `diagnosis:` names a case that the handshakes of the roads (each relay
-  host's `/health`, each DERP server's probe) show beside the reference,
-  and it counts as nothing: each relay host reset, none of the roads timed
-  out, and `github.com`'s completed is an egress that resets TLS for each
+  host's `/health`, each DERP server's probe, each resolver of DNS over
+  HTTPS that the check `DNS over HTTPS` asked, and each relay of n0's in a
+  build with iroh, T-604) show beside the reference, and it counts as
+  nothing: each relay host reset, none of the roads by a name timed out (a
+  resolver is asked by its address, with no name, so its timeout says
+  nothing of names), and `github.com`'s completed is an egress that resets TLS for each
   name that it does not list (`tls-names`: each road through the relay's
   name stays closed until the name is listed, and a road through a listed
   name serves: `--forwarder`, `--via`, a relay of your own), with each name
@@ -2452,8 +2455,9 @@ on a terminal no `--timeout`: a person decides how long an edit takes.
   an egress that resets each TLS handshake on port 443 (`tls-reset`); each
   timed out, `github.com`'s too, is a path that drops them and resets none
   (`tls-dropped`). Through a proxy the same cases read the TLS after its
-  `CONNECT`. The resolvers of DNS over HTTPS keep their line, whose errors
-  reach doctor as words; iroh's relays keep theirs.
+  `CONNECT`; the resolvers, which `doctor` asks only with no proxy and
+  straight at their addresses, count only beside a reference that went with
+  no proxy.
 - `--full` adds the check `login` (GitHub #13): a login to `github.com` as
   `git` through the relay, with an Ed25519 key made for the check, kept in
   memory and never written. GitHub refuses it, which is `ok`: the handshake,

@@ -19,23 +19,24 @@
 //! a wrong pinned, resolved or remembered address fails the handshake instead
 //! of connecting somewhere else.
 
-use std::net::{IpAddr, SocketAddr};
-use std::sync::{Arc, RwLock};
+use std::net::IpAddr;
+use std::sync::RwLock;
 use std::time::Duration;
 
-use rustls::ClientConfig;
-use tokio::net::TcpStream;
 use tokio::time::Instant;
 
+use crate::cut::Cut;
 use crate::dial::ProxyChoice;
 use crate::http;
 use crate::tls::{self, Trust};
 
+mod direct;
 pub mod h2;
 mod memory;
 mod order;
 pub mod wire;
 
+pub use direct::{doh_ask, doh_ask_kept};
 pub(crate) use memory::note_dialed;
 pub use memory::{dialed, last_dialed, remembered, set_remembered, split, Remembered, FRESH};
 pub use order::{resolve, resolve_from, Found, Source, ORDER, SOURCE_WAIT};
@@ -209,65 +210,20 @@ pub async fn doh_lookup_with(resolvers: &[Doh], host: &str, deadline: Instant) -
     Err(if reasons.is_empty() { "no resolver answered".into() } else { reasons.join("; ") })
 }
 
-/// One resolver, straight to its address: A, then AAAA when A gave none,
-/// each in the first of its forms that answers in its form, within
-/// [`DOH_EACH`] and `deadline`. The addresses and the form that gave them, or
-/// why none came, each reason after the resolver's address.
-pub async fn doh_ask(resolver: &Doh, host: &str, deadline: Instant) -> Result<(Vec<IpAddr>, Form), String> {
-    let ip = resolver.ip;
-    let each = (Instant::now() + DOH_EACH).min(deadline);
-    let config = tls::config_for(&Trust::Default).map_err(|e| format!("{ip}: {e}"))?;
-    let mut forms = resolver.forms();
-    let (mut found, mut by, mut reasons) = (Vec::new(), None, Vec::new());
-    'kinds: for kind in ["A", "AAAA"] {
-        while let Some(&form) = forms.first() {
-            match tokio::time::timeout_at(each, ask_direct(&config, resolver, form, host, kind)).await {
-                Ok(Ok(mut ips)) => {
-                    found.append(&mut ips);
-                    by = Some(form);
-                    break;
-                }
-                Ok(Err(Miss::Said(e))) if e == NXDOMAIN => return Err(format!("{ip}: {e}")),
-                // The other form would say the same.
-                Ok(Err(Miss::Said(e))) => {
-                    reasons.push(format!("{ip}: {e}"));
-                    break;
-                }
-                // Not served here, or not as podssh reads it: the next form,
-                // for this question and the next.
-                Ok(Err(Miss::Form(e))) => {
-                    reasons.push(format!("{ip} ({}): {e}", form.words()));
-                    forms.remove(0);
-                }
-                Ok(Err(Miss::Way(e))) => {
-                    reasons.push(format!("{ip}: {e}"));
-                    break 'kinds;
-                }
-                Err(_) => {
-                    reasons.push(format!("{ip}: timed out"));
-                    break 'kinds;
-                }
-            }
-        }
-        if !found.is_empty() {
-            break;
-        }
-    }
-    match by {
-        Some(form) if !found.is_empty() => Ok((found, form)),
-        _ if reasons.is_empty() => Err(format!("{ip}: no addresses")),
-        _ => Err(reasons.join("; ")),
-    }
-}
-
 /// Why a question got no addresses: the way to the resolver failed, and the
-/// other form would meet the same; the answer was not of the form asked, and
-/// the other form may work; or the resolver said why there is none.
+/// other form would meet the same, with how its connection ended where I/O
+/// ended it (T-604); the answer was not of the form asked, and the other
+/// form may work; or the resolver said why there is none.
 #[derive(Debug, Clone, PartialEq, Eq)]
 enum Miss {
-    Way(String),
+    Way(String, Option<Cut>),
     Form(String),
     Said(String),
+}
+
+/// A failure of the way in words alone.
+fn way(why: String) -> Miss {
+    Miss::Way(why, None)
 }
 
 /// What an answer gives, by `parse`, or why it gives nothing. The status of a
@@ -275,7 +231,7 @@ enum Miss {
 fn read<T>(response: &http::Response, parse: impl FnOnce(&[u8]) -> Result<T, String>) -> Result<T, Miss> {
     match response.status {
         200 => parse(&response.body).map_err(|e| if said(&e) { Miss::Said(e) } else { Miss::Form(e) }),
-        status @ (429 | 500..=599) => Err(Miss::Way(format!("HTTP {status}"))),
+        status @ (429 | 500..=599) => Err(way(format!("HTTP {status}"))),
         status => Err(Miss::Form(format!("HTTP {status}"))),
     }
 }
@@ -284,50 +240,6 @@ fn read<T>(response: &http::Response, parse: impl FnOnce(&[u8]) -> Result<T, Str
 /// answer of another form than the one asked.
 fn said(e: &str) -> bool {
     e == NXDOMAIN || e.strip_prefix("DNS status ").is_some_and(|n| n.parse::<u16>().is_ok())
-}
-
-/// One question over a connection of its own, straight to the resolver.
-async fn ask_direct(
-    config: &Arc<ClientConfig>,
-    resolver: &Doh,
-    form: Form,
-    host: &str,
-    kind: &str,
-) -> Result<Vec<IpAddr>, Miss> {
-    let target = resolver.target(form, host, kind).map_err(Miss::Way)?;
-    let response = get_direct(config, resolver, &target, form.accept()).await.map_err(Miss::Way)?;
-    read(&response, |body| match (form, wire::code(kind)) {
-        (Form::Json, _) => parse_answer(body, kind),
-        (Form::Wire, Some(code)) => wire::addrs(body, host, code),
-        (Form::Wire, None) => Err(format!("no record type {kind}")),
-    })
-}
-
-/// GET `target` of `resolver`: TCP within [`DOH_CONNECT`], then TLS
-/// verified for its address, and HTTP/2 where it serves no HTTP/1.1.
-async fn get_direct(
-    config: &Arc<ClientConfig>,
-    resolver: &Doh,
-    target: &str,
-    accept: &str,
-) -> Result<http::Response, String> {
-    let ip = resolver.ip;
-    let name = rustls_pki_types::ServerName::try_from(ip.to_string()).map_err(|e| e.to_string())?;
-    let addr: IpAddr = ip.parse().map_err(|_| format!("{ip} is not an IP"))?;
-    let tcp = tokio::time::timeout(DOH_CONNECT, TcpStream::connect(SocketAddr::new(addr, 443)))
-        .await
-        .map_err(|_| format!("no connection within {} s", DOH_CONNECT.as_secs()))?
-        .map_err(|e| e.to_string())?;
-    if resolver.http2 {
-        return h2::get_over(config, tcp, ip, target, accept, MAX_ANSWER).await;
-    }
-    let mut stream = tokio_rustls::TlsConnector::from(config.clone())
-        .connect(name, tcp)
-        .await
-        .map_err(|e| format!("TLS: {}", tls::handshake_failure(&e)))?;
-    http::exchange(&mut stream, "GET", ip, target, &[("Accept", accept)], b"", MAX_ANSWER)
-        .await
-        .map_err(|e| e.to_string())
 }
 
 /// The addresses in a DNS JSON answer (`Answer[].data` of type 1 or 28).
@@ -427,7 +339,7 @@ pub async fn doh_srv_with(
                     Err(Miss::Form(e)) => reasons.push(format!("{host} ({}): {e}", form.words())),
                     // The way to this host failed: its address may pass
                     // where its name did not, as the proxy decides.
-                    Err(Miss::Way(e)) => {
+                    Err(Miss::Way(e, _)) => {
                         reasons.push(format!("{host}: {e}"));
                         continue 'hosts;
                     }
@@ -454,16 +366,16 @@ async fn srv_at(
     proxy: &ProxyChoice,
     left: Duration,
 ) -> Result<Vec<Srv>, Miss> {
-    let target = resolver.target(form, name, "SRV").map_err(Miss::Way)?;
+    let target = resolver.target(form, name, "SRV").map_err(way)?;
     let answer = if resolver.http2 {
-        let config = tls::config_for(trust).map_err(|e| Miss::Way(e.to_string()))?;
+        let config = tls::config_for(trust).map_err(|e| way(e.to_string()))?;
         h2::get_via(&config, host, &target, form.accept(), MAX_ANSWER, proxy, left).await
     } else {
         crate::client::https_get_accepting(host, 443, &target, form.accept(), MAX_ANSWER, trust, proxy, left)
             .await
             .map_err(|e| e.to_string())
     };
-    read(&answer.map_err(Miss::Way)?, |body| match form {
+    read(&answer.map_err(way)?, |body| match form {
         Form::Json => parse_srv(body),
         Form::Wire => wire::srv(body, name),
     })

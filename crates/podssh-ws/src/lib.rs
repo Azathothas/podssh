@@ -87,7 +87,7 @@ pub use client::{
     connect, doctor, https_get, https_post_json, ConnectError, Endpoint, WsClientConfig, DEFAULT_IDLE_TIMEOUT,
     DEFAULT_TIMEOUT, LIVENESS_ALLOWED, LIVENESS_EVERY,
 };
-pub use cut::{Cut, TlsFailure};
+pub use cut::{Cut, Missed, TlsFailure};
 pub use dial::{DialError, HttpProxy, Proxy, ProxyChoice, ProxyKind};
 pub use error::{SessionError, Verdict, WsError};
 pub use frame::Frame;

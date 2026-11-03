@@ -2068,7 +2068,7 @@ and each other command print rustls's words alone. An error should tell what to 
    with this host's clock in UTC, in doctor's words.
 2. Each place where podssh-ws makes the text of a TLS error uses it: `ConnectError::Tls`
    (`crates/podssh-ws/src/client.rs:223`), `tls::connect_over` (`crates/podssh-ws/src/tls.rs:151`)
-   and the query of DNS over HTTPS (`crates/podssh-ws/src/resolve.rs:179-182`). doctor's `clock_hint`
+   and the query of DNS over HTTPS (`crates/podssh-ws/src/resolve.rs:180-183`). doctor's `clock_hint`
    calls it, so that the words are the same.
 3. Tests through a stand-in relay with an expired certificate: `podssh ssh`, `podssh proxy` and
    `podssh cp` each name the clock and its reading.
@@ -2173,8 +2173,8 @@ host has.
   `pipe tcp:` and a target of `-R`, each to an address that the user gives.
 - Read: with no proxy, `doctor` reaches addresses already: DNS over HTTPS to the resolvers'
   address literals (`crates/podssh-cli/src/doctor/net.rs:305-376`;
-  `crates/podssh-ws/src/resolve.rs:28-32`), each checked by TLS for its address
-  (`crates/podssh-ws/src/resolve.rs:172-182`).
+  `crates/podssh-ws/src/resolve.rs:26-31`), each checked by TLS for its address
+  (`crates/podssh-ws/src/resolve.rs:173-183`).
 - Read: the proxy of the measured sandbox gave `200` for public names on ports 443, 80 and 8443,
   and `403 not a public host` for private and metadata addresses
   (`docs/target-environment.md:21`); no public address literal was asked. The box's proxy
@@ -2459,7 +2459,7 @@ falls back to the edge's fixed names after a wasted attempt; other lookups of Do
 ## Premise
 
 - Read: `doh_srv` dials each resolver by its address through the proxy
-  (`crates/podssh-ws/src/resolve.rs:397`).
+  (`crates/podssh-ws/src/resolve.rs:309`).
 
 ## Approach
 
@@ -2568,7 +2568,7 @@ met.
 
 - Read: each relay host gets a line of its own (`crates/podssh-cli/src/doctor/relay_checks.rs:42-56`),
   and DNS over HTTPS one line with each resolver's error
-  (`crates/podssh-cli/src/doctor/names.rs:133`); the end of the report gives the counts alone
+  (`crates/podssh-cli/src/doctor/names.rs:140`); the end of the report gives the counts alone
   (`crates/podssh-cli/src/doctor/mod.rs:352-374`).
 - Read: a failed handshake reaches `doctor` as text: `ConnectError::Tls` holds a String
   (`crates/podssh-ws/src/client.rs` line 115 at `38f424c`), and `HealthError::Connect` the
@@ -2738,7 +2738,7 @@ of each cut that podssh keeps, and two roads of `doctor` keep words alone.
 **Milestone:** none
 **Priority:** P3
 **Effort:** S
-**Status:** open
+**Status:** done
 
 ## Problem
 
@@ -2759,6 +2759,19 @@ it could be by what they saw.
    `resolve.rs`; n0's ping keeps its kind the same way.
 2. The diagnosis counts them as it counts the relay's hosts.
 
+## Decision
+
+- A resolver's handshake counts beside the reference only when the reference went with no proxy:
+  a resolver goes straight to its address, and through a proxy its way is not the reference's.
+  Lost: counting it always, which mixes two ways out in one case.
+- A resolver that timed out does not stop the case `tls-names`: it is asked by its address with no
+  name, so its silence says nothing of a list of names, and an egress of names may drop what names
+  nothing. n0's relays go by their names, as the relay hosts do, and their timeouts count. Lost:
+  the rule of the other roads for the resolvers too, which would hide the case on such an egress.
+- A resolver that answered once (an answer of another form, a status) completed a handshake, so a
+  later cut of its asking is not kept. Lost: the last cut, which would count a resolver that
+  passed as reset.
+
 ## Prove
 
 ```sh
@@ -2768,3 +2781,31 @@ cargo test -p podssh-cli --test doctor_tls
 
 A resolver that a stand-in proxy resets is counted in `tls-names`; planted, its kind dropped: the
 test fails.
+
+## Correction
+
+2026-11-03: `doctor` asks the resolvers of DNS over HTTPS only with no proxy
+(`crates/podssh-cli/src/doctor/names.rs:26`, `direct`), straight at their addresses
+on port 443, so no stand-in proxy reaches them and `doctor_tls`, whose egresses are a proxy's,
+cannot count one. A stand-in resolver on the loopback at a port of its own proves the cut where
+it is kept (`crates/podssh-ws/src/resolve/tests/cuts.rs`), and the diagnosis's own test counts the
+resolvers and n0's relays as roads. `resolve.rs` had 478 lines: the asking of one resolver moved to
+`crates/podssh-ws/src/resolve/direct.rs`, which keeps its cut.
+
+## Done
+
+2026-11-03.
+
+- `crates/podssh-ws/src/cut.rs`: `Missed`, the words of a failure and its cut; the resolver's
+  asking (`resolve/direct.rs`, `doh_ask_kept`), the TLS of the resolvers over HTTP/2
+  (`resolve/h2.rs`, `get_over_kept`) and n0's `/ping` (`podssh-iroh`'s `relays::ping_kept`) keep
+  it; `doh_ask` and `ping` give the same words as before.
+- `doctor`: each resolver that `DNS over HTTPS` asked and each relay of n0's (a build with iroh)
+  is a handshake of the diagnosis (`Of::Doh`, `Of::Iroh`), as the relay hosts and DERP servers are.
+- `cargo test -p podssh-ws --lib resolve`: 19 passed, two new: a stand-in that resets the
+  ClientHello is a reset over HTTP/1.1 and over HTTP/2, a close a close, silence a timeout, a port
+  with nothing a refusal. Planted, the cut dropped (`cut = ended` made `None`): both failed, "http2
+  false: 127.0.0.1: TLS: Connection reset by peer". `cargo test -p podssh-cli --lib doctor::`: 54
+  passed, one new (`the_resolvers_and_n0_s_relays_are_counted_as_roads`); `--test doctor_tls`: 3
+  passed. Clippy `--all-targets -D warnings` on podssh-ws, podssh-warp, podssh-iroh and
+  podssh-cli, and on podssh-cli's lib with `--features iroh`: clean.

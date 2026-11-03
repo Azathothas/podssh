@@ -68,7 +68,7 @@ async fn packets_left_while_the_queue_out_was_full_are_read_once_it_has_room() {
     for port in 0..SENT {
         to_stack.try_send(syn(40_000 + port as u16)).unwrap();
     }
-    let link = Link { out, inbound, why: Why::default(), tasks: Vec::new() };
+    let link = Link { out, inbound, why: Why::default(), tasks: Vec::new(), flow: Default::default() };
     let _stack = Stack::start(&[IpAddr::V4(DEVICE)], link).unwrap();
     let deadline = tokio::time::Instant::now() + Duration::from_secs(5);
     let mut resets = 0;

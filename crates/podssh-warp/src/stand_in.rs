@@ -62,6 +62,9 @@ pub struct Seen {
     cut: tokio::sync::watch::Sender<bool>,
     /// Set to relay nothing in each tunnel answered from then on.
     silent: AtomicBool,
+    /// The stack of each tunnel's far end, while it lasts, for a test that
+    /// stalls (T-599).
+    stacks: Mutex<Vec<std::sync::Weak<crate::stack::Core>>>,
 }
 
 impl Default for Seen {
@@ -75,6 +78,7 @@ impl Default for Seen {
             authority: Mutex::new(None),
             cut: tokio::sync::watch::Sender::new(false),
             silent: AtomicBool::new(false),
+            stacks: Mutex::new(Vec::new()),
         }
     }
 }
@@ -261,6 +265,18 @@ impl StandIn {
         self.seen.cut.send_replace(true);
     }
 
+    /// Each far end's counts and connections, while its tunnel lasts
+    /// (T-599).
+    pub fn words(&self) -> String {
+        let stacks = self.seen.stacks.lock().unwrap_or_else(PoisonError::into_inner);
+        let said: Vec<String> = stacks.iter().filter_map(std::sync::Weak::upgrade).map(|core| core.words()).collect();
+        if said.is_empty() {
+            "no tunnel".to_string()
+        } else {
+            said.join(" | ")
+        }
+    }
+
     pub fn carried(&self) -> usize {
         self.seen.carried.load(Ordering::SeqCst)
     }
@@ -373,6 +389,7 @@ fn far(link: crate::stack::Link, routes: &[Route], seen: &Arc<Seen>) {
         addresses.push(probe.ip());
     }
     let Ok(stack) = Stack::start(&addresses, link) else { return };
+    seen.stacks.lock().unwrap_or_else(PoisonError::into_inner).push(Arc::downgrade(stack.core()));
     if addresses.contains(&probe.ip()) && !routes.iter().any(|route| route.inside == probe) {
         answer_probes(&stack, probe, seen);
     }

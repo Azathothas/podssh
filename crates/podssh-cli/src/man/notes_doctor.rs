@@ -19,10 +19,12 @@ pub(super) const DOCTOR_QUICK: &str = "--quick checks this host, the egress and 
 pub(super) const DOCTOR_DIAGNOSIS: &str = "The line TLS reference makes TLS with github.com on port 443 by its \
      name, its certificate checked, straight out with no proxy, else over the CONNECT that the proxy took for it, \
      and says what it met: a handshake, a reset or a timeout. After the counts, a line diagnosis names a case that \
-     the handshakes of the roads (each relay host, each DERP server) show beside it, and counts as nothing: each \
+     the handshakes of the roads (each relay host, each DERP server, each resolver of DNS over HTTPS with no \
+     proxy, each relay of n0's in a build with iroh) show beside it, and counts as nothing: each \
      relay host reset while github.com's completed is an egress that resets TLS for each name that it does not \
      list, where a road through a listed name serves (--forwarder, --via, a relay of your own); each handshake \
      reset, github.com's too, is an egress that resets each one on port 443; each timed out, github.com's too, is \
-     a path that drops them, not one that lists names. A reset and a timeout are read from the kind of the error, \
+     a path that drops them, not one that lists names; a resolver, asked by its address with no name, that \
+     timed out says nothing of names. A reset and a timeout are read from the kind of the error, \
      never from its words, which differ between systems. With --json, diagnosis lists each, with kind (tls-names, \
      tls-reset or tls-dropped), detail and evidence, the names that show it.";

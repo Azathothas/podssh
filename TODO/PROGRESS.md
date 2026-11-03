@@ -159,7 +159,7 @@ and `CARGO_BUILD_JOBS=4`:
 
 ## Counts
 
-`TODO/INDEX.md` holds 568 entries: 97 open, 3 partial, 16 blocked, 452 done.
+`TODO/INDEX.md` holds 570 entries: 97 open, 2 partial, 16 blocked, 455 done.
 
 Open includes parked work. `cargo todo check` verifies this line.
 
@@ -233,7 +233,7 @@ to T-532, and T-534 to T-549 and T-565 to T-582, which Q74, Q75, Q77, Q78
 and Q82 filed; and of #112 to #124, with M10's T-592 and
 T-596, the relay role's and the roads') follow, by priority, beside M10 (Q85); Dependabot's #119,
 #120 and #122 are in `main` (2026-11-03), and #123 waits for an iroh-dns that takes simple-dns 0.13. Overnight a fork of
-policy is decided and listed below for the operator to confirm (Q86). The drafts of 2026-11-03, both rounds, are merged.
+policy is decided and listed below for the operator to confirm (Q86). The drafts of 2026-11-03, both rounds, are merged. GitHub #125 (2026-11-03, `relay info`'s rank changes with the edge that answered) is T-610, a defect of M10 beside the research of the operator's relay archive (`draft/relay-measure`).
 
 **Skip** the entries that the operator holds (status
 `blocked`, Q32):

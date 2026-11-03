@@ -6,6 +6,7 @@
 use std::net::IpAddr;
 use std::time::Instant;
 
+use super::diagnosis::{met_of, Met, Of};
 use super::net::{ms, PROBE};
 use super::Report;
 
@@ -98,8 +99,10 @@ async fn doh(report: &mut Report<'_>, host: &str, another_way: bool) -> bool {
         let ip = resolver.ip;
         let started = Instant::now();
         let deadline = tokio::time::Instant::now() + PROBE;
-        match podssh_ws::resolve::doh_ask(resolver, host, deadline).await {
+        // What its TLS met, beside the line, for the diagnosis (T-604).
+        match podssh_ws::resolve::doh_ask_kept(resolver, host, deadline).await {
             Ok((ips, form)) => {
+                report.handshake(Of::Doh, ip, Met::Completed);
                 let ips: Vec<String> = ips.iter().map(|ip| ip.to_string()).collect();
                 let before =
                     if failures.is_empty() { String::new() } else { format!("; before it: {}", failures.join("; ")) };
@@ -115,7 +118,8 @@ async fn doh(report: &mut Report<'_>, host: &str, another_way: bool) -> bool {
                 return true;
             }
             // An answer, not a failure: the name does not exist anywhere.
-            Err(e) if e.ends_with(podssh_ws::resolve::NXDOMAIN) => {
+            Err(e) if e.why.ends_with(podssh_ws::resolve::NXDOMAIN) => {
+                report.handshake(Of::Doh, ip, Met::Completed);
                 let detail = format!("{ip} answered that {host} does not exist (NXDOMAIN)");
                 if another_way {
                     report.ok("DNS over HTTPS", detail);
@@ -127,7 +131,10 @@ async fn doh(report: &mut Report<'_>, host: &str, another_way: bool) -> bool {
                 }
                 return true;
             }
-            Err(e) => failures.push(e),
+            Err(missed) => {
+                report.handshake(Of::Doh, ip, met_of(missed.cut));
+                failures.push(missed.why);
+            }
         }
     }
     let detail = format!("no resolver answered ({})", failures.join("; "));

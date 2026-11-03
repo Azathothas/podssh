@@ -8,7 +8,7 @@
 use std::time::{Duration, Instant};
 
 use iroh::RelayUrl;
-use podssh_ws::{dial, http, ProxyChoice, Trust};
+use podssh_ws::{dial, http, Cut, Missed, ProxyChoice, Trust};
 
 /// The relays when nothing is set, in order: n0's public relays, read in
 /// iroh 1.3.0 and the same in 1.4.1 (`defaults::prod`: North America east
@@ -104,7 +104,14 @@ pub struct Pong {
 /// `GET /ping` on `relay`, through the proxy that podssh chooses for it, with
 /// its certificate checked against `trust`, within `limit`.
 pub async fn ping(relay: &RelayUrl, trust: &Trust, proxy: &ProxyChoice, limit: Duration) -> Result<Pong, String> {
-    let host = relay.host_str().ok_or_else(|| format!("{relay}: no host"))?;
+    ping_kept(relay, trust, proxy, limit).await.map_err(|missed| missed.why)
+}
+
+/// [`ping`], with how the connection ended beside the words of a failure,
+/// which `podssh doctor` counts (T-604): the dial's or the handshake's cut,
+/// or the bound's; an answer of another status has none.
+pub async fn ping_kept(relay: &RelayUrl, trust: &Trust, proxy: &ProxyChoice, limit: Duration) -> Result<Pong, Missed> {
+    let host = relay.host_str().ok_or_else(|| Missed::words(format!("{relay}: no host")))?;
     let port = relay.port_or_known_default().unwrap_or(443);
     let started = Instant::now();
     // `CONNECT`, or `SOCKS5 CONNECT` through a SOCKS5 proxy (T-280).
@@ -120,17 +127,19 @@ pub async fn ping(relay: &RelayUrl, trust: &Trust, proxy: &ProxyChoice, limit: D
     let answer = async {
         let mut tls = podssh_ws::client::open_tls(host, port, host, trust, proxy, limit)
             .await
-            .map_err(|e| format!("{host}: {e}"))?;
+            .map_err(|e| Missed { why: format!("{host}: {e}"), cut: e.cut() })?;
         let host_header = if port == 443 { host.to_string() } else { dial::authority(host, port) };
         http::exchange(&mut tls, "GET", &host_header, "/ping", &[], b"", 4096)
             .await
-            .map_err(|e| format!("{host}: /ping: {e} ({way})"))
+            .map_err(|e| Missed::words(format!("{host}: /ping: {e} ({way})")))
     };
-    let response = tokio::time::timeout(limit, answer)
-        .await
-        .map_err(|_| format!("{host}: /ping did not answer within {} s ({way})", limit.as_secs()))??;
+    let response = tokio::time::timeout(limit, answer).await.map_err(|_| Missed {
+        why: format!("{host}: /ping did not answer within {} s ({way})", limit.as_secs()),
+        cut: Some(Cut::TimedOut),
+    })??;
     if response.status != 200 {
-        return Err(format!("{host}: /ping answered HTTP {} {} ({way})", response.status, response.body_text(120)));
+        let why = format!("{host}: /ping answered HTTP {} {} ({way})", response.status, response.body_text(120));
+        return Err(Missed::words(why));
     }
     Ok(Pong { elapsed: started.elapsed(), way })
 }

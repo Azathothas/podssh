@@ -62,15 +62,15 @@ repository and CI).
 
 ## Counts
 
-**568 entries: 97 open, 3 partial, 16 blocked, 452 done.**
+**570 entries: 97 open, 2 partial, 16 blocked, 455 done.**
 
 | Priority | open | partial | blocked | done | total |
 | --- | --- | --- | --- | --- | --- |
 | P0 | 0 | 0 | 0 | 1 | 1 |
-| P1 | 0 | 1 | 0 | 62 | 63 |
-| P2 | 24 | 2 | 14 | 218 | 258 |
-| P3 | 73 | 0 | 2 | 171 | 246 |
-| **All** | 97 | 3 | 16 | 452 | 568 |
+| P1 | 0 | 1 | 0 | 63 | 64 |
+| P2 | 25 | 1 | 14 | 219 | 259 |
+| P3 | 72 | 0 | 2 | 172 | 246 |
+| **All** | 97 | 2 | 16 | 455 | 570 |
 
 ## Entries
 
@@ -638,9 +638,11 @@ repository and CI).
 | [T-596](mesh.md) | P3 | S | M10 | feature | open | The exit over a carrier: a host that grants an exec channel alone gets egress through its other end |
 | [T-597](repo.md) | P3 | S | none | chore | done | Dependabot's updates of 2026-11-02: Python 3.15 for the box's proxy, the build image's digest, sha2 0.11.1 and simple-dns 0.13 |
 | [T-598](ssh.md) | P3 | S | none | defect | open | On a cloud container's host, a peer that stops reading below SSH with `--direct` ends the session after 240 s on the keepalives, not after 60 s on the stuck write |
-| [T-599](roads.md) | P2 | M | none | defect | partial | The stand-in edge's echo of 1 MiB inside WARP's tunnel stalls at random |
+| [T-599](roads.md) | P2 | M | none | defect | done | The stand-in edge's echo of 1 MiB inside WARP's tunnel stalls at random |
 | [T-600](resume.md) | P2 | S | none | defect | done | A resume that comes before the first link's task carries its session ends the session, as while a node opens its target |
 | [T-601](reverse.md) | P2 | S | none | defect | done | A node's `serve` that is dropped leaves its writer holding the socket, so the far side never sees the node go while a session of it lives |
 | [T-602](mesh.md) | P2 | S | M10 | defect | done | The relay role's test of two sessions of 2 MiB each way fails under load, on the limits of a road with no flow control |
 | [T-603](multi.md) | P2 | S | none | defect | done | On the macOS runner, `job log --follow` once ended with exit 0 after a job's first line, the second never given |
-| [T-604](ws.md) | P3 | S | none | feature | open | `doctor`'s diagnosis of the TLS handshakes counts no resolver of DNS over HTTPS and no relay of n0's |
+| [T-604](ws.md) | P3 | S | none | feature | done | `doctor`'s diagnosis of the TLS handshakes counts no resolver of DNS over HTTPS and no relay of n0's |
+| [T-609](ssh.md) | P1 | S | none | defect | done | An ECDSA key of P-256 whose scalar OpenSSH writes in 31 bytes is refused: "SshKey: length invalid" |
+| [T-610](relay.md) | P2 | S | M10 | defect | open | `relay info` shows the relay's `rank` and `score_ms`, which change with the edge that answered, as an order |

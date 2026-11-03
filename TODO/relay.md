@@ -2459,3 +2459,48 @@ tree).
   (`a_home_of_another_uid_is_passed_over_for_the_passwd_home` failed).
 - Waits until podssh is stable (Q88): the box as root with `HOME` of another account
   (`scripts/test_in_box.sh`), the node's key in root's own cache.
+
+# T-610: `relay info` shows the relay's `rank` and `score_ms`, which change with the edge that answered, as an order
+
+**Source:** GitHub #125 (aerrand-agent, 2026-11-03): three calls of `podssh relay info --json`
+two seconds apart, from one host through one proxy, were answered by the edges NRT, SIN and ARN;
+each of the 37 hosts changed its `rank` and its `score_ms` between the first and the third, and
+the pool came back in another order. Against a measured upgrade through each host, Spearman's rho
+of `score_ms` was -0.371: the host of rank 0 took 1,030 ms, and the fastest (575 ms) was at
+rank 22.
+**Category:** defect
+**Milestone:** M10
+**Priority:** P2
+**Effort:** S
+**Status:** open
+
+## Problem
+
+`relay info` prints the relay's pool in the relay's order, with a field named `rank`, which reads
+as podssh's advice; the relay computes it from the edge that served that one request, as its own
+`policy.note` says ("probe /health on each host and keep the fastest for your path"), so two calls
+disagree, and neither is about this host's path.
+
+## Premise
+
+- Read: `podssh relay info` prints the relay document's `pool` with its `rank` and `score_ms`
+  (`crates/podssh-cli/src/relay_diag_text.rs`), in the relay's order.
+
+## Approach
+
+1. Say what the numbers are: the relay's estimate from the edge that answered, named
+   (`you.edge_colo`), not a measurement of this host; with `--json`, the relay's fields unchanged
+   beside it.
+2. The order that podssh advises is a measured one: `relay status`, which measures each host
+   now, and a rank on demand (the research of the operator's relay archive proposes one); the
+   text says so, and points to them.
+
+## Prove
+
+```sh
+cargo test -p podssh-cli --test relay_info
+```
+
+Two documents of the stand-in relay, answered by two edges with opposite ranks: each text names its
+edge and says that the rank is the relay's estimate from it; planted, the line dropped: the test
+fails.

@@ -10,6 +10,7 @@
 //! for the stand-in's far end alike.
 
 use std::net::SocketAddr;
+use std::sync::Arc;
 use std::time::{Duration, SystemTime, UNIX_EPOCH};
 
 use bytes::Bytes;
@@ -19,6 +20,7 @@ use tokio::sync::mpsc;
 
 use crate::capsule;
 use crate::device::Device;
+use crate::flow::Flow;
 use crate::stack::{Link, Why};
 
 /// The windows of HTTP/2 that the client grants: a few round trips of a
@@ -216,12 +218,13 @@ async fn keep_alive(pings: Option<h2::PingPong>, why: Why, _client: h2::client::
 pub fn pump(recv: RecvStream, send: SendStream<Bytes>, why: Why) -> Link {
     let (to_stack, inbound) = mpsc::channel(PACKETS);
     let (out, from_stack) = mpsc::channel(PACKETS);
-    let reader = tokio::spawn(read(recv, to_stack, why.clone()));
-    let writer = tokio::spawn(write(send, from_stack, why.clone()));
-    Link { out, inbound, why, tasks: vec![reader.abort_handle(), writer.abort_handle()] }
+    let flow = Arc::new(Flow::default());
+    let reader = tokio::spawn(read(recv, to_stack, why.clone(), flow.clone()));
+    let writer = tokio::spawn(write(send, from_stack, why.clone(), flow.clone()));
+    Link { out, inbound, why, tasks: vec![reader.abort_handle(), writer.abort_handle()], flow }
 }
 
-async fn read(mut recv: RecvStream, to_stack: mpsc::Sender<Vec<u8>>, why: Why) {
+async fn read(mut recv: RecvStream, to_stack: mpsc::Sender<Vec<u8>>, why: Why, flow: Arc<Flow>) {
     let mut reader = capsule::Reader::default();
     loop {
         // A silent PING or a lost connection says the end before the
@@ -236,6 +239,7 @@ async fn read(mut recv: RecvStream, to_stack: mpsc::Sender<Vec<u8>>, why: Why) {
             None => return why.set("the edge ended the tunnel's stream"),
         };
         let _ = recv.flow_control().release_capacity(chunk.len());
+        flow.came(chunk.len());
         reader.push(&chunk);
         loop {
             match reader.next_packet() {
@@ -243,6 +247,7 @@ async fn read(mut recv: RecvStream, to_stack: mpsc::Sender<Vec<u8>>, why: Why) {
                     if to_stack.send(packet).await.is_err() {
                         return;
                     }
+                    flow.handed_in();
                 }
                 Ok(None) => break,
                 Err(e) => return why.set(e),
@@ -251,16 +256,20 @@ async fn read(mut recv: RecvStream, to_stack: mpsc::Sender<Vec<u8>>, why: Why) {
     }
 }
 
-async fn write(mut send: SendStream<Bytes>, mut from_stack: mpsc::Receiver<Vec<u8>>, why: Why) {
+async fn write(mut send: SendStream<Bytes>, mut from_stack: mpsc::Receiver<Vec<u8>>, why: Why, flow: Arc<Flow>) {
     while let Some(packet) = from_stack.recv().await {
+        flow.taken_out();
         let mut bytes = capsule::datagram(&packet);
         while bytes.len() < BATCH {
             match from_stack.try_recv() {
-                Ok(more) => bytes.extend_from_slice(&capsule::datagram(&more)),
+                Ok(more) => {
+                    flow.taken_out();
+                    bytes.extend_from_slice(&capsule::datagram(&more));
+                }
                 Err(_) => break,
             }
         }
-        if let Err(e) = send_all(&mut send, &bytes).await {
+        if let Err(e) = send_all(&mut send, &bytes, &flow).await {
             return why.set(format!("the tunnel's stream took no more: {e}"));
         }
     }
@@ -268,10 +277,13 @@ async fn write(mut send: SendStream<Bytes>, mut from_stack: mpsc::Receiver<Vec<u
 }
 
 /// Send `bytes` on `send` as the peer's window lets them go.
-async fn send_all(send: &mut SendStream<Bytes>, mut bytes: &[u8]) -> Result<(), h2::Error> {
+async fn send_all(send: &mut SendStream<Bytes>, mut bytes: &[u8], flow: &Flow) -> Result<(), h2::Error> {
     while !bytes.is_empty() {
         send.reserve_capacity(bytes.len());
-        let room = match std::future::poll_fn(|cx| send.poll_capacity(cx)).await {
+        flow.wait(true);
+        let room = std::future::poll_fn(|cx| send.poll_capacity(cx)).await;
+        flow.wait(false);
+        let room = match room {
             Some(Ok(room)) => room,
             Some(Err(e)) => return Err(e),
             None => return Err(h2::Error::from(h2::Reason::CANCEL)),
@@ -281,6 +293,7 @@ async fn send_all(send: &mut SendStream<Bytes>, mut bytes: &[u8]) -> Result<(), 
             continue;
         }
         send.send_data(Bytes::copy_from_slice(&bytes[..take]), false)?;
+        flow.sent(take);
         bytes = &bytes[take..];
     }
     Ok(())

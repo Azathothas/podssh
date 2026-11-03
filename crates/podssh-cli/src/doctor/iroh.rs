@@ -12,6 +12,7 @@ use podssh_iroh::relays::{self, Source};
 use podssh_iroh::{Options, Udp};
 use podssh_ws::{ProxyChoice, Trust};
 
+use super::diagnosis::{met_of, Met, Of};
 use super::Report;
 
 /// A bind says only that a socket binds: whether a datagram leaves is the
@@ -69,15 +70,20 @@ pub(super) async fn relay(report: &mut Report<'_>, trust: &Trust) {
             Some(port) => format!("iroh relay {host}:{port}"),
             None => format!("iroh relay {host}"),
         };
-        match relays::ping(relay, trust, &ProxyChoice::FromEnvironment, relays::PING_LIMIT).await {
+        // What its TLS met, beside the line, for the diagnosis (T-604).
+        match relays::ping_kept(relay, trust, &ProxyChoice::FromEnvironment, relays::PING_LIMIT).await {
             Ok(pong) => {
+                report.handshake(Of::Iroh, host, Met::Completed);
                 let ms = pong.elapsed.as_millis();
                 report.ok(&label, format!("/ping answered in {ms} ms, certificate verified ({})", pong.way));
                 home.get_or_insert_with(|| relay.clone());
             }
             // Each relay that does not answer is a fallback of the road that
             // does not work here.
-            Err(why) => report.fail(&label, why),
+            Err(missed) => {
+                report.handshake(Of::Iroh, host, met_of(missed.cut));
+                report.fail(&label, missed.why);
+            }
         }
     }
     match home {

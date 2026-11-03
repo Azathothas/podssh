@@ -51,6 +51,12 @@ impl Met {
 pub(super) enum Of {
     Relay,
     Derp,
+    /// A resolver of DNS over HTTPS, asked straight at its address with no
+    /// name (T-604).
+    Doh,
+    /// A relay of n0's, in a build with the iroh road (T-604).
+    #[cfg_attr(not(feature = "iroh"), allow(dead_code))]
+    Iroh,
     Reference,
 }
 
@@ -152,7 +158,10 @@ impl Diagnosis {
 /// the reference's too; each timed out, the reference's too.
 pub(super) fn diagnose(handshakes: &[Handshake]) -> Vec<Diagnosis> {
     let Some(reference) = handshakes.iter().find(|h| h.of == Of::Reference) else { return Vec::new() };
-    let roads: Vec<&Handshake> = handshakes.iter().filter(|h| h.of != Of::Reference).collect();
+    // A resolver is asked straight at its address: its way is the
+    // reference's only when the reference went with no proxy (T-604).
+    let shares = |h: &&Handshake| h.of != Of::Doh || reference.through.is_none();
+    let roads: Vec<&Handshake> = handshakes.iter().filter(|h| h.of != Of::Reference).filter(shares).collect();
     let relays: Vec<&&Handshake> = roads.iter().filter(|h| h.of == Of::Relay).collect();
     if relays.is_empty() {
         return Vec::new();
@@ -172,8 +181,11 @@ pub(super) fn diagnose(handshakes: &[Handshake]) -> Vec<Diagnosis> {
         Some(proxy) => format!("the way out through the proxy {proxy}"),
         None => "this host".to_string(),
     };
-    // Each relay host reset, and no road timed out: names, not a dropping path.
-    let listed = relays.iter().all(|h| h.met == Met::Reset) && !roads.iter().any(|h| h.met == Met::TimedOut);
+    // Each relay host reset, and no road by a name timed out: names, not a
+    // dropping path. A resolver, asked by its address alone, says nothing of
+    // names when it is dropped (T-604).
+    let late = roads.iter().any(|h| h.of != Of::Doh && h.met == Met::TimedOut);
+    let listed = relays.iter().all(|h| h.met == Met::Reset) && !late;
     let found = match reference.met {
         Met::Completed if listed => Diagnosis {
             kind: "tls-names",

@@ -38,6 +38,12 @@ impl Stream {
         Stream { core, handle }
     }
 
+    /// The stack of the connection, for a test that stalls (T-599).
+    #[cfg(test)]
+    pub(crate) fn core(&self) -> &Arc<Core> {
+        &self.core
+    }
+
     /// The far end of the connection.
     pub fn peer(&self) -> Option<SocketAddr> {
         let inner = self.core.shared.lock();
@@ -136,9 +142,18 @@ impl AsyncWrite for Stream {
         Poll::Ready(Ok(()))
     }
 
-    fn poll_shutdown(self: Pin<&mut Self>, _cx: &mut Context<'_>) -> Poll<io::Result<()>> {
+    fn poll_shutdown(self: Pin<&mut Self>, cx: &mut Context<'_>) -> Poll<io::Result<()>> {
         let this = self.get_mut();
-        this.core.shared.lock().sockets.get_mut::<tcp::Socket>(this.handle).close();
+        let mut inner = this.core.shared.lock();
+        let socket = inner.sockets.get_mut::<tcp::Socket>(this.handle);
+        // The FIN waits for the bytes that the far end's window holds back
+        // (`crate::stack::fin_waits`); an acknowledgement wakes this.
+        if crate::stack::fin_waits(socket) {
+            socket.register_send_waker(cx.waker());
+            return Poll::Pending;
+        }
+        socket.close();
+        drop(inner);
         this.core.shared.wake.notify_one();
         Poll::Ready(Ok(()))
     }
@@ -147,7 +162,11 @@ impl AsyncWrite for Stream {
 impl Drop for Stream {
     fn drop(&mut self) {
         let mut inner = self.core.shared.lock();
-        inner.sockets.get_mut::<tcp::Socket>(self.handle).close();
+        let socket = inner.sockets.get_mut::<tcp::Socket>(self.handle);
+        // Else the driver closes it once its bytes are acknowledged.
+        if !crate::stack::fin_waits(socket) {
+            socket.close();
+        }
         let handle = self.handle;
         inner.live.retain(|h| *h != handle);
         inner.closing.push(handle);

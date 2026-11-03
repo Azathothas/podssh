@@ -211,3 +211,73 @@ fn a_pkcs12_scheme_is_refused_at_once() {
     let why = decode(&text, None).unwrap_err().to_string();
     assert!(why.contains("PKCS#12 (1.2.840.113549.1.12.1.3)") && why.contains("does not open"), "{why}");
 }
+
+/// A string of SSH's wire form: its length, then its bytes.
+fn wire_string(out: &mut Vec<u8>, bytes: &[u8]) {
+    out.extend_from_slice(&(bytes.len() as u32).to_be_bytes());
+    out.extend_from_slice(bytes);
+}
+
+/// An unencrypted key of OpenSSH's format (its `PROTOCOL.key`) for a P-256
+/// key whose scalar is written as OpenSSH writes an `mpint`: no leading zero
+/// byte, and one only before a byte with its high bit set.
+fn openssh_p256(point: &[u8], scalar: &[u8; 32]) -> String {
+    let skip = scalar.iter().take_while(|b| **b == 0).count();
+    let mut mpint = scalar[skip..].to_vec();
+    if mpint.first().is_some_and(|b| b & 0x80 != 0) {
+        mpint.insert(0, 0);
+    }
+    let mut public = Vec::new();
+    wire_string(&mut public, b"ecdsa-sha2-nistp256");
+    wire_string(&mut public, b"nistp256");
+    wire_string(&mut public, point);
+    let mut private = vec![0x5a, 0x5a, 0x5a, 0x5a, 0x5a, 0x5a, 0x5a, 0x5a];
+    wire_string(&mut private, b"ecdsa-sha2-nistp256");
+    wire_string(&mut private, b"nistp256");
+    wire_string(&mut private, point);
+    wire_string(&mut private, &mpint);
+    wire_string(&mut private, b"short-scalar");
+    let mut pad = 1u8;
+    while private.len() % 8 != 0 {
+        private.push(pad);
+        pad += 1;
+    }
+    let mut blob = b"openssh-key-v1\0".to_vec();
+    wire_string(&mut blob, b"none");
+    wire_string(&mut blob, b"none");
+    wire_string(&mut blob, b"");
+    blob.extend_from_slice(&1u32.to_be_bytes());
+    wire_string(&mut blob, &public);
+    wire_string(&mut blob, &private);
+    let text = STANDARD.encode(&blob);
+    let lines: Vec<&str> = text.as_bytes().chunks(70).map(|c| std::str::from_utf8(c).unwrap()).collect();
+    format!("-----BEGIN OPENSSH PRIVATE KEY-----\n{}\n-----END OPENSSH PRIVATE KEY-----\n", lines.join("\n"))
+}
+
+/// A P-256 key whose scalar OpenSSH writes in 31 bytes, one key of 512
+/// (T-609): ssh-key 0.7.0-rc.11 refused it with "length invalid", so the
+/// interop test's key of `ssh-keygen -t ecdsa`, made anew each run, failed
+/// at random. The copy of `vendor/ssh-key` reads it, and its key is the one
+/// written.
+#[test]
+fn an_ecdsa_key_whose_scalar_openssh_writes_short_is_read() {
+    let mut rng = rand::rng();
+    let (key, point, scalar) = loop {
+        let key = PrivateKey::random(&mut rng, Algorithm::Ecdsa { curve: EcdsaCurve::NistP256 }).unwrap();
+        let KeypairData::Ecdsa(EcdsaKeypair::NistP256 { public, private }) = key.key_data() else { unreachable!() };
+        let scalar = *private.as_ref();
+        if scalar[0] == 0 && scalar[1] < 0x80 {
+            break (key.clone(), public.as_bytes().to_vec(), scalar);
+        }
+    };
+    let text = openssh_p256(&point, &scalar);
+    let read = decode(&text, None).expect("a key that OpenSSH writes so is read");
+    assert_eq!(read.public_key().key_data(), key.public_key().key_data());
+    let KeypairData::Ecdsa(EcdsaKeypair::NistP256 { private, .. }) = read.key_data() else { panic!("not P-256") };
+    assert_eq!(private.as_ref(), &scalar, "the scalar, its leading zero put back");
+    // A scalar with its first byte set reads as before.
+    let full = PrivateKey::random(&mut rng, Algorithm::Ecdsa { curve: EcdsaCurve::NistP256 }).unwrap();
+    let KeypairData::Ecdsa(EcdsaKeypair::NistP256 { public, private }) = full.key_data() else { unreachable!() };
+    let again = decode(&openssh_p256(public.as_bytes(), private.as_ref()), None).unwrap();
+    assert_eq!(again.public_key().key_data(), full.public_key().key_data());
+}

@@ -1,0 +1,11 @@
+--- a/crates/podssh-warp/src/stack.rs
++++ b/crates/podssh-warp/src/stack.rs
+@@ -228,7 +228,7 @@
+ /// or only after the probe's backed-off wait, past a minute (T-599). Closed
+ /// once they are acknowledged, LAST-ACK holds the FIN alone.
+ pub(crate) fn fin_waits(socket: &tcp::Socket<'_>) -> bool {
+-    socket.state() == tcp::State::CloseWait && socket.send_queue() > 0
++    socket.state() == tcp::State::CloseWait && socket.send_queue() > 0 && false
+ }
+ 
+ /// A TCP socket of smoltcp with podssh's settings: no Nagle, as a

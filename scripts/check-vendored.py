@@ -2,7 +2,7 @@
 """The upstreams of the vendored crates against what vendor/README.md names (T-341).
 
 Dependabot moves no path package, so nothing else says that russh (a copy
-again since T-460), iroh-relay or the Tailscale fork released again. For
+again since T-460), iroh-relay, ssh-key (T-609) or the Tailscale fork released again. For
 each section of vendor/README.md that a copy under vendor/ still has, this
 reads the upstream's newest release
 (crates.io's max_stable_version, or the repository's latest release on
@@ -46,6 +46,7 @@ README = ROOT / "vendor" / "README.md"
 WATCHES = [
     ("russh", "crates.io", "russh", "vendor/russh/Cargo.toml", ("package", "version")),
     ("iroh-relay", "crates.io", "iroh-relay", "vendor/iroh-relay/Cargo.toml", ("package", "version")),
+    ("ssh-key", "crates.io", "ssh-key", "vendor/ssh-key/Cargo.toml", ("package", "version")),
     ("tailscale-rs", "github", "tailscale/tailscale-rs", "vendor/tailscale-rs/Cargo.toml",
      ("workspace", "package", "version")),
 ]
@@ -77,9 +78,14 @@ def get(url: str) -> dict:
         return json.loads(answer.read().decode("utf-8"))
 
 
-def newest(kind: str, answer: dict) -> str:
-    """The newest release in an API's answer, with no `v` before it."""
-    found = answer["crate"]["max_stable_version"] if kind == "crates.io" else answer["tag_name"]
+def newest(kind: str, answer: dict, prerelease: bool = False) -> str:
+    """The newest release in an API's answer, with no `v` before it. A copy
+    of a prerelease (ssh-key's 0.7.0-rc.N, T-609) is watched against the
+    newest version of all, as its next release is another prerelease."""
+    if kind == "crates.io":
+        found = answer["crate"]["max_version" if prerelease else "max_stable_version"]
+    else:
+        found = answer["tag_name"]
     if not found:
         raise ValueError("the answer names no release")
     return found.removeprefix("v")
@@ -115,7 +121,7 @@ def main() -> int:
                 answer = json.loads((Path(args.offline) / f"{name}.json").read_text(encoding="utf-8"))
             else:
                 answer = get(URLS[kind].format(upstream))
-            rows.append((name, value, judged, day, newest(kind, answer)))
+            rows.append((name, value, judged, day, newest(kind, answer, "-" in str(value))))
     except (OSError, ValueError, KeyError, TypeError, json.JSONDecodeError, tomllib.TOMLDecodeError,
             urllib.error.URLError) as exc:
         print(f"check-vendored: {exc}", file=sys.stderr)
