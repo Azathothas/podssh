@@ -2470,7 +2470,7 @@ limit is `cgroup.limited`, which the plant fails too, on a runner.
 ## Done
 
 Drafted 2026-11-02 by an agent in a worktree, which built nothing; merged and measured by the main
-session on 2026-11-03; partial: `cgroup-interop.yml` waits for its run at the push.
+session on 2026-11-03.
 
 - The script (`crates/podssh-cli/src/health/script.rs`): after `@ processes`, a section `@
   cgroup` with each line of `/proc/self/cgroup`; on cgroup v2 (`/sys/fs/cgroup/cgroup.controllers`
@@ -2515,7 +2515,10 @@ session on 2026-11-03; partial: `cgroup-interop.yml` waits for its run at the pu
   11.4 GiB available of 13.4 GiB (85 %, cgroup v1 memory.limit_in_bytes); the host: 15.1 GiB
   available of 15.7 GiB", the limit 14341885952 bytes as the file of that path says, and 4 CPUs
   from the host, as `cpu.cfs_quota_us` is -1; `--json`'s `effective` and `cgroup` the same. The
-  containers of v2 with `--cpus 1.5 --memory 1g`: `cgroup-interop.yml` in Actions.
+  containers of v2: `cgroup-interop.yml` at `a003af3` (run 41560466473), 5 of 5: `--cpus 1.5
+  --memory 1g` gives effective 1.5 CPUs and 1048576 KiB, the host's 4 CPUs in `cpus`; the lines
+  of the limits; `--cpuset-cpus 0`, 1 CPU of the cpuset; no limit, the host's; `--cgroupns host`,
+  the limits read at the container's path in the host's tree.
 - The interop: `scripts/interop-health.sh` (`health.openssh.effective`,
   `health.dropbear.effective`; the load line's pattern is `^load .* CPUs`, as a limited host's
   line ends with whose they are), `scripts/cgroup-effective.py`, `scripts/interop-cgroup.sh`
@@ -2523,9 +2526,7 @@ session on 2026-11-03; partial: `cgroup-interop.yml` waits for its run at the pu
   `scripts/interop-baseline.txt` (the floor of `health` 6, the harness `cgroup` 5),
   `.github/workflows/cgroup-interop.yml`, and the rows `actions.cgroup` of
   `scripts/release-check-catalog.sh`. Waiting: the gate's step `release` at the push (its interop's `health.*` and `cargo todo
-  interop`); `cgroup-interop.yml` at the push, each of its 5 checks; if Docker of the runner shows
-  no path in the host's tree with `--cgroupns host`, `cgroup.hostns` says so, and the verdict is
-  the main session's.
+  interop`); `cgroup-interop.yml`: passed, as above (`cgroup.hostns` found the path).
 - Planted: `scripts/plants/t480-host-cpus.plant` (the effective CPUs from `/proc/stat` alone):
   `sh scripts/plant-each.sh --here t480-host-cpus`: caught, the test of the v2
   answer failed.
