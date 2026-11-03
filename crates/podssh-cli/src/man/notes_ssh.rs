@@ -128,7 +128,11 @@ const FIRST: &[&str] = &[
     "warp://[user@]HOST[:PORT] reaches a port of any host, 22 by default (an IPv6 address in brackets), \
      inside WARP's tunnel, in a build with the feature warp, as each release binary is: MASQUE over HTTP/2 to Cloudflare's endpoint \
      162.159.198.2:443 (or PODSSH_WARP_ENDPOINT), through HTTPS_PROXY when one is set, with no relay and no \
-     account; Cloudflare's network reaches HOST, whose name is asked of 1.1.1.1 inside the tunnel. The \
+     account; Cloudflare's network reaches HOST, whose name is asked of 1.1.1.1 inside the tunnel. Each \
+     endpoint of the device goes in turn, one at a time, the dial of each but the last within 3 s: the one \
+     that last opened, 162.159.198.2:443, then the peers that WARP's API gave, on port 443; one that the \
+     way out does not reach, or whose edge fails or carries nothing, gives way to the next, and the \
+     device's record keeps the one that opened. The \
      first run registers a device with WARP's API, once PODSSH_WARP_ACCEPT_TERMS=yes accepts Cloudflare's \
      Terms, and keeps its record in the cache (see FILES); each run then reads it. The proxy must take a \
      CONNECT to that address: one that allows listed names alone refuses it, and podssh doctor's line \

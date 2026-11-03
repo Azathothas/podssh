@@ -1,0 +1,7 @@
+# T-561: the road tries the record's endpoint alone, as it dialled the one
+# constant, and passes by the peers that WARP's API gave and the endpoint
+# that last opened; the test of the second peer must fail.
+ENTRY=T-561
+GROUP=resume
+EXPECT='test tests::peers::a_record_of_two_peers_whose_first_refuses_reaches_the_second_and_keeps_it \.\.\. FAILED'
+RUN='cargo test --locked -p podssh-warp --features stand-in --lib tests::peers'

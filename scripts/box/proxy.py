@@ -29,9 +29,12 @@ inside WARP's tunnel, for a live test of a client that honours HTTPS_PROXY
 another HTTP proxy, for a host whose only way out is a proxy itself, as a
 cloud session's (T-251); an address literal must still be public, and a
 name is the upstream proxy's to resolve.
+`--deny HOST:PORT` refuses a CONNECT to that exact target with 403, as a
+proxy or a network that drops one prefix of a service does: WARP's road
+then goes on to the API's peers (T-561).
 
 Usage: proxy.py [--listen HOST:PORT] [--allow NAME:PORT=HOST:PORT ...] [--take names|addresses|both]
-                [--carry COMMAND] [--upstream HOST:PORT]
+                [--carry COMMAND] [--upstream HOST:PORT] [--deny HOST:PORT ...]
 """
 
 import argparse
@@ -50,6 +53,8 @@ TAKE = {"mode": "both"}
 CARRY = {"argv": None}
 # The proxy of --upstream, (HOST, PORT), or none.
 UPSTREAM = {"at": None}
+# The targets of --deny, as HOST:PORT with no brackets.
+DENIED = set()
 
 
 def is_literal(host):
@@ -165,6 +170,9 @@ async def handle(reader, writer):
     if not port_text.isdigit() or int(port_text) not in ALLOWED_PORTS:
         await answer(writer, 403, "not on the egress allowlist", request_line)
         return
+    if f"{host}:{port_text}" in DENIED:
+        await answer(writer, 403, "denied by the test", request_line)
+        return
     if TAKE["mode"] == "names" and is_literal(host):
         await answer(writer, 403, "not on the allowlist", request_line)
         return
@@ -205,7 +213,11 @@ async def main():
     parser.add_argument("--take", choices=["names", "addresses", "both"], default="both")
     parser.add_argument("--carry", default=None)
     parser.add_argument("--upstream", default=None)
+    parser.add_argument("--deny", action="append", default=[])
     args = parser.parse_args()
+    for target in args.deny:
+        deny_host, deny_port = target.rsplit(":", 1)
+        DENIED.add(f"{deny_host.strip('[]')}:{deny_port}")
     if args.upstream:
         up_host, up_port = args.upstream.rsplit(":", 1)
         UPSTREAM["at"] = (up_host, int(up_port))

@@ -1,0 +1,11 @@
+--- a/crates/podssh-warp/src/device.rs
++++ b/crates/podssh-warp/src/device.rs
+@@ -243,7 +243,7 @@
+             return vec![only];
+         }
+         let mut out: Vec<SocketAddr> = Vec::new();
+-        for at in self.reached.into_iter().chain([self.endpoint]).chain(self.peers.iter().copied()) {
++        for at in [self.endpoint] {
+             if !out.contains(&at) {
+                 out.push(at);
+             }

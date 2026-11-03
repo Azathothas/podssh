@@ -12,7 +12,9 @@ name: warp live
 # with podssh proxy as its ProxyCommand, to the refusal of a client with no
 # key; and the box's proxy with names alone, which refuses the endpoint's
 # address and is named. The first run's -v says that the probe inside the
-# tunnel, a connection to 1.1.1.1:443, was answered (T-560). Then 16 MiB each way inside the tunnel (T-398), with
+# tunnel, a connection to 1.1.1.1:443, was answered (T-560); a proxy that
+# refuses 162.159.198.2:443 sends the road on to the peers that WARP's API
+# gave, and the record keeps the one that opened (T-561). Then 16 MiB each way inside the tunnel (T-398), with
 # their digests: a node of the live relay in front of an OpenSSH server on
 # the loopback, and podssh ssh to it through the box's proxy, which carries
 # each CONNECT through podssh proxy warp:// (--carry), so the client's bytes
@@ -122,6 +124,33 @@ jobs:
             SSH-2.0-*) echo "ok    through a proxy of port 443 alone, the banner of github.com:22 came inside WARP" ;;
             *) echo "FAIL no SSH banner through the proxy"; exit 1 ;;
           esac
+
+      # T-561: a proxy that refuses the endpoint of HTTP/2, as a network that
+      # drops one prefix: the road goes on to the peers that WARP's API gave,
+      # and the record keeps the one that opened.
+      - name: the API's own peer, through a proxy that refuses 162.159.198.2:443
+        run: |
+          python3 scripts/box/proxy.py --listen 127.0.0.1:3131 --deny 162.159.198.2:443 >"$RUNNER_TEMP/deny.log" 2>&1 &
+          sleep 1
+          set +e
+          { printf 'SSH-2.0-podssh_live\r\n'; sleep 10; } | HTTPS_PROXY=http://127.0.0.1:3131 \
+            timeout 90 target/debug/podssh proxy warp://github.com:22 2>"$RUNNER_TEMP/peer.log" >"$RUNNER_TEMP/peer.out"
+          rc=$?
+          set -e
+          sed 's/^/podssh: /' "$RUNNER_TEMP/peer.log"
+          echo "podssh proxy exited $rc"
+          sed 's/^/proxy: /' "$RUNNER_TEMP/deny.log"
+          grep -q "^403 CONNECT 162.159.198.2:443" "$RUNNER_TEMP/deny.log" || { echo "FAIL the proxy refused nothing"; exit 1; }
+          grep -q "^200 CONNECT " "$RUNNER_TEMP/deny.log" || { echo "FAIL no peer of the API was dialled"; exit 1; }
+          banner=$(head -c 64 "$RUNNER_TEMP/peer.out" | tr -d '\r' | head -n 1)
+          case $banner in
+            SSH-2.0-*) echo "ok    the banner of github.com:22 came through the API's own peer" ;;
+            *) echo "FAIL no SSH banner through the API's peer"; exit 1 ;;
+          esac
+          python3 -c 'import json,sys; r=json.load(open(sys.argv[1])); print("record: peers", r.get("peers"), "reached", r.get("reached")); sys.exit(0 if r.get("reached") and r["reached"] != "162.159.198.2:443" else 1)' \
+            "$PODSSH_CACHE_DIR/warp-device.json" || { echo "FAIL the record does not keep the peer that opened"; exit 1; }
+          echo "ok    the record keeps the peer that opened"
+          pkill -f "proxy.py --listen 127.0.0.1:3131" || true
 
       - name: OpenSSH's ssh to GitHub, with podssh proxy warp:// as its ProxyCommand
         run: |

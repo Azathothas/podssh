@@ -87,7 +87,9 @@ pub async fn open(
     let mut device =
         road::device(trust, say, verbose).await.map_err(|(line, code)| (format!("{shown}: {line}"), code))?;
     let limit = podssh_relay::open::CONNECT_TIMEOUT;
-    verbose(&format!("connecting to {shown}, port {}, inside WARP's tunnel ({})", target.port, device.endpoint));
+    let endpoints: Vec<String> = device.endpoints().iter().map(|at| at.to_string()).collect();
+    let endpoints = endpoints.join(", then ");
+    verbose(&format!("connecting to {shown}, port {}, inside WARP's tunnel (its endpoints: {endpoints})", target.port));
     let warp = road::tunnel(&mut device, trust, verbose)
         .await
         .map_err(|fault| (format!("{shown}: {fault}"), road::code(&fault)))?;

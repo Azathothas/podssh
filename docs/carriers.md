@@ -130,6 +130,17 @@ The candidates, ranked:
      connection of the road. Its failure is a line of the road (69), which the
      run does not remember as it remembers a proxy; `PODSSH_WARP_PROBE=no`
      skips it.
+   - The endpoints in turn (T-561, drafted 2026-11-02; GitHub #108): the road
+     dialled one constant address whatever the API had said. The record now
+     keeps the API's peers (each `endpoint.v4`, then `.v6`, on port 443) and
+     the endpoint that last opened; the road tries that one, then
+     162.159.198.2:443, then the peers, one at a time, the dial of each but
+     the last within 3 s. usque keeps the API's peers as its endpoints of
+     QUIC and dials 162.159.198.2 for HTTP/2 apart from them (usque's
+     `cmd/register.go` and `config/endpoints.go`, read on 2026-11-02 through
+     <https://web.pkgforge.dev/llms.txt>'s forge service), so whether a peer
+     serves HTTP/2 on TCP 443 is Inferred until `warp-live.yml`'s step with a
+     proxy that refuses 162.159.198.2:443 measures it.
 5. **Tor through Arti** (class A).
    - Who, and the account: volunteers [F17]; no account.
    - Through a proxy: Arti 2.2.0 and later dials through an HTTP CONNECT

@@ -219,7 +219,8 @@ scripts. The facts about OpenSSH on this page were measured with OpenSSH
   (T-352), in a build with the feature `warp`.** Cloudflare's own network
   reaches HOST, with no relay and no account: the road that usque speaks
   over HTTP/2 (`crates/podssh-warp/src/lib.rs`). podssh dials Cloudflare's endpoint
-  162.159.198.2:443 (or `PODSSH_WARP_ENDPOINT`) through `HTTPS_PROXY` when
+  162.159.198.2:443, else the API's peers (below), or `PODSSH_WARP_ENDPOINT`,
+  through `HTTPS_PROXY` when
   one is set, by its address, as the names of MASQUE have no A record; TLS
   1.3 with ALPN `h2`, the name `consumer-masque.cloudflareclient.com`, the
   device's self-signed certificate, and the endpoint's key pinned, as no
@@ -252,7 +253,19 @@ scripts. The facts about OpenSSH on this page were measured with OpenSSH
   of the road, "the tunnel opened and carried nothing" (69), not left to each
   stream's timeout, and it is not remembered for the run as a proxy is.
   `PODSSH_WARP_PROBE=no` skips the probe, for a host where that target is
-  filtered inside WARP, and `-v` says that the tunnel is taken unproven. A
+  filtered inside WARP, and `-v` says that the tunnel is taken unproven.
+  Each endpoint of the device goes in turn (T-561), one at a time and never
+  in a race: the one that last opened, the record's endpoint of HTTP/2
+  (162.159.198.2:443), then the peers that WARP's API gave at the
+  registration (each `endpoint.v4`, then `.v6`, on port 443), each once; the
+  dial of each but the last within 3 s. An endpoint that the way out does
+  not reach, whose TLS or HTTP/2 fails, or whose tunnel carries nothing
+  gives way to the next; a device that the edge refuses, a proxy that
+  re-terminates TLS and this host's part end the road, as each endpoint
+  would give the same. The record keeps the endpoint that opened, tried
+  first the next time, and forgets it when none opens; the failure of each
+  names each endpoint and why. `PODSSH_WARP_ENDPOINT` is the run's one
+  endpoint, tried alone, and changes no record. A
   key that the edge does not know exits 77. The host key is recorded
   under `warp://HOST`; `-p` and `Port` give the port; `--direct`, `-4`, `-6`,
   `HostName` and a `-J` hop before it are refused (64), and `-J warp://HOST`

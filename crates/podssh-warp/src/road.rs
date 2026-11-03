@@ -22,6 +22,7 @@ use std::time::Duration;
 use podssh_ws::dial::{self, DialError, ProxyChoice};
 
 use crate::device::Device;
+use crate::endpoints::{self, Tried};
 use crate::probe::Verdict;
 use crate::register::{self, Api};
 use crate::stack::{Link, Stack};
@@ -178,15 +179,36 @@ pub struct Warp {
 }
 
 impl Warp {
-    /// Open the tunnel of `device` through `proxy`, each step within
-    /// `limit`; a certificate of another key than the pinned one is taken
-    /// for a proxy's.
+    /// Open the tunnel of `device` through `proxy`, at each of its endpoints
+    /// in turn until one opens (T-561), each step within `limit`; a
+    /// certificate of another key than the pinned one is taken for a
+    /// proxy's.
     pub async fn open(device: &Device, proxy: &ProxyChoice, limit: Duration) -> Result<Warp, Fault> {
-        let endpoint = device.endpoint;
+        let list = device.endpoints();
+        let mut tried = Tried::default();
+        for (i, at) in list.iter().enumerate() {
+            let dial = endpoints::dial_limit(i + 1 == list.len(), limit);
+            match Warp::open_at(device, *at, proxy, dial, limit).await {
+                Ok(warp) => return Ok(warp),
+                Err(fault) if endpoints::goes_on(&fault) => tried.push(fault),
+                Err(fault) => return Err(tried.end(fault)),
+            }
+        }
+        Err(tried.all())
+    }
+
+    /// [`Warp::open`] at one endpoint, its dial within `dial`.
+    async fn open_at(
+        device: &Device,
+        endpoint: SocketAddr,
+        proxy: &ProxyChoice,
+        dial: Duration,
+        limit: Duration,
+    ) -> Result<Warp, Fault> {
         let proxied = proxy_for(&endpoint.ip().to_string(), proxy);
         tried_before(proxied.as_deref(), endpoint)?;
-        match tunnel::open(device, proxy, limit).await {
-            Ok(link) => Warp::over(device, link, proxied, limit).await,
+        match tunnel::open(device, endpoint, proxy, dial, limit).await {
+            Ok(link) => Warp::over(device, endpoint, link, proxied, limit).await,
             Err(Opening::Intercepted { issuer }) => Err(intercepted_now(issuer, endpoint, proxied, None)),
             Err(opening) => Err(fault(opening, endpoint, proxied.as_deref())),
         }
@@ -204,22 +226,63 @@ impl Warp {
     /// never gave is never taken: the certificate is then a proxy's that
     /// re-terminates TLS, as it is when the API gives the same key on each
     /// try, or cannot be read.
+    ///
+    /// Each endpoint of `device` goes in turn (T-561), and `device` keeps
+    /// the one that opened, or forgets it when none did, unless the run
+    /// named its one endpoint; the API's peers of a record read again go
+    /// into `device` too.
     pub async fn open_reading(
         device: &mut Device,
         api: &Api,
         proxy: &ProxyChoice,
         limit: Duration,
     ) -> Result<Warp, Fault> {
-        let endpoint = device.endpoint;
+        let opened = Warp::reading_each(device, api, proxy, limit).await;
+        if device.only.is_none() {
+            device.reached = opened.as_ref().ok().map(|warp| warp.endpoint);
+        }
+        opened
+    }
+
+    /// [`Warp::open_reading`] at each endpoint of `device` in turn.
+    async fn reading_each(device: &mut Device, api: &Api, proxy: &ProxyChoice, limit: Duration) -> Result<Warp, Fault> {
+        let list = device.endpoints();
+        let mut tried = Tried::default();
+        for (i, at) in list.iter().enumerate() {
+            let dial = endpoints::dial_limit(i + 1 == list.len(), limit);
+            match Warp::reading_at(device, *at, api, proxy, dial, limit).await {
+                Ok(warp) => return Ok(warp),
+                Err(fault) if endpoints::goes_on(&fault) => tried.push(fault),
+                Err(fault) => return Err(tried.end(fault)),
+            }
+        }
+        Err(tried.all())
+    }
+
+    /// [`Warp::open_reading`] at one endpoint, its dial within `dial`.
+    async fn reading_at(
+        device: &mut Device,
+        endpoint: SocketAddr,
+        api: &Api,
+        proxy: &ProxyChoice,
+        dial: Duration,
+        limit: Duration,
+    ) -> Result<Warp, Fault> {
         let proxied = proxy_for(&endpoint.ip().to_string(), proxy);
         tried_before(proxied.as_deref(), endpoint)?;
-        let issuer = match tunnel::open(device, proxy, limit).await {
-            Ok(link) => return Warp::over(device, link, proxied, limit).await,
+        let issuer = match tunnel::open(device, endpoint, proxy, dial, limit).await {
+            Ok(link) => return Warp::over(device, endpoint, link, proxied, limit).await,
             Err(Opening::Intercepted { issuer }) => issuer,
             Err(opening) => return Err(fault(opening, endpoint, proxied.as_deref())),
         };
         let given = match register::read_record(api, device).await {
-            Ok(record) => record.endpoint_key,
+            Ok(record) => {
+                // The API's peers of now go with the record (T-561).
+                if !record.peers.is_empty() {
+                    device.peers = record.peers;
+                }
+                record.endpoint_key
+            }
             Err(why) => {
                 let note = format!("the device's record was not read again: {why}");
                 return Err(intercepted_now(issuer, endpoint, proxied, Some(note.as_str())));
@@ -254,8 +317,8 @@ impl Warp {
             if attempt > 0 {
                 tokio::time::sleep(RETRY_AFTER).await;
             }
-            match tunnel::open(device, proxy, limit).await {
-                Ok(link) => return Warp::over(device, link, proxied, limit).await,
+            match tunnel::open(device, endpoint, proxy, dial, limit).await {
+                Ok(link) => return Warp::over(device, endpoint, link, proxied, limit).await,
                 Err(Opening::Intercepted { issuer }) => shown = issuer,
                 Err(opening) => return Err(fault(opening, endpoint, proxied.as_deref())),
             }
@@ -263,12 +326,19 @@ impl Warp {
         Err(intercepted_now(shown, endpoint, proxied, Some(note)))
     }
 
-    /// The stack of `device` over its open tunnel, once the probe found that
-    /// the tunnel carries a packet each way (T-560); with no probe, as it
-    /// opened. A tunnel that fails the probe ends with its stack here.
-    async fn over(device: &Device, link: Link, proxy: Option<String>, limit: Duration) -> Result<Warp, Fault> {
+    /// The stack of `device` over its tunnel open at `endpoint`, once the
+    /// probe found that the tunnel carries a packet each way (T-560); with
+    /// no probe, as it opened. A tunnel that fails the probe ends with its
+    /// stack here.
+    async fn over(
+        device: &Device,
+        endpoint: SocketAddr,
+        link: Link,
+        proxy: Option<String>,
+        limit: Duration,
+    ) -> Result<Warp, Fault> {
         let stack = Stack::start(&device.addresses(), link).map_err(Fault::Local)?;
-        let mut warp = Warp { stack, endpoint: device.endpoint, proxy, probed: None };
+        let mut warp = Warp { stack, endpoint, proxy, probed: None };
         let Some(to) = device.probe else { return Ok(warp) };
         match crate::probe::run(&warp.stack, to, limit).await {
             Verdict::Carried => {

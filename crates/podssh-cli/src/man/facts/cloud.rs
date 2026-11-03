@@ -51,7 +51,9 @@ pub const VARIABLES: &[(&[&str], &str)] = &[
     (
         &["PODSSH_WARP_ENDPOINT"],
         "WARP's endpoint of HTTP/2 as ADDRESS:PORT, in place of 162.159.198.2:443; the device's pinned key \
-      stays its own. Another value is a configuration error (78).",
+      stays its own. The run tries it alone, not the endpoints of the device's record (the one that last \
+      opened, 162.159.198.2:443, then the peers that WARP's API gave), and the record keeps those as they \
+      were. Another value is a configuration error (78).",
     ),
     (
         &["PODSSH_WARP_PROBE"],

@@ -7574,7 +7574,7 @@ never passed a byte.
 
 - `crates/podssh-warp/src/road.rs`, line 5 at `1769d79`, said "The probe (T-352's Approach, step
   2) is the opening itself: the CONNECT"; this entry's draft rewrote that comment.
-- `crates/podssh-warp/src/road.rs:184` says "pub async fn open(device: &Device, proxy: &ProxyChoice, limit: Duration) -> Result<Warp, Fault> {";
+- `crates/podssh-warp/src/road.rs:186` says "pub async fn open(device: &Device, proxy: &ProxyChoice, limit: Duration) -> Result<Warp, Fault> {";
   at `1769d79` it returned once TLS and the stack were up, with no byte through the tunnel.
 
 ## Approach
@@ -7672,7 +7672,7 @@ is UNVERIFIED until the main session runs the Prove.
 **Milestone:** none
 **Priority:** P2
 **Effort:** M
-**Status:** open
+**Status:** partial
 
 ## Problem
 
@@ -7682,10 +7682,10 @@ device's record shows an endpoint that podssh chose, not the service.
 
 ## Premise
 
-- `crates/podssh-warp/src/lib.rs:59` says "pub const ENDPOINT_H2", the address 162.159.198.2:443.
-- `crates/podssh-warp/src/register.rs:187` says "[0];", the first peer of the answer alone.
-- `crates/podssh-warp/src/register.rs:244` says "let endpoint = crate::ENDPOINT_H2.parse()": the record takes the constant.
-- `crates/podssh-warp/src/device.rs:58` says "pub endpoint: SocketAddr,": one address.
+- `crates/podssh-warp/src/lib.rs:66` says "pub const ENDPOINT_H2", the address 162.159.198.2:443.
+- `crates/podssh-warp/src/register.rs:218` says "[0];", the first peer of the answer alone.
+- `crates/podssh-warp/src/register.rs:276` says "let endpoint = crate::ENDPOINT_H2.parse()": the record takes the constant.
+- `crates/podssh-warp/src/device.rs:66` says "pub endpoint: SocketAddr,": one address.
 
 ## Approach
 
@@ -7702,6 +7702,35 @@ device's record shows an endpoint that podssh chose, not the service.
 One address at a time, never a race, so rule 2 holds. Lost: a race of the peers, which a proxy
 that counts CONNECTs sees as a burst; the constant alone, which is the defect.
 
+The calls of the draft (2026-11-02), each for the operator to confirm (Q86):
+
+- The order (the Correction): the endpoint that last opened, then 162.159.198.2:443, the
+  record's endpoint since the registration, then the API's peers. usque dials 162.159.198.2 for
+  HTTP/2 and keeps the API's peers for QUIC, so it is the one address known to serve HTTP/2;
+  the peers are the fallback. Lost: the peers first, the issue's order, which would dial at each
+  first run an address that may serve QUIC alone, and would move the first CONNECT that
+  `warp-live.yml` and the measured cages see.
+- `PODSSH_WARP_ENDPOINT` is the run's one endpoint, tried alone, as the user named it; it
+  changes no record. Lost: the variable first and the record's endpoints after it, which would
+  take a run that names a stand-in or a test's address on to Cloudflare's own addresses, unasked.
+- The kept endpoint is a field of the device's record (`reached`, with `peers`), in its file of
+  mode 0600, with `#[serde(default)]`, so that a record of before reads and an older podssh
+  passes the new fields by; the record's version stays 1. Lost: a file of its own beside it,
+  one more file of the cache for one address.
+- A fault of one address goes on to the next: the way out did not reach it, its edge failed
+  there, or its tunnel carried nothing (T-560). A device that the edge refuses, a proxy that
+  re-terminates TLS and this host's part end the road, as each endpoint would give the same.
+  The road's line, when each failed, is of the first one's kind (its exit code too, 69 for each
+  that goes on), and names each endpoint, in turn, as each line names its own.
+- The dial (TCP and the proxy's CONNECT) of each endpoint but the last waits 3 s at most; the
+  last, and TLS and HTTP/2 at each, keep the opening's limit (20 s). Lost: 3 s for each whole
+  opening, which a slow proxy and a far edge can exceed where one endpoint opened before.
+- A peer's port in the answer is QUIC's or WireGuard's (`:0` for MASQUE), so each peer is taken
+  on port 443; a name in it (`host`) is passed by, as the names of MASQUE had no A record.
+- The record's peers are those of the registration, and of each later read of the record
+  (T-399's `GET /reg/ID`); a record of before T-561 has none until such a read. Lost: a read of
+  the record at each run, a request to the API that the road does not need.
+
 ## Prove
 
 ```sh
@@ -7712,6 +7741,55 @@ cargo test -p podssh-warp --features stand-in
 A record of two peers whose first refuses reaches the second, and keeps it; the failure of all
 names each. Planted: the peers ignored for the constant, and the test of the second peer fails.
 Live (Q52), from GitHub Actions: the road opens on the API's own peer.
+
+## Correction
+
+2026-11-02, the draft: step 2's order is the kept endpoint, then 162.159.198.2:443, then the
+peers, and `PODSSH_WARP_ENDPOINT` alone when it is set (the Decision). Read through
+<https://web.pkgforge.dev/llms.txt>'s forge service the same day, `Diniboy1123/usque:cmd/register.go`
+keeps the API's `Peers[0].Endpoint.V4` and `.V6`, stripped of `:0`, as its endpoints of QUIC, and
+`Diniboy1123/usque:config/endpoints.go` gives HTTP/2 its own default, `DefaultEndpointH2V4 =
+"162.159.198.2"`, with no IPv6 one: the API's peers are QUIC's endpoints, and whether one takes
+HTTP/2 on TCP 443 is for the live run to say. Step 3's "beside the device's record" is a field of
+the record itself, and the one that opened is kept once the probe of T-560 passed, not at TLS
+and HTTP/2 alone.
+
+## Done
+
+2026-11-02, drafted by an agent that does not build: nothing below was compiled or run. Each result
+is UNVERIFIED until the main session runs the Prove.
+
+- `crates/podssh-warp/src/register.rs`: `peers`, each peer's `endpoint.v4` then `.v6` on port
+  443 (`crate::PORT_H2`), into `Answer::peers`; a registration gives the device the API's peers.
+- `crates/podssh-warp/src/device.rs`: `Device::peers`, `reached` (both in the record), `only` (the
+  run's), `with_peers`, `endpoints`; `Device::at` sets the run's one endpoint and leaves the
+  record's. `crates/podssh-warp/src/endpoints.rs` (new): the dial's ceiling of each, which
+  faults go on, and the road's line when each failed.
+- `crates/podssh-warp/src/road.rs`: `Warp::open` and `Warp::open_reading` try each endpoint in
+  turn; `open_reading` keeps the one that opened in `device.reached`, or forgets it, unless the
+  run named its one endpoint, and takes the peers of a record read again.
+  `crates/podssh-warp/src/tunnel.rs`: `open` at an endpoint, with a ceiling for its dial.
+- The CLI (`crates/podssh-cli/src/ssh/cloud/warp/road.rs`): the record in the cache keeps the
+  peers and the endpoint that opened, with a new key of T-399; `-v` names the endpoints in turn
+  and the one that opened (`crates/podssh-cli/src/ssh/cloud/warp.rs`).
+- The manual (`PODSSH_WARP_ENDPOINT`, the note of `warp://`), `docs/cli.md`, `docs/carriers.md`
+  (item 4), the row of `docs/STATUS.md`. `scripts/box/proxy.py`: `--deny HOST:PORT`.
+  `warp-live.yml`: a step through a proxy that refuses 162.159.198.2:443.
+- Tests: `crates/podssh-warp/src/tests/peers.rs` (new), the record's endpoint refusing and the peer
+  after it opening and kept, tried first the next time; each endpoint failing, each named, the
+  kept one forgotten; the run's one endpoint tried alone; a device that the edge refuses not
+  taken to the next endpoint. `register.rs`'s peers of an answer; `device.rs`'s record with
+  peers and the endpoint that opened, and a record of before; `endpoints.rs`'s ceiling, faults
+  and line; `tests/api.rs`, the registration's peers.
+- Prove: `cargo test -p podssh-warp --features stand-in`: UNVERIFIED. `cargo test -p podssh-warp
+  --features stand-in --test road` (T-560's, on the new `over`): UNVERIFIED. `cargo test -p
+  podssh-relay --features warp-stand-in --test quick_edge_warp`: UNVERIFIED. `cargo test -p
+  podssh-cli --features warp --lib`: UNVERIFIED. clippy with the WARP feature: UNVERIFIED.
+- Planted (`scripts/plants/t561-peers-ignored.patch`): UNVERIFIED.
+- Live (Q52), `warp-live.yml` by hand: through a proxy that refuses 162.159.198.2:443, the
+  banner of github.com:22 on the API's own peer, and the record keeps that peer: UNVERIFIED. If
+  no peer takes HTTP/2 on TCP 443, the step fails with a line that names each peer, and the
+  peers stay a fallback that costs a refused dial each: the main session writes that here.
 
 # T-562: WARP's registration dials one name of the API, with no second route
 
