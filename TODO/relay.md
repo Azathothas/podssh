@@ -633,7 +633,7 @@ so the comment applied a rule of the reverse path to the forward path.
    operator approves.
 4. The other direction (`target write backlog`) needs a slow target; record it as not measured
    when none is at hand.
-5. Write the result into the comment on the window (`crates/podssh-ssh/src/run.rs:25-29`) and
+5. Write the result into the comment on the window (`crates/podssh-ssh/src/run.rs:26-30`) and
    into `docs/relay.md:311-323`. Change the window (512 KiB) only if the result asks for it.
 
 ## Decision
@@ -668,7 +668,7 @@ size, which shows that the target and the path work. The slow run then gives the
 
 2026-10-08, T-024: the comment on the SSH window now gives the forward path's rule that
 `docs/relay.md:300` reads from the relay's source: `1013` when 2 MiB wait, and no frame dropped
-(`crates/podssh-ssh/src/run.rs:25-28`). The two texts agree now. The question of this entry
+(`crates/podssh-ssh/src/run.rs:26-29`). The two texts agree now. The question of this entry
 stays: whether the relay's check operates at all (it reads `bufferedAmount`,
 `docs/relay.md:311-323`).
 
@@ -730,7 +730,7 @@ from GitHub Actions, with no proxy (`.github/workflows/relay-live.yml`, run
 - The remedy of a `1013 client receive backlog` says what makes it, in
   place of `podssh doctor` (`crates/podssh-ws/src/session.rs`, with its
   unit test).
-- The comment on the window (`crates/podssh-ssh/src/run.rs:25-29`),
+- The comment on the window (`crates/podssh-ssh/src/run.rs:26-30`),
   `docs/relay.md` ("Backpressure") and the limits of `docs/architecture.md`
   give the result; `docs/STATUS.md` records it.
 - Not measured: the other direction (`target write backlog`), as no slow
@@ -939,7 +939,7 @@ sh scripts/dev.sh check                   # interop-faults: a token in PODSSH_CA
 
 With a set environment: `PODSSH_CACHE_DIR` comes first, `none` gives no candidate, and
 `XDG_RUNTIME_DIR` comes before the temporary directory. A scan of `cache.rs`, as
-`crates/podssh-cli/src/man/facts/tests.rs:13-45` scans source, finds no absolute path literal. In
+`crates/podssh-cli/src/man/facts/tests.rs:13-50` scans source, finds no absolute path literal. In
 the gate, the token file goes into a new `PODSSH_CACHE_DIR`; with a plain file there, the run
 still exits 0 and names the refusal. Planted defect: put `/dev/shm` back; the scan fails.
 
@@ -1138,7 +1138,7 @@ with no reason. Each drop read as the end of the TCP stream with no Close frame
 had drops, so the traffic does not cause them.
 
 Read: on the forward path, keepalives every 60 s kept one session for 602 s
-(`docs/STATUS.md:255`). That is one run, before 2026-10-09.
+(`docs/STATUS.md:256`). That is one run, before 2026-10-09.
 
 ## Approach
 
@@ -1608,7 +1608,7 @@ Nothing watches the expiry of the relay's domain, on which each road but `--dire
 - Read: a beta needs the job `all` of the gate (`docs/decisions.md:58`). Citations of an older
   document of the relay were once off by 35 (`TODO/repo.md:2318-2321`).
 - Read: no workflow checks the relay on a schedule: `relay-live.yml` runs by hand
-  (`.github/workflows/relay-live.yml:11-20`), and `build.yml` on a push, a pull request or by hand
+  (`.github/workflows/relay-live.yml:14-23`), and `build.yml` on a push, a pull request or by hand
   (`.github/workflows/build.yml:9-13`).
 - Read, by the audit through web.pkgforge.dev on 2026-10-31 (the registry's RDAP,
   https://pubapi.registry.google/rdap/domain/ajam.dev): `ajam.dev` expires on 2028-01-19, under

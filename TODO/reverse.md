@@ -1594,7 +1594,7 @@ target at `crates/podssh-cli/src/node_target.rs:14-39`, the routes at
 `crates/podssh-cli/src/node.rs:264-272`; the channel's glue at
 `crates/podssh-cli/src/channel.rs:293-302` and
 `crates/podssh-cli/src/channel.rs:346-365`; `node://NAME/ROUTE` at
-`crates/podssh-cli/src/ssh/node.rs:32-63`, and `iroh:TICKET/ROUTE` at
+`crates/podssh-cli/src/ssh/node.rs:33-64`, and `iroh:TICKET/ROUTE` at
 `crates/podssh-cli/src/ssh/iroh.rs:59-80`. The manual's notes of `node`
 and `operator`, the file of `--allow`, `docs/cli.md` and
 `docs/reverse.md`.

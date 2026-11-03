@@ -46,6 +46,8 @@ pub mod exec;
 pub mod expect;
 pub mod forward;
 pub mod handler;
+// What a handshake saw, for its line when it does not finish (T-588).
+pub mod handshake;
 pub mod hostcert;
 pub mod hostkey;
 // The reach of each later hop of `-J` (T-462).

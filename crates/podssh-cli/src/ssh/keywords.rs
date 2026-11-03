@@ -37,7 +37,7 @@ pub const HONOURED: &[Keyword] = &[
         as -S); it takes the tokens", "/tmp/cm-%C"),
     kw("ControlPersist", "yes|no|TIME", "how long a -N master stays with no client (default no)", "10m"),
     kw("ConnectTimeout", "SECONDS", "the limit on the SSH handshake, and on each answer of the server while \
-        podssh logs in (default 60)", "30"),
+        podssh logs in, a question's time left out (default 60)", "30"),
     kw("ConnectionAttempts", "1-100", "rounds over the relay hosts, or dials with --direct (default 1)", "3"),
     kw("DynamicForward", "[BIND:]PORT|PATH", "the same as -D; repeatable", "1080"),
     kw("EscapeChar", "CHAR|^X|none", "the same as -e", "~"),

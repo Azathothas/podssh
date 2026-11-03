@@ -184,7 +184,7 @@ an escape sequence of GitHub #31 needs dropped bytes (T-221). The reverse road
 drops a frame and closes with `1011 relay backpressure` above 1 MiB queued
 (`crates/podssh-probe/tests/spec/relay-spec-2026-10-03-r2.txt:185`); the buffer
 turns that close into a resume. The SSH window is 512 KiB for each channel
-(`crates/podssh-ssh/src/run.rs:25-29`). Do not bring back the backpressure module of
+(`crates/podssh-ssh/src/run.rs:26-30`). Do not bring back the backpressure module of
 `podssh-transport`, which T-074 removed (`docs/design.md:590-591`).
 
 ## Approach
@@ -817,7 +817,7 @@ Read: a read waits 90 s at most (`crates/podssh-ws/src/client.rs:23-25`, set at
 frame each 25 s. The ping watcher acts only after a first Pong
 (`crates/podssh-ws/src/session.rs:261-299`); Pongs and the idle cut on reverse
 sockets are not measured (T-061). russh sends a keepalive each 60 s and ends
-the session after 3 with no answer (`crates/podssh-ssh/src/options.rs:345-385`).
+the session after 3 with no answer (`crates/podssh-ssh/src/options.rs:349-389`).
 Measured on `3ee70dc`, offline (`PODSSH_OFFLINE=1`, a `.invalid` host):
 `-o ServerAliveInterval=0` prints the warning of
 `crates/podssh-cli/src/ssh/resolve.rs:387-401` (the `warnings` of keepalives), and `podssh ssh` exits 255.
@@ -838,7 +838,7 @@ Measured on `3ee70dc`, offline (`PODSSH_OFFLINE=1`, a `.invalid` host):
 5. In the same commit: "Liveness" and "Idle limit" in the manual
    (`crates/podssh-cli/src/man/facts.rs:407-422`,
    `crates/podssh-cli/src/man/facts.rs:442-451`), the note at
-   `crates/podssh-cli/src/man/notes_ssh_more.rs:58`, `docs/relay.md`, `README.md`.
+   `crates/podssh-cli/src/man/notes_ssh_more.rs:66`, `docs/relay.md`, `README.md`.
 
 ## Decision
 
@@ -1888,8 +1888,8 @@ a full-screen program is written into its screen.
 
 ## Premise
 
-- Read: the layer's lines, written always: a loss (`crates/podssh-cli/src/layered.rs:389`) and a
-  resume (`crates/podssh-cli/src/layered.rs:400`). The heartbeat each 10 s, and a link dead after
+- Read: the layer's lines, written always: a loss (`crates/podssh-cli/src/layered.rs:393`) and a
+  resume (`crates/podssh-cli/src/layered.rs:404`). The heartbeat each 10 s, and a link dead after
   30 s with nothing from the far end (`crates/podssh-relay/src/session/pump.rs:57`,
   `crates/podssh-relay/src/session/pump.rs:60`). The forward road's checks
   (`docs/design.md:652`).
@@ -1998,8 +1998,8 @@ that gives `Line` to a terminal in raw mode; in the model, the control
 ## Correction
 
 The first item of the Premise cites the layer's lines at lines of `next_leg`, which opens a new
-leg. The lines are in `line_of`: a loss (`crates/podssh-cli/src/layered.rs:434`) and a resume
-(`crates/podssh-cli/src/layered.rs:445`). What the item says of them holds.
+leg. The lines are in `line_of`: a loss (`crates/podssh-cli/src/layered.rs:438`) and a resume
+(`crates/podssh-cli/src/layered.rs:449`). What the item says of them holds.
 
 ## Done
 
@@ -3296,7 +3296,7 @@ an ordinary use of its documented ProxyCommand form ends that.
   refused. The tester did not count the held sessions, as the issue says.
 - Read: a session whose target ended can take no more bytes into its buffer, and is charged as
   much as a live one.
-- Read: `--resume-deadline` takes 1 minute to 72 h (`crates/podssh-cli/src/layered.rs:121`), and
+- Read: `--resume-deadline` takes 1 minute to 72 h (`crates/podssh-cli/src/layered.rs:122`), and
   `--plain` is a node with no layer.
 - Not the cap of GitHub #84 (T-461): that is the relay's 64 MiB for one session.
 
@@ -3392,14 +3392,14 @@ Read while drafting, 2026-11-03:
   channel above the layer, the end of stdin is the channel's `END`, a half-close
   (`crates/podssh-relay/src/e2e/channel.rs:101-103`), and the layer's `CLOSE` follows only once
   the TARGET ends too. So a signal ends the layer's own input, the channel's ciphertext, in
-  `crates/podssh-cli/src/layered.rs:262`, and the `CLOSE` goes at once, whatever the TARGET does.
+  `crates/podssh-cli/src/layered.rs:265`, and the `CLOSE` goes at once, whatever the TARGET does.
 - The layer's own wait for the answer to a `CLOSE` stays 10 s
   (`crates/podssh-relay/src/session/pump.rs:47`), as for an end of stdin. After a signal the
   session has 2 s in all (`crates/podssh-cli/src/hangup.rs:27`), the node's answer and the leg's
   Close included; a session cut then is a clean end of a session that the node took, exit 0. A
   signal before the node took the session ends the wait at once, with the session's fault (70).
 - `ssh node://` takes SIGHUP and SIGTERM alone: its Ctrl-C is the remote command's. The same on
-  the road that races the node's roads (`crates/podssh-cli/src/ssh/roads.rs:415`).
+  the road that races the node's roads (`crates/podssh-cli/src/ssh/roads.rs:396`).
 - The plant of the signals is two plants, one for each test, as a plant runs one check:
   `t586-hangup-not-taken` (the operator's test) and `t586-hangup-not-taken-openssh` (the
   roost's), with one patch.

@@ -15,6 +15,7 @@ use podssh_relay::session::resume::{self, Next, Note};
 use podssh_relay::session::{
     deadline, hearing, replay, Ask, End, Ended, Hearing, OsEntropy, Settings, KEEP, SHELL_FEATURES,
 };
+use podssh_ssh::handshake::{Counted, Flow};
 use podssh_ssh::keep::Offer;
 use podssh_ssh::notice::Silence;
 use podssh_ws::client::ConnectError;
@@ -153,11 +154,13 @@ pub fn learn(found: &Found, offer: &Offer) {
 }
 
 /// What `podssh ssh` shares with the layer: whether the far end keeps
-/// shells (T-158), and the far end's silence, for a notice (T-302).
+/// shells (T-158), the far end's silence, for a notice (T-302), and what the
+/// layer carries, for the line of a handshake that does not finish (T-588).
 #[derive(Clone, Copy)]
 pub struct Shell<'a> {
     pub offer: &'a Offer,
     pub silence: &'a Silence,
+    pub flow: Option<&'a Arc<Flow>>,
 }
 
 /// The session of `client` tells `silence` how long the far end has been
@@ -315,6 +318,7 @@ where
 {
     let me = channel.as_ref().map(|c| c.identity.clone());
     let (stream, session) = crate::channel::around(app, channel, pin_say);
+    let stream = Counted::new(stream, shell.and_then(|shell| shell.flow).cloned());
     let Some(session) = session else { return carry(config, link, first, stream, expires_ms, say, shell).await };
     let (mut carried, outcome) = tokio::join!(carry(config, link, first, stream, expires_ms, say, shell), session);
     if let Err(e) = outcome {

@@ -325,6 +325,10 @@ pub struct Options {
     /// The trust of the TLS of an `ssh+tls://` hop (T-372): `--ca-file`,
     /// else podssh's default stores.
     pub tls_trust: podssh_ws::Trust,
+    /// The road under the destination's handshake, for its line when it does
+    /// not finish (T-588): a node's, with what its layer carried; `None` names
+    /// the server alone.
+    pub road: Option<crate::handshake::Road>,
 }
 
 /// How a forward of `-R` that the server refused is asked again after a
@@ -408,6 +412,7 @@ impl Options {
             tls_trust: podssh_ws::Trust::Default,
             local_command: None,
             expect: None,
+            road: None,
         }
     }
 }

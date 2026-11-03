@@ -13,7 +13,7 @@ use std::sync::mpsc::Receiver;
 use std::sync::Arc;
 use std::time::{Duration, Instant};
 
-use live_harness::{command, echo_server, lines_of, on_the_binarys_stack, run, scratch, Cleanup, LIMIT};
+use live_harness::{command, echo_server, lines_of, on_the_binarys_stack, run, scratch, this_user, Cleanup, LIMIT};
 use podssh_cli::channel::{Expect, Operator};
 use podssh_relay::identity::{Identity, KeyName};
 use podssh_relay::relay::parse_relay;
@@ -171,6 +171,8 @@ fn ssh_to_a_node() {
     std::thread::sleep(Duration::from_secs(2));
 
     let destination = format!("node://{user}@lab");
+    // GitHub #114 first (T-588): a new key with nobody to answer its question.
+    live_harness::question::a_new_key_with_nobody_to_ask(&home, op, &key, &destination);
     let known = home.join("known_hosts");
     let known_option = format!("UserKnownHostsFile={}", known.display());
     let (rc, out, err) = run(
@@ -485,15 +487,4 @@ fn move_200mib_each_way_through_a_node() {
     let _ = node.wait();
     let (rc, _, err) = run(&home, &["relay", "revoke", "lab"]);
     assert_eq!(rc, 0, "{err}");
-}
-
-/// This user's name, for a login to this machine's own sshd.
-fn this_user() -> String {
-    let id = std::process::Command::new("id").arg("-un").output().ok();
-    let name = id.map(|o| String::from_utf8_lossy(&o.stdout).trim().to_string()).unwrap_or_default();
-    if name.is_empty() {
-        std::env::var("USER").unwrap_or_else(|_| "root".into())
-    } else {
-        name
-    }
 }

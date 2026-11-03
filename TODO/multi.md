@@ -32,7 +32,7 @@ succeeded. `podssh ssh` takes one destination, as OpenSSH does.
   stderr with one `podssh: ` prefix (`crates/podssh-ssh/src/log.rs:83-103`).
   Two hosts cannot be told apart.
 - Read: a host-key prompt waits for the user
-  (`crates/podssh-ssh/src/hostkey.rs:208-246`); N prompts at once cannot
+  (`crates/podssh-ssh/src/hostkey.rs:208-247`); N prompts at once cannot
   work. `known_hosts` is appended under a lock since T-029
   (`crates/podssh-ssh/src/known_hosts.rs:335-410`).
 - Read: with no cached token, each session mints one
@@ -48,7 +48,7 @@ succeeded. `podssh ssh` takes one destination, as OpenSSH does.
    `--output-dir DIR`.
 2. One runtime, one task for each host, each on the existing path: the relay
    open and `podssh_ssh::run` (`crates/podssh-cli/src/ssh/mod.rs:292-403`,
-   `crates/podssh-ssh/src/run.rs:34-79`). Invariant: no second SSH client.
+   `crates/podssh-ssh/src/run.rs:35-80`). Invariant: no second SSH client.
 3. Sinks: give `crates/podssh-ssh/src/io.rs:171-465` (and `crates/podssh-ssh/src/io/msg.rs:11-95`) a sink for stdout and
    stderr in place of the streams of the process, and give `Log` a prefix
    (`crates/podssh-ssh/src/log.rs:12-18`). Each line gets `HOST: `. With
@@ -184,7 +184,7 @@ is not a shell. A set of hosts has no name.
   (`crates/podssh-cli/src/ssh/hop.rs:30-78`,
   `crates/podssh-ws/src/names.rs:10-32`).
 - Read: the `Host` lines of ssh_config are patterns, not lists
-  (`docs/cli.md:4007-4116`); they cannot define a group.
+  (`docs/cli.md:4035-4144`); they cannot define a group.
 
 ## Approach
 
@@ -2685,7 +2685,7 @@ relay reaches; nothing reports the far side.
   (`crates/podssh-ssh/src/sftp/mod.rs:234-237`), the request of a remote forward
   (`crates/podssh-ssh/src/remote.rs:121-135`), a channel `direct-tcpip`
   (`crates/podssh-ssh/src/local.rs:79`), keepalives each 60 s by default
-  (`crates/podssh-ssh/src/options.rs:384-385`), and the relay's cap on a session
+  (`crates/podssh-ssh/src/options.rs:388-389`), and the relay's cap on a session
   (`crates/podssh-relay/src/relay.rs:23-25`).
 - Read in the issue: a Go SSH server's keepalive reply ended each idle session at 60 s (#83); it
   refused `tcpip-forward` (#85) and had no `direct-tcpip` (#86); its SFTP server had no
@@ -2788,7 +2788,7 @@ failure's words, no signal and no time. The other surfaces give one object (`ssh
   bytes and its time are not kept.
 - Read: the record of a run of `ssh`, which `--result-file` writes, is the process's
   (`crates/podssh-ssh/src/outcome.rs:1-6`), and `run_outcome` gives back a code, a retry and lines
-  only (`crates/podssh-ssh/src/run.rs:49-53`). T-183's Done says that each host's session takes
+  only (`crates/podssh-ssh/src/run.rs:50-54`). T-183's Done says that each host's session takes
   the process's records, so that a lost session's words may name another host's error, and that
   `each` writes no `--result-file`.
 - Read: `podssh mcp` runs each call as a child for the same reason

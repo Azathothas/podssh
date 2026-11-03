@@ -241,7 +241,7 @@ async fn through(offer: Offer, node: Channel<Msg>, me: Arc<Identity>, road: Road
         let session = podssh_ssh::run::run_outcome(ssh_end, &via, None, log.clone());
         let begin = Begin::Started(Box::new(started));
         // The far end's silence, for a notice (T-302).
-        let shell = Some(crate::layered::Shell { offer: &via.keep.offer, silence: &via.silence });
+        let shell = Some(crate::layered::Shell { offer: &via.keep.offer, silence: &via.silence, flow: None });
         let layer =
             crate::layered::carry_keeping(&config, begin, leg, layer_end, expires, &say, channel, pin_say, shell);
         // On the heap: the two futures are large, and Windows gives the main

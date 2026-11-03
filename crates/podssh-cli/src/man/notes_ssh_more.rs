@@ -50,6 +50,14 @@ pub(super) const MORE: &[&str] = &[
     "A repeated value follows OpenSSH: the first -p and -l, the last -e, -E and -F, and the first value \
      of each -o keyword. A second -J or -W is refused, and so is a second --relay-host, --relay-addr or \
      --ca-file: give several hops, hosts or addresses as one comma list.",
+    "ConnectTimeout bounds the SSH handshake and each answer of the server while podssh logs in. The time \
+     that a question waits for its answer does not count, the question of a new host key included, which \
+     runs inside the handshake: it has its own bound, 60 s when stdin, stdout and stderr are all redirected, \
+     on a console of Windows too. A handshake that does not finish names what came: no byte, a line of \
+     another service, or the server's version line and the last message of the key exchange each way; \
+     through a node, also the bytes that its resumable layer and its end-to-end channel carried each way. \
+     10 s in (through a node, 10 s after its layer opened), a handshake that has not finished says where it \
+     is, once, and waits on; a question that nobody can see says that it waits, and its remedy.",
     "Each later hop of -J is reached on a direct-tcpip channel of the hop before it, whose open has that \
      hop's ConnectTimeout. A hop that never answers the open, and a channel on which no byte of an SSH \
      server came within it, or that closed with none, are named so: the hop, and the target of its \

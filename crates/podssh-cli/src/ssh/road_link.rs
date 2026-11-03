@@ -76,3 +76,28 @@ impl AsyncWrite for Road {
         }
     }
 }
+
+/// Which road a place of the race is.
+#[derive(Clone, Copy, PartialEq, Eq)]
+pub(crate) enum Kind {
+    Iroh,
+    Pair,
+    Derp,
+    Transit,
+    Piping,
+    /// A road of the node's record, by its name.
+    Record(&'static str),
+}
+
+impl Kind {
+    pub(crate) fn name(self) -> &'static str {
+        match self {
+            Kind::Record(name) => name,
+            Kind::Iroh => "the iroh road",
+            Kind::Pair => "the pair's road",
+            Kind::Derp => "the DERP road",
+            Kind::Transit => "the transit road",
+            Kind::Piping => "the Piping Server road",
+        }
+    }
+}

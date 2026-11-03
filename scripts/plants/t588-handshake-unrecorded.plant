@@ -1,0 +1,9 @@
+# T-588: the record of the handshake is not read, and a handshake that does
+# not finish gives the line of GitHub #114 again, which names nothing that
+# came; the tests of a silent far end and of one that stops after its version
+# line, which want the record's words, must fail.
+ENTRY=T-588
+GROUP=resume
+EXPECT='test run::tests::a_far_end_that_stops_after_its_version_line_is_named \.\.\. FAILED'
+RUN='cargo test --locked -p podssh-ssh --lib -- run::tests::a_silent_far_end_s_timeout_says_no_byte_came run::tests::a_far_end_that_stops_after_its_version_line_is_named'
+LIMIT=1800

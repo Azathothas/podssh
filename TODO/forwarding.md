@@ -429,7 +429,7 @@ it (`SECURITY.md`, "Design rules").
 swap of the cookie in `crates/podssh-ssh/src/x11.rs:1-339`; the session asks
 (`crates/podssh-ssh/src/session.rs:115-117`) and the handler joins an `x11`
 channel when the destination's run asked
-(`crates/podssh-ssh/src/handler.rs:288-301`). The plan and the probe of the
+(`crates/podssh-ssh/src/handler.rs:299-312`). The plan and the probe of the
 command line in `crates/podssh-cli/src/ssh/x11.rs:1-153`, the flags at
 `crates/podssh-cli/src/flags.rs:281-284`, and the keywords, honoured now, at
 `crates/podssh-cli/src/ssh/keywords.rs:49-51` and
@@ -1000,7 +1000,7 @@ and `crates/podssh-ssh/src/remote_join.rs:48`, `-W` at
 `crates/podssh-ssh/src/forward.rs:42` and
 `crates/podssh-ssh/src/forward.rs:53`; `~#` at
 `crates/podssh-ssh/src/escape.rs:98` and `crates/podssh-ssh/src/io.rs:260`,
-and the lines of `-v` at `crates/podssh-ssh/src/run.rs:263`.
+and the lines of `-v` at `crates/podssh-ssh/src/run.rs:264`.
 - `cargo test -p podssh-ssh -- forward_counts`: 3 passed: 262144 bytes up and
   1000 down through a forward's copy, counted once, with one connection; one
   name, one forward, across connections and a failure; the listing in the
@@ -1054,8 +1054,8 @@ sessions (GitHub #17).
 
 ## Premise
 
-Read: a drop ends the run with 255 (`crates/podssh-ssh/src/run.rs:61-77`,
-`crates/podssh-ssh/src/run.rs:212-254`). `podssh_relay::open` fails over and
+Read: a drop ends the run with 255 (`crates/podssh-ssh/src/run.rs:62-78`,
+`crates/podssh-ssh/src/run.rs:213-255`). `podssh_relay::open` fails over and
 backs off with jitter, but only before a session exists
 (`crates/podssh-relay/src/open.rs:200-277`,
 `crates/podssh-relay/src/open.rs:379-393`). With `-N`, no command runs, so a
@@ -1142,7 +1142,7 @@ link: the mode at `crates/podssh-cli/src/ssh/persist.rs:38-45` and
 serves `-L` and `-D`, and tells a loss from an end
 (`crates/podssh-ssh/src/persist.rs:57-62`); a refused `-R` asked again in
 `crates/podssh-ssh/src/remote.rs:50-191`, as `Options::forwards_again` says
-(`crates/podssh-ssh/src/options.rs:330-339`), which the loop sets after the
+(`crates/podssh-ssh/src/options.rs:334-343`), which the loop sets after the
 first loss (`crates/podssh-cli/src/ssh/persist.rs:169-179`); the rule of
 `STEADY` at `crates/podssh-cli/src/ssh/persist.rs:147-153`.
 - `cargo test -p podssh-cli --test persist`: 5 passed. The new test runs
@@ -1633,7 +1633,7 @@ server (`remote_socket:host:hostport`), a socket on this host as the target
 (`[bind_address:]port:local_socket`, `remote_socket:local_socket`), and a SOCKS proxy that the
 server listens for and the client serves (`[bind_address:]port`). podssh refuses each by name, so
 a command line of OpenSSH fails with podssh. A server whose host refuses an AF_INET bind and
-allows an AF_UNIX one, as sandbox A does (`docs/STATUS.md:324`), can listen on a socket only; and
+allows an AF_UNIX one, as sandbox A does (`docs/STATUS.md:325`), can listen on a socket only; and
 the SOCKS form gives a server whose egress is closed a way out through the client.
 
 ## Premise
@@ -1650,9 +1650,9 @@ the SOCKS form gives a server whose egress is closed a way out through the clien
   (`crates/podssh-cli/src/ssh/dump.rs:122-134`), and `~C -R` reads it with the same parser
   (`crates/podssh-cli/src/ssh/local_bind.rs:264-266`).
 - Read: the handler joins a `forwarded-tcpip` channel that podssh asked for
-  (`crates/podssh-ssh/src/handler.rs:198-218`), and refuses each
-  `forwarded-streamlocal@openssh.com` channel as one that podssh did not ask for (`:220-237`,
-  through `unasked`, `:121-136`). The target of a `-R` is dialed from this host, through
+  (`crates/podssh-ssh/src/handler.rs:209-229`), and refuses each
+  `forwarded-streamlocal@openssh.com` channel as one that podssh did not ask for (`:231-248`,
+  through `unasked`, `:131-146`). The target of a `-R` is dialed from this host, through
   `HTTPS_PROXY` when it is set (`crates/podssh-ssh/src/remote.rs` lines 170-190 at `6f6eda2`).
 - Read: `-L` and `-D` read a socket path on either side with OpenSSH's field reader
   (`crates/podssh-cli/src/ssh/local_spec.rs:135-173`); `-L` opens `direct-streamlocal@openssh.com`

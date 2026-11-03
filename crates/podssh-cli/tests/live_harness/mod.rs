@@ -7,6 +7,7 @@
 // Each test binary uses a part of it.
 #![allow(dead_code)]
 
+pub mod question;
 pub mod sshd;
 
 use std::io::{BufRead, BufReader};
@@ -67,13 +68,19 @@ pub fn command(home: &Path, args: &[&str]) -> Command {
 }
 
 pub fn run(home: &Path, args: &[&str]) -> (i32, String, String) {
+    run_within(home, args, LIMIT)
+}
+
+/// [`run`], within `limit`: a run that waits for a question of 60 s needs
+/// more than [`LIMIT`] (T-588).
+pub fn run_within(home: &Path, args: &[&str], limit: Duration) -> (i32, String, String) {
     let mut child = command(home, args)
         .stdin(Stdio::null())
         .stdout(Stdio::piped())
         .stderr(Stdio::piped())
         .spawn()
         .expect("podssh runs");
-    let deadline = Instant::now() + LIMIT;
+    let deadline = Instant::now() + limit;
     while child.try_wait().expect("wait").is_none() {
         assert!(Instant::now() < deadline, "podssh {args:?} did not end in time");
         std::thread::sleep(Duration::from_millis(50));
@@ -136,6 +143,17 @@ pub fn echo_server() -> u16 {
         }
     });
     port
+}
+
+/// This user's name, for a login to this machine's own sshd.
+pub fn this_user() -> String {
+    let id = std::process::Command::new("id").arg("-un").output().ok();
+    let name = id.map(|o| String::from_utf8_lossy(&o.stdout).trim().to_string()).unwrap_or_default();
+    if name.is_empty() {
+        std::env::var("USER").unwrap_or_else(|_| "root".into())
+    } else {
+        name
+    }
 }
 
 /// The stack of the binary's own thread (`src/main.rs`). The resumable layer's

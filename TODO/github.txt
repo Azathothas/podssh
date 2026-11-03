@@ -117,9 +117,9 @@
 109 issue open
 110 issue closed
 111 issue open
-112 issue open
+112 issue closed
 113 issue open
-114 issue open
+114 issue closed
 115 issue open
 116 issue open
 117 issue open

@@ -9,7 +9,8 @@
 use std::sync::Arc;
 
 use podssh_relay::reverse::{operator, OperatorConfig, OperatorLimits, Outcome as LegOutcome, Wire};
-use podssh_ssh::{Log, EXIT_FAILURE};
+use podssh_ssh::handshake::{Flow, Road};
+use podssh_ssh::{Log, Options, EXIT_FAILURE};
 use podssh_ws::{ProxyChoice, Trust};
 use tokio::sync::oneshot;
 
@@ -194,9 +195,12 @@ pub(super) async fn connect(
         move |line: String| log.info(&format!("{shown}: {line}"))
     };
     // The layer learns whether the far end keeps shells, before the SSH
-    // login, for `~d` and `--attach` (T-158), and tells the far end's
-    // silence for a notice (T-302).
-    let shell = Some(Shell { offer: &opts.keep.offer, silence: &opts.silence });
+    // login, for `~d` and `--attach` (T-158), tells the far end's silence for
+    // a notice (T-302), and counts what it carries for the line of a
+    // handshake that does not finish (T-588).
+    let flow = Arc::new(Flow::default());
+    let opts = &on_the_road(opts, &flow, channel.is_some());
+    let shell = Some(Shell { offer: &opts.keep.offer, silence: &opts.silence, flow: Some(&flow) });
     // SIGHUP and SIGTERM end the session with its `CLOSE`, which the node
     // keeps nothing of; Ctrl-C stays the remote command's (T-586).
     crate::hangup::take(crate::hangup::Which::Ends);
@@ -299,6 +303,16 @@ pub async fn reach(
             code: sysexits::EX_SOFTWARE,
         }),
     }
+}
+
+/// `opts` with the node's road under its handshake (T-588): its far end, the
+/// node's TARGET, what its layer carries into `flow`, and whether the
+/// end-to-end channel runs above the layer.
+pub(super) fn on_the_road(opts: &Options, flow: &Arc<Flow>, channel: bool) -> Options {
+    let mut opts = opts.clone();
+    let (far, end) = ("the node's TARGET".to_string(), "the node".to_string());
+    opts.road = Some(Road { far, end, flow: flow.clone(), channel });
+    opts
 }
 
 /// What the leg says of a session that failed; nothing for a normal end.

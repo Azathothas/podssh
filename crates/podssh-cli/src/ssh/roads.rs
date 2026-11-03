@@ -36,6 +36,7 @@ use crate::layered::{self, Line};
 /// Each direction of the pipes between SSH, the layer and a leg.
 const PIPE: usize = 256 * 1024;
 
+use super::road_link::Kind;
 pub use super::road_link::Road;
 
 /// The roads of a run beside the pair's: the iroh road of `--iroh-ticket`,
@@ -48,31 +49,6 @@ pub(super) struct Raced<'a> {
     pub piping: Option<crate::piping_road::Race>,
     /// The member's record, for the roads that no ticket gave (T-445).
     pub record: Option<&'a super::iroh::RecordAsk>,
-}
-
-/// Which road a place of the race is.
-#[derive(Clone, Copy, PartialEq, Eq)]
-enum Kind {
-    Iroh,
-    Pair,
-    Derp,
-    Transit,
-    Piping,
-    /// A road of the node's record, by its name.
-    Record(&'static str),
-}
-
-impl Kind {
-    fn name(self) -> &'static str {
-        match self {
-            Kind::Record(name) => name,
-            Kind::Iroh => "the iroh road",
-            Kind::Pair => "the pair's road",
-            Kind::Derp => "the DERP road",
-            Kind::Transit => "the transit road",
-            Kind::Piping => "the Piping Server road",
-        }
-    }
 }
 
 /// A road's attempt at a link.
@@ -298,6 +274,10 @@ pub(super) async fn connect(
             return EXIT_FAILURE;
         }
     };
+    // What the layer and the channel carry, for the line of a handshake that
+    // does not finish (T-588).
+    let flow = Arc::new(podssh_ssh::handshake::Flow::default());
+    let opts = &super::node::on_the_road(opts, &flow, channel.is_some());
     let derp = match &raced.derp {
         Some(road) => match super::derp::dialer(&road.ticket, &road.servers, trust, &log, &shown) {
             Ok(dialer) => Some((dialer, road.asked)),
@@ -400,6 +380,7 @@ pub(super) async fn connect(
         move |line: String| log.info(&format!("{shown}: {line}"))
     };
     let (layer_app, session) = crate::channel::around(layer_end, channel, pin_say);
+    let layer_app = podssh_ssh::handshake::Counted::new(layer_app, Some(flow.clone()));
     let session = async move {
         match session {
             Some(session) => session.await.err(),

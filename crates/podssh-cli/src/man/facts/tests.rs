@@ -35,6 +35,11 @@ fn sources() -> Vec<(PathBuf, String)> {
                 }
                 dirs.push(path);
             } else if path.extension().is_some_and(|e| e == "rs") {
+                // A file of tests is test code, as `non_test` drops it inside a file.
+                let name = path.file_name().and_then(|n| n.to_str()).unwrap_or("");
+                if name == "tests.rs" || name.ends_with("_tests.rs") {
+                    continue;
+                }
                 let text = std::fs::read_to_string(&path).unwrap();
                 out.push((path, non_test(&text)));
             }

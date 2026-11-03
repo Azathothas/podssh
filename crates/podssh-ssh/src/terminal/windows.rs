@@ -8,9 +8,10 @@ use std::sync::Mutex;
 use russh::Pty;
 use windows_sys::Win32::Foundation::{HANDLE, INVALID_HANDLE_VALUE};
 use windows_sys::Win32::System::Console::{
-    GetConsoleMode, GetConsoleScreenBufferInfo, GetStdHandle, ReadConsoleW, SetConsoleCtrlHandler, SetConsoleMode,
-    CONSOLE_SCREEN_BUFFER_INFO, DISABLE_NEWLINE_AUTO_RETURN, ENABLE_ECHO_INPUT, ENABLE_LINE_INPUT,
-    ENABLE_PROCESSED_INPUT, ENABLE_VIRTUAL_TERMINAL_INPUT, ENABLE_VIRTUAL_TERMINAL_PROCESSING, STD_ERROR_HANDLE,
+    GetConsoleMode, GetConsoleScreenBufferInfo, GetNumberOfConsoleInputEvents, GetStdHandle, PeekConsoleInputW,
+    ReadConsoleInputW, ReadConsoleW, SetConsoleCtrlHandler, SetConsoleMode, CONSOLE_SCREEN_BUFFER_INFO,
+    DISABLE_NEWLINE_AUTO_RETURN, ENABLE_ECHO_INPUT, ENABLE_LINE_INPUT, ENABLE_PROCESSED_INPUT,
+    ENABLE_VIRTUAL_TERMINAL_INPUT, ENABLE_VIRTUAL_TERMINAL_PROCESSING, INPUT_RECORD, STD_ERROR_HANDLE,
     STD_INPUT_HANDLE, STD_OUTPUT_HANDLE,
 };
 use zeroize::Zeroizing;
@@ -155,8 +156,14 @@ pub fn pty_modes() -> Vec<(Pty, u32)> {
     ]
 }
 
+/// How often a question with a deadline looks for input on the console.
+const INPUT_POLL: std::time::Duration = std::time::Duration::from_millis(100);
+
 /// Ask on the console (`CONIN$`/`CONOUT$`), which works even when stdin and
-/// stdout are redirected. An error when the process has no console.
+/// stdout are redirected. An error when the process has no console, and
+/// `TimedOut` when nobody answers within [`super::prompt_limit`]: a console
+/// with no window, as an agent's, has nobody at it, and its question waited
+/// for ever (T-588, GitHub #114).
 pub fn read_line(prompt: &str, echo: bool) -> std::io::Result<Zeroizing<String>> {
     let mut out = OpenOptions::new().write(true).open("CONOUT$")?;
     let input = OpenOptions::new().read(true).write(true).open("CONIN$")?;
@@ -173,29 +180,79 @@ pub fn read_line(prompt: &str, echo: bool) -> std::io::Result<Zeroizing<String>>
     // SAFETY: a console input handle we hold open.
     unsafe { SetConsoleMode(h, mode) };
     let mut units: Zeroizing<Vec<u16>> = Zeroizing::new(Vec::new());
-    let mut buf = Zeroizing::new([0u16; 256]);
-    let result = loop {
-        let mut read = 0u32;
-        // SAFETY: `buf` holds 256 UTF-16 units and `read` is a valid out pointer.
-        let ok = unsafe { ReadConsoleW(h, buf.as_mut_ptr().cast(), 256, &mut read, std::ptr::null()) };
-        if ok == 0 {
-            break Err(std::io::Error::last_os_error());
-        }
-        if read == 0 {
-            break Ok(());
-        }
-        units.extend_from_slice(&buf[..read as usize]);
-        if units.contains(&u16::from(b'\n')) {
-            break Ok(());
-        }
+    let deadline = super::prompt_limit().map(|limit| std::time::Instant::now() + limit);
+    let result = match wait_for_input(h, deadline) {
+        Ok(()) => read_units(h, &mut units),
+        Err(e) => Err(e),
     };
     unsafe { SetConsoleMode(h, saved) };
     if !echo {
         let _ = out.write_all(b"\r\n");
     }
+    if result.as_ref().is_err_and(|e| e.kind() == std::io::ErrorKind::TimedOut) {
+        let _ = out.write_all(b"(no answer)\r\n");
+    }
     result?;
     let text = String::from_utf16_lossy(&units);
     Ok(Zeroizing::new(text.trim_end_matches(['\r', '\n']).to_string()))
+}
+
+/// The type of an input record of a key, `KEY_EVENT` of `wincon.h`.
+const KEY_EVENT: u16 = 1;
+
+/// Wait until a key comes on the console, or fail with `TimedOut` at
+/// `deadline`; with none, return at once, as the read itself waits. Each
+/// other event (a focus, a mouse, a size) is nobody's answer: it is taken
+/// from the buffer, so that the read after a key is one that a person types,
+/// and the bound holds.
+fn wait_for_input(h: HANDLE, deadline: Option<std::time::Instant>) -> std::io::Result<()> {
+    let Some(deadline) = deadline else { return Ok(()) };
+    loop {
+        let mut events = 0u32;
+        // SAFETY: a console input handle held open, and a valid out pointer.
+        if unsafe { GetNumberOfConsoleInputEvents(h, &mut events) } == 0 {
+            return Err(std::io::Error::last_os_error());
+        }
+        if events > 0 {
+            // SAFETY: an all-zero INPUT_RECORD is valid; each call writes one
+            // record into it, and the count into `got`.
+            let mut record: INPUT_RECORD = unsafe { std::mem::zeroed() };
+            let mut got = 0u32;
+            if unsafe { PeekConsoleInputW(h, &mut record, 1, &mut got) } == 0 {
+                return Err(std::io::Error::last_os_error());
+            }
+            if got == 1 && record.EventType == KEY_EVENT {
+                return Ok(());
+            }
+            unsafe { ReadConsoleInputW(h, &mut record, 1, &mut got) };
+        }
+        if std::time::Instant::now() >= deadline {
+            return Err(std::io::Error::new(std::io::ErrorKind::TimedOut, "no answer on the console"));
+        }
+        if events == 0 {
+            std::thread::sleep(INPUT_POLL);
+        }
+    }
+}
+
+/// The UTF-16 units of one line of the console, its end included.
+fn read_units(h: HANDLE, units: &mut Vec<u16>) -> std::io::Result<()> {
+    let mut buf = Zeroizing::new([0u16; 256]);
+    loop {
+        let mut read = 0u32;
+        // SAFETY: `buf` holds 256 UTF-16 units and `read` is a valid out pointer.
+        let ok = unsafe { ReadConsoleW(h, buf.as_mut_ptr().cast(), 256, &mut read, std::ptr::null()) };
+        if ok == 0 {
+            return Err(std::io::Error::last_os_error());
+        }
+        if read == 0 {
+            return Ok(());
+        }
+        units.extend_from_slice(&buf[..read as usize]);
+        if units.contains(&u16::from(b'\n')) {
+            return Ok(());
+        }
+    }
 }
 
 /// `CREATE_NO_WINDOW`, of `Win32_System_Threading`, which this crate does

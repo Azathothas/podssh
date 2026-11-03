@@ -62,6 +62,9 @@ pub struct Client {
     /// What the host key must meet before known_hosts is read:
     /// `RequiredRSASize` and `CASignatureAlgorithms` (T-505).
     limits: crate::algorithms::HostLimits,
+    /// The handshake's record, where the host key's question is marked while
+    /// it waits (T-588).
+    record: crate::handshake::Record,
 }
 
 impl Client {
@@ -75,7 +78,14 @@ impl Client {
             agent: Forward::new(Agent::Off),
             x11: None,
             limits: crate::algorithms::HostLimits::default(),
+            record: crate::handshake::Record::default(),
         }
+    }
+
+    /// Mark the host key's question on `record`, the handshake's (T-588).
+    pub fn recording(mut self, record: crate::handshake::Record) -> Self {
+        self.record = record;
+        self
     }
 
     /// Hold the host key to the lists of `algorithms` (T-505): the hop's own.
@@ -154,11 +164,12 @@ impl Handler for Client {
             PublicKeyOrCertificate::Certificate(cert) => Offer::Certificate(Box::new(cert.clone())),
             plain => Offer::Key(plain.public_key()),
         };
-        let policy = self.policy.clone();
-        let log = self.log.clone();
+        let (policy, log, record) = (self.policy.clone(), self.log.clone(), self.record.clone());
         // The check may wait for the user; keep it off the runtime's thread so
-        // the relay's keepalive frames are still read meanwhile.
-        let verdict = tokio::task::spawn_blocking(move || policy.check_offer(&offer, &log))
+        // the relay's keepalive frames are still read meanwhile. Its question
+        // is marked on the handshake, whose limit leaves its time out.
+        let check = move || crate::handshake::checking(&record, || policy.check_offer(&offer, &log));
+        let verdict = tokio::task::spawn_blocking(check)
             .await
             .unwrap_or_else(|e| Verdict::Reject(format!("the host key check failed: {e}")));
         match verdict {
