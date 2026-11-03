@@ -62,15 +62,15 @@ repository and CI).
 
 ## Counts
 
-**549 entries: 113 open, 2 partial, 16 blocked, 418 done.**
+**549 entries: 112 open, 3 partial, 16 blocked, 418 done.**
 
 | Priority | open | partial | blocked | done | total |
 | --- | --- | --- | --- | --- | --- |
 | P0 | 0 | 0 | 0 | 1 | 1 |
-| P1 | 1 | 2 | 0 | 58 | 61 |
+| P1 | 0 | 3 | 0 | 58 | 61 |
 | P2 | 30 | 0 | 14 | 202 | 246 |
 | P3 | 82 | 0 | 2 | 157 | 241 |
-| **All** | 113 | 2 | 16 | 418 | 549 |
+| **All** | 112 | 3 | 16 | 418 | 549 |
 
 ## Entries
 
@@ -623,5 +623,5 @@ repository and CI).
 | [T-581](mesh.md) | P3 | M | M10 | feature | open | TUIC version 5 as a client road over QUIC, where a probe found that UDP passes |
 | [T-582](mesh.md) | P3 | L | M10 | feature | open | MASQUE over HTTP/3: WARP's connect-ip on UDP, where a probe found that UDP passes |
 | [T-583](ssh.md) | P3 | S | none | feature | open | The warning before the relay's idle cut with `--persist` and `--upgrade` |
-| [T-584](release.md) | P1 | M | none | release | open | Publish `v1.0.1`, the repairs of the testers' defects |
+| [T-584](release.md) | P1 | M | none | release | partial | Publish `v1.0.1`, the repairs of the testers' defects |
 | [T-585](roads.md) | P3 | S | none | defect | open | WARP's road names a proxy that re-terminates TLS on a road with no proxy |

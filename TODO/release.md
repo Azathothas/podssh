@@ -1212,7 +1212,7 @@ unattended once the testers' defects pass the checks of a release, then the next
 **Milestone:** none
 **Priority:** P1
 **Effort:** M
-**Status:** open
+**Status:** partial
 
 ## Problem
 
@@ -1247,3 +1247,13 @@ sh scripts/release-check.sh v1.0.1; echo "exit=$?"
 
 The release is not a prerelease, with a binary for each target, `SHA256SUMS` and the signatures;
 the check of T-251 exits 0 on the published files, and its result is in `docs/STATUS.md`.
+
+## Done
+
+2026-11-03, partial: step 1. The version 1.0.1 in `Cargo.toml` and both lock files
+(`fuzz/Cargo.lock` also took `rcgen` and `yasna`, which T-447 had added to the workspace), the
+README's `T=v1.0.1`, and `docs/releases/v1.0.1.md`: each repair with its entry and issue, the
+files, how to check a download, and what is not in it. `podssh --version`: `podssh 1.0.1`; the
+CLI's tests of `update`, `binary_streams`, `doctor`, `man_page` and `flag_table`: 18, 7, 13, 10
+and 9 passed, and its lib, 652. Step 2 next: the gate at this commit, the release workflow and the
+changelog workflow by hand on it, and the release check.
