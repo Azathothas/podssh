@@ -16,6 +16,7 @@ use std::path::{Path, PathBuf};
 use podssh_ssh::sftp::{FileAttributes, OpenFlags, Sftp, SftpError};
 use podssh_ssh::{Connection, Log};
 
+use super::clobber::{self, Seen, Skip};
 use super::delta::Delta;
 use super::digest::{self, Sum};
 use super::in_place;
@@ -23,8 +24,9 @@ use super::meta::{self, Stamp};
 use super::pipe::Shape;
 use crate::exitmap::Fault;
 
-/// One file copied and verified, or moved.
-#[derive(Debug, Clone, PartialEq, Eq)]
+/// One file copied and verified, or moved; or left out, as `--no-clobber`
+/// and `--update` ask (T-473).
+#[derive(Debug, Clone, PartialEq, Eq, Default)]
 pub struct Done {
     pub source: String,
     pub destination: String,
@@ -43,6 +45,11 @@ pub struct Done {
     /// With `--delta` (T-470): the blocks that went, or why the whole file
     /// went. `None` without the flag.
     pub delta: Option<Delta>,
+    /// With `--backup` (T-473): the name that holds the old file.
+    pub backup: Option<String>,
+    /// Why no byte went: the destination stays, as `--no-clobber` or
+    /// `--update` asks; the run counts it as a skip.
+    pub skipped: Option<Skip>,
 }
 
 /// What a failure leaves the copy able to do.
@@ -242,6 +249,12 @@ pub async fn within(
     if inplace {
         in_place::check_far(sftp, &target).await?;
     }
+    // --no-clobber and --update look first (T-473).
+    if let Some(kept) =
+        clobber::before_far(sftp, source, &target, Seen::of_far(&attrs), shape.clobber, false, log).await?
+    {
+        return Ok(kept);
+    }
     let from = sftp
         .open_file(source, OpenFlags::READ, FileAttributes::default())
         .await
@@ -275,9 +288,15 @@ pub async fn within(
         compare(&sum, &copy, &how, source)?;
         let stamp = Stamp::of_far(&attrs, 0o777);
         meta::set_far(sftp, &temp, &stamp, keep, log).await?;
-        let mut not_atomic = false;
+        let mut placed = clobber::Placed::default();
         if !inplace {
-            not_atomic = rename_onto(sftp, &temp, &target, log).await?;
+            placed = clobber::place_far(sftp, &temp, &target, shape.clobber, log).await?;
+        }
+        // A name that came during the copy stays as it is (T-473).
+        if let Some(skip) = placed.skipped {
+            return Ok(clobber::skipped(source, &target, skip));
+        }
+        if !inplace {
             meta::times_after_rename(sftp, &target, &stamp, keep).await;
         }
         Ok(Done {
@@ -286,9 +305,9 @@ pub async fn within(
             bytes: size,
             sum: Some(sum),
             verified_by: how,
-            not_atomic,
-            removed: None,
-            delta: None,
+            not_atomic: placed.not_atomic,
+            backup: placed.backup,
+            ..Done::default()
         })
     }
     .await;

@@ -144,6 +144,13 @@ async fn settle(
     if let Some(n) = named {
         done.source = n.to_string();
     }
+    // Left out, as --no-clobber or --update asks (T-473): mv keeps it.
+    if done.skipped.is_some() {
+        if after == After::Remove {
+            log.verbose(&format!("{name}: not moved, so it stays"));
+        }
+        return outcome.add(done);
+    }
     let mut kept = None;
     match (after, link) {
         (After::Remove, Some(current)) => {

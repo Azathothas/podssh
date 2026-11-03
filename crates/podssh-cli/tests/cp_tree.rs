@@ -8,6 +8,7 @@
 //! the first gives the code (T-476). A tree of many files names no flag, as
 //! its files go several at once by default (T-474). Links and FIFOs are
 //! measured against OpenSSH in the gate too (`scripts/interop-cp.sh`).
+//! `-n`, `-u` and `-b` (T-473) are in `cp_tree_clobber/`.
 
 mod cleanup;
 mod ssh_harness;
@@ -98,6 +99,10 @@ macro_rules! need_server {
         }
     };
 }
+
+// `-n`, `-u` and `-b` (T-473), with this file's server and helpers; after
+// the macro, which it takes.
+mod cp_tree_clobber;
 
 #[test]
 fn a_tree_goes_up_and_down_and_a_dry_run_changes_nothing() {

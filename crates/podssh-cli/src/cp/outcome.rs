@@ -1,5 +1,6 @@
 //! What a run of `cp`, `mv` or `scp` ended with: each file done, each item
-//! skipped by design, and its failures. Each failure is said once, when it
+//! skipped by design or by `--no-clobber` and `--update` (T-473), and its
+//! failures. Each failure is said once, when it
 //! comes (T-476): the first keeps the run's exit code, in the order of the
 //! sources (T-297), and the end of the run says it again only when nothing
 //! said it before, as for a connection that failed.
@@ -23,7 +24,8 @@ pub(super) struct Outcome {
     /// an `error` object each.
     pub(super) more: Vec<(String, Failed)>,
     /// Each device, FIFO or socket of a tree, not copied and no failure
-    /// (T-476), with its kind.
+    /// (T-476), with its kind; and each file whose destination stays, as
+    /// `--no-clobber` or `--update` asks (T-473), with why.
     pub(super) skipped: Vec<(String, &'static str)>,
     /// The first leg of a move between servers: each source as it was.
     pub(super) recorded: Vec<Before>,
@@ -54,6 +56,20 @@ impl Outcome {
     pub(super) fn failures(&self) -> impl Iterator<Item = &(String, Failed)> {
         self.failed.iter().chain(&self.more)
     }
+
+    /// A file's answer: copied, or left out as the run asked (T-473), which
+    /// the look said when it came and the summary counts as a skip.
+    pub(super) fn add(&mut self, done: Done) {
+        match done.skipped {
+            Some(skip) => self.skipped.push((done.source, skip.why())),
+            None => self.done.push(done),
+        }
+    }
+
+    /// The sources that the run left out, by their names.
+    pub(super) fn left(&self) -> std::collections::HashSet<&str> {
+        self.skipped.iter().map(|(source, _)| source.as_str()).collect()
+    }
 }
 
 #[cfg(test)]
@@ -71,5 +87,15 @@ mod tests {
         assert_eq!(outcome.failed.as_ref().map(|(_, f)| f.fault), Some(Fault::NoInput));
         let names: Vec<&str> = outcome.failures().map(|(n, _)| n.as_str()).collect();
         assert_eq!(names, ["a", "b"]);
+    }
+
+    #[test]
+    fn a_file_left_out_is_a_skip_and_no_copy() {
+        let mut outcome = Outcome::default();
+        outcome.add(Done { source: "a".into(), bytes: 3, ..Done::default() });
+        outcome.add(crate::cp::clobber::skipped("b", "far/b", crate::cp::clobber::Skip::Exists));
+        assert_eq!(outcome.done.len(), 1);
+        assert_eq!(outcome.skipped, [("b".to_string(), "exists")]);
+        assert!(outcome.left().contains("b") && !outcome.left().contains("a"));
     }
 }

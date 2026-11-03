@@ -25,6 +25,8 @@ pub(super) fn report(outcome: &Outcome, jsonl: bool, out: &mut dyn Write, log: &
                 "copy" => format!("copy {from} -> {to}"),
                 "link" => format!("link {from} -> {to}"),
                 "hardlink" => format!("hardlink {from} -> {to}"),
+                // --backup (T-473): the old file and the name that keeps it.
+                "backup" => format!("backup {from} -> {to}"),
                 "delete" => format!("delete {to}"),
                 _ => format!("skip {from}: {to}"),
             };
@@ -60,6 +62,10 @@ pub(super) fn report(outcome: &Outcome, jsonl: bool, out: &mut dyn Write, log: &
             if let Some(delta) = &done.delta {
                 line["delta"] = delta.json();
             }
+            // With --backup: where the old file is (T-473).
+            if let Some(backup) = &done.backup {
+                line["backup"] = backup.as_str().into();
+            }
             let _ = writeln!(out, "{line}");
         } else {
             let how = match &sha256 {
@@ -71,12 +77,14 @@ pub(super) fn report(outcome: &Outcome, jsonl: bool, out: &mut dyn Write, log: &
                 Some(false) => "; the source stays",
                 None => "",
             };
-            log.verbose(&format!("{} -> {}: {how}{source}", done.source, done.destination));
+            let old = done.backup.as_ref().map(|b| format!("; the old file is at {b}")).unwrap_or_default();
+            log.verbose(&format!("{} -> {}: {how}{source}{old}", done.source, done.destination));
         }
     }
     if jsonl {
-        // Each device, FIFO or socket that a tree skipped (T-476), and each
-        // failure, the first first: each was said when it came.
+        // Each device, FIFO or socket that a tree skipped (T-476), each file
+        // that --no-clobber or --update left out (T-473), and each failure,
+        // the first first: each was said when it came.
         for (source, kind) in &outcome.skipped {
             let line = serde_json::json!({ "event": "skipped", "source": source, "why": kind });
             let _ = writeln!(out, "{line}");

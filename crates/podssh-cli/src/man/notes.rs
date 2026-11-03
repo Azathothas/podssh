@@ -122,6 +122,17 @@ const CP: &[&str] = &[
      inode and hard links, and needs no room for a second copy. podssh says first that a copy that \
      fails leaves its destination damaged, and a failure says so. A destination that is a link or a \
      directory is refused (exit 64).",
+    "-n (--no-clobber) leaves a destination that is there as it is: the copy looks before any byte \
+     goes, says DST: there, so not replaced, and counts a skip, with exit 0. A name that comes during \
+     the copy stays too: the verified file takes its name by a hard link (hardlink@openssh.com, or ln \
+     by exec), which never takes a name that is there; with no hard link the look is the guard, and -v \
+     says so. -u (--update) copies a file only when its destination is missing, older, or of the same \
+     second and another size, as rsync's -u does; a file that stays is said at -v. -b (--backup) keeps \
+     the old destination at its name with the suffix ~, or that of --suffix, by a hard link before the \
+     rename, so that the name is never missing, else by a rename first, which -v says; an older backup \
+     there is replaced, and --delete never deletes a name with the suffix. -n with -b, and -b with \
+     --inplace, are refused (exit 64). With --jsonl a file left out is a skipped object, its why exists \
+     or not newer, and a done object holds backup; --dry-run says skip and backup.",
     "A server with no SFTP subsystem gets a copy by exec, and podssh says so. Each step is one command \
      with no pty, sh -c 'SCRIPT' sh PATH..., so the login shell only starts sh, and each path is one \
      quoted word; a path with a newline or a NUL is refused. A probe finds the far tools: cat, wc, mv \
@@ -188,6 +199,10 @@ const MV: &[&str] = &[
     "A source that changed stays (exit 66). A delete that fails exits 70 and says that the copy is \
      complete and verified: the data is then in two places, never in none. One file named twice is \
      refused (exit 64). With --jsonl each done object says whether the source is gone: source_removed.",
+    "With -n or -u a source whose destination stays is not moved, and stays where it is; mv -r leaves it \
+     with the directories that hold it. Within one server, -n moves by a hard link and the removal of \
+     the source's name, so a name that came since the look stays; -b keeps the old destination as for \
+     podssh cp.",
 ];
 
 const DOCTOR: &[&str] = &[

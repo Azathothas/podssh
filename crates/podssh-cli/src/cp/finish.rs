@@ -1,13 +1,15 @@
 //! The end of a copy up over SFTP: the temporary file synced and closed,
 //! its size set after holes, the source unchanged, the digests equal, what
-//! the copy keeps set, and the rename. The far digest's command starts
-//! beside the sync and the close (T-417).
+//! the copy keeps set, and the rename, or the hard link of `--no-clobber`
+//! (T-473). The far digest's command starts beside the sync and the close
+//! (T-417).
 
 use std::path::Path;
 
 use podssh_ssh::sftp::{FileAttributes, FileHandle, Sftp};
 use podssh_ssh::{Connection, Log};
 
+use super::clobber::{self, Clobber, Placed};
 use super::digest::Sum;
 use super::meta::{self, Keep, Stamp};
 use super::transfer::{self, Done, Failed, Side};
@@ -23,6 +25,8 @@ pub(super) struct Ends {
     pub(super) inplace: bool,
     /// The far file's mode that `podssh edit` keeps (T-149).
     pub(super) mode: Option<u32>,
+    /// `--no-clobber` and `--backup` at the rename (T-473).
+    pub(super) clobber: Clobber,
 }
 
 /// The end of a copy up: the temporary file synced and closed, its size set
@@ -41,7 +45,7 @@ pub(super) async fn finish_up(
     ends: Ends,
     log: &Log,
 ) -> Result<Done, Failed> {
-    let Ends { offset, sum, keep, holes, inplace, mode } = ends;
+    let Ends { offset, sum, keep, holes, inplace, mode, clobber: rule } = ends;
     {
         let synced = async {
             sftp.fsync(file).await.map_err(|e| transfer::from_sftp(e, Side::Destination))?;
@@ -78,9 +82,15 @@ pub(super) async fn finish_up(
         let mut stamp = Stamp::of_local(before);
         stamp.mode = mode.or(stamp.mode);
         meta::set_far(sftp, temp, &stamp, keep, log).await?;
-        let mut not_atomic = false;
+        let mut placed = Placed::default();
         if !inplace {
-            not_atomic = transfer::rename_onto(sftp, temp, target, log).await?;
+            placed = clobber::place_far(sftp, temp, target, rule, log).await?;
+        }
+        // A name that came during the copy stays as it is (T-473).
+        if let Some(skip) = placed.skipped {
+            return Ok(clobber::skipped(source, target, skip));
+        }
+        if !inplace {
             meta::times_after_rename(sftp, target, &stamp, keep).await;
         }
         Ok(Done {
@@ -89,9 +99,9 @@ pub(super) async fn finish_up(
             bytes: offset,
             sum: Some(sum),
             verified_by: how,
-            not_atomic,
-            removed: None,
-            delta: None,
+            not_atomic: placed.not_atomic,
+            backup: placed.backup,
+            ..Done::default()
         })
     }
 }

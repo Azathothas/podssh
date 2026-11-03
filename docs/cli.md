@@ -2031,6 +2031,40 @@ SFTP, through the relay or with `--direct`, with the connection flags of
   `copy-data` is needed; `mv` removes the source only after the check. By
   exec, the first attempt writes with `cat >` (a truncation keeps the
   inode) and a later one appends. No holes are made in place.
+- **A destination that is there** (T-473,
+  `crates/podssh-cli/src/cp/clobber.rs`), with the names of GNU `cp` and
+  rsync, as OpenSSH's `scp` has none (`scp -n` stays an unknown flag, 64).
+  `-n` (`--no-clobber`) leaves it as it is: the copy looks first, before
+  any byte goes (`lstat`, here `symlink_metadata`), says `DST: there, so
+  not replaced` once at the default level, and the file is a skip, with
+  exit 0. A name that comes during the copy stays too: the verified file
+  takes its name by a hard link (`hardlink@openssh.com`, POSIX `link()` on
+  OpenSSH's server; here `std::fs::hard_link`; by exec `ln`), which never
+  takes a name that is there, then its temporary name goes. With no hard
+  link, the look is the guard, and `-v` says so; with `--inplace` too, as
+  the bytes go into the name itself. `-u` (`--update`) copies a file when
+  its destination is missing, when the source's time of change is later,
+  or when the times are equal and the sizes differ, as rsync's does; the
+  times in whole seconds, as `podssh run` compares them. A file that stays
+  is said at `-v`; a time that is not known (by exec, no `stat`) copies the
+  file, said at the default level. `-b` (`--backup`) keeps the old file at
+  its name with the suffix `~` (`--suffix SUFFIX`): a hard link of the old
+  file takes that name before the rename (an older backup there goes
+  first), so the destination's name is never missing; with no hard link, a
+  rename of the old file first, which `-v` says. With `--delete`, a name
+  that ends with the suffix, and a directory that holds one, are never
+  deleted, as rsync protects its backups. A link of a tree under `-n` or
+  `-u` is made only where its name is missing or names the same, as a link
+  has no time of the source's; under `-b` the old one takes the suffix.
+  `mv -n` and `mv -u` keep each source that they did not copy. Between two
+  servers the look is at the second, before any byte goes there; the
+  first leg keeps the source's time for `-u`. `-n` with `-b`, `-b` with
+  `--inplace`, `--suffix` with no `-b`, and a suffix that is empty or
+  holds a `/` are refused (64). Each file left out counts as skipped in
+  the summary, and is a `skipped` object with `--jsonl` (`"why"`: `exists`
+  or `not newer`); the `done` object of a copy with a backup gains
+  `"backup"`; `--dry-run` says `skip SRC: exists`, `skip SRC: not newer`
+  and `backup DST -> DST~`.
 - **Progress** (T-145, T-472). One gauge for
   the run, which each road feeds: a file in one stream, the chunks of
   `--parallel`, the files K at once and the copy by exec. On stderr, when
@@ -2055,7 +2089,8 @@ SFTP, through the relay or with `--direct`, with the connection flags of
   KiB/s)`. Each count of zero is left out but the first, and so are the
   bytes and the rate when nothing was copied; unchanged counts the files
   that `run` left as they were, skipped a device, a FIFO or a socket of a
-  tree, and failed each failure, said when it came. It comes also after a
+  tree and a file that `-n` or `-u` left out (T-473), and failed each
+  failure, said when it came. It comes also after a
   failure, before an error that no line said before it, so that the error
   stays the last line. `-q` silences it; with `--jsonl` a `summary` object on
   stdout takes its place (`copied`, `bytes`, `unchanged`, `skipped`,
@@ -2104,7 +2139,8 @@ SFTP, through the relay or with `--direct`, with the connection flags of
   `"delta"` too after `--delta` (T-470), or
   `{"event":"error", "source", "message", "code"}`, one for each failure;
   and `{"event":"skipped", "source", "why"}` for each special file of a
-  tree (T-476).
+  tree (T-476), and each file that `-n` or `-u` left out (T-473), with
+  `"backup"` in the `done` object of a copy that kept the old file.
 - Each SFTP reply with no file data waits 30 s at most, each read or write
   60 s (T-133); `--timeout` bounds the whole copy, the login included.
 - **A copy goes on after a broken connection**
@@ -2156,6 +2192,12 @@ SFTP, through the relay or with `--direct`, with the connection flags of
   by exec).
 - `--jsonl` adds `"source_removed"` to each `done` object; a rename has no
   digest (`"sha256": null`) and `"verified_by": "rename"`.
+- **`-n`, `-u` and `-b`** (T-473) are `cp`'s: a source whose destination
+  stays is not moved and stays, and `mv -r` leaves it with the directories
+  that hold it. Within one server, `-n` moves by a hard link
+  (`hardlink@openssh.com`, by exec `ln`) and the removal of the source's
+  name, so a name that came since the look stays; `-b` keeps the old
+  destination before the rename.
 
 ## `podssh scp` and `podssh sftp`
 

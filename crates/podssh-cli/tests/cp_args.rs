@@ -69,6 +69,37 @@ fn preserve_owner_and_sparse_go_on_to_connect() {
     }
 }
 
+/// `--no-clobber`, `--update` and `--backup` (T-473): the pairs that do not
+/// go together are 64 before anything connects, as GNU cp refuses -n with
+/// -b; each alone, and -u with -b, go on to connect (offline, 69); `scp`
+/// keeps OpenSSH's table, which has no -n.
+#[test]
+fn no_clobber_update_and_backup_refuse_what_does_not_go_together() {
+    for (words, says) in [
+        (&["-n", "-b", "a", "host:b"][..], "--no-clobber and --backup do not go together"),
+        (&["--no-clobber", "--backup", "a", "host:b"][..], "--no-clobber and --backup do not go together"),
+        (&["-b", "--inplace", "a", "host:b"][..], "--backup and --inplace do not go together"),
+        (&["--suffix", ".bak", "a", "host:b"][..], "--suffix goes with --backup"),
+        (&["-b", "--suffix", "x/y", "a", "host:b"][..], "give a suffix that is not empty"),
+    ] {
+        let (rc, out, err) = cp(words);
+        assert_eq!(rc, 64, "{words:?}: {err}");
+        assert!(out.is_empty(), "{words:?} wrote to stdout");
+        assert!(err.contains(says) && err.contains("Nothing has been attempted"), "{words:?}: {err}");
+    }
+    let (rc, _, err) = mv(&["-n", "-b", "a", "host:b"]);
+    assert_eq!(rc, 64, "mv: {err}");
+    for flags in [&["-n"][..], &["-u"], &["-b"], &["-u", "-b", "--suffix", ".bak"], &["-n", "-u", "--inplace"]] {
+        let mut words = flags.to_vec();
+        words.extend(["a", "host:b"]);
+        let (rc, _, err) = cp(&words);
+        assert_eq!(rc, 69, "{flags:?}: {err}");
+    }
+    let (rc, out, err) = podssh(&["scp", "-n", "a", "host:b"]);
+    assert_eq!(rc, 64, "scp -n: {err}");
+    assert!(out.is_empty() && err.contains("-n"), "{err}");
+}
+
 #[test]
 fn a_missing_config_file_is_78_as_ssh_says() {
     let (rc, out, err) = cp(&["-F", "no_such_config", "a", "host:b"]);

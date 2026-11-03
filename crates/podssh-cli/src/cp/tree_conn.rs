@@ -161,10 +161,11 @@ pub(super) async fn flush(
     for ((from, _, id), answer) in waited.into_iter().zip(answers) {
         match answer {
             Some(Ok((done, _))) => {
-                if let Some(id) = id {
+                // A file left out has no copy for its other names (T-473).
+                if let (Some(id), None) = (id, done.skipped) {
                     linked.entry(id).or_insert((done.destination.clone(), done.bytes, done.sum));
                 }
-                outcome.done.push(done);
+                outcome.add(done);
             }
             Some(Err(f)) => {
                 *clean = false;

@@ -19,9 +19,11 @@
 //! `--timeout` passed; 77 a login or a host key refused; 78 a setting of the
 //! environment. With several files, the first failure's code.
 
+mod across;
 pub mod byexec;
 pub(crate) mod bysftp;
 pub(crate) mod chunks;
+pub mod clobber;
 pub mod delta;
 pub(crate) mod digest;
 mod finish;
@@ -63,9 +65,8 @@ use operand::{Operand, Remote};
 use outcome::Outcome;
 use plan::{Direction, Plan};
 use report::report;
-use resume::Before;
 use session::session;
-use transfer::{Done, Failed};
+use transfer::Failed;
 
 // The tests of several files at once read the default (T-474).
 pub use pipe::FILES_AT_ONCE;
@@ -104,6 +105,11 @@ pub struct CpArgs {
     pub sparse: bool,
     /// `--inplace` (T-147).
     pub inplace: bool,
+    /// `-n`, `-u`, `-b` and `--suffix SUFFIX` (T-473).
+    pub no_clobber: bool,
+    pub update: bool,
+    pub backup: bool,
+    pub suffix: Option<String>,
 }
 
 impl CpArgs {
@@ -156,6 +162,10 @@ impl CpArgs {
             owner: flag("owner"),
             sparse: flag("sparse"),
             inplace: flag("inplace"),
+            no_clobber: flag("no-clobber"),
+            update: flag("update"),
+            backup: flag("backup"),
+            suffix: many("suffix").pop(),
         }
     }
 }
@@ -207,7 +217,9 @@ pub fn run_cp(args: &CpArgs, deadline: Option<Duration>, jsonl: bool, out: &mut 
     let keep = meta::Keep { times: args.preserve, owner: args.owner, sparse: args.sparse };
     let shape = pipe::pipeline(None, None, &args.sftp_options).and_then(|pipe| {
         let (files, tasks) = pipe::at_once(args.parallel.as_deref())?;
-        Ok(pipe::Shape { pipe, files, tasks, delta: args.delta, keep, inplace: args.inplace, mode: None })
+        let (inplace, suffix) = (args.inplace, args.suffix.as_deref());
+        let clobber = clobber::of(args.no_clobber, args.update, args.backup, suffix, inplace)?;
+        Ok(pipe::Shape { pipe, files, tasks, delta: args.delta, keep, inplace, mode: None, clobber })
     });
     plan.shape = match shape {
         Ok(shape) => shape,
@@ -386,107 +398,6 @@ async fn run_plan(plan: &Plan, resolved: &[Resolved], log: &Arc<Log>, after: Aft
         Direction::Up | Direction::Down => {
             session(plan, &resolved[0], log, None, after).await.expect("up and down need no copy-data")
         }
-        Direction::Across => across(plan, resolved, log, after).await,
+        Direction::Across => across::across(plan, resolved, log, after).await,
     }
-}
-
-/// Server to server. Within one server, a move is the server's rename, and a
-/// copy on a server with `copy-data` stays there; else down to a local
-/// temporary file, then up from it, one connection at a time (`AGENTS.md`,
-/// rule 2), each copy verified; a move then removes the source in a third.
-async fn across(plan: &Plan, resolved: &[Resolved], log: &Arc<Log>, after: After) -> Outcome {
-    let (Operand::Remote(from), Operand::Remote(to)) = (&plan.sources[0], &plan.destination) else {
-        unreachable!("a copy across has a remote source and a remote destination")
-    };
-    let moving = after == After::Remove;
-    if from.same_server(to) {
-        if moving {
-            if let Some(outcome) = rename_session(from, to, &resolved[0], log).await {
-                return outcome;
-            }
-            log.info(&format!(
-                "{}: the server could not rename it, so this is a copy, a digest check, then a delete; \
-                 it is not atomic",
-                from.path
-            ));
-        }
-        if let Some(outcome) = session(plan, &resolved[0], log, None, after).await {
-            return outcome;
-        }
-        log.verbose("the server has no copy-data: the copy goes through this host");
-    }
-    let name = from.path.trim_end_matches('/').rsplit('/').next().unwrap_or("").to_string();
-    let dir = std::env::temp_dir().join(format!("podssh-cp-{:016x}", rand::random::<u64>()));
-    if let Err(e) = std::fs::create_dir(&dir) {
-        let failed = Failed::new(Fault::CantCreate, format!("{}: {e}", dir.display()));
-        return Outcome { failed: Some((from.path.clone(), failed)), ..Outcome::default() };
-    }
-    let local = dir.join(if name.is_empty() { "file" } else { &name });
-    let leg = |source: Operand, destination: Operand, direction| Plan {
-        direction,
-        sources: vec![source],
-        destination,
-        shape: plan.shape,
-        tree: None,
-    };
-    let down = leg(Operand::Remote(from.clone()), Operand::Local(local.display().to_string()), Direction::Down);
-    let first = if moving { After::Record } else { After::Keep };
-    let mut outcome = session(&down, &resolved[0], log, None, first).await.expect("a copy down needs no copy-data");
-    let recorded = std::mem::take(&mut outcome.recorded);
-    if outcome.failed.is_none() {
-        // The local copy has the source's name, so a directory or an empty
-        // path on the far side takes that name, as a copy up does.
-        let up = leg(Operand::Local(local.display().to_string()), Operand::Remote(to.clone()), Direction::Up);
-        outcome = session(&up, &resolved[1], log, Some(from.path.clone()), After::Keep)
-            .await
-            .expect("a copy up needs no copy-data");
-    }
-    let _ = std::fs::remove_dir_all(&dir);
-    let copied = outcome.done.last().cloned();
-    if let (true, true, Some(before), Some(copied)) = (moving, outcome.failed.is_none(), recorded.first(), copied) {
-        let removed = remove_session(from, before, &copied, &resolved[0], log).await;
-        if let Some(done) = outcome.done.last_mut() {
-            done.removed = Some(removed.is_ok());
-        }
-        if let Err(failed) = removed {
-            outcome.failed = Some((from.path.clone(), failed));
-        }
-    }
-    outcome
-}
-
-/// A move within one server: the server renames. `None` when it could not,
-/// for a copy and a delete instead.
-async fn rename_session(from: &Remote, to: &Remote, resolved: &Resolved, log: &Arc<Log>) -> Option<Outcome> {
-    let mut outcome = Outcome::default();
-    let link = match link::connect(resolved, log).await {
-        Ok(link) => link,
-        Err(failed) => {
-            outcome.failed = Some((from.path.clone(), failed));
-            return Some(outcome);
-        }
-    };
-    let result = moving::rename(&link, &from.path, &to.path, log).await;
-    link.close().await;
-    match result {
-        Ok(Some(done)) => outcome.done.push(done),
-        Ok(None) => return None,
-        Err(failed) => outcome.failed = Some((from.path.clone(), failed)),
-    }
-    Some(outcome)
-}
-
-/// The last step of a move between servers: remove the source on its
-/// server, when it is still what was copied.
-async fn remove_session(
-    from: &Remote,
-    before: &Before,
-    done: &Done,
-    resolved: &Resolved,
-    log: &Arc<Log>,
-) -> Result<(), Failed> {
-    let link = link::connect(resolved, log).await.map_err(|f| moving::not_removed(&from.path, &f.message))?;
-    let removed = moving::remove_far(&link, &from.path, before, done).await;
-    link.close().await;
-    removed
 }

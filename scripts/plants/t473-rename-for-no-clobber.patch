@@ -1,0 +1,20 @@
+--- a/crates/podssh-cli/src/cp/clobber.rs
++++ b/crates/podssh-cli/src/cp/clobber.rs
+@@ -223,7 +223,7 @@
+ /// The verified file `temp` at `target` on the server, as `clobber` asks;
+ /// `temp`'s name is gone after it, also when the destination stays.
+ pub async fn place_far(sftp: &Sftp, temp: &str, target: &str, clobber: Clobber, log: &Log) -> Result<Placed, Failed> {
+-    if clobber.mode == Mode::Keep {
++    if clobber.mode == Mode::Update {
+         if let Some(placed) = link_far(sftp, temp, target, log).await {
+             if placed.skipped.is_some() {
+                 let _ = sftp.remove(temp).await;
+@@ -301,7 +301,7 @@
+ /// name that is there, as `link()` does.
+ pub fn place_local(temp: &Path, target: &Path, clobber: Clobber, log: &Log) -> Result<Placed, Failed> {
+     let shown = target.display().to_string();
+-    if clobber.mode == Mode::Keep {
++    if clobber.mode == Mode::Update {
+         match std::fs::hard_link(temp, target) {
+             Ok(()) => {
+                 let _ = std::fs::remove_file(temp);

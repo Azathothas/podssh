@@ -23,6 +23,7 @@ use std::time::{Duration, SystemTime, UNIX_EPOCH};
 use podssh_ssh::sftp::{FileAttributes, Sftp, SftpError, Writes};
 use podssh_ssh::Log;
 
+use super::clobber::{Clobber, Placed};
 use super::transfer::{self, Failed, Side};
 use crate::exitmap::Fault;
 
@@ -370,21 +371,28 @@ pub fn inode(path: &Path) -> Option<(u64, u64)> {
 }
 
 /// `target` on the server as a second name of the far file `first`, by
-/// `hardlink@openssh.com`: a temporary name, then the rename onto `target`.
-/// `false` when the server has no such extension, for a copy instead.
-pub async fn hard_link(sftp: &Sftp, first: &str, target: &str, log: &Log) -> Result<bool, Failed> {
+/// `hardlink@openssh.com`: a temporary name, then the rename onto `target`,
+/// or what `clobber` asks of it (T-473). `None` when the server has no such
+/// extension, for a copy instead.
+pub async fn hard_link(
+    sftp: &Sftp,
+    first: &str,
+    target: &str,
+    clobber: Clobber,
+    log: &Log,
+) -> Result<Option<Placed>, Failed> {
     if !sftp.has("hardlink@openssh.com") {
         note(log, "hardlink", "the server has no hardlink@openssh.com: each name of a file is copied as a file");
-        return Ok(false);
+        return Ok(None);
     }
     let (dir, leaf) = transfer::split_remote(target);
     let temp = format!("{dir}{}", transfer::temp_name(leaf));
     sftp.hardlink(first, &temp).await.map_err(|e| transfer::from_sftp(e, Side::Destination))?;
-    let renamed = transfer::rename_onto(sftp, &temp, target, log).await;
+    let placed = super::clobber::place_far(sftp, &temp, target, clobber, log).await;
     // A rename between two names of one file does nothing and says so: the
     // temporary name then stays, and goes here.
     let _ = sftp.remove(&temp).await;
-    renamed.map(|_| true)
+    placed.map(Some)
 }
 
 #[cfg(test)]

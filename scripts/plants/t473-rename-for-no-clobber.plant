@@ -1,0 +1,9 @@
+# T-473: --no-clobber places the verified file by the rename, as with no
+# flag, in place of the hard link that refuses a name that is there; the
+# test of a name written while a copy under -l runs must fail.
+ENTRY=T-473
+GROUP=cli-tests
+EXPECT='test cp_tree_clobber::clobber_a_name_written_during_the_copy_stays \.\.\. FAILED'
+SETUP='apk add --no-cache openssh-sftp-server >/dev/null'
+RUN='cargo test --locked -p podssh-cli --test cp_tree -- clobber_a_name_written_during_the_copy_stays'
+LIMIT=2400

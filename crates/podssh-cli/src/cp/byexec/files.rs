@@ -1,7 +1,8 @@
 //! The steps of a copy by exec that move a file, up and down. Each writes
-//! under a temporary name, compares the digests, then renames. A failure
-//! removes the temporary file, except a broken connection's: the next
-//! attempt writes on in it (T-136), up with `cat >>`, down with `tail -c`.
+//! under a temporary name, compares the digests, then renames, as
+//! `--no-clobber`, `--update` and `--backup` ask (T-473). A failure removes
+//! the temporary file, except a broken connection's: the next attempt writes
+//! on in it (T-136), up with `cat >>`, down with `tail -c`.
 
 use std::io::{Read, Write};
 use std::path::{Path, PathBuf};
@@ -13,6 +14,7 @@ use podssh_ssh::{Connection, Log};
 use sha2::{Digest, Sha256};
 
 use super::{command, failed, step_failed, Far, Kind};
+use crate::cp::clobber::{self, Mode, Seen};
 use crate::cp::delta::{self, Full};
 use crate::cp::digest::{self, Sum};
 use crate::cp::gauge;
@@ -73,6 +75,13 @@ impl Far {
         if inplace && (self.is_link(handle, &target).await? || self.kind(handle, &target).await? == Kind::Dir) {
             let why = format!("{target}: a symbolic link or a directory; --inplace writes into a file");
             return Err(failed(Fault::Usage, why));
+        }
+        // --no-clobber and --update look before any byte goes (T-473).
+        if shape.clobber.mode != Mode::Replace && progress.temp.is_none() {
+            let dest = self.seen(handle, &target, shape.clobber.mode == Mode::Update).await?;
+            if let Some(skip) = clobber::judged(shape.clobber, &target, Seen::of_local(&before), dest, log) {
+                return Ok(clobber::skipped(source, &target, skip));
+            }
         }
         // --delta: the copy by exec sends the whole file, and says so (T-470).
         let said = if shape.delta {
@@ -179,16 +188,20 @@ impl Far {
             // The source's mode, or the far file's that `podssh edit` keeps.
             let mut stamp = Stamp::of_local(&before);
             stamp.mode = shape.mode.or(stamp.mode);
-            self.rename(handle, &temp, &target, &stamp, keep, log).await?;
+            let placed = self.rename(handle, &temp, &target, &stamp, keep, shape.clobber, true, log).await?;
+            // A name that came during the copy stays as it is (T-473).
+            if let Some(skip) = placed.skipped {
+                return Ok(clobber::skipped(source, &target, skip));
+            }
             Ok(Done {
                 source: source.into(),
                 destination: target.clone(),
                 bytes: sent,
                 sum: Some(sum),
                 verified_by: how,
-                not_atomic: false,
-                removed: None,
                 delta: said,
+                backup: placed.backup,
+                ..Done::default()
             })
         }
         .await;
@@ -246,6 +259,19 @@ impl Far {
             Some(target) => PathBuf::from(target),
             None => transfer::local_target(dest, name, many)?,
         };
+        // --no-clobber and --update look before any byte goes (T-473): the
+        // far time from `stat`, which -p read already.
+        if shape.clobber.mode != Mode::Replace && progress.temp.is_none() {
+            let mtime = match (&stamp, shape.clobber.mode) {
+                (Some(stamp), _) => stamp.mtime,
+                (None, Mode::Update) => self.stamp(handle, source).await?.and_then(|s| s.mtime),
+                (None, _) => None,
+            };
+            let seen = Seen { mtime, size };
+            if let Some(kept) = clobber::before_local(source, &target, seen, shape.clobber, false, log)? {
+                return Ok(kept);
+            }
+        }
         // --delta: the copy by exec sends the whole file, and says so (T-470).
         let said = shape.delta.then(|| {
             let old = std::fs::metadata(&target).is_ok_and(|m| m.is_file() && m.len() > 0);
@@ -324,20 +350,8 @@ impl Far {
                 ),
                 None => {}
             }
-            if !inplace {
-                std::fs::rename(&temp, &target)
-                    .map_err(|e| failed(Fault::CantCreate, format!("{}: {e}", target.display())))?;
-            }
-            Ok(Done {
-                source: source.into(),
-                destination: target.display().to_string(),
-                bytes: came,
-                sum: Some(sum),
-                verified_by: how,
-                not_atomic: false,
-                removed: None,
-                delta: said,
-            })
+            let done = clobber::done_here(source, &temp, &target, came, sum, how, shape, log)?;
+            Ok(Done { delta: said, ..done })
         }
         .await;
         drop(out);
