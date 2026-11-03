@@ -480,7 +480,7 @@ GitHub #17 (talaria0101, 2026-10-08: drops that repeat on one target).
 A dropped relay session ends a copy, and a new run sends the whole file
 again. On a link that drops every few minutes, a large file never arrives.
 GitHub #17 measured one drop (`1011`) in 180 short sessions from one edge
-(`docs/STATUS.md:340`), and drops that came back 3 times of 3 on one target.
+(`docs/STATUS.md:341`), and drops that came back 3 times of 3 on one target.
 
 ## Premise
 
@@ -637,7 +637,7 @@ old writer can race the new one.
 
 - Read: the pinned contract gives the same caps
   (`crates/podssh-probe/tests/spec/relay-spec-2026-10-03-r2.txt:233-235`).
-- Measured in the KTM sandbox (`docs/STATUS.md:339`; the 99 s are in the
+- Measured in the KTM sandbox (`docs/STATUS.md:340`; the 99 s are in the
   report): `podssh proxy` received 67,107,943 bytes, then the relay closed
   with `1009 session byte cap`, 921 bytes short of 64 MiB on that side.
 - Read: `podssh-relay` has a constant for the idle cut only
@@ -958,7 +958,7 @@ Where podssh must replace them, OpenSSH's own `scp` and `sftp` cannot run
 
 Recommendation: `scp` and `sftp` get no `--timeout` row, as in OpenSSH, so
 the gate of `crates/podssh-cli/src/dispatch.rs:300-318` skips them; T-133's
-limits keep each wait finite. Usage errors stay 64 (`docs/cli.md:3944-3947`)
+limits keep each wait finite. Usage errors stay 64 (`docs/cli.md:3956-3959`)
 where OpenSSH gives 1; a script that tests for "not zero" works with both.
 `--timeout` required with no terminal, as for `cp`, lost: each script that
 runs `scp` in a pipe would exit 64 under `podssh scp`.
@@ -1065,7 +1065,7 @@ trip is long, so such a copy uses a small part of what the path carries.
   (`crates/podssh-ssh/src/run.rs:26-29`): `docs/relay.md:328-340` gives
   2 MiB, `1013` and no drop. The window can grow only after that is
   settled; T-062 measures the `1013`.
-- Measured in two sandboxes (`docs/STATUS.md:338`): 20 MiB through the
+- Measured in two sandboxes (`docs/STATUS.md:339`): 20 MiB through the
   relay with `podssh proxy` (no SSH window in the path) at 0.5 to 0.7 MB/s
   through a CONNECT proxy, and 1.8 to 6.9 MiB/s with no proxy. SFTP through
   the relay is not measured.
@@ -1273,7 +1273,7 @@ differ", and the destination was not changed. The measurement:
 
 A copy over an older version of the same file sends each byte again.
 Through the relay that costs a new session for each 60 MiB (T-137), at 0.5
-to 0.7 MB/s in the KTM sandbox (`docs/STATUS.md:338`).
+to 0.7 MB/s in the KTM sandbox (`docs/STATUS.md:339`).
 
 ## Premise
 
@@ -1546,7 +1546,7 @@ in the issues; the `-l limit` of OpenSSH's `scp` and `sftp` (T-139).
 ## Problem
 
 A copy through the relay can take minutes (0.5 to 0.7 MB/s in the KTM
-sandbox, `docs/STATUS.md:338`). podssh would show no progress, a Ctrl-C
+sandbox, `docs/STATUS.md:339`). podssh would show no progress, a Ctrl-C
 would leave a temporary file with no word, and one copy can take the whole
 uplink of a shared host.
 
@@ -2780,7 +2780,7 @@ full copy, and said nothing. After the run, the user cannot tell whether the del
 3. With `--jsonl`, the `done` object of each copy with `--delta` gains `"delta"`:
    `{"blocks": N, "sent": K, "bytes": B}` after a delta, or `{"full": "REASON"}` after a full copy.
 4. The row of `--delta` (`crates/podssh-cli/src/flags/copy.rs:29-30`), the manual,
-   `docs/cli.md:1866-1877` and `docs/STATUS.md`.
+   `docs/cli.md:1878-1889` and `docs/STATUS.md`.
 
 ## Decision
 
@@ -2950,7 +2950,7 @@ the names, with no word.
    reverse order, `-S` by size, `-t` by time of change, `-1` one name a line; without `-l` or
    `-1`, the names in columns, as OpenSSH's.
 4. The listing goes into a module of its own, so that `crates/podssh-cli/src/sftp/run.rs` stays
-   well under 500 lines. The `help` of `sftp`'s commands, the manual, `docs/cli.md:2082-2088` and
+   well under 500 lines. The `help` of `sftp`'s commands, the manual, `docs/cli.md:2094-2100` and
    `docs/STATUS.md`.
 
 ## Decision
@@ -3119,7 +3119,7 @@ with no word, which reads as a hang.
 4. `run` says its summary before the command starts, on stderr, so that the command's stdout stays
    its own; with T-475, the paths that the ignores left out.
 5. `scp` and `sftp` keep the output of OpenSSH's, with no summary. The manual,
-   `docs/cli.md:1948-1959`, `docs/STATUS.md`, and `crates/podssh-cli/tests/run_far.rs`, which reads
+   `docs/cli.md:1960-1971`, `docs/STATUS.md`, and `crates/podssh-cli/tests/run_far.rs`, which reads
    the summary in place of the line of `-v`.
 
 ## Decision
@@ -3247,7 +3247,7 @@ the relay, at some 172 ms of echo latency), and its comment of the same day.
 **Milestone:** none
 **Priority:** P2
 **Effort:** S
-**Status:** open
+**Status:** partial
 
 ## Problem
 
@@ -3257,11 +3257,12 @@ waits minutes: 100 files of 2 bytes took 210 s with the default.
 
 ## Premise
 
-- Read: `--parallel` is 1 when it is not given (`crates/podssh-cli/src/cp/pipe.rs:38-44`), and
-  files go K at once only with K above 1 (`crates/podssh-cli/src/cp/lanes.rs:33-37`). A tree of 50
-  files or more that goes one at a time says once that `--parallel 8` copies 8 at once
-  (`crates/podssh-cli/src/cp/tree_conn.rs:26-28`, `:74-87`). One K sets both the files at once and
-  the chunks of one large file (`crates/podssh-cli/src/flags/copy.rs:27-28`).
+- Read: `--parallel` is 1 when it is not given (`crates/podssh-cli/src/cp/pipe.rs`, lines 38-44
+  at `477b47c`), and files go K at once only with K above 1 (`crates/podssh-cli/src/cp/lanes.rs`,
+  lines 33-37 there). A tree of 50 files or more that goes one at a time says once that
+  `--parallel 8` copies 8 at once (`crates/podssh-cli/src/cp/tree_conn.rs`, lines 26-28 and 74-87
+  there). One K sets both the files at once and the chunks of one large file
+  (`crates/podssh-cli/src/flags/copy.rs`, lines 27-28 there).
 - Measured in the issue, each tree equal to its source: 12 files of 40 KB, 28 s one at a time and
   8 s with `--parallel 6`; 20 files of 20 KB, 48.9 s and 10.0 s; 100 files of 2 bytes, 210 s, 32 s
   with 8, and 18 s with 16. T-417 measured 0.8 files a second up with one, and 5.3 with 8, through
@@ -3294,7 +3295,7 @@ waits minutes: 100 files of 2 bytes took 210 s with the default.
 4. T-417's line about `--parallel` is not said when the default applies, nor after
    `--parallel 1`, which the user chose.
 5. The row of `--parallel` names the default; the manual, README.md (its copies, with the
-   measured numbers), `docs/cli.md:1843-1865` and `docs/STATUS.md`.
+   measured numbers), `docs/cli.md:1843-1877` and `docs/STATUS.md`.
 
 ## Decision
 
@@ -3307,6 +3308,21 @@ waits minutes: 100 files of 2 bytes took 210 s with the default.
 - Lost: K of 16, the issue's fastest, which is more than OpenSSH's 10 sessions, so that the server
   refuses some lanes and the digests of others fall back to a second read; a K that follows the
   measured round trip, of which there is none before the first file.
+- 2026-11-03, the draft: the default is 4 until step 3's measurement runs. Each file holds its
+  SFTP session and, for its far digest, an exec channel beside it (T-417), so K files hold 2K
+  channels at most; of the K that step 3 measures, only 4 stays within OpenSSH's 10 sessions of one
+  connection, the rule of step 3. A compile-time check holds the constant to it
+  (`crates/podssh-cli/src/cp/pipe.rs`, `FILES_AT_ONCE`). If the measurement shows 6 or 8 with no
+  digest read again on OpenSSH, the constant, its row and the documents move to it. Lost: 5, the
+  most that fits 10 channels, which step 3 does not measure; 8, the issue's count, by its 2K of 16
+  channels.
+- `scp` takes the default too: it copies as `cp` does, under OpenSSH's command line, which has no
+  flag for it, and a user of `scp` through the relay waits as a user of `cp` did. `sftp`'s batch,
+  `edit` and `job`'s fetch keep one file at a time (`Shape::default()`), as each copies the files
+  that its commands name, one at a time. Lost: `scp` one at a time, as OpenSSH's own copies.
+- T-417's line (a tree of 50 files or more one at a time names `--parallel 8`) goes, as step 4
+  asks: with the default no tree goes one at a time but after `--parallel 1`, which the user chose.
+  Its test in `crates/podssh-cli/tests/cp_tree.rs` now reads that no line names the flag.
 
 ## Prove
 
@@ -3322,6 +3338,47 @@ Against the test's server, which counts the SFTP sessions of each connection
 `--parallel` has two sessions or more at once, and the default at most; with `--parallel 1`, one,
 and no line about `--parallel`; one file of 25 MiB with no `--parallel` goes in one stream.
 Planted defect: the default back to 1; the first check fails.
+
+## Done
+
+2026-11-03, drafted, not built (the main session fills each UNVERIFIED):
+
+- `crates/podssh-cli/src/cp/pipe.rs`: `Shape` holds two numbers, `files` (the files at once) and
+  `tasks` (the chunks of one file); `Shape::default()` keeps one of each, for `edit`, `job` and
+  `sftp`'s batch. `FILES_AT_ONCE` is 4 (the Decision), held by a compile-time check to 2K channels
+  within OpenSSH's 10; `at_once` gives `(4, 1)` with no `--parallel` and `(K, K)` with
+  `--parallel K`. A unit test reads both, and that the row of `--parallel` names the default.
+- `crates/podssh-cli/src/cp/mod.rs`: `cp` and `mv` take the shape of `at_once`; `cp::FILES_AT_ONCE`
+  is public, for the tests. `crates/podssh-cli/src/cp/sync.rs`: `podssh run`'s copy takes the
+  default.
+- `crates/podssh-cli/src/cp/lanes.rs`: the lanes follow `shape.files`, not `shape.tasks`; a file of
+  more than one chunk still goes after them, alone, in chunks only with `--parallel`.
+- `crates/podssh-cli/src/cp/tree_conn.rs`: T-417's line and its threshold go; `batches` takes the
+  shape alone (`crates/podssh-cli/src/cp/tree_copy.rs` calls it so). `crates/podssh-cli/src/cp/session.rs`:
+  comments.
+- The row of `--parallel` (`crates/podssh-cli/src/flags/copy.rs`), the notes of `cp` and `run`
+  (`crates/podssh-cli/src/man/notes.rs`, `crates/podssh-cli/src/man/notes_run.rs`), `docs/cli.md`,
+  README.md (an example of a tree, and the issue's numbers), and `docs/STATUS.md` (the row of
+  `podssh cp`, a row of its own, and T-417's paragraph).
+- Tests: `crates/podssh-cli/tests/cp_parallel.rs`, `small_files_go_at_once_with_no_parallel`
+  (against the watched server and OpenSSH's `sftp-server`: a tree of 20 small files with no
+  `--parallel`, between 2 and the default SFTP sessions at once on one connection and no line
+  that names the flag; 20 sources down, the same; `--parallel 1`, one session and no line; one file
+  of 25 MiB, one session and no chunks): UNVERIFIED. `crates/podssh-cli/tests/cp_tree.rs`,
+  `a_tree_of_many_files_names_no_flag` in place of T-417's test: UNVERIFIED. The rest of
+  `cp_parallel` and `cp_tree`: UNVERIFIED. `cargo test -p podssh-cli --lib cp::` and `--lib man::`:
+  UNVERIFIED. The other suites of `cp` (`copy_pipeline`, `cp_delta`, `cp_exec`, `cp_inplace`,
+  `cp_meta`, `cp_progress`, `node_copy`, `cp_args`, `run_far`), whose files of several sources
+  and trees now go 4 at once: UNVERIFIED.
+- The measurement: `crates/podssh-cli/tests/throughput_live.rs`, `cp_small_files_by_tasks`, now with
+  K of 1, 4, 6 and 8 and the default, and the far digests read again (the `-v` line of each file
+  done, `crates/podssh-cli/tests/throughput_harness/sftp.rs`): through the stand-in relay with
+  50 ms each way, UNVERIFIED; to a node of the live relay, UNVERIFIED. The default stays 4 unless
+  it shows otherwise (the Decision): UNVERIFIED.
+- Planted, the default back to one at a time (`scripts/plants/t474-default-one.patch`, group
+  `cli-tests`; `sh scripts/plant-each.sh --here t474-default-one`): UNVERIFIED.
+- Waits for the build image: `scripts/interop-cp.sh` and `scripts/interop-faults.sh`, whose copies
+  of several files and trees now go 4 at once against OpenSSH's sshd: UNVERIFIED.
 
 # T-476: `cp -r` says its first failure twice, and exits 66 for a device, FIFO or socket that it skips by design
 
@@ -3384,7 +3441,7 @@ step reads as a failure, and each `podssh run`, which then runs no command.
    link that cannot be read, a name that is not UTF-8, and a refused name (70).
 4. The comments that say that a skip makes the exit not zero
    (`crates/podssh-cli/src/cp/tree.rs:56-57`, and the module comment of
-   `crates/podssh-cli/src/cp/tree_copy.rs`), the row of `-r`, the manual, `docs/cli.md:1887-1903`,
+   `crates/podssh-cli/src/cp/tree_copy.rs`), the row of `-r`, the manual, `docs/cli.md:1899-1915`,
    `docs/STATUS.md`, and `scripts/interop-cp.sh`: `cp.tree.up` asks for 0 and the note once, and
    `cp.delete.failed` takes its failed copy from a far directory at the name of a source file (the
    rename onto it fails, 73, as T-297's test makes one fail).

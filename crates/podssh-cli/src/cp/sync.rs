@@ -1,8 +1,9 @@
 //! The copy of `podssh run` (T-192): a local directory onto a far one, as
 //! `podssh cp -r -p` copies it (each file to a temporary name, the digests,
-//! a rename; its times kept; a new connection after a break), but onto the
-//! far directory itself, also when it is there already, and with each file
-//! whose size and time of change are the far file's left as it is.
+//! a rename; its times kept; several files at once; a new connection after a
+//! break), but onto the far directory itself, also when it is there already,
+//! and with each file whose size and time of change are the far file's left
+//! as it is.
 
 use std::sync::Arc;
 
@@ -12,7 +13,7 @@ use podssh_ssh::Log;
 use super::link::{Link, Road};
 use super::meta::Keep;
 use super::operand::{Operand, Remote};
-use super::pipe::Shape;
+use super::pipe::{Shape, FILES_AT_ONCE};
 use super::transfer::{self, Failed, Side};
 use super::tree::Tree;
 use super::tree_conn::Conn;
@@ -69,7 +70,9 @@ pub(crate) async fn up(
     log: &Arc<Log>,
 ) -> Result<Synced, Failed> {
     let mut outcome = Outcome::default();
-    let shape = Shape { keep: Keep { times: true, ..Keep::default() }, ..Shape::default() };
+    // The files go several at once, as `cp -r` sends them with no
+    // `--parallel` (T-474).
+    let shape = Shape { files: FILES_AT_ONCE, keep: Keep { times: true, ..Keep::default() }, ..Shape::default() };
     let (source, dest) = (Operand::Local(local.to_string()), Operand::Remote(far.clone()));
     let mut conn = Conn::Again { link, resolved };
     tree_copy::copy(&mut conn, &source, &dest, false, tree, log, shape, false, &mut outcome).await;

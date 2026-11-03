@@ -1,0 +1,11 @@
+--- a/crates/podssh-cli/src/cp/pipe.rs
++++ b/crates/podssh-cli/src/cp/pipe.rs
+@@ -76,7 +76,7 @@
+ /// measurement through the live relay shows that chunks gain by default.
+ pub fn at_once(text: Option<&str>) -> Result<(usize, usize), String> {
+     match text {
+-        None => Ok((FILES_AT_ONCE, 1)),
++        None => Ok((1, 1)),
+         Some(_) => tasks(text).map(|k| (k, k)),
+     }
+ }

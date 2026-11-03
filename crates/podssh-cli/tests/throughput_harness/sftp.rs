@@ -128,11 +128,27 @@ pub fn cp_run(s: &Session, cell: &Cell, tasks: usize, bytes: u64) -> Result<(f64
     Ok((up_rate, down_rate))
 }
 
+/// What [`cp_tree_run`] measured: files a second up and down, and the far
+/// digests that fell back to a second read (T-474), both ways.
+pub struct TreeRun {
+    pub up: f64,
+    pub down: f64,
+    pub read_again: usize,
+}
+
 /// Many small files (T-297, by T-157's method; T-251): `cp -r --parallel
 /// TASKS` of a tree of `files` files of `size` bytes up, then back down, in
-/// `cell`: files a second each way by the wall clock of each command, its
-/// connection's setup in it, or why not. Each file must come back whole.
-pub fn cp_tree_run(s: &Session, cell: &Cell, tasks: usize, files: usize, size: usize) -> Result<(f64, f64), String> {
+/// `cell`, or with no `--parallel` for `None`, the default (T-474): files a
+/// second each way by the wall clock of each command, its connection's setup
+/// in it, and the far digests that `-v` says were read again, or why not.
+/// Each file must come back whole.
+pub fn cp_tree_run(
+    s: &Session,
+    cell: &Cell,
+    tasks: Option<usize>,
+    files: usize,
+    size: usize,
+) -> Result<TreeRun, String> {
     let tree = s.home.join("tp-small");
     if !tree.is_dir() {
         std::fs::create_dir_all(&tree).map_err(|e| e.to_string())?;
@@ -142,20 +158,26 @@ pub fn cp_tree_run(s: &Session, cell: &Cell, tasks: usize, files: usize, size: u
         }
     }
     let (dest, middle) = cell.args.split_last().ok_or("a cell with no destination")?;
-    let mut common = vec!["cp".to_string(), "--timeout".into(), "300s".into(), "-r".into()];
-    common.extend(["--parallel".to_string(), tasks.to_string()]);
+    let mut common = vec!["cp".to_string(), "--timeout".into(), "300s".into(), "-r".into(), "-v".into()];
+    if let Some(tasks) = tasks {
+        common.extend(["--parallel".to_string(), tasks.to_string()]);
+    }
     common.extend(middle.iter().skip(1).map(|a| if a == "-p" { "-P".to_string() } else { a.clone() }));
-    let (far, back) = (format!("tp-small-{tasks}"), format!("tp-small-back-{tasks}"));
+    let named = tasks.map_or_else(|| "default".to_string(), |k| k.to_string());
+    let (far, back) = (format!("tp-small-{named}"), format!("tp-small-back-{named}"));
     let mut up = common.clone();
     up.extend(["tp-small".to_string(), format!("{dest}:{far}")]);
     let started = Instant::now();
-    run_args(s, &up)?;
+    let said_up = run_args(s, &up)?;
     let up_rate = files as f64 / started.elapsed().as_secs_f64();
     let mut down = common;
     down.extend([format!("{dest}:{far}"), back.clone()]);
     let started = Instant::now();
-    run_args(s, &down)?;
+    let said_down = run_args(s, &down)?;
     let down_rate = files as f64 / started.elapsed().as_secs_f64();
+    // The line of -v of each file done names how its far side was checked.
+    let said = [said_up, said_down];
+    let read_again: usize = said.iter().map(|said| said.matches("(far side: read again)").count()).sum();
     let whole = std::fs::read_dir(s.home.join(&back))
         .map_err(|e| format!("{back}: {e}"))?
         .filter_map(Result::ok)
@@ -164,7 +186,7 @@ pub fn cp_tree_run(s: &Session, cell: &Cell, tasks: usize, files: usize, size: u
     if whole != files {
         return Err(format!("{whole} of {files} files came back whole"));
     }
-    Ok((up_rate, down_rate))
+    Ok(TreeRun { up: up_rate, down: down_rate, read_again })
 }
 
 #[cfg(test)]

@@ -277,10 +277,11 @@ fn cp_throughput_by_tasks() {
 }
 
 /// Many small files through the relay (T-297, by T-157's method; T-251):
-/// `cp -r --parallel K` of 200 files of 16 KiB up and back down, with 1 and
-/// 8 tasks, through the stand-in relay with 50 ms each way and through the
-/// live relay to a node in front of the test's server; files a second, the
-/// connection's setup counted.
+/// `cp -r --parallel K` of 200 files of 16 KiB up and back down, with 1, 4,
+/// 6 and 8 tasks and with no `--parallel`, the default (T-474), through the
+/// stand-in relay with 50 ms each way and through the live relay to a node
+/// in front of the test's server; files a second, the connection's setup
+/// counted, and the far digests that fell back to a second read.
 #[test]
 #[ignore = "network: cp of many small files through the stand-in relay with a delay, and to a node on the live relay"]
 fn cp_small_files_by_tasks() {
@@ -290,21 +291,25 @@ fn cp_small_files_by_tasks() {
     }
     let session = Session::start("cp-small");
     println!("\n200 files of 16 KiB a copy\n");
-    println!("| Cell | Tasks | Up files/s | Down files/s |");
-    println!("| --- | --- | --- | --- |");
+    println!("| Cell | Tasks | Up files/s | Down files/s | Digests read again |");
+    println!("| --- | --- | --- | --- | --- |");
     let delayed = Cell::fake_relay_mode(&session, "delay:50", "forward road, the stand-in relay, 50 ms each way");
     for cell in [delayed, Cell::reverse(&session)] {
         let cell = match cell {
             Ok(cell) => cell,
             Err((name, why)) => {
-                println!("| {name} | skipped: {why} | | |");
+                println!("| {name} | skipped: {why} | | | |");
                 continue;
             }
         };
-        for tasks in [1, 8] {
+        let default = format!("default ({})", podssh_cli::cp::FILES_AT_ONCE);
+        for tasks in [Some(1), Some(4), Some(6), Some(8), None] {
+            let shown = tasks.map_or_else(|| default.clone(), |k| k.to_string());
             match cp_tree_run(&session, &cell, tasks, 200, 16 * 1024) {
-                Ok((up, down)) => println!("| {} | {tasks} | {up:.1} | {down:.1} |", cell.name),
-                Err(why) => println!("| {} | {tasks} | failed: {why} | |", cell.name),
+                Ok(run) => {
+                    println!("| {} | {shown} | {:.1} | {:.1} | {} |", cell.name, run.up, run.down, run.read_again)
+                }
+                Err(why) => println!("| {} | {shown} | failed: {why} | | |", cell.name),
             }
         }
     }

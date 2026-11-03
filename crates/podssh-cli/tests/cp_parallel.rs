@@ -12,7 +12,9 @@
 //! order of the sources; so do the files of a tree with `-r`. A connection
 //! cut in the middle goes on over the next one, and a run that ends there
 //! goes on in the next run from each side file. A failure early in the
-//! order of the sources sets the code, though a later one came first.
+//! order of the sources sets the code, though a later one came first. With
+//! no `--parallel` (T-474), the files go as many at once as the default, a
+//! large file in one stream, and `--parallel 1` copies one at a time.
 
 mod cleanup;
 mod ssh_harness;
@@ -370,6 +372,64 @@ fn small_files_report_the_first_failure_in_the_order_of_their_sources() {
         same(&home.join(name), &home.join("far").join(leaf(name)));
     }
     assert_eq!(leftovers(&home.join("far")), Vec::<String>::new());
+}
+
+/// With no `--parallel` (T-474): a tree of 20 small files goes several at
+/// once, the default at most, and no line names the flag; so do the sources
+/// of a command line, down. `--parallel 1` copies one at a time and names
+/// nothing; one file of 25 MiB goes in one stream.
+#[test]
+fn small_files_go_at_once_with_no_parallel() {
+    if no_sftp_server() {
+        return;
+    }
+    let home = scratch("small-default");
+    let (_runtime, port, connections, watch) = watched(&home);
+    let default = podssh_cli::cp::FILES_AT_ONCE;
+    let names = small_files(&home, "tree", 0, 20, 2_000);
+    std::fs::create_dir(home.join("far")).unwrap();
+    let ran = cp_jsonl(&home, port, &["-r", "tree", "u@127.0.0.1:far/"]);
+    assert_eq!(ran.code, 0, "{}", ran.stderr);
+    assert!(ran.stderr.contains(&format!("20 files, {default} at once")), "{}", ran.stderr);
+    assert!(!ran.stderr.contains("--parallel"), "no line names the flag: {}", ran.stderr);
+    assert_eq!(ran.done.len(), 20, "{}", ran.stderr);
+    for name in &names {
+        same(&home.join(name), &home.join("far").join(name));
+    }
+    let most = watch.most.load(Ordering::SeqCst);
+    assert!((2..=default).contains(&most), "{most} SFTP sessions at once on the connection");
+    assert_eq!(connections.load(Ordering::SeqCst), 1, "one connection");
+    // The sources of a command line, down, the same.
+    watch.most.store(0, Ordering::SeqCst);
+    std::fs::create_dir(home.join("back")).unwrap();
+    let far: Vec<String> = names.iter().map(|name| format!("u@127.0.0.1:far/{name}")).collect();
+    let mut args: Vec<&str> = far.iter().map(String::as_str).collect();
+    args.push("back");
+    let ran = cp_jsonl(&home, port, &args);
+    assert_eq!(ran.code, 0, "{}", ran.stderr);
+    for name in &names {
+        same(&home.join(name), &home.join("back").join(leaf(name)));
+    }
+    let most = watch.most.load(Ordering::SeqCst);
+    assert!((2..=default).contains(&most), "{most} SFTP sessions at once, down");
+    // --parallel 1: the user chose one at a time.
+    watch.most.store(0, Ordering::SeqCst);
+    std::fs::create_dir(home.join("one")).unwrap();
+    let ran = cp_jsonl(&home, port, &["-r", "--parallel", "1", "tree", "u@127.0.0.1:one/"]);
+    assert_eq!(ran.code, 0, "{}", ran.stderr);
+    assert_eq!(watch.most.load(Ordering::SeqCst), 1, "one SFTP session: {}", ran.stderr);
+    assert!(!ran.stderr.contains("--parallel") && !ran.stderr.contains(" at once"), "{}", ran.stderr);
+    for name in &names {
+        same(&home.join(name), &home.join("one").join(name));
+    }
+    // A file of more than one chunk, with no --parallel: one stream.
+    watch.most.store(0, Ordering::SeqCst);
+    std::fs::write(home.join("big.bin"), bytes_of(5, 25 << 20)).unwrap();
+    let ran = cp_jsonl(&home, port, &["big.bin", "u@127.0.0.1:far/big.bin"]);
+    assert_eq!(ran.code, 0, "{}", ran.stderr);
+    assert!(!ran.stderr.contains("chunks of"), "{}", ran.stderr);
+    assert_eq!(watch.most.load(Ordering::SeqCst), 1, "one SFTP session: {}", ran.stderr);
+    same(&home.join("big.bin"), &home.join("far").join("big.bin"));
 }
 
 #[test]

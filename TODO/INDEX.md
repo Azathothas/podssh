@@ -62,15 +62,15 @@ repository and CI).
 
 ## Counts
 
-**563 entries: 117 open, 1 partial, 16 blocked, 429 done.**
+**563 entries: 116 open, 2 partial, 16 blocked, 429 done.**
 
 | Priority | open | partial | blocked | done | total |
 | --- | --- | --- | --- | --- | --- |
 | P0 | 0 | 0 | 0 | 1 | 1 |
 | P1 | 0 | 1 | 0 | 62 | 63 |
-| P2 | 36 | 0 | 14 | 204 | 254 |
+| P2 | 35 | 1 | 14 | 204 | 254 |
 | P3 | 81 | 0 | 2 | 162 | 245 |
-| **All** | 117 | 1 | 16 | 429 | 563 |
+| **All** | 116 | 2 | 16 | 429 | 563 |
 
 ## Entries
 
@@ -541,7 +541,7 @@ repository and CI).
 | [T-471](copy.md) | P1 | M | none | defect | done | `sftp`'s `ls -l` is not OpenSSH's long form, and five switches of its `ls` do nothing |
 | [T-472](copy.md) | P2 | M | none | feature | open | `cp`, `mv` and `run` say nothing of what they did without `-v`, and nothing in a pipe while a copy runs |
 | [T-473](copy.md) | P3 | M | none | feature | open | `cp` and `mv` have no `--no-clobber`, `--update` or `--backup` |
-| [T-474](copy.md) | P2 | S | none | feature | open | `cp` copies many small files one at a time unless `--parallel` is given |
+| [T-474](copy.md) | P2 | S | none | feature | partial | `cp` copies many small files one at a time unless `--parallel` is given |
 | [T-475](multi.md) | P3 | S | none | feature | open | `podssh run` has no `--dry-run`, and its help names neither `.podsshignore` nor the paths that never go |
 | [T-476](copy.md) | P2 | S | none | defect | done | `cp -r` says its first failure twice, and exits 66 for a device, FIFO or socket that it skips by design |
 | [T-480](multi.md) | P2 | M | none | defect | done | `health` gives the host's CPUs and memory where a container's cgroup allows fewer |

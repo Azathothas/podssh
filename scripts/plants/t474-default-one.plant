@@ -1,0 +1,8 @@
+# T-474: with no --parallel the files go one at a time again, as before; the
+# test of the default, which counts the SFTP sessions at once, must fail.
+ENTRY=T-474
+GROUP=cli-tests
+EXPECT='test small_files_go_at_once_with_no_parallel \.\.\. FAILED'
+SETUP='apk add --no-cache openssh-sftp-server >/dev/null'
+RUN='cargo test --locked -p podssh-cli --test cp_parallel -- small_files_go_at_once_with_no_parallel'
+LIMIT=2400
