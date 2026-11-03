@@ -1,0 +1,9 @@
+# T-336: the role's sockets keep the kernel's own send buffers, which grow to
+# some MiB, so a slow forward client ties MiB of the role's host to its
+# session; the test of a slow client must see more than 2 MiB wait past the
+# target.
+ENTRY=T-336
+GROUP=resume
+EXPECT='more than 2 MiB waited past the target'
+RUN='cargo test --locked -p podssh-relay --features serve,plain-ws --test relay_serve_backpressure -- a_slow_forward_client'
+LIMIT=1800

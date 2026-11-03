@@ -1156,13 +1156,13 @@ the part of podssh:
    server of their own, on port 443.
 2. The forward path: `/connect/<host>/<port>`, the token header, `/v1/mint`,
    an empty frame each 25 s, the limits (180 s idle, 12 h, 64 MiB, frames of
-   262144 bytes), the close codes of `docs/relay.md:331-352`, and `/health`
+   262144 bytes), the close codes of `docs/relay.md:335-356`, and `/health`
    with the service name that `doctor` checks
    (`crates/podssh-relay/src/health.rs:13-15`).
 3. The reverse path: `/v1/pair`, `/v1/node/<name>`, `/v1/connect/<name>`,
    `/v1/stop/<name>`, the text control frames, the 32-character ids, `409` for
    a second node, and the reverse close table.
-4. The targets: public addresses only, the ranges of `docs/relay.md:276`,
+4. The targets: public addresses only, the ranges of `docs/relay.md:280`,
    checked after the name resolves. TLS with a certificate that the relay's
    owner gives. Rate limits and quotas for each address and each token.
 5. The part of podssh: no change in the client, because the contract is the
@@ -1211,7 +1211,7 @@ What the role serves: the contract `2026-10-03-r2`, so that each client of podss
 with `?dial=lazy`, `?precheck` and `?family`; `/relays.json` with the five limits of
 `crates/podssh-probe/facts/relay-limits.toml`; `/trace`; and `/llms-full.txt`, podssh's own copy
 of the contract. A target is dialed only after its name resolved to a public address (the ranges
-of `docs/relay.md:276`), and port 25 is refused; the limits are the contract's (an empty frame
+of `docs/relay.md:280`), and port 25 is refused; the limits are the contract's (an empty frame
 each 25 s, 180 s idle, 12 h, 64 MiB, frames of 262144 bytes), and so are the forward close
 codes; each queue has a bound (`1013` at 2 MiB, T-336), which a write that waits gives.
 
@@ -2575,7 +2575,7 @@ The part of podssh, when the start condition holds:
 2. The client uses it only when the relay says that it offers it (a field of
    `/relays.json` or `/health`, read at run time). Never assume it.
 3. Keep the resume token in memory only. Send it back in a header, never in a
-   URL or in output (`docs/relay.md:260-262`).
+   URL or in output (`docs/relay.md:264-266`).
 4. A resume must reach the same Durable Object, so only hosts of one
    deployment can resume a session (the rule of the pool:
    `crates/podssh-relay/src/pool.rs:139-148`).
@@ -4009,7 +4009,7 @@ Endpoint puts a credential in its URL.
 - Read: the `cf://` road uses podssh-ws's WebSocket client through the proxy
   (`crates/podssh-cli/src/ssh/cloudflare.rs:238`); an RSA key signs through aws-lc-rs in the
   binary (`deny.toml`, the reason of RUSTSEC-2023-0071); `podssh cp` opens a new session before
-  the relay's caps (`docs/relay.md:287-293`), as an hour of EICE would need.
+  the relay's caps (`docs/relay.md:291-297`), as an hour of EICE would need.
 - Inferred: a proxy that re-terminates TLS passes either road where it passes a WebSocket.
 
 ## Approach
@@ -5378,7 +5378,7 @@ and no notice.
   tailcat; the forwarders of #59 serve their own products' users, and say nothing of others.
 - Read: whether Cloudflare's terms, which forbid using its services "to provide a virtual private
   network or other similar proxy services", hold for the relay is a question for the relay's
-  operator (`docs/relay-operator.md:92-96`).
+  operator (`docs/relay-operator.md:97-101`).
 - Read: the test targets of a session are the operator's list (`AGENTS.md:242-268`), which names
   none of the three.
 
@@ -5457,7 +5457,7 @@ relay host failed. Live, as Q56 allows: GitHub's banner through each, in GitHub 
 
 2026-10-31 (the drafting agent): two citations of the Premise, read at `a3f948d`. The question of
 Cloudflare's terms is item 15 of the relay operator's list, `docs/relay-operator.md`, lines 315-322 at `80a6407`;
-`docs/relay-operator.md:92-96` is item 1's word on the drops of reverse sockets. The test targets
+`docs/relay-operator.md:97-101` is item 1's word on the drops of reverse sockets. The test targets
 of `AGENTS.md:241-258` name the three forwarders now, from GitHub Actions only, with short runs
 (Q56, the same day); the Premise read them before that ruling.
 

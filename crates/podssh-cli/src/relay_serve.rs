@@ -257,6 +257,8 @@ fn serve_until_stopped(prepared: Prepared, err: &mut dyn Write) -> i32 {
             tokio::select! {
                 accepted = listener.accept() => {
                     let Ok((tcp, peer)) = accepted else { continue };
+                    // What a slow client leaves unsent, bounded (T-336).
+                    serve::sockets::bound_unsent(&tcp);
                     let (acceptor, cfg) = (acceptor.clone(), cfg.clone());
                     tokio::spawn(async move {
                         if let Ok(Ok(mut tls)) = tokio::time::timeout(HANDSHAKE_WAIT, acceptor.accept(tcp)).await {

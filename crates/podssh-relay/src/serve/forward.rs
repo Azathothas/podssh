@@ -143,7 +143,11 @@ where
 /// proxy is, on the role's line.
 async fn dial(host: &str, plan: &Plan, cfg: &Config) -> Result<TcpStream, String> {
     match egress::dial(host, plan, &cfg.egress, cfg.limits.connect).await {
-        Ok((tcp, _)) => Ok(tcp),
+        Ok((tcp, _)) => {
+            // A slow target's unsent bytes, as a slow client's (T-336).
+            super::sockets::bound_unsent(&tcp);
+            Ok(tcp)
+        }
         Err(Missed { said, line }) => {
             if let Some(line) = line {
                 cfg.event(&format!("proxy: {line}"));

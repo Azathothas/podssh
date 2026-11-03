@@ -64,8 +64,13 @@ found each of podssh's 7 facts in it.
      the node. podssh keeps the SSH window at 512 KiB, so the relay holds no
      more than that for an SSH session; a raw stream (`podssh proxy`, `-W`)
      has no such bound.
-   - In podssh: T-336 bounds each queue in podssh's own relay role, on the
-     forward road (T-169) and on the reverse road (T-427).
+   - Measured again on 2026-11-03, from a cloud container: no Close in
+     90 s, and 48878136 bytes past the node.
+   - In podssh: podssh's own relay role bounds each queue (T-336): each
+     write waits for its reader, the reverse road closes `1011 relay
+     backpressure` past 1 MiB (T-427), and on Linux each socket holds at
+     most 128 KiB unsent (`TCP_NOTSENT_LOWAT`). Through the role, a
+     forward client read at 16 KiB/s left at most 378 KB past its target.
 2. **Reverse sockets end with no Close** (T-255, [TODO/relay.md](../TODO/relay.md)).
    Measured on 2026-10-09: the TCP connection of a socket of the reverse
    road (`/v1/node/<name>` or `/v1/connect/<name>`) ended at random, with

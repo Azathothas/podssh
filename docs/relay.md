@@ -67,7 +67,11 @@ VERSION`), `/v1/mint`, `/connect/<host>/<port>` with `?dial=lazy`,
 once each address of its name is public, and port 25 is refused; a `403`
 names the target and "not in the ALLOW list", as the client reads a policy
 refusal. Each write waits for the reader on the other side, so no queue of a
-session grows without a bound (T-336 asks the same of the default relay).
+session grows without a bound, and on Linux each socket of the role holds at
+most 128 KiB unsent (`TCP_NOTSENT_LOWAT`), so a slow reader ties a few
+hundred KiB of the host to its session, not the MiB of a send buffer that
+the kernel grew (T-336; measured: a forward client that read 16 KiB/s left at
+most 378 KB past its target, 4.9 MB before the bound).
 The key is a P-256 key in PEM, signed in pure Rust as podssh's other TLS is;
 a token is the contract's form under a secret of the run, so a restart ends
 each token. The certificate is read again on SIGHUP, and when its files
@@ -363,6 +367,9 @@ is not a number as `0`, with no message.
   (`podssh proxy`, `-W`) has no bound short of the session byte cap. When a
   `1013` comes, podssh names it, says what makes it, and does not try again
   (the stand-in relay's mode `backlog`, `crates/podssh-cli/tests/faults.rs`).
+  Measured again on 2026-11-03 from a cloud container: no Close in 90 s,
+  and 48878136 bytes past the far end. podssh's own role holds no such
+  queue ("podssh's own relay", above).
 - The upgrade is HTTP/1.1 only. podssh never offers h2 through ALPN.
 
 ### Relay facts for a client that selects a relay

@@ -18,6 +18,7 @@ pub mod forward;
 pub mod keys;
 pub mod policy;
 pub mod reverse;
+pub mod sockets;
 pub mod tokens;
 
 use std::net::IpAddr;

@@ -1,0 +1,20 @@
+--- a/crates/podssh-relay/src/serve/sockets.rs
++++ b/crates/podssh-relay/src/serve/sockets.rs
+@@ -14,7 +14,7 @@ pub const UNSENT: u32 = 128 * 1024;
+ /// Bound what `tcp` holds unsent; where the system has no such option, or
+ /// refuses it, its own buffers are the bound.
+ pub fn bound_unsent(tcp: &TcpStream) {
+-    #[cfg(any(target_os = "linux", target_os = "android"))]
++    #[cfg(any())]
+     {
+         use std::os::fd::AsRawFd;
+         let value: libc::c_int = UNSENT as libc::c_int;
+@@ -30,7 +30,7 @@ pub fn bound_unsent(tcp: &TcpStream) {
+             );
+         }
+     }
+-    #[cfg(not(any(target_os = "linux", target_os = "android")))]
++    #[cfg(all())]
+     let _ = tcp;
+ }
+ 

@@ -65,6 +65,9 @@ impl Role {
         let served = cfg.clone();
         tokio::spawn(async move {
             while let Ok((tcp, peer)) = listener.accept().await {
+                // Its unsent bytes bounded, as `podssh relay serve` bounds
+                // them (T-336).
+                serve::sockets::bound_unsent(&tcp);
                 // The peer, as `podssh relay serve` gives it, for the brake.
                 tokio::spawn(serve::serve_from(tcp, served.clone(), None, Some(peer.ip())));
             }
