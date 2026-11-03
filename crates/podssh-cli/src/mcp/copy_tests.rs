@@ -61,7 +61,8 @@ fn a_file_of_the_directory_goes_up_with_the_gate_of_ssh_exec() {
     .unwrap();
     assert_eq!(words[..4], ["cp", "--jsonl", "--timeout", "300s"]);
     assert!(words.contains(&"BatchMode=yes".to_string()) && words.contains(&"StrictHostKeyChecking=yes".to_string()));
-    let local = s.0.join("allowed/up.txt").display().to_string();
+    // The operand as `podssh cp` takes it: with no `\\?\` on Windows.
+    let local = super::super::dirs::operand(&s.0.join("allowed/up.txt"));
     assert_eq!(words[words.len() - 3..], ["--", local.as_str(), "u@web1:x/up.txt"]);
     let down = argv(
         &s.settings(),
@@ -119,7 +120,7 @@ fn content_goes_through_a_private_file_of_the_far_name() {
     .unwrap();
     let written = content_dir(&file).join("app.ini");
     assert_eq!(std::fs::read(&written).unwrap(), b"hello\n");
-    assert_eq!(words[words.len() - 2], written.display().to_string());
+    assert_eq!(words[words.len() - 2], super::super::dirs::operand(&written));
     let big = base64::engine::general_purpose::STANDARD.encode(vec![0u8; CONTENT_MAX + 1]);
     let file = s.0.join("r4.json").display().to_string();
     let refused = argv(&s.settings(), "cp_put", json!({ "destination": "web1", "path": "big", "content": big }), &file);

@@ -93,6 +93,12 @@ impl Dirs {
     /// `new_only`, for a tree: the path must not be there, so that each path
     /// below it is one that the copy makes, and none a link made before it.
     pub fn target(&self, path: &str, new_only: bool) -> Result<PathBuf, String> {
+        // Windows reads `..` in the text before it opens the path, so that
+        // `new/..` names the directory there; elsewhere it names nothing.
+        // A write takes no `..`, the same on each system.
+        if Path::new(path).components().any(|c| matches!(c, Component::ParentDir)) {
+            return Err(format!("local_path {path}: a path to write names no .."));
+        }
         let joined = self.given(path)?;
         if let Ok(resolved) = std::fs::canonicalize(&joined) {
             if new_only {

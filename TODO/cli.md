@@ -3087,7 +3087,7 @@ node at its next line, often "online again" after a reconnect. A server then has
 - Read: after ready a detached child's stderr is its log (`crates/podssh-cli/src/detach/child.rs:242`).
 - Read in Rust's documentation: `eprintln!` "panics if writing to io::stderr fails"; only EBADF is
   ignored.
-- Read: `crates/podssh-ssh/src/log.rs:99` already writes its lines and ignores a failure.
+- Read: `crates/podssh-ssh/src/log.rs:102` already writes its lines and ignores a failure.
 
 ## Approach
 

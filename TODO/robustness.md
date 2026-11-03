@@ -330,7 +330,7 @@ byte test that a person wrote with the same mistake.
 
 Read:
 
-- `crates/podssh-ssh/src/log.rs:121-137` turns LF into CR LF when the terminal
+- `crates/podssh-ssh/src/log.rs:124-140` turns LF into CR LF when the terminal
   is raw. The help of `~?` (`crates/podssh-ssh/src/escape.rs:141-150`) goes
   through it. The raw state is a global (`raw_active`), so a test cannot set
   it from outside.
@@ -415,7 +415,7 @@ sh scripts/dev.sh check                           # the model and tmux agree on 
 ```
 
 Each command exits 0. Planted defect: remove the CR LF conversion
-(`crates/podssh-ssh/src/log.rs:133-135`); the help case must fail. After M5,
+(`crates/podssh-ssh/src/log.rs:136-138`); the help case must fail. After M5,
 `cargo test -p podssh-terminal --test oracle` must fail while T-127 is open.
 
 ## Correction
@@ -1520,3 +1520,9 @@ Drafted 2026-11-02 by a drafting agent, not built; merged and run by the main se
 - Planted, `scripts/plants/t564-no-raise.patch` (the start reads and never raises): caught,
   `open_files::a_soft_limit_below_the_hard_one_is_raised_to_it` failed.
 - `docs/STATUS.md`: a row in "Build, tests, CI".
+- Repaired after the push, 2026-11-03 (the gate's step `release` at `0d0c22c`, run 41605642217:
+  `scripts/interop-mv.sh`'s `mv.notice.sftp` and `mv.notice.exec`): the limit's line came before
+  the notice of `mv`, a line of the default level that must come first; it is now said before the
+  first line at `-v` or more alone (`crates/podssh-ssh/src/log.rs`). `mv -v` to a port that
+  refuses: the notice first, the limit's line second; `cargo test -p podssh-cli --test status`: 7
+  passed.

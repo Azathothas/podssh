@@ -1182,6 +1182,12 @@ the same); `session start` with its `--` before the host ran in `mcp_tools`. `ca
 (`sh scripts/plant-each.sh --here t488-dir-unchecked`): caught. `scripts/interop-mcp.sh`
 (`mcp.cp`, `mcp.job` against OpenSSH) runs in the gate's interop at the push; the build image's
 own run of it waits for the release check (Q88).
+- Repaired after the push, 2026-11-03 (the gate's job `windows` at `0d0c22c`, run 41605642217):
+  on Windows a resolved path carries `\\?\`, which the tests' expected operands kept and
+  `operand` drops, so two tests of `mcp::copy` now hold the operand that `podssh cp` takes; and
+  Windows reads `..` in the text before it opens a path, so that `new/..` named the allowed
+  directory there and passed, where it names nothing elsewhere: a path to write now names no
+  `..` on any system (`Dirs::target`).
 
 # T-511: `doctor` checks each road one after another, 22 to 40 s, roads that the run did not ask for among them
 

@@ -72,8 +72,11 @@ impl Log {
 
     fn at(&self, level: LogLevel, message: &str) {
         if self.level >= level {
-            // A fact of the process, said once by the first log at -v (T-564).
-            self.say_once();
+            // A fact of the process, said once before the first line at -v
+            // (T-564): a notice of the default level keeps its place first.
+            if level >= LogLevel::Verbose {
+                self.say_once();
+            }
             self.write(message, true);
             // A hint of the binary's after an error that it explains.
             self.hint(level, message);
@@ -137,15 +140,15 @@ fn host_text(message: &str, prefix: bool, host: Option<&str>, raw: bool) -> Stri
 }
 
 /// Lines of the process that no command owns, such as the limit of open
-/// files (T-564): each said once, before the first line of the first log at
-/// `-v` or more.
+/// files (T-564): each said once, before the first line at `-v` or more of
+/// a log that shows it.
 static ONCE: Mutex<Vec<String>> = Mutex::new(Vec::new());
 
 /// What the binary says after an error line that it explains, such as
 /// "Too many open files" with the limit (T-564).
 static HINT: std::sync::OnceLock<fn(&str) -> Option<String>> = std::sync::OnceLock::new();
 
-/// Say `line` once, before the first line of the first log at `-v` or more.
+/// Say `line` once, before the first line at `-v` or more.
 pub fn say_once_at_verbose(line: String) {
     ONCE.lock().unwrap_or_else(|e| e.into_inner()).push(line);
 }
