@@ -95,6 +95,31 @@ fn may_install(_program: &Path) -> bool {
     false
 }
 
+/// tmux, of one name under each manager (T-481).
+pub const TMUX: Package = Package { default: "tmux", by_manager: &[] };
+
+/// The names of the managers, in the order of the probe: a probe that runs
+/// on a far host (T-481) looks for this list.
+pub fn managers() -> impl Iterator<Item = &'static str> {
+    MANAGERS.iter().map(|(name, _)| *name)
+}
+
+/// The command that installs `package` with `manager`, which a probe on a
+/// far host found (T-481): `may_install` where the login there is root or
+/// owns the manager's file, `sudo` where sudo is on its PATH. `None` for a
+/// name that is not in the table.
+pub fn far_command(package: &Package, manager: &str, may_install: bool, sudo: bool) -> Option<String> {
+    MANAGERS.iter().find(|(name, _)| *name == manager)?;
+    let how = if may_install {
+        How::Own
+    } else if sudo {
+        How::Sudo
+    } else {
+        How::AsRoot
+    };
+    Some(words(package, manager, how))
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;

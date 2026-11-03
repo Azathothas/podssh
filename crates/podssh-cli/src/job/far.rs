@@ -1,6 +1,7 @@
 //! The calls of `podssh job` on the far host (T-193). Each call is one
 //! command on a channel with no pty: `sh -c 'INSTALL' sh MARKER ACTION
-//! ARG...`, with the far script (`far.sh`) on its stdin. The login shell,
+//! ARG...`, with the far script (`far_notmux.sh`, then `far.sh`) on its
+//! stdin. The login shell,
 //! POSIX or not, only starts `sh`, and each word is one quoted word, as for
 //! the copy by exec of `cp`. [`INSTALL`] keeps the script as
 //! `~/.podssh/jobs/jobs.sh`, which tmux runs for each job, and runs it
@@ -11,13 +12,16 @@ use std::sync::Arc;
 use std::time::Duration;
 
 use podssh_ssh::exec::{self, Captured, ExecError};
+use podssh_ssh::missing::{Found, Who};
 use podssh_ssh::{Connection, Log};
 
 use crate::cp::byexec::{self, Strip};
+use crate::install_hint;
 use crate::ssh::resolve::Resolved;
 
-/// The far script.
-pub const SCRIPT: &str = include_str!("far.sh");
+/// The far script: the functions of the jobs with no tmux (T-481), then the
+/// rest and each action, as one file on the host.
+pub const SCRIPT: &str = concat!(include_str!("far_notmux.sh"), include_str!("far.sh"));
 
 /// What the login shell starts: the script from stdin into a new name, then
 /// a rename onto `jobs.sh`, so that a runner of tmux that reads the old file
@@ -190,14 +194,34 @@ fn no_answer(host: &str, got: &Captured) -> String {
     why
 }
 
+/// The sentence that names the command that installs tmux on a far host,
+/// from what its probe found (T-481), with the table of `install_hint`:
+/// "to install it on ubuntu: sudo apt-get install -y tmux". podssh never
+/// runs it. `None` where the probe found no manager of the table.
+pub fn install_sentence(found: &Found) -> Option<String> {
+    let manager = found.manager.as_deref()?;
+    let sudo = found.who == Who::Sudo;
+    let command = install_hint::far_command(&install_hint::TMUX, manager, found.may_install(), sudo)?;
+    let on = found.system.as_deref().map(|s| format!(" on {s}")).unwrap_or_default();
+    Some(format!("to install it{on}: {command}"))
+}
+
+/// The refusal of a host with no tmux: what can install it, where the far
+/// script's words `PM ID WHO` name a manager, then `--no-tmux`.
+fn no_tmux(host: &str, words: &str) -> String {
+    let hint = Found::parse(words).as_ref().and_then(install_sentence).map(|s| format!("; {s}")).unwrap_or_default();
+    format!(
+        "{host} has no tmux on PATH; podssh job runs each job in the host's tmux, and starts none without it{hint}; \
+         --no-tmux runs the job without it, under nohup"
+    )
+}
+
 /// The message of a first line of an answer that says why the call did
 /// nothing; `None` for any other line.
 pub fn refusal(host: &str, line: &str) -> Option<String> {
     let (word, rest) = line.split_once(' ').unwrap_or((line, ""));
     Some(match word {
-        "missing" if rest == "tmux" => format!(
-            "{host} has no tmux on PATH; podssh job runs each job in the host's tmux, and starts none without it"
-        ),
+        "missing" if rest == "tmux" || rest.starts_with("tmux ") => no_tmux(host, &rest["tmux".len()..]),
         "missing" => format!("{host} has no {rest} on PATH, which podssh job needs"),
         "odd-path" => {
             format!("the jobs' directory of {host}, {rest}, holds a ' or a !, which no command line of tmux can carry")
@@ -238,13 +262,46 @@ mod tests {
         assert_eq!(refusal("web1", "end"), None);
     }
 
-    /// The script that the binary holds is the file of the repository: the
+    /// T-481: the refusal names what installs tmux, from the far script's
+    /// words, then `--no-tmux`; with no manager found, only the flag.
+    #[test]
+    fn a_host_with_no_tmux_is_told_the_command_that_installs_it_and_the_flag() {
+        let why = refusal("web1", "missing tmux apt-get ubuntu sudo").unwrap();
+        assert!(why.contains("; to install it on ubuntu: sudo apt-get install -y tmux; --no-tmux runs"), "{why}");
+        let why = refusal("web1", "missing tmux apk - root").unwrap();
+        assert!(why.contains("; to install it: apk add tmux;"), "{why}");
+        let why = refusal("web1", "missing tmux dnf \"fedora\" user").unwrap();
+        assert!(why.contains("to install it on fedora: dnf install -y tmux (as root)"), "{why}");
+        let why = refusal("web1", "missing tmux brew macos own").unwrap();
+        assert!(why.contains("to install it on macos: brew install tmux;"), "{why}");
+        for bare in ["missing tmux - ubuntu sudo", "missing tmux", "missing tmux a b"] {
+            let why = refusal("web1", bare).unwrap();
+            assert!(!why.contains("to install it") && why.ends_with("--no-tmux runs the job without it, under nohup"));
+        }
+    }
+
+    /// One list of the managers: the T-590 table's, which the probe of
+    /// `--persist` and the far script look for in the same order.
+    #[test]
+    fn the_probes_look_for_the_managers_of_the_table() {
+        let names: Vec<&str> = install_hint::managers().collect();
+        assert_eq!(podssh_ssh::missing::MANAGERS, names.join(" "));
+        assert!(SCRIPT.contains(&format!("for p in {}; do", names.join(" "))));
+        let found = Found::parse("pacman arch user").unwrap();
+        let s = install_sentence(&found).unwrap();
+        assert_eq!(s, "to install it on arch: pacman -S --noconfirm tmux (as root)");
+    }
+
+    /// The script that the binary holds is the files of the repository: the
     /// shell's syntax of each line is read by the tests that run it.
     #[test]
     fn the_script_names_each_action_of_the_client() {
-        for action in ["start | submit)", "job)", "runner)", "list)", "state)", "log)", "files)", "stop)"] {
+        let actions = ["start | submit)", "job)", "plain)", "runner)", "list)", "state)", "log)", "files)", "stop)"];
+        for action in actions {
             assert!(SCRIPT.contains(&format!("\n{action}\n")), "{action}");
         }
         assert!(!SCRIPT.contains('\r'), "a CR breaks dash");
+        // The functions come first, and the actions read them at the end.
+        assert!(SCRIPT.find("\nrunplain() {").unwrap() < SCRIPT.find("\ncase $a in\n").unwrap());
     }
 }

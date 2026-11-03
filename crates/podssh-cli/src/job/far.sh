@@ -7,11 +7,13 @@
 # names sort in that order: its command (cmd), its state (state: queued,
 # running, done), its output and its errors (out), and its exit status
 # (status) once it ended. The file slots holds the number of jobs that the
-# runner lets run at once.
+# runner lets run at once. A job with no tmux (T-481) is far_notmux.sh's,
+# which comes before this file in the script.
 #
 # sh jobs.sh MARKER ACTION ARG...: MARKER on a line, then the answer, which
 # crates/podssh-cli/src/job/far.rs reads. A MARKER of - prints none: tmux
-# runs `jobs.sh - job NAME` for a job, and `jobs.sh - runner` for the queue.
+# runs `jobs.sh - job NAME` for a job, and `jobs.sh - runner` for the queue;
+# nohup runs `jobs.sh - plain NAME lead|alone` and `jobs.sh - runner plain`.
 
 m=$1
 a=$2
@@ -38,7 +40,7 @@ need() {
 
 # Whether this directory can go in single quotes to tmux's shell, which is
 # the login's: a ' or a ! cannot.
-plain() {
+quotable() {
     case $q in
     *\'* | *!*) return 1 ;;
     esac
@@ -80,14 +82,14 @@ $1
 }
 
 # The state of the job of directory $1: done (its status is there), queued,
-# running (its session is), or lost (none of these: the host or tmux's
-# server stopped).
+# running (its session is, or with no tmux its runner), or lost (none of
+# these: the host or tmux's server stopped).
 state_of() {
     if [ -f "$1/status" ]; then
         printf done
     elif [ "$(cat "$1/state" 2>/dev/null)" = queued ]; then
         printf queued
-    elif alive "$(sess "$1")"; then
+    elif runs "$1"; then
         printf running
     else
         printf lost
@@ -96,23 +98,47 @@ state_of() {
 
 # Start the job of directory $1 in tmux. Its command runs in sh, in the home
 # directory.
-launch() {
+intmux() {
+    if ! quotable || ! command -v tmux >/dev/null 2>&1; then
+        return 1
+    fi
     printf 'running\n' >"$1/state" &&
         tmux new-session -d -s "$(sess "$1")" "exec sh '$q/jobs.sh' - job '$1'" </dev/null
 }
 
-# A job of the queue that tmux did not start ends at once with 255.
+# Start the job of directory $1 as its kind asks: in tmux, or with no tmux.
+launch() {
+    if [ "$(kind_of "$1")" = plain ]; then
+        loose "$1"
+    else
+        intmux "$1"
+    fi
+}
+
+# A job of the queue that did not start ends at once with 255.
 unstarted() {
-    printf 'podssh: tmux did not start this job\n' >"$1/out"
+    if [ "$(kind_of "$1")" = plain ]; then
+        printf 'podssh: the runner of this job did not start\n' >"$1/out"
+    else
+        printf 'podssh: tmux did not start this job\n' >"$1/out"
+    fi
     printf '255\n' >"$1/status"
     printf 'done\n' >"$1/state"
 }
 
-# The runner of the queue, unless one runs: the name of its tmux session is
-# the lock, so a second one does not start.
+# The runner of the queue, unless one runs, of either kind: in tmux, whose
+# session's name is its lock, so a second one does not start; or with no
+# tmux ($1 is plain), whose lock is runner.lock.
 runner_up() {
-    plain && command -v tmux >/dev/null 2>&1 &&
-        tmux new-session -d -s podssh-runner "exec sh '$q/jobs.sh' - runner" </dev/null 2>/dev/null
+    sessions
+    alive podssh-runner && return 0
+    held && return 0
+    if [ "$1" = plain ]; then
+        away sh "$q/jobs.sh" - runner plain
+    else
+        quotable && command -v tmux >/dev/null 2>&1 &&
+            tmux new-session -d -s podssh-runner "exec sh '$q/jobs.sh' - runner" </dev/null 2>/dev/null
+    fi
     return 0
 }
 
@@ -130,18 +156,29 @@ scan() {
         [ -f "$d/cmd" ] && [ ! -f "$d/status" ] || continue
         case $(cat "$d/state" 2>/dev/null) in
         queued) [ -n "$next" ] || next=$d ;;
-        running) alive "$(sess "$d")" && busy=$((busy + 1)) ;;
+        running) runs "$d" && busy=$((busy + 1)) ;;
         esac
     done
 }
 
 case $a in
 start | submit)
-    need mkdir cat mv rm tmux sleep
-    plain || {
-        say "odd-path $q"
-        exit 0
-    }
+    # $4: plain for a job with no tmux (T-481), which the user asked for;
+    # else tmux runs it, and its lack is said with what can install it.
+    kind=${4:-tmux}
+    if [ "$kind" = plain ]; then
+        need mkdir cat mv rm nohup sleep
+    else
+        need mkdir cat mv rm sleep
+        command -v tmux >/dev/null 2>&1 || {
+            say "missing tmux $(hint)"
+            exit 0
+        }
+        quotable || {
+            say "odd-path $q"
+            exit 0
+        }
+    fi
     mkdir "$1" || {
         say "failed to make $q/$1"
         exit 0
@@ -151,13 +188,17 @@ start | submit)
         say "failed to write $q/$1/cmd"
         exit 0
     }
+    [ "$kind" = tmux ] || printf 'plain\n' >"$1/kind"
     if [ "$a" = submit ]; then
         printf 'queued\n' >"$1/state"
         [ "$2" = - ] || printf '%s\n' "$2" >slots
-        runner_up
+        runner_up "$kind"
         say "queued ${1#*-}"
     elif launch "$1"; then
         say "started ${1#*-}"
+    elif [ "$kind" = plain ]; then
+        rm -rf "$1"
+        say "failed the runner of the job did not start"
     else
         rm -rf "$1"
         say "failed tmux did not start the job"
@@ -174,9 +215,16 @@ job)
     printf '%s\n' "$s" >"$d/status.part" && mv -f "$d/status.part" "$d/status"
     printf 'done\n' >"$d/state"
     ;;
+plain)
+    # Under nohup, with no tmux (T-481): far_notmux.sh's runner.
+    runplain "$1" "$2"
+    ;;
 runner)
-    # In tmux: start the oldest queued job while fewer jobs run than the
-    # slots; end when nothing is queued and nothing runs.
+    # In tmux, or with no tmux ($1 is plain) as a process of its own whose
+    # lock is runner.lock: start the oldest queued job while fewer jobs run
+    # than the slots; end when nothing is queued and nothing runs.
+    r=${1:-tmux}
+    [ "$r" = tmux ] || lock || exit 0
     while :; do
         scan
         if [ -n "$next" ] && [ "$busy" -lt "$k" ]; then
@@ -184,12 +232,12 @@ runner)
             continue
         fi
         if [ -z "$next" ] && [ "$busy" -eq 0 ]; then
-            # Give the name up first, so that a submit from now on starts a
+            # Give the lock up first, so that a submit from now on starts a
             # runner of its own; then look once more, and take it back.
-            tmux rename-session -t =podssh-runner "podssh-runner-$$" 2>/dev/null || exit 0
+            release "$r" || exit 0
             scan
             [ -n "$next" ] || exit 0
-            tmux rename-session -t "=podssh-runner-$$" podssh-runner 2>/dev/null || exit 0
+            retake "$r" || exit 0
             continue
         fi
         sleep 1
@@ -203,11 +251,12 @@ list)
         s=-
         [ -f "$d/status" ] && s=$(cat "$d/status")
         st=$(state_of "$d")
-        [ "$st" = queued ] && waits=yes
+        [ "$st" = queued ] && [ -z "$waits" ] && waits=$(kind_of "$d")
         printf 'job\t%s\t%s\t%s\t%s\n' "$d" "$st" "$s" "$(cat "$d/cmd")"
     done
-    # A queue with no runner, after a restart of tmux's server, gets one.
-    [ -z "$waits" ] || runner_up
+    # A queue with no runner, after a restart of tmux's server or of the
+    # host, gets one, of the kind of its oldest job.
+    [ -z "$waits" ] || runner_up "$waits"
     say end
     ;;
 state)
@@ -219,7 +268,7 @@ state)
     st=$(state_of "$d")
     s=-
     [ -f "$d/status" ] && s=$(cat "$d/status")
-    [ "$st" = queued ] && runner_up
+    [ "$st" = queued ] && runner_up "$(kind_of "$d")"
     say "state $st $s"
     ;;
 log)
@@ -261,7 +310,22 @@ stop)
     # The session of this job only: = asks tmux for that exact name, where
     # a bare name would also match a longer one.
     w=removed
-    if command -v tmux >/dev/null 2>&1 && tmux kill-session -t "=$(sess "$d")" 2>/dev/null; then
+    if [ "$(kind_of "$d")" = plain ]; then
+        # With no tmux (T-481), no signal from here: the file stop asks the
+        # runner, which alone signals the command, and the status is waited
+        # for. A job that still runs then keeps its directory.
+        if [ ! -f "$d/status" ]; then
+            : >"$d/stop"
+            if [ "$(cat "$d/state" 2>/dev/null)" != queued ]; then
+                halt "$d" || {
+                    say "stuck $1"
+                    exit 0
+                }
+                w=lost
+                [ -f "$d/status" ] && w=stopped
+            fi
+        fi
+    elif command -v tmux >/dev/null 2>&1 && tmux kill-session -t "=$(sess "$d")" 2>/dev/null; then
         w=stopped
     fi
     rm -rf "$d" || {

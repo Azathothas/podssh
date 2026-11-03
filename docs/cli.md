@@ -519,9 +519,12 @@ scripts. The facts about OpenSSH on this page were measured with OpenSSH
   that OpenSSH also reads.
 - **`--persist` keeps the work through a lost link** (T-178), against a
   standard sshd, where the resumable layer cannot help. After the login,
-  podssh looks for tmux (`command -v tmux`) and refuses without it (exit
+  podssh looks for tmux (`command -v tmux`, in `sh`) and refuses without it (exit
   255): a new shell after a loss would look like the old one and have lost
-  its state. The session is `tmux new-session -A -s NAME`, with a pty as
+  its state. The refusal ends with the command that installs tmux, from the
+  probe of `podssh job` (T-481, below); podssh runs none. A login that runs
+  no `sh` is asked `command -v tmux` itself, and its refusal has no
+  command. The session is `tmux new-session -A -s NAME`, with a pty as
   `-tt` asks; NAME is `podssh`, or the one of `--persist-name` (letters,
   digits, `_` and `-`, 32 at most). A lost link is a session that ended
   with no exit status: with `--direct`, or through the relay when its link
@@ -1702,7 +1705,8 @@ them (T-197; `crates/podssh-cli/src/job/`).
   `-F`, `-J`, `-v`, `-q`, `--direct` and the relay's) and the `Host` blocks
   of `ssh_config`. A `node://` or `iroh:` destination is refused (64).
 - **Nothing of podssh runs on the host** but a POSIX sh script,
-  `crates/podssh-cli/src/job/far.sh`. Each call sends it on the stdin of
+  `crates/podssh-cli/src/job/far_notmux.sh` and then
+  `crates/podssh-cli/src/job/far.sh`, as one file. Each call sends it on the stdin of
   `sh -c 'INSTALL' sh MARKER ACTION ARG...`, and the host keeps it as
   `~/.podssh/jobs/jobs.sh`, mode 0600 in a directory of mode 0700: a new
   name, then a rename, so that a reader never reads half of it. The login
@@ -1720,6 +1724,48 @@ them (T-197; `crates/podssh-cli/src/job/`).
   255 and names tmux, and nothing starts. The command must follow `--`, so
   that no word of it is read as a flag of podssh, and a command with a
   newline or a NUL has no word for a far shell (64 for each).
+- **A host with no tmux is told what installs it** (T-481). The far script
+  answers `missing tmux PM ID WHO`: PM, the first of `apk`, `apt-get`,
+  `dnf`, `yum`, `zypper`, `pacman`, `brew` and `pkg` that `command -v`
+  finds; ID, the `ID=` of `/etc/os-release`; WHO, `root`, `own` (the
+  login owns the manager's file, as Homebrew's), `sudo` (on `PATH`) or
+  `user`; each `-` when unknown. The command comes from the table of
+  `crates/podssh-cli/src/install_hint.rs`, which T-590 made for an sshd:
+  "to install it on ubuntu: sudo apt-get install -y tmux", with `(as
+  root)` after it for a `user`, and brew never under sudo. podssh names it
+  and runs none; then the refusal names `--no-tmux`. `ssh --persist` asks
+  the same probe, a line of sh for the login shell
+  (`crates/podssh-ssh/src/missing.rs`), whose list of managers a test
+  holds to the table's.
+- **`--no-tmux`, the user's choice, never the default** (T-481), for a host
+  that has no tmux and cannot get it: `start` and `submit` run the job
+  with no tmux. The job's directory gets `kind` (`plain`); its runner,
+  `nohup setsid sh jobs.sh - plain NAME lead` (with no `setsid` on `PATH`,
+  `nohup sh jobs.sh - plain NAME alone`), with no input and its output to
+  the null device, writes its PID to `pid` (`pid.start` holds the PID of
+  `$!` until then), starts the command in `sh` as its own child, and
+  waits. **The runner alone signals the command**: `stop` writes the file
+  `stop` and sends no signal; a watcher of the runner's asks it each second
+  (USR1) to look, and the runner sends TERM to its process group (its own
+  TERM ignored) where it leads one (`lead`, and `/proc/PID/stat` shows its
+  group as its PID), else to the command alone, and KILL to the command
+  10 s later. The command is a child that the runner has not waited for,
+  so the system has given its PID to no other process, and no call reads a
+  PID from a file to signal it: T-193's reason to set `nohup` aside is
+  gone. `stop` waits 15 s for the status, then removes the directory; a job
+  that runs on keeps it (`stuck`, 255), and one whose runner is gone is
+  removed after 5 s (`lost`), as nothing can end its command. A job is
+  `running` while the PID of its runner is alive and, where `/proc` shows
+  it, its command line holds `jobs.sh`; else `lost`. `submit --no-tmux`
+  starts the queue's runner the same way, `jobs.sh - runner plain`, whose
+  lock is the directory `runner.lock` (made by `mkdir`, with the runner's
+  PID; a lock whose runner is gone is taken over); a runner of either kind
+  starts no runner of the other, and starts each job as its kind asks.
+  What a job loses with no tmux: it stays in the login's scope of systemd,
+  so logind's `KillUserProcesses` ends it at the logout, as it ends a tmux
+  built with no systemd support; and a stop does not reach a process that
+  the command put in a group of its own, nor, with no `setsid`, one that
+  it started in the background.
 - `list HOST` prints a line for each job, in the order of their starts:
   the ID, the state (`queued`; `running`; `done`; or `lost`, when neither
   the job's tmux session nor its status is there, as after a restart),
@@ -1766,9 +1812,11 @@ them (T-197; `crates/podssh-cli/src/job/`).
   while there is none), `started_ms` and `command`.
 - **The exit status** is that of `podssh ssh`: 0; 64 for a usage error and
   78 for a setting, before anything connects; 255 when the host cannot be
-  reached or logged in to, has no tmux, has no job of that ID, or gives no
-  answer. `wait` gives the job's status; 75 when its `--timeout` passed,
-  and when `fetch` finds the job queued or running.
+  reached or logged in to, has no tmux, has no job of that ID, gives no
+  answer, or a job of `--no-tmux` runs on after its stop. `wait` gives the
+  job's status; 75 when its `--timeout` passed, and when `fetch` finds the
+  job queued or running. `--no-tmux` with another subcommand than `start`
+  and `submit` is 64.
 
 ## A word with no subcommand
 

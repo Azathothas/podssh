@@ -1,7 +1,7 @@
 --- a/crates/podssh-cli/src/job/far.sh
 +++ b/crates/podssh-cli/src/job/far.sh
-@@ -179,7 +179,7 @@
-     # slots; end when nothing is queued and nothing runs.
+@@ -227,7 +227,7 @@
+     [ "$r" = tmux ] || lock || exit 0
      while :; do
          scan
 -        if [ -n "$next" ] && [ "$busy" -lt "$k" ]; then

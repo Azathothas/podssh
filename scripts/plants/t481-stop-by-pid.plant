@@ -1,0 +1,7 @@
+# T-481: the stop of a job with no tmux sends TERM to the PID that the job's
+# file pid names, as T-193's lost alternative did; a PID file that names a
+# process of the test's gets that process killed, and its test must fail.
+ENTRY=T-481
+GROUP=cli-tests
+EXPECT='test a_pid_file_that_names_another_process_never_gets_it_signalled \.\.\. FAILED'
+RUN='cargo test --locked -p podssh-cli --test job_far -- a_pid_file_that_names_another_process_never_gets_it_signalled'

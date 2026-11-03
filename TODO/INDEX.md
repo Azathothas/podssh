@@ -62,15 +62,15 @@ repository and CI).
 
 ## Counts
 
-**563 entries: 112 open, 3 partial, 16 blocked, 432 done.**
+**563 entries: 111 open, 3 partial, 16 blocked, 433 done.**
 
 | Priority | open | partial | blocked | done | total |
 | --- | --- | --- | --- | --- | --- |
 | P0 | 0 | 0 | 0 | 1 | 1 |
 | P1 | 0 | 1 | 0 | 62 | 63 |
-| P2 | 31 | 2 | 14 | 207 | 254 |
+| P2 | 30 | 2 | 14 | 208 | 254 |
 | P3 | 81 | 0 | 2 | 162 | 245 |
-| **All** | 112 | 3 | 16 | 432 | 563 |
+| **All** | 111 | 3 | 16 | 433 | 563 |
 
 ## Entries
 
@@ -545,7 +545,7 @@ repository and CI).
 | [T-475](multi.md) | P3 | S | none | feature | open | `podssh run` has no `--dry-run`, and its help names neither `.podsshignore` nor the paths that never go |
 | [T-476](copy.md) | P2 | S | none | defect | done | `cp -r` says its first failure twice, and exits 66 for a device, FIFO or socket that it skips by design |
 | [T-480](multi.md) | P2 | M | none | defect | done | `health` gives the host's CPUs and memory where a container's cgroup allows fewer |
-| [T-481](multi.md) | P2 | M | none | feature | open | `job` and `--persist` on a host with no tmux: the command that installs it, and jobs with no tmux when asked |
+| [T-481](multi.md) | P2 | M | none | feature | done | `job` and `--persist` on a host with no tmux: the command that installs it, and jobs with no tmux when asked |
 | [T-482](multi.md) | P2 | L | none | feature | open | `health --preflight`: what the far host allows, from one login, before a long command needs it |
 | [T-483](pipe.md) | P3 | S | none | feature | done | `http-listen:` takes `ssh:[USER@]HOP` with no target, and `pipe --help` shows the proxy of an SSH server with its client |
 | [T-484](multi.md) | P3 | M | none | feature | open | `each --json` and `each --result-file`: each host's status, failure and streams in one object |

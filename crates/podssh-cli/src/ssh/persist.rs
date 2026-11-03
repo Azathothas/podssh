@@ -143,7 +143,8 @@ async fn keep(resolved: &Resolved, kept: &Kept, log: &Arc<Log>) -> i32 {
         };
         let why = match attempt {
             Attempt::Ended(code) => return code,
-            Attempt::Failed => return EXIT_FAILURE,
+            // `one` said each of them.
+            Attempt::Failed | Attempt::NoTmux(_) => return EXIT_FAILURE,
             Attempt::Lost { attached: true, why } => {
                 attached = true;
                 if began.elapsed() >= STEADY {
@@ -219,6 +220,14 @@ pub fn attempt_words(forever: bool, tries: u32) -> Option<String> {
     }
 }
 
+/// The refusal of a server with no tmux, which ends with the command that
+/// installs it where the probe found a package manager there (T-481);
+/// podssh names it and runs none.
+pub fn no_tmux(found: Option<&podssh_ssh::missing::Found>) -> String {
+    let hint = found.and_then(crate::job::far::install_sentence).map(|s| format!("; {s}")).unwrap_or_default();
+    format!("the server has no tmux on PATH; --persist needs it{hint}")
+}
+
 /// One connection: the road, then the attempt. Before the first attach, a
 /// failure is final, with the lines that `podssh ssh` gives without
 /// `--persist`; with `--persist-forever`, those lines, and it is a loss.
@@ -257,6 +266,10 @@ async fn one(
     };
     transport::settle(reached.layer).await;
     match attempt {
+        Attempt::NoTmux(found) => {
+            log.error(&no_tmux(found.as_ref()));
+            Attempt::Failed
+        }
         Attempt::Lost { attached: false, why } if first => {
             for line in podssh_ssh::run::failure_lines(&why, relay.and_then(|r| r.get()).as_ref(), &target) {
                 log.error(&line);

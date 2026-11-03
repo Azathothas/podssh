@@ -3,13 +3,16 @@
 //! in a home of the test's, with the PATH that the test gives; and the
 //! binary run against it with no relay. tmux is the one that
 //! `PODSSH_TEST_TMUX` names, else one on PATH; the tmux server of a far
-//! home stops with it. On Unix only, as a far host has a POSIX sh.
+//! home stops with it, and so does each job with no tmux (T-481). On Unix
+//! only, as a far host has a POSIX sh.
 
 // Each test binary uses a part of it.
 #![allow(dead_code)]
 
 use std::path::{Path, PathBuf};
 use std::process::{Command, Stdio};
+use std::sync::atomic::{AtomicUsize, Ordering};
+use std::sync::Arc;
 use std::time::{Duration, Instant};
 
 pub fn scratch(name: &str) -> PathBuf {
@@ -44,12 +47,38 @@ pub fn path_with(tmux: &Path) -> String {
     format!("{}:{mine}", tmux.parent().unwrap().display())
 }
 
-/// The far host: its home, the port of its server, and the runtime that
-/// serves it; the tmux server of its home stops with it.
+/// A directory of a PATH with each of `tools` of this host's PATH, linked,
+/// and a stand-in for each of `stand_ins` that does nothing and exits 0,
+/// as a package manager that the far script only looks for (T-481).
+pub fn bin_of(name: &str, tools: &[&str], stand_ins: &[&str]) -> PathBuf {
+    use std::os::unix::fs::PermissionsExt;
+    let bin = scratch(name);
+    for tool in tools {
+        let found = on_path(tool).unwrap_or_else(|| panic!("{tool} is on no PATH of this host"));
+        std::os::unix::fs::symlink(found, bin.join(tool)).unwrap();
+    }
+    for stand_in in stand_ins {
+        let file = bin.join(stand_in);
+        std::fs::write(&file, b"#!/bin/sh\nexit 0\n").unwrap();
+        std::fs::set_permissions(&file, std::fs::Permissions::from_mode(0o755)).unwrap();
+    }
+    bin
+}
+
+/// Whether the process `pid` is there, a zombie too.
+pub fn alive(pid: i32) -> bool {
+    // SAFETY: signal 0 only asks whether the process exists.
+    unsafe { libc::kill(pid, 0) == 0 }
+}
+
+/// The far host: its home, the port of its server, the count of the
+/// connections that it took, and the runtime that serves it; the tmux
+/// server of its home stops with it.
 pub struct Far {
     pub home: PathBuf,
     pub port: u16,
     pub local: PathBuf,
+    pub connections: Arc<AtomicUsize>,
     tmux: Option<PathBuf>,
     _runtime: tokio::runtime::Runtime,
 }
@@ -59,6 +88,7 @@ impl Drop for Far {
         if let Some(tmux) = &self.tmux {
             let _ = Command::new(tmux).arg("kill-server").env("TMUX_TMPDIR", &self.home).stderr(Stdio::null()).status();
         }
+        self.stop_plain_jobs();
     }
 }
 
@@ -79,8 +109,51 @@ impl Far {
         std::fs::create_dir_all(&local).unwrap();
         let runtime = tokio::runtime::Builder::new_multi_thread().worker_threads(2).enable_all().build().unwrap();
         let shell = crate::ssh_harness::Shell { home: home.clone(), path };
-        let port = runtime.block_on(crate::ssh_harness::start_shell(&key, shell)).0;
-        Far { home, port, local, tmux, _runtime: runtime }
+        let (port, connections) = runtime.block_on(crate::ssh_harness::start_shell(&key, shell));
+        Far { home, port, local, connections, tmux, _runtime: runtime }
+    }
+
+    /// The connections that the server took so far.
+    pub fn connections(&self) -> usize {
+        self.connections.load(Ordering::SeqCst)
+    }
+
+    /// The directory of the job `id` on the far host.
+    pub fn job_dir(&self, id: &str) -> Option<PathBuf> {
+        let jobs = std::fs::read_dir(self.home.join(".podssh/jobs")).ok()?;
+        jobs.flatten().map(|e| e.path()).find(|p| p.is_dir() && p.to_string_lossy().ends_with(&format!("-{id}")))
+    }
+
+    /// The number that a job's command wrote to the file `name` of the far
+    /// home, once it is there, within 10 s.
+    pub fn pid_in(&self, name: &str) -> i32 {
+        let until = Instant::now() + Duration::from_secs(10);
+        loop {
+            let text = std::fs::read_to_string(self.home.join(name)).unwrap_or_default();
+            if let Ok(pid) = text.trim().parse() {
+                return pid;
+            }
+            assert!(Instant::now() < until, "no PID in {name}");
+            std::thread::sleep(Duration::from_millis(50));
+        }
+    }
+
+    /// Each job with no tmux that has not ended is asked to stop, as `stop`
+    /// asks it, so that no runner outlives the test; 5 s at most.
+    fn stop_plain_jobs(&self) {
+        let Ok(jobs) = std::fs::read_dir(self.home.join(".podssh/jobs")) else { return };
+        let running: Vec<PathBuf> = jobs
+            .flatten()
+            .map(|e| e.path())
+            .filter(|d| d.join("kind").is_file() && !d.join("status").exists())
+            .collect();
+        for dir in &running {
+            let _ = std::fs::write(dir.join("stop"), b"");
+        }
+        let until = Instant::now() + Duration::from_secs(5);
+        while running.iter().any(|d| d.is_dir() && !d.join("status").exists()) && Instant::now() < until {
+            std::thread::sleep(Duration::from_millis(100));
+        }
     }
 
     /// A far host with tmux, or `None` when this host has none, said.

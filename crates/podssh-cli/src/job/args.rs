@@ -33,6 +33,9 @@ pub struct JobArgs {
     pub timeout: Option<String>,
     pub files: Option<String>,
     pub json: bool,
+    /// `--no-tmux` of `start` and `submit` (T-481): the job runs under
+    /// nohup, for a host where tmux cannot be installed.
+    pub no_tmux: bool,
     /// The connection flags, read as `ssh` reads them: `job`'s rows share
     /// their ids. The destination is the host.
     pub ssh: SshArgs,
@@ -46,6 +49,7 @@ impl JobArgs {
     /// line held `--`.
     pub fn from_matches(m: &ArgMatches, dashed: bool, refused: Vec<(String, &'static str, &'static str)>) -> Self {
         let one = |id: &str| m.try_get_one::<String>(id).ok().flatten().cloned();
+        let flag = |id: &str| m.try_get_one::<bool>(id).ok().flatten().copied().unwrap_or(false);
         let words = m.try_get_many::<String>("words").ok().flatten().map(|v| v.cloned().collect()).unwrap_or_default();
         JobArgs {
             subcommand: one("subcommand"),
@@ -55,7 +59,8 @@ impl JobArgs {
             slots: one("slots"),
             timeout: one("timeout"),
             files: one("files"),
-            json: m.try_get_one::<bool>("json").ok().flatten().copied().unwrap_or(false),
+            json: flag("json"),
+            no_tmux: flag("no-tmux"),
             ssh: SshArgs::from_matches(m),
             refused,
         }
@@ -66,13 +71,17 @@ impl JobArgs {
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub enum Action {
     /// Start the command now: its words joined with spaces, as OpenSSH
-    /// joins them, for sh on the host.
-    Start(String),
+    /// joins them, for sh on the host; `plain` with `--no-tmux` (T-481).
+    Start {
+        command: String,
+        plain: bool,
+    },
     /// Queue the command (T-197); `slots`, the jobs of the queue that may
     /// run at once, when `--slots` gives it.
     Submit {
         command: String,
         slots: Option<u32>,
+        plain: bool,
     },
     List {
         json: bool,
@@ -163,23 +172,24 @@ pub fn action(args: &JobArgs) -> Result<Action, String> {
     if args.host.is_none() {
         return Err(format!("give the host: podssh job {sub} HOST"));
     }
-    // Each flag of one subcommand is refused with another, as a typo.
+    // Each flag of some subcommands is refused with another, as a typo.
     for (given, flag, only) in [
-        (args.slots.is_some(), "--slots", "submit"),
-        (args.timeout.is_some(), "--timeout", "wait"),
-        (args.files.is_some(), "--files", "fetch"),
-        (args.json, "--json", "list"),
+        (args.slots.is_some(), "--slots", &["submit"][..]),
+        (args.timeout.is_some(), "--timeout", &["wait"][..]),
+        (args.files.is_some(), "--files", &["fetch"][..]),
+        (args.json, "--json", &["list"][..]),
+        (args.no_tmux, "--no-tmux", &["start", "submit"][..]),
     ] {
-        if given && sub != only {
-            return Err(format!("{flag} goes with podssh job {only}, not with {sub}"));
+        if given && !only.contains(&sub) {
+            return Err(format!("{flag} goes with podssh job {}, not with {sub}", only.join(" or ")));
         }
     }
-    let words = args.words.as_slice();
+    let (words, plain) = (args.words.as_slice(), args.no_tmux);
     match (sub, words) {
-        ("start", _) => Ok(Action::Start(command(sub, words, args.dashed)?)),
+        ("start", _) => Ok(Action::Start { command: command(sub, words, args.dashed)?, plain }),
         ("submit", _) => {
             let slots = args.slots.as_deref().map(slots).transpose()?;
-            Ok(Action::Submit { command: command(sub, words, args.dashed)?, slots })
+            Ok(Action::Submit { command: command(sub, words, args.dashed)?, slots, plain })
         }
         ("list", []) => Ok(Action::List { json: args.json }),
         ("list", [extra, ..]) => Err(format!("list takes no word after the host: {extra}")),

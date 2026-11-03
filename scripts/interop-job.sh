@@ -3,9 +3,12 @@
 # both running; a stop of one ends its tmux session and leaves the other
 # running (the planted defect, a stop of each session named podssh-job-,
 # ends both); the log gives the output of a job that printed and ended, and
-# the list its status; with tmux off PATH, start exits 255 and names tmux.
-# Then the queue of T-197, below. Sourced by scripts/interop-each.sh; uses
-# ok, bad, $BIN, $W, $K, $T, $KH and p.
+# the list its status; with tmux off PATH, start exits 255 and names tmux,
+# and both start and ssh --persist name apk's command for it (T-481); then
+# the jobs of --no-tmux on each server, with tmux still off PATH: two run,
+# a stop of one leaves the other, and a third gives J and 5 (T-481). Then
+# the queue of T-197, below. Sourced by scripts/interop-each.sh; uses ok,
+# bad, $BIN, $W, $K, $T, $KH and p.
 
 echo
 echo "== podssh job (T-193, OpenSSH and Dropbear)"
@@ -55,10 +58,51 @@ tmuxbin=$(command -v tmux)
 if [ -n "$tmuxbin" ] && mv "$tmuxbin" "$tmuxbin.off"; then
     j start "$T:2201" -- sleep 300 >"$JW/out" 2>"$JW/err"
     rc=$?
-    mv "$tmuxbin.off" "$tmuxbin"
+    # The image is Alpine's: the refusal names apk's command (T-481).
     [ "$rc" = 255 ] && [ ! -s "$JW/out" ] && grep -q 'has no tmux on PATH' "$JW/err" \
-        && ok job.no_tmux "start with tmux off PATH: exit 255, tmux named, and no ID" \
+        && grep -q 'apk add tmux' "$JW/err" && grep -q -- '--no-tmux' "$JW/err" \
+        && ok job.no_tmux "start with tmux off PATH: exit 255, tmux, apk add tmux and --no-tmux named, and no ID" \
         || bad job.no_tmux "exit $rc" "$JW/err"
+    # shellcheck disable=SC2086
+    p 2201 $K -o BatchMode=yes --persist "$T" </dev/null >"$JW/out" 2>"$JW/err"
+    rc=$?
+    [ "$rc" = 255 ] && grep -q 'has no tmux on PATH; --persist needs it; to install it' "$JW/err" \
+        && grep -q 'apk add tmux' "$JW/err" \
+        && ok job.persist_no_tmux "ssh --persist with tmux off PATH: exit 255, and apk add tmux named" \
+        || bad job.persist_no_tmux "exit $rc" "$JW/err"
+    # Jobs with no tmux (T-481), on each server: two jobs, a stop of one,
+    # and the status and output of a third.
+    for srv in openssh:2201 dropbear:2203; do
+        H="$T:${srv#*:}"
+        a=$(j start --no-tmux "$H" -- sleep 300 2>"$JW/err")
+        b=$(j start --no-tmux "$H" -- sleep 300 2>>"$JW/err")
+        j list "$H" >"$JW/list" 2>>"$JW/err"
+        [ "${#a}" = 8 ] && [ "${#b}" = 8 ] && grep -q "^$a  running .*sleep 300\$" "$JW/list" \
+            && grep -q "^$b  running .*sleep 300\$" "$JW/list" \
+            && ok "job.plain.${srv%%:*}.start" "two jobs with --no-tmux: two IDs, each running in the list" \
+            || bad "job.plain.${srv%%:*}.start" "the IDs '$a' and '$b'" "$JW/list"
+        j stop "$H" "$a" >"$JW/out" 2>"$JW/err"
+        rc=$?
+        j list "$H" >"$JW/list" 2>>"$JW/err"
+        [ "$rc" = 0 ] && ! grep -q "^$a " "$JW/list" && grep -q "^$b  running" "$JW/list" \
+            && ok "job.plain.${srv%%:*}.stop" "a stop of one job with no tmux ends it, and the other runs on" \
+            || bad "job.plain.${srv%%:*}.stop" "exit $rc" "$JW/list"
+        c=$(j start --no-tmux "$H" -- "printf 'J\\n'; exit 5" 2>"$JW/err")
+        n=0
+        while [ "$n" -lt 30 ] && ! j list "$H" 2>/dev/null | grep -q "^$c  done"; do
+            sleep 1
+            n=$((n + 1))
+        done
+        j log "$H" "$c" >"$JW/log" 2>>"$JW/err"
+        rc=$?
+        j list "$H" >"$JW/list" 2>>"$JW/err"
+        [ "$rc" = 0 ] && [ "$(cat "$JW/log")" = J ] && grep -q "^$c  done  *5  " "$JW/list" \
+            && ok "job.plain.${srv%%:*}.log" "a job with no tmux that printed J and exited 5: J, and 5 in the list" \
+            || bad "job.plain.${srv%%:*}.log" "exit $rc; the log: $(head -c 200 "$JW/log")" "$JW/list"
+        j stop "$H" "$b" >/dev/null 2>&1
+        j stop "$H" "$c" >/dev/null 2>&1
+    done
+    mv "$tmuxbin.off" "$tmuxbin"
 else
     bad job.no_tmux "tmux is not in the image" /dev/null
 fi

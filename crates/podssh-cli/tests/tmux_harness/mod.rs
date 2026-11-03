@@ -1,5 +1,7 @@
 //! An SSH server on the loopback with a stand-in for tmux, for the tests of
-//! `podssh ssh --persist` (T-178). `command -v tmux` finds it, or not;
+//! `podssh ssh --persist` (T-178). It runs no sh, so the probe of tmux in sh
+//! (T-481) gets 127, as from a login with no sh, and podssh asks the login
+//! itself: `command -v tmux` finds it, or not;
 //! `tmux has-session -t =NAME` asks for a session; `tmux new-session -A -s
 //! NAME`, with a pty, attaches a session whose shell outlives the
 //! connection, as tmux keeps it. The shell reads lines: `MARK=VALUE` sets

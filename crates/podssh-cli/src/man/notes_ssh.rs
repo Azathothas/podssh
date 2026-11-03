@@ -407,7 +407,9 @@ const FIRST: &[&str] = &[
      commands run none, as OpenSSH's scp runs none.",
     "--persist runs the shell in tmux on the server, as tmux new-session -A -s NAME with a pty (NAME is \
      podssh, or the one of --persist-name). podssh looks for tmux after the login and refuses without \
-     it (exit 255): a new shell after a lost link would look like the old one. When the link is lost \
+     it (exit 255): a new shell after a lost link would look like the old one. The refusal names the \
+     command that would install it, from the first package manager on the server's PATH, as podssh job \
+     does; podssh runs none. When the link is lost \
      (no exit status; through the relay, a broken link or a close for its limits or its link to the \
      server), podssh connects again, 10 times at most in 5 minutes, and attaches the same session; one \
      that is gone is not started again. A connection that lasted less than 30 s starts no new count. \

@@ -114,6 +114,18 @@ podssh --TLS 1.3 + WebSocket, port 443--> relay --TCP--> sshd (or another TCP se
    podssh keygen -l -f ~/.ssh/id_ed25519.pub             # its fingerprint
    podssh keygen -t ed25519-sk -f ~/.ssh/id_ed25519_sk   # in a FIDO2 security key (Linux, Windows)
    ```
+5. On the far hosts, `podssh job` and `podssh ssh --persist` need tmux.
+   Without it they exit 255 and name the command that installs it from
+   the host's package manager; podssh runs none:
+
+   ```sh
+   sudo apt-get install -y tmux   # Debian, Ubuntu
+   sudo dnf install -y tmux       # Fedora, RHEL
+   apk add tmux                   # Alpine, as root
+   ```
+
+   Where tmux cannot be installed, `podssh job start --no-tmux HOST --
+   COMMAND` runs the job under nohup instead (`podssh man job`).
 
 ## Usage
 

@@ -13,7 +13,8 @@ fn args(words: &[&str], dashed: bool) -> JobArgs {
 #[test]
 fn each_action_is_read_from_its_words() {
     let start = action(&args(&["start", "web1", "sleep", "300"], true)).unwrap();
-    assert_eq!(start, Action::Start("sleep 300".into()), "the words joined, as OpenSSH joins them");
+    let want = Action::Start { command: "sleep 300".into(), plain: false };
+    assert_eq!(start, want, "the words joined, as OpenSSH joins them");
     assert_eq!(action(&args(&["list", "web1"], false)), Ok(Action::List { json: false }));
     assert_eq!(action(&args(&["log", "web1", "ABCD1234"], false)), Ok(Action::Log("abcd1234".into())));
     assert_eq!(action(&args(&["stop", "web1", "0123abcd"], false)), Ok(Action::Stop("0123abcd".into())));
@@ -23,7 +24,7 @@ fn each_action_is_read_from_its_words() {
 fn the_queue_reads_its_flags() {
     let mut submit = args(&["submit", "web1,web2", "make"], true);
     submit.slots = Some("2".into());
-    assert_eq!(action(&submit), Ok(Action::Submit { command: "make".into(), slots: Some(2) }));
+    assert_eq!(action(&submit), Ok(Action::Submit { command: "make".into(), slots: Some(2), plain: false }));
     let mut wait = args(&["wait", "web1", "abcd1234"], false);
     wait.timeout = Some("30s".into());
     assert_eq!(action(&wait), Ok(Action::Wait { id: "abcd1234".into(), timeout: Some(Duration::from_secs(30)) }));
@@ -72,6 +73,9 @@ fn a_flag_of_the_queue_is_refused_with_another_subcommand_or_a_bad_value() {
     assert!(why.contains("--slots goes with podssh job submit"), "{why}");
     let why = with(&["stop", "web1", "abcd1234"], &|a| a.json = true);
     assert!(why.contains("--json goes with podssh job list"), "{why}");
+    // T-481: --no-tmux goes with the two that start a job.
+    let why = with(&["list", "web1"], &|a| a.no_tmux = true);
+    assert!(why.contains("--no-tmux goes with podssh job start or submit, not with list"), "{why}");
     for bad in ["0", "65", "x"] {
         let why = with(&["submit", "web1", "make"], &|a| a.slots = Some(bad.into()));
         assert!(why.contains("1 to 64"), "{bad}: {why}");
@@ -82,6 +86,18 @@ fn a_flag_of_the_queue_is_refused_with_another_subcommand_or_a_bad_value() {
         let why = with(&["fetch", "web1", "abcd1234"], &|a| a.files = Some(bad.into()));
         assert!(why.contains("under the home directory"), "{bad}: {why}");
     }
+}
+
+/// T-481: `--no-tmux` is carried to each of the two, and nothing else
+/// changes.
+#[test]
+fn no_tmux_makes_a_plain_start_or_submit() {
+    let mut start = args(&["start", "web1", "make"], true);
+    start.no_tmux = true;
+    assert_eq!(action(&start), Ok(Action::Start { command: "make".into(), plain: true }));
+    let mut submit = args(&["submit", "web1", "make"], true);
+    submit.no_tmux = true;
+    assert_eq!(action(&submit), Ok(Action::Submit { command: "make".into(), slots: None, plain: true }));
 }
 
 #[test]

@@ -35,6 +35,10 @@ pub enum Attempt {
     Lost { attached: bool, why: String },
     /// A failure that a new connection would repeat; its lines are logged.
     Failed,
+    /// The server has no tmux (T-481), with what its probe found that could
+    /// install it, when the probe ran in sh: the caller says it, with the
+    /// command, which it never runs. Final, as [`Attempt::Failed`].
+    NoTmux(Option<crate::missing::Found>),
 }
 
 /// The session's command: attach NAME, or start it when it is not there.
@@ -195,20 +199,48 @@ async fn attach(
 /// Before the attach: tmux on PATH (`first`), or after a loss the session
 /// NAME, which must not come back as a new shell that looks like the old.
 async fn probe(handle: &Handle<Client>, name: &str, first: bool, log: &Log) -> Result<(), Attempt> {
-    let (command, missing) = if first {
-        ("command -v tmux".to_string(), "the server has no tmux on PATH; --persist needs it".to_string())
-    } else {
-        (
-            format!("tmux has-session -t ={name}"),
-            format!("the tmux session {name} is gone from the server; podssh starts no new one after a lost link"),
-        )
-    };
-    match exec::capture(handle, &command, PROBE_WAIT, PROBE_CAP).await {
+    if first {
+        return probe_tmux(handle, log).await;
+    }
+    let command = format!("tmux has-session -t ={name}");
+    let missing =
+        format!("the tmux session {name} is gone from the server; podssh starts no new one after a lost link");
+    if check(handle, &command, log).await? {
+        return Ok(());
+    }
+    log.error(&missing);
+    Err(Attempt::Failed)
+}
+
+/// tmux on PATH, asked in sh (T-481): with none, what the probe found that
+/// could install it. A login that gave no answer of the probe's form (no
+/// sh) is asked `command -v tmux` itself, as before, so that a host whose
+/// login runs no sh but has tmux is not refused.
+async fn probe_tmux(handle: &Handle<Client>, log: &Log) -> Result<(), Attempt> {
+    let probe = crate::missing::probe("tmux").expect("tmux is one word");
+    match exec::capture(handle, &probe, PROBE_WAIT, PROBE_CAP).await {
         Ok(found) if found.status == Some(0) => Ok(()),
-        Ok(_) => {
-            log.error(&missing);
+        Ok(found) => match crate::missing::read(&found.stdout, "tmux") {
+            Some(found) => Err(Attempt::NoTmux(Some(found))),
+            None => {
+                if check(handle, "command -v tmux", log).await? {
+                    return Ok(());
+                }
+                Err(Attempt::NoTmux(None))
+            }
+        },
+        Err(ExecError::Lost(why)) => Err(Attempt::Lost { attached: false, why }),
+        Err(e) => {
+            log.error(&format!("the probe for tmux: {e}"));
             Err(Attempt::Failed)
         }
+    }
+}
+
+/// `command` on its own channel: whether it gave the status 0.
+async fn check(handle: &Handle<Client>, command: &str, log: &Log) -> Result<bool, Attempt> {
+    match exec::capture(handle, command, PROBE_WAIT, PROBE_CAP).await {
+        Ok(found) => Ok(found.status == Some(0)),
         Err(ExecError::Lost(why)) => Err(Attempt::Lost { attached: false, why }),
         Err(e) => {
             log.error(&format!("{command}: {e}"));

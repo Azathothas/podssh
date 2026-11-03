@@ -65,6 +65,8 @@ fn a_bad_command_line_is_64_before_anything_connects() {
         (&["job", "--files", "/etc/*", "fetch", "web1", "abcd1234"][..], "under the home directory"),
         (&["job", "submit", "web{3..1}", "--", "true"][..], "runs backwards"),
         (&["job", "wait", "a,b", "abcd1234"][..], "gives 2 hosts"),
+        // T-481: --no-tmux goes with the two that start a job.
+        (&["job", "--no-tmux", "list", "web1"][..], "--no-tmux goes with podssh job start or submit"),
     ] {
         let (code, out, err) = podssh(&home, args);
         assert_eq!(code, 64, "{args:?}: {err}");
@@ -99,7 +101,9 @@ fn the_help_and_the_manual_name_each_subcommand() {
     assert!(out.contains("podssh job [OPTIONS] SUBCOMMAND HOST [ID [DIR]] [-- COMMAND...]"), "{out}");
     let (code, man, _) = podssh(&home, &["man", "--no-pager", "job"]);
     assert_eq!(code, 0);
-    for word in ["start", "submit", "list", "log", "wait", "fetch", "stop", "tmux", "--slots", "--timeout"] {
+    let words =
+        ["start", "submit", "list", "log", "wait", "fetch", "stop", "tmux", "--slots", "--timeout", "--no-tmux"];
+    for word in words {
         assert!(man.contains(word), "{word}: {man}");
     }
 }
