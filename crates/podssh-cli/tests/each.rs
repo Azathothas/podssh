@@ -148,8 +148,12 @@ fn a_bad_command_line_is_64_before_anything_connects() {
         (&["a,,b", "--", "true"][..], "an empty host"),
         (&["--parallel", "0", "a", "--", "true"][..], "--parallel 0"),
         (&["--parallel", "65", "a", "--", "true"][..], "from 1 to 64"),
-        // A name that the relay cannot carry; a blank would part two hosts.
+        // A name that the relay cannot carry.
         (&["a,bad!host", "--", "true"][..], "bad!host"),
+        // A blank, or a tab, parts no hosts of the command line (T-504).
+        (&["a b", "--", "true"][..], "a blank parts no hosts on the command line; give a,b"),
+        (&["a\tb", "--", "true"][..], "give a,b"),
+        (&["x,a b", "--", "true"][..], "give x,a,b"),
         (&["-o", "SessionType=none", "a", "--", "true"][..], "SessionType"),
         (&["--output-dir", dir.as_str(), "Web1,web1", "--", "true"][..], "would share their files"),
         (&["--no-such-flag", "a", "--", "true"][..], "--no-such-flag"),
@@ -158,6 +162,8 @@ fn a_bad_command_line_is_64_before_anything_connects() {
         assert_eq!(code, 64, "{args:?}: {err}");
         assert!(err.contains(says), "{args:?}: {err}");
         assert!(out.is_empty(), "{args:?}: {out}");
+        // Nothing ran anywhere: no host has a line, and there is no summary.
+        assert!(!err.contains("podssh: a: ") && !err.contains(" hosts: "), "{args:?}: {err}");
     }
     assert!(!home.join("out").exists(), "a refusal made the files of --output-dir");
 }

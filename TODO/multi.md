@@ -2820,7 +2820,7 @@ connects: a bad one exits 64, and nothing has run anywhere." Read at `01e371e`.
 **Milestone:** none
 **Priority:** P1
 **Effort:** S
-**Status:** open
+**Status:** done
 
 ## Problem
 
@@ -2831,15 +2831,15 @@ host runs nothing anywhere.
 ## Premise
 
 - Read: an item of a word is split at the blanks outside braces too, "as a group's line may have
-  them" (`crates/podssh-cli/src/hosts.rs:151-153`, `crates/podssh-cli/src/hosts.rs:177-178`,
-  `crates/podssh-cli/src/hosts.rs:184-204`), for the word of the command line and for a group of
+  them" (`crates/podssh-cli/src/hosts.rs:155-159`, `crates/podssh-cli/src/hosts.rs:184-187`,
+  `crates/podssh-cli/src/hosts.rs:197-217`), for the word of the command line and for a group of
   the settings file alike; `add` knows which of the two it reads
-  (`crates/podssh-cli/src/hosts.rs:107-112`).
-- Read: the manual says "a comma list" (`crates/podssh-cli/src/man/notes_each.rs:5-9`), and gives
-  a group's hosts as "a list of the same kind" (`crates/podssh-cli/src/man/notes_each.rs:10-15`):
+  (`crates/podssh-cli/src/hosts.rs:109-114`).
+- Read: the manual says "a comma list" (`crates/podssh-cli/src/man/notes_each.rs:5-10`), and gives
+  a group's hosts as "a list of the same kind" (`crates/podssh-cli/src/man/notes_each.rs:11-18`):
   no part of it states the blanks.
 - Read: `podssh ssh` takes a word that is no pattern as one host
-  (`crates/podssh-cli/src/hosts.rs:27-31`), so `a b` goes to the name check of the road (T-503).
+  (`crates/podssh-cli/src/hosts.rs:29-33`), so `a b` goes to the name check of the road (T-503).
 - Read: the hosts are expanded, then each is resolved, before anything connects
   (`crates/podssh-cli/src/each/mod.rs:124-134`); the resolve of the direct road takes `a`, and the
   relay road takes it too, so the blank is the only fault, and it is lost.
@@ -2871,6 +2871,35 @@ cargo test -p podssh-cli --test each
 ```
 
 Planted: the command line's word split at blanks again: the test of `a b` fails.
+
+## Done
+
+Drafted 2026-11-02 by an agent in a worktree, which built nothing; merged and measured by the main
+session on 2026-11-03.
+
+- `crates/podssh-cli/src/hosts.rs`: `items` takes whether blanks part hosts; `add` lets them in a
+  group's line alone (a holder in `within`), so the word of the command line, of `each`, `each
+  --interactive` and `job submit`, refuses a blank or a tab that would part two hosts (64), before
+  anything connects: `"a b": a blank parts no hosts on the command line; give a,b`, the comma list
+  of the same hosts. A blank beside a comma parts nothing and is dropped, as before
+  (`u@web{1,2}:2222, db`); a blank inside braces stays refused; `podssh ssh 'a b'` is no pattern and
+  goes to its road's check of the name (T-503); `ssh 'a b,c'` is refused as `each` refuses it.
+- The manual: the notes of `each` (`crates/podssh-cli/src/man/notes_each.rs`: commas on the command
+  line, commas or blanks in a group's line) and FILES (`crates/podssh-cli/src/man/data.rs`, the
+  table `[groups]`); `docs/cli.md` ("podssh each" and the table `[groups]`), each paragraph in its
+  own lines, so no citation of `docs/cli.md` moves.
+- Tests: `crates/podssh-cli/src/hosts_tests.rs`
+  (`a_blank_parts_the_hosts_of_a_group_and_none_of_the_command_line`: `a b`, a tab, blanks and a
+  tab, `x,a b`, `a b{1,2}` and `@web db` refused with the comma list; `a , b` two hosts; a group
+  `web1 web2\tweb3` three; the fixture's `all` six; `one("a b")` the word); in
+  `crates/podssh-cli/tests/each.rs`, `each 'a b' -- true`, a tab and `x,a b` exit 64 offline, with
+  no host's line and no summary. `cargo test -p podssh-cli --lib hosts`: 11 passed; `cargo test -p
+  podssh-cli --test each`: 19 passed.
+- Planted: `scripts/plants/t504-blank-parts.plant` (the command line's word split at blanks again):
+  `sh scripts/plant-each.sh --here t504-blank-parts`: caught, the test of the hosts failed.
+- The citations of `crates/podssh-cli/src/hosts.rs` and `crates/podssh-cli/src/man/notes_each.rs`
+  in this entry's Premise were moved by hand; `cargo todo remap` from the tree before the draft
+  confirmed them. rustfmt and clippy of `podssh-cli` with `-D warnings`, all targets: clean.
 
 # T-506: `session list` and `detached list` print nothing when there is nothing to list, and `session list` drops a session that does not answer
 

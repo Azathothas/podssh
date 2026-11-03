@@ -370,11 +370,11 @@ pub fn files() -> Vec<(Vec<String>, String)> {
              that exists (~/.config/podssh/settings with no XDG_CONFIG_HOME; the second beside the podssh \
              binary); never one of the working directory. A symbolic link, a file of another user than you or \
              root, one that others can change, and a bad line are refused (78) by each command that reaches the \
-             relay. podssh never writes it, and no keyword holds a token. After a line [groups], each line \
-             is NAME HOSTS: a group of hosts, which podssh each takes as @NAME. After a line [snippets], each \
-             line is NAME COMMAND: a command that podssh ssh --snippet NAME and podssh each run, with its \
-             placeholders (see podssh ssh). A COMMAND in double quotes, with none inside, loses them, and a # \
-             in it is no comment."
+             relay. podssh never writes it, and no keyword holds a token. After a line [groups], each line is \
+             NAME HOSTS: a group of hosts, parted by commas or blanks (by commas alone on the command line), which \
+             podssh each takes as @NAME. After a line [snippets], each line is NAME COMMAND: a command that podssh \
+             ssh --snippet NAME and podssh each run, with its placeholders (see podssh ssh). A COMMAND in double \
+             quotes, with none inside, loses them, and a # in it is no comment."
                 .to_string(),
         ),
         (

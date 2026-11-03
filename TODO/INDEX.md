@@ -62,15 +62,15 @@ repository and CI).
 
 ## Counts
 
-**547 entries: 118 open, 2 partial, 16 blocked, 411 done.**
+**547 entries: 117 open, 2 partial, 16 blocked, 412 done.**
 
 | Priority | open | partial | blocked | done | total |
 | --- | --- | --- | --- | --- | --- |
 | P0 | 0 | 0 | 0 | 1 | 1 |
-| P1 | 1 | 2 | 0 | 57 | 60 |
+| P1 | 0 | 2 | 0 | 58 | 60 |
 | P2 | 34 | 0 | 14 | 198 | 246 |
 | P3 | 83 | 0 | 2 | 155 | 240 |
-| **All** | 118 | 2 | 16 | 411 | 547 |
+| **All** | 117 | 2 | 16 | 412 | 547 |
 
 ## Entries
 
@@ -568,7 +568,7 @@ repository and CI).
 | [T-501](ssh.md) | P1 | S | none | defect | done | `--su` waits for ever when its password cannot be given: a cancelled `SSH_ASKPASS` leaves su waiting, and podssh with it |
 | [T-502](config.md) | P2 | S | none | defect | done | `-o ProxyCommand=none` does not beat a file's `ProxyCommand`, and the first `ProxyCommand` of a file does not hold |
 | [T-503](ssh.md) | P2 | S | none | defect | done | The direct road dials a host name that the relay road refuses, and refuses a blank only at the dial, with 255 |
-| [T-504](multi.md) | P1 | S | none | defect | open | `each` splits a host of the command line at a blank, and runs the command on hosts that nobody named |
+| [T-504](multi.md) | P1 | S | none | defect | done | `each` splits a host of the command line at a blank, and runs the command on hosts that nobody named |
 | [T-505](config.md) | P2 | M | none | defect | done | Keywords that restrict a connection (`Ciphers`, `HostKeyAlgorithms`, `RequiredRSASize` and others) are accepted with no effect and no word, and the manual says that they change nothing |
 | [T-506](multi.md) | P3 | S | none | defect | open | `session list` and `detached list` print nothing when there is nothing to list, and `session list` drops a session that does not answer |
 | [T-507](release.md) | P3 | S | none | defect | open | `update` to a release with no `--rollback` names `--rollback` as the way back |
