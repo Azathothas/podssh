@@ -2459,3 +2459,94 @@ tree).
   (`a_home_of_another_uid_is_passed_over_for_the_passwd_home` failed).
 - Waits until podssh is stable (Q88): the box as root with `HOME` of another account
   (`scripts/test_in_box.sh`), the node's key in root's own cache.
+
+# T-605: A harness that measures the relay hosts and the roads through podssh's own binary, adapted from the operator's archive of relay research
+
+**Source:** The operator, 2026-11-03: an archive of relay research that the operator's agent
+produced (`ff-relay`, under 0BSD), and the words "we should copy/adapt some of the
+scripts/measurement harness, after improving them to fit our needs better". Read by a drafting
+agent the same day: `docs/research/relay-measurement.md`.
+**Category:** measurement
+**Milestone:** none
+**Priority:** P2
+**Effort:** M
+**Status:** open
+
+## Problem
+
+No repeatable measurement of podssh's relay hosts and roads exists. `podssh ping` measures the
+default host and three alternates once, and `doctor` checks them; nothing measures each host of
+the pool in rounds, keeps the figures as JSON, or runs by hand in GitHub Actions. The archive's
+harness measures, but with a WebSocket client of its own, not podssh, and with defects that change
+its results: cells that run at once and share one link, the dial counted in each rate, a Wisp
+request never sent as Wisp, a proof of the write leg that holds for one kind of server, the proxy's
+URL written into each result, and a download target that is no test target of `AGENTS.md`.
+
+## Premise
+
+- Read: `podssh ping` times the token, the dial, TLS and the upgrade of one host, then its
+  WebSocket pings (`crates/podssh-cli/src/ping/relay.rs:102-146`), one host after another
+  (`crates/podssh-cli/src/ping/mod.rs:155-160`), with `--json`.
+- Read: `doctor`'s `forward` proves both legs by one of GitHub's published host keys
+  (`crates/podssh-cli/src/doctor/relay_checks.rs:183-214`); `--quick` keeps the relay's sections and
+  `--jobs 1` runs them one at a time (`crates/podssh-cli/src/flags/relay.rs:98-102`).
+- Read: `podssh relay trace` asks the relay to dial a target and gives its own times
+  (`crates/podssh-cli/src/relay_diag.rs:166-169`); `relay info` gives the pool
+  (`crates/podssh-cli/src/relay_diag.rs:125-127`).
+- Read: the archive's harness and its defects, each at its file
+  (`docs/research/relay-measurement.md`, section 3); its license, 0BSD, as podssh's (`LICENSE`).
+- Read: a session's test targets are the live relay, GitHub's SSH endpoint and the operator's
+  server of `PODSSH_THROUGHPUT_SSH` (Q38), the forwarders of Q56 from GitHub Actions alone, short,
+  and the Wisp demo server, short (`AGENTS.md`, section 4).
+
+## Approach
+
+1. `scripts/relay-measure.py`, with `scripts/relay_measure_lib.py` (the numbers and the rank) and
+   `scripts/relay_measure_selftest.py` (offline, against a stand-in podssh), drafted with this
+   entry: the stages `pool` (`ping --json --relay-host HOST --target T`), `trace` (`relay trace
+   --json`), `forward` (`doctor --quick --json --jobs 1 --relay-host HOST`), `roads` (`doctor
+   --quick --json` with a road's flags) and `dest` (`ping --json DEST`); one podssh at a time;
+   rounds in a new random order from a seed that the result keeps; a limit on each run and a
+   budget on the whole; one JSON result, and `--ci` for GitHub's step summary.
+2. A workflow by hand only, .github/workflows/relay-measure.yml, from the draft in the report's
+   section 7, with the pins of `.github/workflows/forwarder-live.yml`.
+3. The stage `dest` in the workflow, with the operator's server of `PODSSH_THROUGHPUT_SSH` and its
+   key from the repository's secrets, as the throughput run takes them; an input names it.
+4. `docs/development.md`, "Live tests": the harness, its self-test and the workflow.
+5. A short run from the session's host, then one of the workflow; the figures in
+   `docs/STATUS.md`, and in the report what they say of its inferences (the 5 s of the resolver,
+   with the CONNECT timed apart).
+
+## Decision
+
+- Each figure from podssh's binary, not from a client of the script's own: the archive's client
+  measured what podssh does not do and broke what podssh does (Wisp's packets, binary bytes in
+  text frames). Lost: the relays that podssh does not speak, which Q79 keeps unnamed in any case.
+- One podssh at a time, with 250 ms between two: the archive's cells at once measured shares of
+  one link. Lost: time; 37 hosts in 5 rounds take about 10 minutes.
+- The write leg by `doctor`'s host key of GitHub, not by a KEXINIT after a version line, which a
+  server that sends its KEXINIT unasked passes. Lost: a write leg to a target that is no SSH
+  server, which podssh's sessions do not need.
+- Python's standard library alone, as `scripts/capture-close.py`. Lost: nothing; the script
+  speaks no protocol.
+- The workflow is drafted in the report, not in `.github/`: the drafting agent's brief kept its
+  changes to `docs/research/`, `TODO/` and `scripts/`.
+- The drafting agent ran the offline self-test on 2026-11-03 (no network, no podssh): each check
+  passed, and with `RELAY_MEASURE_PLANT=parallel` one failed, 7 runs overlapping. Each claim of
+  what a stage measures through a real podssh is UNVERIFIED.
+
+## Prove
+
+```sh
+python3 -I scripts/relay-measure.py --self-test
+RELAY_MEASURE_PLANT=parallel python3 -I scripts/relay-measure.py --self-test   # must exit 1
+export CARGO_BUILD_JOBS=4
+cargo build -p podssh-cli --bin podssh
+python3 -I scripts/relay-measure.py --podssh target/debug/podssh --stages pool,trace,forward \
+    --hosts 4 --rounds 2 --out .work/relay-measure.json
+gh workflow run relay-measure.yml --ref main -f hosts=all -f rounds=3
+```
+
+The self-test passes, and fails with the plant on two runs that overlap. The live run gives each of
+four hosts two legs, two traces and GitHub's key, and its JSON holds no token, no proxy address and
+no credential (a search of the file for each). The workflow passes and uploads its JSON.

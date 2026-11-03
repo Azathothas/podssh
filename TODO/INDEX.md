@@ -62,15 +62,15 @@ repository and CI).
 
 ## Counts
 
-**568 entries: 97 open, 4 partial, 16 blocked, 451 done.**
+**569 entries: 98 open, 4 partial, 16 blocked, 451 done.**
 
 | Priority | open | partial | blocked | done | total |
 | --- | --- | --- | --- | --- | --- |
 | P0 | 0 | 0 | 0 | 1 | 1 |
 | P1 | 0 | 1 | 0 | 62 | 63 |
-| P2 | 24 | 3 | 14 | 217 | 258 |
+| P2 | 25 | 3 | 14 | 217 | 259 |
 | P3 | 73 | 0 | 2 | 171 | 246 |
-| **All** | 97 | 4 | 16 | 451 | 568 |
+| **All** | 98 | 4 | 16 | 451 | 569 |
 
 ## Entries
 
@@ -644,3 +644,4 @@ repository and CI).
 | [T-602](mesh.md) | P2 | S | M10 | defect | done | The relay role's test of two sessions of 2 MiB each way fails under load, on the limits of a road with no flow control |
 | [T-603](multi.md) | P2 | S | none | defect | done | On the macOS runner, `job log --follow` once ended with exit 0 after a job's first line, the second never given |
 | [T-604](ws.md) | P3 | S | none | feature | open | `doctor`'s diagnosis of the TLS handshakes counts no resolver of DNS over HTTPS and no relay of n0's |
+| [T-605](relay.md) | P2 | M | none | measurement | open | A harness that measures the relay hosts and the roads through podssh's own binary, adapted from the operator's archive of relay research |
