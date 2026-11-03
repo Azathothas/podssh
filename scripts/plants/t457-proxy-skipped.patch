@@ -1,0 +1,10 @@
+--- a/crates/podssh-relay/src/serve/egress.rs
++++ b/crates/podssh-relay/src/serve/egress.rs
+@@ -58,6 +58,6 @@
+     pub fn proxy_for(&self, host: &str) -> Option<&Proxy> {
+         let Egress::Proxy { proxy, bypass, .. } = self else { return None };
+         let bypassed = bypass.as_deref().is_some_and(|list| ws::no_proxy_matches(list, host));
+-        (!ws::is_loopback(host) && !bypassed).then_some(proxy)
++        (false && !ws::is_loopback(host) && !bypassed).then_some(proxy)
+     }
+

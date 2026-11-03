@@ -16,6 +16,7 @@ use std::sync::Arc;
 use std::time::Duration;
 
 use podssh_relay::identity::PublicKey;
+use podssh_relay::serve::egress::Egress;
 use podssh_relay::serve::{self, Config, Limits, Mint};
 use podssh_ws::tls_server::ACME_TLS_1;
 use tokio::io::AsyncWriteExt as _;
@@ -100,6 +101,7 @@ fn prepare(s: &ServeArgs, ca_file: Option<&str>) -> Result<Prepared, Refusal> {
     // No key of its own: the net's `relay:*` names this role (T-455).
     let mint = mint_of(s.mint.as_deref().unwrap_or("nobody"), None)?;
     let who = minting_for(&mint)?;
+    let egress = egress_of()?;
     let keepalive = match s.keepalive.as_deref() {
         None => Limits::default().keepalive,
         Some(text) => match text.parse::<u64>() {
@@ -131,11 +133,13 @@ fn prepare(s: &ServeArgs, ca_file: Option<&str>) -> Result<Prepared, Refusal> {
         let _ = writeln!(out, "{line}");
         let _ = out.flush();
     });
+    let through = egress_shown(&egress);
     let cfg = Config {
         version: format!("podssh {}", env!("CARGO_PKG_VERSION")),
         mint,
         tokens,
         policy: serve::policy::Policy { private: s.allow_private, ..Default::default() },
+        egress,
         limits: Limits { keepalive, ..Limits::default() },
         pairs,
         answered: Default::default(),
@@ -144,7 +148,7 @@ fn prepare(s: &ServeArgs, ca_file: Option<&str>) -> Result<Prepared, Refusal> {
     };
     let inside = if s.allow_private { ", private targets too" } else { "" };
     let shown = format!(
-        "the relay's forward and reverse roads (contract {}) at {bound}, minting for {who}{inside}{kept}; {}",
+        "the relay's forward and reverse roads (contract {}) at {bound}, minting for {who}{inside}{kept}{through}; {}",
         serve::CONTRACT,
         certs.shown
     );
@@ -192,6 +196,19 @@ pub(crate) fn minting_for(mint: &Mint) -> Result<String, Refusal> {
             }
         }
     })
+}
+
+/// How the role dials its targets (T-457): through the proxy that this
+/// host's variables name, as each client of podssh does, else directly. A
+/// proxy that cannot be read stops the start (78), as a client refuses it.
+pub(crate) fn egress_of() -> Result<Egress, Refusal> {
+    Egress::from_env().map_err(|why| Refusal::config(format!("the proxy of this host: {why}")))
+}
+
+/// The egress in the words of the first line, after a comma; nothing when
+/// the role dials directly.
+pub(crate) fn egress_shown(egress: &Egress) -> String {
+    egress.shown().map(|words| format!(", {words}")).unwrap_or_default()
 }
 
 /// The keys of the list in `file`, in the words of the first line.

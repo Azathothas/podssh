@@ -125,7 +125,9 @@ entry keeps its proof in the entry; this page keeps no history (git does).
   On 2026-11-03 a fourth round was drafted, unbuilt, one commit for each entry: T-614
   (`worktree-agent-afe7db2e2c9eeb0a3`, merged and closed, `e0a2496`); T-612 and T-613
   (`worktree-agent-ac366026bd4dfc2dc`, `6b76515` and `741e842`); T-455 and T-457
-  (`worktree-agent-a78b0fb3db0c3f0c8`, `2454434` and `ac38d51`). They are merged in that order.
+  (`worktree-agent-a78b0fb3db0c3f0c8`, `2454434` and `ac38d51`). Each is merged and closed, in that
+  order (`5f0165b`, `a29abfc`, `3c30ce2` and T-457's), and their worktrees are gone; their
+  `draft/` branches on GitHub can go. No draft waits.
 
   CI: the gate passed at
   `24b9f6e` (run 38331509229), and its step `release` at `cad2885` (478
@@ -170,7 +172,7 @@ and `CARGO_BUILD_JOBS=4`:
 
 ## Counts
 
-`TODO/INDEX.md` holds 578 entries: 105 open, 2 partial, 2 blocked, 469 done.
+`TODO/INDEX.md` holds 578 entries: 104 open, 2 partial, 2 blocked, 470 done.
 
 Open includes parked work. `cargo todo check` verifies this line.
 
@@ -211,7 +213,7 @@ this order:
 
 0. A test that fails at random comes first: the relay suite's, named and repaired (done, 50 runs
    in a row here and on a runner).
-1. The relay role (its certificate from ACME, its brake of mint and pair, the role behind a node's quick tunnel and the net's members' mint are done): the role's dial through `HTTPS_PROXY` (T-457); then what the role serves: T-336, T-255,
+1. The relay role (its certificate from ACME, its brake of mint and pair, the role behind a node's quick tunnel, the net's members' mint and the role's dial through `HTTPS_PROXY` are done): what the role serves: T-336, T-255,
    T-421, T-253, T-325, T-326, T-319, T-321 and T-173.
 2. The net (its policy, the record of each road, the DERP node of a member and the copies by a name are done): T-086, T-226, T-346, T-106, T-550 and T-551.
 3. Exit, routes, share and funnel (the exit is done): T-458, T-432, T-433,

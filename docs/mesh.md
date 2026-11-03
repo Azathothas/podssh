@@ -184,6 +184,10 @@ which `--pairs FILE` keeps across a restart:
 - with a brake of 120 mints and pairs a minute for each address, as the
   default relay's, so that one client fills neither the table of pairs nor
   the role's CPU ([relay.md](relay.md), "The relay role's brake", T-454);
+- with its targets through the host's `HTTPS_PROXY` when one is set, each
+  by the address that its policy checked, so that a role behind a quick
+  tunnel on a host whose one way out is a proxy serves its forward road too
+  ([relay.md](relay.md), "The relay role's way out", T-457);
 - with pairs that their owner renews by the stop token, 72 h from then with
   the same tokens, as often as asked: `podssh relay pair --renew NAME`, and
   each node in its pair's last day, so that a node of the role outlives

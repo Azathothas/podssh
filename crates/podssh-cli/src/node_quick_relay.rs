@@ -8,7 +8,8 @@
 //! default, each by its signature of the role's challenge (T-448), and for
 //! another list, the members of the node's net (T-455, as its policy lets
 //! them reach `relay:NAME`, the node's name in the net, or `relay:*`),
-//! anyone or no one when `--mint` says so.
+//! anyone or no one when `--mint` says so. It dials its targets through the
+//! host's `HTTPS_PROXY` when one is set (T-457).
 
 use std::sync::Arc;
 
@@ -26,6 +27,8 @@ pub(crate) struct Role {
     /// Whom it mints for, as its line says it.
     who: String,
     kept: String,
+    /// Its targets through the host's proxy, in the line's words (T-457).
+    through: String,
 }
 
 /// The role's flags need `--relay`, and `--relay` needs `--quick-tunnel`:
@@ -80,12 +83,16 @@ pub(crate) fn role(
         None => Mint::Keys(allow.to_path_buf()),
     };
     let who = crate::relay_serve::minting_for(&mint)?;
+    // The host's proxy, which the node's own dial of the edge takes too
+    // (T-457): behind a quick tunnel it may be the one way out.
+    let egress = crate::relay_serve::egress_of()?;
     let tokens = serve::tokens::Tokens::random().map_err(Refusal::config)?;
     let pairs = serve::reverse::Pairs::open(args.pairs.as_deref().map(Into::into)).map_err(Refusal::config)?;
     let kept = match args.pairs.as_deref() {
         Some(file) => format!(", its pairs kept in {file} ({} now)", pairs.len()),
         None => String::new(),
     };
+    let through = crate::relay_serve::egress_shown(&egress);
     // Each mint, upgrade, Close and step of the reverse road, a line of the
     // node's: stdout holds the tunnel's name alone.
     let label = label.to_string();
@@ -96,6 +103,7 @@ pub(crate) fn role(
         mint,
         tokens,
         policy: serve::policy::Policy { private: args.allow_private, ..Default::default() },
+        egress,
         limits: Limits::default(),
         pairs,
         answered: Default::default(),
@@ -103,7 +111,7 @@ pub(crate) fn role(
         brake: Default::default(),
     };
     let who = if args.allow_private { format!("{who}, private targets too") } else { who };
-    Ok(Some(Role { cfg: Arc::new(cfg), who, kept }))
+    Ok(Some(Role { cfg: Arc::new(cfg), who, kept, through }))
 }
 
 impl Role {
@@ -116,11 +124,12 @@ impl Role {
     /// The node's line of the role, once the tunnel has its name.
     pub fn shown(&self, name: &str) -> String {
         format!(
-            "the relay's forward and reverse roads (contract {}) at {name}, with no listener, minting for {}{}; \
+            "the relay's forward and reverse roads (contract {}) at {name}, with no listener, minting for {}{}{}; \
              a client reaches them with --relay-host https://{name}",
             serve::CONTRACT,
             self.who,
-            self.kept
+            self.kept,
+            self.through
         )
     }
 }

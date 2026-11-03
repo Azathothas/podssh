@@ -12,24 +12,8 @@ use std::process::Command;
 use podssh_relay::identity::Identity;
 use podssh_relay::keyed;
 
-use super::{ran, relay_flags, said, LIMIT};
-use crate::throughput_harness::{Cell, Session};
-
-/// The role with `extra` flags and `env` on its process; `None` when this
-/// host cannot make its certificate. A role that did not start is a failure.
-fn role_with(s: &Session, extra: &[&str], env: &[(&str, String)]) -> Option<Cell> {
-    match Cell::podssh_relay_env(s, "podssh's relay role for a net", extra, env) {
-        Ok(cell) => Some(cell),
-        Err((_, why)) if why.contains("did not start") => {
-            let log = std::fs::read_to_string(s.home.join("fake-relay-normal-role.log")).unwrap_or_default();
-            panic!("{why}; the role said: {log}")
-        }
-        Err((_, why)) => {
-            eprintln!("did not run: {why}");
-            None
-        }
-    }
-}
+use super::{ran, relay_flags, role_env, said, LIMIT};
+use crate::throughput_harness::Session;
 
 /// `podssh net ARGS` of the owner, with the net's document in `doc`.
 fn net(s: &Session, doc: &Path, args: &[&str]) {
@@ -56,7 +40,7 @@ fn a_relay_that_mints_for_the_net_takes_its_members_and_a_member_removed_is_refu
     net(&s, &doc, &["add", "laptop", &hex, "--roles", "node", "--owner-key", &owner_arg]);
 
     let env = [("PODSSH_NET", doc.display().to_string())];
-    let Some(cell) = role_with(&s, &["--mint", "net"], &env) else { return };
+    let Some(cell) = role_env(&s, &["--mint", "net"], &env) else { return };
     let started = std::fs::read_to_string(s.home.join("fake-relay-normal-role.log")).unwrap_or_default();
     assert!(started.contains("minting for the members of the net home (serial 2, 1 member"), "{started}");
     let flags = relay_flags(&cell);

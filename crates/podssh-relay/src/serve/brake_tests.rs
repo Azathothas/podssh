@@ -108,6 +108,7 @@ fn role(clock: Clock) -> (Arc<Config>, Arc<Mutex<Vec<String>>>) {
         mint: Mint::Anyone,
         tokens: Tokens::new([6; 32]),
         policy: Default::default(),
+        egress: Default::default(),
         limits: Default::default(),
         pairs: Default::default(),
         answered: Default::default(),

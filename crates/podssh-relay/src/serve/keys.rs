@@ -198,6 +198,7 @@ mod tests {
             mint: super::super::Mint::Anyone,
             tokens: super::super::tokens::Tokens::new([4; 32]),
             policy: Default::default(),
+            egress: Default::default(),
             limits: Default::default(),
             pairs: Default::default(),
             answered: Default::default(),

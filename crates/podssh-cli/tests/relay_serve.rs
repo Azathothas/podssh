@@ -3,14 +3,16 @@
 //! `openssl`, as for the stand-in relay), against podssh's own client: bytes
 //! both ways through `podssh ssh`, the policy's refusals, a relay that mints
 //! for no one, a relay that mints for the keys of a list (T-448) or for the
-//! members of the net (T-455, `serve_net`), the documents that `podssh
-//! relay` reads, and its certificate read again on SIGHUP (T-447,
-//! `serve_certs`). The suite of the stand-in also runs against the role with
+//! members of the net (T-455, `serve_net`), its targets through its host's
+//! proxy (T-457, `serve_proxy`), the documents that `podssh relay` reads,
+//! and its certificate read again on SIGHUP (T-447, `serve_certs`). The
+//! suite of the stand-in also runs against the role with
 //! `PODSSH_RELAY_UNDER_TEST=podssh`.
 
 mod live_harness;
 mod serve_certs;
 mod serve_net;
+mod serve_proxy;
 mod ssh_harness;
 mod throughput_harness;
 
@@ -35,6 +37,22 @@ fn role(s: &Session, extra: &[&str]) -> Option<Cell> {
     }
 }
 
+/// The role with `extra` flags and `env` on its process; `None` when this
+/// host cannot make its certificate. A role that did not start is a failure.
+fn role_env(s: &Session, extra: &[&str], env: &[(&str, String)]) -> Option<Cell> {
+    match Cell::podssh_relay_env(s, "podssh's relay role", extra, env) {
+        Ok(cell) => Some(cell),
+        Err((_, why)) if why.contains("did not start") => {
+            let log = std::fs::read_to_string(s.home.join("fake-relay-normal-role.log")).unwrap_or_default();
+            panic!("{why}; the role said: {log}")
+        }
+        Err((_, why)) => {
+            eprintln!("did not run: {why}");
+            None
+        }
+    }
+}
+
 /// The relay flags of a cell: its host, its CA and the pinned address.
 fn relay_flags(cell: &Cell) -> Vec<String> {
     let at = |flag: &str| cell.args.iter().position(|a| a == flag).map(|i| cell.args[i + 1].clone()).unwrap();
@@ -48,11 +66,18 @@ fn relay_flags(cell: &Cell) -> Vec<String> {
     ]
 }
 
-fn ran(mut cmd: Command) -> Output {
+fn ran(cmd: Command) -> Output {
+    ran_with(cmd, &[])
+}
+
+/// [`ran`] with `set` on the process, after the machine's proxy is taken
+/// away from it.
+fn ran_with(mut cmd: Command, set: &[(&str, &str)]) -> Output {
     cmd.stdin(Stdio::null()).stdout(Stdio::piped()).stderr(Stdio::piped());
     for name in ["HTTPS_PROXY", "https_proxy", "ALL_PROXY", "all_proxy", "PODSSH_RELAY", "PODSSH_RELAY_TOKEN"] {
         cmd.env_remove(name);
     }
+    cmd.envs(set.iter().copied());
     let mut child = cmd.spawn().unwrap();
     let deadline = Instant::now() + LIMIT;
     while child.try_wait().unwrap().is_none() {

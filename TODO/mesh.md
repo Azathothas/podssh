@@ -3230,10 +3230,10 @@ The draft's calls, 2026-11-02:
    each socket of both roads, which needs a token or a pair that the brake let through and is
    checked with a MAC or a digest and no state. Lost: a brake of the upgrades with no token, as
    the default relay counts them: the role's refusal of one costs less than the count.
-4. The address: the listener's TCP peer (`crates/podssh-cli/src/relay_serve.rs:193`), never a
+4. The address: the listener's TCP peer (`crates/podssh-cli/src/relay_serve.rs:197`), never a
    header, which each client of a listener writes, and would make up anew for each request.
    Behind the quick tunnel (T-428) the peer is Cloudflare's edge, so the hook for T-428 is
-   `serve::serve_from(stream, cfg, sni, from)` (`crates/podssh-relay/src/serve/mod.rs:150`),
+   `serve::serve_from(stream, cfg, sni, from)` (`crates/podssh-relay/src/serve/mod.rs:155`),
    with `from` read by `brake::edge_visitor` (`crates/podssh-relay/src/serve/brake.rs:52`) from
    the `cf-connecting-ip` of the edge's own request, which reaches the node only on the
    connection that podssh dialed to the edge. Lost: the role reading that header itself when a
@@ -3288,7 +3288,7 @@ name. `/v1/pair` is answered in the reverse road, where `serve/mod.rs` routes it
 address to count by: at `33ccb11`,
 `podssh relay serve` dropped the peer of each connection that it accepted
 (`let Ok((tcp, _)) = accepted` in `crates/podssh-cli/src/relay_serve.rs`). So the brake stands in
-the role's dispatch, before both paths (`crates/podssh-relay/src/serve/mod.rs:163`), and
+the role's dispatch, before both paths (`crates/podssh-relay/src/serve/mod.rs:168`), and
 `serve_from` takes the address, which the listener gives. The Prove that runs, in place of the
 one above:
 
@@ -3535,7 +3535,7 @@ refusal stands today. Planted, the second connection not opened, and the session
 **Milestone:** M10
 **Priority:** P2
 **Effort:** M
-**Status:** open
+**Status:** done
 
 ## Problem
 
@@ -3561,6 +3561,51 @@ nothing, works.
    the Decision says what a proxy that resolves the name otherwise means for that check.
 3. `/trace` reports the proxy's leg as it is.
 
+## Decision
+
+The draft's calls, 2026-11-03, each with what lost:
+
+1. **The proxy is asked for each checked address, never for the name** (Approach item 2's
+   question). The role resolves the name on its host, checks each address by its policy, and sends
+   `CONNECT ADDR:PORT` for each in turn, so Approach item 1's `HOST:PORT` is the address that was
+   checked: a proxy whose resolver answers otherwise (its own DNS, a split horizon inside a company,
+   a name that rebinds between the two lookups) reaches nothing that the policy did not check, as
+   the exit of T-431 dials its addresses. Lost: the name after the check, which leaves the check to
+   the proxy's resolver, so that a name of an attacker's that rebinds reaches the proxy's private
+   network; the name where this host cannot resolve it, which checks nothing at all.
+2. **Where nothing is checked, the name goes as it came.** With `--allow-private` the policy checks
+   no address, so the role sends `CONNECT HOST:PORT` and the proxy resolves it, as podssh's client
+   gives the proxy its relay's name: a host with no DNS, as the target environment's
+   (`docs/target-environment.md`), reaches each target that its proxy reaches. With `?family=4|6`
+   the role resolves it, as a proxy takes no family. Lost: a resolution here always, which a host
+   with no DNS cannot make; a flag of its own for the name, a word more for what `--allow-private`
+   already says.
+3. **The variables are the client's**, podssh-ws's `PROXY_VARS` and `NO_PROXY_VARS`, the lower-case
+   name first and an empty value unset, read once as the role starts, so that a proxy that cannot be
+   read stops the start (78) and the first line names the proxy by its host and port. SOCKS5
+   (`ALL_PROXY=socks5h://...`) comes with them, as podssh-ws dials either. The loopback goes
+   directly, as no proxy reaches this host's loopback (the client's rule, from podbox's `405`), and
+   `NO_PROXY` is matched against the name and against each address. Lost: a read for each dial, for
+   a host's environment that does not change while the role runs.
+4. **The egress is the role's configuration** (`serve::Config::egress`), which the binary takes from
+   the host's variables and a test from its stand-in proxy. Lost: the library reading the
+   environment at each dial, which a test could not set without the process's variables, shared by
+   each test that runs at once.
+5. **A refusal is the role's `502`, with the proxy's status** (Approach item 1), in words that say
+   what the proxy answered and never where it is: the proxy of a host is often an address of the
+   host's own network, which a client of a role that mints for anyone is not to learn. The role's
+   own line (`proxy: the proxy HOST:PORT refused CONNECT ...`) names it for the owner, never its
+   credentials, which `Proxy`'s `Display` and `Debug` never show. The proxy's answer is the last
+   word: what it lets through is the role's session. Lost: podssh-ws's words as they are, which name
+   the proxy's address; no line for the owner.
+6. **`/trace` names the leg** (Approach item 3): `"road": "proxy"` and `"proxy": "http"` or
+   `"socks5"`, the address asked of the proxy in `dialed` (the name, with `address_family` null,
+   where the proxy resolved it), and the proxy's refusal in `error`. `podssh relay trace` prints
+   `road proxy` with no change. Lost: the proxy's place in the answer (item 5).
+7. **Rule 2 of `AGENTS.md`**: each forward session of the role is one connection, now through the
+   proxy where one is set; nothing new listens, and the node behind a quick tunnel takes the same
+   proxy for its targets as for its dial of the edge.
+
 ## Prove
 
 ```sh
@@ -3571,6 +3616,56 @@ cargo test -p podssh-relay --features serve,plain-ws --test relay_serve_contract
 Through a stand-in proxy of the tests: the forward road's target is reached by a CONNECT, and the
 proxy's 403 is the role's 502 with its status. Planted: the proxy skipped, and the test of the
 CONNECT fails.
+
+## Correction
+
+2026-11-03 (the drafting agent). The Premise holds at `d629249`: the dial of the forward road and
+the one of `/trace` began at the two cited lines, each with `TcpStream::connect` of the resolved
+addresses, and neither read `HTTPS_PROXY`; the dial is now `crates/podssh-relay/src/serve/egress.rs`.
+Approach item 1's `HOST:PORT` is the checked address, or the name where nothing is checked
+(Decision 1 and 2). The Prove that runs, beside the one above:
+
+```sh
+export CARGO_BUILD_JOBS=4
+cargo test -p podssh-relay --features serve --lib serve::
+cargo test -p podssh-cli --test relay_serve -- serve_proxy
+cargo test -p podssh-relay --features quick,serve,plain-ws --test quick_relay --test quick_relay_quic
+cargo test -p podssh-relay --features pair,serve --test reverse_carrier
+sh scripts/plant-each.sh --here t457-proxy-skipped
+```
+
+## Done
+
+2026-11-03: drafted by an agent in a worktree; merged and measured on this machine the same day.
+
+- The library: `crates/podssh-relay/src/serve/egress.rs` (the host's variables, the hosts that go
+  directly, the dial of a plan through the proxy, the client's words and the owner's line) and its
+  tests `egress_tests.rs`; `Policy::plan` and `Policy::by_name` (`serve/policy.rs`); the forward
+  road's dial and its lazy dial (`serve/forward.rs`) and `/trace` (`serve/docs.rs`) through it;
+  `Config::egress` in each configuration of the role and of its tests.
+- The binary: `podssh relay serve` and `podssh node --quick-tunnel --relay` read the host's proxy
+  as they start and name it in their first line (`crates/podssh-cli/src/relay_serve.rs`,
+  `node_quick_relay.rs`); the manual's notes of `relay` and `node`; `docs/relay.md` ("The relay
+  role's way out"), `docs/mesh.md`, section 4, `docs/cli.md`.
+- `cargo test -p podssh-relay --features serve,plain-ws --test relay_serve_contract`: the three new
+  tests (a name, an address, an IPv6 address by `?dial=lazy` and `/trace` through the stand-in
+  proxy, the loopback directly, and a public address of the default policy by its address; the
+  proxy's `403` as the role's `502` with its status, never the proxy's place or credentials, the
+  owner's line, the credentials sent as Basic, `/trace`'s `error`; a private address, the
+  loopback and port 25 refused before any CONNECT): 13 passed, the three new ones among them.
+- `cargo test -p podssh-relay --features serve --lib serve::` (`serve::egress`, 5: the variables,
+  the hosts that go directly, the first line, the client's words, the plan): 34 passed.
+- `cargo test -p podssh-cli --test relay_serve -- serve_proxy` (the role started with
+  `HTTPS_PROXY` names it with no credentials, and `podssh proxy` reads a target's line through it;
+  a proxy that cannot be read stops the start, 78): `relay_serve` 14 passed.
+- The suites whose configuration took the field: `quick_relay`, `quick_relay_quic`,
+  `reverse_carrier`, `relay_serve_reverse`, `-p podssh-cli --test node_quick_relay`: 4, 4, 7, 4
+  and 3 passed, and `serve::behind` 3; on this host, whose `HTTPS_PROXY` the CLI's roles now read,
+  the tests' targets on the loopback went directly, as `NO_PROXY` says.
+- Planted, `sh scripts/plant-each.sh --here t457-proxy-skipped` (the role reads no proxy):
+  caught.
+- Clippy with `-D warnings` and `cargo fmt --check` of both crates: clean. `cargo test -p
+  podssh-cli --lib`: 794 passed.
 
 # T-458: `podssh doctor --exit NAME`: the exit, its verdict and the road that reached it
 
@@ -6622,7 +6717,7 @@ through a relay. A feature of the mesh (Q63; Q77, the fallbacks that exist).
 - Read: `pipe` does not refuse a terminal on stdin (no such check in `crates/podssh-cli/src/pipe/`
   at `3bb42ea`); the issue's "as `pipe` does" is not this code's.
 - Read: the exit lends its egress on the node's roads
-  (`crates/podssh-cli/src/man/notes_pair.rs:251-261`); a carrier is one more road for it (T-596).
+  (`crates/podssh-cli/src/man/notes_pair.rs:252-262`); a carrier is one more road for it (T-596).
 
 ## Approach
 
@@ -6976,8 +7071,8 @@ roads, and a carrier must be one of them.
 ## Premise
 
 - Read: the exit goes on the pair's, the iroh, the DERP, the transit and the Piping Server roads
-  (`crates/podssh-cli/src/man/notes_pair.rs:260-261`), and needs the net's role exit, signed by
-  its owner (`:258-259`).
+  (`crates/podssh-cli/src/man/notes_pair.rs:261-262`), and needs the net's role exit, signed by
+  its owner (`:259-260`).
 - Read: `podssh exit NAME --listen` gives SOCKS5, SOCKS4a and HTTP CONNECT on a loopback address
   (`docs/STATUS.md:92`).
 - In the issue's case the end with egress starts the channel (`ssh -T sandbox CMD`), so the node

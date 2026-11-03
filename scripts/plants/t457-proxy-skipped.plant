@@ -1,0 +1,10 @@
+# T-457: the relay role skips its host's proxy, as if it read no
+# HTTPS_PROXY, and dials each target from its host directly, so a target
+# that only the proxy reaches is the role's 502; the test of the CONNECT
+# must fail with its words. Its first step is a name, which the role then
+# asks its own resolver for (`target.invalid`, which has no address), so
+# the plant opens no connection to any target.
+ENTRY=T-457
+GROUP=resume
+EXPECT='the name goes to the proxy, which reached the target'
+RUN='cargo test --locked -p podssh-relay --features serve,plain-ws --test relay_serve_contract -- a_target_goes_through_the_hosts_proxy'
