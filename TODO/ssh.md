@@ -4129,7 +4129,7 @@ destination behind it.
   `tester@a$b` with 64 and no line of `PODSSH_OFFLINE`, as nothing dials. `cargo test -p
   podssh-cli --test ssh_args -- host_name`: 5 passed on Linux, the whole `ssh_args` 36; macOS and
   Windows: CI's build at the push; the other tests that resolve a host, for a name that the rule
-  now refuses: the whole suite of `podssh-cli` at the merge of T-500 to T-509, SUITE2.
+  now refuses: the whole suite of `podssh-cli` at the merge of T-500 to T-509 (2026-11-03, in chunks): 1448 passed, 0 failed, 52 ignored.
 - The manual (`crates/podssh-cli/src/man/notes_ssh.rs`, a note of `podssh ssh`) and `docs/cli.md`
   give the rule. `cargo test -p podssh-cli --test man_page`: 10 passed.
 - Planted: `scripts/plants/t503-direct-unchecked.plant`, the direct road's check removed: the test
