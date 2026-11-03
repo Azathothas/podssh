@@ -140,6 +140,10 @@ impl Ask {
 pub fn client_identity(named: Option<&str>, say: &dyn Fn(String)) -> Result<Arc<Identity>, String> {
     let place = named.map_or_else(file::client_place, |path| file::Place::File(path.into()));
     let key = file::load(&place, &mut OsEntropy).map_err(|why| format!("this client's key: {why}"))?;
+    // A key that an earlier run kept in another user's tree (T-593).
+    if let Some(note) = key.path.as_deref().and_then(podssh_relay::cache::kept_note) {
+        say(format!("this client's key: {note}"));
+    }
     if key.made {
         let kept = key.path.as_deref().map(|p| format!(", in {}", p.display())).unwrap_or_default();
         say(format!(
@@ -254,6 +258,9 @@ pub fn node(label: &str, key: file::Key, allow: Option<PathBuf>, err: &mut dyn W
     };
     let me = key.identity.public();
     let _ = writeln!(err, "podssh node: {label}: key {me} ({kept})");
+    if let Some(note) = key.path.as_deref().and_then(podssh_relay::cache::kept_note) {
+        let _ = writeln!(err, "podssh node: {label}: {note}");
+    }
     let _ = writeln!(err, "podssh node: {label}: {}", who_may(allow.as_deref()));
     // A member of the net lets in its members too (T-429).
     if let Some(line) = crate::net::admit::line(&me) {

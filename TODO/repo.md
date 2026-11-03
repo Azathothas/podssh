@@ -1154,14 +1154,14 @@ sees it.
 
 Read:
 
-- `docs/STATUS.md:297-311`: the box, measured by hand on 2026-10-08.
+- `docs/STATUS.md:298-312`: the box, measured by hand on 2026-10-08.
 - `scripts/test_in_box.sh:275-278`: the box runs `probe.sh`, then
   `sandbox-check.sh` (or, with `BOX_RUN=tt`, the session of T-004), and the
   script exits with the code of the second.
   `scripts/sandbox-check.sh:85-332` prints the exit code of each step and does
   not fail on it (T-006). So today the box exits 0 when podssh fails in it.
 - `scripts/box/probe.sh:148-153` exits 1 when the box differs from the sandbox
-  in a required property (17 properties, `docs/STATUS.md:304`).
+  in a required property (17 properties, `docs/STATUS.md:305`).
 - The box needs a static binary; CI uploads one
   (`.github/workflows/build.yml:88-93`).
 - The box uses `--disable-dns` (`scripts/test_in_box.sh:156`) and a mask on
@@ -1188,7 +1188,7 @@ Read:
    that CI runs the box.
 
 Pitfall: the live path can drop a session (179 of 180 short sessions,
-`docs/STATUS.md:334`). Run a failure again by hand and record it. Never retry
+`docs/STATUS.md:335`). Run a failure again by hand and record it. Never retry
 inside the job.
 
 ## Decision
@@ -1206,7 +1206,7 @@ test "$(grep -c '^match ' box.log)" -eq 17                  # the box was faithf
 
 The run passed, with the job `box`, and its log has 17 `match` lines.
 Planted defect: run the job by hand with the seccomp option removed (an input
-of `workflow_dispatch`); the probe must exit 1, as in `docs/STATUS.md:305`,
+of `workflow_dispatch`); the probe must exit 1, as in `docs/STATUS.md:306`,
 and the job must fail.
 
 ## Blocker
@@ -1259,7 +1259,7 @@ Read:
   `stty`, `vi`, `less`, `top`, `seq`, `sed` and `/tmp`.
 - The code for Windows: `crates/podssh-ssh/src/terminal/windows.rs`,
   `crates/podssh-ssh/src/prompt.rs:100`, and the `cfg(not(unix))` branches of
-  `crates/podssh-relay/src/cache.rs:330-447`.
+  `crates/podssh-relay/src/cache.rs:344-478`.
 
 ## Approach
 
@@ -2026,7 +2026,7 @@ Read, in the tree as it is now:
   build must fail at `/nonexistent`; the control, with `CC` alone, must not
   stop there.
 - `docs/development.md:309-311` states the rule with `CXX`, and
-  `docs/STATUS.md:741` records the measurement. Rule 4 of
+  `docs/STATUS.md:742` records the measurement. Rule 4 of
   `docs/architecture.md` named `CC=/nonexistent` only; it was repaired in the
   same change as the record.
 - `.github/workflows/build.yml:103-111` runs the plant on each push.
@@ -2057,7 +2057,7 @@ the same script in its step "the no-C rule is load-bearing".
 (CXX=/nonexistent)"). Measured with `sh scripts/dev.sh plant` in
 `rust:1-alpine`: the C plant failed twice for the right reason, the C++ plant
 failed at `CXX=/nonexistent`, the control with `CC` alone was not stopped
-there, and the clean tree built (`docs/STATUS.md:741`). The CI run of
+there, and the clean tree built (`docs/STATUS.md:742`). The CI run of
 `eacd94e`, which contains `a378863`, passed, with its step "the no-C rule is
 load-bearing".
 
@@ -2321,7 +2321,7 @@ Read, wrong facts:
   `crates/podssh-probe/tests/spec/relay-spec-2026-10-03-r2.txt`).
 - crates/podssh-transport/src/backpressure/mod.rs lines 4-22 at `e8bbd4d` gives the reverse
   path's backpressure (1011, 1 MiB, the frame dropped: line 185 of that copy)
-  as the forward path's. For the forward path, `docs/relay.md:311-323` says
+  as the forward path's. For the forward path, `docs/relay.md:328-340` says
   1013 at 2 MiB, with no frame dropped. The comment on the SSH window said
   the same as `backpressure/mod.rs` (`crates/podssh-ssh/src/run.rs` lines
   25-28 at `80f20bf`); T-024 corrected it.
@@ -2450,7 +2450,7 @@ Read:
 
 - `scripts/box/seccomp.json:5-10`: `bind` fails with EACCES for each socket,
   whatever its family.
-- `docs/STATUS.md:325`: in sandbox A, `bind` is refused for AF_INET and
+- `docs/STATUS.md:326`: in sandbox A, `bind` is refused for AF_INET and
   allowed for AF_UNIX. In the KTM report (read there), `doctor` printed
   `Permission denied (os error 13)` for AF_INET, and "bound" for an AF_UNIX
   path and for the abstract namespace.
@@ -3270,7 +3270,7 @@ On a developer machine they fill the disk, run after run.
 ## Premise
 
 Read on `c0cdd2b`: `file` (`crates/podssh-ssh/tests/known_hosts.rs:32-39`) makes
-`podssh-kh-PID-NAME` and never removes it; `scratch` (`crates/podssh-relay/tests/cache.rs:19-25`)
+`podssh-kh-PID-NAME` and never removes it; `scratch` (`crates/podssh-relay/tests/cache.rs:21-27`)
 removes its directory before a test, not after it; `scratch`
 (`crates/podssh-cli/tests/pair_harness/mod.rs:26-33`) makes a new name for each test, and nothing
 removes it. Measured on 2026-10-10 in the temporary directory of the developer machine: 1097
@@ -4893,7 +4893,7 @@ of GitHub #69 to #72 corrected these; nothing finds the next.
   and said that "the real sandbox is not run yet"; `docs/irc.md` said "No command uses the IRC
   client yet", with T-097 and T-098 as its known defects; `docs/STATUS.md` said "Over IRC too
   (T-252, partial)". Each part is built: the reverse road (`docs/STATUS.md:69`, `:77`), two runs
-  in real sandboxes (T-001; `docs/STATUS.md:316-325`), and `podssh chat --irc` (T-252, done, as
+  in real sandboxes (T-001; `docs/STATUS.md:317-326`), and `podssh chat --irc` (T-252, done, as
   T-097 and T-098 are). Of the same kind: `docs/design.md`'s summary and the head of its section
   4, and the row of `podssh-terminal` in `docs/architecture.md`. The triage's commit corrected
   each in place.
@@ -4920,7 +4920,7 @@ of GitHub #69 to #72 corrected these; nothing finds the next.
 3. A status written beside an id in those documents (`T-NNN, partial`, `(T-NNN, open)`) agrees
    with the index, unless its paragraph reads at a date or at a commit, as the record's readings
    do (`TODO/RULES.md:145-150`): "T-099, partial" of 2026-10-10 is such a reading
-   (`docs/STATUS.md:703`).
+   (`docs/STATUS.md:704`).
 4. `TODO/RULES.md` says it, beside the rules of citations.
 
 ## Decision

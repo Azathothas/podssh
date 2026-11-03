@@ -143,7 +143,8 @@ fn pool_state(relays: &RelayList) -> Value {
 }
 
 /// The cache's directories in the order podssh tries them, and what chose
-/// them (T-243): PODSSH_CACHE_DIR, none, or the usual places.
+/// them (T-243): PODSSH_CACHE_DIR, none, or the usual places; and each usual
+/// place passed over, as it is in another user's tree, with why (T-593).
 fn cache_state() -> Value {
     let from = match cache::chosen() {
         cache::Chosen::Unset => "default".to_string(),
@@ -151,8 +152,11 @@ fn cache_state() -> Value {
         cache::Chosen::Dir(_) => cache::DIR_ENV.to_string(),
         cache::Chosen::Relative(_) => format!("default ({} is relative, and not used)", cache::DIR_ENV),
     };
-    let dirs: Vec<String> = cache::candidate_dirs().iter().map(|d| d.display().to_string()).collect();
-    json!({ "from": from, "dirs": dirs })
+    let places = cache::places();
+    let dirs: Vec<String> = places.dirs.iter().map(|d| d.display().to_string()).collect();
+    let passed: Vec<Value> =
+        places.passed.iter().map(|p| json!({ "dir": p.dir.display().to_string(), "why": p.why })).collect();
+    json!({ "from": from, "dirs": dirs, "passed": passed })
 }
 
 /// Where the token would come from, never the token: the variable, the

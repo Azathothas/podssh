@@ -161,7 +161,8 @@ pub fn files() -> Vec<(Vec<String>, String)> {
         "%PODSSH_CACHE_DIR%, else %LOCALAPPDATA%\\podssh, else podssh-USER in the temporary directory (%TMP%, \
          %TEMP%, else the one Windows gives), else .podssh in the working directory"
     } else {
-        "$PODSSH_CACHE_DIR, else $XDG_CACHE_HOME/podssh (else ~/.cache/podssh), else \
+        "$PODSSH_CACHE_DIR, else $XDG_CACHE_HOME/podssh (else ~/.cache/podssh; when it is in another \
+         user's tree, the .cache/podssh of the home of your uid's entry in /etc/passwd), else \
          $XDG_RUNTIME_DIR/podssh, else podssh-UID in $TMPDIR (else $TMP, $TEMP, and only then /tmp and \
          /dev/shm), else ./.podssh"
     };
@@ -213,7 +214,15 @@ pub fn files() -> Vec<(Vec<String>, String)> {
                  copy of the far file; it goes after the edit, and stays, named, after a failure when the copy \
                  holds a change. Each file has mode 0600; on Windows, an access list that lets in only \
                  you, SYSTEM and the Administrators. podssh ignores a cache file that is a symbolic link, \
-                 that belongs to another user, or that others can read.",
+                 that belongs to another user, or that others can read. On Unix, $XDG_CACHE_HOME, ~/.cache \
+                 and $XDG_RUNTIME_DIR count only in your own tree: each of their directories that exists, up \
+                 to the home (else up to /), is yours or root's. One in another user's tree, as when root runs \
+                 with the HOME of another account, is passed over: podssh writes nothing more there, and \
+                 makes no directory there, so a missing .cache stays its owner's to make. It still reads a \
+                 key, the pins, a pair or a token that an earlier run kept there, after your own places, and \
+                 says once of a key where to move it; it moves nothing. podssh status and podssh doctor name \
+                 each place passed over, and why. Above the cache's own directory, podssh makes a missing \
+                 one only in a directory of yours or of root.",
                 podssh_relay::cache::file_name(podssh_relay::DEFAULT_RELAY_HOST),
                 podssh_relay::pool::file_name(podssh_relay::DEFAULT_RELAY_HOST),
                 podssh_relay::addresses::FILE,

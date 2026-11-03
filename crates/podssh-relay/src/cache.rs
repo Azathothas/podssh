@@ -10,6 +10,9 @@
 //! only. A cached file that is a symlink, belongs to another user, or is
 //! readable by anyone else is ignored rather than trusted. Nothing here ever
 //! prints a token.
+//!
+//! A usual place in another user's tree is passed over, and only read
+//! (T-593).
 
 use std::io::Write;
 use std::path::{Path, PathBuf};
@@ -22,8 +25,17 @@ mod closed;
 mod closed_win;
 mod dirs;
 mod own;
-pub use dirs::{candidate_dirs, candidate_dirs_from, chosen, chosen_from, Chosen, DIR_ENV};
+#[cfg(unix)]
+mod owner;
+#[cfg(unix)]
+pub use dirs::places_with;
+pub use dirs::{
+    candidate_dirs, candidate_dirs_from, chosen, chosen_from, kept_note, places, places_from, read_dirs, Chosen,
+    Passed, Places, DIR_ENV,
+};
 pub use own::{create_file_in_first, create_private, read_own, Others};
+#[cfg(unix)]
+pub use owner::{make_dirs as make_dirs_with, passwd_home, Host};
 
 /// A cached token is reused only while it has at least this long left.
 pub const MIN_REMAINING_MS: i64 = 10 * 60 * 1000;
@@ -70,9 +82,10 @@ pub fn valid_token(token: &str) -> bool {
 }
 
 /// The cached token for `relay_host` with at least [`MIN_REMAINING_MS`] left
-/// at `now_ms`, from the first directory that has one.
+/// at `now_ms`, from the first directory that has one, a place passed over
+/// last (T-593).
 pub fn load(relay_host: &str, now_ms: i64) -> Option<Cached> {
-    load_from(&candidate_dirs(), relay_host, now_ms)
+    load_from(&read_dirs(), relay_host, now_ms)
 }
 
 /// [`load`] over explicit directories (for tests).
@@ -111,7 +124,7 @@ struct Meta {
 /// The entry for `relay_host` in the first directory that has a trusted one,
 /// expired or not, as a [`Peek`].
 pub fn peek(relay_host: &str) -> Option<Peek> {
-    peek_from(&candidate_dirs(), relay_host)
+    peek_from(&read_dirs(), relay_host)
 }
 
 /// [`peek`] over explicit directories (for tests).
@@ -222,9 +235,10 @@ pub fn chosen_note(chosen: &Chosen, stored: &Stored) -> Option<String> {
     }
 }
 
-/// Forget the cached token for `relay_host` everywhere it is ours to delete.
+/// Forget the cached token for `relay_host` everywhere it is ours to delete,
+/// a place passed over too, so that a refused token is not read again there.
 pub fn remove(relay_host: &str) {
-    remove_from(&candidate_dirs(), relay_host);
+    remove_from(&read_dirs(), relay_host);
 }
 
 /// [`remove`] over explicit directories (for tests).
@@ -383,12 +397,29 @@ pub fn private_dir(dir: &Path) -> std::io::Result<()> {
     make_private_dir(dir)
 }
 
+/// Make `dir` and each missing directory above it, as the cache makes its
+/// own (on Unix, one above it only in a directory of this user's or root's,
+/// T-593): the directories made, the highest first, for `doctor`, which
+/// removes them again.
+pub fn make_dirs(dir: &Path) -> std::io::Result<Vec<PathBuf>> {
+    #[cfg(unix)]
+    {
+        owner::make_dirs(dir, &owner::Host::this())
+    }
+    #[cfg(not(unix))]
+    {
+        let missing: Vec<PathBuf> = dir.ancestors().take_while(|at| !at.exists()).map(Path::to_path_buf).collect();
+        std::fs::create_dir_all(dir)?;
+        Ok(missing.into_iter().rev().collect())
+    }
+}
+
 /// Create `dir` (mode 0700) if needed and make sure it is a real directory of
 /// ours that nobody else can write to.
 #[cfg(unix)]
 fn make_private_dir(dir: &Path) -> std::io::Result<()> {
-    use std::os::unix::fs::{DirBuilderExt, MetadataExt, PermissionsExt};
-    std::fs::DirBuilder::new().recursive(true).mode(0o700).create(dir)?;
+    use std::os::unix::fs::{MetadataExt, PermissionsExt};
+    owner::make_dirs(dir, &owner::Host::this())?;
     let meta = std::fs::symlink_metadata(dir)?;
     if !meta.is_dir() || meta.uid() != euid() {
         return Err(std::io::Error::new(

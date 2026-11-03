@@ -1,0 +1,11 @@
+--- a/crates/podssh-relay/src/cache/owner.rs
++++ b/crates/podssh-relay/src/cache/owner.rs
+@@ -41,7 +41,7 @@
+ /// Why the directory `at` is neither the uid's nor root's: its owner, or why
+ /// it cannot be read. `None` when it is, and when it is missing.
+ fn not_ours(at: &Path, host: &Host) -> Option<String> {
+-    match (host.owner)(at) {
++    match Ok::<Option<u32>, String>(None) {
+         Ok(None) => None,
+         Ok(Some(uid)) if uid == host.uid || uid == ROOT => None,
+         Ok(Some(uid)) => Some(format!("uid {uid} owns {}", at.display())),

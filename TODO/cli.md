@@ -494,8 +494,8 @@ Read, at `61e55d1`: no option made podssh start a program: `ProxyCommand` is ref
 2. A note for `ssh` and `proxy` (`crates/podssh-cli/src/man/notes_ssh.rs:4-475` and `crates/podssh-cli/src/man/notes_ssh_more.rs:4-114` and `crates/podssh-cli/src/man/notes.rs:69-184`)
    and an example (`crates/podssh-cli/src/man/examples.rs:8-267`). Pitfall: the
    notes test reads a bare `--` as a flag that does not exist
-   (`crates/podssh-cli/src/man/notes.rs:389-405`); teach `flag_exists`
-   (`crates/podssh-cli/src/man/notes.rs:354-370`) that `--` ends the options.
+   (`crates/podssh-cli/src/man/notes.rs:391-407`); teach `flag_exists`
+   (`crates/podssh-cli/src/man/notes.rs:356-372`) that `--` ends the options.
 3. `podssh proxy` (`crates/podssh-cli/src/proxy.rs:314-319`): when HOST or PORT
    is missing and a relay or trust flag was given, add one line: a HOST that
    starts with `-` is read as a flag; put `--` before it.
@@ -1175,7 +1175,7 @@ Read: podssh matches hashed lines with HMAC-SHA1
 with their numbers (`scan`, `crates/podssh-ssh/src/known_hosts.rs:149-179`), and
 appends without a rewrite (`crates/podssh-ssh/src/known_hosts.rs`, lines 323-372 at `f6b7676`).
 The default files are the ones of `podssh ssh`
-(`crates/podssh-cli/src/man/data.rs:170`).
+(`crates/podssh-cli/src/man/data.rs:171`).
 
 ## Approach
 
@@ -2266,7 +2266,7 @@ write the key with `OpenOptions`, as now; the test fails.
 `KeyFiles` (`crates/podssh-ssh/src/keygen.rs:112-173`), and the CLI passes podssh-relay's
 (`crates/podssh-cli/src/keygen.rs:371-378`): the private key by `create_new_private`, a missing
 directory by `private_dir`, and `FILE.pub` by the new `create_new_public`
-(`crates/podssh-relay/src/cache.rs:358-377`), on Windows with an access list of its own that lets
+(`crates/podssh-relay/src/cache.rs:372-391`), on Windows with an access list of its own that lets
 Everyone read it, as OpenSSH's `ssh-keygen` makes it. `FILE.pub` is removed and made again, so
 that it never keeps a list that lets others change it, also after `-c`.
 - `cargo test -p podssh-cli --test keygen -- private`: 2 passed. On Windows the test opened the
@@ -2507,7 +2507,7 @@ nothing.
 ## Decision
 
 A refused bind stays `ok`, with the features named. `FAIL` lost: the hosts that podssh is built
-for refuse the bind (sandbox A for AF_INET, `docs/STATUS.md:325`; the measured cage by the
+for refuse the bind (sandbox A for AF_INET, `docs/STATUS.md:326`; the measured cage by the
 operator's report, `docs/target-environment.md:25`), and doctor exits 1 on a `FAIL`, so each run
 there would fail where each road works (`crates/podssh-cli/src/doctor/mod.rs:6-9`). A fourth
 status lost: the report and its JSON have three (`docs/cli.md:2195-2198`). The issue's grade by a
@@ -2583,7 +2583,7 @@ alone measures less than they use, so it cannot answer what a user asks it.
   for, so it waits for a ruling: Q53.
 - Read: the measured cage's listening was not measured, and stands on the operator's report
   (`docs/target-environment.md:25`); sandbox A's AF_UNIX bind was doctor's bind
-  (`docs/STATUS.md:325`), so whether it listens is not known. The box refuses each bind
+  (`docs/STATUS.md:326`), so whether it listens is not known. The box refuses each bind
   (`scripts/box/seccomp.json:5-10`): it has no case of a bind allowed and a listen refused.
 - Read, in the issue (measured by its reporter on a development host, not with podssh): a bind
   of an AF_INET stream socket refused, where an AF_INET datagram socket and an AF_UNIX socket
@@ -3081,7 +3081,7 @@ node at its next line, often "online again" after a reconnect. A server then has
 
 - Read: `panic = "abort"` in the release profile (`Cargo.toml:221`).
 - Read: the node's lines are `eprintln!` (`crates/podssh-cli/src/node.rs:331`,
-  `crates/podssh-cli/src/node_derp.rs:310`, `crates/podssh-cli/src/node_iroh.rs:319`), as are 40
+  `crates/podssh-cli/src/node_derp.rs:310`, `crates/podssh-cli/src/node_iroh.rs:322`), as are 40
   more sites in `crates/podssh-cli/src` and 4 in `crates/podssh-ssh/src` (2026-11-01, a search for
   `eprintln!`, `println!`, `eprint!` and `print!`).
 - Read: after ready a detached child's stderr is its log (`crates/podssh-cli/src/detach/child.rs:242`).
@@ -3591,7 +3591,7 @@ of `job fetch`; why a file given by process substitution is refused; the direct 
   it. Inferred: a line shaped as OpenSSH's would make OpenSSH's server apply the quirks of its own
   client's versions to podssh, so the line stays podssh's. Against the report: the README says
   that podssh has "the options of OpenSSH" (`README.md:120`), not that it is OpenSSH.
-- Read (L-14): the side file of a broken copy is in FILES (`crates/podssh-cli/src/man/data.rs:210-211`)
+- Read (L-14): the side file of a broken copy is in FILES (`crates/podssh-cli/src/man/data.rs:211-212`)
   and in the notes (`crates/podssh-cli/src/man/notes.rs:131`), and in no row of `cp --help`
   (`crates/podssh-cli/src/flags/copy.rs:15-48`).
 - Read (L-17): `job fetch` of a job that runs exits 75, as EXIT STATUS says

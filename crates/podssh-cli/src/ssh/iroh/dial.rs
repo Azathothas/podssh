@@ -67,6 +67,10 @@ pub(crate) async fn prepare(
         ));
     }
     log.verbose(&format!("this client's iroh key: {fingerprint} ({kept})"));
+    // A key that an earlier run kept in another user's tree (T-593).
+    if let Some(note) = key.path.as_deref().and_then(podssh_relay::cache::kept_note) {
+        log.info(&format!("this client's iroh key: {note}"));
+    }
     // The ticket's relays first: this client's home relay is then the
     // node's, when it answers (T-165).
     let mut list: Vec<RelayUrl> = addr.relay_urls().cloned().collect();

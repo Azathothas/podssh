@@ -40,7 +40,7 @@ show this defect.
 
 Read: the contract sends control as text, and data as binary frames that start with 32 hex
 characters (`crates/podssh-probe/tests/spec/relay-spec-2026-10-03-r2.txt:138-141`,
-`docs/relay.md:367-376`). A prefix that is not hex closes the node with `1003 bad multiplex id`
+`docs/relay.md:384-393`). A prefix that is not hex closes the node with `1003 bad multiplex id`
 (`crates/podssh-probe/tests/spec/relay-spec-2026-10-03-r2.txt:176`).
 
 ## Approach
@@ -150,7 +150,7 @@ Read, a related gap that the former defects page did not list: `Classified::mess
 for a matched row, never the received reason (crates/podssh-transport/src/closes.rs at `e8bbd4d` lines
 119-150). The test that says the reason survives only checks that the message is not empty
 (crates/podssh-transport/tests/closes.rs at `e8bbd4d` lines 255-258). The rules want the code and the reason
-(`docs/relay.md:302-310`, `docs/reverse.md:270-272`).
+(`docs/relay.md:319-327`, `docs/reverse.md:270-272`).
 
 ## Approach
 
@@ -380,7 +380,7 @@ Read: the module says that the forward path drops a frame under backpressure, fr
 `1011 relay backpressure` (crates/podssh-transport/src/backpressure/mod.rs lines 4-22 at `e8bbd4d`). That row is in
 the table of the reverse path (`crates/podssh-probe/tests/spec/relay-spec-2026-10-03-r2.txt:185`).
 On the forward path the relay closes with `1013` at 2 MiB and drops no frame
-(`docs/relay.md:311-323`). The ledger counts the completion of local writes, which does not show
+(`docs/relay.md:328-340`). The ledger counts the completion of local writes, which does not show
 the relay's queue (crates/podssh-transport/src/backpressure/ledger.rs lines 212-254 at `e8bbd4d`).
 
 Read, the two ledger defects (the row does not name them; this is the reading here):
@@ -391,7 +391,7 @@ never pushed on that path (crates/podssh-transport/src/backpressure/ledger.rs li
 can pass the 32 MiB budget.
 
 Read: the design removes the module (`docs/design.md` lines 122-123 at `e8bbd4d`). The SSH window of 512 KiB is the
-flow control that podssh uses (`docs/relay.md:318-320`).
+flow control that podssh uses (`docs/relay.md:335-337`).
 
 ## Approach
 
@@ -473,10 +473,10 @@ the status and not the body (the same file, lines 122-146 and 186-196), so it ca
 
 Read: the contract: `403 missing or wrong token` needs a new token; a `403` that names the target
 is a policy refusal; `503` means that the relay does not issue or check tokens
-(`crates/podssh-probe/tests/spec/relay-spec-2026-10-03-r2.txt:97-103`, `docs/relay.md:223-226`). On
-the reverse path each failed authentication is `403 reverse: forbidden` (`docs/relay.md:284-286`),
+(`crates/podssh-probe/tests/spec/relay-spec-2026-10-03-r2.txt:97-103`, `docs/relay.md:240-243`). On
+the reverse path each failed authentication is `403 reverse: forbidden` (`docs/relay.md:301-303`),
 also after `POST /v1/stop` (`docs/reverse.md:283-285`). A `409` from `/v1/pair` means "pair again"
-(`docs/relay.md:348-350`); a `409` on `/v1/node/<name>` means "exit" (docs/reverse.md, line 19 at `fb228e9`; since T-261, only at a node's first registration).
+(`docs/relay.md:365-367`); a `409` on `/v1/node/<name>` means "exit" (docs/reverse.md, line 19 at `fb228e9`; since T-261, only at a node's first registration).
 
 Read: the forward path already follows the contract in `podssh-relay`. It mints once again after a
 `403` for a cached token that is not a policy refusal (`crates/podssh-relay/src/open.rs` lines
@@ -497,7 +497,7 @@ lines 53-76 at `4b6e917`, and the test at line 300 at `4b6e917`).
 4. Update crates/podssh-transport/tests/closes.rs at `e8bbd4d` (lines 129-149) and the texts of
    crates/podssh-transport/src/error.rs at `e8bbd4d` (lines 170-184). Close this entry in place.
 5. Pitfall: the body comes from the network. Keep it out of format strings and remove control
-   characters before it reaches a terminal (`SECURITY.md:145-148`).
+   characters before it reaches a terminal (`SECURITY.md:155-158`).
 
 ## Decision
 

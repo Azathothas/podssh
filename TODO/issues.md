@@ -190,7 +190,7 @@ image's digest, sha2 0.11.1 and simple-dns 0.13) are T-597.
 | #115 | `operator` and `proxy` take no `--ConnectTimeout` | open | T-589 |
 | #116 | `node --sshd` with no sshd says `Connection refused`; a line of `doctor` for it | open | T-590 |
 | #117 | A pair's expiry of 3 days, no renewal, and `relay status` with no expiry | open | T-591 (`relay status NAME` names the expiry of a stored pair already; an operator's file cannot be asked), T-592 (a renewal, in podssh's relay role, M10) |
-| #118 | The node's key under `HOME/.cache` when `HOME` is another user's | open | T-593 |
+| #118 | The node's key under `HOME/.cache` when `HOME` is another user's | closed | T-593 |
 | #121 | `docs/STATUS.md` describes `main`, and the release has no exit node | open | T-594 (the exit is in `v1.0.1`'s notes, T-584) |
 | #124 | A carrier over stdio or exec for a node and its client | open | T-595, T-596 (the exit over it) |
 

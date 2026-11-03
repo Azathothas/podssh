@@ -62,15 +62,15 @@ repository and CI).
 
 ## Counts
 
-**562 entries: 123 open, 1 partial, 16 blocked, 422 done.**
+**562 entries: 122 open, 1 partial, 16 blocked, 423 done.**
 
 | Priority | open | partial | blocked | done | total |
 | --- | --- | --- | --- | --- | --- |
 | P0 | 0 | 0 | 0 | 1 | 1 |
 | P1 | 0 | 1 | 0 | 62 | 63 |
-| P2 | 37 | 0 | 14 | 202 | 253 |
+| P2 | 36 | 0 | 14 | 203 | 253 |
 | P3 | 86 | 0 | 2 | 157 | 245 |
-| **All** | 123 | 1 | 16 | 422 | 562 |
+| **All** | 122 | 1 | 16 | 423 | 562 |
 
 ## Entries
 
@@ -632,7 +632,7 @@ repository and CI).
 | [T-590](roads.md) | P2 | S | none | feature | open | A roost on a host with no sshd says `Connection refused`, not that no sshd is installed, and `doctor` has no line for a roost |
 | [T-591](reverse.md) | P2 | S | none | feature | open | An operator's host cannot see its pair's expiry: `relay status` reads the store alone, and `relay pair` does not say the way past the expiry |
 | [T-592](mesh.md) | P3 | M | M10 | feature | open | A pair that its owner renews in podssh's relay role, so that a node of the role outlives 72 h with its operators' file unchanged |
-| [T-593](relay.md) | P2 | S | none | defect | open | The cache follows `HOME` into another user's home: root's node key goes under that user's `.cache`, which podssh can make root's own |
+| [T-593](relay.md) | P2 | S | none | defect | done | The cache follows `HOME` into another user's home: root's node key goes under that user's `.cache`, which podssh can make root's own |
 | [T-594](repo.md) | P2 | S | none | docs | open | `docs/STATUS.md` reads `main` and never says so: the exit node reads as working, and the release has none |
 | [T-595](mesh.md) | P2 | L | M10 | feature | open | A carrier of the node's road over a byte stream that exists already (`stdio`, `fd:N`, `exec:CMD`), for a host whose every road out is closed |
 | [T-596](mesh.md) | P3 | S | M10 | feature | open | The exit over a carrier: a host that grants an exec channel alone gets egress through its other end |

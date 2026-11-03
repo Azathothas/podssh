@@ -152,6 +152,23 @@ relative `PODSSH_CACHE_DIR`, is said once on stderr, with the reason.
 `PODSSH_CACHE_DIR=none` keeps no file: a token is minted on each run, and
 `podssh doctor` says so. `podssh status` shows the directories in order.
 
+On Unix the user's cache and runtime directories count only in the user's
+own tree (T-593, GitHub #118): each of their directories that exists, up to
+`HOME` (else up to `/`), belongs to the effective uid or to root, as
+OpenSSH's StrictModes walks a key's path. One in another user's tree, as
+when root runs with the `HOME` of another account, is passed over:
+`XDG_CACHE_HOME`, then `HOME/.cache`, then the `.cache` of the home of the
+uid's entry in `/etc/passwd` (read as a file, as T-500 reads the login
+name; on macOS `getpwuid_r` first). podssh makes no directory in another
+user's tree but the cache's own, so a missing `.cache` there stays its
+owner's to make. A key, the pins, a pair or a token that an earlier run kept
+in a place passed over is still read there, after the user's own places, so
+a node keeps its identity; a run says once where its key is and where to
+move it, and podssh moves nothing. A new pin of pins found there goes into a
+copy in the user's own cache. `podssh status` (`cache.passed`) and `podssh
+doctor` name each place passed over, with why. On Windows,
+`LOCALAPPDATA` is used as it is.
+
 ## The forward path: what `podssh proxy` and `podssh ssh` use
 
 ```

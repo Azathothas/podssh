@@ -92,9 +92,10 @@ fn probe_dir(dir: &Path) -> std::io::Result<()> {
 }
 
 /// The first token cache directory podssh can write, in the order
-/// `podssh-relay` tries them, and what chose it. With none, a token is
-/// minted on every run: podssh still works, but the relay limits how fast
-/// tokens are minted.
+/// `podssh-relay` tries them, and what chose it, with each usual place that
+/// it passed over as another user's (T-593). With none, a token is minted on
+/// every run: podssh still works, but the relay limits how fast tokens are
+/// minted.
 fn token_cache(report: &mut Report<'_>) {
     use podssh_relay::cache::{Chosen, DIR_ENV};
     let chosen = podssh_relay::cache::chosen();
@@ -108,23 +109,33 @@ fn token_cache(report: &mut Report<'_>) {
         }
         Chosen::Dir(_) | Chosen::Unset => {}
     }
+    let places = podssh_relay::cache::places();
+    // A place in another user's tree, passed over (T-593), and read only.
+    let passed: String = places
+        .passed
+        .iter()
+        .map(|p| format!("; {} is passed over, as {}, and only read", p.dir.display(), p.why))
+        .collect();
     let mut refused = Vec::new();
-    for dir in podssh_relay::cache::candidate_dirs() {
-        let existed = dir.is_dir();
-        let result = std::fs::create_dir_all(&dir).and_then(|()| probe_dir(&dir));
-        if !existed {
-            // Leave nothing behind; podssh creates it again when it caches.
-            let _ = std::fs::remove_dir(&dir);
+    for dir in &places.dirs {
+        // Made as the cache makes it: no directory in another user's tree.
+        let (made, result) = match podssh_relay::cache::make_dirs(dir) {
+            Ok(made) => (made, probe_dir(dir)),
+            Err(e) => (Vec::new(), Err(e)),
+        };
+        // Leave nothing behind; podssh creates it again when it caches.
+        for made in made.iter().rev() {
+            let _ = std::fs::remove_dir(made);
         }
         match result {
             Ok(()) => {
                 let skipped =
                     if refused.is_empty() { String::new() } else { format!(" (before it: {})", refused.join("; ")) };
                 let from = match &chosen {
-                    Chosen::Dir(named) if dir == *named => format!(", as {DIR_ENV} names it"),
+                    Chosen::Dir(named) if dir == named => format!(", as {DIR_ENV} names it"),
                     _ => String::new(),
                 };
-                report.ok("token cache", format!("{} can be written{from}{skipped}", dir.display()));
+                report.ok("token cache", format!("{} can be written{from}{skipped}{passed}", dir.display()));
                 return;
             }
             Err(e) => refused.push(format!("{}: {e}", dir.display())),
@@ -132,7 +143,7 @@ fn token_cache(report: &mut Report<'_>) {
     }
     report.ok(
         "token cache",
-        format!("no directory can be written ({}), so a token is minted on every run", refused.join("; ")),
+        format!("no directory can be written ({}), so a token is minted on every run{passed}", refused.join("; ")),
     );
 }
 

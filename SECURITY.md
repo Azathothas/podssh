@@ -111,6 +111,16 @@ Each rule is implemented.
   (T-195) holds podssh's own messages only, each through a mask that hides
   the value of each credential and proxy variable and the user and password
   of each URL; the program gets no credential variable in its environment.
+- **The cache stays in its user's own tree** (T-593, GitHub #118). On Unix
+  `XDG_CACHE_HOME`, `HOME/.cache` and `XDG_RUNTIME_DIR` count only when each
+  of their directories that exists, up to the home, belongs to the
+  effective uid or to root; else the home of the uid's entry in
+  `/etc/passwd` gives the cache. So root with the `HOME` of another account
+  keeps no key or pin where that account could move or replace it, and
+  makes no `.cache` there that would be closed to its owner. A key, the
+  pins, a pair or a token that an earlier run kept there is still read, so
+  a node keeps its identity, and the run says where it is; podssh moves
+  nothing and writes nothing more there.
 - **A cloud's road takes the user's account from a file, and EICE's URL
   is the one URL that carries a credential** (T-351). `iap://` reads a
   token, or the key of a service account, from the file of

@@ -316,6 +316,8 @@ async fn serve(ready: Ready, err: &mut dyn Write) -> i32 {
         (Some(path), true) => format!("a new key, in {}: the ticket is new", path.display()),
         (Some(path), false) => format!("in {}", path.display()),
     };
+    // A key that an earlier run kept in another user's tree (T-593).
+    let note = key.path.as_deref().and_then(podssh_relay::cache::kept_note);
     let identity = Arc::new(key.identity);
     let road = match online(&identity, &servers, &trust, say.clone()).await {
         Ok(road) => road,
@@ -346,6 +348,9 @@ async fn serve(ready: Ready, err: &mut dyn Write) -> i32 {
     };
     let _ = writeln!(err, "podssh node: {label}: serving {target} over {roads} until Ctrl-C{by}");
     let _ = writeln!(err, "podssh node: {label}: key {public}, the node derp:{} ({kept})", public.hex());
+    if let Some(note) = &note {
+        let _ = writeln!(err, "podssh node: {label}: {note}");
+    }
     let _ = writeln!(err, "podssh node: {label}: home {}, the first DERP server whose probe answered", road.home());
     let _ = writeln!(err, "podssh node: {label}: ticket {}", road.ticket);
     if let Door::Allow(allow) = &door {

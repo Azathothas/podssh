@@ -172,10 +172,12 @@ fn the_reader_finds_a_planted_variable() {
 
 /// The cache directories are the ones FILES describes (T-243): the one of
 /// PODSSH_CACHE_DIR, the user's cache directory, the user's runtime
-/// directory, the temporary directory, and the working directory, last.
+/// directory, the temporary directory, and the working directory, last. The
+/// directories are of a name of this run, which no other user holds: on Unix
+/// the owner of each is read (T-593).
 #[test]
 fn the_cache_directories_are_the_ones_described() {
-    let root = std::env::temp_dir();
+    let root = std::env::temp_dir().join(format!("podssh-man-cache-{}", std::process::id()));
     let named = |n: &str| root.join(n).into_os_string();
     let user_cache = if cfg!(windows) { "LOCALAPPDATA" } else { "XDG_CACHE_HOME" };
     let var = |name: &str| match name {

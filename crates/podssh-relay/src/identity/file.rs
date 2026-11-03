@@ -76,13 +76,23 @@ impl std::fmt::Debug for Key {
     }
 }
 
-/// The key kept at `place`, made when there is none.
+/// The key kept at `place`, made when there is none. A key that podssh kept
+/// before in a place of the cache that is in another user's tree is read
+/// there, and a new one is never made there (T-593); `cache::kept_note`
+/// says what the run says of it.
 pub fn load(place: &Place, entropy: &mut dyn Entropy) -> Result<Key, String> {
-    load_in(&cache::candidate_dirs(), place, entropy)
+    let places = cache::places();
+    load_split(&places.read(), &places.dirs, place, entropy)
 }
 
 /// [`load`], with `dirs` as the cache's directories (for tests).
 pub fn load_in(dirs: &[PathBuf], place: &Place, entropy: &mut dyn Entropy) -> Result<Key, String> {
+    load_split(dirs, dirs, place, entropy)
+}
+
+/// [`load`], with a key looked for in `kept` and made in the first of `dirs`
+/// that takes it (for tests).
+pub fn load_split(kept: &[PathBuf], dirs: &[PathBuf], place: &Place, entropy: &mut dyn Entropy) -> Result<Key, String> {
     match place {
         Place::Ephemeral => Ok(Key { identity: make(entropy)?, path: None, made: true }),
         Place::File(path) => {
@@ -98,7 +108,7 @@ pub fn load_in(dirs: &[PathBuf], place: &Place, entropy: &mut dyn Entropy) -> Re
             // A file that is there and refused stops the search: a key made
             // in the next directory would be a new identity.
             for name in std::iter::once(name).chain(old) {
-                for dir in dirs {
+                for dir in kept {
                     let path = dir.join(name);
                     if let Some(identity) = read(&path)? {
                         return Ok(Key { identity, path: Some(path), made: false });
@@ -116,7 +126,7 @@ pub fn load_in(dirs: &[PathBuf], place: &Place, entropy: &mut dyn Entropy) -> Re
 /// it names the key before anything is made (T-452), as a key made then is
 /// in no net. `None` where there is no file, and for an ephemeral key.
 pub fn existing(place: &Place) -> Result<Option<Identity>, String> {
-    existing_in(&cache::candidate_dirs(), place)
+    existing_in(&cache::read_dirs(), place)
 }
 
 /// [`existing`], with `dirs` as the cache's directories (for tests). It
